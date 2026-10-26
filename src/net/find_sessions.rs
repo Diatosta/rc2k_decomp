@@ -23,7 +23,7 @@ const CONNECTING: u32 = 0x8877_015E; // DPERR_CONNECTING
 
 /// The session description made ready: zeroed, its size.
 pub fn zeroed_description() -> Result<(), Refused> {
-    zero(NET.session_desc.addr() as u32, 0x50)?;
+    zero(NET.session_desc.addr(), 0x50)?;
     NET.session_desc.size.set(0x50);
     Ok(())
 }
@@ -35,7 +35,7 @@ pub unsafe fn enum_sessions() -> u32 {
             &NET.dplay,
             ENUM_SESSIONS,
             &[
-                (NET.session_desc.addr() as u32),
+                (NET.session_desc.addr()),
                 0,
                 crate::pointers::game_address(crate::net::session_found::callback as *const ()),
                 0,
@@ -70,7 +70,7 @@ pub fn find_sessions() -> Result<bool, Refused> {
     zeroed_description()?;
     movsb(
         crate::pointers::game_address(NET.session_desc.application.as_ptr()),
-        NET.app_guid.addr() as u32,
+        NET.app_guid.addr(),
         0x10,
     )?;
     let result = posted_or_called(posted_enum_sessions);

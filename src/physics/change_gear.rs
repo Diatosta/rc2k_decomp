@@ -32,10 +32,10 @@ pub struct ChangePlaces {
 impl ChangePlaces {
     pub fn game() -> Self {
         Self {
-            wanted: (PHYSICS.gear_asked.addr() as u32),
-            bits: (CAR.lost_gear_bits.addr() as u32),
-            changed: (CAR.gear_changed.addr() as u32),
-            changed_2: (CAR.gear_changed_2.addr() as u32),
+            wanted: (PHYSICS.gear_asked.addr()),
+            bits: (CAR.lost_gear_bits.addr()),
+            changed: (CAR.gear_changed.addr()),
+            changed_2: (CAR.gear_changed_2.addr()),
         }
     }
 }

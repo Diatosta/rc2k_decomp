@@ -14,9 +14,9 @@ use crate::install::vars::INSTALLER_RUN;
 
 pub fn close_installer() -> Result<(), Refused> {
     {
-        crate::memory::free_list::free_list(crate::pointers::host(
-            INSTALLER_RUN.buffers.addr() as u32
-        ) as *mut _)
+        crate::memory::free_list::free_list(
+            crate::pointers::host(INSTALLER_RUN.buffers.addr()) as *mut _
+        )
     }?;
     INSTALLER_RUN.dirs.set(0);
     INSTALLER_RUN.files.set(0);

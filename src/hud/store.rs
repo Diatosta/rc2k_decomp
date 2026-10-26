@@ -508,18 +508,18 @@ pub static HUD: Hud = Hud {
 };
 
 /// Where the block is (`moved::MOVED`'s home for IDA 0x75B940).
-pub fn hud_addr() -> usize {
-    crate::pointers::host_number(&HUD as *const Hud)
+pub fn hud_addr() -> u32 {
+    crate::pointers::game_address(&HUD as *const Hud)
 }
 
 /// The batch's vertices (`unk_75C324`), for the drawer.
 pub fn vertices() -> usize {
-    crate::pointers::host_number(HUD.vertices.as_ptr())
+    (crate::pointers::game_address(HUD.vertices.as_ptr())) as usize
 }
 
 /// The batch's indices (`unk_764324`), for the drawer.
 pub fn indices() -> usize {
-    crate::pointers::host_number(HUD.indices.as_ptr())
+    (crate::pointers::game_address(HUD.indices.as_ptr())) as usize
 }
 
 /// The rectangle `n` of the table as an address (`add_sprite` is handed rectangles by
@@ -537,7 +537,7 @@ mod tests {
         let _g = crate::store::test_lock();
         assert_eq!(size_of::<Hud>(), LEN);
         let mine = unsafe {
-            std::slice::from_raw_parts(crate::pointers::host_at(hud_addr()) as *const u8, LEN)
+            std::slice::from_raw_parts(crate::pointers::host(hud_addr()) as *const u8, LEN)
         };
         let image = crate::moved::image_bytes(START, LEN);
         assert!(
@@ -548,10 +548,13 @@ mod tests {
 
     #[test]
     fn moved_knows_the_block() {
-        assert_eq!(crate::moved::place(0x75C060), HUD.scratch.addr());
-        assert_eq!(crate::moved::place(START), hud_addr());
-        assert_eq!(vertices(), hud_addr() + 0x75C324 - START);
-        assert_eq!(indices(), hud_addr() + 0x764324 - START);
-        assert_eq!(HUD.vertex_count.addr(), hud_addr() + 0x764F24 - START);
+        assert_eq!(crate::moved::place(0x75C060), HUD.scratch.addr() as usize);
+        assert_eq!(crate::moved::place(START), hud_addr() as usize);
+        assert_eq!(vertices(), (hud_addr() + 0x75C324 - START as u32) as usize);
+        assert_eq!(indices(), (hud_addr() + 0x764324 - START as u32) as usize);
+        assert_eq!(
+            HUD.vertex_count.addr(),
+            hud_addr() + 0x764F24 - START as u32
+        );
     }
 }

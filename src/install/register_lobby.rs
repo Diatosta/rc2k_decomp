@@ -30,14 +30,14 @@ pub fn register_lobby(api: Api) -> Result<(), Refused> {
         REG_CREATE_KEY,
         &[
             HKLM,
-            crate::install::store::LOBBY_KEYS.registry_key.addr() as u32,
-            INSTALLER_RUN.reg_key.addr() as u32,
+            crate::install::store::LOBBY_KEYS.registry_key.addr(),
+            INSTALLER_RUN.reg_key.addr(),
         ],
     ) != 0
     {
         return Ok(());
     }
-    let text = TEXT_BUFFER.text.addr() as u32;
+    let text = TEXT_BUFFER.text.addr();
     // Converted: `rc2k_core::install::lobby::guid_text`.
     let guid: [u8; 16] = std::array::from_fn(|n| NET.app_guid.get(n));
     let guid = rc2k_core::install::lobby::guid_text(&guid);
@@ -46,33 +46,33 @@ pub fn register_lobby(api: Api) -> Result<(), Refused> {
     }
     append_byte(text + guid.len() as u32, 0);
     set_lobby_value(
-        crate::install::store::LOBBY_KEYS.name_guid.addr() as u32,
+        crate::install::store::LOBBY_KEYS.name_guid.addr(),
         text,
         api,
     )?;
     set_lobby_value(
-        crate::install::store::LOBBY_KEYS.name_file.addr() as u32,
-        INSTALLER_NAMES.ral_exe.addr() as u32,
+        crate::install::store::LOBBY_KEYS.name_file.addr(),
+        INSTALLER_NAMES.ral_exe.addr(),
         api,
     )?;
     wb(text, 0);
     set_lobby_value(
-        crate::install::store::LOBBY_KEYS.name_command_line.addr() as u32,
+        crate::install::store::LOBBY_KEYS.name_command_line.addr(),
         text,
         api,
     )?;
     set_lobby_value(
-        crate::install::store::LOBBY_KEYS.name_path.addr() as u32,
-        INSTALLER_PATHS.installed.addr() as u32,
+        crate::install::store::LOBBY_KEYS.name_path.addr(),
+        INSTALLER_PATHS.installed.addr(),
         api,
     )?;
     set_lobby_value(
         crate::install::store::LOBBY_KEYS
             .name_current_directory
-            .addr() as u32,
-        INSTALLER_PATHS.installed.addr() as u32,
+            .addr(),
+        INSTALLER_PATHS.installed.addr(),
         api,
     )?;
-    api(REG_CLOSE_KEY, &[rd(INSTALLER_RUN.reg_key.addr() as u32)]);
+    api(REG_CLOSE_KEY, &[rd(INSTALLER_RUN.reg_key.addr())]);
     Ok(())
 }

@@ -19,8 +19,8 @@ pub fn begin_chat() -> Result<(), crate::errors::Refused> {
     NET.chat_input.set(0, 0);
     crate::net::begin_edit::begin_edit(
         INSTALLER_PAGES.choice.get(),
-        NET.chat_input.addr() as u32,
+        NET.chat_input.addr(),
         0x30C,
-        CHAT_FONT.addr() as u32,
+        CHAT_FONT.addr(),
     )
 }

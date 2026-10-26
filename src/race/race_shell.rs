@@ -44,7 +44,7 @@ pub fn index_of_kind(kind: u32) -> Result<u32, BadInput> {
     // Converted: `rc2k_core::race::cars::index_of_kind`; the table read entry by entry.
     // dword_6051E0: 0x22 kinds, but `unknown_ba4` holds 32: the last two are the two dwords
     // after it (`view_share`, `camera_turn_step`), read as the original does.
-    let first = crate::race::tables_store::RACE_TABLES.unknown_ba4[0].addr() as u32;
+    let first = crate::race::tables_store::RACE_TABLES.unknown_ba4[0].addr();
     let trap = Trap::new();
     let order = (0..KIND_ORDER_LEN).map(|n| trap.read::<u32>(first + 4 * n, "the kind order"));
     let place = rc2k_core::race::cars::index_of_kind(kind, order).unwrap_or(0);
@@ -175,8 +175,8 @@ pub fn set_start_states() -> Result<(), Refused> {
         RACE_VARS.split.set_bits(held as u32);
         let kind_0: u32 = CAR_BLOCKS.cars[0].car_kind.bits();
         if !flagged(kind_0) || RACE_VIEW.players.bits() >= 2 {
-            settle_state(CAR_BLOCKS.cars[0].camera_view.addr() as u32)?;
-            settle_state(CAR_BLOCKS.cars[1].camera_view.addr() as u32)?;
+            settle_state(CAR_BLOCKS.cars[0].camera_view.addr())?;
+            settle_state(CAR_BLOCKS.cars[1].camera_view.addr())?;
         }
     }
     Ok(())

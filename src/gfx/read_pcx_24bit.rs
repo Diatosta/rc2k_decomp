@@ -32,7 +32,7 @@ use crate::gfx::picture_store::PICTURE;
 unsafe fn read_rows() -> Result<bool, BadInput> {
     unsafe {
         let stream = stream();
-        let header = crate::pointers::host_at(PCX.header.addr());
+        let header = crate::pointers::host(PCX.header.addr());
         if read_stream_block(stream, header, HEADER_LEN as u32)?.1 {
             return Ok(false);
         }

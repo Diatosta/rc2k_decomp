@@ -32,7 +32,7 @@ const SUBCELLS: u32 = 0x410;
 fn turn(p: &[[u8; 10]; 3]) {
     turn_x87(
         crate::race::store::asm_base() as usize,
-        crate::pointers::host_number(p.as_ptr()),
+        (crate::pointers::game_address(p.as_ptr())) as usize,
         &RING_WORK,
         &DRAW_WORK,
     )
@@ -43,7 +43,7 @@ fn turn(p: &[[u8; 10]; 3]) {
 fn square() {
     square_x87(
         crate::race::store::asm_base() as usize,
-        crate::d3d::vertices_store::piece_addr(),
+        crate::d3d::vertices_store::piece_addr() as usize,
         &DRAW_WORK,
     )
 }
@@ -88,7 +88,7 @@ pub fn draw_subcell_sprite(
         VERTICES.vertices[n].v.set_bits(v);
     }
     square();
-    if clip_quad(crate::d3d::vertices_store::piece_addr() as u32)? {
+    if clip_quad(crate::d3d::vertices_store::piece_addr())? {
         return Ok(());
     }
     draw_fan();

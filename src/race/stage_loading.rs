@@ -61,7 +61,7 @@ pub unsafe fn load_stage() -> Result<(), Refused> {
         {
             // As `menu::show_loading_picture`.
             crate::gfx::show_picture_file::show_picture_file(crate::pointers::host_at(
-                crate::menu::texts_store::MENU_TEXTS.loading_pcx.addr(),
+                crate::menu::texts_store::MENU_TEXTS.loading_pcx.addr() as usize,
             ))?;
         }
         REPLAY_FRAMES.last_kept.set(u32::MAX);

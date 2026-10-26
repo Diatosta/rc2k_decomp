@@ -202,13 +202,13 @@ pub fn set_up_carousel(list: u32) -> Result<Left, Refused> {
         }
         match menu {
             0xB => {
-                let cars_list = MENU_LISTS.cars_first[0].addr() as u32;
+                let cars_list = MENU_LISTS.cars_first[0].addr();
                 check_cars(cars_list, false)?;
                 cars(&mut out, cars_list, 0xF)?;
             }
             0xC => {
                 MENU_STATE.carousel.set_up.set(1);
-                let fixed = MENU_LISTS.cars_a8[0].addr() as u32;
+                let fixed = MENU_LISTS.cars_a8[0].addr();
                 out.esi = Some(fixed);
                 MENU_STATE.carousel.entries.set(fixed);
                 OBJECT_WORK.size.set_bits(0xCu32);
@@ -247,7 +247,7 @@ pub fn set_up_carousel(list: u32) -> Result<Left, Refused> {
                 }
                 out.eax = Some(u32::MAX);
                 out.ecx = Some(0);
-                out.edi = Some((MENU_LISTS.carousel_textures[0].addr() + 0x20) as u32);
+                out.edi = Some(MENU_LISTS.carousel_textures[0].addr() + 0x20);
             }
         }
         Ok(out)

@@ -62,7 +62,7 @@ pub struct LoadVars {
 impl LoadVars {
     pub fn game() -> Self {
         Self {
-            bar: game_addr(BAR_RVA) as u32,
+            bar: game_addr(BAR_RVA),
         }
     }
 }
@@ -165,7 +165,7 @@ pub unsafe fn loadlevel_init() -> Result<(), Refused> {
         s.indent(3);
         level::allocate_course_memory(
             &Vars::game(),
-            crate::race::course_lists_store::COURSE_LISTS.course_memory_list[0].addr() as u32, /* stru_5C6D50: the course's MemoryList */
+            crate::race::course_lists_store::COURSE_LISTS.course_memory_list[0].addr(), /* stru_5C6D50: the course's MemoryList */
         )?;
         s.progress(2)?;
         s.progress(4)?;
@@ -215,8 +215,8 @@ pub unsafe fn loadlevel_init() -> Result<(), Refused> {
         s.log();
         s.indent(3);
         crate::race::game_map::load_game_map(
-            FILE_NUMBERS.text_addr(texts::MAP_PATH) as u32,
-            FILE_NUMBERS.text_addr(texts::MAP_KEY) as u32,
+            FILE_NUMBERS.text_addr(texts::MAP_PATH),
+            FILE_NUMBERS.text_addr(texts::MAP_KEY),
         )?;
         s.progress(0x5A)?;
         s.indent(-3);
@@ -276,9 +276,7 @@ pub unsafe fn loadlevel_init() -> Result<(), Refused> {
         crate::race::mud::init_mud()?;
         s.progress(0x64)?;
         s.progress(0x64)?;
-        RACE_VARS
-            .bar_function
-            .set_bits(game_addr(BAR_DONE_RVA) as u32);
+        RACE_VARS.bar_function.set_bits(game_addr(BAR_DONE_RVA));
         s.indent(-3);
         s.step(
             &mut || {

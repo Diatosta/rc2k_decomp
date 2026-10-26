@@ -34,7 +34,7 @@ pub fn draw_spaced_number(
     DRAW_WORK.work_b8.set(n);
     let cells = crate::screens::text_buffers_store::TEXT_BUFFERS
         .cells
-        .addr() as u32;
+        .addr();
     let digits =
         GamePtr::new(crate::pointers::game_address(text)).read_bytes(n as usize, "the digits")?;
     let mut spaced = Vec::with_capacity(2 * digits.len());

@@ -19,22 +19,23 @@ impl Base for usize {
 
 impl Base for *const u8 {
     fn address(self) -> usize {
-        crate::pointers::host_number(self)
+        crate::pointers::game_address(self) as usize
     }
 }
 
 impl Base for *mut u8 {
     fn address(self) -> usize {
-        crate::pointers::host_number(self)
+        crate::pointers::game_address(self) as usize
     }
 }
 
 /// The operand's address, its `len` bytes checked to lie in one region (the program ends
 /// otherwise, `pointers::check_or_end`).
 fn operand(base: impl Base, off: usize, len: usize) -> *mut u8 {
-    let at = base.address().wrapping_add(off);
-    crate::pointers::check_or_end(at as u32, len, "an x87 operand");
-    crate::pointers::host_at(at)
+    // A game address (the race core's base and an RVA, a record's address).
+    let at = base.address().wrapping_add(off) as u32;
+    crate::pointers::check_or_end(at, len, "an x87 operand");
+    crate::pointers::host(at)
 }
 
 /// `fld dword ptr [base + off]`.

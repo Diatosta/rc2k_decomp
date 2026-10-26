@@ -35,12 +35,12 @@ pub struct CountPlaces {
 impl CountPlaces {
     pub fn game() -> Self {
         Self {
-            stop: CAR.finish_flag.addr() as u32,
-            timer: (CAR.run_ticks.addr() as u32),
-            count: (CAR.time_left.addr() as u32),
-            current: crate::race::work_store::RACE_WORK.current_car.addr() as u32,
-            listed: FRAME_WORK.listed_car_sounds[0].addr() as u32,
-            flag: crate::sound::store::STAGE_SOUNDS.once[1].addr() as u32,
+            stop: CAR.finish_flag.addr(),
+            timer: (CAR.run_ticks.addr()),
+            count: (CAR.time_left.addr()),
+            current: crate::race::work_store::RACE_WORK.current_car.addr(),
+            listed: FRAME_WORK.listed_car_sounds[0].addr(),
+            flag: crate::sound::store::STAGE_SOUNDS.once[1].addr(),
         }
     }
 }

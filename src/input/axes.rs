@@ -46,7 +46,7 @@ pub fn axis_moved(eax: u32) -> Result<Moved, BadInput> {
     }
     // Converted: `rc2k_core::input::devices::axis_moved`.
     let device = DEVICES.records[0].get_u32(0).wrapping_mul(0x50);
-    let axes: u32 = GamePtr::new((DEVICES.controllers[0].addr() as u32).wrapping_add(device))
+    let axes: u32 = GamePtr::new((DEVICES.controllers[0].addr()).wrapping_add(device))
         .offset(0x14)
         .read("a controller's axes")?;
     let rest: [u32; 6] = std::array::from_fn(|n| KEYBOARD.axes_rest[n].get());

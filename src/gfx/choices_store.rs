@@ -60,7 +60,7 @@ impl ScreenChoices {
     pub const LEN: usize = 0x130;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        crate::pointers::host_number(&SCREEN_CHOICES as *const ScreenChoices)
+        crate::pointers::game_address(&SCREEN_CHOICES as *const ScreenChoices) as usize
     }
 }
 

@@ -57,8 +57,8 @@ pub const START: usize = 0x758714;
 pub const END: usize = 0x7587E8;
 
 /// Where IDA 0x758714 is now (`moved::MOVED`'s home).
-pub fn results_addr() -> usize {
-    crate::pointers::host_number(&RESULT_FIGURES as *const Results)
+pub fn results_addr() -> u32 {
+    crate::pointers::game_address(&RESULT_FIGURES as *const Results)
 }
 
 #[cfg(test)]
@@ -75,7 +75,7 @@ mod tests {
         );
         let mine = unsafe {
             std::slice::from_raw_parts(
-                crate::pointers::host_at(results_addr()) as *const u8,
+                crate::pointers::host(results_addr()) as *const u8,
                 END - START,
             )
         };

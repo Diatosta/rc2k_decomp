@@ -20,7 +20,7 @@ impl MarksSines {
     pub const LEN: usize = 0x500;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        crate::pointers::host_number(&SINES as *const MarksSines)
+        crate::pointers::game_address(&SINES as *const MarksSines) as usize
     }
 }
 
@@ -58,7 +58,7 @@ impl WaveLevels {
     pub const LEN: usize = 0x44;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        crate::pointers::host_number(&WAVE_LEVELS as *const WaveLevels)
+        crate::pointers::game_address(&WAVE_LEVELS as *const WaveLevels) as usize
     }
 }
 
@@ -87,7 +87,7 @@ impl WaveState {
     pub const LEN: usize = 0x10;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        crate::pointers::host_number(&WAVE as *const WaveState)
+        crate::pointers::game_address(&WAVE as *const WaveState) as usize
     }
 }
 

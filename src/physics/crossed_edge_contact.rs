@@ -112,10 +112,7 @@ pub fn steps() -> Result<(), Refused> {
         NUMBERS.tenth.bits(),
     ));
     CONTACT_WORK.contact_slide_limit.set_bits(0);
-    p(
-        &PHYSICS.contact_record,
-        PHYSICS.contacts[1].force[0].addr() as u32,
-    );
+    p(&PHYSICS.contact_record, PHYSICS.contacts[1].force[0].addr());
     unsafe { contact_force() };
     { crate::physics::place_sound_e1::place_sound_e1() }?;
     Ok(())

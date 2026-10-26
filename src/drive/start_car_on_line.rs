@@ -32,7 +32,7 @@ use rc2k_core::drive::start_places;
 pub fn car_number(start: usize) -> Result<u32, BadInput> {
     match RACE_TABLES.arcade_car_numbers.get(start) {
         Some(number) => Ok(number.get()),
-        None => GamePtr::new((RACE_TABLES.arcade_car_numbers[0].addr() + 4 * start) as u32)
+        None => GamePtr::new(RACE_TABLES.arcade_car_numbers[0].addr() + (4 * start) as u32)
             .read("the start tables"),
     }
 }
@@ -69,7 +69,7 @@ pub unsafe fn start_car_on_line(distance: u32) -> Result<(), Refused> {
         CAR.local_velocity[0].set_bits(0);
         CAR.local_velocity[1].set_bits(0);
         CAR.local_velocity[2].set_bits(x87::loaded(RACE_TABLES.start_speed.bits()));
-        let m = CAR.crash_matrix[0].addr() as u32;
+        let m = CAR.crash_matrix[0].addr();
         let out = rotate_point(
             m,
             [

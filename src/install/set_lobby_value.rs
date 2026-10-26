@@ -20,7 +20,7 @@ const REG_SZ: u32 = 1;
 /// caller reads it).
 pub fn set_lobby_value(name: u32, data: u32, api: Api) -> Result<u32, Refused> {
     let len = crate::strings::text_length::text_length(crate::pointers::host(data) as *const u8)?;
-    let key = rd(INSTALLER_RUN.reg_key.addr() as u32);
+    let key = rd(INSTALLER_RUN.reg_key.addr());
     Ok(api(
         REG_SET_VALUE,
         &[key, name, 0, REG_SZ, data, len.wrapping_add(1)],

@@ -69,7 +69,7 @@ impl rc2k_core::audio::voices::Pool for GamePool {
         channel(at)
     }
     fn channel_at(&self, n: u32) -> u32 {
-        AUDIO.channels[0].addr() as u32 + n * std::mem::size_of::<MixerChannel>() as u32
+        AUDIO.channels[0].addr() + n * std::mem::size_of::<MixerChannel>() as u32
     }
     fn record(&mut self, n: u32) -> &mut SampleRecord {
         sample(n)

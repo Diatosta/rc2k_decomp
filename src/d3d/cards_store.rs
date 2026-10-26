@@ -104,7 +104,7 @@ impl Cards3d {
     pub const LEN: usize = 0x564;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        crate::pointers::host_number(&CARDS_3D as *const Cards3d) + 4
+        (crate::pointers::game_address(&CARDS_3D as *const Cards3d) + 4) as usize
     }
 }
 

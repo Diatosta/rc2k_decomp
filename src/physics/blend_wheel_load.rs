@@ -49,19 +49,19 @@ pub unsafe fn blend_at(v: &[u32]) {
 
 fn game() -> Vec<u32> {
     vec![
-        CAR.contact_depth.addr() as u32,
-        CAR.contact_point[0].addr() as u32,
-        CAR.contact_point[1].addr() as u32,
-        CAR.contact_point[2].addr() as u32,
-        DRAW.scratch.addr() as u32,
-        CAR.impact_octant_marks[0].addr() as u32,
-        CAR.impact_octant_marks[1].addr() as u32,
-        CAR.impact_octant_marks[2].addr() as u32,
-        CAR.impact_octant_marks[3].addr() as u32,
-        CAR.impact_octant_marks[4].addr() as u32,
-        CAR.impact_octant_marks[5].addr() as u32,
-        CAR.impact_octant_marks[6].addr() as u32,
-        CAR.impact_octant_marks[7].addr() as u32,
+        CAR.contact_depth.addr(),
+        CAR.contact_point[0].addr(),
+        CAR.contact_point[1].addr(),
+        CAR.contact_point[2].addr(),
+        DRAW.scratch.addr(),
+        CAR.impact_octant_marks[0].addr(),
+        CAR.impact_octant_marks[1].addr(),
+        CAR.impact_octant_marks[2].addr(),
+        CAR.impact_octant_marks[3].addr(),
+        CAR.impact_octant_marks[4].addr(),
+        CAR.impact_octant_marks[5].addr(),
+        CAR.impact_octant_marks[6].addr(),
+        CAR.impact_octant_marks[7].addr(),
     ]
 }
 

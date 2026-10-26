@@ -21,7 +21,7 @@ use crate::system::zero_memory::zero_memory;
 /// Returns whether the picture was decoded.
 pub unsafe fn read_pcx(path: *const u8) -> Result<bool, BadInput> {
     unsafe {
-        let header = crate::pointers::host_at(PCX.header.addr());
+        let header = crate::pointers::host(PCX.header.addr());
         zero_memory(header, HEADER_LEN as u32)?;
         if !read_file(path, header, HEADER_LEN as u32, 0)?.ok {
             return Ok(false);

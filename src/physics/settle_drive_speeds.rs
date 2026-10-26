@@ -34,12 +34,12 @@ pub struct SettlePlaces {
 
 impl SettlePlaces {
     pub fn game() -> Self {
-        let _g = |a: usize| game_addr(rva(a)) as u32;
+        let _g = |a: usize| game_addr(rva(a));
         Self {
-            first: (CAR.front_wheels_off.addr() as u32),
-            second: (CAR.rear_wheels_off.addr() as u32),
-            fast: (CAR.brake.addr() as u32),
-            scratch: (DRAW.scratch.addr() as u32),
+            first: (CAR.front_wheels_off.addr()),
+            second: (CAR.rear_wheels_off.addr()),
+            fast: (CAR.brake.addr()),
+            scratch: (DRAW.scratch.addr()),
         }
     }
 }

@@ -23,7 +23,7 @@ pub fn viewer_snapshot() -> Result<(), Refused> {
         let (next, _, _) = rc2k_core::race::viewer::next_snapshot(digits.cast::<[u8; 3]>().read());
         digits.cast::<[u8; 3]>().write(next);
     }
-    PICTURE.name.set(SNAPSHOT.addr() as u32);
+    PICTURE.name.set(SNAPSHOT.addr());
     // `cmp g_surfaceLocked, 1`'s carry: not locked.
     if crate::platform::lock_surface() >= 1 {
         unsafe { crate::gfx::write_screen_pcx::write_screen_pcx() }?;

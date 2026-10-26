@@ -28,12 +28,7 @@ pub fn send_message(bytes: *const u8, count: u32) -> Result<(), Refused> {
         .read_bytes(count as usize, "a message to send")?;
     let message = inbox::outgoing(byte, &bytes)?;
     NET.sequence.set(byte);
-    GamePtr::new(NET.send_buffer.addr() as u32).write_bytes(&message, "the send buffer")?;
-    dplay_send(
-        NET.send_to.get(),
-        0,
-        NET.send_buffer.addr() as u32,
-        count + 1,
-    );
+    GamePtr::new(NET.send_buffer.addr()).write_bytes(&message, "the send buffer")?;
+    dplay_send(NET.send_to.get(), 0, NET.send_buffer.addr(), count + 1);
     Ok(())
 }

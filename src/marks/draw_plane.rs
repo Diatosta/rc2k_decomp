@@ -72,7 +72,7 @@ impl PlaneTuning {
     pub const LEN: usize = 0x4C;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        crate::pointers::host_number(&PLANE_TUNING as *const PlaneTuning)
+        crate::pointers::game_address(&PLANE_TUNING as *const PlaneTuning) as usize
     }
 }
 
@@ -118,7 +118,7 @@ pub fn draw_plane() -> Result<(), Refused> {
     }
     let corner: u32 = QUAD_3.corner.get();
     plane_axes(s);
-    let [a0, a1, a2] = [0, 1, 2].map(|n| address_of(&SQUARE_TABLES.axes[n]) as u32);
+    let [a0, a1, a2] = [0, 1, 2].map(|n| address_of(&SQUARE_TABLES.axes[n]));
     normalise_vector3(a0);
     plane_up(s);
     normalise_vector3(a1);

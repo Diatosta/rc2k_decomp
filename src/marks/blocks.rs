@@ -33,7 +33,7 @@ impl crate::marks::store::Where for Address {
 /// `bytes` bytes on the list at `list` (`memory::allocate`).
 pub fn take(list: impl crate::marks::store::Where, bytes: u32) -> Result<u32, Refused> {
     take_from(
-        crate::pointers::host_at(game_addr(list)) as *mut MemoryList,
+        crate::pointers::host(game_addr(list)) as *mut MemoryList,
         bytes,
     )
 }
@@ -65,7 +65,7 @@ pub fn allocate_places() -> Result<(), Refused> {
 pub fn allocate_ring() -> Result<(), Refused> {
     {
         let block = take(
-            Address(crate::pointers::host_number(RING_POOL.list[0].as_ptr())),
+            Address((crate::pointers::game_address(RING_POOL.list[0].as_ptr())) as usize),
             RING_LEN,
         )?;
         RING_POOL.ring.set(block);
@@ -201,7 +201,7 @@ impl PlacesBlock {
     pub const LEN: usize = 0x50;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        crate::pointers::host_number(&PLACES_BLOCK as *const PlacesBlock)
+        crate::pointers::game_address(&PLACES_BLOCK as *const PlacesBlock) as usize
     }
 }
 
@@ -232,7 +232,7 @@ impl MarkLinks {
     pub const LEN: usize = 0x44;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        crate::pointers::host_number(&MARK_LINKS as *const MarkLinks)
+        crate::pointers::game_address(&MARK_LINKS as *const MarkLinks) as usize
     }
 }
 
@@ -274,7 +274,7 @@ impl CornerSlopes {
     pub const LEN: usize = 0x2400;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        crate::pointers::host_number(&CORNER_SLOPES as *const CornerSlopes)
+        crate::pointers::game_address(&CORNER_SLOPES as *const CornerSlopes) as usize
     }
 }
 
@@ -311,7 +311,7 @@ impl MarkCorners {
     pub const LEN: usize = 0x8000;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        crate::pointers::host_number(&MARK_CORNERS as *const MarkCorners)
+        crate::pointers::game_address(&MARK_CORNERS as *const MarkCorners) as usize
     }
 }
 
@@ -372,7 +372,7 @@ impl RingPool {
     pub const LEN: usize = 0x70;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        crate::pointers::host_number(&RING_POOL as *const RingPool)
+        crate::pointers::game_address(&RING_POOL as *const RingPool) as usize
     }
 }
 

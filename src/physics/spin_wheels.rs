@@ -43,11 +43,11 @@ pub fn spin_at(v: &[u32]) -> u32 {
 
 fn game() -> Vec<u32> {
     vec![
-        CAR.drive_speed_a.addr() as u32,
-        CAR.drive_speed_b.addr() as u32,
-        CAR.driven_wheel_turns[0].addr() as u32,
-        CAR.driven_wheel_turns[1].addr() as u32,
-        DRAW.scratch.addr() as u32,
+        CAR.drive_speed_a.addr(),
+        CAR.drive_speed_b.addr(),
+        CAR.driven_wheel_turns[0].addr(),
+        CAR.driven_wheel_turns[1].addr(),
+        DRAW.scratch.addr(),
     ]
 }
 

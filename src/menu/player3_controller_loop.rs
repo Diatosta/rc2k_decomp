@@ -21,44 +21,44 @@ use crate::menu::screen_loop::{Callee, List, Screen, Step, screen_entry};
 // ---- Rust version: `menu::screen_loop` with this ----
 
 pub const SCREEN: Screen = Screen {
-    menu: || MENUS.player3_controller.addr(),
+    menu: || MENUS.player3_controller.addr() as usize,
     saved_item: || &SCREEN_ITEMS.current[slot::PLAYER3_CONTROLLER],
     lists: &[
         List {
             pointer: || &SCREEN_FLOW.unread_list, // g_unreadList
-            table: || DRAW_LISTS.unread_758b72.addr(),
+            table: || DRAW_LISTS.unread_758b72.addr() as usize,
             run: false,
         },
         List {
             pointer: || &SCREEN_FLOW.draw_list, // g_drawList
-            table: || DRAW_LISTS.draw_758db6.addr(),
+            table: || DRAW_LISTS.draw_758db6.addr() as usize,
             run: false,
         },
         List {
             pointer: || &SCREEN_FLOW.setup_list, // dword_755500
-            table: || DRAW_LISTS.player3_controller_setup.addr(),
+            table: || DRAW_LISTS.player3_controller_setup.addr() as usize,
             run: true,
         },
         List {
             pointer: || &SCREEN_FLOW.overlay_list, // g_overlayList
-            table: || DRAW_LISTS.overlay_75926e.addr(),
+            table: || DRAW_LISTS.overlay_75926e.addr() as usize,
             run: false,
         },
     ],
     first_frame_lists: Some(&[
         List {
             pointer: || &SCREEN_FLOW.scene_list, // g_sceneList
-            table: || DRAW_LISTS.player3_controller_scene.addr(),
+            table: || DRAW_LISTS.player3_controller_scene.addr() as usize,
             run: false,
         },
         List {
             pointer: || &SCREEN_FLOW.draw_list, // g_drawList
-            table: || DRAW_LISTS.draw_758db6.addr(),
+            table: || DRAW_LISTS.draw_758db6.addr() as usize,
             run: false,
         },
         List {
             pointer: || &SCREEN_FLOW.overlay_list, // g_overlayList
-            table: || DRAW_LISTS.overlay_75926e.addr(),
+            table: || DRAW_LISTS.overlay_75926e.addr() as usize,
             run: false,
         },
     ]),
@@ -70,9 +70,9 @@ pub const SCREEN: Screen = Screen {
     after_lists: &[],
     background: &[
         Step::ArgAddr(|| {
-            crate::menu::texts_store::MENU_TEXTS
+            (crate::menu::texts_store::MENU_TEXTS
                 .player3_controller_picture
-                .addr()
+                .addr()) as usize
         }),
         Step::CallOrFatal(Callee::LoadBackground, 0x80712345),
     ],

@@ -34,8 +34,8 @@ pub fn keep_replay_frame() -> Result<(), BadInput> {
     }
     if REPLAY_FRAMES.tenth.get() == 0 {
         let offset = slot_offset(REPLAY_FRAMES.frame.get());
-        let to = REPLAY_FRAMES.slots.addr() as u32 + offset;
-        GamePtr::new(crate::race::blocks_store::block_addr(0) as u32).copy_to(
+        let to = REPLAY_FRAMES.slots.addr() + offset;
+        GamePtr::new(crate::race::blocks_store::block_addr(0)).copy_to(
             GamePtr::new(to),
             SIZE,
             "a car's block",

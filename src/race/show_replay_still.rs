@@ -29,8 +29,8 @@ use crate::race::work_store::RACE_WORK;
 /// The frame's block copied to the replay's (`drive::load_replay_cars` reads it).
 fn load_frame() -> Result<(), BadInput> {
     // unk_7172EC: car block 8's start (the copy runs on past the block).
-    let to = crate::race::blocks_store::block_addr(8) as u32;
-    let from = crate::race::viewer_buffers_store::VIEWER_BUFFERS.block[0].addr() as u32;
+    let to = crate::race::blocks_store::block_addr(8);
+    let from = crate::race::viewer_buffers_store::VIEWER_BUFFERS.block[0].addr();
     GamePtr::new(from).copy_to(GamePtr::new(to), 4 * 0xA04, "the replay frame")
 }
 

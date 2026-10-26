@@ -92,13 +92,13 @@ pub unsafe fn make_buffer(at: u32, ebx: u32) -> Result<bool, Refused> {
                 flags,
                 bytes: v.length,
                 reserved: 0,
-                format: AUDIO.wave_format.addr() as u32,
+                format: AUDIO.wave_format.addr(),
             });
             let f: unsafe extern "system" fn(u32, u32, u32, u32) -> i32 =
                 std::mem::transmute(crate::audio::com::method(ds, 0x0C));
             let r = f(
                 ds,
-                AUDIO.buffer_description.addr() as u32,
+                AUDIO.buffer_description.addr(),
                 crate::pointers::game_address(&mut v.buffer as *mut u32),
                 0,
             );
@@ -114,7 +114,7 @@ pub unsafe fn make_buffer(at: u32, ebx: u32) -> Result<bool, Refused> {
                 std::mem::transmute(crate::audio::com::method(v.buffer, 0));
             let r = f(
                 v.buffer,
-                AUDIO.iid_sound_3d_buffer.addr() as u32,
+                AUDIO.iid_sound_3d_buffer.addr(),
                 crate::pointers::game_address(&mut v.buffer_3d as *mut u32),
             );
             if r != 0 {

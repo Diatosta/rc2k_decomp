@@ -92,11 +92,11 @@ pub struct CarPointVars {
 impl CarPointVars {
     pub fn game() -> Self {
         Self {
-            counts: (crate::scene::object_slots_store::OBJECT_SLOTS.point_counts[11].addr() as u32),
-            firsts: (crate::scene::object_slots_store::OBJECT_SLOTS.first_point[11].addr() as u32),
-            points: COURSE_LISTS.object_points.addr() as u32,
-            car_points: CONTACT_WORK.car_point_count.addr() as u32,
-            scratch: DRAW.scratch.addr() as u32,
+            counts: crate::scene::object_slots_store::OBJECT_SLOTS.point_counts[11].addr(),
+            firsts: crate::scene::object_slots_store::OBJECT_SLOTS.first_point[11].addr(),
+            points: COURSE_LISTS.object_points.addr(),
+            car_points: CONTACT_WORK.car_point_count.addr(),
+            scratch: DRAW.scratch.addr(),
         }
     }
 }
@@ -200,7 +200,7 @@ pub fn set_object_kinds() -> Result<(), Refused> {
         // Slots 56 .. 62 read past `slot_kind_defaults` into `fixed_kinds`, just set above
         // (the original's table is read on, a slip kept).
         let default: u32 =
-            GamePtr::new((STAGE_PREFS.slot_kind_defaults[0].addr() + 4 * n as usize) as u32)
+            GamePtr::new(STAGE_PREFS.slot_kind_defaults[0].addr() + (4 * n as usize) as u32)
                 .read("the slot kind defaults")?;
         OBJECT_TABLES.slot_kinds[n as usize].set(default);
     }

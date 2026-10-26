@@ -54,12 +54,12 @@ pub fn open_viewed_replay(slot: u32) -> Result<bool, Refused> {
         // A saved replay is copied over the last race's first.
         let copied = crate::files::copy_file::copy_file(
             crate::pointers::host(path) as _,
-            crate::pointers::host_at(crate::race::replay_path::LAST_RACE.addr()) as *const u8,
+            crate::pointers::host(crate::race::replay_path::LAST_RACE.addr()) as *const u8,
         )?;
         if !copied {
             return failed();
         }
-        path = crate::race::replay_path::LAST_RACE.addr() as u32;
+        path = crate::race::replay_path::LAST_RACE.addr();
     }
     let Some(file) = handle::open_by_mode(crate::pointers::host(path) as _, 0)? else {
         return failed();
@@ -82,10 +82,12 @@ pub fn open_viewed_replay(slot: u32) -> Result<bool, Refused> {
             n,
             len,
             first,
-            buffer == REPLAYS.header.addr(),
+            buffer == REPLAYS.header.addr() as usize,
         ))
     };
-    if !read(REPLAYS.header.addr(), HEADER_LEN)? || !version_good(REPLAYS.header.get_u32(8)) {
+    if !read(REPLAYS.header.addr() as usize, HEADER_LEN)?
+        || !version_good(REPLAYS.header.get_u32(8))
+    {
         return failed();
     }
     // The index is the file's last 0x3850 bytes.
@@ -96,7 +98,7 @@ pub fn open_viewed_replay(slot: u32) -> Result<bool, Refused> {
             2,
         )
     };
-    if at.is_none() || !read(REPLAY_FILE.index_magic.addr(), INDEX_LEN)? {
+    if at.is_none() || !read(REPLAY_FILE.index_magic.addr() as usize, INDEX_LEN)? {
         return failed();
     }
     match index_blocks(REPLAY_FILE.index_block_count.get()) {
@@ -110,11 +112,11 @@ pub fn open_viewed_replay(slot: u32) -> Result<bool, Refused> {
             return failed();
         }
         crate::race::viewer::move_dwords(
-            crate::race::viewer_buffers_store::VIEWER_BUFFERS
+            (crate::race::viewer_buffers_store::VIEWER_BUFFERS
                 .block_cameras
                 .addr()
-                + 8 * block as usize,
-            crate::race::viewer_buffers_store::VIEWER_BUFFERS.block[0].addr(),
+                + (8 * block as usize) as u32) as usize,
+            crate::race::viewer_buffers_store::VIEWER_BUFFERS.block[0].addr() as usize,
             CAMERA_DWORDS,
         )?;
         block += 1;
@@ -131,13 +133,13 @@ pub fn open_viewed_replay(slot: u32) -> Result<bool, Refused> {
         .set(mark_out);
     crate::race::viewer_buffers_store::VIEWER_BUFFERS
         .block_cursor
-        .set(crate::race::viewer_buffers_store::VIEWER_BUFFERS.block[0].addr() as u32);
+        .set(crate::race::viewer_buffers_store::VIEWER_BUFFERS.block[0].addr());
     if { crate::drive::read_replay_frame_0::read_replay_frame_0(0) }? {
         return failed();
     }
-    GamePtr::new(crate::race::replay::REPLAYS.header.addr() as u32 + 0x30) // unk_528534
+    GamePtr::new(crate::race::replay::REPLAYS.header.addr() + 0x30) // unk_528534
         .copy_to(
-            GamePtr::new(REPLAY_WORK.header_stage.addr() as u32),
+            GamePtr::new(REPLAY_WORK.header_stage.addr()),
             CAR_HEADER_LEN,
             "the replay header's stage",
         )?;

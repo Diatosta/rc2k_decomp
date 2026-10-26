@@ -62,7 +62,7 @@ pub static MODES: Modes = Modes {
 
 /// Where the block is (`moved::MOVED`'s home for IDA 0x4F4E30).
 pub fn home() -> usize {
-    crate::pointers::host_number(&MODES as *const Modes)
+    crate::pointers::game_address(&MODES as *const Modes) as usize
 }
 
 macro_rules! table_addr {
@@ -70,7 +70,8 @@ macro_rules! table_addr {
         /// Where the table is (an address into the whole block: the tables are walked past
         /// their ends, as the original's).
         pub fn $name(&self) -> usize {
-            crate::pointers::host_number(self as *const Self) + core::mem::offset_of!(Self, $field)
+            crate::pointers::game_address(self as *const Self) as usize
+                + core::mem::offset_of!(Self, $field)
         }
     };
 }

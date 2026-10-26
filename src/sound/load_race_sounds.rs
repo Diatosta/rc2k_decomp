@@ -68,12 +68,12 @@ impl Places {
         use crate::sound::store::RACE_SOUNDS as R;
         let replay = RACE_STATE.results.finished.addr();
         Self::from([
-            R.player_cars[0].addr(),
-            R.player_cars[1].addr(),
-            R.one_player.addr(),
-            R.count.addr(),
-            replay,
-            crate::pointers::host_number(R.table.as_ptr()),
+            R.player_cars[0].addr() as usize,
+            R.player_cars[1].addr() as usize,
+            R.one_player.addr() as usize,
+            R.count.addr() as usize,
+            replay as usize,
+            crate::pointers::game_address(R.table.as_ptr()) as usize,
         ])
     }
 }
@@ -149,14 +149,14 @@ pub fn load_race_sounds(places: &Places, send: &mut dyn FnMut(u32)) -> Result<()
             .get(),
     );
     let (mut ebx, mut edx) = (list(a), list(b));
-    let (of_first, of_second) = (lengths(ebx)?, lengths(edx)?);
+    let (of_first, of_second) = (lengths(ebx as usize)?, lengths(edx as usize)?);
     // Nothing has been written or sent up to here.
     for n in 0..NAMES {
         let records = &crate::audio::store::SAMPLE_RECORDS.records;
-        records[FIRST_SAMPLE + n * 2].update(|r| r.data_key = ebx as u32);
-        records[FIRST_SAMPLE + n * 2 + 1].update(|r| r.data_key = edx as u32);
-        ebx += of_first[n] as usize + 1;
-        edx += of_second[n] as usize + 1;
+        records[FIRST_SAMPLE + n * 2].update(|r| r.data_key = ebx);
+        records[FIRST_SAMPLE + n * 2 + 1].update(|r| r.data_key = edx);
+        ebx += (of_first[n] as usize + 1) as u32;
+        edx += (of_second[n] as usize + 1) as u32;
     }
     let (first_kind, second_kind) = kinds.unwrap_or((0, None));
     for set in sets(
@@ -167,23 +167,25 @@ pub fn load_race_sounds(places: &Places, send: &mut dyn FnMut(u32)) -> Result<()
         other_count,
     ) {
         send(match set {
-            Set::Replay => crate::session::address_of(&RACE_SOUND_SETS.replay_set) as u32,
-            Set::FirstKind(k) => {
-                dword(crate::session::address_of(&RACE_SOUND_SETS.kinds) + k as usize * 8)?
-            }
+            Set::Replay => crate::session::address_of(&RACE_SOUND_SETS.replay_set),
+            Set::FirstKind(k) => dword(
+                (crate::session::address_of(&RACE_SOUND_SETS.kinds) + (k as usize * 8) as u32)
+                    as usize,
+            )?,
             Set::First(n) => [
                 crate::session::address_of(&RACE_SOUND_SETS.first_set_a),
                 crate::session::address_of(&RACE_SOUND_SETS.first_set_b),
                 crate::session::address_of(&RACE_SOUND_SETS.first_set_c),
-            ][n] as u32,
-            Set::SecondKind(k) => {
-                dword(crate::session::address_of(&RACE_SOUND_SETS.kinds) + 4 + k as usize * 8)?
-            }
+            ][n],
+            Set::SecondKind(k) => dword(
+                (crate::session::address_of(&RACE_SOUND_SETS.kinds) + 4 + (k as usize * 8) as u32)
+                    as usize,
+            )?,
             Set::Second(n) => [
                 crate::session::address_of(&RACE_SOUND_SETS.second_set_a),
                 crate::session::address_of(&RACE_SOUND_SETS.second_set_b),
-            ][n] as u32,
-            Set::Last => crate::session::address_of(&RACE_SOUND_SETS.last_set) as u32,
+            ][n],
+            Set::Last => crate::session::address_of(&RACE_SOUND_SETS.last_set),
         });
     }
     Ok(())

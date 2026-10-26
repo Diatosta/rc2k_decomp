@@ -38,7 +38,7 @@ fn look_over(instance: u32, entry: u32) -> Result<bool, BadInput> {
         slot::CREATE_DEVICE,
         &[
             instance + field!(DiDeviceInstance, instance),
-            DEVICES.new_joystick.addr() as u32,
+            DEVICES.new_joystick.addr(),
             0,
         ],
     )) {
@@ -48,10 +48,7 @@ fn look_over(instance: u32, entry: u32) -> Result<bool, BadInput> {
     if !ok(method(
         device,
         slot::QUERY,
-        &[
-            INPUT_GUIDS.device2.addr() as u32,
-            DEVICES.new_joystick2.addr() as u32,
-        ],
+        &[INPUT_GUIDS.device2.addr(), DEVICES.new_joystick2.addr()],
     )) {
         return Ok(false);
     }
@@ -74,7 +71,7 @@ fn look_over(instance: u32, entry: u32) -> Result<bool, BadInput> {
     if !ok(method(
         device2,
         slot::GET_CAPABILITIES,
-        &[DEVICES.joystick_caps.addr() as u32],
+        &[DEVICES.joystick_caps.addr()],
     )) {
         return Ok(false);
     }
@@ -151,7 +148,7 @@ pub fn joystick_found(instance: u32, _context: u32) -> Result<u32, BadInput> {
     if count >= CONTROLLERS {
         return Ok(0);
     }
-    let entry = DEVICES.controllers[0].addr() as u32 + count * CONTROLLER_LEN;
+    let entry = DEVICES.controllers[0].addr() + count * CONTROLLER_LEN;
     look_over(instance, entry)?;
     for cell in [&DEVICES.new_joystick2, &DEVICES.new_joystick] {
         let object = cell.get();

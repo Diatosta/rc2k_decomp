@@ -92,7 +92,7 @@ unsafe fn probe_points(g: &Ground, n: u32) -> Result<(), Refused> {
                 extended(y)
             };
             let x = extended(CAR.probe_point_x[b as usize].bits());
-            let out = rotate_point(CAR.crash_matrix[0].addr() as u32, [x, y, extended(z)]);
+            let out = rotate_point(CAR.crash_matrix[0].addr(), [x, y, extended(z)]);
             let (ox, oy, oz) = (rounded(out[0]), rounded(out[1]), rounded(out[2]));
             CONTACT_WORK.probe_turned_x_last.set_bits(ox);
             work.probe_turned_x[i].set_bits(ox);
@@ -131,10 +131,10 @@ unsafe fn probe_points(g: &Ground, n: u32) -> Result<(), Refused> {
             let noise = |i: u32| {
                 u32::from(
                     trap.byte(
-                        (crate::scene::engine_tables_store::ENGINE_TABLES
+                        crate::scene::engine_tables_store::ENGINE_TABLES
                             .noise_bytes
                             .addr()
-                            + i as usize) as u32,
+                            + i,
                         "the ground noise table",
                     ),
                 )

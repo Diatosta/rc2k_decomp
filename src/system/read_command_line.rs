@@ -59,9 +59,12 @@ pub fn show_version_and_leave() -> ! {
     let c_text = |at: usize, what| {
         crate::files::cstring(GamePtr::new(at as u32), what).unwrap_or_else(|e| leave(e))
     };
-    let mut text = c_text(START_TEXTS.version.addr() + 6, "the version");
+    let mut text = c_text((START_TEXTS.version.addr() + 6) as usize, "the version");
     text.extend(*b"\t\r\n");
-    text.extend(c_text(START_TEXTS.second_text.addr(), "the second text"));
+    text.extend(c_text(
+        START_TEXTS.second_text.addr() as usize,
+        "the second text",
+    ));
     text.push(0);
     let place = crate::pointers::game_address(crate::fatal::state::TEXT.ptr()); // Text
     GamePtr::new(place)
@@ -96,7 +99,7 @@ pub fn read_command_line(line: &'static [u8]) -> Result<Asked, BadInput> {
         (sw.no_audio, AUDIO.no_audio.addr()),
     ] {
         if on {
-            GamePtr::new(place as u32).write(1u32, "a command-line switch")?;
+            GamePtr::new(place).write(1u32, "a command-line switch")?;
         }
     }
     for i in &sw.install {
@@ -112,7 +115,7 @@ pub fn read_command_line(line: &'static [u8]) -> Result<Asked, BadInput> {
             let word = line
                 .get(start..start + len)
                 .ok_or(BadInput("a word past the command line"))?;
-            GamePtr::new(place as u32).write_bytes(word, "an installer path")?;
+            GamePtr::new(place).write_bytes(word, "an installer path")?;
         }
         INSTALLER_RUN.given_mode.set(i.digits[0]);
         INSTALLER_RUN.given_language.set(i.digits[1]);
@@ -165,7 +168,7 @@ impl CommandLine {
     pub const LEN: usize = 0x8;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        crate::pointers::host_number(&COMMAND_LINE as *const CommandLine)
+        crate::pointers::game_address(&COMMAND_LINE as *const CommandLine) as usize
     }
 }
 

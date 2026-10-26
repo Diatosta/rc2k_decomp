@@ -29,8 +29,8 @@ pub fn setting_key(key: u8) -> Result<(), Refused> {
         chat::NAME => {
             if NET.machine_name.get(0) == 0 {
                 movsb(
-                    NET.machine_name.addr() as u32,
-                    INSTALLER_PATHS.script_path.addr() as u32,
+                    NET.machine_name.addr(),
+                    INSTALLER_PATHS.script_path.addr(),
                     0x40,
                 )?;
             }
@@ -38,7 +38,7 @@ pub fn setting_key(key: u8) -> Result<(), Refused> {
         chat::MOST_PLAYERS => {
             let number = {
                 crate::settings::parse_number::parse_number(crate::pointers::host(
-                    INSTALLER_PATHS.path_a.addr() as u32,
+                    INSTALLER_PATHS.path_a.addr(),
                 ) as *const u8)
             };
             NET.most_players.set(chat::most_players(

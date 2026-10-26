@@ -20,9 +20,9 @@ unsafe fn core(v: &[u32]) {
 
 fn game() -> Vec<u32> {
     vec![
-        CAR.step_clock.addr() as u32,
-        PHYSICS.time_marks[1].addr() as u32,
-        PHYSICS.time_marks[0].addr() as u32,
+        CAR.step_clock.addr(),
+        PHYSICS.time_marks[1].addr(),
+        PHYSICS.time_marks[0].addr(),
     ]
 }
 

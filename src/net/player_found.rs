@@ -23,7 +23,7 @@ pub fn player_found(args: &[u32]) -> Result<u32, Refused> {
     player.id.set(args[0]);
     copy_printable(
         crate::pointers::read_or_end::<u32>(args[2] + 8, "net::player_found's operand"),
-        player.name.addr() as u32,
+        player.name.addr(),
         0x1F,
     )?;
     Ok(1)

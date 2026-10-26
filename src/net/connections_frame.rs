@@ -52,7 +52,7 @@ pub fn list_frame(
         let name = record(item)?;
         let at = y;
         y = y.wrapping_add(font.object().line_height.get());
-        draw_text(font.addr() as u32, name, 0x190, at)?;
+        draw_text(font.addr(), name, 0x190, at)?;
     }
     crate::platform::unlock_surface();
     crate::platform::show_frame_now();

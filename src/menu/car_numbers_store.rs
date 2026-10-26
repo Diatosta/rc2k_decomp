@@ -58,8 +58,8 @@ pub const START: usize = 0x755258;
 pub const END: usize = 0x7554C0;
 
 /// Where IDA 0x755258 is now (`moved::MOVED`'s home).
-pub fn car_numbers_addr() -> usize {
-    crate::pointers::host_number(&CAR_NUMBERS as *const CarNumbers)
+pub fn car_numbers_addr() -> u32 {
+    crate::pointers::game_address(&CAR_NUMBERS as *const CarNumbers)
 }
 
 #[cfg(test)]
@@ -76,7 +76,7 @@ mod tests {
         );
         let mine = unsafe {
             std::slice::from_raw_parts(
-                crate::pointers::host_at(car_numbers_addr()) as *const u8,
+                crate::pointers::host(car_numbers_addr()) as *const u8,
                 END - START,
             )
         };

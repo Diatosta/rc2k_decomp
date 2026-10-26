@@ -58,18 +58,18 @@ pub fn tyre_screen(mode: u32, car: u32) -> Result<(), Refused> {
         set_render_state(value, state);
     }
     crate::drive::tyre_quad::tyre_quad(
-        address_of(&TYRE.panel_texture) as u32,
-        address_of(&TYRE.panel) as u32,
+        address_of(&TYRE.panel_texture),
+        address_of(&TYRE.panel),
         0xFF_FFFF,
     )?;
     crate::drive::tyre_quad::tyre_quad(
-        address_of(&TYRE.wheel_texture) as u32,
-        address_of(&TYRE.wheel) as u32,
+        address_of(&TYRE.wheel_texture),
+        address_of(&TYRE.wheel),
         0xFF_FFFF,
     )?;
     crate::drive::tyre_turned_quad::tyre_turned_quad(
-        address_of(&TYRE.turning_texture) as u32,
-        address_of(&TYRE.turning_rect) as u32,
+        address_of(&TYRE.turning_texture),
+        address_of(&TYRE.turning_rect),
         0xFF_FFFF,
         device,
     )?;

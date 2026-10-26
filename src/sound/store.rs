@@ -503,8 +503,8 @@ pub static RACE_SOUNDS: RaceSounds = RaceSounds {
 };
 
 /// Where the race sounds' block is (`moved::MOVED`'s home for IDA 0x512A10).
-pub fn race_sounds_addr() -> usize {
-    crate::pointers::host_number(&RACE_SOUNDS as *const RaceSounds)
+pub fn race_sounds_addr() -> u32 {
+    crate::pointers::game_address(&RACE_SOUNDS as *const RaceSounds)
 }
 
 /// The race sounds' clock and the constants of the placed and moving sounds (IDA 0x5124E4
@@ -549,8 +549,8 @@ pub static RACE_CLOCK: RaceClock = RaceClock {
 };
 
 /// Where the race clock is (`moved::MOVED`'s home for IDA 0x5124E4).
-pub fn race_clock_addr() -> usize {
-    crate::pointers::host_number(&RACE_CLOCK as *const RaceClock)
+pub fn race_clock_addr() -> u32 {
+    crate::pointers::game_address(&RACE_CLOCK as *const RaceClock)
 }
 
 /// The surface sounds' constants and work (IDA 0x516358 .. 0x51639C, the image's layout;
@@ -617,8 +617,8 @@ pub static SURFACE_SOUNDS: SurfaceSounds = SurfaceSounds {
 };
 
 /// Where the surface sounds' block is (`moved::MOVED`'s home for IDA 0x516358).
-pub fn surface_sounds_addr() -> usize {
-    crate::pointers::host_number(&SURFACE_SOUNDS as *const SurfaceSounds)
+pub fn surface_sounds_addr() -> u32 {
+    crate::pointers::game_address(&SURFACE_SOUNDS as *const SurfaceSounds)
 }
 
 /// A timed sound's slot: six dwords (`sound::play_timed_slot`).
@@ -756,8 +756,8 @@ pub static STAGE_SOUNDS: StageSounds = StageSounds {
 };
 
 /// Where the stage sounds are (`moved::MOVED`'s home for IDA 0x51655C).
-pub fn stage_sounds_addr() -> usize {
-    crate::pointers::host_number(&STAGE_SOUNDS as *const StageSounds)
+pub fn stage_sounds_addr() -> u32 {
+    crate::pointers::game_address(&STAGE_SOUNDS as *const StageSounds)
 }
 
 /// The spot voices' pickers' work and the sound kinds per spot (IDA 0x517f40 .. 0x518080, the image's layout; phase 7, typed state).
@@ -964,7 +964,7 @@ impl SpotPicks {
 
     /// `moved::MOVED`'s home for `START`.
     pub fn home() -> usize {
-        crate::pointers::host_number(&SPOT_PICKS as *const SpotPicks)
+        crate::pointers::game_address(&SPOT_PICKS as *const SpotPicks) as usize
     }
 }
 
@@ -985,7 +985,7 @@ impl SettingsApplied {
 
     /// `moved::MOVED`'s home for `START`.
     pub fn home() -> usize {
-        crate::pointers::host_number(&SETTINGS_APPLIED as *const SettingsApplied)
+        crate::pointers::game_address(&SETTINGS_APPLIED as *const SettingsApplied) as usize
     }
 }
 
@@ -1018,7 +1018,7 @@ impl SoundOptions {
 
     /// `moved::MOVED`'s home for `START`.
     pub fn home() -> usize {
-        crate::pointers::host_number(&SOUND_OPTIONS as *const SoundOptions)
+        crate::pointers::game_address(&SOUND_OPTIONS as *const SoundOptions) as usize
     }
 }
 
@@ -1057,7 +1057,7 @@ impl CdAudio {
 
     /// `moved::MOVED`'s home for `START`.
     pub fn home() -> usize {
-        crate::pointers::host_number(&CD_AUDIO as *const CdAudio)
+        crate::pointers::game_address(&CD_AUDIO as *const CdAudio) as usize
     }
 }
 
@@ -1128,7 +1128,7 @@ mod tests {
         let image = crate::moved::image_bytes(0x516358, 0x44);
         let mine = unsafe {
             std::slice::from_raw_parts(
-                crate::pointers::host_at(surface_sounds_addr()) as *const u8,
+                crate::pointers::host(surface_sounds_addr()) as *const u8,
                 0x44,
             )
         };
@@ -1149,7 +1149,7 @@ mod tests {
         let image = crate::moved::image_bytes(0x51655C, 0x364);
         let mine = unsafe {
             std::slice::from_raw_parts(
-                crate::pointers::host_at(stage_sounds_addr()) as *const u8,
+                crate::pointers::host(stage_sounds_addr()) as *const u8,
                 0x364,
             )
         };
@@ -1234,7 +1234,7 @@ mod tests {
         let image = crate::moved::image_bytes(0x512A10, 0x2580);
         let mine = unsafe {
             std::slice::from_raw_parts(
-                crate::pointers::host_at(race_sounds_addr()) as *const u8,
+                crate::pointers::host(race_sounds_addr()) as *const u8,
                 0x2580,
             )
         };
@@ -1247,7 +1247,7 @@ mod tests {
         let image = crate::moved::image_bytes(0x5124E4, 0x24);
         let mine = unsafe {
             std::slice::from_raw_parts(
-                crate::pointers::host_at(super::race_clock_addr()) as *const u8,
+                crate::pointers::host(super::race_clock_addr()) as *const u8,
                 0x24,
             )
         };

@@ -22,7 +22,7 @@ pub const MOST_KIND: u32 = 0x15;
 
 /// The address of voice `n`.
 pub fn voice(n: u32) -> u32 {
-    crate::session::address_of(&SPOT_VOICES.voices) as u32 + n * VOICE_LEN
+    crate::session::address_of(&SPOT_VOICES.voices) + n * VOICE_LEN
 }
 
 /// The dword at `at` of the voice at `v`.

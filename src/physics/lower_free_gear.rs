@@ -28,5 +28,5 @@ pub fn lower_free_gear_at(bits: u32, gear: u32) -> Result<Option<u32>, Refused> 
 
 /// The Rust version.
 pub fn lower_free_gear(gear: u32) -> Result<Option<u32>, Refused> {
-    lower_free_gear_at(CAR.lost_gear_bits.addr() as u32, gear)
+    lower_free_gear_at(CAR.lost_gear_bits.addr(), gear)
 }

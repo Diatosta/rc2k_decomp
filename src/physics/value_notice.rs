@@ -33,11 +33,11 @@ fn core(v: &[u32]) {
 
 fn game() -> Vec<u32> {
     vec![
-        CAR.turned_steps.addr() as u32,
-        CAR.notice_shown.addr() as u32,
-        CAR.notice_last.addr() as u32,
-        CAR.notice_id.addr() as u32,
-        CAR.notice_time.addr() as u32,
+        CAR.turned_steps.addr(),
+        CAR.notice_shown.addr(),
+        CAR.notice_last.addr(),
+        CAR.notice_id.addr(),
+        CAR.notice_time.addr(),
     ]
 }
 

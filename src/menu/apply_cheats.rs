@@ -70,7 +70,7 @@ pub fn apply_cheats(log: &mut dyn FnMut(*const u8)) -> Result<(), BadInput> {
         let a = car_lists::apply_cheats(cheats, &mut first, &mut second, |bit| {
             CHEATS[bit]
                 .1
-                .map_or(0, |car| CAR_TABLE.descriptions[car].addr() as u32)
+                .map_or(0, |car| CAR_TABLE.descriptions[car].addr())
         })?;
         // Nothing has been written or logged up to here.
         CHEAT_VARS.cheats.set(a.cheats);

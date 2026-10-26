@@ -58,14 +58,14 @@ pub fn drive_torque_share_at(v: &[u32]) -> u32 {
 
 fn game() -> Vec<u32> {
     vec![
-        DRAW.scratch.addr() as u32,
-        CAR.drive_kind.addr() as u32,
-        CAR.local_velocity[2].addr() as u32,
-        DRAW.work_float_a.addr() as u32,
-        DRAW.work_float_b.addr() as u32,
-        CAR.gear_ratio_setting.addr() as u32,
-        PHYSICS.torque_share.addr() as u32,
-        PHYSICS.drive_torque.addr() as u32,
+        DRAW.scratch.addr(),
+        CAR.drive_kind.addr(),
+        CAR.local_velocity[2].addr(),
+        DRAW.work_float_a.addr(),
+        DRAW.work_float_b.addr(),
+        CAR.gear_ratio_setting.addr(),
+        PHYSICS.torque_share.addr(),
+        PHYSICS.drive_torque.addr(),
     ]
 }
 

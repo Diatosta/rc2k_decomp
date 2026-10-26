@@ -44,7 +44,7 @@ pub unsafe fn draw_name_plate(slot: u32, text: u32) -> Result<(), Refused> {
         clear_rows(DRAW_SURFACE.pixels.get(), name_rows(line));
         FONTS.game_fonts[2].update(|f| f.box_width = NAME_BOX);
         for (x, y) in name_places(line) {
-            draw_text_in_game(FONTS.game_fonts[2].addr() as u32, text, x, y)?;
+            draw_text_in_game(FONTS.game_fonts[2].addr(), text, x, y)?;
         }
         unlock_texture(slot)?;
         Ok(())
@@ -64,7 +64,7 @@ pub unsafe fn draw_plate_by_id(slot: u32, id: u32) -> Result<(), Refused> {
             cursor += n;
         })?;
         TEXT_BUFFER.text.set(cursor, 0);
-        draw_name_plate(slot, TEXT_BUFFER.text.addr() as u32)
+        draw_name_plate(slot, TEXT_BUFFER.text.addr())
     }
 }
 
@@ -92,7 +92,7 @@ pub unsafe fn draw_time_plate(slot: u32) -> Result<(), Refused> {
             .zip(time_places(line))
         {
             FONTS.game_fonts[3].update(|f| f.box_width = TIME_BOX);
-            draw_text_in_game(FONTS.game_fonts[3].addr() as u32, text.addr() as u32, x, y)?;
+            draw_text_in_game(FONTS.game_fonts[3].addr(), text.addr(), x, y)?;
         }
         unlock_texture(slot)?;
         Ok(())

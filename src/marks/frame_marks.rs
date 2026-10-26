@@ -28,7 +28,7 @@ static COPIES: [(u32, &Dword); 3] = [
 ];
 
 fn rdtsc() -> (u32, u32) {
-    let t = unsafe { core::arch::x86::_rdtsc() };
+    let t = unsafe { crate::arch::_rdtsc() };
     (t as u32, (t >> 32) as u32)
 }
 

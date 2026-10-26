@@ -96,17 +96,17 @@ pub unsafe fn move_slot_at(s: u32) -> Result<(), Refused> {
         if at(s + 0x74) != 0 {
             unit_vector(
                 (s + 0x74) as usize,
-                (COURSE_LISTS.spin_axis_x.addr() as u32) as usize,
+                (COURSE_LISTS.spin_axis_x.addr()) as usize,
             );
             COURSE_LISTS.spin_angle.set_bits(x87::mul(at(s + 0x74), dt));
-            axis_turn_matrix(COURSE_LISTS.turn_matrix[0].addr() as u32);
-            square_matrix((COURSE_LISTS.turn_matrix[0].addr() as u32) as usize);
+            axis_turn_matrix(COURSE_LISTS.turn_matrix[0].addr());
+            square_matrix((COURSE_LISTS.turn_matrix[0].addr()) as usize);
             multiply_matrices(
                 (s + 0x10) as usize,
-                (COURSE_LISTS.turn_matrix[0].addr() as u32) as usize,
-                (MATRICES.turned_matrix[0].addr() as u32) as usize,
+                (COURSE_LISTS.turn_matrix[0].addr()) as usize,
+                (MATRICES.turned_matrix[0].addr()) as usize,
             );
-            copy(MATRICES.turned_matrix[0].addr() as u32, s + 0x10, 16);
+            copy(MATRICES.turned_matrix[0].addr(), s + 0x10, 16);
         }
         for (v, c) in [(0x54, 8), (0x50, 4), (0x58, 0xC)] {
             let d = mul2_to_int(at(s + v), dt, k65536) as u32;
@@ -126,7 +126,7 @@ pub unsafe fn move_slot_at(s: u32) -> Result<(), Refused> {
         crate::physics::find_ground::find_ground()?;
         let face: u32 = COURSE.ground_slot.get();
         if face == u32::MAX {
-            copy(RACE_WORK.slot_place[0].addr() as u32, s + 4, 3);
+            copy(RACE_WORK.slot_place[0].addr(), s + 4, 3);
             for o in [0x50, 0x54, 0x58, 0x68, 0x6C, 0x70] {
                 put(s + o, 0);
             }
@@ -146,10 +146,10 @@ pub unsafe fn move_slot_at(s: u32) -> Result<(), Refused> {
             put(s + o, neg_mul(at(s + o), half));
         }
         if abs_compare(at(s + 0x54), NUMBERS.one.bits()) & 0x100 != 0 {
-            copy(RACE_WORK.part_matrix_flat[0].addr() as u32, s + 0x10, 12);
+            copy(RACE_WORK.part_matrix_flat[0].addr(), s + 0x10, 12);
             let n = at(s) % 20;
             if (n.wrapping_sub(5) as i32) >= 0 && (n.wrapping_sub(9) as i32) < 0 {
-                copy(RACE_WORK.part_matrix_still[0].addr() as u32, s + 0x10, 12);
+                copy(RACE_WORK.part_matrix_still[0].addr(), s + 0x10, 12);
                 return Ok(());
             }
         }

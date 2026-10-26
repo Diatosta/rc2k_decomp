@@ -25,7 +25,7 @@ pub fn start_edit(item: u32) {
     at.write_bytes(&words, "an edited text")
         .unwrap_or_else(|e| crate::install::installer::refuse(e));
     wb(record, flags);
-    let backup = INSTALLER_PATHS.script_path.addr() as u32;
+    let backup = INSTALLER_PATHS.script_path.addr();
     for (n, &b) in words.iter().enumerate() {
         wb(backup + n as u32, b);
     }

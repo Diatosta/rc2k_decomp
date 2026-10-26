@@ -37,7 +37,7 @@ pub fn edit_key(key: u8) -> Result<bool, Refused> {
             EditKey::Escape => {
                 movsb(
                     text,
-                    INSTALLER_PATHS.script_path.addr() as u32,
+                    INSTALLER_PATHS.script_path.addr(),
                     editing::TEXT_LEN as u32,
                 )?;
                 NET.edited.set(editing::NOT_EDITING);

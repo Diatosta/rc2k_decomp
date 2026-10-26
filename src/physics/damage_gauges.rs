@@ -31,7 +31,7 @@ use crate::session::Cell32;
 
 /// `unk_71A2AC[gear]` (the gear -1 .. 7 as the original indexes it).
 fn gear_gauge(gear: u32) -> u32 {
-    (CAR.gear_wear[1].addr() as u32).wrapping_add(gear.wrapping_mul(4))
+    (CAR.gear_wear[1].addr()).wrapping_add(gear.wrapping_mul(4))
 }
 
 /// The gauge at `at` held 0 ..= `flt_75B34C` (the two `fcompp` holds).
@@ -216,7 +216,7 @@ pub fn steps() {
     let gauge = gear_gauge(gear);
     x87_3(
         &DAMAGE,
-        ((DAMAGE.flt_75b5b0.addr() as u32).wrapping_add(gear.wrapping_mul(4))) as usize,
+        ((DAMAGE.flt_75b5b0.addr()).wrapping_add(gear.wrapping_mul(4))) as usize,
         gauge as usize,
     );
     hold_at(gauge);
@@ -308,8 +308,8 @@ pub fn steps() {
     let part = DAMAGE.flt_75b3e4.bits();
     x87_7(
         &DAMAGE,
-        ((DAMAGE.kind_table_a[0].addr() as u32).wrapping_add(part.wrapping_mul(4))) as usize,
-        ((DAMAGE.kind_table_b[0].addr() as u32).wrapping_add(part.wrapping_mul(4))) as usize,
+        ((DAMAGE.kind_table_a[0].addr()).wrapping_add(part.wrapping_mul(4))) as usize,
+        ((DAMAGE.kind_table_b[0].addr()).wrapping_add(part.wrapping_mul(4))) as usize,
     );
     x87_5(
         crate::race::store::asm_base() as usize,

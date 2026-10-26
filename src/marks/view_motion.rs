@@ -25,7 +25,7 @@ use crate::scene::vector3::{dot_product3, normalise_vector3};
 
 /// The Rust version (see the header).
 pub fn view_motion() -> Result<(), Refused> {
-    let m = MATRICES.view_place[0].addr() as u32;
+    let m = MATRICES.view_place[0].addr();
     let get = |a: u32| GamePtr::new(a).read::<u32>("a mark's field");
     let mut local = [0u32; 6];
     for (k, v) in local.iter_mut().take(3).enumerate() {

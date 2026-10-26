@@ -26,8 +26,8 @@ use rc2k_core::hud::disc::SEGMENTS;
 fn negated_times_times_to_int(a: u32, b: u32, c: u32) -> u32 {
     let (v, mut out) = ([a, b, c], 0u32);
     x87_1(
-        crate::pointers::host_number(v.as_ptr()),
-        crate::pointers::host_number(&raw mut out),
+        (crate::pointers::game_address(v.as_ptr())) as usize,
+        crate::pointers::game_address(&raw mut out) as usize,
     );
     out
 }
@@ -55,7 +55,7 @@ pub fn draw_disc() -> Result<(), Refused> {
                 .set_bits(table(crate::scene::engine_tables_store::cosine(b as usize)));
         }
         HUD.scratch.set(t);
-        let base = crate::d3d::vertices_store::piece_addr() as u32;
+        let base = crate::d3d::vertices_store::piece_addr();
 
         for k in 0..SEGMENTS {
             for (n, e) in disc_triangle(k).into_iter().enumerate() {

@@ -19,39 +19,39 @@ use crate::menu::screen_loop::{Callee, List, Screen, Step};
 // ---- Rust version: `menu::screen_loop` with this ----
 
 pub const SCREEN: Screen = Screen {
-    menu: || MENUS.arcade_best_times.addr(),
+    menu: || MENUS.arcade_best_times.addr() as usize,
     saved_item: || &SCREEN_ITEMS.current[slot::ARCADE_BEST_TIMES],
     lists: &[
         List {
             pointer: || &SCREEN_FLOW.unread_list, // g_unreadList
-            table: || DRAW_LISTS.unread_758b72.addr(),
+            table: || DRAW_LISTS.unread_758b72.addr() as usize,
             run: false,
         },
         List {
             pointer: || &SCREEN_FLOW.draw_list, // g_drawList
-            table: || DRAW_LISTS.draw_758d22.addr(),
+            table: || DRAW_LISTS.draw_758d22.addr() as usize,
             run: false,
         },
         List {
             pointer: || &SCREEN_FLOW.overlay_list, // g_overlayList
-            table: || DRAW_LISTS.overlay_75921a.addr(),
+            table: || DRAW_LISTS.overlay_75921a.addr() as usize,
             run: false,
         },
     ],
     first_frame_lists: Some(&[
         List {
             pointer: || &SCREEN_FLOW.scene_list, // g_sceneList
-            table: || DRAW_LISTS.arcade_best_times_scene.addr(),
+            table: || DRAW_LISTS.arcade_best_times_scene.addr() as usize,
             run: false,
         },
         List {
             pointer: || &SCREEN_FLOW.draw_list, // g_drawList
-            table: || DRAW_LISTS.draw_758d22.addr(),
+            table: || DRAW_LISTS.draw_758d22.addr() as usize,
             run: false,
         },
         List {
             pointer: || &SCREEN_FLOW.overlay_list, // g_overlayList
-            table: || DRAW_LISTS.overlay_75921a.addr(),
+            table: || DRAW_LISTS.overlay_75921a.addr() as usize,
             run: false,
         },
     ]),
@@ -63,9 +63,9 @@ pub const SCREEN: Screen = Screen {
     after_lists: &[],
     background: &[
         Step::ArgAddr(|| {
-            crate::menu::texts_store::MENU_TEXTS
+            (crate::menu::texts_store::MENU_TEXTS
                 .arcade_best_times_picture
-                .addr()
+                .addr()) as usize
         }),
         Step::CallOrFatal(Callee::LoadBackground, 0x80712345),
     ],

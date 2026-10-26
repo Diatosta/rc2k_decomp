@@ -15,9 +15,6 @@ const HKLM: u32 = 0x8000_0002;
 pub fn unregister_lobby(api: Api) {
     api(
         REG_DELETE_KEY,
-        &[
-            HKLM,
-            crate::install::store::LOBBY_KEYS.registry_key.addr() as u32,
-        ],
+        &[HKLM, crate::install::store::LOBBY_KEYS.registry_key.addr()],
     );
 }

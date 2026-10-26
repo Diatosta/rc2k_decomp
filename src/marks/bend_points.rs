@@ -46,11 +46,11 @@ pub fn bend_points(s: u32) -> Result<(), Refused> {
         write_first(&SPLINE_WORK.bend[6..9], &c);
         let b = [c[0], a[1], c[2]];
         write_first(&SPLINE_WORK.bend[3..6], &b);
-        let at = |n: usize| SPLINE_WORK.bend[n].addr() as u32;
+        let at = |n: usize| SPLINE_WORK.bend[n].addr();
         let v = blend_points(at(0), at(3), at(6), SPLINE_HEAD.made.get() as u8)?;
         let d = [ext_to_int(v[0]), ext_to_int(v[1]), ext_to_int(v[2])];
         write_first(&SPLINE_WORK.bend[9..12], &d.map(|v| v as u32));
-        let mut q_at = SPLINE_WORK.ordered_coords[0].addr() as u32;
+        let mut q_at = SPLINE_WORK.ordered_coords[0].addr();
         for _ in 0..count.max(0) {
             let q = [get(q_at)?, get(q_at + 4)?, get(q_at + 8)?];
             for k in 0..3 {

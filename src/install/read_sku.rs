@@ -81,7 +81,7 @@ impl Sku {
     pub const LEN: usize = 0x24;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        crate::pointers::host_number(&SKU as *const Sku)
+        crate::pointers::game_address(&SKU as *const Sku) as usize
     }
 }
 

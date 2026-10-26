@@ -97,7 +97,7 @@ impl RingWork {
     pub const LEN: usize = 0x11C;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        crate::pointers::host_number(&RING_WORK as *const RingWork)
+        crate::pointers::game_address(&RING_WORK as *const RingWork) as usize
     }
 }
 
@@ -161,7 +161,7 @@ impl PictureNames {
     pub const LEN: usize = 0x2A;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        crate::pointers::host_number(&PICTURE_NAMES as *const PictureNames)
+        crate::pointers::game_address(&PICTURE_NAMES as *const PictureNames) as usize
     }
 }
 

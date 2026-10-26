@@ -9,7 +9,7 @@ use rc2k_core::menu::items::{
 };
 
 pub fn item(n: u32) -> u32 {
-    MENUS.in_game_options.addr() as u32 + MENU_HEAD_LEN + n * ITEM_LEN
+    MENUS.in_game_options.addr() + MENU_HEAD_LEN + n * ITEM_LEN
 }
 
 /// Item `n` given its look: +0x14, +0x48, +0x1C, in the original's order.

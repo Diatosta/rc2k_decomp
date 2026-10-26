@@ -18,7 +18,10 @@ pub const PREFS_LEN: u32 = 0x206C;
 /// `files\levels\levelxx\localdat`, `srclvls\levelxx\localdat` (the xx the course's).
 fn prefs_paths() -> [usize; 2] {
     let p = &crate::race::level_paths_store::LEVEL_PATHS;
-    [p.localdat_files.addr(), p.localdat_src.addr()]
+    [
+        p.localdat_files.addr() as usize,
+        p.localdat_src.addr() as usize,
+    ]
 }
 pub const LIGHTS_LEN: u32 = 0x1320;
 pub const LIGHT_RECORDS: u32 = rc2k_core::race::stage_objects::LIGHT_RECORDS as u32;
@@ -84,7 +87,7 @@ fn read(path: usize, buffer: usize, count: u32) -> Result<(), Refused> {
 /// `swap_stage_texture`, `tweak_stage`, `clear_prefs_qword`.
 pub fn load_prefs() -> Result<(), Refused> {
     for path in prefs_paths() {
-        read(path, STAGE_PREFS.prefs_head[0].addr(), PREFS_LEN)?;
+        read(path, STAGE_PREFS.prefs_head[0].addr() as usize, PREFS_LEN)?;
     }
     swap_stage_texture();
     tweak_stage();
@@ -103,11 +106,11 @@ pub fn init_skidmarks() -> Result<(), BadInput> {
     {
         // The skid objects are car blocks 0 and 1.
         for n in 0..2 {
-            reset_skid_slots(crate::race::blocks_store::block_addr(n) as u32)?;
+            reset_skid_slots(crate::race::blocks_store::block_addr(n))?;
         }
         let marks = crate::race::shadow_skids_store::SHADOW_SKIDS
             .skid_links
-            .addr() as u32;
+            .addr();
         for n in 0..0x400u32 {
             GamePtr::new(marks + 8 * n).write(u32::MAX, "the skid links")?;
         }
@@ -124,7 +127,7 @@ pub fn copy_lights_data() -> Result<(), BadInput> {
     // Converted: `rc2k_core::race::stage_objects::lay_lights`.
     use rc2k_core::race::stage_objects::{LIGHT_RECORD, lay_lights};
     let (data, records) = (
-        crate::race::lights_store::LIGHTS_DATA.lights.addr() as u32,
+        crate::race::lights_store::LIGHTS_DATA.lights.addr(),
         crate::race::light_records_store::LIGHT_RECORDS.record_addr(0),
     );
     let source = GamePtr::new(data).read_bytes(LIGHTS_LEN as usize, "the lights' data")?;
@@ -138,8 +141,8 @@ pub fn copy_lights_data() -> Result<(), BadInput> {
 /// the lights' data, then `copy_lights_data`.
 pub fn load_lights_data() -> Result<(), Refused> {
     read(
-        CAMERA_WORK.lights_path[0].addr(), // "files\s\data\ldata"
-        crate::race::lights_store::LIGHTS_DATA.lights.addr(),
+        CAMERA_WORK.lights_path[0].addr() as usize, // "files\s\data\ldata"
+        crate::race::lights_store::LIGHTS_DATA.lights.addr() as usize,
         LIGHTS_LEN,
     )?;
     copy_lights_data()?;
@@ -163,13 +166,13 @@ pub fn get_mat_crash() {
     matrix::set_turn_y(turns[1]);
     matrix::set_turn_z_16(turns[2]);
     matrix::multiply_matrices(
-        MATRICES.turn_z_matrix[0].addr(),
-        MATRICES.turn_x_matrix[0].addr(),
-        MATRICES.lit_matrix[0].addr(),
+        MATRICES.turn_z_matrix[0].addr() as usize,
+        MATRICES.turn_x_matrix[0].addr() as usize,
+        MATRICES.lit_matrix[0].addr() as usize,
     );
     matrix::multiply_matrices(
-        MATRICES.lit_matrix[0].addr(),
-        MATRICES.turn_y_matrix[0].addr(),
-        CAR.crash_matrix[0].addr(),
+        MATRICES.lit_matrix[0].addr() as usize,
+        MATRICES.turn_y_matrix[0].addr() as usize,
+        CAR.crash_matrix[0].addr() as usize,
     );
 }

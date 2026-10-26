@@ -68,8 +68,8 @@ fn skid_vertex(n: u32, v: u32) -> Result<(), BadInput> {
     {
         let p = (crate::race::shadow_skids_store::SHADOW_SKIDS
             .skid_points
-            .addr() as u32)
-            .wrapping_add(n.wrapping_mul(0xC));
+            .addr())
+        .wrapping_add(n.wrapping_mul(0xC));
         let lift: u32 = crate::race::shadow_skids_store::SHADOW_SKIDS
             .skid_lift
             .bits();
@@ -78,9 +78,7 @@ fn skid_vertex(n: u32, v: u32) -> Result<(), BadInput> {
             int_plus_float_80(get(p + 4)?, lift),
             int_80(get(p + 8)?),
         ];
-        let t = {
-            crate::scene::rotate_point::rotate_point(MATRICES.view_matrix[0].addr() as u32, point)
-        };
+        let t = { crate::scene::rotate_point::rotate_point(MATRICES.view_matrix[0].addr(), point) };
         put(v + 0x10, float_of_80(t[0]))?;
         put(v + 0x14, float_of_80(t[1]))?;
         put(v + 0x18, float_of_80(t[2]))?;
@@ -112,8 +110,8 @@ pub unsafe fn draw_skidmarks() -> Result<(), Refused> {
             .set(views);
         let entries = crate::scene::polygon_store::POLYGON_WORK.entries[0]
             .point
-            .addr() as u32;
-        let vertices = RACE_VARS.quad_vertices[0].addr() as u32;
+            .addr();
+        let vertices = RACE_VARS.quad_vertices[0].addr();
         for k in 0..4u32 {
             let e = entries + 0x44 * k;
             put(e + 4, vertices + 0x20 * k)?;
@@ -135,7 +133,7 @@ pub unsafe fn draw_skidmarks() -> Result<(), Refused> {
         DRAW.polygon_textures[1].set(0xC0u32);
         let links = crate::race::shadow_skids_store::SHADOW_SKIDS
             .skid_links
-            .addr() as u32;
+            .addr();
         for n in 0..0x400u32 {
             let before = GamePtr::new(links + 8 * n).read::<i16>("a skidmark link")? as i32 as u32;
             if before == u32::MAX {
@@ -152,8 +150,8 @@ pub unsafe fn draw_skidmarks() -> Result<(), Refused> {
             skid_vertex(before.wrapping_mul(2).wrapping_add(1), vertices + 0x20)?;
             DRAW.polygon_vertex_count.set(4u32);
             DRAW.polygon_next_record
-                .set(crate::scene::polygon_store::POLYGON_WORK.record_pool[0].addr() as u32);
-            let list = crate::scene::polygon_store::POLYGON_WORK.list[0].addr() as u32;
+                .set(crate::scene::polygon_store::POLYGON_WORK.record_pool[0].addr());
+            let list = crate::scene::polygon_store::POLYGON_WORK.list[0].addr();
             for k in 0..4u32 {
                 put(list + 4 * k, k)?;
             }

@@ -400,8 +400,8 @@ pub const START: usize = 0x75ACCC;
 pub const END: usize = 0x75B340;
 
 /// Where IDA 0X75ACCC is now (`moved::MOVED`'s home).
-pub fn race_state_addr() -> usize {
-    crate::pointers::host_number(&RACE_STATE as *const RaceState)
+pub fn race_state_addr() -> u32 {
+    crate::pointers::game_address(&RACE_STATE as *const RaceState)
 }
 
 #[cfg(test)]

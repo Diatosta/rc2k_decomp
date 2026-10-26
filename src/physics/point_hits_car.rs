@@ -56,7 +56,7 @@ pub unsafe fn point_hits_car(point: u32, object: u32) -> Result<bool, Refused> {
     for k in 0..3 {
         CONTACT_WORK.object_point_turned[k].set_bits(CONTACT_WORK.object_point_scaled[k].bits());
     }
-    unsafe { turn_by_heading(CONTACT_WORK.object_point_turned[0].addr() as u32, y) };
+    unsafe { turn_by_heading(CONTACT_WORK.object_point_turned[0].addr(), y) };
     x87_2(crate::race::store::asm_base() as usize);
     let (x, z) = (
         CONTACT_WORK.contact_point[0].bits(),
@@ -75,7 +75,7 @@ pub unsafe fn point_hits_car(point: u32, object: u32) -> Result<bool, Refused> {
         x87_3(crate::race::store::asm_base() as usize);
         CONTACT_WORK
             .contact_speed_length
-            .set_bits(rounded(vector_length(CAR.velocity[0].addr() as u32)));
+            .set_bits(rounded(vector_length(CAR.velocity[0].addr())));
         if let Some(hit) = rc2k_core::physics::walls::raised_hit(
             f32::from_bits(CONTACT_WORK.contact_speed_length.bits()),
             f32::from_bits(CAR.contact_depth.bits()),

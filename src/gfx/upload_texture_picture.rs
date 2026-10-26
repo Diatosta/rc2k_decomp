@@ -55,10 +55,12 @@ type Unlock = unsafe extern "system" fn(u32, u32) -> i32;
 
 unsafe fn method(object: u32, offset: u32) -> usize {
     unsafe {
-        (crate::pointers::host(
-            (crate::pointers::host(object) as *const u32).read_unaligned() + offset,
-        ) as *const u32)
-            .read_unaligned() as usize
+        crate::pointers::code(
+            (crate::pointers::host(
+                (crate::pointers::host(object) as *const u32).read_unaligned() + offset,
+            ) as *const u32)
+                .read_unaligned(),
+        )
     }
 }
 
@@ -66,7 +68,7 @@ impl Surfaces for GameSurfaces {
     fn lock(&mut self, surface: u32) -> Result<(u32, u32), i32> {
         unsafe {
             let lock: Lock = std::mem::transmute(method(surface, 0x64));
-            match lock(surface, 0, UPLOAD.description.addr() as u32, 1, 0) {
+            match lock(surface, 0, UPLOAD.description.addr(), 1, 0) {
                 0 => Ok((
                     UPLOAD.description.pixels.get(),
                     UPLOAD.description.pitch.get(),

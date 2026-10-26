@@ -42,8 +42,8 @@ pub const START: usize = 0x75523C;
 pub const END: usize = 0x755258;
 
 /// Where IDA 0x75523C is now (`moved::MOVED`'s home).
-pub fn menu_pages_addr() -> usize {
-    crate::pointers::host_number(&MENU_PAGES as *const MenuPages)
+pub fn menu_pages_addr() -> u32 {
+    crate::pointers::game_address(&MENU_PAGES as *const MenuPages)
 }
 
 #[cfg(test)]
@@ -60,7 +60,7 @@ mod tests {
         );
         let mine = unsafe {
             std::slice::from_raw_parts(
-                crate::pointers::host_at(menu_pages_addr()) as *const u8,
+                crate::pointers::host(menu_pages_addr()) as *const u8,
                 END - START,
             )
         };

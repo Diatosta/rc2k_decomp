@@ -33,7 +33,7 @@ pub fn place_sound_object() -> Result<(), Refused> {
         |thing| OBJECT_TABLES.object_kind(thing),
         |kind| {
             trap.byte(
-                (crate::scene::polygon::materials_addr() + 0x24 + 0x80 * kind as usize) as u32,
+                crate::scene::polygon::materials_addr() + 0x24 + (0x80 * kind as usize) as u32,
                 "an object material's record",
             )
         },

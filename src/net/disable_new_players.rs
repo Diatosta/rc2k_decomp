@@ -31,12 +31,6 @@ pub fn disable_new_players() {
     NET.session_desc
         .flags
         .set(NET.session_desc.flags.get() | CLOSED);
-    let result = unsafe {
-        call(
-            &NET.dplay,
-            SET_SESSION_DESC,
-            &[NET.session_desc.addr() as u32, 0],
-        )
-    };
+    let result = unsafe { call(&NET.dplay, SET_SESSION_DESC, &[NET.session_desc.addr(), 0]) };
     log_hex(result, true);
 }

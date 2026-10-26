@@ -41,7 +41,7 @@ pub mod slot {
 
 /// A game variable's address.
 pub fn a(rva: impl crate::store::Where) -> u32 {
-    game_addr(rva) as u32
+    game_addr(rva)
 }
 
 /// A method of a DirectInput object (`stdcall`, the object first): its result.
@@ -52,7 +52,7 @@ pub fn method(object: u32, slot: u32, args: &[u32]) -> u32 {
 /// The controller's entry for a record (`g_controllers` + 0x50 its number), unchecked as
 /// the original (`imul edi, [esi], 50h`).
 pub fn entry_of(record: u32) -> Result<u32, crate::errors::BadInput> {
-    Ok((DEVICES.controllers[0].addr() as u32).wrapping_add(
+    Ok((DEVICES.controllers[0].addr()).wrapping_add(
         crate::input::devices::at(
             record,
             crate::field!(crate::input::types::InputDevice, controller),

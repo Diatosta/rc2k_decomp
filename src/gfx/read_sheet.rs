@@ -30,7 +30,7 @@ unsafe fn read_rows() -> Result<bool, BadInput> {
         }
         if !read(
             file,
-            crate::pointers::host_at(PCX.file_palette.addr()),
+            crate::pointers::host(PCX.file_palette.addr()),
             FILE_PALETTE_LEN as u32,
         )
         .1
@@ -42,7 +42,7 @@ unsafe fn read_rows() -> Result<bool, BadInput> {
         }
         if read_stream_block(
             stream,
-            crate::pointers::host_at(PCX.header.addr()),
+            crate::pointers::host(PCX.header.addr()),
             HEADER_LEN as u32,
         )?
         .1
@@ -107,7 +107,7 @@ pub unsafe fn read_pcx_indexed(path: *const u8) -> Result<bool, BadInput> {
 /// Returns whether the picture was read.
 pub unsafe fn read_sheet(path: *const u8) -> Result<bool, BadInput> {
     unsafe {
-        let header = crate::pointers::host_at(PCX.header.addr());
+        let header = crate::pointers::host(PCX.header.addr());
         zero_memory(header, HEADER_LEN as u32)?;
         if !read_file(path, header, HEADER_LEN as u32, 0)?.ok {
             return Ok(false);

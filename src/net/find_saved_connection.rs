@@ -19,7 +19,7 @@ pub fn find_saved_connection() -> Result<Option<u32>, Refused> {
     lists::find_listed(NET.connections.get(), |n| -> Result<bool, Refused> {
         Ok(same_guid(
             connection(n)?.wrapping_add(0x40),
-            NET.saved_connection.addr() as u32,
+            NET.saved_connection.addr(),
         ))
     })
 }

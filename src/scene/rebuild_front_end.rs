@@ -25,7 +25,7 @@ pub fn rebuild_front_end() -> Result<(), Refused> {
         if FONTS.palettes.get() == 0 {
             crate::gfx::build_fonts::build_fonts()?;
             crate::gfx::build_menu_sprites::build_menu_sprites(crate::pointers::host_at(
-                SPRITE_TABLE.addr(),
+                SPRITE_TABLE.addr() as usize,
             ) as *mut u32)?;
         }
         crate::scene::set_up_lit_engine::set_up_lit_engine()?;

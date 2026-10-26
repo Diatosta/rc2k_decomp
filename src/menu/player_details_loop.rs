@@ -43,22 +43,22 @@ fn set_up_first(c: &mut Carried) -> Result<(), Refused> {
 }
 
 pub const SCREEN: Screen = Screen {
-    menu: || MENUS.player_details.addr(),
+    menu: || MENUS.player_details.addr() as usize,
     saved_item: || &SCREEN_ITEMS.current[slot::PLAYER_DETAILS],
     lists: &[
         List {
             pointer: || &SCREEN_FLOW.scene_list, // g_sceneList
-            table: || DRAW_LISTS.player_details_scene.addr(),
+            table: || DRAW_LISTS.player_details_scene.addr() as usize,
             run: false,
         },
         List {
             pointer: || &SCREEN_FLOW.draw_list, // g_drawList
-            table: || DRAW_LISTS.player_details_draw.addr(),
+            table: || DRAW_LISTS.player_details_draw.addr() as usize,
             run: false,
         },
         List {
             pointer: || &SCREEN_FLOW.overlay_list, // g_overlayList
-            table: || DRAW_LISTS.player_details_overlay.addr(),
+            table: || DRAW_LISTS.player_details_overlay.addr() as usize,
             run: false,
         },
     ],
@@ -71,9 +71,9 @@ pub const SCREEN: Screen = Screen {
     after_lists: &[],
     background: &[
         Step::ArgAddr(|| {
-            crate::menu::texts_store::MENU_TEXTS
+            (crate::menu::texts_store::MENU_TEXTS
                 .player_details_picture
-                .addr()
+                .addr()) as usize
         }),
         Step::CallOrFatal(Callee::LoadBackground, 0x80712345),
     ],

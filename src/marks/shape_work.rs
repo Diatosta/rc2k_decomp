@@ -129,7 +129,7 @@ impl ShapeWork {
     pub const LEN: usize = 0x16E48;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        crate::pointers::host_number(core::ptr::addr_of!(SHAPE_WORK))
+        (crate::pointers::game_address(core::ptr::addr_of!(SHAPE_WORK))) as usize
     }
 }
 

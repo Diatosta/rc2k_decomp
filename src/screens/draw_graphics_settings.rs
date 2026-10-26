@@ -45,7 +45,7 @@ pub fn draw_graphics_settings(canvas: &mut dyn Canvas) -> Result<(), Refused> {
         } else {
             disable_item(2)?;
         }
-        let mode = SCREEN_CHOICES.list.addr() as u32 + 0x10 * SCREEN_CHOICES.resolution.get();
+        let mode = SCREEN_CHOICES.list.addr() + 0x10 * SCREEN_CHOICES.resolution.get();
         let v = |i: u32| crate::pointers::GamePtr::new(mode + 4 * i).read::<u32>("a screen mode");
         let ids = NAMES.map(|(setting, first, _)| setting().wrapping_add(first));
         rc2k_core::screens::settings_pages::graphics(

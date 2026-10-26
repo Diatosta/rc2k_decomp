@@ -236,8 +236,10 @@ pub fn differential<R: PartialEq + std::fmt::Debug>(
             let mut pl_vals = values;
             for (j, op) in spec.operands.iter().enumerate() {
                 if let Op::Base { lo, .. } = op {
-                    ref_vals[j] = crate::pointers::host_number(refs[j].as_ptr()).wrapping_sub(*lo);
-                    pl_vals[j] = crate::pointers::host_number(pls[j].as_ptr()).wrapping_sub(*lo);
+                    ref_vals[j] = (crate::pointers::game_address(refs[j].as_ptr())
+                        .wrapping_sub((*lo) as u32)) as usize;
+                    pl_vals[j] = (crate::pointers::game_address(pls[j].as_ptr())
+                        .wrapping_sub((*lo) as u32)) as usize;
                 }
             }
             // The buffers lent while the versions run: their operands are checked as game memory.

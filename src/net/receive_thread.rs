@@ -53,7 +53,7 @@ pub fn receive_thread() -> Result<(), Refused> {
                         if posted != 0 {
                             // Always a Rust version's address (`net::lobby_calls`).
                             let call = std::mem::transmute::<usize, extern "C" fn() -> u32>(
-                                posted as usize,
+                                crate::pointers::code(posted),
                             );
                             NET.posted_result.set(call());
                             NET.posted_answered.set(1);

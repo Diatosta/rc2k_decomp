@@ -131,10 +131,10 @@ pub fn draw_scores(t: &Table, canvas: &mut dyn Canvas) -> Result<(), Refused> {
         let group = match (t.group_fixed, t.group_at) {
             (Some(g), _) => g,
             (None, Some(a)) => a.get(),
-            (None, None) => crate::pointers::GamePtr::new(
-                MENU_LISTS.page_titles_b[0].addr() as u32 + 4 * PAGE.get(),
-            )
-            .read::<u32>("best scores: a game value")?,
+            (None, None) => {
+                crate::pointers::GamePtr::new(MENU_LISTS.page_titles_b[0].addr() + 4 * PAGE.get())
+                    .read::<u32>("best scores: a game value")?
+            }
         };
         let first = base.wrapping_add(group.wrapping_mul(t.group));
         let fault = Fault::default();
@@ -173,15 +173,13 @@ pub unsafe fn best_scores_caption() -> Result<(), Refused> {
     // Converted: `rc2k_core::screens::captions::fit` (through `car_caption::put_string`); refused
     // where the original writes past the caption's 0x100 bytes.
     unsafe {
-        let id = crate::pointers::GamePtr::new(
-            MENU_LISTS.page_titles_a[0].addr() as u32 + 4 * PAGE.get(),
-        )
-        .read::<u32>("best scores: a game value")?;
+        let id = crate::pointers::GamePtr::new(MENU_LISTS.page_titles_a[0].addr() + 4 * PAGE.get())
+            .read::<u32>("best scores: a game value")?;
         crate::screens::car_caption::put_string(
             id,
-            crate::screens::text_buffers_store::TEXT_BUFFERS
+            (crate::screens::text_buffers_store::TEXT_BUFFERS
                 .caption
-                .addr(),
+                .addr()) as usize,
             0x100,
         )
     }
@@ -196,7 +194,7 @@ pub fn replay_range_caption() -> Result<(), BadInput> {
     crate::pointers::GamePtr::new(
         crate::screens::text_buffers_store::TEXT_BUFFERS
             .caption
-            .addr() as u32,
+            .addr(),
     )
     .write_bytes(&bytes, "the caption")
 }
@@ -365,10 +363,8 @@ pub fn draw_record_heading(canvas: &mut dyn Canvas) -> Result<(), Refused> {
         }
         let first = record_at(0)?;
         let id = if CHAMP_VIEW.event_mode.get() == 0x13 {
-            crate::pointers::GamePtr::new(
-                MENU_LISTS.section_titles[0].addr() as u32 + 4 * SECTION.get(),
-            )
-            .read::<u32>("best scores: a game value")?
+            crate::pointers::GamePtr::new(MENU_LISTS.section_titles[0].addr() + 4 * SECTION.get())
+                .read::<u32>("best scores: a game value")?
         } else {
             crate::pointers::GamePtr::new(first + 0x38).read::<u32>("best scores: a game value")?
         };
@@ -449,7 +445,7 @@ pub fn draw_scores_with_heading(
     let section = (CHAMP_VIEW.event_mode.get() == 0x13)
         .then(|| {
             crate::pointers::GamePtr::new(
-                MENU_LISTS.section_titles[0].addr() as u32 + 4 * EVENT_STATE.section.get(),
+                MENU_LISTS.section_titles[0].addr() + 4 * EVENT_STATE.section.get(),
             )
             .read::<u32>("a section title")
         })

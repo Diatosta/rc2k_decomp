@@ -107,7 +107,7 @@ pub static SHEET: SheetVars = SheetVars {
 
 /// Where the block is (`moved::MOVED`'s home for IDA 0x519598).
 pub fn home() -> usize {
-    crate::pointers::host_number(&SHEET as *const SheetVars)
+    crate::pointers::game_address(&SHEET as *const SheetVars) as usize
 }
 
 const RECORD_HEAD: u32 = 0x1C;
@@ -453,7 +453,13 @@ mod block_tests {
         assert_eq!(offset_of!(SheetVars, table), 0x5195A4 - START);
         assert_eq!(offset_of!(SheetVars, glyph_count), 0x5195B0 - START);
         assert_eq!(offset_of!(SheetVars, pixel_size), 0x5195CC - START);
-        assert_eq!(crate::moved::place(START), SHEET.sheet_table.addr());
-        assert_eq!(crate::moved::place(0x5195D0), SHEET.alpha_loaded.addr());
+        assert_eq!(
+            crate::moved::place(START),
+            SHEET.sheet_table.addr() as usize
+        );
+        assert_eq!(
+            crate::moved::place(0x5195D0),
+            SHEET.alpha_loaded.addr() as usize
+        );
     }
 }

@@ -20,7 +20,7 @@ use rc2k_core::menu::tables::{ItemFn, ScreenFn};
 /// The address as IDA shows it.
 fn ral(function: u32) -> u32 {
     (function as usize)
-        .wrapping_sub(game_addr(0))
+        .wrapping_sub(game_addr(0) as usize)
         .wrapping_add(IMAGE_BASE) as u32
 }
 

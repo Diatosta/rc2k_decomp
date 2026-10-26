@@ -30,7 +30,7 @@ fn highlighted<const N: usize>(
     if index >= NAMES {
         return Err(BadInput("highlighted name past the list"));
     }
-    Ok((names.addr() + index as usize * NAME_LEN) as u32)
+    Ok(names.addr() + (index as usize * NAME_LEN) as u32)
 }
 
 /// The name of the highlighted saved game.

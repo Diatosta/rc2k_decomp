@@ -44,7 +44,7 @@ fn step() -> Result<(), Refused> {
     }
     x87_1(
         crate::race::store::asm_base() as usize,
-        ((PHYSICS.gear_ratios[1].addr() as u32).wrapping_add(gear.wrapping_mul(4))) as usize,
+        ((PHYSICS.gear_ratios[1].addr()).wrapping_add(gear.wrapping_mul(4))) as usize,
     );
     crate::physics::drive_torque_share::drive_torque_share();
     x87_2(crate::race::store::asm_base() as usize);

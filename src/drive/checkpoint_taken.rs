@@ -37,6 +37,6 @@ pub fn taken_at(cars: [u32; 4], count: u32, checkpoint: u32) -> Result<bool, Bad
 
 /// The Rust version: whether `checkpoint` is taken (the CF; every register kept).
 pub fn checkpoint_taken(checkpoint: u32) -> Result<bool, BadInput> {
-    let cars = [0, 1, 2, 3].map(|n| crate::race::blocks_store::block_addr(n) as u32);
+    let cars = [0, 1, 2, 3].map(crate::race::blocks_store::block_addr);
     taken_at(cars, RACE_VARS.checkpoint_count.bits(), checkpoint)
 }

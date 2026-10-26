@@ -62,7 +62,7 @@ fn stage_line(id: u32, record: u32) -> Result<(), Refused> {
     crate::pointers::GamePtr::new(
         crate::screens::text_buffers_store::TEXT_BUFFERS
             .stage_heading
-            .addr() as u32,
+            .addr(),
     )
     .write_bytes(&line, "the stage line")?;
     Ok(())
@@ -102,7 +102,7 @@ pub fn stage_options_texts() -> Result<(), Refused> {
     stage_refuses(a, b)?;
     // Converted: `rc2k_core::screens::page_values` (the items and the caption).
     use rc2k_core::screens::page_values::{stage_options_caption, stage_options_items};
-    let items = MENUS.view_best_times.addr() as u32;
+    let items = MENUS.view_best_times.addr();
     let (first, second) = stage_options_items(a, CHAMP_VIEW.switch_fc.get());
     set_item(items, 1, first)?;
     set_item(items, 2, second)?;
@@ -122,7 +122,7 @@ pub fn stage_options_texts() -> Result<(), Refused> {
     crate::pointers::GamePtr::new(
         crate::screens::text_buffers_store::TEXT_BUFFERS
             .caption
-            .addr() as u32,
+            .addr(),
     )
     .write_bytes(&caption, "the caption")?;
     Ok(())
@@ -141,11 +141,11 @@ pub fn stage_choice_texts() -> Result<(), Refused> {
     if pointed == 0 {
         return Err(BadInput("no item table").into());
     }
-    let items = MENUS.view_courses.addr() as u32;
+    let items = MENUS.view_courses.addr();
     set_item(
         items,
         0,
-        crate::pointers::GamePtr::new(RESULT_FIGURES.group_titles[0].addr() as u32 + 4 * a)
+        crate::pointers::GamePtr::new(RESULT_FIGURES.group_titles[0].addr() + 4 * a)
             .read::<u32>("a group title")?,
     )?;
     let (base, record) = stage_record(a, b, EVENT_STATE.stage_number.get())?;

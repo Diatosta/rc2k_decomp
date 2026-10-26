@@ -35,7 +35,7 @@ pub static PNG_FILE: PngFile = PngFile {
 
 /// Where the block is (`moved::MOVED`'s home for IDA 0x5BEC30).
 pub fn home() -> usize {
-    crate::pointers::host_number(&PNG_FILE as *const PngFile)
+    crate::pointers::game_address(&PNG_FILE as *const PngFile) as usize
 }
 
 #[cfg(test)]
@@ -49,7 +49,10 @@ mod tests {
 
     #[test]
     fn moved_knows_the_block() {
-        assert_eq!(crate::moved::place(START), PNG_FILE.file.addr());
-        assert_eq!(crate::moved::place(0x5BEC38), PNG_FILE.memory.addr());
+        assert_eq!(crate::moved::place(START), PNG_FILE.file.addr() as usize);
+        assert_eq!(
+            crate::moved::place(0x5BEC38),
+            PNG_FILE.memory.addr() as usize
+        );
     }
 }

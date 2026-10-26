@@ -57,22 +57,22 @@ fn after_first_frame(_c: &mut Carried) -> Result<Flow, Refused> {
 }
 
 pub const SCREEN: Screen = Screen {
-    menu: || MENUS.simple_select_players.addr(),
+    menu: || MENUS.simple_select_players.addr() as usize,
     saved_item: || &SCREEN_ITEMS.current[slot::SIMPLE_SELECT_PLAYERS],
     lists: &[
         List {
             pointer: || &SCREEN_FLOW.scene_list, // g_sceneList
-            table: || DRAW_LISTS.simple_select_players_scene.addr(),
+            table: || DRAW_LISTS.simple_select_players_scene.addr() as usize,
             run: false,
         },
         List {
             pointer: || &SCREEN_FLOW.draw_list, // g_drawList
-            table: || DRAW_LISTS.simple_select_players_draw.addr(),
+            table: || DRAW_LISTS.simple_select_players_draw.addr() as usize,
             run: false,
         },
         List {
             pointer: || &SCREEN_FLOW.overlay_list, // g_overlayList
-            table: || DRAW_LISTS.simple_select_players_overlay.addr(),
+            table: || DRAW_LISTS.simple_select_players_overlay.addr() as usize,
             run: false,
         },
     ],
@@ -85,9 +85,9 @@ pub const SCREEN: Screen = Screen {
     after_lists: &[],
     background: &[
         Step::ArgAddr(|| {
-            crate::menu::texts_store::MENU_TEXTS
+            (crate::menu::texts_store::MENU_TEXTS
                 .simple_select_players_picture
-                .addr()
+                .addr()) as usize
         }),
         Step::CallOrFatal(Callee::LoadBackground, 0x80712345),
     ],

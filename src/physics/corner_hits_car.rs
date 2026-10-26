@@ -31,10 +31,10 @@ pub fn corner_inside() -> bool {
         .corner_in
         .each_ref()
         .map(|x| ext_times(extended(x.bits()), k));
-    let turned = { rotate_point(CONTACT_WORK.corner_matrix[0].addr() as u32, corner) };
+    let turned = { rotate_point(CONTACT_WORK.corner_matrix[0].addr(), corner) };
     for (n, e) in turned.iter().enumerate() {
         x87_1(
-            crate::pointers::host_number(e.as_ptr()),
+            (crate::pointers::game_address(e.as_ptr())) as usize,
             crate::race::store::asm_base() as usize,
             a(&CONTACT_WORK.corner_turned[n]) as usize,
         );

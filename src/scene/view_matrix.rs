@@ -98,12 +98,12 @@ pub fn square_matrix(at: usize) {
         COURSE_LISTS.squared_row_0[0].addr() + 0x10,
         COURSE_LISTS.squared_row_0[0].addr() + 0x20,
     );
-    unit_vector(at + 0x20, third);
-    cross_product(at + 0x10, third, first);
-    unit_vector(first, first);
-    cross_product(third, first, second);
+    unit_vector(at + 0x20, third as usize);
+    cross_product(at + 0x10, third as usize, first as usize);
+    unit_vector(first as usize, first as usize);
+    cross_product(third as usize, first as usize, second as usize);
     for n in 0..0x10 {
-        put(at + n * 4, float(first + n * 4));
+        put(at + n * 4, float((first + (n * 4) as u32) as usize));
     }
 }
 
@@ -147,14 +147,14 @@ pub fn set_view_matrices() {
     set_fine_turn(Axis::X, angles[1].wrapping_neg());
     set_fine_turn(Axis::Z, angles[2].wrapping_neg());
     matrix::multiply_matrices(
-        MATRICES.turn_y_matrix[0].addr(),
-        MATRICES.turn_x_matrix[0].addr(),
-        MATRICES.lit_matrix[0].addr(),
+        MATRICES.turn_y_matrix[0].addr() as usize,
+        MATRICES.turn_x_matrix[0].addr() as usize,
+        MATRICES.lit_matrix[0].addr() as usize,
     );
     matrix::multiply_matrices(
-        MATRICES.lit_matrix[0].addr(),
-        MATRICES.turn_z_matrix[0].addr(),
-        MATRICES.view_turn_matrix[0].addr(),
+        MATRICES.lit_matrix[0].addr() as usize,
+        MATRICES.turn_z_matrix[0].addr() as usize,
+        MATRICES.view_turn_matrix[0].addr() as usize,
     );
     let place = crate::session::read_bits::<_, 3>(&VIEW_VARS.view_place).map(u32::wrapping_neg);
     matrix::set_place(place);
@@ -163,13 +163,13 @@ pub fn set_view_matrices() {
         crate::session::read_bits(&MATRICES.placed_matrix),
     );
     matrix::multiply_matrices(
-        MATRICES.placed_matrix[0].addr(),
-        MATRICES.view_turn_matrix[0].addr(),
-        MATRICES.view_matrix[0].addr(),
+        MATRICES.placed_matrix[0].addr() as usize,
+        MATRICES.view_turn_matrix[0].addr() as usize,
+        MATRICES.view_matrix[0].addr() as usize,
     );
     invert_turn(
-        MATRICES.view_turn_matrix[0].addr(),
-        MATRICES.view_back_matrix[0].addr(),
+        MATRICES.view_turn_matrix[0].addr() as usize,
+        MATRICES.view_back_matrix[0].addr() as usize,
     );
 }
 

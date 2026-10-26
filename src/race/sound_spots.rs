@@ -22,7 +22,7 @@ const GRID_DWORDS: u32 = 0x1084 / 4;
 fn grid_cell(c: u32) -> Result<u32, BadInput> {
     match LEVEL_GRID.course_grid.get(c as usize) {
         Some(cell) => Ok(cell.bits()),
-        None => GamePtr::new((LEVEL_GRID.course_grid[0].addr() + 4 * c as usize) as u32)
+        None => GamePtr::new(LEVEL_GRID.course_grid[0].addr() + (4 * c as usize) as u32)
             .read("the variables after the course grid"),
     }
 }
@@ -84,7 +84,7 @@ pub fn face_sound_spot(face_number: u32) -> Result<(), BadInput> {
         if count == MOST_SPOTS {
             return Ok(());
         }
-        let spot = RACE_SOUND_SPOTS.sound_spots[0].addr() as u32 + count * 0x14;
+        let spot = RACE_SOUND_SPOTS.sound_spots[0].addr() + count * 0x14;
         let sound = byte(8)? as u32;
         if !takes_spot(count, sound) {
             return Ok(());
@@ -103,7 +103,7 @@ pub fn face_sound_spot(face_number: u32) -> Result<(), BadInput> {
         crate::session::write_bits(&OBJECT_WORK.place, place);
         let t = {
             crate::scene::rotate_point::rotate_point(
-                MATRICES.view_matrix[0].addr() as u32,
+                MATRICES.view_matrix[0].addr(),
                 place.map(int_80),
             )
         };

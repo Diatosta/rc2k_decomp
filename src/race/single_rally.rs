@@ -478,7 +478,7 @@ const SECOND_BACK_B: [(&Dword, u32); 6] = [
 ];
 
 fn mem(a: usize) -> *mut u32 {
-    crate::pointers::host_at(game_addr(rva(a))) as *mut u32
+    crate::pointers::host(game_addr(rva(a))) as *mut u32
 }
 
 /// A variable of the game that the run's steps read and write: a cell, or an address of the
@@ -526,7 +526,7 @@ fn set_field(rec: Record, off: u32, v: u32) -> Result<(), BadInput> {
 
 /// `g_players`[n].
 pub fn player(n: u32) -> Result<u32, BadInput> {
-    GamePtr::new((PLAYERS.addr() as u32).wrapping_add(n.wrapping_mul(4))).read("the players")
+    GamePtr::new((PLAYERS.addr()).wrapping_add(n.wrapping_mul(4))).read("the players")
 }
 
 /// Words of a record into game variables, in order.
@@ -586,7 +586,7 @@ fn give_outcome(rec: Record, o: &Outcome) -> Result<(), BadInput> {
             set_field(rec, 0x27C, o.word.get())?;
             let secs = crate::math::x87::to_int(o.secs.bits()) as u32;
             set_field(rec, 0x94, secs.wrapping_mul(10))?;
-            copy_bytes(o.data.addr() as u32, rec.wrapping_add(0x20C), 0x40)?;
+            copy_bytes(o.data.addr(), rec.wrapping_add(0x20C), 0x40)?;
         }
     }
     Ok(())
@@ -672,7 +672,7 @@ unsafe fn single_rally(
             }
             WORD_8_FIRST.set(field(first, 0x8)?);
             take_words(first, &FIRST_HEAD)?;
-            copy_bytes(first.wrapping_add(0x24C), BLOCK_FIRST.addr() as u32, 0x20)?;
+            copy_bytes(first.wrapping_add(0x24C), BLOCK_FIRST.addr(), 0x20)?;
             take_words(first, &FIRST_TAIL)?;
             set_var(CURRENT, 0);
         } else if field(player(var(CURRENT))?, 0xD0)? != 1 {
@@ -688,7 +688,7 @@ unsafe fn single_rally(
             RESULT.set(u32::MAX);
         }
         take_words(rec, &SECOND_HEAD)?;
-        copy_bytes(rec.wrapping_add(0x24C), BLOCK_CURRENT.addr() as u32, 0x20)?;
+        copy_bytes(rec.wrapping_add(0x24C), BLOCK_CURRENT.addr(), 0x20)?;
         take_words(rec, &SECOND_MID)?;
         if RACE_MODE.get() == 2 {
             MODE_WORD.set(field(rec, 0x10)?);
@@ -716,7 +716,7 @@ unsafe fn single_rally(
         if one_car {
             let first = player(1)?;
             give_words(first, &FIRST_BACK_A)?;
-            copy_bytes(BLOCK_FIRST.addr() as u32, first.wrapping_add(0x24C), 0x20)?;
+            copy_bytes(BLOCK_FIRST.addr(), first.wrapping_add(0x24C), 0x20)?;
             set_field(first, 0xD8, total(TIMES_FIRST, EXTRA_FIRST))?;
             give_words(first, &FIRST_BACK_B)?;
             give_outcome(first, &OUTCOME_FIRST)?;
@@ -724,7 +724,7 @@ unsafe fn single_rally(
         }
         let rec = player(var(CURRENT))?;
         set_field(rec, 0x284, BACK_284_CURRENT.get())?;
-        copy_bytes(BLOCK_CURRENT.addr() as u32, rec.wrapping_add(0x24C), 0x20)?;
+        copy_bytes(BLOCK_CURRENT.addr(), rec.wrapping_add(0x24C), 0x20)?;
         give_words(rec, &SECOND_BACK_A)?;
         set_field(rec, 0xD8, total(TIMES_CURRENT, EXTRA_CURRENT))?;
         give_words(rec, &SECOND_BACK_B)?;
@@ -888,7 +888,7 @@ mod table {
     ];
 
     fn mem(a: usize) -> *mut u32 {
-        crate::pointers::host_at(game_addr(rva(a))) as *mut u32
+        crate::pointers::host(game_addr(rva(a))) as *mut u32
     }
 
     fn reg(g: &mut Regs, r: R) -> &mut u32 {
@@ -957,11 +957,11 @@ mod table {
                     EdiPut(n, v) => (crate::pointers::host(g.edi.wrapping_add(n)) as *mut u32)
                         .write_unaligned(v),
                     EdiFromTable(t) => {
-                        let at = (game_addr(rva(t)) as u32).wrapping_add(g.eax.wrapping_mul(4));
+                        let at = (game_addr(rva(t))).wrapping_add(g.eax.wrapping_mul(4));
                         g.edi = (crate::pointers::host(at) as *const u32).read_unaligned();
                     }
                     Imm(r, v) => *reg(&mut g, r) = v,
-                    Lea(r, a) => *reg(&mut g, r) = game_addr(rva(a)) as u32,
+                    Lea(r, a) => *reg(&mut g, r) = game_addr(rva(a)),
                     LeaEdi(r, n) => *reg(&mut g, r) = g.edi.wrapping_add(n),
                     Move(a, b) => *reg(&mut g, a) = *reg(&mut g, b),
                     Nop => {}
@@ -1986,16 +1986,16 @@ mod tests {
 
     fn world() -> World {
         use std::sync::atomic::Ordering::Relaxed;
-        let base = crate::pointers::host_number(
+        let base = crate::pointers::game_address(
             Box::leak(vec![0u8; IMAGE_LEN].into_boxed_slice()).as_mut_ptr(),
         );
         crate::framework::BASE
-            .compare_exchange(0, base, Relaxed, Relaxed)
+            .compare_exchange(0, base as usize, Relaxed, Relaxed)
             .expect("no other test sets the base");
         let mut rng = Rng(0x9E37_79B9_7F4A_7C15);
         for i in 0..IMAGE_LEN {
             unsafe {
-                crate::pointers::host_at(base)
+                crate::pointers::host_at(base as usize)
                     .add(i)
                     .write(rng.next() as u8)
             };
@@ -2004,11 +2004,11 @@ mod tests {
         let mut ranges = Vec::new();
         for op in SINGLE_RALLY.iter() {
             match *op {
-                Op::Store(R::Al, a) => ranges.push((game_addr(rva(a)), 1)),
+                Op::Store(R::Al, a) => ranges.push((game_addr(rva(a)) as usize, 1)),
                 Op::Store(_, a) | Op::Load(_, a) | Op::Put(a, _) | Op::CmpMem(a, _) => {
-                    ranges.push((game_addr(rva(a)), 4))
+                    ranges.push((game_addr(rva(a)) as usize, 4))
                 }
-                Op::AddMem(_, a) => ranges.push((game_addr(rva(a)), 4)),
+                Op::AddMem(_, a) => ranges.push((game_addr(rva(a)) as usize, 4)),
                 _ => {}
             }
         }
@@ -2019,10 +2019,13 @@ mod tests {
             (OUTCOME_CURRENT.data.addr(), 0x40),
             (PLAYERS.addr(), 16),
         ] {
-            ranges.push((a, len));
+            ranges.push((a as usize, len));
         }
         for r in &records {
-            ranges.push((crate::pointers::host_number(r.as_ptr()), RECORD_LEN));
+            ranges.push((
+                crate::pointers::game_address(r.as_ptr()) as usize,
+                RECORD_LEN,
+            ));
         }
         ranges.sort_unstable();
         ranges.dedup();
@@ -2031,7 +2034,7 @@ mod tests {
             .map(|r| crate::pointers::TestRegion::new(r))
             .collect();
         World {
-            image: base,
+            image: base as usize,
             records,
             _regions,
             ranges,

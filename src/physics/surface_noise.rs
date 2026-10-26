@@ -40,10 +40,10 @@ pub fn surface_noise() -> Result<(), crate::errors::BadInput> {
     {
         let first = scaled(
             sample(
-                crate::scene::engine_tables_store::ENGINE_TABLES
+                (crate::scene::engine_tables_store::ENGINE_TABLES
                     .noise_bytes
                     .addr()
-                    + 0x50,
+                    + 0x50) as usize,
             )?,
             STAGE_PREFS.blit_cleared[0].get(),
             STAGE_PREFS.blit_cleared[1].get(),
@@ -52,10 +52,10 @@ pub fn surface_noise() -> Result<(), crate::errors::BadInput> {
         CAR.surface_noise_b.set(first);
         let second = scaled(
             sample(
-                crate::scene::engine_tables_store::ENGINE_TABLES
+                (crate::scene::engine_tables_store::ENGINE_TABLES
                     .noise_bytes
                     .addr()
-                    + 0x20,
+                    + 0x20) as usize,
             )?,
             STAGE_PREFS.surface_scale[0].get(),
             STAGE_PREFS.surface_scale[1].get(),

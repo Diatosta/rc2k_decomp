@@ -86,7 +86,7 @@ fn inside(addr: u32, len: usize) -> bool {
         if cache.regions.iter().any(|&r| fits(r)) {
             return true;
         }
-        let stack = *cache.stack.get_or_insert_with(stack);
+        let stack = *cache.stack.get_or_insert_with(|| to_game(stack()));
         if (stack.0..stack.1).contains(&addr) {
             return fits(stack);
         }
@@ -96,25 +96,16 @@ fn inside(addr: u32, len: usize) -> bool {
             cache.next = (next + 1) % 4;
             return fits(region);
         }
-        own_sections()
-            .iter()
-            .copied()
-            .find(|&(s, t)| (s..t).contains(&addr))
-            .is_some_and(fits)
+        own_section(addr).is_some_and(fits)
     })
 }
 
 /// The region `addr` lies in: its first byte and the byte past its end.
 pub fn region_of(addr: u32) -> Option<(u32, u32)> {
     exact_region(addr)
+        .or_else(|| own_section(addr))
         .or_else(|| {
-            own_sections()
-                .iter()
-                .copied()
-                .find(|&(start, end)| (start..end).contains(&addr))
-        })
-        .or_else(|| {
-            let (low, high) = stack();
+            let (low, high) = to_game(stack());
             (low..high).contains(&addr).then_some((low, high))
         })
 }
@@ -127,14 +118,24 @@ fn exact_region(addr: u32) -> Option<(u32, u32)> {
         (addr < end).then_some((start, end))
     });
     block.or_else(|| {
-        let (start, end) = crate::moved::home_range(addr as usize)?;
-        Some((start as u32, end as u32))
+        crate::moved::home_range(addr as usize).map(|(start, end)| (start as u32, end as u32))
     })
 }
 
-/// The program's own image sections (statics, constants): first byte and byte past the end.
-fn own_sections() -> &'static [(u32, u32)] {
-    static SECTIONS: std::sync::OnceLock<Vec<(u32, u32)>> = std::sync::OnceLock::new();
+/// The image section `addr` lies in, as game addresses.
+fn own_section(addr: u32) -> Option<(u32, u32)> {
+    let at = to_host(addr);
+    own_sections()
+        .iter()
+        .copied()
+        .find(|&(s, t)| (s..t).contains(&at))
+        .map(to_game)
+}
+
+/// The program's own image sections (statics, constants): first byte and byte past the end
+/// (host addresses).
+fn own_sections() -> &'static [(usize, usize)] {
+    static SECTIONS: std::sync::OnceLock<Vec<(usize, usize)>> = std::sync::OnceLock::new();
     SECTIONS.get_or_init(|| {
         // SAFETY: the running module's PE headers are mapped and read-only; the offsets are
         // the PE format's (e_lfanew at 0x3C; the file header after the 4-byte signature; the
@@ -145,8 +146,12 @@ fn own_sections() -> &'static [(u32, u32)] {
             if base == 0 {
                 return Vec::new();
             }
-            let read16 = |at: usize| (host_at(at) as *const u16).read_unaligned() as usize;
-            let read32 = |at: usize| (host_at(at) as *const u32).read_unaligned() as usize;
+            let read16 = |at: usize| {
+                (std::ptr::with_exposed_provenance::<u16>(at)).read_unaligned() as usize
+            };
+            let read32 = |at: usize| {
+                (std::ptr::with_exposed_provenance::<u32>(at)).read_unaligned() as usize
+            };
             let nt = base + read32(base + 0x3C);
             let count = read16(nt + 4 + 2);
             let optional = read16(nt + 4 + 16);
@@ -155,21 +160,21 @@ fn own_sections() -> &'static [(u32, u32)] {
                 .map(|n| {
                     let header = first + 40 * n;
                     let start = base + read32(header + 12);
-                    ((start) as u32, (start + read32(header + 8)) as u32)
+                    (start, start + read32(header + 8))
                 })
                 .collect()
         }
     })
 }
 
-/// The running thread's stack: its lowest byte and the byte past its top.
-fn stack() -> (u32, u32) {
+/// The running thread's stack: its lowest byte and the byte past its top (host addresses).
+fn stack() -> (usize, usize) {
     let (mut low, mut high) = (0usize, 0usize);
     // SAFETY: two out-parameters of the documented call.
     unsafe {
         windows_sys::Win32::System::Threading::GetCurrentThreadStackLimits(&mut low, &mut high)
     };
-    (low as u32, high as u32)
+    (low, high)
 }
 
 /// Where a game address's bytes are in this process (phase 9, `notes/conversion.md`): the
@@ -177,26 +182,73 @@ fn stack() -> (u32, u32) {
 /// a 64-bit build maps each region's game address to its host base here.
 #[inline]
 pub fn host(addr: u32) -> *mut u8 {
-    std::ptr::with_exposed_provenance_mut(addr as usize)
+    if addr == 0 {
+        return std::ptr::null_mut();
+    }
+    std::ptr::with_exposed_provenance_mut(addr.wrapping_sub(shift()) as usize)
 }
 
-/// A host address held as a number (a moved store's place, `store::game_addr`) as a
-/// pointer.
+/// How far the game's addresses lie from the host's (phase 9, step 5): 0, or with the file
+/// `rc2k_shift.on` beside the program 0x8000_0000, so that a host address taken for a game
+/// one (a conversion missed) lands outside every region and is refused at once.
+#[inline]
+pub fn shift() -> u32 {
+    static SHIFT: std::sync::OnceLock<u32> = std::sync::OnceLock::new();
+    *SHIFT.get_or_init(|| {
+        if std::path::Path::new("rc2k_shift.on").exists() {
+            log("pointers: the game's addresses are shifted by 0x80000000 (rc2k_shift.on)");
+            0x8000_0000
+        } else {
+            0
+        }
+    })
+}
+
+/// A host range (first byte, byte past the end) as game addresses.
+fn to_game((start, end): (usize, usize)) -> (u32, u32) {
+    (game_of(start), game_of(end))
+}
+
+/// The host address a game address stands for, as a number (for a host range lookup).
+fn to_host(addr: u32) -> usize {
+    host_number(host(addr))
+}
+
+/// `host` for a game address held as a `usize` (an IDA-named place, `store::game_addr`).
+/// Every address the program holds as a number is a game address (phase 9): host
+/// addresses stay pointers, but for this module's own range tables.
 #[inline]
 pub fn host_at(addr: usize) -> *mut u8 {
-    std::ptr::with_exposed_provenance_mut(addr)
+    host(addr as u32)
 }
 
 /// The game address of a host pointer handed to the game (a lent buffer, a platform
 /// object): the inverse of `host`.
 #[inline]
 pub fn game_address(p: impl HostPointer) -> u32 {
-    p.exposed() as u32
+    game_of(p.exposed())
 }
 
-/// A host pointer as a number (kept as `usize`, a place's address).
+/// The code a game address names (a method table's entry, a callback the game passes):
+/// its host address, for a `transmute` to a function pointer.
 #[inline]
-pub fn host_number(p: impl HostPointer) -> usize {
+pub fn code(addr: u32) -> usize {
+    host_number(host(addr))
+}
+
+/// The game address of a host address held as a number: this module's range tables, and
+/// the numbers the system hands over (a fault's addresses, `standalone::on_exception`).
+#[inline]
+pub fn game_of(addr: usize) -> u32 {
+    if addr == 0 {
+        return 0;
+    }
+    (addr as u32).wrapping_add(shift())
+}
+
+/// A host pointer as a number (this module's range tables, `code`).
+#[inline]
+fn host_number(p: impl HostPointer) -> usize {
     p.exposed()
 }
 
@@ -486,7 +538,7 @@ mod tests {
 
     #[test]
     fn moved_stores_are_regions() {
-        let font = crate::gfx::typefaces::FONTS.objects[0].addr() as u32;
+        let font = crate::gfx::typefaces::FONTS.objects[0].addr();
         assert!(GamePtr::new(font).read::<[u8; 0x20]>("test").is_ok());
     }
 

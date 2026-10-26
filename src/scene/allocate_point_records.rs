@@ -23,7 +23,7 @@ pub fn allocate_point_records(
     take: &mut dyn FnMut(u32, u32) -> Result<u32, Refused>,
 ) -> Result<(), Refused> {
     {
-        let list = COURSE_LISTS.point_records_list[0].addr() as u32;
+        let list = COURSE_LISTS.point_records_list[0].addr();
         COURSE_LISTS
             .course_bytes_total
             .set_bits(COURSE_LISTS.course_bytes_total.bits().wrapping_add(BYTES));
@@ -36,7 +36,7 @@ pub fn allocate_point_records(
 pub fn allocate_point_records_in_game() -> Result<(), Refused> {
     allocate_point_records(&mut |bytes, _| {
         Ok(crate::pointers::game_address(allocate(
-            crate::pointers::host_at(COURSE_LISTS.point_records_list[0].addr()) as *mut _,
+            crate::pointers::host(COURSE_LISTS.point_records_list[0].addr()) as *mut _,
             bytes,
         )?))
     })

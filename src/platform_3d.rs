@@ -78,12 +78,12 @@ pub static GUIDS_B: [crate::session::Dword; 8] = crate::gfx::dwords([
 
 /// Where the first ids are (`moved::MOVED`'s home for IDA 0x5BE81C).
 pub fn guids_a_home() -> usize {
-    crate::pointers::host_number(GUIDS_A.as_ptr())
+    (crate::pointers::game_address(GUIDS_A.as_ptr())) as usize
 }
 
 /// Where the last two are (`moved::MOVED`'s home for IDA 0x5BE874).
 pub fn guids_b_home() -> usize {
-    crate::pointers::host_number(GUIDS_B.as_ptr())
+    (crate::pointers::game_address(GUIDS_B.as_ptr())) as usize
 }
 
 #[cfg(test)]
@@ -142,7 +142,7 @@ pub unsafe fn describe_texture_formats(bits: u32) {
             description.add(15).write_unaligned(masks[3]);
             let _ = describe_format(description.add(2));
         }
-        let at = |n: usize| TEXTURE_TABLES.descriptions[n].addr() as u32;
+        let at = |n: usize| TEXTURE_TABLES.descriptions[n].addr();
         let kinds = if bits == 32 {
             [at(3); 3]
         } else {
@@ -199,7 +199,7 @@ fn objects() -> *mut [u32; 2] {
             crate::pointers::game_address(objects.as_ptr()),
             size_of_val(objects) as u32,
         );
-        crate::pointers::host_number(objects.as_mut_ptr())
+        (crate::pointers::game_address(objects.as_mut_ptr())) as usize
     })) as *mut [u32; 2]
 }
 
@@ -216,7 +216,7 @@ extern "system" fn lock(this: u32, _: u32, description: u32, _: u32, _: u32) -> 
         .unwrap()
         .get(number)
         .and_then(|l| l.as_ref())
-        .map(|l| crate::pointers::host_number(l.pixels.as_ptr()));
+        .map(|l| crate::pointers::game_address(l.pixels.as_ptr()));
     if pixels.is_none_or(reads_texture) {
         flush();
     }
@@ -298,7 +298,7 @@ struct Pending {
     into: Option<Into>,
     noted: Vec<Noted>,
     /// The memory of each texture the noted fans read.
-    textures: Vec<usize>,
+    textures: Vec<u32>,
 }
 
 static PENDING: Mutex<Pending> = Mutex::new(Pending {
@@ -308,7 +308,7 @@ static PENDING: Mutex<Pending> = Mutex::new(Pending {
 });
 
 /// Whether a noted fan reads the texture whose memory is at `pixels`.
-fn reads_texture(pixels: usize) -> bool {
+fn reads_texture(pixels: u32) -> bool {
     PENDING.lock().unwrap().textures.contains(&pixels)
 }
 
@@ -356,9 +356,9 @@ fn note(what: Noted) {
     if let Noted::Fan {
         texture: Some(t), ..
     } = &what
-        && !pending.textures.contains(&t.pixels)
+        && !pending.textures.contains(&(t.pixels as u32))
     {
-        pending.textures.push(t.pixels);
+        pending.textures.push(t.pixels as u32);
     }
     pending.noted.push(what);
 }
@@ -391,7 +391,7 @@ fn draw_noted(pending: &mut Pending) {
         if depth.width != into.width || depth.height != into.height {
             return;
         }
-        let depth_at = crate::pointers::host_number(depth.values.as_mut_ptr());
+        let depth_at = crate::pointers::game_address(depth.values.as_mut_ptr());
         let tiles: Vec<Clip> = if noted.len() < FEW {
             vec![Clip {
                 left: 0,
@@ -421,7 +421,7 @@ fn draw_noted(pending: &mut Pending) {
                 height: into.height,
                 bits: into.bits,
             };
-            let depth = crate::pointers::host_at(depth_at) as *mut f32;
+            let depth = crate::pointers::host_at(depth_at as usize) as *mut f32;
             let mut written = 0u64;
             for what in noted {
                 match what {
@@ -642,7 +642,7 @@ fn note_fan(vertices: &[crate::rasteriser::Vertex]) {
                 let format =
                     (crate::pointers::host(record.format) as *const TextureFormat).read_unaligned();
                 Some(TextureNote {
-                    pixels: crate::pointers::host_number(level.pixels.as_ptr()),
+                    pixels: (crate::pointers::game_address(level.pixels.as_ptr())) as usize,
                     len: level.pixels.len(),
                     width: record.width as usize,
                     height: record.height as usize,
@@ -788,7 +788,7 @@ fn fatal(code: u32) -> FatalError {
 
 /// A size by its number in `dword_5ABA98`.
 fn size_of(code: u32) -> Option<u32> {
-    let entry = find_entry(code, TEXTURE_TABLES.sizes_addr() as u32, 5).ok()??;
+    let entry = find_entry(code, TEXTURE_TABLES.sizes_addr(), 5).ok()??;
     Some(crate::pointers::read_or_end(entry + 4, "a texture size"))
 }
 

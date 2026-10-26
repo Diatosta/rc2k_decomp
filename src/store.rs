@@ -30,7 +30,7 @@ pub trait Where: Copy {
 
 impl Where for usize {
     fn address(self) -> usize {
-        framework::game_addr(self)
+        framework::game_addr(self) as usize
     }
 }
 
@@ -55,7 +55,7 @@ pub trait At: Copy {
 
 impl At for usize {
     fn here(self) -> usize {
-        framework::game_addr(framework::rva(self))
+        (framework::game_addr(framework::rva(self))) as usize
     }
 }
 
@@ -66,12 +66,12 @@ macro_rules! typed_places {
     ($($t:ty),*) => {$(
         impl Where for &'static $t {
             fn address(self) -> usize {
-                self.addr()
+                self.addr() as usize
             }
         }
         impl Ida for &'static $t {
             fn here(self) -> usize {
-                self.addr()
+                self.addr() as usize
             }
         }
     )*};
@@ -116,8 +116,8 @@ pub unsafe fn ida_read<T: Copy>(at: impl Ida) -> T {
 }
 
 /// The address of `place`.
-pub fn game_addr(place: impl Where) -> usize {
-    place.address()
+pub fn game_addr(place: impl Where) -> u32 {
+    place.address() as u32
 }
 
 /// Pointer to the game's memory at `place`.
@@ -204,7 +204,7 @@ macro_rules! block {
 
             impl $crate::store::Block for Zone {
                 fn base() -> usize {
-                    STORE.addr() + PAD
+                    (STORE.addr() + PAD as u32) as usize
                 }
             }
 

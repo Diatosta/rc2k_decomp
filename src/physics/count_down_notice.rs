@@ -29,10 +29,7 @@ pub fn count_down_at(v: [u32; 2]) {
 }
 
 fn game() -> [u32; 2] {
-    [
-        CAR.notice_shown.addr() as u32,
-        CAR.notice_time.addr() as u32,
-    ]
+    [CAR.notice_shown.addr(), CAR.notice_time.addr()]
 }
 
 /// The Rust version.

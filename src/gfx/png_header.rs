@@ -38,7 +38,7 @@ pub static HEADER: PngHeader = PngHeader {
 
 /// Where the block is (`moved::MOVED`'s home for IDA 0xA8C190).
 pub fn home() -> usize {
-    crate::pointers::host_number(&HEADER as *const PngHeader)
+    crate::pointers::game_address(&HEADER as *const PngHeader) as usize
 }
 
 #[cfg(test)]
@@ -55,7 +55,10 @@ mod tests {
     fn moved_knows_the_block() {
         assert_eq!(offset_of!(PngHeader, compression), 0xA8C19A - START);
         assert_eq!(offset_of!(PngHeader, colour_type), 0xA8C1A0 - START);
-        assert_eq!(crate::moved::place(START), HEADER.width.addr());
-        assert_eq!(crate::moved::place(0xA8C1A0), HEADER.colour_type.addr());
+        assert_eq!(crate::moved::place(START), HEADER.width.addr() as usize);
+        assert_eq!(
+            crate::moved::place(0xA8C1A0),
+            HEADER.colour_type.addr() as usize
+        );
     }
 }

@@ -14,9 +14,9 @@ use rc2k_core::physics::easing::ease_up;
 
 fn game() -> Vec<u32> {
     vec![
-        CAMERA_WORK.pitch_ceiling.addr() as u32,
-        CAR.camera_pitch.addr() as u32,
-        CAMERA_WORK.pitch_step.addr() as u32,
+        CAMERA_WORK.pitch_ceiling.addr(),
+        CAR.camera_pitch.addr(),
+        CAMERA_WORK.pitch_step.addr(),
     ]
 }
 

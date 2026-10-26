@@ -61,7 +61,7 @@ pub fn sync(kind: u8) -> Result<bool, Refused> {
                 let id = NET.player_block(n).id.get();
                 NET.send_buffer.set(0, kind);
                 NET.send_buffer.set(1, NET.sync.get());
-                crate::net::dplay_send::dplay_send(id, 0, NET.send_buffer.addr() as u32, 2);
+                crate::net::dplay_send::dplay_send(id, 0, NET.send_buffer.addr(), 2);
             }
             n += 1;
             if n >= NET.players.get() {

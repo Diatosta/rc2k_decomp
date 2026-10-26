@@ -94,7 +94,7 @@ pub fn steps(number: u32) -> Result<(), Refused> {
     let kind = OBJECT_TABLES.object_kind(object);
     contacts::check_material(kind)?;
     CONTACT_WORK.contact_kind.set(byte(
-        crate::scene::polygon::materials_addr() as u32 + 0x80 * kind + 0x1C,
+        crate::scene::polygon::materials_addr() + 0x80 * kind + 0x1C,
     )?);
     if contacts::object_tried(byte(face + 0x25)?, RACE_WORK.stage_direction.get(), object).is_err()
     {
@@ -153,7 +153,7 @@ pub fn steps(number: u32) -> Result<(), Refused> {
     negate(&FRAME_SCRATCH.work_vector[1]);
     negate(&FRAME_SCRATCH.work_vector[2]);
     if compare_80(
-        vector_length(FRAME_SCRATCH.work_vector[0].addr() as u32),
+        vector_length(FRAME_SCRATCH.work_vector[0].addr()),
         NUMBERS.zero.bits(),
     ) & 0x4000
         != 0
@@ -173,7 +173,7 @@ pub fn steps(number: u32) -> Result<(), Refused> {
     CONTACT_WORK.contact_slide_limit.set_bits(0);
     PHYSICS
         .contact_record
-        .set(crate::pointers::host_number(PHYSICS.contacts.as_ptr()) as u32);
+        .set(crate::pointers::game_address(PHYSICS.contacts.as_ptr()));
     unsafe { contact_force() };
     Ok(())
 }

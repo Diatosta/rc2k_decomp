@@ -40,7 +40,7 @@ pub fn read_level_file(
     }
     let given = crate::files::cstring(GamePtr::new(path), "a level file's path")?;
     let packed = rc2k_core::files::io::packed_level_path(&given)?;
-    let at = crate::files::state::PACKED_PATH.addr() as u32;
+    let at = crate::files::state::PACKED_PATH.addr();
     GamePtr::new(at).write_bytes(&packed, "the packed path")?;
     read_packed_file(at, buffer, room, read)
 }

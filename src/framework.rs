@@ -74,16 +74,16 @@ impl HookStats {
 /// The address of the game's variable at `rva`: in the image, or for a variable that has
 /// left it (phase 5, `crate::moved`) its new home, so an address the code still names by its
 /// RVA reaches the variable wherever it lives (owner, 2026-10-24: the resolver).
-pub fn game_addr(rva: usize) -> usize {
+pub fn game_addr(rva: usize) -> u32 {
     match crate::moved::home_of_rva(rva) {
-        Some(home) => home,
-        None => BASE.load(Ordering::Relaxed) + rva,
+        Some(home) => home as u32,
+        None => (BASE.load(Ordering::Relaxed) + rva) as u32,
     }
 }
 
 /// Pointer to game memory at `rva`.
 pub fn game_ptr<T>(rva: usize) -> *mut T {
-    crate::pointers::host_at(game_addr(rva)) as *mut T
+    crate::pointers::host(game_addr(rva)) as *mut T
 }
 
 /// Reads a game global. Call it on every use: the game changes these at runtime.

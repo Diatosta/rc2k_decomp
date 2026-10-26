@@ -136,8 +136,8 @@ impl<const N: usize> Menu<N> {
     }
 
     /// The menu's address (its head).
-    pub fn addr(&self) -> usize {
-        crate::pointers::host_number(self as *const Self)
+    pub fn addr(&self) -> u32 {
+        crate::pointers::game_address(self as *const Self)
     }
 }
 
@@ -739,8 +739,8 @@ pub const START: usize = 0x747AD8;
 pub const END: usize = 0x755144;
 
 /// Where IDA 0x747AD8 is now (`moved::MOVED`'s home).
-pub fn menus_addr() -> usize {
-    crate::pointers::host_number(&MENUS as *const MenuTables)
+pub fn menus_addr() -> u32 {
+    crate::pointers::game_address(&MENUS as *const MenuTables)
 }
 
 #[cfg(test)]
@@ -754,7 +754,7 @@ mod tests {
         assert_eq!(size_of::<MenuTables>(), END - START);
         let mine = unsafe {
             std::slice::from_raw_parts(
-                crate::pointers::host_at(menus_addr()) as *const u8,
+                crate::pointers::host(menus_addr()) as *const u8,
                 END - START,
             )
         };

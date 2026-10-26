@@ -52,7 +52,7 @@ pub static SAVE_GAMES: SaveGames = SaveGames {
 
 /// Where the block is (`moved::MOVED`'s home for IDA 0x51EBB0).
 pub fn home() -> usize {
-    crate::pointers::host_number(&SAVE_GAMES as *const SaveGames)
+    crate::pointers::game_address(&SAVE_GAMES as *const SaveGames) as usize
 }
 
 /// IDA's address of the file name's template.
@@ -63,7 +63,7 @@ pub static TEMPLATE: Bytes<27> = Bytes::new(*b"savedata\\savegame\\svgame00\0");
 
 /// Where the template is (`moved::MOVED`'s home for IDA 0x5296FB).
 pub fn template_home() -> usize {
-    TEMPLATE.addr()
+    TEMPLATE.addr() as usize
 }
 
 // "R5SG"
@@ -82,7 +82,7 @@ pub fn write_savegame_slot(slot: u32) -> Result<bool, Refused> {
         return Err(BadInput("slot past the name list").into());
     }
     {
-        let file = GamePtr::new(SAVE_GAMES.file.addr() as u32);
+        let file = GamePtr::new(SAVE_GAMES.file.addr());
         // First, because it is what can be refused: nothing else is written before it.
         gather_savegame(file.offset(0x30))?;
         // Converted: `rc2k_core::saves::kept::slot_head`.
@@ -122,8 +122,17 @@ mod block_tests {
         assert_eq!(offset_of!(SaveGames, file), 0x51EBB4 - START);
         assert_eq!(offset_of!(SaveGames, names), 0x526BB4 - START);
         assert_eq!(offset_of!(SaveGames, kept_b), 0x527834 - START);
-        assert_eq!(crate::moved::place(0x51EBB4), SAVE_GAMES.file.addr());
-        assert_eq!(crate::moved::place(0x526BB4), SAVE_GAMES.names.addr());
-        assert_eq!(crate::moved::place(TEMPLATE_START), TEMPLATE.addr());
+        assert_eq!(
+            crate::moved::place(0x51EBB4),
+            SAVE_GAMES.file.addr() as usize
+        );
+        assert_eq!(
+            crate::moved::place(0x526BB4),
+            SAVE_GAMES.names.addr() as usize
+        );
+        assert_eq!(
+            crate::moved::place(TEMPLATE_START),
+            TEMPLATE.addr() as usize
+        );
     }
 }

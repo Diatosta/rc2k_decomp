@@ -37,9 +37,9 @@ pub unsafe fn gearing_text() -> Result<(), Refused> {
     unsafe {
         put_string(
             FIRST_STRING.wrapping_add(value),
-            crate::screens::text_buffers_store::TEXT_BUFFERS
+            (crate::screens::text_buffers_store::TEXT_BUFFERS
                 .title
-                .addr(),
+                .addr()) as usize,
             TEXT_LEN,
         )?;
         SCREEN_FLOW.shown_gearing.set(value);
@@ -57,9 +57,9 @@ pub unsafe fn step_gearing(on: bool) -> Result<(), Refused> {
         let value = rc2k_core::screens::captions::step_gearing(kept, on);
         put_string(
             FIRST_STRING.wrapping_add(value),
-            crate::screens::text_buffers_store::TEXT_BUFFERS
+            (crate::screens::text_buffers_store::TEXT_BUFFERS
                 .title
-                .addr(),
+                .addr()) as usize,
             TEXT_LEN,
         )?;
         SCREEN_FLOW.shown_gearing.set(value);

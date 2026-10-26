@@ -23,7 +23,7 @@ pub unsafe fn apply_forces(first: u32, count: u32) -> Result<(), Refused> {
     if let Some(why) = refusal(count) {
         return Err(BadInput(why).into());
     }
-    let car = crate::physics::car_store::car_addr() as u32;
+    let car = crate::physics::car_store::car_addr();
     for k in 0..count {
         unsafe { apply_force(first + 0x20 * k, car) };
     }

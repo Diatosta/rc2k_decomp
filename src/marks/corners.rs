@@ -19,7 +19,7 @@ use crate::session::{Dword, read_bits, read_first, write_bits};
 
 /// The two corner tables' addresses (`g_marksCornersA`, `_B`).
 pub fn tables() -> [u32; 2] {
-    [MASKS.corners_a.addr() as u32, MASKS.corners_b.addr() as u32]
+    [MASKS.corners_a.addr(), MASKS.corners_b.addr()]
 }
 pub const ENTRIES: u32 = 0x81;
 const ENTRY: u32 = 0x18;
@@ -93,7 +93,7 @@ pub fn make_corners() -> Result<(), Refused> {
                 turn_shape_points(first, second)?;
                 let mut to = tables()[n] + k * ENTRY;
                 let pair: [u32; 2] = read_bits(farthest_pair(n));
-                let turned = turned(n).addr() as u32;
+                let turned = turned(n).addr();
                 for p in pair {
                     let from = turned + p * 12;
                     for c in 0..3 {
@@ -119,7 +119,7 @@ pub fn make_corners() -> Result<(), Refused> {
                 }
             }
         }
-        let bx_at = KIND_BOXES.boxes.addr() as u32 + kind * 0x30;
+        let bx_at = KIND_BOXES.boxes.addr() + kind * 0x30;
         let bx = |o: u32| -> Result<_, Refused> { Ok(get(bx_at + o)? as i32) };
         let divisors: [i32; 2] = MASK_CONSTANTS.divisors.each_ref().map(|c| c.get() as i32);
         let scales = [

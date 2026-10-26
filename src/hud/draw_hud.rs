@@ -24,7 +24,7 @@ pub fn draw_hud() -> Result<(), Refused> {
         HUD.batch_texture.set(batch::NO_TEXTURE);
         HUD.vertex_count.set(0);
         HUD.index_count.set(0);
-        let record = PANEL.split_6.addr() as u32;
+        let record = PANEL.split_6.addr();
         tenths::tenths(record)?;
         match batch::Layout::of(GamePtr::new(record + 0xF4).read::<u32>("a hud record's field")?) {
             batch::Layout::Single => layout_0::layout_0(record)?,

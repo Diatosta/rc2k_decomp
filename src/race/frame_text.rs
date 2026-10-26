@@ -31,7 +31,7 @@ pub fn draw_frame_rate(canvas: &mut dyn Canvas) -> Result<(), Refused> {
     crate::pointers::GamePtr::new(crate::pointers::game_address(t))
         .write_bytes(&bytes, "the frame rate's text")?;
     draw_text_at(
-        font_at(crate::gfx::fonts_store::FONTS.menu_fonts[3].addr()),
+        font_at(crate::gfx::fonts_store::FONTS.menu_fonts[3].addr() as usize),
         t,
         0x190,
         4,
@@ -142,7 +142,7 @@ pub static CREDITS: Credits = Credits {
 
 /// Where the block is (`moved::MOVED`'s home for IDA 0x52984C).
 pub fn credits_home() -> usize {
-    crate::pointers::host_number(&CREDITS as *const Credits)
+    crate::pointers::game_address(&CREDITS as *const Credits) as usize
 }
 
 /// `race::roll_credits` (0x415FC2): eax 0 starts them (the clock `dword_529850`, the top
@@ -182,7 +182,7 @@ pub unsafe fn roll_credits(
                 7 => fonts::TIME,
                 _ => fonts::NAME,
             };
-            font.addr() as u32
+            font.addr()
         };
         let mut at = crate::pointers::game_address(CREDITS.script.as_ptr());
         let trap = Trap::new();
@@ -233,10 +233,13 @@ mod block_tests {
     #[test]
     fn moved_knows_the_block() {
         assert_eq!(offset_of!(Credits, script), 0x529858 - CREDITS_START);
-        assert_eq!(crate::moved::place(CREDITS_START), CREDITS.top.addr());
+        assert_eq!(
+            crate::moved::place(CREDITS_START),
+            CREDITS.top.addr() as usize
+        );
         assert_eq!(
             crate::moved::place(0x529858),
-            crate::pointers::host_number(CREDITS.script.as_ptr())
+            (crate::pointers::game_address(CREDITS.script.as_ptr())) as usize
         );
     }
 }

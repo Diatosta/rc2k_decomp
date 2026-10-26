@@ -49,7 +49,7 @@ pub fn add_point_lights() -> Result<(), Refused> {
     let list = (0..lamps as usize).map(|n| {
         // The list holds 16 lamps, the refusal allows `MOST`: read by address.
         let [point, strength, colour] = reading.read::<[u32; 3]>(
-            (LEVEL_GRID.lamps[0].addr() + n * 0x10) as u32,
+            LEVEL_GRID.lamps[0].addr() + (n * 0x10) as u32,
             "a lamp of the level",
         );
         Lamp {

@@ -29,7 +29,7 @@ pub static SHOTS: Shots = Shots {
 
 /// Where the block is (`moved::MOVED`'s home for IDA 0x4F52B4).
 pub fn home() -> usize {
-    crate::pointers::host_number(&SHOTS as *const Shots)
+    crate::pointers::game_address(&SHOTS as *const Shots) as usize
 }
 
 /// Whether screenshots are on.
@@ -53,8 +53,11 @@ mod tests {
 
     #[test]
     fn moved_knows_the_block() {
-        assert_eq!(crate::moved::place(START), SHOTS.on.addr());
-        assert_eq!(crate::moved::place(0x4F52B8), SHOTS.locked_here.addr());
-        assert_eq!(crate::moved::place(0x4F52BC), SHOTS.name.addr());
+        assert_eq!(crate::moved::place(START), SHOTS.on.addr() as usize);
+        assert_eq!(
+            crate::moved::place(0x4F52B8),
+            SHOTS.locked_here.addr() as usize
+        );
+        assert_eq!(crate::moved::place(0x4F52BC), SHOTS.name.addr() as usize);
     }
 }

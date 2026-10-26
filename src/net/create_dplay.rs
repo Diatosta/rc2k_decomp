@@ -15,8 +15,8 @@ use crate::race::viewer_screen_store::{VIEWER_PANEL, texts};
 pub fn create_dplay() -> bool {
     log(VIEWER_PANEL.text_addr(texts::NET_CREATE_DPLAY), true, 2);
     co_create(
-        NET.clsid_dplay.addr() as u32,
-        NET.iid_dplay4a.addr() as u32,
-        NET.dplay.addr() as u32,
+        NET.clsid_dplay.addr(),
+        NET.iid_dplay4a.addr(),
+        NET.dplay.addr(),
     ) == 0
 }

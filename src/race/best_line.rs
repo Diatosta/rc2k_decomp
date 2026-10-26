@@ -415,7 +415,7 @@ pub fn surface_shares() -> Result<(), Refused> {
             share.set_bits(0u32);
         }
         let faces: u32 = COURSE.course_face_count.bits();
-        let infos = crate::scene::polygon::texture_infos_addr() as u32;
+        let infos = crate::scene::polygon::texture_infos_addr();
         let byte = |at: u32| -> Result<u32, BadInput> {
             Ok(GamePtr::new(at).read::<u8>("a texture info or face byte")? as u32)
         };
@@ -443,8 +443,8 @@ pub fn surface_shares() -> Result<(), Refused> {
             // dword_63D9D0: indexed by a byte of the texture info (not bounded by the
             // field's 4 dwords), so read by address.
             let kind: u32 = GamePtr::new(
-                (RACE_VIEW.surface_kinds[0].addr()
-                    + 4 * byte(infos + second * 0x40 + 0x2C)? as usize) as u32,
+                RACE_VIEW.surface_kinds[0].addr()
+                    + (4 * byte(infos + second * 0x40 + 0x2C)? as usize) as u32,
             )
             .read("the surface kinds table")?;
             let weight = rc2k_core::race::best_line::second_weight(blend, second as u8, kind);

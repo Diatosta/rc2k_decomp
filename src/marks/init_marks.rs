@@ -46,7 +46,7 @@ pub fn init_marks(settings: u32, seed: u32) -> Result<(), Refused> {
         CLOCK.started.set(0);
         edges::load_kind_data()?;
         setup::make_wave_tables()?;
-        profiles::make_profiles(game_addr(profiles::RESUME_RVA) as u32)?;
+        profiles::make_profiles(game_addr(profiles::RESUME_RVA))?;
         setup::seed_noise();
         setup::make_noise_curve()?;
         blocks::allocate_places()?;

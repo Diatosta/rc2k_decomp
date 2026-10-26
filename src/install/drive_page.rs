@@ -21,7 +21,7 @@ use rc2k_core::install::pages;
 
 /// `state` the list action's (ebx), `list` the page's.
 pub fn drive_page(state: u32, list: u32) {
-    let letters = crate::install::store::DRIVE_ROWS.drive_rows.addr() as u32;
+    let letters = crate::install::store::DRIVE_ROWS.drive_rows.addr();
     if state == 0 {
         let letter = crate::strings::same_text::lower(INSTALLER_PATHS.typed.get(0)); // g_lowerCase
         // Converted: `rc2k_core::install::pages` (`drive_highlight`, `chosen_drive`).

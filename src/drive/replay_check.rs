@@ -64,7 +64,7 @@ pub fn note() -> Result<(), BadInput> {
     for car in 0..RACE_VIEW.race_cars.get().min(4) as usize {
         // g_carBlockStore: four blocks of 0xFE0.
         let block = &CAR_BLOCKS.cars[car];
-        let at = crate::race::blocks_store::block_addr(car) as u32;
+        let at = crate::race::blocks_store::block_addr(car);
         let words: Vec<[u32; 1]> =
             crate::scene::reading::read_records(at, CAR_DWORDS, "a car's block")?;
         let h = hash(words.iter().map(|w| w[0]));
@@ -86,7 +86,7 @@ fn piece_name(piece: StartPiece) -> String {
 
 /// At a whole frame of a replay played, before its recorded state is loaded.
 pub fn compare_frame() -> Result<(), BadInput> {
-    let saved = crate::race::blocks_store::block_addr(8) as u32;
+    let saved = crate::race::blocks_store::block_addr(8);
     let read = |at: u32| GamePtr::new(at).read::<u32>("the replay check's blocks");
     let clock = CAR_BLOCKS.cars[0].step_clock.bits();
     if read(saved + 8)? != clock {
@@ -95,7 +95,7 @@ pub fn compare_frame() -> Result<(), BadInput> {
     }
     let mut differing = 0;
     for (piece, offset, n) in start_layout() {
-        let ours = crate::drive::save_replay_cars::piece_addr(piece) as u32;
+        let ours = crate::drive::save_replay_cars::piece_addr(piece);
         for k in 0..n as u32 {
             let (now, kept) = (read(ours + 4 * k)?, read(saved + 4 * (offset as u32 + k))?);
             if now == kept

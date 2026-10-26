@@ -38,12 +38,12 @@ pub fn set_downforce_at(v: &[u32; 6]) {
 
 fn game() -> [u32; 6] {
     [
-        CAR.rear_wheels_off.addr() as u32,
-        CAR.local_velocity[2].addr() as u32,
-        PHYSICS.downforce_spec.addr() as u32,
-        PHYSICS.downforce.addr() as u32,
-        PHYSICS.forces[4].force[1].addr() as u32,
-        PHYSICS.forces[4].point[2].addr() as u32,
+        CAR.rear_wheels_off.addr(),
+        CAR.local_velocity[2].addr(),
+        PHYSICS.downforce_spec.addr(),
+        PHYSICS.downforce.addr(),
+        PHYSICS.forces[4].force[1].addr(),
+        PHYSICS.forces[4].point[2].addr(),
     ]
 }
 

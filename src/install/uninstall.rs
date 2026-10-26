@@ -29,12 +29,12 @@ use crate::install::vars::INSTALLER_RUN;
 /// byte_95E9F8 = byte_95E7F8 + name #index of `table`, NUL-ended.
 fn build_path(table: u32, index: u32) -> u32 {
     let cursor = str_append(
-        INSTALLER_PATHS.installed.addr() as u32,
-        INSTALLER_PATHS.path_b.addr() as u32,
+        INSTALLER_PATHS.installed.addr(),
+        INSTALLER_PATHS.path_b.addr(),
     );
     let cursor = str_append_indexed(table, index, cursor);
     append_byte(cursor, 0);
-    INSTALLER_PATHS.path_b.addr() as u32
+    INSTALLER_PATHS.path_b.addr()
 }
 
 pub fn uninstall() -> Result<(), Refused> {
@@ -48,21 +48,16 @@ pub fn uninstall() -> Result<(), Refused> {
     run_frame(None)?;
     if lock() {
         copy_picture()?;
-        i::draw_string_list::draw_string_list(
-            1,
-            INSTALLER_PAGES.remove_strings.addr() as u32,
-            0,
-            0,
-        )?;
+        i::draw_string_list::draw_string_list(1, INSTALLER_PAGES.remove_strings.addr(), 0, 0)?;
         unlock();
         show();
     }
     normalise(
-        INSTALLER_NAMES.source.addr() as u32,
-        INSTALLER_PATHS.installed.addr() as u32,
+        INSTALLER_NAMES.source.addr(),
+        INSTALLER_PATHS.installed.addr(),
     )?;
-    set_cd(INSTALLER_PATHS.installed.addr() as u32);
-    i::run_script::run_script(INSTALLER_NAMES.script.addr() as u32)?;
+    set_cd(INSTALLER_PATHS.installed.addr());
+    i::run_script::run_script(INSTALLER_NAMES.script.addr())?;
     if INSTALLER_RUN.file_count.get() != 0 {
         let mut n = 0;
         loop {
@@ -83,11 +78,11 @@ pub fn uninstall() -> Result<(), Refused> {
             }
         }
     }
-    set_cd(crate::install::installer::INSTALL_TEXTS.dotdot.addr() as u32);
-    remove_dir(INSTALLER_PATHS.installed.addr() as u32);
+    set_cd(crate::install::installer::INSTALL_TEXTS.dotdot.addr());
+    remove_dir(INSTALLER_PATHS.installed.addr());
     sleep(1000);
     INSTALLER_NAMES.status.set(0);
-    wb(INSTALLER_NAMES.source.addr() as u32, 0);
+    wb(INSTALLER_NAMES.source.addr(), 0);
     i::write_registry::write_registry(&mut game_api)?;
     i::unregister_lobby::unregister_lobby(&mut game_api);
     INSTALLER_RUN.remove_items.set(1);

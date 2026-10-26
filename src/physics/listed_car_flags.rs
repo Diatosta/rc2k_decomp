@@ -28,10 +28,6 @@ pub fn set_flag_at(current: u32, table: u32, flag: u32) -> Result<(), Refused> {
 
 /// On the game's variables.
 pub fn set_flag(flag: &crate::session::Dword) -> Result<(), Refused> {
-    let current = crate::race::work_store::RACE_WORK.current_car.addr() as u32;
-    set_flag_at(
-        current,
-        FRAME_WORK.listed_car_sounds[0].addr() as u32,
-        flag.addr() as u32,
-    )
+    let current = crate::race::work_store::RACE_WORK.current_car.addr();
+    set_flag_at(current, FRAME_WORK.listed_car_sounds[0].addr(), flag.addr())
 }

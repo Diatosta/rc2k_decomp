@@ -20,10 +20,7 @@ pub fn note_at(v: &[u32]) {
 }
 
 fn game() -> Vec<u32> {
-    vec![
-        CAR.camera_view.addr() as u32,
-        CAR.camera_mode_is_2_or_3.addr() as u32,
-    ]
+    vec![CAR.camera_view.addr(), CAR.camera_mode_is_2_or_3.addr()]
 }
 
 /// The Rust version.

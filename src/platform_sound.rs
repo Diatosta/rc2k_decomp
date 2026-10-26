@@ -39,20 +39,26 @@ const STATUS_LOOPING: u32 = 4;
 /// What `GetCaps` says of the device (as Wine's does: no hardware buffers).
 const CAPS_FLAGS: u32 = 0xF5F;
 
-/// A method table: the methods' addresses, shared by every thread.
-struct Table<const N: usize>([*const (); N]);
+/// A method table: the methods, shared by every thread, and (made at the first use) the
+/// table the game reads, of their game addresses.
+struct Table<const N: usize>([*const (); N], std::sync::OnceLock<[u32; N]>);
 unsafe impl<const N: usize> Sync for Table<N> {}
 
 impl<const N: usize> Table<N> {
-    fn start(&'static self) -> *const usize {
-        self.0.as_ptr().cast()
+    /// The game's table: its game address.
+    fn start(&'static self) -> u32 {
+        let game = self
+            .1
+            .get_or_init(|| self.0.map(crate::pointers::game_address));
+        crate::pointers::game_address(game.as_ptr())
     }
 }
 
 /// What the game holds: its method table first, as for any COM object.
 #[repr(C)]
 struct Object {
-    table: *const usize,
+    /// The table's game address.
+    table: u32,
     id: u32,
 }
 
@@ -217,7 +223,7 @@ fn get(at: u32) -> u32 {
     crate::pointers::read_or_end(at, "a DirectSound method's argument")
 }
 
-fn new_object(s: &mut State, table: *const usize, kind: Kind) -> u32 {
+fn new_object(s: &mut State, table: u32, kind: Kind) -> u32 {
     let id = s.next;
     s.next += 1;
     let object = Box::new(Object { table, id });
@@ -434,19 +440,22 @@ extern "system" fn duplicate(_: u32, source: u32, out: u32) -> i32 {
     })
 }
 
-static DEVICE: Table<11> = Table([
-    no_interface as *const (),
-    add_ref as *const (),
-    release as *const (),
-    create_buffer as *const (),
-    device_caps as *const (),
-    duplicate as *const (),
-    ok2 as *const (),   // SetCooperativeLevel
-    ok0 as *const (),   // Compact
-    zero1 as *const (), // GetSpeakerConfig
-    ok1 as *const (),   // SetSpeakerConfig
-    ok1 as *const (),   // Initialize
-]);
+static DEVICE: Table<11> = Table(
+    [
+        no_interface as *const (),
+        add_ref as *const (),
+        release as *const (),
+        create_buffer as *const (),
+        device_caps as *const (),
+        duplicate as *const (),
+        ok2 as *const (),   // SetCooperativeLevel
+        ok0 as *const (),   // Compact
+        zero1 as *const (), // GetSpeakerConfig
+        ok1 as *const (),   // SetSpeakerConfig
+        ok1 as *const (),   // Initialize
+    ],
+    std::sync::OnceLock::new(),
+);
 
 // ---- a buffer (IDirectSoundBuffer) ----
 
@@ -667,29 +676,32 @@ extern "system" fn stop(this: u32) -> i32 {
     })
 }
 
-static BUFFER: Table<21> = Table([
-    buffer_query as *const (),
-    add_ref as *const (),
-    release as *const (),
-    buffer_caps as *const (),
-    position as *const (),
-    get_format as *const (),
-    get_volume as *const (),
-    get_pan as *const (),
-    get_frequency as *const (),
-    status as *const (),
-    ok2 as *const (), // Initialize
-    lock as *const (),
-    play as *const (),
-    set_position as *const (),
-    set_format as *const (),
-    set_volume as *const (),
-    set_pan as *const (),
-    set_frequency as *const (),
-    stop as *const (),
-    ok4 as *const (), // Unlock
-    ok0 as *const (), // Restore
-]);
+static BUFFER: Table<21> = Table(
+    [
+        buffer_query as *const (),
+        add_ref as *const (),
+        release as *const (),
+        buffer_caps as *const (),
+        position as *const (),
+        get_format as *const (),
+        get_volume as *const (),
+        get_pan as *const (),
+        get_frequency as *const (),
+        status as *const (),
+        ok2 as *const (), // Initialize
+        lock as *const (),
+        play as *const (),
+        set_position as *const (),
+        set_format as *const (),
+        set_volume as *const (),
+        set_pan as *const (),
+        set_frequency as *const (),
+        stop as *const (),
+        ok4 as *const (), // Unlock
+        ok0 as *const (), // Restore
+    ],
+    std::sync::OnceLock::new(),
+);
 
 // ---- 3D (IDirectSound3DBuffer, IDirectSound3DListener) ----
 
@@ -794,29 +806,32 @@ extern "system" fn set_all(this: u32, all: u32, _: u32) -> i32 {
     })
 }
 
-static BUFFER_3D: Table<21> = Table([
-    no_interface as *const (),
-    add_ref as *const (),
-    release as *const (),
-    zero1 as *const (), // GetAllParameters
-    zero2 as *const (), // GetConeAngles
-    zero1 as *const (), // GetConeOrientation
-    zero1 as *const (), // GetConeOutsideVolume
-    get_greatest as *const (),
-    get_least as *const (),
-    get_mode as *const (),
-    get_place as *const (),
-    zero1 as *const (), // GetVelocity
-    set_all as *const (),
-    ok3 as *const (), // SetConeAngles
-    ok4 as *const (), // SetConeOrientation
-    ok2 as *const (), // SetConeOutsideVolume
-    set_greatest as *const (),
-    set_least as *const (),
-    set_mode as *const (),
-    set_place as *const (),
-    ok4 as *const (), // SetVelocity
-]);
+static BUFFER_3D: Table<21> = Table(
+    [
+        no_interface as *const (),
+        add_ref as *const (),
+        release as *const (),
+        zero1 as *const (), // GetAllParameters
+        zero2 as *const (), // GetConeAngles
+        zero1 as *const (), // GetConeOrientation
+        zero1 as *const (), // GetConeOutsideVolume
+        get_greatest as *const (),
+        get_least as *const (),
+        get_mode as *const (),
+        get_place as *const (),
+        zero1 as *const (), // GetVelocity
+        set_all as *const (),
+        ok3 as *const (), // SetConeAngles
+        ok4 as *const (), // SetConeOrientation
+        ok2 as *const (), // SetConeOutsideVolume
+        set_greatest as *const (),
+        set_least as *const (),
+        set_mode as *const (),
+        set_place as *const (),
+        ok4 as *const (), // SetVelocity
+    ],
+    std::sync::OnceLock::new(),
+);
 
 extern "system" fn set_rolloff(_: u32, value: u32, _: u32) -> i32 {
     with(|s| s.rolloff = float(value));
@@ -829,26 +844,29 @@ extern "system" fn get_rolloff(_: u32, out: u32) -> i32 {
     OK
 }
 
-static LISTENER: Table<18> = Table([
-    no_interface as *const (),
-    add_ref as *const (),
-    release as *const (),
-    zero1 as *const (), // GetAllParameters
-    zero1 as *const (), // GetDistanceFactor
-    zero1 as *const (), // GetDopplerFactor
-    zero2 as *const (), // GetOrientation
-    zero1 as *const (), // GetPosition
-    get_rolloff as *const (),
-    zero1 as *const (), // GetVelocity
-    ok2 as *const (),   // SetAllParameters
-    ok2 as *const (),   // SetDistanceFactor
-    ok2 as *const (),   // SetDopplerFactor
-    ok7 as *const (),   // SetOrientation
-    ok4 as *const (),   // SetPosition
-    set_rolloff as *const (),
-    ok4 as *const (), // SetVelocity
-    ok0 as *const (), // CommitDeferredSettings
-]);
+static LISTENER: Table<18> = Table(
+    [
+        no_interface as *const (),
+        add_ref as *const (),
+        release as *const (),
+        zero1 as *const (), // GetAllParameters
+        zero1 as *const (), // GetDistanceFactor
+        zero1 as *const (), // GetDopplerFactor
+        zero2 as *const (), // GetOrientation
+        zero1 as *const (), // GetPosition
+        get_rolloff as *const (),
+        zero1 as *const (), // GetVelocity
+        ok2 as *const (),   // SetAllParameters
+        ok2 as *const (),   // SetDistanceFactor
+        ok2 as *const (),   // SetDopplerFactor
+        ok7 as *const (),   // SetOrientation
+        ok4 as *const (),   // SetPosition
+        set_rolloff as *const (),
+        ok4 as *const (), // SetVelocity
+        ok0 as *const (), // CommitDeferredSettings
+    ],
+    std::sync::OnceLock::new(),
+);
 
 // ---- the mixer ----
 

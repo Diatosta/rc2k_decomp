@@ -105,7 +105,7 @@ fn steps() -> Result<(), Refused> {
     take_contact(n)?;
     let up = {
         rotate_point(
-            CAR.crash_matrix[0].addr() as u32,
+            CAR.crash_matrix[0].addr(),
             [extended(0), extended(0x3F80_0000), extended(0)],
         )
     };
@@ -114,15 +114,12 @@ fn steps() -> Result<(), Refused> {
     }
     CONTACT_WORK.crash_up_dot.set_bits(neg_rounded({
         dot_product(
-            CONTACT_WORK.crash_car_up[0].addr() as u32,
-            CONTACT_WORK.contact_normal[0].addr() as u32,
+            CONTACT_WORK.crash_car_up[0].addr(),
+            CONTACT_WORK.contact_normal[0].addr(),
         )
     }));
     x87_1(crate::race::store::asm_base() as usize);
-    p(
-        &PHYSICS.contact_record,
-        PHYSICS.forces[21].force[0].addr() as u32,
-    );
+    p(&PHYSICS.contact_record, PHYSICS.forces[21].force[0].addr());
     unsafe { contact_force() };
     { place_sound_e5() }?;
     for k in 0..3 {

@@ -49,7 +49,7 @@ pub static SET_UPS: SetUps = SetUps {
 
 /// Where the block is (`moved::MOVED`'s home for IDA 0x527838).
 pub fn home() -> usize {
-    crate::pointers::host_number(&SET_UPS as *const SetUps)
+    crate::pointers::game_address(&SET_UPS as *const SetUps) as usize
 }
 
 /// IDA's address of the file name's template.
@@ -60,7 +60,7 @@ pub static TEMPLATE: Bytes<27> = Bytes::new(*b"savedata\\carsetup\\carset00\0");
 
 /// Where the template is (`moved::MOVED`'s home for IDA 0x529716).
 pub fn template_home() -> usize {
-    TEMPLATE.addr()
+    TEMPLATE.addr() as usize
 }
 
 // "CRSU"
@@ -80,7 +80,7 @@ pub fn read_setup_slot(slot: u32) -> Result<bool, Refused> {
     }
     {
         let path = numbered_path_in_game(TEMPLATE.as_ptr(), slot)?;
-        let file = GamePtr::new(SET_UPS.file.addr() as u32);
+        let file = GamePtr::new(SET_UPS.file.addr());
         let read = read_file(
             path,
             crate::pointers::host(file.addr()),
@@ -117,8 +117,11 @@ mod block_tests {
     fn moved_knows_the_block() {
         assert_eq!(offset_of!(SetUps, names), 0x527880 - START);
         assert_eq!(offset_of!(SetUps, kept), 0x528500 - START);
-        assert_eq!(crate::moved::place(START), SET_UPS.file.addr());
-        assert_eq!(crate::moved::place(0x527880), SET_UPS.names.addr());
-        assert_eq!(crate::moved::place(TEMPLATE_START), TEMPLATE.addr());
+        assert_eq!(crate::moved::place(START), SET_UPS.file.addr() as usize);
+        assert_eq!(crate::moved::place(0x527880), SET_UPS.names.addr() as usize);
+        assert_eq!(
+            crate::moved::place(TEMPLATE_START),
+            TEMPLATE.addr() as usize
+        );
     }
 }

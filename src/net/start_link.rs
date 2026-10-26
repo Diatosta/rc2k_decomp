@@ -94,7 +94,7 @@ pub fn start_link(mode: u32) -> Result<(), Refused> {
     log(VIEWER_PANEL.text_addr(texts::NET_STARTING_LINK), true, 2);
     NET.mode.set(mode);
     take_player_settings::take_player_settings()?;
-    fill_own_player::fill_own_player(NAME_BUFFERS.player_names.addr() as u32)?;
+    fill_own_player::fill_own_player(NAME_BUFFERS.player_names.addr())?;
     show_background::show_background()?;
     match link()? {
         Way::Message(n) => show_message::show_message(n)?,

@@ -16,7 +16,7 @@ use crate::menu::text_entry::{TEXT_LEN, length, set_length};
 use crate::pointers::GamePtr;
 
 pub fn kept() -> u32 {
-    NAME_BUFFERS.kept_name.addr() as u32
+    NAME_BUFFERS.kept_name.addr()
 }
 
 /// The current player's name.

@@ -21,7 +21,7 @@ pub fn draw_number_value(number: u32, item: u32, y: u32) -> Result<u32, Refused>
     // Converted: `rc2k_core::net::screens` (`number_value`, `Number`, `NOTHING`).
     let shown = screens::number_value(item == NET.edited.get(), number);
     let text = if shown == Number::Typed {
-        INSTALLER_PATHS.path_a.addr() as u32
+        INSTALLER_PATHS.path_a.addr()
     } else {
         let mut cursor = Cursor::text();
         if shown == Number::Nothing {
@@ -30,7 +30,7 @@ pub fn draw_number_value(number: u32, item: u32, y: u32) -> Result<u32, Refused>
             cursor.bytes(&crate::strings::format_u32::format_u32(number, 0))?;
         }
         cursor.nul()?;
-        TEXT_BUFFER.text.addr() as u32
+        TEXT_BUFFER.text.addr()
     };
     draw_setting_value(text, item, y)
 }

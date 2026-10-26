@@ -191,7 +191,7 @@ impl SoundVars {
     pub fn game() -> Self {
         Self {
             objects: crate::pointers::game_address(crate::sound::store::RACE_SOUNDS.table.as_ptr()),
-            voices: crate::session::address_of(&SPOT_VOICES.voices) as u32,
+            voices: crate::session::address_of(&SPOT_VOICES.voices),
         }
     }
 }

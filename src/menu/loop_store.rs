@@ -76,8 +76,8 @@ pub const START: usize = 0x755525;
 pub const END: usize = 0x755595;
 
 /// Where IDA 0x755525 is now (`moved::MOVED`'s home).
-pub fn loop_flags_addr() -> usize {
-    crate::pointers::host_number(&LOOP_FLAGS as *const LoopFlags)
+pub fn loop_flags_addr() -> u32 {
+    crate::pointers::game_address(&LOOP_FLAGS as *const LoopFlags)
 }
 
 #[cfg(test)]
@@ -94,7 +94,7 @@ mod tests {
         );
         let mine = unsafe {
             std::slice::from_raw_parts(
-                crate::pointers::host_at(loop_flags_addr()) as *const u8,
+                crate::pointers::host(loop_flags_addr()) as *const u8,
                 END - START,
             )
         };

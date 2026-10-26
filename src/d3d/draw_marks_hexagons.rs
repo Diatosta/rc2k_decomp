@@ -16,9 +16,9 @@ use crate::gfx::hexagon_batch::HEXAGON_BATCH;
 /// The hexagons drawn: Direct3D's result, always 0 here.
 pub fn draw_marks_hexagons() -> u32 {
     crate::platform_3d::draw_indexed_list(
-        HEXAGON_BATCH.records.addr() as u32,
+        HEXAGON_BATCH.records.addr(),
         HEXAGON_BATCH.vertex_count.get(),
-        HEXAGON_BATCH.fans.addr() as u32,
+        HEXAGON_BATCH.fans.addr(),
         HEXAGON_BATCH.index_count.get(),
     );
     0

@@ -129,7 +129,7 @@ impl core::ops::Deref for InRaceBlock {
     fn deref(&self) -> &FrameWork {
         // SAFETY: the race block lives as long as the program and is aligned to 4 (the
         // test checks); every field is an atomic or a cell, as the block's bytes were shared.
-        unsafe { &*(crate::pointers::host_at(piece_addr()) as *const FrameWork) }
+        unsafe { &*(crate::pointers::host(piece_addr()) as *const FrameWork) }
     }
 }
 
@@ -143,8 +143,8 @@ pub const END: usize = 0x641AA4;
 const _: () = assert!(END - START == core::mem::size_of::<FrameWork>());
 
 /// Where IDA 0x64158C is now (in the race block).
-pub fn piece_addr() -> usize {
-    crate::race::store::home(START)
+pub fn piece_addr() -> u32 {
+    crate::race::store::home(START) as u32
 }
 
 #[cfg(test)]

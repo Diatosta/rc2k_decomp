@@ -53,27 +53,27 @@ fn after_first_frame(_c: &mut Carried) -> Result<Flow, Refused> {
 }
 
 pub const SCREEN: Screen = Screen {
-    menu: || MENUS.car_specs_47af4c.addr(),
+    menu: || MENUS.car_specs_47af4c.addr() as usize,
     saved_item: || &SCREEN_ITEMS.current[slot::CAR_SPECS_47AF4C],
     lists: &[
         List {
             pointer: || &SCREEN_FLOW.scene_list, // g_sceneList
-            table: || DRAW_LISTS.car_specs_47af4c_scene.addr(),
+            table: || DRAW_LISTS.car_specs_47af4c_scene.addr() as usize,
             run: false,
         },
         List {
             pointer: || &SCREEN_FLOW.draw_list, // g_drawList
-            table: || DRAW_LISTS.car_specs_47af4c_draw.addr(),
+            table: || DRAW_LISTS.car_specs_47af4c_draw.addr() as usize,
             run: false,
         },
         List {
             pointer: || &SCREEN_FLOW.setup_list, // dword_755500
-            table: || DRAW_LISTS.car_specs_47af4c_setup.addr(),
+            table: || DRAW_LISTS.car_specs_47af4c_setup.addr() as usize,
             run: true,
         },
         List {
             pointer: || &SCREEN_FLOW.overlay_list, // g_overlayList
-            table: || DRAW_LISTS.car_specs_47af4c_overlay.addr(),
+            table: || DRAW_LISTS.car_specs_47af4c_overlay.addr() as usize,
             run: false,
         },
     ],
@@ -86,9 +86,9 @@ pub const SCREEN: Screen = Screen {
     after_lists: &[],
     background: &[
         Step::ArgAddr(|| {
-            crate::menu::texts_store::MENU_TEXTS
+            (crate::menu::texts_store::MENU_TEXTS
                 .car_specs_47af4c_picture
-                .addr()
+                .addr()) as usize
         }),
         Step::CallOrFatal(Callee::LoadBackground, 0x80712345),
     ],

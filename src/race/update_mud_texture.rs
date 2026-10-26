@@ -54,7 +54,7 @@ fn subtract_units(a: usize, u: usize) {
 /// `fld [from]; fistp [to]`, then `fld zero; fld [to]; fcompp` and, with C0, `fld zero;
 /// fstp [to]`: the units of a float count, negatives 0 (as the original, by bits).
 fn whole_units(from: &Float, to: &Dword) -> i32 {
-    round_units(from.addr(), to.addr());
+    round_units(from.addr() as usize, to.addr() as usize);
     let zero: u32 = NUMBERS.zero.bits();
     if c0(to.bits(), zero) {
         to.set_bits(zero);
@@ -64,7 +64,7 @@ fn whole_units(from: &Float, to: &Dword) -> i32 {
 
 /// `fld [at]; fisub [units]; fstp [at]`.
 fn take_units(at: &Float, units: &Dword) {
-    subtract_units(at.addr(), units.addr());
+    subtract_units(at.addr() as usize, units.addr() as usize);
 }
 
 /// The Rust version (see the header).

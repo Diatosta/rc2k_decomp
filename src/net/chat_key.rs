@@ -20,7 +20,7 @@ pub fn chat_key(key: u8) -> Result<(), Refused> {
     if NET.chat_input.get(0) != 0 {
         crate::net::send_chat::send_chat(
             NET.player.get(),
-            crate::pointers::host(NET.chat_input.addr() as u32) as *const u8,
+            crate::pointers::host(NET.chat_input.addr()) as *const u8,
         )?;
         NET.chat_input.set(0, 0);
     }

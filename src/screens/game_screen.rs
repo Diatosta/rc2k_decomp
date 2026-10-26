@@ -697,7 +697,7 @@ impl rc2k_core::screens::menus::MenuScreen for MenuScreen<'_> {
             crate::pointers::GamePtr::new(crate::pointers::game_address(a.pointer())),
             crate::pointers::GamePtr::new(crate::pointers::game_address(b.pointer())),
         )?;
-        Ok(FontAt(crate::text::blend_font::BLENDED_FONT.addr() as u32))
+        Ok(FontAt(crate::text::blend_font::BLENDED_FONT.addr()))
     }
     fn font_value(&self, f: FontAt) -> u32 {
         f.0

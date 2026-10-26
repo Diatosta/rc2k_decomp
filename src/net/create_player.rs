@@ -17,7 +17,7 @@ use crate::race::viewer_screen_store::{VIEWER_PANEL, texts};
 
 /// A DPNAME at `dword_5AB29C` made: zeroed, its size, the short name.
 pub fn dp_name(short_name: u32) -> Result<(), Refused> {
-    zero(NET.dp_name.addr() as u32, 0x10)?;
+    zero(NET.dp_name.addr(), 0x10)?;
     NET.dp_name.size.set(0x10);
     NET.dp_name.short_name.set(short_name);
     Ok(())
@@ -26,17 +26,17 @@ pub fn dp_name(short_name: u32) -> Result<(), Refused> {
 /// The Rust version.
 pub fn create_player() -> Result<bool, Refused> {
     log(VIEWER_PANEL.text_addr(texts::NET_CREATE_PLAYER), false, 2);
-    log(NET.player_name.addr() as u32, true, 2);
-    dp_name(NET.player_name.addr() as u32)?;
+    log(NET.player_name.addr(), true, 2);
+    dp_name(NET.player_name.addr())?;
     let result = unsafe {
         call(
             &NET.dplay,
             CREATE_PLAYER,
             &[
-                NET.player_id.addr() as u32,
-                NET.dp_name.addr() as u32,
+                NET.player_id.addr(),
+                NET.dp_name.addr(),
                 NET.event.get(),
-                NET.own.addr() as u32,
+                NET.own.addr(),
                 0x10,
                 0,
             ],

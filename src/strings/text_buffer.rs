@@ -20,7 +20,7 @@ impl TextBuffer {
     pub const LEN: usize = 0x400;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        crate::pointers::host_number(&TEXT_BUFFER as *const TextBuffer)
+        crate::pointers::game_address(&TEXT_BUFFER as *const TextBuffer) as usize
     }
 }
 

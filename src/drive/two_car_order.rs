@@ -21,7 +21,7 @@ pub fn two_car_order() -> Result<(), crate::errors::BadInput> {
     let reading = crate::scene::reading::Reading::new();
     let figure = |car: usize, o: u32| {
         reading.read::<u32>(
-            (crate::race::blocks_store::block_addr(car) as u32).wrapping_add(o),
+            (crate::race::blocks_store::block_addr(car)).wrapping_add(o),
             "a car's block",
         )
     };

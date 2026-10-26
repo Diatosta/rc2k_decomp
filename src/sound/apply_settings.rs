@@ -38,7 +38,7 @@ pub fn apply_settings() -> Result<(), crate::errors::Refused> {
     crate::sound::store::SETTINGS_APPLIED.done.set(MENUS);
     let steps = menus(
         AUDIO.menu_sound_mode.get(),
-        MENU_SOUNDS.list.addr() as u32,
+        MENU_SOUNDS.list.addr(),
         OPTION_WORK.master_volume_shown.get(),
     );
     for s in steps {

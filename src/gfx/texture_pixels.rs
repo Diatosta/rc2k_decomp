@@ -52,7 +52,7 @@ pub static GRADING: Grading = Grading {
 
 /// Where the block is (`moved::MOVED`'s home for IDA 0x4F4A24).
 pub fn home() -> usize {
-    crate::pointers::host_number(&GRADING as *const Grading)
+    crate::pointers::game_address(&GRADING as *const Grading) as usize
 }
 
 /// The second picture's place, in bytes from the first's start.
@@ -133,7 +133,10 @@ mod block_tests {
 
     #[test]
     fn moved_knows_the_block() {
-        assert_eq!(crate::moved::place(START), GRADING.reading.addr());
-        assert_eq!(crate::moved::place(0x4F4A30), GRADING.grades.addr());
+        assert_eq!(crate::moved::place(START), GRADING.reading.addr() as usize);
+        assert_eq!(
+            crate::moved::place(0x4F4A30),
+            GRADING.grades.addr() as usize
+        );
     }
 }

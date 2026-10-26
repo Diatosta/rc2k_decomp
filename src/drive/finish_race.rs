@@ -68,7 +68,7 @@ fn set_up() -> Result<(), BadInput> {
             Set::Var(x) => var(x).set(v),
             // Car block 0 (0x70F3EC) + o.
             Set::Lead(o) => {
-                GamePtr::new((crate::race::blocks_store::block_addr(0) as u32).wrapping_add(o))
+                GamePtr::new((crate::race::blocks_store::block_addr(0)).wrapping_add(o))
                     .write(v, "a car's block")?
             }
         }
@@ -88,7 +88,7 @@ pub unsafe fn finish_race() -> Result<(), Refused> {
     // The stage index is not checked against the seven (a read past them is the original's).
     RACE_VARS.stage_number.set(
         GamePtr::new(
-            (FINISH.finish_stages[0].addr() as u32)
+            (FINISH.finish_stages[0].addr())
                 .wrapping_add(4u32.wrapping_mul(RACE_STATE.results.stage_index.get())),
         )
         .read::<u32>("the finish stages")?,

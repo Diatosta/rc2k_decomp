@@ -49,7 +49,7 @@ fn at(a: u32) -> Result<u32, BadInput> {
 fn car_by_start(k: u32) -> Result<u32, BadInput> {
     match RACE_TABLES.arcade_car_kinds.get(k as usize) {
         Some(car) => Ok(car.get()),
-        None => GamePtr::new((RACE_TABLES.arcade_car_kinds[0].addr() + 4 * k as usize) as u32)
+        None => GamePtr::new(RACE_TABLES.arcade_car_kinds[0].addr() + (4 * k as usize) as u32)
             .read("the start tables"),
     }
 }

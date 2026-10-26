@@ -17,7 +17,7 @@ pub fn countdown_beeps() -> Result<(), Refused> {
     for (car, to) in [(0u32, &PANEL.lights[0]), (1, &PANEL.lights[1])] {
         RACE_WORK.current_car.set(car);
         crate::drive::countdown_beep::countdown_beep(
-            crate::race::blocks_store::block_addr(car as usize) as u32,
+            crate::race::blocks_store::block_addr(car as usize),
             &to.lit,
         )?;
     }

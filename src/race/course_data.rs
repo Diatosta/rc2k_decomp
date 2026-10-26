@@ -36,7 +36,7 @@ pub fn set_cdat_number(number: u32) {
 pub fn copy_course_header() -> Result<(), BadInput> {
     let from: u32 = COURSE_LISTS.course_memory.bits();
     GamePtr::new(from).copy_to(
-        GamePtr::new(COURSE.course_header.addr() as u32),
+        GamePtr::new(COURSE.course_header.addr()),
         HEADER_LEN,
         "the course memory's header",
     )
@@ -133,7 +133,7 @@ pub fn load_level() -> Result<(), Refused> {
     crate::files::state::BYTES_READ.store(0, std::sync::atomic::Ordering::Relaxed);
     load_log(0);
     let out = read_level_file::read_level_file(
-        crate::race::level_paths_store::LEVEL_PATHS.cdat_src.addr() as u32,
+        crate::race::level_paths_store::LEVEL_PATHS.cdat_src.addr(),
         COURSE_LISTS.course_memory.bits(),
         COURSE_LISTS.first_part.bits(),
         &mut read_level_file::game_exists,

@@ -266,7 +266,7 @@ pub fn quitting() -> bool {
 pub fn prepare_scene(c: &mut Carried) {
     crate::scene::prepare_menu_scene::prepare_menu_scene();
     (c.arg, c.palette, c.measure_x, c.clock) = (0, 0, 0, 0);
-    c.cars = MATRICES.view_turn_matrix[0].addr() as u32;
+    c.cars = MATRICES.view_turn_matrix[0].addr();
 }
 
 /// `scene::set_up_carousel` (0x4904DD): reads the list of cars (esi) for menus 0xD and 0xE
@@ -533,9 +533,9 @@ unsafe fn run(steps: &[Step], c: &mut Carried) -> Result<Flow, Refused> {
 /// Puts the menu and the lists in place, as the original does before a frame (esi left
 /// at the last list's table).
 fn set_lists(screen: &Screen, lists: &[List], c: &mut Carried) {
-    LOOP_FLAGS.menu.set((screen.menu)() as u32);
+    LOOP_FLAGS.menu.set(((screen.menu)()) as u32);
     for list in lists.iter().filter(|list| !list.run) {
-        c.cars = (list.table)() as u32;
+        c.cars = ((list.table)()) as u32;
         (list.pointer)().set(c.cars);
     }
 }
@@ -565,7 +565,7 @@ unsafe fn run_frame(callback: usize, menu: u32, c: &Carried) -> Result<(), Refus
 /// `entry` are the carried values at entry.
 /// Returns why the screen was left, for the log.
 pub unsafe fn screen_loop(screen: &Screen, entry: &Carried) -> Result<String, Refused> {
-    let menu = (screen.menu)() as u32;
+    let menu = ((screen.menu)()) as u32;
     let callback = screen.frame_callback;
     let later_callback = screen.later_frame_callback.unwrap_or(screen.frame_callback);
     let keys_menu = screen.keys_menu.map_or(menu, |other| other() as u32);
@@ -595,7 +595,7 @@ pub unsafe fn screen_loop(screen: &Screen, entry: &Carried) -> Result<String, Re
 
                     LOOP_FLAGS.menu.set(menu);
                     for list in screen.lists {
-                        c.cars = (list.table)() as u32;
+                        c.cars = ((list.table)()) as u32;
                         if list.run {
                             run_list(c.cars)?;
                         }
@@ -613,7 +613,7 @@ pub unsafe fn screen_loop(screen: &Screen, entry: &Carried) -> Result<String, Re
                     CLOCKS.setup_time.set(c.arg);
                     PHYSICS.scene_clock.set(0u32);
                     run(screen.before_first_frame, &mut c)?;
-                    c.arg = game_addr(callback) as u32;
+                    c.arg = game_addr(callback);
                     set_lists(
                         screen,
                         screen.first_frame_lists.unwrap_or(screen.lists),
@@ -656,7 +656,7 @@ pub unsafe fn screen_loop(screen: &Screen, entry: &Carried) -> Result<String, Re
                             OPTION_WORK.menu_sound.set(NO_SOUND);
                         }
                         run(screen.before_frame, &mut c)?;
-                        c.arg = game_addr(later_callback) as u32;
+                        c.arg = game_addr(later_callback);
                         set_lists(screen, screen.lists, &mut c);
                         run_frame(later_callback, menu, &c)?;
                         c.arg = CLOCKS.frame.get().wrapping_sub(CLOCKS.setup_time.get());

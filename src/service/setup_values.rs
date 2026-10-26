@@ -27,7 +27,7 @@ pub struct Stepper {
 
 fn target(stepper: Stepper) -> Result<u32, BadInput> {
     match stepper.target {
-        Target::Global(cell) => Ok(cell.addr() as u32),
+        Target::Global(cell) => Ok(cell.addr()),
         Target::CarField(offset) => {
             let player = current_player().ok_or(BadInput(
                 "no current player object: the original reads through null",

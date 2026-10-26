@@ -45,14 +45,14 @@ pub struct OverlayVars {
 
 impl OverlayVars {
     pub fn game() -> Self {
-        let _a = |v: usize| game_addr(rva(v)) as u32;
+        let _a = |v: usize| game_addr(rva(v));
         Self {
-            kinds: (RACE_VARS.checkpoint_count.addr() as u32),
-            found: (SPLIT_TABLES.split_colour_count.addr() as u32),
-            list: (SPLIT_TABLES.checkpoints[0].addr() as u32),
-            distances: crate::race::checkpoints_store::CHECKPOINTS.distances[0].addr() as u32,
-            scratch: (DRAW.scratch.addr() as u32),
-            car_blocks: (RACE_WORK.car_blocks[0].addr() as u32),
+            kinds: (RACE_VARS.checkpoint_count.addr()),
+            found: (SPLIT_TABLES.split_colour_count.addr()),
+            list: (SPLIT_TABLES.checkpoints[0].addr()),
+            distances: crate::race::checkpoints_store::CHECKPOINTS.distances[0].addr(),
+            scratch: (DRAW.scratch.addr()),
+            car_blocks: (RACE_WORK.car_blocks[0].addr()),
         }
     }
 }

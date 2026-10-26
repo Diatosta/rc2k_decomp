@@ -151,7 +151,7 @@ pub unsafe fn load_language(
         use_lexicon();
         KEYBOARD_FILE
             .layout
-            .set(KEYBOARD.built_in_layout.dead_keys.addr() as u32);
+            .set(KEYBOARD.built_in_layout.dead_keys.addr());
         KEYBOARD_FILE.built_in.set(1);
         KEYBOARD_FILE.mode.set(1);
 
@@ -175,7 +175,7 @@ pub unsafe fn load_language(
             if &KEYBOARD_FILE.magic.read() != b"KEYB" {
                 return Err(fatal(0x80E3_83A2, ""));
             }
-            let layouts = KEYBOARD_FILE.layouts[0].dead_keys.addr() as u32;
+            let layouts = KEYBOARD_FILE.layouts[0].dead_keys.addr();
             for layout in &KEYBOARD_FILE.layouts {
                 for table in [
                     &layout.dead_keys,
@@ -209,14 +209,12 @@ pub unsafe fn load_language(
 
         // `sub_403462`
         if MACHINE.keyboard_type.get() == 2 {
-            GamePtr::new(KEYBOARD_TABLES.nec_head.addr() as u32).copy_to(
+            GamePtr::new(KEYBOARD_TABLES.nec_head.addr()).copy_to(
                 GamePtr::new(crate::pointers::game_address(keyboard)),
                 0x30,
                 "the NEC keyboard head",
             )?;
-            KEYBOARD_FILE
-                .layout
-                .set(KEYBOARD_TABLES.nec_layout.addr() as u32);
+            KEYBOARD_FILE.layout.set(KEYBOARD_TABLES.nec_layout.addr());
             INSTALLER_RUN.first_drive.set(0x61u32);
         }
 

@@ -17,7 +17,7 @@ pub fn write_mix_in_game() -> Result<(), Refused> {
     unsafe {
         write_mix(
             AUDIO.sound_mode.get(),
-            crate::audio::mix_buffer::MIX_BUFFER.samples.addr() as u32,
+            crate::audio::mix_buffer::MIX_BUFFER.samples.addr(),
             parts,
         )
     }

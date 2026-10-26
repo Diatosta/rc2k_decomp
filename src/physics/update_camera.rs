@@ -82,7 +82,7 @@ fn fixed_camera(second: bool) {
     let (dx, dy, dz) = (d(0), d(1), d(2));
     let v = [dx, dz, dy];
     x87_1(
-        crate::pointers::host_number(v.as_ptr()),
+        (crate::pointers::game_address(v.as_ptr())) as usize,
         crate::race::store::asm_base() as usize,
     );
     CAR.camera_heading.set(CAR.camera_heading.get() << 4);
@@ -90,12 +90,12 @@ fn fixed_camera(second: bool) {
         .set((CAR.camera_pitch.get() << 4).wrapping_neg());
     let w = [dx, dy, dz];
     x87_2(
-        crate::pointers::host_number(w.as_ptr()),
+        (crate::pointers::game_address(w.as_ptr())) as usize,
         crate::race::store::asm_base() as usize,
     );
     DRAW.scratch.set(dz);
     VIEW_VARS.camera_distance.set_bits(rounded({
-        crate::physics::vector_length::vector_length(VIEW_VARS.camera_vector[0].addr() as u32)
+        crate::physics::vector_length::vector_length(VIEW_VARS.camera_vector[0].addr())
     }));
     CAR.camera_zoom
         .set_bits(CAMERA_WORK.camera_zoom_kept.bits());
@@ -218,7 +218,12 @@ pub fn steps() -> Result<(), Refused> {
             work.view_a_point[2].addr(),
         ),
     ] {
-        x87_7(x, y, crate::race::store::asm_base() as usize, to);
+        x87_7(
+            x as usize,
+            y as usize,
+            crate::race::store::asm_base() as usize,
+            to as usize,
+        );
     }
     for turn in &CAR.camera_offset_turns {
         turn.set(turn.get() << 16);

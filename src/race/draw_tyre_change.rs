@@ -43,7 +43,7 @@ fn set_clip(edge: &Dword, v: u32) {
 
 /// The font the tyre change's texts are drawn in (`FONTS.game_fonts[2]`).
 fn font() -> u32 {
-    FONTS.game_fonts[2].addr() as u32
+    FONTS.game_fonts[2].addr()
 }
 
 /// A line's height (`FONTS.game_fonts[0]`'s).
@@ -76,11 +76,7 @@ fn fill(x: u32, y: u32, width: u32, height: u32) -> Result<(), Refused> {
         cell.set(v);
     }
     unsafe {
-        crate::gfx::rect::fill_rect(
-            VIEWER_PANEL.texture_rect[0].addr() as u32,
-            0,
-            TYRE.palette.addr() as u32,
-        )
+        crate::gfx::rect::fill_rect(VIEWER_PANEL.texture_rect[0].addr(), 0, TYRE.palette.addr())
     }
 }
 
@@ -94,11 +90,11 @@ fn text(font: u32, text: u32, x: u32, y: u32) -> Result<(), Refused> {
 fn three_times(x: u32, y: u32) -> Result<(), Refused> {
     FONTS.game_fonts[2].update(|f| f.box_width = 0x168);
     let (mut x, mut y) = (x, y);
-    text(font(), TEXT_BUFFER.text.addr() as u32, x, y)?;
+    text(font(), TEXT_BUFFER.text.addr(), x, y)?;
     for _ in 0..2 {
         x = x.wrapping_sub(0x78);
         y = y.wrapping_add(line());
-        text(font(), TEXT_BUFFER.text.addr() as u32, x, y)?;
+        text(font(), TEXT_BUFFER.text.addr(), x, y)?;
     }
     Ok(())
 }
@@ -112,9 +108,9 @@ pub unsafe fn draw_tyre_change(device: u32) -> Result<(), Refused> {
         if !failed && TYRE.drawn.get() != 1 {
             let mut y = 0u32;
             for (n, (id, font, x)) in [
-                (0x129u32, FONTS.game_fonts[2].addr() as u32, 4u32),
-                (0x12A, FONTS.game_fonts[1].addr() as u32, 0xFC),
-                (0x12B, FONTS.game_fonts[0].addr() as u32, 0x84),
+                (0x129u32, FONTS.game_fonts[2].addr(), 4u32),
+                (0x12A, FONTS.game_fonts[1].addr(), 0xFC),
+                (0x12B, FONTS.game_fonts[0].addr(), 0x84),
             ]
             .into_iter()
             .enumerate()
@@ -148,7 +144,7 @@ pub unsafe fn draw_tyre_change(device: u32) -> Result<(), Refused> {
         set_clip(&BLIT.clip.left, 0);
         fill(0, 0x99, 0x100, 0x19)?;
         FONTS.game_fonts[2].update(|f| f.box_width = 0xF8);
-        text(font(), TYRE.record_name.addr() as u32, 4, 0x99)?;
+        text(font(), TYRE.record_name.addr(), 4, 0x99)?;
         let x = if TYRE.player.get() == 0 {
             set_clip(&BLIT.clip.right, 0x7F);
             0

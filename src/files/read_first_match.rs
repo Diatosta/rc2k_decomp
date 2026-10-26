@@ -68,7 +68,7 @@ pub unsafe fn first_match_read(
             )?;
             let name = std::ffi::CStr::from_ptr((&raw const (*record).cFileName).cast()).to_bytes();
             let joined = rc2k_core::files::io::match_path(&pattern, name);
-            let path = crate::pointers::host_at(SCRATCH.buffer.addr());
+            let path = crate::pointers::host(SCRATCH.buffer.addr());
             GamePtr::new(crate::pointers::game_address(path))
                 .write_bytes(&joined, "the scratch buffer")?;
             Some(read_file(path, buffer, count, offset))

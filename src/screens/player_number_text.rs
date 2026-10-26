@@ -33,7 +33,7 @@ pub unsafe fn player_number_text() -> Result<(), Refused> {
         crate::pointers::GamePtr::new(
             crate::screens::text_buffers_store::TEXT_BUFFERS
                 .number_text
-                .addr() as u32,
+                .addr(),
         )
         .write_bytes(&text, "the number text")?;
     }

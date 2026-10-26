@@ -82,7 +82,7 @@ pub fn play_stage_speech() -> Result<(), Refused> {
         // Converted: `rc2k_core::menu::stage_screens::stage_speech`.
         let fault = Fault::default();
         let at = stage_screens::stage_speech(get(record + 4)?, |n| {
-            fault.get(MENU_LISTS.stage_speeches[0].addr() as u32 + 4 * n)
+            fault.get(MENU_LISTS.stage_speeches[0].addr() + 4 * n)
         });
         fault.check()?;
         let at = at?;
@@ -103,7 +103,7 @@ pub fn play_rally_speech() -> Result<(), Refused> {
     crate::input::take_key::take_key();
     if championship() {
         crate::sound::start_stream::start_stream(
-            get(MENU_LISTS.rally_speeches[0].addr() as u32 + 4 * section)?,
+            get(MENU_LISTS.rally_speeches[0].addr() + 4 * section)?,
             OPTION_WORK.speech_level.get(),
         );
     }
@@ -120,8 +120,7 @@ pub unsafe fn load_welcome_picture() -> Result<(), Refused> {
         stage_screens::Welcome::Other => MENU_LISTS.welcome_other[0].addr(),
     };
     let path = get(table as u32 + 4 * section)?;
-    let title_bar =
-        crate::pointers::host_at(crate::menu::texts_store::MENU_TEXTS.titlebar_png.addr());
+    let title_bar = crate::pointers::host(crate::menu::texts_store::MENU_TEXTS.titlebar_png.addr());
     if unsafe {
         crate::gfx::load_picture_with_overlay::load_picture_with_overlay(
             crate::pointers::host(path),
@@ -160,14 +159,14 @@ pub fn style_stage_item(b: bool) -> Result<(), Refused> {
     let (a, c, font) = if b {
         (
             0xFFFF_FFA7,
-            crate::menu::item_sprites_store::ITEM_SPRITES.lists[1][0].addr() as u32,
-            crate::gfx::typefaces::fonts::STAGE_ITEM_B.addr() as u32,
+            crate::menu::item_sprites_store::ITEM_SPRITES.lists[1][0].addr(),
+            crate::gfx::typefaces::fonts::STAGE_ITEM_B.addr(),
         )
     } else {
         (
             0xFFFF_FFA9,
             0xFFFF_FFA9,
-            crate::gfx::typefaces::fonts::STAGE_TITLE.addr() as u32,
+            crate::gfx::typefaces::fonts::STAGE_TITLE.addr(),
         )
     };
     {

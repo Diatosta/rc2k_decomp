@@ -25,7 +25,7 @@ pub static ROW_TABLE: [Dword; ROW_TABLE_ROOM as usize] =
 
 /// Where the table is (`moved::MOVED`'s home for IDA 0x4F3FC4).
 pub fn home() -> usize {
-    crate::pointers::host_number(ROW_TABLE.as_ptr())
+    (crate::pointers::game_address(ROW_TABLE.as_ptr())) as usize
 }
 
 /// The address the table holds for a row.
@@ -68,6 +68,9 @@ mod block_tests {
     #[test]
     fn moved_knows_the_block() {
         assert_eq!(crate::moved::place(START), home());
-        assert_eq!(crate::moved::place(START + LEN - 4), ROW_TABLE[601].addr());
+        assert_eq!(
+            crate::moved::place(START + LEN - 4),
+            ROW_TABLE[601].addr() as usize
+        );
     }
 }

@@ -57,9 +57,9 @@ pub fn progress_frame() -> Result<bool, Refused> {
         // gfx::fill_rect: colour 0
         unsafe {
             crate::gfx::rect::fill_rect(
-                INSTALLER_PAGES.bar.addr() as u32,
+                INSTALLER_PAGES.bar.addr(),
                 0,
-                crate::text::blend_font::BLENDED_PALETTE.addr() as u32,
+                crate::text::blend_font::BLENDED_PALETTE.addr(),
             )
         }?;
         let x = INSTALLER_PAGES.bar.get_u32(0);
@@ -67,7 +67,7 @@ pub fn progress_frame() -> Result<bool, Refused> {
         BLIT.clip.right.set(width.wrapping_add(x).wrapping_add(1));
         crate::install::blit_glyph_list::blit_glyph_list(
             2,
-            INSTALLER_PAGES.bar_glyphs_list.addr() as u32,
+            INSTALLER_PAGES.bar_glyphs_list.addr(),
             0,
             0,
             INSTALLER_RUN.bar_glyphs.get(),
@@ -75,11 +75,11 @@ pub fn progress_frame() -> Result<bool, Refused> {
         BLIT.clip.right.set(kept_clip);
         let mut text = crate::strings::append_percent::append_percent(width >> 2);
         text.push(0);
-        crate::pointers::GamePtr::new(TEXT_BUFFER.text.addr() as u32)
+        crate::pointers::GamePtr::new(TEXT_BUFFER.text.addr())
             .write_bytes(&text, "the text buffer")?;
         draw_text(
-            FONT.addr() as u32,
-            TEXT_BUFFER.text.addr() as u32,
+            FONT.addr(),
+            TEXT_BUFFER.text.addr(),
             x.wrapping_add(0xC8),
             INSTALLER_PAGES.bar.get_u32(4).wrapping_add(2),
         )?;
@@ -98,20 +98,15 @@ pub fn copying_frame() -> Result<bool, Refused> {
             continue;
         }
         copy_picture()?;
-        crate::install::draw_string_list::draw_string_list(
-            2,
-            INSTALLER_PAGES.texts.addr() as u32,
-            0,
-            0,
-        )?;
+        crate::install::draw_string_list::draw_string_list(2, INSTALLER_PAGES.texts.addr(), 0, 0)?;
         // gfx::frame_rect: colour 0x2A
         unsafe {
             crate::gfx::rect::frame_rect(
-                INSTALLER_PAGES.frame.addr() as u32,
+                INSTALLER_PAGES.frame.addr(),
                 0,
                 0,
                 0x2A,
-                crate::text::blend_font::BLENDED_PALETTE.addr() as u32,
+                crate::text::blend_font::BLENDED_PALETTE.addr(),
             )
         };
         unlock();

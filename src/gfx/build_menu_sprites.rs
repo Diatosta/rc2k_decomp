@@ -41,7 +41,5 @@ pub unsafe fn build_menu_sprites(sprite_table: *mut u32) -> Result<(), Refused> 
 
 /// With the game's `g_spriteTable`.
 pub unsafe fn build_menu_sprites_in_game() -> Result<(), Refused> {
-    unsafe {
-        build_menu_sprites(crate::pointers::host_at(LOOP_FLAGS.sprite_table.addr()) as *mut u32)
-    }
+    unsafe { build_menu_sprites(crate::pointers::host(LOOP_FLAGS.sprite_table.addr()) as *mut u32) }
 }

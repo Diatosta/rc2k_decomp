@@ -51,7 +51,7 @@ impl rc2k_core::scene::lamps::CarLights for GameCars {
     fn viewed(&self) -> u32 {
         // The store holds two views; the original's index is not held to them.
         self.0.read(
-            (RACE_VIEW.view_cars[0].addr() as u32).wrapping_add(RACE_VIEW.drawn_view.bits() << 2),
+            (RACE_VIEW.view_cars[0].addr()).wrapping_add(RACE_VIEW.drawn_view.bits() << 2),
             "the drawn view's car",
         )
     }

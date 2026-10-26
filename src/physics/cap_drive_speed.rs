@@ -58,12 +58,12 @@ pub fn cap_drive_speed_at(v: CapPlaces) {
 }
 
 fn game() -> CapPlaces {
-    let _g = |a: usize| game_addr(rva(a)) as u32;
+    let _g = |a: usize| game_addr(rva(a));
     [
-        (PHYSICS.drive_speed_figure.addr() as u32),
-        (CAR.local_velocity[2].addr() as u32),
-        (DRAW.scratch.addr() as u32),
-        (CAR.drive_speed_a.addr() as u32),
+        (PHYSICS.drive_speed_figure.addr()),
+        (CAR.local_velocity[2].addr()),
+        (DRAW.scratch.addr()),
+        (CAR.drive_speed_a.addr()),
     ]
 }
 

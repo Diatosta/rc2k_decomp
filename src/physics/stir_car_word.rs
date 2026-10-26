@@ -24,5 +24,5 @@ pub unsafe fn stir_word_at(at: u32) -> u32 {
 
 /// The Rust version.
 pub unsafe fn stir_car_word() -> u32 {
-    unsafe { stir_word_at(CAR.noise_word.addr() as u32) }
+    unsafe { stir_word_at(CAR.noise_word.addr()) }
 }

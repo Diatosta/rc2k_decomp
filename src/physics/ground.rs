@@ -34,28 +34,28 @@ impl Ground {
 
     pub fn edge(&self) -> EdgePlaces {
         EdgePlaces {
-            x: GROUND_WORK.ground_x.addr() as u32,
-            z: GROUND_WORK.ground_z.addr() as u32,
-            product: (crate::physics::ground_probe_store::GROUND_PROBE.product[0].addr() as u32),
+            x: GROUND_WORK.ground_x.addr(),
+            z: GROUND_WORK.ground_z.addr(),
+            product: crate::physics::ground_probe_store::GROUND_PROBE.product[0].addr(),
         }
     }
 
     pub fn plane(&self) -> Plane {
         Plane {
-            a: GROUND_WORK.face_corners[4].addr() as u32,
-            b: GROUND_WORK.face_corners[7].addr() as u32,
-            c: GROUND_WORK.face_corners[1].addr() as u32,
-            f: GROUND_WORK.plane_f.addr() as u32,
-            g: GROUND_WORK.plane_g.addr() as u32,
-            out: GROUND_WORK.ground_height.addr() as u32,
+            a: GROUND_WORK.face_corners[4].addr(),
+            b: GROUND_WORK.face_corners[7].addr(),
+            c: GROUND_WORK.face_corners[1].addr(),
+            f: GROUND_WORK.plane_f.addr(),
+            g: GROUND_WORK.plane_g.addr(),
+            out: GROUND_WORK.ground_height.addr(),
         }
     }
 
     pub fn records(&self) -> RecordPlaces {
         RecordPlaces {
-            firsts: KIND_RECORDS.first_records[0].addr() as u32,
-            lasts: KIND_RECORDS.last_records[0].addr() as u32,
-            records: COURSE.course_records.addr() as u32,
+            firsts: KIND_RECORDS.first_records[0].addr(),
+            lasts: KIND_RECORDS.last_records[0].addr(),
+            records: COURSE.course_records.addr(),
             count: COURSE.course_record_count.get(),
         }
     }

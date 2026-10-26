@@ -26,12 +26,12 @@ pub struct MotionPlaces {
 impl MotionPlaces {
     pub fn game() -> Self {
         Self {
-            kept_motion: (PHYSICS.kept_vectors[0].addr() as u32),
-            kept_spin: (PHYSICS.kept_vectors[4].addr() as u32),
-            motion: (CAR.velocity[0].addr() as u32),
-            spin: (CAR.spin[0].addr() as u32),
-            local: (CAR.local_velocity[0].addr() as u32),
-            inverse: CAR.car_inverse_matrix[0].addr() as u32,
+            kept_motion: (PHYSICS.kept_vectors[0].addr()),
+            kept_spin: (PHYSICS.kept_vectors[4].addr()),
+            motion: (CAR.velocity[0].addr()),
+            spin: (CAR.spin[0].addr()),
+            local: (CAR.local_velocity[0].addr()),
+            inverse: CAR.car_inverse_matrix[0].addr(),
         }
     }
 }

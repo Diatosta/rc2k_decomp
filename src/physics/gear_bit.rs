@@ -39,5 +39,5 @@ pub fn gear_bit_at(bits: u32, gear: u32) -> Result<FlagResult, Refused> {
 
 /// The Rust version.
 pub fn gear_bit(gear: u32) -> Result<FlagResult, Refused> {
-    gear_bit_at(CAR.lost_gear_bits.addr() as u32, gear)
+    gear_bit_at(CAR.lost_gear_bits.addr(), gear)
 }

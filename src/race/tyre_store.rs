@@ -166,7 +166,7 @@ impl TyreChange {
     pub const LEN: usize = 0x170;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        crate::pointers::host_number(&TYRE_CHANGE as *const TyreChange)
+        crate::pointers::game_address(&TYRE_CHANGE as *const TyreChange) as usize
     }
 }
 

@@ -36,7 +36,7 @@ fn blocked() -> bool {
     // Blocks 1 .. 3: the other cars.
     (1..4).any(|n| {
         crate::physics::reset_point_blocked::reset_point_blocked(
-            crate::race::blocks_store::block_addr(n) as u32,
+            crate::race::blocks_store::block_addr(n),
         )
     })
 }

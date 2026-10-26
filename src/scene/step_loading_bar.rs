@@ -47,9 +47,9 @@ pub unsafe fn step_loading_bar(done: u32) -> Result<(), Refused> {
         if let Some(progress) = progress(done) {
             RACE_VARS.bar_share.set_bits(progress);
         }
-        if show == game_addr(BAR_RVA) as u32 {
+        if show == game_addr(BAR_RVA) {
             crate::race::loading_bar_frame::loading_bar_frame()
-        } else if show == game_addr(NOTHING_RVA) as u32 {
+        } else if show == game_addr(NOTHING_RVA) {
             Ok(())
         } else {
             Err(BadInput("a loading bar function that is neither of the loading's").into())

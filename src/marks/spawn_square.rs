@@ -25,7 +25,7 @@ const WINDOW: u32 = 32;
 /// The Rust version (see the header): ecx as it leaves it.
 pub fn spawn_square(x: u32, z: u32, kind: u32) -> Result<u32, Refused> {
     Ok({
-        let base = crate::session::address_of(&SQUARE_ITEMS.items) as u32;
+        let base = crate::session::address_of(&SQUARE_ITEMS.items);
         let end = ITEMS * ITEM_LEN;
         let mut at = SQUARE_TABLES.cursor.get();
         let step = |at: &mut u32| {

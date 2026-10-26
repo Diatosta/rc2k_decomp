@@ -20,10 +20,7 @@ use crate::pointers::GamePtr;
 
 /// The two records' places (`g_inputRecord1`, `g_inputRecord2`).
 pub fn record_addrs() -> [u32; 2] {
-    DEVICES
-        .records
-        .each_ref()
-        .map(|record| record.addr() as u32)
+    DEVICES.records.each_ref().map(|record| record.addr())
 }
 
 /// The device's state (`g_deviceState`), 0x50 bytes.
@@ -92,7 +89,7 @@ pub unsafe fn com_call(object: u32, slot: u32, args: &[u32]) -> u32 {
     unsafe {
         let table: u32 = crate::pointers::read_or_end(object, "a DirectInput object");
         let f: u32 = crate::pointers::read_or_end(table + slot, "a DirectInput method table");
-        let f = f as usize;
+        let f = crate::pointers::code(f);
         match *args {
             [] => {
                 let f: extern "system" fn(u32) -> u32 = std::mem::transmute(f);

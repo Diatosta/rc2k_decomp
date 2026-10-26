@@ -59,22 +59,22 @@ pub unsafe fn count_at(v: &[u32]) {
 
 fn game() -> Vec<u32> {
     vec![
-        CAR.light_hold_steps.addr() as u32,
-        CAR.value_jump_steps.addr() as u32,
-        CAR.run_ticks.addr() as u32,
-        CAR.finish_flag.addr() as u32,
-        CAR.go_stand_timer.addr() as u32,
-        CAR.started_stand_timer.addr() as u32,
-        RACE_VARS.run_kind.addr() as u32,
-        CAR.parts_present.addr() as u32,
-        CAR.gear.addr() as u32,
-        CAR.stopped_steps.addr() as u32,
-        CAR.tyre_change_state.addr() as u32,
-        CAR.wall_hit_timer.addr() as u32,
-        CAR.drive_cut_steps.addr() as u32,
-        CAR.engine_speed_scaled.addr() as u32,
-        CAR.top_speed.addr() as u32,
-        CAR.hit_cooldown.addr() as u32,
+        CAR.light_hold_steps.addr(),
+        CAR.value_jump_steps.addr(),
+        CAR.run_ticks.addr(),
+        CAR.finish_flag.addr(),
+        CAR.go_stand_timer.addr(),
+        CAR.started_stand_timer.addr(),
+        RACE_VARS.run_kind.addr(),
+        CAR.parts_present.addr(),
+        CAR.gear.addr(),
+        CAR.stopped_steps.addr(),
+        CAR.tyre_change_state.addr(),
+        CAR.wall_hit_timer.addr(),
+        CAR.drive_cut_steps.addr(),
+        CAR.engine_speed_scaled.addr(),
+        CAR.top_speed.addr(),
+        CAR.hit_cooldown.addr(),
     ]
 }
 

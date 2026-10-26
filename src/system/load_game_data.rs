@@ -131,19 +131,19 @@ pub unsafe fn load_game_data(outside: Outside) -> Result<(), Refused> {
         }
 
         for (player, id) in PLAYER_NAME_IDS.into_iter().enumerate() {
-            let name = NAME_BUFFERS.player_names.addr() + player * NAME_LEN;
+            let name = NAME_BUFFERS.player_names.addr() + (player * NAME_LEN) as u32;
             if NAME_BUFFERS.player_names.get(player * NAME_LEN) != 0 {
                 continue;
             }
             if player == 0 {
-                let place = crate::pointers::host_at(name);
+                let place = crate::pointers::host_at(name as usize);
                 outside(Call::UserName(crate::pointers::game_address(place)))?;
                 copy_printable(place, place, USER_NAME_ROOM)?;
                 if NAME_BUFFERS.player_names.get(player * NAME_LEN) != 0 {
                     continue;
                 }
             }
-            default_name(crate::pointers::host_at(name), NAME_LEN, id, &[])?;
+            default_name(crate::pointers::host_at(name as usize), NAME_LEN, id, &[])?;
         }
 
         if NET.machine_name.get(0) == 0 {
@@ -219,7 +219,7 @@ fn in_game(call: Call) -> Result<u32, Refused> {
             }
             Call::ReadSettings => crate::settings::read_settings::read_settings()?,
             Call::ReadSku => crate::install::read_sku::read_sku(crate::pointers::host_at(
-                SKU.path.addr(),
+                SKU.path.addr() as usize,
             ) as *const u8)?,
             Call::ReadDriverNames => crate::settings::read_driver_names::read_driver_names(
                 crate::settings::read_driver_names::path(),
@@ -272,7 +272,7 @@ impl RunCount {
     pub const LEN: usize = 0x4;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        crate::pointers::host_number(&RUN_COUNT as *const RunCount)
+        crate::pointers::game_address(&RUN_COUNT as *const RunCount) as usize
     }
 }
 

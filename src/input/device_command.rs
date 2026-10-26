@@ -48,7 +48,7 @@ pub unsafe fn device_command(command: u32) -> Result<(), Refused> {
                 Tick => crate::input::input_tick::input_tick()?,
                 SetUp(n) => crate::input::set_up_device::set_up_device(
                     device(n),
-                    RACE_STATE.settings.cars[n].record_2c.addr() as u32,
+                    RACE_STATE.settings.cars[n].record_2c.addr(),
                 )?,
                 Reading(n, on) => put(device(n), 0x414, on as u32)?,
                 SecondApart => {

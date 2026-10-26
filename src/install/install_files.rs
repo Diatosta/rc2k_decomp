@@ -30,19 +30,19 @@ use crate::install::vars::INSTALLER_RUN;
 use crate::session::FLAGS;
 
 fn game_dir() -> u32 {
-    INSTALLER_PATHS.game_dir.addr() as u32
+    INSTALLER_PATHS.game_dir.addr()
 }
 
 fn installed() -> u32 {
-    INSTALLER_PATHS.installed.addr() as u32
+    INSTALLER_PATHS.installed.addr()
 }
 
 fn path_a() -> u32 {
-    INSTALLER_PATHS.path_a.addr() as u32
+    INSTALLER_PATHS.path_a.addr()
 }
 
 fn path_b() -> u32 {
-    INSTALLER_PATHS.path_b.addr() as u32
+    INSTALLER_PATHS.path_b.addr()
 }
 
 /// `to` = `base` + name `index` of `table`, NUL-ended (`loc_4131A3`, `loc_4131F5`).
@@ -90,17 +90,17 @@ pub fn install_files() -> Result<(), Refused> {
     INSTALLER_NAMES.status.set(0x80);
     i::write_registry::write_registry(&mut game_api)?;
     normalise(
-        INSTALLER_PATHS.game_dir.addr() as u32,
-        INSTALLER_PATHS.game_dir.addr() as u32,
+        INSTALLER_PATHS.game_dir.addr(),
+        INSTALLER_PATHS.game_dir.addr(),
     )?;
-    i::run_script::run_script(INSTALLER_NAMES.script_count.addr() as u32)?;
+    i::run_script::run_script(INSTALLER_NAMES.script_count.addr())?;
     INSTALLER_RUN.files_copied.set(0);
     INSTALLER_RUN.copy_spare.set(0);
     INSTALLER_RUN
         .files_to_copy
         .set(INSTALLER_RUN.file_count.get());
     let room = crate::install::installer::rd(
-        INSTALLER_NAMES.room_by_mode.addr() as u32 + 4 * crate::install::installer::media_mode(),
+        INSTALLER_NAMES.room_by_mode.addr() + 4 * crate::install::installer::media_mode(),
     );
     INSTALLER_RUN.room_needed.set(room);
     // loc_413130: the path is bad; loc_4134D6: no room or not a CD.
@@ -110,17 +110,17 @@ pub fn install_files() -> Result<(), Refused> {
         Ok(())
     };
     if !normalise(
-        INSTALLER_PATHS.typed.addr() as u32,
-        INSTALLER_PATHS.installed.addr() as u32,
+        INSTALLER_PATHS.typed.addr(),
+        INSTALLER_PATHS.installed.addr(),
     )? {
         return bad_path();
     }
-    if i::check_folder_name::check_folder_name(INSTALLER_PATHS.installed.addr() as u32) {
+    if i::check_folder_name::check_folder_name(INSTALLER_PATHS.installed.addr()) {
         return bad_path();
     }
-    if rw(INSTALLER_PATHS.typed.addr() as u32) != 0x5C5C {
+    if rw(INSTALLER_PATHS.typed.addr()) != 0x5C5C {
         let Some(free) = crate::files::drive_free_space_kb::drive_free_space_kb(
-            rb(INSTALLER_PATHS.installed.addr() as u32) as u32,
+            rb(INSTALLER_PATHS.installed.addr()) as u32,
             &mut game_api,
         ) else {
             return bad_path();
@@ -131,22 +131,22 @@ pub fn install_files() -> Result<(), Refused> {
             return Ok(());
         }
     }
-    if !i::make_folders::make_folders(INSTALLER_PATHS.installed.addr() as u32)? {
+    if !i::make_folders::make_folders(INSTALLER_PATHS.installed.addr())? {
         return bad_path();
     }
     // Its answer is not read: the standalone installs from the download folder as well
     // (owner, 2026-10-20).
-    unsafe { crate::files::is_cd_drive::is_cd_drive(rb(INSTALLER_PATHS.game_dir.addr() as u32)) };
+    unsafe { crate::files::is_cd_drive::is_cd_drive(rb(INSTALLER_PATHS.game_dir.addr())) };
     run_frame(Some(copying_frame))?;
     // the folders
     if INSTALLER_RUN.dir_count.get() != 0 {
         for n in 0..INSTALLER_RUN.dir_count.get() {
             build(installed(), path_b(), INSTALLER_RUN.dirs.get(), n);
-            if !i::make_folders::make_folders(INSTALLER_PATHS.path_b.addr() as u32)? {
-                return message(2, INSTALLER_PAGES.msg_error.addr() as u32, 0);
+            if !i::make_folders::make_folders(INSTALLER_PATHS.path_b.addr())? {
+                return message(2, INSTALLER_PAGES.msg_error.addr(), 0);
             }
         }
-        set_cd(INSTALLER_PATHS.game_dir.addr() as u32);
+        set_cd(INSTALLER_PATHS.game_dir.addr());
     }
     // the files
     if INSTALLER_RUN.file_count.get() != 0 {
@@ -156,16 +156,16 @@ pub fn install_files() -> Result<(), Refused> {
             build(installed(), path_b(), INSTALLER_RUN.files.get(), n);
             // 0x413242: a failed copy is the error message.
             if !i::copy_counted::copy_counted(
-                INSTALLER_PATHS.path_a.addr() as u32,
-                INSTALLER_PATHS.path_b.addr() as u32,
+                INSTALLER_PATHS.path_a.addr(),
+                INSTALLER_PATHS.path_b.addr(),
             )? {
-                return message(2, INSTALLER_PAGES.msg_error.addr() as u32, 0);
+                return message(2, INSTALLER_PAGES.msg_error.addr(), 0);
             }
             if run_frame(Some(progress_frame))? {
                 run_frame(Some(copying_frame))?;
             }
             if take_key() == 1 {
-                return message(1, INSTALLER_PAGES.msg_cancel.addr() as u32, 0xFFFF_FFCE);
+                return message(1, INSTALLER_PAGES.msg_cancel.addr(), 0xFFFF_FFCE);
             }
             n = n.wrapping_add(1);
             if n == INSTALLER_RUN.file_count.get() {
@@ -175,9 +175,9 @@ pub fn install_files() -> Result<(), Refused> {
     }
     // 0x413280: the change of folder's result is not looked at; 0x41328A: a failed
     // record write is the error message.
-    set_cd(INSTALLER_PATHS.installed.addr() as u32);
+    set_cd(INSTALLER_PATHS.installed.addr());
     if !i::write_record::write_record()? {
-        return message(2, INSTALLER_PAGES.msg_error.addr() as u32, 0);
+        return message(2, INSTALLER_PAGES.msg_error.addr(), 0);
     }
     if crate::install::installer::rb(crate::pointers::game_address(
         crate::files::state::locale_directory(),
@@ -186,22 +186,22 @@ pub fn install_files() -> Result<(), Refused> {
         // readme.txt then manual.pdf
         for (full, base) in [
             (
-                INSTALLER_NAMES.readme.addr() as u32,
-                INSTALLER_NAMES.readme.addr() as u32 + 0xE,
+                INSTALLER_NAMES.readme.addr(),
+                INSTALLER_NAMES.readme.addr() + 0xE,
             ),
             (
-                INSTALLER_NAMES.manual.addr() as u32,
-                INSTALLER_NAMES.manual.addr() as u32 + 0xE,
+                INSTALLER_NAMES.manual.addr(),
+                INSTALLER_NAMES.manual.addr() + 0xE,
             ),
         ] {
             let cursor = str_append(
-                INSTALLER_PATHS.game_dir.addr() as u32,
-                INSTALLER_PATHS.path_a.addr() as u32,
+                INSTALLER_PATHS.game_dir.addr(),
+                INSTALLER_PATHS.path_a.addr(),
             );
             let cursor = str_append(full, cursor);
             append_byte(cursor, 0);
             // Not looked at (0x413435, 0x413463).
-            i::copy_counted::copy_counted(INSTALLER_PATHS.path_a.addr() as u32, base)?;
+            i::copy_counted::copy_counted(INSTALLER_PATHS.path_a.addr(), base)?;
         }
     }
     INSTALLER_PAGES.list_answer.set(2);
@@ -210,14 +210,14 @@ pub fn install_files() -> Result<(), Refused> {
     // byte_95E7F8 copied to g_installSource; dword_51BC90 its length with the NUL
     let mut n = 0;
     loop {
-        let b = rb(INSTALLER_PATHS.installed.addr() as u32 + n);
-        wb(INSTALLER_NAMES.source.addr() as u32 + n, b);
+        let b = rb(INSTALLER_PATHS.installed.addr() + n);
+        wb(INSTALLER_NAMES.source.addr() + n, b);
         n += 1;
         if b == 0 {
             break;
         }
     }
-    wd(INSTALLER_NAMES.source_size.addr() as u32, n);
+    wd(INSTALLER_NAMES.source_size.addr(), n);
     i::write_registry::write_registry(&mut game_api)?;
     i::register_lobby::register_lobby(&mut game_api)?;
     INSTALLER_RUN.add_items.set(1);

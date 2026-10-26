@@ -100,7 +100,7 @@ pub fn lock(slot: u32, lock: bool) -> Result<(), Refused> {
 /// and drawn at rows 0x80 .. 0xFD.
 fn mask(path: usize, to: &Dword, width: u32) -> Result<(), Refused> {
     {
-        read((PICTURE_COPY.paths.addr() + path) as u32)?;
+        read(PICTURE_COPY.paths.addr() + path as u32)?;
         GamePtr::new(PICTURE.buffer.get()).copy_to(
             GamePtr::new(PICTURE_COPY.copy.get()),
             4 * COPIED as usize,
@@ -134,7 +134,7 @@ pub fn load_mask_pictures() -> Result<(), Refused> {
         if ground >= NAMES {
             return Err(BadInput("a ground past the six names").into());
         }
-        let mut name = GROUND_NAMES.names.addr() as u32;
+        let mut name = GROUND_NAMES.names.addr();
         for _ in 0..ground.max(0) {
             while GamePtr::new(name).read::<u8>("the ground names")? != 0 {
                 name += 1;

@@ -22,7 +22,7 @@ pub fn send_chat(player: u32, message: *const u8) -> Result<(), Refused> {
     lock_received();
     add_chat_line(player, message)?;
     unlock_received();
-    let buffer = NET.send_buffer.addr() as u32;
+    let buffer = NET.send_buffer.addr();
     GamePtr::new(buffer).write(b'"', "the send buffer")?;
     let end =
         crate::pointers::game_address(str_append(message, crate::pointers::host(buffer + 1))?);

@@ -62,7 +62,7 @@ fn unlock_refusing(why: &'static str) -> Result<(), Refused> {
 pub fn set_up_surface() -> Result<(), Refused> {
     unsafe {
         let block = take(
-            Address(crate::pointers::host_number(MASK_LIST.list[0].as_ptr())),
+            Address((crate::pointers::game_address(MASK_LIST.list[0].as_ptr())) as usize),
             MASK_BYTES,
         )?;
         lock(KIND_TEXTURES.kind_first_textures[211].bits(), true)?;
@@ -97,7 +97,7 @@ pub fn set_up_surface() -> Result<(), Refused> {
             MASK_LIST.list[0].as_ptr() as *mut crate::memory::MemoryList
         )?;
 
-        let ring = take(Address(RING_WORK.list.addr()), RING_BYTES)?;
+        let ring = take(Address(RING_WORK.list.addr() as usize), RING_BYTES)?;
         RING_WORK.block.set(ring);
         RING_WORK.cursor.set(ring);
         RING_WORK.count.set(0);
@@ -116,7 +116,7 @@ pub fn set_up_surface() -> Result<(), Refused> {
         ];
         let put = |at: u32, v: u32| GamePtr::new(at).write::<u32>(v, "a mark's field");
         let get = |at: u32| GamePtr::new(at).read::<u32>("a mark's field");
-        let cells = SURFACE.places.addr() as u32;
+        let cells = SURFACE.places.addr();
         for k in (0..CELLS).rev() {
             let at = cells + k * 0x10;
             let (u0, u1) = x87::int_times_plus_on((k & 7) as i32, eighth, edge, eighth, pixel);
@@ -189,7 +189,7 @@ impl MaskList {
     pub const LEN: usize = 0x40;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        crate::pointers::host_number(&MASK_LIST as *const MaskList)
+        crate::pointers::game_address(&MASK_LIST as *const MaskList) as usize
     }
 }
 

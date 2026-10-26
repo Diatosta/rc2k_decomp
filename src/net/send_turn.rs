@@ -15,7 +15,7 @@ use rc2k_core::net::race::SENT;
 
 /// The Rust version.
 pub fn send_turn() -> Result<(), Refused> {
-    let steps = crate::physics::car_store::car_addr() as u32 + 8;
+    let steps = crate::physics::car_store::car_addr() + 8;
     let count = || GamePtr::new(steps).read::<u32>("the car's step counter");
     let sends: [fn() -> Result<(), Refused>; 3] = [
         send_inputs::send_inputs,

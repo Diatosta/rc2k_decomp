@@ -14,6 +14,6 @@ const COUNT: u32 = 0x17;
 
 /// The Rust version.
 pub unsafe fn apply_wheel_torques() -> Result<(), Refused> {
-    let first = crate::pointers::host_number(PHYSICS.forces.as_ptr()) as u32;
+    let first = crate::pointers::game_address(PHYSICS.forces.as_ptr());
     unsafe { apply_torques(first, COUNT) }
 }

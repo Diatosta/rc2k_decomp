@@ -34,9 +34,9 @@ pub fn allowed_gear_at(locked: u32, open: u32, bits: u32, eax: u32) -> Result<u3
 /// The Rust version.
 pub fn allowed_gear(eax: u32) -> Result<u32, Refused> {
     allowed_gear_at(
-        CAR.engine_damage.addr() as u32,
-        CAR.engine_power_factor.addr() as u32,
-        CAR.lost_gear_bits.addr() as u32,
+        CAR.engine_damage.addr(),
+        CAR.engine_power_factor.addr(),
+        CAR.lost_gear_bits.addr(),
         eax,
     )
 }

@@ -55,7 +55,7 @@ impl PlayerRecord {
         self.head.get(Self::STATE)
     }
 
-    pub fn addr(&self) -> usize {
+    pub fn addr(&self) -> u32 {
         self.head.addr()
     }
 }
@@ -110,8 +110,8 @@ impl PlayerBlock {
 
     /// Where the count and the records are (`+0x34`, the start of the inbox
     /// `rc2k_core::net::inbox` works on, which runs on past `messages`).
-    pub fn inbox_addr(&self) -> usize {
-        crate::pointers::host_number(self as *const Self) + 0x34
+    pub fn inbox_addr(&self) -> u32 {
+        crate::pointers::game_address(self as *const Self) + 0x34
     }
 }
 
@@ -134,7 +134,7 @@ impl DpName {
         }
     }
 
-    pub fn addr(&self) -> usize {
+    pub fn addr(&self) -> u32 {
         self.size.addr()
     }
 }
@@ -172,7 +172,7 @@ impl SessionDesc {
         }
     }
 
-    pub fn addr(&self) -> usize {
+    pub fn addr(&self) -> u32 {
         self.size.addr()
     }
 }
@@ -478,7 +478,7 @@ impl NetVars {
     pub const LEN: usize = 0x80F69;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        crate::pointers::host_number(&NET as *const NetVars)
+        crate::pointers::game_address(&NET as *const NetVars) as usize
     }
 }
 
@@ -535,7 +535,7 @@ impl Button {
     pub const LEN: usize = 0x1C;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        crate::pointers::host_number(&BUTTON as *const Button)
+        crate::pointers::game_address(&BUTTON as *const Button) as usize
     }
 }
 

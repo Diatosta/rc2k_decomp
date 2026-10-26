@@ -58,8 +58,8 @@ pub fn key_to_char(eax: u32) -> Result<u32, BadInput> {
         down(RIGHT_SHIFT),
     );
     let layout: u32 = match switched {
-        Some(Switch::First) => KEYBOARD_FILE.layouts[0].dead_keys.addr() as u32,
-        Some(Switch::Second) => KEYBOARD_FILE.layouts[1].dead_keys.addr() as u32,
+        Some(Switch::First) => KEYBOARD_FILE.layouts[0].dead_keys.addr(),
+        Some(Switch::Second) => KEYBOARD_FILE.layouts[1].dead_keys.addr(),
         None => KEYBOARD_FILE.layout.get(),
     };
     if layout == 0 {
@@ -88,8 +88,8 @@ pub fn key_to_char(eax: u32) -> Result<u32, BadInput> {
             shifted: as_bytes(&tables[2]),
             alt_gr: as_bytes(&tables[3]),
         },
-        &GamePtr::new(KEYBOARD.compose.addr() as u32).bytes("the compose table")?,
-        &GamePtr::new(KEYBOARD.silent_keys[0].addr() as u32).bytes("the silent keys")?,
+        &GamePtr::new(KEYBOARD.compose.addr()).bytes("the compose table")?,
+        &GamePtr::new(KEYBOARD.silent_keys[0].addr()).bytes("the silent keys")?,
         down(LEFT_SHIFT) || down(RIGHT_SHIFT),
         down(ALT_GR),
         DEVICES.dead_key.get(),

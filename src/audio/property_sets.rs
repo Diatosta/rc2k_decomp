@@ -84,16 +84,11 @@ pub unsafe fn open_property_set(o: &Opening, holder: u32, log: Log) -> Result<bo
         }
         let query: unsafe extern "system" fn(u32, u32, u32) -> i32 =
             std::mem::transmute(method(buffer, 0));
-        if query(
-            buffer,
-            AUDIO.iid_property_set.addr() as u32,
-            o.object.addr() as u32,
-        ) != 0
-        {
+        if query(buffer, AUDIO.iid_property_set.addr(), o.object.addr()) != 0 {
             return Ok(false);
         }
         let p = o.object.get();
-        let set = o.set.addr() as u32;
+        let set = o.set.addr();
         let mut support = 0u32;
         let query_support: unsafe extern "system" fn(u32, u32, u32, u32) -> i32 =
             std::mem::transmute(method(p, QUERY_SUPPORT));
@@ -142,7 +137,7 @@ pub fn set_eax_room(room: u32) -> Result<u32, Refused> {
         + rc2k_core::audio::levels::eax_room_offset(room)?;
     let p = AUDIO.eax_properties.get();
     if p != 0 {
-        unsafe { set_property(p, AUDIO.eax_reverb_set.addr() as u32, at, 0x10) };
+        unsafe { set_property(p, AUDIO.eax_reverb_set.addr(), at, 0x10) };
     }
     Ok(at)
 }

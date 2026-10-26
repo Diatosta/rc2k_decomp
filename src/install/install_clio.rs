@@ -41,26 +41,26 @@ enum Stop {
 fn work() -> Result<Stop, Refused> {
     use crate::install as i;
     if !normalise(
-        INSTALLER_PATHS.path_a.addr() as u32,
-        INSTALLER_PATHS.game_dir.addr() as u32,
+        INSTALLER_PATHS.path_a.addr(),
+        INSTALLER_PATHS.game_dir.addr(),
     )? || !normalise(
-        INSTALLER_PATHS.path_b.addr() as u32,
-        INSTALLER_PATHS.installed.addr() as u32,
-    )? || !set_cd(INSTALLER_PATHS.game_dir.addr() as u32)
+        INSTALLER_PATHS.path_b.addr(),
+        INSTALLER_PATHS.installed.addr(),
+    )? || !set_cd(INSTALLER_PATHS.game_dir.addr())
     {
         return Ok(Stop::Straight);
     }
-    i::run_script::run_script(crate::install::store::INSTALL.clio_script.addr() as u32)?;
+    i::run_script::run_script(crate::install::store::INSTALL.clio_script.addr())?;
     if INSTALLER_RUN.dir_count.get() != 0 {
         let mut n = 0;
         loop {
             append_both(
-                INSTALLER_PATHS.installed.addr() as u32,
-                INSTALLER_PATHS.path_b.addr() as u32,
+                INSTALLER_PATHS.installed.addr(),
+                INSTALLER_PATHS.path_b.addr(),
                 INSTALLER_RUN.dirs.get(),
                 n,
             );
-            if !i::make_folders::make_folders(INSTALLER_PATHS.path_b.addr() as u32)? {
+            if !i::make_folders::make_folders(INSTALLER_PATHS.path_b.addr())? {
                 return Ok(Stop::SetBack);
             }
             n = n.wrapping_add(1);
@@ -68,27 +68,27 @@ fn work() -> Result<Stop, Refused> {
                 break;
             }
         }
-        set_cd(INSTALLER_PATHS.game_dir.addr() as u32);
+        set_cd(INSTALLER_PATHS.game_dir.addr());
     }
     if INSTALLER_RUN.file_count.get() != 0 {
         let mut n = 0;
         loop {
             append_both(
-                INSTALLER_PATHS.game_dir.addr() as u32,
-                INSTALLER_PATHS.path_a.addr() as u32,
+                INSTALLER_PATHS.game_dir.addr(),
+                INSTALLER_PATHS.path_a.addr(),
                 INSTALLER_RUN.files.get(),
                 n,
             );
             append_both(
-                INSTALLER_PATHS.installed.addr() as u32,
-                INSTALLER_PATHS.path_b.addr() as u32,
+                INSTALLER_PATHS.installed.addr(),
+                INSTALLER_PATHS.path_b.addr(),
                 INSTALLER_RUN.files.get(),
                 n,
             );
             // 0x416886: a failed copy stops the install as Escape does.
             if !i::copy_counted::copy_counted(
-                INSTALLER_PATHS.path_a.addr() as u32,
-                INSTALLER_PATHS.path_b.addr() as u32,
+                INSTALLER_PATHS.path_a.addr(),
+                INSTALLER_PATHS.path_b.addr(),
             )? || take_key() == 1
             {
                 return Ok(Stop::SetBack);
@@ -105,13 +105,13 @@ fn work() -> Result<Stop, Refused> {
 pub fn install_clio() -> Result<(), Refused> {
     if lock() {
         copy_picture()?;
-        draw_string(0xBE, FONT_BE.addr() as u32, 0x1A9, 0x113)?;
+        draw_string(0xBE, FONT_BE.addr(), 0x1A9, 0x113)?;
         unlock();
         show();
         sleep(1000);
     }
     if let Stop::SetBack = work()? {
-        set_cd(INSTALLER_PATHS.installed.addr() as u32);
+        set_cd(INSTALLER_PATHS.installed.addr());
     }
     INSTALLER_RUN.installing.set(0);
     INSTALLER_RUN.updating.set(0);

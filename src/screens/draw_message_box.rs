@@ -25,7 +25,7 @@ pub static BOX: [crate::session::Dword; 4] = [const { crate::session::Dword::new
 
 /// Where the rectangle is (`moved::MOVED`'s home for IDA 0x52983C).
 pub fn box_home() -> usize {
-    crate::pointers::host_number(BOX.as_ptr())
+    (crate::pointers::game_address(BOX.as_ptr())) as usize
 }
 
 /// The Rust version (`x` the caller's ecx).
@@ -61,7 +61,7 @@ pub unsafe fn draw_message_box(x: i32, canvas: &mut dyn Canvas) -> Result<(), Re
         BOX[3].set(b.rect[3]);
         BOX[0].set(b.rect[0]);
         BOX[1].set(b.rect[1]);
-        let rect = BOX[0].addr() as u32;
+        let rect = BOX[0].addr();
         let palettes = FONTS.palettes.get();
         fill_rect(rect, FILL, palettes)?;
         frame_rect(rect, 0, 0, FRAME, palettes);
@@ -77,6 +77,6 @@ mod box_tests {
     #[test]
     fn first_values_are_the_games() {
         crate::gfx::first_values_are_the_games(&BOX, BOX_START, BOX_START + 16);
-        assert_eq!(crate::moved::place(BOX_START + 8), BOX[2].addr());
+        assert_eq!(crate::moved::place(BOX_START + 8), BOX[2].addr() as usize);
     }
 }

@@ -245,7 +245,7 @@ unsafe fn tables(palettes: u32) -> Result<(), Refused> {
         MENU_FONTS.font27_glyphs.set(SHEET.table.get());
         palette_to_pixels(GamePtr::new(palettes).read("the fonts' palettes' place")?)?;
         GamePtr::new(crate::pointers::game_address(DECODER.palette_ptr())).copy_to(
-            GamePtr::new(crate::session::address_of(&MENU_FONTS.palette_sheet) as u32),
+            GamePtr::new(crate::session::address_of(&MENU_FONTS.palette_sheet)),
             PALETTE_BYTES,
             "the fonts' palette sheet",
         )?;
@@ -273,7 +273,7 @@ pub unsafe fn build_fonts() -> Result<(), Refused> {
             }
             .into());
         }
-        tables(MENU_FONTS.palettes.addr() as u32)?;
+        tables(MENU_FONTS.palettes.addr())?;
         for (font, field, variable, plus) in HUNG {
             let object = &FONTS.objects[font];
             let value = hung_value(variable, plus);

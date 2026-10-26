@@ -54,7 +54,7 @@ pub fn add_polygon() -> Result<(), Refused> {
             crate::hud::set_batch_texture::set_batch_texture()?;
         }
         let vc = HUD.vertex_count.get();
-        crate::pointers::GamePtr::new(crate::d3d::vertices_store::piece_addr() as u32).copy_to(
+        crate::pointers::GamePtr::new(crate::d3d::vertices_store::piece_addr()).copy_to(
             crate::pointers::GamePtr::new(
                 crate::pointers::game_address(HUD.vertices.as_ptr()) + vc * 0x20,
             ),

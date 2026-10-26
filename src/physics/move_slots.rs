@@ -45,8 +45,8 @@ pub unsafe fn move_slots_at(slots: u32, count: u32) -> Result<(), Refused> {
 pub unsafe fn move_slots() -> Result<(), Refused> {
     unsafe {
         move_slots_at(
-            crate::pointers::host_number(RACE_WORK.race_slots.as_ptr()) as u32,
-            RACE_WORK.slot_count.addr() as u32,
+            crate::pointers::game_address(RACE_WORK.race_slots.as_ptr()),
+            RACE_WORK.slot_count.addr(),
         )
     }
 }

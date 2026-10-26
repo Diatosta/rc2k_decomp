@@ -36,13 +36,13 @@ pub fn move_at(v: &[u32]) -> u32 {
 
 fn game() -> Vec<u32> {
     vec![
-        CAR.velocity[0].addr() as u32,
-        CAR.velocity[1].addr() as u32,
-        CAR.velocity[2].addr() as u32,
-        CAR.position[0].addr() as u32,
-        CAR.position[1].addr() as u32,
-        CAR.position[2].addr() as u32,
-        DRAW.scratch.addr() as u32,
+        CAR.velocity[0].addr(),
+        CAR.velocity[1].addr(),
+        CAR.velocity[2].addr(),
+        CAR.position[0].addr(),
+        CAR.position[1].addr(),
+        CAR.position[2].addr(),
+        DRAW.scratch.addr(),
     ]
 }
 

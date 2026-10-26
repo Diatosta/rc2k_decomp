@@ -44,14 +44,14 @@ pub fn step_camera(step: i8) -> Result<(), Refused> {
     }
     let byte = (crate::race::viewer_buffers_store::VIEWER_BUFFERS
         .block_cameras
-        .addr() as u32)
-        .wrapping_sub(1)
-        .wrapping_add(
-            crate::race::viewer_buffers_store::VIEWER_BUFFERS
-                .camera_edit
-                .get(),
-        )
-        .wrapping_add(block.wrapping_mul(8));
+        .addr())
+    .wrapping_sub(1)
+    .wrapping_add(
+        crate::race::viewer_buffers_store::VIEWER_BUFFERS
+            .camera_edit
+            .get(),
+    )
+    .wrapping_add(block.wrapping_mul(8));
     let at = GamePtr::new(byte);
     let old: u8 = at.read("a replay camera byte")?;
     // Converted: `rc2k_core::race::viewer::{every_camera, step_camera}`.

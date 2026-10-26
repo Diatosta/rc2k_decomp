@@ -42,7 +42,7 @@ pub fn converters(has_mmx: u32, has_3dnow: u32) -> [u32; CONVERTER_COUNT] {
             Converter::Mmx(n) => MMX[n as usize - 1],
             Converter::ThreeDNow(n) => AMD[n as usize - 1],
         };
-        game_addr(at) as u32
+        game_addr(at)
     })
 }
 

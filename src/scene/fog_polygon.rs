@@ -55,7 +55,7 @@ pub unsafe fn fog_polygon() -> Result<(), Refused> {
             } else {
                 length.wrapping_sub(1)
             };
-            let fog = GamePtr::new((LIGHT_STATE.fog_table[0].addr() as u32).wrapping_add(place))
+            let fog = GamePtr::new((LIGHT_STATE.fog_table[0].addr()).wrapping_add(place))
                 .read::<u8>("the fog table")? as u32;
             crate::pointers::host_at(entry + 0x20).write((fixed.unwrap_or(fog) ^ 0xFF) as u8);
         }

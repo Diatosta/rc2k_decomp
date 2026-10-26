@@ -39,14 +39,14 @@ pub unsafe fn hold_at(v: &[u32]) {
 
 fn game() -> Vec<u32> {
     vec![
-        CAR.wheel_squeeze[0].addr() as u32,
-        CAR.wheel_squeeze[1].addr() as u32,
-        CAR.wheel_squeeze[2].addr() as u32,
-        CAR.wheel_squeeze[3].addr() as u32,
-        PHYSICS.ground_spin_limit.addr() as u32,
-        CAR.spin[0].addr() as u32,
-        CAR.spin[2].addr() as u32,
-        PHYSICS.ground_spin.addr() as u32,
+        CAR.wheel_squeeze[0].addr(),
+        CAR.wheel_squeeze[1].addr(),
+        CAR.wheel_squeeze[2].addr(),
+        CAR.wheel_squeeze[3].addr(),
+        PHYSICS.ground_spin_limit.addr(),
+        CAR.spin[0].addr(),
+        CAR.spin[2].addr(),
+        PHYSICS.ground_spin.addr(),
     ]
 }
 

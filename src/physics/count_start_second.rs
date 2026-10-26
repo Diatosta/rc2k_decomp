@@ -14,11 +14,11 @@ use rc2k_core::physics::start::CarStart;
 
 fn game() -> Vec<u32> {
     vec![
-        CAR.tyre_change_state.addr() as u32,
-        CAR.false_start_count.addr() as u32,
-        CAR.run_ticks.addr() as u32,
-        CAR.finish_flag.addr() as u32,
-        CAR.stage_time.addr() as u32,
+        CAR.tyre_change_state.addr(),
+        CAR.false_start_count.addr(),
+        CAR.run_ticks.addr(),
+        CAR.finish_flag.addr(),
+        CAR.stage_time.addr(),
     ]
 }
 

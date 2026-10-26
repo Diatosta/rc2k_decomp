@@ -69,8 +69,7 @@ pub fn load_slideshow_picture(
         },
         |next| EVENT_STATE.picture.set(next),
     )?;
-    let title_bar =
-        crate::pointers::host_at(crate::menu::texts_store::MENU_TEXTS.titlebar_png.addr());
+    let title_bar = crate::pointers::host(crate::menu::texts_store::MENU_TEXTS.titlebar_png.addr());
     if step(Step::Overlay(path, title_bar))? {
         step(Step::Load(title_bar))?;
     }

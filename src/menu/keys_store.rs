@@ -52,8 +52,8 @@ pub const START: usize = 0x755595;
 pub const END: usize = 0x755640;
 
 /// Where IDA 0x755595 is now (`moved::MOVED`'s home).
-pub fn key_tables_addr() -> usize {
-    crate::pointers::host_number(&KEY_TABLES as *const KeyTables)
+pub fn key_tables_addr() -> u32 {
+    crate::pointers::game_address(&KEY_TABLES as *const KeyTables)
 }
 
 #[cfg(test)]
@@ -70,7 +70,7 @@ mod tests {
         );
         let mine = unsafe {
             std::slice::from_raw_parts(
-                crate::pointers::host_at(key_tables_addr()) as *const u8,
+                crate::pointers::host(key_tables_addr()) as *const u8,
                 END - START,
             )
         };

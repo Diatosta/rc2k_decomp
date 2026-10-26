@@ -20,7 +20,7 @@ pub static DEVELOPER: crate::session::Dword = crate::session::Dword::new(0);
 
 /// Where the switch is (`moved::MOVED`'s home for IDA 0x529D94).
 pub fn developer_home() -> usize {
-    DEVELOPER.addr()
+    DEVELOPER.addr() as usize
 }
 
 const NAME_ROOM: u32 = 0x40;
@@ -54,6 +54,9 @@ mod developer_tests {
     #[test]
     fn first_value_is_the_games() {
         crate::gfx::first_values_are_the_games(&DEVELOPER, DEVELOPER_START, DEVELOPER_START + 4);
-        assert_eq!(crate::moved::place(DEVELOPER_START), DEVELOPER.addr());
+        assert_eq!(
+            crate::moved::place(DEVELOPER_START),
+            DEVELOPER.addr() as usize
+        );
     }
 }

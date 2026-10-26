@@ -142,6 +142,6 @@ pub fn share_car_state(block: u32, record: u32, sound: u32) -> Result<(), Refuse
         block,
         record,
         sound,
-        DRAW.scratch.addr() as u32, /* dword_62400C */
+        DRAW.scratch.addr(), /* dword_62400C */
     )
 }

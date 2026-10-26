@@ -35,12 +35,12 @@ pub unsafe fn drag_at(v: &[u32]) {
 
 fn game() -> Vec<u32> {
     vec![
-        CAR.local_velocity[0].addr() as u32,
-        CAR.local_velocity[1].addr() as u32,
-        CAR.local_velocity[2].addr() as u32,
-        PHYSICS.forces[5].force[0].addr() as u32,
-        PHYSICS.forces[5].force[1].addr() as u32,
-        PHYSICS.forces[5].force[2].addr() as u32,
+        CAR.local_velocity[0].addr(),
+        CAR.local_velocity[1].addr(),
+        CAR.local_velocity[2].addr(),
+        PHYSICS.forces[5].force[0].addr(),
+        PHYSICS.forces[5].force[1].addr(),
+        PHYSICS.forces[5].force[2].addr(),
     ]
 }
 

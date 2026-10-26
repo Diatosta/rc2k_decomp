@@ -53,7 +53,7 @@ impl SpreadRandom {
     pub const LEN: usize = 0x4;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        crate::pointers::host_number(&SPREAD_RANDOM as *const SpreadRandom)
+        crate::pointers::game_address(&SPREAD_RANDOM as *const SpreadRandom) as usize
     }
 }
 

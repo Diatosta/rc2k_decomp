@@ -30,15 +30,15 @@ fn globals() -> Result<Globals, BadInput> {
     Ok(Globals {
         mode: crate::files::state::MEDIA_MODE.load(std::sync::atomic::Ordering::Relaxed),
         a: text_at(
-            crate::pointers::host_number(crate::files::state::base_directory()),
+            (crate::pointers::game_address(crate::files::state::base_directory())) as usize,
             "the base directory",
         )?, // g_baseDirectory
         b: text_at(
-            crate::install::installer::INSTALL_TEXTS.base_b.addr(),
+            crate::install::installer::INSTALL_TEXTS.base_b.addr() as usize,
             "the second base directory",
         )?,
         pct: text_at(
-            crate::pointers::host_number(crate::files::state::locale_directory()),
+            (crate::pointers::game_address(crate::files::state::locale_directory())) as usize,
             "the locale directory",
         )?, // g_localeDirectory: replaces each '%'
     })
@@ -47,8 +47,8 @@ fn globals() -> Result<Globals, BadInput> {
 /// The buffer the resolved path is written to: the current thread's slot's, else the global one.
 fn out_buffer() -> Result<GamePtr, BadInput> {
     Ok(match crate::threading::find_thread_slot::current_slot()? {
-        None => GamePtr::new(crate::files::state::PATHS.addr() as u32).offset(0x100),
-        Some(slot) => GamePtr::new(slot.path.addr() as u32),
+        None => GamePtr::new(crate::files::state::PATHS.addr()).offset(0x100),
+        Some(slot) => GamePtr::new(slot.path.addr()),
     })
 }
 

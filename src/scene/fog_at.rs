@@ -21,7 +21,7 @@ pub fn fog_at(depth: u32) -> Result<u32, Refused> {
         // A byte of the table (the store types it in dwords).
         |n| {
             reading.read::<u8>(
-                (LIGHT_STATE.fog_table[0].addr().wrapping_add(n)) as u32,
+                LIGHT_STATE.fog_table[0].addr().wrapping_add(n as u32),
                 "the fog table",
             )
         },

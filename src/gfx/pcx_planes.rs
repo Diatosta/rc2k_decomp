@@ -14,7 +14,7 @@ pub static PLANES: Bytes<LEN> = Bytes::new([0; LEN]);
 
 /// Where the block is (`moved::MOVED`'s home for IDA 0x94F6F8).
 pub fn home() -> usize {
-    PLANES.addr()
+    PLANES.addr() as usize
 }
 
 #[cfg(test)]
@@ -28,10 +28,10 @@ mod tests {
 
     #[test]
     fn moved_knows_the_block() {
-        assert_eq!(crate::moved::place(START), PLANES.addr());
+        assert_eq!(crate::moved::place(START), PLANES.addr() as usize);
         assert_eq!(
             crate::moved::place(START + LEN - 1),
-            PLANES.addr() + LEN - 1
+            (PLANES.addr() + LEN as u32 - 1) as usize
         );
     }
 }

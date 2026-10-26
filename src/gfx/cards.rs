@@ -25,7 +25,7 @@ pub static CARDS: Cards = Cards {
 
 /// Where the block is (`moved::MOVED`'s home for IDA 0x5AB4AC).
 pub fn home() -> usize {
-    crate::pointers::host_number(&CARDS as *const Cards)
+    crate::pointers::game_address(&CARDS as *const Cards) as usize
 }
 
 #[cfg(test)]
@@ -39,7 +39,10 @@ mod tests {
 
     #[test]
     fn moved_knows_the_block() {
-        assert_eq!(crate::moved::place(START), CARDS.primary.addr());
-        assert_eq!(crate::moved::place(START + 4), CARDS.secondary.addr());
+        assert_eq!(crate::moved::place(START), CARDS.primary.addr() as usize);
+        assert_eq!(
+            crate::moved::place(START + 4),
+            CARDS.secondary.addr() as usize
+        );
     }
 }

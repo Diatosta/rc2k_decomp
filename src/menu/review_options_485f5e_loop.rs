@@ -48,22 +48,22 @@ fn set_up_first(c: &mut Carried) -> Result<(), Refused> {
 }
 
 pub const SCREEN: Screen = Screen {
-    menu: || MENUS.review_options_485f5e.addr(),
+    menu: || MENUS.review_options_485f5e.addr() as usize,
     saved_item: || &SCREEN_ITEMS.current[slot::REVIEW_OPTIONS_485F5E],
     lists: &[
         List {
             pointer: || &SCREEN_FLOW.scene_list, // g_sceneList
-            table: || DRAW_LISTS.review_options_485f5e_scene.addr(),
+            table: || DRAW_LISTS.review_options_485f5e_scene.addr() as usize,
             run: false,
         },
         List {
             pointer: || &SCREEN_FLOW.draw_list, // g_drawList
-            table: || DRAW_LISTS.review_options_485f5e_draw.addr(),
+            table: || DRAW_LISTS.review_options_485f5e_draw.addr() as usize,
             run: false,
         },
         List {
             pointer: || &SCREEN_FLOW.overlay_list, // g_overlayList
-            table: || DRAW_LISTS.review_options_485f5e_overlay.addr(),
+            table: || DRAW_LISTS.review_options_485f5e_overlay.addr() as usize,
             run: false,
         },
     ],
@@ -79,9 +79,9 @@ pub const SCREEN: Screen = Screen {
     after_lists: &[],
     background: &[
         Step::ArgAddr(|| {
-            crate::menu::texts_store::MENU_TEXTS
+            (crate::menu::texts_store::MENU_TEXTS
                 .review_options_485f5e_picture
-                .addr()
+                .addr()) as usize
         }),
         Step::CallOrFatal(Callee::LoadBackground, 0x80712345),
     ],

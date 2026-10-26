@@ -68,9 +68,9 @@ pub fn hexagons_top() -> Result<(), Refused> {
     if s == 0 {
         return Err(BadInput("no marks settings").into());
     }
-    HEX.buffer.set(HEXAGON_BATCH.records.addr() as u32);
+    HEX.buffer.set(HEXAGON_BATCH.records.addr());
     frame_axes(s);
-    let [a0, a1, a2] = [0, 3, 6].map(|n| HEXAGON_WORK.axes[n].addr() as u32);
+    let [a0, a1, a2] = [0, 3, 6].map(|n| HEXAGON_WORK.axes[n].addr());
     normalise_vector3(a0);
     frame_up(s);
     normalise_vector3(a1);
@@ -91,17 +91,17 @@ pub fn hexagons_top() -> Result<(), Refused> {
         HEXAGON_WORK.scaled[o + 2].set_bits(0);
     }
     for n in 0..POINTS {
-        point_turned(HEXAGON_WORK.scaled[0].addr() as u32 + 12 * n);
+        point_turned(HEXAGON_WORK.scaled[0].addr() + 12 * n);
     }
     if HEXAGON_STATE.rate.bits() != 0 {
         crate::marks::hexagons_frame::hexagons_frame()?;
         let at_now: u32 = HEX.buffer.get();
-        if at_now != HEXAGON_BATCH.records.addr() as u32 {
+        if at_now != HEXAGON_BATCH.records.addr() {
             let quads = x87::int_over_int_to_int(
-                at_now.wrapping_sub(HEXAGON_BATCH.records.addr() as u32) as i32,
+                at_now.wrapping_sub(HEXAGON_BATCH.records.addr()) as i32,
                 HEX.per_vertex.get() as i32,
             ) as u32;
-            HEX.buffer.set(HEXAGON_BATCH.records.addr() as u32);
+            HEX.buffer.set(HEXAGON_BATCH.records.addr());
             HEXAGON_BATCH.index_count.set(quads.wrapping_mul(12));
             HEXAGON_BATCH.vertex_count.set(quads.wrapping_mul(6));
             crate::marks::hexagons_frame::draw_batch()?;

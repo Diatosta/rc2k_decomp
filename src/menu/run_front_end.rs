@@ -45,7 +45,7 @@ pub fn run_front_end() -> Result<(), Refused> {
         })?;
         crate::gfx::free_fonts::free_fonts(
             crate::gfx::glyph_tables::TABLES.memory.as_ptr(),
-            crate::pointers::host_at(FONTS.palettes.addr()) as *mut u32,
+            crate::pointers::host(FONTS.palettes.addr()) as *mut u32,
         )?;
         crate::saves::list_car_numbers::list_car_numbers()?;
     }

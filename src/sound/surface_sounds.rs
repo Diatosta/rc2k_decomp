@@ -44,12 +44,12 @@ fn one(o: &SoundObject, request: u32, second: usize) -> Result<(), Refused> {
         if second == 0 {
             x87_1(
                 &crate::sound::store::SURFACE_SOUNDS,
-                crate::session::MACHINE.scratch.addr(),
+                crate::session::MACHINE.scratch.addr() as usize,
             );
         } else {
             x87_2(
                 &crate::sound::store::SURFACE_SOUNDS,
-                crate::session::MACHINE.scratch.addr(),
+                crate::session::MACHINE.scratch.addr() as usize,
             );
         }
     }

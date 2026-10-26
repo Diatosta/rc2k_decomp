@@ -73,9 +73,9 @@ pub fn turn_pair(inputs: [[u8; 10]; 2]) -> [[u8; 10]; 2] {
     let mut out = [[0u8; 10]; 2];
     let m = crate::pointers::game_address(MASKS.turn.as_ptr());
     turn_pair_x87(
-        crate::pointers::host_number(inputs.as_ptr()),
+        (crate::pointers::game_address(inputs.as_ptr())) as usize,
         m as usize,
-        crate::pointers::host_number(out.as_mut_ptr()),
+        (crate::pointers::game_address(out.as_mut_ptr())) as usize,
     );
     out
 }
@@ -84,9 +84,9 @@ pub fn turn_pair(inputs: [[u8; 10]; 2]) -> [[u8; 10]; 2] {
 fn scaled_ints(inputs: &[[u8; 10]; 2], k: *const u32) -> (i32, i32) {
     let mut v = [0i32; 2];
     scaled_ints_x87(
-        crate::pointers::host_number(inputs.as_ptr()),
-        crate::pointers::host_number(k),
-        crate::pointers::host_number(v.as_mut_ptr()),
+        (crate::pointers::game_address(inputs.as_ptr())) as usize,
+        crate::pointers::game_address(k) as usize,
+        (crate::pointers::game_address(v.as_mut_ptr())) as usize,
     );
     (v[0], v[1])
 }
@@ -95,9 +95,9 @@ fn scaled_ints(inputs: &[[u8; 10]; 2], k: *const u32) -> (i32, i32) {
 fn int_over_80(v: i32, k: *const u32) -> [u8; 10] {
     let mut out = [0u8; 10];
     int_over_80_x87(
-        crate::pointers::host_number(&raw const v),
-        crate::pointers::host_number(k),
-        crate::pointers::host_number(out.as_mut_ptr()),
+        crate::pointers::game_address(&raw const v) as usize,
+        crate::pointers::game_address(k) as usize,
+        (crate::pointers::game_address(out.as_mut_ptr())) as usize,
     );
     out
 }

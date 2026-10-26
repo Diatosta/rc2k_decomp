@@ -22,27 +22,27 @@ use crate::menu::screen_loop::{Callee, List, Screen, Step};
 // ---- Rust version: `menu::screen_loop` with this ----
 
 pub const SCREEN: Screen = Screen {
-    menu: || MENUS.time_trial_select_stage.addr(),
+    menu: || MENUS.time_trial_select_stage.addr() as usize,
     saved_item: || &SCREEN_ITEMS.current[slot::TIME_TRIAL_SELECT_STAGE],
     lists: &[
         List {
             pointer: || &SCREEN_FLOW.scene_list, // g_sceneList
-            table: || DRAW_LISTS.time_trial_select_stage_scene.addr(),
+            table: || DRAW_LISTS.time_trial_select_stage_scene.addr() as usize,
             run: false,
         },
         List {
             pointer: || &SCREEN_FLOW.draw_list, // g_drawList
-            table: || DRAW_LISTS.time_trial_select_stage_draw.addr(),
+            table: || DRAW_LISTS.time_trial_select_stage_draw.addr() as usize,
             run: false,
         },
         List {
             pointer: || &SCREEN_FLOW.setup_list, // dword_755500
-            table: || DRAW_LISTS.time_trial_select_stage_setup.addr(),
+            table: || DRAW_LISTS.time_trial_select_stage_setup.addr() as usize,
             run: true,
         },
         List {
             pointer: || &SCREEN_FLOW.overlay_list, // g_overlayList
-            table: || DRAW_LISTS.time_trial_select_stage_overlay.addr(),
+            table: || DRAW_LISTS.time_trial_select_stage_overlay.addr() as usize,
             run: false,
         },
     ],

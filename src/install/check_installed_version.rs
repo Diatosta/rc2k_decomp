@@ -35,15 +35,15 @@ pub fn check_installed_version() -> Result<(), Refused> {
     }
     // normalise the source into byte_95E7F8, cd there
     let written = crate::install::normalise_path::normalise_path(
-        crate::pointers::host(INSTALLER_NAMES.source.addr() as u32) as *const u8,
-        crate::pointers::host(INSTALLER_PATHS.installed.addr() as u32),
+        crate::pointers::host(INSTALLER_NAMES.source.addr()) as *const u8,
+        crate::pointers::host(INSTALLER_PATHS.installed.addr()),
     )?;
-    if !written || !set_cd(INSTALLER_PATHS.installed.addr() as u32) {
+    if !written || !set_cd(INSTALLER_PATHS.installed.addr()) {
         return Ok(());
     }
     {
         crate::system::zero_memory::zero_memory(
-            crate::pointers::host(SCRATCH.buffer.addr() as u32),
+            crate::pointers::host(SCRATCH.buffer.addr()),
             0x10000,
         )
     }?;
@@ -55,13 +55,13 @@ pub fn check_installed_version() -> Result<(), Refused> {
             // the previous tail carried to the front (`rep movsd`, 0x40 dwords)
             for n in 0..0x100u32 {
                 wb(
-                    SCRATCH.buffer.addr() as u32 + n,
-                    rb(SCRATCH.buffer.addr() as u32 + TAIL as u32 + n),
+                    SCRATCH.buffer.addr() + n,
+                    rb(SCRATCH.buffer.addr() + TAIL as u32 + n),
                 );
             }
             let (read, ok) = crate::files::handle::read_to(
                 file,
-                GamePtr::new((SCRATCH.buffer.addr() + READ_TARGET) as u32),
+                GamePtr::new(SCRATCH.buffer.addr() + READ_TARGET as u32),
                 SCAN_LEN,
                 "the program's bytes",
             )?;
@@ -69,9 +69,9 @@ pub fn check_installed_version() -> Result<(), Refused> {
                 break;
             }
             // Converted: `rc2k_core::install::version::scan`.
-            let buffer = GamePtr::new(SCRATCH.buffer.addr() as u32).bytes("the scan buffer")?;
+            let buffer = GamePtr::new(SCRATCH.buffer.addr()).bytes("the scan buffer")?;
             let copyright =
-                GamePtr::new(START_TEXTS.copyright.addr() as u32).bytes("the copyright text")?;
+                GamePtr::new(START_TEXTS.copyright.addr()).bytes("the copyright text")?;
             if let Scan::Stopped { same, .. } = version::scan(&buffer, &copyright)? {
                 if same {
                     INSTALLER_RUN.same_version.set(1);
@@ -81,6 +81,6 @@ pub fn check_installed_version() -> Result<(), Refused> {
         }
         crate::files::handle::close(file);
     }
-    set_cd(INSTALLER_PATHS.game_dir.addr() as u32);
+    set_cd(INSTALLER_PATHS.game_dir.addr());
     Ok(())
 }

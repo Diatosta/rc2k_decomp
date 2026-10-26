@@ -36,8 +36,8 @@ impl<T> Place<T> {
         self.0.get()
     }
 
-    pub fn addr(&self) -> usize {
-        crate::pointers::host_number(self.ptr())
+    pub fn addr(&self) -> u32 {
+        crate::pointers::game_address(self.ptr())
     }
 }
 
@@ -55,288 +55,326 @@ pub(crate) const MOVED: &[Moved] = &[
     Moved {
         ida: 0x4E0094, // g_logEnabled
         len: 4,
-        home: || crate::pointers::host_number(crate::logfile::write_line::state::ENABLED.as_ptr()),
+        home: || {
+            (crate::pointers::game_address(crate::logfile::write_line::state::ENABLED.as_ptr()))
+                as usize
+        },
     },
     Moved {
         ida: 0x4E0098, // g_logLevel (a `var\ral.cfg` setting, `logfile`)
         len: 4,
-        home: || crate::pointers::host_number(crate::logfile::write_line::state::LEVEL.as_ptr()),
+        home: || {
+            (crate::pointers::game_address(crate::logfile::write_line::state::LEVEL.as_ptr()))
+                as usize
+        },
     },
     Moved {
         ida: 0x4E009C, // g_logLock
         len: 4,
-        home: || crate::pointers::host_number(crate::logfile::write_line::state::LOCK.as_ptr()),
+        home: || {
+            (crate::pointers::game_address(crate::logfile::write_line::state::LOCK.as_ptr()))
+                as usize
+        },
     },
     Moved {
         ida: 0x4E00A0, // g_logIndent
         len: 4,
-        home: || crate::pointers::host_number(crate::logfile::write_line::state::INDENT.as_ptr()),
+        home: || {
+            (crate::pointers::game_address(crate::logfile::write_line::state::INDENT.as_ptr()))
+                as usize
+        },
     },
     Moved {
         ida: 0x4E00A4, // g_logAtLineStart
         len: 4,
         home: || {
-            crate::pointers::host_number(crate::logfile::write_line::state::LINE_START.as_ptr())
+            (crate::pointers::game_address(crate::logfile::write_line::state::LINE_START.as_ptr()))
+                as usize
         },
     },
     Moved {
         ida: 0x93E030, // dst: the numbers' text
         len: crate::logfile::numeric::SCRATCH_LEN,
-        home: || crate::logfile::numeric::SCRATCH.addr(),
+        home: || crate::logfile::numeric::SCRATCH.addr() as usize,
     },
     Moved {
         ida: 0x93E080, // the log's line buffer
         len: crate::logfile::write_line::LINE_BUF_LEN,
-        home: || crate::logfile::write_line::LINE_BUF.addr(),
+        home: || crate::logfile::write_line::LINE_BUF.addr() as usize,
     },
     Moved {
         ida: 0x4E073A, // g_freeSpaceKb
         len: 4,
-        home: || crate::pointers::host_number(crate::logfile::start_log::FREE_SPACE_KB.as_ptr()),
+        home: || {
+            (crate::pointers::game_address(crate::logfile::start_log::FREE_SPACE_KB.as_ptr()))
+                as usize
+        },
     },
     // math
     Moved {
         ida: 0x4E0140, // g_randomState
         len: 4,
-        home: || crate::pointers::host_number(crate::math::next_random::STATE.as_ptr()),
+        home: || (crate::pointers::game_address(crate::math::next_random::STATE.as_ptr())) as usize,
     },
     // system's start time, read by `logfile::date_text` and `math::seed_random`
     Moved {
         ida: 0x51839F, // byte_51839F, dword_5183A0, dword_5183A4
         len: crate::system::keep_start_time::KEPT_LEN,
-        home: || crate::system::keep_start_time::KEPT.addr(),
+        home: || crate::system::keep_start_time::KEPT.addr() as usize,
     },
     // strings
     Moved {
         ida: 0x4E0144, // dword_4E0144: names keep their case
         len: 4,
-        home: || crate::pointers::host_number(crate::strings::copy_printable::KEEP_CASE.as_ptr()),
+        home: || {
+            (crate::pointers::game_address(crate::strings::copy_printable::KEEP_CASE.as_ptr()))
+                as usize
+        },
     },
     Moved {
         ida: 0x4E0148, // g_timeShowHours
         len: 4,
-        home: || crate::pointers::host_number(crate::strings::append_time::SHOW_HOURS.as_ptr()),
+        home: || {
+            (crate::pointers::game_address(crate::strings::append_time::SHOW_HOURS.as_ptr()))
+                as usize
+        },
     },
     Moved {
         ida: 0x4E0544, // g_sealCodeText
         len: crate::strings::format_seal_code::SEAL_TEXT_LEN,
-        home: || crate::strings::format_seal_code::SEAL_TEXT.addr(),
+        home: || crate::strings::format_seal_code::SEAL_TEXT.addr() as usize,
     },
     Moved {
         ida: 0x4E0758, // dword_4E0758: the lexicon recompiled on a key (a `var\ral.cfg` setting)
         len: 4,
         home: || {
-            crate::pointers::host_number(
+            (crate::pointers::game_address(
                 crate::strings::maybe_compile_lexicon::RECOMPILE_LEVEL.as_ptr(),
-            )
+            )) as usize
         },
     },
     Moved {
         ida: 0x4E0798, // g_localeFile (g_noticeKind at +8)
         len: crate::strings::load_language::LOCALE_LEN,
-        home: || crate::strings::load_language::LOCALE.addr(),
+        home: || crate::strings::load_language::LOCALE.addr() as usize,
     },
     Moved {
         ida: 0x4E07D4, // g_stringTable
         len: 4,
-        home: || crate::pointers::host_number(crate::strings::string_table::STRING_TABLE.as_ptr()),
+        home: || {
+            (crate::pointers::game_address(crate::strings::string_table::STRING_TABLE.as_ptr()))
+                as usize
+        },
     },
     Moved {
         ida: 0x4E07F8, // g_lexicon
         len: rc2k_core::strings::lexicon::TABLE_ROOM,
-        home: || crate::strings::string_table::LEXICON.addr(),
+        home: || crate::strings::string_table::LEXICON.addr() as usize,
     },
     Moved {
         ida: 0x4F0BC8, // g_lowerCase
         len: 0x100,
-        home: || crate::strings::same_text::LOWER.addr(),
+        home: || crate::strings::same_text::LOWER.addr() as usize,
     },
     Moved {
         ida: 0x4F0CC8, // g_plainLetters
         len: 0x100,
-        home: || crate::strings::load_language::PLAIN_LETTERS.addr(),
+        home: || crate::strings::load_language::PLAIN_LETTERS.addr() as usize,
     },
     Moved {
         ida: 0x4F3034, // the record the empty messages share
         len: crate::strings::compile_lexicon::EMPTY_MESSAGE_LEN,
-        home: || crate::strings::compile_lexicon::EMPTY_MESSAGE.addr(),
+        home: || crate::strings::compile_lexicon::EMPTY_MESSAGE.addr() as usize,
     },
     Moved {
         ida: 0x51DE2C, // g_isImperialUnits
         len: 4,
-        home: || crate::pointers::host_number(crate::strings::units::UNITS.as_ptr()),
+        home: || (crate::pointers::game_address(crate::strings::units::UNITS.as_ptr())) as usize,
     },
     Moved {
         ida: 0x94EAB4, // dword_94EAB4: the lexicon compiler's work variables
         len: crate::strings::compile_lexicon::WORK_LEN,
-        home: || crate::strings::compile_lexicon::WORK.addr(),
+        home: || crate::strings::compile_lexicon::WORK.addr() as usize,
     },
     // memory (the allocator's figures and own heap, `memory::state`)
     Moved {
         ida: 0x4E0578, // dword_4E0578: the most bytes held
         len: 4,
-        home: || crate::pointers::host_number(crate::memory::state::MOST_HELD.as_ptr()),
+        home: || (crate::pointers::game_address(crate::memory::state::MOST_HELD.as_ptr())) as usize,
     },
     Moved {
         ida: 0x4E057C, // dword_4E057C: the bytes held now
         len: 4,
-        home: || crate::pointers::host_number(crate::memory::state::HELD.as_ptr()),
+        home: || (crate::pointers::game_address(crate::memory::state::HELD.as_ptr())) as usize,
     },
     Moved {
         ida: 0x4E0580, // dword_4E0580: the turnover
         len: 4,
-        home: || crate::pointers::host_number(crate::memory::state::TURNOVER.as_ptr()),
+        home: || (crate::pointers::game_address(crate::memory::state::TURNOVER.as_ptr())) as usize,
     },
     Moved {
         ida: 0x4E0584, // g_ownHeap (a `var\ral.cfg` setting, `altmemenable`)
         len: 4,
-        home: || crate::pointers::host_number(crate::memory::state::OWN_HEAP.as_ptr()),
+        home: || (crate::pointers::game_address(crate::memory::state::OWN_HEAP.as_ptr())) as usize,
     },
     Moved {
         ida: 0x4E0588, // g_ownHeapKb (a `var\ral.cfg` setting, `altmemsize`)
         len: 4,
-        home: || crate::pointers::host_number(crate::memory::state::OWN_HEAP_KB.as_ptr()),
+        home: || {
+            (crate::pointers::game_address(crate::memory::state::OWN_HEAP_KB.as_ptr())) as usize
+        },
     },
     Moved {
         ida: 0x4E058C, // g_ownHeapBase
         len: 4,
-        home: || crate::pointers::host_number(crate::memory::state::HEAP_BASE.as_ptr()),
+        home: || (crate::pointers::game_address(crate::memory::state::HEAP_BASE.as_ptr())) as usize,
     },
     Moved {
         ida: 0x4E0590, // g_ownHeapCursor
         len: 4,
-        home: || crate::pointers::host_number(crate::memory::state::HEAP_CURSOR.as_ptr()),
+        home: || {
+            (crate::pointers::game_address(crate::memory::state::HEAP_CURSOR.as_ptr())) as usize
+        },
     },
     // settings (`read_driver_names`' work areas), threading (the thread slots)
     Moved {
         ida: 0x529DA5, // aName000: the driver names' key, made in place
         len: 8,
-        home: || crate::settings::read_driver_names::KEY.addr(),
+        home: || crate::settings::read_driver_names::KEY.addr() as usize,
     },
     Moved {
         ida: 0x95ECF8, // dword_95ECF8 (a pointer a driver) and unk_95EFC8 (the names' pool), up to 0x960000
         len: 0x1308,
-        home: || crate::settings::read_driver_names::NAMES.addr(),
+        home: || crate::settings::read_driver_names::NAMES.addr() as usize,
     },
     Moved {
         ida: 0x5184F4, // the thread slots: input, audio, network, shutdown
         len: crate::threading::thread_slot::SLOT_COUNT * crate::threading::thread_slot::SLOT_LEN,
-        home: || crate::threading::thread_slot::SLOTS.addr(),
+        home: || crate::threading::thread_slot::SLOTS.addr() as usize,
     },
     // text (the blended font and palette, the kerning rows)
     Moved {
         ida: 0x4F3B74, // g_blendedPalette
         len: 0x400,
-        home: || crate::text::blend_font::BLENDED_PALETTE.addr(),
+        home: || crate::text::blend_font::BLENDED_PALETTE.addr() as usize,
     },
     Moved {
         ida: 0x4F3F74, // g_fontBlendMode (a `var\ral.cfg` setting, `textflashmode`)
         len: 4,
-        home: || crate::pointers::host_number(crate::text::blend_font::BLEND_MODE.as_ptr()),
+        home: || {
+            (crate::pointers::game_address(crate::text::blend_font::BLEND_MODE.as_ptr())) as usize
+        },
     },
     Moved {
         ida: 0x51E384, // g_blendedFont
         len: 0x20,
-        home: || crate::text::blend_font::BLENDED_FONT.addr(),
+        home: || crate::text::blend_font::BLENDED_FONT.addr() as usize,
     },
     Moved {
         ida: 0x93E830, // g_kerningRowState
         len: rc2k_core::text::KERNING_ROWS * 2,
-        home: || crate::text::glyph_kerning::STATE.addr(),
+        home: || crate::text::glyph_kerning::STATE.addr() as usize,
     },
     // files (the search record, the paths' buffers)
     Moved {
         ida: 0x4E05A4, // hFindFile
         len: 4,
-        home: || crate::pointers::host_number(crate::files::state::FIND_HANDLE.as_ptr()),
+        home: || {
+            (crate::pointers::game_address(crate::files::state::FIND_HANDLE.as_ptr())) as usize
+        },
     },
     Moved {
         ida: 0x4E05A8, // FindFileData (WIN32_FIND_DATAA)
         len: 0x13E,
-        home: || crate::files::state::FIND_DATA.addr(),
+        home: || crate::files::state::FIND_DATA.addr() as usize,
     },
     Moved {
         ida: 0x4E06E6, // the attributes a search passes over
         len: 4,
-        home: || crate::pointers::host_number(crate::files::state::SKIPPED_ATTRIBUTES.as_ptr()),
+        home: || {
+            (crate::pointers::game_address(crate::files::state::SKIPPED_ATTRIBUTES.as_ptr()))
+                as usize
+        },
     },
     Moved {
         ida: 0x4F52B0, // g_lastFilePath
         len: 4,
-        home: || crate::pointers::host_number(crate::files::state::LAST_FILE_PATH.as_ptr()),
+        home: || {
+            (crate::pointers::game_address(crate::files::state::LAST_FILE_PATH.as_ptr())) as usize
+        },
     },
     Moved {
         ida: 0x5BE9BD, // g_packedPath
         len: crate::files::state::PACKED_PATH_LEN,
-        home: || crate::files::state::PACKED_PATH.addr(),
+        home: || crate::files::state::PACKED_PATH.addr() as usize,
     },
     Moved {
         ida: 0x60B2CC, // g_readBytes
         len: 4,
-        home: || crate::pointers::host_number(crate::files::state::BYTES_READ.as_ptr()),
+        home: || (crate::pointers::game_address(crate::files::state::BYTES_READ.as_ptr())) as usize,
     },
     Moved {
         ida: 0x94E8B0, // byte_94E8B0 (numbered paths) and the resolver's buffer at 0x94E9B0
         len: crate::files::state::PATHS_LEN,
-        home: || crate::files::state::PATHS.addr(),
+        home: || crate::files::state::PATHS.addr() as usize,
     },
     // fatal (the reporter's variables, `fatal::state`)
     Moved {
         ida: 0x4E0598, // dword_4E0598: the Win32 error named in a report
         len: 4,
-        home: || crate::pointers::host_number(crate::fatal::state::W32.as_ptr()),
+        home: || (crate::pointers::game_address(crate::fatal::state::W32.as_ptr())) as usize,
     },
     Moved {
         ida: 0x4F52A4, // g_fatalCode
         len: 4,
-        home: || crate::pointers::host_number(crate::fatal::state::CODE.as_ptr()),
+        home: || (crate::pointers::game_address(crate::fatal::state::CODE.as_ptr())) as usize,
     },
     Moved {
         ida: 0x4F52A8, // g_fatalMessage
         len: 4,
-        home: || crate::pointers::host_number(crate::fatal::state::MESSAGE.as_ptr()),
+        home: || (crate::pointers::game_address(crate::fatal::state::MESSAGE.as_ptr())) as usize,
     },
     Moved {
         ida: 0x4F66FD, // Caption ("Rally: Guru Meditation")
         len: crate::fatal::state::CAPTION_LEN,
-        home: || crate::fatal::state::CAPTION.addr(),
+        home: || crate::fatal::state::CAPTION.addr() as usize,
     },
     Moved {
         ida: 0x4F673A, // aEaxXxxxxxxxEbx: the registers' template
         len: crate::fatal::state::TEMPLATE_LEN,
-        home: || crate::fatal::state::TEMPLATE.addr(),
+        home: || crate::fatal::state::TEMPLATE.addr() as usize,
     },
     Moved {
         ida: 0x4F67BC, // g_fatalReported
         len: 1,
-        home: || crate::pointers::host_number(crate::fatal::state::REPORTED.as_ptr()),
+        home: || (crate::pointers::game_address(crate::fatal::state::REPORTED.as_ptr())) as usize,
     },
     Moved {
         ida: 0x4F67BD, // cursor: the string added to every report
         len: crate::fatal::state::EXTRA_LEN,
-        home: || crate::fatal::state::EXTRA.addr(),
+        home: || crate::fatal::state::EXTRA.addr() as usize,
     },
     Moved {
         ida: 0x9526F8, // Text: the report
         len: crate::fatal::state::TEXT_LEN,
-        home: || crate::fatal::state::TEXT.addr(),
+        home: || crate::fatal::state::TEXT.addr() as usize,
     },
     // files (the install record's variables, `files::state`)
     Moved {
         ida: 0x5189A4, // g_mediaMode
         len: 4,
-        home: || crate::pointers::host_number(crate::files::state::MEDIA_MODE.as_ptr()),
+        home: || (crate::pointers::game_address(crate::files::state::MEDIA_MODE.as_ptr())) as usize,
     },
     Moved {
         ida: 0x5189A8, // g_baseDirectory, then g_localeDirectory at +0x100
         len: crate::files::state::DIRECTORIES_LEN,
-        home: || crate::files::state::DIRECTORIES.addr(),
+        home: || crate::files::state::DIRECTORIES.addr() as usize,
     },
     // gfx / hud / d3d (phase 5; typed in phase 7)
     Moved {
         ida: crate::hud::store::START, // the HUD's variables, batch included
         len: crate::hud::store::LEN,
-        home: crate::hud::store::hud_addr,
+        home: || crate::hud::store::hud_addr() as usize,
     },
     Moved {
         ida: crate::gfx::decoder::START, // The picture decoders' and glyph builder's variables (decoded picture, palette)
@@ -632,79 +670,83 @@ pub(crate) const MOVED: &[Moved] = &[
     Moved {
         ida: crate::session::SCREEN_IDA,
         len: crate::session::SCREEN_LEN,
-        home: || crate::pointers::host_number(&crate::session::SCREEN as *const _),
+        home: || crate::pointers::game_address(&crate::session::SCREEN as *const _) as usize,
     },
     Moved {
         ida: crate::session::FLAGS_IDA,
         len: crate::session::FLAGS_LEN,
-        home: || crate::pointers::host_number(&crate::session::FLAGS as *const _),
+        home: || crate::pointers::game_address(&crate::session::FLAGS as *const _) as usize,
     },
     Moved {
         ida: crate::session::MACHINE_IDA,
         len: crate::session::MACHINE_LEN,
-        home: || crate::pointers::host_number(&crate::session::MACHINE as *const _),
+        home: || crate::pointers::game_address(&crate::session::MACHINE as *const _) as usize,
     },
     Moved {
         ida: crate::session::CLOCKS_IDA,
         len: crate::session::CLOCKS_LEN,
-        home: || crate::pointers::host_number(&crate::session::CLOCKS as *const _),
+        home: || crate::pointers::game_address(&crate::session::CLOCKS as *const _) as usize,
     },
     // audio: the audio thread's variables and the sample records (`audio::store`)
     Moved {
         ida: crate::audio::store::STATE_IDA,
         len: crate::audio::store::STATE_END - crate::audio::store::STATE_IDA,
-        home: crate::audio::store::state_addr,
+        home: || crate::audio::store::state_addr() as usize,
     },
     Moved {
         ida: crate::audio::store::SAMPLES_IDA,
         len: crate::audio::store::SAMPLES_END - crate::audio::store::SAMPLES_IDA,
-        home: crate::audio::store::sample_records_addr,
+        home: || crate::audio::store::sample_records_addr() as usize,
     },
     Moved {
         ida: crate::audio::store::QUEUE_IDA,
         len: crate::audio::store::QUEUE_END - crate::audio::store::QUEUE_IDA,
-        home: crate::audio::store::commands_addr,
+        home: || crate::audio::store::commands_addr() as usize,
     },
     Moved {
         ida: 0x6D1DD4, // g_eaxEnvironment
         len: 4,
-        home: || crate::audio::store::ENVIRONMENT.addr(),
+        home: || crate::audio::store::ENVIRONMENT.addr() as usize,
     },
     // sound: the race sounds' clock, and the spot picks .. CD audio block (`sound::store`)
     Moved {
         ida: 0x4F66DD, // the options file's four kept dwords and a gap (`saves::load_options::KEPT`)
         len: 0x14,
-        home: || crate::pointers::host_number(crate::saves::load_options::KEPT.as_ptr()),
+        home: || {
+            (crate::pointers::game_address(crate::saves::load_options::KEPT.as_ptr())) as usize
+        },
     },
     Moved {
         ida: 0x4F66F1, // the wheel surfaces (`sound::store::WHEEL_SURFACES`)
         len: 8,
-        home: || crate::pointers::host_number(crate::sound::store::WHEEL_SURFACES.as_ptr()),
+        home: || {
+            (crate::pointers::game_address(crate::sound::store::WHEEL_SURFACES.as_ptr())) as usize
+        },
     },
     Moved {
         ida: 0x4F66F9, // the race record's seal key (`race::replay::SEAL_KEY`)
         len: 4,
-        home: || crate::race::replay::SEAL_KEY.addr(),
+        home: || crate::race::replay::SEAL_KEY.addr() as usize,
     },
     Moved {
         ida: 0x512A10, // the race sounds' objects (`sound::store::RaceSounds`)
         len: 0x2580,
-        home: crate::sound::store::race_sounds_addr,
+        home: || crate::sound::store::race_sounds_addr() as usize,
     },
     Moved {
         ida: 0x5124E4, // the race sounds' clock (`sound::store::RaceClock`)
         len: 0x24,
-        home: crate::sound::store::race_clock_addr,
+        home: || crate::sound::store::race_clock_addr() as usize,
     },
     Moved {
         ida: 0x516358, // the surface sounds' constants (`sound::store::SurfaceSounds`)
         len: 0x44,
-        home: crate::sound::store::surface_sounds_addr,
+        home: || crate::sound::store::surface_sounds_addr() as usize,
     },
     Moved {
         ida: 0x51655C, // the stage sounds (`sound::store::StageSounds`)
         len: 0x364,
-        home: crate::sound::store::stage_sounds_addr,
+        home: || crate::sound::store::stage_sounds_addr() as usize,
     },
     Moved {
         ida: crate::sound::store::SpotPicks::START, // The spot voices' pickers' work and the sound kinds per spot
@@ -735,37 +777,37 @@ pub(crate) const MOVED: &[Moved] = &[
     Moved {
         ida: crate::input::store::KEYBOARD_FILE_IDA,
         len: crate::input::store::KEYBOARD_FILE_LEN,
-        home: crate::input::store::keyboard_file_addr,
+        home: || crate::input::store::keyboard_file_addr() as usize,
     },
     Moved {
         ida: crate::input::store::DEVICES_IDA,
         len: crate::input::store::DEVICES_LEN,
-        home: crate::input::store::devices_addr,
+        home: || crate::input::store::devices_addr() as usize,
     },
     Moved {
         ida: crate::input::store::KEYBOARD_IDA,
         len: crate::input::store::KEYBOARD_LEN,
-        home: crate::input::store::keyboard_addr,
+        home: || crate::input::store::keyboard_addr() as usize,
     },
     Moved {
         ida: crate::input::store::MOUSE_IDA,
         len: crate::input::store::MOUSE_LEN,
-        home: crate::input::store::mouse_addr,
+        home: || crate::input::store::mouse_addr() as usize,
     },
     Moved {
         ida: 0x511B0C, // g_nextMenuSoundTime
         len: 4,
-        home: || crate::sound::store::NEXT_MENU_SOUND_TIME.addr(),
+        home: || crate::sound::store::NEXT_MENU_SOUND_TIME.addr() as usize,
     },
     Moved {
         ida: 0x6218F0, // g_raceSoundsOn
         len: 4,
-        home: || crate::sound::store::RACE_SOUNDS_ON.addr(),
+        home: || crate::sound::store::RACE_SOUNDS_ON.addr() as usize,
     },
     Moved {
         ida: crate::sound::store::CAR_STREAM_IDA, // the car stream's place, list and switch
         len: 12,
-        home: || crate::sound::store::CAR_STREAM.place.addr(),
+        home: || crate::sound::store::CAR_STREAM.place.addr() as usize,
     },
     // menu: the front end's variables, typed (phase 7): the savegame preview (`saves::preview_store`),
     // the controller screen (`screens::controls_store`), the pages, car numbers, screen flow, loop
@@ -776,92 +818,92 @@ pub(crate) const MOVED: &[Moved] = &[
     Moved {
         ida: crate::saves::preview_store::START,
         len: crate::saves::preview_store::END - crate::saves::preview_store::START,
-        home: crate::saves::preview_store::savegame_preview_addr,
+        home: || crate::saves::preview_store::savegame_preview_addr() as usize,
     },
     Moved {
         ida: crate::screens::controls_store::START,
         len: crate::screens::controls_store::END - crate::screens::controls_store::START,
-        home: crate::screens::controls_store::controls_screen_addr,
+        home: || crate::screens::controls_store::controls_screen_addr() as usize,
     },
     Moved {
         ida: crate::menu::players_store::START,
         len: crate::menu::players_store::END - crate::menu::players_store::START,
-        home: crate::menu::players_store::players_addr,
+        home: || crate::menu::players_store::players_addr() as usize,
     },
     Moved {
         ida: crate::menu::cars_store::START,
         len: crate::menu::cars_store::END - crate::menu::cars_store::START,
-        home: crate::menu::cars_store::cars_addr,
+        home: || crate::menu::cars_store::cars_addr() as usize,
     },
     Moved {
         ida: crate::menu::cheats_store::START,
         len: crate::menu::cheats_store::END - crate::menu::cheats_store::START,
-        home: crate::menu::cheats_store::cheats_addr,
+        home: || crate::menu::cheats_store::cheats_addr() as usize,
     },
     Moved {
         ida: crate::menu::results_store::START,
         len: crate::menu::results_store::END - crate::menu::results_store::START,
-        home: crate::menu::results_store::results_addr,
+        home: || crate::menu::results_store::results_addr() as usize,
     },
     Moved {
         ida: crate::menu::arcade_store::START,
         len: crate::menu::arcade_store::END - crate::menu::arcade_store::START,
-        home: crate::menu::arcade_store::arcade_addr,
+        home: || crate::menu::arcade_store::arcade_addr() as usize,
     },
     Moved {
         ida: crate::menu::captions_store::START,
         len: crate::menu::captions_store::END - crate::menu::captions_store::START,
-        home: crate::menu::captions_store::captions_addr,
+        home: || crate::menu::captions_store::captions_addr() as usize,
     },
     Moved {
         ida: crate::menu::pages_store::START,
         len: crate::menu::pages_store::END - crate::menu::pages_store::START,
-        home: crate::menu::pages_store::menu_pages_addr,
+        home: || crate::menu::pages_store::menu_pages_addr() as usize,
     },
     Moved {
         ida: crate::menu::car_numbers_store::START,
         len: crate::menu::car_numbers_store::END - crate::menu::car_numbers_store::START,
-        home: crate::menu::car_numbers_store::car_numbers_addr,
+        home: || crate::menu::car_numbers_store::car_numbers_addr() as usize,
     },
     Moved {
         ida: crate::menu::flow_store::START,
         len: crate::menu::flow_store::END - crate::menu::flow_store::START,
-        home: crate::menu::flow_store::screen_flow_addr,
+        home: || crate::menu::flow_store::screen_flow_addr() as usize,
     },
     Moved {
         ida: crate::menu::loop_store::START,
         len: crate::menu::loop_store::END - crate::menu::loop_store::START,
-        home: crate::menu::loop_store::loop_flags_addr,
+        home: || crate::menu::loop_store::loop_flags_addr() as usize,
     },
     Moved {
         ida: crate::menu::keys_store::START,
         len: crate::menu::keys_store::END - crate::menu::keys_store::START,
-        home: crate::menu::keys_store::key_tables_addr,
+        home: || crate::menu::keys_store::key_tables_addr() as usize,
     },
     Moved {
         ida: crate::menu::option_work_store::START,
         len: crate::menu::option_work_store::END - crate::menu::option_work_store::START,
-        home: crate::menu::option_work_store::option_work_addr,
+        home: || crate::menu::option_work_store::option_work_addr() as usize,
     },
     Moved {
         ida: crate::menu::champ_store::START,
         len: crate::menu::champ_store::END - crate::menu::champ_store::START,
-        home: crate::menu::champ_store::champ_view_addr,
+        home: || crate::menu::champ_store::champ_view_addr() as usize,
     },
     Moved {
         ida: crate::menu::names_store::START,
         len: crate::menu::names_store::END - crate::menu::names_store::START,
-        home: crate::menu::names_store::names_addr,
+        home: || crate::menu::names_store::names_addr() as usize,
     },
     Moved {
         ida: crate::menu::event_store::START,
         len: crate::menu::event_store::END - crate::menu::event_store::START,
-        home: crate::menu::event_store::event_addr,
+        home: || crate::menu::event_store::event_addr() as usize,
     },
     Moved {
         ida: crate::menu::draw_work_store::START,
         len: crate::menu::draw_work_store::END - crate::menu::draw_work_store::START,
-        home: crate::menu::draw_work_store::draw_work_addr,
+        home: || crate::menu::draw_work_store::draw_work_addr() as usize,
     },
     // the race block's tail (phase 7): the menus' texts (`menu::texts_store`), the stages' tables (`records::stages_store`), the drivers (`menu::drivers_store`), the rallies' best times and the best times' memory (`saves::best_times_store`),
     // the screens' kept items (`menu::screen_items_store`), the items' sprite lists
@@ -869,17 +911,17 @@ pub(crate) const MOVED: &[Moved] = &[
     Moved {
         ida: crate::menu::texts_store::START,
         len: crate::menu::texts_store::END - crate::menu::texts_store::START,
-        home: crate::menu::texts_store::menu_texts_addr,
+        home: || crate::menu::texts_store::menu_texts_addr() as usize,
     },
     Moved {
         ida: crate::records::stages_store::START,
         len: crate::records::stages_store::END - crate::records::stages_store::START,
-        home: crate::records::stages_store::stage_tables_addr,
+        home: || crate::records::stages_store::stage_tables_addr() as usize,
     },
     Moved {
         ida: crate::menu::drivers_store::START,
         len: crate::menu::drivers_store::END - crate::menu::drivers_store::START,
-        home: crate::menu::drivers_store::drivers_addr,
+        home: || crate::menu::drivers_store::drivers_addr() as usize,
     },
     Moved {
         ida: crate::saves::best_times_store::RallyTimes::START,
@@ -890,27 +932,27 @@ pub(crate) const MOVED: &[Moved] = &[
     Moved {
         ida: crate::saves::best_times_store::START,
         len: crate::saves::best_times_store::END - crate::saves::best_times_store::START,
-        home: crate::saves::best_times_store::best_times_addr,
+        home: || crate::saves::best_times_store::best_times_addr() as usize,
     },
     Moved {
         ida: crate::menu::screen_items_store::START,
         len: crate::menu::screen_items_store::END - crate::menu::screen_items_store::START,
-        home: crate::menu::screen_items_store::screen_items_addr,
+        home: || crate::menu::screen_items_store::screen_items_addr() as usize,
     },
     Moved {
         ida: crate::menu::item_sprites_store::START,
         len: crate::menu::item_sprites_store::END - crate::menu::item_sprites_store::START,
-        home: crate::menu::item_sprites_store::item_sprites_addr,
+        home: || crate::menu::item_sprites_store::item_sprites_addr() as usize,
     },
     Moved {
         ida: crate::menu::menus_store::START,
         len: crate::menu::menus_store::END - crate::menu::menus_store::START,
-        home: crate::menu::menus_store::menus_addr,
+        home: || crate::menu::menus_store::menus_addr() as usize,
     },
     Moved {
         ida: crate::menu::draw_lists_store::START,
         len: crate::menu::draw_lists_store::END - crate::menu::draw_lists_store::START,
-        home: crate::menu::draw_lists_store::draw_lists_addr,
+        home: || crate::menu::draw_lists_store::draw_lists_addr() as usize,
     },
     // the former `rest` module's pieces: typed, each in its owner's module
     Moved {
@@ -1111,22 +1153,22 @@ pub(crate) const MOVED: &[Moved] = &[
     Moved {
         ida: crate::menu::lists_store::START,
         len: crate::menu::lists_store::END - crate::menu::lists_store::START,
-        home: crate::menu::lists_store::menu_lists_addr,
+        home: || crate::menu::lists_store::menu_lists_addr() as usize,
     },
     Moved {
         ida: crate::menu::state_store::START,
         len: crate::menu::state_store::END - crate::menu::state_store::START,
-        home: crate::menu::state_store::menu_state_addr,
+        home: || crate::menu::state_store::menu_state_addr() as usize,
     },
     Moved {
         ida: crate::race::state_store::START,
         len: crate::race::state_store::END - crate::race::state_store::START,
-        home: crate::race::state_store::race_state_addr,
+        home: || crate::race::state_store::race_state_addr() as usize,
     },
     Moved {
         ida: crate::physics::store::START,
         len: crate::physics::store::END - crate::physics::store::START,
-        home: crate::physics::store::damage_addr,
+        home: || crate::physics::store::damage_addr() as usize,
     },
     // marks: 0x764F40 .. 0x93CCC8 (`marks::store`), less the ranges that left it (`CARVED`),
     // in the segments of `SEGS`; then the ranges that left it, each its own typed static
@@ -1856,7 +1898,7 @@ pub(crate) const MOVED: &[Moved] = &[
 /// place in the image.
 pub fn place(ida: usize) -> usize {
     // `game_addr` answers a moved variable's home.
-    game_addr(rva(ida))
+    (game_addr(rva(ida))) as usize
 }
 
 /// Which 4 KiB pages of the image (by RVA) hold a byte of a moved range: `home_of_rva`'s
@@ -2065,7 +2107,7 @@ mod tests {
         for m in MOVED {
             let home = (m.home)();
             assert_eq!(home_of_rva(rva(m.ida)), Some(home), "{:#x}", m.ida);
-            assert_eq!(game_addr(rva(m.ida + m.len - 1)), home + m.len - 1);
+            assert_eq!(game_addr(rva(m.ida + m.len - 1)) as usize, home + m.len - 1);
             if !MOVED.iter().any(|o| o.ida == m.ida + m.len) {
                 assert_eq!(home_of_rva(rva(m.ida + m.len)), None, "{:#x}", m.ida);
             }

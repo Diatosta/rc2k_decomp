@@ -29,7 +29,7 @@ pub fn list_players() -> Result<bool, Refused> {
         call(
             &NET.dplay,
             SET_PLAYER_DATA,
-            &[NET.player_id.get(), NET.own.addr() as u32, 0x10, 0],
+            &[NET.player_id.get(), NET.own.addr(), 0x10, 0],
         );
         if NET.racing.get() != 1 {
             NET.players.set(0);
@@ -59,8 +59,8 @@ pub fn list_players() -> Result<bool, Refused> {
                 GET_PLAYER_DATA,
                 &[
                     player.id.get(),
-                    player.record.addr() as u32,
-                    (NET.data_size.addr() as u32),
+                    player.record.addr(),
+                    (NET.data_size.addr()),
                     0,
                 ],
             );

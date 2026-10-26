@@ -26,7 +26,7 @@ impl SquareTiming {
     pub const LEN: usize = 0xC;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        crate::pointers::host_number(&SQUARE_TIMING as *const SquareTiming)
+        crate::pointers::game_address(&SQUARE_TIMING as *const SquareTiming) as usize
     }
 }
 
@@ -167,7 +167,7 @@ impl SquareTables {
     pub const LEN: usize = 0x6A0;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        crate::pointers::host_number(&SQUARE_TABLES as *const SquareTables)
+        crate::pointers::game_address(&SQUARE_TABLES as *const SquareTables) as usize
     }
 }
 
@@ -225,7 +225,7 @@ impl SquareItems {
     pub const LEN: usize = 0x1E000;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        crate::pointers::host_number(&SQUARE_ITEMS as *const SquareItems)
+        crate::pointers::game_address(&SQUARE_ITEMS as *const SquareItems) as usize
     }
 }
 
@@ -353,7 +353,7 @@ impl SquareState {
     pub const LEN: usize = 0xDC;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        crate::pointers::host_number(&SQUARE_STATE as *const SquareState)
+        crate::pointers::game_address(&SQUARE_STATE as *const SquareState) as usize
     }
 }
 

@@ -48,7 +48,7 @@ pub static NO_FMV: crate::session::Dword = crate::session::Dword::new(0);
 
 /// Where the switch is (`moved::MOVED`'s home for IDA 0x5BE870).
 pub fn no_fmv_home() -> usize {
-    NO_FMV.addr()
+    NO_FMV.addr() as usize
 }
 
 // ---- FFmpeg (cdecl; only functions, and the frame's first fields, which are stable) ----
@@ -524,14 +524,14 @@ fn pack(value: u32, mask: u32) -> u32 {
 unsafe fn blit(p: &Picture) {
     let (rgb, w, h) = (&p.rgb, p.width, p.height);
     unsafe {
-        let surface = crate::pointers::host_at(DRAW_SURFACE.x.addr()) as *const u32;
+        let surface = crate::pointers::host(DRAW_SURFACE.x.addr()) as *const u32;
         let at = |n: usize| surface.add(n).read_unaligned();
         let (sw, sh) = (at(2) as usize, at(3) as usize);
         let bytes = at(5) as usize;
         let pitch = at(9) as usize;
         let pixels = crate::pointers::host(at(10));
-        let format =
-            crate::pointers::host_at(crate::session::SCREEN.format_addr() + 4) as *const u32;
+        let format = crate::pointers::host_at((crate::session::SCREEN.format_addr() + 4) as usize)
+            as *const u32;
         // masks: blue, green, red, alpha
         let (mb, mg, mr) = (
             format.read_unaligned(),

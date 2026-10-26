@@ -20,7 +20,7 @@ use crate::scene::object_store::OBJECT_WORK;
 /// The five axle values (`rc2k_core::race::car_parts::axles`) from the model's record
 /// (`dword_5C9098` .. of its 0x134-byte record) and the lift.
 fn axles(model: u32) -> Result<Option<[u32; 5]>, BadInput> {
-    let at = LIGHT_RECORDS.records[0].axles[0].addr() as u32 + model.wrapping_mul(0x134);
+    let at = LIGHT_RECORDS.records[0].axles[0].addr() + model.wrapping_mul(0x134);
     let record: [u32; 5] = GamePtr::new(at).read("a car model's axle record")?;
     Ok(rc2k_core::race::car_parts::axles(
         record,
@@ -87,7 +87,7 @@ pub fn car_part_matrices(car: u32) -> Result<(), Refused> {
         OBJECT_WORK.place[i].set(f(o)?);
     }
     GamePtr::new(car + 0xB4).copy_to(
-        GamePtr::new(MATRICES.body_turn_matrix[0].addr() as u32),
+        GamePtr::new(MATRICES.body_turn_matrix[0].addr()),
         0x40,
         "a car's turn matrix",
     )?;
@@ -99,8 +99,8 @@ pub fn car_part_matrices(car: u32) -> Result<(), Refused> {
         OBJECT_WORK.place[1].get(),
         OBJECT_WORK.place[2].get(),
     ]);
-    GamePtr::new(MATRICES.placed_matrix[0].addr() as u32).copy_to(
-        GamePtr::new(FRAME_WORK.placed_matrices[0].addr() as u32),
+    GamePtr::new(MATRICES.placed_matrix[0].addr()).copy_to(
+        GamePtr::new(FRAME_WORK.placed_matrices[0].addr()),
         0x40,
         "the placed matrix",
     )?;
@@ -152,11 +152,19 @@ pub fn car_part_matrices(car: u32) -> Result<(), Refused> {
         let placed = MATRICES.placed_matrix[0].addr();
         let turned = MATRICES.turned_matrix[0].addr();
         let lit = MATRICES.lit_matrix[0].addr();
-        multiply_matrices(placed, MATRICES.turn_x_matrix[0].addr(), turned);
+        multiply_matrices(
+            placed as usize,
+            MATRICES.turn_x_matrix[0].addr() as usize,
+            turned as usize,
+        );
         set_turn_y(OBJECT_WORK.part_values[2].get());
-        multiply_matrices(turned, MATRICES.turn_y_matrix[0].addr(), lit);
+        multiply_matrices(
+            turned as usize,
+            MATRICES.turn_y_matrix[0].addr() as usize,
+            lit as usize,
+        );
         set_place([x.get(), lift.get(), z.get()]);
-        multiply_matrices(lit, placed, out);
+        multiply_matrices(lit as usize, placed as usize, out as usize);
     }
     Ok(())
 }
@@ -192,18 +200,18 @@ pub fn ready_car_parts() -> Result<(), Refused> {
             .take(KEPT_MATRICES as usize)
             .enumerate()
             {
-                GamePtr::new(from as u32).copy_to(
+                GamePtr::new(from).copy_to(
                     GamePtr::new(car + KEPT_AT + 0x40 * i as u32),
                     0x40,
                     "a car block's kept matrix",
                 )?;
             }
             multiply_matrices(
-                MATRICES.body_turn_matrix[0].addr(),
-                FRAME_WORK.placed_matrices[0].addr(),
-                MATRICES.view_place[0].addr(),
+                MATRICES.body_turn_matrix[0].addr() as usize,
+                FRAME_WORK.placed_matrices[0].addr() as usize,
+                MATRICES.view_place[0].addr() as usize,
             );
-            GamePtr::new(MATRICES.view_place[0].addr() as u32).copy_to(
+            GamePtr::new(MATRICES.view_place[0].addr()).copy_to(
                 GamePtr::new(car + BODY_AT),
                 0x40,
                 "a car block's body matrix",

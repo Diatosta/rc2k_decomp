@@ -29,9 +29,8 @@ pub unsafe fn write_replay_frames() -> Result<(), Refused> {
     crate::race::viewer_buffers_store::VIEWER_BUFFERS.block[0].set(0);
     crate::race::viewer_buffers_store::VIEWER_BUFFERS.block[1].set(0);
     if REPLAY_WORK.header_one_player.get() != 1 {
-        let at = GamePtr::new(
-            (crate::race::viewer_buffers_store::VIEWER_BUFFERS.block[1].addr() + 1) as u32,
-        );
+        let at =
+            GamePtr::new(crate::race::viewer_buffers_store::VIEWER_BUFFERS.block[1].addr() + 1);
         let v = written_view(at.read::<i8>("the replay block's header")?);
         at.write(v, "the replay block's header")?;
     }
@@ -39,7 +38,7 @@ pub unsafe fn write_replay_frames() -> Result<(), Refused> {
     unsafe { crate::race::replay::write_replay_block() }?;
     crate::race::viewer_buffers_store::VIEWER_BUFFERS
         .block_cursor
-        .set(crate::race::viewer_buffers_store::VIEWER_BUFFERS.block[0].addr() as u32);
+        .set(crate::race::viewer_buffers_store::VIEWER_BUFFERS.block[0].addr());
     REPLAY_VIEW.frames_in_block.set(0);
     Ok(())
 }

@@ -59,7 +59,7 @@ pub static INSTALL_TEXTS: InstallTexts = InstallTexts {
 
 /// Where the texts are (`moved::MOVED`'s home for IDA 0x5295B4).
 pub fn texts_home() -> usize {
-    crate::pointers::host_number(&INSTALL_TEXTS as *const InstallTexts)
+    crate::pointers::game_address(&INSTALL_TEXTS as *const InstallTexts) as usize
 }
 
 // g_baseDirectory, g_localeDirectory: `files::state::{base_directory, locale_directory}`
@@ -134,7 +134,7 @@ pub fn fatal(code: u32) -> Refused {
 /// The IDA address of a game address (for the dispatchers).
 fn ida_of(place: u32) -> usize {
     (place as usize)
-        .wrapping_sub(game_addr(0))
+        .wrapping_sub(game_addr(0) as usize)
         .wrapping_add(0x40_0000)
 }
 
@@ -540,11 +540,11 @@ mod text_tests {
         );
         assert_eq!(
             crate::moved::place(TEXTS_START),
-            INSTALL_TEXTS.base_b.addr()
+            INSTALL_TEXTS.base_b.addr() as usize
         );
         assert_eq!(
             crate::moved::place(0x5295C0),
-            INSTALL_TEXTS.record_path.addr()
+            INSTALL_TEXTS.record_path.addr() as usize
         );
     }
 }

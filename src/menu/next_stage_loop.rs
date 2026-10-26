@@ -30,22 +30,22 @@ fn before(c: &mut Carried) -> Result<(), Refused> {
 }
 
 pub const SCREEN: Screen = Screen {
-    menu: || MENUS.next_stage.addr(),
+    menu: || MENUS.next_stage.addr() as usize,
     saved_item: || &SCREEN_ITEMS.current[slot::NEXT_STAGE],
     lists: &[
         List {
             pointer: || &SCREEN_FLOW.scene_list, // g_sceneList
-            table: || DRAW_LISTS.next_stage_scene.addr(),
+            table: || DRAW_LISTS.next_stage_scene.addr() as usize,
             run: false,
         },
         List {
             pointer: || &SCREEN_FLOW.draw_list, // g_drawList
-            table: || DRAW_LISTS.next_stage_draw.addr(),
+            table: || DRAW_LISTS.next_stage_draw.addr() as usize,
             run: false,
         },
         List {
             pointer: || &SCREEN_FLOW.overlay_list, // g_overlayList
-            table: || DRAW_LISTS.next_stage_overlay.addr(),
+            table: || DRAW_LISTS.next_stage_overlay.addr() as usize,
             run: false,
         },
     ],

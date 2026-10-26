@@ -55,7 +55,7 @@ impl core::ops::Deref for InBlock {
     fn deref(&self) -> &SplitTables {
         // SAFETY: the race block lives as long as the program and is aligned to 4 (the
         // test checks); every field is an atomic, as the block's bytes were shared.
-        unsafe { &*(crate::pointers::host_at(piece_addr()) as *const SplitTables) }
+        unsafe { &*(crate::pointers::host(piece_addr()) as *const SplitTables) }
     }
 }
 
@@ -69,8 +69,8 @@ pub const END: usize = 0x60230C;
 const _: () = assert!(END - START == core::mem::size_of::<SplitTables>());
 
 /// Where IDA 0x60101C is now.
-pub fn piece_addr() -> usize {
-    crate::moved::place(START)
+pub fn piece_addr() -> u32 {
+    crate::moved::place(START) as u32
 }
 
 #[cfg(test)]
@@ -83,7 +83,7 @@ mod tests {
         assert_eq!(piece_addr() % 4, 0);
         assert_eq!(
             crate::moved::place(END - 1),
-            piece_addr() + (END - START) - 1
+            (piece_addr() + (END - START) as u32 - 1) as usize
         );
         assert_eq!(offset_of!(SplitTables, still), 0x601024 - START);
         assert_eq!(offset_of!(SplitTables, checkpoints), 0x60102C - START);

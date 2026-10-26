@@ -39,9 +39,9 @@ pub unsafe fn car_caption() -> Result<(), Refused> {
         let id = read(shown_description()?)?.name;
         put_string(
             id,
-            crate::screens::text_buffers_store::TEXT_BUFFERS
+            (crate::screens::text_buffers_store::TEXT_BUFFERS
                 .caption
-                .addr(),
+                .addr()) as usize,
             CAPTION_LEN,
         )
     }

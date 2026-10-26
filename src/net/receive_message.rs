@@ -36,11 +36,11 @@ pub fn receive_message() -> Received {
             NET.dplay.get(),
             RECEIVE,
             &[
-                NET.received_from.addr() as u32,
-                NET.received_to.addr() as u32,
+                NET.received_from.addr(),
+                NET.received_to.addr(),
                 RECEIVE_ALL,
-                NET.receive_data.addr() as u32,
-                NET.received_size.addr() as u32,
+                NET.receive_data.addr(),
+                NET.received_size.addr(),
             ],
         )
     };
@@ -49,7 +49,7 @@ pub fn receive_message() -> Received {
     }
     Received {
         from: NET.received_from.get(),
-        bytes: (NET.receive_data.addr() as u32),
+        bytes: (NET.receive_data.addr()),
         size: NET.received_size.get(),
     }
 }

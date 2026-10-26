@@ -37,7 +37,7 @@ pub fn rebuild_car_lists() -> Result<(), BadInput> {
         let reads = CheckedReads::new();
         let answer = rc2k_core::saves::cars::pointers(&list, |id| {
             reads.dword(
-                (CAR_TABLE.cars[0].addr() + 4 * id as usize) as u32,
+                CAR_TABLE.cars[0].addr() + (4 * id as usize) as u32,
                 "a car table's entry",
             )
         });

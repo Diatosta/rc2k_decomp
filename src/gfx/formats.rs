@@ -55,7 +55,7 @@ pub static FORMATS: Formats = Formats {
 
 /// Where the block is (`moved::MOVED`'s home for IDA 0x4F3F78).
 pub fn home() -> usize {
-    crate::pointers::host_number(&FORMATS as *const Formats)
+    crate::pointers::game_address(&FORMATS as *const Formats) as usize
 }
 
 #[cfg(test)]
@@ -72,11 +72,17 @@ mod tests {
     fn moved_knows_the_block() {
         assert_eq!(offset_of!(Formats, scratch), 0x4F3FA8 - START);
         assert_eq!(offset_of!(Formats, component_format), 0x4F3FAC - START);
-        assert_eq!(crate::moved::place(START), FORMATS.numbers[0].number.addr());
-        assert_eq!(crate::moved::place(0x4F3FA8), FORMATS.scratch.addr());
+        assert_eq!(
+            crate::moved::place(START),
+            FORMATS.numbers[0].number.addr() as usize
+        );
+        assert_eq!(
+            crate::moved::place(0x4F3FA8),
+            FORMATS.scratch.addr() as usize
+        );
         assert_eq!(
             crate::moved::place(0x4F3FAC),
-            crate::pointers::host_number(FORMATS.component_format.as_ptr())
+            (crate::pointers::game_address(FORMATS.component_format.as_ptr())) as usize
         );
     }
 }

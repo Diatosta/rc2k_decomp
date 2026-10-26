@@ -19,11 +19,11 @@ pub struct CarPlaces {
 impl CarPlaces {
     pub fn game() -> Self {
         Self {
-            current: crate::race::work_store::RACE_WORK.current_car.addr() as u32,
+            current: crate::race::work_store::RACE_WORK.current_car.addr(),
             blocks: crate::pointers::game_address(
                 crate::race::work_store::RACE_WORK.car_blocks.as_ptr(),
             ),
-            work: crate::physics::car_store::car_addr() as u32,
+            work: crate::physics::car_store::car_addr(),
         }
     }
 

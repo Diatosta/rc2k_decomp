@@ -40,22 +40,19 @@ fn set<T: Copy>(at: u32, value: T) {
 }
 
 pub fn read_registry(registry: &mut dyn Registry) {
-    let key = INSTALLER_RUN.reg_key.addr() as u32;
-    if registry.open(INSTALLER_NAMES.key_name.addr() as u32, key) != 0 {
+    let key = INSTALLER_RUN.reg_key.addr();
+    if registry.open(INSTALLER_NAMES.key_name.addr(), key) != 0 {
         return;
     }
     let (kind, size) = (
-        INSTALLER_NAMES.reg_type.addr() as u32,
-        INSTALLER_NAMES.source_size.addr() as u32,
+        INSTALLER_NAMES.reg_type.addr(),
+        INSTALLER_NAMES.source_size.addr(),
     );
-    let (status, source) = (
-        INSTALLER_NAMES.status.addr() as u32,
-        INSTALLER_NAMES.source.addr() as u32,
-    );
+    let (status, source) = (INSTALLER_NAMES.status.addr(), INSTALLER_NAMES.source.addr());
     let key = get(key);
     'values: {
         set(size, 1u32);
-        let name = INSTALLER_NAMES.status_name.addr() as u32;
+        let name = INSTALLER_NAMES.status_name.addr();
         if registry.query(key, name, kind, status, size) != 0 {
             break 'values;
         }
@@ -63,7 +60,7 @@ pub fn read_registry(registry: &mut dyn Registry) {
             set(status, 0u8);
         }
         set(size, SOURCE_ROOM);
-        let name = INSTALLER_NAMES.source_name.addr() as u32;
+        let name = INSTALLER_NAMES.source_name.addr();
         if registry.query(key, name, kind, source, size) != 0 {
             break 'values;
         }

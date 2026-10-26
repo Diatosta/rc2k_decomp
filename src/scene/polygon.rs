@@ -8,7 +8,7 @@ use crate::scene::draw_store::DRAW;
 use crate::session::Dword;
 
 /// The work table's first entry's address.
-pub fn entries_addr() -> usize {
+pub fn entries_addr() -> u32 {
     crate::scene::polygon_store::POLYGON_WORK.entries[0]
         .point
         .addr()
@@ -26,17 +26,17 @@ pub fn old_list_cell(n: usize) -> &'static Dword {
 }
 
 /// The pool of point records the clip makes.
-pub fn pool_addr() -> usize {
+pub fn pool_addr() -> u32 {
     crate::scene::polygon_store::POLYGON_WORK.record_pool[0].addr()
 }
 
 /// The textures' records (0x40 bytes each).
-pub fn texture_infos_addr() -> usize {
+pub fn texture_infos_addr() -> u32 {
     crate::scene::polygon_store::POLYGON_WORK.texture_infos[0].words[0].addr()
 }
 
 /// The objects' material records (0x80 bytes each).
-pub fn materials_addr() -> usize {
+pub fn materials_addr() -> u32 {
     crate::scene::polygon_store::POLYGON_WORK.object_materials[0].words[0].addr()
 }
 
@@ -61,7 +61,10 @@ pub fn listed() -> Result<Vec<usize>, BadInput> {
             if number >= ENTRIES {
                 return Err(BadInput("a list entry past the work table"));
             }
-            Ok(crate::scene::polygon::entries_addr() + number as usize * ENTRY_LEN)
+            Ok(
+                (crate::scene::polygon::entries_addr() + (number as usize * ENTRY_LEN) as u32)
+                    as usize,
+            )
         })
         .collect()
 }

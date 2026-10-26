@@ -64,12 +64,12 @@ pub static ICON_UPLOAD: crate::session::Shared<IconUpload> =
 
 /// Where the record is (`moved::MOVED`'s home for IDA 0x5BE8F1).
 pub fn home() -> usize {
-    ICON_UPLOAD.addr()
+    ICON_UPLOAD.addr() as usize
 }
 
 /// The piece's place: what `blit_components` gets in ebx.
 fn piece_address() -> u32 {
-    (ICON_UPLOAD.addr() + std::mem::offset_of!(IconUpload, piece)) as u32
+    ICON_UPLOAD.addr() + std::mem::offset_of!(IconUpload, piece) as u32
 }
 
 /// What `upload_car_icon` is given (the original's registers): the icon sheet's two pictures
@@ -148,6 +148,6 @@ mod block_tests {
     #[test]
     fn first_values_are_the_games() {
         crate::gfx::first_values_are_the_games(&ICON_UPLOAD, START, START + STORED_LEN);
-        assert_eq!(crate::moved::place(START), ICON_UPLOAD.addr());
+        assert_eq!(crate::moved::place(START), ICON_UPLOAD.addr() as usize);
     }
 }

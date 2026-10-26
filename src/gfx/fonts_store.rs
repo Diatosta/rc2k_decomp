@@ -181,7 +181,7 @@ impl Fonts {
     pub const LEN: usize = 0x554;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        crate::pointers::host_number(&FONTS as *const Fonts)
+        crate::pointers::game_address(&FONTS as *const Fonts) as usize
     }
 }
 

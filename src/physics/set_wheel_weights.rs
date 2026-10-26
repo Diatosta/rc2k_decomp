@@ -33,12 +33,12 @@ pub struct Places {
 
 impl Places {
     fn game() -> Self {
-        let _a = |x: usize| game_addr(rva(x)) as u32;
+        let _a = |x: usize| game_addr(rva(x));
         Self {
-            share: (CONTACT_WORK.wheel_share.addr() as u32),
-            scratch: (DRAW.scratch.addr() as u32),
-            weight: (PHYSICS.weight.addr() as u32),
-            records: (crate::pointers::host_number(PHYSICS.forces.as_ptr()) as u32),
+            share: (CONTACT_WORK.wheel_share.addr()),
+            scratch: (DRAW.scratch.addr()),
+            weight: (PHYSICS.weight.addr()),
+            records: (crate::pointers::game_address(PHYSICS.forces.as_ptr())),
         }
     }
 }

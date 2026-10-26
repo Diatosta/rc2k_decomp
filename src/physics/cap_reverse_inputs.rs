@@ -42,11 +42,11 @@ pub unsafe fn cap_reverse_inputs_at(gear: u32, speed: u32, values: [u32; 2]) {
 
 fn game() -> (u32, u32, [u32; 2]) {
     (
-        (CAR.gear.addr() as u32),
-        (CAR.local_velocity[2].addr() as u32),
+        (CAR.gear.addr()),
+        (CAR.local_velocity[2].addr()),
         [
-            (PHYSICS.wheel_slips[0].addr() as u32),
-            (PHYSICS.wheel_slips[1].addr() as u32),
+            (PHYSICS.wheel_slips[0].addr()),
+            (PHYSICS.wheel_slips[1].addr()),
         ],
     )
 }

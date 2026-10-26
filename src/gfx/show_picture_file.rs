@@ -42,7 +42,7 @@ pub static SHOWING: Dword = Dword::new(0);
 
 /// Where the switch is (`moved::MOVED`'s home for IDA 0x51B9C4).
 pub fn showing_home() -> usize {
-    SHOWING.addr()
+    SHOWING.addr() as usize
 }
 const LOADING_FONT: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fonts::LOADING;
 
@@ -89,7 +89,7 @@ pub unsafe fn show_picture_file(path: *mut u8) -> Result<u32, Refused> {
                         return Ok(eax);
                     }
                     crate::gfx::rescale_to_surface::rescale_to_surface(crate::pointers::host_at(
-                        crate::gfx::screen_state::DRAW_SURFACE.x.addr(),
+                        crate::gfx::screen_state::DRAW_SURFACE.x.addr() as usize,
                     )
                         as *const u32)?;
                     unlock_surface();
@@ -114,6 +114,6 @@ mod block_tests {
     #[test]
     fn first_value_is_the_games() {
         crate::gfx::first_values_are_the_games(&SHOWING, SHOWING_START, SHOWING_START + 4);
-        assert_eq!(crate::moved::place(SHOWING_START), SHOWING.addr());
+        assert_eq!(crate::moved::place(SHOWING_START), SHOWING.addr() as usize);
     }
 }

@@ -222,13 +222,13 @@ pub fn steps() {
     // from `dword_75B8C0` by `dword_75B3EC` & 0xF, then from `dword_75B8C4` by that
     // column, as the original), blended by `dword_75B3F0`, x `flt_75B8BC`.
     let row = DAMAGE.dword_75b3e8.bits() << 6;
-    let column = rd((DAMAGE.dword_75b8c0.addr() as u32)
+    let column = rd((DAMAGE.dword_75b8c0.addr())
         .wrapping_add((DAMAGE.dword_75b3ec.bits() & 0xF).wrapping_mul(8)));
-    let first = (DAMAGE.wear_table[0].addr() as u32)
+    let first = (DAMAGE.wear_table[0].addr())
         .wrapping_add(row)
         .wrapping_add(column.wrapping_mul(4));
-    let column = rd((DAMAGE.dword_75b8c4.addr() as u32).wrapping_add(column.wrapping_mul(8)));
-    let second = (DAMAGE.wear_table[0].addr() as u32)
+    let column = rd((DAMAGE.dword_75b8c4.addr()).wrapping_add(column.wrapping_mul(8)));
+    let second = (DAMAGE.wear_table[0].addr())
         .wrapping_add(row)
         .wrapping_add(column.wrapping_mul(4));
     x87_7(first as usize, &DAMAGE, second as usize);

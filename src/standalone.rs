@@ -62,7 +62,7 @@ pub(crate) const CODE: [(usize, usize); 2] = [(0x1000, 0xD6CD4), (0xD8000, 0x1F8
 /// pointers in the moved blocks are pointed at their targets (`moved::point_into_homes`).
 unsafe fn build_image() -> Result<Image, String> {
     unsafe {
-        let base = crate::pointers::host_number(VirtualAlloc(
+        let base = crate::pointers::game_address(VirtualAlloc(
             std::ptr::null(),
             IMAGE_SIZE,
             MEM_RESERVE,
@@ -71,7 +71,7 @@ unsafe fn build_image() -> Result<Image, String> {
         if base == 0 {
             return Err("no address range for the game's image".into());
         }
-        let pointed = crate::moved::point_into_homes(base).map_err(|ida| {
+        let pointed = crate::moved::point_into_homes(base as usize).map_err(|ida| {
             format!("a relocated pointer of the game's at {ida:#x} lies in no moved range")
         })?;
         log(&format!(
@@ -81,9 +81,12 @@ unsafe fn build_image() -> Result<Image, String> {
             "standalone: the game's addresses are reserved at {base:#x} ({IMAGE_SIZE:#x} bytes; no data or code of RAL.EXE)"
         ));
         Ok(Image {
-            base,
+            base: base as usize,
             size: IMAGE_SIZE,
-            code: CODE.iter().map(|&(rva, len)| (base + rva, len)).collect(),
+            code: CODE
+                .iter()
+                .map(|&(rva, len)| (base as usize + rva, len))
+                .collect(),
         })
     }
 }
@@ -159,7 +162,8 @@ fn install_and_lock(image: &Image) -> Result<(), String> {
 
 static FILTER: AtomicUsize = AtomicUsize::new(0);
 
-/// The module an address is in, and the address relative to its base ("rc2k.exe+0x1234").
+/// The module a host address is in, and the address relative to its base
+/// ("rc2k.exe+0x1234").
 fn in_module(address: usize) -> Option<String> {
     use windows_sys::Win32::System::LibraryLoader::{
         GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS, GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
@@ -171,7 +175,7 @@ fn in_module(address: usize) -> Option<String> {
             GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT;
         if GetModuleHandleExW(
             flags,
-            crate::pointers::host_at(address) as *const u16,
+            std::ptr::with_exposed_provenance::<u16>(address),
             &mut module,
         ) == 0
         {
@@ -183,7 +187,7 @@ fn in_module(address: usize) -> Option<String> {
         let file = path.rsplit(['\\', '/']).next().unwrap_or(&path).to_string();
         Some(format!(
             "{file}+{:#x}",
-            address - crate::pointers::host_number(module)
+            address - module.expose_provenance()
         ))
     }
 }
@@ -191,14 +195,14 @@ fn in_module(address: usize) -> Option<String> {
 /// The return addresses into this program found on the stack from `esp` (at most 24), for
 /// `llvm-symbolizer` with the program's PDB.
 fn stack_returns(esp: usize) -> String {
-    let own = in_module(crate::pointers::host_number(stack_returns as *const ()))
+    let own = in_module((stack_returns as *const ()).expose_provenance())
         .map(|m| m.split('+').next().unwrap_or("").to_string());
     let mut out = Vec::new();
     // 2 KB of stack: well inside it at any fault the game code can reach.
     for k in 0..512usize {
         let at = esp + 4 * k;
         let value =
-            unsafe { (crate::pointers::host_at(at) as *const u32).read_unaligned() } as usize;
+            unsafe { std::ptr::with_exposed_provenance::<u32>(at).read_unaligned() } as usize;
         if let (Some(m), Some(own)) = (in_module(value), own.as_ref())
             && m.starts_with(own.as_str())
         {
@@ -297,20 +301,24 @@ unsafe extern "system" fn on_exception(info: *mut EXCEPTION_POINTERS) -> i32 {
     unsafe {
         let record = &*(*info).ExceptionRecord;
         let context = &mut *(*info).ContextRecord;
-        let address = crate::pointers::host_number(record.ExceptionAddress);
+        // The system's numbers are host addresses: `ida`, `in_code` and `place` take game
+        // ones, `in_module` and `stack_returns` host ones.
+        let host = record.ExceptionAddress.expose_provenance();
+        let game = |n: usize| crate::pointers::game_of(n) as usize;
+        let address = game(host);
         if record.ExceptionCode != EXCEPTION_ACCESS_VIOLATION {
             return CONTINUE_SEARCH;
         }
         // A call or jump into the game's image faults at the address it went to.
-        let ran_into_game = ida(address).is_some() && context.Eip as usize == address;
+        let ran_into_game = ida(address).is_some() && crate::arch::ip(context) == host;
         if !ran_into_game {
             // Rust reading the game's code, which the standalone does not have (step B's audit)
-            let read = record.ExceptionInformation[1];
+            let read = game(record.ExceptionInformation[1]);
             if record.ExceptionInformation[0] == 0 && in_code(read) {
                 log(&format!(
                     "standalone: Rust read RAL.EXE's code bytes at {:#x}, which the program does not have; return addresses on the stack: {}",
                     ida(read).unwrap_or(0),
-                    stack_returns(context.Esp as usize)
+                    stack_returns(crate::arch::sp(context))
                 ));
             } else if let Some(at) = ida(read) {
                 log(&format!(
@@ -320,13 +328,13 @@ unsafe extern "system" fn on_exception(info: *mut EXCEPTION_POINTERS) -> i32 {
                     } else {
                         "wrote"
                     },
-                    stack_returns(context.Esp as usize)
+                    stack_returns(crate::arch::sp(context))
                 ));
             }
             log(&format!(
                 "standalone: the fault is in {}; return addresses on the stack: {}",
-                in_module(address).unwrap_or_else(|| "no module".into()),
-                stack_returns(context.Esp as usize)
+                in_module(host).unwrap_or_else(|| "no module".into()),
+                stack_returns(crate::arch::sp(context))
             ));
             finish(
                 &format!(
@@ -344,8 +352,9 @@ unsafe extern "system" fn on_exception(info: *mut EXCEPTION_POINTERS) -> i32 {
         }
         // Nothing of Rust's runs code at the game's addresses (2026-10-24: every call by
         // address goes to its Rust version): a jump there is a slip, and names the place.
-        let from = (crate::pointers::host(context.Esp) as *const u32).read_unaligned() as usize;
-        let from = match ida(from) {
+        let from = std::ptr::with_exposed_provenance::<u32>(crate::arch::sp(context))
+            .read_unaligned() as usize;
+        let from = match ida(game(from)) {
             Some(from) => format!("{from:#x}"),
             None => in_module(from).unwrap_or_else(|| format!("{from:#x}")),
         };
@@ -353,7 +362,7 @@ unsafe extern "system" fn on_exception(info: *mut EXCEPTION_POINTERS) -> i32 {
             &format!(
                 "Rust jumped into the game's code at {} (no code of RAL.EXE runs), from {from}; return addresses on the stack: {}",
                 place(address),
-                stack_returns(context.Esp as usize)
+                stack_returns(crate::arch::sp(context))
             ),
             1,
         );
@@ -395,7 +404,7 @@ unsafe fn start() {
         // every lock).
         crate::gfx::screen_state::DRAW_SURFACE
             .format
-            .set(crate::session::SCREEN.format_addr() as u32);
+            .set(crate::session::SCREEN.format_addr());
         rust("system::keep_start_time");
         crate::system::keep_start_time::keep_start_time();
         rust("math::seed_random");
@@ -479,7 +488,7 @@ unsafe fn start() {
         crate::system::check_developer_machine::check_developer_machine();
         rust("install::read_languages");
         if let Err(e) = crate::install::read_languages::read_languages(crate::pointers::host_at(
-            INSTALLER_NAMES.lang_cfg.addr(),
+            INSTALLER_NAMES.lang_cfg.addr() as usize,
         ) as *const u8)
         .map_err(Refused::from)
         {
@@ -487,7 +496,7 @@ unsafe fn start() {
         }
         rust("install::read_record");
         if let Err(e) = crate::install::read_record::read_record(crate::pointers::host_at(
-            crate::install::installer::INSTALL_TEXTS.record_path.addr(),
+            crate::install::installer::INSTALL_TEXTS.record_path.addr() as usize,
         ) as *const u8)
         .map_err(Refused::from)
         {
@@ -624,7 +633,8 @@ pub fn run(log_file: &Path, frames: u32) -> ! {
             finish(&why, 2);
         }
         FILTER.store(
-            crate::pointers::host_number(AddVectoredExceptionHandler(1, Some(on_exception))),
+            (crate::pointers::game_address(AddVectoredExceptionHandler(1, Some(on_exception))))
+                as usize,
             Ordering::SeqCst,
         );
         // The audio thread runs (its Rust version), on DirectSound over SDL
@@ -649,12 +659,12 @@ mod menu_watch {
         [
             (
                 0x7482B8,
-                menus_store::menus_addr() + (0x7482B8 - menus_store::START),
+                (menus_store::menus_addr() + (0x7482B8 - menus_store::START) as u32) as usize,
                 0x755130 - 0x7482B8,
             ),
             (
                 0x758B72,
-                draw_lists_store::draw_lists_addr(),
+                draw_lists_store::draw_lists_addr() as usize,
                 0x7594AA - 0x758B72,
             ),
         ]

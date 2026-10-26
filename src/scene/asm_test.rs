@@ -348,7 +348,7 @@ pub fn sparse(blocks: &[Block], cases: u32, seed: u64) {
                             .max()
                             .unwrap_or(0);
                         let mut v = vec![0u8; end + 16];
-                        args.push(crate::pointers::host_number(v.as_mut_ptr()));
+                        args.push((crate::pointers::game_address(v.as_mut_ptr())) as usize);
                         buffers.push(v);
                     }
                     Operand::Value(x) => {

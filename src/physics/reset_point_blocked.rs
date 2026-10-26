@@ -40,8 +40,8 @@ pub fn reset_point_blocked_at(candidate: u32, count: u32, block: u32) -> bool {
 /// The Rust version.
 pub fn reset_point_blocked(block: u32) -> bool {
     reset_point_blocked_at(
-        PHYSICS.reset_candidate.addr() as u32,
-        RACE_VARS.checkpoint_count.addr() as u32,
+        PHYSICS.reset_candidate.addr(),
+        RACE_VARS.checkpoint_count.addr(),
         block,
     )
 }

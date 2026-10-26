@@ -18,22 +18,22 @@ use crate::menu::screen_loop::{Callee, List, Screen, Step};
 // ---- Rust version: `menu::screen_loop` with this ----
 
 pub const SCREEN: Screen = Screen {
-    menu: || MENUS.inspection_area.addr(),
+    menu: || MENUS.inspection_area.addr() as usize,
     saved_item: || &SCREEN_ITEMS.current[slot::INSPECTION_AREA],
     lists: &[
         List {
             pointer: || &SCREEN_FLOW.scene_list, // g_sceneList
-            table: || DRAW_LISTS.inspection_area_scene.addr(),
+            table: || DRAW_LISTS.inspection_area_scene.addr() as usize,
             run: false,
         },
         List {
             pointer: || &SCREEN_FLOW.draw_list, // g_drawList
-            table: || DRAW_LISTS.inspection_area_draw.addr(),
+            table: || DRAW_LISTS.inspection_area_draw.addr() as usize,
             run: false,
         },
         List {
             pointer: || &SCREEN_FLOW.overlay_list, // g_overlayList
-            table: || DRAW_LISTS.inspection_area_overlay.addr(),
+            table: || DRAW_LISTS.inspection_area_overlay.addr() as usize,
             run: false,
         },
     ],
@@ -46,9 +46,9 @@ pub const SCREEN: Screen = Screen {
     after_lists: &[],
     background: &[
         Step::ArgAddr(|| {
-            crate::menu::texts_store::MENU_TEXTS
+            (crate::menu::texts_store::MENU_TEXTS
                 .inspection_area_picture
-                .addr()
+                .addr()) as usize
         }),
         Step::Call(Callee::LoadPicture),
         Step::CallOrFatal(Callee::ConvertPicture, 0x80712345),

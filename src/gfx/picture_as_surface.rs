@@ -44,7 +44,7 @@ pub fn surface_of(flags: u32, pixels: u32) -> Result<[u32; SURFACE_DWORDS - 2], 
         flags,
         entries(MODES.sizes_addr() as u32, SIZE_COUNT),
         entries(MODES.pixel_kinds_addr() as u32, PIXEL_KIND_COUNT),
-        surface_format_addr() as u32,
+        surface_format_addr(),
         pixels,
     )
     .map_err(|e| {
@@ -70,7 +70,7 @@ pub unsafe fn picture_as_surface() -> Result<(), Refused> {
         s.pitch.set(block[7]);
         s.pixels.set(block[8]);
         s.row_gap.set(block[9]);
-        set_clip(crate::pointers::host_at(s.x.addr()) as *const [u32; 4])?;
+        set_clip(crate::pointers::host(s.x.addr()) as *const [u32; 4])?;
         Ok(())
     }
 }

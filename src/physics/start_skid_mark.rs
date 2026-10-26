@@ -44,17 +44,17 @@ pub fn start_at(v: &[u32]) {
 
 fn game() -> Vec<u32> {
     vec![
-        CAR.wheel_squeeze[0].addr() as u32,
-        CAR.wheel_squeeze[1].addr() as u32,
-        CAR.wheel_squeeze[2].addr() as u32,
-        CAR.wheel_squeeze[3].addr() as u32,
-        CAR.camera_view_return.addr() as u32,
-        CAR.camera_blend_view.addr() as u32,
-        CAR.camera_switch_active.addr() as u32,
-        CAR.camera_switch_share.addr() as u32,
-        CAR.camera_switch_length.addr() as u32,
-        CAR.step_clock.addr() as u32,
-        CAR.camera_switch_clock.addr() as u32,
+        CAR.wheel_squeeze[0].addr(),
+        CAR.wheel_squeeze[1].addr(),
+        CAR.wheel_squeeze[2].addr(),
+        CAR.wheel_squeeze[3].addr(),
+        CAR.camera_view_return.addr(),
+        CAR.camera_blend_view.addr(),
+        CAR.camera_switch_active.addr(),
+        CAR.camera_switch_share.addr(),
+        CAR.camera_switch_length.addr(),
+        CAR.step_clock.addr(),
+        CAR.camera_switch_clock.addr(),
     ]
 }
 

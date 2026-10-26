@@ -29,7 +29,7 @@ impl core::ops::Deref for InRaceBlock {
     fn deref(&self) -> &CarBlocks {
         // SAFETY: the race block lives as long as the program and is aligned to 4 (the
         // test checks); every field is an atomic, as the block's bytes were shared.
-        unsafe { &*(crate::pointers::host_at(blocks_addr()) as *const CarBlocks) }
+        unsafe { &*(crate::pointers::host(blocks_addr()) as *const CarBlocks) }
     }
 }
 
@@ -45,14 +45,14 @@ pub const BLOCK_LEN: usize = core::mem::size_of::<Car>();
 const _: () = assert!(END - START == core::mem::size_of::<CarBlocks>());
 
 /// Where IDA 0x70F3EC is now (in the race block).
-pub fn blocks_addr() -> usize {
-    crate::race::store::home(START)
+pub fn blocks_addr() -> u32 {
+    crate::race::store::home(START) as u32
 }
 
 /// Where block `n` is now; `n` unchecked, as the game's `0x70F3EC + 0xFE0 n` (an address
 /// only: reading it is the caller's business).
-pub fn block_addr(n: usize) -> usize {
-    blocks_addr() + BLOCK_LEN * n
+pub fn block_addr(n: usize) -> u32 {
+    blocks_addr() + (BLOCK_LEN * n) as u32
 }
 
 #[cfg(test)]
@@ -70,7 +70,7 @@ mod tests {
             crate::framework::game_addr(crate::framework::rva(START))
         );
         assert_eq!(
-            crate::pointers::host_number(&CAR_BLOCKS.cars[1].gear as *const _),
+            crate::pointers::game_address(&CAR_BLOCKS.cars[1].gear as *const _),
             blocks_addr() + 0xFE0 + 0x1D4
         );
         assert_eq!(
@@ -79,7 +79,7 @@ mod tests {
         );
         let mine = unsafe {
             std::slice::from_raw_parts(
-                crate::pointers::host_at(blocks_addr()) as *const u8,
+                crate::pointers::host(blocks_addr()) as *const u8,
                 END - START,
             )
         };

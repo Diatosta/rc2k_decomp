@@ -151,9 +151,7 @@ pub unsafe fn set_up_front_end_scene() -> Result<(), Refused> {
                 picture = picture.wrapping_add(1);
             }
         }
-        RACE_VARS
-            .bar_function
-            .set_bits(game_addr(SHOW_BAR_RVA) as u32);
+        RACE_VARS.bar_function.set_bits(game_addr(SHOW_BAR_RVA));
         crate::scene::reload_system_textures::reload_system_textures()?;
         allocate_point_records_in_game()?;
         colours(0);

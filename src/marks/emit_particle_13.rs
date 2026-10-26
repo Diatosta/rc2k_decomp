@@ -158,7 +158,7 @@ impl Kind13Set {
     pub const LEN: usize = 0x28;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        crate::pointers::host_number(&KIND13_SET as *const Kind13Set)
+        crate::pointers::game_address(&KIND13_SET as *const Kind13Set) as usize
     }
 }
 

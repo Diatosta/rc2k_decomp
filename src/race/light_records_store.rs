@@ -35,7 +35,7 @@ impl LightRecords {
     /// game's code does not bound the index: callers that read an offset of the record, or
     /// pass it to x87 runs, use this).
     pub fn record_addr(&self, index: u32) -> u32 {
-        (self.records[0].head[0].addr() as u32).wrapping_add(index.wrapping_mul(0x134))
+        (self.records[0].head[0].addr()).wrapping_add(index.wrapping_mul(0x134))
     }
 }
 
@@ -49,7 +49,7 @@ impl core::ops::Deref for InRaceBlock {
     fn deref(&self) -> &LightRecords {
         // SAFETY: the race block lives as long as the program and is aligned to 4 (the
         // test checks); every field is an atomic or a cell, as the block's bytes were shared.
-        unsafe { &*(crate::pointers::host_at(piece_addr()) as *const LightRecords) }
+        unsafe { &*(crate::pointers::host(piece_addr()) as *const LightRecords) }
     }
 }
 
@@ -63,8 +63,8 @@ pub const END: usize = 0x5CB954;
 const _: () = assert!(END - START == core::mem::size_of::<LightRecords>());
 
 /// Where IDA 0x5C906C is now (in the race block).
-pub fn piece_addr() -> usize {
-    crate::race::store::home(START)
+pub fn piece_addr() -> u32 {
+    crate::race::store::home(START) as u32
 }
 
 #[cfg(test)]
@@ -81,11 +81,11 @@ mod tests {
         );
         assert_eq!(
             crate::moved::place(END - 1),
-            piece_addr() + (END - START) - 1
+            (piece_addr() + (END - START) as u32 - 1) as usize
         );
         assert_eq!(offset_of!(LightRecord, axles), 0x5C9098 - START);
         assert_eq!(offset_of!(LightRecord, groups), 0x5C90C4 - START);
         assert_eq!(offset_of!(LightRecord, lights), 0xA4);
-        assert_eq!(LIGHT_RECORDS.record_addr(1) as usize, piece_addr() + 0x134);
+        assert_eq!(LIGHT_RECORDS.record_addr(1), (piece_addr() + 0x134));
     }
 }

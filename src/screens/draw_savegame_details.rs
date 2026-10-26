@@ -52,7 +52,7 @@ pub fn draw_savegame_details(canvas: &mut dyn Canvas) -> Result<bool, Refused> {
     // into the preview's variables first (the original after the frame, which reads none).
     use rc2k_core::screens::savegame_preview::{Car, Title, details};
     {
-        let payload = (SAVE_GAMES.file.addr() + PAYLOAD_OFFSET) as u32;
+        let payload = SAVE_GAMES.file.addr() + PAYLOAD_OFFSET as u32;
         for (n, cell) in SAVEGAME_PREVIEW.saved.iter().enumerate() {
             cell.set(dword(payload + 4 * n as u32)?);
         }
@@ -66,7 +66,7 @@ pub fn draw_savegame_details(canvas: &mut dyn Canvas) -> Result<bool, Refused> {
         let title = Title {
             mode_13,
             section: if mode_13 {
-                table_dword_at(MENU_LISTS.section_titles[0].addr(), section)?
+                table_dword_at(MENU_LISTS.section_titles[0].addr() as usize, section)?
             } else {
                 dword(find_record_in(table, 0, section)? + 0x38)?
             },

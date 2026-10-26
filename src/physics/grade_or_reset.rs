@@ -16,9 +16,9 @@ pub fn grade_or_reset() {
     if CAR.driver_kind.get() == 2 {
         unsafe {
             reset_grades_at(
-                car_addr() as u32,
-                CAR.suspension_stiffness.addr() as u32,
-                CAR.ride_height.addr() as u32,
+                car_addr(),
+                CAR.suspension_stiffness.addr(),
+                CAR.ride_height.addr(),
             )
         };
     } else {

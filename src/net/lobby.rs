@@ -61,7 +61,7 @@ pub struct Cursor(pub u32);
 impl Cursor {
     /// The start of the game's text buffer.
     pub fn text() -> Self {
-        Self(TEXT_BUFFER.text.addr() as u32)
+        Self(TEXT_BUFFER.text.addr())
     }
 
     /// `strings::str_append`: the NUL-ended text at `from`, its end the new cursor.

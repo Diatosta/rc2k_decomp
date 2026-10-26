@@ -206,11 +206,12 @@ fn entries(count: u32) -> Result<Vec<usize>, BadInput> {
             if number >= ENTRIES {
                 return Err(BadInput("a list entry past the work table"));
             }
-            let entry = crate::scene::polygon::entries_addr() + number as usize * ENTRY_LEN;
-            if dword(entry + 4) == 0 {
+            let entry =
+                crate::scene::polygon::entries_addr() + (number as usize * ENTRY_LEN) as u32;
+            if dword((entry + 4) as usize) == 0 {
                 return Err(BadInput("an entry without its vertex"));
             }
-            Ok(entry)
+            Ok(entry as usize)
         })
         .collect()
 }
@@ -259,13 +260,13 @@ fn place(entries: &[usize], mirrored: bool) {
     let mirror_at: u32 = DRAW.view_centre[0].bits();
     for (n, &entry) in entries.iter().enumerate() {
         let vertex = dword(entry + 4) as usize;
-        let out = crate::d3d::vertices_store::piece_addr() + n * VERTEX_LEN;
+        let out = crate::d3d::vertices_store::piece_addr() + (n * VERTEX_LEN) as u32;
         let mut x = x87::add(dword(vertex + 0x0C), x_offset);
         let depth = x87::mul(dword(vertex + 0x18), depth_factor);
-        put(out + 4, x87::add(dword(vertex + 0x1C), y_offset));
-        put(out + 8, depth);
+        put((out + 4) as usize, x87::add(dword(vertex + 0x1C), y_offset));
+        put((out + 8) as usize, depth);
         put(
-            out + 0x0C,
+            (out + 0x0C) as usize,
             if sse {
                 x87::rcpss_times(dword(vertex + 0x18), NUMBERS.k65536.bits())
             } else {
@@ -275,7 +276,7 @@ fn place(entries: &[usize], mirrored: bool) {
         if mirrored && entries.len() > 2 {
             x = x87::mirrored(x, mirror_at, x_offset);
         }
-        put(out, x);
+        put(out as usize, x);
     }
 }
 
@@ -286,11 +287,11 @@ fn copy_set(entries: &[usize], set: Set) {
         Set::B => (0x10, 0x2C),
     };
     for (n, &entry) in entries.iter().enumerate() {
-        let out = crate::d3d::vertices_store::piece_addr() + n * VERTEX_LEN;
-        put(out + 0x18, x87::loaded(dword(entry + uv)));
-        put(out + 0x1C, x87::loaded(dword(entry + uv + 4)));
-        put(out + 0x10, dword(entry + colour));
-        put(out + 0x14, dword(entry + colour + 4));
+        let out = crate::d3d::vertices_store::piece_addr() + (n * VERTEX_LEN) as u32;
+        put((out + 0x18) as usize, x87::loaded(dword(entry + uv)));
+        put((out + 0x1C) as usize, x87::loaded(dword(entry + uv + 4)));
+        put((out + 0x10) as usize, dword(entry + colour));
+        put((out + 0x14) as usize, dword(entry + colour + 4));
     }
 }
 
@@ -325,8 +326,8 @@ unsafe fn clear_a_switch(entries: &[usize]) -> Result<(), BadInput> {
         let (all, any) = bytes.fold((0xFFu8, 0u8), |(all, any), b| (all & b, any | b));
         if all == 0xFF {
             let material = crate::scene::polygon::texture_infos_addr()
-                + RACE_VIEW.texture_b.bits() as usize * 0x40;
-            if GamePtr::new(material as u32 + 0x2E).read::<u8>("a texture's record")? == 0 {
+                + (RACE_VIEW.texture_b.bits() as usize * 0x40) as u32;
+            if GamePtr::new(material + 0x2E).read::<u8>("a texture's record")? == 0 {
                 DRAW.polygon_sides[0].set_bits(0u32);
             }
         } else if any == 0 {
@@ -395,7 +396,7 @@ pub unsafe fn draw_polygon(outside: &mut dyn Outside) -> Result<(), BadInput> {
             // `sub_44E6B9`: the list's entries after the first, turned round.
             entries[1..].reverse();
             for (n, entry) in entries.iter().enumerate().skip(1) {
-                let number = (entry - crate::scene::polygon::entries_addr()) / ENTRY_LEN;
+                let number = (entry - crate::scene::polygon::entries_addr() as usize) / ENTRY_LEN;
                 crate::scene::polygon::list_cell(n).set(number as u32);
             }
         }
@@ -408,12 +409,15 @@ pub unsafe fn draw_polygon(outside: &mut dyn Outside) -> Result<(), BadInput> {
             let (from, alpha): (u32, u32) = (CARDS_3D.fade_from.get(), VIEW_VARS.fade_alpha.bits());
             let uv = crate::session::read_bits(&RACE_VARS.fade_uv);
             for (n, &entry) in entries.iter().enumerate() {
-                let out = crate::d3d::vertices_store::piece_addr() + n * VERTEX_LEN;
+                let out = crate::d3d::vertices_store::piece_addr() + (n * VERTEX_LEN) as u32;
                 let by = (crate::pointers::host_at(entry + 0x20) as *const u8).read() as u32;
-                put(out + 0x10, faded(from, 0x10, by) & 0xFF_FFFF | alpha << 24);
-                put(out + 0x14, 0xFF00_0000);
-                put(out + 0x18, uv[0]);
-                put(out + 0x1C, uv[1]);
+                put(
+                    (out + 0x10) as usize,
+                    faded(from, 0x10, by) & 0xFF_FFFF | alpha << 24,
+                );
+                put((out + 0x14) as usize, 0xFF00_0000);
+                put((out + 0x18) as usize, uv[0]);
+                put((out + 0x1C) as usize, uv[1]);
             }
             DRAW.texture_page.set_bits(FADE_TEXTURE);
             RACE_VIEW.polygon_mode.set_bits(7u32);

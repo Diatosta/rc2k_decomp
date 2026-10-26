@@ -25,5 +25,5 @@ pub fn store_length(v: u32, out: u32) {
 /// The Rust version (the exact one, for `physics::car_physics_step` and
 /// `physics::keep_motion_vectors`).
 pub fn store_motion_length() {
-    store_length(CAR.velocity[0].addr() as u32, CAR.speed.addr() as u32)
+    store_length(CAR.velocity[0].addr(), CAR.speed.addr())
 }

@@ -77,7 +77,7 @@ unsafe fn cut(edge: Edge, a: usize, b: usize, mask: u32) -> Result<u32, BadInput
         if record == 0 {
             return Err(BadInput("no pool of records"));
         }
-        let new = crate::scene::polygon::entries_addr() + number as usize * ENTRY_LEN;
+        let new = crate::scene::polygon::entries_addr() + (number as usize * ENTRY_LEN) as u32;
         let mut w: Work = [0; 0x51];
         let base = w.as_mut_ptr() as *mut u8;
         for (entry, record_at, entry_at, bytes_at) in [
@@ -135,7 +135,7 @@ unsafe fn cut(edge: Edge, a: usize, b: usize, mask: u32) -> Result<u32, BadInput
 
         DRAW.polygon_next_record
             .set_bits(record.wrapping_add(RECORD_LEN as u32));
-        put(new + 4, record);
+        put((new + 4) as usize, record);
         let record = record as usize;
         if !matches!(edge, Edge::Depth(_)) {
             for k in 0..3 {
@@ -148,13 +148,13 @@ unsafe fn cut(edge: Edge, a: usize, b: usize, mask: u32) -> Result<u32, BadInput
         put(record + 0xC, out_1[0]);
         put(record + 0x1C, out_1[1]);
         for k in 0..4 {
-            put(new + 8 + k * 4, out_1[8 + k]);
+            put((new + 8 + k * 4) as usize, out_1[8 + k as usize]);
         }
         for (at, value) in BYTES.into_iter().zip([2, 3, 4, 0, 1].map(|k| out_2[k])) {
-            crate::pointers::host_at(new + at).write(value as u8);
+            crate::pointers::host_at((new + at as u32) as usize).write(value as u8);
         }
         if matches!(edge, Edge::Depth(_)) {
-            put(new, u32::MAX);
+            put(new as usize, u32::MAX);
         }
         Ok(number)
     }

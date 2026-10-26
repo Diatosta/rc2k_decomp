@@ -33,7 +33,7 @@ pub unsafe fn yes_no_caption() -> Result<(u32, u32), Refused> {
         let text = rc2k_core::screens::captions::fit(text, CAPTION_LEN)?;
         let caption = crate::screens::text_buffers_store::TEXT_BUFFERS
             .caption
-            .addr() as u32;
+            .addr();
         crate::pointers::GamePtr::new(caption).write_bytes(&text, "the caption")?;
         Ok((eax, caption + text.len() as u32))
     }

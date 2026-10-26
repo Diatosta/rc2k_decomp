@@ -24,7 +24,7 @@ pub fn take_player_settings() -> Result<(), Refused> {
     }
     // Converted: `rc2k_core::net::settings` (`copies`, `TAKEN_MARK`).
     GamePtr::new(record + settings::TAKEN_MARK).write(1u32, "a player's record")?;
-    let to = RACE_STATE.settings.car_kind_current.addr() as u32;
+    let to = RACE_STATE.settings.car_kind_current.addr();
     for copy in settings::copies() {
         match copy {
             Copy::Dword { to: at, from } => {

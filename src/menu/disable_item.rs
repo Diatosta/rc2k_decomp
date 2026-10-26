@@ -31,7 +31,7 @@ pub fn set_item(number: u32, on: bool) -> Result<(), Refused> {
         crate::pointers::GamePtr::new(item + 0x48)
             .write::<u32>(state, "disable item: a game value")?;
         crate::pointers::GamePtr::new(item + 0x18)
-            .write::<u32>(font.addr() as u32, "disable item: a game value")?;
+            .write::<u32>(font.addr(), "disable item: a game value")?;
     }
     Ok(())
 }

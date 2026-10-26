@@ -24,7 +24,7 @@ fn ida_table(ida: u32) -> u32 {
         (start..start + len).contains(&(ida as usize)),
         "a pointer of the marks' data names {ida:#x}, outside the profile tables"
     );
-    (crate::pointers::host_number(PROFILE_TABLES.tables.as_ptr()) + (ida as usize - start)) as u32
+    crate::pointers::game_address(PROFILE_TABLES.tables.as_ptr()) + (ida as usize - start) as u32
 }
 
 fn get(at: u32) -> Result<u32, BadInput> {
@@ -169,7 +169,7 @@ impl ProfileRings {
     pub const LEN: usize = 0x804;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        crate::pointers::host_number(&PROFILE_RINGS as *const ProfileRings)
+        crate::pointers::game_address(&PROFILE_RINGS as *const ProfileRings) as usize
     }
 }
 
@@ -208,7 +208,7 @@ impl ProfileLists {
     pub const LEN: usize = 0x34;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        crate::pointers::host_number(&PROFILE_LISTS as *const ProfileLists)
+        crate::pointers::game_address(&PROFILE_LISTS as *const ProfileLists) as usize
     }
 }
 
@@ -257,7 +257,7 @@ impl ProfileTables {
     pub const LEN: usize = 0x6800;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        crate::pointers::host_number(&PROFILE_TABLES as *const ProfileTables)
+        crate::pointers::game_address(&PROFILE_TABLES as *const ProfileTables) as usize
     }
 }
 

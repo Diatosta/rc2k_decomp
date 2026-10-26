@@ -27,7 +27,7 @@ impl core::ops::Deref for InBlock {
     fn deref(&self) -> &GroundProbe {
         // SAFETY: the race block lives as long as the program and is aligned to 4 (the
         // test checks); every field is an atomic, as the block's bytes were shared.
-        unsafe { &*(crate::pointers::host_at(piece_addr()) as *const GroundProbe) }
+        unsafe { &*(crate::pointers::host(piece_addr()) as *const GroundProbe) }
     }
 }
 
@@ -41,8 +41,8 @@ pub const END: usize = 0x620474;
 const _: () = assert!(END - START == core::mem::size_of::<GroundProbe>());
 
 /// Where IDA 0x620458 is now.
-pub fn piece_addr() -> usize {
-    crate::moved::place(START)
+pub fn piece_addr() -> u32 {
+    crate::moved::place(START) as u32
 }
 
 #[cfg(test)]
@@ -55,7 +55,7 @@ mod tests {
         assert_eq!(piece_addr() % 4, 0);
         assert_eq!(
             crate::moved::place(END - 1),
-            piece_addr() + (END - START) - 1
+            (piece_addr() + (END - START) as u32 - 1) as usize
         );
         assert_eq!(offset_of!(GroundProbe, product), 0x620460 - START);
         assert_eq!(offset_of!(GroundProbe, settle_mark), 0x620470 - START);

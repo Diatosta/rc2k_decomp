@@ -110,7 +110,7 @@ impl core::ops::Deref for InRaceBlock {
     fn deref(&self) -> &ViewerPanelBlock {
         // SAFETY: the race block lives as long as the program and is aligned to 4 (the
         // test checks); every field is an atomic or a cell, as the block's bytes were shared.
-        unsafe { &*(crate::pointers::host_at(piece_addr()) as *const ViewerPanelBlock) }
+        unsafe { &*(crate::pointers::host(piece_addr()) as *const ViewerPanelBlock) }
     }
 }
 
@@ -171,7 +171,7 @@ impl ViewerPanelBlock {
     /// `texts`, the unaligned values below).
     pub fn text_addr(&self, ida: usize) -> u32 {
         assert!((TAIL..TAIL + 4 * 167).contains(&ida));
-        (self.unknown_3cc[0].addr() + (ida - TAIL)) as u32
+        self.unknown_3cc[0].addr() + (ida - TAIL) as u32
     }
 
     /// `dword_5C2CEB` (unaligned, in the tail): 1 when the developer's keys work in the viewer.
@@ -202,7 +202,8 @@ impl ViewerPanelBlock {
     pub fn camera_name(&self, camera: usize) -> u16 {
         // SAFETY: the table is in `unknown_0`; the read is unaligned and plain.
         unsafe {
-            (crate::pointers::host_at(self.unknown_0[0].addr() + 2 * camera) as *const u16)
+            (crate::pointers::host_at((self.unknown_0[0].addr() + (2 * camera) as u32) as usize)
+                as *const u16)
                 .read_unaligned()
         }
     }
@@ -226,8 +227,8 @@ pub const END: usize = 0x5C2FE4;
 const _: () = assert!(END - START == core::mem::size_of::<ViewerPanelBlock>());
 
 /// Where IDA 0x5C291C is now (in the race block).
-pub fn piece_addr() -> usize {
-    crate::race::store::home(START)
+pub fn piece_addr() -> u32 {
+    crate::race::store::home(START) as u32
 }
 
 #[cfg(test)]

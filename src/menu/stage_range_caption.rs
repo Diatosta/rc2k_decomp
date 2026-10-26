@@ -19,7 +19,7 @@ pub fn stage_range_caption() -> Result<(), crate::errors::BadInput> {
     crate::pointers::GamePtr::new(
         crate::screens::text_buffers_store::TEXT_BUFFERS
             .caption
-            .addr() as u32,
+            .addr(),
     )
     .write_bytes(&text, "the caption")
 }

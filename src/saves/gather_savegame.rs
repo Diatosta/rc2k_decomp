@@ -44,7 +44,7 @@ pub use rc2k_core::saves::savegame::{NAME_AT as NAME_OFFSET, NAME_POINTER as NAM
 pub fn cars() -> Result<[u32; CARS], BadInput> {
     let mut cars = [0u32; CARS];
     for (n, car) in cars.iter_mut().enumerate() {
-        *car = GamePtr::new(PLAYER_TABLE.pointers[0].addr() as u32)
+        *car = GamePtr::new(PLAYER_TABLE.pointers[0].addr())
             .offset(4 * n as u32)
             .read::<u32>("the players' table")?;
         if *car == 0 {
@@ -78,12 +78,12 @@ pub fn gather_savegame(buffer: GamePtr) -> Result<(), BadInput> {
         let name = GamePtr::new(car + NAME_PTR_OFFSET).read::<u32>("a player's record")?;
         GamePtr::new(name).copy_to(GamePtr::new(car + NAME_OFFSET), NAME_LEN, "a player's name")?;
         GamePtr::new(car).copy_to(
-            buffer.offset(car_at(n) as u32),
+            buffer.offset((car_at(n)) as u32),
             CAR_LEN,
             "a player's record",
         )?;
     }
-    GamePtr::new(crate::menu::drivers_store::drivers_addr() as u32).copy_to(
+    GamePtr::new(crate::menu::drivers_store::drivers_addr()).copy_to(
         buffer.offset(RECORDS_AT as u32),
         RECORDS_LEN,
         "the drivers' records",

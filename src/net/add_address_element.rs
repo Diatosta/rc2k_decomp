@@ -16,7 +16,7 @@ pub fn add_address_element(data_type: u32, size: u32, data: u32) {
     // Converted: `rc2k_core::net::address` (`element_at`, `element`).
     let offset = address::element_at(NET.elements.get());
     NET.elements.set(NET.elements.get().wrapping_add(1));
-    let at = (NET.element_table.addr() as u32).wrapping_add(offset);
+    let at = (NET.element_table.addr()).wrapping_add(offset);
     let data_type: [u8; 16] = crate::pointers::read_or_end(data_type, "an address element's type");
     let bytes = address::element(&data_type, size, data);
     if let Err(e) =

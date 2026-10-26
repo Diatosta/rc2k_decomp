@@ -51,18 +51,18 @@ pub unsafe fn stall_at(v: &[u32]) {
 
 fn game() -> Vec<u32> {
     vec![
-        PHYSICS.kept_motion[0].addr() as u32,
-        PHYSICS.kept_motion[1].addr() as u32,
-        PHYSICS.kept_motion[2].addr() as u32,
-        DRAW.scratch.addr() as u32,
-        CAR.local_velocity[0].addr() as u32,
-        CAR.local_velocity[1].addr() as u32,
-        CAR.local_velocity[2].addr() as u32,
-        PHYSICS.stall_figure.addr() as u32,
-        PHYSICS.no_auto_neutral.addr() as u32,
-        CAR.gear.addr() as u32,
-        CAR.drive_speed_a.addr() as u32,
-        CAR.drive_speed_b.addr() as u32,
+        PHYSICS.kept_motion[0].addr(),
+        PHYSICS.kept_motion[1].addr(),
+        PHYSICS.kept_motion[2].addr(),
+        DRAW.scratch.addr(),
+        CAR.local_velocity[0].addr(),
+        CAR.local_velocity[1].addr(),
+        CAR.local_velocity[2].addr(),
+        PHYSICS.stall_figure.addr(),
+        PHYSICS.no_auto_neutral.addr(),
+        CAR.gear.addr(),
+        CAR.drive_speed_a.addr(),
+        CAR.drive_speed_b.addr(),
     ]
 }
 

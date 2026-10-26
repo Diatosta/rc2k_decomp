@@ -27,7 +27,7 @@ use rc2k_core::install::script::{self, Op};
 pub fn run_script(script: u32) -> Result<(), Refused> {
     use crate::install as i;
     let mut cursor = script;
-    let mut end = INSTALLER_PATHS.script_path.addr() as u32;
+    let mut end = INSTALLER_PATHS.script_path.addr();
     wb(end, 0);
     let mut stack: Vec<u32> = Vec::new();
     let media = media_mode() as u8;
@@ -44,7 +44,7 @@ pub fn run_script(script: u32) -> Result<(), Refused> {
             Op::Folder => {
                 stack.push(end);
                 (cursor, end) = i::script_name::script_name(cursor, end)?;
-                i::list_folder::list_folder(INSTALLER_PATHS.script_path.addr() as u32)?;
+                i::list_folder::list_folder(INSTALLER_PATHS.script_path.addr())?;
                 wb(end, b'\\');
                 wb(end + 1, 0);
                 end += 1;
@@ -63,15 +63,11 @@ pub fn run_script(script: u32) -> Result<(), Refused> {
                 stack.push(end);
                 (cursor, _) = i::script_name::script_name(cursor, end)?;
                 if op == 3 {
-                    i::list_files::list_files(INSTALLER_PATHS.script_path.addr() as u32)?;
+                    i::list_files::list_files(INSTALLER_PATHS.script_path.addr())?;
                 } else {
-                    i::list_folder_tree::list_folder_tree(
-                        INSTALLER_PATHS.script_path.addr() as u32
-                    )?;
+                    i::list_folder_tree::list_folder_tree(INSTALLER_PATHS.script_path.addr())?;
                 }
-                end = stack
-                    .pop()
-                    .unwrap_or(INSTALLER_PATHS.script_path.addr() as u32); // pushed just above
+                end = stack.pop().unwrap_or(INSTALLER_PATHS.script_path.addr()); // pushed just above
                 wb(end, 0);
             }
             Op::Media => {

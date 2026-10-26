@@ -43,10 +43,10 @@ impl Vars {
         Self {
             // g_playerCarA, g_playerCarB, g_onePlayer, g_raceSoundObjectCount (four dwords).
             cars: crate::pointers::game_address(RACE_SOUNDS.player_cars.as_ptr()),
-            devices: DEVICES.input_devices[0].addr() as u32,
-            views: (RACE_VIEW.view_blocks[0].addr() as u32),
+            devices: DEVICES.input_devices[0].addr(),
+            views: (RACE_VIEW.view_blocks[0].addr()),
             objects: crate::pointers::game_address(RACE_SOUNDS.table.as_ptr()),
-            two_devices: DEVICES.two_devices_one_player.addr() as u32,
+            two_devices: DEVICES.two_devices_one_player.addr(),
         }
     }
 }

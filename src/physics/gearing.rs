@@ -28,13 +28,13 @@ pub struct GearPlaces {
 impl GearPlaces {
     pub fn game() -> Self {
         Self {
-            gear: CAR.gear.addr() as u32,
-            engine_speed: CAR.engine_speed.addr() as u32,
-            drive_speed: CAR.drive_speed_a.addr() as u32,
-            drive_speed_2: CAR.drive_speed_b.addr() as u32,
-            drive_kind: CAR.drive_kind.addr() as u32,
-            ratios: PHYSICS.gear_ratios[1].addr() as u32,
-            speed: CAR.local_velocity[2].addr() as u32,
+            gear: CAR.gear.addr(),
+            engine_speed: CAR.engine_speed.addr(),
+            drive_speed: CAR.drive_speed_a.addr(),
+            drive_speed_2: CAR.drive_speed_b.addr(),
+            drive_kind: CAR.drive_kind.addr(),
+            ratios: PHYSICS.gear_ratios[1].addr(),
+            speed: CAR.local_velocity[2].addr(),
         }
     }
 }

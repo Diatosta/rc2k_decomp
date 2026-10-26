@@ -61,7 +61,7 @@ fn pull_length(e: u32, p: u32, l: u32) {
         p as usize,
         l as usize,
         &RING_WORK,
-        crate::pointers::host_number(&RING_KINDS as *const RingKinds),
+        crate::pointers::game_address(&RING_KINDS as *const RingKinds) as usize,
     )
 }
 
@@ -78,7 +78,7 @@ fn pull_strength(e: u32, o: u32) {
         &CLOCK,
         &MARKS_FLOATS,
         &RING_WORK,
-        crate::pointers::host_number(&RING_KINDS as *const RingKinds),
+        crate::pointers::game_address(&RING_KINDS as *const RingKinds) as usize,
     )
 }
 
@@ -889,7 +889,7 @@ impl RingKinds {
     pub const LEN: usize = 0x9C;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        crate::pointers::host_number(&RING_KINDS as *const RingKinds)
+        crate::pointers::game_address(&RING_KINDS as *const RingKinds) as usize
     }
 }
 

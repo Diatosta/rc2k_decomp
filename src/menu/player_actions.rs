@@ -119,7 +119,7 @@ pub fn toggle_caption_choice() -> Result<(u32, u32), crate::errors::BadInput> {
     MENU_STATE.menus.caption_choice.set(choice);
     let mut cursor = crate::screens::text_buffers_store::TEXT_BUFFERS
         .caption
-        .addr() as u32;
+        .addr();
     let caption = rc2k_core::screens::page_values::stage_options_caption(choice);
     let fault = crate::menu::event_flow::Fault::default();
     let eax = crate::strings::append_string_by_id::append_string_by_id(caption, &mut |at, n| {

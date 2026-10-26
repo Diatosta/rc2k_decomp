@@ -32,7 +32,7 @@ const KEYS_OFFSET: u32 = std::mem::offset_of!(Player, keys) as u32;
 
 /// The reserved keys, up to their NUL; `None` if there is none in `RESERVED_ROOM`.
 fn reserved() -> Result<Option<Vec<u8>>, BadInput> {
-    let list = GamePtr::new(KEY_TABLES.reserved_keys.addr() as u32).bytes("the reserved keys")?;
+    let list = GamePtr::new(KEY_TABLES.reserved_keys.addr()).bytes("the reserved keys")?;
     Ok((0..RESERVED_ROOM)
         .map_while(|n| list.byte(n))
         .position(|b| b == 0)

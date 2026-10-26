@@ -31,8 +31,8 @@ pub fn plain() -> Batch {
     Batch {
         count: &DRAW_BATCHES.plain_count,
         word: &DRAW_BATCHES.plain_word,
-        vertices: DRAW_BATCHES.plain_vertices.addr(),
-        indices: DRAW_BATCHES.plain_indices.addr(),
+        vertices: DRAW_BATCHES.plain_vertices.addr() as usize,
+        indices: DRAW_BATCHES.plain_indices.addr() as usize,
         kept: &DRAW_BATCHES.plain_kept,
         blend: 2,
         text: c"drawtri",
@@ -44,8 +44,8 @@ pub fn textured() -> Batch {
     Batch {
         count: &DRAW_BATCHES.textured_count,
         word: &DRAW_BATCHES.textured_word,
-        vertices: DRAW_BATCHES.textured_vertices.addr(),
-        indices: DRAW_BATCHES.textured_indices.addr(),
+        vertices: DRAW_BATCHES.textured_vertices.addr() as usize,
+        indices: DRAW_BATCHES.textured_indices.addr() as usize,
         kept: &DRAW_BATCHES.textured_kept,
         blend: 6,
         text: c"drawtri",

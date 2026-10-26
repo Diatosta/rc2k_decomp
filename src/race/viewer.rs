@@ -23,8 +23,8 @@ pub fn camera_byte_at(offset: usize) -> Result<u8, BadInput> {
     let at = crate::race::viewer_buffers_store::VIEWER_BUFFERS
         .block_cameras
         .addr()
-        .wrapping_add(offset);
-    GamePtr::new(at as u32).read("a replay camera byte")
+        .wrapping_add(offset as u32);
+    GamePtr::new(at).read("a replay camera byte")
 }
 
 // ---- the list menu (`menu::list_*`) ----

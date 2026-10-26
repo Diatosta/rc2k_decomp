@@ -70,7 +70,7 @@ impl InputGuids {
     pub const LEN: usize = 0x1C0;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        crate::pointers::host_number(&INPUT_GUIDS as *const InputGuids) + 8
+        (crate::pointers::game_address(&INPUT_GUIDS as *const InputGuids) + 8) as usize
     }
 }
 

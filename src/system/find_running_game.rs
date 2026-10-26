@@ -29,7 +29,7 @@ pub unsafe fn find_running_game() -> bool {
                 std::ptr::null(),
             )));
         !FindWindowA(
-            crate::pointers::host_at(START_TEXTS.class_name.addr()) as *const u8,
+            crate::pointers::host(START_TEXTS.class_name.addr()) as *const u8,
             std::ptr::null(),
         )
         .is_null()

@@ -41,11 +41,11 @@ pub fn count_stop_timers_at(v: &[u32]) {
 
 fn game() -> Vec<u32> {
     vec![
-        CAR.started_stand_timer.addr() as u32,
-        CAR.go_stand_timer.addr() as u32,
-        CAR.finish_flag.addr() as u32,
-        CAR.speed.addr() as u32,
-        CAR.stop_state.addr() as u32,
+        CAR.started_stand_timer.addr(),
+        CAR.go_stand_timer.addr(),
+        CAR.finish_flag.addr(),
+        CAR.speed.addr(),
+        CAR.stop_state.addr(),
     ]
 }
 

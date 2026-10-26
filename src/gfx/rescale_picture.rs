@@ -87,7 +87,7 @@ pub static RESCALE: Rescaler = Rescaler {
 
 /// Where the block is (`moved::MOVED`'s home for IDA 0x4F505C).
 pub fn home() -> usize {
-    crate::pointers::host_number(&RESCALE as *const Rescaler)
+    crate::pointers::game_address(&RESCALE as *const Rescaler) as usize
 }
 
 // ---- Rust version ----
@@ -173,7 +173,13 @@ mod tests {
         assert_eq!(offset_of!(Rescaler, step_x), 0x4F509C - START);
         assert_eq!(offset_of!(Rescaler, rows_left), 0x4F50B8 - START);
         assert_eq!(offset_of!(Rescaler, components), 0x4F50BC - START);
-        assert_eq!(crate::moved::place(START), RESCALE.copy_memory.addr());
-        assert_eq!(crate::moved::place(0x4F50BC), RESCALE.components.addr());
+        assert_eq!(
+            crate::moved::place(START),
+            RESCALE.copy_memory.addr() as usize
+        );
+        assert_eq!(
+            crate::moved::place(0x4F50BC),
+            RESCALE.components.addr() as usize
+        );
     }
 }

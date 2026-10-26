@@ -85,7 +85,7 @@ fn dword(offset: usize) -> Result<u32, BadInput> {
     if offset.checked_add(4).is_none_or(|end| end > FILE_ROOM) {
         return Err(PAST);
     }
-    GamePtr::new((crate::scene::objects::file_addr() + offset) as u32)
+    GamePtr::new(crate::scene::objects::file_addr() + offset as u32)
         .read("a word of an object's file")
 }
 
@@ -221,7 +221,7 @@ fn room(shape: &Shape) -> Result<Room, BadInput> {
 }
 
 pub fn add_object_shape(file: usize) -> Result<(), BadInput> {
-    if file != crate::scene::objects::file_addr() {
+    if file != crate::scene::objects::file_addr() as usize {
         return Err(BadInput("an object's file elsewhere than in its buffer"));
     }
     let shape = match shape()? {
@@ -237,7 +237,7 @@ pub fn add_object_shape(file: usize) -> Result<(), BadInput> {
     let room = room(&shape)?;
     let slot = room.slot as usize;
     let read = |offset: usize| -> Result<u32, BadInput> {
-        GamePtr::new((crate::scene::objects::file_addr() + offset) as u32)
+        GamePtr::new(crate::scene::objects::file_addr() + offset as u32)
             .read("a word of an object's file")
     };
 
@@ -308,7 +308,7 @@ pub fn add_object_shape(file: usize) -> Result<(), BadInput> {
     for face in shape.faces.iter().filter(|face| face.taken) {
         crate::scene::objects::face_cell(face_number as usize).set(out as u32);
         let len = 0x10 + face.vertices * 0x10;
-        let source = GamePtr::new((crate::scene::objects::file_addr() + face.at) as u32)
+        let source = GamePtr::new(crate::scene::objects::file_addr() + face.at as u32)
             .read_bytes(len, "a face of an object's file")?;
         let word = |at: usize| u32::from_le_bytes(source[at..at + 4].try_into().unwrap());
         let mut made = Vec::with_capacity(len);

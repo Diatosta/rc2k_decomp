@@ -48,9 +48,11 @@ pub struct TexturePlaces {
 /// The cell `index` entries on from `first`, by address: for the tables whose index the
 /// game's code does not bound (it reads and writes past them as the image's bytes).
 pub fn cell_at(first: &Dword, index: u32) -> &Dword {
-    let at = first.addr().wrapping_add((index as usize).wrapping_mul(4));
+    let at = first
+        .addr()
+        .wrapping_add(((index as usize).wrapping_mul(4)) as u32);
     // SAFETY: as the game's own access, inside the race block; `Dword` is a 4-aligned cell.
-    unsafe { &*(crate::pointers::host_at(at) as *const Dword) }
+    unsafe { &*(crate::pointers::host_at(at as usize) as *const Dword) }
 }
 
 /// The piece: the race block's bytes at IDA 0x5D2AE8 seen as `TexturePlaces`. They stay there
@@ -63,7 +65,7 @@ impl core::ops::Deref for InRaceBlock {
     fn deref(&self) -> &TexturePlaces {
         // SAFETY: the race block lives as long as the program and is aligned to 4 (the
         // test checks); every field is an atomic or a cell, as the block's bytes were shared.
-        unsafe { &*(crate::pointers::host_at(piece_addr()) as *const TexturePlaces) }
+        unsafe { &*(crate::pointers::host(piece_addr()) as *const TexturePlaces) }
     }
 }
 
@@ -77,8 +79,8 @@ pub const END: usize = 0x5E9EC8;
 const _: () = assert!(END - START == core::mem::size_of::<TexturePlaces>());
 
 /// Where IDA 0x5D2AE8 is now (in the race block).
-pub fn piece_addr() -> usize {
-    crate::race::store::home(START)
+pub fn piece_addr() -> u32 {
+    crate::race::store::home(START) as u32
 }
 
 #[cfg(test)]
@@ -95,7 +97,7 @@ mod tests {
         );
         assert_eq!(
             crate::moved::place(END - 1),
-            piece_addr() + (END - START) - 1
+            (piece_addr() + (END - START) as u32 - 1) as usize
         );
         assert_eq!(offset_of!(TexturePlaces, texture_of), 0x5D2AE8 - START);
         assert_eq!(offset_of!(TexturePlaces, kind_slot_bytes), 0x5DC978 - START);

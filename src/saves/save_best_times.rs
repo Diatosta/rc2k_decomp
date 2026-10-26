@@ -37,13 +37,13 @@ pub fn in_game() -> Result<bool, Refused> {
         crate::files::scratch::SCRATCH.buffer.set(n, byte);
     }
     let Some(file) = open_by_mode(
-        crate::pointers::host_at(crate::saves::load_best_times::PATH.addr()) as *const u8,
+        crate::pointers::host(crate::saves::load_best_times::PATH.addr()) as *const u8,
         1,
     )?
     else {
         return Ok(false);
     };
-    let scratch = GamePtr::new(crate::files::scratch::SCRATCH.buffer.addr() as u32);
+    let scratch = GamePtr::new(crate::files::scratch::SCRATCH.buffer.addr());
     write_from(file, scratch, HEAD_LEN, "the best times file's head")?;
     for table in WRITTEN {
         let place = &BEST_TIMES.tables[table];

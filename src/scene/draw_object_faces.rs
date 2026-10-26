@@ -44,8 +44,8 @@ pub fn draw_object_faces(
     let mut faces = Vec::with_capacity(listed as usize);
     for n in 0..listed as usize {
         let entry = crate::scene::object_slots_store::OBJECT_SLOTS.listed_faces[0].addr()
-            + n * LIST_ENTRY_LEN;
-        let number = dword(entry).wrapping_add(first);
+            + (n * LIST_ENTRY_LEN) as u32;
+        let number = dword(entry as usize).wrapping_add(first);
         if number >= FACES {
             return Err(BadInput("a face's number past the table").into());
         }
@@ -56,8 +56,10 @@ pub fn draw_object_faces(
         faces.push((entry, number, face as usize));
     }
     for &(entry, _, face) in &faces {
-        GROUND_WORK.object_see_through.set_bits(dword(entry + 0xC));
-        RACE_VARS.face_number.set_bits(dword(entry));
+        GROUND_WORK
+            .object_see_through
+            .set_bits(dword((entry + 0xC) as usize));
+        RACE_VARS.face_number.set_bits(dword(entry as usize));
         let head = GamePtr::new(face as u32).read_bytes(0xC, "an object's face")?;
         let texture = u16::from_le_bytes([head[4], head[5]]) as u32;
         DRAW.polygon_textures[0]

@@ -29,7 +29,7 @@ use rc2k_core::physics::splits::{RIVALS, gap, rank, scaled_time, split_scale};
 
 /// A name into `text` (eight blanks first), its first eight bytes into `to`.
 fn name(id: u32, to: &[Dword; 2]) -> Result<(), crate::errors::BadInput> {
-    let text = crate::strings::text_buffer::TEXT_BUFFER.text.addr() as u32;
+    let text = crate::strings::text_buffer::TEXT_BUFFER.text.addr();
     crate::strings::text_buffer::TEXT_BUFFER
         .text
         .set_u32(0, 0x2020_2020);

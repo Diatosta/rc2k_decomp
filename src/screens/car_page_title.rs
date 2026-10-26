@@ -28,9 +28,9 @@ pub unsafe fn car_page_title() -> Result<(), Refused> {
         }
         put_string(
             MENU_LISTS.car_page_titles[page as usize].get(),
-            crate::screens::text_buffers_store::TEXT_BUFFERS
+            (crate::screens::text_buffers_store::TEXT_BUFFERS
                 .title
-                .addr(),
+                .addr()) as usize,
             TITLE_LEN,
         )
     }

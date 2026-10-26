@@ -142,7 +142,7 @@ pub static TEXTURE_TABLES: Textures = Textures {
 
 /// Where the block is (`moved::MOVED`'s home for IDA 0x5ABA8C).
 pub fn home() -> usize {
-    crate::pointers::host_number(&TEXTURE_TABLES as *const Textures)
+    crate::pointers::game_address(&TEXTURE_TABLES as *const Textures) as usize
 }
 
 impl Textures {
@@ -152,8 +152,9 @@ impl Textures {
     }
 
     /// Where the sizes table is (five entries of two dwords, for `system::find_entry`).
-    pub fn sizes_addr(&self) -> usize {
-        crate::pointers::host_number(self as *const Self) + core::mem::offset_of!(Self, sizes)
+    pub fn sizes_addr(&self) -> u32 {
+        crate::pointers::game_address(self as *const Self)
+            + core::mem::offset_of!(Self, sizes) as u32
     }
 
     /// The kinds table's entry `n`, read where the original reads it (not checked against
@@ -314,10 +315,13 @@ mod block_tests {
         assert_eq!(offset_of!(Textures, video), 0x5ABC14 - START);
         assert_eq!(offset_of!(Textures, system), 0x5B5218 - START);
         assert_eq!(offset_of!(Pool, records), 4);
-        assert_eq!(crate::moved::place(START), TEXTURE_TABLES.alpha_kind.addr());
+        assert_eq!(
+            crate::moved::place(START),
+            TEXTURE_TABLES.alpha_kind.addr() as usize
+        );
         assert_eq!(
             crate::moved::place(0x5B521C),
-            crate::pointers::host_number(TEXTURE_TABLES.system.records.as_ptr())
+            (crate::pointers::game_address(TEXTURE_TABLES.system.records.as_ptr())) as usize
         );
     }
 }

@@ -44,41 +44,41 @@ pub fn build_address(connection_number: u32) -> Result<bool, Refused> {
             } else {
                 &NET.sp_tcpip
             })
-            .addr() as u32,
+            .addr(),
         ))
     })?;
     match provider {
         Provider::Ipx => add_address_element(
-            NET.aid_service_provider.addr() as u32,
+            NET.aid_service_provider.addr(),
             address::PROVIDER_SIZE,
-            NET.sp_ipx.addr() as u32,
+            NET.sp_ipx.addr(),
         ),
         Provider::TcpIp => {
             add_address_element(
-                NET.aid_service_provider.addr() as u32,
+                NET.aid_service_provider.addr(),
                 address::PROVIDER_SIZE,
-                NET.sp_tcpip.addr() as u32,
+                NET.sp_tcpip.addr(),
             );
             let length = {
                 crate::strings::text_length::text_length(crate::pointers::host(
-                    NET.host_address.addr() as u32,
+                    NET.host_address.addr(),
                 ) as *const u8)
             }?;
             add_address_element(
-                NET.aid_inet.addr() as u32,
+                NET.aid_inet.addr(),
                 address::host_address_size(length),
-                NET.host_address.addr() as u32,
+                NET.host_address.addr(),
             );
             if address::has_port(NET.port.get()) {
                 add_address_element(
-                    NET.aid_inet_port.addr() as u32,
+                    NET.aid_inet_port.addr(),
                     address::PORT_SIZE,
-                    NET.port.addr() as u32,
+                    NET.port.addr(),
                 );
             }
         }
         Provider::Other => add_address_element(
-            NET.aid_service_provider.addr() as u32,
+            NET.aid_service_provider.addr(),
             address::PROVIDER_SIZE,
             guid,
         ),
@@ -91,10 +91,10 @@ pub fn build_address(connection_number: u32) -> Result<bool, Refused> {
             &NET.lobby,
             CREATE_COMPOUND_ADDRESS,
             &[
-                NET.element_table.addr() as u32,
+                NET.element_table.addr(),
                 NET.elements.get(),
                 at,
-                NET.address_size.addr() as u32,
+                NET.address_size.addr(),
             ],
         )
     };

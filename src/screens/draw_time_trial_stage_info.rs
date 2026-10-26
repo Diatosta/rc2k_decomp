@@ -49,7 +49,7 @@ pub unsafe fn draw_time_trial_stage_info(canvas: &mut dyn Canvas) -> Result<bool
         };
         label(
             canvas,
-            table_dword_at(GROUP_TITLES_RVA.addr(), sel.group)?,
+            table_dword_at(GROUP_TITLES_RVA.addr() as usize, sel.group)?,
             TITLE_FONT,
             TITLE_X,
             GROUP_TITLE_Y,

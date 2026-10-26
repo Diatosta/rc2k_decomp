@@ -30,8 +30,8 @@ use rc2k_core::install::edits::{self, EDITING, EditKey};
 /// The font of an edit record's kind.
 pub fn edit_font(record: u32) -> u32 {
     let kind = rb(record + 4) as u32;
-    let font = rb(INSTALLER_PAGES.kind_fonts.addr() as u32 + 5 + 8 * kind) as u32;
-    rd(crate::session::address_of(&INSTALLER_PAGES.fonts) as u32 + 4 * font)
+    let font = rb(INSTALLER_PAGES.kind_fonts.addr() + 5 + 8 * kind) as u32;
+    rd(crate::session::address_of(&INSTALLER_PAGES.fonts) + 4 * font)
 }
 
 fn past_nul(mut at: u32) -> u32 {
@@ -69,7 +69,7 @@ pub fn edit_key(key: u32, item: u32) -> Result<(u32, bool), Refused> {
         match EditKey::of(key as u8) {
             EditKey::Escape => {
                 wb(record, rb(record) & !EDITING);
-                let backup = INSTALLER_PATHS.script_path.addr() as u32;
+                let backup = INSTALLER_PATHS.script_path.addr();
                 for n in 0..most + 2 {
                     wb(text + n, rb(backup + n));
                 }
@@ -100,7 +100,7 @@ pub fn edit_key(key: u32, item: u32) -> Result<(u32, bool), Refused> {
                 if swap {
                     KEYBOARD_FILE
                         .layout
-                        .set(KEYBOARD_FILE.layouts[0].dead_keys.addr() as u32);
+                        .set(KEYBOARD_FILE.layouts[0].dead_keys.addr());
                 }
                 let out = crate::input::key_to_char::key_to_char(key);
                 if swap {

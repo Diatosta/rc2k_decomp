@@ -32,7 +32,7 @@ pub static PNG_SETTING: Dword = Dword::new(0);
 
 /// Where the setting is (`moved::MOVED`'s home for IDA 0x51B97C).
 pub fn png_setting_home() -> usize {
-    PNG_SETTING.addr()
+    PNG_SETTING.addr() as usize
 }
 
 // ---- Rust version ----
@@ -75,6 +75,9 @@ mod block_tests {
             PNG_SETTING_START,
             PNG_SETTING_START + 4,
         );
-        assert_eq!(crate::moved::place(PNG_SETTING_START), PNG_SETTING.addr());
+        assert_eq!(
+            crate::moved::place(PNG_SETTING_START),
+            PNG_SETTING.addr() as usize
+        );
     }
 }

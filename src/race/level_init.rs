@@ -36,25 +36,22 @@ pub struct Vars {
 
 impl Vars {
     pub fn game() -> Self {
-        let _a = |v: usize| game_addr(rva(v)) as u32;
+        let _a = |v: usize| game_addr(rva(v));
         Self {
-            course_info: (COURSE_LISTS.course_info.addr() as u32),
-            course_memory: (COURSE_LISTS.course_memory.addr() as u32),
-            first_part: (COURSE_LISTS.first_part.addr() as u32),
-            list_total: (COURSE_LISTS.course_bytes_total.addr() as u32),
-            texture_kinds: (STAGE_PREFS.texture_kinds[0].addr() as u32),
-            texture_infos: crate::scene::polygon::texture_infos_addr() as u32,
-            checkpoint_kinds: (RACE_VARS.checkpoint_count.addr() as u32),
-            checkpoint_count: (RACE_VARS.last_checkpoint.addr() as u32),
-            checkpoint_table: crate::race::checkpoints_store::CHECKPOINTS.checkpoint_faces[0].addr()
-                as u32,
-            checkpoint_records: (COURSE.course_faces.addr() as u32),
-            checkpoints: (SPLIT_TABLES.checkpoints[0].addr() as u32),
-            checkpoints_found: (SPLIT_TABLES.split_colour_count.addr() as u32),
-            refresh: [
-                (LEVEL_GRID.grid_x.addr() as u32),
-                (LEVEL_GRID.grid_z.addr() as u32),
-            ],
+            course_info: (COURSE_LISTS.course_info.addr()),
+            course_memory: (COURSE_LISTS.course_memory.addr()),
+            first_part: (COURSE_LISTS.first_part.addr()),
+            list_total: (COURSE_LISTS.course_bytes_total.addr()),
+            texture_kinds: (STAGE_PREFS.texture_kinds[0].addr()),
+            texture_infos: crate::scene::polygon::texture_infos_addr(),
+            checkpoint_kinds: (RACE_VARS.checkpoint_count.addr()),
+            checkpoint_count: (RACE_VARS.last_checkpoint.addr()),
+            checkpoint_table: crate::race::checkpoints_store::CHECKPOINTS.checkpoint_faces[0]
+                .addr(),
+            checkpoint_records: (COURSE.course_faces.addr()),
+            checkpoints: (SPLIT_TABLES.checkpoints[0].addr()),
+            checkpoints_found: (SPLIT_TABLES.split_colour_count.addr()),
+            refresh: [(LEVEL_GRID.grid_x.addr()), (LEVEL_GRID.grid_z.addr())],
         }
     }
 }
@@ -65,15 +62,15 @@ const INFO_PART: u32 = 0x40_0000;
 pub fn number_places() -> [usize; 9] {
     let p = &crate::race::level_paths_store::LEVEL_PATHS;
     [
-        p.edit_path.addr() + 0xD,
-        p.cdat_src.addr() + 0xD,
-        p.cdat_files.addr() + 0x12,
-        p.cdat_src_2.addr() + 0xD,
-        p.localdat_src.addr() + 0xD,
-        p.localdat_files.addr() + 0x12,
-        FILE_NUMBERS.text_addr(texts::NUMBER_PLACE_A),
-        FILE_NUMBERS.text_addr(texts::NUMBER_PLACE_B),
-        FILE_NUMBERS.text_addr(texts::NUMBER_PLACE_C),
+        (p.edit_path.addr() + 0xD) as usize,
+        (p.cdat_src.addr() + 0xD) as usize,
+        (p.cdat_files.addr() + 0x12) as usize,
+        (p.cdat_src_2.addr() + 0xD) as usize,
+        (p.localdat_src.addr() + 0xD) as usize,
+        (p.localdat_files.addr() + 0x12) as usize,
+        FILE_NUMBERS.text_addr(texts::NUMBER_PLACE_A) as usize,
+        FILE_NUMBERS.text_addr(texts::NUMBER_PLACE_B) as usize,
+        FILE_NUMBERS.text_addr(texts::NUMBER_PLACE_C) as usize,
     ]
 }
 const TEXTURES: u32 = 0x100;
@@ -140,17 +137,17 @@ pub fn load_texture_info(v: &Vars) -> Result<(), Refused> {
         return Err(BadInput("no course memory: the original reads into 0").into());
     }
     read(
-        FILE_NUMBERS.text_addr(texts::TEXTURE_INFO_A) as u32,
+        FILE_NUMBERS.text_addr(texts::TEXTURE_INFO_A),
         info,
         0x1F_4000,
     )?;
     read(
-        FILE_NUMBERS.text_addr(texts::MARK_INFO) as u32,
+        FILE_NUMBERS.text_addr(texts::MARK_INFO),
         info + 0x1C_2000,
         0x8000,
     )?;
     read(
-        FILE_NUMBERS.text_addr(texts::TEXTURE_INFO_B) as u32,
+        FILE_NUMBERS.text_addr(texts::TEXTURE_INFO_B),
         info + 0x1F_4000,
         0x1F_4000,
     )?;
@@ -174,8 +171,8 @@ pub fn set_course_number(eax: u32) -> Result<(), BadInput> {
 /// 0x637660.
 pub fn load_error_list() -> Result<(), Refused> {
     read(
-        FILE_NUMBERS.text_addr(texts::ERROR_LIST_PATH) as u32,
-        crate::race::error_list_store::ERROR_LIST.list.addr() as u32,
+        FILE_NUMBERS.text_addr(texts::ERROR_LIST_PATH),
+        crate::race::error_list_store::ERROR_LIST.list.addr(),
         0x2000,
     )
 }

@@ -104,21 +104,21 @@ pub fn set_light_direction() {
     set_turn_x((OBJECT_WORK.light_turns[1].bits() << 8).wrapping_neg());
     set_turn_y((OBJECT_WORK.light_turns[0].bits() << 8).wrapping_neg());
     multiply_matrices(
-        MATRICES.turn_x_matrix[0].addr(),
-        MATRICES.turn_y_matrix[0].addr(),
-        MATRICES.turned_matrix[0].addr(),
+        MATRICES.turn_x_matrix[0].addr() as usize,
+        MATRICES.turn_y_matrix[0].addr() as usize,
+        MATRICES.turned_matrix[0].addr() as usize,
     );
     multiply_matrices(
-        MATRICES.turned_matrix[0].addr(),
-        MATRICES.view_turn_matrix[0].addr(),
-        MATRICES.lit_matrix[0].addr(),
+        MATRICES.turned_matrix[0].addr() as usize,
+        MATRICES.view_turn_matrix[0].addr() as usize,
+        MATRICES.lit_matrix[0].addr() as usize,
     );
     // `fld1; fldz; fldz; call scene::rotate_point`, the results popped in turn.
     let ahead = [0i32, 0, 1];
     rotate(
         ahead.as_ptr(),
-        crate::pointers::host_at(MATRICES.lit_matrix[0].addr()) as *const u32,
-        crate::pointers::host_at(DRAW.light_direction[0].addr() - 0x10) as *mut u32,
+        crate::pointers::host(MATRICES.lit_matrix[0].addr()) as *const u32,
+        crate::pointers::host_at((DRAW.light_direction[0].addr() - 0x10) as usize) as *mut u32,
     );
 }
 
@@ -131,9 +131,9 @@ pub unsafe fn make_object_matrix() {
         let place: [u32; 3] = crate::session::read_bits(&OBJECT_WORK.place);
         set_place(place);
         multiply_matrices(
-            MATRICES.turn_y_matrix[0].addr(),
-            MATRICES.turn_x_matrix[0].addr(),
-            MATRICES.turned_matrix[0].addr(),
+            MATRICES.turn_y_matrix[0].addr() as usize,
+            MATRICES.turn_x_matrix[0].addr() as usize,
+            MATRICES.turned_matrix[0].addr() as usize,
         );
         let size: u32 = OBJECT_WORK.size.bits();
         let factor = x87::int_over_16(size as i32);
@@ -143,9 +143,9 @@ pub unsafe fn make_object_matrix() {
             cell.set_bits(x87::mul(cell.bits(), factor));
         }
         copy_matrix_with_place(
-            MATRICES.turned_matrix[0].addr(),
-            MATRICES.placed_matrix[0].addr(),
-            MATRICES.made_object_matrix[0].addr(),
+            MATRICES.turned_matrix[0].addr() as usize,
+            MATRICES.placed_matrix[0].addr() as usize,
+            MATRICES.made_object_matrix[0].addr() as usize,
         );
     }
 }

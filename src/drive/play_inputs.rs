@@ -25,7 +25,7 @@ pub fn play_inputs() -> Result<(), BadInput> {
     }
     let esi = tape_offset(REPLAY_FRAMES.step_frame.get(), car);
     let at = |o: u32| {
-        (REPLAY_WORK.replay_tape[0].addr() as u32)
+        (REPLAY_WORK.replay_tape[0].addr())
             .wrapping_add(esi)
             .wrapping_add(o)
     };

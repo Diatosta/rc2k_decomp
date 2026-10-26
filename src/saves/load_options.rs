@@ -41,7 +41,7 @@ pub static PATH: crate::session::Bytes<12> = crate::session::Bytes::new(*b"var\\
 
 /// Where the name is (`moved::MOVED`'s home for IDA 0x5295D8).
 pub fn path_home() -> usize {
-    PATH.addr()
+    PATH.addr() as usize
 }
 
 #[cfg(test)]
@@ -51,7 +51,7 @@ mod path_tests {
     #[test]
     fn first_values_are_the_games() {
         crate::gfx::first_values_are_the_games(&PATH, PATH_START, PATH_START + 12);
-        assert_eq!(crate::moved::place(PATH_START), PATH.addr());
+        assert_eq!(crate::moved::place(PATH_START), PATH.addr() as usize);
     }
 }
 
@@ -151,7 +151,7 @@ pub struct Places<'a> {
 /// `saves::load_options` (see the header).
 pub fn load_options(path: *const u8, places: &mut Places) -> Result<bool, Refused> {
     places.loaded.set(0);
-    let file = GamePtr::new(crate::files::scratch::SCRATCH.buffer.addr() as u32);
+    let file = GamePtr::new(crate::files::scratch::SCRATCH.buffer.addr());
     let read = read_file(path, crate::pointers::host(file.addr()), TEXT_ROOM + 1, 0)?;
     use rc2k_core::saves::kept;
     let block = file.read_bytes(TEXT_ROOM as usize + 1, "the options file")?;
@@ -177,10 +177,10 @@ pub fn load_options(path: *const u8, places: &mut Places) -> Result<bool, Refuse
 
 pub fn load_game_options() -> Result<bool, Refused> {
     load_options(
-        crate::pointers::host_at(PATH.addr()) as *const u8,
+        crate::pointers::host(PATH.addr()) as *const u8,
         &mut Places {
             loaded: &LOOP_FLAGS.options_loaded,
-            piece: &|n| GamePtr::new(crate::moved::place(OPTIONS[n].0 as usize) as u32),
+            piece: &|n| GamePtr::new((crate::moved::place(OPTIONS[n].0 as usize)) as u32),
             rebuild_car_lists: &mut || rebuild_car_lists(),
         },
     )

@@ -90,7 +90,7 @@ pub fn find_farthest_pairs() -> Result<(), Refused> {
         }
         for (list, n) in lists.into_iter().zip(0..) {
             let faces = crate::pointers::game_address(list.faces.as_ptr());
-            let points = turned(n).addr() as u32;
+            let points = turned(n).addr();
             let count = (list.count.get() as i32).max(0) as u32;
             let mut farthest = 0i32;
             for j in (0..count).rev() {
@@ -153,14 +153,14 @@ pub fn turn_shape_points(a: u32, b: u32) -> Result<(), Refused> {
     }
     for n in 0..2 {
         transform(
-            set.turned(n).addr() as u32,
-            turned(n).addr() as u32,
+            set.turned(n).addr(),
+            turned(n).addr(),
             set.count(n).get(),
             crate::pointers::game_address(set.matrix(n).as_ptr()),
         )?;
     }
     for n in 0..2 {
-        let turned = turned(n).addr() as u32;
+        let turned = turned(n).addr();
         for k in (0..(set.count(n).get() as i32).max(0) as u32).rev() {
             let target = set.ids(n)[k as usize].get();
             let point = turned + 12 * k;
@@ -345,7 +345,7 @@ pub fn make_shape_set(object: u32) -> Result<(), Refused> {
     }
     for (list, n) in lists.into_iter().zip(0..) {
         let ids = crate::pointers::game_address(list.ids.as_ptr());
-        let turned = turned(n).addr() as u32;
+        let turned = turned(n).addr();
         for k in (0..list.count.get()).rev() {
             let from = get(ids + 4 * k)?;
             for c in 0..3 {
@@ -354,7 +354,7 @@ pub fn make_shape_set(object: u32) -> Result<(), Refused> {
         }
     }
     for (list, n) in lists.into_iter().zip(0..) {
-        let turned = turned(n).addr() as u32;
+        let turned = turned(n).addr();
         let mut lowest = 0x7FFF_FFFF;
         for k in (0..list.count.get()).rev() {
             let p = turned + k * 12;
@@ -367,7 +367,7 @@ pub fn make_shape_set(object: u32) -> Result<(), Refused> {
         }
     }
     for (list, n) in lists.into_iter().zip(0..) {
-        let turned = turned(n).addr() as u32;
+        let turned = turned(n).addr();
         for k in (0..list.count.get()).rev() {
             let p = turned + k * 12;
             let d = |c: u32| -> Result<_, Refused> {
@@ -384,7 +384,7 @@ pub fn make_shape_set(object: u32) -> Result<(), Refused> {
         let mut angle = extended(steps[6 + n]);
         angle[9] ^= 0x80;
         turn_matrix3(Axis::X, turn_x, angle)?;
-        let turned = turned(n).addr() as u32;
+        let turned = turned(n).addr();
         crate::marks::splines::transform(turned, turned, MOST_POINTS, turn_x)?;
     }
     find_farthest_pairs()?;
@@ -487,7 +487,7 @@ impl ShapeInputs {
     pub const LEN: usize = 0x3C;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        crate::pointers::host_number(&SHAPE_INPUTS as *const ShapeInputs)
+        crate::pointers::game_address(&SHAPE_INPUTS as *const ShapeInputs) as usize
     }
 }
 
@@ -718,7 +718,7 @@ impl ShapeSetTuning {
     pub const LEN: usize = 0x270;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        crate::pointers::host_number(&SHAPE_SET_TUNING as *const ShapeSetTuning)
+        crate::pointers::game_address(&SHAPE_SET_TUNING as *const ShapeSetTuning) as usize
     }
 }
 

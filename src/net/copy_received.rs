@@ -30,7 +30,7 @@ pub fn copy_received() -> Result<(), Refused> {
     let mut player = 0u32;
     loop {
         // Converted: `rc2k_core::net::inbox::hand_over`, on the inbox and its copy.
-        let at = GamePtr::new(NET.player_block(player).inbox_addr() as u32);
+        let at = GamePtr::new(NET.player_block(player).inbox_addr());
         let mut both = at.read_bytes(2 * inbox::COPIED, "a player's inbox")?;
         inbox::hand_over(&mut both);
         at.write_bytes(&both, "a player's inbox")?;

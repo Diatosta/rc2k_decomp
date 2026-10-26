@@ -27,7 +27,7 @@ impl core::ops::Deref for InBuffers {
     fn deref(&self) -> &EngineTables {
         // SAFETY: the block lives as long as the program and the piece is aligned to 4 (the
         // test checks); every field is an atomic or a cell.
-        unsafe { &*(crate::pointers::host_at(piece_addr()) as *const EngineTables) }
+        unsafe { &*(crate::pointers::host(piece_addr()) as *const EngineTables) }
     }
 }
 
@@ -38,8 +38,9 @@ pub static ENGINE_TABLES: InBuffers = InBuffers;
 pub fn sine(n: usize) -> &'static Float {
     // SAFETY: the piece is one block of cells; the address is the original's own.
     unsafe {
-        &*(crate::pointers::host_at(ENGINE_TABLES.sines[0].addr().wrapping_add(4 * n))
-            as *const Float)
+        &*(crate::pointers::host_at(
+            (ENGINE_TABLES.sines[0].addr().wrapping_add((4 * n) as u32)) as usize,
+        ) as *const Float)
     }
 }
 
@@ -56,8 +57,8 @@ pub const END: usize = 0xA8BB54;
 const _: () = assert!(END - START == core::mem::size_of::<EngineTables>());
 
 /// Where IDA 0xA23AE4 is now.
-pub fn piece_addr() -> usize {
-    crate::moved::place(START)
+pub fn piece_addr() -> u32 {
+    crate::moved::place(START) as u32
 }
 
 #[cfg(test)]
@@ -70,14 +71,14 @@ mod tests {
         assert_eq!(piece_addr() % 4, 0);
         assert_eq!(
             crate::moved::place(END - 1),
-            piece_addr() + (END - START) - 1
+            (piece_addr() + (END - START) as u32 - 1) as usize
         );
         assert_eq!(offset_of!(EngineTables, arctangents), 0xA28AE4 - START);
         assert_eq!(offset_of!(EngineTables, noise_bytes), 0xA2AAE4 - START);
         assert_eq!(offset_of!(EngineTables, object_file), 0xA2BB54 - START);
         assert_eq!(offset_of!(EngineTables, shuffled_words), 0xA6BB54 - START);
         assert_eq!(
-            ENGINE_TABLES.sines[0x400].addr(),
+            ENGINE_TABLES.sines[0x400].addr() as usize,
             crate::moved::place(0xA24AE4)
         );
     }

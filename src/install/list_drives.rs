@@ -23,7 +23,7 @@ use crate::install::vars::INSTALLER_RUN;
 use rc2k_core::install::drives::{self, DriveMenu};
 
 pub fn list_drives() {
-    let drives = crate::session::address_of(&INSTALLER_RUN.drives) as u32;
+    let drives = crate::session::address_of(&INSTALLER_RUN.drives);
     let mut letter = INSTALLER_RUN.first_drive.get();
     loop {
         // Converted: `rc2k_core::install::drives` (`offered`, `LISTED`, `free`, `text`,
@@ -43,7 +43,7 @@ pub fn list_drives() {
         }
     }
     INSTALLER_RUN.drive_count.set(0);
-    let mut ebx = crate::install::store::DRIVE_ROWS.drive_rows.addr() as u32;
+    let mut ebx = crate::install::store::DRIVE_ROWS.drive_rows.addr();
     // 'a' .. 'y': the loop's `cmp ecx, 7Ah; jb` leaves 'z' out (the game's slip, section 16)
     for letter in drives::LISTED {
         let slot = drives + 8 * (letter - b'a') as u32;
@@ -70,11 +70,11 @@ pub fn list_drives() {
         ebx = row + 0x10;
     }
     let count = INSTALLER_RUN.drive_count.get();
-    let menu = match drives::menu(count) {
+    let menu = (match drives::menu(count) {
         DriveMenu::Eight => INSTALLER_PAGES.menu_8.addr(),
         DriveMenu::Sixteen => INSTALLER_PAGES.menu_16.addr(),
         DriveMenu::More => INSTALLER_PAGES.menu_more.addr(),
-    } as u32;
+    }) as u32;
     INSTALLER_PAGES.chosen_menu.set_u32(0, menu);
     wb(menu + 1, drives::items(count));
 }

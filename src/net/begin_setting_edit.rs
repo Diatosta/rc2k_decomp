@@ -20,18 +20,18 @@ pub fn begin_setting_edit() -> Result<(), crate::errors::Refused> {
     // Converted: `rc2k_core::net::editing` (`Setting`, `WIDTH`).
     let item = INSTALLER_PAGES.choice.get();
     let text = match Setting::of(item) {
-        Setting::Name => NET.machine_name.addr() as u32,
-        Setting::HostAddress => NET.host_address.addr() as u32,
+        Setting::Name => NET.machine_name.addr(),
+        Setting::HostAddress => NET.host_address.addr(),
         Setting::MostPlayers => {
-            let mut cursor = Cursor(INSTALLER_PATHS.path_a.addr() as u32);
+            let mut cursor = Cursor(INSTALLER_PATHS.path_a.addr());
             cursor.bytes(&crate::strings::format_u32::format_u32(
                 NET.most_players.get(),
                 0,
             ))?;
             cursor.nul()?;
-            INSTALLER_PATHS.path_a.addr() as u32
+            INSTALLER_PATHS.path_a.addr()
         }
         Setting::None => return Ok(()),
     };
-    crate::net::begin_edit::begin_edit(item, text, editing::WIDTH, PALETTE.addr() as u32)
+    crate::net::begin_edit::begin_edit(item, text, editing::WIDTH, PALETTE.addr())
 }

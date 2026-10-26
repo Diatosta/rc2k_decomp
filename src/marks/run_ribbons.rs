@@ -62,7 +62,7 @@ impl Colours257 {
     pub const LEN: usize = 0x404;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        crate::pointers::host_number(&COLOURS_257 as *const Colours257)
+        crate::pointers::game_address(&COLOURS_257 as *const Colours257) as usize
     }
 }
 
@@ -95,7 +95,7 @@ fn first_frame(e: u32) {
         crate::race::store::asm_base() as usize,
         e as usize,
         &CLOCK,
-        crate::pointers::host_number(&RING_KINDS as *const RingKinds),
+        crate::pointers::game_address(&RING_KINDS as *const RingKinds) as usize,
     )
 }
 
@@ -104,7 +104,7 @@ fn move_(e: u32) {
     move_x87(
         e as usize,
         &CLOCK,
-        crate::pointers::host_number(&RING_KINDS as *const RingKinds),
+        crate::pointers::game_address(&RING_KINDS as *const RingKinds) as usize,
     )
 }
 

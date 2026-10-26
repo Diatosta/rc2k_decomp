@@ -102,7 +102,7 @@ impl FaceWorld for GameFace {
     fn group_table(&self, group: u32) -> u32 {
         // The table is typed by its first dword only.
         self.0.read(
-            (DRAW_SWITCHES.group_table.addr() as u32).wrapping_add(group.wrapping_mul(4)),
+            (DRAW_SWITCHES.group_table.addr()).wrapping_add(group.wrapping_mul(4)),
             "the groups' table",
         )
     }
@@ -152,8 +152,8 @@ impl FaceWorld for GameFace {
     fn kind_byte(&self, kind: u32) -> u32 {
         let at = OBJECT_TABLES.car_mark_textures[0]
             .addr()
-            .wrapping_add((kind as usize).wrapping_mul(4));
-        self.0.read(at as u32, "the car marks' textures")
+            .wrapping_add(((kind as usize).wrapping_mul(4)) as u32);
+        self.0.read(at, "the car marks' textures")
     }
 }
 
@@ -199,9 +199,9 @@ pub fn list_object_face(face: usize) -> Result<(), Refused> {
     face_sort_key(face, count)?;
     // The room is 0x1000 entries but 0x400 lie before the next table (a slip, kept).
     let entry = crate::scene::object_slots_store::OBJECT_SLOTS.listed_faces[0].addr()
-        + listed as usize * 0x10;
+        + (listed as usize * 0x10) as u32;
     let key = listed_key(bytes, DRAW.face_sort_key.bits());
-    GamePtr::new(entry as u32).write(
+    GamePtr::new(entry).write(
         [
             RACE_VARS.face_number.bits(),
             key,

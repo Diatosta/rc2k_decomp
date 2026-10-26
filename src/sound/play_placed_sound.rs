@@ -35,8 +35,8 @@ use rc2k_core::sound::placed::{self, MODE_3D};
 fn product3_to_int(a: u32, b: u32, c: u32) -> u32 {
     let (v, mut out) = ([a, b, c], 0u32);
     x87_1(
-        crate::pointers::host_number(v.as_ptr()),
-        crate::pointers::host_number(&raw mut out),
+        (crate::pointers::game_address(v.as_ptr())) as usize,
+        crate::pointers::game_address(&raw mut out) as usize,
     );
     out
 }
@@ -45,8 +45,8 @@ fn product3_to_int(a: u32, b: u32, c: u32) -> u32 {
 pub fn product_to_int(a: u32, b: u32) -> u32 {
     let (v, mut out) = ([a, b], 0u32);
     x87_2(
-        crate::pointers::host_number(v.as_ptr()),
-        crate::pointers::host_number(&raw mut out),
+        (crate::pointers::game_address(v.as_ptr())) as usize,
+        crate::pointers::game_address(&raw mut out) as usize,
     );
     out
 }
@@ -55,8 +55,8 @@ pub fn product_to_int(a: u32, b: u32) -> u32 {
 fn to_int(a: u32) -> u32 {
     let mut out = 0u32;
     x87_3(
-        crate::pointers::host_number(&raw const a),
-        crate::pointers::host_number(&raw mut out),
+        crate::pointers::game_address(&raw const a) as usize,
+        crate::pointers::game_address(&raw mut out) as usize,
     );
     out
 }
@@ -66,8 +66,8 @@ fn to_int(a: u32) -> u32 {
 fn angle_and_place(y: u32, x: u32, per_angle: u32, centre: u32) -> (u32, u32) {
     let (v, mut out) = ([y, x, per_angle, centre], [0u32; 2]);
     x87_4(
-        crate::pointers::host_number(v.as_ptr()),
-        crate::pointers::host_number(out.as_mut_ptr()),
+        (crate::pointers::game_address(v.as_ptr())) as usize,
+        (crate::pointers::game_address(out.as_mut_ptr())) as usize,
     );
     (out[0], out[1])
 }
@@ -108,7 +108,7 @@ pub fn play_placed_sound(request: u32, mode: u32) -> Result<(), BadInput> {
         put(6, angle)?;
         put(7, place)?;
         let place = placed::place(place, get(3)?, angle, mode);
-        (ebx, ecx, edi, ebp) = (volume, place, record.addr() as u32, 0);
+        (ebx, ecx, edi, ebp) = (volume, place, record.addr(), 0);
     } else {
         (ebx, ecx, edi, ebp) = (to_int(get(2)?), get(3)?, get(4)?, get(5)?);
     }

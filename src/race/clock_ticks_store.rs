@@ -33,7 +33,7 @@ impl core::ops::Deref for InRaceBlock {
     fn deref(&self) -> &ClockTicks {
         // SAFETY: the race block lives as long as the program and is aligned to 4 (the
         // test checks); every field is an atomic or a cell, as the block's bytes were shared.
-        unsafe { &*(crate::pointers::host_at(piece_addr()) as *const ClockTicks) }
+        unsafe { &*(crate::pointers::host(piece_addr()) as *const ClockTicks) }
     }
 }
 
@@ -47,8 +47,8 @@ pub const END: usize = 0x5CC3C0;
 const _: () = assert!(END - START == core::mem::size_of::<ClockTicks>());
 
 /// Where IDA 0x5CC198 is now (in the race block).
-pub fn piece_addr() -> usize {
-    crate::race::store::home(START)
+pub fn piece_addr() -> u32 {
+    crate::race::store::home(START) as u32
 }
 
 #[cfg(test)]
@@ -65,7 +65,7 @@ mod tests {
         );
         assert_eq!(
             crate::moved::place(END - 1),
-            piece_addr() + (END - START) - 1
+            (piece_addr() + (END - START) as u32 - 1) as usize
         );
         assert_eq!(offset_of!(ClockTicks, unknown_text), 0x5CC198 - START);
         assert_eq!(offset_of!(ClockTicks, clock_a), 0x5CC3B4 - START);

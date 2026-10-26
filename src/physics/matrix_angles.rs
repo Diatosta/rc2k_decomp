@@ -32,10 +32,10 @@ pub struct AnglePlaces {
 impl AnglePlaces {
     pub fn game() -> Self {
         Self {
-            turned: COURSE_LISTS.turned_x.addr() as u32,
-            angles: COURSE_LISTS.car_pitch.addr() as u32,
-            scratch: DRAW.scratch.addr() as u32,
-            limit: NUMBERS.one.addr() as u32,
+            turned: COURSE_LISTS.turned_x.addr(),
+            angles: COURSE_LISTS.car_pitch.addr(),
+            scratch: DRAW.scratch.addr(),
+            limit: NUMBERS.one.addr(),
         }
     }
 }

@@ -67,7 +67,7 @@ pub fn shadow_angles() -> Result<(), Refused> {
         }
         let records = crate::race::shadow_skids_store::SHADOW_SKIDS
             .shadow_points
-            .addr() as u32;
+            .addr();
         let farthest: u32 = crate::race::shadow_skids_store::SHADOW_SKIDS.farthest.get();
         for k in 0..8 {
             let (a, b) = (get(records + 4 * k)?, get(farthest + 4 * k)?);
@@ -119,7 +119,7 @@ pub fn shadow_hull() -> Result<(), Refused> {
         }
         let base = crate::race::shadow_skids_store::SHADOW_SKIDS
             .shadow_points
-            .addr() as u32;
+            .addr();
         let at = |n: usize| GamePtr::new(base + 0x20 * n as u32);
         let mut records: Vec<Record> = Vec::new();
         for n in 0..hull_records(count) {
@@ -180,10 +180,10 @@ pub fn shadow_polygon() -> Result<(), Refused> {
             + 0xC0;
         let records = crate::race::shadow_skids_store::SHADOW_SKIDS
             .shadow_points
-            .addr() as u32;
+            .addr();
         let entries = crate::scene::polygon_store::POLYGON_WORK.entries[0]
             .point
-            .addr() as u32;
+            .addr();
         for k in 0..n {
             let (record, point) = (records + 0x20 * k, points.wrapping_add(0xC * k));
             put(point, get(record)?)?;
@@ -215,8 +215,8 @@ fn scene_point(n: u32) -> u32 {
 fn work_entry(n: u32) -> u32 {
     (crate::scene::polygon_store::POLYGON_WORK.entries[0]
         .point
-        .addr() as u32)
-        .wrapping_add(n.wrapping_mul(0x44))
+        .addr())
+    .wrapping_add(n.wrapping_mul(0x44))
 }
 
 /// `sub_457BE8`: whether scene point `n` is on the inner side of the edge from
@@ -339,8 +339,8 @@ fn clip_to_edge(from: u32, to: u32) -> Result<(), BadInput> {
         FRAME_WORK.shadow_corners[0].set(get(a)?);
         FRAME_WORK.shadow_corners[1].set(get(a + 8)?);
         let (list, old) = (
-            crate::scene::polygon_store::POLYGON_WORK.list[0].addr() as u32,
-            crate::scene::polygon_store::POLYGON_WORK.old_list[0].addr() as u32,
+            crate::scene::polygon_store::POLYGON_WORK.list[0].addr(),
+            crate::scene::polygon_store::POLYGON_WORK.old_list[0].addr(),
         );
         GamePtr::new(list).copy_to(GamePtr::new(old), 4 * count as usize, "the polygon list")?;
         put(old + 4 * count, get(list)?)?;
@@ -461,8 +461,8 @@ pub unsafe fn shadow_on_face() -> Result<(), Refused> {
             return Err(BadInput("a shadow list past 0x40").into());
         }
         DRAW.polygon_drawn.set(0u32);
-        let list = crate::scene::polygon_store::POLYGON_WORK.list[0].addr() as u32;
-        GamePtr::new(FRAME_WORK.shadow_list[0].addr() as u32).copy_to(
+        let list = crate::scene::polygon_store::POLYGON_WORK.list[0].addr();
+        GamePtr::new(FRAME_WORK.shadow_list[0].addr()).copy_to(
             GamePtr::new(list),
             4 * count as usize,
             "the shadow list",
@@ -491,7 +491,7 @@ pub unsafe fn shadow_on_face() -> Result<(), Refused> {
         crate::scene::project_polygon::project_polygon()?;
         crate::scene::fog_polygon::fog_polygon()?;
         DRAW.polygon_next_record
-            .set(crate::scene::polygon_store::POLYGON_WORK.record_pool[0].addr() as u32);
+            .set(crate::scene::polygon_store::POLYGON_WORK.record_pool[0].addr());
         let outside: u32 = DRAW.polygon_outside_count.get();
         if outside != 0 {
             if outside == DRAW.polygon_vertex_count.bits() {
@@ -626,7 +626,7 @@ pub unsafe fn shadow_points() -> Result<(), Refused> {
         if count == 0 || count > 0x40 {
             return Err(BadInput("no shadow corners or more than 0x40").into());
         }
-        let car = crate::physics::car_store::car_addr() as u32;
+        let car = crate::physics::car_store::car_addr();
         let inputs = [
             &GROUND_WORK.ground_x,
             &GROUND_WORK.ground_z,
@@ -661,7 +661,7 @@ pub unsafe fn shadow_points() -> Result<(), Refused> {
         let matrix = car + 0x840;
         let mut at = crate::race::shadow_skids_store::SHADOW_SKIDS
             .shadow_points
-            .addr() as u32;
+            .addr();
         for k in 0..count {
             let p = [
                 to_tbyte(get(car + 0xAF0 + 4 * k)?),
@@ -744,7 +744,7 @@ pub unsafe fn cast_car_shadow() -> Result<(), Refused> {
             .get();
         FRAME_WORK.shadow_list_count.set(n);
         for k in hull_list(n) {
-            put((FRAME_WORK.shadow_list[0].addr() as u32) + 4 * k, k)?;
+            put((FRAME_WORK.shadow_list[0].addr()) + 4 * k, k)?;
         }
         FRAME_WORK.shadow_texture.set(SHADOW_TEXTURE);
         shadow_faces()
@@ -777,7 +777,7 @@ pub unsafe fn cast_car_shadows() -> Result<(), Refused> {
             crate::drive::load_car::load_car()?;
             FRAME_WORK
                 .shadow_point_count
-                .set_bits(get((crate::physics::car_store::car_addr() as u32) + 0x260)?);
+                .set_bits(get(crate::physics::car_store::car_addr() + 0x260)?);
             if first_pass(RACE_VARS.settings_words[2].bits()) {
                 cast_car_shadow()?;
             }

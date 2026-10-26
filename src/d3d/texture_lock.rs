@@ -37,12 +37,13 @@ pub unsafe fn method(surface: u32, offset: u32, args: &[u32]) -> i32 {
         let f = get(table + offset);
         match args {
             [a] => {
-                let f: unsafe extern "system" fn(u32, u32) -> i32 = std::mem::transmute(f as usize);
+                let f: unsafe extern "system" fn(u32, u32) -> i32 =
+                    std::mem::transmute(crate::pointers::code(f));
                 f(surface, *a)
             }
             [a, b, c, d] => {
                 let f: unsafe extern "system" fn(u32, u32, u32, u32, u32) -> i32 =
-                    std::mem::transmute(f as usize);
+                    std::mem::transmute(crate::pointers::code(f));
                 f(surface, *a, *b, *c, *d)
             }
             _ => unreachable!("the two methods used here"),

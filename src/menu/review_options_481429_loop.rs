@@ -49,22 +49,22 @@ unsafe fn set_up_first(c: &mut Carried) -> Result<(), Refused> {
 }
 
 pub const SCREEN: Screen = Screen {
-    menu: || MENUS.review_options_481429.addr(),
+    menu: || MENUS.review_options_481429.addr() as usize,
     saved_item: || &SCREEN_ITEMS.current[slot::REVIEW_OPTIONS_481429],
     lists: &[
         List {
             pointer: || &SCREEN_FLOW.scene_list, // g_sceneList
-            table: || DRAW_LISTS.review_options_481429_scene.addr(),
+            table: || DRAW_LISTS.review_options_481429_scene.addr() as usize,
             run: false,
         },
         List {
             pointer: || &SCREEN_FLOW.draw_list, // g_drawList
-            table: || DRAW_LISTS.review_options_481429_draw.addr(),
+            table: || DRAW_LISTS.review_options_481429_draw.addr() as usize,
             run: false,
         },
         List {
             pointer: || &SCREEN_FLOW.overlay_list, // g_overlayList
-            table: || DRAW_LISTS.review_options_481429_overlay.addr(),
+            table: || DRAW_LISTS.review_options_481429_overlay.addr() as usize,
             run: false,
         },
     ],
@@ -77,9 +77,9 @@ pub const SCREEN: Screen = Screen {
     after_lists: &[],
     background: &[
         Step::ArgAddr(|| {
-            crate::menu::texts_store::MENU_TEXTS
+            (crate::menu::texts_store::MENU_TEXTS
                 .review_options_481429_picture
-                .addr()
+                .addr()) as usize
         }),
         Step::CallOrFatal(Callee::LoadBackground, 0x80712345),
     ],
@@ -98,7 +98,7 @@ pub const SCREEN: Screen = Screen {
     leave_at_once: None,
     next_frame_repeats_first: false,
     action_saved_item: Some(|| &SCREEN_ITEMS.current[slot::REVIEW_OPTIONS_48108E]),
-    action_menu: Some(|| MENUS.review_options_48108e.addr()),
+    action_menu: Some(|| MENUS.review_options_48108e.addr() as usize),
     no_quit_check: false,
     before_asking: &[],
     ask_unless: None,

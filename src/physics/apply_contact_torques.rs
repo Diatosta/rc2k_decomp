@@ -30,7 +30,7 @@ pub fn apply_contact_torques_with(
 pub unsafe fn apply_contact_torques() -> Result<(), Refused> {
     apply_contact_torques_with(
         PHYSICS.contact_step.get(),
-        crate::pointers::host_number(PHYSICS.contacts.as_ptr()) as u32,
+        crate::pointers::game_address(PHYSICS.contacts.as_ptr()),
         |first, count| unsafe { apply_torques(first, count) },
     )
 }

@@ -41,13 +41,13 @@ pub fn draw_setting_value(text: u32, item: u32, y: u32) -> Result<u32, Refused> 
             cursor.string(text);
             cursor.string_id(screens::CARET);
             cursor.nul()?;
-            TEXT_BUFFER.text.addr() as u32
+            TEXT_BUFFER.text.addr()
         }
         Value::Nothing => {
             let mut cursor = Cursor::text();
             cursor.string_id(screens::NOTHING);
             cursor.nul()?;
-            TEXT_BUFFER.text.addr() as u32
+            TEXT_BUFFER.text.addr()
         }
         Value::AsIs => text,
     };

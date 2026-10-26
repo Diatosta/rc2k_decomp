@@ -25,7 +25,7 @@ pub const ITEM_LEN: u32 = 0x30;
 pub fn expire_hexagons() -> Result<(), Refused> {
     use rc2k_core::marks::expiry;
     {
-        let base = HEX.items.addr() as u32;
+        let base = HEX.items.addr();
         for n in 0..ITEMS {
             let e = base + n * ITEM_LEN;
             if GamePtr::new(e).read::<u32>("a mark's field")? != 1 {

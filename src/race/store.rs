@@ -75,7 +75,7 @@ mod tests {
     fn asm_base_reaches_the_block() {
         let rva = crate::framework::rva(0x71A30C) as u32;
         assert_eq!(
-            asm_base().wrapping_add(rva) as usize,
+            asm_base().wrapping_add(rva),
             crate::framework::game_addr(rva as usize)
         );
     }

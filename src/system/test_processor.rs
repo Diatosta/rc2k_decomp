@@ -26,11 +26,11 @@
 //! `start` calls it directly (2026-10-23); the registers above are the original's, for
 //! reference.
 
+use crate::arch::{__cpuid, _rdtsc};
 use crate::errors::{BadInput, Refused};
 use crate::files::scratch::SCRATCH;
 use crate::pointers::GamePtr;
 use crate::session::MACHINE;
-use core::arch::x86::{__cpuid, _rdtsc};
 use rc2k_core::system::processor::{Var, test};
 use windows_sys::Win32::System::SystemInformation::GetTickCount;
 
@@ -40,6 +40,13 @@ use windows_sys::Win32::System::SystemInformation::GetTickCount;
 
 /// Whether toggling `bit` in the flags changes them (`pushf` .. `popf` .. `pushf`); the
 /// flags are put back.
+#[cfg(target_arch = "x86_64")]
+fn flag_toggles(_bit: u32) -> bool {
+    // Every 64-bit processor has CPUID and the alignment flag.
+    true
+}
+
+#[cfg(target_arch = "x86")]
 fn flag_toggles(bit: u32) -> bool {
     let changed: u32;
     unsafe {
@@ -111,7 +118,7 @@ impl Processor for Real {
 }
 
 /// Where each variable is.
-fn place(v: Var) -> usize {
+fn place(v: Var) -> u32 {
     let m = &MACHINE;
     match v {
         Var::Family => m.cpu_family.addr(),
@@ -139,7 +146,7 @@ pub fn test_processor(p: &dyn Processor) -> Result<(), Refused> {
         }
     };
     let mut put = |v: Var, value: u32| {
-        let at = GamePtr::new(place(v) as u32);
+        let at = GamePtr::new(place(v));
         let done = if v == Var::FpuWord {
             at.write(value as u16, "a processor test's variable")
         } else {
@@ -150,7 +157,7 @@ pub fn test_processor(p: &dyn Processor) -> Result<(), Refused> {
         }
     };
     let get = |v: Var| {
-        GamePtr::new(place(v) as u32)
+        GamePtr::new(place(v))
             .read::<u32>("a processor test's variable")
             .unwrap_or_else(|e| {
                 keep(e);

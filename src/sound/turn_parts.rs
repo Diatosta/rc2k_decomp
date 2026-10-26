@@ -29,7 +29,7 @@ pub fn put(request: u32, word: usize, value: u32) -> Result<(), crate::errors::B
 
 /// The request's address.
 pub fn request() -> u32 {
-    RACE_SOUND_SETS.request.addr() as u32
+    RACE_SOUND_SETS.request.addr()
 }
 
 pub use crate::sound::play_sound::play_sound as play;

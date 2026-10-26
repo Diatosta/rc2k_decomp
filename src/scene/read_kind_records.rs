@@ -51,7 +51,7 @@ const FILES: [KindFile; 4] = [
 
 fn records(file: &KindFile) -> Region {
     (
-        (crate::scene::polygon::materials_addr() + file.first_kind * MATERIAL_LEN) as u32,
+        (crate::scene::polygon::materials_addr() + (file.first_kind * MATERIAL_LEN) as u32),
         file.kinds * MATERIAL_LEN,
     )
 }
@@ -62,7 +62,7 @@ pub fn read_kind_records() -> Result<(), Refused> {
     for file in &FILES {
         let (to, room) = records(file);
         read_whole_file(
-            crate::pointers::host_at(FILE_NUMBERS.text_addr(file.path)),
+            crate::pointers::host(FILE_NUMBERS.text_addr(file.path)),
             crate::pointers::host(to),
             room as u32,
         )?;

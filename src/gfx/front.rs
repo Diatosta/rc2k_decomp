@@ -26,7 +26,7 @@ pub static SURFACES: Surfaces = Surfaces {
 
 /// Where the block is (`moved::MOVED`'s home for IDA 0x4F32B4).
 pub fn home() -> usize {
-    crate::pointers::host_number(&SURFACES as *const Surfaces)
+    crate::pointers::game_address(&SURFACES as *const Surfaces) as usize
 }
 
 #[cfg(test)]
@@ -40,7 +40,10 @@ mod tests {
 
     #[test]
     fn moved_knows_the_block() {
-        assert_eq!(crate::moved::place(START), SURFACES.front.addr());
-        assert_eq!(crate::moved::place(START + 4), SURFACES.back.addr());
+        assert_eq!(crate::moved::place(START), SURFACES.front.addr() as usize);
+        assert_eq!(
+            crate::moved::place(START + 4),
+            SURFACES.back.addr() as usize
+        );
     }
 }

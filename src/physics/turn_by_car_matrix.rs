@@ -37,5 +37,5 @@ pub unsafe fn turn_point_by(m: u32, v: u32) {
 
 /// The Rust version.
 pub unsafe fn turn_by_car_matrix(v: u32) {
-    unsafe { turn_point_by(CAR.crash_matrix[0].addr() as u32, v) }
+    unsafe { turn_point_by(CAR.crash_matrix[0].addr(), v) }
 }

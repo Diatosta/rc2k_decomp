@@ -17,11 +17,11 @@ use crate::physics::car_store::CAR;
 use crate::race::view_store::RACE_VIEW;
 use crate::scene::object_store::OBJECT_WORK;
 fn sort_list() -> u32 {
-    crate::scene::faces_store::FACES.sort_entries[0].addr() as u32
+    crate::scene::faces_store::FACES.sort_entries[0].addr()
 }
 
 fn depth_list() -> u32 {
-    crate::scene::faces_store::FACES.depth_entries[0].addr() as u32
+    crate::scene::faces_store::FACES.depth_entries[0].addr()
 }
 
 /// The Rust version (see the header).

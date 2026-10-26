@@ -158,7 +158,7 @@ pub fn triangle_rows(corners: [u32; 6]) -> Option<u32> {
 /// Refuses `triangles` runs or `rows` spans (`None`: away) past their room.
 pub fn spans_fit(triangles: u32, rows: Option<u32>) -> Result<(), Refused> {
     let runs: u32 = MASKS.runs.get();
-    let start = MASKS.run_table.addr() as u32;
+    let start = MASKS.run_table.addr();
     let end = start + 0x2000;
     if runs < start || runs as u64 + 16 * triangles as u64 > end as u64 {
         return Err(BadInput("mask runs past their table").into());

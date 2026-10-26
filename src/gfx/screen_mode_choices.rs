@@ -117,7 +117,7 @@ pub fn screen_mode_choices(try_choice: bool) -> Result<Flags, Refused> {
         if CHOICES.resolution.get() >= mc::PLACE_LIMIT {
             return Err(BadInput("a size's place far past the choices' list").into());
         }
-        let current = read(CHOICES.list.addr() as u32 + 16 * CHOICES.resolution.get() + 0xC)?;
+        let current = read(CHOICES.list.addr() + 16 * CHOICES.resolution.get() + 0xC)?;
         if try_choice {
             // The choice tried.
             let (third, place) = (CHOICES.buffering.get(), CHOICES.resolution.get());
@@ -126,7 +126,7 @@ pub fn screen_mode_choices(try_choice: bool) -> Result<Flags, Refused> {
             }
             let mode = mc::tried_mode(
                 MODES.kind_bits[kind as usize].get(),
-                read(CHOICES.list.addr() as u32 + 16 * place + 0xC)?,
+                read(CHOICES.list.addr() + 16 * place + 0xC)?,
                 MODES.third_bits[third as usize].get(),
             );
             let tried = crate::gfx::try_screen_mode::try_screen_mode(mode)?;

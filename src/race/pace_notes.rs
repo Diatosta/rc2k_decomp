@@ -122,7 +122,7 @@ impl std::ops::DerefMut for Machine {
 
 impl Machine {
     pub fn load(course: Course) -> Result<Self, BadInput> {
-        let at = game_addr(rva(IMAGE_START as usize)) as u32;
+        let at = game_addr(rva(IMAGE_START as usize));
         if let Ok(mut held) = REFUSED.lock() {
             *held = None;
         }
@@ -138,7 +138,7 @@ impl Machine {
     /// The slot and the tables written back.
     pub fn commit(&self) -> Result<(), BadInput> {
         PHYSICS.pace_slot.set_bits(self.slot);
-        GamePtr::new(game_addr(rva(IMAGE_START as usize)) as u32)
+        GamePtr::new(game_addr(rva(IMAGE_START as usize)))
             .write_bytes(&self.image, "the pace notes' tables")
     }
 

@@ -32,8 +32,7 @@ pub fn compare_split_times() -> Result<(), Refused> {
     let time = CAR.stage_time.get();
     LEAGUE.car_time.set(time);
     // Splits 16 .. 27 read past the sixteen rows (a slip of the original, kept).
-    let list =
-        (LEAGUE.rows[0].addr() as u32).wrapping_add(CAR.splits_recorded.get().wrapping_mul(0x28));
+    let list = (LEAGUE.rows[0].addr()).wrapping_add(CAR.splits_recorded.get().wrapping_mul(0x28));
     let kept: [u32; 10] = { get_list(list) };
     let c = compare_split(time, &kept, |c| LEAGUE.names[c].get());
     let f = c.figures;
@@ -51,8 +50,8 @@ pub fn compare_split_times() -> Result<(), Refused> {
     }
     let car = RACE_WORK.current_car.get();
     let times = match car {
-        0 => RACE_STATE.results.results[0].data.addr() as u32,
-        1 => RACE_STATE.results.results[1].data.addr() as u32,
+        0 => RACE_STATE.results.results[0].data.addr(),
+        1 => RACE_STATE.results.results[1].data.addr(),
         _ => return Ok(()),
     };
     crate::pointers::GamePtr::new(times + 4 * CAR.splits_recorded.get())

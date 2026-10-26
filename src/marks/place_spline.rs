@@ -27,7 +27,7 @@ const SPLINES: u32 = 8;
 
 /// The four records of spline `n`: A, B, C, D.
 fn records(n: u32) -> [u32; 4] {
-    [0, 1, 2, 3].map(|t| SPLINE_TABLES.table(t) as u32 + n * SPLINE_LEN)
+    [0, 1, 2, 3].map(|t| (SPLINE_TABLES.table(t)) as u32 + n * SPLINE_LEN)
 }
 
 fn get(a: u32) -> Result<u32, BadInput> {

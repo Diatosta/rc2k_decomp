@@ -188,7 +188,7 @@ pub fn share_sound_spots() -> Result<(), Refused> {
         let n: u32 = RACE_SOUND_SPOTS.sound_spot_count.bits();
         let bytes = rc2k_core::race::view::shared_spot_bytes(n)?;
         crate::sound::store::STAGE_SOUNDS.shared_count.set(n);
-        let from = RACE_SOUND_SPOTS.sound_spots[0].addr() as u32;
+        let from = RACE_SOUND_SPOTS.sound_spots[0].addr();
         let to =
             crate::pointers::game_address(crate::sound::store::STAGE_SOUNDS.shared_spots.as_ptr());
         GamePtr::new(from).copy_to(GamePtr::new(to), bytes as usize, "the sound spots")?;
@@ -225,10 +225,10 @@ pub fn clear_point_records_at(
 
 pub fn clear_point_records() -> Result<(), BadInput> {
     clear_point_records_at(
-        COURSE_LISTS.clear_count.addr() as u32,
-        DRAW_SWITCHES.use_sse.addr() as u32,
-        COURSE_LISTS.point_records.addr() as u32,
-        LIGHT_WORK.sse_fill[0].addr() as u32,
+        COURSE_LISTS.clear_count.addr(),
+        DRAW_SWITCHES.use_sse.addr(),
+        COURSE_LISTS.point_records.addr(),
+        LIGHT_WORK.sse_fill[0].addr(),
     )
 }
 
@@ -239,11 +239,11 @@ pub fn clear_point_records() -> Result<(), BadInput> {
 /// `byte_63DF5C`.
 pub fn object_table_places() -> [usize; 5] {
     [
-        crate::scene::polygon_store::POLYGON_WORK.texture_infos[0].words[8].addr(),
-        crate::scene::texture_places_store::TEXTURE_PLACES.place_slot[0].addr(),
-        crate::scene::object_slots_store::OBJECT_SLOTS.face_counts[0].addr(),
-        crate::scene::object_slots_store::OBJECT_SLOTS.first_face[0].addr(),
-        crate::scene::faces_store::FACES.faces[0].addr(),
+        crate::scene::polygon_store::POLYGON_WORK.texture_infos[0].words[8].addr() as usize,
+        crate::scene::texture_places_store::TEXTURE_PLACES.place_slot[0].addr() as usize,
+        crate::scene::object_slots_store::OBJECT_SLOTS.face_counts[0].addr() as usize,
+        crate::scene::object_slots_store::OBJECT_SLOTS.first_face[0].addr() as usize,
+        crate::scene::faces_store::FACES.faces[0].addr() as usize,
     ]
 }
 
@@ -406,8 +406,8 @@ pub fn wake_part_sounds() -> Result<(), Refused> {
             }
             if wake {
                 let object = crate::sound::store::SoundObject::at(o)?;
-                plan.push(object.slot_c.start.addr() as u32);
-                plan.push(object.new_revs.addr() as u32);
+                plan.push(object.slot_c.start.addr());
+                plan.push(object.new_revs.addr());
             }
         }
         for at in plan {
@@ -420,7 +420,7 @@ pub fn wake_part_sounds() -> Result<(), Refused> {
 /// `dword_604EC8[]`: the car at each place (from place 0); the table runs on from
 /// `unknown_88c` into `arcade_car_kinds`, and the place indexes it unchecked.
 fn car_by_place() -> u32 {
-    crate::race::tables_store::RACE_TABLES.unknown_88c.addr() as u32
+    crate::race::tables_store::RACE_TABLES.unknown_88c.addr()
 }
 
 /// `race::panel_neighbours` (0x45AD36): in mode 2 (`dword_62389C`), the first view's place
@@ -462,16 +462,16 @@ pub fn panel_neighbours() -> Result<(), Refused> {
         let back = neighbour_number(place == RACE_TABLES.arcade_cars.bits(), number);
         PANEL.view_a.back.set(back);
         car_label(
-            RACE_OVERLAY.label_behind[0].addr() as u32,
-            numbers(RACE_TABLES.arcade_car_numbers[0].addr())?,
+            RACE_OVERLAY.label_behind[0].addr(),
+            numbers(RACE_TABLES.arcade_car_numbers[0].addr() as usize)?,
             back,
         )?;
         PANEL.view_a.split2.set(get(a + 0x634)?);
         let front = neighbour_number(place == 1, get(ahead + 0x24)?);
         PANEL.view_a.front.set(front);
         car_label(
-            RACE_OVERLAY.label_ahead[0].addr() as u32,
-            numbers(RACE_TABLES.number_before_first.addr())?,
+            RACE_OVERLAY.label_ahead[0].addr(),
+            numbers(RACE_TABLES.number_before_first.addr() as usize)?,
             front,
         )?;
         PANEL.view_a.negated.set(get(a + 0x630)?.wrapping_neg());
@@ -596,7 +596,7 @@ pub fn both_countdown_lights() -> Result<(), BadInput> {
             countdown_lights(
                 &PANEL.lights[view],
                 RACE_VIEW.view_blocks[view].get(),
-                flag.addr() as u32,
+                flag.addr(),
             )?;
         }
     }
@@ -607,8 +607,8 @@ pub fn both_countdown_lights() -> Result<(), BadInput> {
 pub fn colour_buffers() -> [u32; 2] {
     // written by pointer (`split_colours`): absolute addresses
     [
-        RACE_OVERLAY.overlay_part_kinds_a[0].addr() as u32,
-        RACE_OVERLAY.overlay_part_kinds_b[0].addr() as u32,
+        RACE_OVERLAY.overlay_part_kinds_a[0].addr(),
+        RACE_OVERLAY.overlay_part_kinds_b[0].addr(),
     ]
 }
 
@@ -707,7 +707,7 @@ pub fn add_sort_entry(eax: u32, ebx: u32) -> Result<(), Refused> {
         }
         // Converted: `rc2k_core::race::frame::sort_entry`.
         let entry = rc2k_core::race::frame::sort_entry(eax, ebx);
-        let at = crate::scene::faces_store::FACES.sort_entries[0].addr() as u32 + 8 * n;
+        let at = crate::scene::faces_store::FACES.sort_entries[0].addr() + 8 * n;
         put(at, entry.first.unwrap_or(0))?;
         put(at + 4, ebx)?;
         RACE_VIEW.sort_entry_count.set_bits(n.wrapping_add(1));
@@ -782,7 +782,7 @@ pub fn face_hidden(esi: u32, eax: u32) -> Result<(u32, bool), Refused> {
     let view: u32 = CAR.camera_view.bits();
     // dword_606478[]: by camera view (read by address, unchecked as the original)
     let shows: u32 =
-        GamePtr::new((VIEW_VARS.view_hides[0].addr() as u32).wrapping_add(view.wrapping_mul(4)))
+        GamePtr::new((VIEW_VARS.view_hides[0].addr()).wrapping_add(view.wrapping_mul(4)))
             .read("the view hides")?;
     let hiding = if shows == 0 {
         FRAME_SWITCHES.other_way.bits()
@@ -834,7 +834,7 @@ pub fn face_depth(ebx: u32) -> Result<(), Refused> {
     let by = depth_by(kind, || {
         let object = trap.read::<u8>(face + 1, "a course face's object") as u32;
         trap.read::<u8>(
-            crate::scene::polygon_store::POLYGON_WORK.texture_infos[0].words[0].addr() as u32
+            crate::scene::polygon_store::POLYGON_WORK.texture_infos[0].words[0].addr()
                 + 0x2E
                 + (object << 6),
             "a texture info's mapping",
@@ -886,7 +886,7 @@ pub fn add_depth_entry(ebx: u32) -> Result<(), Refused> {
     rc2k_core::race::faces::depth_entry_room(n)?;
     face_depth(ebx)?;
     let key: u32 = RACE_VIEW.face_depth_key.bits();
-    let at = crate::scene::faces_store::FACES.depth_entries[0].addr() as u32 + 8 * n;
+    let at = crate::scene::faces_store::FACES.depth_entries[0].addr() + 8 * n;
     put(at, key)?;
     put(at + 4, ebx)?;
     RACE_VIEW.depth_entry_count.set_bits(n.wrapping_add(1));
@@ -923,7 +923,7 @@ pub fn course_grid() -> Result<(), Refused> {
         }
         LEVEL_GRID.grid_x.set_bits(gx);
         LEVEL_GRID.grid_z.set_bits(gz);
-        let grid = LEVEL_GRID.course_grid[0].addr() as u32;
+        let grid = LEVEL_GRID.course_grid[0].addr();
         for k in 0..GRID_SIDE * GRID_SIDE {
             put(grid + 4 * k, GRID_EMPTY)?;
         }
@@ -945,10 +945,10 @@ pub fn course_grid() -> Result<(), Refused> {
 /// `object_bytes`' outputs (byte tables, walked by pointer: absolute addresses).
 fn face_tables() -> [usize; 4] {
     [
-        LEVEL_GRID.face_table_a[0].addr(),
-        LEVEL_GRID.face_table_b[0].addr(),
-        LEVEL_GRID.face_table_c[0].addr(),
-        LEVEL_GRID.face_table_d[0].addr(),
+        LEVEL_GRID.face_table_a[0].addr() as usize,
+        LEVEL_GRID.face_table_b[0].addr() as usize,
+        LEVEL_GRID.face_table_c[0].addr() as usize,
+        LEVEL_GRID.face_table_d[0].addr() as usize,
     ]
 }
 
@@ -1083,12 +1083,12 @@ pub unsafe fn face_hide_mask() -> Result<(), Refused> {
 /// length is not below `dword_63F17C` (as a float, `dword_624020`).
 pub fn mark_far_cells() -> Result<(), BadInput> {
     use crate::math::x87_load::{below_or_unordered, float_hypot, scaled_abs_less_below};
-    let grid = LEVEL_GRID.course_grid[0].addr() as u32;
+    let grid = LEVEL_GRID.course_grid[0].addr();
     for k in 0..0x400 {
         put(grid + 4 * k, get(grid + 4 * k)? & 0x0FFF_FFFF)?;
     }
     let half: u32 = LEVEL_GRID.grid_half.bits();
-    let matrix = MATRICES.view_turn_matrix[0].addr() as u32;
+    let matrix = MATRICES.view_turn_matrix[0].addr();
     let two: u32 = NUMBERS.two.bits();
     let zero: u32 = NUMBERS.zero.bits();
     let point_five: u32 = NUMBERS.half.bits();
@@ -1161,7 +1161,7 @@ pub fn visible_records() -> Result<Vec<u32>, BadInput> {
     {
         // Converted: `rc2k_core::race::view::visible_records`.
         let records: u32 = COURSE.course_records.bits();
-        let grid = LEVEL_GRID.course_grid[0].addr() as u32;
+        let grid = LEVEL_GRID.course_grid[0].addr();
         let trap = Trap::new();
         let list = rc2k_core::race::view::visible_records(
             (0..0x400).map(|k| trap.read::<u32>(grid + 4 * k, "the course grid")),
@@ -1193,7 +1193,7 @@ pub fn car_light_modes() -> Result<(), Refused> {
             return Err(BadInput("more than eight race cars").into());
         }
         let view: u32 = RACE_VIEW.drawn_view.bits();
-        let shown = get((RACE_VIEW.view_cars[0].addr() as u32).wrapping_add(view.wrapping_mul(4)))?;
+        let shown = get((RACE_VIEW.view_cars[0].addr()).wrapping_add(view.wrapping_mul(4)))?;
         RACE_VIEW.shown_car.set_bits(shown);
         for n in 0..8 {
             put(block(n) + 0x6FC, 0)?;
@@ -1231,7 +1231,7 @@ pub fn car_light_modes() -> Result<(), Refused> {
 }
 /// `g_lamps`: 16 of 0x10 bytes, walked by pointer (absolute address).
 fn lamps() -> u32 {
-    LEVEL_GRID.lamps[0].addr() as u32
+    LEVEL_GRID.lamps[0].addr()
 }
 /// `race::add_lamp_entry` (0x4573FA): lamp ebx's point (`g_lamps` +0) through
 /// `g_viewMatrix` (the point into `dword_63501C` .. `dword_635024`, then x and y turned
@@ -1245,14 +1245,14 @@ fn add_lamp_entry(lamp: u32) -> Result<(), BadInput> {
         .wrapping_mul(12)
         .wrapping_add(COURSE.scene_points.bits());
     let place = [get(esi)?, get(esi + 4)?, get(esi + 8)?];
-    let turned = OBJECT_WORK.place[0].addr() as u32;
+    let turned = OBJECT_WORK.place[0].addr();
     for (k, &v) in place.iter().enumerate() {
         put(turned + 4 * k as u32, v)?;
     }
     let mut out = [0u32; 3];
     crate::math::x87_load::rotate_rounding_z(
         place.as_ptr() as *const i32,
-        crate::pointers::host_at(MATRICES.view_matrix[0].addr()) as *const u32,
+        crate::pointers::host(MATRICES.view_matrix[0].addr()) as *const u32,
         out.as_mut_ptr(),
     );
     put(turned, out[0])?;
@@ -1261,7 +1261,7 @@ fn add_lamp_entry(lamp: u32) -> Result<(), BadInput> {
     RACE_VIEW.face_depth_key.set_bits(key);
     let second = RACE_VIEW.lamp_count.bits().wrapping_add(0x300_0000);
     let n: u32 = RACE_VIEW.depth_entry_count.bits();
-    let at = crate::scene::faces_store::FACES.depth_entries[0].addr() as u32 + 8 * n;
+    let at = crate::scene::faces_store::FACES.depth_entries[0].addr() + 8 * n;
     put(at, key)?;
     put(at + 4, second)?;
     RACE_VIEW.depth_entry_count.set_bits(n.wrapping_add(1));
@@ -1438,7 +1438,7 @@ pub fn eax_environment() -> Result<(), BadInput> {
         ) {
             // `sub_45C84C`.
             let record =
-                get((LEVEL_GRID.course_grid[0].addr() as u32).wrapping_add(cell.wrapping_mul(4)))?;
+                get((LEVEL_GRID.course_grid[0].addr()).wrapping_add(cell.wrapping_mul(4)))?;
             if record >= NO_RECORD {
                 continue;
             }
@@ -1478,7 +1478,7 @@ fn car_light_on_point(b: u32) -> Result<(), BadInput> {
     if car_at(b)?.lights_on.bits() == 0 {
         return Ok(());
     }
-    let place = LIGHT_STATE.lit_place[0].addr() as u32;
+    let place = LIGHT_STATE.lit_place[0].addr();
     let d = [
         get(place)?.wrapping_sub(car_at(b)?.position[0].bits()),
         get(place + 4)?.wrapping_sub(car_at(b)?.position[1].bits()),
@@ -1490,7 +1490,7 @@ fn car_light_on_point(b: u32) -> Result<(), BadInput> {
         crate::pointers::host(b + 0x9CC) as *const u32,
         t.as_mut_ptr(),
     );
-    let turned = LIGHT_STATE.turned_light[0].addr() as u32;
+    let turned = LIGHT_STATE.turned_light[0].addr();
     for (k, &v) in t.iter().enumerate() {
         put(turned + 4 * k as u32, v)?;
     }
@@ -1532,7 +1532,7 @@ fn car_lights_on_point() -> Result<(), BadInput> {
             || RACE_VARS.run_kind.bits(),
             || {
                 trap.read::<u32>(
-                    (RACE_VIEW.view_cars[0].addr() as u32)
+                    (RACE_VIEW.view_cars[0].addr())
                         .wrapping_add(RACE_VIEW.drawn_view.bits().wrapping_mul(4)),
                     "the view cars",
                 )
@@ -1556,7 +1556,7 @@ fn lamp_lights_on_point() -> Result<(), BadInput> {
         if count == 0 {
             return Ok(());
         }
-        let place = LIGHT_STATE.lit_place[0].addr() as u32;
+        let place = LIGHT_STATE.lit_place[0].addr();
         for n in 0..count {
             let lamp = lamps() + (n << 4);
             let strength = get(lamp + 4)?;
@@ -1624,7 +1624,7 @@ pub fn light_colour_at() -> Result<(), Refused> {
 pub fn view_light() -> Result<(), Refused> {
     // Converted: `rc2k_core::race::lights::add_colours` (through `light_colour_at`'s).
     check_light_colour()?;
-    let car = CAR.position[0].addr() as u32;
+    let car = CAR.position[0].addr();
     LIGHT_STATE.lit_place[0].set_bits(get(car)?);
     LIGHT_STATE.lit_place[1].set(get(car + 4)?);
     LIGHT_STATE.lit_place[2].set(get(car + 8)?);
@@ -1676,7 +1676,7 @@ pub fn draw_distance_settings() {
 pub fn sample_noise(map: u32) -> Result<u32, BadInput> {
     // Converted: `rc2k_core::race::view::sample_noise`.
     {
-        let car = crate::physics::car_store::car_addr() as u32;
+        let car = crate::physics::car_store::car_addr();
         let (px, pz) = (get(car + 0x6A4)?, get(car + 0x6AC)?);
         let trap = Trap::new();
         let s = rc2k_core::race::view::sample_noise(
@@ -1685,7 +1685,7 @@ pub fn sample_noise(map: u32) -> Result<u32, BadInput> {
             pz,
         );
         trap.finish()?;
-        let out = LIGHT_STATE.noise_samples[0].addr() as u32;
+        let out = LIGHT_STATE.noise_samples[0].addr();
         for (k, &c) in s.corners.iter().enumerate() {
             put(out + 4 * k as u32, c)?;
         }
@@ -1714,7 +1714,7 @@ pub fn fog_table() -> Result<(), Refused> {
     let noise = sample_noise(
         crate::scene::engine_tables_store::ENGINE_TABLES
             .noise_bytes
-            .addr() as u32,
+            .addr(),
     )?;
     let _k = |a: usize| game_read::<u32>(rva(a));
     let fog = rc2k_core::race::view::fog_table(
@@ -1734,7 +1734,7 @@ pub fn fog_table() -> Result<(), Refused> {
     LIGHT_STATE.fog_near.set(fog.near);
     LIGHT_STATE.fog_far.set(fog.far);
     LIGHT_STATE.fog_table_length.set_bits(length);
-    let table = LIGHT_STATE.fog_table[0].addr() as u32;
+    let table = LIGHT_STATE.fog_table[0].addr();
     GamePtr::new(table).write_bytes(&fog.table, "the fog table")?;
     LIGHT_STATE.fog_next.set(fog.next);
     Ok(())
@@ -1776,7 +1776,7 @@ pub fn set_up_fog() -> Result<(), Refused> {
 /// both ways.
 pub fn place_view() -> Result<(), BadInput> {
     use crate::math::x87::from_int;
-    let place = VIEW_VARS.view_place[0].addr() as u32;
+    let place = VIEW_VARS.view_place[0].addr();
     put(place, COURSE.place_x.bits())?;
     put(place + 4, COURSE.place_y.bits())?;
     put(place + 8, COURSE.place_z.bits())?;
@@ -1786,7 +1786,7 @@ pub fn place_view() -> Result<(), BadInput> {
         }
     };
     if STAGE_PREFS.flat_depth.get() != 0 {
-        let at = CAR.camera_position[1].addr() as u32;
+        let at = CAR.camera_position[1].addr();
         put(at, get(at)?.wrapping_add(COURSE.flat_depth.bits()))?;
         VIEW_VARS.view_angles[0].set_bits(COURSE.place_heading.get());
         VIEW_VARS.view_angles[1].set(0x4000_0000u32);
@@ -1827,15 +1827,15 @@ pub unsafe fn sky_matrix() -> Result<(), BadInput> {
         OBJECT_WORK.place[1].set(height);
         matrix::set_place([0, height, 0]);
         matrix::copy_matrix_with_place(
-            MATRICES.turn_y_matrix[0].addr(),
-            MATRICES.placed_matrix[0].addr(),
-            MATRICES.turned_matrix[0].addr(),
+            MATRICES.turn_y_matrix[0].addr() as usize,
+            MATRICES.placed_matrix[0].addr() as usize,
+            MATRICES.turned_matrix[0].addr() as usize,
         );
         let size = DRAW.farthest_scaled.get() << 4;
         OBJECT_WORK.size.set(size);
         let scale = crate::math::x87::int_over_16(size as i32);
         DRAW.scratch.set_bits(scale);
-        let turned = MATRICES.turned_matrix[0].addr() as u32;
+        let turned = MATRICES.turned_matrix[0].addr();
         for k in 0..16 {
             put(
                 turned + 4 * k,
@@ -1843,9 +1843,9 @@ pub unsafe fn sky_matrix() -> Result<(), BadInput> {
             )?;
         }
         matrix::multiply_matrices(
-            MATRICES.turned_matrix[0].addr(),
-            MATRICES.view_turn_matrix[0].addr(),
-            MATRICES.made_object_matrix[0].addr(),
+            MATRICES.turned_matrix[0].addr() as usize,
+            MATRICES.view_turn_matrix[0].addr() as usize,
+            MATRICES.made_object_matrix[0].addr() as usize,
         );
     }
     Ok(())
@@ -1856,22 +1856,22 @@ pub unsafe fn sky_matrix() -> Result<(), BadInput> {
 /// the turn undone into `g_viewBackMatrix`.
 fn view_place_tail() -> Result<(), BadInput> {
     use crate::scene::{matrix, view_matrix};
-    let place = VIEW_VARS.view_place[0].addr() as u32;
+    let place = VIEW_VARS.view_place[0].addr();
     let p = [get(place)?, get(place + 4)?, get(place + 8)?].map(u32::wrapping_neg);
     matrix::set_place(p);
-    GamePtr::new((MATRICES.placed_matrix[0].addr()) as u32).copy_to(
-        GamePtr::new((MATRICES.view_place_matrix[0].addr()) as u32),
+    GamePtr::new(MATRICES.placed_matrix[0].addr()).copy_to(
+        GamePtr::new(MATRICES.view_place_matrix[0].addr()),
         0x40,
         "a face, record or matrix",
     )?;
     matrix::multiply_matrices(
-        MATRICES.placed_matrix[0].addr(),
-        MATRICES.view_turn_matrix[0].addr(),
-        MATRICES.view_matrix[0].addr(),
+        MATRICES.placed_matrix[0].addr() as usize,
+        MATRICES.view_turn_matrix[0].addr() as usize,
+        MATRICES.view_matrix[0].addr() as usize,
     );
     view_matrix::invert_turn(
-        MATRICES.view_turn_matrix[0].addr(),
-        MATRICES.view_back_matrix[0].addr(),
+        MATRICES.view_turn_matrix[0].addr() as usize,
+        MATRICES.view_back_matrix[0].addr() as usize,
     );
     Ok(())
 }
@@ -1898,8 +1898,8 @@ pub fn view_matrices() -> Result<(), BadInput> {
         MATRICES.lit_matrix[0].addr(),
     );
     if GROUND_WORK.view_mirrored.get() != 0 {
-        GamePtr::new((MATRICES.view_turn_copy[0].addr()) as u32).copy_to(
-            GamePtr::new(view_turn as u32),
+        GamePtr::new(MATRICES.view_turn_copy[0].addr()).copy_to(
+            GamePtr::new(view_turn),
             0x40,
             "a face, record or matrix",
         )?;
@@ -1908,10 +1908,10 @@ pub fn view_matrices() -> Result<(), BadInput> {
     }
     let view: u32 = CAR.camera_view.get();
     if view <= 3 {
-        invert_turn(CAR.crash_matrix[0].addr(), view_turn);
+        invert_turn(CAR.crash_matrix[0].addr() as usize, view_turn as usize);
     } else {
-        GamePtr::new((MATRICES.identity_matrix[0].addr()) as u32).copy_to(
-            GamePtr::new(view_turn as u32),
+        GamePtr::new(MATRICES.identity_matrix[0].addr()).copy_to(
+            GamePtr::new(view_turn),
             0x40,
             "a face, record or matrix",
         )?;
@@ -1928,9 +1928,9 @@ pub fn view_matrices() -> Result<(), BadInput> {
                 Axis::Z,
                 VIEW_VARS.view_angles[angles[2]].bits().wrapping_neg(),
             );
-            multiply_matrices(view_turn, turn_y, turned);
-            multiply_matrices(turned, turn_x, lit);
-            multiply_matrices(lit, turn_z, view_turn);
+            multiply_matrices(view_turn as usize, turn_y as usize, turned as usize);
+            multiply_matrices(turned as usize, turn_x as usize, lit as usize);
+            multiply_matrices(lit as usize, turn_z as usize, view_turn as usize);
         }
     }
     if view == 1 || view == 2 {
@@ -1962,12 +1962,8 @@ pub fn view_matrices() -> Result<(), BadInput> {
         ) << 4;
         DRAW.scratch.set_bits(angle);
         set_fine_turn(Axis::Z, angle);
-        multiply_matrices(view_turn, turn_z, turned);
-        GamePtr::new(turned as u32).copy_to(
-            GamePtr::new(view_turn as u32),
-            0x40,
-            "a face, record or matrix",
-        )?;
+        multiply_matrices(view_turn as usize, turn_z as usize, turned as usize);
+        GamePtr::new(turned).copy_to(GamePtr::new(view_turn), 0x40, "a face, record or matrix")?;
     }
     view_place_tail()?;
     Ok(())
@@ -1983,7 +1979,7 @@ pub fn view_matrices() -> Result<(), BadInput> {
 /// and its one caller, `race::draw_view_scene`, reads none it leaves.
 pub fn camera_view() -> Result<(), BadInput> {
     use crate::math::x87::from_int;
-    let car = |o: u32| get(crate::physics::car_store::car_addr() as u32 + o);
+    let car = |o: u32| get(crate::physics::car_store::car_addr() + o);
     VIEW_VARS.view_car_flag_b.set(car(0x6F0)?);
     VIEW_VARS.view_car_flag_a.set(car(0x69C)?);
     VIEW_VARS.view_car_stage.set(car(0x684)?);
@@ -2007,15 +2003,15 @@ pub fn camera_view() -> Result<(), BadInput> {
         [car(0x6A4)?, car(0x6A8)?, car(0x6AC)?]
     } else {
         crate::scene::matrix::multiply_matrices(
-            MATRICES.view_work[0].addr(),
-            CAR.crash_matrix[0].addr(),
-            MATRICES.turned_matrix[0].addr(),
+            MATRICES.view_work[0].addr() as usize,
+            CAR.crash_matrix[0].addr() as usize,
+            MATRICES.turned_matrix[0].addr() as usize,
         );
         crate::scene::view_matrix::invert_turn(
-            MATRICES.turned_matrix[0].addr(),
-            MATRICES.view_turn_copy[0].addr(),
+            MATRICES.turned_matrix[0].addr() as usize,
+            MATRICES.view_turn_copy[0].addr() as usize,
         );
-        let base = crate::physics::car_store::car_addr() as u32;
+        let base = crate::physics::car_store::car_addr();
         put(base + 0x6CC, car(0x134)?)?;
         put(base + 0x6D0, car(0x138)?.wrapping_add(0x8000))?;
         put(base + 0x6D4, car(0x13C)?)?;
@@ -2024,8 +2020,8 @@ pub fn camera_view() -> Result<(), BadInput> {
             .set_bits(VIEW_VARS.view_scale_kept.bits());
         [car(0x6CC)?, car(0x6D0)?, car(0x6D4)?]
     };
-    let base = crate::physics::car_store::car_addr() as u32;
-    let view = VIEW_VARS.view_place[0].addr() as u32;
+    let base = crate::physics::car_store::car_addr();
+    let view = VIEW_VARS.view_place[0].addr();
     for k in 0..3u32 {
         put(base + 0x734 + 4 * k, place[k as usize])?;
         put(view + 4 * k, place[k as usize])?;
@@ -2060,8 +2056,8 @@ pub unsafe fn draw_sky() -> Result<(), Refused> {
             return Ok(());
         }
         sky_matrix()?;
-        GamePtr::new((MATRICES.made_object_matrix[0].addr()) as u32).copy_to(
-            GamePtr::new((MATRICES.object_matrix_slots[0].addr()) as u32),
+        GamePtr::new(MATRICES.made_object_matrix[0].addr()).copy_to(
+            GamePtr::new(MATRICES.object_matrix_slots[0].addr()),
             0x40,
             "a face, record or matrix",
         )?;
@@ -2077,7 +2073,7 @@ pub unsafe fn draw_sky() -> Result<(), Refused> {
         LIGHT_WORK.light_kind.set(0u32);
         // esi as the `rep movsd` of the matrix's copy leaves it: past `g_madeObjectMatrix`.
         crate::scene::draw_scene_object::draw_scene_object_in_game(
-            MATRICES.made_object_matrix[0].addr() as u32 + 0x40,
+            MATRICES.made_object_matrix[0].addr() + 0x40,
         )?;
         crate::race::flush_draw_batch::flush_draw_batch()?;
         crate::scene::depth_buffer_on::depth_buffer(true);
@@ -2111,7 +2107,7 @@ pub unsafe fn draw_sky() -> Result<(), Refused> {
             FRAME_WORK.sun_floats[n].set_bits(d);
         }
         let turned = crate::scene::rotate_point::rotate_point(
-            MATRICES.made_object_matrix[0].addr() as u32,
+            MATRICES.made_object_matrix[0].addr(),
             [to_tbyte(dir[0]), to_tbyte(dir[1]), to_tbyte(dir[2])],
         );
         let place = turned.map(tbyte_to_int);
@@ -2135,7 +2131,7 @@ pub unsafe fn draw_sky() -> Result<(), Refused> {
         let [fx, ix, fy, iy] = sun_on_screen(
             &v,
             flat,
-            crate::pointers::host_at(DRAW.scratch.addr()) as *mut u32,
+            crate::pointers::host(DRAW.scratch.addr()) as *mut u32,
         );
         FRAME_WORK.sun_place[0].set(fx);
         FRAME_WORK.sun_hit[0].set(ix);
@@ -2165,7 +2161,7 @@ pub unsafe fn draw_sky() -> Result<(), Refused> {
 /// -999 (0xFFFFFC19) and `g_reflectionsKept` 1.
 pub fn start_kept_reflections() -> Result<(), BadInput> {
     {
-        let at = GROUND_WORK.kept_reflections[0].addr() as u32;
+        let at = GROUND_WORK.kept_reflections[0].addr();
         for k in 0..0x400 {
             put(at + 4 * k, 0xFFFF_FC19)?;
         }
@@ -2197,7 +2193,7 @@ pub unsafe fn draw_slot_object(slot: u32) -> Result<(), Refused> {
         let mode: u32 = RACE_VARS.run_kind.bits();
         if RACE_VIEW.players.bits() != 1 && mode != 0 && mode != 2 {
             let n = object.wrapping_sub(0x50);
-            if get((FRAME_WORK.listed_car_sounds[0].addr() as u32) + 4 * ((n / 0x14) & 7))?
+            if get((FRAME_WORK.listed_car_sounds[0].addr()) + 4 * ((n / 0x14) & 7))?
                 != RACE_VIEW.drawn_view.bits()
             {
                 return Ok(());
@@ -2217,7 +2213,7 @@ pub unsafe fn draw_slot_object(slot: u32) -> Result<(), Refused> {
         LIGHT_STATE.view_kind.set_bits(1);
         LIGHT_WORK.light_kind.set_bits(2);
         GamePtr::new(slot + 0x10).copy_to(
-            GamePtr::new((MATRICES.object_turn_matrix[0].addr()) as u32),
+            GamePtr::new(MATRICES.object_turn_matrix[0].addr()),
             0x40,
             "a face, record or matrix",
         )?;
@@ -2231,24 +2227,24 @@ pub unsafe fn draw_slot_object(slot: u32) -> Result<(), Refused> {
         }
         matrix::set_place(place);
         matrix::copy_matrix_with_place(
-            MATRICES.placed_matrix[0].addr(),
-            MATRICES.view_place_matrix[0].addr(),
-            MATRICES.matrix_scratch[0].addr(),
+            MATRICES.placed_matrix[0].addr() as usize,
+            MATRICES.view_place_matrix[0].addr() as usize,
+            MATRICES.matrix_scratch[0].addr() as usize,
         );
         matrix::copy_matrix_with_place(
-            MATRICES.object_turn_matrix[0].addr(),
-            MATRICES.matrix_scratch[0].addr(),
-            MATRICES.turned_matrix[0].addr(),
+            MATRICES.object_turn_matrix[0].addr() as usize,
+            MATRICES.matrix_scratch[0].addr() as usize,
+            MATRICES.turned_matrix[0].addr() as usize,
         );
         matrix::multiply_matrices(
-            MATRICES.turned_matrix[0].addr(),
-            MATRICES.view_turn_matrix[0].addr(),
-            MATRICES.made_object_matrix[0].addr(),
+            MATRICES.turned_matrix[0].addr() as usize,
+            MATRICES.view_turn_matrix[0].addr() as usize,
+            MATRICES.made_object_matrix[0].addr() as usize,
         );
         start_kept_reflections()?;
         // esi `g_turnedMatrix`, as the matrices' calls leave it.
         crate::scene::draw_scene_object::draw_scene_object_in_game(
-            MATRICES.turned_matrix[0].addr() as u32,
+            MATRICES.turned_matrix[0].addr(),
         )?;
         end_kept_reflections();
         Ok(())
@@ -2272,7 +2268,7 @@ pub fn check_slot_object(at: u32) -> Result<(), Refused> {
 /// `check_slot_object` for any.
 pub unsafe fn draw_race_slots() -> Result<(), Refused> {
     unsafe {
-        let slots = crate::pointers::host_number(RACE_WORK.race_slots.as_ptr()) as u32;
+        let slots = crate::pointers::game_address(RACE_WORK.race_slots.as_ptr());
         for n in 0..8 {
             if get(slots + 0x78 * n)? != 0 {
                 check_slot_object(slots + 0x78 * n)?;
@@ -2301,8 +2297,8 @@ pub unsafe fn draw_screen_quad() -> Result<(), Refused> {
         DRAW.polygon_drawn.set(0u32);
         let entries = crate::scene::polygon_store::POLYGON_WORK.entries[0]
             .point
-            .addr() as u32;
-        let vertices = RACE_VARS.quad_vertices[0].addr() as u32;
+            .addr();
+        let vertices = RACE_VARS.quad_vertices[0].addr();
         for k in 0..4u32 {
             let e = entries + 0x44 * k;
             put(e + 4, vertices + 0x20 * k)?;
@@ -2330,15 +2326,15 @@ pub unsafe fn draw_screen_quad() -> Result<(), Refused> {
         DRAW.polygon_colour.set(RACE_VARS.quad_colour[0].get());
         DRAW.polygon_vertex_count.set(4u32);
         DRAW.polygon_next_record
-            .set(crate::scene::polygon_store::POLYGON_WORK.record_pool[0].addr() as u32);
+            .set(crate::scene::polygon_store::POLYGON_WORK.record_pool[0].addr());
         for k in 0..4u32 {
             put(
-                crate::scene::polygon_store::POLYGON_WORK.list[0].addr() as u32 + 4 * k,
+                crate::scene::polygon_store::POLYGON_WORK.list[0].addr() + 4 * k,
                 k,
             )?;
         }
         put(
-            crate::scene::polygon_store::POLYGON_WORK.list[0].addr() as u32 + 16,
+            crate::scene::polygon_store::POLYGON_WORK.list[0].addr() + 16,
             0,
         )?;
         DRAW.polygon_next_entry.set(4u32);
@@ -2393,7 +2389,7 @@ pub fn add_car_depth_entry(esi: u32, ebx: u32) -> Result<(), Refused> {
     for (k, &p) in place.iter().enumerate() {
         OBJECT_WORK.place[k].set_bits(p);
     }
-    let matrix = MATRICES.view_matrix[0].addr() as u32;
+    let matrix = MATRICES.view_matrix[0].addr();
     let mut t = [0u32; 3];
     crate::math::x87_load::rotate_rounding(
         place.as_ptr() as *const i32,
@@ -2408,7 +2404,7 @@ pub fn add_car_depth_entry(esi: u32, ebx: u32) -> Result<(), Refused> {
     let key = t[2].wrapping_add(0x200_0000) >> 10;
     RACE_VIEW.face_depth_key.set_bits(key);
     let second = ebx.wrapping_add(0x200_0000);
-    let at = crate::scene::faces_store::FACES.depth_entries[0].addr() as u32 + 8 * n;
+    let at = crate::scene::faces_store::FACES.depth_entries[0].addr() + 8 * n;
     put(at, key)?;
     put(at + 4, second)?;
     RACE_VIEW.depth_entry_count.set_bits(n + 1);
@@ -2435,24 +2431,24 @@ fn add_flare() -> Result<(), BadInput> {
     // one another 0x400 bytes apart, so by address (a slip of the original's).
     for (table, v) in [
         (
-            crate::race::flares_store::FLARE_TABLES.object_number[0].addr() as u32,
+            crate::race::flares_store::FLARE_TABLES.object_number[0].addr(),
             FRAME_SWITCHES.object_number.get(),
         ),
-        (LEVEL_GRID.flare_place_x[0].addr() as u32, place[0]),
+        (LEVEL_GRID.flare_place_x[0].addr(), place[0]),
         (
-            crate::race::flares_store::FLARE_TABLES.place_y[0].addr() as u32,
+            crate::race::flares_store::FLARE_TABLES.place_y[0].addr(),
             place[1],
         ),
         (
-            crate::race::flares_store::FLARE_TABLES.place_z[0].addr() as u32,
+            crate::race::flares_store::FLARE_TABLES.place_z[0].addr(),
             place[2],
         ),
         (
-            crate::race::flares_store::FLARE_TABLES.size[0].addr() as u32,
+            crate::race::flares_store::FLARE_TABLES.size[0].addr(),
             OBJECT_WORK.size.bits(),
         ),
         (
-            crate::race::flares_store::FLARE_TABLES.other_light[0].addr() as u32,
+            crate::race::flares_store::FLARE_TABLES.other_light[0].addr(),
             OBJECT_WORK.other_light.bits(),
         ),
     ] {
@@ -2461,7 +2457,7 @@ fn add_flare() -> Result<(), BadInput> {
     let mut out = [0u32; 3];
     crate::math::x87_load::rotate_rounding_z(
         place.as_ptr() as *const i32,
-        crate::pointers::host_at(MATRICES.view_matrix[0].addr()) as *const u32,
+        crate::pointers::host(MATRICES.view_matrix[0].addr()) as *const u32,
         out.as_mut_ptr(),
     );
     OBJECT_WORK.place[0].set(out[0]);
@@ -2469,7 +2465,7 @@ fn add_flare() -> Result<(), BadInput> {
     let key = out[2].wrapping_add(0x200_0000) >> 10;
     RACE_VIEW.face_depth_key.set_bits(key);
     let entry: u32 = RACE_VIEW.depth_entry_count.bits();
-    let at = crate::scene::faces_store::FACES.depth_entries[0].addr() as u32 + 8 * entry;
+    let at = crate::scene::faces_store::FACES.depth_entries[0].addr() + 8 * entry;
     put(at, key)?;
     put(at + 4, n.wrapping_add(0x100_0000))?;
     RACE_VIEW.depth_entry_count.set_bits(entry + 1);
@@ -2642,19 +2638,19 @@ unsafe fn placed_object_tail() {
         ];
         matrix::set_place(place);
         matrix::copy_matrix_with_place(
-            MATRICES.placed_matrix[0].addr(),
-            MATRICES.view_place_matrix[0].addr(),
-            MATRICES.matrix_scratch[0].addr(),
+            MATRICES.placed_matrix[0].addr() as usize,
+            MATRICES.view_place_matrix[0].addr() as usize,
+            MATRICES.matrix_scratch[0].addr() as usize,
         );
         matrix::copy_matrix_with_place(
-            MATRICES.object_turn_matrix[0].addr(),
-            MATRICES.matrix_scratch[0].addr(),
-            MATRICES.turned_matrix[0].addr(),
+            MATRICES.object_turn_matrix[0].addr() as usize,
+            MATRICES.matrix_scratch[0].addr() as usize,
+            MATRICES.turned_matrix[0].addr() as usize,
         );
         matrix::multiply_matrices(
-            MATRICES.turned_matrix[0].addr(),
-            MATRICES.view_turn_matrix[0].addr(),
-            MATRICES.made_object_matrix[0].addr(),
+            MATRICES.turned_matrix[0].addr() as usize,
+            MATRICES.view_turn_matrix[0].addr() as usize,
+            MATRICES.made_object_matrix[0].addr() as usize,
         );
     }
 }
@@ -2664,7 +2660,7 @@ fn scale_object_turn() -> Result<(), BadInput> {
     {
         let scale = crate::math::x87::int_over_16(OBJECT_WORK.size.get() as i32);
         DRAW.scratch.set_bits(scale);
-        let at = MATRICES.object_turn_matrix[0].addr() as u32;
+        let at = MATRICES.object_turn_matrix[0].addr();
         for k in 0..16 {
             put(at + 4 * k, crate::math::x87::mul(get(at + 4 * k)?, scale))?;
         }
@@ -2702,9 +2698,9 @@ pub unsafe fn place_object_matrix() -> Result<(), BadInput> {
         if LIGHT_STATE.light_turn_off.get() == 0 {
             set_turn_y(OBJECT_WORK.angles[1].bits().wrapping_neg());
             set_turn_x(OBJECT_WORK.angles[0].bits().wrapping_neg());
-            multiply_matrices(turn_y, turn_x, turned);
+            multiply_matrices(turn_y as usize, turn_x as usize, turned as usize);
             set_turn_z_16(OBJECT_WORK.angles[2].bits().wrapping_neg());
-            multiply_matrices(turned, turn_z, object);
+            multiply_matrices(turned as usize, turn_z as usize, object as usize);
             placed_object_tail();
             return Ok(());
         }
@@ -2712,55 +2708,55 @@ pub unsafe fn place_object_matrix() -> Result<(), BadInput> {
             return Ok(());
         }
         let kind = OBJECT_TABLES.object_kind(FRAME_SWITCHES.object_number.get());
-        let record = (crate::scene::polygon_store::POLYGON_WORK.object_materials[0].words[0].addr()
-            as u32)
+        let record = crate::scene::polygon_store::POLYGON_WORK.object_materials[0].words[0]
+            .addr()
             .wrapping_add(kind.wrapping_mul(0x80));
         let material = GamePtr::new(record + 0x20).read::<u8>("a face, record or matrix")?;
         match material {
             1 | 2 => {
-                GamePtr::new((MATRICES.view_back_matrix[0].addr()) as u32).copy_to(
-                    GamePtr::new(object as u32),
+                GamePtr::new(MATRICES.view_back_matrix[0].addr()).copy_to(
+                    GamePtr::new(object),
                     0x40,
                     "a face, record or matrix",
                 )?;
             }
             5 => {
-                GamePtr::new((MATRICES.identity_matrix[0].addr()) as u32).copy_to(
-                    GamePtr::new(object as u32),
+                GamePtr::new(MATRICES.identity_matrix[0].addr()).copy_to(
+                    GamePtr::new(object),
                     0x40,
                     "a face, record or matrix",
                 )?;
                 set_fine_turn(Axis::Y, VIEW_VARS.view_angles[3].get());
-                multiply_matrices(object, turn_y, turned);
+                multiply_matrices(object as usize, turn_y as usize, turned as usize);
                 set_fine_turn(Axis::Y, VIEW_VARS.view_angles[0].get());
-                multiply_matrices(turned, turn_y, object);
+                multiply_matrices(turned as usize, turn_y as usize, object as usize);
             }
             _ => {
                 set_turn_y(OBJECT_WORK.angles[0].bits().wrapping_neg());
-                GamePtr::new(turn_y as u32).copy_to(
-                    GamePtr::new(object as u32),
+                GamePtr::new(turn_y).copy_to(
+                    GamePtr::new(object),
                     0x40,
                     "a face, record or matrix",
                 )?;
                 if OBJECT_WORK.angles[1].get() != 0 {
                     set_turn_y(OBJECT_WORK.angles[2].bits().wrapping_neg());
-                    multiply_matrices(object, turn_y, lit);
+                    multiply_matrices(object as usize, turn_y as usize, lit as usize);
                     set_turn_x(OBJECT_WORK.angles[1].bits().wrapping_neg());
-                    multiply_matrices(lit, turn_x, turned);
+                    multiply_matrices(lit as usize, turn_x as usize, turned as usize);
                     set_turn_y(OBJECT_WORK.angles[2].get());
-                    multiply_matrices(turned, turn_y, object);
+                    multiply_matrices(turned as usize, turn_y as usize, object as usize);
                 }
                 if OBJECT_WORK.described_cleared[2].get() != 0
                     || OBJECT_WORK.described_cleared[1].get() != 0
                 {
                     set_turn_y(OBJECT_WORK.described_cleared[2].bits().wrapping_neg());
-                    multiply_matrices(object, turn_y, lit);
+                    multiply_matrices(object as usize, turn_y as usize, lit as usize);
                     set_turn_y(OBJECT_WORK.described_cleared[0].bits().wrapping_neg());
-                    multiply_matrices(lit, turn_y, turned);
+                    multiply_matrices(lit as usize, turn_y as usize, turned as usize);
                     set_turn_x(OBJECT_WORK.described_cleared[1].bits().wrapping_neg());
-                    multiply_matrices(turned, turn_x, lit);
+                    multiply_matrices(turned as usize, turn_x as usize, lit as usize);
                     set_turn_y(OBJECT_WORK.described_cleared[0].get());
-                    multiply_matrices(lit, turn_y, object);
+                    multiply_matrices(lit as usize, turn_y as usize, object as usize);
                 }
             }
         }
@@ -2778,28 +2774,25 @@ pub unsafe fn draw_flare(flare: u32, esi: u32) -> Result<(), Refused> {
     unsafe {
         // The tables are read unchecked by `flare` (see `add_flare`).
         for (table, to) in [
+            (LEVEL_GRID.flare_place_x[0].addr(), &OBJECT_WORK.place[0]),
             (
-                LEVEL_GRID.flare_place_x[0].addr() as u32,
-                &OBJECT_WORK.place[0],
-            ),
-            (
-                crate::race::flares_store::FLARE_TABLES.place_y[0].addr() as u32,
+                crate::race::flares_store::FLARE_TABLES.place_y[0].addr(),
                 &OBJECT_WORK.place[1],
             ),
             (
-                crate::race::flares_store::FLARE_TABLES.place_z[0].addr() as u32,
+                crate::race::flares_store::FLARE_TABLES.place_z[0].addr(),
                 &OBJECT_WORK.place[2],
             ),
             (
-                crate::race::flares_store::FLARE_TABLES.size[0].addr() as u32,
+                crate::race::flares_store::FLARE_TABLES.size[0].addr(),
                 &OBJECT_WORK.size,
             ),
             (
-                crate::race::flares_store::FLARE_TABLES.other_light[0].addr() as u32,
+                crate::race::flares_store::FLARE_TABLES.other_light[0].addr(),
                 &OBJECT_WORK.other_light,
             ),
             (
-                crate::race::flares_store::FLARE_TABLES.object_number[0].addr() as u32,
+                crate::race::flares_store::FLARE_TABLES.object_number[0].addr(),
                 &FRAME_SWITCHES.object_number,
             ),
         ] {
@@ -2836,9 +2829,7 @@ pub unsafe fn draw_lamp_flare(lamp: u32) -> Result<(), Refused> {
         LIGHT_WORK.light_kind.set(0u32);
         // esi `g_turnedMatrix`, as `place_object_matrix` leaves it (`dword_6365C8` is 2 here,
         // so it always ends by placing the object).
-        crate::scene::draw_scene_object::draw_scene_object_in_game(
-            MATRICES.turned_matrix[0].addr() as u32
-        )
+        crate::scene::draw_scene_object::draw_scene_object_in_game(MATRICES.turned_matrix[0].addr())
     }
 }
 

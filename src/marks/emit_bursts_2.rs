@@ -42,7 +42,7 @@ impl SecondTuning {
 
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        crate::pointers::host_number(&SECOND_TUNING as *const BurstTuning)
+        crate::pointers::game_address(&SECOND_TUNING as *const BurstTuning) as usize
     }
 }
 

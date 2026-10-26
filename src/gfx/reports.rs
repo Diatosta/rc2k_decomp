@@ -22,7 +22,7 @@ pub static REPORTS: Reports = Reports { on: Dword::new(1) };
 
 /// Where the block is (`moved::MOVED`'s home for IDA 0x4F52AC).
 pub fn home() -> usize {
-    crate::pointers::host_number(&REPORTS as *const Reports)
+    crate::pointers::game_address(&REPORTS as *const Reports) as usize
 }
 
 #[cfg(test)]
@@ -36,6 +36,6 @@ mod tests {
 
     #[test]
     fn moved_knows_the_block() {
-        assert_eq!(crate::moved::place(START), REPORTS.on.addr());
+        assert_eq!(crate::moved::place(START), REPORTS.on.addr() as usize);
     }
 }

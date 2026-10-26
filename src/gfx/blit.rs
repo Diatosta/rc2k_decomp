@@ -53,7 +53,7 @@ pub static BLIT: Blitter = Blitter {
 
 /// Where the block is (`moved::MOVED`'s home for IDA 0x4F503C).
 pub fn home() -> usize {
-    crate::pointers::host_number(&BLIT as *const Blitter)
+    crate::pointers::game_address(&BLIT as *const Blitter) as usize
 }
 
 #[cfg(test)]
@@ -70,7 +70,10 @@ mod tests {
     fn moved_knows_the_block() {
         assert_eq!(offset_of!(Blitter, left_skip), 0x4F504C - START);
         assert_eq!(offset_of!(Blitter, rows_left), 0x4F5058 - START);
-        assert_eq!(crate::moved::place(START), BLIT.clip.left.addr());
-        assert_eq!(crate::moved::place(0x4F5058), BLIT.rows_left.addr());
+        assert_eq!(crate::moved::place(START), BLIT.clip.left.addr() as usize);
+        assert_eq!(
+            crate::moved::place(0x4F5058),
+            BLIT.rows_left.addr() as usize
+        );
     }
 }

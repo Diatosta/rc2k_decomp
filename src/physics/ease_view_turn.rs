@@ -46,7 +46,10 @@ pub fn ease_view_turn() {
         ),
     ] {
         DRAW.scratch.set(target.get().wrapping_sub(turn.get()));
-        x87_1(crate::race::store::asm_base() as usize, share.addr());
+        x87_1(
+            crate::race::store::asm_base() as usize,
+            share.addr() as usize,
+        );
         turn.set(turn.get().wrapping_add(DRAW.scratch.get()));
     }
 }

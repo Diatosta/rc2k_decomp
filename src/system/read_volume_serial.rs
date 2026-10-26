@@ -24,7 +24,7 @@ use windows_sys::Win32::Storage::FileSystem::GetVolumeInformationA;
 /// after it (register liveness, 2026-10-23: eax only), which is `start`'s own esi at
 /// entry, not anything of this function's: so it returns nothing.
 pub unsafe fn read_volume_serial() {
-    let at = crate::pointers::host_at(SCRATCH.buffer.addr());
+    let at = crate::pointers::host(SCRATCH.buffer.addr());
     unsafe {
         let worked = GetVolumeInformationA(
             std::ptr::null(),

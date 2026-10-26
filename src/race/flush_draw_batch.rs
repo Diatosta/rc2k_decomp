@@ -19,9 +19,9 @@ pub unsafe fn flush_draw_batch() -> Result<(), Refused> {
         let indices: u32 = CONTACT_WORK.batch_index_count.bits();
         if indices != 0 {
             let result = crate::platform_3d::draw_indexed(
-                DRAW_BATCHES.scene_vertices.addr() as u32,
+                DRAW_BATCHES.scene_vertices.addr(),
                 CONTACT_WORK.batch_vertex_count.bits(),
-                DRAW_BATCHES.scene_indices.addr() as u32,
+                DRAW_BATCHES.scene_indices.addr(),
                 indices,
             );
             if result != 0 {

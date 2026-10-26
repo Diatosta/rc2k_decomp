@@ -84,7 +84,7 @@ pub fn set_player_car_kinds() {
 /// The cars' data text from its start, as the original reads it (past the buffer's end
 /// too).
 fn text_data() -> Result<crate::pointers::GameBytes, BadInput> {
-    GamePtr::new(RACE_TABLES.car_data_text[0].addr() as u32).bytes("the cars' data text")
+    GamePtr::new(RACE_TABLES.car_data_text[0].addr()).bytes("the cars' data text")
 }
 
 /// `race::set_up_race_cars` (0x4364AD): `reset_car_blocks`, `drop_absent_player`,
@@ -185,8 +185,8 @@ pub fn auto_set_up_car(b: u32) -> Result<(), Refused> {
         };
         text(word(2), false);
         number(pick.index, false);
-        let set_up = (crate::race::league_store::LEAGUE.auto_setups[0].addr() as u32)
-            .wrapping_add(pick.index << 4);
+        let set_up =
+            (crate::race::league_store::LEAGUE.auto_setups[0].addr()).wrapping_add(pick.index << 4);
         let at = |k: u32| GamePtr::new(set_up + k).read::<u32>("the auto set-ups");
         for (value, off, words) in [
             (at(0)?, 0x30, [3, 4]),
@@ -233,7 +233,7 @@ pub fn set_up_mode_0_cars() -> Result<(), Refused> {
             drop_absent_player();
             set_player_car_kinds();
             for n in 0..2 {
-                auto_set_up_car(crate::race::blocks_store::block_addr(n as usize) as u32)?;
+                auto_set_up_car(crate::race::blocks_store::block_addr(n as usize))?;
             }
             for n in 0..2 {
                 CAR_BLOCKS.cars[n]
@@ -359,8 +359,7 @@ pub fn set_car_times() -> Result<(), Refused> {
         number(count, false);
         text(w(1), false);
         number(level, false);
-        let at =
-            (RACE_TABLES.time_percentages[0].addr() as u32).wrapping_add(level.wrapping_mul(4));
+        let at = (RACE_TABLES.time_percentages[0].addr()).wrapping_add(level.wrapping_mul(4));
         let percentage = GamePtr::new(at).read::<u32>("the time percentages")?;
         text(w(2), false);
         number(percentage, false);
@@ -432,7 +431,7 @@ pub fn set_up_mode_2_cars() -> Result<(), Refused> {
     // The arcade tables hold six by rally (`dword_60466C` ..) or stage (`dword_604684`),
     // back to back: an index past them reads on into the next, as the original does.
     let pick = |table: &[crate::session::Dword; 6], n: u32| {
-        GamePtr::new((table[0].addr() as u32).wrapping_add(n.wrapping_mul(4)))
+        GamePtr::new((table[0].addr()).wrapping_add(n.wrapping_mul(4)))
             .read::<u32>("the arcade tables")
     };
     let by_rally = |table: &[crate::session::Dword; 6]| pick(table, rally);
@@ -515,7 +514,7 @@ pub fn set_up_mode_2_cars() -> Result<(), Refused> {
     }
     clear_race_tables();
     for n in 0..4 {
-        auto_set_up_car(crate::race::blocks_store::block_addr(n as usize) as u32)?;
+        auto_set_up_car(crate::race::blocks_store::block_addr(n as usize))?;
     }
     CAR_BLOCKS.cars[0]
         .steering_sensitivity

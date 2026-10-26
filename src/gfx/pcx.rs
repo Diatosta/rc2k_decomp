@@ -57,7 +57,7 @@ pub static PCX: Pcx = Pcx {
 
 /// Where the block is (`moved::MOVED`'s home for IDA 0x5195D4).
 pub fn home() -> usize {
-    crate::pointers::host_number(&PCX as *const Pcx)
+    crate::pointers::game_address(&PCX as *const Pcx) as usize
 }
 
 pub fn stream() -> *mut Stream {
@@ -80,8 +80,11 @@ mod tests {
         assert_eq!(offset_of!(Pcx, header), 0x51B5F4 - START);
         assert_eq!(offset_of!(Pcx, file_palette), 0x51B674 - START);
         assert_eq!(offset_of!(Pcx, width_limit), 0x51B974 - START);
-        assert_eq!(crate::moved::place(START), PCX.file_width.addr());
-        assert_eq!(crate::moved::place(0x51B5F4), PCX.header.addr());
-        assert_eq!(crate::moved::place(0x51B978), PCX.height_limit.addr());
+        assert_eq!(crate::moved::place(START), PCX.file_width.addr() as usize);
+        assert_eq!(crate::moved::place(0x51B5F4), PCX.header.addr() as usize);
+        assert_eq!(
+            crate::moved::place(0x51B978),
+            PCX.height_limit.addr() as usize
+        );
     }
 }

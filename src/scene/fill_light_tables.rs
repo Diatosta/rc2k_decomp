@@ -34,7 +34,7 @@ pub fn fill_light_tables() -> Result<(), crate::errors::BadInput> {
         };
         fill_light_ramp(
             ramp as u32,
-            crate::scene::light_tables_store::LIGHT_TABLES.light_table[0].addr() as u32,
+            crate::scene::light_tables_store::LIGHT_TABLES.light_table[0].addr(),
         )?;
         // The four lamp tables and, the other way, their colours.
         let lamps = [
@@ -57,7 +57,7 @@ pub fn fill_light_tables() -> Result<(), crate::errors::BadInput> {
         ];
         for (table, colour) in lamps {
             let colour = if plain { plain_colours } else { colour };
-            fill_light_scale(colour as u32, table as u32)?;
+            fill_light_scale(colour as u32, table)?;
         }
         Ok(())
     }

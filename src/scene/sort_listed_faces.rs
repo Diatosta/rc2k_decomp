@@ -28,7 +28,7 @@ pub fn sort_listed_faces() -> Result<(), BadInput> {
     if listed > MOST {
         return Err(BadInput("more faces listed than the list holds"));
     }
-    let at = crate::scene::object_slots_store::OBJECT_SLOTS.listed_faces[0].addr() as u32;
+    let at = crate::scene::object_slots_store::OBJECT_SLOTS.listed_faces[0].addr();
     let mut list: Vec<rc2k_core::scene::face_order::ListedFace> =
         crate::scene::reading::read_records(at, listed as usize, "the list of faces")?;
     rc2k_core::scene::face_order::sort_listed_faces(&mut list)?;

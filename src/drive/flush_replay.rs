@@ -14,8 +14,8 @@ const DWORDS: usize = 0xA04;
 
 /// The Rust version.
 pub unsafe fn flush_replay() -> Result<(), Refused> {
-    GamePtr::new(crate::race::blocks_store::block_addr(8) as u32).copy_to(
-        GamePtr::new(crate::race::viewer_buffers_store::VIEWER_BUFFERS.block[0].addr() as u32),
+    GamePtr::new(crate::race::blocks_store::block_addr(8)).copy_to(
+        GamePtr::new(crate::race::viewer_buffers_store::VIEWER_BUFFERS.block[0].addr()),
         DWORDS * 4,
         "a car's block",
     )?;

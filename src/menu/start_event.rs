@@ -61,7 +61,7 @@ impl starters::Event for Game {
                     self.f.c.cars = match list {
                         starters::CarList::Championship => MENU_LISTS.cars_championship[0].addr(),
                         starters::CarList::A8 => MENU_LISTS.cars_a8[0].addr(),
-                    } as u32;
+                    };
                     run_screen_carried(&m::select_car_loop::SCREEN, &mut self.f.c)?
                 }
                 C::TakeShownCar => m::take_shown_car::take_shown_car(self.f.c.cars)?,

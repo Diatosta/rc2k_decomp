@@ -25,19 +25,19 @@ unsafe fn core(v: &[u32]) {
 
 fn game() -> Vec<u32> {
     vec![
-        PHYSICS.contact_step.addr() as u32,
-        CAR.velocity[0].addr() as u32,
-        CAR.velocity[1].addr() as u32,
-        CAR.velocity[2].addr() as u32,
-        CAR.spin[0].addr() as u32,
-        CAR.spin[1].addr() as u32,
-        CAR.spin[2].addr() as u32,
-        PHYSICS.kept_vectors[0].addr() as u32,
-        PHYSICS.kept_vectors[1].addr() as u32,
-        PHYSICS.kept_vectors[2].addr() as u32,
-        PHYSICS.kept_vectors[4].addr() as u32,
-        PHYSICS.kept_vectors[5].addr() as u32,
-        PHYSICS.kept_vectors[6].addr() as u32,
+        PHYSICS.contact_step.addr(),
+        CAR.velocity[0].addr(),
+        CAR.velocity[1].addr(),
+        CAR.velocity[2].addr(),
+        CAR.spin[0].addr(),
+        CAR.spin[1].addr(),
+        CAR.spin[2].addr(),
+        PHYSICS.kept_vectors[0].addr(),
+        PHYSICS.kept_vectors[1].addr(),
+        PHYSICS.kept_vectors[2].addr(),
+        PHYSICS.kept_vectors[4].addr(),
+        PHYSICS.kept_vectors[5].addr(),
+        PHYSICS.kept_vectors[6].addr(),
     ]
 }
 

@@ -2106,8 +2106,8 @@ pub const START: usize = 0x731B82;
 pub const END: usize = 0x734BC6;
 
 /// Where IDA 0x731B82 is now (`moved::MOVED`'s home).
-pub fn menu_texts_addr() -> usize {
-    crate::pointers::host_number(&MENU_TEXTS as *const MenuTexts) + 2
+pub fn menu_texts_addr() -> u32 {
+    crate::pointers::game_address(&MENU_TEXTS as *const MenuTexts) + 2
 }
 
 #[cfg(test)]
@@ -2125,10 +2125,10 @@ mod tests {
         assert_eq!(offset_of!(MenuTexts, keys_menu), 0x731BBB - START + 2);
         assert_eq!(offset_of!(MenuTexts, car_speech), 0x734866 - START + 2);
         assert_eq!(offset_of!(MenuTexts, stage_speech), 0x734986 - START + 2);
-        assert_eq!(menu_texts_addr() % 4, START % 4);
+        assert_eq!(menu_texts_addr() as usize % 4, START % 4);
         let mine = unsafe {
             std::slice::from_raw_parts(
-                crate::pointers::host_at(menu_texts_addr()) as *const u8,
+                crate::pointers::host(menu_texts_addr()) as *const u8,
                 END - START,
             )
         };

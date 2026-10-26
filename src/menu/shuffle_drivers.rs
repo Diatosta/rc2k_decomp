@@ -31,8 +31,8 @@ pub fn shuffle_drivers() -> Result<(), Refused> {
         return Err(BadInput("a driver table count of 0").into());
     }
     let [t1, t2] = [
-        GamePtr::new(CAR_NUMBERS.shuffle_a.addr() as u32),
-        GamePtr::new(CAR_NUMBERS.shuffle_b.addr() as u32),
+        GamePtr::new(CAR_NUMBERS.shuffle_a.addr()),
+        GamePtr::new(CAR_NUMBERS.shuffle_b.addr()),
     ];
     for &(table, count) in &TABLES {
         let first = GamePtr::new(crate::pointers::game_address(

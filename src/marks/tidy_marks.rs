@@ -30,12 +30,12 @@ const MOST_CARS: i32 = 8;
 /// The six lists, in the order freed.
 fn lists() -> [u32; 6] {
     [
-        RING_POOL.list[0].addr() as u32, // g_marksRingList
-        crate::marks::ring_store::RING_WORK.list.addr() as u32, // stru_935620
-        MASK_BLOCKS.list_b.addr() as u32, // g_marksBMaskList
-        MASK_BLOCKS.list_a.addr() as u32, // stru_934D76
-        PLACES_BLOCK.list.addr() as u32, // g_marksPlacesList
-        MARK_LINKS.list.addr() as u32,   // g_marksLinksList
+        RING_POOL.list[0].addr(),                        // g_marksRingList
+        crate::marks::ring_store::RING_WORK.list.addr(), // stru_935620
+        MASK_BLOCKS.list_b.addr(),                       // g_marksBMaskList
+        MASK_BLOCKS.list_a.addr(),                       // stru_934D76
+        PLACES_BLOCK.list.addr(),                        // g_marksPlacesList
+        MARK_LINKS.list.addr(),                          // g_marksLinksList
     ]
 }
 /// Each car's list, worked out without writing (none for a count past the refusals).

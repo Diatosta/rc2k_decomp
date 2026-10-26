@@ -155,7 +155,7 @@ fn view(r: &mut Flow) -> Result<(), Refused> {
     REPLAY_VIEW.last_race_viewed.set(r.c.arg);
     step(4, r)?;
     step(5, r)?;
-    r.record = REPLAY_VIEW.viewer_list[0].addr() as u32;
+    r.record = REPLAY_VIEW.viewer_list[0].addr();
     REPLAY_FILE.viewer_sound.set(0);
     INSTALLER_PAGES.list_answer.set(1);
     INSTALLER_PAGES.list_leave.set(0);

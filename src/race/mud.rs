@@ -128,7 +128,7 @@ pub unsafe fn init_mud() -> Result<(), Refused> {
             .course_bytes_total
             .set(COURSE_LISTS.course_bytes_total.bits().wrapping_add(MUD_LEN));
         let mud = crate::memory::allocate::allocate(
-            crate::pointers::host_at(COURSE_LISTS.mud_list[0].addr()) as *mut _,
+            crate::pointers::host(COURSE_LISTS.mud_list[0].addr()) as *mut _,
             MUD_LEN,
         )?;
         RACE_VARS.mud.set(crate::pointers::game_address(mud));

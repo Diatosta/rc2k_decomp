@@ -79,7 +79,7 @@ fn refusal() -> Result<Option<&'static str>, Refused> {
         if crate::marks::setup::SETTINGS.pointer.get() == 0 {
             return Ok(Some("no marks settings"));
         }
-        let base = HEX.items.addr() as u32;
+        let base = HEX.items.addr();
         let mut bad = false;
         for n in 0..ITEMS {
             let e = base + n * ITEM_LEN;
@@ -109,7 +109,7 @@ pub fn hexagons_frame() -> Result<(), Refused> {
         }
         crate::marks::hexagons_setup::hexagons_setup();
         HEXAGON_STATE.live.set_bits(0u32);
-        let base = HEX.items.addr() as u32;
+        let base = HEX.items.addr();
         for n in 0..ITEMS {
             let e = base + n * ITEM_LEN;
             if get(e)? != 1 {
@@ -146,8 +146,8 @@ pub fn hexagons_frame() -> Result<(), Refused> {
             sprite_project(HEX.buffer.get(), inverse_depth);
             let next = HEX.buffer.get().wrapping_add(0xC0);
             HEX.buffer.set(next);
-            if next as usize == HEXAGON_BATCH.records.addr() + BUFFER_BYTES {
-                HEX.buffer.set(HEXAGON_BATCH.records.addr() as u32);
+            if next as usize == (HEXAGON_BATCH.records.addr() + BUFFER_BYTES as u32) as usize {
+                HEX.buffer.set(HEXAGON_BATCH.records.addr());
                 HEXAGON_BATCH.index_count.set(0x300);
                 HEXAGON_BATCH.vertex_count.set(0x180);
                 draw_batch()?;

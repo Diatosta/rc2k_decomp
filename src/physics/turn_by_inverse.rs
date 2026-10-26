@@ -16,5 +16,5 @@ use crate::physics::turn_by_car_matrix::turn_point_by;
 
 /// The Rust version.
 pub unsafe fn turn_by_inverse(v: u32) {
-    unsafe { turn_point_by(CAR.car_inverse_matrix[0].addr() as u32, v) }
+    unsafe { turn_point_by(CAR.car_inverse_matrix[0].addr(), v) }
 }

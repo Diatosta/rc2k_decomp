@@ -99,9 +99,9 @@ pub fn table_lerp(
     }
     let mut status = 0u16;
     x87_1(
-        crate::pointers::host_number(t.as_ptr()),
+        (crate::pointers::game_address(t.as_ptr())) as usize,
         a(zero) as usize,
-        crate::pointers::host_number(&raw mut status),
+        crate::pointers::game_address(&raw mut status) as usize,
     );
     if status & 0x4000 != 0 {
         p(out, x87::loaded(t[1].bits()));
@@ -109,7 +109,7 @@ pub fn table_lerp(
     }
     x87_2(
         a(x) as usize,
-        crate::pointers::host_number(t.as_ptr()),
+        (crate::pointers::game_address(t.as_ptr())) as usize,
         a(out) as usize,
     );
 }

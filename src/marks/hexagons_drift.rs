@@ -82,7 +82,7 @@ pub fn hexagons_drift() -> Result<(), Refused> {
         HEX.moved.set(1);
         if second != 0 {
             view_moved(s);
-            let view = MATRICES.view_place[0].addr() as u32;
+            let view = MATRICES.view_place[0].addr();
             for col in 0..3u32 {
                 let v = [
                     get(view + 4 * col)?,

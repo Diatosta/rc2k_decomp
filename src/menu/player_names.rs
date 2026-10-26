@@ -12,7 +12,7 @@ pub const CAR_NAME: usize = 0x124;
 
 /// Where player `player`'s name is (the address the cars keep).
 pub fn name(player: usize) -> u32 {
-    (NAME_BUFFERS.player_names.addr() + player * NAME_LEN) as u32
+    NAME_BUFFERS.player_names.addr() + (player * NAME_LEN) as u32
 }
 
 /// Player `player`'s name, the whole 0x20 bytes.

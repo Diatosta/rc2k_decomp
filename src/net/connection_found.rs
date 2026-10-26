@@ -37,7 +37,7 @@ pub fn connection_found(args: &[u32]) -> Result<u32, Refused> {
     if crate::strings::load_language::notice_kind() == lists::LEAVES_OUT_PROVIDERS
         && [&NET.sp_serial, &NET.sp_modem]
             .into_iter()
-            .any(|left_out| same_guid(guid, left_out.addr() as u32))
+            .any(|left_out| same_guid(guid, left_out.addr()))
     {
         return Ok(1);
     }

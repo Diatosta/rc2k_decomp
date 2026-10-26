@@ -49,7 +49,7 @@ impl core::ops::Deref for InBlock {
     fn deref(&self) -> &Finish {
         // SAFETY: the race block lives as long as the program and is aligned to 4 (the
         // test checks); every field is an atomic or a cell, as the block's bytes were shared.
-        unsafe { &*(crate::pointers::host_at(piece_addr()) as *const Finish) }
+        unsafe { &*(crate::pointers::host(piece_addr()) as *const Finish) }
     }
 }
 
@@ -63,8 +63,8 @@ pub const END: usize = 0x64BB88;
 const _: () = assert!(END - START == core::mem::size_of::<Finish>());
 
 /// Where IDA 0x64BB18 is now.
-pub fn piece_addr() -> usize {
-    crate::moved::place(START)
+pub fn piece_addr() -> u32 {
+    crate::moved::place(START) as u32
 }
 
 #[cfg(test)]
@@ -77,7 +77,7 @@ mod tests {
         assert_eq!(piece_addr() % 4, 0);
         assert_eq!(
             crate::moved::place(END - 1),
-            piece_addr() + (END - START) - 1
+            (piece_addr() + (END - START) as u32 - 1) as usize
         );
         assert_eq!(offset_of!(Finish, finish_stages), 0x64BB1C - START);
         assert_eq!(offset_of!(Finish, finish_lengths), 0x64BB3C - START);

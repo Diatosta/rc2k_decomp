@@ -22,7 +22,7 @@ pub static LOCKED: Locked = Locked {
 
 /// Where the block is (`moved::MOVED`'s home for IDA 0x4F3870).
 pub fn home() -> usize {
-    crate::pointers::host_number(&LOCKED as *const Locked)
+    crate::pointers::game_address(&LOCKED as *const Locked) as usize
 }
 
 #[cfg(test)]
@@ -36,6 +36,6 @@ mod tests {
 
     #[test]
     fn moved_knows_the_block() {
-        assert_eq!(crate::moved::place(START), LOCKED.surface.addr());
+        assert_eq!(crate::moved::place(START), LOCKED.surface.addr() as usize);
     }
 }

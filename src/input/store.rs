@@ -159,8 +159,8 @@ pub const KEYBOARD_FILE_IDA: usize = 0x4F07C8;
 pub const KEYBOARD_FILE_LEN: usize = core::mem::size_of::<KeyboardFile>();
 
 /// Where the keyboard file is (`moved::MOVED`'s home for IDA 0x4F07C8).
-pub fn keyboard_file_addr() -> usize {
-    crate::pointers::host_number(&KEYBOARD_FILE as *const KeyboardFile)
+pub fn keyboard_file_addr() -> u32 {
+    crate::pointers::game_address(&KEYBOARD_FILE as *const KeyboardFile)
 }
 
 // ---- the devices: 0x4F68D8 .. 0x4F7E18 ----
@@ -326,8 +326,8 @@ pub const DEVICES_IDA: usize = 0x4F68D8;
 pub const DEVICES_LEN: usize = core::mem::size_of::<Devices>();
 
 /// Where the devices are (`moved::MOVED`'s home for IDA 0x4F68D8).
-pub fn devices_addr() -> usize {
-    crate::pointers::host_number(&DEVICES as *const Devices)
+pub fn devices_addr() -> u32 {
+    crate::pointers::game_address(&DEVICES as *const Devices)
 }
 
 impl Devices {
@@ -368,7 +368,7 @@ impl Devices {
 /// Sets `input_devices` to the records' places now.
 pub fn point_devices_at_records() {
     for (pointer, record) in DEVICES.input_devices.iter().zip(&DEVICES.records) {
-        pointer.set(record.addr() as u32);
+        pointer.set(record.addr());
     }
 }
 
@@ -425,8 +425,8 @@ pub const KEYBOARD_IDA: usize = 0x4F7FD8;
 pub const KEYBOARD_LEN: usize = core::mem::size_of::<Keyboard>();
 
 /// Where the keyboard is (`moved::MOVED`'s home for IDA 0x4F7FD8).
-pub fn keyboard_addr() -> usize {
-    crate::pointers::host_number(&KEYBOARD as *const Keyboard)
+pub fn keyboard_addr() -> u32 {
+    crate::pointers::game_address(&KEYBOARD as *const Keyboard)
 }
 
 // ---- the mouse: 0x5C6924 .. 0x5C6948 ----
@@ -465,8 +465,8 @@ pub const MOUSE_IDA: usize = 0x5C6924;
 pub const MOUSE_LEN: usize = core::mem::size_of::<Mouse>();
 
 /// Where the mouse is (`moved::MOVED`'s home for IDA 0x5C6924).
-pub fn mouse_addr() -> usize {
-    crate::pointers::host_number(&MOUSE as *const Mouse)
+pub fn mouse_addr() -> u32 {
+    crate::pointers::game_address(&MOUSE as *const Mouse)
 }
 
 /// The force-feedback effects' clock, surface kinds and constants (IDA 0x518084 .. 0x5180f0, the image's layout; phase 7, typed state).
@@ -533,7 +533,7 @@ impl ForceFeedback {
 
     /// `moved::MOVED`'s home for `START`.
     pub fn home() -> usize {
-        crate::pointers::host_number(&FORCE_FEEDBACK as *const ForceFeedback)
+        crate::pointers::game_address(&FORCE_FEEDBACK as *const ForceFeedback) as usize
     }
 }
 
@@ -558,7 +558,10 @@ mod tests {
             (KEYBOARD_IDA, KEYBOARD_LEN, keyboard_addr()),
             (MOUSE_IDA, MOUSE_LEN, mouse_addr()),
         ] {
-            assert!(bytes_of(addr, len) == image_bytes(ida, len), "{ida:X}");
+            assert!(
+                bytes_of(addr as usize, len) == image_bytes(ida, len),
+                "{ida:X}"
+            );
         }
     }
 

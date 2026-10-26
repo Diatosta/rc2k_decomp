@@ -142,7 +142,7 @@ pub unsafe fn draw_described_object(d: u32) -> Result<(), Refused> {
         let object: u32 = FRAME_SWITCHES.object_number.bits();
         let kind: u32 = OBJECT_TABLES.object_kind(object);
         let record =
-            (crate::scene::polygon::materials_addr() as u32).wrapping_add(kind.wrapping_mul(0x80));
+            (crate::scene::polygon::materials_addr()).wrapping_add(kind.wrapping_mul(0x80));
         if GamePtr::new(record)
             .offset(0x1F)
             .read::<u8>("an object's material")?

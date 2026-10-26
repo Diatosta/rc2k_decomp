@@ -31,7 +31,7 @@ pub const INPUTS: Message = Message {
 /// The shared body: the car block `g_car`, the message built at `RaceWork::net_message`.
 pub fn send_fields(m: &Message) -> Result<(), Refused> {
     let (car, message) = (
-        crate::physics::car_store::car_addr() as u32,
+        crate::physics::car_store::car_addr(),
         crate::pointers::game_address(crate::race::work_store::RACE_WORK.net_message.as_ptr()),
     );
     log_send(m.text);

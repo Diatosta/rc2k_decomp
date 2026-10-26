@@ -51,19 +51,19 @@ fn game() -> (Vec<u32>, [u32; 3]) {
     (
         // In the order the core takes them.
         vec![
-            c.driver_kind.addr() as u32,
-            c.time_left.addr() as u32,
-            c.go_stand_timer.addr() as u32,
-            c.finish_flag.addr() as u32,
-            CHEAT_VARS.cheats.addr() as u32,
-            c.notice_id.addr() as u32,
-            c.notice_time_b.addr() as u32,
-            c.notice_time.addr() as u32,
+            c.driver_kind.addr(),
+            c.time_left.addr(),
+            c.go_stand_timer.addr(),
+            c.finish_flag.addr(),
+            CHEAT_VARS.cheats.addr(),
+            c.notice_id.addr(),
+            c.notice_time_b.addr(),
+            c.notice_time.addr(),
         ],
         [
-            RACE_WORK.current_car.addr() as u32,
-            FRAME_WORK.listed_car_sounds[0].addr() as u32,
-            crate::sound::store::STAGE_SOUNDS.once[2].addr() as u32,
+            RACE_WORK.current_car.addr(),
+            FRAME_WORK.listed_car_sounds[0].addr(),
+            crate::sound::store::STAGE_SOUNDS.once[2].addr(),
         ],
     )
 }

@@ -28,7 +28,7 @@ use rc2k_core::physics::damage_notices::{LEVELS, damage_notices as damage_notice
 /// types only the first two).
 fn gauge(k: usize) -> u32 {
     crate::pointers::read_or_end::<u32>(
-        (CAR.brake_heat[0].addr() + 4 * k) as u32,
+        CAR.brake_heat[0].addr() + (4 * k) as u32,
         "physics::damage_notices's operand",
     )
 }

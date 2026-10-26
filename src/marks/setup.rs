@@ -62,7 +62,7 @@ impl MarksClock {
     pub const LEN: usize = 0x34;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        crate::pointers::host_number(&CLOCK as *const MarksClock)
+        crate::pointers::game_address(&CLOCK as *const MarksClock) as usize
     }
 }
 
@@ -104,7 +104,7 @@ pub fn seed_noise() {
 pub fn make_wave_tables() -> Result<(), Refused> {
     use crate::marks::waves::{SINES as SINE_TABLE, WAVE, WAVE_LEVELS as LEVELS};
     let done = WAVE.done.get();
-    let target = game_addr(WAVE_DONE_TARGET_RVA) as u32;
+    let target = game_addr(WAVE_DONE_TARGET_RVA);
     if done == target {
         return Ok(());
     }
@@ -305,7 +305,7 @@ impl MarksSettings {
     pub const LEN: usize = 4;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        crate::pointers::host_number(&SETTINGS as *const MarksSettings)
+        crate::pointers::game_address(&SETTINGS as *const MarksSettings) as usize
     }
 }
 
@@ -329,7 +329,7 @@ impl ClockK {
     pub const LEN: usize = 0x8;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        crate::pointers::host_number(&CLOCK_K as *const ClockK)
+        crate::pointers::game_address(&CLOCK_K as *const ClockK) as usize
     }
 }
 
@@ -386,7 +386,7 @@ mod clock_tests {
         assert_eq!(size_of::<MarksSettings>(), MarksSettings::LEN);
         assert_eq!(
             crate::moved::place(MarksSettings::START),
-            SETTINGS.pointer.addr()
+            SETTINGS.pointer.addr() as usize
         );
     }
 }

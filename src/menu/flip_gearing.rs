@@ -24,7 +24,7 @@ pub fn flip_gearing() -> Result<(), crate::errors::BadInput> {
     crate::pointers::GamePtr::new(
         crate::screens::text_buffers_store::TEXT_BUFFERS
             .title
-            .addr() as u32,
+            .addr(),
     )
     .write_bytes(&text, "the title")
 }

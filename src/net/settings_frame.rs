@@ -30,10 +30,10 @@ pub fn settings_frame() -> Result<(), Refused> {
     copy_picture()?;
     let mut y = 0x92;
     for (item, (label, value, number)) in [
-        (0x163, NET.saved_name.addr() as u32, false),
-        (0x164, NET.machine_name.addr() as u32, false),
+        (0x163, NET.saved_name.addr(), false),
+        (0x164, NET.machine_name.addr(), false),
         (0x165, NET.most_players.get(), true),
-        (0x166, NET.host_address.addr() as u32, false),
+        (0x166, NET.host_address.addr(), false),
     ]
     .into_iter()
     .enumerate()

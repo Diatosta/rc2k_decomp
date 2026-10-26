@@ -57,12 +57,5 @@ pub unsafe fn apply_at(rec: u32, car: u32, work: u32, scratch: u32) {
 
 /// The Rust version (the exact one, for `physics::apply_forces`).
 pub unsafe fn apply_force(rec: u32, car: u32) {
-    unsafe {
-        apply_at(
-            rec,
-            car,
-            PHYSICS.push_record[0].addr() as u32,
-            DRAW.scratch.addr() as u32,
-        )
-    }
+    unsafe { apply_at(rec, car, PHYSICS.push_record[0].addr(), DRAW.scratch.addr()) }
 }

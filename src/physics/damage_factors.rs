@@ -175,7 +175,7 @@ pub fn steps() {
     x87_14(
         crate::race::store::asm_base() as usize,
         &DAMAGE,
-        crate::pointers::host_number(&raw mut status),
+        crate::pointers::game_address(&raw mut status) as usize,
     );
     if status & 0x100 != 0 {
         DAMAGE.flt_75b3c0.set_bits(ONE);

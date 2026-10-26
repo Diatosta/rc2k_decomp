@@ -31,7 +31,7 @@ fn refresh() -> Result<bool, Refused> {
     let listed = NET.sessions.get();
     if listed != 0 {
         movsb(
-            NET.joined.addr() as u32,
+            NET.joined.addr(),
             session(INSTALLER_PAGES.choice.get())? + field!(NetSession, instance),
             0x10,
         )?;
@@ -47,7 +47,7 @@ fn refresh() -> Result<bool, Refused> {
     if listed != 0 && NET.sessions.get() != 0 {
         let mut n = 0;
         loop {
-            if same_guid(session(n)?.wrapping_add(0x40), NET.joined.addr() as u32) {
+            if same_guid(session(n)?.wrapping_add(0x40), NET.joined.addr()) {
                 // Converted: `rc2k_core::net::screens` (`keeps_top`, `moved_top`).
                 choice = n;
                 top = if screens::keeps_top(NET.sessions.get()) {

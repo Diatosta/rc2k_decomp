@@ -22,7 +22,7 @@ const WINDOW: u32 = 32;
 /// The Rust version (see the header).
 pub fn spawn_hexagon(x: u32, z: u32, kind: u32) -> Result<(), Refused> {
     {
-        let base = HEX.items.addr() as u32;
+        let base = HEX.items.addr();
         let end = ITEMS * ITEM_LEN;
         let mut at = HEXAGON_WORK.cursor.bits();
         for _ in 0..WINDOW {

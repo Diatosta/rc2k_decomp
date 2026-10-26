@@ -30,7 +30,7 @@ pub fn mix() -> Result<bool, Refused> {
         let old = AUDIO.play_cursor.get();
         let position: unsafe extern "system" fn(u32, u32, u32) -> i32 =
             std::mem::transmute(crate::audio::com::method(primary, 0x10));
-        let r = position(primary, AUDIO.play_cursor.addr() as u32, 0);
+        let r = position(primary, AUDIO.play_cursor.addr(), 0);
         if r != 0 {
             return Ok(failed(r));
         }
@@ -48,7 +48,7 @@ pub fn mix() -> Result<bool, Refused> {
         crate::audio::mix_channels::mix_channels_in_game(bytes)?;
         let lock: unsafe extern "system" fn(u32, u32, u32, u32, u32, u32, u32, u32) -> i32 =
             std::mem::transmute(crate::audio::com::method(primary, 0x2C));
-        let p = AUDIO.locked_parts[0].addr() as u32;
+        let p = AUDIO.locked_parts[0].addr();
         let r = lock(
             primary,
             AUDIO.write_cursor.get(),

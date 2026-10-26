@@ -19,9 +19,9 @@ pub unsafe fn slideshow_title() -> Result<(), Refused> {
     unsafe {
         put_string(
             TITLE,
-            crate::screens::text_buffers_store::TEXT_BUFFERS
+            (crate::screens::text_buffers_store::TEXT_BUFFERS
                 .title
-                .addr(),
+                .addr()) as usize,
             TITLE_LEN,
         )
     }

@@ -34,7 +34,7 @@ const ANGLES: u32 = 0x1000;
 fn turn(p: &[[u8; 10]; 3]) {
     turn_x87(
         crate::race::store::asm_base() as usize,
-        crate::pointers::host_number(p.as_ptr()),
+        (crate::pointers::game_address(p.as_ptr())) as usize,
         &RING_WORK,
         &DRAW_WORK,
     )
@@ -48,8 +48,8 @@ fn square(k: u32, s: u32) -> u32 {
     {
         edi = square_x87(
             crate::race::store::asm_base() as usize,
-            crate::d3d::vertices_store::piece_addr(),
-            crate::scene::engine_tables_store::piece_addr(),
+            crate::d3d::vertices_store::piece_addr() as usize,
+            crate::scene::engine_tables_store::piece_addr() as usize,
             k as usize,
             s as usize,
             &DRAW_WORK,
@@ -106,7 +106,7 @@ pub fn draw_cell_sprite(
         VERTICES.vertices[n].v.set_bits(v);
     }
     square(at, 4 * angle);
-    if clip_quad(crate::d3d::vertices_store::piece_addr() as u32)? {
+    if clip_quad(crate::d3d::vertices_store::piece_addr())? {
         return Ok(());
     }
     draw_fan();
@@ -182,7 +182,7 @@ fn square_x87(
     let t4 = bh::int(dw.sprite_half[0].bits() as i32);
     let t5 = t4 * t1;
     dw.sprite_half[0].set_bits(bh::st(t5));
-    let t6 = t5 * ld(address_of(&cs.slopes), k);
+    let t6 = t5 * ld(address_of(&cs.slopes) as usize, k);
     dw.sprite_half[1].set_bits(bh::st(t6));
     let t7 = dw.sprite_half[0].bits();
     let t8 = t7 ^ 0x80000000;

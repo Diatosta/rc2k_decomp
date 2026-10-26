@@ -27,7 +27,7 @@ const GRADES: u32 = 0xC90;
 
 /// A cell's address, as the game's routines are handed it.
 fn at<T>(cell: &T) -> u32 {
-    crate::session::address_of(cell) as u32
+    crate::session::address_of(cell)
 }
 
 fn get(at: u32) -> Result<u32, BadInput> {
@@ -356,7 +356,7 @@ pub fn transform_int_points_from(from: u32, count: u32) -> Result<(), Refused> {
 pub fn write_point(s: u32, k: u32, pointer: u32) -> Result<(), Refused> {
     {
         let to = get(s + IDS + 4 * pointer)?;
-        let from = SPLINE_WORK.ordered_coords[0].addr() as u32 + 12 * k;
+        let from = SPLINE_WORK.ordered_coords[0].addr() + 12 * k;
         for c in 0..3 {
             put(
                 to + 4 * c,
@@ -380,8 +380,8 @@ pub fn order_spline_points(s: u32) -> Result<(), Refused> {
             return Err(BadInput("a spline of a negative count: the moves would run away").into());
         }
         let (ids_at, coords_at) = (
-            SPLINE_WORK.ordered_ids[0].addr() as u32,
-            SPLINE_WORK.ordered_coords[0].addr() as u32,
+            SPLINE_WORK.ordered_ids[0].addr(),
+            SPLINE_WORK.ordered_coords[0].addr(),
         );
         // What the moves back read: the ordered tables' first `n`, those not placed as
         // they were.
@@ -416,8 +416,8 @@ pub fn bound_spline_points(s: u32) -> Result<(), Refused> {
     let n = count(s)?;
     let b = rc2k_core::marks::splines::bounds(&triples(s + COORDS, n)?);
     let size = b.size;
-    let up = SPLINE_WORK.up[0].addr() as u32;
-    let size_at = SPLINE_WORK.size[0].addr() as u32;
+    let up = SPLINE_WORK.up[0].addr();
+    let size_at = SPLINE_WORK.size[0].addr();
     put(size_at + 4, x87::from_int(size[1]))?;
     put(size_at + 8, x87::from_int(size[2]))?;
     for (c, &m) in b.middle.iter().enumerate() {
@@ -468,7 +468,7 @@ pub fn make_spline(object: u32) -> Result<(), Refused> {
         spline_checks(object)?;
         let offset = place as u32 * SPLINE_LEN;
         SPLINE_WORK.offset.set_bits(offset);
-        let table = |t: usize| SPLINE_TABLES.table(t) as u32;
+        let table = |t: usize| (SPLINE_TABLES.table(t)) as u32;
         for t in 0..4 {
             let record = table(t) + offset;
             gather_spline_points(record, object, SPLINE_KINDS.chosen[1 + t].bits())?;
@@ -547,9 +547,9 @@ pub fn load_splines(resume: u32) -> Result<(), Refused> {
         spline_checks(o)?;
     }
     if loaded == 0 {
-        let file = SPLINE_HEAD.file.addr() as u32;
+        let file = SPLINE_HEAD.file.addr();
         crate::files::read_whole_file::read_whole_file(
-            crate::pointers::host_at(SPLINE_PATH.path.addr()) as *const u8,
+            crate::pointers::host(SPLINE_PATH.path.addr()) as *const u8,
             crate::pointers::host(file),
             FILE_LEN,
         )?;
@@ -777,7 +777,7 @@ impl SplineHead {
     pub const LEN: usize = 0xEC0;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        crate::pointers::host_number(&SPLINE_HEAD as *const SplineHead)
+        crate::pointers::game_address(&SPLINE_HEAD as *const SplineHead) as usize
     }
 }
 
@@ -881,7 +881,7 @@ impl SplineWork {
     pub const LEN: usize = 0x17E0;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        crate::pointers::host_number(&SPLINE_WORK as *const SplineWork)
+        crate::pointers::game_address(&SPLINE_WORK as *const SplineWork) as usize
     }
 }
 
@@ -1179,7 +1179,7 @@ impl SplineTables {
     pub const LEN: usize = 0x1D200;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        crate::pointers::host_number(&SPLINE_TABLES as *const SplineTables)
+        crate::pointers::game_address(&SPLINE_TABLES as *const SplineTables) as usize
     }
 }
 
@@ -1419,7 +1419,7 @@ impl SplineKinds {
     pub const LEN: usize = 0x348;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        crate::pointers::host_number(&SPLINE_KINDS as *const SplineKinds)
+        crate::pointers::game_address(&SPLINE_KINDS as *const SplineKinds) as usize
     }
 }
 
@@ -1473,7 +1473,7 @@ impl SplinePath {
     pub const LEN: usize = 0x13;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        crate::pointers::host_number(&SPLINE_PATH as *const SplinePath)
+        crate::pointers::game_address(&SPLINE_PATH as *const SplinePath) as usize
     }
 }
 
@@ -1532,7 +1532,7 @@ impl SplineConstants {
     pub const LEN: usize = 0x5C;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        crate::pointers::host_number(&SPLINE_CONSTANTS as *const SplineConstants)
+        crate::pointers::game_address(&SPLINE_CONSTANTS as *const SplineConstants) as usize
     }
 }
 
@@ -1570,7 +1570,7 @@ mod spline_constants_tests {
 impl SplineTables {
     /// The address of table `t` (A .. D) of eight records.
     pub fn table(&self, t: usize) -> usize {
-        [self.a.addr(), self.b.addr(), self.c.addr(), self.d.addr()][t]
+        ([self.a.addr(), self.b.addr(), self.c.addr(), self.d.addr()][t]) as usize
     }
 }
 

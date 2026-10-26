@@ -27,7 +27,7 @@ impl ClipScreen {
     pub const LEN: usize = 0xD0;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        crate::pointers::host_number(&CLIP as *const ClipScreen)
+        crate::pointers::game_address(&CLIP as *const ClipScreen) as usize
     }
 }
 
@@ -69,7 +69,7 @@ impl GlowState {
     pub const LEN: usize = 0x40;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        crate::pointers::host_number(&GLOW as *const GlowState)
+        crate::pointers::game_address(&GLOW as *const GlowState) as usize
     }
 }
 

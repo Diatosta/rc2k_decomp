@@ -28,7 +28,7 @@ pub fn allocate_object_memory(
     take: &mut dyn FnMut(u32, u32) -> Result<u32, Refused>,
 ) -> Result<(), Refused> {
     let (points, faces) = rooms(NUMBERS.in_race.bits() != 0);
-    let list = COURSE_LISTS.object_points_list[0].addr() as u32;
+    let list = COURSE_LISTS.object_points_list[0].addr();
     COURSE_LISTS.course_bytes_total.set_bits(
         COURSE_LISTS
             .course_bytes_total
@@ -48,7 +48,7 @@ pub fn allocate_object_memory(
 pub fn allocate_object_memory_in_game() -> Result<(), Refused> {
     allocate_object_memory(&mut |bytes, _| {
         Ok(crate::pointers::game_address(allocate(
-            crate::pointers::host_at(COURSE_LISTS.object_points_list[0].addr()) as *mut _,
+            crate::pointers::host(COURSE_LISTS.object_points_list[0].addr()) as *mut _,
             bytes,
         )?))
     })

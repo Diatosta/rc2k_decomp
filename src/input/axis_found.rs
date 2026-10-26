@@ -40,8 +40,7 @@ pub fn axis_found(object: u32, entry: u32) -> Result<u32, BadInput> {
     };
     let mut axes = [[0u8; 16]; 6];
     for (n, axis) in axes.iter_mut().enumerate() {
-        *axis =
-            GamePtr::new(INPUT_GUIDS.axes.addr() as u32 + 16 * n as u32).read("an axis GUID")?;
+        *axis = GamePtr::new(INPUT_GUIDS.axes.addr() + 16 * n as u32).read("an axis GUID")?;
     }
     let bits = rc2k_core::input::joystick::axis_bits(
         at(entry, field!(Controller, axis_bits))?,

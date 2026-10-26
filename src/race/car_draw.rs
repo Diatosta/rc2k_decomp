@@ -33,26 +33,26 @@ fn get(a: u32) -> Result<u32, BadInput> {
 
 // The matrices are handed to code that walks memory by pointer: absolute addresses.
 fn view_matrix() -> usize {
-    MATRICES.view_matrix[0].addr() // g_viewMatrix
+    MATRICES.view_matrix[0].addr() as usize // g_viewMatrix
 }
 fn turned() -> usize {
-    MATRICES.turned_matrix[0].addr() // g_turnedMatrix
+    MATRICES.turned_matrix[0].addr() as usize // g_turnedMatrix
 }
 fn lit() -> usize {
-    MATRICES.lit_matrix[0].addr() // g_litMatrix
+    MATRICES.lit_matrix[0].addr() as usize // g_litMatrix
 }
 fn made() -> usize {
-    MATRICES.made_object_matrix[0].addr() // g_madeObjectMatrix
+    MATRICES.made_object_matrix[0].addr() as usize // g_madeObjectMatrix
 }
 fn body_turn() -> usize {
-    MATRICES.body_turn_matrix[0].addr() // flt_5EA08C: the car's +0x840
+    MATRICES.body_turn_matrix[0].addr() as usize // flt_5EA08C: the car's +0x840
 }
 fn car_turn() -> usize {
-    FRAME_WORK.placed_matrices[0].addr() // flt_641760: the car's +0x880
+    FRAME_WORK.placed_matrices[0].addr() as usize // flt_641760: the car's +0x880
 }
 /// The four parts' matrices (`flt_6417E0` .., the car's +0x740 ..).
 pub fn part_matrices() -> [usize; 4] {
-    [0, 16, 32, 48].map(|k| FRAME_WORK.part_matrices[k].addr())
+    [0, 16, 32, 48].map(|k| FRAME_WORK.part_matrices[k].addr() as usize)
 }
 
 /// `race::car_part_matrix_1` .. `_4` (0x461F12, 0x461F58, 0x461F9E, 0x461FE4): matrix `a`
@@ -73,8 +73,8 @@ pub fn car_body_matrix() {
     set_fine_turn(Axis::X, 0);
     set_fine_turn(Axis::Z, 0);
     multiply_matrices(
-        MATRICES.turn_x_matrix[0].addr(),
-        MATRICES.turn_z_matrix[0].addr(),
+        MATRICES.turn_x_matrix[0].addr() as usize,
+        MATRICES.turn_z_matrix[0].addr() as usize,
         lit(),
     );
     car_part_matrix(lit());
@@ -114,7 +114,7 @@ pub fn car_number_textures(car: u32) -> Result<(), BadInput> {
         let side = lamp_side(float(car + 0x1BC)?, limit);
         OBJECT_TABLES.car_mark_textures[2].set(side);
         OBJECT_TABLES.car_mark_textures[3].set(side);
-        let name = (RACE_WORK.number_texture_names[0].addr() as u32)
+        let name = (RACE_WORK.number_texture_names[0].addr())
             .wrapping_add(car_at(car)?.car_kind.bits().wrapping_mul(0x30));
         let n = crate::math::x87::to_int(car_at(car)?.unknown_6f4[9].bits());
         DRAW.scratch.set(n as u32);
@@ -150,7 +150,7 @@ pub fn car_number_textures(car: u32) -> Result<(), BadInput> {
 /// The model's bit at +`offset` of its 0x134-byte record (`dword_5C90C4` ..): 1 << it, 0 for
 /// -1.
 fn model_bit(record: u32, offset: u32) -> Result<u32, BadInput> {
-    let c = get(LIGHT_RECORDS.records[0].groups[0].addr() as u32 + record + offset)?;
+    let c = get(LIGHT_RECORDS.records[0].groups[0].addr() + record + offset)?;
     Ok(if c == u32::MAX { 0 } else { 1u32 << (c & 31) })
 }
 
@@ -239,8 +239,7 @@ pub unsafe fn draw_car(car: u32) -> Result<(), Refused> {
             }
         }
         FRAME_SWITCHES.group_mask.set(shown);
-        let field =
-            |offset: u32| get(LIGHT_RECORDS.records[0].groups[0].addr() as u32 + rec + offset);
+        let field = |offset: u32| get(LIGHT_RECORDS.records[0].groups[0].addr() + rec + offset);
         CAMERA_WORK.faded_bits.set(field(0x10)?);
         COURSE.group_masks[4].set(
             u32::MAX
@@ -314,7 +313,7 @@ pub unsafe fn draw_car(car: u32) -> Result<(), Refused> {
         GamePtr::new(car + 0xF04).write(VIEW_VARS.group_mask.bits(), "a car block's group mask")?;
         // `view_cars[drawn_view]`: read by address, as the original does for a view past the two.
         let view_car: u32 = GamePtr::new(
-            (RACE_VIEW.view_cars[0].addr() as u32).wrapping_add(4 * RACE_VIEW.drawn_view.bits()),
+            (RACE_VIEW.view_cars[0].addr()).wrapping_add(4 * RACE_VIEW.drawn_view.bits()),
         )
         .read("the view cars")?;
         if view_car == VIEW_VARS.drawn_car.bits() && VIEW_VARS.view_car_flag_a.bits() != 0 {

@@ -50,10 +50,10 @@ pub fn viewer_palettes() -> Result<(), BadInput> {
     for font in PALETTES {
         font.object()
             .palette
-            .set(crate::race::viewer_buffers_store::VIEWER_BUFFERS.colours[0].addr() as u32);
+            .set(crate::race::viewer_buffers_store::VIEWER_BUFFERS.colours[0].addr());
     }
     {
-        let screen = GamePtr::new(crate::session::SCREEN.format_addr() as u32)
+        let screen = GamePtr::new(crate::session::SCREEN.format_addr())
             .read::<PixelFormat>("the screen's pixel format")?;
         let texture = GamePtr::new(
             crate::gfx::texture_upload::TEXTURE_TABLES.kinds[3]
@@ -65,7 +65,7 @@ pub fn viewer_palettes() -> Result<(), BadInput> {
         // by colour, as the original).
         use rc2k_core::race::viewer_flow::{FONT_COLOURS, font_colour};
         let from = FONTS.palettes.get();
-        let to = crate::race::viewer_buffers_store::VIEWER_BUFFERS.colours[0].addr() as u32;
+        let to = crate::race::viewer_buffers_store::VIEWER_BUFFERS.colours[0].addr();
         for n in 0..FONT_COLOURS as u32 {
             let colour = font_colour(
                 GamePtr::new(from + 4 * n).read::<u32>("a font palette")?,

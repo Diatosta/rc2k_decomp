@@ -23,7 +23,7 @@ use crate::scene::draw_store::DRAW;
 /// `srclvls\level01\cdat00c`, `files\levels\level01\cdat00c.sq`.
 fn paths() -> [usize; 2] {
     let p = &crate::race::level_paths_store::LEVEL_PATHS;
-    [p.cdat_src.addr(), p.cdat_files.addr()]
+    [p.cdat_src.addr() as usize, p.cdat_files.addr() as usize]
 }
 use rc2k_core::race::stage_objects::COURSES;
 

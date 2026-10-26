@@ -73,7 +73,10 @@ pub fn drive_grip_forces() {
         } else {
             &PHYSICS.grip_factor[0]
         };
-        x87_3(crate::race::store::asm_base() as usize, factor.addr());
+        x87_3(
+            crate::race::store::asm_base() as usize,
+            factor.addr() as usize,
+        );
         DRAW.scratch.set(CAR.grip_forces[0].bits());
         // +0x210 held to ±the limit (the value negated in place between).
         hold_high(&CAR.grip_forces[0], &PHYSICS.grip_limit);
@@ -193,7 +196,7 @@ pub fn drive_grip_forces() {
     let held = [old];
     x87_15(
         crate::race::store::asm_base() as usize,
-        crate::pointers::host_number(held.as_ptr()),
+        (crate::pointers::game_address(held.as_ptr())) as usize,
     );
 }
 

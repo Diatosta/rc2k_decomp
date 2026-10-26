@@ -72,13 +72,13 @@ pub static UPLOAD: Upload = Upload {
 
 /// Where the block is (`moved::MOVED`'s home for IDA 0x5ABA18).
 pub fn home() -> usize {
-    crate::pointers::host_number(&UPLOAD as *const Upload)
+    crate::pointers::game_address(&UPLOAD as *const Upload) as usize
 }
 
 impl SurfaceDesc {
     /// Where the description is, for the surface's `Lock`.
-    pub fn addr(&self) -> usize {
-        crate::pointers::host_number(self as *const SurfaceDesc)
+    pub fn addr(&self) -> u32 {
+        crate::pointers::game_address(self as *const SurfaceDesc)
     }
 }
 
@@ -98,15 +98,18 @@ mod tests {
         assert_eq!(offset_of!(SurfaceDesc, pitch), 0x10);
         assert_eq!(offset_of!(SurfaceDesc, pixels), 0x24);
         assert_eq!(offset_of!(Upload, trying), 0x5ABA88 - START);
-        assert_eq!(crate::moved::place(START), UPLOAD.description.addr());
+        assert_eq!(
+            crate::moved::place(START),
+            UPLOAD.description.addr() as usize
+        );
         assert_eq!(
             crate::moved::place(0x5ABA28),
-            UPLOAD.description.pitch.addr()
+            UPLOAD.description.pitch.addr() as usize
         );
         assert_eq!(
             crate::moved::place(0x5ABA3C),
-            UPLOAD.description.pixels.addr()
+            UPLOAD.description.pixels.addr() as usize
         );
-        assert_eq!(crate::moved::place(0x5ABA88), UPLOAD.trying.addr());
+        assert_eq!(crate::moved::place(0x5ABA88), UPLOAD.trying.addr() as usize);
     }
 }

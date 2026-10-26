@@ -26,7 +26,7 @@ pub fn save_in_game() -> Result<bool, Refused> {
     save_game_data(
         &mut || {
             crate::saves::save_options::save_options(crate::pointers::host_at(
-                crate::saves::load_options::PATH.addr(),
+                crate::saves::load_options::PATH.addr() as usize,
             ) as *const u8)
         },
         &mut || crate::saves::save_best_times::in_game(),

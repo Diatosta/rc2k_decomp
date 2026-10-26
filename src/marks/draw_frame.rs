@@ -36,7 +36,7 @@ static TIMES: [(&Float, &Float); 2] = [
 ];
 
 fn rdtsc() -> u32 {
-    unsafe { core::arch::x86::_rdtsc() as u32 }
+    unsafe { crate::arch::_rdtsc() as u32 }
 }
 
 /// The Rust version (see the header): `cars_particles`, `view_heading`, `view_motion`,
@@ -47,7 +47,7 @@ pub fn draw_frame() -> Result<(), Refused> {
     if info == 0 {
         return Err(BadInput("no course info (g_courseInfo 0)").into());
     }
-    let m = MATRICES.view_place[0].addr() as u32;
+    let m = MATRICES.view_place[0].addr();
     for n in 0..3 {
         let p: [u32; 3] = read_bits(&DRAW_FRAME.points[n]);
         let turned = rotate_point(m, [extended(p[2]), extended(p[1]), extended(p[0])]);

@@ -40,27 +40,27 @@ unsafe fn after(_c: &mut Carried) -> Result<(), Refused> {
 }
 
 pub const SCREEN: Screen = Screen {
-    menu: || MENUS.view_courses.addr(),
+    menu: || MENUS.view_courses.addr() as usize,
     saved_item: || &SCREEN_ITEMS.current[slot::VIEW_COURSES],
     lists: &[
         List {
             pointer: || &SCREEN_FLOW.scene_list, // g_sceneList
-            table: || DRAW_LISTS.view_courses_scene.addr(),
+            table: || DRAW_LISTS.view_courses_scene.addr() as usize,
             run: false,
         },
         List {
             pointer: || &SCREEN_FLOW.draw_list, // g_drawList
-            table: || DRAW_LISTS.view_courses_draw.addr(),
+            table: || DRAW_LISTS.view_courses_draw.addr() as usize,
             run: false,
         },
         List {
             pointer: || &SCREEN_FLOW.setup_list, // dword_755500
-            table: || DRAW_LISTS.view_courses_setup.addr(),
+            table: || DRAW_LISTS.view_courses_setup.addr() as usize,
             run: true,
         },
         List {
             pointer: || &SCREEN_FLOW.overlay_list, // g_overlayList
-            table: || DRAW_LISTS.view_courses_overlay.addr(),
+            table: || DRAW_LISTS.view_courses_overlay.addr() as usize,
             run: false,
         },
     ],

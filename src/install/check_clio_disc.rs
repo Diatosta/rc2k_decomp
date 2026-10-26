@@ -37,7 +37,7 @@ const CLIO_STEP_RVA: usize = rva(0x41675B); // sub_41675B
 pub unsafe fn check_clio_disc(outside: &mut dyn Outside) -> Result<(), Refused> {
     unsafe {
         if !outside.file_exists(crate::pointers::host_at(
-            crate::install::store::INSTALL.clio_file.addr(),
+            crate::install::store::INSTALL.clio_file.addr() as usize,
         ) as *const u8)?
         {
             return Ok(());
@@ -45,31 +45,24 @@ pub unsafe fn check_clio_disc(outside: &mut dyn Outside) -> Result<(), Refused> 
         crate::install::store::INSTALL.has_clio.set(1);
         if INSTALLER_RUN.installing.get() == 1
             || outside.file_exists(crate::pointers::host_at(
-                crate::install::installer::INSTALL_TEXTS.record_path.addr(),
+                crate::install::installer::INSTALL_TEXTS.record_path.addr() as usize,
             ) as *const u8)?
             || runs_from_source(outside)?
             || INSTALLER_NAMES.status.get() != 1
             || INSTALLER_NAMES.source.get(0) == 0
             || outside.file_exists(
-                crate::pointers::host_at(INSTALLER_NAMES.installer_data.addr()) as *const u8,
+                crate::pointers::host(INSTALLER_NAMES.installer_data.addr()) as *const u8
             )?
         {
             return Ok(());
         }
-        let base_b =
-            crate::pointers::host_at(crate::install::installer::INSTALL_TEXTS.base_b.addr())
-                as *const u8;
-        if !outside.normalise_path(
-            base_b,
-            crate::pointers::host_at(INSTALLER_PATHS.path_a.addr()),
-        )? {
+        let base_b = crate::pointers::host(crate::install::installer::INSTALL_TEXTS.base_b.addr())
+            as *const u8;
+        if !outside.normalise_path(base_b, crate::pointers::host(INSTALLER_PATHS.path_a.addr()))? {
             return Ok(());
         }
-        outside.set_directory(crate::pointers::host_at(INSTALLER_NAMES.source.addr()) as *const u8);
-        if !outside.normalise_path(
-            base_b,
-            crate::pointers::host_at(INSTALLER_PATHS.path_b.addr()),
-        )? {
+        outside.set_directory(crate::pointers::host(INSTALLER_NAMES.source.addr()) as *const u8);
+        if !outside.normalise_path(base_b, crate::pointers::host(INSTALLER_PATHS.path_b.addr()))? {
             return Ok(());
         }
         outside.read_record()?;
@@ -85,9 +78,7 @@ pub unsafe fn check_clio_disc(outside: &mut dyn Outside) -> Result<(), Refused> 
             }
             .into());
         }
-        let at = crate::pointers::GamePtr::new(
-            crate::install::store::INSTALL.clio_car_name.addr() as u32
-        );
+        let at = crate::pointers::GamePtr::new(crate::install::store::INSTALL.clio_car_name.addr());
         let mut name = at.read_bytes(CAR_NAME_LEN, "the Clio's name")?;
         let Some(end) = name
             .iter()
@@ -101,9 +92,7 @@ pub unsafe fn check_clio_disc(outside: &mut dyn Outside) -> Result<(), Refused> 
         name[end] = b'\n';
         name[end + 1] = 0;
         at.write_bytes(&name, "the Clio's name")?;
-        INSTALLER_PAGES
-            .step
-            .set_u32(0, game_addr(CLIO_STEP_RVA) as u32);
+        INSTALLER_PAGES.step.set_u32(0, game_addr(CLIO_STEP_RVA));
         Ok(())
     }
 }

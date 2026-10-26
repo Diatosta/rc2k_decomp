@@ -32,7 +32,7 @@ impl core::ops::Deref for InBuffers {
     fn deref(&self) -> &TextBuffers {
         // SAFETY: the block lives as long as the program and the piece is aligned to 4 (the
         // test checks); every field is a cell.
-        unsafe { &*(crate::pointers::host_at(piece_addr()) as *const TextBuffers) }
+        unsafe { &*(crate::pointers::host(piece_addr()) as *const TextBuffers) }
     }
 }
 
@@ -46,8 +46,8 @@ pub const END: usize = 0xA8C180;
 const _: () = assert!(END - START == core::mem::size_of::<TextBuffers>());
 
 /// Where IDA 0xA8BB54 is now.
-pub fn piece_addr() -> usize {
-    crate::moved::place(START)
+pub fn piece_addr() -> u32 {
+    crate::moved::place(START) as u32
 }
 
 #[cfg(test)]
@@ -60,7 +60,7 @@ mod tests {
         assert_eq!(piece_addr() % 4, 0);
         assert_eq!(
             crate::moved::place(END - 1),
-            piece_addr() + (END - START) - 1
+            (piece_addr() + (END - START) as u32 - 1) as usize
         );
         assert_eq!(offset_of!(TextBuffers, cells), 0xA8BC54 - START);
         assert_eq!(offset_of!(TextBuffers, stage_heading), 0xA8BD54 - START);

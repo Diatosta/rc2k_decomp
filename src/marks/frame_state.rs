@@ -86,7 +86,7 @@ impl DrawWork {
     pub const LEN: usize = 0x100;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        crate::pointers::host_number(&DRAW_WORK as *const DrawWork)
+        crate::pointers::game_address(&DRAW_WORK as *const DrawWork) as usize
     }
 }
 
@@ -142,7 +142,7 @@ impl ViewVars {
     pub const LEN: usize = 0x58;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        crate::pointers::host_number(&VIEW_VARS as *const ViewVars)
+        crate::pointers::game_address(&VIEW_VARS as *const ViewVars) as usize
     }
 }
 
@@ -247,7 +247,7 @@ impl DrawFrame {
     pub const LEN: usize = 0xA4;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        crate::pointers::host_number(&DRAW_FRAME as *const DrawFrame)
+        crate::pointers::game_address(&DRAW_FRAME as *const DrawFrame) as usize
     }
 }
 
@@ -334,7 +334,7 @@ impl FlareParts {
     pub const LEN: usize = 0xD8;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        crate::pointers::host_number(&FLARE_PARTS as *const FlareParts)
+        crate::pointers::game_address(&FLARE_PARTS as *const FlareParts) as usize
     }
 }
 
@@ -360,7 +360,7 @@ impl FlareScales {
     pub const LEN: usize = 0x14;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        crate::pointers::host_number(&FLARE_SCALES as *const FlareScales)
+        crate::pointers::game_address(&FLARE_SCALES as *const FlareScales) as usize
     }
 }
 

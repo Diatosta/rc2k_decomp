@@ -42,8 +42,7 @@ use crate::scene::draw_store::DRAW;
 fn set_up_first(c: &mut Carried) -> Result<(), Refused> {
     // The current player's +0x30 (its car).
     let current: u32 = EVENT_STATE.current_player.get();
-    let player =
-        read_at((PLAYER_TABLE.pointers[0].addr() as u32).wrapping_add(current.wrapping_mul(4)))?;
+    let player = read_at((PLAYER_TABLE.pointers[0].addr()).wrapping_add(current.wrapping_mul(4)))?;
     c.arg = read_at(player.wrapping_add(0x30))?;
     SCREEN_FLOW.shown_gearing.set(c.arg);
     SCREEN_FLOW.turning.set(0x1u32);
@@ -81,27 +80,27 @@ unsafe fn leaving(c: &mut Carried) -> Result<(), Refused> {
 }
 
 pub const SCREEN: Screen = Screen {
-    menu: || MENUS.select_car.addr(),
+    menu: || MENUS.select_car.addr() as usize,
     saved_item: || &SCREEN_ITEMS.current[slot::SELECT_CAR],
     lists: &[
         List {
             pointer: || &SCREEN_FLOW.scene_list, // g_sceneList
-            table: || DRAW_LISTS.select_car_scene.addr(),
+            table: || DRAW_LISTS.select_car_scene.addr() as usize,
             run: false,
         },
         List {
             pointer: || &SCREEN_FLOW.draw_list, // g_drawList
-            table: || DRAW_LISTS.select_car_draw.addr(),
+            table: || DRAW_LISTS.select_car_draw.addr() as usize,
             run: false,
         },
         List {
             pointer: || &SCREEN_FLOW.setup_list, // dword_755500
-            table: || DRAW_LISTS.select_car_setup.addr(),
+            table: || DRAW_LISTS.select_car_setup.addr() as usize,
             run: true,
         },
         List {
             pointer: || &SCREEN_FLOW.overlay_list, // g_overlayList
-            table: || DRAW_LISTS.select_car_overlay.addr(),
+            table: || DRAW_LISTS.select_car_overlay.addr() as usize,
             run: false,
         },
     ],
@@ -114,9 +113,9 @@ pub const SCREEN: Screen = Screen {
     after_lists: &[],
     background: &[
         Step::ArgAddr(|| {
-            crate::menu::texts_store::MENU_TEXTS
+            (crate::menu::texts_store::MENU_TEXTS
                 .select_car_picture
-                .addr()
+                .addr()) as usize
         }),
         Step::CallOrFatal(Callee::LoadBackground, 0x80712345),
     ],

@@ -19,10 +19,10 @@ use rc2k_core::physics::motion::time_mark;
 
 fn game() -> Vec<u32> {
     vec![
-        CAR.engine_speed_scaled.addr() as u32,
-        PHYSICS.time_marks[0].addr() as u32,
-        CAR.step_clock.addr() as u32,
-        PHYSICS.time_marks[1].addr() as u32,
+        CAR.engine_speed_scaled.addr(),
+        PHYSICS.time_marks[0].addr(),
+        CAR.step_clock.addr(),
+        PHYSICS.time_marks[1].addr(),
     ]
 }
 

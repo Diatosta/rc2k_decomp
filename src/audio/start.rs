@@ -62,7 +62,7 @@ pub fn start() -> Result<bool, Refused> {
                 v.flags = 1;
                 v.length = 0x4000;
             });
-            let voice = probe.addr() as u32;
+            let voice = probe.addr();
             unsafe { crate::audio::make_buffer::make_buffer(voice, MENU_MODE)? };
             crate::audio::release_eax::release_eax();
             crate::audio::release_voice_manager::release_voice_manager();

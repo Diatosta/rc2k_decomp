@@ -64,7 +64,7 @@ pub fn touch_face() -> Result<(), Refused> {
     let _all = [
         (a(&CONTACT_WORK.lit_faces[count as usize]), 4),
         (face, 0x40),
-        ((CONTACT_WORK.lit_face_count.addr() as u32), 4),
+        ((CONTACT_WORK.lit_face_count.addr()), 4),
     ];
     (|| -> Result<(), crate::errors::Refused> {
         p(&CONTACT_WORK.lit_faces[count as usize], number);

@@ -134,13 +134,13 @@ pub unsafe fn start_stream(s: &mut AudioStream, path: *const u8) -> Result<bool,
             flags: 0x80,
             bytes: s.bytes,
             reserved: 0,
-            format: AUDIO.wave_format.addr() as u32,
+            format: AUDIO.wave_format.addr(),
         });
         let create: unsafe extern "system" fn(u32, u32, u32, u32) -> i32 =
             std::mem::transmute(crate::audio::com::method(ds, 0x0C));
         if create(
             ds,
-            AUDIO.buffer_description.addr() as u32,
+            AUDIO.buffer_description.addr(),
             crate::pointers::game_address(&mut s.buffer as *mut u32),
             0,
         ) != 0
@@ -165,7 +165,7 @@ pub unsafe fn start_stream(s: &mut AudioStream, path: *const u8) -> Result<bool,
 /// parts (`g_lockedParts`). False for the carry (the player stopped).
 pub unsafe fn feed_stream(s: &mut AudioStream) -> Result<bool, Refused> {
     not_a3d("A3D (0x40D0C0)")?;
-    let parts = AUDIO.locked_parts[0].addr() as u32;
+    let parts = AUDIO.locked_parts[0].addr();
     unsafe {
         let failed = |s: &mut AudioStream| stop_stream(s).map(|_| false);
         if s.buffer == 0 {

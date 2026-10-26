@@ -65,8 +65,7 @@ pub fn collect_points(list: &PointList, face: u32) -> Result<(), Refused> {
 /// from 0x831D2E, `g_marksMaskRunCount` 0. Every register kept. Converted:
 /// `rc2k_core::marks::masks::MaskCursor::reset`.
 pub fn reset_mask_cursor() {
-    let c =
-        rc2k_core::marks::masks::MaskCursor::reset(MASKS.work.get(), MASKS.run_table.addr() as u32);
+    let c = rc2k_core::marks::masks::MaskCursor::reset(MASKS.work.get(), MASKS.run_table.addr());
     MASKS.cursor.set(c.cursor);
     MASKS.runs.set(c.runs);
     MASKS.run_count.set(c.run_count);
@@ -140,17 +139,11 @@ pub fn make_masks() -> Result<(), Refused> {
         crate::pointers::game_address(core::ptr::addr_of!(MASKS.shapes[0])),
         crate::pointers::game_address(core::ptr::addr_of!(MASKS.shapes[1])),
     ];
-    let corners = [MASKS.corners_a.addr() as u32, MASKS.corners_b.addr() as u32];
-    let ring_angles = [
-        MASKS.ring_angles_a.addr() as u32,
-        MASKS.ring_angles_b.addr() as u32,
-    ];
-    let masks = [MASKS.mask_a.addr() as u32, MASKS.mask_b.addr() as u32];
-    let pixel_tables = [
-        PICKS.pixel_table_a.addr() as u32,
-        PICKS.pixel_table_b.addr() as u32,
-    ];
-    let list = crate::pointers::host_at(MASKS.list.addr()) as *mut crate::memory::MemoryList;
+    let corners = [MASKS.corners_a.addr(), MASKS.corners_b.addr()];
+    let ring_angles = [MASKS.ring_angles_a.addr(), MASKS.ring_angles_b.addr()];
+    let masks = [MASKS.mask_a.addr(), MASKS.mask_b.addr()];
+    let pixel_tables = [PICKS.pixel_table_a.addr(), PICKS.pixel_table_b.addr()];
+    let list = crate::pointers::host(MASKS.list.addr()) as *mut crate::memory::MemoryList;
     let work = crate::pointers::game_address(crate::memory::allocate::allocate(list, WORK_LEN)?);
     MASKS.work.set(work);
     crate::marks::shape_points::make_shape_sets()?;

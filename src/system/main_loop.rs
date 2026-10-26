@@ -69,20 +69,19 @@ impl Vars {
                 at(crate::moved::place(v))
             }
         });
-        vars[0] = at(FLAGS.main_loop_stack.addr());
-        vars[1] = at(FLAGS.quitting.addr());
-        vars[2] = at(FLAGS.window_active.addr());
-        vars[3] = at(CLOCKS.key_ticks.addr());
-        vars[4] = at(FLAGS.f38c.addr());
-        vars[5] = at(crate::sound::store::SETTINGS_APPLIED.done.addr());
-        vars[6] = at(crate::install::vars::INSTALLER_PAGES.script_set_up.addr());
-        vars[7] = at(crate::install::vars::INSTALLER_RUN.installing.addr());
-        vars[8] = at(crate::install::vars::INSTALLER_RUN.updating.addr());
-        vars[9] = at(crate::install::vars::INSTALLER_RUN.from_command.addr());
-        vars[10] = at(crate::pointers::host_number(
-            crate::files::state::base_directory(),
-        ));
-        vars[11] = at(crate::net::store::NET.lobby_launched.addr());
+        vars[0] = at(FLAGS.main_loop_stack.addr() as usize);
+        vars[1] = at(FLAGS.quitting.addr() as usize);
+        vars[2] = at(FLAGS.window_active.addr() as usize);
+        vars[3] = at(CLOCKS.key_ticks.addr() as usize);
+        vars[4] = at(FLAGS.f38c.addr() as usize);
+        vars[5] = at(crate::sound::store::SETTINGS_APPLIED.done.addr() as usize);
+        vars[6] = at(crate::install::vars::INSTALLER_PAGES.script_set_up.addr() as usize);
+        vars[7] = at(crate::install::vars::INSTALLER_RUN.installing.addr() as usize);
+        vars[8] = at(crate::install::vars::INSTALLER_RUN.updating.addr() as usize);
+        vars[9] = at(crate::install::vars::INSTALLER_RUN.from_command.addr() as usize);
+        vars[10] =
+            at((crate::pointers::game_address(crate::files::state::base_directory())) as usize);
+        vars[11] = at(crate::net::store::NET.lobby_launched.addr() as usize);
         Self(vars)
     }
 

@@ -41,17 +41,17 @@ pub fn add_drive_forces_at(v: &[u32]) {
 
 fn game() -> Vec<u32> {
     vec![
-        DRAW.scratch.addr() as u32,
-        CAR.drive_kind.addr() as u32,
-        PHYSICS.wheel_loads[0].addr() as u32,
-        PHYSICS.wheel_loads[1].addr() as u32,
-        PHYSICS.wheel_loads[2].addr() as u32,
-        PHYSICS.wheel_loads[3].addr() as u32,
-        PHYSICS.drive_force_scale.addr() as u32,
-        PHYSICS.wheel_slips[0].addr() as u32,
-        PHYSICS.wheel_slips[1].addr() as u32,
-        PHYSICS.drive_forces[0].addr() as u32,
-        PHYSICS.drive_forces[1].addr() as u32,
+        DRAW.scratch.addr(),
+        CAR.drive_kind.addr(),
+        PHYSICS.wheel_loads[0].addr(),
+        PHYSICS.wheel_loads[1].addr(),
+        PHYSICS.wheel_loads[2].addr(),
+        PHYSICS.wheel_loads[3].addr(),
+        PHYSICS.drive_force_scale.addr(),
+        PHYSICS.wheel_slips[0].addr(),
+        PHYSICS.wheel_slips[1].addr(),
+        PHYSICS.drive_forces[0].addr(),
+        PHYSICS.drive_forces[1].addr(),
     ]
 }
 

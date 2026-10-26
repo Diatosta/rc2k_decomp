@@ -57,7 +57,7 @@ impl Game {
 }
 
 pub fn addr(a: usize) -> u32 {
-    game_addr(rva(a)) as u32
+    game_addr(rva(a))
 }
 
 /// Where a variable is.
@@ -307,8 +307,7 @@ impl flow::Game for Game {
                 C::TimeTrialBestTimesLoop => self.screen(&m::time_trial_best_times_loop::SCREEN)?,
                 C::Review485F5E => self.screen(&m::review_options_485f5e_loop::SCREEN)?,
                 C::StartStream { channel } => {
-                    self.f.c.arg =
-                        crate::audio::names_store::SAMPLE_NAMES.rally_speech.addr() as u32; // ";3files\%speech\rally\rally0.wav"
+                    self.f.c.arg = crate::audio::names_store::SAMPLE_NAMES.rally_speech.addr(); // ";3files\%speech\rally\rally0.wav"
                     self.f.c.measure_x = channel;
                     crate::sound::start_stream::start_stream(self.f.c.arg, channel);
                 }
@@ -320,9 +319,8 @@ impl flow::Game for Game {
                             crate::menu::texts_store::MENU_TEXTS.mob_welc_png.addr()
                         }
                         Picture::A8 => crate::menu::texts_store::MENU_TEXTS.a8_welc_png.addr(),
-                    } as u32;
-                    self.f.c.palette =
-                        crate::menu::texts_store::MENU_TEXTS.titlebar_png.addr() as u32;
+                    };
+                    self.f.c.palette = crate::menu::texts_store::MENU_TEXTS.titlebar_png.addr();
                     self.f.c.carry =
                         crate::gfx::load_picture_with_overlay::load_picture_with_overlay(
                             crate::pointers::host(self.f.c.arg),
@@ -384,7 +382,7 @@ impl flow::Game for Game {
                     CarList::First => MENU_LISTS.cars_first[0].addr(),
                     CarList::Second => MENU_LISTS.cars_second[0].addr(),
                     CarList::Cheat => MENU_LISTS.cheat_cars[0].addr(),
-                } as u32
+                }
             }
             Hand::CheatFlag(on) => self.f.c.carry = on,
             Hand::Kept(v) => self.f.c.arg = v,

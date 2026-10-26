@@ -67,7 +67,7 @@ pub fn volume_step(v: Volume) {
             crate::sound::set_music_volume::set_music_volume(value as u32);
         }
         Then::Speech => crate::sound::start_stream::start_stream(
-            SAMPLE_NAMES.menu_speech_st1.addr() as u32,
+            SAMPLE_NAMES.menu_speech_st1.addr(),
             value as u32,
         ),
         Then::Sound(sound) => {

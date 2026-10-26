@@ -29,7 +29,7 @@ pub unsafe fn set_primary_format(mode: u32, rate: u32) -> Result<bool, Refused> 
             return Ok(false);
         }
         crate::audio::describe_wave_format::describe_wave_format(mode, rate)?;
-        let format = AUDIO.wave_format.addr() as u32;
+        let format = AUDIO.wave_format.addr();
         Ok(crate::audio::com::call1(p, SET_FORMAT, format) == 0)
     }
 }
@@ -52,11 +52,7 @@ pub unsafe fn open_listener(has_fpu: u32) -> Result<bool, Refused> {
                     let p = AUDIO.primary_buffer.get();
                     let query: unsafe extern "system" fn(u32, u32, u32) -> i32 =
                         std::mem::transmute(crate::audio::com::method(p, 0));
-                    let r = query(
-                        p,
-                        AUDIO.iid_listener.addr() as u32,
-                        AUDIO.sound_listener.addr() as u32,
-                    );
+                    let r = query(p, AUDIO.iid_listener.addr(), AUDIO.sound_listener.addr());
                     if r == 0 {
                         return Ok(true);
                     }
@@ -102,8 +98,8 @@ pub fn make_primary() -> Result<bool, Refused> {
             std::mem::transmute(crate::audio::com::method(ds, 0x0C));
         if create(
             ds,
-            AUDIO.buffer_description.addr() as u32,
-            AUDIO.primary_buffer.addr() as u32,
+            AUDIO.buffer_description.addr(),
+            AUDIO.primary_buffer.addr(),
             0,
         ) != 0
         {
@@ -112,7 +108,7 @@ pub fn make_primary() -> Result<bool, Refused> {
         crate::audio::com::call1(
             AUDIO.primary_buffer.get(),
             GET_VOLUME,
-            AUDIO.primary_volume_kept.addr() as u32,
+            AUDIO.primary_volume_kept.addr(),
         );
         crate::audio::sound_device::set_primary_format(AUDIO.sound_mode.get())?;
         let (volume, stored) = master_volume(AUDIO.master_volume.get(), || {

@@ -43,7 +43,7 @@ pub fn place_row(first: u32, count: u32, the_box: u32, eax: u32) -> Result<(), R
         width: rd(the_box + 8),
         height: rd(the_box + 0xC),
     };
-    let title = the_box == INSTALLER_PAGES.title_box.addr() as u32;
+    let title = the_box == INSTALLER_PAGES.title_box.addr();
     layout::place_row(&mut pieces, area, title, eax)?;
     for (k, p) in (0..).zip(&pieces) {
         wd(at(k) + 8, p.x);

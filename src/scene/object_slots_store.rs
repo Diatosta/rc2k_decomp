@@ -43,7 +43,8 @@ impl ObjectTables {
         // SAFETY: the tables are contiguous in the race block; a slot far past them is the
         // caller's slip, as it was the original's.
         unsafe {
-            (crate::pointers::host_at(table[0].addr() + 4 * slot) as *const u32).read_volatile()
+            (crate::pointers::host_at((table[0].addr() + (4 * slot) as u32) as usize) as *const u32)
+                .read_volatile()
         }
     }
 }
@@ -56,7 +57,7 @@ impl core::ops::Deref for InBlock {
     fn deref(&self) -> &ObjectTables {
         // SAFETY: the race block lives as long as the program and is aligned to 4 (the
         // test checks); every field is an atomic or a cell, as the block's bytes were shared.
-        unsafe { &*(crate::pointers::host_at(piece_addr()) as *const ObjectTables) }
+        unsafe { &*(crate::pointers::host(piece_addr()) as *const ObjectTables) }
     }
 }
 
@@ -70,8 +71,8 @@ pub const END: usize = 0x634FA0;
 const _: () = assert!(END - START == core::mem::size_of::<ObjectTables>());
 
 /// Where IDA 0x62DB5C is now.
-pub fn piece_addr() -> usize {
-    crate::moved::place(START)
+pub fn piece_addr() -> u32 {
+    crate::moved::place(START) as u32
 }
 
 #[cfg(test)]
@@ -84,7 +85,7 @@ mod tests {
         assert_eq!(piece_addr() % 4, 0);
         assert_eq!(
             crate::moved::place(END - 1),
-            piece_addr() + (END - START) - 1
+            (piece_addr() + (END - START) as u32 - 1) as usize
         );
         assert_eq!(offset_of!(ObjectTables, phase_work), 0x631B5C - START);
         assert_eq!(offset_of!(ObjectTables, texture_count), 0x631B68 - START);

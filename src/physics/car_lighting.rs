@@ -73,7 +73,7 @@ pub fn car_lighting() -> Result<(), Refused> {
             COURSE.face_light_bytes[k as usize].set(byte(f + 0x14 + k));
         }
         let material =
-            (crate::scene::polygon::texture_infos_addr() as u32).wrapping_add(byte(f + 0x21) << 6);
+            (crate::scene::polygon::texture_infos_addr()).wrapping_add(byte(f + 0x21) << 6);
         if byte(material + 0x2C) == 1 {
             for k in 0..4u32 {
                 let at = &COURSE.face_light_bytes[k as usize];

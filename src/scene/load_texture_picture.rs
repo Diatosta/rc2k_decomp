@@ -43,12 +43,36 @@ use crate::scene::kind_texture_store::KIND_TEXTURES;
 fn folders() -> [(usize, usize, usize); 6] {
     let p = &crate::race::level_paths_store::LEVEL_PATHS;
     [
-        (p.picture_a.addr(), p.second_a.addr(), 0x0A), // files\a
-        (p.picture_m.addr(), p.second_m.addr(), 0x0A), // files\m
-        (p.picture_b.addr(), p.second_b.addr(), 0x0A), // files\b
-        (p.picture_gravel.addr(), p.second_gravel.addr(), 0x11), // files\b\gravel
-        (p.picture_front.addr(), p.second_front.addr(), 0x0F), // files\g\frnt
-        (p.picture_extra.addr(), p.second_extra.addr(), 0x0F), // files\s\extr
+        (
+            p.picture_a.addr() as usize,
+            p.second_a.addr() as usize,
+            0x0A,
+        ), // files\a
+        (
+            p.picture_m.addr() as usize,
+            p.second_m.addr() as usize,
+            0x0A,
+        ), // files\m
+        (
+            p.picture_b.addr() as usize,
+            p.second_b.addr() as usize,
+            0x0A,
+        ), // files\b
+        (
+            p.picture_gravel.addr() as usize,
+            p.second_gravel.addr() as usize,
+            0x11,
+        ), // files\b\gravel
+        (
+            p.picture_front.addr() as usize,
+            p.second_front.addr() as usize,
+            0x0F,
+        ), // files\g\frnt
+        (
+            p.picture_extra.addr() as usize,
+            p.second_extra.addr() as usize,
+            0x0F,
+        ), // files\s\extr
     ]
 }
 use rc2k_core::scene::pictures::{GRAVEL, folder, names, picture_car, takes_gravel};
@@ -105,7 +129,7 @@ pub fn load_texture_picture(
             let tyres = &RACE_VARS.car_tyres;
             let gravel = match tyres.get(car as usize) {
                 Some(cell) => cell.get(),
-                None => GamePtr::new((tyres[0].addr() + car as usize * 4) as u32)
+                None => GamePtr::new(tyres[0].addr() + (car as usize * 4) as u32)
                     .read("a car's tyre switch")?,
             };
             call(Call::Number(gravel));

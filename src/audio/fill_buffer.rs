@@ -19,7 +19,7 @@ use crate::errors::{BadInput, Refused};
 /// The voice's buffer filled; the lost buffer's flag is `g_soundBufferLost`, the parts go
 /// to `g_lockedParts`. True for the carry clear.
 pub unsafe fn fill_buffer(v: &Voice) -> Result<bool, Refused> {
-    let parts = AUDIO.locked_parts[0].addr() as u32;
+    let parts = AUDIO.locked_parts[0].addr();
     if a3d() {
         return Err(BadInput("A3D (the chunk at 0x40CDE8)").into());
     }

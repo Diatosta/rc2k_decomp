@@ -37,9 +37,9 @@ pub struct RecordPlaces {
 impl RecordPlaces {
     pub fn game() -> Self {
         Self {
-            firsts: KIND_RECORDS.first_records[0].addr() as u32,
-            lasts: KIND_RECORDS.last_records[0].addr() as u32,
-            records: COURSE.course_records.addr() as u32,
+            firsts: KIND_RECORDS.first_records[0].addr(),
+            lasts: KIND_RECORDS.last_records[0].addr(),
+            records: COURSE.course_records.addr(),
             count: COURSE.course_record_count.bits(),
         }
     }

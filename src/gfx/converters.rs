@@ -39,7 +39,7 @@ pub static CONVERTERS: Converters = Converters {
 
 /// Where the block is (`moved::MOVED`'s home for IDA 0x4F51F0).
 pub fn home() -> usize {
-    crate::pointers::host_number(&CONVERTERS as *const Converters)
+    crate::pointers::game_address(&CONVERTERS as *const Converters) as usize
 }
 
 impl Converters {
@@ -63,7 +63,10 @@ mod tests {
     fn moved_knows_the_block() {
         assert_eq!(offset_of!(Converters, table), 0x4F5288 - START);
         assert_eq!(crate::moved::place(START), home());
-        assert_eq!(crate::moved::place(0x4F5288), CONVERTERS.table[0].addr());
+        assert_eq!(
+            crate::moved::place(0x4F5288),
+            CONVERTERS.table[0].addr() as usize
+        );
         assert_eq!(CONVERTERS.mask(1), 0x00ff_00ff_00ff_00ff);
     }
 }

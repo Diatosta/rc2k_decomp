@@ -38,17 +38,17 @@ pub fn set_object_file_names(folder_kind: u32) -> Result<(), crate::errors::BadI
             FILE_NUMBERS.text_addr(ro3 + number),
             FILE_NUMBERS.text_addr(lwo + number),
         );
-        FILE_NUMBERS.object_ro3_number.set_bits(ro3_number as u32);
+        FILE_NUMBERS.object_ro3_number.set_bits(ro3_number);
         FILE_NUMBERS
             .object_ro3_path
-            .set_bits(FILE_NUMBERS.text_addr(ro3) as u32);
+            .set_bits(FILE_NUMBERS.text_addr(ro3));
         FILE_NUMBERS
             .object_lwo_path
-            .set_bits(FILE_NUMBERS.text_addr(lwo) as u32);
-        FILE_NUMBERS.object_lwo_number.set_bits(lwo_number as u32);
+            .set_bits(FILE_NUMBERS.text_addr(lwo));
+        FILE_NUMBERS.object_lwo_number.set_bits(lwo_number);
         let digits = number_digits(OBJECT_WORK.loading_kind.bits());
-        GamePtr::new(ro3_number as u32).write(digits, "the object's file number")?;
-        GamePtr::new(lwo_number as u32).write(digits, "the object's file number")?;
+        GamePtr::new(ro3_number).write(digits, "the object's file number")?;
+        GamePtr::new(lwo_number).write(digits, "the object's file number")?;
         Ok(())
     }
 }

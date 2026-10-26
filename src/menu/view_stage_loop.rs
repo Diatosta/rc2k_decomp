@@ -67,22 +67,22 @@ unsafe fn after(c: &mut Carried) -> Result<(), Refused> {
 }
 
 pub const SCREEN: Screen = Screen {
-    menu: || MENUS.view_stage.addr(),
+    menu: || MENUS.view_stage.addr() as usize,
     saved_item: || &SCREEN_ITEMS.current[slot::VIEW_STAGE],
     lists: &[
         List {
             pointer: || &SCREEN_FLOW.scene_list, // g_sceneList
-            table: || DRAW_LISTS.view_stage_scene.addr(),
+            table: || DRAW_LISTS.view_stage_scene.addr() as usize,
             run: false,
         },
         List {
             pointer: || &SCREEN_FLOW.draw_list, // g_drawList
-            table: || DRAW_LISTS.view_stage_draw.addr(),
+            table: || DRAW_LISTS.view_stage_draw.addr() as usize,
             run: false,
         },
         List {
             pointer: || &SCREEN_FLOW.overlay_list, // g_overlayList
-            table: || DRAW_LISTS.view_stage_overlay.addr(),
+            table: || DRAW_LISTS.view_stage_overlay.addr() as usize,
             run: false,
         },
     ],

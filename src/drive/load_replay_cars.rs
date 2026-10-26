@@ -17,8 +17,8 @@ use rc2k_core::drive::replay_frames::start_layout;
 pub fn load_replay_cars() -> Result<(), BadInput> {
     for (piece, offset, n) in start_layout() {
         let (state, place) = (
-            crate::race::blocks_store::block_addr(8) as u32 + 4 * offset as u32,
-            piece_addr(piece) as u32,
+            crate::race::blocks_store::block_addr(8) + 4 * offset as u32,
+            piece_addr(piece),
         );
         GamePtr::new(state).copy_to(GamePtr::new(place), n * 4, "the cars' starting state")?;
     }

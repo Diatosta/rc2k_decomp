@@ -148,7 +148,7 @@ pub fn steps() -> Result<(), Refused> {
     }
     motion();
     PHYSICS.top_speed.set_bits(rounded({
-        ph::vector_length::vector_length(CAR.velocity[0].addr() as u32)
+        ph::vector_length::vector_length(CAR.velocity[0].addr())
     }));
     // 0x43B851: the contacts' rounds.
     PHYSICS.contact_step.set(0);
@@ -225,8 +225,9 @@ pub fn steps() -> Result<(), Refused> {
     let listed = match FRAME_WORK.listed_car_sounds.get(car) {
         Some(cell) => cell.get(),
         None => unsafe {
-            (crate::pointers::host_at(FRAME_WORK.listed_car_sounds[0].addr() + 4 * car)
-                as *const u32)
+            (crate::pointers::host_at(
+                (FRAME_WORK.listed_car_sounds[0].addr() + (4 * car) as u32) as usize,
+            ) as *const u32)
                 .read_volatile()
         },
     };

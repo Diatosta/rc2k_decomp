@@ -45,14 +45,14 @@ impl ListMemory for GameList {
 
 pub fn lay_out_pieces(list: u32) -> Result<(), Refused> {
     // Converted: `rc2k_core::install::pieces::lay_out`; the pieces written here.
-    let made = match pieces::lay_out(list, INSTALLER_PAGES.title.addr() as u32, &GameList) {
+    let made = match pieces::lay_out(list, INSTALLER_PAGES.title.addr(), &GameList) {
         Ok(made) => made,
         Err(LayoutError::UnknownKind) => return Err(fatal(pieces::UNKNOWN_KIND)),
         Err(LayoutError::TooMany) => {
             return Err(BadInput("more pieces than the page's table holds").into());
         }
     };
-    let base = INSTALLER_PAGES.layout.addr() as u32;
+    let base = INSTALLER_PAGES.layout.addr();
     for (n, piece) in made.iter().enumerate() {
         let at = base + 4 + PIECE * n as u32;
         if let Some(text) = piece.text {

@@ -194,7 +194,7 @@ impl RainState {
     pub const LEN: usize = 0x1A50;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        crate::pointers::host_number(&RAIN as *const RainState)
+        crate::pointers::game_address(&RAIN as *const RainState) as usize
     }
 }
 
@@ -263,7 +263,7 @@ impl RainRules {
     pub const LEN: usize = 0x6C;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        crate::pointers::host_number(&RAIN_RULES as *const RainRules)
+        crate::pointers::game_address(&RAIN_RULES as *const RainRules) as usize
     }
 }
 

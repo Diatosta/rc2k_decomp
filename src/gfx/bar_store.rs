@@ -38,7 +38,7 @@ pub static BAR: BarVars = BarVars {
 
 /// Where the block is (`moved::MOVED`'s home for IDA 0x755224).
 pub fn home() -> usize {
-    crate::pointers::host_number(&BAR as *const BarVars)
+    crate::pointers::game_address(&BAR as *const BarVars) as usize
 }
 
 #[cfg(test)]
@@ -52,7 +52,7 @@ mod tests {
 
     #[test]
     fn moved_knows_the_block() {
-        assert_eq!(crate::moved::place(START), BAR.x.addr());
-        assert_eq!(crate::moved::place(0x755238), BAR.percent.addr());
+        assert_eq!(crate::moved::place(START), BAR.x.addr() as usize);
+        assert_eq!(crate::moved::place(0x755238), BAR.percent.addr() as usize);
     }
 }

@@ -203,7 +203,7 @@ impl RaceWork {
         // the game passes.
         unsafe {
             (crate::pointers::host_at(
-                crate::pointers::host_number(self.car_blocks.as_ptr()) + 4 * n,
+                (crate::pointers::game_address(self.car_blocks.as_ptr()) + (4 * n) as u32) as usize,
             ) as *const u32)
                 .read_unaligned()
         }
@@ -215,7 +215,8 @@ impl RaceWork {
         // SAFETY: as `car_block`.
         unsafe {
             (crate::pointers::host_at(
-                crate::pointers::host_number(self.car_records.as_ptr()) + 4 * n,
+                (crate::pointers::game_address(self.car_records.as_ptr()) + (4 * n) as u32)
+                    as usize,
             ) as *const u32)
                 .read_unaligned()
         }
@@ -232,7 +233,7 @@ impl core::ops::Deref for InRaceBlock {
     fn deref(&self) -> &RaceWork {
         // SAFETY: the race block lives as long as the program and is aligned to 4 (the
         // test checks); every field is an atomic or a cell, as the block's bytes were shared.
-        unsafe { &*(crate::pointers::host_at(piece_addr()) as *const RaceWork) }
+        unsafe { &*(crate::pointers::host(piece_addr()) as *const RaceWork) }
     }
 }
 
@@ -246,8 +247,8 @@ pub const END: usize = 0x71C814;
 const _: () = assert!(END - START == core::mem::size_of::<RaceWork>());
 
 /// Where IDA 0x71AFB8 is now (in the race block).
-pub fn piece_addr() -> usize {
-    crate::race::store::home(START)
+pub fn piece_addr() -> u32 {
+    crate::race::store::home(START) as u32
 }
 
 #[cfg(test)]

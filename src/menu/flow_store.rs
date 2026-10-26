@@ -76,8 +76,8 @@ pub const START: usize = 0x7554C0;
 pub const END: usize = 0x755525;
 
 /// Where IDA 0x7554C0 is now (`moved::MOVED`'s home).
-pub fn screen_flow_addr() -> usize {
-    crate::pointers::host_number(&SCREEN_FLOW as *const ScreenFlow)
+pub fn screen_flow_addr() -> u32 {
+    crate::pointers::game_address(&SCREEN_FLOW as *const ScreenFlow)
 }
 
 #[cfg(test)]
@@ -94,7 +94,7 @@ mod tests {
         );
         let mine = unsafe {
             std::slice::from_raw_parts(
-                crate::pointers::host_at(screen_flow_addr()) as *const u8,
+                crate::pointers::host(screen_flow_addr()) as *const u8,
                 END - START,
             )
         };

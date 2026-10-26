@@ -48,7 +48,7 @@ impl core::ops::Deref for InRaceBlock {
     fn deref(&self) -> &MarksWork {
         // SAFETY: the race block lives as long as the program and is aligned as the test
         // checks; every field is an atomic or a cell, as the block's bytes were shared.
-        unsafe { &*(crate::pointers::host_at(piece_addr()) as *const MarksWork) }
+        unsafe { &*(crate::pointers::host(piece_addr()) as *const MarksWork) }
     }
 }
 
@@ -62,8 +62,8 @@ pub const END: usize = 0x71CA60;
 const _: () = assert!(END - START == core::mem::size_of::<MarksWork>());
 
 /// Where IDA 0x71C814 is now (in the race block).
-pub fn piece_addr() -> usize {
-    crate::race::store::home(START)
+pub fn piece_addr() -> u32 {
+    crate::race::store::home(START) as u32
 }
 
 #[cfg(test)]
@@ -73,11 +73,14 @@ mod tests {
 
     #[test]
     fn piece_sits_on_the_race_block() {
-        assert_eq!(piece_addr() % core::mem::align_of::<MarksWork>(), 0);
-        assert_eq!(piece_addr(), crate::moved::place(START));
+        assert_eq!(
+            piece_addr() % (core::mem::align_of::<MarksWork>()) as u32,
+            0
+        );
+        assert_eq!(piece_addr() as usize, crate::moved::place(START));
         assert_eq!(
             crate::moved::place(END - 1),
-            piece_addr() + (END - START) - 1
+            (piece_addr() + (END - START) as u32 - 1) as usize
         );
 
         assert_eq!(offset_of!(MarksWork, fpu_status), 0x71C814 - START);

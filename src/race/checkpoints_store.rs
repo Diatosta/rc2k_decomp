@@ -40,7 +40,7 @@ impl core::ops::Deref for InBuffers {
     fn deref(&self) -> &Checkpoints {
         // SAFETY: the block lives as long as the program and the piece is aligned to 4 (the
         // test checks); every field is an atomic cell.
-        unsafe { &*(crate::pointers::host_at(piece_addr()) as *const Checkpoints) }
+        unsafe { &*(crate::pointers::host(piece_addr()) as *const Checkpoints) }
     }
 }
 
@@ -78,8 +78,8 @@ pub const END: usize = 0xA12AE4;
 const _: () = assert!(END - START == core::mem::size_of::<Checkpoints>());
 
 /// Where IDA 0x9E3738 is now.
-pub fn piece_addr() -> usize {
-    crate::moved::place(START)
+pub fn piece_addr() -> u32 {
+    crate::moved::place(START) as u32
 }
 
 #[cfg(test)]
@@ -92,7 +92,7 @@ mod tests {
         assert_eq!(piece_addr() % 4, 0);
         assert_eq!(
             crate::moved::place(END - 1),
-            piece_addr() + (END - START) - 1
+            (piece_addr() + (END - START) as u32 - 1) as usize
         );
         assert_eq!(offset_of!(Checkpoints, check_counts), 0x9E87A0 - START);
         assert_eq!(offset_of!(Checkpoints, angles), 0x9ED800 - START);

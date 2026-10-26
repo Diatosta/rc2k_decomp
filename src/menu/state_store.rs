@@ -294,8 +294,8 @@ pub const START: usize = 0x75A658;
 pub const END: usize = 0x75ACCC;
 
 /// Where IDA 0X75A658 is now (`moved::MOVED`'s home).
-pub fn menu_state_addr() -> usize {
-    crate::pointers::host_number(&MENU_STATE as *const MenuState)
+pub fn menu_state_addr() -> u32 {
+    crate::pointers::game_address(&MENU_STATE as *const MenuState)
 }
 
 #[cfg(test)]

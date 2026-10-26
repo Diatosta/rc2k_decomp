@@ -17,10 +17,10 @@ use crate::net::types::NetConnection;
 pub fn keep_connection(number: u32) -> Result<(), Refused> {
     let record = connection(number)?;
     movsb(
-        NET.saved_connection.addr() as u32,
+        NET.saved_connection.addr(),
         record + field!(NetConnection, service_provider),
         0x10,
     )?;
-    movsb(NET.saved_name.addr() as u32, record, 0x40)?;
+    movsb(NET.saved_name.addr(), record, 0x40)?;
     Ok(())
 }

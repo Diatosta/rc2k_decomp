@@ -65,13 +65,13 @@ impl FontObject {
     }
 
     /// Where the object is: what `draw_text` and the others take.
-    pub fn addr(&self) -> usize {
-        crate::pointers::host_number(self as *const Self)
+    pub fn addr(&self) -> u32 {
+        crate::pointers::game_address(self as *const Self)
     }
 
     /// The object as the drawing functions' `Font`.
     pub fn as_ptr(&self) -> *mut Font {
-        crate::pointers::host_at(self.addr()) as *mut Font
+        crate::pointers::host(self.addr()) as *mut Font
     }
 }
 
@@ -154,7 +154,7 @@ pub static FONTS: Fonts = Fonts {
 
 /// Where the block is (`moved::MOVED`'s home for IDA 0x51E3A4).
 pub fn home() -> usize {
-    crate::pointers::host_number(&FONTS as *const Fonts)
+    crate::pointers::game_address(&FONTS as *const Fonts) as usize
 }
 
 /// A font of the block: its number (the object's place less the first's, in 0x20s).
@@ -174,7 +174,7 @@ impl FontId {
     }
 
     /// Where the object is.
-    pub fn addr(self) -> usize {
+    pub fn addr(self) -> u32 {
         self.object().addr()
     }
 
@@ -284,8 +284,8 @@ mod tests {
         assert_eq!(crate::moved::place(START), home());
         assert_eq!(
             crate::moved::place(0x51EAB8),
-            FONTS.objects[56].palette.addr()
+            FONTS.objects[56].palette.addr() as usize
         );
-        assert_eq!(fonts::MEASURE.addr(), home() + 0x51E824 - START);
+        assert_eq!(fonts::MEASURE.addr() as usize, home() + 0x51E824 - START);
     }
 }

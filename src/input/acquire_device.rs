@@ -153,7 +153,7 @@ fn properties(record: u32) -> Result<(), BadInput> {
         field!(R, header.object),
         field!(R, header.how),
     );
-    let range = DEVICES.range_property.addr() as u32;
+    let range = DEVICES.range_property.addr();
     put(range, field!(R, header.size), size_of::<R>() as u32)?;
     put(range, field!(R, header.header_size), header)?;
     put(range, object, 0)?;
@@ -173,7 +173,7 @@ fn properties(record: u32) -> Result<(), BadInput> {
         put(range, object, axis(record, 0)?)?;
         set(DIPROP_RANGE, range);
     }
-    let dword = DEVICES.dword_property.addr() as u32;
+    let dword = DEVICES.dword_property.addr();
     let start = |data: Option<u32>| -> Result<(), BadInput> {
         put(dword, field!(W, header.size), size_of::<W>() as u32)?;
         put(dword, field!(W, header.header_size), header)?;
@@ -244,10 +244,7 @@ pub fn acquire_device(record: u32) -> Result<(), Refused> {
     if method(
         device,
         slot::QUERY,
-        &[
-            INPUT_GUIDS.device2.addr() as u32,
-            DEVICES.new_joystick2.addr() as u32,
-        ],
+        &[INPUT_GUIDS.device2.addr(), DEVICES.new_joystick2.addr()],
     ) != 0
     {
         return Err(fatal(0x8023_8318).into());

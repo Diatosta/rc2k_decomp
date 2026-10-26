@@ -45,8 +45,7 @@ pub fn service_box_frame_2() -> Result<(), Refused> {
                 break 'l4919cf;
             }
             value = 0xE;
-            flag = (MENU_LISTS.inspection_flags_a[0].addr() as u32)
-                .wrapping_add(value.wrapping_mul(4));
+            flag = (MENU_LISTS.inspection_flags_a[0].addr()).wrapping_add(value.wrapping_mul(4));
             c = (at_esi(flag)?, 0x1);
             if c.0 != c.1 {
                 break 'l492528;

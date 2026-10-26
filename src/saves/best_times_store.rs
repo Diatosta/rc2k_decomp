@@ -49,7 +49,7 @@ pub static BEST_TIMES: BestTimes = BestTimes {
 impl BestTimes {
     /// The memory list.
     pub fn list(&self) -> *mut crate::memory::MemoryList {
-        crate::pointers::host_at(self.memory.addr()) as *mut _
+        crate::pointers::host(self.memory.addr()) as *mut _
     }
 }
 
@@ -1239,7 +1239,7 @@ impl RallyTimes {
     pub const END: usize = 0x7475D0;
     /// Where IDA 0x742C98 is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        crate::pointers::host_number(&RALLY_TIMES as *const RallyTimes)
+        crate::pointers::game_address(&RALLY_TIMES as *const RallyTimes) as usize
     }
 }
 
@@ -1249,8 +1249,8 @@ pub const START: usize = 0x7475D0;
 pub const END: usize = 0x747660;
 
 /// Where IDA 0x7475D0 is now (`moved::MOVED`'s home).
-pub fn best_times_addr() -> usize {
-    crate::pointers::host_number(&BEST_TIMES as *const BestTimes)
+pub fn best_times_addr() -> u32 {
+    crate::pointers::game_address(&BEST_TIMES as *const BestTimes)
 }
 
 #[cfg(test)]
@@ -1266,7 +1266,7 @@ mod tests {
         assert_eq!(offset_of!(BestTimes, tables), 0x747618 - START);
         let mine = unsafe {
             std::slice::from_raw_parts(
-                crate::pointers::host_at(best_times_addr()) as *const u8,
+                crate::pointers::host(best_times_addr()) as *const u8,
                 END - START,
             )
         };

@@ -40,7 +40,7 @@ pub unsafe fn measure_frame_rate() -> Option<u32> {
         if !due {
             return None;
         }
-        let now = core::arch::x86::_rdtsc() as u32;
+        let now = crate::arch::_rdtsc() as u32;
         FRAME_SWITCHES.frame_now.set_bits(now);
         let last: u32 = FRAME_SWITCHES.frame_last.bits();
         if let Some(cycles) = cycles_since(now, last) {

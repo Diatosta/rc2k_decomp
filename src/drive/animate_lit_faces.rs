@@ -138,7 +138,7 @@ unsafe fn animate_faces() -> Result<(), Refused> {
                 CONTACT_WORK.lit_face_pace.set(step);
                 let kind_of: u32 = OBJECT_TABLES.object_kind(object as u32);
                 let kind: u8 = GamePtr::new(
-                    (crate::scene::polygon::materials_addr() as u32)
+                    (crate::scene::polygon::materials_addr())
                         .wrapping_add(0x1C)
                         .wrapping_add(kind_of.wrapping_mul(0x80)),
                 )

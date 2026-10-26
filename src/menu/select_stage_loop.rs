@@ -35,27 +35,27 @@ fn after_first_frame(_c: &mut Carried) -> Result<Flow, Refused> {
 }
 
 pub const SCREEN: Screen = Screen {
-    menu: || MENUS.select_stage.addr(),
+    menu: || MENUS.select_stage.addr() as usize,
     saved_item: || &SCREEN_ITEMS.current[slot::SELECT_STAGE],
     lists: &[
         List {
             pointer: || &SCREEN_FLOW.scene_list, // g_sceneList
-            table: || DRAW_LISTS.select_stage_scene.addr(),
+            table: || DRAW_LISTS.select_stage_scene.addr() as usize,
             run: false,
         },
         List {
             pointer: || &SCREEN_FLOW.draw_list, // g_drawList
-            table: || DRAW_LISTS.select_stage_draw.addr(),
+            table: || DRAW_LISTS.select_stage_draw.addr() as usize,
             run: false,
         },
         List {
             pointer: || &SCREEN_FLOW.setup_list, // dword_755500
-            table: || DRAW_LISTS.select_stage_setup.addr(),
+            table: || DRAW_LISTS.select_stage_setup.addr() as usize,
             run: true,
         },
         List {
             pointer: || &SCREEN_FLOW.overlay_list, // g_overlayList
-            table: || DRAW_LISTS.select_stage_overlay.addr(),
+            table: || DRAW_LISTS.select_stage_overlay.addr() as usize,
             run: false,
         },
     ],

@@ -22,7 +22,7 @@ impl core::ops::Deref for InBuffers {
     fn deref(&self) -> &Faces {
         // SAFETY: the block lives as long as the program and the piece is aligned to 4 (the
         // test checks); every field is an atomic cell.
-        unsafe { &*(crate::pointers::host_at(piece_addr()) as *const Faces) }
+        unsafe { &*(crate::pointers::host(piece_addr()) as *const Faces) }
     }
 }
 
@@ -36,8 +36,8 @@ pub const END: usize = 0x9E3738;
 const _: () = assert!(END - START == core::mem::size_of::<Faces>());
 
 /// Where IDA 0x9A3730 is now.
-pub fn piece_addr() -> usize {
-    crate::moved::place(START)
+pub fn piece_addr() -> u32 {
+    crate::moved::place(START) as u32
 }
 
 #[cfg(test)]
@@ -50,7 +50,7 @@ mod tests {
         assert_eq!(piece_addr() % 4, 0);
         assert_eq!(
             crate::moved::place(END - 1),
-            piece_addr() + (END - START) - 1
+            (piece_addr() + (END - START) as u32 - 1) as usize
         );
         assert_eq!(offset_of!(Faces, depth_entries), 0x9D3730 - START);
         assert_eq!(offset_of!(Faces, sort_entries), 0x9DB730 - START);

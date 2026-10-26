@@ -46,7 +46,7 @@ pub fn choose_at(v: &[&Dword]) -> Result<(), Refused> {
         split,
         ..ShownCars::default()
     };
-    shown.choose(&setup, crate::race::blocks_store::block_addr(0) as u32)?;
+    shown.choose(&setup, crate::race::blocks_store::block_addr(0))?;
     put(v, 0, shown.cars[0]);
     put(v, 1, shown.cars[1]);
     put(v, 3, shown.views);

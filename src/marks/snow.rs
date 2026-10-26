@@ -29,7 +29,7 @@ impl SnowTables {
     pub const LEN: usize = 0xC000;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        crate::pointers::host_number(&SNOW_TABLES as *const SnowTables)
+        crate::pointers::game_address(&SNOW_TABLES as *const SnowTables) as usize
     }
 }
 
@@ -52,7 +52,7 @@ impl SnowCurve {
     pub const LEN: usize = 0x8000;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        crate::pointers::host_number(&SNOW_CURVE as *const SnowCurve)
+        crate::pointers::game_address(&SNOW_CURVE as *const SnowCurve) as usize
     }
 }
 
@@ -248,7 +248,7 @@ impl SnowState {
     pub const LEN: usize = 0x310;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        crate::pointers::host_number(&SNOW as *const SnowState)
+        crate::pointers::game_address(&SNOW as *const SnowState) as usize
     }
 }
 
@@ -277,7 +277,7 @@ impl SnowCurveVars {
     pub const LEN: usize = 0x1020;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        crate::pointers::host_number(&SNOW_VARS as *const SnowCurveVars)
+        crate::pointers::game_address(&SNOW_VARS as *const SnowCurveVars) as usize
     }
 }
 
@@ -423,7 +423,7 @@ impl SnowLight {
     pub const LEN: usize = 0x128;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        crate::pointers::host_number(&SNOW_LIGHT as *const SnowLight)
+        crate::pointers::game_address(&SNOW_LIGHT as *const SnowLight) as usize
     }
 }
 

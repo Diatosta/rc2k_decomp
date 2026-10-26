@@ -93,7 +93,7 @@ pub fn lobby_frame() -> Result<(), Refused> {
             )?;
             x += 0x28;
             let mut cursor = Cursor::text();
-            cursor.string(block.name.addr() as u32);
+            cursor.string(block.name.addr());
             cursor.nul()?;
             let font = if block.record.state() & READY != 0 {
                 READY_FONT
@@ -103,7 +103,7 @@ pub fn lobby_frame() -> Result<(), Refused> {
             let name = {
                 crate::text::draw_text::draw_text_at(
                     font.as_ptr(),
-                    crate::pointers::host_at(TEXT_BUFFER.text.addr()) as *const u8,
+                    crate::pointers::host(TEXT_BUFFER.text.addr()) as *const u8,
                     x as i32,
                     y as i32,
                     &mut canvas,
@@ -131,7 +131,7 @@ pub fn lobby_frame() -> Result<(), Refused> {
                 let out = {
                     crate::text::draw_text::draw_text_at(
                         NAME_FONT.as_ptr(),
-                        crate::pointers::host_at(TEXT_BUFFER.text.addr()) as *const u8,
+                        crate::pointers::host(TEXT_BUFFER.text.addr()) as *const u8,
                         x as i32,
                         y as i32,
                         &mut canvas,
@@ -144,7 +144,7 @@ pub fn lobby_frame() -> Result<(), Refused> {
                 {
                     crate::text::draw_time_text::draw_time_text(
                         FONT.as_ptr(),
-                        TEXT_BUFFER.text.addr() as u32,
+                        TEXT_BUFFER.text.addr(),
                         x,
                         y,
                     )
@@ -163,14 +163,14 @@ pub fn lobby_frame() -> Result<(), Refused> {
             {
                 crate::text::draw_time_text::draw_time_text(
                     FONT.as_ptr(),
-                    TEXT_BUFFER.text.addr() as u32,
+                    TEXT_BUFFER.text.addr(),
                     x,
                     total_y,
                 )
             }?;
             SHOW_HOURS.store(kept_hours, Relaxed);
             // The next row's blit gets the text buffer's address.
-            palette = TEXT_BUFFER.text.addr() as u32;
+            palette = TEXT_BUFFER.text.addr();
             y = y.wrapping_add(NAME_FONT.object().line_height.get());
         }
     }
@@ -179,7 +179,7 @@ pub fn lobby_frame() -> Result<(), Refused> {
     {
         crate::text::draw_text::draw_text_at(
             CHAT_FONT.as_ptr(),
-            crate::pointers::host(NET.chat.addr() as u32) as *const u8,
+            crate::pointers::host(NET.chat.addr()) as *const u8,
             0xA,
             y as i32,
             &mut canvas,
@@ -187,7 +187,7 @@ pub fn lobby_frame() -> Result<(), Refused> {
     }?;
     crate::net::unlock_received::unlock_received();
     y = y.wrapping_add(CHAT_FONT.object().line_height.get().wrapping_mul(8));
-    crate::net::chat_input_line::chat_input_line(NET.chat_input.addr() as u32, 3, y)?;
+    crate::net::chat_input_line::chat_input_line(NET.chat_input.addr(), 3, y)?;
     let mut x = 0x310;
     let mut item = 0;
     for (n, (id, shown)) in screens::lobby_buttons(NET.car_item.get(), NET.stage_item.get())

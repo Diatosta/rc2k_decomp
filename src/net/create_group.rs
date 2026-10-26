@@ -27,18 +27,12 @@ pub fn join() -> bool {
 
 /// The Rust version.
 pub fn create_group() -> Result<bool, Refused> {
-    dp_name(NET.group_name.addr() as u32)?;
+    dp_name(NET.group_name.addr())?;
     let result = unsafe {
         call(
             &NET.dplay,
             CREATE_GROUP,
-            &[
-                NET.send_to.addr() as u32,
-                NET.dp_name.addr() as u32,
-                0,
-                0,
-                0,
-            ],
+            &[NET.send_to.addr(), NET.dp_name.addr(), 0, 0, 0],
         )
     };
     Ok(result == 0 && join())

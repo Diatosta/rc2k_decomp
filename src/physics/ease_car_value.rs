@@ -27,10 +27,10 @@ pub fn ease_at(v: &[u32; 4]) {
 
 fn game() -> [u32; 4] {
     [
-        RACE_VARS.scene_switch.addr() as u32,
-        CAR.value_jump_steps.addr() as u32,
-        CAR.eased_target.addr() as u32,
-        CAR.eased_value.addr() as u32,
+        RACE_VARS.scene_switch.addr(),
+        CAR.value_jump_steps.addr(),
+        CAR.eased_target.addr(),
+        CAR.eased_value.addr(),
     ]
 }
 

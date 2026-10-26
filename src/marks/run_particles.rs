@@ -277,7 +277,7 @@ pub fn run_particles() -> Result<(), Refused> {
             s & 0xFFFF
         };
         let r = seed();
-        let at = MATRICES.view_place[0].addr() as u32;
+        let at = MATRICES.view_place[0].addr();
         let view = |o: u32| -> Result<_, Refused> { Ok(get(at + o)?) };
         let uv_k: u32 = DRAW_WORK.uv_k.bits();
         let wave = |k: &[crate::session::Float; 3], add: u32, cosine: bool| {
@@ -626,7 +626,7 @@ impl TrailColours {
     pub const LEN: usize = 0x4A8;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        crate::pointers::host_number(&TRAIL_PALETTE as *const TrailColours)
+        crate::pointers::game_address(&TRAIL_PALETTE as *const TrailColours) as usize
     }
 }
 
@@ -660,7 +660,7 @@ impl PuffWork {
     pub const LEN: usize = 0x28;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        crate::pointers::host_number(&PUFF_WORK as *const PuffWork)
+        crate::pointers::game_address(&PUFF_WORK as *const PuffWork) as usize
     }
 }
 
@@ -743,7 +743,7 @@ impl BurstColours {
     pub const LEN: usize = 0x2000;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        crate::pointers::host_number(&BURST_COLOURS as *const BurstColours)
+        crate::pointers::game_address(&BURST_COLOURS as *const BurstColours) as usize
     }
 }
 
@@ -874,7 +874,7 @@ impl ParticleTuning {
     pub const LEN: usize = 0xB0;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        crate::pointers::host_number(&PARTICLE_TUNING as *const ParticleTuning)
+        crate::pointers::game_address(&PARTICLE_TUNING as *const ParticleTuning) as usize
     }
 }
 

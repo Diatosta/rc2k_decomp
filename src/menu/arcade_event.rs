@@ -101,7 +101,7 @@ impl arcade::Arcade for Game {
                 Step::ClearPlayers284 => m::clear_players_284::clear_players_284()?,
                 Step::ResetCars750724 => m::reset_cars_750724::reset_cars_750724()?,
                 Step::SecretCarList => {
-                    c.cars = MENU_LISTS.cars_second[0].addr() as u32;
+                    c.cars = MENU_LISTS.cars_second[0].addr();
                     m::cheat_car_list::carry_on(m::cheat_car_list::cheat_car_list(), c);
                 }
                 Step::SelectCarLoop => run_screen_carried(&m::select_car_loop::SCREEN, c)?,

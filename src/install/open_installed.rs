@@ -17,9 +17,9 @@ use crate::install::vars::INSTALLER_RUN;
 
 pub fn open_installed() -> Result<(), Refused> {
     if normalise(
-        INSTALLER_NAMES.source.addr() as u32,
-        INSTALLER_PATHS.installed.addr() as u32,
-    )? && set_cd(INSTALLER_PATHS.installed.addr() as u32)
+        INSTALLER_NAMES.source.addr(),
+        INSTALLER_PATHS.installed.addr(),
+    )? && set_cd(INSTALLER_PATHS.installed.addr())
     {
         INSTALLER_RUN.installing.set(1);
     }

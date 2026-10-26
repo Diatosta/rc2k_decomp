@@ -36,7 +36,7 @@ impl core::ops::Deref for InRaceBlock {
     fn deref(&self) -> &ObjectFileNumbers {
         // SAFETY: the race block lives as long as the program and is aligned to 4 (the
         // test checks); every field is an atomic or a cell, as the block's bytes were shared.
-        unsafe { &*(crate::pointers::host_at(piece_addr()) as *const ObjectFileNumbers) }
+        unsafe { &*(crate::pointers::host(piece_addr()) as *const ObjectFileNumbers) }
     }
 }
 
@@ -73,9 +73,9 @@ pub mod texts {
 
 impl ObjectFileNumbers {
     /// Where the byte at IDA `ida` is, inside the untyped bytes `unknown_14` (the path texts of `texts`).
-    pub fn text_addr(&self, ida: usize) -> usize {
+    pub fn text_addr(&self, ida: usize) -> u32 {
         assert!((0x60AD34..0x60AF04).contains(&ida));
-        self.unknown_14[0].addr() + (ida - 0x60AD34)
+        self.unknown_14[0].addr() + (ida - 0x60AD34) as u32
     }
 }
 
@@ -87,8 +87,8 @@ pub const END: usize = 0x60AF0C;
 const _: () = assert!(END - START == core::mem::size_of::<ObjectFileNumbers>());
 
 /// Where IDA 0x60AD20 is now (in the race block).
-pub fn piece_addr() -> usize {
-    crate::race::store::home(START)
+pub fn piece_addr() -> u32 {
+    crate::race::store::home(START) as u32
 }
 
 #[cfg(test)]

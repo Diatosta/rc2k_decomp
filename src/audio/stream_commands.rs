@@ -101,7 +101,7 @@ pub fn music_command(tune: u32, next: u32, volume: i32, action: u32) -> Result<(
     };
     let mut p = GamePlayer {
         player: &AUDIO.music_stream,
-        path: AUDIO.music_path.addr() as u32,
+        path: AUDIO.music_path.addr(),
     };
     let done = rc2k_core::audio::streams::music_command(&mut p, &mut m, tune, next, volume, action);
     AUDIO.next_tune.set(m.next_tune);

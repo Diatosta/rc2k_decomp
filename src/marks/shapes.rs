@@ -34,7 +34,7 @@ impl Var {
         }
     }
 
-    fn addr(&self) -> usize {
+    fn addr(&self) -> u32 {
         match self {
             Var::Dword(d) => d.addr(),
             Var::Float(f) => f.addr(),
@@ -49,9 +49,9 @@ pub enum Table {
 }
 
 impl Table {
-    fn addr(self) -> usize {
+    fn addr(self) -> u32 {
         match self {
-            Table::Typed(first) => first(),
+            Table::Typed(first) => first() as u32,
         }
     }
 }
@@ -79,15 +79,15 @@ const RADII: u32 = 8;
 
 /// `sub_4BAA55`'s.
 pub static HEXAGONS: Shapes = Shapes {
-    done: Var::Dword(&HEX.done), // g_marksHexagonsDone
-    resume: rva(0x4BAAC5),       // loc_4BAAC5
-    items: || HEX.items.addr(),  // g_marksHexagonItems
+    done: Var::Dword(&HEX.done),         // g_marksHexagonsDone
+    resume: rva(0x4BAAC5),               // loc_4BAAC5
+    items: || HEX.items.addr() as usize, // g_marksHexagonItems
     item_len: 0x30,
-    curve: Table::Typed(|| HEXAGON_WORK.curve[0].addr()), // g_marksHexagonCurve
-    curve_a: Var::Float(&HEX.curve_a),                    // flt_82E25A
-    curve_b: Var::Float(&HEX.curve_b),                    // flt_82E25E
-    radii: Table::Typed(|| HEXAGON_WORK.radii[0].addr()), // flt_814BC2
-    points: Table::Typed(|| HEXAGON_WORK.points[0].addr()), // g_marksHexagonPoints
+    curve: Table::Typed(|| HEXAGON_WORK.curve[0].addr() as usize), // g_marksHexagonCurve
+    curve_a: Var::Float(&HEX.curve_a),                             // flt_82E25A
+    curve_b: Var::Float(&HEX.curve_b),                             // flt_82E25E
+    radii: Table::Typed(|| HEXAGON_WORK.radii[0].addr() as usize), // flt_814BC2
+    points: Table::Typed(|| HEXAGON_WORK.points[0].addr() as usize), // g_marksHexagonPoints
     sides: 6,
     step_c: Var::Dword(&HEX.step_c), // dword_82E262
     step_d: Var::Float(&HEX.step_d), // flt_82E266
@@ -161,11 +161,11 @@ mod squares {
         }
         for n in 0..RADII as usize {
             x87::circle_points(
-                crate::pointers::host_at(SQUARE_TABLES.radii[n].addr()) as *const u32,
-                crate::pointers::host_at(address_of(&SQUARE_TABLES.points[n])) as *mut u32,
+                crate::pointers::host(SQUARE_TABLES.radii[n].addr()) as *const u32,
+                crate::pointers::host(address_of(&SQUARE_TABLES.points[n])) as *mut u32,
                 SIDES as u32,
                 SQUARE_STATE.steps.as_ptr() as *const i32,
-                crate::pointers::host_at(SQUARE_STATE.step_angle.addr()) as *const u32,
+                crate::pointers::host(SQUARE_STATE.step_angle.addr()) as *const u32,
             );
         }
     }
@@ -196,17 +196,17 @@ impl Shapes {
     fn make_plain(&self) -> Result<(), Refused> {
         use rc2k_core::marks::shapes as core;
         {
-            let items = (self.items)() as u32;
+            let items = ((self.items)()) as u32;
             for n in 0..ITEMS {
                 GamePtr::new(items + n * self.item_len).write::<u32>(0, "a mark item")?;
             }
             let f = |r: &Var| f32::from_bits(r.bits());
             let curve = core::curve(f(&self.curve_a), f(&self.curve_b));
-            GamePtr::new(self.curve.addr() as u32)
+            GamePtr::new(self.curve.addr())
                 .write::<[u32; CURVE as usize]>(curve.map(f32::to_bits), "the shapes' curve")?;
             let (c, d): (i32, f32) = (self.step_c.bits() as i32, f(&self.step_d));
-            let radii = self.radii.addr() as u32;
-            let points = self.points.addr() as u32;
+            let radii = self.radii.addr();
+            let points = self.points.addr();
             for n in 0..RADII {
                 let r = f32::from_bits(GamePtr::new(radii + 4 * n).read::<u32>("a mark's field")?);
                 let to = points + 12 * self.sides * n;
@@ -222,25 +222,25 @@ impl Shapes {
 
     /// The items cleared, the curve, the circles.
     fn make(&self) -> Result<(), Refused> {
-        let items = (self.items)() as u32;
+        let items = ((self.items)()) as u32;
         for n in 0..ITEMS {
             GamePtr::new(items + n * self.item_len).write::<u32>(0, "a mark item")?;
         }
         let (a, b): (u32, u32) = (self.curve_a.bits(), self.curve_b.bits());
         for n in 0..CURVE {
             let i = 8 * n as i32;
-            GamePtr::new((self.curve.addr() + 4 * n as usize) as u32)
+            GamePtr::new(self.curve.addr() + (4 * n as usize) as u32)
                 .write::<u32>(x87::circle_curve(i, a, b, i < 0x400), "the shapes' curve")?;
         }
-        let radii = self.radii.addr() as u32;
-        let points = self.points.addr() as u32;
+        let radii = self.radii.addr();
+        let points = self.points.addr();
         for n in 0..RADII {
             x87::circle_points(
                 crate::pointers::host(radii + 4 * n) as *const u32,
                 crate::pointers::host(points + 12 * self.sides * n) as *mut u32,
                 self.sides,
-                crate::pointers::host_at(self.step_c.addr()) as *const i32,
-                crate::pointers::host_at(self.step_d.addr()) as *const u32,
+                crate::pointers::host(self.step_c.addr()) as *const i32,
+                crate::pointers::host(self.step_d.addr()) as *const u32,
             );
         }
         Ok(())
@@ -276,7 +276,7 @@ fn hexagons_with(resume: u32, plain: bool) -> Result<(), Refused> {
         } else {
             HEXAGONS.make()?;
         }
-        let mut at = HEXAGON_BATCH.fans.addr() as u32;
+        let mut at = HEXAGON_BATCH.fans.addr();
         for n in 0..FANS {
             for triangle in rc2k_core::marks::shapes::fan(n) {
                 for (k, v) in triangle.into_iter().enumerate() {
@@ -285,7 +285,7 @@ fn hexagons_with(resume: u32, plain: bool) -> Result<(), Refused> {
                 at += 6;
             }
         }
-        let mut at = HEXAGON_BATCH.records.addr() as u32;
+        let mut at = HEXAGON_BATCH.records.addr();
         let value: u32 = MARKS_FLOATS.two_fifty_six.bits();
         for _ in 0..FANS {
             for part in 0..6 {

@@ -85,7 +85,7 @@ pub static LEXICON: LexiconMemory = LexiconMemory {
 
 /// Where the block is (`moved::MOVED`'s home for IDA 0x519554).
 pub fn memory_home() -> usize {
-    crate::pointers::host_number(&LEXICON as *const LexiconMemory)
+    crate::pointers::game_address(&LEXICON as *const LexiconMemory) as usize
 }
 /// The record all empty messages share (`unk_4F3034` in the image until 2026-10-24): +4 how
 /// often it was used (never reset), +0xC its index entry. Written here only.
@@ -245,7 +245,10 @@ mod tests {
             super::MEMORY_START,
             super::MEMORY_START + super::MEMORY_LEN,
         );
-        assert_eq!(crate::moved::place(0x519558), super::LEXICON.memory.addr());
+        assert_eq!(
+            crate::moved::place(0x519558),
+            super::LEXICON.memory.addr() as usize
+        );
     }
 
     #[test]

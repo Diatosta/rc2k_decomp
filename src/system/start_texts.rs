@@ -35,7 +35,7 @@ impl StartTexts {
     pub const LEN: usize = 0x94;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        crate::pointers::host_number(&START_TEXTS as *const StartTexts)
+        crate::pointers::game_address(&START_TEXTS as *const StartTexts) as usize
     }
 }
 

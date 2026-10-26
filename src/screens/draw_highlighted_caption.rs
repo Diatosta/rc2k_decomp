@@ -57,7 +57,7 @@ pub unsafe fn draw_highlighted_caption(
         crate::pointers::GamePtr::new(
             crate::screens::text_buffers_store::TEXT_BUFFERS
                 .caption
-                .addr() as u32,
+                .addr(),
         )
         .write_bytes(&caption, "the caption")?;
         // Converted: `rc2k_core::screens::highlighted_caption`.

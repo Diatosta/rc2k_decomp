@@ -21,22 +21,22 @@ use crate::menu::state_store::MENU_STATE;
 // ---- Rust version: `menu::screen_loop` with this ----
 
 pub const SCREEN: Screen = Screen {
-    menu: || MENUS.class_championship_standings.addr(),
+    menu: || MENUS.class_championship_standings.addr() as usize,
     saved_item: || &SCREEN_ITEMS.current[slot::CLASS_CHAMPIONSHIP_STANDINGS],
     lists: &[
         List {
             pointer: || &SCREEN_FLOW.scene_list, // g_sceneList
-            table: || DRAW_LISTS.class_championship_standings_scene.addr(),
+            table: || DRAW_LISTS.class_championship_standings_scene.addr() as usize,
             run: false,
         },
         List {
             pointer: || &SCREEN_FLOW.draw_list, // g_drawList
-            table: || DRAW_LISTS.class_championship_standings_draw.addr(),
+            table: || DRAW_LISTS.class_championship_standings_draw.addr() as usize,
             run: false,
         },
         List {
             pointer: || &SCREEN_FLOW.overlay_list, // g_overlayList
-            table: || DRAW_LISTS.class_championship_standings_overlay.addr(),
+            table: || DRAW_LISTS.class_championship_standings_overlay.addr() as usize,
             run: false,
         },
     ],
@@ -49,9 +49,9 @@ pub const SCREEN: Screen = Screen {
     after_lists: &[],
     background: &[
         Step::ArgAddr(|| {
-            crate::menu::texts_store::MENU_TEXTS
+            (crate::menu::texts_store::MENU_TEXTS
                 .class_championship_standings_picture
-                .addr()
+                .addr()) as usize
         }),
         Step::CallOrFatal(Callee::LoadBackground, 0x80712345),
     ],

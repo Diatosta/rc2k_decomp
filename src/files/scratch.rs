@@ -21,7 +21,7 @@ impl Scratch {
     pub const LEN: usize = 0x10000;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        crate::pointers::host_number(&SCRATCH as *const Scratch)
+        crate::pointers::game_address(&SCRATCH as *const Scratch) as usize
     }
 }
 

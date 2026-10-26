@@ -58,7 +58,7 @@ pub static PICTURE: Picture = Picture {
 
 /// Where the block is (`moved::MOVED`'s home for IDA 0x4F49C8).
 pub fn home() -> usize {
-    crate::pointers::host_number(&PICTURE as *const Picture)
+    crate::pointers::game_address(&PICTURE as *const Picture) as usize
 }
 
 #[cfg(test)]
@@ -76,8 +76,11 @@ mod tests {
         assert_eq!(offset_of!(Picture, flags), 0x4F49CC - START);
         assert_eq!(offset_of!(Picture, buffer), 0x4F49DC - START);
         assert_eq!(offset_of!(Picture, list), 0x4F49E4 - START);
-        assert_eq!(crate::moved::place(START), PICTURE.name.addr());
-        assert_eq!(crate::moved::place(0x4F49E4), PICTURE.list.addr());
-        assert_eq!(crate::moved::place(0x4F49DC), PICTURE.buffer.addr());
+        assert_eq!(crate::moved::place(START), PICTURE.name.addr() as usize);
+        assert_eq!(crate::moved::place(0x4F49E4), PICTURE.list.addr() as usize);
+        assert_eq!(
+            crate::moved::place(0x4F49DC),
+            PICTURE.buffer.addr() as usize
+        );
     }
 }

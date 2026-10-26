@@ -795,8 +795,8 @@ const LAYOUT: &[(usize, usize)] = &[
 ];
 
 /// Where the audio state is (`moved::MOVED`'s home for IDA 0x4F8294).
-pub fn state_addr() -> usize {
-    crate::pointers::host_number(&AUDIO as *const AudioState)
+pub fn state_addr() -> u32 {
+    crate::pointers::game_address(&AUDIO as *const AudioState)
 }
 
 pub const SAMPLES_IDA: usize = 0x50A7A4;
@@ -2246,8 +2246,8 @@ pub static SAMPLE_RECORDS: SampleRecords = SampleRecords {
 };
 
 /// Where the sample records are (`moved::MOVED`'s home for IDA 0x50A7A4).
-pub fn sample_records_addr() -> usize {
-    crate::pointers::host_number(&SAMPLE_RECORDS as *const SampleRecords)
+pub fn sample_records_addr() -> u32 {
+    crate::pointers::game_address(&SAMPLE_RECORDS as *const SampleRecords)
 }
 
 pub const QUEUE_IDA: usize = 0x9566F8;
@@ -2288,8 +2288,8 @@ pub static COMMANDS: CommandQueue = CommandQueue {
 };
 
 /// Where the queue is (`moved::MOVED`'s home for IDA 0x9566F8).
-pub fn commands_addr() -> usize {
-    crate::pointers::host_number(&COMMANDS as *const CommandQueue)
+pub fn commands_addr() -> u32 {
+    crate::pointers::game_address(&COMMANDS as *const CommandQueue)
 }
 
 /// `g_eaxEnvironment` (IDA 0x6D1DD4): the EAX environment the race asks for (the audio

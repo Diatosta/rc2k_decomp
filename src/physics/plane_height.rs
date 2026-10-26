@@ -26,14 +26,14 @@ pub struct Plane {
 
 impl Plane {
     pub fn game() -> Self {
-        let _p = |x: usize| game_addr(rva(x)) as u32;
+        let _p = |x: usize| game_addr(rva(x));
         Self {
-            a: (GROUND_WORK.face_corners[4].addr() as u32),
-            b: (GROUND_WORK.face_corners[7].addr() as u32),
-            c: (GROUND_WORK.face_corners[1].addr() as u32),
-            f: (GROUND_WORK.plane_f.addr() as u32),
-            g: (GROUND_WORK.plane_g.addr() as u32),
-            out: (GROUND_WORK.ground_height.addr() as u32),
+            a: (GROUND_WORK.face_corners[4].addr()),
+            b: (GROUND_WORK.face_corners[7].addr()),
+            c: (GROUND_WORK.face_corners[1].addr()),
+            f: (GROUND_WORK.plane_f.addr()),
+            g: (GROUND_WORK.plane_g.addr()),
+            out: (GROUND_WORK.ground_height.addr()),
         }
     }
 }

@@ -26,7 +26,7 @@ use rc2k_core::drive::replay_views::{WishStep, wish_step};
 
 /// Byte `k` of the frame's head (the first car block's start, `g_carBlockStore`).
 fn head_byte(k: usize) -> Result<u32, BadInput> {
-    GamePtr::new((CAR_BLOCKS.cars[0].unknown_0[0].addr() + k) as u32)
+    GamePtr::new(CAR_BLOCKS.cars[0].unknown_0[0].addr() + k as u32)
         .read::<u8>("a car's block")
         .map(u32::from)
 }
@@ -36,7 +36,7 @@ fn head_byte(k: usize) -> Result<u32, BadInput> {
 fn wish_of(byte: usize) -> Result<u32, BadInput> {
     match REPLAY_WORK.replay_camera_wishes.get(byte) {
         Some(wish) => Ok(wish.get()),
-        None => GamePtr::new((REPLAY_WORK.replay_camera_wishes[0].addr() + 4 * byte) as u32)
+        None => GamePtr::new(REPLAY_WORK.replay_camera_wishes[0].addr() + (4 * byte) as u32)
             .read("the replay camera wishes"),
     }
 }

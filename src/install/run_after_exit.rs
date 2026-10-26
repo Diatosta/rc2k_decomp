@@ -55,14 +55,14 @@ impl Vars {
     pub fn game() -> Self {
         Self {
             reported: crate::pointers::game_address(crate::fatal::state::REPORTED.as_ptr()), // g_fatalReported (a byte)
-            switches: INSTALLER_RUN.add_items.addr() as u32,
-            game_dir: INSTALLER_PATHS.game_dir.addr() as u32,
-            installed: INSTALLER_PATHS.installed.addr() as u32,
-            other_dir: crate::install::installer::INSTALL_TEXTS.other_dir.addr() as u32,
+            switches: INSTALLER_RUN.add_items.addr(),
+            game_dir: INSTALLER_PATHS.game_dir.addr(),
+            installed: INSTALLER_PATHS.installed.addr(),
+            other_dir: crate::install::installer::INSTALL_TEXTS.other_dir.addr(),
             program: crate::pointers::game_address(crate::files::numbered_path::buffer()), // byte_94E8B0: a program's name (0x100 bytes taken)
-            source: INSTALLER_NAMES.source.addr() as u32,
-            from_cd: crate::install::store::INSTALL.running_from_cd.addr() as u32,
-            command: COMMAND_LINE.program.addr() as u32,
+            source: INSTALLER_NAMES.source.addr(),
+            from_cd: crate::install::store::INSTALL.running_from_cd.addr(),
+            command: COMMAND_LINE.program.addr(),
         }
     }
 }
@@ -127,7 +127,7 @@ pub fn run_after_exit_with(v: &Vars) -> Result<(), Refused> {
         use crate::install::shortcuts::{add_start_menu_items, c_path};
         unsafe {
             add_start_menu_items(&c_path(
-                crate::pointers::host_at(INSTALLER_PATHS.installed.addr()) as *const u8,
+                crate::pointers::host(INSTALLER_PATHS.installed.addr()) as *const u8,
             ))
         };
     }
@@ -140,13 +140,14 @@ pub fn run_after_exit_with(v: &Vars) -> Result<(), Refused> {
                 return Ok(());
             }
         }
-        run(INSTALLER_NAMES.dxsetup.addr() as u32);
+        run(INSTALLER_NAMES.dxsetup.addr());
         return Ok(());
     }
     if switch(5) == 1 {
         {
             // "ereg\eregip.exe" (the script's text after its count).
-            let ereg = crate::pointers::host_at(INSTALLER_RUN.ereg.addr() + 2) as *const u8;
+            let ereg =
+                crate::pointers::host_at((INSTALLER_RUN.ereg.addr() + 2) as usize) as *const u8;
             let (cursor, _) =
                 append_directory(ereg, crate::pointers::host(v.game_dir + game_dir_len))?;
             GamePtr::new(crate::pointers::game_address(cursor))

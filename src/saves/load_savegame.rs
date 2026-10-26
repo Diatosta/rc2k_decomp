@@ -115,8 +115,8 @@ pub unsafe fn load_savegame(entry: &Carried, game: Game) -> Result<(), Refused> 
             return Ok(());
         }
 
-        let payload = SAVE_GAMES.file.addr() + PAYLOAD_OFFSET;
-        let mut cursor = GamePtr::new(payload as u32);
+        let payload = SAVE_GAMES.file.addr() + PAYLOAD_OFFSET as u32;
+        let mut cursor = GamePtr::new(payload);
         for at in head() {
             g.arg = cursor.read::<u32>("the savegame's head")?;
             at.set(g.arg);
@@ -141,7 +141,7 @@ pub unsafe fn load_savegame(entry: &Carried, game: Game) -> Result<(), Refused> 
             g.palette = car + NAME_OFFSET; // ebx (edi the car, ebp the name: unread)
         }
         cursor.copy_to(
-            GamePtr::new(crate::menu::drivers_store::drivers_addr() as u32),
+            GamePtr::new(crate::menu::drivers_store::drivers_addr()),
             RECORDS_LEN,
             "the saved drivers",
         )?;

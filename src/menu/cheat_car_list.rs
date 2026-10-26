@@ -13,7 +13,7 @@ use crate::menu::lists_store::MENU_LISTS;
 pub fn cheat_car_list() -> Option<u32> {
     // Converted: `rc2k_core::menu::car_lists::cheat_cars`.
     let on = rc2k_core::menu::car_lists::cheat_cars(CHEAT_VARS.cheats.get());
-    on.then(|| MENU_LISTS.cheat_cars[0].addr() as u32)
+    on.then(|| MENU_LISTS.cheat_cars[0].addr())
 }
 
 /// The registers the original leaves for `list`, for register-threaded callers: esi the

@@ -72,8 +72,8 @@ pub unsafe fn load_hud_car_icons() -> Result<(), Refused> {
         for (number, target_y) in numbers.into_iter().zip(car_icons::ROWS) {
             let names = car_icons::pictures(number);
             upload_car_icon(&CarIcon {
-                sheet: FILE_NUMBERS.text_addr(NAMES[names]) as u32,
-                alpha_sheet: FILE_NUMBERS.text_addr(NAMES[names + 1]) as u32,
+                sheet: FILE_NUMBERS.text_addr(NAMES[names]),
+                alpha_sheet: FILE_NUMBERS.text_addr(NAMES[names + 1]),
                 texture,
                 sheet_x: TEXTURE_PLACES.car_icon_sheet_x[number as usize].get(),
                 sheet_y: TEXTURE_PLACES.car_icon_sheet_y[number as usize].get(),

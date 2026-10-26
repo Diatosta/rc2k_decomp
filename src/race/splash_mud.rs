@@ -45,7 +45,7 @@ pub unsafe fn splash_mud() -> Result<(), Refused> {
         // eax carries from texel to texel: `mud_texel` and `put_mud_texel` hand it back
         // when they skip a place.
         let mut eax = splash_pattern(next_random());
-        let mut colours = (RACE_VARS.mud_colours[0].addr() as u32).wrapping_add(eax);
+        let mut colours = (RACE_VARS.mud_colours[0].addr()).wrapping_add(eax);
         RACE_VARS.mud_row.set_bits(0u32);
         for row in 0..SPLASH_SIDE {
             RACE_VARS.mud_column.set_bits(0u32);

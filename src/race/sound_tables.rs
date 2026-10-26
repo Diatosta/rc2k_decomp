@@ -70,10 +70,10 @@ pub struct TableVars {
 impl TableVars {
     pub fn game() -> Self {
         Self {
-            done: crate::sound::store::SURFACE_SOUNDS.tables_done.addr() as u32,
-            records: crate::session::address_of(&SOUND_KINDS.kinds) as u32,
-            sines: crate::session::address_of(&SOUND_KINDS.sines) as u32,
-            scratch: crate::session::MACHINE.scratch.addr() as u32,
+            done: crate::sound::store::SURFACE_SOUNDS.tables_done.addr(),
+            records: crate::session::address_of(&SOUND_KINDS.kinds),
+            sines: crate::session::address_of(&SOUND_KINDS.sines),
+            scratch: crate::session::MACHINE.scratch.addr(),
         }
     }
 }

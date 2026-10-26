@@ -60,7 +60,7 @@ pub fn place(o: u32, at: u32, offset: Option<[u32; 3]>) {
         }
     };
     let out = rotate_point(
-        MATRICES.view_turn_matrix[0].addr() as u32,
+        MATRICES.view_turn_matrix[0].addr(),
         [part(0), part(1), part(2)],
     );
     let k = NUMBERS.one_over_65536.bits();
@@ -77,7 +77,7 @@ pub fn place_plain(o: u32, at: u32, offset: Option<[u32; 3]>) {
         whole(&CAR.position),
         whole(&CAR.camera_position),
         offset.map(|o| o.map(|v| v as i32)),
-        &read_floats(MATRICES.view_turn_matrix[0].addr() as u32),
+        &read_floats(MATRICES.view_turn_matrix[0].addr()),
         f32::from_bits(NUMBERS.one_over_65536.bits()),
     );
     write_floats(o + at, &p);
@@ -98,8 +98,8 @@ fn car_part(car: u32, listener: u32) -> [u8; 10] {
     let mut out = [0u8; 10];
     let v = [car, listener];
     x87_1(
-        crate::pointers::host_number(v.as_ptr()),
-        crate::pointers::host_number(out.as_mut_ptr()),
+        (crate::pointers::game_address(v.as_ptr())) as usize,
+        (crate::pointers::game_address(out.as_mut_ptr())) as usize,
     );
     out
 }
@@ -109,8 +109,8 @@ fn offset_part(offset: u32, car: u32, listener: u32) -> [u8; 10] {
     let mut out = [0u8; 10];
     let v = [offset, car, listener];
     x87_2(
-        crate::pointers::host_number(v.as_ptr()),
-        crate::pointers::host_number(out.as_mut_ptr()),
+        (crate::pointers::game_address(v.as_ptr())) as usize,
+        (crate::pointers::game_address(out.as_mut_ptr())) as usize,
     );
     out
 }

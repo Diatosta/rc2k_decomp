@@ -38,16 +38,16 @@ pub fn drop_to_neutral_at(v: &[u32; 10]) {
 
 fn game() -> [u32; 10] {
     [
-        CAR.contact_flag.addr() as u32,
-        CAR.gear.addr() as u32,
-        CAR.engine_speed.addr() as u32,
-        PHYSICS.stall_engine_speed.addr() as u32,
-        PHYSICS.no_auto_neutral.addr() as u32,
-        PHYSICS.drive_cut_steps.addr() as u32,
-        CAR.drive_cut_steps.addr() as u32,
-        CAR.gear_change_hold.addr() as u32,
-        CAR.gear_changed.addr() as u32,
-        CAR.gear_changed_2.addr() as u32,
+        CAR.contact_flag.addr(),
+        CAR.gear.addr(),
+        CAR.engine_speed.addr(),
+        PHYSICS.stall_engine_speed.addr(),
+        PHYSICS.no_auto_neutral.addr(),
+        PHYSICS.drive_cut_steps.addr(),
+        CAR.drive_cut_steps.addr(),
+        CAR.gear_change_hold.addr(),
+        CAR.gear_changed.addr(),
+        CAR.gear_changed_2.addr(),
     ]
 }
 

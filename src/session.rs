@@ -39,8 +39,8 @@ impl Dword {
         self.0.as_ptr()
     }
 
-    pub fn addr(&self) -> usize {
-        crate::pointers::host_number(self.as_ptr())
+    pub fn addr(&self) -> u32 {
+        crate::pointers::game_address(self.as_ptr())
     }
 
     /// The bits, for the x87 model's loads (as `Float::bits`).
@@ -129,8 +129,8 @@ impl Float {
     }
 
     /// Its place, for code that is handed an address.
-    pub fn addr(&self) -> usize {
-        crate::pointers::host_number(self.0.as_ptr())
+    pub fn addr(&self) -> u32 {
+        crate::pointers::game_address(self.0.as_ptr())
     }
 }
 
@@ -162,13 +162,13 @@ impl Cell32 for Float {
 /// A cell named where a variable's IDA address is taken (`physics::flow::g`, `p`, `a`).
 impl crate::store::At for &Dword {
     fn here(self) -> usize {
-        self.addr()
+        self.addr() as usize
     }
 }
 
 impl crate::store::At for &Float {
     fn here(self) -> usize {
-        self.addr()
+        self.addr() as usize
     }
 }
 
@@ -189,8 +189,8 @@ impl Word {
         self.0.store(value, Relaxed)
     }
 
-    pub fn addr(&self) -> usize {
-        crate::pointers::host_number(self.0.as_ptr())
+    pub fn addr(&self) -> u32 {
+        crate::pointers::game_address(self.0.as_ptr())
     }
 }
 
@@ -211,8 +211,8 @@ impl Byte {
         self.0.store(value, Relaxed)
     }
 
-    pub fn addr(&self) -> usize {
-        crate::pointers::host_number(self.0.as_ptr())
+    pub fn addr(&self) -> u32 {
+        crate::pointers::game_address(self.0.as_ptr())
     }
 }
 
@@ -233,8 +233,8 @@ impl<const N: usize> Bytes<N> {
         self.0.get().cast()
     }
 
-    pub fn addr(&self) -> usize {
-        crate::pointers::host_number(self.as_ptr())
+    pub fn addr(&self) -> u32 {
+        crate::pointers::game_address(self.as_ptr())
     }
 
     pub fn get(&self, index: usize) -> u8 {
@@ -341,8 +341,8 @@ impl<T> Shared<T> {
         self.0.get()
     }
 
-    pub fn addr(&self) -> usize {
-        crate::pointers::host_number(self.as_ptr())
+    pub fn addr(&self) -> u32 {
+        crate::pointers::game_address(self.as_ptr())
     }
 
     /// The record as the core's struct, to work on in place. The caller keeps the original's
@@ -374,8 +374,8 @@ pub struct Screen {
 impl Screen {
     /// Where the pixel format record is (a Windows-style record the game's code reads and
     /// writes by address).
-    pub fn format_addr(&self) -> usize {
-        crate::pointers::host_number(self.format.as_ptr())
+    pub fn format_addr(&self) -> u32 {
+        crate::pointers::game_address(self.format.as_ptr())
     }
 }
 
@@ -460,13 +460,13 @@ pub struct Machine {
 
 impl Machine {
     /// The processor vendor's text (12 bytes).
-    pub fn vendor_addr(&self) -> usize {
-        crate::pointers::host_number(self.cpu_vendor.as_ptr())
+    pub fn vendor_addr(&self) -> u32 {
+        crate::pointers::game_address(self.cpu_vendor.as_ptr())
     }
 
     /// The Windows version record (`OSVERSIONINFOA`, 148 bytes).
-    pub fn version_addr(&self) -> usize {
-        crate::pointers::host_number(self.version.as_ptr())
+    pub fn version_addr(&self) -> u32 {
+        crate::pointers::game_address(self.version.as_ptr())
     }
 }
 
@@ -520,8 +520,8 @@ pub const CLOCKS_IDA: usize = 0x518998;
 pub const CLOCKS_LEN: usize = core::mem::size_of::<Clocks>();
 
 /// The address of a field or an array of cells, for code that is handed an address.
-pub fn address_of<T: ?Sized>(field: &T) -> usize {
-    crate::pointers::host_number(field as *const T as *const u8)
+pub fn address_of<T: ?Sized>(field: &T) -> u32 {
+    crate::pointers::game_address(field as *const T as *const u8)
 }
 
 /// `N` bytes holding `runs` ((offset, bytes)) and zeros elsewhere.

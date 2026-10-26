@@ -39,7 +39,7 @@ fn log(text: &std::ffi::CStr) {
 /// The thread's work up to its `ExitThread` (see the header).
 pub unsafe fn input_thread() -> Result<(), Refused> {
     use crate::threading::set_priority::set_priority;
-    let slot = crate::threading::thread_slot::slot(crate::threading::thread_slot::INPUT) as u32;
+    let slot = (crate::threading::thread_slot::slot(crate::threading::thread_slot::INPUT)) as u32;
     let flag = GamePtr::new(slot + 0xC);
     'work: {
         if flag.read::<u8>("the input thread's slot")? == 1 {

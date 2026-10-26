@@ -32,7 +32,7 @@ const STATES: [(u32, u32); 6] = [
 ];
 
 fn rdtsc() -> u32 {
-    unsafe { core::arch::x86::_rdtsc() as u32 }
+    unsafe { crate::arch::_rdtsc() as u32 }
 }
 
 fn share(at: usize, start: u32) {
@@ -102,7 +102,7 @@ impl FrameK {
     pub const LEN: usize = 0x10;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        crate::pointers::host_number(&FRAME_K as *const FrameK)
+        crate::pointers::game_address(&FRAME_K as *const FrameK) as usize
     }
 }
 

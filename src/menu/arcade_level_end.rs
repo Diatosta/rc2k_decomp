@@ -35,7 +35,7 @@ pub unsafe fn arcade_level_end(c: &Carried) -> Result<(), Refused> {
         r.arg = level;
         if first_win(ARCADE_GAME.levels_won.get(level as usize)) {
             ARCADE_GAME.levels_won.set(level as usize, 1);
-            r.cars = MENU_LISTS.shown_cars[0].addr() as u32;
+            r.cars = MENU_LISTS.shown_cars[0].addr();
             run_screen_carried(&crate::menu::car_specs_47af4c_loop::SCREEN, &mut r)?;
             crate::menu::arcade_steps::add_shown_car()?;
             crate::menu::arcade_steps::remove_shown_car(&mut || {

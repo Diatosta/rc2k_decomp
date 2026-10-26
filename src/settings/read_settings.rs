@@ -144,7 +144,7 @@ pub fn apply_settings(text: *const u8) -> Result<(), BadInput> {
     )?;
     for (n, number) in found {
         // The table's (IDA) address, or where its variable lives now (`crate::moved`).
-        GamePtr::new(crate::moved::place(table[n].1 as usize) as u32)
+        GamePtr::new((crate::moved::place(table[n].1 as usize)) as u32)
             .write(number, "a setting's variable")?;
     }
     Ok(())

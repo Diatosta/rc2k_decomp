@@ -52,7 +52,7 @@ pub fn init_mark_step() -> Result<(), Refused> {
             }
         }
         // The file number is left in eax: `init_marks`' seed.
-        crate::marks::init_marks::init_marks(VIEWER_PANEL.settings_text.addr() as u32, file)?;
+        crate::marks::init_marks::init_marks(VIEWER_PANEL.settings_text.addr(), file)?;
     }
     Ok(())
 }

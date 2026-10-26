@@ -186,8 +186,8 @@ pub const START: usize = 0x7558C4;
 pub const END: usize = 0x7559A4;
 
 /// Where IDA 0x7558C4 is now (`moved::MOVED`'s home).
-pub fn event_addr() -> usize {
-    crate::pointers::host_number(&EVENT_STATE as *const Event)
+pub fn event_addr() -> u32 {
+    crate::pointers::game_address(&EVENT_STATE as *const Event)
 }
 
 #[cfg(test)]
@@ -204,7 +204,7 @@ mod tests {
         );
         let mine = unsafe {
             std::slice::from_raw_parts(
-                crate::pointers::host_at(event_addr()) as *const u8,
+                crate::pointers::host(event_addr()) as *const u8,
                 END - START,
             )
         };

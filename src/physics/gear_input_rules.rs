@@ -71,21 +71,21 @@ pub fn rules_at(v: &[u32]) {
 
 fn game() -> Vec<u32> {
     vec![
-        CAR.tyre_change_state.addr() as u32,
-        PHYSICS.input_gear_down.addr() as u32,
-        PHYSICS.input_gear_up.addr() as u32,
-        PHYSICS.input_throttle.addr() as u32,
-        PHYSICS.input_brake.addr() as u32,
-        PHYSICS.input_handbrake.addr() as u32,
-        CAR.gear.addr() as u32,
-        CAR.gearbox_kind.addr() as u32,
-        PHYSICS.input_gear_wanted.addr() as u32,
-        CAR.run_ticks.addr() as u32,
-        RACE_VARS.run_kind.addr() as u32,
-        PHYSICS.input_steer.addr() as u32,
-        CAR.go_stand_timer.addr() as u32,
-        CAR.started_stand_timer.addr() as u32,
-        CAR.finish_flag.addr() as u32,
+        CAR.tyre_change_state.addr(),
+        PHYSICS.input_gear_down.addr(),
+        PHYSICS.input_gear_up.addr(),
+        PHYSICS.input_throttle.addr(),
+        PHYSICS.input_brake.addr(),
+        PHYSICS.input_handbrake.addr(),
+        CAR.gear.addr(),
+        CAR.gearbox_kind.addr(),
+        PHYSICS.input_gear_wanted.addr(),
+        CAR.run_ticks.addr(),
+        RACE_VARS.run_kind.addr(),
+        PHYSICS.input_steer.addr(),
+        CAR.go_stand_timer.addr(),
+        CAR.started_stand_timer.addr(),
+        CAR.finish_flag.addr(),
     ]
 }
 

@@ -16,8 +16,8 @@ use crate::gfx::screen_state::DRAW_SURFACE;
 /// The Rust version (see the header).
 pub fn texture_surface_info(record: u32) -> Result<(), crate::errors::BadInput> {
     // Converted: `rc2k_core::d3d::textures::surface_info`.
-    let s = DRAW_SURFACE.x.addr() as u32;
-    let d = crate::gfx::upload::UPLOAD.description.addr() as u32;
+    let s = DRAW_SURFACE.x.addr();
+    let d = crate::gfx::upload::UPLOAD.description.addr();
     let kind = get(record + 0xC);
     let f = rc2k_core::d3d::textures::surface_info(
         get(record + 4),

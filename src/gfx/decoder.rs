@@ -85,7 +85,7 @@ impl Decoder {
 
 /// Where the block is (`moved::MOVED`'s home for IDA 0x519118).
 pub fn home() -> usize {
-    crate::pointers::host_number(&DECODER as *const Decoder)
+    crate::pointers::game_address(&DECODER as *const Decoder) as usize
 }
 
 #[cfg(test)]
@@ -103,11 +103,17 @@ mod tests {
         assert_eq!(offset_of!(Decoder, width), 0x519124 - START);
         assert_eq!(offset_of!(Decoder, format), 0x519148 - START);
         assert_eq!(offset_of!(Decoder, palette), 0x519154 - START);
-        assert_eq!(crate::moved::place(START), DECODER.builder_flags.addr());
+        assert_eq!(
+            crate::moved::place(START),
+            DECODER.builder_flags.addr() as usize
+        );
         assert_eq!(
             crate::moved::place(0x519154),
-            crate::pointers::host_number(DECODER.palette.as_ptr())
+            (crate::pointers::game_address(DECODER.palette.as_ptr())) as usize
         );
-        assert_eq!(crate::moved::place(0x519140), DECODER.pixels.addr());
+        assert_eq!(
+            crate::moved::place(0x519140),
+            DECODER.pixels.addr() as usize
+        );
     }
 }

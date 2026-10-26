@@ -11,10 +11,7 @@ use crate::physics::cells::{get, put_changed};
 use rc2k_core::physics::start::CarStart;
 
 fn game() -> Vec<u32> {
-    vec![
-        CAR.started_stand_timer.addr() as u32,
-        CAR.damage_failed.addr() as u32,
-    ]
+    vec![CAR.started_stand_timer.addr(), CAR.damage_failed.addr()]
 }
 
 /// The Rust version on the variables' addresses.

@@ -62,7 +62,7 @@ pub fn effect_change(
     use crate::input::effect_objects::{set_effect_parameters, start_effect, stop_effect};
     use rc2k_core::input::effect_changes::{Call, Field, plan};
     let e = effect;
-    let row_at = |n: u32| DEVICES.effect_rows[0][0].addr() as u32 + 16 * n;
+    let row_at = |n: u32| DEVICES.effect_rows[0][0].addr() + 16 * n;
     // Converted: `rc2k_core::input::effect_changes::plan`.
     let failed = std::cell::Cell::new(None);
     let read = |at: u32| {
@@ -121,9 +121,9 @@ pub fn effect_change_at(
     b: u32,
 ) -> Result<(), Refused> {
     // As IDA shows it.
-    let at = (function as usize)
-        .wrapping_sub(crate::framework::game_addr(0))
-        .wrapping_add(crate::framework::IMAGE_BASE) as u32;
+    let at = ((function as usize)
+        .wrapping_sub(crate::framework::game_addr(0) as usize)
+        .wrapping_add(crate::framework::IMAGE_BASE)) as u32;
     let Some(number) = FUNCTIONS.iter().position(|&f| f == at) else {
         return Err(BadInput("an effect's function that is none of the six").into());
     };

@@ -24,7 +24,7 @@ pub const OPEN_JOIN: u32 = 1; // DPOPEN_JOIN
 
 /// `Open(dword_5AB2AC, flags)`.
 pub unsafe fn open(flags: u32) -> u32 {
-    unsafe { call(&NET.dplay, OPEN, &[NET.session_desc.addr() as u32, flags]) }
+    unsafe { call(&NET.dplay, OPEN, &[NET.session_desc.addr(), flags]) }
 }
 
 /// The code at 0x418C5A as the receiving thread calls it when it is posted.
@@ -35,34 +35,30 @@ pub extern "C" fn posted_open_host() -> u32 {
 /// The Rust version.
 pub fn host_session() -> Result<bool, Refused> {
     log(VIEWER_PANEL.text_addr(texts::NET_HOST), false, 2);
-    log(NET.machine_name.addr() as u32, true, 2);
+    log(NET.machine_name.addr(), true, 2);
     if NET.dplay.get() == 0 {
         return Ok(false);
     }
-    zero(NET.joined.addr() as u32, 0x10)?;
-    movsb(
-        NET.joined_name.addr() as u32,
-        NET.machine_name.addr() as u32,
-        0x40,
-    )?;
+    zero(NET.joined.addr(), 0x10)?;
+    movsb(NET.joined_name.addr(), NET.machine_name.addr(), 0x40)?;
     NET.joined_most.set(NET.most_players.get());
     movsb(
-        NET.joined_password.addr() as u32,
-        NET.session_password.addr() as u32,
+        NET.joined_password.addr(),
+        NET.session_password.addr(),
         0x10,
     )?;
     zeroed_description()?;
     NET.session_desc.flags.set(0x44);
     movsb(
         crate::pointers::game_address(NET.session_desc.application.as_ptr()),
-        NET.app_guid.addr() as u32,
+        NET.app_guid.addr(),
         0x10,
     )?;
     NET.session_desc.max_players.set(NET.most_players.get());
-    NET.session_desc.name.set(NET.machine_name.addr() as u32);
+    NET.session_desc.name.set(NET.machine_name.addr());
     movsb(
         crate::pointers::game_address(NET.session_desc.user.as_ptr()),
-        NET.session_password.addr() as u32,
+        NET.session_password.addr(),
         0x10,
     )?;
     finish(

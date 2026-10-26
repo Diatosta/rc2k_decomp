@@ -29,7 +29,7 @@ pub static SNAPSHOT: Bytes<26> = Bytes::new(*b"savedata\\snapshot\\000.pcx\0");
 
 /// Where the name is (`moved::MOVED`'s home for IDA 0x529731).
 pub fn snapshot_home() -> usize {
-    SNAPSHOT.addr()
+    SNAPSHOT.addr() as usize
 }
 
 /// Where the name's three digits are.
@@ -91,7 +91,7 @@ pub unsafe fn find_snapshot_number() -> Result<(), BadInput> {
         GamePtr::new(crate::pointers::game_address(digits_place()))
             .write(u32::from_le_bytes(*b"???."), "the snapshot name")?;
         let mut highest = 0u32;
-        if find_first(SNAPSHOT.addr() as u32) {
+        if find_first(SNAPSHOT.addr()) {
             loop {
                 // Converted: `rc2k_core::race::viewer::snapshot_number`.
                 let name = &(*find_data()).cFileName;
@@ -120,6 +120,9 @@ mod block_tests {
     #[test]
     fn first_value_is_the_games() {
         crate::gfx::first_values_are_the_games(&SNAPSHOT, SNAPSHOT_START, SNAPSHOT_START + 26);
-        assert_eq!(crate::moved::place(SNAPSHOT_START), SNAPSHOT.addr());
+        assert_eq!(
+            crate::moved::place(SNAPSHOT_START),
+            SNAPSHOT.addr() as usize
+        );
     }
 }

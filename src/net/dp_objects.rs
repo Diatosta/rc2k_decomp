@@ -130,7 +130,8 @@ struct State {
 
 #[repr(C)]
 struct Object {
-    table: *const usize,
+    /// The table's game address.
+    table: u32,
     refs: AtomicU32,
     state: Mutex<State>,
 }
@@ -149,7 +150,7 @@ fn session(this: u32) -> Option<Arc<Session>> {
     state(this).session.clone()
 }
 
-fn make(table: *const usize) -> u32 {
+fn make(table: u32) -> u32 {
     let at = crate::pointers::game_address(Box::into_raw(Box::new(Object {
         table,
         refs: AtomicU32::new(1),
@@ -386,7 +387,8 @@ unsafe fn enumerate(this: u32, callback: u32, context: u32, kind: u32) -> u32 {
             .map(|(id, g)| (*id, g.name.clone()))
             .collect()
     };
-    let callback: EnumPlayersCallback = unsafe { std::mem::transmute(callback as usize) };
+    let callback: EnumPlayersCallback =
+        unsafe { std::mem::transmute(crate::pointers::code(callback)) };
     for (id, name) in list {
         let name = CString::new(name).unwrap_or_default();
         // Lent to the callback, which reads it as the game's memory.
@@ -491,7 +493,8 @@ unsafe extern "system" fn enum_sessions(
         return DPERR_INVALIDPARAMS;
     }
     let application = { read_desc(desc).application };
-    let callback: EnumSessionsCallback = unsafe { std::mem::transmute(callback as usize) };
+    let callback: EnumSessionsCallback =
+        unsafe { std::mem::transmute(crate::pointers::code(callback)) };
     let mut time = timeout;
     let time_at = crate::pointers::game_address(&mut time as *mut u32);
     for (d, _) in find_sessions(&host, port, application) {
@@ -649,7 +652,8 @@ unsafe extern "system" fn enum_connections(
     let _lent = crate::pointers::Lent::new(&address);
     let name = c"Internet TCP/IP Connection For DirectPlay";
     let dpname = dp_name(name);
-    let callback: EnumConnectionsCallback = unsafe { std::mem::transmute(callback as usize) };
+    let callback: EnumConnectionsCallback =
+        unsafe { std::mem::transmute(crate::pointers::code(callback)) };
     unsafe {
         callback(
             crate::pointers::game_address(DPSPGUID_TCPIP.as_ptr()),
@@ -777,94 +781,98 @@ unsupported!(no10, a, b, c, d, e, f, g, h, i);
 
 macro_rules! table {
     ($($f:expr),* $(,)?) => {
-        [$(crate::pointers::host_number($f as *const ())),*]
+        [$(crate::pointers::game_address($f as *const ())),*]
     };
 }
 
-fn play_table() -> *const usize {
-    static TABLE: OnceLock<[usize; 53]> = OnceLock::new();
-    TABLE
-        .get_or_init(|| {
-            table![
-                query_play,               // 0x00 QueryInterface
-                add_ref,                  // 0x04 AddRef
-                release,                  // 0x08 Release
-                add_player_to_group,      // 0x0C AddPlayerToGroup
-                close,                    // 0x10 Close
-                create_group,             // 0x14 CreateGroup
-                create_player,            // 0x18 CreatePlayer
-                delete_player_from_group, // 0x1C DeletePlayerFromGroup
-                no2,                      // 0x20 DestroyGroup
-                destroy_player,           // 0x24 DestroyPlayer
-                no6,                      // 0x28 EnumGroupPlayers
-                enum_groups,              // 0x2C EnumGroups
-                enum_players,             // 0x30 EnumPlayers
-                enum_sessions,            // 0x34 EnumSessions
-                no3,                      // 0x38 GetCaps
-                no5,                      // 0x3C GetGroupData
-                no4,                      // 0x40 GetGroupName
-                no3,                      // 0x44 GetMessageCount
-                no4,                      // 0x48 GetPlayerAddress
-                no4,                      // 0x4C GetPlayerCaps
-                get_player_data,          // 0x50 GetPlayerData
-                no4,                      // 0x54 GetPlayerName
-                no3,                      // 0x58 GetSessionDesc
-                no2,                      // 0x5C Initialize
-                open,                     // 0x60 Open
-                receive,                  // 0x64 Receive
-                send,                     // 0x68 Send
-                no5,                      // 0x6C SetGroupData
-                no4,                      // 0x70 SetGroupName
-                set_player_data,          // 0x74 SetPlayerData
-                no4,                      // 0x78 SetPlayerName
-                set_session_desc,         // 0x7C SetSessionDesc
-                no3,                      // 0x80 AddGroupToGroup
-                no7,                      // 0x84 CreateGroupInGroup
-                no3,                      // 0x88 DeleteGroupFromGroup
-                enum_connections,         // 0x8C EnumConnections
-                no6,                      // 0x90 EnumGroupsInGroup
-                no5,                      // 0x94 GetGroupConnectionSettings
-                initialize_connection,    // 0x98 InitializeConnection
-                no5,                      // 0x9C SecureOpen
-                no5,                      // 0xA0 SendChatMessage
-                no4,                      // 0xA4 SetGroupConnectionSettings
-                no3,                      // 0xA8 StartSession
-                no3,                      // 0xAC GetGroupFlags
-                no3,                      // 0xB0 GetGroupParent
-                no5,                      // 0xB4 GetPlayerAccount
-                no3,                      // 0xB8 GetPlayerFlags
-                no3,                      // 0xBC GetGroupOwner
-                no3,                      // 0xC0 SetGroupOwner
-                no10,                     // 0xC4 SendEx
-                no6,                      // 0xC8 GetMessageQueue
-                no3,                      // 0xCC CancelMessage
-                no4,                      // 0xD0 CancelPriority
-            ]
-        })
-        .as_ptr()
+fn play_table() -> u32 {
+    static TABLE: OnceLock<[u32; 53]> = OnceLock::new();
+    crate::pointers::game_address(
+        TABLE
+            .get_or_init(|| {
+                table![
+                    query_play,               // 0x00 QueryInterface
+                    add_ref,                  // 0x04 AddRef
+                    release,                  // 0x08 Release
+                    add_player_to_group,      // 0x0C AddPlayerToGroup
+                    close,                    // 0x10 Close
+                    create_group,             // 0x14 CreateGroup
+                    create_player,            // 0x18 CreatePlayer
+                    delete_player_from_group, // 0x1C DeletePlayerFromGroup
+                    no2,                      // 0x20 DestroyGroup
+                    destroy_player,           // 0x24 DestroyPlayer
+                    no6,                      // 0x28 EnumGroupPlayers
+                    enum_groups,              // 0x2C EnumGroups
+                    enum_players,             // 0x30 EnumPlayers
+                    enum_sessions,            // 0x34 EnumSessions
+                    no3,                      // 0x38 GetCaps
+                    no5,                      // 0x3C GetGroupData
+                    no4,                      // 0x40 GetGroupName
+                    no3,                      // 0x44 GetMessageCount
+                    no4,                      // 0x48 GetPlayerAddress
+                    no4,                      // 0x4C GetPlayerCaps
+                    get_player_data,          // 0x50 GetPlayerData
+                    no4,                      // 0x54 GetPlayerName
+                    no3,                      // 0x58 GetSessionDesc
+                    no2,                      // 0x5C Initialize
+                    open,                     // 0x60 Open
+                    receive,                  // 0x64 Receive
+                    send,                     // 0x68 Send
+                    no5,                      // 0x6C SetGroupData
+                    no4,                      // 0x70 SetGroupName
+                    set_player_data,          // 0x74 SetPlayerData
+                    no4,                      // 0x78 SetPlayerName
+                    set_session_desc,         // 0x7C SetSessionDesc
+                    no3,                      // 0x80 AddGroupToGroup
+                    no7,                      // 0x84 CreateGroupInGroup
+                    no3,                      // 0x88 DeleteGroupFromGroup
+                    enum_connections,         // 0x8C EnumConnections
+                    no6,                      // 0x90 EnumGroupsInGroup
+                    no5,                      // 0x94 GetGroupConnectionSettings
+                    initialize_connection,    // 0x98 InitializeConnection
+                    no5,                      // 0x9C SecureOpen
+                    no5,                      // 0xA0 SendChatMessage
+                    no4,                      // 0xA4 SetGroupConnectionSettings
+                    no3,                      // 0xA8 StartSession
+                    no3,                      // 0xAC GetGroupFlags
+                    no3,                      // 0xB0 GetGroupParent
+                    no5,                      // 0xB4 GetPlayerAccount
+                    no3,                      // 0xB8 GetPlayerFlags
+                    no3,                      // 0xBC GetGroupOwner
+                    no3,                      // 0xC0 SetGroupOwner
+                    no10,                     // 0xC4 SendEx
+                    no6,                      // 0xC8 GetMessageQueue
+                    no3,                      // 0xCC CancelMessage
+                    no4,                      // 0xD0 CancelPriority
+                ]
+            })
+            .as_ptr(),
+    )
 }
 
-fn lobby_table() -> *const usize {
-    static TABLE: OnceLock<[usize; 15]> = OnceLock::new();
-    TABLE
-        .get_or_init(|| {
-            table![
-                query_lobby,             // 0x00 QueryInterface
-                add_ref,                 // 0x04 AddRef
-                release,                 // 0x08 Release
-                not_lobbied4,            // 0x0C Connect
-                no7,                     // 0x10 CreateAddress
-                no5,                     // 0x14 EnumAddress
-                no5,                     // 0x18 EnumAddressTypes
-                no4,                     // 0x1C EnumLocalApplications
-                not_lobbied4,            // 0x20 GetConnectionSettings
-                no6,                     // 0x24 ReceiveLobbyMessage
-                no5,                     // 0x28 RunApplication
-                no5,                     // 0x2C SendLobbyMessage
-                not_lobbied4,            // 0x30 SetConnectionSettings
-                no4,                     // 0x34 SetLobbyMessageEvent
-                create_compound_address, // 0x38 CreateCompoundAddress
-            ]
-        })
-        .as_ptr()
+fn lobby_table() -> u32 {
+    static TABLE: OnceLock<[u32; 15]> = OnceLock::new();
+    crate::pointers::game_address(
+        TABLE
+            .get_or_init(|| {
+                table![
+                    query_lobby,             // 0x00 QueryInterface
+                    add_ref,                 // 0x04 AddRef
+                    release,                 // 0x08 Release
+                    not_lobbied4,            // 0x0C Connect
+                    no7,                     // 0x10 CreateAddress
+                    no5,                     // 0x14 EnumAddress
+                    no5,                     // 0x18 EnumAddressTypes
+                    no4,                     // 0x1C EnumLocalApplications
+                    not_lobbied4,            // 0x20 GetConnectionSettings
+                    no6,                     // 0x24 ReceiveLobbyMessage
+                    no5,                     // 0x28 RunApplication
+                    no5,                     // 0x2C SendLobbyMessage
+                    not_lobbied4,            // 0x30 SetConnectionSettings
+                    no4,                     // 0x34 SetLobbyMessageEvent
+                    create_compound_address, // 0x38 CreateCompoundAddress
+                ]
+            })
+            .as_ptr(),
+    )
 }

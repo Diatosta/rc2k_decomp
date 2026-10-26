@@ -45,7 +45,7 @@ impl ErrorMode {
     pub const LEN: usize = 0x8;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        crate::pointers::host_number(&ERROR_MODE as *const ErrorMode)
+        crate::pointers::game_address(&ERROR_MODE as *const ErrorMode) as usize
     }
 }
 

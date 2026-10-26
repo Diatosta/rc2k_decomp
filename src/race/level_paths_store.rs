@@ -56,7 +56,7 @@ impl core::ops::Deref for InBlock {
     fn deref(&self) -> &LevelPaths {
         // SAFETY: the race block lives as long as the program; every field is a cell of
         // bytes (alignment 1), as the block's bytes were shared.
-        unsafe { &*(crate::pointers::host_at(piece_addr()) as *const LevelPaths) }
+        unsafe { &*(crate::pointers::host(piece_addr()) as *const LevelPaths) }
     }
 }
 
@@ -70,8 +70,8 @@ pub const END: usize = 0x60B0BD;
 const _: () = assert!(END - START == core::mem::size_of::<LevelPaths>());
 
 /// Where IDA 0x60AF0C is now.
-pub fn piece_addr() -> usize {
-    crate::moved::place(START)
+pub fn piece_addr() -> u32 {
+    crate::moved::place(START) as u32
 }
 
 #[cfg(test)]
@@ -83,7 +83,7 @@ mod tests {
     fn piece_sits_on_the_block() {
         assert_eq!(
             crate::moved::place(END - 1),
-            piece_addr() + (END - START) - 1
+            (piece_addr() + (END - START) as u32 - 1) as usize
         );
         assert_eq!(offset_of!(LevelPaths, picture_gravel), 0x60AF45 - START);
         assert_eq!(offset_of!(LevelPaths, second_a), 0x60AF8F - START);

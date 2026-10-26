@@ -199,12 +199,7 @@ fn update_car_effects_with(
 /// converted version (`rc2k_core::input::feedback::update_car_effects`, plain floats)
 /// waits for the float pass.
 pub fn update_car_effects(view: u32, object: u32, device: u32) -> Result<(), Refused> {
-    update_car_effects_with(
-        view,
-        object,
-        device,
-        crate::session::MACHINE.scratch.addr() as u32,
-    )
+    update_car_effects_with(view, object, device, crate::session::MACHINE.scratch.addr())
 }
 
 #[cfg(test)]

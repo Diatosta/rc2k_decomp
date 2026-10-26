@@ -139,8 +139,8 @@ pub const START: usize = 0x7559A4;
 pub const END: usize = 0x755A4C;
 
 /// Where IDA 0x7559A4 is now (`moved::MOVED`'s home).
-pub fn draw_work_addr() -> usize {
-    crate::pointers::host_number(&DRAW_WORK as *const DrawWork)
+pub fn draw_work_addr() -> u32 {
+    crate::pointers::game_address(&DRAW_WORK as *const DrawWork)
 }
 
 #[cfg(test)]
@@ -157,7 +157,7 @@ mod tests {
         );
         let mine = unsafe {
             std::slice::from_raw_parts(
-                crate::pointers::host_at(draw_work_addr()) as *const u8,
+                crate::pointers::host(draw_work_addr()) as *const u8,
                 END - START,
             )
         };

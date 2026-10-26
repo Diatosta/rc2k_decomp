@@ -24,10 +24,10 @@ const REG_SZ: u32 = 1;
 const REG_BINARY: u32 = 3;
 
 pub fn write_registry(api: Api) -> Result<(), Refused> {
-    let key_at = INSTALLER_RUN.reg_key.addr() as u32;
+    let key_at = INSTALLER_RUN.reg_key.addr();
     if api(
         REG_CREATE_KEY,
-        &[HKLM, INSTALLER_NAMES.key_name.addr() as u32, key_at],
+        &[HKLM, INSTALLER_NAMES.key_name.addr(), key_at],
     ) != 0
     {
         return Err(fatal(0x8010_8420));
@@ -37,10 +37,10 @@ pub fn write_registry(api: Api) -> Result<(), Refused> {
         REG_SET_VALUE,
         &[
             key,
-            INSTALLER_NAMES.status_name.addr() as u32,
+            INSTALLER_NAMES.status_name.addr(),
             0,
             REG_BINARY,
-            INSTALLER_NAMES.status.addr() as u32,
+            INSTALLER_NAMES.status.addr(),
             1,
         ],
     ) != 0
@@ -52,10 +52,10 @@ pub fn write_registry(api: Api) -> Result<(), Refused> {
             REG_SET_VALUE,
             &[
                 key,
-                INSTALLER_NAMES.source_name.addr() as u32,
+                INSTALLER_NAMES.source_name.addr(),
                 0,
                 REG_SZ,
-                INSTALLER_NAMES.source.addr() as u32,
+                INSTALLER_NAMES.source.addr(),
                 INSTALLER_NAMES.source_size.get(),
             ],
         ) != 0

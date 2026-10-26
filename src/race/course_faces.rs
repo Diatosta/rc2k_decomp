@@ -143,13 +143,13 @@ pub fn face_materials(face: u32) -> Result<(), BadInput> {
         let clock: u32 = CAR_BLOCKS.cars[0].step_clock.bits();
         let (k1, k2) = (NUMBERS.ten.bits(), NUMBERS.quarter.bits());
         let texture = |object: u32, first: bool| -> Result<u32, BadInput> {
-            let speed = byte((STAGE_PREFS.face_speeds[0].addr() as u32) + object)?;
+            let speed = byte((STAGE_PREFS.face_speeds[0].addr()) + object)?;
             if speed == 0 {
                 return Ok(object);
             }
             let n = frame_of(
                 clock,
-                get((COURSE_LISTS.face_key_factors[0].addr() as u32) + 4 * speed)?,
+                get((COURSE_LISTS.face_key_factors[0].addr()) + 4 * speed)?,
                 k1,
                 k2,
             );
@@ -158,7 +158,7 @@ pub fn face_materials(face: u32) -> Result<(), BadInput> {
             if first {
                 RACE_VIEW.face_frame.set(frame);
             }
-            byte((STAGE_PREFS.face_places[0].addr() as u32) + place)
+            byte((STAGE_PREFS.face_places[0].addr()) + place)
         };
         // Converted: `rc2k_core::race::faces::{frame_place, material_bits}` (the frame's
         // rounding the x87's).
@@ -363,8 +363,8 @@ pub fn face_texture_coordinates(set: &TextureSet) -> Result<(), BadInput> {
     use rc2k_core::race::faces::{TextureInfo, texture_coordinates};
     {
         let texture: u32 = set.texture.get();
-        let info = (crate::scene::polygon_store::POLYGON_WORK.texture_infos[0].words[0].addr()
-            as u32)
+        let info = crate::scene::polygon_store::POLYGON_WORK.texture_infos[0].words[0]
+            .addr()
             .wrapping_add(texture << 6);
         let texture_info = TextureInfo {
             size: get(info + 0x20)?,
@@ -432,8 +432,8 @@ const ENTRY_SIZE: u32 = 0x44;
 fn entry(slot: u32) -> u32 {
     (crate::scene::polygon_store::POLYGON_WORK.entries[0]
         .point
-        .addr() as u32)
-        .wrapping_add(ENTRY_SIZE * slot)
+        .addr())
+    .wrapping_add(ENTRY_SIZE * slot)
 }
 
 /// One polygon entry filled from one of the face's corners: +0 its point, +8 / +0xC the
@@ -595,14 +595,14 @@ pub unsafe fn draw_face() -> Result<(), Refused> {
         let second: u32 = RACE_VIEW.texture_b.get();
         let trap = Trap::new();
         let picked = || {
-            let record =
-                (crate::scene::polygon_store::POLYGON_WORK.texture_infos[0].words[0].addr() as u32)
-                    .wrapping_add(second << 6);
+            let record = crate::scene::polygon_store::POLYGON_WORK.texture_infos[0].words[0]
+                .addr()
+                .wrapping_add(second << 6);
             let pick = trap.read::<u8>(record + 0x2C, "a texture info's kind") as usize;
             // dword_63D9D0: indexed by a byte (not bounded by the field's 4 dwords), so
             // read by address.
             trap.read::<u32>(
-                (RACE_VIEW.surface_kinds[0].addr() + 4 * pick) as u32,
+                RACE_VIEW.surface_kinds[0].addr() + (4 * pick) as u32,
                 "the surface kinds table",
             )
         };
@@ -702,7 +702,7 @@ pub unsafe fn draw_lit_triangle() -> Result<(), Refused> {
         crate::race::frame_draw::check_light_colour()?;
         DRAW.polygon_drawn.set(0u32);
         DRAW.polygon_next_record
-            .set(crate::scene::polygon_store::POLYGON_WORK.record_pool[0].addr() as u32);
+            .set(crate::scene::polygon_store::POLYGON_WORK.record_pool[0].addr());
         plain_list(DRAW.polygon_vertex_count.bits(), 6);
         crate::scene::project_polygon::project_polygon()?;
         if DRAW.polygon_outside_count.get() == DRAW.polygon_vertex_count.get() {
@@ -713,11 +713,11 @@ pub unsafe fn draw_lit_triangle() -> Result<(), Refused> {
         for k in 0..3 {
             put(
                 entry(3 + k) + 4,
-                RACE_VARS.quad_vertices[8 * k as usize].addr() as u32,
+                RACE_VARS.quad_vertices[8 * k as usize].addr(),
             )?;
         }
         for (k, (first, second)) in [(0u32, 1u32), (1, 2), (2, 0)].into_iter().enumerate() {
-            let v = RACE_VARS.quad_vertices[8 * k].addr() as u32;
+            let v = RACE_VARS.quad_vertices[8 * k].addr();
             let points: u32 = COURSE.scene_points.get();
             let pa = get(entry(first))?.wrapping_mul(12).wrapping_add(points);
             let pb = get(entry(second))?.wrapping_mul(12).wrapping_add(points);
@@ -821,7 +821,7 @@ fn turn_over() -> Result<(), BadInput> {
         let trap = Trap::new();
         let turned = turned_order(order, |n| {
             trap.read::<u8>(
-                (RACE_VIEW.turned_corner_order[0].addr() as u32) + n,
+                (RACE_VIEW.turned_corner_order[0].addr()) + n,
                 "the turned corner order",
             )
         });
@@ -944,7 +944,7 @@ pub unsafe fn draw_tinted_face(face: u32) -> Result<(), Refused> {
     unsafe {
         let colour: u32 = DRAW.polygon_colour.get();
         let object = byte_at(face + 1)? as u32;
-        let tint = get((STAGE_PREFS.object_tints[0].addr() as u32) + 4 * object)?;
+        let tint = get((STAGE_PREFS.object_tints[0].addr()) + 4 * object)?;
         if tints(tint) {
             DRAW.polygon_colour
                 .set(tinted(tint, colour, crate::race::frame_draw::has_mmx()));

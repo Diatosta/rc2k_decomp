@@ -37,9 +37,9 @@ type Turns = (
 /// The steps both versions share; `second` the second offset turned with the car.
 unsafe fn place_with(turns: Turns, second: &dyn Fn() -> [i32; 3]) {
     let esi = if RACE_VARS.split.get() == SECOND_RECORD_MODE {
-        crate::race::lights_store::LIGHTS_DATA.place_second[0].addr() as u32
+        crate::race::lights_store::LIGHTS_DATA.place_second[0].addr()
     } else {
-        crate::race::lights_store::LIGHTS_DATA.place_usual[0].addr() as u32
+        crate::race::lights_store::LIGHTS_DATA.place_usual[0].addr()
     };
     let places = [
         &VIEW_VARS.place_a,
@@ -123,13 +123,13 @@ pub unsafe fn place_camera() {
         ];
         for (k, x) in turns.iter().enumerate() {
             x87_1(
-                x.addr(),
+                x.addr() as usize,
                 crate::race::store::asm_base() as usize,
-                crate::pointers::host_number(parts[k].as_mut_ptr()),
+                (crate::pointers::game_address(parts[k].as_mut_ptr())) as usize,
             );
         }
         let turned =
-            { crate::scene::rotate_point::rotate_point(CAR.crash_matrix[0].addr() as u32, parts) };
+            { crate::scene::rotate_point::rotate_point(CAR.crash_matrix[0].addr(), parts) };
         let k = NUMBERS.k65536.bits();
         turned.map(|e| crate::math::x87_run::ext_to_int(crate::math::x87_run::ext_times(e, k)))
     };

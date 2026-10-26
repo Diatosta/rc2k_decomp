@@ -156,9 +156,9 @@ pub fn viewer_action(action: u32, c: &Carried) -> Result<bool, Refused> {
             if block != REPLAY_FILE.index_block_count.get() {
                 let byte = (crate::race::viewer_buffers_store::VIEWER_BUFFERS
                     .block_cameras
-                    .addr() as u32)
-                    .wrapping_add(byte)
-                    .wrapping_add(block.wrapping_mul(8));
+                    .addr())
+                .wrapping_add(byte)
+                .wrapping_add(block.wrapping_mul(8));
                 let at = crate::pointers::host(byte);
                 let old = unsafe { at.read() };
                 unsafe { at.write(old ^ 1) };
@@ -211,9 +211,9 @@ fn cycle_byte(byte: usize) -> Result<(), Refused> {
     }
     let byte_at = (crate::race::viewer_buffers_store::VIEWER_BUFFERS
         .block_cameras
-        .addr() as u32)
-        .wrapping_add(byte as u32)
-        .wrapping_add(block.wrapping_mul(8));
+        .addr())
+    .wrapping_add(byte as u32)
+    .wrapping_add(block.wrapping_mul(8));
     let at = crate::pointers::host(byte_at);
     let old = unsafe { at.read() };
     let dl = rc2k_core::race::viewer::next_byte(byte as u32, old);
@@ -252,12 +252,12 @@ fn cut(_r: &mut Carried) -> Result<(), Refused> {
             .addr(),
     ] {
         move_dwords(
-            table + 8 * first as usize,
-            table + 8 * second as usize,
+            (table + (8 * first as usize) as u32) as usize,
+            (table + (8 * second as usize) as u32) as usize,
             2 * rest as usize,
         )?;
-        let end = table + 8 * (first + rest) as usize;
-        crate::pointers::GamePtr::new(end as u32).fill(0, 8 * count as usize, "the marks table")?;
+        let end = table + (8 * (first + rest) as usize) as u32;
+        crate::pointers::GamePtr::new(end).fill(0, 8 * count as usize, "the marks table")?;
     }
     crate::race::reset_marks::reset_marks()
 }
@@ -285,24 +285,24 @@ fn paste() -> Result<(), Refused> {
             .addr(),
     ] {
         {
-            GamePtr::new((base + 8 * block as usize) as u32).copy_to(
-                GamePtr::new((base + 8 * (block + clip) as usize) as u32),
+            GamePtr::new(base + (8 * block as usize) as u32).copy_to(
+                GamePtr::new(base + (8 * (block + clip) as usize) as u32),
                 8 * (blocks - block) as usize,
                 "game data",
             )?;
         }
     }
     move_dwords(
-        REPLAY_FILE.block_places[0].addr() + 8 * block as usize,
-        crate::race::viewer_buffers_store::VIEWER_BUFFERS.clip_places[0].addr(),
+        (REPLAY_FILE.block_places[0].addr() + (8 * block as usize) as u32) as usize,
+        crate::race::viewer_buffers_store::VIEWER_BUFFERS.clip_places[0].addr() as usize,
         2 * clip as usize,
     )?;
     move_dwords(
-        crate::race::viewer_buffers_store::VIEWER_BUFFERS
+        (crate::race::viewer_buffers_store::VIEWER_BUFFERS
             .block_cameras
             .addr()
-            + 8 * block as usize,
-        crate::race::viewer_buffers_store::VIEWER_BUFFERS.clip_cameras[0].addr(),
+            + (8 * block as usize) as u32) as usize,
+        crate::race::viewer_buffers_store::VIEWER_BUFFERS.clip_cameras[0].addr() as usize,
         2 * clip as usize,
     )?;
     REPLAY_FILE.index_block_count.set(blocks + clip);

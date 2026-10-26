@@ -29,7 +29,7 @@ pub static PATH: crate::session::Bytes<12> = crate::session::Bytes::new(*b"var\\
 
 /// Where the name is (`moved::MOVED`'s home for IDA 0x5295E4).
 pub fn path_home() -> usize {
-    PATH.addr()
+    PATH.addr() as usize
 }
 
 // "R5HS"
@@ -55,10 +55,10 @@ pub fn load_game_best_times() -> Result<bool, Refused> {
         BEST_TIMES.list(),
         crate::records::stages_store::STAGE_TABLES.championship(), // g_recordTable
     )?;
-    let Some(file) = open_by_mode(crate::pointers::host_at(PATH.addr()) as *const u8, 0)? else {
+    let Some(file) = open_by_mode(crate::pointers::host(PATH.addr()) as *const u8, 0)? else {
         return Ok(false);
     };
-    let scratch = GamePtr::new(crate::files::scratch::SCRATCH.buffer.addr() as u32);
+    let scratch = GamePtr::new(crate::files::scratch::SCRATCH.buffer.addr());
     if !read_or_close(file, scratch, HEAD_LEN)? {
         return Ok(false);
     }
@@ -86,6 +86,6 @@ mod path_tests {
     #[test]
     fn first_values_are_the_games() {
         crate::gfx::first_values_are_the_games(&PATH, PATH_START, PATH_START + 12);
-        assert_eq!(crate::moved::place(PATH_START), PATH.addr());
+        assert_eq!(crate::moved::place(PATH_START), PATH.addr() as usize);
     }
 }

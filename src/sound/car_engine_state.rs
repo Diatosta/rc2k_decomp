@@ -152,7 +152,7 @@ pub fn car_engine_state(o: u32) -> Result<u32, Refused> {
     }
     if let Some(low) = low {
         MACHINE.scratch.set(low);
-        x87_3(crate::session::MACHINE.scratch.addr(), so);
+        x87_3(crate::session::MACHINE.scratch.addr() as usize, so);
     }
     x87_4(so, &crate::sound::store::RACE_CLOCK);
     object.set(0x140, 0);

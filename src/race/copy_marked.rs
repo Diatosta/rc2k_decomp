@@ -36,16 +36,16 @@ pub fn copy_marked() -> Result<Option<u32>, Refused> {
         .set(blocks);
     let dwords = 2 * blocks as usize;
     move_dwords(
-        crate::race::viewer_buffers_store::VIEWER_BUFFERS.clip_places[0].addr(),
-        REPLAY_FILE.block_places[0].addr() + 8 * first as usize,
+        crate::race::viewer_buffers_store::VIEWER_BUFFERS.clip_places[0].addr() as usize,
+        (REPLAY_FILE.block_places[0].addr() + (8 * first as usize) as u32) as usize,
         dwords,
     )?;
     move_dwords(
-        crate::race::viewer_buffers_store::VIEWER_BUFFERS.clip_cameras[0].addr(),
-        crate::race::viewer_buffers_store::VIEWER_BUFFERS
+        crate::race::viewer_buffers_store::VIEWER_BUFFERS.clip_cameras[0].addr() as usize,
+        (crate::race::viewer_buffers_store::VIEWER_BUFFERS
             .block_cameras
             .addr()
-            + 8 * first as usize,
+            + (8 * first as usize) as u32) as usize,
         dwords,
     )?;
     Ok(Some(blocks))

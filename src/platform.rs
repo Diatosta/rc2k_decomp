@@ -243,7 +243,7 @@ unsafe fn set_screen_mode(mode: u32) -> Result<(), String> {
         } else {
             [0x001F, 0x07E0, 0xF800]
         };
-        let format = crate::pointers::host_at(GAME_SCREEN.format_addr()) as *mut u32;
+        let format = crate::pointers::host(GAME_SCREEN.format_addr()) as *mut u32;
         for (n, mask) in masks.into_iter().enumerate() {
             format.add(1 + n).write_unaligned(mask);
         }
@@ -298,7 +298,7 @@ unsafe fn set_screen_mode(mode: u32) -> Result<(), String> {
         SURFACES.front.set(1);
         SURFACES.back.set(1);
         *screen = Some(Screen {
-            window: crate::pointers::host_number(window),
+            window: crate::pointers::game_address(window) as usize,
             width: width as usize,
             height: height as usize,
             bits,
@@ -371,7 +371,7 @@ pub fn lock_surface() -> u32 {
                 (5, GAME_SCREEN.bytes.get()),
                 (6, row_bytes),
                 (7, GAME_SCREEN.row_dwords.get()),
-                (8, GAME_SCREEN.format_addr() as u32),
+                (8, GAME_SCREEN.format_addr()),
                 (9, pitch),
                 (10, DRAW_SURFACE.present_pixels.get()),
                 (11, pitch.wrapping_sub(row_bytes)),
@@ -405,7 +405,7 @@ static SHOW: RawHook = RawHook::new("gfx::show_frame", rva(0x4057D1));
 // ---- where the time goes: the main thread and the rasteriser's sampled every millisecond ----
 
 /// Where the sampled threads were, by address, since the last report.
-static SAMPLES: std::sync::Mutex<Option<std::collections::HashMap<u32, u32>>> =
+static SAMPLES: std::sync::Mutex<Option<std::collections::HashMap<usize, u32>>> =
     std::sync::Mutex::new(None);
 
 /// The time putting frames on the screen (`show_frame`), in microseconds.
@@ -428,9 +428,7 @@ pub fn start_threads() {
 /// thread every millisecond, notes its instruction pointer and lets it go on.
 fn start_sampler() {
     use std::sync::Once;
-    use windows_sys::Win32::System::Diagnostics::Debug::{
-        CONTEXT, CONTEXT_CONTROL_X86, GetThreadContext,
-    };
+    use windows_sys::Win32::System::Diagnostics::Debug::{CONTEXT, GetThreadContext};
     use windows_sys::Win32::System::Threading::{
         GetCurrentThreadId, OpenThread, ResumeThread, SuspendThread, THREAD_GET_CONTEXT,
         THREAD_SUSPEND_RESUME,
@@ -452,7 +450,7 @@ fn start_sampler() {
                             OpenThread(THREAD_SUSPEND_RESUME | THREAD_GET_CONTEXT, 0, id)
                         };
                         if !h.is_null() {
-                            handles.push((id, crate::pointers::host_number(h)));
+                            handles.push((id, crate::pointers::game_address(h) as usize));
                         }
                     }
                 }
@@ -464,14 +462,14 @@ fn start_sampler() {
                             continue;
                         }
                         let mut context: CONTEXT = std::mem::zeroed();
-                        context.ContextFlags = CONTEXT_CONTROL_X86;
+                        context.ContextFlags = crate::arch::CONTEXT_CONTROL;
                         let got = GetThreadContext(thread, &mut context) != 0;
                         ResumeThread(thread);
                         if got
                             && let Ok(mut samples) = SAMPLES.lock()
                             && let Some(samples) = samples.as_mut()
                         {
-                            *samples.entry(context.Eip).or_insert(0) += 1;
+                            *samples.entry(crate::arch::ip(&context)).or_insert(0) += 1;
                         }
                     }
                 }
@@ -499,17 +497,20 @@ fn hot_places() -> String {
         return String::new();
     }
     let program = crate::pointers::game_address(unsafe { GetModuleHandleA(std::ptr::null()) });
-    let game = crate::framework::game_addr(0) as u32;
+    let game = crate::framework::game_addr(0);
     // by function-sized buckets would need symbols: by address, the top 24
-    let mut places: Vec<(u32, u32)> = samples.into_iter().collect();
+    let mut places: Vec<(usize, u32)> = samples.into_iter().collect();
     places.sort_by_key(|p| std::cmp::Reverse(p.1));
-    let name = |at: u32| -> String {
+    // `at` is a sampled instruction pointer (a host address): as a game address, as
+    // everything below is.
+    let name = |at: usize| -> String {
+        let at = crate::pointers::game_of(at) as usize;
         unsafe {
             let mut module = std::ptr::null_mut();
             if GetModuleHandleExA(
                 GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS
                     | GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
-                crate::pointers::host(at) as *const u8,
+                crate::pointers::host_at(at) as *const u8,
                 &mut module,
             ) == 0
             {
@@ -517,16 +518,16 @@ fn hot_places() -> String {
             }
             let base = crate::pointers::game_address(module);
             if base == program {
-                return format!("rc2k+{:#x}", at - base);
+                return format!("rc2k+{:#x}", at - base as usize);
             }
             if base == game.wrapping_add(0x40_0000) || base == game {
-                return format!("game {:#x}", at.wrapping_sub(game));
+                return format!("game {:#x}", at.wrapping_sub(game as usize));
             }
             let mut file = [0u8; 260];
             let n = GetModuleFileNameA(module, file.as_mut_ptr(), 260) as usize;
             let file = String::from_utf8_lossy(&file[..n]);
             let file = file.rsplit(['\\', '/']).next().unwrap_or("?").to_string();
-            format!("{file}+{:#x}", at - base)
+            format!("{file}+{:#x}", at - base as usize)
         }
     };
     // Every place, for adding up by function offline (`llvm-symbolizer` on rc2k.exe).

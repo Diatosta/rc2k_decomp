@@ -78,7 +78,7 @@ fn check() -> Result<(), Refused> {
 /// back).
 fn steps() -> Result<(), Refused> {
     check()?;
-    let infos = crate::scene::polygon::texture_infos_addr() as u32;
+    let infos = crate::scene::polygon::texture_infos_addr();
     let surfaces = crate::pointers::game_address(PHYSICS.surfaces.as_ptr());
     for c in 0..5u32 {
         let cc = c as usize;
@@ -112,7 +112,7 @@ fn steps() -> Result<(), Refused> {
             let kind = match RACE_VIEW.surface_kinds.get(kind_index as usize) {
                 Some(cell) => cell.get(),
                 None => GamePtr::new(
-                    (RACE_VIEW.surface_kinds[0].addr() + 4 * kind_index as usize) as u32,
+                    RACE_VIEW.surface_kinds[0].addr() + (4 * kind_index as usize) as u32,
                 )
                 .read::<u32>("the surface kinds (a byte index past the table)")?,
             };

@@ -13,7 +13,7 @@ use crate::race::work_store::RACE_WORK;
 use rc2k_core::drive::replay_frames::{StartPiece, start_layout};
 
 /// Where a piece of the starting state is now (an address).
-pub fn piece_addr(piece: StartPiece) -> usize {
+pub fn piece_addr(piece: StartPiece) -> u32 {
     match piece {
         StartPiece::Car(k) => crate::race::blocks_store::block_addr(k as usize),
         StartPiece::RaceSlots => RACE_WORK.race_slots[0].part.addr(), // g_raceSlots
@@ -26,8 +26,8 @@ pub fn piece_addr(piece: StartPiece) -> usize {
 pub fn save_replay_cars() -> Result<(), BadInput> {
     for (piece, offset, n) in start_layout() {
         let (state, place) = (
-            crate::race::blocks_store::block_addr(8) as u32 + 4 * offset as u32,
-            piece_addr(piece) as u32,
+            crate::race::blocks_store::block_addr(8) + 4 * offset as u32,
+            piece_addr(piece),
         );
         GamePtr::new(place).copy_to(GamePtr::new(state), n * 4, "the cars' starting state")?;
     }

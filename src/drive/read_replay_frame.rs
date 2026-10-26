@@ -45,7 +45,7 @@ pub fn read_replay_frame(frame: u32, tenth: u32) -> Result<bool, Refused> {
     let (_, carry, _) = {
         crate::drive::read_packed::read_packed(
             REPLAY_FILE.replay_handle.get(),
-            crate::race::viewer_buffers_store::VIEWER_BUFFERS.block[0].addr() as u32,
+            crate::race::viewer_buffers_store::VIEWER_BUFFERS.block[0].addr(),
             count,
         )
     }?;

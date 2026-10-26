@@ -18,7 +18,7 @@ pub fn set_length(length: i32) {
 
 /// Where the backup copy of the text is.
 pub fn backup() -> u32 {
-    NAME_BUFFERS.text_backup.addr() as u32
+    NAME_BUFFERS.text_backup.addr()
 }
 
 /// The entry's state, as the game holds it.

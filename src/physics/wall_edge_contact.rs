@@ -59,7 +59,7 @@ pub fn edge_normal(first: u32, second: u32) -> Result<[u32; 4], Refused> {
         .wrapping_sub(PHYSICS.edge_points[1].get());
     let d = [dx, dz];
     x87_1(
-        crate::pointers::host_number(d.as_ptr()),
+        (crate::pointers::game_address(d.as_ptr())) as usize,
         crate::race::store::asm_base() as usize,
     );
     DRAW.scratch.set(DRAW.scratch.get() & 0xFFFF);

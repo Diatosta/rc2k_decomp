@@ -19,7 +19,7 @@ use crate::settings::TEXT_ROOM;
 /// Refuses what `read_file` refuses.
 pub fn read_text(path: *const u8) -> Result<Option<(*const u8, u32)>, BadInput> {
     {
-        let text = crate::pointers::host_at(crate::files::scratch::SCRATCH.buffer.addr());
+        let text = crate::pointers::host(crate::files::scratch::SCRATCH.buffer.addr());
         let read = read_file(path, text, TEXT_ROOM, 0)?;
         // Converted: `rc2k_core::files::settings::text_read`.
         let Some(bytes) = rc2k_core::files::settings::text_read(read.ok, read.bytes_read) else {

@@ -56,7 +56,7 @@ impl Outside for Game {
     }
     unsafe fn read_record(&mut self) -> Result<(), BadInput> {
         read_record(crate::pointers::host_at(
-            crate::install::installer::INSTALL_TEXTS.record_path.addr(),
+            crate::install::installer::INSTALL_TEXTS.record_path.addr() as usize,
         ) as *const u8)
     }
     unsafe fn log(&mut self, text: *const u8) {

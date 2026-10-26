@@ -15,7 +15,7 @@ use crate::install::lay_out_pieces::PIECE;
 use crate::install::vars::INSTALLER_PAGES;
 
 pub fn place_pieces() -> Result<(), Refused> {
-    let base = INSTALLER_PAGES.layout.addr() as u32 + 4;
+    let base = INSTALLER_PAGES.layout.addr() + 4;
     let at = |k: u32| base.wrapping_add(PIECE * k);
     // Converted: `rc2k_core::install::layout::rows` (each piece's box read through its item).
     let rows = rc2k_core::install::layout::rows(INSTALLER_PAGES.layout.get_u32(0), |k| {
@@ -23,7 +23,7 @@ pub fn place_pieces() -> Result<(), Refused> {
     })?;
     for (first, n, the_box) in rows {
         let place = if the_box == 0 {
-            INSTALLER_PAGES.title_box.addr() as u32
+            INSTALLER_PAGES.title_box.addr()
         } else {
             the_box
         };

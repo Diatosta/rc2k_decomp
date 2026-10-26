@@ -20,17 +20,17 @@ use crate::install::vars::INSTALLER_PATHS;
 use crate::install::vars::INSTALLER_RUN;
 
 pub fn install_from_command() -> Result<(), Refused> {
-    if !set_cd(INSTALLER_PATHS.game_dir.addr() as u32)
+    if !set_cd(INSTALLER_PATHS.game_dir.addr())
         || !normalise(
-            crate::install::installer::INSTALL_TEXTS.base_b.addr() as u32,
-            INSTALLER_PATHS.game_dir.addr() as u32,
+            crate::install::installer::INSTALL_TEXTS.base_b.addr(),
+            INSTALLER_PATHS.game_dir.addr(),
         )?
     {
         return Ok(());
     }
     normalise(
-        INSTALLER_PATHS.installed.addr() as u32,
-        INSTALLER_PATHS.typed.addr() as u32,
+        INSTALLER_PATHS.installed.addr(),
+        INSTALLER_PATHS.typed.addr(),
     )?;
     // A given media mode (above 0) is taken, held to 3, and only then a given language
     // (above 0): a mode of 0 or less goes straight to the install.

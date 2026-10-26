@@ -23,7 +23,7 @@ use crate::text::draw_text::Canvas;
 pub fn draw_options_checklist(canvas: &mut dyn Canvas) -> Result<(), Refused> {
     // Converted: `rc2k_core::screens::settings_pages::options_checklist`.
     {
-        let mut at = MENU_LISTS.inspection_faults[0].addr() as u32;
+        let mut at = MENU_LISTS.inspection_faults[0].addr();
         let mut ticks = Vec::new();
         loop {
             let tick = crate::pointers::GamePtr::new(at).read::<u32>("a checklist tick")?;

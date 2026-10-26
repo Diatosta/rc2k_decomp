@@ -209,7 +209,8 @@ const E_NOINTERFACE: i32 = 0x8000_4002u32 as i32;
 /// runs that make the same objects get the same addresses.
 #[repr(C)]
 struct Object {
-    table: *const usize,
+    /// The table's game address.
+    table: u32,
     spare: u32,
 }
 
@@ -222,12 +223,7 @@ struct Pool(std::cell::UnsafeCell<[Object; POOL]>);
 unsafe impl Sync for Pool {}
 
 static OBJECTS: Pool = Pool(std::cell::UnsafeCell::new(
-    [const {
-        Object {
-            table: std::ptr::null(),
-            spare: 0,
-        }
-    }; POOL],
+    [const { Object { table: 0, spare: 0 } }; POOL],
 ));
 
 fn pool_base() -> u32 {
@@ -313,7 +309,7 @@ fn put<T: Copy>(at: u32, value: T) {
 }
 
 /// A new object, in the lowest free place (0 when the pool is full).
-fn make(s: &mut State, table: *const usize, what: Kind2) -> u32 {
+fn make(s: &mut State, table: u32, what: Kind2) -> u32 {
     let Some(id) = (0..POOL as u32).find(|n| !s.entries.contains_key(n)) else {
         return 0;
     };
@@ -459,7 +455,8 @@ extern "system" fn enum_devices(
     if callback == 0 {
         return DIERR_INVALIDPARAM;
     }
-    let callback: EnumDevicesCallback = unsafe { std::mem::transmute(callback) };
+    let callback: EnumDevicesCallback =
+        unsafe { std::mem::transmute(crate::pointers::code(callback as u32)) };
     for d in &devices {
         let instance = device_instance(d);
         if unsafe {
@@ -543,7 +540,8 @@ extern "system" fn enum_objects(this: u32, callback: usize, context: u32, _flags
     if callback == 0 {
         return DIERR_INVALIDPARAM;
     }
-    let callback: EnumObjectsCallback = unsafe { std::mem::transmute(callback) };
+    let callback: EnumObjectsCallback =
+        unsafe { std::mem::transmute(crate::pointers::code(callback as u32)) };
     for n in 0..6 {
         if d.axes & (1 << n) == 0 {
             continue;
@@ -747,7 +745,8 @@ extern "system" fn enum_effects(this: u32, callback: usize, context: u32, kind: 
     if !d.force {
         return DI_OK;
     }
-    let callback: EnumEffectsCallback = unsafe { std::mem::transmute(callback) };
+    let callback: EnumEffectsCallback =
+        unsafe { std::mem::transmute(crate::pointers::code(callback as u32)) };
     for k in KINDS {
         // DIEFT_ALL (0) or the kind asked
         if kind & 0xFF != 0 && kind & 0xFF != k.family() {
@@ -923,80 +922,86 @@ extern "system" fn effect_none(_this: u32) -> i32 {
 // Each table is filled once (function addresses are not known at compile time) and read
 // by the game.
 
-fn input_table() -> *const usize {
-    static TABLE: std::sync::OnceLock<[usize; 8]> = std::sync::OnceLock::new();
-    TABLE
-        .get_or_init(|| {
-            [
-                crate::pointers::host_number(query as *const ()),
-                crate::pointers::host_number(add_ref as *const ()),
-                crate::pointers::host_number(release as *const ()),
-                crate::pointers::host_number(create_device as *const ()),
-                crate::pointers::host_number(enum_devices as *const ()),
-                crate::pointers::host_number(unsupported as *const ()),
-                crate::pointers::host_number(unsupported as *const ()),
-                crate::pointers::host_number(unsupported as *const ()),
-            ]
-        })
-        .as_ptr()
+fn input_table() -> u32 {
+    static TABLE: std::sync::OnceLock<[u32; 8]> = std::sync::OnceLock::new();
+    crate::pointers::game_address(
+        TABLE
+            .get_or_init(|| {
+                [
+                    crate::pointers::game_address(query as *const ()),
+                    crate::pointers::game_address(add_ref as *const ()),
+                    crate::pointers::game_address(release as *const ()),
+                    crate::pointers::game_address(create_device as *const ()),
+                    crate::pointers::game_address(enum_devices as *const ()),
+                    crate::pointers::game_address(unsupported as *const ()),
+                    crate::pointers::game_address(unsupported as *const ()),
+                    crate::pointers::game_address(unsupported as *const ()),
+                ]
+            })
+            .as_ptr(),
+    )
 }
 
-fn device_table() -> *const usize {
-    static TABLE: std::sync::OnceLock<[usize; 27]> = std::sync::OnceLock::new();
-    TABLE
-        .get_or_init(|| {
-            [
-                crate::pointers::host_number(query as *const ()),
-                crate::pointers::host_number(add_ref as *const ()),
-                crate::pointers::host_number(release as *const ()),
-                crate::pointers::host_number(get_capabilities as *const ()),
-                crate::pointers::host_number(enum_objects as *const ()),
-                crate::pointers::host_number(get_property as *const ()),
-                crate::pointers::host_number(set_property as *const ()),
-                crate::pointers::host_number(acquire as *const ()),
-                crate::pointers::host_number(unacquire as *const ()),
-                crate::pointers::host_number(get_device_state as *const ()),
-                crate::pointers::host_number(unsupported as *const ()),
-                crate::pointers::host_number(taken2 as *const ()),
-                crate::pointers::host_number(taken2 as *const ()),
-                crate::pointers::host_number(taken3 as *const ()),
-                crate::pointers::host_number(unsupported as *const ()),
-                crate::pointers::host_number(unsupported as *const ()),
-                crate::pointers::host_number(unsupported as *const ()),
-                crate::pointers::host_number(unsupported as *const ()),
-                crate::pointers::host_number(create_effect as *const ()),
-                crate::pointers::host_number(enum_effects as *const ()),
-                crate::pointers::host_number(unsupported as *const ()),
-                crate::pointers::host_number(unsupported as *const ()),
-                crate::pointers::host_number(unsupported as *const ()),
-                crate::pointers::host_number(unsupported as *const ()),
-                crate::pointers::host_number(unsupported as *const ()),
-                crate::pointers::host_number(poll as *const ()),
-                crate::pointers::host_number(unsupported as *const ()),
-            ]
-        })
-        .as_ptr()
+fn device_table() -> u32 {
+    static TABLE: std::sync::OnceLock<[u32; 27]> = std::sync::OnceLock::new();
+    crate::pointers::game_address(
+        TABLE
+            .get_or_init(|| {
+                [
+                    crate::pointers::game_address(query as *const ()),
+                    crate::pointers::game_address(add_ref as *const ()),
+                    crate::pointers::game_address(release as *const ()),
+                    crate::pointers::game_address(get_capabilities as *const ()),
+                    crate::pointers::game_address(enum_objects as *const ()),
+                    crate::pointers::game_address(get_property as *const ()),
+                    crate::pointers::game_address(set_property as *const ()),
+                    crate::pointers::game_address(acquire as *const ()),
+                    crate::pointers::game_address(unacquire as *const ()),
+                    crate::pointers::game_address(get_device_state as *const ()),
+                    crate::pointers::game_address(unsupported as *const ()),
+                    crate::pointers::game_address(taken2 as *const ()),
+                    crate::pointers::game_address(taken2 as *const ()),
+                    crate::pointers::game_address(taken3 as *const ()),
+                    crate::pointers::game_address(unsupported as *const ()),
+                    crate::pointers::game_address(unsupported as *const ()),
+                    crate::pointers::game_address(unsupported as *const ()),
+                    crate::pointers::game_address(unsupported as *const ()),
+                    crate::pointers::game_address(create_effect as *const ()),
+                    crate::pointers::game_address(enum_effects as *const ()),
+                    crate::pointers::game_address(unsupported as *const ()),
+                    crate::pointers::game_address(unsupported as *const ()),
+                    crate::pointers::game_address(unsupported as *const ()),
+                    crate::pointers::game_address(unsupported as *const ()),
+                    crate::pointers::game_address(unsupported as *const ()),
+                    crate::pointers::game_address(poll as *const ()),
+                    crate::pointers::game_address(unsupported as *const ()),
+                ]
+            })
+            .as_ptr(),
+    )
 }
 
-fn effect_table() -> *const usize {
-    static TABLE: std::sync::OnceLock<[usize; 13]> = std::sync::OnceLock::new();
-    TABLE
-        .get_or_init(|| {
-            [
-                crate::pointers::host_number(query as *const ()),
-                crate::pointers::host_number(add_ref as *const ()),
-                crate::pointers::host_number(release as *const ()),
-                crate::pointers::host_number(unsupported as *const ()),
-                crate::pointers::host_number(unsupported as *const ()),
-                crate::pointers::host_number(unsupported as *const ()),
-                crate::pointers::host_number(set_parameters as *const ()),
-                crate::pointers::host_number(start as *const ()),
-                crate::pointers::host_number(stop as *const ()),
-                crate::pointers::host_number(unsupported as *const ()),
-                crate::pointers::host_number(download as *const ()),
-                crate::pointers::host_number(effect_none as *const ()),
-                crate::pointers::host_number(unsupported as *const ()),
-            ]
-        })
-        .as_ptr()
+fn effect_table() -> u32 {
+    static TABLE: std::sync::OnceLock<[u32; 13]> = std::sync::OnceLock::new();
+    crate::pointers::game_address(
+        TABLE
+            .get_or_init(|| {
+                [
+                    crate::pointers::game_address(query as *const ()),
+                    crate::pointers::game_address(add_ref as *const ()),
+                    crate::pointers::game_address(release as *const ()),
+                    crate::pointers::game_address(unsupported as *const ()),
+                    crate::pointers::game_address(unsupported as *const ()),
+                    crate::pointers::game_address(unsupported as *const ()),
+                    crate::pointers::game_address(set_parameters as *const ()),
+                    crate::pointers::game_address(start as *const ()),
+                    crate::pointers::game_address(stop as *const ()),
+                    crate::pointers::game_address(unsupported as *const ()),
+                    crate::pointers::game_address(download as *const ()),
+                    crate::pointers::game_address(effect_none as *const ()),
+                    crate::pointers::game_address(unsupported as *const ()),
+                ]
+            })
+            .as_ptr(),
+    )
 }

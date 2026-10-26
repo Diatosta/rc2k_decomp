@@ -29,8 +29,7 @@ pub fn use_lexicon() {
 /// Each slot by its own address: slots fall in moved ranges (the driver names' pointers,
 /// 0x95ECF8 .., are `src[0x5A5..]`), which the table's base does not follow.
 fn table_entry(table_rva: usize, id: u32) -> Result<u32, BadInput> {
-    GamePtr::new(game_addr(table_rva.wrapping_add(4 * id as usize)) as u32)
-        .read::<u32>("a string pointer")
+    GamePtr::new(game_addr(table_rva.wrapping_add(4 * id as usize))).read::<u32>("a string pointer")
 }
 /// The address of the made text of `id` (0 if none).
 pub fn ptr_high(id: u32) -> Result<u32, BadInput> {

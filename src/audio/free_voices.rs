@@ -27,9 +27,7 @@ pub fn free_voices() -> Result<(), Refused> {
         crate::audio::release_voice_manager::release_voice_manager();
         // The voices by their places, as the original steps over them.
         for n in 0..count as usize {
-            unsafe {
-                crate::audio::release_voice::release_voice_in_game(AUDIO.voices[n].addr() as u32)
-            };
+            unsafe { crate::audio::release_voice::release_voice_in_game(AUDIO.voices[n].addr()) };
         }
         AUDIO.voice_count.set(0);
     }

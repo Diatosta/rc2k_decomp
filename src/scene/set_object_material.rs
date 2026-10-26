@@ -95,9 +95,8 @@ pub fn set_object_material() -> Result<(), BadInput> {
     }
     let kind: u32 = OBJECT_TABLES.object_kind(object);
     let material = crate::scene::polygon::materials_addr()
-        .wrapping_add((kind as usize).wrapping_mul(MATERIAL_LEN));
-    let way =
-        GamePtr::new(material.wrapping_add(0x20) as u32).read::<u8>("an object's material")? as u32;
+        .wrapping_add(((kind as usize).wrapping_mul(MATERIAL_LEN)) as u32);
+    let way = GamePtr::new(material.wrapping_add(0x20)).read::<u8>("an object's material")? as u32;
     let state = state();
     if way == 4 && state.is_none() {
         return Err(BadInput("a moving object without its state"));

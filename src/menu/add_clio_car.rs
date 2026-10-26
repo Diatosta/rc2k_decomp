@@ -29,7 +29,7 @@ const LISTS: [List; 3] = [
 // ---- Rust version ----
 
 pub fn add_clio_car() -> Result<(), BadInput> {
-    let clio = CAR_TABLE.descriptions[33].addr() as u32;
+    let clio = CAR_TABLE.descriptions[33].addr();
     let mut ends = Vec::new();
     // Converted: `rc2k_core::menu::car_lists::place_if_missing`.
     for list in LISTS {

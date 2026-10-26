@@ -56,7 +56,7 @@ pub static FILMS: Films = Films {
 
 /// Where the names are (`moved::MOVED`'s home for IDA 0x5297F5).
 pub fn films_home() -> usize {
-    crate::pointers::host_number(&FILMS as *const Films)
+    crate::pointers::game_address(&FILMS as *const Films) as usize
 }
 
 // ---- Rust version ----
@@ -69,11 +69,11 @@ struct Game {
 }
 
 fn film(f: Film) -> u32 {
-    (match f {
+    match f {
         Film::AlLogo => FILMS.allogo.addr(),
         Film::MfLogo => FILMS.mflogo.addr(),
         Film::Intro => FILMS.intro.addr(),
-    }) as u32
+    }
 }
 
 /// The film player (`gfx::play_film`, the platform's) for the file at `path`: the zero
@@ -187,7 +187,7 @@ mod films_tests {
     #[test]
     fn first_values_are_the_games() {
         crate::gfx::first_values_are_the_games(&FILMS, FILMS_START, FILMS_START + FILMS_LEN);
-        assert_eq!(crate::moved::place(0x52980B), FILMS.mflogo.addr());
-        assert_eq!(crate::moved::place(0x529822), FILMS.allogo.addr());
+        assert_eq!(crate::moved::place(0x52980B), FILMS.mflogo.addr() as usize);
+        assert_eq!(crate::moved::place(0x529822), FILMS.allogo.addr() as usize);
     }
 }

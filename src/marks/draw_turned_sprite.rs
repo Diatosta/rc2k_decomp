@@ -73,7 +73,7 @@ pub fn draw_turned_sprite(
         for (n, v) in sq[2..6].iter().enumerate() {
             DRAW_WORK.sprite_half[n].set_bits(*v);
         }
-        if clip_quad(crate::d3d::vertices_store::piece_addr() as u32)? {
+        if clip_quad(crate::d3d::vertices_store::piece_addr())? {
             return Ok(());
         }
         draw_fan();
@@ -108,7 +108,7 @@ impl SpriteUv {
     pub const LEN: usize = 0x20;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        crate::pointers::host_number(&SPRITE_UV as *const SpriteUv)
+        crate::pointers::game_address(&SPRITE_UV as *const SpriteUv) as usize
     }
 }
 

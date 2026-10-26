@@ -30,7 +30,7 @@ const DIPROP_AUTOCENTER: u32 = 9;
 
 /// The `DIPROPDWORD` for the whole device with `data`: its address.
 pub fn dword_property(data: u32) -> Result<u32, BadInput> {
-    let prop = DEVICES.dword_property.addr() as u32;
+    let prop = DEVICES.dword_property.addr();
     put(
         prop,
         field!(DiPropDword, header.size),

@@ -40,10 +40,10 @@ pub fn sound_cue_e5_at(current: u32, listed: u32, objects: u32) -> Result<(), Re
 
 /// The Rust version.
 pub fn sound_cue_e5() -> Result<(), Refused> {
-    let _g = |a: usize| game_addr(rva(a)) as u32;
+    let _g = |a: usize| game_addr(rva(a));
     sound_cue_e5_at(
-        RACE_WORK.current_car.addr() as u32,
-        FRAME_WORK.listed_car_sounds[0].addr() as u32,
+        RACE_WORK.current_car.addr(),
+        FRAME_WORK.listed_car_sounds[0].addr(),
         crate::pointers::game_address(crate::sound::store::RACE_SOUNDS.table.as_ptr()),
     )
 }

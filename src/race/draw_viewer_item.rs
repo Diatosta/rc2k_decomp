@@ -37,14 +37,14 @@ pub fn draw_viewer_item(item: u32, index: u32) -> Result<(), Refused> {
     let mut picture = word(item + 0xC)?;
     // Converted: `rc2k_core::race::viewer::{switch_byte, centred, item_colour}`.
     use rc2k_core::race::viewer::{centred, item_colour, switch_byte};
-    if picture == (VIEWER_PANEL.switch_pictures_a[0].addr() as u32) {
+    if picture == (VIEWER_PANEL.switch_pictures_a[0].addr()) {
         let n = camera_byte(switch_byte(byte(1)?) as usize)?;
         picture = word(picture.wrapping_add(4 * n))?;
     }
-    if picture == (VIEWER_PANEL.switch_pictures_b[0].addr() as u32) {
+    if picture == (VIEWER_PANEL.switch_pictures_b[0].addr()) {
         picture = word(picture.wrapping_add(4 * camera_byte(5)?))?;
     }
-    if picture == (VIEWER_PANEL.switch_pictures_c[0].addr() as u32) {
+    if picture == (VIEWER_PANEL.switch_pictures_c[0].addr()) {
         picture = word(picture.wrapping_add(4 * camera_byte(4)?))?;
     }
     let place = word(item + 4)?;
@@ -69,5 +69,5 @@ pub fn draw_viewer_item(item: u32, index: u32) -> Result<(), Refused> {
                 .wrapping_sub(INSTALLER_PAGES.move_clock.get())
         },
     );
-    crate::drive::tyre_quad::tyre_quad(picture, VIEWER_PANEL.item_place[0].addr() as u32, colour)
+    crate::drive::tyre_quad::tyre_quad(picture, VIEWER_PANEL.item_place[0].addr(), colour)
 }

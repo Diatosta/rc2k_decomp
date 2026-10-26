@@ -52,7 +52,7 @@ pub fn set_car_counter(at: u32, value: u32) -> Result<(), BadInput> {
 pub fn set_both_counters(value: u32) -> Result<(), BadInput> {
     // Converted: through `set_car_counter` (`rc2k_core::race::cars::Message`).
     for n in 0..2 {
-        set_car_counter(crate::race::blocks_store::block_addr(n) as u32, value)?;
+        set_car_counter(crate::race::blocks_store::block_addr(n), value)?;
     }
     Ok(())
 }
@@ -245,6 +245,6 @@ pub fn tyre_variables() -> Vec<u32> {
         car.stage_time.addr(),                         // dword_70F474
         car.part_hit_damage[0].addr(),                 // dword_70F740
     ]
-    .map(|a| a as u32)
+    .map(|a| a)
     .to_vec()
 }

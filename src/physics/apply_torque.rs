@@ -61,8 +61,8 @@ pub unsafe fn apply_torque(rec: u32, car: u32) {
         apply_torque_at(
             rec,
             car,
-            CONTACT_WORK.contact_turn_speed[0].addr() as u32,
-            PHYSICS.torque_cross[0].addr() as u32,
+            CONTACT_WORK.contact_turn_speed[0].addr(),
+            PHYSICS.torque_cross[0].addr(),
         )
     }
 }

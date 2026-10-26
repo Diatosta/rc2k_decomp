@@ -55,7 +55,7 @@ pub fn build_second_heading(record: u32) -> Result<(), Refused> {
     GamePtr::new(
         crate::screens::text_buffers_store::TEXT_BUFFERS
             .stage_heading
-            .addr() as u32,
+            .addr(),
     )
     .write_bytes(&bytes, "the second stage heading")?;
     Ok(())

@@ -29,7 +29,7 @@ impl MenuSounds {
     pub const LEN: usize = 0x28;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        crate::pointers::host_number(&MENU_SOUNDS as *const MenuSounds) + 4
+        (crate::pointers::game_address(&MENU_SOUNDS as *const MenuSounds) + 4) as usize
     }
 }
 
@@ -708,7 +708,7 @@ impl RaceSoundSets {
     pub const LEN: usize = 0x9D4;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        crate::pointers::host_number(&RACE_SOUND_SETS as *const RaceSoundSets)
+        crate::pointers::game_address(&RACE_SOUND_SETS as *const RaceSoundSets) as usize
     }
 }
 
@@ -734,7 +734,7 @@ impl CueLists {
     pub const LEN: usize = 0x508;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        crate::pointers::host_number(&CUE_LISTS as *const CueLists) + 8
+        (crate::pointers::game_address(&CUE_LISTS as *const CueLists) + 8) as usize
     }
 }
 
@@ -1213,7 +1213,7 @@ impl SoundKinds {
     pub const LEN: usize = 0x13C8;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        crate::pointers::host_number(&SOUND_KINDS as *const SoundKinds)
+        crate::pointers::game_address(&SOUND_KINDS as *const SoundKinds) as usize
     }
 }
 
@@ -1239,7 +1239,7 @@ impl SurfaceSets {
     pub const LEN: usize = 0x1C0;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        crate::pointers::host_number(&SURFACE_SETS as *const SurfaceSets) + 12
+        (crate::pointers::game_address(&SURFACE_SETS as *const SurfaceSets) + 12) as usize
     }
 }
 
@@ -2844,7 +2844,7 @@ impl SpotVoices {
     pub const LEN: usize = 0x1680;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        crate::pointers::host_number(&SPOT_VOICES as *const SpotVoices)
+        crate::pointers::game_address(&SPOT_VOICES as *const SpotVoices) as usize
     }
 }
 

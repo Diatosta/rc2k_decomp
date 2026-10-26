@@ -214,7 +214,7 @@ pub const SEGS: &[(usize, usize)] = &[
 
 /// `moved::MOVED`'s home for the segment of `SEGS` that starts at IDA address `FIRST`.
 pub fn home_of<const FIRST: usize>() -> usize {
-    STORE.addr() + (FIRST - START)
+    (STORE.addr() + (FIRST - START) as u32) as usize
 }
 
 #[cfg(test)]
@@ -249,7 +249,7 @@ impl Slot {
 
     /// The place's address.
     pub fn address(self) -> usize {
-        STORE.addr() + self.0
+        (STORE.addr() + self.0 as u32) as usize
     }
 }
 
@@ -284,7 +284,7 @@ pub trait Where: Copy {
 
 impl Where for usize {
     fn address(self) -> usize {
-        framework::game_addr(self)
+        framework::game_addr(self) as usize
     }
 }
 
@@ -296,8 +296,8 @@ impl Where for Slot {
 }
 
 /// The address of `place`.
-pub fn game_addr(place: impl Where) -> usize {
-    place.address()
+pub fn game_addr(place: impl Where) -> u32 {
+    place.address() as u32
 }
 
 /// Pointer to the game's memory at `place`.
@@ -320,7 +320,7 @@ pub fn game_read<T: Copy>(place: impl Where) -> T {
 /// The block's address for the x87 blocks (`mk`): `mk + offset` with `offset` IDA's
 /// address less `START` (0x764F40) is the variable.
 pub fn base() -> u32 {
-    STORE.addr() as u32
+    STORE.addr()
 }
 
 #[cfg(test)]
@@ -363,21 +363,24 @@ mod tests {
         assert_eq!(crate::moved::place(0x7652A8), Slot::at(0x7652A8).address());
         assert_eq!(
             crate::moved::place(0x764F7C),
-            STORE.addr() + (0x764F7C - START)
+            (STORE.addr() + (0x764F7C - START) as u32) as usize
         );
         assert_eq!(
             crate::moved::place(END),
-            framework::game_addr(END - IMAGE_BASE)
+            framework::game_addr(END - IMAGE_BASE) as usize
         );
         assert_eq!(
             crate::moved::place(START - 4),
-            framework::game_addr(START - 4 - IMAGE_BASE)
+            framework::game_addr(START - 4 - IMAGE_BASE) as usize
         );
     }
 
     #[test]
     fn base_and_offset_land_on_the_block() {
         let offset = 0x7652A8 - START;
-        assert_eq!(base() as usize + offset, Slot::at(0x7652A8).address());
+        assert_eq!(
+            base() as usize + offset,
+            (Slot::at(0x7652A8).address()) as u32 as usize
+        );
     }
 }

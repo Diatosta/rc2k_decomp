@@ -63,7 +63,7 @@ pub fn tyre_turned_quad(uv: u32, rect: u32, colour: u32, device: u32) -> Result<
         device as usize,
         rect as usize,
         verts(),
-        crate::session::MACHINE.scratch.addr(),
+        crate::session::MACHINE.scratch.addr() as usize,
     );
     quad_words(colour);
     quad_tail(uv);
@@ -224,20 +224,20 @@ mod asm_reference {
                 t_b.copy_from_slice(&t_a);
                 unsafe {
                     ref_turn(
-                        crate::pointers::host_number(&*ty_a as *const TyreChange)
-                            .wrapping_sub(RVA_OFFSET),
-                        crate::pointers::host_number(e_a.as_mut_ptr()),
-                        crate::pointers::host_number(d_a.as_mut_ptr()),
-                        crate::pointers::host_number(v_a.as_mut_ptr()),
-                        crate::pointers::host_number(t_a.as_mut_ptr()),
+                        (crate::pointers::game_address(&*ty_a as *const TyreChange)
+                            .wrapping_sub(RVA_OFFSET as u32)) as usize,
+                        (crate::pointers::game_address(e_a.as_mut_ptr())) as usize,
+                        (crate::pointers::game_address(d_a.as_mut_ptr())) as usize,
+                        (crate::pointers::game_address(v_a.as_mut_ptr())) as usize,
+                        (crate::pointers::game_address(t_a.as_mut_ptr())) as usize,
                     );
                 }
                 turn(
                     &ty_b,
-                    crate::pointers::host_number(e_b.as_mut_ptr()),
-                    crate::pointers::host_number(d_b.as_mut_ptr()),
-                    crate::pointers::host_number(v_b.as_mut_ptr()),
-                    crate::pointers::host_number(t_b.as_mut_ptr()),
+                    (crate::pointers::game_address(e_b.as_mut_ptr())) as usize,
+                    (crate::pointers::game_address(d_b.as_mut_ptr())) as usize,
+                    (crate::pointers::game_address(v_b.as_mut_ptr())) as usize,
+                    (crate::pointers::game_address(t_b.as_mut_ptr())) as usize,
                 );
                 let mut places: Vec<(&str, usize, &[u8], &[u8])> = Vec::new();
                 for off in (WINDOW..WINDOW_END).step_by(4) {

@@ -177,7 +177,7 @@ pub fn load_object() -> Result<(), Refused> {
     BYTES_READ.store(0, std::sync::atomic::Ordering::Relaxed);
     read_whole_file(
         crate::pointers::host(FILE_NUMBERS.object_ro3_path.bits()) as *const u8,
-        crate::pointers::host_at(crate::scene::objects::file_addr()),
+        crate::pointers::host(crate::scene::objects::file_addr()),
         FILE_ROOM as u32,
     )?;
     if BYTES_READ.load(std::sync::atomic::Ordering::Relaxed) == 0 {
@@ -246,7 +246,7 @@ pub fn load_object() -> Result<(), Refused> {
 /// One `scene::add_object_shape` with a mask.
 fn shape(mask: u32) -> Result<(), Refused> {
     DRAW_SWITCHES.loading_group_mask.set_bits(mask);
-    Ok({ add_object_shape(crate::scene::objects::file_addr()) }?)
+    Ok({ add_object_shape(crate::scene::objects::file_addr() as usize) }?)
 }
 
 /// The three fatal errors at the end, in the original's order.

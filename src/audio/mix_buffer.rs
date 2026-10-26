@@ -22,7 +22,7 @@ impl MixBuffer {
     pub const LEN: usize = 0x3C00;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        crate::pointers::host_number(&MIX_BUFFER as *const MixBuffer) + 8
+        (crate::pointers::game_address(&MIX_BUFFER as *const MixBuffer) + 8) as usize
     }
 }
 

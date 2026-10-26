@@ -24,7 +24,7 @@ const HIDDEN_NAME: u32 = 0x18F;
 /// The list's entry and the cheat's bit for the coded name in the text buffer, if it is in
 /// the list.
 fn find(coded: u32) -> Result<Option<(u32, u32)>, Refused> {
-    let list = CHEAT_VARS.cheat_names.addr() as u32;
+    let list = CHEAT_VARS.cheat_names.addr();
     let text = GamePtr::new(coded).bytes("a coded name")?;
     let coded: Vec<u8> = (0..)
         .map_while(|n| text.byte(n))

@@ -30,13 +30,13 @@ fn turn_of(v: u32, less: Option<u32>, over: u32, plus: u32, k: [u32; 2]) -> u32 
     let (a, mut out) = ([v, less.unwrap_or(0), over, plus, k[0], k[1]], 0u32);
     if less.is_some() {
         x87_1(
-            crate::pointers::host_number(a.as_ptr()),
-            crate::pointers::host_number(&raw mut out),
+            (crate::pointers::game_address(a.as_ptr())) as usize,
+            crate::pointers::game_address(&raw mut out) as usize,
         );
     } else {
         x87_2(
-            crate::pointers::host_number(a.as_ptr()),
-            crate::pointers::host_number(&raw mut out),
+            (crate::pointers::game_address(a.as_ptr())) as usize,
+            crate::pointers::game_address(&raw mut out) as usize,
         );
     }
     out
@@ -65,7 +65,7 @@ pub fn draw_needle() -> Result<(), Refused> {
         .into_iter()
         .enumerate()
     {
-        let vertex = crate::d3d::vertices_store::piece_addr() as u32 + 0x20 * n as u32;
+        let vertex = crate::d3d::vertices_store::piece_addr() + 0x20 * n as u32;
         let point = [extended(y), extended(x)].map(to_f64);
         crate::hud::turned_vertex::turned_vertex(vertex, angle, point)?;
     }

@@ -26,7 +26,7 @@ const CELLS: u32 = 0x41;
 fn ribbon() {
     ribbon_x87(
         crate::race::store::asm_base() as usize,
-        crate::d3d::vertices_store::piece_addr(),
+        crate::d3d::vertices_store::piece_addr() as usize,
         &DRAW_WORK,
         &VIEW_VARS,
     )
@@ -63,7 +63,7 @@ pub fn draw_ribbon(cell: u32, alpha: u32, width: u32, colour: u32) -> Result<(),
             }
         }
         ribbon();
-        if clip_quad(crate::d3d::vertices_store::piece_addr() as u32)? {
+        if clip_quad(crate::d3d::vertices_store::piece_addr())? {
             return Ok(());
         }
         draw_fan();

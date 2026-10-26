@@ -63,7 +63,7 @@ impl core::ops::Deref for InBlock {
     fn deref(&self) -> &ShadowSkids {
         // SAFETY: the race block lives as long as the program and is aligned to 4 (the
         // test checks); every field is an atomic or a cell, as the block's bytes were shared.
-        unsafe { &*(crate::pointers::host_at(piece_addr()) as *const ShadowSkids) }
+        unsafe { &*(crate::pointers::host(piece_addr()) as *const ShadowSkids) }
     }
 }
 
@@ -77,8 +77,8 @@ pub const END: usize = 0x64BB18;
 const _: () = assert!(END - START == core::mem::size_of::<ShadowSkids>());
 
 /// Where IDA 0x641AA4 is now.
-pub fn piece_addr() -> usize {
-    crate::moved::place(START)
+pub fn piece_addr() -> u32 {
+    crate::moved::place(START) as u32
 }
 
 #[cfg(test)]
@@ -91,7 +91,7 @@ mod tests {
         assert_eq!(piece_addr() % 4, 0);
         assert_eq!(
             crate::moved::place(END - 1),
-            piece_addr() + (END - START) - 1
+            (piece_addr() + (END - START) as u32 - 1) as usize
         );
         assert_eq!(offset_of!(ShadowSkids, shadow_work), 0x643AA4 - START);
         assert_eq!(offset_of!(ShadowSkids, farthest_length), 0x643AB8 - START);

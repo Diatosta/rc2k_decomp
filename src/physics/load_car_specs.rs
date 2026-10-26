@@ -72,11 +72,11 @@ pub fn load_car_specs() -> Result<(), Refused> {
     let kind = CAR.car_kind.get();
     let spec = record();
     // The x87 runs read the record at their operands' offsets.
-    let s = crate::pointers::host_number(spec as *const CarSpec);
+    let s = crate::pointers::game_address(spec as *const CarSpec);
     let drive = check_drive(spec.drive_kind.get())?;
     CAR.drive_kind.set(drive);
     // 0x4214A7 .. 0x421543
-    x87_1(s, crate::race::store::asm_base() as usize);
+    x87_1(s as usize, crate::race::store::asm_base() as usize);
     if below(CAR.engine_speed_limit.bits(), NUMBERS.thousand.bits()) {
         CAR.engine_speed_limit
             .set_bits(x87::loaded(NUMBERS.thousand.bits()));
@@ -88,7 +88,7 @@ pub fn load_car_specs() -> Result<(), Refused> {
     }
     words(spec);
     // 0x4216C5 .. 0x421704
-    x87_2(s, crate::race::store::asm_base() as usize);
+    x87_2(s as usize, crate::race::store::asm_base() as usize);
     if kind < OWN_FIGURES_FROM {
         // 0x42170D .. 0x421755
         x87_3(crate::race::store::asm_base() as usize);
@@ -103,7 +103,7 @@ pub fn load_car_specs() -> Result<(), Refused> {
         .spec_wheel
         .set_bits(crate::physics::tables_store::PHYSICS.spec_default_ba8.get());
     // 0x421794 .. 0x4217B2
-    x87_4(s, crate::race::store::asm_base() as usize);
+    x87_4(s as usize, crate::race::store::asm_base() as usize);
     DRAW.scratch.set(spec.scratch_value.get());
     PHYSICS.downforce_spec.set(spec.downforce.get());
     // 0x4217CA .. 0x4217E3

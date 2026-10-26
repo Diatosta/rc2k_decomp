@@ -41,7 +41,7 @@ pub fn load_edges(resume: u32) -> Result<(), Refused> {
             return Err(BadInput("the edges' mark is neither 0 nor loc_4C0FFD").into());
         }
         if done == 0 {
-            let boxes = KIND_BOXES.boxes.addr() as u32;
+            let boxes = KIND_BOXES.boxes.addr();
             let scale: [u32; 3] = read_bits(&EDGE_SETTINGS.scale);
             for k in 0..KINDS {
                 x87::scale_record(
@@ -57,7 +57,7 @@ pub fn load_edges(resume: u32) -> Result<(), Refused> {
         let settings: u32 = crate::marks::setup::SETTINGS.pointer.get();
         GamePtr::new(settings + SETTING).write::<u32>(SETTING_VALUE, "a mark's field")?;
         let kind = clamped(MARKS_KIND.kind.bits());
-        let path = EDGE_SETTINGS.path.addr() as u32;
+        let path = EDGE_SETTINGS.path.addr();
         EDGE_SETTINGS
             .path
             .set(DIGITS as usize, (kind / 10) as u8 + b'0');
@@ -89,12 +89,8 @@ pub fn load_edges(resume: u32) -> Result<(), Refused> {
             .tilt
             .set_bits(x87::mul(float, EDGE_SETTINGS.tilt_scale.get()));
         crate::marks::masks::make_masks()?;
-        crate::marks::shapes::set_up_hexagons(
-            game_addr(crate::marks::shapes::HEXAGONS.resume) as u32
-        )?;
-        crate::marks::shapes::set_up_squares(
-            game_addr(crate::marks::shapes::SQUARES_RESUME) as u32
-        )?;
+        crate::marks::shapes::set_up_hexagons(game_addr(crate::marks::shapes::HEXAGONS.resume))?;
+        crate::marks::shapes::set_up_squares(game_addr(crate::marks::shapes::SQUARES_RESUME))?;
     }
     Ok(())
 }
@@ -109,8 +105,8 @@ pub fn load_kind_data() -> Result<(), Refused> {
         let settings: u32 = crate::marks::setup::SETTINGS.pointer.get();
         let kind = GamePtr::new(settings + KIND_AT).read::<u32>("a mark's field")?;
         MARKS_KIND.kind.set_bits(kind);
-        load_edges(game_addr(RESUME_RVA) as u32)?;
-        crate::marks::splines::load_splines(game_addr(crate::marks::splines::RESUME_RVA) as u32)?;
+        load_edges(game_addr(RESUME_RVA))?;
+        crate::marks::splines::load_splines(game_addr(crate::marks::splines::RESUME_RVA))?;
     }
     Ok(())
 }
@@ -131,7 +127,7 @@ impl EdgeMask {
     pub const LEN: usize = 0x8000;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        crate::pointers::host_number(&EDGE_MASK as *const EdgeMask)
+        crate::pointers::game_address(&EDGE_MASK as *const EdgeMask) as usize
     }
 }
 
@@ -332,7 +328,7 @@ impl KindBoxes {
     pub const LEN: usize = 0x6E8;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        crate::pointers::host_number(&KIND_BOXES as *const KindBoxes)
+        crate::pointers::game_address(&KIND_BOXES as *const KindBoxes) as usize
     }
 }
 
@@ -403,7 +399,7 @@ impl EdgeSettings {
     pub const LEN: usize = 0x5F;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        crate::pointers::host_number(&EDGE_SETTINGS as *const EdgeSettings)
+        crate::pointers::game_address(&EDGE_SETTINGS as *const EdgeSettings) as usize
     }
 }
 

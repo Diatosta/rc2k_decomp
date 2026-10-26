@@ -46,7 +46,7 @@ impl ScreenMode {
     pub const LEN: usize = 0x20;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        crate::pointers::host_number(&SCREEN_MODE as *const ScreenMode) + 12
+        (crate::pointers::game_address(&SCREEN_MODE as *const ScreenMode) + 12) as usize
     }
 }
 
@@ -117,7 +117,7 @@ impl DrawSurface {
     pub const LEN: usize = 0x44;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        crate::pointers::host_number(&DRAW_SURFACE as *const DrawSurface) + 4
+        (crate::pointers::game_address(&DRAW_SURFACE as *const DrawSurface) + 4) as usize
     }
 }
 

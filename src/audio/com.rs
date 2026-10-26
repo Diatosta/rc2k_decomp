@@ -4,7 +4,10 @@
 /// The method at `offset` of the object's table.
 pub fn method(object: u32, offset: u32) -> usize {
     let table: u32 = crate::pointers::read_or_end(object, "a COM object");
-    crate::pointers::read_or_end::<u32>(table + offset, "a COM object's table") as usize
+    crate::pointers::code(crate::pointers::read_or_end::<u32>(
+        table + offset,
+        "a COM object's table",
+    ))
 }
 
 /// A method that takes only the object.

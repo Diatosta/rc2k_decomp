@@ -38,22 +38,22 @@ fn set_first_item(c: &mut Carried) -> Result<(), Refused> {
 }
 
 pub const SCREEN: Screen = Screen {
-    menu: || MENUS.overall_rally_results.addr(),
+    menu: || MENUS.overall_rally_results.addr() as usize,
     saved_item: || &SCREEN_ITEMS.current[slot::OVERALL_RALLY_RESULTS], // dword_74778C
     lists: &[
         List {
             pointer: || &SCREEN_FLOW.scene_list,
-            table: || DRAW_LISTS.overall_rally_results_scene.addr(),
+            table: || DRAW_LISTS.overall_rally_results_scene.addr() as usize,
             run: false,
         },
         List {
             pointer: || &SCREEN_FLOW.draw_list,
-            table: || DRAW_LISTS.list_758e36.addr(),
+            table: || DRAW_LISTS.list_758e36.addr() as usize,
             run: false,
         },
         List {
             pointer: || &SCREEN_FLOW.overlay_list,
-            table: || DRAW_LISTS.overall_rally_results_overlay.addr(),
+            table: || DRAW_LISTS.overall_rally_results_overlay.addr() as usize,
             run: false,
         },
     ],
@@ -66,9 +66,9 @@ pub const SCREEN: Screen = Screen {
     after_lists: &[],
     background: &[
         Step::ArgAddr(|| {
-            crate::menu::texts_store::MENU_TEXTS
+            (crate::menu::texts_store::MENU_TEXTS
                 .overall_rally_results_picture
-                .addr()
+                .addr()) as usize
         }),
         Step::CallOrFatal(Callee::LoadBackground, 0x8071_2345),
     ],

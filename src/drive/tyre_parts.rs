@@ -15,7 +15,7 @@ use crate::scene::x87_mem::{fild, fld, fstp};
 
 /// `g_polygonVertices`: the four vertices (0x20 bytes each) a quad draws.
 pub fn verts() -> usize {
-    crate::d3d::vertices_store::piece_addr()
+    crate::d3d::vertices_store::piece_addr() as usize
 }
 
 /// `d3d::set_texture` (0x41ACF5): eax the texture.
@@ -48,8 +48,8 @@ pub fn quad_tail(uv: u32) {
     quad_tail_math(
         uv as usize,
         verts(),
-        crate::session::SCREEN.width.addr(),
-        crate::session::MACHINE.scratch.addr(),
+        crate::session::SCREEN.width.addr() as usize,
+        crate::session::MACHINE.scratch.addr() as usize,
         crate::race::store::asm_base() as usize,
     );
 }

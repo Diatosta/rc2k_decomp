@@ -34,7 +34,7 @@ pub fn revs_sound(o: u32, kind: u32, request: u32) -> Result<(), Refused> {
     // `revs_stopped`).
     let object = so.sound_offset.get();
     let set = if computers(object) {
-        SOUND_KINDS.computers.addr() as u32
+        SOUND_KINDS.computers.addr()
     } else {
         if kind == 0 {
             return Err(BadInput("no sound kind").into());

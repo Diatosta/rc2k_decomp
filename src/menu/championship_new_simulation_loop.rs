@@ -53,22 +53,22 @@ fn after_first_frame(_c: &mut Carried) -> Result<Flow, Refused> {
 }
 
 pub const SCREEN: Screen = Screen {
-    menu: || MENUS.championship_new_simulation.addr(),
+    menu: || MENUS.championship_new_simulation.addr() as usize,
     saved_item: || &SCREEN_ITEMS.current[slot::CHAMPIONSHIP_NEW_SIMULATION],
     lists: &[
         List {
             pointer: || &SCREEN_FLOW.scene_list, // g_sceneList
-            table: || DRAW_LISTS.championship_new_simulation_scene.addr(),
+            table: || DRAW_LISTS.championship_new_simulation_scene.addr() as usize,
             run: false,
         },
         List {
             pointer: || &SCREEN_FLOW.draw_list, // g_drawList
-            table: || DRAW_LISTS.championship_new_simulation_draw.addr(),
+            table: || DRAW_LISTS.championship_new_simulation_draw.addr() as usize,
             run: false,
         },
         List {
             pointer: || &SCREEN_FLOW.overlay_list, // g_overlayList
-            table: || DRAW_LISTS.championship_new_simulation_overlay.addr(),
+            table: || DRAW_LISTS.championship_new_simulation_overlay.addr() as usize,
             run: false,
         },
     ],
@@ -81,9 +81,9 @@ pub const SCREEN: Screen = Screen {
     after_lists: &[],
     background: &[
         Step::ArgAddr(|| {
-            crate::menu::texts_store::MENU_TEXTS
+            (crate::menu::texts_store::MENU_TEXTS
                 .championship_new_simulation_picture
-                .addr()
+                .addr()) as usize
         }),
         Step::CallOrFatal(Callee::LoadBackground, 0x80712345),
     ],

@@ -132,7 +132,7 @@ pub fn draw_shadow_with(sh: &Shadow, depth: bool) -> Result<(), Refused> {
             q.frame[n][k].set_bits(q.sides[n][k].bits());
         }
     }
-    let [s0, s1, s2] = [0, 1, 2].map(|n| q.frame[n][0].addr() as u32);
+    let [s0, s1, s2] = [0, 1, 2].map(|n| q.frame[n][0].addr());
     normalise_vector3(s0);
     normalise_vector3(s1);
     cross_product3(s0, s1, s2)?;
@@ -140,7 +140,7 @@ pub fn draw_shadow_with(sh: &Shadow, depth: bool) -> Result<(), Refused> {
     normalise_vector3(s1);
     normalise_vector3(s2);
     let a = angle(sh)?;
-    let m = q.matrix[0].addr() as u32;
+    let m = q.matrix[0].addr();
     turn_matrix3(Axis::Z, m, a)?;
     light_turned_x87(sh, m as usize, t as usize);
     for n in 0..3 {
@@ -152,9 +152,9 @@ pub fn draw_shadow_with(sh: &Shadow, depth: bool) -> Result<(), Refused> {
     cross_product3(s2, s1, s0)?;
     cross_product3(s2, s0, s1)?;
     corners_x87(sh);
-    normalise_vector3(q.way[0].addr() as u32);
+    normalise_vector3(q.way[0].addr());
     corners_in_x87(sh);
-    let view = MATRICES.listener_matrix[0].addr() as u32;
+    let view = MATRICES.listener_matrix[0].addr();
     for n in 0..4 {
         let p: [u32; 3] = std::array::from_fn(|k| q.corners[n][k].bits());
         let turned = rotate_point(view, p.map(extended));

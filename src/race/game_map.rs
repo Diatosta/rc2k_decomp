@@ -89,7 +89,7 @@ pub static MAP: MapVars = MapVars {
 
 /// Where the block is (`moved::MOVED`'s home for IDA 0x5BE90D).
 pub fn home() -> usize {
-    crate::pointers::host_number(&MAP as *const MapVars)
+    crate::pointers::game_address(&MAP as *const MapVars) as usize
 }
 
 const SIDE: u32 = 0x80;
@@ -176,7 +176,7 @@ pub fn load_packed_game_map(path: u32) -> Result<(), Refused> {
     let Some(file) = open_by_mode(crate::pointers::host(path) as *const u8, 0)? else {
         return Ok(());
     };
-    let buffer = SCRATCH.buffer.addr() as u32;
+    let buffer = SCRATCH.buffer.addr();
     let result = (|| -> Result<(), Refused> {
         let (_, ok) = file_read(file, buffer, 0x10, "the map's scratch buffer")?;
         let head = GamePtr::new(buffer).read_bytes(0x10, "the map's scratch buffer")?;
@@ -402,7 +402,7 @@ mod block_tests {
         assert_eq!(offset_of!(MapVars, key_list), 0x5BE94D - START);
         assert_eq!(offset_of!(MapVars, key_pixels), 0x5BE98D - START);
         assert_eq!(offset_of!(MapVars, use_packed), 0x5BE9B5 - START);
-        assert_eq!(crate::moved::place(START), MAP.list.addr());
-        assert_eq!(crate::moved::place(0x5BE94D), MAP.key_list.addr());
+        assert_eq!(crate::moved::place(START), MAP.list.addr() as usize);
+        assert_eq!(crate::moved::place(0x5BE94D), MAP.key_list.addr() as usize);
     }
 }

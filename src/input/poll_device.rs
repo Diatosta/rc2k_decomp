@@ -43,7 +43,7 @@ pub unsafe fn poll_device(record: u32) -> Result<(), Refused> {
         com_call(
             device,
             0x24,
-            &[STATE_LEN as u32, DEVICES.device_state[0].addr() as u32],
+            &[STATE_LEN as u32, DEVICES.device_state[0].addr()],
         )
     };
     // The `rep movsd` of a failed read moves esi on by 0x50 as well: what follows reads
@@ -52,7 +52,7 @@ pub unsafe fn poll_device(record: u32) -> Result<(), Refused> {
     if failed != 0 {
         unsafe { com_call(device, 0x1C, &[]) };
         GamePtr::new(record).copy_to(
-            GamePtr::new(DEVICES.device_state[0].addr() as u32),
+            GamePtr::new(DEVICES.device_state[0].addr()),
             STATE_LEN,
             "a device record read as its state",
         )?;

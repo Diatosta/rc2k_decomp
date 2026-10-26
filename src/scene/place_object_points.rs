@@ -197,10 +197,10 @@ pub fn place_object_points() -> Result<(), Refused> {
             // x, y, z read on into `group_masks[0]`, `[1]`, as stored.
             COURSE.point_moved.addr()
         } else {
-            from as usize
+            from
         };
         rotate(
-            crate::pointers::host_at(point) as *const i32,
+            crate::pointers::host_at(point as usize) as *const i32,
             matrix,
             crate::pointers::host_at(record) as *mut u32,
         );

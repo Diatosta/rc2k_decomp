@@ -109,7 +109,7 @@ pub fn read_caps() -> Result<bool, Refused> {
         }
         std::ptr::write_bytes(caps.as_ptr(), 0, 0x60);
         caps.set_u32(0, rc2k_core::audio::device::CAPS_SIZE);
-        if crate::audio::com::call1(ds, GET_CAPS, caps.addr() as u32) != 0 {
+        if crate::audio::com::call1(ds, GET_CAPS, caps.addr()) != 0 {
             return Ok(false);
         }
         // Converted: `rc2k_core::audio::device::CAPS_LOG`.
@@ -212,7 +212,7 @@ impl rc2k_core::audio::device::Opening for Open<'_> {
         Ok(!open_a3d()?)
     }
     fn create(&mut self, guid: u32) -> i32 {
-        (self.create)(guid, AUDIO.direct_sound.addr() as u32)
+        (self.create)(guid, AUDIO.direct_sound.addr())
     }
     fn cooperate(&mut self) -> i32 {
         unsafe {

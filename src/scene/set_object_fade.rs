@@ -55,9 +55,9 @@ fn words() -> Result<Option<(u32, u32, bool)>, BadInput> {
         }
         let kind: u32 = OBJECT_TABLES.object_kind(object);
         let material = crate::scene::polygon::materials_addr()
-            .wrapping_add((kind as usize).wrapping_mul(MATERIAL_LEN));
+            .wrapping_add(((kind as usize).wrapping_mul(MATERIAL_LEN)) as u32);
         let word = |at: usize| {
-            GamePtr::new(material.wrapping_add(at) as u32)
+            GamePtr::new(material.wrapping_add(at as u32))
                 .read::<u16>("an object's material")
                 .map(u32::from)
         };

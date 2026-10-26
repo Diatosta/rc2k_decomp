@@ -40,7 +40,7 @@ impl core::ops::Deref for InBuffers {
     fn deref(&self) -> &PolygonVertices {
         // SAFETY: the block lives as long as the program and the piece is aligned to 4 (the
         // test checks); every field is an atomic cell.
-        unsafe { &*(crate::pointers::host_at(piece_addr()) as *const PolygonVertices) }
+        unsafe { &*(crate::pointers::host(piece_addr()) as *const PolygonVertices) }
     }
 }
 
@@ -54,8 +54,8 @@ pub const END: usize = 0x960DA0;
 const _: () = assert!(END - START == core::mem::size_of::<PolygonVertices>());
 
 /// Where IDA 0x9605A0 is now.
-pub fn piece_addr() -> usize {
-    crate::moved::place(START)
+pub fn piece_addr() -> u32 {
+    crate::moved::place(START) as u32
 }
 
 #[cfg(test)]
@@ -68,7 +68,7 @@ mod tests {
         assert_eq!(piece_addr() % 4, 0);
         assert_eq!(
             crate::moved::place(END - 1),
-            piece_addr() + (END - START) - 1
+            (piece_addr() + (END - START) as u32 - 1) as usize
         );
         assert_eq!(offset_of!(PolygonVertices, vertices), 0);
         assert_eq!(offset_of!(Vertex, colour), 0x10);

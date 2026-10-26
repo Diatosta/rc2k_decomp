@@ -42,6 +42,6 @@ pub unsafe fn car_angles_at(m: u32, p: &AnglePlaces, ints: u32) {
 
 /// The Rust version.
 pub unsafe fn car_angles() {
-    let m = CAR.crash_matrix[0].addr() as u32;
-    unsafe { car_angles_at(m, &AnglePlaces::game(), CAR.car_heading.addr() as u32) };
+    let m = CAR.crash_matrix[0].addr();
+    unsafe { car_angles_at(m, &AnglePlaces::game(), CAR.car_heading.addr()) };
 }

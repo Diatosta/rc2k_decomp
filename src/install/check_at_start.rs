@@ -47,7 +47,7 @@ pub fn set_script_entry(text_id: u16) {
 /// "ral.exe" (in ".\ral.exe").
 fn program() -> Result<Vec<u8>, BadInput> {
     crate::files::cstring(
-        GamePtr::new(INSTALLER_NAMES.program.addr() as u32),
+        GamePtr::new(INSTALLER_NAMES.program.addr()),
         "the program's name",
     )
 }
@@ -58,7 +58,7 @@ fn program() -> Result<Vec<u8>, BadInput> {
 pub unsafe fn check_at_start(outside: &mut dyn Outside, no_audio: *mut u32) -> Result<(), Refused> {
     unsafe {
         let record =
-            crate::pointers::host_at(crate::install::installer::INSTALL_TEXTS.record_path.addr())
+            crate::pointers::host(crate::install::installer::INSTALL_TEXTS.record_path.addr())
                 as *const u8;
         if INSTALLER_RUN.installing.get() == 1 || outside.file_exists(record)? {
             return Ok(());
@@ -87,7 +87,7 @@ pub unsafe fn check_at_start(outside: &mut dyn Outside, no_audio: *mut u32) -> R
             // Whether the source could be put there is not asked: the program's name
             // goes after whatever text the place holds.
             outside.normalise_path(
-                crate::pointers::host_at(INSTALLER_NAMES.source.addr()) as *const u8,
+                crate::pointers::host(INSTALLER_NAMES.source.addr()) as *const u8,
                 path,
             )?;
             let held = GamePtr::new(crate::pointers::game_address(path))
@@ -103,7 +103,7 @@ pub unsafe fn check_at_start(outside: &mut dyn Outside, no_audio: *mut u32) -> R
             if outside.file_exists(path)? {
                 // "patch6: ", then the version from the blank before its `(`.
                 let version = crate::files::cstring(
-                    GamePtr::new(START_TEXTS.version.addr() as u32),
+                    GamePtr::new(START_TEXTS.version.addr()),
                     "the version text",
                 )?;
                 let from = (1..version.len())
@@ -114,7 +114,7 @@ pub unsafe fn check_at_start(outside: &mut dyn Outside, no_audio: *mut u32) -> R
                 GamePtr::new(
                     crate::screens::text_buffers_store::TEXT_BUFFERS
                         .number_text
-                        .addr() as u32,
+                        .addr(),
                 )
                 .write_bytes(&text, "the number text")?;
                 set_script_entry(0x1006);

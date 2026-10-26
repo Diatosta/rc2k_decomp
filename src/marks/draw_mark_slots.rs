@@ -69,7 +69,7 @@ pub fn draw_mark_slots() -> Result<(), Refused> {
     if get(settings + 0x8C)? != 0 {
         crate::marks::add_mark_slot::add_mark_slot(
             get(settings + 0x64)?,
-            MATRICES.view_place[0].addr() as u32,
+            MATRICES.view_place[0].addr(),
         );
     }
     crate::scene::set_texture::set_texture(KIND_TEXTURES.kind_first_slots[202].bits());
@@ -79,14 +79,14 @@ pub fn draw_mark_slots() -> Result<(), Refused> {
         }
         s.life
             .set(s.life.get().wrapping_sub(CLOCK.frame_ticks.get()));
-        let p = (SPLINE_HEAD.points[0].addr() as u32).wrapping_add(s.point.get().wrapping_mul(12));
+        let p = (SPLINE_HEAD.points[0].addr()).wrapping_add(s.point.get().wrapping_mul(12));
         let [a, b, c] = [get(p)? ^ 0x8000_0000, get(p + 4)?, get(p + 8)?];
         let k4 = TUNING.place_k.each_ref().map(|f| f.bits());
         let z = x87::mul(c, k4[0]);
         let y = crate::math::x87_run::sub_mul(b, k4[1], k4[2]);
         let x = x87::mul(a, k4[3]);
         let once = rotate_point(s.matrix.get(), [extended(z), extended(y), extended(x)]);
-        let twice = rotate_point(MATRICES.view_matrix[0].addr() as u32, once);
+        let twice = rotate_point(MATRICES.view_matrix[0].addr(), once);
         let [z, y, x] = twice.map(rounded);
         for (n, v) in [z, y, x].into_iter().enumerate() {
             SLOTS.work[n].set(v);

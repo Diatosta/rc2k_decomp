@@ -40,11 +40,11 @@ pub struct Contacts {
 impl Contacts {
     pub fn game() -> Self {
         Self {
-            flags: (CAR.option_bits.addr() as u32),
-            count: (CAR.notice_count.addr() as u32),
-            esis: (CAR.notice_ids[0].addr() as u32),
-            eaxs: (CAR.notice_values[0].addr() as u32),
-            ebxs: (CAR.notice_ranks[0].addr() as u32),
+            flags: (CAR.option_bits.addr()),
+            count: (CAR.notice_count.addr()),
+            esis: (CAR.notice_ids[0].addr()),
+            eaxs: (CAR.notice_values[0].addr()),
+            ebxs: (CAR.notice_ranks[0].addr()),
         }
     }
 

@@ -46,7 +46,9 @@ fn needs_clipping(count: u32) -> Result<bool, BadInput> {
         bottom: DRAW.clip_screen[1].get(),
     };
     rc2k_core::scene::polygons::needs_clipping(count, &edges, |n| {
-        let record = dword(crate::scene::polygon::entries_addr() + n * ENTRY_LEN + 4) as usize;
+        let record =
+            dword((crate::scene::polygon::entries_addr() + (n * ENTRY_LEN) as u32 + 4) as usize)
+                as usize;
         if record == 0 {
             return Err(BadInput("an entry without its record"));
         }
@@ -69,7 +71,7 @@ pub fn draw_object_polygon(
         return Err(BadInput("a polygon of no vertices, or of more than 64").into());
     }
     DRAW.polygon_next_record
-        .set_bits(crate::scene::polygon::pool_addr() as u32);
+        .set_bits(crate::scene::polygon::pool_addr());
     for (n, number) in first_list(count).into_iter().enumerate() {
         crate::scene::polygon::list_cell(n).set(number);
     }
@@ -85,9 +87,9 @@ pub fn draw_object_polygon(
         .split_polygon_count
         .set_bits(GROUND_WORK.split_polygon_count.bits().wrapping_add(1));
     let entries = crate::scene::polygon::entries_addr();
-    let kept = crate::scene::polygon::entries_addr() + 64 * ENTRY_LEN;
-    crate::pointers::GamePtr::new(entries as u32).copy_to(
-        crate::pointers::GamePtr::new(kept as u32),
+    let kept = crate::scene::polygon::entries_addr() + (64 * ENTRY_LEN) as u32;
+    crate::pointers::GamePtr::new(entries).copy_to(
+        crate::pointers::GamePtr::new(kept),
         count as usize * ENTRY_LEN,
         "the polygon's entries",
     )?;
@@ -96,8 +98,8 @@ pub fn draw_object_polygon(
     DRAW.polygon_vertex_count.set_bits(count);
     for triangle in fan(count) {
         for (to, from) in triangle.into_iter().enumerate() {
-            crate::pointers::GamePtr::new((kept + from * ENTRY_LEN) as u32).copy_to(
-                crate::pointers::GamePtr::new((entries + to * ENTRY_LEN) as u32),
+            crate::pointers::GamePtr::new(kept + (from * ENTRY_LEN) as u32).copy_to(
+                crate::pointers::GamePtr::new(entries + (to * ENTRY_LEN) as u32),
                 ENTRY_LEN,
                 "the polygon's entries",
             )?;

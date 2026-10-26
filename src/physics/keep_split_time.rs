@@ -26,10 +26,10 @@ pub struct SplitPlaces {
 impl SplitPlaces {
     pub fn game() -> Self {
         Self {
-            time: (CAR.stage_time.addr() as u32),
-            checks: (CAR.splits_passed.addr() as u32),
-            count: (SPLIT_TABLES.split_colour_count.addr() as u32),
-            table: (SPLIT_TABLES.kept_times[0].addr() as u32),
+            time: (CAR.stage_time.addr()),
+            checks: (CAR.splits_passed.addr()),
+            count: (SPLIT_TABLES.split_colour_count.addr()),
+            table: (SPLIT_TABLES.kept_times[0].addr()),
         }
     }
 }

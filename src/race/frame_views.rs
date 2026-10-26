@@ -68,7 +68,7 @@ pub fn mirror_view_window() -> Result<(), Refused> {
         places.get(k).map_or_else(
             || {
                 trap.read::<u32>(
-                    places[0].addr().wrapping_add(4 * k) as u32,
+                    (places[0].addr().wrapping_add((4 * k) as u32)) as u32,
                     "the mirror places",
                 )
             },
@@ -488,7 +488,7 @@ pub fn run_view_marks() -> Result<(), Refused> {
     let layout = FRAME_WORK.view_layouts[layout_at as usize].get();
     VIEWER_PANEL.marks_layout.set(layout);
     GamePtr::new(block + 0x8C0).copy_to(
-        GamePtr::new(MATRICES.view_place[0].addr() as u32),
+        GamePtr::new(MATRICES.view_place[0].addr()),
         0x40,
         "a view car block's turn matrix",
     )?;

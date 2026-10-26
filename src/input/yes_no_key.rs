@@ -39,7 +39,7 @@ pub unsafe fn answer_for_key(eax: u32) -> Result<u32, BadInput> {
         if own_layout {
             KEYBOARD_FILE
                 .layout
-                .set(KEYBOARD_FILE.layouts[0].dead_keys.addr() as u32);
+                .set(KEYBOARD_FILE.layouts[0].dead_keys.addr());
         }
         let character = key_to_char(eax);
         if own_layout {

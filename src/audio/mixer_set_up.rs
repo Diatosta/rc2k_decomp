@@ -60,7 +60,7 @@ pub fn set_up_primary_mixer() -> Result<bool, Refused> {
         let caps = &AUDIO.primary_caps;
         std::ptr::write_bytes(caps.as_ptr(), 0, 0x14);
         caps.set_u32(0, 0x14);
-        if crate::audio::com::call1(AUDIO.primary_buffer.get(), GET_CAPS, caps.addr() as u32) != 0 {
+        if crate::audio::com::call1(AUDIO.primary_buffer.get(), GET_CAPS, caps.addr()) != 0 {
             return failed();
         }
         AUDIO.primary_size.set(caps.get_u32(8));

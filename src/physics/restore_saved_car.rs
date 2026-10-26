@@ -35,16 +35,16 @@ pub struct SavedCar {
 
 impl SavedCar {
     pub fn game() -> Self {
-        let _a = |x: usize| game_addr(rva(x)) as u32;
+        let _a = |x: usize| game_addr(rva(x));
         Self {
-            counter: (PHYSICS.clear_place_count.addr() as u32),
-            saved_place: (PHYSICS.saved_place[0].addr() as u32),
-            place: (CAR.position[0].addr() as u32),
-            saved_matrix: (PHYSICS.saved_matrix[0].addr() as u32),
-            matrix: (CAR.crash_matrix[0].addr() as u32),
-            saved_list: (CONTACT_WORK.probe_saved_faces[0].addr() as u32),
-            list: (CAR.probe_point_face[0].addr() as u32),
-            count: (CAR.probe_count.addr() as u32),
+            counter: (PHYSICS.clear_place_count.addr()),
+            saved_place: (PHYSICS.saved_place[0].addr()),
+            place: (CAR.position[0].addr()),
+            saved_matrix: (PHYSICS.saved_matrix[0].addr()),
+            matrix: (CAR.crash_matrix[0].addr()),
+            saved_list: (CONTACT_WORK.probe_saved_faces[0].addr()),
+            list: (CAR.probe_point_face[0].addr()),
+            count: (CAR.probe_count.addr()),
         }
     }
 

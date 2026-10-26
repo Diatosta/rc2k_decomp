@@ -30,9 +30,5 @@ pub fn queue_listed_event_at(table: u32, q: &QueuePlaces, ebx: u32) -> Result<()
 
 /// The Rust version.
 pub fn queue_listed_event(ebx: u32) -> Result<(), Refused> {
-    queue_listed_event_at(
-        PHYSICS.listed_events[0].addr() as u32,
-        &QueuePlaces::game(),
-        ebx,
-    )
+    queue_listed_event_at(PHYSICS.listed_events[0].addr(), &QueuePlaces::game(), ebx)
 }

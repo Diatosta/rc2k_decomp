@@ -30,8 +30,8 @@ const LIFE: i32 = 0xFA0;
 fn less(k: u32, z: u32) -> [u8; 10] {
     let (v, mut out) = ([k, z], [0u8; 10]);
     less_x87(
-        crate::pointers::host_number(v.as_ptr()),
-        crate::pointers::host_number(out.as_mut_ptr()),
+        (crate::pointers::game_address(v.as_ptr())) as usize,
+        (crate::pointers::game_address(out.as_mut_ptr())) as usize,
     );
     out
 }
@@ -83,7 +83,7 @@ fn run() -> Result<(), Refused> {
                 less(SQUARE_STATE.far.bits(), item.place[1].bits()),
                 extended(item.place[0].bits()),
             ];
-            crate::marks::draw_square::draw_square(address_of(item) as u32, colour, values);
+            crate::marks::draw_square::draw_square(address_of(item), colour, values);
         }
         crate::scene::depth_buffer_on::depth_buffer(true);
     }

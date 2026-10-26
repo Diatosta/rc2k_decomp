@@ -22,7 +22,7 @@ use crate::d3d::vertices_store::VERTICES;
 /// values (left untouched) popped after.
 fn sides(v: &[[u8; 10]; 4]) {
     sides_x87(
-        crate::pointers::host_number(v.as_ptr()),
+        (crate::pointers::game_address(v.as_ptr())) as usize,
         &PONG,
         &MARKS_FLOATS,
         &SQUARE_TABLES,
@@ -32,7 +32,7 @@ fn sides(v: &[[u8; 10]; 4]) {
 /// The original's 0x4B868E .. 0x4B8786 on the place: the corners.
 fn corners(v: &[[u8; 10]; 4]) {
     corners_x87(
-        crate::pointers::host_number(v.as_ptr()),
+        (crate::pointers::game_address(v.as_ptr())) as usize,
         &PONG,
         &SQUARE_TABLES,
     )
@@ -62,7 +62,7 @@ pub fn draw_pong_box(v: [[u8; 10]; 4]) {
     if x87::compare_status(SQUARE_TABLES.corners[0][2].bits(), PONG_RULES.near.bits()) == 0x100 {
         return;
     }
-    projected(crate::d3d::vertices_store::piece_addr() as u32);
+    projected(crate::d3d::vertices_store::piece_addr());
     for n in 0..4 {
         VERTICES.vertices[n].colour.set(0xFFFF_FFFFu32);
     }

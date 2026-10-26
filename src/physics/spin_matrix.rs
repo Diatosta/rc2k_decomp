@@ -28,25 +28,29 @@ use crate::scene::view_matrix::{square_matrix, unit_vector};
 pub unsafe fn spin_matrix() {
     unsafe {
         CAR.spin_length
-            .set_bits(rounded(vector_length(CAR.spin[0].addr() as u32)));
+            .set_bits(rounded(vector_length(CAR.spin[0].addr())));
         if CAR.spin_length.bits() != 0 {
             let lists = &*COURSE_LISTS;
             let turn = lists.turn_matrix[0].addr();
             let turned = MATRICES.turned_matrix[0].addr();
             unit_vector(
-                (CAR.spin[0].addr() as u32) as usize,
-                lists.spin_axis_x.addr(),
+                (CAR.spin[0].addr()) as usize,
+                lists.spin_axis_x.addr() as usize,
             );
             lists
                 .spin_angle
                 .set_bits(x87::mul(CAR.spin_length.bits(), PHYSICS.step_time.bits()));
-            axis_turn_matrix(turn as u32);
-            square_matrix(turn);
-            multiply_matrices((CAR.crash_matrix[0].addr() as u32) as usize, turn, turned);
+            axis_turn_matrix(turn);
+            square_matrix(turn as usize);
+            multiply_matrices(
+                (CAR.crash_matrix[0].addr()) as usize,
+                turn as usize,
+                turned as usize,
+            );
             for k in 0..16 {
                 CAR.crash_matrix[k].set_bits(MATRICES.turned_matrix[k].bits());
             }
         }
-        square_matrix((CAR.crash_matrix[0].addr() as u32) as usize);
+        square_matrix((CAR.crash_matrix[0].addr()) as usize);
     }
 }

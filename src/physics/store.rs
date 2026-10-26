@@ -649,8 +649,8 @@ pub const START: usize = 0x75B340;
 pub const END: usize = 0x75B940;
 
 /// Where IDA 0X75B340 is now (`moved::MOVED`'s home).
-pub fn damage_addr() -> usize {
-    crate::pointers::host_number(&DAMAGE as *const DamageModel)
+pub fn damage_addr() -> u32 {
+    crate::pointers::game_address(&DAMAGE as *const DamageModel)
 }
 
 #[cfg(test)]

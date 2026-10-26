@@ -108,7 +108,7 @@ pub(crate) use {car, car_bits, var};
 pub const CALLS: [usize; 3] = [0x449D44, 0x4650B7, 0x449957];
 
 fn at(a: usize) -> *mut u32 {
-    crate::pointers::host_at(game_addr(rva(a))) as *mut u32
+    crate::pointers::host(game_addr(rva(a))) as *mut u32
 }
 
 fn get(a: usize) -> u32 {

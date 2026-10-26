@@ -52,7 +52,7 @@ impl HexagonState {
     pub const LEN: usize = 0x60;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        crate::pointers::host_number(&HEXAGON_STATE as *const HexagonState)
+        crate::pointers::game_address(&HEXAGON_STATE as *const HexagonState) as usize
     }
 }
 
@@ -228,7 +228,7 @@ impl HexagonWork {
     pub const LEN: usize = 0xA18;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        crate::pointers::host_number(&HEXAGON_WORK as *const HexagonWork)
+        crate::pointers::game_address(&HEXAGON_WORK as *const HexagonWork) as usize
     }
 }
 

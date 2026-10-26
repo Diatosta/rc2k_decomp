@@ -21,20 +21,22 @@ pub fn keep_undo() {
         rc2k_core::race::viewer_flow::copy_tables(
             (
                 table(
-                    crate::race::viewer_buffers_store::VIEWER_BUFFERS.undo_places[0].addr(),
+                    crate::race::viewer_buffers_store::VIEWER_BUFFERS.undo_places[0].addr()
+                        as usize,
                     n,
                 ),
                 table(
-                    crate::race::viewer_buffers_store::VIEWER_BUFFERS.undo_cameras[0].addr(),
+                    crate::race::viewer_buffers_store::VIEWER_BUFFERS.undo_cameras[0].addr()
+                        as usize,
                     n,
                 ),
             ),
             (
-                table(REPLAY_FILE.block_places[0].addr(), n),
+                table(REPLAY_FILE.block_places[0].addr() as usize, n),
                 table(
-                    crate::race::viewer_buffers_store::VIEWER_BUFFERS
+                    (crate::race::viewer_buffers_store::VIEWER_BUFFERS
                         .block_cameras
-                        .addr(),
+                        .addr()) as usize,
                     n,
                 ),
             ),

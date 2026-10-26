@@ -48,8 +48,8 @@ pub fn place_view_with(v: &ViewPlace) -> Result<(), Refused> {
     };
     {
         set_point(start);
-        let point = v.point[0].addr() as u32;
-        crate::marks::splines::transform(point, point, 1, v.matrix[0].addr() as u32)?;
+        let point = v.point[0].addr();
+        crate::marks::splines::transform(point, point, 1, v.matrix[0].addr())?;
         let point = v.point.each_ref().map(|c| c.get() as i32);
         let place = v.place.each_ref().map(|c| c.get() as i32);
         let out = [

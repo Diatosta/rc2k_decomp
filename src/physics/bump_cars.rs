@@ -88,11 +88,11 @@ fn steps(edi: u32) -> Result<(), Refused> {
     let other = CONTACT_WORK.other_car_block.get();
     x87_3(crate::race::store::asm_base() as usize, other as usize);
     let factor = extended(NUMBERS.three.bits());
-    scale_vector(CONTACT_WORK.bump_push[0].addr() as u32, factor);
+    scale_vector(CONTACT_WORK.bump_push[0].addr(), factor);
     DRAW.scratch.set(rounded(factor));
     x87_4(crate::race::store::asm_base() as usize, other as usize);
     turn_speed(esi);
-    turn_speed(crate::physics::car_store::car_addr() as u32);
+    turn_speed(crate::physics::car_store::car_addr());
     { crate::physics::place_sound_e1_other::place_sound_e1_other() }?;
     Ok(())
 }

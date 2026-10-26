@@ -28,39 +28,39 @@ fn before(c: &mut Carried) -> Result<(), Refused> {
 }
 
 pub const SCREEN: Screen = Screen {
-    menu: || MENUS.audio_setup.addr(),
+    menu: || MENUS.audio_setup.addr() as usize,
     saved_item: || &SCREEN_ITEMS.current[slot::AUDIO_SETUP],
     lists: &[
         List {
             pointer: || &SCREEN_FLOW.unread_list, // g_unreadList
-            table: || DRAW_LISTS.unread_758b72.addr(),
+            table: || DRAW_LISTS.unread_758b72.addr() as usize,
             run: false,
         },
         List {
             pointer: || &SCREEN_FLOW.draw_list, // g_drawList
-            table: || DRAW_LISTS.draw_758c8e.addr(),
+            table: || DRAW_LISTS.draw_758c8e.addr() as usize,
             run: false,
         },
         List {
             pointer: || &SCREEN_FLOW.overlay_list, // g_overlayList
-            table: || DRAW_LISTS.overlay_7591d6.addr(),
+            table: || DRAW_LISTS.overlay_7591d6.addr() as usize,
             run: false,
         },
     ],
     first_frame_lists: Some(&[
         List {
             pointer: || &SCREEN_FLOW.scene_list, // g_sceneList
-            table: || DRAW_LISTS.audio_setup_scene.addr(),
+            table: || DRAW_LISTS.audio_setup_scene.addr() as usize,
             run: false,
         },
         List {
             pointer: || &SCREEN_FLOW.draw_list, // g_drawList
-            table: || DRAW_LISTS.draw_758c8e.addr(),
+            table: || DRAW_LISTS.draw_758c8e.addr() as usize,
             run: false,
         },
         List {
             pointer: || &SCREEN_FLOW.overlay_list, // g_overlayList
-            table: || DRAW_LISTS.overlay_7591d6.addr(),
+            table: || DRAW_LISTS.overlay_7591d6.addr() as usize,
             run: false,
         },
     ]),
@@ -72,9 +72,9 @@ pub const SCREEN: Screen = Screen {
     after_lists: &[],
     background: &[
         Step::ArgAddr(|| {
-            crate::menu::texts_store::MENU_TEXTS
+            (crate::menu::texts_store::MENU_TEXTS
                 .audio_setup_picture
-                .addr()
+                .addr()) as usize
         }),
         Step::CallOrFatal(Callee::LoadBackground, 0x80712345),
     ],

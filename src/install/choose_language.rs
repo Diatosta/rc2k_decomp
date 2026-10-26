@@ -32,7 +32,7 @@ pub fn choose_language(number: u32) -> Result<(), BadInput> {
             return Ok(());
         };
         let slot = crate::pointers::GamePtr::new(
-            (INSTALLER_NAMES.languages.addr() + slot * LANGUAGE_SLOT) as u32,
+            INSTALLER_NAMES.languages.addr() + (slot * LANGUAGE_SLOT) as u32,
         )
         .read_bytes(LANGUAGE_SLOT, "a language's slot")?;
         let directory = config::language_directory(&slot)?;

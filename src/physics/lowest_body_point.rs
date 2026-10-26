@@ -49,16 +49,12 @@ pub unsafe fn lowest_at(v: &[u32]) -> Result<(), Refused> {
 /// The addresses: the count, the lowest, its number, the share, then the 0x40 depths.
 fn game() -> Vec<u32> {
     let mut v = vec![
-        CAR.probe_count.addr() as u32,
-        CONTACT_WORK.lowest_depth.addr() as u32,
-        CONTACT_WORK.lowest_point.addr() as u32,
-        CONTACT_WORK.wheel_share.addr() as u32,
+        CAR.probe_count.addr(),
+        CONTACT_WORK.lowest_depth.addr(),
+        CONTACT_WORK.lowest_point.addr(),
+        CONTACT_WORK.wheel_share.addr(),
     ];
-    v.extend(
-        CONTACT_WORK.probe_height[..0x40]
-            .iter()
-            .map(|c| c.addr() as u32),
-    );
+    v.extend(CONTACT_WORK.probe_height[..0x40].iter().map(|c| c.addr()));
     v
 }
 

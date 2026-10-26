@@ -41,7 +41,7 @@ pub static HEXAGON_BATCH: Hexagons = Hexagons {
 
 /// Where the block is (`moved::MOVED`'s home for IDA 0x62423C).
 pub fn home() -> usize {
-    crate::pointers::host_number(&HEXAGON_BATCH as *const Hexagons)
+    crate::pointers::game_address(&HEXAGON_BATCH as *const Hexagons) as usize
 }
 
 #[cfg(test)]
@@ -59,8 +59,17 @@ mod tests {
         assert_eq!(offset_of!(Hexagons, fans), 0x624240 - START);
         assert_eq!(offset_of!(Hexagons, vertex_count), 0x625A40 - START);
         assert_eq!(offset_of!(Hexagons, records), 0x625A44 - START);
-        assert_eq!(crate::moved::place(START), HEXAGON_BATCH.index_count.addr());
-        assert_eq!(crate::moved::place(0x624240), HEXAGON_BATCH.fans.addr());
-        assert_eq!(crate::moved::place(0x625A44), HEXAGON_BATCH.records.addr());
+        assert_eq!(
+            crate::moved::place(START),
+            HEXAGON_BATCH.index_count.addr() as usize
+        );
+        assert_eq!(
+            crate::moved::place(0x624240),
+            HEXAGON_BATCH.fans.addr() as usize
+        );
+        assert_eq!(
+            crate::moved::place(0x625A44),
+            HEXAGON_BATCH.records.addr() as usize
+        );
     }
 }

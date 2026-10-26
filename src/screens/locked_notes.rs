@@ -42,7 +42,7 @@ pub fn note_locked_stage() -> Result<(), Refused> {
         LOOP_FLAGS.item.get(),
         |index| {
             fault.read::<u8>(
-                (ARCADE_GAME.levels_won.addr() as u32).wrapping_add(index),
+                (ARCADE_GAME.levels_won.addr()).wrapping_add(index),
                 "a stage\'s lock",
             )
         },

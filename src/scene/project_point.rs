@@ -193,7 +193,7 @@ pub(crate) fn make_scene_record(point: u32, record: u32) -> Result<u32, BadInput
     put(at, point);
     rotate(
         crate::pointers::host(from) as *const i32,
-        crate::pointers::host_at(MATRICES.view_matrix[0].addr()) as *const u32,
+        crate::pointers::host(MATRICES.view_matrix[0].addr()) as *const u32,
         crate::pointers::host(record) as *mut u32,
     );
     put(at + 0xC, 0);

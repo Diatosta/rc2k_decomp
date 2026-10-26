@@ -31,7 +31,7 @@ impl KeyboardTables {
     pub const LEN: usize = 0x226C;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        crate::pointers::host_number(&KEYBOARD_TABLES as *const KeyboardTables) + 8
+        (crate::pointers::game_address(&KEYBOARD_TABLES as *const KeyboardTables) + 8) as usize
     }
 }
 

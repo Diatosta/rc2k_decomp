@@ -54,7 +54,7 @@ fn listener() -> u32 {
     if RACE_VIEW.players.get() == 1 {
         RACE_VIEW.view_blocks[0].get()
     } else {
-        crate::physics::car_store::car_addr() as u32
+        crate::physics::car_store::car_addr()
     }
 }
 
@@ -89,7 +89,7 @@ pub fn car_sound_state() -> Result<(), Refused> {
         d(&CAR.position[1], 0x6A8),
         d(&CAR.position[2], 0x6AC),
     ];
-    let m = MATRICES.view_turn_matrix[0].addr() as u32;
+    let m = MATRICES.view_turn_matrix[0].addr();
     let out = rotate_point(m, place);
     let k = NUMBERS.one_over_65536.bits();
     for (i, e) in out.iter().enumerate() {

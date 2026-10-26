@@ -61,22 +61,22 @@ unsafe fn leaving(c: &mut Carried) -> Result<(), Refused> {
 }
 
 pub const SCREEN: Screen = Screen {
-    menu: || MENUS.start_rally.addr(),
+    menu: || MENUS.start_rally.addr() as usize,
     saved_item: || &SCREEN_ITEMS.current[slot::START_RALLY],
     lists: &[
         List {
             pointer: || &SCREEN_FLOW.scene_list, // g_sceneList
-            table: || DRAW_LISTS.start_rally_scene.addr(),
+            table: || DRAW_LISTS.start_rally_scene.addr() as usize,
             run: false,
         },
         List {
             pointer: || &SCREEN_FLOW.draw_list, // g_drawList
-            table: || DRAW_LISTS.start_rally_draw.addr(),
+            table: || DRAW_LISTS.start_rally_draw.addr() as usize,
             run: false,
         },
         List {
             pointer: || &SCREEN_FLOW.overlay_list, // g_overlayList
-            table: || DRAW_LISTS.start_rally_overlay.addr(),
+            table: || DRAW_LISTS.start_rally_overlay.addr() as usize,
             run: false,
         },
     ],
@@ -90,9 +90,9 @@ pub const SCREEN: Screen = Screen {
     background: &[
         Step::Write(|| &EVENT_STATE.clears_escape_flag, 0x1),
         Step::ArgAddr(|| {
-            crate::menu::texts_store::MENU_TEXTS
+            (crate::menu::texts_store::MENU_TEXTS
                 .start_rally_picture
-                .addr()
+                .addr()) as usize
         }),
         Step::CallOrFatal(Callee::LoadBackground, 0x80712345),
     ],

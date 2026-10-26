@@ -44,11 +44,11 @@ pub fn ease_low_speed_forces_at(factor: u32, speed: u32, forces: [u32; 2]) {
 
 fn game() -> (u32, u32, [u32; 2]) {
     (
-        (PHYSICS.low_speed_share.addr() as u32),
-        (CAR.local_velocity[2].addr() as u32),
+        (PHYSICS.low_speed_share.addr()),
+        (CAR.local_velocity[2].addr()),
         [
-            (PHYSICS.drive_forces[0].addr() as u32),
-            (PHYSICS.drive_forces[1].addr() as u32),
+            (PHYSICS.drive_forces[0].addr()),
+            (PHYSICS.drive_forces[1].addr()),
         ],
     )
 }

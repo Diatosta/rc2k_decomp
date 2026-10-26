@@ -18,7 +18,7 @@ pub static THIRDS: Bytes<TABLE_LEN> = Bytes::new([0; TABLE_LEN]);
 
 /// Where the table is (`moved::MOVED`'s home for IDA 0x4F4B30).
 pub fn home() -> usize {
-    THIRDS.addr()
+    THIRDS.addr() as usize
 }
 
 // ---- Rust version ----
@@ -40,6 +40,6 @@ mod tests {
 
     #[test]
     fn moved_knows_the_block() {
-        assert_eq!(crate::moved::place(START), THIRDS.addr());
+        assert_eq!(crate::moved::place(START), THIRDS.addr() as usize);
     }
 }

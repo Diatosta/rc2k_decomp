@@ -62,7 +62,7 @@ pub unsafe fn convert_picture(screen_bits: u32, converter: u32) -> Result<CarryL
         if converter == 0 && (width == 0 || height == 0) {
             return Err(BadInput("a picture without a width or a height"));
         }
-        if converter as usize == game_addr(COPY_PIXEL_ROWS) {
+        if converter as usize == game_addr(COPY_PIXEL_ROWS) as usize {
             // The picture is already what the surface wants: from and to the same place,
             // `copy_pixel_rows` does nothing.
             copy_pixel_rows(
@@ -75,7 +75,7 @@ pub unsafe fn convert_picture(screen_bits: u32, converter: u32) -> Result<CarryL
             if screen_bits != 16 {
                 return Ok(screen_bits < 16);
             }
-        } else if converter as usize == game_addr(COMPONENTS_TO_4444_ROWS) {
+        } else if converter as usize == game_addr(COMPONENTS_TO_4444_ROWS) as usize {
             if width.wrapping_mul(height) == 0 {
                 return Err(BadInput("a picture without a width or a height"));
             }
@@ -93,7 +93,7 @@ pub unsafe fn convert_picture(screen_bits: u32, converter: u32) -> Result<CarryL
             // The table's converter: an MMX / 3DNow one by its Rust version (the table
             // holds no other: `gfx::install_converters`).
             let at = (converter as usize)
-                .wrapping_sub(game_addr(0))
+                .wrapping_sub(game_addr(0) as usize)
                 .wrapping_add(crate::framework::IMAGE_BASE) as u32;
             let Some(c) = crate::gfx::mmx_converters::converter_at(at) else {
                 return Err(BadInput("a converter with no Rust version in the table"));
@@ -118,7 +118,7 @@ pub unsafe fn convert_picture(screen_bits: u32, converter: u32) -> Result<CarryL
             }
         } else {
             // Converted: `rc2k_core::gfx::pixels::convert_in_place`.
-            let format: PixelFormat = (crate::pointers::host_at(surface_format_addr())
+            let format: PixelFormat = (crate::pointers::host(surface_format_addr())
                 as *const PixelFormat)
                 .read_unaligned();
             let pixels = width as usize * height as usize;

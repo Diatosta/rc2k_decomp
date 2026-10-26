@@ -72,11 +72,11 @@ pub fn draw_viewer_panel() -> Result<(), Refused> {
             };
         // The text buffer drawn with a font at (x, y).
         let text = |font: crate::gfx::typefaces::FontId, x: i32, y: i32| -> Result<(), Refused> {
-            let font = GamePtr::new(font.addr() as u32);
+            let font = GamePtr::new(font.addr());
             let mut copy: crate::text::font::Font = font.read("a font record")?;
             crate::text::draw_text_keep_regs::draw_text_keep_regs(
                 &mut copy,
-                crate::pointers::host(TEXT_BUFFER.text.addr() as u32) as *const u8,
+                crate::pointers::host(TEXT_BUFFER.text.addr()) as *const u8,
                 x,
                 y,
                 &mut GameCanvas,
@@ -151,8 +151,8 @@ pub fn draw_viewer_panel() -> Result<(), Refused> {
         let white = 0x00FF_FFFF;
         let quad = |colour: u32| {
             crate::drive::tyre_quad::tyre_quad(
-                VIEWER_PANEL.texture_rect[0].addr() as u32,
-                VIEWER_PANEL.screen_rect[0].addr() as u32,
+                VIEWER_PANEL.texture_rect[0].addr(),
+                VIEWER_PANEL.screen_rect[0].addr(),
                 colour,
             )
         };

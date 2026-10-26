@@ -57,7 +57,7 @@ pub unsafe fn write_screen_pcx() -> Result<bool, Refused> {
         std::ptr::copy_nonoverlapping(header_bytes.as_ptr(), PCX.header.as_ptr(), 0x80);
         let mut path: u32 = crate::gfx::picture_store::PICTURE.name.get();
         if path == 0 {
-            path = crate::gfx::shots::SHOTS.name.addr() as u32;
+            path = crate::gfx::shots::SHOTS.name.addr();
             let digits = crate::pointers::host(path);
             for n in (0..3).rev() {
                 let d = digits.add(n);

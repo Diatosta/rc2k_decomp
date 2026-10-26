@@ -100,7 +100,7 @@ pub fn draw_flare_part(
         VIEW_VARS
             .cleared
             .set(VIEW_VARS.cleared.get().wrapping_add(1));
-        if clip_quad(crate::d3d::vertices_store::piece_addr() as u32)? {
+        if clip_quad(crate::d3d::vertices_store::piece_addr())? {
             return Ok(());
         }
         draw_fan();

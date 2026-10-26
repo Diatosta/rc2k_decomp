@@ -29,39 +29,39 @@ use crate::menu::state_store::MENU_STATE;
 // ---- Rust version: `menu::screen_loop` with this ----
 
 pub const SCREEN: Screen = Screen {
-    menu: || MENUS.championship_standings.addr(),
+    menu: || MENUS.championship_standings.addr() as usize,
     saved_item: || &SCREEN_ITEMS.current[slot::CHAMPIONSHIP_STANDINGS], // dword_7477BC
     lists: &[
         List {
             pointer: || &SCREEN_FLOW.unread_list, // dword_7554F4
-            table: || DRAW_LISTS.unread_758b72.addr(),
+            table: || DRAW_LISTS.unread_758b72.addr() as usize,
             run: false,
         },
         List {
             pointer: || &SCREEN_FLOW.draw_list,
-            table: || DRAW_LISTS.list_758e5e.addr(),
+            table: || DRAW_LISTS.list_758e5e.addr() as usize,
             run: false,
         },
         List {
             pointer: || &SCREEN_FLOW.overlay_list,
-            table: || DRAW_LISTS.overlay_7592b6.addr(),
+            table: || DRAW_LISTS.overlay_7592b6.addr() as usize,
             run: false,
         },
     ],
     first_frame_lists: Some(&[
         List {
             pointer: || &SCREEN_FLOW.scene_list, // g_sceneList
-            table: || DRAW_LISTS.championship_standings_scene.addr(), // unk_7590F6: empty
+            table: || DRAW_LISTS.championship_standings_scene.addr() as usize, // unk_7590F6: empty
             run: false,
         },
         List {
             pointer: || &SCREEN_FLOW.draw_list,
-            table: || DRAW_LISTS.list_758e5e.addr(),
+            table: || DRAW_LISTS.list_758e5e.addr() as usize,
             run: false,
         },
         List {
             pointer: || &SCREEN_FLOW.overlay_list,
-            table: || DRAW_LISTS.overlay_7592b6.addr(),
+            table: || DRAW_LISTS.overlay_7592b6.addr() as usize,
             run: false,
         },
     ]),
@@ -73,9 +73,9 @@ pub const SCREEN: Screen = Screen {
     after_lists: &[],
     background: &[
         Step::ArgAddr(|| {
-            crate::menu::texts_store::MENU_TEXTS
+            (crate::menu::texts_store::MENU_TEXTS
                 .championship_standings_picture
-                .addr()
+                .addr()) as usize
         }),
         Step::CallOrFatal(Callee::LoadBackground, 0x8071_2345),
     ],

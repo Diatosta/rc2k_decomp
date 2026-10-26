@@ -38,11 +38,11 @@ pub fn any_won(secret: u32, won: u32) -> Result<bool, Refused> {
 
 /// The Rust version.
 pub fn car_list() -> Result<u32, Refused> {
-    let secret = MENU_LISTS.cars_second[0].addr() as u32;
-    let won = MENU_LISTS.secret_cars[0].addr() as u32;
+    let secret = MENU_LISTS.cars_second[0].addr();
+    let won = MENU_LISTS.secret_cars[0].addr();
     Ok(if any_won(secret, won)? {
         MENU_LISTS.cars_with_clio[0].addr()
     } else {
         MENU_LISTS.cars_first[0].addr()
-    } as u32)
+    })
 }

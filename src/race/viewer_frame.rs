@@ -60,7 +60,7 @@ fn stopped() -> Result<(), Refused> {
     for (value, state) in LIST_STATES {
         crate::d3d::set_render_state::set_render_state(value, state);
     }
-    let menu = REPLAY_VIEW.viewer_list[0].addr() as u32;
+    let menu = REPLAY_VIEW.viewer_list[0].addr();
     let items = GamePtr::new(menu + 1).read::<u8>("the viewer list")?;
     let mut item = menu + 0x18;
     // The original counts ecx up to the byte at +1 after each item, from 0: a count of 0
@@ -70,7 +70,7 @@ fn stopped() -> Result<(), Refused> {
         item += 0x10;
     }
     let quad = |uv: &Dword, rect: &Dword, colour: u32| {
-        crate::drive::tyre_quad::tyre_quad(uv.addr() as u32, rect.addr() as u32, colour)
+        crate::drive::tyre_quad::tyre_quad(uv.addr(), rect.addr(), colour)
     };
     let v = &VIEWER_PANEL;
     quad(&v.frame_picture_rect[0], &v.bar_frame_rect[0], 0xFF_FFFF)?;

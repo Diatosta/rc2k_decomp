@@ -23,7 +23,7 @@ pub static LAST_RACE: Bytes<LAST_RACE_LEN> = Bytes::new(with_runs(&[(0, b"var\\t
 
 /// Where the name is (`moved::MOVED`'s home for IDA 0x5295F0).
 pub fn last_race_home() -> usize {
-    LAST_RACE.addr()
+    LAST_RACE.addr() as usize
 }
 
 /// IDA's address of the replay files' names' templates.
@@ -47,7 +47,7 @@ pub static TEMPLATES: Templates = Templates {
 
 /// Where the templates are (`moved::MOVED`'s home for IDA 0x52974B).
 pub fn templates_home() -> usize {
-    crate::pointers::host_number(&TEMPLATES as *const Templates)
+    crate::pointers::game_address(&TEMPLATES as *const Templates) as usize
 }
 
 #[cfg(test)]
@@ -66,8 +66,11 @@ mod block_tests {
             TEMPLATES_START,
             TEMPLATES_START + TEMPLATES_LEN,
         );
-        assert_eq!(crate::moved::place(LAST_RACE_START), LAST_RACE.addr());
-        assert_eq!(crate::moved::place(0x529764), TEMPLATES.own.addr());
+        assert_eq!(
+            crate::moved::place(LAST_RACE_START),
+            LAST_RACE.addr() as usize
+        );
+        assert_eq!(crate::moved::place(0x529764), TEMPLATES.own.addr() as usize);
     }
 }
 // `numbered_path`'s buffer
@@ -90,7 +93,7 @@ pub fn replay_path(slot: u32) -> Result<ReplayPath, Refused> {
     let template = match ReplayFile::of(slot) {
         ReplayFile::LastRace => {
             return Ok(ReplayPath {
-                path: LAST_RACE.addr() as u32,
+                path: LAST_RACE.addr(),
                 number,
                 last_race: true,
             });
@@ -102,7 +105,7 @@ pub fn replay_path(slot: u32) -> Result<ReplayPath, Refused> {
         }
     };
     let path = crate::files::numbered_path::numbered_path_in_game(
-        crate::pointers::host_at(template) as *const u8,
+        crate::pointers::host_at(template as usize) as *const u8,
         number,
     )?;
     Ok(ReplayPath {

@@ -42,9 +42,9 @@ fn get(at: u32) -> Result<u32, BadInput> {
 pub fn open_lobby() -> Result<bool, Refused> {
     log(VIEWER_PANEL.text_addr(texts::NET_CREATE_DLOBBY), true, 2);
     if co_create(
-        NET.clsid_lobby.addr() as u32,
-        NET.iid_lobby2a.addr() as u32,
-        NET.lobby.addr() as u32,
+        NET.clsid_lobby.addr(),
+        NET.iid_lobby2a.addr(),
+        NET.lobby.addr(),
     ) != 0
     {
         return Ok(false);
@@ -57,7 +57,7 @@ pub fn open_lobby() -> Result<bool, Refused> {
         if call(
             &NET.lobby,
             GET_CONNECTION_SETTINGS,
-            &[0, 0, NET.settings_size.addr() as u32],
+            &[0, 0, NET.settings_size.addr()],
         ) != BUFFER_TOO_SMALL
         {
             return Ok(false);
@@ -66,7 +66,7 @@ pub fn open_lobby() -> Result<bool, Refused> {
         if call(
             &NET.lobby,
             GET_CONNECTION_SETTINGS,
-            &[0, NET.settings.get(), NET.settings_size.addr() as u32],
+            &[0, NET.settings.get(), NET.settings_size.addr()],
         ) != 0
         {
             return Ok(false);
@@ -90,7 +90,7 @@ pub fn open_lobby() -> Result<bool, Refused> {
         let queried = call(
             &NET.dplay,
             QUERY_INTERFACE,
-            &[NET.iid_dplay4a.addr() as u32, NET.dplay.addr() as u32],
+            &[NET.iid_dplay4a.addr(), NET.dplay.addr()],
         );
         method(NET.dplay_2.get(), RELEASE, &[]);
         NET.dplay_2.set(0);
@@ -98,7 +98,7 @@ pub fn open_lobby() -> Result<bool, Refused> {
             return Ok(false);
         }
         let name = get(get(NET.settings.get() + 0xC)? + 8)?;
-        copy_printable(name, NET.player_name.addr() as u32, 0x1F)?;
+        copy_printable(name, NET.player_name.addr(), 0x1F)?;
         fill_own_player::fill_own_player(name)?;
         if !create_player::create_player()? {
             return Ok(false);

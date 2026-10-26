@@ -35,7 +35,7 @@ pub fn write_setup_slot(slot: u32) -> Result<bool, Refused> {
         return Err(BadInput("no current player object: the original reads through null").into());
     };
     {
-        let file = GamePtr::new(SET_UPS.file.addr() as u32);
+        let file = GamePtr::new(SET_UPS.file.addr());
         // Converted: `rc2k_core::saves::kept::setup_file`.
         let in_car =
             |offset: u32| GamePtr::new(player.wrapping_add(offset)).read::<u32>("the car's record");

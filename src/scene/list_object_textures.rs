@@ -28,7 +28,7 @@ pub fn file_dword(offset: usize) -> Result<u32, BadInput> {
     if offset + 4 > FILE_ROOM {
         return Err(BadInput("the object's file runs past its room"));
     }
-    GamePtr::new((crate::scene::objects::file_addr() + offset) as u32)
+    GamePtr::new(crate::scene::objects::file_addr() + offset as u32)
         .read("a word of an object's file")
 }
 

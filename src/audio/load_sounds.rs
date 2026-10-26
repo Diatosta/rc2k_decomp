@@ -30,7 +30,7 @@ struct GameLoader;
 impl GameLoader {
     /// The record's place, which the callees take for their ebx.
     fn record_at(&self, sound: u32) -> u32 {
-        SAMPLE_RECORDS.records[sound as usize].addr() as u32
+        SAMPLE_RECORDS.records[sound as usize].addr()
     }
 }
 

@@ -31,7 +31,7 @@ const FONT_1002: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fonts::L
 fn alloc(bytes: u32, _code: u32) -> Result<u32, Refused> {
     Ok(crate::pointers::game_address({
         crate::memory::allocate::allocate(
-            crate::pointers::host(INSTALLER_RUN.buffers.addr() as u32) as *mut _,
+            crate::pointers::host(INSTALLER_RUN.buffers.addr()) as *mut _,
             bytes,
         )
     }?))
@@ -65,39 +65,35 @@ pub fn open_installer() -> Result<(), Refused> {
     let glyphs = alloc(0x3000, 0x80AF_7022)?;
     INSTALLER_RUN.bar_glyphs.set(glyphs);
     read(
-        INSTALLER_NAMES.installer_data.addr(),
+        INSTALLER_NAMES.installer_data.addr() as usize,
         glyphs,
         0x3000,
         0x80AF_7444,
     )?;
     read(
-        INSTALLER_NAMES.install_pal.addr(),
-        INSTALLER_PALETTE.palette.addr() as u32,
+        INSTALLER_NAMES.install_pal.addr() as usize,
+        INSTALLER_PALETTE.palette.addr(),
         0x300,
         0x80AF_7445,
     )?;
     unsafe {
         crate::gfx::palette_to_dwords::palette_to_dwords(
-            INSTALLER_PALETTE.palette.addr() as u32,
-            crate::text::blend_font::BLENDED_PALETTE.addr() as u32,
+            INSTALLER_PALETTE.palette.addr(),
+            crate::text::blend_font::BLENDED_PALETTE.addr(),
         )?;
-        let blended = crate::text::blend_font::BLENDED_PALETTE.addr() as u32;
-        components_to_pixels(
-            blended,
-            blended,
-            crate::session::SCREEN.format_addr() as u32,
-        );
+        let blended = crate::text::blend_font::BLENDED_PALETTE.addr();
+        components_to_pixels(blended, blended, crate::session::SCREEN.format_addr());
         // gfx::load_picture: its carry is not read.
         crate::gfx::load_picture::load_picture(crate::pointers::host(
-            INSTALLER_NAMES.backdrop.addr() as u32,
+            INSTALLER_NAMES.backdrop.addr(),
         ))?;
         crate::gfx::convert_picture::convert_picture_now()?;
     }
     PICTURE.flags.set(SCREEN_MODE.mode_flags.get() & 0xFFF);
     unsafe { crate::gfx::picture_as_surface::picture_as_surface() }?;
-    draw_string(0x94, FONT_94.addr() as u32, 0x316, 0x2F)?;
-    draw_string(0x1000, FONT_1000.addr() as u32, 0x320, 0x24B)?;
-    draw_string(0x1002, FONT_1002.addr() as u32, 0, 0x24B)?;
+    draw_string(0x94, FONT_94.addr(), 0x316, 0x2F)?;
+    draw_string(0x1000, FONT_1000.addr(), 0x320, 0x24B)?;
+    draw_string(0x1002, FONT_1002.addr(), 0, 0x24B)?;
     copy_picture()?;
     show();
     Ok(())

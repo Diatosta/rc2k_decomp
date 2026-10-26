@@ -123,7 +123,7 @@ pub fn draw_stage_results(canvas: &mut dyn Canvas) -> Result<(), Refused> {
     crate::pointers::GamePtr::new(
         crate::screens::text_buffers_store::TEXT_BUFFERS
             .stage_heading
-            .addr() as u32,
+            .addr(),
     )
     .write_bytes(&stage, "the stage line")?;
     // Converted: `rc2k_core::screens::stage_results`.
@@ -162,11 +162,11 @@ pub fn draw_stage_results(canvas: &mut dyn Canvas) -> Result<(), Refused> {
     let mut seal_code = |a: u32, b: u32| {
         seal_fault.ok(crate::strings::format_seal_code::format_seal_code(a, b));
         seal_fault.ok(crate::strings::text_length::nul_at(
-            crate::strings::format_seal_code::SEAL_TEXT.addr() as u32,
+            crate::strings::format_seal_code::SEAL_TEXT.addr(),
             "the seal text",
         )
         .and_then(|len| {
-            GamePtr::new(crate::strings::format_seal_code::SEAL_TEXT.addr() as u32)
+            GamePtr::new(crate::strings::format_seal_code::SEAL_TEXT.addr())
                 .read_bytes(len as usize, "the seal text")
         }))
     };

@@ -23,7 +23,7 @@ use crate::screens::stage_panel::{build_second_heading, dword, table_dword_at};
 
 /// Where item 0's string goes, and where the original puts "item 1"'s.
 fn places() -> Result<(u32, u32), BadInput> {
-    let menu = MENUS.select_stage.addr() as u32;
+    let menu = MENUS.select_stage.addr();
     Ok((
         menu + MENU_HEAD_LEN + 0x14,
         dword(menu)?.wrapping_add(MENU_HEAD_LEN + ITEM_LEN + 0x14),
@@ -40,7 +40,7 @@ pub fn set_stage_choice_titles() -> Result<(), Refused> {
     }
     build_second_heading(s.record)?;
     GamePtr::new(item_0).write(
-        table_dword_at(GROUP_TITLES_RVA.addr(), s.group)?,
+        table_dword_at(GROUP_TITLES_RVA.addr() as usize, s.group)?,
         "a menu item's string",
     )?;
     GamePtr::new(item_1).write(dword(s.table.wrapping_add(0x38))?, "a menu item's string")?;

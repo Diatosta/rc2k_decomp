@@ -51,7 +51,7 @@ pub static TABLES: GlyphTables = GlyphTables {
 
 /// Where the block is (`moved::MOVED`'s home for IDA 0x51B980).
 pub fn home() -> usize {
-    crate::pointers::host_number(&TABLES as *const GlyphTables)
+    crate::pointers::game_address(&TABLES as *const GlyphTables) as usize
 }
 
 /// The work memory taken, the picture's size set for sheets, the pixel layout the
@@ -60,7 +60,7 @@ pub fn begin_glyph_tables() -> Result<(), Refused> {
     PICTURE.width.set(800u32);
     PICTURE.height.set(600u32);
     PICTURE.row_bytes.set(0xFFFF_FFFDu32);
-    DECODER.format.set(surface_format_addr() as u32);
+    DECODER.format.set(surface_format_addr());
     let bytes = LEXICON
         .kilobytes
         .get()
@@ -131,7 +131,7 @@ mod block_tests {
 
     #[test]
     fn moved_knows_the_block() {
-        assert_eq!(crate::moved::place(START), TABLES.units.addr());
-        assert_eq!(crate::moved::place(0x51B984), TABLES.memory.addr());
+        assert_eq!(crate::moved::place(START), TABLES.units.addr() as usize);
+        assert_eq!(crate::moved::place(0x51B984), TABLES.memory.addr() as usize);
     }
 }

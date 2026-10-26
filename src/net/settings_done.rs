@@ -22,8 +22,8 @@ pub fn settings_done() -> Result<(), Refused> {
     match saved {
         Some(n) => crate::net::keep_connection::keep_connection(n)?,
         None => {
-            zero(NET.saved_connection.addr() as u32, 0x10)?;
-            zero(NET.saved_name.addr() as u32, 0x40)?;
+            zero(NET.saved_connection.addr(), 0x10)?;
+            zero(NET.saved_name.addr(), 0x40)?;
         }
     }
     crate::net::stop::stop()

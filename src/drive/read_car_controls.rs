@@ -83,7 +83,7 @@ pub fn read_car_controls() -> Result<(), Refused> {
             CAR.lights_on.set(flipped(CAR.lights_on.get()));
         }
         if pressed & VIEW_BIT != 0 {
-            next_camera_view(crate::physics::car_store::car_addr() as u32)?;
+            next_camera_view(crate::physics::car_store::car_addr())?;
         }
     }
     if !computer() {

@@ -30,7 +30,7 @@ pub unsafe fn replay_screenshot() -> Result<(), Refused> {
                 .set(windows_sys::Win32::System::SystemInformation::GetTickCount());
         }
         let kept: u32 = PICTURE.name.get();
-        let name = VIEWER_PANEL.picture_name[0].addr() as u32;
+        let name = VIEWER_PANEL.picture_name[0].addr();
         // Converted: `rc2k_core::race::viewer::count_up` (the name's six digits from +4).
         let digits = GamePtr::new(name + 4);
         let (counted, _, _) =

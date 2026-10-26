@@ -84,7 +84,7 @@ fn flat_way(from: u32, to: u32, out: u32) -> Result<(), BadInput> {
 /// Through `g_workVector` and `race::normalise_work_vector`: the vector at `from` made one
 /// long into `to`.
 fn normalised(from: u32, to: u32) -> Result<(), BadInput> {
-    let w = FRAME_SCRATCH.work_vector[0].addr() as u32;
+    let w = FRAME_SCRATCH.work_vector[0].addr();
     for o in [0, 4, 8] {
         put(w + o, at(from + o)?)?;
     }
@@ -131,10 +131,10 @@ pub fn drive_computer_car() -> Result<(), Refused> {
     let slot = RACE_WORK.driver_slot.get();
     RACE_WORK
         .driver_point_now
-        .set((RACE_WORK.driver_points_now[0].addr() as u32).wrapping_add(slot << 4));
+        .set((RACE_WORK.driver_points_now[0].addr()).wrapping_add(slot << 4));
     RACE_WORK
         .driver_point_then
-        .set((RACE_WORK.driver_points_then[0].addr() as u32).wrapping_add(slot << 4));
+        .set((RACE_WORK.driver_points_then[0].addr()).wrapping_add(slot << 4));
     let n = CAR.checkpoint.get();
     let f = COURSE
         .course_faces
@@ -191,7 +191,7 @@ pub fn drive_computer_car() -> Result<(), Refused> {
         CAR.wheel_surface_a[0].get(),
     )];
     let listed = u32::from(
-        GamePtr::new((RACE_WORK.wanted_speeds[table].addr() as u32).wrapping_add(bend))
+        GamePtr::new((RACE_WORK.wanted_speeds[table].addr()).wrapping_add(bend))
             .read::<u8>("the wanted speeds")?,
     );
     let s = RACE_WORK.driver_slot.get();
@@ -238,22 +238,22 @@ pub fn drive_computer_car() -> Result<(), Refused> {
     RACE_WORK.driver_to[2].set(z);
     RACE_WORK.driver_to[1].set(0);
     flat_way(
-        RACE_WORK.driver_from[0].addr() as u32,
-        RACE_WORK.driver_to[0].addr() as u32,
-        RACE_WORK.driver_flat[0].addr() as u32,
+        RACE_WORK.driver_from[0].addr(),
+        RACE_WORK.driver_to[0].addr(),
+        RACE_WORK.driver_flat[0].addr(),
     )?;
     normalised(
-        RACE_WORK.driver_flat[0].addr() as u32,
-        RACE_WORK.driver_flat_unit[0].addr() as u32,
+        RACE_WORK.driver_flat[0].addr(),
+        RACE_WORK.driver_flat_unit[0].addr(),
     )?;
     cross_product(
-        (RACE_WORK.driver_flat_unit[0].addr() as u32) as usize,
-        (RACE_WORK.driver_vector[0].addr() as u32) as usize,
-        (RACE_WORK.driver_ahead[0].addr() as u32) as usize,
+        (RACE_WORK.driver_flat_unit[0].addr()) as usize,
+        (RACE_WORK.driver_vector[0].addr()) as usize,
+        (RACE_WORK.driver_ahead[0].addr()) as usize,
     );
     normalised(
-        RACE_WORK.driver_ahead[0].addr() as u32,
-        RACE_WORK.driver_ahead[0].addr() as u32,
+        RACE_WORK.driver_ahead[0].addr(),
+        RACE_WORK.driver_ahead[0].addr(),
     )?;
     let (k1, k2) = (RACE_WORK.driver_speed_scale.bits(), NUMBERS.k65536.bits());
     RACE_WORK.driver_step_x.set(mul2_to_int(
@@ -282,21 +282,21 @@ pub fn drive_computer_car() -> Result<(), Refused> {
     put(here + 4, 0)?;
     flat_way(
         here,
-        RACE_WORK.driver_to[0].addr() as u32,
-        RACE_WORK.driver_way[0].addr() as u32,
+        RACE_WORK.driver_to[0].addr(),
+        RACE_WORK.driver_way[0].addr(),
     )?;
     normalised(
-        RACE_WORK.driver_way[0].addr() as u32,
-        RACE_WORK.driver_way_unit[0].addr() as u32,
+        RACE_WORK.driver_way[0].addr(),
+        RACE_WORK.driver_way_unit[0].addr(),
     )?;
-    let m = CAR.crash_matrix[0].addr() as u32;
+    let m = CAR.crash_matrix[0].addr();
     RACE_WORK.driver_side[2].set_bits(x87::loaded(at(m + 0x28)?));
     RACE_WORK.driver_side[0].set_bits(x87::negated(at(m + 8)?));
     RACE_WORK.driver_side[1].set_bits(0);
     cross_product(
-        (RACE_WORK.driver_side[0].addr() as u32) as usize,
-        (RACE_WORK.driver_way_unit[0].addr() as u32) as usize,
-        (RACE_WORK.driver_work[0].addr() as u32) as usize,
+        (RACE_WORK.driver_side[0].addr()) as usize,
+        (RACE_WORK.driver_way_unit[0].addr()) as usize,
+        (RACE_WORK.driver_work[0].addr()) as usize,
     );
     let (i, status) = times_fist_compare(
         RACE_WORK.driver_work[1].get(),

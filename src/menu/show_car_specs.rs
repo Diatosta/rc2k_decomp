@@ -33,7 +33,7 @@ pub unsafe fn show_car_specs(c: &Carried) -> Result<(), Refused> {
         SpecsList::Events => MENU_LISTS.cars_second[0].addr(),
         SpecsList::Kind4 => MENU_LISTS.cars_championship[0].addr(),
         SpecsList::Kind5 => MENU_LISTS.cars_a8[0].addr(),
-    } as u32;
+    };
     if !choice {
         unsafe { run_screen_carried(&crate::menu::car_specs_47af4c_loop::SCREEN, &mut r) }?;
         return Ok(());

@@ -115,7 +115,7 @@ impl races::EventRaces for Game<'_> {
                     g.c.palette = get(rec + 4)?.wrapping_mul(0x40);
                     g.c.measure_x = get(rec + 8)?;
                     g.c.clock = crate::records::trakpak_entry::loaded_pack_id();
-                    g.c.cars = RACE_STATE.settings.rivals.addr() as u32;
+                    g.c.cars = RACE_STATE.settings.rivals.addr();
                     g.c.arg = get(pack + 0x34)?;
                     RACE_STATE.settings.stage.set(g.c.arg);
                 }

@@ -21,6 +21,5 @@ pub fn new_voice_in_game() -> Result<u32, Refused> {
     };
     AUDIO.voice_count.set(n);
     // By the place's address, as the original adds it (no check against the pool).
-    Ok(AUDIO.voices[0].addr() as u32
-        + place * std::mem::size_of::<crate::audio::voices::Voice>() as u32)
+    Ok(AUDIO.voices[0].addr() + place * std::mem::size_of::<crate::audio::voices::Voice>() as u32)
 }

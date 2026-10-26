@@ -27,10 +27,10 @@ pub struct Shown {
 impl Shown {
     pub fn game() -> Self {
         Self {
-            busy: (CAR.notice_shown.addr() as u32),
-            id: (CAR.notice_id.addr() as u32),
-            time_a: (CAR.notice_time_b.addr() as u32),
-            time_b: (CAR.notice_time.addr() as u32),
+            busy: (CAR.notice_shown.addr()),
+            id: (CAR.notice_id.addr()),
+            time_a: (CAR.notice_time_b.addr()),
+            time_b: (CAR.notice_time.addr()),
         }
     }
 }

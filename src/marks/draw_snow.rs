@@ -37,16 +37,16 @@ use crate::d3d::vertices_store::VERTICES;
 /// dword_8DB460, flt_8DB4C8.
 fn scratch() -> Vec<Region> {
     vec![
-        (SNOW.turned[0].addr() as u32, 12),
-        (SNOW.depth.addr() as u32, 4),
-        (SNOW_LIGHT.fade_delta[0].addr() as u32, 0x1C),
-        (SNOW_LIGHT.dot.addr() as u32, 4),
+        (SNOW.turned[0].addr(), 12),
+        (SNOW.depth.addr(), 4),
+        (SNOW_LIGHT.fade_delta[0].addr(), 0x1C),
+        (SNOW_LIGHT.dot.addr(), 4),
     ]
 }
 
 /// The original's 0x4C2EF0 .. 0x4C2F79: the place (ebx, eax, ecx as `fild`ed) turned.
 fn turn(v: &[u32; 3]) {
-    turn_x87(crate::pointers::host_number(v.as_ptr()), &SNOW)
+    turn_x87((crate::pointers::game_address(v.as_ptr())) as usize, &SNOW)
 }
 
 /// The original's 0x4C2F9C .. 0x4C3038: the light's dot and its fade index.
@@ -58,7 +58,7 @@ fn fade() {
 fn square(i: u32) {
     square_x87(
         crate::race::store::asm_base() as usize,
-        crate::d3d::vertices_store::piece_addr(),
+        crate::d3d::vertices_store::piece_addr() as usize,
         i as usize,
         &SNOW_TABLES,
         &SNOW,
@@ -158,7 +158,7 @@ pub fn draw_snow() -> Result<(), Refused> {
                         .v
                         .set_bits(if n < 2 { top } else { bottom });
                 }
-                if !clip_quad(crate::d3d::vertices_store::piece_addr() as u32)? {
+                if !clip_quad(crate::d3d::vertices_store::piece_addr())? {
                     draw_fan();
                     SNOW.drawn.set(SNOW.drawn.get().wrapping_add(1));
                     DRAW.polygon_vertex_count.set_bits(4u32);

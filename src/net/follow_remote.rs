@@ -15,7 +15,7 @@ use rc2k_core::net::race;
 
 /// The Rust version.
 pub fn follow_remote() -> Result<(), crate::errors::BadInput> {
-    let car = crate::physics::car_store::car_addr() as u32;
+    let car = crate::physics::car_store::car_addr();
     let rd = |at: u32| GamePtr::new(at).read::<u32>("the car's work block");
     let wr = |at: u32, v: u32| GamePtr::new(at).write(v, "the car's work block");
     // Converted: `rc2k_core::net::race::glide` (the block read only with the race on).

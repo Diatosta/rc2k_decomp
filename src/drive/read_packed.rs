@@ -27,16 +27,10 @@ pub fn read_packed(
         let (n, ok) = { read(file, crate::pointers::host(buffer), count) };
         return Ok((n, !ok, None));
     };
-    let (n, ok) = {
-        read(
-            file,
-            crate::pointers::host(SCRATCH.buffer.addr() as u32),
-            packed,
-        )
-    };
+    let (n, ok) = { read(file, crate::pointers::host(SCRATCH.buffer.addr()), packed) };
     if !ok {
         return Ok((n, true, None));
     }
-    let out = crate::drive::unpack_rle::unpack_rle(SCRATCH.buffer.addr() as u32, buffer)?;
+    let out = crate::drive::unpack_rle::unpack_rle(SCRATCH.buffer.addr(), buffer)?;
     Ok((out, false, Some(out == 0)))
 }

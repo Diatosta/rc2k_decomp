@@ -13,7 +13,7 @@ pub fn face_cell(n: usize) -> &'static crate::session::Dword {
 }
 pub const FACES: u32 = 0xC000;
 /// The file as read: +4 points, +8 faces, +0xC normals, +0x2C the points.
-pub fn file_addr() -> usize {
+pub fn file_addr() -> u32 {
     crate::scene::engine_tables_store::ENGINE_TABLES
         .object_file
         .addr()

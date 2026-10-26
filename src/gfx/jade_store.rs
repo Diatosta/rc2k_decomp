@@ -30,7 +30,7 @@ impl JadeFont {
     pub const LEN: usize = 0x1419;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        crate::pointers::host_number(&JADE_FONT as *const JadeFont) + 4
+        (crate::pointers::game_address(&JADE_FONT as *const JadeFont) + 4) as usize
     }
 }
 

@@ -32,7 +32,7 @@ pub static STRIPS: Strips = Strips {
 
 /// Where the block is (`moved::MOVED`'s home for IDA 0x6D1870).
 pub fn home() -> usize {
-    crate::pointers::host_number(&STRIPS as *const Strips)
+    crate::pointers::game_address(&STRIPS as *const Strips) as usize
 }
 
 #[cfg(test)]
@@ -49,7 +49,10 @@ mod tests {
     fn moved_knows_the_block() {
         assert_eq!(offset_of!(Strips, tops), 0x6D1880 - START);
         assert_eq!(offset_of!(Strips, lefts), 0x6D18B0 - START);
-        assert_eq!(crate::moved::place(START), STRIPS.sizes[0].addr());
-        assert_eq!(crate::moved::place(0x6D18B0), STRIPS.lefts[0].addr());
+        assert_eq!(crate::moved::place(START), STRIPS.sizes[0].addr() as usize);
+        assert_eq!(
+            crate::moved::place(0x6D18B0),
+            STRIPS.lefts[0].addr() as usize
+        );
     }
 }

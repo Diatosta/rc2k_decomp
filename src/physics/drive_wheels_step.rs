@@ -39,15 +39,19 @@ use crate::session::Float;
 
 /// `fld v; fabs; fsub one; fchs; fstp to` (0x43DFB1, 0x43E00B): 1 less |v|.
 fn one_less_abs(v: &Float, to: &Float) {
-    x87_1(v.addr(), crate::race::store::asm_base() as usize, to.addr());
+    x87_1(
+        v.addr() as usize,
+        crate::race::store::asm_base() as usize,
+        to.addr() as usize,
+    );
 }
 
 /// `fld b; fabs; fld a; fabs; fcompp; fnstsw`: C0, |a| below |b| or unordered.
 fn abs_below(x: u32, y: u32) -> bool {
     let (v, mut status) = ([x, y], 0u16);
     x87_2(
-        crate::pointers::host_number(v.as_ptr()),
-        crate::pointers::host_number(&raw mut status),
+        (crate::pointers::game_address(v.as_ptr())) as usize,
+        crate::pointers::game_address(&raw mut status) as usize,
     );
     status & 0x100 != 0
 }
@@ -62,9 +66,9 @@ fn store_loaded(to: &Float, from: &Float) {
 /// - 1), and the two force records' parts at `f1`, `f2`.
 fn settle_slip(drive: &Float, slip: &Float, ratio: &Float, f1: &Float, f2: &Float) {
     x87_3(
-        drive.addr(),
+        drive.addr() as usize,
         crate::race::store::asm_base() as usize,
-        ratio.addr(),
+        ratio.addr() as usize,
     );
     let s = abs_of(slip.bits());
     let signed = if c0(ratio.bits(), NUMBERS.zero.bits()) {
@@ -74,11 +78,11 @@ fn settle_slip(drive: &Float, slip: &Float, ratio: &Float, f1: &Float, f2: &Floa
     };
     slip.set_bits(signed);
     x87_4(
-        drive.addr(),
+        drive.addr() as usize,
         crate::race::store::asm_base() as usize,
-        slip.addr(),
-        f1.addr(),
-        f2.addr(),
+        slip.addr() as usize,
+        f1.addr() as usize,
+        f2.addr() as usize,
     );
 }
 
@@ -86,9 +90,9 @@ fn settle_slip(drive: &Float, slip: &Float, ratio: &Float, f1: &Float, f2: &Floa
 /// `ratio`, and `slip` the lesser of it and `force` (by `fcompp`).
 fn slip_limit(drive: &Float, ratio: &Float, force: &Float, slip: &Float) {
     x87_5(
-        drive.addr(),
+        drive.addr() as usize,
         crate::race::store::asm_base() as usize,
-        ratio.addr(),
+        ratio.addr() as usize,
     );
     let pick = if c0(ratio.bits(), force.bits()) {
         ratio
@@ -168,8 +172,8 @@ fn steps() -> Result<(), Refused> {
                 0u16,
             );
             x87_14(
-                crate::pointers::host_number(v.as_ptr()),
-                crate::pointers::host_number(&raw mut status),
+                (crate::pointers::game_address(v.as_ptr())) as usize,
+                crate::pointers::game_address(&raw mut status) as usize,
             );
             if status & 0x100 != 0 {
                 CAR.drive_speed_a.set_bits(0);
@@ -237,7 +241,7 @@ fn steps() -> Result<(), Refused> {
         let mut status = 0u16;
         x87_20(
             crate::race::store::asm_base() as usize,
-            crate::pointers::host_number(&raw mut status),
+            crate::pointers::game_address(&raw mut status) as usize,
         );
         if status & 0x4100 == 0 {
             x87_21(crate::race::store::asm_base() as usize);

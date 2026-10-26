@@ -42,7 +42,7 @@ pub fn fill_race_slot(part: u32) -> Result<(), Refused> {
     if part > LAST_PART {
         return Err(BadInput("a part past 0xFF").into());
     }
-    let first = RACE_WORK.race_slots[0].part.addr() as u32;
+    let first = RACE_WORK.race_slots[0].part.addr();
     let slot_at = |c: usize| first + 0x78 * c as u32;
     let Some(choice) = choose_slot(|c| at(slot_at(c)), |c| at(slot_at(c) + 0x64)) else {
         return Err(BadInput("no race slot to take (every +0x64 -1)").into());
@@ -56,7 +56,7 @@ pub fn fill_race_slot(part: u32) -> Result<(), Refused> {
             false,
         )
     };
-    let out = rotate_point(CAR.crash_matrix[0].addr() as u32, [i(0), i(1), i(2)]);
+    let out = rotate_point(CAR.crash_matrix[0].addr(), [i(0), i(1), i(2)]);
     for (k, e) in out.iter().enumerate() {
         let n = ext_to_int(*e) as u32;
         OBJECT_WORK.object_position[k].set_bits(n);

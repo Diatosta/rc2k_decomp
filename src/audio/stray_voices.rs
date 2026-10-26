@@ -47,7 +47,7 @@ pub fn check() {
         let size = std::mem::size_of::<Voice>() as u32;
         let mut strays = Vec::new();
         for n in 0..count {
-            let at = AUDIO.voices[0].addr() as u32 + n * size;
+            let at = AUDIO.voices[0].addr() + n * size;
             let v = voice(at);
             if v.flags & 1 == 0 || v.buffer == 0 || listed.contains(&at) {
                 continue;

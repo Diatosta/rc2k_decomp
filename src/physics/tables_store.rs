@@ -526,7 +526,7 @@ impl core::ops::Deref for InRaceBlock {
     fn deref(&self) -> &PhysicsTables {
         // SAFETY: the race block lives as long as the program and is aligned to 4 (the
         // test checks); every field is an atomic or a cell, as the block's bytes were shared.
-        unsafe { &*(crate::pointers::host_at(tables_addr()) as *const PhysicsTables) }
+        unsafe { &*(crate::pointers::host(tables_addr()) as *const PhysicsTables) }
     }
 }
 
@@ -540,8 +540,8 @@ pub const END: usize = 0x614D38;
 const _: () = assert!(END - START == core::mem::size_of::<PhysicsTables>());
 
 /// Where IDA 0x613828 is now (in the race block).
-pub fn tables_addr() -> usize {
-    crate::race::store::home(START)
+pub fn tables_addr() -> u32 {
+    crate::race::store::home(START) as u32
 }
 
 #[cfg(test)]

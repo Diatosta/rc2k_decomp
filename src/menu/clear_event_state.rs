@@ -15,9 +15,9 @@ const RUN_DWORDS: usize = 28;
 
 fn regions() -> [Region; 3] {
     [
-        (EVENT_STATE.stages_done.addr() as u32, 4),
-        (RESULT_FIGURES.round.addr() as u32, 4),
-        (RESULT_FIGURES.time_bonus[0].addr() as u32, RUN_DWORDS * 4),
+        (EVENT_STATE.stages_done.addr(), 4),
+        (RESULT_FIGURES.round.addr(), 4),
+        (RESULT_FIGURES.time_bonus[0].addr(), RUN_DWORDS * 4),
     ]
 }
 

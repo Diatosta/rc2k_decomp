@@ -124,7 +124,7 @@ impl InstallerRun {
     pub const LEN: usize = 0x198;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        crate::pointers::host_number(&INSTALLER_RUN as *const InstallerRun) + 8
+        (crate::pointers::game_address(&INSTALLER_RUN as *const InstallerRun) + 8) as usize
     }
 }
 
@@ -222,7 +222,7 @@ impl InstallerNames {
     pub const LEN: usize = 0x8A7;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        crate::pointers::host_number(&INSTALLER_NAMES as *const InstallerNames)
+        crate::pointers::game_address(&INSTALLER_NAMES as *const InstallerNames) as usize
     }
 }
 
@@ -386,7 +386,7 @@ impl InstallerPages {
     pub const LEN: usize = 0x1A25;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        crate::pointers::host_number(&INSTALLER_PAGES as *const InstallerPages) + 7
+        (crate::pointers::game_address(&INSTALLER_PAGES as *const InstallerPages) + 7) as usize
     }
 }
 
@@ -424,7 +424,7 @@ impl InstallerPaths {
     pub const LEN: usize = 0x600;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        crate::pointers::host_number(&INSTALLER_PATHS as *const InstallerPaths) + 8
+        (crate::pointers::game_address(&INSTALLER_PATHS as *const InstallerPaths) + 8) as usize
     }
 }
 
@@ -447,7 +447,7 @@ impl InstallerPalette {
     pub const LEN: usize = 0x300;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        crate::pointers::host_number(&INSTALLER_PALETTE as *const InstallerPalette) + 4
+        (crate::pointers::game_address(&INSTALLER_PALETTE as *const InstallerPalette) + 4) as usize
     }
 }
 

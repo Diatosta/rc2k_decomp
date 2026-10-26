@@ -55,7 +55,7 @@ pub fn squares_frame() -> Result<(), Refused> {
         return Err(BadInput("no marks settings").into());
     }
     frame_axes(s);
-    let [a0, a1, a2] = [0, 1, 2].map(|n| address_of(&SQUARE_TABLES.axes[n]) as u32);
+    let [a0, a1, a2] = [0, 1, 2].map(|n| address_of(&SQUARE_TABLES.axes[n]));
     normalise_vector3(a0);
     frame_up(s);
     normalise_vector3(a1);

@@ -20,7 +20,7 @@ use crate::scene::draw_store::DRAW;
 
 /// The Rust version (see the header): `colour` (ecx), `size` (edx).
 pub fn draw_particle(place: [[u8; 10]; 3], colour: u32, size: u32) {
-    let turned = x87::column_turn(&place, MATRICES.view_matrix[0].addr() as u32);
+    let turned = x87::column_turn(&place, MATRICES.view_matrix[0].addr());
     for (n, v) in turned.into_iter().enumerate() {
         DRAW_WORK.turned[n].set_bits(v);
     }

@@ -33,7 +33,7 @@ pub fn request_quit_with(
     if !starts_shutdown(requested.swap(QUITTING, Ordering::SeqCst)) {
         return Ok(());
     }
-    start(crate::threading::thread_slot::slot(crate::threading::thread_slot::SHUTDOWN) as u32)
+    start((crate::threading::thread_slot::slot(crate::threading::thread_slot::SHUTDOWN)) as u32)
 }
 
 pub unsafe fn request_quit() -> Result<(), FatalError> {

@@ -13,7 +13,7 @@ use crate::gfx::show_picture_file::show_picture_file;
 pub fn show_loading_picture() -> Result<u32, crate::errors::Refused> {
     unsafe {
         show_picture_file(crate::pointers::host_at(
-            crate::menu::texts_store::MENU_TEXTS.loading_pcx.addr(),
+            crate::menu::texts_store::MENU_TEXTS.loading_pcx.addr() as usize,
         ))
     }
 }

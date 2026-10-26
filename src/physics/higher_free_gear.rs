@@ -29,9 +29,5 @@ pub fn higher_free_gear_at(bits: u32, count: u32, gear: u32) -> Result<Option<u3
 
 /// The Rust version.
 pub fn higher_free_gear(gear: u32) -> Result<Option<u32>, Refused> {
-    higher_free_gear_at(
-        CAR.lost_gear_bits.addr() as u32,
-        PHYSICS.gear_count.bits(),
-        gear,
-    )
+    higher_free_gear_at(CAR.lost_gear_bits.addr(), PHYSICS.gear_count.bits(), gear)
 }

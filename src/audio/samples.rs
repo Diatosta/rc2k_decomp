@@ -105,7 +105,7 @@ pub unsafe fn read_sample_in_game(path: *const u8) -> Result<bool, Refused> {
 /// The voice of `count` from `voices` whose `data_key` is the record's (0: none).
 pub fn find_shared_voice(record: &SampleRecord, count: u32) -> u32 {
     // Converted: `rc2k_core::audio::voices::find_shared`.
-    let voices = AUDIO.voices[0].addr() as u32;
+    let voices = AUDIO.voices[0].addr();
     let size = std::mem::size_of::<Voice>() as u32;
     rc2k_core::audio::voices::find_shared(
         &mut GamePool,

@@ -38,7 +38,7 @@ pub fn run_installer() -> Result<(), Refused> {
         0,
     );
     i::read_languages::read_languages(
-        crate::pointers::host(INSTALLER_NAMES.lang_cfg.addr() as u32) as *const u8,
+        crate::pointers::host(INSTALLER_NAMES.lang_cfg.addr()) as *const u8
     )?;
     unsafe { crate::gfx::build_fonts::build_fonts() }?;
     i::open_installer::open_installer()?;
@@ -48,18 +48,18 @@ pub fn run_installer() -> Result<(), Refused> {
         i::install_from_command::install_from_command()?;
     } else {
         if !normalise(
-            crate::install::installer::INSTALL_TEXTS.base_b.addr() as u32,
-            INSTALLER_PATHS.game_dir.addr() as u32,
+            crate::install::installer::INSTALL_TEXTS.base_b.addr(),
+            INSTALLER_PATHS.game_dir.addr(),
         )? {
             return Err(fatal(0x80AF_8101));
         }
         i::list_drives::list_drives();
-        let cursor = append_string_by_id(0x9F, INSTALLER_PATHS.typed.addr() as u32);
+        let cursor = append_string_by_id(0x9F, INSTALLER_PATHS.typed.addr());
         let cursor = append_string_by_id(0xA0, cursor);
         append_byte(cursor, 0);
         if MACHINE.keyboard_type.get() == 2 {
             wb(
-                INSTALLER_PATHS.typed.addr() as u32,
+                INSTALLER_PATHS.typed.addr(),
                 INSTALLER_RUN.first_drive.get() as u8,
             );
         }
@@ -68,8 +68,8 @@ pub fn run_installer() -> Result<(), Refused> {
             let n = INSTALLER_NAMES.source_size.get();
             for k in 0..n {
                 wb(
-                    INSTALLER_PATHS.typed.addr() as u32 + k,
-                    rb(INSTALLER_NAMES.source.addr() as u32 + k),
+                    INSTALLER_PATHS.typed.addr() + k,
+                    rb(INSTALLER_NAMES.source.addr() + k),
                 );
             }
         }
@@ -77,15 +77,15 @@ pub fn run_installer() -> Result<(), Refused> {
         // The version-match branch changes into the installed folder.
         if INSTALLER_RUN.same_version.get() == 1 {
             INSTALLER_PAGES.record_flag.set(1);
-            set_cd(INSTALLER_PATHS.installed.addr() as u32);
+            set_cd(INSTALLER_PATHS.installed.addr());
             i::read_record::read_record(crate::pointers::host_at(
-                crate::install::installer::INSTALL_TEXTS.record_path.addr(),
+                crate::install::installer::INSTALL_TEXTS.record_path.addr() as usize,
             ) as *const u8)?;
             crate::install::installer::wb(
                 crate::pointers::game_address(crate::files::state::base_directory()),
                 0,
             );
-            set_cd(INSTALLER_PATHS.game_dir.addr() as u32);
+            set_cd(INSTALLER_PATHS.game_dir.addr());
             load_language()?;
         }
         let pages = if INSTALLER_RUN.updating.get() == 1 {
@@ -93,14 +93,14 @@ pub fn run_installer() -> Result<(), Refused> {
         } else {
             INSTALLER_PAGES.normal_pages.addr()
         };
-        i::run_pages::run_pages(pages as u32)?;
+        i::run_pages::run_pages(pages)?;
     }
     if INSTALLER_RUN.installing.get() == 1
         && crate::install::store::INSTALL.running_from_cd.get() == 1
         && lock()
     {
         copy_picture()?;
-        draw_string(0xBE, FONT_BE.addr() as u32, 0x1A9, 0x113)?;
+        draw_string(0xBE, FONT_BE.addr(), 0x1A9, 0x113)?;
         unlock();
         show();
         sleep(2000);

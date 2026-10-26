@@ -29,7 +29,10 @@ fn shifted_places(s: u32, p: u32) {
 
 /// The original's 0x4BF88E .. 0x4BF9AA on the two values: the corners.
 fn corners(v: &[[u8; 10]; 2]) {
-    corners_x87(crate::pointers::host_number(v.as_ptr()), &SQUARE_TABLES)
+    corners_x87(
+        (crate::pointers::game_address(v.as_ptr())) as usize,
+        &SQUARE_TABLES,
+    )
 }
 
 /// The original's 0x4BF9BA .. 0x4BFAD6: the corners projected, their depth.
@@ -44,7 +47,7 @@ fn projected(p: u32) {
 
 /// The Rust version (see the header): `item` (esi), `colour` (edx).
 pub fn draw_square(item: u32, colour: u32, shares: [[u8; 10]; 2]) {
-    let vertices = crate::d3d::vertices_store::piece_addr() as u32;
+    let vertices = crate::d3d::vertices_store::piece_addr();
     let [a, pb, c, d]: [u32; 4] = read_bits(&SQUARE_STATE.places);
     for (n, (u, v)) in [(a, pb), (c, pb), (c, d), (a, d)].into_iter().enumerate() {
         VERTICES.vertices[n].u.set_bits(u);

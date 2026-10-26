@@ -57,7 +57,7 @@ fn run(step: rc2k_core::race::viewer_flow::TidyStep) -> Result<(), Refused> {
             TidyStep::SoundSettings => crate::sound::apply_settings::apply_settings()?,
             TidyStep::FreeFonts => crate::gfx::free_fonts::free_fonts(
                 crate::gfx::glyph_tables::TABLES.memory.as_ptr(),
-                crate::pointers::host_at(FONTS.palettes.addr()) as *mut u32,
+                crate::pointers::host(FONTS.palettes.addr()) as *mut u32,
             )?,
             TidyStep::SetUpEngine => crate::scene::set_up_engine::set_up_engine()?,
             TidyStep::SetUpFrontEnd => {

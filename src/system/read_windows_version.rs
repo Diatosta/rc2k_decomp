@@ -18,8 +18,7 @@ const VERSION_INFO_LEN: usize = 0x94;
 // ---- Rust version ----
 
 pub unsafe fn read_windows_version() {
-    let info =
-        crate::pointers::host_at(crate::session::MACHINE.version_addr()) as *mut OSVERSIONINFOA;
+    let info = crate::pointers::host(crate::session::MACHINE.version_addr()) as *mut OSVERSIONINFOA;
     unsafe {
         (info as *mut u32).write_unaligned(VERSION_INFO_LEN as u32);
         GetVersionExA(info);

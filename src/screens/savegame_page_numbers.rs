@@ -26,14 +26,14 @@ pub fn savegame_page_numbers() -> Result<(), Refused> {
     crate::pointers::GamePtr::new(
         crate::screens::text_buffers_store::TEXT_BUFFERS
             .caption
-            .addr() as u32,
+            .addr(),
     )
     .write_bytes(&caption, "the caption")?;
     for (n, text) in numbers.iter().enumerate() {
         let place = crate::pointers::GamePtr::new(
-            crate::screens::text_buffers_store::TEXT_BUFFERS
+            (crate::screens::text_buffers_store::TEXT_BUFFERS
                 .page_numbers
-                .addr() as u32
+                .addr())
                 + 4 * n as u32,
         );
         place.write_bytes(text, "a page number")?;

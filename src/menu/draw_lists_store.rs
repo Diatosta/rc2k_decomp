@@ -27,8 +27,8 @@ impl<const N: usize> DrawList<N> {
     }
 
     /// The list's address.
-    pub fn addr(&self) -> usize {
-        crate::pointers::host_number(self as *const Self)
+    pub fn addr(&self) -> u32 {
+        crate::pointers::game_address(self as *const Self)
     }
 }
 
@@ -1224,8 +1224,8 @@ pub const START: usize = 0x758B72;
 pub const END: usize = 0x7594AA;
 
 /// Where IDA 0x758B72 is now (`moved::MOVED`'s home).
-pub fn draw_lists_addr() -> usize {
-    crate::pointers::host_number(&DRAW_LISTS as *const DrawLists)
+pub fn draw_lists_addr() -> u32 {
+    crate::pointers::game_address(&DRAW_LISTS as *const DrawLists)
 }
 
 #[cfg(test)]
@@ -1239,7 +1239,7 @@ mod tests {
         assert_eq!(size_of::<DrawLists>(), END - START);
         let mine = unsafe {
             std::slice::from_raw_parts(
-                crate::pointers::host_at(draw_lists_addr()) as *const u8,
+                crate::pointers::host(draw_lists_addr()) as *const u8,
                 END - START,
             )
         };

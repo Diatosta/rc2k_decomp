@@ -31,12 +31,12 @@ pub struct QueuePlaces {
 impl QueuePlaces {
     pub fn game() -> Self {
         Self {
-            clock: (PHYSICS.scene_clock.addr() as u32),
-            times: (CAR.car_event_times[0].addr() as u32),
-            events: (CAR.car_event_codes[0].addr() as u32),
-            count: (CAR.car_event_count.addr() as u32),
-            f9c: (CAR.car_event_limit.addr() as u32),
-            fa0: (CAR.car_event_position.addr() as u32),
+            clock: (PHYSICS.scene_clock.addr()),
+            times: (CAR.car_event_times[0].addr()),
+            events: (CAR.car_event_codes[0].addr()),
+            count: (CAR.car_event_count.addr()),
+            f9c: (CAR.car_event_limit.addr()),
+            fa0: (CAR.car_event_position.addr()),
         }
     }
 }

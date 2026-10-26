@@ -150,7 +150,7 @@ pub fn draw_controller_page(
         if device == 0 {
             return controller_page(&mut screen, None);
         }
-        let record = crate::input::store::DEVICES.controllers[0].addr() as u32
+        let record = crate::input::store::DEVICES.controllers[0].addr()
             + device.wrapping_sub(1).wrapping_mul(0x50);
         let [stick_x, _, _, buttons] = crate::input::axes::first_device_state()?;
         let c = Controller {

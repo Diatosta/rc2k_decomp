@@ -54,9 +54,9 @@ pub fn open_a3d() -> Result<bool, Refused> {
     }
     AUDIO.a3d_ready.set(0);
     if game_create(
-        AUDIO.a3d_clsid.addr() as u32,
-        AUDIO.a3d_iid.addr() as u32,
-        AUDIO.direct_sound.addr() as u32,
+        AUDIO.a3d_clsid.addr(),
+        AUDIO.a3d_iid.addr(),
+        AUDIO.direct_sound.addr(),
     ) != 0
     {
         AUDIO.direct_sound.set(0);
@@ -75,9 +75,9 @@ pub fn open_a3d2() -> Result<bool, Refused> {
     }
     AUDIO.use_a3d.set(0);
     if game_create(
-        AUDIO.a3d2_clsid.addr() as u32,
-        AUDIO.a3d2_iid.addr() as u32,
-        AUDIO.a3d_object.addr() as u32,
+        AUDIO.a3d2_clsid.addr(),
+        AUDIO.a3d2_iid.addr(),
+        AUDIO.a3d_object.addr(),
     ) != 0
     {
         AUDIO.a3d_object.set(0);

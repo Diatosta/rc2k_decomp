@@ -73,10 +73,7 @@ fn walk(folder: u32) -> Result<(), Refused> {
             cursor = append_byte(cursor, b'\\');
         }
         append_byte(
-            str_append(
-                crate::install::installer::INSTALL_TEXTS.star.addr() as u32,
-                cursor,
-            ),
+            str_append(crate::install::installer::INSTALL_TEXTS.star.addr(), cursor),
             0,
         );
         if find_first(base) {
@@ -84,10 +81,10 @@ fn walk(folder: u32) -> Result<(), Refused> {
                 if find_attributes() & 0x10 != 0 {
                     // "." and ".." passed over
                     let real = !same_name(
-                        crate::install::installer::INSTALL_TEXTS.dot.addr() as u32,
+                        crate::install::installer::INSTALL_TEXTS.dot.addr(),
                         find_name(),
                     ) && !same_name(
-                        crate::install::installer::INSTALL_TEXTS.dotdot.addr() as u32,
+                        crate::install::installer::INSTALL_TEXTS.dotdot.addr(),
                         find_name(),
                     );
                     if real {

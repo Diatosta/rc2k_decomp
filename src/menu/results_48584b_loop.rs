@@ -23,39 +23,39 @@ use crate::menu::screen_loop::{Callee, List, Screen, Step};
 // ---- Rust version: `menu::screen_loop` with this ----
 
 pub const SCREEN: Screen = Screen {
-    menu: || MENUS.results_48584b.addr(),
+    menu: || MENUS.results_48584b.addr() as usize,
     saved_item: || &SCREEN_ITEMS.current[slot::RESULTS_48584B],
     lists: &[
         List {
             pointer: || &SCREEN_FLOW.unread_list, // g_unreadList
-            table: || DRAW_LISTS.unread_758b72.addr(),
+            table: || DRAW_LISTS.unread_758b72.addr() as usize,
             run: false,
         },
         List {
             pointer: || &SCREEN_FLOW.draw_list, // g_drawList
-            table: || DRAW_LISTS.draw_758e86.addr(),
+            table: || DRAW_LISTS.draw_758e86.addr() as usize,
             run: false,
         },
         List {
             pointer: || &SCREEN_FLOW.overlay_list, // g_overlayList
-            table: || DRAW_LISTS.overlay_7592ca.addr(),
+            table: || DRAW_LISTS.overlay_7592ca.addr() as usize,
             run: false,
         },
     ],
     first_frame_lists: Some(&[
         List {
             pointer: || &SCREEN_FLOW.scene_list, // g_sceneList
-            table: || DRAW_LISTS.results_48584b_scene.addr(),
+            table: || DRAW_LISTS.results_48584b_scene.addr() as usize,
             run: false,
         },
         List {
             pointer: || &SCREEN_FLOW.draw_list, // g_drawList
-            table: || DRAW_LISTS.draw_758e86.addr(),
+            table: || DRAW_LISTS.draw_758e86.addr() as usize,
             run: false,
         },
         List {
             pointer: || &SCREEN_FLOW.overlay_list, // g_overlayList
-            table: || DRAW_LISTS.overlay_7592ca.addr(),
+            table: || DRAW_LISTS.overlay_7592ca.addr() as usize,
             run: false,
         },
     ]),
@@ -67,9 +67,9 @@ pub const SCREEN: Screen = Screen {
     after_lists: &[],
     background: &[
         Step::ArgAddr(|| {
-            crate::menu::texts_store::MENU_TEXTS
+            (crate::menu::texts_store::MENU_TEXTS
                 .results_48584b_picture
-                .addr()
+                .addr()) as usize
         }),
         Step::CallOrFatal(Callee::LoadBackground, 0x80712345),
     ],
@@ -85,7 +85,7 @@ pub const SCREEN: Screen = Screen {
     leave_at_once: None,
     next_frame_repeats_first: false,
     action_saved_item: Some(|| &SCREEN_ITEMS.current[slot::STAGE_RESULT]),
-    action_menu: Some(|| MENUS.stage_result.addr()),
+    action_menu: Some(|| MENUS.stage_result.addr() as usize),
     no_quit_check: false,
     before_asking: &[],
     ask_unless: None,
