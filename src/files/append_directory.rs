@@ -20,10 +20,11 @@ pub fn append_directory(path: *const u8, cursor: *mut u8) -> Result<(*mut u8, bo
     if path.is_null() {
         return Err(BadInput("a null path"));
     }
-    let text = crate::files::cstring(GamePtr::new(path as u32), "a path")?;
+    let text = crate::files::cstring(GamePtr::new(crate::pointers::game_address(path)), "a path")?;
     let Some(directory) = rc2k_core::files::paths::directory(&text) else {
         return Ok((cursor, false));
     };
-    GamePtr::new(cursor as u32).write_bytes(directory, "a path being built")?;
+    GamePtr::new(crate::pointers::game_address(cursor))
+        .write_bytes(directory, "a path being built")?;
     Ok((cursor.wrapping_add(directory.len()), true))
 }

@@ -42,5 +42,5 @@ pub fn rot13_into_text(from: u32) -> Result<u32, BadInput> {
     for (i, &b) in coded.iter().enumerate() {
         crate::strings::text_buffer::TEXT_BUFFER.text.set(i, b);
     }
-    Ok(text() as u32)
+    Ok(crate::pointers::game_address(text()))
 }

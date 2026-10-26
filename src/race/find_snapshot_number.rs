@@ -44,7 +44,13 @@ const NO_SEARCH: u32 = u32::MAX;
 pub unsafe fn find_next_wanted() -> bool {
     let record = find_data();
     loop {
-        if unsafe { FindNextFileA(FIND_HANDLE.load(Relaxed) as _, record) } == 0 {
+        if unsafe {
+            FindNextFileA(
+                crate::pointers::host(FIND_HANDLE.load(Relaxed)) as _,
+                record,
+            )
+        } == 0
+        {
             return false;
         }
         if unsafe { (*record).dwFileAttributes } & SKIPPED_ATTRIBUTES.load(Relaxed) == 0 {
@@ -58,7 +64,9 @@ pub unsafe fn find_next_wanted() -> bool {
 pub unsafe fn find_first(pattern: u32) -> bool {
     LAST_FILE_PATH.store(pattern, Relaxed);
     let record = find_data();
-    let search = unsafe { FindFirstFileA(pattern as *const u8, record) } as u32;
+    let search = crate::pointers::game_address(unsafe {
+        FindFirstFileA(crate::pointers::host(pattern) as *const u8, record)
+    });
     FIND_HANDLE.store(search, Relaxed);
     if search == NO_SEARCH {
         return false;
@@ -72,7 +80,7 @@ pub unsafe fn find_first(pattern: u32) -> bool {
 /// `files::close_search` (0x40301F): the search closed, if there is one.
 pub unsafe fn close_search() {
     if FIND_HANDLE.load(Relaxed) != NO_SEARCH {
-        unsafe { FindClose(FIND_HANDLE.load(Relaxed) as _) };
+        unsafe { FindClose(crate::pointers::host(FIND_HANDLE.load(Relaxed)) as _) };
         FIND_HANDLE.store(NO_SEARCH, Relaxed);
     }
 }
@@ -80,7 +88,7 @@ pub unsafe fn close_search() {
 /// The Rust version.
 pub unsafe fn find_snapshot_number() -> Result<(), BadInput> {
     unsafe {
-        GamePtr::new(digits_place() as usize as u32)
+        GamePtr::new(crate::pointers::game_address(digits_place()))
             .write(u32::from_le_bytes(*b"???."), "the snapshot name")?;
         let mut highest = 0u32;
         if find_first(SNAPSHOT.addr() as u32) {
@@ -99,7 +107,8 @@ pub unsafe fn find_snapshot_number() -> Result<(), BadInput> {
         }
         close_search();
         let digits = crate::strings::format_u32::format_u32(highest, 0x13);
-        GamePtr::new(digits_place() as usize as u32).write_bytes(&digits, "the snapshot name")?;
+        GamePtr::new(crate::pointers::game_address(digits_place()))
+            .write_bytes(&digits, "the snapshot name")?;
     }
     Ok(())
 }

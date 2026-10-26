@@ -161,11 +161,11 @@ mod squares {
         }
         for n in 0..RADII as usize {
             x87::circle_points(
-                SQUARE_TABLES.radii[n].addr() as *const u32,
-                address_of(&SQUARE_TABLES.points[n]) as *mut u32,
+                crate::pointers::host_at(SQUARE_TABLES.radii[n].addr()) as *const u32,
+                crate::pointers::host_at(address_of(&SQUARE_TABLES.points[n])) as *mut u32,
                 SIDES as u32,
                 SQUARE_STATE.steps.as_ptr() as *const i32,
-                SQUARE_STATE.step_angle.addr() as *const u32,
+                crate::pointers::host_at(SQUARE_STATE.step_angle.addr()) as *const u32,
             );
         }
     }
@@ -236,11 +236,11 @@ impl Shapes {
         let points = self.points.addr() as u32;
         for n in 0..RADII {
             x87::circle_points(
-                (radii + 4 * n) as *const u32,
-                (points + 12 * self.sides * n) as *mut u32,
+                crate::pointers::host(radii + 4 * n) as *const u32,
+                crate::pointers::host(points + 12 * self.sides * n) as *mut u32,
                 self.sides,
-                self.step_c.addr() as *const i32,
-                self.step_d.addr() as *const u32,
+                crate::pointers::host_at(self.step_c.addr()) as *const i32,
+                crate::pointers::host_at(self.step_d.addr()) as *const u32,
             );
         }
         Ok(())

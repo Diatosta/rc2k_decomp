@@ -126,7 +126,13 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_0(a[0], a[1], a[2]) },
-                plain: |a| x87_1(unsafe { &*(a[0] as *const Hud) }, a[1], a[2]),
+                plain: |a| {
+                    x87_1(
+                        unsafe { &*(crate::pointers::host_at(a[0]) as *const Hud) },
+                        a[1],
+                        a[2],
+                    )
+                },
             },
             Block {
                 name: "disc_vertex line 25 idx k=4",
@@ -156,7 +162,13 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_0(a[0], a[1], a[2]) },
-                plain: |a| x87_1(unsafe { &*(a[0] as *const Hud) }, a[1], a[2]),
+                plain: |a| {
+                    x87_1(
+                        unsafe { &*(crate::pointers::host_at(a[0]) as *const Hud) },
+                        a[1],
+                        a[2],
+                    )
+                },
             },
             Block {
                 name: "disc_vertex line 25 idx k=36",
@@ -186,7 +198,13 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_0(a[0], a[1], a[2]) },
-                plain: |a| x87_1(unsafe { &*(a[0] as *const Hud) }, a[1], a[2]),
+                plain: |a| {
+                    x87_1(
+                        unsafe { &*(crate::pointers::host_at(a[0]) as *const Hud) },
+                        a[1],
+                        a[2],
+                    )
+                },
             },
         ]
     }

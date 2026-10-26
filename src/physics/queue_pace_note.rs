@@ -51,7 +51,7 @@ pub fn queue_pace_note(checkpoint: u32) -> Result<(), Refused> {
         match code(byte as u8) {
             Code::End => return Ok(()),
             Code::Bad => {
-                let word = |n: usize| WORDS[n].as_ptr() as usize as *const u8;
+                let word = |n: usize| WORDS[n].as_ptr() as *const u8;
                 unsafe {
                     log_write(word(0), false, 1);
                     log_write(word(1), false, 1);

@@ -49,7 +49,7 @@ fn put_dwords(to: u32, v: &[u32]) {
 pub unsafe fn save_car_state_at(p: &SavedCar) -> Result<(), Refused> {
     unsafe {
         let n = save_count(at(p.count))?;
-        (p.counter as *mut u32).write_unaligned(0);
+        (crate::pointers::host(p.counter) as *mut u32).write_unaligned(0);
         let state = read_state(p.place, p.matrix, p.list, n);
         write_state(&state, p.saved_place, p.saved_matrix, p.saved_list);
         Ok(())

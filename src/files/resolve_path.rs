@@ -30,7 +30,7 @@ fn globals() -> Result<Globals, BadInput> {
     Ok(Globals {
         mode: crate::files::state::MEDIA_MODE.load(std::sync::atomic::Ordering::Relaxed),
         a: text_at(
-            crate::files::state::base_directory() as usize,
+            crate::pointers::host_number(crate::files::state::base_directory()),
             "the base directory",
         )?, // g_baseDirectory
         b: text_at(
@@ -38,7 +38,7 @@ fn globals() -> Result<Globals, BadInput> {
             "the second base directory",
         )?,
         pct: text_at(
-            crate::files::state::locale_directory() as usize,
+            crate::pointers::host_number(crate::files::state::locale_directory()),
             "the locale directory",
         )?, // g_localeDirectory: replaces each '%'
     })
@@ -84,7 +84,9 @@ pub fn resolve_path(
 /// The path as the game would open it, for Rust callers: the pointer given if the path is used
 /// as it is, else the resolved path written to this thread's buffer.
 pub fn resolve_path_in_game(path: *const u8) -> Result<*const u8, BadInput> {
-    Ok(resolve_path_at(GamePtr::new(path as u32))?.addr() as usize as *const u8)
+    Ok(crate::pointers::host(
+        resolve_path_at(GamePtr::new(crate::pointers::game_address(path)))?.addr(),
+    ) as *const u8)
 }
 
 /// `resolve_path_in_game` on a checked address.

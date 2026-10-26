@@ -94,7 +94,7 @@ pub fn copy_rally_times() -> Result<(), Refused> {
                 put(edi + 4 * k as u32, v)?;
             }
             let log = |place: u32, value: u32| -> Result<(), Refused> { log_part(place, value) };
-            let word = |n: usize| WORDS[n].as_ptr() as u32;
+            let word = |n: usize| crate::pointers::game_address(WORDS[n].as_ptr());
             log(WRITE_NL, word(0))?;
             log(WRITE_NL, word(1))?;
             log(WRITE, word(2))?;

@@ -27,7 +27,7 @@ pub struct FontAt(pub u32);
 
 impl GameFont for FontAt {
     fn pointer(self) -> *mut Font {
-        self.0 as *mut Font
+        crate::pointers::host(self.0) as *mut Font
     }
 }
 
@@ -93,7 +93,7 @@ pub fn store_in(buffer: Buffer, bytes: &[u8]) -> Result<(), Refused> {
     if bytes.len() > room {
         return Err(BadInput("a text past its buffer").into());
     }
-    crate::pointers::GamePtr::new(buffer_at(buffer) as u32)
+    crate::pointers::GamePtr::new(crate::pointers::game_address(buffer_at(buffer)))
         .write_bytes(bytes, "a shared text buffer")?;
     Ok(())
 }
@@ -105,10 +105,18 @@ impl<F: GameFont, W: GameWork> Screen for GameScreen<'_, F, W> {
     type Error = Refused;
 
     fn text(&mut self, font: F, text: u32, x: i32, y: i32) -> Result<Drawn, Refused> {
-        let out = { draw_text_at(font_of(font), text as *const u8, x, y, self.canvas) }?;
+        let out = {
+            draw_text_at(
+                font_of(font),
+                crate::pointers::host(text) as *const u8,
+                x,
+                y,
+                self.canvas,
+            )
+        }?;
         Ok(Drawn {
             y: out.y,
-            after: out.text as u32,
+            after: crate::pointers::game_address(out.text),
             too_wide: out.too_wide,
         })
     }
@@ -118,7 +126,7 @@ impl<F: GameFont, W: GameWork> Screen for GameScreen<'_, F, W> {
     }
 
     fn draw(&mut self, font: F, buffer: Buffer, x: i32, y: i32) -> Result<Drawn, Refused> {
-        self.text(font, buffer_at(buffer) as u32, x, y)
+        self.text(font, crate::pointers::game_address(buffer_at(buffer)), x, y)
     }
 
     fn draw_time(&mut self, font: F, buffer: Buffer, right: i32, y: i32) -> Result<(), Refused> {
@@ -142,7 +150,7 @@ impl<F: GameFont, W: GameWork> Screen for GameScreen<'_, F, W> {
         let out = unsafe { draw_string_by_id_at(id, font_of(font), x, y, self.canvas) }?;
         Ok(Drawn {
             y: out.y,
-            after: out.text as u32,
+            after: crate::pointers::game_address(out.text),
             too_wide: out.too_wide,
         })
     }
@@ -181,15 +189,15 @@ impl<F: GameFont, W: GameWork> Screen for GameScreen<'_, F, W> {
     }
 
     fn buffer_address(&mut self, buffer: Buffer) -> u32 {
-        buffer_at(buffer) as u32
+        crate::pointers::game_address(buffer_at(buffer))
     }
 
     fn blend(&mut self, since_key: u32, a: F, b: F) -> Result<(), Refused> {
         crate::text::blend_font::blend_font(
             since_key,
             0x100,
-            crate::pointers::GamePtr::new(font_of(a) as u32),
-            crate::pointers::GamePtr::new(font_of(b) as u32),
+            crate::pointers::GamePtr::new(crate::pointers::game_address(font_of(a))),
+            crate::pointers::GamePtr::new(crate::pointers::game_address(font_of(b))),
         )?;
         Ok(())
     }
@@ -231,7 +239,7 @@ impl<F: GameFont, W: GameWork> Screen for GameScreen<'_, F, W> {
         let m = {
             crate::text::measure_text::measure_text_at(
                 font_of(font),
-                text as *const u8,
+                crate::pointers::host(text) as *const u8,
                 x,
                 self.canvas,
             )
@@ -686,8 +694,8 @@ impl rc2k_core::screens::menus::MenuScreen for MenuScreen<'_> {
         blend_font(
             since_key,
             0x100,
-            crate::pointers::GamePtr::new(a.pointer() as u32),
-            crate::pointers::GamePtr::new(b.pointer() as u32),
+            crate::pointers::GamePtr::new(crate::pointers::game_address(a.pointer())),
+            crate::pointers::GamePtr::new(crate::pointers::game_address(b.pointer())),
         )?;
         Ok(FontAt(crate::text::blend_font::BLENDED_FONT.addr() as u32))
     }

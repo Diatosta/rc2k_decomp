@@ -35,6 +35,9 @@ pub fn allocate_point_records(
 
 pub fn allocate_point_records_in_game() -> Result<(), Refused> {
     allocate_point_records(&mut |bytes, _| {
-        Ok(allocate(COURSE_LISTS.point_records_list[0].addr() as *mut _, bytes)? as u32)
+        Ok(crate::pointers::game_address(allocate(
+            crate::pointers::host_at(COURSE_LISTS.point_records_list[0].addr()) as *mut _,
+            bytes,
+        )?))
     })
 }

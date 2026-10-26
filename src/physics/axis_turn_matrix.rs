@@ -43,7 +43,7 @@ pub unsafe fn axis_turn_at(out: u32) {
             COURSE_LISTS.turn_sine_y.bits(),
             COURSE_LISTS.turn_sine_z.bits(),
         );
-        let put = |o: u32, v: u32| ((out + o) as *mut u32).write_unaligned(v);
+        let put = |o: u32, v: u32| (crate::pointers::host(out + o) as *mut u32).write_unaligned(v);
         put(0x00, abs_sqrt_times_plus(x, t, c));
         put(0x04, x87::add(p2, q3));
         put(0x08, x87::sub(p1, q2));

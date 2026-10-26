@@ -56,7 +56,7 @@ pub static REPLAYS: Replays = Replays {
 
 /// Where the block is (`moved::MOVED`'s home for IDA 0x528504).
 pub fn home() -> usize {
-    &REPLAYS as *const Replays as usize
+    crate::pointers::host_number(&REPLAYS as *const Replays)
 }
 
 #[cfg(test)]
@@ -99,8 +99,8 @@ pub unsafe fn seal_replay_header() -> Result<(), Refused> {
     unsafe {
         game_write::<u8>(rva(0x719B58), SEAL_VERSION);
         crate::strings::copy_printable::copy_printable(
-            NAME_BUFFERS.player_names.addr() as *const u8, // g_playerNames
-            game_addr(rva(0x719B61)) as *mut u8,
+            crate::pointers::host_at(NAME_BUFFERS.player_names.addr()) as *const u8, // g_playerNames
+            crate::pointers::host_at(game_addr(rva(0x719B61))),
             0x20,
         )?;
         for &(size, to, from) in &HEADER_MOVES {
@@ -403,7 +403,7 @@ pub unsafe fn open_replay() -> Result<(), Refused> {
         REPLAY_VIEW.frames_in_block.set(0);
         REPLAY_VIEW.file_offset.set(0);
         let opened = crate::files::handle::open_by_mode(
-            crate::race::replay_path::LAST_RACE.addr() as *const u8,
+            crate::pointers::host_at(crate::race::replay_path::LAST_RACE.addr()) as *const u8,
             1,
         )?;
         let failed = match opened {

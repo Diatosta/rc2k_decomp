@@ -52,7 +52,7 @@ pub unsafe fn plane_height_at(p: &Plane) {
             at(p.f),
             at(p.g),
         );
-        (p.out as *mut i32).write_unaligned(h);
+        (crate::pointers::host(p.out) as *mut i32).write_unaligned(h);
     }
 }
 

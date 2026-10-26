@@ -56,7 +56,7 @@ pub fn set_case_table(table: &[u8; 256]) {
 /// `rc2k_core::strings::case::CaseTable::compare`).
 pub fn compare_texts(a: *const u8, b: *const u8) -> Result<Ordering, BadInput> {
     let read = |at: *const u8| -> Result<Vec<u8>, BadInput> {
-        let at = at as usize as u32;
+        let at = crate::pointers::game_address(at);
         let len = crate::strings::text_length::nul_at(at, "a text to compare")?;
         GamePtr::new(at).read_bytes(len as usize, "a text to compare")
     };

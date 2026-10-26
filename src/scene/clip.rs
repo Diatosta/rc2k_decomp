@@ -151,7 +151,7 @@ unsafe fn cut(edge: Edge, a: usize, b: usize, mask: u32) -> Result<u32, BadInput
             put(new + 8 + k * 4, out_1[8 + k]);
         }
         for (at, value) in BYTES.into_iter().zip([2, 3, 4, 0, 1].map(|k| out_2[k])) {
-            ((new + at) as *mut u8).write(value as u8);
+            crate::pointers::host_at(new + at).write(value as u8);
         }
         if matches!(edge, Edge::Depth(_)) {
             put(new, u32::MAX);

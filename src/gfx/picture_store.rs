@@ -58,7 +58,7 @@ pub static PICTURE: Picture = Picture {
 
 /// Where the block is (`moved::MOVED`'s home for IDA 0x4F49C8).
 pub fn home() -> usize {
-    &PICTURE as *const Picture as usize
+    crate::pointers::host_number(&PICTURE as *const Picture)
 }
 
 #[cfg(test)]

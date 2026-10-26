@@ -32,7 +32,7 @@ fn write32(at: u32, v: u32) -> Result<(), Refused> {
 /// 2026-10-23: after the two calls DF, ebp, ebx/edi, edx, esi, all kept).
 pub fn draw_time_text(font: *mut Font, text: u32, x: u32, y: u32) -> Result<(), Refused> {
     use crate::text::draw_text::GameCanvas;
-    let font_at = font as u32;
+    let font_at = crate::pointers::game_address(font);
     let (mut at, mut x, mut edi) = (text, x, 0u32);
     // Converted: `rc2k_core::text::time_text_widths`; here the original's way of drawing
     // one character at a time (the dword after it swapped for 0 around the call).
@@ -48,7 +48,7 @@ pub fn draw_time_text(font: *mut Font, text: u32, x: u32, y: u32) -> Result<(), 
         let mut copy = GamePtr::new(font_at).read::<Font>("a font")?;
         crate::text::draw_text_keep_regs::draw_text_keep_regs(
             &mut copy,
-            at as *const u8,
+            crate::pointers::host(at) as *const u8,
             x as i32,
             y as i32,
             &mut GameCanvas,

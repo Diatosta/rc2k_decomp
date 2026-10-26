@@ -245,7 +245,7 @@ impl EmitterVars {
     pub const LEN: usize = 0x14C;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        &EMITTER as *const EmitterVars as usize
+        crate::pointers::host_number(&EMITTER as *const EmitterVars)
     }
 }
 

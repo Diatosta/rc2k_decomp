@@ -56,7 +56,7 @@ impl core::ops::Deref for InBlock {
     fn deref(&self) -> &LevelPaths {
         // SAFETY: the race block lives as long as the program; every field is a cell of
         // bytes (alignment 1), as the block's bytes were shared.
-        unsafe { &*(piece_addr() as *const LevelPaths) }
+        unsafe { &*(crate::pointers::host_at(piece_addr()) as *const LevelPaths) }
     }
 }
 

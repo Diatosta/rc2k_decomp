@@ -92,7 +92,7 @@ impl MaskConstants {
     pub const LEN: usize = 0x9C;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        &MASK_CONSTANTS as *const MaskConstants as usize
+        crate::pointers::host_number(&MASK_CONSTANTS as *const MaskConstants)
     }
 }
 
@@ -106,7 +106,10 @@ mod typed_tests {
         assert_eq!(size_of::<MaskConstants>(), MaskConstants::LEN);
         let image = crate::moved::image_bytes(MaskConstants::START, MaskConstants::LEN);
         let mine = unsafe {
-            std::slice::from_raw_parts(MaskConstants::home() as *const u8, MaskConstants::LEN)
+            std::slice::from_raw_parts(
+                crate::pointers::host_at(MaskConstants::home()) as *const u8,
+                MaskConstants::LEN,
+            )
         };
         assert!(
             mine == &image[..],

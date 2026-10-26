@@ -176,8 +176,8 @@ pub fn load_object() -> Result<(), Refused> {
     GamePtr::new(name.wrapping_add(7)).write(b'3', "an object's file name")?;
     BYTES_READ.store(0, std::sync::atomic::Ordering::Relaxed);
     read_whole_file(
-        FILE_NUMBERS.object_ro3_path.bits() as *const u8,
-        crate::scene::objects::file_addr() as *mut u8,
+        crate::pointers::host(FILE_NUMBERS.object_ro3_path.bits()) as *const u8,
+        crate::pointers::host_at(crate::scene::objects::file_addr()),
         FILE_ROOM as u32,
     )?;
     if BYTES_READ.load(std::sync::atomic::Ordering::Relaxed) == 0 {

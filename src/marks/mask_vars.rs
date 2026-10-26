@@ -226,7 +226,7 @@ impl MaskVars {
     pub const LEN: usize = 0x162C0;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        core::ptr::addr_of!(MASKS) as usize
+        crate::pointers::host_number(core::ptr::addr_of!(MASKS))
     }
 }
 

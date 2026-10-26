@@ -40,12 +40,17 @@ pub(crate) fn sti(base: usize, off: usize, x: X) {
 
 /// The ten bytes `fld tbyte ptr [base + off]` reads.
 pub(crate) fn ld80(base: usize, off: usize) -> [u8; 10] {
-    unsafe { (base.wrapping_add(off) as *const [u8; 10]).read_unaligned() }
+    unsafe {
+        (crate::pointers::host_at(base.wrapping_add(off)) as *const [u8; 10]).read_unaligned()
+    }
 }
 
 /// `fstp tbyte ptr [base + off]`.
 pub(crate) fn st80(base: usize, off: usize, x: X) {
-    unsafe { (base.wrapping_add(off) as *mut [u8; 10]).write_unaligned(bh::f80(x)) };
+    unsafe {
+        (crate::pointers::host_at(base.wrapping_add(off)) as *mut [u8; 10])
+            .write_unaligned(bh::f80(x))
+    };
 }
 
 /// `fstsw word ptr [base + off]`: the compare bits C0, C2 and C3 (the other bits of the

@@ -11,5 +11,9 @@ use crate::net::store::NET;
 
 /// The Rust version.
 pub fn unlock_received() {
-    unsafe { windows_sys::Win32::System::Threading::ReleaseMutex(NET.mutex.get() as _) };
+    unsafe {
+        windows_sys::Win32::System::Threading::ReleaseMutex(
+            crate::pointers::host(NET.mutex.get()) as _
+        )
+    };
 }

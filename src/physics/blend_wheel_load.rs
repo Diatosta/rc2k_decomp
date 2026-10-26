@@ -21,8 +21,8 @@ use crate::scene::draw_store::DRAW;
 /// The Rust core on the variables at `v`. The registers the original leaves are read by none of its callers (edx the slot).
 pub unsafe fn blend_at(v: &[u32]) {
     unsafe {
-        let get = |k: usize| (v[k] as *const u32).read_unaligned();
-        let put = |k: usize, x: u32| (v[k] as *mut u32).write_unaligned(x);
+        let get = |k: usize| (crate::pointers::host(v[k]) as *const u32).read_unaligned();
+        let put = |k: usize, x: u32| (crate::pointers::host(v[k]) as *mut u32).write_unaligned(x);
         let less = |a: u32, b: u32| compare_full(a, b) & 0x100 != 0;
         if less(get(0), PHYSICS.wheel_load_limit.bits()) {
             return;

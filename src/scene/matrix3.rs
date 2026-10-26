@@ -25,9 +25,9 @@ pub fn multiply_matrices3(a: u32, b: u32, out: u32) {
     for column in 0..3 {
         for row in 0..3 {
             x87::row_times_column_3(
-                (a + 12 * row) as *const u32,
-                (b + 4 * column) as *const u32,
-                (out + 12 * row + 4 * column) as *mut u32,
+                crate::pointers::host(a + 12 * row) as *const u32,
+                crate::pointers::host(b + 4 * column) as *const u32,
+                crate::pointers::host(out + 12 * row + 4 * column) as *mut u32,
             );
         }
     }
@@ -43,9 +43,9 @@ pub fn transform_int_points(from: u32, to: u32, count: u32, matrix: u32) -> Resu
     }
     for n in 0..(count as i32).max(0) as u32 {
         x87::turn_int_point(
-            from.wrapping_add(12 * n) as *const i32,
-            matrix as *const u32,
-            to.wrapping_add(12 * n) as *mut i32,
+            crate::pointers::host(from.wrapping_add(12 * n)) as *const i32,
+            crate::pointers::host(matrix) as *const u32,
+            crate::pointers::host(to.wrapping_add(12 * n)) as *mut i32,
         );
     }
     Ok(())
@@ -75,7 +75,7 @@ pub fn turnable(angle: &[u8; 10]) -> Result<(), Refused> {
 pub fn turn_matrix3(axis: Axis, at: u32, angle: [u8; 10]) -> Result<(), Refused> {
     turnable(&angle)?;
     let a = angle.as_ptr();
-    let m = at as *mut u8;
+    let m = crate::pointers::host(at);
     match axis {
         Axis::X => turn_x(a, m),
         Axis::Y => turn_y(a, m),

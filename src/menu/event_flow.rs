@@ -79,7 +79,9 @@ pub fn game_slice<'a>(first: u32, len: u32, what: &str) -> Result<&'a mut [u8], 
         Some((_, end)) if (end - first) >= len => {
             // SAFETY: all `len` bytes lie in one live region (a registered block or a moved
             // store); the caller is the only one using them for the step.
-            Ok(unsafe { std::slice::from_raw_parts_mut(first as usize as *mut u8, len as usize) })
+            Ok(unsafe {
+                std::slice::from_raw_parts_mut(crate::pointers::host(first), len as usize)
+            })
         }
         _ => {
             crate::framework::log(&format!(

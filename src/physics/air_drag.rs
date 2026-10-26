@@ -17,8 +17,8 @@ use crate::race::numbers_store::NUMBERS;
 /// The Rust core on the variables at `v`.
 pub unsafe fn drag_at(v: &[u32]) {
     unsafe {
-        let get = |k: usize| (v[k] as *const u32).read_unaligned();
-        let put = |k: usize, x: u32| (v[k] as *mut u32).write_unaligned(x);
+        let get = |k: usize| (crate::pointers::host(v[k]) as *const u32).read_unaligned();
+        let put = |k: usize, x: u32| (crate::pointers::host(v[k]) as *mut u32).write_unaligned(x);
         let (k, d, zero) = (
             PHYSICS.air_drag.bits(),
             NUMBERS.k10000.bits(),

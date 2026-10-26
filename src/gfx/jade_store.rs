@@ -30,7 +30,7 @@ impl JadeFont {
     pub const LEN: usize = 0x1419;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        &JADE_FONT as *const JadeFont as usize + 4
+        crate::pointers::host_number(&JADE_FONT as *const JadeFont) + 4
     }
 }
 
@@ -43,8 +43,12 @@ mod tests {
         let size = size_of::<JadeFont>();
         assert!(4 + JadeFont::LEN <= size && size <= (4 + JadeFont::LEN).next_multiple_of(16));
         let image = crate::moved::image_bytes(JadeFont::START, JadeFont::LEN);
-        let mine =
-            unsafe { std::slice::from_raw_parts(JadeFont::home() as *const u8, JadeFont::LEN) };
+        let mine = unsafe {
+            std::slice::from_raw_parts(
+                crate::pointers::host_at(JadeFont::home()) as *const u8,
+                JadeFont::LEN,
+            )
+        };
         assert_eq!(mine, &image[..]);
     }
 }

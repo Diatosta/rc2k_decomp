@@ -38,7 +38,7 @@ pub fn view_motion() -> Result<(), Refused> {
         DRAW_WORK.step[k].set_bits(step);
         local[3 + k] = step;
     }
-    let at = local.as_mut_ptr() as u32;
+    let at = crate::pointers::game_address(local.as_mut_ptr());
     normalise_vector3(at + 12);
     VIEW_VARS
         .facing

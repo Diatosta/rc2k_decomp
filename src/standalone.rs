@@ -62,7 +62,12 @@ pub(crate) const CODE: [(usize, usize); 2] = [(0x1000, 0xD6CD4), (0xD8000, 0x1F8
 /// pointers in the moved blocks are pointed at their targets (`moved::point_into_homes`).
 unsafe fn build_image() -> Result<Image, String> {
     unsafe {
-        let base = VirtualAlloc(std::ptr::null(), IMAGE_SIZE, MEM_RESERVE, PAGE_NOACCESS) as usize;
+        let base = crate::pointers::host_number(VirtualAlloc(
+            std::ptr::null(),
+            IMAGE_SIZE,
+            MEM_RESERVE,
+            PAGE_NOACCESS,
+        ));
         if base == 0 {
             return Err("no address range for the game's image".into());
         }
@@ -164,27 +169,36 @@ fn in_module(address: usize) -> Option<String> {
         let mut module = std::ptr::null_mut();
         let flags =
             GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT;
-        if GetModuleHandleExW(flags, address as *const u16, &mut module) == 0 {
+        if GetModuleHandleExW(
+            flags,
+            crate::pointers::host_at(address) as *const u16,
+            &mut module,
+        ) == 0
+        {
             return None;
         }
         let mut name = [0u16; 260];
         let n = GetModuleFileNameW(module, name.as_mut_ptr(), name.len() as u32) as usize;
         let path = String::from_utf16_lossy(&name[..n]);
         let file = path.rsplit(['\\', '/']).next().unwrap_or(&path).to_string();
-        Some(format!("{file}+{:#x}", address - module as usize))
+        Some(format!(
+            "{file}+{:#x}",
+            address - crate::pointers::host_number(module)
+        ))
     }
 }
 
 /// The return addresses into this program found on the stack from `esp` (at most 24), for
 /// `llvm-symbolizer` with the program's PDB.
 fn stack_returns(esp: usize) -> String {
-    let own = in_module(stack_returns as *const () as usize)
+    let own = in_module(crate::pointers::host_number(stack_returns as *const ()))
         .map(|m| m.split('+').next().unwrap_or("").to_string());
     let mut out = Vec::new();
     // 2 KB of stack: well inside it at any fault the game code can reach.
     for k in 0..512usize {
         let at = esp + 4 * k;
-        let value = unsafe { (at as *const u32).read_unaligned() } as usize;
+        let value =
+            unsafe { (crate::pointers::host_at(at) as *const u32).read_unaligned() } as usize;
         if let (Some(m), Some(own)) = (in_module(value), own.as_ref())
             && m.starts_with(own.as_str())
         {
@@ -283,7 +297,7 @@ unsafe extern "system" fn on_exception(info: *mut EXCEPTION_POINTERS) -> i32 {
     unsafe {
         let record = &*(*info).ExceptionRecord;
         let context = &mut *(*info).ContextRecord;
-        let address = record.ExceptionAddress as usize;
+        let address = crate::pointers::host_number(record.ExceptionAddress);
         if record.ExceptionCode != EXCEPTION_ACCESS_VIOLATION {
             return CONTINUE_SEARCH;
         }
@@ -330,7 +344,7 @@ unsafe extern "system" fn on_exception(info: *mut EXCEPTION_POINTERS) -> i32 {
         }
         // Nothing of Rust's runs code at the game's addresses (2026-10-24: every call by
         // address goes to its Rust version): a jump there is a slip, and names the place.
-        let from = (context.Esp as *const u32).read_unaligned() as usize;
+        let from = (crate::pointers::host(context.Esp) as *const u32).read_unaligned() as usize;
         let from = match ida(from) {
             Some(from) => format!("{from:#x}"),
             None => in_module(from).unwrap_or_else(|| format!("{from:#x}")),
@@ -464,17 +478,17 @@ unsafe fn start() {
         rust("system::check_developer_machine");
         crate::system::check_developer_machine::check_developer_machine();
         rust("install::read_languages");
-        if let Err(e) = crate::install::read_languages::read_languages(
-            INSTALLER_NAMES.lang_cfg.addr() as *const u8,
-        )
+        if let Err(e) = crate::install::read_languages::read_languages(crate::pointers::host_at(
+            INSTALLER_NAMES.lang_cfg.addr(),
+        ) as *const u8)
         .map_err(Refused::from)
         {
             refused("install::read_languages", e, &r);
         }
         rust("install::read_record");
-        if let Err(e) = crate::install::read_record::read_record(
-            crate::install::installer::INSTALL_TEXTS.record_path.addr() as *const u8,
-        )
+        if let Err(e) = crate::install::read_record::read_record(crate::pointers::host_at(
+            crate::install::installer::INSTALL_TEXTS.record_path.addr(),
+        ) as *const u8)
         .map_err(Refused::from)
         {
             refused("install::read_record", e, &r);
@@ -610,7 +624,7 @@ pub fn run(log_file: &Path, frames: u32) -> ! {
             finish(&why, 2);
         }
         FILTER.store(
-            AddVectoredExceptionHandler(1, Some(on_exception)) as usize,
+            crate::pointers::host_number(AddVectoredExceptionHandler(1, Some(on_exception))),
             Ordering::SeqCst,
         );
         // The audio thread runs (its Rust version), on DirectSound over SDL
@@ -650,7 +664,8 @@ mod menu_watch {
 
     fn bytes((_, at, len): (usize, usize, usize)) -> Vec<u8> {
         // Each range lies whole in one of our statics, read-write.
-        unsafe { std::slice::from_raw_parts(at as *const u8, len) }.to_vec()
+        unsafe { std::slice::from_raw_parts(crate::pointers::host_at(at) as *const u8, len) }
+            .to_vec()
     }
 
     pub fn snapshot() {

@@ -41,7 +41,7 @@ pub static HEXAGON_BATCH: Hexagons = Hexagons {
 
 /// Where the block is (`moved::MOVED`'s home for IDA 0x62423C).
 pub fn home() -> usize {
-    &HEXAGON_BATCH as *const Hexagons as usize
+    crate::pointers::host_number(&HEXAGON_BATCH as *const Hexagons)
 }
 
 #[cfg(test)]

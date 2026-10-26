@@ -89,7 +89,7 @@ pub static MAP: MapVars = MapVars {
 
 /// Where the block is (`moved::MOVED`'s home for IDA 0x5BE90D).
 pub fn home() -> usize {
-    &MAP as *const MapVars as usize
+    crate::pointers::host_number(&MAP as *const MapVars)
 }
 
 const SIDE: u32 = 0x80;
@@ -141,7 +141,9 @@ fn dword_in(data: &[u8], at: usize) -> Result<u32, BadInput> {
 }
 
 fn allocate(r: &Bytes<16>, bytes: u32) -> Result<u32, Refused> {
-    Ok({ crate::memory::allocate::allocate(list(r), bytes) }? as u32)
+    Ok(crate::pointers::game_address({
+        crate::memory::allocate::allocate(list(r), bytes)
+    }?))
 }
 
 /// `race::free_game_map` (0x41B907): both map lists freed, the sheet, tiles and pixels 0.
@@ -171,7 +173,7 @@ pub fn load_packed_game_map(path: u32) -> Result<(), Refused> {
     let tiles = allocate(&MAP.list, 0x1_0000)?;
     MAP.tiles.set(tiles);
     MAP.tile_count.set(0u32);
-    let Some(file) = open_by_mode(path as *const u8, 0)? else {
+    let Some(file) = open_by_mode(crate::pointers::host(path) as *const u8, 0)? else {
         return Ok(());
     };
     let buffer = SCRATCH.buffer.addr() as u32;
@@ -238,13 +240,18 @@ pub fn load_packed_game_map(path: u32) -> Result<(), Refused> {
 pub unsafe fn load_game_map(picture: u32, key_path: u32) -> Result<(), Refused> {
     unsafe {
         if MAP.use_packed.get() == 1
-            && !crate::files::file_exists::file_exists(picture as *const u8)?
+            && !crate::files::file_exists::file_exists(crate::pointers::host(picture) as *const u8)?
         {
             let path = crate::files::state::PACKED_PATH.ptr().cast::<u8>();
-            let cursor = crate::strings::str_append::str_append(picture as *const u8, path.add(3))?;
-            GamePtr::new(cursor as u32 - 4).write(0x0071_732Eu32, "the packed map's path")?;
-            GamePtr::new(path as u32).write_bytes(b"files\\", "the packed map's path")?;
-            load_packed_game_map(path as u32)?;
+            let cursor = crate::strings::str_append::str_append(
+                crate::pointers::host(picture) as *const u8,
+                path.add(3),
+            )?;
+            GamePtr::new(crate::pointers::game_address(cursor) - 4)
+                .write(0x0071_732Eu32, "the packed map's path")?;
+            GamePtr::new(crate::pointers::game_address(path))
+                .write_bytes(b"files\\", "the packed map's path")?;
+            load_packed_game_map(crate::pointers::game_address(path))?;
             return Ok(());
         }
     }
@@ -268,7 +275,11 @@ pub unsafe fn load_game_map(picture: u32, key_path: u32) -> Result<(), Refused> 
     PICTURE.row_bytes.set(KEY_ROW_BYTES);
     PICTURE.buffer.set(key);
     let built = (|| -> Result<(), Refused> {
-        if !unsafe { crate::gfx::read_sheet::read_sheet(MAP.key_path.get() as *const u8) }? {
+        if !unsafe {
+            crate::gfx::read_sheet::read_sheet(
+                crate::pointers::host(MAP.key_path.get()) as *const u8
+            )
+        }? {
             return Ok(());
         }
         if PICTURE.flags.get() & 0x100 == 0 {
@@ -327,7 +338,9 @@ pub unsafe fn load_game_map(picture: u32, key_path: u32) -> Result<(), Refused> 
         let pixels = allocate(&MAP.list, (marked << 8).wrapping_mul(bytes))?;
         MAP.tile_pixels.set(pixels);
         if !unsafe {
-            crate::gfx::read_picture_file::read_picture_file(MAP.picture_path.get() as *mut u8)
+            crate::gfx::read_picture_file::read_picture_file(crate::pointers::host(
+                MAP.picture_path.get(),
+            ))
         }? {
             return Ok(());
         }

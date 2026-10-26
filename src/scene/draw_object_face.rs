@@ -108,7 +108,7 @@ pub unsafe fn draw_object_face(
                 put(entry, fw(vertex).wrapping_neg());
                 put(entry + 0x10, fw(vertex + 4));
                 put(entry + 0x14, fw(vertex + 8));
-                ((entry + 0x21) as *mut u8).write(0xFF);
+                crate::pointers::host_at(entry + 0x21).write(0xFF);
                 put(entry + 0x18, OBJECT_WORK.other_light.bits());
             }
             DRAW.polygon_textures[1].set_bits(DRAW.polygon_textures[0].bits());
@@ -156,13 +156,14 @@ pub unsafe fn draw_object_face(
                     crate::session::read_bits(&GROUND_WORK.reflection_coordinates);
                 put(entry + 0x10, coordinates[0]);
                 put(entry + 0x14, coordinates[1]);
-                let first_fog = ((entries + 0x20) as *const u8).read() as u32;
+                let first_fog =
+                    (crate::pointers::host_at(entries + 0x20) as *const u8).read() as u32;
                 let amount =
                     (face_shine.wrapping_mul(shine).wrapping_mul(first_fog) >> 12).min(0xFF);
                 if amount != 0 {
                     FRAME_SWITCHES.face_any_shine.set_bits(1u32);
                 }
-                ((entry + 0x21) as *mut u8).write(amount as u8);
+                crate::pointers::host_at(entry + 0x21).write(amount as u8);
             }
             DRAW.polygon_textures[1].set_bits(REFLECTION_TEXTURE);
         }
@@ -178,7 +179,7 @@ pub unsafe fn draw_object_face(
         if see_through != 0x100 {
             for n in 0..0x10 {
                 let entry = entries + n * ENTRY_LEN;
-                ((entry + 0x21) as *mut u8).write(see_through as u8);
+                crate::pointers::host_at(entry + 0x21).write(see_through as u8);
                 put(entry + 0x10, dword(entry + 8));
                 put(entry + 0x14, dword(entry + 0xC));
             }

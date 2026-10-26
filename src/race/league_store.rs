@@ -27,7 +27,7 @@ impl core::ops::Deref for InBlock {
     fn deref(&self) -> &League {
         // SAFETY: the race block lives as long as the program and is aligned to 4 (the
         // test checks); every field is an atomic, as the block's bytes were shared.
-        unsafe { &*(piece_addr() as *const League) }
+        unsafe { &*(crate::pointers::host_at(piece_addr()) as *const League) }
     }
 }
 

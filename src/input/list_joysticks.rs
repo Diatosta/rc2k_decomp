@@ -17,8 +17,7 @@ pub fn list_joysticks() {
     if DEVICES.no_joysticks.get() != 0 {
         return;
     }
-    let found = crate::input::joystick_found::callback as unsafe extern "system" fn(u32, u32) -> u32
-        as usize as u32;
+    let found = crate::pointers::game_address(crate::input::joystick_found::callback as *const ());
     method(
         DEVICES.direct_input.get(),
         slot::ENUM_DEVICES,

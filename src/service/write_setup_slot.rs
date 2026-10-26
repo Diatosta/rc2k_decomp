@@ -41,7 +41,8 @@ pub fn write_setup_slot(slot: u32) -> Result<bool, Refused> {
             |offset: u32| GamePtr::new(player.wrapping_add(offset)).read::<u32>("the car's record");
         let bytes = rc2k_core::saves::kept::setup_file(
             packed_local_time(),
-            &GamePtr::new(slot_name(slot) as u32).read::<[u8; NAME_LEN]>("a setup's name")?,
+            &GamePtr::new(crate::pointers::game_address(slot_name(slot)))
+                .read::<[u8; NAME_LEN]>("a setup's name")?,
             [
                 TYRE.change.chosen.get(),
                 in_car(BRAKE_BALANCE.car_offset)?,
@@ -55,7 +56,7 @@ pub fn write_setup_slot(slot: u32) -> Result<bool, Refused> {
         let path = numbered_path_in_game(TEMPLATE.as_ptr(), slot)?;
         Ok(write_file(
             path,
-            file.addr() as usize as *const u8,
+            crate::pointers::host(file.addr()) as *const u8,
             SETUP_FILE_LEN as u32,
         )?
         .ok)

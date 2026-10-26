@@ -298,7 +298,10 @@ mod asm_reference {
                 reference: |a| unsafe { ref_0(a[0], a[1]) },
                 plain: |a| {
                     x87_1(
-                        unsafe { &*(a[0] as *const crate::sound::store::SoundObject) },
+                        unsafe {
+                            &*(crate::pointers::host_at(a[0])
+                                as *const crate::sound::store::SoundObject)
+                        },
                         a[1],
                     )
                 },
@@ -319,8 +322,14 @@ mod asm_reference {
                 reference: |a| unsafe { ref_1(a[0], a[1]) },
                 plain: |a| {
                     x87_2(
-                        unsafe { &*(a[0] as *const crate::sound::store::SoundObject) },
-                        unsafe { &*(a[1] as *const crate::sound::store::SurfaceSounds) },
+                        unsafe {
+                            &*(crate::pointers::host_at(a[0])
+                                as *const crate::sound::store::SoundObject)
+                        },
+                        unsafe {
+                            &*(crate::pointers::host_at(a[1])
+                                as *const crate::sound::store::SurfaceSounds)
+                        },
                     )
                 },
             },
@@ -340,7 +349,8 @@ mod asm_reference {
                 reference: |a| unsafe { ref_2(a[0], a[1]) },
                 plain: |a| {
                     x87_3(a[0], unsafe {
-                        &*(a[1] as *const crate::sound::store::SoundObject)
+                        &*(crate::pointers::host_at(a[1])
+                            as *const crate::sound::store::SoundObject)
                     })
                 },
             },
@@ -360,8 +370,14 @@ mod asm_reference {
                 reference: |a| unsafe { ref_3(a[0], a[1]) },
                 plain: |a| {
                     x87_4(
-                        unsafe { &*(a[0] as *const crate::sound::store::SoundObject) },
-                        unsafe { &*(a[1] as *const crate::sound::store::RaceClock) },
+                        unsafe {
+                            &*(crate::pointers::host_at(a[0])
+                                as *const crate::sound::store::SoundObject)
+                        },
+                        unsafe {
+                            &*(crate::pointers::host_at(a[1])
+                                as *const crate::sound::store::RaceClock)
+                        },
                     )
                 },
             },
@@ -385,9 +401,18 @@ mod asm_reference {
                 reference: |a| unsafe { ref_4(a[0], a[1], a[2]) },
                 plain: |a| {
                     x87_5(
-                        unsafe { &*(a[0] as *const crate::sound::store::SoundObject) },
-                        unsafe { &*(a[1] as *const crate::sound::store::RaceClock) },
-                        unsafe { &*(a[2] as *const crate::sound::store::SurfaceSounds) },
+                        unsafe {
+                            &*(crate::pointers::host_at(a[0])
+                                as *const crate::sound::store::SoundObject)
+                        },
+                        unsafe {
+                            &*(crate::pointers::host_at(a[1])
+                                as *const crate::sound::store::RaceClock)
+                        },
+                        unsafe {
+                            &*(crate::pointers::host_at(a[2])
+                                as *const crate::sound::store::SurfaceSounds)
+                        },
                     )
                 },
             },
@@ -399,7 +424,12 @@ mod asm_reference {
                 }],
                 ulps: 0,
                 reference: |a| unsafe { ref_5(a[0]) },
-                plain: |a| x87_6(unsafe { &*(a[0] as *const crate::sound::store::SoundObject) }),
+                plain: |a| {
+                    x87_6(unsafe {
+                        &*(crate::pointers::host_at(a[0])
+                            as *const crate::sound::store::SoundObject)
+                    })
+                },
             },
         ]
     }

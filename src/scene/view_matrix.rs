@@ -56,7 +56,7 @@ fn put(at: usize, value: u32) {
 /// their length compares equal to `flt_5C5D90` (0, or no number). Minus zero made zero.
 /// The length is left in `dword_62400C`.
 pub fn unit_vector(from: usize, out: usize) {
-    let length = x87::length(from as *const u32);
+    let length = x87::length(crate::pointers::host_at(from) as *const u32);
     DRAW.scratch.set_bits(length);
     if x87::equal_or_unordered(length, NUMBERS.zero.bits()) {
         for n in 0..3 {

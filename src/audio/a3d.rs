@@ -14,11 +14,11 @@ const IN_PROCESS: u32 = 1;
 fn game_create(class: u32, interface: u32, out: u32) -> i32 {
     let r = unsafe {
         windows_sys::Win32::System::Com::CoCreateInstance(
-            class as *const _,
+            crate::pointers::host(class) as *const _,
             std::ptr::null_mut(),
             IN_PROCESS,
-            interface as *const _,
-            out as *mut *mut core::ffi::c_void,
+            crate::pointers::host(interface) as *const _,
+            crate::pointers::host(out) as *mut *mut core::ffi::c_void,
         )
     };
     if r >= 0 {

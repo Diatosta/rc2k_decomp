@@ -17,7 +17,7 @@ use crate::files::ansi_path;
 use crate::pointers::GamePtr;
 
 fn path(path: *const u8) -> Result<std::path::PathBuf, BadInput> {
-    ansi_path(GamePtr::new(path as u32))
+    ansi_path(GamePtr::new(crate::pointers::game_address(path)))
 }
 
 pub fn set_current_directory(at: *const u8) -> Result<u32, BadInput> {

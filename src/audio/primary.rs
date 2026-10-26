@@ -40,7 +40,10 @@ pub unsafe fn set_primary_format(mode: u32, rate: u32) -> Result<bool, Refused> 
 /// for the carry.
 pub unsafe fn open_listener(has_fpu: u32) -> Result<bool, Refused> {
     unsafe {
-        crate::audio::sound_device::log_text(OPEN_TEXT.as_ptr() as usize as u32, true);
+        crate::audio::sound_device::log_text(
+            crate::pointers::game_address(OPEN_TEXT.as_ptr()),
+            true,
+        );
         // Converted: `rc2k_core::audio::device::listener_refused`.
         let code =
             match rc2k_core::audio::device::listener_refused(has_fpu, || AUDIO.no_listener.get()) {
@@ -60,7 +63,10 @@ pub unsafe fn open_listener(has_fpu: u32) -> Result<bool, Refused> {
                     r as u32
                 }
             };
-        crate::audio::sound_device::log_text(FAILED_TEXT.as_ptr() as usize as u32, false);
+        crate::audio::sound_device::log_text(
+            crate::pointers::game_address(FAILED_TEXT.as_ptr()),
+            false,
+        );
         crate::audio::sound_device::log_hex(code, true);
         crate::audio::sound_device::release_listener();
         Ok(false)

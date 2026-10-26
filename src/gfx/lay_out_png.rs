@@ -45,8 +45,8 @@ pub unsafe fn lay_out_png() -> Result<(), BadInput> {
         DECODER.pixels.set(PICTURE.buffer.get());
         // Neither is null: both are the game's own tables.
         palette_to_dwords(
-            (&raw const (*info).palette) as usize as u32,
-            DECODER.palette_ptr() as usize as u32,
+            crate::pointers::game_address(&raw const (*info).palette),
+            crate::pointers::game_address(DECODER.palette_ptr()),
         )?;
         Ok(())
     }

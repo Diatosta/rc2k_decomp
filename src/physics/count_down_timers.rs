@@ -22,8 +22,8 @@ use rc2k_core::physics::motion::{StepCounters, StepFacts, count_down};
 // Converted: `rc2k_core::physics::motion::count_down`.
 pub unsafe fn count_at(v: &[u32]) {
     unsafe {
-        let get = |k: usize| (v[k] as *const u32).read_unaligned();
-        let put = |k: usize, x: u32| (v[k] as *mut u32).write_unaligned(x);
+        let get = |k: usize| (crate::pointers::host(v[k]) as *const u32).read_unaligned();
+        let put = |k: usize, x: u32| (crate::pointers::host(v[k]) as *mut u32).write_unaligned(x);
         let mut c = StepCounters {
             first: [get(0), get(1)],
             standing: get(9),

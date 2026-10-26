@@ -37,10 +37,10 @@ pub unsafe fn components_to_4444_rows(
         for _ in 0..row_pixels {
             unsafe {
                 // Converted: `rc2k_core::gfx::pixels::to_4444`.
-                let components = (from as *const [u8; 4]).read_unaligned();
+                let components = (crate::pointers::host(from) as *const [u8; 4]).read_unaligned();
                 let [low, high] = rc2k_core::gfx::pixels::to_4444(components);
-                (to as *mut u8).write(low);
-                (to.wrapping_add(1) as *mut u8).write(high);
+                crate::pointers::host(to).write(low);
+                crate::pointers::host(to.wrapping_add(1)).write(high);
                 ax = u16::from_le_bytes([high, components[3] & 0xF0]);
             }
             from = from.wrapping_add(4);

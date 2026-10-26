@@ -56,7 +56,7 @@ pub fn lay_out_pcx() -> Result<rc2k_core::gfx::pcx::Layout, BadInput> {
     // Neither is null: both are the game's own tables.
     palette_to_dwords(
         PCX.file_palette.addr() as u32,
-        DECODER.palette_ptr() as usize as u32,
+        crate::pointers::game_address(DECODER.palette_ptr()),
     )?;
     Ok(l)
 }

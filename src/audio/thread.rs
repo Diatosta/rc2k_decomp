@@ -39,7 +39,7 @@ pub unsafe fn audio_thread(slot: u32) -> Result<(), Refused> {
         let started = running.read::<u8>("the audio thread's slot")? != 1
             && {
                 running.write(1u8, "the audio thread's slot")?;
-                sound_device::log_text(START_TEXT.as_ptr() as usize as u32, true);
+                sound_device::log_text(crate::pointers::game_address(START_TEXT.as_ptr()), true);
                 CoInitialize(std::ptr::null());
                 AUDIO.no_audio.get() == 0
             }
@@ -77,7 +77,7 @@ pub unsafe fn audio_thread(slot: u32) -> Result<(), Refused> {
         thread_parts::free_sample_buffer()?;
         a3d::splash()?;
         CoUninitialize();
-        sound_device::log_text(QUIT_TEXT.as_ptr() as usize as u32, true);
+        sound_device::log_text(crate::pointers::game_address(QUIT_TEXT.as_ptr()), true);
         set_priority(0);
         running.write(0u8, "the audio thread's slot")?;
         windows_sys::Win32::System::Threading::ExitThread(0)

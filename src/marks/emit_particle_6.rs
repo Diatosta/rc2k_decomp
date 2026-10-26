@@ -205,7 +205,7 @@ impl Kind6Set {
     pub const LEN: usize = 0x48;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        &KIND6_SET as *const Kind6Set as usize
+        crate::pointers::host_number(&KIND6_SET as *const Kind6Set)
     }
 }
 

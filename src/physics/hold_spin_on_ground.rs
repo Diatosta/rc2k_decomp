@@ -22,8 +22,8 @@ use rc2k_core::physics::motion::hold_spin;
 // Converted: `rc2k_core::physics::motion::hold_spin`.
 pub unsafe fn hold_at(v: &[u32]) {
     unsafe {
-        let get = |k: usize| (v[k] as *const u32).read_unaligned();
-        let put = |k: usize, x: u32| (v[k] as *mut u32).write_unaligned(x);
+        let get = |k: usize| (crate::pointers::host(v[k]) as *const u32).read_unaligned();
+        let put = |k: usize, x: u32| (crate::pointers::host(v[k]) as *mut u32).write_unaligned(x);
         if (0..4).any(|k| get(k) == 0) {
             return;
         }

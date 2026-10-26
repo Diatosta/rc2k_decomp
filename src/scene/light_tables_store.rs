@@ -33,7 +33,7 @@ impl core::ops::Deref for InBlock {
     fn deref(&self) -> &LightTables {
         // SAFETY: the race block lives as long as the program and is aligned to 4 (the
         // test checks); every field is an atomic or a cell, as the block's bytes were shared.
-        unsafe { &*(piece_addr() as *const LightTables) }
+        unsafe { &*(crate::pointers::host_at(piece_addr()) as *const LightTables) }
     }
 }
 

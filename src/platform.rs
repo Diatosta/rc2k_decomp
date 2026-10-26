@@ -208,7 +208,7 @@ static SET_MODE: RawHook = RawHook::new("gfx::set_screen_mode", rva(0x404B63));
 unsafe fn looked_up(key: u32, table: usize, entries: u32) -> Option<u32> {
     unsafe {
         let entry = find_entry(key, table as u32, entries).ok()??;
-        Some(((entry + 4) as *const u32).read_unaligned())
+        Some((crate::pointers::host(entry + 4) as *const u32).read_unaligned())
     }
 }
 
@@ -243,7 +243,7 @@ unsafe fn set_screen_mode(mode: u32) -> Result<(), String> {
         } else {
             [0x001F, 0x07E0, 0xF800]
         };
-        let format = GAME_SCREEN.format_addr() as *mut u32;
+        let format = crate::pointers::host_at(GAME_SCREEN.format_addr()) as *mut u32;
         for (n, mask) in masks.into_iter().enumerate() {
             format.add(1 + n).write_unaligned(mask);
         }
@@ -263,7 +263,7 @@ unsafe fn set_screen_mode(mode: u32) -> Result<(), String> {
 
         let mut screen = SCREEN.lock().map_err(|_| "the screen's lock")?;
         let window = match screen.as_ref() {
-            Some(old) => old.window as *mut SDL_Window,
+            Some(old) => crate::pointers::host_at(old.window) as *mut SDL_Window,
             None => {
                 if !SDL_Init(SDL_INIT_VIDEO) {
                     return Err("SDL does not start".into());
@@ -289,14 +289,16 @@ unsafe fn set_screen_mode(mode: u32) -> Result<(), String> {
             SDL_UpdateWindowSurface(window);
         }
         let pixels = vec![0u8; (bytes * width * height) as usize];
-        DRAW_SURFACE.present_pixels.set(pixels.as_ptr() as u32);
+        DRAW_SURFACE
+            .present_pixels
+            .set(crate::pointers::game_address(pixels.as_ptr()));
         DRAW_SURFACE.present_pitch.set(bytes * width);
         DRAW_SURFACE.present_gap.set(0u32);
         // "There are surfaces": what the game's own code asks.
         SURFACES.front.set(1);
         SURFACES.back.set(1);
         *screen = Some(Screen {
-            window: window as usize,
+            window: crate::pointers::host_number(window),
             width: width as usize,
             height: height as usize,
             bits,
@@ -450,12 +452,13 @@ fn start_sampler() {
                             OpenThread(THREAD_SUSPEND_RESUME | THREAD_GET_CONTEXT, 0, id)
                         };
                         if !h.is_null() {
-                            handles.push((id, h as usize));
+                            handles.push((id, crate::pointers::host_number(h)));
                         }
                     }
                 }
                 for &(_, h) in &handles {
-                    let thread = h as windows_sys::Win32::Foundation::HANDLE;
+                    let thread =
+                        crate::pointers::host_at(h) as windows_sys::Win32::Foundation::HANDLE;
                     unsafe {
                         if SuspendThread(thread) == u32::MAX {
                             continue;
@@ -495,7 +498,7 @@ fn hot_places() -> String {
     if total == 0 {
         return String::new();
     }
-    let program = unsafe { GetModuleHandleA(std::ptr::null()) } as u32;
+    let program = crate::pointers::game_address(unsafe { GetModuleHandleA(std::ptr::null()) });
     let game = crate::framework::game_addr(0) as u32;
     // by function-sized buckets would need symbols: by address, the top 24
     let mut places: Vec<(u32, u32)> = samples.into_iter().collect();
@@ -506,13 +509,13 @@ fn hot_places() -> String {
             if GetModuleHandleExA(
                 GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS
                     | GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
-                at as usize as *const u8,
+                crate::pointers::host(at) as *const u8,
                 &mut module,
             ) == 0
             {
                 return format!("{at:#x}");
             }
-            let base = module as u32;
+            let base = crate::pointers::game_address(module);
             if base == program {
                 return format!("rc2k+{:#x}", at - base);
             }
@@ -615,7 +618,7 @@ fn report_timing() {
 
 unsafe fn show_frame(screen: &Screen) -> Result<(), &'static str> {
     unsafe {
-        let window = screen.window as *mut SDL_Window;
+        let window = crate::pointers::host_at(screen.window) as *mut SDL_Window;
         let surface = SDL_GetWindowSurface(window);
         if surface.is_null() {
             return Err("the window has no surface");

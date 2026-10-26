@@ -13,5 +13,8 @@ const COUNT: u32 = 7;
 
 /// The Rust version.
 pub fn clear_contacts() -> Result<(), Refused> {
-    clear_records((PHYSICS.contacts.as_ptr() as usize) as u32, COUNT)
+    clear_records(
+        crate::pointers::host_number(PHYSICS.contacts.as_ptr()) as u32,
+        COUNT,
+    )
 }

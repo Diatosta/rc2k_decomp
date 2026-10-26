@@ -192,9 +192,9 @@ pub(crate) fn make_scene_record(point: u32, record: u32) -> Result<u32, BadInput
     let from = points.wrapping_add(point.wrapping_mul(12));
     put(at, point);
     rotate(
-        from as *const i32,
-        MATRICES.view_matrix[0].addr() as *const u32,
-        record as *mut u32,
+        crate::pointers::host(from) as *const i32,
+        crate::pointers::host_at(MATRICES.view_matrix[0].addr()) as *const u32,
+        crate::pointers::host(record) as *mut u32,
     );
     put(at + 0xC, 0);
     put(at + 0x1C, 0);
@@ -206,7 +206,12 @@ pub(crate) fn make_scene_record(point: u32, record: u32) -> Result<u32, BadInput
             COURSE.flat_depth.bits(),
         ];
         let flat = STAGE_PREFS.flat_depth.bits() != 0;
-        to_screen(record as *mut u32, &v, flat, DRAW.scratch.as_ptr());
+        to_screen(
+            crate::pointers::host(record) as *mut u32,
+            &v,
+            flat,
+            DRAW.scratch.as_ptr(),
+        );
     }
     if LIGHT_STATE.draw_mode.bits() == 1 {
         put(at + 0x18, x87::sub(dword(at + 0x18), LOWERED_BY.to_bits()));

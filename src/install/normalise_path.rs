@@ -34,7 +34,10 @@ pub fn normalised(
     path: *const u8,
     current: &mut dyn FnMut() -> Result<Option<Vec<u8>>, BadInput>,
 ) -> Result<Option<Vec<u8>>, BadInput> {
-    let path = crate::files::cstring(crate::pointers::GamePtr::new(path as u32), "a path")?;
+    let path = crate::files::cstring(
+        crate::pointers::GamePtr::new(crate::pointers::game_address(path)),
+        "a path",
+    )?;
     // Converted: `rc2k_core::install::paths::normalise`.
     rc2k_core::install::paths::normalise(&path, &case_table(), current)
 }
@@ -44,6 +47,7 @@ pub fn normalise_path(path: *const u8, to: *mut u8) -> Result<bool, BadInput> {
     let Some(text) = normalised(path, &mut || current_directory())? else {
         return Ok(false);
     };
-    crate::pointers::GamePtr::new(to as u32).write_bytes(&text, "a normalised path")?;
+    crate::pointers::GamePtr::new(crate::pointers::game_address(to))
+        .write_bytes(&text, "a normalised path")?;
     Ok(true)
 }

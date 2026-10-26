@@ -25,7 +25,10 @@ use rc2k_core::hud::disc::SEGMENTS;
 /// `fld a; fchs; fmul b; fmul c; fistp`.
 fn negated_times_times_to_int(a: u32, b: u32, c: u32) -> u32 {
     let (v, mut out) = ([a, b, c], 0u32);
-    x87_1(v.as_ptr() as usize, (&raw mut out) as usize);
+    x87_1(
+        crate::pointers::host_number(v.as_ptr()),
+        crate::pointers::host_number(&raw mut out),
+    );
     out
 }
 

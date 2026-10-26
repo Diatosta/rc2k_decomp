@@ -29,16 +29,23 @@ const FONT_1002: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fonts::L
 /// `memory::allocate` (0x4028A7) on the installer's list (it never fails with the
 /// original's carry: the fatal error `_code` is the original's for that).
 fn alloc(bytes: u32, _code: u32) -> Result<u32, Refused> {
-    Ok(
-        { crate::memory::allocate::allocate(INSTALLER_RUN.buffers.addr() as u32 as *mut _, bytes) }?
-            as u32,
-    )
+    Ok(crate::pointers::game_address({
+        crate::memory::allocate::allocate(
+            crate::pointers::host(INSTALLER_RUN.buffers.addr() as u32) as *mut _,
+            bytes,
+        )
+    }?))
 }
 
 /// `files::read_file` (0x402BB6): `count` bytes of `path` into `buffer`; failing is fatal
 /// error `code`.
 fn read(path: usize, buffer: u32, count: u32, code: u32) -> Result<(), Refused> {
-    let read = crate::files::read_file::read_file(path as *const u8, buffer as *mut u8, count, 0)?;
+    let read = crate::files::read_file::read_file(
+        crate::pointers::host_at(path) as *const u8,
+        crate::pointers::host(buffer),
+        count,
+        0,
+    )?;
     if !read.ok {
         return Err(fatal(code));
     }
@@ -81,7 +88,9 @@ pub fn open_installer() -> Result<(), Refused> {
             crate::session::SCREEN.format_addr() as u32,
         );
         // gfx::load_picture: its carry is not read.
-        crate::gfx::load_picture::load_picture(INSTALLER_NAMES.backdrop.addr() as u32 as *mut u8)?;
+        crate::gfx::load_picture::load_picture(crate::pointers::host(
+            INSTALLER_NAMES.backdrop.addr() as u32,
+        ))?;
         crate::gfx::convert_picture::convert_picture_now()?;
     }
     PICTURE.flags.set(SCREEN_MODE.mode_flags.get() & 0xFFF);

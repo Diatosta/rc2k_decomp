@@ -30,7 +30,7 @@ use crate::session::MACHINE;
 use rc2k_core::physics::lighting;
 
 unsafe fn byte(a: u32) -> u32 {
-    unsafe { (a as *const u8).read() as u32 }
+    unsafe { (crate::pointers::host(a) as *const u8).read() as u32 }
 }
 
 /// The two-way blend of the four corners now in `dword_5CCC90` ..: into `5CCCA4`,

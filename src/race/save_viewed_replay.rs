@@ -62,14 +62,16 @@ fn save(slot: u32) -> Result<bool, Refused> {
         "a replay's name",
     )?;
     // The last race's file opened to read from, the slot's to write to.
-    let Some(from) = handle::open_by_mode(LAST_RACE.addr() as *const u8, 0)? else {
+    let Some(from) =
+        handle::open_by_mode(crate::pointers::host_at(LAST_RACE.addr()) as *const u8, 0)?
+    else {
         return Ok(false);
     };
     crate::race::viewer_buffers_store::VIEWER_BUFFERS
         .from_file
         .set(from);
     let path = replay_path(slot)?.path;
-    let Some(to) = handle::open_by_mode(path as *const u8, 1)? else {
+    let Some(to) = handle::open_by_mode(crate::pointers::host(path) as *const u8, 1)? else {
         handle::close(
             crate::race::viewer_buffers_store::VIEWER_BUFFERS
                 .from_file
@@ -84,7 +86,9 @@ fn save(slot: u32) -> Result<bool, Refused> {
         .undo_blocks
         .set(0);
     crate::system::zero_memory::zero_memory(
-        crate::race::viewer_buffers_store::VIEWER_BUFFERS.undo_places[0].addr() as *mut u8,
+        crate::pointers::host_at(
+            crate::race::viewer_buffers_store::VIEWER_BUFFERS.undo_places[0].addr(),
+        ),
         TABLE_LEN as u32,
     )?;
     // Both files closed on the way out (the new one only when it was made).

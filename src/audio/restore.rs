@@ -50,7 +50,11 @@ pub unsafe fn restore_buffer(b: u32) -> Result<Restored, Refused> {
             return Ok(left);
         }
         let mut status = 0u32;
-        crate::audio::com::call1(b, GET_STATUS, &mut status as *mut u32 as u32);
+        crate::audio::com::call1(
+            b,
+            GET_STATUS,
+            crate::pointers::game_address(&mut status as *mut u32),
+        );
         left.edx = Some(status);
         // Converted: `rc2k_core::audio::buffers::needs_restore`.
         if !rc2k_core::audio::buffers::needs_restore(status) {

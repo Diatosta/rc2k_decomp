@@ -130,7 +130,7 @@ pub unsafe fn draw_tyre_change(device: u32) -> Result<(), Refused> {
                 unsafe {
                     crate::text::draw_string_by_id::draw_string_by_id_at(
                         id,
-                        font as *mut crate::text::font::Font,
+                        crate::pointers::host(font) as *mut crate::text::font::Font,
                         x as i32,
                         y as i32,
                         &mut crate::text::draw_text::GameCanvas,

@@ -34,7 +34,7 @@ pub fn corner_inside() -> bool {
     let turned = { rotate_point(CONTACT_WORK.corner_matrix[0].addr() as u32, corner) };
     for (n, e) in turned.iter().enumerate() {
         x87_1(
-            e.as_ptr() as usize,
+            crate::pointers::host_number(e.as_ptr()),
             crate::race::store::asm_base() as usize,
             a(&CONTACT_WORK.corner_turned[n]) as usize,
         );

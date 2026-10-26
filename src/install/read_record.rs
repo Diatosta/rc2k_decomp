@@ -28,7 +28,8 @@ pub fn read_record(path: *const u8) -> Result<(), BadInput> {
         };
         // Converted: `rc2k_core::install::config::read_record` (the keys as its constants).
         let record = config::read_record(
-            &crate::pointers::GamePtr::new(text as u32).bytes("the install record")?,
+            &crate::pointers::GamePtr::new(crate::pointers::game_address(text))
+                .bytes("the install record")?,
             &case_table(),
         )?;
         for (place, text) in [
@@ -36,7 +37,7 @@ pub fn read_record(path: *const u8) -> Result<(), BadInput> {
             (crate::files::state::locale_directory(), record.locale),
         ] {
             if let Some(text) = text {
-                crate::pointers::GamePtr::new(place as u32)
+                crate::pointers::GamePtr::new(crate::pointers::game_address(place))
                     .write_bytes(&text, "an installer path")?;
             }
         }

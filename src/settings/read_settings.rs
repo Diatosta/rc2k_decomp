@@ -138,7 +138,7 @@ pub fn apply_settings(text: *const u8) -> Result<(), BadInput> {
     let keys: Vec<&[u8]> = table.iter().map(|(key, _)| key.as_slice()).collect();
     // Found first, stored after: nothing is written if a key is refused.
     let found = rc2k_core::files::settings::apply(
-        &GamePtr::new(text as u32).bytes("a settings text")?,
+        &GamePtr::new(crate::pointers::game_address(text)).bytes("a settings text")?,
         &keys,
         &case_table(),
     )?;

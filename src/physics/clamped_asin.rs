@@ -16,5 +16,9 @@ use crate::math::x87_run::clamped_asin_80;
 
 /// The Rust core: the scratch float and the limit at `scratch`, `limit`.
 pub fn clamped_asin_at(x: [u8; 10], scratch: u32, limit: u32) -> [u8; 10] {
-    clamped_asin_80(x, scratch as *mut u32, limit as *mut u32)
+    clamped_asin_80(
+        x,
+        crate::pointers::host(scratch) as *mut u32,
+        crate::pointers::host(limit) as *mut u32,
+    )
 }

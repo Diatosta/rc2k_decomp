@@ -31,8 +31,8 @@ pub fn copy_file(from: *const u8, to: *const u8) -> Result<bool, BadInput> {
     let mut buffer = scratch.read_bytes(CHUNK as usize, "the scratch buffer")?;
     let done = rc2k_core::files::io::copy_file(
         &mut crate::files::handle::GameFiles::new(),
-        GamePtr::new(from as u32),
-        GamePtr::new(to as u32),
+        GamePtr::new(crate::pointers::game_address(from)),
+        GamePtr::new(crate::pointers::game_address(to)),
         &mut buffer,
     )?;
     scratch.write_bytes(&buffer, "the scratch buffer")?;

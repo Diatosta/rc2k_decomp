@@ -119,9 +119,12 @@ mod asm_reference {
             ulps: 0,
             reference: |a| unsafe { ref_0(a[0], a[1]) },
             plain: |a| {
-                x87_1(unsafe { &*(a[0] as *const SoundObject) }, unsafe {
-                    &*(a[1] as *const crate::sound::store::RaceSounds)
-                })
+                x87_1(
+                    unsafe { &*(crate::pointers::host_at(a[0]) as *const SoundObject) },
+                    unsafe {
+                        &*(crate::pointers::host_at(a[1]) as *const crate::sound::store::RaceSounds)
+                    },
+                )
             },
         }]
     }

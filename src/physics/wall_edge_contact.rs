@@ -58,7 +58,10 @@ pub fn edge_normal(first: u32, second: u32) -> Result<[u32; 4], Refused> {
         .get()
         .wrapping_sub(PHYSICS.edge_points[1].get());
     let d = [dx, dz];
-    x87_1(d.as_ptr() as usize, crate::race::store::asm_base() as usize);
+    x87_1(
+        crate::pointers::host_number(d.as_ptr()),
+        crate::race::store::asm_base() as usize,
+    );
     DRAW.scratch.set(DRAW.scratch.get() & 0xFFFF);
     let heading = (DRAW.scratch.get() << 16).wrapping_add(0x4000_0000);
     PHYSICS.wall_heading.set(heading);

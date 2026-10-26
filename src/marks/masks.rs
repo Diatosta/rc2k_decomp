@@ -97,7 +97,7 @@ fn mask(at: u32) -> Result<&'static mut [u8], BadInput> {
     crate::race::trap::span(at, MASK_LEN as usize, "a mark mask")?;
     // SAFETY: the span lies in one live region (checked above); nothing else holds it
     // while the mask is drawn.
-    Ok(unsafe { std::slice::from_raw_parts_mut(at as *mut u8, MASK_LEN as usize) })
+    Ok(unsafe { std::slice::from_raw_parts_mut(crate::pointers::host(at), MASK_LEN as usize) })
 }
 
 /// `marks::draw_mask` (0x4BE6C2): the mask at `at` (into `g_marksMask`) all 0xFF, then
@@ -137,8 +137,8 @@ const WORK_LEN: u32 = 0x8_0000;
 pub fn make_masks() -> Result<(), Refused> {
     // The two shapes' ring-angle tables, masks, pixel tables and corner tables.
     let shapes = [
-        core::ptr::addr_of!(MASKS.shapes[0]) as u32,
-        core::ptr::addr_of!(MASKS.shapes[1]) as u32,
+        crate::pointers::game_address(core::ptr::addr_of!(MASKS.shapes[0])),
+        crate::pointers::game_address(core::ptr::addr_of!(MASKS.shapes[1])),
     ];
     let corners = [MASKS.corners_a.addr() as u32, MASKS.corners_b.addr() as u32];
     let ring_angles = [
@@ -150,8 +150,8 @@ pub fn make_masks() -> Result<(), Refused> {
         PICKS.pixel_table_a.addr() as u32,
         PICKS.pixel_table_b.addr() as u32,
     ];
-    let list = MASKS.list.addr() as *mut crate::memory::MemoryList;
-    let work = crate::memory::allocate::allocate(list, WORK_LEN)? as u32;
+    let list = crate::pointers::host_at(MASKS.list.addr()) as *mut crate::memory::MemoryList;
+    let work = crate::pointers::game_address(crate::memory::allocate::allocate(list, WORK_LEN)?);
     MASKS.work.set(work);
     crate::marks::shape_points::make_shape_sets()?;
     crate::marks::corners::make_corners()?;

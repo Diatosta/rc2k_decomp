@@ -24,7 +24,8 @@ pub fn read_sku(path: *const u8) -> Result<(), BadInput> {
     };
     // Converted: `rc2k_core::install::config::read_sku` (the key as its constant).
     let Some(sku) = config::read_sku(
-        &crate::pointers::GamePtr::new(text as u32).bytes("the install record")?,
+        &crate::pointers::GamePtr::new(crate::pointers::game_address(text))
+            .bytes("the install record")?,
         &case_table(),
     )?
     else {
@@ -80,7 +81,7 @@ impl Sku {
     pub const LEN: usize = 0x24;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        &SKU as *const Sku as usize
+        crate::pointers::host_number(&SKU as *const Sku)
     }
 }
 
@@ -93,7 +94,9 @@ mod sku_tests {
         let size = size_of::<Sku>();
         assert!(Sku::LEN <= size && size <= (Sku::LEN).next_multiple_of(4));
         let image = crate::moved::image_bytes(Sku::START, Sku::LEN);
-        let mine = unsafe { std::slice::from_raw_parts(Sku::home() as *const u8, Sku::LEN) };
+        let mine = unsafe {
+            std::slice::from_raw_parts(crate::pointers::host_at(Sku::home()) as *const u8, Sku::LEN)
+        };
         assert_eq!(mine, &image[..]);
     }
 }

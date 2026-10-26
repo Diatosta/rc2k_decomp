@@ -34,7 +34,7 @@ pub const END: usize = 0x7558C4;
 
 /// Where IDA 0x755784 is now (`moved::MOVED`'s home).
 pub fn names_addr() -> usize {
-    &NAME_BUFFERS as *const Names as usize
+    crate::pointers::host_number(&NAME_BUFFERS as *const Names)
 }
 
 #[cfg(test)]
@@ -49,7 +49,12 @@ mod tests {
             END - START <= size_of::<Names>()
                 && size_of::<Names>() <= (END - START).next_multiple_of(4)
         );
-        let mine = unsafe { std::slice::from_raw_parts(names_addr() as *const u8, END - START) };
+        let mine = unsafe {
+            std::slice::from_raw_parts(
+                crate::pointers::host_at(names_addr()) as *const u8,
+                END - START,
+            )
+        };
         assert_eq!(mine, &image_bytes(START, END - START)[..]);
         let at = |field: usize, ida: usize| assert_eq!(field, ida - START, "{ida:#X}");
         at(offset_of!(Names, player_names), 0x755784);

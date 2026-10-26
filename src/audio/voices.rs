@@ -35,7 +35,7 @@ fn record_at<'a, T>(at: u32, what: &str) -> &'a mut T {
     }
     // Safety: `at` .. `at + size_of::<T>()` lies in one live region and is aligned; the
     // records are the audio thread's (its lock held), as the original's are.
-    unsafe { &mut *(at as usize as *mut T) }
+    unsafe { &mut *(crate::pointers::host(at) as *mut T) }
 }
 
 pub fn voice<'a>(at: u32) -> &'a mut Voice {
@@ -51,7 +51,7 @@ pub fn sample<'a>(number: u32) -> &'a mut SampleRecord {
             crate::errors::BadInput("a sound number past the sample records"),
         );
     };
-    record_at(r.as_ptr() as u32, "a sample record")
+    record_at(crate::pointers::game_address(r.as_ptr()), "a sample record")
 }
 
 pub fn channel<'a>(at: u32) -> &'a mut MixerChannel {

@@ -81,7 +81,7 @@ typed_places!(crate::session::Dword, crate::session::Float);
 
 /// Reads the variable named by `at` (an IDA address of the image).
 pub unsafe fn at_read<T: Copy>(at: impl At) -> T {
-    let p = at.here() as *const T;
+    let p = crate::pointers::host_at(at.here()) as *const T;
     unsafe {
         if p.is_aligned() {
             p.read_volatile()
@@ -93,7 +93,7 @@ pub unsafe fn at_read<T: Copy>(at: impl At) -> T {
 
 /// Writes the variable named by `at` (an IDA address of the image).
 pub unsafe fn at_write<T: Copy>(at: impl At, value: T) {
-    let p = at.here() as *mut T;
+    let p = crate::pointers::host_at(at.here()) as *mut T;
     unsafe {
         if p.is_aligned() {
             p.write_volatile(value)
@@ -105,7 +105,7 @@ pub unsafe fn at_write<T: Copy>(at: impl At, value: T) {
 
 /// Reads the variable named by `at` (an IDA address, or a typed cell).
 pub unsafe fn ida_read<T: Copy>(at: impl Ida) -> T {
-    let p = at.here() as *const T;
+    let p = crate::pointers::host_at(at.here()) as *const T;
     unsafe {
         if p.is_aligned() {
             p.read_volatile()
@@ -122,13 +122,17 @@ pub fn game_addr(place: impl Where) -> usize {
 
 /// Pointer to the game's memory at `place`.
 pub fn game_ptr<T>(place: impl Where) -> *mut T {
-    place.address() as *mut T
+    crate::pointers::host_at(place.address()) as *mut T
 }
 
 /// Reads a variable (`framework::game_read`, over a block or the image).
 pub fn game_read<T: Copy>(place: impl Where) -> T {
     let p = game_ptr::<T>(place);
-    crate::pointers::check_or_end(p as u32, size_of::<T>(), "a game variable");
+    crate::pointers::check_or_end(
+        crate::pointers::game_address(p),
+        size_of::<T>(),
+        "a game variable",
+    );
     // SAFETY: inside one live region (checked above).
     unsafe {
         if p.is_aligned() {
@@ -142,7 +146,11 @@ pub fn game_read<T: Copy>(place: impl Where) -> T {
 /// Writes a variable (`framework::game_write`, over a block or the image).
 pub fn game_write<T: Copy>(place: impl Where, value: T) {
     let p = game_ptr::<T>(place);
-    crate::pointers::check_or_end(p as u32, size_of::<T>(), "a game variable");
+    crate::pointers::check_or_end(
+        crate::pointers::game_address(p),
+        size_of::<T>(),
+        "a game variable",
+    );
     // SAFETY: inside one live region (checked above).
     unsafe {
         if p.is_aligned() {

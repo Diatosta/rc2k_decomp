@@ -23,7 +23,7 @@ fn resume_slot_thread(slot: &ThreadSlot) {
     // Converted: `rc2k_core::threading::resumes`.
     if rc2k_core::threading::resumes(slot.flag.get()) {
         slot.flag.set(rc2k_core::threading::RESUMED);
-        unsafe { ResumeThread(slot.handle.get() as _) };
+        unsafe { ResumeThread(crate::pointers::host(slot.handle.get()) as _) };
     }
 }
 
@@ -44,7 +44,7 @@ pub fn wait_for_threads() -> Result<u32, crate::errors::BadInput> {
     let array = wait_order(handles);
     let rc = unsafe { WaitForMultipleObjects(WAITED as u32, array.as_ptr() as _, 1, WAIT_MS) };
     for handle in array {
-        unsafe { CloseHandle(handle as _) };
+        unsafe { CloseHandle(crate::pointers::host(handle) as _) };
     }
     Ok(rc)
 }

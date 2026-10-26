@@ -77,7 +77,7 @@ pub const END: usize = 0x755595;
 
 /// Where IDA 0x755525 is now (`moved::MOVED`'s home).
 pub fn loop_flags_addr() -> usize {
-    &LOOP_FLAGS as *const LoopFlags as usize
+    crate::pointers::host_number(&LOOP_FLAGS as *const LoopFlags)
 }
 
 #[cfg(test)]
@@ -92,8 +92,12 @@ mod tests {
             END - START <= size_of::<LoopFlags>()
                 && size_of::<LoopFlags>() <= (END - START).next_multiple_of(4)
         );
-        let mine =
-            unsafe { std::slice::from_raw_parts(loop_flags_addr() as *const u8, END - START) };
+        let mine = unsafe {
+            std::slice::from_raw_parts(
+                crate::pointers::host_at(loop_flags_addr()) as *const u8,
+                END - START,
+            )
+        };
         assert_eq!(mine, &image_bytes(START, END - START)[..]);
         let at = |field: usize, ida: usize| assert_eq!(field, ida - START, "{ida:#X}");
         at(offset_of!(LoopFlags, item), 0x755525);

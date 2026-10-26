@@ -102,7 +102,7 @@ impl FrameK {
     pub const LEN: usize = 0x10;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        &FRAME_K as *const FrameK as usize
+        crate::pointers::host_number(&FRAME_K as *const FrameK)
     }
 }
 

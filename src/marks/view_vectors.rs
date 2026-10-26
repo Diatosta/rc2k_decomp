@@ -47,7 +47,7 @@ impl ViewSources {
     pub const LEN: usize = 0x38;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        &SOURCES as *const ViewSources as usize
+        crate::pointers::host_number(&SOURCES as *const ViewSources)
     }
 }
 
@@ -165,7 +165,7 @@ impl KeptView {
     pub const LEN: usize = 0xDC;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        &KEPT as *const KeptView as usize
+        crate::pointers::host_number(&KEPT as *const KeptView)
     }
 }
 

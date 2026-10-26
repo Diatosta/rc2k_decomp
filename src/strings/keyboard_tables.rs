@@ -31,7 +31,7 @@ impl KeyboardTables {
     pub const LEN: usize = 0x226C;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        &KEYBOARD_TABLES as *const KeyboardTables as usize + 8
+        crate::pointers::host_number(&KEYBOARD_TABLES as *const KeyboardTables) + 8
     }
 }
 
@@ -48,7 +48,10 @@ mod tests {
         );
         let image = crate::moved::image_bytes(KeyboardTables::START, KeyboardTables::LEN);
         let mine = unsafe {
-            std::slice::from_raw_parts(KeyboardTables::home() as *const u8, KeyboardTables::LEN)
+            std::slice::from_raw_parts(
+                crate::pointers::host_at(KeyboardTables::home()) as *const u8,
+                KeyboardTables::LEN,
+            )
         };
         assert_eq!(mine, &image[..]);
     }

@@ -113,7 +113,7 @@ pub fn edit_savegame_name(
                 set_length(len.wrapping_add(1));
                 let measured = measure_text_at(
                     MEASURING_FONT.as_ptr(),
-                    name as usize as *const u8,
+                    crate::pointers::host(name) as *const u8,
                     len,
                     canvas,
                 )?;

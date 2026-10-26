@@ -31,7 +31,7 @@ pub unsafe fn read_texture_picture(path: *mut u8) -> Result<(u32, u32, u32, bool
         if buffer.is_null() {
             return Err(BadInput("no picture buffer").into());
         }
-        let place = GamePtr::new(buffer as usize as u32);
+        let place = GamePtr::new(crate::pointers::game_address(buffer));
         // Converted: `rc2k_core::gfx::picture_size` (`TEXTURE`, `TEXTURE_FILLED`).
         crate::gfx::picture::set_size(sizes::TEXTURE);
         place.fill(0xFF, sizes::TEXTURE_FILLED * 4, "the picture buffer")?;
@@ -48,7 +48,7 @@ pub unsafe fn read_texture_picture(path: *mut u8) -> Result<(u32, u32, u32, bool
             true
         };
         Ok((
-            buffer as u32,
+            crate::pointers::game_address(buffer),
             PICTURE.width.get(),
             PICTURE.height.get(),
             failed,

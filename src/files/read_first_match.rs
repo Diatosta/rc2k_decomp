@@ -43,12 +43,12 @@ pub unsafe fn first_match_read(
             return Err(BadInput("no path to match"));
         }
         let resolved = resolve_path_in_game(pattern)?;
-        LAST_FILE_PATH.store(resolved as u32, Relaxed);
+        LAST_FILE_PATH.store(crate::pointers::game_address(resolved), Relaxed);
         let record = find_data();
         let search = FindFirstFileA(resolved, record);
-        FIND_HANDLE.store(search as u32, Relaxed);
+        FIND_HANDLE.store(crate::pointers::game_address(search), Relaxed);
         let skipped = || (*record).dwFileAttributes & SKIPPED_ATTRIBUTES.load(Relaxed) != 0;
-        let mut found = search as u32 != NO_SEARCH;
+        let mut found = crate::pointers::game_address(search) != NO_SEARCH;
         if found && skipped() {
             loop {
                 if FindNextFileA(search, record) == 0 {
@@ -62,17 +62,21 @@ pub unsafe fn first_match_read(
         }
         let read = if found {
             // Converted: `rc2k_core::files::io::match_path`.
-            let pattern = crate::files::cstring(GamePtr::new(pattern as u32), "a search pattern")?;
+            let pattern = crate::files::cstring(
+                GamePtr::new(crate::pointers::game_address(pattern)),
+                "a search pattern",
+            )?;
             let name = std::ffi::CStr::from_ptr((&raw const (*record).cFileName).cast()).to_bytes();
             let joined = rc2k_core::files::io::match_path(&pattern, name);
-            let path = SCRATCH.buffer.addr() as *mut u8;
-            GamePtr::new(path as u32).write_bytes(&joined, "the scratch buffer")?;
+            let path = crate::pointers::host_at(SCRATCH.buffer.addr());
+            GamePtr::new(crate::pointers::game_address(path))
+                .write_bytes(&joined, "the scratch buffer")?;
             Some(read_file(path, buffer, count, offset))
         } else {
             None
         };
         if FIND_HANDLE.load(Relaxed) != NO_SEARCH {
-            FindClose(FIND_HANDLE.load(Relaxed) as _);
+            FindClose(crate::pointers::host(FIND_HANDLE.load(Relaxed)) as _);
             FIND_HANDLE.store(NO_SEARCH, Relaxed);
         }
         read.transpose()

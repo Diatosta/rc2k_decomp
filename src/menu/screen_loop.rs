@@ -390,7 +390,7 @@ impl Callee {
                 Self::NoOp => {}
                 Self::LoadBackground => {
                     crate::menu::load_background::load_background(
-                        c.arg as *mut u8,
+                        crate::pointers::host(c.arg),
                         c.palette,
                         &mut GameCanvas,
                     )?;
@@ -447,7 +447,7 @@ impl Callee {
                     c.carry = false;
                 }
                 Self::LoadPicture => {
-                    c.carry = !crate::gfx::load_picture::load_picture(c.arg as *mut u8)?
+                    c.carry = !crate::gfx::load_picture::load_picture(crate::pointers::host(c.arg))?
                 }
                 Self::ConvertPicture => {
                     c.carry = crate::gfx::convert_picture::convert_picture_now()?

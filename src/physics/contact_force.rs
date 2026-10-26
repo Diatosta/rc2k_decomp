@@ -156,7 +156,7 @@ pub unsafe fn contact_force() {
         let mut part = [0u8; 10];
         x87_5(
             crate::race::store::asm_base() as usize,
-            part.as_mut_ptr() as usize,
+            crate::pointers::host_number(part.as_mut_ptr()),
         );
         scale_vector(CONTACT_WORK.contact_extra[0].addr() as u32, part);
         DRAW.scratch.set(rounded(part));
@@ -195,7 +195,7 @@ pub unsafe fn contact_force() {
     let mut status = 0u16;
     x87_6(
         crate::race::store::asm_base() as usize,
-        (&raw mut status) as usize,
+        crate::pointers::host_number(&raw mut status),
     );
     if status & 0x4100 == 0 {
         x87_7(crate::race::store::asm_base() as usize);
@@ -213,7 +213,7 @@ pub unsafe fn contact_force() {
     unsafe { turn_by_inverse(CONTACT_WORK.contact_point[0].addr() as u32) };
     for k in 0..3 {
         unsafe {
-            ((edi + 0xC + 4 * k) as *mut u32)
+            (crate::pointers::host(edi + 0xC + 4 * k) as *mut u32)
                 .write_unaligned(CONTACT_WORK.contact_point[k as usize].bits())
         };
     }

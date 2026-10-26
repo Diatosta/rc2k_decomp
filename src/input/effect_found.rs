@@ -32,7 +32,7 @@ pub extern "system" fn callback(info: u32, record: u32) -> u32 {
 /// A dword of the listed effect at `at`: DirectInput's emulation holds it in a local of its
 /// own, which is no allocation of the game's (a slice when the callback takes one).
 unsafe fn listed_dword(at: u32) -> u32 {
-    unsafe { (at as usize as *const u32).read_unaligned() }
+    unsafe { (crate::pointers::host(at) as *const u32).read_unaligned() }
 }
 
 /// The Rust version: eax.
@@ -43,7 +43,7 @@ pub fn effect_found(info: u32, record: u32) -> Result<u32, BadInput> {
     // SAFETY: `info` is the `DIEFFECTINFOA` the emulation lists, alive for this call.
     let listed = unsafe {
         Listed {
-            guid: ((info + field!(DiEffectInfo, guid)) as usize as *const [u8; 16])
+            guid: (crate::pointers::host(info + field!(DiEffectInfo, guid)) as *const [u8; 16])
                 .read_unaligned(),
             eff_type: listed_dword(info + field!(DiEffectInfo, eff_type)),
             static_params: listed_dword(info + field!(DiEffectInfo, static_params)),

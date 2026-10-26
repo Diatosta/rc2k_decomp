@@ -22,9 +22,9 @@ pub const TITLE_FONT: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fon
 /// The Rust version.
 pub fn show_background() -> Result<(), Refused> {
     unsafe {
-        crate::gfx::load_picture::load_picture(crate::gfx::texts::address(
+        crate::gfx::load_picture::load_picture(crate::pointers::host(crate::gfx::texts::address(
             &crate::gfx::texts::CHATZONE,
-        ) as *mut u8)?;
+        )))?;
         crate::gfx::convert_picture::convert_picture_now()?;
         PICTURE.flags.set(SCREEN_MODE.mode_flags.get() & 0xFFF);
         crate::gfx::picture_as_surface::picture_as_surface()?;

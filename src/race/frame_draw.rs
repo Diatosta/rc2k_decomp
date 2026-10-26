@@ -189,7 +189,8 @@ pub fn share_sound_spots() -> Result<(), Refused> {
         let bytes = rc2k_core::race::view::shared_spot_bytes(n)?;
         crate::sound::store::STAGE_SOUNDS.shared_count.set(n);
         let from = RACE_SOUND_SPOTS.sound_spots[0].addr() as u32;
-        let to = crate::sound::store::STAGE_SOUNDS.shared_spots.as_ptr() as usize as u32;
+        let to =
+            crate::pointers::game_address(crate::sound::store::STAGE_SOUNDS.shared_spots.as_ptr());
         GamePtr::new(from).copy_to(GamePtr::new(to), bytes as usize, "the sound spots")?;
         Ok(())
     }
@@ -1096,7 +1097,11 @@ pub fn mark_far_cells() -> Result<(), BadInput> {
         let x = (cell & 0x1F).wrapping_sub(half);
         let z = (cell >> 5).wrapping_sub(half);
         let point = [x as i32, 0, z as i32];
-        crate::scene::project_point::rotate(point.as_ptr(), matrix as *const u32, out.as_mut_ptr());
+        crate::scene::project_point::rotate(
+            point.as_ptr(),
+            crate::pointers::host(matrix) as *const u32,
+            out.as_mut_ptr(),
+        );
         let (x, z) = (out[4], out[6]);
         LEVEL_GRID.turned_x.set_bits(x);
         LEVEL_GRID.turned_z.set_bits(z);
@@ -1247,7 +1252,7 @@ fn add_lamp_entry(lamp: u32) -> Result<(), BadInput> {
     let mut out = [0u32; 3];
     crate::math::x87_load::rotate_rounding_z(
         place.as_ptr() as *const i32,
-        MATRICES.view_matrix[0].addr() as *const u32,
+        crate::pointers::host_at(MATRICES.view_matrix[0].addr()) as *const u32,
         out.as_mut_ptr(),
     );
     put(turned, out[0])?;
@@ -1482,7 +1487,7 @@ fn car_light_on_point(b: u32) -> Result<(), BadInput> {
     let mut t = [0u32; 3];
     rotate_rounding(
         d.as_ptr() as *const i32,
-        (b + 0x9CC) as *const u32,
+        crate::pointers::host(b + 0x9CC) as *const u32,
         t.as_mut_ptr(),
     );
     let turned = LIGHT_STATE.turned_light[0].addr() as u32;
@@ -2127,7 +2132,11 @@ pub unsafe fn draw_sky() -> Result<(), Refused> {
             DRAW.view_centre[1].bits(),
             DRAW.view_centre[0].bits(),
         ];
-        let [fx, ix, fy, iy] = sun_on_screen(&v, flat, DRAW.scratch.addr() as *mut u32);
+        let [fx, ix, fy, iy] = sun_on_screen(
+            &v,
+            flat,
+            crate::pointers::host_at(DRAW.scratch.addr()) as *mut u32,
+        );
         FRAME_WORK.sun_place[0].set(fx);
         FRAME_WORK.sun_hit[0].set(ix);
         FRAME_WORK.sun_place[1].set(fy);
@@ -2263,7 +2272,7 @@ pub fn check_slot_object(at: u32) -> Result<(), Refused> {
 /// `check_slot_object` for any.
 pub unsafe fn draw_race_slots() -> Result<(), Refused> {
     unsafe {
-        let slots = (RACE_WORK.race_slots.as_ptr() as usize) as u32;
+        let slots = crate::pointers::host_number(RACE_WORK.race_slots.as_ptr()) as u32;
         for n in 0..8 {
             if get(slots + 0x78 * n)? != 0 {
                 check_slot_object(slots + 0x78 * n)?;
@@ -2388,7 +2397,7 @@ pub fn add_car_depth_entry(esi: u32, ebx: u32) -> Result<(), Refused> {
     let mut t = [0u32; 3];
     crate::math::x87_load::rotate_rounding(
         place.as_ptr() as *const i32,
-        matrix as *const u32,
+        crate::pointers::host(matrix) as *const u32,
         t.as_mut_ptr(),
     );
     for (k, &v) in t.iter().enumerate() {
@@ -2452,7 +2461,7 @@ fn add_flare() -> Result<(), BadInput> {
     let mut out = [0u32; 3];
     crate::math::x87_load::rotate_rounding_z(
         place.as_ptr() as *const i32,
-        MATRICES.view_matrix[0].addr() as *const u32,
+        crate::pointers::host_at(MATRICES.view_matrix[0].addr()) as *const u32,
         out.as_mut_ptr(),
     );
     OBJECT_WORK.place[0].set(out[0]);
@@ -2474,7 +2483,7 @@ fn place_flare(b: u32, point: [u32; 3]) -> Result<(), BadInput> {
     let mut t = [0u32; 3];
     crate::math::x87_load::rotate_rounding(
         point.as_ptr() as *const i32,
-        (b + 0xB4) as *const u32,
+        crate::pointers::host(b + 0xB4) as *const u32,
         t.as_mut_ptr(),
     );
     DRAW.scratch.set_bits(t[2]);

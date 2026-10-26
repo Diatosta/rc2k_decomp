@@ -53,9 +53,7 @@ pub fn begin_force(record: u32) -> Result<(), Refused> {
     if at(entry, field!(Controller, force_feedback))? != 1 {
         return Ok(());
     }
-    unsafe {
-        crate::logfile::log_write::log_write(USING_TEXT_RVA.as_ptr() as usize as *const u8, true, 2)
-    };
+    unsafe { crate::logfile::log_write::log_write(USING_TEXT_RVA.as_ptr() as *const u8, true, 2) };
     let device = at(record, field!(InputDevice, device))?;
     // Converted: `rc2k_core::input::acquire::gain`.
     let Some(gain) = gain(at(record, field!(InputDevice, strength))?) else {
@@ -78,8 +76,7 @@ pub fn begin_force(record: u32) -> Result<(), Refused> {
     if method(device, slot::SET_PROPERTY, &[DIPROP_FFGAIN, gain]) != 0 {
         return Err(fatal(0x8023_8422).into());
     }
-    let found = crate::input::effect_found::callback as unsafe extern "system" fn(u32, u32) -> u32
-        as usize as u32;
+    let found = crate::pointers::game_address(crate::input::effect_found::callback as *const ());
     method(device, slot::ENUM_EFFECTS, &[found, record, 0]);
     for n in 0..6 {
         let effect = record.wrapping_add(EFFECTS_AT + n * EFFECT_LEN);

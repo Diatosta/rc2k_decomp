@@ -32,12 +32,17 @@ impl crate::marks::store::Where for Address {
 
 /// `bytes` bytes on the list at `list` (`memory::allocate`).
 pub fn take(list: impl crate::marks::store::Where, bytes: u32) -> Result<u32, Refused> {
-    take_from(game_addr(list) as *mut MemoryList, bytes)
+    take_from(
+        crate::pointers::host_at(game_addr(list)) as *mut MemoryList,
+        bytes,
+    )
 }
 
 /// `bytes` bytes on `list` (`memory::allocate`).
 pub fn take_from(list: *mut MemoryList, bytes: u32) -> Result<u32, Refused> {
-    Ok({ crate::memory::allocate::allocate(list, bytes) }? as u32)
+    Ok(crate::pointers::game_address({
+        crate::memory::allocate::allocate(list, bytes)
+    }?))
 }
 
 /// `marks::allocate_places` (0x4C38B1), step 6: 0x7024 bytes on `stru_8DB570` into
@@ -59,7 +64,10 @@ pub fn allocate_places() -> Result<(), Refused> {
 /// 0x4C made a ring (+0 the one before, +4 the one after).
 pub fn allocate_ring() -> Result<(), Refused> {
     {
-        let block = take(Address(RING_POOL.list[0].as_ptr() as usize), RING_LEN)?;
+        let block = take(
+            Address(crate::pointers::host_number(RING_POOL.list[0].as_ptr())),
+            RING_LEN,
+        )?;
         RING_POOL.ring.set(block);
         RING_POOL.free.set(block);
         RING_POOL.used.set(0u32);
@@ -193,7 +201,7 @@ impl PlacesBlock {
     pub const LEN: usize = 0x50;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        &PLACES_BLOCK as *const PlacesBlock as usize
+        crate::pointers::host_number(&PLACES_BLOCK as *const PlacesBlock)
     }
 }
 
@@ -224,7 +232,7 @@ impl MarkLinks {
     pub const LEN: usize = 0x44;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        &MARK_LINKS as *const MarkLinks as usize
+        crate::pointers::host_number(&MARK_LINKS as *const MarkLinks)
     }
 }
 
@@ -266,7 +274,7 @@ impl CornerSlopes {
     pub const LEN: usize = 0x2400;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        &CORNER_SLOPES as *const CornerSlopes as usize
+        crate::pointers::host_number(&CORNER_SLOPES as *const CornerSlopes)
     }
 }
 
@@ -303,7 +311,7 @@ impl MarkCorners {
     pub const LEN: usize = 0x8000;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        &MARK_CORNERS as *const MarkCorners as usize
+        crate::pointers::host_number(&MARK_CORNERS as *const MarkCorners)
     }
 }
 
@@ -364,7 +372,7 @@ impl RingPool {
     pub const LEN: usize = 0x70;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        &RING_POOL as *const RingPool as usize
+        crate::pointers::host_number(&RING_POOL as *const RingPool)
     }
 }
 
@@ -378,7 +386,10 @@ mod typed_tests {
         assert_eq!(size_of::<PlacesBlock>(), PlacesBlock::LEN);
         let image = crate::moved::image_bytes(PlacesBlock::START, PlacesBlock::LEN);
         let mine = unsafe {
-            std::slice::from_raw_parts(PlacesBlock::home() as *const u8, PlacesBlock::LEN)
+            std::slice::from_raw_parts(
+                crate::pointers::host_at(PlacesBlock::home()) as *const u8,
+                PlacesBlock::LEN,
+            )
         };
         assert!(
             mine == &image[..],
@@ -398,8 +409,12 @@ mod typed_tests {
     fn mark_links_starts_as_the_games() {
         assert_eq!(size_of::<MarkLinks>(), MarkLinks::LEN);
         let image = crate::moved::image_bytes(MarkLinks::START, MarkLinks::LEN);
-        let mine =
-            unsafe { std::slice::from_raw_parts(MarkLinks::home() as *const u8, MarkLinks::LEN) };
+        let mine = unsafe {
+            std::slice::from_raw_parts(
+                crate::pointers::host_at(MarkLinks::home()) as *const u8,
+                MarkLinks::LEN,
+            )
+        };
         assert!(
             mine == &image[..],
             "MARK_LINKS starts differently from the image"
@@ -412,7 +427,10 @@ mod typed_tests {
         assert_eq!(size_of::<CornerSlopes>(), CornerSlopes::LEN);
         let image = crate::moved::image_bytes(CornerSlopes::START, CornerSlopes::LEN);
         let mine = unsafe {
-            std::slice::from_raw_parts(CornerSlopes::home() as *const u8, CornerSlopes::LEN)
+            std::slice::from_raw_parts(
+                crate::pointers::host_at(CornerSlopes::home()) as *const u8,
+                CornerSlopes::LEN,
+            )
         };
         assert!(
             mine == &image[..],
@@ -426,7 +444,10 @@ mod typed_tests {
         assert_eq!(size_of::<MarkCorners>(), MarkCorners::LEN);
         let image = crate::moved::image_bytes(MarkCorners::START, MarkCorners::LEN);
         let mine = unsafe {
-            std::slice::from_raw_parts(MarkCorners::home() as *const u8, MarkCorners::LEN)
+            std::slice::from_raw_parts(
+                crate::pointers::host_at(MarkCorners::home()) as *const u8,
+                MarkCorners::LEN,
+            )
         };
         assert!(
             mine == &image[..],

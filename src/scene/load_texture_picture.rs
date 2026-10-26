@@ -111,7 +111,9 @@ pub fn load_texture_picture(
             call(Call::Number(gravel));
             if takes_gravel(gravel) && call(Call::Exists(folders()[GRAVEL].0)) {
                 gravel_chosen = true;
-                call(Call::Text(folders()[GRAVEL].1 as *const u8));
+                call(Call::Text(
+                    crate::pointers::host_at(folders()[GRAVEL].1) as *const u8
+                ));
             }
         }
         let (name, second, _) = folders()[folder(number, gravel_chosen)];
@@ -128,12 +130,14 @@ pub unsafe fn load_texture_picture_in_game(number: u32, texture: u32) -> Result<
             match call {
                 Call::Text(text) => log_write(text, false, 1),
                 Call::Number(number) => log_int(number as i32, false, 1),
-                Call::Exists(path) => match file_exists(path as *const u8) {
-                    Ok(exists) => return exists,
-                    Err(e) => {
-                        refused.get_or_insert(e.into());
+                Call::Exists(path) => {
+                    match file_exists(crate::pointers::host_at(path) as *const u8) {
+                        Ok(exists) => return exists,
+                        Err(e) => {
+                            refused.get_or_insert(e.into());
+                        }
                     }
-                },
+                }
                 Call::Load(name, second, texture) => {
                     if let Err(e) =
                         load_picture_to_texture_in_game(name as u32, second as u32, texture)

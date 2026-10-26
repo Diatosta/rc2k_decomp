@@ -75,7 +75,7 @@ pub fn log_bad_polygon(vertices: u32) -> Result<(), BadInput> {
     if count > MOST {
         return Err(BadInput("more than 64 vertices"));
     }
-    let text = |s: &std::ffi::CStr| s.as_ptr() as u32;
+    let text = |s: &std::ffi::CStr| crate::pointers::game_address(s.as_ptr());
     for (label, kind, at) in HEAD {
         log(WRITE, text(label));
         log(kind, at());

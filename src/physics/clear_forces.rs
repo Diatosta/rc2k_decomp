@@ -13,5 +13,8 @@ const COUNT: u32 = 0x17;
 
 /// The Rust version.
 pub fn clear_forces() -> Result<(), Refused> {
-    clear_records((PHYSICS.forces.as_ptr() as usize) as u32, COUNT)
+    clear_records(
+        crate::pointers::host_number(PHYSICS.forces.as_ptr()) as u32,
+        COUNT,
+    )
 }

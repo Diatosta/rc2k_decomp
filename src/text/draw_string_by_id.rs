@@ -42,7 +42,8 @@ pub unsafe fn draw_string_by_id(
 ) -> Result<Outcome, Refused> {
     unsafe {
         let bytes = string_text(id)?;
-        crate::pointers::GamePtr::new(buffer as u32).write_bytes(&bytes, "the text buffer")?;
+        crate::pointers::GamePtr::new(crate::pointers::game_address(buffer))
+            .write_bytes(&bytes, "the text buffer")?;
         draw_text(font, buffer, x, y, canvas)
     }
 }
@@ -56,11 +57,13 @@ pub unsafe fn draw_string_by_id_at(
     canvas: &mut dyn Canvas,
 ) -> Result<Outcome, Refused> {
     unsafe {
-        let before = crate::pointers::GamePtr::new(font as usize as u32).read::<Font>("a font")?;
+        let before = crate::pointers::GamePtr::new(crate::pointers::game_address(font))
+            .read::<Font>("a font")?;
         let mut copy = before;
         let out = draw_string_by_id(id, &mut copy, x, y, text(), canvas)?;
         if copy != before && canvas.keeps_font_changes() {
-            crate::pointers::GamePtr::new(font as usize as u32).write(copy, "a font")?;
+            crate::pointers::GamePtr::new(crate::pointers::game_address(font))
+                .write(copy, "a font")?;
         }
         Ok(out)
     }

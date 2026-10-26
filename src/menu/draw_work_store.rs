@@ -140,7 +140,7 @@ pub const END: usize = 0x755A4C;
 
 /// Where IDA 0x7559A4 is now (`moved::MOVED`'s home).
 pub fn draw_work_addr() -> usize {
-    &DRAW_WORK as *const DrawWork as usize
+    crate::pointers::host_number(&DRAW_WORK as *const DrawWork)
 }
 
 #[cfg(test)]
@@ -155,8 +155,12 @@ mod tests {
             END - START <= size_of::<DrawWork>()
                 && size_of::<DrawWork>() <= (END - START).next_multiple_of(4)
         );
-        let mine =
-            unsafe { std::slice::from_raw_parts(draw_work_addr() as *const u8, END - START) };
+        let mine = unsafe {
+            std::slice::from_raw_parts(
+                crate::pointers::host_at(draw_work_addr()) as *const u8,
+                END - START,
+            )
+        };
         assert_eq!(mine, &image_bytes(START, END - START)[..]);
         let at = |field: usize, ida: usize| assert_eq!(field, ida - START, "{ida:#X}");
         at(offset_of!(DrawWork, blink), 0x7559A4);

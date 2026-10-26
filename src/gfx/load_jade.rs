@@ -37,5 +37,7 @@ pub fn load_jade(path: *const u8) -> Result<(), Refused> {
 
 /// The game's `files\d\gfx\jade.bun`.
 pub fn load_jade_in_game() -> Result<(), Refused> {
-    load_jade(crate::gfx::texts::address(&crate::gfx::texts::JADE) as *const u8)
+    load_jade(
+        crate::pointers::host(crate::gfx::texts::address(&crate::gfx::texts::JADE)) as *const u8,
+    )
 }

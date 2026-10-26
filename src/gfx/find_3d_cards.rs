@@ -24,7 +24,8 @@ pub fn find_3d_cards() {
         CARDS.secondary.set(0);
         if CARDS_3D.no_search.get() == 0 {
             log_write(
-                crate::gfx::texts::address(&crate::gfx::texts::FINDING_3D) as *const u8,
+                crate::pointers::host(crate::gfx::texts::address(&crate::gfx::texts::FINDING_3D))
+                    as *const u8,
                 true,
                 1,
             );

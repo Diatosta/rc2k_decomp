@@ -321,7 +321,7 @@ unsafe fn clear_a_switch(entries: &[usize]) -> Result<(), BadInput> {
         }
         let bytes = entries
             .iter()
-            .map(|&entry| ((entry + 0x21) as *const u8).read());
+            .map(|&entry| (crate::pointers::host_at(entry + 0x21) as *const u8).read());
         let (all, any) = bytes.fold((0xFFu8, 0u8), |(all, any), b| (all & b, any | b));
         if all == 0xFF {
             let material = crate::scene::polygon::texture_infos_addr()
@@ -341,8 +341,8 @@ unsafe fn shade(entries: &[usize], how: Shade) {
         let colour: u32 = DRAW.polygon_colour.bits();
         for &entry in entries {
             let (fog, other) = (
-                ((entry + 0x20) as *const u8).read() as u32,
-                ((entry + 0x21) as *const u8).read() as u32,
+                (crate::pointers::host_at(entry + 0x20) as *const u8).read() as u32,
+                (crate::pointers::host_at(entry + 0x21) as *const u8).read() as u32,
             );
             match how {
                 Shade::Plain => {
@@ -409,7 +409,7 @@ pub unsafe fn draw_polygon(outside: &mut dyn Outside) -> Result<(), BadInput> {
             let uv = crate::session::read_bits(&RACE_VARS.fade_uv);
             for (n, &entry) in entries.iter().enumerate() {
                 let out = crate::d3d::vertices_store::piece_addr() + n * VERTEX_LEN;
-                let by = ((entry + 0x20) as *const u8).read() as u32;
+                let by = (crate::pointers::host_at(entry + 0x20) as *const u8).read() as u32;
                 put(out + 0x10, faded(from, 0x10, by) & 0xFF_FFFF | alpha << 24);
                 put(out + 0x14, 0xFF00_0000);
                 put(out + 0x18, uv[0]);

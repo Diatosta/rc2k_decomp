@@ -46,7 +46,7 @@ fn scratch() -> Vec<Region> {
 
 /// The original's 0x4C2EF0 .. 0x4C2F79: the place (ebx, eax, ecx as `fild`ed) turned.
 fn turn(v: &[u32; 3]) {
-    turn_x87(v.as_ptr() as usize, &SNOW)
+    turn_x87(crate::pointers::host_number(v.as_ptr()), &SNOW)
 }
 
 /// The original's 0x4C2F9C .. 0x4C3038: the light's dot and its fade index.

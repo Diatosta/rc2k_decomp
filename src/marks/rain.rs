@@ -194,7 +194,7 @@ impl RainState {
     pub const LEN: usize = 0x1A50;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        &RAIN as *const RainState as usize
+        crate::pointers::host_number(&RAIN as *const RainState)
     }
 }
 
@@ -263,7 +263,7 @@ impl RainRules {
     pub const LEN: usize = 0x6C;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        &RAIN_RULES as *const RainRules as usize
+        crate::pointers::host_number(&RAIN_RULES as *const RainRules)
     }
 }
 
@@ -283,12 +283,14 @@ pub mod tests {
     /// `mk` (IDA 0x764F40); the buffer's bytes are copied out for `f` (the image's address
     /// of the state is not aligned) and put back.
     pub fn with_state_at<R>(mk: usize, f: impl FnOnce(&RainState, &RainRules) -> R) -> R {
-        let state = mk
-            .wrapping_add(RainState::START)
-            .wrapping_sub(crate::marks::store::START) as *mut RainState;
-        let rules = mk
-            .wrapping_add(RainRules::START)
-            .wrapping_sub(crate::marks::store::START) as *mut RainRules;
+        let state = crate::pointers::host_at(
+            mk.wrapping_add(RainState::START)
+                .wrapping_sub(crate::marks::store::START),
+        ) as *mut RainState;
+        let rules = crate::pointers::host_at(
+            mk.wrapping_add(RainRules::START)
+                .wrapping_sub(crate::marks::store::START),
+        ) as *mut RainRules;
         unsafe {
             let (s, r) = (state.read_unaligned(), rules.read_unaligned());
             let out = f(&s, &r);

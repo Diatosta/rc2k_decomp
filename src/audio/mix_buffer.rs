@@ -22,7 +22,7 @@ impl MixBuffer {
     pub const LEN: usize = 0x3C00;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        &MIX_BUFFER as *const MixBuffer as usize + 8
+        crate::pointers::host_number(&MIX_BUFFER as *const MixBuffer) + 8
     }
 }
 
@@ -35,8 +35,12 @@ mod tests {
         let size = size_of::<MixBuffer>();
         assert!(8 + MixBuffer::LEN <= size && size <= (8 + MixBuffer::LEN).next_multiple_of(16));
         let image = crate::moved::image_bytes(MixBuffer::START, MixBuffer::LEN);
-        let mine =
-            unsafe { std::slice::from_raw_parts(MixBuffer::home() as *const u8, MixBuffer::LEN) };
+        let mine = unsafe {
+            std::slice::from_raw_parts(
+                crate::pointers::host_at(MixBuffer::home()) as *const u8,
+                MixBuffer::LEN,
+            )
+        };
         assert_eq!(mine, &image[..]);
     }
 }

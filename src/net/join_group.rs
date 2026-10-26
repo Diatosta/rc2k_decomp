@@ -20,7 +20,7 @@ pub fn join_group() -> bool {
             ENUM_GROUPS,
             &[
                 0,
-                crate::net::group_found::callback as *const () as usize as u32,
+                crate::pointers::game_address(crate::net::group_found::callback as *const ()),
                 0,
                 0,
             ],

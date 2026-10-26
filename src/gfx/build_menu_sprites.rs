@@ -29,7 +29,8 @@ pub unsafe fn build_menu_sprites(sprite_table: *mut u32) -> Result<(), Refused> 
         DECODER.builder_flags.set(RUN_LENGTHS);
         begin_glyph_table(list)?;
         build_glyphs(
-            crate::gfx::texts::address(&crate::gfx::texts::MBUTS) as *const u8,
+            crate::pointers::host(crate::gfx::texts::address(&crate::gfx::texts::MBUTS))
+                as *const u8,
             list,
         )?;
         sprite_table.write_unaligned(SHEET.table.get());
@@ -40,5 +41,7 @@ pub unsafe fn build_menu_sprites(sprite_table: *mut u32) -> Result<(), Refused> 
 
 /// With the game's `g_spriteTable`.
 pub unsafe fn build_menu_sprites_in_game() -> Result<(), Refused> {
-    unsafe { build_menu_sprites(LOOP_FLAGS.sprite_table.addr() as *mut u32) }
+    unsafe {
+        build_menu_sprites(crate::pointers::host_at(LOOP_FLAGS.sprite_table.addr()) as *mut u32)
+    }
 }

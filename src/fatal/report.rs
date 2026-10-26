@@ -58,9 +58,9 @@ unsafe fn text_from_game(context: &Context) -> Vec<u8> {
             crate::files::state::LAST_FILE_PATH.load(std::sync::atomic::Ordering::Relaxed);
         report_text(
             CODE.load(Ordering::Relaxed),
-            (message != 0).then(|| cstr(message as *const u8)),
+            (message != 0).then(|| cstr(crate::pointers::host(message) as *const u8)),
             cstr(EXTRA.ptr().cast()),
-            (last_file != 0).then(|| cstr(last_file as *const u8)),
+            (last_file != 0).then(|| cstr(crate::pointers::host(last_file) as *const u8)),
             W32.load(Ordering::Relaxed),
             context,
         )
@@ -103,7 +103,7 @@ pub unsafe fn report(context: &Context, outside: &mut Outside) -> Result<Leave, 
             outside.quit,
             outside.thread_slot,
             // The slot holds its routine as an IDA address.
-            &|slot| (slot as *const u32).read_unaligned(),
+            &|slot| (crate::pointers::host(slot) as *const u32).read_unaligned(),
         ))
     }
 }
@@ -137,7 +137,7 @@ pub fn report_now(r: &Regs) {
         quit: &mut || unsafe {
             let _ = request_quit();
         },
-        thread_slot: &|| unsafe { find_thread_slot() as u32 },
+        thread_slot: &|| unsafe { crate::pointers::game_address(find_thread_slot()) },
     };
     let code = CODE.load(Ordering::Relaxed);
     match unsafe { report(&context, &mut outside) } {

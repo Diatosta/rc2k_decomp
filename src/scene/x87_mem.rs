@@ -19,13 +19,13 @@ impl Base for usize {
 
 impl Base for *const u8 {
     fn address(self) -> usize {
-        self as usize
+        crate::pointers::host_number(self)
     }
 }
 
 impl Base for *mut u8 {
     fn address(self) -> usize {
-        self as usize
+        crate::pointers::host_number(self)
     }
 }
 
@@ -34,7 +34,7 @@ impl Base for *mut u8 {
 fn operand(base: impl Base, off: usize, len: usize) -> *mut u8 {
     let at = base.address().wrapping_add(off);
     crate::pointers::check_or_end(at as u32, len, "an x87 operand");
-    at as *mut u8
+    crate::pointers::host_at(at)
 }
 
 /// `fld dword ptr [base + off]`.

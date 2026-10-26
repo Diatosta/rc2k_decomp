@@ -71,7 +71,12 @@ pub unsafe fn make_buffer(at: u32, ebx: u32) -> Result<bool, Refused> {
         if v.source != 0 {
             let f: unsafe extern "system" fn(u32, u32, u32) -> i32 =
                 std::mem::transmute(crate::audio::com::method(ds, 0x14));
-            if f(ds, voice(v.source).buffer, &mut v.buffer as *mut u32 as u32) == 0 {
+            if f(
+                ds,
+                voice(v.source).buffer,
+                crate::pointers::game_address(&mut v.buffer as *mut u32),
+            ) == 0
+            {
                 made = true;
             } else {
                 v.source = 0;
@@ -94,7 +99,7 @@ pub unsafe fn make_buffer(at: u32, ebx: u32) -> Result<bool, Refused> {
             let r = f(
                 ds,
                 AUDIO.buffer_description.addr() as u32,
-                &mut v.buffer as *mut u32 as u32,
+                crate::pointers::game_address(&mut v.buffer as *mut u32),
                 0,
             );
             if r != 0 {
@@ -110,7 +115,7 @@ pub unsafe fn make_buffer(at: u32, ebx: u32) -> Result<bool, Refused> {
             let r = f(
                 v.buffer,
                 AUDIO.iid_sound_3d_buffer.addr() as u32,
-                &mut v.buffer_3d as *mut u32 as u32,
+                crate::pointers::game_address(&mut v.buffer_3d as *mut u32),
             );
             if r != 0 {
                 return Ok(log_failure(QUERY_FAILED_RVA, r));
@@ -119,7 +124,7 @@ pub unsafe fn make_buffer(at: u32, ebx: u32) -> Result<bool, Refused> {
             crate::audio::set_buffer_min_distance::set_buffer_min_distance(v)?;
             AUDIO.commit_3d.set(1);
             if mode & MODE_HARDWARE_3D != 0 {
-                ebx = &mut v.buffer_3d as *mut u32 as u32;
+                ebx = crate::pointers::game_address(&mut v.buffer_3d as *mut u32);
                 crate::audio::open_voice_manager::open_voice_manager(ebx)?;
             }
             if mode & MODE_EAX != 0 && crate::audio::open_eax::open_eax(ebx)? {

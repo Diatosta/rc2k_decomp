@@ -65,7 +65,7 @@ pub unsafe fn show_picture_file(path: *mut u8) -> Result<u32, Refused> {
         let (width, height): (u32, u32) = (SCREEN.width.get(), SCREEN.height.get());
         crate::gfx::picture::set_size(sizes::screen(width, height));
         let pages = sizes::pages(SCREEN_MODE.mode_flags.get());
-        let mut eax = path as u32;
+        let mut eax = crate::pointers::game_address(path);
         if !read {
             crate::gfx::clear_picture::clear_picture()?;
         } else {
@@ -88,9 +88,10 @@ pub unsafe fn show_picture_file(path: *mut u8) -> Result<u32, Refused> {
                     if lock_surface() < 1 {
                         return Ok(eax);
                     }
-                    crate::gfx::rescale_to_surface::rescale_to_surface(
-                        crate::gfx::screen_state::DRAW_SURFACE.x.addr() as *const u32,
-                    )?;
+                    crate::gfx::rescale_to_surface::rescale_to_surface(crate::pointers::host_at(
+                        crate::gfx::screen_state::DRAW_SURFACE.x.addr(),
+                    )
+                        as *const u32)?;
                     unlock_surface();
                     show_frame_now();
                 }

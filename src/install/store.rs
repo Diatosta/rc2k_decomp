@@ -57,7 +57,7 @@ impl InstallVars {
     pub const LEN: usize = 0x4B6;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        &INSTALL as *const InstallVars as usize + 1
+        crate::pointers::host_number(&INSTALL as *const InstallVars) + 1
     }
 }
 
@@ -106,7 +106,7 @@ impl DriveRows {
     pub const LEN: usize = 0x1A1;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        &DRIVE_ROWS as *const DriveRows as usize
+        crate::pointers::host_number(&DRIVE_ROWS as *const DriveRows)
     }
 }
 
@@ -147,7 +147,7 @@ impl LobbyKeys {
     pub const LEN: usize = 0x77;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        &LOBBY_KEYS as *const LobbyKeys as usize
+        crate::pointers::host_number(&LOBBY_KEYS as *const LobbyKeys)
     }
 }
 

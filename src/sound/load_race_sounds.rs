@@ -73,7 +73,7 @@ impl Places {
             R.one_player.addr(),
             R.count.addr(),
             replay,
-            R.table.as_ptr() as usize,
+            crate::pointers::host_number(R.table.as_ptr()),
         ])
     }
 }

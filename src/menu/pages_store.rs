@@ -43,7 +43,7 @@ pub const END: usize = 0x755258;
 
 /// Where IDA 0x75523C is now (`moved::MOVED`'s home).
 pub fn menu_pages_addr() -> usize {
-    &MENU_PAGES as *const MenuPages as usize
+    crate::pointers::host_number(&MENU_PAGES as *const MenuPages)
 }
 
 #[cfg(test)]
@@ -58,8 +58,12 @@ mod tests {
             END - START <= size_of::<MenuPages>()
                 && size_of::<MenuPages>() <= (END - START).next_multiple_of(4)
         );
-        let mine =
-            unsafe { std::slice::from_raw_parts(menu_pages_addr() as *const u8, END - START) };
+        let mine = unsafe {
+            std::slice::from_raw_parts(
+                crate::pointers::host_at(menu_pages_addr()) as *const u8,
+                END - START,
+            )
+        };
         assert_eq!(mine, &image_bytes(START, END - START)[..]);
         let at = |field: usize, ida: usize| assert_eq!(field, ida - START, "{ida:#X}");
         at(offset_of!(MenuPages, save_page), 0x75523C);

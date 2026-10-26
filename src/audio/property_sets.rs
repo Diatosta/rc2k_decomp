@@ -97,18 +97,29 @@ pub unsafe fn open_property_set(o: &Opening, holder: u32, log: Log) -> Result<bo
         let mut support = 0u32;
         let query_support: unsafe extern "system" fn(u32, u32, u32, u32) -> i32 =
             std::mem::transmute(method(p, QUERY_SUPPORT));
-        if query_support(p, set, 0, &mut support as *mut u32 as u32) != 0
+        if query_support(
+            p,
+            set,
+            0,
+            crate::pointers::game_address(&mut support as *mut u32),
+        ) != 0
             || support & GET_AND_SET != GET_AND_SET
         {
             return Ok(false);
         }
         if o.mode {
             let value = VOICE_MANAGER_MODE;
-            if set_property(p, set, &value as *const u32 as u32, 4) != 0 {
+            if set_property(
+                p,
+                set,
+                crate::pointers::game_address(&value as *const u32),
+                4,
+            ) != 0
+            {
                 return Ok(false);
             }
         }
-        log(o.text.as_ptr() as u32);
+        log(crate::pointers::game_address(o.text.as_ptr()));
         o.found.set(1);
         Ok(true)
     }
@@ -127,8 +138,8 @@ unsafe fn set_property(p: u32, set: u32, data: u32, bytes: u32) -> i32 {
 /// room's entry. Refuses a room past the table (the original reads past it).
 pub fn set_eax_room(room: u32) -> Result<u32, Refused> {
     // Converted: `rc2k_core::audio::levels::eax_room_offset`.
-    let at =
-        AUDIO.eax_rooms.as_ptr() as usize as u32 + rc2k_core::audio::levels::eax_room_offset(room)?;
+    let at = crate::pointers::game_address(AUDIO.eax_rooms.as_ptr())
+        + rc2k_core::audio::levels::eax_room_offset(room)?;
     let p = AUDIO.eax_properties.get();
     if p != 0 {
         unsafe { set_property(p, AUDIO.eax_reverb_set.addr() as u32, at, 0x10) };

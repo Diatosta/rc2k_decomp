@@ -193,7 +193,7 @@ pub fn drive_grip_forces() {
     let held = [old];
     x87_15(
         crate::race::store::asm_base() as usize,
-        held.as_ptr() as usize,
+        crate::pointers::host_number(held.as_ptr()),
     );
 }
 

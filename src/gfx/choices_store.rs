@@ -60,7 +60,7 @@ impl ScreenChoices {
     pub const LEN: usize = 0x130;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        &SCREEN_CHOICES as *const ScreenChoices as usize
+        crate::pointers::host_number(&SCREEN_CHOICES as *const ScreenChoices)
     }
 }
 
@@ -74,7 +74,10 @@ mod tests {
         assert!(ScreenChoices::LEN <= size && size <= (ScreenChoices::LEN).next_multiple_of(16));
         let image = crate::moved::image_bytes(ScreenChoices::START, ScreenChoices::LEN);
         let mine = unsafe {
-            std::slice::from_raw_parts(ScreenChoices::home() as *const u8, ScreenChoices::LEN)
+            std::slice::from_raw_parts(
+                crate::pointers::host_at(ScreenChoices::home()) as *const u8,
+                ScreenChoices::LEN,
+            )
         };
         assert_eq!(mine, &image[..]);
     }

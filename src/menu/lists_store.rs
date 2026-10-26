@@ -1399,7 +1399,7 @@ pub const END: usize = 0x75A658;
 
 /// Where IDA 0X7594AA is now (`moved::MOVED`'s home).
 pub fn menu_lists_addr() -> usize {
-    &MENU_LISTS as *const MenuLists as usize
+    crate::pointers::host_number(&MENU_LISTS as *const MenuLists)
 }
 
 #[cfg(test)]

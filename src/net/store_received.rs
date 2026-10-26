@@ -39,7 +39,8 @@ pub fn store_received(
     let base = GamePtr::new(block.inbox_addr() as u32);
     // Converted: `rc2k_core::net::inbox::store`, on the block's inbox and the message.
     let mut inbox = base.read_bytes(inbox::INBOX, "a player's inbox")?;
-    let message = GamePtr::new(bytes as u32).read_bytes(length as usize, "a received message")?;
+    let message = GamePtr::new(crate::pointers::game_address(bytes))
+        .read_bytes(length as usize, "a received message")?;
     inbox::store(&mut inbox, sequence, time, &message)?;
     base.write_bytes(&inbox, "a player's inbox")?;
     Ok(())

@@ -40,13 +40,16 @@ pub unsafe fn put_surface_pixel(components: u32, x: u32, y: u32) -> Result<u32, 
         let pixel = if components == 0 {
             0
         } else {
-            components_to_pixel(&(format as *const PixelFormat).read_unaligned(), components)
+            components_to_pixel(
+                &(crate::pointers::host(format) as *const PixelFormat).read_unaligned(),
+                components,
+            )
         };
         let (at, wide) = place(x, y);
         if wide == 2 {
-            (at as *mut u16).write_unaligned(pixel as u16);
+            (crate::pointers::host(at) as *mut u16).write_unaligned(pixel as u16);
         } else {
-            (at as *mut u32).write_unaligned(pixel);
+            (crate::pointers::host(at) as *mut u32).write_unaligned(pixel);
         }
         Ok(pixel)
     }

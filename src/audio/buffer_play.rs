@@ -33,7 +33,7 @@ pub unsafe fn is_playing(v: &Voice) -> Result<u32, Refused> {
     unsafe {
         let f: unsafe extern "system" fn(u32, u32) -> i32 =
             std::mem::transmute(crate::audio::com::method(b, GET_STATUS));
-        f(b, &mut status as *mut u32 as u32);
+        f(b, crate::pointers::game_address(&mut status as *mut u32));
     }
     Ok(status)
 }

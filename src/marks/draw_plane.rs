@@ -72,7 +72,7 @@ impl PlaneTuning {
     pub const LEN: usize = 0x4C;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        &PLANE_TUNING as *const PlaneTuning as usize
+        crate::pointers::host_number(&PLANE_TUNING as *const PlaneTuning)
     }
 }
 
@@ -127,7 +127,7 @@ pub fn draw_plane() -> Result<(), Refused> {
     cross_product3(a0, a2, a1)?;
     crate::marks::scale_axes::scale_axes();
     plane_place(s);
-    normalise_vector3(HEX.place.as_ptr() as u32);
+    normalise_vector3(crate::pointers::game_address(HEX.place.as_ptr()));
     plane_facing();
     if HEXAGON_STATE.facing.bits() & 0x8000_0000 == 0 {
         return Ok(());

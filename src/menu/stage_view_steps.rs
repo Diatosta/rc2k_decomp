@@ -120,9 +120,13 @@ pub unsafe fn load_welcome_picture() -> Result<(), Refused> {
         stage_screens::Welcome::Other => MENU_LISTS.welcome_other[0].addr(),
     };
     let path = get(table as u32 + 4 * section)?;
-    let title_bar = crate::menu::texts_store::MENU_TEXTS.titlebar_png.addr() as *mut u8;
+    let title_bar =
+        crate::pointers::host_at(crate::menu::texts_store::MENU_TEXTS.titlebar_png.addr());
     if unsafe {
-        crate::gfx::load_picture_with_overlay::load_picture_with_overlay(path as *mut u8, title_bar)
+        crate::gfx::load_picture_with_overlay::load_picture_with_overlay(
+            crate::pointers::host(path),
+            title_bar,
+        )
     }? {
         return Err(FatalError {
             code: 0x8071_2345,

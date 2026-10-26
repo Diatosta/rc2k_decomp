@@ -56,9 +56,10 @@ pub fn allocate_best_times(list: *mut MemoryList, records: u32) -> Result<(), Re
         let place = &BEST_TIMES.tables[n];
         place.size.set(size);
         let memory = { allocate(list, size) }?;
-        place.address.set(memory as u32);
+        place.address.set(crate::pointers::game_address(memory));
         if MARKED.contains(&n) {
-            GamePtr::new(memory as u32 + size - 4).write(u32::MAX, "a table of best times")?;
+            GamePtr::new(crate::pointers::game_address(memory) + size - 4)
+                .write(u32::MAX, "a table of best times")?;
         }
     }
     Ok(())

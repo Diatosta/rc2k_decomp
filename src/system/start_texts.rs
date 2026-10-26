@@ -35,7 +35,7 @@ impl StartTexts {
     pub const LEN: usize = 0x94;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        &START_TEXTS as *const StartTexts as usize
+        crate::pointers::host_number(&START_TEXTS as *const StartTexts)
     }
 }
 
@@ -48,8 +48,12 @@ mod tests {
         let size = size_of::<StartTexts>();
         assert!(StartTexts::LEN <= size && size <= (StartTexts::LEN).next_multiple_of(16));
         let image = crate::moved::image_bytes(StartTexts::START, StartTexts::LEN);
-        let mine =
-            unsafe { std::slice::from_raw_parts(StartTexts::home() as *const u8, StartTexts::LEN) };
+        let mine = unsafe {
+            std::slice::from_raw_parts(
+                crate::pointers::host_at(StartTexts::home()) as *const u8,
+                StartTexts::LEN,
+            )
+        };
         assert_eq!(mine, &image[..]);
     }
 }

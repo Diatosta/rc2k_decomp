@@ -524,13 +524,14 @@ fn pack(value: u32, mask: u32) -> u32 {
 unsafe fn blit(p: &Picture) {
     let (rgb, w, h) = (&p.rgb, p.width, p.height);
     unsafe {
-        let surface = DRAW_SURFACE.x.addr() as *const u32;
+        let surface = crate::pointers::host_at(DRAW_SURFACE.x.addr()) as *const u32;
         let at = |n: usize| surface.add(n).read_unaligned();
         let (sw, sh) = (at(2) as usize, at(3) as usize);
         let bytes = at(5) as usize;
         let pitch = at(9) as usize;
-        let pixels = at(10) as *mut u8;
-        let format = (crate::session::SCREEN.format_addr() + 4) as *const u32;
+        let pixels = crate::pointers::host(at(10));
+        let format =
+            crate::pointers::host_at(crate::session::SCREEN.format_addr() + 4) as *const u32;
         // masks: blue, green, red, alpha
         let (mb, mg, mr) = (
             format.read_unaligned(),
@@ -649,8 +650,10 @@ pub unsafe fn play_film(path: u32) -> bool {
         // A key pending before the film is dropped (`input::take_key`).
         crate::input::take_key::take_key();
         // the open: the path resolved (`files::resolve_path`), there (`files::file_exists`)
-        let found = crate::files::resolve_path::resolve_path_in_game(path as *const u8)
-            .and_then(|at| Ok((at, crate::files::file_exists::file_exists(at)?)));
+        let found = crate::files::resolve_path::resolve_path_in_game(
+            crate::pointers::host(path) as *const u8
+        )
+        .and_then(|at| Ok((at, crate::files::file_exists::file_exists(at)?)));
         let name = match found {
             Ok((at, there)) => {
                 let name = CStr::from_ptr(at as *const c_char)

@@ -24,7 +24,8 @@ pub fn send_message(bytes: *const u8, count: u32) -> Result<(), Refused> {
     // Converted: `rc2k_core::net::inbox` (`next_sequence`, `outgoing`: a message too long
     // refused before anything is written).
     let byte = inbox::next_sequence(NET.sequence.get());
-    let bytes = GamePtr::new(bytes as u32).read_bytes(count as usize, "a message to send")?;
+    let bytes = GamePtr::new(crate::pointers::game_address(bytes))
+        .read_bytes(count as usize, "a message to send")?;
     let message = inbox::outgoing(byte, &bytes)?;
     NET.sequence.set(byte);
     GamePtr::new(NET.send_buffer.addr() as u32).write_bytes(&message, "the send buffer")?;

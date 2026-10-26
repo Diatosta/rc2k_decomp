@@ -36,7 +36,8 @@ pub trait Outside {
             directory.push(b'\\');
         }
         directory.push(0);
-        crate::pointers::GamePtr::new(to as u32).write_bytes(&directory, "a folder")?;
+        crate::pointers::GamePtr::new(crate::pointers::game_address(to))
+            .write_bytes(&directory, "a folder")?;
         Ok(true)
     }
 }
@@ -54,7 +55,9 @@ impl Outside for Game {
         unsafe { SetCurrentDirectoryA(path) != 0 }
     }
     unsafe fn read_record(&mut self) -> Result<(), BadInput> {
-        read_record(crate::install::installer::INSTALL_TEXTS.record_path.addr() as *const u8)
+        read_record(crate::pointers::host_at(
+            crate::install::installer::INSTALL_TEXTS.record_path.addr(),
+        ) as *const u8)
     }
     unsafe fn log(&mut self, text: *const u8) {
         unsafe { log_write(text, true, 1) };

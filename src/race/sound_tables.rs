@@ -145,7 +145,7 @@ pub struct ObjectVars {
 impl ObjectVars {
     pub fn game() -> Self {
         Self {
-            table: crate::sound::store::RACE_SOUNDS.table.as_ptr() as usize as u32,
+            table: crate::pointers::game_address(crate::sound::store::RACE_SOUNDS.table.as_ptr()),
             objects: std::array::from_fn(|k| crate::sound::store::RACE_SOUNDS.objects[k].addr()),
         }
     }

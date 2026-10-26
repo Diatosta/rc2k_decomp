@@ -89,7 +89,10 @@ pub fn start() -> Result<bool, Refused> {
         }
         crate::audio::choose_modes::in_game(&mut crate::audio::choose_modes::real_log)?;
     }
-    sd::log_text(USING_MODES_TEXT.as_ptr() as usize as u32, false);
+    sd::log_text(
+        crate::pointers::game_address(USING_MODES_TEXT.as_ptr()),
+        false,
+    );
     sd::log_hex(AUDIO.menu_sound_mode.get(), false);
     sd::log_hex(AUDIO.race_sound_mode.get(), true);
     sd::close_sound()?;

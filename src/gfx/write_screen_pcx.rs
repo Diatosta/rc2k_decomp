@@ -58,7 +58,7 @@ pub unsafe fn write_screen_pcx() -> Result<bool, Refused> {
         let mut path: u32 = crate::gfx::picture_store::PICTURE.name.get();
         if path == 0 {
             path = crate::gfx::shots::SHOTS.name.addr() as u32;
-            let digits = path as *mut u8;
+            let digits = crate::pointers::host(path);
             for n in (0..3).rev() {
                 let d = digits.add(n);
                 d.write(d.read().wrapping_add(1));
@@ -69,7 +69,11 @@ pub unsafe fn write_screen_pcx() -> Result<bool, Refused> {
             }
         }
         let stream = crate::gfx::pcx::stream();
-        if !crate::files::open_stream::open_stream(stream, path as *const u8, 1)? {
+        if !crate::files::open_stream::open_stream(
+            stream,
+            crate::pointers::host(path) as *const u8,
+            1,
+        )? {
             return Ok(false);
         }
         let mut ok = write_stream_block(stream, &header_bytes)? && rows(stream)?;
@@ -89,7 +93,8 @@ unsafe fn rows(stream: *mut Stream) -> Result<bool, Refused> {
         let width = DRAW_SURFACE.width.get();
         let mut y = 0u32;
         loop {
-            let format = (DRAW_SURFACE.format.get() as *const PixelFormat).read_unaligned();
+            let format = (crate::pointers::host(DRAW_SURFACE.format.get()) as *const PixelFormat)
+                .read_unaligned();
             let planes =
                 rc2k_core::gfx::pcx::screen_planes(
                     width,
@@ -98,11 +103,12 @@ unsafe fn rows(stream: *mut Stream) -> Result<bool, Refused> {
                         0x10 => crate::gfx::pixel_to_components::pixel_to_components(
                             &format,
                             eax & 0xFFFF_0000
-                                | ((row + 2 * x) as *const u16).read_unaligned() as u32,
+                                | (crate::pointers::host(row + 2 * x) as *const u16)
+                                    .read_unaligned() as u32,
                         ),
                         0x20 => crate::gfx::pixel_to_components::pixel_to_components(
                             &format,
-                            ((row + 4 * x) as *const u32).read_unaligned(),
+                            (crate::pointers::host(row + 4 * x) as *const u32).read_unaligned(),
                         ),
                         _ => eax,
                     },

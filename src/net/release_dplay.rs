@@ -18,7 +18,8 @@ pub fn release_dplay() {
     if NET.dplay.get() != 0 {
         unsafe {
             log_write(
-                VIEWER_PANEL.text_addr(texts::NET_DESTROY_DPLAY) as *const u8,
+                crate::pointers::host(VIEWER_PANEL.text_addr(texts::NET_DESTROY_DPLAY))
+                    as *const u8,
                 true,
                 2,
             )

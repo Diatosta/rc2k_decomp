@@ -58,7 +58,7 @@ pub fn choose_modes(
         menu,
         f,
         |l| match l {
-            Logged::NewModes => log(0, NEW_MODES_TEXT.as_ptr() as usize as u32),
+            Logged::NewModes => log(0, crate::pointers::game_address(NEW_MODES_TEXT.as_ptr())),
             Logged::Menu(m) => log(2, m),
             Logged::Race(m) => log(3, m),
         },

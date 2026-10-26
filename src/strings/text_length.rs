@@ -21,7 +21,7 @@ pub fn text_length(text: *const u8) -> Result<u32, BadInput> {
     if text.is_null() {
         return Err(BadInput("no text"));
     }
-    nul_at(text as usize as u32, "a text")
+    nul_at(crate::pointers::game_address(text), "a text")
 }
 
 /// The length of the text at `at` (to its NUL), which must end inside its block.

@@ -12,6 +12,6 @@ const COUNT: u32 = 0x17;
 
 /// The Rust version.
 pub unsafe fn apply_wheel_forces() -> Result<(), Refused> {
-    let first = (PHYSICS.forces.as_ptr() as usize) as u32;
+    let first = crate::pointers::host_number(PHYSICS.forces.as_ptr()) as u32;
     unsafe { apply_forces(first, COUNT) }
 }

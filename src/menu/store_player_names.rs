@@ -19,7 +19,7 @@ pub fn store_player_names(log: &mut dyn FnMut(*const u8)) -> Result<(), BadInput
     for (player, car) in cars()?.into_iter().enumerate() {
         let copy = car + CAR_NAME as u32;
         GamePtr::new(copy).write_bytes(&name_bytes(player), "a player's name copy")?;
-        log(copy as usize as *const u8);
+        log(crate::pointers::host(copy) as *const u8);
     }
     Ok(())
 }

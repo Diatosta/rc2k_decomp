@@ -142,7 +142,7 @@ pub static TEXTURE_TABLES: Textures = Textures {
 
 /// Where the block is (`moved::MOVED`'s home for IDA 0x5ABA8C).
 pub fn home() -> usize {
-    &TEXTURE_TABLES as *const Textures as usize
+    crate::pointers::host_number(&TEXTURE_TABLES as *const Textures)
 }
 
 impl Textures {
@@ -153,7 +153,7 @@ impl Textures {
 
     /// Where the sizes table is (five entries of two dwords, for `system::find_entry`).
     pub fn sizes_addr(&self) -> usize {
-        self as *const Self as usize + core::mem::offset_of!(Self, sizes)
+        crate::pointers::host_number(self as *const Self) + core::mem::offset_of!(Self, sizes)
     }
 
     /// The kinds table's entry `n`, read where the original reads it (not checked against
@@ -277,7 +277,7 @@ pub unsafe fn keep_second_picture(record: &Record, path: u32) -> Result<(), Refu
     let kept = if path == 0 {
         None
     } else {
-        match unsafe { read_texture_picture(path as *mut u8) }? {
+        match unsafe { read_texture_picture(crate::pointers::host(path)) }? {
             (_, _, _, true) => None,
             found => Some(found),
         }
@@ -317,7 +317,7 @@ mod block_tests {
         assert_eq!(crate::moved::place(START), TEXTURE_TABLES.alpha_kind.addr());
         assert_eq!(
             crate::moved::place(0x5B521C),
-            TEXTURE_TABLES.system.records.as_ptr() as usize
+            crate::pointers::host_number(TEXTURE_TABLES.system.records.as_ptr())
         );
     }
 }

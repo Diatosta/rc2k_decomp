@@ -12,6 +12,6 @@ const COUNT: u32 = 7;
 
 /// The Rust version.
 pub unsafe fn apply_contact_forces() -> Result<(), Refused> {
-    let first = (PHYSICS.contacts.as_ptr() as usize) as u32;
+    let first = crate::pointers::host_number(PHYSICS.contacts.as_ptr()) as u32;
     unsafe { apply_forces(first, COUNT) }
 }

@@ -13,7 +13,11 @@ use crate::scene::x87_mem::{fld, fld80, fstp80};
 /// The Rust version: `p` as st(0) .. st(2), the result the same way.
 pub fn rotate_point(m: u32, p: [[u8; 10]; 3]) -> [[u8; 10]; 3] {
     let mut out = [[0u8; 10]; 3];
-    rotate(p.as_ptr().cast(), m as *const u8, out.as_mut_ptr().cast());
+    rotate(
+        p.as_ptr().cast(),
+        crate::pointers::host(m) as *const u8,
+        out.as_mut_ptr().cast(),
+    );
     out
 }
 

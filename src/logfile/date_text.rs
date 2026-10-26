@@ -51,7 +51,7 @@ pub fn date_text() -> Result<Vec<u8>, BadInput> {
 /// cursor after the text.
 pub fn write_date_text(cursor: *mut u8) -> Result<*mut u8, BadInput> {
     let text = date_text()?;
-    let at = crate::pointers::GamePtr::new(cursor as u32);
+    let at = crate::pointers::GamePtr::new(crate::pointers::game_address(cursor));
     at.write_bytes(&text, "the log's date text")?;
     at.offset(text.len() as u32)
         .write(0x0A0Du32, "the log's date text")?;

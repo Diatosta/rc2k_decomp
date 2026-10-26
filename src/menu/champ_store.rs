@@ -85,7 +85,7 @@ pub const END: usize = 0x755784;
 
 /// Where IDA 0x7556B4 is now (`moved::MOVED`'s home).
 pub fn champ_view_addr() -> usize {
-    &CHAMP_VIEW as *const ChampView as usize
+    crate::pointers::host_number(&CHAMP_VIEW as *const ChampView)
 }
 
 #[cfg(test)]
@@ -100,8 +100,12 @@ mod tests {
             END - START <= size_of::<ChampView>()
                 && size_of::<ChampView>() <= (END - START).next_multiple_of(4)
         );
-        let mine =
-            unsafe { std::slice::from_raw_parts(champ_view_addr() as *const u8, END - START) };
+        let mine = unsafe {
+            std::slice::from_raw_parts(
+                crate::pointers::host_at(champ_view_addr()) as *const u8,
+                END - START,
+            )
+        };
         assert_eq!(mine, &image_bytes(START, END - START)[..]);
         let at = |field: usize, ida: usize| assert_eq!(field, ida - START, "{ida:#X}");
         at(offset_of!(ChampView, count), 0x7556B4);

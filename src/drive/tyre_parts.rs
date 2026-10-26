@@ -59,11 +59,11 @@ pub fn quad_tail(uv: u32) {
 /// scratch float, `rc` the race block (the scale floats at their RVA offsets).
 fn quad_tail_math(s: usize, v: usize, sc: usize, t: usize, rc: usize) {
     let (s, v, sc, t, rc) = (
-        s as *mut u8,
-        v as *mut u8,
-        sc as *mut u8,
-        t as *mut u8,
-        rc as *mut u8,
+        crate::pointers::host_at(s),
+        crate::pointers::host_at(v),
+        crate::pointers::host_at(sc),
+        crate::pointers::host_at(t),
+        crate::pointers::host_at(rc),
     );
     let k = fld(rc, 0x1C2C64);
     let left = fild(s, 0) * k;

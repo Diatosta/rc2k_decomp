@@ -17,6 +17,6 @@ use crate::errors::BadInput;
 pub fn file_size(path: *const u8) -> Result<(u32, bool), BadInput> {
     Ok(rc2k_core::files::io::file_size(
         &mut crate::files::handle::GameFiles::new(),
-        crate::pointers::GamePtr::new(path as u32),
+        crate::pointers::GamePtr::new(crate::pointers::game_address(path)),
     )?)
 }

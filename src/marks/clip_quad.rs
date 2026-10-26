@@ -96,7 +96,7 @@ pub fn clip_quad(q: u32) -> Result<bool, Refused> {
         } else {
             return Ok(false);
         }
-        let work = CLIP.vertices.as_ptr() as u32;
+        let work = crate::pointers::game_address(CLIP.vertices.as_ptr());
         let mut ebx = 0u32;
         let mut k = edi;
         loop {

@@ -36,7 +36,10 @@ pub fn in_game() -> Result<bool, Refused> {
     for (n, &byte) in head.iter().enumerate() {
         crate::files::scratch::SCRATCH.buffer.set(n, byte);
     }
-    let Some(file) = open_by_mode(crate::saves::load_best_times::PATH.addr() as *const u8, 1)?
+    let Some(file) = open_by_mode(
+        crate::pointers::host_at(crate::saves::load_best_times::PATH.addr()) as *const u8,
+        1,
+    )?
     else {
         return Ok(false);
     };

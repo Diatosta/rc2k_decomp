@@ -175,7 +175,7 @@ pub fn steps() {
     x87_14(
         crate::race::store::asm_base() as usize,
         &DAMAGE,
-        (&raw mut status) as usize,
+        crate::pointers::host_number(&raw mut status),
     );
     if status & 0x100 != 0 {
         DAMAGE.flt_75b3c0.set_bits(ONE);
@@ -519,7 +519,7 @@ mod asm_reference {
     /// The damage model as the test's buffer holds it (the buffer's base plus the RVA of
     /// 0x75B340).
     fn dm(base: usize) -> &'static DamageModel {
-        unsafe { &*((base + 0x35B340) as *const DamageModel) }
+        unsafe { &*(crate::pointers::host_at(base + 0x35B340) as *const DamageModel) }
     }
     use crate::scene::asm_test::{Block, In, Operand, Out, reference, sparse};
 

@@ -66,7 +66,7 @@ fn read(path: u32) -> Result<(), Refused> {
         PICTURE.width.set(0x100u32);
         PICTURE.height.set(0x80u32);
         PICTURE.row_bytes.set(0xFFFF_FFFEu32);
-        let read = crate::gfx::read_picture_file::read_picture_file(path as *mut u8);
+        let read = crate::gfx::read_picture_file::read_picture_file(crate::pointers::host(path));
         PICTURE.width.set(sizes[0]);
         PICTURE.height.set(sizes[1]);
         PICTURE.row_bytes.set(sizes[2]);
@@ -143,7 +143,9 @@ pub fn load_mask_pictures() -> Result<(), Refused> {
         }
         GROUND_NAMES.ground_path.set(name);
         for (bytes, list, to) in blocks() {
-            to.set(crate::memory::allocate::allocate(list, bytes)? as u32);
+            to.set(crate::pointers::game_address(
+                crate::memory::allocate::allocate(list, bytes)?,
+            ));
         }
         lock(KIND_TEXTURES.kind_first_textures[202].bits(), true)?;
         let width: u32 = crate::gfx::screen_state::DRAW_SURFACE.width.get();

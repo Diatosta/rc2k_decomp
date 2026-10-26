@@ -32,7 +32,7 @@ impl core::ops::Deref for InBuffers {
     fn deref(&self) -> &TextBuffers {
         // SAFETY: the block lives as long as the program and the piece is aligned to 4 (the
         // test checks); every field is a cell.
-        unsafe { &*(piece_addr() as *const TextBuffers) }
+        unsafe { &*(crate::pointers::host_at(piece_addr()) as *const TextBuffers) }
     }
 }
 

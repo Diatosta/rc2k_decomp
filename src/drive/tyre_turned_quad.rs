@@ -20,7 +20,12 @@ use crate::session::MACHINE;
 /// the device's address, `d` the rectangle, `v` the vertices, `t` the scratch float holding
 /// 2 pi.
 fn turn(ty: &TyreChange, e: usize, d: usize, v: usize, t: usize) {
-    let (e, d, v, t) = (e as *mut u8, d as *mut u8, v as *mut u8, t as *mut u8);
+    let (e, d, v, t) = (
+        crate::pointers::host_at(e),
+        crate::pointers::host_at(d),
+        crate::pointers::host_at(v),
+        crate::pointers::host_at(t),
+    );
     let angle = fild(e, 0x4EC) * ld(ty.gauge_unit.bits()) * fld(t, 0);
     let (sin, cos) = angle.sin_cos();
     ty.turn_cos.set_bits(st(cos));
@@ -219,19 +224,20 @@ mod asm_reference {
                 t_b.copy_from_slice(&t_a);
                 unsafe {
                     ref_turn(
-                        (&*ty_a as *const TyreChange as usize).wrapping_sub(RVA_OFFSET),
-                        e_a.as_mut_ptr() as usize,
-                        d_a.as_mut_ptr() as usize,
-                        v_a.as_mut_ptr() as usize,
-                        t_a.as_mut_ptr() as usize,
+                        crate::pointers::host_number(&*ty_a as *const TyreChange)
+                            .wrapping_sub(RVA_OFFSET),
+                        crate::pointers::host_number(e_a.as_mut_ptr()),
+                        crate::pointers::host_number(d_a.as_mut_ptr()),
+                        crate::pointers::host_number(v_a.as_mut_ptr()),
+                        crate::pointers::host_number(t_a.as_mut_ptr()),
                     );
                 }
                 turn(
                     &ty_b,
-                    e_b.as_mut_ptr() as usize,
-                    d_b.as_mut_ptr() as usize,
-                    v_b.as_mut_ptr() as usize,
-                    t_b.as_mut_ptr() as usize,
+                    crate::pointers::host_number(e_b.as_mut_ptr()),
+                    crate::pointers::host_number(d_b.as_mut_ptr()),
+                    crate::pointers::host_number(v_b.as_mut_ptr()),
+                    crate::pointers::host_number(t_b.as_mut_ptr()),
                 );
                 let mut places: Vec<(&str, usize, &[u8], &[u8])> = Vec::new();
                 for off in (WINDOW..WINDOW_END).step_by(4) {

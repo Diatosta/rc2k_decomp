@@ -21,12 +21,21 @@ use crate::d3d::vertices_store::VERTICES;
 /// The original's 0x4B8599 .. 0x4B8659 on the four values: the sides; the place's two
 /// values (left untouched) popped after.
 fn sides(v: &[[u8; 10]; 4]) {
-    sides_x87(v.as_ptr() as usize, &PONG, &MARKS_FLOATS, &SQUARE_TABLES)
+    sides_x87(
+        crate::pointers::host_number(v.as_ptr()),
+        &PONG,
+        &MARKS_FLOATS,
+        &SQUARE_TABLES,
+    )
 }
 
 /// The original's 0x4B868E .. 0x4B8786 on the place: the corners.
 fn corners(v: &[[u8; 10]; 4]) {
-    corners_x87(v.as_ptr() as usize, &PONG, &SQUARE_TABLES)
+    corners_x87(
+        crate::pointers::host_number(v.as_ptr()),
+        &PONG,
+        &SQUARE_TABLES,
+    )
 }
 
 /// The original's 0x4B87A5 .. 0x4B88A9: the corners projected, their depth.

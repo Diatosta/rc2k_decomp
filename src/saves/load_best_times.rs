@@ -55,7 +55,7 @@ pub fn load_game_best_times() -> Result<bool, Refused> {
         BEST_TIMES.list(),
         crate::records::stages_store::STAGE_TABLES.championship(), // g_recordTable
     )?;
-    let Some(file) = open_by_mode(PATH.addr() as *const u8, 0)? else {
+    let Some(file) = open_by_mode(crate::pointers::host_at(PATH.addr()) as *const u8, 0)? else {
         return Ok(false);
     };
     let scratch = GamePtr::new(crate::files::scratch::SCRATCH.buffer.addr() as u32);

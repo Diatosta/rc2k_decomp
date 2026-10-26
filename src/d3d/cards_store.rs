@@ -104,7 +104,7 @@ impl Cards3d {
     pub const LEN: usize = 0x564;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        &CARDS_3D as *const Cards3d as usize + 4
+        crate::pointers::host_number(&CARDS_3D as *const Cards3d) + 4
     }
 }
 
@@ -117,8 +117,12 @@ mod tests {
         let size = size_of::<Cards3d>();
         assert!(4 + Cards3d::LEN <= size && size <= (4 + Cards3d::LEN).next_multiple_of(16));
         let image = crate::moved::image_bytes(Cards3d::START, Cards3d::LEN);
-        let mine =
-            unsafe { std::slice::from_raw_parts(Cards3d::home() as *const u8, Cards3d::LEN) };
+        let mine = unsafe {
+            std::slice::from_raw_parts(
+                crate::pointers::host_at(Cards3d::home()) as *const u8,
+                Cards3d::LEN,
+            )
+        };
         assert_eq!(mine, &image[..]);
     }
 }

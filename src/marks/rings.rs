@@ -72,7 +72,7 @@ fn span_ring_quad(s: u32, k: u32) -> Result<(), Refused> {
         );
         let corners: u32 = MASKS.ring_corners.get();
         write_bits(&MASKS.ring_quad, quad(corners, k)?);
-        span_quad(MASKS.ring_quad.as_ptr() as u32)?;
+        span_quad(crate::pointers::game_address(MASKS.ring_quad.as_ptr()))?;
     }
     Ok(())
 }

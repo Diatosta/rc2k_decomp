@@ -93,12 +93,15 @@ pub fn hexagons_drift() -> Result<(), Refused> {
                     HEX.turn[3 * col as usize + k].set_bits(x);
                 }
             }
-            let turn = HEX.turn.as_ptr() as u32;
-            let adj = HEX.adjugate.as_ptr() as u32;
+            let turn = crate::pointers::game_address(HEX.turn.as_ptr());
+            let adj = crate::pointers::game_address(HEX.adjugate.as_ptr());
             adjugate3(turn, adj)?;
             let mut temps = [0u32; 2];
             let mut kept = [0u8; 30];
-            let (t, l) = (temps.as_mut_ptr() as u32, kept.as_mut_ptr() as u32);
+            let (t, l) = (
+                crate::pointers::game_address(temps.as_mut_ptr()),
+                crate::pointers::game_address(kept.as_mut_ptr()),
+            );
             drift_turned(adj, t, l);
             turn_matrix3(Axis::X, turn, extended(HEX.angle.bits()))?;
             drift_back(turn, t, l);

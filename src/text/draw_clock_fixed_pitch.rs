@@ -54,11 +54,13 @@ pub unsafe fn draw_clock_fixed_pitch_at(
     canvas: &mut dyn Canvas,
 ) -> Result<(bool, bool), Refused> {
     unsafe {
-        let before = crate::pointers::GamePtr::new(font as usize as u32).read::<Font>("a font")?;
+        let before = crate::pointers::GamePtr::new(crate::pointers::game_address(font))
+            .read::<Font>("a font")?;
         let mut copy = before;
         let too_wide = draw_clock_fixed_pitch(&mut copy, text, x, y, canvas)?;
         if copy != before && canvas.keeps_font_changes() {
-            crate::pointers::GamePtr::new(font as usize as u32).write(copy, "a font")?;
+            crate::pointers::GamePtr::new(crate::pointers::game_address(font))
+                .write(copy, "a font")?;
         }
         Ok(too_wide)
     }

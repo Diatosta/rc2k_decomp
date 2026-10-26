@@ -35,7 +35,7 @@ pub static PNG_FILE: PngFile = PngFile {
 
 /// Where the block is (`moved::MOVED`'s home for IDA 0x5BEC30).
 pub fn home() -> usize {
-    &PNG_FILE as *const PngFile as usize
+    crate::pointers::host_number(&PNG_FILE as *const PngFile)
 }
 
 #[cfg(test)]

@@ -54,14 +54,14 @@ pub fn host_session() -> Result<bool, Refused> {
     zeroed_description()?;
     NET.session_desc.flags.set(0x44);
     movsb(
-        NET.session_desc.application.as_ptr() as u32,
+        crate::pointers::game_address(NET.session_desc.application.as_ptr()),
         NET.app_guid.addr() as u32,
         0x10,
     )?;
     NET.session_desc.max_players.set(NET.most_players.get());
     NET.session_desc.name.set(NET.machine_name.addr() as u32);
     movsb(
-        NET.session_desc.user.as_ptr() as u32,
+        crate::pointers::game_address(NET.session_desc.user.as_ptr()),
         NET.session_password.addr() as u32,
         0x10,
     )?;

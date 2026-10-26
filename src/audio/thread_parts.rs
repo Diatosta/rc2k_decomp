@@ -10,7 +10,7 @@ pub fn take_sample_buffer() -> Result<(), Refused> {
     let size = rc2k_core::audio::levels::sample_buffer_size(AUDIO.sample_buffer_kb.get());
     AUDIO.sample_buffer_size.set(size);
     let b = crate::memory::allocate::allocate(AUDIO.sample_buffer_memory.as_ptr(), size)?;
-    AUDIO.sample_buffer.set(b as u32);
+    AUDIO.sample_buffer.set(crate::pointers::game_address(b));
     Ok(())
 }
 

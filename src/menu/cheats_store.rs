@@ -62,7 +62,7 @@ pub const END: usize = 0x758714;
 
 /// Where IDA 0x7585D8 is now (`moved::MOVED`'s home).
 pub fn cheats_addr() -> usize {
-    &CHEAT_VARS as *const Cheats as usize
+    crate::pointers::host_number(&CHEAT_VARS as *const Cheats)
 }
 
 #[cfg(test)]
@@ -77,7 +77,12 @@ mod tests {
             END - START <= size_of::<Cheats>()
                 && size_of::<Cheats>() <= (END - START).next_multiple_of(4)
         );
-        let mine = unsafe { std::slice::from_raw_parts(cheats_addr() as *const u8, END - START) };
+        let mine = unsafe {
+            std::slice::from_raw_parts(
+                crate::pointers::host_at(cheats_addr()) as *const u8,
+                END - START,
+            )
+        };
         assert_eq!(mine, &image_bytes(START, END - START)[..]);
         let at = |field: usize, ida: usize| assert_eq!(field, ida - START, "{ida:#X}");
         at(offset_of!(Cheats, notice_due), 0x7585D8);

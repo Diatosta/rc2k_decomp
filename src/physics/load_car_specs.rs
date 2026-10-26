@@ -72,7 +72,7 @@ pub fn load_car_specs() -> Result<(), Refused> {
     let kind = CAR.car_kind.get();
     let spec = record();
     // The x87 runs read the record at their operands' offsets.
-    let s = spec as *const CarSpec as usize;
+    let s = crate::pointers::host_number(spec as *const CarSpec);
     let drive = check_drive(spec.drive_kind.get())?;
     CAR.drive_kind.set(drive);
     // 0x4214A7 .. 0x421543

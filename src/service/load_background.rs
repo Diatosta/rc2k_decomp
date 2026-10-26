@@ -32,7 +32,7 @@ pub unsafe fn load_background() -> Result<(), Refused> {
     .map_err(BadInput::from)?;
     unsafe {
         let path = MENU_LISTS.service_pictures[car as usize].get();
-        crate::gfx::load_picture::load_picture(path as *mut u8)?;
+        crate::gfx::load_picture::load_picture(crate::pointers::host(path))?;
         crate::gfx::convert_picture::convert_picture_now()?;
     }
     Ok(())

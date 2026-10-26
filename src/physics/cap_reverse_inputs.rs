@@ -34,7 +34,7 @@ pub unsafe fn cap_reverse_inputs_at(gear: u32, speed: u32, values: [u32; 2]) {
         };
         for (v, h) in values.iter().zip(held) {
             if at(*v) != h.to_bits() {
-                (*v as *mut u32).write_unaligned(h.to_bits());
+                (crate::pointers::host(*v) as *mut u32).write_unaligned(h.to_bits());
             }
         }
     }

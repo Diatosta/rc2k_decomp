@@ -78,16 +78,16 @@ fn look_over(instance: u32, entry: u32) -> Result<bool, BadInput> {
     )) {
         return Ok(false);
     }
-    let found = crate::input::axis_found::callback as unsafe extern "system" fn(u32, u32) -> u32
-        as usize as u32;
+    let found = crate::pointers::game_address(crate::input::axis_found::callback as *const ());
     method(device2, slot::ENUM_OBJECTS, &[found, entry, 0]);
     // SAFETY: `instance` is the `DIDEVICEINSTANCEA` the emulation lists (a local of its own,
     // no allocation of the game's), alive for this call.
     let (dev_type, guid) = unsafe {
         (
-            ((instance + field!(DiDeviceInstance, dev_type)) as usize as *const u32)
+            (crate::pointers::host(instance + field!(DiDeviceInstance, dev_type)) as *const u32)
                 .read_unaligned(),
-            ((instance + field!(DiDeviceInstance, instance)) as usize as *const [u8; 16])
+            (crate::pointers::host(instance + field!(DiDeviceInstance, instance))
+                as *const [u8; 16])
                 .read_unaligned(),
         )
     };
@@ -108,8 +108,8 @@ fn look_over(instance: u32, entry: u32) -> Result<bool, BadInput> {
     // room 0x19 is never refused
     let _ = unsafe {
         crate::strings::copy_printable::copy_printable(
-            (instance + field!(DiDeviceInstance, instance_name)) as *const u8,
-            to as *mut u8,
+            crate::pointers::host(instance + field!(DiDeviceInstance, instance_name)) as *const u8,
+            crate::pointers::host_at(to),
             NAME_ROOM,
         )
     };

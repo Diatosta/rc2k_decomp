@@ -59,7 +59,7 @@ pub static INSTALL_TEXTS: InstallTexts = InstallTexts {
 
 /// Where the texts are (`moved::MOVED`'s home for IDA 0x5295B4).
 pub fn texts_home() -> usize {
-    &INSTALL_TEXTS as *const InstallTexts as usize
+    crate::pointers::host_number(&INSTALL_TEXTS as *const InstallTexts)
 }
 
 // g_baseDirectory, g_localeDirectory: `files::state::{base_directory, locale_directory}`
@@ -142,22 +142,25 @@ fn ida_of(place: u32) -> usize {
 
 /// `strings::str_append`: `text` appended at `cursor`; the cursor past it.
 pub fn str_append(text: u32, cursor: u32) -> u32 {
-    crate::menu::event_flow::refuse_here(
-        crate::strings::str_append::str_append(text as *const u8, cursor as *mut u8),
+    crate::pointers::game_address(crate::menu::event_flow::refuse_here(
+        crate::strings::str_append::str_append(
+            crate::pointers::host(text) as *const u8,
+            crate::pointers::host(cursor),
+        ),
         "install::installer: a text",
-    ) as u32
+    ))
 }
 
 /// `strings::str_append_indexed`: text `index` of `table` appended at `cursor`.
 pub fn str_append_indexed(table: u32, index: u32, cursor: u32) -> u32 {
-    crate::menu::event_flow::refuse_here(
+    crate::pointers::game_address(crate::menu::event_flow::refuse_here(
         crate::strings::str_append_indexed::str_append_indexed(
-            table as *const u8,
+            crate::pointers::host(table) as *const u8,
             index as i32,
-            cursor as *mut u8,
+            crate::pointers::host(cursor),
         ),
         "install::installer: a string list",
-    ) as u32
+    ))
 }
 
 /// `strings::append_nul` and the other one-byte cursor helpers.
@@ -179,46 +182,53 @@ pub fn append_string_by_id(id: u32, cursor: u32) -> u32 {
 
 /// `files::set_current_directory` (0x403105): whether it worked.
 pub fn set_cd(path: u32) -> bool {
-    crate::files::directories::set_current_directory(path as *const u8)
+    crate::files::directories::set_current_directory(crate::pointers::host(path) as *const u8)
         .unwrap_or_else(|e| refuse(e))
         != 0
 }
 
 /// `files::make_directory` (0x403113): whether it worked.
 pub fn make_dir(path: u32) -> bool {
-    crate::files::directories::make_directory(path as *const u8).unwrap_or_else(|e| refuse(e)) != 0
+    crate::files::directories::make_directory(crate::pointers::host(path) as *const u8)
+        .unwrap_or_else(|e| refuse(e))
+        != 0
 }
 
 /// `sub_403123` (remove a directory): whether it worked.
 pub fn remove_dir(path: u32) -> bool {
-    crate::files::directories::remove_directory(path as *const u8).unwrap_or_else(|e| refuse(e))
+    crate::files::directories::remove_directory(crate::pointers::host(path) as *const u8)
+        .unwrap_or_else(|e| refuse(e))
         != 0
 }
 
 /// `files::delete_file` (0x402E8C): whether it worked.
 pub fn delete_file(path: u32) -> bool {
-    crate::files::directories::delete_file(path as *const u8).unwrap_or_else(|e| refuse(e)) != 0
+    crate::files::directories::delete_file(crate::pointers::host(path) as *const u8)
+        .unwrap_or_else(|e| refuse(e))
+        != 0
 }
 
 /// `install::normalise_path` (0x4139EC): `path` written at `to`; whether it was.
 pub fn normalise(path: u32, to: u32) -> Result<bool, Refused> {
     Ok(crate::install::normalise_path::normalise_path(
-        path as *const u8,
-        to as *mut u8,
+        crate::pointers::host(path) as *const u8,
+        crate::pointers::host(to),
     )?)
 }
 
 /// `files::copy_file` (0x402C28): whether it worked.
 pub fn copy_file(from: u32, to: u32) -> Result<bool, Refused> {
     Ok(crate::files::copy_file::copy_file(
-        from as *const u8,
-        to as *const u8,
+        crate::pointers::host(from) as *const u8,
+        crate::pointers::host(to) as *const u8,
     )?)
 }
 
 /// `files::resolve_path` (0x403206): the path the game opens.
 pub fn resolve_path(path: u32) -> Result<u32, Refused> {
-    Ok(crate::files::resolve_path::resolve_path_in_game(path as *const u8)? as u32)
+    Ok(crate::pointers::game_address(
+        crate::files::resolve_path::resolve_path_in_game(crate::pointers::host(path) as *const u8)?,
+    ))
 }
 
 /// `files::find_first` (0x402FC2): whether a file was found.
@@ -297,7 +307,7 @@ pub fn draw_string(id: u32, font: u32, x: u32, y: u32) -> Result<(), Refused> {
     unsafe {
         crate::text::draw_string_by_id::draw_string_by_id_at(
             id,
-            font as *mut crate::text::font::Font,
+            crate::pointers::host(font) as *mut crate::text::font::Font,
             x as i32,
             y as i32,
             &mut GameCanvas,
@@ -315,7 +325,7 @@ pub fn draw_text(font: u32, text: u32, x: u32, y: u32) -> Result<(), Refused> {
     let mut copy = at.read::<Font>("a font object")?;
     crate::text::draw_text::draw_text(
         &mut copy,
-        text as *const u8,
+        crate::pointers::host(text) as *const u8,
         x as i32,
         y as i32,
         &mut GameCanvas,
@@ -331,8 +341,8 @@ pub fn measure_text(font: u32, text: u32, x: u32) -> Result<(u32, u32), Refused>
     use crate::text::draw_text::GameCanvas;
     let m = {
         crate::text::measure_text::measure_text_at(
-            font as *mut crate::text::font::Font,
-            text as *const u8,
+            crate::pointers::host(font) as *mut crate::text::font::Font,
+            crate::pointers::host(text) as *const u8,
             x as i32,
             &mut GameCanvas,
         )
@@ -346,7 +356,7 @@ pub fn measure_string(id: u32, font: u32, x: u32) -> Result<(u32, u32), Refused>
     let m = unsafe {
         crate::text::measure_string_by_id::measure_string_by_id_at(
             id,
-            font as *mut crate::text::font::Font,
+            crate::pointers::host(font) as *mut crate::text::font::Font,
             x as i32,
             &mut GameCanvas,
         )
@@ -357,7 +367,9 @@ pub fn measure_string(id: u32, font: u32, x: u32) -> Result<(u32, u32), Refused>
 /// `gfx::components_to_pixels` (0x405E02): 0x100 colours of `from` made pixels of the
 /// format `format` into `to`.
 pub unsafe fn components_to_pixels(from: u32, to: u32, format: u32) {
-    let format = unsafe { &*(format as *const crate::gfx::pixel_format::PixelFormat) };
+    let format = unsafe {
+        &*(crate::pointers::host(format) as *const crate::gfx::pixel_format::PixelFormat)
+    };
     for n in 0..0x100u32 {
         let components = rd(from + 4 * n);
         let pixel = crate::gfx::components_to_pixel::components_to_pixel(format, components);
@@ -485,14 +497,30 @@ pub fn game_api(place: u32, x: &[u32]) -> u32 {
     }
     unsafe {
         match place {
-            REG_CREATE_KEY => reg::RegCreateKeyA(x[0] as _, x[1] as _, x[2] as _) as u32,
-            REG_SET_VALUE => {
-                reg::RegSetValueExA(x[0] as _, x[1] as _, x[2], x[3], x[4] as _, x[5]) as u32
-            }
-            REG_CLOSE_KEY => reg::RegCloseKey(x[0] as _) as u32,
-            REG_DELETE_KEY => reg::RegDeleteKeyA(x[0] as _, x[1] as _) as u32,
+            REG_CREATE_KEY => reg::RegCreateKeyA(
+                crate::pointers::host(x[0]) as _,
+                crate::pointers::host(x[1]) as _,
+                crate::pointers::host(x[2]) as _,
+            ) as u32,
+            REG_SET_VALUE => reg::RegSetValueExA(
+                crate::pointers::host(x[0]) as _,
+                crate::pointers::host(x[1]) as _,
+                x[2],
+                x[3],
+                crate::pointers::host(x[4]) as _,
+                x[5],
+            ) as u32,
+            REG_CLOSE_KEY => reg::RegCloseKey(crate::pointers::host(x[0]) as _) as u32,
+            REG_DELETE_KEY => reg::RegDeleteKeyA(
+                crate::pointers::host(x[0]) as _,
+                crate::pointers::host(x[1]) as _,
+            ) as u32,
             GET_DISK_FREE => windows_sys::Win32::Storage::FileSystem::GetDiskFreeSpaceA(
-                x[0] as _, x[1] as _, x[2] as _, x[3] as _, x[4] as _,
+                crate::pointers::host(x[0]) as _,
+                crate::pointers::host(x[1]) as _,
+                crate::pointers::host(x[2]) as _,
+                crate::pointers::host(x[3]) as _,
+                crate::pointers::host(x[4]) as _,
             ) as u32,
             _ => 0,
         }

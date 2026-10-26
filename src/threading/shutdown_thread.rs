@@ -31,7 +31,7 @@ pub fn shutdown_thread() -> Result<(), crate::errors::Refused> {
     crate::logfile::log_hex8::log_hex8(rc, true, 2);
     let window: u32 = MACHINE.window.get();
     if window != 0 {
-        unsafe { PostMessageA(window as _, WM_CLOSE, 0, 0) };
+        unsafe { PostMessageA(crate::pointers::host(window) as _, WM_CLOSE, 0, 0) };
     }
     flag.set(0);
     log_text(b"SHUTDOWN:DONE", true, 2);

@@ -478,7 +478,7 @@ const SECOND_BACK_B: [(&Dword, u32); 6] = [
 ];
 
 fn mem(a: usize) -> *mut u32 {
-    game_addr(rva(a)) as *mut u32
+    crate::pointers::host_at(game_addr(rva(a))) as *mut u32
 }
 
 /// A variable of the game that the run's steps read and write: a cell, or an address of the
@@ -888,7 +888,7 @@ mod table {
     ];
 
     fn mem(a: usize) -> *mut u32 {
-        game_addr(rva(a)) as *mut u32
+        crate::pointers::host_at(game_addr(rva(a))) as *mut u32
     }
 
     fn reg(g: &mut Regs, r: R) -> &mut u32 {
@@ -940,20 +940,25 @@ mod table {
                     Store(r, a) => mem(a).write_unaligned(*reg(&mut g, r)),
                     Load(r, a) => *reg(&mut g, r) = mem(a).read_unaligned(),
                     FromEdi(R::Al, n) => {
-                        g.eax = g.eax & !0xFF | *((g.edi.wrapping_add(n)) as *const u8) as u32
+                        g.eax = g.eax & !0xFF
+                            | *(crate::pointers::host(g.edi.wrapping_add(n)) as *const u8) as u32
                     }
                     FromEdi(r, n) => {
-                        *reg(&mut g, r) = ((g.edi.wrapping_add(n)) as *const u32).read_unaligned()
+                        *reg(&mut g, r) = (crate::pointers::host(g.edi.wrapping_add(n))
+                            as *const u32)
+                            .read_unaligned()
                     }
                     ToEdi(r, n) => {
                         let v = *reg(&mut g, r);
-                        ((g.edi.wrapping_add(n)) as *mut u32).write_unaligned(v)
+                        (crate::pointers::host(g.edi.wrapping_add(n)) as *mut u32)
+                            .write_unaligned(v)
                     }
                     Put(a, v) => mem(a).write_unaligned(v),
-                    EdiPut(n, v) => ((g.edi.wrapping_add(n)) as *mut u32).write_unaligned(v),
+                    EdiPut(n, v) => (crate::pointers::host(g.edi.wrapping_add(n)) as *mut u32)
+                        .write_unaligned(v),
                     EdiFromTable(t) => {
                         let at = (game_addr(rva(t)) as u32).wrapping_add(g.eax.wrapping_mul(4));
-                        g.edi = (at as *const u32).read_unaligned();
+                        g.edi = (crate::pointers::host(at) as *const u32).read_unaligned();
                     }
                     Imm(r, v) => *reg(&mut g, r) = v,
                     Lea(r, a) => *reg(&mut g, r) = game_addr(rva(a)) as u32,
@@ -963,10 +968,14 @@ mod table {
                     CmpMem(a, v) => zero = mem(a).read_unaligned() == v,
                     CmpReg(r, v) => zero = *reg(&mut g, r) == v,
                     CmpEdi(n, v) => {
-                        zero = ((g.edi.wrapping_add(n)) as *const u32).read_unaligned() == v
+                        zero = (crate::pointers::host(g.edi.wrapping_add(n)) as *const u32)
+                            .read_unaligned()
+                            == v
                     }
                     CmpEdiEax(n) => {
-                        zero = ((g.edi.wrapping_add(n)) as *const u32).read_unaligned() == g.eax
+                        zero = (crate::pointers::host(g.edi.wrapping_add(n)) as *const u32)
+                            .read_unaligned()
+                            == g.eax
                     }
                     Jz(t) => {
                         if zero {
@@ -992,7 +1001,11 @@ mod table {
                         step(n as u32 + 1, &mut g)?;
                     }
                     RepMovsb => {
-                        std::ptr::copy(g.esi as *const u8, g.edi as *mut u8, g.ecx as usize);
+                        std::ptr::copy(
+                            crate::pointers::host(g.esi) as *const u8,
+                            crate::pointers::host(g.edi),
+                            g.ecx as usize,
+                        );
                         g.esi = g.esi.wrapping_add(g.ecx);
                         g.edi = g.edi.wrapping_add(g.ecx);
                         g.ecx = 0;
@@ -1973,13 +1986,19 @@ mod tests {
 
     fn world() -> World {
         use std::sync::atomic::Ordering::Relaxed;
-        let base = Box::leak(vec![0u8; IMAGE_LEN].into_boxed_slice()).as_mut_ptr() as usize;
+        let base = crate::pointers::host_number(
+            Box::leak(vec![0u8; IMAGE_LEN].into_boxed_slice()).as_mut_ptr(),
+        );
         crate::framework::BASE
             .compare_exchange(0, base, Relaxed, Relaxed)
             .expect("no other test sets the base");
         let mut rng = Rng(0x9E37_79B9_7F4A_7C15);
         for i in 0..IMAGE_LEN {
-            unsafe { (base as *mut u8).add(i).write(rng.next() as u8) };
+            unsafe {
+                crate::pointers::host_at(base)
+                    .add(i)
+                    .write(rng.next() as u8)
+            };
         }
         let records: Vec<Vec<u8>> = (0..4).map(|_| vec![0u8; RECORD_LEN]).collect();
         let mut ranges = Vec::new();
@@ -2003,7 +2022,7 @@ mod tests {
             ranges.push((a, len));
         }
         for r in &records {
-            ranges.push((r.as_ptr() as usize, RECORD_LEN));
+            ranges.push((crate::pointers::host_number(r.as_ptr()), RECORD_LEN));
         }
         ranges.sort_unstable();
         ranges.dedup();
@@ -2021,26 +2040,44 @@ mod tests {
 
     impl World {
         fn image_bytes(&self) -> Vec<u8> {
-            unsafe { std::slice::from_raw_parts(self.image as *const u8, IMAGE_LEN).to_vec() }
+            unsafe {
+                std::slice::from_raw_parts(
+                    crate::pointers::host_at(self.image) as *const u8,
+                    IMAGE_LEN,
+                )
+                .to_vec()
+            }
         }
         /// The bytes of every range (the variables that have moved out of the image too).
         fn range_bytes(&self) -> Vec<u8> {
             let mut out = Vec::new();
             for &(a, len) in &self.ranges {
-                out.extend_from_slice(unsafe { std::slice::from_raw_parts(a as *const u8, len) });
+                out.extend_from_slice(unsafe {
+                    std::slice::from_raw_parts(crate::pointers::host_at(a) as *const u8, len)
+                });
             }
             out
         }
         fn set_range_bytes(&self, bytes: &[u8]) {
             let mut at = 0;
             for &(a, len) in &self.ranges {
-                unsafe { std::ptr::copy_nonoverlapping(bytes[at..].as_ptr(), a as *mut u8, len) };
+                unsafe {
+                    std::ptr::copy_nonoverlapping(
+                        bytes[at..].as_ptr(),
+                        crate::pointers::host_at(a),
+                        len,
+                    )
+                };
                 at += len;
             }
         }
         fn set_image(&self, bytes: &[u8]) {
             unsafe {
-                std::ptr::copy_nonoverlapping(bytes.as_ptr(), self.image as *mut u8, IMAGE_LEN)
+                std::ptr::copy_nonoverlapping(
+                    bytes.as_ptr(),
+                    crate::pointers::host_at(self.image),
+                    IMAGE_LEN,
+                )
             }
         }
     }
@@ -2088,7 +2125,7 @@ mod tests {
         let mut h = 0xcbf2_9ce4_8422_2325u64;
         for &(a, len) in ranges {
             for i in 0..len {
-                h ^= unsafe { ((a + i) as *const u8).read() } as u64;
+                h ^= unsafe { (crate::pointers::host_at(a + i) as *const u8).read() } as u64;
                 h = h.wrapping_mul(0x100_0000_01b3);
             }
         }
@@ -2152,15 +2189,19 @@ mod tests {
             let mut rng = Rng(c.seed | 1);
             for &(a, len) in &w.ranges {
                 for i in 0..len {
-                    ((a + i) as *mut u8).write(rng.next() as u8);
+                    crate::pointers::host_at(a + i).write(rng.next() as u8);
                 }
             }
             for (k, r) in w.records.iter().enumerate() {
                 set_var(
                     &PLAYER_TABLE.pointers[k],
-                    if c.missing[k] { 0 } else { r.as_ptr() as u32 },
+                    if c.missing[k] {
+                        0
+                    } else {
+                        crate::pointers::game_address(r.as_ptr())
+                    },
                 );
-                set_field(r.as_ptr() as u32, 0xD0, c.d0[k])
+                set_field(crate::pointers::game_address(r.as_ptr()), 0xD0, c.d0[k])
                     .expect("the test's memory is registered");
             }
             set_var(EVENT_MODE, c.mode);

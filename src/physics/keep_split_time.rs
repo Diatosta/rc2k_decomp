@@ -44,7 +44,7 @@ pub unsafe fn keep_split_time_at(p: &SplitPlaces) -> Result<(), Refused> {
     unsafe {
         let time = at(p.time);
         let k = kept_split_slot(at(p.checks), at(p.count))?;
-        ((p.table + 4 * k) as *mut u32).write_unaligned(time);
+        (crate::pointers::host(p.table + 4 * k) as *mut u32).write_unaligned(time);
         Ok(())
     }
 }

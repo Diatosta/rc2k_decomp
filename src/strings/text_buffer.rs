@@ -20,7 +20,7 @@ impl TextBuffer {
     pub const LEN: usize = 0x400;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        &TEXT_BUFFER as *const TextBuffer as usize
+        crate::pointers::host_number(&TEXT_BUFFER as *const TextBuffer)
     }
 }
 
@@ -33,8 +33,12 @@ mod tests {
         let size = size_of::<TextBuffer>();
         assert!(TextBuffer::LEN <= size && size <= (TextBuffer::LEN).next_multiple_of(16));
         let image = crate::moved::image_bytes(TextBuffer::START, TextBuffer::LEN);
-        let mine =
-            unsafe { std::slice::from_raw_parts(TextBuffer::home() as *const u8, TextBuffer::LEN) };
+        let mine = unsafe {
+            std::slice::from_raw_parts(
+                crate::pointers::host_at(TextBuffer::home()) as *const u8,
+                TextBuffer::LEN,
+            )
+        };
         assert_eq!(mine, &image[..]);
     }
 }

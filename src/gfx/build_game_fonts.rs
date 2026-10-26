@@ -65,7 +65,7 @@ pub static GAME_FONTS: GameFontsMemory = GameFontsMemory {
 
 /// Where the block is (`moved::MOVED`'s home for IDA 0x5BE894).
 pub fn home() -> usize {
-    &GAME_FONTS as *const GameFontsMemory as usize
+    crate::pointers::host_number(&GAME_FONTS as *const GameFontsMemory)
 }
 
 // The first palette's place (dword_51E2D8) and the table (dword_51E2DC) are the palette and
@@ -104,7 +104,8 @@ pub unsafe fn build_game_fonts(pixels_b: u32) -> Result<(), Refused> {
         FONTS.game_fonts[3].update(|f| f.palette = palette_b);
         begin_glyph_table(list)?;
         build_glyphs(
-            crate::gfx::texts::address(&crate::gfx::texts::FNT22) as *const u8,
+            crate::pointers::host(crate::gfx::texts::address(&crate::gfx::texts::FNT22))
+                as *const u8,
             list,
         )?;
         let table = SHEET.table.get();
@@ -158,7 +159,9 @@ pub unsafe fn build_game_fonts(pixels_b: u32) -> Result<(), Refused> {
 /// With the third font's palette's place, as the stage's loading calls it.
 pub unsafe fn build_game_fonts_in_game() -> Result<(), Refused> {
     unsafe {
-        build_game_fonts((&raw const (*FONTS.game_fonts[3].as_ptr()).palette) as usize as u32)
+        build_game_fonts(crate::pointers::game_address(
+            &raw const (*FONTS.game_fonts[3].as_ptr()).palette,
+        ))
     }
 }
 

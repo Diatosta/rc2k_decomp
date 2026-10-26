@@ -15,7 +15,7 @@ use crate::scene::next_noise::noise_step;
 /// The Rust core on the word at `at`: the new word.
 pub unsafe fn stir_word_at(at: u32) -> u32 {
     unsafe {
-        let p = at as *mut u32;
+        let p = crate::pointers::host(at) as *mut u32;
         let w = noise_step(p.read_unaligned());
         p.write_unaligned(w);
         w

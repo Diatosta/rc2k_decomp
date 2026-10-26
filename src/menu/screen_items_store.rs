@@ -325,7 +325,7 @@ pub const END: usize = 0x747998;
 
 /// Where IDA 0x747660 is now (`moved::MOVED`'s home).
 pub fn screen_items_addr() -> usize {
-    &SCREEN_ITEMS as *const ScreenItems as usize
+    crate::pointers::host_number(&SCREEN_ITEMS as *const ScreenItems)
 }
 
 #[cfg(test)]
@@ -338,8 +338,12 @@ mod tests {
     fn screen_items_start_as_the_games() {
         assert_eq!(size_of::<ScreenItems>(), END - START);
         assert_eq!(offset_of!(ScreenItems, first), 0x7477FC - START);
-        let mine =
-            unsafe { std::slice::from_raw_parts(screen_items_addr() as *const u8, END - START) };
+        let mine = unsafe {
+            std::slice::from_raw_parts(
+                crate::pointers::host_at(screen_items_addr()) as *const u8,
+                END - START,
+            )
+        };
         assert_eq!(mine, &image_bytes(START, END - START)[..]);
     }
 }

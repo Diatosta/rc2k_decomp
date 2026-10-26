@@ -21,7 +21,9 @@ pub fn raise(error: FatalError, regs: &Regs) {
     // The message has to outlive this call: the exit path shows it later. An error is raised
     // once, so the few bytes are simply never freed.
     let message = match CString::new(error.message) {
-        Ok(text) if !error.message.is_empty() => Box::leak(text.into_boxed_c_str()).as_ptr() as u32,
+        Ok(text) if !error.message.is_empty() => {
+            crate::pointers::game_address(Box::leak(text.into_boxed_c_str()).as_ptr())
+        }
         _ => 0,
     };
     CODE.store(error.code, std::sync::atomic::Ordering::Relaxed);

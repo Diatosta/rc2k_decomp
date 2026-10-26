@@ -57,7 +57,8 @@ fn rows(p: &Piece, to: &Target) -> Option<Vec<Region>> {
     if p.rectangle == 0 || p.pixels == 0 || to.pixels == 0 || to.format == 0 {
         return None;
     }
-    let [_, _, width, height] = unsafe { (p.rectangle as *const [u32; 4]).read_unaligned() };
+    let [_, _, width, height] =
+        unsafe { (crate::pointers::host(p.rectangle) as *const [u32; 4]).read_unaligned() };
     if width == 0 || height == 0 {
         return None;
     }
@@ -83,8 +84,9 @@ pub unsafe fn blit_components(p: &Piece, to: &Target) -> Result<(), Refused> {
         return Err(BadInput("a piece of nothing, or no surface, format, piece or picture").into());
     }
     unsafe {
-        let [x, y, width, height] = (p.rectangle as *const [u32; 4]).read_unaligned();
-        let format = (to.format as *const PixelFormat).read_unaligned();
+        let [x, y, width, height] =
+            (crate::pointers::host(p.rectangle) as *const [u32; 4]).read_unaligned();
+        let format = (crate::pointers::host(to.format) as *const PixelFormat).read_unaligned();
         let mut target =
             p.y.wrapping_mul(to.pitch)
                 .wrapping_add(p.x.wrapping_mul(to.bytes_per_pixel))
@@ -97,8 +99,14 @@ pub unsafe fn blit_components(p: &Piece, to: &Target) -> Result<(), Refused> {
         let words = to.bytes_per_pixel == 2;
         let size = if words { 2 } else { 4 };
         for _ in 0..height {
-            let row = std::slice::from_raw_parts(source as *const u8, width as usize * 4);
-            let out = std::slice::from_raw_parts_mut(target as *mut u8, width as usize * size);
+            let row = std::slice::from_raw_parts(
+                crate::pointers::host(source) as *const u8,
+                width as usize * 4,
+            );
+            let out = std::slice::from_raw_parts_mut(
+                crate::pointers::host(target),
+                width as usize * size,
+            );
             let scratch =
                 rc2k_core::gfx::pixels::pack_row(row, out, width as usize, &format, words)?;
             if let Some(scratch) = scratch {

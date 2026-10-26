@@ -41,7 +41,7 @@ const HEAD_LEN: u32 = 0x80;
 /// What comes before the memory is taken: whether the file's head is a PNG the game takes.
 fn head_is_taken(path: *const u8) -> Result<bool, Refused> {
     let head = crate::gfx::png::info().cast::<u8>();
-    let place = GamePtr::new(head as usize as u32);
+    let place = GamePtr::new(crate::pointers::game_address(head));
     place.write(0u32, "the PNG head")?;
     let read = read_file(path, head, HEAD_LEN, 0)?;
     if !read.ok || read.bytes_read.is_none_or(|n| n < HEAD_LEN) {
@@ -57,15 +57,16 @@ fn head_is_taken(path: *const u8) -> Result<bool, Refused> {
 unsafe fn read_held(path: *const u8, size: u32) -> Result<bool, Refused> {
     unsafe {
         let file = allocate(PNG_FILE.memory.as_ptr(), size)?;
-        PNG_FILE.file.set(file as u32);
+        PNG_FILE.file.set(crate::pointers::game_address(file));
         let read = read_file(path, file, size, 0)?;
         if !read.ok || read.bytes_read != Some(size) {
             return Ok(false);
         }
         decode_png(
-            &GamePtr::new(file as usize as u32).read_bytes(size as usize, "a PNG file")?,
-            picture() as usize as u32,
-            crate::gfx::png::info() as usize as u32,
+            &GamePtr::new(crate::pointers::game_address(file))
+                .read_bytes(size as usize, "a PNG file")?,
+            crate::pointers::game_address(picture()),
+            crate::pointers::game_address(crate::gfx::png::info()),
         )?;
         PICTURE.flags.set(0x802u32);
         lay_out_png()?;

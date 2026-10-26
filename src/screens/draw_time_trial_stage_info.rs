@@ -74,7 +74,12 @@ pub unsafe fn draw_time_trial_stage_info(canvas: &mut dyn Canvas) -> Result<bool
             canvas,
         )?;
         // ebx, the markers' palette, is what draw_text left there: a pointer into the heading.
-        draw_stage_body(sel.record, heading.text as u32, true, canvas)?;
+        draw_stage_body(
+            sel.record,
+            crate::pointers::game_address(heading.text),
+            true,
+            canvas,
+        )?;
         draw_records_for_group(sel.group, sel.record, canvas)
     }
 }

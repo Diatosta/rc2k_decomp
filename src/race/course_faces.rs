@@ -1053,8 +1053,8 @@ mod asm_reference {
                 out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
                 options(nostack),
             );
-            ((v + 0xC) as *mut u32).write_unaligned(0);
-            ((v + 0x1C) as *mut u32).write_unaligned(0);
+            (crate::pointers::host(v + 0xC) as *mut u32).write_unaligned(0);
+            (crate::pointers::host(v + 0x1C) as *mut u32).write_unaligned(0);
             if below_or_unordered(get(v + 0x18), NUMBERS.k4096_a.bits()) {
                 return;
             }
@@ -1136,9 +1136,9 @@ mod asm_reference {
                 options(nostack),
             );
             for o in [0x20u32, 0x21, 0x18, 0x19, 0x1A] {
-                let sum = ((second + o) as *const u8).read() as u32
-                    + ((first + o) as *const u8).read() as u32;
-                ((to + o) as *mut u8).write((sum >> 1) as u8);
+                let sum = (crate::pointers::host(second + o) as *const u8).read() as u32
+                    + (crate::pointers::host(first + o) as *const u8).read() as u32;
+                crate::pointers::host(to + o).write((sum >> 1) as u8);
             }
         }
     }
@@ -1162,7 +1162,9 @@ mod asm_reference {
         at_each_control_word(|| {
             for _ in 0..20000 {
                 FRAME_SWITCHES.other_way.set(r.below(8));
-                COURSE.scene_points.set(points.as_ptr() as u32);
+                COURSE
+                    .scene_points
+                    .set(crate::pointers::game_address(points.as_ptr()));
                 for a in [0x6062A4, 0x6062A8, 0x6062AC] {
                     game_write(rva(a), r.float());
                 }
@@ -1174,7 +1176,7 @@ mod asm_reference {
                 }
                 let half = if r.below(2) == 0 { 0 } else { 4 };
                 face[(half + 8) / 4] = r.below(4);
-                let at = face.as_ptr() as u32;
+                let at = crate::pointers::game_address(face.as_ptr());
                 let (_r1, _r2) = (
                     crate::race::trap::test_region(&face),
                     crate::race::trap::test_region(&points),
@@ -1256,12 +1258,20 @@ mod asm_reference {
                     crate::race::trap::test_region(&v2),
                 );
                 unsafe {
-                    halfway_vertex_asm(a.as_ptr() as u32, b.as_ptr() as u32, v1.as_mut_ptr() as u32)
+                    halfway_vertex_asm(
+                        crate::pointers::game_address(a.as_ptr()),
+                        crate::pointers::game_address(b.as_ptr()),
+                        crate::pointers::game_address(v1.as_mut_ptr()),
+                    )
                 };
                 let kept = DRAW.scratch.get();
                 DRAW.scratch.set_bits(0xAAAA_AAAAu32);
-                halfway_vertex(a.as_ptr() as u32, b.as_ptr() as u32, v2.as_mut_ptr() as u32)
-                    .expect("the test's memory is registered");
+                halfway_vertex(
+                    crate::pointers::game_address(a.as_ptr()),
+                    crate::pointers::game_address(b.as_ptr()),
+                    crate::pointers::game_address(v2.as_mut_ptr()),
+                )
+                .expect("the test's memory is registered");
                 same_all(&v1, &v2, "vertex");
                 assert!(same(kept, DRAW.scratch.get()), "depth kept");
             }
@@ -1304,10 +1314,18 @@ mod asm_reference {
                     crate::race::trap::test_region(&t2),
                 );
                 unsafe {
-                    halfway_entry_asm(f.as_ptr() as u32, s.as_ptr() as u32, t1.as_mut_ptr() as u32)
+                    halfway_entry_asm(
+                        crate::pointers::game_address(f.as_ptr()),
+                        crate::pointers::game_address(s.as_ptr()),
+                        crate::pointers::game_address(t1.as_mut_ptr()),
+                    )
                 };
-                halfway_entry(f.as_ptr() as u32, s.as_ptr() as u32, t2.as_mut_ptr() as u32)
-                    .expect("the test's memory is registered");
+                halfway_entry(
+                    crate::pointers::game_address(f.as_ptr()),
+                    crate::pointers::game_address(s.as_ptr()),
+                    crate::pointers::game_address(t2.as_mut_ptr()),
+                )
+                .expect("the test's memory is registered");
                 // the bytes compare as they are, the floats as floats
                 for k in 0..10 {
                     if (2..6).contains(&k) {

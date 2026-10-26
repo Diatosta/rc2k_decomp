@@ -29,7 +29,11 @@ use super::x87_float as bh;
 /// `bytes` bytes at `p` checked to lie in one region (the program ends otherwise): what a
 /// helper below reads and writes, checked before it starts.
 fn span<T>(p: *const T, bytes: usize) {
-    crate::pointers::check_or_end(p as usize as u32, bytes, "a math helper's operand");
+    crate::pointers::check_or_end(
+        crate::pointers::game_address(p),
+        bytes,
+        "a math helper's operand",
+    );
 }
 
 unsafe fn load(p: *const u32, index: usize) -> bh::X {
@@ -1034,7 +1038,7 @@ pub fn turned_place_less(t: [u32; 3], k: u32, d: u32, lift: u32, m: u32) -> [u32
     let a = -bh::ld(t[0]) * kf;
     let b = (bh::ld(t[1]) - bh::ld(d)) * kf;
     let c = bh::ld(t[2]) * kf;
-    let m = m as usize as *const u32;
+    let m = crate::pointers::host(m) as *const u32;
     let [x, y, z] = matrix_turn(m, c, b, a, true);
     let at = |i: usize| bh::ld(unsafe { m.add(i).read() });
     [
@@ -1071,7 +1075,7 @@ pub fn mul_80(a: u32, b: u32) -> [u8; 10] {
 /// The point (p0, p1, p2) turned and placed by the matrix at `m`; then x, y, y less
 /// `lift`, z.
 pub fn turned_place(p: [u32; 3], lift: u32, m: u32) -> [u32; 4] {
-    let m = m as usize as *const u32;
+    let m = crate::pointers::host(m) as *const u32;
     let [x, y, z] = matrix_turn(m, bh::ld(p[0]), bh::ld(p[1]), bh::ld(p[2]), true);
     [bh::st(x), bh::st(y), bh::st(y - bh::ld(lift)), bh::st(z)]
 }
@@ -1112,8 +1116,8 @@ pub fn normalised3(p: [u32; 3], one: u32) -> [u32; 3] {
 /// `sub_4C9AF6`'s third side: the cross product of (p0, p1, p2) and the vector at `w`
 /// (unrounded) turned by the transposed matrix at `m` (rows 0x10 apart).
 pub fn crossed_turned(p: [u32; 3], w: u32, m: u32) -> [u32; 3] {
-    let wp = w as usize as *const u32;
-    let m = m as usize as *const u32;
+    let wp = crate::pointers::host(w) as *const u32;
+    let m = crate::pointers::host(m) as *const u32;
     span(wp, 12);
     let (p0, p1, p2) = (bh::ld(p[0]), bh::ld(p[1]), bh::ld(p[2]));
     let (w0, w1, w2) = unsafe {
@@ -1226,7 +1230,7 @@ pub fn diff_times_plus_times(b: u32, a: u32, k: u32, c: u32, m: u32) -> u32 {
 /// `sub_4CFDD5`'s turn: the point p (x, y, z, 80 bits) by the matrix at m read by
 /// columns, each (m[c] x + (m[c+4] y + m[c+8] z)) + m[c+12]; the three rounded.
 pub fn column_turn(p: &[[u8; 10]; 3], m: u32) -> [u32; 3] {
-    let m = m as usize as *const u32;
+    let m = crate::pointers::host(m) as *const u32;
     let [x, y, z] = {
         matrix_turn(
             m,

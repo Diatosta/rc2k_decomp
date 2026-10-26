@@ -60,10 +60,10 @@ fn set() -> &'static MarkShapes {
 
 /// The turn about X, and the turns about Z of lists A and B (3 x 3 floats).
 fn turn_x() -> u32 {
-    SHAPE_WORK.turn_x.as_ptr() as u32
+    crate::pointers::game_address(SHAPE_WORK.turn_x.as_ptr())
 }
 fn turn_z(n: usize) -> u32 {
-    [&SHAPE_WORK.turn_a, &SHAPE_WORK.turn_b][n].as_ptr() as u32
+    crate::pointers::game_address([&SHAPE_WORK.turn_a, &SHAPE_WORK.turn_b][n].as_ptr())
 }
 pub const MOST_POINTS: u32 = 0x40;
 
@@ -89,7 +89,7 @@ pub fn find_farthest_pairs() -> Result<(), Refused> {
             }
         }
         for (list, n) in lists.into_iter().zip(0..) {
-            let faces = list.faces.as_ptr() as u32;
+            let faces = crate::pointers::game_address(list.faces.as_ptr());
             let points = turned(n).addr() as u32;
             let count = (list.count.get() as i32).max(0) as u32;
             let mut farthest = 0i32;
@@ -145,14 +145,18 @@ pub fn turn_shape_points(a: u32, b: u32) -> Result<(), Refused> {
     SHAPE_INPUTS.scratch.set(b);
     turn_matrix3(Axis::Z, turn_z(1), angles[2])?;
     for n in 0..2 {
-        multiply(turn_x(), turn_z(n), set.matrix(n).as_ptr() as u32);
+        multiply(
+            turn_x(),
+            turn_z(n),
+            crate::pointers::game_address(set.matrix(n).as_ptr()),
+        );
     }
     for n in 0..2 {
         transform(
             set.turned(n).addr() as u32,
             turned(n).addr() as u32,
             set.count(n).get(),
-            set.matrix(n).as_ptr() as u32,
+            crate::pointers::game_address(set.matrix(n).as_ptr()),
         )?;
     }
     for n in 0..2 {
@@ -331,7 +335,7 @@ pub fn make_shape_set(object: u32) -> Result<(), Refused> {
     let lists = [&POINTS_A, &POINTS_B];
     let points: u32 = COURSE_LISTS.object_points.bits();
     for list in lists {
-        let ids = list.ids.as_ptr() as u32;
+        let ids = crate::pointers::game_address(list.ids.as_ptr());
         for k in (0..list.count.get()).rev() {
             put(
                 ids + 4 * k,
@@ -340,7 +344,7 @@ pub fn make_shape_set(object: u32) -> Result<(), Refused> {
         }
     }
     for (list, n) in lists.into_iter().zip(0..) {
-        let ids = list.ids.as_ptr() as u32;
+        let ids = crate::pointers::game_address(list.ids.as_ptr());
         let turned = turned(n).addr() as u32;
         for k in (0..list.count.get()).rev() {
             let from = get(ids + 4 * k)?;
@@ -384,12 +388,11 @@ pub fn make_shape_set(object: u32) -> Result<(), Refused> {
         crate::marks::splines::transform(turned, turned, MOST_POINTS, turn_x)?;
     }
     find_farthest_pairs()?;
-    let set = core::ptr::addr_of!(SHAPE_WORK.sets) as u32 + made * SET_LEN;
-    GamePtr::new(core::ptr::addr_of!(SHAPE_WORK.work) as u32).copy_to(
-        GamePtr::new(set),
-        SET_LEN as usize,
-        "a shape set",
-    )?;
+    let set = crate::pointers::game_address(core::ptr::addr_of!(SHAPE_WORK.sets)) + made * SET_LEN;
+    GamePtr::new(crate::pointers::game_address(core::ptr::addr_of!(
+        SHAPE_WORK.work
+    )))
+    .copy_to(GamePtr::new(set), SET_LEN as usize, "a shape set")?;
     SHAPE_WORK.sets_made.set(made + 1);
     Ok(())
 }
@@ -484,7 +487,7 @@ impl ShapeInputs {
     pub const LEN: usize = 0x3C;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        &SHAPE_INPUTS as *const ShapeInputs as usize
+        crate::pointers::host_number(&SHAPE_INPUTS as *const ShapeInputs)
     }
 }
 
@@ -715,7 +718,7 @@ impl ShapeSetTuning {
     pub const LEN: usize = 0x270;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        &SHAPE_SET_TUNING as *const ShapeSetTuning as usize
+        crate::pointers::host_number(&SHAPE_SET_TUNING as *const ShapeSetTuning)
     }
 }
 
@@ -729,7 +732,10 @@ mod typed_tests {
         assert_eq!(size_of::<ShapeSetTuning>(), ShapeSetTuning::LEN);
         let image = crate::moved::image_bytes(ShapeSetTuning::START, ShapeSetTuning::LEN);
         let mine = unsafe {
-            std::slice::from_raw_parts(ShapeSetTuning::home() as *const u8, ShapeSetTuning::LEN)
+            std::slice::from_raw_parts(
+                crate::pointers::host_at(ShapeSetTuning::home()) as *const u8,
+                ShapeSetTuning::LEN,
+            )
         };
         assert!(
             mine == &image[..],

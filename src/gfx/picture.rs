@@ -8,7 +8,7 @@ use crate::gfx::picture_store::PICTURE;
 pub const PICTURE_DWORDS: usize = 0x75300;
 
 pub fn picture() -> *mut u8 {
-    PICTURE.buffer.get() as *mut u8
+    crate::pointers::host(PICTURE.buffer.get())
 }
 
 /// The picture buffer as a game pointer (null: `addr()` is 0).

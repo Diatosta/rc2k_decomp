@@ -29,8 +29,8 @@ const RATIO: usize = 8; // index of gear 0 in `game()`'s list
 /// The Rust core on the variables at `v`: the gear count.
 pub unsafe fn ratios_at(v: &[u32]) -> Result<u32, Refused> {
     unsafe {
-        let get = |k: usize| (v[k] as *const u32).read_unaligned();
-        let put = |k: usize, x: u32| (v[k] as *mut u32).write_unaligned(x);
+        let get = |k: usize| (crate::pointers::host(v[k]) as *const u32).read_unaligned();
+        let put = |k: usize, x: u32| (crate::pointers::host(v[k]) as *mut u32).write_unaligned(x);
         let n = get(0);
         if n > 7 {
             return Err(BadInput("a gear count above 7 (past g_gearRatios)").into());

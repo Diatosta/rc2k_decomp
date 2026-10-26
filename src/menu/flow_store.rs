@@ -77,7 +77,7 @@ pub const END: usize = 0x755525;
 
 /// Where IDA 0x7554C0 is now (`moved::MOVED`'s home).
 pub fn screen_flow_addr() -> usize {
-    &SCREEN_FLOW as *const ScreenFlow as usize
+    crate::pointers::host_number(&SCREEN_FLOW as *const ScreenFlow)
 }
 
 #[cfg(test)]
@@ -92,8 +92,12 @@ mod tests {
             END - START <= size_of::<ScreenFlow>()
                 && size_of::<ScreenFlow>() <= (END - START).next_multiple_of(4)
         );
-        let mine =
-            unsafe { std::slice::from_raw_parts(screen_flow_addr() as *const u8, END - START) };
+        let mine = unsafe {
+            std::slice::from_raw_parts(
+                crate::pointers::host_at(screen_flow_addr()) as *const u8,
+                END - START,
+            )
+        };
         assert_eq!(mine, &image_bytes(START, END - START)[..]);
         let at = |field: usize, ida: usize| assert_eq!(field, ida - START, "{ida:#X}");
         at(offset_of!(ScreenFlow, start_section), 0x7554C0);

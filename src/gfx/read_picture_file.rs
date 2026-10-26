@@ -57,9 +57,9 @@ pub unsafe fn read_picture_file(path: *mut u8) -> Result<bool, Refused> {
             Reader::PngThenPcx => Ok(read_png(path)? || read_pcx(path)?),
             Reader::Pcx => Ok(read_pcx(path)?),
             Reader::Nothing => Ok(true),
-            Reader::Chatzone => Ok(read_pcx(
-                crate::gfx::texts::address(&crate::gfx::texts::CHATZONE) as *const u8,
-            )?),
+            Reader::Chatzone => Ok(read_pcx(crate::pointers::host(crate::gfx::texts::address(
+                &crate::gfx::texts::CHATZONE,
+            )) as *const u8)?),
         }
     }
 }

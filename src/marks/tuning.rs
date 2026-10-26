@@ -50,7 +50,7 @@ impl MarksFrame {
     pub const LEN: usize = 0x30;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        &MARKS_FRAME as *const MarksFrame as usize
+        crate::pointers::host_number(&MARKS_FRAME as *const MarksFrame)
     }
 }
 
@@ -259,7 +259,7 @@ impl MarksFloats {
     pub const LEN: usize = 0xF8;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        &MARKS_FLOATS as *const MarksFloats as usize
+        crate::pointers::host_number(&MARKS_FLOATS as *const MarksFloats)
     }
 }
 
@@ -440,7 +440,7 @@ impl MarksKindFloats {
     pub const LEN: usize = 0x6C;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        &MARKS_KIND_FLOATS as *const MarksKindFloats as usize
+        crate::pointers::host_number(&MARKS_KIND_FLOATS as *const MarksKindFloats)
     }
 }
 

@@ -97,7 +97,10 @@ pub fn cue_plain(o: u32, slot: Slot, sound: u32, band: u32, offset: Option<[u32;
 fn car_part(car: u32, listener: u32) -> [u8; 10] {
     let mut out = [0u8; 10];
     let v = [car, listener];
-    x87_1(v.as_ptr() as usize, out.as_mut_ptr() as usize);
+    x87_1(
+        crate::pointers::host_number(v.as_ptr()),
+        crate::pointers::host_number(out.as_mut_ptr()),
+    );
     out
 }
 
@@ -105,7 +108,10 @@ fn car_part(car: u32, listener: u32) -> [u8; 10] {
 fn offset_part(offset: u32, car: u32, listener: u32) -> [u8; 10] {
     let mut out = [0u8; 10];
     let v = [offset, car, listener];
-    x87_2(v.as_ptr() as usize, out.as_mut_ptr() as usize);
+    x87_2(
+        crate::pointers::host_number(v.as_ptr()),
+        crate::pointers::host_number(out.as_mut_ptr()),
+    );
     out
 }
 

@@ -549,8 +549,8 @@ pub fn load_splines(resume: u32) -> Result<(), Refused> {
     if loaded == 0 {
         let file = SPLINE_HEAD.file.addr() as u32;
         crate::files::read_whole_file::read_whole_file(
-            SPLINE_PATH.path.addr() as *const u8,
-            file as *mut u8,
+            crate::pointers::host_at(SPLINE_PATH.path.addr()) as *const u8,
+            crate::pointers::host(file),
             FILE_LEN,
         )?;
         SPLINE_KINDS.loaded.set_bits(resume);
@@ -777,7 +777,7 @@ impl SplineHead {
     pub const LEN: usize = 0xEC0;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        &SPLINE_HEAD as *const SplineHead as usize
+        crate::pointers::host_number(&SPLINE_HEAD as *const SplineHead)
     }
 }
 
@@ -881,7 +881,7 @@ impl SplineWork {
     pub const LEN: usize = 0x17E0;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        &SPLINE_WORK as *const SplineWork as usize
+        crate::pointers::host_number(&SPLINE_WORK as *const SplineWork)
     }
 }
 
@@ -1179,7 +1179,7 @@ impl SplineTables {
     pub const LEN: usize = 0x1D200;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        &SPLINE_TABLES as *const SplineTables as usize
+        crate::pointers::host_number(&SPLINE_TABLES as *const SplineTables)
     }
 }
 
@@ -1419,7 +1419,7 @@ impl SplineKinds {
     pub const LEN: usize = 0x348;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        &SPLINE_KINDS as *const SplineKinds as usize
+        crate::pointers::host_number(&SPLINE_KINDS as *const SplineKinds)
     }
 }
 
@@ -1473,7 +1473,7 @@ impl SplinePath {
     pub const LEN: usize = 0x13;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        &SPLINE_PATH as *const SplinePath as usize
+        crate::pointers::host_number(&SPLINE_PATH as *const SplinePath)
     }
 }
 
@@ -1532,7 +1532,7 @@ impl SplineConstants {
     pub const LEN: usize = 0x5C;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        &SPLINE_CONSTANTS as *const SplineConstants as usize
+        crate::pointers::host_number(&SPLINE_CONSTANTS as *const SplineConstants)
     }
 }
 

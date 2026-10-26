@@ -110,11 +110,17 @@ pub unsafe fn write_mix(mode: u32, mix: u32, parts: [u32; 4]) -> Result<(), Refu
         crate::race::trap::span(parts[2], (parts[3] / size * size) as usize, "a locked part")?;
     }
     let mut slices: Vec<&mut [u8]> = vec![unsafe {
-        std::slice::from_raw_parts_mut(parts[0] as *mut u8, (parts[1] / size * size) as usize)
+        std::slice::from_raw_parts_mut(
+            crate::pointers::host(parts[0]),
+            (parts[1] / size * size) as usize,
+        )
     }];
     if parts[2] != 0 {
         slices.push(unsafe {
-            std::slice::from_raw_parts_mut(parts[2] as *mut u8, (parts[3] / size * size) as usize)
+            std::slice::from_raw_parts_mut(
+                crate::pointers::host(parts[2]),
+                (parts[3] / size * size) as usize,
+            )
         });
     }
     let buffer: Vec<i32> = GamePtr::new(mix)

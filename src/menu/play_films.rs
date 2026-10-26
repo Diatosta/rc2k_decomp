@@ -56,7 +56,7 @@ pub static FILMS: Films = Films {
 
 /// Where the names are (`moved::MOVED`'s home for IDA 0x5297F5).
 pub fn films_home() -> usize {
-    &FILMS as *const Films as usize
+    crate::pointers::host_number(&FILMS as *const Films)
 }
 
 // ---- Rust version ----
@@ -94,7 +94,7 @@ impl Game {
                 }
                 Step::SwapMissingExtension(f) => {
                     crate::files::swap_missing_extension::swap_missing_extension(
-                        film(f) as *mut u8
+                        crate::pointers::host(film(f)),
                     )?;
                 }
                 Step::Player(f) => {
@@ -107,7 +107,9 @@ impl Game {
                 Step::Nothing => {}
                 Step::ReleaseTextures => crate::race::race_end::release_textures(),
                 Step::FileExists(f) => {
-                    let there = crate::files::file_exists::file_exists(film(f) as *const u8)?;
+                    let there = crate::files::file_exists::file_exists(
+                        crate::pointers::host(film(f)) as *const u8,
+                    )?;
                     flags.carry = !there;
                     flags.zero = there;
                 }

@@ -1214,7 +1214,7 @@ pub const END: usize = 0x7585D8;
 
 /// Where IDA 0x75648C is now (`moved::MOVED`'s home).
 pub fn cars_addr() -> usize {
-    &CAR_TABLE as *const CarTable as usize
+    crate::pointers::host_number(&CAR_TABLE as *const CarTable)
 }
 
 #[cfg(test)]
@@ -1229,7 +1229,12 @@ mod tests {
             END - START <= size_of::<CarTable>()
                 && size_of::<CarTable>() <= (END - START).next_multiple_of(4)
         );
-        let mine = unsafe { std::slice::from_raw_parts(cars_addr() as *const u8, END - START) };
+        let mine = unsafe {
+            std::slice::from_raw_parts(
+                crate::pointers::host_at(cars_addr()) as *const u8,
+                END - START,
+            )
+        };
         assert_eq!(mine, &image_bytes(START, END - START)[..]);
         let at = |field: usize, ida: usize| assert_eq!(field, ida - START, "{ida:#X}");
         at(offset_of!(CarTable, name_places), 0x75648C);

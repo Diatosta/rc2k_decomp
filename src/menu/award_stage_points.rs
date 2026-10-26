@@ -69,7 +69,7 @@ pub unsafe fn award_stage_points() -> Result<(), Refused> {
                     continue;
                 }
                 crate::logfile::log_write::log_write(
-                    STATUS_TEXT_RVA.as_ptr() as usize as *const u8,
+                    STATUS_TEXT_RVA.as_ptr() as *const u8,
                     false,
                     1,
                 );

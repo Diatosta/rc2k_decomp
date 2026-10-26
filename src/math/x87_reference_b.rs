@@ -1561,7 +1561,7 @@ mod diff {
             });
 
             let m = matrix(&mut t.rng);
-            let mp = m.as_ptr() as u32;
+            let mp = crate::pointers::game_address(m.as_ptr());
             let (p, k, d, lift) = (t.rng.a3(), t.rng.fl(), t.rng.fl(), t.rng.fl());
             let want = { super::turned_place_less(p, k, d, lift, mp) };
             let got = { plain::turned_place_less(p, k, d, lift, mp) };
@@ -1578,7 +1578,7 @@ mod diff {
             });
 
             let w = t.rng.a3();
-            let wp = w.as_ptr() as u32;
+            let wp = crate::pointers::game_address(w.as_ptr());
             let want = { super::crossed_turned(p, wp, mp) };
             let got = { plain::crossed_turned(p, wp, mp) };
             let ok = want.same(&got, 0);

@@ -51,7 +51,7 @@ impl BlendWork {
     pub const LEN: usize = 0x4;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        &BLEND_WORK as *const BlendWork as usize
+        crate::pointers::host_number(&BLEND_WORK as *const BlendWork)
     }
 }
 

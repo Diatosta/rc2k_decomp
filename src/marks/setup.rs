@@ -62,7 +62,7 @@ impl MarksClock {
     pub const LEN: usize = 0x34;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        &CLOCK as *const MarksClock as usize
+        crate::pointers::host_number(&CLOCK as *const MarksClock)
     }
 }
 
@@ -74,9 +74,10 @@ pub const SINES: u32 = 0x140;
 #[cfg(test)]
 pub fn clock_at(mk: usize) -> &'static MarksClock {
     unsafe {
-        &*(mk
-            .wrapping_add(MarksClock::START)
-            .wrapping_sub(crate::marks::store::START) as *const MarksClock)
+        &*(crate::pointers::host_at(
+            mk.wrapping_add(MarksClock::START)
+                .wrapping_sub(crate::marks::store::START),
+        ) as *const MarksClock)
     }
 }
 
@@ -304,7 +305,7 @@ impl MarksSettings {
     pub const LEN: usize = 4;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        &SETTINGS as *const MarksSettings as usize
+        crate::pointers::host_number(&SETTINGS as *const MarksSettings)
     }
 }
 
@@ -328,7 +329,7 @@ impl ClockK {
     pub const LEN: usize = 0x8;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        &CLOCK_K as *const ClockK as usize
+        crate::pointers::host_number(&CLOCK_K as *const ClockK)
     }
 }
 
@@ -367,8 +368,12 @@ mod clock_tests {
     #[test]
     fn the_clock_starts_as_the_games() {
         assert_eq!(size_of::<MarksClock>(), MarksClock::LEN);
-        let bytes =
-            unsafe { std::slice::from_raw_parts(MarksClock::home() as *const u8, MarksClock::LEN) };
+        let bytes = unsafe {
+            std::slice::from_raw_parts(
+                crate::pointers::host_at(MarksClock::home()) as *const u8,
+                MarksClock::LEN,
+            )
+        };
         assert!(
             bytes == &crate::moved::image_bytes(MarksClock::START, MarksClock::LEN)[..],
             "the clock starts differently from the image"

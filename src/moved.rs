@@ -37,7 +37,7 @@ impl<T> Place<T> {
     }
 
     pub fn addr(&self) -> usize {
-        self.ptr() as usize
+        crate::pointers::host_number(self.ptr())
     }
 }
 
@@ -55,27 +55,29 @@ pub(crate) const MOVED: &[Moved] = &[
     Moved {
         ida: 0x4E0094, // g_logEnabled
         len: 4,
-        home: || crate::logfile::write_line::state::ENABLED.as_ptr() as usize,
+        home: || crate::pointers::host_number(crate::logfile::write_line::state::ENABLED.as_ptr()),
     },
     Moved {
         ida: 0x4E0098, // g_logLevel (a `var\ral.cfg` setting, `logfile`)
         len: 4,
-        home: || crate::logfile::write_line::state::LEVEL.as_ptr() as usize,
+        home: || crate::pointers::host_number(crate::logfile::write_line::state::LEVEL.as_ptr()),
     },
     Moved {
         ida: 0x4E009C, // g_logLock
         len: 4,
-        home: || crate::logfile::write_line::state::LOCK.as_ptr() as usize,
+        home: || crate::pointers::host_number(crate::logfile::write_line::state::LOCK.as_ptr()),
     },
     Moved {
         ida: 0x4E00A0, // g_logIndent
         len: 4,
-        home: || crate::logfile::write_line::state::INDENT.as_ptr() as usize,
+        home: || crate::pointers::host_number(crate::logfile::write_line::state::INDENT.as_ptr()),
     },
     Moved {
         ida: 0x4E00A4, // g_logAtLineStart
         len: 4,
-        home: || crate::logfile::write_line::state::LINE_START.as_ptr() as usize,
+        home: || {
+            crate::pointers::host_number(crate::logfile::write_line::state::LINE_START.as_ptr())
+        },
     },
     Moved {
         ida: 0x93E030, // dst: the numbers' text
@@ -90,13 +92,13 @@ pub(crate) const MOVED: &[Moved] = &[
     Moved {
         ida: 0x4E073A, // g_freeSpaceKb
         len: 4,
-        home: || crate::logfile::start_log::FREE_SPACE_KB.as_ptr() as usize,
+        home: || crate::pointers::host_number(crate::logfile::start_log::FREE_SPACE_KB.as_ptr()),
     },
     // math
     Moved {
         ida: 0x4E0140, // g_randomState
         len: 4,
-        home: || crate::math::next_random::STATE.as_ptr() as usize,
+        home: || crate::pointers::host_number(crate::math::next_random::STATE.as_ptr()),
     },
     // system's start time, read by `logfile::date_text` and `math::seed_random`
     Moved {
@@ -108,12 +110,12 @@ pub(crate) const MOVED: &[Moved] = &[
     Moved {
         ida: 0x4E0144, // dword_4E0144: names keep their case
         len: 4,
-        home: || crate::strings::copy_printable::KEEP_CASE.as_ptr() as usize,
+        home: || crate::pointers::host_number(crate::strings::copy_printable::KEEP_CASE.as_ptr()),
     },
     Moved {
         ida: 0x4E0148, // g_timeShowHours
         len: 4,
-        home: || crate::strings::append_time::SHOW_HOURS.as_ptr() as usize,
+        home: || crate::pointers::host_number(crate::strings::append_time::SHOW_HOURS.as_ptr()),
     },
     Moved {
         ida: 0x4E0544, // g_sealCodeText
@@ -123,7 +125,11 @@ pub(crate) const MOVED: &[Moved] = &[
     Moved {
         ida: 0x4E0758, // dword_4E0758: the lexicon recompiled on a key (a `var\ral.cfg` setting)
         len: 4,
-        home: || crate::strings::maybe_compile_lexicon::RECOMPILE_LEVEL.as_ptr() as usize,
+        home: || {
+            crate::pointers::host_number(
+                crate::strings::maybe_compile_lexicon::RECOMPILE_LEVEL.as_ptr(),
+            )
+        },
     },
     Moved {
         ida: 0x4E0798, // g_localeFile (g_noticeKind at +8)
@@ -133,7 +139,7 @@ pub(crate) const MOVED: &[Moved] = &[
     Moved {
         ida: 0x4E07D4, // g_stringTable
         len: 4,
-        home: || crate::strings::string_table::STRING_TABLE.as_ptr() as usize,
+        home: || crate::pointers::host_number(crate::strings::string_table::STRING_TABLE.as_ptr()),
     },
     Moved {
         ida: 0x4E07F8, // g_lexicon
@@ -158,7 +164,7 @@ pub(crate) const MOVED: &[Moved] = &[
     Moved {
         ida: 0x51DE2C, // g_isImperialUnits
         len: 4,
-        home: || crate::strings::units::UNITS.as_ptr() as usize,
+        home: || crate::pointers::host_number(crate::strings::units::UNITS.as_ptr()),
     },
     Moved {
         ida: 0x94EAB4, // dword_94EAB4: the lexicon compiler's work variables
@@ -169,37 +175,37 @@ pub(crate) const MOVED: &[Moved] = &[
     Moved {
         ida: 0x4E0578, // dword_4E0578: the most bytes held
         len: 4,
-        home: || crate::memory::state::MOST_HELD.as_ptr() as usize,
+        home: || crate::pointers::host_number(crate::memory::state::MOST_HELD.as_ptr()),
     },
     Moved {
         ida: 0x4E057C, // dword_4E057C: the bytes held now
         len: 4,
-        home: || crate::memory::state::HELD.as_ptr() as usize,
+        home: || crate::pointers::host_number(crate::memory::state::HELD.as_ptr()),
     },
     Moved {
         ida: 0x4E0580, // dword_4E0580: the turnover
         len: 4,
-        home: || crate::memory::state::TURNOVER.as_ptr() as usize,
+        home: || crate::pointers::host_number(crate::memory::state::TURNOVER.as_ptr()),
     },
     Moved {
         ida: 0x4E0584, // g_ownHeap (a `var\ral.cfg` setting, `altmemenable`)
         len: 4,
-        home: || crate::memory::state::OWN_HEAP.as_ptr() as usize,
+        home: || crate::pointers::host_number(crate::memory::state::OWN_HEAP.as_ptr()),
     },
     Moved {
         ida: 0x4E0588, // g_ownHeapKb (a `var\ral.cfg` setting, `altmemsize`)
         len: 4,
-        home: || crate::memory::state::OWN_HEAP_KB.as_ptr() as usize,
+        home: || crate::pointers::host_number(crate::memory::state::OWN_HEAP_KB.as_ptr()),
     },
     Moved {
         ida: 0x4E058C, // g_ownHeapBase
         len: 4,
-        home: || crate::memory::state::HEAP_BASE.as_ptr() as usize,
+        home: || crate::pointers::host_number(crate::memory::state::HEAP_BASE.as_ptr()),
     },
     Moved {
         ida: 0x4E0590, // g_ownHeapCursor
         len: 4,
-        home: || crate::memory::state::HEAP_CURSOR.as_ptr() as usize,
+        home: || crate::pointers::host_number(crate::memory::state::HEAP_CURSOR.as_ptr()),
     },
     // settings (`read_driver_names`' work areas), threading (the thread slots)
     Moved {
@@ -226,7 +232,7 @@ pub(crate) const MOVED: &[Moved] = &[
     Moved {
         ida: 0x4F3F74, // g_fontBlendMode (a `var\ral.cfg` setting, `textflashmode`)
         len: 4,
-        home: || crate::text::blend_font::BLEND_MODE.as_ptr() as usize,
+        home: || crate::pointers::host_number(crate::text::blend_font::BLEND_MODE.as_ptr()),
     },
     Moved {
         ida: 0x51E384, // g_blendedFont
@@ -242,7 +248,7 @@ pub(crate) const MOVED: &[Moved] = &[
     Moved {
         ida: 0x4E05A4, // hFindFile
         len: 4,
-        home: || crate::files::state::FIND_HANDLE.as_ptr() as usize,
+        home: || crate::pointers::host_number(crate::files::state::FIND_HANDLE.as_ptr()),
     },
     Moved {
         ida: 0x4E05A8, // FindFileData (WIN32_FIND_DATAA)
@@ -252,12 +258,12 @@ pub(crate) const MOVED: &[Moved] = &[
     Moved {
         ida: 0x4E06E6, // the attributes a search passes over
         len: 4,
-        home: || crate::files::state::SKIPPED_ATTRIBUTES.as_ptr() as usize,
+        home: || crate::pointers::host_number(crate::files::state::SKIPPED_ATTRIBUTES.as_ptr()),
     },
     Moved {
         ida: 0x4F52B0, // g_lastFilePath
         len: 4,
-        home: || crate::files::state::LAST_FILE_PATH.as_ptr() as usize,
+        home: || crate::pointers::host_number(crate::files::state::LAST_FILE_PATH.as_ptr()),
     },
     Moved {
         ida: 0x5BE9BD, // g_packedPath
@@ -267,7 +273,7 @@ pub(crate) const MOVED: &[Moved] = &[
     Moved {
         ida: 0x60B2CC, // g_readBytes
         len: 4,
-        home: || crate::files::state::BYTES_READ.as_ptr() as usize,
+        home: || crate::pointers::host_number(crate::files::state::BYTES_READ.as_ptr()),
     },
     Moved {
         ida: 0x94E8B0, // byte_94E8B0 (numbered paths) and the resolver's buffer at 0x94E9B0
@@ -278,17 +284,17 @@ pub(crate) const MOVED: &[Moved] = &[
     Moved {
         ida: 0x4E0598, // dword_4E0598: the Win32 error named in a report
         len: 4,
-        home: || crate::fatal::state::W32.as_ptr() as usize,
+        home: || crate::pointers::host_number(crate::fatal::state::W32.as_ptr()),
     },
     Moved {
         ida: 0x4F52A4, // g_fatalCode
         len: 4,
-        home: || crate::fatal::state::CODE.as_ptr() as usize,
+        home: || crate::pointers::host_number(crate::fatal::state::CODE.as_ptr()),
     },
     Moved {
         ida: 0x4F52A8, // g_fatalMessage
         len: 4,
-        home: || crate::fatal::state::MESSAGE.as_ptr() as usize,
+        home: || crate::pointers::host_number(crate::fatal::state::MESSAGE.as_ptr()),
     },
     Moved {
         ida: 0x4F66FD, // Caption ("Rally: Guru Meditation")
@@ -303,7 +309,7 @@ pub(crate) const MOVED: &[Moved] = &[
     Moved {
         ida: 0x4F67BC, // g_fatalReported
         len: 1,
-        home: || crate::fatal::state::REPORTED.as_ptr() as usize,
+        home: || crate::pointers::host_number(crate::fatal::state::REPORTED.as_ptr()),
     },
     Moved {
         ida: 0x4F67BD, // cursor: the string added to every report
@@ -319,7 +325,7 @@ pub(crate) const MOVED: &[Moved] = &[
     Moved {
         ida: 0x5189A4, // g_mediaMode
         len: 4,
-        home: || crate::files::state::MEDIA_MODE.as_ptr() as usize,
+        home: || crate::pointers::host_number(crate::files::state::MEDIA_MODE.as_ptr()),
     },
     Moved {
         ida: 0x5189A8, // g_baseDirectory, then g_localeDirectory at +0x100
@@ -626,22 +632,22 @@ pub(crate) const MOVED: &[Moved] = &[
     Moved {
         ida: crate::session::SCREEN_IDA,
         len: crate::session::SCREEN_LEN,
-        home: || &crate::session::SCREEN as *const _ as usize,
+        home: || crate::pointers::host_number(&crate::session::SCREEN as *const _),
     },
     Moved {
         ida: crate::session::FLAGS_IDA,
         len: crate::session::FLAGS_LEN,
-        home: || &crate::session::FLAGS as *const _ as usize,
+        home: || crate::pointers::host_number(&crate::session::FLAGS as *const _),
     },
     Moved {
         ida: crate::session::MACHINE_IDA,
         len: crate::session::MACHINE_LEN,
-        home: || &crate::session::MACHINE as *const _ as usize,
+        home: || crate::pointers::host_number(&crate::session::MACHINE as *const _),
     },
     Moved {
         ida: crate::session::CLOCKS_IDA,
         len: crate::session::CLOCKS_LEN,
-        home: || &crate::session::CLOCKS as *const _ as usize,
+        home: || crate::pointers::host_number(&crate::session::CLOCKS as *const _),
     },
     // audio: the audio thread's variables and the sample records (`audio::store`)
     Moved {
@@ -668,12 +674,12 @@ pub(crate) const MOVED: &[Moved] = &[
     Moved {
         ida: 0x4F66DD, // the options file's four kept dwords and a gap (`saves::load_options::KEPT`)
         len: 0x14,
-        home: || crate::saves::load_options::KEPT.as_ptr() as usize,
+        home: || crate::pointers::host_number(crate::saves::load_options::KEPT.as_ptr()),
     },
     Moved {
         ida: 0x4F66F1, // the wheel surfaces (`sound::store::WHEEL_SURFACES`)
         len: 8,
-        home: || crate::sound::store::WHEEL_SURFACES.as_ptr() as usize,
+        home: || crate::pointers::host_number(crate::sound::store::WHEEL_SURFACES.as_ptr()),
     },
     Moved {
         ida: 0x4F66F9, // the race record's seal key (`race::replay::SEAL_KEY`)
@@ -1911,7 +1917,9 @@ pub fn snapshot() -> Vec<(usize, Vec<u8>)> {
     sorted()
         .iter()
         .map(|&(start, end, home)| {
-            let bytes = unsafe { std::slice::from_raw_parts(home as *const u8, end - start) };
+            let bytes = unsafe {
+                std::slice::from_raw_parts(crate::pointers::host_at(home) as *const u8, end - start)
+            };
             (home, bytes.to_vec())
         })
         .collect()
@@ -1921,7 +1929,13 @@ pub fn snapshot() -> Vec<(usize, Vec<u8>)> {
 #[cfg(test)]
 pub fn restore(snap: &[(usize, Vec<u8>)]) {
     for (home, bytes) in snap {
-        unsafe { std::ptr::copy_nonoverlapping(bytes.as_ptr(), *home as *mut u8, bytes.len()) };
+        unsafe {
+            std::ptr::copy_nonoverlapping(
+                bytes.as_ptr(),
+                crate::pointers::host_at(*home),
+                bytes.len(),
+            )
+        };
     }
 }
 
@@ -1964,7 +1978,7 @@ pub unsafe fn point_into_homes(base: usize) -> Result<usize, usize> {
         match moved_home(ida) {
             Some((_, block)) if RAW_KEPT.contains(&block) => {}
             Some((home, _)) => unsafe {
-                let p = home as *mut u32;
+                let p = crate::pointers::host_at(home) as *mut u32;
                 let target = p.read_unaligned() as usize;
                 let now = match moved_home(target) {
                     Some((h, _)) => h,

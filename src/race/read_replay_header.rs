@@ -49,14 +49,14 @@ fn log_text(text: u32, newline: bool) {
 /// caller, `race::viewer_load_stage`, calls it plainly.
 pub fn read_replay_header() {
     // Converted: `rc2k_core::race::replay::{HEADER_SETTINGS, read_logged}`.
-    log_text(TITLE.as_ptr() as u32, true);
+    log_text(crate::pointers::game_address(TITLE.as_ptr()), true);
     for s in HEADER_SETTINGS {
         for to in targets(s) {
             to.set(header_cell(s).get());
         }
     }
     for (&text, &s) in NAMES.iter().zip(read_logged()) {
-        log_text(text.as_ptr() as u32, false);
+        log_text(crate::pointers::game_address(text.as_ptr()), false);
         crate::logfile::log_int::log_int(header_cell(s).get() as i32, true, 1);
     }
 }

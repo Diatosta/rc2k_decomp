@@ -24,10 +24,11 @@ pub use rc2k_core::files::io::WriteResult;
 /// Refuses what `resolve_path` refuses.
 pub fn write_file(path: *const u8, buffer: *const u8, count: u32) -> Result<WriteResult, BadInput> {
     // Converted: `rc2k_core::files::io::write_file`.
-    let data = GamePtr::new(buffer as u32).read_bytes(count as usize, "a file's contents")?;
+    let data = GamePtr::new(crate::pointers::game_address(buffer))
+        .read_bytes(count as usize, "a file's contents")?;
     Ok(rc2k_core::files::io::write_file(
         &mut GameFiles::new(),
-        GamePtr::new(path as u32),
+        GamePtr::new(crate::pointers::game_address(path)),
         &data,
     )?)
 }

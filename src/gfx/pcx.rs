@@ -57,7 +57,7 @@ pub static PCX: Pcx = Pcx {
 
 /// Where the block is (`moved::MOVED`'s home for IDA 0x5195D4).
 pub fn home() -> usize {
-    &PCX as *const Pcx as usize
+    crate::pointers::host_number(&PCX as *const Pcx)
 }
 
 pub fn stream() -> *mut Stream {

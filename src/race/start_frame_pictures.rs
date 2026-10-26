@@ -24,7 +24,7 @@ pub fn start_frame_pictures(eax: u32) -> Result<(), Refused> {
     // The folder made.
     unsafe {
         windows_sys::Win32::Storage::FileSystem::CreateDirectoryA(
-            (VIEWER_PANEL.picture_folder.addr() as u32) as *const u8,
+            crate::pointers::host(VIEWER_PANEL.picture_folder.addr() as u32) as *const u8,
             std::ptr::null(),
         )
     };

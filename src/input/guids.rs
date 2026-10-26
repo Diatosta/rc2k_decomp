@@ -70,7 +70,7 @@ impl InputGuids {
     pub const LEN: usize = 0x1C0;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        &INPUT_GUIDS as *const InputGuids as usize + 8
+        crate::pointers::host_number(&INPUT_GUIDS as *const InputGuids) + 8
     }
 }
 
@@ -83,8 +83,12 @@ mod tests {
         let size = size_of::<InputGuids>();
         assert!(8 + InputGuids::LEN <= size && size <= (8 + InputGuids::LEN).next_multiple_of(16));
         let image = crate::moved::image_bytes(InputGuids::START, InputGuids::LEN);
-        let mine =
-            unsafe { std::slice::from_raw_parts(InputGuids::home() as *const u8, InputGuids::LEN) };
+        let mine = unsafe {
+            std::slice::from_raw_parts(
+                crate::pointers::host_at(InputGuids::home()) as *const u8,
+                InputGuids::LEN,
+            )
+        };
         assert_eq!(mine, &image[..]);
     }
 }

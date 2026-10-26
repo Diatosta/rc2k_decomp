@@ -72,7 +72,7 @@ impl core::ops::Deref for InBuffers {
     fn deref(&self) -> &PolygonWork {
         // SAFETY: the block lives as long as the program and the piece is aligned to 4 (the
         // test checks); every field is an atomic or a cell.
-        unsafe { &*(piece_addr() as *const PolygonWork) }
+        unsafe { &*(crate::pointers::host_at(piece_addr()) as *const PolygonWork) }
     }
 }
 

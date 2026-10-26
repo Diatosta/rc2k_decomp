@@ -22,7 +22,7 @@ use crate::scene::rotate_point::rotate_point;
 /// y; fld x`, `rotate_point`, `fstp x; fstp y; fstp z`.
 pub unsafe fn turn_point_by(m: u32, v: u32) {
     unsafe {
-        let p = v as *mut u32;
+        let p = crate::pointers::host(v) as *mut u32;
         let point = [
             extended(p.read_unaligned()),
             extended(p.add(1).read_unaligned()),

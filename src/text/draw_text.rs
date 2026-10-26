@@ -106,7 +106,7 @@ pub fn run_core<T>(
     f: impl FnOnce(&GameBytes, &GameBytes, &mut Adapt) -> Result<T, AdaptError>,
 ) -> Result<T, Refused> {
     let glyphs = GamePtr::new(font.glyph_table).bytes("a font's glyph table")?;
-    let words = GamePtr::new(text as u32).bytes("a text")?;
+    let words = GamePtr::new(crate::pointers::game_address(text)).bytes("a text")?;
     match f(&words, &glyphs, &mut Adapt(canvas)) {
         Ok(value) => Ok(value),
         Err(AdaptError::Refused(e)) => Err(e),
@@ -153,11 +153,12 @@ pub fn draw_text_at(
     y: i32,
     canvas: &mut dyn Canvas,
 ) -> Result<Outcome, Refused> {
-    let before = crate::pointers::GamePtr::new(font as usize as u32).read::<Font>("a font")?;
+    let before = crate::pointers::GamePtr::new(crate::pointers::game_address(font))
+        .read::<Font>("a font")?;
     let mut copy = before;
     let out = draw_text(&mut copy, text, x, y, canvas)?;
     if copy != before && canvas.keeps_font_changes() {
-        crate::pointers::GamePtr::new(font as usize as u32).write(copy, "a font")?;
+        crate::pointers::GamePtr::new(crate::pointers::game_address(font)).write(copy, "a font")?;
     }
     Ok(out)
 }

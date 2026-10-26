@@ -70,7 +70,7 @@ pub unsafe fn picture_as_surface() -> Result<(), Refused> {
         s.pitch.set(block[7]);
         s.pixels.set(block[8]);
         s.row_gap.set(block[9]);
-        set_clip(s.x.addr() as *const [u32; 4])?;
+        set_clip(crate::pointers::host_at(s.x.addr()) as *const [u32; 4])?;
         Ok(())
     }
 }

@@ -25,11 +25,7 @@ pub unsafe fn flush_draw_batch() -> Result<(), Refused> {
                 indices,
             );
             if result != 0 {
-                crate::logfile::log_write::log_write(
-                    DRAWTRI_RVA.as_ptr() as usize as *const u8,
-                    false,
-                    1,
-                );
+                crate::logfile::log_write::log_write(DRAWTRI_RVA.as_ptr() as *const u8, false, 1);
                 crate::logfile::log_hex8::log_hex8(result, false, 1);
             }
         }

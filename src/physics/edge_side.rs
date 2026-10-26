@@ -53,7 +53,7 @@ pub unsafe fn edge_side_at(
         Ok(match faces::edge_side(point, scene(from)?, scene(to)?) {
             None => result(1, false, false),
             Some((kept, negative)) => {
-                (p.product as *mut i64).write_unaligned(kept);
+                (crate::pointers::host(p.product) as *mut i64).write_unaligned(kept);
                 result(0, negative, true)
             }
         })

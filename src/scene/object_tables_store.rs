@@ -48,7 +48,7 @@ impl ObjectTables {
             .addr()
             .wrapping_add((object as usize).wrapping_mul(4));
         // SAFETY: as the game's own read, inside the race block.
-        unsafe { (at as *const u32).read_unaligned() }
+        unsafe { (crate::pointers::host_at(at) as *const u32).read_unaligned() }
     }
 }
 
@@ -62,7 +62,7 @@ impl core::ops::Deref for InRaceBlock {
     fn deref(&self) -> &ObjectTables {
         // SAFETY: the race block lives as long as the program and is aligned to 4 (the
         // test checks); every field is an atomic or a cell, as the block's bytes were shared.
-        unsafe { &*(piece_addr() as *const ObjectTables) }
+        unsafe { &*(crate::pointers::host_at(piece_addr()) as *const ObjectTables) }
     }
 }
 

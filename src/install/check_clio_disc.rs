@@ -36,27 +36,40 @@ const CLIO_STEP_RVA: usize = rva(0x41675B); // sub_41675B
 
 pub unsafe fn check_clio_disc(outside: &mut dyn Outside) -> Result<(), Refused> {
     unsafe {
-        if !outside.file_exists(crate::install::store::INSTALL.clio_file.addr() as *const u8)? {
+        if !outside.file_exists(crate::pointers::host_at(
+            crate::install::store::INSTALL.clio_file.addr(),
+        ) as *const u8)?
+        {
             return Ok(());
         }
         crate::install::store::INSTALL.has_clio.set(1);
         if INSTALLER_RUN.installing.get() == 1
-            || outside.file_exists(
-                crate::install::installer::INSTALL_TEXTS.record_path.addr() as *const u8
-            )?
+            || outside.file_exists(crate::pointers::host_at(
+                crate::install::installer::INSTALL_TEXTS.record_path.addr(),
+            ) as *const u8)?
             || runs_from_source(outside)?
             || INSTALLER_NAMES.status.get() != 1
             || INSTALLER_NAMES.source.get(0) == 0
-            || outside.file_exists(INSTALLER_NAMES.installer_data.addr() as *const u8)?
+            || outside.file_exists(
+                crate::pointers::host_at(INSTALLER_NAMES.installer_data.addr()) as *const u8,
+            )?
         {
             return Ok(());
         }
-        let base_b = crate::install::installer::INSTALL_TEXTS.base_b.addr() as *const u8;
-        if !outside.normalise_path(base_b, INSTALLER_PATHS.path_a.addr() as *mut u8)? {
+        let base_b =
+            crate::pointers::host_at(crate::install::installer::INSTALL_TEXTS.base_b.addr())
+                as *const u8;
+        if !outside.normalise_path(
+            base_b,
+            crate::pointers::host_at(INSTALLER_PATHS.path_a.addr()),
+        )? {
             return Ok(());
         }
-        outside.set_directory(INSTALLER_NAMES.source.addr() as *const u8);
-        if !outside.normalise_path(base_b, INSTALLER_PATHS.path_b.addr() as *mut u8)? {
+        outside.set_directory(crate::pointers::host_at(INSTALLER_NAMES.source.addr()) as *const u8);
+        if !outside.normalise_path(
+            base_b,
+            crate::pointers::host_at(INSTALLER_PATHS.path_b.addr()),
+        )? {
             return Ok(());
         }
         outside.read_record()?;

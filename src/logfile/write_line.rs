@@ -78,7 +78,10 @@ fn append_to_file(path: &'static [u8], data: &[u8]) -> Option<u32> {
     use std::io::{Seek, SeekFrom, Write};
     use std::os::windows::fs::OpenOptionsExt;
     // open_by_mode stores resolve_path's result
-    crate::files::state::LAST_FILE_PATH.store(path.as_ptr() as u32, Ordering::Relaxed);
+    crate::files::state::LAST_FILE_PATH.store(
+        crate::pointers::game_address(path.as_ptr()),
+        Ordering::Relaxed,
+    );
     // Mode 4 (`MODE_*`): write access, no sharing, open or create (std's `create`;
     // `write` only lets std accept it, the access is the table's).
     const _: () = assert!(MODE_DISPOSITION == 4);

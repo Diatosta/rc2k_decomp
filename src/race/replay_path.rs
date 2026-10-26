@@ -47,7 +47,7 @@ pub static TEMPLATES: Templates = Templates {
 
 /// Where the templates are (`moved::MOVED`'s home for IDA 0x52974B).
 pub fn templates_home() -> usize {
-    &TEMPLATES as *const Templates as usize
+    crate::pointers::host_number(&TEMPLATES as *const Templates)
 }
 
 #[cfg(test)]
@@ -101,10 +101,13 @@ pub fn replay_path(slot: u32) -> Result<ReplayPath, Refused> {
             TEMPLATES.own.addr()
         }
     };
-    let path = crate::files::numbered_path::numbered_path_in_game(template as *const u8, number)?;
-    Ok(ReplayPath {
-        path: path as u32,
+    let path = crate::files::numbered_path::numbered_path_in_game(
+        crate::pointers::host_at(template) as *const u8,
         number,
-        last_race: path as u32 == 0,
+    )?;
+    Ok(ReplayPath {
+        path: crate::pointers::game_address(path),
+        number,
+        last_race: crate::pointers::game_address(path) == 0,
     })
 }

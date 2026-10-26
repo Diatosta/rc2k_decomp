@@ -117,7 +117,7 @@ fn built(id: u32, with_nul: bool) -> Result<Vec<u8>, BadInput> {
             "a string of the language's set-up longer than expected",
         ));
     }
-    let at = GamePtr::new(text() as usize as u32);
+    let at = GamePtr::new(crate::pointers::game_address(text()));
     at.write_bytes(&bytes, "the text buffer")?;
     if with_nul {
         at.offset(bytes.len() as u32)
@@ -210,7 +210,7 @@ pub unsafe fn load_language(
         // `sub_403462`
         if MACHINE.keyboard_type.get() == 2 {
             GamePtr::new(KEYBOARD_TABLES.nec_head.addr() as u32).copy_to(
-                GamePtr::new(keyboard as usize as u32),
+                GamePtr::new(crate::pointers::game_address(keyboard)),
                 0x30,
                 "the NEC keyboard head",
             )?;

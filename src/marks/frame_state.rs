@@ -86,7 +86,7 @@ impl DrawWork {
     pub const LEN: usize = 0x100;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        &DRAW_WORK as *const DrawWork as usize
+        crate::pointers::host_number(&DRAW_WORK as *const DrawWork)
     }
 }
 
@@ -142,7 +142,7 @@ impl ViewVars {
     pub const LEN: usize = 0x58;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        &VIEW_VARS as *const ViewVars as usize
+        crate::pointers::host_number(&VIEW_VARS as *const ViewVars)
     }
 }
 
@@ -247,7 +247,7 @@ impl DrawFrame {
     pub const LEN: usize = 0xA4;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        &DRAW_FRAME as *const DrawFrame as usize
+        crate::pointers::host_number(&DRAW_FRAME as *const DrawFrame)
     }
 }
 
@@ -334,7 +334,7 @@ impl FlareParts {
     pub const LEN: usize = 0xD8;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        &FLARE_PARTS as *const FlareParts as usize
+        crate::pointers::host_number(&FLARE_PARTS as *const FlareParts)
     }
 }
 
@@ -360,7 +360,7 @@ impl FlareScales {
     pub const LEN: usize = 0x14;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        &FLARE_SCALES as *const FlareScales as usize
+        crate::pointers::host_number(&FLARE_SCALES as *const FlareScales)
     }
 }
 
@@ -373,8 +373,12 @@ mod typed_tests {
     fn draw_work_starts_as_the_games() {
         assert_eq!(size_of::<DrawWork>(), DrawWork::LEN);
         let image = crate::moved::image_bytes(DrawWork::START, DrawWork::LEN);
-        let mine =
-            unsafe { std::slice::from_raw_parts(DrawWork::home() as *const u8, DrawWork::LEN) };
+        let mine = unsafe {
+            std::slice::from_raw_parts(
+                crate::pointers::host_at(DrawWork::home()) as *const u8,
+                DrawWork::LEN,
+            )
+        };
         assert!(
             mine == &image[..],
             "DRAW_WORK starts differently from the image"
@@ -398,8 +402,12 @@ mod typed_tests {
     fn view_vars_starts_as_the_games() {
         assert_eq!(size_of::<ViewVars>(), ViewVars::LEN);
         let image = crate::moved::image_bytes(ViewVars::START, ViewVars::LEN);
-        let mine =
-            unsafe { std::slice::from_raw_parts(ViewVars::home() as *const u8, ViewVars::LEN) };
+        let mine = unsafe {
+            std::slice::from_raw_parts(
+                crate::pointers::host_at(ViewVars::home()) as *const u8,
+                ViewVars::LEN,
+            )
+        };
         assert!(
             mine == &image[..],
             "VIEW_VARS starts differently from the image"
@@ -426,8 +434,12 @@ mod typed_tests {
     fn marks_frame_starts_as_the_games() {
         assert_eq!(size_of::<DrawFrame>(), DrawFrame::LEN);
         let image = crate::moved::image_bytes(DrawFrame::START, DrawFrame::LEN);
-        let mine =
-            unsafe { std::slice::from_raw_parts(DrawFrame::home() as *const u8, DrawFrame::LEN) };
+        let mine = unsafe {
+            std::slice::from_raw_parts(
+                crate::pointers::host_at(DrawFrame::home()) as *const u8,
+                DrawFrame::LEN,
+            )
+        };
         assert!(
             mine == &image[..],
             "DRAW_FRAME starts differently from the image"
@@ -462,8 +474,12 @@ mod typed_tests {
     fn flare_parts_starts_as_the_games() {
         assert_eq!(size_of::<FlareParts>(), FlareParts::LEN);
         let image = crate::moved::image_bytes(FlareParts::START, FlareParts::LEN);
-        let mine =
-            unsafe { std::slice::from_raw_parts(FlareParts::home() as *const u8, FlareParts::LEN) };
+        let mine = unsafe {
+            std::slice::from_raw_parts(
+                crate::pointers::host_at(FlareParts::home()) as *const u8,
+                FlareParts::LEN,
+            )
+        };
         assert!(
             mine == &image[..],
             "FLARE_PARTS starts differently from the image"
@@ -478,7 +494,10 @@ mod typed_tests {
         assert_eq!(size_of::<FlareScales>(), FlareScales::LEN);
         let image = crate::moved::image_bytes(FlareScales::START, FlareScales::LEN);
         let mine = unsafe {
-            std::slice::from_raw_parts(FlareScales::home() as *const u8, FlareScales::LEN)
+            std::slice::from_raw_parts(
+                crate::pointers::host_at(FlareScales::home()) as *const u8,
+                FlareScales::LEN,
+            )
         };
         assert!(
             mine == &image[..],

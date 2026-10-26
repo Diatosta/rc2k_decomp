@@ -55,11 +55,11 @@ fn next_seed(s: u32) -> u32 {
 /// when the x is not below the span: `x87::random_step`); turned back
 /// (`set_line_turn_back`), rounded with the line's start added, the low bytes kept.
 pub fn map_pixel(row: u32, x: u32) -> Result<(), Refused> {
-    let lines = MASKS.lines.as_ptr() as u32;
+    let lines = crate::pointers::game_address(MASKS.lines.as_ptr());
     let f = |o: u32| -> Result<_, Refused> { Ok(get(lines + o)?) };
     MASKS.pixel[0].set(x);
     let pixel: [u32; 2] = read_bits(&MASKS.pixel);
-    let turn = MASKS.turn.as_ptr() as u32;
+    let turn = crate::pointers::game_address(MASKS.turn.as_ptr());
     let shake: u32 = MARKS_WORK.shake.get();
     for half in HALVES {
         write_bits(&MASKS.work_pixel, pixel);
@@ -242,7 +242,7 @@ pub fn map_shapes(shapes: u32, table: u32, corners: u32) -> Result<(), Refused> 
                 x87::loaded(get(shapes + 0x10)?),
             ],
         );
-        let lines = MASKS.lines.as_ptr() as u32;
+        let lines = crate::pointers::game_address(MASKS.lines.as_ptr());
         for k in 0..count as u32 {
             let e = corners.wrapping_add(k * 0x18);
             for (to, from) in LINE_FROM {

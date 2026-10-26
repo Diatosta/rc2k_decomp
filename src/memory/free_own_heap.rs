@@ -23,7 +23,7 @@ pub fn free_own_heap() {
         }
         let heap = HEAP_BASE.load(Relaxed);
         if heap != 0 {
-            VirtualFree(heap as _, 0, MEM_RELEASE);
+            VirtualFree(crate::pointers::host(heap) as _, 0, MEM_RELEASE);
         }
         HEAP_BASE.store(0, Relaxed);
         HEAP_CURSOR.store(0, Relaxed);

@@ -93,7 +93,8 @@ pub unsafe fn draw_service_area(canvas: &mut dyn Canvas) -> Result<bool, Refused
         if title.len() > TEXT_LEN {
             return Err(BadInput("the title is longer than the text buffer").into());
         }
-        crate::pointers::GamePtr::new(text() as usize as u32).write_bytes(&title, "the title")?;
+        crate::pointers::GamePtr::new(crate::pointers::game_address(text()))
+            .write_bytes(&title, "the title")?;
         let (x, y) = AREA_TITLE_AT;
         draw_text_at(font_of(AreaFont::Title).as_ptr(), text(), x, y, canvas)?;
 
@@ -113,13 +114,15 @@ pub unsafe fn draw_service_area(canvas: &mut dyn Canvas) -> Result<bool, Refused
         for step in AREA_STEPS {
             match step {
                 AreaStep::Label(id, font, x, y) => {
-                    ebx =
-                        draw_string_by_id_at(id, font_of(font).as_ptr(), x, y, canvas)?.text as u32;
+                    ebx = crate::pointers::game_address(
+                        draw_string_by_id_at(id, font_of(font).as_ptr(), x, y, canvas)?.text,
+                    );
                 }
                 AreaStep::LabelIf(car_offset, id, font, x, y) => {
                     if field(car_offset)? != 0 {
-                        ebx = draw_string_by_id_at(id, font_of(font).as_ptr(), x, y, canvas)?.text
-                            as u32;
+                        ebx = crate::pointers::game_address(
+                            draw_string_by_id_at(id, font_of(font).as_ptr(), x, y, canvas)?.text,
+                        );
                     }
                 }
                 AreaStep::DamageBar(x, y, car_offset) => {
@@ -150,7 +153,7 @@ pub unsafe fn draw_service_area(canvas: &mut dyn Canvas) -> Result<bool, Refused
 
         // The markers get the car in edi and, as their palette, the ebx the repair times leave.
         let times = draw_repair_times(canvas)?;
-        let palette = times.text as u32;
+        let palette = crate::pointers::game_address(times.text);
         for marker in [
             draw_brake_balance_marker::MARKER,
             draw_steering_sensitivity_marker::MARKER,

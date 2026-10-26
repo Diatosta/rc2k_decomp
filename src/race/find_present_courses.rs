@@ -38,7 +38,7 @@ pub fn find_present_courses() -> Result<(), Refused> {
         let present = course_present(paths().len() as u32, |file| {
             BYTES_READ.store(0, std::sync::atomic::Ordering::Relaxed);
             let mut buffer = DRAW.work_dword.get().to_le_bytes();
-            let path = paths()[file as usize] as *const u8;
+            let path = crate::pointers::host_at(paths()[file as usize]) as *const u8;
             read_whole_file(path, buffer.as_mut_ptr(), PROBE_BYTES)?;
             DRAW.work_dword.set(u32::from_le_bytes(buffer));
             Ok::<u32, Refused>(BYTES_READ.load(std::sync::atomic::Ordering::Relaxed))

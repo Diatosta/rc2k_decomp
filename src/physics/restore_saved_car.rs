@@ -60,7 +60,7 @@ pub unsafe fn restore_saved_car_at(p: &SavedCar) -> Result<(), Refused> {
     unsafe {
         let n = restore_count(SavedCar::at(p.count))?;
         let c = restored(SavedCar::at(p.counter));
-        (p.counter as *mut u32).write_unaligned(c);
+        (crate::pointers::host(p.counter) as *mut u32).write_unaligned(c);
         let state = read_state(p.saved_place, p.saved_matrix, p.saved_list, n);
         write_state(&state, p.place, p.matrix, p.list);
         Ok(())

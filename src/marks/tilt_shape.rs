@@ -66,7 +66,7 @@ impl ShapeTilt {
     pub const LEN: usize = 0x28;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        &SHAPE_TILT as *const ShapeTilt as usize
+        crate::pointers::host_number(&SHAPE_TILT as *const ShapeTilt)
     }
 }
 

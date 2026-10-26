@@ -54,13 +54,14 @@ pub fn load_slideshow_picture(
         start,
         (way as i32) < 0,
         |number| -> Result<bool, Refused> {
-            path = numbered_path_in_game(template as *const u8, number)? as *mut u8;
+            path = numbered_path_in_game(crate::pointers::host(template) as *const u8, number)?
+                as *mut u8;
             if file_exists(path)? {
                 return Ok(true);
             }
             let length = text_length(path)? as usize;
             slides::pcx(crate::menu::event_flow::game_slice(
-                path as usize as u32,
+                crate::pointers::game_address(path),
                 length as u32,
                 "a picture path",
             )?)?;
@@ -68,7 +69,8 @@ pub fn load_slideshow_picture(
         },
         |next| EVENT_STATE.picture.set(next),
     )?;
-    let title_bar = crate::menu::texts_store::MENU_TEXTS.titlebar_png.addr() as *mut u8;
+    let title_bar =
+        crate::pointers::host_at(crate::menu::texts_store::MENU_TEXTS.titlebar_png.addr());
     if step(Step::Overlay(path, title_bar))? {
         step(Step::Load(title_bar))?;
     }

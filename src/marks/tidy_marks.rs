@@ -77,11 +77,11 @@ pub fn tidy_marks() -> Result<(), Refused> {
     }
     for n in 0..count as u32 {
         let car = settings + n * CAR_LEN + CAR_PART;
-        free_list((car + 0x4C) as *mut MemoryList)?;
+        free_list(crate::pointers::host(car + 0x4C) as *mut MemoryList)?;
         GamePtr::new(car + 0x8C).write::<u32>(MORPH_WORK.taken.get(), "a mark's field")?;
     }
     for a in lists() {
-        free_list(a as *mut MemoryList)?;
+        free_list(crate::pointers::host(a) as *mut MemoryList)?;
     }
     Ok(())
 }

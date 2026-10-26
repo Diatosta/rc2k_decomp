@@ -85,7 +85,7 @@ pub static LEXICON: LexiconMemory = LexiconMemory {
 
 /// Where the block is (`moved::MOVED`'s home for IDA 0x519554).
 pub fn memory_home() -> usize {
-    &LEXICON as *const LexiconMemory as usize
+    crate::pointers::host_number(&LEXICON as *const LexiconMemory)
 }
 /// The record all empty messages share (`unk_4F3034` in the image until 2026-10-24): +4 how
 /// often it was used (never reset), +0xC its index entry. Written here only.
@@ -190,7 +190,7 @@ pub unsafe fn compile_lexicon() -> Result<(), Refused> {
         // The original's memory, for the game's memory figures: taken and given back.
         let list = LEXICON.memory.as_ptr();
         let memory = allocate(list, LEXICON.kilobytes.get().wrapping_mul(0x400))?;
-        (*list).cursor = memory as u32;
+        (*list).cursor = crate::pointers::game_address(memory);
         (*list).remaining = (*list).total;
 
         for (offset, value) in counts(&compiled) {
@@ -199,7 +199,7 @@ pub unsafe fn compile_lexicon() -> Result<(), Refused> {
         let empty = &mut *EMPTY_MESSAGE.ptr();
         empty[1] = empty[1].wrapping_add(compiled.empty_messages);
         empty[3] = compiled.index_size;
-        crate::pointers::GamePtr::new(lexicon() as u32)
+        crate::pointers::GamePtr::new(crate::pointers::game_address(lexicon()))
             .write_bytes(&compiled.table, "the lexicon's memory")?;
         use_lexicon();
 

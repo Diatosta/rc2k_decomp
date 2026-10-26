@@ -44,7 +44,11 @@ pub fn load_edges(resume: u32) -> Result<(), Refused> {
             let boxes = KIND_BOXES.boxes.addr() as u32;
             let scale: [u32; 3] = read_bits(&EDGE_SETTINGS.scale);
             for k in 0..KINDS {
-                x87::scale_record((boxes + 0x30 * k) as *mut u32, scale[0], scale[1]);
+                x87::scale_record(
+                    crate::pointers::host(boxes + 0x30 * k) as *mut u32,
+                    scale[0],
+                    scale[1],
+                );
                 let f = &KIND_BOXES.kind_floats[k as usize];
                 f.set_bits(x87::sub(scale[2], f.bits()));
             }
@@ -68,7 +72,7 @@ pub fn load_edges(resume: u32) -> Result<(), Refused> {
         PICTURE.width.set(0x100u32);
         PICTURE.height.set(0x80u32);
         PICTURE.row_bytes.set(0xFFFF_FFFEu32);
-        let read = crate::gfx::read_picture_file::read_picture_file(path as *mut u8);
+        let read = crate::gfx::read_picture_file::read_picture_file(crate::pointers::host(path));
         PICTURE.width.set(sizes[0]);
         PICTURE.height.set(sizes[1]);
         PICTURE.row_bytes.set(sizes[2]);
@@ -127,7 +131,7 @@ impl EdgeMask {
     pub const LEN: usize = 0x8000;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        &EDGE_MASK as *const EdgeMask as usize
+        crate::pointers::host_number(&EDGE_MASK as *const EdgeMask)
     }
 }
 
@@ -328,7 +332,7 @@ impl KindBoxes {
     pub const LEN: usize = 0x6E8;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        &KIND_BOXES as *const KindBoxes as usize
+        crate::pointers::host_number(&KIND_BOXES as *const KindBoxes)
     }
 }
 
@@ -399,7 +403,7 @@ impl EdgeSettings {
     pub const LEN: usize = 0x5F;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        &EDGE_SETTINGS as *const EdgeSettings as usize
+        crate::pointers::host_number(&EDGE_SETTINGS as *const EdgeSettings)
     }
 }
 
@@ -417,7 +421,10 @@ mod typed_tests {
         );
         let image = crate::moved::image_bytes(EdgeSettings::START, EdgeSettings::LEN);
         let mine = unsafe {
-            std::slice::from_raw_parts(EdgeSettings::home() as *const u8, EdgeSettings::LEN)
+            std::slice::from_raw_parts(
+                crate::pointers::host_at(EdgeSettings::home()) as *const u8,
+                EdgeSettings::LEN,
+            )
         };
         assert!(
             mine == &image[..],

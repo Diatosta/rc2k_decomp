@@ -13,11 +13,12 @@ use crate::physics::tables_store::PHYSICS;
 
 unsafe fn core(v: &[u32]) {
     unsafe {
-        if (v[0] as *const u32).read_unaligned() != 0 {
+        if (crate::pointers::host(v[0]) as *const u32).read_unaligned() != 0 {
             return;
         }
         for k in 0..6 {
-            (v[k + 7] as *mut u32).write_unaligned((v[k + 1] as *const u32).read_unaligned());
+            (crate::pointers::host(v[k + 7]) as *mut u32)
+                .write_unaligned((crate::pointers::host(v[k + 1]) as *const u32).read_unaligned());
         }
     }
 }

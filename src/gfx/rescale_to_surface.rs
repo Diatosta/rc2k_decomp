@@ -52,9 +52,9 @@ pub unsafe fn rescale_to_surface(surface: *const u32) -> Result<(), Refused> {
         let _ = fill_row_table(from, DECODER.stride.get(), from_height);
         // Converted: `rc2k_core::gfx::picture::rescale`; each pixel's parts through the
         // components variable, the last left there with its fourth byte as it was.
-        let format = (field(FORMAT) as *const PixelFormat).read_unaligned();
+        let format = (crate::pointers::host(field(FORMAT)) as *const PixelFormat).read_unaligned();
         let words = field(BITS) == 0x10;
-        let mut out = field(PIXELS) as *mut u8;
+        let mut out = crate::pointers::host(field(PIXELS));
         let (width_pixels, gap) = (width, field(ROW_GAP) as usize);
         let mut column = 0u32;
         let window = crate::pointers::Window::new();

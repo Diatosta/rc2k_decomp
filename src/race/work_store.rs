@@ -201,14 +201,24 @@ impl RaceWork {
     pub fn car_block(&self, n: usize) -> u32 {
         // SAFETY: the original's own unchecked read; inside the race block for the numbers
         // the game passes.
-        unsafe { ((self.car_blocks.as_ptr() as usize + 4 * n) as *const u32).read_unaligned() }
+        unsafe {
+            (crate::pointers::host_at(
+                crate::pointers::host_number(self.car_blocks.as_ptr()) + 4 * n,
+            ) as *const u32)
+                .read_unaligned()
+        }
     }
 
     /// Car record `n` (`g_carRecords[n]`, a pointer to the car's view word), read without a
     /// check as the original reads it.
     pub fn car_record(&self, n: usize) -> u32 {
         // SAFETY: as `car_block`.
-        unsafe { ((self.car_records.as_ptr() as usize + 4 * n) as *const u32).read_unaligned() }
+        unsafe {
+            (crate::pointers::host_at(
+                crate::pointers::host_number(self.car_records.as_ptr()) + 4 * n,
+            ) as *const u32)
+                .read_unaligned()
+        }
     }
 }
 
@@ -222,7 +232,7 @@ impl core::ops::Deref for InRaceBlock {
     fn deref(&self) -> &RaceWork {
         // SAFETY: the race block lives as long as the program and is aligned to 4 (the
         // test checks); every field is an atomic or a cell, as the block's bytes were shared.
-        unsafe { &*(piece_addr() as *const RaceWork) }
+        unsafe { &*(crate::pointers::host_at(piece_addr()) as *const RaceWork) }
     }
 }
 

@@ -100,7 +100,7 @@ pub const END: usize = 0x755224;
 
 /// Where IDA 0X755170 is now (`moved::MOVED`'s home).
 pub fn controls_screen_addr() -> usize {
-    &CONTROLS_SCREEN as *const ControlsScreen as usize
+    crate::pointers::host_number(&CONTROLS_SCREEN as *const ControlsScreen)
 }
 
 #[cfg(test)]
@@ -113,8 +113,12 @@ mod tests {
     fn controls_screen_starts_as_the_games() {
         assert!(END - START <= size_of::<ControlsScreen>());
         assert!(size_of::<ControlsScreen>() <= (END - START).next_multiple_of(4));
-        let mine =
-            unsafe { std::slice::from_raw_parts(controls_screen_addr() as *const u8, END - START) };
+        let mine = unsafe {
+            std::slice::from_raw_parts(
+                crate::pointers::host_at(controls_screen_addr()) as *const u8,
+                END - START,
+            )
+        };
         assert_eq!(mine, &image_bytes(START, END - START)[..]);
         let at = |field: usize, ida: usize| assert_eq!(field, ida - START, "{ida:#X}");
         at(offset_of!(ControlsScreen, _table_755178), 0x755178);

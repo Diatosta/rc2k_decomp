@@ -33,8 +33,9 @@ pub fn axis_found(object: u32, entry: u32) -> Result<u32, BadInput> {
     // SAFETY: `object` is the `DIDEVICEOBJECTINSTANCEA` the emulation lists (a local of its
     // own, no allocation of the game's), alive for this call.
     let object_type = unsafe {
-        ((object.wrapping_add(field!(DiDeviceObjectInstance, guid_type))) as usize
-            as *const [u8; 16])
+        (crate::pointers::host_at(
+            (object.wrapping_add(field!(DiDeviceObjectInstance, guid_type))) as usize,
+        ) as *const [u8; 16])
             .read_unaligned()
     };
     let mut axes = [[0u8; 16]; 6];

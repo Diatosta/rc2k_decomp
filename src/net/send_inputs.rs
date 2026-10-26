@@ -32,7 +32,7 @@ pub const INPUTS: Message = Message {
 pub fn send_fields(m: &Message) -> Result<(), Refused> {
     let (car, message) = (
         crate::physics::car_store::car_addr() as u32,
-        crate::race::work_store::RACE_WORK.net_message.as_ptr() as u32,
+        crate::pointers::game_address(crate::race::work_store::RACE_WORK.net_message.as_ptr()),
     );
     log_send(m.text);
     // Converted: `rc2k_core::net::race::Kind::pack`.
@@ -52,7 +52,10 @@ pub fn send_fields(m: &Message) -> Result<(), Refused> {
     for (n, &v) in dwords.iter().enumerate() {
         GamePtr::new(message + 4 * n as u32).write(v, "the network message")?;
     }
-    send_message(message as *const u8, 4 * dwords.len() as u32)
+    send_message(
+        crate::pointers::host(message) as *const u8,
+        4 * dwords.len() as u32,
+    )
 }
 
 /// The Rust version.

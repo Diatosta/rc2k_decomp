@@ -38,7 +38,8 @@ pub unsafe fn copy_pixel_rows(
         // Dword by dword and forwards, as `rep movsd` goes, whatever overlaps.
         for _ in 0..row_dwords {
             unsafe {
-                (to as *mut u32).write_unaligned((from as *const u32).read_unaligned());
+                (crate::pointers::host(to) as *mut u32)
+                    .write_unaligned((crate::pointers::host(from) as *const u32).read_unaligned());
             }
             from = from.wrapping_add(4);
             to = to.wrapping_add(4);

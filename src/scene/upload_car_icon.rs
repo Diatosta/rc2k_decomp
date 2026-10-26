@@ -99,7 +99,7 @@ pub unsafe fn upload_car_icon(icon: &CarIcon) -> Result<(), Refused> {
             piece: [icon.sheet_x, icon.sheet_y, 0x52, 0x2A],
         });
         keep_second_picture(&record, icon.alpha_sheet)?;
-        let (pixels, width, height, _) = read_texture_picture(icon.sheet as *mut u8)?;
+        let (pixels, width, height, _) = read_texture_picture(crate::pointers::host(icon.sheet))?;
         ready_picture(&record, pixels, width, height)?;
         let across = halvings_apart(
             &record,

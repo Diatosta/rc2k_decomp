@@ -231,7 +231,7 @@ impl SoundObject {
 
     /// Its address, as the game's tables hold it.
     pub fn addr(&self) -> u32 {
-        self as *const SoundObject as usize as u32
+        crate::pointers::game_address(self as *const SoundObject)
     }
 
     /// The timed slot the image names by its offset in the object (the core's lists of
@@ -504,7 +504,7 @@ pub static RACE_SOUNDS: RaceSounds = RaceSounds {
 
 /// Where the race sounds' block is (`moved::MOVED`'s home for IDA 0x512A10).
 pub fn race_sounds_addr() -> usize {
-    &RACE_SOUNDS as *const RaceSounds as usize
+    crate::pointers::host_number(&RACE_SOUNDS as *const RaceSounds)
 }
 
 /// The race sounds' clock and the constants of the placed and moving sounds (IDA 0x5124E4
@@ -550,7 +550,7 @@ pub static RACE_CLOCK: RaceClock = RaceClock {
 
 /// Where the race clock is (`moved::MOVED`'s home for IDA 0x5124E4).
 pub fn race_clock_addr() -> usize {
-    &RACE_CLOCK as *const RaceClock as usize
+    crate::pointers::host_number(&RACE_CLOCK as *const RaceClock)
 }
 
 /// The surface sounds' constants and work (IDA 0x516358 .. 0x51639C, the image's layout;
@@ -618,7 +618,7 @@ pub static SURFACE_SOUNDS: SurfaceSounds = SurfaceSounds {
 
 /// Where the surface sounds' block is (`moved::MOVED`'s home for IDA 0x516358).
 pub fn surface_sounds_addr() -> usize {
-    &SURFACE_SOUNDS as *const SurfaceSounds as usize
+    crate::pointers::host_number(&SURFACE_SOUNDS as *const SurfaceSounds)
 }
 
 /// A timed sound's slot: six dwords (`sound::play_timed_slot`).
@@ -641,7 +641,7 @@ pub struct SoundSlot {
 impl SoundSlot {
     /// Its address, for `sound::play_timed_slot`.
     pub fn addr(&self) -> u32 {
-        self as *const SoundSlot as usize as u32
+        crate::pointers::game_address(self as *const SoundSlot)
     }
 }
 
@@ -757,7 +757,7 @@ pub static STAGE_SOUNDS: StageSounds = StageSounds {
 
 /// Where the stage sounds are (`moved::MOVED`'s home for IDA 0x51655C).
 pub fn stage_sounds_addr() -> usize {
-    &STAGE_SOUNDS as *const StageSounds as usize
+    crate::pointers::host_number(&STAGE_SOUNDS as *const StageSounds)
 }
 
 /// The spot voices' pickers' work and the sound kinds per spot (IDA 0x517f40 .. 0x518080, the image's layout; phase 7, typed state).
@@ -964,7 +964,7 @@ impl SpotPicks {
 
     /// `moved::MOVED`'s home for `START`.
     pub fn home() -> usize {
-        &SPOT_PICKS as *const SpotPicks as usize
+        crate::pointers::host_number(&SPOT_PICKS as *const SpotPicks)
     }
 }
 
@@ -985,7 +985,7 @@ impl SettingsApplied {
 
     /// `moved::MOVED`'s home for `START`.
     pub fn home() -> usize {
-        &SETTINGS_APPLIED as *const SettingsApplied as usize
+        crate::pointers::host_number(&SETTINGS_APPLIED as *const SettingsApplied)
     }
 }
 
@@ -1018,7 +1018,7 @@ impl SoundOptions {
 
     /// `moved::MOVED`'s home for `START`.
     pub fn home() -> usize {
-        &SOUND_OPTIONS as *const SoundOptions as usize
+        crate::pointers::host_number(&SOUND_OPTIONS as *const SoundOptions)
     }
 }
 
@@ -1057,7 +1057,7 @@ impl CdAudio {
 
     /// `moved::MOVED`'s home for `START`.
     pub fn home() -> usize {
-        &CD_AUDIO as *const CdAudio as usize
+        crate::pointers::host_number(&CD_AUDIO as *const CdAudio)
     }
 }
 
@@ -1090,7 +1090,7 @@ pub const CAR_STREAM_IDA: usize = 0xA8C180;
 /// Sets `g_raceSoundObjects` to the objects' places now.
 pub fn point_sound_objects() {
     for (pointer, object) in RACE_SOUNDS.table.iter().zip(&RACE_SOUNDS.objects) {
-        pointer.set(object as *const SoundObject as usize as u32);
+        pointer.set(crate::pointers::game_address(object as *const SoundObject));
     }
 }
 
@@ -1126,7 +1126,12 @@ mod tests {
     fn surface_sounds_start_as_the_games() {
         assert_eq!(size_of::<super::SurfaceSounds>(), 0x51639C - 0x516358);
         let image = crate::moved::image_bytes(0x516358, 0x44);
-        let mine = unsafe { std::slice::from_raw_parts(surface_sounds_addr() as *const u8, 0x44) };
+        let mine = unsafe {
+            std::slice::from_raw_parts(
+                crate::pointers::host_at(surface_sounds_addr()) as *const u8,
+                0x44,
+            )
+        };
         assert_eq!(mine, &image[..]);
     }
 
@@ -1142,7 +1147,12 @@ mod tests {
         assert_eq!(offset_of!(StageSounds, shared_count), 0x5165EC - 0x51655C);
         assert_eq!(offset_of!(StageSounds, shared_spots), 0x5165F0 - 0x51655C);
         let image = crate::moved::image_bytes(0x51655C, 0x364);
-        let mine = unsafe { std::slice::from_raw_parts(stage_sounds_addr() as *const u8, 0x364) };
+        let mine = unsafe {
+            std::slice::from_raw_parts(
+                crate::pointers::host_at(stage_sounds_addr()) as *const u8,
+                0x364,
+            )
+        };
         assert_eq!(mine, &image[..]);
     }
 
@@ -1150,8 +1160,12 @@ mod tests {
     fn spot_picks_starts_as_the_games() {
         assert_eq!(size_of::<SpotPicks>(), SpotPicks::LEN);
         let image = crate::moved::image_bytes(SpotPicks::START, SpotPicks::LEN);
-        let mine =
-            unsafe { std::slice::from_raw_parts(SpotPicks::home() as *const u8, SpotPicks::LEN) };
+        let mine = unsafe {
+            std::slice::from_raw_parts(
+                crate::pointers::host_at(SpotPicks::home()) as *const u8,
+                SpotPicks::LEN,
+            )
+        };
         assert_eq!(mine, &image[..]);
     }
 
@@ -1160,7 +1174,10 @@ mod tests {
         assert_eq!(size_of::<SettingsApplied>(), SettingsApplied::LEN);
         let image = crate::moved::image_bytes(SettingsApplied::START, SettingsApplied::LEN);
         let mine = unsafe {
-            std::slice::from_raw_parts(SettingsApplied::home() as *const u8, SettingsApplied::LEN)
+            std::slice::from_raw_parts(
+                crate::pointers::host_at(SettingsApplied::home()) as *const u8,
+                SettingsApplied::LEN,
+            )
         };
         assert_eq!(mine, &image[..]);
     }
@@ -1170,7 +1187,10 @@ mod tests {
         assert_eq!(size_of::<SoundOptions>(), SoundOptions::LEN);
         let image = crate::moved::image_bytes(SoundOptions::START, SoundOptions::LEN);
         let mine = unsafe {
-            std::slice::from_raw_parts(SoundOptions::home() as *const u8, SoundOptions::LEN)
+            std::slice::from_raw_parts(
+                crate::pointers::host_at(SoundOptions::home()) as *const u8,
+                SoundOptions::LEN,
+            )
         };
         assert_eq!(mine, &image[..]);
     }
@@ -1179,8 +1199,12 @@ mod tests {
     fn cd_audio_starts_as_the_games() {
         assert_eq!(size_of::<CdAudio>(), CdAudio::LEN);
         let image = crate::moved::image_bytes(CdAudio::START, CdAudio::LEN);
-        let mine =
-            unsafe { std::slice::from_raw_parts(CdAudio::home() as *const u8, CdAudio::LEN) };
+        let mine = unsafe {
+            std::slice::from_raw_parts(
+                crate::pointers::host_at(CdAudio::home()) as *const u8,
+                CdAudio::LEN,
+            )
+        };
         assert_eq!(mine, &image[..]);
     }
 
@@ -1208,7 +1232,12 @@ mod tests {
         assert_eq!(offset_of!(SoundObject, slot_c), 0x260);
         assert_eq!(offset_of!(SoundObject, surface), 0x294);
         let image = crate::moved::image_bytes(0x512A10, 0x2580);
-        let mine = unsafe { std::slice::from_raw_parts(race_sounds_addr() as *const u8, 0x2580) };
+        let mine = unsafe {
+            std::slice::from_raw_parts(
+                crate::pointers::host_at(race_sounds_addr()) as *const u8,
+                0x2580,
+            )
+        };
         assert_eq!(mine, &image[..]);
     }
 
@@ -1216,8 +1245,12 @@ mod tests {
     fn race_clock_starts_as_the_games() {
         assert_eq!(size_of::<super::RaceClock>(), 0x512508 - 0x5124E4);
         let image = crate::moved::image_bytes(0x5124E4, 0x24);
-        let mine =
-            unsafe { std::slice::from_raw_parts(super::race_clock_addr() as *const u8, 0x24) };
+        let mine = unsafe {
+            std::slice::from_raw_parts(
+                crate::pointers::host_at(super::race_clock_addr()) as *const u8,
+                0x24,
+            )
+        };
         assert_eq!(mine, &image[..]);
     }
 }

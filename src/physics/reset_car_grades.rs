@@ -24,8 +24,16 @@ fn put(a: u32, v: u32) {
 pub unsafe fn reset_grades_at(b: u32, s0c: u32, s08: u32) {
     unsafe {
         let (k256, k100) = (NUMBERS.k256.get(), NUMBERS.hundred.get());
-        let a = percentage((s0c as *const i32).read_unaligned(), k256, k100);
-        let c = percentage((s08 as *const i32).read_unaligned(), k256, k100);
+        let a = percentage(
+            (crate::pointers::host(s0c) as *const i32).read_unaligned(),
+            k256,
+            k100,
+        );
+        let c = percentage(
+            (crate::pointers::host(s08) as *const i32).read_unaligned(),
+            k256,
+            k100,
+        );
         for (offset, v) in reset_writes(NUMBERS.one.get(), a, c) {
             put(b + offset, v);
         }

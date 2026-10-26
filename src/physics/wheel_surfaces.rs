@@ -79,7 +79,7 @@ fn check() -> Result<(), Refused> {
 fn steps() -> Result<(), Refused> {
     check()?;
     let infos = crate::scene::polygon::texture_infos_addr() as u32;
-    let surfaces = PHYSICS.surfaces.as_ptr() as u32;
+    let surfaces = crate::pointers::game_address(PHYSICS.surfaces.as_ptr());
     for c in 0..5u32 {
         let cc = c as usize;
         let f = (CAR.probe_point_face[cc].get() << 6).wrapping_add(COURSE.course_faces.get());

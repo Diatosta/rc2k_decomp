@@ -12,7 +12,7 @@ use crate::scene::x87_mem::{fld, fnstsw, fstp, fstp80};
 /// length (`fsqrt` of the squares, the last two added first; `fld1; fdivrp`). Every
 /// register kept.
 pub fn normalise_vector3(v: u32) {
-    normalise(v as *mut u8)
+    normalise(crate::pointers::host(v))
 }
 
 fn normalise(v: *mut u8) {
@@ -42,7 +42,11 @@ fn normalise(v: *mut u8) {
 /// register kept.
 pub fn dot_product3(a: u32, b: u32) -> [u8; 10] {
     let mut out = [0u8; 10];
-    dot(a as *const u8, b as *const u8, out.as_mut_ptr());
+    dot(
+        crate::pointers::host(a) as *const u8,
+        crate::pointers::host(b) as *const u8,
+        out.as_mut_ptr(),
+    );
     out
 }
 

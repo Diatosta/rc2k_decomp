@@ -61,7 +61,7 @@ impl PictureSurface for GameSurface {
         picture()
     }
     fn pixels(&self) -> *mut u8 {
-        DRAW_SURFACE.pixels.get() as *mut u8
+        crate::pointers::host(DRAW_SURFACE.pixels.get())
     }
     fn rows(&self) -> u32 {
         DRAW_SURFACE.height.get()
@@ -97,8 +97,8 @@ pub fn copy_picture_to_surface(surface: &mut dyn PictureSurface) -> Result<(), B
     }
     let gap = surface.row_gap() as usize;
     for _ in 0..rows {
-        let copied = crate::pointers::GamePtr::new(from as u32).copy_to(
-            crate::pointers::GamePtr::new(to as u32),
+        let copied = crate::pointers::GamePtr::new(crate::pointers::game_address(from)).copy_to(
+            crate::pointers::GamePtr::new(crate::pointers::game_address(to)),
             row_bytes,
             "a picture's row onto the surface",
         );

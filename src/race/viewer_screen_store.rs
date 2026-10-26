@@ -110,7 +110,7 @@ impl core::ops::Deref for InRaceBlock {
     fn deref(&self) -> &ViewerPanelBlock {
         // SAFETY: the race block lives as long as the program and is aligned to 4 (the
         // test checks); every field is an atomic or a cell, as the block's bytes were shared.
-        unsafe { &*(piece_addr() as *const ViewerPanelBlock) }
+        unsafe { &*(crate::pointers::host_at(piece_addr()) as *const ViewerPanelBlock) }
     }
 }
 
@@ -201,17 +201,20 @@ impl ViewerPanelBlock {
     /// check the number).
     pub fn camera_name(&self, camera: usize) -> u16 {
         // SAFETY: the table is in `unknown_0`; the read is unaligned and plain.
-        unsafe { ((self.unknown_0[0].addr() + 2 * camera) as *const u16).read_unaligned() }
+        unsafe {
+            (crate::pointers::host_at(self.unknown_0[0].addr() + 2 * camera) as *const u16)
+                .read_unaligned()
+        }
     }
 
     fn tail_read(&self, ida: usize) -> u32 {
         // SAFETY: inside the tail (`text_addr` checks); unaligned.
-        unsafe { (self.text_addr(ida) as usize as *const u32).read_unaligned() }
+        unsafe { (crate::pointers::host(self.text_addr(ida)) as *const u32).read_unaligned() }
     }
 
     fn tail_write(&self, ida: usize, value: u32) {
         // SAFETY: as `tail_read`; every other field is a cell, so the bytes are shared.
-        unsafe { (self.text_addr(ida) as usize as *mut u32).write_unaligned(value) }
+        unsafe { (crate::pointers::host(self.text_addr(ida)) as *mut u32).write_unaligned(value) }
     }
 }
 

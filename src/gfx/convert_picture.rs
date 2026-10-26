@@ -66,8 +66,8 @@ pub unsafe fn convert_picture(screen_bits: u32, converter: u32) -> Result<CarryL
             // The picture is already what the surface wants: from and to the same place,
             // `copy_pixel_rows` does nothing.
             copy_pixel_rows(
-                buffer as u32,
-                buffer as u32,
+                crate::pointers::game_address(buffer),
+                crate::pointers::game_address(buffer),
                 width.wrapping_mul(height),
                 1,
                 0,
@@ -80,8 +80,8 @@ pub unsafe fn convert_picture(screen_bits: u32, converter: u32) -> Result<CarryL
                 return Err(BadInput("a picture without a width or a height"));
             }
             components_to_4444_rows(
-                buffer as u32,
-                buffer as u32,
+                crate::pointers::game_address(buffer),
+                crate::pointers::game_address(buffer),
                 width.wrapping_mul(height),
                 1,
                 0,
@@ -98,7 +98,7 @@ pub unsafe fn convert_picture(screen_bits: u32, converter: u32) -> Result<CarryL
             let Some(c) = crate::gfx::mmx_converters::converter_at(at) else {
                 return Err(BadInput("a converter with no Rust version in the table"));
             };
-            let buffer = buffer as u32;
+            let buffer = crate::pointers::game_address(buffer);
             match crate::gfx::mmx_converters::convert_rows(
                 buffer,
                 buffer,
@@ -118,8 +118,9 @@ pub unsafe fn convert_picture(screen_bits: u32, converter: u32) -> Result<CarryL
             }
         } else {
             // Converted: `rc2k_core::gfx::pixels::convert_in_place`.
-            let format: PixelFormat =
-                (surface_format_addr() as *const PixelFormat).read_unaligned();
+            let format: PixelFormat = (crate::pointers::host_at(surface_format_addr())
+                as *const PixelFormat)
+                .read_unaligned();
             let pixels = width as usize * height as usize;
             let bytes = std::slice::from_raw_parts_mut(buffer, pixels * 4);
             // `components_to_pixel`'s carry for the last pixel: clear for 0 and for a format

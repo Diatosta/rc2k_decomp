@@ -238,19 +238,20 @@ unsafe fn tables(palettes: u32) -> Result<(), Refused> {
         )?;
         begin_glyph_table(list)?;
         build_glyphs(
-            crate::gfx::texts::address(&crate::gfx::texts::PAL_00) as *const u8,
+            crate::pointers::host(crate::gfx::texts::address(&crate::gfx::texts::PAL_00))
+                as *const u8,
             list,
         )?;
         MENU_FONTS.font27_glyphs.set(SHEET.table.get());
         palette_to_pixels(GamePtr::new(palettes).read("the fonts' palettes' place")?)?;
-        GamePtr::new(DECODER.palette_ptr() as usize as u32).copy_to(
+        GamePtr::new(crate::pointers::game_address(DECODER.palette_ptr())).copy_to(
             GamePtr::new(crate::session::address_of(&MENU_FONTS.palette_sheet) as u32),
             PALETTE_BYTES,
             "the fonts' palette sheet",
         )?;
         for (sheet, kept) in font_sheets() {
             begin_glyph_table(list)?;
-            build_glyphs(sheet as *const u8, list)?;
+            build_glyphs(crate::pointers::host(sheet) as *const u8, list)?;
             kept.set(SHEET.table.get());
         }
         end_glyph_tables()?;

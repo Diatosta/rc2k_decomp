@@ -187,7 +187,13 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_differences(a[0], a[1], a[2]) },
-                plain: |a| differences(a[0] as *mut u8, a[1] as *mut u8, a[2] as *mut u8),
+                plain: |a| {
+                    differences(
+                        crate::pointers::host_at(a[0]),
+                        crate::pointers::host_at(a[1]),
+                        crate::pointers::host_at(a[2]),
+                    )
+                },
             },
             Block {
                 name: "nearest_on_segment ratio",
@@ -207,7 +213,13 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_ratio(a[0], a[1], a[2]) },
-                plain: |a| ratio(a[0] as *mut u8, a[1] as *const u8, a[2] as *const u8),
+                plain: |a| {
+                    ratio(
+                        crate::pointers::host_at(a[0]),
+                        crate::pointers::host_at(a[1]) as *const u8,
+                        crate::pointers::host_at(a[2]) as *const u8,
+                    )
+                },
             },
             Block {
                 name: "nearest_on_segment point",
@@ -225,7 +237,7 @@ mod asm_reference {
                 }],
                 ulps: 0,
                 reference: |a| unsafe { ref_point(a[0]) },
-                plain: |a| point(a[0] as *mut u8),
+                plain: |a| point(crate::pointers::host_at(a[0])),
             },
         ]
     }

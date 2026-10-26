@@ -62,8 +62,8 @@ pub fn read_kind_records() -> Result<(), Refused> {
     for file in &FILES {
         let (to, room) = records(file);
         read_whole_file(
-            FILE_NUMBERS.text_addr(file.path) as *mut u8,
-            to as *mut u8,
+            crate::pointers::host_at(FILE_NUMBERS.text_addr(file.path)),
+            crate::pointers::host(to),
             room as u32,
         )?;
     }

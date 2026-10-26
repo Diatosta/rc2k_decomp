@@ -33,7 +33,7 @@ const TEXT: &std::ffi::CStr = c"rcvd fm plyr"; // "rcvd fm plyr"
 pub fn apply_message(player: u32, message: *const u8) -> Result<(), BadInput> {
     let rd = |at: u32| GamePtr::new(at).read::<u32>("a received message or car block");
     let wr = |at: u32, v: u32| GamePtr::new(at).write(v, "a car block's field");
-    let message = message as u32;
+    let message = crate::pointers::game_address(message);
     log_int(NET.player.get() as i32, false, 1);
     log_int(RACE_VIEW.local_car.get() as i32, false, 1);
     log_int(

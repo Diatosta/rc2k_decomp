@@ -25,7 +25,7 @@ pub fn write_record() -> Result<bool, Refused> {
     // Converted: `rc2k_core::install::config::record_text` (the header and keys as its
     // constants).
     let text_at = |x: u32, what| crate::files::cstring(GamePtr::new(x), what);
-    let locale_at = crate::files::state::locale_directory() as u32;
+    let locale_at = crate::pointers::game_address(crate::files::state::locale_directory());
     let locale = (GamePtr::new(locale_at).read::<u8>("the locale directory")? != 0)
         .then(|| text_at(locale_at, "the locale directory"))
         .transpose()?;
@@ -39,8 +39,9 @@ pub fn write_record() -> Result<bool, Refused> {
     }
     // files::write_file
     let written = crate::files::write_file::write_file(
-        crate::install::installer::INSTALL_TEXTS.record_path.addr() as *const u8,
-        start as *const u8,
+        crate::pointers::host_at(crate::install::installer::INSTALL_TEXTS.record_path.addr())
+            as *const u8,
+        crate::pointers::host(start) as *const u8,
         text.len() as u32,
     )?;
     Ok(written.ok)

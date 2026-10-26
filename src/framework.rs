@@ -83,13 +83,17 @@ pub fn game_addr(rva: usize) -> usize {
 
 /// Pointer to game memory at `rva`.
 pub fn game_ptr<T>(rva: usize) -> *mut T {
-    game_addr(rva) as *mut T
+    crate::pointers::host_at(game_addr(rva)) as *mut T
 }
 
 /// Reads a game global. Call it on every use: the game changes these at runtime.
 pub fn game_read<T: Copy>(rva: usize) -> T {
     let p = game_ptr::<T>(rva);
-    crate::pointers::check_or_end(p as u32, size_of::<T>(), "a game global");
+    crate::pointers::check_or_end(
+        crate::pointers::game_address(p),
+        size_of::<T>(),
+        "a game global",
+    );
     // Some game tables sit on odd addresses.
     unsafe {
         if p.is_aligned() {
@@ -104,7 +108,11 @@ pub fn game_read<T: Copy>(rva: usize) -> T {
 #[cfg(test)]
 pub fn game_write<T: Copy>(rva: usize, value: T) {
     let p = game_ptr::<T>(rva);
-    crate::pointers::check_or_end(p as u32, size_of::<T>(), "a game global");
+    crate::pointers::check_or_end(
+        crate::pointers::game_address(p),
+        size_of::<T>(),
+        "a game global",
+    );
     unsafe {
         if p.is_aligned() {
             p.write_volatile(value)

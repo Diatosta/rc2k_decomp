@@ -56,7 +56,7 @@ pub fn draw_frame() -> Result<(), Refused> {
         }
     }
     GamePtr::new(info + CORNERS_FROM).copy_to(
-        GamePtr::new(MARK_CORNERS.corners.as_ptr() as u32),
+        GamePtr::new(crate::pointers::game_address(MARK_CORNERS.corners.as_ptr())),
         CORNERS_LEN as usize,
         "a stage record's corners",
     )?;

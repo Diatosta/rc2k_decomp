@@ -32,7 +32,7 @@ const SUBCELLS: u32 = 0x410;
 fn turn(p: &[[u8; 10]; 3]) {
     turn_x87(
         crate::race::store::asm_base() as usize,
-        p.as_ptr() as usize,
+        crate::pointers::host_number(p.as_ptr()),
         &RING_WORK,
         &DRAW_WORK,
     )

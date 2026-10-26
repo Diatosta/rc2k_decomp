@@ -166,7 +166,7 @@ impl TyreChange {
     pub const LEN: usize = 0x170;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        &TYRE_CHANGE as *const TyreChange as usize
+        crate::pointers::host_number(&TYRE_CHANGE as *const TyreChange)
     }
 }
 
@@ -179,8 +179,12 @@ mod tests {
         let size = size_of::<TyreChange>();
         assert!(TyreChange::LEN <= size && size <= (TyreChange::LEN).next_multiple_of(16));
         let image = crate::moved::image_bytes(TyreChange::START, TyreChange::LEN);
-        let mine =
-            unsafe { std::slice::from_raw_parts(TyreChange::home() as *const u8, TyreChange::LEN) };
+        let mine = unsafe {
+            std::slice::from_raw_parts(
+                crate::pointers::host_at(TyreChange::home()) as *const u8,
+                TyreChange::LEN,
+            )
+        };
         assert_eq!(mine, &image[..]);
     }
 }

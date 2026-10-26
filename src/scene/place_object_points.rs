@@ -185,7 +185,7 @@ pub fn place_object_points() -> Result<(), Refused> {
     if object.points <= 0 {
         return Ok(());
     }
-    let matrix = object.matrix as *const u32;
+    let matrix = crate::pointers::host(object.matrix) as *const u32;
     let move_by: u32 = RACE_VARS.move_by.bits();
     let mut number = object.first;
     let mut from = object.table.wrapping_add(object.first.wrapping_mul(12));
@@ -199,7 +199,11 @@ pub fn place_object_points() -> Result<(), Refused> {
         } else {
             from as usize
         };
-        rotate(point as *const i32, matrix, record as *mut u32);
+        rotate(
+            crate::pointers::host_at(point) as *const i32,
+            matrix,
+            crate::pointers::host_at(record) as *mut u32,
+        );
         put(record + 0xC, 0);
         put(record + 0x1C, 0);
         if f32::from_bits(dword(record + 0x18)) >= NEAR {
@@ -210,7 +214,12 @@ pub fn place_object_points() -> Result<(), Refused> {
                 COURSE.flat_depth.bits(),
             ];
             let flat = STAGE_PREFS.flat_depth.bits() != 0;
-            to_screen(record as *mut u32, &v, flat, DRAW.scratch.as_ptr());
+            to_screen(
+                crate::pointers::host_at(record) as *mut u32,
+                &v,
+                flat,
+                DRAW.scratch.as_ptr(),
+            );
         }
         from = from.wrapping_add(12);
         number = number.wrapping_add(1);
@@ -218,7 +227,11 @@ pub fn place_object_points() -> Result<(), Refused> {
     for _ in 0..object.normals.max(0) {
         let record = record_of(object.records, number) as usize;
         put(record, number);
-        turn(from as usize as *const u32, matrix, record as *mut u32);
+        turn(
+            crate::pointers::host(from) as *const u32,
+            matrix,
+            crate::pointers::host_at(record) as *mut u32,
+        );
         from = from.wrapping_add(12);
         number = number.wrapping_add(1);
     }

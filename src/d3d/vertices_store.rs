@@ -40,7 +40,7 @@ impl core::ops::Deref for InBuffers {
     fn deref(&self) -> &PolygonVertices {
         // SAFETY: the block lives as long as the program and the piece is aligned to 4 (the
         // test checks); every field is an atomic cell.
-        unsafe { &*(piece_addr() as *const PolygonVertices) }
+        unsafe { &*(crate::pointers::host_at(piece_addr()) as *const PolygonVertices) }
     }
 }
 

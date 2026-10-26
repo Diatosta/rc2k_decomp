@@ -28,7 +28,7 @@ impl<const N: usize> DrawList<N> {
 
     /// The list's address.
     pub fn addr(&self) -> usize {
-        self as *const Self as usize
+        crate::pointers::host_number(self as *const Self)
     }
 }
 
@@ -1225,7 +1225,7 @@ pub const END: usize = 0x7594AA;
 
 /// Where IDA 0x758B72 is now (`moved::MOVED`'s home).
 pub fn draw_lists_addr() -> usize {
-    &DRAW_LISTS as *const DrawLists as usize
+    crate::pointers::host_number(&DRAW_LISTS as *const DrawLists)
 }
 
 #[cfg(test)]
@@ -1237,8 +1237,12 @@ mod tests {
     #[test]
     fn draw_lists_start_as_the_games() {
         assert_eq!(size_of::<DrawLists>(), END - START);
-        let mine =
-            unsafe { std::slice::from_raw_parts(draw_lists_addr() as *const u8, END - START) };
+        let mine = unsafe {
+            std::slice::from_raw_parts(
+                crate::pointers::host_at(draw_lists_addr()) as *const u8,
+                END - START,
+            )
+        };
         assert_eq!(mine, &image_bytes(START, END - START)[..]);
         let at = |field: usize, ida: usize| assert_eq!(field, ida - START, "{ida:#X}");
         at(offset_of!(DrawLists, unread_758b72), 0x758B72);

@@ -51,7 +51,8 @@ pub fn signs_with(
             else {
                 continue;
             };
-            let rect = (HUD.rects.as_ptr() as u32).wrapping_add(sign.rectangle);
+            let rect =
+                (crate::pointers::game_address(HUD.rects.as_ptr())).wrapping_add(sign.rectangle);
             crate::hud::add_sprite::add_sprite(sign.x, row_by(y, lift), rect)?;
         }
     }

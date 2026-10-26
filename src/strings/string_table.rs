@@ -18,12 +18,12 @@ const PTRS_LOW_RVA: usize = rva(0x95D664); // src[id], ids 0x5A5..=0x658
 
 /// The table's address now.
 pub fn blob() -> *const u8 {
-    STRING_TABLE.load(Ordering::Relaxed) as usize as *const u8
+    crate::pointers::host(STRING_TABLE.load(Ordering::Relaxed)) as *const u8
 }
 
 /// Points the string table at the lexicon (`g_stringTable` = `g_lexicon`).
 pub fn use_lexicon() {
-    STRING_TABLE.store(lexicon() as u32, Ordering::Relaxed);
+    STRING_TABLE.store(crate::pointers::game_address(lexicon()), Ordering::Relaxed);
 }
 
 /// Each slot by its own address: slots fall in moved ranges (the driver names' pointers,

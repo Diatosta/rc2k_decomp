@@ -55,7 +55,7 @@ pub static FORMATS: Formats = Formats {
 
 /// Where the block is (`moved::MOVED`'s home for IDA 0x4F3F78).
 pub fn home() -> usize {
-    &FORMATS as *const Formats as usize
+    crate::pointers::host_number(&FORMATS as *const Formats)
 }
 
 #[cfg(test)]
@@ -76,7 +76,7 @@ mod tests {
         assert_eq!(crate::moved::place(0x4F3FA8), FORMATS.scratch.addr());
         assert_eq!(
             crate::moved::place(0x4F3FAC),
-            FORMATS.component_format.as_ptr() as usize
+            crate::pointers::host_number(FORMATS.component_format.as_ptr())
         );
     }
 }

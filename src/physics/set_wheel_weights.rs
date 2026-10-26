@@ -38,7 +38,7 @@ impl Places {
             share: (CONTACT_WORK.wheel_share.addr() as u32),
             scratch: (DRAW.scratch.addr() as u32),
             weight: (PHYSICS.weight.addr() as u32),
-            records: ((PHYSICS.forces.as_ptr() as usize) as u32),
+            records: (crate::pointers::host_number(PHYSICS.forces.as_ptr()) as u32),
         }
     }
 }

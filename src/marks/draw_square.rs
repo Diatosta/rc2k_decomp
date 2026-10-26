@@ -29,7 +29,7 @@ fn shifted_places(s: u32, p: u32) {
 
 /// The original's 0x4BF88E .. 0x4BF9AA on the two values: the corners.
 fn corners(v: &[[u8; 10]; 2]) {
-    corners_x87(v.as_ptr() as usize, &SQUARE_TABLES)
+    corners_x87(crate::pointers::host_number(v.as_ptr()), &SQUARE_TABLES)
 }
 
 /// The original's 0x4BF9BA .. 0x4BFAD6: the corners projected, their depth.

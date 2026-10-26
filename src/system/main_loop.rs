@@ -79,7 +79,9 @@ impl Vars {
         vars[7] = at(crate::install::vars::INSTALLER_RUN.installing.addr());
         vars[8] = at(crate::install::vars::INSTALLER_RUN.updating.addr());
         vars[9] = at(crate::install::vars::INSTALLER_RUN.from_command.addr());
-        vars[10] = at(crate::files::state::base_directory() as usize);
+        vars[10] = at(crate::pointers::host_number(
+            crate::files::state::base_directory(),
+        ));
         vars[11] = at(crate::net::store::NET.lobby_launched.addr());
         Self(vars)
     }
@@ -123,17 +125,25 @@ pub type Outside<'a> = &'a mut dyn FnMut(Call) -> Result<(), Refused>;
 /// `stack` is the stack pointer at the loop's entry.
 pub fn main_loop(vars: &Vars, stack: u32, outside: Outside) -> Result<(), Refused> {
     {
-        let leaving = |outside: Outside| outside(Call::Log(LEAVING_RVA.as_ptr() as usize as u32));
+        let leaving = |outside: Outside| {
+            outside(Call::Log(crate::pointers::game_address(
+                LEAVING_RVA.as_ptr(),
+            )))
+        };
         let quit_and_leave = |outside: Outside| {
             outside(Call::RequestQuit)?;
-            outside(Call::Log(LEAVING_RVA.as_ptr() as usize as u32))
+            outside(Call::Log(crate::pointers::game_address(
+                LEAVING_RVA.as_ptr(),
+            )))
         };
         if vars.get(0)? != 0 {
             return quit_and_leave(outside);
         }
         vars.set(0, stack)?;
         outside(Call::Log(0))?;
-        outside(Call::Log(ENTERING_RVA.as_ptr() as usize as u32))?;
+        outside(Call::Log(crate::pointers::game_address(
+            ENTERING_RVA.as_ptr(),
+        )))?;
         loop {
             outside(Call::Sleep(1000))?;
             if vars.get(1)? == 1 {
@@ -191,7 +201,9 @@ fn in_game(call: Call) -> Result<(), Refused> {
     unsafe {
         match call {
             Call::Log(0) => crate::menu::text_entry::log_l1(c"".as_ptr() as *const u8, true),
-            Call::Log(text) => crate::menu::text_entry::log_l1(text as *const u8, true),
+            Call::Log(text) => {
+                crate::menu::text_entry::log_l1(crate::pointers::host(text) as *const u8, true)
+            }
             Call::Sleep(milliseconds) => crate::system::sleep::sleep(milliseconds),
             Call::Sub404823 => {
                 crate::platform::set_menu_mode_now();
@@ -230,7 +242,7 @@ fn in_game(call: Call) -> Result<(), Refused> {
 pub fn main_loop_in_game() -> Result<(), Refused> {
     log("system::main_loop: the Rust version runs");
     let here = 0u32;
-    let stack = &raw const here as u32;
+    let stack = crate::pointers::game_address(&raw const here);
     main_loop(&Vars::game(), stack, &mut in_game)?;
     log("system::main_loop: the Rust version has come back");
     Ok(())

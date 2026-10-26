@@ -111,9 +111,10 @@ pub unsafe fn start_stream(s: &mut AudioStream, path: *const u8) -> Result<bool,
         }
         let mut header = AUDIO.stream_header.get();
         if header == 0 {
-            header =
-                crate::memory::allocate::allocate(AUDIO.stream_header_memory.as_ptr(), HEADER_LEN)?
-                    as u32;
+            header = crate::pointers::game_address(crate::memory::allocate::allocate(
+                AUDIO.stream_header_memory.as_ptr(),
+                HEADER_LEN,
+            )?);
             AUDIO.stream_header.set(header);
         }
         GamePtr::new(header).fill(0, HEADER_LEN as usize, "the stream header")?;
@@ -140,7 +141,7 @@ pub unsafe fn start_stream(s: &mut AudioStream, path: *const u8) -> Result<bool,
         if create(
             ds,
             AUDIO.buffer_description.addr() as u32,
-            &mut s.buffer as *mut u32 as u32,
+            crate::pointers::game_address(&mut s.buffer as *mut u32),
             0,
         ) != 0
         {
@@ -175,7 +176,8 @@ pub unsafe fn feed_stream(s: &mut AudioStream) -> Result<bool, Refused> {
         let position: unsafe extern "system" fn(u32, u32, u32) -> i32 =
             std::mem::transmute(crate::audio::com::method(b, GET_POSITION));
         let mut cursor = s.play_cursor;
-        let failed_position = position(b, &mut cursor as *mut u32 as u32, 0) != 0;
+        let failed_position =
+            position(b, crate::pointers::game_address(&mut cursor as *mut u32), 0) != 0;
         if failed_position {
             // The original's call wrote nothing it did not have.
             s.play_cursor = cursor;

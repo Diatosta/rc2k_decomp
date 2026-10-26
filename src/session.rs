@@ -40,7 +40,7 @@ impl Dword {
     }
 
     pub fn addr(&self) -> usize {
-        self.as_ptr() as usize
+        crate::pointers::host_number(self.as_ptr())
     }
 
     /// The bits, for the x87 model's loads (as `Float::bits`).
@@ -130,7 +130,7 @@ impl Float {
 
     /// Its place, for code that is handed an address.
     pub fn addr(&self) -> usize {
-        self.0.as_ptr() as usize
+        crate::pointers::host_number(self.0.as_ptr())
     }
 }
 
@@ -190,7 +190,7 @@ impl Word {
     }
 
     pub fn addr(&self) -> usize {
-        self.0.as_ptr() as usize
+        crate::pointers::host_number(self.0.as_ptr())
     }
 }
 
@@ -212,7 +212,7 @@ impl Byte {
     }
 
     pub fn addr(&self) -> usize {
-        self.0.as_ptr() as usize
+        crate::pointers::host_number(self.0.as_ptr())
     }
 }
 
@@ -234,7 +234,7 @@ impl<const N: usize> Bytes<N> {
     }
 
     pub fn addr(&self) -> usize {
-        self.as_ptr() as usize
+        crate::pointers::host_number(self.as_ptr())
     }
 
     pub fn get(&self, index: usize) -> u8 {
@@ -342,7 +342,7 @@ impl<T> Shared<T> {
     }
 
     pub fn addr(&self) -> usize {
-        self.as_ptr() as usize
+        crate::pointers::host_number(self.as_ptr())
     }
 
     /// The record as the core's struct, to work on in place. The caller keeps the original's
@@ -375,7 +375,7 @@ impl Screen {
     /// Where the pixel format record is (a Windows-style record the game's code reads and
     /// writes by address).
     pub fn format_addr(&self) -> usize {
-        self.format.as_ptr() as usize
+        crate::pointers::host_number(self.format.as_ptr())
     }
 }
 
@@ -461,12 +461,12 @@ pub struct Machine {
 impl Machine {
     /// The processor vendor's text (12 bytes).
     pub fn vendor_addr(&self) -> usize {
-        self.cpu_vendor.as_ptr() as usize
+        crate::pointers::host_number(self.cpu_vendor.as_ptr())
     }
 
     /// The Windows version record (`OSVERSIONINFOA`, 148 bytes).
     pub fn version_addr(&self) -> usize {
-        self.version.as_ptr() as usize
+        crate::pointers::host_number(self.version.as_ptr())
     }
 }
 
@@ -521,7 +521,7 @@ pub const CLOCKS_LEN: usize = core::mem::size_of::<Clocks>();
 
 /// The address of a field or an array of cells, for code that is handed an address.
 pub fn address_of<T: ?Sized>(field: &T) -> usize {
-    field as *const T as *const u8 as usize
+    crate::pointers::host_number(field as *const T as *const u8)
 }
 
 /// `N` bytes holding `runs` ((offset, bytes)) and zeros elsewhere.

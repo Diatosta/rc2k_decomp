@@ -221,10 +221,11 @@ fn new_object(s: &mut State, table: *const usize, kind: Kind) -> u32 {
     let id = s.next;
     s.next += 1;
     let object = Box::new(Object { table, id });
-    let at = &*object as *const Object as u32;
+    let at = crate::pointers::game_address(&*object as *const Object);
     // SAFETY: the object's own bytes, for the registry only.
-    let bytes =
-        unsafe { std::slice::from_raw_parts(at as usize as *const u8, size_of::<Object>()) };
+    let bytes = unsafe {
+        std::slice::from_raw_parts(crate::pointers::host(at) as *const u8, size_of::<Object>())
+    };
     s.entries.insert(
         id,
         Entry {
@@ -585,7 +586,7 @@ extern "system" fn lock(
             offset % size
         };
         let first = bytes.min(size - offset);
-        let base = b.data.as_ptr() as u32;
+        let base = crate::pointers::game_address(b.data.as_ptr());
         put(p1, base + offset);
         put(n1, first);
         put(p2, if bytes > first { base } else { 0 });

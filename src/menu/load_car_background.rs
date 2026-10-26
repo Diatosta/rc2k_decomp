@@ -55,7 +55,7 @@ pub fn load_car_background(
 pub unsafe fn load_car_background_in_game() -> Result<(), Refused> {
     unsafe {
         load_car_background(&mut |path, car| {
-            load_background(path as *mut u8, car, &mut GameCanvas)?;
+            load_background(crate::pointers::host(path), car, &mut GameCanvas)?;
             Ok(false)
         })
     }

@@ -27,8 +27,8 @@ use crate::scene::matrix3::rounded;
 /// The Rust core on the variables at `v`. The registers the original leaves are read by none of its callers (esi, edi).
 pub unsafe fn stall_at(v: &[u32]) {
     unsafe {
-        let get = |k: usize| (v[k] as *const u32).read_unaligned();
-        let put = |k: usize, x: u32| (v[k] as *mut u32).write_unaligned(x);
+        let get = |k: usize| (crate::pointers::host(v[k]) as *const u32).read_unaligned();
+        let put = |k: usize, x: u32| (crate::pointers::host(v[k]) as *mut u32).write_unaligned(x);
         put(3, rounded(vector_length(v[0])));
         let zero: u32 = NUMBERS.zero.bits();
         if compare_full(get(3), zero) & 0x4000 == 0 {

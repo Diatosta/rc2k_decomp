@@ -25,7 +25,7 @@ pub static ROW_TABLE: [Dword; ROW_TABLE_ROOM as usize] =
 
 /// Where the table is (`moved::MOVED`'s home for IDA 0x4F3FC4).
 pub fn home() -> usize {
-    ROW_TABLE.as_ptr() as usize
+    crate::pointers::host_number(ROW_TABLE.as_ptr())
 }
 
 /// The address the table holds for a row.

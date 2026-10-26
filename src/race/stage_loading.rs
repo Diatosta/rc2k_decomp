@@ -46,7 +46,7 @@ pub unsafe fn load_stage() -> Result<(), Refused> {
     };
     let mut word = 0;
     let mut log = || {
-        unsafe { log_write(WORDS[word].as_ptr() as usize as *const u8, true, 1) };
+        unsafe { log_write(WORDS[word].as_ptr() as *const u8, true, 1) };
         word += 1;
     };
     let newline = || unsafe { log_write(c"".as_ptr().cast(), true, 1) };
@@ -60,9 +60,9 @@ pub unsafe fn load_stage() -> Result<(), Refused> {
         /* dword_71C3E0 */
         {
             // As `menu::show_loading_picture`.
-            crate::gfx::show_picture_file::show_picture_file(
-                crate::menu::texts_store::MENU_TEXTS.loading_pcx.addr() as *mut u8,
-            )?;
+            crate::gfx::show_picture_file::show_picture_file(crate::pointers::host_at(
+                crate::menu::texts_store::MENU_TEXTS.loading_pcx.addr(),
+            ))?;
         }
         REPLAY_FRAMES.last_kept.set(u32::MAX);
         crate::race::sounds::wake_car_sounds()?;

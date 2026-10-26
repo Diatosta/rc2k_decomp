@@ -47,7 +47,11 @@ pub fn scaled_abs_less_below(a: u32, h: u32, k: u32, b: u32) -> bool {
 
 /// `bytes` bytes at `p` checked to lie in one region (the program ends otherwise).
 fn span<T>(p: *const T, bytes: usize) {
-    crate::pointers::check_or_end(p as usize as u32, bytes, "a math helper's operand");
+    crate::pointers::check_or_end(
+        crate::pointers::game_address(p),
+        bytes,
+        "a math helper's operand",
+    );
 }
 
 /// The point (three whole numbers) through `matrix` (16 floats; the 12 used are the

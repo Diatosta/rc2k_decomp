@@ -34,17 +34,17 @@ fn set_byte(at: u32, v: u8) -> Result<(), BadInput> {
 
 /// The Rust version.
 pub fn add_chat_line(player: u32, message: *const u8) -> Result<(), Refused> {
-    if byte(message as u32)? == 0 {
+    if byte(crate::pointers::game_address(message))? == 0 {
         return Ok(());
     }
     // "name> text"
     let cursor = str_append(
-        NET.player_block(player).name.addr() as *const u8,
-        (NET.chat_text.addr() as u32) as *mut u8,
+        crate::pointers::host_at(NET.player_block(player).name.addr()) as *const u8,
+        crate::pointers::host(NET.chat_text.addr() as u32),
     )?;
-    GamePtr::new(cursor as u32).write(0x203Eu16, "the chat's text")?;
+    GamePtr::new(crate::pointers::game_address(cursor)).write(0x203Eu16, "the chat's text")?;
     let cursor = str_append(message, cursor.wrapping_add(2))?;
-    GamePtr::new(cursor as u32).write(0u8, "the chat's text")?;
+    GamePtr::new(crate::pointers::game_address(cursor)).write(0u8, "the chat's text")?;
     let mut text = NET.chat_text.addr() as u32;
     loop {
         // The next line: one character more at a time while it fits.
@@ -61,7 +61,7 @@ pub fn add_chat_line(player: u32, message: *const u8) -> Result<(), Refused> {
             let width = {
                 measure_text_at(
                     CHAT_FONT.as_ptr(),
-                    (NET.chat_line.addr() as u32) as *const u8,
+                    crate::pointers::host(NET.chat_line.addr() as u32) as *const u8,
                     0,
                     &mut GameCanvas,
                 )

@@ -56,7 +56,7 @@ impl rc2k_core::audio::load::Loader for GameLoader {
         unsafe {
             read_sample_of::read_sample_of(
                 &SAMPLE_RECORDS.records[at.sound as usize].get(),
-                &mut |p| samples::read_sample_in_game(p as *const u8),
+                &mut |p| samples::read_sample_in_game(crate::pointers::host(p) as *const u8),
             )
         }
     }

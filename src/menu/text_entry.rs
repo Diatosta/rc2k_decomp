@@ -73,8 +73,8 @@ pub fn begin_logged(at: u32, log: bool) -> Result<(), crate::errors::BadInput> {
     put_field(at, &text)?;
     if log {
         unsafe {
-            log_l1(BACKED_UP_RVA.as_ptr() as usize as *const u8, false);
-            log_l1(backup() as usize as *const u8, true);
+            log_l1(BACKED_UP_RVA.as_ptr() as *const u8, false);
+            log_l1(crate::pointers::host(backup()) as *const u8, true);
         }
     }
     Ok(())

@@ -45,7 +45,10 @@ fn one_less_abs(v: &Float, to: &Float) {
 /// `fld b; fabs; fld a; fabs; fcompp; fnstsw`: C0, |a| below |b| or unordered.
 fn abs_below(x: u32, y: u32) -> bool {
     let (v, mut status) = ([x, y], 0u16);
-    x87_2(v.as_ptr() as usize, (&raw mut status) as usize);
+    x87_2(
+        crate::pointers::host_number(v.as_ptr()),
+        crate::pointers::host_number(&raw mut status),
+    );
     status & 0x100 != 0
 }
 
@@ -164,7 +167,10 @@ fn steps() -> Result<(), Refused> {
                 ],
                 0u16,
             );
-            x87_14(v.as_ptr() as usize, (&raw mut status) as usize);
+            x87_14(
+                crate::pointers::host_number(v.as_ptr()),
+                crate::pointers::host_number(&raw mut status),
+            );
             if status & 0x100 != 0 {
                 CAR.drive_speed_a.set_bits(0);
                 CAR.drive_speed_b.set_bits(0);
@@ -231,7 +237,7 @@ fn steps() -> Result<(), Refused> {
         let mut status = 0u16;
         x87_20(
             crate::race::store::asm_base() as usize,
-            (&raw mut status) as usize,
+            crate::pointers::host_number(&raw mut status),
         );
         if status & 0x4100 == 0 {
             x87_21(crate::race::store::asm_base() as usize);

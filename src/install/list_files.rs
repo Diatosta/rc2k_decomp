@@ -21,7 +21,9 @@ use rc2k_core::install::script;
 
 /// FindFileData.cFileName (the search record: `files::state`).
 fn find_name() -> u32 {
-    unsafe { (&raw const (*crate::files::state::find_data()).cFileName) as u32 }
+    unsafe {
+        crate::pointers::game_address(&raw const (*crate::files::state::find_data()).cFileName)
+    }
 }
 
 /// The files of `pattern` (eax) added to the files' table.
@@ -31,10 +33,13 @@ pub fn list_files(pattern: u32) -> Result<(), Refused> {
         loop {
             // append_directory (edx the pattern's path, ebx the cursor)
             let (cursor, _) = crate::files::append_directory::append_directory(
-                pattern as *const u8,
-                INSTALLER_RUN.file_cursor.get() as *mut u8,
+                crate::pointers::host(pattern) as *const u8,
+                crate::pointers::host(INSTALLER_RUN.file_cursor.get()),
             )?;
-            let cursor = append_byte(str_append(find_name(), cursor as u32), 0);
+            let cursor = append_byte(
+                str_append(find_name(), crate::pointers::game_address(cursor)),
+                0,
+            );
             INSTALLER_RUN.file_cursor.set(cursor);
             INSTALLER_RUN
                 .file_count

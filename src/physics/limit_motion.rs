@@ -39,7 +39,7 @@ fn hold(v: u32, l: u32) {
 /// number); the limit is stored negated, `v` becomes that unless it is not below it, and the
 /// limit is stored negated again.
 fn hold_at(v: usize, l: usize) {
-    let (v, l) = (v as *mut u8, l as *mut u8);
+    let (v, l) = (crate::pointers::host_at(v), crate::pointers::host_at(l));
     let limit = fld(l, 0);
     if compare(fld(v, 0), limit) & 0x100 == 0 {
         fstp(v, 0, limit);
@@ -65,8 +65,8 @@ pub unsafe fn limit_motion() {
     }
     if bad {
         unsafe {
-            log_write(c"*** INFINITY".as_ptr() as usize as *const u8, false, 1);
-            log_write(c"[car0.newxspd] =".as_ptr() as usize as *const u8, false, 1);
+            log_write(c"*** INFINITY".as_ptr() as *const u8, false, 1);
+            log_write(c"[car0.newxspd] =".as_ptr() as *const u8, false, 1);
             for k in 0..3usize {
                 log_float(f32::from_bits(CAR.velocity[k].bits()), 5, k == 2, 1);
             }

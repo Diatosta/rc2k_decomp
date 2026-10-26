@@ -89,7 +89,11 @@ fn put(at: u32, value: u32) -> Result<(), BadInput> {
 /// nobody).
 pub fn read(path: u32, buffer: u32, count: u32) -> Result<(), Refused> {
     span(buffer, count as usize, "a file's buffer")?;
-    crate::files::read_whole_file::read_whole_file(path as *const u8, buffer as *mut u8, count)?;
+    crate::files::read_whole_file::read_whole_file(
+        crate::pointers::host(path) as *const u8,
+        crate::pointers::host(buffer),
+        count,
+    )?;
     Ok(())
 }
 
@@ -101,9 +105,17 @@ pub fn allocate_course_memory(v: &Vars, list: u32) -> Result<(), Refused> {
         v.list_total,
         get(v.list_total)?.wrapping_add(FIRST_PART + INFO_PART),
     )?;
-    let memory = { crate::memory::allocate::allocate(list as *mut _, FIRST_PART + INFO_PART) }?;
-    put(v.course_memory, memory as u32)?;
-    put(v.course_info, (memory as u32).wrapping_add(FIRST_PART))?;
+    let memory = {
+        crate::memory::allocate::allocate(
+            crate::pointers::host(list) as *mut _,
+            FIRST_PART + INFO_PART,
+        )
+    }?;
+    put(v.course_memory, crate::pointers::game_address(memory))?;
+    put(
+        v.course_info,
+        crate::pointers::game_address(memory).wrapping_add(FIRST_PART),
+    )?;
     Ok(())
 }
 

@@ -183,7 +183,7 @@ impl SurfaceTables {
     pub const LEN: usize = 0x464C;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        &SURFACE as *const SurfaceTables as usize
+        crate::pointers::host_number(&SURFACE as *const SurfaceTables)
     }
 }
 

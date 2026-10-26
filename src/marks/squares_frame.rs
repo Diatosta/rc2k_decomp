@@ -64,7 +64,7 @@ pub fn squares_frame() -> Result<(), Refused> {
     cross_product3(a0, a2, a1)?;
     crate::marks::scale_axes::scale_axes();
     frame_place(s);
-    normalise_vector3(HEX.place.as_ptr() as u32);
+    normalise_vector3(crate::pointers::game_address(HEX.place.as_ptr()));
     frame_facing();
     if HEXAGON_STATE.facing.bits() & 0x8000_0000 == 0 {
         return Ok(());

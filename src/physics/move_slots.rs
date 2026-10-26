@@ -21,7 +21,7 @@ pub unsafe fn move_slots_at(slots: u32, count: u32) -> Result<(), Refused> {
     unsafe {
         for k in 0..8 {
             let s = slots + SLOT_LEN * k;
-            if (s as *const u32).read_unaligned() != 0
+            if (crate::pointers::host(s) as *const u32).read_unaligned() != 0
                 && let Some(why) = slot_refusal(s)
             {
                 return Err(crate::errors::BadInput(why).into());
@@ -30,13 +30,13 @@ pub unsafe fn move_slots_at(slots: u32, count: u32) -> Result<(), Refused> {
         let mut n = 0u32;
         for k in 0..8 {
             let s = slots + SLOT_LEN * k;
-            if (s as *const u32).read_unaligned() != 0 {
+            if (crate::pointers::host(s) as *const u32).read_unaligned() != 0 {
                 n += 1;
-                (count as *mut u32).write_unaligned(n);
+                (crate::pointers::host(count) as *mut u32).write_unaligned(n);
                 move_slot_at(s)?;
             }
         }
-        (count as *mut u32).write_unaligned(n);
+        (crate::pointers::host(count) as *mut u32).write_unaligned(n);
         Ok(())
     }
 }
@@ -45,7 +45,7 @@ pub unsafe fn move_slots_at(slots: u32, count: u32) -> Result<(), Refused> {
 pub unsafe fn move_slots() -> Result<(), Refused> {
     unsafe {
         move_slots_at(
-            (RACE_WORK.race_slots.as_ptr() as usize) as u32,
+            crate::pointers::host_number(RACE_WORK.race_slots.as_ptr()) as u32,
             RACE_WORK.slot_count.addr() as u32,
         )
     }

@@ -138,7 +138,7 @@ struct Object {
 fn object<'a>(this: u32) -> &'a Object {
     crate::pointers::check_or_end(this, size_of::<Object>(), "a DirectPlay object");
     // SAFETY: a live object's region (registered in `make` until its last release).
-    unsafe { &*(this as usize as *const Object) }
+    unsafe { &*(crate::pointers::host(this) as *const Object) }
 }
 
 fn state(this: u32) -> std::sync::MutexGuard<'static, State> {
@@ -150,11 +150,11 @@ fn session(this: u32) -> Option<Arc<Session>> {
 }
 
 fn make(table: *const usize) -> u32 {
-    let at = Box::into_raw(Box::new(Object {
+    let at = crate::pointers::game_address(Box::into_raw(Box::new(Object {
         table,
         refs: AtomicU32::new(1),
         state: Mutex::new(State::default()),
-    })) as u32;
+    })));
     // A region until its last release: the game's code reads its table by address.
     crate::pointers::register(at, size_of::<Object>() as u32);
     at
@@ -226,7 +226,9 @@ fn give(data: &[u8], at: u32, size: u32) -> u32 {
 fn signal() -> Signal {
     Arc::new(|event: u32| {
         if event != 0 {
-            unsafe { windows_sys::Win32::System::Threading::SetEvent(event as _) };
+            unsafe {
+                windows_sys::Win32::System::Threading::SetEvent(crate::pointers::host(event) as _)
+            };
         }
     })
 }
@@ -297,7 +299,7 @@ unsafe extern "system" fn release(this: u32) -> u32 {
             s.close();
         }
         crate::pointers::unregister(this);
-        drop(unsafe { Box::from_raw(this as *mut Object) });
+        drop(unsafe { Box::from_raw(crate::pointers::host(this) as *mut Object) });
     }
     left
 }
@@ -390,7 +392,16 @@ unsafe fn enumerate(this: u32, callback: u32, context: u32, kind: u32) -> u32 {
         // Lent to the callback, which reads it as the game's memory.
         let _lent = crate::pointers::Lent::new(name.as_bytes_with_nul());
         let dpname = dp_name(&name);
-        if unsafe { callback(id, kind, &dpname as *const DpName as u32, 0, context) } == 0 {
+        if unsafe {
+            callback(
+                id,
+                kind,
+                crate::pointers::game_address(&dpname as *const DpName),
+                0,
+                context,
+            )
+        } == 0
+        {
             break;
         }
     }
@@ -426,7 +437,7 @@ fn session_desc(d: &Desc, name: &CString) -> DpSessionDesc {
         application: d.application,
         max_players: d.max_players,
         current_players: d.current_players,
-        name: name.as_ptr() as u32,
+        name: crate::pointers::game_address(name.as_ptr()),
         password: 0,
         reserved: [0; 2],
         user: d.user,
@@ -438,7 +449,7 @@ fn dp_name(name: &std::ffi::CStr) -> DpName {
     DpName {
         size: size_of::<DpName>() as u32,
         flags: 0,
-        short_name: name.as_ptr() as u32,
+        short_name: crate::pointers::game_address(name.as_ptr()),
         long_name: 0,
     }
 }
@@ -482,7 +493,7 @@ unsafe extern "system" fn enum_sessions(
     let application = { read_desc(desc).application };
     let callback: EnumSessionsCallback = unsafe { std::mem::transmute(callback as usize) };
     let mut time = timeout;
-    let time_at = &mut time as *mut u32 as u32;
+    let time_at = crate::pointers::game_address(&mut time as *mut u32);
     for (d, _) in find_sessions(&host, port, application) {
         let closed =
             d.flags & 0x21 != 0 || (d.max_players != 0 && d.current_players >= d.max_players);
@@ -493,7 +504,15 @@ unsafe extern "system" fn enum_sessions(
         // Lent to the callback, which reads it as the game's memory.
         let _lent = crate::pointers::Lent::new(name.as_bytes_with_nul());
         let desc = session_desc(&d, &name);
-        if unsafe { callback(&desc as *const DpSessionDesc as u32, time_at, 0, context) } == 0 {
+        if unsafe {
+            callback(
+                crate::pointers::game_address(&desc as *const DpSessionDesc),
+                time_at,
+                0,
+                context,
+            )
+        } == 0
+        {
             return DP_OK;
         }
     }
@@ -633,10 +652,10 @@ unsafe extern "system" fn enum_connections(
     let callback: EnumConnectionsCallback = unsafe { std::mem::transmute(callback as usize) };
     unsafe {
         callback(
-            DPSPGUID_TCPIP.as_ptr() as u32,
-            address.as_ptr() as u32,
+            crate::pointers::game_address(DPSPGUID_TCPIP.as_ptr()),
+            crate::pointers::game_address(address.as_ptr()),
             address.len() as u32,
-            &dpname as *const DpName as u32,
+            crate::pointers::game_address(&dpname as *const DpName),
             0,
             context,
         )
@@ -728,7 +747,7 @@ unsafe extern "system" fn create_compound_address(
     // DPCOMPOUNDADDRESSELEMENT: the type's GUID, the data's size, the data
     let parts: Vec<(Guid, Vec<u8>)> = (0..count)
         .map(|n| unsafe {
-            let e = (list as *const DpAddressElement)
+            let e = (crate::pointers::host(list) as *const DpAddressElement)
                 .add(n as usize)
                 .read_unaligned();
             (e.data_type, bytes(e.data, e.data_size))
@@ -758,7 +777,7 @@ unsupported!(no10, a, b, c, d, e, f, g, h, i);
 
 macro_rules! table {
     ($($f:expr),* $(,)?) => {
-        [$($f as *const () as usize),*]
+        [$(crate::pointers::host_number($f as *const ())),*]
     };
 }
 

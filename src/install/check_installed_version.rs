@@ -35,13 +35,18 @@ pub fn check_installed_version() -> Result<(), Refused> {
     }
     // normalise the source into byte_95E7F8, cd there
     let written = crate::install::normalise_path::normalise_path(
-        INSTALLER_NAMES.source.addr() as u32 as *const u8,
-        INSTALLER_PATHS.installed.addr() as u32 as *mut u8,
+        crate::pointers::host(INSTALLER_NAMES.source.addr() as u32) as *const u8,
+        crate::pointers::host(INSTALLER_PATHS.installed.addr() as u32),
     )?;
     if !written || !set_cd(INSTALLER_PATHS.installed.addr() as u32) {
         return Ok(());
     }
-    { crate::system::zero_memory::zero_memory(SCRATCH.buffer.addr() as u32 as *mut u8, 0x10000) }?;
+    {
+        crate::system::zero_memory::zero_memory(
+            crate::pointers::host(SCRATCH.buffer.addr() as u32),
+            0x10000,
+        )
+    }?;
     // The standalone checks its own program (the same version text is in its built-in
     // image). files::open_by_mode, mode 0.
     let program = crate::install::run_after_exit::RC2K.as_ptr();

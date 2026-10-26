@@ -15,7 +15,11 @@ use crate::math::x87_float::{ONE, X, compare, f80, from_f80, int, ld, st, to_int
 /// The length of three floats, `sqrt(v0 v0 + (v1 v1 + v2 v2))`, as an 80-bit value (not
 /// `bytes` bytes at `p` checked to lie in one region (the program ends otherwise).
 fn span<T>(p: *const T, bytes: usize) {
-    crate::pointers::check_or_end(p as usize as u32, bytes, "a math helper's operand");
+    crate::pointers::check_or_end(
+        crate::pointers::game_address(p),
+        bytes,
+        "a math helper's operand",
+    );
 }
 
 /// rounded to a float).

@@ -38,7 +38,7 @@ pub static HEADER: PngHeader = PngHeader {
 
 /// Where the block is (`moved::MOVED`'s home for IDA 0xA8C190).
 pub fn home() -> usize {
-    &HEADER as *const PngHeader as usize
+    crate::pointers::host_number(&HEADER as *const PngHeader)
 }
 
 #[cfg(test)]

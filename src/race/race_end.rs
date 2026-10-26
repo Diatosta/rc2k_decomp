@@ -82,11 +82,7 @@ pub unsafe fn record_replay_header() {
     }
     for (n, &s) in HEADER_SETTINGS.iter().enumerate() {
         unsafe {
-            crate::logfile::log_write::log_write(
-                REPLAY_WORDS[n].as_ptr() as usize as *const u8,
-                false,
-                1,
-            )
+            crate::logfile::log_write::log_write(REPLAY_WORDS[n].as_ptr() as *const u8, false, 1)
         };
         crate::logfile::log_int::log_int(header_cell(s).get() as i32, true, 1);
     }
@@ -194,7 +190,7 @@ pub struct SoundVars {
 impl SoundVars {
     pub fn game() -> Self {
         Self {
-            objects: crate::sound::store::RACE_SOUNDS.table.as_ptr() as usize as u32,
+            objects: crate::pointers::game_address(crate::sound::store::RACE_SOUNDS.table.as_ptr()),
             voices: crate::session::address_of(&SPOT_VOICES.voices) as u32,
         }
     }

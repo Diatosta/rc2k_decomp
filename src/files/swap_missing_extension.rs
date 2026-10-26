@@ -17,7 +17,7 @@ use crate::pointers::GamePtr;
 // ---- Rust version ----
 
 pub fn swap_missing_extension(path: *mut u8) -> Result<(), BadInput> {
-    let at = GamePtr::new(path as u32);
+    let at = GamePtr::new(crate::pointers::game_address(path));
     let text = crate::files::cstring(at, "a path")?;
     if text.len() < 5 {
         return Ok(());

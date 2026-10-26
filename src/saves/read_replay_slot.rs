@@ -43,7 +43,7 @@ pub unsafe fn read_replay_slot(slot: u32) -> Result<bool, Refused> {
         let block = std::slice::from_raw_parts(REPLAYS.header.as_ptr(), 0x30);
         match kept::slot_name(block, kept::REPLAY, kept::REPLAY_VERSION) {
             Some(name) if read.ok => {
-                crate::pointers::GamePtr::new(slot_name(slot) as u32)
+                crate::pointers::GamePtr::new(crate::pointers::game_address(slot_name(slot)))
                     .write_bytes(&name[..NAME_LEN], "a replay slot's name")?;
                 Ok(true)
             }

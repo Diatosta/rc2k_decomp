@@ -25,7 +25,7 @@ pub fn overlay<T>(st: &'static T, start: usize) -> Overlay {
 /// Runs `f` with each overlay's static holding the bytes the buffer `mk` has there; what the
 /// statics hold afterwards goes into the buffer, and the statics are put back as they were.
 pub fn with_overlays<R>(mk: usize, overlays: &[Overlay], f: impl FnOnce() -> R) -> R {
-    let at = |o: &Overlay| mk.wrapping_add(o.start).wrapping_sub(START) as *mut u8;
+    let at = |o: &Overlay| crate::pointers::host_at(mk.wrapping_add(o.start).wrapping_sub(START));
     let saved: Vec<Vec<u8>> = overlays
         .iter()
         .map(|o| unsafe { std::slice::from_raw_parts(o.home, o.len) }.to_vec())

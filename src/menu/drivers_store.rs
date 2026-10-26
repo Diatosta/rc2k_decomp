@@ -104,7 +104,7 @@ pub struct DriverTable {
 impl DriverTable {
     /// The first driver's address (the walks' start).
     pub fn first(&self) -> u32 {
-        self.drivers.as_ptr() as u32
+        crate::pointers::game_address(self.drivers.as_ptr())
     }
 }
 
@@ -7338,7 +7338,7 @@ pub const END: usize = 0x742C98;
 
 /// Where IDA 0x73B674 is now (`moved::MOVED`'s home).
 pub fn drivers_addr() -> usize {
-    &DRIVERS as *const DriverTable as usize
+    crate::pointers::host_number(&DRIVERS as *const DriverTable)
 }
 
 #[cfg(test)]
@@ -7354,7 +7354,12 @@ mod tests {
         assert_eq!(offset_of!(DriverTable, names), 0x741E88 - START);
         assert_eq!(offset_of!(Driver, condition), 0x2C);
         assert_eq!(offset_of!(Driver, results), 0x5C);
-        let mine = unsafe { std::slice::from_raw_parts(drivers_addr() as *const u8, END - START) };
+        let mine = unsafe {
+            std::slice::from_raw_parts(
+                crate::pointers::host_at(drivers_addr()) as *const u8,
+                END - START,
+            )
+        };
         assert_eq!(mine, &image_bytes(START, END - START)[..]);
     }
 }

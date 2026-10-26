@@ -11,6 +11,7 @@ use crate::net::store::NET;
 pub fn clear_chat() {
     // Converted: `rc2k_core::net::chat::EMPTY`.
     unsafe {
-        ((NET.chat.addr() as u32) as *mut [u8; 8]).write_unaligned(rc2k_core::net::chat::EMPTY)
+        (crate::pointers::host(NET.chat.addr() as u32) as *mut [u8; 8])
+            .write_unaligned(rc2k_core::net::chat::EMPTY)
     };
 }

@@ -40,7 +40,7 @@ pub unsafe fn load_picture_with_overlay(path: *mut u8, overlay: *mut u8) -> Resu
             PICTURE.row_bytes.get(),
             PICTURE.buffer.get(),
         ];
-        PICTURE.buffer.set(memory as u32);
+        PICTURE.buffer.set(crate::pointers::game_address(memory));
         let read = read_picture_file(overlay);
         PICTURE.width.set(kept[0]);
         PICTURE.height.set(kept[1]);
@@ -59,7 +59,8 @@ pub unsafe fn load_picture_with_overlay(path: *mut u8, overlay: *mut u8) -> Resu
             let (width, height): (u32, u32) = (DECODER.width.get(), DECODER.height.get());
             let (stride, row): (u32, u32) = (DECODER.stride.get(), PICTURE.row_bytes.get());
             let from = std::slice::from_raw_parts(memory as *const u8, MEMORY as usize);
-            let to = std::slice::from_raw_parts_mut(kept[3] as *mut u8, MEMORY as usize);
+            let to =
+                std::slice::from_raw_parts_mut(crate::pointers::host(kept[3]), MEMORY as usize);
             let laid = rc2k_core::gfx::loading::lay_over(
                 to,
                 from,

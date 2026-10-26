@@ -22,7 +22,9 @@ use crate::install::installer::{Api, GET_DISK_FREE, rd};
 /// read by no caller.
 pub fn drive_free_space_kb(letter: u32, api: Api) -> Option<u32> {
     let root = { crate::files::drive_type::drive_root(letter as u8) };
-    let root_ptr = root.as_ref().map_or(0, |b| b.as_ptr() as u32);
+    let root_ptr = root
+        .as_ref()
+        .map_or(0, |b| crate::pointers::game_address(b.as_ptr()));
     let s = SCRATCH.buffer.addr() as u32;
     let answer = api(GET_DISK_FREE, &[root_ptr, s + 0xC, s + 8, s + 4, s]);
     if answer < 1 {

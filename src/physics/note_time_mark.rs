@@ -31,7 +31,7 @@ fn game() -> Vec<u32> {
 // Converted: `rc2k_core::physics::motion::time_mark`.
 unsafe fn core(v: &[u32]) {
     unsafe {
-        let get = |k: usize| (v[k] as *const u32).read_unaligned();
+        let get = |k: usize| (crate::pointers::host(v[k]) as *const u32).read_unaligned();
         let limit = f32::from_bits(NUMBERS.sixty.bits());
         // The mark, count and start read only where the original reads them.
         if let Some(mark) = time_mark(
@@ -40,7 +40,7 @@ unsafe fn core(v: &[u32]) {
             || get(1),
             || (get(2), get(3)),
         ) {
-            (v[1] as *mut u32).write_unaligned(mark);
+            (crate::pointers::host(v[1]) as *mut u32).write_unaligned(mark);
         }
     }
 }

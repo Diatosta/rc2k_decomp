@@ -53,7 +53,7 @@ impl SpreadRandom {
     pub const LEN: usize = 0x4;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        &SPREAD_RANDOM as *const SpreadRandom as usize
+        crate::pointers::host_number(&SPREAD_RANDOM as *const SpreadRandom)
     }
 }
 
@@ -67,7 +67,10 @@ mod typed_tests {
         assert_eq!(size_of::<SpreadRandom>(), SpreadRandom::LEN);
         let image = crate::moved::image_bytes(SpreadRandom::START, SpreadRandom::LEN);
         let mine = unsafe {
-            std::slice::from_raw_parts(SpreadRandom::home() as *const u8, SpreadRandom::LEN)
+            std::slice::from_raw_parts(
+                crate::pointers::host_at(SpreadRandom::home()) as *const u8,
+                SpreadRandom::LEN,
+            )
         };
         assert!(
             mine == &image[..],

@@ -232,7 +232,7 @@ pub fn span_quad(at: u32) -> Result<(), Refused> {
                 t[2 * k + 1] = q[2 * c + 1];
             }
             write_bits(&MASKS.quad_triangle, t);
-            span_triangle(MASKS.quad_triangle.as_ptr() as u32)?;
+            span_triangle(crate::pointers::game_address(MASKS.quad_triangle.as_ptr()))?;
         }
     }
     Ok(())

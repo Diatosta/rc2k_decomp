@@ -37,7 +37,7 @@ pub unsafe fn enum_sessions() -> u32 {
             &[
                 (NET.session_desc.addr() as u32),
                 0,
-                crate::net::session_found::callback as *const () as usize as u32,
+                crate::pointers::game_address(crate::net::session_found::callback as *const ()),
                 0,
                 ENUM_FLAGS,
             ],
@@ -54,7 +54,7 @@ pub extern "C" fn posted_enum_sessions() -> u32 {
 /// `g_netPosting` is 1, else called here.
 pub fn posted_or_called(code: extern "C" fn() -> u32) -> u32 {
     if NET.posting.get() == 1 {
-        crate::net::post_call::post_call(code as *const () as u32)
+        crate::net::post_call::post_call(crate::pointers::game_address(code as *const ()))
     } else {
         code()
     }
@@ -69,7 +69,7 @@ pub fn find_sessions() -> Result<bool, Refused> {
     NET.sessions.set(0);
     zeroed_description()?;
     movsb(
-        NET.session_desc.application.as_ptr() as u32,
+        crate::pointers::game_address(NET.session_desc.application.as_ptr()),
         NET.app_guid.addr() as u32,
         0x10,
     )?;

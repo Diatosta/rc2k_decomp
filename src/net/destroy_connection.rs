@@ -23,7 +23,8 @@ pub fn destroy_connection() -> Result<(), Refused> {
         NET.session.set(0);
         unsafe {
             log_write(
-                VIEWER_PANEL.text_addr(texts::NET_DESTROY_CONNECTION) as *const u8,
+                crate::pointers::host(VIEWER_PANEL.text_addr(texts::NET_DESTROY_CONNECTION))
+                    as *const u8,
                 true,
                 2,
             )

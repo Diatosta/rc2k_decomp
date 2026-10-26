@@ -42,7 +42,7 @@ pub const END: usize = 0x758806;
 
 /// Where IDA 0x7587E8 is now (`moved::MOVED`'s home).
 pub fn arcade_addr() -> usize {
-    &ARCADE_GAME as *const Arcade as usize
+    crate::pointers::host_number(&ARCADE_GAME as *const Arcade)
 }
 
 #[cfg(test)]
@@ -57,7 +57,12 @@ mod tests {
             END - START <= size_of::<Arcade>()
                 && size_of::<Arcade>() <= (END - START).next_multiple_of(4)
         );
-        let mine = unsafe { std::slice::from_raw_parts(arcade_addr() as *const u8, END - START) };
+        let mine = unsafe {
+            std::slice::from_raw_parts(
+                crate::pointers::host_at(arcade_addr()) as *const u8,
+                END - START,
+            )
+        };
         assert_eq!(mine, &image_bytes(START, END - START)[..]);
         let at = |field: usize, ida: usize| assert_eq!(field, ida - START, "{ida:#X}");
         at(offset_of!(Arcade, scene_let_go), 0x7587E8);

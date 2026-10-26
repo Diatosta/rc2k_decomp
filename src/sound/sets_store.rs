@@ -29,7 +29,7 @@ impl MenuSounds {
     pub const LEN: usize = 0x28;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        &MENU_SOUNDS as *const MenuSounds as usize + 4
+        crate::pointers::host_number(&MENU_SOUNDS as *const MenuSounds) + 4
     }
 }
 
@@ -708,7 +708,7 @@ impl RaceSoundSets {
     pub const LEN: usize = 0x9D4;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        &RACE_SOUND_SETS as *const RaceSoundSets as usize
+        crate::pointers::host_number(&RACE_SOUND_SETS as *const RaceSoundSets)
     }
 }
 
@@ -734,7 +734,7 @@ impl CueLists {
     pub const LEN: usize = 0x508;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        &CUE_LISTS as *const CueLists as usize + 8
+        crate::pointers::host_number(&CUE_LISTS as *const CueLists) + 8
     }
 }
 
@@ -1213,7 +1213,7 @@ impl SoundKinds {
     pub const LEN: usize = 0x13C8;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        &SOUND_KINDS as *const SoundKinds as usize
+        crate::pointers::host_number(&SOUND_KINDS as *const SoundKinds)
     }
 }
 
@@ -1239,7 +1239,7 @@ impl SurfaceSets {
     pub const LEN: usize = 0x1C0;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        &SURFACE_SETS as *const SurfaceSets as usize + 12
+        crate::pointers::host_number(&SURFACE_SETS as *const SurfaceSets) + 12
     }
 }
 
@@ -2844,7 +2844,7 @@ impl SpotVoices {
     pub const LEN: usize = 0x1680;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        &SPOT_VOICES as *const SpotVoices as usize
+        crate::pointers::host_number(&SPOT_VOICES as *const SpotVoices)
     }
 }
 
@@ -2857,8 +2857,12 @@ mod tests {
         let size = size_of::<MenuSounds>();
         assert!(4 + MenuSounds::LEN <= size && size <= (4 + MenuSounds::LEN).next_multiple_of(16));
         let image = crate::moved::image_bytes(MenuSounds::START, MenuSounds::LEN);
-        let mine =
-            unsafe { std::slice::from_raw_parts(MenuSounds::home() as *const u8, MenuSounds::LEN) };
+        let mine = unsafe {
+            std::slice::from_raw_parts(
+                crate::pointers::host_at(MenuSounds::home()) as *const u8,
+                MenuSounds::LEN,
+            )
+        };
         assert_eq!(mine, &image[..]);
     }
 
@@ -2868,7 +2872,10 @@ mod tests {
         assert!(RaceSoundSets::LEN <= size && size <= (RaceSoundSets::LEN).next_multiple_of(16));
         let image = crate::moved::image_bytes(RaceSoundSets::START, RaceSoundSets::LEN);
         let mine = unsafe {
-            std::slice::from_raw_parts(RaceSoundSets::home() as *const u8, RaceSoundSets::LEN)
+            std::slice::from_raw_parts(
+                crate::pointers::host_at(RaceSoundSets::home()) as *const u8,
+                RaceSoundSets::LEN,
+            )
         };
         assert_eq!(mine, &image[..]);
     }
@@ -2878,8 +2885,12 @@ mod tests {
         let size = size_of::<CueLists>();
         assert!(8 + CueLists::LEN <= size && size <= (8 + CueLists::LEN).next_multiple_of(16));
         let image = crate::moved::image_bytes(CueLists::START, CueLists::LEN);
-        let mine =
-            unsafe { std::slice::from_raw_parts(CueLists::home() as *const u8, CueLists::LEN) };
+        let mine = unsafe {
+            std::slice::from_raw_parts(
+                crate::pointers::host_at(CueLists::home()) as *const u8,
+                CueLists::LEN,
+            )
+        };
         assert_eq!(mine, &image[..]);
     }
 
@@ -2888,8 +2899,12 @@ mod tests {
         let size = size_of::<SoundKinds>();
         assert!(SoundKinds::LEN <= size && size <= (SoundKinds::LEN).next_multiple_of(16));
         let image = crate::moved::image_bytes(SoundKinds::START, SoundKinds::LEN);
-        let mine =
-            unsafe { std::slice::from_raw_parts(SoundKinds::home() as *const u8, SoundKinds::LEN) };
+        let mine = unsafe {
+            std::slice::from_raw_parts(
+                crate::pointers::host_at(SoundKinds::home()) as *const u8,
+                SoundKinds::LEN,
+            )
+        };
         assert_eq!(mine, &image[..]);
     }
 
@@ -2901,7 +2916,10 @@ mod tests {
         );
         let image = crate::moved::image_bytes(SurfaceSets::START, SurfaceSets::LEN);
         let mine = unsafe {
-            std::slice::from_raw_parts(SurfaceSets::home() as *const u8, SurfaceSets::LEN)
+            std::slice::from_raw_parts(
+                crate::pointers::host_at(SurfaceSets::home()) as *const u8,
+                SurfaceSets::LEN,
+            )
         };
         assert_eq!(mine, &image[..]);
     }
@@ -2911,8 +2929,12 @@ mod tests {
         let size = size_of::<SpotVoices>();
         assert!(SpotVoices::LEN <= size && size <= (SpotVoices::LEN).next_multiple_of(16));
         let image = crate::moved::image_bytes(SpotVoices::START, SpotVoices::LEN);
-        let mine =
-            unsafe { std::slice::from_raw_parts(SpotVoices::home() as *const u8, SpotVoices::LEN) };
+        let mine = unsafe {
+            std::slice::from_raw_parts(
+                crate::pointers::host_at(SpotVoices::home()) as *const u8,
+                SpotVoices::LEN,
+            )
+        };
         assert_eq!(mine, &image[..]);
     }
 }

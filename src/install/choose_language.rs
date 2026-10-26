@@ -36,7 +36,9 @@ pub fn choose_language(number: u32) -> Result<(), BadInput> {
         )
         .read_bytes(LANGUAGE_SLOT, "a language's slot")?;
         let directory = config::language_directory(&slot)?;
-        let to = crate::pointers::GamePtr::new(crate::files::state::locale_directory() as u32);
+        let to = crate::pointers::GamePtr::new(crate::pointers::game_address(
+            crate::files::state::locale_directory(),
+        ));
         to.write_bytes(directory, "the locale directory")?;
         to.offset(directory.len() as u32)
             .write(0u8, "the locale directory")?;

@@ -62,7 +62,7 @@ impl Colours257 {
     pub const LEN: usize = 0x404;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        &COLOURS_257 as *const Colours257 as usize
+        crate::pointers::host_number(&COLOURS_257 as *const Colours257)
     }
 }
 
@@ -95,13 +95,17 @@ fn first_frame(e: u32) {
         crate::race::store::asm_base() as usize,
         e as usize,
         &CLOCK,
-        &RING_KINDS as *const RingKinds as usize,
+        crate::pointers::host_number(&RING_KINDS as *const RingKinds),
     )
 }
 
 /// The original's 0x4CF94D .. 0x4CF98C: the place moved by the motion, the motion's y by `flt_93A572`.
 fn move_(e: u32) {
-    move_x87(e as usize, &CLOCK, &RING_KINDS as *const RingKinds as usize)
+    move_x87(
+        e as usize,
+        &CLOCK,
+        crate::pointers::host_number(&RING_KINDS as *const RingKinds),
+    )
 }
 
 /// The original's 0x4CF9A6 .. 0x4CFA2D: the place turned by the view into `flt_8EB8D5` ...

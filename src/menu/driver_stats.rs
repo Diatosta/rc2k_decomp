@@ -131,9 +131,9 @@ pub unsafe fn driver_stats() -> Result<(), Refused> {
             DRAW_WORK.hhmm.set(span);
         }
         for (slot, line) in f.logged.iter().enumerate() {
-            log_write(NAMES_RVA[slot].as_ptr() as usize as *const u8, false, 1);
+            log_write(NAMES_RVA[slot].as_ptr() as *const u8, false, 1);
             log_int(line.wear as i32, false, 1);
-            log_write(EQUALS_RVA[slot].as_ptr() as usize as *const u8, false, 1);
+            log_write(EQUALS_RVA[slot].as_ptr() as *const u8, false, 1);
             log_int(line.limit as i32, true, 1);
         }
     }

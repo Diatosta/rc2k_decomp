@@ -32,7 +32,7 @@ pub fn draw_repair_times(canvas: &mut dyn Canvas) -> Result<Outcome, Refused> {
     )?;
     Ok(Outcome {
         too_wide: last.too_wide,
-        text: last.after as *const u8,
+        text: crate::pointers::host(last.after) as *const u8,
         x,
         y: last.y,
     })

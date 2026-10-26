@@ -40,7 +40,7 @@ pub fn gear_change_sound_at(current: u32, table: u32, word: u32) -> Result<(), R
 pub fn gear_change_sound() -> Result<(), Refused> {
     gear_change_sound_at(
         RACE_WORK.current_car.addr() as u32,
-        crate::sound::store::RACE_SOUNDS.table.as_ptr() as usize as u32,
+        crate::pointers::game_address(crate::sound::store::RACE_SOUNDS.table.as_ptr()),
         CAR.gear_changed.addr() as u32,
     )
 }

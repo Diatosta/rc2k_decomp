@@ -87,7 +87,7 @@ pub static RESCALE: Rescaler = Rescaler {
 
 /// Where the block is (`moved::MOVED`'s home for IDA 0x4F505C).
 pub fn home() -> usize {
-    &RESCALE as *const Rescaler as usize
+    crate::pointers::host_number(&RESCALE as *const Rescaler)
 }
 
 // ---- Rust version ----
@@ -109,12 +109,17 @@ pub unsafe fn rescale_picture() -> Result<(), Refused> {
         // The original calls a failed allocation fatal error 0x80A01112, but the allocator
         // never comes back failed: it raises its own.
         let list = RESCALE.copy_memory.as_ptr();
-        let copy = allocate(list, from_width.wrapping_mul(from_height) << 2)? as u32;
+        let copy = crate::pointers::game_address(allocate(
+            list,
+            from_width.wrapping_mul(from_height) << 2,
+        )?);
         let gap: u32 = DECODER.row_gap.get();
         let (mut source, mut target) = (from, copy);
         for _ in 0..from_height {
             for _ in 0..from_width {
-                (target as *mut u32).write_unaligned((source as *const u32).read_unaligned());
+                (crate::pointers::host(target) as *mut u32).write_unaligned(
+                    (crate::pointers::host(source) as *const u32).read_unaligned(),
+                );
                 source = source.wrapping_add(4);
                 target = target.wrapping_add(4);
             }

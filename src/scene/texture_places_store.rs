@@ -50,7 +50,7 @@ pub struct TexturePlaces {
 pub fn cell_at(first: &Dword, index: u32) -> &Dword {
     let at = first.addr().wrapping_add((index as usize).wrapping_mul(4));
     // SAFETY: as the game's own access, inside the race block; `Dword` is a 4-aligned cell.
-    unsafe { &*(at as *const Dword) }
+    unsafe { &*(crate::pointers::host_at(at) as *const Dword) }
 }
 
 /// The piece: the race block's bytes at IDA 0x5D2AE8 seen as `TexturePlaces`. They stay there
@@ -63,7 +63,7 @@ impl core::ops::Deref for InRaceBlock {
     fn deref(&self) -> &TexturePlaces {
         // SAFETY: the race block lives as long as the program and is aligned to 4 (the
         // test checks); every field is an atomic or a cell, as the block's bytes were shared.
-        unsafe { &*(piece_addr() as *const TexturePlaces) }
+        unsafe { &*(crate::pointers::host_at(piece_addr()) as *const TexturePlaces) }
     }
 }
 

@@ -21,7 +21,7 @@ impl Scratch {
     pub const LEN: usize = 0x10000;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        &SCRATCH as *const Scratch as usize
+        crate::pointers::host_number(&SCRATCH as *const Scratch)
     }
 }
 
@@ -34,8 +34,12 @@ mod tests {
         let size = size_of::<Scratch>();
         assert!(Scratch::LEN <= size && size <= (Scratch::LEN).next_multiple_of(16));
         let image = crate::moved::image_bytes(Scratch::START, Scratch::LEN);
-        let mine =
-            unsafe { std::slice::from_raw_parts(Scratch::home() as *const u8, Scratch::LEN) };
+        let mine = unsafe {
+            std::slice::from_raw_parts(
+                crate::pointers::host_at(Scratch::home()) as *const u8,
+                Scratch::LEN,
+            )
+        };
         assert_eq!(mine, &image[..]);
     }
 }

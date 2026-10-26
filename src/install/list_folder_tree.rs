@@ -22,7 +22,9 @@ use crate::install::vars::INSTALLER_RUN;
 
 /// FindFileData.cFileName (the search record: `files::state`).
 fn find_name() -> u32 {
-    unsafe { (&raw const (*crate::files::state::find_data()).cFileName) as u32 }
+    unsafe {
+        crate::pointers::game_address(&raw const (*crate::files::state::find_data()).cFileName)
+    }
 }
 /// FindFileData.dwFileAttributes.
 fn find_attributes() -> u32 {
@@ -33,16 +35,24 @@ const FILES_ROOM: u32 = 0x40000;
 
 fn same_name(a1: u32, a2: u32) -> bool {
     crate::menu::event_flow::refuse_here(
-        crate::strings::same_text::same_text(a1 as *const u8, a2 as *const u8),
+        crate::strings::same_text::same_text(
+            crate::pointers::host(a1) as *const u8,
+            crate::pointers::host(a2) as *const u8,
+        ),
         "install::list_folder_tree: a name",
     )
 }
 
 /// The found file's path (the searched folder's) and name appended at `cursor`.
 fn found_path(search: u32, cursor: u32) -> Result<u32, Refused> {
-    let (cursor, _) =
-        crate::files::append_directory::append_directory(search as *const u8, cursor as *mut u8)?;
-    Ok(append_byte(str_append(find_name(), cursor as u32), 0))
+    let (cursor, _) = crate::files::append_directory::append_directory(
+        crate::pointers::host(search) as *const u8,
+        crate::pointers::host(cursor),
+    )?;
+    Ok(append_byte(
+        str_append(find_name(), crate::pointers::game_address(cursor)),
+        0,
+    ))
 }
 
 fn walk(folder: u32) -> Result<(), Refused> {
@@ -57,7 +67,7 @@ fn walk(folder: u32) -> Result<(), Refused> {
     }
     loop {
         // list the folder
-        let base = crate::files::numbered_path::buffer() as u32; // byte_94E8B0
+        let base = crate::pointers::game_address(crate::files::numbered_path::buffer()); // byte_94E8B0
         let mut cursor = str_append(folder, base);
         if rb(cursor.wrapping_sub(1)) != b'\\' {
             cursor = append_byte(cursor, b'\\');
@@ -113,7 +123,8 @@ fn walk(folder: u32) -> Result<(), Refused> {
         if folder >= INSTALLER_RUN.dir_cursor.get() {
             break;
         }
-        let length = crate::strings::text_length::text_length(folder as *const u8)?;
+        let length =
+            crate::strings::text_length::text_length(crate::pointers::host(folder) as *const u8)?;
         if length == 0 {
             break;
         }

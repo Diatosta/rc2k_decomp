@@ -24,7 +24,7 @@ pub fn take_from_list(list: *mut MemoryList, bytes: u32) -> Result<Option<u32>, 
     if list.is_null() {
         return Err(BadInput("no list to take from"));
     }
-    let at = GamePtr::new(list as u32);
+    let at = GamePtr::new(crate::pointers::game_address(list));
     let mut l = at.read::<MemoryList>("a memory list")?;
     let taken = l.take(bytes);
     at.write(l, "a memory list")?;
@@ -32,7 +32,7 @@ pub fn take_from_list(list: *mut MemoryList, bytes: u32) -> Result<Option<u32>, 
 }
 
 pub fn rewind_list(list: *mut MemoryList) -> Result<(), BadInput> {
-    let at = GamePtr::new(list as u32);
+    let at = GamePtr::new(crate::pointers::game_address(list));
     let mut l = at.read::<MemoryList>("a memory list")?;
     l.rewind();
     at.write(l, "a memory list")

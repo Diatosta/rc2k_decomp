@@ -55,7 +55,9 @@ pub fn add_polygon() -> Result<(), Refused> {
         }
         let vc = HUD.vertex_count.get();
         crate::pointers::GamePtr::new(crate::d3d::vertices_store::piece_addr() as u32).copy_to(
-            crate::pointers::GamePtr::new(HUD.vertices.as_ptr() as u32 + vc * 0x20),
+            crate::pointers::GamePtr::new(
+                crate::pointers::game_address(HUD.vertices.as_ptr()) + vc * 0x20,
+            ),
             (count * 0x20) as usize,
             "the hud's vertices",
         )?;

@@ -53,7 +53,7 @@ pub const END: usize = 0x755640;
 
 /// Where IDA 0x755595 is now (`moved::MOVED`'s home).
 pub fn key_tables_addr() -> usize {
-    &KEY_TABLES as *const KeyTables as usize
+    crate::pointers::host_number(&KEY_TABLES as *const KeyTables)
 }
 
 #[cfg(test)]
@@ -68,8 +68,12 @@ mod tests {
             END - START <= size_of::<KeyTables>()
                 && size_of::<KeyTables>() <= (END - START).next_multiple_of(4)
         );
-        let mine =
-            unsafe { std::slice::from_raw_parts(key_tables_addr() as *const u8, END - START) };
+        let mine = unsafe {
+            std::slice::from_raw_parts(
+                crate::pointers::host_at(key_tables_addr()) as *const u8,
+                END - START,
+            )
+        };
         assert_eq!(mine, &image_bytes(START, END - START)[..]);
         let at = |field: usize, ida: usize| assert_eq!(field, ida - START, "{ida:#X}");
         at(offset_of!(KeyTables, redefined_keys), 0x755595);

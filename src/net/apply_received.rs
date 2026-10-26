@@ -31,7 +31,7 @@ pub fn apply_received() -> Result<(), Refused> {
         if left != 0 {
             let mut record = block.copied.addr();
             loop {
-                apply_message(player, (record + 2) as *const u8)?;
+                apply_message(player, crate::pointers::host_at(record + 2) as *const u8)?;
                 record += 0x100;
                 left = left.wrapping_sub(1);
                 if left == 0 {

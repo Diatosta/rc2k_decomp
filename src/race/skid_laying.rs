@@ -47,15 +47,19 @@ pub unsafe fn add_skid_point(slot: u32) -> Result<(), Refused> {
             .get();
         let last = get(slot)?;
         let points = std::slice::from_raw_parts_mut(
-            crate::race::shadow_skids_store::SHADOW_SKIDS
-                .skid_points
-                .addr() as *mut Point,
+            crate::pointers::host_at(
+                crate::race::shadow_skids_store::SHADOW_SKIDS
+                    .skid_points
+                    .addr(),
+            ) as *mut Point,
             POINTS as usize,
         );
         let links = std::slice::from_raw_parts_mut(
-            crate::race::shadow_skids_store::SHADOW_SKIDS
-                .skid_links
-                .addr() as *mut Link,
+            crate::pointers::host_at(
+                crate::race::shadow_skids_store::SHADOW_SKIDS
+                    .skid_links
+                    .addr(),
+            ) as *mut Link,
             POINTS as usize,
         );
         let place =

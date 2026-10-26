@@ -42,7 +42,7 @@ pub fn find_connections() -> Result<bool, Refused> {
             ENUM_CONNECTIONS,
             &[
                 (NET.app_guid.addr() as u32),
-                crate::net::connection_found::callback as *const () as usize as u32,
+                crate::pointers::game_address(crate::net::connection_found::callback as *const ()),
                 0,
                 DIRECTPLAY_CONNECTIONS,
             ],

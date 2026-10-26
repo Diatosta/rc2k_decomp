@@ -124,7 +124,7 @@ impl InstallerRun {
     pub const LEN: usize = 0x198;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        &INSTALLER_RUN as *const InstallerRun as usize + 8
+        crate::pointers::host_number(&INSTALLER_RUN as *const InstallerRun) + 8
     }
 }
 
@@ -222,7 +222,7 @@ impl InstallerNames {
     pub const LEN: usize = 0x8A7;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        &INSTALLER_NAMES as *const InstallerNames as usize
+        crate::pointers::host_number(&INSTALLER_NAMES as *const InstallerNames)
     }
 }
 
@@ -386,7 +386,7 @@ impl InstallerPages {
     pub const LEN: usize = 0x1A25;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        &INSTALLER_PAGES as *const InstallerPages as usize + 7
+        crate::pointers::host_number(&INSTALLER_PAGES as *const InstallerPages) + 7
     }
 }
 
@@ -424,7 +424,7 @@ impl InstallerPaths {
     pub const LEN: usize = 0x600;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        &INSTALLER_PATHS as *const InstallerPaths as usize + 8
+        crate::pointers::host_number(&INSTALLER_PATHS as *const InstallerPaths) + 8
     }
 }
 
@@ -447,7 +447,7 @@ impl InstallerPalette {
     pub const LEN: usize = 0x300;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        &INSTALLER_PALETTE as *const InstallerPalette as usize + 4
+        crate::pointers::host_number(&INSTALLER_PALETTE as *const InstallerPalette) + 4
     }
 }
 
@@ -463,7 +463,10 @@ mod tests {
         );
         let image = crate::moved::image_bytes(InstallerRun::START, InstallerRun::LEN);
         let mine = unsafe {
-            std::slice::from_raw_parts(InstallerRun::home() as *const u8, InstallerRun::LEN)
+            std::slice::from_raw_parts(
+                crate::pointers::host_at(InstallerRun::home()) as *const u8,
+                InstallerRun::LEN,
+            )
         };
         assert_eq!(mine, &image[..]);
     }
@@ -474,7 +477,10 @@ mod tests {
         assert!(InstallerNames::LEN <= size && size <= (InstallerNames::LEN).next_multiple_of(16));
         let image = crate::moved::image_bytes(InstallerNames::START, InstallerNames::LEN);
         let mine = unsafe {
-            std::slice::from_raw_parts(InstallerNames::home() as *const u8, InstallerNames::LEN)
+            std::slice::from_raw_parts(
+                crate::pointers::host_at(InstallerNames::home()) as *const u8,
+                InstallerNames::LEN,
+            )
         };
         assert_eq!(mine, &image[..]);
     }
@@ -488,7 +494,10 @@ mod tests {
         );
         let image = crate::moved::image_bytes(InstallerPages::START, InstallerPages::LEN);
         let mine = unsafe {
-            std::slice::from_raw_parts(InstallerPages::home() as *const u8, InstallerPages::LEN)
+            std::slice::from_raw_parts(
+                crate::pointers::host_at(InstallerPages::home()) as *const u8,
+                InstallerPages::LEN,
+            )
         };
         assert_eq!(mine, &image[..]);
     }
@@ -502,7 +511,10 @@ mod tests {
         );
         let image = crate::moved::image_bytes(InstallerPaths::START, InstallerPaths::LEN);
         let mine = unsafe {
-            std::slice::from_raw_parts(InstallerPaths::home() as *const u8, InstallerPaths::LEN)
+            std::slice::from_raw_parts(
+                crate::pointers::host_at(InstallerPaths::home()) as *const u8,
+                InstallerPaths::LEN,
+            )
         };
         assert_eq!(mine, &image[..]);
     }
@@ -516,7 +528,10 @@ mod tests {
         );
         let image = crate::moved::image_bytes(InstallerPalette::START, InstallerPalette::LEN);
         let mine = unsafe {
-            std::slice::from_raw_parts(InstallerPalette::home() as *const u8, InstallerPalette::LEN)
+            std::slice::from_raw_parts(
+                crate::pointers::host_at(InstallerPalette::home()) as *const u8,
+                InstallerPalette::LEN,
+            )
         };
         assert_eq!(mine, &image[..]);
     }

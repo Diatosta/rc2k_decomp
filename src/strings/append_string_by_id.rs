@@ -35,7 +35,7 @@ pub fn append_string_by_id(
             let Some(len) = (0..).map_while(|n| text.byte(n)).position(|b| b == 0) else {
                 return Err(BadInput("a string without its end in its block"));
             };
-            emit(p as usize as *const u8, len);
+            emit(crate::pointers::host(p) as *const u8, len);
             Ok(p)
         }
         None => {

@@ -24,11 +24,11 @@ use crate::pointers::GamePtr;
 pub fn read_whole_file(path: *const u8, buffer: *mut u8, count: u32) -> Result<(), BadInput> {
     // Converted: `rc2k_core::files::io::read_whole_file`.
     {
-        let to = GamePtr::new(buffer as u32);
+        let to = GamePtr::new(crate::pointers::game_address(buffer));
         let mut into = to.read_bytes(count as usize, "a file's buffer")?;
         let w = rc2k_core::files::io::read_whole_file(
             &mut crate::files::handle::GameFiles::new(),
-            GamePtr::new(path as u32),
+            GamePtr::new(crate::pointers::game_address(path)),
             &mut into,
         )?;
         to.write_bytes(&into, "a file's buffer")?;

@@ -173,7 +173,7 @@ pub fn steps(number: u32) -> Result<(), Refused> {
     CONTACT_WORK.contact_slide_limit.set_bits(0);
     PHYSICS
         .contact_record
-        .set((PHYSICS.contacts.as_ptr() as usize) as u32);
+        .set(crate::pointers::host_number(PHYSICS.contacts.as_ptr()) as u32);
     unsafe { contact_force() };
     Ok(())
 }

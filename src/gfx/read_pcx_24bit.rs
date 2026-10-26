@@ -32,7 +32,7 @@ use crate::gfx::picture_store::PICTURE;
 unsafe fn read_rows() -> Result<bool, BadInput> {
     unsafe {
         let stream = stream();
-        let header = PCX.header.addr() as *mut u8;
+        let header = crate::pointers::host_at(PCX.header.addr());
         if read_stream_block(stream, header, HEADER_LEN as u32)?.1 {
             return Ok(false);
         }
@@ -43,7 +43,7 @@ unsafe fn read_rows() -> Result<bool, BadInput> {
         rc2k_core::gfx::pcx::decode_planes(
             &layout,
             |eax| read_stream_byte(stream, eax).map(|r| r.eax),
-            |to, byte| (pixels.wrapping_add(to) as *mut u8).write(byte),
+            |to, byte| crate::pointers::host(pixels.wrapping_add(to)).write(byte),
         )?
         .ok_or(BadInput("a PCX picture without rows or columns"))?;
         Ok(true)

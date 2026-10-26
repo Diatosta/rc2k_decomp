@@ -82,10 +82,10 @@ pub fn set_up_race() -> Result<(), Refused> {
     for (car, number) in CAR_BLOCKS.cars[..8].iter().zip(&RACE_VARS.start_numbers) {
         car.start_slot_value.set(number.get());
     }
-    log(RULE.as_ptr() as u32, true, 1);
-    log(START.as_ptr() as u32, true, 1);
+    log(crate::pointers::game_address(RULE.as_ptr()), true, 1);
+    log(crate::pointers::game_address(START.as_ptr()), true, 1);
     for (label, value) in COUNTS {
-        log(label.as_ptr() as u32, false, 1);
+        log(crate::pointers::game_address(label.as_ptr()), false, 1);
         let value = match value {
             Count::RaceCars => RACE_VIEW.race_cars.get(),
             Count::Players => RACE_VIEW.players.get(),
@@ -95,7 +95,7 @@ pub fn set_up_race() -> Result<(), Refused> {
         log_int_nl(value, 1);
     }
     unsafe { crate::race::stage_loading::load_stage() }?;
-    log(COMPLETE.as_ptr() as u32, true, 1);
-    log(RULE_2.as_ptr() as u32, true, 1);
+    log(crate::pointers::game_address(COMPLETE.as_ptr()), true, 1);
+    log(crate::pointers::game_address(RULE_2.as_ptr()), true, 1);
     Ok(())
 }

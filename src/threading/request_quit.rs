@@ -40,7 +40,7 @@ pub unsafe fn request_quit() -> Result<(), FatalError> {
     let requested = FLAGS.quitting.atomic();
     let before = requested.load(Ordering::SeqCst);
     let result = request_quit_with(requested, &mut |slot| unsafe {
-        start_slot_thread(slot as *mut u8)
+        start_slot_thread(crate::pointers::host(slot))
     });
     if result.is_err() {
         // Left as it was, so that the original, run in its place, tries the thread too.

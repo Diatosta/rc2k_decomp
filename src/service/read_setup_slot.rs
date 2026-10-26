@@ -49,7 +49,7 @@ pub static SET_UPS: SetUps = SetUps {
 
 /// Where the block is (`moved::MOVED`'s home for IDA 0x527838).
 pub fn home() -> usize {
-    &SET_UPS as *const SetUps as usize
+    crate::pointers::host_number(&SET_UPS as *const SetUps)
 }
 
 /// IDA's address of the file name's template.
@@ -83,7 +83,7 @@ pub fn read_setup_slot(slot: u32) -> Result<bool, Refused> {
         let file = GamePtr::new(SET_UPS.file.addr() as u32);
         let read = read_file(
             path,
-            file.addr() as usize as *mut u8,
+            crate::pointers::host(file.addr()),
             SETUP_FILE_LEN as u32,
             0,
         )?;
@@ -93,7 +93,7 @@ pub fn read_setup_slot(slot: u32) -> Result<bool, Refused> {
         );
         match name {
             Some(name) if read.ok => {
-                GamePtr::new(slot_name(slot) as u32)
+                GamePtr::new(crate::pointers::game_address(slot_name(slot)))
                     .write_bytes(&name[..NAME_LEN], "a setup's name")?;
                 Ok(true)
             }

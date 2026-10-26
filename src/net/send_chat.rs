@@ -24,7 +24,8 @@ pub fn send_chat(player: u32, message: *const u8) -> Result<(), Refused> {
     unlock_received();
     let buffer = NET.send_buffer.addr() as u32;
     GamePtr::new(buffer).write(b'"', "the send buffer")?;
-    let end = str_append(message, (buffer + 1) as *mut u8)? as u32;
+    let end =
+        crate::pointers::game_address(str_append(message, crate::pointers::host(buffer + 1))?);
     dplay_send(NET.send_to.get(), 0, buffer, end.wrapping_sub(buffer));
     Ok(())
 }

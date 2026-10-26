@@ -26,7 +26,7 @@ impl SquareTiming {
     pub const LEN: usize = 0xC;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        &SQUARE_TIMING as *const SquareTiming as usize
+        crate::pointers::host_number(&SQUARE_TIMING as *const SquareTiming)
     }
 }
 
@@ -167,7 +167,7 @@ impl SquareTables {
     pub const LEN: usize = 0x6A0;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        &SQUARE_TABLES as *const SquareTables as usize
+        crate::pointers::host_number(&SQUARE_TABLES as *const SquareTables)
     }
 }
 
@@ -225,7 +225,7 @@ impl SquareItems {
     pub const LEN: usize = 0x1E000;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        &SQUARE_ITEMS as *const SquareItems as usize
+        crate::pointers::host_number(&SQUARE_ITEMS as *const SquareItems)
     }
 }
 
@@ -353,7 +353,7 @@ impl SquareState {
     pub const LEN: usize = 0xDC;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        &SQUARE_STATE as *const SquareState as usize
+        crate::pointers::host_number(&SQUARE_STATE as *const SquareState)
     }
 }
 
@@ -367,7 +367,10 @@ mod typed_tests {
         assert_eq!(size_of::<SquareTiming>(), SquareTiming::LEN);
         let image = crate::moved::image_bytes(SquareTiming::START, SquareTiming::LEN);
         let mine = unsafe {
-            std::slice::from_raw_parts(SquareTiming::home() as *const u8, SquareTiming::LEN)
+            std::slice::from_raw_parts(
+                crate::pointers::host_at(SquareTiming::home()) as *const u8,
+                SquareTiming::LEN,
+            )
         };
         assert!(
             mine == &image[..],
@@ -388,7 +391,10 @@ mod typed_tests {
         assert_eq!(size_of::<SquareTables>(), SquareTables::LEN);
         let image = crate::moved::image_bytes(SquareTables::START, SquareTables::LEN);
         let mine = unsafe {
-            std::slice::from_raw_parts(SquareTables::home() as *const u8, SquareTables::LEN)
+            std::slice::from_raw_parts(
+                crate::pointers::host_at(SquareTables::home()) as *const u8,
+                SquareTables::LEN,
+            )
         };
         assert!(
             mine == &image[..],
@@ -445,7 +451,10 @@ mod typed_tests {
         assert_eq!(size_of::<SquareItems>(), SquareItems::LEN);
         let image = crate::moved::image_bytes(SquareItems::START, SquareItems::LEN);
         let mine = unsafe {
-            std::slice::from_raw_parts(SquareItems::home() as *const u8, SquareItems::LEN)
+            std::slice::from_raw_parts(
+                crate::pointers::host_at(SquareItems::home()) as *const u8,
+                SquareItems::LEN,
+            )
         };
         assert!(
             mine == &image[..],
@@ -459,7 +468,10 @@ mod typed_tests {
         assert_eq!(size_of::<SquareState>(), SquareState::LEN);
         let image = crate::moved::image_bytes(SquareState::START, SquareState::LEN);
         let mine = unsafe {
-            std::slice::from_raw_parts(SquareState::home() as *const u8, SquareState::LEN)
+            std::slice::from_raw_parts(
+                crate::pointers::host_at(SquareState::home()) as *const u8,
+                SquareState::LEN,
+            )
         };
         assert!(
             mine == &image[..],

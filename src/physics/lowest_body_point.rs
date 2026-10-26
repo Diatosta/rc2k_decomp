@@ -24,8 +24,8 @@ use crate::race::numbers_store::NUMBERS;
 /// the last depth) are read by none of its callers.
 pub unsafe fn lowest_at(v: &[u32]) -> Result<(), Refused> {
     unsafe {
-        let get = |k: usize| (v[k] as *const u32).read_unaligned();
-        let put = |k: usize, x: u32| (v[k] as *mut u32).write_unaligned(x);
+        let get = |k: usize| (crate::pointers::host(v[k]) as *const u32).read_unaligned();
+        let put = |k: usize, x: u32| (crate::pointers::host(v[k]) as *mut u32).write_unaligned(x);
         let n = get(0);
         if n > 0x40 {
             return Err(BadInput("more than 0x40 probe points (the depths' room)").into());

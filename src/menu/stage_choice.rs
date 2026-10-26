@@ -67,8 +67,8 @@ pub unsafe fn draw_stage_map() -> Result<(), Refused> {
             MENU_LISTS.map_overlays[0].addr() as u32 + dword(record + 0x3C)?.wrapping_mul(4),
         )?;
         if load_picture_with_overlay(
-            crate::menu::texts_store::MENU_TEXTS.ukmap_png.addr() as *mut u8,
-            overlay as *mut u8,
+            crate::pointers::host_at(crate::menu::texts_store::MENU_TEXTS.ukmap_png.addr()),
+            crate::pointers::host(overlay),
         )? {
             return Err(NO_MAP.into());
         }

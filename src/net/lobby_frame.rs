@@ -72,7 +72,7 @@ pub fn lobby_frame() -> Result<(), Refused> {
                 &mut canvas,
             )
         }?;
-        palette = out.text as u32;
+        palette = crate::pointers::game_address(out.text);
     }
     y += 0x1D;
     if NET.players.get() != 0 {
@@ -103,7 +103,7 @@ pub fn lobby_frame() -> Result<(), Refused> {
             let name = {
                 crate::text::draw_text::draw_text_at(
                     font.as_ptr(),
-                    TEXT_BUFFER.text.addr() as *const u8,
+                    crate::pointers::host_at(TEXT_BUFFER.text.addr()) as *const u8,
                     x as i32,
                     y as i32,
                     &mut canvas,
@@ -114,7 +114,7 @@ pub fn lobby_frame() -> Result<(), Refused> {
                 screens::car_sprite(block.record.head.get(1)),
                 x,
                 y + 1,
-                name.text as u32,
+                crate::pointers::game_address(name.text),
             )?;
             x += 0x48;
             use crate::strings::append_time::SHOW_HOURS; // g_timeShowHours
@@ -131,7 +131,7 @@ pub fn lobby_frame() -> Result<(), Refused> {
                 let out = {
                     crate::text::draw_text::draw_text_at(
                         NAME_FONT.as_ptr(),
-                        TEXT_BUFFER.text.addr() as *const u8,
+                        crate::pointers::host_at(TEXT_BUFFER.text.addr()) as *const u8,
                         x as i32,
                         y as i32,
                         &mut canvas,
@@ -179,7 +179,7 @@ pub fn lobby_frame() -> Result<(), Refused> {
     {
         crate::text::draw_text::draw_text_at(
             CHAT_FONT.as_ptr(),
-            (NET.chat.addr() as u32) as *const u8,
+            crate::pointers::host(NET.chat.addr() as u32) as *const u8,
             0xA,
             y as i32,
             &mut canvas,

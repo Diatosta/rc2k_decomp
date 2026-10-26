@@ -231,7 +231,7 @@ static OBJECTS: Pool = Pool(std::cell::UnsafeCell::new(
 ));
 
 fn pool_base() -> u32 {
-    OBJECTS.0.get() as u32
+    crate::pointers::game_address(OBJECTS.0.get())
 }
 
 /// An axis's range, dead zone and saturation (DirectInput's defaults: 0 .. 65535, 0, 10000).
@@ -462,7 +462,13 @@ extern "system" fn enum_devices(
     let callback: EnumDevicesCallback = unsafe { std::mem::transmute(callback) };
     for d in &devices {
         let instance = device_instance(d);
-        if unsafe { callback(&instance as *const DiDeviceInstance as u32, context) } == 0 {
+        if unsafe {
+            callback(
+                crate::pointers::game_address(&instance as *const DiDeviceInstance),
+                context,
+            )
+        } == 0
+        {
             break;
         }
     }
@@ -553,7 +559,13 @@ extern "system" fn enum_objects(this: u32, callback: usize, context: u32, _flags
             name: [0; 260],
             rest: [0; 24],
         };
-        if unsafe { callback(&object as *const DiDeviceObjectInstance as u32, context) } == 0 {
+        if unsafe {
+            callback(
+                crate::pointers::game_address(&object as *const DiDeviceObjectInstance),
+                context,
+            )
+        } == 0
+        {
             break;
         }
     }
@@ -753,7 +765,13 @@ extern "system" fn enum_effects(this: u32, callback: usize, context: u32, kind: 
             dynamic_params: 0x1E5,
             name,
         };
-        if unsafe { callback(&info as *const DiEffectInfo as u32, context) } == 0 {
+        if unsafe {
+            callback(
+                crate::pointers::game_address(&info as *const DiEffectInfo),
+                context,
+            )
+        } == 0
+        {
             break;
         }
     }
@@ -910,14 +928,14 @@ fn input_table() -> *const usize {
     TABLE
         .get_or_init(|| {
             [
-                query as *const () as usize,
-                add_ref as *const () as usize,
-                release as *const () as usize,
-                create_device as *const () as usize,
-                enum_devices as *const () as usize,
-                unsupported as *const () as usize,
-                unsupported as *const () as usize,
-                unsupported as *const () as usize,
+                crate::pointers::host_number(query as *const ()),
+                crate::pointers::host_number(add_ref as *const ()),
+                crate::pointers::host_number(release as *const ()),
+                crate::pointers::host_number(create_device as *const ()),
+                crate::pointers::host_number(enum_devices as *const ()),
+                crate::pointers::host_number(unsupported as *const ()),
+                crate::pointers::host_number(unsupported as *const ()),
+                crate::pointers::host_number(unsupported as *const ()),
             ]
         })
         .as_ptr()
@@ -928,33 +946,33 @@ fn device_table() -> *const usize {
     TABLE
         .get_or_init(|| {
             [
-                query as *const () as usize,
-                add_ref as *const () as usize,
-                release as *const () as usize,
-                get_capabilities as *const () as usize,
-                enum_objects as *const () as usize,
-                get_property as *const () as usize,
-                set_property as *const () as usize,
-                acquire as *const () as usize,
-                unacquire as *const () as usize,
-                get_device_state as *const () as usize,
-                unsupported as *const () as usize,
-                taken2 as *const () as usize,
-                taken2 as *const () as usize,
-                taken3 as *const () as usize,
-                unsupported as *const () as usize,
-                unsupported as *const () as usize,
-                unsupported as *const () as usize,
-                unsupported as *const () as usize,
-                create_effect as *const () as usize,
-                enum_effects as *const () as usize,
-                unsupported as *const () as usize,
-                unsupported as *const () as usize,
-                unsupported as *const () as usize,
-                unsupported as *const () as usize,
-                unsupported as *const () as usize,
-                poll as *const () as usize,
-                unsupported as *const () as usize,
+                crate::pointers::host_number(query as *const ()),
+                crate::pointers::host_number(add_ref as *const ()),
+                crate::pointers::host_number(release as *const ()),
+                crate::pointers::host_number(get_capabilities as *const ()),
+                crate::pointers::host_number(enum_objects as *const ()),
+                crate::pointers::host_number(get_property as *const ()),
+                crate::pointers::host_number(set_property as *const ()),
+                crate::pointers::host_number(acquire as *const ()),
+                crate::pointers::host_number(unacquire as *const ()),
+                crate::pointers::host_number(get_device_state as *const ()),
+                crate::pointers::host_number(unsupported as *const ()),
+                crate::pointers::host_number(taken2 as *const ()),
+                crate::pointers::host_number(taken2 as *const ()),
+                crate::pointers::host_number(taken3 as *const ()),
+                crate::pointers::host_number(unsupported as *const ()),
+                crate::pointers::host_number(unsupported as *const ()),
+                crate::pointers::host_number(unsupported as *const ()),
+                crate::pointers::host_number(unsupported as *const ()),
+                crate::pointers::host_number(create_effect as *const ()),
+                crate::pointers::host_number(enum_effects as *const ()),
+                crate::pointers::host_number(unsupported as *const ()),
+                crate::pointers::host_number(unsupported as *const ()),
+                crate::pointers::host_number(unsupported as *const ()),
+                crate::pointers::host_number(unsupported as *const ()),
+                crate::pointers::host_number(unsupported as *const ()),
+                crate::pointers::host_number(poll as *const ()),
+                crate::pointers::host_number(unsupported as *const ()),
             ]
         })
         .as_ptr()
@@ -965,19 +983,19 @@ fn effect_table() -> *const usize {
     TABLE
         .get_or_init(|| {
             [
-                query as *const () as usize,
-                add_ref as *const () as usize,
-                release as *const () as usize,
-                unsupported as *const () as usize,
-                unsupported as *const () as usize,
-                unsupported as *const () as usize,
-                set_parameters as *const () as usize,
-                start as *const () as usize,
-                stop as *const () as usize,
-                unsupported as *const () as usize,
-                download as *const () as usize,
-                effect_none as *const () as usize,
-                unsupported as *const () as usize,
+                crate::pointers::host_number(query as *const ()),
+                crate::pointers::host_number(add_ref as *const ()),
+                crate::pointers::host_number(release as *const ()),
+                crate::pointers::host_number(unsupported as *const ()),
+                crate::pointers::host_number(unsupported as *const ()),
+                crate::pointers::host_number(unsupported as *const ()),
+                crate::pointers::host_number(set_parameters as *const ()),
+                crate::pointers::host_number(start as *const ()),
+                crate::pointers::host_number(stop as *const ()),
+                crate::pointers::host_number(unsupported as *const ()),
+                crate::pointers::host_number(download as *const ()),
+                crate::pointers::host_number(effect_none as *const ()),
+                crate::pointers::host_number(unsupported as *const ()),
             ]
         })
         .as_ptr()

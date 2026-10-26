@@ -21,6 +21,10 @@ pub fn zero_memory(block: *mut u8, length: u32) -> Result<(), BadInput> {
     if block.is_null() {
         return Err(BadInput("no block to zero"));
     }
-    crate::pointers::GamePtr::new(block as u32).fill(0, length as usize, "memory to zero")?;
+    crate::pointers::GamePtr::new(crate::pointers::game_address(block)).fill(
+        0,
+        length as usize,
+        "memory to zero",
+    )?;
     Ok(())
 }

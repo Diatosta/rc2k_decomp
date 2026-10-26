@@ -19,8 +19,8 @@ pub fn append_file_name(path: *const u8, cursor: *mut u8) -> Result<*mut u8, Bad
     if path.is_null() {
         return Err(BadInput("a null path"));
     }
-    let text = crate::files::cstring(GamePtr::new(path as u32), "a path")?;
+    let text = crate::files::cstring(GamePtr::new(crate::pointers::game_address(path)), "a path")?;
     let name = rc2k_core::files::paths::file_name(&text);
-    GamePtr::new(cursor as u32).write_bytes(name, "a path being built")?;
+    GamePtr::new(crate::pointers::game_address(cursor)).write_bytes(name, "a path being built")?;
     Ok(cursor.wrapping_add(name.len()))
 }

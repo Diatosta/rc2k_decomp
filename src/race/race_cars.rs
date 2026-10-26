@@ -128,11 +128,11 @@ fn number(value: u32, newline: bool) {
 }
 
 fn newline() {
-    text(c"".as_ptr() as u32, true); // what `log_newline_l1` writes
+    text(crate::pointers::game_address(c"".as_ptr()), true); // what `log_newline_l1` writes
 }
 
 fn word(n: usize) -> u32 {
-    SET_UP_WORDS[n].as_ptr() as usize as u32
+    crate::pointers::game_address(SET_UP_WORDS[n].as_ptr())
 }
 
 /// `race::read_stage_car_numbers` (0x437971): `g_stageCarTotal` 0, `g_readBytes` 0x708;
@@ -336,7 +336,7 @@ const TIME_WORDS: [&std::ffi::CStr; 8] = [
 /// stage, a count of 0 or more than 0x100 (the original's `jnz` runs on / past the
 /// numbers), before anything.
 pub fn set_car_times() -> Result<(), Refused> {
-    let w = |n: usize| TIME_WORDS[n].as_ptr() as usize as u32;
+    let w = |n: usize| crate::pointers::game_address(TIME_WORDS[n].as_ptr());
     {
         let stage: u32 = RACE_VARS.stage_number.bits();
         let count: u32 = SPLIT_TABLES.split_colour_count.get();
@@ -427,7 +427,7 @@ const ARCADE_WORDS: [&std::ffi::CStr; 8] = [
 /// Refuses a count of 0 or more than 89 (the `jnz` runs on / past the tables), before
 /// anything.
 pub fn set_up_mode_2_cars() -> Result<(), Refused> {
-    let w = |n: usize| ARCADE_WORDS[n].as_ptr() as usize as u32;
+    let w = |n: usize| crate::pointers::game_address(ARCADE_WORDS[n].as_ptr());
     let rally: u32 = RACE_VARS.race_level.bits();
     // The arcade tables hold six by rally (`dword_60466C` ..) or stage (`dword_604684`),
     // back to back: an index past them reads on into the next, as the original does.
@@ -542,7 +542,7 @@ pub fn set_up_mode_2_cars() -> Result<(), Refused> {
 /// the numbers first), 4 their set-ups; others nothing. The registers it leaves are read
 /// by no caller (conversion phase 3, 2026-10-24).
 pub fn set_up_cars() -> Result<(), Refused> {
-    text(c"gamemode".as_ptr() as usize as u32, false);
+    text(crate::pointers::game_address(c"gamemode".as_ptr()), false);
     number(RACE_VARS.run_kind.bits(), true);
     // Converted: `rc2k_core::race::cars::{PLAYER_RESETS, cars_steps}`.
     use rc2k_core::race::cars::{CarsStep, PLAYER_RESETS, cars_steps};
@@ -615,11 +615,17 @@ pub fn choose_arcade_opponents() -> Result<(), Refused> {
         return Err(BadInput("fewer than three opponents can be drawn").into());
     }
     let first_place = index_of_kind(first)?;
-    text(SEED_WORD_RVA.as_ptr() as usize as u32, false);
+    text(crate::pointers::game_address(SEED_WORD_RVA.as_ptr()), false);
     number(RACE_TABLES.noise_seed.bits(), true);
-    text(OPPONENT_WORDS[0].as_ptr() as usize as u32, false);
+    text(
+        crate::pointers::game_address(OPPONENT_WORDS[0].as_ptr()),
+        false,
+    );
     number(first, false);
-    text(OPPONENT_WORDS[1].as_ptr() as usize as u32, false);
+    text(
+        crate::pointers::game_address(OPPONENT_WORDS[1].as_ptr()),
+        false,
+    );
     number(first_place, true);
     PHYSICS.noise_state.set(RACE_TABLES.noise_seed.bits());
     let mut taken = vec![first];
@@ -644,9 +650,15 @@ pub fn choose_arcade_opponents() -> Result<(), Refused> {
         };
         taken.push(kind);
         at.set(kind);
-        text(OPPONENT_WORDS[2 * n + 2].as_ptr() as usize as u32, false);
+        text(
+            crate::pointers::game_address(OPPONENT_WORDS[2 * n + 2].as_ptr()),
+            false,
+        );
         number(kind, false);
-        text(OPPONENT_WORDS[2 * n + 3].as_ptr() as usize as u32, false);
+        text(
+            crate::pointers::game_address(OPPONENT_WORDS[2 * n + 3].as_ptr()),
+            false,
+        );
         number(place, true);
     }
     Ok(())
@@ -658,7 +670,10 @@ pub fn choose_arcade_opponents() -> Result<(), Refused> {
 /// every register (liveness): the route leaves its caller's as they were.
 pub fn set_up_arcade_cars() -> Result<(), Refused> {
     if RACE_VARS.run_kind.bits() == 2 {
-        text(SETUP_ARCADE_WORD_RVA.as_ptr() as usize as u32, true);
+        text(
+            crate::pointers::game_address(SETUP_ARCADE_WORD_RVA.as_ptr()),
+            true,
+        );
         let indent = &crate::logfile::write_line::state::INDENT;
         indent.fetch_add(3, std::sync::atomic::Ordering::Relaxed);
         choose_arcade_opponents()?;

@@ -37,7 +37,7 @@ impl SealWork {
     pub const LEN: usize = 0x98;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        &SEAL_WORK as *const SealWork as usize + 12
+        crate::pointers::host_number(&SEAL_WORK as *const SealWork) + 12
     }
 }
 
@@ -50,8 +50,12 @@ mod tests {
         let size = size_of::<SealWork>();
         assert!(12 + SealWork::LEN <= size && size <= (12 + SealWork::LEN).next_multiple_of(16));
         let image = crate::moved::image_bytes(SealWork::START, SealWork::LEN);
-        let mine =
-            unsafe { std::slice::from_raw_parts(SealWork::home() as *const u8, SealWork::LEN) };
+        let mine = unsafe {
+            std::slice::from_raw_parts(
+                crate::pointers::host_at(SealWork::home()) as *const u8,
+                SealWork::LEN,
+            )
+        };
         assert_eq!(mine, &image[..]);
     }
 }

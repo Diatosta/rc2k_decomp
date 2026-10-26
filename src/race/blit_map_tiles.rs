@@ -86,7 +86,7 @@ pub unsafe fn blit_map_tiles(texture: u32, first_x: u32, first_y: u32) -> Result
                             } else {
                                 black as u16
                             };
-                            (to as *mut u16).write_unaligned(v);
+                            (crate::pointers::host(to) as *mut u16).write_unaligned(v);
                         } else {
                             let v = if tile != 0 {
                                 u32::from_le_bytes([
@@ -98,7 +98,7 @@ pub unsafe fn blit_map_tiles(texture: u32, first_x: u32, first_y: u32) -> Result
                             } else {
                                 black
                             };
-                            (to as *mut u32).write_unaligned(v);
+                            (crate::pointers::host(to) as *mut u32).write_unaligned(v);
                         }
                     }
                     to = to.wrapping_add(wide);

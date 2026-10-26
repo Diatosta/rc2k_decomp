@@ -55,10 +55,11 @@ pub fn measure_text_at(
     x: i32,
     canvas: &mut dyn Canvas,
 ) -> Result<Measured, Refused> {
-    let mut copy = crate::pointers::GamePtr::new(font as usize as u32).read::<Font>("a font")?;
+    let mut copy = crate::pointers::GamePtr::new(crate::pointers::game_address(font))
+        .read::<Font>("a font")?;
     let measured = measure_text(&mut copy, text, x, canvas)?;
     if canvas.keeps_font_changes() {
-        crate::pointers::GamePtr::new(font as usize as u32).write(copy, "a font")?;
+        crate::pointers::GamePtr::new(crate::pointers::game_address(font)).write(copy, "a font")?;
     }
     Ok(measured)
 }

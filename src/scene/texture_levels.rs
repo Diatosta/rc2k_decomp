@@ -88,7 +88,7 @@ pub unsafe fn init_texture_levels() -> Result<(), Refused> {
         let cars = held_cars(RACE_VIEW.race_cars.bits());
         RACE_VIEW.race_cars.set_bits(cars);
         crate::scene::reset_texture_tables::reset_texture_tables();
-        log_write(COUNT_TEXT_RVA.as_ptr() as usize as *const u8, false, 1);
+        log_write(COUNT_TEXT_RVA.as_ptr() as *const u8, false, 1);
         log_int(cars as i32, true, 1);
         OBJECT_TABLES.other_levels.set(0);
         crate::input::keys::update_input(&mut crate::input::keys::game_screenshot);

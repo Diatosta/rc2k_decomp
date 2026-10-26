@@ -42,7 +42,9 @@ impl ObjectTables {
     pub fn slot_value(table: &[Dword; 256], slot: usize) -> u32 {
         // SAFETY: the tables are contiguous in the race block; a slot far past them is the
         // caller's slip, as it was the original's.
-        unsafe { ((table[0].addr() + 4 * slot) as *const u32).read_volatile() }
+        unsafe {
+            (crate::pointers::host_at(table[0].addr() + 4 * slot) as *const u32).read_volatile()
+        }
     }
 }
 
@@ -54,7 +56,7 @@ impl core::ops::Deref for InBlock {
     fn deref(&self) -> &ObjectTables {
         // SAFETY: the race block lives as long as the program and is aligned to 4 (the
         // test checks); every field is an atomic or a cell, as the block's bytes were shared.
-        unsafe { &*(piece_addr() as *const ObjectTables) }
+        unsafe { &*(crate::pointers::host_at(piece_addr()) as *const ObjectTables) }
     }
 }
 

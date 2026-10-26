@@ -15,7 +15,7 @@ pub fn parse_number(text: *const u8) -> u32 {
         return 0;
     }
     // Converted: `rc2k_core::files::settings::number`.
-    let number = crate::pointers::GamePtr::new(text as u32)
+    let number = crate::pointers::GamePtr::new(crate::pointers::game_address(text))
         .bytes("a settings number")
         .and_then(|words| Ok(rc2k_core::files::settings::number(&words, 0)?));
     number.unwrap_or_else(|e| crate::fatal::raise::end("settings::parse_number", e))

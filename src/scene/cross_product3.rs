@@ -19,7 +19,11 @@ pub fn cross_product3(a: u32, b: u32, out: u32) -> Result<(), Refused> {
     if a == 0 || b == 0 || out == 0 {
         return Err(BadInput("a null vector").into());
     }
-    cross(a as *const u8, b as *const u8, out as *mut u8);
+    cross(
+        crate::pointers::host(a) as *const u8,
+        crate::pointers::host(b) as *const u8,
+        crate::pointers::host(out),
+    );
     Ok(())
 }
 

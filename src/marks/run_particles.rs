@@ -626,7 +626,7 @@ impl TrailColours {
     pub const LEN: usize = 0x4A8;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        &TRAIL_PALETTE as *const TrailColours as usize
+        crate::pointers::host_number(&TRAIL_PALETTE as *const TrailColours)
     }
 }
 
@@ -660,7 +660,7 @@ impl PuffWork {
     pub const LEN: usize = 0x28;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        &PUFF_WORK as *const PuffWork as usize
+        crate::pointers::host_number(&PUFF_WORK as *const PuffWork)
     }
 }
 
@@ -674,7 +674,10 @@ mod typed_tests {
         assert_eq!(size_of::<TrailColours>(), TrailColours::LEN);
         let image = crate::moved::image_bytes(TrailColours::START, TrailColours::LEN);
         let mine = unsafe {
-            std::slice::from_raw_parts(TrailColours::home() as *const u8, TrailColours::LEN)
+            std::slice::from_raw_parts(
+                crate::pointers::host_at(TrailColours::home()) as *const u8,
+                TrailColours::LEN,
+            )
         };
         assert!(
             mine == &image[..],
@@ -740,7 +743,7 @@ impl BurstColours {
     pub const LEN: usize = 0x2000;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        &BURST_COLOURS as *const BurstColours as usize
+        crate::pointers::host_number(&BURST_COLOURS as *const BurstColours)
     }
 }
 
@@ -871,7 +874,7 @@ impl ParticleTuning {
     pub const LEN: usize = 0xB0;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        &PARTICLE_TUNING as *const ParticleTuning as usize
+        crate::pointers::host_number(&PARTICLE_TUNING as *const ParticleTuning)
     }
 }
 

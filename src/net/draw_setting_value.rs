@@ -54,7 +54,7 @@ pub fn draw_setting_value(text: u32, item: u32, y: u32) -> Result<u32, Refused> 
     {
         crate::text::draw_text::draw_text_at(
             FONT.as_ptr(),
-            shown as *const u8,
+            crate::pointers::host(shown) as *const u8,
             0x190,
             y as i32,
             &mut GameCanvas,

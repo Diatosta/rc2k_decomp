@@ -119,7 +119,7 @@ pub fn draw_shadow_with(sh: &Shadow, depth: bool) -> Result<(), Refused> {
     }
     turnable(&angle(sh)?)?;
     let mut temps = [0u32; 2];
-    let t = temps.as_mut_ptr() as u32;
+    let t = crate::pointers::game_address(temps.as_mut_ptr());
     if depth {
         crate::scene::depth_buffer_on::depth_buffer(true);
         crate::scene::depth_test_on::depth_test_on();

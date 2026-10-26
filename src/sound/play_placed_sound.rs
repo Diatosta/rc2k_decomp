@@ -34,21 +34,30 @@ use rc2k_core::sound::placed::{self, MODE_3D};
 /// `fld a; fmul b; fmul c; fistp`.
 fn product3_to_int(a: u32, b: u32, c: u32) -> u32 {
     let (v, mut out) = ([a, b, c], 0u32);
-    x87_1(v.as_ptr() as usize, (&raw mut out) as usize);
+    x87_1(
+        crate::pointers::host_number(v.as_ptr()),
+        crate::pointers::host_number(&raw mut out),
+    );
     out
 }
 
 /// `fld a; fmul b; fistp`.
 pub fn product_to_int(a: u32, b: u32) -> u32 {
     let (v, mut out) = ([a, b], 0u32);
-    x87_2(v.as_ptr() as usize, (&raw mut out) as usize);
+    x87_2(
+        crate::pointers::host_number(v.as_ptr()),
+        crate::pointers::host_number(&raw mut out),
+    );
     out
 }
 
 /// `fld a; fistp`.
 fn to_int(a: u32) -> u32 {
     let mut out = 0u32;
-    x87_3((&raw const a) as usize, (&raw mut out) as usize);
+    x87_3(
+        crate::pointers::host_number(&raw const a),
+        crate::pointers::host_number(&raw mut out),
+    );
     out
 }
 
@@ -56,7 +65,10 @@ fn to_int(a: u32) -> u32 {
 /// angle's bits and the whole number.
 fn angle_and_place(y: u32, x: u32, per_angle: u32, centre: u32) -> (u32, u32) {
     let (v, mut out) = ([y, x, per_angle, centre], [0u32; 2]);
-    x87_4(v.as_ptr() as usize, out.as_mut_ptr() as usize);
+    x87_4(
+        crate::pointers::host_number(v.as_ptr()),
+        crate::pointers::host_number(out.as_mut_ptr()),
+    );
     (out[0], out[1])
 }
 

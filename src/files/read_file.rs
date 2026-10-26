@@ -27,11 +27,11 @@ pub fn read_file(
     offset: u32,
 ) -> Result<ReadResult, BadInput> {
     // Converted: `rc2k_core::files::io::read_file`.
-    let to = GamePtr::new(buffer as u32);
+    let to = GamePtr::new(crate::pointers::game_address(buffer));
     let mut into = to.read_bytes(count as usize, "a file's buffer")?;
     let result = rc2k_core::files::io::read_file(
         &mut GameFiles::new(),
-        GamePtr::new(path as u32),
+        GamePtr::new(crate::pointers::game_address(path)),
         &mut into,
         offset,
     )?;

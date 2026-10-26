@@ -53,7 +53,7 @@ impl TwentySecondTuning {
 
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        &TWENTY_SECOND_TUNING as *const TwinTuning as usize
+        crate::pointers::host_number(&TWENTY_SECOND_TUNING as *const TwinTuning)
     }
 }
 

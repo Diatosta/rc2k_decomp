@@ -23,6 +23,6 @@ const SPARE: u32 = 0xC80;
 pub fn allocate_picture_buffer() -> Result<(), Refused> {
     PICTURE.size.set(BUFFER_LEN);
     let memory = { allocate(PICTURE.list.as_ptr(), BUFFER_LEN + SPARE) }?;
-    PICTURE.buffer.set(memory as u32);
+    PICTURE.buffer.set(crate::pointers::game_address(memory));
     Ok(())
 }

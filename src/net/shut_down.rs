@@ -19,7 +19,9 @@ pub fn shut_down() -> Result<(), Refused> {
     for cell in [&NET.mutex, &NET.event] {
         let handle = cell.atomic().swap(0, Ordering::SeqCst);
         if handle != 0 {
-            unsafe { windows_sys::Win32::Foundation::CloseHandle(handle as _) };
+            unsafe {
+                windows_sys::Win32::Foundation::CloseHandle(crate::pointers::host(handle) as _)
+            };
         }
     }
     Ok(())

@@ -27,7 +27,7 @@ impl core::ops::Deref for InBuffers {
     fn deref(&self) -> &EngineTables {
         // SAFETY: the block lives as long as the program and the piece is aligned to 4 (the
         // test checks); every field is an atomic or a cell.
-        unsafe { &*(piece_addr() as *const EngineTables) }
+        unsafe { &*(crate::pointers::host_at(piece_addr()) as *const EngineTables) }
     }
 }
 
@@ -37,7 +37,10 @@ pub static ENGINE_TABLES: InBuffers = InBuffers;
 /// the cosine is the cell 0x400 on.
 pub fn sine(n: usize) -> &'static Float {
     // SAFETY: the piece is one block of cells; the address is the original's own.
-    unsafe { &*(ENGINE_TABLES.sines[0].addr().wrapping_add(4 * n) as *const Float) }
+    unsafe {
+        &*(crate::pointers::host_at(ENGINE_TABLES.sines[0].addr().wrapping_add(4 * n))
+            as *const Float)
+    }
 }
 
 /// The cosine of table place `n` (`g_cosines[n]`, the sine table's cell `n + 0x400`).

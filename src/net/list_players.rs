@@ -38,7 +38,7 @@ pub fn list_players() -> Result<bool, Refused> {
                 ENUM_PLAYERS,
                 &[
                     0,
-                    crate::net::player_found::callback as *const () as usize as u32,
+                    crate::pointers::game_address(crate::net::player_found::callback as *const ()),
                     0,
                     0,
                 ],

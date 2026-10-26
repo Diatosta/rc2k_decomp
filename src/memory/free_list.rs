@@ -27,7 +27,7 @@ pub fn free_list(list: *mut MemoryList) -> Result<(), BadInput> {
     if list.is_null() {
         return Ok(());
     }
-    let at = GamePtr::new(list as u32);
+    let at = GamePtr::new(crate::pointers::game_address(list));
     let mut l = at.read::<MemoryList>("a memory list")?;
     let block = l.head;
     if block != 0 && own_heap() == 1 {
@@ -44,7 +44,7 @@ pub fn free_list(list: *mut MemoryList) -> Result<(), BadInput> {
         let before = GamePtr::new(block).read::<u32>("a block's header")?;
         crate::pointers::unregister(block);
         // SAFETY: the block is the system's, taken by `allocate`/`virtual_alloc`.
-        unsafe { VirtualFree(block as _, 0, MEM_RELEASE) };
+        unsafe { VirtualFree(crate::pointers::host(block) as _, 0, MEM_RELEASE) };
         block = before;
     }
     Ok(())

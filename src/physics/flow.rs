@@ -99,15 +99,19 @@ pub fn table_lerp(
     }
     let mut status = 0u16;
     x87_1(
-        t.as_ptr() as usize,
+        crate::pointers::host_number(t.as_ptr()),
         a(zero) as usize,
-        (&raw mut status) as usize,
+        crate::pointers::host_number(&raw mut status),
     );
     if status & 0x4000 != 0 {
         p(out, x87::loaded(t[1].bits()));
         return;
     }
-    x87_2(a(x) as usize, t.as_ptr() as usize, a(out) as usize);
+    x87_2(
+        a(x) as usize,
+        crate::pointers::host_number(t.as_ptr()),
+        a(out) as usize,
+    );
 }
 
 // ---- the arithmetic that was x87 assembly ----

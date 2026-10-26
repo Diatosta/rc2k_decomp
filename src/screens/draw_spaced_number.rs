@@ -29,20 +29,27 @@ pub fn draw_spaced_number(
     canvas: &mut dyn Canvas,
 ) -> Result<(), Refused> {
     // Converted: `rc2k_core::screens::captions::spaced_places`.
-    let n = (end as u32).wrapping_sub(text as u32);
+    let n = crate::pointers::game_address(end).wrapping_sub(crate::pointers::game_address(text));
     let places = rc2k_core::screens::captions::spaced_places(n, x, CELLS_LEN)?;
     DRAW_WORK.work_b8.set(n);
     let cells = crate::screens::text_buffers_store::TEXT_BUFFERS
         .cells
         .addr() as u32;
-    let digits = GamePtr::new(text as usize as u32).read_bytes(n as usize, "the digits")?;
+    let digits =
+        GamePtr::new(crate::pointers::game_address(text)).read_bytes(n as usize, "the digits")?;
     let mut spaced = Vec::with_capacity(2 * digits.len());
     for &digit in &digits {
         spaced.extend([digit, 0]);
     }
     GamePtr::new(cells).write_bytes(&spaced, "the spaced digits")?;
     for (i, x) in places {
-        draw_text_at(font, (cells as usize + 2 * i) as *const u8, x, y, canvas)?;
+        draw_text_at(
+            font,
+            crate::pointers::host_at(cells as usize + 2 * i) as *const u8,
+            x,
+            y,
+            canvas,
+        )?;
     }
     Ok(())
 }

@@ -105,5 +105,5 @@ pub fn line_buffer() -> *mut u8 {
 /// A font object in game memory, by its address in IDA (where it lives now, if it has moved:
 /// `crate::moved::place`).
 pub fn font_at(addr: usize) -> *mut Font {
-    crate::moved::place(addr) as *mut Font
+    crate::pointers::host_at(crate::moved::place(addr)) as *mut Font
 }

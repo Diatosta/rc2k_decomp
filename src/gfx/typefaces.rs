@@ -66,12 +66,12 @@ impl FontObject {
 
     /// Where the object is: what `draw_text` and the others take.
     pub fn addr(&self) -> usize {
-        self as *const Self as usize
+        crate::pointers::host_number(self as *const Self)
     }
 
     /// The object as the drawing functions' `Font`.
     pub fn as_ptr(&self) -> *mut Font {
-        self.addr() as *mut Font
+        crate::pointers::host_at(self.addr()) as *mut Font
     }
 }
 
@@ -154,7 +154,7 @@ pub static FONTS: Fonts = Fonts {
 
 /// Where the block is (`moved::MOVED`'s home for IDA 0x51E3A4).
 pub fn home() -> usize {
-    &FONTS as *const Fonts as usize
+    crate::pointers::host_number(&FONTS as *const Fonts)
 }
 
 /// A font of the block: its number (the object's place less the first's, in 0x20s).

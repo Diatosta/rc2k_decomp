@@ -141,12 +141,12 @@ fn own_sections() -> &'static [(u32, u32)] {
         // 40-byte section headers after the optional header).
         unsafe {
             use windows_sys::Win32::System::LibraryLoader::GetModuleHandleW;
-            let base = GetModuleHandleW(std::ptr::null()) as usize;
+            let base = host_number(GetModuleHandleW(std::ptr::null()));
             if base == 0 {
                 return Vec::new();
             }
-            let read16 = |at: usize| (at as *const u16).read_unaligned() as usize;
-            let read32 = |at: usize| (at as *const u32).read_unaligned() as usize;
+            let read16 = |at: usize| (host_at(at) as *const u16).read_unaligned() as usize;
+            let read32 = |at: usize| (host_at(at) as *const u32).read_unaligned() as usize;
             let nt = base + read32(base + 0x3C);
             let count = read16(nt + 4 + 2);
             let optional = read16(nt + 4 + 16);
@@ -177,14 +177,44 @@ fn stack() -> (u32, u32) {
 /// a 64-bit build maps each region's game address to its host base here.
 #[inline]
 pub fn host(addr: u32) -> *mut u8 {
-    addr as usize as *mut u8
+    std::ptr::with_exposed_provenance_mut(addr as usize)
+}
+
+/// A host address held as a number (a moved store's place, `store::game_addr`) as a
+/// pointer.
+#[inline]
+pub fn host_at(addr: usize) -> *mut u8 {
+    std::ptr::with_exposed_provenance_mut(addr)
 }
 
 /// The game address of a host pointer handed to the game (a lent buffer, a platform
 /// object): the inverse of `host`.
 #[inline]
-pub fn game_address<T>(p: *const T) -> u32 {
-    p as usize as u32
+pub fn game_address(p: impl HostPointer) -> u32 {
+    p.exposed() as u32
+}
+
+/// A host pointer as a number (kept as `usize`, a place's address).
+#[inline]
+pub fn host_number(p: impl HostPointer) -> usize {
+    p.exposed()
+}
+
+/// A raw pointer of either kind, as `game_address` and `host_number` take it.
+pub trait HostPointer {
+    fn exposed(self) -> usize;
+}
+
+impl<T: ?Sized> HostPointer for *const T {
+    fn exposed(self) -> usize {
+        self.cast::<u8>().expose_provenance()
+    }
+}
+
+impl<T: ?Sized> HostPointer for *mut T {
+    fn exposed(self) -> usize {
+        self.cast::<u8>().expose_provenance()
+    }
 }
 
 /// The refusal for an address that is not where the game's memory is (logged with it).
@@ -439,7 +469,7 @@ mod tests {
     fn reads_answer_inside_a_region_only() {
         // On the heap: the stack is a region of its own.
         let block = Box::new([7u8; 64]);
-        let start = block.as_ptr() as u32;
+        let start = game_address(block.as_ptr());
         register(start, 64);
         let p = GamePtr::new(start + 60);
         assert_eq!(p.read::<u32>("test").unwrap(), 0x0707_0707);
@@ -464,7 +494,7 @@ mod tests {
     fn a_window_keeps_its_region() {
         let block = Box::new([5u8; 32]);
         let _lent = Lent::new(&block[..]);
-        let start = block.as_ptr() as u32;
+        let start = game_address(block.as_ptr());
         let window = Window::new();
         assert_eq!(window.read_or_end::<u8>(start, "test"), 5);
         assert_eq!(window.0.get(), (start, start + 32));
@@ -481,18 +511,18 @@ mod tests {
         static TEXT: [u8; 4] = *b"abc\0";
         let on_stack = [1u8; 8];
         assert!(
-            GamePtr::new(TEXT.as_ptr() as u32)
+            GamePtr::new(game_address(TEXT.as_ptr()))
                 .read::<[u8; 4]>("test")
                 .is_ok()
         );
         assert!(
-            GamePtr::new(on_stack.as_ptr() as u32)
+            GamePtr::new(game_address(on_stack.as_ptr()))
                 .read::<[u8; 8]>("test")
                 .is_ok()
         );
         let heap = Box::new([0u8; 8]);
         assert!(
-            GamePtr::new(heap.as_ptr() as u32)
+            GamePtr::new(game_address(heap.as_ptr()))
                 .read::<u8>("test")
                 .is_err()
         );

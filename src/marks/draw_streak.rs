@@ -24,7 +24,7 @@ use crate::scene::draw_store::DRAW;
 
 /// The original's 0x4C1DCD .. 0x4C1F11: the point scaled and turned, and the last place.
 fn turn(p: &[[u8; 10]; 3]) {
-    turn_x87(p.as_ptr() as usize, &RAIN)
+    turn_x87(crate::pointers::host_number(p.as_ptr()), &RAIN)
 }
 
 /// The original's 0x4C1F4A .. 0x4C20B3: both projected and the quad's x, y and depth.

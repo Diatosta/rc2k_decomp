@@ -161,7 +161,11 @@ mod asm_reference {
                 reference: |a| unsafe { ref_0(a[0], a[1], a[2]) },
                 plain: |a| {
                     x87_1(
-                        &unsafe { &*(a[0] as *const crate::sound::store::SoundObject) }.revs_input,
+                        &unsafe {
+                            &*(crate::pointers::host_at(a[0])
+                                as *const crate::sound::store::SoundObject)
+                        }
+                        .revs_input,
                         a[1],
                         a[2],
                         0x18,
@@ -194,9 +198,15 @@ mod asm_reference {
                 reference: |a| unsafe { ref_1(a[0], a[1], a[2], a[3]) },
                 plain: |a| {
                     x87_2(
-                        unsafe { &*(a[0] as *const crate::sound::store::SoundObject) },
+                        unsafe {
+                            &*(crate::pointers::host_at(a[0])
+                                as *const crate::sound::store::SoundObject)
+                        },
                         a[1],
-                        unsafe { &*(a[2] as *const crate::sound::store::SurfaceSounds) },
+                        unsafe {
+                            &*(crate::pointers::host_at(a[2])
+                                as *const crate::sound::store::SurfaceSounds)
+                        },
                         a[3],
                     )
                 },
@@ -221,8 +231,11 @@ mod asm_reference {
                 reference: |a| unsafe { ref_2(a[0], a[1], a[2]) },
                 plain: |a| {
                     x87_1(
-                        &unsafe { &*(a[0] as *const crate::sound::store::SoundObject) }
-                            .throttle_input,
+                        &unsafe {
+                            &*(crate::pointers::host_at(a[0])
+                                as *const crate::sound::store::SoundObject)
+                        }
+                        .throttle_input,
                         a[1],
                         a[2],
                         0x24,
@@ -254,7 +267,10 @@ mod asm_reference {
                 reference: |a| unsafe { ref_3(a[0], a[1]) },
                 plain: |a| {
                     x87_3(
-                        unsafe { &*(a[0] as *const crate::sound::store::SoundObject) },
+                        unsafe {
+                            &*(crate::pointers::host_at(a[0])
+                                as *const crate::sound::store::SoundObject)
+                        },
                         a[1],
                     )
                 },

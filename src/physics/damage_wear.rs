@@ -353,7 +353,7 @@ mod asm_reference {
     /// The damage model as the test's buffer holds it (the buffer's base plus the RVA of
     /// 0x75B340).
     fn dm(base: usize) -> &'static DamageModel {
-        unsafe { &*((base + 0x35B340) as *const DamageModel) }
+        unsafe { &*(crate::pointers::host_at(base + 0x35B340) as *const DamageModel) }
     }
     use crate::scene::asm_test::{Block, In, Operand, Out, reference, sparse};
 

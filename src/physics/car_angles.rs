@@ -28,10 +28,14 @@ pub unsafe fn car_angles_at(m: u32, p: &AnglePlaces, ints: u32) {
             )
             .wrapping_shl(4)
         };
-        let angle = |k: u32| (p.angles as *const u32).add(k as usize).read_unaligned();
+        let angle = |k: u32| {
+            (crate::pointers::host(p.angles) as *const u32)
+                .add(k as usize)
+                .read_unaligned()
+        };
         for (k, place) in [(0u32, 4u32), (1, 0), (2, 8)] {
             let v = scale(angle(k));
-            ((ints + place) as *mut i32).write_unaligned(v);
+            (crate::pointers::host(ints + place) as *mut i32).write_unaligned(v);
         }
     }
 }

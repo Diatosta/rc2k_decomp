@@ -40,7 +40,7 @@ pub fn to_the_log(piece: Piece) {
     unsafe {
         match piece {
             Piece::Text(text, newline) => {
-                crate::menu::text_entry::log_l1(text as *const u8, newline)
+                crate::menu::text_entry::log_l1(crate::pointers::host(text) as *const u8, newline)
             }
             Piece::Number(number, newline) => {
                 crate::logfile::log_int::log_int(number as i32, newline, 1)
@@ -88,7 +88,7 @@ impl rc2k_core::saves::defaults::Source for GameSource<'_> {
                 Text::Done => c"guesscheckpointtimes:done",
                 Text::DashesAfter => c"-----------------------------------------------------",
             };
-            at.as_ptr() as u32
+            crate::pointers::game_address(at.as_ptr())
         };
         (self.log)(match piece {
             P::Text(t, newline) => Piece::Text(text(t), newline),

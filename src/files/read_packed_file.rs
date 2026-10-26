@@ -50,8 +50,8 @@ pub type Read<'a> = &'a mut dyn FnMut(u32, u32, u32) -> Result<ReadResult, Refus
 /// In the game: `files::read_file` in Rust.
 pub fn game_read(path: u32, buffer: u32, bytes: u32) -> Result<ReadResult, Refused> {
     Ok(crate::files::read_file::read_file(
-        path as _,
-        buffer as _,
+        crate::pointers::host(path) as _,
+        crate::pointers::host(buffer) as _,
         bytes,
         0,
     )?)

@@ -14,14 +14,14 @@ use crate::scene::rotate_point::rotate_point;
 /// The Rust core: the motion at `from` turned by the matrix at `m` into `to`.
 pub unsafe fn car_frame_motion_at(from: u32, m: u32, to: u32) {
     unsafe {
-        let p = from as *const u32;
+        let p = crate::pointers::host(from) as *const u32;
         let point = [
             extended(p.read_unaligned()),
             extended(p.add(1).read_unaligned()),
             extended(p.add(2).read_unaligned()),
         ];
         let out = rotate_point(m, point);
-        let q = to as *mut u32;
+        let q = crate::pointers::host(to) as *mut u32;
         for (k, e) in out.iter().enumerate() {
             q.add(k).write_unaligned(rounded(*e));
         }

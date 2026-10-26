@@ -55,7 +55,10 @@ type Unlock = unsafe extern "system" fn(u32, u32) -> i32;
 
 unsafe fn method(object: u32, offset: u32) -> usize {
     unsafe {
-        (((object as *const u32).read_unaligned() + offset) as *const u32).read_unaligned() as usize
+        (crate::pointers::host(
+            (crate::pointers::host(object) as *const u32).read_unaligned() + offset,
+        ) as *const u32)
+            .read_unaligned() as usize
     }
 }
 
@@ -148,13 +151,15 @@ pub unsafe fn upload_texture_picture(
                     2 => {
                         for n in 0..width {
                             let pixel = components_to_pixel(&format, source.next().unwrap_or(0));
-                            ((target + n * 2) as *mut u16).write_unaligned(pixel as u16);
+                            (crate::pointers::host(target + n * 2) as *mut u16)
+                                .write_unaligned(pixel as u16);
                         }
                     }
                     4 => {
                         for n in 0..width {
                             let pixel = components_to_pixel(&format, source.next().unwrap_or(0));
-                            ((target + n * 4) as *mut u32).write_unaligned(pixel);
+                            (crate::pointers::host(target + n * 4) as *mut u32)
+                                .write_unaligned(pixel);
                         }
                     }
                     _ => return Err(fatal(0x80A1_8775)),

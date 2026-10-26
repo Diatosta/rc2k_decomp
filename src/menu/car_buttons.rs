@@ -44,7 +44,7 @@ pub unsafe fn call_in_game(call: Call) -> Result<(), Refused> {
         match call {
             Call::Background => load_car_background(&mut |path, car| {
                 crate::menu::load_background::load_background(
-                    path as *mut u8,
+                    crate::pointers::host(path),
                     car,
                     &mut GameCanvas,
                 )?;

@@ -29,9 +29,15 @@ use crate::scene::x87_mem::{fistp, fld};
 fn turn_of(v: u32, less: Option<u32>, over: u32, plus: u32, k: [u32; 2]) -> u32 {
     let (a, mut out) = ([v, less.unwrap_or(0), over, plus, k[0], k[1]], 0u32);
     if less.is_some() {
-        x87_1(a.as_ptr() as usize, (&raw mut out) as usize);
+        x87_1(
+            crate::pointers::host_number(a.as_ptr()),
+            crate::pointers::host_number(&raw mut out),
+        );
     } else {
-        x87_2(a.as_ptr() as usize, (&raw mut out) as usize);
+        x87_2(
+            crate::pointers::host_number(a.as_ptr()),
+            crate::pointers::host_number(&raw mut out),
+        );
     }
     out
 }

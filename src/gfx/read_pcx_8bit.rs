@@ -38,14 +38,14 @@ unsafe fn read_rows() -> Result<bool, BadInput> {
         if seek(file, -(FILE_PALETTE_LEN as i32), 2).is_none() {
             return Ok(false);
         }
-        let palette_bytes = PCX.file_palette.addr() as *mut u8;
+        let palette_bytes = crate::pointers::host_at(PCX.file_palette.addr());
         if !read(file, palette_bytes, FILE_PALETTE_LEN as u32).1 {
             return Ok(false);
         }
         if seek(file, 0, 0).is_none() {
             return Ok(false);
         }
-        let header = PCX.header.addr() as *mut u8;
+        let header = crate::pointers::host_at(PCX.header.addr());
         if read_stream_block(stream, header, HEADER_LEN as u32)?.1 {
             return Ok(false);
         }
@@ -58,7 +58,9 @@ unsafe fn read_rows() -> Result<bool, BadInput> {
             &layout,
             &palette,
             |eax| read_stream_byte(stream, eax).map(|r| r.eax),
-            |to, pixel| (pixels.wrapping_add(to) as *mut u32).write_unaligned(pixel),
+            |to, pixel| {
+                (crate::pointers::host(pixels.wrapping_add(to)) as *mut u32).write_unaligned(pixel)
+            },
         )?
         .ok_or(BadInput("a PCX picture without rows"))?;
         Ok(true)

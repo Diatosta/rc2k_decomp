@@ -35,7 +35,7 @@ pub static FNT27: [u8; 25] = *b"files\\d\\fnt\\fnt27_00.pcx\0";
 
 /// The text's address for the game's functions (they take a pointer).
 pub fn address(text: &'static [u8]) -> u32 {
-    text.as_ptr() as u32
+    crate::pointers::game_address(text.as_ptr())
 }
 
 #[cfg(test)]

@@ -72,9 +72,10 @@ impl PartialEq for Buf {
 /// address need not be aligned for its cells) and put back afterwards. The buffer must
 /// hold the whole block.
 pub fn with_copy<T, R>(mk: usize, start: usize, f: impl FnOnce(&T) -> R) -> R {
-    let p = mk
-        .wrapping_add(start)
-        .wrapping_sub(crate::marks::store::START) as *mut T;
+    let p = crate::pointers::host_at(
+        mk.wrapping_add(start)
+            .wrapping_sub(crate::marks::store::START),
+    ) as *mut T;
     unsafe {
         let local = p.read_unaligned();
         let out = f(&local);
@@ -235,8 +236,8 @@ pub fn differential<R: PartialEq + std::fmt::Debug>(
             let mut pl_vals = values;
             for (j, op) in spec.operands.iter().enumerate() {
                 if let Op::Base { lo, .. } = op {
-                    ref_vals[j] = (refs[j].as_ptr() as usize).wrapping_sub(*lo);
-                    pl_vals[j] = (pls[j].as_ptr() as usize).wrapping_sub(*lo);
+                    ref_vals[j] = crate::pointers::host_number(refs[j].as_ptr()).wrapping_sub(*lo);
+                    pl_vals[j] = crate::pointers::host_number(pls[j].as_ptr()).wrapping_sub(*lo);
                 }
             }
             // The buffers lent while the versions run: their operands are checked as game memory.

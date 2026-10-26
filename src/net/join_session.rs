@@ -52,7 +52,7 @@ pub fn join_session(number: u32) -> Result<bool, Refused> {
     zero(NET.session_desc.addr() as u32, 0x50)?;
     NET.session_desc.size.set(0x50);
     movsb(
-        NET.session_desc.instance.as_ptr() as u32,
+        crate::pointers::game_address(NET.session_desc.instance.as_ptr()),
         NET.joined.addr() as u32,
         0x10,
     )?;

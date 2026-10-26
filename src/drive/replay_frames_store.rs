@@ -34,7 +34,7 @@ impl core::ops::Deref for InRaceBlock {
     fn deref(&self) -> &ReplayFrames {
         // SAFETY: the race block lives as long as the program and is aligned as the test
         // checks; every field is an atomic or a cell, as the block's bytes were shared.
-        unsafe { &*(piece_addr() as *const ReplayFrames) }
+        unsafe { &*(crate::pointers::host_at(piece_addr()) as *const ReplayFrames) }
     }
 }
 

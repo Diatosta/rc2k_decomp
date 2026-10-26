@@ -51,7 +51,7 @@ pub enum Asked {
 /// The `-v` part: the box, and out through `start`'s exit path. Does not return.
 pub fn show_version_and_leave() -> ! {
     let leave = |e: BadInput| -> ! { crate::fatal::raise::end("system::read_command_line", e) };
-    let caption = crate::fatal::state::CAPTION.ptr() as u32;
+    let caption = crate::pointers::game_address(crate::fatal::state::CAPTION.ptr());
     // byte_4F6702: its `:`
     GamePtr::new(caption + 5)
         .write(0u8, "the caption")
@@ -63,7 +63,7 @@ pub fn show_version_and_leave() -> ! {
     text.extend(*b"\t\r\n");
     text.extend(c_text(START_TEXTS.second_text.addr(), "the second text"));
     text.push(0);
-    let place = crate::fatal::state::TEXT.ptr() as u32; // Text
+    let place = crate::pointers::game_address(crate::fatal::state::TEXT.ptr()); // Text
     GamePtr::new(place)
         .write_bytes(&text, "the version's text")
         .unwrap_or_else(|e| leave(e));
@@ -71,8 +71,8 @@ pub fn show_version_and_leave() -> ! {
     unsafe {
         MessageBoxA(
             std::ptr::null_mut(),
-            place as usize as *const u8,
-            caption as usize as *const u8,
+            crate::pointers::host(place) as *const u8,
+            crate::pointers::host(caption) as *const u8,
             0x2040,
         )
     };
@@ -86,9 +86,9 @@ pub fn read_command_line(line: &'static [u8]) -> Result<Asked, BadInput> {
     // Converted: `rc2k_core::system::command_line::read`, the whole line read before
     // anything is written (a refused `-i` word now leaves nothing written).
     let sw = rc2k_core::system::command_line::read(line)?;
-    COMMAND_LINE
-        .program
-        .set(line.as_ptr().wrapping_add(sw.program.0) as u32);
+    COMMAND_LINE.program.set(crate::pointers::game_address(
+        line.as_ptr().wrapping_add(sw.program.0),
+    ));
     COMMAND_LINE.program_len.set(sw.program.1 as u32);
     for (on, place) in [
         (sw.u, INSTALLER_RUN.updating.addr()),
@@ -136,7 +136,10 @@ pub fn read_own_command_line() -> Result<(), BadInput> {
     // SAFETY: `GetCommandLineA` gives the process's NUL-ended command line.
     let own = unsafe { std::ffi::CStr::from_ptr(GetCommandLineA() as *const _) };
     let line: &'static [u8] = Box::leak(own.to_bytes_with_nul().to_vec().into_boxed_slice());
-    crate::pointers::register(line.as_ptr() as u32, line.len() as u32);
+    crate::pointers::register(
+        crate::pointers::game_address(line.as_ptr()),
+        line.len() as u32,
+    );
     if read_command_line(line)? == Asked::Version {
         show_version_and_leave();
     }
@@ -162,7 +165,7 @@ impl CommandLine {
     pub const LEN: usize = 0x8;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        &COMMAND_LINE as *const CommandLine as usize
+        crate::pointers::host_number(&COMMAND_LINE as *const CommandLine)
     }
 }
 
@@ -176,7 +179,10 @@ mod command_line_tests {
         assert!(CommandLine::LEN <= size && size <= (CommandLine::LEN).next_multiple_of(4));
         let image = crate::moved::image_bytes(CommandLine::START, CommandLine::LEN);
         let mine = unsafe {
-            std::slice::from_raw_parts(CommandLine::home() as *const u8, CommandLine::LEN)
+            std::slice::from_raw_parts(
+                crate::pointers::host_at(CommandLine::home()) as *const u8,
+                CommandLine::LEN,
+            )
         };
         assert_eq!(mine, &image[..]);
     }

@@ -47,7 +47,7 @@ pub unsafe fn scale_stage_times(record: u32) -> Result<(), Refused> {
         RACE_WORK.stage_time_scales[0].set_bits(f[0]);
         RACE_WORK.stage_time_scales[1].set_bits(f[1]);
         write_all(&MENU_STATE.menus.class_times, times);
-        let text = |n: usize| TEXTS_RVA[n].as_ptr() as usize as *const u8;
+        let text = |n: usize| TEXTS_RVA[n].as_ptr() as *const u8;
         log_write(text(0), false, 1);
         log_int(section as i32, false, 1);
         log_int(get(record + 0x40)? as i32, false, 1);

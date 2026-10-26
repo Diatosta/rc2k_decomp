@@ -107,7 +107,7 @@ pub static SHEET: SheetVars = SheetVars {
 
 /// Where the block is (`moved::MOVED`'s home for IDA 0x519598).
 pub fn home() -> usize {
-    &SHEET as *const SheetVars as usize
+    crate::pointers::host_number(&SHEET as *const SheetVars)
 }
 
 const RECORD_HEAD: u32 = 0x1C;
@@ -296,8 +296,10 @@ pub unsafe fn build_glyphs(template: *const u8, list: *mut MemoryList) -> Result
             return Err(BadInput("no path for the sheets").into());
         }
         let work = LEXICON.memory.as_ptr();
-        DECODER.template.set(template as u32);
-        SHEET.table_list.set(list as u32);
+        DECODER
+            .template
+            .set(crate::pointers::game_address(template));
+        SHEET.table_list.set(crate::pointers::game_address(list));
         DECODER.number.set(0u32);
         loop {
             if DECODER.builder_flags.get() & WITH_ALPHA != 0 {

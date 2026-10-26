@@ -30,8 +30,8 @@ fn standing(block: &PlayerBlock) -> Standing {
 /// The two blocks swapped, a dword at a time.
 pub fn swap_blocks(one: &PlayerBlock, two: &PlayerBlock) -> Result<(), BadInput> {
     let (one, two) = (
-        GamePtr::new(one as *const PlayerBlock as u32),
-        GamePtr::new(two as *const PlayerBlock as u32),
+        GamePtr::new(crate::pointers::game_address(one as *const PlayerBlock)),
+        GamePtr::new(crate::pointers::game_address(two as *const PlayerBlock)),
     );
     for n in 0..BLOCK / 4 {
         let v = one.offset(4 * n).read::<u32>("a player's block")?;
@@ -66,8 +66,8 @@ pub fn sort_players() -> Result<(), Refused> {
         return Err(BadInput("more than eight players").into());
     }
     movsb(
-        NET.sorted.as_ptr() as u32,
-        NET.received.as_ptr() as u32,
+        crate::pointers::game_address(NET.sorted.as_ptr()),
+        crate::pointers::game_address(NET.received.as_ptr()),
         ALL,
     )?;
     // Converted: `rc2k_core::net::players` (`bubble`, `goes_after`).

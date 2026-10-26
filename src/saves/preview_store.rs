@@ -41,7 +41,7 @@ pub const END: usize = 0x755170;
 
 /// Where IDA 0X755144 is now (`moved::MOVED`'s home).
 pub fn savegame_preview_addr() -> usize {
-    &SAVEGAME_PREVIEW as *const SavegamePreview as usize
+    crate::pointers::host_number(&SAVEGAME_PREVIEW as *const SavegamePreview)
 }
 
 #[cfg(test)]
@@ -55,7 +55,10 @@ mod tests {
         assert!(END - START <= size_of::<SavegamePreview>());
         assert!(size_of::<SavegamePreview>() <= (END - START).next_multiple_of(4));
         let mine = unsafe {
-            std::slice::from_raw_parts(savegame_preview_addr() as *const u8, END - START)
+            std::slice::from_raw_parts(
+                crate::pointers::host_at(savegame_preview_addr()) as *const u8,
+                END - START,
+            )
         };
         assert_eq!(mine, &image_bytes(START, END - START)[..]);
         let at = |field: usize, ida: usize| assert_eq!(field, ida - START, "{ida:#X}");

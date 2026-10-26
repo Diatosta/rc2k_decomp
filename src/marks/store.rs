@@ -302,7 +302,7 @@ pub fn game_addr(place: impl Where) -> usize {
 
 /// Pointer to the game's memory at `place`.
 pub fn game_ptr<T>(place: impl Where) -> *mut T {
-    place.address() as *mut T
+    crate::pointers::host_at(place.address()) as *mut T
 }
 
 /// Reads a variable (`framework::game_read`, over the block or the image).

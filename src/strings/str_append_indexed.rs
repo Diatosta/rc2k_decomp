@@ -17,7 +17,7 @@ use crate::pointers::GamePtr;
 /// the list as far as the original reads it), copied out; the list must run that far inside
 /// its block.
 pub fn indexed_text(table: *const u8, index: i32) -> Result<Vec<u8>, BadInput> {
-    let table = table as usize as u32;
+    let table = crate::pointers::game_address(table);
     let mut length = 0;
     for _ in 0..=index.max(0) {
         length +=
@@ -34,6 +34,7 @@ pub fn str_append_indexed(
     cursor: *mut u8,
 ) -> Result<*mut u8, BadInput> {
     let text = indexed_text(table, index)?;
-    GamePtr::new(cursor as usize as u32).write_bytes(&text, "a string list\'s target")?;
+    GamePtr::new(crate::pointers::game_address(cursor))
+        .write_bytes(&text, "a string list\'s target")?;
     Ok(cursor.wrapping_add(text.len()))
 }

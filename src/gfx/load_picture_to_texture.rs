@@ -29,7 +29,7 @@ pub unsafe fn load_picture_to_texture(
     let record = Record::of(texture)?;
     unsafe {
         keep_second_picture(&record, second)?;
-        let (pixels, width, height, _) = read_texture_picture(path as *mut u8)?;
+        let (pixels, width, height, _) = read_texture_picture(crate::pointers::host(path))?;
         upload(texture, pixels, width, height)
     }
 }

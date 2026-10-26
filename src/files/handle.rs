@@ -44,7 +44,7 @@ pub const NO_HANDLE: u32 = u32::MAX;
 /// replace" an open-or-create and a truncation, so a hidden or system file is replaced
 /// where `CREATE_ALWAYS` with normal attributes would fail.
 pub fn open_by_mode(path: *const u8, mode: u32) -> Result<Option<u32>, BadInput> {
-    open_by_mode_at(GamePtr::new(path as u32), mode)
+    open_by_mode_at(GamePtr::new(crate::pointers::game_address(path)), mode)
 }
 
 /// `open_by_mode` on a checked address.
@@ -69,13 +69,17 @@ pub fn open_by_mode_at(path: GamePtr, mode: u32) -> Result<Option<u32>, BadInput
         _ => &mut options, // OPEN_EXISTING
     };
     let file = options.open(crate::files::ansi_path(resolved)?);
-    Ok(file.ok().map(|f| f.into_raw_handle() as u32))
+    Ok(file
+        .ok()
+        .map(|f| crate::pointers::game_address(f.into_raw_handle())))
 }
 
 /// The game's handle as a `File` for one call, not closed after it.
 fn with_file<R>(file: u32, f: impl FnOnce(&mut std::fs::File) -> R) -> R {
     let mut file = std::mem::ManuallyDrop::new(unsafe {
-        std::fs::File::from_raw_handle(file as usize as std::os::windows::io::RawHandle)
+        std::fs::File::from_raw_handle(
+            crate::pointers::host_at(file as usize) as std::os::windows::io::RawHandle
+        )
     });
     f(&mut file)
 }
@@ -83,7 +87,11 @@ fn with_file<R>(file: u32, f: impl FnOnce(&mut std::fs::File) -> R) -> R {
 /// (the bytes read, whether the read succeeded): one `ReadFile`. A short read is not a
 /// failure.
 pub fn read(file: u32, buffer: *mut u8, count: u32) -> (u32, bool) {
-    crate::pointers::check_or_end(buffer as u32, count as usize, "a file read's buffer");
+    crate::pointers::check_or_end(
+        crate::pointers::game_address(buffer),
+        count as usize,
+        "a file read's buffer",
+    );
     // SAFETY: `count` bytes inside one live region (checked above).
     read_slice(file, unsafe {
         std::slice::from_raw_parts_mut(buffer, count as usize)
@@ -120,7 +128,11 @@ pub fn write_from(
 
 /// (the bytes written, whether all of them were): one `WriteFile`.
 pub fn write(file: u32, buffer: *const u8, count: u32) -> (u32, bool) {
-    crate::pointers::check_or_end(buffer as u32, count as usize, "a file write's buffer");
+    crate::pointers::check_or_end(
+        crate::pointers::game_address(buffer),
+        count as usize,
+        "a file write's buffer",
+    );
     // SAFETY: `count` bytes inside one live region (checked above).
     write_slice(file, unsafe {
         std::slice::from_raw_parts(buffer, count as usize)
@@ -202,7 +214,7 @@ fn time_of(ticks: u64) -> Option<SystemTime> {
 pub fn close(file: u32) -> bool {
     LAST_FILE_PATH.store(0, std::sync::atomic::Ordering::Relaxed);
     // SAFETY: closing a handle the game owns; a bad handle only makes it answer false.
-    unsafe { CloseHandle(file as _) != 0 }
+    unsafe { CloseHandle(crate::pointers::host(file) as _) != 0 }
 }
 
 /// The game's file primitives as the core's file system: paths are the game's (a path's

@@ -62,7 +62,7 @@ impl BuildNotice {
     pub const LEN: usize = 0xAC;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        &NOTICE as *const BuildNotice as usize
+        crate::pointers::host_number(&NOTICE as *const BuildNotice)
     }
 }
 

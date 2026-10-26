@@ -25,7 +25,7 @@ pub static BOX: [crate::session::Dword; 4] = [const { crate::session::Dword::new
 
 /// Where the rectangle is (`moved::MOVED`'s home for IDA 0x52983C).
 pub fn box_home() -> usize {
-    BOX.as_ptr() as usize
+    crate::pointers::host_number(BOX.as_ptr())
 }
 
 /// The Rust version (`x` the caller's ecx).

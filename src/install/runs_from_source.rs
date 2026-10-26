@@ -36,7 +36,7 @@ pub unsafe fn source_against_directory(
             return Ok(None);
         }
         Ok(Some(compare_texts(
-            INSTALLER_NAMES.source.addr() as *const u8,
+            crate::pointers::host_at(INSTALLER_NAMES.source.addr()) as *const u8,
             directory,
         )?))
     }

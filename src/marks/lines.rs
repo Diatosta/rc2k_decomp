@@ -301,10 +301,10 @@ pub fn set_up_blocks() -> Result<(), Refused> {
         }
         let points: u32 =
             ObjectTables::slot_value(&OBJECT_SLOTS.point_counts, get(block)? as usize);
-        let taken = crate::memory::allocate::allocate(
-            (block + 0x4C) as *mut crate::memory::MemoryList,
+        let taken = crate::pointers::game_address(crate::memory::allocate::allocate(
+            crate::pointers::host(block + 0x4C) as *mut crate::memory::MemoryList,
             points.wrapping_mul(12),
-        )? as u32;
+        )?);
         MORPH_WORK.taken.set(taken);
         put(block + 0x8C, taken)?;
         copy_block_points(block)?;
@@ -386,7 +386,7 @@ impl LinesWork {
     pub const LEN: usize = 0x188;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        &LINES_WORK as *const LinesWork as usize
+        crate::pointers::host_number(&LINES_WORK as *const LinesWork)
     }
 }
 

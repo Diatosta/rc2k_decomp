@@ -45,7 +45,7 @@ impl ErrorMode {
     pub const LEN: usize = 0x8;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        &ERROR_MODE as *const ErrorMode as usize
+        crate::pointers::host_number(&ERROR_MODE as *const ErrorMode)
     }
 }
 
@@ -58,8 +58,12 @@ mod error_mode_tests {
         let size = size_of::<ErrorMode>();
         assert!(ErrorMode::LEN <= size && size <= (ErrorMode::LEN).next_multiple_of(4));
         let image = crate::moved::image_bytes(ErrorMode::START, ErrorMode::LEN);
-        let mine =
-            unsafe { std::slice::from_raw_parts(ErrorMode::home() as *const u8, ErrorMode::LEN) };
+        let mine = unsafe {
+            std::slice::from_raw_parts(
+                crate::pointers::host_at(ErrorMode::home()) as *const u8,
+                ErrorMode::LEN,
+            )
+        };
         assert_eq!(mine, &image[..]);
     }
 }

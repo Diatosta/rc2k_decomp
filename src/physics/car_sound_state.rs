@@ -213,7 +213,8 @@ mod asm_reference {
                 reference: |a| unsafe { ref_1(a[0], a[1]) },
                 plain: |a| {
                     x87_2(a[0], unsafe {
-                        &*(a[1] as *const crate::sound::store::SoundObject)
+                        &*(crate::pointers::host_at(a[1])
+                            as *const crate::sound::store::SoundObject)
                     })
                 },
             },

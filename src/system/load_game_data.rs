@@ -88,7 +88,8 @@ fn default_name(to: *mut u8, room: usize, id: u32, after: &[u8]) -> Result<(), B
     push_string(&mut string, id)?;
     let name = rc2k_core::system::game_data::default_name(&string, after, room)
         .ok_or(BadInput("a default name longer than its place"))?;
-    crate::pointers::GamePtr::new(to as u32).write_bytes(&name, "a default name")?;
+    crate::pointers::GamePtr::new(crate::pointers::game_address(to))
+        .write_bytes(&name, "a default name")?;
     Ok(())
 }
 
@@ -101,8 +102,10 @@ fn number_empty_names<const N: usize>(names: &Bytes<N>, id: u32) -> Result<(), B
             push_string(&mut string, id)?;
             let bytes = rc2k_core::system::game_data::slot_name(&string, slot, NAME_LEN)
                 .ok_or(BadInput("a default name longer than its place"))?;
-            crate::pointers::GamePtr::new((names.as_ptr() as u32).wrapping_add(name as u32))
-                .write_bytes(&bytes, "a default slot name")?;
+            crate::pointers::GamePtr::new(
+                (crate::pointers::game_address(names.as_ptr())).wrapping_add(name as u32),
+            )
+            .write_bytes(&bytes, "a default slot name")?;
         }
     }
     Ok(())
@@ -133,19 +136,19 @@ pub unsafe fn load_game_data(outside: Outside) -> Result<(), Refused> {
                 continue;
             }
             if player == 0 {
-                let place = name as *mut u8;
-                outside(Call::UserName(place as u32))?;
+                let place = crate::pointers::host_at(name);
+                outside(Call::UserName(crate::pointers::game_address(place)))?;
                 copy_printable(place, place, USER_NAME_ROOM)?;
                 if NAME_BUFFERS.player_names.get(player * NAME_LEN) != 0 {
                     continue;
                 }
             }
-            default_name(name as *mut u8, NAME_LEN, id, &[])?;
+            default_name(crate::pointers::host_at(name), NAME_LEN, id, &[])?;
         }
 
         if NET.machine_name.get(0) == 0 {
             let place = NET.machine_name.as_ptr();
-            outside(Call::ComputerName(place as u32))?;
+            outside(Call::ComputerName(crate::pointers::game_address(place)))?;
             copy_printable(place, place, MACHINE_NAME_ROOM as u32)?;
             if NET.machine_name.get(0) == 0 {
                 default_name(
@@ -215,7 +218,9 @@ fn in_game(call: Call) -> Result<u32, Refused> {
                 crate::saves::load_best_times::load_game_best_times()?;
             }
             Call::ReadSettings => crate::settings::read_settings::read_settings()?,
-            Call::ReadSku => crate::install::read_sku::read_sku(SKU.path.addr() as *const u8)?,
+            Call::ReadSku => crate::install::read_sku::read_sku(crate::pointers::host_at(
+                SKU.path.addr(),
+            ) as *const u8)?,
             Call::ReadDriverNames => crate::settings::read_driver_names::read_driver_names(
                 crate::settings::read_driver_names::path(),
             )?,
@@ -226,10 +231,10 @@ fn in_game(call: Call) -> Result<u32, Refused> {
             })?,
             Call::UserName(to) => {
                 let mut room = USER_NAME_ROOM;
-                GetUserNameA(to as *mut u8, &mut room);
+                GetUserNameA(crate::pointers::host(to), &mut room);
             }
             Call::ComputerName(to) => {
-                crate::system::check_developer_machine::computer_name(to as *mut u8);
+                crate::system::check_developer_machine::computer_name(crate::pointers::host(to));
             }
             Call::RandomBelow(limit) => return Ok(crate::math::random_below::random_below(limit)?),
             Call::ReadSavegameSlot(slot) => {
@@ -267,7 +272,7 @@ impl RunCount {
     pub const LEN: usize = 0x4;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        &RUN_COUNT as *const RunCount as usize
+        crate::pointers::host_number(&RUN_COUNT as *const RunCount)
     }
 }
 
@@ -280,8 +285,12 @@ mod run_count_tests {
         let size = size_of::<RunCount>();
         assert!(RunCount::LEN <= size && size <= (RunCount::LEN).next_multiple_of(4));
         let image = crate::moved::image_bytes(RunCount::START, RunCount::LEN);
-        let mine =
-            unsafe { std::slice::from_raw_parts(RunCount::home() as *const u8, RunCount::LEN) };
+        let mine = unsafe {
+            std::slice::from_raw_parts(
+                crate::pointers::host_at(RunCount::home()) as *const u8,
+                RunCount::LEN,
+            )
+        };
         assert_eq!(mine, &image[..]);
     }
 }

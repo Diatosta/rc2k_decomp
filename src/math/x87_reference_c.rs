@@ -872,7 +872,10 @@ pub(super) mod run {
     /// stored as a float and held to -limit ..= limit.
     pub(super) unsafe fn clamped_asin_80(x: [u8; 10], s: *mut u32, l: *mut u32) -> [u8; 10] {
         let mut out = [0u8; 10];
-        let io = [x.as_ptr() as u32, out.as_mut_ptr() as u32];
+        let io = [
+            crate::pointers::game_address(x.as_ptr()),
+            crate::pointers::game_address(out.as_mut_ptr()),
+        ];
         unsafe {
             core::arch::asm!(
                 "mov eax, [{io}]",

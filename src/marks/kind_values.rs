@@ -146,7 +146,7 @@ impl MarksKind {
     pub const LEN: usize = 0x4;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        &MARKS_KIND as *const MarksKind as usize
+        crate::pointers::host_number(&MARKS_KIND as *const MarksKind)
     }
 }
 

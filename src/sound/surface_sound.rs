@@ -105,7 +105,10 @@ mod asm_reference {
             reference: |a| unsafe { ref_0(a[0], a[1]) },
             plain: |a| {
                 x87_1(
-                    unsafe { &*(a[0] as *const crate::sound::store::SurfaceSounds) },
+                    unsafe {
+                        &*(crate::pointers::host_at(a[0])
+                            as *const crate::sound::store::SurfaceSounds)
+                    },
                     a[1],
                 )
             },

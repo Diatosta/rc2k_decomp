@@ -42,7 +42,8 @@ pub unsafe fn read_sample(
         f.channels = 1;
         f.rate = 0x5622;
         f.bits = 16;
-        let read = crate::files::read_file::read_file(path, buffer as *mut u8, size, 0)?;
+        let read =
+            crate::files::read_file::read_file(path, crate::pointers::host(buffer), size, 0)?;
         if !read.ok {
             return Ok(false);
         }

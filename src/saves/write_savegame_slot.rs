@@ -52,7 +52,7 @@ pub static SAVE_GAMES: SaveGames = SaveGames {
 
 /// Where the block is (`moved::MOVED`'s home for IDA 0x51EBB0).
 pub fn home() -> usize {
-    &SAVE_GAMES as *const SaveGames as usize
+    crate::pointers::host_number(&SAVE_GAMES as *const SaveGames)
 }
 
 /// IDA's address of the file name's template.
@@ -91,11 +91,17 @@ pub fn write_savegame_slot(slot: u32) -> Result<bool, Refused> {
             kept::SAVEGAME,
             kept::SAVEGAME_VERSION,
             packed_local_time(),
-            &GamePtr::new(slot_name(slot) as u32).read::<[u8; NAME_LEN]>("a savegame's name")?,
+            &GamePtr::new(crate::pointers::game_address(slot_name(slot)))
+                .read::<[u8; NAME_LEN]>("a savegame's name")?,
         );
         file.write_bytes(&head, "the savegame's file")?;
         let path = numbered_path_in_game(TEMPLATE.as_ptr(), slot)?;
-        Ok(write_file(path, file.addr() as usize as *const u8, FILE_LEN as u32)?.ok)
+        Ok(write_file(
+            path,
+            crate::pointers::host(file.addr()) as *const u8,
+            FILE_LEN as u32,
+        )?
+        .ok)
     }
 }
 

@@ -21,11 +21,8 @@ pub fn begin_replay_name(log: bool) -> Result<(), BadInput> {
     if log {
         // aGetrepsaveslot
         unsafe {
-            log_l1(
-                c"getrepsaveslotname result=".as_ptr() as usize as *const u8,
-                false,
-            );
-            log_l1(name as usize as *const u8, true);
+            log_l1(c"getrepsaveslotname result=".as_ptr() as *const u8, false);
+            log_l1(crate::pointers::host(name) as *const u8, true);
         }
     }
     // Converted: `rc2k_core::menu::text_entry::Entry::begin` (through `begin_logged`).

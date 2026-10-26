@@ -47,6 +47,9 @@ pub fn allocate_object_memory(
 
 pub fn allocate_object_memory_in_game() -> Result<(), Refused> {
     allocate_object_memory(&mut |bytes, _| {
-        Ok(allocate(COURSE_LISTS.object_points_list[0].addr() as *mut _, bytes)? as u32)
+        Ok(crate::pointers::game_address(allocate(
+            crate::pointers::host_at(COURSE_LISTS.object_points_list[0].addr()) as *mut _,
+            bytes,
+        )?))
     })
 }

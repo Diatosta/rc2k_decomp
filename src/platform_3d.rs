@@ -78,12 +78,12 @@ pub static GUIDS_B: [crate::session::Dword; 8] = crate::gfx::dwords([
 
 /// Where the first ids are (`moved::MOVED`'s home for IDA 0x5BE81C).
 pub fn guids_a_home() -> usize {
-    GUIDS_A.as_ptr() as usize
+    crate::pointers::host_number(GUIDS_A.as_ptr())
 }
 
 /// Where the last two are (`moved::MOVED`'s home for IDA 0x5BE874).
 pub fn guids_b_home() -> usize {
-    GUIDS_B.as_ptr() as usize
+    crate::pointers::host_number(GUIDS_B.as_ptr())
 }
 
 #[cfg(test)]
@@ -181,24 +181,30 @@ static LEVELS_MEMORY: Mutex<Vec<Option<Level>>> = Mutex::new(Vec::new());
 static OBJECTS: OnceLock<usize> = OnceLock::new();
 
 fn objects() -> *mut [u32; 2] {
-    *OBJECTS.get_or_init(|| {
+    crate::pointers::host_at(*OBJECTS.get_or_init(|| {
         let mut table = vec![0u32; 0x40];
-        table[0x64 / 4] = lock as *const () as u32;
-        table[0x80 / 4] = unlock as *const () as u32;
+        table[0x64 / 4] = crate::pointers::game_address(lock as *const ());
+        table[0x80 / 4] = crate::pointers::game_address(unlock as *const ());
         let table = Box::leak(table.into_boxed_slice());
         // Both kept for the program's life, and regions: the game's code reaches a
         // surface's methods through them (`d3d::texture_lock`).
-        crate::pointers::register(table.as_ptr() as u32, size_of_val(table) as u32);
-        let table = table.as_ptr() as u32;
+        crate::pointers::register(
+            crate::pointers::game_address(table.as_ptr()),
+            size_of_val(table) as u32,
+        );
+        let table = crate::pointers::game_address(table.as_ptr());
         let objects: Vec<[u32; 2]> = (0..SURFACES as u32).map(|n| [table, n]).collect();
         let objects = Box::leak(objects.into_boxed_slice());
-        crate::pointers::register(objects.as_ptr() as u32, size_of_val(objects) as u32);
-        objects.as_mut_ptr() as usize
-    }) as *mut [u32; 2]
+        crate::pointers::register(
+            crate::pointers::game_address(objects.as_ptr()),
+            size_of_val(objects) as u32,
+        );
+        crate::pointers::host_number(objects.as_mut_ptr())
+    })) as *mut [u32; 2]
 }
 
 fn object(number: usize) -> u32 {
-    unsafe { objects().add(number) as u32 }
+    unsafe { crate::pointers::game_address(objects().add(number)) }
 }
 
 extern "system" fn lock(this: u32, _: u32, description: u32, _: u32, _: u32) -> i32 {
@@ -210,7 +216,7 @@ extern "system" fn lock(this: u32, _: u32, description: u32, _: u32, _: u32) -> 
         .unwrap()
         .get(number)
         .and_then(|l| l.as_ref())
-        .map(|l| l.pixels.as_ptr() as usize);
+        .map(|l| crate::pointers::host_number(l.pixels.as_ptr()));
     if pixels.is_none_or(reads_texture) {
         flush();
     }
@@ -220,7 +226,7 @@ extern "system" fn lock(this: u32, _: u32, description: u32, _: u32, _: u32) -> 
             let what = "a surface description";
             crate::pointers::write_or_end(
                 description + 0x24,
-                level.pixels.as_mut_ptr() as u32,
+                crate::pointers::game_address(level.pixels.as_mut_ptr()),
                 what,
             );
             crate::pointers::write_or_end(description + 0x10, level.pitch, what);
@@ -385,7 +391,7 @@ fn draw_noted(pending: &mut Pending) {
         if depth.width != into.width || depth.height != into.height {
             return;
         }
-        let depth_at = depth.values.as_mut_ptr() as usize;
+        let depth_at = crate::pointers::host_number(depth.values.as_mut_ptr());
         let tiles: Vec<Clip> = if noted.len() < FEW {
             vec![Clip {
                 left: 0,
@@ -409,13 +415,13 @@ fn draw_noted(pending: &mut Pending) {
         let draw_tile = move |clip: &Clip| {
             let tile_started = std::time::Instant::now();
             let target = Target {
-                pixels: into.pixels as *mut u8,
+                pixels: crate::pointers::host_at(into.pixels),
                 pitch: into.pitch,
                 width: into.width,
                 height: into.height,
                 bits: into.bits,
             };
-            let depth = depth_at as *mut f32;
+            let depth = crate::pointers::host_at(depth_at) as *mut f32;
             let mut written = 0u64;
             for what in noted {
                 match what {
@@ -435,7 +441,10 @@ fn draw_noted(pending: &mut Pending) {
                         }
                         let texture = texture.map(|t| Texture {
                             pixels: unsafe {
-                                std::slice::from_raw_parts(t.pixels as *const u8, t.len)
+                                std::slice::from_raw_parts(
+                                    crate::pointers::host_at(t.pixels) as *const u8,
+                                    t.len,
+                                )
                             },
                             width: t.width,
                             height: t.height,
@@ -542,7 +551,9 @@ fn dump_if_asked(noted: &[Noted], into: &Into) {
             put(&mut out, m);
         }
         put(&mut out, t.len as u32);
-        out.extend_from_slice(unsafe { std::slice::from_raw_parts(t.pixels as *const u8, t.len) });
+        out.extend_from_slice(unsafe {
+            std::slice::from_raw_parts(crate::pointers::host_at(t.pixels) as *const u8, t.len)
+        });
     }
     put(&mut out, noted.len() as u32);
     for n in noted {
@@ -628,9 +639,10 @@ fn note_fan(vertices: &[crate::rasteriser::Vertex]) {
                 if record.format == 0 {
                     return None;
                 }
-                let format = (record.format as *const TextureFormat).read_unaligned();
+                let format =
+                    (crate::pointers::host(record.format) as *const TextureFormat).read_unaligned();
                 Some(TextureNote {
-                    pixels: level.pixels.as_ptr() as usize,
+                    pixels: crate::pointers::host_number(level.pixels.as_ptr()),
                     len: level.pixels.len(),
                     width: record.width as usize,
                     height: record.height as usize,
@@ -685,7 +697,8 @@ pub fn copy_screen_to_system_texture(number: u32) {
         if record.format == 0 || record.width == 0 || record.height == 0 {
             return;
         }
-        let format = (record.format as *const TextureFormat).read_unaligned();
+        let format =
+            (crate::pointers::host(record.format) as *const TextureFormat).read_unaligned();
         let bytes = format.bytes_per_pixel as usize;
         let masks = format.format.masks;
         let mut memory = LEVELS_MEMORY.lock().unwrap();
@@ -707,7 +720,7 @@ pub fn copy_screen_to_system_texture(number: u32) {
         };
         for y in 0..h {
             let sy = y * screen.height / h;
-            let row = (screen.pixels + sy * screen.pitch) as *const u8;
+            let row = crate::pointers::host_at(screen.pixels + sy * screen.pitch) as *const u8;
             for x in 0..w {
                 let sx = x * screen.width / w;
                 let (red, green, blue) = if screen.bits == 16 {
@@ -972,7 +985,7 @@ pub fn release_all_textures() {
     flush();
     unsafe {
         log_write(
-            VIEWER_PANEL.text_addr(texts::SVM_RELEASE_TEXTURES) as usize as *const u8,
+            crate::pointers::host(VIEWER_PANEL.text_addr(texts::SVM_RELEASE_TEXTURES)) as *const u8,
             true,
             2,
         );

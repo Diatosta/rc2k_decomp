@@ -40,7 +40,7 @@ impl SampleNames {
     pub const LEN: usize = 0x3938;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        &SAMPLE_NAMES as *const SampleNames as usize + 12
+        crate::pointers::host_number(&SAMPLE_NAMES as *const SampleNames) + 12
     }
 }
 
@@ -56,7 +56,10 @@ mod tests {
         );
         let image = crate::moved::image_bytes(SampleNames::START, SampleNames::LEN);
         let mine = unsafe {
-            std::slice::from_raw_parts(SampleNames::home() as *const u8, SampleNames::LEN)
+            std::slice::from_raw_parts(
+                crate::pointers::host_at(SampleNames::home()) as *const u8,
+                SampleNames::LEN,
+            )
         };
         assert_eq!(mine, &image[..]);
     }

@@ -70,7 +70,7 @@ pub fn file_read(file: u32, addr: u32, count: u32, what: &str) -> Result<(u32, b
     // SAFETY: the span lies in one live region (checked above).
     Ok(crate::files::handle::read(
         file,
-        addr as usize as *mut u8,
+        crate::pointers::host(addr),
         count,
     ))
 }
@@ -81,7 +81,7 @@ pub fn file_write(file: u32, addr: u32, count: u32, what: &str) -> Result<(u32, 
     // SAFETY: the span lies in one live region (checked above).
     Ok(crate::files::handle::write(
         file,
-        addr as usize as *const u8,
+        crate::pointers::host(addr) as *const u8,
         count,
     ))
 }
@@ -108,7 +108,7 @@ pub fn read_whole_file_into(
 ) -> Result<(), BadInput> {
     span(buffer, count as usize, what)?;
     // SAFETY: the span lies in one live region (checked above); `path` is the caller's own.
-    crate::files::read_whole_file::read_whole_file(path, buffer as usize as *mut u8, count)
+    crate::files::read_whole_file::read_whole_file(path, crate::pointers::host(buffer), count)
 }
 
 /// The car block at `addr` (a `g_carBlocks` entry, a view's block, `g_car`), checked to lie

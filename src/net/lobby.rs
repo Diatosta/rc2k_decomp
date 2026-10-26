@@ -66,10 +66,13 @@ impl Cursor {
 
     /// `strings::str_append`: the NUL-ended text at `from`, its end the new cursor.
     pub fn string(&mut self, from: u32) {
-        self.0 = crate::menu::event_flow::refuse_here(
-            crate::strings::str_append::str_append(from as *const u8, self.0 as *mut u8),
+        self.0 = crate::pointers::game_address(crate::menu::event_flow::refuse_here(
+            crate::strings::str_append::str_append(
+                crate::pointers::host(from) as *const u8,
+                crate::pointers::host(self.0),
+            ),
             "net::lobby: a text",
-        ) as u32;
+        ));
     }
 
     /// `strings::append_string_by_id`: the string `id`.
@@ -129,16 +132,22 @@ pub fn log_int_nl(value: u32, level: u8) {
 
 /// `memory::allocate` on the network's list (`g_netMemory`): the memory's address.
 pub fn net_allocate(bytes: u32) -> Result<u32, Refused> {
-    Ok(
-        { crate::memory::allocate::allocate((NET.memory.as_ptr() as u32) as *mut _, bytes) }?
-            as u32,
-    )
+    Ok(crate::pointers::game_address({
+        crate::memory::allocate::allocate(
+            crate::pointers::host(crate::pointers::game_address(NET.memory.as_ptr())) as *mut _,
+            bytes,
+        )
+    }?))
 }
 
 /// `strings::copy_printable` (addresses).
 pub fn copy_printable(text: u32, to: u32, room: u32) -> Result<(), Refused> {
     unsafe {
-        crate::strings::copy_printable::copy_printable(text as *const u8, to as *mut u8, room)
+        crate::strings::copy_printable::copy_printable(
+            crate::pointers::host(text) as *const u8,
+            crate::pointers::host(to),
+            room,
+        )
     }?;
     Ok(())
 }
@@ -214,8 +223,8 @@ pub fn draw_string(
 pub fn draw_text(font: u32, text: u32, x: u32, y: u32) -> Result<(), Refused> {
     {
         crate::text::draw_text::draw_text_at(
-            font as *mut _,
-            text as *const u8,
+            crate::pointers::host(font) as *mut _,
+            crate::pointers::host(text) as *const u8,
             x as i32,
             y as i32,
             &mut crate::text::draw_text::GameCanvas,

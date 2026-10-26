@@ -61,7 +61,10 @@ fn unlock_refusing(why: &'static str) -> Result<(), Refused> {
 /// `scene::forget_slot_texture`, `memory::free_list`, `nullsub_33` (nothing).
 pub fn set_up_surface() -> Result<(), Refused> {
     unsafe {
-        let block = take(Address(MASK_LIST.list[0].as_ptr() as usize), MASK_BYTES)?;
+        let block = take(
+            Address(crate::pointers::host_number(MASK_LIST.list[0].as_ptr())),
+            MASK_BYTES,
+        )?;
         lock(KIND_TEXTURES.kind_first_textures[211].bits(), true)?;
         if crate::gfx::screen_state::DRAW_SURFACE.width.get() < SIDE
             || crate::gfx::screen_state::DRAW_SURFACE.height.get() < SIDE
@@ -186,7 +189,7 @@ impl MaskList {
     pub const LEN: usize = 0x40;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        &MASK_LIST as *const MaskList as usize
+        crate::pointers::host_number(&MASK_LIST as *const MaskList)
     }
 }
 

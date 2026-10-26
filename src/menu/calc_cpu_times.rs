@@ -112,7 +112,7 @@ pub unsafe fn calc_cpu_times() -> Result<(), Refused> {
     let rec = record()?;
     let (classes, drivers, length) = check(rec)?;
     unsafe {
-        log_write(TEXTS_RVA[0].as_ptr() as usize as *const u8, true, 1);
+        log_write(TEXTS_RVA[0].as_ptr() as *const u8, true, 1);
         for (k, t) in [0x18, 0x1C, 0x20, 0x24].into_iter().enumerate() {
             MENU_STATE.menus.class_times[k].set(get(rec + t)?);
         }
@@ -147,7 +147,7 @@ pub unsafe fn calc_cpu_times() -> Result<(), Refused> {
                 gaps = gaps.wrapping_add(gap);
             }
         }
-        log_write(TEXTS_RVA[1].as_ptr() as usize as *const u8, true, 1);
+        log_write(TEXTS_RVA[1].as_ptr() as *const u8, true, 1);
     }
     Ok(())
 }

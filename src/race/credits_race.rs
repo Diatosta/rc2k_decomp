@@ -41,7 +41,7 @@ pub fn credits_race() -> Result<(), Refused> {
     crate::race::race_cars::set_up_arcade_cars()?;
     crate::race::race_shell::set_start_states()?;
     RACE_WORK.in_credits.set(1);
-    let word = |n: usize| WORDS[n].as_ptr() as usize as *const u8;
+    let word = |n: usize| WORDS[n].as_ptr() as *const u8;
     unsafe {
         log_write(word(0), false, 1);
         log_int(RACE_VARS.stage_number.get() as i32, false, 1);

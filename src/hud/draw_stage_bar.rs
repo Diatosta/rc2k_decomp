@@ -68,7 +68,10 @@ pub fn bars(
                 .iter()
                 .map(|&k| {
                     let kind: u32 = k[n as usize].get();
-                    ((HUD.stage_colours.as_ptr() as u32 + kind) as *const u32).read_unaligned()
+                    (crate::pointers::host(
+                        crate::pointers::game_address(HUD.stage_colours.as_ptr()) + kind,
+                    ) as *const u32)
+                        .read_unaligned()
                 })
                 .collect();
             for (to, &c) in colour_vars.iter().zip(&colours) {

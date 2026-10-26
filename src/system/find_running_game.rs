@@ -25,7 +25,13 @@ pub unsafe fn find_running_game() -> bool {
     unsafe {
         MACHINE
             .instance
-            .set(GetModuleHandleA(std::ptr::null()) as u32);
-        !FindWindowA(START_TEXTS.class_name.addr() as *const u8, std::ptr::null()).is_null()
+            .set(crate::pointers::game_address(GetModuleHandleA(
+                std::ptr::null(),
+            )));
+        !FindWindowA(
+            crate::pointers::host_at(START_TEXTS.class_name.addr()) as *const u8,
+            std::ptr::null(),
+        )
+        .is_null()
     }
 }

@@ -222,7 +222,7 @@ impl Kind1Choice {
     pub const LEN: usize = 0x4;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        &KIND1_CHOICE as *const Kind1Choice as usize
+        crate::pointers::host_number(&KIND1_CHOICE as *const Kind1Choice)
     }
 }
 
@@ -294,7 +294,7 @@ impl Kind1Set {
     pub const LEN: usize = 0x38;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        &KIND1_SET as *const Kind1Set as usize
+        crate::pointers::host_number(&KIND1_SET as *const Kind1Set)
     }
 }
 

@@ -225,7 +225,9 @@ pub fn steps() -> Result<(), Refused> {
     let listed = match FRAME_WORK.listed_car_sounds.get(car) {
         Some(cell) => cell.get(),
         None => unsafe {
-            ((FRAME_WORK.listed_car_sounds[0].addr() + 4 * car) as *const u32).read_volatile()
+            (crate::pointers::host_at(FRAME_WORK.listed_car_sounds[0].addr() + 4 * car)
+                as *const u32)
+                .read_volatile()
         },
     };
     if listed != u32::MAX {

@@ -336,10 +336,11 @@ mod asm_reference {
                 }
                 let mut b = a;
                 let _r = crate::race::trap::test_region(&b);
-                unsafe { project_vertex_asm(a.as_mut_ptr() as u32, flat) };
+                unsafe { project_vertex_asm(crate::pointers::game_address(a.as_mut_ptr()), flat) };
                 let kept = DRAW.scratch.get();
                 DRAW.scratch.set_bits(0xAAAA_AAAAu32);
-                project_vertex(b.as_mut_ptr() as u32).expect("the test's memory is registered");
+                project_vertex(crate::pointers::game_address(b.as_mut_ptr()))
+                    .expect("the test's memory is registered");
                 let now = DRAW.scratch.get();
                 for k in 0..8 {
                     assert!(

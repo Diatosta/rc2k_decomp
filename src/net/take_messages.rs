@@ -91,7 +91,10 @@ pub fn take_messages() -> Result<(), Refused> {
         match Kind::of(first) {
             Kind::Chat => {
                 GamePtr::new(m.size.wrapping_add(m.bytes)).write(0u8, "a received message")?;
-                chat_line_locked(player, m.bytes.wrapping_add(1) as *const u8)?;
+                chat_line_locked(
+                    player,
+                    crate::pointers::host(m.bytes.wrapping_add(1)) as *const u8,
+                )?;
             }
             Kind::Call { reply, ready } => {
                 if !messages::answers_call(round()?, own_state) {
@@ -124,7 +127,7 @@ pub fn take_messages() -> Result<(), Refused> {
                     first,
                     block,
                     time,
-                    m.bytes.wrapping_add(1) as *const u8,
+                    crate::pointers::host(m.bytes.wrapping_add(1)) as *const u8,
                     length,
                 )?;
                 unlock_received();

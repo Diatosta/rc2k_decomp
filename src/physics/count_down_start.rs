@@ -58,7 +58,7 @@ pub unsafe fn count_down_start_at(p: &CountPlaces) -> Result<(), Refused> {
         match c.count_down_start() {
             StartCount::Stopped | StartCount::Waiting(_) => Ok(()),
             StartCount::Counted { beep, .. } => {
-                (p.count as *mut u32).write_unaligned(c.countdown);
+                (crate::pointers::host(p.count) as *mut u32).write_unaligned(c.countdown);
                 if beep {
                     set_flag_at(p.current, p.listed, p.flag)?;
                 }

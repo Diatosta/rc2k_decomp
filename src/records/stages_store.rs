@@ -1168,22 +1168,22 @@ impl StageTables {
 
     /// `off_7354FE`'s address.
     pub fn result_tables_addr(&self) -> u32 {
-        self.result_tables.as_ptr() as u32
+        crate::pointers::game_address(self.result_tables.as_ptr())
     }
 
     /// The championship's first record.
     pub fn championship(&self) -> u32 {
-        self.championship.as_ptr() as u32
+        crate::pointers::game_address(self.championship.as_ptr())
     }
 
     /// Event table `k`'s first record (0x737FC2 + 0x480 k).
     pub fn event_table(&self, k: usize) -> u32 {
-        self.events[k].records.as_ptr() as u32
+        crate::pointers::game_address(self.events[k].records.as_ptr())
     }
 
     /// The track pack's head.
     pub fn trak_pak(&self) -> u32 {
-        &self.trak_pak as *const TrakPak as u32
+        crate::pointers::game_address(&self.trak_pak as *const TrakPak)
     }
 }
 
@@ -1194,7 +1194,7 @@ pub const END: usize = 0x73B674;
 
 /// Where IDA 0x734BC6 is now (`moved::MOVED`'s home).
 pub fn stage_tables_addr() -> usize {
-    &STAGE_TABLES as *const StageTables as usize + 2
+    crate::pointers::host_number(&STAGE_TABLES as *const StageTables) + 2
 }
 
 #[cfg(test)]
@@ -1214,8 +1214,12 @@ mod tests {
         at(offset_of!(StageTables, events), 0x737FC2);
         at(offset_of!(StageTables, tail), 0x73B5C2);
         assert_eq!(stage_tables_addr() % 4, START % 4);
-        let mine =
-            unsafe { std::slice::from_raw_parts(stage_tables_addr() as *const u8, END - START) };
+        let mine = unsafe {
+            std::slice::from_raw_parts(
+                crate::pointers::host_at(stage_tables_addr()) as *const u8,
+                END - START,
+            )
+        };
         assert_eq!(mine, &image_bytes(START, END - START)[..]);
     }
 }

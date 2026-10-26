@@ -108,7 +108,7 @@ impl PongState {
     pub const LEN: usize = 0x184;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        &PONG as *const PongState as usize
+        crate::pointers::host_number(&PONG as *const PongState)
     }
 }
 
@@ -200,7 +200,7 @@ impl PongRules {
     pub const LEN: usize = 0xB0;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        &PONG_RULES as *const PongRules as usize
+        crate::pointers::host_number(&PONG_RULES as *const PongRules)
     }
 }
 
@@ -209,9 +209,10 @@ impl PongRules {
 #[cfg(test)]
 pub fn state_at(mk: usize) -> &'static PongState {
     unsafe {
-        &*(mk
-            .wrapping_add(PongState::START)
-            .wrapping_sub(crate::marks::store::START) as *const PongState)
+        &*(crate::pointers::host_at(
+            mk.wrapping_add(PongState::START)
+                .wrapping_sub(crate::marks::store::START),
+        ) as *const PongState)
     }
 }
 
@@ -220,8 +221,10 @@ pub fn state_at(mk: usize) -> &'static PongState {
 #[cfg(test)]
 pub fn rules_at(mk: usize) -> PongRules {
     unsafe {
-        (mk.wrapping_add(PongRules::START)
-            .wrapping_sub(crate::marks::store::START) as *const PongRules)
+        (crate::pointers::host_at(
+            mk.wrapping_add(PongRules::START)
+                .wrapping_sub(crate::marks::store::START),
+        ) as *const PongRules)
             .read_unaligned()
     }
 }
@@ -231,7 +234,10 @@ pub const SHOWN_RVA: usize = rva(0x641678); // dword_641678
 /// `fld a; fadd b; fcomp c; fstsw ax; and eax, 700h`.
 pub fn sum_compare(a: u32, b: u32, c: u32) -> u32 {
     let (v, mut s) = ([a, b, c], 0u16);
-    sum_compare_x87(v.as_ptr() as usize, (&raw mut s) as usize);
+    sum_compare_x87(
+        crate::pointers::host_number(v.as_ptr()),
+        crate::pointers::host_number(&raw mut s),
+    );
     u32::from(s) & 0x700
 }
 
@@ -239,9 +245,15 @@ pub fn sum_compare(a: u32, b: u32, c: u32) -> u32 {
 pub fn less_compare(x: u32, k: u32, w: u32, m: Option<u32>) -> u32 {
     let (v, mut s) = ([x, k, w, m.unwrap_or(0)], 0u16);
     if m.is_some() {
-        less_compare_x87_1(v.as_ptr() as usize, (&raw mut s) as usize)
+        less_compare_x87_1(
+            crate::pointers::host_number(v.as_ptr()),
+            crate::pointers::host_number(&raw mut s),
+        )
     } else {
-        less_compare_x87_2(v.as_ptr() as usize, (&raw mut s) as usize)
+        less_compare_x87_2(
+            crate::pointers::host_number(v.as_ptr()),
+            crate::pointers::host_number(&raw mut s),
+        )
     };
     u32::from(s) & 0x700
 }

@@ -1116,9 +1116,21 @@ mod asm_reference {
                 let (mut a, mut b) = ([0xAAAA_AAAAu32; 8], [0xAAAA_AAAAu32; 8]);
                 let _r = crate::race::trap::test_region(&b);
                 unsafe {
-                    circle_place_asm(a.as_mut_ptr() as u32, k, n, radius, unit);
-                    circle_place(b.as_mut_ptr() as u32, k, n, radius, unit)
-                        .expect("the test's memory is registered");
+                    circle_place_asm(
+                        crate::pointers::game_address(a.as_mut_ptr()),
+                        k,
+                        n,
+                        radius,
+                        unit,
+                    );
+                    circle_place(
+                        crate::pointers::game_address(b.as_mut_ptr()),
+                        k,
+                        n,
+                        radius,
+                        unit,
+                    )
+                    .expect("the test's memory is registered");
                 }
                 for w in [4, 5] {
                     assert!(
@@ -1152,7 +1164,9 @@ mod asm_reference {
                 for q in points.iter_mut() {
                     *q = r.int() as u32;
                 }
-                COURSE.scene_points.set(points.as_ptr() as u32);
+                COURSE
+                    .scene_points
+                    .set(crate::pointers::game_address(points.as_ptr()));
                 for a in &places[2..6] {
                     game_write(rva(*a), r.int() as u32);
                 }
@@ -1218,10 +1232,10 @@ mod asm_reference {
                     crate::race::trap::test_region(&eb),
                 );
                 let args = (
-                    pa.as_ptr() as u32,
-                    pb.as_ptr() as u32,
-                    ea.as_ptr() as u32,
-                    eb.as_ptr() as u32,
+                    crate::pointers::game_address(pa.as_ptr()),
+                    crate::pointers::game_address(pb.as_ptr()),
+                    crate::pointers::game_address(ea.as_ptr()),
+                    crate::pointers::game_address(eb.as_ptr()),
                 );
                 let read = || places.map(|a| game_read::<u32>(rva(a)));
                 for a in &places[7..] {
@@ -1289,8 +1303,8 @@ mod asm_reference {
                 let _region = crate::race::trap::test_region(&at);
                 let (want, got) = unsafe {
                     (
-                        angle_asm(at.as_ptr() as u32),
-                        angle_of(at.as_ptr() as u32).unwrap(),
+                        angle_asm(crate::pointers::game_address(at.as_ptr())),
+                        angle_of(crate::pointers::game_address(at.as_ptr())).unwrap(),
                     )
                 };
                 assert!(within_ulps(want, got, 1), "{at:x?}: {want:#x} {got:#x}");

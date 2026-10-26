@@ -509,23 +509,23 @@ pub static HUD: Hud = Hud {
 
 /// Where the block is (`moved::MOVED`'s home for IDA 0x75B940).
 pub fn hud_addr() -> usize {
-    &HUD as *const Hud as usize
+    crate::pointers::host_number(&HUD as *const Hud)
 }
 
 /// The batch's vertices (`unk_75C324`), for the drawer.
 pub fn vertices() -> usize {
-    HUD.vertices.as_ptr() as usize
+    crate::pointers::host_number(HUD.vertices.as_ptr())
 }
 
 /// The batch's indices (`unk_764324`), for the drawer.
 pub fn indices() -> usize {
-    HUD.indices.as_ptr() as usize
+    crate::pointers::host_number(HUD.indices.as_ptr())
 }
 
 /// The rectangle `n` of the table as an address (`add_sprite` is handed rectangles by
 /// address: the record's numbers are not checked, as in the original).
 pub fn rect_addr(n: u32) -> u32 {
-    (HUD.rects.as_ptr() as u32).wrapping_add(n.wrapping_mul(0x10))
+    (crate::pointers::game_address(HUD.rects.as_ptr())).wrapping_add(n.wrapping_mul(0x10))
 }
 
 #[cfg(test)]
@@ -536,7 +536,9 @@ mod tests {
     fn first_values_are_the_games() {
         let _g = crate::store::test_lock();
         assert_eq!(size_of::<Hud>(), LEN);
-        let mine = unsafe { std::slice::from_raw_parts(hud_addr() as *const u8, LEN) };
+        let mine = unsafe {
+            std::slice::from_raw_parts(crate::pointers::host_at(hud_addr()) as *const u8, LEN)
+        };
         let image = crate::moved::image_bytes(START, LEN);
         assert!(
             mine == &image[..],

@@ -125,7 +125,7 @@ pub unsafe fn place_camera() {
             x87_1(
                 x.addr(),
                 crate::race::store::asm_base() as usize,
-                (parts[k].as_mut_ptr()) as usize,
+                crate::pointers::host_number(parts[k].as_mut_ptr()),
             );
         }
         let turned =

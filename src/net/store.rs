@@ -111,7 +111,7 @@ impl PlayerBlock {
     /// Where the count and the records are (`+0x34`, the start of the inbox
     /// `rc2k_core::net::inbox` works on, which runs on past `messages`).
     pub fn inbox_addr(&self) -> usize {
-        self as *const Self as usize + 0x34
+        crate::pointers::host_number(self as *const Self) + 0x34
     }
 }
 
@@ -478,7 +478,7 @@ impl NetVars {
     pub const LEN: usize = 0x80F69;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        &NET as *const NetVars as usize
+        crate::pointers::host_number(&NET as *const NetVars)
     }
 }
 
@@ -535,7 +535,7 @@ impl Button {
     pub const LEN: usize = 0x1C;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        &BUTTON as *const Button as usize
+        crate::pointers::host_number(&BUTTON as *const Button)
     }
 }
 

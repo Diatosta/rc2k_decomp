@@ -43,7 +43,7 @@ impl GroundNames {
     pub const LEN: usize = 0xA6;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        &GROUND_NAMES as *const GroundNames as usize
+        crate::pointers::host_number(&GROUND_NAMES as *const GroundNames)
     }
 }
 
@@ -102,7 +102,7 @@ impl MaskBlocks {
     pub const LEN: usize = 0xBB;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        &MASK_BLOCKS as *const MaskBlocks as usize
+        crate::pointers::host_number(&MASK_BLOCKS as *const MaskBlocks)
     }
 }
 
@@ -142,7 +142,7 @@ impl PictureCopy {
     pub const LEN: usize = 0x7F;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        &PICTURE_COPY as *const PictureCopy as usize
+        crate::pointers::host_number(&PICTURE_COPY as *const PictureCopy)
     }
 }
 
@@ -198,7 +198,7 @@ impl KindPictures {
     pub const LEN: usize = 0x88;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        &KIND_PICTURES as *const KindPictures as usize
+        crate::pointers::host_number(&KIND_PICTURES as *const KindPictures)
     }
 }
 

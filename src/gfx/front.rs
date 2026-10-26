@@ -26,7 +26,7 @@ pub static SURFACES: Surfaces = Surfaces {
 
 /// Where the block is (`moved::MOVED`'s home for IDA 0x4F32B4).
 pub fn home() -> usize {
-    &SURFACES as *const Surfaces as usize
+    crate::pointers::host_number(&SURFACES as *const Surfaces)
 }
 
 #[cfg(test)]

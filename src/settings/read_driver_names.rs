@@ -52,7 +52,7 @@ pub fn read_driver_names(path: *const u8) -> Result<(), BadInput> {
             return Ok(());
         };
         let entries = rc2k_core::files::settings::driver_names(
-            &GamePtr::new(text as u32).bytes("the driver names' text")?,
+            &GamePtr::new(crate::pointers::game_address(text)).bytes("the driver names' text")?,
             &crate::strings::same_text::case_table(),
         )
         .map_err(|e| BadInput(e.0))?;

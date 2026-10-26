@@ -12,9 +12,9 @@ use crate::physics::tables_store::PHYSICS;
 
 unsafe fn core(v: &[u32]) {
     unsafe {
-        let w = (v[0] as *const u32).read_unaligned();
-        (v[1] as *mut u32).write_unaligned(w);
-        (v[2] as *mut u32).write_unaligned(0);
+        let w = (crate::pointers::host(v[0]) as *const u32).read_unaligned();
+        (crate::pointers::host(v[1]) as *mut u32).write_unaligned(w);
+        (crate::pointers::host(v[2]) as *mut u32).write_unaligned(0);
     }
 }
 

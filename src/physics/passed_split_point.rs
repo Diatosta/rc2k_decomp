@@ -44,7 +44,10 @@ fn distance(point: u32) {
 /// dword +0x22400C), their squares added, `fsqrt`, x `flt_5C5DA0`, into +0x214D04.
 fn distance_at(rc: usize, s: usize) {
     unsafe {
-        let (rc, s) = (rc as *mut u8, s as *const u8);
+        let (rc, s) = (
+            crate::pointers::host_at(rc),
+            crate::pointers::host_at(s) as *const u8,
+        );
         let word = |p: *const u8| p.cast::<i32>().read_unaligned();
         let dx = word(s).wrapping_sub(word(rc.add(0x239824)));
         mov(rc, 0x22400C, dx as u32);
@@ -71,7 +74,10 @@ fn angle(point: u32) {
 /// `flt_5C5D98`, `fistp` into the scratch, its low 16 bits.
 fn angle_at(rc: usize, s: usize) {
     unsafe {
-        let (rc, s) = (rc as *mut u8, s as *const u8);
+        let (rc, s) = (
+            crate::pointers::host_at(rc),
+            crate::pointers::host_at(s) as *const u8,
+        );
         let word = |p: *const u8| p.cast::<i32>().read_unaligned();
         let dx = word(rc.add(0x239824)).wrapping_sub(word(s));
         mov(rc, 0x22400C, dx as u32);

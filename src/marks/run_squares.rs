@@ -29,7 +29,10 @@ const LIFE: i32 = 0xFA0;
 /// `fld k; fsub z`, kept extended.
 fn less(k: u32, z: u32) -> [u8; 10] {
     let (v, mut out) = ([k, z], [0u8; 10]);
-    less_x87(v.as_ptr() as usize, out.as_mut_ptr() as usize);
+    less_x87(
+        crate::pointers::host_number(v.as_ptr()),
+        crate::pointers::host_number(out.as_mut_ptr()),
+    );
     out
 }
 

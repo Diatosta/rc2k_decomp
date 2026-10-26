@@ -35,9 +35,9 @@ pub fn shuffle_drivers() -> Result<(), Refused> {
         GamePtr::new(CAR_NUMBERS.shuffle_b.addr() as u32),
     ];
     for &(table, count) in &TABLES {
-        let first = GamePtr::new(
-            &crate::menu::drivers_store::DRIVERS.drivers[table] as *const _ as usize as u32,
-        );
+        let first = GamePtr::new(crate::pointers::game_address(
+            &crate::menu::drivers_store::DRIVERS.drivers[table] as *const _,
+        ));
         let n = count.get();
         for _ in 0..n {
             DRAW_WORK.figure.set(random_below(n)?);

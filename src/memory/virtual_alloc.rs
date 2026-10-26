@@ -29,14 +29,14 @@ pub unsafe fn virtual_alloc(bytes: u32) -> Result<u32, Refused> {
     if bytes == 0 {
         return Ok(0);
     }
-    let at = unsafe {
+    let at = crate::pointers::game_address(unsafe {
         VirtualAlloc(
             std::ptr::null(),
             bytes as usize,
             MEM_COMMIT | MEM_RESERVE,
             PAGE_READWRITE,
         )
-    } as u32;
+    });
     if at == 0 {
         return Err(NO_MEMORY.into());
     }

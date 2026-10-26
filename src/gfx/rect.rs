@@ -58,11 +58,13 @@ unsafe fn carry_out(plan: &rc2k_core::gfx::raster::Plan, colour: u32, palette: u
 unsafe fn put(p: u32, bits: u32, colour: u32, palette: u32) {
     unsafe {
         match bits {
-            16 => (p as *mut u16)
-                .write_unaligned(((palette + 4 * colour) as *const u32).read_unaligned() as u16),
-            32 => (p as *mut u32)
-                .write_unaligned(((palette + 4 * colour) as *const u32).read_unaligned()),
-            _ => (p as *mut u8).write(colour as u8),
+            16 => (crate::pointers::host(p) as *mut u16).write_unaligned(
+                (crate::pointers::host(palette + 4 * colour) as *const u32).read_unaligned() as u16,
+            ),
+            32 => (crate::pointers::host(p) as *mut u32).write_unaligned(
+                (crate::pointers::host(palette + 4 * colour) as *const u32).read_unaligned(),
+            ),
+            _ => crate::pointers::host(p).write(colour as u8),
         }
     }
 }

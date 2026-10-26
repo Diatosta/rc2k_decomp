@@ -46,7 +46,7 @@ impl ScreenMode {
     pub const LEN: usize = 0x20;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        &SCREEN_MODE as *const ScreenMode as usize + 12
+        crate::pointers::host_number(&SCREEN_MODE as *const ScreenMode) + 12
     }
 }
 
@@ -117,7 +117,7 @@ impl DrawSurface {
     pub const LEN: usize = 0x44;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        &DRAW_SURFACE as *const DrawSurface as usize + 4
+        crate::pointers::host_number(&DRAW_SURFACE as *const DrawSurface) + 4
     }
 }
 
@@ -132,8 +132,12 @@ mod tests {
             12 + ScreenMode::LEN <= size && size <= (12 + ScreenMode::LEN).next_multiple_of(16)
         );
         let image = crate::moved::image_bytes(ScreenMode::START, ScreenMode::LEN);
-        let mine =
-            unsafe { std::slice::from_raw_parts(ScreenMode::home() as *const u8, ScreenMode::LEN) };
+        let mine = unsafe {
+            std::slice::from_raw_parts(
+                crate::pointers::host_at(ScreenMode::home()) as *const u8,
+                ScreenMode::LEN,
+            )
+        };
         assert_eq!(mine, &image[..]);
     }
 
@@ -145,7 +149,10 @@ mod tests {
         );
         let image = crate::moved::image_bytes(DrawSurface::START, DrawSurface::LEN);
         let mine = unsafe {
-            std::slice::from_raw_parts(DrawSurface::home() as *const u8, DrawSurface::LEN)
+            std::slice::from_raw_parts(
+                crate::pointers::host_at(DrawSurface::home()) as *const u8,
+                DrawSurface::LEN,
+            )
         };
         assert_eq!(mine, &image[..]);
     }

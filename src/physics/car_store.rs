@@ -541,7 +541,7 @@ impl core::ops::Deref for InRaceBlock {
     fn deref(&self) -> &Car {
         // SAFETY: the race block lives as long as the program and is aligned to 4 (the
         // test checks); every field is an atomic or a cell, as the block's bytes were shared.
-        unsafe { &*(car_addr() as *const Car) }
+        unsafe { &*(crate::pointers::host_at(car_addr()) as *const Car) }
     }
 }
 
@@ -575,8 +575,16 @@ mod tests {
             car_addr(),
             crate::framework::game_addr(crate::framework::rva(START))
         );
-        assert_eq!(&CAR.gear as *const _ as usize, car_addr() + 0x1D4);
-        let mine = unsafe { std::slice::from_raw_parts(car_addr() as *const u8, END - START) };
+        assert_eq!(
+            crate::pointers::host_number(&CAR.gear as *const _),
+            car_addr() + 0x1D4
+        );
+        let mine = unsafe {
+            std::slice::from_raw_parts(
+                crate::pointers::host_at(car_addr()) as *const u8,
+                END - START,
+            )
+        };
         assert_eq!(mine, &image_bytes(START, END - START)[..]);
     }
 }

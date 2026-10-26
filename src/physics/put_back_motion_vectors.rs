@@ -40,12 +40,20 @@ impl MotionPlaces {
 pub unsafe fn put_back_motion_vectors_at(p: &MotionPlaces) {
     unsafe {
         for k in 0..3usize {
-            let m = (p.kept_motion as *const u32).add(k).read_unaligned();
-            (p.motion as *mut u32).add(k).write_unaligned(m);
+            let m = (crate::pointers::host(p.kept_motion) as *const u32)
+                .add(k)
+                .read_unaligned();
+            (crate::pointers::host(p.motion) as *mut u32)
+                .add(k)
+                .write_unaligned(m);
         }
         for k in 0..3usize {
-            let s = (p.kept_spin as *const u32).add(k).read_unaligned();
-            (p.spin as *mut u32).add(k).write_unaligned(s);
+            let s = (crate::pointers::host(p.kept_spin) as *const u32)
+                .add(k)
+                .read_unaligned();
+            (crate::pointers::host(p.spin) as *mut u32)
+                .add(k)
+                .write_unaligned(s);
         }
         car_frame_motion_at(p.motion, p.inverse, p.local);
     }

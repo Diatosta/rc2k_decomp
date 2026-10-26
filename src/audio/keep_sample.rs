@@ -32,5 +32,7 @@ pub fn allocate_in_game(length: u32) -> Result<u32, Refused> {
     let list = AUDIO.sample_memory.as_ptr();
     // The allocator reports a failure itself (0x80108571), so `sub_409DFB`'s own fatal
     // error 0x80E28021 cannot come.
-    Ok({ crate::memory::allocate::allocate(list, length) }? as u32)
+    Ok(crate::pointers::game_address({
+        crate::memory::allocate::allocate(list, length)
+    }?))
 }

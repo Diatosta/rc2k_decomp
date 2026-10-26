@@ -7,7 +7,7 @@ use windows_sys::Win32::UI::WindowsAndMessaging::{IsIconic, SW_RESTORE, ShowWind
 
 pub fn restore_window() {
     unsafe {
-        let window = MACHINE.window.get() as usize as _;
+        let window = crate::pointers::host_at(MACHINE.window.get() as usize) as _;
         if IsIconic(window) != 0 {
             ShowWindow(window, SW_RESTORE);
         }

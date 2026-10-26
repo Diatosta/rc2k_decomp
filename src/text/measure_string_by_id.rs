@@ -28,7 +28,8 @@ pub unsafe fn measure_string_by_id(
 ) -> Result<Measured, Refused> {
     unsafe {
         let bytes = string_text(id)?;
-        crate::pointers::GamePtr::new(buffer as u32).write_bytes(&bytes, "the text buffer")?;
+        crate::pointers::GamePtr::new(crate::pointers::game_address(buffer))
+            .write_bytes(&bytes, "the text buffer")?;
         measure_text(font, buffer, x, canvas)
     }
 }
@@ -45,11 +46,12 @@ pub unsafe fn measure_string_by_id_at(
         return Err(BadInput("no font").into());
     }
     unsafe {
-        let mut copy =
-            crate::pointers::GamePtr::new(font as usize as u32).read::<Font>("a font")?;
+        let mut copy = crate::pointers::GamePtr::new(crate::pointers::game_address(font))
+            .read::<Font>("a font")?;
         let measured = measure_string_by_id(id, &mut copy, x, text(), canvas)?;
         if canvas.keeps_font_changes() {
-            crate::pointers::GamePtr::new(font as usize as u32).write(copy, "a font")?;
+            crate::pointers::GamePtr::new(crate::pointers::game_address(font))
+                .write(copy, "a font")?;
         }
         Ok(measured)
     }

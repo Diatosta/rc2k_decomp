@@ -13,7 +13,7 @@ use crate::physics::car_store::CAR;
 /// The Rust version.
 pub unsafe fn turn_by_heading(point: u32, ebx: u32) {
     unsafe {
-        let p = point as *mut u32;
+        let p = crate::pointers::host(point) as *mut u32;
         let angle = CAR.car_heading.get().wrapping_neg();
         let [x, _, z, _] =
             turn_float_point_xz(p.read_unaligned(), ebx, p.add(2).read_unaligned(), angle);

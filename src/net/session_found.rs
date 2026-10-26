@@ -32,7 +32,7 @@ pub fn session_found(args: &[u32]) -> Result<u32, Refused> {
     if desc != 0 {
         log(get(desc + 0x30), false, 2);
     }
-    log(c"".as_ptr() as u32, true, 2);
+    log(crate::pointers::game_address(c"".as_ptr()), true, 2);
     // Converted: `rc2k_core::net::lists::session_found`.
     let count =
         match lists::session_found(flags, desc != 0, || get(desc + 0x44), || NET.sessions.get()) {

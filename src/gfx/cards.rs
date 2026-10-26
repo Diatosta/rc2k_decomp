@@ -25,7 +25,7 @@ pub static CARDS: Cards = Cards {
 
 /// Where the block is (`moved::MOVED`'s home for IDA 0x5AB4AC).
 pub fn home() -> usize {
-    &CARDS as *const Cards as usize
+    crate::pointers::host_number(&CARDS as *const Cards)
 }
 
 #[cfg(test)]

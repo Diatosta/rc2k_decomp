@@ -44,7 +44,7 @@ pub fn move_dwords(to: usize, from: usize, dwords: usize) -> Result<(), BadInput
 /// # Safety
 /// No other reference to the table may be alive while the slice is.
 pub unsafe fn table(at: usize, dwords: usize) -> &'static mut [u32] {
-    let at = at as *mut u32;
+    let at = crate::pointers::host_at(at) as *mut u32;
     debug_assert!(at.is_aligned());
     unsafe { std::slice::from_raw_parts_mut(at, dwords) }
 }

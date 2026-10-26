@@ -81,12 +81,18 @@ fn fixed_camera(second: bool) {
     };
     let (dx, dy, dz) = (d(0), d(1), d(2));
     let v = [dx, dz, dy];
-    x87_1(v.as_ptr() as usize, crate::race::store::asm_base() as usize);
+    x87_1(
+        crate::pointers::host_number(v.as_ptr()),
+        crate::race::store::asm_base() as usize,
+    );
     CAR.camera_heading.set(CAR.camera_heading.get() << 4);
     CAR.camera_pitch
         .set((CAR.camera_pitch.get() << 4).wrapping_neg());
     let w = [dx, dy, dz];
-    x87_2(w.as_ptr() as usize, crate::race::store::asm_base() as usize);
+    x87_2(
+        crate::pointers::host_number(w.as_ptr()),
+        crate::race::store::asm_base() as usize,
+    );
     DRAW.scratch.set(dz);
     VIEW_VARS.camera_distance.set_bits(rounded({
         crate::physics::vector_length::vector_length(VIEW_VARS.camera_vector[0].addr() as u32)

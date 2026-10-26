@@ -24,7 +24,7 @@ fn ida_table(ida: u32) -> u32 {
         (start..start + len).contains(&(ida as usize)),
         "a pointer of the marks' data names {ida:#x}, outside the profile tables"
     );
-    (PROFILE_TABLES.tables.as_ptr() as usize + (ida as usize - start)) as u32
+    (crate::pointers::host_number(PROFILE_TABLES.tables.as_ptr()) + (ida as usize - start)) as u32
 }
 
 fn get(at: u32) -> Result<u32, BadInput> {
@@ -139,7 +139,7 @@ pub fn make_profiles(resume: u32) -> Result<(), Refused> {
             DRAW_FRAME.profiles_done.set(resume);
         }
         let from = COURSE_LISTS.course_info.bits().wrapping_add(COURSE_CORNERS);
-        let to = MARK_CORNERS.corners.as_ptr() as u32;
+        let to = crate::pointers::game_address(MARK_CORNERS.corners.as_ptr());
         GamePtr::new(from).copy_to(GamePtr::new(to), CORNERS_LEN, "the course corners")?;
         crate::marks::blocks::allocate_links()?;
         crate::marks::blocks::reset_settings_blocks()?;
@@ -169,7 +169,7 @@ impl ProfileRings {
     pub const LEN: usize = 0x804;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        &PROFILE_RINGS as *const ProfileRings as usize
+        crate::pointers::host_number(&PROFILE_RINGS as *const ProfileRings)
     }
 }
 
@@ -208,7 +208,7 @@ impl ProfileLists {
     pub const LEN: usize = 0x34;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        &PROFILE_LISTS as *const ProfileLists as usize
+        crate::pointers::host_number(&PROFILE_LISTS as *const ProfileLists)
     }
 }
 
@@ -257,7 +257,7 @@ impl ProfileTables {
     pub const LEN: usize = 0x6800;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        &PROFILE_TABLES as *const ProfileTables as usize
+        crate::pointers::host_number(&PROFILE_TABLES as *const ProfileTables)
     }
 }
 
@@ -271,7 +271,10 @@ mod typed_tests {
         assert_eq!(size_of::<ProfileRings>(), ProfileRings::LEN);
         let image = crate::moved::image_bytes(ProfileRings::START, ProfileRings::LEN);
         let mine = unsafe {
-            std::slice::from_raw_parts(ProfileRings::home() as *const u8, ProfileRings::LEN)
+            std::slice::from_raw_parts(
+                crate::pointers::host_at(ProfileRings::home()) as *const u8,
+                ProfileRings::LEN,
+            )
         };
         assert!(
             mine == &image[..],
@@ -292,7 +295,10 @@ mod typed_tests {
         assert_eq!(size_of::<ProfileLists>(), ProfileLists::LEN);
         let image = crate::moved::image_bytes(ProfileLists::START, ProfileLists::LEN);
         let mine = unsafe {
-            std::slice::from_raw_parts(ProfileLists::home() as *const u8, ProfileLists::LEN)
+            std::slice::from_raw_parts(
+                crate::pointers::host_at(ProfileLists::home()) as *const u8,
+                ProfileLists::LEN,
+            )
         };
         assert!(
             mine == &image[..],
@@ -313,7 +319,10 @@ mod typed_tests {
         assert_eq!(size_of::<ProfileTables>(), ProfileTables::LEN);
         let image = crate::moved::image_bytes(ProfileTables::START, ProfileTables::LEN);
         let mine = unsafe {
-            std::slice::from_raw_parts(ProfileTables::home() as *const u8, ProfileTables::LEN)
+            std::slice::from_raw_parts(
+                crate::pointers::host_at(ProfileTables::home()) as *const u8,
+                ProfileTables::LEN,
+            )
         };
         assert!(
             mine == &image[..],

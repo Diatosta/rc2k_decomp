@@ -70,14 +70,14 @@ pub fn multiply_matrices(a: usize, b: usize, out: usize) {
     for column in 0..3 {
         for row in 0..4 {
             x87::row_times_column(
-                (a + row * 0x10) as *const u32,
-                (b + column * 4) as *const u32,
-                (out + row * 0x10 + column * 4) as *mut u32,
+                crate::pointers::host_at(a + row * 0x10) as *const u32,
+                crate::pointers::host_at(b + column * 4) as *const u32,
+                crate::pointers::host_at(out + row * 0x10 + column * 4) as *mut u32,
             );
         }
         x87::add_into(
-            (b + 0x30 + column * 4) as *const u32,
-            (out + 0x30 + column * 4) as *mut u32,
+            crate::pointers::host_at(b + 0x30 + column * 4) as *const u32,
+            crate::pointers::host_at(out + 0x30 + column * 4) as *mut u32,
         );
     }
 }
@@ -87,13 +87,13 @@ pub fn multiply_matrices(a: usize, b: usize, out: usize) {
 pub unsafe fn copy_matrix_with_place(from: usize, other: usize, out: usize) {
     unsafe {
         for n in 0..0x10 {
-            let dword = ((from + n * 4) as *const u32).read_unaligned();
-            ((out + n * 4) as *mut u32).write_unaligned(dword);
+            let dword = (crate::pointers::host_at(from + n * 4) as *const u32).read_unaligned();
+            (crate::pointers::host_at(out + n * 4) as *mut u32).write_unaligned(dword);
         }
         for n in 0..3 {
             x87::add_into(
-                (other + 0x30 + n * 4) as *const u32,
-                (out + 0x30 + n * 4) as *mut u32,
+                crate::pointers::host_at(other + 0x30 + n * 4) as *const u32,
+                crate::pointers::host_at(out + 0x30 + n * 4) as *mut u32,
             );
         }
     }
@@ -117,8 +117,8 @@ pub fn set_light_direction() {
     let ahead = [0i32, 0, 1];
     rotate(
         ahead.as_ptr(),
-        MATRICES.lit_matrix[0].addr() as *const u32,
-        (DRAW.light_direction[0].addr() - 0x10) as *mut u32,
+        crate::pointers::host_at(MATRICES.lit_matrix[0].addr()) as *const u32,
+        crate::pointers::host_at(DRAW.light_direction[0].addr() - 0x10) as *mut u32,
     );
 }
 

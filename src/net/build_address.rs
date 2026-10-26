@@ -60,9 +60,9 @@ pub fn build_address(connection_number: u32) -> Result<bool, Refused> {
                 NET.sp_tcpip.addr() as u32,
             );
             let length = {
-                crate::strings::text_length::text_length(
-                    (NET.host_address.addr() as u32) as *const u8,
-                )
+                crate::strings::text_length::text_length(crate::pointers::host(
+                    NET.host_address.addr() as u32,
+                ) as *const u8)
             }?;
             add_address_element(
                 NET.aid_inet.addr() as u32,

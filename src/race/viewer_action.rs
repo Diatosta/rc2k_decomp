@@ -159,7 +159,7 @@ pub fn viewer_action(action: u32, c: &Carried) -> Result<bool, Refused> {
                     .addr() as u32)
                     .wrapping_add(byte)
                     .wrapping_add(block.wrapping_mul(8));
-                let at = byte as *mut u8;
+                let at = crate::pointers::host(byte);
                 let old = unsafe { at.read() };
                 unsafe { at.write(old ^ 1) };
                 crate::race::spread_camera::spread_camera(byte, old)?;
@@ -214,7 +214,7 @@ fn cycle_byte(byte: usize) -> Result<(), Refused> {
         .addr() as u32)
         .wrapping_add(byte as u32)
         .wrapping_add(block.wrapping_mul(8));
-    let at = byte_at as *mut u8;
+    let at = crate::pointers::host(byte_at);
     let old = unsafe { at.read() };
     let dl = rc2k_core::race::viewer::next_byte(byte as u32, old);
     unsafe { at.write(dl) };

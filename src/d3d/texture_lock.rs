@@ -12,11 +12,13 @@ use crate::errors::FatalError;
 pub const RECORD: u32 = 0x78;
 
 pub fn record(slot: u32) -> u32 {
-    (crate::gfx::texture_upload::TEXTURE_TABLES
-        .system
-        .records
-        .as_ptr() as u32)
-        .wrapping_add(slot.wrapping_mul(RECORD))
+    crate::pointers::game_address(
+        crate::gfx::texture_upload::TEXTURE_TABLES
+            .system
+            .records
+            .as_ptr(),
+    )
+    .wrapping_add(slot.wrapping_mul(RECORD))
 }
 
 pub fn get(a: u32) -> u32 {

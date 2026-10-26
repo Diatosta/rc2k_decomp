@@ -57,17 +57,22 @@ fn program() -> Result<Vec<u8>, BadInput> {
 /// `no_audio` is where the sound's switch is.
 pub unsafe fn check_at_start(outside: &mut dyn Outside, no_audio: *mut u32) -> Result<(), Refused> {
     unsafe {
-        let record = crate::install::installer::INSTALL_TEXTS.record_path.addr() as *const u8;
+        let record =
+            crate::pointers::host_at(crate::install::installer::INSTALL_TEXTS.record_path.addr())
+                as *const u8;
         if INSTALLER_RUN.installing.get() == 1 || outside.file_exists(record)? {
             return Ok(());
         }
-        GamePtr::new(no_audio as u32).write(1u32, "the sound's switch")?;
-        if outside.file_exists(crate::gfx::texts::address(&crate::gfx::texts::JADE) as *const u8)? {
+        GamePtr::new(crate::pointers::game_address(no_audio)).write(1u32, "the sound's switch")?;
+        if outside.file_exists(crate::pointers::host(crate::gfx::texts::address(
+            &crate::gfx::texts::JADE,
+        )) as *const u8)?
+        {
             return Ok(());
         }
         let path = scratch_path();
         let put = |at: usize, text: &[u8]| -> Result<(), BadInput> {
-            let place = GamePtr::new(path as u32);
+            let place = GamePtr::new(crate::pointers::game_address(path));
             place
                 .offset(at as u32)
                 .write_bytes(text, "the scratch path")?;
@@ -81,8 +86,12 @@ pub unsafe fn check_at_start(outside: &mut dyn Outside, no_audio: *mut u32) -> R
         if INSTALLER_NAMES.status.get() == 1 && INSTALLER_NAMES.source.get(0) != 0 {
             // Whether the source could be put there is not asked: the program's name
             // goes after whatever text the place holds.
-            outside.normalise_path(INSTALLER_NAMES.source.addr() as *const u8, path)?;
-            let held = GamePtr::new(path as u32).read_bytes(PATH_ROOM, "the scratch path")?;
+            outside.normalise_path(
+                crate::pointers::host_at(INSTALLER_NAMES.source.addr()) as *const u8,
+                path,
+            )?;
+            let held = GamePtr::new(crate::pointers::game_address(path))
+                .read_bytes(PATH_ROOM, "the scratch path")?;
             let Some(len) = held
                 .iter()
                 .position(|&c| c == 0)
@@ -128,7 +137,7 @@ pub unsafe fn check_at_start(outside: &mut dyn Outside, no_audio: *mut u32) -> R
             if !outside.file_exists(path)? {
                 continue;
             }
-            GamePtr::new(path as u32 + 3).write(0u8, "the scratch path")?;
+            GamePtr::new(crate::pointers::game_address(path) + 3).write(0u8, "the scratch path")?;
             if !outside.set_directory(path) {
                 continue;
             }

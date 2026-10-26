@@ -38,7 +38,7 @@ pub fn scale_rows3(rows: u32) -> Result<(), BadInput> {
     // SAFETY: the nine floats lie in one live region (checked above).
     for n in 0..3 {
         x87::scale_row(
-            (rows + 12 * n) as *mut u32,
+            crate::pointers::host(rows + 12 * n) as *mut u32,
             MASK_CONSTANTS.row_lengths[n as usize].bits(),
         );
     }
@@ -71,11 +71,11 @@ pub fn smooth_pair(n: u32, a: u32, b: u32) -> (u32, u32) {
 /// and `faddp`s). Every register kept.
 pub fn turn_pair(inputs: [[u8; 10]; 2]) -> [[u8; 10]; 2] {
     let mut out = [[0u8; 10]; 2];
-    let m = MASKS.turn.as_ptr() as u32;
+    let m = crate::pointers::game_address(MASKS.turn.as_ptr());
     turn_pair_x87(
-        inputs.as_ptr() as usize,
+        crate::pointers::host_number(inputs.as_ptr()),
         m as usize,
-        out.as_mut_ptr() as usize,
+        crate::pointers::host_number(out.as_mut_ptr()),
     );
     out
 }
@@ -84,9 +84,9 @@ pub fn turn_pair(inputs: [[u8; 10]; 2]) -> [[u8; 10]; 2] {
 fn scaled_ints(inputs: &[[u8; 10]; 2], k: *const u32) -> (i32, i32) {
     let mut v = [0i32; 2];
     scaled_ints_x87(
-        inputs.as_ptr() as usize,
-        k as usize,
-        v.as_mut_ptr() as usize,
+        crate::pointers::host_number(inputs.as_ptr()),
+        crate::pointers::host_number(k),
+        crate::pointers::host_number(v.as_mut_ptr()),
     );
     (v[0], v[1])
 }
@@ -95,9 +95,9 @@ fn scaled_ints(inputs: &[[u8; 10]; 2], k: *const u32) -> (i32, i32) {
 fn int_over_80(v: i32, k: *const u32) -> [u8; 10] {
     let mut out = [0u8; 10];
     int_over_80_x87(
-        (&raw const v) as usize,
-        k as usize,
-        out.as_mut_ptr() as usize,
+        crate::pointers::host_number(&raw const v),
+        crate::pointers::host_number(k),
+        crate::pointers::host_number(out.as_mut_ptr()),
     );
     out
 }
