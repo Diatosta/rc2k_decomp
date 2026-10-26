@@ -11,11 +11,11 @@ use crate::errors::Refused;
 use crate::menu::standings::*;
 
 /// The Rust version (see the header): the registers it leaves.
-pub unsafe fn clear_standings_a() -> Result<(), Refused> {
+pub fn clear_standings_a() -> Result<(), Refused> {
     let first: u32 = { TABLE_A_RVA.get() };
     let all = entries(first, A_ENTRY)?;
     // Converted: `rc2k_core::menu::standings::A_FIGURE`, stored in each entry.
     use rc2k_core::menu::standings::A_FIGURE;
-    unsafe { table(first, A_ENTRY, all.len() as u32) }.store_all(&[(A_FIGURE, 0)]);
+    table(first, A_ENTRY, all.len() as u32)?.store_all(&[(A_FIGURE, 0)]);
     Ok(())
 }

@@ -13,15 +13,13 @@ use crate::race::panel_store::PANEL;
 use crate::race::work_store::RACE_WORK;
 
 /// The Rust version.
-pub unsafe fn countdown_beeps() -> Result<(), Refused> {
+pub fn countdown_beeps() -> Result<(), Refused> {
     for (car, to) in [(0u32, &PANEL.lights[0]), (1, &PANEL.lights[1])] {
         RACE_WORK.current_car.set(car);
-        unsafe {
-            crate::drive::countdown_beep::countdown_beep(
-                crate::race::blocks_store::block_addr(car as usize) as u32,
-                to.lit.addr() as u32,
-            )
-        }?;
+        crate::drive::countdown_beep::countdown_beep(
+            crate::race::blocks_store::block_addr(car as usize) as u32,
+            &to.lit,
+        )?;
     }
     Ok(())
 }

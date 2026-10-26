@@ -14,12 +14,15 @@ use crate::menu::standings::*;
 
 /// Each group's (0 .. 3) players, in order, into the table's entries from the group's slot
 /// down (`copy_standing_entry`, ebx the player's index).
-unsafe fn players_by_group(first: u32, size: u32, firsts: [usize; 4]) -> Result<(), Refused> {
+fn players_by_group(first: u32, size: u32, firsts: [usize; 4]) -> Result<(), Refused> {
     let players = counted_players()?;
-    let groups: Vec<u32> = players.iter().map(|&p| get(p + 0x90)).collect();
+    let groups: Vec<u32> = players
+        .iter()
+        .map(|&p| get(p + 0x90))
+        .collect::<Result<_, _>>()?;
     // Converted: `rc2k_core::menu::standings::by_group`.
     for (n, e) in rc2k_core::menu::standings::by_group(&groups, firsts) {
-        unsafe {
+        {
             crate::menu::copy_standing_entry::copy_standing_entry(
                 first + size * e as u32,
                 players[n],
@@ -31,14 +34,14 @@ unsafe fn players_by_group(first: u32, size: u32, firsts: [usize; 4]) -> Result<
 }
 
 /// The Rust version (see the header): the registers it leaves.
-pub unsafe fn standings_a_from_all() -> Result<(), Refused> {
+pub fn standings_a_from_all() -> Result<(), Refused> {
     let players = counted_players()?;
-    if players.iter().any(|&p| get(p + 0x18) == 0) {
+    if any_unnamed(&players)? {
         return Err(BadInput("a player without a name").into());
     }
-    unsafe { crate::menu::standings_from_drivers::standings_from_drivers() }?;
+    crate::menu::standings_from_drivers::standings_from_drivers()?;
     let first: u32 = { TABLE_A_RVA.get() };
     use rc2k_core::menu::standings::A_GROUP_FIRSTS;
-    unsafe { players_by_group(first, A_ENTRY, A_GROUP_FIRSTS) }?;
+    players_by_group(first, A_ENTRY, A_GROUP_FIRSTS)?;
     Ok(())
 }

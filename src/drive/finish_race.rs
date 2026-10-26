@@ -12,8 +12,9 @@
 
 use crate::drive::finish_store::FINISH;
 use crate::drive::race_parts::log_line;
-use crate::errors::Refused;
+use crate::errors::{BadInput, Refused};
 use crate::physics::split_tables_store::SPLIT_TABLES;
+use crate::pointers::GamePtr;
 use crate::race::blocks_store::CAR_BLOCKS;
 use crate::race::settings_copy::Place;
 use crate::race::settings_copy::var;
@@ -61,17 +62,18 @@ fn var(v: Var) -> Place {
 }
 
 /// The settings for the routine (0x4591B0 .. 0x4592FA).
-fn set_up() {
+fn set_up() -> Result<(), BadInput> {
     for (at, v) in finish_routine::set_up() {
         match at {
             Set::Var(x) => var(x).set(v),
-            Set::Lead(o) => unsafe {
-                // Car block 0 (0x70F3EC) + o.
-                ((crate::race::blocks_store::block_addr(0) + o as usize) as *mut u32)
-                    .write_unaligned(v)
-            },
+            // Car block 0 (0x70F3EC) + o.
+            Set::Lead(o) => {
+                GamePtr::new((crate::race::blocks_store::block_addr(0) as u32).wrapping_add(o))
+                    .write(v, "a car's block")?
+            }
         }
     }
+    Ok(())
 }
 
 /// The Rust version.
@@ -84,11 +86,13 @@ fn set_up() {
 /// no read point).
 pub unsafe fn finish_race() -> Result<(), Refused> {
     // The stage index is not checked against the seven (a read past them is the original's).
-    RACE_VARS.stage_number.set(unsafe {
-        ((FINISH.finish_stages[0].addr() + 4 * RACE_STATE.results.stage_index.get() as usize)
-            as *const u32)
-            .read_volatile()
-    });
+    RACE_VARS.stage_number.set(
+        GamePtr::new(
+            (FINISH.finish_stages[0].addr() as u32)
+                .wrapping_add(4u32.wrapping_mul(RACE_STATE.results.stage_index.get())),
+        )
+        .read::<u32>("the finish stages")?,
+    );
     RACE_VARS.race_car_kinds[0].set(RACE_STATE.results.finish_kind.get());
     CAR_BLOCKS.cars[0]
         .car_kind
@@ -104,14 +108,14 @@ pub unsafe fn finish_race() -> Result<(), Refused> {
     log_number(RACE_VARS.race_car_kinds[0].get());
     log_text(c"[car1.ctd_carnum]");
     log_number(CAR_BLOCKS.cars[0].start_slot_value.bits());
-    set_up();
+    set_up()?;
     unsafe {
         crate::race::stage_loading::load_stage()?;
         var(finish_routine::BEFORE_RUN).set(0);
         crate::drive::finish_run::finish_run()?;
         // `race::tidy_everything`'s esi "read" is of `finish_run`'s leftover, which has
         // no read point (liveness at 0x459313): a scratch.
-        crate::race::race_end::tidy_everything(&crate::race::loadlevel::LoadVars::game())?;
+        crate::race::race_end::tidy_everything()?;
     }
     for x in finish_routine::AFTER {
         var(x).set(0);

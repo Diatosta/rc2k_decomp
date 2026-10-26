@@ -25,6 +25,7 @@ use crate::marks::setup::{CLOCK, MarksClock};
 use crate::marks::tuning::MARKS_KIND_FLOATS;
 use crate::math::x87;
 use crate::math::x87_float as bh;
+use crate::pointers::GamePtr;
 use crate::scene::cross_product3::cross_product3;
 use crate::scene::draw_store::DRAW;
 use crate::scene::kind_texture_store::KIND_TEXTURES;
@@ -33,38 +34,36 @@ use crate::scene::vector3::normalise_vector3;
 const POINTS: u32 = 0x30;
 
 /// The original's 0x4BAC91 .. 0x4BAD3F: `flt_81622A` (the ease by the ticks), `flt_814728` (the rate), the place (`flt_814C0E` ..) and the first axis (`flt_814C1A` ..) from the settings, its length over `flt_82E272` into `flt_814C06`.
-unsafe fn frame_axes(s: u32) {
-    unsafe {
-        frame_axes_x87(
-            crate::marks::hexagon_vars::HexagonVars::base(),
-            s as usize,
-            &CLOCK,
-        )
-    }
+fn frame_axes(s: u32) {
+    frame_axes_x87(
+        crate::marks::hexagon_vars::HexagonVars::base(),
+        s as usize,
+        &CLOCK,
+    )
 }
 
 /// The original's 0x4BAD4C .. 0x4BADAC: the second axis (`flt_814C26` ..) from the settings, its length over `flt_82E276` into `flt_814C0A`.
-unsafe fn frame_up(s: u32) {
-    unsafe { frame_up_x87(crate::marks::hexagon_vars::HexagonVars::base(), s as usize) }
+fn frame_up(s: u32) {
+    frame_up_x87(crate::marks::hexagon_vars::HexagonVars::base(), s as usize)
 }
 
 /// The original's 0x4BADF8 .. 0x4BAE1C: the place again as floats into `flt_8161A2` ...
-unsafe fn frame_place(s: u32) {
-    unsafe { frame_place_x87(crate::marks::hexagon_vars::HexagonVars::base(), s as usize) }
+fn frame_place(s: u32) {
+    frame_place_x87(crate::marks::hexagon_vars::HexagonVars::base(), s as usize)
 }
 
 /// The original's 0x4BAE27 .. 0x4BAE4D: the place's way dotted with the third axis into `flt_814718`.
-unsafe fn frame_facing() {
-    unsafe { frame_facing_x87(crate::marks::hexagon_vars::HexagonVars::base()) }
+fn frame_facing() {
+    frame_facing_x87(crate::marks::hexagon_vars::HexagonVars::base())
 }
 
 /// The original's 0x4BAEAB .. 0x4BAEEC: a point (x, y at p) turned onto the axes (x, y, z back at p).
-unsafe fn point_turned(p: u32) {
-    unsafe { point_turned_x87(crate::marks::store::base() as usize, p as usize) }
+fn point_turned(p: u32) {
+    point_turned_x87(crate::marks::store::base() as usize, p as usize)
 }
 
 /// The Rust version (see the header).
-pub unsafe fn hexagons_top() -> Result<(), Refused> {
+pub fn hexagons_top() -> Result<(), Refused> {
     unsafe {
         let s: u32 = crate::marks::setup::SETTINGS.pointer.get();
         if s == 0 {
@@ -109,10 +108,10 @@ pub unsafe fn hexagons_top() -> Result<(), Refused> {
                 crate::marks::hexagons_frame::draw_batch()?;
             }
             let settings: u32 = crate::marks::setup::SETTINGS.pointer.get();
-            if ((settings + 0x2744) as *const u32).read_unaligned() != 0
+            if GamePtr::new(settings + 0x2744).read::<u32>("a mark's field")? != 0
                 && MARKS_KIND_FLOATS.running.bits() != 0
             {
-                crate::marks::hexagons_step::hexagons_step();
+                crate::marks::hexagons_step::hexagons_step()?;
             }
         }
         crate::scene::set_texture::set_texture(KIND_TEXTURES.kind_first_slots[202].bits());
@@ -124,121 +123,111 @@ pub unsafe fn hexagons_top() -> Result<(), Refused> {
 use crate::marks::plain::{ld, ldi, st};
 
 /// `frame_axes`'s x87 block as plain Rust on the x87 model (32 instructions), same order and memory places.
-unsafe fn frame_axes_x87(hx: usize, s: usize, c: &MarksClock) {
-    unsafe {
-        let t0 = ld(hx, 0xC932A);
-        let t1 = t0 * crate::math::x87_float::int(c.frame_ticks.get() as i32);
-        st(hx, 0xB12EA, t1);
-        let t2 = ldi(s, 0x2738);
-        let t3 = t2 * ld(hx, 0xC932E);
-        HEXAGON_STATE.rate.set_bits(bh::st(t3));
-        let t4 = ldi(s, 0x2720);
-        let t5 = ldi(s, 0x2724);
-        let t6 = ldi(s, 0x2728);
-        HEXAGON_WORK.place[2].set_bits(bh::st(t6));
-        HEXAGON_WORK.place[1].set_bits(bh::st(t5));
-        HEXAGON_WORK.place[0].set_bits(bh::st(t4));
-        let t7 = ldi(s, 0x272C);
-        let t8 = t7 - ldi(s, 0x2720);
-        HEXAGON_WORK.axes[0].set_bits(bh::st(t8));
-        let t9 = ldi(s, 0x2730);
-        let t10 = t9 - ldi(s, 0x2724);
-        HEXAGON_WORK.axes[1].set_bits(bh::st(t10));
-        let t11 = ldi(s, 0x2734);
-        let t12 = t11 - ldi(s, 0x2728);
-        HEXAGON_WORK.axes[2].set_bits(bh::st(t12));
-        let t13 = bh::ld(HEXAGON_WORK.axes[0].bits());
-        let t14 = t13 * t13;
-        let t15 = bh::ld(HEXAGON_WORK.axes[1].bits());
-        let t16 = t15 * t15;
-        let t17 = bh::ld(HEXAGON_WORK.axes[2].bits());
-        let t18 = t17 * t17;
-        let t19 = t16 + t18;
-        let t20 = t14 + t19;
-        let t21 = t20.sqrt();
-        let t22 = t21 / ld(hx, 0xC9332);
-        HEXAGON_WORK.shares[0].set_bits(bh::st(t22));
-    }
+fn frame_axes_x87(hx: usize, s: usize, c: &MarksClock) {
+    let t0 = ld(hx, 0xC932A);
+    let t1 = t0 * crate::math::x87_float::int(c.frame_ticks.get() as i32);
+    st(hx, 0xB12EA, t1);
+    let t2 = ldi(s, 0x2738);
+    let t3 = t2 * ld(hx, 0xC932E);
+    HEXAGON_STATE.rate.set_bits(bh::st(t3));
+    let t4 = ldi(s, 0x2720);
+    let t5 = ldi(s, 0x2724);
+    let t6 = ldi(s, 0x2728);
+    HEXAGON_WORK.place[2].set_bits(bh::st(t6));
+    HEXAGON_WORK.place[1].set_bits(bh::st(t5));
+    HEXAGON_WORK.place[0].set_bits(bh::st(t4));
+    let t7 = ldi(s, 0x272C);
+    let t8 = t7 - ldi(s, 0x2720);
+    HEXAGON_WORK.axes[0].set_bits(bh::st(t8));
+    let t9 = ldi(s, 0x2730);
+    let t10 = t9 - ldi(s, 0x2724);
+    HEXAGON_WORK.axes[1].set_bits(bh::st(t10));
+    let t11 = ldi(s, 0x2734);
+    let t12 = t11 - ldi(s, 0x2728);
+    HEXAGON_WORK.axes[2].set_bits(bh::st(t12));
+    let t13 = bh::ld(HEXAGON_WORK.axes[0].bits());
+    let t14 = t13 * t13;
+    let t15 = bh::ld(HEXAGON_WORK.axes[1].bits());
+    let t16 = t15 * t15;
+    let t17 = bh::ld(HEXAGON_WORK.axes[2].bits());
+    let t18 = t17 * t17;
+    let t19 = t16 + t18;
+    let t20 = t14 + t19;
+    let t21 = t20.sqrt();
+    let t22 = t21 / ld(hx, 0xC9332);
+    HEXAGON_WORK.shares[0].set_bits(bh::st(t22));
 }
 
 /// `frame_up`'s x87 block as plain Rust on the x87 model (20 instructions), same order and memory places.
-unsafe fn frame_up_x87(hx: usize, s: usize) {
-    unsafe {
-        let t0 = ldi(s, 0x2708);
-        let t1 = t0 - ldi(s, 0x2720);
-        HEXAGON_WORK.axes[3].set_bits(bh::st(t1));
-        let t2 = ldi(s, 0x270C);
-        let t3 = t2 - ldi(s, 0x2724);
-        HEXAGON_WORK.axes[4].set_bits(bh::st(t3));
-        let t4 = ldi(s, 0x2710);
-        let t5 = t4 - ldi(s, 0x2728);
-        HEXAGON_WORK.axes[5].set_bits(bh::st(t5));
-        let t6 = bh::ld(HEXAGON_WORK.axes[3].bits());
-        let t7 = t6 * t6;
-        let t8 = bh::ld(HEXAGON_WORK.axes[4].bits());
-        let t9 = t8 * t8;
-        let t10 = bh::ld(HEXAGON_WORK.axes[5].bits());
-        let t11 = t10 * t10;
-        let t12 = t9 + t11;
-        let t13 = t7 + t12;
-        let t14 = t13.sqrt();
-        let t15 = t14 / ld(hx, 0xC9336);
-        HEXAGON_WORK.shares[1].set_bits(bh::st(t15));
-    }
+fn frame_up_x87(hx: usize, s: usize) {
+    let t0 = ldi(s, 0x2708);
+    let t1 = t0 - ldi(s, 0x2720);
+    HEXAGON_WORK.axes[3].set_bits(bh::st(t1));
+    let t2 = ldi(s, 0x270C);
+    let t3 = t2 - ldi(s, 0x2724);
+    HEXAGON_WORK.axes[4].set_bits(bh::st(t3));
+    let t4 = ldi(s, 0x2710);
+    let t5 = t4 - ldi(s, 0x2728);
+    HEXAGON_WORK.axes[5].set_bits(bh::st(t5));
+    let t6 = bh::ld(HEXAGON_WORK.axes[3].bits());
+    let t7 = t6 * t6;
+    let t8 = bh::ld(HEXAGON_WORK.axes[4].bits());
+    let t9 = t8 * t8;
+    let t10 = bh::ld(HEXAGON_WORK.axes[5].bits());
+    let t11 = t10 * t10;
+    let t12 = t9 + t11;
+    let t13 = t7 + t12;
+    let t14 = t13.sqrt();
+    let t15 = t14 / ld(hx, 0xC9336);
+    HEXAGON_WORK.shares[1].set_bits(bh::st(t15));
 }
 
 /// `frame_place`'s x87 block as plain Rust on the x87 model (6 instructions), same order and memory places.
-unsafe fn frame_place_x87(hx: usize, s: usize) {
-    unsafe {
-        let t0 = ldi(s, 0x2720);
-        st(hx, 0xB1262, t0);
-        let t1 = ldi(s, 0x2724);
-        st(hx, 0xB1266, t1);
-        let t2 = ldi(s, 0x2728);
-        st(hx, 0xB126A, t2);
-    }
+fn frame_place_x87(hx: usize, s: usize) {
+    let t0 = ldi(s, 0x2720);
+    st(hx, 0xB1262, t0);
+    let t1 = ldi(s, 0x2724);
+    st(hx, 0xB1266, t1);
+    let t2 = ldi(s, 0x2728);
+    st(hx, 0xB126A, t2);
 }
 
 /// `frame_facing`'s x87 block as plain Rust on the x87 model (9 instructions), same order and memory places.
-unsafe fn frame_facing_x87(hx: usize) {
-    unsafe {
-        let t0 = ld(hx, 0xB1262);
-        let t1 = t0 * bh::ld(HEXAGON_WORK.axes[6].bits());
-        let t2 = ld(hx, 0xB1266);
-        let t3 = t2 * bh::ld(HEXAGON_WORK.axes[7].bits());
-        let t4 = ld(hx, 0xB126A);
-        let t5 = t4 * bh::ld(HEXAGON_WORK.axes[8].bits());
-        let t6 = t3 + t5;
-        let t7 = t1 + t6;
-        HEXAGON_STATE.facing.set_bits(bh::st(t7));
-    }
+fn frame_facing_x87(hx: usize) {
+    let t0 = ld(hx, 0xB1262);
+    let t1 = t0 * bh::ld(HEXAGON_WORK.axes[6].bits());
+    let t2 = ld(hx, 0xB1266);
+    let t3 = t2 * bh::ld(HEXAGON_WORK.axes[7].bits());
+    let t4 = ld(hx, 0xB126A);
+    let t5 = t4 * bh::ld(HEXAGON_WORK.axes[8].bits());
+    let t6 = t3 + t5;
+    let t7 = t1 + t6;
+    HEXAGON_STATE.facing.set_bits(bh::st(t7));
 }
 
 /// `point_turned`'s x87 block as plain Rust on the x87 model (19 instructions), same order and memory places.
-unsafe fn point_turned_x87(_mk: usize, p: usize) {
-    unsafe {
-        let t0 = ld(p, 0);
-        let t1 = ld(p, 0x4);
-        let t2 = t0 * bh::ld(HEXAGON_WORK.axes[0].bits());
-        let t3 = t1 * bh::ld(HEXAGON_WORK.axes[3].bits());
-        let t4 = t2 + t3;
-        st(p, 0, t4);
-        let t5 = t0 * bh::ld(HEXAGON_WORK.axes[1].bits());
-        let t6 = t1 * bh::ld(HEXAGON_WORK.axes[4].bits());
-        let t7 = t5 + t6;
-        st(p, 0x4, t7);
-        let t8 = t1 * bh::ld(HEXAGON_WORK.axes[5].bits());
-        let t9 = t0 * bh::ld(HEXAGON_WORK.axes[2].bits());
-        let t10 = t8 + t9;
-        st(p, 0x8, t10);
-    }
+fn point_turned_x87(_mk: usize, p: usize) {
+    let t0 = ld(p, 0);
+    let t1 = ld(p, 0x4);
+    let t2 = t0 * bh::ld(HEXAGON_WORK.axes[0].bits());
+    let t3 = t1 * bh::ld(HEXAGON_WORK.axes[3].bits());
+    let t4 = t2 + t3;
+    st(p, 0, t4);
+    let t5 = t0 * bh::ld(HEXAGON_WORK.axes[1].bits());
+    let t6 = t1 * bh::ld(HEXAGON_WORK.axes[4].bits());
+    let t7 = t5 + t6;
+    st(p, 0x4, t7);
+    let t8 = t1 * bh::ld(HEXAGON_WORK.axes[5].bits());
+    let t9 = t0 * bh::ld(HEXAGON_WORK.axes[2].bits());
+    let t10 = t8 + t9;
+    st(p, 0x8, t10);
 }
 
 #[cfg(test)]
 mod asm_reference {
     //! The original assembly blocks, kept verbatim as the reference the plain versions are tested against.
 
-    pub(super) unsafe fn frame_axes_x87(mk: usize, s: usize) {
+    pub(super) fn frame_axes_x87(mk: usize, s: usize) {
         unsafe {
             core::arch::asm!(
                     "fld dword ptr [{mk} + 0xC932A]",
@@ -282,7 +271,7 @@ mod asm_reference {
         }
     }
 
-    pub(super) unsafe fn frame_up_x87(mk: usize, s: usize) {
+    pub(super) fn frame_up_x87(mk: usize, s: usize) {
         unsafe {
             core::arch::asm!(
                     "fild dword ptr [{s} + 0x2708]",
@@ -314,7 +303,7 @@ mod asm_reference {
         }
     }
 
-    pub(super) unsafe fn frame_place_x87(mk: usize, s: usize) {
+    pub(super) fn frame_place_x87(mk: usize, s: usize) {
         unsafe {
             core::arch::asm!(
                     "fild dword ptr [{s} + 0x2720]",
@@ -332,7 +321,7 @@ mod asm_reference {
         }
     }
 
-    pub(super) unsafe fn frame_facing_x87(mk: usize) {
+    pub(super) fn frame_facing_x87(mk: usize) {
         unsafe {
             core::arch::asm!(
                     "fld dword ptr [{mk} + 0xB1262]",
@@ -352,7 +341,7 @@ mod asm_reference {
         }
     }
 
-    pub(super) unsafe fn point_turned_x87(mk: usize, p: usize) {
+    pub(super) fn point_turned_x87(mk: usize, p: usize) {
         unsafe {
             core::arch::asm!(
                     "fld dword ptr [{p} + 0x0]",
@@ -439,7 +428,7 @@ mod asm_differential {
         };
         differential(
             &SPEC,
-            |b| unsafe { reference::frame_axes_x87(b[0], b[1]) },
+            |b| reference::frame_axes_x87(b[0], b[1]),
             |b| {
                 with_overlays(
                     b[0],
@@ -447,9 +436,7 @@ mod asm_differential {
                         overlay(&HEXAGON_STATE, HexagonState::START),
                         overlay(&HEXAGON_WORK, HexagonWork::START),
                     ],
-                    || unsafe {
-                        super::frame_axes_x87(b[0], b[1], crate::marks::setup::clock_at(b[0]))
-                    },
+                    || super::frame_axes_x87(b[0], b[1], crate::marks::setup::clock_at(b[0])),
                 )
             },
         );
@@ -493,13 +480,11 @@ mod asm_differential {
         };
         differential(
             &SPEC,
-            |b| unsafe { reference::frame_up_x87(b[0], b[1]) },
+            |b| reference::frame_up_x87(b[0], b[1]),
             |b| {
-                with_overlays(
-                    b[0],
-                    &[overlay(&HEXAGON_WORK, HexagonWork::START)],
-                    || unsafe { super::frame_up_x87(b[0], b[1]) },
-                )
+                with_overlays(b[0], &[overlay(&HEXAGON_WORK, HexagonWork::START)], || {
+                    super::frame_up_x87(b[0], b[1])
+                })
             },
         );
     }
@@ -525,8 +510,8 @@ mod asm_differential {
         };
         differential(
             &SPEC,
-            |b| unsafe { reference::frame_place_x87(b[0], b[1]) },
-            |b| unsafe { super::frame_place_x87(b[0], b[1]) },
+            |b| reference::frame_place_x87(b[0], b[1]),
+            |b| super::frame_place_x87(b[0], b[1]),
         );
     }
 
@@ -550,7 +535,7 @@ mod asm_differential {
         };
         differential(
             &SPEC,
-            |b| unsafe { reference::frame_facing_x87(b[0]) },
+            |b| reference::frame_facing_x87(b[0]),
             |b| {
                 with_overlays(
                     b[0],
@@ -558,7 +543,7 @@ mod asm_differential {
                         overlay(&HEXAGON_STATE, HexagonState::START),
                         overlay(&HEXAGON_WORK, HexagonWork::START),
                     ],
-                    || unsafe { super::frame_facing_x87(b[0]) },
+                    || super::frame_facing_x87(b[0]),
                 )
             },
         );
@@ -592,13 +577,11 @@ mod asm_differential {
         };
         differential(
             &SPEC,
-            |b| unsafe { reference::point_turned_x87(b[0], b[1]) },
+            |b| reference::point_turned_x87(b[0], b[1]),
             |b| {
-                with_overlays(
-                    b[0],
-                    &[overlay(&HEXAGON_WORK, HexagonWork::START)],
-                    || unsafe { super::point_turned_x87(b[0], b[1]) },
-                )
+                with_overlays(b[0], &[overlay(&HEXAGON_WORK, HexagonWork::START)], || {
+                    super::point_turned_x87(b[0], b[1])
+                })
             },
         );
     }

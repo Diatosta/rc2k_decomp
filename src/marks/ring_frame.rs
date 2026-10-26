@@ -12,15 +12,16 @@
 use crate::errors::{BadInput, Refused};
 use crate::marks::emit_kind_1::KIND1_CHOICE;
 use crate::marks::surface_store::SURFACE;
+use crate::pointers::GamePtr;
 use crate::scene::kind_texture_store::KIND_TEXTURES;
 /// The render states set (value, state).
 const STATES: [(u32, u32); 5] = [(4, 0x15), (5, 0x13), (6, 0x14), (1, 0x1C), (1, 0x1B)];
 
 /// The Rust version (see the header): the render states (`scene::set_render_state`), the
 /// texture (`scene::set_texture`), `scene::depth_test_off`, `run_ring`, `run_ribbons`.
-pub unsafe fn ring_frame() -> Result<(), Refused> {
+pub fn ring_frame() -> Result<(), Refused> {
     use crate::scene::set_render_state::set_render_state;
-    unsafe {
+    {
         let s: u32 = crate::marks::setup::SETTINGS.pointer.get();
         if s == 0 {
             return Err(BadInput("no marks settings").into());
@@ -33,7 +34,7 @@ pub unsafe fn ring_frame() -> Result<(), Refused> {
         let settings: u32 = crate::marks::setup::SETTINGS.pointer.get();
         // dword_939BA6: the ninth of `lives_by_level`.
         SURFACE.lives_by_level[8]
-            .set(((settings + 0x7C) as *const u32).read_unaligned() & 0xFF_FFFF);
+            .set(GamePtr::new(settings + 0x7C).read::<u32>("a mark's field")? & 0xFF_FFFF);
         KIND1_CHOICE
             .choice
             .set(crate::marks::rain::RAIN.drops.get());

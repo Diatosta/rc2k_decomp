@@ -10,7 +10,7 @@
 use crate::install::vars::INSTALLER_PAGES;
 
 /// The Rust version: carry.
-pub unsafe fn list_item_unusable(list: u32) -> bool {
+pub fn list_item_unusable(list: u32) -> Result<bool, crate::errors::BadInput> {
     let at = INSTALLER_PAGES
         .choice
         .get()
@@ -18,5 +18,7 @@ pub unsafe fn list_item_unusable(list: u32) -> bool {
         .wrapping_add(list)
         .wrapping_add(0x18);
     // Converted: `rc2k_core::menu::list_menu::unusable`.
-    rc2k_core::menu::list_menu::unusable(unsafe { (at as *const u8).read() })
+    Ok(rc2k_core::menu::list_menu::unusable(
+        crate::pointers::GamePtr::new(at).read::<u8>("a list item")?,
+    ))
 }

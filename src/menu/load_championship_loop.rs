@@ -25,7 +25,7 @@ use crate::menu::screen_loop::{Callee, Carried, List, Screen, Step, screen_entry
 
 // ---- Rust version: `menu::screen_loop` with this ----
 
-unsafe fn before(c: &mut Carried) -> Result<(), Refused> {
+fn before(c: &mut Carried) -> Result<(), Refused> {
     DRAW_WORK.escaped.set(0x0u32);
     c.measure_x = SCREEN_ITEMS.first[slot::LOAD_CHAMPIONSHIP].get();
     SCREEN_ITEMS.current[slot::LOAD_CHAMPIONSHIP].set(c.measure_x);

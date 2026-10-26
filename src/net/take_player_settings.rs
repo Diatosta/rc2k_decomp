@@ -12,6 +12,7 @@
 use crate::errors::{BadInput, Refused};
 use crate::menu::players_store::PLAYER_TABLE;
 use crate::net::lobby::movsb;
+use crate::pointers::GamePtr;
 use crate::race::state_store::RACE_STATE;
 use rc2k_core::net::settings::{self, Copy};
 
@@ -22,15 +23,15 @@ pub fn take_player_settings() -> Result<(), Refused> {
         return Err(BadInput("no record for player 1").into());
     }
     // Converted: `rc2k_core::net::settings` (`copies`, `TAKEN_MARK`).
-    unsafe { ((record + settings::TAKEN_MARK) as *mut u32).write_unaligned(1) };
+    GamePtr::new(record + settings::TAKEN_MARK).write(1u32, "a player's record")?;
     let to = RACE_STATE.settings.car_kind_current.addr() as u32;
     for copy in settings::copies() {
         match copy {
             Copy::Dword { to: at, from } => {
-                let v = unsafe { ((record + from) as *const u32).read_unaligned() };
-                unsafe { ((to + at) as *mut u32).write_unaligned(v) };
+                let v = GamePtr::new(record + from).read::<u32>("a player's record")?;
+                GamePtr::new(to + at).write(v, "the race settings")?;
             }
-            Copy::Bytes { to: at, from, len } => movsb(to + at, record + from, len),
+            Copy::Bytes { to: at, from, len } => movsb(to + at, record + from, len)?,
         }
     }
     Ok(())

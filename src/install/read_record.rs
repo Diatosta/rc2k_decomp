@@ -12,7 +12,6 @@
 //! Conversion phase 3 (2026-10-23): plain Rust with typed arguments; the registers above
 //! are the original's.
 
-use crate::bridge::Raw;
 use crate::errors::BadInput;
 use crate::settings::read_text::read_text;
 use crate::strings::same_text::case_table;
@@ -22,19 +21,23 @@ use rc2k_core::install::config;
 
 // ---- Rust version ----
 
-pub unsafe fn read_record(path: *const u8) -> Result<(), BadInput> {
-    unsafe {
+pub fn read_record(path: *const u8) -> Result<(), BadInput> {
+    {
         let Some((text, _)) = read_text(path)? else {
             return Ok(());
         };
         // Converted: `rc2k_core::install::config::read_record` (the keys as its constants).
-        let record = config::read_record(&Raw::new(text), &case_table())?;
+        let record = config::read_record(
+            &crate::pointers::GamePtr::new(text as u32).bytes("the install record")?,
+            &case_table(),
+        )?;
         for (place, text) in [
             (crate::files::state::base_directory(), record.base),
             (crate::files::state::locale_directory(), record.locale),
         ] {
             if let Some(text) = text {
-                std::ptr::copy(text.as_ptr(), place, text.len());
+                crate::pointers::GamePtr::new(place as u32)
+                    .write_bytes(&text, "an installer path")?;
             }
         }
         if let Some(mode) = record.mode {

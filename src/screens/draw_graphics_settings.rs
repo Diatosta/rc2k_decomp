@@ -33,10 +33,10 @@ const NAMES: [Name; 8] = [
 ];
 
 /// The Rust version (the registers the last name leaves: the menus read none of them).
-pub unsafe fn draw_graphics_settings(canvas: &mut dyn Canvas) -> Result<(), Refused> {
+pub fn draw_graphics_settings(canvas: &mut dyn Canvas) -> Result<(), Refused> {
     // Converted: `rc2k_core::screens::settings_pages::{graphics_item, graphics}`.
     use crate::screens::game_screen::SettingsScreen;
-    unsafe {
+    {
         if rc2k_core::screens::settings_pages::graphics_item(
             SCREEN_CHOICES.has_primary.get(),
             SCREEN_CHOICES.has_secondary.get(),
@@ -46,12 +46,12 @@ pub unsafe fn draw_graphics_settings(canvas: &mut dyn Canvas) -> Result<(), Refu
             disable_item(2)?;
         }
         let mode = SCREEN_CHOICES.list.addr() as u32 + 0x10 * SCREEN_CHOICES.resolution.get();
-        let v = |i: u32| ((mode + 4 * i) as *const u32).read_unaligned();
+        let v = |i: u32| crate::pointers::GamePtr::new(mode + 4 * i).read::<u32>("a screen mode");
         let ids = NAMES.map(|(setting, first, _)| setting().wrapping_add(first));
         rc2k_core::screens::settings_pages::graphics(
             &mut SettingsScreen::new(canvas),
             ids,
-            [v(0), v(1), v(2)],
+            [v(0)?, v(1)?, v(2)?],
         )?;
         Ok(())
     }

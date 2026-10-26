@@ -2,9 +2,11 @@
 //! `localdat`, 0x206C bytes at 0x608CB4, which hold `g_textureKinds` at +0x100 and the
 //! lists below), "skidmarks init", "render3d loadlightsdat" and "getmatcrash".
 
+use crate::errors::BadInput;
 use crate::errors::Refused;
 use crate::physics::camera_store::CAMERA_WORK;
 use crate::physics::car_store::CAR;
+use crate::pointers::GamePtr;
 use crate::race::matrices_store::MATRICES;
 use crate::race::prefs_store::STAGE_PREFS;
 use crate::race::vars_store::RACE_VARS;
@@ -36,7 +38,7 @@ fn swapped(n: u32) -> u32 {
 /// one; then, unless the new kind is in the swapped list already, it goes >> 4 into the
 /// list's first free place of 0x40 (the test is made on the kind before the shift:
 /// section 16).
-pub unsafe fn swap_stage_texture() {
+pub fn swap_stage_texture() {
     // Converted: `rc2k_core::race::stage::swap_texture`.
     use rc2k_core::race::stage::{Swap, swap_texture};
     let stage: u32 = RACE_VARS.stage_number.bits();
@@ -54,7 +56,7 @@ pub unsafe fn swap_stage_texture() {
 
 /// `race::tweak_stage` (0x439AAB): for the stages 0x15, 0x3E and 0x36, `dword_60A564` ..
 /// `dword_60A56C` 0xFF.
-pub unsafe fn tweak_stage() {
+pub fn tweak_stage() {
     {
         // Converted: `rc2k_core::race::stage::stage_tweaked`.
         if rc2k_core::race::stage::stage_tweaked(RACE_VARS.stage_number.bits()) {
@@ -64,7 +66,7 @@ pub unsafe fn tweak_stage() {
 }
 
 /// `race::clear_prefs_qword` (0x465381): with `dword_71C800` set, `qword_609344` 0.
-pub unsafe fn clear_prefs_qword() {
+pub fn clear_prefs_qword() {
     {
         if RACE_WORK.no_precipitation.get() != 0 {
             crate::session::write_bits(&STAGE_PREFS.blit_cleared, [0u32; 2]);
@@ -93,48 +95,45 @@ pub unsafe fn load_prefs() -> Result<(), Refused> {
 }
 
 /// `race::reset_skid_slots` (0x4585BA): the object's (esi) four dwords at +0xF48 -1.
-pub unsafe fn reset_skid_slots(object: u32) {
-    unsafe { std::ptr::write_bytes((object + 0xF48) as *mut u8, 0xFF, 16) };
+pub fn reset_skid_slots(object: u32) -> Result<(), BadInput> {
+    GamePtr::new(object + 0xF48).fill(0xFF, 16, "a skid object's slots")
 }
 
 /// `race::init_skidmarks` (0x45857D): the two skid objects' slots, the 0x400 marks' first
 /// two words -1, `dword_645B10` 0.
-pub unsafe fn init_skidmarks() {
-    unsafe {
+pub fn init_skidmarks() -> Result<(), BadInput> {
+    {
         // The skid objects are car blocks 0 and 1.
         for n in 0..2 {
-            reset_skid_slots(crate::race::blocks_store::block_addr(n) as u32);
+            reset_skid_slots(crate::race::blocks_store::block_addr(n) as u32)?;
         }
         let marks = crate::race::shadow_skids_store::SHADOW_SKIDS
             .skid_links
-            .addr() as *mut [u32; 2];
-        for n in 0..0x400 {
-            (marks.add(n) as *mut u32).write_unaligned(u32::MAX);
+            .addr() as u32;
+        for n in 0..0x400u32 {
+            GamePtr::new(marks + 8 * n).write(u32::MAX, "the skid links")?;
         }
         crate::race::shadow_skids_store::SHADOW_SKIDS
             .skid_next
             .set(0);
     }
+    Ok(())
 }
 
 /// `race::copy_lights_data` (0x438B03): 0x22 records of 0x90 bytes from the lights' data
 /// to +0xA4 of the 0x134-byte records at 0x5C906C.
-pub unsafe fn copy_lights_data() {
+pub fn copy_lights_data() -> Result<(), BadInput> {
     // Converted: `rc2k_core::race::stage_objects::lay_lights`.
     use rc2k_core::race::stage_objects::{LIGHT_RECORD, lay_lights};
     let (data, records) = (
-        crate::race::lights_store::LIGHTS_DATA.lights.addr(),
-        crate::race::light_records_store::LIGHT_RECORDS.record_addr(0) as usize,
+        crate::race::lights_store::LIGHTS_DATA.lights.addr() as u32,
+        crate::race::light_records_store::LIGHT_RECORDS.record_addr(0),
     );
-    unsafe {
-        lay_lights(
-            std::slice::from_raw_parts(data as *const u8, LIGHTS_LEN as usize),
-            std::slice::from_raw_parts_mut(
-                records as *mut u8,
-                LIGHT_RECORDS as usize * LIGHT_RECORD,
-            ),
-        );
-    }
+    let source = GamePtr::new(data).read_bytes(LIGHTS_LEN as usize, "the lights' data")?;
+    let mut laid = GamePtr::new(records)
+        .read_bytes(LIGHT_RECORDS as usize * LIGHT_RECORD, "the light records")?;
+    lay_lights(&source, &mut laid);
+    GamePtr::new(records).write_bytes(&laid, "the light records")
 }
 
 /// `race::load_lights_data` (0x438AE5): `files\s\data\ldata` (0x1320 bytes at most) into
@@ -146,7 +145,7 @@ pub unsafe fn load_lights_data() -> Result<(), Refused> {
             crate::race::lights_store::LIGHTS_DATA.lights.addr(),
             LIGHTS_LEN,
         )?;
-        copy_lights_data();
+        copy_lights_data()?;
     }
     Ok(())
 }

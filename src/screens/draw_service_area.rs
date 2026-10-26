@@ -78,9 +78,10 @@ pub unsafe fn draw_service_area(canvas: &mut dyn Canvas) -> Result<bool, Refused
         FRAME_SWITCHES.service_cleared.set_bits(0u32);
 
         // Converted: `rc2k_core::screens::service` (`area_title`, `AREA_STEPS`).
+        let fault = crate::menu::event_flow::Fault::default();
         let string = |id: u32| {
             let mut bytes = Vec::new();
-            push_string(&mut bytes, id);
+            fault.ok(push_string(&mut bytes, id));
             bytes
         };
         let title = area_title(
@@ -88,10 +89,11 @@ pub unsafe fn draw_service_area(canvas: &mut dyn Canvas) -> Result<bool, Refused
             EVENT_STATE.current_player.get(),
             &string(AREA_TITLE.1),
         );
+        fault.check()?;
         if title.len() > TEXT_LEN {
             return Err(BadInput("the title is longer than the text buffer").into());
         }
-        std::ptr::copy_nonoverlapping(title.as_ptr(), text(), title.len());
+        crate::pointers::GamePtr::new(text() as usize as u32).write_bytes(&title, "the title")?;
         let (x, y) = AREA_TITLE_AT;
         draw_text_at(font_of(AreaFont::Title).as_ptr(), text(), x, y, canvas)?;
 
@@ -102,7 +104,9 @@ pub unsafe fn draw_service_area(canvas: &mut dyn Canvas) -> Result<bool, Refused
                 BadInput("no current player object: the original reads through null").into(),
             );
         };
-        let field = |at: u32| (player.wrapping_add(at) as *const i32).read_unaligned();
+        let field = |at: u32| {
+            crate::pointers::GamePtr::new(player.wrapping_add(at)).read::<i32>("a car field")
+        };
         // ebx as the original has it: the sprites get it as their palette.
         let mut ebx = 0u32;
         let (width, fill_glyph, end_glyph) = DAMAGE_BAR;
@@ -113,7 +117,7 @@ pub unsafe fn draw_service_area(canvas: &mut dyn Canvas) -> Result<bool, Refused
                         draw_string_by_id_at(id, font_of(font).as_ptr(), x, y, canvas)?.text as u32;
                 }
                 AreaStep::LabelIf(car_offset, id, font, x, y) => {
-                    if field(car_offset) != 0 {
+                    if field(car_offset)? != 0 {
                         ebx = draw_string_by_id_at(id, font_of(font).as_ptr(), x, y, canvas)?.text
                             as u32;
                     }
@@ -125,7 +129,7 @@ pub unsafe fn draw_service_area(canvas: &mut dyn Canvas) -> Result<bool, Refused
                         width,
                         fill_glyph,
                         end_glyph,
-                        percent: field(car_offset),
+                        percent: field(car_offset)?,
                     }
                     .write();
                     blit_bar(&mut |call| canvas.blit_glyph(call))?;

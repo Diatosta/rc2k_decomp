@@ -17,7 +17,7 @@ use rc2k_core::menu::welcome::{self};
 
 /// The Rust version. `f` the registers the caller carries (the welcome is a flow of its
 /// own: what it changes is its own, the original keeps every register).
-pub unsafe fn a8_welcome(f: &Flow) -> Result<(), Refused> {
+pub fn a8_welcome(f: &Flow) -> Result<(), Refused> {
     // Converted: `rc2k_core::menu::welcome::a8_welcome`.
-    welcome::a8_welcome(&mut Game::nested(f))
+    Game::nested(f).run(welcome::a8_welcome)
 }

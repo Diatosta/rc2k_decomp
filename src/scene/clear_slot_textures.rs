@@ -10,20 +10,13 @@ use crate::scene::texture_places_store::TEXTURE_PLACES;
 
 // ---- game data ----
 
-/// What is filled, in this order: where, how many bytes, with which byte.
-fn fills() -> [(usize, usize, u8); 2] {
-    [
-        (TEXTURE_PLACES.slot_loaded[0].addr(), 0x1000, 0xFF), // g_slotLoadedTextures
-        (TEXTURE_PLACES.slot_wanted[0].addr(), 0x1000, 0xFF), // g_slotWantedTextures
-    ]
-}
-
 // ---- Rust version ----
 
-pub unsafe fn clear_slot_textures() {
-    unsafe {
-        for (table, len, byte) in fills() {
-            std::ptr::write_bytes(table as *mut u8, byte, len);
+pub fn clear_slot_textures() {
+    // g_slotLoadedTextures, g_slotWantedTextures: 0x1000 bytes each, 0xFF.
+    for table in [&TEXTURE_PLACES.slot_loaded, &TEXTURE_PLACES.slot_wanted] {
+        for cell in table {
+            cell.set(u32::MAX);
         }
     }
 }

@@ -41,6 +41,7 @@ use crate::d3d::{NO_TEXTURE, VERTEX_LEN};
 use crate::errors::BadInput;
 use crate::math::x87;
 use crate::physics::ground_store::GROUND_WORK;
+use crate::pointers::GamePtr;
 use crate::race::frame_store::FRAME_WORK;
 use crate::race::level_grid_store::LEVEL_GRID;
 use crate::race::numbers_store::NUMBERS;
@@ -319,10 +320,10 @@ unsafe fn choose_texture(outside: &mut dyn Outside) {
 }
 
 /// `sub_44B94F`: clears a switch by what the entries' bytes +0x21 hold.
-unsafe fn clear_a_switch(entries: &[usize]) {
+unsafe fn clear_a_switch(entries: &[usize]) -> Result<(), BadInput> {
     unsafe {
         if DRAW.polygon_sides[0].bits() == 0 || DRAW.polygon_sides[1].bits() == 0 {
-            return;
+            return Ok(());
         }
         let bytes = entries
             .iter()
@@ -331,13 +332,14 @@ unsafe fn clear_a_switch(entries: &[usize]) {
         if all == 0xFF {
             let material = crate::scene::polygon::texture_infos_addr()
                 + RACE_VIEW.texture_b.bits() as usize * 0x40;
-            if ((material + 0x2E) as *const u8).read() == 0 {
+            if GamePtr::new(material as u32 + 0x2E).read::<u8>("a texture's record")? == 0 {
                 DRAW.polygon_sides[0].set_bits(0u32);
             }
         } else if any == 0 {
             DRAW.polygon_sides[1].set_bits(0u32);
         }
     }
+    Ok(())
 }
 
 unsafe fn shade(entries: &[usize], how: Shade) {
@@ -433,7 +435,7 @@ pub unsafe fn draw_polygon(outside: &mut dyn Outside) -> Result<(), BadInput> {
         // The mode, with its fallbacks.
         let mut mode: u32 = RACE_VIEW.polygon_mode.bits();
         if mode == 3 && DRAW_SWITCHES.clears_switch.bits() != 0 {
-            clear_a_switch(&entries);
+            clear_a_switch(&entries)?;
         }
         if matches!(mode, 3..=5) {
             let fallback = if DRAW.polygon_sides[1].bits() == 0 {

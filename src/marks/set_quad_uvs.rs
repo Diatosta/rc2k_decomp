@@ -16,7 +16,7 @@ use crate::marks::blocks::CORNER_SLOPES;
 const SET_RECORD: usize = 0xC60 / 0x24;
 
 /// The Rust version (see the header).
-pub unsafe fn set_quad_uvs() {
+pub fn set_quad_uvs() {
     {
         crate::scene::depth_test_off::depth_test_off();
         for n in 0..4 {

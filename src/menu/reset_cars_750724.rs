@@ -14,11 +14,11 @@ use rc2k_core::menu::items::{HIDDEN, IN_GAME_OPTIONS};
 
 // off_750724
 /// The Rust version (see the header): the registers it leaves.
-pub unsafe fn reset_cars_750724() -> Result<(), Refused> {
+pub fn reset_cars_750724() -> Result<(), Refused> {
     // Converted: `rc2k_core::menu::items::HIDDEN` (the four items `hide_in_game_options`
     // hides, all of them).
     for n in IN_GAME_OPTIONS {
-        unsafe { set(n, HIDDEN) };
+        set(n, HIDDEN)?;
     }
     Ok(())
 }

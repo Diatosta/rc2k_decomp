@@ -48,6 +48,16 @@ const ITEM_LIMIT: u32 = 256;
 
 // ---- Rust version ----
 
+/// Whether an item among the first `ITEM_LIMIT` after the first has the end mark.
+fn has_end(first: u32) -> Result<bool, BadInput> {
+    for n in 1..=ITEM_LIMIT {
+        if dword(first + n * ITEM_LEN)? == END {
+            return Ok(true);
+        }
+    }
+    Ok(false)
+}
+
 /// `ebx` and `ecx` are those registers at entry.
 pub unsafe fn draw_menu_items(
     menu: u32,
@@ -57,7 +67,7 @@ pub unsafe fn draw_menu_items(
 ) -> Result<(), Refused> {
     unsafe {
         let first = menu.wrapping_add(MENU_HEAD_LEN);
-        if menu == 0 || !(1..=ITEM_LIMIT).any(|n| dword(first + n * ITEM_LEN) == END) {
+        if menu == 0 || !has_end(first)? {
             return Err(BadInput("a menu without an end").into());
         }
         // Converted: `rc2k_core::screens::menus::items` (the items read here: the first
@@ -68,20 +78,20 @@ pub unsafe fn draw_menu_items(
         let mut item = first;
         loop {
             list.push(Item {
-                x: dword(item),
-                y: dword(item + 4),
-                text_x: dword(item + 8),
-                text_y: dword(item + 0xC),
-                kind: dword(item + 0x10),
-                id: dword(item + 0x14),
-                font: FontAt(dword(item + 0x18)),
-                pulse_font: FontAt(dword(item + 0x50)),
-                behind: dword(item + 0x1C),
-                sprite: dword(item + 0x20),
-                spaced: dword(item + 0x58) == 1,
+                x: dword(item)?,
+                y: dword(item + 4)?,
+                text_x: dword(item + 8)?,
+                text_y: dword(item + 0xC)?,
+                kind: dword(item + 0x10)?,
+                id: dword(item + 0x14)?,
+                font: FontAt(dword(item + 0x18)?),
+                pulse_font: FontAt(dword(item + 0x50)?),
+                behind: dword(item + 0x1C)?,
+                sprite: dword(item + 0x20)?,
+                spaced: dword(item + 0x58)? == 1,
             });
             item = item.wrapping_add(ITEM_LEN);
-            if dword(item) == END {
+            if dword(item)? == END {
                 break;
             }
         }

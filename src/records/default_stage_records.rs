@@ -14,10 +14,10 @@
 //! Hook removed 2026-10-22 (conversion phase 4): Rust callers call this directly; the
 //! registers above are the original's, for reference.
 
-use crate::bridge::Raw;
 use crate::errors::{BadInput, Refused};
 use crate::math::random_below::random_below;
-use crate::saves::drivers::{Driver, put, put_bytes};
+use crate::pointers::GamePtr;
+use crate::saves::drivers::Driver;
 
 // ---- game data ----
 
@@ -29,9 +29,9 @@ const MOST_RECORDS: usize = 0x1000;
 
 /// How many records the table has before its -1 (the first is not looked at for the
 /// end, as in the original).
-unsafe fn records(table: u32) -> Result<usize, BadInput> {
+fn records(table: u32) -> Result<usize, BadInput> {
     // Converted: `rc2k_core::files::records::record_count`.
-    let records = unsafe { Raw::new(table as usize as *const u8) };
+    let records = GamePtr::new(table).bytes("a record table")?;
     Ok(rc2k_core::files::records::record_count(
         &records,
         MOST_RECORDS,
@@ -43,7 +43,7 @@ pub unsafe fn default_stage_records(table: u32) -> Result<(), Refused> {
         if table == 0 {
             return Err(BadInput("no record table").into());
         }
-        if ((table + 0x54) as *const u8).read() != 0 {
+        if GamePtr::new(table + 0x54).read::<u8>("a record name")? != 0 {
             return Ok(());
         }
         // (the record, the dwords by offset, the two names by offset)
@@ -51,7 +51,7 @@ pub unsafe fn default_stage_records(table: u32) -> Result<(), Refused> {
         let mut made: Vec<Made> = Vec::new();
         for n in 0..records(table)? {
             let record = table + (n * RECORD_LEN) as u32;
-            if (record as *const u32).read_unaligned() != 0 {
+            if GamePtr::new(record).read::<u32>("a record tag")? != 0 {
                 continue;
             }
             let first = Driver::number(random_below(0xAA)?)?;
@@ -61,11 +61,11 @@ pub unsafe fn default_stage_records(table: u32) -> Result<(), Refused> {
             made.push((
                 record,
                 [
-                    (0x74, first.dword(0x14)),
-                    (0x78, first.dword(0x18)),
+                    (0x74, first.nation()),
+                    (0x78, first.car()),
                     (0x30, time),
-                    (0x9C, second.dword(0x14)),
-                    (0xA0, second.dword(0x18)),
+                    (0x9C, second.nation()),
+                    (0xA0, second.car()),
                     (0x2C, speed),
                 ],
                 [(0x54, first.name()?.1), (0x7C, second.name()?.1)],
@@ -73,10 +73,10 @@ pub unsafe fn default_stage_records(table: u32) -> Result<(), Refused> {
         }
         for (record, dwords, names) in made {
             for (offset, value) in dwords {
-                put(record, offset, value);
+                GamePtr::new(record + offset).write(value, "a stage record")?;
             }
             for (offset, name) in names {
-                put_bytes(record, offset, &name);
+                GamePtr::new(record + offset).write_bytes(&name, "a stage record")?;
             }
         }
         Ok(())

@@ -28,7 +28,7 @@ const ANGLES: u32 = 0x1000;
 
 /// The Rust version (see the header): `angle` (the original's ebx), `colour` (ecx, its
 /// low three bytes made 0xFF), `size` (edx), `place` (st(0) .. st(2)).
-pub unsafe fn draw_turned_sprite(
+pub fn draw_turned_sprite(
     angle: u32,
     colour: u32,
     size: u32,
@@ -37,7 +37,7 @@ pub unsafe fn draw_turned_sprite(
     if angle >= ANGLES {
         return Err(BadInput("an angle past the sine tables").into());
     }
-    unsafe {
+    {
         let [a, b, c] = place.map(rounded);
         // clip_quad's refusal (no settings) before anything is written.
         if (c as i32) > DRAW_WORK.near.bits() as i32

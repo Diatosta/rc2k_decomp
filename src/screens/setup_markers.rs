@@ -98,7 +98,10 @@ pub unsafe fn draw_marker(
                         BadInput("no player in edi: the original reads through null").into(),
                     );
                 }
-                Ok(unsafe { (player.wrapping_add(car_offset) as *const i32).read_unaligned() })
+                Ok(
+                    crate::pointers::GamePtr::new(player.wrapping_add(car_offset))
+                        .read::<i32>("a car setting")?,
+                )
             }
         }
     };

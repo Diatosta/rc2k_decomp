@@ -18,6 +18,6 @@ pub fn player_entered(n: u32, value: u32) -> Result<(u32, u32), Refused> {
     // Converted: `rc2k_core::menu::event::if_entered`.
     Ok((
         record,
-        rc2k_core::menu::event::if_entered(get(record + 0xD0), value),
+        rc2k_core::menu::event::if_entered(get(record + 0xD0)?, value),
     ))
 }

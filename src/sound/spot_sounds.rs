@@ -22,7 +22,7 @@ pub fn spot_sounds() -> Result<(), Refused> {
     use crate::sound::*;
     match_spot_voices::match_spot_voices()?;
     free_spot_voices::free_spot_voices(request)?;
-    spot_voice_distances::spot_voice_distances();
+    spot_voice_distances::spot_voice_distances()?;
     merge_spot_voices_all::merge_spot_voices_all()?;
     thin_spot_voices_all::thin_spot_voices_all()?;
     exclusive_spot_voices::exclusive_spot_voices();

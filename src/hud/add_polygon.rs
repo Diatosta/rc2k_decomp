@@ -27,10 +27,10 @@ use crate::session::SCREEN;
 /// is read by none of its callers (register liveness, 2026-10-23).
 // Converted: `rc2k_core::hud::batch::{flushes, check_polygon, polygon_indices}`,
 // `rc2k_core::hud::quads::screen_scaled`
-pub unsafe fn add_polygon() -> Result<(), Refused> {
+pub fn add_polygon() -> Result<(), Refused> {
     use rc2k_core::hud::batch::{self, MOST_VERTICES};
     use rc2k_core::hud::quads::screen_scaled;
-    unsafe {
+    {
         let count: u32 = DRAW.polygon_vertex_count.bits();
         let texture = HUD.texture.get();
         let vertices = HUD.vertex_count.get();
@@ -54,11 +54,11 @@ pub unsafe fn add_polygon() -> Result<(), Refused> {
             crate::hud::set_batch_texture::set_batch_texture()?;
         }
         let vc = HUD.vertex_count.get();
-        std::ptr::copy(
-            crate::d3d::vertices_store::piece_addr() as *const u8,
-            (HUD.vertices.as_ptr() as u32 + vc * 0x20) as *mut u8,
+        crate::pointers::GamePtr::new(crate::d3d::vertices_store::piece_addr() as u32).copy_to(
+            crate::pointers::GamePtr::new(HUD.vertices.as_ptr() as u32 + vc * 0x20),
             (count * 0x20) as usize,
-        );
+            "the hud's vertices",
+        )?;
         let ic = HUD.index_count.get();
         let indices = batch::polygon_indices(vc, count);
         for (k, &i) in indices.iter().enumerate() {

@@ -14,7 +14,7 @@ use crate::race::view_vars_store::VIEW_VARS;
 /// The Rust version (see the header): the record's pointer (the original's esi; read by
 /// no caller).
 // Converted: `rc2k_core::marks::race::stage_record`
-pub unsafe fn stage_record() -> Result<u32, Refused> {
+pub fn stage_record() -> Result<u32, Refused> {
     let n = rc2k_core::marks::race::stage_record(FRAME_WORK.lead_kept[0].bits())?;
     Ok(VIEW_VARS.view_records[n].get())
 }

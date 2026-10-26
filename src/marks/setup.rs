@@ -10,6 +10,7 @@ use crate::marks::tuning::MARKS_FLOATS;
 use crate::marks::work_store::MARKS_WORK;
 use crate::math::x87;
 use crate::physics::tables_store::PHYSICS;
+use crate::pointers::GamePtr;
 use crate::session::{Bytes, Dword, Float};
 
 /// The marks' clock (`marks::tick_clock`) (IDA 0x764FC8 .. 0x764FFC, the image's layout; phase 7, typed state).
@@ -82,7 +83,7 @@ pub fn clock_at(mk: usize) -> &'static MarksClock {
 /// `marks::seed_noise` (0x4C1697): 0x100 steps of `g_marksSeed` (times 0x9D plus 0x47),
 /// each giving entry 0xFF .. 0 of the three noise tables its low 18 bits, its low 18 bits
 /// turned right 10 and turned right 20; `dword_8BC405` 0.
-pub unsafe fn seed_noise() {
+pub fn seed_noise() {
     // Converted: `rc2k_core::marks::noise::seed_noise`.
     let (tables, seed) = rc2k_core::marks::noise::seed_noise(MARKS_WORK.seed.get());
     for (table, values) in crate::marks::rain::RAIN.noise.iter().zip(tables) {
@@ -99,7 +100,7 @@ pub unsafe fn seed_noise() {
 /// 0, step, 2 step .. (`math::x87::sine_table`); then `g_marksWaveDone` = `nullsub_23`.
 /// Done before: nothing. Refuses a mark that is neither 0 nor `nullsub_23` (the original
 /// jumps to it).
-pub unsafe fn make_wave_tables() -> Result<(), Refused> {
+pub fn make_wave_tables() -> Result<(), Refused> {
     use crate::marks::waves::{SINES as SINE_TABLE, WAVE, WAVE_LEVELS as LEVELS};
     unsafe {
         let done = WAVE.done.get();
@@ -137,9 +138,9 @@ pub fn clear_slots() {
 /// `g_marksSettings` +0x10 is 1), a quarter and a sixteenth of them (shifted), the
 /// reciprocal one over them (`fidiv`) and that times `flt_7651BC`, and the ticks' bits
 /// taken as a float (section 16) times `flt_93CC14`.
-pub unsafe fn tick_clock() {
+pub fn tick_clock() -> Result<(), Refused> {
     let c = &CLOCK;
-    unsafe {
+    {
         let clock: u32 = PHYSICS.scene_clock.bits();
         if c.started.get() == 0 {
             c.started.set(1);
@@ -149,14 +150,14 @@ pub unsafe fn tick_clock() {
             c.frame_ticks.set(0);
             c.reciprocal
                 .set_bits(x87::loaded(CLOCK_K.first_reciprocal.bits()));
-            return;
+            return Ok(());
         }
         c.now.set(clock);
         let last = c.last.get();
         c.before.set(last);
         c.last.set(clock);
         let settings: u32 = crate::marks::setup::SETTINGS.pointer.get();
-        let ticks = if ((settings + 0x10) as *const u32).read_unaligned() == 1 {
+        let ticks = if GamePtr::new(settings + 0x10).read::<u32>("a mark setting")? == 1 {
             clock.wrapping_sub(last)
         } else {
             0
@@ -171,6 +172,7 @@ pub unsafe fn tick_clock() {
         c.ticks_scaled
             .set_bits(x87::mul(ticks, CLOCK_K.ticks_scale.bits()));
     }
+    Ok(())
 }
 
 pub const CURVE_LEN: u32 = 0x1000;
@@ -191,7 +193,7 @@ const QUAD_VALUE_RVAS: (usize, usize) = (rva(0x62409C), rva(0x6240A0));
 ///
 /// Refuses a divisor that is 0 or 1 or -1 (the original's `idiv` traps).
 // Converted: `rc2k_core::marks::noise::{walk, smooth, random_tables, record_values}`
-pub unsafe fn make_noise_curve() -> Result<(), Refused> {
+pub fn make_noise_curve() -> Result<(), Refused> {
     use rc2k_core::marks::noise as core;
     unsafe {
         let divisors = SNOW_LIGHT.divisors.each_ref().map(|d| d.get() as i32);

@@ -7,17 +7,16 @@
 //! Refuses a null buffer pointer. The name is a reading.
 
 use crate::errors::BadInput;
-use crate::gfx::picture::{PICTURE_DWORDS, picture};
+use crate::gfx::picture::{PICTURE_DWORDS, picture_ptr};
 
 // ---- Rust version ----
 
-pub unsafe fn clear_picture() -> Result<(), BadInput> {
-    let buffer = picture();
-    if buffer.is_null() {
+pub fn clear_picture() -> Result<(), BadInput> {
+    let buffer = picture_ptr();
+    if buffer.addr() == 0 {
         return Err(BadInput("no picture buffer"));
     }
-    unsafe { std::ptr::write_bytes(buffer, 0, PICTURE_DWORDS * 4) };
-    Ok(())
+    buffer.fill(0, PICTURE_DWORDS * 4, "the picture buffer")
 }
 
 // Written out: the buffer is nearly two megabytes, and what the function leaves is known

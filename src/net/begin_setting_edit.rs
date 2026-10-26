@@ -16,7 +16,7 @@ use rc2k_core::net::editing::{self, Setting};
 
 /// The Rust version. The registers the original leaves when an edit starts (eax the item,
 /// ebx the text, ecx the width, edx the font) are read by no caller (`settings_loop`).
-pub fn begin_setting_edit() {
+pub fn begin_setting_edit() -> Result<(), crate::errors::Refused> {
     // Converted: `rc2k_core::net::editing` (`Setting`, `WIDTH`).
     let item = INSTALLER_PAGES.choice.get();
     let text = match Setting::of(item) {
@@ -27,11 +27,11 @@ pub fn begin_setting_edit() {
             cursor.bytes(&crate::strings::format_u32::format_u32(
                 NET.most_players.get(),
                 0,
-            ));
-            cursor.nul();
+            ))?;
+            cursor.nul()?;
             INSTALLER_PATHS.path_a.addr() as u32
         }
-        Setting::None => return,
+        Setting::None => return Ok(()),
     };
-    crate::net::begin_edit::begin_edit(item, text, editing::WIDTH, PALETTE.addr() as u32);
+    crate::net::begin_edit::begin_edit(item, text, editing::WIDTH, PALETTE.addr() as u32)
 }

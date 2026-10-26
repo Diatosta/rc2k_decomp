@@ -25,8 +25,8 @@ const NO_MAP: FatalError = FatalError {
     message: "",
 };
 
-unsafe fn dword(at: u32) -> u32 {
-    unsafe { (at as *const u32).read_unaligned() }
+fn dword(at: u32) -> Result<u32, crate::errors::BadInput> {
+    crate::pointers::GamePtr::new(at).read::<u32>("a game value")
 }
 
 /// `menu::draw_stage_map`: the stage by `dword_755700` (2: `off_73555A[dword_7587EC]`'s
@@ -54,17 +54,18 @@ pub unsafe fn draw_stage_map() -> Result<(), Refused> {
                 crate::records::stages_store::STAGE_TABLES.championship(),
                 EVENT_STATE.index.get() as i32,
                 EVENT_STATE.section.get(),
-            ),
+            )?,
             _ => {
-                let s = selection().ok_or(crate::errors::BadInput(
+                let s = selection()?.ok_or(crate::errors::BadInput(
                     "no stage tables for the choice: the original reads through null",
                 ))?;
                 s.table
                     .wrapping_add(EVENT_STATE.stage_number.get().wrapping_mul(RECORD_SIZE))
             }
         };
-        let overlay =
-            dword(MENU_LISTS.map_overlays[0].addr() as u32 + dword(record + 0x3C).wrapping_mul(4));
+        let overlay = dword(
+            MENU_LISTS.map_overlays[0].addr() as u32 + dword(record + 0x3C)?.wrapping_mul(4),
+        )?;
         if load_picture_with_overlay(
             crate::menu::texts_store::MENU_TEXTS.ukmap_png.addr() as *mut u8,
             overlay as *mut u8,
@@ -92,57 +93,49 @@ pub type Draw<'a> = &'a mut dyn FnMut() -> Result<(), Refused>;
 /// `stage_number`): the variable stepped, then the map drawn again (`draw`: the Rust
 /// version in the game). When the map refuses, the variable is put back first, so that the
 /// original, which then runs, steps it once.
-unsafe fn step(cell: &Dword, next: impl Fn(u32) -> u32, draw: Draw) -> Result<(), Refused> {
+fn step(cell: &Dword, next: impl Fn(u32) -> u32, draw: Draw) -> Result<(), Refused> {
     let old = cell.get();
     cell.set(next(old));
     draw().inspect_err(|_| cell.set(old))
 }
 
 /// `menu::switch_stage_group`: the group 0 <-> 1.
-pub unsafe fn switch_stage_group(draw: Draw) -> Result<(), Refused> {
-    unsafe { step(GROUP_RVA, |g| g ^ 1, draw) }
+pub fn switch_stage_group(draw: Draw) -> Result<(), Refused> {
+    step(GROUP_RVA, |g| g ^ 1, draw)
 }
 
 /// `menu::next_stage_sub`: 5 or more (unsigned) to 0, else on.
-pub unsafe fn next_stage_sub(draw: Draw) -> Result<(), Refused> {
-    unsafe {
-        step(
-            SUB_RVA,
-            |s| rc2k_core::menu::steps::stage_sub(s, true),
-            draw,
-        )
-    }
+pub fn next_stage_sub(draw: Draw) -> Result<(), Refused> {
+    step(
+        SUB_RVA,
+        |s| rc2k_core::menu::steps::stage_sub(s, true),
+        draw,
+    )
 }
 
 /// `menu::previous_stage_sub`: below 1 (signed) to 5, else back.
-pub unsafe fn previous_stage_sub(draw: Draw) -> Result<(), Refused> {
-    unsafe {
-        step(
-            SUB_RVA,
-            |s| rc2k_core::menu::steps::stage_sub(s, false),
-            draw,
-        )
-    }
+pub fn previous_stage_sub(draw: Draw) -> Result<(), Refused> {
+    step(
+        SUB_RVA,
+        |s| rc2k_core::menu::steps::stage_sub(s, false),
+        draw,
+    )
 }
 
 /// `menu::next_stage_number`: 6 or more (unsigned) to 1, else on.
-pub unsafe fn next_stage_number(draw: Draw) -> Result<(), Refused> {
-    unsafe {
-        step(
-            NUMBER_RVA,
-            |n| rc2k_core::menu::steps::stage_number(n, true),
-            draw,
-        )
-    }
+pub fn next_stage_number(draw: Draw) -> Result<(), Refused> {
+    step(
+        NUMBER_RVA,
+        |n| rc2k_core::menu::steps::stage_number(n, true),
+        draw,
+    )
 }
 
 /// `menu::previous_stage_number`: below 2 (signed) to 6, else back one.
-pub unsafe fn previous_stage_number(draw: Draw) -> Result<(), Refused> {
-    unsafe {
-        step(
-            NUMBER_RVA,
-            |n| rc2k_core::menu::steps::stage_number(n, false),
-            draw,
-        )
-    }
+pub fn previous_stage_number(draw: Draw) -> Result<(), Refused> {
+    step(
+        NUMBER_RVA,
+        |n| rc2k_core::menu::steps::stage_number(n, false),
+        draw,
+    )
 }

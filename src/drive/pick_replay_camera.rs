@@ -18,8 +18,11 @@ use crate::race::view_store::RACE_VIEW;
 use crate::race::view_vars_store::VIEW_VARS;
 use rc2k_core::drive::replay_views::{MODES as MODE_COUNT, draw, fits, kept_mode, wish_kind};
 
-fn kind_of(mode: u32) -> u32 {
-    unsafe { (VIEW_VARS.view_records[mode as usize].get() as *const u32).read_unaligned() } // off_606320
+fn kind_of(reading: &crate::scene::reading::Reading, mode: u32) -> u32 {
+    reading.read(
+        VIEW_VARS.view_records[mode as usize].get(), // off_606320
+        "a camera mode's record",
+    )
 }
 
 /// The Rust version.
@@ -31,8 +34,11 @@ pub unsafe fn pick_replay_camera(wish: u32) -> Result<Option<u32>, Refused> {
     let Some(kind) = wish_kind(wish) else {
         return Ok(None);
     };
-    let fits = |mode: u32| fits(kind, kind_of(mode));
-    if !(0..MODE_COUNT).any(fits) {
+    let reading = crate::scene::reading::Reading::new();
+    let fits = |mode: u32| fits(kind, kind_of(&reading, mode));
+    let any = (0..MODE_COUNT).any(fits);
+    reading.finish()?;
+    if !any {
         return Err(BadInput("no camera mode the wish stops at").into());
     }
     let edx = loop {

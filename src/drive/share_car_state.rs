@@ -21,9 +21,10 @@
 //! Caller: `drive::share_all_cars` (0x456484), for each of the eight cars, inside `pusha` /
 //! `popa`. Refuses (before anything) a car file number above 0x21 (past `g_lightRecords`).
 
-use crate::errors::Refused;
+use crate::errors::{BadInput, Refused};
 use crate::math::x87;
 use crate::math::x87_run::{compare_full, sub_div_to_int};
+use crate::pointers::GamePtr;
 use crate::race::light_records_store::LIGHT_RECORDS;
 use crate::race::mud::car_file_number;
 use crate::race::numbers_store::NUMBERS;
@@ -31,117 +32,116 @@ use crate::race::view_store::RACE_VIEW;
 use crate::scene::draw_store::DRAW;
 use rc2k_core::drive::sharing;
 
-unsafe fn at(a: u32) -> u32 {
-    unsafe { (a as *const u32).read_unaligned() }
+fn at(a: u32) -> Result<u32, BadInput> {
+    GamePtr::new(a).read("a car's block")
 }
 
-unsafe fn put(a: u32, v: u32) {
-    unsafe { (a as *mut u32).write_unaligned(v) }
+fn put(a: u32, v: u32) -> Result<(), BadInput> {
+    GamePtr::new(a).write(v, "a car's block")
 }
 
 /// The light record's number for the block at `s`, or the refusal.
-unsafe fn light_record(s: u32) -> Result<u32, Refused> {
-    let n = car_file_number(unsafe { at(s + 0x24) });
+fn light_record(s: u32) -> Result<u32, Refused> {
+    let n = car_file_number(at(s + 0x24)?);
     sharing::check_light_record(n)?;
     Ok(n)
 }
 
 /// The Rust core: block `s`, record `o`, sound object `p`, the scratch at `scratch`.
 // Converted: `rc2k_core::drive::sharing` (the levels' x87 sums stay).
-pub unsafe fn share_car_state_at(s: u32, o: u32, p: u32, scratch: u32) -> Result<(), Refused> {
-    unsafe {
-        let n = light_record(s)?;
-        if let Some(count) = sharing::count_down(at(s + 0xFAC)) {
-            put(o + 0x30, 1);
-            put(s + 0xFAC, count);
-        }
-        put(o + 0x2C, at(p + 0xF0));
-        put(p + 0xF0, 0);
-        let from = RACE_VIEW.level_from.bits();
-        let step = NUMBERS.four.bits();
-        for (out, field) in [(0x4C0, 0x2B4), (0x4C4, 0x2B8)] {
-            put(o + out, 0);
-            if compare_full(at(s + field), from) & 0x100 == 0 {
-                let v = sub_div_to_int(at(s + field), from, step);
-                put(scratch, v as u32);
-                put(o + out, sharing::level(v));
-            }
-        }
-        put(o + 0x1C, at(s + 0x240));
-        let light = LIGHT_RECORDS.record_addr(n);
-        for (r, l) in sharing::LIGHT_MOVES {
-            put(o + r, at(light + l));
-        }
-        put(o + 0x24, s + 0x8C0);
-        put(o + 0x28, s + 0x740);
-        put(o + 8, x87::loaded(at(s + 0x1D8)));
-        put(o + 4, n);
-        for (r, b) in sharing::MOVES_A {
-            put(o + r, at(s + b));
-        }
-        for (offsets, first) in sharing::QUADS {
-            let (a, bb, c) = (at(s + first), at(s + 0x1A4), at(s + 0x1AC));
-            for base in [offsets[0], offsets[0] + 0x48] {
-                put(o + base, a);
-                put(o + base + 4, bb);
-                put(o + base + 8, 0);
-                put(o + base + 0xC, c);
-            }
-        }
-        for (k, r) in sharing::WHEELS.into_iter().enumerate() {
-            put(o + r, at(s + 0x920 + 4 * k as u32));
-        }
-        for (k, r) in sharing::WHEELS.into_iter().enumerate() {
-            let k = k as u32;
-            if sharing::wheel_cleared(at(s + 0x600 + 4 * k), at(s + 0x298), k) {
-                put(o + r, 0);
-            }
-        }
-        put(o + 0x210, 0);
-        put(o + 0x21C, 0);
-        let zero = x87::loaded(0);
-        for r in [0x24C, 0x250, 0x254, 0x244] {
-            put(o + r, zero);
-        }
-        let switched = at(s + 0xA34) != 0;
-        if switched {
-            for (r, b) in sharing::MOVES_B {
-                put(o + r, at(s + b));
-            }
-            for (r, b) in [(0x230, 0xA28), (0x234, 0xA2C), (0x238, 0xA30)] {
-                put(o + r, x87::from_int(at(s + b) as i32));
-            }
-            put(o + 0x22C, at(s + 0xA38));
-        }
-        for k in 0..8 {
-            put(o + 0x2CC + 4 * k, at(s + 0x64 + 4 * k));
-        }
-        let mut kept: [u32; 6] = std::array::from_fn(|k| at(o + 0x258 + 4 * k as u32));
-        sharing::fill_holes(&mut kept);
-        for (k, v) in kept.into_iter().enumerate() {
-            put(s + 0x700 + 4 * k as u32, v);
-        }
-        for k in 0..8 {
-            put(s + 0xA3C + 4 * k, at(o + 0x32C + 4 * k));
-        }
-        for k in 0..0x11 {
-            put(s + 0xA5C + 4 * k, at(o + 0x3F4 + 4 * k));
-        }
-        Ok(())
+pub fn share_car_state_at(s: u32, o: u32, p: u32, scratch: u32) -> Result<(), Refused> {
+    let n = light_record(s)?;
+    if let Some(count) = sharing::count_down(at(s + 0xFAC)?) {
+        put(o + 0x30, 1)?;
+        put(s + 0xFAC, count)?;
     }
+    put(o + 0x2C, at(p + 0xF0)?)?;
+    put(p + 0xF0, 0)?;
+    let from = RACE_VIEW.level_from.bits();
+    let step = NUMBERS.four.bits();
+    for (out, field) in [(0x4C0, 0x2B4), (0x4C4, 0x2B8)] {
+        put(o + out, 0)?;
+        if compare_full(at(s + field)?, from) & 0x100 == 0 {
+            let v = sub_div_to_int(at(s + field)?, from, step);
+            put(scratch, v as u32)?;
+            put(o + out, sharing::level(v))?;
+        }
+    }
+    put(o + 0x1C, at(s + 0x240)?)?;
+    let light = LIGHT_RECORDS.record_addr(n);
+    for (r, l) in sharing::LIGHT_MOVES {
+        put(o + r, at(light + l)?)?;
+    }
+    put(o + 0x24, s + 0x8C0)?;
+    put(o + 0x28, s + 0x740)?;
+    put(o + 8, x87::loaded(at(s + 0x1D8)?))?;
+    put(o + 4, n)?;
+    for (r, b) in sharing::MOVES_A {
+        put(o + r, at(s + b)?)?;
+    }
+    for (offsets, first) in sharing::QUADS {
+        let (a, bb, c) = (at(s + first)?, at(s + 0x1A4)?, at(s + 0x1AC)?);
+        for base in [offsets[0], offsets[0] + 0x48] {
+            put(o + base, a)?;
+            put(o + base + 4, bb)?;
+            put(o + base + 8, 0)?;
+            put(o + base + 0xC, c)?;
+        }
+    }
+    for (k, r) in sharing::WHEELS.into_iter().enumerate() {
+        put(o + r, at(s + 0x920 + 4 * k as u32)?)?;
+    }
+    for (k, r) in sharing::WHEELS.into_iter().enumerate() {
+        let k = k as u32;
+        if sharing::wheel_cleared(at(s + 0x600 + 4 * k)?, at(s + 0x298)?, k) {
+            put(o + r, 0)?;
+        }
+    }
+    put(o + 0x210, 0)?;
+    put(o + 0x21C, 0)?;
+    let zero = x87::loaded(0);
+    for r in [0x24C, 0x250, 0x254, 0x244] {
+        put(o + r, zero)?;
+    }
+    let switched = at(s + 0xA34)? != 0;
+    if switched {
+        for (r, b) in sharing::MOVES_B {
+            put(o + r, at(s + b)?)?;
+        }
+        for (r, b) in [(0x230, 0xA28), (0x234, 0xA2C), (0x238, 0xA30)] {
+            put(o + r, x87::from_int(at(s + b)? as i32))?;
+        }
+        put(o + 0x22C, at(s + 0xA38)?)?;
+    }
+    for k in 0..8 {
+        put(o + 0x2CC + 4 * k, at(s + 0x64 + 4 * k)?)?;
+    }
+    let mut kept = [0u32; 6];
+    for (k, v) in kept.iter_mut().enumerate() {
+        *v = at(o + 0x258 + 4 * k as u32)?;
+    }
+    sharing::fill_holes(&mut kept);
+    for (k, v) in kept.into_iter().enumerate() {
+        put(s + 0x700 + 4 * k as u32, v)?;
+    }
+    for k in 0..8 {
+        put(s + 0xA3C + 4 * k, at(o + 0x32C + 4 * k)?)?;
+    }
+    for k in 0..0x11 {
+        put(s + 0xA5C + 4 * k, at(o + 0x3F4 + 4 * k)?)?;
+    }
+    Ok(())
 }
 
 /// The Rust version.
 /// The Rust version: the car block `block` (esi), its record `record` (edi), its sound
 /// object `sound` (ebp). The registers it leaves are read by no caller (liveness: only
 /// DF after `share_all_cars`' call).
-pub unsafe fn share_car_state(block: u32, record: u32, sound: u32) -> Result<(), Refused> {
-    unsafe {
-        share_car_state_at(
-            block,
-            record,
-            sound,
-            DRAW.scratch.addr() as u32, /* dword_62400C */
-        )
-    }
+pub fn share_car_state(block: u32, record: u32, sound: u32) -> Result<(), Refused> {
+    share_car_state_at(
+        block,
+        record,
+        sound,
+        DRAW.scratch.addr() as u32, /* dword_62400C */
+    )
 }

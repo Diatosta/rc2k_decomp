@@ -11,6 +11,7 @@
 //! Callers (8): `sub_442006`, the face under a point (each edge of a triangle or a quad).
 
 use crate::physics::flag_result::FlagResult;
+use crate::pointers::GamePtr;
 use rc2k_core::physics::faces;
 
 /// The point's and the scratch value's addresses: the game's, or a test's.
@@ -29,7 +30,11 @@ unsafe fn at(a: u32) -> u32 {
 
 /// The Rust core; `eax` what eax held at entry is not needed (it is always set).
 // Converted: `rc2k_core::physics::faces::edge_side`.
-pub unsafe fn edge_side_at(p: &EdgePlaces, from: u32, to: u32) -> FlagResult {
+pub unsafe fn edge_side_at(
+    p: &EdgePlaces,
+    from: u32,
+    to: u32,
+) -> Result<FlagResult, crate::errors::Refused> {
     let result = |eax, carry, zero| FlagResult {
         eax,
         ecx: None,
@@ -39,12 +44,18 @@ pub unsafe fn edge_side_at(p: &EdgePlaces, from: u32, to: u32) -> FlagResult {
     };
     unsafe {
         let point = (at(p.x), at(p.z));
-        match faces::edge_side(point, (at(from), at(from + 8)), (at(to), at(to + 8))) {
+        let scene = |a: u32| -> Result<(u32, u32), crate::errors::BadInput> {
+            Ok((
+                GamePtr::new(a).read::<u32>("a scene point's x")?,
+                GamePtr::new(a).offset(8).read::<u32>("a scene point's z")?,
+            ))
+        };
+        Ok(match faces::edge_side(point, scene(from)?, scene(to)?) {
             None => result(1, false, false),
             Some((kept, negative)) => {
                 (p.product as *mut i64).write_unaligned(kept);
                 result(0, negative, true)
             }
-        }
+        })
     }
 }

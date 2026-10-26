@@ -36,11 +36,17 @@ pub fn note_locked_item_3() -> Result<(), Refused> {
 /// `screens::note_locked_stage` (0x48ADCE): unless cheat 0 is on, with an item chosen other
 /// than 1 and 7 whose stage (`byte_758800[item - 2]`) is not open (1), the message box.
 pub fn note_locked_stage() -> Result<(), Refused> {
-    show(rc2k_core::screens::locked::stage(
+    let fault = crate::menu::event_flow::Fault::default();
+    let note = rc2k_core::screens::locked::stage(
         CHEAT_VARS.cheats.get(),
         LOOP_FLAGS.item.get(),
-        |index| unsafe {
-            ((ARCADE_GAME.levels_won.addr() as u32).wrapping_add(index) as *const u8).read()
+        |index| {
+            fault.read::<u8>(
+                (ARCADE_GAME.levels_won.addr() as u32).wrapping_add(index),
+                "a stage\'s lock",
+            )
         },
-    ))
+    );
+    fault.check()?;
+    show(note)
 }

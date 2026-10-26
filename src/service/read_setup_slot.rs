@@ -15,8 +15,8 @@
 use crate::errors::{BadInput, Refused};
 use crate::files::numbered_path::numbered_path_in_game;
 use crate::files::read_file::read_file;
+use crate::pointers::GamePtr;
 use crate::session::{Bytes, Dword};
-use std::ptr::copy_nonoverlapping;
 
 // ---- game data ----
 
@@ -78,17 +78,23 @@ pub unsafe fn read_setup_slot(slot: u32) -> Result<bool, Refused> {
     if slot >= SLOT_COUNT {
         return Err(BadInput("slot past the name table").into());
     }
-    unsafe {
+    {
         let path = numbered_path_in_game(TEMPLATE.as_ptr(), slot)?;
-        let file: *mut u8 = SET_UPS.file.as_ptr();
-        let read = read_file(path, file, SETUP_FILE_LEN as u32, 0)?;
+        let file = GamePtr::new(SET_UPS.file.addr() as u32);
+        let read = read_file(
+            path,
+            file.addr() as usize as *mut u8,
+            SETUP_FILE_LEN as u32,
+            0,
+        )?;
         // Converted: `rc2k_core::saves::kept::setup_name`.
         let name = rc2k_core::saves::kept::setup_name(
-            &(file as *const [u8; SETUP_FILE_LEN]).read_unaligned(),
+            &file.read::<[u8; SETUP_FILE_LEN]>("the setup file")?,
         );
         match name {
             Some(name) if read.ok => {
-                copy_nonoverlapping(name.as_ptr(), slot_name(slot), NAME_LEN);
+                GamePtr::new(slot_name(slot) as u32)
+                    .write_bytes(&name[..NAME_LEN], "a setup's name")?;
                 Ok(true)
             }
             _ => Ok(false),

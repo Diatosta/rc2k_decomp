@@ -13,7 +13,7 @@ use crate::menu::pages_store::MENU_PAGES;
 use crate::menu::standings::*;
 
 /// The Rust version (see the header): the registers it leaves.
-pub unsafe fn reset_single_event() -> Result<(), Refused> {
+pub fn reset_single_event() -> Result<(), Refused> {
     if (0..4).any(|n| player(n) == 0) {
         return Err(BadInput("a missing player").into());
     }
@@ -30,7 +30,7 @@ pub unsafe fn reset_single_event() -> Result<(), Refused> {
     EVENT_STATE.event_out.set(0u32);
 
     for n in (0..4).rev() {
-        put_all(player(n), &PLAYER_BEGIN);
+        put_all(player(n), &PLAYER_BEGIN)?;
     }
     Ok(())
 }

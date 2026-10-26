@@ -13,6 +13,7 @@
 
 use crate::errors::Refused;
 use crate::menu::draw_work_store::DRAW_WORK;
+use crate::pointers::GamePtr;
 use crate::text::draw_text::{Canvas, draw_text_at};
 use crate::text::font::Font;
 
@@ -34,13 +35,15 @@ pub unsafe fn draw_spaced_number(
         DRAW_WORK.work_b8.set(n);
         let cells = crate::screens::text_buffers_store::TEXT_BUFFERS
             .cells
-            .addr() as *mut u8;
-        for i in 0..n as usize {
-            *cells.add(2 * i) = *text.add(i);
-            *cells.add(2 * i + 1) = 0;
+            .addr() as u32;
+        let digits = GamePtr::new(text as usize as u32).read_bytes(n as usize, "the digits")?;
+        let mut spaced = Vec::with_capacity(2 * digits.len());
+        for &digit in &digits {
+            spaced.extend([digit, 0]);
         }
+        GamePtr::new(cells).write_bytes(&spaced, "the spaced digits")?;
         for (i, x) in places {
-            draw_text_at(font, cells.add(2 * i), x, y, canvas)?;
+            draw_text_at(font, (cells as usize + 2 * i) as *const u8, x, y, canvas)?;
         }
         Ok(())
     }

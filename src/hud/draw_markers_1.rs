@@ -11,6 +11,7 @@
 
 use crate::errors::Refused;
 use crate::hud::store::{HUD, rect_addr};
+use crate::pointers::GamePtr;
 use rc2k_core::hud::quads;
 use rc2k_core::math::extended::{from_f64, to_f64};
 
@@ -29,16 +30,16 @@ pub fn taken_off(v: [u8; 10]) -> u32 {
 
 /// The two markers at rows `rows` (see the header).
 // Converted: `rc2k_core::hud::quads::{marker_x, int_over}`
-pub unsafe fn markers_with(record: u32, rows: [u32; 2]) -> Result<(), Refused> {
-    unsafe {
-        let get = |o: u32| ((record + o) as *const u32).read_unaligned();
+pub fn markers_with(record: u32, rows: [u32; 2]) -> Result<(), Refused> {
+    {
+        let get = |o: u32| GamePtr::new(record + o).read::<u32>("a hud record's field");
         let k = HUD.uv_scale_x.bits();
         for (n, field) in [0x6Cu32, 0x70].into_iter().enumerate() {
             HUD.quad[5].set(HUD.marker_colours[n].get());
             let f = f32::from_bits;
             let x = quads::marker_x(
-                f(get(field)),
-                f(get(0x68)),
+                f(get(field)?),
+                f(get(0x68)?),
                 HUD.marker_k[0].get(),
                 HUD.marker_k[1].get(),
             );
@@ -58,6 +59,6 @@ pub unsafe fn markers_with(record: u32, rows: [u32; 2]) -> Result<(), Refused> {
 
 /// The Rust version (see the header).
 // Converted: `rc2k_core::hud::quads::{marker_x, int_over}` (through `markers_with`)
-pub unsafe fn draw_markers_1(record: u32) -> Result<(), Refused> {
-    unsafe { markers_with(record, [1, 0xE]) }
+pub fn draw_markers_1(record: u32) -> Result<(), Refused> {
+    markers_with(record, [1, 0xE])
 }

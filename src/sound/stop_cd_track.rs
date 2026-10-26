@@ -14,28 +14,12 @@ const MCI_STOP: u32 = 0x808;
 /// `mciSendCommandA(device, message, parameter 1, parameter 2)`.
 pub type SendCommand<'a> = &'a mut dyn FnMut(u32, u32, u32, u32) -> u32;
 
-#[derive(Clone, Copy)]
-pub struct CdVars {
-    pub open: u32,
-    pub device: u32,
-}
-
-impl CdVars {
-    pub fn game() -> Self {
-        Self {
-            open: crate::sound::store::CD_AUDIO.open.addr() as u32,
-            device: crate::sound::store::CD_AUDIO.mci_id.addr() as u32,
-        }
-    }
-}
-
 // ---- Rust version ----
 
-pub unsafe fn stop_cd_track(v: &CdVars, send: SendCommand) {
-    unsafe {
-        if (v.open as *const u32).read_unaligned() == 1 {
-            send((v.device as *const u32).read_unaligned(), MCI_STOP, 0, 0);
-        }
+pub fn stop_cd_track(send: SendCommand) {
+    use crate::sound::store::CD_AUDIO;
+    if CD_AUDIO.open.get() == 1 {
+        send(CD_AUDIO.mci_id.get(), MCI_STOP, 0, 0);
     }
 }
 
@@ -46,5 +30,5 @@ pub fn game_send(_device: u32, _message: u32, _a: u32, _b: u32) -> u32 {
 
 /// In the game: its variables and MCI.
 pub fn stop_cd_track_in_game() {
-    unsafe { stop_cd_track(&CdVars::game(), &mut game_send) };
+    stop_cd_track(&mut game_send);
 }

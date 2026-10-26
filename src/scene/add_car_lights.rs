@@ -27,7 +27,7 @@ const BLOCKS: u32 = 8;
 // ---- Rust version ----
 
 /// The game's variables the choice reads.
-struct GameCars;
+struct GameCars(crate::scene::reading::Reading);
 
 impl rc2k_core::scene::lamps::CarLights for GameCars {
     fn one_car(&self) -> bool {
@@ -50,27 +50,26 @@ impl rc2k_core::scene::lamps::CarLights for GameCars {
     }
     fn viewed(&self) -> u32 {
         // The store holds two views; the original's index is not held to them.
-        unsafe {
-            ((RACE_VIEW.view_cars[0].addr())
-                .wrapping_add((RACE_VIEW.drawn_view.bits() as usize) << 2)
-                as *const u32)
-                .read_unaligned()
-        }
+        self.0.read(
+            (RACE_VIEW.view_cars[0].addr() as u32).wrapping_add(RACE_VIEW.drawn_view.bits() << 2),
+            "the drawn view's car",
+        )
     }
 }
 
 // Converted: `rc2k_core::scene::lamps::car_lights`
-pub unsafe fn add_car_lights(
-    add: &mut dyn FnMut(usize) -> Result<(), Refused>,
-) -> Result<(), Refused> {
+pub fn add_car_lights(add: &mut dyn FnMut(usize) -> Result<(), Refused>) -> Result<(), Refused> {
     {
         let cars: u32 = RACE_VIEW.race_cars.bits();
         if cars == 0 || cars > BLOCKS {
             return Err(BadInput("no cars, or more than their blocks").into());
         }
+        let lights = GameCars(crate::scene::reading::Reading::new());
         for car in 0..cars {
             let block = RACE_WORK.car_block(car as usize);
-            if rc2k_core::scene::lamps::car_lights(&GameCars, car) {
+            let lit = rc2k_core::scene::lamps::car_lights(&lights, car);
+            lights.0.finish()?;
+            if lit {
                 add(block as usize)?;
             }
         }

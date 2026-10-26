@@ -86,7 +86,7 @@ pub type Outside<'a> = &'a mut dyn FnMut(Call) -> Result<u32, Refused>;
 unsafe fn default_name(to: *mut u8, room: usize, id: u32, after: &[u8]) -> Result<(), BadInput> {
     unsafe {
         let mut string = Vec::new();
-        push_string(&mut string, id);
+        push_string(&mut string, id)?;
         let name = rc2k_core::system::game_data::default_name(&string, after, room)
             .ok_or(BadInput("a default name longer than its place"))?;
         std::ptr::copy(name.as_ptr(), to, name.len());
@@ -101,7 +101,7 @@ unsafe fn number_empty_names<const N: usize>(names: &Bytes<N>, id: u32) -> Resul
             let name = slot as usize * NAME_LEN;
             if names.get(name) == 0 {
                 let mut string = Vec::new();
-                push_string(&mut string, id);
+                push_string(&mut string, id)?;
                 let bytes = rc2k_core::system::game_data::slot_name(&string, slot, NAME_LEN)
                     .ok_or(BadInput("a default name longer than its place"))?;
                 std::ptr::copy(bytes.as_ptr(), names.as_ptr().add(name), bytes.len());
@@ -165,16 +165,14 @@ pub unsafe fn load_game_data(outside: Outside) -> Result<(), Refused> {
             let end = loop {
                 let drawn = outside(Call::RandomBelow(DRIVER_NAME_IDS.1))?;
                 let mut name = Vec::new();
-                push_string(&mut name, DRIVER_NAME_IDS.0.wrapping_add(drawn));
+                push_string(&mut name, DRIVER_NAME_IDS.0.wrapping_add(drawn))?;
                 if name.len() >= NAME_LEN {
                     return Err(BadInput("a driver's name longer than its place").into());
                 }
                 // No NUL yet: a short name leaves what was there after it.
-                std::ptr::copy(
-                    name.as_ptr(),
-                    TYRE_CHANGE.record_name.addr() as *mut u8,
-                    name.len(),
-                );
+                for (k, &b) in name.iter().enumerate() {
+                    TYRE_CHANGE.record_name.set(k, b);
+                }
                 if !drawn_again(std::array::from_fn(|k| TYRE_CHANGE.record_name.get(k))) {
                     break name.len();
                 }

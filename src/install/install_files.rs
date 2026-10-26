@@ -99,11 +99,9 @@ pub fn install_files() -> Result<(), Refused> {
     INSTALLER_RUN
         .files_to_copy
         .set(INSTALLER_RUN.file_count.get());
-    let room = unsafe {
-        (INSTALLER_NAMES.room_by_mode.addr() as u32 as *const u32)
-            .add(crate::install::installer::media_mode() as usize)
-            .read_unaligned()
-    };
+    let room = crate::install::installer::rd(
+        INSTALLER_NAMES.room_by_mode.addr() as u32 + 4 * crate::install::installer::media_mode(),
+    );
     INSTALLER_RUN.room_needed.set(room);
     // loc_413130: the path is bad; loc_4134D6: no room or not a CD.
     let bad_path = || {
@@ -181,7 +179,7 @@ pub fn install_files() -> Result<(), Refused> {
     if !i::write_record::write_record()? {
         return message(2, INSTALLER_PAGES.msg_error.addr() as u32, 0);
     }
-    if unsafe { crate::files::state::locale_directory().read_volatile() } != 0 {
+    if crate::install::installer::rb(crate::files::state::locale_directory() as u32) != 0 {
         // readme.txt then manual.pdf
         for (full, base) in [
             (

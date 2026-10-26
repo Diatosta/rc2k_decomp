@@ -13,7 +13,7 @@ use rc2k_core::menu::event::LastPage;
 /// The first stage of the last page (stored in `dword_7556B8`, 1 for a single page), and
 /// what the original leaves in the registers: for more than one page, eax that first
 /// stage, edx the stages on the last page (count % 10), ebp 10.
-pub unsafe fn first_page_stage() -> Option<LastPage> {
+pub fn first_page_stage() -> Option<LastPage> {
     let n: u32 = { CHAMP_VIEW.count.get() };
     // Converted: `rc2k_core::menu::event::last_page` (its division cannot meet 0).
     let Some(last) = rc2k_core::menu::event::last_page(n) else {

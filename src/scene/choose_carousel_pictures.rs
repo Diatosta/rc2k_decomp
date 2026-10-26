@@ -16,16 +16,14 @@ use crate::scene::carousel_pictures::update;
 
 // ---- Rust version ----
 
-pub unsafe fn choose_carousel_pictures() -> Result<(), BadInput> {
+pub fn choose_carousel_pictures() -> Result<(), BadInput> {
     // Converted: `rc2k_core::scene::carousel::{shows_pictures, visible_entries}`.
     use rc2k_core::scene::carousel::{shows_pictures, visible_entries};
-    unsafe {
-        if !shows_pictures(MENU_STATE.carousel.menu.get()) {
-            return Ok(());
-        }
-        update(visible_entries(
-            MENU_STATE.carousel.front.get(),
-            MENU_STATE.carousel.count.get(),
-        ))
+    if !shows_pictures(MENU_STATE.carousel.menu.get()) {
+        return Ok(());
     }
+    update(visible_entries(
+        MENU_STATE.carousel.front.get(),
+        MENU_STATE.carousel.count.get(),
+    ))
 }

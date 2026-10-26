@@ -39,6 +39,7 @@ use crate::input::store::DEVICES;
 use crate::install::vars::INSTALLER_PAGES;
 use crate::menu::event_flow::Flow;
 use crate::menu::screen_loop::Carried;
+use crate::pointers::GamePtr;
 use crate::race::replay_file_store::REPLAY_FILE;
 use crate::race::viewer::LAST_RACE;
 use crate::race::viewer_screen_store::VIEWER_PANEL;
@@ -264,13 +265,13 @@ fn stopped_key(r: &mut Flow, key: u8) -> Result<Next, Refused> {
         .wrapping_mul(0x10)
         .wrapping_add(r.record)
         .wrapping_add(0x18);
-    r.c.palette = unsafe { ((r.record + 0x10) as *const u32).read_unaligned() };
+    r.c.palette = GamePtr::new(r.record + 0x10).read::<u32>("game data")?;
     step(13, r)?;
     if r.zero {
         return Ok(Next::Mark);
     }
     if key == 0x1C {
-        r.c.palette = unsafe { ((r.c.cars + 1) as *const u8).read() } as u32;
+        r.c.palette = GamePtr::new(r.c.cars + 1).read::<u8>("game data")? as u32;
         step(8, r)?;
         if r.zero {
             return Ok(Next::Mark);
@@ -311,7 +312,7 @@ fn mark(r: &mut Flow, key: u8) -> Result<(), Refused> {
             }
             // On the way it went while it cannot be chosen.
             loop {
-                r.c.palette = unsafe { ((r.record + 0x10) as *const u32).read_unaligned() };
+                r.c.palette = GamePtr::new(r.record + 0x10).read::<u32>("game data")?;
                 step(13, r)?;
                 if !r.zero {
                     break;
@@ -329,7 +330,7 @@ fn mark(r: &mut Flow, key: u8) -> Result<(), Refused> {
             }
         }
         INSTALLER_PAGES.choice.set(6);
-        if unsafe { ((r.record + 0x78) as *const u8).read() } & 0xC0 != 0 {
+        if GamePtr::new(r.record + 0x78).read::<u8>("game data")? & 0xC0 != 0 {
             INSTALLER_PAGES.choice.set(0x13);
         }
     }
@@ -349,7 +350,7 @@ fn step(place: u32, r: &mut Flow) -> Result<(), Refused> {
             1 => r.c.arg = crate::menu::replay_slot_loop::replay_slot_loop(&r.c)?,
             2 => save_last_replay::save_last_replay(r.c.arg)?,
             3 => r.c.carry = open_viewed_replay::open_viewed_replay(r.c.palette)?,
-            4 => find_snapshot_number::find_snapshot_number(),
+            4 => find_snapshot_number::find_snapshot_number()?,
             5 => viewer_load_stage::viewer_load_stage()?,
             6 => {
                 // `input::take_key` into al and the zero flag.
@@ -358,7 +359,7 @@ fn step(place: u32, r: &mut Flow) -> Result<(), Refused> {
                 r.zero = key == 0;
                 r.c.carry = false;
             }
-            7 => mark_viewer_items::mark_viewer_items(r.record),
+            7 => mark_viewer_items::mark_viewer_items(r.record)?,
             8 => r.zero = viewer_action::viewer_action(r.c.palette, &r.c)?,
             // `screens::run_frame` with `race::viewer_frame` (0x41D5FB).
             9 => {
@@ -370,9 +371,9 @@ fn step(place: u32, r: &mut Flow) -> Result<(), Refused> {
             11 => r.c.carry = step_viewed_replay::step_viewed_replay()?,
             12 => crate::gfx::take_screenshot::take_screenshot()?,
             13 => {
-                crate::menu::list_step::list_step(r.c.arg as u8, r.c.palette, r.record).carry_on(r)
+                crate::menu::list_step::list_step(r.c.arg as u8, r.c.palette, r.record)?.carry_on(r)
             }
-            14 => r.c.carry = crate::menu::list_item_unusable::list_item_unusable(r.record),
+            14 => r.c.carry = crate::menu::list_item_unusable::list_item_unusable(r.record)?,
             15 => crate::sound::play_menu_sound::play_menu_sound_in_game(r.c.arg),
             16 => close_viewed_replay::close_viewed_replay()?,
             _ => viewer_tidy_stage::viewer_tidy_stage()?,

@@ -18,37 +18,39 @@ use crate::screens::best_scores::{STAGE_TIMES, draw_times_heading};
 use crate::text::draw_text::Canvas;
 
 /// The Rust version.
-pub unsafe fn draw_player_stage_result(canvas: &mut dyn Canvas) -> Result<(), Refused> {
-    unsafe {
-        let player = crate::menu::player_settings::current()?;
-        let p = player as u32;
-        let f = |o: u32| ((p + o) as *const u32).read_unaligned();
-        let name = crate::menu::player_name::name()?;
-        let mut speed = crate::strings::append_speed::append_speed(
-            f(0x94),
-            true,
-            crate::strings::units::units(),
-        )?;
-        speed.push(0);
-        if (STAGE_TIMES.records)() == 0 {
-            return Err(crate::errors::BadInput("no stage records").into());
-        }
-        // Converted: `rc2k_core::screens::player_result::stage_result`.
-        use crate::screens::game_screen::PlayerResultScreen;
-        speed.pop();
-        let p = rc2k_core::screens::player_result::Player {
-            name: name as u32,
-            nation: f(4),
-            car: f(8),
-            time: f(0x88),
-            speed,
-        };
-        rc2k_core::screens::player_result::stage_result(
-            &mut PlayerResultScreen::new(canvas),
-            &mut |s: &mut PlayerResultScreen| draw_times_heading(&STAGE_TIMES, s.canvas),
-            &p,
-            crate::strings::append_time::show_hours(),
-        )?;
-        Ok(())
+pub fn draw_player_stage_result(canvas: &mut dyn Canvas) -> Result<(), Refused> {
+    let player = crate::menu::player_settings::current()?;
+    let p = player;
+    let fault = crate::menu::event_flow::Fault::default();
+    let f = |o: u32| fault.get(p + o);
+    let name = crate::menu::player_name::name()?;
+    let top_speed = f(0x94);
+    fault.check()?;
+    let mut speed = crate::strings::append_speed::append_speed(
+        top_speed,
+        true,
+        crate::strings::units::units(),
+    )?;
+    speed.push(0);
+    if (STAGE_TIMES.records)()? == 0 {
+        return Err(crate::errors::BadInput("no stage records").into());
     }
+    // Converted: `rc2k_core::screens::player_result::stage_result`.
+    use crate::screens::game_screen::PlayerResultScreen;
+    speed.pop();
+    let p = rc2k_core::screens::player_result::Player {
+        name,
+        nation: f(4),
+        car: f(8),
+        time: f(0x88),
+        speed,
+    };
+    fault.check()?;
+    rc2k_core::screens::player_result::stage_result(
+        &mut PlayerResultScreen::new(canvas),
+        &mut |s: &mut PlayerResultScreen| draw_times_heading(&STAGE_TIMES, s.canvas),
+        &p,
+        crate::strings::append_time::show_hours(),
+    )?;
+    Ok(())
 }

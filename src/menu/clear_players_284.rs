@@ -8,6 +8,7 @@
 
 use crate::errors::Refused;
 use crate::menu::player::{PLAYERS, Player, player_at};
+use crate::pointers::GamePtr;
 
 pub fn clear_players_284() -> Result<(), Refused> {
     for n in 0..PLAYERS {
@@ -17,7 +18,12 @@ pub fn clear_players_284() -> Result<(), Refused> {
         }
     }
     for n in 0..PLAYERS {
-        unsafe { (*(player_at(n) as *mut Player)).field_284 = -1 };
+        {
+            let at = GamePtr::new(player_at(n));
+            let mut player = at.read::<Player>("a player")?;
+            player.field_284 = -1;
+            at.write(player, "a player")?;
+        }
     }
     Ok(())
 }

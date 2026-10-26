@@ -9,18 +9,17 @@
 //! Refuses a missing player.
 
 use crate::errors::BadInput;
-use crate::menu::player_names::{CAR_NAME, NAME_LEN, cars, name};
+use crate::menu::player_names::{CAR_NAME, cars, name_bytes};
+use crate::pointers::GamePtr;
 
 // ---- Rust version ----
 
 /// `log` gets the address of each line's text.
-pub unsafe fn store_player_names(log: &mut dyn FnMut(*const u8)) -> Result<(), BadInput> {
-    unsafe {
-        for (player, car) in cars()?.into_iter().enumerate() {
-            let copy = (car as usize + CAR_NAME) as *mut u8;
-            std::ptr::copy(name(player), copy, NAME_LEN);
-            log(copy);
-        }
-        Ok(())
+pub fn store_player_names(log: &mut dyn FnMut(*const u8)) -> Result<(), BadInput> {
+    for (player, car) in cars()?.into_iter().enumerate() {
+        let copy = car + CAR_NAME as u32;
+        GamePtr::new(copy).write_bytes(&name_bytes(player), "a player's name copy")?;
+        log(copy as usize as *const u8);
     }
+    Ok(())
 }

@@ -6,7 +6,7 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::physics::camera_store::CAMERA_WORK;
-use crate::physics::car_store::Car;
+use crate::pointers::GamePtr;
 use crate::race::course_store::COURSE;
 use crate::race::frame_store::FRAME_WORK;
 use crate::race::light_records_store::LIGHT_RECORDS;
@@ -15,6 +15,7 @@ use crate::race::numbers_store::NUMBERS;
 use crate::race::prefs_store::STAGE_PREFS;
 use crate::race::sound_spots_store::RACE_SOUND_SPOTS;
 use crate::race::switches_store::FRAME_SWITCHES;
+use crate::race::trap::car_at;
 use crate::race::vars_store::RACE_VARS;
 use crate::race::view_store::RACE_VIEW;
 use crate::race::view_vars_store::VIEW_VARS;
@@ -26,8 +27,8 @@ use crate::scene::matrix::multiply_matrices;
 use crate::scene::object_store::OBJECT_WORK;
 use crate::scene::object_tables_store::OBJECT_TABLES;
 
-unsafe fn get(a: u32) -> u32 {
-    unsafe { (a as *const u32).read_unaligned() }
+fn get(a: u32) -> Result<u32, BadInput> {
+    GamePtr::new(a).read("a car block or model word")
 }
 
 // The matrices are handed to code that walks memory by pointer: absolute addresses.
@@ -86,7 +87,7 @@ pub unsafe fn car_body_matrix() {
 /// `race::clear_car_marks` (0x46202A): the 0x40 dwords at `dword_5CD688` (the car's
 /// marks: number, digits, plates) 0. (The original leaves eax 0, ecx 0, edi past them;
 /// its one caller reads none.)
-pub unsafe fn clear_car_marks() {
+pub fn clear_car_marks() {
     for mark in &OBJECT_TABLES.car_mark_textures[..0x40] {
         mark.set(0);
     }
@@ -102,39 +103,42 @@ pub unsafe fn clear_car_marks() {
 /// `dword_71BA10[]` into `dword_5CD6A8`; and while +0x310 is below `flt_5C5D14` its 17
 /// bytes +0xAC0 .. into the places `dword_6416F8[]` names. The registers it leaves are
 /// read by no one (`draw_car` reads only esi, which it keeps).
-pub unsafe fn car_number_textures(car: u32) {
+pub fn car_number_textures(car: u32) -> Result<(), BadInput> {
     // Converted: `rc2k_core::race::car_marks` (the rounding of +0x718 the x87's, under the
     // game's control word).
     use rc2k_core::race::car_marks::{
         decals_shown, lamp_side, letter_number, letter_place, number_digits, stage_plate,
     };
-    let float = |a: u32| f32::from_bits(unsafe { get(a) });
-    unsafe {
+    let float = |a: u32| -> Result<f32, BadInput> { Ok(f32::from_bits(get(a)?)) };
+    {
         let limit = f32::from_bits(FRAME_WORK.decal_limit.bits());
-        let side = lamp_side(float(car + 0x1B8), limit);
+        let side = lamp_side(float(car + 0x1B8)?, limit);
         OBJECT_TABLES.car_mark_textures[1].set(side);
         OBJECT_TABLES.car_mark_textures[4].set(side);
-        let side = lamp_side(float(car + 0x1BC), limit);
+        let side = lamp_side(float(car + 0x1BC)?, limit);
         OBJECT_TABLES.car_mark_textures[2].set(side);
         OBJECT_TABLES.car_mark_textures[3].set(side);
         let name = (RACE_WORK.number_texture_names[0].addr() as u32)
-            .wrapping_add(Car::at(car).car_kind.bits().wrapping_mul(0x30));
-        let n = crate::math::x87::to_int(Car::at(car).unknown_6f4[9].bits());
+            .wrapping_add(car_at(car)?.car_kind.bits().wrapping_mul(0x30));
+        let n = crate::math::x87::to_int(car_at(car)?.unknown_6f4[9].bits());
         DRAW.scratch.set(n as u32);
         let (place, _) = letter_place(n);
-        let letter = letter_number(((name + place) as *const u8).read()) as u32;
+        let letter =
+            letter_number(GamePtr::new(name + place).read::<u8>("a car's number texture name")?)
+                as u32;
         OBJECT_TABLES.car_mark_textures[5].set(letter);
         OBJECT_TABLES.car_letter_b.set(letter);
-        let d = number_digits(Car::at(car).start_slot_value.bits());
+        let d = number_digits(car_at(car)?.start_slot_value.bits());
         OBJECT_TABLES.car_mark_textures[6].set(d.tens);
         OBJECT_TABLES.car_mark_textures[7].set(d.units);
         OBJECT_TABLES.car_mark_textures[9].set(d.alone);
         let (tens, _) = stage_plate(RACE_VARS.stage_number.bits());
         OBJECT_TABLES.car_mark_textures[8]
             .set(RACE_WORK.number_tens_textures[tens as usize].bits());
-        if decals_shown(float(car + 0x310), f32::from_bits(NUMBERS.hundred.bits())) {
+        if decals_shown(float(car + 0x310)?, f32::from_bits(NUMBERS.hundred.bits())) {
             for k in 0..0x11u32 {
-                let byte = ((car + 0xAC0 + k) as *const u8).read() as u32;
+                let byte =
+                    GamePtr::new(car + 0xAC0 + k).read::<u8>("a car block's mark byte")? as u32;
                 let to: u32 = FRAME_WORK.car_decal_places[k as usize].bits();
                 crate::scene::texture_places_store::cell_at(
                     &OBJECT_TABLES.car_mark_textures[0],
@@ -144,15 +148,14 @@ pub unsafe fn car_number_textures(car: u32) {
             }
         }
     }
+    Ok(())
 }
 
 /// The model's bit at +`offset` of its 0x134-byte record (`dword_5C90C4` ..): 1 << it, 0 for
 /// -1.
-unsafe fn model_bit(record: u32, offset: u32) -> u32 {
-    unsafe {
-        let c = get(LIGHT_RECORDS.records[0].groups[0].addr() as u32 + record + offset);
-        if c == u32::MAX { 0 } else { 1u32 << (c & 31) }
-    }
+fn model_bit(record: u32, offset: u32) -> Result<u32, BadInput> {
+    let c = get(LIGHT_RECORDS.records[0].groups[0].addr() as u32 + record + offset)?;
+    Ok(if c == u32::MAX { 0 } else { 1u32 << (c & 31) })
 }
 
 fn below(a: u32, b: u32) -> bool {
@@ -184,28 +187,28 @@ pub unsafe fn draw_car(car: u32) -> Result<(), Refused> {
         if NUMBERS.in_race.bits() != 0 && n < 8 && RACE_WORK.car_block(n as usize) == 0 {
             return Err(BadInput("the drawn car without its block").into());
         }
-        car_number_textures(car);
+        car_number_textures(car)?;
         let [p0, p1, p2, p3] = part_matrices();
         for (k, to) in [p0, p1, p2, p3, body_turn(), car_turn()]
             .into_iter()
             .enumerate()
         {
-            std::ptr::copy(
-                (car + 0x740 + 0x40 * k as u32) as *const u8,
-                to as *mut u8,
+            GamePtr::new(car + 0x740 + 0x40 * k as u32).copy_to(
+                GamePtr::new(to as u32),
                 0x40,
-            );
+                "a car block's kept matrix",
+            )?;
         }
         RACE_SOUND_SPOTS
             .groups_which
-            .set(Car::at(car).unknown_ab4[1].bits());
-        let model = Car::at(car).car_kind.bits();
+            .set(car_at(car)?.unknown_ab4[1].bits());
+        let model = car_at(car)?.car_kind.bits();
         MATRICES.known_object.set(model);
         let rec = model.wrapping_mul(0x134);
         for (to, offset) in [(0usize, 0u32), (1, 4), (2, 8), (3, 0xC), (6, 0x14)] {
-            COURSE.group_masks[to].set(model_bit(rec, offset));
+            COURSE.group_masks[to].set(model_bit(rec, offset)?);
         }
-        let mut lamps = model_bit(rec, 0x34);
+        let mut lamps = model_bit(rec, 0x34)?;
         if lamps != 0 {
             if model == 4 || model == 7 {
                 lamps |= 0x600_0000;
@@ -222,9 +225,9 @@ pub unsafe fn draw_car(car: u32) -> Result<(), Refused> {
             (11, 0x28),
             (12, 0x3C),
         ] {
-            COURSE.group_masks[to].set(model_bit(rec, offset));
+            COURSE.group_masks[to].set(model_bit(rec, offset)?);
         }
-        let switches = Car::at(car).parts_present.bits();
+        let switches = car_at(car)?.parts_present.bits();
         let mut shown = u32::MAX;
         for (bit, var) in [
             (9u32, 6usize),
@@ -242,7 +245,7 @@ pub unsafe fn draw_car(car: u32) -> Result<(), Refused> {
         FRAME_SWITCHES.group_mask.set(shown);
         let field =
             |offset: u32| get(LIGHT_RECORDS.records[0].groups[0].addr() as u32 + rec + offset);
-        CAMERA_WORK.faded_bits.set(field(0x10));
+        CAMERA_WORK.faded_bits.set(field(0x10)?);
         COURSE.group_masks[4].set(
             u32::MAX
                 .wrapping_sub(COURSE.group_masks[0].bits())
@@ -258,16 +261,16 @@ pub unsafe fn draw_car(car: u32) -> Result<(), Refused> {
             (16, 0x24),
             (17, 0x14),
         ] {
-            COURSE.group_masks[to].set(field(offset));
+            COURSE.group_masks[to].set(field(offset)?);
         }
-        let state = Car::at(car).unknown_6f4[2].bits();
+        let state = car_at(car)?.unknown_6f4[2].bits();
         let bit = COURSE.group_masks[17].bits();
         VIEW_VARS.group_mask.set(u32::MAX);
         if state & 2 != 0 {
-            VIEW_VARS.group_mask.set(with_bit(field(0x48), bit));
+            VIEW_VARS.group_mask.set(with_bit(field(0x48)?, bit));
         }
         if state & 4 != 0 {
-            VIEW_VARS.group_mask.set(with_bit(field(0x44), bit));
+            VIEW_VARS.group_mask.set(with_bit(field(0x44)?, bit));
         }
         RACE_WORK.car_nearness.set_bits(NUMBERS.zero.bits());
         let mut stage = VIEW_VARS.view_car_stage.bits();
@@ -278,7 +281,7 @@ pub unsafe fn draw_car(car: u32) -> Result<(), Refused> {
             stage = 0x33;
         }
         let record = VIEW_VARS.view_records[stage as usize].bits();
-        if get(record + 0x50) != 0 {
+        if get(record + 0x50)? != 0 {
             FRAME_WORK.car_depth.set(0x5_0000);
         }
         let and = |mask: u32| VIEW_VARS.group_mask.set(VIEW_VARS.group_mask.bits() & mask);
@@ -286,7 +289,7 @@ pub unsafe fn draw_car(car: u32) -> Result<(), Refused> {
             nearness();
             let depth = FRAME_WORK.car_depth.bits();
             if !below(depth, 0x14_0000) {
-                and(with_bit(field(0x40), bit));
+                and(with_bit(field(0x40)?, bit));
                 for var in [13usize, 14, 15, 16] {
                     and(!(1u32 << (COURSE.group_masks[var].bits() & 31)));
                 }
@@ -307,16 +310,17 @@ pub unsafe fn draw_car(car: u32) -> Result<(), Refused> {
         RACE_WORK.car_draw_word.set(ecx);
         if state & 0x100 != 0 {
             if state & 6 == 0 {
-                and(with_bit(field(0x40), bit));
+                and(with_bit(field(0x40)?, bit));
             }
             ecx = 0xF0;
         }
         VIEW_VARS.fade_alpha.set(ecx);
-        ((car + 0xF04) as *mut u32).write_unaligned(VIEW_VARS.group_mask.bits());
+        GamePtr::new(car + 0xF04).write(VIEW_VARS.group_mask.bits(), "a car block's group mask")?;
         // `view_cars[drawn_view]`: read by address, as the original does for a view past the two.
-        let view_car = (RACE_VIEW.view_cars[0].addr() as *const u32)
-            .wrapping_add(RACE_VIEW.drawn_view.bits() as usize)
-            .read_unaligned();
+        let view_car: u32 = GamePtr::new(
+            (RACE_VIEW.view_cars[0].addr() as u32).wrapping_add(4 * RACE_VIEW.drawn_view.bits()),
+        )
+        .read("the view cars")?;
         if view_car == VIEW_VARS.drawn_car.bits() && VIEW_VARS.view_car_flag_a.bits() != 0 {
             VIEW_VARS.group_mask.set(u32::MAX);
         }
@@ -330,10 +334,11 @@ pub unsafe fn draw_car(car: u32) -> Result<(), Refused> {
         OBJECT_WORK.light_turns[1].set(STAGE_PREFS.sun_height.bits());
         LIGHT_STATE.view_kind.set(1);
         LIGHT_WORK.light_kind.set(3);
+        let this_car = car_at(car)?;
         let place = || {
-            OBJECT_WORK.place[0].set(Car::at(car).position[0].bits());
-            OBJECT_WORK.place[1].set(Car::at(car).position[1].bits());
-            OBJECT_WORK.place[2].set(Car::at(car).position[2].bits());
+            OBJECT_WORK.place[0].set(this_car.position[0].bits());
+            OBJECT_WORK.place[1].set(this_car.position[1].bits());
+            OBJECT_WORK.place[2].set(this_car.position[2].bits());
         };
         place();
         OBJECT_WORK.size.set(0x10);
@@ -352,7 +357,7 @@ pub unsafe fn draw_car(car: u32) -> Result<(), Refused> {
                 .wrapping_add(0x50),
         );
         car_body_matrix();
-        crate::race::frame_draw::start_kept_reflections();
+        crate::race::frame_draw::start_kept_reflections()?;
         crate::scene::draw_scene_object::draw_scene_object_in_game(lit() as u32)?;
         crate::race::frame_draw::end_kept_reflections();
         LIGHT_WORK.light_kind_extra.set(1);
@@ -380,7 +385,7 @@ pub unsafe fn draw_car(car: u32) -> Result<(), Refused> {
 /// `sub_4616AA`'s nearness: `dword_71BA08` = (`dword_6415A4` - 0xA0000) / 0x140000 held to 0 ..
 /// 1 (`flt_5C5D90`, `flt_5C5D38`), `g_shine` (and `dword_5CCE78`) times 1 less it (`dword_62400C`
 /// left 0x140000).
-unsafe fn nearness() {
+fn nearness() {
     use crate::math::x87_float::{ONE, int, ld, st, to_int};
     use crate::math::x87_load::below_or_unordered;
     {
@@ -408,7 +413,7 @@ unsafe fn nearness() {
 
 /// `sub_4616AA`'s size: 0x90 (into `dword_62400C`) times `dword_71BA08`, rounded (left in
 /// `dword_62400C`).
-unsafe fn near_size() -> u32 {
+fn near_size() -> u32 {
     use crate::math::x87_float::{int, ld, to_int};
     {
         let size = to_int(int(0x90) * ld(RACE_WORK.car_nearness.bits()));
@@ -456,13 +461,13 @@ pub unsafe fn draw_car_entry(entry: u32) -> Result<(), Refused> {
         VIEW_VARS.drawn_car.set(n);
         LIGHT_WORK
             .view_light_base
-            .set(Car::at(car).light_colour.bits());
+            .set(car_at(car)?.light_colour.bits());
         let t = crate::scene::rotate_point::rotate_point(
             view_matrix() as u32,
             [
-                int_80(Car::at(car).position[0].bits()),
-                int_80(Car::at(car).position[1].bits()),
-                int_80(Car::at(car).position[2].bits()),
+                int_80(car_at(car)?.position[0].bits()),
+                int_80(car_at(car)?.position[1].bits()),
+                int_80(car_at(car)?.position[2].bits()),
             ],
         );
         let place = t.map(tbyte_to_int);
@@ -608,9 +613,9 @@ mod asm_reference {
                 r.0 = seed;
                 fill(&mut r);
                 assert_eq!(state(), before);
-                unsafe { nearness() };
+                nearness();
                 assert_eq!(state(), want, "nearness from {before:x?}");
-                let size_got = unsafe { near_size() };
+                let size_got = near_size();
                 assert_eq!(size_got, size_want, "size from {before:x?}");
                 assert_eq!(state(), want_size_place);
             }

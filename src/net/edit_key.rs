@@ -13,17 +13,17 @@
 //!      text (the measure's x changes no width it reads).
 //! Callers: `net::setting_key`, `net::chat_key`.
 
-use crate::bridge::{Raw, read_through};
-use crate::errors::Refused;
+use crate::errors::{BadInput, Refused};
 use crate::install::vars::INSTALLER_PATHS;
 use crate::net::lobby::movsb;
 use crate::net::store::NET;
+use crate::pointers::GamePtr;
 use crate::text::draw_text::GameCanvas;
 use crate::text::measure_text::measure_text_at;
 use rc2k_core::net::editing::{self, EditKey};
 
-fn set_byte(at: u32, v: u8) {
-    unsafe { (at as *mut u8).write(v) }
+fn set_byte(at: u32, v: u8) -> Result<(), BadInput> {
+    GamePtr::new(at).write(v, "an edited text")
 }
 
 /// The Rust version.
@@ -32,32 +32,30 @@ pub fn edit_key(key: u8) -> Result<bool, Refused> {
     // `end_for_char`, `too_wide`).
     if NET.edited.get() != editing::NOT_EDITING {
         let text = NET.edit_text.get();
-        let words = unsafe { Raw::new(text as *const u8) };
+        let words = GamePtr::new(text).bytes("an edited text")?;
         match EditKey::of(key) {
             EditKey::Escape => {
                 movsb(
                     text,
                     INSTALLER_PATHS.script_path.addr() as u32,
                     editing::TEXT_LEN as u32,
-                );
+                )?;
                 NET.edited.set(editing::NOT_EDITING);
             }
             EditKey::Enter => NET.edited.set(editing::NOT_EDITING),
-            EditKey::Clear => unsafe {
-                std::ptr::write_bytes(text as *mut u8, 0, editing::TEXT_LEN)
-            },
+            EditKey::Clear => GamePtr::new(text).fill(0, editing::TEXT_LEN, "an edited text")?,
             EditKey::Backspace => {
-                if let Some(last) = read_through(editing::last_char(&words)) {
-                    set_byte(text + last as u32, 0);
+                if let Some(last) = editing::last_char(&words)? {
+                    set_byte(text + last as u32, 0)?;
                 }
             }
             EditKey::Other => {
-                let typed = unsafe { crate::input::key_to_char::key_to_char(key as u32) }? as u8;
+                let typed = crate::input::key_to_char::key_to_char(key as u32)? as u8;
                 if editing::takes(typed)
-                    && let Some(at) = read_through(editing::end_for_char(&words))
+                    && let Some(at) = editing::end_for_char(&words)?
                 {
                     let at = at as u32;
-                    unsafe { ((text + at) as *mut u16).write_unaligned(typed as u16) };
+                    GamePtr::new(text + at).write(typed as u16, "an edited text")?;
                     let width = unsafe {
                         measure_text_at(
                             NET.edit_font.get() as *mut _,
@@ -68,7 +66,7 @@ pub fn edit_key(key: u8) -> Result<bool, Refused> {
                     }?
                     .width;
                     if editing::too_wide(width, NET.edit_width.get()) {
-                        set_byte(text + at, 0);
+                        set_byte(text + at, 0)?;
                     }
                 }
             }

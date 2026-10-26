@@ -1,5 +1,6 @@
 use crate::errors::{BadInput, Refused};
 use crate::menu::champ_store::CHAMP_VIEW;
+use crate::menu::event_flow::Fault;
 use crate::race::state_store::RACE_STATE;
 use crate::session::Dword;
 use rc2k_core::menu::finish::{self, Racer, Step, Var};
@@ -10,6 +11,18 @@ use rc2k_core::menu::finish::{self, Racer, Step, Var};
 #[derive(Default)]
 pub struct Game {
     pub racer: u32,
+    /// A refused read or write of the core's variables (checked at each step and at the end).
+    fault: Fault,
+}
+
+impl Game {
+    /// Runs a flow on a new game; a refused read or write of its variables ends it.
+    pub fn run(flow: impl FnOnce(&mut Game) -> Result<(), Refused>) -> Result<(), Refused> {
+        let mut game = Game::default();
+        let done = flow(&mut game);
+        game.fault.check()?;
+        done
+    }
 }
 
 /// The variables that are in static cells.
@@ -33,7 +46,7 @@ impl finish::Finish for Game {
 
     fn get(&mut self, v: Var) -> u32 {
         match v {
-            Var::Racer(offset) => crate::menu::standings::get(self.racer + offset),
+            Var::Racer(offset) => self.fault.get(self.racer + offset),
             _ => match cell(v) {
                 Some(cell) => cell.get(),
                 None => unreachable!("the racer's fields are not at an address"),
@@ -43,7 +56,7 @@ impl finish::Finish for Game {
 
     fn set(&mut self, v: Var, value: u32) {
         match v {
-            Var::Racer(offset) => crate::menu::standings::put(self.racer + offset, value),
+            Var::Racer(offset) => self.fault.put(self.racer + offset, value),
             _ => match cell(v) {
                 Some(cell) => cell.set(value),
                 None => unreachable!("the racer's fields are not at an address"),
@@ -54,16 +67,16 @@ impl finish::Finish for Game {
     fn find_leader(&mut self, group_b: bool) -> Result<Option<u32>, Refused> {
         let table = { CHAMP_VIEW.champ_history.get() };
         let found = if group_b {
-            unsafe { crate::menu::first_player_b::first_player_b(table, 0)? }
+            crate::menu::first_player_b::first_player_b(table, 0)?
         } else {
-            unsafe { crate::menu::first_player_unplaced::first_player_unplaced(table)? }
+            crate::menu::first_player_unplaced::first_player_unplaced(table)?
         };
         self.racer = found.entry;
         Ok((found.figure == 1).then_some(found.computers))
     }
 
     fn find_done(&mut self) -> Result<Option<u32>, Refused> {
-        let found = unsafe { crate::menu::find_section_player::find_section_player()? };
+        let found = crate::menu::find_section_player::find_section_player()?;
         self.racer = found.record;
         Ok((found.index != u32::MAX).then_some(found.index))
     }
@@ -87,6 +100,7 @@ impl finish::Finish for Game {
     fn keep(&mut self, _value: u32) {}
 
     fn step(&mut self, s: Step) -> Result<(), Refused> {
+        self.fault.check()?;
         match s {
             Step::RaceSoundObjects => crate::race::sound_tables::set_up_race_sound_objects(
                 &crate::race::sound_tables::ObjectVars::game(),

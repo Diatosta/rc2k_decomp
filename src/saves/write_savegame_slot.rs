@@ -12,10 +12,10 @@ use crate::errors::{BadInput, Refused};
 use crate::files::numbered_path::numbered_path_in_game;
 use crate::files::write_file::write_file;
 use crate::menu::name_lists::NAME_LEN;
+use crate::pointers::GamePtr;
 use crate::saves::gather_savegame::gather_savegame;
 use crate::session::{Bytes, Dword};
 use crate::system::packed_local_time::packed_local_time;
-use std::ptr::copy_nonoverlapping;
 
 // ---- game data ----
 
@@ -77,25 +77,25 @@ pub fn slot_name(slot: u32) -> *mut u8 {
 // ---- Rust version ----
 
 /// True if the file was written.
-pub unsafe fn write_savegame_slot(slot: u32) -> Result<bool, Refused> {
+pub fn write_savegame_slot(slot: u32) -> Result<bool, Refused> {
     if slot >= SLOTS {
         return Err(BadInput("slot past the name list").into());
     }
-    unsafe {
-        let file: *mut u8 = SAVE_GAMES.file.as_ptr();
+    {
+        let file = GamePtr::new(SAVE_GAMES.file.addr() as u32);
         // First, because it is what can be refused: nothing else is written before it.
-        gather_savegame(file.add(0x30))?;
+        gather_savegame(file.offset(0x30))?;
         // Converted: `rc2k_core::saves::kept::slot_head`.
         use rc2k_core::saves::kept;
         let head = kept::slot_head(
             kept::SAVEGAME,
             kept::SAVEGAME_VERSION,
             packed_local_time(),
-            &(slot_name(slot) as *const [u8; NAME_LEN]).read_unaligned(),
+            &GamePtr::new(slot_name(slot) as u32).read::<[u8; NAME_LEN]>("a savegame's name")?,
         );
-        copy_nonoverlapping(head.as_ptr(), file, head.len());
+        file.write_bytes(&head, "the savegame's file")?;
         let path = numbered_path_in_game(TEMPLATE.as_ptr(), slot)?;
-        Ok(write_file(path, file, FILE_LEN as u32)?.ok)
+        Ok(write_file(path, file.addr() as usize as *const u8, FILE_LEN as u32)?.ok)
     }
 }
 

@@ -19,21 +19,21 @@ use crate::session::MACHINE;
 const WM_CLOSE: u32 = 0x10;
 
 /// The Rust version (see the header): ends the thread.
-pub fn shutdown_thread() -> ! {
+pub fn shutdown_thread() -> Result<(), crate::errors::Refused> {
     use windows_sys::Win32::System::Threading::ExitThread;
     use windows_sys::Win32::UI::WindowsAndMessaging::PostMessageA;
     log_text(b"SHUTDOWN:START", true, 2);
-    let flag = (crate::threading::thread_slot::slot(crate::threading::thread_slot::SHUTDOWN) + 0xC)
-        as *mut u8;
-    unsafe { flag.write_volatile(1) };
-    let rc = crate::threading::wait_for_threads::wait_for_threads();
+    let flag =
+        &crate::threading::thread_slot::slot_ref(crate::threading::thread_slot::SHUTDOWN)?.flag;
+    flag.set(1);
+    let rc = crate::threading::wait_for_threads::wait_for_threads()?;
     log_text(b"SHUTDOWN:wfmo rc=", false, 2);
     crate::logfile::log_hex8::log_hex8(rc, true, 2);
     let window: u32 = MACHINE.window.get();
     if window != 0 {
         unsafe { PostMessageA(window as _, WM_CLOSE, 0, 0) };
     }
-    unsafe { flag.write_volatile(0) };
+    flag.set(0);
     log_text(b"SHUTDOWN:DONE", true, 2);
     unsafe { ExitThread(0) }
 }

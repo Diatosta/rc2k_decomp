@@ -16,24 +16,25 @@
 use crate::errors::{BadInput, Refused};
 use crate::hud::store::{HUD, Hud};
 use crate::math::x87_float::ld;
+use crate::pointers::GamePtr;
 use crate::scene::x87_mem::fstp;
 
 pub use rc2k_core::hud::disc::ENTRIES;
 
-unsafe fn place(h: &Hud, k: u32, e: u32) {
+fn place(h: &Hud, k: u32, e: u32) {
     x87_1(h, k as usize, e as usize)
 }
 
 /// The Rust version (see the header): ring entry `entry` into the vertex at `vertex`.
-pub unsafe fn disc_vertex(entry: u32, vertex: u32) -> Result<(), Refused> {
+pub fn disc_vertex(entry: u32, vertex: u32) -> Result<(), Refused> {
     if entry >= ENTRIES {
         return Err(BadInput("a disc entry past the ring").into());
     }
-    unsafe {
+    {
         place(&HUD, entry * 4, vertex);
         let colour = (HUD.quad[0].get() << 24) | 0xFF_FFFF;
-        ((vertex + 0x10) as *mut u32).write_unaligned(colour);
-        ((vertex + 0x14) as *mut u32).write_unaligned(0);
+        GamePtr::new(vertex + 0x10).write::<u32>(colour, "a hud record's field")?;
+        GamePtr::new(vertex + 0x14).write::<u32>(0, "a hud record's field")?;
     }
     Ok(())
 }

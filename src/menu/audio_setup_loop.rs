@@ -21,7 +21,7 @@ use crate::menu::screen_loop::{Callee, Carried, List, Screen, Step, screen_entry
 
 // ---- Rust version: `menu::screen_loop` with this ----
 
-unsafe fn before(c: &mut Carried) -> Result<(), Refused> {
+fn before(c: &mut Carried) -> Result<(), Refused> {
     c.measure_x = SCREEN_ITEMS.first[slot::AUDIO_SETUP].get();
     SCREEN_ITEMS.current[slot::AUDIO_SETUP].set(c.measure_x);
     Ok(())

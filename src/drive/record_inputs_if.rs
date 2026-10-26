@@ -13,13 +13,14 @@ use crate::race::work_store::RACE_WORK;
 
 /// The Rust version.
 // Converted: `rc2k_core::drive::replay_frames::records_inputs`.
-pub unsafe fn record_inputs_if() {
+pub fn record_inputs_if() -> Result<(), crate::errors::BadInput> {
     let records = rc2k_core::drive::replay_frames::records_inputs(
         NUMBERS.replay_mode.get(),
         RACE_WORK.current_car.get(),
         || RACE_VIEW.players.get(),
     );
     if records == Some(true) {
-        unsafe { crate::drive::record_inputs::record_inputs() };
+        crate::drive::record_inputs::record_inputs()?;
     }
+    Ok(())
 }

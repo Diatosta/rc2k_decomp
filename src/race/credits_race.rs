@@ -60,6 +60,6 @@ pub fn credits_race() -> Result<(), Refused> {
     unsafe {
         crate::drive::play_race::play_race()?;
         RACE_WORK.in_credits.set(0);
-        crate::race::race_end::tidy_everything(&crate::race::loadlevel::LoadVars::game())
+        crate::race::race_end::tidy_everything()
     }
 }

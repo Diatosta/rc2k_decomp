@@ -24,7 +24,7 @@ pub trait Outside {
     }
     // The same for the game and for a test:
     unsafe fn normalise_path(&mut self, path: *const u8, to: *mut u8) -> Result<bool, BadInput> {
-        unsafe { normalise_path(path, to) }
+        normalise_path(path, to)
     }
     /// `files::current_directory` (0x4030D1): the current directory with a `\` after it,
     /// written at `to`; whether it could be had.
@@ -47,7 +47,7 @@ pub struct Game;
 
 impl Outside for Game {
     unsafe fn file_exists(&mut self, path: *const u8) -> Result<bool, BadInput> {
-        unsafe { file_exists(path) }
+        file_exists(path)
     }
     unsafe fn drive_type(&mut self, letter: u8) -> u32 {
         unsafe { drive_type(letter) }
@@ -56,9 +56,7 @@ impl Outside for Game {
         unsafe { SetCurrentDirectoryA(path) != 0 }
     }
     unsafe fn read_record(&mut self) -> Result<(), BadInput> {
-        unsafe {
-            read_record(crate::install::installer::INSTALL_TEXTS.record_path.addr() as *const u8)
-        }
+        read_record(crate::install::installer::INSTALL_TEXTS.record_path.addr() as *const u8)
     }
     unsafe fn log(&mut self, text: *const u8) {
         unsafe { log_write(text, true, 1) };

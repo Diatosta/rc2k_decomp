@@ -42,14 +42,14 @@ const HEADING_Y: i32 = 0xB1;
 /// Returns the carry flag. Refuses a missing selection: the original reads through null.
 pub unsafe fn draw_time_trial_stage_info(canvas: &mut dyn Canvas) -> Result<bool, Refused> {
     unsafe {
-        let Some(sel) = selection() else {
+        let Some(sel) = selection()? else {
             return Err(
                 BadInput("no record table is selected: the original reads through null").into(),
             );
         };
         label(
             canvas,
-            table_dword_at(GROUP_TITLES_RVA.addr(), sel.group),
+            table_dword_at(GROUP_TITLES_RVA.addr(), sel.group)?,
             TITLE_FONT,
             TITLE_X,
             GROUP_TITLE_Y,
@@ -57,7 +57,7 @@ pub unsafe fn draw_time_trial_stage_info(canvas: &mut dyn Canvas) -> Result<bool
         RACE_STATE.settings.direction.set(sel.group);
         label(
             canvas,
-            dword(sel.table.wrapping_add(0x38)),
+            dword(sel.table.wrapping_add(0x38))?,
             TITLE_FONT,
             TITLE_X,
             TABLE_TITLE_Y,

@@ -22,6 +22,7 @@ use crate::errors::{BadInput, Refused};
 use crate::marks::emitters::*;
 use crate::marks::jitter_point::jitter_point;
 use crate::math::x87;
+use crate::pointers::GamePtr;
 use crate::scene::matrix3::{extended, rounded};
 use crate::session::{Dword, Float};
 
@@ -63,116 +64,118 @@ pub static FIFTH: JitterSet = JitterSet {
 };
 
 /// Why the Rust version refuses these registers, if it does, worked out without writing.
-pub unsafe fn refusal(set: &JitterSet, wheel: u32, object: u32) -> Option<&'static str> {
-    unsafe {
+pub fn refusal(set: &JitterSet, wheel: u32, object: u32) -> Result<Option<&'static str>, Refused> {
+    Ok({
         if wheel == 0 {
-            return Some("a null wheel");
+            return Ok(Some("a null wheel"));
         }
-        if !emits(set, wheel) {
-            return None;
+        if !emits(set, wheel)? {
+            return Ok(None);
         }
         if object == 0 {
-            return Some("a null object");
+            return Ok(Some("a null object"));
         }
         // The ring full: nothing more is read.
         next_entry()?;
         let car: u32 = EMITTER.car.get();
-        if car == 0 || at(car + 0x24) == 0 {
-            return Some("a null car object or matrix");
+        if car == 0 || at(car + 0x24)? == 0 {
+            return Ok(Some("a null car object or matrix"));
         }
         None
-    }
+    })
 }
 
 /// Whether the wheel's +0x18 passes the set's test.
-unsafe fn emits(set: &JitterSet, wheel: u32) -> bool {
-    let speed = unsafe { at(wheel + 0x18) } & 0x7FFF_FFFF;
-    if set.over_one {
-        x87::to_int(speed) > 1
-    } else {
-        x87::loaded(speed) != 0
-    }
+fn emits(set: &JitterSet, wheel: u32) -> Result<bool, Refused> {
+    Ok({
+        let speed = at(wheel + 0x18)? & 0x7FFF_FFFF;
+        if set.over_one {
+            x87::to_int(speed) > 1
+        } else {
+            x87::loaded(speed) != 0
+        }
+    })
 }
 
 /// The Rust version (see the header).
-pub unsafe fn emit_particle_5(wheel: u32, object: u32) -> Result<(), Refused> {
-    unsafe { emit_particle_5_with(&FIFTH, wheel, object) }
+pub fn emit_particle_5(wheel: u32, object: u32) -> Result<(), Refused> {
+    emit_particle_5_with(&FIFTH, wheel, object)
 }
 
 /// The shared body, on `set`'s variables.
-pub unsafe fn emit_particle_5_with(
-    set: &JitterSet,
-    wheel: u32,
-    object: u32,
-) -> Result<(), Refused> {
-    unsafe {
-        if let Some(why) = refusal(set, wheel, object) {
+pub fn emit_particle_5_with(set: &JitterSet, wheel: u32, object: u32) -> Result<(), Refused> {
+    {
+        if let Some(why) = refusal(set, wheel, object)? {
             return Err(BadInput(why).into());
         }
-        let strength = x87::loaded(at(wheel + 0x18)) & 0x7FFF_FFFF;
+        let strength = x87::loaded(at(wheel + 0x18)?) & 0x7FFF_FFFF;
         EMITTER.strength.set_bits(strength);
-        if !emits(set, wheel) || next_entry().is_none() {
+        if !emits(set, wheel)? || next_entry()?.is_none() {
             return Ok(());
         }
-        let e = take_entry(at(object + 0x1C) & 0xFF_FFFF, set.kind);
-        let put = |o: u32, v: u32| ((e + o) as *mut u32).write_unaligned(v);
+        let e = take_entry(at(object + 0x1C)? & 0xFF_FFFF, set.kind)?;
+        let put = |o: u32, v: u32| GamePtr::new(e + o).write::<u32>(v, "a mark's field");
         let (sign, strength) = if EMITTER.record.get() & 1 == 0 {
-            (-1i32, x87::sub(strength, at(wheel + 0x10)))
+            (-1i32, x87::sub(strength, at(wheel + 0x10)?))
         } else {
-            (1, x87::add(strength, at(wheel + 0x10)))
+            (1, x87::add(strength, at(wheel + 0x10)?))
         };
         EMITTER.sign.set(sign as u32);
         EMITTER.strength.set_bits(strength);
         let car: u32 = EMITTER.car.get();
-        let m = at(car + 0x24);
+        let m = at(car + 0x24)?;
         let r = next_c5(set.place_random);
         let (a, b) = (((r & 0x3FFF) as i32) - 0x2000, (r & 0x3FFF) as i32);
         EMITTER.sides[0].set(a as u32);
         EMITTER.sides[1].set(b as u32);
-        let place: [u32; 3] = std::array::from_fn(|k| {
-            let k = 4 * k as u32;
-            x87::pair_sum_less(
-                a,
-                at(m + k),
-                b,
-                at(m + 0x20 + k),
-                at(wheel + 0x3C + k),
-                at(m + 0x30 + k),
-            )
-        });
-        put(0x18, place[2]);
-        put(0x28, place[1]);
-        put(0x14, place[1]);
-        put(0x10, place[0]);
-        let motion: [[u8; 10]; 3] = std::array::from_fn(|k| {
-            let lift = (k == 1).then(|| set.lift.bits());
-            x87::times_int_plus_times_80(
-                at(m + 4 * k as u32),
-                set.motion_k[k].bits(),
-                sign,
-                lift,
-                strength,
-            )
-        });
+        let place: [u32; 3] = crate::marks::try_from_fn(|k| {
+            Ok({
+                let k = 4 * k as u32;
+                x87::pair_sum_less(
+                    a,
+                    at(m + k)?,
+                    b,
+                    at(m + 0x20 + k)?,
+                    at(wheel + 0x3C + k)?,
+                    at(m + 0x30 + k)?,
+                )
+            })
+        })?;
+        put(0x18, place[2])?;
+        put(0x28, place[1])?;
+        put(0x14, place[1])?;
+        put(0x10, place[0])?;
+        let motion: [[u8; 10]; 3] = crate::marks::try_from_fn(|k| {
+            Ok({
+                let lift = (k == 1).then(|| set.lift.bits());
+                x87::times_int_plus_times_80(
+                    at(m + 4 * k as u32)?,
+                    set.motion_k[k].bits(),
+                    sign,
+                    lift,
+                    strength,
+                )
+            })
+        })?;
         let (moved, last) =
             jitter_point([extended(set.spread.bits()), motion[2], motion[1], motion[0]]);
-        let speed = at(wheel + 0x18);
+        let speed = at(wheel + 0x18)?;
         for (n, o) in [0x34u32, 0x30, 0x2C].into_iter().enumerate() {
-            let row = at(m + 0x28 - 4 * n as u32);
+            let row = at(m + 0x28 - 4 * n as u32)?;
             put(
                 o,
                 x87::product_plus(row, set.roll_k[n].bits(), speed, rounded(moved[n])),
-            );
+            )?;
         }
         put(
             0x54,
             x87::float_times_int_to_int(set.spin.bits(), sign) as u32,
-        );
-        put(0x58, at(wheel + 0x20) & 0x3F);
-        put(0x60, ((last >> 2) & 0xFFF) + 0x7800);
-        put(0x74, 0xFF00_0000);
-        put(0x84, set.life);
-        put(0x68, car);
+        )?;
+        put(0x58, at(wheel + 0x20)? & 0x3F)?;
+        put(0x60, ((last >> 2) & 0xFFF) + 0x7800)?;
+        put(0x74, 0xFF00_0000)?;
+        put(0x84, set.life)?;
+        put(0x68, car)?;
     }
     Ok(())
 }

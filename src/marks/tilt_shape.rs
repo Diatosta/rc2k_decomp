@@ -14,7 +14,7 @@ use crate::math::x87;
 use crate::session::{Dword, Float, read_bits, write_bits};
 
 /// The Rust version (see the header).
-pub unsafe fn tilt_shape() {
+pub fn tilt_shape() {
     let t = &SHAPE_TILT;
     let (s, c) = x87::sine_and_cosine(t.tilt.bits());
     t.cosine.set_bits(c);

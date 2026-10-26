@@ -12,66 +12,63 @@
 use crate::errors::Refused;
 use crate::marks::rain::RAIN;
 use crate::math::x87;
-
-/// A variable read at an address (the view's variables are the rain's typed ones or the
-/// snow's, still in the marks' block: `ViewPlace` holds their addresses).
-unsafe fn read_at<T: Copy>(address: usize) -> T {
-    unsafe { (address as *const T).read_unaligned() }
-}
-
-/// A variable written at an address.
-unsafe fn write_at<T: Copy>(address: usize, value: T) {
-    unsafe { (address as *mut T).write_unaligned(value) }
-}
+use crate::session::{Dword, Float};
 
 /// One of the two near-copies' variables (`place_view`'s and `place_view_2`'s), as addresses.
 pub struct ViewPlace {
-    pub point: usize,
+    pub point: &'static [Dword; 3],
     pub start_z: u32,
-    pub place: usize,
-    pub matrix: usize,
-    pub out: usize,
-    pub height: usize,
-    pub matrix_copy: usize,
+    pub place: &'static [Dword; 3],
+    pub matrix: &'static [Float; 9],
+    pub out: &'static [Dword; 3],
+    pub height: &'static Float,
+    pub matrix_copy: &'static [Float; 9],
 }
 
 /// `place_view`'s: the rain's.
 pub fn first() -> ViewPlace {
     ViewPlace {
-        point: RAIN.point[0].addr(),
+        point: &RAIN.point,
         start_z: 0x2_0000,
-        place: RAIN.view_place[0].addr(),
-        matrix: RAIN.view_matrix[0].addr(),
-        out: RAIN.view[0].addr(),
-        height: crate::marks::rain::RAIN_RULES.height.addr(),
-        matrix_copy: RAIN.matrix_copy[0].addr(),
+        place: &RAIN.view_place,
+        matrix: &RAIN.view_matrix,
+        out: &RAIN.view,
+        height: &crate::marks::rain::RAIN_RULES.height,
+        matrix_copy: &RAIN.matrix_copy,
     }
 }
 
 /// The shared body (see the header), on `v`'s variables.
-pub unsafe fn place_view_with(v: &ViewPlace) -> Result<(), Refused> {
+pub fn place_view_with(v: &ViewPlace) -> Result<(), Refused> {
     let start = [0, 0, v.start_z];
-    unsafe {
-        write_at(v.point, start);
-        let point = v.point as u32;
-        crate::marks::splines::transform(point, point, 1, v.matrix as u32)?;
-        let point: [i32; 3] = read_at(v.point);
-        let place: [i32; 3] = read_at(v.place);
-        write_at(
-            v.out,
-            [
-                x87::zero_less_int_plus_int(point[0], place[0]),
-                x87::zero_less_int_plus_int(point[1], place[1]),
-                x87::less_int_plus_int(read_at(v.height), point[2], place[2]),
-            ],
-        );
-        write_at(v.matrix_copy, read_at::<[u32; 9]>(v.matrix));
-        write_at(v.point, start);
+    let set_point = |p: [u32; 3]| {
+        for (cell, x) in v.point.iter().zip(p) {
+            cell.set(x);
+        }
+    };
+    {
+        set_point(start);
+        let point = v.point[0].addr() as u32;
+        crate::marks::splines::transform(point, point, 1, v.matrix[0].addr() as u32)?;
+        let point = v.point.each_ref().map(|c| c.get() as i32);
+        let place = v.place.each_ref().map(|c| c.get() as i32);
+        let out = [
+            x87::zero_less_int_plus_int(point[0], place[0]),
+            x87::zero_less_int_plus_int(point[1], place[1]),
+            x87::less_int_plus_int(v.height.bits(), point[2], place[2]),
+        ];
+        for (cell, x) in v.out.iter().zip(out) {
+            cell.set(x as u32);
+        }
+        for (to, from) in v.matrix_copy.iter().zip(v.matrix.iter()) {
+            to.set_bits(from.bits());
+        }
+        set_point(start);
     }
     Ok(())
 }
 
 /// The Rust version (see the header). Refuses as `transform_int_points` (never, ecx 1).
-pub unsafe fn place_view() -> Result<(), Refused> {
-    unsafe { place_view_with(&first()) }
+pub fn place_view() -> Result<(), Refused> {
+    place_view_with(&first())
 }

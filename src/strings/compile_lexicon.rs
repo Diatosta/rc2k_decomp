@@ -138,10 +138,12 @@ pub unsafe fn compiled() -> Result<Compiled, FatalError> {
             return Err(NOT_CREATED);
         }
         let mut text = vec![0u8; FILE_ROOM as usize];
+        let lent = crate::pointers::Lent::new(&text);
         let read = read_first_match(PATTERN.as_ptr(), text.as_mut_ptr(), FILE_ROOM, 0)
             .ok()
             .flatten()
             .ok_or(NOT_LOADED)?;
+        drop(lent);
         text.truncate(read as usize);
         let compiled = compile(&text, memory).map_err(|e| {
             report(e.0);

@@ -15,6 +15,7 @@
 //! (`dword_62400C` put back).
 
 use crate::errors::{BadInput, Refused};
+use crate::pointers::GamePtr;
 use crate::race::mud_texel::mud_texel;
 use crate::race::put_mud_texel::put_mud_texel;
 use crate::race::tint_to_mud_colour::tint_to_mud_colour;
@@ -57,10 +58,11 @@ pub unsafe fn muddy_texel(number: u32) -> Result<(), Refused> {
     use rc2k_core::race::mud::{MUD_TOP, muddy, strength_row, tint_amount};
     let (n, mud) = texture_and_mud()?;
     let (x, y) = shuffled_place(number);
-    let strength = u32::from(unsafe { *(strength_at(mud, n, x, y) as *const u8) });
+    let strength =
+        u32::from(GamePtr::new(strength_at(mud, n, x, y)).read::<u8>("the mud strengths")?);
     let kept: u32 = DRAW.scratch.bits();
     DRAW.scratch.set_bits(strength);
-    let texel = unsafe { mud_texel(strength_row(y), x, y) };
+    let texel = unsafe { mud_texel(strength_row(y), x, y) }?;
     if !muddy(texel) {
         return Ok(());
     }

@@ -88,9 +88,9 @@ pub fn new_simulation_if_unlocked() -> Result<(), Refused> {
 
 /// `menu::start_arcade`: the arcade's level and stage 0, the first player's units taken
 /// and the arcade event run. `c` the carried values the item gets.
-pub unsafe fn start_arcade(c: &Carried) -> Result<(), Refused> {
+pub fn start_arcade(c: &Carried) -> Result<(), Refused> {
     ARCADE_GAME.level.set(0);
     ARCADE_GAME.stage.set(0);
     crate::menu::take_player1_units::take_player1_units()?;
-    unsafe { crate::menu::arcade_event::arcade_event(c) }
+    crate::menu::arcade_event::arcade_event(c)
 }

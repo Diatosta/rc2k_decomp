@@ -23,7 +23,7 @@ pub fn share_engine_sound() -> Result<(), Refused> {
     if o == 0 {
         return Err(BadInput("a null sound object").into());
     }
-    let so = unsafe { crate::sound::store::SoundObject::at(o) };
+    let so = crate::sound::store::SoundObject::at(o)?;
     if shares_figures(
         CAR.contact_depth.get(),
         f32::from_bits(so.knock_in[3].get()),

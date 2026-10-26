@@ -18,7 +18,7 @@ use crate::scene::vector3::angle_between_vectors;
 use crate::session::{address_of, write_bits};
 
 /// The Rust version (see the header).
-pub unsafe fn view_heading() {
+pub fn view_heading() {
     unsafe {
         let x = x87::loaded(MATRICES.view_place[2].bits());
         let z = x87::loaded(MATRICES.view_place[10].bits());

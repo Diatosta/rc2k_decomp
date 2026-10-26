@@ -25,16 +25,14 @@ const ROOM: u32 = rc2k_core::gfx::screenshot::JADE_ROOM;
 // ---- Rust version ----
 
 pub unsafe fn load_jade(path: *const u8) -> Result<(), Refused> {
-    unsafe {
-        // Converted: `rc2k_core::gfx::screenshot::jade_read`.
-        use rc2k_core::gfx::screenshot::{JADE_COLOUR, jade_read};
-        let read = read_file(path, JADE_FONT.glyphs.as_ptr(), ROOM, 0)?;
-        jade_read(read.ok, read.bytes_read).map_err(|code| FatalError { code, message: "" })?;
-        JADE_FONT
-            .colour
-            .set(components_to_pixel(&surface_format(), JADE_COLOUR));
-        Ok(())
-    }
+    // Converted: `rc2k_core::gfx::screenshot::jade_read`.
+    use rc2k_core::gfx::screenshot::{JADE_COLOUR, jade_read};
+    let read = read_file(path, JADE_FONT.glyphs.as_ptr(), ROOM, 0)?;
+    jade_read(read.ok, read.bytes_read).map_err(|code| FatalError { code, message: "" })?;
+    JADE_FONT
+        .colour
+        .set(components_to_pixel(&surface_format()?, JADE_COLOUR));
+    Ok(())
 }
 
 /// The game's `files\d\gfx\jade.bun`.

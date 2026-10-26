@@ -12,6 +12,7 @@
 //! Caller: `net::lets_race`.
 
 use crate::net::store::NET;
+use crate::pointers::GamePtr;
 use crate::race::state_store::RACE_STATE;
 use crate::race::vars_store::RACE_VARS;
 use crate::race::work_store::RACE_WORK;
@@ -45,21 +46,21 @@ pub fn own_block() -> u32 {
 }
 
 /// The Rust version.
-pub fn set_hud_options() {
+pub fn set_hud_options() -> Result<(), crate::errors::BadInput> {
     let block = own_block();
     let mut bits = RACE_STATE.results.hud_bits_current.get();
     // Converted: `rc2k_core::net::cars::hud_bits`.
     if bits == cars::NOT_KEPT {
         bits = cars::hud_bits(SWITCHES.map(|cell| cell.get()));
     }
-    unsafe {
-        ((block + 0x220) as *mut u32).write_unaligned(bits);
-        ((block + 0x684) as *mut u32).write_unaligned(RACE_STATE.settings.cars[0].view.get());
-    }
+    GamePtr::new(block + 0x220).write(bits, "a car block's HUD bits")?;
+    GamePtr::new(block + 0x684)
+        .write(RACE_STATE.settings.cars[0].view.get(), "a car block's view")?;
     RACE_VARS
         .mip_setting
         .set(crate::gfx::choices_store::SCREEN_CHOICES.mipmapping.get());
     for (to, from) in RACE_VARS.settings_words.iter().zip(COPIED_WORDS) {
         to.set(from.get());
     }
+    Ok(())
 }

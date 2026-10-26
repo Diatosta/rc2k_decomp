@@ -27,6 +27,7 @@ use crate::marks::kind_store::{
 };
 use crate::marks::surface_store::SURFACE;
 use crate::math::{x87, x87_run};
+use crate::pointers::GamePtr;
 use crate::race::matrices_store::MATRICES;
 use crate::race::numbers_store::NUMBERS;
 use crate::scene::cross_product3::cross_product3;
@@ -69,22 +70,22 @@ const UV_WORDS: [(u32, u32); 4] = [(0xC, 0xE), (8, 0xA), (0, 2), (4, 6)];
 const STATES: [(u32, u32); 5] = [(4, 0x15), (5, 0x13), (6, 0x14), (0, 0x1C), (1, 0x1B)];
 
 /// The z turn's angle (see the header), 80 bits.
-unsafe fn angle(sh: &Shadow) -> [u8; 10] {
-    unsafe {
+fn angle(sh: &Shadow) -> Result<[u8; 10], Refused> {
+    Ok({
         let settings: u32 = crate::marks::setup::SETTINGS.pointer.get();
         let split: u32 = sh.quad.low.bits();
-        let v = ((settings + sh.field) as *const u32).read_unaligned();
+        let v = GamePtr::new(settings + sh.field).read::<u32>("a mark's field")?;
         if (split as i32) <= v as i32 {
             x87::less_times_plus_negated_80(v, split, sh.quad.slope.bits(), sh.quad.middle.bits())
         } else {
             x87::times_plus_negated_80(v, sh.quad.step.bits(), sh.quad.start.bits())
         }
-    }
+    })
 }
 
 /// The Rust version (see the header).
-pub unsafe fn draw_shadow() -> Result<(), Refused> {
-    unsafe { draw_shadow_with(&FIRST, true) }
+pub fn draw_shadow() -> Result<(), Refused> {
+    draw_shadow_with(&FIRST, true)
 }
 
 impl Shadow<'_> {
@@ -95,12 +96,15 @@ impl Shadow<'_> {
 
     /// The angle's refusal, if any (for a caller that checks before drawing).
     pub fn angle_refuses(&self) -> Option<Refused> {
-        unsafe { turnable(&angle(self)) }.err()
+        match angle(self) {
+            Err(e) => Some(e),
+            Ok(a) => { turnable(&a) }.err(),
+        }
     }
 }
 
 /// A shadow (see the header) on `sh`'s variables; `depth` the two depth calls first.
-pub unsafe fn draw_shadow_with(sh: &Shadow, depth: bool) -> Result<(), Refused> {
+pub fn draw_shadow_with(sh: &Shadow, depth: bool) -> Result<(), Refused> {
     use crate::scene::set_render_state::set_render_state;
     unsafe {
         let q = sh.quad;
@@ -114,7 +118,7 @@ pub unsafe fn draw_shadow_with(sh: &Shadow, depth: bool) -> Result<(), Refused> 
         if crate::marks::setup::SETTINGS.pointer.get() == 0 {
             return Err(BadInput("no marks settings").into());
         }
-        turnable(&angle(sh))?;
+        turnable(&angle(sh)?)?;
         let mut temps = [0u32; 2];
         let t = temps.as_mut_ptr() as u32;
         if depth {
@@ -136,7 +140,7 @@ pub unsafe fn draw_shadow_with(sh: &Shadow, depth: bool) -> Result<(), Refused> 
         cross_product3(s2, s0, s1)?;
         normalise_vector3(s1);
         normalise_vector3(s2);
-        let a = angle(sh);
+        let a = angle(sh)?;
         let m = q.matrix[0].addr() as u32;
         turn_matrix3(Axis::Z, m, a)?;
         light_turned_x87(sh, m as usize, t as usize);
@@ -197,65 +201,61 @@ use crate::marks::plain::{ld, st};
 use crate::math::x87_float as bh;
 
 /// `light_turned`'s x87 block as plain Rust on the x87 model (33 instructions), same order and memory places, on either shadow's variables.
-unsafe fn light_turned_x87(s: &Shadow, m: usize, t: usize) {
-    unsafe {
-        let t0 = bh::ld(s.consts.light[0].bits());
-        let t1 = bh::ld(s.consts.light[1].bits());
-        let t2 = bh::ld(s.consts.light[2].bits());
-        let t3 = t2 * ld(m, 0);
-        let t4 = t1 * ld(m, 0x4);
-        let t5 = t0 * ld(m, 0x8);
-        let t6 = t4 + t5;
-        let t7 = t3 + t6;
-        st(t, 0, t7);
-        let t8 = t2 * ld(m, 0xC);
-        let t9 = t1 * ld(m, 0x10);
-        let t10 = t0 * ld(m, 0x14);
-        let t11 = t9 + t10;
-        let t12 = t8 + t11;
-        st(t, 0x4, t12);
-        let t13 = t2 * ld(m, 0x18);
-        let t14 = t1 * ld(m, 0x1C);
-        let t15 = t0 * ld(m, 0x20);
-        let t16 = t13 + t15;
-        let t17 = t14 + t16;
-        let t18 = ld(t, 0x4);
-        let t19 = ld(t, 0);
-        s.quad.light_turned[0].set_bits(bh::st(t19));
-        s.quad.light_turned[1].set_bits(bh::st(t18));
-        s.quad.light_turned[2].set_bits(bh::st(t17));
-    }
+fn light_turned_x87(s: &Shadow, m: usize, t: usize) {
+    let t0 = bh::ld(s.consts.light[0].bits());
+    let t1 = bh::ld(s.consts.light[1].bits());
+    let t2 = bh::ld(s.consts.light[2].bits());
+    let t3 = t2 * ld(m, 0);
+    let t4 = t1 * ld(m, 0x4);
+    let t5 = t0 * ld(m, 0x8);
+    let t6 = t4 + t5;
+    let t7 = t3 + t6;
+    st(t, 0, t7);
+    let t8 = t2 * ld(m, 0xC);
+    let t9 = t1 * ld(m, 0x10);
+    let t10 = t0 * ld(m, 0x14);
+    let t11 = t9 + t10;
+    let t12 = t8 + t11;
+    st(t, 0x4, t12);
+    let t13 = t2 * ld(m, 0x18);
+    let t14 = t1 * ld(m, 0x1C);
+    let t15 = t0 * ld(m, 0x20);
+    let t16 = t13 + t15;
+    let t17 = t14 + t16;
+    let t18 = ld(t, 0x4);
+    let t19 = ld(t, 0);
+    s.quad.light_turned[0].set_bits(bh::st(t19));
+    s.quad.light_turned[1].set_bits(bh::st(t18));
+    s.quad.light_turned[2].set_bits(bh::st(t17));
 }
 
 /// `second_turned`'s x87 block as plain Rust on the x87 model (33 instructions), same order and memory places, on either shadow's variables.
-unsafe fn second_turned_x87(s: &Shadow, m: usize, t: usize) {
-    unsafe {
-        let t0 = bh::ld(s.quad.light_turned[2].bits());
-        let t1 = bh::ld(s.quad.light_turned[1].bits());
-        let t2 = bh::ld(s.quad.light_turned[0].bits());
-        let t3 = t2 * ld(m, 0);
-        let t4 = t1 * ld(m, 0x4);
-        let t5 = t0 * ld(m, 0x8);
-        let t6 = t4 + t5;
-        let t7 = t3 + t6;
-        st(t, 0, t7);
-        let t8 = t2 * ld(m, 0xC);
-        let t9 = t1 * ld(m, 0x10);
-        let t10 = t0 * ld(m, 0x14);
-        let t11 = t9 + t10;
-        let t12 = t8 + t11;
-        st(t, 0x4, t12);
-        let t13 = t2 * ld(m, 0x18);
-        let t14 = t1 * ld(m, 0x1C);
-        let t15 = t0 * ld(m, 0x20);
-        let t16 = t13 + t15;
-        let t17 = t14 + t16;
-        let t18 = ld(t, 0x4);
-        let t19 = ld(t, 0);
-        s.quad.frame[1][0].set_bits(bh::st(t19));
-        s.quad.frame[1][1].set_bits(bh::st(t18));
-        s.quad.frame[1][2].set_bits(bh::st(t17));
-    }
+fn second_turned_x87(s: &Shadow, m: usize, t: usize) {
+    let t0 = bh::ld(s.quad.light_turned[2].bits());
+    let t1 = bh::ld(s.quad.light_turned[1].bits());
+    let t2 = bh::ld(s.quad.light_turned[0].bits());
+    let t3 = t2 * ld(m, 0);
+    let t4 = t1 * ld(m, 0x4);
+    let t5 = t0 * ld(m, 0x8);
+    let t6 = t4 + t5;
+    let t7 = t3 + t6;
+    st(t, 0, t7);
+    let t8 = t2 * ld(m, 0xC);
+    let t9 = t1 * ld(m, 0x10);
+    let t10 = t0 * ld(m, 0x14);
+    let t11 = t9 + t10;
+    let t12 = t8 + t11;
+    st(t, 0x4, t12);
+    let t13 = t2 * ld(m, 0x18);
+    let t14 = t1 * ld(m, 0x1C);
+    let t15 = t0 * ld(m, 0x20);
+    let t16 = t13 + t15;
+    let t17 = t14 + t16;
+    let t18 = ld(t, 0x4);
+    let t19 = ld(t, 0);
+    s.quad.frame[1][0].set_bits(bh::st(t19));
+    s.quad.frame[1][1].set_bits(bh::st(t18));
+    s.quad.frame[1][2].set_bits(bh::st(t17));
 }
 
 /// `corners`'s x87 block as plain Rust on the x87 model (117 instructions), same order and memory places, on either shadow's variables.
@@ -429,52 +429,50 @@ fn corners_in_x87(s: &Shadow) {
 }
 
 /// `projected`'s x87 block as plain Rust on the x87 model (40 instructions), same order and memory places, on either shadow's variables.
-unsafe fn projected_x87(rc: usize, s: &Shadow) {
-    unsafe {
-        let t0 = ld(rc, 0x224088);
-        let t1 = t0 / bh::ld(s.quad.corners[0][2].bits());
-        let t2 = t1 * bh::ld(s.quad.corners[0][0].bits());
-        let t3 = t2 + ld(rc, 0x22409C);
-        s.quad.corners[0][0].set_bits(bh::st(t3));
-        let t4 = t1 * bh::ld(s.quad.corners[0][1].bits());
-        let t5 = -t4;
-        let t6 = t5 + ld(rc, 0x2240A0);
-        s.quad.corners[0][1].set_bits(bh::st(t6));
-        let t7 = ld(rc, 0x224088);
-        let t8 = t7 / bh::ld(s.quad.corners[1][2].bits());
-        let t9 = t8 * bh::ld(s.quad.corners[1][0].bits());
-        let t10 = t9 + ld(rc, 0x22409C);
-        s.quad.corners[1][0].set_bits(bh::st(t10));
-        let t11 = t8 * bh::ld(s.quad.corners[1][1].bits());
-        let t12 = -t11;
-        let t13 = t12 + ld(rc, 0x2240A0);
-        s.quad.corners[1][1].set_bits(bh::st(t13));
-        let t14 = ld(rc, 0x224088);
-        let t15 = t14 / bh::ld(s.quad.corners[2][2].bits());
-        let t16 = t15 * bh::ld(s.quad.corners[2][0].bits());
-        let t17 = t16 + ld(rc, 0x22409C);
-        s.quad.corners[2][0].set_bits(bh::st(t17));
-        let t18 = t15 * bh::ld(s.quad.corners[2][1].bits());
-        let t19 = -t18;
-        let t20 = t19 + ld(rc, 0x2240A0);
-        s.quad.corners[2][1].set_bits(bh::st(t20));
-        let t21 = ld(rc, 0x224088);
-        let t22 = t21 / bh::ld(s.quad.corners[3][2].bits());
-        let t23 = t22 * bh::ld(s.quad.corners[3][0].bits());
-        let t24 = t23 + ld(rc, 0x22409C);
-        s.quad.corners[3][0].set_bits(bh::st(t24));
-        let t25 = t22 * bh::ld(s.quad.corners[3][1].bits());
-        let t26 = -t25;
-        let t27 = t26 + ld(rc, 0x2240A0);
-        s.quad.corners[3][1].set_bits(bh::st(t27));
-    }
+fn projected_x87(rc: usize, s: &Shadow) {
+    let t0 = ld(rc, 0x224088);
+    let t1 = t0 / bh::ld(s.quad.corners[0][2].bits());
+    let t2 = t1 * bh::ld(s.quad.corners[0][0].bits());
+    let t3 = t2 + ld(rc, 0x22409C);
+    s.quad.corners[0][0].set_bits(bh::st(t3));
+    let t4 = t1 * bh::ld(s.quad.corners[0][1].bits());
+    let t5 = -t4;
+    let t6 = t5 + ld(rc, 0x2240A0);
+    s.quad.corners[0][1].set_bits(bh::st(t6));
+    let t7 = ld(rc, 0x224088);
+    let t8 = t7 / bh::ld(s.quad.corners[1][2].bits());
+    let t9 = t8 * bh::ld(s.quad.corners[1][0].bits());
+    let t10 = t9 + ld(rc, 0x22409C);
+    s.quad.corners[1][0].set_bits(bh::st(t10));
+    let t11 = t8 * bh::ld(s.quad.corners[1][1].bits());
+    let t12 = -t11;
+    let t13 = t12 + ld(rc, 0x2240A0);
+    s.quad.corners[1][1].set_bits(bh::st(t13));
+    let t14 = ld(rc, 0x224088);
+    let t15 = t14 / bh::ld(s.quad.corners[2][2].bits());
+    let t16 = t15 * bh::ld(s.quad.corners[2][0].bits());
+    let t17 = t16 + ld(rc, 0x22409C);
+    s.quad.corners[2][0].set_bits(bh::st(t17));
+    let t18 = t15 * bh::ld(s.quad.corners[2][1].bits());
+    let t19 = -t18;
+    let t20 = t19 + ld(rc, 0x2240A0);
+    s.quad.corners[2][1].set_bits(bh::st(t20));
+    let t21 = ld(rc, 0x224088);
+    let t22 = t21 / bh::ld(s.quad.corners[3][2].bits());
+    let t23 = t22 * bh::ld(s.quad.corners[3][0].bits());
+    let t24 = t23 + ld(rc, 0x22409C);
+    s.quad.corners[3][0].set_bits(bh::st(t24));
+    let t25 = t22 * bh::ld(s.quad.corners[3][1].bits());
+    let t26 = -t25;
+    let t27 = t26 + ld(rc, 0x2240A0);
+    s.quad.corners[3][1].set_bits(bh::st(t27));
 }
 
 #[cfg(test)]
 mod asm_reference {
     //! The original assembly blocks, kept verbatim as the reference the plain versions are tested against.
 
-    pub(super) unsafe fn light_turned_x87(mk: usize, m: usize, t: usize) {
+    pub(super) fn light_turned_x87(mk: usize, m: usize, t: usize) {
         unsafe {
             core::arch::asm!(
                     "fld dword ptr [{mk} + 0x1CFC74]",
@@ -520,7 +518,7 @@ mod asm_reference {
         }
     }
 
-    pub(super) unsafe fn second_turned_x87(mk: usize, m: usize, t: usize) {
+    pub(super) fn second_turned_x87(mk: usize, m: usize, t: usize) {
         unsafe {
             core::arch::asm!(
                     "fld dword ptr [{mk} + 0x1CEFA8]",
@@ -566,7 +564,7 @@ mod asm_reference {
         }
     }
 
-    pub(super) unsafe fn corners_x87(mk: usize) {
+    pub(super) fn corners_x87(mk: usize) {
         unsafe {
             core::arch::asm!(
                     "fld dword ptr [{mk} + 0x1CF000]",
@@ -694,7 +692,7 @@ mod asm_reference {
         }
     }
 
-    pub(super) unsafe fn corners_in_x87(mk: usize) {
+    pub(super) fn corners_in_x87(mk: usize) {
         unsafe {
             core::arch::asm!(
                     "fld dword ptr [{mk} + 0x1CF04C]",
@@ -750,7 +748,7 @@ mod asm_reference {
         }
     }
 
-    pub(super) unsafe fn projected_x87(rc: usize, mk: usize) {
+    pub(super) fn projected_x87(rc: usize, mk: usize) {
         unsafe {
             core::arch::asm!(
                     "fld dword ptr [{rc} + 0x224088]",
@@ -802,7 +800,7 @@ mod asm_reference {
         }
     }
 
-    pub(super) unsafe fn light_turned_2_x87(mk: usize, m: usize, t: usize) {
+    pub(super) fn light_turned_2_x87(mk: usize, m: usize, t: usize) {
         unsafe {
             core::arch::asm!(
                     "fld dword ptr [{mk} + 0x1CEF74]",
@@ -848,7 +846,7 @@ mod asm_reference {
         }
     }
 
-    pub(super) unsafe fn second_turned_2_x87(mk: usize, m: usize, t: usize) {
+    pub(super) fn second_turned_2_x87(mk: usize, m: usize, t: usize) {
         unsafe {
             core::arch::asm!(
                     "fld dword ptr [{mk} + 0x1CE28C]",
@@ -894,7 +892,7 @@ mod asm_reference {
         }
     }
 
-    pub(super) unsafe fn corners_2_x87(mk: usize) {
+    pub(super) fn corners_2_x87(mk: usize) {
         unsafe {
             core::arch::asm!(
                     "fld dword ptr [{mk} + 0x1CE2E4]",
@@ -1022,7 +1020,7 @@ mod asm_reference {
         }
     }
 
-    pub(super) unsafe fn corners_in_2_x87(mk: usize) {
+    pub(super) fn corners_in_2_x87(mk: usize) {
         unsafe {
             core::arch::asm!(
                     "fld dword ptr [{mk} + 0x1CE330]",
@@ -1078,7 +1076,7 @@ mod asm_reference {
         }
     }
 
-    pub(super) unsafe fn projected_2_x87(rc: usize, mk: usize) {
+    pub(super) fn projected_2_x87(rc: usize, mk: usize) {
         unsafe {
             core::arch::asm!(
                     "fld dword ptr [{rc} + 0x224088]",
@@ -1201,8 +1199,8 @@ mod asm_differential {
         };
         differential(
             &SPEC,
-            |b| unsafe { reference::light_turned_x87(b[0], b[1], b[2]) },
-            |b| unsafe { with_shadow(b[0], SET_2, |s| super::light_turned_x87(s, b[1], b[2])) },
+            |b| reference::light_turned_x87(b[0], b[1], b[2]),
+            |b| with_shadow(b[0], SET_2, |s| super::light_turned_x87(s, b[1], b[2])),
         );
     }
 
@@ -1243,8 +1241,8 @@ mod asm_differential {
         };
         differential(
             &SPEC,
-            |b| unsafe { reference::second_turned_x87(b[0], b[1], b[2]) },
-            |b| unsafe { with_shadow(b[0], SET_2, |s| super::second_turned_x87(s, b[1], b[2])) },
+            |b| reference::second_turned_x87(b[0], b[1], b[2]),
+            |b| with_shadow(b[0], SET_2, |s| super::second_turned_x87(s, b[1], b[2])),
         );
     }
 
@@ -1311,7 +1309,7 @@ mod asm_differential {
         };
         differential(
             &SPEC,
-            |b| unsafe { reference::corners_x87(b[0]) },
+            |b| reference::corners_x87(b[0]),
             |b| with_shadow(b[0], SET_2, super::corners_x87),
         );
     }
@@ -1362,7 +1360,7 @@ mod asm_differential {
         };
         differential(
             &SPEC,
-            |b| unsafe { reference::corners_in_x87(b[0]) },
+            |b| reference::corners_in_x87(b[0]),
             |b| with_shadow(b[0], SET_2, super::corners_in_x87),
         );
     }
@@ -1410,8 +1408,8 @@ mod asm_differential {
         };
         differential(
             &SPEC,
-            |b| unsafe { reference::projected_x87(b[0], b[1]) },
-            |b| unsafe { with_shadow(b[1], SET_2, |s| super::projected_x87(b[0], s)) },
+            |b| reference::projected_x87(b[0], b[1]),
+            |b| with_shadow(b[1], SET_2, |s| super::projected_x87(b[0], s)),
         );
     }
 
@@ -1452,8 +1450,8 @@ mod asm_differential {
         };
         differential(
             &SPEC,
-            |b| unsafe { reference::light_turned_2_x87(b[0], b[1], b[2]) },
-            |b| unsafe { with_shadow(b[0], SET_1, |s| super::light_turned_x87(s, b[1], b[2])) },
+            |b| reference::light_turned_2_x87(b[0], b[1], b[2]),
+            |b| with_shadow(b[0], SET_1, |s| super::light_turned_x87(s, b[1], b[2])),
         );
     }
 
@@ -1494,8 +1492,8 @@ mod asm_differential {
         };
         differential(
             &SPEC,
-            |b| unsafe { reference::second_turned_2_x87(b[0], b[1], b[2]) },
-            |b| unsafe { with_shadow(b[0], SET_1, |s| super::second_turned_x87(s, b[1], b[2])) },
+            |b| reference::second_turned_2_x87(b[0], b[1], b[2]),
+            |b| with_shadow(b[0], SET_1, |s| super::second_turned_x87(s, b[1], b[2])),
         );
     }
 
@@ -1562,7 +1560,7 @@ mod asm_differential {
         };
         differential(
             &SPEC,
-            |b| unsafe { reference::corners_2_x87(b[0]) },
+            |b| reference::corners_2_x87(b[0]),
             |b| with_shadow(b[0], SET_1, super::corners_x87),
         );
     }
@@ -1613,7 +1611,7 @@ mod asm_differential {
         };
         differential(
             &SPEC,
-            |b| unsafe { reference::corners_in_2_x87(b[0]) },
+            |b| reference::corners_in_2_x87(b[0]),
             |b| with_shadow(b[0], SET_1, super::corners_in_x87),
         );
     }
@@ -1661,8 +1659,8 @@ mod asm_differential {
         };
         differential(
             &SPEC,
-            |b| unsafe { reference::projected_2_x87(b[0], b[1]) },
-            |b| unsafe { with_shadow(b[1], SET_1, |s| super::projected_x87(b[0], s)) },
+            |b| reference::projected_2_x87(b[0], b[1]),
+            |b| with_shadow(b[1], SET_1, |s| super::projected_x87(b[0], s)),
         );
     }
 }

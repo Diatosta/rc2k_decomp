@@ -14,36 +14,38 @@ const MOST_ENTRIES: u32 = 0x100;
 /// entry whose car (+0) is the current player's `car_number`, 0 when none is (the first
 /// entry is looked at before the end mark -1). Refuses a current player past four, no
 /// entries, or entries without their end within 0x100.
-pub unsafe fn find_player_car() -> Result<(), Refused> {
-    unsafe {
-        let current: u32 = EVENT_STATE.current_player.get();
-        let p = player_at(current);
-        if current >= PLAYERS || p == 0 {
-            return Err(BadInput("a current player past the four").into());
-        }
-        let car = (*(p as *const crate::menu::player::Player)).car_number;
-        let list: u32 = MENU_STATE.carousel.entries.get();
-        let entry = |n: u32| ((list + 4 * n) as *const u32).read_unaligned();
-        if list == 0 || entry(0) == u32::MAX {
-            return Err(BadInput("no carousel entries").into());
-        }
-        // Converted: `rc2k_core::menu::cars::find_car`, over the entries' cars.
-        let mut cars = Vec::new();
-        let mut n = 0;
-        loop {
-            cars.push((entry(n) as *const u32).read_unaligned());
-            if entry(n + 1) == u32::MAX {
-                break;
-            }
-            n += 1;
-            if n >= MOST_ENTRIES {
-                return Err(BadInput("carousel entries without their end").into());
-            }
-        }
-        let found = rc2k_core::menu::cars::find_car(&cars, car);
-        MENU_STATE.carousel.front.set(found);
-        EVENT_STATE.shown_car.set(found);
+pub fn find_player_car() -> Result<(), Refused> {
+    let current: u32 = EVENT_STATE.current_player.get();
+    let p = player_at(current);
+    if current >= PLAYERS || p == 0 {
+        return Err(BadInput("a current player past the four").into());
     }
+    let car = crate::pointers::GamePtr::new(p)
+        .read::<crate::menu::player::Player>("a player")?
+        .car_number;
+    let list: u32 = MENU_STATE.carousel.entries.get();
+    let entry =
+        |n: u32| crate::pointers::GamePtr::new(list + 4 * n).read::<u32>("a carousel entry");
+    if list == 0 || entry(0)? == u32::MAX {
+        return Err(BadInput("no carousel entries").into());
+    }
+    // Converted: `rc2k_core::menu::cars::find_car`, over the entries' cars.
+    let mut cars = Vec::new();
+    let mut n = 0;
+    loop {
+        cars.push(crate::pointers::GamePtr::new(entry(n)?).read::<u32>("a carousel car")?);
+        if entry(n + 1)? == u32::MAX {
+            break;
+        }
+        n += 1;
+        if n >= MOST_ENTRIES {
+            return Err(BadInput("carousel entries without their end").into());
+        }
+    }
+    let found = rc2k_core::menu::cars::find_car(&cars, car);
+    MENU_STATE.carousel.front.set(found);
+    EVENT_STATE.shown_car.set(found);
+
     Ok(())
 }
 
@@ -53,7 +55,7 @@ pub unsafe fn find_player_car() -> Result<(), Refused> {
 /// `dword_755561` 0.
 /// The carousel turned (`menu::next_choice_car` / `previous_choice_car`). Converted:
 /// `rc2k_core::menu::cars::turn_carousel`.
-unsafe fn turn(on: bool) {
+fn turn(on: bool) {
     use rc2k_core::menu::cars::{Carousel, turn_carousel};
     use rc2k_core::menu::navigation::Turn;
 
@@ -77,10 +79,10 @@ unsafe fn turn(on: bool) {
     LOOP_FLAGS.back.set(0u32);
 }
 
-pub unsafe fn next_choice_car() {
-    unsafe { turn(true) }
+pub fn next_choice_car() {
+    turn(true)
 }
 
-pub unsafe fn previous_choice_car() {
-    unsafe { turn(false) }
+pub fn previous_choice_car() {
+    turn(false)
 }

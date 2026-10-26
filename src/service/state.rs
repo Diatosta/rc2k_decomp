@@ -7,19 +7,21 @@ use crate::menu::lists_store::MENU_LISTS;
 use crate::menu::loop_store::LOOP_FLAGS;
 use crate::menu::players_store::PLAYER_TABLE;
 use crate::menu::state_store::MENU_STATE;
+use crate::pointers::GamePtr;
 use crate::session::{read_all, write_all};
+use crate::system::checked_reads::refuse;
 
 /// The current player (`Player`), or None if the index or the pointer is not usable.
 pub fn current_player() -> Option<u32> {
-    unsafe {
-        let index: u32 = EVENT_STATE.current_player.get();
-        if index >= 64 {
-            return None;
-        }
-        let player =
-            ((PLAYER_TABLE.pointers[0].addr() as *const u32).add(index as usize)).read_unaligned();
-        (player != 0).then_some(player)
+    let index: u32 = EVENT_STATE.current_player.get();
+    if index >= 64 {
+        return None;
     }
+    let player = GamePtr::new(PLAYER_TABLE.pointers[0].addr() as u32)
+        .offset(4 * index)
+        .read::<u32>("the players' table")
+        .unwrap_or_else(|e| refuse(e));
+    (player != 0).then_some(player)
 }
 
 /// Address of the flag of menu item `item` in the repair flag table.
@@ -28,7 +30,9 @@ pub fn repair_flag_addr(item: u32) -> u32 {
 }
 
 pub fn repair_flag(item: u32) -> u32 {
-    unsafe { (repair_flag_addr(item) as *const u32).read_unaligned() }
+    GamePtr::new(repair_flag_addr(item))
+        .read::<u32>("a repair flag")
+        .unwrap_or_else(|e| refuse(e))
 }
 
 pub fn edit_mode() -> bool {
@@ -58,7 +62,9 @@ pub fn flagged_item() -> Result<u32, BadInput> {
 }
 
 pub fn set_repair_flag(item: u32, value: u32) {
-    unsafe { (repair_flag_addr(item) as *mut u32).write_unaligned(value) }
+    GamePtr::new(repair_flag_addr(item))
+        .write(value, "a repair flag")
+        .unwrap_or_else(|e| refuse(e))
 }
 
 /// The flag table, with its end mark.
@@ -81,10 +87,15 @@ pub fn store_marks(t: &rc2k_core::service::repairs::Table) {
 
 /// An item's repair time, through its pointer (None: null).
 pub fn time_of(item: usize) -> Option<i32> {
-    let at = unsafe {
-        ((MENU_LISTS.repair_time_ptrs[0].addr() as *const u32).add(item)).read_unaligned()
-    };
-    (at != 0).then(|| unsafe { (at as *const i32).read_unaligned() })
+    let at = GamePtr::new(MENU_LISTS.repair_time_ptrs[0].addr() as u32)
+        .offset(4 * item as u32)
+        .read::<u32>("the repair times' pointers")
+        .unwrap_or_else(|e| refuse(e));
+    (at != 0).then(|| {
+        GamePtr::new(at)
+            .read::<i32>("a repair time")
+            .unwrap_or_else(|e| refuse(e))
+    })
 }
 
 /// The time of every item whose flag is not 0, as the original adds it up. Converted:
@@ -100,10 +111,11 @@ pub fn leave_edit_mode() {
 /// True if menu item `item` has a repair time (a non-null pointer in the table).
 pub fn has_repair_time(item: u32) -> bool {
     item < ITEM_COUNT
-        && unsafe {
-            ((MENU_LISTS.repair_time_ptrs[0].addr() as *const u32).add(item as usize))
-                .read_unaligned()
-        } != 0
+        && GamePtr::new(MENU_LISTS.repair_time_ptrs[0].addr() as u32)
+            .offset(4 * item)
+            .read::<u32>("the repair times' pointers")
+            .unwrap_or_else(|e| refuse(e))
+            != 0
 }
 
 /// True if the second flag table has its end mark where it belongs.

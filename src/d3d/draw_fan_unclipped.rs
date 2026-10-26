@@ -9,19 +9,40 @@
 //! Platform: the original always runs, here the fan is only noted. In the standalone
 //! program the rasteriser draws it (`platform_3d::draw_fan`) and the result is 0.
 
-use crate::d3d::{VERTEX_LEN, Vertex};
+use crate::d3d::Vertex;
+use crate::d3d::vertices_store::VERTICES;
 use crate::scene::draw_store::DRAW;
 
-/// More than the buffer can hold is not noted: 0x6240F8 lies well past 0x9605A0 only by
-/// address, and a count gone wrong must not be read through.
-const MOST: u32 = 0x100;
-
-/// The polygon as it stands in the buffer.
+/// The polygon as it stands in the buffer (the store's `TLVertex[64]`). More vertices than
+/// the buffer holds is a count gone wrong (the original reads on past it, into other
+/// variables): a refusal.
 pub fn polygon() -> Vec<Vertex> {
-    let count = DRAW.polygon_vertex_count.bits().min(MOST) as usize;
-    let at = crate::d3d::vertices_store::piece_addr();
-    (0..count)
-        .map(|n| unsafe { ((at + n * VERTEX_LEN) as *const Vertex).read_unaligned() })
+    let count = DRAW.polygon_vertex_count.bits() as usize;
+    let vertices = &VERTICES.vertices;
+    if count > vertices.len() {
+        crate::framework::log(&format!(
+            "d3d::draw_fan_unclipped: a polygon of {count} vertices, the buffer holds {}",
+            vertices.len()
+        ));
+        crate::fatal::raise::end(
+            "d3d::draw_fan_unclipped",
+            crate::errors::BadInput("a polygon of more vertices than its buffer holds"),
+        );
+    }
+    vertices[..count]
+        .iter()
+        .map(|v| {
+            [
+                v.x.bits(),
+                v.y.bits(),
+                v.z.bits(),
+                v.rhw.bits(),
+                v.colour.get(),
+                v.specular.get(),
+                v.u.bits(),
+                v.v.bits(),
+            ]
+        })
         .collect()
 }
 

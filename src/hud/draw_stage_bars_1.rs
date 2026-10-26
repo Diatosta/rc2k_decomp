@@ -16,22 +16,20 @@ use crate::hud::store::HUD;
 use crate::race::overlay_store::RACE_OVERLAY;
 
 /// The two players' bars `dy` lower (see the header).
-pub unsafe fn bars_with(record: u32, dy: u32) -> Result<(), Refused> {
-    unsafe {
-        bars(
-            record,
-            &[
-                &RACE_OVERLAY.overlay_part_kinds_a,
-                &RACE_OVERLAY.overlay_part_kinds_b,
-            ],
-            &[&HUD.bar_colours[0], &HUD.bar_colours[1]],
-            dy,
-        )
-    }
+pub fn bars_with(record: u32, dy: u32) -> Result<(), Refused> {
+    bars(
+        record,
+        &[
+            &RACE_OVERLAY.overlay_part_kinds_a,
+            &RACE_OVERLAY.overlay_part_kinds_b,
+        ],
+        &[&HUD.bar_colours[0], &HUD.bar_colours[1]],
+        dy,
+    )
 }
 
 /// The Rust version (see the header).
 // Converted: `rc2k_core::hud::stage_bars` (through `draw_stage_bar::bars`)
-pub unsafe fn draw_stage_bars_1(record: u32) -> Result<(), Refused> {
-    unsafe { bars_with(record, 0) }
+pub fn draw_stage_bars_1(record: u32) -> Result<(), Refused> {
+    bars_with(record, 0)
 }

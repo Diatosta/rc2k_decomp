@@ -14,38 +14,46 @@ const LABEL_LEN: u32 = 0x10;
 const END: u32 = u32::MAX;
 const LABEL_LIMIT: u32 = 256;
 
-unsafe fn dword(at: u32) -> u32 {
-    unsafe { (at as *const u32).read_unaligned() }
+fn dword(at: u32) -> Result<u32, crate::errors::BadInput> {
+    crate::pointers::GamePtr::new(at).read::<u32>("a game value")
 }
 
 // ---- Rust version ----
 
-pub unsafe fn draw_menu_labels(menu: u32, canvas: &mut dyn Canvas) -> Result<(), Refused> {
-    unsafe {
-        let labels = dword(menu);
-        if labels == 0 {
-            return Err(BadInput("a menu without a label list").into());
+/// Whether a label among the first `LABEL_LIMIT` after the first has the end mark.
+fn has_end(labels: u32) -> Result<bool, BadInput> {
+    for n in 1..=LABEL_LIMIT {
+        if dword(labels + n * LABEL_LEN)? == END {
+            return Ok(true);
         }
-        if !(1..=LABEL_LIMIT).any(|n| dword(labels + n * LABEL_LEN) == END) {
-            return Err(BadInput("a label list without an end").into());
-        }
-        // Converted: `rc2k_core::screens::menus::labels` (the list read here: the first label
-        // drawn without being checked for the end, as the original).
-        use crate::screens::game_screen::{FontAt, MenuScreen};
-        let mut list = Vec::new();
-        let mut label = labels;
-        loop {
-            list.push(rc2k_core::screens::menus::Label {
-                x: dword(label) as i32,
-                y: dword(label + 4) as i32,
-                font: FontAt(dword(label + 8)),
-                id: dword(label + 0xC),
-            });
-            label += LABEL_LEN;
-            if dword(label) == END {
-                break;
-            }
-        }
-        rc2k_core::screens::menus::labels(&mut MenuScreen::new(canvas), &list)
     }
+    Ok(false)
+}
+
+pub fn draw_menu_labels(menu: u32, canvas: &mut dyn Canvas) -> Result<(), Refused> {
+    let labels = dword(menu)?;
+    if labels == 0 {
+        return Err(BadInput("a menu without a label list").into());
+    }
+    if !has_end(labels)? {
+        return Err(BadInput("a label list without an end").into());
+    }
+    // Converted: `rc2k_core::screens::menus::labels` (the list read here: the first label
+    // drawn without being checked for the end, as the original).
+    use crate::screens::game_screen::{FontAt, MenuScreen};
+    let mut list = Vec::new();
+    let mut label = labels;
+    loop {
+        list.push(rc2k_core::screens::menus::Label {
+            x: dword(label)? as i32,
+            y: dword(label + 4)? as i32,
+            font: FontAt(dword(label + 8)?),
+            id: dword(label + 0xC)?,
+        });
+        label += LABEL_LEN;
+        if dword(label)? == END {
+            break;
+        }
+    }
+    rc2k_core::screens::menus::labels(&mut MenuScreen::new(canvas), &list)
 }

@@ -26,7 +26,7 @@ pub use rc2k_core::files::records::seal_block as block;
 /// The Rust version (see the header): `time` and the block's three bytes (the original's
 /// bl, cl, dl) in; the sealed block's two dwords (its eax, ebx) out. Its callers read
 /// nothing else it leaves (register liveness, 2026-10-23).
-pub unsafe fn seal_time(time: u32, bytes: [u8; 3]) -> [u32; 2] {
+pub fn seal_time(time: u32, bytes: [u8; 3]) -> [u32; 2] {
     let value = sealed_value(time, CHEAT_VARS.cheats.get(), RACE_WORK.patch_switch.bits());
     let bytes = block(value, bytes);
     SEAL_WORK.block[0].set(u32::from_le_bytes(bytes[..4].try_into().unwrap()));

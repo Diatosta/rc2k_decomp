@@ -22,19 +22,19 @@ use crate::input::types::InputDevice;
 
 /// The device `record` given back.
 pub unsafe fn release_device(record: u32) -> Result<(), Refused> {
-    let device = at(record, field!(InputDevice, device));
+    let device = at(record, field!(InputDevice, device))?;
     if device != 0 {
         let effects = controller(record, 0x1C)? == 1;
         unsafe { com_call(device, 0x20, &[]) };
         if effects {
-            crate::input::end_force::end_force(record);
+            crate::input::end_force::end_force(record)?;
         }
         unsafe { com_call(device, 0x08, &[]) };
-        put(record, field!(InputDevice, device), 0);
+        put(record, field!(InputDevice, device), 0)?;
     }
-    put(record, field!(InputDevice, acquired), 0);
-    put(record, field!(InputDevice, effects_on), 0);
-    clear_device_readings(record);
+    put(record, field!(InputDevice, acquired), 0)?;
+    put(record, field!(InputDevice, effects_on), 0)?;
+    clear_device_readings(record)?;
     Ok(())
 }
 

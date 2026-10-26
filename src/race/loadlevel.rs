@@ -56,29 +56,15 @@ const WORDS: [&std::ffi::CStr; 28] = [
 /// `g_inRace`, and the loading bar's callback.
 #[derive(Clone, Copy)]
 pub struct LoadVars {
-    pub indent: u32,
-    pub log_enabled: u32,
-    pub in_race: u32,
     pub bar: u32,
 }
 
 impl LoadVars {
     pub fn game() -> Self {
         Self {
-            indent: crate::logfile::write_line::indent_place(), // g_logIndent
-            log_enabled: crate::logfile::write_line::enabled_place(), // g_logEnabled
-            in_race: NUMBERS.in_race.addr() as u32,             // g_inRace
             bar: game_addr(BAR_RVA) as u32,
         }
     }
-}
-
-unsafe fn get(at: u32) -> u32 {
-    unsafe { (at as *const u32).read_unaligned() }
-}
-
-unsafe fn put(at: u32, v: u32) {
-    unsafe { (at as *mut u32).write_unaligned(v) };
 }
 
 /// The original's `loadlevel_init`, step by step.
@@ -102,7 +88,8 @@ impl Steps {
 
     /// `pushf`; `g_logIndent` +- 3; `popf`.
     fn indent(&mut self, by: i32) {
-        unsafe { put(self.v.indent, get(self.v.indent).wrapping_add(by as u32)) };
+        crate::logfile::write_line::state::INDENT
+            .fetch_add(by, std::sync::atomic::Ordering::Relaxed);
     }
 
     /// `pusha`; `dword_623700` the mark; `call [dword_623704]`; `popa`. The callback is the
@@ -165,7 +152,7 @@ pub unsafe fn loadlevel_init() -> Result<(), Refused> {
             direction ^= 1;
         }
         RACE_WORK.stage_direction.set(direction);
-        put(v.in_race, 1);
+        NUMBERS.in_race.set(1);
         RACE_VARS.bar_function.set_bits(v.bar);
         s.progress(0)?;
         s.indent(-3);
@@ -191,7 +178,7 @@ pub unsafe fn loadlevel_init() -> Result<(), Refused> {
         s.log();
         s.indent(3);
         level::load_texture_info(&Vars::game())?;
-        level::set_course_number(RACE_VARS.stage_number.bits());
+        level::set_course_number(RACE_VARS.stage_number.bits())?;
         s.progress(6)?;
         s.indent(-3);
         s.step(&mut || stage_prefs::load_prefs(), Some(7))?;
@@ -244,16 +231,17 @@ pub unsafe fn loadlevel_init() -> Result<(), Refused> {
         // init mark, with the log off.
         s.log();
         s.indent(3);
-        let enabled = get(v.log_enabled);
-        put(v.log_enabled, 0);
+        let enabled = crate::logfile::write_line::state::ENABLED
+            .swap(0, std::sync::atomic::Ordering::Relaxed);
         crate::marks::init_mark_step::init_mark_step()?;
-        put(v.log_enabled, enabled);
+        crate::logfile::write_line::state::ENABLED
+            .store(enabled, std::sync::atomic::Ordering::Relaxed);
         s.progress(0x5E)?;
         s.indent(-3);
         // refresh init and the refresh flags.
         s.log();
         s.indent(3);
-        level::reset_refresh(&Vars::game());
+        level::reset_refresh(&Vars::game())?;
         let flags: u32 = STAGE_PREFS.refresh_flags_a.bits();
         LIGHT_WORK.marks_mask.set_bits((flags & 2) >> 1);
         for car in &CAR_BLOCKS.cars[..8] {
@@ -265,7 +253,7 @@ pub unsafe fn loadlevel_init() -> Result<(), Refused> {
         s.indent(-3);
         s.step(
             &mut || {
-                stage_prefs::init_skidmarks();
+                stage_prefs::init_skidmarks()?;
                 Ok(())
             },
             Some(0x5F),
@@ -280,7 +268,7 @@ pub unsafe fn loadlevel_init() -> Result<(), Refused> {
         )?;
         s.step(
             &mut || {
-                crate::scene::fill_scene_light_tables::fill_scene_light_tables();
+                crate::scene::fill_scene_light_tables::fill_scene_light_tables()?;
                 Ok(())
             },
             Some(0x62),

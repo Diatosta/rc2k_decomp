@@ -17,6 +17,7 @@
 
 use crate::errors::{BadInput, FatalError, Refused};
 use crate::framework::game_addr;
+use crate::pointers::GamePtr;
 use crate::session::FLAGS;
 
 /// A Win32 call by the address of its import the arguments in, eax out.
@@ -83,28 +84,47 @@ pub fn set_media_mode(mode: u32) {
 
 // ---- memory by address ----
 
+/// A game address the installer's code reads or writes lies outside every allocation: the
+/// program ends naming it (the script and its pages have no way to carry the refusal back;
+/// `GamePtr` logged the address).
+pub fn refuse(e: crate::errors::BadInput) -> ! {
+    crate::fatal::raise::end("install", e)
+}
+
 pub fn rb(at: u32) -> u8 {
-    unsafe { (at as *const u8).read_volatile() }
+    GamePtr::new(at)
+        .read::<u8>("an installer byte")
+        .unwrap_or_else(|e| refuse(e))
 }
 
 pub fn wb(at: u32, v: u8) {
-    unsafe { (at as *mut u8).write_volatile(v) }
+    GamePtr::new(at)
+        .write(v, "an installer byte")
+        .unwrap_or_else(|e| refuse(e))
 }
 
 pub fn rw(at: u32) -> u16 {
-    unsafe { (at as *const u16).read_unaligned() }
+    GamePtr::new(at)
+        .read::<u16>("an installer word")
+        .unwrap_or_else(|e| refuse(e))
 }
 
 pub fn ww(at: u32, v: u16) {
-    unsafe { (at as *mut u16).write_unaligned(v) }
+    GamePtr::new(at)
+        .write(v, "an installer word")
+        .unwrap_or_else(|e| refuse(e))
 }
 
 pub fn rd(at: u32) -> u32 {
-    unsafe { (at as *const u32).read_unaligned() }
+    GamePtr::new(at)
+        .read::<u32>("an installer dword")
+        .unwrap_or_else(|e| refuse(e))
 }
 
 pub fn wd(at: u32, v: u32) {
-    unsafe { (at as *mut u32).write_unaligned(v) }
+    GamePtr::new(at)
+        .write(v, "an installer dword")
+        .unwrap_or_else(|e| refuse(e))
 }
 
 pub fn fatal(code: u32) -> Refused {
@@ -122,18 +142,22 @@ fn ida_of(place: u32) -> usize {
 
 /// `strings::str_append`: `text` appended at `cursor`; the cursor past it.
 pub fn str_append(text: u32, cursor: u32) -> u32 {
-    unsafe { crate::strings::str_append::str_append(text as *const u8, cursor as *mut u8) as u32 }
+    crate::menu::event_flow::refuse_here(
+        crate::strings::str_append::str_append(text as *const u8, cursor as *mut u8),
+        "install::installer: a text",
+    ) as u32
 }
 
 /// `strings::str_append_indexed`: text `index` of `table` appended at `cursor`.
 pub fn str_append_indexed(table: u32, index: u32, cursor: u32) -> u32 {
-    unsafe {
+    crate::menu::event_flow::refuse_here(
         crate::strings::str_append_indexed::str_append_indexed(
             table as *const u8,
             index as i32,
             cursor as *mut u8,
-        ) as u32
-    }
+        ),
+        "install::installer: a string list",
+    ) as u32
 }
 
 /// `strings::append_nul` and the other one-byte cursor helpers.
@@ -145,12 +169,15 @@ pub fn append_byte(cursor: u32, b: u8) -> u32 {
 /// `strings::append_string_by_id`: string `id` appended at `cursor`; the cursor past it.
 pub fn append_string_by_id(id: u32, cursor: u32) -> u32 {
     let mut out = cursor as *mut u8;
-    unsafe {
-        crate::strings::append_string_by_id::append_string_by_id(id, &mut |from, n| {
-            std::ptr::copy(from, out, n);
-            out = out.add(n);
-        });
-    }
+    crate::menu::event_flow::refuse_here(
+        unsafe {
+            crate::strings::append_string_by_id::append_string_by_id(id, &mut |from, n| {
+                std::ptr::copy(from, out, n);
+                out = out.add(n);
+            })
+        },
+        "install::installer: a string",
+    );
     out as u32
 }
 
@@ -158,41 +185,46 @@ pub fn append_string_by_id(id: u32, cursor: u32) -> u32 {
 
 /// `files::set_current_directory` (0x403105): whether it worked.
 pub fn set_cd(path: u32) -> bool {
-    unsafe { crate::files::directories::set_current_directory(path as *const u8) != 0 }
+    crate::files::directories::set_current_directory(path as *const u8)
+        .unwrap_or_else(|e| refuse(e))
+        != 0
 }
 
 /// `files::make_directory` (0x403113): whether it worked.
 pub fn make_dir(path: u32) -> bool {
-    unsafe { crate::files::directories::make_directory(path as *const u8) != 0 }
+    crate::files::directories::make_directory(path as *const u8).unwrap_or_else(|e| refuse(e)) != 0
 }
 
 /// `sub_403123` (remove a directory): whether it worked.
 pub fn remove_dir(path: u32) -> bool {
-    unsafe { crate::files::directories::remove_directory(path as *const u8) != 0 }
+    crate::files::directories::remove_directory(path as *const u8).unwrap_or_else(|e| refuse(e))
+        != 0
 }
 
 /// `files::delete_file` (0x402E8C): whether it worked.
 pub fn delete_file(path: u32) -> bool {
-    unsafe { crate::files::directories::delete_file(path as *const u8) != 0 }
+    crate::files::directories::delete_file(path as *const u8).unwrap_or_else(|e| refuse(e)) != 0
 }
 
 /// `install::normalise_path` (0x4139EC): `path` written at `to`; whether it was.
 pub fn normalise(path: u32, to: u32) -> Result<bool, Refused> {
-    Ok(
-        unsafe {
-            crate::install::normalise_path::normalise_path(path as *const u8, to as *mut u8)
-        }?,
-    )
+    Ok(crate::install::normalise_path::normalise_path(
+        path as *const u8,
+        to as *mut u8,
+    )?)
 }
 
 /// `files::copy_file` (0x402C28): whether it worked.
 pub fn copy_file(from: u32, to: u32) -> Result<bool, Refused> {
-    Ok(unsafe { crate::files::copy_file::copy_file(from as *const u8, to as *const u8) }?)
+    Ok(crate::files::copy_file::copy_file(
+        from as *const u8,
+        to as *const u8,
+    )?)
 }
 
 /// `files::resolve_path` (0x403206): the path the game opens.
 pub fn resolve_path(path: u32) -> Result<u32, Refused> {
-    Ok(unsafe { crate::files::resolve_path::resolve_path_in_game(path as *const u8) }? as u32)
+    Ok(crate::files::resolve_path::resolve_path_in_game(path as *const u8)? as u32)
 }
 
 /// `files::find_first` (0x402FC2): whether a file was found.
@@ -285,9 +317,9 @@ pub fn draw_string(id: u32, font: u32, x: u32, y: u32) -> Result<(), Refused> {
 pub fn draw_text(font: u32, text: u32, x: u32, y: u32) -> Result<(), Refused> {
     use crate::text::draw_text::GameCanvas;
     use crate::text::font::Font;
+    let at = crate::pointers::GamePtr::new(font);
+    let mut copy = at.read::<Font>("a font object")?;
     unsafe {
-        let font = font as *mut Font;
-        let mut copy = font.read_unaligned();
         crate::text::draw_text::draw_text(
             &mut copy,
             text as *const u8,
@@ -295,9 +327,9 @@ pub fn draw_text(font: u32, text: u32, x: u32, y: u32) -> Result<(), Refused> {
             y as i32,
             &mut GameCanvas,
         )?;
-        if copy != font.read_unaligned() {
-            font.write_unaligned(copy);
-        }
+    }
+    if copy != at.read::<Font>("a font object")? {
+        at.write(copy, "a font object")?;
     }
     Ok(())
 }
@@ -336,8 +368,7 @@ pub unsafe fn components_to_pixels(from: u32, to: u32, format: u32) {
     let format = unsafe { &*(format as *const crate::gfx::pixel_format::PixelFormat) };
     for n in 0..0x100u32 {
         let components = rd(from + 4 * n);
-        let pixel =
-            unsafe { crate::gfx::components_to_pixel::components_to_pixel(format, components) };
+        let pixel = crate::gfx::components_to_pixel::components_to_pixel(format, components);
         wd(to + 4 * n, pixel);
     }
 }
@@ -358,18 +389,18 @@ pub fn list_take_key() -> Result<u8, Refused> {
 
 /// `menu::list_step` (0x414A55): `key` moving the highlight of `list` by the neighbours
 /// table `table`; whether it moved (the original's zero).
-pub fn list_step(key: u32, table: u32, list: u32) -> bool {
-    unsafe { crate::menu::list_step::list_step(key as u8, table, list) }.zero
+pub fn list_step(key: u32, table: u32, list: u32) -> Result<bool, crate::errors::BadInput> {
+    Ok(crate::menu::list_step::list_step(key as u8, table, list)?.zero)
 }
 
 /// `menu::list_clear_marks` (0x414AC9).
-pub fn list_clear_marks(list: u32) {
-    unsafe { crate::menu::list_clear_marks::list_clear_marks(list) }
+pub fn list_clear_marks(list: u32) -> Result<(), crate::errors::BadInput> {
+    crate::menu::list_clear_marks::list_clear_marks(list)
 }
 
 /// `menu::list_item_unusable` (0x414C1B): whether the highlighted item cannot be chosen.
-pub fn list_item_unusable(list: u32) -> bool {
-    unsafe { crate::menu::list_item_unusable::list_item_unusable(list) }
+pub fn list_item_unusable(list: u32) -> Result<bool, crate::errors::BadInput> {
+    crate::menu::list_item_unusable::list_item_unusable(list)
 }
 
 /// Whether the standalone's install or uninstall ended, logged.
@@ -433,7 +464,7 @@ pub fn item_action_at(place: u32) -> Result<bool, Refused> {
 /// game's items hold only `install::end_text_line`.
 pub fn text_action(place: u32, cursor: u32) -> Result<u32, Refused> {
     match ida_of(place) {
-        0x415304 => Ok(unsafe { crate::install::end_text_line::end_text_line(cursor) }),
+        0x415304 => Ok(crate::install::end_text_line::end_text_line(cursor)),
         _ => Err(BadInput("a text action that is not one of the installer's").into()),
     }
 }

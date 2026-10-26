@@ -17,8 +17,9 @@ use windows_sys::Win32::System::Environment::GetCurrentDirectoryA;
 // ---- Rust version ----
 
 /// `sub_4030D1`'s asking: the current directory, or None if it cannot be had.
-pub unsafe fn current_directory() -> Result<Option<Vec<u8>>, BadInput> {
+pub fn current_directory() -> Result<Option<Vec<u8>>, BadInput> {
     let mut place = [0u8; 0x100];
+    // SAFETY: the place is 0x100 bytes, 0xFF asked for.
     let len = unsafe { GetCurrentDirectoryA(0xFF, place.as_mut_ptr()) } as usize;
     match len {
         0 => Ok(None),
@@ -29,22 +30,20 @@ pub unsafe fn current_directory() -> Result<Option<Vec<u8>>, BadInput> {
 
 /// The path as it is written, with its NUL; None if it is not one that is taken.
 /// `current` is the current directory, asked for only if the path is empty.
-pub unsafe fn normalised(
+pub fn normalised(
     path: *const u8,
     current: &mut dyn FnMut() -> Result<Option<Vec<u8>>, BadInput>,
 ) -> Result<Option<Vec<u8>>, BadInput> {
-    let path = unsafe { std::ffi::CStr::from_ptr(path as *const _) }.to_bytes();
+    let path = crate::files::cstring(crate::pointers::GamePtr::new(path as u32), "a path")?;
     // Converted: `rc2k_core::install::paths::normalise`.
-    rc2k_core::install::paths::normalise(path, &case_table(), current)
+    rc2k_core::install::paths::normalise(&path, &case_table(), current)
 }
 
 /// For Rust callers: writes the path at `to`. Returns whether it was written.
-pub unsafe fn normalise_path(path: *const u8, to: *mut u8) -> Result<bool, BadInput> {
-    unsafe {
-        let Some(text) = normalised(path, &mut || current_directory())? else {
-            return Ok(false);
-        };
-        std::ptr::copy(text.as_ptr(), to, text.len());
-        Ok(true)
-    }
+pub fn normalise_path(path: *const u8, to: *mut u8) -> Result<bool, BadInput> {
+    let Some(text) = normalised(path, &mut || current_directory())? else {
+        return Ok(false);
+    };
+    crate::pointers::GamePtr::new(to as u32).write_bytes(&text, "a normalised path")?;
+    Ok(true)
 }

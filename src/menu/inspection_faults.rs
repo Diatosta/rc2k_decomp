@@ -14,14 +14,16 @@ use crate::menu::standings::*;
 use crate::session::write_prefix;
 
 /// The Rust version (see the header): the registers it leaves.
-pub unsafe fn inspection_faults() -> Result<(), Refused> {
+pub fn inspection_faults() -> Result<(), Refused> {
     let n: u32 = { EVENT_STATE.current_player.get() };
     if n >= 4 || player(n) == 0 {
         return Err(BadInput("a current player past 3 or missing").into());
     }
     // Converted: `rc2k_core::menu::inspection::faults`.
     let p = player(n);
-    let flags = rc2k_core::menu::inspection::faults(|k| past_limit(p, k as u32));
+    let fault = crate::menu::event_flow::Fault::default();
+    let flags = rc2k_core::menu::inspection::faults(|k| fault.ok(past_limit(p, k as u32)));
+    fault.check()?;
     write_prefix(&MENU_LISTS.inspection_faults, &flags);
     Ok(())
 }

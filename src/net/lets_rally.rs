@@ -72,7 +72,7 @@ pub fn lets_rally() -> Result<bool, Refused> {
                 break crate::net::lets_race::lets_race()?;
             }
         };
-        crate::race::race_end::tidy_everything(&crate::race::loadlevel::LoadVars::game())?;
+        crate::race::race_end::tidy_everything()?;
         crate::sound::stop_music::stop_music();
         crate::platform::set_menu_mode_now();
         crate::menu::show_loading_picture::show_loading_picture()?;

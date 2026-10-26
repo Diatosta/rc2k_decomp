@@ -44,7 +44,7 @@ pub fn car_sounds_all() -> Result<(), Refused> {
     use rc2k_core::sound::turn::{NEAREST_MARK, NEXT_MARK, Nearest};
     let mut nearest = Nearest::default();
     for n in 0..count {
-        let o = unsafe { SoundObject::at(object(n)) };
+        let o = SoundObject::at(object(n))?;
         if o.in_use.get() != 1 {
             continue;
         }
@@ -66,7 +66,7 @@ pub fn car_sounds_all() -> Result<(), Refused> {
         if (n as i32) < 0 {
             continue;
         }
-        let o = unsafe { SoundObject::at(object(n)) };
+        let o = SoundObject::at(object(n))?;
         let kept = o.sound_offset.get();
         o.sound_offset.set(mark);
         crate::sound::car_sounds::car_sounds(n)?;

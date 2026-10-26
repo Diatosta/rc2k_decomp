@@ -24,12 +24,13 @@
 use crate::errors::Refused;
 use crate::physics::car_store::CAR;
 use crate::physics::contact_store::CONTACT_WORK;
+use crate::pointers::GamePtr;
 use crate::race::course_store::COURSE;
 use rc2k_core::physics::walls;
 
-fn word(face: u32) -> u32 {
+fn word(face: u32) -> Result<u32, Refused> {
     let at = (face << 6).wrapping_add(COURSE.course_faces.get()) + 2;
-    unsafe { (at as *const u16).read_unaligned() as u32 }
+    Ok(u32::from(GamePtr::new(at).read::<u16>("a face's flags")?))
 }
 
 fn after() -> Result<(), Refused> {
@@ -47,12 +48,14 @@ pub fn steps() -> Result<(), Refused> {
         let k = k as usize;
         let now = CAR.probe_point_face[k].get();
         CONTACT_WORK.wall_face_now.set(now);
-        let now_word = word(now);
+        let now_word = word(now)?;
         let before = CONTACT_WORK.probe_saved_faces[k].get();
-        let before_word = (now != before).then(|| {
+        let before_word = if now != before {
             CONTACT_WORK.wall_face_before.set(before);
-            word(before)
-        });
+            Some(word(before)?)
+        } else {
+            None
+        };
         Ok::<_, Refused>(walls::ProbeFaces {
             now_word,
             before_word,

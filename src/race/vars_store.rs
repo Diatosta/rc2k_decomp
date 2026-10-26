@@ -52,10 +52,9 @@ pub struct RaceVars {
     pub surface_weight: Dword,
     /// +0xcc (0x6236B4): `g_mapAnchorCount`.
     pub map_anchor_count: Dword,
-    /// +0xd0 (0x6236B8): the map: the stretch's two anchors and what is made of them (`race::best_line`).
-    pub map_work: [Dword; 16],
-    /// +0x110 (0x6236F8): not named.
-    pub unknown_110: [Dword; 2],
+    /// +0xd0 (0x6236B8): the map: the stretch's two anchors and what is made of them
+    /// (`race::best_line`, its offsets 0xB8 .. 0xF8 and one dword more).
+    pub map_work: [Dword; 18],
     /// +0x118 (0x623700): the loading bar's share loaded, 0 .. 100.
     pub bar_share: Dword,
     /// +0x11c (0x623704): the loading bar's function (0: none).

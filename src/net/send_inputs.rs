@@ -13,6 +13,7 @@
 use crate::errors::Refused;
 use crate::net::log_send;
 use crate::net::send_message::send_message;
+use crate::pointers::GamePtr;
 use rc2k_core::net::race::Kind;
 
 /// What one of the three sends: its log text  and its kind (the
@@ -35,12 +36,21 @@ pub fn send_fields(m: &Message) -> Result<(), Refused> {
     );
     log_send(m.text);
     // Converted: `rc2k_core::net::race::Kind::pack`.
-    let dwords = m
-        .kind
-        .pack(|field| unsafe { ((car + field) as *const u32).read_unaligned() });
-    let out = message as *mut u32;
+    // The core asks infallibly: the first refusal is kept and raised after.
+    let refused = std::cell::Cell::new(None);
+    let dwords = m.kind.pack(|field| {
+        GamePtr::new(car + field)
+            .read::<u32>("the car's work block")
+            .unwrap_or_else(|e| {
+                refused.set(Some(e));
+                0
+            })
+    });
+    if let Some(e) = refused.take() {
+        return Err(e.into());
+    }
     for (n, &v) in dwords.iter().enumerate() {
-        unsafe { out.add(n).write_unaligned(v) };
+        GamePtr::new(message + 4 * n as u32).write(v, "the network message")?;
     }
     send_message(message as *const u8, 4 * dwords.len() as u32)
 }

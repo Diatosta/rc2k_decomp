@@ -27,9 +27,9 @@ pub fn draw_number_value(number: u32, item: u32, y: u32) -> Result<u32, Refused>
         if shown == Number::Nothing {
             cursor.string_id(screens::NOTHING);
         } else {
-            cursor.bytes(&crate::strings::format_u32::format_u32(number, 0));
+            cursor.bytes(&crate::strings::format_u32::format_u32(number, 0))?;
         }
-        cursor.nul();
+        cursor.nul()?;
         TEXT_BUFFER.text.addr() as u32
     };
     draw_setting_value(text, item, y)

@@ -30,6 +30,7 @@ use crate::gfx::png_file::PNG_FILE;
 use crate::gfx::rgb_pixels_to_dwords::rgb_pixels_to_dwords;
 use crate::memory::allocate::allocate;
 use crate::memory::free_list::free_list;
+use crate::pointers::GamePtr;
 
 // ---- game data ----
 
@@ -39,18 +40,17 @@ const HEAD_LEN: u32 = 0x80;
 
 /// What comes before the memory is taken: whether the file's head is a PNG the game takes.
 unsafe fn head_is_taken(path: *const u8) -> Result<bool, Refused> {
-    unsafe {
-        let head = crate::gfx::png::info().cast::<u8>();
-        (head as *mut u32).write_unaligned(0);
-        let read = read_file(path, head, HEAD_LEN, 0)?;
-        if !read.ok || read.bytes_read.is_none_or(|n| n < HEAD_LEN) {
-            return Ok(false);
-        }
-        // Converted: `rc2k_core::gfx::png::head_taken`.
-        Ok(rc2k_core::gfx::png::head_taken(
-            &(head as *const [u8; 0x80]).read_unaligned(),
-        ))
+    let head = crate::gfx::png::info().cast::<u8>();
+    let place = GamePtr::new(head as usize as u32);
+    place.write(0u32, "the PNG head")?;
+    let read = read_file(path, head, HEAD_LEN, 0)?;
+    if !read.ok || read.bytes_read.is_none_or(|n| n < HEAD_LEN) {
+        return Ok(false);
     }
+    // Converted: `rc2k_core::gfx::png::head_taken`.
+    Ok(rc2k_core::gfx::png::head_taken(
+        &place.read::<[u8; 0x80]>("the PNG head")?,
+    ))
 }
 
 /// The part with the file's memory held: whether it worked.
@@ -63,12 +63,12 @@ unsafe fn read_held(path: *const u8, size: u32) -> Result<bool, Refused> {
             return Ok(false);
         }
         decode_png(
-            std::slice::from_raw_parts(file, size as usize),
-            picture(),
-            crate::gfx::png::info(),
+            &GamePtr::new(file as usize as u32).read_bytes(size as usize, "a PNG file")?,
+            picture() as usize as u32,
+            crate::gfx::png::info() as usize as u32,
         )?;
         PICTURE.flags.set(0x802u32);
-        lay_out_png();
+        lay_out_png()?;
         PICTURE.width.set(DECODER.width.get());
         PICTURE.height.set(DECODER.height.get());
         PICTURE.row_bytes.set(DECODER.stride.get());

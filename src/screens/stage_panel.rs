@@ -3,10 +3,11 @@
 //! the same layout; they differ only in where the stage comes from, what goes above the panel
 //! and which best-time table the record rows use.
 
-use crate::errors::{FatalError, Refused};
+use crate::errors::Refused;
 use crate::gfx::blit_marker_pair::{marker_calls, set_marker_position, sprite_table};
 use crate::menu::champ_store::CHAMP_VIEW;
 use crate::menu::loop_store::LOOP_FLAGS;
+use crate::pointers::GamePtr;
 use crate::records::trakpak_entry::record_entry;
 use crate::screens::draw_stage_heading::heading_text;
 use crate::screens::draw_stage_records::draw_stage_records;
@@ -14,7 +15,6 @@ use crate::screens::game_screen::GameScreen;
 use crate::strings::units::units;
 use crate::text::draw_string_by_id::draw_string_by_id_at;
 use crate::text::draw_text::Canvas;
-use std::ptr::copy_nonoverlapping;
 
 // ---- game data ----
 
@@ -26,13 +26,13 @@ const SECOND_HEADING_STRING: u32 = 0x482;
 
 pub const TITLE_FONT: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fonts::STAGE_TITLE;
 const HEADING_FONT: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fonts::HEADING;
-pub unsafe fn dword(at: u32) -> u32 {
-    unsafe { (at as *const u32).read_unaligned() }
+pub fn dword(at: u32) -> Result<u32, crate::errors::BadInput> {
+    crate::pointers::GamePtr::new(at).read::<u32>("a game value")
 }
 
 /// The dword `index` of the table at `table` (an address; no bounds, as the original).
-pub unsafe fn table_dword_at(table: usize, index: u32) -> u32 {
-    unsafe { dword((table as u32).wrapping_add(index.wrapping_mul(4))) }
+pub fn table_dword_at(table: usize, index: u32) -> Result<u32, crate::errors::BadInput> {
+    dword((table as u32).wrapping_add(index.wrapping_mul(4)))
 }
 
 // ---- the shared parts ----
@@ -50,17 +50,14 @@ pub unsafe fn label(
 
 /// Builds the second heading ("<string 0x482> n/6: name") in its own buffer. Three of the
 /// four panels build it; only `draw_time_trial_stage_info` also draws it.
-pub unsafe fn build_second_heading(record: u32) -> Result<(), FatalError> {
-    unsafe {
-        let bytes = heading_text(record as *const u8, SECOND_HEADING_STRING)?;
-        copy_nonoverlapping(
-            bytes.as_ptr(),
-            crate::screens::text_buffers_store::TEXT_BUFFERS
-                .stage_heading
-                .as_ptr(),
-            bytes.len(),
-        );
-    }
+pub fn build_second_heading(record: u32) -> Result<(), Refused> {
+    let bytes = heading_text(record, SECOND_HEADING_STRING)?;
+    GamePtr::new(
+        crate::screens::text_buffers_store::TEXT_BUFFERS
+            .stage_heading
+            .addr() as u32,
+    )
+    .write_bytes(&bytes, "the second stage heading")?;
     Ok(())
 }
 
@@ -97,14 +94,15 @@ pub unsafe fn draw_stage_body_in(
     use rc2k_core::screens::stage_panel::{Entry, Font};
     unsafe {
         // The two markers on the map.
-        for call in marker_calls(record as *const u8, marker_palette, sprite_table()) {
+        for call in marker_calls(record, marker_palette, sprite_table())? {
             set_marker_position(&call);
             canvas.blit_glyph(call)?;
         }
         let entry = || -> Result<Entry, Refused> {
-            let entry = record_entry(record as *const u8)?;
-            let f = |o: u32| dword(entry.wrapping_add(o));
-            Ok(Entry {
+            let entry = record_entry(record)?;
+            let fault = crate::menu::event_flow::Fault::default();
+            let f = |o: u32| fault.get(entry.wrapping_add(o));
+            let made = Entry {
                 // `MENU_LISTS.durations` (dword_75A49A) has 37 entries; the original's index
                 // has no bound: each address resolved to its home by `MOVED`.
                 duration: crate::store::game_read::<u32>(crate::framework::rva(
@@ -119,7 +117,9 @@ pub unsafe fn draw_stage_body_in(
                 entry_34: f(0x34),
                 number: f(0x38),
                 number_label_one: f(0x3C) == 1,
-            })
+            };
+            fault.check()?;
+            Ok(made)
         };
         let heading = if heading_font == HEADING_FONT {
             Font::Heading
@@ -129,7 +129,7 @@ pub unsafe fn draw_stage_body_in(
         let mut screen = PanelScreen::new(canvas);
         rc2k_core::screens::stage_panel::body(
             &mut screen,
-            dword(record.wrapping_add(0x10)),
+            dword(record.wrapping_add(0x10))?,
             &entry,
             units(),
             heading,
@@ -144,44 +144,40 @@ pub type PanelScreen<'a> =
 
 /// The record rows, with the stage's best-time entry taken from the table at `table`.
 /// Returns the carry flag.
-pub unsafe fn draw_records_from(
+pub fn draw_records_from(
     table: u32,
     record: u32,
     canvas: &mut dyn Canvas,
 ) -> Result<bool, Refused> {
-    unsafe {
-        let entry = dword(record.wrapping_add(0x3C)).wrapping_mul(BEST_TIME_ENTRY_SIZE);
-        draw_stage_records(table.wrapping_add(entry), canvas)
-    }
+    let entry = dword(record.wrapping_add(0x3C))?.wrapping_mul(BEST_TIME_ENTRY_SIZE);
+    draw_stage_records(table.wrapping_add(entry), canvas)
 }
 
 /// The record rows as the two "selected stage" panels draw them: from the group 1 table when
 /// group 1 is selected, else from the usual one, and not at all while either the group 1
 /// table or the chosen one is missing. Returns the carry flag (clear when nothing is drawn).
-pub unsafe fn draw_records_for_group(
+pub fn draw_records_for_group(
     group: u32,
     record: u32,
     canvas: &mut dyn Canvas,
 ) -> Result<bool, Refused> {
-    unsafe {
-        let mut table: u32 = CHAMP_VIEW.course_best_times.get();
-        if table == 0 {
-            return Ok(false);
-        }
-        if group != 1 {
-            table = CHAMP_VIEW.stage_best_times.get();
-        }
-        if table == 0 {
-            return Ok(false);
-        }
-        draw_records_from(table, record, canvas)
+    let mut table: u32 = CHAMP_VIEW.course_best_times.get();
+    if table == 0 {
+        return Ok(false);
     }
+    if group != 1 {
+        table = CHAMP_VIEW.stage_best_times.get();
+    }
+    if table == 0 {
+        return Ok(false);
+    }
+    draw_records_from(table, record, canvas)
 }
 
 // ---- support ----
 
 /// Address of the string id of item `n` of the current menu, or None without a menu.
-pub unsafe fn menu_item_id(n: u32) -> Option<u32> {
+pub fn menu_item_id(n: u32) -> Option<u32> {
     let menu: u32 = { LOOP_FLAGS.menu.get() };
     (menu != 0).then(|| menu.wrapping_add(4 + n * 0x5C + 0x14))
 }

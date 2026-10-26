@@ -24,6 +24,7 @@ use crate::errors::{BadInput, Refused};
 use crate::marks::snow::{SNOW, SNOW_LIGHT, SnowLight};
 use crate::math::x87;
 use crate::physics::tables_store::PHYSICS;
+use crate::pointers::GamePtr;
 use crate::race::frame_store::FRAME_WORK;
 use crate::scene::draw_store::DRAW;
 use crate::scene::kind_texture_store::KIND_TEXTURES;
@@ -33,29 +34,29 @@ use crate::d3d::vertices_store::VERTICES;
 /// The render states set (value, state).
 const STATES: [(u32, u32); 5] = [(4, 0x15), (5, 0x13), (6, 0x14), (0, 0x1C), (1, 0x1B)];
 
-unsafe fn get(a: u32) -> u32 {
-    unsafe { (a as *const u32).read_unaligned() }
+fn get(a: u32) -> Result<u32, BadInput> {
+    GamePtr::new(a).read("a game field")
 }
 
 /// The original's 0x4C2605 .. 0x4C276E: the light's place and way turned.
-unsafe fn turn_light() {
-    unsafe { turn_light_x87(crate::race::store::asm_base() as usize, &SNOW_LIGHT) }
+fn turn_light() {
+    turn_light_x87(crate::race::store::asm_base() as usize, &SNOW_LIGHT)
 }
 
 /// The Rust version (see the header).
-pub unsafe fn run_snow() -> Result<(), Refused> {
+pub fn run_snow() -> Result<(), Refused> {
     use crate::scene::set_render_state::set_render_state;
     let (s, l) = (&SNOW, &SNOW_LIGHT);
-    unsafe {
+    {
         let settings: u32 = crate::marks::setup::SETTINGS.pointer.get();
         if settings == 0 {
             return Err(BadInput("no marks settings").into());
         }
-        l.kept.set(get(settings + 0x58));
+        l.kept.set(get(settings + 0x58)?);
         turn_light();
         crate::marks::make_fade_colours::make_fade_colours();
         let settings: u32 = crate::marks::setup::SETTINGS.pointer.get();
-        let mut flakes = get(settings + 0x2760) as i32;
+        let mut flakes = get(settings + 0x2760)? as i32;
         s.flakes.set(flakes as u32);
         if flakes == 0 {
             s.flag.set(0);
@@ -66,10 +67,10 @@ pub unsafe fn run_snow() -> Result<(), Refused> {
             s.flakes.set(flakes as u32);
         }
         for n in 0..9 {
-            s.view_matrix[n].set_bits(get(settings + 0x28 + 4 * n as u32));
+            s.view_matrix[n].set_bits(get(settings + 0x28 + 4 * n as u32)?);
         }
         for n in 0..3 {
-            s.view_place[n].set(get(settings + 0x1C + 4 * n as u32));
+            s.view_place[n].set(get(settings + 0x1C + 4 * n as u32)?);
         }
         crate::marks::place_view_2::place_view_2()?;
         crate::scene::set_texture::set_texture(KIND_TEXTURES.kind_first_slots[202].bits());
@@ -97,7 +98,7 @@ pub unsafe fn run_snow() -> Result<(), Refused> {
         }
         s.inverse.set_bits(inverse);
         let settings: u32 = crate::marks::setup::SETTINGS.pointer.get();
-        if get(settings + 0x10) != 0 {
+        if get(settings + 0x10)? != 0 {
             let ticks = PHYSICS.scene_clock.get().wrapping_sub(s.last_clock.get());
             let fall =
                 x87::int_times_plus_int_to_int(ticks as i32, l.fall_k.bits(), s.fall.get() as i32);
@@ -124,130 +125,128 @@ use crate::marks::plain::ld;
 use crate::math::x87_float as bh;
 
 /// `turn_light`'s x87 block as plain Rust on the x87 model (126 instructions), same order and memory places.
-unsafe fn turn_light_x87(rc: usize, l: &SnowLight) {
-    unsafe {
-        let t0 = bh::ld(l.light_source[0].bits());
-        let t1 = bh::ld(l.light_source[1].bits());
-        let t2 = bh::ld(l.light_source[2].bits());
-        let t3 = ld(rc, 0x1EA3CC);
-        let t4 = t3 * t2;
-        let t5 = ld(rc, 0x1EA3DC);
-        let t6 = t5 * t1;
-        let t7 = ld(rc, 0x1EA3EC);
-        let t8 = t7 * t0;
-        let t9 = t6 + t8;
-        let t10 = t4 + t9;
-        let t11 = t10 + ld(rc, 0x1EA3FC);
-        let t12 = ld(rc, 0x1EA3D0);
-        let t13 = t12 * t2;
-        let t14 = ld(rc, 0x1EA3E0);
-        let t15 = t14 * t1;
-        let t16 = ld(rc, 0x1EA3F0);
-        let t17 = t16 * t0;
-        let t18 = t15 + t17;
-        let t19 = t13 + t18;
-        let t20 = t19 + ld(rc, 0x1EA400);
-        let t21 = ld(rc, 0x1EA3D4);
-        let t22 = t2 * t21;
-        let t23 = ld(rc, 0x1EA3E4);
-        let t24 = t1 * t23;
-        let t25 = ld(rc, 0x1EA3F4);
-        let t26 = t0 * t25;
-        let t27 = t26 + t24;
-        let t28 = t22 + t27;
-        let t29 = t28 + ld(rc, 0x1EA404);
-        let t30 = ld(rc, 0x1EA2CC);
-        let t31 = t30 * t11;
-        let t32 = ld(rc, 0x1EA2DC);
-        let t33 = t32 * t20;
-        let t34 = ld(rc, 0x1EA2EC);
-        let t35 = t34 * t29;
-        let t36 = t33 + t35;
-        let t37 = t31 + t36;
-        let t38 = t37 + ld(rc, 0x1EA2FC);
-        let t39 = ld(rc, 0x1EA2D0);
-        let t40 = t39 * t11;
-        let t41 = ld(rc, 0x1EA2E0);
-        let t42 = t41 * t20;
-        let t43 = ld(rc, 0x1EA2F0);
-        let t44 = t43 * t29;
-        let t45 = t42 + t44;
-        let t46 = t40 + t45;
-        let t47 = t46 + ld(rc, 0x1EA300);
-        let t48 = ld(rc, 0x1EA2D4);
-        let t49 = t11 * t48;
-        let t50 = ld(rc, 0x1EA2E4);
-        let t51 = t20 * t50;
-        let t52 = ld(rc, 0x1EA2F4);
-        let t53 = t29 * t52;
-        let t54 = t53 + t51;
-        let t55 = t49 + t54;
-        let t56 = t55 + ld(rc, 0x1EA304);
-        l.light_place[0].set_bits(bh::st(t38));
-        l.light_place[1].set_bits(bh::st(t47));
-        l.light_place[2].set_bits(bh::st(t56));
-        let t57 = bh::ld(l.light_source_way[0].bits());
-        let t58 = bh::ld(l.light_source_way[1].bits());
-        let t59 = bh::ld(l.light_source_way[2].bits());
-        let t60 = ld(rc, 0x1EA3CC);
-        let t61 = t60 * t59;
-        let t62 = ld(rc, 0x1EA3DC);
-        let t63 = t62 * t58;
-        let t64 = ld(rc, 0x1EA3EC);
-        let t65 = t64 * t57;
-        let t66 = t63 + t65;
-        let t67 = t61 + t66;
-        let t68 = ld(rc, 0x1EA3D0);
-        let t69 = t68 * t59;
-        let t70 = ld(rc, 0x1EA3E0);
-        let t71 = t70 * t58;
-        let t72 = ld(rc, 0x1EA3F0);
-        let t73 = t72 * t57;
-        let t74 = t71 + t73;
-        let t75 = t69 + t74;
-        let t76 = ld(rc, 0x1EA3D4);
-        let t77 = t59 * t76;
-        let t78 = ld(rc, 0x1EA3E4);
-        let t79 = t58 * t78;
-        let t80 = ld(rc, 0x1EA3F4);
-        let t81 = t57 * t80;
-        let t82 = t81 + t79;
-        let t83 = t77 + t82;
-        let t84 = ld(rc, 0x1EA2CC);
-        let t85 = t84 * t67;
-        let t86 = ld(rc, 0x1EA2DC);
-        let t87 = t86 * t75;
-        let t88 = ld(rc, 0x1EA2EC);
-        let t89 = t88 * t83;
-        let t90 = t87 + t89;
-        let t91 = t85 + t90;
-        let t92 = ld(rc, 0x1EA2D0);
-        let t93 = t92 * t67;
-        let t94 = ld(rc, 0x1EA2E0);
-        let t95 = t94 * t75;
-        let t96 = ld(rc, 0x1EA2F0);
-        let t97 = t96 * t83;
-        let t98 = t95 + t97;
-        let t99 = t93 + t98;
-        let t100 = ld(rc, 0x1EA2D4);
-        let t101 = t67 * t100;
-        let t102 = ld(rc, 0x1EA2E4);
-        let t103 = t75 * t102;
-        let t104 = ld(rc, 0x1EA2F4);
-        let t105 = t83 * t104;
-        let t106 = t105 + t103;
-        let t107 = t101 + t106;
-        l.light_way[0].set_bits(bh::st(t91));
-        l.light_way[1].set_bits(bh::st(t99));
-        l.light_way[2].set_bits(bh::st(t107));
-    }
+fn turn_light_x87(rc: usize, l: &SnowLight) {
+    let t0 = bh::ld(l.light_source[0].bits());
+    let t1 = bh::ld(l.light_source[1].bits());
+    let t2 = bh::ld(l.light_source[2].bits());
+    let t3 = ld(rc, 0x1EA3CC);
+    let t4 = t3 * t2;
+    let t5 = ld(rc, 0x1EA3DC);
+    let t6 = t5 * t1;
+    let t7 = ld(rc, 0x1EA3EC);
+    let t8 = t7 * t0;
+    let t9 = t6 + t8;
+    let t10 = t4 + t9;
+    let t11 = t10 + ld(rc, 0x1EA3FC);
+    let t12 = ld(rc, 0x1EA3D0);
+    let t13 = t12 * t2;
+    let t14 = ld(rc, 0x1EA3E0);
+    let t15 = t14 * t1;
+    let t16 = ld(rc, 0x1EA3F0);
+    let t17 = t16 * t0;
+    let t18 = t15 + t17;
+    let t19 = t13 + t18;
+    let t20 = t19 + ld(rc, 0x1EA400);
+    let t21 = ld(rc, 0x1EA3D4);
+    let t22 = t2 * t21;
+    let t23 = ld(rc, 0x1EA3E4);
+    let t24 = t1 * t23;
+    let t25 = ld(rc, 0x1EA3F4);
+    let t26 = t0 * t25;
+    let t27 = t26 + t24;
+    let t28 = t22 + t27;
+    let t29 = t28 + ld(rc, 0x1EA404);
+    let t30 = ld(rc, 0x1EA2CC);
+    let t31 = t30 * t11;
+    let t32 = ld(rc, 0x1EA2DC);
+    let t33 = t32 * t20;
+    let t34 = ld(rc, 0x1EA2EC);
+    let t35 = t34 * t29;
+    let t36 = t33 + t35;
+    let t37 = t31 + t36;
+    let t38 = t37 + ld(rc, 0x1EA2FC);
+    let t39 = ld(rc, 0x1EA2D0);
+    let t40 = t39 * t11;
+    let t41 = ld(rc, 0x1EA2E0);
+    let t42 = t41 * t20;
+    let t43 = ld(rc, 0x1EA2F0);
+    let t44 = t43 * t29;
+    let t45 = t42 + t44;
+    let t46 = t40 + t45;
+    let t47 = t46 + ld(rc, 0x1EA300);
+    let t48 = ld(rc, 0x1EA2D4);
+    let t49 = t11 * t48;
+    let t50 = ld(rc, 0x1EA2E4);
+    let t51 = t20 * t50;
+    let t52 = ld(rc, 0x1EA2F4);
+    let t53 = t29 * t52;
+    let t54 = t53 + t51;
+    let t55 = t49 + t54;
+    let t56 = t55 + ld(rc, 0x1EA304);
+    l.light_place[0].set_bits(bh::st(t38));
+    l.light_place[1].set_bits(bh::st(t47));
+    l.light_place[2].set_bits(bh::st(t56));
+    let t57 = bh::ld(l.light_source_way[0].bits());
+    let t58 = bh::ld(l.light_source_way[1].bits());
+    let t59 = bh::ld(l.light_source_way[2].bits());
+    let t60 = ld(rc, 0x1EA3CC);
+    let t61 = t60 * t59;
+    let t62 = ld(rc, 0x1EA3DC);
+    let t63 = t62 * t58;
+    let t64 = ld(rc, 0x1EA3EC);
+    let t65 = t64 * t57;
+    let t66 = t63 + t65;
+    let t67 = t61 + t66;
+    let t68 = ld(rc, 0x1EA3D0);
+    let t69 = t68 * t59;
+    let t70 = ld(rc, 0x1EA3E0);
+    let t71 = t70 * t58;
+    let t72 = ld(rc, 0x1EA3F0);
+    let t73 = t72 * t57;
+    let t74 = t71 + t73;
+    let t75 = t69 + t74;
+    let t76 = ld(rc, 0x1EA3D4);
+    let t77 = t59 * t76;
+    let t78 = ld(rc, 0x1EA3E4);
+    let t79 = t58 * t78;
+    let t80 = ld(rc, 0x1EA3F4);
+    let t81 = t57 * t80;
+    let t82 = t81 + t79;
+    let t83 = t77 + t82;
+    let t84 = ld(rc, 0x1EA2CC);
+    let t85 = t84 * t67;
+    let t86 = ld(rc, 0x1EA2DC);
+    let t87 = t86 * t75;
+    let t88 = ld(rc, 0x1EA2EC);
+    let t89 = t88 * t83;
+    let t90 = t87 + t89;
+    let t91 = t85 + t90;
+    let t92 = ld(rc, 0x1EA2D0);
+    let t93 = t92 * t67;
+    let t94 = ld(rc, 0x1EA2E0);
+    let t95 = t94 * t75;
+    let t96 = ld(rc, 0x1EA2F0);
+    let t97 = t96 * t83;
+    let t98 = t95 + t97;
+    let t99 = t93 + t98;
+    let t100 = ld(rc, 0x1EA2D4);
+    let t101 = t67 * t100;
+    let t102 = ld(rc, 0x1EA2E4);
+    let t103 = t75 * t102;
+    let t104 = ld(rc, 0x1EA2F4);
+    let t105 = t83 * t104;
+    let t106 = t105 + t103;
+    let t107 = t101 + t106;
+    l.light_way[0].set_bits(bh::st(t91));
+    l.light_way[1].set_bits(bh::st(t99));
+    l.light_way[2].set_bits(bh::st(t107));
 }
 
 #[cfg(test)]
 mod asm_reference {
     //! The original assembly blocks, kept verbatim as the reference the plain versions are tested against.
 
-    pub(super) unsafe fn turn_light_x87(rc: usize, mk: usize) {
+    pub(super) fn turn_light_x87(rc: usize, mk: usize) {
         unsafe {
             core::arch::asm!(
                     "fld dword ptr [{mk} + 0x1765CC]",
@@ -454,12 +453,8 @@ mod asm_differential {
         };
         differential(
             &SPEC,
-            |b| unsafe { reference::turn_light_x87(b[0], b[1]) },
-            |b| {
-                with_copy(b[1], SnowLight::START, |l| unsafe {
-                    super::turn_light_x87(b[0], l)
-                })
-            },
+            |b| reference::turn_light_x87(b[0], b[1]),
+            |b| with_copy(b[1], SnowLight::START, |l| super::turn_light_x87(b[0], l)),
         );
     }
 }

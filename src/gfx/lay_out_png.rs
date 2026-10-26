@@ -10,6 +10,7 @@
 //! and the file's own size, which `lay_out_pcx` sets, are left alone. One caller,
 //! `gfx::read_png`. The name is a reading.
 
+use crate::errors::BadInput;
 use crate::gfx::decoder::DECODER;
 use crate::gfx::palette_to_dwords::palette_to_dwords;
 use crate::gfx::picture_store::PICTURE;
@@ -17,7 +18,7 @@ use crate::gfx::png::{PngInfo, info};
 
 // ---- Rust version ----
 
-pub unsafe fn lay_out_png() {
+pub unsafe fn lay_out_png() -> Result<(), BadInput> {
     unsafe {
         let info: *mut PngInfo = info();
         // Converted: `rc2k_core::gfx::png::layout`.
@@ -43,6 +44,10 @@ pub unsafe fn lay_out_png() {
         }
         DECODER.pixels.set(PICTURE.buffer.get());
         // Neither is null: both are the game's own tables.
-        let _ = palette_to_dwords((&raw const (*info).palette).cast(), DECODER.palette_ptr());
+        palette_to_dwords(
+            (&raw const (*info).palette) as usize as u32,
+            DECODER.palette_ptr() as usize as u32,
+        )?;
+        Ok(())
     }
 }

@@ -27,6 +27,7 @@ use crate::marks::tuning::MARKS_KIND_FLOATS;
 use crate::marks::work_store::MARKS_WORK;
 use crate::math::{x87, x87_run};
 use crate::physics::tables_store::PHYSICS;
+use crate::pointers::GamePtr;
 use crate::scene::draw_store::DRAW;
 
 const MOST_DROPS: i32 = 0x100;
@@ -36,8 +37,8 @@ const ENTRIES: u32 = 5;
 const STATES: [(u32, u32); 5] = [(4, 0x15), (5, 0x13), (6, 0x14), (0, 0x1C), (1, 0x1B)];
 const COLOURS: [u32; 4] = [0xFF_FFFF, 0, 0x2800_0000, 0x28FF_FFFF];
 
-unsafe fn get(a: u32) -> u32 {
-    unsafe { (a as *const u32).read_unaligned() }
+fn get(a: u32) -> Result<u32, BadInput> {
+    GamePtr::new(a).read("a game field")
 }
 
 /// The original's 0x4C18E7 .. 0x4C1935: the view's move since last frame, scaled, into its entry.
@@ -46,8 +47,8 @@ fn box_moved(i: usize) {
 }
 
 /// The original's 0x4C1965 .. 0x4C1996: the move's length into `flt_8BDD5D`, compared with `flt_8C5FA1` (`fstsw` into `g_fpuStatus`).
-unsafe fn move_length() {
-    unsafe { move_length_x87(crate::race::store::asm_base() as usize, &RAIN, &RAIN_RULES) }
+fn move_length() {
+    move_length_x87(crate::race::store::asm_base() as usize, &RAIN, &RAIN_RULES)
 }
 
 /// The original's 0x4C19AC .. 0x4C19F2: the move scaled to `flt_8C5FA5` over its length, times its three factors.
@@ -61,18 +62,18 @@ fn keep_y(i: usize) {
 }
 
 /// The Rust version (see the header).
-pub unsafe fn run_rain() -> Result<(), Refused> {
+pub fn run_rain() -> Result<(), Refused> {
     use crate::scene::set_render_state::set_render_state;
     let r = &RAIN;
-    unsafe {
+    {
         let s: u32 = crate::marks::setup::SETTINGS.pointer.get();
         if s == 0 {
             return Err(BadInput("no marks settings").into());
         }
-        if get(s + 8) >= ENTRIES {
+        if get(s + 8)? >= ENTRIES {
             return Err(BadInput("a rain view entry past the five").into());
         }
-        let mut drops = get(s + 0x2764) as i32;
+        let mut drops = get(s + 0x2764)? as i32;
         r.drops.set(drops as u32);
         if drops == 0 {
             r.drawn.set(0);
@@ -83,10 +84,10 @@ pub unsafe fn run_rain() -> Result<(), Refused> {
             r.drops.set(drops as u32);
         }
         for n in 0..9 {
-            r.view_matrix[n].set_bits(get(s + 0x28 + 4 * n as u32));
+            r.view_matrix[n].set_bits(get(s + 0x28 + 4 * n as u32)?);
         }
         for n in 0..3 {
-            r.view_place[n].set(get(s + 0x1C + 4 * n as u32));
+            r.view_place[n].set(get(s + 0x1C + 4 * n as u32)?);
         }
         crate::marks::place_view::place_view()?;
         crate::scene::depth_buffer_on::depth_buffer(false);
@@ -110,8 +111,8 @@ pub unsafe fn run_rain() -> Result<(), Refused> {
             crate::marks::drift_offsets::drift_offsets();
         }
         let s: u32 = crate::marks::setup::SETTINGS.pointer.get();
-        let e = get(s + 8) as usize;
-        if get(s + 0xC) != 0 || MARKS_KIND_FLOATS.running.bits() != 0 {
+        let e = get(s + 8)? as usize;
+        if get(s + 0xC)? != 0 || MARKS_KIND_FLOATS.running.bits() != 0 {
             box_moved(e);
         }
         for n in 0..3 {
@@ -147,7 +148,7 @@ pub unsafe fn run_rain() -> Result<(), Refused> {
             ];
             crate::marks::draw_streak::draw_streak(place)?;
             let s: u32 = crate::marks::setup::SETTINGS.pointer.get();
-            if get(s + 0x10) != 0 {
+            if get(s + 0x10)? != 0 {
                 for (n, kept) in r.kept.iter().enumerate() {
                     kept[k].set(x87::to_int(r.turned[n].bits()) as u32);
                 }
@@ -181,20 +182,18 @@ fn box_moved_x87(i: usize, r: &RainState, k: &RainRules) {
 }
 
 /// `move_length`'s x87 block as plain Rust on the x87 model (12 instructions), same order and memory places.
-unsafe fn move_length_x87(rc: usize, r: &RainState, k: &RainRules) {
-    unsafe {
-        let t0 = bh::ld(r.motion[0].bits());
-        let t1 = t0 * t0;
-        let t2 = bh::ld(r.motion[1].bits());
-        let t3 = t2 * t2;
-        let t4 = bh::ld(r.motion[2].bits());
-        let t5 = t4 * t4;
-        let t6 = t3 + t5;
-        let t7 = t1 + t6;
-        let t8 = t7.sqrt();
-        r.depth.set_bits(bh::st(t8));
-        st16(rc, 0x31C814, bh::compare(t8, bh::ld(k.move_limit.bits())));
-    }
+fn move_length_x87(rc: usize, r: &RainState, k: &RainRules) {
+    let t0 = bh::ld(r.motion[0].bits());
+    let t1 = t0 * t0;
+    let t2 = bh::ld(r.motion[1].bits());
+    let t3 = t2 * t2;
+    let t4 = bh::ld(r.motion[2].bits());
+    let t5 = t4 * t4;
+    let t6 = t3 + t5;
+    let t7 = t1 + t6;
+    let t8 = t7.sqrt();
+    r.depth.set_bits(bh::st(t8));
+    st16(rc, 0x31C814, bh::compare(t8, bh::ld(k.move_limit.bits())));
 }
 
 /// `move_held`'s x87 block as plain Rust on the x87 model (13 instructions), same order and memory places.
@@ -227,7 +226,7 @@ fn keep_y_x87(i: usize, r: &RainState) {
 mod asm_reference {
     //! The original assembly blocks, kept verbatim as the reference the plain versions are tested against.
 
-    pub(super) unsafe fn box_moved_x87(mk: usize, e: usize) {
+    pub(super) fn box_moved_x87(mk: usize, e: usize) {
         unsafe {
             core::arch::asm!(
                     "fild dword ptr [{mk} + 0x158E3D]",
@@ -252,7 +251,7 @@ mod asm_reference {
         }
     }
 
-    pub(super) unsafe fn move_length_x87(rc: usize, mk: usize) {
+    pub(super) fn move_length_x87(rc: usize, mk: usize) {
         unsafe {
             core::arch::asm!(
                     "fld dword ptr [{mk} + 0x15753D]",
@@ -276,7 +275,7 @@ mod asm_reference {
         }
     }
 
-    pub(super) unsafe fn move_held_x87(mk: usize) {
+    pub(super) fn move_held_x87(mk: usize) {
         unsafe {
             core::arch::asm!(
                     "fld dword ptr [{mk} + 0x158E1D]",
@@ -300,7 +299,7 @@ mod asm_reference {
         }
     }
 
-    pub(super) unsafe fn keep_y_x87(mk: usize, e: usize) {
+    pub(super) fn keep_y_x87(mk: usize, e: usize) {
         unsafe {
             core::arch::asm!(
                     "fild dword ptr [{mk} + 0x158E41]",
@@ -377,7 +376,7 @@ mod asm_differential {
         };
         differential(
             &SPEC,
-            |b| unsafe { reference::box_moved_x87(b[0], b[1]) },
+            |b| reference::box_moved_x87(b[0], b[1]),
             |b| with_state_at(b[0], |r, k| super::box_moved_x87(b[1] / 12, r, k)),
         );
     }
@@ -408,8 +407,8 @@ mod asm_differential {
         };
         differential(
             &SPEC,
-            |b| unsafe { reference::move_length_x87(b[0], b[1]) },
-            |b| with_state_at(b[1], |r, k| unsafe { super::move_length_x87(b[0], r, k) }),
+            |b| reference::move_length_x87(b[0], b[1]),
+            |b| with_state_at(b[1], |r, k| super::move_length_x87(b[0], r, k)),
         );
     }
 
@@ -435,7 +434,7 @@ mod asm_differential {
         };
         differential(
             &SPEC,
-            |b| unsafe { reference::move_held_x87(b[0]) },
+            |b| reference::move_held_x87(b[0]),
             |b| with_state_at(b[0], super::move_held_x87),
         );
     }
@@ -462,7 +461,7 @@ mod asm_differential {
         };
         differential(
             &SPEC,
-            |b| unsafe { reference::keep_y_x87(b[0], b[1]) },
+            |b| reference::keep_y_x87(b[0], b[1]),
             |b| with_state_at(b[0], |r, _| super::keep_y_x87(b[1] / 12, r)),
         );
     }

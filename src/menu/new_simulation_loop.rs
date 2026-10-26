@@ -24,23 +24,22 @@ use crate::scene::draw_store::DRAW;
 
 // ---- Rust version: `menu::screen_loop` with this ----
 
-unsafe fn before(c: &mut Carried) -> Result<(), Refused> {
+fn before(c: &mut Carried) -> Result<(), Refused> {
     c.measure_x = SCREEN_ITEMS.first[slot::NEW_SIMULATION].get();
     SCREEN_ITEMS.current[slot::NEW_SIMULATION].set(c.measure_x);
     EVENT_STATE.event_done.set(0x0u32);
     Ok(())
 }
 
-unsafe fn set_up_first(c: &mut Carried) -> Result<(), Refused> {
-    unsafe {
-        SCREEN_FLOW.turning.set(0x1u32);
-        MENU_STATE.carousel.menu.set(0x2u32);
-        carousel(c)?;
-        c.arg = SCREEN_ITEMS.current[slot::NEW_SIMULATION].get();
-        LOOP_FLAGS.item.set(c.arg);
-        c.arg = c.arg.wrapping_sub(1);
-        MENU_STATE.carousel.front.set(c.arg);
-    }
+fn set_up_first(c: &mut Carried) -> Result<(), Refused> {
+    SCREEN_FLOW.turning.set(0x1u32);
+    MENU_STATE.carousel.menu.set(0x2u32);
+    carousel(c)?;
+    c.arg = SCREEN_ITEMS.current[slot::NEW_SIMULATION].get();
+    LOOP_FLAGS.item.set(c.arg);
+    c.arg = c.arg.wrapping_sub(1);
+    MENU_STATE.carousel.front.set(c.arg);
+
     Ok(())
 }
 

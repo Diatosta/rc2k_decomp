@@ -35,7 +35,7 @@ pub unsafe fn show_championship_standings(c: &Carried) -> Result<(), Refused> {
             crate::menu::first_page_stage::first_page_stage(),
             &mut c,
         );
-        crate::menu::stage_range_caption::stage_range_caption();
+        crate::menu::stage_range_caption::stage_range_caption()?;
         run_screen(&crate::menu::championship_standings_loop::SCREEN, &c)?;
     }
     Ok(())

@@ -34,6 +34,7 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::physics::ground_store::GROUND_WORK;
+use crate::pointers::GamePtr;
 use crate::race::course_store::COURSE;
 use crate::race::draw_batches_store::DRAW_BATCHES;
 use crate::race::frame_store::FRAME_WORK;
@@ -60,8 +61,8 @@ fn view_blocks() -> Result<[u32; 2], Refused> {
     Ok(blocks)
 }
 
-fn at_block(block: u32, offset: u32) -> u32 {
-    unsafe { ((block + offset) as *const u32).read_unaligned() }
+fn at_block(block: u32, offset: u32) -> Result<u32, BadInput> {
+    GamePtr::new(block + offset).read("a view block's word")
 }
 
 /// One view drawn: `car` (0 or 1: `race::load_car_a` / `_b`), its value fetched, its scene,
@@ -103,7 +104,7 @@ pub unsafe fn draw_race_scene() -> Result<(), Refused> {
         crate::drive::choose_shown_cars::choose_shown_cars()?;
         crate::session::write_bits(&RACE_VIEW.view_cleared, [0u32; 0x20]);
         for (flags, block) in PANEL.hud_flags.iter().zip(blocks) {
-            flags.set(at_block(block, 0x220));
+            flags.set(at_block(block, 0x220)?);
         }
         for (flags, on) in PANEL.hud_flags.iter().zip(&RACE_VIEW.view_on) {
             if on.get() == 0 {
@@ -131,7 +132,7 @@ pub unsafe fn draw_race_scene() -> Result<(), Refused> {
         PANEL.flat.set(PANEL.hud_flags[0].get() & 0x40);
         FRAME_WORK.mirror_wanted.set(0); // dword_6415E0
         if STAGE_PREFS.blit_cleared[0].get() | STAGE_PREFS.blit_cleared[1].get() != 0 {
-            FRAME_WORK.mirror_wanted.set(at_block(blocks[0], 0x6F0));
+            FRAME_WORK.mirror_wanted.set(at_block(blocks[0], 0x6F0)?);
         }
         OBJECT_TABLES.has_3d.set(1);
         race_sound_tick()?; // 0xA

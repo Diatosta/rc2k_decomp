@@ -38,7 +38,7 @@ pub unsafe fn show_class_stage_results(class: u32, c: &Carried) -> Result<(), Re
             crate::menu::first_page_stage::first_page_stage(),
             &mut c,
         );
-        crate::menu::stage_range_caption::stage_range_caption();
+        crate::menu::stage_range_caption::stage_range_caption()?;
         run_screen(&crate::menu::class_stage_results_loop::SCREEN, &c)?;
     }
     Ok(())

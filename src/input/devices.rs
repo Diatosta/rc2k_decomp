@@ -14,7 +14,9 @@
 //! - +0x4DC .. +0x4E8 its four readings (steering, brake, throttle, the bits), which
 //!   `drive::device_axes` reads.
 
+use crate::errors::BadInput;
 use crate::input::store::DEVICES;
+use crate::pointers::GamePtr;
 
 /// The two records' places (`g_inputRecord1`, `g_inputRecord2`).
 pub fn record_addrs() -> [u32; 2] {
@@ -28,19 +30,47 @@ pub fn record_addrs() -> [u32; 2] {
 pub const STATE_LEN: usize = 0x50;
 
 /// A dword of the record at `record`.
-pub fn at(record: u32, offset: u32) -> u32 {
-    unsafe { ((record.wrapping_add(offset)) as *const u32).read_unaligned() }
+pub fn at(record: u32, offset: u32) -> Result<u32, BadInput> {
+    GamePtr::new(record)
+        .offset(offset)
+        .read("a device record's dword")
 }
 
 /// Writes a dword of the record at `record`.
-pub fn put(record: u32, offset: u32, v: u32) {
-    unsafe { ((record.wrapping_add(offset)) as *mut u32).write_unaligned(v) }
+pub fn put(record: u32, offset: u32, v: u32) -> Result<(), BadInput> {
+    GamePtr::new(record)
+        .offset(offset)
+        .write(v, "a device record's dword")
 }
 
 /// Whether key `key` is down.
 /// A record's bytes, for the core (`rc2k_core::input::devices`).
-pub fn record_bytes(record: u32) -> rc2k_core::input::devices::Record {
-    unsafe { (record as *const rc2k_core::input::devices::Record).read_unaligned() }
+pub fn record_bytes(record: u32) -> Result<rc2k_core::input::devices::Record, BadInput> {
+    GamePtr::new(record).read("a device record")
+}
+
+/// A refusal met inside a closure the core asks for a value (it has no failure to give):
+/// the first one is kept, the closure answers 0, and the caller asks `finish` afterwards.
+#[derive(Default)]
+pub struct Deferred(std::cell::Cell<Option<BadInput>>);
+
+impl Deferred {
+    pub fn get(&self, read: Result<u32, BadInput>) -> u32 {
+        read.unwrap_or_else(|e| {
+            self.0.set(self.0.get().or(Some(e)));
+            0
+        })
+    }
+
+    pub fn finish(&self) -> Result<(), BadInput> {
+        self.0.get().map_or(Ok(()), Err)
+    }
+}
+
+/// What the program does with a refusal where a Windows callback leaves no way to hand it
+/// on: it ends, saying which function refused and why.
+pub fn refused_here(name: &str, e: impl Into<crate::errors::Refused>) {
+    unsafe { crate::fatal::raise::refused_in(name, e, &crate::framework::Regs::default()) };
 }
 
 /// The key table and the device's state, for the core.

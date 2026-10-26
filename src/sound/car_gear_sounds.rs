@@ -16,6 +16,7 @@
 //! above are the original's, for reference.
 
 use crate::errors::{BadInput, Refused};
+use crate::pointers::GamePtr;
 
 // ---- Rust version ----
 
@@ -24,29 +25,30 @@ pub fn car_gear_sounds(o: u32, request: u32) -> Result<(), Refused> {
     if o == 0 || request == 0 {
         return Err(BadInput("no object or no request").into());
     }
-    let so = unsafe { crate::sound::store::SoundObject::at(o) };
+    let so = crate::sound::store::SoundObject::at(o)?;
     if so.state.get() == 3 {
         return Ok(());
     }
     // Converted: `rc2k_core::sound::engine::{place_behind, gear_pitch}` (exact at every
     // precision: one rounding each).
     use rc2k_core::sound::engine::{gear_pitch, place_behind};
-    let float = |at: u32| unsafe { (at as *const f32).read_unaligned() };
     let place = place_behind(
         so.place.each_ref().map(|f| f.get()),
         so.motion.each_ref().map(|f| f.get()),
     );
     for (n, v) in place.into_iter().enumerate() {
-        unsafe { ((request + 0xC + 4 * n as u32) as *mut f32).write_unaligned(v) };
+        GamePtr::new(request)
+            .offset(0xC + 4 * n as u32)
+            .write(v, "a sound request")?;
     }
     for slot in &so.slots[5..] {
         crate::sound::play_timed_slot::play_timed_slot(slot.addr(), request)?;
     }
-    let factor = (request + 0x20) as *mut u32;
-    let kept = unsafe { factor.read_unaligned() };
-    let pitch = gear_pitch(float(request + 0x20), so.gear_pitch.get());
-    unsafe { (factor as *mut f32).write_unaligned(pitch) };
+    let factor = GamePtr::new(request).offset(0x20);
+    let kept: u32 = factor.read("a sound request")?;
+    let pitch = gear_pitch(factor.read::<f32>("a sound request")?, so.gear_pitch.get());
+    factor.write(pitch, "a sound request")?;
     crate::sound::play_timed_slot::play_timed_slot(so.gear_slot.addr(), request)?;
-    unsafe { factor.write_unaligned(kept) };
+    factor.write(kept, "a sound request")?;
     Ok(())
 }

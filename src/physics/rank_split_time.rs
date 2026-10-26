@@ -28,7 +28,7 @@ use crate::strings::append_string_by_id::append_string_by_id;
 use rc2k_core::physics::splits::{RIVALS, gap, rank, scaled_time, split_scale};
 
 /// A name into `text` (eight blanks first), its first eight bytes into `to`.
-fn name(id: u32, to: &[Dword; 2]) {
+fn name(id: u32, to: &[Dword; 2]) -> Result<(), crate::errors::BadInput> {
     let text = crate::strings::text_buffer::TEXT_BUFFER.text.addr() as u32;
     crate::strings::text_buffer::TEXT_BUFFER
         .text
@@ -37,14 +37,21 @@ fn name(id: u32, to: &[Dword; 2]) {
         .text
         .set_u32(4, 0x2020_2020);
     let mut cursor = text;
+    let mut refused = None;
     unsafe {
         append_string_by_id(id, &mut |s, n| {
-            std::ptr::copy_nonoverlapping(s, cursor as *mut u8, n);
+            // The string's `n` bytes are the string table's or a made string's.
+            let bytes = std::slice::from_raw_parts(s, n);
+            if let Err(e) = crate::pointers::GamePtr::new(cursor).write_bytes(bytes, "a split name")
+            {
+                refused.get_or_insert(e);
+            }
             cursor += n as u32;
         })
-    };
+    }?;
     to[0].set(crate::strings::text_buffer::TEXT_BUFFER.text.get_u32(0));
     to[1].set(crate::strings::text_buffer::TEXT_BUFFER.text.get_u32(4));
+    Ok(())
 }
 
 /// The Rust version. The registers the original leaves are read by none of its callers.
@@ -84,7 +91,7 @@ pub fn rank_split_time() -> Result<(), Refused> {
         CAR.split_gaps[3].set(SPLIT_TABLES.rival_cars[c - 2].get());
         let id = SPLIT_TABLES.rival_names[c - 2].get();
         CAR.split_gaps[5].set(id);
-        name(id, &RACE_OVERLAY.label_ahead);
+        name(id, &RACE_OVERLAY.label_ahead)?;
     }
     if c != RIVALS {
         // The one behind: rival c - 1.
@@ -92,7 +99,7 @@ pub fn rank_split_time() -> Result<(), Refused> {
         CAR.split_gaps[4].set(SPLIT_TABLES.rival_cars[c - 1].get());
         let id = SPLIT_TABLES.rival_names[c - 1].get();
         CAR.split_gaps[6].set(id);
-        name(id, &RACE_OVERLAY.label_behind);
+        name(id, &RACE_OVERLAY.label_behind)?;
     }
     Ok(())
 }

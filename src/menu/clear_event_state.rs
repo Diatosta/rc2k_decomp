@@ -21,8 +21,9 @@ fn regions() -> [Region; 3] {
     ]
 }
 
-pub fn clear_event_state() {
+pub fn clear_event_state() -> Result<(), crate::errors::BadInput> {
     for (addr, len) in regions() {
-        unsafe { std::ptr::write_bytes(addr as *mut u8, 0, len) };
+        crate::pointers::GamePtr::new(addr).fill(0, len, "the event\'s figures")?;
     }
+    Ok(())
 }

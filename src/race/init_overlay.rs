@@ -16,13 +16,16 @@
 //! One caller, `sub_44426F` ("loadlevel_init : initoverlay"; no `pusha`). Refuses more than
 //! 0x40 parts (the original writes past its three lists).
 
+use crate::errors::BadInput;
 use crate::errors::Refused;
 use crate::framework::{game_addr, rva};
 use crate::math::x87;
 use crate::physics::split_tables_store::SPLIT_TABLES;
+use crate::pointers::GamePtr;
 use crate::race::numbers_store::NUMBERS;
 use crate::race::overlay_store::RACE_OVERLAY;
 use crate::race::panel_store::PANEL;
+use crate::race::trap::Trap;
 use crate::race::vars_store::RACE_VARS;
 use crate::race::work_store::RACE_WORK;
 use crate::scene::draw_store::DRAW;
@@ -54,21 +57,25 @@ impl OverlayVars {
     }
 }
 
-unsafe fn get(at: u32) -> u32 {
-    unsafe { (at as *const u32).read_unaligned() }
+fn get(at: u32) -> Result<u32, BadInput> {
+    GamePtr::new(at).read("an overlay variable")
 }
 
-unsafe fn put(at: u32, value: u32) {
-    unsafe { (at as *mut u32).write_unaligned(value) };
+fn put(at: u32, value: u32) -> Result<(), BadInput> {
+    GamePtr::new(at).write(value, "an overlay variable")
 }
 
 /// `race::init_overlay` (see the header).
-pub unsafe fn init_overlay(v: &OverlayVars) -> Result<(), Refused> {
-    unsafe {
+pub fn init_overlay(v: &OverlayVars) -> Result<(), Refused> {
+    {
         // Converted: `rc2k_core::race::panel::{overlay_parts, half_length, OVERLAY_SIZES,
         // OVERLAY_CLEARED}`; the miles the x87's.
         use rc2k_core::race::panel::{OVERLAY_CLEARED, OVERLAY_SIZES, half_length, overlay_parts};
-        let (found, parts) = overlay_parts(get(v.kinds), || get(v.found))?;
+        let trap = Trap::new();
+        let kinds = get(v.kinds)?;
+        let (found, parts) =
+            overlay_parts(kinds, || trap.read::<u32>(v.found, "an overlay variable"))?;
+        trap.finish()?;
         if let Some(count) = found {
             PANEL.overlay_parts.set(count);
         }
@@ -79,10 +86,10 @@ pub unsafe fn init_overlay(v: &OverlayVars) -> Result<(), Refused> {
                     (NUMBERS.k65536.bits(), NUMBERS.metres_in_mile.bits());
                 let distance = |k: u32| get(v.distances.wrapping_add(k.wrapping_mul(4)));
                 for n in 0..count {
-                    let end = distance(get(v.list + 4 * n + 4));
-                    let start = distance(get(v.list + 4 * n));
+                    let end = distance(get(v.list + 4 * n + 4)?)?;
+                    let start = distance(get(v.list + 4 * n)?)?;
                     let half = half_length(end, start);
-                    put(v.scratch, half);
+                    put(v.scratch, half)?;
                     let miles = x87::int_div_div_doubled(half as i32, scale, mile);
                     RACE_OVERLAY.overlay_part_miles[n as usize].set_bits(miles); // g_overlayPartMiles
                     PANEL
@@ -113,9 +120,9 @@ pub unsafe fn init_overlay(v: &OverlayVars) -> Result<(), Refused> {
             cell.set(value);
         }
         for n in 0..CARS {
-            let block = get(v.car_blocks + 4 * n);
+            let block = get(v.car_blocks + 4 * n)?;
             for off in OVERLAY_CLEARED {
-                put(block + off, 0);
+                put(block + off, 0)?;
             }
         }
         for distance in &PANEL.distance {

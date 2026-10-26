@@ -10,18 +10,17 @@
 
 use crate::errors::BadInput;
 use crate::gfx::decoder::DECODER;
-use crate::gfx::picture::picture;
+use crate::gfx::picture::picture_ptr;
 use crate::gfx::pixels_to_dwords::pixel_count;
 
 // ---- Rust version ----
 
-pub unsafe fn palette_pixels_to_dwords() -> Result<(), BadInput> {
-    unsafe {
-        let count = pixel_count()?;
-        // Converted: `rc2k_core::gfx::pixels::palette_to_dwords`.
-        let buffer = std::slice::from_raw_parts_mut(picture(), count * 4);
-        let palette: [u32; 256] = DECODER.palette();
-        rc2k_core::gfx::pixels::palette_to_dwords(buffer, count, &palette)
-            .ok_or(BadInput("a picture buffer shorter than its dwords"))
-    }
+pub fn palette_pixels_to_dwords() -> Result<(), BadInput> {
+    let count = pixel_count()?;
+    // Converted: `rc2k_core::gfx::pixels::palette_to_dwords`, on a copy of the pixels' bytes.
+    let mut buffer = picture_ptr().read_bytes(count * 4, "the picture buffer")?;
+    let palette: [u32; 256] = DECODER.palette();
+    rc2k_core::gfx::pixels::palette_to_dwords(&mut buffer, count, &palette)
+        .ok_or(BadInput("a picture buffer shorter than its dwords"))?;
+    picture_ptr().write_bytes(&buffer, "the picture buffer")
 }

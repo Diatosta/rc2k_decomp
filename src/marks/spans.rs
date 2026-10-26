@@ -9,6 +9,7 @@ use crate::marks::mask_constants::MASK_CONSTANTS;
 use crate::marks::mask_vars::MASKS;
 use crate::marks::work_store::MARKS_WORK;
 use crate::math::x87;
+use crate::pointers::GamePtr;
 use crate::session::{read_bits, write_bits};
 
 /// The edge pair `span_edges` works from (`MASKS.edge`): y0, y1, the left and right x at y0, at y1.
@@ -17,8 +18,8 @@ use crate::session::{read_bits, write_bits};
 const WORK_LEN: u32 = 0x80000;
 const MOST_ROWS: u32 = 0x1000;
 
-unsafe fn put(at: u32, v: u32) {
-    unsafe { (at as *mut u32).write_unaligned(v) }
+fn put(at: u32, v: u32) -> Result<(), BadInput> {
+    GamePtr::new(at).write(v, "a game field")
 }
 
 /// The rows the edge pair's loop runs (its check: the row rounded below y1 rounded, the
@@ -42,7 +43,7 @@ pub fn edge_rows(edge: &[u32; 6]) -> Option<u32> {
 }
 
 /// Refuses rows that would run past the work block (or away), from `cursor`.
-unsafe fn room(cursor: u32, rows: Option<u32>) -> Result<(), Refused> {
+fn room(cursor: u32, rows: Option<u32>) -> Result<(), Refused> {
     let work: u32 = MASKS.work.get();
     match rows {
         Some(n)
@@ -61,9 +62,9 @@ unsafe fn room(cursor: u32, rows: Option<u32>) -> Result<(), Refused> {
 /// rounded and the length the right less it. The x87's rounding as it is set (the triangle
 /// sets toward zero). Gives where the next row would go (the original's edi). Refuses
 /// rows past the work block or more than 0x1000, before writing.
-pub unsafe fn span_edges(to: u32) -> Result<u32, Refused> {
+pub fn span_edges(to: u32) -> Result<u32, Refused> {
     let mut to = to;
-    unsafe {
+    {
         let e: [u32; 6] = read_bits(&MASKS.edge);
         room(to, edge_rows(&e))?;
         let [y0, y1, xa0, xb0, xa1, xb1] = e;
@@ -98,8 +99,8 @@ pub unsafe fn span_edges(to: u32) -> Result<u32, Refused> {
                 (a, b) = (b, a);
             }
             let left = x87::to_int(a);
-            put(to, left as u32);
-            put(to + 4, x87::float_less_int_to_int(b, left) as u32);
+            put(to, left as u32)?;
+            put(to + 4, x87::float_less_int_to_int(b, left) as u32)?;
             to += 8;
         }
         MASKS.row.set_bits(row);
@@ -155,16 +156,14 @@ pub fn triangle_rows(corners: [u32; 6]) -> Option<u32> {
 }
 
 /// Refuses `triangles` runs or `rows` spans (`None`: away) past their room.
-pub unsafe fn spans_fit(triangles: u32, rows: Option<u32>) -> Result<(), Refused> {
-    unsafe {
-        let runs: u32 = MASKS.runs.get();
-        let start = MASKS.run_table.addr() as u32;
-        let end = start + 0x2000;
-        if runs < start || runs as u64 + 16 * triangles as u64 > end as u64 {
-            return Err(BadInput("mask runs past their table").into());
-        }
-        room(MASKS.cursor.get(), rows)
+pub fn spans_fit(triangles: u32, rows: Option<u32>) -> Result<(), Refused> {
+    let runs: u32 = MASKS.runs.get();
+    let start = MASKS.run_table.addr() as u32;
+    let end = start + 0x2000;
+    if runs < start || runs as u64 + 16 * triangles as u64 > end as u64 {
+        return Err(BadInput("mask runs past their table").into());
     }
+    room(MASKS.cursor.get(), rows)
 }
 
 /// `marks::span_triangle` (0x4BE14D): the triangle at `at` (three x, y floats) copied to
@@ -174,12 +173,12 @@ pub unsafe fn spans_fit(triangles: u32, rows: Option<u32>) -> Result<(), Refused
 /// `dword_82E342` counting the spans. All with the x87 rounding toward zero; its control
 /// word put back after. Refuses runs past their table, and spans past the work block or
 /// away, before writing.
-pub unsafe fn span_triangle(at: u32) -> Result<(), Refused> {
-    unsafe {
+pub fn span_triangle(at: u32) -> Result<(), Refused> {
+    {
         let came = x87::control_word();
         let own = (came & 0xF3FF) | 0xC00;
         x87::set_control_word(own);
-        let (t, status) = sorted((at as *const [u32; 6]).read_unaligned());
+        let (t, status) = sorted(GamePtr::new(at).read::<[u32; 6]>("a triangle")?);
         let y0 = t[1];
         let (halves, split) = halves(&t);
         let runs: u32 = MASKS.runs.get();
@@ -198,7 +197,7 @@ pub unsafe fn span_triangle(at: u32) -> Result<(), Refused> {
         MASKS.status_word.set(status);
         write_bits(&MASKS.triangle, t);
         MASKS.runs.set(runs + 16);
-        put(runs, cursor);
+        put(runs, cursor)?;
         let mut to = cursor;
         MASKS.split.set_bits(split);
         for half in halves {
@@ -210,8 +209,8 @@ pub unsafe fn span_triangle(at: u32) -> Result<(), Refused> {
         // Through `dword_71C880`, as the original's `fistp`.
         let first = x87::to_int(y0) as u32;
         MARKS_WORK.scratch.set(first);
-        put(runs + 4, first);
-        put(runs + 8, count);
+        put(runs + 4, first)?;
+        put(runs + 8, count)?;
         MASKS
             .spans_total
             .set(MASKS.spans_total.get().wrapping_add(count));
@@ -223,9 +222,9 @@ pub unsafe fn span_triangle(at: u32) -> Result<(), Refused> {
 /// `marks::span_quad` (0x4BE0C6): the quad at `at` (four x, y floats) as two triangles, its
 /// corners 0, 1, 2 and then 2, 3, 0 (through 0x833D46), each `span_triangle`d. Refuses as
 /// `span_triangle` (the second only after the first is made).
-pub unsafe fn span_quad(at: u32) -> Result<(), Refused> {
-    unsafe {
-        let q = (at as *const [u32; 8]).read_unaligned();
+pub fn span_quad(at: u32) -> Result<(), Refused> {
+    {
+        let q = GamePtr::new(at).read::<[u32; 8]>("a quad")?;
         for corners in [[0usize, 1, 2], [2, 3, 0]] {
             let mut t = [0u32; 6];
             for (k, &c) in corners.iter().enumerate() {

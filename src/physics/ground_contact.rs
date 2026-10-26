@@ -48,7 +48,7 @@ fn steps() -> Result<(), Refused> {
     CAR.contact_point[0].set_bits(CAR.probe_point_x[n].bits());
     CAR.contact_point[1].set_bits(CAR.probe_point_y[n].bits());
     CAR.contact_point[2].set_bits(CAR.probe_point_z[n].bits());
-    take_contact(n);
+    take_contact(n)?;
     CONTACT_WORK.contact_slide_limit.set_bits(0);
     PHYSICS
         .contact_record

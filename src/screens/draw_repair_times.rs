@@ -23,7 +23,7 @@ const COUNT: usize = 16;
 // ---- Rust version ----
 
 /// Returns what the last `draw_text` returned.
-pub unsafe fn draw_repair_times(canvas: &mut dyn Canvas) -> Result<Outcome, Refused> {
+pub fn draw_repair_times(canvas: &mut dyn Canvas) -> Result<Outcome, Refused> {
     // Converted: `rc2k_core::screens::service::repair_times`.
     let times: [u32; COUNT] = read_all(&MENU_STATE.driver_stats.repair_times);
     let (last, x) = rc2k_core::screens::service::repair_times(

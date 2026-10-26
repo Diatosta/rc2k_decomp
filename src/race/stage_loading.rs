@@ -40,9 +40,9 @@ const WORDS: [&std::ffi::CStr; 9] = [
 /// (`taint.py` at each site: no read point; conversion phase 3, 2026-10-24).
 pub unsafe fn load_stage() -> Result<(), Refused> {
     use crate::logfile::log_write::log_write;
-    let indent = |by: i32| unsafe {
-        let at = crate::logfile::write_line::indent_place() as *mut u32; // g_logIndent
-        at.write_unaligned(at.read_unaligned().wrapping_add(by as u32));
+    let indent = |by: i32| {
+        crate::logfile::write_line::state::INDENT
+            .fetch_add(by, std::sync::atomic::Ordering::Relaxed);
     };
     let mut word = 0;
     let mut log = || {

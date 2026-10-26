@@ -11,9 +11,10 @@
 use crate::audio::store::AUDIO;
 use crate::audio::voices::*;
 use crate::errors::Refused;
+use crate::pointers::GamePtr;
 
 /// `allocate`: `length` bytes of the samples' memory.
-pub unsafe fn keep_sample(
+pub fn keep_sample(
     v: &mut Voice,
     allocate: &mut dyn FnMut(u32) -> Result<u32, Refused>,
 ) -> Result<(), Refused> {
@@ -22,7 +23,7 @@ pub unsafe fn keep_sample(
         return Ok(());
     }
     let to = allocate(v.length)?;
-    unsafe { std::ptr::copy(v.data as *const u8, to as *mut u8, v.length as usize) };
+    GamePtr::new(v.data).copy_to(GamePtr::new(to), v.length as usize, "a voice's sample")?;
     v.data = to;
     Ok(())
 }

@@ -13,7 +13,7 @@ use crate::menu::standings::{counted_players, put_all};
 pub fn ready_players() -> Result<(), Refused> {
     // Converted: `rc2k_core::menu::event::PLAYER_READY`.
     for p in counted_players()? {
-        put_all(p, &rc2k_core::menu::event::PLAYER_READY);
+        put_all(p, &rc2k_core::menu::event::PLAYER_READY)?;
     }
     Ok(())
 }

@@ -13,7 +13,7 @@
 //! `system::main_loop`. Calling it twice builds from the changed lines, as the original would. Rust
 //! callers run its `entry` (`routes.rs`); the registers above are the original's, for reference.
 
-use crate::strings::text_from_ids::text;
+use crate::strings::text_buffer::TEXT_BUFFER;
 
 // ---- game data ----
 
@@ -23,22 +23,20 @@ use rc2k_core::menu::notice::{
 
 // ---- Rust version ----
 
-pub unsafe fn build_notice() {
+pub fn build_notice() {
     // Converted: `rc2k_core::menu::notice::notice`.
-    unsafe {
-        if crate::strings::load_language::notice_kind() != BUILDS {
-            return;
-        }
-        let built = notice(
-            &((NOTICE.notice_first.addr() + FIRST_FROM) as *const [u8; FIRST_READ])
-                .read_unaligned(),
-            &((NOTICE.notice_second.addr() + SECOND_FROM) as *const [u8; SECOND_READ])
-                .read_unaligned(),
-        );
-        std::ptr::copy(built.as_ptr(), text(), BUILT_LEN);
-        std::ptr::copy(built.as_ptr(), NOTICE.notice_first.as_ptr(), BUILT_LEN);
-        NOTICE.notice_second.set(0, 0);
+    if crate::strings::load_language::notice_kind() != BUILDS {
+        return;
     }
+    let first: [u8; FIRST_READ] = std::array::from_fn(|i| NOTICE.notice_first.get(FIRST_FROM + i));
+    let second: [u8; SECOND_READ] =
+        std::array::from_fn(|i| NOTICE.notice_second.get(SECOND_FROM + i));
+    let built = notice(&first, &second);
+    for (i, &byte) in built.iter().take(BUILT_LEN).enumerate() {
+        TEXT_BUFFER.text.set(i, byte);
+        NOTICE.notice_first.set(i, byte);
+    }
+    NOTICE.notice_second.set(0, 0);
 }
 
 // ---- the notice's lines (IDA 0x52A263 .. 0x52A30F, split from the network's block) ----

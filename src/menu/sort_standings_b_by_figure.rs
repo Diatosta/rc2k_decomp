@@ -11,7 +11,7 @@ use crate::menu::standings::*;
 // dword_75598C
 
 /// The Rust version (see the header): the registers it leaves.
-pub unsafe fn sort_standings_b_by_figure() -> Result<(), Refused> {
+pub fn sort_standings_b_by_figure() -> Result<(), Refused> {
     sort_table_b(0x34, false)?;
     Ok(())
 }

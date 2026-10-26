@@ -215,14 +215,18 @@ pub struct SoundObject {
     pub cue_queue: CueQueue,
 }
 
+// SAFETY: each is made of `Dword`s and `Float`s (atomics) and arrays and records of them.
+unsafe impl crate::pointers::Cells for SoundSlot {}
+unsafe impl crate::pointers::Cells for EngineVoice {}
+unsafe impl crate::pointers::Cells for CueEntry {}
+unsafe impl crate::pointers::Cells for CueQueue {}
+unsafe impl crate::pointers::Cells for SoundObject {}
+
 impl SoundObject {
-    /// The object at `address`, as the game's tables and the physics hold it (a number).
-    ///
-    /// # Safety
-    /// `address` is of a `SoundObject` (one of `RACE_SOUNDS`', or a test's) for as long as
-    /// the reference lives.
-    pub unsafe fn at<'a>(address: u32) -> &'a SoundObject {
-        unsafe { &*(address as usize as *const SoundObject) }
+    /// The object at `address`, as the game's tables and the physics hold it (a number),
+    /// when all of it lies in one region of the game's memory.
+    pub fn at<'a>(address: u32) -> Result<&'a SoundObject, crate::errors::BadInput> {
+        crate::pointers::GamePtr::new(address).record::<SoundObject>("a sound object")
     }
 
     /// Its address, as the game's tables hold it.

@@ -231,19 +231,17 @@ pub const SHOWN_RVA: usize = rva(0x641678); // dword_641678
 /// `fld a; fadd b; fcomp c; fstsw ax; and eax, 700h`.
 pub fn sum_compare(a: u32, b: u32, c: u32) -> u32 {
     let (v, mut s) = ([a, b, c], 0u16);
-    unsafe { sum_compare_x87(v.as_ptr() as usize, (&raw mut s) as usize) };
+    sum_compare_x87(v.as_ptr() as usize, (&raw mut s) as usize);
     u32::from(s) & 0x700
 }
 
 /// `fld x; fld k; fsub w [; fsub m]; fcompp; fstsw ax; and eax, 700h` (`m` with `Some`).
 pub fn less_compare(x: u32, k: u32, w: u32, m: Option<u32>) -> u32 {
     let (v, mut s) = ([x, k, w, m.unwrap_or(0)], 0u16);
-    unsafe {
-        if m.is_some() {
-            less_compare_x87_1(v.as_ptr() as usize, (&raw mut s) as usize)
-        } else {
-            less_compare_x87_2(v.as_ptr() as usize, (&raw mut s) as usize)
-        }
+    if m.is_some() {
+        less_compare_x87_1(v.as_ptr() as usize, (&raw mut s) as usize)
+    } else {
+        less_compare_x87_2(v.as_ptr() as usize, (&raw mut s) as usize)
     };
     u32::from(s) & 0x700
 }
@@ -348,40 +346,34 @@ use crate::marks::tuning::MARKS_FLOATS;
 use crate::math::x87_float as bh;
 
 /// `sum_compare`'s x87 block as plain Rust on the x87 model (4 instructions), same order and memory places.
-unsafe fn sum_compare_x87(v: usize, s: usize) {
-    unsafe {
-        let t0 = ld(v, 0);
-        let t1 = t0 + ld(v, 0x4);
-        st16(s, 0, bh::compare(t1, ld(v, 0x8)));
-    }
+fn sum_compare_x87(v: usize, s: usize) {
+    let t0 = ld(v, 0);
+    let t1 = t0 + ld(v, 0x4);
+    st16(s, 0, bh::compare(t1, ld(v, 0x8)));
 }
 
 /// `less_compare`'s x87 block as plain Rust on the x87 model (6 instructions), same order and memory places.
-unsafe fn less_compare_x87_1(v: usize, s: usize) {
-    unsafe {
-        let t0 = ld(v, 0);
-        let t1 = ld(v, 0x4);
-        let t2 = t1 - ld(v, 0x8);
-        let t3 = t2 - ld(v, 0xC);
-        st16(s, 0, bh::compare(t3, t0));
-    }
+fn less_compare_x87_1(v: usize, s: usize) {
+    let t0 = ld(v, 0);
+    let t1 = ld(v, 0x4);
+    let t2 = t1 - ld(v, 0x8);
+    let t3 = t2 - ld(v, 0xC);
+    st16(s, 0, bh::compare(t3, t0));
 }
 
 /// `less_compare`'s x87 block as plain Rust on the x87 model (5 instructions), same order and memory places.
-unsafe fn less_compare_x87_2(v: usize, s: usize) {
-    unsafe {
-        let t0 = ld(v, 0);
-        let t1 = ld(v, 0x4);
-        let t2 = t1 - ld(v, 0x8);
-        st16(s, 0, bh::compare(t2, t0));
-    }
+fn less_compare_x87_2(v: usize, s: usize) {
+    let t0 = ld(v, 0);
+    let t1 = ld(v, 0x4);
+    let t2 = t1 - ld(v, 0x8);
+    st16(s, 0, bh::compare(t2, t0));
 }
 
 #[cfg(test)]
 mod asm_reference {
     //! The original assembly blocks, kept verbatim as the reference the plain versions are tested against.
 
-    pub(super) unsafe fn sum_compare_x87(v: usize, s: usize) {
+    pub(super) fn sum_compare_x87(v: usize, s: usize) {
         unsafe {
             core::arch::asm!(
                     "fld dword ptr [{v}]",
@@ -397,7 +389,7 @@ mod asm_reference {
         }
     }
 
-    pub(super) unsafe fn less_compare_x87_1(v: usize, s: usize) {
+    pub(super) fn less_compare_x87_1(v: usize, s: usize) {
         unsafe {
             core::arch::asm!(
                     "fld dword ptr [{v}]",
@@ -415,7 +407,7 @@ mod asm_reference {
         }
     }
 
-    pub(super) unsafe fn less_compare_x87_2(v: usize, s: usize) {
+    pub(super) fn less_compare_x87_2(v: usize, s: usize) {
         unsafe {
             core::arch::asm!(
                     "fld dword ptr [{v}]",
@@ -460,8 +452,8 @@ mod asm_differential {
         };
         differential(
             &SPEC,
-            |b| unsafe { reference::sum_compare_x87(b[0], b[1]) },
-            |b| unsafe { super::sum_compare_x87(b[0], b[1]) },
+            |b| reference::sum_compare_x87(b[0], b[1]),
+            |b| super::sum_compare_x87(b[0], b[1]),
         );
     }
 
@@ -486,8 +478,8 @@ mod asm_differential {
         };
         differential(
             &SPEC,
-            |b| unsafe { reference::less_compare_x87_1(b[0], b[1]) },
-            |b| unsafe { super::less_compare_x87_1(b[0], b[1]) },
+            |b| reference::less_compare_x87_1(b[0], b[1]),
+            |b| super::less_compare_x87_1(b[0], b[1]),
         );
     }
 
@@ -512,8 +504,8 @@ mod asm_differential {
         };
         differential(
             &SPEC,
-            |b| unsafe { reference::less_compare_x87_2(b[0], b[1]) },
-            |b| unsafe { super::less_compare_x87_2(b[0], b[1]) },
+            |b| reference::less_compare_x87_2(b[0], b[1]),
+            |b| super::less_compare_x87_2(b[0], b[1]),
         );
     }
 }

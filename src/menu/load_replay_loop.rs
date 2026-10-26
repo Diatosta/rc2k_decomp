@@ -26,7 +26,7 @@ use crate::menu::screen_loop::{Callee, Carried, List, Screen, Step};
 
 // ---- Rust version: `menu::screen_loop` with this ----
 
-unsafe fn before(c: &mut Carried) -> Result<(), Refused> {
+fn before(c: &mut Carried) -> Result<(), Refused> {
     c.measure_x = SCREEN_ITEMS.first[slot::LOAD_REPLAY].get();
     SCREEN_ITEMS.current[slot::LOAD_REPLAY].set(c.measure_x);
     DRAW_WORK.escaped.set(0x0u32);
@@ -36,7 +36,7 @@ unsafe fn before(c: &mut Carried) -> Result<(), Refused> {
 /// What the loop returns in eax, written by hand from the end of the listing (after the
 /// `popa`): -1 if the highlight is on item 0x16 or `dword_758806` is 1, else the replay's
 /// number, `dword_755248` * 20 + the highlighted item - 1.
-unsafe fn result() -> u32 {
+fn result() -> u32 {
     let item: u32 = LOOP_FLAGS.item.get();
     if item == 0x16 || CAPTIONS.screen_left.get() == 1 {
         return 0xFFFF_FFFF;

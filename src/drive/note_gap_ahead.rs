@@ -6,16 +6,15 @@
 //! See `drive/note_gaps.rs`. Caller: `sub_43703E` (0x43736B, 0x437397).
 
 use crate::drive::note_gaps::note_gap_at;
+use crate::errors::BadInput;
 use crate::race::blocks_store::CAR_BLOCKS;
 
 /// The Rust version.
-pub unsafe fn note_gap_ahead(car: u32) -> u32 {
-    unsafe {
-        note_gap_at(
-            car,
-            CAR_BLOCKS.cars[0].checkpoint.addr() as u32,
-            CAR_BLOCKS.cars[0].pace_gaps[0].addr() as u32,
-            false,
-        )
-    }
+pub fn note_gap_ahead(car: u32) -> Result<u32, BadInput> {
+    note_gap_at(
+        car,
+        &CAR_BLOCKS.cars[0].checkpoint,
+        &CAR_BLOCKS.cars[0].pace_gaps[0],
+        false,
+    )
 }

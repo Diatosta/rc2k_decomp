@@ -31,7 +31,6 @@ pub unsafe fn read_packed(
     if !ok {
         return Ok((n, true, None));
     }
-    let out =
-        unsafe { crate::drive::unpack_rle::unpack_rle(SCRATCH.buffer.addr() as u32, buffer) }?;
+    let out = crate::drive::unpack_rle::unpack_rle(SCRATCH.buffer.addr() as u32, buffer)?;
     Ok((out, false, Some(out == 0)))
 }

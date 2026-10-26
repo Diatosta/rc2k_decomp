@@ -13,7 +13,6 @@
 //! Conversion phase 3 (2026-10-23): plain Rust with typed arguments; the registers above
 //! are the original's.
 
-use crate::bridge::Raw;
 use crate::errors::BadInput;
 use crate::install::choose_language::{LANGUAGE_SLOT, LANGUAGE_SLOTS, choose_language};
 use crate::install::vars::INSTALLER_NAMES;
@@ -25,24 +24,26 @@ use rc2k_core::install::config;
 
 // ---- Rust version ----
 
-pub unsafe fn read_languages(path: *const u8) -> Result<(), BadInput> {
-    unsafe {
+pub fn read_languages(path: *const u8) -> Result<(), BadInput> {
+    {
         let Some((text, _)) = read_text(path)? else {
             return Ok(());
         };
         // Converted: `rc2k_core::install::config` (`find_languages`, its keys as constants;
         // `keep_languages`). Found first, stored after (`sub_4139AB`).
-        let found = config::find_languages(&Raw::new(text), &case_table())?;
-        let slots = std::slice::from_raw_parts_mut(
-            INSTALLER_NAMES.languages.addr() as *mut u8,
-            LANGUAGE_SLOT * LANGUAGE_SLOTS,
-        );
+        let found = config::find_languages(
+            &crate::pointers::GamePtr::new(text as u32).bytes("the languages' text")?,
+            &case_table(),
+        )?;
+        let all = crate::pointers::GamePtr::new(INSTALLER_NAMES.languages.addr() as u32);
+        let mut slots = all.read_bytes(LANGUAGE_SLOT * LANGUAGE_SLOTS, "the languages' slots")?;
         for (slot, value) in found {
             let at = slot * LANGUAGE_SLOT;
             slots[at..at + value.len()].copy_from_slice(&value);
             slots[at + value.len()] = 0;
         }
-        let kept = config::keep_languages(slots);
+        all.write_bytes(&slots, "the languages' slots")?;
+        let kept = config::keep_languages(&mut slots);
         INSTALLER_NAMES.language_count.set(kept);
         choose_language(1)
     }

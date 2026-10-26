@@ -32,7 +32,7 @@ pub fn step_replay_cars() -> Result<(), Refused> {
         RACE_WORK.current_car.set(0);
         loop {
             car_input_words::car_input_words()?;
-            play_inputs::play_inputs();
+            play_inputs::play_inputs()?;
             RACE_WORK
                 .work_block
                 .set(RACE_WORK.car_block(car_block(RACE_WORK.current_car.get()) as usize));

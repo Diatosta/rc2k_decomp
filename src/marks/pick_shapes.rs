@@ -14,7 +14,7 @@ use crate::marks::mask_vars::MASKS;
 
 /// The Rust version (see the header).
 // Converted: `rc2k_core::marks::steps::{shape_entry, pick_shapes}`
-pub unsafe fn pick_shapes() -> Result<(), Refused> {
+pub fn pick_shapes() -> Result<(), Refused> {
     use rc2k_core::marks::steps;
     let index = steps::shape_entry(PICKS.index.get())?;
     // (the flag, the shape): `dword_844604` / `g_marksShapesA`, `dword_844608` /

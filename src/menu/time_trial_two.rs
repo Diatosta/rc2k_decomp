@@ -22,8 +22,8 @@ use crate::menu::flow_game::Game;
 use crate::menu::screen_loop::Carried;
 use rc2k_core::menu::rounds;
 
-pub unsafe fn time_trial_two(c: &Carried) -> Result<(), Refused> {
+pub fn time_trial_two(c: &Carried) -> Result<(), Refused> {
     players_there(4)?;
     // Converted: `rc2k_core::menu::rounds::time_trial_two`.
-    rounds::time_trial_two(&mut Game::new(c))
+    Game::new(c).run(rounds::time_trial_two)
 }

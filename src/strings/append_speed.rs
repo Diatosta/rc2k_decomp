@@ -25,5 +25,5 @@ pub fn append_speed(tenths: u32, with_label: bool, units: u32) -> Result<Vec<u8>
     if !with_label {
         figure.label = None;
     }
-    Ok(figure_bytes(figure))
+    figure_bytes(figure)
 }

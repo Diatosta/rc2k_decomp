@@ -23,6 +23,7 @@ use crate::marks::emitters::*;
 use crate::marks::surface_store::SURFACE;
 use crate::marks::tuning::{MARKS_FLOATS, MARKS_FRAME};
 use crate::math::x87;
+use crate::pointers::GamePtr;
 use crate::scene::matrix3::{extended, rounded};
 use crate::session::{Dword, Float, read_bits, write_bits};
 
@@ -80,84 +81,84 @@ impl BurstTuning {
 }
 
 /// The half's strength and rate (`n` 0 or 1), from the wheel.
-unsafe fn strength(set: &BurstSet, n: usize, wheel: u32) -> (u32, i32) {
-    unsafe {
+fn strength(set: &BurstSet, n: usize, wheel: u32) -> Result<(u32, i32), Refused> {
+    Ok({
         let scale: u32 = MARKS_FLOATS.thirty_two.bits();
         if n == 0 {
-            x87::times_kept_abs_to_int(at(wheel + 0x10), set.tuning.strength_k.bits(), scale)
+            x87::times_kept_abs_to_int(at(wheel + 0x10)?, set.tuning.strength_k.bits(), scale)
         } else {
             x87::blend_kept_abs_to_int(
-                at(wheel + 0xC),
-                at(wheel + 0x18),
+                at(wheel + 0xC)?,
+                at(wheel + 0x18)?,
                 set.tuning.blend_k[0].bits(),
                 set.tuning.blend_k[1].bits(),
                 scale,
             )
         }
-    }
+    })
 }
 
 /// The entries each half would make, worked out without writing.
-unsafe fn counts(set: &BurstSet, wheel: u32) -> [u32; 2] {
-    unsafe {
-        let flags2 = at(wheel + 0x24);
+fn counts(set: &BurstSet, wheel: u32) -> Result<[u32; 2], Refused> {
+    Ok({
+        let flags2 = at(wheel + 0x24)?;
         if flags2 >> 6 == 0 {
-            return [0; 2];
+            return Ok([0; 2]);
         }
-        std::array::from_fn(|n| {
-            let (_, rate) = strength(set, n, wheel);
+        crate::marks::try_from_fn(|n| {
+            let (_, rate) = strength(set, n, wheel)?;
             let r = set.tuning.randoms(n)[0]
                 .get()
                 .wrapping_mul(0xC5)
                 .wrapping_add(0x5D);
             if (r.rotate_right(16) & 0xFF) as i32 >= rate {
-                return 0;
+                return Ok(0);
             }
             let c = set.tuning.randoms(n)[1]
                 .get()
                 .wrapping_mul(0xC5)
                 .wrapping_add(0x5D);
-            (c & 0xFFF) % ((flags2 >> 6) << 2)
-        })
-    }
+            Ok((c & 0xFFF) % ((flags2 >> 6) << 2))
+        })?
+    })
 }
 
 /// Why the Rust version refuses, if it does, worked out without writing.
-pub unsafe fn refusal(set: &BurstSet, wheel: u32, object: u32) -> Option<&'static str> {
-    unsafe {
+pub fn refusal(set: &BurstSet, wheel: u32, object: u32) -> Result<Option<&'static str>, Refused> {
+    Ok({
         if wheel == 0 {
-            return Some("a null wheel");
+            return Ok(Some("a null wheel"));
         }
-        if at(wheel + 0x24) >> 6 == 0 {
-            return None;
+        if at(wheel + 0x24)? >> 6 == 0 {
+            return Ok(None);
         }
-        let [a, b] = counts(set, wheel);
+        let [a, b] = counts(set, wheel)?;
         let car: u32 = EMITTER.car.get();
-        if a + b > 0 && (object == 0 || car == 0 || at(car + 0x24) == 0) {
-            return Some("a null object, car or matrix");
+        if a + b > 0 && (object == 0 || car == 0 || at(car + 0x24)? == 0) {
+            return Ok(Some("a null object, car or matrix"));
         }
         None
-    }
+    })
 }
 
 /// The Rust version (see the header).
-pub unsafe fn emit_bursts(wheel: u32, object: u32) -> Result<(), Refused> {
-    unsafe { emit_bursts_with(&FIRST, wheel, object) }
+pub fn emit_bursts(wheel: u32, object: u32) -> Result<(), Refused> {
+    emit_bursts_with(&FIRST, wheel, object)
 }
 
 /// The shared body, on `set`'s variables.
-pub unsafe fn emit_bursts_with(set: &BurstSet, wheel: u32, object: u32) -> Result<(), Refused> {
-    unsafe {
-        if let Some(why) = refusal(set, wheel, object) {
+pub fn emit_bursts_with(set: &BurstSet, wheel: u32, object: u32) -> Result<(), Refused> {
+    {
+        if let Some(why) = refusal(set, wheel, object)? {
             return Err(BadInput(why).into());
         }
-        let flags2 = at(wheel + 0x24);
+        let flags2 = at(wheel + 0x24)?;
         SURFACE.wheel_flags2.set(flags2);
         if flags2 >> 6 == 0 {
             return Ok(());
         }
         for (n, h) in set.halves.iter().enumerate() {
-            let (s, rate) = strength(set, n, wheel);
+            let (s, rate) = strength(set, n, wheel)?;
             h.strength.set_bits(s);
             RING_WORK.whole.set(rate as u32);
             let r = next_c5(&set.tuning.randoms(n)[0]);
@@ -183,8 +184,8 @@ pub unsafe fn emit_bursts_with(set: &BurstSet, wheel: u32, object: u32) -> Resul
                 if RING_WORK.count.get() == MOST_TAKEN {
                     return Ok(());
                 }
-                let e = take_entry(at(object + 0x1C) & 0xFF_FFFF, h.kind);
-                let put = |o: u32, v: u32| ((e + o) as *mut u32).write_unaligned(v);
+                let e = take_entry(at(object + 0x1C)? & 0xFF_FFFF, h.kind)?;
+                let put = |o: u32, v: u32| GamePtr::new(e + o).write::<u32>(v, "a mark's field");
                 let d = read_bits(&RING_WORK.direction);
                 let (out, _) = crate::marks::spread_point::spread_point([
                     extended(MARKS_FLOATS.half.bits()),
@@ -192,37 +193,37 @@ pub unsafe fn emit_bursts_with(set: &BurstSet, wheel: u32, object: u32) -> Resul
                     extended(d[1]),
                     extended(d[0]),
                 ]);
-                put(0x34, rounded(out[0]));
-                put(0x30, rounded(out[1]));
-                put(0x2C, rounded(out[2]));
+                put(0x34, rounded(out[0]))?;
+                put(0x30, rounded(out[1]))?;
+                put(0x2C, rounded(out[2]))?;
                 let r = next_c5(&set.tuning.randoms(n)[2]);
                 let size = (r.rotate_right(8) & h.size.0) + h.size.1;
                 MARKS_FRAME.emit_side.set_bits(size);
-                put(0x60, x87::from_int(size as i32));
-                put(0x58, ((flags2 & 0x3F) << 4) + (r.rotate_right(17) & 3));
+                put(0x60, x87::from_int(size as i32))?;
+                put(0x58, ((flags2 & 0x3F) << 4) + (r.rotate_right(17) & 3))?;
                 let tk: u32 = MARKS_FLOATS.minus_eighth.bits();
-                put(0x40, x87::mul(at(car + 0x54), tk));
-                put(0x3C, x87::mul(at(car + 0x50), tk));
-                put(0x38, x87::mul(at(car + 0x4C), tk));
+                put(0x40, x87::mul(at(car + 0x54)?, tk))?;
+                put(0x3C, x87::mul(at(car + 0x50)?, tk))?;
+                put(0x38, x87::mul(at(car + 0x4C)?, tk))?;
                 for o in [0x44, 0x48, 0x4C] {
-                    put(o, 0);
+                    put(o, 0)?;
                 }
-                let m = at(car + 0x24);
+                let m = at(car + 0x24)?;
                 let side = (r.rotate_right(8) & 0x3FFF).wrapping_sub(0x2000);
                 MARKS_FRAME.emit_side.set_bits(side);
-                let place: [u32; 3] = std::array::from_fn(|k| {
+                let place: [u32; 3] = crate::marks::try_from_fn(|k| {
                     let k4 = 4 * k as u32;
-                    x87::less_plus_int_times(
-                        at(wheel + 0x3C + k4),
-                        at(m + 0x30 + k4),
+                    Ok(x87::less_plus_int_times(
+                        at(wheel + 0x3C + k4)?,
+                        at(m + 0x30 + k4)?,
                         h.sides[k].bits(),
                         side as i32,
-                    )
-                });
-                put(0x10, place[0]);
-                put(0x14, place[1]);
-                put(0x28, place[1]);
-                put(0x18, place[2]);
+                    ))
+                })?;
+                put(0x10, place[0])?;
+                put(0x14, place[1])?;
+                put(0x28, place[1])?;
+                put(0x18, place[2])?;
                 let pick = r & 0x7_FFFF;
                 RING_WORK.whole.set(pick);
                 put(
@@ -232,11 +233,11 @@ pub unsafe fn emit_bursts_with(set: &BurstSet, wheel: u32, object: u32) -> Resul
                         MARKS_FLOATS.over_65536.bits(),
                         MARKS_FLOATS.one.bits(),
                     ),
-                );
-                put(0x84, LIFE);
-                put(0x7C, EMITTER.looks[0].get());
-                put(0x80, EMITTER.looks[1].get());
-                put(0x68, car);
+                )?;
+                put(0x84, LIFE)?;
+                put(0x7C, EMITTER.looks[0].get())?;
+                put(0x80, EMITTER.looks[1].get())?;
+                put(0x68, car)?;
             }
         }
     }

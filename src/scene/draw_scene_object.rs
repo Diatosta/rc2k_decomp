@@ -42,9 +42,10 @@ pub use rc2k_core::scene::shown::Way;
 
 /// The texture set for `g_objectNumber`; the object's number.
 // Converted: `rc2k_core::scene::shown::texture_set`
-unsafe fn texture_set() -> Result<(u32, u32), Refused> {
+fn texture_set() -> Result<(u32, u32), Refused> {
     use rc2k_core::scene::shown::SetError;
-    unsafe {
+    {
+        let reading = crate::scene::reading::Reading::new();
         let object: u32 = FRAME_SWITCHES.object_number.bits();
         let t = rc2k_core::scene::shown::texture_set(
             object,
@@ -53,7 +54,7 @@ unsafe fn texture_set() -> Result<(u32, u32), Refused> {
             |object| OBJECT_TABLES.object_kind(object),
             |car| {
                 let block: u32 = RACE_WORK.car_block(car as usize);
-                (block != 0).then(|| ((block + 0x24) as *const u32).read_unaligned())
+                (block != 0).then(|| reading.read::<u32>(block.wrapping_add(0x24), "a car's block"))
             },
         )
         .map_err(|e| -> Refused {
@@ -61,7 +62,9 @@ unsafe fn texture_set() -> Result<(u32, u32), Refused> {
                 SetError::TooHigh => TOO_HIGH.into(),
                 SetError::NoBlock => BadInput("a car without its block").into(),
             }
-        })?;
+        });
+        reading.finish()?;
+        let t = t?;
         Ok((t.set, object))
     }
 }
@@ -70,18 +73,14 @@ unsafe fn texture_set() -> Result<(u32, u32), Refused> {
 /// the object's number among them) none of its callers reads (register liveness,
 /// 2026-10-23: only the unreached `sub_49081A` after `scene::draw_menu_object`).
 // Converted: `rc2k_core::scene::shown::way`
-pub unsafe fn draw_scene_object(
-    draw: &mut dyn FnMut(Way) -> Result<(), Refused>,
-) -> Result<(), Refused> {
-    unsafe {
-        let (set, object) = texture_set()?;
-        GROUND_WORK.object_texture_set.set_bits(set);
-        let faces: u32 =
-            crate::scene::object_slots_store::OBJECT_SLOTS.face_counts[object as usize].get();
-        match rc2k_core::scene::shown::way(faces, LIGHT_STATE.draw_mode.bits()) {
-            Some(way) => draw(way),
-            None => Ok(()),
-        }
+pub fn draw_scene_object(draw: &mut dyn FnMut(Way) -> Result<(), Refused>) -> Result<(), Refused> {
+    let (set, object) = texture_set()?;
+    GROUND_WORK.object_texture_set.set_bits(set);
+    let faces: u32 =
+        crate::scene::object_slots_store::OBJECT_SLOTS.face_counts[object as usize].get();
+    match rc2k_core::scene::shown::way(faces, LIGHT_STATE.draw_mode.bits()) {
+        Some(way) => draw(way),
+        None => Ok(()),
     }
 }
 

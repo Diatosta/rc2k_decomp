@@ -15,13 +15,14 @@
 use crate::errors::BadInput;
 use crate::gfx::formats::FORMATS;
 use crate::gfx::pixel_format::PixelFormat;
+use crate::pointers::GamePtr;
 
 // ---- Rust version ----
 
-pub unsafe fn blend_palette(
-    first: *const u32,
-    second: *const u32,
-    out: *mut u32,
+pub fn blend_palette(
+    first: GamePtr,
+    second: GamePtr,
+    out: GamePtr,
     count: u32,
     towards_second: u32,
     format: &PixelFormat,
@@ -31,26 +32,24 @@ pub unsafe fn blend_palette(
             "no entries: the original goes through all 32 bits",
         ));
     }
-    if first.is_null() || second.is_null() || out.is_null() {
+    if first.addr() == 0 || second.addr() == 0 || out.addr() == 0 {
         return Err(BadInput("a null palette"));
     }
-    for n in 0..count as usize {
-        unsafe {
-            // Converted: `rc2k_core::gfx::pixels::blend_entry`; the scratch bytes as
-            // `components_to_pixel` leaves them.
-            let entry = out.add(n);
-            let (pixel, scratch) = rc2k_core::gfx::pixels::blend_entry(
-                format,
-                first.add(n).read_unaligned(),
-                second.add(n).read_unaligned(),
-                entry.read_unaligned(),
-                towards_second,
-            );
-            if let Some(scratch) = scratch {
-                FORMATS.scratch.write(&scratch);
-            }
-            entry.write_unaligned(pixel);
+    for n in 0..count {
+        // Converted: `rc2k_core::gfx::pixels::blend_entry`; the scratch bytes as
+        // `components_to_pixel` leaves them.
+        let entry = out.offset(4 * n);
+        let (pixel, scratch) = rc2k_core::gfx::pixels::blend_entry(
+            format,
+            first.offset(4 * n).read::<u32>("a palette")?,
+            second.offset(4 * n).read::<u32>("a palette")?,
+            entry.read::<u32>("a palette")?,
+            towards_second,
+        );
+        if let Some(scratch) = scratch {
+            FORMATS.scratch.write(&scratch);
         }
+        entry.write(pixel, "a palette")?;
     }
     Ok(())
 }

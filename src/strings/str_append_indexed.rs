@@ -6,31 +6,34 @@
 //! Hook removed 2026-10-21 (conversion phase 4): Rust callers call this directly; the
 //! register use above is the original's, for reference.
 
-use std::ffi::{CStr, c_char};
+use crate::errors::BadInput;
+use crate::pointers::GamePtr;
 
 // `detour` refuses to patch this function, so the jump is written by hand and the original
 // runs from a private copy (its call at +0x0D relocated).
 // ---- Rust version ----
 
 /// String `index` of the list at `table` (converted: `rc2k_core::strings::table::nth_string`, on
-/// the list as far as the original reads it).
-pub unsafe fn indexed_text<'a>(table: *const u8, index: i32) -> &'a [u8] {
-    unsafe {
-        let mut length = 0;
-        for _ in 0..=index.max(0) {
-            length += CStr::from_ptr(table.add(length) as *const c_char)
-                .to_bytes_with_nul()
-                .len();
-        }
-        rc2k_core::strings::table::nth_string(std::slice::from_raw_parts(table, length), index)
+/// the list as far as the original reads it), copied out; the list must run that far inside
+/// its block.
+pub fn indexed_text(table: *const u8, index: i32) -> Result<Vec<u8>, BadInput> {
+    let table = table as usize as u32;
+    let mut length = 0;
+    for _ in 0..=index.max(0) {
+        length +=
+            crate::strings::text_length::nul_at(table.wrapping_add(length), "a string list")? + 1;
     }
+    let list = GamePtr::new(table).read_bytes(length as usize, "a string list")?;
+    Ok(rc2k_core::strings::table::nth_string(&list, index).to_vec())
 }
 
 /// String `index` of the list at `table` appended at `cursor`; the cursor after it.
-pub unsafe fn str_append_indexed(table: *const u8, index: i32, cursor: *mut u8) -> *mut u8 {
-    unsafe {
-        let text = indexed_text(table, index);
-        std::ptr::copy(text.as_ptr(), cursor, text.len());
-        cursor.add(text.len())
-    }
+pub fn str_append_indexed(
+    table: *const u8,
+    index: i32,
+    cursor: *mut u8,
+) -> Result<*mut u8, BadInput> {
+    let text = indexed_text(table, index)?;
+    GamePtr::new(cursor as usize as u32).write_bytes(&text, "a string list\'s target")?;
+    Ok(cursor.wrapping_add(text.len()))
 }

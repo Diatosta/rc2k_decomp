@@ -37,13 +37,13 @@ pub unsafe fn read_replay_frame(frame: u32, tenth: u32) -> Result<bool, Refused>
     REPLAY_VIEW.replay_frame.set(tenth);
     REPLAY_FILE.replay_at_end.set(0);
     REPLAY_VIEW.replay_block.set(frame);
-    let place = crate::race::replay::block_place(2 * frame as usize); // (place, count) a frame
+    let place = crate::race::replay::block_place(2 * frame as usize)?; // (place, count) a frame
     if unsafe { crate::files::handle::seek(REPLAY_FILE.replay_handle.get(), place as i32, 0) }
         .is_none()
     {
         return Ok(true);
     }
-    let count = crate::race::replay::block_place(2 * frame as usize + 1);
+    let count = crate::race::replay::block_place(2 * frame as usize + 1)?;
     let (_, carry, _) = unsafe {
         crate::drive::read_packed::read_packed(
             REPLAY_FILE.replay_handle.get(),

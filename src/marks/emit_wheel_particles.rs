@@ -23,18 +23,19 @@ use crate::marks::{
     emit_particle_18,
 };
 use crate::math::x87;
+use crate::pointers::GamePtr;
 
 /// The chance and the random it would be met by, worked out without writing.
-unsafe fn chance(wheel: u32) -> (i32, u32) {
-    unsafe {
-        let chance = x87::mul_to_int(at(wheel + 0x34), MARKS_FLOATS.two_pow_16.bits());
+fn chance(wheel: u32) -> Result<(i32, u32), Refused> {
+    Ok({
+        let chance = x87::mul_to_int(at(wheel + 0x34)?, MARKS_FLOATS.two_pow_16.bits());
         let r = EMITTER
             .wheel_random
             .get()
             .wrapping_mul(0xC5)
             .wrapping_add(0x5D);
         (chance, r)
-    }
+    })
 }
 
 /// Whether the copy is made.
@@ -51,42 +52,40 @@ pub enum Table {
 }
 
 /// The emitters for a kind.
-pub unsafe fn emit(table: Table, kind: u32, wheel: u32, object: u32) -> Result<(), Refused> {
-    unsafe {
-        match kind {
-            1 if table == Table::Body => emit_particle_18::emit_particle_18(wheel, object),
-            1 => emit_kind_1::emit_kind_1(wheel, object),
-            3 if table == Table::Wheel => {
-                emit_bursts_2::emit_bursts_2(wheel, object)?;
-                emit_particle_6::emit_particle_6(wheel, object)
-            }
-            2..=4 | 6..=9 | 0xC => {
-                emit_bursts::emit_bursts(wheel, object)?;
-                emit_particle_6::emit_particle_6(wheel, object)
-            }
-            5 => emit_particle_5::emit_particle_5(wheel, object),
-            0xB => emit_particle_11::emit_particle_11(wheel, object),
-            _ => Ok(()),
+pub fn emit(table: Table, kind: u32, wheel: u32, object: u32) -> Result<(), Refused> {
+    match kind {
+        1 if table == Table::Body => emit_particle_18::emit_particle_18(wheel, object),
+        1 => emit_kind_1::emit_kind_1(wheel, object),
+        3 if table == Table::Wheel => {
+            emit_bursts_2::emit_bursts_2(wheel, object)?;
+            emit_particle_6::emit_particle_6(wheel, object)
         }
+        2..=4 | 6..=9 | 0xC => {
+            emit_bursts::emit_bursts(wheel, object)?;
+            emit_particle_6::emit_particle_6(wheel, object)
+        }
+        5 => emit_particle_5::emit_particle_5(wheel, object),
+        0xB => emit_particle_11::emit_particle_11(wheel, object),
+        _ => Ok(()),
     }
 }
 
 /// The Rust version (see the header): `wheel` the wheel's record (the original's edi),
 /// `object` the car's object (esi).
-pub unsafe fn emit_wheel_particles(wheel: u32, object: u32) -> Result<(), Refused> {
+pub fn emit_wheel_particles(wheel: u32, object: u32) -> Result<(), Refused> {
     if wheel == 0 {
         return Err(BadInput("a null wheel").into());
     }
-    unsafe {
-        let (chance, _) = chance(wheel);
+    {
+        let (chance, _) = chance(wheel)?;
         RING_WORK.whole.set(chance as u32);
         let r = next_c5(&EMITTER.wheel_random);
         if copies(chance, r) {
-            let surface = [at(wheel + 0x28), at(wheel + 0x2C), at(wheel + 0x30)];
+            let surface = [at(wheel + 0x28)?, at(wheel + 0x2C)?, at(wheel + 0x30)?];
             for (n, v) in surface.iter().enumerate() {
-                ((wheel + 0x1C + 4 * n as u32) as *mut u32).write_unaligned(*v);
+                GamePtr::new(wheel + 0x1C + 4 * n as u32).write::<u32>(*v, "a mark's field")?;
             }
         }
-        emit(Table::Wheel, at(wheel + 0x1C), wheel, object)
+        emit(Table::Wheel, at(wheel + 0x1C)?, wheel, object)
     }
 }

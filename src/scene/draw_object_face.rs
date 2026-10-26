@@ -34,6 +34,7 @@
 use crate::errors::{BadInput, Refused};
 use crate::physics::camera_store::CAMERA_WORK;
 use crate::physics::ground_store::GROUND_WORK;
+use crate::pointers::GamePtr;
 use crate::race::course_lists_store::COURSE_LISTS;
 use crate::race::course_store::COURSE;
 use crate::race::sound_spots_store::RACE_SOUND_SPOTS;
@@ -78,22 +79,22 @@ pub unsafe fn draw_object_face(
         if face == 0 {
             return Err(BadInput("no face").into());
         }
-        let count = dword(face);
+        let count: u32 = GamePtr::new(face as u32).read("an object's face")?;
         let records: u32 = COURSE_LISTS.point_records.bits();
         if count == 0 || count > MOST || records == 0 {
             return Err(BadInput("a face of no vertices or more than 64, or no records").into());
         }
+        let words = GamePtr::new(face as u32)
+            .read_bytes(0x10 + count as usize * 0x10, "an object's face")?;
+        let fw = |at: usize| u32::from_le_bytes(words[at..at + 4].try_into().unwrap());
         let entries = crate::scene::polygon::entries_addr();
-        let vertices =
-            (0..count as usize).map(|n| (entries + n * ENTRY_LEN, face + 0x10 + n * 0x10));
+        let vertices = (0..count as usize).map(|n| (entries + n * ENTRY_LEN, 0x10 + n * 0x10));
         let view_kind: u32 = LIGHT_STATE.view_kind.bits();
         let shine: u32 = COURSE.shine.bits();
 
-        DRAW.face_word.set_bits(dword(face + 0xC));
-        LIGHT_STATE
-            .face_bits
-            .set_bits(((face + 7) as *const u8).read() as u32 & 0x1F);
-        let face_shine = ((face + 9) as *const u8).read() as u32;
+        DRAW.face_word.set_bits(fw(0xC));
+        LIGHT_STATE.face_bits.set_bits(words[7] as u32 & 0x1F);
+        let face_shine = words[9] as u32;
         DRAW.face_shine.set_bits(face_shine);
         let reflects = shine != 0
             && RACE_VARS.settings_words[1].bits() != 0
@@ -104,9 +105,9 @@ pub unsafe fn draw_object_face(
 
         if FRAME_SWITCHES.other_way.bits() != 0 && FRAME_SWITCHES.other_way_kind.bits() == 2 {
             for (entry, vertex) in vertices {
-                put(entry, dword(vertex).wrapping_neg());
-                put(entry + 0x10, dword(vertex + 4));
-                put(entry + 0x14, dword(vertex + 8));
+                put(entry, fw(vertex).wrapping_neg());
+                put(entry + 0x10, fw(vertex + 4));
+                put(entry + 0x14, fw(vertex + 8));
                 ((entry + 0x21) as *mut u8).write(0xFF);
                 put(entry + 0x18, OBJECT_WORK.other_light.bits());
             }
@@ -127,18 +128,15 @@ pub unsafe fn draw_object_face(
         );
         let lit = view_kind != 4
             && (face_kind == 0x1C || (face_kind != 5 && (face_kind < 0xA || face_unlit == 0)));
+        let table = crate::scene::reading::PointRecords::new(records)?;
         for (entry, vertex) in vertices.clone() {
-            let point = dword(vertex);
+            let point = fw(vertex);
             put(entry, point.wrapping_neg());
-            let record = records.wrapping_add(((point & 0xFFF) + 0x1000) << 5) as usize;
-            crate::session::write_bits(
-                &LIGHT_WORK.point_place,
-                ((record + 0x10) as *const [u32; 3]).read_unaligned(),
-            );
-            put(entry + 8, dword(vertex + 4));
-            put(entry + 0xC, dword(vertex + 8));
+            crate::session::write_bits(&LIGHT_WORK.point_place, table.place(point)?);
+            put(entry + 8, fw(vertex + 4));
+            put(entry + 0xC, fw(vertex + 8));
             let light = if lit {
-                vertex_light(dword(vertex + 0xC))?
+                vertex_light(fw(vertex + 0xC))?
             } else {
                 0x00FF_FFFF
             };
@@ -149,10 +147,10 @@ pub unsafe fn draw_object_face(
             for (entry, vertex) in vertices {
                 GROUND_WORK
                     .reflection_normal_number
-                    .set_bits(dword(vertex + 0xC));
+                    .set_bits(fw(vertex + 0xC));
                 GROUND_WORK
                     .reflection_point_number
-                    .set_bits(dword(vertex).wrapping_neg());
+                    .set_bits(fw(vertex).wrapping_neg());
                 cached_reflection_coordinates()?;
                 let coordinates: [u32; 2] =
                     crate::session::read_bits(&GROUND_WORK.reflection_coordinates);

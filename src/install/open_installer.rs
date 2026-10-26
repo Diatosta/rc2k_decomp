@@ -37,9 +37,7 @@ fn alloc(bytes: u32, _code: u32) -> Result<u32, Refused> {
 /// `files::read_file` (0x402BB6): `count` bytes of `path` into `buffer`; failing is fatal
 /// error `code`.
 fn read(path: usize, buffer: u32, count: u32, code: u32) -> Result<(), Refused> {
-    let read = unsafe {
-        crate::files::read_file::read_file(path as *const u8, buffer as *mut u8, count, 0)
-    }?;
+    let read = crate::files::read_file::read_file(path as *const u8, buffer as *mut u8, count, 0)?;
     if !read.ok {
         return Err(fatal(code));
     }
@@ -72,8 +70,8 @@ pub fn open_installer() -> Result<(), Refused> {
     )?;
     unsafe {
         crate::gfx::palette_to_dwords::palette_to_dwords(
-            INSTALLER_PALETTE.palette.addr() as u32 as *const u8,
-            crate::text::blend_font::BLENDED_PALETTE.addr() as *mut u32,
+            INSTALLER_PALETTE.palette.addr() as u32,
+            crate::text::blend_font::BLENDED_PALETTE.addr() as u32,
         )?;
         let blended = crate::text::blend_font::BLENDED_PALETTE.addr() as u32;
         components_to_pixels(

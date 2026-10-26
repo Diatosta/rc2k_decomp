@@ -16,7 +16,8 @@
 //! refuses (everything written put back).
 
 use crate::drive::replay_frames_store::REPLAY_FRAMES;
-use crate::errors::Refused;
+use crate::errors::{BadInput, Refused};
+use crate::pointers::GamePtr;
 use crate::race::blocks_store::CAR_BLOCKS;
 use crate::race::replay_work_store::REPLAY_WORK;
 use crate::race::view_store::RACE_VIEW;
@@ -24,18 +25,19 @@ use crate::race::viewer_state_store::REPLAY_VIEW;
 use rc2k_core::drive::replay_views::{WishStep, wish_step};
 
 /// Byte `k` of the frame's head (the first car block's start, `g_carBlockStore`).
-fn head_byte(k: usize) -> u32 {
-    unsafe { ((CAR_BLOCKS.cars[0].unknown_0[0].addr() + k) as *const u8).read() as u32 }
+fn head_byte(k: usize) -> Result<u32, BadInput> {
+    GamePtr::new((CAR_BLOCKS.cars[0].unknown_0[0].addr() + k) as u32)
+        .read::<u8>("a car's block")
+        .map(u32::from)
 }
 
 /// `dword_719F14[head byte]`: the table holds 47; a larger byte reads on into the
 /// variables after it, as the original does.
-fn wish_of(byte: usize) -> u32 {
+fn wish_of(byte: usize) -> Result<u32, BadInput> {
     match REPLAY_WORK.replay_camera_wishes.get(byte) {
-        Some(wish) => wish.get(),
-        None => unsafe {
-            ((REPLAY_WORK.replay_camera_wishes[0].addr() + 4 * byte) as *const u32).read_unaligned()
-        },
+        Some(wish) => Ok(wish.get()),
+        None => GamePtr::new((REPLAY_WORK.replay_camera_wishes[0].addr() + 4 * byte) as u32)
+            .read("the replay camera wishes"),
     }
 }
 
@@ -49,7 +51,7 @@ fn steps() -> Result<(), Refused> {
         .set(CAR_BLOCKS.cars[0].unknown_0[1].bits());
     for c in 0..2usize {
         let car = &CAR_BLOCKS.cars[c];
-        let wish = wish_of(head_byte(c) as usize);
+        let wish = wish_of(head_byte(c)? as usize)?;
         match wish_step(
             wish,
             REPLAY_VIEW.replay_block.get(),
@@ -94,7 +96,7 @@ fn steps() -> Result<(), Refused> {
     .into_iter()
     .enumerate()
     {
-        to.set(head_byte(2 + k));
+        to.set(head_byte(2 + k)?);
     }
     Ok(())
 }

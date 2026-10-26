@@ -21,9 +21,9 @@ use crate::race::pace_notes::{Course, Machine};
 /// all (liveness): the walk's registers start from nothing.
 pub fn init_pace_notes_on(course: Course) -> Result<(), Refused> {
     // Converted: `rc2k_core::race::pace_notes::Notes::init`.
-    let mut m = Machine::load(course);
+    let mut m = Machine::load(course)?;
     m.init()?;
-    m.commit();
+    m.commit()?;
     Ok(())
 }
 

@@ -13,46 +13,48 @@
 //!
 //! Caller: `race::viewer_frame` (each item).
 
+use crate::errors::BadInput;
 use crate::errors::Refused;
 use crate::install::vars::INSTALLER_PAGES;
+use crate::pointers::GamePtr;
 use crate::race::viewer_screen_store::VIEWER_PANEL;
 use crate::race::viewer_state_store::REPLAY_VIEW;
 
-fn camera_byte(byte: usize) -> u32 {
-    crate::race::viewer::camera_byte_at(
+fn camera_byte(byte: usize) -> Result<u32, BadInput> {
+    Ok(crate::race::viewer::camera_byte_at(
         byte.wrapping_add(8 * REPLAY_VIEW.replay_block.get() as usize),
-    ) as u32
+    )? as u32)
 }
 
 /// The Rust version. `item` the list item (the original's esi), `index` its number
 /// (ecx). The original keeps every register.
 pub fn draw_viewer_item(item: u32, index: u32) -> Result<(), Refused> {
-    let byte = |n: u32| unsafe { ((item + n) as *const u8).read() };
-    let word = |at: u32| unsafe { (at as *const u32).read_unaligned() };
-    if byte(0) & 0x40 != 0 {
+    let byte = |n: u32| GamePtr::new(item + n).read::<u8>("a list item's byte");
+    let word = |at: u32| GamePtr::new(at).read::<u32>("a list item's word");
+    if byte(0)? & 0x40 != 0 {
         return Ok(());
     }
-    let mut picture = word(item + 0xC);
+    let mut picture = word(item + 0xC)?;
     // Converted: `rc2k_core::race::viewer::{switch_byte, centred, item_colour}`.
     use rc2k_core::race::viewer::{centred, item_colour, switch_byte};
     if picture == (VIEWER_PANEL.switch_pictures_a[0].addr() as u32) {
-        let n = camera_byte(switch_byte(byte(1)) as usize);
-        picture = word(picture.wrapping_add(4 * n));
+        let n = camera_byte(switch_byte(byte(1)?) as usize)?;
+        picture = word(picture.wrapping_add(4 * n))?;
     }
     if picture == (VIEWER_PANEL.switch_pictures_b[0].addr() as u32) {
-        picture = word(picture.wrapping_add(4 * camera_byte(5)));
+        picture = word(picture.wrapping_add(4 * camera_byte(5)?))?;
     }
     if picture == (VIEWER_PANEL.switch_pictures_c[0].addr() as u32) {
-        picture = word(picture.wrapping_add(4 * camera_byte(4)));
+        picture = word(picture.wrapping_add(4 * camera_byte(4)?))?;
     }
-    let place = word(item + 4);
-    let width = (word(picture + 8) as i32).unsigned_abs();
+    let place = word(item + 4)?;
+    let width = (word(picture + 8)? as i32).unsigned_abs();
     VIEWER_PANEL.item_place[2].set(width); // dword_5C29FC: the quad's place
-    VIEWER_PANEL.item_place[0].set(centred(word(place), word(place + 8), width));
-    VIEWER_PANEL.item_place[1].set(word(place + 4));
-    VIEWER_PANEL.item_place[3].set(word(place + 0xC));
+    VIEWER_PANEL.item_place[0].set(centred(word(place)?, word(place + 8)?, width));
+    VIEWER_PANEL.item_place[1].set(word(place + 4)?);
+    VIEWER_PANEL.item_place[3].set(word(place + 0xC)?);
     let colour = item_colour(
-        byte(0),
+        byte(0)?,
         index == INSTALLER_PAGES.choice.get(),
         || {
             crate::race::viewer_buffers_store::VIEWER_BUFFERS

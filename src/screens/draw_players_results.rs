@@ -14,6 +14,6 @@ use crate::screens::players_results::{WITHOUT_POINTS, draw_players_results};
 use crate::text::draw_text::Canvas;
 
 /// The Rust version (see the header).
-pub unsafe fn draw(canvas: &mut dyn Canvas) -> Result<(), Refused> {
-    unsafe { draw_players_results(&WITHOUT_POINTS, canvas) }
+pub fn draw(canvas: &mut dyn Canvas) -> Result<(), Refused> {
+    draw_players_results(&WITHOUT_POINTS, canvas)
 }

@@ -9,9 +9,10 @@
 use crate::input::devices::put;
 
 /// The Rust version (see the header).
-pub fn clear_device_readings(record: u32) {
+pub fn clear_device_readings(record: u32) -> Result<(), crate::errors::BadInput> {
     // Converted: `rc2k_core::input::devices::CLEARED_READINGS`.
     for (offset, value) in rc2k_core::input::devices::CLEARED_READINGS {
-        put(record, offset as u32, value);
+        put(record, offset as u32, value)?;
     }
+    Ok(())
 }

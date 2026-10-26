@@ -10,21 +10,24 @@
 
 use crate::errors::BadInput;
 use crate::files::read_file::read_file;
+use crate::pointers::GamePtr;
 use crate::settings::TEXT_ROOM;
 
 // ---- Rust version ----
 
 /// The text (NUL-terminated) and its length, or None if the file was not read.
 /// Refuses what `read_file` refuses.
-pub unsafe fn read_text(path: *const u8) -> Result<Option<(*const u8, u32)>, BadInput> {
-    unsafe {
+pub fn read_text(path: *const u8) -> Result<Option<(*const u8, u32)>, BadInput> {
+    {
         let text = crate::files::scratch::SCRATCH.buffer.addr() as *mut u8;
         let read = read_file(path, text, TEXT_ROOM, 0)?;
         // Converted: `rc2k_core::files::settings::text_read`.
         let Some(bytes) = rc2k_core::files::settings::text_read(read.ok, read.bytes_read) else {
             return Ok(None);
         };
-        text.add(bytes as usize).write(0);
+        GamePtr::new(text as u32)
+            .offset(bytes)
+            .write(0u8, "the settings text's end")?;
         Ok(Some((text, bytes)))
     }
 }

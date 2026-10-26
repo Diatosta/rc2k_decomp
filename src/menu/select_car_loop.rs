@@ -43,9 +43,10 @@ unsafe fn set_up_first(c: &mut Carried) -> Result<(), Refused> {
     unsafe {
         // The current player's +0x30 (its car).
         let current: u32 = EVENT_STATE.current_player.get();
-        let player =
-            read_at((PLAYER_TABLE.pointers[0].addr() as u32).wrapping_add(current.wrapping_mul(4)));
-        c.arg = read_at(player.wrapping_add(0x30));
+        let player = read_at(
+            (PLAYER_TABLE.pointers[0].addr() as u32).wrapping_add(current.wrapping_mul(4)),
+        )?;
+        c.arg = read_at(player.wrapping_add(0x30))?;
         SCREEN_FLOW.shown_gearing.set(c.arg);
         SCREEN_FLOW.turning.set(0x1u32);
         MENU_STATE.carousel.menu.set(0xDu32);
@@ -66,7 +67,7 @@ unsafe fn set_up_first(c: &mut Carried) -> Result<(), Refused> {
     Ok(())
 }
 
-unsafe fn after_first_frame(_c: &mut Carried) -> Result<Flow, Refused> {
+fn after_first_frame(_c: &mut Carried) -> Result<Flow, Refused> {
     if quitting() as u32 == 0x1 {
         return Ok(Flow::Leave);
     }

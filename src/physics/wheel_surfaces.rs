@@ -37,14 +37,17 @@ use crate::physics::car_store::CAR;
 use crate::physics::contact_store::CONTACT_WORK;
 use crate::physics::flip_cell_index::flip_cell_index;
 use crate::physics::tables_store::PHYSICS;
+use crate::pointers::GamePtr;
 use crate::race::course_store::COURSE;
 use crate::race::view_store::RACE_VIEW;
 use crate::scene::draw_store::DRAW;
 use crate::scene::x87_mem::{fild, fistp, fld, fstp};
 use std::cmp::Ordering;
 
-unsafe fn byte(a: u32) -> u32 {
-    unsafe { (a as *const u8).read() as u32 }
+fn byte(a: u32) -> Result<u32, Refused> {
+    Ok(u32::from(
+        GamePtr::new(a).read::<u8>("a face's or texture record's byte")?,
+    ))
 }
 
 /// `fld v[c] x 65536; fistp` through `dword_62400C` (`v` the table's offset from the base).
@@ -80,7 +83,7 @@ unsafe fn steps() -> Result<(), Refused> {
     for c in 0..5u32 {
         let cc = c as usize;
         let f = (CAR.probe_point_face[cc].get() << 6).wrapping_add(COURSE.course_faces.get());
-        let t1 = infos + (unsafe { byte(f + 1) } << 6);
+        let t1 = infos + (byte(f + 1)? << 6);
         let mut edx = unsafe { share_bit(0x2D2B14, c) };
         let mut ebx = unsafe { share_bit(0x2D2A14, c) };
         edx = (edx >> 15) & 1;
@@ -89,41 +92,43 @@ unsafe fn steps() -> Result<(), Refused> {
             edx ^= 1;
             ebx ^= 1;
         }
-        let (_, _, d1) = flip_cell_index(unsafe { byte(f) }, ebx, edx);
+        let (_, _, d1) = flip_cell_index(byte(f)?, ebx, edx);
         PHYSICS.surface_firsts[cc].set(d1);
-        let (_, _, d2) = flip_cell_index(unsafe { byte(f + 0x20) }, ebx, edx);
+        let (_, _, d2) = flip_cell_index(byte(f + 0x20)?, ebx, edx);
         PHYSICS.surface_seconds[cc].set(d2);
-        unsafe {
+        {
             let e = PHYSICS.surface_firsts[cc].get();
-            CAR.wheel_surface_a[cc].set(byte(e + t1 + 0x10));
-            CAR.wheel_cell_a_byte18[cc].set(byte(e + t1 + 0x18));
-            CAR.wheel_cell_a_byte14[cc].set(byte(e + t1 + 0x14));
-            let t2 = infos + (byte(f + 0x21) << 6);
+            CAR.wheel_surface_a[cc].set(byte(e + t1 + 0x10)?);
+            CAR.wheel_cell_a_byte18[cc].set(byte(e + t1 + 0x18)?);
+            CAR.wheel_cell_a_byte14[cc].set(byte(e + t1 + 0x14)?);
+            let t2 = infos + (byte(f + 0x21)? << 6);
             let e2 = PHYSICS.surface_seconds[cc].get();
-            CAR.wheel_surface_b[cc].set(byte(e2 + t2 + 0x10));
-            CAR.wheel_cell_b_byte18[cc].set(byte(e2 + t2 + 0x18));
-            CAR.wheel_cell_b_byte14[cc].set(byte(e2 + t2 + 0x14));
+            CAR.wheel_surface_b[cc].set(byte(e2 + t2 + 0x10)?);
+            CAR.wheel_cell_b_byte18[cc].set(byte(e2 + t2 + 0x18)?);
+            CAR.wheel_cell_b_byte14[cc].set(byte(e2 + t2 + 0x14)?);
             CAR.wheel_surface_blend[cc].set_bits(0);
-            let kind_index = byte(t2 + 0x2C);
+            let kind_index = byte(t2 + 0x2C)?;
             // The index is a byte: past the four kinds the original reads on (a slip).
             let kind = match RACE_VIEW.surface_kinds.get(kind_index as usize) {
                 Some(cell) => cell.get(),
-                None => ((RACE_VIEW.surface_kinds[0].addr() + 4 * kind_index as usize)
-                    as *const u32)
-                    .read_volatile(),
+                None => GamePtr::new(
+                    (RACE_VIEW.surface_kinds[0].addr() + 4 * kind_index as usize) as u32,
+                )
+                .read::<u32>("the surface kinds (a byte index past the table)")?,
             };
-            if kind != 5 && kind != 4 && CAR.wheel_surface_b[cc].get() != 0 && byte(f + 0x21) != 0 {
+            if kind != 5 && kind != 4 && CAR.wheel_surface_b[cc].get() != 0 && byte(f + 0x21)? != 0
+            {
                 let (x, y, z) = if CONTACT_WORK.probe_face_flip[cc].get() == 1 {
-                    (byte(f + 0x25), byte(f + 0x24), byte(f + 0x23))
+                    (byte(f + 0x25)?, byte(f + 0x24)?, byte(f + 0x23)?)
                 } else {
-                    (byte(f + 0x22), byte(f + 0x23), byte(f + 0x24))
+                    (byte(f + 0x22)?, byte(f + 0x23)?, byte(f + 0x24)?)
                 };
                 DRAW.surface_point[0].set(x);
                 DRAW.surface_point[1].set(y.wrapping_sub(x));
                 DRAW.surface_point[2].set(z.wrapping_sub(x));
                 x87_2(crate::race::store::asm_base() as usize, c as usize);
             }
-            if ((f + 2) as *const u16).read_unaligned() & 0x1000 != 0 {
+            if GamePtr::new(f + 2).read::<u16>("a face's flags")? & 0x1000 != 0 {
                 CAR.wheel_surface_a[cc].set(5);
                 CAR.wheel_surface_b[cc].set(5);
                 CAR.wheel_cell_a_byte18[cc].set(0x3C);
@@ -143,7 +148,10 @@ unsafe fn steps() -> Result<(), Refused> {
                 crate::race::store::asm_base() as usize,
                 c as usize,
             );
-            let (ps, pd) = (*(esi as *const u32), *(edi as *const u32));
+            let (ps, pd) = (
+                GamePtr::new(esi).read::<u32>("a surface record")?,
+                GamePtr::new(edi).read::<u32>("a surface record")?,
+            );
             let k = CAR.tyre_kind.get();
             x87_4(
                 ps as usize,

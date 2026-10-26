@@ -13,27 +13,17 @@
 //! registers above are the original's, for reference.
 
 use crate::errors::BadInput;
-
-/// The bytes of a NUL-terminated text, without the NUL (an unbounded scan, as the
-/// original's).
-pub unsafe fn text_of<'a>(text: *const u8) -> &'a [u8] {
-    unsafe { std::ffi::CStr::from_ptr(text.cast()).to_bytes() }
-}
+use crate::pointers::GamePtr;
 
 /// The Rust version: the cursor after, and whether a directory was found.
-pub unsafe fn append_directory(
-    path: *const u8,
-    cursor: *mut u8,
-) -> Result<(*mut u8, bool), BadInput> {
+pub fn append_directory(path: *const u8, cursor: *mut u8) -> Result<(*mut u8, bool), BadInput> {
     if path.is_null() {
         return Err(BadInput("a null path"));
     }
-    // Converted: `rc2k_core::files::paths::directory`.
-    let Some(directory) = rc2k_core::files::paths::directory(unsafe { text_of(path) }) else {
+    let text = crate::files::cstring(GamePtr::new(path as u32), "a path")?;
+    let Some(directory) = rc2k_core::files::paths::directory(&text) else {
         return Ok((cursor, false));
     };
-    unsafe {
-        std::ptr::copy(directory.as_ptr(), cursor, directory.len());
-        Ok((cursor.add(directory.len()), true))
-    }
+    GamePtr::new(cursor as u32).write_bytes(directory, "a path being built")?;
+    Ok((cursor.wrapping_add(directory.len()), true))
 }

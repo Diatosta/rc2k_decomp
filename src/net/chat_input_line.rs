@@ -21,7 +21,7 @@ pub fn chat_input_line(text: u32, item: u32, y: u32) -> Result<u32, Refused> {
         let mut cursor = Cursor::text();
         cursor.string(text);
         cursor.string_id(4);
-        cursor.nul();
+        cursor.nul()?;
         TEXT_BUFFER.text.addr() as u32
     } else {
         text

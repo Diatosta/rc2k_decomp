@@ -24,17 +24,35 @@ const PLAYER_ENTRY: u32 = 0xD0;
 
 pub struct Game {
     pub f: Flow,
+    /// A refused read or write of the core's variables (checked at each call and at the end).
+    fault: Fault,
 }
 
 impl Game {
     pub fn new(c: &Carried) -> Self {
-        Self { f: Flow::new(c) }
+        Self {
+            f: Flow::new(c),
+            fault: Fault::default(),
+        }
     }
 
     /// A flow that goes on from the registers this one has (a nested flow: its changes
     /// are its own).
     pub fn nested(f: &Flow) -> Self {
-        Self { f: *f }
+        Self {
+            f: *f,
+            fault: Fault::default(),
+        }
+    }
+
+    /// Runs a flow on this game; a refused read or write of its variables ends it.
+    pub fn run<T>(
+        mut self,
+        flow: impl FnOnce(&mut Game) -> Result<T, Refused>,
+    ) -> Result<T, Refused> {
+        let done = flow(&mut self);
+        self.fault.check()?;
+        done
     }
 }
 
@@ -133,8 +151,8 @@ impl flow::Game for Game {
     fn get(&mut self, v: Var) -> u32 {
         match place(v) {
             Place::Cell(cell) => cell.get(),
-            Place::Player(n, offset) => dword(player(n) + offset),
-            Place::Record(offset) => dword(self.f.record + offset),
+            Place::Player(n, offset) => self.fault.get(player(n) + offset),
+            Place::Record(offset) => self.fault.get(self.f.record + offset),
             Place::Quitting => crate::session::FLAGS.quitting.get(),
         }
     }
@@ -144,14 +162,15 @@ impl flow::Game for Game {
             Place::Cell(cell) => cell.set(value),
             Place::Player(n, offset) => {
                 self.f.record = player(n);
-                put(self.f.record + offset, value);
+                self.fault.put(self.f.record + offset, value);
             }
-            Place::Record(offset) => put(self.f.record + offset, value),
+            Place::Record(offset) => self.fault.put(self.f.record + offset, value),
             Place::Quitting => crate::session::FLAGS.quitting.set(value),
         }
     }
 
     fn call(&mut self, c: flow::Call) -> Result<Reply, Refused> {
+        self.fault.check()?;
         use crate::menu as m;
         use flow::Call as C;
         unsafe {
@@ -164,7 +183,7 @@ impl flow::Game for Game {
                 C::ClearPlayers284 => m::clear_players_284::clear_players_284()?,
                 C::TakePlayer1Units => m::take_player1_units::take_player1_units()?,
                 C::ResetCars750724 => m::reset_cars_750724::reset_cars_750724()?,
-                C::ClearEventState => m::clear_event_state::clear_event_state(),
+                C::ClearEventState => m::clear_event_state::clear_event_state()?,
                 C::ReadyPlayers => m::ready_players::ready_players()?,
                 C::ResetSingleEvent => m::reset_single_event::reset_single_event()?,
                 C::ChampionshipWelcome => m::championship_welcome::championship_welcome(&self.f)?,
@@ -176,10 +195,10 @@ impl flow::Game for Game {
                     self.f.c.arg = index;
                     // The original has no end-of-table check: a section past the table's
                     // is refused.
-                    if !has_section(self.f.record, section, 600) {
+                    if !has_section(self.f.record, section, 600)? {
                         return Err(BadInput("a record section past the table").into());
                     }
-                    self.f.record = find_record_in(self.f.record, index as i32, section);
+                    self.f.record = find_record_in(self.f.record, index as i32, section)?;
                 }
                 C::NextRecordKind => self.f.c.arg = m::next_record_kind::next_record_kind()?,
                 C::WelcomeLoop => self.screen(&m::welcome_loop::SCREEN)?,
@@ -245,10 +264,10 @@ impl flow::Game for Game {
                 C::Review481429 => self.screen(&m::review_options_481429_loop::SCREEN)?,
                 // `from_entry`: the entry's registers are the ones it leaves, and it
                 // reads none.
-                C::ShowInGameOptions { .. } => m::in_game_options_items::show_in_game_options(),
+                C::ShowInGameOptions { .. } => m::in_game_options_items::show_in_game_options()?,
                 C::HideInGameOptions { players } => {
                     self.f.c.arg = players;
-                    m::in_game_options_items::hide_in_game_options(players)
+                    m::in_game_options_items::hide_in_game_options(players)?
                 }
                 C::ResetPlayerTimes => m::reset_player_times::reset_player_times()?,
                 C::ReloadFrontEnd => m::reload_front_end::reload_front_end()?,

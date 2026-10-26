@@ -12,6 +12,8 @@
 //! Caller: `drive::replay_step`.
 
 use crate::drive::replay_frames_store::REPLAY_FRAMES;
+use crate::errors::BadInput;
+use crate::pointers::GamePtr;
 use crate::race::blocks_store::CAR_BLOCKS;
 use crate::race::numbers_store::NUMBERS;
 use rc2k_core::drive::replay_frames::{
@@ -22,7 +24,7 @@ const SIZE: usize = SLOT_SIZE as usize;
 
 /// The Rust version.
 // Converted: `rc2k_core::drive::replay_frames::{frame_and_tenth, slot_offset}`.
-pub unsafe fn keep_replay_frame() {
+pub fn keep_replay_frame() -> Result<(), BadInput> {
     REPLAY_FRAMES.frame.set(0);
     REPLAY_FRAMES.tenth.set(0);
     if NUMBERS.replay_mode.get() != PLAYING {
@@ -33,15 +35,14 @@ pub unsafe fn keep_replay_frame() {
     if REPLAY_FRAMES.tenth.get() == 0 {
         let offset = slot_offset(REPLAY_FRAMES.frame.get());
         let to = REPLAY_FRAMES.slots.addr() as u32 + offset;
-        unsafe {
-            std::ptr::copy(
-                crate::race::blocks_store::block_addr(0) as *const u8,
-                to as *mut u8,
-                SIZE,
-            )
-        };
+        GamePtr::new(crate::race::blocks_store::block_addr(0) as u32).copy_to(
+            GamePtr::new(to),
+            SIZE,
+            "a car's block",
+        )?;
         if NUMBERS.replay_mode.get() == RECORDING {
-            crate::drive::save_replay_cars::save_replay_cars();
+            crate::drive::save_replay_cars::save_replay_cars()?;
         }
     }
+    Ok(())
 }

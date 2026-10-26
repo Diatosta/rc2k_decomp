@@ -18,6 +18,7 @@
 //! above are the original's, for reference.
 
 use crate::errors::Refused;
+use crate::physics::cells::Trap;
 use crate::race::course_store::COURSE;
 use crate::race::kind_records_store::KIND_RECORDS;
 use rc2k_core::physics::course_records::{Search, find_record, kind_of};
@@ -44,30 +45,35 @@ impl RecordPlaces {
     }
 }
 
-unsafe fn at(a: u32) -> u32 {
-    unsafe { (a as *const u32).read_unaligned() }
+/// A dword of the kind tables, the record list or a record (the tables are the game's
+/// stores; the records its allocation).
+fn at(a: u32) -> Result<u32, crate::errors::BadInput> {
+    crate::pointers::GamePtr::new(a).read::<u32>("a course record's field or a record table")
 }
 
 /// The Rust core: the record of cell `key` (eax at entry), None when the cell has none
 /// (CF). The other registers it leaves (eax, edx the key, ebp its high part, esi the
 /// record's address) are read by none of its callers.
 // Converted: `rc2k_core::physics::course_records::find_record`.
-pub unsafe fn find_course_record_at(p: &RecordPlaces, key: u32) -> Result<Option<u32>, Refused> {
-    unsafe {
-        let (kind, _) = kind_of(key);
-        let first = at(p.firsts + 4 * kind);
-        let last = at(p.lasts + 4 * kind);
-        let record = |n: u32| at(p.records).wrapping_add(n << 5);
-        Ok(
-            match find_record(key, first, last, p.count, |n| at(record(n)))? {
-                Search::Found { number } => Some(number),
-                Search::Empty | Search::Missing { .. } => None,
-            },
-        )
-    }
+pub fn find_course_record_at(p: &RecordPlaces, key: u32) -> Result<Option<u32>, Refused> {
+    let (kind, _) = kind_of(key);
+    let first = at(p.firsts + 4 * kind)?;
+    let last = at(p.lasts + 4 * kind)?;
+    let trap = Trap::new();
+    let found = find_record(key, first, last, p.count, |n| {
+        let record = trap
+            .dword(p.records, "the course records' table")
+            .wrapping_add(n << 5);
+        trap.dword(record, "a course record's key")
+    })?;
+    trap.finish()?;
+    Ok(match found {
+        Search::Found { number } => Some(number),
+        Search::Empty | Search::Missing { .. } => None,
+    })
 }
 
 /// The Rust version.
-pub unsafe fn find_course_record(key: u32) -> Result<Option<u32>, Refused> {
-    unsafe { find_course_record_at(&RecordPlaces::game(), key) }
+pub fn find_course_record(key: u32) -> Result<Option<u32>, Refused> {
+    find_course_record_at(&RecordPlaces::game(), key)
 }

@@ -25,8 +25,8 @@ pub unsafe fn play_replay_frame() -> Result<(), Refused> {
     };
     if whole {
         unsafe { crate::drive::load_replay_frame::load_replay_frame() }?;
-        crate::drive::replay_check::compare_frame();
-        crate::drive::load_replay_cars::load_replay_cars();
+        crate::drive::replay_check::compare_frame()?;
+        crate::drive::load_replay_cars::load_replay_cars()?;
     }
     unsafe { crate::drive::replay_cameras::replay_cameras() }
 }

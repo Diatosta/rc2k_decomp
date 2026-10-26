@@ -20,7 +20,7 @@ pub unsafe fn race_step() -> Result<(), Refused> {
     if PHYSICS.frame_cleared[1].get() == 0 {
         rc2k_core::drive::race_ticks::run_ticks(PHYSICS.race_tenths.get(), |ecx| {
             unsafe { crate::drive::race_tick::race_tick() }?;
-            let out = unsafe { crate::race::frame::players_all_out() }?;
+            let out = crate::race::frame::players_all_out()?;
             Ok::<_, Refused>((out, ecx))
         })?;
     }

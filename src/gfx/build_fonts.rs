@@ -32,6 +32,7 @@ use crate::gfx::glyph_tables::{
 use crate::gfx::typefaces::FONTS;
 use crate::memory::allocate::allocate;
 use crate::memory::take_from_list::{rewind_list, take_from_list};
+use crate::pointers::GamePtr;
 use crate::session::{Dword, SCREEN};
 
 // ---- game data ----
@@ -219,7 +220,7 @@ const HUNG: [(usize, Field, Source, u32); 125] = [
 /// The part with the calls; `palettes` is where the palettes' place is kept. (The
 /// original's fatal error 0x80E48023 for a failed allocation cannot come: the allocator
 /// reports its own.)
-unsafe fn tables(palettes: *mut u32) -> Result<(), Refused> {
+unsafe fn tables(palettes: u32) -> Result<(), Refused> {
     unsafe {
         let list = TABLES.memory.as_ptr();
         let bytes = TABLES
@@ -228,22 +229,25 @@ unsafe fn tables(palettes: *mut u32) -> Result<(), Refused> {
             .wrapping_mul(0x400)
             .wrapping_mul(SCREEN.bytes.get());
         allocate(list, bytes)?;
-        rewind_list(list);
+        rewind_list(list)?;
         begin_glyph_tables()?;
         DECODER.builder_flags.set(RUN_LENGTHS);
-        palettes.write_unaligned(take_from_list(list, 0x400)?.unwrap_or(0));
+        GamePtr::new(palettes).write(
+            take_from_list(list, 0x400)?.unwrap_or(0),
+            "the fonts' palettes' place",
+        )?;
         begin_glyph_table(list)?;
         build_glyphs(
             crate::gfx::texts::address(&crate::gfx::texts::PAL_00) as *const u8,
             list,
         )?;
         MENU_FONTS.font27_glyphs.set(SHEET.table.get());
-        palette_to_pixels(palettes.read_unaligned() as *mut u32)?;
-        std::ptr::copy(
-            DECODER.palette_ptr() as *const u8,
-            crate::session::address_of(&MENU_FONTS.palette_sheet) as *mut u8,
+        palette_to_pixels(GamePtr::new(palettes).read("the fonts' palettes' place")?)?;
+        GamePtr::new(DECODER.palette_ptr() as usize as u32).copy_to(
+            GamePtr::new(crate::session::address_of(&MENU_FONTS.palette_sheet) as u32),
             PALETTE_BYTES,
-        );
+            "the fonts' palette sheet",
+        )?;
         for (sheet, kept) in font_sheets() {
             begin_glyph_table(list)?;
             build_glyphs(sheet as *const u8, list)?;
@@ -268,7 +272,7 @@ pub unsafe fn build_fonts() -> Result<(), Refused> {
             }
             .into());
         }
-        tables(MENU_FONTS.palettes.as_ptr())?;
+        tables(MENU_FONTS.palettes.addr() as u32)?;
         for (font, field, variable, plus) in HUNG {
             let object = &FONTS.objects[font];
             let value = hung_value(variable, plus);

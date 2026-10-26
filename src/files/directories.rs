@@ -12,20 +12,26 @@
 // Phase 6 (2026-10-24): `std::fs` / `std::env` in place of the Win32 calls (`SetCurrentDirectoryA`,
 // `CreateDirectoryA`, `RemoveDirectoryA`, `DeleteFileA`): the same cases fail (a folder
 // already there, one not empty, a read-only file), the answer 1 or 0 as the BOOL was.
+use crate::errors::BadInput;
 use crate::files::ansi_path;
+use crate::pointers::GamePtr;
 
-pub unsafe fn set_current_directory(path: *const u8) -> u32 {
-    std::env::set_current_dir(unsafe { ansi_path(path) }).is_ok() as u32
+fn path(path: *const u8) -> Result<std::path::PathBuf, BadInput> {
+    ansi_path(GamePtr::new(path as u32))
 }
 
-pub unsafe fn make_directory(path: *const u8) -> u32 {
-    std::fs::create_dir(unsafe { ansi_path(path) }).is_ok() as u32
+pub fn set_current_directory(at: *const u8) -> Result<u32, BadInput> {
+    Ok(std::env::set_current_dir(path(at)?).is_ok() as u32)
 }
 
-pub unsafe fn remove_directory(path: *const u8) -> u32 {
-    std::fs::remove_dir(unsafe { ansi_path(path) }).is_ok() as u32
+pub fn make_directory(at: *const u8) -> Result<u32, BadInput> {
+    Ok(std::fs::create_dir(path(at)?).is_ok() as u32)
 }
 
-pub unsafe fn delete_file(path: *const u8) -> u32 {
-    std::fs::remove_file(unsafe { ansi_path(path) }).is_ok() as u32
+pub fn remove_directory(at: *const u8) -> Result<u32, BadInput> {
+    Ok(std::fs::remove_dir(path(at)?).is_ok() as u32)
+}
+
+pub fn delete_file(at: *const u8) -> Result<u32, BadInput> {
+    Ok(std::fs::remove_file(path(at)?).is_ok() as u32)
 }

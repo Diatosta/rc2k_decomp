@@ -27,9 +27,11 @@ pub fn set_item(number: u32, on: bool) -> Result<(), Refused> {
         Font::Plain => PLAIN_FONT,
         Font::Grey => GREY_FONT,
     };
-    unsafe {
-        ((item + 0x48) as *mut u32).write_unaligned(state);
-        ((item + 0x18) as *mut u32).write_unaligned(font.addr() as u32);
+    {
+        crate::pointers::GamePtr::new(item + 0x48)
+            .write::<u32>(state, "disable item: a game value")?;
+        crate::pointers::GamePtr::new(item + 0x18)
+            .write::<u32>(font.addr() as u32, "disable item: a game value")?;
     }
     Ok(())
 }

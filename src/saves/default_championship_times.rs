@@ -26,11 +26,11 @@ use rc2k_core::saves::defaults::{Championship, RALLIES, RALLY_TABLE_LEN, champio
 
 // ---- Rust version ----
 
-pub unsafe fn default_championship_times(ebp: u32, log: Log) -> Result<(), Refused> {
+pub fn default_championship_times(ebp: u32, log: Log) -> Result<(), Refused> {
     // Converted: `rc2k_core::saves::defaults::championship_times`.
-    unsafe {
+    {
         let records_at = crate::records::stages_store::STAGE_TABLES.championship();
-        let stages = count_stages(records_at as *const u8)?;
+        let stages = count_stages(records_at)?;
         let count = records(records_at)?;
         let table: u32 = CHAMP_VIEW.stage_best_times.get();
         if stages == 0 || table == 0 {
@@ -38,7 +38,7 @@ pub unsafe fn default_championship_times(ebp: u32, log: Log) -> Result<(), Refus
         }
         let records: Vec<_> = (0..count as u32)
             .map(|n| read_record(records_at + n * RECORD_LEN))
-            .collect();
+            .collect::<Result<_, _>>()?;
         let mut tables = vec![(table, (stages * STAGE_LEN) as usize)];
         let mut present = [false; RALLIES];
         for (rally, there) in present.iter_mut().enumerate() {
@@ -53,7 +53,7 @@ pub unsafe fn default_championship_times(ebp: u32, log: Log) -> Result<(), Refus
             present,
             with_checkpoints(),
         )?;
-        apply(&filled, &tables);
+        apply(&filled, &tables)?;
         Ok(())
     }
 }

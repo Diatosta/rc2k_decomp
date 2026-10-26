@@ -16,7 +16,7 @@ use crate::text::draw_text::Canvas;
 
 // ---- Rust version ----
 
-pub unsafe fn draw_background_band(palette: u32, canvas: &mut dyn Canvas) -> Result<(), Refused> {
+pub fn draw_background_band(palette: u32, canvas: &mut dyn Canvas) -> Result<(), Refused> {
     // Converted: `rc2k_core::screens::controller_page::background_band`.
     use rc2k_core::screens::controller_page::{Font, Work, background_band};
     background_band(

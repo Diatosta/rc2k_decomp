@@ -15,6 +15,7 @@
 use crate::errors::{BadInput, FatalError, Refused};
 use crate::files::read_file::read_file;
 use crate::menu::loop_store::LOOP_FLAGS;
+use crate::pointers::GamePtr;
 use crate::saves::rebuild_car_lists::rebuild_car_lists;
 use crate::settings::TEXT_ROOM;
 
@@ -142,55 +143,47 @@ const _: () = {
 
 /// Where the function works: the game's own places, or a test's.
 pub struct Places<'a> {
-    pub loaded: *mut u32,
-    /// Where the piece with this number goes.
-    pub piece: &'a dyn Fn(usize) -> *mut u8,
+    pub loaded: &'a crate::session::Dword,
+    pub piece: &'a dyn Fn(usize) -> GamePtr,
     pub rebuild_car_lists: &'a mut dyn FnMut() -> Result<(), BadInput>,
 }
 
-/// True if the options were loaded.
-pub unsafe fn load_options(path: *const u8, places: &mut Places) -> Result<bool, Refused> {
-    unsafe {
-        places.loaded.write_unaligned(0);
-        let file = crate::files::scratch::SCRATCH.buffer.addr() as *mut u8;
-        let read = read_file(path, file, TEXT_ROOM + 1, 0)?;
-        // Converted: `rc2k_core::saves::kept` (`head_ok`, `pieces`), over the scratch block
-        // the file was read into (what it held past the file decides, as in the original).
-        use rc2k_core::saves::kept;
-        let block = std::slice::from_raw_parts(file, TEXT_ROOM as usize + 1);
-        if !read.ok || !kept::head_ok(block, kept::OPTIONS) {
-            return Ok(false);
-        }
-        let sizes = OPTIONS.map(|(_, len)| len);
-        let (pieces, ended) = kept::pieces(block, &sizes)?;
-        for (n, piece) in pieces.into_iter().enumerate() {
-            std::ptr::copy(piece.as_ptr(), (places.piece)(n), piece.len());
-        }
-        if !ended {
-            return Err(FatalError {
-                code: 0x80AC_FF01,
-                message: "ral.dat out of date",
-            }
-            .into());
-        }
-        (places.rebuild_car_lists)()?;
-        places.loaded.write_unaligned(1);
-        Ok(true)
+/// `saves::load_options` (see the header).
+pub fn load_options(path: *const u8, places: &mut Places) -> Result<bool, Refused> {
+    places.loaded.set(0);
+    let file = GamePtr::new(crate::files::scratch::SCRATCH.buffer.addr() as u32);
+    let read = read_file(path, file.addr() as usize as *mut u8, TEXT_ROOM + 1, 0)?;
+    use rc2k_core::saves::kept;
+    let block = file.read_bytes(TEXT_ROOM as usize + 1, "the options file")?;
+    if !read.ok || !kept::head_ok(&block, kept::OPTIONS) {
+        return Ok(false);
     }
+    let sizes = OPTIONS.map(|(_, len)| len);
+    let (pieces, ended) = kept::pieces(&block, &sizes)?;
+    for (n, piece) in pieces.into_iter().enumerate() {
+        (places.piece)(n).write_bytes(piece, "an option")?;
+    }
+    if !ended {
+        return Err(FatalError {
+            code: 0x80AC_FF01,
+            message: "ral.dat out of date",
+        }
+        .into());
+    }
+    (places.rebuild_car_lists)()?;
+    places.loaded.set(1);
+    Ok(true)
 }
 
-/// `load_options` on the game's own file and places.
-pub unsafe fn load_game_options() -> Result<bool, Refused> {
-    unsafe {
-        load_options(
-            PATH.addr() as *const u8,
-            &mut Places {
-                loaded: LOOP_FLAGS.options_loaded.addr() as *mut u32,
-                piece: &|n| crate::moved::place(OPTIONS[n].0 as usize) as *mut u8,
-                rebuild_car_lists: &mut || rebuild_car_lists(),
-            },
-        )
-    }
+pub fn load_game_options() -> Result<bool, Refused> {
+    load_options(
+        PATH.addr() as *const u8,
+        &mut Places {
+            loaded: &LOOP_FLAGS.options_loaded,
+            piece: &|n| GamePtr::new(crate::moved::place(OPTIONS[n].0 as usize) as u32),
+            rebuild_car_lists: &mut || rebuild_car_lists(),
+        },
+    )
 }
 
 #[cfg(test)]

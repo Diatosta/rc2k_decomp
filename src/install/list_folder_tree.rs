@@ -32,14 +32,16 @@ const DIRS_ROOM: u32 = 0x10000;
 const FILES_ROOM: u32 = 0x40000;
 
 fn same_name(a1: u32, a2: u32) -> bool {
-    unsafe { crate::strings::same_text::same_text(a1 as *const u8, a2 as *const u8) }
+    crate::menu::event_flow::refuse_here(
+        crate::strings::same_text::same_text(a1 as *const u8, a2 as *const u8),
+        "install::list_folder_tree: a name",
+    )
 }
 
 /// The found file's path (the searched folder's) and name appended at `cursor`.
 fn found_path(search: u32, cursor: u32) -> Result<u32, Refused> {
-    let (cursor, _) = unsafe {
-        crate::files::append_directory::append_directory(search as *const u8, cursor as *mut u8)
-    }?;
+    let (cursor, _) =
+        crate::files::append_directory::append_directory(search as *const u8, cursor as *mut u8)?;
     Ok(append_byte(str_append(find_name(), cursor as u32), 0))
 }
 
@@ -111,7 +113,7 @@ fn walk(folder: u32) -> Result<(), Refused> {
         if folder >= INSTALLER_RUN.dir_cursor.get() {
             break;
         }
-        let length = unsafe { crate::strings::text_length::text_length(folder as *const u8) }?;
+        let length = crate::strings::text_length::text_length(folder as *const u8)?;
         if length == 0 {
             break;
         }

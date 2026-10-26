@@ -17,6 +17,7 @@
 //! anything.
 
 use crate::errors::Refused;
+use crate::pointers::GamePtr;
 use crate::race::blocks_store::CAR_BLOCKS;
 use crate::race::kind_store::KIND_TABLES;
 use crate::race::light_records_store::LIGHT_RECORDS;
@@ -25,9 +26,9 @@ use crate::race::viewer_screen_store::VIEWER_PANEL;
 use crate::race::work_store::RACE_WORK;
 /// The Rust version (see the header).
 // Converted: `rc2k_core::marks::race::{check_cars, kind_row, car_fields}`
-pub unsafe fn init_mark_step() -> Result<(), Refused> {
+pub fn init_mark_step() -> Result<(), Refused> {
     use rc2k_core::marks::race;
-    unsafe {
+    {
         let count: u32 = RACE_VIEW.players.bits();
         let block = |n: u32| RACE_WORK.car_block(n as usize);
         let record = |n: u32| RACE_WORK.car_record(n as usize);
@@ -38,13 +39,16 @@ pub unsafe fn init_mark_step() -> Result<(), Refused> {
         let file = crate::race::mud::car_file_number(CAR_BLOCKS.cars[0].car_kind.bits());
         KIND_TABLES.mark_car_file_number.set_bits(file);
         for n in 0..count {
-            let kind = ((block(n) + 0x24) as *const i32).read_unaligned();
+            let kind = GamePtr::new(block(n) + 0x24).read::<i32>("a mark's field")?;
             // `dword_5C90D8 ..`: rows of 0x134 (`groups[5]` of the kind's record on).
-            let row = LIGHT_RECORDS.record_addr(0) as usize + 0x6C + race::kind_row(kind);
-            for (field, v) in
-                race::car_fields(n, |offset| ((row + offset) as *const u32).read_unaligned())
-            {
-                ((record(n) + field) as *mut u32).write_unaligned(v);
+            let row = (LIGHT_RECORDS.record_addr(0) as usize + 0x6C + race::kind_row(kind)) as u32;
+            let bad = crate::marks::Sticky::default();
+            let fields = race::car_fields(n, |offset| {
+                bad.take(GamePtr::new(row + offset as u32).read::<u32>("a mark's field"))
+            });
+            bad.done()?;
+            for (field, v) in fields {
+                GamePtr::new(record(n) + field).write::<u32>(v, "a mark's field")?;
             }
         }
         // The file number is left in eax: `init_marks`' seed.

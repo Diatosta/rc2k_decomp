@@ -60,7 +60,7 @@ fn quad(left: u32, width: u32, rows: u32, texture: Option<u32>) -> Result<(), Re
 
 /// The shared tail (0x45B9AA, see the header).
 // Converted: `rc2k_core::hud::strips::{tail_shown, TAIL}`
-pub unsafe fn overlay_tail() -> Result<(), Refused> {
+pub fn overlay_tail() -> Result<(), Refused> {
     let (shown, players) = (
         PANEL.hud_flags[0].get(),
         crate::hud::overlay_pass::shown_layout(),
@@ -78,11 +78,11 @@ pub unsafe fn overlay_tail() -> Result<(), Refused> {
 
 /// The Rust version (see the header): view `view`'s strip, then the shared tail.
 // Converted: `rc2k_core::hud::strips::{VIEWS, top_entry, sizes, quad_inputs}`
-pub unsafe fn draw_view_strip(view: u32) -> Result<(), Refused> {
+pub fn draw_view_strip(view: u32) -> Result<(), Refused> {
     if view >= strips::VIEWS {
         return Err(BadInput("a view past the overlay's tables").into());
     }
-    unsafe {
+    {
         let top = strips::top_entry(view, PANEL.flat.get());
         let top: u32 = STRIPS.tops[top as usize].get();
         let left: u32 = STRIPS.lefts[view as usize].get();

@@ -23,6 +23,7 @@ use crate::menu::loop_store::LOOP_FLAGS;
 use crate::menu::option_work_store::OPTION_WORK;
 use crate::menu::player_name::{backspace_name, bring_back_name, name};
 use crate::menu::text_entry::{TEXT_LEN, set_length};
+use crate::pointers::GamePtr;
 use crate::text::draw_text::Canvas;
 use crate::text::measure_text::measure_text_at;
 
@@ -50,25 +51,31 @@ pub unsafe fn edit_player_name(canvas: &mut dyn Canvas) -> Result<(), Refused> {
         match entry::key(key) {
             Key::None => {}
             Key::Escape => {
-                bring_back_name(name);
+                bring_back_name(name)?;
                 OPTION_WORK.typing.set(0u32);
             }
             Key::Enter => {
                 if len == 0 {
-                    bring_back_name(name);
+                    bring_back_name(name)?;
                 }
                 OPTION_WORK.typing.set(0u32);
             }
-            Key::Clear => clear_text(name),
-            Key::Backspace => backspace_name(name),
+            Key::Clear => clear_text(name)?,
+            Key::Backspace => backspace_name(name)?,
             Key::Other(key) => {
                 let c = key_to_char(key as u32)? as u8;
                 if entry::appends(c, len, LOOP_FLAGS.text_max.get() as i32) {
-                    name.offset(len as isize).write(c);
+                    GamePtr::new(name.wrapping_add(len as u32))
+                        .write::<u8>(c, "a player's name")?;
                     set_length(len.wrapping_add(1));
-                    let measured = measure_text_at(MEASURING_FONT.as_ptr(), name, len, canvas)?;
+                    let measured = measure_text_at(
+                        MEASURING_FONT.as_ptr(),
+                        name as usize as *const u8,
+                        len,
+                        canvas,
+                    )?;
                     if entry::too_wide(measured.width as i32) {
-                        backspace_name(name);
+                        backspace_name(name)?;
                     }
                 }
             }

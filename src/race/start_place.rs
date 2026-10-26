@@ -9,6 +9,7 @@ use crate::math::x87;
 use crate::physics::car_store::CAR;
 use crate::physics::ground_store::GROUND_WORK;
 use crate::physics::tables_store::PHYSICS;
+use crate::pointers::GamePtr;
 use crate::race::best_line::MOST_CHECKS;
 use crate::race::course_store::COURSE;
 use crate::race::numbers_store::NUMBERS;
@@ -25,18 +26,16 @@ fn count() -> Result<u32, Refused> {
 }
 
 /// Checkpoint n's face (number, address) and its first point's (+4) number and address.
-unsafe fn check_point(n: u32) -> (u32, u32, u32, u32) {
-    unsafe {
-        let face: u32 = crate::race::checkpoints_store::face(n as usize).get();
-        let address = (face << 6).wrapping_add(COURSE.course_faces.bits());
-        let point = *((address + 4) as *const u32);
-        let place = (point.wrapping_mul(3) << 2).wrapping_add(COURSE.scene_points.bits());
-        (face, address, point, place)
-    }
+fn check_point(n: u32) -> Result<(u32, u32, u32, u32), BadInput> {
+    let face: u32 = crate::race::checkpoints_store::face(n as usize).get();
+    let address = (face << 6).wrapping_add(COURSE.course_faces.bits());
+    let point: u32 = GamePtr::new(address + 4).read("a checkpoint face's first point")?;
+    let place = (point.wrapping_mul(3) << 2).wrapping_add(COURSE.scene_points.bits());
+    Ok((face, address, point, place))
 }
 
-unsafe fn get(at: u32) -> u32 {
-    unsafe { (at as *const u32).read_unaligned() }
+fn get(at: u32) -> Result<u32, BadInput> {
+    GamePtr::new(at).read("a course point")
 }
 
 /// `race::place_car_on_line` (0x44666F): checkpoint `dword_6365E4` (held below
@@ -46,20 +45,20 @@ unsafe fn get(at: u32) -> u32 {
 /// heading; the first face's number in `dword_5CCD28`. The registers it leaves are read
 /// by none of its callers (conversion phase 3, 2026-10-24). Refuses no checkpoints (the
 /// original reads entry -1) or more than the lists.
-pub unsafe fn place_car_on_line() -> Result<(), Refused> {
+pub fn place_car_on_line() -> Result<(), Refused> {
     // Converted: `rc2k_core::race::checkpoints::{line_neighbours, lerp}`.
     use rc2k_core::race::checkpoints::{lerp, line_neighbours};
     let count = count()?;
-    unsafe {
+    {
         let (c, n) = line_neighbours(LIGHT_STATE.line_place.bits(), count)?;
         let t: u32 = LIGHT_STATE.line_fraction.bits();
-        let (face, _, _, a) = check_point(c);
+        let (face, _, _, a) = check_point(c)?;
         COURSE.place_face.set_bits(face);
-        let (_, _, _, b) = check_point(n);
-        let (x, _) = lerp(get(a), get(b), t);
-        let (y, _) = lerp(get(a + 4), get(b + 4), t);
+        let (_, _, _, b) = check_point(n)?;
+        let (x, _) = lerp(get(a)?, get(b)?, t);
+        let (y, _) = lerp(get(a + 4)?, get(b + 4)?, t);
         let y = y.wrapping_add(PHYSICS.ground_drop.bits());
-        let (z, _) = lerp(get(a + 8), get(b + 8), t);
+        let (z, _) = lerp(get(a + 8)?, get(b + 8)?, t);
         let heading_of =
             |k: u32| -> u32 { crate::race::checkpoints_store::angle(k as usize).get() };
         let (heading, _) = lerp(heading_of(c), heading_of(n), t);
@@ -79,7 +78,7 @@ pub unsafe fn place_car_on_line() -> Result<(), Refused> {
 /// sign tests), `dword_62400C` the distance in x and z (`x87::int_hypot`) from
 /// (`dword_639824`, `dword_63982C`) to its face's first point; else -1. Refuses a
 /// checkpoint past the list.
-pub unsafe fn distance_to_checkpoint(c: u32) -> Result<(), Refused> {
+pub fn distance_to_checkpoint(c: u32) -> Result<(), Refused> {
     // Converted: `rc2k_core::race::checkpoints::on_line`; the distance the x87's.
     let count: u32 = RACE_VARS.checkpoint_count.bits();
     if !rc2k_core::race::checkpoints::on_line(c, count) {
@@ -89,10 +88,10 @@ pub unsafe fn distance_to_checkpoint(c: u32) -> Result<(), Refused> {
     if c >= MOST_CHECKS {
         return Err(BadInput("a checkpoint past the list").into());
     }
-    unsafe {
-        let (_, _, _, place) = check_point(c);
-        let dx = get(place).wrapping_sub(GROUND_WORK.ground_x.bits()) as i32;
-        let dz = get(place + 8).wrapping_sub(GROUND_WORK.ground_z.bits()) as i32;
+    {
+        let (_, _, _, place) = check_point(c)?;
+        let dx = get(place)?.wrapping_sub(GROUND_WORK.ground_x.bits()) as i32;
+        let dz = get(place + 8)?.wrapping_sub(GROUND_WORK.ground_z.bits()) as i32;
         DRAW.scratch.set_bits(x87::int_hypot(dx, dz) as u32);
     }
     Ok(())
@@ -108,7 +107,7 @@ pub struct Nearest {
 /// least, `jb`) measured by `distance_to_checkpoint`; the nearest (unsigned, the later of
 /// equals) and its distance (-1 and 0 for none). Refuses more than 0x1418 measures or
 /// checkpoints, before anything.
-pub unsafe fn nearest_checkpoint_in(from: u32, to: u32) -> Result<Nearest, Refused> {
+pub fn nearest_checkpoint_in(from: u32, to: u32) -> Result<Nearest, Refused> {
     count()?;
     let steps = if from < to { to - from } else { 1 };
     if steps > MOST_CHECKS {
@@ -118,7 +117,7 @@ pub unsafe fn nearest_checkpoint_in(from: u32, to: u32) -> Result<Nearest, Refus
     let mut nearest = rc2k_core::race::checkpoints::Nearest::default();
     let mut c = from;
     loop {
-        unsafe { distance_to_checkpoint(c) }?;
+        distance_to_checkpoint(c)?;
         nearest.consider(c, DRAW.scratch.bits());
         c = c.wrapping_add(1);
         if c >= to {
@@ -135,9 +134,9 @@ pub unsafe fn nearest_checkpoint_in(from: u32, to: u32) -> Result<Nearest, Refus
 /// count), its distance in `dword_62400C` and / 65536 in `flt_614C68`; else 0. The other
 /// registers it leaves are read by none of its callers. Refuses more checkpoints than the
 /// lists, before anything.
-pub unsafe fn nearest_checkpoint() -> Result<u32, Refused> {
+pub fn nearest_checkpoint() -> Result<u32, Refused> {
     let count = count()?;
-    unsafe {
+    {
         GROUND_WORK.ground_x.set_bits(CAR.position[0].bits());
         GROUND_WORK.ground_z.set_bits(CAR.position[2].get());
         if count == 0 {

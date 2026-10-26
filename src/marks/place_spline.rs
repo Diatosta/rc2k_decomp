@@ -21,6 +21,7 @@ use crate::marks::splines::{
 };
 use crate::marks::work_store::MARKS_WORK;
 use crate::math::x87;
+use crate::pointers::GamePtr;
 
 const SPLINES: u32 = 8;
 
@@ -29,12 +30,12 @@ fn records(n: u32) -> [u32; 4] {
     [0, 1, 2, 3].map(|t| SPLINE_TABLES.table(t) as u32 + n * SPLINE_LEN)
 }
 
-unsafe fn get(a: u32) -> u32 {
-    unsafe { (a as *const u32).read_unaligned() }
+fn get(a: u32) -> Result<u32, BadInput> {
+    GamePtr::new(a).read("a game field")
 }
 
-unsafe fn put(a: u32, v: u32) {
-    unsafe { (a as *mut u32).write_unaligned(v) }
+fn put(a: u32, v: u32) -> Result<(), BadInput> {
+    GamePtr::new(a).write(v, "a game field")
 }
 
 /// `fld a; fmul k; fst` each of three (the first), `fmul k2; fstp` (the second).
@@ -45,7 +46,7 @@ fn sizes(a: u32, k: u32, k2: u32) -> (u32, u32) {
 }
 
 /// The Rust version (see the header).
-pub unsafe fn place_spline(n: u32) -> Result<(), Refused> {
+pub fn place_spline(n: u32) -> Result<(), Refused> {
     let settings: u32 = crate::marks::setup::SETTINGS.pointer.get();
     if settings == 0 {
         return Err(BadInput("no marks settings").into());
@@ -53,28 +54,28 @@ pub unsafe fn place_spline(n: u32) -> Result<(), Refused> {
     if n >= SPLINES {
         return Err(BadInput("a spline number of 8 or more").into());
     }
-    unsafe {
+    {
         let k = SPLINE_CONSTANTS.place_k.each_ref().map(|f| f.bits());
         SPLINE_WORK.offset.set(n * SPLINE_LEN);
         let [a, b, c, d] = records(n);
-        let (abc, dsize) = sizes(get(settings + 0x26DC), k[0], k[1]);
+        let (abc, dsize) = sizes(get(settings + 0x26DC)?, k[0], k[1]);
         for r in [a, b, c] {
-            put(r + 0x24, abc);
+            put(r + 0x24, abc)?;
         }
-        put(d + 0x24, dsize);
+        put(d + 0x24, dsize)?;
         for r in [a, d] {
             place_shape(r)?;
         }
-        let status = x87::compare_status(get(b + 0x24), k[2]);
+        let status = x87::compare_status(get(b + 0x24)?, k[2]);
         MARKS_WORK.fpu_status.set(status as u32);
         let f = if status == 0x100 { k[4] } else { k[3] };
-        put(b + 0x2C, x87::mul(get(b + 0x24), f));
+        put(b + 0x2C, x87::mul(get(b + 0x24)?, f))?;
         SPLINE_HEAD.switch.set(0);
         place_graded_points(b)?;
-        let status = x87::compare_status(get(c + 0x24), k[5]);
+        let status = x87::compare_status(get(c + 0x24)?, k[5]);
         MARKS_WORK.fpu_status.set(status as u32);
         let f = if status == 0 { k[7] } else { k[6] };
-        put(c + 0x2C, x87::mul(get(c + 0x24), f));
+        put(c + 0x2C, x87::mul(get(c + 0x24)?, f))?;
         SPLINE_HEAD.switch.set(1);
         place_graded_points(c)?;
     }

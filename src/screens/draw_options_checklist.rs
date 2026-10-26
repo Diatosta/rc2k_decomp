@@ -20,13 +20,17 @@ use crate::text::draw_text::Canvas;
 
 /// (id, x, y, font) of the page's lines.
 /// The Rust version.
-pub unsafe fn draw_options_checklist(canvas: &mut dyn Canvas) -> Result<(), Refused> {
+pub fn draw_options_checklist(canvas: &mut dyn Canvas) -> Result<(), Refused> {
     // Converted: `rc2k_core::screens::settings_pages::options_checklist`.
-    unsafe {
+    {
         let mut at = MENU_LISTS.inspection_faults[0].addr() as u32;
         let mut ticks = Vec::new();
-        while (at as *const u32).read_unaligned() != u32::MAX {
-            ticks.push((at as *const u32).read_unaligned());
+        loop {
+            let tick = crate::pointers::GamePtr::new(at).read::<u32>("a checklist tick")?;
+            if tick == u32::MAX {
+                break;
+            }
+            ticks.push(tick);
             at += 4;
         }
         rc2k_core::screens::settings_pages::options_checklist(

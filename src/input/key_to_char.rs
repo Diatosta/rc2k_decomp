@@ -28,11 +28,7 @@ const RIGHT_SHIFT: usize = 0x36;
 const ALT: usize = 0x38;
 const ALT_GR: usize = 0x64;
 
-use crate::bridge::Raw;
-
-unsafe fn dword(addr: u32) -> u32 {
-    unsafe { (addr as *const u32).read_unaligned() }
-}
+use crate::pointers::{GameBytes, GamePtr};
 
 fn down(key: usize) -> bool {
     DEVICES.keys_down.get(key) != 0
@@ -46,7 +42,7 @@ pub fn has_layout() -> bool {
 // ---- Rust version ----
 
 /// eax as the original leaves it; the character is its low byte.
-pub unsafe fn key_to_char(eax: u32) -> Result<u32, BadInput> {
+pub fn key_to_char(eax: u32) -> Result<u32, BadInput> {
     use rc2k_core::input::keyboard::{self, Layout, Switch};
     let key = eax as u8;
     if key & 0x80 != 0 {
@@ -54,53 +50,55 @@ pub unsafe fn key_to_char(eax: u32) -> Result<u32, BadInput> {
     }
     // Converted: `rc2k_core::input::keyboard`; here the layout block's pointers as tables, and
     // the switch and the pending key stored.
-    unsafe {
-        let switched = keyboard::switch(
-            KEYBOARD_FILE.mode.get(),
-            down(ALT),
-            down(ALT_GR),
-            down(LEFT_SHIFT),
-            down(RIGHT_SHIFT),
-        );
-        let layout: u32 = match switched {
-            Some(Switch::First) => KEYBOARD_FILE.layouts[0].dead_keys.addr() as u32,
-            Some(Switch::Second) => KEYBOARD_FILE.layouts[1].dead_keys.addr() as u32,
-            None => KEYBOARD_FILE.layout.get(),
-        };
-        if layout == 0 {
-            return Err(BadInput("no keyboard layout"));
-        }
-        // The built-in layout's pointers name its tables' homes (`moved::point_into_homes`);
-        // a keyboard file's layout's are given as places.
-        let table = |at: u32| {
-            let p = dword(layout + at);
-            (p != 0).then(|| Raw::new(p as *const u8))
-        };
-        let tables = [table(0), table(4), table(8), table(0xC)];
-        fn as_bytes(t: &Option<Raw>) -> Option<&dyn rc2k_core::strings::bytes::Bytes> {
-            t.as_ref()
-                .map(|t| t as &dyn rc2k_core::strings::bytes::Bytes)
-        }
-        let typed = keyboard::key_to_char(
-            key,
-            &Layout {
-                dead_keys: as_bytes(&tables[0]),
-                plain: as_bytes(&tables[1]),
-                shifted: as_bytes(&tables[2]),
-                alt_gr: as_bytes(&tables[3]),
-            },
-            &Raw::new(KEYBOARD.compose.as_ptr()),
-            &Raw::new(KEYBOARD.silent_keys[0].as_ptr().cast::<u8>()),
-            down(LEFT_SHIFT) || down(RIGHT_SHIFT),
-            down(ALT_GR),
-            DEVICES.dead_key.get(),
-        )?;
-        if switched.is_some() {
-            KEYBOARD_FILE.layout.set(layout);
-        }
-        if let Some(pending) = typed.pending {
-            DEVICES.dead_key.set(pending);
-        }
-        Ok(typed.eax)
+    let switched = keyboard::switch(
+        KEYBOARD_FILE.mode.get(),
+        down(ALT),
+        down(ALT_GR),
+        down(LEFT_SHIFT),
+        down(RIGHT_SHIFT),
+    );
+    let layout: u32 = match switched {
+        Some(Switch::First) => KEYBOARD_FILE.layouts[0].dead_keys.addr() as u32,
+        Some(Switch::Second) => KEYBOARD_FILE.layouts[1].dead_keys.addr() as u32,
+        None => KEYBOARD_FILE.layout.get(),
+    };
+    if layout == 0 {
+        return Err(BadInput("no keyboard layout"));
     }
+    // The built-in layout's pointers name its tables' homes (`moved::point_into_homes`);
+    // a keyboard file's layout's are given as places.
+    let table = |at: u32| -> Result<Option<GameBytes>, BadInput> {
+        let p: u32 = GamePtr::new(layout)
+            .offset(at)
+            .read("a keyboard layout's table")?;
+        (p != 0)
+            .then(|| GamePtr::new(p).bytes("a keyboard layout's table"))
+            .transpose()
+    };
+    let tables = [table(0)?, table(4)?, table(8)?, table(0xC)?];
+    fn as_bytes(t: &Option<GameBytes>) -> Option<&dyn rc2k_core::strings::bytes::Bytes> {
+        t.as_ref()
+            .map(|t| t as &dyn rc2k_core::strings::bytes::Bytes)
+    }
+    let typed = keyboard::key_to_char(
+        key,
+        &Layout {
+            dead_keys: as_bytes(&tables[0]),
+            plain: as_bytes(&tables[1]),
+            shifted: as_bytes(&tables[2]),
+            alt_gr: as_bytes(&tables[3]),
+        },
+        &GamePtr::new(KEYBOARD.compose.addr() as u32).bytes("the compose table")?,
+        &GamePtr::new(KEYBOARD.silent_keys[0].addr() as u32).bytes("the silent keys")?,
+        down(LEFT_SHIFT) || down(RIGHT_SHIFT),
+        down(ALT_GR),
+        DEVICES.dead_key.get(),
+    )?;
+    if switched.is_some() {
+        KEYBOARD_FILE.layout.set(layout);
+    }
+    if let Some(pending) = typed.pending {
+        DEVICES.dead_key.set(pending);
+    }
+    Ok(typed.eax)
 }

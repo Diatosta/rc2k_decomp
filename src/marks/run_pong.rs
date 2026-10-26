@@ -25,10 +25,10 @@ fn box_values(place: &[Float; 2], size: &[Float; 2]) -> [[u8; 10]; 4] {
 }
 
 /// The Rust version (see the header).
-pub unsafe fn run_pong() -> Result<(), Refused> {
+pub fn run_pong() -> Result<(), Refused> {
     use crate::marks::draw_pong_box::draw_pong_box;
     let p = &pong::PONG;
-    unsafe {
+    {
         if CHEAT_VARS.cheats.get() & CHEAT == 0 || game_read::<u32>(pong::SHOWN_RVA) == 0 {
             return Ok(());
         }

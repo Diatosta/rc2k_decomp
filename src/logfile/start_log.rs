@@ -81,9 +81,7 @@ pub unsafe fn start_log() -> Result<(), BadInput> {
         // them), then each message logged as the original's call.
         use rc2k_core::files::log::{Machine, Message, head};
         let c_text = |p: *const u8| {
-            std::ffi::CStr::from_ptr(p as *const std::ffi::c_char)
-                .to_bytes()
-                .to_vec()
+            crate::files::cstring(crate::pointers::GamePtr::new(p as u32), "a start-up text")
         };
         // The date in the numbers' scratch buffer, as the original makes it (the log's
         // lock is not held: no thread logs yet).
@@ -97,12 +95,12 @@ pub unsafe fn start_log() -> Result<(), BadInput> {
         let free = free_space_kb();
         FREE_SPACE_KB.store(free, Ordering::Relaxed);
         let m = Machine {
-            date: c_text(scratch),
-            version: c_text(VERSION.as_ptr()),
-            second: (SECOND_TEXT[0] != 0).then(|| c_text(SECOND_TEXT.as_ptr())),
+            date: c_text(scratch)?,
+            version: VERSION[..VERSION.len() - 1].to_vec(), // Rust's own text
+            second: (SECOND_TEXT[0] != 0).then(|| SECOND_TEXT[..SECOND_TEXT.len() - 1].to_vec()),
             cpu_family: M.cpu_family.get() as i32,
             cpu_flags: M.cpu_signature.get(),
-            cpu_name: c_text(M.vendor_addr() as *const u8),
+            cpu_name: c_text(M.vendor_addr() as *const u8)?,
             clock: M.cpu_mhz.get() as i32,
             fpu: M.has_fpu.get() as i32,
             mmx: M.found_mmx.get() as i32,
@@ -115,7 +113,7 @@ pub unsafe fn start_log() -> Result<(), BadInput> {
                 M.version[2].get() as i32,
                 (M.version[3].get() & 0xFFFF) as i32,
             ],
-            platform_text: c_text((M.version_addr() + 0x14) as *const u8),
+            platform_text: c_text((M.version_addr() + 0x14) as *const u8)?,
             memory: [
                 memory.dwAvailPhys as u32,
                 memory.dwTotalPhys as u32,

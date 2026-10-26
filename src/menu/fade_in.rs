@@ -12,5 +12,5 @@ use crate::errors::Refused;
 
 /// The Rust version (see the header).
 pub fn fade_in() -> Result<(), Refused> {
-    unsafe { crate::menu::fades::fade(false) }
+    crate::menu::fades::fade(false)
 }

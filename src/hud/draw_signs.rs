@@ -11,6 +11,7 @@
 
 use crate::errors::Refused;
 use crate::hud::store::HUD;
+use crate::pointers::GamePtr;
 use crate::race::panel_store::PANEL;
 
 /// The row: `y`, or 0x20 higher with `dword_6D1502` 0.
@@ -25,14 +26,14 @@ pub fn row_by(y: u32, lift: u32) -> u32 {
 
 /// The Rust version (see the header).
 // Converted: `rc2k_core::hud::signs` (through `signs_with`)
-pub unsafe fn draw_signs(record: u32) -> Result<(), Refused> {
-    unsafe { signs_with(record, 0xA4, 0xB4, 0, 0x36, 0x20) }
+pub fn draw_signs(record: u32) -> Result<(), Refused> {
+    signs_with(record, 0xA4, 0xB4, 0, 0x36, 0x20)
 }
 
 /// Four signs from the record's `first` .. on, the places from its `start` field plus
 /// `shift`, at row `y` (shared with `hud::draw_signs_1a` / `_1b`).
 // Converted: `rc2k_core::hud::signs::{sign, place, row}`
-pub unsafe fn signs_with(
+pub fn signs_with(
     record: u32,
     first: u32,
     start: u32,
@@ -41,11 +42,11 @@ pub unsafe fn signs_with(
     lift: u32,
 ) -> Result<(), Refused> {
     use rc2k_core::hud::signs;
-    unsafe {
-        let get = |o: u32| ((record + o) as *const u32).read_unaligned();
-        let places = get(start).wrapping_add(shift);
+    {
+        let get = |o: u32| GamePtr::new(record + o).read::<u32>("a hud record's field");
+        let places = get(start)?.wrapping_add(shift);
         for n in 0..signs::SIGNS as u32 {
-            let v = get(first + 4 * n);
+            let v = get(first + 4 * n)?;
             let Some(sign) = signs::sign(places, n, v, |k| HUD.sign_widths[k as usize].get())
             else {
                 continue;

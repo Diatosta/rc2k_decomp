@@ -40,7 +40,7 @@ use crate::gfx::glyph_builder::{
     backdrop_of, direct_pixel_size, table_of, transparent_of,
 };
 use crate::gfx::pcx::PCX;
-use crate::gfx::picture::picture;
+use crate::gfx::picture::picture_ptr;
 use crate::gfx::picture_store::PICTURE;
 use crate::gfx::pixel_format::PixelFormat;
 use crate::gfx::read_sheet::read_sheet;
@@ -51,6 +51,7 @@ use crate::logfile::log_write::log_write;
 use crate::logfile::write_line::level;
 use crate::memory::MemoryList;
 use crate::memory::take_from_list::{rewind_list, take_from_list};
+use crate::pointers::GamePtr;
 use crate::session::Dword;
 use crate::strings::compile_lexicon::LEXICON;
 
@@ -214,10 +215,10 @@ unsafe fn append_to_table(sheet: u32, size: u32) -> Result<(), Refused> {
         if table == 0 {
             return Err(fatal(0x80E4_8077, ""));
         }
-        let more = std::slice::from_raw_parts(sheet as *const u8, size as usize);
-        let mut joined = std::slice::from_raw_parts(table as *const u8, held as usize).to_vec();
-        append(&mut joined, more)?;
-        std::ptr::copy(joined.as_ptr(), table as *mut u8, joined.len());
+        let more = GamePtr::new(sheet).read_bytes(size as usize, "a sheet's glyph table")?;
+        let mut joined = GamePtr::new(table).read_bytes(held as usize, "the glyph table")?;
+        append(&mut joined, &more)?;
+        GamePtr::new(table).write_bytes(&joined, "the glyph table")?;
         SHEET.table_size.set(joined.len() as u32);
         Ok(())
     }
@@ -274,11 +275,15 @@ unsafe fn read_alpha_sheet(template: *const u8) -> Result<(), Refused> {
                 log_sheet(path, false, backdrop, transparent);
             }
             SHEET.alpha_loaded.set(1u32);
-            let pixels = picture() as *mut u32;
-            if pixels.is_null() {
+            let pixels = picture_ptr();
+            if pixels.addr() == 0 {
                 return Err(BadInput("no picture buffer").into());
             }
-            std::ptr::copy(pixels, pixels.add(HALF_PICTURE_DWORDS), HALF_PICTURE_DWORDS);
+            pixels.copy_to(
+                pixels.offset(4 * HALF_PICTURE_DWORDS as u32),
+                4 * HALF_PICTURE_DWORDS,
+                "the picture buffer",
+            )?;
         }
         DECODER.number.set(number.wrapping_add(1));
         Ok(())
@@ -317,11 +322,11 @@ pub unsafe fn build_glyphs(template: *const u8, list: *mut MemoryList) -> Result
             let mut format = None;
             if PICTURE.flags.get() & 0x100 == 0 {
                 flags |= DIRECT_COLOUR | WIDE_HEAD;
-                let layout = DECODER.format.get() as *const PixelFormat;
-                if layout.is_null() {
+                let layout = DECODER.format.get();
+                if layout == 0 {
                     return Err(BadInput("no pixel layout for a sheet of components").into());
                 }
-                let layout = layout.read_unaligned();
+                let layout: PixelFormat = GamePtr::new(layout).read("a sheet's pixel layout")?;
                 pixel_size = direct_pixel_size(&layout);
                 format = Some(layout);
             }
@@ -372,18 +377,29 @@ pub unsafe fn build_glyphs(template: *const u8, list: *mut MemoryList) -> Result
                         "Component colour/alpha files must be 8bit",
                     ));
                 }
-                let pixels = picture() as *mut u32;
-                if pixels.is_null() {
+                let pixels = picture_ptr();
+                if pixels.addr() == 0 {
                     return Err(BadInput("no picture buffer").into());
                 }
-                for n in 0..HALF_PICTURE_DWORDS {
-                    let alpha = pixels.add(HALF_PICTURE_DWORDS + n).read_unaligned();
-                    let pixel = pixels.add(n);
-                    pixel.write_unaligned(pixel.read_unaligned() | (alpha & 0x0F0F_0F0F) << 4);
+                let half = 4 * HALF_PICTURE_DWORDS;
+                let alphas = pixels
+                    .offset(half as u32)
+                    .read_bytes(half, "the picture buffer")?;
+                let mut kept = pixels.read_bytes(half, "the picture buffer")?;
+                for (pixel, alpha) in kept
+                    .as_chunks_mut::<4>()
+                    .0
+                    .iter_mut()
+                    .zip(alphas.as_chunks::<4>().0)
+                {
+                    let alpha = u32::from_le_bytes(*alpha);
+                    *pixel =
+                        (u32::from_le_bytes(*pixel) | (alpha & 0x0F0F_0F0F) << 4).to_le_bytes();
                 }
+                pixels.write_bytes(&kept, "the picture buffer")?;
             }
 
-            rewind_list(work);
+            rewind_list(work)?;
             let glyphs = sheet.glyphs()?;
             let mut bytes = 0u32;
             for (number, glyph) in glyphs.iter().enumerate() {
@@ -406,7 +422,7 @@ pub unsafe fn build_glyphs(template: *const u8, list: *mut MemoryList) -> Result
             };
             SHEET.sheet_table_size.set(size);
             SHEET.sheet_table.set(place);
-            std::ptr::copy(table.as_ptr(), place as *mut u8, table.len());
+            GamePtr::new(place).write_bytes(&table, "a sheet's glyph table")?;
             if take_from_list(list, size)?.is_none() {
                 return Err(fatal(0x80E4_8012, ""));
             }

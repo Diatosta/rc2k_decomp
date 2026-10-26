@@ -22,17 +22,21 @@ pub struct SectionPlayer {
 }
 
 /// The Rust version (see the header).
-pub unsafe fn find_section_player() -> Result<SectionPlayer, Refused> {
+pub fn find_section_player() -> Result<SectionPlayer, Refused> {
     if (0..4).any(|n| player(n) == 0) {
         return Err(BadInput("a missing player").into());
     }
     // Converted: `rc2k_core::menu::points::section_player`.
     let section: u32 = { EVENT_STATE.section.get() };
+    let fault = crate::menu::event_flow::Fault::default();
     let done: [u32; 4] = std::array::from_fn(|n| {
-        get(player(n as u32)
-            .wrapping_add(section.wrapping_mul(4))
-            .wrapping_add(0xB4))
+        fault.get(
+            player(n as u32)
+                .wrapping_add(section.wrapping_mul(4))
+                .wrapping_add(0xB4),
+        )
     });
+    fault.check()?;
     let found = rc2k_core::menu::points::section_player(done);
     Ok(SectionPlayer {
         section,

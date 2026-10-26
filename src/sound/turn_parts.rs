@@ -19,6 +19,14 @@ pub fn object(n: u32) -> u32 {
     crate::sound::store::RACE_SOUNDS.table[n as usize].get()
 }
 
+/// The request's dword number `word` set to `value` (the request is the sound command's
+/// words, in the game's memory).
+pub fn put(request: u32, word: usize, value: u32) -> Result<(), crate::errors::BadInput> {
+    crate::pointers::GamePtr::new(request)
+        .offset(4 * word as u32)
+        .write(value, "a sound request")
+}
+
 /// The request's address.
 pub fn request() -> u32 {
     RACE_SOUND_SETS.request.addr() as u32
@@ -28,7 +36,7 @@ pub use crate::sound::play_sound::play_sound as play;
 
 /// `sound::stop_sound`: the request's sound stopped unless it has bit 0x8000.
 pub fn stop(request: u32) -> Result<(), Refused> {
-    Ok(unsafe { crate::sound::stop_sound::stop_sound(request) }?)
+    Ok(crate::sound::stop_sound::stop_sound(request)?)
 }
 
 /// `sound::play_placed_sound` with the request.

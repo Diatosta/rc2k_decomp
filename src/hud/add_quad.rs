@@ -19,20 +19,18 @@ use rc2k_core::hud::quads;
 /// The Rust version (see the header). What the original leaves in the registers is read
 /// by none of its callers (register liveness, 2026-10-23).
 // Converted: `rc2k_core::hud::quads::quad_vertices`
-pub unsafe fn add_quad() -> Result<(), Refused> {
-    unsafe {
-        let q: [u32; quads::RECORD] = std::array::from_fn(|n| HUD.quad[n].get());
-        let (a, b) = (HUD.uv_scale_x.get(), HUD.uv_scale_y.get());
-        let (vertices, _, _) = quads::quad_vertices(&q, a, b);
-        for (n, v) in vertices.into_iter().enumerate() {
-            let at = &VERTICES.vertices[n];
-            at.x.set_bits(v.x.to_bits());
-            at.y.set_bits(v.y.to_bits());
-            at.colour.set(v.colour);
-            at.u.set_bits(v.u.to_bits());
-            at.v.set_bits(v.v.to_bits());
-        }
-        DRAW.polygon_vertex_count.set_bits(4u32);
-        crate::hud::add_polygon::add_polygon()
+pub fn add_quad() -> Result<(), Refused> {
+    let q: [u32; quads::RECORD] = std::array::from_fn(|n| HUD.quad[n].get());
+    let (a, b) = (HUD.uv_scale_x.get(), HUD.uv_scale_y.get());
+    let (vertices, _, _) = quads::quad_vertices(&q, a, b);
+    for (n, v) in vertices.into_iter().enumerate() {
+        let at = &VERTICES.vertices[n];
+        at.x.set_bits(v.x.to_bits());
+        at.y.set_bits(v.y.to_bits());
+        at.colour.set(v.colour);
+        at.u.set_bits(v.u.to_bits());
+        at.v.set_bits(v.v.to_bits());
     }
+    DRAW.polygon_vertex_count.set_bits(4u32);
+    crate::hud::add_polygon::add_polygon()
 }

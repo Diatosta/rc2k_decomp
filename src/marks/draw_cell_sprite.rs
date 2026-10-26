@@ -21,6 +21,7 @@ use crate::errors::{BadInput, Refused};
 use crate::marks::clip_quad::{clip_quad, draw_fan};
 use crate::marks::ring_store::{RING_WORK, RingWork};
 use crate::marks::surface_store::SURFACE;
+use crate::pointers::GamePtr;
 use crate::scene::draw_store::DRAW;
 use crate::scene::fog_at::fog_at;
 
@@ -30,23 +31,21 @@ const CELLS: u32 = 0x41;
 const ANGLES: u32 = 0x1000;
 
 /// The original's 0x4CB796 .. 0x4CB81A: the place turned by the view.
-unsafe fn turn(p: &[[u8; 10]; 3]) {
-    unsafe {
-        turn_x87(
-            crate::race::store::asm_base() as usize,
-            p.as_ptr() as usize,
-            &RING_WORK,
-            &DRAW_WORK,
-        )
-    }
+fn turn(p: &[[u8; 10]; 3]) {
+    turn_x87(
+        crate::race::store::asm_base() as usize,
+        p.as_ptr() as usize,
+        &RING_WORK,
+        &DRAW_WORK,
+    )
 }
 
 /// The original's 0x4CB84C .. 0x4CBA37 (its integer moves done before but those it does
 /// between the x87 steps): the square, turned, about the projected place. Gives what the
 /// original loads into edi at +0x17B: `flt_8EB8C1` between its two stores.
-unsafe fn square(k: u32, s: u32) -> u32 {
+fn square(k: u32, s: u32) -> u32 {
     let edi: u32;
-    unsafe {
+    {
         edi = square_x87(
             crate::race::store::asm_base() as usize,
             crate::d3d::vertices_store::piece_addr(),
@@ -62,7 +61,7 @@ unsafe fn square(k: u32, s: u32) -> u32 {
 
 /// The Rust version (see the header): `cell` (eax), `angle` (ebx), `alpha` (ecx, its top
 /// byte), `size` (edx), `entry` (esi). No caller reads a register it leaves.
-pub unsafe fn draw_cell_sprite(
+pub fn draw_cell_sprite(
     cell: u32,
     angle: u32,
     alpha: u32,
@@ -79,40 +78,39 @@ pub unsafe fn draw_cell_sprite(
     if entry == 0 {
         return Err(BadInput("a null ring entry").into());
     }
-    unsafe {
-        // The fog's and the clip's refusals, before anything.
-        fog_at(0)?;
-        if crate::marks::setup::SETTINGS.pointer.get() == 0 {
-            return Err(BadInput("no marks settings").into());
-        }
-        turn(&place);
-        if DRAW_WORK.turned[2].bits() as i32 <= DRAW_WORK.near.bits() as i32 {
-            return Ok(());
-        }
-        let fog = fog_at(RING_WORK.whole.get())?;
-        let colour = (alpha & 0xFF00_0000) | ((entry + 0x90) as *const u32).read_unaligned();
-        for n in 0..4 {
-            VERTICES.vertices[n].specular.set(fog);
-            VERTICES.vertices[n].colour.set(colour);
-        }
-        DRAW_WORK.sprite_half[0].set_bits(size);
-        let at = cell << 4;
-        let place = |n: usize| SURFACE.places.get_u32(at as usize + 4 * n);
-        let [u0, v0, u1, v1] = [place(0), place(1), place(2), place(3)];
-        for (n, (u, v)) in [(u0, v0), (u1, v0), (u1, v1), (u0, v1)]
-            .into_iter()
-            .enumerate()
-        {
-            VERTICES.vertices[n].u.set_bits(u);
-            VERTICES.vertices[n].v.set_bits(v);
-        }
-        square(at, 4 * angle);
-        if clip_quad(crate::d3d::vertices_store::piece_addr() as u32)? {
-            return Ok(());
-        }
-        draw_fan();
-        DRAW.polygon_vertex_count.set_bits(4u32);
+    // The fog's and the clip's refusals, before anything.
+    fog_at(0)?;
+    if crate::marks::setup::SETTINGS.pointer.get() == 0 {
+        return Err(BadInput("no marks settings").into());
     }
+    turn(&place);
+    if DRAW_WORK.turned[2].bits() as i32 <= DRAW_WORK.near.bits() as i32 {
+        return Ok(());
+    }
+    let fog = fog_at(RING_WORK.whole.get())?;
+    let colour =
+        (alpha & 0xFF00_0000) | GamePtr::new(entry + 0x90).read::<u32>("a mark's field")?;
+    for n in 0..4 {
+        VERTICES.vertices[n].specular.set(fog);
+        VERTICES.vertices[n].colour.set(colour);
+    }
+    DRAW_WORK.sprite_half[0].set_bits(size);
+    let at = cell << 4;
+    let place = |n: usize| SURFACE.places.get_u32(at as usize + 4 * n);
+    let [u0, v0, u1, v1] = [place(0), place(1), place(2), place(3)];
+    for (n, (u, v)) in [(u0, v0), (u1, v0), (u1, v1), (u0, v1)]
+        .into_iter()
+        .enumerate()
+    {
+        VERTICES.vertices[n].u.set_bits(u);
+        VERTICES.vertices[n].v.set_bits(v);
+    }
+    square(at, 4 * angle);
+    if clip_quad(crate::d3d::vertices_store::piece_addr() as u32)? {
+        return Ok(());
+    }
+    draw_fan();
+    DRAW.polygon_vertex_count.set_bits(4u32);
     Ok(())
 }
 
@@ -123,50 +121,48 @@ use crate::math::x87_float as bh;
 use crate::session::address_of;
 
 /// `turn`'s x87 block as plain Rust on the x87 model (37 instructions), same order and memory places.
-unsafe fn turn_x87(rc: usize, p: usize, w: &RingWork, dw: &DrawWork) {
-    unsafe {
-        let t0 = bh::from_f80(ld80(p, 0x14));
-        let t1 = bh::from_f80(ld80(p, 0xA));
-        let t2 = bh::from_f80(ld80(p, 0));
-        let t3 = ld(rc, 0x1EA2CC);
-        let t4 = t3 * t2;
-        let t5 = ld(rc, 0x1EA2DC);
-        let t6 = t5 * t1;
-        let t7 = ld(rc, 0x1EA2EC);
-        let t8 = t7 * t0;
-        let t9 = t6 + t8;
-        let t10 = t4 + t9;
-        let t11 = t10 + ld(rc, 0x1EA2FC);
-        let t12 = ld(rc, 0x1EA2D0);
-        let t13 = t12 * t2;
-        let t14 = ld(rc, 0x1EA2E0);
-        let t15 = t14 * t1;
-        let t16 = ld(rc, 0x1EA2F0);
-        let t17 = t16 * t0;
-        let t18 = t15 + t17;
-        let t19 = t13 + t18;
-        let t20 = t19 + ld(rc, 0x1EA300);
-        let t21 = ld(rc, 0x1EA2D4);
-        let t22 = t2 * t21;
-        let t23 = ld(rc, 0x1EA2E4);
-        let t24 = t1 * t23;
-        let t25 = ld(rc, 0x1EA2F4);
-        let t26 = t0 * t25;
-        let t27 = t26 + t24;
-        let t28 = t22 + t27;
-        let t29 = t28 + ld(rc, 0x1EA304);
-        dw.turned[0].set_bits(bh::st(t11));
-        dw.turned[1].set_bits(bh::st(t20));
-        w.whole.set_bits(bh::to_int(t29) as u32);
-        dw.turned[2].set_bits(bh::st(t29));
-    }
+fn turn_x87(rc: usize, p: usize, w: &RingWork, dw: &DrawWork) {
+    let t0 = bh::from_f80(ld80(p, 0x14));
+    let t1 = bh::from_f80(ld80(p, 0xA));
+    let t2 = bh::from_f80(ld80(p, 0));
+    let t3 = ld(rc, 0x1EA2CC);
+    let t4 = t3 * t2;
+    let t5 = ld(rc, 0x1EA2DC);
+    let t6 = t5 * t1;
+    let t7 = ld(rc, 0x1EA2EC);
+    let t8 = t7 * t0;
+    let t9 = t6 + t8;
+    let t10 = t4 + t9;
+    let t11 = t10 + ld(rc, 0x1EA2FC);
+    let t12 = ld(rc, 0x1EA2D0);
+    let t13 = t12 * t2;
+    let t14 = ld(rc, 0x1EA2E0);
+    let t15 = t14 * t1;
+    let t16 = ld(rc, 0x1EA2F0);
+    let t17 = t16 * t0;
+    let t18 = t15 + t17;
+    let t19 = t13 + t18;
+    let t20 = t19 + ld(rc, 0x1EA300);
+    let t21 = ld(rc, 0x1EA2D4);
+    let t22 = t2 * t21;
+    let t23 = ld(rc, 0x1EA2E4);
+    let t24 = t1 * t23;
+    let t25 = ld(rc, 0x1EA2F4);
+    let t26 = t0 * t25;
+    let t27 = t26 + t24;
+    let t28 = t22 + t27;
+    let t29 = t28 + ld(rc, 0x1EA304);
+    dw.turned[0].set_bits(bh::st(t11));
+    dw.turned[1].set_bits(bh::st(t20));
+    w.whole.set_bits(bh::to_int(t29) as u32);
+    dw.turned[2].set_bits(bh::st(t29));
 }
 
 /// `square`'s x87 block as plain Rust on the x87 model (77 instructions), same order and memory places.
 /// `k` is the cell's offset in the cell table (16 bytes a cell), which the original also
 /// adds to `g_marksCornerSlopes` (records of 0x24: it reads the float at that byte, whatever
 /// field it falls on: section 16), so that read stays by address.
-unsafe fn square_x87(
+fn square_x87(
     rc: usize,
     vt: usize,
     sn: usize,
@@ -175,77 +171,75 @@ unsafe fn square_x87(
     dw: &DrawWork,
     cs: &CornerSlopes,
 ) -> u32 {
-    unsafe {
-        let t0 = ld(rc, 0x224088);
-        let t1 = t0 / bh::ld(dw.turned[2].bits());
-        let t2 = bh::ld(dw.turned[2].bits());
-        let t3 = t2 * bh::ld(dw.z_k.bits());
-        st(vt, 0x8, t3);
-        st(vt, 0x28, t3);
-        st(vt, 0x48, t3);
-        st(vt, 0x68, t3);
-        let t4 = bh::int(dw.sprite_half[0].bits() as i32);
-        let t5 = t4 * t1;
-        dw.sprite_half[0].set_bits(bh::st(t5));
-        let t6 = t5 * ld(address_of(&cs.slopes), k);
-        dw.sprite_half[1].set_bits(bh::st(t6));
-        let t7 = dw.sprite_half[0].bits();
-        let t8 = t7 ^ 0x80000000;
-        dw.sprite_half[3].set_bits(t8);
-        let t9 = dw.sprite_half[1].bits();
-        dw.sprite_half[2].set_bits(t9);
-        let t10 = bh::ld(dw.sprite_half[0].bits());
-        let t11 = bh::ld(dw.sprite_half[1].bits());
-        let t12 = t11 * ld(sn, s.wrapping_add(0x1000));
-        let t13 = t10 * ld(sn, s);
-        let t14 = t12 + t13;
-        dw.sprite_half[0].set_bits(bh::st(t14));
-        let t15 = -t11;
-        let t16 = t15 * ld(sn, s);
-        let t17 = t10 * ld(sn, s.wrapping_add(0x1000));
-        let t18 = t16 + t17;
-        dw.sprite_half[1].set_bits(bh::st(t18));
-        let t19 = bh::ld(dw.sprite_half[2].bits());
-        let t20 = bh::ld(dw.sprite_half[3].bits());
-        let t21 = t20 * ld(sn, s.wrapping_add(0x1000));
-        let t22 = t19 * ld(sn, s);
-        let t23 = t21 + t22;
-        dw.sprite_half[2].set_bits(bh::st(t23));
-        let t24 = -t20;
-        let t25 = t24 * ld(sn, s);
-        let t26 = t19 * ld(sn, s.wrapping_add(0x1000));
-        let t27 = t25 + t26;
-        dw.sprite_half[3].set_bits(bh::st(t27));
-        let t28 = t1 * bh::ld(dw.turned[0].bits());
-        let t29 = t1 * bh::ld(dw.turned[1].bits());
-        let t30 = -t29;
-        let t31 = t30 + ld(rc, 0x2240A0);
-        let t32 = t31 - bh::ld(dw.sprite_half[1].bits());
-        st(vt, 0x4, t32);
-        let t33 = t31 - bh::ld(dw.sprite_half[3].bits());
-        st(vt, 0x24, t33);
-        let t34 = t31 + bh::ld(dw.sprite_half[1].bits());
-        st(vt, 0x44, t34);
-        let t35 = t31 + bh::ld(dw.sprite_half[3].bits());
-        st(vt, 0x64, t35);
-        let t36 = t28 + ld(rc, 0x22409C);
-        let t37 = t36 - bh::ld(dw.sprite_half[0].bits());
-        st(vt, 0x0, t37);
-        let t38 = t36 - bh::ld(dw.sprite_half[2].bits());
-        st(vt, 0x20, t38);
-        let t39 = t36 + bh::ld(dw.sprite_half[0].bits());
-        st(vt, 0x40, t39);
-        let t40 = t36 + bh::ld(dw.sprite_half[2].bits());
-        st(vt, 0x60, t40);
-        t9
-    }
+    let t0 = ld(rc, 0x224088);
+    let t1 = t0 / bh::ld(dw.turned[2].bits());
+    let t2 = bh::ld(dw.turned[2].bits());
+    let t3 = t2 * bh::ld(dw.z_k.bits());
+    st(vt, 0x8, t3);
+    st(vt, 0x28, t3);
+    st(vt, 0x48, t3);
+    st(vt, 0x68, t3);
+    let t4 = bh::int(dw.sprite_half[0].bits() as i32);
+    let t5 = t4 * t1;
+    dw.sprite_half[0].set_bits(bh::st(t5));
+    let t6 = t5 * ld(address_of(&cs.slopes), k);
+    dw.sprite_half[1].set_bits(bh::st(t6));
+    let t7 = dw.sprite_half[0].bits();
+    let t8 = t7 ^ 0x80000000;
+    dw.sprite_half[3].set_bits(t8);
+    let t9 = dw.sprite_half[1].bits();
+    dw.sprite_half[2].set_bits(t9);
+    let t10 = bh::ld(dw.sprite_half[0].bits());
+    let t11 = bh::ld(dw.sprite_half[1].bits());
+    let t12 = t11 * ld(sn, s.wrapping_add(0x1000));
+    let t13 = t10 * ld(sn, s);
+    let t14 = t12 + t13;
+    dw.sprite_half[0].set_bits(bh::st(t14));
+    let t15 = -t11;
+    let t16 = t15 * ld(sn, s);
+    let t17 = t10 * ld(sn, s.wrapping_add(0x1000));
+    let t18 = t16 + t17;
+    dw.sprite_half[1].set_bits(bh::st(t18));
+    let t19 = bh::ld(dw.sprite_half[2].bits());
+    let t20 = bh::ld(dw.sprite_half[3].bits());
+    let t21 = t20 * ld(sn, s.wrapping_add(0x1000));
+    let t22 = t19 * ld(sn, s);
+    let t23 = t21 + t22;
+    dw.sprite_half[2].set_bits(bh::st(t23));
+    let t24 = -t20;
+    let t25 = t24 * ld(sn, s);
+    let t26 = t19 * ld(sn, s.wrapping_add(0x1000));
+    let t27 = t25 + t26;
+    dw.sprite_half[3].set_bits(bh::st(t27));
+    let t28 = t1 * bh::ld(dw.turned[0].bits());
+    let t29 = t1 * bh::ld(dw.turned[1].bits());
+    let t30 = -t29;
+    let t31 = t30 + ld(rc, 0x2240A0);
+    let t32 = t31 - bh::ld(dw.sprite_half[1].bits());
+    st(vt, 0x4, t32);
+    let t33 = t31 - bh::ld(dw.sprite_half[3].bits());
+    st(vt, 0x24, t33);
+    let t34 = t31 + bh::ld(dw.sprite_half[1].bits());
+    st(vt, 0x44, t34);
+    let t35 = t31 + bh::ld(dw.sprite_half[3].bits());
+    st(vt, 0x64, t35);
+    let t36 = t28 + ld(rc, 0x22409C);
+    let t37 = t36 - bh::ld(dw.sprite_half[0].bits());
+    st(vt, 0x0, t37);
+    let t38 = t36 - bh::ld(dw.sprite_half[2].bits());
+    st(vt, 0x20, t38);
+    let t39 = t36 + bh::ld(dw.sprite_half[0].bits());
+    st(vt, 0x40, t39);
+    let t40 = t36 + bh::ld(dw.sprite_half[2].bits());
+    st(vt, 0x60, t40);
+    t9
 }
 
 #[cfg(test)]
 mod asm_reference {
     //! The original assembly blocks, kept verbatim as the reference the plain versions are tested against.
 
-    pub(super) unsafe fn turn_x87(rc: usize, mk: usize, p: usize) {
+    pub(super) fn turn_x87(rc: usize, mk: usize, p: usize) {
         unsafe {
             core::arch::asm!(
                     "fld tbyte ptr [{p} + 20]",
@@ -295,7 +289,7 @@ mod asm_reference {
         }
     }
 
-    pub(super) unsafe fn square_x87(rc: usize, bf: usize, mk: usize, k: usize, s: usize) -> u32 {
+    pub(super) fn square_x87(rc: usize, bf: usize, mk: usize, k: usize, s: usize) -> u32 {
         let result: u32;
         unsafe {
             core::arch::asm!(
@@ -445,10 +439,10 @@ mod asm_differential {
         };
         differential(
             &SPEC,
-            |b| unsafe { reference::turn_x87(b[0], b[1], b[2]) },
+            |b| reference::turn_x87(b[0], b[1], b[2]),
             |b| {
                 with_copy(b[1], RingWork::START, |w| {
-                    with_copy::<DrawWork, _>(b[1], DrawWork::START, |dw| unsafe {
+                    with_copy::<DrawWork, _>(b[1], DrawWork::START, |dw| {
                         super::turn_x87(b[0], b[2], w, dw)
                     })
                 })
@@ -531,10 +525,10 @@ mod asm_differential {
         };
         differential(
             &SPEC,
-            |b| unsafe { reference::square_x87(b[0], b[1], b[2], b[3], b[4]) },
+            |b| reference::square_x87(b[0], b[1], b[2], b[3], b[4]),
             |b| {
                 with_copy::<DrawWork, _>(b[2], DrawWork::START, |dw| {
-                    with_copy::<CornerSlopes, _>(b[2], CornerSlopes::START, |cs| unsafe {
+                    with_copy::<CornerSlopes, _>(b[2], CornerSlopes::START, |cs| {
                         super::square_x87(
                             b[0],
                             b[1].wrapping_add(0x5605A0),

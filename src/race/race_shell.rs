@@ -3,25 +3,27 @@
 
 use crate::gfx::screen_state::SCREEN_MODE;
 use crate::input::store::DEVICES;
+use crate::pointers::GamePtr;
 use crate::race::blocks_store::CAR_BLOCKS;
 use crate::race::kind_store::KIND_TABLES;
 use crate::race::panel_store::PANEL;
 use crate::race::replay_file_store::REPLAY_FILE;
 use crate::race::state_store::RACE_STATE;
 use crate::race::tables_store::RACE_TABLES;
+use crate::race::trap::Trap;
 use crate::race::vars_store::RACE_VARS;
 use crate::race::view_store::RACE_VIEW;
 
 pub const KIND_ORDER_LEN: u32 = rc2k_core::race::cars::KIND_ORDER_LEN;
 
 /// `race::release_controls` (0x409425): `dword_4F7DE4` 2. Every register kept.
-pub unsafe fn release_controls() {
+pub fn release_controls() {
     DEVICES.input_command.set(2); // g_inputCommand
 }
 
 /// `race::clear_player_absences` (0x449D44): the eight blocks' +0xB0 0. Every register
 /// kept.
-pub unsafe fn clear_player_absences() {
+pub fn clear_player_absences() {
     // Each car block's +0xB0: the player absent.
     for car in &CAR_BLOCKS.cars[..8] {
         car.stop_state.set(0);
@@ -38,19 +40,22 @@ pub fn kind_unusable(eax: u32) -> (bool, bool) {
 
 /// `race::index_of_kind` (0x437720): the place of kind `kind` in `dword_6051E0` (the
 /// first of equals), 0 for none.
-pub unsafe fn index_of_kind(kind: u32) -> u32 {
+pub fn index_of_kind(kind: u32) -> Result<u32, BadInput> {
     // Converted: `rc2k_core::race::cars::index_of_kind`; the table read entry by entry.
     // dword_6051E0: 0x22 kinds, but `unknown_ba4` holds 32: the last two are the two dwords
     // after it (`view_share`, `camera_turn_step`), read as the original does.
-    let first = crate::race::tables_store::RACE_TABLES.unknown_ba4[0].addr() as *const u32;
-    let order = (0..KIND_ORDER_LEN).map(|n| unsafe { first.add(n as usize).read() });
-    rc2k_core::race::cars::index_of_kind(kind, order).unwrap_or(0)
+    let first = crate::race::tables_store::RACE_TABLES.unknown_ba4[0].addr() as u32;
+    let trap = Trap::new();
+    let order = (0..KIND_ORDER_LEN).map(|n| trap.read::<u32>(first + 4 * n, "the kind order"));
+    let place = rc2k_core::race::cars::index_of_kind(kind, order).unwrap_or(0);
+    trap.finish()?;
+    Ok(place)
 }
 
 /// `race::set_race_screen_mode` (0x404830): `gfx::set_screen_mode` (the platform's) with
 /// `g_raceScreenMode`; every register and flag kept (`pusha` / `popa`; its carry is read
 /// by nobody).
-pub unsafe fn set_race_screen_mode() {
+pub fn set_race_screen_mode() {
     crate::platform::set_mode_now(SCREEN_MODE.race_mode.get());
 }
 
@@ -67,32 +72,36 @@ pub fn release_stage_textures() {
 /// `race::seal_stage_time` (0x41F29D): the first block's time (+0x88, held to
 /// 0x22550FF unsigned; its +0xB0 if that is negative) `xor` `dword_4F66F9` and turned
 /// right by its low five bits, into the dword at 0x5BECCC. Every register kept.
-pub unsafe fn seal_stage_time() {
+pub fn seal_stage_time() -> Result<(), BadInput> {
     // Converted: `rc2k_core::race::seal::seal_time`.
-    unsafe {
+    {
         let key = crate::race::replay::SEAL_KEY.get();
         let sealed = rc2k_core::race::seal::seal_time(
             CAR_BLOCKS.cars[0].stop_state.bits(),
             || CAR_BLOCKS.cars[0].stage_time.bits(),
             key,
         );
-        (REPLAY_FILE.index_seal.addr() as *mut u32).write_unaligned(sealed);
+        REPLAY_FILE.index_seal.set(sealed);
     }
+    Ok(())
 }
 
 /// `race::copy_league_table` (0x4650B7): with a source (`dword_75ACD0`), its ten records'
 /// +8 into `dword_60410C` and their sixteen dwords from +0x10 into column n of the
 /// sixteen rows at 0x604134. The registers it leaves are read by no caller (taint at its
 /// one call site, 0x4486DB; conversion phase 3, 2026-10-24).
-pub unsafe fn copy_league_table() {
+pub fn copy_league_table() -> Result<(), BadInput> {
     // Converted: `rc2k_core::race::results::league`.
     use rc2k_core::race::results::league;
-    unsafe {
+    {
         let source: u32 = RACE_STATE.settings.rivals.get();
         if source == 0 {
-            return;
+            return Ok(());
         }
-        let l = league(|n, off| ((source + 0x50 * n as u32 + off) as *const u32).read_unaligned());
+        let trap = Trap::new();
+        let l =
+            league(|n, off| trap.read::<u32>(source + 0x50 * n as u32 + off, "the league records"));
+        trap.finish()?;
         crate::session::write_bits(&crate::race::league_store::LEAGUE.names, l.firsts);
         for (k, row) in l.rows.iter().enumerate() {
             crate::session::write_first(
@@ -101,29 +110,29 @@ pub unsafe fn copy_league_table() {
             );
         }
     }
+    Ok(())
 }
 
 /// A kind's value for `set_start_states`: the record of the kind (held to 0x21) its
 /// +0x18 when its limit (`dword_5C7980`) is 0x1B58 or less, else 0.
-unsafe fn start_value(kind: u32) -> u32 {
+fn start_value(kind: u32) -> u32 {
     use rc2k_core::race::cars::{start_record, start_state_value};
     let record = &crate::race::car_specs_store::CAR_SPECS.cars[start_record(kind) as usize];
     start_state_value(record.engine_top.get(), || record.drive_kind.get())
 }
 
 /// Whether a kind is one with its flag (`dword_5C5AC0`) set (below 0x22).
-unsafe fn flagged(kind: u32) -> bool {
+fn flagged(kind: u32) -> bool {
     kind < 0x22 && KIND_TABLES.kind_has_views[kind as usize].get() != 0 // dword_5C5AC0: 0x22
 }
 
 /// A block's +0x684 of 2 or 3 made 4.
-unsafe fn settle_state(at: u32) {
-    unsafe {
-        let p = at as *mut u32;
-        if let Some(v) = rc2k_core::race::cars::settled_state(p.read_unaligned()) {
-            p.write_unaligned(v);
-        }
+fn settle_state(at: u32) -> Result<(), BadInput> {
+    let p = GamePtr::new(at);
+    if let Some(v) = rc2k_core::race::cars::settled_state(p.read("a car block's camera view")?) {
+        p.write(v, "a car block's camera view")?;
     }
+    Ok(())
 }
 
 /// `race::set_start_states` (0x446D2E): `dword_6D14CA` / `CE` the start values of the
@@ -135,10 +144,10 @@ unsafe fn settle_state(at: u32) {
 /// leaves are read by none of its four callers (taint at each site; it keeps the rest).
 /// Refuses, with `dword_52A910` 1, a chosen car past 7 (the original reads past the
 /// tables), before anything.
-pub unsafe fn set_start_states() -> Result<(), Refused> {
+pub fn set_start_states() -> Result<(), Refused> {
     // Converted: `rc2k_core::race::cars::{start_record, start_state_value, held_split,
     // settled_state}`.
-    unsafe {
+    {
         let one = crate::net::store::NET.session.get() == 1;
         let chosen: u32 = crate::net::store::NET.player.get();
         if one && chosen > 7 {
@@ -156,8 +165,8 @@ pub unsafe fn set_start_states() -> Result<(), Refused> {
         if one {
             let block: u32 = crate::race::work_store::RACE_WORK.car_block(chosen as usize);
             RACE_VARS.split.set_bits(0u32);
-            if !flagged(*((block + 0x24) as *const u32)) {
-                settle_state(block + 0x684);
+            if !flagged(GamePtr::new(block + 0x24).read::<u32>("a car block's kind")?) {
+                settle_state(block + 0x684)?;
             }
             return Ok(());
         }
@@ -166,8 +175,8 @@ pub unsafe fn set_start_states() -> Result<(), Refused> {
         RACE_VARS.split.set_bits(held as u32);
         let kind_0: u32 = CAR_BLOCKS.cars[0].car_kind.bits();
         if !flagged(kind_0) || RACE_VIEW.players.bits() >= 2 {
-            settle_state(CAR_BLOCKS.cars[0].camera_view.addr() as u32);
-            settle_state(CAR_BLOCKS.cars[1].camera_view.addr() as u32);
+            settle_state(CAR_BLOCKS.cars[0].camera_view.addr() as u32)?;
+            settle_state(CAR_BLOCKS.cars[1].camera_view.addr() as u32)?;
         }
     }
     Ok(())
@@ -179,7 +188,7 @@ pub unsafe fn set_start_states() -> Result<(), Refused> {
 /// `g_stageCarTotal` x 100 less each, held to 0 .. 300000, to `dword_75B020` /
 /// `dword_75B090` (ebx the stage held to 0 .. 0x4C); 1 and 3 the two +0x88s; others
 /// nothing. The registers it leaves are read by no caller (taint at 0x448C02).
-pub unsafe fn store_results_by_mode() {
+pub fn store_results_by_mode() {
     // Converted: `rc2k_core::race::cars::margin`.
     use rc2k_core::race::cars::margin;
     match RACE_VARS.run_kind.bits() {

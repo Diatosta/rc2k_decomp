@@ -14,8 +14,9 @@
 //! One caller, `sub_411239`. Refuses what `resolve_path` and `allocate_best_times` refuse.
 
 use crate::errors::{BadInput, Refused};
-use crate::files::handle::{close, open_by_mode, read};
-use crate::saves::allocate_best_times::{allocate_best_times, pair};
+use crate::files::handle::{close, open_by_mode, read_to};
+use crate::pointers::GamePtr;
+use crate::saves::allocate_best_times::allocate_best_times;
 use crate::saves::best_times_store::BEST_TIMES;
 
 // ---- game data ----
@@ -38,90 +39,46 @@ const READ: [usize; 6] = [1, 2, 3, 4, 7, 8];
 
 // ---- Rust version ----
 
-/// What the function is given: the game's own.
-pub struct Places<'a> {
-    pub path: *const u8,
-    /// `saves::allocate_best_times`.
-    pub allocate: &'a mut dyn FnMut() -> Result<(), Refused>,
-    /// `files::open_by_mode` with mode 0.
-    pub open: &'a mut dyn FnMut(*const u8) -> Result<Option<u32>, BadInput>,
-    /// The address and the size of the `n`th table of the file, as they are after
-    /// `allocate`.
-    pub table: &'a dyn Fn(usize) -> (u32, u32),
-    pub loaded: *mut u32,
-}
-
-/// Reads exactly `count` bytes, or closes the file and says false.
-unsafe fn read_or_close(file: u32, to: *mut u8, count: u32) -> bool {
-    unsafe {
-        let (got, ok) = read(file, to, count);
-        if !ok || got != count {
-            close(file);
-            return false;
-        }
-        true
-    }
-}
-
-/// True if the file was loaded.
-pub unsafe fn load_best_times(places: &mut Places) -> Result<bool, Refused> {
-    unsafe {
-        (places.allocate)()?;
-        let Some(file) = (places.open)(places.path)? else {
-            return Ok(false);
-        };
-        if !read_or_close(
-            file,
-            crate::files::scratch::SCRATCH.buffer.addr() as *mut u8,
-            HEAD_LEN,
-        ) {
-            return Ok(false);
-        }
-        // Converted: `rc2k_core::saves::kept::head_ok`.
-        let head = std::slice::from_raw_parts(
-            crate::files::scratch::SCRATCH.buffer.addr() as *const u8,
-            HEAD_LEN as usize,
-        );
-        if !rc2k_core::saves::kept::head_ok(head, rc2k_core::saves::kept::BEST_TIMES) {
-            // The file stays open, as in the original.
-            return Ok(false);
-        }
-        for n in 0..READ.len() {
-            let (to, count) = (places.table)(n);
-            if !read_or_close(file, to as *mut u8, count) {
-                return Ok(false);
-            }
-        }
+/// Reads exactly `count` bytes into `to`, or closes the file and says false.
+fn read_or_close(file: u32, to: GamePtr, count: u32) -> Result<bool, BadInput> {
+    let (got, ok) = read_to(file, to, count, "the best times file's data")?;
+    if !ok || got != count {
         close(file);
-        places.loaded.write_unaligned(1);
-        Ok(true)
+        return Ok(false);
     }
+    Ok(true)
 }
 
-fn game_table(n: usize) -> (u32, u32) {
+/// `saves::load_best_times` on the game's own file and tables: true if the file was loaded.
+pub fn load_game_best_times() -> Result<bool, Refused> {
     unsafe {
-        let pair = pair(BEST_TIMES.vars(), READ[n]);
-        (pair.read_unaligned(), pair.add(1).read_unaligned())
+        allocate_best_times(
+            BEST_TIMES.list(),
+            crate::records::stages_store::STAGE_TABLES.championship(), // g_recordTable
+        )?;
     }
-}
-
-/// `load_best_times` on the game's own file and tables.
-pub unsafe fn load_game_best_times() -> Result<bool, Refused> {
-    unsafe {
-        load_best_times(&mut Places {
-            path: PATH.addr() as *const u8,
-            allocate: &mut || {
-                allocate_best_times(
-                    BEST_TIMES.vars(),
-                    BEST_TIMES.list(),
-                    crate::records::stages_store::STAGE_TABLES.championship() as *const u8, // g_recordTable
-                )
-            },
-            open: &mut |path| open_by_mode(path, 0),
-            table: &game_table,
-            loaded: BEST_TIMES.loaded.addr() as *mut u32,
-        })
+    let Some(file) = open_by_mode(PATH.addr() as *const u8, 0)? else {
+        return Ok(false);
+    };
+    let scratch = GamePtr::new(crate::files::scratch::SCRATCH.buffer.addr() as u32);
+    if !read_or_close(file, scratch, HEAD_LEN)? {
+        return Ok(false);
     }
+    // Converted: `rc2k_core::saves::kept::head_ok`.
+    let head = scratch.read_bytes(HEAD_LEN as usize, "the best times file's head")?;
+    if !rc2k_core::saves::kept::head_ok(&head, rc2k_core::saves::kept::BEST_TIMES) {
+        // The file stays open, as in the original.
+        return Ok(false);
+    }
+    for table in READ {
+        let place = &BEST_TIMES.tables[table];
+        if !read_or_close(file, GamePtr::new(place.address.get()), place.size.get())? {
+            return Ok(false);
+        }
+    }
+    close(file);
+    BEST_TIMES.loaded.set(1);
+    Ok(true)
 }
 
 #[cfg(test)]

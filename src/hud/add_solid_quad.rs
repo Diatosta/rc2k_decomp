@@ -11,9 +11,9 @@ use crate::hud::store::HUD;
 
 /// The Rust version (see the header).
 // Converted: `rc2k_core::hud::quads::SOLID_PLACES`
-pub unsafe fn add_solid_quad() -> Result<(), Refused> {
+pub fn add_solid_quad() -> Result<(), Refused> {
     for (n, v) in rc2k_core::hud::quads::SOLID_PLACES {
         HUD.quad[n].set(v);
     }
-    unsafe { crate::hud::add_quad::add_quad() }
+    crate::hud::add_quad::add_quad()
 }

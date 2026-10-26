@@ -29,22 +29,22 @@ fn scaled(sample: u32, lo: u32, hi: u32) -> u32 {
 }
 
 /// The noise map `x`'s sample under the work car (what `race::sample_noise` leaves in eax).
-unsafe fn sample(x: usize) -> u32 {
-    unsafe { sample_noise(x as u32) }
+fn sample(x: usize) -> Result<u32, crate::errors::BadInput> {
+    sample_noise(x as u32)
 }
 
 /// The Rust version.
 // Converted: `rc2k_core::physics::ground::{noise_level, rough_floor}` (the share / 256
 // stays x87).
-pub unsafe fn surface_noise() {
-    unsafe {
+pub fn surface_noise() -> Result<(), crate::errors::BadInput> {
+    {
         let first = scaled(
             sample(
                 crate::scene::engine_tables_store::ENGINE_TABLES
                     .noise_bytes
                     .addr()
                     + 0x50,
-            ),
+            )?,
             STAGE_PREFS.blit_cleared[0].get(),
             STAGE_PREFS.blit_cleared[1].get(),
         );
@@ -56,7 +56,7 @@ pub unsafe fn surface_noise() {
                     .noise_bytes
                     .addr()
                     + 0x20,
-            ),
+            )?,
             STAGE_PREFS.surface_scale[0].get(),
             STAGE_PREFS.surface_scale[1].get(),
         );
@@ -74,4 +74,5 @@ pub unsafe fn surface_noise() {
             CAR.surface_noise_b.set(0);
         }
     }
+    Ok(())
 }

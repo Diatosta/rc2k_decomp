@@ -32,47 +32,42 @@ const CAR_DAMAGE_OFFSET: u32 = 0xCC; // car +0xCC + 4 * item
 
 /// The percentage and the item of the last damaged part looked at (its repair flag's address
 /// is what the original leaves in esi). Converted: `rc2k_core::screens::inspection::status`.
-pub unsafe fn inspection_status(player: u32) -> (i32, Option<u32>) {
+pub fn inspection_status(player: u32) -> Result<(i32, Option<u32>), crate::errors::BadInput> {
     use rc2k_core::screens::inspection::{PARTS, Part, status};
+    let fault = crate::menu::event_flow::Fault::default();
     let parts: [Part; 13] = std::array::from_fn(|n| {
         let item = PARTS[n];
-        unsafe {
-            Part {
-                damage: (player.wrapping_add(CAR_DAMAGE_OFFSET + 4 * item) as *const i32)
-                    .read_unaligned(),
-                threshold: MENU_STATE.driver_stats.limits[item as usize - 2].get() as i32,
-                weight: MENU_STATE.driver_stats.penalties[item as usize - 2].get() as i32,
-                repairing: repair_flag(item) != 0,
-            }
+        Part {
+            damage: fault.read::<i32>(
+                player.wrapping_add(CAR_DAMAGE_OFFSET + 4 * item),
+                "a car part\'s damage",
+            ),
+            threshold: MENU_STATE.driver_stats.limits[item as usize - 2].get() as i32,
+            weight: MENU_STATE.driver_stats.penalties[item as usize - 2].get() as i32,
+            repairing: repair_flag(item) != 0,
         }
     });
+    fault.check()?;
     let (condition, last) = status(&parts);
-    (condition, last.map(|n| PARTS[n]))
+    Ok((condition, last.map(|n| PARTS[n])))
 }
 
 /// `icon_palette` is what the caller has in ebx. Refuses a missing player. The carry of
 /// the text (too wide): what the one caller, `screens::draw_service_area`, reads of what
 /// the original leaves.
-pub unsafe fn draw_inspection_status(
-    icon_palette: u32,
-    canvas: &mut dyn Canvas,
-) -> Result<bool, Refused> {
-    unsafe {
-        let Some(player) = current_player() else {
-            return Err(
-                BadInput("no current player object: the original reads through null").into(),
-            );
-        };
-        let (condition, _) = inspection_status(player);
-        // Converted: `rc2k_core::screens::inspection::inspection_status`.
-        let out = rc2k_core::screens::inspection::inspection_status(
-            &mut crate::screens::game_screen::GameScreen::<
-                rc2k_core::screens::inspection::Font,
-                rc2k_core::screens::inspection::Work,
-            >::new(canvas),
-            condition,
-            icon_palette,
-        )?;
-        Ok(out.too_wide)
-    }
+pub fn draw_inspection_status(icon_palette: u32, canvas: &mut dyn Canvas) -> Result<bool, Refused> {
+    let Some(player) = current_player() else {
+        return Err(BadInput("no current player object: the original reads through null").into());
+    };
+    let (condition, _) = inspection_status(player)?;
+    // Converted: `rc2k_core::screens::inspection::inspection_status`.
+    let out = rc2k_core::screens::inspection::inspection_status(
+        &mut crate::screens::game_screen::GameScreen::<
+            rc2k_core::screens::inspection::Font,
+            rc2k_core::screens::inspection::Work,
+        >::new(canvas),
+        condition,
+        icon_palette,
+    )?;
+    Ok(out.too_wide)
 }

@@ -13,6 +13,7 @@ use crate::errors::{BadInput, Refused};
 use crate::menu::event_store::EVENT_STATE;
 use crate::menu::flow_store::SCREEN_FLOW;
 use crate::menu::player::{Player, player_at};
+use crate::pointers::GamePtr;
 use crate::screens::car_caption::put_string;
 
 pub const TEXT_LEN: usize = 0x100;
@@ -30,7 +31,9 @@ pub fn current() -> Result<u32, Refused> {
 }
 
 pub unsafe fn gearing_text() -> Result<(), Refused> {
-    let value = unsafe { (*(current()? as *const Player)).gearing };
+    let value = GamePtr::new(current()?)
+        .read::<Player>("the current player")?
+        .gearing;
     unsafe {
         put_string(
             FIRST_STRING.wrapping_add(value),
@@ -60,7 +63,10 @@ pub unsafe fn step_gearing(on: bool) -> Result<(), Refused> {
             TEXT_LEN,
         )?;
         SCREEN_FLOW.shown_gearing.set(value);
-        (*(p as *mut Player)).gearing = value;
+        let at = GamePtr::new(p);
+        let mut player = at.read::<Player>("the current player")?;
+        player.gearing = value;
+        at.write(player, "the current player")?;
     }
     Ok(())
 }

@@ -103,7 +103,7 @@ pub fn edit_key(key: u32, item: u32) -> Result<(u32, bool), Refused> {
                         .layout
                         .set(KEYBOARD_FILE.layouts[0].dead_keys.addr() as u32);
                 }
-                let out = unsafe { crate::input::key_to_char::key_to_char(key) };
+                let out = crate::input::key_to_char::key_to_char(key);
                 if swap {
                     KEYBOARD_FILE.layout.set(kept);
                 }

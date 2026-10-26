@@ -38,6 +38,7 @@ use crate::physics::flow::{copy_cells, fill_cells, negate};
 use crate::physics::tables_store::PHYSICS;
 use crate::physics::touch_face::touch_face;
 use crate::physics::vector_length::vector_length;
+use crate::pointers::GamePtr;
 use crate::race::course_store::COURSE;
 use crate::race::norms::normalise_work_vector;
 use crate::race::numbers_store::NUMBERS;
@@ -49,12 +50,12 @@ use crate::scene::object_tables_store::OBJECT_TABLES;
 use crate::scene::x87_mem::{fild, fistp, fld, fstp};
 use rc2k_core::physics::face_contacts::{self as contacts, FaceObject, Inside};
 
-fn byte(x: u32) -> u32 {
-    unsafe { (x as *const u8).read() as u32 }
+fn byte(x: u32) -> Result<u32, Refused> {
+    Ok(u32::from(GamePtr::new(x).read::<u8>("a face's byte")?))
 }
 
-fn rd(x: u32) -> u32 {
-    unsafe { (x as *const u32).read_unaligned() }
+fn rd(x: u32) -> Result<u32, Refused> {
+    Ok(GamePtr::new(x).read::<u32>("a face's or scene point's dword")?)
 }
 
 fn touch() -> Result<(), Refused> {
@@ -68,10 +69,20 @@ fn touch() -> Result<(), Refused> {
 pub fn steps(number: u32) -> Result<(), Refused> {
     CONTACT_WORK.face_number.set(number);
     let face = (number << 6).wrapping_add(COURSE.course_faces.get());
-    if unsafe { crate::scene::kind_hidden_at::kind_hidden_at(face) } {
+    if crate::scene::kind_hidden_at::kind_hidden_at(face)? {
         return Ok(());
     }
-    let object = match contacts::face_object(byte(face), || byte(face + 1)) {
+    let mut refused = None;
+    let found = contacts::face_object(byte(face)?, || {
+        byte(face + 1).unwrap_or_else(|e| {
+            refused = Some(e);
+            0
+        })
+    });
+    if let Some(e) = refused {
+        return Err(e);
+    }
+    let object = match found {
         FaceObject::NotObject => return Ok(()),
         FaceObject::TouchOnly => {
             CONTACT_WORK.contact_kind.set(0xFF);
@@ -84,26 +95,27 @@ pub fn steps(number: u32) -> Result<(), Refused> {
     contacts::check_material(kind)?;
     CONTACT_WORK.contact_kind.set(byte(
         crate::scene::polygon::materials_addr() as u32 + 0x80 * kind + 0x1C,
-    ));
-    if contacts::object_tried(byte(face + 0x25), RACE_WORK.stage_direction.get(), object).is_err() {
+    )?);
+    if contacts::object_tried(byte(face + 0x25)?, RACE_WORK.stage_direction.get(), object).is_err()
+    {
         return Ok(());
     }
     for (k, o) in [8u32, 0xC, 0x10].iter().enumerate() {
-        OBJECT_WORK.angles[k].set(contacts::turn_word(byte(face + o)));
+        OBJECT_WORK.angles[k].set(contacts::turn_word(byte(face + o)?));
     }
-    OBJECT_WORK.size.set(byte(face + 0x18));
+    OBJECT_WORK.size.set(byte(face + 0x18)?);
     // esi and ebp both the face here.
     let (inside, _, point) =
-        unsafe { crate::physics::scene_point_hits_car::scene_point_hits_car(face, face) };
+        unsafe { crate::physics::scene_point_hits_car::scene_point_hits_car(face, face) }?;
     if !inside {
         if !contacts::tries_points(CONTACT_WORK.contact_kind.get()) {
             return Ok(());
         }
-        let dx = rd(point)
-            .wrapping_add(rd(face + 0x30))
+        let dx = rd(point)?
+            .wrapping_add(rd(face + 0x30)?)
             .wrapping_sub(CAR.position[0].get());
-        let dz = rd(point + 8)
-            .wrapping_add(rd(face + 0x38))
+        let dz = rd(point + 8)?
+            .wrapping_add(rd(face + 0x38)?)
             .wrapping_sub(CAR.position[2].get());
         let distance = int_hypot(dx as i32, dz as i32) as u32;
         DRAW.scratch.set(distance);

@@ -12,6 +12,7 @@
 use crate::audio::store::AUDIO;
 use crate::audio::voices::*;
 use crate::errors::Refused;
+use crate::pointers::GamePtr;
 use crate::session::{Dword, Shared};
 
 #[repr(C)]
@@ -28,10 +29,6 @@ pub struct SampleFile {
 }
 
 const _: () = assert!(std::mem::size_of::<SampleFile>() == 0x20);
-
-unsafe fn dword(at: u32) -> u32 {
-    unsafe { (at as *const u32).read_unaligned() }
-}
 
 /// Reads and parses a sample file: true for the carry clear (a sample was found).
 pub unsafe fn read_sample(
@@ -61,7 +58,7 @@ pub unsafe fn read_sample(
             frame_bytes: f.frame_bytes,
             frames: f.frames,
         };
-        let file = crate::bridge::Raw::new(buffer as *const u8);
+        let file = GamePtr::new(buffer).bytes("a sample file")?;
         let found = rc2k_core::audio::samples::parse(
             &file,
             read.bytes_read.unwrap_or(0),
@@ -69,7 +66,7 @@ pub unsafe fn read_sample(
             &flags(&AUDIO.sample_bits_flags),
             &flags(&AUDIO.sample_channel_flags),
         );
-        let found = crate::bridge::read_through(found);
+        let found = found?;
         *f = SampleFile {
             data: core.data.wrapping_add(buffer),
             length: core.length,
@@ -120,7 +117,7 @@ pub unsafe fn find_shared_voice(record: &SampleRecord, count: u32) -> u32 {
 
 /// `audio::fill_voice`: the voice `at` for the record (`record` is its address), from the
 /// sample file or, with `shared`, from that voice.
-pub unsafe fn fill_voice(
+pub fn fill_voice(
     at: u32,
     record_at: u32,
     shared: u32,
@@ -128,7 +125,7 @@ pub unsafe fn fill_voice(
     sound_mode: u32,
 ) -> Result<(), Refused> {
     // Converted: `rc2k_core::audio::voices::fill_voice`.
-    let record = unsafe { *(record_at as *const SampleRecord) };
+    let record: SampleRecord = GamePtr::new(record_at).read("a sample record")?;
     let from_file = rc2k_core::audio::voices::FileSample {
         data: file.data,
         length: file.length,
@@ -136,7 +133,8 @@ pub unsafe fn fill_voice(
         frames: file.frames,
         rate: file.rate,
     };
-    rc2k_core::audio::voices::fill_voice(
+    let failed = std::cell::Cell::new(None);
+    let filled = rc2k_core::audio::voices::fill_voice(
         &mut GamePool,
         at,
         &record,
@@ -145,8 +143,19 @@ pub unsafe fn fill_voice(
         sound_mode & 0x1_0000 != 0,
         // The record's pointer (pointed at its target's home at start:
         // `moved::point_into_homes`).
-        |factor| unsafe { dword(factor) },
-    )?;
+        |factor| {
+            GamePtr::new(factor)
+                .read::<u32>("a sample's volume factor")
+                .unwrap_or_else(|e| {
+                    failed.set(failed.get().or(Some(e)));
+                    0
+                })
+        },
+    );
+    if let Some(e) = failed.get() {
+        return Err(e.into());
+    }
+    filled?;
     Ok(())
 }
 
@@ -159,7 +168,7 @@ pub fn sample_mode(mode: u32, record: Option<&SampleRecord>) -> u32 {
 /// `audio::prepare_sample`: the voice's data, in place, scaled by `scale` / 64, halved
 /// until its shift is the mode's, and made eight bits if the mode asks. Converted:
 /// `rc2k_core::audio::samples::prepare`, on the voice's data in game memory.
-pub unsafe fn prepare_sample(v: &mut Voice, mode: u32) -> Result<(), Refused> {
+pub fn prepare_sample(v: &mut Voice, mode: u32) -> Result<(), Refused> {
     if v.data == 0 || v.length == 0 || v.data_key == 0 {
         return Ok(());
     }
@@ -170,8 +179,12 @@ pub unsafe fn prepare_sample(v: &mut Voice, mode: u32) -> Result<(), Refused> {
         scale: v.scale,
         own_frequency: v.own_frequency,
     };
-    let mut data = unsafe { crate::bridge::RawMut::new(v.data as *mut u8) };
+    // The data is worked on as a copy of its `length` bytes (the loops stay inside them) and
+    // put back.
+    let place = GamePtr::new(v.data);
+    let mut data = place.read_bytes(v.length as usize, "a sample's data")?;
     rc2k_core::audio::samples::prepare(&mut shape, mode, &mut data)?;
+    place.write_bytes(&data, "a sample's data")?;
     v.length = shape.length;
     v.format = shape.format;
     v.frames = shape.frames;

@@ -20,6 +20,7 @@ use crate::hud::draw_markers_1::{int_over_80, taken_off};
 use crate::hud::draw_signs::row;
 use crate::hud::layout_0::*;
 use crate::hud::store::{HUD, rect_addr};
+use crate::pointers::GamePtr;
 
 /// A sprite scaled 0xC0 over `flt_75C00C` both ways; the scales then taken off into
 /// `dword_75C060`.
@@ -28,14 +29,14 @@ pub fn scaled(rect: u32, x: u32, y: u32) -> Result<(), Refused> {
     let k = HUD.uv_scale_x.bits();
     HUD.scratch.set(0xC0);
     let v = int_over_80(0xC0, k);
-    unsafe { crate::hud::add_scaled_sprite::add_scaled_sprite(x, y, at, [v, v]) }?;
+    { crate::hud::add_scaled_sprite::add_scaled_sprite(x, y, at, [v, v]) }?;
     HUD.scratch.set(taken_off(v));
     Ok(())
 }
 
 /// A sprite: rectangle `rect` (0x10 a rectangle) of `dword_75B940` at (x, y).
 pub fn plain(rect: u32, x: u32, y: u32) -> Result<(), Refused> {
-    unsafe { crate::hud::add_sprite::add_sprite(x, y, rect_addr(rect)) }
+    crate::hud::add_sprite::add_sprite(x, y, rect_addr(rect))
 }
 
 /// The sign of the needle by the record's `field` (`dword_75C040`, `dword_75BFAC`, the
@@ -48,18 +49,18 @@ pub fn pick(field: u32) -> u32 {
 /// HUD's record.
 // Converted: `rc2k_core::hud::panels` (through `layout_0`'s panels and `needle_sign`),
 // `rc2k_core::hud::quads::int_over` (the sprites' scales)
-pub unsafe fn layout_1(record: u32) -> Result<(), Refused> {
+pub fn layout_1(record: u32) -> Result<(), Refused> {
     use crate::hud::*;
-    let get = |o: u32| unsafe { ((record + o) as *const u32).read_unaligned() };
-    let [f1, f2] = [get(0xF8), get(0xFC)];
+    let get = |o: u32| GamePtr::new(record + o).read::<u32>("a hud record's field");
+    let [f1, f2] = [get(0xF8)?, get(0xFC)?];
     HUD.quad[0].set(0xE0);
     HUD.texture.set(0xC6);
     if f1 & 0x10 != 0 {
-        unsafe { dials::disc(record, &disc_1a::SETUP) }?;
+        { dials::disc(record, &disc_1a::SETUP) }?;
     }
     HUD.texture.set(0xC7);
     if f2 & 0x10 != 0 {
-        unsafe { dials::disc(record, &disc_1b::SETUP) }?;
+        { dials::disc(record, &disc_1b::SETUP) }?;
     }
     HUD.texture.set(0xC0);
     HUD.quad[0].set(0xFF);
@@ -67,26 +68,26 @@ pub unsafe fn layout_1(record: u32) -> Result<(), Refused> {
     for (n, v) in [0x18F, 0, 0x191, 0x258].into_iter().enumerate() {
         HUD.quad[1 + n].set(v);
     }
-    unsafe { add_solid_quad::add_solid_quad() }?;
+    { add_solid_quad::add_solid_quad() }?;
     if f1 & 0x40 != 0 {
-        unsafe { draw_stage_bars_1::draw_stage_bars_1(record) }?;
+        { draw_stage_bars_1::draw_stage_bars_1(record) }?;
     }
     HUD.quad[5].set(0xFFFF_FFFF);
     HUD.quad[0].set(0xFF);
     HUD.texture.set(0xDC);
-    unsafe { icons_1::icons_1(record) }?;
+    { icons_1::icons_1(record) }?;
     HUD.quad[5].set(0xFFFF_FFFF);
     HUD.quad[0].set(0xFF);
     HUD.texture.set(0xC1);
     if f1 & 0x20 != 0 {
         scaled(0x49, 7, 0x223)?;
-        scaled(get(0x18).wrapping_add(0x41), 0xD, 0x22A)?;
+        scaled(get(0x18)?.wrapping_add(0x41), 0xD, 0x22A)?;
     }
     if f2 & 0x20 != 0 {
         scaled(0x49, 0x198, 0x223)?;
-        scaled(get(0x48).wrapping_add(0x41), 0x19E, 0x22A)?;
+        scaled(get(0x48)?.wrapping_add(0x41), 0x19E, 0x22A)?;
     }
-    let p = pick(get(0xCC));
+    let p = pick(get(0xCC)?);
     if f1 & 1 != 0 {
         scaled(p, 0x19, 0x1DE)?;
     }
@@ -94,7 +95,7 @@ pub unsafe fn layout_1(record: u32) -> Result<(), Refused> {
     if f1 & 0x10 != 0 {
         scaled(0x5F, 0x116, 0x1DE)?;
     }
-    let p = pick(get(0xD0));
+    let p = pick(get(0xD0)?);
     if f2 & 1 != 0 {
         scaled(p, 0x1AA, 0x1DE)?;
     }
@@ -103,28 +104,28 @@ pub unsafe fn layout_1(record: u32) -> Result<(), Refused> {
         scaled(0x5F, 0x2A7, 0x1DE)?;
     }
     if f1 & 0x40 != 0 {
-        unsafe { draw_markers_1::draw_markers_1(record) }?;
+        { draw_markers_1::draw_markers_1(record) }?;
     }
     HUD.quad[5].set(0xFFFF_FFFF);
     if f1 & 0x80 != 0 {
-        unsafe { draw_signs_1a::draw_signs_1a(record) }?;
+        { draw_signs_1a::draw_signs_1a(record) }?;
     }
     if f2 & 0x80 != 0 {
-        unsafe { draw_signs_1b::draw_signs_1b(record) }?;
+        { draw_signs_1b::draw_signs_1b(record) }?;
     }
     HUD.texture.set(0xC1);
     if f1 & 1 != 0 {
-        unsafe { dials::needle(record, &needle_1a::SETUP) }?;
+        { dials::needle(record, &needle_1a::SETUP) }?;
     }
     if f2 & 1 != 0 {
-        unsafe { dials::needle(record, &needle_1b::SETUP) }?;
+        { dials::needle(record, &needle_1b::SETUP) }?;
     }
     for (flags, field, xs) in [
         (f1, 0x14, [0x43, 0x57, 0x6B]),
         (f2, 0x44, [0x1D4, 0x1E8, 0x1FC]),
     ] {
         if flags & 0x20 != 0 {
-            unsafe { leading_time(get(field), xs, 0x245, &mut plain) }?;
+            { leading_time(get(field)?, xs, 0x245, &mut plain) }?;
         }
     }
     let left = [8, 0x16, 0x23, 0x2A, 0x38, 0x45, 0x4C, 0x5A];
@@ -133,10 +134,10 @@ pub unsafe fn layout_1(record: u32) -> Result<(), Refused> {
         ([&HUD.times[0], &HUD.times[1]], 2u32),
         ([&HUD.times[3], &HUD.times[4]], 0x11),
     ] {
-        if f1 & 0x40 != 0 && get(0x28) != 0xFFFF_FFFF {
+        if f1 & 0x40 != 0 && get(0x28)? != 0xFFFF_FFFF {
             for (time, xs) in [(times[0], left), (times[1], right)] {
                 let t = time.get();
-                unsafe { clock_panel(t, xs, y, &mut plain) }?;
+                { clock_panel(t, xs, y, &mut plain) }?;
             }
         }
     }
@@ -164,7 +165,7 @@ pub unsafe fn layout_1(record: u32) -> Result<(), Refused> {
         if flags & 2 == 0 {
             continue;
         }
-        let v = get(field);
+        let v = get(field)?;
         if v != 0xFFFF_FFFF {
             let d = time_digits(v, 2);
             sign(v, 0, 1);
@@ -174,7 +175,7 @@ pub unsafe fn layout_1(record: u32) -> Result<(), Refused> {
         plain(mark, sprites[0], row(sprites[1]))?;
         plain(0x4A, sprites[2], row(sprites[3]))?;
         let t = time.get();
-        unsafe { lap_panel(t, xs, row(0x51), &mut plain) }?;
+        { lap_panel(t, xs, row(0x51), &mut plain) }?;
     }
     Ok(())
 }

@@ -9,20 +9,22 @@
 //! Caller: `net::set_up_race`.
 
 use crate::net::clear_car_state::clear_car_state;
+use crate::pointers::GamePtr;
 use crate::race::vars_store::RACE_VARS;
 use crate::race::work_store::RACE_WORK;
 use rc2k_core::net::cars;
 
 /// The Rust version.
-pub fn reset_cars() {
+pub fn reset_cars() -> Result<(), crate::errors::BadInput> {
     for car in 0..cars::CARS {
         let block = RACE_WORK.car_block(car as usize);
         // Converted: `rc2k_core::net::cars::reset_fields`.
         for (offset, v) in cars::reset_fields(car) {
-            unsafe { ((block + offset) as *mut u32).write_unaligned(v) };
+            GamePtr::new(block + offset).write(v, "a car block's field")?;
         }
-        clear_car_state(block);
+        clear_car_state(block)?;
     }
     RACE_VARS.race_level.set(0);
     RACE_VARS.race_stage.set(0);
+    Ok(())
 }

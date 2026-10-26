@@ -34,7 +34,7 @@ fn take_kept() -> u32 {
     KEPT.with_borrow_mut(|stack| stack.pop().expect("a pop without its push"))
 }
 
-unsafe fn before(c: &mut Carried) -> Result<(), Refused> {
+fn before(c: &mut Carried) -> Result<(), Refused> {
     KEPT.with_borrow_mut(|stack| stack.push(EVENT_STATE.section.get()));
     KEPT.with_borrow_mut(|stack| stack.push(EVENT_STATE.index.get()));
     c.arg = EVENT_STATE.section.get();

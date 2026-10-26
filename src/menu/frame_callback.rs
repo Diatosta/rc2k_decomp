@@ -36,14 +36,15 @@ const END: u32 = u32::MAX;
 
 /// Runs the functions of the list `list` points at (the original keeps the registers
 /// around each of the scene list's; its functions take none either way).
-pub unsafe fn run_listed(list: &Dword) -> Result<(), Refused> {
-    unsafe {
-        let mut at: u32 = list.get();
-        while (at as *const u32).read_unaligned() != END {
-            call_listed((at as *const u32).read_unaligned())?;
-            at = at.wrapping_add(4);
-        }
+pub fn run_listed(list: &Dword) -> Result<(), Refused> {
+    let mut at: u32 = list.get();
+    while crate::pointers::GamePtr::new(at).read::<u32>("frame callback: a game value")? != END {
+        call_listed(
+            crate::pointers::GamePtr::new(at).read::<u32>("frame callback: a game value")?,
+        )?;
+        at = at.wrapping_add(4);
     }
+
     Ok(())
 }
 

@@ -13,12 +13,12 @@ use crate::menu::standings::*;
 const ENTRIES: u32 = 50;
 
 /// The Rust version (see the header): the registers it leaves.
-pub unsafe fn clear_score_marks() -> Result<(), Refused> {
+pub fn clear_score_marks() -> Result<(), Refused> {
     let first: u32 = { CHAMP_VIEW.best_scores.get() };
     if first == 0 {
         return Err(BadInput("no best-score table").into());
     }
     // Converted: `rc2k_core::menu::standings::BEST_MARKS`, stored in each entry.
-    unsafe { table(first, 0x3C, ENTRIES) }.store_all(&rc2k_core::menu::standings::BEST_MARKS);
+    table(first, 0x3C, ENTRIES)?.store_all(&rc2k_core::menu::standings::BEST_MARKS);
     Ok(())
 }

@@ -14,11 +14,10 @@ use crate::scene::fill_light_tables::fill_light_tables;
 
 // ---- Rust version ----
 
-pub unsafe fn fill_scene_light_tables() {
-    unsafe {
-        let kept: u32 = FRAME_SWITCHES.other_way.bits();
-        FRAME_SWITCHES.other_way.set_bits(1u32);
-        fill_light_tables();
-        FRAME_SWITCHES.other_way.set_bits(kept);
-    }
+pub fn fill_scene_light_tables() -> Result<(), crate::errors::BadInput> {
+    let kept: u32 = FRAME_SWITCHES.other_way.bits();
+    FRAME_SWITCHES.other_way.set_bits(1u32);
+    let done = fill_light_tables();
+    FRAME_SWITCHES.other_way.set_bits(kept);
+    done
 }

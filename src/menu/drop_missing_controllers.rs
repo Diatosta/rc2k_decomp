@@ -20,18 +20,16 @@ const CAR_CONTROLLER: u32 = 0x2C;
 
 // ---- Rust version ----
 
-pub unsafe fn drop_missing_controllers() -> Result<(), BadInput> {
-    unsafe {
-        // Converted: `rc2k_core::menu::steps::kept_controller`.
-        let most = DEVICES.controller_count.get();
-        for car in cars()? {
-            let controller = (car + CAR_CONTROLLER) as *mut u32;
-            let c = controller.read_unaligned();
-            let kept = rc2k_core::menu::steps::kept_controller(c, most);
-            if kept != c {
-                controller.write_unaligned(kept);
-            }
+pub fn drop_missing_controllers() -> Result<(), BadInput> {
+    // Converted: `rc2k_core::menu::steps::kept_controller`.
+    let most = DEVICES.controller_count.get();
+    for car in cars()? {
+        let controller = crate::pointers::GamePtr::new(car + CAR_CONTROLLER);
+        let c = controller.read::<u32>("a player's controller")?;
+        let kept = rc2k_core::menu::steps::kept_controller(c, most);
+        if kept != c {
+            controller.write(kept, "a player's controller")?;
         }
-        Ok(())
     }
+    Ok(())
 }

@@ -1,36 +1,41 @@
 //! Small float steps of `make_masks`' tree (IDA, 2026-10-17): the 2 x 2 turn a line gives,
 //! three rows scaled to set lengths, and two cosine-eased steps.
 
+use crate::errors::{BadInput, Refused};
 use crate::marks::mask_constants::MASK_CONSTANTS;
 use crate::marks::mask_vars::MASKS;
 use crate::marks::work_store::MARKS_WORK;
 use crate::math::x87;
+use crate::pointers::GamePtr;
 
-unsafe fn get(at: u32) -> u32 {
-    unsafe { (at as *const u32).read_unaligned() }
+fn get(at: u32) -> Result<u32, BadInput> {
+    GamePtr::new(at).read("a game field")
 }
 
 /// `marks::set_line_turn` (0x4BF432) and, `back`, `marks::set_line_turn_back` (0x4BF466):
 /// from the line at esi (+0, +4 to +0xC, +0x10) dx into +0x396 and +0x3A6, minus dy (dy
 /// when `back`) into +0x3A2, its negation into +0x39A. Every register kept.
-pub unsafe fn set_line_turn(line: u32, back: bool) {
-    unsafe {
-        let dx = x87::sub(get(line + 0xC), get(line));
+pub fn set_line_turn(line: u32, back: bool) -> Result<(), Refused> {
+    {
+        let dx = x87::sub(get(line + 0xC)?, get(line)?);
         let dy = if back {
-            x87::sub(get(line + 0x10), get(line + 4))
+            x87::sub(get(line + 0x10)?, get(line + 4)?)
         } else {
-            x87::negated_sub(get(line + 0x10), get(line + 4))
+            x87::negated_sub(get(line + 0x10)?, get(line + 4)?)
         };
         MASKS.turn[0].set_bits(dx);
         MASKS.turn[3].set_bits(dy);
         MASKS.turn[1].set_bits(x87::negated(dy));
         MASKS.turn[4].set_bits(x87::loaded(dx));
     }
+    Ok(())
 }
 
 /// `marks::scale_rows3` (0x4BF498): the three rows of three floats at esi each made the
 /// length `flt_89CA24` .. `flt_89CA2C` says (`x87::scale_row`). Every register kept.
-pub unsafe fn scale_rows3(rows: u32) {
+pub fn scale_rows3(rows: u32) -> Result<(), BadInput> {
+    crate::race::trap::span(rows, 36, "a mark's three rows")?;
+    // SAFETY: the nine floats lie in one live region (checked above).
     unsafe {
         for n in 0..3 {
             x87::scale_row(
@@ -39,13 +44,14 @@ pub unsafe fn scale_rows3(rows: u32) {
             );
         }
     }
+    Ok(())
 }
 
 /// `marks::smooth_steps` (0x4BE928): from a to b as floats, step n: t (b - a) times
 /// `flt_89C9C0` (a float), then the first result (the original's ecx) a + t - t
 /// cos(pi (n plus 1) / `dword_89C9C4`) and the second (its ebx) the same with n over `dword_89C9C8`.
 /// `dword_764F40` and `dword_71C880` left holding a.
-pub unsafe fn smooth_steps(n: u32, a: u32, b: u32) -> (u32, u32) {
+pub fn smooth_steps(n: u32, a: u32, b: u32) -> (u32, u32) {
     crate::marks::shape_points::SHAPE_INPUTS.scratch.set(a);
     MARKS_WORK.scratch.set(a);
     smooth_pair(n, a, b)
@@ -65,49 +71,43 @@ pub fn smooth_pair(n: u32, a: u32, b: u32) -> (u32, u32) {
 /// `marks::turn_pair` (0x4BF409): st(0) a, st(1) b turned by `g_marksLineTurn` (m0 .. m3):
 /// st(0) a m3 + b m2, st(1) b m0 + a m1, unrounded (the original's `fld st(1)`, `fxch`s
 /// and `faddp`s). Every register kept.
-pub unsafe fn turn_pair(inputs: [[u8; 10]; 2]) -> [[u8; 10]; 2] {
+pub fn turn_pair(inputs: [[u8; 10]; 2]) -> [[u8; 10]; 2] {
     let mut out = [[0u8; 10]; 2];
     let m = MASKS.turn.as_ptr() as u32;
-    unsafe {
-        turn_pair_x87(
-            inputs.as_ptr() as usize,
-            m as usize,
-            out.as_mut_ptr() as usize,
-        )
-    };
+    turn_pair_x87(
+        inputs.as_ptr() as usize,
+        m as usize,
+        out.as_mut_ptr() as usize,
+    );
     out
 }
 
 /// `fld tbyte; fmul; fistp` for st(0) then st(1): their whole-number scalings.
 fn scaled_ints(inputs: &[[u8; 10]; 2], k: *const u32) -> (i32, i32) {
     let mut v = [0i32; 2];
-    unsafe {
-        scaled_ints_x87(
-            inputs.as_ptr() as usize,
-            k as usize,
-            v.as_mut_ptr() as usize,
-        )
-    };
+    scaled_ints_x87(
+        inputs.as_ptr() as usize,
+        k as usize,
+        v.as_mut_ptr() as usize,
+    );
     (v[0], v[1])
 }
 
 /// `fild v; fdiv k; fstp tbyte`.
 fn int_over_80(v: i32, k: *const u32) -> [u8; 10] {
     let mut out = [0u8; 10];
-    unsafe {
-        int_over_80_x87(
-            (&raw const v) as usize,
-            k as usize,
-            out.as_mut_ptr() as usize,
-        )
-    };
+    int_over_80_x87(
+        (&raw const v) as usize,
+        k as usize,
+        out.as_mut_ptr() as usize,
+    );
     out
 }
 
 /// `marks::clamp_pair` (0x4BEF22): st(0) times `flt_89C9FC` rounded (b), st(1) times
 /// `flt_89CA00` (a); a held to 0 .. 0xFFFF and b to 0 .. 0x7FFF; then st(1) a over
 /// `flt_89CA04` and st(0) b over `flt_89CA08`, unrounded.
-pub unsafe fn clamp_pair(inputs: [[u8; 10]; 2]) -> [[u8; 10]; 2] {
+pub fn clamp_pair(inputs: [[u8; 10]; 2]) -> [[u8; 10]; 2] {
     let k = MASK_CONSTANTS.pair_scales.as_ptr() as *const u32;
     let (b, a) = scaled_ints(&inputs, k);
     let b = b.clamp(0, 0x7FFF);
@@ -120,47 +120,41 @@ use crate::marks::plain::{ld, ld80, ldi, st80, sti};
 use crate::math::x87_float as bh;
 
 /// `turn_pair`'s x87 block as plain Rust on the x87 model (16 instructions), same order and memory places.
-unsafe fn turn_pair_x87(i: usize, m: usize, o: usize) {
-    unsafe {
-        let t0 = bh::from_f80(ld80(i, 0xA));
-        let t1 = bh::from_f80(ld80(i, 0));
-        let t2 = t1 * ld(m, 0x10);
-        let t3 = t0 * ld(m, 0xC);
-        let t4 = t2 + t3;
-        let t5 = t0 * ld(m, 0);
-        let t6 = t1 * ld(m, 0x4);
-        let t7 = t5 + t6;
-        st80(o, 0, t4);
-        st80(o, 0xA, t7);
-    }
+fn turn_pair_x87(i: usize, m: usize, o: usize) {
+    let t0 = bh::from_f80(ld80(i, 0xA));
+    let t1 = bh::from_f80(ld80(i, 0));
+    let t2 = t1 * ld(m, 0x10);
+    let t3 = t0 * ld(m, 0xC);
+    let t4 = t2 + t3;
+    let t5 = t0 * ld(m, 0);
+    let t6 = t1 * ld(m, 0x4);
+    let t7 = t5 + t6;
+    st80(o, 0, t4);
+    st80(o, 0xA, t7);
 }
 
 /// `scaled_ints`'s x87 block as plain Rust on the x87 model (6 instructions), same order and memory places.
-unsafe fn scaled_ints_x87(i: usize, k: usize, v: usize) {
-    unsafe {
-        let t0 = bh::from_f80(ld80(i, 0xA));
-        let t1 = bh::from_f80(ld80(i, 0));
-        let t2 = t1 * ld(k, 0);
-        sti(v, 0, t2);
-        let t3 = t0 * ld(k, 0x4);
-        sti(v, 0x4, t3);
-    }
+fn scaled_ints_x87(i: usize, k: usize, v: usize) {
+    let t0 = bh::from_f80(ld80(i, 0xA));
+    let t1 = bh::from_f80(ld80(i, 0));
+    let t2 = t1 * ld(k, 0);
+    sti(v, 0, t2);
+    let t3 = t0 * ld(k, 0x4);
+    sti(v, 0x4, t3);
 }
 
 /// `int_over_80`'s x87 block as plain Rust on the x87 model (3 instructions), same order and memory places.
-unsafe fn int_over_80_x87(v: usize, k: usize, o: usize) {
-    unsafe {
-        let t0 = ldi(v, 0);
-        let t1 = t0 / ld(k, 0);
-        st80(o, 0, t1);
-    }
+fn int_over_80_x87(v: usize, k: usize, o: usize) {
+    let t0 = ldi(v, 0);
+    let t1 = t0 / ld(k, 0);
+    st80(o, 0, t1);
 }
 
 #[cfg(test)]
 mod asm_reference {
     //! The original assembly blocks, kept verbatim as the reference the plain versions are tested against.
 
-    pub(super) unsafe fn turn_pair_x87(i: usize, m: usize, o: usize) {
+    pub(super) fn turn_pair_x87(i: usize, m: usize, o: usize) {
         unsafe {
             core::arch::asm!(
                     "fld tbyte ptr [{i} + 10]",
@@ -189,7 +183,7 @@ mod asm_reference {
         }
     }
 
-    pub(super) unsafe fn scaled_ints_x87(i: usize, k: usize, v: usize) {
+    pub(super) fn scaled_ints_x87(i: usize, k: usize, v: usize) {
         unsafe {
             core::arch::asm!(
                     "fld tbyte ptr [{i} + 10]",
@@ -208,7 +202,7 @@ mod asm_reference {
         }
     }
 
-    pub(super) unsafe fn int_over_80_x87(v: usize, k: usize, o: usize) {
+    pub(super) fn int_over_80_x87(v: usize, k: usize, o: usize) {
         unsafe {
             core::arch::asm!(
                     "fild dword ptr [{v}]",
@@ -258,8 +252,8 @@ mod asm_differential {
         };
         differential(
             &SPEC,
-            |b| unsafe { reference::turn_pair_x87(b[0], b[1], b[2]) },
-            |b| unsafe { super::turn_pair_x87(b[0], b[1], b[2]) },
+            |b| reference::turn_pair_x87(b[0], b[1], b[2]),
+            |b| super::turn_pair_x87(b[0], b[1], b[2]),
         );
     }
 
@@ -290,8 +284,8 @@ mod asm_differential {
         };
         differential(
             &SPEC,
-            |b| unsafe { reference::scaled_ints_x87(b[0], b[1], b[2]) },
-            |b| unsafe { super::scaled_ints_x87(b[0], b[1], b[2]) },
+            |b| reference::scaled_ints_x87(b[0], b[1], b[2]),
+            |b| super::scaled_ints_x87(b[0], b[1], b[2]),
         );
     }
 
@@ -322,8 +316,8 @@ mod asm_differential {
         };
         differential(
             &SPEC,
-            |b| unsafe { reference::int_over_80_x87(b[0], b[1], b[2]) },
-            |b| unsafe { super::int_over_80_x87(b[0], b[1], b[2]) },
+            |b| reference::int_over_80_x87(b[0], b[1], b[2]),
+            |b| super::int_over_80_x87(b[0], b[1], b[2]),
         );
     }
 }

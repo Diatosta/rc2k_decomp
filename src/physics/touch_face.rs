@@ -28,21 +28,22 @@ use crate::race::numbers_store::NUMBERS;
 use crate::math::next_random::next_random;
 use crate::physics::flow::{a, c0, g, p};
 use crate::physics::place_sound_object::place_sound_object;
+use crate::pointers::GamePtr;
 use rc2k_core::drive::lit_faces::{LIST_ROOM, Touch, fall_mark, lucky, touch};
 
-fn put(at: u32, v: u32) {
-    unsafe { (at as *mut u8).write(v as u8) };
+fn put(at: u32, v: u32) -> Result<(), BadInput> {
+    GamePtr::new(at).write(v as u8, "a face's mark byte")
 }
 
 /// The usual marks: +9 = 0, +0x11 = `mark`, +0x13 = 0, +0x12 `dword_6D3B70`'s low byte.
-fn mark(face: u32, mark: u32, clear_9: bool) {
+fn mark(face: u32, mark: u32, clear_9: bool) -> Result<(), BadInput> {
     if clear_9 {
-        put(face + 9, 0);
+        put(face + 9, 0)?;
     }
-    put(face + 0x11, mark);
-    put(face + 0x13, 0);
+    put(face + 0x11, mark)?;
+    put(face + 0x13, 0)?;
     let low = CONTACT_WORK.face_angle.get();
-    put(face + 0x12, low);
+    put(face + 0x12, low)
 }
 
 /// The Rust version.
@@ -50,7 +51,7 @@ fn mark(face: u32, mark: u32, clear_9: bool) {
 pub unsafe fn touch_face() -> Result<(), Refused> {
     let number = CONTACT_WORK.face_number.get();
     let face = (number << 6).wrapping_add(g(&COURSE.course_faces));
-    if unsafe { (face as *const u8).add(0x11).read() } != 0 {
+    if GamePtr::new(face + 0x11).read::<u8>("a face's mark")? != 0 {
         return Ok(());
     }
     let count = CONTACT_WORK.lit_face_count.get();
@@ -73,14 +74,14 @@ pub unsafe fn touch_face() -> Result<(), Refused> {
                 if c0(CAR.speed.bits(), NUMBERS.eight.bits()) {
                     return Ok(());
                 }
-                mark(face, 1, true);
+                mark(face, 1, true)?;
             }
-            Touch::Mark => mark(face, 1, true),
-            Touch::Fall => mark(face, fall_mark(CONTACT_WORK.face_speed.get()), false),
+            Touch::Mark => mark(face, 1, true)?,
+            Touch::Fall => mark(face, fall_mark(CONTACT_WORK.face_speed.get()), false)?,
             Touch::Chance => {
                 let (_, lucky) = lucky(unsafe { next_random() });
                 if lucky {
-                    put(face + 0x11, 0xF);
+                    put(face + 0x11, 0xF)?;
                     CONTACT_WORK.lit_face_count.set(count + 1);
                 }
                 return Ok(());

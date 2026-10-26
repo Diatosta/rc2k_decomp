@@ -10,12 +10,13 @@
 
 use crate::errors::Refused;
 use crate::net::{send_extra, send_inputs, send_position};
+use crate::pointers::GamePtr;
 use rc2k_core::net::race::SENT;
 
 /// The Rust version.
 pub fn send_turn() -> Result<(), Refused> {
     let steps = crate::physics::car_store::car_addr() as u32 + 8;
-    let count = || unsafe { (steps as *const u32).read_volatile() };
+    let count = || GamePtr::new(steps).read::<u32>("the car's step counter");
     let sends: [fn() -> Result<(), Refused>; 3] = [
         send_inputs::send_inputs,
         send_position::send_position,
@@ -23,7 +24,7 @@ pub fn send_turn() -> Result<(), Refused> {
     ];
     // Converted: `rc2k_core::net::race::Kind::due`.
     for (kind, send) in SENT.into_iter().zip(sends) {
-        if kind.due(count()).0 {
+        if kind.due(count()?).0 {
             send()?;
         }
     }

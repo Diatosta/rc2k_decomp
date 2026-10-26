@@ -21,10 +21,7 @@
 pub fn find_entry_with_bits(bits: u32, table: u32, count: u32) -> (bool, u32, u32) {
     // Converted: `rc2k_core::system::tables::with_bits`.
     use rc2k_core::system::tables::{left, with_bits};
-    let found = with_bits(
-        unsafe { crate::system::find_entry::entries(table, count) },
-        bits,
-    );
+    let found = with_bits(crate::system::find_entry::entries(table, count), bits);
     let (at, n) = left(table, count, found);
     (found.is_some(), at, n)
 }

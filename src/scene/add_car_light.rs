@@ -23,11 +23,11 @@
 //! Refuses when there is no block.
 
 use crate::errors::BadInput;
+use crate::pointers::GamePtr;
 use crate::race::numbers_store::NUMBERS;
 use crate::scene::draw_store::DRAW;
 use crate::scene::light_store::LIGHT_STATE;
 use crate::scene::light_work_store::LIGHT_WORK;
-use crate::scene::polygon::dword;
 use crate::scene::vertex_light::plus;
 use crate::scene::x87_mem::{fild, fistp, fld};
 use crate::session::MACHINE;
@@ -148,12 +148,19 @@ pub unsafe fn add_car_light(car: usize) -> Result<(), BadInput> {
         if car == 0 {
             return Err(BadInput("no car"));
         }
-        if dword(car + LAMPS_ON) == 0 {
+        let read =
+            |at: usize| GamePtr::new(car.wrapping_add(at) as u32).read::<u32>("a car's block");
+        if read(LAMPS_ON)? == 0 {
             return Ok(());
         }
         let place: [u32; 3] = crate::session::read_bits(&LIGHT_STATE.lit_place);
-        let from = [0, 1, 2].map(|k| place[k].wrapping_sub(dword(car + PLACE + k * 4)));
-        let seen = turned(from, (car + MATRIX) as *const u32);
+        let mut from = [0u32; 3];
+        for k in 0..3 {
+            from[k] = place[k].wrapping_sub(read(PLACE + k * 4)?);
+        }
+        let matrix: [u32; 16] =
+            GamePtr::new(car.wrapping_add(MATRIX) as u32).read("a car's matrix")?;
+        let seen = turned(from, matrix.as_ptr());
         crate::session::write_bits(&LIGHT_STATE.turned_light, seen);
         let [x, y, z] = seen;
         let factor: u32 = NUMBERS.one_over_65536.bits();
@@ -164,7 +171,7 @@ pub unsafe fn add_car_light(car: usize) -> Result<(), BadInput> {
             .set(squares(z.wrapping_sub(0x10_0000), x, factor, false));
         let height = if (y as i32) < 0 { y.wrapping_neg() } else { y };
         let level = held((0x10_0000u32.wrapping_sub(height) as i32) >> 12);
-        let amount = (level.wrapping_mul(cone * 2) >> 8).wrapping_mul(dword(car + STRENGTH)) >> 8;
+        let amount = (level.wrapping_mul(cone * 2) >> 8).wrapping_mul(read(STRENGTH)?) >> 8;
         let colour: u32 = crate::scene::light_tables_store::LIGHT_TABLES.car_light_table
             [held(amount as i32) as usize]
             .get();

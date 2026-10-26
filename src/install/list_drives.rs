@@ -57,11 +57,12 @@ pub fn list_drives() {
         wb(row, letter);
         let free = drives::free(g_at(slot + 4));
         let mut unit = Vec::new();
-        unsafe {
+        crate::menu::event_flow::refuse_here(
             crate::strings::append_string_by_id::append_string_by_id(free.unit, &mut |from, n| {
-                unit.extend_from_slice(std::slice::from_raw_parts(from, n));
-            });
-        }
+                unit.extend_from_slice(unsafe { std::slice::from_raw_parts(from, n) });
+            }),
+            "install::list_drives: a string",
+        );
         // the original writes the letter, skips a byte (`add ebx, 2`), then the rest
         for (n, &b) in drives::text(free, &unit).iter().enumerate() {
             wb(row + 2 + n as u32, b);
@@ -79,5 +80,5 @@ pub fn list_drives() {
 }
 
 fn g_at(at: u32) -> u32 {
-    unsafe { (at as *const u32).read_unaligned() }
+    crate::install::installer::rd(at)
 }

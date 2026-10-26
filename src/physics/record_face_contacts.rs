@@ -15,24 +15,25 @@
 
 use crate::errors::Refused;
 use crate::physics::face_contact;
+use crate::pointers::GamePtr;
 use crate::race::course_store::COURSE;
 use rc2k_core::physics::ground_search;
 
-fn rd(x: u32) -> u32 {
-    unsafe { (x as *const u32).read_unaligned() }
+fn rd(x: u32) -> Result<u32, Refused> {
+    Ok(GamePtr::new(x).read::<u32>("a course record's face number")?)
 }
 
 /// The record's (first, last) faces.
-pub fn record_faces(n: u32) -> (u32, u32) {
+pub fn record_faces(n: u32) -> Result<(u32, u32), Refused> {
     let at = (n << 5).wrapping_add(COURSE.course_records.get());
-    (rd(at + 8), rd(at + 0xC))
+    Ok((rd(at + 8)?, rd(at + 0xC)?))
 }
 
 /// The steps for course record `record` (ebx), not guarded: each of its faces by
 /// `face_contact`. The registers left are read by none of the callers.
 // Converted: `rc2k_core::physics::ground_search::each_face`.
 pub fn steps(record: u32) -> Result<(), Refused> {
-    let (first, last) = record_faces(record);
+    let (first, last) = record_faces(record)?;
     ground_search::each_face(
         first,
         last,

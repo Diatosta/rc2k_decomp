@@ -15,11 +15,8 @@ use crate::menu::text_entry::begin_logged;
 // ---- Rust version ----
 
 /// `log` = false leaves the log lines out.
-pub unsafe fn begin_savegame_name(log: bool) -> Result<(), BadInput> {
+pub fn begin_savegame_name(log: bool) -> Result<(), BadInput> {
     let name = savegame_name()?;
     // Converted: `rc2k_core::menu::text_entry::Entry::begin` (through `begin_logged`).
-    unsafe {
-        begin_logged(name, log);
-    }
-    Ok(())
+    begin_logged(name, log)
 }

@@ -55,7 +55,7 @@ pub fn run_page(list: u32) -> Result<u32, Refused> {
     let count = rb(list + 1) as u32;
     let round = 2 * count as usize + 2;
     if count != 0 {
-        list_clear_marks(list);
+        list_clear_marks(list)?;
     }
     tell(list, 0)?;
     'page: {
@@ -64,7 +64,7 @@ pub fn run_page(list: u32) -> Result<u32, Refused> {
         }
         i::mark_page::mark_page(list);
         let mut steps = 0;
-        while list_item_unusable(list) {
+        while list_item_unusable(list)? {
             steps += 1;
             if steps > round {
                 return Err(NO_CHOICE.into());
@@ -109,16 +109,16 @@ pub fn run_page(list: u32) -> Result<u32, Refused> {
                             took = key_action(keys, key, list)?;
                         }
                     }
-                    let moved = took || list_step(key, rd(list + 0x10), list);
+                    let moved = took || list_step(key, rd(list + 0x10), list)?;
                     if moved {
                         INSTALLER_PAGES
                             .move_clock
                             .set(INSTALLER_PAGES.frame_clock.get());
                     }
-                    list_clear_marks(list);
+                    list_clear_marks(list)?;
                     tell(list, 1)?;
                     i::mark_page::mark_page(list);
-                    if !list_item_unusable(list) {
+                    if !list_item_unusable(list)? {
                         break;
                     }
                     let arrow = matches!(key as u8, 0x66 | 0x6B | 0x68 | 0x69);
@@ -146,7 +146,7 @@ pub fn run_page(list: u32) -> Result<u32, Refused> {
                                 INSTALLER_PAGES.choice.set(0);
                             }
                         }
-                        if !list_item_unusable(list) {
+                        if !list_item_unusable(list)? {
                             break;
                         }
                         steps += 1;
@@ -157,10 +157,10 @@ pub fn run_page(list: u32) -> Result<u32, Refused> {
                     break;
                 }
             } else {
-                list_clear_marks(list);
+                list_clear_marks(list)?;
                 tell(list, 1)?;
                 i::mark_page::mark_page(list);
-                if list_item_unusable(list) {
+                if list_item_unusable(list)? {
                     let arrow = matches!(key as u8, 0x66 | 0x6B | 0x68 | 0x69);
                     if arrow && INSTALLER_PAGES.choice.get() != INSTALLER_PAGES.choice_before.get()
                     {
@@ -173,7 +173,7 @@ pub fn run_page(list: u32) -> Result<u32, Refused> {
                         if count == c {
                             INSTALLER_PAGES.choice.set(0);
                         }
-                        if !list_item_unusable(list) {
+                        if !list_item_unusable(list)? {
                             break;
                         }
                         steps += 1;
@@ -191,7 +191,7 @@ pub fn run_page(list: u32) -> Result<u32, Refused> {
         tell(list, u32::MAX)?;
     }
     if count != 0 {
-        list_clear_marks(list);
+        list_clear_marks(list)?;
     }
     wd(list + 4, INSTALLER_PAGES.choice.get());
     Ok(INSTALLER_PAGES.list_answer.get() as u32)

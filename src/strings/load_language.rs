@@ -44,6 +44,7 @@ use crate::input::store::{KEYBOARD, KEYBOARD_FILE};
 use crate::install::vars::INSTALLER_RUN;
 use crate::menu::players_store::PLAYER_TABLE;
 use crate::moved::Place;
+use crate::pointers::GamePtr;
 use crate::session::MACHINE;
 use crate::strings::append_string_by_id::push_string;
 use crate::strings::keyboard_tables::KEYBOARD_TABLES;
@@ -108,32 +109,31 @@ fn fatal(code: u32, message: &'static str) -> Refused {
 }
 
 /// String `id` as the original builds it: in the text buffer. Returns its bytes.
-unsafe fn built(id: u32, with_nul: bool) -> Result<Vec<u8>, BadInput> {
-    unsafe {
-        let mut bytes = Vec::new();
-        push_string(&mut bytes, id);
-        if bytes.len() >= 0x100 {
-            return Err(BadInput(
-                "a string of the language's set-up longer than expected",
-            ));
-        }
-        std::ptr::copy(bytes.as_ptr(), text(), bytes.len());
-        if with_nul {
-            text().add(bytes.len()).write(0);
-        }
-        Ok(bytes)
+fn built(id: u32, with_nul: bool) -> Result<Vec<u8>, BadInput> {
+    let mut bytes = Vec::new();
+    push_string(&mut bytes, id)?;
+    if bytes.len() >= 0x100 {
+        return Err(BadInput(
+            "a string of the language's set-up longer than expected",
+        ));
     }
+    let at = GamePtr::new(text() as usize as u32);
+    at.write_bytes(&bytes, "the text buffer")?;
+    if with_nul {
+        at.offset(bytes.len() as u32)
+            .write::<u8>(0, "the text buffer")?;
+    }
+    Ok(bytes)
 }
 
 /// `sub_4034C2` (converted: `rc2k_core::strings::case::CaseTable::{for_language, plain_letters}`).
-unsafe fn make_case_tables() -> Result<(), BadInput> {
-    unsafe {
-        let lower = CaseTable::for_language(&built(2, true)?)?;
-        set_case_table(&lower.lower);
-        let plain = lower.plain_letters(&built(3, true)?);
-        PLAIN_LETTERS.ptr().write(plain.lower);
-        Ok(())
-    }
+fn make_case_tables() -> Result<(), BadInput> {
+    let lower = CaseTable::for_language(&built(2, true)?)?;
+    set_case_table(&lower.lower);
+    let plain = lower.plain_letters(&built(3, true)?);
+    // SAFETY: `PLAIN_LETTERS` is the game\'s table, written by this one function.
+    unsafe { PLAIN_LETTERS.ptr().write(plain.lower) };
+    Ok(())
 }
 
 /// `sub_416389` (converted: `rc2k_core::strings::lexicon::correct`), on the lexicon's room.
@@ -194,12 +194,13 @@ pub unsafe fn load_language(
             let layout = layouts.wrapping_add(chosen);
             KEYBOARD_FILE.layout.set(layout);
             if KEYBOARD_FILE.kind.get() == 0x0C {
-                let fourth = ((layout + 0x10) as *const u32).read_unaligned() as *mut u8;
-                if fourth.is_null() {
+                let fourth = GamePtr::new(layout + 0x10).read::<u32>("a keyboard layout")?;
+                if fourth == 0 {
                     return Err(BadInput("a keyboard of kind 0x0C without its fourth table").into());
                 }
                 for (at, value) in [(0x34, 0x1034u16), (0x36, 0x1035), (0x52, 0x1036)] {
-                    (fourth.add(at) as *mut u16).write_unaligned(value);
+                    GamePtr::new(fourth.wrapping_add(at))
+                        .write::<u16>(value, "a keyboard table")?;
                 }
             }
         }
@@ -208,7 +209,11 @@ pub unsafe fn load_language(
 
         // `sub_403462`
         if MACHINE.keyboard_type.get() == 2 {
-            std::ptr::copy(KEYBOARD_TABLES.nec_head.addr() as *const u8, keyboard, 0x30);
+            GamePtr::new(KEYBOARD_TABLES.nec_head.addr() as u32).copy_to(
+                GamePtr::new(keyboard as usize as u32),
+                0x30,
+                "the NEC keyboard head",
+            )?;
             KEYBOARD_FILE
                 .layout
                 .set(KEYBOARD_TABLES.nec_layout.addr() as u32);

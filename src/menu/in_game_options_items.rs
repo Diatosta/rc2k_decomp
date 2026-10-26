@@ -13,28 +13,29 @@ pub fn item(n: u32) -> u32 {
 }
 
 /// Item `n` given its look: +0x14, +0x48, +0x1C, in the original's order.
-pub unsafe fn set(n: u32, look: Look) {
-    let at = item(n);
-    unsafe {
-        ((at + 0x14) as *mut u32).write_unaligned(look.string);
-        ((at + 0x48) as *mut u32).write_unaligned(look.state);
-        ((at + 0x1C) as *mut u32).write_unaligned(look.behind);
-    }
+pub fn set(n: u32, look: Look) -> Result<(), crate::errors::BadInput> {
+    let at = crate::pointers::GamePtr::new(item(n));
+    at.offset(0x14).write::<u32>(look.string, "a menu item")?;
+    at.offset(0x48).write::<u32>(look.state, "a menu item")?;
+    at.offset(0x1C).write::<u32>(look.behind, "a menu item")?;
+    Ok(())
 }
 
 // Converted: `rc2k_core::menu::items` (`hidden_in_game_options`, `shown_in_game_option`).
 
 /// `menu::hide_in_game_options`: eax 1, 2, 3: items 3 + eax .. 6 hidden (no string, passed
 /// over, nothing behind); anything else nothing.
-pub fn hide_in_game_options(from: u32) {
+pub fn hide_in_game_options(from: u32) -> Result<(), crate::errors::BadInput> {
     for n in hidden_in_game_options(from) {
-        unsafe { set(n, HIDDEN) };
+        set(n, HIDDEN)?;
     }
+    Ok(())
 }
 
 /// `menu::show_in_game_options`: items 3 .. 6 with their strings 0x171 .. 0x174, choosable.
-pub fn show_in_game_options() {
+pub fn show_in_game_options() -> Result<(), crate::errors::BadInput> {
     for n in IN_GAME_OPTIONS {
-        unsafe { set(n, shown_in_game_option(n)) };
+        set(n, shown_in_game_option(n))?;
     }
+    Ok(())
 }

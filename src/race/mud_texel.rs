@@ -9,6 +9,7 @@
 //!
 //! See `race/mud.rs`. Callers: `race::muddy_texel`, `race::splash_mud`.
 
+use crate::errors::BadInput;
 use crate::race::mud::mud_pixel;
 use crate::scene::object_tables_store::OBJECT_TABLES;
 
@@ -19,9 +20,9 @@ pub fn texel_place(x: u32, y: u32) -> Option<(u32, u32)> {
 }
 
 /// The Rust version (see the header): eax as it leaves it.
-pub unsafe fn mud_texel(eax: u32, x: u32, y: u32) -> u32 {
+pub unsafe fn mud_texel(eax: u32, x: u32, y: u32) -> Result<u32, BadInput> {
     match texel_place(x, y) {
         Some((x, y)) => unsafe { mud_pixel(x, y) },
-        None => eax,
+        None => Ok(eax),
     }
 }

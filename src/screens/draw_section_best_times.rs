@@ -25,12 +25,8 @@ use crate::text::draw_text::Canvas;
 const SECTIONS: u32 = 6;
 // seconds
 const ENTRY_LEN: u32 = 0x9C;
-fn get(a: u32) -> u32 {
-    unsafe { (a as *const u32).read_unaligned() }
-}
-
 /// The Rust version.
-pub unsafe fn draw_section_best_times(canvas: &mut dyn Canvas) -> Result<(), Refused> {
+pub fn draw_section_best_times(canvas: &mut dyn Canvas) -> Result<(), Refused> {
     let section: u32 = EVENT_STATE.section.get();
     if section >= SECTIONS {
         return Err(BadInput("a section past the six best-times tables").into());
@@ -41,16 +37,18 @@ pub unsafe fn draw_section_best_times(canvas: &mut dyn Canvas) -> Result<(), Ref
     }
     // Converted: `rc2k_core::screens::best_scores::section_best_times`.
     use rc2k_core::screens::best_scores::SectionRow;
+    let f = crate::menu::event_flow::Fault::default();
     let rows: [SectionRow<u32>; 10] = std::array::from_fn(|n| {
         let e = e + n as u32 * ENTRY_LEN;
         SectionRow {
             name: e + 0x20,
-            time: get(e + 0x18),
-            nation: get(e + 8),
-            car: get(e + 0x10),
-            player: get(e + 0x40) == 1,
+            time: f.get(e + 0x18),
+            nation: f.get(e + 8),
+            car: f.get(e + 0x10),
+            player: f.get(e + 0x40) == 1,
         }
     });
+    f.check()?;
     rc2k_core::screens::best_scores::section_best_times(
         &mut crate::screens::best_scores::ScoresScreen::new(canvas),
         &rows,

@@ -7,6 +7,7 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::physics::car_store::CAR;
+use crate::pointers::GamePtr;
 use crate::race::course_store::COURSE;
 use crate::race::vars_store::RACE_VARS;
 use crate::race::view_store::RACE_VIEW;
@@ -40,7 +41,7 @@ pub unsafe fn map_tiles() -> Result<(), Refused> {
 }
 
 /// What `scroll_map` reads through the course: refused before anything.
-unsafe fn scroll_refuses() -> Result<(), Refused> {
+fn scroll_refuses() -> Result<(), Refused> {
     if RACE_VARS.checkpoint_count.get() >= 2
         && (COURSE.course_faces.get() == 0 || COURSE.scene_points.get() == 0)
     {
@@ -86,12 +87,12 @@ pub unsafe fn scroll_map() -> Result<(), Refused> {
             .course_faces
             .get()
             .wrapping_add(crate::race::checkpoints_store::face(n as usize).get() << 6);
-        let point = ((face + 4) as *const u32).read_unaligned();
+        let point = GamePtr::new(face + 4).read::<u32>("a checkpoint face's first point")?;
         let p = point
             .wrapping_mul(12)
             .wrapping_add(COURSE.scene_points.get());
-        let px = (p as *const u32).read_unaligned();
-        let pz = ((p + 8) as *const u32).read_unaligned();
+        let px = GamePtr::new(p).read::<u32>("a course point")?;
+        let pz = GamePtr::new(p + 8).read::<u32>("a course point")?;
         map_x.set(
             map_x
                 .get()

@@ -17,6 +17,7 @@
 use crate::errors::Refused;
 use crate::gfx::fade_colour::fade_colour;
 use crate::math::next_random::next_random;
+use crate::pointers::GamePtr;
 use crate::race::mud_texel::mud_texel;
 use crate::race::muddy_texel::{strength_at, texture_and_mud};
 use crate::race::put_mud_texel::put_mud_texel;
@@ -36,7 +37,8 @@ pub unsafe fn splash_mud() -> Result<(), Refused> {
         let count_cell = &RACE_VARS.mud_splash_counts[n as usize];
         count_cell.set(count_cell.get().wrapping_add(1));
         let (mut x, mut y) = splash_place(next_random());
-        let strength = u32::from(*(strength_at(mud, n, x, y) as *const u8));
+        let strength =
+            u32::from(GamePtr::new(strength_at(mud, n, x, y)).read::<u8>("the mud strengths")?);
         if !splash_lands(strength, || next_random() & 0xFF) {
             return Ok(());
         }
@@ -48,9 +50,9 @@ pub unsafe fn splash_mud() -> Result<(), Refused> {
         for row in 0..SPLASH_SIDE {
             RACE_VARS.mud_column.set_bits(0u32);
             for column in 0..SPLASH_SIDE {
-                eax = mud_texel(eax, x, y);
+                eax = mud_texel(eax, x, y)?;
                 if muddy(eax) {
-                    let colour = (colours as *const u32).read_unaligned();
+                    let colour = GamePtr::new(colours).read::<u32>("the mud colours")?;
                     let faded = fade_colour(eax, colour, colour >> 24);
                     eax = put_mud_texel(faded | MUD_TOP, x, y)?;
                 }

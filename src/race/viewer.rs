@@ -10,30 +10,32 @@
 //! the flags, memory written); the Rust side calls `test_part`, which does the same. Then
 //! `run_both` compares the registers, the flags the callers read, the calls and memory.
 
+use crate::errors::BadInput;
+use crate::pointers::GamePtr;
+
 // ---- the replay being viewed ----
 
 pub const LAST_RACE: u32 = 0xDE; // the slot of `var\tmprpl` as it is
 pub const TABLE_LEN: usize = 0x3840; // 0x708 blocks of 8 bytes
 /// The byte `offset` on from the first block's cameras (8 bytes a block; the original does not
 /// check the offset).
-pub fn camera_byte_at(offset: usize) -> u8 {
+pub fn camera_byte_at(offset: usize) -> Result<u8, BadInput> {
     let at = crate::race::viewer_buffers_store::VIEWER_BUFFERS
         .block_cameras
         .addr()
         .wrapping_add(offset);
-    unsafe { (at as *const u8).read() }
+    GamePtr::new(at as u32).read("a replay camera byte")
 }
 
 // ---- the list menu (`menu::list_*`) ----
 
 /// `rep movsd` of `dwords` from `from` to `to` (absolute addresses), forwards.
-pub fn move_dwords(to: usize, from: usize, dwords: usize) {
-    unsafe {
-        let (to, from) = (to as *mut u32, from as *const u32);
-        for n in 0..dwords {
-            to.add(n).write_unaligned(from.add(n).read_unaligned());
-        }
+pub fn move_dwords(to: usize, from: usize, dwords: usize) -> Result<(), BadInput> {
+    for n in 0..dwords {
+        let word: u32 = GamePtr::new((from + 4 * n) as u32).read("a replay table")?;
+        GamePtr::new((to + 4 * n) as u32).write(word, "a replay table")?;
     }
+    Ok(())
 }
 
 /// A table of `dwords` dwords at the absolute address `at` (dword-aligned) as a slice, for

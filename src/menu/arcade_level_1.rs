@@ -11,6 +11,6 @@ use crate::menu::arcade_levels::arcade_level;
 use crate::menu::screen_loop::Carried;
 
 /// The Rust version (`c` the carried values the item gets).
-pub unsafe fn arcade_level_1(c: &Carried) -> Result<(), Refused> {
-    unsafe { arcade_level(c, 1) }
+pub fn arcade_level_1(c: &Carried) -> Result<(), Refused> {
+    arcade_level(c, 1)
 }

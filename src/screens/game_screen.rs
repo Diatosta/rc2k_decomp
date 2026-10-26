@@ -148,12 +148,15 @@ impl<F: GameFont, W: GameWork> Screen for GameScreen<'_, F, W> {
 
     fn string_bytes(&mut self, id: u32) -> Vec<u8> {
         let mut out = Vec::new();
-        unsafe { crate::strings::append_string_by_id::push_string(&mut out, id) };
+        crate::menu::event_flow::refuse_here(
+            crate::strings::append_string_by_id::push_string(&mut out, id),
+            "screens::game_screen: a string",
+        );
         out
     }
 
     fn strings(&mut self, first: u32, count: u32) -> Result<Vec<u8>, Refused> {
-        Ok(unsafe { crate::strings::text_from_ids::text_from_ids(first, count) }?)
+        Ok(crate::strings::text_from_ids::text_from_ids(first, count)?)
     }
 
     fn sprite(&mut self, glyph: u32, x: i32, y: i32, palette: u32) -> Result<(), Refused> {
@@ -181,7 +184,12 @@ impl<F: GameFont, W: GameWork> Screen for GameScreen<'_, F, W> {
     }
 
     fn blend(&mut self, since_key: u32, a: F, b: F) -> Result<(), Refused> {
-        unsafe { crate::text::blend_font::blend_font(since_key, 0x100, font_of(a), font_of(b)) }?;
+        crate::text::blend_font::blend_font(
+            since_key,
+            0x100,
+            crate::pointers::GamePtr::new(font_of(a) as u32),
+            crate::pointers::GamePtr::new(font_of(b) as u32),
+        )?;
         Ok(())
     }
 
@@ -674,7 +682,12 @@ impl rc2k_core::screens::menus::MenuScreen for MenuScreen<'_> {
     }
     fn blended(&mut self, since_key: u32, a: FontAt, b: FontAt) -> Result<FontAt, Refused> {
         use crate::text::blend_font::blend_font;
-        unsafe { blend_font(since_key, 0x100, a.pointer(), b.pointer()) }?;
+        blend_font(
+            since_key,
+            0x100,
+            crate::pointers::GamePtr::new(a.pointer() as u32),
+            crate::pointers::GamePtr::new(b.pointer() as u32),
+        )?;
         Ok(FontAt(crate::text::blend_font::BLENDED_FONT.addr() as u32))
     }
     fn font_value(&self, f: FontAt) -> u32 {

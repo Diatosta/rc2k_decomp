@@ -40,22 +40,22 @@ pub fn join_session(number: u32) -> Result<bool, Refused> {
         NET.joined.addr() as u32,
         record + field!(NetSession, instance),
         0x10,
-    );
-    movsb(NET.joined_name.addr() as u32, record, 0x40);
+    )?;
+    movsb(NET.joined_name.addr() as u32, record, 0x40)?;
     NET.joined_most
-        .set(unsafe { ((record + 0x50) as *const u32).read_unaligned() });
+        .set(crate::pointers::GamePtr::new(record + 0x50).read::<u32>("a session's record")?);
     movsb(
         NET.joined_password.addr() as u32,
         record + field!(NetSession, user),
         0x10,
-    );
+    )?;
     zero(NET.session_desc.addr() as u32, 0x50)?;
     NET.session_desc.size.set(0x50);
     movsb(
         NET.session_desc.instance.as_ptr() as u32,
         NET.joined.addr() as u32,
         0x10,
-    );
+    )?;
     finish(
         posted_open_join,
         join_group,

@@ -115,7 +115,7 @@ fn int_over_two(i: u32, a: u32, b: u32) -> u32 {
 /// the glow's render states (`sub_44E44D`), texture `dword_5D1DE8` (`scene::set_texture`),
 /// the device's unclipped fan (`d3d::draw_fan_unclipped`), then the depth buffer on. Its one
 /// caller, `race::draw_mirror_view`, reads no register it leaves.
-pub unsafe fn draw_view_backdrop() {
+pub fn draw_view_backdrop() {
     RACE_VARS.quad_uv[0].set(0xF8_0000);
     RACE_VARS.quad_uv[4].set(0x8_0000);
     let left = DRAW.view_offset[0].get();

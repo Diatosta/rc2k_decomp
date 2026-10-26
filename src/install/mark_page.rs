@@ -26,17 +26,30 @@ pub fn mark_page(list: u32) {
     let mut esi = list + 0x18;
     // Converted: `rc2k_core::install::items` (`walked`, `mark_choices`, `lone_choice`,
     // `lit`).
-    let table = |item: u32| unsafe {
-        std::slice::from_raw_parts_mut(rd(item + 0xC) as *mut u8, 2 * items::walked(rb(item + 1)))
+    let place = |item: u32| {
+        (
+            crate::pointers::GamePtr::new(rd(item + 0xC)),
+            2 * items::walked(rb(item + 1)),
+        )
+    };
+    let table = |item: u32| {
+        let (at, len) = place(item);
+        at.read_bytes(len, "an item's choices")
+            .unwrap_or_else(|e| crate::install::installer::refuse(e))
     };
     loop {
         let byte = rb(esi);
         if byte & 0xF == 2 {
             let ah = byte & MARKS;
             if ah == UNUSABLE {
-                items::mark_choices(table(esi), ah);
+                let mut choices = table(esi);
+                items::mark_choices(&mut choices, ah);
+                place(esi)
+                    .0
+                    .write_bytes(&choices, "an item's choices")
+                    .unwrap_or_else(|e| crate::install::installer::refuse(e));
             } else if ah == 0
-                && let Some(chosen) = items::lone_choice(table(esi), rb(esi + 1))
+                && let Some(chosen) = items::lone_choice(&table(esi), rb(esi + 1))
             {
                 wb(rd(esi + 8), chosen);
                 wb(esi, rb(esi) | UNUSABLE);

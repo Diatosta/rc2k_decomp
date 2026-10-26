@@ -33,6 +33,7 @@ use crate::gfx::reports::REPORTS;
 use crate::gfx::texture_pixels::{halvable, halve_texture};
 use crate::gfx::texture_upload::{Record, fatal, halvings_apart, ready_picture};
 use crate::gfx::upload::UPLOAD;
+use crate::pointers::GamePtr;
 use rc2k_core::gfx::uploads::{self};
 
 // ---- game data ----
@@ -122,33 +123,38 @@ pub unsafe fn upload_texture_picture(
         if !halvable(width, height, apart + levels - 1) {
             return Err(BadInput("a picture that halves to nothing").into());
         }
-        let format = record.format();
-        let bytes = record.bytes_per_pixel();
+        let format = record.format()?;
+        let bytes = record.bytes_per_pixel()?;
         let (mut width, mut height) = (width, height);
         for level in 0..levels {
             let times = uploads::halvings_before(level, apart);
             if times != 0 {
-                (width, height) = halve_texture(pixels as *mut u32, width, height, times);
+                (width, height) = halve_texture(pixels, width, height, times)?;
             }
             let surface = record.get().surfaces[level as usize];
             let (mut target, pitch) = surfaces
                 .lock(surface)
                 .map_err(|_| direct_draw_failed(0x8021_8772))?;
-            let mut source = pixels as *const u32;
+            // The level's pixels read once; the surface is the platform's.
+            let picture = GamePtr::new(pixels)
+                .read_bytes(width as usize * height as usize * 4, "a texture's pixels")?;
+            let mut source = picture
+                .as_chunks::<4>()
+                .0
+                .iter()
+                .map(|d| u32::from_le_bytes(*d));
             for _ in 0..height {
                 match bytes {
                     2 => {
                         for n in 0..width {
-                            let pixel = components_to_pixel(&format, source.read_unaligned());
+                            let pixel = components_to_pixel(&format, source.next().unwrap_or(0));
                             ((target + n * 2) as *mut u16).write_unaligned(pixel as u16);
-                            source = source.add(1);
                         }
                     }
                     4 => {
                         for n in 0..width {
-                            let pixel = components_to_pixel(&format, source.read_unaligned());
+                            let pixel = components_to_pixel(&format, source.next().unwrap_or(0));
                             ((target + n * 4) as *mut u32).write_unaligned(pixel);
-                            source = source.add(1);
                         }
                     }
                     _ => return Err(fatal(0x80A1_8775)),

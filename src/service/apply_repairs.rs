@@ -32,6 +32,7 @@
 use crate::errors::{BadInput, Refused};
 use crate::framework::Regs;
 use crate::menu::state_store::MENU_STATE;
+use crate::pointers::GamePtr;
 use crate::service::pages::{GEAR_RATIO, RIDE_HEIGHT, SUSPENSION_STIFFNESS, TYRE};
 use crate::service::reset_tyre_wear::reset_tyre_wear;
 use crate::service::state::{current_player, repair_flag, set_repair_flag};
@@ -73,8 +74,8 @@ impl Driver for GameDriver {
     }
 }
 
-unsafe fn field(player: u32, offset: u32) -> *mut i32 {
-    player.wrapping_add(offset) as *mut i32
+fn field(player: u32, offset: u32) -> GamePtr {
+    GamePtr::new(player.wrapping_add(offset))
 }
 
 /// The work on the game's variables and the current player's car, with `driver`'s time,
@@ -93,10 +94,14 @@ impl Workshop for Game<'_> {
         set_repair_flag(item, value);
     }
     fn car(&mut self, offset: u32) -> u32 {
-        unsafe { field(self.player, offset).read_unaligned() as u32 }
+        field(self.player, offset)
+            .read::<u32>("the car's record")
+            .unwrap_or_else(|e| crate::system::checked_reads::refuse(e))
     }
     fn set_car(&mut self, offset: u32, value: u32) {
-        unsafe { field(self.player, offset).write_unaligned(value as i32) };
+        field(self.player, offset)
+            .write(value, "the car's record")
+            .unwrap_or_else(|e| crate::system::checked_reads::refuse(e));
     }
     fn set_working(&mut self) {
         MENU_STATE.menus.service_flag.set(1u32);

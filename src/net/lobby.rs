@@ -24,6 +24,7 @@ use crate::errors::Refused;
 use crate::framework::Regs;
 use crate::menu::loop_store::LOOP_FLAGS;
 use crate::net::store::NET;
+use crate::pointers::GamePtr;
 use crate::session::Dword;
 use crate::strings::text_buffer::TEXT_BUFFER;
 
@@ -38,10 +39,18 @@ pub const FONT: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fonts::HE
 // ---- small pieces ----
 
 /// `rep movsb` of `n` bytes, forwards (addresses).
-pub fn movsb(to: u32, from: u32, n: u32) {
-    for k in 0..n {
-        unsafe { ((to + k) as *mut u8).write(((from + k) as *const u8).read()) };
-    }
+pub fn movsb(to: u32, from: u32, n: u32) -> Result<(), Refused> {
+    GamePtr::new(from).copy_to(GamePtr::new(to), n as usize, "a network record's bytes")?;
+    Ok(())
+}
+
+/// `rep movsb` from memory Rust owns (what DirectPlay's callbacks hand over: a GUID, a
+/// connection's data), to the game's memory (checked).
+pub fn movsb_from_rust(to: u32, from: u32, n: u32) -> Result<(), Refused> {
+    // SAFETY: `from` is the callback's argument, `n` bytes of Rust's own memory.
+    let bytes = unsafe { std::slice::from_raw_parts(from as usize as *const u8, n as usize) };
+    GamePtr::new(to).write_bytes(bytes, "a network record's bytes")?;
+    Ok(())
 }
 
 /// A cursor into a text buffer: what the original's `ebx` is while it builds a line with
@@ -58,33 +67,39 @@ impl Cursor {
 
     /// `strings::str_append`: the NUL-ended text at `from`, its end the new cursor.
     pub fn string(&mut self, from: u32) {
-        self.0 =
-            unsafe { crate::strings::str_append::str_append(from as *const u8, self.0 as *mut u8) }
-                as u32;
+        self.0 = crate::menu::event_flow::refuse_here(
+            crate::strings::str_append::str_append(from as *const u8, self.0 as *mut u8),
+            "net::lobby: a text",
+        ) as u32;
     }
 
     /// `strings::append_string_by_id`: the string `id`.
     pub fn string_id(&mut self, id: u32) {
         let mut out = self.0 as *mut u8;
-        unsafe {
-            crate::strings::append_string_by_id::append_string_by_id(id, &mut |from, n| {
-                std::ptr::copy_nonoverlapping(from, out, n);
-                out = out.add(n);
-            });
-        }
+        crate::menu::event_flow::refuse_here(
+            unsafe {
+                crate::strings::append_string_by_id::append_string_by_id(id, &mut |from, n| {
+                    std::ptr::copy_nonoverlapping(from, out, n);
+                    out = out.add(n);
+                })
+            },
+            "net::lobby: a string",
+        );
         self.0 = out as u32;
     }
 
     /// The bytes written at the cursor (`format_u32`'s, `append_time`'s).
-    pub fn bytes(&mut self, bytes: &[u8]) {
-        unsafe { std::ptr::copy_nonoverlapping(bytes.as_ptr(), self.0 as *mut u8, bytes.len()) };
+    pub fn bytes(&mut self, bytes: &[u8]) -> Result<(), Refused> {
+        GamePtr::new(self.0).write_bytes(bytes, "a text line's bytes")?;
         self.0 = self.0.wrapping_add(bytes.len() as u32);
+        Ok(())
     }
 
     /// `strings::append_nul`: a NUL written, the cursor past it.
-    pub fn nul(&mut self) {
-        unsafe { (self.0 as *mut u8).write(0) };
+    pub fn nul(&mut self) -> Result<(), Refused> {
+        GamePtr::new(self.0).write(0u8, "a text line's end")?;
         self.0 = self.0.wrapping_add(1);
+        Ok(())
     }
 }
 

@@ -23,36 +23,34 @@ use crate::menu::menus_store::MENUS;
 use crate::menu::option_work_store::OPTION_WORK;
 use crate::menu::players_store::PLAYER_TABLE;
 use crate::menu::screen_items_store::{SCREEN_ITEMS, slot};
-use crate::menu::screen_loop::{
-    Callee, Carried, Flow, List, Screen, Step, quitting, read_at, screen_entry,
-};
+use crate::menu::screen_loop::{Callee, Carried, Flow, List, Screen, Step, quitting, screen_entry};
 
 // ---- Rust version: `menu::screen_loop` with this ----
 
-unsafe fn before(_c: &mut Carried) -> Result<(), Refused> {
+fn before(_c: &mut Carried) -> Result<(), Refused> {
     // The player's twelve bytes at +0x1C copied to `dword_755595` (`rep movsb` between
     // `pusha` and `popa`; eax pushed and popped around the player's address: no carried
     // value changes).
-    unsafe {
-        let player = read_at((PLAYER_TABLE.pointers[0].addr() as u32).wrapping_add(4));
-        std::ptr::copy(
-            player.wrapping_add(0x1C) as *const u8,
-            KEY_TABLES.redefined_keys.addr() as *mut u8,
-            0xC,
-        );
+    {
+        let player = PLAYER_TABLE.pointers[1].get();
+        let keys = crate::pointers::GamePtr::new(player.wrapping_add(0x1C))
+            .read_bytes(0xC, "a player's keys")?;
+        for (n, key) in keys.into_iter().enumerate() {
+            KEY_TABLES.redefined_keys.set(n, key);
+        }
         EVENT_STATE.current_player.set(0x1u32);
     }
     Ok(())
 }
 
-unsafe fn after_first_frame(_c: &mut Carried) -> Result<Flow, Refused> {
+fn after_first_frame(_c: &mut Carried) -> Result<Flow, Refused> {
     if quitting() as u32 == 0x1 {
         return Ok(Flow::Leave);
     }
     Ok(Flow::On)
 }
 
-unsafe fn each_frame(_c: &mut Carried) -> Result<Flow, Refused> {
+fn each_frame(_c: &mut Carried) -> Result<Flow, Refused> {
     if OPTION_WORK.redefining_key.get() == 0x1 && OPTION_WORK.redefining_key.get() != 0x0 {
         return Ok(Flow::NextFrame);
     }

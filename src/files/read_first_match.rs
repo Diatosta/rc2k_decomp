@@ -20,6 +20,7 @@ use crate::files::read_file::{ReadResult, read_file};
 use crate::files::resolve_path::resolve_path_in_game;
 use crate::files::scratch::SCRATCH;
 use crate::files::state::{FIND_HANDLE, LAST_FILE_PATH, SKIPPED_ATTRIBUTES, find_data};
+use crate::pointers::GamePtr;
 use std::sync::atomic::Ordering::Relaxed;
 use windows_sys::Win32::Storage::FileSystem::{FindClose, FindFirstFileA, FindNextFileA};
 
@@ -61,11 +62,11 @@ pub unsafe fn first_match_read(
         }
         let read = if found {
             // Converted: `rc2k_core::files::io::match_path`.
-            let pattern = std::ffi::CStr::from_ptr(pattern.cast()).to_bytes();
+            let pattern = crate::files::cstring(GamePtr::new(pattern as u32), "a search pattern")?;
             let name = std::ffi::CStr::from_ptr((&raw const (*record).cFileName).cast()).to_bytes();
-            let joined = rc2k_core::files::io::match_path(pattern, name);
+            let joined = rc2k_core::files::io::match_path(&pattern, name);
             let path = SCRATCH.buffer.addr() as *mut u8;
-            std::ptr::copy(joined.as_ptr(), path, joined.len());
+            GamePtr::new(path as u32).write_bytes(&joined, "the scratch buffer")?;
             Some(read_file(path, buffer, count, offset))
         } else {
             None

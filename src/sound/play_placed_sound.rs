@@ -23,6 +23,7 @@
 
 use crate::audio::store::{AUDIO, SAMPLE_RECORDS};
 use crate::errors::BadInput;
+use crate::pointers::GamePtr;
 use crate::scene::x87_mem::{fistp, fld, fstp};
 use rc2k_core::sound::placed::{self, MODE_3D};
 
@@ -64,44 +65,45 @@ fn angle_and_place(y: u32, x: u32, per_angle: u32, centre: u32) -> (u32, u32) {
 /// `mode` is the sound mode. Outside the
 /// 3D modes, where `sound::play_sound` replaces it, the original hands on its caller's ebp.
 pub unsafe fn play_placed_sound(request: u32, mode: u32) -> Result<(), BadInput> {
-    unsafe {
-        let request = request as *mut u32;
-        if request.is_null() {
-            return Err(BadInput("no request"));
-        }
-        let get = |n: usize| request.add(n).read_unaligned();
-        let put = |n: usize, value: u32| request.add(n).write_unaligned(value);
-        // Converted: `rc2k_core::sound::placed` (`played`, `sample_of`, `volume`,
-        // `place`); the products and the angle are the original's x87.
-        let sound = get(0);
-        if !placed::played(sound) {
-            return Ok(());
-        }
-        let (ebx, ecx, edi, ebp);
-        if mode & MODE_3D == 0 {
-            let number = placed::sample_of(sound)?;
-            let record = &SAMPLE_RECORDS.records[number as usize];
-            let factor = record.get().min_distance;
-            let volume = placed::volume(product3_to_int(get(2), factor, get(9)));
-            put(2, volume);
-            let (angle, place) = angle_and_place(
-                get(5),
-                get(3),
-                crate::sound::store::RACE_CLOCK.pan_per_radian.bits(),
-                crate::sound::store::RACE_CLOCK.pan_centre.bits(),
-            );
-            put(6, angle);
-            put(7, place);
-            let place = placed::place(place, get(3), angle, mode);
-            (ebx, ecx, edi, ebp) = (volume, place, record.addr() as u32, 0);
-        } else {
-            (ebx, ecx, edi, ebp) = (to_int(get(2)), get(3), get(4), get(5));
-        }
-        let edx = product_to_int(get(1), get(8));
-        put(1, edx);
-        crate::sound::play_sound::play_sound(sound, ebx, edx, [ecx, edi, ebp]);
-        Ok(())
+    if request == 0 {
+        return Err(BadInput("no request"));
     }
+    let get = |n: usize| {
+        GamePtr::new(request)
+            .offset(4 * n as u32)
+            .read::<u32>("a sound request")
+    };
+    let put = |n: usize, value: u32| crate::sound::turn_parts::put(request, n, value);
+    // Converted: `rc2k_core::sound::placed` (`played`, `sample_of`, `volume`,
+    // `place`); the products and the angle are the original's x87.
+    let sound = get(0)?;
+    if !placed::played(sound) {
+        return Ok(());
+    }
+    let (ebx, ecx, edi, ebp);
+    if mode & MODE_3D == 0 {
+        let number = placed::sample_of(sound)?;
+        let record = &SAMPLE_RECORDS.records[number as usize];
+        let factor = record.get().min_distance;
+        let volume = placed::volume(product3_to_int(get(2)?, factor, get(9)?));
+        put(2, volume)?;
+        let (angle, place) = angle_and_place(
+            get(5)?,
+            get(3)?,
+            crate::sound::store::RACE_CLOCK.pan_per_radian.bits(),
+            crate::sound::store::RACE_CLOCK.pan_centre.bits(),
+        );
+        put(6, angle)?;
+        put(7, place)?;
+        let place = placed::place(place, get(3)?, angle, mode);
+        (ebx, ecx, edi, ebp) = (volume, place, record.addr() as u32, 0);
+    } else {
+        (ebx, ecx, edi, ebp) = (to_int(get(2)?), get(3)?, get(4)?, get(5)?);
+    }
+    let edx = product_to_int(get(1)?, get(8)?);
+    put(1, edx)?;
+    crate::sound::play_sound::play_sound(sound, ebx, edx, [ecx, edi, ebp]);
+    Ok(())
 }
 
 /// In the game.

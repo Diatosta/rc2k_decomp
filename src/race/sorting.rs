@@ -3,6 +3,7 @@
 //! the first to the last (both included) read, sorted, the changed ones written back.
 
 use crate::errors::{BadInput, Refused};
+use crate::pointers::GamePtr;
 use rc2k_core::race::quick_sort::{Order, quick_sort};
 
 /// The records of `N` dwords from `first` to `last` (both included) sorted by dword `key`
@@ -11,7 +12,7 @@ use rc2k_core::race::quick_sort::{Order, quick_sort};
 /// 2026-10-24). Refuses (before anything) a `last` not a whole number of records from
 /// `first` (the original's two places would never meet) and a sort that would go past
 /// the records.
-pub unsafe fn sort_records<const N: usize>(
+pub fn sort_records<const N: usize>(
     first: u32,
     last: u32,
     key: usize,
@@ -27,15 +28,16 @@ pub unsafe fn sort_records<const N: usize>(
         return Err(BadInput("a sort's last record not whole records from its first").into());
     }
     let count = (span / size + 1) as usize;
-    let at = |n: usize| (first as usize + n * size as usize) as *mut [u32; N];
-    let mut list: Vec<[u32; N]> = (0..count)
-        .map(|n| unsafe { at(n).read_unaligned() })
-        .collect();
+    let at = |n: usize| GamePtr::new(first.wrapping_add((n as u32).wrapping_mul(size)));
+    let mut list: Vec<[u32; N]> = Vec::with_capacity(count);
+    for n in 0..count {
+        list.push(at(n).read::<[u32; N]>("a record to sort")?);
+    }
     let before = list.clone();
     quick_sort(&mut list, key, order)?;
     for (n, (now, was)) in list.iter().zip(&before).enumerate() {
         if now != was {
-            unsafe { at(n).write_unaligned(*now) };
+            at(n).write(*now, "a sorted record")?;
         }
     }
     Ok(())

@@ -23,9 +23,9 @@ const ROOM: u32 = 36;
 
 // ---- Rust version ----
 
-pub unsafe fn default_stage_times(ebp: u32, log: Log) -> Result<(), Refused> {
+pub fn default_stage_times(ebp: u32, log: Log) -> Result<(), Refused> {
     // Converted: `rc2k_core::saves::defaults::stage_times`.
-    unsafe {
+    {
         let table: u32 = CHAMP_VIEW.course_best_times.get();
         if table == 0 {
             return Err(BadInput("no table for the times").into());
@@ -36,9 +36,13 @@ pub unsafe fn default_stage_times(ebp: u32, log: Log) -> Result<(), Refused> {
             if records == 0 || records == u32::MAX {
                 return Err(BadInput("a record table is missing").into());
             }
-            tables.push(std::array::from_fn(|stage| {
-                read_record(records + (stage as u32 + 1) * RECORD_LEN)
-            }));
+            let six = (0..6u32)
+                .map(|stage| read_record(records + (stage + 1) * RECORD_LEN))
+                .collect::<Result<Vec<_>, _>>()?;
+            tables.push(
+                six.try_into()
+                    .map_err(|_| BadInput("a table of other than six records"))?,
+            );
         }
         let filled = stage_times(
             &mut GameSource { log },
@@ -46,7 +50,7 @@ pub unsafe fn default_stage_times(ebp: u32, log: Log) -> Result<(), Refused> {
             Some(ebp),
             with_checkpoints(),
         )?;
-        apply(&filled, &[(table, (ROOM * STAGE_LEN) as usize)]);
+        apply(&filled, &[(table, (ROOM * STAGE_LEN) as usize)])?;
         Ok(())
     }
 }

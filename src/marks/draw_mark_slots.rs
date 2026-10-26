@@ -30,6 +30,7 @@ use crate::marks::mark_slots::{SLOTS, TUNING};
 use crate::marks::setup::CLOCK;
 use crate::marks::splines::SPLINE_HEAD;
 use crate::math::x87;
+use crate::pointers::GamePtr;
 use crate::race::matrices_store::MATRICES;
 use crate::race::numbers_store::NUMBERS;
 use crate::scene::draw_store::DRAW;
@@ -39,12 +40,12 @@ use crate::scene::rotate_point::rotate_point;
 /// Each vertex's texture place: the corner entry's word offsets (u, v).
 const UV_WORDS: [(u32, u32); 4] = [(0xC, 0xE), (8, 0xA), (0, 2), (4, 6)];
 
-unsafe fn get(a: u32) -> u32 {
-    unsafe { (a as *const u32).read_unaligned() }
+fn get(a: u32) -> Result<u32, BadInput> {
+    GamePtr::new(a).read("a game field")
 }
 
 /// Why it refuses, if it does, worked out before anything is written.
-unsafe fn refusal() -> Option<&'static str> {
+fn refusal() -> Option<&'static str> {
     {
         if crate::marks::setup::SETTINGS.pointer.get() == 0 {
             return Some("no marks settings");
@@ -60,15 +61,15 @@ unsafe fn refusal() -> Option<&'static str> {
 
 /// The Rust version (see the header): `add_mark_slot`, `scene::set_texture`,
 /// `scene::draw_fan`.
-pub unsafe fn draw_mark_slots() -> Result<(), Refused> {
-    if let Some(why) = unsafe { refusal() } {
+pub fn draw_mark_slots() -> Result<(), Refused> {
+    if let Some(why) = refusal() {
         return Err(BadInput(why).into());
     }
     unsafe {
         let settings: u32 = crate::marks::setup::SETTINGS.pointer.get();
-        if get(settings + 0x8C) != 0 {
+        if get(settings + 0x8C)? != 0 {
             crate::marks::add_mark_slot::add_mark_slot(
-                get(settings + 0x64),
+                get(settings + 0x64)?,
                 MATRICES.view_place[0].addr() as u32,
             );
         }
@@ -81,7 +82,7 @@ pub unsafe fn draw_mark_slots() -> Result<(), Refused> {
                 .set(s.life.get().wrapping_sub(CLOCK.frame_ticks.get()));
             let p =
                 (SPLINE_HEAD.points[0].addr() as u32).wrapping_add(s.point.get().wrapping_mul(12));
-            let [a, b, c] = [get(p) ^ 0x8000_0000, get(p + 4), get(p + 8)];
+            let [a, b, c] = [get(p)? ^ 0x8000_0000, get(p + 4)?, get(p + 8)?];
             let k4 = TUNING.place_k.each_ref().map(|f| f.bits());
             let z = x87::mul(c, k4[0]);
             let y = crate::math::x87_run::sub_mul(b, k4[1], k4[2]);

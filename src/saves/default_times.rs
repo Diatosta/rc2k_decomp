@@ -15,6 +15,7 @@
 use crate::errors::BadInput;
 use crate::math::random_below::random_below;
 use crate::menu::draw_work_store::DRAW_WORK;
+use crate::pointers::GamePtr;
 use crate::race::work_store::RACE_WORK;
 use crate::saves::drivers::Driver;
 use rc2k_core::Invalid;
@@ -62,15 +63,13 @@ impl rc2k_core::saves::defaults::Source for GameSource<'_> {
     }
 
     fn driver(&mut self, number: u32) -> Result<rc2k_core::saves::defaults::Driver, Invalid> {
-        unsafe {
-            let driver = Driver::number(number).map_err(|e| Invalid(e.0))?;
-            let (name_id, name) = driver.name().map_err(|e| Invalid(e.0))?;
-            Ok(rc2k_core::saves::defaults::Driver {
-                fields: [driver.dword(8), driver.dword(0x14), driver.dword(0x18)],
-                name_id,
-                name,
-            })
-        }
+        let driver = Driver::number(number).map_err(|e| Invalid(e.0))?;
+        let (name_id, name) = driver.name().map_err(|e| Invalid(e.0))?;
+        Ok(rc2k_core::saves::defaults::Driver {
+            fields: [driver.class(), driver.nation(), driver.car()],
+            name_id,
+            name,
+        })
     }
 
     fn checkpoint_count(&mut self, stage: u32) -> u32 {
@@ -99,24 +98,27 @@ impl rc2k_core::saves::defaults::Source for GameSource<'_> {
 }
 
 /// The record at `at` (0xA4 bytes, unaligned).
-pub unsafe fn read_record(at: u32) -> Record {
-    let d = |o: u32| unsafe { ((at + o) as *const u32).read_unaligned() };
-    Record {
-        tag: d(0),
-        track: d(4),
-        length: d(0x18),
-        time: d(0x24),
-        picked: d(0x3C),
-    }
+pub fn read_record(at: u32) -> Result<Record, BadInput> {
+    let d = |o: u32| GamePtr::new(at + o).read::<u32>("a stage record");
+    Ok(Record {
+        tag: d(0)?,
+        track: d(4)?,
+        length: d(0x18)?,
+        time: d(0x24)?,
+        picked: d(0x3C)?,
+    })
 }
 
 /// Writes what a function of the time tables worked out: its blocks into `tables` (the
 /// function's own, then the rallies'; address and length), and the work variables.
-pub unsafe fn apply(filled: &Filled, tables: &[(u32, usize)]) {
-    unsafe {
+pub fn apply(filled: &Filled, tables: &[(u32, usize)]) -> Result<(), BadInput> {
+    {
         for block in &filled.blocks {
             let (at, len) = tables[block.table];
-            block.write(std::slice::from_raw_parts_mut(at as *mut u8, len));
+            let table = GamePtr::new(at);
+            let mut bytes = table.read_bytes(len, "a table of times")?;
+            block.write(&mut bytes);
+            table.write_bytes(&bytes, "a table of times")?;
         }
         DRAW_WORK.seconds.set(filled.seconds);
         if let Some(sum) = filled.sum {
@@ -128,6 +130,7 @@ pub unsafe fn apply(filled: &Filled, tables: &[(u32, usize)]) {
             }
         }
     }
+    Ok(())
 }
 
 /// Whether the game's switch for the checkpoint times is on.
@@ -136,10 +139,12 @@ pub fn with_checkpoints() -> bool {
 }
 
 /// How many records a table has before its -1 (the first is not looked at for the end).
-pub unsafe fn records(table: u32) -> Result<usize, BadInput> {
-    (1..=0x1000usize)
-        .find(|&n| unsafe {
-            ((table + n as u32 * RECORD_LEN) as *const u32).read_unaligned() == u32::MAX
-        })
-        .ok_or(BadInput("a record table without its end"))
+pub fn records(table: u32) -> Result<usize, BadInput> {
+    for n in 1..=0x1000usize {
+        let tag = GamePtr::new(table + n as u32 * RECORD_LEN).read::<u32>("a stage record")?;
+        if tag == u32::MAX {
+            return Ok(n);
+        }
+    }
+    Err(BadInput("a record table without its end"))
 }

@@ -13,21 +13,18 @@ use crate::menu::flow_store::SCREEN_FLOW;
 use crate::strings::append_string_by_id::push_string;
 
 /// The Rust version (see the header).
-pub unsafe fn flip_gearing() {
-    unsafe {
-        // Converted: `rc2k_core::menu::steps` (`flip`, `gearing_switch_text`).
-        use rc2k_core::menu::steps::{flip, gearing_switch_text};
-        let kept = flip(SCREEN_FLOW.shown_gearing.get());
-        SCREEN_FLOW.shown_gearing.set(kept);
-        let mut text = Vec::new();
-        push_string(&mut text, gearing_switch_text(kept));
-        text.push(0);
-        std::ptr::copy_nonoverlapping(
-            text.as_ptr(),
-            crate::screens::text_buffers_store::TEXT_BUFFERS
-                .title
-                .addr() as *mut u8,
-            text.len(),
-        );
-    }
+pub fn flip_gearing() -> Result<(), crate::errors::BadInput> {
+    // Converted: `rc2k_core::menu::steps` (`flip`, `gearing_switch_text`).
+    use rc2k_core::menu::steps::{flip, gearing_switch_text};
+    let kept = flip(SCREEN_FLOW.shown_gearing.get());
+    SCREEN_FLOW.shown_gearing.set(kept);
+    let mut text = Vec::new();
+    push_string(&mut text, gearing_switch_text(kept))?;
+    text.push(0);
+    crate::pointers::GamePtr::new(
+        crate::screens::text_buffers_store::TEXT_BUFFERS
+            .title
+            .addr() as u32,
+    )
+    .write_bytes(&text, "the title")
 }

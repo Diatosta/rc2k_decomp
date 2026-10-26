@@ -51,11 +51,6 @@ impl BestTimes {
     pub fn list(&self) -> *mut crate::memory::MemoryList {
         self.memory.addr() as *mut _
     }
-
-    /// The switches and the pairs as the dwords `allocate_best_times` walks.
-    pub fn vars(&self) -> *mut u32 {
-        self.allocated.addr() as *mut u32
-    }
 }
 
 /// A best-time entry (0x9C bytes), as the rally and stage tables hold them (and the

@@ -94,7 +94,7 @@ fn quad_tail_math(s: usize, v: usize, sc: usize, t: usize, rc: usize) {
 /// its result (Direct3D's, always 0) is read by no one: the quads keep every register
 /// round it (`pusha` / `popa`).
 pub fn draw() -> Result<(), Refused> {
-    unsafe { crate::d3d::draw_vertex_strip::draw_vertex_strip(verts() as u32, 4) };
+    crate::d3d::draw_vertex_strip::draw_vertex_strip(verts() as u32, 4)?;
     Ok(())
 }
 

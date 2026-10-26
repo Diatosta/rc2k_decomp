@@ -20,10 +20,11 @@
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
 //! above are the original's, for reference.
 
-use crate::errors::Refused;
-use crate::input::devices::at;
+use crate::errors::{BadInput, Refused};
+use crate::input::devices::{Deferred, at};
 use crate::input::effects::HAS_EFFECTS;
 use crate::input::store::DEVICES;
+use crate::pointers::GamePtr;
 use crate::race::view_store::RACE_VIEW;
 use crate::sound::store::RACE_SOUNDS;
 
@@ -50,8 +51,8 @@ impl Vars {
     }
 }
 
-fn rd(at: u32) -> u32 {
-    unsafe { (at as *const u32).read_volatile() }
+fn rd(at: u32) -> Result<u32, BadInput> {
+    GamePtr::new(at).read("a variable of the force feedback's update")
 }
 
 /// The Rust version on the variables in `v`.
@@ -59,19 +60,22 @@ fn rd(at: u32) -> u32 {
 /// nothing a call changes decides it).
 pub fn update_effects_with(v: &Vars) -> Result<(), Refused> {
     use rc2k_core::input::effects::{Players, loads};
-    if rd(v.cars + 0xC) == 0 {
+    if rd(v.cars + 0xC)? == 0 {
         return Ok(());
     }
     let p = Players {
-        cars: [rd(v.cars), rd(v.cars + 4)],
-        one_player: rd(v.cars + 8) == 1,
-        devices: [rd(v.devices), rd(v.devices + 4)],
-        views: [rd(v.views), rd(v.views + 4)],
-        one_players_devices: rd(v.two_devices) != 0,
+        cars: [rd(v.cars)?, rd(v.cars + 4)?],
+        one_player: rd(v.cars + 8)? == 1,
+        devices: [rd(v.devices)?, rd(v.devices + 4)?],
+        views: [rd(v.views)?, rd(v.views + 4)?],
+        one_players_devices: rd(v.two_devices)? != 0,
     };
-    for load in loads(&p, |device| at(device, HAS_EFFECTS) == 1)? {
+    let late = Deferred::default();
+    let loaded = loads(&p, |device| late.get(at(device, HAS_EFFECTS)) == 1)?;
+    late.finish()?;
+    for load in loaded {
         if load.update {
-            let object = rd(v.objects + 4 * load.car);
+            let object = rd(v.objects + 4 * load.car)?;
             crate::input::update_car_effects::update_car_effects(load.view, object, load.device)?;
         }
     }

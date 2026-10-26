@@ -7,7 +7,7 @@
 //! (`math::x87_float`), in the original's order, over the game's variables.
 
 /// The Rust version (see the header).
-pub unsafe fn scale_axes() {
+pub fn scale_axes() {
     scale_axes_x87(&SQUARE_TABLES, &SQUARE_STATE);
 }
 
@@ -84,7 +84,7 @@ fn scale_axes_x87(sq: &SquareTables, ss: &SquareState) {
 mod asm_reference {
     //! The original assembly blocks, kept verbatim as the reference the plain versions are tested against.
 
-    pub(super) unsafe fn scale_axes_x87(mk: usize) {
+    pub(super) fn scale_axes_x87(mk: usize) {
         unsafe {
             core::arch::asm!(
                     "fld dword ptr [{mk} + 0x137FDA]",
@@ -224,7 +224,7 @@ mod asm_differential {
         };
         differential(
             &SPEC,
-            |b| unsafe { reference::scale_axes_x87(b[0]) },
+            |b| reference::scale_axes_x87(b[0]),
             |b| {
                 with_copy::<SquareTables, _>(b[0], SquareTables::START, |sq| {
                     with_copy::<SquareState, _>(b[0], SquareState::START, |ss| {

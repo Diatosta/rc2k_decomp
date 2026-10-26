@@ -27,8 +27,8 @@
 
 use crate::errors::BadInput;
 use crate::gfx::picture::PICTURE_DWORDS;
-use crate::gfx::png::PngInfo;
 use crate::gfx::png_header::HEADER;
+use crate::pointers::GamePtr;
 
 // ---- game data ----
 
@@ -37,13 +37,9 @@ use crate::gfx::png_header::HEADER;
 // (with the row before it, which the first row's filters read) and the info block.
 
 /// Returns what the original returns in eax.
-pub unsafe fn decode_png(
-    file: &[u8],
-    pixels: *mut u8,
-    info: *mut PngInfo,
-) -> Result<u32, BadInput> {
+pub fn decode_png(file: &[u8], pixels: u32, info: u32) -> Result<u32, BadInput> {
     use rc2k_core::gfx::png;
-    if pixels.is_null() || info.is_null() {
+    if pixels == 0 || info == 0 {
         return Ok(1);
     }
     // First the whole walk and the checks without writing anything: what is refused here
@@ -65,37 +61,49 @@ pub unsafe fn decode_png(
         Some(_) => png::area_for(&header, PICTURE_DWORDS * 4)?,
         None => 0,
     };
-    unsafe {
-        if let Some(h) = found.header {
-            HEADER.width.set(h.width);
-            HEADER.height.set(h.height);
-            HEADER.compression.set(h.compression);
-            HEADER.colour_type.set(h.colour_type);
-        }
-        if let Some((start, length)) = found.data {
-            let (row_bytes, step) = png::row_layout(&header);
-            let buffer = std::slice::from_raw_parts_mut(pixels, area);
-            png::inflate(&file[start..start + length], buffer)?;
-            // The row above the first is the memory before the area, read only where the
-            // original reads it.
-            let before = pixels.wrapping_sub(row_bytes) as *const u8;
-            png::unfilter(buffer, row_bytes, header.height, step, &|i| {
-                before.wrapping_add(i).read()
-            })?;
-        }
-        (&raw mut (*info).has_palette).write(0);
-        (&raw mut (*info).width).write_unaligned(header.width);
-        (&raw mut (*info).height).write_unaligned(header.height);
-        if let Some(start) = found.palette {
-            (&raw mut (*info).has_palette).write(1);
-            std::ptr::copy(
-                file[start..].as_ptr(),
-                (&raw mut (*info).palette).cast(),
-                0x300,
-            );
-        }
+    let place = GamePtr::new(pixels);
+    let info_at = GamePtr::new(info);
+    if let Some(h) = found.header {
+        HEADER.width.set(h.width);
+        HEADER.height.set(h.height);
+        HEADER.compression.set(h.compression);
+        HEADER.colour_type.set(h.colour_type);
     }
-    let (info, pixels) = (info as u32, pixels as u32);
+    if let Some((start, length)) = found.data {
+        let (row_bytes, step) = png::row_layout(&header);
+        // The area as it is now, worked on as a copy and put back.
+        let mut buffer = place.read_bytes(area, "the picture buffer")?;
+        png::inflate(&file[start..start + length], &mut buffer)?;
+        // The row above the first is the memory before the area, read only where the
+        // original reads it.
+        let before = GamePtr::new(pixels.wrapping_sub(row_bytes as u32));
+        let failed = std::cell::Cell::new(None);
+        let unfiltered = png::unfilter(&mut buffer, row_bytes, header.height, step, &|i| {
+            before
+                .offset(i as u32)
+                .read::<u8>("the row above the picture")
+                .unwrap_or_else(|e| {
+                    failed.set(Some(e));
+                    0
+                })
+        });
+        if let Some(e) = failed.take() {
+            return Err(e);
+        }
+        unfiltered?;
+        place.write_bytes(&buffer, "the picture buffer")?;
+    }
+    let what = "the PNG info block";
+    info_at.write(0u8, what)?;
+    info_at.offset(4).write(header.width, what)?;
+    info_at.offset(8).write(header.height, what)?;
+    if let Some(start) = found.palette {
+        info_at.write(1u8, what)?;
+        let palette = file
+            .get(start..start + 0x300)
+            .ok_or(BadInput("a palette chunk that runs past the file"))?;
+        info_at.offset(12).write_bytes(palette, what)?;
+    }
     let end = pixel_bytes
         .wrapping_mul(header.width)
         .wrapping_mul(header.height)

@@ -14,15 +14,13 @@ use crate::errors::Refused;
 
 /// The Rust core on the variables at `p`: the work copy and the block exchange one copy.
 // Converted: `rc2k_core::drive::work_car::{car_slot, car_block}`.
-pub unsafe fn store_car_at(p: CarPlaces) -> Result<(), Refused> {
-    unsafe {
-        let (_, block) = p.block()?;
-        copy_dwords(p.work, block);
-        Ok(())
-    }
+pub fn store_car_at(p: CarPlaces) -> Result<(), Refused> {
+    let (_, block) = p.block()?;
+    copy_dwords(p.work, block)?;
+    Ok(())
 }
 
 /// The Rust version, on the game's variables.
-pub unsafe fn store_car() -> Result<(), Refused> {
-    unsafe { store_car_at(CarPlaces::game()) }
+pub fn store_car() -> Result<(), Refused> {
+    store_car_at(CarPlaces::game())
 }

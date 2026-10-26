@@ -12,17 +12,18 @@ use crate::errors::{BadInput, Refused};
 use crate::marks::edges::EDGE_SETTINGS;
 use crate::marks::squares_store::SQUARE_STATE;
 use crate::math::x87;
+use crate::pointers::GamePtr;
 
 const NUMBER_AT: u32 = 0x2750;
 
 /// The Rust version (see the header).
-pub unsafe fn scale_setting() -> Result<(), Refused> {
-    unsafe {
+pub fn scale_setting() -> Result<(), Refused> {
+    {
         let settings: u32 = crate::marks::setup::SETTINGS.pointer.get();
         if settings == 0 {
             return Err(BadInput("no marks settings").into());
         }
-        let n = ((settings + NUMBER_AT) as *const i32).read_unaligned();
+        let n = GamePtr::new(settings + NUMBER_AT).read::<i32>("a mark's field")?;
         SQUARE_STATE
             .scaled_setting
             .set_bits(x87::int_times(n, EDGE_SETTINGS.factor.bits()));

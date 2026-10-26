@@ -19,7 +19,7 @@ pub const SECONDARY: u32 = 0x2000;
 /// The Rust version (see the header).
 pub fn list_secondary_modes() -> Result<(), Refused> {
     if CARDS.secondary.get() == 1 {
-        unsafe { standalone_modes(SECONDARY) };
+        standalone_modes(SECONDARY)?;
         mark_3d_modes(SECONDARY)?;
     }
     Ok(())

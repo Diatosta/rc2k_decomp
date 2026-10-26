@@ -17,8 +17,13 @@ pub fn start_edit(item: u32) {
     let most = rb(record + 1);
     let text = rd(item + 8);
     // Converted: `rc2k_core::install::edits::start_edit`, on the text's `most` + 2 bytes.
-    let words = unsafe { std::slice::from_raw_parts_mut(text as *mut u8, most as usize + 2) };
-    let flags = rc2k_core::install::edits::start_edit(rb(record), most, words);
+    let at = crate::pointers::GamePtr::new(text);
+    let mut words = at
+        .read_bytes(most as usize + 2, "an edited text")
+        .unwrap_or_else(|e| crate::install::installer::refuse(e));
+    let flags = rc2k_core::install::edits::start_edit(rb(record), most, &mut words);
+    at.write_bytes(&words, "an edited text")
+        .unwrap_or_else(|e| crate::install::installer::refuse(e));
     wb(record, flags);
     let backup = INSTALLER_PATHS.script_path.addr() as u32;
     for (n, &b) in words.iter().enumerate() {

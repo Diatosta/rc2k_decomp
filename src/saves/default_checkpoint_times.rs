@@ -24,11 +24,11 @@ use rc2k_core::saves::defaults::{Championship, RALLIES, championship_times};
 // ---- Rust version ----
 
 /// `ebp` is not used: the stage comes from the record.
-pub unsafe fn default_checkpoint_times(_ebp: u32, log: Log) -> Result<(), Refused> {
+pub fn default_checkpoint_times(_ebp: u32, log: Log) -> Result<(), Refused> {
     // Converted: `rc2k_core::saves::defaults::championship_times`.
-    unsafe {
+    {
         let records_at = crate::records::stages_store::STAGE_TABLES.championship();
-        let stages = count_stages(records_at as *const u8)?;
+        let stages = count_stages(records_at)?;
         let count = records(records_at)?;
         let table: u32 = CHAMP_VIEW.time_trial_best_times.get();
         if stages == 0 || table == 0 {
@@ -36,7 +36,7 @@ pub unsafe fn default_checkpoint_times(_ebp: u32, log: Log) -> Result<(), Refuse
         }
         let records: Vec<_> = (0..count as u32)
             .map(|n| read_record(records_at + n * RECORD_LEN))
-            .collect();
+            .collect::<Result<_, _>>()?;
         let tables = [(table, (stages * STAGE_LEN) as usize)];
         let filled = championship_times(
             &mut GameSource { log },
@@ -45,7 +45,7 @@ pub unsafe fn default_checkpoint_times(_ebp: u32, log: Log) -> Result<(), Refuse
             [false; RALLIES],
             crate::saves::default_times::with_checkpoints(),
         )?;
-        apply(&filled, &tables);
+        apply(&filled, &tables)?;
         Ok(())
     }
 }

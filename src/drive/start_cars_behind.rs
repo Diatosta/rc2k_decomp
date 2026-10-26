@@ -29,6 +29,7 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
+use crate::pointers::GamePtr;
 use crate::race::blocks_store::CAR_BLOCKS;
 use crate::race::numbers_store::NUMBERS;
 use crate::race::tables_store::RACE_TABLES;
@@ -39,19 +40,17 @@ use rc2k_core::drive::pace_cars::{
     wanted_gap,
 };
 
-unsafe fn at(a: u32) -> u32 {
-    unsafe { (a as *const u32).read_unaligned() }
+fn at(a: u32) -> Result<u32, BadInput> {
+    GamePtr::new(a).read("a car's block")
 }
 
 /// `dword_604ECC`[k]: the car of each start. The table holds 89; the refusal below reads
 /// one past it (the start count's 0x58 + 1), the next variable, as the original.
-fn car_by_start(k: u32) -> u32 {
+fn car_by_start(k: u32) -> Result<u32, BadInput> {
     match RACE_TABLES.arcade_car_kinds.get(k as usize) {
-        Some(car) => car.get(),
-        None => unsafe {
-            ((RACE_TABLES.arcade_car_kinds[0].addr() + 4 * k as usize) as *const u32)
-                .read_unaligned()
-        },
+        Some(car) => Ok(car.get()),
+        None => GamePtr::new((RACE_TABLES.arcade_car_kinds[0].addr() + 4 * k as usize) as u32)
+            .read("the start tables"),
     }
 }
 
@@ -60,21 +59,21 @@ fn block(car: u32) -> u32 {
 }
 
 /// The refusals worked out before anything.
-fn refusal() -> Option<&'static str> {
+fn refusal() -> Result<Option<&'static str>, BadInput> {
     let lead = &CAR_BLOCKS.cars[0];
     let count = RACE_TABLES.arcade_cars.get();
     if count > 0x58 {
-        return Some("a start count above 0x58 (the start tables' room)");
+        return Ok(Some("a start count above 0x58 (the start tables' room)"));
     }
     for k in 0..=count + 1 {
-        if car_by_start(k) > 7 {
-            return Some("a start table car past the eight blocks");
+        if car_by_start(k)? > 7 {
+            return Ok(Some("a start table car past the eight blocks"));
         }
     }
     if lead.pace_cars[0].get() > 7 || lead.pace_cars[1].get() > 7 {
-        return Some("a kept car past the eight blocks");
+        return Ok(Some("a kept car past the eight blocks"));
     }
-    None
+    Ok(None)
 }
 
 /// One car moved: its slot `from_slot` emptied into the other's (`shift`), a new car at
@@ -88,7 +87,7 @@ unsafe fn put_car(
 ) -> Result<(), Refused> {
     number.set(start);
     RACE_TABLES.start_slot.set(start);
-    let car = car_by_start(start);
+    let car = car_by_start(start)?;
     RACE_WORK.current_car.set(car);
     slot.set(car);
     unsafe {
@@ -101,13 +100,11 @@ unsafe fn put_car(
 }
 
 /// A car taken off the line: made the work car, its start values cleared, stored back.
-unsafe fn clear_car(car: u32) -> Result<(), Refused> {
+fn clear_car(car: u32) -> Result<(), Refused> {
     RACE_WORK.current_car.set(car);
-    unsafe {
-        crate::drive::load_car::load_car()?;
-        crate::drive::clear_start_state::clear_start_state();
-        crate::drive::store_car::store_car()?;
-    }
+    crate::drive::load_car::load_car()?;
+    crate::drive::clear_start_state::clear_start_state();
+    crate::drive::store_car::store_car()?;
     Ok(())
 }
 
@@ -115,7 +112,7 @@ unsafe fn clear_car(car: u32) -> Result<(), Refused> {
 /// callers' after-sets are kept or dead).
 // Converted: `rc2k_core::drive::pace_cars` (the rules; the moves and calls stay here).
 pub unsafe fn start_cars_behind() -> Result<(), Refused> {
-    if let Some(why) = refusal() {
+    if let Some(why) = refusal()? {
         return Err(BadInput(why).into());
     }
     // Block 0, the lead car: mode 2's pace-car state is kept in its fields.
@@ -145,7 +142,7 @@ pub unsafe fn start_cars_behind() -> Result<(), Refused> {
         }
         let count = RACE_TABLES.arcade_cars.get();
         let start = gap_start(lead.mode2_place.get(), count);
-        let word = crate::drive::start_car_on_line::car_number(start as usize);
+        let word = crate::drive::start_car_on_line::car_number(start as usize)?;
         let (pass, back, sum) = gaps(word);
         RACE_TABLES.pace_pass_gap.set(pass);
         RACE_TABLES.pace_back_gap.set(back);
@@ -153,13 +150,13 @@ pub unsafe fn start_cars_behind() -> Result<(), Refused> {
         'moves: {
             if lead.mode2_behind.get() != 0 {
                 let car = lead.pace_cars[0].get();
-                let gone = at(block(car) + 0x98).wrapping_sub(lead.checkpoint.get());
+                let gone = at(block(car) + 0x98)?.wrapping_sub(lead.checkpoint.get());
                 if passed(gone, RACE_TABLES.pace_pass_gap.get()) {
                     let to = lead
                         .checkpoint
                         .get()
                         .wrapping_sub(RACE_TABLES.pace_back_gap.get());
-                    if crate::drive::checkpoint_taken::checkpoint_taken(to) {
+                    if crate::drive::checkpoint_taken::checkpoint_taken(to)? {
                         break 'moves;
                     }
                     clear_car(car)?;
@@ -193,7 +190,7 @@ pub unsafe fn start_cars_behind() -> Result<(), Refused> {
                 break 'moves;
             }
             let car = lead.pace_cars[1].get();
-            let ahead = lead.checkpoint.get().wrapping_sub(at(block(car) + 0x98));
+            let ahead = lead.checkpoint.get().wrapping_sub(at(block(car) + 0x98)?);
             if !passed(ahead, RACE_TABLES.pace_pass_gap.get()) {
                 break 'moves;
             }
@@ -201,7 +198,7 @@ pub unsafe fn start_cars_behind() -> Result<(), Refused> {
                 .checkpoint
                 .get()
                 .wrapping_add(RACE_TABLES.pace_back_gap.get());
-            if crate::drive::checkpoint_taken::checkpoint_taken(to) {
+            if crate::drive::checkpoint_taken::checkpoint_taken(to)? {
                 break 'moves;
             }
             clear_car(car)?;
@@ -235,11 +232,16 @@ pub unsafe fn start_cars_behind() -> Result<(), Refused> {
             let mut edx = lead.checkpoint_offset[1].get();
             for slot in [&lead.pace_cars[1], &lead.pace_cars[0]] {
                 let b = block(slot.get());
-                edx = if ahead_of_lead(lead_checkpoint, at(b + 0x98), edx, || at(b + 0x624)) {
-                    crate::drive::note_gap_ahead::note_gap_ahead(b)
+                let reading = crate::scene::reading::Reading::new();
+                let is_ahead = ahead_of_lead(lead_checkpoint, at(b + 0x98)?, edx, || {
+                    reading.read::<u32>(b.wrapping_add(0x624), "a car's block")
+                });
+                reading.finish()?;
+                edx = if is_ahead {
+                    crate::drive::note_gap_ahead::note_gap_ahead(b)?
                 } else {
                     behind = behind.wrapping_sub(1);
-                    crate::drive::note_gap_behind::note_gap_behind(b)
+                    crate::drive::note_gap_behind::note_gap_behind(b)?
                 };
             }
             lead.mode2_place.set(behind);
@@ -276,17 +278,17 @@ pub unsafe fn start_cars_behind() -> Result<(), Refused> {
         }
         let first = block(lead.pace_cars[0].get());
         let second = block(lead.pace_cars[1].get());
-        let apart = at(first + 0x98).wrapping_sub(at(second + 0x98));
+        let apart = at(first + 0x98)?.wrapping_sub(at(second + 0x98)?);
         lead.pace_apart.set(apart);
         let Some(push) = push_apart(apart) else {
             return Ok(());
         };
-        let put = |a: u32, v: u32| (a as *mut u32).write_unaligned(v);
-        put(first + 0x674, push);
-        put(second + 0x674, push.wrapping_neg());
+        let put = |a: u32, v: u32| GamePtr::new(a).write(v, "a car's block");
+        put(first + 0x674, push)?;
+        put(second + 0x674, push.wrapping_neg())?;
         let k = RACE_TABLES.pace_push_scale.bits();
         for b in [first, second] {
-            put(b + 0x674, x87::int_times(at(b + 0x674) as i32, k));
+            put(b + 0x674, x87::int_times(at(b + 0x674)? as i32, k))?;
         }
         Ok(())
     }

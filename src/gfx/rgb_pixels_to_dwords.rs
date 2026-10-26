@@ -9,15 +9,16 @@
 //! Refuses what `pixels_to_dwords::pixel_count` refuses. The name is a reading.
 
 use crate::errors::BadInput;
-use crate::gfx::picture::picture;
+use crate::gfx::picture::picture_ptr;
 use crate::gfx::pixels_to_dwords::pixel_count;
 
 // ---- Rust version ----
 
-pub unsafe fn rgb_pixels_to_dwords() -> Result<(), BadInput> {
-    // Converted: `rc2k_core::gfx::pixels::rgb_to_dwords`.
-    let count = unsafe { pixel_count() }?;
-    let buffer = unsafe { std::slice::from_raw_parts_mut(picture(), count * 4) };
-    rc2k_core::gfx::pixels::rgb_to_dwords(buffer, count).expect("the slice holds the dwords");
-    Ok(())
+pub fn rgb_pixels_to_dwords() -> Result<(), BadInput> {
+    // Converted: `rc2k_core::gfx::pixels::rgb_to_dwords`, on a copy of the pixels' bytes.
+    let count = pixel_count()?;
+    let mut buffer = picture_ptr().read_bytes(count * 4, "the picture buffer")?;
+    rc2k_core::gfx::pixels::rgb_to_dwords(&mut buffer, count)
+        .ok_or(BadInput("a picture buffer shorter than its dwords"))?;
+    picture_ptr().write_bytes(&buffer, "the picture buffer")
 }

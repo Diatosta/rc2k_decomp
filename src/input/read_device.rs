@@ -33,15 +33,15 @@ use crate::input::devices::{joy_state, key_table, record_bytes};
 /// the record read again after it.
 pub unsafe fn read_device(record: u32) -> Result<(), Refused> {
     use rc2k_core::input::devices;
-    devices::check_bindings(&record_bytes(record))?;
+    devices::check_bindings(&record_bytes(record)?)?;
     unsafe { crate::input::poll_device::poll_device(record) }?;
-    let Some(r) = devices::read_device(&record_bytes(record), &key_table(), &joy_state())? else {
+    let Some(r) = devices::read_device(&record_bytes(record)?, &key_table(), &joy_state())? else {
         return Ok(());
     };
     let readings = devices::READINGS as u32;
-    put(record, readings, r.steering);
-    put(record, readings + 4, r.brake);
-    put(record, readings + 8, r.throttle);
-    put(record, devices::BITS as u32, r.bits);
+    put(record, readings, r.steering)?;
+    put(record, readings + 4, r.brake)?;
+    put(record, readings + 8, r.throttle)?;
+    put(record, devices::BITS as u32, r.bits)?;
     Ok(())
 }

@@ -72,7 +72,7 @@ pub fn record_text(status: u8) -> String {
 
 /// The current directory with a `\` after it.
 fn here() -> Option<Vec<u8>> {
-    let mut d = unsafe { crate::install::normalise_path::current_directory() }.ok()??;
+    let mut d = crate::install::normalise_path::current_directory().ok()??;
     if !matches!(d.last(), Some(b'\\' | b'/')) {
         d.push(b'\\');
     }

@@ -12,6 +12,6 @@ use crate::errors::Refused;
 use crate::menu::screen_loop::Carried;
 
 /// The Rust version (`c` the carried values the item gets).
-pub unsafe fn replay_item_c(c: &Carried) -> Result<(), Refused> {
+pub fn replay_item_c(c: &Carried) -> Result<(), Refused> {
     crate::race::replay_mode_2::replay_mode_2(c)
 }

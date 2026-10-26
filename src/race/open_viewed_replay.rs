@@ -18,10 +18,12 @@
 
 use crate::errors::Refused;
 use crate::files::handle;
+use crate::pointers::GamePtr;
 use crate::race::replay::REPLAYS;
 use crate::race::replay_file_store::REPLAY_FILE;
 use crate::race::replay_path::replay_path;
 use crate::race::replay_work_store::REPLAY_WORK;
+use crate::race::trap::file_read;
 use crate::race::viewer_state_store::REPLAY_VIEW;
 
 use rc2k_core::race::viewer_flow::{HEADER_LEN, INDEX_LEN};
@@ -50,18 +52,16 @@ pub fn open_viewed_replay(slot: u32) -> Result<bool, Refused> {
     }
     if copied_first(found.number) {
         // A saved replay is copied over the last race's first.
-        let copied = unsafe {
-            crate::files::copy_file::copy_file(
-                path as _,
-                crate::race::replay_path::LAST_RACE.addr() as *const u8,
-            )?
-        };
+        let copied = crate::files::copy_file::copy_file(
+            path as _,
+            crate::race::replay_path::LAST_RACE.addr() as *const u8,
+        )?;
         if !copied {
             return failed();
         }
         path = crate::race::replay_path::LAST_RACE.addr() as u32;
     }
-    let Some(file) = (unsafe { handle::open_by_mode(path as _, 0)? }) else {
+    let Some(file) = handle::open_by_mode(path as _, 0)? else {
         return failed();
     };
     REPLAY_FILE.replay_handle.set(file);
@@ -69,13 +69,23 @@ pub fn open_viewed_replay(slot: u32) -> Result<bool, Refused> {
     REPLAY_VIEW.replay_block.set(0);
     REPLAY_VIEW.replay_frame.set(0);
     // A buffer read whole; whether the read is good (`read_good`).
-    let read = |buffer: usize, len: u32| -> bool {
-        let (n, ok) =
-            unsafe { handle::read(REPLAY_FILE.replay_handle.get(), buffer as *mut u8, len) };
-        let first = unsafe { (buffer as *const u32).read_unaligned() };
-        read_good(!ok, n, len, first, buffer == REPLAYS.header.addr())
+    let read = |buffer: usize, len: u32| -> Result<bool, Refused> {
+        let (n, ok) = file_read(
+            REPLAY_FILE.replay_handle.get(),
+            buffer as u32,
+            len,
+            "the replay's buffer",
+        )?;
+        let first = GamePtr::new(buffer as u32).read::<u32>("the replay's first word")?;
+        Ok(read_good(
+            !ok,
+            n,
+            len,
+            first,
+            buffer == REPLAYS.header.addr(),
+        ))
     };
-    if !read(REPLAYS.header.addr(), HEADER_LEN) || !version_good(REPLAYS.header.get_u32(8)) {
+    if !read(REPLAYS.header.addr(), HEADER_LEN)? || !version_good(REPLAYS.header.get_u32(8)) {
         return failed();
     }
     // The index is the file's last 0x3850 bytes.
@@ -86,7 +96,7 @@ pub fn open_viewed_replay(slot: u32) -> Result<bool, Refused> {
             2,
         )
     };
-    if at.is_none() || !read(REPLAY_FILE.index_magic.addr(), INDEX_LEN) {
+    if at.is_none() || !read(REPLAY_FILE.index_magic.addr(), INDEX_LEN)? {
         return failed();
     }
     match index_blocks(REPLAY_FILE.index_block_count.get()) {
@@ -106,7 +116,7 @@ pub fn open_viewed_replay(slot: u32) -> Result<bool, Refused> {
                 + 8 * block as usize,
             crate::race::viewer_buffers_store::VIEWER_BUFFERS.block[0].addr(),
             CAMERA_DWORDS,
-        );
+        )?;
         block += 1;
         if block == REPLAY_FILE.index_block_count.get() {
             break;
@@ -125,16 +135,12 @@ pub fn open_viewed_replay(slot: u32) -> Result<bool, Refused> {
     if unsafe { crate::drive::read_replay_frame_0::read_replay_frame_0(0) }? {
         return failed();
     }
-    unsafe {
-        std::ptr::copy_nonoverlapping(
-            crate::race::replay::REPLAYS
-                .header
-                .as_ptr()
-                .wrapping_add(0x30) as *const u8, // unk_528534
-            REPLAY_WORK.header_stage.addr() as u32 as *mut u8,
+    GamePtr::new(crate::race::replay::REPLAYS.header.addr() as u32 + 0x30) // unk_528534
+        .copy_to(
+            GamePtr::new(REPLAY_WORK.header_stage.addr() as u32),
             CAR_HEADER_LEN,
-        )
-    };
+            "the replay header's stage",
+        )?;
     crate::race::replay_patches::apply_replay_patches()?;
     Ok(false)
 }

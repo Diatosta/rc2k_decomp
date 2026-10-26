@@ -34,13 +34,13 @@ pub fn race_keys() -> Result<(), Refused> {
 
 /// `race::tyre_change`.
 pub fn tyre_change() -> Result<(), Refused> {
-    unsafe { crate::race::frame::tyre_change_at(&crate::race::frame::tyre_variables()) }?;
+    crate::race::frame::tyre_change_at(&crate::race::frame::tyre_variables())?;
     Ok(())
 }
 
 /// `race::players_all_out`: the CF.
 pub fn players_all_out() -> Result<bool, Refused> {
-    unsafe { crate::race::frame::players_all_out() }
+    crate::race::frame::players_all_out()
 }
 
 /// `race::stop_race_sounds` (0x45D28E): `race::reset_race_sounds`, its one call.

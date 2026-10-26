@@ -2,23 +2,24 @@
 //! by runs (`race::pack_runs`) and a block sealed by a DES-like cipher of the game's
 //! tables (`race::seal_block`, with `race::permute_bits`).
 
+use crate::errors::BadInput;
+use crate::pointers::GamePtr;
 use crate::race::seal_store::SEAL_WORK;
 
 /// `race::pack_runs` (0x41EFEC): ecx bytes at esi packed to edi: runs of 2 .. 0x80 equal
 /// bytes as (length - 1, byte), other stretches of up to 0x80 as (-length, bytes); fewer
 /// than three bytes, or one left, as one literal; then a dword 0 of which one byte
 /// counts. Returns the bytes written (ecx). Every other register kept.
-pub unsafe fn pack_runs(from: u32, count: u32, to: u32) -> u32 {
+pub fn pack_runs(from: u32, count: u32, to: u32) -> Result<u32, BadInput> {
     // Converted: `rc2k_core::race::seal::pack_runs` (the source read whole first: the
     // callers' buffers do not overlap).
-    unsafe {
-        let source = std::slice::from_raw_parts(from as *const u8, count as usize);
-        let packed = rc2k_core::race::seal::pack_runs(source);
-        std::ptr::copy_nonoverlapping(packed.as_ptr(), to as *mut u8, packed.len());
-        // The end mark is the first byte of a dword 0.
-        std::ptr::write_bytes((to as *mut u8).add(packed.len()), 0, 3);
-        packed.len() as u32
-    }
+    let source = GamePtr::new(from).read_bytes(count as usize, "the bytes to pack")?;
+    let mut packed = rc2k_core::race::seal::pack_runs(&source);
+    let len = packed.len() as u32;
+    // The end mark is the first byte of a dword 0.
+    packed.extend_from_slice(&[0, 0, 0]);
+    GamePtr::new(to).write_bytes(&packed, "the packed bytes")?;
+    Ok(len)
 }
 
 // The cipher's tables and variables (dword_4E052C .. as IDA shows them).

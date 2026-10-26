@@ -8,8 +8,9 @@
 //! `read_file` and `write_file` have them written out inline; the buffered streams use these.
 
 use crate::errors::BadInput;
-use crate::files::resolve_path::resolve_path_in_game;
+use crate::files::resolve_path::resolve_path_at;
 use crate::files::state::LAST_FILE_PATH;
+use crate::pointers::GamePtr;
 use std::io::{Read, Seek, SeekFrom, Write};
 use std::os::windows::fs::OpenOptionsExt;
 use std::os::windows::io::{FromRawHandle, IntoRawHandle};
@@ -42,12 +43,17 @@ pub const NO_HANDLE: u32 = u32::MAX;
 /// Win32 handle, kept by the game until `close`. One difference: std makes "create or
 /// replace" an open-or-create and a truncation, so a hidden or system file is replaced
 /// where `CREATE_ALWAYS` with normal attributes would fail.
-pub unsafe fn open_by_mode(path: *const u8, mode: u32) -> Result<Option<u32>, BadInput> {
+pub fn open_by_mode(path: *const u8, mode: u32) -> Result<Option<u32>, BadInput> {
+    open_by_mode_at(GamePtr::new(path as u32), mode)
+}
+
+/// `open_by_mode` on a checked address.
+pub fn open_by_mode_at(path: GamePtr, mode: u32) -> Result<Option<u32>, BadInput> {
     if mode >= MODE_COUNT {
         return Err(BadInput("a file mode past the table"));
     }
-    let resolved = unsafe { resolve_path_in_game(path)? };
-    LAST_FILE_PATH.store(resolved as u32, std::sync::atomic::Ordering::Relaxed);
+    let resolved = resolve_path_at(path)?;
+    LAST_FILE_PATH.store(resolved.addr(), std::sync::atomic::Ordering::Relaxed);
     let [access, disposition, share, _] = MODES[mode as usize];
     let mut options = std::fs::OpenOptions::new();
     // `write` only lets std accept a creating disposition; the access is the table's.
@@ -62,7 +68,7 @@ pub unsafe fn open_by_mode(path: *const u8, mode: u32) -> Result<Option<u32>, Ba
         OPEN_ALWAYS => options.create(true),
         _ => &mut options, // OPEN_EXISTING
     };
-    let file = options.open(unsafe { crate::files::ansi_path(resolved) });
+    let file = options.open(crate::files::ansi_path(resolved)?);
     Ok(file.ok().map(|f| f.into_raw_handle() as u32))
 }
 
@@ -82,6 +88,28 @@ pub unsafe fn read(file: u32, buffer: *mut u8, count: u32) -> (u32, bool) {
         Ok(n) => (n as u32, true),
         Err(_) => (0, false),
     }
+}
+
+/// `read` into the game's memory at `to` (checked); a read that gets more than the memory
+/// holds is refused before anything is written.
+pub fn read_to(file: u32, to: GamePtr, count: u32, what: &str) -> Result<(u32, bool), BadInput> {
+    let mut bytes = vec![0u8; count as usize];
+    // SAFETY: `bytes` is the `count` bytes asked for.
+    let (got, ok) = unsafe { read(file, bytes.as_mut_ptr(), count) };
+    to.write_bytes(&bytes[..got as usize], what)?;
+    Ok((got, ok))
+}
+
+/// `write` from the game's memory at `from` (checked).
+pub fn write_from(
+    file: u32,
+    from: GamePtr,
+    count: u32,
+    what: &str,
+) -> Result<(u32, bool), BadInput> {
+    let bytes = from.read_bytes(count as usize, what)?;
+    // SAFETY: `bytes` is the `count` bytes written.
+    Ok(unsafe { write(file, bytes.as_ptr(), count) })
 }
 
 /// (the bytes written, whether all of them were): one `WriteFile`.
@@ -156,11 +184,10 @@ fn time_of(ticks: u64) -> Option<SystemTime> {
 }
 
 /// Whether the handle was closed. `g_lastFilePath` is 0 afterwards.
-pub unsafe fn close(file: u32) -> bool {
-    unsafe {
-        LAST_FILE_PATH.store(0, std::sync::atomic::Ordering::Relaxed);
-        CloseHandle(file as _) != 0
-    }
+pub fn close(file: u32) -> bool {
+    LAST_FILE_PATH.store(0, std::sync::atomic::Ordering::Relaxed);
+    // SAFETY: closing a handle the game owns; a bad handle only makes it answer false.
+    unsafe { CloseHandle(file as _) != 0 }
 }
 
 /// The game's file primitives as the core's file system: paths are the game's (a path's
@@ -168,31 +195,26 @@ pub unsafe fn close(file: u32) -> bool {
 pub struct GameFiles(());
 
 impl GameFiles {
-    /// # Safety
-    /// Every path handed to it must be a NUL-ended text in game memory, which stays there
-    /// (`g_lastFilePath` may keep pointing at it or at what resolving made of it).
-    pub unsafe fn new() -> Self {
+    pub fn new() -> Self {
         GameFiles(())
     }
 }
 
 impl rc2k_core::files::io::Files for GameFiles {
-    type Path = *const u8;
+    type Path = GamePtr;
     type Handle = u32;
 
-    #[allow(clippy::not_unsafe_ptr_arg_deref)] // `GameFiles::new`'s contract covers paths
-    fn check(&mut self, path: *const u8) -> Result<(), rc2k_core::Invalid> {
-        unsafe { resolve_path_in_game(path) }
+    fn check(&mut self, path: GamePtr) -> Result<(), rc2k_core::Invalid> {
+        resolve_path_at(path)
             .map(|_| ())
             .map_err(|e| rc2k_core::Invalid(e.0))
     }
-    #[allow(clippy::not_unsafe_ptr_arg_deref)] // `GameFiles::new`'s contract covers paths
     fn open(
         &mut self,
-        path: *const u8,
+        path: GamePtr,
         mode: rc2k_core::files::io::Mode,
     ) -> Result<Option<u32>, rc2k_core::Invalid> {
-        unsafe { open_by_mode(path, mode as u32) }.map_err(|e| rc2k_core::Invalid(e.0))
+        open_by_mode_at(path, mode as u32).map_err(|e| rc2k_core::Invalid(e.0))
     }
     fn read(&mut self, file: u32, into: &mut [u8]) -> (u32, bool) {
         unsafe { read(file, into.as_mut_ptr(), into.len() as u32) }
@@ -207,7 +229,7 @@ impl rc2k_core::files::io::Files for GameFiles {
         unsafe { handle_size(file) }
     }
     fn close(&mut self, file: u32) -> bool {
-        unsafe { close(file) }
+        close(file)
     }
     fn time(&mut self, file: u32) -> Option<u32> {
         unsafe { file_time(file) }

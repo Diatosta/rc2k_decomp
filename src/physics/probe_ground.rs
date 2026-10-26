@@ -127,16 +127,20 @@ unsafe fn probe_points(g: &Ground, n: u32) -> Result<(), Refused> {
             let cell = ground::noise_cell(GROUND_WORK.ground_x.get(), GROUND_WORK.ground_z.get());
             CONTACT_WORK.ground_cell_row[0].set(cell.row);
             CONTACT_WORK.ground_cell_row[1].set(cell.row_offset);
+            let trap = crate::physics::cells::Trap::new();
             let noise = |i: u32| {
                 u32::from(
-                    ((crate::scene::engine_tables_store::ENGINE_TABLES
-                        .noise_bytes
-                        .addr()
-                        + i as usize) as *const u8)
-                        .read(),
+                    trap.byte(
+                        (crate::scene::engine_tables_store::ENGINE_TABLES
+                            .noise_bytes
+                            .addr()
+                            + i as usize) as u32,
+                        "the ground noise table",
+                    ),
                 )
             };
             let n = cell.corners.map(noise);
+            trap.finish()?;
             for (c, x) in [0, 1, 3, 2].into_iter().zip(n) {
                 work.ground_noise_corners[c].set(x);
             }

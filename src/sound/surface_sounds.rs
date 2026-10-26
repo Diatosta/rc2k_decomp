@@ -64,7 +64,7 @@ pub fn surface_sounds(o: u32, request: u32) -> Result<(), Refused> {
     if o == 0 || request == 0 {
         return Err(BadInput("no object or no request").into());
     }
-    let so = unsafe { SoundObject::at(o) };
+    let so = SoundObject::at(o)?;
     x87_3(so, &SURFACE_SOUNDS);
     one(so, request, 0)?;
     x87_4(so, &SURFACE_SOUNDS);

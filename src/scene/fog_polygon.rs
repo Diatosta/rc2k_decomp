@@ -17,6 +17,7 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
+use crate::pointers::GamePtr;
 use crate::scene::draw_store::DRAW;
 use crate::scene::light_store::LIGHT_STATE;
 use crate::scene::polygon::{dword, listed};
@@ -42,7 +43,9 @@ pub unsafe fn fog_polygon() -> Result<(), Refused> {
         let fixed = (LIGHT_STATE.view_kind.bits() == 4).then(|| LIGHT_STATE.fog_next.bits());
         for &entry in &entries {
             let record = dword(entry + 4);
-            let depth = x87::to_int(dword(record as usize + 0x18));
+            let depth = x87::to_int(
+                GamePtr::new(record.wrapping_add(0x18)).read::<u32>("a polygon's point record")?,
+            );
             DRAW.scratch.set_bits(depth as u32);
             // A place past the length is the last one; with no length (the menus)
             // that is the byte before the table, as in the original.
@@ -52,8 +55,8 @@ pub unsafe fn fog_polygon() -> Result<(), Refused> {
             } else {
                 length.wrapping_sub(1)
             };
-            let fog = ((LIGHT_STATE.fog_table[0].addr() as u32).wrapping_add(place) as *const u8)
-                .read() as u32;
+            let fog = GamePtr::new((LIGHT_STATE.fog_table[0].addr() as u32).wrapping_add(place))
+                .read::<u8>("the fog table")? as u32;
             ((entry + 0x20) as *mut u8).write((fixed.unwrap_or(fog) ^ 0xFF) as u8);
         }
         Ok(())

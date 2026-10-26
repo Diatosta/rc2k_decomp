@@ -74,12 +74,11 @@ pub unsafe fn reflection_coordinates() -> Result<(), BadInput> {
         if records == 0 {
             return Err(BadInput("no records for the points"));
         }
-        let record = |number: u32| records.wrapping_add(((number & 0xFFF) + 0x1000) << 5);
-        let place = |record: u32| ((record as usize + 0x10) as *const [u32; 3]).read_unaligned();
-        let normal = record(GROUND_WORK.reflection_normal_number.bits());
-        crate::session::write_bits(&MATRICES.reflect_vector, place(normal));
-        let point = record(GROUND_WORK.reflection_point_number.bits().wrapping_neg());
-        crate::session::write_first(&FRAME_SCRATCH.work_vector, &place(point).map(negated));
+        let table = crate::scene::reading::PointRecords::new(records)?;
+        let normal = table.place(GROUND_WORK.reflection_normal_number.bits())?;
+        let point = table.place(GROUND_WORK.reflection_point_number.bits().wrapping_neg())?;
+        crate::session::write_bits(&MATRICES.reflect_vector, normal);
+        crate::session::write_first(&FRAME_SCRATCH.work_vector, &point.map(negated));
         normalise_vector()?;
         let to_eye: [u32; 3] = crate::session::read_first(&FRAME_SCRATCH.work_vector);
         crate::session::write_bits(&MATRICES.reflect_normal, to_eye);

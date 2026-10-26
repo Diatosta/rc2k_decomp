@@ -9,7 +9,7 @@ use crate::errors::{BadInput, Refused};
 use crate::menu::standings::*;
 
 /// The Rust version (see the header): the registers it leaves.
-pub unsafe fn init_standings_b() -> Result<(), Refused> {
+pub fn init_standings_b() -> Result<(), Refused> {
     let first: u32 = { TABLE_B_RVA.get() };
     if first == 0 {
         return Err(BadInput("no standings table").into());
@@ -18,7 +18,7 @@ pub unsafe fn init_standings_b() -> Result<(), Refused> {
     use rc2k_core::menu::standings::{EMPTY_B, ROOM};
     for n in 0..ROOM {
         for (k, v) in EMPTY_B.into_iter().enumerate() {
-            put(first + B_ENTRY * n + 4 * k as u32, v);
+            put(first + B_ENTRY * n + 4 * k as u32, v)?;
         }
     }
     Ok(())

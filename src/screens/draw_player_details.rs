@@ -76,54 +76,56 @@ fn string(table: &[Dword], index: u32, count: u32) -> Result<u32, Refused> {
     Ok(table[index as usize].get())
 }
 
-pub unsafe fn draw_player_page(layout: Layout, canvas: &mut dyn Canvas) -> Result<(), Refused> {
-    unsafe {
-        let at = player_at(EVENT_STATE.current_player.get());
-        if at == 0 {
-            return Err(BadInput("a player past the four").into());
-        }
-        let player = (at as *const Player).read_unaligned();
-        if player.name == 0 {
-            return Err(BadInput("a player without its name").into());
-        }
-        // Converted: `rc2k_core::screens::player_details`; the strings looked up (and refused)
-        // before anything is drawn, the second view of 5 made 0 then.
-        let nationality_id = string(NATIONALITIES_RVA, player.nationality, NATIONALITIES)?;
-        let view_id = string(VIEWS_RVA, player.view, VIEWS)?;
-        let second_view_id = if layout.second_view {
-            let view = if player.second_view == 5 {
-                0
-            } else {
-                player.second_view
-            };
-            let id = string(SECOND_VIEWS_RVA, view, SECOND_VIEWS)?;
-            if player.second_view == 5 {
-                let mut written = (at as *const Player).read_unaligned();
-                written.second_view = 0;
-                (at as *mut Player).write_unaligned(written);
-            }
-            Some(id)
-        } else {
-            None
-        };
-        let details = rc2k_core::screens::player_details::Details {
-            controller_item: layout.controller_item,
-            controllers: crate::input::store::DEVICES.controller_count.get() != 0,
-            name: player.name,
-            typing: OPTION_WORK.typing.get() != 0,
-            blink: DRAW_WORK.cursor_on.get(),
-            nationality: player.nationality,
-            nationality_id,
-            view_id,
-            second_view_id,
-            race_number: player.race_number,
-            codriver_sex: player.codriver_sex,
-            sensitivity: player.controller_sensitivity,
-        };
-        rc2k_core::screens::player_details::player_details(
-            &mut crate::screens::game_screen::DetailsScreen::new(canvas),
-            &details,
-        )?;
+pub fn draw_player_page(layout: Layout, canvas: &mut dyn Canvas) -> Result<(), Refused> {
+    let at = player_at(EVENT_STATE.current_player.get());
+    if at == 0 {
+        return Err(BadInput("a player past the four").into());
     }
+    let player =
+        crate::pointers::GamePtr::new(at).read::<Player>("draw player details: a game value")?;
+    if player.name == 0 {
+        return Err(BadInput("a player without its name").into());
+    }
+    // Converted: `rc2k_core::screens::player_details`; the strings looked up (and refused)
+    // before anything is drawn, the second view of 5 made 0 then.
+    let nationality_id = string(NATIONALITIES_RVA, player.nationality, NATIONALITIES)?;
+    let view_id = string(VIEWS_RVA, player.view, VIEWS)?;
+    let second_view_id = if layout.second_view {
+        let view = if player.second_view == 5 {
+            0
+        } else {
+            player.second_view
+        };
+        let id = string(SECOND_VIEWS_RVA, view, SECOND_VIEWS)?;
+        if player.second_view == 5 {
+            let mut written = crate::pointers::GamePtr::new(at)
+                .read::<Player>("draw player details: a game value")?;
+            written.second_view = 0;
+            crate::pointers::GamePtr::new(at)
+                .write::<Player>(written, "draw player details: a game value")?;
+        }
+        Some(id)
+    } else {
+        None
+    };
+    let details = rc2k_core::screens::player_details::Details {
+        controller_item: layout.controller_item,
+        controllers: crate::input::store::DEVICES.controller_count.get() != 0,
+        name: player.name,
+        typing: OPTION_WORK.typing.get() != 0,
+        blink: DRAW_WORK.cursor_on.get(),
+        nationality: player.nationality,
+        nationality_id,
+        view_id,
+        second_view_id,
+        race_number: player.race_number,
+        codriver_sex: player.codriver_sex,
+        sensitivity: player.controller_sensitivity,
+    };
+    rc2k_core::screens::player_details::player_details(
+        &mut crate::screens::game_screen::DetailsScreen::new(canvas),
+        &details,
+    )?;
+
     Ok(())
 }

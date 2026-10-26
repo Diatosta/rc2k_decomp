@@ -46,10 +46,11 @@ pub unsafe fn measure_string_by_id_at(
         return Err(BadInput("no font").into());
     }
     unsafe {
-        let mut copy = font.read_unaligned();
+        let mut copy =
+            crate::pointers::GamePtr::new(font as usize as u32).read::<Font>("a font")?;
         let measured = measure_string_by_id(id, &mut copy, x, text(), canvas)?;
         if canvas.keeps_font_changes() {
-            font.write_unaligned(copy);
+            crate::pointers::GamePtr::new(font as usize as u32).write(copy, "a font")?;
         }
         Ok(measured)
     }

@@ -18,13 +18,15 @@ use rc2k_core::physics::listed_cars::{QUEUE_OFFSET, cue_object};
 /// `cue` queued last for the car `which` (0 or 1: a player's), if it sounds.
 // Converted: `rc2k_core::physics::listed_cars::cue_object`.
 pub fn cue_car_sound_last(which: u32, cue: u32) -> Result<(), Refused> {
-    let Some(o) = cue_object(
+    let trap = crate::physics::cells::Trap::new();
+    let found = cue_object(
         which,
         |which| crate::sound::store::RACE_SOUNDS.player_cars[which as usize].get(),
         |car| crate::sound::store::RACE_SOUNDS.table[car as usize].get(),
-        |o| unsafe { ((o + 8) as *const u32).read_unaligned() },
-    )?
-    else {
+        |o| trap.dword(o + 8, "a car's sound object"),
+    )?;
+    trap.finish()?;
+    let Some(o) = found else {
         return Ok(());
     };
     crate::physics::queue_sound_cue::queue_sound_cue(false, cue, o, o + QUEUE_OFFSET)

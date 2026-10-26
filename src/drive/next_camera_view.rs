@@ -10,41 +10,42 @@
 //! Callers: `sub_43A35A` (0x43A454), `sub_43A649` (0x43A66C).
 
 use crate::drive::set_camera_view::set_view_at;
+use crate::errors::BadInput;
 use crate::physics::car_store::CAR;
+use crate::pointers::GamePtr;
 use crate::race::kind_store::KIND_TABLES;
 use crate::race::view_store::RACE_VIEW;
+use crate::session::Dword;
 use rc2k_core::drive::camera_views::next_view;
 
-unsafe fn at(a: u32) -> u32 {
-    unsafe { (a as *const u32).read_unaligned() }
+fn at(a: u32) -> Result<u32, BadInput> {
+    GamePtr::new(a).read("a car's block")
 }
 
-/// The Rust version on block `s`, the players at `players`, the step count at `step`.
+/// The Rust version on block `s`, the players `players`, the step count `step`.
 // Converted: `rc2k_core::drive::camera_views::next_view`.
 /// The eax it leaves is read by no caller (liveness: not live after either call).
-pub unsafe fn next_view_at(s: u32, players: u32, step: u32) {
-    unsafe {
-        if at(s + 0x694) != 0 {
-            return;
-        }
-        let view = next_view(
-            at(s + 0x684),
-            || at(s + 0x24),
-            |car| KIND_TABLES.kind_has_views[car as usize].get() != 0, /* dword_5C5AC0, by car (0x22) */
-            || at(players),
-        );
-        (s.wrapping_add(0x688) as *mut u32).write_unaligned(view);
-        set_view_at(s, step)
+pub fn next_view_at(s: u32, players: &Dword, step: &Dword) -> Result<(), BadInput> {
+    if at(s + 0x694)? != 0 {
+        return Ok(());
     }
+    let reading = crate::scene::reading::Reading::new();
+    let view = next_view(
+        at(s + 0x684)?,
+        || reading.read::<u32>(s.wrapping_add(0x24), "a car's block"),
+        |car| KIND_TABLES.kind_has_views[car as usize].get() != 0, /* dword_5C5AC0, by car (0x22) */
+        || players.bits(),
+    );
+    reading.finish()?;
+    put(s.wrapping_add(0x688), view)?;
+    set_view_at(s, step)
+}
+
+fn put(a: u32, v: u32) -> Result<(), BadInput> {
+    GamePtr::new(a).write(v, "a car's block")
 }
 
 /// The Rust version.
-pub unsafe fn next_camera_view(s: u32) {
-    unsafe {
-        next_view_at(
-            s,
-            RACE_VIEW.players.addr() as u32,
-            CAR.step_clock.addr() as u32,
-        )
-    }
+pub fn next_camera_view(s: u32) -> Result<(), BadInput> {
+    next_view_at(s, &RACE_VIEW.players, &CAR.step_clock)
 }

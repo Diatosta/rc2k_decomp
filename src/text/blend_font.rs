@@ -18,6 +18,7 @@ use crate::errors::BadInput;
 use crate::gfx::blend_palette::blend_palette;
 use crate::gfx::pixel_format::surface_format;
 use crate::moved::Place;
+use crate::pointers::GamePtr;
 use crate::text::font::Font;
 use std::sync::atomic::{AtomicU32, Ordering};
 
@@ -36,49 +37,42 @@ const FONT_LEN: usize = 0x20;
 
 // ---- Rust version ----
 
-pub unsafe fn blend_font(
-    time: u32,
-    half_pulse: u32,
-    a: *const Font,
-    b: *const Font,
-) -> Result<(), BadInput> {
-    if a.is_null() || b.is_null() {
+pub fn blend_font(time: u32, half_pulse: u32, a: GamePtr, b: GamePtr) -> Result<(), BadInput> {
+    if a.addr() == 0 || b.addr() == 0 {
         return Err(BadInput("a null font"));
     }
     let mode: u32 = BLEND_MODE.load(Ordering::Relaxed);
     // Converted: `rc2k_core::text::pulse`.
     let (from_a, t) = rc2k_core::text::pulse(time, half_pulse, mode == 2);
     let (from, to) = if from_a { (a, b) } else { (b, a) };
-    unsafe {
-        let blended: *mut Font = BLENDED_FONT.ptr().cast();
-        // The original reads the palettes after the copy, so if the second font is the
-        // blended font itself, its palette is by then the first one's.
-        let from_palette = from.read_unaligned().palette;
-        let to_palette = if std::ptr::eq(to, blended) {
-            from_palette
-        } else {
-            to.read_unaligned().palette
-        };
-        if mode != 0 && (from_palette == 0 || to_palette == 0) {
-            return Err(BadInput("a font without a palette"));
-        }
-        std::ptr::copy(from as *const u8, blended as *mut u8, FONT_LEN);
-        if mode == 0 {
-            return Ok(());
-        }
-        let palette: *mut u32 = BLENDED_PALETTE.ptr().cast();
-        blend_palette(
-            from_palette as *const u32,
-            to_palette as *const u32,
-            palette,
-            PALETTE_ENTRIES,
-            t,
-            &surface_format(),
-        )?;
-        let mut font = blended.read_unaligned();
-        font.palette = palette as u32;
-        blended.write_unaligned(font);
+    let blended = GamePtr::new(BLENDED_FONT.addr() as u32);
+    // The original reads the palettes after the copy, so if the second font is the
+    // blended font itself, its palette is by then the first one's.
+    let from_palette = from.read::<Font>("a font")?.palette;
+    let to_palette = if to == blended {
+        from_palette
+    } else {
+        to.read::<Font>("a font")?.palette
+    };
+    if mode != 0 && (from_palette == 0 || to_palette == 0) {
+        return Err(BadInput("a font without a palette"));
     }
+    from.copy_to(blended, FONT_LEN, "a font")?;
+    if mode == 0 {
+        return Ok(());
+    }
+    let palette = GamePtr::new(BLENDED_PALETTE.addr() as u32);
+    blend_palette(
+        GamePtr::new(from_palette),
+        GamePtr::new(to_palette),
+        palette,
+        PALETTE_ENTRIES,
+        t,
+        &surface_format()?,
+    )?;
+    let mut font = blended.read::<Font>("the blended font")?;
+    font.palette = palette.addr();
+    blended.write(font, "the blended font")?;
     Ok(())
 }
 

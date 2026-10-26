@@ -46,12 +46,12 @@ fn share(at: usize, start: u32) {
 }
 
 /// The Rust version (see the header).
-pub unsafe fn run_frame() -> Result<(), Refused> {
+pub fn run_frame() -> Result<(), Refused> {
     use crate::marks::*;
     use crate::scene::set_render_state::set_render_state;
-    unsafe {
+    {
         swap_mask::swap_mask()?;
-        setup::tick_clock();
+        setup::tick_clock()?;
         let whole = rdtsc();
         for (value, state) in STATES {
             set_render_state(value, state);

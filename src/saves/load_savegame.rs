@@ -34,6 +34,7 @@ use crate::menu::flow_store::SCREEN_FLOW;
 use crate::menu::go_back;
 use crate::menu::pages_store::MENU_PAGES;
 use crate::menu::screen_loop::Carried;
+use crate::pointers::GamePtr;
 use crate::saves::gather_savegame::{
     CAR_LEN, NAME_LEN, NAME_OFFSET, NAME_PTR_OFFSET, RECORDS_LEN, cars, head,
 };
@@ -42,7 +43,6 @@ use crate::saves::read_savegame_slot::read_savegame_slot;
 use crate::saves::write_savegame_slot::{SAVE_GAMES, SLOTS};
 use crate::service::state::menu_item;
 use rc2k_core::saves::savegame::{A8_MODE, CORRUPT, Resume, resume};
-use std::ptr::copy_nonoverlapping;
 
 // ---- game data ----
 
@@ -118,41 +118,43 @@ pub unsafe fn load_savegame(entry: &Carried, game: Game) -> Result<(), Refused> 
         }
 
         let payload = SAVE_GAMES.file.addr() + PAYLOAD_OFFSET;
-        let mut cursor = payload as *const u8;
+        let mut cursor = GamePtr::new(payload as u32);
         for at in head() {
-            g.arg = (cursor as *const u32).read_unaligned();
+            g.arg = cursor.read::<u32>("the savegame's head")?;
             at.set(g.arg);
-            cursor = cursor.add(4);
+            cursor = cursor.offset(4);
         }
-        SAVEGAME_PREVIEW.saved_cars.set(cursor as u32);
-        g.cars = cursor as u32;
+        SAVEGAME_PREVIEW.saved_cars.set(cursor.addr());
+        g.cars = cursor.addr();
         if SAVEGAME_PREVIEW.use_savegame_keys.get() == 0 {
             game(Callee::CopySomeData, &mut g)?;
         }
         game(Callee::AfterHead, &mut g)?;
 
         for car in cars {
-            // The pointer as it is before the car is overwritten: the saved one may be stale.
-            let name = ((car + NAME_PTR_OFFSET) as *const u32).read_unaligned();
-            copy_nonoverlapping(cursor, car as *mut u8, CAR_LEN);
-            std::ptr::copy((car + NAME_OFFSET) as *const u8, name as *mut u8, NAME_LEN);
-            cursor = cursor.add(CAR_LEN);
+            let name = GamePtr::new(car + NAME_PTR_OFFSET).read::<u32>("a player's record")?;
+            cursor.copy_to(GamePtr::new(car), CAR_LEN, "a saved car")?;
+            GamePtr::new(car + NAME_OFFSET).copy_to(
+                GamePtr::new(name),
+                NAME_LEN,
+                "a player's name",
+            )?;
+            cursor = cursor.offset(CAR_LEN as u32);
             g.palette = car + NAME_OFFSET; // ebx (edi the car, ebp the name: unread)
         }
-        copy_nonoverlapping(
-            cursor,
-            crate::menu::drivers_store::drivers_addr() as *mut u8,
+        cursor.copy_to(
+            GamePtr::new(crate::menu::drivers_store::drivers_addr() as u32),
             RECORDS_LEN,
-        );
-        g.cars = cursor.add(RECORDS_LEN) as u32;
+            "the saved drivers",
+        )?;
+        g.cars = cursor.offset(RECORDS_LEN as u32).addr();
         g.clock = 0xB4;
         SCREEN_FLOW
             .start_section
-            .set(((cars[0] + 0x14) as *const u32).read_unaligned());
-        g.arg = ((cars[0] + 0x274) as *const u32).read_unaligned();
+            .set(GamePtr::new(cars[0] + 0x14).read::<u32>("a player's record")?);
+        g.arg = GamePtr::new(cars[0] + 0x274).read::<u32>("a player's record")?;
         SCREEN_FLOW.start_section_a8.set(g.arg);
 
-        // Converted: `rc2k_core::saves::savegame` (`resume`, `A8_MODE`).
         game(Callee::EventState, &mut g)?;
         match resume(g.arg) {
             Resume::NextSection => {

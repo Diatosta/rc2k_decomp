@@ -18,34 +18,34 @@
 
 use crate::errors::BadInput;
 use crate::memory::{MemoryList, own_heap, with_figures};
+use crate::pointers::GamePtr;
 use windows_sys::Win32::System::Memory::{MEM_RELEASE, VirtualFree};
 
 // ---- Rust version ----
 
 pub unsafe fn free_list(list: *mut MemoryList) -> Result<(), BadInput> {
-    unsafe {
-        if list.is_null() {
-            return Ok(());
-        }
-        let mut block = (*list).head;
-        if block != 0 && own_heap() == 1 {
-            return Err(BadInput("the game's own heap is in use (altmemenable)"));
-        }
-        // Converted: `rc2k_core::memory` (`Figures::given_back`, `List::emptied`).
-        with_figures(|f| f.given_back((*list).total));
-        if block == 0 {
-            return Ok(());
-        }
-        block = (*list).emptied();
-        while block != 0 {
-            let before = (block as *const u32).read();
-            crate::pointers::unregister(block);
-            VirtualFree(block as _, 0, MEM_RELEASE);
-            block = before;
-        }
-        Ok(())
+    if list.is_null() {
+        return Ok(());
     }
+    let at = GamePtr::new(list as u32);
+    let mut l = at.read::<MemoryList>("a memory list")?;
+    let block = l.head;
+    if block != 0 && own_heap() == 1 {
+        return Err(BadInput("the game's own heap is in use (altmemenable)"));
+    }
+    // Converted: `rc2k_core::memory` (`Figures::given_back`, `List::emptied`).
+    with_figures(|f| f.given_back(l.total));
+    if block == 0 {
+        return Ok(());
+    }
+    let mut block = l.emptied();
+    at.write(l, "a memory list")?;
+    while block != 0 {
+        let before = GamePtr::new(block).read::<u32>("a block's header")?;
+        crate::pointers::unregister(block);
+        // SAFETY: the block is the system's, taken by `allocate`/`virtual_alloc`.
+        unsafe { VirtualFree(block as _, 0, MEM_RELEASE) };
+        block = before;
+    }
+    Ok(())
 }
-
-// ---- self-test: lists of blocks taken for the purpose, given back by both; the memory
-// figures are put back ----

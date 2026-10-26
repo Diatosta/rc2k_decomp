@@ -271,8 +271,8 @@ pub unsafe fn prepare_scene(c: &mut Carried) {
 
 /// `scene::set_up_carousel` (0x4904DD): reads the list of cars (esi) for menus 0xD and 0xE
 /// and leaves eax, ebx, ecx and esi by the menu. It reads no edi.
-pub unsafe fn carousel(c: &mut Carried) -> Result<(), Refused> {
-    let left = unsafe { crate::scene::set_up_carousel::set_up_carousel(c.cars) }?;
+pub fn carousel(c: &mut Carried) -> Result<(), Refused> {
+    let left = crate::scene::set_up_carousel::set_up_carousel(c.cars)?;
     // edi is not carried.
     let mut edi = 0;
     left.over([
@@ -285,8 +285,8 @@ pub unsafe fn carousel(c: &mut Carried) -> Result<(), Refused> {
     Ok(())
 }
 
-pub unsafe fn read_at(address: u32) -> u32 {
-    unsafe { (address as *const u32).read_unaligned() }
+pub fn read_at(address: u32) -> Result<u32, crate::errors::BadInput> {
+    crate::pointers::GamePtr::new(address).read::<u32>("a game value")
 }
 
 /// A line for the game's log at level 1 with its line break (`logfile::log_write_l1_nl`,
@@ -404,12 +404,12 @@ impl Callee {
                 Self::PlayTune4 => crate::sound::play_tune_4::play_tune_4(),
                 Self::PlayTune9 => crate::sound::play_tune_9::play_tune_9(),
                 Self::StopMusic => crate::sound::stop_music::stop_music(),
-                Self::StepCarStream => crate::sound::step_car_stream::step_car_stream_in_game(),
+                Self::StepCarStream => crate::sound::step_car_stream::step_car_stream_in_game()?,
                 Self::PlayCarStream => crate::sound::play_car_stream::play_car_stream(
                     &mut crate::sound::start_stream::start_stream,
                 )?,
                 Self::AxisMoved => {
-                    let moved = crate::input::axes::axis_moved(c.arg);
+                    let moved = crate::input::axes::axis_moved(c.arg)?;
                     (c.arg, c.carry) = (moved.eax, moved.carry);
                 }
                 Self::RankStageTimes => rs::rank_stage_times()?,
@@ -488,7 +488,7 @@ enum Next {
 /// at its next frame (a championship loaded at start-up ended at its review screen; seen
 /// 2026-10-24). Fixed: cleared as once any of those screens has been seen
 /// (`wiki/Fixed-bugs.md`).
-unsafe fn clear_escape() {
+fn clear_escape() {
     if DRAW_WORK.escaped.get() == 1 {
         DRAW_WORK.escaped.set(0u32);
         LOOP_FLAGS.back.set(0u32);
@@ -532,7 +532,7 @@ unsafe fn run(steps: &[Step], c: &mut Carried) -> Result<Flow, Refused> {
 
 /// Puts the menu and the lists in place, as the original does before a frame (esi left
 /// at the last list's table).
-unsafe fn set_lists(screen: &Screen, lists: &[List], c: &mut Carried) {
+fn set_lists(screen: &Screen, lists: &[List], c: &mut Carried) {
     LOOP_FLAGS.menu.set((screen.menu)() as u32);
     for list in lists.iter().filter(|list| !list.run) {
         c.cars = (list.table)() as u32;

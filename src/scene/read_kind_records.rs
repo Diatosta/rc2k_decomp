@@ -61,13 +61,11 @@ fn records(file: &KindFile) -> Region {
 pub unsafe fn read_kind_records() -> Result<(), Refused> {
     for file in &FILES {
         let (to, room) = records(file);
-        unsafe {
-            read_whole_file(
-                FILE_NUMBERS.text_addr(file.path) as *mut u8,
-                to as *mut u8,
-                room as u32,
-            )
-        }?;
+        read_whole_file(
+            FILE_NUMBERS.text_addr(file.path) as *mut u8,
+            to as *mut u8,
+            room as u32,
+        )?;
     }
     Ok(())
 }

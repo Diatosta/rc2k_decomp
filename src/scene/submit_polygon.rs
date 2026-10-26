@@ -30,7 +30,6 @@ use crate::session::SCREEN;
 // ---- game data ----
 const TEXTURES: u32 = 0x400;
 
-const SHOW_VERTICES: usize = 0x443AEC; // sub_443AEC
 const ERROR_TEXT: &std::ffi::CStr = c"Error"; // "Error"
 const DRAWTRI_TEXT: &std::ffi::CStr = c"drawtri"; // "drawtri"
 
@@ -105,13 +104,7 @@ impl Outside for Game {
     fn bad_vertex(&mut self) {
         unsafe { log_write(ERROR_TEXT.as_ptr().cast(), true, 1) };
         if let Err(e) = crate::scene::show_bad_polygon::show_bad_polygon() {
-            crate::standalone::finish(
-                &format!(
-                    "scene::show_bad_polygon ({SHOW_VERTICES:#x}) refused: {}",
-                    e.0
-                ),
-                1,
-            );
+            crate::fatal::raise::end("scene::show_bad_polygon", e);
         }
     }
     fn not_drawn(&mut self, result: u32) {

@@ -54,13 +54,12 @@ pub unsafe fn draw_highlighted_caption(
         if caption.len() > CAPTION_LEN {
             return Err(BadInput("a caption longer than its place").into());
         }
-        std::ptr::copy_nonoverlapping(
-            caption.as_ptr(),
+        crate::pointers::GamePtr::new(
             crate::screens::text_buffers_store::TEXT_BUFFERS
                 .caption
-                .addr() as *mut u8,
-            caption.len(),
-        );
+                .addr() as u32,
+        )
+        .write_bytes(&caption, "the caption")?;
         // Converted: `rc2k_core::screens::highlighted_caption`.
         let since_key = CLOCKS
             .frame

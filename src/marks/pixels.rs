@@ -10,11 +10,12 @@ use crate::marks::mask_vars::MASKS;
 use crate::marks::turns::{scale_rows3, set_line_turn, turn_pair};
 use crate::marks::work_store::MARKS_WORK;
 use crate::math::x87;
+use crate::pointers::GamePtr;
 use crate::scene::matrix3::{extended, rounded};
 use crate::session::{read_bits, write_bits};
 
-unsafe fn get(at: u32) -> u32 {
-    unsafe { (at as *const u32).read_unaligned() }
+fn get(at: u32) -> Result<u32, BadInput> {
+    GamePtr::new(at).read("a game field")
 }
 
 /// One half of `map_pixel`: against the line at `line` (its other end 0xC on), the two
@@ -53,10 +54,10 @@ fn next_seed(s: u32) -> u32 {
 /// worked out from its x by a shake of the seed (one draw of 0x3FFF, a second of 0xFFFF
 /// when the x is not below the span: `x87::random_step`); turned back
 /// (`set_line_turn_back`), rounded with the line's start added, the low bytes kept.
-pub unsafe fn map_pixel(row: u32, x: u32) {
+pub fn map_pixel(row: u32, x: u32) -> Result<(), Refused> {
     unsafe {
         let lines = MASKS.lines.as_ptr() as u32;
-        let f = |o: u32| get(lines + o);
+        let f = |o: u32| -> Result<_, Refused> { Ok(get(lines + o)?) };
         MASKS.pixel[0].set(x);
         let pixel: [u32; 2] = read_bits(&MASKS.pixel);
         let turn = MASKS.turn.as_ptr() as u32;
@@ -64,17 +65,17 @@ pub unsafe fn map_pixel(row: u32, x: u32) {
         for half in HALVES {
             write_bits(&MASKS.work_pixel, pixel);
             crate::scene::matrix3::identity_matrix3(turn);
-            set_line_turn(lines + half.line, false);
-            scale_rows3(turn);
-            let (lx, ly) = (f(half.line), f(half.line + 4));
+            set_line_turn(lines + half.line, false)?;
+            scale_rows3(turn)?;
+            let (lx, ly) = (f(half.line)?, f(half.line + 4)?);
             let turned = |x: [u8; 10], y: [u8; 10]| turn_pair([y, x]);
             let a = turned(
-                x87::sub_80(f(half.other), lx),
-                x87::sub_80(f(half.other + 4), ly),
+                x87::sub_80(f(half.other)?, lx),
+                x87::sub_80(f(half.other + 4)?, ly),
             );
             let b = turned(
-                x87::sub_80(f(half.other + 0xC), lx),
-                x87::sub_80(f(half.other + 0x10), ly),
+                x87::sub_80(f(half.other + 0xC)?, lx),
+                x87::sub_80(f(half.other + 0x10)?, ly),
             );
             let p = turned(
                 x87::int_sub_80(pixel[0] as i32, lx),
@@ -114,31 +115,32 @@ pub unsafe fn map_pixel(row: u32, x: u32) {
             let k: u32 = MASK_CONSTANTS.pixel_constants[half.constants + 2].bits();
             let y = x87::random_step(r as i32, [shake, c, px, ends[0], rise, ends[1], k]);
             MASKS.work_pixel[1].set(y);
-            set_line_turn(lines + half.line, true);
-            scale_rows3(turn);
+            set_line_turn(lines + half.line, true)?;
+            scale_rows3(turn)?;
             let q = turn_pair([extended(y), extended(px)]);
             let (qx, qy) = (rounded(q[1]), rounded(q[0]));
             let out = [x87::add_to_int(qx, lx), x87::add_to_int(qy, ly)];
             write_bits(&MASKS.work_pixel, out.map(|v| v as u32));
             let at = row.wrapping_add(x.wrapping_mul(4)).wrapping_add(half.bytes);
-            *(at as *mut u8) = out[0] as u8;
-            *((at + 1) as *mut u8) = out[1] as u8;
+            GamePtr::new(at).write::<u8>(out[0] as u8, "a mask pixel")?;
+            GamePtr::new(at + 1).write::<u8>(out[1] as u8, "a mask pixel")?;
         }
     }
+    Ok(())
 }
 
 /// The rows a shape entry may fill: x and length inside 0x100, rows inside 0x80.
-unsafe fn rows_fit(entries: u32, index: u32) -> Result<(), Refused> {
-    unsafe {
+fn rows_fit(entries: u32, index: u32) -> Result<(), Refused> {
+    {
         let e = entries.wrapping_add(index.wrapping_mul(16));
-        let (spans, row, count) = (get(e), get(e + 4) as i32, get(e + 8) as i32);
+        let (spans, row, count) = (get(e)?, get(e + 4)? as i32, get(e + 8)? as i32);
         if count > 0 && (row < 0 || row + count > 0x80) {
             return Err(BadInput("pixel rows outside the table").into());
         }
         for i in 0..count.max(0) as u32 {
             let (x, len) = (
-                get(spans.wrapping_add(8 * i)) as i32,
-                get(spans.wrapping_add(8 * i + 4)) as i32,
+                get(spans.wrapping_add(8 * i))? as i32,
+                get(spans.wrapping_add(8 * i + 4))? as i32,
             );
             if len > 0 && (x < 0 || x + len > 0x100) {
                 return Err(BadInput("pixel spans outside the table").into());
@@ -153,18 +155,18 @@ unsafe fn rows_fit(entries: u32, index: u32) -> Result<(), Refused> {
 /// `flt_8445E2` the row's squared distance (`x87::int_plus_less_squared`) and `map_pixel`
 /// for each of its span's pixels. Refuses rows or spans outside the 0x100 x 0x80 table,
 /// before writing.
-pub unsafe fn map_shape_rows(entries: u32, index: u32) -> Result<(), Refused> {
-    unsafe {
+pub fn map_shape_rows(entries: u32, index: u32) -> Result<(), Refused> {
+    {
         rows_fit(entries, index)?;
         let e = entries.wrapping_add(index.wrapping_mul(16));
-        let (spans, row, count) = (get(e), get(e + 4), get(e + 8));
+        let (spans, row, count) = (get(e)?, get(e + 4)?, get(e + 8)?);
         MASKS.pixel[1].set(row);
         let table: u32 = MASKS.pixel_table.get();
         let mut at = row.wrapping_mul(0x400).wrapping_add(table);
         for i in 0..(count as i32).max(0) as u32 {
             let (x, len) = (
-                get(spans.wrapping_add(8 * i)),
-                get(spans.wrapping_add(8 * i + 4)),
+                get(spans.wrapping_add(8 * i))?,
+                get(spans.wrapping_add(8 * i + 4))?,
             );
             let y: u32 = MASKS.pixel[1].get();
             MASKS.row_distance.set_bits(x87::int_plus_less_squared(
@@ -173,7 +175,7 @@ pub unsafe fn map_shape_rows(entries: u32, index: u32) -> Result<(), Refused> {
                 MASKS.middle[1].bits(),
             ));
             for n in 0..(len as i32).max(0) as u32 {
-                map_pixel(at, x.wrapping_add(n));
+                map_pixel(at, x.wrapping_add(n))?;
             }
             MASKS.pixel[1].set(y.wrapping_add(1));
             at = at.wrapping_add(0x400);
@@ -185,9 +187,9 @@ pub unsafe fn map_shape_rows(entries: u32, index: u32) -> Result<(), Refused> {
 /// `marks::map_shape` (0x4BE83E): shape `shape` of the shapes at `shapes`:
 /// `g_marksMaskValue` the shape, its two entries (2 n, 2 n + 1) of the rows at +8 mapped
 /// (`map_shape_rows`). Refuses as `map_shape_rows`, before writing.
-pub unsafe fn map_shape(shapes: u32, shape: u32) -> Result<(), Refused> {
-    unsafe {
-        let entries = get(shapes.wrapping_add(8));
+pub fn map_shape(shapes: u32, shape: u32) -> Result<(), Refused> {
+    {
+        let entries = get(shapes.wrapping_add(8))?;
         let first = shape.wrapping_add(shape);
         rows_fit(entries, first)?;
         rows_fit(entries, first.wrapping_add(1))?;
@@ -216,13 +218,13 @@ const LINE_FROM: [(u32, u32); 8] = [
 /// of the +4 shapes at `shapes` the line pair from corner entries k and k + 1 into
 /// `g_marksLines` and `map_shape`. Refuses a count of 0 or less or past 0x80 (its loop
 /// tests after counting), and rows or spans outside the table, before writing.
-pub unsafe fn map_shapes(shapes: u32, table: u32, corners: u32) -> Result<(), Refused> {
-    unsafe {
-        let count = get(shapes + 4) as i32;
+pub fn map_shapes(shapes: u32, table: u32, corners: u32) -> Result<(), Refused> {
+    {
+        let count = get(shapes + 4)? as i32;
         if count <= 0 || count > 0x80 {
             return Err(BadInput("no shapes to map, or more than 0x80").into());
         }
-        let entries = get(shapes + 8);
+        let entries = get(shapes + 8)?;
         for k in 0..2 * count as u32 {
             rows_fit(entries, k)?;
         }
@@ -231,22 +233,22 @@ pub unsafe fn map_shapes(shapes: u32, table: u32, corners: u32) -> Result<(), Re
         PICKS.shapes.set(shapes);
         PICKS.table_in_use.set(table);
         PICKS.corners.set(corners);
-        std::ptr::write_bytes(table as *mut u8, 0, 0x2_0000);
+        GamePtr::new(table).fill(0, 0x2_0000, "the pixel table")?;
         MASKS.pixel_table.set(PICKS.table_in_use.get());
         let corners: u32 = PICKS.corners.get();
         MASKS.pixel_corners.set(corners);
         write_bits(
             &MASKS.middle,
             [
-                x87::loaded(get(shapes + 0xC)),
-                x87::loaded(get(shapes + 0x10)),
+                x87::loaded(get(shapes + 0xC)?),
+                x87::loaded(get(shapes + 0x10)?),
             ],
         );
         let lines = MASKS.lines.as_ptr() as u32;
         for k in 0..count as u32 {
             let e = corners.wrapping_add(k * 0x18);
             for (to, from) in LINE_FROM {
-                ((lines + to) as *mut u32).write_unaligned(get(e + from));
+                GamePtr::new(lines + to).write::<u32>(get(e + from)?, "a mark's field")?;
             }
             map_shape(shapes, k)?;
         }

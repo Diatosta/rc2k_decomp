@@ -18,21 +18,24 @@ pub const CURRENT_PLAYER_RVA: &Dword = &EVENT_STATE.current_player; // dword_755
 const _: () = assert!(std::mem::offset_of!(Player, car_number) == 8);
 const _: () = assert!(std::mem::offset_of!(Player, no_turbo) == 0x90);
 
-pub unsafe fn take_shown_car(list: u32) -> Result<(), Refused> {
+pub fn take_shown_car(list: u32) -> Result<(), Refused> {
     let current: u32 = { EVENT_STATE.current_player.get() };
     if current >= PLAYERS {
         return Err(BadInput("a current player past the four").into());
     }
     let shown: u32 = { EVENT_STATE.shown_car.get() };
     // Converted: `rc2k_core::menu::player::Player::take_car`.
-    unsafe {
-        let entry = ((list.wrapping_add(shown.wrapping_mul(4))) as *const u32).read_unaligned();
-        let number = (entry as *const u32).read_unaligned();
-        let no_turbo = ((entry + 8) as *const u32).read_unaligned();
-        let at = player_at(current) as *mut Player;
-        let mut p = at.read_unaligned();
+    {
+        let entry = crate::pointers::GamePtr::new(list.wrapping_add(shown.wrapping_mul(4)))
+            .read::<u32>("take shown car: a game value")?;
+        let number =
+            crate::pointers::GamePtr::new(entry).read::<u32>("take shown car: a game value")?;
+        let no_turbo =
+            crate::pointers::GamePtr::new(entry + 8).read::<u32>("take shown car: a game value")?;
+        let at = crate::pointers::GamePtr::new(player_at(current));
+        let mut p = at.read::<Player>("the current player")?;
         p.take_car(number, no_turbo);
-        at.write_unaligned(p);
+        at.write(p, "the current player")?;
     }
     Ok(())
 }

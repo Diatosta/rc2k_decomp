@@ -74,12 +74,11 @@ pub const SERVICE_NEXT: &Dword = &EVENT_STATE.service_next; // dword_75594C
 /// The two championships' driver: `a8` for `menu::run_a8_championship`'s differences.
 /// `c` the carried values of the caller; the original leaves every register as it got
 /// them (`menu::show_in_game_options` reads none).
-pub unsafe fn run_event(c: &Carried, a8: bool) -> Result<(), Refused> {
-    let mut game = Game::new(c);
+pub fn run_event(c: &Carried, a8: bool) -> Result<(), Refused> {
     // Converted: `rc2k_core::menu::championship::run`.
-    rc2k_core::menu::championship::run(&mut game, a8)
+    Game::new(c).run(|g| rc2k_core::menu::championship::run(g, a8))
 }
 
-pub unsafe fn run_championship(c: &Carried) -> Result<(), Refused> {
-    unsafe { run_event(c, false) }
+pub fn run_championship(c: &Carried) -> Result<(), Refused> {
+    run_event(c, false)
 }

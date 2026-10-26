@@ -10,15 +10,18 @@ pub const NAME_LEN: usize = 0x20;
 pub const CAR_NAME_POINTER: usize = 0x18;
 pub const CAR_NAME: usize = 0x124;
 
-pub fn name(player: usize) -> *mut u8 {
-    NAME_BUFFERS
-        .player_names
-        .as_ptr()
-        .wrapping_add(player * NAME_LEN)
+/// Where player `player`'s name is (the address the cars keep).
+pub fn name(player: usize) -> u32 {
+    (NAME_BUFFERS.player_names.addr() + player * NAME_LEN) as u32
+}
+
+/// Player `player`'s name, the whole 0x20 bytes.
+pub fn name_bytes(player: usize) -> [u8; NAME_LEN] {
+    std::array::from_fn(|i| NAME_BUFFERS.player_names.get(player * NAME_LEN + i))
 }
 
 /// The four players' addresses. Refuses a missing one.
-pub unsafe fn cars() -> Result<[u32; PLAYERS], BadInput> {
+pub fn cars() -> Result<[u32; PLAYERS], BadInput> {
     let mut cars = [0u32; PLAYERS];
     for (n, car) in cars.iter_mut().enumerate() {
         *car = PLAYER_TABLE.pointers[n].get();

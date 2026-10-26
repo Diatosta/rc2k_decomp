@@ -14,6 +14,7 @@ use crate::memory::MemoryList;
 use crate::memory::allocate::allocate;
 use crate::memory::free_list::free_list;
 use crate::memory::take_from_list::take_from_list;
+use crate::pointers::GamePtr;
 use crate::session::SCREEN;
 use crate::session::{Dword, Shared};
 use crate::strings::compile_lexicon::LEXICON;
@@ -78,13 +79,11 @@ pub unsafe fn begin_glyph_tables() -> Result<(), Refused> {
 /// A new table starts where the list stands, after the padding that brings the table
 /// before it to whole dwords.
 pub unsafe fn begin_glyph_table(list: *mut MemoryList) -> Result<(), BadInput> {
-    unsafe {
-        let padding = SHEET.table_size.get().wrapping_neg() & 3;
-        take_from_list(list, padding)?;
-        SHEET.table.set(take_from_list(list, 0)?.unwrap_or(0));
-        SHEET.table_size.set(0u32);
-        Ok(())
-    }
+    let padding = SHEET.table_size.get().wrapping_neg() & 3;
+    take_from_list(list, padding)?;
+    SHEET.table.set(take_from_list(list, 0)?.unwrap_or(0));
+    SHEET.table_size.set(0u32);
+    Ok(())
 }
 
 pub unsafe fn end_glyph_tables() -> Result<(), BadInput> {
@@ -93,39 +92,33 @@ pub unsafe fn end_glyph_tables() -> Result<(), BadInput> {
 
 /// The last sheet's palette as 256 pixels of the builder's layout at `to`; nothing if `to`
 /// is 0 or the last sheet was one of components.
-pub unsafe fn palette_to_pixels(to: *mut u32) -> Result<(), BadInput> {
-    unsafe {
-        if to.is_null() || DECODER.builder_flags.get() & DIRECT_COLOUR != 0 {
-            return Ok(());
-        }
-        let format = DECODER.format.get() as *const PixelFormat;
-        if format.is_null() {
-            return Err(BadInput("no pixel layout for the palette"));
-        }
-        let format = format.read_unaligned();
-        for entry in 0..256 {
-            let components: u32 = DECODER.palette[entry].get();
-            to.add(entry)
-                .write_unaligned(components_to_pixel(&format, components));
-        }
-        Ok(())
+pub fn palette_to_pixels(to: u32) -> Result<(), BadInput> {
+    if to == 0 || DECODER.builder_flags.get() & DIRECT_COLOUR != 0 {
+        return Ok(());
     }
+    let format = DECODER.format.get();
+    if format == 0 {
+        return Err(BadInput("no pixel layout for the palette"));
+    }
+    let format: PixelFormat = GamePtr::new(format).read("the palette's pixel layout")?;
+    let mut pixels = Vec::with_capacity(256 * 4);
+    for entry in 0..256 {
+        let components: u32 = DECODER.palette[entry].get();
+        pixels.extend_from_slice(&components_to_pixel(&format, components).to_le_bytes());
+    }
+    GamePtr::new(to).write_bytes(&pixels, "a palette's pixels")
 }
 
 /// The last sheet's palette for pixels that are a colour in the low four bits and an alpha
 /// in the top four: entry 0 becomes 0, every entry the colour of its low four bits'
 /// entry, and its fourth byte the alpha, the four bits twice.
-pub unsafe fn alpha_palette() {
-    unsafe {
-        let palette = DECODER.palette_ptr();
-        palette.write_unaligned(0);
-        for entry in 0..256usize {
-            let colour = palette.add(entry & 0x0F).read_unaligned();
-            let alpha = (entry & 0xF0 | entry >> 4) as u32;
-            palette
-                .add(entry)
-                .write_unaligned(colour & 0x00FF_FFFF | alpha << 24);
-        }
+pub fn alpha_palette() {
+    let palette = &DECODER.palette;
+    palette[0].set(0);
+    for entry in 0..256usize {
+        let colour = palette[entry & 0x0F].get();
+        let alpha = (entry & 0xF0 | entry >> 4) as u32;
+        palette[entry].set(colour & 0x00FF_FFFF | alpha << 24);
     }
 }
 

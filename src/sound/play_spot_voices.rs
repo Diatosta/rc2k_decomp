@@ -19,6 +19,7 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::math::x87::from_int;
+use crate::pointers::GamePtr;
 use crate::sound::sample_duration::sample_duration;
 use crate::sound::sample_settings::{OWN, RECORDS, sample_settings};
 use crate::sound::spot_voices::{VOICE_COUNT, set, voice, vw};
@@ -31,31 +32,40 @@ pub fn play_spot_voices(request: u32) -> Result<(), Refused> {
     if request == 0 {
         return Err(BadInput("no request").into());
     }
-    let q = request as *mut u32;
-    let put = |n: usize, v: u32| unsafe { q.add(n).write_unaligned(v) };
+    let put = |n: usize, v: u32| crate::sound::turn_parts::put(request, n, v);
     let clock = crate::sound::store::RACE_CLOCK.last.get();
     for n in 0..VOICE_COUNT {
         let v = voice(n);
-        if vw(v, 4) != 1 {
+        if vw(v, 4)? != 1 {
             continue;
         }
-        set(v, 4, 0);
-        let sound = vw(v, 0x14);
-        put(0, sound);
+        set(v, 4, 0)?;
+        let sound = vw(v, 0x14)?;
+        put(0, sound)?;
         // Converted: `rc2k_core::sound::spot_voices` (`played`, `end_time`,
         // `going_on`, `REQUEST_FROM`, `time_up`).
-        match played(vw(v, 0x24), || vw(v, 0x28)) {
+        let failed = std::cell::Cell::new(None);
+        let kind = played(vw(v, 0x24)?, || {
+            vw(v, 0x28).unwrap_or_else(|e| {
+                failed.set(Some(e));
+                0
+            })
+        });
+        if let Some(e) = failed.take() {
+            return Err(e.into());
+        }
+        match kind {
             Played::Start => {
-                set(v, 0x24, 0);
+                set(v, 0x24, 0)?;
                 let (volume, rate) = sample_settings(sound, OWN, OWN)?;
-                set(v, 0x3C, from_int(volume as i32));
-                set(v, 0x38, from_int(rate as i32));
+                set(v, 0x3C, from_int(volume as i32))?;
+                set(v, 0x38, from_int(rate as i32))?;
                 set(
                     v,
                     0x34,
-                    end_time(sample_duration(sound, rate)?, clock, vw(v, 0x30)),
-                );
-                set(v, 0x28, 1);
+                    end_time(sample_duration(sound, rate)?, clock, vw(v, 0x30)?),
+                )?;
+                set(v, 0x28, 1)?;
             }
             Played::Silent => continue,
             Played::GoOn => {
@@ -65,17 +75,20 @@ pub fn play_spot_voices(request: u32) -> Result<(), Refused> {
                 let looping = crate::audio::store::SAMPLE_RECORDS.records[sound as usize]
                     .get()
                     .voice_kind;
-                put(0, going_on(unsafe { q.read_unaligned() }, looping));
+                put(
+                    0,
+                    going_on(GamePtr::new(request).read("a sound request")?, looping),
+                )?;
             }
         }
         for (to, from) in REQUEST_FROM {
-            put(to, vw(v, from));
+            put(to, vw(v, from)?)?;
         }
         crate::sound::turn_parts::placed(request)?;
-        if time_up(clock, vw(v, 0x34)) {
-            put(0, vw(v, 0x14));
+        if time_up(clock, vw(v, 0x34)?) {
+            put(0, vw(v, 0x14)?)?;
             crate::sound::turn_parts::stop(request)?;
-            set(v, 0x28, 0);
+            set(v, 0x28, 0)?;
         }
     }
     Ok(())

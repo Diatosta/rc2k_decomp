@@ -18,7 +18,7 @@ use crate::scene::matrix3::{extended, rounded};
 use crate::session::Dword;
 
 /// The Rust version (see the header): the three out and eax.
-pub unsafe fn spread_point(inputs: [[u8; 10]; 4]) -> ([[u8; 10]; 3], u32) {
+pub fn spread_point(inputs: [[u8; 10]; 4]) -> ([[u8; 10]; 3], u32) {
     let [spread, b, c, d] = inputs.map(rounded);
 
     let first = SPREAD_RANDOM

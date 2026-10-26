@@ -19,6 +19,7 @@
 //! `screens::run_frame` (eax, from `race::replay_viewer`).
 
 use crate::errors::Refused;
+use crate::pointers::GamePtr;
 use crate::race::replay_file_store::REPLAY_FILE;
 use crate::race::viewer_screen_store::VIEWER_PANEL;
 use crate::race::viewer_state_store::REPLAY_VIEW;
@@ -33,7 +34,7 @@ pub fn viewer_frame() -> Result<bool, Refused> {
     // `d3d::begin_scene` cannot fail (its carry is clear).
     crate::platform_3d::begin_layer();
     if REPLAY_FILE.replay_at_end.get() != 1 {
-        crate::drive::replay_frame_marks::replay_frame_marks();
+        crate::drive::replay_frame_marks::replay_frame_marks()?;
         crate::race::show_replay_still::show_replay_still()?;
     }
     if REPLAY_VIEW.snapshot_asked.get() == 1 {
@@ -60,7 +61,7 @@ fn stopped() -> Result<(), Refused> {
         crate::d3d::set_render_state::set_render_state(value, state);
     }
     let menu = REPLAY_VIEW.viewer_list[0].addr() as u32;
-    let items = unsafe { ((menu + 1) as *const u8).read() };
+    let items = GamePtr::new(menu + 1).read::<u8>("the viewer list")?;
     let mut item = menu + 0x18;
     // The original counts ecx up to the byte at +1 after each item, from 0: a count of 0
     // goes round 256 times.

@@ -28,7 +28,7 @@ use crate::scene::draw_store::DRAW;
 
 // ---- Rust version: `menu::screen_loop` with this ----
 
-unsafe fn before(c: &mut Carried) -> Result<(), Refused> {
+fn before(c: &mut Carried) -> Result<(), Refused> {
     c.arg = CHEAT_VARS.kept_car.get();
     EVENT_STATE.shown_car.set(c.arg);
     EVENT_STATE.car_page.set(0x0u32);
@@ -56,7 +56,7 @@ unsafe fn set_up_first(c: &mut Carried) -> Result<(), Refused> {
     Ok(())
 }
 
-unsafe fn after(c: &mut Carried) -> Result<(), Refused> {
+fn after(c: &mut Carried) -> Result<(), Refused> {
     c.arg = EVENT_STATE.shown_car.get();
     CHEAT_VARS.kept_car.set(c.arg);
 

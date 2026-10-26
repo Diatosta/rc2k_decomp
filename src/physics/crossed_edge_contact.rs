@@ -29,6 +29,7 @@ use crate::physics::contact_store::CONTACT_WORK;
 use crate::physics::flow::p;
 use crate::physics::tables_store::PHYSICS;
 use crate::physics::wall_edge_contact::edge_normal;
+use crate::pointers::GamePtr;
 use crate::race::course_store::COURSE;
 use crate::race::numbers_store::NUMBERS;
 use crate::session::Float;
@@ -41,8 +42,8 @@ fn copy3(to: &[Float], from: &[Float]) {
     }
 }
 
-fn rd(x: u32) -> u32 {
-    unsafe { (x as *const u32).read_unaligned() }
+fn rd(x: u32) -> Result<u32, Refused> {
+    Ok(GamePtr::new(x).read::<u32>("a face's or scene point's dword")?)
 }
 
 /// Which side of the probe's path the point (x, z) lies: true for not left of it (the
@@ -79,11 +80,11 @@ pub fn steps() -> Result<(), Refused> {
     figures[4].set(CONTACT_WORK.saved_probe_faces[k].get());
     let face = (CONTACT_WORK.crossed_figures[4].get() << 6).wrapping_add(COURSE.course_faces.get());
     for j in 0..4u32 {
-        let point = rd(face + 4 + 4 * j)
+        let point = rd(face + 4 + 4 * j)?
             .wrapping_mul(12)
             .wrapping_add(COURSE.scene_points.get());
-        CONTACT_WORK.crossed_corners[2 * j as usize].set(rd(point));
-        CONTACT_WORK.crossed_corners[2 * j as usize + 1].set(rd(point + 8));
+        CONTACT_WORK.crossed_corners[2 * j as usize].set(rd(point)?);
+        CONTACT_WORK.crossed_corners[2 * j as usize + 1].set(rd(point + 8)?);
     }
     let corner = |j: usize| {
         (
@@ -96,10 +97,10 @@ pub fn steps() -> Result<(), Refused> {
         let (x, z) = corner(j);
         side(x, z)
     });
-    let (from, to) = (rd(face + first), rd(face + second));
+    let (from, to) = (rd(face + first)?, rd(face + second)?);
     PHYSICS.crossed_edge[0].set(from);
     PHYSICS.crossed_edge[1].set(to);
-    edge_normal(from, to);
+    edge_normal(from, to)?;
     CONTACT_WORK.crossed_heading.set(PHYSICS.wall_heading.get());
     copy3(&CONTACT_WORK.contact_car_speed, &CAR.velocity);
     copy3(&CONTACT_WORK.contact_turn_speed, &CAR.spin);

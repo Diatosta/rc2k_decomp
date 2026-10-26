@@ -14,15 +14,18 @@
 
 use crate::errors::Refused;
 use crate::field;
-use crate::net::lobby::{connection, copy_printable, log, movsb, net_allocate};
+use crate::net::lobby::{connection, copy_printable, log, movsb_from_rust, net_allocate};
 use crate::net::store::NET;
 use crate::net::types::NetConnection;
+use crate::pointers::GamePtr;
 use crate::race::viewer_screen_store::{VIEWER_PANEL, texts};
 use crate::system::same_guid::same_guid;
 use rc2k_core::net::lists;
 
+/// A dword of the callback's argument (memory Rust owns: DirectPlay's name record).
 fn get(at: u32) -> u32 {
-    unsafe { (at as *const u32).read_unaligned() }
+    // SAFETY: the callback's argument, a record of Rust's own.
+    unsafe { (at as usize as *const u32).read_unaligned() }
 }
 
 /// The Rust version: eax.
@@ -45,9 +48,9 @@ pub fn connection_found(args: &[u32]) -> Result<u32, Refused> {
     };
     NET.connections.set(count + 1);
     let record = connection(count)?;
-    unsafe { ((record + field!(NetConnection, data)) as *mut u32).write_unaligned(memory) };
-    movsb(memory, data, size);
-    movsb(record + field!(NetConnection, service_provider), guid, 0x10);
+    GamePtr::new(record + field!(NetConnection, data)).write(memory, "a connection's record")?;
+    movsb_from_rust(memory, data, size)?;
+    movsb_from_rust(record + field!(NetConnection, service_provider), guid, 0x10)?;
     copy_printable(short, record, 0x40)?;
     Ok(1)
 }

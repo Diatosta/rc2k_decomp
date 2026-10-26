@@ -9,6 +9,7 @@ use crate::gfx::texture_pixels::GRADING;
 use crate::gfx::texture_pixels::{
     KEPT, alpha_from_kept, grade_texture, grading, key_texture_colours, least_colour,
 };
+use crate::pointers::GamePtr;
 use crate::session::{Dword, Shared};
 
 pub const RECORD_LEN: usize = 0x78;
@@ -187,16 +188,16 @@ impl Record {
         unsafe { self.0.write_unaligned(record) }
     }
 
-    fn texture_format(&self) -> TextureFormat {
-        unsafe { (self.get().format as *const TextureFormat).read_unaligned() }
+    fn texture_format(&self) -> Result<TextureFormat, BadInput> {
+        GamePtr::new(self.get().format).read("a texture's format")
     }
 
-    pub fn format(&self) -> PixelFormat {
-        self.texture_format().format
+    pub fn format(&self) -> Result<PixelFormat, BadInput> {
+        Ok(self.texture_format()?.format)
     }
 
-    pub fn bytes_per_pixel(&self) -> u32 {
-        self.texture_format().bytes_per_pixel
+    pub fn bytes_per_pixel(&self) -> Result<u32, BadInput> {
+        Ok(self.texture_format()?.bytes_per_pixel)
     }
 
     pub fn keeps_alpha(&self) -> bool {
@@ -223,12 +224,12 @@ pub unsafe fn ready_picture(
     if record.keeps_alpha() && count > 0x10000 {
         return Err(BadInput("more pixels than the kept picture's room").into());
     }
-    unsafe {
-        let key = least_colour(&record.format());
+    {
+        let key = least_colour(&record.format()?);
         if record.keeps_alpha() {
-            alpha_from_kept(pixels as *mut u8, count);
+            alpha_from_kept(pixels, count)?;
         } else {
-            key_texture_colours(pixels as *mut u32, count, key);
+            key_texture_colours(pixels, count, key)?;
         }
         let (reading, scale, saturation) = (
             GRADING.reading.get(),
@@ -237,7 +238,7 @@ pub unsafe fn ready_picture(
         );
         if grading(reading, scale, saturation) {
             let mut table = [0u8; 0x100];
-            grade_texture(pixels as *mut u8, count, key, scale, saturation, &mut table);
+            grade_texture(pixels, count, key, scale, saturation, &mut table)?;
             GRADING.grades.write(&table);
         }
     }
@@ -287,14 +288,14 @@ pub unsafe fn keep_second_picture(record: &Record, path: u32) -> Result<(), Refu
         }
     };
     match kept {
-        Some((pixels, width, height, _)) => unsafe {
-            let from = pixels as *const u32;
-            let to = (pixels as usize + KEPT) as *mut u32;
+        Some((pixels, width, height, _)) => {
             // `rep movsd`: one dword after another, forwards.
-            for n in 0..width.wrapping_mul(height) as usize {
-                to.add(n).write_unaligned(from.add(n).read_unaligned());
-            }
-        },
+            GamePtr::new(pixels).copy_to(
+                GamePtr::new(pixels).offset(KEPT as u32),
+                width.wrapping_mul(height) as usize * 4,
+                "a second texture picture",
+            )?;
+        }
         None => record.set_keeps_alpha(0),
     }
     Ok(())

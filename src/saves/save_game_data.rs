@@ -11,7 +11,7 @@ use crate::errors::Refused;
 // ---- Rust version ----
 
 /// The two parts, each saying whether it wrote its file. Returns what the second said.
-pub unsafe fn save_game_data(
+pub fn save_game_data(
     save_options: &mut dyn FnMut() -> Result<bool, Refused>,
     save_best_times: &mut dyn FnMut() -> Result<bool, Refused>,
 ) -> Result<bool, Refused> {
@@ -23,14 +23,12 @@ pub unsafe fn save_game_data(
 /// flags (carry: not written) are read by neither of its callers (`system::main_loop`,
 /// `menu::arcade_level_end`; register liveness, 2026-10-23).
 pub fn save_in_game() -> Result<bool, Refused> {
-    unsafe {
-        save_game_data(
-            &mut || {
-                crate::saves::save_options::save_options(
-                    crate::saves::load_options::PATH.addr() as *const u8
-                )
-            },
-            &mut || crate::saves::save_best_times::in_game(),
-        )
-    }
+    save_game_data(
+        &mut || {
+            crate::saves::save_options::save_options(
+                crate::saves::load_options::PATH.addr() as *const u8
+            )
+        },
+        &mut || crate::saves::save_best_times::in_game(),
+    )
 }

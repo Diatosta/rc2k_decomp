@@ -22,6 +22,7 @@
 //! above are the original's, for reference.
 
 use crate::errors::{BadInput, Refused};
+use crate::pointers::GamePtr;
 use crate::sound::sample_duration::sample_duration;
 
 // ---- Rust version ----
@@ -34,10 +35,10 @@ pub fn play_cue_queue(o: u32) -> Result<(), Refused> {
     if o == 0 {
         return Err(BadInput("a null sound object").into());
     }
-    let so = unsafe { crate::sound::store::SoundObject::at(o) };
+    let so = crate::sound::store::SoundObject::at(o)?;
     let in_use = so.in_use.get() == 1;
-    let q = &so.cue_queue as *const crate::sound::store::CueQueue as usize as *mut [u32; 0x84];
-    let mut queue = CueQueue::from_words(&unsafe { q.read_unaligned() });
+    let q = GamePtr::new(&so.cue_queue as *const crate::sound::store::CueQueue as usize as u32);
+    let mut queue = CueQueue::from_words(&q.read::<[u32; 0x84]>("a cue queue")?);
     let clock = crate::sound::store::RACE_CLOCK.last.get();
     if !in_use {
         return Ok(());
@@ -50,9 +51,9 @@ pub fn play_cue_queue(o: u32) -> Result<(), Refused> {
         |queue, _| {
             // The first cue taken out (`drop_cue` at 0; the place given was the
             // original's ebx only).
-            unsafe { q.write_unaligned(queue.to_words()) };
-            crate::sound::drop_cue::drop_cue(q as u32, 0)?;
-            *queue = CueQueue::from_words(&unsafe { q.read_unaligned() });
+            q.write(queue.to_words(), "a cue queue")?;
+            crate::sound::drop_cue::drop_cue(q.addr(), 0)?;
+            *queue = CueQueue::from_words(&q.read::<[u32; 0x84]>("a cue queue")?);
             Ok(())
         },
     )?;
@@ -60,7 +61,7 @@ pub fn play_cue_queue(o: u32) -> Result<(), Refused> {
         CueTurn::NotInUse | CueTurn::Empty | CueTurn::NotDue => return Ok(()),
         _ => {}
     }
-    unsafe { q.write_unaligned(queue.to_words()) };
+    q.write(queue.to_words(), "a cue queue")?;
     if let CueTurn::Play { sound } = turn {
         crate::sound::turn_parts::play(sound, OWN, OWN, [0; 3]);
     }

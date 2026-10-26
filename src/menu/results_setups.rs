@@ -32,8 +32,8 @@ use crate::menu::results_store::RESULT_FIGURES;
 
 const POSITION_LIMIT: u32 = 16;
 
-fn get(a: u32) -> u32 {
-    unsafe { (a as *const u32).read_unaligned() }
+fn get(a: u32) -> Result<u32, crate::errors::BadInput> {
+    crate::pointers::GamePtr::new(a).read::<u32>("a game value")
 }
 
 fn players(n: u32) -> Result<Vec<u32>, Refused> {
@@ -60,7 +60,10 @@ pub fn rank(by_totals: bool) -> Result<(), Refused> {
     let values: Vec<u32> = if by_totals {
         (0..4).map(|k| RESULT_FIGURES.totals[k].get()).collect()
     } else {
-        players(4)?.iter().map(|&r| get(r + 0x88)).collect()
+        players(4)?
+            .iter()
+            .map(|&r| get(r + 0x88))
+            .collect::<Result<_, _>>()?
     };
     // Converted: `rc2k_core::menu::results::rank`.
     let pairs =
@@ -77,7 +80,8 @@ pub fn rank(by_totals: bool) -> Result<(), Refused> {
     DRAW_WORK.work_b4.set(3);
     DRAW_WORK.work_b8.set(4);
     for (k, &to) in targets.iter().enumerate() {
-        unsafe { (to as *mut u32).write_unaligned(k as u32 + 1) };
+        crate::pointers::GamePtr::new(to)
+            .write::<u32>(k as u32 + 1, "results setups: a game value")?;
     }
     Ok(())
 }
@@ -89,13 +93,13 @@ fn stage_time() -> Result<u32, Refused> {
     if table == 0 {
         return Err(BadInput("no stage records").into());
     }
-    let records = get(table.wrapping_add(4 * EVENT_STATE.stage_sub.get()));
+    let records = get(table.wrapping_add(4 * EVENT_STATE.stage_sub.get()))?;
     if records == 0 {
         return Err(BadInput("no stage records").into());
     }
     Ok(get(records.wrapping_add(
         EVENT_STATE.stage_number.get().wrapping_mul(0xA4),
-    ) + 0x34))
+    ) + 0x34)?)
 }
 
 fn points(position: u32) -> Result<u32, Refused> {
@@ -109,7 +113,10 @@ fn points(position: u32) -> Result<u32, Refused> {
 pub fn score(n: usize) -> Result<(), Refused> {
     let records = players(n as u32)?;
     let target = stage_time()?;
-    let times: Vec<u32> = records.iter().map(|&r| get(r + 0x88)).collect();
+    let times: Vec<u32> = records
+        .iter()
+        .map(|&r| get(r + 0x88))
+        .collect::<Result<_, _>>()?;
     let positions: Vec<u32> = if n == 2 {
         rc2k_core::menu::results::two_places([times[0], times[1]]).to_vec()
     } else {
@@ -134,7 +141,7 @@ pub fn score(n: usize) -> Result<(), Refused> {
             earned[k],
             times[k],
             target,
-            get(records[k] + 0x94),
+            get(records[k] + 0x94)?,
         );
         RESULT_FIGURES.points[k].set(sc.points);
         RESULT_FIGURES.time_bonus[k].set(sc.bonus);

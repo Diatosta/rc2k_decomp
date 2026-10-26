@@ -59,7 +59,7 @@ pub fn build_address(connection_number: u32) -> Result<bool, Refused> {
                 address::PROVIDER_SIZE,
                 NET.sp_tcpip.addr() as u32,
             );
-            let length = unsafe {
+            let length = {
                 crate::strings::text_length::text_length(
                     (NET.host_address.addr() as u32) as *const u8,
                 )

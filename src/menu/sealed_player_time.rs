@@ -15,17 +15,17 @@ use crate::race::state_store::RACE_STATE;
 
 /// The Rust version (see the header): `byte` the original's eax (its low byte sealed);
 /// the sealed block's two dwords (its eax, ebx) out.
-pub unsafe fn sealed_player_time(byte: u32) -> Result<[u32; 2], Refused> {
+pub fn sealed_player_time(byte: u32) -> Result<[u32; 2], Refused> {
     let n: u32 = { EVENT_STATE.current_player.get() };
     if n >= 4 || player(n) == 0 {
         return Err(BadInput("a current player past 3 or missing").into());
     }
     let p = player(n);
-    let sealed = unsafe {
+    let sealed = {
         crate::records::seal_time::seal_time(
-            get(p + 0x88),
+            get(p + 0x88)?,
             [
-                get(p + 8) as u8,
+                get(p + 8)? as u8,
                 RACE_STATE.settings.run_kind.get() as u8,
                 byte as u8,
             ],

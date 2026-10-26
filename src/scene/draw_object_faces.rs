@@ -17,6 +17,7 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::physics::ground_store::GROUND_WORK;
+use crate::pointers::GamePtr;
 use crate::race::sound_spots_store::RACE_SOUND_SPOTS;
 use crate::race::vars_store::RACE_VARS;
 use crate::scene::draw_store::DRAW;
@@ -58,17 +59,14 @@ pub unsafe fn draw_object_faces(
         for &(entry, _, face) in &faces {
             GROUND_WORK.object_see_through.set_bits(dword(entry + 0xC));
             RACE_VARS.face_number.set_bits(dword(entry));
-            let texture = ((face + 4) as *const u16).read_unaligned() as u32;
+            let head = GamePtr::new(face as u32).read_bytes(0xC, "an object's face")?;
+            let texture = u16::from_le_bytes([head[4], head[5]]) as u32;
             DRAW.polygon_textures[0].set_bits(
                 texture.wrapping_add(GROUND_WORK.object_texture_set.bits()) | 0x8000_0000,
             );
-            RACE_SOUND_SPOTS
-                .face_kind
-                .set_bits(((face + 6) as *const u8).read() as u32);
-            RACE_SOUND_SPOTS
-                .face_unlit
-                .set_bits(((face + 0xB) as *const u8).read() as u32);
-            let shade = ((face + 0xA) as *const u8).read() as u32;
+            RACE_SOUND_SPOTS.face_kind.set_bits(head[6] as u32);
+            RACE_SOUND_SPOTS.face_unlit.set_bits(head[0xB] as u32);
+            let shade = head[0xA] as u32;
             DRAW.polygon_colour.set_bits(if shade == 0 {
                 0x00FF_FFFF
             } else {

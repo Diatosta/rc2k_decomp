@@ -26,7 +26,7 @@ const EFFECT_LEN: u32 = 0xA4;
 
 /// The controller entry's dword at `offset` for the record's controller, or the refusal.
 pub fn controller(record: u32, offset: usize) -> Result<u32, Refused> {
-    let n = at(record, field!(InputDevice, controller));
+    let n = at(record, field!(InputDevice, controller))?;
     if n >= CONTROLLERS {
         return Err(BadInput("a controller number past the table's 16").into());
     }
@@ -35,8 +35,8 @@ pub fn controller(record: u32, offset: usize) -> Result<u32, Refused> {
 
 /// The pending changes of the device `record`'s effects.
 pub unsafe fn device_effects(record: u32) -> Result<(), Refused> {
-    if at(record, field!(InputDevice, effects_on)) != 1
-        || at(record, field!(InputDevice, device)) == 0
+    if at(record, field!(InputDevice, effects_on))? != 1
+        || at(record, field!(InputDevice, device))? == 0
     {
         return Ok(());
     }
@@ -45,17 +45,17 @@ pub unsafe fn device_effects(record: u32) -> Result<(), Refused> {
     }
     for k in 0..6 {
         let effect = record + EFFECTS + EFFECT_LEN * k;
-        if at(effect, field!(ForceEffect, object)) == 0 {
+        if at(effect, field!(ForceEffect, object))? == 0 {
             continue;
         }
-        let change = at(effect, field!(ForceEffect, pending));
-        put(effect, field!(ForceEffect, pending), 0);
+        let change = at(effect, field!(ForceEffect, pending))?;
+        put(effect, field!(ForceEffect, pending), 0)?;
         if change == 0 {
             continue;
         }
         // Converted: `rc2k_core::input::effects::change`.
         let (what, a, b) = rc2k_core::input::effects::change(change);
-        let function = at(effect, field!(ForceEffect, change));
+        let function = at(effect, field!(ForceEffect, change))?;
         crate::input::effect_changes::effect_change_at(
             function, record, effect, what, a as u32, b as u32,
         )?;

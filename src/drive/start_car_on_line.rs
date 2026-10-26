@@ -15,9 +15,10 @@
 //! start number (`dword_6051A0`) above 0x400 (not worked out), and what the two calls
 //! refuse.
 
-use crate::errors::Refused;
+use crate::errors::{BadInput, Refused};
 use crate::math::x87;
 use crate::physics::car_store::CAR;
+use crate::pointers::GamePtr;
 use crate::race::blocks_store::CAR_BLOCKS;
 use crate::race::numbers_store::NUMBERS;
 use crate::race::tables_store::RACE_TABLES;
@@ -28,12 +29,11 @@ use rc2k_core::drive::start_places;
 
 /// `dword_605034`[start]: each car's number. The table holds 90; a start past it (the
 /// check lets up to 0x400 through) reads on into the variables after it, as the original.
-pub fn car_number(start: usize) -> u32 {
+pub fn car_number(start: usize) -> Result<u32, BadInput> {
     match RACE_TABLES.arcade_car_numbers.get(start) {
-        Some(number) => number.get(),
-        None => unsafe {
-            ((RACE_TABLES.arcade_car_numbers[0].addr() + 4 * start) as *const u32).read_unaligned()
-        },
+        Some(number) => Ok(number.get()),
+        None => GamePtr::new((RACE_TABLES.arcade_car_numbers[0].addr() + 4 * start) as u32)
+            .read("the start tables"),
     }
 }
 
@@ -45,7 +45,7 @@ pub unsafe fn start_car_on_line(distance: u32) -> Result<(), Refused> {
     unsafe {
         let start = RACE_TABLES.start_slot.get();
         start_places::check_start(start)?;
-        CAR.start_slot_value.set(car_number(start as usize));
+        CAR.start_slot_value.set(car_number(start as usize)?);
         CAR.driver_kind.set(start_places::STARTED_MODE);
         let checkpoint =
             start_places::start_checkpoint(CAR_BLOCKS.cars[0].checkpoint.get(), distance);

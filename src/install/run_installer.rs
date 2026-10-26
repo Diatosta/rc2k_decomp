@@ -33,10 +33,8 @@ const FONT_BE: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fonts::BOX
 
 pub fn run_installer() -> Result<(), Refused> {
     use crate::install as i;
-    unsafe { crate::files::state::base_directory().write_volatile(0) };
-    unsafe {
-        i::read_languages::read_languages(INSTALLER_NAMES.lang_cfg.addr() as u32 as *const u8)
-    }?;
+    crate::install::installer::wb(crate::files::state::base_directory() as u32, 0);
+    i::read_languages::read_languages(INSTALLER_NAMES.lang_cfg.addr() as u32 as *const u8)?;
     unsafe { crate::gfx::build_fonts::build_fonts() }?;
     i::open_installer::open_installer()?;
     // From the command line: the install, and on past the pages (`jmp loc_412EDC`).
@@ -75,12 +73,10 @@ pub fn run_installer() -> Result<(), Refused> {
         if INSTALLER_RUN.same_version.get() == 1 {
             INSTALLER_PAGES.record_flag.set(1);
             set_cd(INSTALLER_PATHS.installed.addr() as u32);
-            unsafe {
-                i::read_record::read_record(
-                    crate::install::installer::INSTALL_TEXTS.record_path.addr() as *const u8,
-                )
-            }?;
-            unsafe { crate::files::state::base_directory().write_volatile(0) };
+            i::read_record::read_record(
+                crate::install::installer::INSTALL_TEXTS.record_path.addr() as *const u8,
+            )?;
+            crate::install::installer::wb(crate::files::state::base_directory() as u32, 0);
             set_cd(INSTALLER_PATHS.game_dir.addr() as u32);
             load_language()?;
         }

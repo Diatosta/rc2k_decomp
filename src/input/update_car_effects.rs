@@ -34,6 +34,7 @@ use crate::errors::{BadInput, Refused};
 use crate::input::devices::at;
 use crate::math::x87::mul_to_int;
 use crate::math::x87_float::{ld, st, to_int};
+use crate::pointers::GamePtr;
 
 /// dword_51809C: a surface's effect kind, 16 entries.
 const KIND_COUNT: u32 = 16;
@@ -68,18 +69,18 @@ fn update_car_effects_with(
     scratch: u32,
 ) -> Result<(), Refused> {
     let r = &mut Last::default();
-    let o = unsafe { crate::sound::store::SoundObject::at(object) };
+    let o = crate::sound::store::SoundObject::at(object)?;
     let surface = o.surface.get();
     if surface >= KIND_COUNT {
         return Err(BadInput("a surface number past the effect kinds' 16").into());
     }
-    o.flag_ac.set(at(view, 0x248));
+    o.flag_ac.set(at(view, 0x248)?);
     let effects = &crate::input::store::FORCE_FEEDBACK;
     let ten = effects.effect_ten.bits();
-    o.effect_in[0].set(mul_to_int(at(view, 0x1A4), ten) as u32);
-    o.effect_in[1].set(sub_mul_to_int(at(view, 0x1B8), at(view, 0x1AC), ten) as u32);
-    o.effect_in[2].set(mul_to_int(at(view, 0x1A4), ten) as u32);
-    o.effect_in[3].set(mul_to_int(at(view, 0x1AC), ten) as u32);
+    o.effect_in[0].set(mul_to_int(at(view, 0x1A4)?, ten) as u32);
+    o.effect_in[1].set(sub_mul_to_int(at(view, 0x1B8)?, at(view, 0x1AC)?, ten) as u32);
+    o.effect_in[2].set(mul_to_int(at(view, 0x1A4)?, ten) as u32);
+    o.effect_in[3].set(mul_to_int(at(view, 0x1AC)?, ten) as u32);
     if o.knock_in[3].get() & 0x7FFF_FFFF != 0 && o.knock_in[0].get() & 0x7FFF_FFFF != 0 {
         let (angle, force) = knock(
             o.knock_in[2].get(),
@@ -89,7 +90,7 @@ fn update_car_effects_with(
             o.knock_in[3].get(),
             effects.effect_tenth.bits(),
         );
-        unsafe { (scratch as *mut u32).write_volatile(angle) };
+        GamePtr::new(scratch).write(angle, "the angle's scratch")?;
         o.knock.set(force as u32);
     } else {
         o.knock.set(0);

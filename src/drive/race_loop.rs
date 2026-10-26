@@ -20,8 +20,9 @@
 use crate::drive::race_parts::{
     input_update, players_all_out, race_frame, race_keys, restart_clock, tyre_change,
 };
-use crate::errors::Refused;
+use crate::errors::{BadInput, Refused};
 use crate::physics::tables_store::PHYSICS;
+use crate::pointers::GamePtr;
 use crate::race::blocks_store::CAR_BLOCKS;
 use crate::race::clock_ticks_store::CLOCK_TICKS;
 use crate::race::vars_store::RACE_VARS;
@@ -30,22 +31,22 @@ use crate::race::viewer_state_store::REPLAY_VIEW;
 use crate::race::work_store::RACE_WORK;
 use crate::session::{Dword, FLAGS};
 
-fn view_bit(view: &Dword) -> bool {
-    let bits = unsafe { ((view.get() + 0x468) as *const u32).read_unaligned() };
-    bits & 0x40 != 0
+fn view_bit(view: &Dword) -> Result<bool, BadInput> {
+    let bits: u32 = GamePtr::new(view.get().wrapping_add(0x468)).read("a view's block")?;
+    Ok(bits & 0x40 != 0)
 }
 
 /// The quit answer `answer` put into the cars (0x444EB5 ..).
-fn put_answer(answer: u32) {
+fn put_answer(answer: u32) -> Result<(), BadInput> {
     if crate::net::store::NET.session.get() != 0 {
         let block = RACE_WORK.car_block(crate::net::store::NET.player.get() as usize);
-        unsafe { ((block + 0xB0) as *mut u32).write_unaligned(answer) };
-        return;
+        GamePtr::new(block.wrapping_add(0xB0)).write(answer, "a car's block")?;
+        return Ok(());
     }
     CAR_BLOCKS.cars[0].stop_state.set_bits(answer);
     CAR_BLOCKS.cars[1].stop_state.set_bits(answer);
     if RACE_VIEW.players.get() != 2 {
-        return;
+        return Ok(());
     }
     if CAR_BLOCKS.cars[0].finish_flag.bits() != 0 {
         CAR_BLOCKS.cars[0].stop_state.set_bits(2);
@@ -53,6 +54,7 @@ fn put_answer(answer: u32) {
     if CAR_BLOCKS.cars[1].finish_flag.bits() != 0 {
         CAR_BLOCKS.cars[1].stop_state.set_bits(2);
     }
+    Ok(())
 }
 
 /// The Rust version. The registers it leaves are read by no caller (liveness: ecx, edi,
@@ -122,14 +124,14 @@ pub unsafe fn race_loop() -> Result<(), Refused> {
                         PHYSICS.scene_clock.get()
                     ));
                 }
-                put_answer(answer);
+                put_answer(answer)?;
                 return Ok(());
             }
             if RACE_VARS.hold_count.get() == 0 {
-                if view_bit(&RACE_VIEW.view_blocks[0]) {
+                if view_bit(&RACE_VIEW.view_blocks[0])? {
                     break true;
                 }
-                if RACE_VIEW.views.get() != 1 && view_bit(&RACE_VIEW.view_blocks[1]) {
+                if RACE_VIEW.views.get() != 1 && view_bit(&RACE_VIEW.view_blocks[1])? {
                     break true;
                 }
             }
@@ -156,7 +158,7 @@ pub unsafe fn race_loop() -> Result<(), Refused> {
         // 0x444F0F: paused.
         if crate::net::store::NET.session.get() != 0 {
             let block = RACE_WORK.car_block(crate::net::store::NET.player.get() as usize);
-            unsafe { ((block + 0x468) as *mut u32).write_unaligned(0) };
+            GamePtr::new(block.wrapping_add(0x468)).write(0u32, "a car's block")?;
         } else {
             unsafe { crate::drive::pause_until_key::pause_until_key() }?;
         }

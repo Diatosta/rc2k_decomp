@@ -19,6 +19,7 @@
 //! without its block).
 
 use crate::errors::{BadInput, Refused};
+use crate::pointers::GamePtr;
 use crate::race::course_store::COURSE;
 use crate::race::numbers_store::NUMBERS;
 use crate::race::prefs_store::STAGE_PREFS;
@@ -28,10 +29,6 @@ use crate::scene::light_store::LIGHT_STATE;
 use crate::scene::light_work_store::LIGHT_WORK;
 use crate::scene::object_store::OBJECT_WORK;
 use crate::scene::object_tables_store::OBJECT_TABLES;
-
-fn get(a: u32) -> u32 {
-    unsafe { (a as *const u32).read_unaligned() }
-}
 
 /// What `scene::draw_scene_object` would refuse for `object`: in a race (`g_inRace`) a car
 /// (0x50 ..) without its block.
@@ -51,9 +48,9 @@ fn check_object(object: u32) -> Result<(), Refused> {
 /// placing reads no register, and the drawing only esi, which it is given.
 pub unsafe fn draw_described_object(d: u32) -> Result<(), Refused> {
     unsafe {
-        let byte = |o: u32| ((d + o) as *const u8).read() as u32;
-        let object = byte(1);
-        let place = get(d + 4);
+        let head = GamePtr::new(d).read_bytes(8, "a described object")?;
+        let object = head[1] as u32;
+        let place = u32::from_le_bytes([head[4], head[5], head[6], head[7]]);
         let shown = object <= 0x64
             && place < COURSE.scene_point_count.get()
             && !(FRAME_SWITCHES.other_way.get() != 0 && object == 0x3F);
@@ -78,12 +75,17 @@ pub unsafe fn draw_described_object(d: u32) -> Result<(), Refused> {
             end();
             return Ok(());
         }
+        // Everything the description gives from here on lies in its first 0x3C bytes.
+        let desc = GamePtr::new(d).read_bytes(0x3C, "a described object")?;
+        let byte = |o: u32| desc[o as usize] as u32;
+        let get = |o: usize| u32::from_le_bytes(desc[o..o + 4].try_into().unwrap());
         let p = place
             .wrapping_mul(12)
             .wrapping_add(COURSE.scene_points.bits());
-        OBJECT_WORK.place[0].set(get(p).wrapping_add(get(d + 0x30)));
-        OBJECT_WORK.place[1].set(get(p + 4).wrapping_add(get(d + 0x34)));
-        OBJECT_WORK.place[2].set(get(p + 8).wrapping_add(get(d + 0x38)));
+        let at: [u32; 3] = GamePtr::new(p).read("a point of the scene")?;
+        OBJECT_WORK.place[0].set(at[0].wrapping_add(get(0x30)));
+        OBJECT_WORK.place[1].set(at[1].wrapping_add(get(0x34)));
+        OBJECT_WORK.place[2].set(at[2].wrapping_add(get(0x38)));
         OBJECT_WORK.angles[0].set((byte(8) << 8) & 0xFFFF);
         OBJECT_WORK.angles[1].set(byte(0xC) << 8);
         OBJECT_WORK.angles[2].set(byte(0x10) << 8);
@@ -95,7 +97,7 @@ pub unsafe fn draw_described_object(d: u32) -> Result<(), Refused> {
             OBJECT_WORK.described_cleared[0].set(byte(0x12) << 8);
             OBJECT_WORK.described_cleared[1].set(byte(0x13) << 8);
         }
-        OBJECT_WORK.other_light.set(get(d + 0x2C));
+        OBJECT_WORK.other_light.set(get(0x2C));
         OBJECT_WORK.only_object.set((byte(0x25) >> 1) & 3);
         let light = |lowest: u32, highest: u32, level: u32, strength: u32| {
             OBJECT_WORK.light_lowest.set(lowest);
@@ -135,13 +137,17 @@ pub unsafe fn draw_described_object(d: u32) -> Result<(), Refused> {
             }
         }
         LIGHT_STATE.view_kind.set(2u32);
-        crate::race::frame_draw::place_object_matrix();
+        crate::race::frame_draw::place_object_matrix()?;
         LIGHT_WORK.light_kind.set(2u32);
         let object: u32 = FRAME_SWITCHES.object_number.bits();
         let kind: u32 = OBJECT_TABLES.object_kind(object);
         let record =
             (crate::scene::polygon::materials_addr() as u32).wrapping_add(kind.wrapping_mul(0x80));
-        if ((record + 0x1F) as *const u8).read() != 0 {
+        if GamePtr::new(record)
+            .offset(0x1F)
+            .read::<u8>("an object's material")?
+            != 0
+        {
             LIGHT_WORK.light_kind.set(1u32);
         }
         crate::scene::draw_scene_object::draw_scene_object_in_game(record)?;

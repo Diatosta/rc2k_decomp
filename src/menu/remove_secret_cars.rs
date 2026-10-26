@@ -31,25 +31,23 @@ const SECRET: List = (&MENU_LISTS.secret_cars, 0x0C);
 /// unk_759F7A: where a list is copied to and back from.
 const SCRATCH: List = (&MENU_LISTS.cars_scratch, 0x32);
 /// The list's entries before its -1.
-pub unsafe fn read_list(list: List) -> Result<Vec<u32>, BadInput> {
+pub fn read_list(list: List) -> Result<Vec<u32>, BadInput> {
     Ok(car_lists::entries(list.1, |n| list.0[n].get())?)
 }
 
 /// The entries and a -1 after them. The caller has made sure of the room.
-pub unsafe fn write_list(list: List, entries: &[u32]) {
-    {
-        for (n, &entry) in entries.iter().enumerate() {
-            list.0[n].set(entry);
-        }
-        list.0[entries.len()].set(car_lists::END);
+pub fn write_list(list: List, entries: &[u32]) {
+    for (n, &entry) in entries.iter().enumerate() {
+        list.0[n].set(entry);
     }
+    list.0[entries.len()].set(car_lists::END);
 }
 
 // ---- Rust version ----
 
-pub unsafe fn remove_secret_cars() -> Result<(), BadInput> {
+pub fn remove_secret_cars() -> Result<(), BadInput> {
     // Converted: `rc2k_core::menu::car_lists` (`entries`, `without_secret`).
-    unsafe {
+    {
         let secret = read_list(SECRET)?;
         // Each list read and checked in turn, as the original goes.
         let mut kept = Vec::new();

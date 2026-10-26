@@ -10,18 +10,20 @@
 //! compared exactly as before (the earlier version stays for the Rust callers in
 //! unconverted code).
 
+use crate::errors::Refused;
 use crate::marks::spawn_square::spawn_square;
 use crate::marks::squares_store::SQUARE_STATE;
 
 /// The Rust version (see the header).
-pub unsafe fn pick_square() {
-    unsafe {
+pub fn pick_square() -> Result<(), Refused> {
+    {
         let s = SQUARE_STATE
             .pick_random
             .get()
             .wrapping_mul(0xC5)
             .wrapping_add(0x5D);
         SQUARE_STATE.pick_random.set(s);
-        spawn_square(s & 0x7FF, (s >> 11) & 0x3FF, (s >> 21) & 7);
+        spawn_square(s & 0x7FF, (s >> 11) & 0x3FF, (s >> 21) & 7)?;
     }
+    Ok(())
 }

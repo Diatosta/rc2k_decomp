@@ -28,7 +28,7 @@ use crate::text::draw_text::Canvas;
 // ---- Rust version ----
 
 /// Returns the carry flag of the last `draw_text`.
-pub unsafe fn draw_service_time(canvas: &mut dyn Canvas) -> Result<bool, Refused> {
+pub fn draw_service_time(canvas: &mut dyn Canvas) -> Result<bool, Refused> {
     // Converted: `rc2k_core::screens::service::service_time`.
 
     rc2k_core::screens::service::service_time(

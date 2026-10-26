@@ -21,9 +21,10 @@
 
 use crate::errors::Refused;
 use crate::field;
-use crate::input::devices::{STATE_LEN, at, com_call, joy_state, put};
+use crate::input::devices::{Deferred, STATE_LEN, at, com_call, joy_state, put};
 use crate::input::store::DEVICES;
 use crate::input::types::InputDevice;
+use crate::pointers::GamePtr;
 
 fn state(n: u32) -> u32 {
     DEVICES.device_state[n as usize].get()
@@ -31,8 +32,8 @@ fn state(n: u32) -> u32 {
 
 /// The device `record` polled (see the header).
 pub unsafe fn poll_device(record: u32) -> Result<(), Refused> {
-    let device = at(record, field!(InputDevice, device));
-    if at(record, field!(InputDevice, acquired)) != 1 || device == 0 {
+    let device = at(record, field!(InputDevice, device))?;
+    if at(record, field!(InputDevice, acquired))? != 1 || device == 0 {
         return Ok(());
     }
     unsafe {
@@ -50,26 +51,32 @@ pub unsafe fn poll_device(record: u32) -> Result<(), Refused> {
     let mut record = record;
     if failed != 0 {
         unsafe { com_call(device, 0x1C, &[]) };
-        unsafe {
-            std::ptr::copy(
-                record as *const u8,
-                DEVICES.device_state[0].as_ptr().cast::<u8>(),
-                STATE_LEN,
-            );
-        }
+        GamePtr::new(record).copy_to(
+            GamePtr::new(DEVICES.device_state[0].addr() as u32),
+            STATE_LEN,
+            "a device record read as its state",
+        )?;
         record += STATE_LEN as u32;
     }
     // Converted: `rc2k_core::input::joystick` (`poll_axes`, `poll_buttons`).
     use rc2k_core::input::joystick::{poll_axes, poll_buttons};
+    let late = Deferred::default();
     let [x, y, z] = poll_axes(
-        at(record, field!(InputDevice, kind)),
-        |place| unsafe { ((record + place) as *const u8).read() },
+        at(record, field!(InputDevice, kind))?,
+        |place| {
+            late.get(
+                GamePtr::new(record + place)
+                    .read::<u8>("a device record's byte")
+                    .map(u32::from),
+            ) as u8
+        },
         state,
     );
-    put(record, field!(InputDevice, axes), x);
-    put(record, field!(InputDevice, axes) + 4, y);
-    put(record, field!(InputDevice, axes) + 8, z);
+    late.finish()?;
+    put(record, field!(InputDevice, axes), x)?;
+    put(record, field!(InputDevice, axes) + 4, y)?;
+    put(record, field!(InputDevice, axes) + 8, z)?;
     let buttons = poll_buttons(&joy_state()[0x30..].try_into().unwrap());
-    put(record, field!(InputDevice, buttons), buttons);
+    put(record, field!(InputDevice, buttons), buttons)?;
     Ok(())
 }

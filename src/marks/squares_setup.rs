@@ -27,12 +27,12 @@ const STATES: [(u32, u32); 7] = [
 ];
 
 /// The Rust version (see the header).
-pub unsafe fn squares_setup() {
-    unsafe { setup_with(read_bits(&SQUARE_STATE.setup_places)) }
+pub fn squares_setup() {
+    setup_with(read_bits(&SQUARE_STATE.setup_places))
 }
 
 /// The set-up with the texture places `places` (`marks::pong_setup` has its own).
-pub unsafe fn setup_with(places: [u32; 4]) {
+pub fn setup_with(places: [u32; 4]) {
     use crate::scene::set_render_state::set_render_state;
     {
         crate::scene::depth_buffer_on::depth_buffer(true);

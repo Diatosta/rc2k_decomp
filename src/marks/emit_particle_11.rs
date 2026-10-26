@@ -35,8 +35,8 @@ pub static ELEVENTH: JitterSet = JitterSet {
 };
 
 /// The Rust version (see the header).
-pub unsafe fn emit_particle_11(wheel: u32, object: u32) -> Result<(), Refused> {
-    unsafe { emit_particle_5_with(&ELEVENTH, wheel, object) }
+pub fn emit_particle_11(wheel: u32, object: u32) -> Result<(), Refused> {
+    emit_particle_5_with(&ELEVENTH, wheel, object)
 }
 
 /// Kind 0xB's emitter variables (`emit_particle_5::ELEVENTH`), and the constants of code that is in no function (IDA 0x93A262 .. 0x93A312, the image's layout; phase 7, typed state).

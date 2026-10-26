@@ -27,6 +27,7 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::menu::champ_store::CHAMP_VIEW;
+use crate::pointers::GamePtr;
 use crate::race::state_store::RACE_STATE;
 use crate::screens::draw_selected_stage_menu::menu_titles;
 use crate::screens::draw_stage_records::selection;
@@ -49,7 +50,7 @@ const TIMES: &Dword = &CHAMP_VIEW.time_trial_best_times; // dword_7556E8
 /// through null.
 pub unsafe fn draw_time_trial_stage_select(canvas: &mut dyn Canvas) -> Result<bool, Refused> {
     unsafe {
-        let (Some(sel), Some((group_title, table_title))) = (selection(), menu_titles()) else {
+        let (Some(sel), Some((group_title, table_title))) = (selection()?, menu_titles()?) else {
             return Err(
                 BadInput("no record table is selected: the original reads through null").into(),
             );
@@ -59,9 +60,9 @@ pub unsafe fn draw_time_trial_stage_select(canvas: &mut dyn Canvas) -> Result<bo
                 BadInput("there is no current menu: the original writes through null").into(),
             );
         };
-        (item_0 as *mut u32).write_unaligned(group_title);
+        GamePtr::new(item_0).write(group_title, "a menu item's string")?;
         RACE_STATE.settings.direction.set(sel.group);
-        (item_1 as *mut u32).write_unaligned(table_title);
+        GamePtr::new(item_1).write(table_title, "a menu item's string")?;
 
         let table = (if sel.group == 1 { GROUP_1_TIMES } else { TIMES }).get();
         if table == 0 {
@@ -71,7 +72,7 @@ pub unsafe fn draw_time_trial_stage_select(canvas: &mut dyn Canvas) -> Result<bo
         }
         build_second_heading(sel.record)?;
         draw_stage_body(sel.record, MARKER_PALETTE, true, canvas)?;
-        let entry = dword(sel.record.wrapping_add(0x3C)).wrapping_mul(BEST_TIME_ENTRY_SIZE);
+        let entry = dword(sel.record.wrapping_add(0x3C))?.wrapping_mul(BEST_TIME_ENTRY_SIZE);
         draw_records_rows(table.wrapping_add(entry), &TIME_TRIAL_ROWS, canvas)
     }
 }

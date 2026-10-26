@@ -71,12 +71,10 @@ pub unsafe fn finish_run() -> Result<(), Refused> {
             break;
         }
         CAR_BLOCKS.cars[0].camera_view.set_bits(6);
-        unsafe {
-            crate::race::frame_views::load_first_car()?;
-            crate::drive::finish_camera::finish_camera();
-            crate::physics::camera_frame::camera_frame()?;
-            crate::drive::store_first_car::store_first_car()?;
-        }
+        crate::race::frame_views::load_first_car()?;
+        crate::drive::finish_camera::finish_camera();
+        crate::physics::camera_frame::camera_frame()?;
+        crate::drive::store_first_car::store_first_car()?;
         race_frame()?;
     }
     Ok(())

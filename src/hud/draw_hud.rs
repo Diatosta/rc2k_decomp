@@ -10,22 +10,23 @@
 
 use crate::errors::Refused;
 use crate::hud::store::HUD;
+use crate::pointers::GamePtr;
 use crate::race::panel_store::PANEL;
 
 /// The Rust version (see the header). What the original leaves in the registers is read
 /// by none of its callers (register liveness, 2026-10-23).
 // Converted: `rc2k_core::hud::batch::{Layout, NO_TEXTURE}`
-pub unsafe fn draw_hud() -> Result<(), Refused> {
+pub fn draw_hud() -> Result<(), Refused> {
     use crate::hud::*;
     use rc2k_core::hud::batch;
-    unsafe {
+    {
         set_batch_depth::set_batch_depth();
         HUD.batch_texture.set(batch::NO_TEXTURE);
         HUD.vertex_count.set(0);
         HUD.index_count.set(0);
         let record = PANEL.split_6.addr() as u32;
-        tenths::tenths(record);
-        match batch::Layout::of(((record + 0xF4) as *const u32).read_unaligned()) {
+        tenths::tenths(record)?;
+        match batch::Layout::of(GamePtr::new(record + 0xF4).read::<u32>("a hud record's field")?) {
             batch::Layout::Single => layout_0::layout_0(record)?,
             batch::Layout::One => layout_1::layout_1(record)?,
             batch::Layout::Two => layout_2::layout_2(record)?,

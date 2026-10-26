@@ -10,17 +10,19 @@
 //! Caller: `drive::record_inputs_if`.
 
 use crate::drive::replay_frames_store::REPLAY_FRAMES;
+use crate::errors::BadInput;
 use crate::physics::tables_store::PHYSICS;
+use crate::pointers::GamePtr;
 use crate::race::replay_work_store::REPLAY_WORK;
 use crate::race::work_store::RACE_WORK;
 use rc2k_core::drive::replay_frames::{on_tape, tape_offset};
 
 /// The Rust version.
 // Converted: `rc2k_core::drive::replay_frames::{on_tape, tape_offset}`.
-pub unsafe fn record_inputs() {
+pub fn record_inputs() -> Result<(), BadInput> {
     let car = RACE_WORK.current_car.get();
     if !on_tape(car) {
-        return;
+        return Ok(());
     }
     let (eax, ebx, ecx, edx) = (
         PHYSICS.input_words[0].get(),
@@ -30,17 +32,11 @@ pub unsafe fn record_inputs() {
     );
     let packed = crate::drive::pack_inputs::pack_inputs(eax, ecx, edx);
     let esi = tape_offset(REPLAY_FRAMES.tenth.get(), car);
-    let at = |o: u32| {
-        (REPLAY_WORK.replay_tape[0].addr() as u32)
-            .wrapping_add(esi)
-            .wrapping_add(o) as *mut u32
-    };
-    unsafe {
-        at(0).write_unaligned(ebx);
-        at(4).write_unaligned(packed);
-    }
+    GamePtr::new((REPLAY_WORK.replay_tape[0].addr() as u32).wrapping_add(esi))
+        .write([ebx, packed], "the replay tape")?;
     let [eax, ecx, edx] = crate::drive::unpack_inputs::unpack_inputs(packed);
     for (k, v) in [eax, ebx, ecx, edx].iter().enumerate() {
         PHYSICS.input_words[k].set(*v);
     }
+    Ok(())
 }

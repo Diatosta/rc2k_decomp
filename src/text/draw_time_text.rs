@@ -13,17 +13,18 @@
 //! registers above are the original's, for reference.
 
 use crate::errors::Refused;
+use crate::pointers::GamePtr;
 use crate::text::font::Font;
 
 /// The font's fixed width.
 const WIDTH: u32 = 0x1C;
 
-fn read32(at: u32) -> u32 {
-    unsafe { (at as *const u32).read_unaligned() }
+fn read32(at: u32) -> Result<u32, Refused> {
+    Ok(GamePtr::new(at).read::<u32>("a time text's character")?)
 }
 
-fn write32(at: u32, v: u32) {
-    unsafe { (at as *mut u32).write_unaligned(v) }
+fn write32(at: u32, v: u32) -> Result<(), Refused> {
+    Ok(GamePtr::new(at).write(v, "a time text's character")?)
 }
 
 /// The Rust version (see the header): the time text at `text` in `font` at (`x`, `y`).
@@ -35,15 +36,17 @@ pub unsafe fn draw_time_text(font: *mut Font, text: u32, x: u32, y: u32) -> Resu
     let (mut at, mut x, mut edi) = (text, x, 0u32);
     // Converted: `rc2k_core::text::time_text_widths`; here the original's way of drawing
     // one character at a time (the dword after it swapped for 0 around the call).
-    let chars = unsafe { crate::bridge::Raw::new(text as *const u8) };
-    for width in crate::bridge::read_through(rc2k_core::text::time_text_widths(&chars)) {
-        write32(font_at + WIDTH, width);
-        let kept = read32(at + 1);
-        write32(at + 1, edi);
+    let chars = GamePtr::new(text).bytes("a time text")?;
+    let widths = rc2k_core::text::time_text_widths(&chars)
+        .map_err(|_| crate::errors::BadInput("a time text past its block"))?;
+    for width in widths {
+        write32(font_at + WIDTH, width)?;
+        let kept = read32(at + 1)?;
+        write32(at + 1, edi)?;
         edi = kept;
         // `text::draw_text_keep_regs` on a copy of the font, written back if it changed.
+        let mut copy = GamePtr::new(font_at).read::<Font>("a font")?;
         unsafe {
-            let mut copy = font.read_unaligned();
             crate::text::draw_text_keep_regs::draw_text_keep_regs(
                 &mut copy,
                 at as *const u8,
@@ -51,16 +54,16 @@ pub unsafe fn draw_time_text(font: *mut Font, text: u32, x: u32, y: u32) -> Resu
                 y as i32,
                 &mut GameCanvas,
             )?;
-            if copy != font.read_unaligned() {
-                font.write_unaligned(copy);
-            }
         }
-        let zero = read32(at + 1);
-        write32(at + 1, edi);
+        if copy != GamePtr::new(font_at).read::<Font>("a font")? {
+            GamePtr::new(font_at).write(copy, "a font")?;
+        }
+        let zero = read32(at + 1)?;
+        write32(at + 1, edi)?;
         edi = zero;
         x = x.wrapping_add(width);
         at = at.wrapping_add(1);
     }
-    write32(font_at + WIDTH, 0);
+    write32(font_at + WIDTH, 0)?;
     Ok(())
 }

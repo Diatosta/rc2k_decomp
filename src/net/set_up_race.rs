@@ -72,7 +72,7 @@ pub fn set_up_race() -> Result<(), Refused> {
     RACE_VIEW.race_cars.set(players);
     RACE_VIEW.players.set(1);
     FRAME_SWITCHES.editor_mode.set(0);
-    crate::net::reset_cars::reset_cars();
+    crate::net::reset_cars::reset_cars()?;
     unsafe {
         crate::race::race_cars::set_up_arcade_cars()?;
         crate::race::race_shell::set_start_states()?;

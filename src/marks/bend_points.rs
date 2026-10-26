@@ -15,21 +15,22 @@ use crate::errors::{BadInput, Refused};
 use crate::marks::blend_points::blend_points;
 use crate::marks::splines::{MOST_POINTS, SPLINE_HEAD, SPLINE_KINDS, SPLINE_WORK};
 use crate::math::x87_run::ext_to_int;
+use crate::pointers::GamePtr;
 use crate::session::write_first;
 
-unsafe fn get(a: u32) -> u32 {
-    unsafe { (a as *const u32).read_unaligned() }
+fn get(a: u32) -> Result<u32, BadInput> {
+    GamePtr::new(a).read("a game field")
 }
 
 /// The Rust version (see the header).
-pub unsafe fn bend_points(s: u32) -> Result<(), Refused> {
-    unsafe {
+pub fn bend_points(s: u32) -> Result<(), Refused> {
+    {
         let switch: u32 = SPLINE_HEAD.switch.get();
         if switch == SPLINE_KINDS.chosen[0].get() {
             return Ok(());
         }
-        let point = get(s + 0x30);
-        let count = get(s + 0xC) as i32;
+        let point = get(s + 0x30)?;
+        let count = get(s + 0xC)? as i32;
         if point >= MOST_POINTS {
             return Err(BadInput("a spline point number of 0x80 or more").into());
         }
@@ -37,24 +38,26 @@ pub unsafe fn bend_points(s: u32) -> Result<(), Refused> {
             return Err(BadInput("more than 0x80 points to bend").into());
         }
         let p = s + 0x654 + point * 12;
-        let a = [get(p), get(p + 4), get(p + 8)];
+        let a = [get(p)?, get(p + 4)?, get(p + 8)?];
         write_first(&SPLINE_WORK.bend[0..3], &a);
         let height: u32 = if switch == 1 { 0x2EE0 } else { 0xFFFF_C180 };
-        ((s + 0x44) as *mut u32).write_unaligned(height);
-        let c = [height, get(s + 0x48), get(s + 0x4C)];
+        GamePtr::new(s + 0x44).write::<u32>(height, "a mark's field")?;
+        let c = [height, get(s + 0x48)?, get(s + 0x4C)?];
         write_first(&SPLINE_WORK.bend[6..9], &c);
         let b = [c[0], a[1], c[2]];
         write_first(&SPLINE_WORK.bend[3..6], &b);
         let at = |n: usize| SPLINE_WORK.bend[n].addr() as u32;
-        let v = blend_points(at(0), at(3), at(6), SPLINE_HEAD.made.get() as u8);
+        let v = blend_points(at(0), at(3), at(6), SPLINE_HEAD.made.get() as u8)?;
         let d = [ext_to_int(v[0]), ext_to_int(v[1]), ext_to_int(v[2])];
         write_first(&SPLINE_WORK.bend[9..12], &d.map(|v| v as u32));
         let mut q_at = SPLINE_WORK.ordered_coords[0].addr() as u32;
         for _ in 0..count.max(0) {
-            let q = [get(q_at), get(q_at + 4), get(q_at + 8)];
+            let q = [get(q_at)?, get(q_at + 4)?, get(q_at + 8)?];
             for k in 0..3 {
-                ((q_at + 4 * k as u32) as *mut u32)
-                    .write_unaligned(q[k].wrapping_sub(a[k]).wrapping_add(d[k] as u32));
+                GamePtr::new(q_at + 4 * k as u32).write::<u32>(
+                    q[k].wrapping_sub(a[k]).wrapping_add(d[k] as u32),
+                    "a mark's field",
+                )?;
             }
             q_at += 12;
         }

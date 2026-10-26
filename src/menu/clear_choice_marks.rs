@@ -8,12 +8,10 @@
 //! (`menu::table_calls`); the registers above are the original's, for reference.
 use crate::menu::state_store::MENU_STATE;
 
-pub fn clear_choice_marks() {
-    unsafe {
-        std::ptr::write_bytes(
-            MENU_STATE.carousel_pictures.held[0].addr() as *mut u8,
-            0xFF,
-            16,
-        )
-    };
+pub fn clear_choice_marks() -> Result<(), crate::errors::BadInput> {
+    crate::pointers::GamePtr::new(MENU_STATE.carousel_pictures.held[0].addr() as u32).fill(
+        0xFF,
+        16,
+        "the chosen pictures",
+    )
 }

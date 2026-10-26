@@ -55,7 +55,7 @@ fn indented(part: &mut dyn FnMut() -> Result<(), Refused>) -> Result<(), Refused
 pub unsafe fn race_init() -> Result<(), Refused> {
     log(c"RACEINIT : setbestline");
     indent_by(race_steps::LOG_INDENT);
-    unsafe { crate::race::best_line::build_best_line() }?;
+    crate::race::best_line::build_best_line()?;
     if race_steps::no_best_line(RACE_VARS.checkpoint_count.get()) {
         if FRAME_SWITCHES.editor_mode.get() != 0 {
             return Ok(());
@@ -70,24 +70,24 @@ pub unsafe fn race_init() -> Result<(), Refused> {
     log(c"RACEINIT : initcarpositions");
     indented(&mut || unsafe { crate::race::car_starts::start_cars() })?;
     log(c"RACEINIT : initobjectsoncourse");
-    indented(&mut || unsafe { crate::race::course_data::reset_face_lights() })?;
+    indented(&mut || crate::race::course_data::reset_face_lights())?;
     log(c"RACEINIT : gamemodestuff_init");
     indented(&mut || unsafe { crate::race::race_cars::set_up_cars() }.map(drop))?;
     log(c"RACEINIT : messagesystem_init");
     indented(&mut || {
-        unsafe { crate::race::race_init::reset_car_race_state() };
+        crate::race::race_init::reset_car_race_state()?;
         Ok(())
     })?;
     log(c"RACEINIT : carparts_init");
     indented(&mut || {
-        unsafe { crate::race::race_init::clear_race_slots() };
+        crate::race::race_init::clear_race_slots();
         Ok(())
     })?;
     log(c"RACEINIT : resettimers");
     indented(&mut || {
-        unsafe {
-            crate::race::race_init::reset_car_starts();
-            crate::race::race_init::seed_car_randoms();
+        {
+            crate::race::race_init::reset_car_starts()?;
+            crate::race::race_init::seed_car_randoms()?;
         }
         Ok(())
     })?;
@@ -98,14 +98,14 @@ pub unsafe fn race_init() -> Result<(), Refused> {
         VIEWER_PANEL.other_marks_shown.set(1);
         unsafe { crate::drive::share_all_cars::share_all_cars() }?;
         VIEWER_PANEL.other_marks_shown.set(0);
-        unsafe { crate::marks::frame_marks::frame_marks() }?;
-        unsafe { crate::marks::run_frame::run_frame() }?;
+        crate::marks::frame_marks::frame_marks()?;
+        crate::marks::run_frame::run_frame()?;
     }
-    unsafe { crate::race::race_init::clear_race_slots() };
+    crate::race::race_init::clear_race_slots();
     indent_by(race_steps::LOG_INDENT.wrapping_neg());
     log(c"RACEINIT : resetalldamagemessages");
     indented(&mut || {
-        unsafe { crate::race::car_grades::grade_all_cars() };
+        crate::race::car_grades::grade_all_cars()?;
         Ok(())
     })?;
     log(c"RACEINIT : end");

@@ -157,11 +157,11 @@ pub unsafe fn draw_text_at(
     canvas: &mut dyn Canvas,
 ) -> Result<Outcome, Refused> {
     unsafe {
-        let before = font.read_unaligned();
+        let before = crate::pointers::GamePtr::new(font as usize as u32).read::<Font>("a font")?;
         let mut copy = before;
         let out = draw_text(&mut copy, text, x, y, canvas)?;
         if copy != before && canvas.keeps_font_changes() {
-            font.write_unaligned(copy);
+            crate::pointers::GamePtr::new(font as usize as u32).write(copy, "a font")?;
         }
         Ok(out)
     }

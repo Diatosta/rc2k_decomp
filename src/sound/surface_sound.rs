@@ -18,6 +18,7 @@
 use crate::errors::{BadInput, Refused};
 use crate::math::x87::from_int;
 use crate::math::x87_float::ld;
+use crate::pointers::GamePtr;
 use crate::scene::x87_mem::fstp;
 use crate::sound::sample_settings::{OWN, record, sample_settings};
 use rc2k_core::sound::surfaces;
@@ -29,30 +30,42 @@ pub fn surface_sound(o: u32, set: u32, request: u32) -> Result<(), Refused> {
     if o == 0 || set == 0 || request == 0 {
         return Err(BadInput("no object, set or request").into());
     }
-    let w = |at: u32| unsafe { ((o + at) as *const u32).read_unaligned() };
-    let set_word = |at: u32| (o + at) as *mut u32;
-    let set = set as *const u32;
-    let q = request as *mut u32;
+    let w = |at: u32| {
+        GamePtr::new(o)
+            .offset(at)
+            .read::<u32>("a sound object's dword")
+    };
+    let set = GamePtr::new(set);
     // Converted: `rc2k_core::sound::surfaces::pick`.
-    let eight = unsafe { set.read_unaligned() } == 1;
-    let (n, slot) = surfaces::pick(eight, w(0), || w(0xC)).map_err(BadInput::from)?;
-    let sound = unsafe { set.add(1 + n as usize).read_unaligned() };
+    let eight = set.read::<u32>("a sound set")? == 1;
+    let late = std::cell::Cell::new(None);
+    let picked = surfaces::pick(eight, w(0)?, || {
+        w(0xC).unwrap_or_else(|e| {
+            late.set(Some(e));
+            0
+        })
+    });
+    if let Some(e) = late.take() {
+        return Err(e.into());
+    }
+    let (n, slot) = picked.map_err(BadInput::from)?;
+    let sound: u32 = set.offset(4 * (1 + n)).read("a sound set")?;
     record(sound)?;
-    if sound != w(slot) {
-        let old = w(slot);
-        unsafe {
-            set_word(slot).write_unaligned(sound);
-            q.write_unaligned(old);
-        }
+    if sound != w(slot)? {
+        let old = w(slot)?;
+        GamePtr::new(o)
+            .offset(slot)
+            .write(sound, "a sound object's dword")?;
+        crate::sound::turn_parts::put(request, 0, old)?;
         crate::sound::turn_parts::stop(request)?;
     }
-    let sound = w(slot);
-    unsafe { q.write_unaligned(sound) };
+    let sound = w(slot)?;
+    crate::sound::turn_parts::put(request, 0, sound)?;
     let (_, rate) = sample_settings(sound, OWN, OWN)?;
-    unsafe { q.add(1).write_unaligned(from_int(rate as i32)) };
+    crate::sound::turn_parts::put(request, 1, from_int(rate as i32))?;
     x87_1(&crate::sound::store::SURFACE_SOUNDS, request as usize);
     for k in 0..3 {
-        unsafe { q.add(3 + k).write_unaligned(w(0x2C + 4 * k as u32)) };
+        crate::sound::turn_parts::put(request, 3 + k, w(0x2C + 4 * k as u32)?)?;
     }
     crate::sound::turn_parts::placed(request)
 }

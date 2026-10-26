@@ -21,7 +21,7 @@ fn highlighted<const N: usize>(
     names: &Bytes<N>,
     page: &Dword,
     per_page: u32,
-) -> Result<*mut u8, BadInput> {
+) -> Result<u32, BadInput> {
     let index = page
         .get()
         .wrapping_mul(per_page)
@@ -30,11 +30,11 @@ fn highlighted<const N: usize>(
     if index >= NAMES {
         return Err(BadInput("highlighted name past the list"));
     }
-    Ok(names.as_ptr().wrapping_add(index as usize * NAME_LEN))
+    Ok((names.addr() + index as usize * NAME_LEN) as u32)
 }
 
 /// The name of the highlighted saved game.
-pub fn savegame_name() -> Result<*mut u8, BadInput> {
+pub fn savegame_name() -> Result<u32, BadInput> {
     highlighted(
         &crate::saves::write_savegame_slot::SAVE_GAMES.names,
         SAVEGAME_PAGE_RVA,
@@ -43,7 +43,7 @@ pub fn savegame_name() -> Result<*mut u8, BadInput> {
 }
 
 /// The name of the highlighted replay.
-pub fn replay_name() -> Result<*mut u8, BadInput> {
+pub fn replay_name() -> Result<u32, BadInput> {
     highlighted(
         &crate::race::replay::REPLAYS.names,
         REPLAY_PAGE_RVA,

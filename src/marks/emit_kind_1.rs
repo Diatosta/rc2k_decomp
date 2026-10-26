@@ -29,6 +29,7 @@ use crate::marks::ring_store::RING_WORK;
 use crate::marks::surface_store::SURFACE;
 use crate::marks::tuning::{MARKS_FLOATS, MARKS_FRAME};
 use crate::math::x87;
+use crate::pointers::GamePtr;
 use crate::scene::matrix3::{extended, rounded};
 use crate::session::{Dword, Float};
 
@@ -51,26 +52,26 @@ struct Pace {
     strength: Option<(u32, bool)>,
 }
 
-unsafe fn pace(wheel: u32) -> Pace {
-    unsafe {
+fn pace(wheel: u32) -> Result<Pace, Refused> {
+    Ok({
         let grown = x87::abs_sum_to_int_kept(
-            at(wheel + 0x18),
-            at(wheel + 0x10),
-            at(wheel + 0xC),
-            at(wheel + 4),
+            at(wheel + 0x18)?,
+            at(wheel + 0x10)?,
+            at(wheel + 0xC)?,
+            at(wheel + 4)?,
         );
         if grown.0 < STEP {
-            return Pace {
+            return Ok(Pace {
                 grown,
                 strength: None,
-            };
+            });
         }
         let [k1, k2, least] = STRENGTH_K.map(|r| r.bits());
         let (kept, status) = x87::abs_blend_compare(
-            at(wheel + 0x10),
+            at(wheel + 0x10)?,
             k1,
-            at(wheel + 0xC),
-            at(wheel + 0x18),
+            at(wheel + 0xC)?,
+            at(wheel + 0x18)?,
             k2,
             least,
         );
@@ -79,48 +80,48 @@ unsafe fn pace(wheel: u32) -> Pace {
             grown,
             strength: Some((kept, under)),
         }
-    }
+    })
 }
 
 /// Why `emit_particle_1` refuses, if it does, worked out without writing.
-unsafe fn refusal(wheel: u32, object: u32) -> Option<&'static str> {
-    unsafe {
+fn refusal(wheel: u32, object: u32) -> Result<Option<&'static str>, Refused> {
+    Ok({
         if wheel == 0 {
-            return Some("a null wheel");
+            return Ok(Some("a null wheel"));
         }
-        match pace(wheel).strength {
+        match pace(wheel)?.strength {
             Some((_, false)) => {}
-            _ => return None,
+            _ => return Ok(None),
         }
         if object == 0 {
-            return Some("a null object");
+            return Ok(Some("a null object"));
         }
         next_entry()?;
         let car: u32 = EMITTER.car.get();
-        if car == 0 || at(car + 0x24) == 0 {
-            return Some("a null car object or matrix");
+        if car == 0 || at(car + 0x24)? == 0 {
+            return Ok(Some("a null car object or matrix"));
         }
         None
-    }
+    })
 }
 
 /// The body at 0x4CCF71 (see the header).
-pub unsafe fn emit_particle_1(wheel: u32, object: u32) -> Result<(), Refused> {
-    unsafe {
-        if let Some(why) = refusal(wheel, object) {
+pub fn emit_particle_1(wheel: u32, object: u32) -> Result<(), Refused> {
+    {
+        if let Some(why) = refusal(wheel, object)? {
             return Err(BadInput(why).into());
         }
-        let flags = at(wheel + 0x20);
+        let flags = at(wheel + 0x20)?;
         SURFACE.wheel_flags.set(flags);
-        let p = pace(wheel);
+        let p = pace(wheel)?;
         RING_WORK.whole.set(p.grown.0 as u32);
-        ((wheel + 4) as *mut u32).write_unaligned(p.grown.1);
+        GamePtr::new(wheel + 4).write::<u32>(p.grown.1, "a mark's field")?;
         let Some((kept, under)) = p.strength else {
             return Ok(());
         };
         let rest = p.grown.0 % STEP;
         RING_WORK.whole.set(rest as u32);
-        ((wheel + 4) as *mut u32).write_unaligned(x87::from_int(rest));
+        GamePtr::new(wheel + 4).write::<u32>(x87::from_int(rest), "a mark's field")?;
         RING_WORK.whole.set(kept);
         if under {
             return Ok(());
@@ -134,71 +135,73 @@ pub unsafe fn emit_particle_1(wheel: u32, object: u32) -> Result<(), Refused> {
         RING_WORK.life.set(life as u32);
         let fade = x87::mul(strength, MARKS_FLOATS.two_fifty_five.bits());
         RING_WORK.fade.set_bits(fade);
-        if next_entry().is_none() {
+        if next_entry()?.is_none() {
             return Ok(());
         }
-        let e = take_entry(at(object + 0x1C) & 0xFF_FFFF, 1);
-        let put = |o: u32, v: u32| ((e + o) as *mut u32).write_unaligned(v);
+        let e = take_entry(at(object + 0x1C)? & 0xFF_FFFF, 1)?;
+        let put = |o: u32, v: u32| GamePtr::new(e + o).write::<u32>(v, "a mark's field");
         let car: u32 = EMITTER.car.get();
-        let m = at(car + 0x24);
+        let m = at(car + 0x24)?;
         let side = (next_c5(&KIND1_SET.side_random) & 0x3FFF) as i32 - 0x2000;
         MARKS_FRAME.emit_side.set_bits(side as u32);
-        let place: [[u8; 10]; 3] = std::array::from_fn(|k| {
-            x87::plus_int_times_80(
-                at(wheel + 0x3C + 4 * k as u32),
-                EMITTER.side_b[k].bits(),
-                side,
-            )
-        });
-        put(0x10, rounded(place[0]));
-        put(0x14, rounded(place[1]));
+        let place: [[u8; 10]; 3] = crate::marks::try_from_fn(|k| {
+            Ok({
+                x87::plus_int_times_80(
+                    at(wheel + 0x3C + 4 * k as u32)?,
+                    EMITTER.side_b[k].bits(),
+                    side,
+                )
+            })
+        })?;
+        put(0x10, rounded(place[0]))?;
+        put(0x14, rounded(place[1]))?;
         put(
             0x28,
             x87::ext_less(place[1], MARKS_FLOATS.two_pow_16.bits()),
-        );
-        put(0x18, rounded(place[2]));
-        let motion: [[u8; 10]; 3] = std::array::from_fn(|k| {
-            let k4 = 4 * k as u32;
-            let f = [0, 1, 2].map(|i| KIND1_SET.motion_k[3 * k + i].bits());
-            x87::three_products_80([
-                [at(m + k4), at(wheel + 0x10), f[0]],
-                [at(m + 0x20 + k4), at(wheel + 0x18), f[1]],
-                [EMITTER.side_b[k].bits(), at(wheel + 0xC), f[2]],
-            ])
-        });
+        )?;
+        put(0x18, rounded(place[2]))?;
+        let motion: [[u8; 10]; 3] = crate::marks::try_from_fn(|k| {
+            Ok({
+                let k4 = 4 * k as u32;
+                let f = [0, 1, 2].map(|i| KIND1_SET.motion_k[3 * k + i].bits());
+                x87::three_products_80([
+                    [at(m + k4)?, at(wheel + 0x10)?, f[0]],
+                    [at(m + 0x20 + k4)?, at(wheel + 0x18)?, f[1]],
+                    [EMITTER.side_b[k].bits(), at(wheel + 0xC)?, f[2]],
+                ])
+            })
+        })?;
         let (moved, _) = jitter_point([
             extended(KIND1_SET.spread.bits()),
             motion[2],
             motion[1],
             motion[0],
         ]);
-        put(0x34, rounded(moved[0]));
-        put(0x30, x87::add(rounded(moved[1]), KIND1_SET.lift.bits()));
-        put(0x2C, rounded(moved[2]));
+        put(0x34, rounded(moved[0]))?;
+        put(0x30, x87::add(rounded(moved[1]), KIND1_SET.lift.bits()))?;
+        put(0x2C, rounded(moved[2]))?;
         let r = next_c5(&KIND1_SET.spin_random);
-        put(0x54, (r & 0x3F).wrapping_sub(0x20));
-        put(0x50, r.rotate_right(6) & 0xFFF);
-        put(0x58, flags & 0x3F);
-        put(0x84, life as u32);
-        put(0x78, x87::over_int(fade, life));
-        put(0x74, fade);
-        put(0x68, car);
-        put(0x70, SIZE);
-        put(0x6C, at(car + 0x88));
-        put(0x60, x87::int_times(SIZE as i32, KIND1_SET.size_k.bits()));
-        put(0x64, 0);
+        put(0x54, (r & 0x3F).wrapping_sub(0x20))?;
+        put(0x50, r.rotate_right(6) & 0xFFF)?;
+        put(0x58, flags & 0x3F)?;
+        put(0x84, life as u32)?;
+        put(0x78, x87::over_int(fade, life))?;
+        put(0x74, fade)?;
+        put(0x68, car)?;
+        put(0x70, SIZE)?;
+        put(0x6C, at(car + 0x88)?)?;
+        put(0x60, x87::int_times(SIZE as i32, KIND1_SET.size_k.bits()))?;
+        put(0x64, 0)?;
     }
     Ok(())
 }
 
 /// The Rust version (see the header).
-pub unsafe fn emit_kind_1(wheel: u32, object: u32) -> Result<(), Refused> {
-    unsafe {
-        if KIND1_CHOICE.choice.get() != 0 {
-            emit_particle_21(wheel, object)
-        } else {
-            emit_particle_1(wheel, object)
-        }
+pub fn emit_kind_1(wheel: u32, object: u32) -> Result<(), Refused> {
+    if KIND1_CHOICE.choice.get() != 0 {
+        emit_particle_21(wheel, object)
+    } else {
+        emit_particle_1(wheel, object)
     }
 }
 

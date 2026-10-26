@@ -31,10 +31,10 @@ const WAIT: u32 = 1000;
 /// Runs to the `ExitThread`, which does not come back.
 pub fn receive_thread() -> Result<(), Refused> {
     let running =
-        (crate::threading::thread_slot::slot(crate::threading::thread_slot::NET) + 0xC) as *mut u8;
+        &crate::threading::thread_slot::slot_ref(crate::threading::thread_slot::NET)?.flag;
     unsafe {
-        if running.read_volatile() != 1 {
-            running.write_volatile(1);
+        if running.get() != 1 {
+            running.set(1);
             log_write(START_TEXT.as_ptr().cast(), true, 2);
             if NET.receive_done.get() == 0 {
                 loop {
@@ -67,7 +67,7 @@ pub fn receive_thread() -> Result<(), Refused> {
         }
         NET.receive_done.set(1);
         log_write(QUIT_TEXT.as_ptr().cast(), true, 2);
-        running.write_volatile(0);
+        running.set(0);
         windows_sys::Win32::System::Threading::ExitThread(0)
     }
 }

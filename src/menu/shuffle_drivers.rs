@@ -14,6 +14,7 @@ use crate::errors::{BadInput, Refused};
 use crate::menu::car_numbers_store::CAR_NUMBERS;
 use crate::menu::draw_work_store::DRAW_WORK;
 use crate::menu::state_store::MENU_STATE;
+use crate::pointers::GamePtr;
 use crate::session::Dword;
 
 /// The four classes' first drivers (`g_drivers` + 90, + 140, + 170, + 0) and counts.
@@ -31,19 +32,21 @@ pub unsafe fn shuffle_drivers() -> Result<(), Refused> {
             return Err(BadInput("a driver table count of 0").into());
         }
         let [t1, t2] = [
-            CAR_NUMBERS.shuffle_a.as_ptr(),
-            CAR_NUMBERS.shuffle_b.as_ptr(),
+            GamePtr::new(CAR_NUMBERS.shuffle_a.addr() as u32),
+            GamePtr::new(CAR_NUMBERS.shuffle_b.addr() as u32),
         ];
         for &(table, count) in &TABLES {
-            let first = &crate::menu::drivers_store::DRIVERS.drivers[table] as *const _ as *mut u8;
+            let first = GamePtr::new(
+                &crate::menu::drivers_store::DRIVERS.drivers[table] as *const _ as usize as u32,
+            );
             let n = count.get();
             for _ in 0..n {
                 DRAW_WORK.figure.set(random_below(n)?);
                 DRAW_WORK.hhmm.set(random_below(n)?);
-                std::ptr::copy(first, t1, 0x94);
-                std::ptr::copy(first, t2, 0x94);
-                std::ptr::copy(t1, first, 0x94);
-                std::ptr::copy(t2, first, 0x94);
+                first.copy_to(t1, 0x94, "a driver")?;
+                first.copy_to(t2, 0x94, "a driver")?;
+                t1.copy_to(first, 0x94, "a driver")?;
+                t2.copy_to(first, 0x94, "a driver")?;
             }
         }
     }

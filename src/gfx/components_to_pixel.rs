@@ -21,7 +21,7 @@ use crate::gfx::pixel_format::PixelFormat;
 /// `rc2k_core::gfx::pixels::pack`).
 pub use rc2k_core::gfx::pixels::pack as packed;
 
-pub unsafe fn components_to_pixel(format: &PixelFormat, components: u32) -> u32 {
+pub fn components_to_pixel(format: &PixelFormat, components: u32) -> u32 {
     let (pixel, scratch) = packed(format, components);
     if let Some(scratch) = scratch {
         FORMATS.scratch.write(&scratch);

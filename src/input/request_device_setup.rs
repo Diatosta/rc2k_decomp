@@ -30,13 +30,13 @@ pub unsafe fn request_device_setup(
     }
     // Converted: `rc2k_core::input::joystick::device_setup`.
     let s = rc2k_core::input::joystick::device_setup(controller, sensitivity, mode, edx, ebp);
-    put(record, field!(InputDevice, controller), s.controller);
-    put(record, field!(InputDevice, sensitivity), s.sensitivity);
-    put(record, field!(InputDevice, kind), s.kind);
-    put(record, field!(InputDevice, axis_code), s.axis_code);
-    put(record, field!(InputDevice, strength), s.strength);
-    put(record, field!(InputDevice, dead_zone), s.dead_zone);
-    put(record, field!(InputDevice, end_zone), s.end_zone);
+    put(record, field!(InputDevice, controller), s.controller)?;
+    put(record, field!(InputDevice, sensitivity), s.sensitivity)?;
+    put(record, field!(InputDevice, kind), s.kind)?;
+    put(record, field!(InputDevice, axis_code), s.axis_code)?;
+    put(record, field!(InputDevice, strength), s.strength)?;
+    put(record, field!(InputDevice, dead_zone), s.dead_zone)?;
+    put(record, field!(InputDevice, end_zone), s.end_zone)?;
     DEVICES.input_command.set(1);
     Ok(())
 }

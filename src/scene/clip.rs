@@ -20,6 +20,7 @@
 //! where they are copied.
 
 use crate::errors::BadInput;
+use crate::pointers::GamePtr;
 use crate::race::course_store::COURSE;
 use crate::race::prefs_store::STAGE_PREFS;
 use crate::scene::clip_asm::{
@@ -86,8 +87,9 @@ unsafe fn cut(edge: Edge, a: usize, b: usize, mask: u32) -> Result<u32, BadInput
             (a, RECORD_A, ENTRY_A, BYTES_A),
             (b, RECORD_B, ENTRY_B, BYTES_B),
         ] {
-            let from = dword(entry + 4) as usize as *const u8;
-            std::ptr::copy_nonoverlapping(from, base.add(record_at), RECORD_LEN);
+            let from = GamePtr::new(dword(entry + 4))
+                .read_bytes(RECORD_LEN, "a polygon's point record")?;
+            std::ptr::copy_nonoverlapping(from.as_ptr(), base.add(record_at), RECORD_LEN);
             std::ptr::copy_nonoverlapping(entry as *const u8, base.add(entry_at), ENTRY_LEN);
             for (k, at) in BYTES.into_iter().enumerate() {
                 w[bytes_at / 4 + k] = ((entry + at) as *const u8).read() as u32;

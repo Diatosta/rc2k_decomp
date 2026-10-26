@@ -17,7 +17,7 @@ use crate::text::draw_text::Canvas;
 
 // ---- Rust version ----
 
-pub unsafe fn draw_save_setup_list(canvas: &mut dyn Canvas) -> Result<(), Refused> {
+pub fn draw_save_setup_list(canvas: &mut dyn Canvas) -> Result<(), Refused> {
     // Converted: `rc2k_core::screens::slot_lists::setup_page`.
     let page: u32 = { MENU_PAGES.setup_slot_page.get() };
     rc2k_core::screens::slot_lists::setup_page(

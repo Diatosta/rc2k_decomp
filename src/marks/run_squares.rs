@@ -12,6 +12,7 @@
 //!
 //! Caller: `sub_4BF60F` (0x4BF7E9). The spawning is its Rust version.
 
+use crate::errors::Refused;
 use crate::marks::edges::EDGE_MASK;
 use crate::marks::setup::CLOCK;
 use crate::marks::squares_spawn::squares_spawn;
@@ -28,19 +29,20 @@ const LIFE: i32 = 0xFA0;
 /// `fld k; fsub z`, kept extended.
 fn less(k: u32, z: u32) -> [u8; 10] {
     let (v, mut out) = ([k, z], [0u8; 10]);
-    unsafe { less_x87(v.as_ptr() as usize, out.as_mut_ptr() as usize) };
+    less_x87(v.as_ptr() as usize, out.as_mut_ptr() as usize);
     out
 }
 
 /// The Rust version (see the header).
-pub unsafe fn run_squares() {
+pub fn run_squares() -> Result<(), Refused> {
     let old = x87::set_chop();
-    unsafe { run() };
+    run()?;
     x87::set_control(old);
+    Ok(())
 }
 
-unsafe fn run() {
-    unsafe {
+fn run() -> Result<(), Refused> {
+    {
         crate::marks::squares_setup::squares_setup();
         let [a, b, c, d]: [u32; 4] = read_bits(&SQUARE_STATE.run_places);
         for (n, (u, v)) in [(a, b), (c, b), (c, d), (a, d)].into_iter().enumerate() {
@@ -48,7 +50,7 @@ unsafe fn run() {
             VERTICES.vertices[n].v.set_bits(v);
         }
         if MARKS_KIND_FLOATS.running.bits() != 0 {
-            squares_spawn();
+            squares_spawn()?;
         }
         for item in &SQUARE_ITEMS.items {
             if item.live.get() != 1 {
@@ -82,24 +84,23 @@ unsafe fn run() {
         }
         crate::scene::depth_buffer_on::depth_buffer(true);
     }
+    Ok(())
 }
 
 use crate::marks::plain::{ld, st80};
 
 /// `less`'s x87 block as plain Rust on the x87 model (3 instructions), same order and memory places.
-unsafe fn less_x87(v: usize, o: usize) {
-    unsafe {
-        let t0 = ld(v, 0);
-        let t1 = t0 - ld(v, 0x4);
-        st80(o, 0, t1);
-    }
+fn less_x87(v: usize, o: usize) {
+    let t0 = ld(v, 0);
+    let t1 = t0 - ld(v, 0x4);
+    st80(o, 0, t1);
 }
 
 #[cfg(test)]
 mod asm_reference {
     //! The original assembly blocks, kept verbatim as the reference the plain versions are tested against.
 
-    pub(super) unsafe fn less_x87(v: usize, o: usize) {
+    pub(super) fn less_x87(v: usize, o: usize) {
         unsafe {
             core::arch::asm!(
                     "fld dword ptr [{v}]",
@@ -142,8 +143,8 @@ mod asm_differential {
         };
         differential(
             &SPEC,
-            |b| unsafe { reference::less_x87(b[0], b[1]) },
-            |b| unsafe { super::less_x87(b[0], b[1]) },
+            |b| reference::less_x87(b[0], b[1]),
+            |b| super::less_x87(b[0], b[1]),
         );
     }
 }

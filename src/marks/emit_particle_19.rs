@@ -24,6 +24,7 @@ use crate::marks::setup::CLOCK;
 use crate::marks::surface_store::SURFACE;
 use crate::marks::tuning::MARKS_FLOATS;
 use crate::math::x87;
+use crate::pointers::GamePtr;
 use crate::scene::matrix3::{extended, rounded};
 use crate::session::{Bytes, Dword, Float};
 
@@ -48,77 +49,76 @@ pub static NINETEENTH: TwinSet = TwinSet {
 
 /// Whether an entry is to be made (the chance and a free entry), worked out without
 /// writing.
-unsafe fn makes(set: &TwinSet, object: u32) -> bool {
-    unsafe {
-        let level = at(object + set.level_at) as i32;
+fn makes(set: &TwinSet, object: u32) -> Result<bool, Refused> {
+    Ok({
+        let level = at(object + set.level_at)? as i32;
         let r = set
             .tuning
             .chance_random
             .get()
             .wrapping_mul(0xC5)
             .wrapping_add(0x5D);
-        ((r.rotate_right(16) & 7) as i32) < level && next_entry().is_some()
-    }
+        ((r.rotate_right(16) & 7) as i32) < level && next_entry()?.is_some()
+    })
 }
 
 /// Why the Rust version refuses, if it does, worked out without writing.
-pub unsafe fn refusal(set: &TwinSet, object: u32) -> Option<&'static str> {
-    unsafe {
+pub fn refusal(set: &TwinSet, object: u32) -> Result<Option<&'static str>, Refused> {
+    Ok({
         if object == 0 {
-            return Some("a null object");
+            return Ok(Some("a null object"));
         }
-        if !makes(set, object) {
-            return None;
+        if !makes(set, object)? {
+            return Ok(None);
         }
         let car: u32 = EMITTER.car.get();
-        if car == 0 || at(car + 0x24) == 0 {
-            return Some("a null g_marksCar or matrix");
+        if car == 0 || at(car + 0x24)? == 0 {
+            return Ok(Some("a null g_marksCar or matrix"));
         }
-        if at(object + set.level_at) >= LEVELS {
-            return Some("a level past dword_939B86's 9 entries");
+        if at(object + set.level_at)? >= LEVELS {
+            return Ok(Some("a level past dword_939B86's 9 entries"));
         }
         None
-    }
+    })
 }
 
 /// The Rust version (see the header).
-pub unsafe fn emit_particle_19(object: u32) -> Result<(), Refused> {
-    unsafe { emit_twin(&NINETEENTH, object) }
+pub fn emit_particle_19(object: u32) -> Result<(), Refused> {
+    emit_twin(&NINETEENTH, object)
 }
 
 /// The shared body, on `set`'s variables.
-pub unsafe fn emit_twin(set: &TwinSet, object: u32) -> Result<(), Refused> {
+pub fn emit_twin(set: &TwinSet, object: u32) -> Result<(), Refused> {
     unsafe {
-        if let Some(why) = refusal(set, object) {
+        if let Some(why) = refusal(set, object)? {
             return Err(BadInput(why).into());
         }
-        let level = at(object + set.level_at);
+        let level = at(object + set.level_at)?;
         TWIN_STATE.level.set(level);
         let r = next_c5(&set.tuning.chance_random);
         if (r.rotate_right(16) & 7) as i32 >= level as i32 {
             return Ok(());
         }
         SURFACE.wheel_flags.set(set.flags);
-        let motion = [at(object + 0x4C), at(object + 0x50), at(object + 0x54)];
+        let motion = [at(object + 0x4C)?, at(object + 0x50)?, at(object + 0x54)?];
         crate::session::write_bits(&TWIN_STATE.motion, motion);
-        if next_entry().is_none() {
+        if next_entry()?.is_none() {
             return Ok(());
         }
-        let e = take_entry(at(object + 0x1C) & 0xFF_FFFF, set.kind);
-        let put = |o: u32, v: u32| ((e + o) as *mut u32).write_unaligned(v);
+        let e = take_entry(at(object + 0x1C)? & 0xFF_FFFF, set.kind)?;
+        let put = |o: u32, v: u32| GamePtr::new(e + o).write::<u32>(v, "a mark's field");
         let car: u32 = EMITTER.car.get();
-        let m = at(car + 0x24);
+        let m = at(car + 0x24)?;
         let [x, y, y_less, z] = x87::turned_place(
             crate::session::read_bits(&TWIN_STATE.point),
             set.tuning.lift.bits(),
             m,
         );
-        put(0x10, x);
-        put(0x14, y);
-        put(0x28, y_less);
-        put(0x18, z);
-        let row = [0x18u32, 0x14, 0x10]
-            .map(|o| at(m + o))
+        put(0x10, x)?;
+        put(0x14, y)?;
+        put(0x28, y_less)?;
+        put(0x18, z)?;
+        let row = crate::marks::try_from_fn::<u32, 3>(|i| at(m + [0x18u32, 0x14, 0x10][i]))?
             .into_iter()
             .zip(set.tuning.row_k.iter())
             .map(|(a, k)| x87::mul_80(a, k.bits()))
@@ -134,23 +134,23 @@ pub unsafe fn emit_twin(set: &TwinSet, object: u32) -> Result<(), Refused> {
                     set.tuning.motion_k[n].bits(),
                     rounded(moved[n]),
                 ),
-            );
+            )?;
         }
         let r = next_c5(&set.tuning.spin_random);
-        put(0x54, (r & 0x3F).wrapping_sub(0x20));
-        put(0x50, r.rotate_right(6) & 0xFFF);
-        put(0x58, set.flags & 0x3F);
+        put(0x54, (r & 0x3F).wrapping_sub(0x20))?;
+        put(0x50, r.rotate_right(6) & 0xFFF)?;
+        put(0x58, set.flags & 0x3F)?;
         let size = (r.rotate_right(0x14) & 0x4000) + 0x4000;
         RING_WORK.whole.set(size);
-        put(0x60, x87::from_int(size as i32));
+        put(0x60, x87::from_int(size as i32))?;
         let life: u32 = SURFACE.lives_by_level[level as usize].get();
-        put(0x84, life);
+        put(0x84, life)?;
         put(
             0x78,
             x87::over_int(MARKS_FLOATS.two_fifty_seven.bits(), life as i32),
-        );
-        put(0x74, MARKS_FLOATS.two_fifty_five.bits());
-        put(0x68, car);
+        )?;
+        put(0x74, MARKS_FLOATS.two_fifty_five.bits())?;
+        put(0x68, car)?;
     }
     Ok(())
 }

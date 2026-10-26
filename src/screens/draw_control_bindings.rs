@@ -25,12 +25,12 @@ use crate::text::draw_text::Canvas;
 
 // byte_A8BC54
 
-unsafe fn get(a: u32) -> u32 {
-    unsafe { (a as *const u32).read_unaligned() }
+fn get(a: u32) -> Result<u32, crate::errors::BadInput> {
+    crate::pointers::GamePtr::new(a).read::<u32>("a game value")
 }
 
 /// The directions' names (`word_755200`, `word_755212`).
-unsafe fn direction_names() -> rc2k_core::screens::controls::DirectionNames {
+fn direction_names() -> rc2k_core::screens::controls::DirectionNames {
     rc2k_core::screens::controls::DirectionNames {
         pad: CONTROLS_SCREEN.pad(),
         stick: CONTROLS_SCREEN.stick(),
@@ -38,47 +38,39 @@ unsafe fn direction_names() -> rc2k_core::screens::controls::DirectionNames {
 }
 
 /// Row n's text (without its NUL). Converted: `rc2k_core::screens::controls::binding_text`.
-pub unsafe fn binding_text(player: u32, n: u32) -> Result<Vec<u8>, Refused> {
-    unsafe {
-        let b = rc2k_core::screens::controls::Binding {
-            binding: get(player + 0x50 + 4 * n),
-            kind: get(player + 0x34),
-            axis: if n < 2 {
-                *((player + 0x3B - n) as *const u8)
-            } else {
-                0
-            },
-        };
-        let mut canvas = crate::text::draw_text::GameCanvas;
-        let mut s = ControlsScreen::new(&mut canvas);
-        Ok(rc2k_core::screens::controls::binding_text(
-            &mut s,
-            &b,
-            n as usize,
-            &direction_names(),
-        )?)
-    }
+pub fn binding_text(player: u32, n: u32) -> Result<Vec<u8>, Refused> {
+    let b = rc2k_core::screens::controls::Binding {
+        binding: get(player + 0x50 + 4 * n)?,
+        kind: get(player + 0x34)?,
+        axis: if n < 2 {
+            crate::pointers::GamePtr::new(player + 0x3B - n).read::<u8>("a controller axis")?
+        } else {
+            0
+        },
+    };
+    let mut canvas = crate::text::draw_text::GameCanvas;
+    let mut s = ControlsScreen::new(&mut canvas);
+    Ok(rc2k_core::screens::controls::binding_text(
+        &mut s,
+        &b,
+        n as usize,
+        &direction_names(),
+    )?)
 }
 
 /// Returns the carry.
-pub unsafe fn draw_control_bindings(canvas: &mut dyn Canvas) -> Result<bool, Refused> {
-    unsafe {
-        let player = player_at(EVENT_STATE.current_player.get());
-        if player == 0 {
-            return Err(BadInput("no current player").into());
-        }
-        let learning: u32 = CONTROLS_SCREEN.learning.get();
-        let row: u32 = CONTROLS_SCREEN.learned.get();
-        let mut texts: [Vec<u8>; 10] = Default::default();
-        for (n, text) in texts.iter_mut().enumerate() {
-            *text = binding_text(player, n as u32)?;
-        }
-        // Converted: `rc2k_core::screens::controls::control_bindings`.
-        let learnt = (learning == 1 && (1..=10).contains(&row)).then(|| row as usize - 1);
-        rc2k_core::screens::controls::control_bindings(
-            &mut ControlsScreen::new(canvas),
-            &texts,
-            learnt,
-        )
+pub fn draw_control_bindings(canvas: &mut dyn Canvas) -> Result<bool, Refused> {
+    let player = player_at(EVENT_STATE.current_player.get());
+    if player == 0 {
+        return Err(BadInput("no current player").into());
     }
+    let learning: u32 = CONTROLS_SCREEN.learning.get();
+    let row: u32 = CONTROLS_SCREEN.learned.get();
+    let mut texts: [Vec<u8>; 10] = Default::default();
+    for (n, text) in texts.iter_mut().enumerate() {
+        *text = binding_text(player, n as u32)?;
+    }
+    // Converted: `rc2k_core::screens::controls::control_bindings`.
+    let learnt = (learning == 1 && (1..=10).contains(&row)).then(|| row as usize - 1);
+    rc2k_core::screens::controls::control_bindings(&mut ControlsScreen::new(canvas), &texts, learnt)
 }

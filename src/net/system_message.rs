@@ -16,23 +16,24 @@ use crate::errors::Refused;
 use crate::net::destroy_connection::destroy_connection;
 use crate::net::dplay::{DELETE_PLAYER_FROM_GROUP, method};
 use crate::net::store::{NET, PlayerRecord};
+use crate::pointers::GamePtr;
 use rc2k_core::net::players::{A_PLAYER, System, made_host};
 
 /// The Rust version.
 pub fn system_message(message: u32) -> Result<(), Refused> {
-    let get = |at: u32| unsafe { (at as *const u32).read_volatile() };
-    let kind = get(message);
+    let get = |at: u32| GamePtr::new(at).read::<u32>("a system message");
+    let kind = get(message)?;
     // Converted: `rc2k_core::net::players` (`System`, `made_host`).
     match System::of(kind) {
         System::Created => NET.sync_first.set(1),
         System::Destroyed => {
             NET.sync_first.set(1);
-            if get(message + 4) == A_PLAYER {
+            if get(message + 4)? == A_PLAYER {
                 unsafe {
                     method(
                         NET.dplay.get(),
                         DELETE_PLAYER_FROM_GROUP,
-                        &[NET.send_to.get(), get(message + 8)],
+                        &[NET.send_to.get(), get(message + 8)?],
                     )
                 };
             }

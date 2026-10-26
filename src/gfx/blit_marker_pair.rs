@@ -22,12 +22,17 @@ pub fn sprite_table() -> u32 {
 // ---- Rust version ----
 
 /// The two blitter calls the original makes for `object`.
-pub unsafe fn marker_calls(object: *const u8, palette: u32, table: u32) -> [BlitCall; 2] {
-    let coord = |at: usize| unsafe { object.add(at).cast::<i32>().read_unaligned() };
-    [
-        BlitCall::new(FIRST_GLYPH, coord(0x44), coord(0x48), palette, table),
-        BlitCall::new(SECOND_GLYPH, coord(0x4C), coord(0x50), palette, table),
-    ]
+pub fn marker_calls(
+    object: u32,
+    palette: u32,
+    table: u32,
+) -> Result<[BlitCall; 2], crate::errors::BadInput> {
+    let object = crate::pointers::GamePtr::new(object);
+    let coord = |at: u32| object.offset(at).read::<i32>("a marker object\'s position");
+    Ok([
+        BlitCall::new(FIRST_GLYPH, coord(0x44)?, coord(0x48)?, palette, table),
+        BlitCall::new(SECOND_GLYPH, coord(0x4C)?, coord(0x50)?, palette, table),
+    ])
 }
 
 /// Stores a marker's position in the two globals, as the original does before each blit.

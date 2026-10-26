@@ -15,7 +15,7 @@ use crate::screens::service_boxes::{at_esi, quad};
 
 /// The Rust version (see the header): the registers it leaves.
 #[allow(unused_assignments, clippy::needless_late_init)] // the translator's flags, one per `cmp`
-pub unsafe fn service_box_frame_2() -> Result<(), Refused> {
+pub fn service_box_frame_2() -> Result<(), Refused> {
     // The original's eax and esi: an item number or a value compared, and the address of
     // the item's repair flag.
     let mut value = 0u32;
@@ -47,7 +47,7 @@ pub unsafe fn service_box_frame_2() -> Result<(), Refused> {
             value = 0xE;
             flag = (MENU_LISTS.inspection_flags_a[0].addr() as u32)
                 .wrapping_add(value.wrapping_mul(4));
-            c = (at_esi(flag), 0x1);
+            c = (at_esi(flag)?, 0x1);
             if c.0 != c.1 {
                 break 'l492528;
             }

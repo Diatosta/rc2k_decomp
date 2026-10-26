@@ -38,7 +38,7 @@ pub unsafe fn source_against_directory(
         Ok(Some(compare_texts(
             INSTALLER_NAMES.source.addr() as *const u8,
             directory,
-        )))
+        )?))
     }
 }
 

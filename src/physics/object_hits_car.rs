@@ -23,6 +23,7 @@ use crate::physics::contact_store::CONTACT_WORK;
 use crate::physics::object_turn_matrix::object_turn_matrix;
 use crate::physics::point_hits_car::point_hits_car;
 use crate::physics::tables_store::PHYSICS;
+use crate::pointers::GamePtr;
 use crate::race::course_lists_store::COURSE_LISTS;
 use crate::race::matrices_store::MATRICES;
 use crate::scene::rotate_point::rotate_point;
@@ -52,25 +53,45 @@ pub unsafe fn object_hits_car(point: u32, object: u32) -> Result<bool, Refused> 
     } else {
         COURSE_LISTS.object_points.get()
     };
+    let refused = std::cell::Cell::new(None::<Refused>);
     let walk = contacts::walk_points(
         crate::scene::object_slots_store::OBJECT_SLOTS.first_point[number as usize].get(),
         count,
         points,
         0,
         |edx| {
-            let at =
-                |k: u32| unsafe { int_80(((edx + 4 * k) as *const i32).read_unaligned(), false) };
-            let turned = unsafe {
-                rotate_point(
-                    MATRICES.object_turn_matrix[0].addr() as u32,
-                    [at(0), at(1), at(2)],
-                )
+            if refused.get().is_some() {
+                return false;
+            }
+            let at = |k: u32| {
+                GamePtr::new(edx + 4 * k)
+                    .read::<i32>("an object point's coordinate")
+                    .map(|v| int_80(v, false))
+                    .map_err(Refused::from)
             };
+            let (x, y, z) = match (at(0), at(1), at(2)) {
+                (Ok(x), Ok(y), Ok(z)) => (x, y, z),
+                (Err(e), _, _) | (_, Err(e), _) | (_, _, Err(e)) => {
+                    refused.set(Some(e));
+                    return false;
+                }
+            };
+            let turned =
+                unsafe { rotate_point(MATRICES.object_turn_matrix[0].addr() as u32, [x, y, z]) };
             for (k, e) in turned.iter().enumerate() {
                 CONTACT_WORK.object_offset[k].set(ext_to_int(*e) as u32);
             }
-            unsafe { point_hits_car(point, object) }
+            match unsafe { point_hits_car(point, object) } {
+                Ok(inside) => inside,
+                Err(e) => {
+                    refused.set(Some(e));
+                    false
+                }
+            }
         },
     );
+    if let Some(e) = refused.take() {
+        return Err(e);
+    }
     Ok(walk.inside)
 }

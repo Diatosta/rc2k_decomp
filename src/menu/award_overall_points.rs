@@ -15,14 +15,15 @@
 //! search's fatal error, before anything.
 use crate::errors::{BadInput, Refused};
 use crate::menu::draw_work_store::DRAW_WORK;
+use crate::menu::event_flow::Fault;
 use crate::menu::standings::*;
 
 /// An entry's driver (with its number) or player (with its index).
-unsafe fn owner(e: u32) -> Result<(u32, u32, bool), Refused> {
-    match get(e + 4) {
+fn owner(e: u32) -> Result<(u32, u32, bool), Refused> {
+    match get(e + 4)? {
         0 => {
-            let driver = unsafe { crate::menu::find_cpu_team::find_cpu_team(get(e)) }?;
-            Ok((driver, get(e), true))
+            let driver = crate::menu::find_cpu_team::find_cpu_team(get(e)?)?;
+            Ok((driver, get(e)?, true))
         }
         n if n <= 4 && player(n - 1) != 0 => Ok((player(n - 1), n - 1, false)),
         _ => Err(BadInput("a player past 4 or missing").into()),
@@ -53,9 +54,9 @@ impl Awarded {
 }
 
 /// The Rust version (see the header); what it leaves in the registers as `Awarded`.
-pub unsafe fn award_overall_points() -> Result<Awarded, Refused> {
+pub fn award_overall_points() -> Result<Awarded, Refused> {
     let mut last = None;
-    unsafe {
+    {
         let section: u32 = SECTION_RVA.get();
         let table: u32 = TABLE_B_RVA.get();
         if table == 0 || section > 5 {
@@ -72,18 +73,20 @@ pub unsafe fn award_overall_points() -> Result<Awarded, Refused> {
         let mut points = Points::default();
         DRAW_WORK.seconds.set(points.0);
         for (&e, &(o, _, cpu)) in all.iter().zip(&owners) {
-            if get(e + 0x10) == 0 {
+            if get(e + 0x10)? == 0 {
                 continue;
             }
             let given = points.take();
             DRAW_WORK.seconds.set(points.0);
-            put(e + 0x38 + at, given);
-            put(o + if cpu { 0x5C } else { 0xB4 } + at, given);
+            put(e + 0x38 + at, given)?;
+            put(o + if cpu { 0x5C } else { 0xB4 } + at, given)?;
         }
         for (&e, &(o, number, cpu)) in all.iter().zip(&owners) {
-            let total = total(std::array::from_fn(|k| get(e + 0x38 + 4 * k as u32)));
-            put(e + 0x50, total);
-            put(o + if cpu { 0x74 } else { 0xCC }, total);
+            let fault = Fault::default();
+            let total = total(std::array::from_fn(|k| fault.get(e + 0x38 + 4 * k as u32)));
+            fault.check()?;
+            put(e + 0x50, total)?;
+            put(o + if cpu { 0x74 } else { 0xCC }, total)?;
             last = Some((number, o, total));
         }
         Ok(Awarded {

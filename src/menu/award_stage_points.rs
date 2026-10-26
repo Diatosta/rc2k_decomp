@@ -17,6 +17,7 @@
 //! search's fatal error, before anything.
 use crate::errors::{BadInput, Refused};
 use crate::menu::draw_work_store::DRAW_WORK;
+use crate::menu::event_flow::Fault;
 use crate::menu::event_store::EVENT_STATE;
 use crate::menu::standings::*;
 
@@ -28,10 +29,10 @@ enum Owner {
     Player(u32),
 }
 
-unsafe fn owner(e: u32) -> Result<Owner, Refused> {
-    match get(e + 4) {
+fn owner(e: u32) -> Result<Owner, Refused> {
+    match get(e + 4)? {
         0 => {
-            let driver = unsafe { crate::menu::find_cpu_team::find_cpu_team(get(e)) }?;
+            let driver = crate::menu::find_cpu_team::find_cpu_team(get(e)?)?;
             Ok(Owner::Driver(driver))
         }
         n if n <= 4 && player(n - 1) != 0 => Ok(Owner::Player(player(n - 1))),
@@ -64,7 +65,7 @@ pub unsafe fn award_stage_points() -> Result<(), Refused> {
             DRAW_WORK.seconds.set(points.0);
             for (&e, o) in all.iter().zip(&owners) {
                 EVENT_STATE.class.set(class);
-                if get(e + 0x10) != class {
+                if get(e + 0x10)? != class {
                     continue;
                 }
                 crate::logfile::log_write::log_write(
@@ -72,23 +73,25 @@ pub unsafe fn award_stage_points() -> Result<(), Refused> {
                     false,
                     1,
                 );
-                crate::logfile::log_int::log_int(get(e + 0x74) as i32, true, 1);
+                crate::logfile::log_int::log_int(get(e + 0x74)? as i32, true, 1);
                 let given = points.take();
                 DRAW_WORK.seconds.set(points.0);
                 let (keeps, field) = match *o {
-                    Owner::Driver(d) => (get(d + 0x24) == 1, d + 0x78 + at),
-                    Owner::Player(p) => (get(p + 0xD0) == 1, p + 0x98 + at),
+                    Owner::Driver(d) => (get(d + 0x24)? == 1, d + 0x78 + at),
+                    Owner::Player(p) => (get(p + 0xD0)? == 1, p + 0x98 + at),
                 };
-                put(e + 0x54 + at, kept(given, keeps));
-                put(field, kept(given, keeps));
+                put(e + 0x54 + at, kept(given, keeps))?;
+                put(field, kept(given, keeps))?;
             }
         }
         for (&e, o) in all.iter().zip(&owners) {
-            let total = total(std::array::from_fn(|k| get(e + 0x54 + 4 * k as u32)));
-            put(e + 0x6C, total);
+            let fault = Fault::default();
+            let total = total(std::array::from_fn(|k| fault.get(e + 0x54 + 4 * k as u32)));
+            fault.check()?;
+            put(e + 0x6C, total)?;
             match *o {
-                Owner::Driver(d) => put(d + 0x90, total),
-                Owner::Player(p) => put(p + 0xB0, total),
+                Owner::Driver(d) => put(d + 0x90, total)?,
+                Owner::Player(p) => put(p + 0xB0, total)?,
             }
         }
     }

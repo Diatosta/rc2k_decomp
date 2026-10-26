@@ -19,8 +19,8 @@ use crate::menu::flow_game::Game;
 use crate::menu::screen_loop::Carried;
 use rc2k_core::menu::rounds;
 
-pub unsafe fn single_rally_four(c: &Carried) -> Result<(), Refused> {
+pub fn single_rally_four(c: &Carried) -> Result<(), Refused> {
     players_there(4)?;
     // Converted: `rc2k_core::menu::rounds::single_rally_four`.
-    rounds::single_rally_four(&mut Game::new(c))
+    Game::new(c).run(rounds::single_rally_four)
 }

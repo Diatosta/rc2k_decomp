@@ -29,8 +29,8 @@ const RECORD_SIZE: u32 = 0xA4;
 const ROW_1_Y: i32 = 0x1FC;
 const ROW_2_Y: i32 = 0x213;
 
-unsafe fn dword(at: u32) -> u32 {
-    unsafe { (at as *const u32).read_unaligned() }
+fn dword(at: u32) -> Result<u32, crate::errors::BadInput> {
+    crate::pointers::GamePtr::new(at).read::<u32>("a game value")
 }
 
 /// The game's selection: a group, a table in that group and a record in that table.
@@ -47,30 +47,28 @@ pub struct Selection {
 }
 
 /// None while the tables are not there; the original then reads through a null pointer.
-pub unsafe fn selection() -> Option<Selection> {
-    unsafe {
-        let group: u32 = EVENT_STATE.stage_group.get();
-        let index: u32 = EVENT_STATE.stage_number.get();
-        let sub: u32 = EVENT_STATE.stage_sub.get();
-        let tables = crate::records::stages_store::STAGE_TABLES.group_list(group);
-        if tables == 0 {
-            return None;
-        }
-        let table = dword(tables.wrapping_add(sub.wrapping_mul(4)));
-        if table == 0 {
-            return None;
-        }
-        Some(Selection {
-            group,
-            sub,
-            table,
-            record: table.wrapping_add(index.wrapping_mul(RECORD_SIZE)),
-        })
+pub fn selection() -> Result<Option<Selection>, BadInput> {
+    let group: u32 = EVENT_STATE.stage_group.get();
+    let index: u32 = EVENT_STATE.stage_number.get();
+    let sub: u32 = EVENT_STATE.stage_sub.get();
+    let tables = crate::records::stages_store::STAGE_TABLES.group_list(group);
+    if tables == 0 {
+        return Ok(None);
     }
+    let table = dword(tables.wrapping_add(sub.wrapping_mul(4)))?;
+    if table == 0 {
+        return Ok(None);
+    }
+    Ok(Some(Selection {
+        group,
+        sub,
+        table,
+        record: table.wrapping_add(index.wrapping_mul(RECORD_SIZE)),
+    }))
 }
 
-unsafe fn selected_record() -> Option<(u32, u32)> {
-    unsafe { selection() }.map(|s| (s.record, s.sub))
+fn selected_record() -> Result<Option<(u32, u32)>, BadInput> {
+    Ok(selection()?.map(|s| (s.record, s.sub)))
 }
 
 // ---- Rust version ----
@@ -105,26 +103,27 @@ pub const TIME_TRIAL_ROWS: Rows = Rows {
 
 /// Returns the carry flag of the last `draw_text`. Refuses a missing record table and what
 /// the speed formatter refuses; the fatal errors are the blitter's.
-pub unsafe fn draw_stage_records(entry: u32, canvas: &mut dyn Canvas) -> Result<bool, Refused> {
-    unsafe { draw_records_rows(entry, &STAGE_ROWS, canvas) }
+pub fn draw_stage_records(entry: u32, canvas: &mut dyn Canvas) -> Result<bool, Refused> {
+    draw_records_rows(entry, &STAGE_ROWS, canvas)
 }
 
 /// `draw_stage_records` with the top-speed row's places given. Converted:
 /// `rc2k_core::screens::stage_panel::records`.
-pub unsafe fn draw_records_rows(
+pub fn draw_records_rows(
     entry: u32,
     rows: &Rows,
     canvas: &mut dyn Canvas,
 ) -> Result<bool, Refused> {
     use rc2k_core::screens::stage_panel::{CarRow, Holder};
-    unsafe {
+    {
         // Without it the original reads through a null pointer after drawing the first row.
-        let Some((record, sub)) = selected_record() else {
+        let Some((record, sub)) = selected_record()? else {
             return Err(
                 BadInput("no record table is selected: the original reads through null").into(),
             );
         };
-        let at = |base: u32, o: u32| dword(base.wrapping_add(o));
+        let f = crate::menu::event_flow::Fault::default();
+        let at = |base: u32, o: u32| f.get(base.wrapping_add(o));
         let best = Holder {
             nation: at(entry, 8),
             name: entry.wrapping_add(0x20),

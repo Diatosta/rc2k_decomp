@@ -18,9 +18,9 @@ use crate::marks::pick_shapes::pick_shapes;
 
 /// The Rust version (see the header).
 // Converted: `rc2k_core::marks::steps::{steps, next_step}`
-pub unsafe fn squares_step() -> Result<(), Refused> {
+pub fn squares_step() -> Result<(), Refused> {
     use rc2k_core::marks::steps;
-    unsafe {
+    {
         HEX.squares_cleared.set(0);
         let clock: u32 = HEXAGON_STATE.clock.bits();
         let n = steps::steps(PICKS.index.get(), clock);

@@ -32,7 +32,7 @@ pub fn setting_key(key: u8) -> Result<(), Refused> {
                     NET.machine_name.addr() as u32,
                     INSTALLER_PATHS.script_path.addr() as u32,
                     0x40,
-                );
+                )?;
             }
         }
         chat::MOST_PLAYERS => {

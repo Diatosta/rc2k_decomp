@@ -9,32 +9,36 @@
 //! A list of no items goes round 2^32 times, and a kind 2 of no choices 256 times, as the original
 //! (the callers' lists have items). Callers: `race::mark_viewer_items`, `sub_4144CF` (three).
 
+use crate::errors::BadInput;
+use crate::pointers::GamePtr;
 use rc2k_core::menu::list_menu::{has_choices, rounds, unmarked};
 
 /// The Rust version.
-pub unsafe fn list_clear_marks(list: u32) {
+pub fn list_clear_marks(list: u32) -> Result<(), BadInput> {
     // Converted: `rc2k_core::menu::list_menu` (`unmarked`, `has_choices`, `rounds`).
-    unsafe {
-        // Its count is a byte, but the original counts it down as a dword: 0 goes round
-        // 2^32 times.
-        let mut count = ((list + 1) as *const u8).read() as u32;
-        let mut item = (list + 0x18) as *mut u8;
-        loop {
-            let kind = unmarked(item.read());
-            item.write(kind);
-            if has_choices(kind) {
-                let n = rounds(item.add(1).read());
-                let choices = ((item.add(0xC) as *const u32).read_unaligned() + 1) as *mut u8;
-                for c in 0..n as usize {
-                    let choice = choices.add(2 * c);
-                    choice.write(unmarked(choice.read()));
-                }
-            }
-            item = item.add(0x10);
-            count = count.wrapping_sub(1);
-            if count == 0 {
-                break;
+    // Its count is a byte, but the original counts it down as a dword: 0 goes round
+    // 2^32 times.
+    let mut count = GamePtr::new(list + 1).read::<u8>("a list menu\'s count")? as u32;
+    let mut item = GamePtr::new(list + 0x18);
+    loop {
+        let kind = unmarked(item.read::<u8>("a list item")?);
+        item.write::<u8>(kind, "a list item")?;
+        if has_choices(kind) {
+            let n = rounds(item.offset(1).read::<u8>("a list item")?);
+            let choices = GamePtr::new(item.offset(0xC).read::<u32>("a list item")? + 1);
+            for c in 0..n as u32 {
+                let choice = choices.offset(2 * c);
+                choice.write::<u8>(
+                    unmarked(choice.read::<u8>("a list choice")?),
+                    "a list choice",
+                )?;
             }
         }
+        item = item.offset(0x10);
+        count = count.wrapping_sub(1);
+        if count == 0 {
+            break;
+        }
     }
+    Ok(())
 }

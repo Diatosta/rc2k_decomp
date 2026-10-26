@@ -27,6 +27,7 @@ use crate::errors::{BadInput, Refused};
 use crate::install::vars::INSTALLER_NAMES;
 use crate::install::vars::INSTALLER_PATHS;
 use crate::install::vars::INSTALLER_RUN;
+use crate::pointers::GamePtr;
 use crate::system::read_command_line::COMMAND_LINE;
 
 const ROOM: u32 = 0x100;
@@ -67,7 +68,7 @@ impl Vars {
 }
 
 fn rd(at: u32) -> u32 {
-    unsafe { (at as *const u32).read_volatile() }
+    crate::install::installer::rd(at)
 }
 
 /// `files::set_current_directory` (0x403105): whether it worked.
@@ -88,12 +89,12 @@ pub fn run_after_exit_with(v: &Vars) -> Result<(), Refused> {
     use crate::files::append_directory::append_directory;
     use crate::files::append_file_name::append_file_name;
     let switch = |n: u32| rd(v.switches + 4 * n);
-    if unsafe { (v.reported as *const u8).read_volatile() } == 1 {
+    if GamePtr::new(v.reported).read::<u8>("the installer's reported byte")? == 1 {
         return Ok(());
     }
     // The refusals, before anything.
     let game_dir_len =
-        unsafe { crate::strings::text_length::text_length(v.game_dir as *const u8) }?;
+        crate::files::cstring(GamePtr::new(v.game_dir), "the game's folder")?.len() as u32;
     if switch(2) != 1 && switch(5) == 1 && game_dir_len + 5 + 1 > ROOM {
         return Err(
             BadInput("the game's folder too long for \"ereg\\\" in its 0x100 bytes").into(),
@@ -126,13 +127,13 @@ pub fn run_after_exit_with(v: &Vars) -> Result<(), Refused> {
         return Ok(());
     }
     if switch(5) == 1 {
-        unsafe {
+        {
             // "ereg\eregip.exe" (the script's text after its count).
             let ereg = (INSTALLER_RUN.ereg.addr() + 2) as *const u8;
             let (cursor, _) = append_directory(ereg, (v.game_dir + game_dir_len) as *mut u8)?;
-            cursor.write(0);
+            GamePtr::new(cursor as u32).write(0u8, "the installer's path")?;
             let cursor = append_file_name(ereg, v.program as *mut u8)?;
-            cursor.write(0);
+            GamePtr::new(cursor as u32).write(0u8, "the installer's path")?;
         }
         if !set_cd(v.game_dir) {
             return Ok(());

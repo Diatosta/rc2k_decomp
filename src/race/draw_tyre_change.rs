@@ -27,6 +27,7 @@
 use crate::errors::{BadInput, Refused};
 use crate::gfx::blit::BLIT;
 use crate::gfx::fonts_store::FONTS;
+use crate::pointers::GamePtr;
 use crate::race::tyre_store::TYRE_CHANGE as TYRE;
 use crate::race::viewer_screen_store::VIEWER_PANEL;
 use crate::session::Dword;
@@ -54,7 +55,7 @@ fn line() -> u32 {
 unsafe fn build_text(id: u32, time: Option<u32>) -> Result<(), Refused> {
     use crate::strings::append_time::{append_time, show_hours};
     let mut t = Vec::new();
-    unsafe { crate::strings::append_string_by_id::push_string(&mut t, id) };
+    crate::strings::append_string_by_id::push_string(&mut t, id)?;
     if let Some(h) = time {
         t.extend(append_time(h, show_hours()));
     }
@@ -62,13 +63,9 @@ unsafe fn build_text(id: u32, time: Option<u32>) -> Result<(), Refused> {
     if t.len() > crate::strings::text_from_ids::TEXT_LEN {
         return Err(BadInput("a tyre change text longer than the text buffer").into());
     }
-    unsafe {
-        std::ptr::copy_nonoverlapping(
-            t.as_ptr(),
-            TEXT_BUFFER.text.addr() as u32 as *mut u8,
-            t.len(),
-        )
-    };
+    for (n, &b) in t.iter().enumerate() {
+        TEXT_BUFFER.text.set(n, b);
+    }
     Ok(())
 }
 
@@ -160,9 +157,9 @@ pub unsafe fn draw_tyre_change(device: u32) -> Result<(), Refused> {
             0x80
         };
         fill(x, 0xB2, 0x80, 0x4B)?;
-        let state = unsafe { ((device + 0x4F0) as *const u32).read_unaligned() };
+        let state = GamePtr::new(device + 0x4F0).read::<u32>("the tyre change device's state")?;
         if state == 1 {
-            let time = unsafe { ((device + 0x4F4) as *const u32).read_unaligned() };
+            let time = GamePtr::new(device + 0x4F4).read::<u32>("the tyre change device's time")?;
             unsafe { build_text(0x12D, Some(time)) }?;
         } else {
             unsafe { build_text(0x12C, None) }?;

@@ -5,10 +5,11 @@
 //!      differing character is the lower; every register preserved
 //! Character by character, each through `g_lowerCase`. Five callers.
 
+use crate::errors::BadInput;
 use crate::moved::Place;
+use crate::pointers::GamePtr;
 use rc2k_core::strings::case::CaseTable;
 use std::cmp::Ordering;
-use std::ffi::{CStr, c_char};
 
 // ---- Rust version ----
 
@@ -53,18 +54,17 @@ pub fn set_case_table(table: &[u8; 256]) {
 
 /// How the first text's first differing character stands to the second's (converted:
 /// `rc2k_core::strings::case::CaseTable::compare`).
-pub unsafe fn compare_texts(a: *const u8, b: *const u8) -> Ordering {
-    let (a, b) = unsafe {
-        (
-            CStr::from_ptr(a as *const c_char),
-            CStr::from_ptr(b as *const c_char),
-        )
+pub fn compare_texts(a: *const u8, b: *const u8) -> Result<Ordering, BadInput> {
+    let read = |at: *const u8| -> Result<Vec<u8>, BadInput> {
+        let at = at as usize as u32;
+        let len = crate::strings::text_length::nul_at(at, "a text to compare")?;
+        GamePtr::new(at).read_bytes(len as usize, "a text to compare")
     };
-    case_table().compare(a.to_bytes(), b.to_bytes())
+    Ok(case_table().compare(&read(a)?, &read(b)?))
 }
 
-pub unsafe fn same_text(a: *const u8, b: *const u8) -> bool {
-    unsafe { compare_texts(a, b) == Ordering::Equal }
+pub fn same_text(a: *const u8, b: *const u8) -> Result<bool, BadInput> {
+    Ok(compare_texts(a, b)? == Ordering::Equal)
 }
 
 #[cfg(test)]

@@ -10,5 +10,5 @@ use rc2k_core::menu::finish;
 /// The Rust version (see the header).
 pub fn section_finish() -> Result<(), Refused> {
     // Converted: `rc2k_core::menu::finish::section_finish`.
-    finish::section_finish(&mut Game::default())
+    Game::run(finish::section_finish)
 }

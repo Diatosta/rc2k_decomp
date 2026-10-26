@@ -10,18 +10,20 @@
 //! compared exactly as before (the earlier version stays for the Rust callers in
 //! unconverted code).
 
+use crate::errors::Refused;
 use crate::marks::spawn_hexagon::spawn_hexagon;
 use crate::marks::work_store::MARKS_WORK;
 
 /// The Rust version (see the header).
-pub unsafe fn pick_hexagon() {
-    unsafe {
+pub fn pick_hexagon() -> Result<(), Refused> {
+    {
         let s = MARKS_WORK.seed.get().wrapping_mul(0x9D).wrapping_add(0x47);
         MARKS_WORK.seed.set(s);
         spawn_hexagon(
             s & 0x7FF,
             s.rotate_right(11) & 0x3FF,
             s.rotate_right(22) & 7,
-        );
+        )?;
     }
+    Ok(())
 }

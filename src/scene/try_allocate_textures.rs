@@ -66,17 +66,13 @@ impl rc2k_core::scene::textures::TextureMemory for GameMemory {
         cell_at(&OBJECT_TABLES.level_mips[0], level).get()
     }
     fn forget_kinds(&mut self) {
-        unsafe {
-            std::ptr::write_bytes(
-                KIND_TEXTURES.kind_first_slots[0].addr() as *mut u8,
-                0xFF,
-                TEXTURES * 4,
-            );
-            std::ptr::write_bytes(
-                KIND_TEXTURES.kind_first_textures[0].addr() as *mut u8,
-                0xFF,
-                TEXTURES * 4,
-            );
+        for table in [
+            &KIND_TEXTURES.kind_first_slots,
+            &KIND_TEXTURES.kind_first_textures,
+        ] {
+            for cell in &table[..TEXTURES] {
+                cell.set(u32::MAX);
+            }
         }
     }
     fn set_asked(&mut self, asked: [u32; 2]) {

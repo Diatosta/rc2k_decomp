@@ -23,7 +23,7 @@ impl rc2k_core::menu::bests::RecordEntries for Entries {
     type Error = Refused;
 
     fn clear(&mut self) -> Result<(), Refused> {
-        unsafe { crate::menu::clear_record_entries::clear_record_entries() }
+        crate::menu::clear_record_entries::clear_record_entries()
     }
 
     fn set_entered(&mut self, on: u32) {
@@ -36,21 +36,21 @@ impl rc2k_core::menu::bests::RecordEntries for Entries {
 
     fn beats(&mut self, n: u32) -> Result<bool, Refused> {
         let _ = n;
-        unsafe { crate::menu::beat_target_time::beat_target_time()? };
+        crate::menu::beat_target_time::beat_target_time()?;
         Ok({ EVENT_STATE.time_qualifies.get() } == 1)
     }
 
     fn enter(&mut self, n: u32) -> Result<(), Refused> {
         let _ = n;
-        unsafe { crate::menu::enter_record_entry::enter_record_entry() }
+        crate::menu::enter_record_entry::enter_record_entry()
     }
 }
 
 /// The Rust version (see the header).
-pub unsafe fn record_entries_pass() -> Result<(), Refused> {
+pub fn record_entries_pass() -> Result<(), Refused> {
     let players = counted_players()?;
     current_event()?;
-    if players.iter().any(|&p| get(p + 0x18) == 0) {
+    if any_unnamed(&players)? {
         return Err(BadInput("a player without a name").into());
     }
     // Converted: `rc2k_core::menu::bests::record_entries`.

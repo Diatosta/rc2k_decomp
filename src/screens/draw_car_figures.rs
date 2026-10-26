@@ -44,27 +44,23 @@ const PAGES: u32 = 4;
 // ---- Rust version ----
 
 /// Returns the carry of the last text drawn.
-pub unsafe fn draw_car_figures(canvas: &mut dyn Canvas) -> Result<bool, Refused> {
+pub fn draw_car_figures(canvas: &mut dyn Canvas) -> Result<bool, Refused> {
     let page: u32 = { EVENT_STATE.car_page.get() };
     if page >= PAGES {
         return Err(BadInput("a page past the four").into());
     }
-    unsafe { draw_car_page(page, shown_description()?, canvas) }
+    draw_car_page(page, shown_description()?, canvas)
 }
 
 /// One page (`sub_469C40`, `sub_469F12`, `sub_46A193`, `sub_469CA0` for 0 .. 3) of the
 /// record at `record`: the carry of the last text drawn. Converted:
 /// `rc2k_core::screens::car_pages::page` (the record written back when it changed it: the Clio's
 /// strings).
-pub unsafe fn draw_car_page(
-    page: u32,
-    record: *mut CarDescription,
-    canvas: &mut dyn Canvas,
-) -> Result<bool, Refused> {
+pub fn draw_car_page(page: u32, record: u32, canvas: &mut dyn Canvas) -> Result<bool, Refused> {
     use crate::screens::game_screen::GameScreen;
     use rc2k_core::screens::car_pages::{Font, Work};
-    unsafe {
-        let before = read(record);
+    {
+        let before = read(record)?;
         let mut d = before;
         let notice = crate::strings::load_language::notice_kind(); // g_noticeKind
         let carry = rc2k_core::screens::car_pages::page(
@@ -75,7 +71,8 @@ pub unsafe fn draw_car_page(
             crate::strings::units::units(),
         );
         if d != before {
-            record.write_unaligned(d);
+            crate::pointers::GamePtr::new(record)
+                .write::<CarDescription>(d, "a car description")?;
         }
         carry
     }

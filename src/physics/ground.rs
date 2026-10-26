@@ -11,10 +11,12 @@
 //! their callers (`ground_search` keeps them all: `pusha` / `popa`).
 
 use crate::errors::{BadInput, Refused};
+use crate::physics::cells::Trap;
 use crate::physics::edge_side::{EdgePlaces, edge_side_at};
 use crate::physics::find_course_record::{RecordPlaces, find_course_record_at};
 use crate::physics::ground_store::GROUND_WORK;
 use crate::physics::plane_height::{Plane, plane_height_at};
+use crate::pointers::GamePtr;
 use crate::race::course_store::COURSE;
 use crate::race::kind_records_store::KIND_RECORDS;
 use crate::race::numbers_store::NUMBERS;
@@ -66,8 +68,8 @@ impl Ground {
     }
 }
 
-unsafe fn at(a: u32) -> u32 {
-    unsafe { (a as *const u32).read_unaligned() }
+fn at(a: u32) -> Result<u32, BadInput> {
+    GamePtr::new(a).read::<u32>("a course face, record or scene point")
 }
 
 /// `physics::face_shares` (0x442323): the three corners named by `dword_639890` ..
@@ -75,12 +77,12 @@ unsafe fn at(a: u32) -> u32 {
 /// shares by the x87 (`math::x87_run::face_shares`; the `rcpss` way with the SSE switch).
 /// The registers it leaves (eax the last difference, ebx, ecx the third corner's y, z)
 /// are read by none of its callers.
-pub unsafe fn face_shares_at(g: &Ground) {
+pub unsafe fn face_shares_at(g: &Ground) -> Result<(), Refused> {
     unsafe {
         let mut corner = [[0u32; 3]; 3];
         for (k, c) in corner.iter_mut().enumerate() {
             let p = g.point(GROUND_WORK.face_corner_numbers[k].get());
-            *c = [at(p), at(p + 4), at(p + 8)];
+            *c = [at(p)?, at(p + 4)?, at(p + 8)?];
             for (n, &v) in c.iter().enumerate() {
                 GROUND_WORK.face_corners[3 * k + n].set(v);
             }
@@ -148,6 +150,7 @@ pub unsafe fn face_shares_at(g: &Ground) {
             GROUND_WORK.face_share_scale.set_bits(o[7]);
         }
     }
+    Ok(())
 }
 
 /// `face_under_point`'s refusal, worked out without writing.
@@ -168,21 +171,35 @@ pub unsafe fn face_under_point_at(g: &Ground, number: u32) -> Result<bool, Refus
         }
         COURSE.ground_number.set(number);
         let face = (number << 6).wrapping_add(COURSE.course_faces.get());
-        let kind = (face as *const u8).read();
+        let kind = GamePtr::new(face).read::<u8>("a course face's kind")?;
+        let trap = Trap::new();
         // One edge.
         let side = |from: u32, to: u32| -> Option<bool> {
-            let s = edge_side_at(&g.edge(), g.point(at(face + from)), g.point(at(face + to)));
-            (s.zero == Some(true)).then_some(s.carry)
+            if trap.failed() {
+                return None;
+            }
+            let s = at(face + from)
+                .and_then(|f| Ok((f, at(face + to)?)))
+                .map_err(Refused::from)
+                .and_then(|(f, t)| edge_side_at(&g.edge(), g.point(f), g.point(t)));
+            match s {
+                Ok(s) => (s.zero == Some(true)).then_some(s.carry),
+                Err(e) => {
+                    trap.refuse(e);
+                    None
+                }
+            }
         };
         let test = ground_search::face_under_point(
             kind,
-            || ((face + 2) as *const u16).read_unaligned(),
+            || trap.word(face + 2, "a course face's flags"),
             crate::physics::ground_probe_store::GROUND_PROBE
                 .settle_mark
                 .get(),
-            |o| at(face + o),
+            |o| trap.dword(face + o, "a course face's corner"),
             side,
         );
+        trap.finish()?;
         let (half, corners) = match test {
             FaceTest::Kind | FaceTest::Flags(_) | FaceTest::Edge => return Ok(false),
             FaceTest::Inside { half, corners } => (half, corners),
@@ -192,11 +209,11 @@ pub unsafe fn face_under_point_at(g: &Ground, number: u32) -> Result<bool, Refus
         let face = (number << 6).wrapping_add(COURSE.course_faces.get());
         COURSE.ground_half.set(half);
         for (k, &o) in corners.iter().enumerate() {
-            let corner = at(face + o);
+            let corner = at(face + o)?;
             GROUND_WORK.face_corner_numbers[k].set(corner);
             COURSE.ground_corners[k].set(corner);
         }
-        face_shares_at(g);
+        face_shares_at(g)?;
         GROUND_WORK.face_under_point_done.set(1);
         plane_height_at(&g.plane());
         Ok(true)
@@ -204,19 +221,18 @@ pub unsafe fn face_under_point_at(g: &Ground, number: u32) -> Result<bool, Refus
 }
 
 /// `search_record_faces`' refusal, worked out without writing.
-pub unsafe fn record_refusal(record: u32) -> Option<&'static str> {
-    unsafe {
+pub fn record_refusal(record: u32) -> Option<&'static str> {
+    {
         if let Err(e) = ground_search::check_record(record, COURSE.course_record_count.get()) {
             return Some(e.0);
         }
         let rec = (record << 5).wrapping_add(COURSE.course_records.get());
-        ground_search::check_record_faces(
-            at(rec + 8),
-            at(rec + 0xC),
-            COURSE.course_face_count.get(),
-        )
-        .err()
-        .map(|e| e.0)
+        let (Ok(first), Ok(last)) = (at(rec + 8), at(rec + 0xC)) else {
+            return Some("a course record outside every allocation");
+        };
+        ground_search::check_record_faces(first, last, COURSE.course_face_count.get())
+            .err()
+            .map(|e| e.0)
     }
 }
 
@@ -229,9 +245,9 @@ pub unsafe fn search_record_faces_at(g: &Ground, record: u32) -> Result<bool, Re
             return Err(BadInput(why).into());
         }
         let rec = (record << 5).wrapping_add(COURSE.course_records.get());
-        let (found, _) = ground_search::search_faces(at(rec + 8), at(rec + 0xC), |face| {
-            face_under_point_at(g, face)
-        })?;
+        let (first, last) = (at(rec + 8)?, at(rec + 0xC)?);
+        let (found, _) =
+            ground_search::search_faces(first, last, |face| face_under_point_at(g, face))?;
         Ok(found)
     }
 }

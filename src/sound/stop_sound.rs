@@ -12,17 +12,17 @@
 //! above are the original's, for reference.
 
 use crate::errors::BadInput;
+use crate::pointers::GamePtr;
 
 // ---- Rust version ----
 
 /// The request's sound stopped (`sound::play_sound` with a volume of 0, of which the
 /// audio thread reads only the sound and the volume) unless it has bit 0x8000.
-pub unsafe fn stop_sound(request: u32) -> Result<(), BadInput> {
-    let request = request as *const u32;
-    if request.is_null() {
+pub fn stop_sound(request: u32) -> Result<(), BadInput> {
+    if request == 0 {
         return Err(BadInput("no request"));
     }
-    let sound = unsafe { request.read_unaligned() };
+    let sound: u32 = GamePtr::new(request).read("a sound request")?;
     // Converted: `rc2k_core::sound::senders::stopped`.
     if let Some(sound) = rc2k_core::sound::senders::stopped(sound) {
         crate::sound::play_sound::play_sound(sound, 0, 0, [0; 3]);

@@ -8,17 +8,16 @@
 //! Caller: `drive::flush_replay_if`. Refuses what `write_replay_frames` refuses.
 
 use crate::errors::Refused;
+use crate::pointers::GamePtr;
 
 const DWORDS: usize = 0xA04;
 
 /// The Rust version.
 pub unsafe fn flush_replay() -> Result<(), Refused> {
-    unsafe {
-        std::ptr::copy(
-            crate::race::blocks_store::block_addr(8) as *const u32,
-            crate::race::viewer_buffers_store::VIEWER_BUFFERS.block[0].addr() as *mut u32,
-            DWORDS,
-        )
-    };
+    GamePtr::new(crate::race::blocks_store::block_addr(8) as u32).copy_to(
+        GamePtr::new(crate::race::viewer_buffers_store::VIEWER_BUFFERS.block[0].addr() as u32),
+        DWORDS * 4,
+        "a car's block",
+    )?;
     unsafe { crate::drive::write_replay_frames::write_replay_frames() }
 }

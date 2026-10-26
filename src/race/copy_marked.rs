@@ -39,7 +39,7 @@ pub fn copy_marked() -> Result<Option<u32>, Refused> {
         crate::race::viewer_buffers_store::VIEWER_BUFFERS.clip_places[0].addr(),
         REPLAY_FILE.block_places[0].addr() + 8 * first as usize,
         dwords,
-    );
+    )?;
     move_dwords(
         crate::race::viewer_buffers_store::VIEWER_BUFFERS.clip_cameras[0].addr(),
         crate::race::viewer_buffers_store::VIEWER_BUFFERS
@@ -47,6 +47,6 @@ pub fn copy_marked() -> Result<Option<u32>, Refused> {
             .addr()
             + 8 * first as usize,
         dwords,
-    );
+    )?;
     Ok(Some(blocks))
 }

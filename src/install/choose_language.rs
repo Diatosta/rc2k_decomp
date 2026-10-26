@@ -24,21 +24,22 @@ pub const LANGUAGE_SLOTS: usize = config::SLOTS;
 
 // ---- Rust version ----
 
-pub unsafe fn choose_language(number: u32) -> Result<(), BadInput> {
-    unsafe {
+pub fn choose_language(number: u32) -> Result<(), BadInput> {
+    {
         // Converted: `rc2k_core::install::config` (`language_slot`, `language_directory`).
         let Some(slot) = config::language_slot(number, INSTALLER_NAMES.language_count.get())?
         else {
             return Ok(());
         };
-        let slot = std::slice::from_raw_parts(
-            (INSTALLER_NAMES.languages.addr() + slot * LANGUAGE_SLOT) as *const u8,
-            LANGUAGE_SLOT,
-        );
-        let directory = config::language_directory(slot)?;
-        let to = crate::files::state::locale_directory();
-        std::ptr::copy(directory.as_ptr(), to, directory.len());
-        to.add(directory.len()).write(0);
+        let slot = crate::pointers::GamePtr::new(
+            (INSTALLER_NAMES.languages.addr() + slot * LANGUAGE_SLOT) as u32,
+        )
+        .read_bytes(LANGUAGE_SLOT, "a language's slot")?;
+        let directory = config::language_directory(&slot)?;
+        let to = crate::pointers::GamePtr::new(crate::files::state::locale_directory() as u32);
+        to.write_bytes(directory, "the locale directory")?;
+        to.offset(directory.len() as u32)
+            .write(0u8, "the locale directory")?;
         Ok(())
     }
 }

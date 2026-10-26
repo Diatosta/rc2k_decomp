@@ -13,18 +13,19 @@
 
 use crate::errors::Refused;
 use crate::physics::tables_store::PHYSICS;
+use crate::pointers::GamePtr;
 use crate::race::frame_store::FRAME_WORK;
 use crate::race::work_store::RACE_WORK;
 
 /// The Rust version.
 // Converted: `rc2k_core::drive::inputs::{check_car, device_words, replay_words}`.
-pub unsafe fn car_input_words() -> Result<(), Refused> {
+pub fn car_input_words() -> Result<(), Refused> {
     use rc2k_core::drive::inputs::{NO_DEVICE, ReplayWords, check_car, device_words, replay_words};
     let car = RACE_WORK.current_car.get();
     check_car(car)?;
     let device = FRAME_WORK.listed_car_sounds[car as usize].get();
     let readings = if device != NO_DEVICE {
-        Some(unsafe { crate::drive::device_axes::device_axes(device) }?)
+        Some(crate::drive::device_axes::device_axes(device)?)
     } else {
         None
     };
@@ -33,16 +34,16 @@ pub unsafe fn car_input_words() -> Result<(), Refused> {
         PHYSICS.input_words[k].set(*v);
     }
     if crate::net::store::NET.session.get() != 0 {
-        let block = (RACE_WORK.car_block(car as usize) + 0xFD0) as *mut u32;
-        for k in 0..4 {
-            let at = unsafe { block.add(k) };
+        let block = RACE_WORK.car_block(car as usize).wrapping_add(0xFD0);
+        for k in 0..4u32 {
+            let at = GamePtr::new(block.wrapping_add(4 * k));
             match replay_words(car, crate::net::store::NET.player.get()) {
                 ReplayWords::FromBlock => {
-                    PHYSICS.input_words[k].set(unsafe { at.read_unaligned() })
+                    PHYSICS.input_words[k as usize].set(at.read::<u32>("a car's block")?)
                 }
-                ReplayWords::IntoBlock => unsafe {
-                    at.write_unaligned(PHYSICS.input_words[k].get())
-                },
+                ReplayWords::IntoBlock => {
+                    at.write(PHYSICS.input_words[k as usize].get(), "a car's block")?
+                }
             }
         }
     }

@@ -4,26 +4,45 @@
 //! +8 its handle, +0xC its flag (1 running, 0xFF suspended), +0x10 .. +0x110 the path
 //! buffer `files::resolve_path` uses for the thread.
 
-use crate::errors::Refused;
+use crate::errors::{BadInput, Refused};
 use crate::moved::Place;
+use crate::pointers::{Cells, GamePtr};
+use crate::session::{Byte, Bytes, Dword};
 
 #[repr(C)]
 pub struct ThreadSlot {
     /// The routine: its IDA address, as the image held it before relocation
     /// (`start_slot_thread` makes the running address of it).
-    pub routine: u32,
-    pub thread_id: u32,
-    _rest: [u8; 0x108],
+    pub routine: Dword,
+    pub thread_id: Dword,
+    /// The thread's handle (+8).
+    pub handle: Dword,
+    /// +0xC: 1 running, 0xFF suspended.
+    pub flag: Byte,
+    _pad: Bytes<3>,
+    /// +0x10: the buffer `files::resolve_path` uses for the thread.
+    pub path: Bytes<0x100>,
 }
+
+// SAFETY: every field is a cell of plain integers.
+unsafe impl Cells for ThreadSlot {}
 
 impl ThreadSlot {
     const fn new(routine: u32) -> Self {
         Self {
-            routine,
-            thread_id: 0,
-            _rest: [0; 0x108],
+            routine: Dword::new(routine),
+            thread_id: Dword::new(0),
+            handle: Dword::new(0),
+            flag: Byte::new(0),
+            _pad: Bytes::new([0; 3]),
+            path: Bytes::new([0; 0x100]),
         }
     }
+}
+
+/// Slot `n`, checked against the slots' region.
+pub fn slot_ref(n: usize) -> Result<&'static ThreadSlot, BadInput> {
+    GamePtr::new(slot(n) as u32).record::<ThreadSlot>("a thread slot")
 }
 
 /// The slot of the input thread, the audio thread, the network receive thread and the
@@ -50,7 +69,7 @@ pub fn run_routine(routine: u32) -> Option<Result<(), Refused>> {
         0x4078DA => Some(crate::input::input_thread::thread_routine()),
         0x409CCE => Some(unsafe { crate::audio::thread::audio_thread(slot(AUDIO) as u32) }),
         0x4183C3 => Some(crate::net::receive_thread::receive_thread()),
-        0x410C17 => crate::threading::shutdown_thread::shutdown_thread(),
+        0x410C17 => Some(crate::threading::shutdown_thread::shutdown_thread()),
         _ => None,
     }
 }

@@ -16,15 +16,21 @@ use rc2k_core::drive::places;
 
 /// The Rust version.
 // Converted: `rc2k_core::drive::places::two_car_order`.
-pub fn two_car_order() {
+pub fn two_car_order() -> Result<(), crate::errors::BadInput> {
     // g_carBlockStore: the figures of car block `car`.
-    let figure = |car: usize, o: u32| unsafe {
-        ((crate::race::blocks_store::block_addr(car) + o as usize) as *const u32).read_unaligned()
+    let reading = crate::scene::reading::Reading::new();
+    let figure = |car: usize, o: u32| {
+        reading.read::<u32>(
+            (crate::race::blocks_store::block_addr(car) as u32).wrapping_add(o),
+            "a car's block",
+        )
     };
     // The last argument is only handed back as `last` (ebx), which no caller reads.
     let order = places::two_car_order(RACE_VARS.run_kind.get(), RACE_VIEW.players.get(), figure, 0);
+    reading.finish()?;
     if let Some([x, y]) = order.places {
         CAR_BLOCKS.cars[0].unknown_fa4.set_bits(x);
         CAR_BLOCKS.cars[1].unknown_fa4.set_bits(y);
     }
+    Ok(())
 }

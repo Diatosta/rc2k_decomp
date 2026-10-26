@@ -20,21 +20,22 @@ use crate::marks::frame_state::DRAW_WORK;
 use crate::marks::run_particles::PARTICLE_TUNING;
 use crate::marks::work_store::MARKS_WORK;
 use crate::math::x87;
+use crate::pointers::GamePtr;
 
 const ENTRIES: u32 = 0x100;
 const FULL: u32 = 0xFFF;
 const LIFE: u32 = 0xBB8;
 
 /// The marks' random: times 0x9D plus 0x47.
-unsafe fn next_seed() -> u32 {
+fn next_seed() -> u32 {
     let s = MARKS_WORK.seed.get().wrapping_mul(0x9D).wrapping_add(0x47);
     MARKS_WORK.seed.set(s);
     s
 }
 
 /// The entries the burst takes, from `g_marksRingFree` along +0.
-unsafe fn entries_taken() -> Vec<u32> {
-    unsafe {
+fn entries_taken() -> Result<Vec<u32>, Refused> {
+    Ok({
         let used: u32 = RING_POOL.used.get();
         let count = if used <= FULL {
             (FULL - used).min(ENTRIES)
@@ -47,21 +48,21 @@ unsafe fn entries_taken() -> Vec<u32> {
             if e == 0 {
                 break;
             }
-            e = (e as *const u32).read_unaligned();
+            e = GamePtr::new(e).read::<u32>("a mark's field")?;
             out.push(e);
         }
         out
-    }
+    })
 }
 
 /// The Rust version (see the header): `record` the particle it bursts from (esi).
-pub unsafe fn burst_particles(record: u32) -> Result<(), Refused> {
-    unsafe {
+pub fn burst_particles(record: u32) -> Result<(), Refused> {
+    {
         if RING_POOL.used.get() != FULL {
             if record == 0 {
                 return Err(BadInput("a null record").into());
             }
-            if entries_taken().contains(&0) || RING_POOL.free.get() == 0 {
+            if entries_taken()?.contains(&0) || RING_POOL.free.get() == 0 {
                 return Err(BadInput("a null ring entry").into());
             }
         }
@@ -81,39 +82,39 @@ pub unsafe fn burst_particles(record: u32) -> Result<(), Refused> {
             if used == FULL {
                 continue;
             }
-            let e: u32 = (RING_POOL.free.get() as *const u32).read_unaligned();
+            let e: u32 = GamePtr::new(RING_POOL.free.get()).read::<u32>("a mark's field")?;
             RING_POOL.free.set(e);
             RING_POOL.used.set(used.wrapping_add(1));
-            let put = |o: u32, v: u32| ((e + o) as *mut u32).write_unaligned(v);
-            put(8, RING_POOL.nine.get());
-            put(0x48, RING_POOL.kind.get());
+            let put = |o: u32, v: u32| GamePtr::new(e + o).write::<u32>(v, "a mark's field");
+            put(8, RING_POOL.nine.get())?;
+            put(0x48, RING_POOL.kind.get())?;
             for o in [0xC, 0x10, 0x14] {
                 put(
                     o,
-                    x87::loaded(((record + o) as *const u32).read_unaligned()),
-                );
+                    x87::loaded(GamePtr::new(record + o).read::<u32>("a mark's field")?),
+                )?;
             }
             let s = next_seed();
             let a = s.rotate_right(16) & 0xFFF;
             let b = s & 0xFFF;
             let radius: u32 = RING_POOL.burst_radius.bits();
-            put(0x34, x87::mul(sine(a), radius));
+            put(0x34, x87::mul(sine(a), radius))?;
             put(
                 0x28,
                 x87::zero_times_plus_times(cosine(a), cosine(b), sine(b), radius, false),
-            );
+            )?;
             put(
                 0x2C,
                 x87::zero_times_plus_times(cosine(a), sine(b), cosine(b), radius, true),
-            );
-            put(0x30, 0);
-            put(0x38, 0x1_0000);
-            put(0x3C, 0xFF00_0000);
-            put(0x44, LIFE);
+            )?;
+            put(0x30, 0)?;
+            put(0x38, 0x1_0000)?;
+            put(0x3C, 0xFF00_0000)?;
+            put(0x44, LIFE)?;
             put(
                 0x40,
                 x87::over_int(PARTICLE_TUNING.burst_life.bits(), LIFE as i32),
-            );
+            )?;
         }
     }
     Ok(())

@@ -28,6 +28,7 @@ use crate::math::x87;
 use crate::math::x87_run::{ext_to_int, int_80, int_over_int_plus};
 use crate::physics::camera_store::CAMERA_WORK;
 use crate::physics::tables_store::PHYSICS;
+use crate::pointers::GamePtr;
 use crate::race::blocks_store::CAR_BLOCKS;
 use crate::race::frame_store::FRAME_WORK;
 use crate::race::kind_store::KIND_TABLES;
@@ -67,13 +68,14 @@ pub unsafe fn set_listener() -> Result<(), Refused> {
         let f = figures()?;
         let car = &CAR_BLOCKS.cars[0];
         let s = RACE_WORK.car_block(RACE_VIEW.drawn_view.get() as usize);
-        let at = |o: u32| (s.wrapping_add(o) as *const u32).read_unaligned();
-        KIND_TABLES.listener_car_place[2].set_bits(x87::from_int(at(0x13C) as i32));
-        KIND_TABLES.listener_car_place[1].set_bits(x87::from_int(at(0x138) as i32));
-        KIND_TABLES.listener_car_place[0].set_bits(x87::from_int(at(0x134) as i32));
+        let place: [u32; 3] = GamePtr::new(s.wrapping_add(0x134)).read("a car's block")?;
+        let strength: u32 = GamePtr::new(s.wrapping_add(0xABC)).read("a car's block")?;
+        KIND_TABLES.listener_car_place[2].set_bits(x87::from_int(place[2] as i32));
+        KIND_TABLES.listener_car_place[1].set_bits(x87::from_int(place[1] as i32));
+        KIND_TABLES.listener_car_place[0].set_bits(x87::from_int(place[0] as i32));
         VIEWER_PANEL
             .listener_near
-            .set(u32::from(listener::car_ahead(at(0xABC))));
+            .set(u32::from(listener::car_ahead(strength)));
         for k in 0..3 {
             VIEWER_PANEL.listener_place[k].set(VIEW_VARS.view_place[k].get().wrapping_neg());
         }

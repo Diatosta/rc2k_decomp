@@ -18,9 +18,7 @@ use crate::audio::samples::fill_voice;
 use crate::audio::store::AUDIO;
 use crate::errors::Refused;
 
-pub unsafe fn fill_voice_in_game(at: u32, record: u32, shared: u32) -> Result<(), Refused> {
-    unsafe {
-        let file = AUDIO.sample_file.get();
-        fill_voice(at, record, shared, &file, AUDIO.sound_mode.get())
-    }
+pub fn fill_voice_in_game(at: u32, record: u32, shared: u32) -> Result<(), Refused> {
+    let file = AUDIO.sample_file.get();
+    fill_voice(at, record, shared, &file, AUDIO.sound_mode.get())
 }

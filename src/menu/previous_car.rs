@@ -13,11 +13,9 @@ use crate::menu::car_buttons::*;
 
 // ---- Rust version ----
 
-pub unsafe fn previous_car(
-    call: &mut dyn FnMut(Call) -> Result<(), Refused>,
-) -> Result<(), Refused> {
+pub fn previous_car(call: &mut dyn FnMut(Call) -> Result<(), Refused>) -> Result<(), Refused> {
     // Converted: `rc2k_core::menu::cars::press`.
-    unsafe { press(Which::PreviousCar, call) }
+    press(Which::PreviousCar, call)
 }
 
 /// The Rust version the typed tables run.

@@ -27,6 +27,7 @@ use crate::menu::keys_store::KEY_TABLES;
 use crate::menu::pages_store::MENU_PAGES;
 use crate::menu::screen_loop::Carried;
 use crate::menu::state_store::MENU_STATE;
+use crate::pointers::GamePtr;
 use rc2k_core::menu::player::Player;
 use rc2k_core::menu::steps;
 
@@ -46,10 +47,11 @@ fn player() -> Result<u32, Refused> {
 /// The current player's record changed by `f` (read, changed, written back whole).
 fn with_player<R>(f: impl FnOnce(&mut Player) -> R) -> Result<(u32, R), Refused> {
     let at = player()?;
-    unsafe {
-        let mut p = (at as *const Player).read_unaligned();
+    {
+        let mut p =
+            crate::pointers::GamePtr::new(at).read::<Player>("player actions: a game value")?;
         let r = f(&mut p);
-        (at as *mut Player).write_unaligned(p);
+        crate::pointers::GamePtr::new(at).write::<Player>(p, "player actions: a game value")?;
         Ok((at, r))
     }
 }
@@ -97,36 +99,38 @@ pub fn previous_scores_page() {
         .set(steps::scores_page(MENU_PAGES.scores_page.get(), false));
 }
 
-pub fn previous_replay_range() {
+pub fn previous_replay_range() -> Result<(), BadInput> {
     MENU_PAGES
         .replay_page
         .set(steps::replay_range(MENU_PAGES.replay_page.get(), false));
-    unsafe { crate::screens::best_scores::replay_range_caption() };
+    crate::screens::best_scores::replay_range_caption()
 }
 
-pub fn next_replay_range() {
+pub fn next_replay_range() -> Result<(), BadInput> {
     MENU_PAGES
         .replay_page
         .set(steps::replay_range(MENU_PAGES.replay_page.get(), true));
-    unsafe { crate::screens::best_scores::replay_range_caption() };
+    crate::screens::best_scores::replay_range_caption()
 }
 
 /// eax as `append_string_by_id` leaves it, ebx past the NUL.
-pub fn toggle_caption_choice() -> (u32, u32) {
+pub fn toggle_caption_choice() -> Result<(u32, u32), crate::errors::BadInput> {
     let choice = steps::flip(MENU_STATE.menus.caption_choice.get());
     MENU_STATE.menus.caption_choice.set(choice);
     let mut cursor = crate::screens::text_buffers_store::TEXT_BUFFERS
         .caption
         .addr() as u32;
     let caption = rc2k_core::screens::page_values::stage_options_caption(choice);
-    let eax = unsafe {
-        crate::strings::append_string_by_id::append_string_by_id(caption, &mut |at, n| {
-            std::ptr::copy(at, cursor as *mut u8, n);
-            cursor += n as u32;
-        })
-    };
-    unsafe { (cursor as *mut u8).write(0) };
-    (eax, cursor + 1)
+    let fault = crate::menu::event_flow::Fault::default();
+    let eax = crate::strings::append_string_by_id::append_string_by_id(caption, &mut |at, n| {
+        // SAFETY: the `n` bytes at `at` were checked (or are the expansion\'s own `Vec`).
+        let text = unsafe { std::slice::from_raw_parts(at, n) };
+        fault.ok(GamePtr::new(cursor).write_bytes(text, "the caption"));
+        cursor += n as u32;
+    })?;
+    fault.check()?;
+    GamePtr::new(cursor).write::<u8>(0, "the caption")?;
+    Ok((eax, cursor + 1))
 }
 
 pub fn leave_with_carry() {
@@ -160,10 +164,10 @@ fn state_run(which: u32) -> Result<(), Refused> {
         5 => toggle_player_3c()?,
         6 => next_scores_page(),
         7 => previous_scores_page(),
-        8 => previous_replay_range(),
-        9 => next_replay_range(),
+        8 => previous_replay_range()?,
+        9 => next_replay_range()?,
         10 => {
-            toggle_caption_choice();
+            toggle_caption_choice()?;
         }
         11 => leave_with_carry(),
         _ => {}

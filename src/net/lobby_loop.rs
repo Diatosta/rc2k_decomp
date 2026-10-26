@@ -46,7 +46,9 @@ pub fn sync(kind: u8) -> Result<bool, Refused> {
     let first = NET.sync_first.get();
     NET.sync_first.set(0);
     if first != 0 {
-        unsafe { std::ptr::write_bytes((NET.synced.addr() as u32) as *mut u8, 0, 8) };
+        for n in 0..8 {
+            NET.synced.set(n, 0);
+        }
         NET.set_synced(NET.player.get() as usize, 1);
     }
     let now = crate::system::tick_count::tick_count();
@@ -57,10 +59,8 @@ pub fn sync(kind: u8) -> Result<bool, Refused> {
         loop {
             if NET.synced(n as usize) != 1 {
                 let id = NET.player_block(n).id.get();
-                unsafe {
-                    ((NET.send_buffer.addr() as u32) as *mut u16)
-                        .write_unaligned(kind as u16 | (NET.sync.get() as u16) << 8)
-                };
+                NET.send_buffer.set(0, kind);
+                NET.send_buffer.set(1, NET.sync.get());
                 crate::net::dplay_send::dplay_send(id, 0, NET.send_buffer.addr() as u32, 2);
             }
             n += 1;
@@ -168,7 +168,7 @@ pub fn lobby_loop() -> Result<u32, Refused> {
                         moved = true;
                     }
                     3 => {
-                        crate::net::begin_chat::begin_chat();
+                        crate::net::begin_chat::begin_chat()?;
                         moved = true;
                     }
                     _ => {}

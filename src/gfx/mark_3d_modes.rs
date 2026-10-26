@@ -29,39 +29,38 @@ pub use rc2k_core::gfx::screen_modes::MODES_ROOM;
 
 /// The Rust version on the modes listed for card `kind` (see the header).
 pub fn mark_3d_modes(kind: u32) -> Result<(), Refused> {
-    unsafe {
-        if MACHINE.has_fpu.get() != 1 {
-            return Ok(());
-        }
-        let count: u32 = MODES.count.get();
-        if count > MODES_ROOM {
-            return Err(BadInput("more screen modes than the table has room for").into());
-        }
-        // The device: 16 and 32 bits (`g_pixelKinds`' 0x200 and 0x800) for both.
-        SCREEN_MODE.depth_bits.set(0xA00);
-        SCREEN_MODE.depth_extra.set(0xA00);
-        // 0x5AB98C ..= 0x5AB9AC, every dword of them.
-        let cards = &crate::d3d::cards_store::CARDS_3D;
-        for cell in cards.mode_switches.iter().chain(&cards.mode_switches_end) {
-            cell.set(1);
-        }
-        cards.fog_state.set(1);
-        cards.mips.set(1);
-        // Converted: `rc2k_core::gfx::screen_modes::mark_3d`.
-        let table = MODES.table_addr() as u32;
-        let before: Vec<_> = crate::system::find_entry::entries(table, count).collect();
-        let mut marked = before.clone();
-        rc2k_core::gfx::screen_modes::mark_3d(
-            &mut marked,
-            kind,
-            SCREEN_MODE.depth_bits.get(),
-            SCREEN_MODE.depth_extra.get(),
-        );
-        for (n, e) in marked.into_iter().enumerate() {
-            if e != before[n] {
-                ((table + 8 * n as u32) as *mut rc2k_core::system::tables::Entry)
-                    .write_unaligned(e);
-            }
+    if MACHINE.has_fpu.get() != 1 {
+        return Ok(());
+    }
+    let count: u32 = MODES.count.get();
+    if count > MODES_ROOM {
+        return Err(BadInput("more screen modes than the table has room for").into());
+    }
+    // The device: 16 and 32 bits (`g_pixelKinds`' 0x200 and 0x800) for both.
+    SCREEN_MODE.depth_bits.set(0xA00);
+    SCREEN_MODE.depth_extra.set(0xA00);
+    // 0x5AB98C ..= 0x5AB9AC, every dword of them.
+    let cards = &crate::d3d::cards_store::CARDS_3D;
+    for cell in cards.mode_switches.iter().chain(&cards.mode_switches_end) {
+        cell.set(1);
+    }
+    cards.fog_state.set(1);
+    cards.mips.set(1);
+    // Converted: `rc2k_core::gfx::screen_modes::mark_3d`.
+    let before: Vec<rc2k_core::system::tables::Entry> = (0..count as usize)
+        .map(|n| [MODES.table[2 * n].get(), MODES.table[2 * n + 1].get()])
+        .collect();
+    let mut marked = before.clone();
+    rc2k_core::gfx::screen_modes::mark_3d(
+        &mut marked,
+        kind,
+        SCREEN_MODE.depth_bits.get(),
+        SCREEN_MODE.depth_extra.get(),
+    );
+    for (n, e) in marked.into_iter().enumerate() {
+        if e != before[n] {
+            MODES.table[2 * n].set(e[0]);
+            MODES.table[2 * n + 1].set(e[1]);
         }
     }
     Ok(())

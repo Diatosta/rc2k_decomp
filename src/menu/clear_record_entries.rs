@@ -10,9 +10,9 @@ use crate::errors::Refused;
 use crate::menu::standings::*;
 
 /// The Rust version (see the header).
-pub unsafe fn clear_record_entries() -> Result<(), Refused> {
+pub fn clear_record_entries() -> Result<(), Refused> {
     // Converted: `rc2k_core::menu::bests::clear_marks`.
     let event = current_event()?;
-    rc2k_core::menu::bests::clear_marks(&mut crate::menu::rank_record_entry::event_list(event));
+    rc2k_core::menu::bests::clear_marks(&mut crate::menu::rank_record_entry::event_list(event)?);
     Ok(())
 }

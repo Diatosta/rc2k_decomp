@@ -10,6 +10,7 @@
 //! Caller: `drive::flush_replay`. Refuses what `write_replay_block` refuses.
 
 use crate::errors::Refused;
+use crate::pointers::GamePtr;
 use crate::race::replay_file_store::REPLAY_FILE;
 use crate::race::replay_work_store::REPLAY_WORK;
 use crate::race::viewer_state_store::REPLAY_VIEW;
@@ -28,9 +29,11 @@ pub unsafe fn write_replay_frames() -> Result<(), Refused> {
     crate::race::viewer_buffers_store::VIEWER_BUFFERS.block[0].set(0);
     crate::race::viewer_buffers_store::VIEWER_BUFFERS.block[1].set(0);
     if REPLAY_WORK.header_one_player.get() != 1 {
-        let at = (crate::race::viewer_buffers_store::VIEWER_BUFFERS.block[1].addr() + 1) as *mut i8;
-        let v = written_view(unsafe { at.read() });
-        unsafe { at.write(v) };
+        let at = GamePtr::new(
+            (crate::race::viewer_buffers_store::VIEWER_BUFFERS.block[1].addr() + 1) as u32,
+        );
+        let v = written_view(at.read::<i8>("the replay block's header")?);
+        at.write(v, "the replay block's header")?;
     }
     // `race::write_replay_block` reads no register at entry (liveness: DF only).
     unsafe { crate::race::replay::write_replay_block() }?;

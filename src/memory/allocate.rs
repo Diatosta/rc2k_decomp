@@ -17,6 +17,7 @@
 
 use crate::errors::{BadInput, FatalError, Refused};
 use crate::memory::{HEADER_LEN, MemoryList, own_heap, with_figures};
+use crate::pointers::GamePtr;
 use rc2k_core::memory::block_size;
 use windows_sys::Win32::System::Memory::{MEM_COMMIT, MEM_RESERVE, PAGE_READWRITE, VirtualAlloc};
 
@@ -47,9 +48,12 @@ pub unsafe fn allocate(list: *mut MemoryList, bytes: u32) -> Result<*mut u8, Ref
             .into());
         }
         crate::pointers::register(block as u32, whole);
-        let header = (*list).add(block as u32, bytes);
-        block.write(header[0]);
-        block.add(1).write(header[1]);
+        let at = GamePtr::new(list as u32);
+        let mut l = at.read::<MemoryList>("a memory list")?;
+        let header = l.add(block as u32, bytes);
+        at.write(l, "a memory list")?;
+        GamePtr::new(block as u32).write(header[0], "a block's header")?;
+        GamePtr::new(block as u32 + 4).write(header[1], "a block's header")?;
         with_figures(|f| f.taken(bytes));
         Ok((block as *mut u8).add(HEADER_LEN as usize))
     }

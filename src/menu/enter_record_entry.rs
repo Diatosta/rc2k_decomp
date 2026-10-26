@@ -18,36 +18,36 @@ use crate::menu::standings::*;
 
 // hhmm
 /// The Rust version (see the header).
-pub unsafe fn enter_record_entry() -> Result<(), Refused> {
+pub fn enter_record_entry() -> Result<(), Refused> {
     let event = current_event()?;
     let n: u32 = { EVENT_STATE.current_player.get() };
-    if n >= 4 || player(n) == 0 || get(player(n) + 0x18) == 0 {
+    if n >= 4 || player(n) == 0 || get(player(n) + 0x18)? == 0 {
         return Err(BadInput("a current player past 3, missing or without a name").into());
     }
     let p = player(n);
     let slot = (event - { EVENTS_RVA.get() }) / 0x618;
     DRAW_WORK.figure.set(slot);
     let cheats = { CHEAT_VARS.cheats.get() };
-    let sealed = unsafe { crate::menu::sealed_player_time::sealed_player_time(slot) }?;
+    let sealed = crate::menu::sealed_player_time::sealed_player_time(slot)?;
     // Converted: `rc2k_core::menu::bests::enter_tenth`, then `rank_entries`.
     use rc2k_core::menu::bests;
-    let name_at = get(p + 0x18);
+    let name_at = get(p + 0x18)?;
     let best = bests::NewBest {
-        key: get(p + 0x88),
+        key: get(p + 0x88)?,
         player: n + 1,
-        nationality: get(p + 4),
+        nationality: get(p + 4)?,
         name_at,
-        car: get(p + 8),
-        group: get(p + 0x90),
-        name: bytes(name_at),
-        entered: Some(get(p + 0xD0)),
+        car: get(p + 8)?,
+        group: get(p + 0x90)?,
+        name: bytes(name_at)?,
+        entered: Some(get(p + 0xD0)?),
         seal: Some(bests::Seal { cheats, sealed }),
         line: None,
     };
     bests::enter_tenth(
-        &mut crate::menu::rank_record_entry::event_list(event),
+        &mut crate::menu::rank_record_entry::event_list(event)?,
         &best,
     );
-    crate::menu::rank_record_entry::rank_entries(event);
+    crate::menu::rank_record_entry::rank_entries(event)?;
     Ok(())
 }

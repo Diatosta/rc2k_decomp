@@ -4,19 +4,20 @@
 //! (`g_skidLinks`, 8 bytes: +0 the next, +2 the previous, +4 the angle, +6 the car's bit).
 
 use crate::errors::{BadInput, Refused};
-use crate::physics::car_store::Car;
+use crate::pointers::GamePtr;
 use crate::race::frame_store::FRAME_WORK;
+use crate::race::trap::car_at;
 use crate::race::vars_store::RACE_VARS;
 use crate::race::view_store::RACE_VIEW;
 use crate::race::work_store::RACE_WORK;
 use crate::scene::draw_store::DRAW;
 
-unsafe fn get(a: u32) -> u32 {
-    unsafe { (a as *const u32).read_unaligned() }
+fn get(a: u32) -> Result<u32, BadInput> {
+    GamePtr::new(a).read("a skid slot or object")
 }
 
-unsafe fn put(a: u32, v: u32) {
-    unsafe { (a as *mut u32).write_unaligned(v) }
+fn put(a: u32, v: u32) -> Result<(), BadInput> {
+    GamePtr::new(a).write(v, "a skid slot or object")
 }
 
 /// The edges' offset for an angle (`math::turn_point_xz` of (0x1555, y, 0) by angle << 16).
@@ -46,7 +47,7 @@ pub unsafe fn add_skid_point(slot: u32) -> Result<(), Refused> {
         let n = crate::race::shadow_skids_store::SHADOW_SKIDS
             .skid_next
             .get();
-        let last = get(slot);
+        let last = get(slot)?;
         let points = std::slice::from_raw_parts_mut(
             crate::race::shadow_skids_store::SHADOW_SKIDS
                 .skid_points
@@ -72,7 +73,7 @@ pub unsafe fn add_skid_point(slot: u32) -> Result<(), Refused> {
             |dx, dz| crate::scene::angle_between::angle_of(dx, dz),
             |angle, y| offsets(angle, y),
         )?;
-        put(slot, n);
+        put(slot, n)?;
         crate::race::shadow_skids_store::SHADOW_SKIDS
             .skid_angle
             .set(a.angle);
@@ -107,7 +108,7 @@ pub unsafe fn add_skid_point(slot: u32) -> Result<(), Refused> {
 }
 
 /// What `lay_skidmarks` reads: the cars' blocks.
-unsafe fn cars_refuse() -> Result<(), Refused> {
+fn cars_refuse() -> Result<(), Refused> {
     for n in 0..RACE_VIEW.race_cars.get().min(8) {
         if RACE_WORK.car_block(n as usize) == 0 {
             return Err(BadInput("a race car without its block").into());
@@ -145,19 +146,19 @@ pub unsafe fn lay_skidmarks() -> Result<(), Refused> {
             let car = RACE_WORK.car_block(c as usize);
             for wheel in 0..4u32 {
                 let slot = car + 0xF48 + 4 * wheel;
-                let on = get(car + 0x600 + 4 * wheel) != 0
+                let on = get(car + 0x600 + 4 * wheel)? != 0
                     && !crate::math::x87_load::below_or_unordered(
-                        get(car + 0xF40 + 4 * (wheel / 2)),
+                        get(car + 0xF40 + 4 * (wheel / 2))?,
                         grip,
                     )
-                    && Car::at(car).parts_present.bits() & (1 << (5 + wheel)) != 0;
+                    && car_at(car)?.parts_present.bits() & (1 << (5 + wheel)) != 0;
                 if !on {
-                    put(slot, u32::MAX);
+                    put(slot, u32::MAX)?;
                     continue;
                 }
                 for i in 0..3 {
                     crate::race::shadow_skids_store::SHADOW_SKIDS.skid_place[i as usize]
-                        .set(get(car + 0xF10 + 0x10 * i + 4 * wheel));
+                        .set(get(car + 0xF10 + 0x10 * i + 4 * wheel)?);
                 }
                 let side = if wheel % 2 == 0 {
                     0x1555u32

@@ -112,6 +112,7 @@ pub mod tables_store;
 pub mod text_state_store;
 pub mod throw_mud_texel;
 pub mod tint_to_mud_colour;
+pub mod trap;
 pub mod tyre_change_gauge;
 pub mod tyre_store;
 pub mod update_mud_texture;

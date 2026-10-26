@@ -125,7 +125,7 @@ pub unsafe fn set_up_front_end_scene() -> Result<(), Refused> {
         STAGE_PREFS.fog_end.set_bits(0u32);
         clear_fog();
         FRAME_SWITCHES.other_way.set_bits(1u32);
-        fill_light_tables();
+        fill_light_tables()?;
 
         OBJECT_TABLES.slot_kinds[0].set(1);
         for slot in 1..0x29 {
@@ -157,12 +157,12 @@ pub unsafe fn set_up_front_end_scene() -> Result<(), Refused> {
         crate::scene::reload_system_textures::reload_system_textures()?;
         allocate_point_records_in_game()?;
         colours(0);
-        fill_scene_light_tables();
+        fill_scene_light_tables()?;
         set_view_matrices();
         reload_slot_textures()?;
         colours(0x7F);
         FRAME_SWITCHES.other_way.set_bits(1u32);
-        fill_light_tables();
+        fill_light_tables()?;
         RACE_VARS.settings_words[1].set_bits(1u32);
         Ok(())
     }

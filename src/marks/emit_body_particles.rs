@@ -17,41 +17,44 @@ use crate::marks::emitters::*;
 use crate::marks::ring_store::RING_WORK;
 use crate::marks::tuning::MARKS_FLOATS;
 use crate::math::x87;
+use crate::pointers::GamePtr;
 const PACE: u32 = 0x386A0;
 
 /// The first part (see the header), written.
-unsafe fn prepare(record: u32, object: u32) {
-    unsafe {
-        let size = x87::int_times_to_int(at(object + 0x90) as i32, MARKS_FLOATS.three.bits());
-        ((object + 0x90) as *mut i32).write_unaligned(size);
-        ((record + 4) as *mut u32).write_unaligned(at(record + 4).wrapping_add(PACE));
+fn prepare(record: u32, object: u32) -> Result<(), Refused> {
+    {
+        let size = x87::int_times_to_int(at(object + 0x90)? as i32, MARKS_FLOATS.three.bits());
+        GamePtr::new(object + 0x90).write::<i32>(size, "a mark's field")?;
+        GamePtr::new(record + 4)
+            .write::<u32>(at(record + 4)?.wrapping_add(PACE), "a mark's field")?;
         EMITTER.record.set(2);
-        let flip = at(record) ^ 1;
-        (record as *mut u32).write_unaligned(flip);
+        let flip = at(record)? ^ 1;
+        GamePtr::new(record).write::<u32>(flip, "a mark's field")?;
         if flip & 1 == 0 {
             EMITTER.record.set(3);
         }
-        ((record + 0xC) as *mut u32).write_unaligned(0);
-        let chance = x87::mul_to_int(at(record + 0x34), MARKS_FLOATS.two_pow_16.bits());
+        GamePtr::new(record + 0xC).write::<u32>(0, "a mark's field")?;
+        let chance = x87::mul_to_int(at(record + 0x34)?, MARKS_FLOATS.two_pow_16.bits());
         RING_WORK.whole.set(chance as u32);
         let r = next_c5(&EMITTER.body_random);
         if ((r & 0xFFFF) as i32) < chance {
-            let surface = [at(record + 0x28), at(record + 0x2C), at(record + 0x30)];
+            let surface = [at(record + 0x28)?, at(record + 0x2C)?, at(record + 0x30)?];
             for (n, v) in surface.iter().enumerate() {
-                ((record + 0x1C + 4 * n as u32) as *mut u32).write_unaligned(*v);
+                GamePtr::new(record + 0x1C + 4 * n as u32).write::<u32>(*v, "a mark's field")?;
             }
         }
     }
+    Ok(())
 }
 
 /// The Rust version (see the header): `record` the body's record (the original's edi),
 /// `object` the car's object (esi).
-pub unsafe fn emit_body_particles(record: u32, object: u32) -> Result<(), Refused> {
+pub fn emit_body_particles(record: u32, object: u32) -> Result<(), Refused> {
     if record == 0 || object == 0 {
         return Err(BadInput("a null record or object").into());
     }
-    unsafe {
-        prepare(record, object);
-        emit(Table::Body, at(record + 0x1C), record, object)
+    {
+        prepare(record, object)?;
+        emit(Table::Body, at(record + 0x1C)?, record, object)
     }
 }

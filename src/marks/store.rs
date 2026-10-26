@@ -306,7 +306,7 @@ pub fn game_ptr<T>(place: impl Where) -> *mut T {
 }
 
 /// Reads a variable (`framework::game_read`, over the block or the image).
-pub unsafe fn game_read<T: Copy>(place: impl Where) -> T {
+pub fn game_read<T: Copy>(place: impl Where) -> T {
     let p = game_ptr::<T>(place);
     unsafe {
         if p.is_aligned() {

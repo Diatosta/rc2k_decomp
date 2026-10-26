@@ -32,12 +32,77 @@ pub fn inc(v: &Dword) {
     set(v, get(v).wrapping_add(1));
 }
 
-pub fn dword(p: u32) -> u32 {
-    unsafe { (p as *const u32).read_unaligned() }
+pub fn dword(p: u32) -> Result<u32, crate::errors::BadInput> {
+    crate::pointers::GamePtr::new(p).read::<u32>("a game value")
 }
 
-pub fn put(p: u32, v: u32) {
-    unsafe { (p as *mut u32).write_unaligned(v) };
+/// Reads for closures that a core function calls (they cannot return an error): the first
+/// refusal is kept and the reads after it answer 0; the caller runs `check` right after the
+/// core call, before it uses anything the core made.
+#[derive(Default)]
+pub struct Fault(std::cell::Cell<Option<BadInput>>);
+
+impl Fault {
+    /// The value, or the type's default after keeping the refusal.
+    pub fn ok<T: Default>(&self, r: Result<T, BadInput>) -> T {
+        r.unwrap_or_else(|e| {
+            if self.0.get().is_none() {
+                self.0.set(Some(e));
+            }
+            T::default()
+        })
+    }
+
+    pub fn get(&self, p: u32) -> u32 {
+        self.ok(dword(p))
+    }
+
+    /// A `T` of the game's memory at `p`.
+    pub fn read<T: Copy + Default>(&self, p: u32, what: &str) -> T {
+        self.ok(crate::pointers::GamePtr::new(p).read::<T>(what))
+    }
+
+    pub fn put(&self, p: u32, v: u32) {
+        self.ok(put(p, v));
+    }
+
+    pub fn check(&self) -> Result<(), BadInput> {
+        self.0.take().map_or(Ok(()), Err)
+    }
+}
+
+/// `len` bytes of the game's memory from `first` for a core function that walks a table in
+/// place; refused unless they all lie in one block (`pointers::region_of`). Keep it for
+/// one step: a block can be given back later.
+pub fn game_slice<'a>(first: u32, len: u32, what: &str) -> Result<&'a mut [u8], BadInput> {
+    match crate::pointers::region_of(first) {
+        Some((_, end)) if (end - first) >= len => {
+            // SAFETY: all `len` bytes lie in one live region (a registered block or a moved
+            // store); the caller is the only one using them for the step.
+            Ok(unsafe { std::slice::from_raw_parts_mut(first as usize as *mut u8, len as usize) })
+        }
+        _ => {
+            crate::framework::log(&format!(
+                "pointers: {what} at {first:#010x} ({len} bytes) is outside every allocation"
+            ));
+            Err(BadInput(
+                "a game pointer outside every allocation (rc2k.log names it)",
+            ))
+        }
+    }
+}
+
+/// A refusal where the caller's signature cannot carry one (a trait of the core's, an
+/// installer helper): the program ends naming it, as a refusal does at the top.
+pub fn refuse_here<T>(r: Result<T, BadInput>, at: &str) -> T {
+    match r {
+        Ok(value) => value,
+        Err(e) => crate::fatal::raise::end(at, e),
+    }
+}
+
+pub fn put(p: u32, v: u32) -> Result<(), crate::errors::BadInput> {
+    crate::pointers::GamePtr::new(p).write(v, "a game value")
 }
 
 // ---- the variables ----
@@ -115,7 +180,7 @@ pub fn stage_record() -> Result<u32, BadInput> {
     let stages = if rallies == 0 {
         0
     } else {
-        dword(rallies.wrapping_add(get(STAGE_SUB).wrapping_mul(4)))
+        dword(rallies.wrapping_add(get(STAGE_SUB).wrapping_mul(4)))?
     };
     if stages == 0 {
         return Err(BadInput("a null pointer to the chosen stage's records"));
@@ -135,7 +200,7 @@ pub fn stage_times() -> Result<u32, BadInput> {
     if base == 0 {
         return Err(BadInput("no best times table"));
     }
-    Ok(base.wrapping_add(dword(record + 0x3C).wrapping_mul(TIMES_LEN)))
+    Ok(base.wrapping_add(dword(record + 0x3C)?.wrapping_mul(TIMES_LEN)))
 }
 
 // ---- the registers the flows carry ----

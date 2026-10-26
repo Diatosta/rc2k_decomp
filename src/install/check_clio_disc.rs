@@ -72,10 +72,10 @@ pub unsafe fn check_clio_disc(outside: &mut dyn Outside) -> Result<(), Refused> 
             }
             .into());
         }
-        let name = std::slice::from_raw_parts_mut(
-            crate::install::store::INSTALL.clio_car_name.as_ptr(),
-            CAR_NAME_LEN,
+        let at = crate::pointers::GamePtr::new(
+            crate::install::store::INSTALL.clio_car_name.addr() as u32
         );
+        let mut name = at.read_bytes(CAR_NAME_LEN, "the Clio's name")?;
         let Some(end) = name
             .iter()
             .position(|&c| c == b'(')
@@ -87,6 +87,7 @@ pub unsafe fn check_clio_disc(outside: &mut dyn Outside) -> Result<(), Refused> 
         name[..end].make_ascii_uppercase();
         name[end] = b'\n';
         name[end + 1] = 0;
+        at.write_bytes(&name, "the Clio's name")?;
         INSTALLER_PAGES
             .step
             .set_u32(0, game_addr(CLIO_STEP_RVA) as u32);

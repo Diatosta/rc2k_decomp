@@ -116,7 +116,7 @@ pub unsafe fn upload_car_icon(icon: &CarIcon) -> Result<(), Refused> {
         if !halvable(width, height, across) {
             return Err(BadInput("a picture that halves to nothing").into());
         }
-        let (_, height) = halve_texture(pixels as *mut u32, width, height, across);
+        let (_, height) = halve_texture(pixels, width, height, across)?;
         let mut stored: IconUpload = ICON_UPLOAD.get();
         let shift = across & 31;
         stored.target_x >>= shift;

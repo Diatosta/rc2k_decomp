@@ -28,6 +28,7 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::files::scratch::SCRATCH;
+use crate::pointers::GamePtr;
 use crate::session::MACHINE;
 use core::arch::x86::{__cpuid, _rdtsc};
 use rc2k_core::system::processor::{Var, test};
@@ -128,15 +129,37 @@ fn place(v: Var) -> usize {
     }
 }
 
-pub unsafe fn test_processor(p: &dyn Processor) -> Result<(), Refused> {
+pub fn test_processor(p: &dyn Processor) -> Result<(), Refused> {
     // Converted: `rc2k_core::system::processor::test`.
-    let mut put = |v: Var, value: u32| unsafe {
-        if v == Var::FpuWord {
-            (place(v) as *mut u16).write_unaligned(value as u16);
-        } else {
-            (place(v) as *mut u32).write_unaligned(value);
+    // The core's closures cannot refuse: the first refusal is kept and raised after.
+    let refused = std::cell::Cell::new(None);
+    let keep = |e: BadInput| {
+        if refused.get().is_none() {
+            refused.set(Some(e));
         }
     };
-    let get = |v: Var| unsafe { (place(v) as *const u32).read_unaligned() };
-    test(p, &mut put, &get).map_err(|e| BadInput::from(e).into())
+    let mut put = |v: Var, value: u32| {
+        let at = GamePtr::new(place(v) as u32);
+        let done = if v == Var::FpuWord {
+            at.write(value as u16, "a processor test's variable")
+        } else {
+            at.write(value, "a processor test's variable")
+        };
+        if let Err(e) = done {
+            keep(e);
+        }
+    };
+    let get = |v: Var| {
+        GamePtr::new(place(v) as u32)
+            .read::<u32>("a processor test's variable")
+            .unwrap_or_else(|e| {
+                keep(e);
+                0
+            })
+    };
+    let answer = test(p, &mut put, &get);
+    if let Some(e) = refused.take() {
+        return Err(e.into());
+    }
+    answer.map_err(|e| BadInput::from(e).into())
 }

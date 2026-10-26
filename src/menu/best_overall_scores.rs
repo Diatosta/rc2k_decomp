@@ -27,11 +27,11 @@ pub unsafe fn best_overall_scores(c: &Carried) -> Result<(), Refused> {
         EVENT_STATE.any_time_qualified.set(0u32);
         for (n, &p) in players.iter().enumerate() {
             EVENT_STATE.current_player.set(n as u32);
-            g.arg = get(p + 0xCC);
+            g.arg = get(p + 0xCC)?;
             g.palette = 4 * 0x258 + 0x21C;
             g.cars = table + g.palette;
             // Converted: `rc2k_core::menu::bests::makes_score`.
-            if rc2k_core::menu::bests::makes_score(g.arg, get(g.cars + 0x38)) {
+            if rc2k_core::menu::bests::makes_score(g.arg, get(g.cars + 0x38)?) {
                 enter_best(Some(4), 0xCC)?;
                 EVENT_STATE.any_time_qualified.set(1u32);
             }

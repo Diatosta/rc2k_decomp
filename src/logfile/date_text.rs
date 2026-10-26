@@ -18,7 +18,7 @@ use rc2k_core::files::log::Started;
 
 /// The text, without what is written after it (converted: `rc2k_core::files::log::date`, on the
 /// start's moment as the game keeps it). Refuses a weekday, day or month past the tables.
-pub unsafe fn date_text() -> Result<Vec<u8>, BadInput> {
+pub fn date_text() -> Result<Vec<u8>, BadInput> {
     // byte_51839F the weekday, then day, month, year (word), hour, minute, second,
     // hundredths (`system::keep_start_time`).
     let [
@@ -49,12 +49,11 @@ pub unsafe fn date_text() -> Result<Vec<u8>, BadInput> {
 
 /// For Rust callers: the text at the cursor, and after it CR, LF and two NULs. Returns the
 /// cursor after the text.
-pub unsafe fn write_date_text(cursor: *mut u8) -> Result<*mut u8, BadInput> {
-    unsafe {
-        let text = date_text()?;
-        std::ptr::copy(text.as_ptr(), cursor, text.len());
-        let end = cursor.add(text.len());
-        (end as *mut u32).write_unaligned(0x0A0D);
-        Ok(end)
-    }
+pub fn write_date_text(cursor: *mut u8) -> Result<*mut u8, BadInput> {
+    let text = date_text()?;
+    let at = crate::pointers::GamePtr::new(cursor as u32);
+    at.write_bytes(&text, "the log's date text")?;
+    at.offset(text.len() as u32)
+        .write(0x0A0Du32, "the log's date text")?;
+    Ok(cursor.wrapping_add(text.len()))
 }

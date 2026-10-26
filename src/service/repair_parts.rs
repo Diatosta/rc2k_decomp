@@ -4,6 +4,7 @@
 //! `rc2k_core::service::car`.
 
 use crate::errors::BadInput;
+use crate::pointers::GamePtr;
 use crate::service::state::current_player;
 use rc2k_core::menu::player::Player;
 
@@ -15,12 +16,10 @@ pub fn player() -> Result<u32, BadInput> {
 
 /// The current player's record changed by `f` (read, changed, written back whole).
 pub fn with_player(f: impl FnOnce(&mut Player)) -> Result<(), BadInput> {
-    let at = player()? as *mut Player;
-    unsafe {
-        let mut p = at.read_unaligned();
-        f(&mut p);
-        at.write_unaligned(p);
-    }
+    let at = GamePtr::new(player()?);
+    let mut p = at.read::<Player>("a player's record")?;
+    f(&mut p);
+    at.write(p, "a player's record")?;
     Ok(())
 }
 

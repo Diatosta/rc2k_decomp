@@ -13,6 +13,7 @@
 //! Caller: `sub_4BFFEC` (0x4C0052). The x87 run is plain Rust on the x87 model (`math::x87_float`), in the original's order, over the
 //! game's variables; the picks their Rust versions (under the same rounding).
 
+use crate::errors::Refused;
 use crate::marks::pick_square::pick_square;
 use crate::marks::tilt_shape::SHAPE_TILT;
 use crate::marks::work_store::MARKS_WORK;
@@ -21,20 +22,18 @@ use crate::math::x87;
 const MOST: i32 = 0x80;
 
 /// The original's 0x4C053C .. 0x4C059D: the rate, compared (`fstsw` into `g_fpuStatus`).
-unsafe fn rate() {
-    unsafe {
-        rate_x87(
-            crate::race::store::asm_base() as usize,
-            &KEPT,
-            &SQUARE_TIMING,
-            &SQUARE_STATE,
-        )
-    }
+fn rate() {
+    rate_x87(
+        crate::race::store::asm_base() as usize,
+        &KEPT,
+        &SQUARE_TIMING,
+        &SQUARE_STATE,
+    )
 }
 
 /// The Rust version (see the header).
-pub unsafe fn squares_spawn() {
-    unsafe {
+pub fn squares_spawn() -> Result<(), Refused> {
+    {
         SQUARE_TIMING
             .frames
             .set(SQUARE_TIMING.frames.get().wrapping_add(1));
@@ -46,7 +45,7 @@ pub unsafe fn squares_spawn() {
             let v: u32 = SQUARE_TIMING.spawn_rate.bits();
             let n = x87::to_int(v).min(MOST);
             for _ in 0..n.max(0) {
-                pick_square();
+                pick_square()?;
             }
             let share = x87::fraction_times_to_int(v, SQUARE_STATE.share_k.bits());
             let s = SQUARE_STATE
@@ -56,11 +55,12 @@ pub unsafe fn squares_spawn() {
                 .wrapping_add(0x5D);
             SQUARE_STATE.spawn_random.set(s);
             if ((s >> 8) & 0xFFFF) as i32 <= share {
-                pick_square();
+                pick_square()?;
             }
         }
         x87::set_control(old);
     }
+    Ok(())
 }
 
 use crate::marks::plain::st16;
@@ -69,37 +69,35 @@ use crate::marks::view_vectors::{KEPT, KeptView};
 use crate::math::x87_float as bh;
 
 /// `rate`'s x87 block as plain Rust on the x87 model (20 instructions), same order and memory places.
-unsafe fn rate_x87(rc: usize, kv: &KeptView, sti: &SquareTiming, ss: &SquareState) {
-    unsafe {
-        let t0 = bh::ld(kv.first_angle.bits());
-        let t1 = t0 + bh::ld(SHAPE_TILT.tilt.bits());
-        let t2 = t1.sin();
-        let t3 = t2 * bh::ld(sti.rate.bits());
-        sti.spawn_rate.set_bits(bh::st(t3));
-        let t4 = bh::ld(sti.rate.bits());
-        let t5 = t4 * bh::ld(SHAPE_TILT.point[2].bits());
-        let t6 = -t5;
-        let t7 = bh::ld(kv.first_angle.bits());
-        let t8 = t7 + bh::ld(SHAPE_TILT.tilt.bits());
-        let t9 = t8.cos();
-        let t10 = t6 * t9;
-        let t11 = t10 * bh::ld(ss.rate_constants[0].bits());
-        let t12 = t11 + bh::ld(sti.spawn_rate.bits());
-        sti.spawn_rate.set_bits(bh::st(t12));
-        let t13 = bh::ld(sti.spawn_rate.bits());
-        st16(
-            rc,
-            0x31C814,
-            bh::compare(t13, bh::ld(ss.rate_constants[1].bits())),
-        );
-    }
+fn rate_x87(rc: usize, kv: &KeptView, sti: &SquareTiming, ss: &SquareState) {
+    let t0 = bh::ld(kv.first_angle.bits());
+    let t1 = t0 + bh::ld(SHAPE_TILT.tilt.bits());
+    let t2 = t1.sin();
+    let t3 = t2 * bh::ld(sti.rate.bits());
+    sti.spawn_rate.set_bits(bh::st(t3));
+    let t4 = bh::ld(sti.rate.bits());
+    let t5 = t4 * bh::ld(SHAPE_TILT.point[2].bits());
+    let t6 = -t5;
+    let t7 = bh::ld(kv.first_angle.bits());
+    let t8 = t7 + bh::ld(SHAPE_TILT.tilt.bits());
+    let t9 = t8.cos();
+    let t10 = t6 * t9;
+    let t11 = t10 * bh::ld(ss.rate_constants[0].bits());
+    let t12 = t11 + bh::ld(sti.spawn_rate.bits());
+    sti.spawn_rate.set_bits(bh::st(t12));
+    let t13 = bh::ld(sti.spawn_rate.bits());
+    st16(
+        rc,
+        0x31C814,
+        bh::compare(t13, bh::ld(ss.rate_constants[1].bits())),
+    );
 }
 
 #[cfg(test)]
 mod asm_reference {
     //! The original assembly blocks, kept verbatim as the reference the plain versions are tested against.
 
-    pub(super) unsafe fn rate_x87(rc: usize, mk: usize) {
+    pub(super) fn rate_x87(rc: usize, mk: usize) {
         unsafe {
             core::arch::asm!(
                     "fld dword ptr [{mk} + 0x42FE]",
@@ -173,16 +171,14 @@ mod asm_differential {
         };
         differential(
             &SPEC,
-            |b| unsafe { reference::rate_x87(b[0], b[1]) },
+            |b| reference::rate_x87(b[0], b[1]),
             |b| {
                 with_copy(b[1], KeptView::START, |kv| {
                     with_copy::<SquareTiming, _>(b[1], SquareTiming::START, |sti| {
                         with_copy::<SquareState, _>(b[1], SquareState::START, |ss| {
-                            with_overlays(
-                                b[1],
-                                &[overlay(&SHAPE_TILT, ShapeTilt::START)],
-                                || unsafe { super::rate_x87(b[0], kv, sti, ss) },
-                            )
+                            with_overlays(b[1], &[overlay(&SHAPE_TILT, ShapeTilt::START)], || {
+                                super::rate_x87(b[0], kv, sti, ss)
+                            })
                         })
                     })
                 })

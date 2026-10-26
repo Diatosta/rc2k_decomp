@@ -23,32 +23,32 @@ const STAGE_SLOT: &Dword = &DRAW_WORK.figure; // dword_7559EC
 // hhmm
 
 /// The Rust version (see the header).
-pub unsafe fn enter_time_trial_best() -> Result<(), Refused> {
+pub fn enter_time_trial_best() -> Result<(), Refused> {
     use rc2k_core::menu::bests;
     let record = stage_record()?;
     stage_times()?; // a stage the tables do not give: refused
     let p = current_player()?;
-    let name = dword(p + 0x18);
+    let name = dword(p + 0x18)?;
     if name == 0 {
         return Err(BadInput("a player's name pointer of 0").into());
     }
-    let slot = dword(record + 0x3C);
+    let slot = dword(record + 0x3C)?;
     set(STAGE_SLOT, slot);
     let cheats = get(CHEATS);
-    let sealed = unsafe { crate::menu::sealed_player_time::sealed_player_time(slot)? };
+    let sealed = crate::menu::sealed_player_time::sealed_player_time(slot)?;
     // Converted: `rc2k_core::menu::bests::enter_tenth`, then `rank_time_trial_best`.
     use crate::menu::standings::bytes;
     let best = bests::NewBest {
-        key: dword(p + 0x88),
+        key: dword(p + 0x88)?,
         player: 1,
-        nationality: dword(p + 4),
+        nationality: dword(p + 4)?,
         name_at: name,
-        car: dword(p + 8),
-        group: dword(p + 0x90),
-        name: bytes(name),
+        car: dword(p + 8)?,
+        group: dword(p + 0x90)?,
+        name: bytes(name)?,
         entered: None,
         seal: Some(bests::Seal { cheats, sealed }),
-        line: Some(bytes(p + 0x20C)),
+        line: Some(bytes(p + 0x20C)?),
     };
     bests::enter_tenth(&mut crate::menu::rank_time_trial_best::stage_list()?, &best);
     crate::menu::rank_time_trial_best::rank_time_trial_best()

@@ -36,7 +36,7 @@ fn abs16(a: u32, b: u32) -> u32 {
 
 /// The Rust version (see the header): `corner` (the original's eax), `angle` (ebx, << 20),
 /// `alpha` (ecx), `size` (edx), `colour` (esi), `centre` (st(0) x, st(1) y).
-pub unsafe fn draw_flare_part(
+pub fn draw_flare_part(
     corner: u32,
     angle: u32,
     alpha: u32,
@@ -47,7 +47,7 @@ pub unsafe fn draw_flare_part(
     if corner >= CORNERS {
         return Err(BadInput("a flare corner past g_marksCorners").into());
     }
-    unsafe {
+    {
         if crate::marks::setup::SETTINGS.pointer.get() == 0 {
             return Err(BadInput("no marks settings").into());
         }

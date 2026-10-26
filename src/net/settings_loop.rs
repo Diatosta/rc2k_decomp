@@ -62,7 +62,7 @@ pub fn settings_loop() -> Result<(), Refused> {
                         crate::net::settings_link::settings_link()?;
                         INSTALLER_PAGES.choice.set(0);
                     } else {
-                        crate::net::begin_setting_edit::begin_setting_edit();
+                        crate::net::begin_setting_edit::begin_setting_edit()?;
                     }
                     moved = true;
                 }

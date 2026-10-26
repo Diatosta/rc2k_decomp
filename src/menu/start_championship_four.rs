@@ -21,6 +21,6 @@ pub const START_CHAMPIONSHIP_FOUR: Starter = Starter {
 };
 
 /// The Rust version (`c` the carried values the item gets).
-pub unsafe fn start_championship_four(c: &Carried) -> Result<(), Refused> {
-    unsafe { start_event(&START_CHAMPIONSHIP_FOUR, c) }
+pub fn start_championship_four(c: &Carried) -> Result<(), Refused> {
+    start_event(&START_CHAMPIONSHIP_FOUR, c)
 }

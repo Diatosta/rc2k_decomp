@@ -21,15 +21,16 @@ use crate::errors::Refused;
 use crate::field;
 use crate::input::devices::{at, put};
 use crate::input::types::InputDevice;
+use crate::pointers::GamePtr;
 
 /// The device `record` set up from its controls at `controls` (see the header).
 pub unsafe fn set_up_device(record: u32, controls: u32) -> Result<(), Refused> {
-    unsafe {
-        crate::system::zero_memory::zero_memory((record + 0x414) as *mut u8, 0xC8)?;
-    }
-    let n = at(controls, 0);
+    GamePtr::new(record)
+        .offset(0x414)
+        .fill(0, 0xC8, "a device record's bindings")?;
+    let n = at(controls, 0)?;
     if n != 0 {
-        put(record, field!(InputDevice, controller), n - 1);
+        put(record, field!(InputDevice, controller), n - 1)?;
         for (to, from) in [
             (0x418, 0x10),
             (0xC, 0x1C),
@@ -37,25 +38,27 @@ pub unsafe fn set_up_device(record: u32, controls: u32) -> Result<(), Refused> {
             (0x14, 0x14),
             (0x18, 0xC),
         ] {
-            put(record, to, at(controls, from));
+            put(record, to, at(controls, from)?)?;
         }
         // Converted: `rc2k_core::input::devices::device_kind`.
-        let kind = at(controls, 8);
-        put(record, field!(InputDevice, sensitivity), kind);
+        let kind = at(controls, 8)?;
+        put(record, field!(InputDevice, sensitivity), kind)?;
         let kind = rc2k_core::input::devices::device_kind(kind);
-        put(record, field!(InputDevice, kind), kind);
+        put(record, field!(InputDevice, kind), kind)?;
         crate::input::acquire_device::acquire_device(record)?;
     }
     // Converted: `rc2k_core::input::devices::binding` over `DEVICE_BINDINGS`.
     for (key, word, to) in rc2k_core::input::devices::DEVICE_BINDINGS {
-        let key = unsafe { ((controls + key as u32) as *const u8).read() };
+        let key: u8 = GamePtr::new(controls)
+            .offset(key as u32)
+            .read("a device's control key")?;
         let b = rc2k_core::input::devices::binding(
             key,
-            at(controls, word as u32),
-            at(record, 0x24) == 1,
+            at(controls, word as u32)?,
+            at(record, 0x24)? == 1,
         );
         for (n, v) in b.into_iter().enumerate() {
-            put(record, to as u32 + 4 * n as u32, v);
+            put(record, to as u32 + 4 * n as u32, v)?;
         }
     }
     Ok(())

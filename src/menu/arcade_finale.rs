@@ -24,10 +24,10 @@ pub unsafe fn arcade_finale() -> Result<(), Refused> {
     if player0 == 0 {
         return Err(BadInput("no player 0").into());
     }
-    let f = |o: u32| unsafe { ((player0 + o) as *const u32).read_unaligned() };
-    RACE_STATE.results.finish_player.set(f(0x28));
-    RACE_STATE.results.finish_kind.set(f(8));
-    RACE_STATE.settings.car_kind_current.set(f(8));
+    let f = |o: u32| crate::pointers::GamePtr::new(player0 + o).read::<u32>("a player field");
+    RACE_STATE.results.finish_player.set(f(0x28)?);
+    RACE_STATE.results.finish_kind.set(f(8)?);
+    RACE_STATE.settings.car_kind_current.set(f(8)?);
     RACE_STATE.settings.kept.set(0);
     let level = { ARCADE_GAME.level.get() };
     // Converted: `rc2k_core::menu::arcade::levels_left`.

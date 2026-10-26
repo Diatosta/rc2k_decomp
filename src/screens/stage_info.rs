@@ -8,8 +8,8 @@ use crate::menu::arcade_store::ARCADE_GAME;
 use crate::menu::champ_store::CHAMP_VIEW;
 use crate::text::draw_text::Canvas;
 
-unsafe fn get(a: u32) -> u32 {
-    unsafe { (a as *const u32).read_unaligned() }
+fn get(a: u32) -> Result<u32, crate::errors::BadInput> {
+    crate::pointers::GamePtr::new(a).read::<u32>("a game value")
 }
 
 /// The page's stage record (none: 0).
@@ -27,29 +27,26 @@ pub fn stage_record() -> u32 {
 /// The fastest's flag sprite gets `dword_7587EC` as its palette (ebx as the original loads
 /// it). The speed is formatted before anything is drawn (its refusals first). Every
 /// register kept.
-pub unsafe fn draw_stage_best_and_fastest(
-    times: u32,
-    canvas: &mut dyn Canvas,
-) -> Result<(), Refused> {
+pub fn draw_stage_best_and_fastest(times: u32, canvas: &mut dyn Canvas) -> Result<(), Refused> {
     use rc2k_core::screens::stage_panel::{CarRow, Holder};
-    unsafe {
+    {
         let record = stage_record();
         if record == 0 {
             return Err(BadInput("no stage record").into());
         }
         let units = crate::strings::units::units();
-        crate::strings::append_speed::append_speed(get(record + 0x30), true, units)?;
+        crate::strings::append_speed::append_speed(get(record + 0x30)?, true, units)?;
         let best = Holder {
-            nation: get(times + 8),
+            nation: get(times + 8)?,
             name: times + 0x20,
-            car: get(times + 0x10),
-            figure: get(times + 0x14),
+            car: get(times + 0x10)?,
+            figure: get(times + 0x14)?,
         };
         let top = Holder {
-            nation: get(record + 0x74),
+            nation: get(record + 0x74)?,
             name: record + 0x54,
-            car: get(record + 0x78),
-            figure: get(record + 0x30),
+            car: get(record + 0x78)?,
+            figure: get(record + 0x30)?,
         };
         rc2k_core::screens::stage_panel::records(
             &mut crate::screens::stage_panel::PanelScreen::new(canvas),
@@ -90,7 +87,7 @@ pub unsafe fn draw_rally_stage_info(canvas: &mut dyn Canvas) -> Result<(), Refus
         let times = CHAMP_VIEW
             .course_best_times
             .get()
-            .wrapping_add(get(record + 0x3C).wrapping_mul(0x618));
+            .wrapping_add(get(record + 0x3C)?.wrapping_mul(0x618));
         draw_stage_best_and_fastest(times, canvas)
     }
 }

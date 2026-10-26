@@ -32,6 +32,7 @@
 use crate::errors::{BadInput, Refused};
 use crate::physics::contact_store::CONTACT_WORK;
 use crate::physics::ground_store::GROUND_WORK;
+use crate::pointers::GamePtr;
 use crate::race::blocks_store::CAR_BLOCKS;
 use crate::race::course_store::COURSE;
 use crate::scene::draw_store::DRAW;
@@ -42,41 +43,38 @@ use rc2k_core::drive::lit_faces::{
 
 const MOST: u32 = 0x100;
 
-unsafe fn at(p: u32) -> u32 {
-    unsafe { (p as *const u32).read_unaligned() }
+fn at(p: u32) -> Result<u32, BadInput> {
+    GamePtr::new(p).read("a face of the course")
 }
 
-unsafe fn put(p: u32, v: u32) {
-    unsafe { (p as *mut u32).write_unaligned(v) }
+fn put(p: u32, v: u32) -> Result<(), BadInput> {
+    GamePtr::new(p).write(v, "a face of the course")
 }
 
-unsafe fn byte(p: u32) -> u8 {
-    unsafe { (p as *const u8).read() }
+fn byte(p: u32) -> Result<u8, BadInput> {
+    GamePtr::new(p).read("a face of the course")
 }
 
-unsafe fn set_byte(p: u32, v: u8) {
-    unsafe { (p as *mut u8).write(v) }
+fn set_byte(p: u32, v: u8) -> Result<(), BadInput> {
+    GamePtr::new(p).write(v, "a face of the course")
 }
 
 /// The face's animated bytes.
-unsafe fn load(f: u32) -> FaceBytes {
-    unsafe {
-        FaceBytes {
-            b8: byte(f + 8),
-            b9: byte(f + 9),
-            b11: byte(f + 0x11),
-            b12: byte(f + 0x12),
-            b13: byte(f + 0x13),
-        }
-    }
+fn load(f: u32) -> Result<FaceBytes, BadInput> {
+    Ok(FaceBytes {
+        b8: byte(f + 8)?,
+        b9: byte(f + 9)?,
+        b11: byte(f + 0x11)?,
+        b12: byte(f + 0x12)?,
+        b13: byte(f + 0x13)?,
+    })
 }
 
-unsafe fn store(f: u32, b: &FaceBytes) {
-    unsafe {
-        for (o, v) in [(9, b.b9), (0x11, b.b11), (0x13, b.b13)] {
-            set_byte(f + o, v);
-        }
+fn store(f: u32, b: &FaceBytes) -> Result<(), BadInput> {
+    for (o, v) in [(9, b.b9), (0x11, b.b11), (0x13, b.b13)] {
+        set_byte(f + o, v)?;
     }
+    Ok(())
 }
 
 /// `g_litFaces`[k] (0x100 of them; the count is checked below).
@@ -122,28 +120,29 @@ unsafe fn animate_faces() -> Result<(), Refused> {
         let mut k = 0;
         loop {
             let f = faces.wrapping_add(list(k).get() << 6);
-            let mut bytes = load(f);
+            let mut bytes = load(f)?;
             let leave = 'face: {
-                let object = byte(f + 1);
+                let object = byte(f + 1)?;
                 if object == COUNTDOWN_OBJECT {
                     break 'face count_down(&mut bytes);
                 }
-                let point_number = at(f + 4);
+                let point_number = at(f + 4)?;
                 let p = point(point_number);
-                let dx = at(p).wrapping_sub(CAR_BLOCKS.cars[0].position[0].bits());
+                let dx = at(p)?.wrapping_sub(CAR_BLOCKS.cars[0].position[0].bits());
                 DRAW.scratch.set(dx);
-                let dz = at(p + 8).wrapping_sub(CAR_BLOCKS.cars[0].position[2].bits());
+                let dz = at(p + 8)?.wrapping_sub(CAR_BLOCKS.cars[0].position[2].bits());
                 DRAW.scratch.set(dz);
                 let d = crate::math::x87::int_hypot(dx as i32, dz as i32) as u32;
                 CONTACT_WORK.lit_face_distance.set(d);
                 let step = pace(d);
                 CONTACT_WORK.lit_face_pace.set(step);
                 let kind_of: u32 = OBJECT_TABLES.object_kind(object as u32);
-                let kind = ((crate::scene::polygon::materials_addr()
-                    + 0x1C
-                    + (kind_of.wrapping_mul(0x80)) as usize)
-                    as *const u8)
-                    .read();
+                let kind: u8 = GamePtr::new(
+                    (crate::scene::polygon::materials_addr() as u32)
+                        .wrapping_add(0x1C)
+                        .wrapping_add(kind_of.wrapping_mul(0x80)),
+                )
+                .read("an object's material")?;
                 match kind {
                     1 | 9 => {
                         blink(&mut bytes, |n| {
@@ -164,26 +163,26 @@ unsafe fn animate_faces() -> Result<(), Refused> {
                             distance as i32,
                             angle,
                         );
-                        CONTACT_WORK.lit_face_saved_30.set(at(f + 0x30));
-                        CONTACT_WORK.lit_face_saved_38.set(at(f + 0x38));
-                        put(f + 0x30, at(f + 0x30).wrapping_add(x));
-                        put(f + 0x38, at(f + 0x38).wrapping_add(z));
-                        let p = point(at(f + 4));
-                        GROUND_WORK.ground_x.set(at(p).wrapping_add(at(f + 0x30)));
+                        CONTACT_WORK.lit_face_saved_30.set(at(f + 0x30)?);
+                        CONTACT_WORK.lit_face_saved_38.set(at(f + 0x38)?);
+                        put(f + 0x30, at(f + 0x30)?.wrapping_add(x))?;
+                        put(f + 0x38, at(f + 0x38)?.wrapping_add(z))?;
+                        let p = point(at(f + 4)?);
+                        GROUND_WORK.ground_x.set(at(p)?.wrapping_add(at(f + 0x30)?));
                         GROUND_WORK
                             .ground_z
-                            .set(at(p + 8).wrapping_add(at(f + 0x38)));
+                            .set(at(p + 8)?.wrapping_add(at(f + 0x38)?));
                         COURSE
                             .ground_face_last
                             .set(CAR_BLOCKS.cars[0].probe_point_face[4].bits());
                         crate::physics::find_ground::find_ground()?;
                         put(
                             f + 0x34,
-                            GROUND_WORK.ground_height.get().wrapping_sub(at(p + 4)),
-                        );
+                            GROUND_WORK.ground_height.get().wrapping_sub(at(p + 4)?),
+                        )?;
                         if COURSE.ground_slot.get() == u32::MAX {
-                            put(f + 0x30, CONTACT_WORK.lit_face_saved_30.bits());
-                            put(f + 0x38, CONTACT_WORK.lit_face_saved_38.bits());
+                            put(f + 0x30, CONTACT_WORK.lit_face_saved_30.bits())?;
+                            put(f + 0x38, CONTACT_WORK.lit_face_saved_38.bits())?;
                         }
                         bytes.b11 = bytes.b11.wrapping_sub(1);
                         false
@@ -191,7 +190,7 @@ unsafe fn animate_faces() -> Result<(), Refused> {
                     _ => false,
                 }
             };
-            store(f, &bytes);
+            store(f, &bytes)?;
             if leave {
                 let last = CONTACT_WORK.lit_face_count.bits().wrapping_sub(1);
                 list(k).set(list(last).get());

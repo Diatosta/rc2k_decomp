@@ -11,6 +11,6 @@ use crate::marks::pong::PONG_RULES;
 use crate::marks::squares_setup::setup_with;
 
 /// The Rust version (see the header).
-pub unsafe fn pong_setup() {
-    unsafe { setup_with(PONG_RULES.setup_places.each_ref().map(|f| f.bits())) }
+pub fn pong_setup() {
+    setup_with(PONG_RULES.setup_places.each_ref().map(|f| f.bits()))
 }

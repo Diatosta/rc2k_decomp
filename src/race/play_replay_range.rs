@@ -19,7 +19,7 @@ use crate::race::viewer_state_store::REPLAY_VIEW;
 /// The Rust version (every register kept).
 pub fn play_replay_range() -> Result<(), Refused> {
     use crate::race::race_end;
-    crate::drive::replay_frame_marks::replay_frame_marks();
+    crate::drive::replay_frame_marks::replay_frame_marks()?;
     if VIEWER_PANEL.replay_recording.get() != 1 {
         crate::race::sounds::start_race_sounds()?;
     }

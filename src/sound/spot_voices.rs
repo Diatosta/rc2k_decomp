@@ -10,6 +10,8 @@
 //! +0x3C the volume (floats), +0x40 the distance, +0x44 its change, +0x48 and +0x4C the
 //! pitch and volume factors.
 
+use crate::errors::BadInput;
+use crate::pointers::GamePtr;
 use crate::session::MACHINE;
 use crate::sound::sets_store::SPOT_VOICES;
 
@@ -24,12 +26,14 @@ pub fn voice(n: u32) -> u32 {
 }
 
 /// The dword at `at` of the voice at `v`.
-pub fn vw(v: u32, at: u32) -> u32 {
-    unsafe { ((v + at) as *const u32).read_unaligned() }
+pub fn vw(v: u32, at: u32) -> Result<u32, BadInput> {
+    GamePtr::new(v).offset(at).read("a spot voice's dword")
 }
 
-pub fn set(v: u32, at: u32, value: u32) {
-    unsafe { ((v + at) as *mut u32).write_unaligned(value) }
+pub fn set(v: u32, at: u32, value: u32) -> Result<(), BadInput> {
+    GamePtr::new(v)
+        .offset(at)
+        .write(value, "a spot voice's dword")
 }
 
 /// The voices as the core's (`rc2k_core::sound::spot_voices`).

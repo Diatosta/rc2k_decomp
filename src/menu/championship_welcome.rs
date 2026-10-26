@@ -23,7 +23,7 @@ use rc2k_core::menu::welcome::{self};
 
 /// The Rust version. `f` the registers the caller carries (the welcome is a flow of its
 /// own: what it changes is its own, the original keeps every register).
-pub unsafe fn championship_welcome(f: &Flow) -> Result<(), Refused> {
+pub fn championship_welcome(f: &Flow) -> Result<(), Refused> {
     // Converted: `rc2k_core::menu::welcome::championship_welcome`.
-    welcome::championship_welcome(&mut Game::nested(f))
+    Game::nested(f).run(welcome::championship_welcome)
 }

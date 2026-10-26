@@ -7,10 +7,12 @@
 use crate::errors::{BadInput, Refused};
 use crate::framework::{game_addr, rva};
 use crate::physics::split_tables_store::SPLIT_TABLES;
+use crate::pointers::GamePtr;
 use crate::race::course_lists_store::COURSE_LISTS;
 use crate::race::course_store::COURSE;
 use crate::race::level_grid_store::LEVEL_GRID;
 use crate::race::prefs_store::STAGE_PREFS;
+use crate::race::trap::{Trap, span};
 use crate::race::vars_store::RACE_VARS;
 use crate::scene::file_numbers_store::{FILE_NUMBERS, texts};
 
@@ -75,54 +77,46 @@ pub fn number_places() -> [usize; 9] {
     ]
 }
 const TEXTURES: u32 = 0x100;
-unsafe fn get(at: u32) -> u32 {
-    unsafe { (at as *const u32).read_unaligned() }
+fn get(at: u32) -> Result<u32, BadInput> {
+    GamePtr::new(at).read("a course variable")
 }
 
-unsafe fn put(at: u32, value: u32) {
-    unsafe { (at as *mut u32).write_unaligned(value) };
+fn put(at: u32, value: u32) -> Result<(), BadInput> {
+    GamePtr::new(at).write(value, "a course variable")
 }
 
 /// `files::read_whole_file` (inside `pusha` in every caller: what it leaves is read by
 /// nobody).
 pub unsafe fn read(path: u32, buffer: u32, count: u32) -> Result<(), Refused> {
-    unsafe {
-        crate::files::read_whole_file::read_whole_file(
-            path as *const u8,
-            buffer as *mut u8,
-            count,
-        )?;
-    }
+    span(buffer, count as usize, "a file's buffer")?;
+    crate::files::read_whole_file::read_whole_file(path as *const u8, buffer as *mut u8, count)?;
     Ok(())
 }
 
 /// `race::allocate_course_memory` (0x41F8C4): the course memory taken (`memory::allocate`
 /// on the list `list`).
 pub unsafe fn allocate_course_memory(v: &Vars, list: u32) -> Result<(), Refused> {
-    unsafe {
-        put(v.first_part, FIRST_PART);
-        put(
-            v.list_total,
-            get(v.list_total).wrapping_add(FIRST_PART + INFO_PART),
-        );
-        let memory = crate::memory::allocate::allocate(list as *mut _, FIRST_PART + INFO_PART)?;
-        put(v.course_memory, memory as u32);
-        put(v.course_info, (memory as u32).wrapping_add(FIRST_PART));
-    }
+    put(v.first_part, FIRST_PART)?;
+    put(
+        v.list_total,
+        get(v.list_total)?.wrapping_add(FIRST_PART + INFO_PART),
+    )?;
+    let memory =
+        unsafe { crate::memory::allocate::allocate(list as *mut _, FIRST_PART + INFO_PART) }?;
+    put(v.course_memory, memory as u32)?;
+    put(v.course_info, (memory as u32).wrapping_add(FIRST_PART))?;
     Ok(())
 }
 
 /// `race::copy_texture_info_tail` (0x439AE5): 0x800 bytes of the course info from
 /// +0x17E800 to +0x17F000.
-pub unsafe fn copy_texture_info_tail(v: &Vars) {
-    unsafe {
-        let info = get(v.course_info);
-        std::ptr::copy(
-            info.wrapping_add(0x17_E800) as *const u8,
-            info.wrapping_add(0x17_F000) as *mut u8,
-            0x800,
-        );
-    }
+pub fn copy_texture_info_tail(v: &Vars) -> Result<(), BadInput> {
+    let info = get(v.course_info)?;
+    GamePtr::new(info.wrapping_add(0x17_E800)).copy_to(
+        GamePtr::new(info.wrapping_add(0x17_F000)),
+        0x800,
+        "the course info's texture tail",
+    )
 }
 
 /// `race::load_texture_info` (0x4398FA): `files\a\textinfo` (0x1F4000 bytes at most) into
@@ -131,7 +125,7 @@ pub unsafe fn copy_texture_info_tail(v: &Vars) {
 /// no course info.
 pub unsafe fn load_texture_info(v: &Vars) -> Result<(), Refused> {
     unsafe {
-        let info = get(v.course_info);
+        let info = get(v.course_info)?;
         if info == 0 {
             return Err(BadInput("no course memory: the original reads into 0").into());
         }
@@ -150,24 +144,21 @@ pub unsafe fn load_texture_info(v: &Vars) -> Result<(), Refused> {
             info + 0x1F_4000,
             0x1F_4000,
         )?;
-        std::ptr::write_bytes((info + 0x5_BD21) as *mut u8, 0x0A, 3);
-        copy_texture_info_tail(v);
+        GamePtr::new(info + 0x5_BD21).fill(0x0A, 3, "the course info's line feeds")?;
+        copy_texture_info_tail(v)?;
         Ok(())
     }
 }
 
 /// `race::set_course_number` (0x43944F): al's two digits (tens, units, as `div 10` of the
 /// low byte) into the nine path strings (the stage's files) that hold the course's number.
-pub unsafe fn set_course_number(eax: u32) {
+pub fn set_course_number(eax: u32) -> Result<(), BadInput> {
     // Converted: `rc2k_core::race::stage::two_digits`.
     let [tens, units] = rc2k_core::race::stage::two_digits(eax as u8);
     for place in number_places() {
-        let at = place as *mut u8;
-        unsafe {
-            *at = tens;
-            *at.add(1) = units;
-        }
+        GamePtr::new(place as u32).write_bytes(&[tens, units], "a path's course number")?;
     }
+    Ok(())
 }
 
 /// `race::load_error_list` (0x439A92): the file named at 0x60AE02, 0x2000 bytes at most, to
@@ -188,51 +179,49 @@ pub unsafe fn load_error_list() -> Result<(), Refused> {
 /// +0x10/+0x14/+0x18 the record's +0x20/+0x10/+0x14, +0x1C its byte +0x18, +0x2C..+0x2E its
 /// bytes +0x24..+0x26, +0 .. +0xC its first four. Refuses a kind whose record lies past
 /// the info.
-pub unsafe fn build_texture_infos(v: &Vars) -> Result<(), Refused> {
-    unsafe {
-        let info = get(v.course_info);
+pub fn build_texture_infos(v: &Vars) -> Result<(), Refused> {
+    {
+        let info = get(v.course_info)?;
         if info == 0 {
             return Ok(());
         }
         for n in 0..TEXTURES {
-            if get(v.texture_kinds + 4 * n) >= INFO_PART / 0x80 {
+            if get(v.texture_kinds + 4 * n)? >= INFO_PART / 0x80 {
                 return Err(BadInput("a texture kind past the course info").into());
             }
         }
         // Converted: `rc2k_core::race::stage::texture_info`.
         for n in 0..TEXTURES {
             let out = v.texture_infos + n * 0x40;
-            let kind = get(v.texture_kinds + 4 * n);
+            let kind = get(v.texture_kinds + 4 * n)?;
             let rec = info + kind * 0x80;
+            let trap = Trap::new();
             let t = rc2k_core::race::stage::texture_info(
                 kind,
-                |o| get(rec + o),
-                |o| *((rec + o) as *const u8),
+                |o| trap.read::<u32>(rec + o, "a course info record"),
+                |o| trap.read::<u8>(rec + o, "a course info record"),
             );
-            put(out + 0x24, t.row);
-            put(out + 0x20, t.group);
+            trap.finish()?;
+            put(out + 0x24, t.row)?;
+            put(out + 0x20, t.group)?;
             for (k, &value) in t.values.iter().enumerate() {
-                put(out + 0x10 + 4 * k as u32, value);
+                put(out + 0x10 + 4 * k as u32, value)?;
             }
-            *((out + 0x1C) as *mut u8) = t.byte;
-            for (k, &b) in t.bytes.iter().enumerate() {
-                *((out + 0x2C + k as u32) as *mut u8) = b;
-            }
+            GamePtr::new(out + 0x1C).write(t.byte, "a texture info")?;
+            GamePtr::new(out + 0x2C).write_bytes(&t.bytes, "a texture info")?;
             for (k, &value) in t.first.iter().enumerate() {
-                put(out + 4 * k as u32, value);
+                put(out + 4 * k as u32, value)?;
             }
-            put(out + 0x28, t.marked);
+            put(out + 0x28, t.marked)?;
         }
     }
     Ok(())
 }
 
 /// `race::reset_refresh` (0x45C53B): `dword_63E174` and `dword_63E178` 0x80000000.
-pub unsafe fn reset_refresh(v: &Vars) {
-    unsafe {
-        put(v.refresh[0], 0x8000_0000);
-        put(v.refresh[1], 0x8000_0000);
-    }
+pub fn reset_refresh(v: &Vars) -> Result<(), BadInput> {
+    put(v.refresh[0], 0x8000_0000)?;
+    put(v.refresh[1], 0x8000_0000)
 }
 
 /// `race::init_checkpoints` (0x45A98F): `dword_601830` 0; unless `dword_623640` - 2 is
@@ -241,25 +230,28 @@ pub unsafe fn reset_refresh(v: &Vars) {
 /// `dword_601830` = their count - 1. Refuses an end below 2 (the original counts round), or
 /// more found than the list's 0x201 (a real stage's end is past 0x201: refused wrongly on
 /// 2026-10-16, when the end was checked).
-pub unsafe fn init_checkpoints(v: &Vars) -> Result<(), Refused> {
+pub fn init_checkpoints(v: &Vars) -> Result<(), Refused> {
     // Converted: `rc2k_core::race::checkpoints::listed_checkpoints`.
-    unsafe {
-        let kinds = get(v.checkpoint_kinds);
+    {
+        let kinds = get(v.checkpoint_kinds)?;
         if (kinds.wrapping_sub(2) as i32) < 0 {
-            put(v.checkpoints_found, 0);
+            put(v.checkpoints_found, 0)?;
             return Ok(());
         }
-        let end = get(v.checkpoint_count);
-        let records = get(v.checkpoint_records);
+        let end = get(v.checkpoint_count)?;
+        let records = get(v.checkpoint_records)?;
+        let trap = Trap::new();
         let listed = rc2k_core::race::checkpoints::listed_checkpoints(end, |n| {
-            let record = (get(v.checkpoint_table + 4 * n) << 6).wrapping_add(records);
-            *((record + 0x26) as *const u8) != 0
+            let face = trap.read::<u32>(v.checkpoint_table + 4 * n, "the checkpoint table");
+            let record = (face << 6).wrapping_add(records);
+            trap.read::<u8>(record + 0x26, "a checkpoint face") != 0
         })?;
-        put(v.checkpoints_found, 0);
+        trap.finish()?;
+        put(v.checkpoints_found, 0)?;
         for (k, &n) in listed.iter().enumerate() {
-            put(v.checkpoints + 4 * k as u32, n);
+            put(v.checkpoints + 4 * k as u32, n)?;
         }
-        put(v.checkpoints_found, (listed.len() as u32).wrapping_sub(1));
+        put(v.checkpoints_found, (listed.len() as u32).wrapping_sub(1))?;
     }
     Ok(())
 }

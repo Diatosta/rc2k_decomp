@@ -32,12 +32,12 @@ fn shadow_refuses() -> Option<Refused> {
 }
 
 /// The Rust version (see the header).
-pub unsafe fn draw_overlays() -> Result<(), Refused> {
+pub fn draw_overlays() -> Result<(), Refused> {
     use crate::scene::set_render_state::set_render_state;
     if let Some(e) = shadow_refuses() {
         return Err(e);
     }
-    unsafe {
+    {
         crate::scene::depth_buffer_on::depth_buffer(true);
         crate::scene::depth_test_on::depth_test_on();
         for (value, state) in STATES {

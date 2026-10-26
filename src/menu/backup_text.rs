@@ -8,8 +8,9 @@ use crate::menu::text_entry::{field, with_entry};
 
 // ---- Rust version ----
 
-pub unsafe fn backup_text(at: *const u8) {
+pub fn backup_text(at: u32) -> Result<(), crate::errors::BadInput> {
     // Converted: `rc2k_core::menu::text_entry::Entry::back_up`.
-    let text = unsafe { field(at) };
+    let text = field(at)?;
     with_entry(|e| e.back_up(&text));
+    Ok(())
 }

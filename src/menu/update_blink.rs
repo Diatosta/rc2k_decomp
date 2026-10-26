@@ -29,7 +29,7 @@ use crate::session::CLOCKS;
 pub use rc2k_core::menu::blink::blink_states;
 
 /// What the three variables should be for the clock the game holds now.
-unsafe fn states_now() -> (u32, u32, u32) {
+fn states_now() -> (u32, u32, u32) {
     blink_states(
         CLOCKS.frame.get(),
         CHAMP_VIEW.last_key_time.get(),
@@ -40,7 +40,7 @@ unsafe fn states_now() -> (u32, u32, u32) {
 
 pub fn update_blink() {
     update_frame_clock();
-    unsafe {
+    {
         let (blink, cursor_on, idle) = states_now();
         DRAW_WORK.blink.set(blink);
         DRAW_WORK.cursor_on.set(cursor_on);

@@ -27,6 +27,7 @@ use crate::install::runs_from_source::scratch_path;
 use crate::install::vars::INSTALLER_NAMES;
 use crate::install::vars::INSTALLER_PAGES;
 use crate::install::vars::INSTALLER_RUN;
+use crate::pointers::GamePtr;
 use crate::system::start_texts::START_TEXTS;
 
 const PATH_ROOM: usize = 0x100;
@@ -44,8 +45,11 @@ pub fn set_script_entry(text_id: u16) {
 }
 
 /// "ral.exe" (in ".\ral.exe").
-unsafe fn program<'a>() -> &'a [u8] {
-    unsafe { std::ffi::CStr::from_ptr(INSTALLER_NAMES.program.addr() as *const _) }.to_bytes()
+fn program() -> Result<Vec<u8>, BadInput> {
+    crate::files::cstring(
+        GamePtr::new(INSTALLER_NAMES.program.addr() as u32),
+        "the program's name",
+    )
 }
 
 // ---- Rust version ----
@@ -57,14 +61,20 @@ pub unsafe fn check_at_start(outside: &mut dyn Outside, no_audio: *mut u32) -> R
         if INSTALLER_RUN.installing.get() == 1 || outside.file_exists(record)? {
             return Ok(());
         }
-        no_audio.write_unaligned(1);
+        GamePtr::new(no_audio as u32).write(1u32, "the sound's switch")?;
         if outside.file_exists(crate::gfx::texts::address(&crate::gfx::texts::JADE) as *const u8)? {
             return Ok(());
         }
         let path = scratch_path();
-        let put = |at: usize, text: &[u8]| {
-            std::ptr::copy(text.as_ptr(), path.add(at), text.len());
-            path.add(at + text.len()).write(0);
+        let put = |at: usize, text: &[u8]| -> Result<(), BadInput> {
+            let place = GamePtr::new(path as u32);
+            place
+                .offset(at as u32)
+                .write_bytes(text, "the scratch path")?;
+            place
+                .offset((at + text.len()) as u32)
+                .write(0u8, "the scratch path")?;
+            Ok(())
         };
 
         outside.read_registry();
@@ -72,7 +82,7 @@ pub unsafe fn check_at_start(outside: &mut dyn Outside, no_audio: *mut u32) -> R
             // Whether the source could be put there is not asked: the program's name
             // goes after whatever text the place holds.
             outside.normalise_path(INSTALLER_NAMES.source.addr() as *const u8, path)?;
-            let held = std::slice::from_raw_parts(path, PATH_ROOM);
+            let held = GamePtr::new(path as u32).read_bytes(PATH_ROOM, "the scratch path")?;
             let Some(len) = held
                 .iter()
                 .position(|&c| c == 0)
@@ -80,23 +90,24 @@ pub unsafe fn check_at_start(outside: &mut dyn Outside, no_audio: *mut u32) -> R
             else {
                 return Err(BadInput("the scratch path holds no text to go on from").into());
             };
-            put(len, program());
+            put(len, &program()?)?;
             if outside.file_exists(path)? {
                 // "patch6: ", then the version from the blank before its `(`.
-                let version =
-                    std::ffi::CStr::from_ptr(START_TEXTS.version.addr() as *const _).to_bytes();
+                let version = crate::files::cstring(
+                    GamePtr::new(START_TEXTS.version.addr() as u32),
+                    "the version text",
+                )?;
                 let from = (1..version.len())
                     .find(|&n| version[n] == b'(')
                     .ok_or(BadInput("a version text without a ("))?
                     - 1;
                 let text = [b"patch6: ", &version[from..], b"\n\0"].concat();
-                std::ptr::copy(
-                    text.as_ptr(),
+                GamePtr::new(
                     crate::screens::text_buffers_store::TEXT_BUFFERS
                         .number_text
-                        .addr() as *mut u8,
-                    text.len(),
-                );
+                        .addr() as u32,
+                )
+                .write_bytes(&text, "the number text")?;
                 set_script_entry(0x1006);
             }
         }
@@ -105,19 +116,19 @@ pub unsafe fn check_at_start(outside: &mut dyn Outside, no_audio: *mut u32) -> R
             if outside.drive_type(letter) != 5 {
                 continue;
             }
-            put(0, &[letter, b':', b'\\']);
-            put(3, program());
+            put(0, &[letter, b':', b'\\'])?;
+            put(3, &program()?)?;
             if !outside.file_exists(path)? {
                 continue;
             }
             put(
                 3,
                 &crate::gfx::texts::JADE[..crate::gfx::texts::JADE.len() - 1],
-            );
+            )?;
             if !outside.file_exists(path)? {
                 continue;
             }
-            path.add(3).write(0);
+            GamePtr::new(path as u32 + 3).write(0u8, "the scratch path")?;
             if !outside.set_directory(path) {
                 continue;
             }

@@ -23,21 +23,23 @@ pub fn savegame_page_numbers() -> Result<(), Refused> {
     // Converted: `rc2k_core::screens::captions::savegame_numbers`.
     let page = { MENU_PAGES.save_page.get() };
     let (caption, numbers) = rc2k_core::screens::captions::savegame_numbers(page)?;
-    unsafe {
-        std::ptr::copy_nonoverlapping(
-            caption.as_ptr(),
+    crate::pointers::GamePtr::new(
+        crate::screens::text_buffers_store::TEXT_BUFFERS
+            .caption
+            .addr() as u32,
+    )
+    .write_bytes(&caption, "the caption")?;
+    for (n, text) in numbers.iter().enumerate() {
+        let place = crate::pointers::GamePtr::new(
             crate::screens::text_buffers_store::TEXT_BUFFERS
-                .caption
-                .addr() as *mut u8,
-            caption.len(),
-        );
-        for (n, text) in numbers.iter().enumerate() {
-            let place = crate::screens::text_buffers_store::TEXT_BUFFERS
                 .page_numbers
-                .addr() as *mut u8;
-            std::ptr::copy_nonoverlapping(text.as_ptr(), place.add(n * 4), text.len());
-            *place.add(n * 4 + text.len()) = 0;
-        }
+                .addr() as u32
+                + 4 * n as u32,
+        );
+        place.write_bytes(text, "a page number")?;
+        place
+            .offset(text.len() as u32)
+            .write::<u8>(0, "a page number")?;
     }
     Ok(())
 }

@@ -17,6 +17,7 @@ use crate::gfx::picture_store::PICTURE;
 use crate::marks::kind_values::MARKS_KIND;
 use crate::marks::mask_store::{GROUND_NAMES, KIND_PICTURES, MASK_BLOCKS, PICTURE_COPY};
 use crate::memory::MemoryList;
+use crate::pointers::GamePtr;
 use crate::scene::kind_texture_store::KIND_TEXTURES;
 use crate::session::Dword;
 
@@ -42,7 +43,20 @@ const ROWS: u32 = 0x7E;
 /// `gfx::read_picture_file` at 256 x 128 (the picture's sizes kept round it); refused
 /// when not read (the original then counts 0x1FFFFFFF down and leaves with its stack one
 /// off).
-unsafe fn read(path: u32) -> Result<(), Refused> {
+fn read(path: u32) -> Result<(), Refused> {
+    {
+        use rc2k_core::strings::bytes::Bytes as _;
+        let text = crate::pointers::GamePtr::new(path).bytes("a mask picture's path")?;
+        let mut k = 0;
+        loop {
+            match text.byte(k) {
+                Some(0) => break,
+                Some(_) => k += 1,
+                None => return Err(BadInput("a mask picture's path runs past its region").into()),
+            }
+        }
+    }
+    // SAFETY: the path's NUL lies in its region (checked above).
     unsafe {
         let sizes: [u32; 3] = [
             PICTURE.width.get(),
@@ -64,14 +78,14 @@ unsafe fn read(path: u32) -> Result<(), Refused> {
 }
 
 /// `gfx::put_surface_pixel` (components, x, y).
-pub unsafe fn put_pixel(components: u32, x: u32, y: u32) -> Result<(), Refused> {
+pub fn put_pixel(components: u32, x: u32, y: u32) -> Result<(), Refused> {
     unsafe { crate::gfx::put_surface_pixel::put_surface_pixel(components, x, y)? };
     Ok(())
 }
 
 /// `d3d::lock_texture` (`lock`) or `d3d::unlock_texture` of the texture slot `slot` (their
 /// flags unread).
-pub unsafe fn lock(slot: u32, lock: bool) -> Result<(), Refused> {
+pub fn lock(slot: u32, lock: bool) -> Result<(), Refused> {
     unsafe {
         if lock {
             crate::d3d::lock_texture::lock_texture(slot)?;
@@ -84,23 +98,23 @@ pub unsafe fn lock(slot: u32, lock: bool) -> Result<(), Refused> {
 
 /// A mask read, copied to the 0x80000 block, the ground read, and the block `to` made
 /// and drawn at rows 0x80 .. 0xFD.
-unsafe fn mask(path: usize, to: &Dword, width: u32) -> Result<(), Refused> {
-    unsafe {
+fn mask(path: usize, to: &Dword, width: u32) -> Result<(), Refused> {
+    {
         read((PICTURE_COPY.paths.addr() + path) as u32)?;
-        std::ptr::copy(
-            PICTURE.buffer.get() as *const u8,
-            PICTURE_COPY.copy.get() as *mut u8,
+        GamePtr::new(PICTURE.buffer.get()).copy_to(
+            GamePtr::new(PICTURE_COPY.copy.get()),
             4 * COPIED as usize,
-        );
+            "the mask picture",
+        )?;
         read(GROUND_NAMES.ground_path.get())?;
         for y in 0..ROWS {
             for x in 0..width.max(1) {
                 let n = (y << 8).wrapping_add(x);
                 let copy: u32 = PICTURE_COPY.copy.get();
-                let mask = ((copy + 4 * n) as *const u32).read_unaligned();
+                let mask = GamePtr::new(copy + 4 * n).read::<u32>("a mark's field")?;
                 let pixel = (mask << 8) & 0xFF00_0000 | 0xFF_FFFF;
                 let block: u32 = to.get();
-                ((block + 4 * n) as *mut u32).write_unaligned(pixel);
+                GamePtr::new(block + 4 * n).write::<u32>(pixel, "a mark's field")?;
                 put_pixel(pixel, x, y + 0x80)?;
             }
         }
@@ -114,7 +128,7 @@ unsafe fn mask(path: usize, to: &Dword, width: u32) -> Result<(), Refused> {
 /// (`gfx::read_picture_file`) into its block and drawn (`gfx::put_surface_pixel`);
 /// unlocked, the texture slot forgotten (`scene::forget_slot_texture`), the 0x80000
 /// block's list freed, `dword_934D6E` -1.
-pub unsafe fn load_mask_pictures() -> Result<(), Refused> {
+pub fn load_mask_pictures() -> Result<(), Refused> {
     unsafe {
         let ground: i32 = GROUND_NAMES.ground.get() as i32;
         if ground >= NAMES {
@@ -122,7 +136,7 @@ pub unsafe fn load_mask_pictures() -> Result<(), Refused> {
         }
         let mut name = GROUND_NAMES.names.addr() as u32;
         for _ in 0..ground.max(0) {
-            while *(name as *const u8) != 0 {
+            while GamePtr::new(name).read::<u8>("the ground names")? != 0 {
                 name += 1;
             }
             name += 1;

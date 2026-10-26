@@ -1,6 +1,7 @@
 //! Operating system services other than files.
 
 pub mod check_developer_machine;
+pub mod checked_reads;
 pub mod find_entry;
 pub mod find_entry_with_bits;
 pub mod find_running_game;

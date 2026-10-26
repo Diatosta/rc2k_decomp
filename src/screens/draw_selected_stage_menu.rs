@@ -19,6 +19,7 @@
 //! (`menu::table_calls`); the registers above are the original's, for reference.
 
 use crate::errors::{BadInput, Refused};
+use crate::pointers::GamePtr;
 use crate::race::state_store::RACE_STATE;
 use crate::screens::draw_stage_records::selection;
 use crate::screens::draw_time_trial_stage_info::GROUP_TITLES_RVA;
@@ -34,21 +35,21 @@ use crate::text::draw_text::Canvas;
 const MARKER_PALETTE: u32 = 0x5C;
 
 /// The string ids this function gives menu items 0 and 1: the group's and the table's titles.
-pub unsafe fn menu_titles() -> Option<(u32, u32)> {
-    unsafe {
-        let sel = selection()?;
-        Some((
-            table_dword_at(GROUP_TITLES_RVA.addr(), sel.group),
-            dword(sel.table.wrapping_add(0x38)),
-        ))
-    }
+pub fn menu_titles() -> Result<Option<(u32, u32)>, BadInput> {
+    let Some(sel) = selection()? else {
+        return Ok(None);
+    };
+    Ok(Some((
+        table_dword_at(GROUP_TITLES_RVA.addr(), sel.group)?,
+        dword(sel.table.wrapping_add(0x38))?,
+    )))
 }
 
 /// Returns the carry flag. Refuses a missing selection or menu: the original reads or writes
 /// through null.
 pub unsafe fn draw_selected_stage_menu(canvas: &mut dyn Canvas) -> Result<bool, Refused> {
     unsafe {
-        let (Some(sel), Some((group_title, table_title))) = (selection(), menu_titles()) else {
+        let (Some(sel), Some((group_title, table_title))) = (selection()?, menu_titles()?) else {
             return Err(
                 BadInput("no record table is selected: the original reads through null").into(),
             );
@@ -58,9 +59,9 @@ pub unsafe fn draw_selected_stage_menu(canvas: &mut dyn Canvas) -> Result<bool, 
                 BadInput("there is no current menu: the original writes through null").into(),
             );
         };
-        (item_0 as *mut u32).write_unaligned(group_title);
+        GamePtr::new(item_0).write(group_title, "a menu item's string")?;
         RACE_STATE.settings.direction.set(sel.group);
-        (item_1 as *mut u32).write_unaligned(table_title);
+        GamePtr::new(item_1).write(table_title, "a menu item's string")?;
 
         build_second_heading(sel.record)?;
         draw_stage_body(sel.record, MARKER_PALETTE, true, canvas)?;

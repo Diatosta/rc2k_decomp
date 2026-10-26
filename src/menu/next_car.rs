@@ -13,9 +13,9 @@ use crate::menu::car_buttons::*;
 
 // ---- Rust version ----
 
-pub unsafe fn next_car(call: &mut dyn FnMut(Call) -> Result<(), Refused>) -> Result<(), Refused> {
+pub fn next_car(call: &mut dyn FnMut(Call) -> Result<(), Refused>) -> Result<(), Refused> {
     // Converted: `rc2k_core::menu::cars::press`.
-    unsafe { crate::menu::car_buttons::press(crate::menu::car_buttons::Which::NextCar, call) }
+    crate::menu::car_buttons::press(crate::menu::car_buttons::Which::NextCar, call)
 }
 
 /// The Rust version the typed tables run.

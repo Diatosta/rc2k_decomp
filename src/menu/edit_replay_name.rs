@@ -36,6 +36,7 @@ use crate::menu::name_lists::{NAME_LEN, replay_name, savegame_name};
 use crate::menu::option_work_store::OPTION_WORK;
 use crate::menu::restore_text::restore_text;
 use crate::menu::text_entry::{length, set_length};
+use crate::pointers::GamePtr;
 use crate::strings::append_string_by_id::push_string;
 use crate::text::draw_text::Canvas;
 use crate::text::measure_text::measure_text_at;
@@ -47,8 +48,8 @@ const MEASURING_FONT: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fon
 
 // ---- Rust version ----
 
-unsafe fn end_name(name: *mut u8) {
-    unsafe { name.offset(length() as isize).write(0) };
+fn end_name(name: u32) -> Result<(), BadInput> {
+    GamePtr::new(name.wrapping_add(length() as u32)).write::<u8>(0, "a replay's name")
 }
 
 /// Returns the carry flag.
@@ -70,30 +71,36 @@ pub unsafe fn edit_replay_name(canvas: &mut dyn Canvas) -> Result<bool, Refused>
         match entry::key(key) {
             Key::None => {}
             Key::Escape => {
-                restore_text(name);
+                restore_text(name)?;
                 OPTION_WORK.typing.set(0u32);
                 CAPTIONS.screen_left.set(1u32);
                 return Ok(true);
             }
             Key::Enter => {
                 if length() == 0 {
-                    restore_text(name);
+                    restore_text(name)?;
                     add_text_length(name)?;
                 }
                 OPTION_WORK.typing.set(0u32);
-                end_name(name);
+                end_name(name)?;
                 return Ok(false);
             }
             // The saved game's name, not the replay's: the original's slip.
-            Key::Clear => clear_text(other_name),
+            Key::Clear => clear_text(other_name)?,
             Key::Backspace => backspace_savegame_name()?,
             Key::Other(key) => {
                 let c = key_to_char(key as u32)? as u8;
                 let len = length();
                 if entry::appends(c, len, LOOP_FLAGS.text_max.get() as i32) {
-                    name.offset(len as isize).write(c);
+                    GamePtr::new(name.wrapping_add(len as u32))
+                        .write::<u8>(c, "a replay's name")?;
                     set_length(len.wrapping_add(1));
-                    let measured = measure_text_at(MEASURING_FONT.as_ptr(), name, len, canvas)?;
+                    let measured = measure_text_at(
+                        MEASURING_FONT.as_ptr(),
+                        name as usize as *const u8,
+                        len,
+                        canvas,
+                    )?;
                     if entry::too_wide(measured.width as i32) {
                         backspace_savegame_name()?;
                     }
@@ -103,10 +110,10 @@ pub unsafe fn edit_replay_name(canvas: &mut dyn Canvas) -> Result<bool, Refused>
         let cursor_on: u32 = DRAW_WORK.cursor_on.get();
         let mut tail = Vec::new();
         if cursor_on == 1 {
-            push_string(&mut tail, CURSOR_STRING);
+            push_string(&mut tail, CURSOR_STRING)?;
         }
         tail.push(0);
-        std::ptr::copy_nonoverlapping(tail.as_ptr(), name.offset(length() as isize), tail.len());
+        GamePtr::new(name.wrapping_add(length() as u32)).write_bytes(&tail, "a replay's name")?;
         Ok(cursor_on == 0)
     }
 }

@@ -12,12 +12,13 @@
 //! Callers: `sub_4A0E60`, `sub_4AA4D7`. The steps are their Rust versions. Refuses what they refuse
 //! for any record of the walk, and a walk past 64 records, before anything.
 use crate::errors::Refused;
+use crate::menu::event_flow::Fault;
 use crate::menu::event_store::EVENT_STATE;
 use crate::menu::standings::*;
 use rc2k_core::menu::section_walk::Step;
 
 /// The record at `index` of the current section.
-fn record_at(index: u32) -> u32 {
+fn record_at(index: u32) -> Result<u32, crate::errors::BadInput> {
     let table = crate::records::stages_store::STAGE_TABLES.championship();
     let section: u32 = { SECTION_RVA.get() };
     crate::records::find_record::find_record_in(table, index as i32, section)
@@ -30,11 +31,14 @@ fn walk() -> Result<Vec<(u32, Step)>, Refused> {
     entries(crate::menu::drivers_store::DRIVERS.first(), DRIVER)?;
     let index: u32 = { INDEX_RVA.get() };
     // Converted: `rc2k_core::menu::section_walk::walk`.
-    rc2k_core::menu::section_walk::walk(
+    let fault = Fault::default();
+    let walked = rc2k_core::menu::section_walk::walk(
         index,
-        |i| get(record_at(i)),
-        |i| crate::menu::calc_cpu_times::check(record_at(i)).map(|_| ()),
-    )
+        |i| fault.ok(record_at(i).and_then(get)),
+        |i| crate::menu::calc_cpu_times::check(record_at(i)?).map(|_| ()),
+    );
+    fault.check()?;
+    walked
 }
 
 /// The Rust version (see the header): the registers it leaves.

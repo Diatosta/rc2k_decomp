@@ -23,17 +23,14 @@ const MOST: u32 = 0x1000;
 // ---- Rust version ----
 
 /// Converted: `rc2k_core::scene::face_order::sort_listed_faces`.
-pub unsafe fn sort_listed_faces() -> Result<(), BadInput> {
-    unsafe {
-        let listed: u32 = LIGHT_WORK.listed_face_count.bits();
-        if listed > MOST {
-            return Err(BadInput("more faces listed than the list holds"));
-        }
-        let list = std::slice::from_raw_parts_mut(
-            crate::scene::object_slots_store::OBJECT_SLOTS.listed_faces[0].addr()
-                as *mut rc2k_core::scene::face_order::ListedFace,
-            listed as usize,
-        );
-        Ok(rc2k_core::scene::face_order::sort_listed_faces(list)?)
+pub fn sort_listed_faces() -> Result<(), BadInput> {
+    let listed: u32 = LIGHT_WORK.listed_face_count.bits();
+    if listed > MOST {
+        return Err(BadInput("more faces listed than the list holds"));
     }
+    let at = crate::scene::object_slots_store::OBJECT_SLOTS.listed_faces[0].addr() as u32;
+    let mut list: Vec<rc2k_core::scene::face_order::ListedFace> =
+        crate::scene::reading::read_records(at, listed as usize, "the list of faces")?;
+    rc2k_core::scene::face_order::sort_listed_faces(&mut list)?;
+    crate::scene::reading::write_records(at, &list, "the list of faces")
 }

@@ -72,7 +72,7 @@ pub fn find_sessions() -> Result<bool, Refused> {
         NET.session_desc.application.as_ptr() as u32,
         NET.app_guid.addr() as u32,
         0x10,
-    );
+    )?;
     let result = posted_or_called(posted_enum_sessions);
     crate::system::restore_window::restore_window();
     Ok(result == 0 || result == CONNECTING)

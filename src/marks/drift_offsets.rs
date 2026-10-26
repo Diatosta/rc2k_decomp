@@ -20,16 +20,16 @@ use crate::math::x87;
 use crate::physics::tables_store::PHYSICS;
 
 /// The marks' random: times 0x9D plus 0x47.
-unsafe fn next_seed() -> u32 {
+fn next_seed() -> u32 {
     let s = MARKS_WORK.seed.get().wrapping_mul(0x9D).wrapping_add(0x47);
     MARKS_WORK.seed.set(s);
     s
 }
 
 /// The Rust version (see the header).
-pub unsafe fn drift_offsets() {
+pub fn drift_offsets() {
     let (r, k) = (&RAIN, &RAIN_RULES);
-    unsafe {
+    {
         let since = PHYSICS.scene_clock.bits().wrapping_sub(r.drift_since.get());
         if since >= r.drift_wait.get() {
             let s = next_seed();

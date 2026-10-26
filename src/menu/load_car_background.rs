@@ -26,30 +26,29 @@ use crate::text::draw_text::GameCanvas;
 
 /// The car of the entry shown, 0x21 counting as 0x17.
 pub fn shown_car() -> Result<u32, Refused> {
-    let car = unsafe { read(shown_description()?) }.car;
+    let car = read(shown_description()?)?.car;
     // Converted: `rc2k_core::menu::slides::picture_car`.
     Ok(rc2k_core::menu::slides::picture_car(car))
 }
 
 /// `load` gets the path and the car; it returns whether the carry was set.
-pub unsafe fn load_car_background(
+pub fn load_car_background(
     load: &mut dyn FnMut(u32, u32) -> Result<bool, Refused>,
 ) -> Result<(), Refused> {
-    unsafe {
-        // Converted: `rc2k_core::menu::slides::background_page`.
-        let page = rc2k_core::menu::slides::background_page(EVENT_STATE.car_page.get())?;
-        let car = shown_car()?;
-        let table = MENU_LISTS.page_picture_lists[page as usize].get();
-        let path = ((table + car * 4) as *const u32).read_unaligned();
-        if load(path, car)? {
-            return Err(FatalError {
-                code: 0x8071_2345,
-                message: "",
-            }
-            .into());
+    // Converted: `rc2k_core::menu::slides::background_page`.
+    let page = rc2k_core::menu::slides::background_page(EVENT_STATE.car_page.get())?;
+    let car = shown_car()?;
+    let table = MENU_LISTS.page_picture_lists[page as usize].get();
+    let path = crate::pointers::GamePtr::new(table + car * 4)
+        .read::<u32>("load car background: a game value")?;
+    if load(path, car)? {
+        return Err(FatalError {
+            code: 0x8071_2345,
+            message: "",
         }
-        Ok(())
+        .into());
     }
+    Ok(())
 }
 
 /// In the game: the background through `menu::load_background` (its carry is never set).

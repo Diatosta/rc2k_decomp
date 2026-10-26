@@ -24,6 +24,6 @@ pub const START_A8_ONE: Starter = Starter {
 };
 
 /// The Rust version (`c` the carried values the item gets).
-pub unsafe fn start_a8_one(c: &Carried) -> Result<(), Refused> {
-    unsafe { start_event(&START_A8_ONE, c) }
+pub fn start_a8_one(c: &Carried) -> Result<(), Refused> {
+    start_event(&START_A8_ONE, c)
 }

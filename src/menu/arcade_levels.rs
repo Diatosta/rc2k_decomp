@@ -16,9 +16,9 @@ use crate::menu::screen_loop::Carried;
 
 /// The Rust version for `level` (1 .. 5). `c` the carried values the item gets. (The
 /// original leaves eax -1 for a closed level; nothing reads it.)
-pub unsafe fn arcade_level(c: &Carried, level: u32) -> Result<(), Refused> {
+pub fn arcade_level(c: &Carried, level: u32) -> Result<(), Refused> {
     let mut r = *c;
-    unsafe {
+    {
         // Converted: `rc2k_core::menu::arcade::level_open`.
         use rc2k_core::menu::arcade::{CLOSED_SOUND, level_open};
         let open = level_open(CHEAT_VARS.cheats.get(), || {

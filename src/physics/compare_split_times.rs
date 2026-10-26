@@ -55,6 +55,7 @@ pub fn compare_split_times() -> Result<(), Refused> {
         1 => RACE_STATE.results.results[1].data.addr() as u32,
         _ => return Ok(()),
     };
-    unsafe { ((times + 4 * CAR.splits_recorded.get()) as *mut u32).write_unaligned(time) };
+    crate::pointers::GamePtr::new(times + 4 * CAR.splits_recorded.get())
+        .write(time, "a result's split times")?;
     Ok(())
 }

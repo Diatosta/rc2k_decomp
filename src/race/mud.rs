@@ -4,10 +4,13 @@
 //! cleared, and 256 colours sampled from a picture surface (`dword_5D0DEC`, locked and
 //! unlocked through DirectDraw: the game's, `sub_41AA4B` / `sub_41AB02`).
 
+use crate::errors::BadInput;
 use crate::errors::Refused;
 use crate::gfx::screen_state::DRAW_SURFACE;
+use crate::pointers::GamePtr;
 use crate::race::course_lists_store::COURSE_LISTS;
 use crate::race::kind_store::KIND_TABLES;
+use crate::race::trap::read_whole_file_into;
 use crate::race::vars_store::RACE_VARS;
 use crate::scene::kind_texture_store::KIND_TEXTURES;
 
@@ -24,11 +27,14 @@ pub fn car_file_number(car: u32) -> u32 {
 /// `gfx::read_pixel` (0x406584): the pixel at (ecx, edx) of `g_surface`, taken apart by
 /// `gfx::pixel_to_components`. A 16-bit pixel is read with `mov ax`: the upper half of eax
 /// is the row's address's, and that is what the conversion gets.
-pub unsafe fn read_pixel(x: u32, y: u32) -> u32 {
+pub unsafe fn read_pixel(x: u32, y: u32) -> Result<u32, BadInput> {
     unsafe {
         let (_, pixel) = raw_pixel(x, y);
-        let format = DRAW_SURFACE.format.get() as *const crate::gfx::pixel_format::PixelFormat;
-        crate::gfx::pixel_to_components::pixel_to_components(&format.read_unaligned(), pixel)
+        let format = GamePtr::new(DRAW_SURFACE.format.get())
+            .read::<crate::gfx::pixel_format::PixelFormat>("the surface's pixel format")?;
+        Ok(crate::gfx::pixel_to_components::pixel_to_components(
+            &format, pixel,
+        ))
     }
 }
 
@@ -53,12 +59,12 @@ pub unsafe fn raw_pixel(x: u32, y: u32) -> (u32, u32) {
 }
 
 /// `race::mud_pixel` (0x44A58A): `read_pixel` inside the surface (unsigned), else 0.
-pub unsafe fn mud_pixel(x: u32, y: u32) -> u32 {
+pub unsafe fn mud_pixel(x: u32, y: u32) -> Result<u32, BadInput> {
     unsafe {
         // Converted: `rc2k_core::race::mud::inside`.
         if !rc2k_core::race::mud::inside(x, y, DRAW_SURFACE.width.get(), DRAW_SURFACE.height.get())
         {
-            return 0;
+            return Ok(0);
         }
         read_pixel(x, y)
     }
@@ -66,27 +72,20 @@ pub unsafe fn mud_pixel(x: u32, y: u32) -> u32 {
 
 /// `race::load_mud` (0x449D95): the car's file number's two digits (`div 10`, each +
 /// '0', as bytes) into the path, the file (0x10000 bytes at most) into the mud.
-pub unsafe fn load_mud() -> Result<(), Refused> {
-    unsafe {
-        // Converted: `rc2k_core::race::mud::file_digits`.
-        let (tens, units) = rc2k_core::race::mud::file_digits(car_file_number(
-            crate::race::blocks_store::CAR_BLOCKS.cars[0].car_kind.get(),
-        ));
-        let digits = RACE_VARS.mud_path.as_ptr().add(0x11);
-        *digits = tens as u8;
-        *digits.add(1) = units as u8;
-        let mud: u32 = RACE_VARS.mud.get();
-        crate::files::read_whole_file::read_whole_file(
-            RACE_VARS.mud_path.as_ptr(),
-            mud as *mut u8,
-            MUD_LEN,
-        )?;
-    }
+pub fn load_mud() -> Result<(), Refused> {
+    // Converted: `rc2k_core::race::mud::file_digits`.
+    let (tens, units) = rc2k_core::race::mud::file_digits(car_file_number(
+        crate::race::blocks_store::CAR_BLOCKS.cars[0].car_kind.get(),
+    ));
+    RACE_VARS.mud_path.set(0x11, tens as u8);
+    RACE_VARS.mud_path.set(0x12, units as u8);
+    let mud: u32 = RACE_VARS.mud.get();
+    read_whole_file_into(RACE_VARS.mud_path.as_ptr(), mud, MUD_LEN, "the mud")?;
     Ok(())
 }
 
 /// `race::clear_mud_state` (0x449E01): the 18 dwords at 0x623D58 and the two more 0.
-pub unsafe fn clear_mud_state() {
+pub fn clear_mud_state() {
     // The 18 dwords from `mud_frames` to the end of `mud_splash_counts`.
     let v = &RACE_VARS;
     v.mud_frames.set(0);
@@ -108,11 +107,10 @@ pub unsafe fn sample_mud_colours() -> Result<(), Refused> {
     unsafe {
         // dword_5D0DEC (`g_kindFirstTextures` + 0x304): the surface sampled.
         crate::d3d::lock_texture::lock_texture(KIND_TEXTURES.kind_first_textures[193].get())?;
-        let colours = RACE_VARS.mud_colours[0].addr() as *mut u32;
         // Converted: `rc2k_core::race::mud::sample_place`.
         for n in 0..rc2k_core::race::mud::SAMPLES {
             let (x, y) = rc2k_core::race::mud::sample_place(n);
-            colours.add(n as usize).write_unaligned(mud_pixel(x, y));
+            RACE_VARS.mud_colours[n as usize].set(mud_pixel(x, y)?);
         }
         crate::d3d::unlock_texture::unlock_texture(KIND_TEXTURES.kind_first_textures[193].get())?;
     }

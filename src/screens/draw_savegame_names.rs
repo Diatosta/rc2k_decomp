@@ -18,7 +18,7 @@ use crate::text::draw_text::Canvas;
 const NAME_LEN: usize = 0x20;
 // ---- Rust version ----
 
-pub unsafe fn draw_savegame_names(canvas: &mut dyn Canvas) -> Result<bool, Refused> {
+pub fn draw_savegame_names(canvas: &mut dyn Canvas) -> Result<bool, Refused> {
     // Converted: `rc2k_core::screens::slot_lists::names`.
     let page: u32 = MENU_PAGES.save_page.get();
     let names = crate::saves::write_savegame_slot::SAVE_GAMES.names.addr() as u32;

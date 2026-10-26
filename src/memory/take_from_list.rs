@@ -15,21 +15,25 @@
 
 use crate::errors::BadInput;
 use crate::memory::MemoryList;
+use crate::pointers::GamePtr;
 
 // ---- Rust version ----
 
 /// The address of the bytes, or None if the list has not that many left.
-pub unsafe fn take_from_list(list: *mut MemoryList, bytes: u32) -> Result<Option<u32>, BadInput> {
+pub fn take_from_list(list: *mut MemoryList, bytes: u32) -> Result<Option<u32>, BadInput> {
     if list.is_null() {
         return Err(BadInput("no list to take from"));
     }
-    // Converted: `rc2k_core::memory::List::take`.
-    Ok(unsafe { (*list).take(bytes) })
+    let at = GamePtr::new(list as u32);
+    let mut l = at.read::<MemoryList>("a memory list")?;
+    let taken = l.take(bytes);
+    at.write(l, "a memory list")?;
+    Ok(taken)
 }
 
-/// `memory::rewind_list` (0x402941): the cursor back to the newest block's start, and all
-/// of the list's bytes left.
-pub unsafe fn rewind_list(list: *mut MemoryList) {
-    // Converted: `rc2k_core::memory::List::rewind`.
-    unsafe { (*list).rewind() }
+pub fn rewind_list(list: *mut MemoryList) -> Result<(), BadInput> {
+    let at = GamePtr::new(list as u32);
+    let mut l = at.read::<MemoryList>("a memory list")?;
+    l.rewind();
+    at.write(l, "a memory list")
 }

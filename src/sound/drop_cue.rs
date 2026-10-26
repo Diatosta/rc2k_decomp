@@ -14,6 +14,7 @@
 //! above are the original's, for reference.
 
 use crate::errors::{BadInput, Refused};
+use crate::pointers::GamePtr;
 
 // ---- Rust version ----
 
@@ -21,12 +22,12 @@ use crate::errors::{BadInput, Refused};
 /// queue at `queue`.
 pub fn drop_cue(queue: u32, place: u32) -> Result<(), Refused> {
     use rc2k_core::sound::cars::{CueQueue, drop_cue};
-    let q = queue as *mut [u32; 0x84];
-    if q.is_null() {
+    if queue == 0 {
         return Err(BadInput("no queue").into());
     }
-    let mut cues = CueQueue::from_words(&unsafe { q.read_unaligned() });
+    let q = GamePtr::new(queue);
+    let mut cues = CueQueue::from_words(&q.read::<[u32; 0x84]>("a cue queue")?);
     drop_cue(&mut cues, place).map_err(|e| BadInput(e.0))?;
-    unsafe { q.write_unaligned(cues.to_words()) };
+    q.write(cues.to_words(), "a cue queue")?;
     Ok(())
 }

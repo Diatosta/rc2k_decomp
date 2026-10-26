@@ -12,17 +12,15 @@
 //! registers above are the original's, for reference.
 
 use crate::errors::BadInput;
-use crate::files::append_directory::text_of;
+use crate::pointers::GamePtr;
 
 /// The Rust version: the cursor after.
-pub unsafe fn append_file_name(path: *const u8, cursor: *mut u8) -> Result<*mut u8, BadInput> {
+pub fn append_file_name(path: *const u8, cursor: *mut u8) -> Result<*mut u8, BadInput> {
     if path.is_null() {
         return Err(BadInput("a null path"));
     }
-    // Converted: `rc2k_core::files::paths::file_name`.
-    let name = rc2k_core::files::paths::file_name(unsafe { text_of(path) });
-    unsafe {
-        std::ptr::copy(name.as_ptr(), cursor, name.len());
-        Ok(cursor.add(name.len()))
-    }
+    let text = crate::files::cstring(GamePtr::new(path as u32), "a path")?;
+    let name = rc2k_core::files::paths::file_name(&text);
+    GamePtr::new(cursor as u32).write_bytes(name, "a path being built")?;
+    Ok(cursor.wrapping_add(name.len()))
 }

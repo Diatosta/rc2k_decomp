@@ -26,7 +26,7 @@ use crate::menu::screen_loop::{Callee, Carried, Flow, List, Screen, Step};
 
 // ---- Rust version: `menu::screen_loop` with this ----
 
-unsafe fn after_first_frame(_c: &mut Carried) -> Result<Flow, Refused> {
+fn after_first_frame(_c: &mut Carried) -> Result<Flow, Refused> {
     if CAPTIONS.screen_left.get() == 0x1 {
         CAPTIONS.screen_left.set(0x0u32);
         return Ok(Flow::SetUp);

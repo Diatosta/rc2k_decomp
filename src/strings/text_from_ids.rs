@@ -27,16 +27,21 @@ pub fn text() -> *mut u8 {
 
 /// The bytes the original leaves in the text buffer, including the NUL (converted:
 /// `rc2k_core::strings::table::text_from_ids`).
-pub unsafe fn text_from_ids(first_id: u32, count: u32) -> Result<Vec<u8>, BadInput> {
+pub fn text_from_ids(first_id: u32, count: u32) -> Result<Vec<u8>, BadInput> {
     if count == 0 {
         return Err(BadInput(
             "count 0: the original's counter wraps and it never ends",
         ));
     }
-    rc2k_core::strings::table::text_from_ids(first_id, count, TEXT_LEN, |id, out| unsafe {
-        append_string_by_id(id, &mut |p, n| out.extend_from_slice(from_raw_parts(p, n)))
-    })
-    .ok_or(BadInput(
+    let fault = crate::menu::event_flow::Fault::default();
+    let text = rc2k_core::strings::table::text_from_ids(first_id, count, TEXT_LEN, |id, out| {
+        fault.ok(append_string_by_id(id, &mut |p, n| {
+            // SAFETY: `p` .. `p + n` was checked or is the expansion's own `Vec`.
+            out.extend_from_slice(unsafe { from_raw_parts(p, n) })
+        }))
+    });
+    fault.check()?;
+    text.ok_or(BadInput(
         "text longer than the text buffer: the original writes past it",
     ))
 }

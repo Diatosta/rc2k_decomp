@@ -16,6 +16,7 @@
 //! into eax), which the Rust version follows.
 //! The name is a reading.
 
+use crate::errors::BadInput;
 use crate::gfx::decoder::DECODER;
 use crate::gfx::palette_to_dwords::palette_to_dwords;
 use crate::gfx::pcx::PCX;
@@ -25,36 +26,37 @@ use crate::gfx::picture_store::PICTURE;
 
 /// Converted: `rc2k_core::gfx::pcx::lay_out`, on the header and the variables in game memory.
 /// Returns the layout it stored.
-pub unsafe fn lay_out_pcx() -> rc2k_core::gfx::pcx::Layout {
-    unsafe {
-        let target = rc2k_core::gfx::pcx::Target {
-            width: PICTURE.width.get(),
-            height: PICTURE.height.get(),
-            width_limit: PCX.width_limit.get(),
-            height_limit: PCX.height_limit.get(),
-            flags: PICTURE.flags.get(),
-            row_bytes: PICTURE.row_bytes.get(),
-        };
-        let l = rc2k_core::gfx::pcx::lay_out(&PCX.header.read(), &target);
-        for (at, value) in [
-            (&PCX.planes, l.planes),
-            (&PCX.line_bytes, l.line_bytes),
-            (&PCX.file_width, l.file_width),
-            (&DECODER.width, l.width),
-            (&PCX.file_height, l.file_height),
-            (&DECODER.height, l.height),
-            (&DECODER.pixel_bits, l.pixel_bits),
-            (&DECODER.pixel_bytes, l.pixel_bytes),
-            (&DECODER.row_bytes, l.row_bytes),
-            (&DECODER.row_dwords, l.row_dwords),
-            (&DECODER.stride, l.stride),
-            (&DECODER.row_gap, l.row_gap),
-        ] {
-            at.set(value);
-        }
-        DECODER.pixels.set(PICTURE.buffer.get());
-        // Neither is null: both are the game's own tables.
-        let _ = palette_to_dwords(PCX.file_palette.addr() as *const u8, DECODER.palette_ptr());
-        l
+pub fn lay_out_pcx() -> Result<rc2k_core::gfx::pcx::Layout, BadInput> {
+    let target = rc2k_core::gfx::pcx::Target {
+        width: PICTURE.width.get(),
+        height: PICTURE.height.get(),
+        width_limit: PCX.width_limit.get(),
+        height_limit: PCX.height_limit.get(),
+        flags: PICTURE.flags.get(),
+        row_bytes: PICTURE.row_bytes.get(),
+    };
+    let l = rc2k_core::gfx::pcx::lay_out(&PCX.header.read(), &target);
+    for (at, value) in [
+        (&PCX.planes, l.planes),
+        (&PCX.line_bytes, l.line_bytes),
+        (&PCX.file_width, l.file_width),
+        (&DECODER.width, l.width),
+        (&PCX.file_height, l.file_height),
+        (&DECODER.height, l.height),
+        (&DECODER.pixel_bits, l.pixel_bits),
+        (&DECODER.pixel_bytes, l.pixel_bytes),
+        (&DECODER.row_bytes, l.row_bytes),
+        (&DECODER.row_dwords, l.row_dwords),
+        (&DECODER.stride, l.stride),
+        (&DECODER.row_gap, l.row_gap),
+    ] {
+        at.set(value);
     }
+    DECODER.pixels.set(PICTURE.buffer.get());
+    // Neither is null: both are the game's own tables.
+    palette_to_dwords(
+        PCX.file_palette.addr() as u32,
+        DECODER.palette_ptr() as usize as u32,
+    )?;
+    Ok(l)
 }

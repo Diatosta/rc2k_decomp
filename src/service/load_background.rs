@@ -16,6 +16,7 @@
 use crate::errors::{BadInput, Refused};
 use crate::menu::event_store::EVENT_STATE;
 use crate::menu::lists_store::MENU_LISTS;
+use crate::pointers::GamePtr;
 
 /// The Rust version (see the header). The conversion's carry (fatal error 0x80712435) is
 /// never set by `gfx::convert_picture`'s Rust version, which refuses instead.
@@ -25,9 +26,9 @@ pub unsafe fn load_background() -> Result<(), Refused> {
         return Err(BadInput("no current player (or one past the four)").into());
     }
     // Converted: `rc2k_core::service::car::background`.
-    let car = rc2k_core::service::car::background(unsafe {
-        ((player + 8) as *const u32).read_unaligned()
-    })
+    let car = rc2k_core::service::car::background(
+        GamePtr::new(player + 8).read::<u32>("a player's record")?,
+    )
     .map_err(BadInput::from)?;
     unsafe {
         let path = MENU_LISTS.service_pictures[car as usize].get();

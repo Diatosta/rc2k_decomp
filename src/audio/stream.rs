@@ -13,6 +13,7 @@
 use crate::audio::buffer_settings::a3d;
 use crate::audio::store::AUDIO;
 use crate::errors::{BadInput, Refused};
+use crate::pointers::GamePtr;
 
 pub const HEADER_LEN: u32 = 0xC00;
 /// `GetCurrentPosition`, `Lock`, `Unlock` of a DirectSound buffer.
@@ -106,7 +107,7 @@ pub unsafe fn start_stream(s: &mut AudioStream, path: *const u8) -> Result<bool,
                     as u32;
             AUDIO.stream_header.set(header);
         }
-        std::ptr::write_bytes(header as *mut u8, 0, HEADER_LEN as usize);
+        GamePtr::new(header).fill(0, HEADER_LEN as usize, "the stream header")?;
         if !crate::audio::samples::read_sample(path, header, HEADER_LEN, &AUDIO.sample_file)? {
             return failed(s);
         }

@@ -74,14 +74,14 @@ unsafe fn set_up_first(c: &mut Carried) -> Result<(), Refused> {
 }
 
 /// With the clock in `Carried::arg`.
-unsafe fn before_first_frame(c: &mut Carried) -> Result<(), Refused> {
+fn before_first_frame(c: &mut Carried) -> Result<(), Refused> {
     CHAMP_VIEW.last_key_time.set(c.arg);
     CHEAT_VARS.notice_due.set(1u32);
 
     Ok(())
 }
 
-unsafe fn idle(c: &mut Carried) -> Result<Flow, Refused> {
+fn idle(c: &mut Carried) -> Result<Flow, Refused> {
     if LOOP_FLAGS.idle.get() == 0 {
         return Ok(Flow::On);
     }

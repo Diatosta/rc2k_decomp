@@ -13,7 +13,7 @@ use crate::menu::text_entry::{entry as text_entry, length, put_entry};
 
 // ---- Rust version ----
 
-pub unsafe fn backspace_savegame_name() -> Result<(), BadInput> {
+pub fn backspace_savegame_name() -> Result<(), BadInput> {
     // Converted: `rc2k_core::menu::text_entry::Entry::backspace`.
     if length() == 0 {
         return Ok(());
@@ -22,7 +22,8 @@ pub unsafe fn backspace_savegame_name() -> Result<(), BadInput> {
     let mut e = text_entry();
     if let Some(at) = e.backspace(NAME_LEN)? {
         put_entry(&e);
-        unsafe { name.add(at).write(0) };
+        crate::pointers::GamePtr::new(name.wrapping_add(at as u32))
+            .write::<u8>(0, "a saved game's name")?;
     }
     Ok(())
 }

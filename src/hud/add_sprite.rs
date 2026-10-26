@@ -9,23 +9,25 @@
 
 use crate::errors::Refused;
 use crate::hud::store::HUD;
+use crate::pointers::GamePtr;
 use rc2k_core::hud::quads;
 
 /// The quad record's texture places from the rectangle at `s` (shared with
 /// `hud::add_scaled_sprite`): the rectangle.
-pub unsafe fn put_places(s: u32) -> [u32; 4] {
-    unsafe {
-        let rect: [u32; 4] =
-            std::array::from_fn(|n| ((s + 4 * n as u32) as *const u32).read_unaligned());
+pub fn put_places(s: u32) -> Result<[u32; 4], Refused> {
+    Ok({
+        let rect: [u32; 4] = crate::marks::try_from_fn(|n| {
+            Ok(GamePtr::new(s + 4 * n as u32).read::<u32>("a hud record's field")?)
+        })?;
         for (n, v) in quads::sprite_places(rect) {
             HUD.quad[n].set(v);
         }
         rect
-    }
+    })
 }
 
 /// The quad record's corners (see `quads::sprite_corners`).
-pub unsafe fn put_corners(x: u32, y: u32, w: u32, h: u32) {
+pub fn put_corners(x: u32, y: u32, w: u32, h: u32) {
     for (n, v) in quads::sprite_corners(x, y, w, h) {
         HUD.quad[n].set(v);
     }
@@ -34,10 +36,8 @@ pub unsafe fn put_corners(x: u32, y: u32, w: u32, h: u32) {
 /// The Rust version (see the header): the sprite whose rectangle is at `rect` with its
 /// corner at `x`, `y` (ebx, ecx, esi; every register kept).
 // Converted: `rc2k_core::hud::quads::{sprite_places, sprite_corners}`
-pub unsafe fn add_sprite(x: u32, y: u32, rect: u32) -> Result<(), Refused> {
-    unsafe {
-        let [_, _, w, h] = put_places(rect);
-        put_corners(x, y, w, h);
-        crate::hud::add_quad::add_quad()
-    }
+pub fn add_sprite(x: u32, y: u32, rect: u32) -> Result<(), Refused> {
+    let [_, _, w, h] = put_places(rect)?;
+    put_corners(x, y, w, h);
+    crate::hud::add_quad::add_quad()
 }

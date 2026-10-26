@@ -10,17 +10,17 @@ use crate::errors::Refused;
 use crate::menu::standings::*;
 
 /// The Rust version (see the header): the registers it leaves.
-pub unsafe fn add_player_times() -> Result<(), Refused> {
+pub fn add_player_times() -> Result<(), Refused> {
     // Converted: `rc2k_core::menu::event::added_time`.
     for p in counted_players()? {
-        let entered = get(p + 0xD0);
+        let entered = get(p + 0xD0)?;
         // The times are read only for a player that took part, as the original.
         let (time, total) = if entered == 1 {
-            (get(p + 0x88), get(p + 0x8C))
+            (get(p + 0x88)?, get(p + 0x8C)?)
         } else {
             (0, 0)
         };
-        put_all(p, &rc2k_core::menu::event::added_time(entered, time, total));
+        put_all(p, &rc2k_core::menu::event::added_time(entered, time, total))?;
     }
     Ok(())
 }

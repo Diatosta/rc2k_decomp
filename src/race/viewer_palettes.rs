@@ -10,8 +10,10 @@
 //!
 //! Caller: `race::viewer_load_stage`.
 
+use crate::errors::BadInput;
 use crate::gfx::fonts_store::FONTS;
 use crate::gfx::pixel_format::PixelFormat;
+use crate::pointers::GamePtr;
 use crate::race::replay_file_store::REPLAY_FILE;
 use crate::scene::kind_texture_store::KIND_TEXTURES;
 
@@ -23,7 +25,7 @@ const PALETTES: [crate::gfx::typefaces::FontId; 6] = {
 };
 
 /// The Rust version.
-pub unsafe fn viewer_palettes() {
+pub fn viewer_palettes() -> Result<(), BadInput> {
     // The textures and slots kept: (to, from).
     for (to, from) in [
         (
@@ -50,24 +52,28 @@ pub unsafe fn viewer_palettes() {
             .palette
             .set(crate::race::viewer_buffers_store::VIEWER_BUFFERS.colours[0].addr() as u32);
     }
-    unsafe {
-        let screen = (crate::session::SCREEN.format_addr() as *const PixelFormat).read_unaligned();
-        let texture = (crate::gfx::texture_upload::TEXTURE_TABLES.kinds[3]
-            .get()
-            .wrapping_add(8) as *const PixelFormat)
-            .read_unaligned();
+    {
+        let screen = GamePtr::new(crate::session::SCREEN.format_addr() as u32)
+            .read::<PixelFormat>("the screen's pixel format")?;
+        let texture = GamePtr::new(
+            crate::gfx::texture_upload::TEXTURE_TABLES.kinds[3]
+                .get()
+                .wrapping_add(8),
+        )
+        .read::<PixelFormat>("the texture pixel format")?;
         // Converted: `rc2k_core::race::viewer_flow::{font_colour, FONT_COLOURS}` (colour
         // by colour, as the original).
         use rc2k_core::race::viewer_flow::{FONT_COLOURS, font_colour};
-        let from = FONTS.palettes.get() as *const u32;
-        let to = crate::race::viewer_buffers_store::VIEWER_BUFFERS.colours[0].addr() as *mut u32;
-        for n in 0..FONT_COLOURS {
+        let from = FONTS.palettes.get();
+        let to = crate::race::viewer_buffers_store::VIEWER_BUFFERS.colours[0].addr() as u32;
+        for n in 0..FONT_COLOURS as u32 {
             let colour = font_colour(
-                from.add(n).read_unaligned(),
+                GamePtr::new(from + 4 * n).read::<u32>("a font palette")?,
                 |c| crate::gfx::pixel_to_components::pixel_to_components(&screen, c),
                 |p| crate::gfx::components_to_pixel::components_to_pixel(&texture, p),
             );
-            to.add(n).write_unaligned(colour);
+            GamePtr::new(to + 4 * n).write(colour, "the viewer's colours")?;
         }
     }
+    Ok(())
 }

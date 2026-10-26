@@ -106,8 +106,8 @@ const ITEM_MEASURING_FONT: u32 = 0x4C;
 pub const ALIGN_CENTRE: u32 = 1;
 pub const ALIGN_RIGHT: u32 = 3;
 
-pub unsafe fn dword(at: u32) -> u32 {
-    unsafe { (at as *const u32).read_unaligned() }
+pub fn dword(at: u32) -> Result<u32, crate::errors::BadInput> {
+    crate::pointers::GamePtr::new(at).read::<u32>("a game value")
 }
 
 // ---- Rust version of the three button functions ----
@@ -123,14 +123,14 @@ pub unsafe fn draw_button(
     canvas: &mut dyn Canvas,
 ) -> Result<(), Refused> {
     unsafe {
-        let set = dword(item.wrapping_add(ITEM_SPRITES));
+        let set = dword(item.wrapping_add(ITEM_SPRITES))?;
         if item == 0 || set == 0 {
             return Err(BadInput("a button without sprites").into());
         }
         let sprites = [
-            dword(set + kind.left_at),
-            dword(set + kind.right_at),
-            dword(set + 0x10),
+            dword(set + kind.left_at)?,
+            dword(set + kind.right_at)?,
+            dword(set + 0x10)?,
         ];
         kind.width.set(width);
         kind.x.set(x as u32);
@@ -180,13 +180,13 @@ pub unsafe fn draw_item_button(item: u32, canvas: &mut dyn Canvas) -> Result<(),
         return Err(BadInput("no menu item").into());
     }
     unsafe {
-        let highlighted = LOOP_FLAGS.item.get() == dword(item + ITEM_TYPE);
+        let highlighted = LOOP_FLAGS.item.get() == dword(item + ITEM_TYPE)?;
         draw_button(
             if highlighted { &HIGHLIGHTED } else { &PLAIN },
-            dword(item + ITEM_WIDTH),
-            dword(item + ITEM_X) as i32,
-            dword(item + ITEM_Y) as i32,
-            dword(item + ITEM_ALIGN),
+            dword(item + ITEM_WIDTH)?,
+            dword(item + ITEM_X)? as i32,
+            dword(item + ITEM_Y)? as i32,
+            dword(item + ITEM_ALIGN)?,
             item,
             canvas,
         )
@@ -206,13 +206,17 @@ pub unsafe fn draw_text_button(
         return Err(BadInput("no menu item").into());
     }
     unsafe {
-        let font = dword(item + ITEM_MEASURING_FONT) as *mut Font;
-        let measured = measure_string_by_id_at(dword(item + ITEM_STRING), font, measure_x, canvas)?;
+        let font = dword(item + ITEM_MEASURING_FONT)?;
+        // The font object must lie in the game's memory before it is used.
+        crate::pointers::GamePtr::new(font).read::<Font>("an item's measuring font")?;
+        let font = font as usize as *mut Font;
+        let measured =
+            measure_string_by_id_at(dword(item + ITEM_STRING)?, font, measure_x, canvas)?;
         draw_button(
             kind,
             rc2k_core::screens::buttons::text_width(measured.width),
-            dword(item + ITEM_X) as i32,
-            dword(item + ITEM_Y) as i32,
+            dword(item + ITEM_X)? as i32,
+            dword(item + ITEM_Y)? as i32,
             align,
             item,
             canvas,

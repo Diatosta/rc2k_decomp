@@ -50,7 +50,7 @@ unsafe fn read_rows() -> Result<bool, BadInput> {
             return Ok(false);
         }
         PICTURE.flags.set(0x800u32);
-        let layout = lay_out_pcx();
+        let layout = lay_out_pcx()?;
         // Converted: `rc2k_core::gfx::pcx::decode_8bit`.
         let palette: [u32; 256] = DECODER.palette();
         let pixels: u32 = DECODER.pixels.get();

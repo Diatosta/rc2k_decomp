@@ -68,7 +68,7 @@ pub unsafe fn car_sound_state() -> Result<(), Refused> {
     if l == 0 {
         return Err(BadInput("a null view block").into());
     }
-    let so = unsafe { crate::sound::store::SoundObject::at(o) };
+    let so = crate::sound::store::SoundObject::at(o)?;
     unsafe {
         so.new_revs.set(1);
         so.revs.set(CAR.engine_sound_revs.get());

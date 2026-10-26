@@ -42,11 +42,11 @@ pub fn viewer_tidy_stage() -> Result<(), Refused> {
 }
 
 fn run(step: rc2k_core::race::viewer_flow::TidyStep) -> Result<(), Refused> {
-    use crate::race::{loadlevel::LoadVars, race_end, sound_tables};
+    use crate::race::{race_end, sound_tables};
     use rc2k_core::race::viewer_flow::TidyStep;
     unsafe {
         match step {
-            TidyStep::TidyEverything => race_end::tidy_everything(&LoadVars::game())?,
+            TidyStep::TidyEverything => race_end::tidy_everything()?,
             TidyStep::MenuScreenMode => {
                 crate::platform::set_menu_mode_now();
             }

@@ -10,9 +10,9 @@ use crate::net::set_hud_options::own_block;
 use crate::race::state_store::RACE_STATE;
 
 /// The Rust version.
-pub fn keep_hud_options() {
-    RACE_STATE
-        .results
-        .hud_bits_current
-        .set(unsafe { ((own_block() + 0x220) as *const u32).read_unaligned() });
+pub fn keep_hud_options() -> Result<(), crate::errors::BadInput> {
+    RACE_STATE.results.hud_bits_current.set(
+        crate::pointers::GamePtr::new(own_block() + 0x220).read::<u32>("a car block's HUD bits")?,
+    );
+    Ok(())
 }

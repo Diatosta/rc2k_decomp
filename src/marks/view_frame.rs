@@ -14,11 +14,11 @@ use crate::marks::{
 };
 
 /// The Rust version (see the header).
-pub unsafe fn view_frame() -> Result<(), Refused> {
+pub fn view_frame() -> Result<(), Refused> {
     if crate::marks::setup::SETTINGS.pointer.get() == 0 {
         return Err(BadInput("no marks settings").into());
     }
-    unsafe {
+    {
         keep_vectors::keep_vectors();
         crate::marks::kept_turns::turn_kept_vectors();
         scale_kept_vectors::scale_kept_vectors();

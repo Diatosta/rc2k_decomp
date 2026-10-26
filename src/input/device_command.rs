@@ -50,7 +50,7 @@ pub unsafe fn device_command(command: u32) -> Result<(), Refused> {
                     device(n),
                     RACE_STATE.settings.cars[n].record_2c.addr() as u32,
                 )?,
-                Reading(n, on) => put(device(n), 0x414, on as u32),
+                Reading(n, on) => put(device(n), 0x414, on as u32)?,
                 SecondApart => {
                     if RACE_STATE.settings.cars[0].record_2c.get()
                         == RACE_STATE.settings.cars[1].record_2c.get()

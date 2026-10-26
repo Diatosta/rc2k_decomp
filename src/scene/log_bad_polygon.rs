@@ -16,6 +16,7 @@
 //! vertices (the original's loop would run through memory).
 
 use crate::errors::BadInput;
+use crate::pointers::GamePtr;
 use crate::race::course_store::COURSE;
 use crate::race::switches_store::FRAME_SWITCHES;
 use crate::race::vars_store::RACE_VARS;
@@ -69,7 +70,7 @@ const VERTEX: [(&std::ffi::CStr, u32, u32); 8] = [
 const PT: &std::ffi::CStr = c"pt"; // "pt"
 
 /// The Rust version: the dump of the `g_polygonVertexCount` vertices at `vertices`.
-pub unsafe fn log_bad_polygon(vertices: u32) -> Result<(), BadInput> {
+pub fn log_bad_polygon(vertices: u32) -> Result<(), BadInput> {
     let count: u32 = DRAW.polygon_vertex_count.bits();
     if count > MOST {
         return Err(BadInput("more than 64 vertices"));
@@ -92,13 +93,19 @@ pub unsafe fn log_bad_polygon(vertices: u32) -> Result<(), BadInput> {
     }
     for n in 0..count {
         let vertex = vertices.wrapping_add(0x20 * n);
+        let words = GamePtr::new(vertex).read_bytes(0x20, "a vertex")?;
         log(WRITE, text(PT));
         log(INT, n);
         for (label, kind, offset) in VERTEX {
             log(WRITE, text(label));
-            log(kind, unsafe {
-                ((vertex + offset) as *const u32).read_unaligned()
-            });
+            log(
+                kind,
+                u32::from_le_bytes(
+                    words[offset as usize..offset as usize + 4]
+                        .try_into()
+                        .unwrap(),
+                ),
+            );
         }
         log(NEWLINE, 0);
     }

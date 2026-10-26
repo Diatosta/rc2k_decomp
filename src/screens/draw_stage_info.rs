@@ -35,25 +35,23 @@ pub const TITLE_Y: i32 = 0x77;
 // ---- Rust version ----
 
 /// The record of the event's stage, and its section.
-pub unsafe fn event_stage() -> (u32, u32) {
+pub fn event_stage() -> Result<(u32, u32), crate::errors::BadInput> {
     let table = crate::records::stages_store::STAGE_TABLES.championship();
     let section: u32 = EVENT_STATE.section.get();
     let index: u32 = EVENT_STATE.index.get();
-    (find_record_in(table, index as i32, section), section)
+    Ok((find_record_in(table, index as i32, section)?, section))
 }
 
 /// The title string of the event's section: from a table in mode 0x13, otherwise from the
 /// section's first record.
-pub unsafe fn event_title() -> u32 {
-    unsafe {
-        let table = crate::records::stages_store::STAGE_TABLES.championship();
-        let section: u32 = EVENT_STATE.section.get();
-        let first = find_record_in(table, 0, section);
-        if CHAMP_VIEW.event_mode.get() == 0x13 {
-            table_dword_at(MENU_LISTS.section_titles[0].addr(), section)
-        } else {
-            dword(first.wrapping_add(0x38))
-        }
+pub fn event_title() -> Result<u32, crate::errors::BadInput> {
+    let table = crate::records::stages_store::STAGE_TABLES.championship();
+    let section: u32 = EVENT_STATE.section.get();
+    let first = find_record_in(table, 0, section)?;
+    if CHAMP_VIEW.event_mode.get() == 0x13 {
+        table_dword_at(MENU_LISTS.section_titles[0].addr(), section)
+    } else {
+        dword(first.wrapping_add(0x38))
     }
 }
 
@@ -61,9 +59,9 @@ pub unsafe fn event_title() -> u32 {
 /// uses: the track pack lookup, the blitter, the formatters and the record rows.
 pub unsafe fn draw_stage_info(canvas: &mut dyn Canvas) -> Result<bool, Refused> {
     unsafe {
-        label(canvas, event_title(), TITLE_FONT, TITLE_X, TITLE_Y)?;
-        let (record, section) = event_stage();
-        draw_stage_heading(record as *const u8, canvas)?;
+        label(canvas, event_title()?, TITLE_FONT, TITLE_X, TITLE_Y)?;
+        let (record, section) = event_stage()?;
+        draw_stage_heading(record, canvas)?;
         // ebx, the markers' palette, still holds the section here.
         draw_stage_body(record, section, false, canvas)?;
         draw_records_from(CHAMP_VIEW.stage_best_times.get(), record, canvas)

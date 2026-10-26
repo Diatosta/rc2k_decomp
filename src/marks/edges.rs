@@ -9,6 +9,7 @@ use crate::marks::kind_values::MARKS_KIND;
 use crate::marks::store::game_addr;
 use crate::marks::tilt_shape::SHAPE_TILT;
 use crate::math::x87;
+use crate::pointers::GamePtr;
 use crate::session::{Bytes, Dword, Float, Loose, read_bits};
 
 pub const RESUME_RVA: usize = rva(0x4C0FFD); // loc_4C0FFD
@@ -33,7 +34,7 @@ fn clamped(kind: u32) -> u32 {
 /// `set_up_hexagons`, `set_up_squares` (and `nullsub_17`). Refuses a mark neither 0 nor
 /// `resume`, before writing; a picture that is not read (the original then counts
 /// 0x1FFFFFFF down and leaves with its stack one off), after the path is written.
-pub unsafe fn load_edges(resume: u32) -> Result<(), Refused> {
+pub fn load_edges(resume: u32) -> Result<(), Refused> {
     unsafe {
         let done: u32 = EDGE_SETTINGS.done.get();
         if done != 0 && done != resume {
@@ -41,17 +42,16 @@ pub unsafe fn load_edges(resume: u32) -> Result<(), Refused> {
         }
         if done == 0 {
             let boxes = KIND_BOXES.boxes.addr() as u32;
-            let floats = KIND_BOXES.kind_floats[0].addr() as u32;
             let scale: [u32; 3] = read_bits(&EDGE_SETTINGS.scale);
             for k in 0..KINDS {
                 x87::scale_record((boxes + 0x30 * k) as *mut u32, scale[0], scale[1]);
-                let f = (floats + 4 * k) as *mut u32;
-                f.write_unaligned(x87::sub(scale[2], f.read_unaligned()));
+                let f = &KIND_BOXES.kind_floats[k as usize];
+                f.set_bits(x87::sub(scale[2], f.bits()));
             }
             EDGE_SETTINGS.done.set(resume);
         }
         let settings: u32 = crate::marks::setup::SETTINGS.pointer.get();
-        ((settings + SETTING) as *mut u32).write_unaligned(SETTING_VALUE);
+        GamePtr::new(settings + SETTING).write::<u32>(SETTING_VALUE, "a mark's field")?;
         let kind = clamped(MARKS_KIND.kind.bits());
         let path = EDGE_SETTINGS.path.addr() as u32;
         EDGE_SETTINGS
@@ -76,9 +76,9 @@ pub unsafe fn load_edges(resume: u32) -> Result<(), Refused> {
             return Err(BadInput("the edge picture was not read").into());
         }
         let picture: u32 = PICTURE.buffer.get();
-        for k in 0..EDGE_LEN {
-            let p = std::slice::from_raw_parts((picture + 4 * k) as *const u8, 4);
-            EDGE_MASK.mask.set(k as usize, !(p[0] | p[1] | p[2] | p[3]));
+        let pixels = GamePtr::new(picture).read_bytes(4 * EDGE_LEN as usize, "the edge picture")?;
+        for (k, p) in pixels.as_chunks::<4>().0.iter().enumerate() {
+            EDGE_MASK.mask.set(k, !(p[0] | p[1] | p[2] | p[3]));
         }
         let float = KIND_BOXES.kind_floats[kind as usize].bits();
         SHAPE_TILT
@@ -100,10 +100,10 @@ const KIND_AT: u32 = 0x26A8; // the settings' kind
 /// `marks::load_kind_data` (0x4C1235), `init_marks`' step 1: `g_marksKind` the settings'
 /// +0x26A8; `nullsub_1` (twice, between them), `load_edges`, `load_splines`. Refuses as
 /// its steps do.
-pub unsafe fn load_kind_data() -> Result<(), Refused> {
-    unsafe {
+pub fn load_kind_data() -> Result<(), Refused> {
+    {
         let settings: u32 = crate::marks::setup::SETTINGS.pointer.get();
-        let kind = ((settings + KIND_AT) as *const u32).read_unaligned();
+        let kind = GamePtr::new(settings + KIND_AT).read::<u32>("a mark's field")?;
         MARKS_KIND.kind.set_bits(kind);
         load_edges(game_addr(RESUME_RVA) as u32)?;
         crate::marks::splines::load_splines(game_addr(crate::marks::splines::RESUME_RVA) as u32)?;

@@ -34,6 +34,7 @@ use crate::errors::{BadInput, Refused};
 use crate::framework::Flags;
 use crate::gfx::cards::CARDS;
 use crate::gfx::modes::MODES;
+use crate::pointers::GamePtr;
 use crate::system::find_entry_with_bits::find_entry_with_bits;
 use crate::system::next_entry::next_entry;
 use rc2k_core::gfx::mode_choices as mc;
@@ -45,20 +46,22 @@ use crate::gfx::screen_state::SCREEN_MODE;
 
 /// `system::find_entry` as the original uses it: the entry whose first dword is `key`, or
 /// the place past the table's `count` entries.
-fn entry_or_past(key: u32, table: usize, count: u32) -> u32 {
+fn entry_or_past(key: u32, table: usize, count: u32) -> Result<u32, BadInput> {
     let at = table as u32;
-    (0..count)
-        .map(|n| at + 8 * n)
-        .find(|&e| unsafe { (e as *const u32).read_unaligned() } == key)
-        .unwrap_or(at + 8 * count)
+    for n in 0..count {
+        if read(at + 8 * n)? == key {
+            return Ok(at + 8 * n);
+        }
+    }
+    Ok(at + 8 * count)
 }
 
-fn read(at: u32) -> u32 {
-    unsafe { (at as *const u32).read_unaligned() }
+fn read(at: u32) -> Result<u32, BadInput> {
+    GamePtr::new(at).read("a screen mode table's dword")
 }
 
-fn read_word(at: u32) -> u32 {
-    unsafe { (at as *const u16).read_unaligned() as u32 }
+fn read_word(at: u32) -> Result<u32, BadInput> {
+    Ok(GamePtr::new(at).read::<u16>("a screen mode table's word")? as u32)
 }
 
 /// The modes the list would hold (the mode table's of the pixel kind's bits), or None
@@ -114,7 +117,7 @@ pub fn screen_mode_choices(try_choice: bool) -> Result<Flags, Refused> {
         if CHOICES.resolution.get() >= mc::PLACE_LIMIT {
             return Err(BadInput("a size's place far past the choices' list").into());
         }
-        let current = read(CHOICES.list.addr() as u32 + 16 * CHOICES.resolution.get() + 0xC);
+        let current = read(CHOICES.list.addr() as u32 + 16 * CHOICES.resolution.get() + 0xC)?;
         if try_choice {
             // The choice tried.
             let (third, place) = (CHOICES.buffering.get(), CHOICES.resolution.get());
@@ -123,7 +126,7 @@ pub fn screen_mode_choices(try_choice: bool) -> Result<Flags, Refused> {
             }
             let mode = mc::tried_mode(
                 MODES.kind_bits[kind as usize].get(),
-                read(CHOICES.list.addr() as u32 + 16 * place + 0xC),
+                read(CHOICES.list.addr() as u32 + 16 * place + 0xC)?,
                 MODES.third_bits[third as usize].get(),
             );
             let tried = crate::gfx::try_screen_mode::try_screen_mode(mode)?;
@@ -165,14 +168,14 @@ fn rebuild(current: u32, modes: Option<Vec<u32>>) -> Result<Flags, Refused> {
     };
     let mut listed = Vec::new();
     for (n, &at) in modes.iter().enumerate() {
-        let mode = read(at);
+        let mode = read(at)?;
         let (size_key, kind_key) = mc::keys(mode);
-        let size = entry_or_past(size_key, MODES.sizes_addr(), 8);
-        let kind = entry_or_past(kind_key, MODES.pixel_kinds_addr(), 2);
+        let size = entry_or_past(size_key, MODES.sizes_addr(), 8)?;
+        let kind = entry_or_past(kind_key, MODES.pixel_kinds_addr(), 2)?;
         let l = mc::Listed {
-            width: read_word(size + 4),
-            height: read_word(size + 6),
-            figure: read(kind + 4),
+            width: read_word(size + 4)?,
+            height: read_word(size + 6)?,
+            figure: read(kind + 4)?,
             mode,
         };
         let slot = 16 * n;
@@ -189,9 +192,18 @@ fn rebuild(current: u32, modes: Option<Vec<u32>>) -> Result<Flags, Refused> {
     CHOICES.listed.set(1);
     CHOICES.resolution.set(mc::in_use_place(&listed, current));
     let race = SCREEN_MODE.race_mode.get();
+    let failed = std::cell::Cell::new(None);
     let (place, third) = mc::race_place(&listed, race, || {
-        read(entry_or_past(mc::third_key(race), MODES.kinds_addr(), 3) + 4)
+        entry_or_past(mc::third_key(race), MODES.kinds_addr(), 3)
+            .and_then(|e| read(e + 4))
+            .unwrap_or_else(|e| {
+                failed.set(Some(e));
+                0
+            })
     });
+    if let Some(e) = failed.take() {
+        return Err(e.into());
+    }
     CHOICES.resolution.set(place);
     CHOICES.buffering.set(third);
     let figure = mc::figure(CHOICES.mipmapping.get(), CHOICES.mip_limit.get());

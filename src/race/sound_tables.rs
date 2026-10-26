@@ -2,32 +2,31 @@
 //! once (`race::prepare_sound_tables`: whole numbers made floats, spans, reciprocals, a
 //! sine table) and the race's sounds restarted or silenced. Here the steps.
 
-use crate::errors::Refused;
+use crate::errors::{BadInput, Refused};
+use crate::pointers::GamePtr;
 use crate::race::state_store::RACE_STATE;
 use crate::race::tyre_store::TYRE_CHANGE;
 use crate::sound::sets_store::SOUND_KINDS;
 
-unsafe fn get(at: u32) -> u32 {
-    unsafe { (at as *const u32).read_unaligned() }
+fn get(at: u32) -> Result<u32, BadInput> {
+    GamePtr::new(at).read("a sound table word")
 }
 
-unsafe fn put(at: u32, v: u32) {
-    unsafe { (at as *mut u32).write_unaligned(v) };
+fn put(at: u32, v: u32) -> Result<(), BadInput> {
+    GamePtr::new(at).write(v, "a sound table word")
 }
 
 /// `race::whole_to_float` (0x40D706): the dword at ebx made a float (`fild` / `fstp`)
 /// when it looks like a whole number (its top byte 0 or 0xFF). Leaves eax its top byte's
 /// mask (`and 0xFF000000`).
-pub unsafe fn whole_to_float(at: u32) -> u32 {
+pub fn whole_to_float(at: u32) -> Result<u32, BadInput> {
     // Converted: `rc2k_core::race::sound_tables::whole_to_float` (one rounding: the same
     // at every precision, so no exact twin).
-    unsafe {
-        let (top, float) = rc2k_core::race::sound_tables::whole_to_float(get(at));
-        if let Some(f) = float {
-            put(at, f);
-        }
-        top
+    let (top, float) = rc2k_core::race::sound_tables::whole_to_float(get(at)?);
+    if let Some(f) = float {
+        put(at, f)?;
     }
+    Ok(top)
 }
 
 fn span_plain(second: u32, first: u32) -> u32 {
@@ -38,25 +37,21 @@ fn span_plain(second: u32, first: u32) -> u32 {
 /// (at `at` + 8) their difference (`fld` / `fsub` / `fstp`). Its leftovers (eax, ebx) are
 /// read by no caller (`prepare_sound_tables` and `sound_row` only).
 // Converted: `rc2k_core::race::sound_tables::span`.
-pub unsafe fn sound_span(at: u32) {
-    unsafe {
-        whole_to_float(at);
-        whole_to_float(at + 4);
-        put(at + 8, span_plain(get(at + 4), get(at)));
-    }
+pub fn sound_span(at: u32) -> Result<(), BadInput> {
+    whole_to_float(at)?;
+    whole_to_float(at + 4)?;
+    put(at + 8, span_plain(get(at + 4)?, get(at)?))
 }
 
 /// `race::sound_row` (0x40D731), converted: a row at `row`: +4, +8, +0xC made floats, spans
 /// at +0x10 and +0x1C. Its leftovers are read by no caller.
 // Converted: `rc2k_core::race::sound_tables::{whole_to_float, span}`.
-pub unsafe fn sound_row(row: u32) {
-    unsafe {
-        for off in [4, 8, 0xC] {
-            whole_to_float(row + off);
-        }
-        sound_span(row + 0x10);
-        sound_span(row + 0x1C);
+pub fn sound_row(row: u32) -> Result<(), BadInput> {
+    for off in [4, 8, 0xC] {
+        whole_to_float(row + off)?;
     }
+    sound_span(row + 0x10)?;
+    sound_span(row + 0x1C)
 }
 
 /// Where `prepare_sound_tables` finds its variables (the game's, or a test's).
@@ -90,31 +85,29 @@ pub const RECORDS: u32 = 0x22;
 /// 0x516258 1 + 0.05 sin(x) for x from 0 by pi / 32 (the scratch `dword_5183CC` left the
 /// last x). Every register kept.
 // Converted: `rc2k_core::race::sound_tables::{reciprocal, sines}`.
-pub unsafe fn prepare_sound_tables_plain(v: &TableVars) {
+pub fn prepare_sound_tables_plain(v: &TableVars) -> Result<(), BadInput> {
     use rc2k_core::race::sound_tables::{reciprocal, sines};
-    unsafe {
-        if get(v.done) == 1 {
-            return;
-        }
-        put(v.done, 1);
-        for n in 0..RECORDS {
-            let record = get(v.records + 4 * n);
-            sound_span(record + 4);
-            put(
-                record + 0xC,
-                reciprocal(f32::from_bits(get(record + 0xC))).to_bits(),
-            );
-            for k in 0..3 {
-                sound_row(record + 0x10 + 0x28 * k);
-            }
-        }
-        let (table, last) = sines();
-        for (k, f) in table.iter().enumerate() {
-            put(v.sines + 4 * k as u32, f.to_bits());
-        }
-        // The scratch: 0x20, the step, then each x: the last left.
-        put(v.scratch, last.to_bits());
+    if get(v.done)? == 1 {
+        return Ok(());
     }
+    put(v.done, 1)?;
+    for n in 0..RECORDS {
+        let record = get(v.records + 4 * n)?;
+        sound_span(record + 4)?;
+        put(
+            record + 0xC,
+            reciprocal(f32::from_bits(get(record + 0xC)?)).to_bits(),
+        )?;
+        for k in 0..3 {
+            sound_row(record + 0x10 + 0x28 * k)?;
+        }
+    }
+    let (table, last) = sines();
+    for (k, f) in table.iter().enumerate() {
+        put(v.sines + 4 * k as u32, f.to_bits())?;
+    }
+    // The scratch: 0x20, the step, then each x: the last left.
+    put(v.scratch, last.to_bits())
 }
 
 /// `race::restart_race_sounds`: the commands waited for, the race's sounds reset, let
@@ -208,20 +201,22 @@ fn set_up_object(o: &crate::sound::store::SoundObject) {
 /// kept. Refuses, before anything, a chosen car past 7 (the original reads past the
 /// table) or an object missing.
 pub fn set_up_race_sound_objects(v: &ObjectVars) -> Result<(), Refused> {
-    unsafe {
+    {
         let one = crate::net::store::NET.session.get() == 1;
         if one && crate::net::store::NET.player.get() > 7 {
             return Err(crate::errors::BadInput("a chosen car past the eight").into());
         }
-        let objects: Vec<u32> = (0..8).map(|n| get(v.table + 4 * n)).collect();
+        let objects: Vec<u32> = (0..8)
+            .map(|n| get(v.table + 4 * n))
+            .collect::<Result<_, _>>()?;
         if objects.contains(&0) {
             return Err(crate::errors::BadInput("a race sound object missing").into());
         }
         // Converted: `rc2k_core::race::sound_objects::{sound_players, sound_objects,
         // object_mark}`; the tables through `prepare_sound_tables_plain`.
-        use crate::sound::store::{RACE_SOUNDS, SoundObject};
+        use crate::sound::store::RACE_SOUNDS;
         use rc2k_core::race::sound_objects::{object_mark, sound_objects, sound_players};
-        prepare_sound_tables_plain(&TableVars::game());
+        prepare_sound_tables_plain(&TableVars::game())?;
         let players = sound_players(RACE_STATE.settings.race_mode.get());
         RACE_SOUNDS.one_player.set(players);
         let (count, arcade) = sound_objects(players, RACE_STATE.settings.run_kind.get());
@@ -236,9 +231,13 @@ pub fn set_up_race_sound_objects(v: &ObjectVars) -> Result<(), Refused> {
             RACE_SOUNDS.count.set(crate::net::store::NET.players.get());
         }
         for (n, &o) in v.objects.iter().enumerate() {
-            SoundObject::at(o).sound_offset.set(object_mark(n as u32));
+            crate::sound::store::SoundObject::at(o)?
+                .sound_offset
+                .set(object_mark(n as u32));
         }
-        let first = SoundObject::at(objects[RACE_SOUNDS.player_cars[0].get() as usize]);
+        let first = crate::sound::store::SoundObject::at(
+            objects[RACE_SOUNDS.player_cars[0].get() as usize],
+        )?;
         first.sound_offset.set(0);
         first.kind.set(RACE_STATE.settings.car_kind_current.get());
         first
@@ -246,7 +245,9 @@ pub fn set_up_race_sound_objects(v: &ObjectVars) -> Result<(), Refused> {
             .first
             .set(RACE_STATE.settings.cars[0].codriver_sex.get());
         if RACE_SOUNDS.one_player.get() != 1 {
-            let second = SoundObject::at(objects[RACE_SOUNDS.player_cars[1].get() as usize]);
+            let second = crate::sound::store::SoundObject::at(
+                objects[RACE_SOUNDS.player_cars[1].get() as usize],
+            )?;
             second.sound_offset.set(1);
             second.kind.set(RACE_STATE.settings.car_kind_first.get());
             second
@@ -255,7 +256,7 @@ pub fn set_up_race_sound_objects(v: &ObjectVars) -> Result<(), Refused> {
                 .set(RACE_STATE.settings.cars[1].codriver_sex.get());
         }
         for &o in &objects {
-            set_up_object(SoundObject::at(o));
+            set_up_object(crate::sound::store::SoundObject::at(o)?);
         }
         TYRE_CHANGE.drawn.set(0);
         restart_race_sounds()?;

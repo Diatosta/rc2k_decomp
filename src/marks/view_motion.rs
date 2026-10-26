@@ -13,22 +13,24 @@
 //!
 //! the x87 version stays for the Rust callers in unconverted code).
 
+use crate::errors::Refused;
 use crate::marks::frame_state::{DRAW_FRAME, DRAW_WORK, VIEW_VARS};
 use crate::marks::setup::CLOCK;
 use crate::math::x87;
+use crate::pointers::GamePtr;
 use crate::race::matrices_store::MATRICES;
 use crate::scene::matrix3::{extended, rounded};
 use crate::scene::rotate_point::rotate_point;
 use crate::scene::vector3::{dot_product3, normalise_vector3};
 
 /// The Rust version (see the header).
-pub unsafe fn view_motion() {
+pub fn view_motion() -> Result<(), Refused> {
     unsafe {
         let m = MATRICES.view_place[0].addr() as u32;
-        let get = |a: u32| (a as *const u32).read_unaligned();
+        let get = |a: u32| GamePtr::new(a).read::<u32>("a mark's field");
         let mut local = [0u32; 6];
         for (k, v) in local.iter_mut().take(3).enumerate() {
-            *v = x87::loaded(get(m + 0x20 + 4 * k as u32));
+            *v = x87::loaded(get(m + 0x20 + 4 * k as u32)?);
         }
         let zero = [extended(0); 3];
         let place = rotate_point(m, zero);
@@ -52,4 +54,5 @@ pub unsafe fn view_motion() {
             a.set_bits(x87::over_int(a.bits(), ticks));
         }
     }
+    Ok(())
 }

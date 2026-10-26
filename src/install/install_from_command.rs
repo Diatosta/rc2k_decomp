@@ -39,7 +39,7 @@ pub fn install_from_command() -> Result<(), Refused> {
         set_media_mode((mode as i32).min(3) as u32);
         let language = INSTALLER_RUN.given_language.get();
         if (language as i32) > 0 {
-            unsafe { crate::install::choose_language::choose_language(language) }?;
+            crate::install::choose_language::choose_language(language)?;
             load_language()?;
         }
     }

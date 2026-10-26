@@ -20,8 +20,8 @@ use crate::scene::light_work_store::LIGHT_WORK;
 // ---- Rust version ----
 
 // Converted: `rc2k_core::scene::lamps::plain_light`
-pub unsafe fn fill_light_tables() {
-    unsafe {
+pub fn fill_light_tables() -> Result<(), crate::errors::BadInput> {
+    {
         let plain = rc2k_core::scene::lamps::plain_light(FRAME_SWITCHES.other_way.bits(), || {
             STAGE_PREFS.lit_b.bits()
         });
@@ -33,10 +33,9 @@ pub unsafe fn fill_light_tables() {
             STAGE_PREFS.dark_colour[0].addr()
         };
         fill_light_ramp(
-            ramp as *const [u32; 6],
-            crate::scene::light_tables_store::LIGHT_TABLES.light_table[0].addr()
-                as *mut [u32; 0x100],
-        );
+            ramp as u32,
+            crate::scene::light_tables_store::LIGHT_TABLES.light_table[0].addr() as u32,
+        )?;
         // The four lamp tables and, the other way, their colours.
         let lamps = [
             (
@@ -58,7 +57,8 @@ pub unsafe fn fill_light_tables() {
         ];
         for (table, colour) in lamps {
             let colour = if plain { plain_colours } else { colour };
-            fill_light_scale(colour as *const [u32; 3], table as *mut [u32; 0x100]);
+            fill_light_scale(colour as u32, table as u32)?;
         }
+        Ok(())
     }
 }

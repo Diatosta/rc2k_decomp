@@ -35,7 +35,7 @@ pub unsafe fn service_pass(c: &Carried) -> Result<(), Refused> {
     let players = counted_players()?;
     let due = { EVENT_STATE.service_due.get() } == 1;
     for &p in &players {
-        if due && passes::takes_part(get(p + 0xD0)) {
+        if due && passes::takes_part(get(p + 0xD0)?) {
             crate::menu::driver_stats::car_table(p)?;
         }
     }
@@ -51,7 +51,7 @@ pub unsafe fn service_pass(c: &Carried) -> Result<(), Refused> {
             for (n, &p) in players.iter().enumerate() {
                 g.measure_x = n as u32;
                 EVENT_STATE.current_player.set(g.measure_x);
-                g.arg = get(p + 0xD0);
+                g.arg = get(p + 0xD0)?;
                 g.palette = g.palette.wrapping_add(g.arg);
                 if !passes::serviced(g.arg, || EVENT_STATE.service_due.get()) {
                     continue;
@@ -78,7 +78,7 @@ pub unsafe fn service_pass(c: &Carried) -> Result<(), Refused> {
                 }
                 crate::service::apply_repairs::apply_repairs_in_game()?;
                 crate::menu::set_player_entry_kind::set_player_entry_kind()?;
-                if passes::is_out(get(p + 0xD0)) {
+                if passes::is_out(get(p + 0xD0)?) {
                     crate::menu::inspection_faults::inspection_faults()?;
                     run_screen_carried(&crate::menu::inspection_area_loop::SCREEN, &mut g)?;
                     if MENU_PAGES.yes_no_answer.get() == 1 {
@@ -89,7 +89,7 @@ pub unsafe fn service_pass(c: &Carried) -> Result<(), Refused> {
                         .set(EVENT_STATE.event_out.get().wrapping_add(1));
                 }
                 g.arg = passes::spent(MENU_STATE.driver_stats.money.get());
-                put(p + 0x288, g.arg);
+                put(p + 0x288, g.arg)?;
             }
             if !passes::goes_on(EVENT_STATE.event_out.get(), PLAYER_COUNT_RVA.get()) {
                 EVENT_STATE.event_goes_on.set(0u32);

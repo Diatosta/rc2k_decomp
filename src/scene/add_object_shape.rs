@@ -39,6 +39,7 @@
 use crate::errors::BadInput;
 use crate::math::x87;
 use crate::physics::tables_store::PHYSICS;
+use crate::pointers::GamePtr;
 use crate::race::course_lists_store::COURSE_LISTS;
 use crate::race::course_store::COURSE;
 use crate::scene::draw_store::DRAW;
@@ -80,11 +81,12 @@ struct Shape {
 
 const PAST: BadInput = BadInput("the object's file runs past its room");
 
-unsafe fn dword(offset: usize) -> Result<u32, BadInput> {
+fn dword(offset: usize) -> Result<u32, BadInput> {
     if offset.checked_add(4).is_none_or(|end| end > FILE_ROOM) {
         return Err(PAST);
     }
-    Ok(unsafe { ((crate::scene::objects::file_addr() + offset) as *const u32).read_unaligned() })
+    GamePtr::new((crate::scene::objects::file_addr() + offset) as u32)
+        .read("a word of an object's file")
 }
 
 fn numbered(marks: &mut [u32]) {
@@ -100,89 +102,87 @@ fn numbered(marks: &mut [u32]) {
 }
 
 /// None: a file of no points or no faces (the second with the points' number).
-unsafe fn shape() -> Result<Result<Shape, Option<u32>>, BadInput> {
-    unsafe {
-        let points = dword(4)? as usize;
-        if points == 0 {
-            return Ok(Err(None));
-        }
-        let face_count = dword(8)? as usize;
-        if face_count == 0 {
-            return Ok(Err(Some(points as u32)));
-        }
-        let normals = dword(0xC)? as usize;
-        if points > MARKS || face_count > MARKS || normals > MARKS {
-            return Err(BadInput("more points, faces or normals than can be marked"));
-        }
-        let mask: u32 = DRAW_SWITCHES.loading_group_mask.bits();
-        let slot: u32 = OBJECT_WORK.loading_slot.bits();
-        let mut point_marks = vec![0u32; MARKS];
-        let mut normal_marks = vec![0u32; MARKS];
-        let mut faces = Vec::with_capacity(face_count);
-        let mut at = 0x2C + points * 12;
-        let mut added = [0usize; 4];
-        let marked = |marks: &mut Vec<u32>, number: u32| {
-            let mark = marks
-                .get_mut(number as usize)
-                .ok_or(BadInput("a point's or normal's number of 0x1000 or more"))?;
-            *mark = 1;
-            Ok::<(), BadInput>(())
-        };
-        for _ in 0..face_count {
-            let vertices = dword(at)? as usize;
-            let end = vertices
-                .checked_mul(0x10)
-                .and_then(|bytes| bytes.checked_add(at + 0x10))
-                .filter(|&end| end <= FILE_ROOM)
-                .ok_or(PAST)?;
-            let taken = mask & (1 << ((dword(at + 4)? >> 24) & 0x1F)) != 0;
-            if taken {
-                if vertices == 0 {
-                    return Err(BadInput("a face taken that has no vertices"));
-                }
-                marked(&mut normal_marks, dword(at + 0xC)?)?;
-                for vertex in 0..vertices {
-                    let v = at + 0x10 + vertex * 0x10;
-                    marked(&mut normal_marks, dword(v + 0xC)?)?;
-                    // Marked by its low word, looked up by the whole dword.
-                    marked(&mut point_marks, dword(v)?)?;
-                }
-                added[2] += 1;
-                added[3] += end - at;
-            }
-            faces.push(Face {
-                at,
-                vertices,
-                taken,
-            });
-            at = end;
-        }
-        if at + normals * 12 > FILE_ROOM {
-            return Err(PAST);
-        }
-        if slot < 0x50 || OBJECT_WORK.loading_car[1].get() == 0xB {
-            point_marks[..points].fill(1);
-        }
-        numbered(&mut point_marks);
-        numbered(&mut normal_marks);
-        added[0] = point_marks[..points]
-            .iter()
-            .filter(|&&m| m != u32::MAX)
-            .count();
-        added[1] = normal_marks[..normals]
-            .iter()
-            .filter(|&&m| m != u32::MAX)
-            .count();
-        Ok(Ok(Shape {
-            points,
-            normals,
-            faces,
-            normals_at: at,
-            point_marks,
-            normal_marks,
-            added,
-        }))
+fn shape() -> Result<Result<Shape, Option<u32>>, BadInput> {
+    let points = dword(4)? as usize;
+    if points == 0 {
+        return Ok(Err(None));
     }
+    let face_count = dword(8)? as usize;
+    if face_count == 0 {
+        return Ok(Err(Some(points as u32)));
+    }
+    let normals = dword(0xC)? as usize;
+    if points > MARKS || face_count > MARKS || normals > MARKS {
+        return Err(BadInput("more points, faces or normals than can be marked"));
+    }
+    let mask: u32 = DRAW_SWITCHES.loading_group_mask.bits();
+    let slot: u32 = OBJECT_WORK.loading_slot.bits();
+    let mut point_marks = vec![0u32; MARKS];
+    let mut normal_marks = vec![0u32; MARKS];
+    let mut faces = Vec::with_capacity(face_count);
+    let mut at = 0x2C + points * 12;
+    let mut added = [0usize; 4];
+    let marked = |marks: &mut Vec<u32>, number: u32| {
+        let mark = marks
+            .get_mut(number as usize)
+            .ok_or(BadInput("a point's or normal's number of 0x1000 or more"))?;
+        *mark = 1;
+        Ok::<(), BadInput>(())
+    };
+    for _ in 0..face_count {
+        let vertices = dword(at)? as usize;
+        let end = vertices
+            .checked_mul(0x10)
+            .and_then(|bytes| bytes.checked_add(at + 0x10))
+            .filter(|&end| end <= FILE_ROOM)
+            .ok_or(PAST)?;
+        let taken = mask & (1 << ((dword(at + 4)? >> 24) & 0x1F)) != 0;
+        if taken {
+            if vertices == 0 {
+                return Err(BadInput("a face taken that has no vertices"));
+            }
+            marked(&mut normal_marks, dword(at + 0xC)?)?;
+            for vertex in 0..vertices {
+                let v = at + 0x10 + vertex * 0x10;
+                marked(&mut normal_marks, dword(v + 0xC)?)?;
+                // Marked by its low word, looked up by the whole dword.
+                marked(&mut point_marks, dword(v)?)?;
+            }
+            added[2] += 1;
+            added[3] += end - at;
+        }
+        faces.push(Face {
+            at,
+            vertices,
+            taken,
+        });
+        at = end;
+    }
+    if at + normals * 12 > FILE_ROOM {
+        return Err(PAST);
+    }
+    if slot < 0x50 || OBJECT_WORK.loading_car[1].get() == 0xB {
+        point_marks[..points].fill(1);
+    }
+    numbered(&mut point_marks);
+    numbered(&mut normal_marks);
+    added[0] = point_marks[..points]
+        .iter()
+        .filter(|&&m| m != u32::MAX)
+        .count();
+    added[1] = normal_marks[..normals]
+        .iter()
+        .filter(|&&m| m != u32::MAX)
+        .count();
+    Ok(Ok(Shape {
+        points,
+        normals,
+        faces,
+        normals_at: at,
+        point_marks,
+        normal_marks,
+        added,
+    }))
 }
 
 /// Where the shape goes, checked for room.
@@ -237,8 +237,9 @@ pub unsafe fn add_object_shape(file: usize) -> Result<(), BadInput> {
         };
         let room = room(&shape)?;
         let slot = room.slot as usize;
-        let read = |offset: usize| {
-            ((crate::scene::objects::file_addr() + offset) as *const u32).read_unaligned()
+        let read = |offset: usize| -> Result<u32, BadInput> {
+            GamePtr::new((crate::scene::objects::file_addr() + offset) as u32)
+                .read("a word of an object's file")
         };
 
         crate::session::write_first(&OBJECT_WORK.shape_counts[5..7], &[u32::MAX, 0]);
@@ -262,13 +263,13 @@ pub unsafe fn add_object_shape(file: usize) -> Result<(), BadInput> {
         let drop: u32 = PHYSICS.ground_drop.bits();
         let mut radius = 0u32;
         let mut count = first_point;
-        let mut to = (room.points as usize + count as usize * 12) as *mut [u32; 3];
+        let mut to = GamePtr::new(room.points.wrapping_add(count.wrapping_mul(12)));
         for n in 0..shape.points {
             if shape.point_marks[n] == u32::MAX {
                 continue;
             }
             let at = 0x2C + n * 12;
-            let mut point = [read(at), read(at + 4), read(at + 8)];
+            let mut point = [read(at)?, read(at + 4)?, read(at + 8)?];
             if turned {
                 point = [
                     point[2],
@@ -276,14 +277,14 @@ pub unsafe fn add_object_shape(file: usize) -> Result<(), BadInput> {
                     point[0].wrapping_neg(),
                 ];
             }
-            to.write_unaligned(point);
+            to.write(point, "an object's point")?;
             let reach = x87::int_hypot(point[0] as i32, point[2] as i32) as u32;
             DRAW.scratch.set_bits(reach);
             if (reach.wrapping_sub(radius) as i32) >= 0 {
                 radius = reach;
             }
             count += 1;
-            to = to.add(1);
+            to = to.offset(12);
         }
         COURSE.shape_radius.set_bits(radius);
         OBJECT_SLOTS.radii[slot].set(radius);
@@ -307,28 +308,32 @@ pub unsafe fn add_object_shape(file: usize) -> Result<(), BadInput> {
         };
         for face in shape.faces.iter().filter(|face| face.taken) {
             crate::scene::objects::face_cell(face_number as usize).set(out as u32);
-            let put = |at: usize, value: u32| (at as *mut u32).write_unaligned(value);
-            put(out, read(face.at));
-            put(out + 4, read(face.at + 4));
-            put(out + 8, read(face.at + 8));
-            let texture = read(face.at + 4) & 0xFFFF;
+            let len = 0x10 + face.vertices * 0x10;
+            let source = GamePtr::new((crate::scene::objects::file_addr() + face.at) as u32)
+                .read_bytes(len, "a face of an object's file")?;
+            let word = |at: usize| u32::from_le_bytes(source[at..at + 4].try_into().unwrap());
+            let mut made = Vec::with_capacity(len);
+            let mut push = |value: u32| made.extend_from_slice(&value.to_le_bytes());
+            push(word(0));
+            push(word(4));
+            push(word(8));
+            let texture = word(4) & 0xFFFF;
             if texture <= lowest {
                 lowest = texture;
             }
             if texture >= highest {
                 highest = texture;
             }
-            put(out + 0xC, normal(read(face.at + 0xC)));
+            push(normal(word(0xC)));
             for vertex in 0..face.vertices {
-                let (from, to) = (face.at + 0x10 + vertex * 0x10, out + 0x10 + vertex * 0x10);
-                put(
-                    to,
-                    shape.point_marks[read(from) as usize].wrapping_add(first_point),
-                );
-                put(to + 4, read(from + 4));
-                put(to + 8, read(from + 8));
-                put(to + 0xC, normal(read(from + 0xC)));
+                let from = 0x10 + vertex * 0x10;
+                let mark = *shape.point_marks.get(word(from) as usize).ok_or(PAST)?;
+                push(mark.wrapping_add(first_point));
+                push(word(from + 4));
+                push(word(from + 8));
+                push(normal(word(from + 0xC)));
             }
+            GamePtr::new(out as u32).write_bytes(&made, "a face of the objects' memory")?;
             out += 0x10 + face.vertices * 0x10;
             face_number += 1;
         }
@@ -348,9 +353,12 @@ pub unsafe fn add_object_shape(file: usize) -> Result<(), BadInput> {
                 continue;
             }
             let at = shape.normals_at + n * 12;
-            to.write_unaligned([read(at), read(at + 4), read(at + 8)]);
+            to.write(
+                [read(at)?, read(at + 4)?, read(at + 8)?],
+                "an object's normal",
+            )?;
             count += 1;
-            to = to.add(1);
+            to = to.offset(12);
         }
         OBJECT_TABLES.point_count.set(count);
         OBJECT_SLOTS.normal_counts[slot].set(count - first_normal);

@@ -23,9 +23,10 @@
 //! the tables, written back only when the function is done, so a refusal writes nothing);
 //! here the game's stage it asks and the image's load and store.
 
-use crate::errors::Refused;
+use crate::errors::{BadInput, Refused};
 use crate::framework::{game_addr, rva};
 use crate::physics::tables_store::PHYSICS;
+use crate::pointers::GamePtr;
 use crate::race::course_lists_store::COURSE_LISTS;
 use crate::race::course_store::COURSE;
 use crate::race::vars_store::RACE_VARS;
@@ -63,6 +64,9 @@ pub fn game_course() -> Course {
     }
 }
 
+/// The first refusal of a face read, kept until the walk is done.
+static REFUSED: std::sync::Mutex<Option<BadInput>> = std::sync::Mutex::new(None);
+
 /// The game's stage, as the walk asks it.
 pub struct GameStage;
 
@@ -85,7 +89,17 @@ impl Stage for GameStage {
             .get(tens as usize)
     }
     fn face_byte(&self, at: u32) -> u8 {
-        unsafe { (at as *const u8).read() }
+        // The core asks only inside the course's window; a refusal here is kept for
+        // `Machine::init` (the core's trait answers a byte).
+        match GamePtr::new(at).read::<u8>("a checkpoint face's byte") {
+            Ok(b) => b,
+            Err(e) => {
+                if let Ok(mut held) = REFUSED.lock() {
+                    held.get_or_insert(e);
+                }
+                0
+            }
+        }
     }
 }
 
@@ -107,28 +121,35 @@ impl std::ops::DerefMut for Machine {
 }
 
 impl Machine {
-    pub fn load(course: Course) -> Self {
-        let at = game_addr(rva(IMAGE_START as usize)) as *const u8;
-        Self(Notes::new(
+    pub fn load(course: Course) -> Result<Self, BadInput> {
+        let at = game_addr(rva(IMAGE_START as usize)) as u32;
+        if let Ok(mut held) = REFUSED.lock() {
+            *held = None;
+        }
+        Ok(Self(Notes::new(
             Registers::default(),
             PHYSICS.pace_slot.bits(),
-            unsafe { std::slice::from_raw_parts(at, IMAGE_LEN) }.to_vec(),
+            GamePtr::new(at).read_bytes(IMAGE_LEN, "the pace notes' tables")?,
             course,
             &GameStage,
-        ))
+        )))
     }
 
     /// The slot and the tables written back.
-    pub fn commit(&self) {
-        unsafe {
-            PHYSICS.pace_slot.set_bits(self.slot);
-            let at = game_addr(rva(IMAGE_START as usize)) as *mut u8;
-            std::slice::from_raw_parts_mut(at, self.image.len()).copy_from_slice(&self.image);
-        }
+    pub fn commit(&self) -> Result<(), BadInput> {
+        PHYSICS.pace_slot.set_bits(self.slot);
+        GamePtr::new(game_addr(rva(IMAGE_START as usize)) as u32)
+            .write_bytes(&self.image, "the pace notes' tables")
     }
 
     /// `sub_441A66` (`race::init_pace_notes`).
     pub fn init(&mut self) -> Result<(), Refused> {
-        Ok(self.0.init()?)
+        let done = self.0.init();
+        if let Ok(mut held) = REFUSED.lock()
+            && let Some(e) = held.take()
+        {
+            return Err(e.into());
+        }
+        Ok(done?)
     }
 }

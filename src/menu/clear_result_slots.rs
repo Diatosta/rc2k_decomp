@@ -11,7 +11,7 @@ use crate::errors::{BadInput, Refused};
 use crate::menu::standings::*;
 
 /// The Rust version (see the header): the registers it leaves.
-pub unsafe fn clear_result_slots() -> Result<(), Refused> {
+pub fn clear_result_slots() -> Result<(), Refused> {
     if (0..4).any(|n| player(n) == 0) {
         return Err(BadInput("a missing player").into());
     }
@@ -19,7 +19,7 @@ pub unsafe fn clear_result_slots() -> Result<(), Refused> {
     // Converted: `rc2k_core::menu::event::result_slots`.
     use rc2k_core::menu::event::result_slots;
     for n in 0..4 {
-        put_all(player(n), &result_slots(0x98));
+        put_all(player(n), &result_slots(0x98))?;
     }
     drivers.store_all(&result_slots(0x5C));
     Ok(())

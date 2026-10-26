@@ -23,24 +23,22 @@ use crate::d3d::vertices_store::VERTICES;
 const CELLS: u32 = 0x41;
 
 /// The original's 0x4C5EF7 .. 0x4C60E9: the two projected and the ribbon's corners.
-unsafe fn ribbon() {
-    unsafe {
-        ribbon_x87(
-            crate::race::store::asm_base() as usize,
-            crate::d3d::vertices_store::piece_addr(),
-            &DRAW_WORK,
-            &VIEW_VARS,
-        )
-    }
+fn ribbon() {
+    ribbon_x87(
+        crate::race::store::asm_base() as usize,
+        crate::d3d::vertices_store::piece_addr(),
+        &DRAW_WORK,
+        &VIEW_VARS,
+    )
 }
 
 /// The Rust version (see the header): `cell` (eax), `alpha` (ecx), `width` (edx),
 /// `colour` (esi). Its one caller reads no register after it.
-pub unsafe fn draw_ribbon(cell: u32, alpha: u32, width: u32, colour: u32) -> Result<(), Refused> {
+pub fn draw_ribbon(cell: u32, alpha: u32, width: u32, colour: u32) -> Result<(), Refused> {
     if cell >= CELLS {
         return Err(BadInput("a mark cell past g_marksCellPlaces").into());
     }
-    unsafe {
+    {
         if crate::marks::setup::SETTINGS.pointer.get() == 0 {
             return Err(BadInput("no marks settings").into());
         }
@@ -79,105 +77,103 @@ use crate::marks::plain::{ld, st};
 use crate::math::x87_float as bh;
 
 /// `ribbon`'s x87 block as plain Rust on the x87 model (93 instructions), same order and memory places.
-unsafe fn ribbon_x87(rc: usize, vt: usize, dw: &DrawWork, vv: &ViewVars) {
-    unsafe {
-        let t0 = ld(rc, 0x224088);
-        let t1 = t0 / bh::ld(dw.turned[2].bits());
-        let t2 = t1 * bh::ld(dw.turned[0].bits());
-        let t3 = t1 * bh::ld(dw.turned[1].bits());
-        let t4 = -t3;
-        let t5 = t4 + ld(rc, 0x2240A0);
-        dw.turned[1].set_bits(bh::st(t5));
-        let t6 = t2 + ld(rc, 0x22409C);
-        dw.turned[0].set_bits(bh::st(t6));
-        dw.ends_scale[0].set_bits(bh::st(t1));
-        let t7 = ld(rc, 0x224088);
-        let t8 = t7 / bh::ld(dw.second[2].bits());
-        let t9 = t8 * bh::ld(dw.second[0].bits());
-        let t10 = t8 * bh::ld(dw.second[1].bits());
-        let t11 = -t10;
-        let t12 = t11 + ld(rc, 0x2240A0);
-        dw.second[1].set_bits(bh::st(t12));
-        let t13 = t9 + ld(rc, 0x22409C);
-        dw.second[0].set_bits(bh::st(t13));
-        dw.ends_scale[1].set_bits(bh::st(t8));
-        let t14 = bh::ld(dw.second[0].bits());
-        let t15 = t14 - bh::ld(dw.turned[0].bits());
-        vv.ribbon_way[0].set_bits(bh::st(t15));
-        let t16 = bh::ld(dw.second[1].bits());
-        let t17 = t16 - bh::ld(dw.turned[1].bits());
-        vv.ribbon_way[1].set_bits(bh::st(t17));
-        let t18 = bh::ld(vv.ribbon_way[0].bits());
-        let t19 = t18 * t18;
-        let t20 = bh::ld(vv.ribbon_way[1].bits());
-        let t21 = t20 * t20;
-        let t22 = t19 + t21;
-        let t23 = t22.sqrt();
-        let t24 = bh::ONE;
-        let t25 = t24 / t23;
-        let t26 = bh::ld(vv.ribbon_way[0].bits());
-        let t27 = bh::ld(vv.ribbon_way[1].bits());
-        let t28 = t27 * t25;
-        vv.ribbon_way[0].set_bits(bh::st(t28));
-        let t29 = t25 * t26;
-        let t30 = -t29;
-        vv.ribbon_way[1].set_bits(bh::st(t30));
-        let t31 = bh::ld(vv.ribbon_way[0].bits());
-        let t32 = t31 * bh::int(dw.half[0].bits() as i32);
-        let t33 = t32 * bh::ld(dw.ends_scale[0].bits());
-        vv.ribbon_sides[0].set_bits(bh::st(t33));
-        let t34 = bh::ld(vv.ribbon_way[1].bits());
-        let t35 = t34 * bh::int(dw.half[0].bits() as i32);
-        let t36 = t35 * bh::ld(dw.ends_scale[0].bits());
-        vv.ribbon_sides[1].set_bits(bh::st(t36));
-        let t37 = bh::ld(vv.ribbon_way[0].bits());
-        let t38 = t37 * bh::int(dw.half[0].bits() as i32);
-        let t39 = t38 * bh::ld(dw.ends_scale[1].bits());
-        vv.ribbon_sides_2[0].set_bits(bh::st(t39));
-        let t40 = bh::ld(vv.ribbon_way[1].bits());
-        let t41 = t40 * bh::int(dw.half[0].bits() as i32);
-        let t42 = t41 * bh::ld(dw.ends_scale[1].bits());
-        vv.ribbon_sides_2[1].set_bits(bh::st(t42));
-        let t43 = bh::ld(dw.turned[0].bits());
-        let t44 = t43 - bh::ld(vv.ribbon_sides[0].bits());
-        st(vt, 0x0, t44);
-        let t45 = bh::ld(dw.turned[1].bits());
-        let t46 = t45 - bh::ld(vv.ribbon_sides[1].bits());
-        st(vt, 0x4, t46);
-        let t47 = bh::ld(dw.turned[0].bits());
-        let t48 = t47 + bh::ld(vv.ribbon_sides[0].bits());
-        st(vt, 0x20, t48);
-        let t49 = bh::ld(dw.turned[1].bits());
-        let t50 = t49 + bh::ld(vv.ribbon_sides[1].bits());
-        st(vt, 0x24, t50);
-        let t51 = bh::ld(dw.second[0].bits());
-        let t52 = t51 + bh::ld(vv.ribbon_sides_2[0].bits());
-        st(vt, 0x40, t52);
-        let t53 = bh::ld(dw.second[1].bits());
-        let t54 = t53 + bh::ld(vv.ribbon_sides_2[1].bits());
-        st(vt, 0x44, t54);
-        let t55 = bh::ld(dw.second[0].bits());
-        let t56 = t55 - bh::ld(vv.ribbon_sides_2[0].bits());
-        st(vt, 0x60, t56);
-        let t57 = bh::ld(dw.second[1].bits());
-        let t58 = t57 - bh::ld(vv.ribbon_sides_2[1].bits());
-        st(vt, 0x64, t58);
-        let t59 = bh::ld(dw.turned[2].bits());
-        let t60 = t59 * bh::ld(dw.z_k.bits());
-        st(vt, 0x8, t60);
-        st(vt, 0x28, t60);
-        let t61 = bh::ld(dw.second[2].bits());
-        let t62 = t61 * bh::ld(dw.z_k.bits());
-        st(vt, 0x48, t62);
-        st(vt, 0x68, t62);
-    }
+fn ribbon_x87(rc: usize, vt: usize, dw: &DrawWork, vv: &ViewVars) {
+    let t0 = ld(rc, 0x224088);
+    let t1 = t0 / bh::ld(dw.turned[2].bits());
+    let t2 = t1 * bh::ld(dw.turned[0].bits());
+    let t3 = t1 * bh::ld(dw.turned[1].bits());
+    let t4 = -t3;
+    let t5 = t4 + ld(rc, 0x2240A0);
+    dw.turned[1].set_bits(bh::st(t5));
+    let t6 = t2 + ld(rc, 0x22409C);
+    dw.turned[0].set_bits(bh::st(t6));
+    dw.ends_scale[0].set_bits(bh::st(t1));
+    let t7 = ld(rc, 0x224088);
+    let t8 = t7 / bh::ld(dw.second[2].bits());
+    let t9 = t8 * bh::ld(dw.second[0].bits());
+    let t10 = t8 * bh::ld(dw.second[1].bits());
+    let t11 = -t10;
+    let t12 = t11 + ld(rc, 0x2240A0);
+    dw.second[1].set_bits(bh::st(t12));
+    let t13 = t9 + ld(rc, 0x22409C);
+    dw.second[0].set_bits(bh::st(t13));
+    dw.ends_scale[1].set_bits(bh::st(t8));
+    let t14 = bh::ld(dw.second[0].bits());
+    let t15 = t14 - bh::ld(dw.turned[0].bits());
+    vv.ribbon_way[0].set_bits(bh::st(t15));
+    let t16 = bh::ld(dw.second[1].bits());
+    let t17 = t16 - bh::ld(dw.turned[1].bits());
+    vv.ribbon_way[1].set_bits(bh::st(t17));
+    let t18 = bh::ld(vv.ribbon_way[0].bits());
+    let t19 = t18 * t18;
+    let t20 = bh::ld(vv.ribbon_way[1].bits());
+    let t21 = t20 * t20;
+    let t22 = t19 + t21;
+    let t23 = t22.sqrt();
+    let t24 = bh::ONE;
+    let t25 = t24 / t23;
+    let t26 = bh::ld(vv.ribbon_way[0].bits());
+    let t27 = bh::ld(vv.ribbon_way[1].bits());
+    let t28 = t27 * t25;
+    vv.ribbon_way[0].set_bits(bh::st(t28));
+    let t29 = t25 * t26;
+    let t30 = -t29;
+    vv.ribbon_way[1].set_bits(bh::st(t30));
+    let t31 = bh::ld(vv.ribbon_way[0].bits());
+    let t32 = t31 * bh::int(dw.half[0].bits() as i32);
+    let t33 = t32 * bh::ld(dw.ends_scale[0].bits());
+    vv.ribbon_sides[0].set_bits(bh::st(t33));
+    let t34 = bh::ld(vv.ribbon_way[1].bits());
+    let t35 = t34 * bh::int(dw.half[0].bits() as i32);
+    let t36 = t35 * bh::ld(dw.ends_scale[0].bits());
+    vv.ribbon_sides[1].set_bits(bh::st(t36));
+    let t37 = bh::ld(vv.ribbon_way[0].bits());
+    let t38 = t37 * bh::int(dw.half[0].bits() as i32);
+    let t39 = t38 * bh::ld(dw.ends_scale[1].bits());
+    vv.ribbon_sides_2[0].set_bits(bh::st(t39));
+    let t40 = bh::ld(vv.ribbon_way[1].bits());
+    let t41 = t40 * bh::int(dw.half[0].bits() as i32);
+    let t42 = t41 * bh::ld(dw.ends_scale[1].bits());
+    vv.ribbon_sides_2[1].set_bits(bh::st(t42));
+    let t43 = bh::ld(dw.turned[0].bits());
+    let t44 = t43 - bh::ld(vv.ribbon_sides[0].bits());
+    st(vt, 0x0, t44);
+    let t45 = bh::ld(dw.turned[1].bits());
+    let t46 = t45 - bh::ld(vv.ribbon_sides[1].bits());
+    st(vt, 0x4, t46);
+    let t47 = bh::ld(dw.turned[0].bits());
+    let t48 = t47 + bh::ld(vv.ribbon_sides[0].bits());
+    st(vt, 0x20, t48);
+    let t49 = bh::ld(dw.turned[1].bits());
+    let t50 = t49 + bh::ld(vv.ribbon_sides[1].bits());
+    st(vt, 0x24, t50);
+    let t51 = bh::ld(dw.second[0].bits());
+    let t52 = t51 + bh::ld(vv.ribbon_sides_2[0].bits());
+    st(vt, 0x40, t52);
+    let t53 = bh::ld(dw.second[1].bits());
+    let t54 = t53 + bh::ld(vv.ribbon_sides_2[1].bits());
+    st(vt, 0x44, t54);
+    let t55 = bh::ld(dw.second[0].bits());
+    let t56 = t55 - bh::ld(vv.ribbon_sides_2[0].bits());
+    st(vt, 0x60, t56);
+    let t57 = bh::ld(dw.second[1].bits());
+    let t58 = t57 - bh::ld(vv.ribbon_sides_2[1].bits());
+    st(vt, 0x64, t58);
+    let t59 = bh::ld(dw.turned[2].bits());
+    let t60 = t59 * bh::ld(dw.z_k.bits());
+    st(vt, 0x8, t60);
+    st(vt, 0x28, t60);
+    let t61 = bh::ld(dw.second[2].bits());
+    let t62 = t61 * bh::ld(dw.z_k.bits());
+    st(vt, 0x48, t62);
+    st(vt, 0x68, t62);
 }
 
 #[cfg(test)]
 mod asm_reference {
     //! The original assembly blocks, kept verbatim as the reference the plain versions are tested against.
 
-    pub(super) unsafe fn ribbon_x87(rc: usize, bf: usize, mk: usize) {
+    pub(super) fn ribbon_x87(rc: usize, bf: usize, mk: usize) {
         unsafe {
             core::arch::asm!(
                     "fld dword ptr [{rc} + 0x224088]",
@@ -362,10 +358,10 @@ mod asm_differential {
         };
         differential(
             &SPEC,
-            |b| unsafe { reference::ribbon_x87(b[0], b[1], b[2]) },
+            |b| reference::ribbon_x87(b[0], b[1], b[2]),
             |b| {
                 with_copy::<DrawWork, _>(b[2], DrawWork::START, |dw| {
-                    with_copy::<ViewVars, _>(b[2], ViewVars::START, |vv| unsafe {
+                    with_copy::<ViewVars, _>(b[2], ViewVars::START, |vv| {
                         super::ribbon_x87(b[0], b[1].wrapping_add(0x5605A0), dw, vv)
                     })
                 })

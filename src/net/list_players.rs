@@ -16,7 +16,7 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::net::dplay::{ENUM_PLAYERS, GET_PLAYER_DATA, SET_PLAYER_DATA, call};
-use crate::net::sort_players::swap_blocks;
+use crate::net::sort_players::{bubble_blocks, swap_blocks};
 use crate::net::store::NET;
 use rc2k_core::net::players;
 
@@ -67,11 +67,11 @@ pub fn list_players() -> Result<bool, Refused> {
         }
         // Converted: `rc2k_core::net::players` (`bubble` by the ids, `find_own`).
         let id = |n: u32| NET.player_block(n).id.get();
-        players::bubble(
+        bubble_blocks(
             players,
             |k| id(k) > id(k + 1),
             |k| swap_blocks(NET.player_block(k), NET.player_block(k + 1)),
-        );
+        )?;
     }
     match players::find_own(NET.player_id.get(), NET.players.get(), |n| {
         NET.player_block(n).id.get()

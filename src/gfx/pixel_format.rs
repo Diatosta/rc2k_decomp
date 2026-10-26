@@ -9,6 +9,6 @@ pub fn surface_format_addr() -> usize {
 /// Converted: `rc2k_core::gfx::pixels::PixelFormat`.
 pub use rc2k_core::gfx::pixels::PixelFormat;
 
-pub fn surface_format() -> PixelFormat {
-    unsafe { (surface_format_addr() as *const PixelFormat).read_unaligned() }
+pub fn surface_format() -> Result<PixelFormat, crate::errors::BadInput> {
+    crate::pointers::GamePtr::new(surface_format_addr() as u32).read("the surface's format")
 }

@@ -41,7 +41,7 @@ pub unsafe fn show_car_specs(c: &Carried) -> Result<(), Refused> {
     crate::menu::cheat_car_list::carry_on(crate::menu::cheat_car_list::cheat_car_list(), &mut r);
     unsafe { run_screen_carried(&crate::menu::car_specs_47af4c_loop::SCREEN, &mut r) }?;
     if { CAPTIONS.screen_left.get() } != 1 {
-        unsafe { crate::menu::take_shown_car::take_shown_car(r.cars) }?;
+        crate::menu::take_shown_car::take_shown_car(r.cars)?;
     }
     Ok(())
 }

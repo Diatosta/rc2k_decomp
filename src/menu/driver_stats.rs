@@ -25,6 +25,7 @@
 use crate::errors::{BadInput, Refused};
 use crate::menu::cars_store::CAR_TABLE;
 use crate::menu::draw_work_store::DRAW_WORK;
+use crate::menu::event_flow::Fault;
 use crate::menu::event_store::EVENT_STATE;
 use crate::menu::standings::*;
 use crate::menu::state_store::MENU_STATE;
@@ -64,7 +65,7 @@ pub fn player_and_table() -> Result<(u32, u32), BadInput> {
 
 /// The player `p`'s car's table (`off_7564A0`[car]'s +0x74; car 0x21 as 0x17).
 pub fn car_table(p: u32) -> Result<u32, BadInput> {
-    let car = match get(p + 8) {
+    let car = match get(p + 8)? {
         0x21 => 0x17,
         c => c,
     };
@@ -73,10 +74,10 @@ pub fn car_table(p: u32) -> Result<u32, BadInput> {
     } else {
         0
     };
-    if entry == 0 || get(entry + 0x74) == 0 {
+    if entry == 0 || get(entry + 0x74)? == 0 {
         return Err(BadInput("a car past 0xFF or without its table"));
     }
-    Ok(get(entry + 0x74))
+    get(entry + 0x74)
 }
 
 /// The Rust version (see the header): the registers it leaves.
@@ -86,12 +87,14 @@ pub unsafe fn driver_stats() -> Result<(), Refused> {
     use rc2k_core::menu::driver_figures::{Car, Constants, Table, figures};
     let (p, t) = player_and_table()?;
     unsafe {
-        let table = Table::read(|o| get(t + o as u32));
+        let fault = Fault::default();
+        let table = Table::read(|o| fault.get(t + o as u32));
         let car = Car {
-            wear: std::array::from_fn(|k| get(p + 0xD4 + 4 * k as u32)),
-            fitted: get(p + 0x278),
-            setup: [get(p + 0x114), get(p + 0x118)],
+            wear: std::array::from_fn(|k| fault.get(p + 0xD4 + 4 * k as u32)),
+            fitted: fault.get(p + 0x278),
+            setup: [fault.get(p + 0x114), fault.get(p + 0x118)],
         };
+        fault.check()?;
         let c = Constants {
             steps: MENU_STATE.driver_stats.steps.get(),
             scale: MENU_STATE.driver_stats.scale.get(),

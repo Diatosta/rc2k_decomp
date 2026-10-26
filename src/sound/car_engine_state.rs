@@ -44,6 +44,7 @@
 use crate::errors::{BadInput, Refused};
 use crate::math::x87::from_int;
 use crate::math::x87_float::{X, int, ld, st};
+use crate::pointers::GamePtr;
 use crate::scene::x87_mem::{fild, fld, mov};
 use crate::session::MACHINE;
 use rc2k_core::sound::engine::{Left, Words, extrapolation, over_256, readings, state};
@@ -51,7 +52,7 @@ use rc2k_core::sound::engine::{Left, Words, extrapolation, over_256, readings, s
 pub const KIND_COUNT: u32 = 36;
 /// The kind of object `o` (its +4), or a refusal.
 pub fn kind_of(o: u32) -> Result<u32, BadInput> {
-    let n = unsafe { ((o + 4) as *const u32).read_unaligned() };
+    let n: u32 = GamePtr::new(o).offset(4).read("a sound object's kind")?;
     if n >= KIND_COUNT {
         return Err(BadInput("a sound kind past the 36 of the table"));
     }
@@ -60,15 +61,43 @@ pub fn kind_of(o: u32) -> Result<u32, BadInput> {
 
 // ---- Rust version ----
 
-/// The object's dwords where the original reads and writes them.
-struct Object(u32);
+/// The object's dwords where the original reads and writes them. The core's reads and
+/// writes have no failure to give: the first refusal is kept, and the caller asks for it.
+struct Object {
+    at: u32,
+    failed: std::cell::Cell<Option<BadInput>>,
+}
+
+impl Object {
+    fn new(at: u32) -> Self {
+        Self {
+            at,
+            failed: std::cell::Cell::new(None),
+        }
+    }
+
+    fn check(&self) -> Result<(), BadInput> {
+        self.failed.get().map_or(Ok(()), Err)
+    }
+}
 
 impl Words for Object {
     fn get(&self, at: u32) -> u32 {
-        unsafe { ((self.0 + at) as *const u32).read_unaligned() }
+        GamePtr::new(self.at)
+            .offset(at)
+            .read("a sound object's dword")
+            .unwrap_or_else(|e| {
+                self.failed.set(self.failed.get().or(Some(e)));
+                0
+            })
     }
     fn set(&mut self, at: u32, value: u32) {
-        unsafe { ((self.0 + at) as *mut u32).write_unaligned(value) }
+        if let Err(e) = GamePtr::new(self.at)
+            .offset(at)
+            .write(value, "a sound object's dword")
+        {
+            self.failed.set(self.failed.get().or(Some(e)));
+        }
     }
 }
 
@@ -80,7 +109,7 @@ pub fn car_engine_state(o: u32) -> Result<u32, Refused> {
         return Err(BadInput("a null sound object").into());
     }
     let kind = kind_of(o)?;
-    let mut object = Object(o);
+    let mut object = Object::new(o);
     let clock = crate::sound::store::RACE_CLOCK.last.get();
     let (bx, di) = (o, kind);
     // The revs extrapolated, worked out first: its `idiv` may trap.
@@ -103,12 +132,25 @@ pub fn car_engine_state(o: u32) -> Result<u32, Refused> {
         },
         &mut left,
     );
-    let so = unsafe { crate::sound::store::SoundObject::at(bx) };
+    object.check()?;
+    let so = crate::sound::store::SoundObject::at(bx)?;
     x87_1(so, di as usize);
     object.set(0x104, over_256(from_int(object.get(0x18) as i32)));
     x87_2(so, &crate::sound::store::SURFACE_SOUNDS);
-    let flags = || unsafe { (kind as *const u32).read_unaligned() };
-    if let Some(low) = state(&mut object, flags, clock, &mut left) {
+    let flags_failed = std::cell::Cell::new(None);
+    let flags = || {
+        GamePtr::new(kind)
+            .read::<u32>("a sound kind's flags")
+            .unwrap_or_else(|e| {
+                flags_failed.set(Some(e));
+                0
+            })
+    };
+    let low = state(&mut object, flags, clock, &mut left);
+    if let Some(e) = flags_failed.take() {
+        return Err(e.into());
+    }
+    if let Some(low) = low {
         MACHINE.scratch.set(low);
         x87_3(crate::session::MACHINE.scratch.addr(), so);
     }
@@ -123,6 +165,7 @@ pub fn car_engine_state(o: u32) -> Result<u32, Refused> {
     if object.get(0x134) as i32 > 0x3F80_0000 {
         x87_6(so);
     }
+    object.check()?;
     Ok(kind)
 }
 

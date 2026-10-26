@@ -5,13 +5,14 @@
 //! unsigned), turned to floats (/ 65536) into the car's block, two points put in at 4.
 
 use crate::errors::{BadInput, Refused};
-use crate::physics::car_store::Car;
 use crate::physics::contact_store::CONTACT_WORK;
+use crate::pointers::GamePtr;
 use crate::race::course_lists_store::COURSE_LISTS;
 use crate::race::kind_store::KIND_TABLES;
 use crate::race::numbers_store::NUMBERS;
 use crate::race::prefs_store::STAGE_PREFS;
 use crate::race::switches_store::FRAME_SWITCHES;
+use crate::race::trap::car_at;
 use crate::race::view_store::RACE_VIEW;
 use crate::scene::draw_store::DRAW;
 use crate::scene::object_store::OBJECT_WORK;
@@ -33,12 +34,12 @@ pub fn car_table(table: &[Dword; 34], car: u32) -> u32 {
     table[n].get()
 }
 
-unsafe fn get(at: u32) -> u32 {
-    unsafe { (at as *const u32).read_unaligned() }
+fn get(at: u32) -> Result<u32, BadInput> {
+    GamePtr::new(at).read("a car's point list")
 }
 
-unsafe fn put(at: u32, value: u32) {
-    unsafe { (at as *mut u32).write_unaligned(value) };
+fn put(at: u32, value: u32) -> Result<(), BadInput> {
+    GamePtr::new(at).write(value, "a car's point list")
 }
 
 /// One of the four sorts: the key's offset in the point, and whether the order is
@@ -62,11 +63,11 @@ pub const BY_X_DOWN: Sort = Sort { key: 0, down: true };
 /// The sorts (0x426BE6 by y, 0x426CA2 by z, 0x426D5E and 0x426E16 by x downwards): the
 /// points from `first` to `last` (both included), step by step as the original. Refuses
 /// (before anything) what `sorting::sort_records` refuses.
-pub unsafe fn sort_points(s: Sort, first: u32, last: u32) -> Result<(), Refused> {
+pub fn sort_points(s: Sort, first: u32, last: u32) -> Result<(), Refused> {
     // Converted: `rc2k_core::race::quick_sort::quick_sort` (through `sort_records`).
     use rc2k_core::race::quick_sort::Order;
     let order = if s.down { Order::Down } else { Order::Up };
-    unsafe { crate::race::sorting::sort_records::<3>(first, last, (s.key / 4) as usize, order) }
+    crate::race::sorting::sort_records::<3>(first, last, (s.key / 4) as usize, order)
 }
 
 /// A text to the log.
@@ -108,9 +109,9 @@ impl CarPointVars {
 /// 2; logged ("carnum", the car, "numcollpts", the count) and the count into +0x260. With
 /// no points only the log and +0x260 (the count as it was). Refuses more than 0x40 points
 /// (the original writes past the block's three lists).
-pub unsafe fn set_up_car_points(slot: u32, block: u32, v: &CarPointVars) -> Result<(), Refused> {
-    unsafe {
-        let count = get(v.counts + 4 * slot);
+pub fn set_up_car_points(slot: u32, block: u32, v: &CarPointVars) -> Result<(), Refused> {
+    {
+        let count = get(v.counts + 4 * slot)?;
         if count != 0 {
             if count > MOST_CONVERTED {
                 return Err(BadInput("more than 0x40 collision points").into());
@@ -121,13 +122,13 @@ pub unsafe fn set_up_car_points(slot: u32, block: u32, v: &CarPointVars) -> Resu
                     BadInput("one collision point: the original returns through edi").into(),
                 );
             }
-            let first = get(v.firsts + 4 * slot);
-            let points = first.wrapping_mul(12).wrapping_add(get(v.points));
+            let first = get(v.firsts + 4 * slot)?;
+            let points = first.wrapping_mul(12).wrapping_add(get(v.points)?);
             let held = (count as i32).clamp(0, MOST_SORTED as i32) as u32;
-            put(v.car_points, held);
+            put(v.car_points, held)?;
             for n in 0..held {
                 let y = points + n * 12 + 4;
-                put(y, get(y).wrapping_add(LIFT));
+                put(y, get(y)?.wrapping_add(LIFT))?;
             }
             for (sort, start, n) in [
                 (BY_Y, 0u32, held),
@@ -135,16 +136,16 @@ pub unsafe fn set_up_car_points(slot: u32, block: u32, v: &CarPointVars) -> Resu
                 (BY_X_DOWN, 0, 2),
                 (BY_X_DOWN, 2, 2),
             ] {
-                put(v.car_points, n);
+                put(v.car_points, n)?;
                 if n >= 2 {
                     let first = points + start * 12;
                     sort_points(sort, first, first + n * 12 - 12)?;
                 }
             }
-            put(v.car_points, held);
+            put(v.car_points, held)?;
             for n in 0..held {
                 let y = points + n * 12 + 4;
-                put(y, get(y).wrapping_sub(LIFT));
+                put(y, get(y)?.wrapping_sub(LIFT))?;
             }
             // Converted: `rc2k_core::race::cars::{point_float, open_two_points}`.
             let scale = f32::from_bits(NUMBERS.k65536.bits());
@@ -152,27 +153,30 @@ pub unsafe fn set_up_car_points(slot: u32, block: u32, v: &CarPointVars) -> Resu
                 let p = points + n * 12;
                 for (k, list) in [XS, YS, ZS].into_iter().enumerate() {
                     // The original goes through `dword_62400C` for each `fild`.
-                    put(v.scratch, get(p + 4 * k as u32));
+                    put(v.scratch, get(p + 4 * k as u32)?)?;
                     put(
                         block + list + 4 * n,
-                        rc2k_core::race::cars::point_float(get(p + 4 * k as u32), scale),
-                    );
+                        rc2k_core::race::cars::point_float(get(p + 4 * k as u32)?, scale),
+                    )?;
                 }
             }
-            put(v.car_points, count);
-            let lists = [XS, YS, ZS].map(|list| (block + list) as *mut [u32; 0x40]);
-            let mut points = lists.map(|l| l.read_unaligned());
+            put(v.car_points, count)?;
+            let lists = [XS, YS, ZS].map(|list| GamePtr::new(block + list));
+            let mut points = [[0u32; 0x40]; 3];
+            for (p, l) in points.iter_mut().zip(&lists) {
+                *p = l.read("a car's point list")?;
+            }
             rc2k_core::race::cars::open_two_points(&mut points);
             for (l, p) in lists.iter().zip(points) {
-                l.write_unaligned(p);
+                l.write(p, "a car's point list")?;
             }
-            put(v.car_points, count + 2);
+            put(v.car_points, count + 2)?;
         }
         log(c"carnum", false);
-        log_number(Car::at(block).car_kind.bits(), false);
+        log_number(car_at(block)?.car_kind.bits(), false);
         log(c"numcollpts", false);
-        log_number(get(v.car_points), true);
-        Car::at(block).probe_count.set_bits(get(v.car_points));
+        log_number(get(v.car_points)?, true);
+        car_at(block)?.probe_count.set_bits(get(v.car_points)?);
     }
     Ok(())
 }
@@ -196,8 +200,9 @@ pub unsafe fn set_object_kinds() -> Result<(), Refused> {
         for n in DEFAULT_SLOTS {
             // Slots 56 .. 62 read past `slot_kind_defaults` into `fixed_kinds`, just set above
             // (the original's table is read on, a slip kept).
-            let default =
-                ((STAGE_PREFS.slot_kind_defaults[0].addr() + 4 * n as usize) as *const u32).read();
+            let default: u32 =
+                GamePtr::new((STAGE_PREFS.slot_kind_defaults[0].addr() + 4 * n as usize) as u32)
+                    .read("the slot kind defaults")?;
             OBJECT_TABLES.slot_kinds[n as usize].set(default);
         }
         // `dword_5CCF7C` = `dword_621844`.
@@ -211,7 +216,7 @@ pub unsafe fn set_object_kinds() -> Result<(), Refused> {
         for n in 0..cars {
             let block: u32 = crate::race::work_store::RACE_WORK.car_block(n as usize);
             for (kind, slot) in CAR_KINDS {
-                let car = Car::at(block).car_kind.bits();
+                let car = car_at(block)?.car_kind.bits();
                 let k = match kind {
                     CarKind::Known => crate::scene::known_kind::known_kind(car),
                     CarKind::Table11 => car_table(&KIND_TABLES.kind_11_table, car),

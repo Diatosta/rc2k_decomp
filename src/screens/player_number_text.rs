@@ -23,20 +23,19 @@ pub unsafe fn player_number_text() -> Result<(), Refused> {
         let mut text = Vec::new();
         let mut emit =
             |p: *const u8, len: usize| text.extend_from_slice(std::slice::from_raw_parts(p, len));
-        append_string_by_id(FIRST_STRING.wrapping_add(n), &mut emit);
+        append_string_by_id(FIRST_STRING.wrapping_add(n), &mut emit)?;
         text.push(b' ');
         let mut emit =
             |p: *const u8, len: usize| text.extend_from_slice(std::slice::from_raw_parts(p, len));
-        append_string_by_id(SECOND_STRING, &mut emit);
+        append_string_by_id(SECOND_STRING, &mut emit)?;
         // Converted: `rc2k_core::screens::captions::fit`.
         let text = rc2k_core::screens::captions::fit(text, TEXT_LEN)?;
-        std::ptr::copy_nonoverlapping(
-            text.as_ptr(),
+        crate::pointers::GamePtr::new(
             crate::screens::text_buffers_store::TEXT_BUFFERS
                 .number_text
-                .addr() as *mut u8,
-            text.len(),
-        );
+                .addr() as u32,
+        )
+        .write_bytes(&text, "the number text")?;
     }
     Ok(())
 }

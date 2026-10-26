@@ -11,6 +11,7 @@
 
 use crate::d3d::vertices_store::VERTICES;
 use crate::errors::Refused;
+use crate::pointers::GamePtr;
 
 use crate::hud::store::HUD;
 use crate::scene::draw_store::DRAW;
@@ -19,31 +20,29 @@ use rc2k_core::hud::icons;
 /// The Rust version (see the header): the icon of the record's entry at `entry` (edi),
 /// `bottom` (ebx) its row.
 // Converted: `rc2k_core::hud::icons`
-pub unsafe fn draw_icon(record: u32, bottom: u32, entry: u32) -> Result<(), Refused> {
-    unsafe {
-        let e = record.wrapping_add(entry);
-        let get = |o: u32| ((e + o) as *const u32).read_unaligned();
-        if !icons::shown(get(0x84)) {
-            return Ok(());
-        }
-        let scale = HUD.icon_scale.get();
-        let width = get(0x88);
-        HUD.icon_size[0].set(icons::scaled(width, scale));
-        let drop = get(0x90);
-        HUD.icon_size[1].set(icons::scaled(drop, scale));
-        let i = icons::icon(width, get(0x8C), drop, scale, HUD.icon_shift.get(), bottom);
-        for (n, u, v, x, y) in icons::corners(&i) {
-            let at = &VERTICES.vertices[n];
-            at.u.set_bits((u as i32 as f32).to_bits());
-            at.v.set_bits((v as i32 as f32).to_bits());
-            at.x.set_bits((x as i32 as f32).to_bits());
-            at.y.set_bits((y as i32 as f32).to_bits());
-            at.colour.set(i.colour);
-            at.specular.set(0);
-            // `fild` through `dword_75C060`: it keeps the last.
-            HUD.scratch.set(y);
-        }
-        DRAW.polygon_vertex_count.set_bits(4u32);
-        crate::hud::add_polygon::add_polygon()
+pub fn draw_icon(record: u32, bottom: u32, entry: u32) -> Result<(), Refused> {
+    let e = record.wrapping_add(entry);
+    let get = |o: u32| GamePtr::new(e + o).read::<u32>("a hud record's field");
+    if !icons::shown(get(0x84)?) {
+        return Ok(());
     }
+    let scale = HUD.icon_scale.get();
+    let width = get(0x88)?;
+    HUD.icon_size[0].set(icons::scaled(width, scale));
+    let drop = get(0x90)?;
+    HUD.icon_size[1].set(icons::scaled(drop, scale));
+    let i = icons::icon(width, get(0x8C)?, drop, scale, HUD.icon_shift.get(), bottom);
+    for (n, u, v, x, y) in icons::corners(&i) {
+        let at = &VERTICES.vertices[n];
+        at.u.set_bits((u as i32 as f32).to_bits());
+        at.v.set_bits((v as i32 as f32).to_bits());
+        at.x.set_bits((x as i32 as f32).to_bits());
+        at.y.set_bits((y as i32 as f32).to_bits());
+        at.colour.set(i.colour);
+        at.specular.set(0);
+        // `fild` through `dword_75C060`: it keeps the last.
+        HUD.scratch.set(y);
+    }
+    DRAW.polygon_vertex_count.set_bits(4u32);
+    crate::hud::add_polygon::add_polygon()
 }

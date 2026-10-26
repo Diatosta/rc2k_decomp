@@ -13,28 +13,34 @@ use crate::errors::{BadInput, Refused};
 use crate::menu::names_store::NAME_BUFFERS;
 use crate::menu::player_settings::current;
 use crate::menu::text_entry::{TEXT_LEN, length, set_length};
+use crate::pointers::GamePtr;
 
-pub fn kept() -> *mut u8 {
-    NAME_BUFFERS.kept_name.addr() as *mut u8
+pub fn kept() -> u32 {
+    NAME_BUFFERS.kept_name.addr() as u32
 }
 
 /// The current player's name.
-pub fn name() -> Result<*mut u8, Refused> {
-    let name = unsafe { current()?.read_unaligned() }.name;
+pub fn name() -> Result<u32, Refused> {
+    let name = GamePtr::new(current()?)
+        .read::<rc2k_core::menu::player::Player>("a player")?
+        .name;
     if name == 0 {
         return Err(BadInput("a player without a name").into());
     }
-    Ok(name as *mut u8)
+    Ok(name)
 }
 
-pub unsafe fn bring_back_name(name: *mut u8) {
-    unsafe { std::ptr::copy_nonoverlapping(kept(), name, TEXT_LEN) };
+pub fn bring_back_name(name: u32) -> Result<(), BadInput> {
+    let kept = GamePtr::new(kept()).read_bytes(TEXT_LEN, "the kept name")?;
+    GamePtr::new(name).write_bytes(&kept, "a player\'s name")
 }
 
-pub unsafe fn backspace_name(name: *mut u8) {
+pub fn backspace_name(name: u32) -> Result<(), BadInput> {
     let length = length();
     if length != 0 {
         set_length(length.wrapping_sub(1));
-        unsafe { name.offset(length.wrapping_sub(1) as isize).write(0) };
+        GamePtr::new(name.wrapping_add(length.wrapping_sub(1) as u32))
+            .write::<u8>(0, "a player\'s name")?;
     }
+    Ok(())
 }

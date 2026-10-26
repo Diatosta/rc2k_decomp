@@ -15,6 +15,7 @@ use crate::menu::car_numbers_store::CAR_NUMBERS;
 use crate::menu::cars_store::CAR_TABLE;
 use crate::menu::lists_store::MENU_LISTS;
 use crate::session::Dword;
+use crate::system::checked_reads::CheckedReads;
 
 // ---- game data ----
 
@@ -26,16 +27,21 @@ const LISTS: [(&[Dword], &[Dword], usize); 2] = [
 
 // ---- Rust version ----
 
-pub unsafe fn rebuild_car_lists() -> Result<(), BadInput> {
+pub fn rebuild_car_lists() -> Result<(), BadInput> {
     // Converted: `rc2k_core::saves::cars::pointers`, both lists worked out before either
     // is written.
 
     let mut found = Vec::new();
     for (numbers, _, len) in LISTS {
         let list: Vec<u32> = (0..len).map(|n| numbers[n].get()).collect();
-        found.push(rc2k_core::saves::cars::pointers(&list, |id| unsafe {
-            ((CAR_TABLE.cars[0].addr() + 4 * id as usize) as *const u32).read_unaligned()
-        })?);
+        let reads = CheckedReads::new();
+        let answer = rc2k_core::saves::cars::pointers(&list, |id| {
+            reads.dword(
+                (CAR_TABLE.cars[0].addr() + 4 * id as usize) as u32,
+                "a car table's entry",
+            )
+        });
+        found.push(reads.finish(answer)??);
     }
     for ((_, pointers, _), list) in LISTS.into_iter().zip(found) {
         for (n, v) in list.into_iter().enumerate() {

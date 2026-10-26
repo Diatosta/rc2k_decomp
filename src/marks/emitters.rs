@@ -5,8 +5,10 @@
 //! (the surface's particle kind); the patched EXE some owners use turns it into a `ret`
 //! (section 16).
 
+use crate::errors::Refused;
 use crate::marks::tuning::MARKS_FLOATS;
 use crate::math::x87;
+use crate::pointers::GamePtr;
 use crate::session::{Bytes, Dword, Float};
 
 pub use crate::marks::ring_store::RING_WORK;
@@ -29,39 +31,39 @@ impl Random for &Dword {
 }
 
 /// A random of the emitters' kind: times 0xC5 plus 0x5D, kept.
-pub unsafe fn next_c5(at: impl Random) -> u32 {
+pub fn next_c5(at: impl Random) -> u32 {
     let r = at.load().wrapping_mul(0xC5).wrapping_add(0x5D);
     at.store(r);
     r
 }
 
 /// The entry the next `take_entry` takes, if one is left.
-pub unsafe fn next_entry() -> Option<u32> {
-    unsafe {
+pub fn next_entry() -> Result<Option<u32>, Refused> {
+    Ok({
         if RING_WORK.count.get() == MOST_TAKEN {
-            return None;
+            return Ok(None);
         }
-        Some((RING_WORK.cursor.get() as *const u32).read_unaligned())
-    }
+        Some(GamePtr::new(RING_WORK.cursor.get()).read::<u32>("a mark's field")?)
+    })
 }
 
 /// The next entry taken (its +8 `dword_93547E`, +0x90 `tag`, +0xC `kind`).
-pub unsafe fn take_entry(tag: u32, kind: u32) -> u32 {
-    unsafe {
-        let e = (RING_WORK.cursor.get() as *const u32).read_unaligned();
+pub fn take_entry(tag: u32, kind: u32) -> Result<u32, Refused> {
+    Ok({
+        let e = GamePtr::new(RING_WORK.cursor.get()).read::<u32>("a mark's field")?;
         RING_WORK.cursor.set(e);
         RING_WORK.count.set(RING_WORK.count.get().wrapping_add(1));
-        let put = |o: u32, v: u32| ((e + o) as *mut u32).write_unaligned(v);
-        put(8, EMITTER.tag.get());
-        put(0x90, tag);
-        put(0xC, kind);
+        let put = |o: u32, v: u32| GamePtr::new(e + o).write::<u32>(v, "a mark's field");
+        put(8, EMITTER.tag.get())?;
+        put(0x90, tag)?;
+        put(0xC, kind)?;
         e
-    }
+    })
 }
 
 /// Reads a dword at an address.
-pub unsafe fn at(a: u32) -> u32 {
-    unsafe { (a as *const u32).read_unaligned() }
+pub fn at(a: u32) -> Result<u32, Refused> {
+    Ok(GamePtr::new(a).read::<u32>("a mark's field")?)
 }
 
 /// The rate gate's outcome, worked out without writing.
@@ -78,57 +80,57 @@ pub struct Gate {
 /// object's +0x90 plus it at least 0x1000; the wheel's +4 plus the object's +0x88 at
 /// least 1.5 times that sum (both signed), then kept as its remainder by it; the wheel's
 /// +0x10 or +0x18 not 0.
-pub unsafe fn gate(
+pub fn gate(
     wheel: u32,
     object: u32,
     a: u32,
     b: u32,
     k: &[crate::session::Float; 4],
-) -> Gate {
-    unsafe {
+) -> Result<Gate, Refused> {
+    Ok({
         let [k1, k2, k3, k4] = k.each_ref().map(|f| f.bits());
         let rate = x87::rate_to_int(
-            at(wheel + a),
-            at(wheel + b),
+            at(wheel + a)?,
+            at(wheel + b)?,
             k1,
             k2,
             k3,
             MARKS_FLOATS.one.bits(),
             k4,
         );
-        gate_with(wheel, object, rate)
-    }
+        gate_with(wheel, object, rate)?
+    })
 }
 
 /// The gate after the rate (see `gate`).
-pub unsafe fn gate_with(wheel: u32, object: u32, rate: i32) -> Gate {
-    unsafe {
-        let sum = at(object + 0x90).wrapping_add(rate as u32);
+pub fn gate_with(wheel: u32, object: u32, rate: i32) -> Result<Gate, Refused> {
+    Ok({
+        let sum = at(object + 0x90)?.wrapping_add(rate as u32);
         if (sum as i32) < 0x1000 {
-            return Gate {
+            return Ok(Gate {
                 rate,
                 count: None,
                 passes: false,
-            };
+            });
         }
-        let total = at(wheel + 4).wrapping_add(at(object + 0x88));
+        let total = at(wheel + 4)?.wrapping_add(at(object + 0x88)?);
         let limit = sum.wrapping_add(sum).wrapping_sub(sum >> 1);
         if (total as i32) < limit as i32 {
-            return Gate {
+            return Ok(Gate {
                 rate,
                 count: Some(total),
                 passes: false,
-            };
+            });
         }
         // `xor edx, edx; idiv`: the dividend the unsigned total.
         let rest = (total as i64 % limit as i32 as i64) as u32;
-        let moving = at(wheel + 0x10) != 0 || at(wheel + 0x18) != 0;
+        let moving = at(wheel + 0x10)? != 0 || at(wheel + 0x18)? != 0;
         Gate {
             rate,
             count: Some(rest),
             passes: moving,
         }
-    }
+    })
 }
 
 /// The particle emitters' variables (IDA 0x935416 .. 0x935562, the image's layout; phase 7, typed state): the record they are on, the vectors they share, and their constants and randoms.

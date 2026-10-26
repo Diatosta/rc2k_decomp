@@ -95,7 +95,7 @@ pub fn viewer_load_stage() -> Result<(), Refused> {
         crate::race::read_replay_header::read_replay_header();
         unsafe { stage_loading::load_stage() }?;
         race_end::reset_race_sounds(&race_end::SoundVars::game())?;
-        unsafe { crate::race::viewer_palettes::viewer_palettes() };
+        crate::race::viewer_palettes::viewer_palettes()?;
         REPLAY_FILE.viewer_stage_loaded.set(1);
     }
     crate::input::take_key::take_key();

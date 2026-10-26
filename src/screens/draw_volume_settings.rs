@@ -17,7 +17,7 @@ use crate::errors::Refused;
 use crate::menu::option_work_store::OPTION_WORK;
 use crate::text::draw_text::Canvas;
 
-pub unsafe fn draw_volume_settings(canvas: &mut dyn Canvas) -> Result<(), Refused> {
+pub fn draw_volume_settings(canvas: &mut dyn Canvas) -> Result<(), Refused> {
     // Converted: `rc2k_core::screens::settings_pages::volume`.
 
     let id = crate::sound::store::SOUND_OPTIONS

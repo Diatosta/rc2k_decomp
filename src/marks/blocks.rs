@@ -7,6 +7,7 @@ use crate::marks::frame_state::DRAW_WORK;
 use crate::marks::store::game_addr;
 use crate::math::x87;
 use crate::memory::MemoryList;
+use crate::pointers::GamePtr;
 use crate::session::write_bits;
 use crate::session::{Bytes, Dword, Float, Shared, Word};
 
@@ -30,24 +31,24 @@ impl crate::marks::store::Where for Address {
 }
 
 /// `bytes` bytes on the list at `list` (`memory::allocate`).
-pub unsafe fn take(list: impl crate::marks::store::Where, bytes: u32) -> Result<u32, Refused> {
-    unsafe { take_from(game_addr(list) as *mut MemoryList, bytes) }
+pub fn take(list: impl crate::marks::store::Where, bytes: u32) -> Result<u32, Refused> {
+    take_from(game_addr(list) as *mut MemoryList, bytes)
 }
 
 /// `bytes` bytes on `list` (`memory::allocate`).
-pub unsafe fn take_from(list: *mut MemoryList, bytes: u32) -> Result<u32, Refused> {
+pub fn take_from(list: *mut MemoryList, bytes: u32) -> Result<u32, Refused> {
     Ok(unsafe { crate::memory::allocate::allocate(list, bytes) }? as u32)
 }
 
 /// `marks::allocate_places` (0x4C38B1), step 6: 0x7024 bytes on `stru_8DB570` into
 /// `g_marksPlaces`, its first three floats `flt_8DB5B4` ...
-pub unsafe fn allocate_places() -> Result<(), Refused> {
-    unsafe {
+pub fn allocate_places() -> Result<(), Refused> {
+    {
         let block = take_from(PLACES_BLOCK.list.as_ptr(), PLACES_LEN)?;
         PLACES_BLOCK.places.set(block);
         for n in 0..3 {
             let v = x87::loaded(PLACES_BLOCK.start[n].bits());
-            ((block + 4 * n as u32) as *mut u32).write_unaligned(v);
+            GamePtr::new(block + 4 * n as u32).write(v, "the places block")?;
         }
     }
     Ok(())
@@ -56,16 +57,16 @@ pub unsafe fn allocate_places() -> Result<(), Refused> {
 /// `marks::allocate_ring` (0x4CFAC5), step 13: 0x4C000 bytes on `stru_93A580` into
 /// `g_marksRing` and `g_marksRingFree`, `g_marksRingUsed` 0, and the 0x1000 entries of
 /// 0x4C made a ring (+0 the one before, +4 the one after).
-pub unsafe fn allocate_ring() -> Result<(), Refused> {
-    unsafe {
+pub fn allocate_ring() -> Result<(), Refused> {
+    {
         let block = take(Address(RING_POOL.list[0].as_ptr() as usize), RING_LEN)?;
         RING_POOL.ring.set(block);
         RING_POOL.free.set(block);
         RING_POOL.used.set(0u32);
         // Converted: `rc2k_core::marks::rings::ring_links`.
         for (n, links) in rc2k_core::marks::rings::ring_links(block).enumerate() {
-            let e = block.wrapping_add(n as u32 * RING_ENTRY) as *mut [u32; 2];
-            e.write_unaligned(links);
+            GamePtr::new(block.wrapping_add(n as u32 * RING_ENTRY))
+                .write(links, "the ring block")?;
         }
     }
     Ok(())
@@ -74,15 +75,15 @@ pub unsafe fn allocate_ring() -> Result<(), Refused> {
 /// `marks::allocate_links` (0x4C5398), in step 3: 0x71020 bytes on `stru_9206F0` into
 /// `g_marksLinks`, its +0x7100C 0, at +8 and +0x4008 the 0x1000 entries' before and after
 /// (round), then `marks::scale_corners`.
-pub unsafe fn allocate_links() -> Result<(), Refused> {
-    unsafe {
+pub fn allocate_links() -> Result<(), Refused> {
+    {
         let block = take_from(MARK_LINKS.list.as_ptr(), LINKS_LEN)?;
         MARK_LINKS.links.set(block);
-        ((block + 0x7100C) as *mut u32).write_unaligned(0);
+        GamePtr::new(block + 0x7100C).write(0u32, "the links block")?;
         // Converted: `rc2k_core::marks::rings::link_tables`.
         let (before, after) = rc2k_core::marks::rings::link_tables();
-        ((block + 8) as *mut [u32; 0x1000]).write_unaligned(before);
-        ((block + 0x4008) as *mut [u32; 0x1000]).write_unaligned(after);
+        GamePtr::new(block + 8).write(before, "the links block")?;
+        GamePtr::new(block + 0x4008).write(after, "the links block")?;
         scale_corners();
     }
     Ok(())
@@ -95,7 +96,7 @@ const CORNER_PAIRS: [u32; 4] = [0, 4, 0xC, 8];
 /// word pairs (+0, +4, +0xC, +8) each times `flt_8EB969` into the work and into +4 .. +0x20
 /// of the record's 0x24 at `g_marksCornerSlopes`; +0 there the slope: |+0xA - +2| over
 /// |+4 - +0| (sixteen-bit differences; `dword_8EB8B5`, `dword_8EB8B9`).
-pub unsafe fn scale_corners() {
+pub fn scale_corners() {
     {
         let scale: u32 = DRAW_WORK.uv_k.bits();
         for n in (0..CORNERS).rev() {
@@ -132,26 +133,30 @@ pub unsafe fn scale_corners() {
 /// `marks::reset_settings_blocks` (0x4C9A6D), in step 3: the eight blocks of 0x4C8 at
 /// `g_marksSettings` + 0x60 (the last first): +0x4C .. +0x60 the six floats from
 /// `flt_9354C6`, the last three again at +0x64, +0x70, +0x7C, +0x30 8.
-pub unsafe fn reset_settings_blocks() {
-    unsafe {
+pub fn reset_settings_blocks() -> Result<(), Refused> {
+    {
         let settings: u32 = crate::marks::setup::SETTINGS.pointer.get();
         for n in (0..SETTINGS_BLOCKS).rev() {
             let block = settings.wrapping_add(0x60 + n * SETTINGS_BLOCK);
-            let at = |o: u32| (block + o) as *mut u32;
+            let at = |o: u32| GamePtr::new(block + o);
             for k in 0..6u32 {
                 let v =
                     x87::loaded(crate::marks::emitters::EMITTER.settings_start[k as usize].bits());
-                at(0x4C + 4 * k).write_unaligned(v);
+                at(0x4C + 4 * k).write(v, "a settings block")?;
             }
-            let last: [u32; 3] = [0x58, 0x5C, 0x60].map(|o| at(o).read_unaligned());
+            let mut last = [0u32; 3];
+            for (slot, o) in last.iter_mut().zip([0x58, 0x5C, 0x60]) {
+                *slot = at(o).read::<u32>("a settings block")?;
+            }
             for o in [0x64, 0x70, 0x7C] {
                 for (k, v) in last.into_iter().enumerate() {
-                    at(o + 4 * k as u32).write_unaligned(v);
+                    at(o + 4 * k as u32).write(v, "a settings block")?;
                 }
             }
-            at(0x30).write_unaligned(8);
+            at(0x30).write(8u32, "a settings block")?;
         }
     }
+    Ok(())
 }
 
 /// The places' list, block and first floats (IDA 0x8DB570 .. 0x8DB5C0, the image's layout; phase 7, typed state).

@@ -18,17 +18,18 @@ use crate::errors::{BadInput, Refused};
 use crate::marks::draw_flare_part::draw_flare_part;
 use crate::marks::frame_state::{DRAW_FRAME, FLARE_PARTS, FLARE_SCALES};
 use crate::math::x87;
+use crate::pointers::GamePtr;
 use crate::scene::draw_store::DRAW;
 use crate::session::address_of;
 
 const PARTS: u32 = 0x11;
 
-unsafe fn get(a: u32) -> u32 {
-    unsafe { (a as *const u32).read_unaligned() }
+fn get(a: u32) -> Result<u32, BadInput> {
+    GamePtr::new(a).read("a game field")
 }
 
 /// The Rust version (see the header).
-pub unsafe fn draw_lens_flare() -> Result<(), Refused> {
+pub fn draw_lens_flare() -> Result<(), Refused> {
     unsafe {
         let settings: u32 = crate::marks::setup::SETTINGS.pointer.get();
         if settings == 0 {
@@ -38,8 +39,8 @@ pub unsafe fn draw_lens_flare() -> Result<(), Refused> {
             return Err(BadInput("a flare corner past g_marksCorners").into());
         }
         let [cx, cy] = [DRAW.view_centre[0].bits(), DRAW.view_centre[1].bits()];
-        let dx = x87::sub(get(settings + 0x2758), cx);
-        let dy = x87::sub(get(settings + 0x275C), cy) ^ 0x8000_0000;
+        let dx = x87::sub(get(settings + 0x2758)?, cx);
+        let dy = x87::sub(get(settings + 0x275C)?, cy) ^ 0x8000_0000;
         DRAW_FRAME.flare_way[0].set_bits(dx);
         DRAW_FRAME.flare_way[1].set_bits(dy);
         FLARE_PARTS.unit[0].set_bits(x87::loaded(dx));
@@ -54,7 +55,7 @@ pub unsafe fn draw_lens_flare() -> Result<(), Refused> {
             FLARE_SCALES.fade[1].bits(),
         )
         .max(0);
-        let product = u64::from(get(settings + 0x2754)) * u64::from(alpha as u32);
+        let product = u64::from(get(settings + 0x2754)?) * u64::from(alpha as u32);
         let alpha = (product as u32) >> 8;
         let size_k: u32 = FLARE_SCALES.size_k.bits();
         for k in (0..PARTS as usize).rev() {

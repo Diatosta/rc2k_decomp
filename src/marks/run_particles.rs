@@ -34,6 +34,7 @@ use crate::marks::setup::CLOCK;
 use crate::marks::tuning::MARKS_FRAME;
 use crate::marks::work_store::MARKS_WORK;
 use crate::math::x87;
+use crate::pointers::GamePtr;
 use crate::race::matrices_store::MATRICES;
 use crate::scene::matrix3::extended;
 use crate::session::{Bytes, Dword, Float};
@@ -41,131 +42,141 @@ const TRAIL_COLOURS: i32 = 298;
 const BURST_COLOURS_LEN: i32 = 0x2000;
 const BIGGER: u32 = 0x386A0;
 
-unsafe fn get(a: u32) -> u32 {
-    unsafe { (a as *const u32).read_unaligned() }
+fn get(a: u32) -> Result<u32, BadInput> {
+    GamePtr::new(a).read("a game field")
 }
 
-unsafe fn put(a: u32, v: u32) {
-    unsafe { (a as *mut u32).write_unaligned(v) }
+fn put(a: u32, v: u32) -> Result<(), BadInput> {
+    GamePtr::new(a).write(v, "a game field")
 }
 
 /// A kind's colour index (life times +0x40, `fistp`) and whether it is in its table.
-unsafe fn colour_index(e: u32, life: u32) -> (i32, bool) {
-    unsafe {
-        let i = x87::int_times_to_int(life as i32, get(e + 0x40));
-        let ok = match get(e + 8) {
+fn colour_index(e: u32, life: u32) -> Result<(i32, bool), Refused> {
+    Ok({
+        let i = x87::int_times_to_int(life as i32, get(e + 0x40)?);
+        let ok = match get(e + 8)? {
             4 => (0..TRAIL_COLOURS).contains(&i),
             _ => {
-                let off = (get(e + 0x48) as i32).wrapping_add(i.wrapping_mul(4));
+                let off = (get(e + 0x48)? as i32).wrapping_add(i.wrapping_mul(4));
                 i >= 0 && (0..=BURST_COLOURS_LEN - 4).contains(&off)
             }
         };
         (i, ok)
-    }
+    })
 }
 
 /// Why it refuses, if it does: the walk as the original makes it, nothing written.
-unsafe fn refusal() -> Option<&'static str> {
-    unsafe {
+fn refusal() -> Result<Option<&'static str>, Refused> {
+    Ok({
         let settings: u32 = crate::marks::setup::SETTINGS.pointer.get();
         if settings == 0 {
-            return Some("no marks settings");
+            return Ok(Some("no marks settings"));
         }
-        if get(settings + 4) == 0 {
-            return None;
+        if get(settings + 4)? == 0 {
+            return Ok(None);
         }
         let ticks: u32 = CLOCK.frame_ticks.get();
         let mut e: u32 = RING_POOL.free.get();
         let used = RING_POOL.used.get() as i32;
-        if used > 0 && (e == 0 || get(e) == 0) {
-            return Some("a null particle ring entry");
+        if used > 0 && (e == 0 || get(e)? == 0) {
+            return Ok(Some("a null particle ring entry"));
         }
         for _ in 0..used.max(0) {
-            if e == 0 || get(e) == 0 || get(e + 4) == 0 {
-                return Some("a null particle ring entry or link");
+            if e == 0 || get(e)? == 0 || get(e + 4)? == 0 {
+                return Ok(Some("a null particle ring entry or link"));
             }
-            let life = get(e + 0x44);
-            let kind = get(e + 8);
-            if life >= ticks && x87::compare_status(get(e + 0x10), get(e + 0x24)) != 0x100 {
+            let life = get(e + 0x44)?;
+            let kind = get(e + 8)?;
+            if life >= ticks && x87::compare_status(get(e + 0x10)?, get(e + 0x24)?) != 0x100 {
                 if ![0, 4, 8, 9].contains(&kind) {
-                    return Some("a particle of another kind (the original's stack goes wrong)");
+                    return Ok(Some(
+                        "a particle of another kind (the original's stack goes wrong)",
+                    ));
                 }
-                if kind != 0 && !colour_index(e, life - ticks).1 {
-                    return Some("a particle colour index out of its table");
+                if kind != 0 && !colour_index(e, life - ticks)?.1 {
+                    return Ok(Some("a particle colour index out of its table"));
                 }
             }
-            e = get(e + 4);
+            e = get(e + 4)?;
         }
         None
-    }
+    })
 }
 
 /// The step of the kind at e (see the header): whether the entry dies.
-unsafe fn step(e: u32) -> Result<bool, Refused> {
+fn step(e: u32) -> Result<bool, Refused> {
     use crate::marks::{burst_particles, draw_particle, trail_particles};
-    unsafe {
+    {
         let t: i32 = CLOCK.frame_ticks.get() as i32;
-        let move_place = |with_up: bool| {
-            put(e + 0xC, x87::plus_times_int(get(e + 0xC), get(e + 0x28), t));
+        let move_place = |with_up: bool| -> Result<_, Refused> {
+            put(
+                e + 0xC,
+                x87::plus_times_int(get(e + 0xC)?, get(e + 0x28)?, t),
+            )?;
             let y = if with_up {
-                x87::plus_sum_times_int(get(e + 0x10), get(e + 0x2C), get(e + 0x30), t)
+                x87::plus_sum_times_int(get(e + 0x10)?, get(e + 0x2C)?, get(e + 0x30)?, t)
             } else {
-                x87::plus_times_int(get(e + 0x10), get(e + 0x2C), t)
+                x87::plus_times_int(get(e + 0x10)?, get(e + 0x2C)?, t)
             };
-            put(e + 0x10, y);
+            put(e + 0x10, y)?;
             put(
                 e + 0x14,
-                x87::plus_times_int(get(e + 0x14), get(e + 0x34), t),
-            );
+                x87::plus_times_int(get(e + 0x14)?, get(e + 0x34)?, t),
+            )?;
+            Ok(())
         };
-        let gain_int = |k: &crate::session::Float| {
-            let v = x87::int_times_int_plus_int(k.bits() as i32, t, get(e + 0x3C) as i32);
-            put(e + 0x3C, v as u32);
+        let gain_int = |k: &crate::session::Float| -> Result<_, Refused> {
+            let v = x87::int_times_int_plus_int(k.bits() as i32, t, get(e + 0x3C)? as i32);
+            put(e + 0x3C, v as u32)?;
+            Ok(())
         };
-        let keep_last = || {
-            put(e + 0x18, get(e + 0xC));
-            put(e + 0x1C, get(e + 0x10));
-            put(e + 0x20, get(e + 0x14));
+        let keep_last = || -> Result<_, Refused> {
+            put(e + 0x18, get(e + 0xC)?)?;
+            put(e + 0x1C, get(e + 0x10)?)?;
+            put(e + 0x20, get(e + 0x14)?)?;
+            Ok(())
         };
-        let place = || {
-            [
-                extended(get(e + 0xC)),
-                extended(get(e + 0x10)),
-                extended(get(e + 0x14)),
-            ]
+        let place = || -> Result<_, Refused> {
+            Ok({
+                [
+                    extended(get(e + 0xC)?),
+                    extended(get(e + 0x10)?),
+                    extended(get(e + 0x14)?),
+                ]
+            })
         };
-        match get(e + 8) {
+        match get(e + 8)? {
             0 => {
-                move_place(false);
+                move_place(false)?;
                 put(
                     e + 0x2C,
-                    x87::plus_times_int(get(e + 0x2C), PARTICLE_TUNING.dust[0].bits(), t),
-                );
-                gain_int(&PARTICLE_TUNING.dust[1]);
-                let s = x87::compare_status(PARTICLE_TUNING.dust[2].bits(), get(e + 0x2C));
+                    x87::plus_times_int(get(e + 0x2C)?, PARTICLE_TUNING.dust[0].bits(), t),
+                )?;
+                gain_int(&PARTICLE_TUNING.dust[1])?;
+                let s = x87::compare_status(PARTICLE_TUNING.dust[2].bits(), get(e + 0x2C)?);
                 MARKS_WORK.fpu_status.set(s as u32);
                 if s != 0x100 {
                     burst_particles::burst_particles(e)?;
                     return Ok(true);
                 }
-                if get(e + 0x2C) & 0x8000_0000 == 0 {
+                if get(e + 0x2C)? & 0x8000_0000 == 0 {
                     trail_particles::trail_particles(e)?;
                 }
-                keep_last();
+                keep_last()?;
             }
             4 => {
-                move_place(false);
+                move_place(false)?;
                 put(
                     e + 0x2C,
-                    x87::plus_times_int(get(e + 0x2C), PARTICLE_TUNING.trail[0].bits(), t),
-                );
-                gain_int(&PARTICLE_TUNING.trail[1]);
-                let (i, _) = colour_index(e, get(e + 0x44));
+                    x87::plus_times_int(get(e + 0x2C)?, PARTICLE_TUNING.trail[0].bits(), t),
+                )?;
+                gain_int(&PARTICLE_TUNING.trail[1])?;
+                let (i, _) = colour_index(e, get(e + 0x44)?)?;
                 RING_POOL.index.set(i as u32);
-                let alpha = get(e + 0x3C) & 0xFF00_0000;
+                let alpha = get(e + 0x3C)? & 0xFF00_0000;
                 let colour = (TRAIL_PALETTE.colours[i as usize].get() & 0xFF_FFFF) | alpha;
-                draw_particle::draw_particle(place(), colour, get(e + 0x38));
-                keep_last();
+                draw_particle::draw_particle(place()?, colour, get(e + 0x38)?);
+                keep_last()?;
             }
             kind => {
                 let k = if kind == 9 {
@@ -173,23 +184,26 @@ unsafe fn step(e: u32) -> Result<bool, Refused> {
                 } else {
                     &PARTICLE_TUNING.burst8
                 };
-                move_place(true);
-                put(e + 0x30, x87::plus_times_int(get(e + 0x30), k[0].bits(), t));
-                put(e + 0x28, x87::less_own_times(get(e + 0x28), k[1].bits()));
-                put(e + 0x2C, x87::less_own_times(get(e + 0x2C), k[2].bits()));
-                put(e + 0x34, x87::less_own_times(get(e + 0x34), k[3].bits()));
-                gain_int(&k[4]);
-                let (i, _) = colour_index(e, get(e + 0x44));
+                move_place(true)?;
+                put(
+                    e + 0x30,
+                    x87::plus_times_int(get(e + 0x30)?, k[0].bits(), t),
+                )?;
+                put(e + 0x28, x87::less_own_times(get(e + 0x28)?, k[1].bits()))?;
+                put(e + 0x2C, x87::less_own_times(get(e + 0x2C)?, k[2].bits()))?;
+                put(e + 0x34, x87::less_own_times(get(e + 0x34)?, k[3].bits()))?;
+                gain_int(&k[4])?;
+                let (i, _) = colour_index(e, get(e + 0x44)?)?;
                 RING_POOL.index.set(i as u32);
                 let tint = BURST_COLOURS
                     .table
-                    .get_u32((get(e + 0x48) as usize).wrapping_add(4 * i as usize))
+                    .get_u32((get(e + 0x48)? as usize).wrapping_add(4 * i as usize))
                     & 0xFF_FFFF;
                 if tint == 0 {
                     return Ok(true);
                 }
-                let colour = (get(e + 0x3C) & 0xFF00_0000) | tint;
-                let mut size = get(e + 0x38);
+                let colour = (get(e + 0x3C)? & 0xFF00_0000) | tint;
+                let mut size = get(e + 0x38)?;
                 if kind == 9 {
                     let s = MARKS_WORK.seed.get().wrapping_mul(0x9D).wrapping_add(0x47);
                     MARKS_WORK.seed.set(s);
@@ -197,7 +211,7 @@ unsafe fn step(e: u32) -> Result<bool, Refused> {
                         size = size.wrapping_add(BIGGER);
                     }
                 }
-                draw_particle::draw_particle(place(), colour, size);
+                draw_particle::draw_particle(place()?, colour, size);
             }
         }
     }
@@ -205,13 +219,13 @@ unsafe fn step(e: u32) -> Result<bool, Refused> {
 }
 
 /// The Rust version (see the header).
-pub unsafe fn run_particles() -> Result<(), Refused> {
-    if let Some(why) = unsafe { refusal() } {
+pub fn run_particles() -> Result<(), Refused> {
+    if let Some(why) = refusal()? {
         return Err(BadInput(why).into());
     }
-    unsafe {
+    {
         let settings: u32 = crate::marks::setup::SETTINGS.pointer.get();
-        if get(settings + 4) == 0 {
+        if get(settings + 4)? == 0 {
             return Ok(());
         }
         crate::marks::set_quad_uvs::set_quad_uvs();
@@ -222,13 +236,13 @@ pub unsafe fn run_particles() -> Result<(), Refused> {
             if counter < 0 {
                 break;
             }
-            let next = get(e + 4);
+            let next = get(e + 4)?;
             let t: u32 = CLOCK.frame_ticks.get();
-            let life = get(e + 0x44);
-            put(e + 0x44, life.wrapping_sub(t));
+            let life = get(e + 0x44)?;
+            put(e + 0x44, life.wrapping_sub(t))?;
             let mut dies = life < t;
             if !dies {
-                let s = x87::compare_status(get(e + 0x10), get(e + 0x24));
+                let s = x87::compare_status(get(e + 0x10)?, get(e + 0x24)?);
                 MARKS_WORK.fpu_status.set(s as u32);
                 dies = s == 0x100;
                 if !dies {
@@ -238,17 +252,17 @@ pub unsafe fn run_particles() -> Result<(), Refused> {
             if dies {
                 RING_POOL.used.set(RING_POOL.used.get().wrapping_sub(1));
                 if e == RING_POOL.free.get() {
-                    RING_POOL.free.set(get(e + 4));
+                    RING_POOL.free.set(get(e + 4)?);
                 } else {
-                    let (before, after) = (get(e), get(e + 4));
-                    put(before + 4, after);
-                    put(after, before);
+                    let (before, after) = (get(e)?, get(e + 4)?);
+                    put(before + 4, after)?;
+                    put(after, before)?;
                     let free: u32 = RING_POOL.free.get();
-                    let last = get(free);
-                    put(free, e);
-                    put(last + 4, e);
-                    put(e, last);
-                    put(e + 4, free);
+                    let last = get(free)?;
+                    put(free, e)?;
+                    put(last + 4, e)?;
+                    put(e, last)?;
+                    put(e + 4, free)?;
                 }
             }
             e = next;
@@ -264,7 +278,7 @@ pub unsafe fn run_particles() -> Result<(), Refused> {
         };
         let r = seed();
         let at = MATRICES.view_place[0].addr() as u32;
-        let view = |o: u32| get(at + o);
+        let view = |o: u32| -> Result<_, Refused> { Ok(get(at + o)?) };
         let uv_k: u32 = DRAW_WORK.uv_k.bits();
         let wave = |k: &[crate::session::Float; 3], add: u32, cosine: bool| {
             x87::int_times3_wave_plus(
@@ -275,9 +289,9 @@ pub unsafe fn run_particles() -> Result<(), Refused> {
                 cosine,
             )
         };
-        let x = wave(&PARTICLE_TUNING.puff_x, view(0x30), false);
-        let y = x87::loaded(view(0x34));
-        let z = wave(&PARTICLE_TUNING.puff_z, view(0x38), true);
+        let x = wave(&PARTICLE_TUNING.puff_x, view(0x30)?, false);
+        let y = x87::loaded(view(0x34)?);
+        let z = wave(&PARTICLE_TUNING.puff_z, view(0x38)?, true);
         let lift = seed();
         let up = x87::int_times_plus_times_plus(
             lift as i32,
@@ -286,8 +300,8 @@ pub unsafe fn run_particles() -> Result<(), Refused> {
             PARTICLE_TUNING.puff_y[1].bits(),
             PARTICLE_TUNING.puff_y[2].bits(),
         );
-        let mx = x87::sub_mul(view(0x30), x, PARTICLE_TUNING.puff_m[0].bits());
-        let mz = x87::sub_mul(view(0x38), z, PARTICLE_TUNING.puff_m[1].bits());
+        let mx = x87::sub_mul(view(0x30)?, x, PARTICLE_TUNING.puff_m[0].bits());
+        let mz = x87::sub_mul(view(0x38)?, z, PARTICLE_TUNING.puff_m[1].bits());
         for (n, v) in [x, y, z, mx, up, mz].into_iter().enumerate() {
             PUFF_WORK.puff[n].set_bits(v);
         }

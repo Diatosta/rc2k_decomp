@@ -15,7 +15,7 @@ use crate::race::frame_store::FRAME_WORK;
 const FADES: usize = 0x11;
 
 /// The Rust version (see the header).
-pub unsafe fn make_fade_colours() {
+pub fn make_fade_colours() {
     let l = &SNOW_LIGHT;
     {
         let colour: u32 = FRAME_WORK.view_light.bits();

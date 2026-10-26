@@ -22,6 +22,7 @@ use crate::marks::jitter_point::jitter_point;
 use crate::marks::run_particles::PARTICLE_TUNING;
 use crate::marks::work_store::MARKS_WORK;
 use crate::math::x87;
+use crate::pointers::GamePtr;
 use crate::race::matrices_store::MATRICES;
 use crate::scene::matrix3::{extended, rounded};
 
@@ -32,13 +33,13 @@ const COUNT: u32 = 8;
 const AXES: [(u32, u32, u32); 3] = [(0xC, 0x18, 0x28), (0x10, 0x1C, 0x2C), (0x14, 0x20, 0x34)];
 const LIFE: u32 = 300;
 
-unsafe fn get(a: u32) -> u32 {
-    unsafe { (a as *const u32).read_unaligned() }
+fn get(a: u32) -> Result<u32, BadInput> {
+    GamePtr::new(a).read("a game field")
 }
 
 /// The entries it takes, from `g_marksRingFree` along +0.
-unsafe fn entries_taken() -> Vec<u32> {
-    unsafe {
+fn entries_taken() -> Result<Vec<u32>, Refused> {
+    Ok({
         let used: u32 = RING_POOL.used.get();
         let n = if used <= FULL {
             (FULL - used).min(COUNT)
@@ -51,21 +52,21 @@ unsafe fn entries_taken() -> Vec<u32> {
             if e == 0 {
                 break;
             }
-            e = get(e);
+            e = get(e)?;
             out.push(e);
         }
         out
-    }
+    })
 }
 
 /// The Rust version (see the header): `p` the particle it trails (esi).
-pub unsafe fn trail_particles(p: u32) -> Result<(), Refused> {
-    unsafe {
+pub fn trail_particles(p: u32) -> Result<(), Refused> {
+    {
         if RING_POOL.used.get() != FULL {
             if p == 0 {
                 return Err(BadInput("a null particle").into());
             }
-            if RING_POOL.free.get() == 0 || entries_taken().contains(&0) {
+            if RING_POOL.free.get() == 0 || entries_taken()?.contains(&0) {
                 return Err(BadInput("a null particle ring entry").into());
             }
         }
@@ -74,11 +75,11 @@ pub unsafe fn trail_particles(p: u32) -> Result<(), Refused> {
             if used == FULL {
                 continue;
             }
-            let e = get(RING_POOL.free.get());
+            let e = get(RING_POOL.free.get())?;
             RING_POOL.free.set(e);
             RING_POOL.used.set(used.wrapping_add(1));
-            let put = |o: u32, v: u32| ((e + o) as *mut u32).write_unaligned(v);
-            put(8, 4);
+            let put = |o: u32, v: u32| GamePtr::new(e + o).write::<u32>(v, "a mark's field");
+            put(8, 4)?;
             let s = MARKS_WORK.seed.get().wrapping_mul(0x9D).wrapping_add(0x47);
             MARKS_WORK.seed.set(s);
             let k1 = DRAW_WORK.uv_k.bits();
@@ -88,38 +89,38 @@ pub unsafe fn trail_particles(p: u32) -> Result<(), Refused> {
                 .set_bits(x87::int_times_times((s & 0xFFFF) as i32, k1, k2));
             let radius: u32 = RING_POOL.burst_radius.bits();
             for (place, last, _) in AXES {
-                put(place, x87::toward(get(p + place), get(p + last), radius));
+                put(place, x87::toward(get(p + place)?, get(p + last)?, radius))?;
             }
             for (n, (place, last, motion)) in AXES.into_iter().enumerate() {
                 put(
                     motion,
                     x87::diff_times_plus_times(
-                        get(p + last),
-                        get(p + place),
+                        get(p + last)?,
+                        get(p + place)?,
                         PARTICLE_TUNING.trail_axes[2 * n].bits(),
-                        get(p + motion),
+                        get(p + motion)?,
                         PARTICLE_TUNING.trail_axes[2 * n + 1].bits(),
                     ),
-                );
+                )?;
             }
             let (moved, _) = jitter_point([
                 extended(PARTICLE_TUNING.trail_spread.bits()),
-                extended(get(e + 0x34)),
-                extended(get(e + 0x2C)),
-                extended(get(e + 0x28)),
+                extended(get(e + 0x34)?),
+                extended(get(e + 0x2C)?),
+                extended(get(e + 0x28)?),
             ]);
-            put(0x34, rounded(moved[0]));
-            put(0x2C, rounded(moved[1]));
-            put(0x28, rounded(moved[2]));
+            put(0x34, rounded(moved[0]))?;
+            put(0x2C, rounded(moved[1]))?;
+            put(0x28, rounded(moved[2]))?;
             let [a, b] = PARTICLE_TUNING.trail_size_k.each_ref().map(|f| f.bits());
-            put(0x38, x87::times_plus_to_int(a, get(p + 0x2C), b) as u32);
-            put(0x3C, 0xFF00_0000);
-            put(0x44, LIFE);
+            put(0x38, x87::times_plus_to_int(a, get(p + 0x2C)?, b) as u32)?;
+            put(0x3C, 0xFF00_0000)?;
+            put(0x44, LIFE)?;
             put(
                 0x40,
                 x87::over_int(PARTICLE_TUNING.trail_life_k.bits(), LIFE as i32),
-            );
-            put(0x24, x87::loaded(MATRICES.view_place[13].bits()));
+            )?;
+            put(0x24, x87::loaded(MATRICES.view_place[13].bits()))?;
         }
     }
     Ok(())

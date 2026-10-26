@@ -11,6 +11,11 @@ pub fn picture() -> *mut u8 {
     PICTURE.buffer.get() as *mut u8
 }
 
+/// The picture buffer as a game pointer (null: `addr()` is 0).
+pub fn picture_ptr() -> crate::pointers::GamePtr {
+    crate::pointers::GamePtr::new(PICTURE.buffer.get())
+}
+
 /// The picture's width, height and row length set (`rc2k_core::gfx::picture_size`).
 pub fn set_size(size: rc2k_core::gfx::picture_size::PictureSize) {
     let [width, height, row_bytes] = size.dwords();

@@ -6,6 +6,7 @@ use crate::errors::Refused;
 use crate::race::frame_counter_store::FRAME_COUNTER;
 use crate::race::switches_store::FRAME_SWITCHES;
 use crate::race::text_state_store::TEXT_STATE;
+use crate::race::trap::Trap;
 use crate::scene::draw_store::DRAW;
 use crate::screens::font_at;
 use crate::session::{Dword, SCREEN};
@@ -179,16 +180,18 @@ pub unsafe fn roll_credits(
             font.addr() as u32
         };
         let mut at = CREDITS.script.as_ptr() as u32;
+        let trap = Trap::new();
         let (lines, below) = lay_out(
             || {
-                let v = (at as *const u16).read_unaligned();
+                let v = trap.read::<u16>(at, "the credits' script");
                 at += 2;
                 v
             },
             width,
             CREDITS.top.get() as i32,
-            |f| ((font_of(f) + 8) as *const i32).read_unaligned(),
+            |f| trap.read::<i32>(font_of(f) + 8, "a font record"),
         );
+        trap.finish()?;
         for line in lines {
             credit_line(line.id, font_of(line.font), line.x, line.y, canvas)?;
         }

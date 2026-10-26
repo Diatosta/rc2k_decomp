@@ -19,6 +19,7 @@ use crate::marks::ring_store::{PICTURE_NAMES, RING_WORK};
 use crate::marks::surface_store::SURFACE;
 use crate::marks::tuning::MARKS_FLOATS;
 use crate::math::x87;
+use crate::pointers::GamePtr;
 use crate::scene::kind_texture_store::KIND_TEXTURES;
 use crate::session::{Bytes, Dword};
 
@@ -31,7 +32,7 @@ const RECORD: u32 = 0x94;
 const CELLS: u32 = 0x40;
 /// `gfx::read_picture_file` at 256 x 256 (the picture's sizes kept round it): whether it
 /// was read.
-unsafe fn read(path: &Bytes<21>) -> Result<bool, Refused> {
+fn read(path: &Bytes<21>) -> Result<bool, Refused> {
     unsafe {
         let sizes: [u32; 3] = [
             PICTURE.width.get(),
@@ -50,15 +51,15 @@ unsafe fn read(path: &Bytes<21>) -> Result<bool, Refused> {
 }
 
 /// Unlocks the surface and refuses with `why`.
-unsafe fn unlock_refusing(why: &'static str) -> Result<(), Refused> {
-    unsafe { lock(KIND_TEXTURES.kind_first_textures[211].bits(), false)? };
+fn unlock_refusing(why: &'static str) -> Result<(), Refused> {
+    lock(KIND_TEXTURES.kind_first_textures[211].bits(), false)?;
     Err(BadInput(why).into())
 }
 
 /// The Rust version (see the header): `memory::allocate`, `d3d::lock_texture` /
 /// `unlock_texture`, `gfx::read_picture_file`, `gfx::put_surface_pixel`,
 /// `scene::forget_slot_texture`, `memory::free_list`, `nullsub_33` (nothing).
-pub unsafe fn set_up_surface() -> Result<(), Refused> {
+pub fn set_up_surface() -> Result<(), Refused> {
     unsafe {
         let block = take(Address(MASK_LIST.list[0].as_ptr() as usize), MASK_BYTES)?;
         lock(KIND_TEXTURES.kind_first_textures[211].bits(), true)?;
@@ -70,18 +71,18 @@ pub unsafe fn set_up_surface() -> Result<(), Refused> {
         if !read(&PICTURE_NAMES.surfmask)? {
             return unlock_refusing("surfmask.pcx was not read");
         }
-        std::ptr::copy(
-            PICTURE.buffer.get() as *const u8,
-            block as *mut u8,
+        GamePtr::new(PICTURE.buffer.get()).copy_to(
+            GamePtr::new(block),
             4 * PIXELS as usize,
-        );
+            "the surface mask picture",
+        )?;
         if !read(&PICTURE_NAMES.surfdata)? {
             return unlock_refusing("surfdata.pcx was not read");
         }
         let picture: u32 = PICTURE.buffer.get();
         for n in 0..PIXELS {
-            let data = ((picture + 4 * n) as *const u32).read_unaligned();
-            let mask = ((block + 4 * n) as *const u32).read_unaligned();
+            let data = GamePtr::new(picture + 4 * n).read::<u32>("a mark's field")?;
+            let mask = GamePtr::new(block + 4 * n).read::<u32>("a mark's field")?;
             let alpha = ((mask << 8) & 0xFF00_0000) ^ 0xFF00_0000;
             put_pixel((data & 0xFF_FFFF) | alpha, n & 0xFF, n >> 8)?;
         }
@@ -100,8 +101,8 @@ pub unsafe fn set_up_surface() -> Result<(), Refused> {
         for i in 0..RING {
             let before = (i.wrapping_sub(1) & (RING - 1)) * RECORD + ring;
             let after = ((i + 1) & (RING - 1)) * RECORD + ring;
-            ((i * RECORD + ring) as *mut u32).write_unaligned(before);
-            ((i * RECORD + ring + 4) as *mut u32).write_unaligned(after);
+            GamePtr::new(i * RECORD + ring).write::<u32>(before, "a mark's field")?;
+            GamePtr::new(i * RECORD + ring + 4).write::<u32>(after, "a mark's field")?;
         }
 
         let [eighth, edge, pixel, step]: [u32; 4] = [
@@ -110,48 +111,49 @@ pub unsafe fn set_up_surface() -> Result<(), Refused> {
             MARKS_FLOATS.over_256.bits(),
             MARKS_FLOATS.over_32.bits(),
         ];
-        let put = |at: u32, v: u32| (at as *mut u32).write_unaligned(v);
-        let get = |at: u32| (at as *const u32).read_unaligned();
+        let put = |at: u32, v: u32| GamePtr::new(at).write::<u32>(v, "a mark's field");
+        let get = |at: u32| GamePtr::new(at).read::<u32>("a mark's field");
         let cells = SURFACE.places.addr() as u32;
         for k in (0..CELLS).rev() {
             let at = cells + k * 0x10;
             let (u0, u1) = x87::int_times_plus_on((k & 7) as i32, eighth, edge, eighth, pixel);
-            put(at, u0);
-            put(at + 8, u1);
+            put(at, u0)?;
+            put(at + 8, u1)?;
             let (v0, v1) = x87::int_times_plus_on((k >> 3) as i32, eighth, edge, eighth, pixel);
-            put(at + 4, v0);
-            put(at + 0xC, v1);
+            put(at + 4, v0)?;
+            put(at + 0xC, v1)?;
         }
         // Each cell's 4 rows of 4 sub-cells: 0x100 bytes.
         let sub = cells + 0x400;
         for j in (0..CELLS).rev() {
             let mut at = sub + j * 0x100;
             let (u0, u1) = x87::int_times_plus_on((j & 7) as i32, eighth, edge, step, pixel);
-            put(at, u0);
-            put(at + 8, u1);
+            put(at, u0)?;
+            put(at + 8, u1)?;
             let (v0, v1) = x87::int_times_plus_on((j >> 3) as i32, eighth, edge, step, pixel);
-            put(at + 4, v0);
-            put(at + 0xC, v1);
-            let across = |at: &mut u32| {
+            put(at + 4, v0)?;
+            put(at + 0xC, v1)?;
+            let across = |at: &mut u32| -> Result<_, Refused> {
                 let p = *at;
-                put(p + 0x10, x87::add(get(p), step));
-                put(p + 0x14, x87::loaded(get(p + 4)));
-                put(p + 0x18, x87::add(get(p + 8), step));
-                put(p + 0x1C, x87::loaded(get(p + 0xC)));
+                put(p + 0x10, x87::add(get(p)?, step))?;
+                put(p + 0x14, x87::loaded(get(p + 4)?))?;
+                put(p + 0x18, x87::add(get(p + 8)?, step))?;
+                put(p + 0x1C, x87::loaded(get(p + 0xC)?))?;
                 *at += 0x10;
+                Ok(())
             };
             for _ in 0..3 {
-                across(&mut at);
+                across(&mut at)?;
             }
             for _ in 0..3 {
                 let p = at;
-                put(p + 0x10, x87::sub_thrice(get(p), step));
-                put(p + 0x14, x87::add(get(p + 4), step));
-                put(p + 0x18, x87::sub_thrice(get(p + 8), step));
-                put(p + 0x1C, x87::add(get(p + 0xC), step));
+                put(p + 0x10, x87::sub_thrice(get(p)?, step))?;
+                put(p + 0x14, x87::add(get(p + 4)?, step))?;
+                put(p + 0x18, x87::sub_thrice(get(p + 8)?, step))?;
+                put(p + 0x1C, x87::add(get(p + 0xC)?, step))?;
                 at += 0x10;
                 for _ in 0..3 {
-                    across(&mut at);
+                    across(&mut at)?;
                 }
             }
         }

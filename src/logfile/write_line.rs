@@ -23,8 +23,7 @@ use std::sync::atomic::{AtomicU32, Ordering};
 /// The log's state, out of the image since 2026-10-24 (phase 5; it was `g_logEnabled`,
 /// `g_logLevel`, `g_logLock`, `g_logIndent`, `g_logAtLineStart`, 0x4E0094 .. 0x4E00A7).
 /// Atomics: any thread logs. `LEVEL` is set from `var\ral.cfg` (`logfile=`, through
-/// `crate::moved::place`); the race's steps change `INDENT` and `ENABLED` through
-/// their addresses (`indent_place`, `enabled_place`).
+/// `crate::moved::place`); the race's steps change `INDENT` and `ENABLED` directly.
 pub mod state {
     use std::sync::atomic::{AtomicI32, AtomicU32};
     /// On while above 0 (signed). 1 in the image.
@@ -47,18 +46,6 @@ pub fn level() -> u32 {
 /// Turns the log on or off (`g_logEnabled`).
 pub fn set_enabled(value: i32) {
     state::ENABLED.store(value, Ordering::Relaxed)
-}
-
-/// The address of `g_logIndent`'s new home, for the race's steps that change it through
-/// a pointer (as a dword).
-pub fn indent_place() -> u32 {
-    state::INDENT.as_ptr() as u32
-}
-
-/// The address of `g_logEnabled`'s new home, for the race's steps that change it through
-/// a pointer (as a dword).
-pub fn enabled_place() -> u32 {
-    state::ENABLED.as_ptr() as u32
 }
 
 /// The line buffer (0x93E080 .. the text buffer at 0x93E430 in the image): a line is at

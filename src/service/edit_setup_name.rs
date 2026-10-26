@@ -46,14 +46,15 @@ const MEASURING_FONT: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fon
 // ---- Rust version ----
 
 /// Writes the cursor and a NUL after the name's `len` characters.
-unsafe fn put_cursor(name: *mut u8) {
+unsafe fn put_cursor(name: *mut u8) -> Result<(), BadInput> {
     unsafe {
         let mut tail = Vec::new();
-        push_string(&mut tail, CURSOR_STRING);
+        push_string(&mut tail, CURSOR_STRING)?;
         tail.push(0);
         let len = LOOP_FLAGS.text_length.get() as i32;
         std::ptr::copy_nonoverlapping(tail.as_ptr(), name.offset(len as isize), tail.len());
     }
+    Ok(())
 }
 
 unsafe fn end_name(name: *mut u8) {
@@ -81,14 +82,14 @@ pub unsafe fn edit_setup_name(canvas: &mut dyn Canvas) -> Result<(), Refused> {
         match entry::key(key) {
             Key::None => {}
             Key::Escape => {
-                restore_text(name);
+                restore_text(name as usize as u32)?;
                 OPTION_WORK.typing.set(0u32);
                 return Ok(());
             }
             Key::Enter => {
                 if (LOOP_FLAGS.text_length.get() as i32) == 0 {
-                    restore_text(name);
-                    add_text_length(name)?;
+                    restore_text(name as usize as u32)?;
+                    add_text_length(name as usize as u32)?;
                 }
                 OPTION_WORK.typing.set(0u32);
                 end_name(name);
@@ -97,7 +98,7 @@ pub unsafe fn edit_setup_name(canvas: &mut dyn Canvas) -> Result<(), Refused> {
                 OPTION_WORK.typing.set(0u32);
                 return Ok(());
             }
-            Key::Clear => clear_text(name),
+            Key::Clear => clear_text(name as usize as u32)?,
             Key::Backspace => backspace_setup_name()?,
             Key::Other(key) => {
                 let c = key_to_char(key as u32)? as u8;
@@ -113,7 +114,7 @@ pub unsafe fn edit_setup_name(canvas: &mut dyn Canvas) -> Result<(), Refused> {
                 }
             }
         }
-        put_cursor(name);
+        put_cursor(name)?;
     }
     Ok(())
 }

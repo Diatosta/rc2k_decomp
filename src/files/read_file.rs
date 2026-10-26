@@ -16,23 +16,25 @@ use crate::errors::BadInput;
 // ---- Rust version ----
 
 use crate::files::handle::GameFiles;
+use crate::pointers::GamePtr;
 pub use rc2k_core::files::io::ReadResult;
 
 /// Refuses what `resolve_path` refuses.
-pub unsafe fn read_file(
+pub fn read_file(
     path: *const u8,
     buffer: *mut u8,
     count: u32,
     offset: u32,
 ) -> Result<ReadResult, BadInput> {
     // Converted: `rc2k_core::files::io::read_file`.
-    unsafe {
-        let into = std::slice::from_raw_parts_mut(buffer, count as usize);
-        Ok(rc2k_core::files::io::read_file(
-            &mut GameFiles::new(),
-            path,
-            into,
-            offset,
-        )?)
-    }
+    let to = GamePtr::new(buffer as u32);
+    let mut into = to.read_bytes(count as usize, "a file's buffer")?;
+    let result = rc2k_core::files::io::read_file(
+        &mut GameFiles::new(),
+        GamePtr::new(path as u32),
+        &mut into,
+        offset,
+    )?;
+    to.write_bytes(&into, "a file's buffer")?;
+    Ok(result)
 }

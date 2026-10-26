@@ -2,7 +2,7 @@ use crate::errors::{BadInput, Refused};
 use crate::menu::arcade_store::ARCADE_GAME;
 use crate::menu::captions_store::CAPTIONS;
 use crate::menu::cheats_store::CHEAT_VARS;
-use crate::menu::event_flow::Flow;
+use crate::menu::event_flow::{Fault, Flow};
 use crate::menu::event_store::EVENT_STATE;
 use crate::menu::lists_store::MENU_LISTS;
 use crate::menu::loop_store::LOOP_FLAGS;
@@ -14,16 +14,14 @@ use crate::race::state_store::RACE_STATE;
 use crate::session::Dword;
 use rc2k_core::menu::arcade_event::{self as arcade, Hand, Step, Var};
 
-fn put(a: u32, v: u32) {
-    unsafe { (a as *mut u32).write_unaligned(v) }
-}
-
 /// The game for `rc2k_core::menu::arcade_event`: the variables at their addresses, the
 /// steps' Rust versions with the registers the original gives them (one set carried
 /// through).
 struct Game {
     f: Flow,
     player0: u32,
+    /// A refused read or write of the core's variables (checked at each step and at the end).
+    fault: Fault,
 }
 
 /// The variables that are in the physics block.
@@ -84,7 +82,7 @@ impl arcade::Arcade for Game {
         match v {
             Var::Player0Entry => {
                 self.f.record = self.player0;
-                put(self.player0 + 0xD0, value);
+                self.fault.put(self.player0 + 0xD0, value);
             }
             _ => match cell(v) {
                 Some(cell) => cell.set(value),
@@ -94,6 +92,7 @@ impl arcade::Arcade for Game {
     }
 
     fn step(&mut self, s: Step) -> Result<(), Refused> {
+        self.fault.check()?;
         use crate::menu as m;
         use crate::menu::arcade_steps as a;
         let c = &mut self.f.c;
@@ -135,7 +134,7 @@ impl arcade::Arcade for Game {
                 Step::RetryReview => run_screen_carried(&m::review_options_48861d_loop::SCREEN, c)?,
                 Step::StageReview => run_screen_carried(&m::arcade_review_options_loop::SCREEN, c)?,
                 // With the registers the event was entered with: it reads none.
-                Step::ShowInGameOptions => m::in_game_options_items::show_in_game_options(),
+                Step::ShowInGameOptions => m::in_game_options_items::show_in_game_options()?,
             }
         }
         Ok(())
@@ -157,7 +156,7 @@ impl arcade::Arcade for Game {
 }
 
 /// The Rust version. `c` the carried values the event is entered with.
-pub unsafe fn arcade_event(c: &Carried) -> Result<(), Refused> {
+pub fn arcade_event(c: &Carried) -> Result<(), Refused> {
     let player0 = player_at(0);
     if player0 == 0 {
         return Err(BadInput("no player 0").into());
@@ -165,7 +164,10 @@ pub unsafe fn arcade_event(c: &Carried) -> Result<(), Refused> {
     let mut game = Game {
         f: Flow::new(c),
         player0,
+        fault: Fault::default(),
     };
     // Converted: `rc2k_core::menu::arcade_event::arcade_event`.
-    arcade::arcade_event(&mut game)
+    let done = arcade::arcade_event(&mut game);
+    game.fault.check()?;
+    done
 }

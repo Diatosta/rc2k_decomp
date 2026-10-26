@@ -22,7 +22,7 @@ use crate::menu::flow_game::Game;
 use crate::menu::screen_loop::Carried;
 
 /// The Rust version. `c` the carried values (the registers the item gets).
-pub unsafe fn single_rally(c: &Carried) -> Result<(), Refused> {
+pub fn single_rally(c: &Carried) -> Result<(), Refused> {
     // Converted: `rc2k_core::menu::rounds::single_rally`.
-    rc2k_core::menu::rounds::single_rally(&mut Game::new(c))
+    Game::new(c).run(rc2k_core::menu::rounds::single_rally)
 }

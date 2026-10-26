@@ -22,6 +22,7 @@
 
 use crate::audio::names_store::SAMPLE_NAMES;
 use crate::errors::BadInput;
+use crate::pointers::GamePtr;
 use crate::race::state_store::RACE_STATE;
 use crate::sound::queue::START_3;
 use crate::sound::sets_store::RACE_SOUND_SETS;
@@ -77,17 +78,19 @@ impl Places {
     }
 }
 
-unsafe fn dword(at: usize) -> u32 {
-    unsafe { (at as *const u32).read_unaligned() }
+fn dword(at: usize) -> Result<u32, BadInput> {
+    GamePtr::new(at as u32).read("a sound variable")
 }
 
 /// The lengths of a list's 95 names.
 unsafe fn lengths(list: usize) -> Result<Vec<u32>, BadInput> {
-    let mut at = list;
+    use rc2k_core::strings::bytes::Bytes as _;
+    let bytes = GamePtr::new(list as u32).bytes("a speech file's names")?;
+    let mut at = 0usize;
     let mut lengths = Vec::with_capacity(NAMES);
     for _ in 0..NAMES {
         let length = (0..0x100usize)
-            .find(|&n| unsafe { ((at + n) as *const u8).read() } == 0)
+            .find(|&n| bytes.byte(at + n) == Some(0))
             .ok_or(BadInput("a speech file's name without its end"))?;
         lengths.push(length as u32);
         at += length + 1;
@@ -101,25 +104,25 @@ unsafe fn lengths(list: usize) -> Result<Vec<u32>, BadInput> {
 pub unsafe fn load_race_sounds(places: &Places, send: &mut dyn FnMut(u32)) -> Result<(), BadInput> {
     unsafe {
         let object = |number: usize| -> Result<usize, BadInput> {
-            let number = dword(number);
+            let number = dword(number)?;
             if number >= OBJECTS {
                 return Err(BadInput("a car's number past the sound objects"));
             }
-            match dword(places.objects + number as usize * 4) {
+            match dword(places.objects + number as usize * 4)? {
                 0 => Err(BadInput("no sound object for a car")),
                 object => Ok(object as usize),
             }
         };
         let (first, second) = (object(places.first)?, object(places.second)?);
-        let kind = |object: usize| match crate::sound::store::SoundObject::at(object as u32)
+        let kind = |object: usize| match crate::sound::store::SoundObject::at(object as u32)?
             .kind
             .get()
         {
             kind if kind < KINDS => Ok(kind as usize),
             _ => Err(BadInput("a car's kind past the table of sound sets")),
         };
-        let replay = dword(places.replay) != 0;
-        let (count, other_count) = (dword(places.count), dword(places.other_count));
+        let replay = dword(places.replay)? != 0;
+        let (count, other_count) = (dword(places.count)?, dword(places.other_count)?);
         let kinds = if replay {
             None
         } else {
@@ -137,11 +140,11 @@ pub unsafe fn load_race_sounds(places: &Places, send: &mut dyn FnMut(u32)) -> Re
             Voice::Female => SAMPLE_NAMES.female_speech.addr(),
         };
         let (a, b) = voices(
-            crate::sound::store::SoundObject::at(first as u32)
+            crate::sound::store::SoundObject::at(first as u32)?
                 .cue_queue
                 .first
                 .get(),
-            crate::sound::store::SoundObject::at(second as u32)
+            crate::sound::store::SoundObject::at(second as u32)?
                 .cue_queue
                 .first
                 .get(),
@@ -167,7 +170,7 @@ pub unsafe fn load_race_sounds(places: &Places, send: &mut dyn FnMut(u32)) -> Re
             send(match set {
                 Set::Replay => crate::session::address_of(&RACE_SOUND_SETS.replay_set) as u32,
                 Set::FirstKind(k) => {
-                    dword(crate::session::address_of(&RACE_SOUND_SETS.kinds) + k as usize * 8)
+                    dword(crate::session::address_of(&RACE_SOUND_SETS.kinds) + k as usize * 8)?
                 }
                 Set::First(n) => [
                     crate::session::address_of(&RACE_SOUND_SETS.first_set_a),
@@ -175,7 +178,7 @@ pub unsafe fn load_race_sounds(places: &Places, send: &mut dyn FnMut(u32)) -> Re
                     crate::session::address_of(&RACE_SOUND_SETS.first_set_c),
                 ][n] as u32,
                 Set::SecondKind(k) => {
-                    dword(crate::session::address_of(&RACE_SOUND_SETS.kinds) + 4 + k as usize * 8)
+                    dword(crate::session::address_of(&RACE_SOUND_SETS.kinds) + 4 + k as usize * 8)?
                 }
                 Set::Second(n) => [
                     crate::session::address_of(&RACE_SOUND_SETS.second_set_a),

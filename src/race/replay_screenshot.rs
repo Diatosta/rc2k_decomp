@@ -14,6 +14,7 @@
 
 use crate::errors::Refused;
 use crate::gfx::picture_store::PICTURE;
+use crate::pointers::GamePtr;
 use crate::race::viewer_screen_store::VIEWER_PANEL;
 
 /// The Rust version (see the header). (The original keeps every register.)
@@ -31,9 +32,10 @@ pub unsafe fn replay_screenshot() -> Result<(), Refused> {
         let kept: u32 = PICTURE.name.get();
         let name = VIEWER_PANEL.picture_name[0].addr() as u32;
         // Converted: `rc2k_core::race::viewer::count_up` (the name's six digits from +4).
-        let digits = (name + 4) as *mut [u8; 6];
-        let (counted, _, _) = rc2k_core::race::viewer::count_up(digits.read());
-        digits.write(counted);
+        let digits = GamePtr::new(name + 4);
+        let (counted, _, _) =
+            rc2k_core::race::viewer::count_up(digits.read::<[u8; 6]>("the picture name")?);
+        digits.write(counted, "the picture name")?;
         PICTURE.name.set(name);
         let saved = (|| {
             // The surface locked (the carry says it was not), the picture written, the

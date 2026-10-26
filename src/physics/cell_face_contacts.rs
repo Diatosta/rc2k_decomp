@@ -19,7 +19,7 @@ use crate::physics::find_course_record::find_course_record;
 // Converted: `rc2k_core::physics::ground_search::cell_key`.
 pub fn steps(x: u32, z: u32) -> Result<(), Refused> {
     let (key, _) = rc2k_core::physics::ground_search::cell_key(x, z);
-    let Some(record) = (unsafe { find_course_record(key) })? else {
+    let Some(record) = find_course_record(key)? else {
         return Ok(());
     };
     crate::physics::record_face_contacts::steps(record)

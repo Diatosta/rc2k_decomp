@@ -11,13 +11,13 @@
 //! Hook removed 2026-10-22 (conversion phase 4): Rust callers call this directly; the
 //! registers above are the original's, for reference.
 
-use crate::bridge::Raw;
 use crate::errors::Refused;
+use crate::pointers::GamePtr;
 
 /// The record, as the original finds it (refused where it would run away). Converted:
 /// `rc2k_core::files::records::find_stage_record`.
-pub unsafe fn find_stage_record(table: u32, section: u32, number: u32) -> Result<u32, Refused> {
-    let records = unsafe { Raw::new(table as usize as *const u8) };
+pub fn find_stage_record(table: u32, section: u32, number: u32) -> Result<u32, Refused> {
+    let records = GamePtr::new(table).bytes("a record table")?;
     let place = rc2k_core::files::records::find_stage_record(&records, section, number)?;
     Ok(table.wrapping_add(place as u32))
 }

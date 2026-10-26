@@ -16,18 +16,18 @@ use crate::menu::text_entry::{begin_logged, log_l1};
 // ---- Rust version ----
 
 /// `log` = false leaves the log lines out.
-pub unsafe fn begin_replay_name(log: bool) -> Result<(), BadInput> {
+pub fn begin_replay_name(log: bool) -> Result<(), BadInput> {
     let name = replay_name()?;
-    unsafe {
-        if log {
+    if log {
+        // aGetrepsaveslot
+        unsafe {
             log_l1(
                 c"getrepsaveslotname result=".as_ptr() as usize as *const u8,
                 false,
-            ); // aGetrepsaveslot
-            log_l1(name, true);
+            );
+            log_l1(name as usize as *const u8, true);
         }
-        // Converted: `rc2k_core::menu::text_entry::Entry::begin` (through `begin_logged`).
-        begin_logged(name, log);
     }
-    Ok(())
+    // Converted: `rc2k_core::menu::text_entry::Entry::begin` (through `begin_logged`).
+    begin_logged(name, log)
 }

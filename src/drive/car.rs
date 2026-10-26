@@ -3,7 +3,8 @@
 //! out to it (`drive::load_car`, `drive::store_car`). Fields of the copy met so far are
 //! named in IDA by their addresses (`g_carGear` 0x71A1AC, ...; `physics/gearing.rs`).
 
-use crate::errors::Refused;
+use crate::errors::{BadInput, Refused};
+use crate::pointers::GamePtr;
 
 pub const CAR_LEN: usize = 0xFE0;
 
@@ -26,23 +27,17 @@ impl CarPlaces {
 
     /// The current car's slot (0 .. 7) and its block, refused when the block is null
     /// (the original's `rep movsd` would fault there).
-    pub unsafe fn block(&self) -> Result<(u32, u32), Refused> {
+    pub fn block(&self) -> Result<(u32, u32), Refused> {
         use rc2k_core::drive::work_car::{car_block, car_slot};
-        unsafe {
-            let slot = car_slot((self.current as *const u32).read_unaligned());
-            let block = car_block(((self.blocks + 4 * slot) as *const u32).read_unaligned())?;
-            Ok((slot, block))
-        }
+        let slot = car_slot(GamePtr::new(self.current).read("the current car")?);
+        let block =
+            car_block(GamePtr::new(self.blocks.wrapping_add(4 * slot)).read("a car's block")?)?;
+        Ok((slot, block))
     }
 }
 
 /// Copies `CAR_LEN` bytes, dword by dword upwards as `rep movsd` does (the two never
 /// overlap in the game; the order is kept anyway).
-pub unsafe fn copy_dwords(from: u32, to: u32) {
-    unsafe {
-        for k in 0..(CAR_LEN as u32 / 4) {
-            let v = ((from + 4 * k) as *const u32).read_unaligned();
-            ((to + 4 * k) as *mut u32).write_unaligned(v);
-        }
-    }
+pub fn copy_dwords(from: u32, to: u32) -> Result<(), BadInput> {
+    GamePtr::new(from).copy_to(GamePtr::new(to), CAR_LEN, "a car's block")
 }

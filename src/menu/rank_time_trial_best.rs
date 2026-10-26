@@ -18,12 +18,14 @@ use crate::menu::event_flow::*;
 /// The chosen stage's ten best times, for the core; refused as `event_flow::stage_times`.
 pub fn stage_list<'a>() -> Result<rc2k_core::menu::standings::Entries<'a>, Refused> {
     let times = stage_times()?;
-    Ok(unsafe { crate::menu::standings::table(times, TIME_ENTRY, 10) })
+    Ok(crate::menu::standings::table(times, TIME_ENTRY, 10)?)
 }
 
 pub fn rank_time_trial_best() -> Result<(), Refused> {
     // Converted: `rc2k_core::menu::bests::rank_time_trial`.
     let mut list = stage_list()?;
-    rc2k_core::menu::bests::rank_time_trial(&mut list, crate::menu::standings::kept_name());
+    crate::menu::standings::with_kept_name(|kept| {
+        rc2k_core::menu::bests::rank_time_trial(&mut list, kept)
+    });
     Ok(())
 }

@@ -56,16 +56,14 @@ pub fn picked(car: u32, count: u32) -> [u32; 4] {
 }
 
 /// `sub_490238`.
-pub unsafe fn pick_pictures() -> Result<(), Refused> {
-    unsafe {
-        if MENU_STATE.carousel.menu.get() != 0xB {
-            return Ok(());
-        }
-        let entries = picked(EVENT_STATE.shown_car.get(), MENU_STATE.carousel.count.get());
-        write_all(&MENU_STATE.carousel_pictures.wanted, entries);
-        update(entries)?;
-        Ok(())
+pub fn pick_pictures() -> Result<(), Refused> {
+    if MENU_STATE.carousel.menu.get() != 0xB {
+        return Ok(());
     }
+    let entries = picked(EVENT_STATE.shown_car.get(), MENU_STATE.carousel.count.get());
+    write_all(&MENU_STATE.carousel_pictures.wanted, entries);
+    update(entries)?;
+    Ok(())
 }
 
 /// `sub_49040D`: the car shown's object set up and drawn by `draw`.

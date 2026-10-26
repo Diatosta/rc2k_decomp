@@ -19,6 +19,7 @@ use crate::drive::replay_frames_store::REPLAY_FRAMES;
 use crate::errors::{BadInput, Refused};
 use crate::physics::car_store::CAR;
 use crate::physics::flow::g;
+use crate::pointers::GamePtr;
 use crate::race::frame_store::FRAME_WORK;
 use crate::race::vars_store::RACE_VARS;
 use crate::race::view_store::RACE_VIEW;
@@ -26,13 +27,11 @@ use crate::race::viewer_state_store::REPLAY_VIEW;
 use crate::race::work_store::RACE_WORK;
 
 /// The frame's block copied to the replay's (`drive::load_replay_cars` reads it).
-fn load_frame() {
+fn load_frame() -> Result<(), BadInput> {
     // unk_7172EC: car block 8's start (the copy runs on past the block).
-    let to = crate::race::blocks_store::block_addr(8) as *mut u32;
-    let from = crate::race::viewer_buffers_store::VIEWER_BUFFERS.block[0].addr() as *const u32;
-    for n in 0..0xA04 {
-        unsafe { to.add(n).write_unaligned(from.add(n).read_unaligned()) };
-    }
+    let to = crate::race::blocks_store::block_addr(8) as u32;
+    let from = crate::race::viewer_buffers_store::VIEWER_BUFFERS.block[0].addr() as u32;
+    GamePtr::new(from).copy_to(GamePtr::new(to), 4 * 0xA04, "the replay frame")
 }
 
 /// The Rust version (the original leaves registers nothing reads).
@@ -46,8 +45,8 @@ pub fn show_replay_still() -> Result<(), Refused> {
             .still
             .set(1);
         FRAME_WORK.still_2.set(1);
-        load_frame();
-        load_replay_cars::load_replay_cars();
+        load_frame()?;
+        load_replay_cars::load_replay_cars()?;
         replay_cameras::replay_cameras()?;
         for step in 0..g(&REPLAY_VIEW.replay_frame) {
             REPLAY_FRAMES.step_frame.set(step);
@@ -58,8 +57,8 @@ pub fn show_replay_still() -> Result<(), Refused> {
             REPLAY_FRAMES.step_first.set(1);
             crate::race::step_replay_cars::step_replay_cars()?;
             REPLAY_FRAMES.step_first.set(0);
-            load_frame();
-            load_replay_cars::load_replay_cars();
+            load_frame()?;
+            load_replay_cars::load_replay_cars()?;
         }
         RACE_WORK.current_car.set(0);
         loop {

@@ -6,6 +6,7 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::physics::contact_store::CONTACT_WORK;
+use crate::pointers::GamePtr;
 use crate::race::course_lists_store::COURSE_LISTS;
 use crate::race::course_store::COURSE;
 use crate::race::kind_records_store::KIND_RECORDS;
@@ -20,7 +21,7 @@ pub const MOST_RECORDS: u32 = 0x7_8000;
 
 /// `race::set_cdat_number` (0x4456DD): `number`'s two digits (its low byte's `div 10`, +
 /// '0') into both cdat paths.
-pub unsafe fn set_cdat_number(number: u32) {
+pub fn set_cdat_number(number: u32) {
     // Converted: `rc2k_core::race::stage::two_digits`.
     let digits = rc2k_core::race::stage::two_digits(number as u8);
     let p = &crate::race::level_paths_store::LEVEL_PATHS;
@@ -32,39 +33,38 @@ pub unsafe fn set_cdat_number(number: u32) {
 
 /// `race::copy_course_header` (0x445736): the course memory's first 0x100 bytes to
 /// `g_courseHeader`.
-pub unsafe fn copy_course_header() {
-    unsafe {
-        let from: u32 = COURSE_LISTS.course_memory.bits();
-        std::ptr::copy(
-            from as *const u8,
-            COURSE.course_header.addr() as *mut u8,
-            HEADER_LEN,
-        );
-    }
+pub fn copy_course_header() -> Result<(), BadInput> {
+    let from: u32 = COURSE_LISTS.course_memory.bits();
+    GamePtr::new(from).copy_to(
+        GamePtr::new(COURSE.course_header.addr() as u32),
+        HEADER_LEN,
+        "the course memory's header",
+    )
 }
 
 /// `race::clear_lit_faces` (0x45E9D5): `g_litFaceCount` 0.
-pub unsafe fn clear_lit_faces() {
+pub fn clear_lit_faces() {
     CONTACT_WORK.lit_face_count.set_bits(0u32);
 }
 
 /// `race::reset_face_lights` (0x45ED70): each face whose first byte is 0xFF gets its
 /// +0x30 .. +0x38 and bytes +0x11 .. +0x13 0; then `clear_lit_faces`. Refuses no faces
 /// (the original counts round) or 0x100000 or more.
-pub unsafe fn reset_face_lights() -> Result<(), Refused> {
-    unsafe {
+pub fn reset_face_lights() -> Result<(), Refused> {
+    {
         let count: u32 = COURSE.course_face_count.bits();
         rc2k_core::race::faces::check_face_count(count)?;
         // Converted: `rc2k_core::race::faces::reset_lights` (each record inside the
         // faces the original walks; written back only when changed).
         let faces: u32 = COURSE.course_faces.bits();
-        for n in 0..count {
-            let at = faces.wrapping_add(n << 6) as *mut [u8; rc2k_core::race::faces::FACE_BYTES];
-            let mut face = at.read_unaligned();
+        const FACE: usize = rc2k_core::race::faces::FACE_BYTES;
+        let all = GamePtr::new(faces).read_bytes(count as usize * FACE, "the course faces")?;
+        for (n, bytes) in all.as_chunks::<FACE>().0.iter().enumerate() {
+            let mut face = *bytes;
             let kept = face;
             rc2k_core::race::faces::reset_lights(&mut face);
             if face != kept {
-                at.write_unaligned(face);
+                GamePtr::new(faces.wrapping_add((n as u32) << 6)).write(face, "a course face")?;
             }
         }
         clear_lit_faces();
@@ -77,23 +77,32 @@ pub unsafe fn reset_face_lights() -> Result<(), Refused> {
 /// the order met, by swapping each one found into the next place; `g_kindFirstRecords`
 /// and `g_kindLastRecords` each kind's first and last number, -1 for both with none.
 /// Refuses more records than the course memory's first part holds.
-pub unsafe fn group_records_by_kind() -> Result<(), Refused> {
+pub fn group_records_by_kind() -> Result<(), Refused> {
     // Converted: `rc2k_core::race::stage::group_by_kind`; the records read whole (every
     // one is swapped into place, so the original reads them all).
-    unsafe {
+    {
         let count: u32 = COURSE.course_record_count.bits();
         if count > MOST_RECORDS {
             return Err(BadInput("more records than the course memory holds").into());
         }
         let records: u32 = COURSE.course_records.bits();
-        let at = records as *mut [u32; 8];
-        let mut list: Vec<[u32; 8]> = (0..count as usize)
-            .map(|n| at.add(n).read_unaligned())
+        let bytes = GamePtr::new(records).read_bytes(count as usize * 32, "the course records")?;
+        let mut list: Vec<[u32; 8]> = bytes
+            .as_chunks::<32>()
+            .0
+            .iter()
+            .map(|r| {
+                std::array::from_fn(|k| {
+                    u32::from_le_bytes([r[4 * k], r[4 * k + 1], r[4 * k + 2], r[4 * k + 3]])
+                })
+            })
             .collect();
         let grouped = rc2k_core::race::stage::group_by_kind(&mut list, |r| r[0]);
-        for (n, r) in list.iter().enumerate() {
-            at.add(n).write_unaligned(*r);
-        }
+        let out: Vec<u8> = list
+            .iter()
+            .flat_map(|r| r.iter().flat_map(|v| v.to_le_bytes()))
+            .collect();
+        GamePtr::new(records).write_bytes(&out, "the course records")?;
         for kind in 0..KINDS as usize {
             KIND_RECORDS.first_records[kind].set(grouped.first[kind]);
             KIND_RECORDS.last_records[kind].set(grouped.last[kind]);
@@ -120,30 +129,28 @@ fn load_log(n: usize) {
 /// lights reset, with "loadlevel", "done", "next", "this", "then", "ok" in the log.
 pub unsafe fn load_level() -> Result<(), Refused> {
     use crate::files::{read_level_file, read_packed_file};
-    unsafe {
-        set_cdat_number(0);
-        crate::files::state::BYTES_READ.store(0, std::sync::atomic::Ordering::Relaxed);
-        load_log(0);
-        let out = read_level_file::read_level_file(
-            crate::race::level_paths_store::LEVEL_PATHS.cdat_src.addr() as u32,
-            COURSE_LISTS.course_memory.bits(),
-            COURSE_LISTS.first_part.bits(),
-            &mut read_level_file::game_exists,
-            &mut read_packed_file::game_read,
-        )?;
-        crate::files::state::BYTES_READ.store(out.eax, std::sync::atomic::Ordering::Relaxed);
-        if out.carry {
-            return Err(NOT_READ.into());
-        }
-        load_log(1);
-        load_log(2);
-        copy_course_header();
-        load_log(3);
-        crate::race::norms::lay_out_course();
-        load_log(4);
-        reset_face_lights()?;
-        load_log(5);
+    set_cdat_number(0);
+    crate::files::state::BYTES_READ.store(0, std::sync::atomic::Ordering::Relaxed);
+    load_log(0);
+    let out = read_level_file::read_level_file(
+        crate::race::level_paths_store::LEVEL_PATHS.cdat_src.addr() as u32,
+        COURSE_LISTS.course_memory.bits(),
+        COURSE_LISTS.first_part.bits(),
+        &mut read_level_file::game_exists,
+        &mut read_packed_file::game_read,
+    )?;
+    crate::files::state::BYTES_READ.store(out.eax, std::sync::atomic::Ordering::Relaxed);
+    if out.carry {
+        return Err(NOT_READ.into());
     }
+    load_log(1);
+    load_log(2);
+    copy_course_header()?;
+    load_log(3);
+    crate::race::norms::lay_out_course();
+    load_log(4);
+    reset_face_lights()?;
+    load_log(5);
     Ok(())
 }
 

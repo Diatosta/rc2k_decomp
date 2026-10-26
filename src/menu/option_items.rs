@@ -108,7 +108,7 @@ pub fn option_item(item: Item) -> Result<(), Refused> {
     // `previous_mode`).
     use rc2k_core::menu::steps;
     let v = item.var;
-    let apply_audio = || unsafe { crate::menu::option_steps::apply_audio_choices() };
+    let apply_audio = || crate::menu::option_steps::apply_audio_choices();
     match item.kind {
         Kind::Switch => set(v, steps::flip(get(v) as u32) as i32),
         Kind::SwitchCopy { other, flip } => {

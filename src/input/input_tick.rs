@@ -13,7 +13,7 @@
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
 //! above are the original's, for reference.
 
-use crate::errors::Refused;
+use crate::errors::{BadInput, Refused};
 use crate::field;
 use crate::input::devices::{at, put, record_addrs};
 use crate::input::store::DEVICES;
@@ -38,11 +38,21 @@ pub unsafe fn input_tick() -> Result<(), Refused> {
     if DEVICES.two_devices_one_player.get() != 0 {
         // Converted: `rc2k_core::input::devices::merge_readings`.
         let [first, second] = records;
-        let mut a = [0x4DC, 0x4E0, 0x4E4, field!(InputDevice, bits)].map(|o| at(first, o));
-        let b = [0x4DC, 0x4E0, 0x4E4, field!(InputDevice, bits)].map(|o| at(second, o));
+        let read = |record: u32| -> Result<[u32; 4], BadInput> {
+            let mut out = [0; 4];
+            for (v, o) in out
+                .iter_mut()
+                .zip([0x4DC, 0x4E0, 0x4E4, field!(InputDevice, bits)])
+            {
+                *v = at(record, o)?;
+            }
+            Ok(out)
+        };
+        let mut a = read(first)?;
+        let b = read(second)?;
         rc2k_core::input::devices::merge_readings(&mut a, &b);
         for (o, v) in [0x4DC, 0x4E0, 0x4E4, 0x4E8].into_iter().zip(a) {
-            put(first, o, v);
+            put(first, o, v)?;
         }
     }
     Ok(())

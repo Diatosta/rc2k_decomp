@@ -44,34 +44,36 @@ pub unsafe fn load_slideshow_picture(
     way: u32,
     step: &mut dyn FnMut(Step) -> Result<bool, Refused>,
 ) -> Result<(), Refused> {
-    unsafe {
-        // Converted: `rc2k_core::menu::slides` (`slideshow_car`, `search`, `pcx`).
-        use rc2k_core::menu::slides;
-        let car = slides::slideshow_car(shown_car()?)?;
-        let template = MENU_LISTS.slideshow_templates[car as usize].get();
-        let start: u32 = EVENT_STATE.picture.get();
-        let mut path = std::ptr::null_mut();
-        slides::search(
-            start,
-            (way as i32) < 0,
-            |number| -> Result<bool, Refused> {
-                path = numbered_path_in_game(template as *const u8, number)? as *mut u8;
-                if file_exists(path)? {
-                    return Ok(true);
-                }
-                let length = text_length(path)? as usize;
-                slides::pcx(std::slice::from_raw_parts_mut(path, length))?;
-                Ok(file_exists(path)?)
-            },
-            |next| EVENT_STATE.picture.set(next),
-        )?;
-        let title_bar = crate::menu::texts_store::MENU_TEXTS.titlebar_png.addr() as *mut u8;
-        if step(Step::Overlay(path, title_bar))? {
-            step(Step::Load(title_bar))?;
-        }
-        step(Step::Convert)?;
-        Ok(())
+    // Converted: `rc2k_core::menu::slides` (`slideshow_car`, `search`, `pcx`).
+    use rc2k_core::menu::slides;
+    let car = slides::slideshow_car(shown_car()?)?;
+    let template = MENU_LISTS.slideshow_templates[car as usize].get();
+    let start: u32 = EVENT_STATE.picture.get();
+    let mut path = std::ptr::null_mut();
+    slides::search(
+        start,
+        (way as i32) < 0,
+        |number| -> Result<bool, Refused> {
+            path = numbered_path_in_game(template as *const u8, number)? as *mut u8;
+            if file_exists(path)? {
+                return Ok(true);
+            }
+            let length = text_length(path)? as usize;
+            slides::pcx(crate::menu::event_flow::game_slice(
+                path as usize as u32,
+                length as u32,
+                "a picture path",
+            )?)?;
+            Ok(file_exists(path)?)
+        },
+        |next| EVENT_STATE.picture.set(next),
+    )?;
+    let title_bar = crate::menu::texts_store::MENU_TEXTS.titlebar_png.addr() as *mut u8;
+    if step(Step::Overlay(path, title_bar))? {
+        step(Step::Load(title_bar))?;
     }
+    step(Step::Convert)?;
+    Ok(())
 }
 
 /// With the Rust versions of what it calls.

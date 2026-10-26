@@ -16,12 +16,14 @@
 //!
 //! Callers: `physics::object_hits_car`, `physics::scene_point_hits_car` (both `jb`).
 
+use crate::errors::Refused;
 use crate::math::x87_float::X;
 use crate::physics::car_store::CAR;
 use crate::physics::contact_store::CONTACT_WORK;
 use crate::physics::tables_store::PHYSICS;
 use crate::physics::turn_by_heading::turn_by_heading;
 use crate::physics::vector_length::vector_length;
+use crate::pointers::GamePtr;
 use crate::scene::matrix3::rounded;
 use crate::scene::x87_mem::{fild, fistp, fld, fstp};
 use rc2k_core::physics::contacts;
@@ -29,8 +31,8 @@ use rc2k_core::physics::contacts;
 /// The Rust version: whether the point at `point` of the object at `object` is inside.
 // Converted: `rc2k_core::physics::contacts::{point_part, inside_box, kind_hits}` (the x87
 // steps stay).
-pub unsafe fn point_hits_car(point: u32, object: u32) -> bool {
-    let rd = |x: u32| unsafe { (x as *const u32).read_unaligned() };
+pub unsafe fn point_hits_car(point: u32, object: u32) -> Result<bool, Refused> {
+    let rd = |x: u32, what: &str| GamePtr::new(x).read::<u32>(what);
     PHYSICS.point_hits.set(
         crate::physics::tables_store::PHYSICS
             .point_hits
@@ -40,8 +42,8 @@ pub unsafe fn point_hits_car(point: u32, object: u32) -> bool {
     let mut y = 0;
     for k in 0..3u32 {
         let v = contacts::point_part(
-            rd(point + 4 * k),
-            rd(object + 0x30 + 4 * k),
+            rd(point + 4 * k, "a scene point's coordinate")?,
+            rd(object + 0x30 + 4 * k, "an object's place")?,
             CONTACT_WORK.object_offset[k as usize].get(),
             CAR.position[k as usize].get(),
         );
@@ -67,7 +69,7 @@ pub unsafe fn point_hits_car(point: u32, object: u32) -> bool {
         PHYSICS.spec_ints[0].get(),
         PHYSICS.spec_ints[1].get(),
     ) {
-        return false;
+        return Ok(false);
     }
     if contacts::kind_hits(CONTACT_WORK.contact_kind.get()) {
         x87_3(crate::race::store::asm_base() as usize);
@@ -83,7 +85,7 @@ pub unsafe fn point_hits_car(point: u32, object: u32) -> bool {
         CAR.contact_flag.set(1);
         CAR.wall_hit_timer.set(0x32);
     }
-    true
+    Ok(true)
 }
 
 // ---- the arithmetic that was x87 assembly ----

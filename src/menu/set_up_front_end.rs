@@ -88,9 +88,8 @@ pub unsafe fn set_up_front_end(stage: u32, x: u32) -> Result<(), Refused> {
             .race_music_volume
             .set(OPTION_WORK.other_volume.get());
         allocate_best_times::allocate_best_times(
-            BEST_TIMES.vars(),
             BEST_TIMES.list(),
-            crate::records::stages_store::STAGE_TABLES.championship() as *const u8,
+            crate::records::stages_store::STAGE_TABLES.championship(),
         )?;
         for (table, to) in BEST_TIMES.tables.iter().zip(COPIES) {
             to().set(table.address.get());

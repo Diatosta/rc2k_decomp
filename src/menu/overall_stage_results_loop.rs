@@ -23,7 +23,7 @@ use crate::menu::state_store::MENU_STATE;
 
 // ---- Rust version: `menu::screen_loop` with this ----
 
-unsafe fn set_first_item(c: &mut Carried) -> Result<(), Refused> {
+fn set_first_item(c: &mut Carried) -> Result<(), Refused> {
     c.arg = if MENU_STATE.menus.which_title.get() == 1 {
         0x138
     } else {

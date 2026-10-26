@@ -18,6 +18,7 @@
 //! above are the original's, for reference.
 
 use crate::errors::{BadInput, Refused};
+use crate::pointers::GamePtr;
 use crate::sound::sample_duration::sample_duration;
 use crate::sound::sample_settings::sample_settings;
 
@@ -26,11 +27,11 @@ use crate::sound::sample_settings::sample_settings;
 /// Converted: `rc2k_core::sound::cars::slot_turn`.
 pub fn play_timed_slot(slot: u32, request: u32) -> Result<(), Refused> {
     use rc2k_core::sound::cars::{SlotTurn, TimedSlot, from_int, slot_turn};
-    let (slot, request) = (slot as *mut [u32; 6], request as *mut u32);
-    if slot.is_null() || request.is_null() {
+    if slot == 0 || request == 0 {
         return Err(BadInput("no slot or no request").into());
     }
-    let w = unsafe { slot.read_unaligned() };
+    let slot = GamePtr::new(slot);
+    let w: [u32; 6] = slot.read("a timed sound slot")?;
     let mut s = TimedSlot {
         sound: w[0],
         start: w[1],
@@ -41,16 +42,17 @@ pub fn play_timed_slot(slot: u32, request: u32) -> Result<(), Refused> {
     };
     let clock = crate::sound::store::RACE_CLOCK.last.get();
     let turn = slot_turn(&mut s, clock, sample_settings, sample_duration)?;
-    unsafe { slot.write_unaligned([s.sound, s.start, s.playing, s.ends, s.volume, s.rate]) };
+    slot.write(
+        [s.sound, s.start, s.playing, s.ends, s.volume, s.rate],
+        "a timed sound slot",
+    )?;
     match turn {
         SlotTurn::Nothing | SlotTurn::Checked => Ok(()),
         SlotTurn::Start { volume, rate, .. } => {
-            unsafe {
-                request.write_unaligned(s.sound);
-                request.add(2).write_unaligned(from_int(volume as i32));
-                request.add(1).write_unaligned(from_int(rate as i32));
-            }
-            crate::sound::turn_parts::placed(request as u32)
+            crate::sound::turn_parts::put(request, 0, s.sound)?;
+            crate::sound::turn_parts::put(request, 2, from_int(volume as i32))?;
+            crate::sound::turn_parts::put(request, 1, from_int(rate as i32))?;
+            crate::sound::turn_parts::placed(request)
         }
     }
 }

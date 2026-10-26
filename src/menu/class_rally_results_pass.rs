@@ -12,6 +12,7 @@
 //! 0x100), before anything; what the steps refuse.
 
 use crate::errors::Refused;
+use crate::menu::event_flow::Fault;
 use crate::menu::event_store::EVENT_STATE;
 use crate::menu::loop_store::LOOP_FLAGS;
 use crate::menu::pages_store::MENU_PAGES;
@@ -38,12 +39,15 @@ pub unsafe fn class_rally_results_pass(c: &Carried) -> Result<(), Refused> {
         let all = entries(table, A_ENTRY)?;
         for class in classes {
             LOOP_FLAGS.ended_b.set(0u32);
-            if !class_pages::has_player(
+            let fault = Fault::default();
+            let has_player = class_pages::has_player(
                 all.len(),
-                |n| get(all[n] + 0x1C),
-                |n| get(all[n] + 4),
+                |n| fault.get(all[n] + 0x1C),
+                |n| fault.get(all[n] + 4),
                 class,
-            ) {
+            );
+            fault.check()?;
+            if !has_player {
                 continue;
             }
             LOOP_FLAGS.ended_b.set(1u32);

@@ -16,7 +16,7 @@ pub unsafe fn replay_item_a(c: &Carried) -> Result<(), Refused> {
             .get()
             == 1
     {
-        return unsafe { crate::race::replay_mode::replay_mode(c, 1) };
+        return crate::race::replay_mode::replay_mode(c, 1);
     }
     crate::system::sleep::sleep(500);
     crate::sound::play_menu_sound::play_menu_sound_in_game(8);
@@ -26,7 +26,7 @@ pub unsafe fn replay_item_a(c: &Carried) -> Result<(), Refused> {
 /// `menu::replay_item_b` (0x47052F): unless `dword_75ACDC` is 1, `race::replay_mode_3`.
 pub unsafe fn replay_item_b(c: &Carried) -> Result<(), Refused> {
     if RACE_STATE.settings.no_replay.get() != 1 {
-        unsafe { crate::race::replay_mode::replay_mode(c, 3) }?;
+        crate::race::replay_mode::replay_mode(c, 3)?;
     }
     Ok(())
 }

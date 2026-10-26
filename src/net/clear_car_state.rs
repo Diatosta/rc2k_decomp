@@ -6,9 +6,10 @@
 //! Caller: `net::reset_cars`.
 
 /// The Rust version.
-pub fn clear_car_state(block: u32) {
+pub fn clear_car_state(block: u32) -> Result<(), crate::errors::BadInput> {
     // Converted: `rc2k_core::net::cars::CLEARED`.
     for (offset, v) in rc2k_core::net::cars::CLEARED {
-        unsafe { ((block + offset) as *mut u32).write_unaligned(v) };
+        crate::pointers::GamePtr::new(block + offset).write(v, "a car block's field")?;
     }
+    Ok(())
 }

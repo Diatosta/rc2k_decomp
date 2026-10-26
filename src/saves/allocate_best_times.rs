@@ -18,6 +18,9 @@
 use crate::errors::{BadInput, Refused};
 use crate::memory::MemoryList;
 use crate::memory::allocate::allocate;
+use crate::pointers::GamePtr;
+use crate::saves::best_times_store::BEST_TIMES;
+use crate::system::checked_reads::CheckedReads;
 use rc2k_core::saves::tables::{MARKED, TABLES};
 
 // ---- game data ----
@@ -26,47 +29,37 @@ use rc2k_core::saves::tables::{MARKED, TABLES};
 const RECORD_LEN: usize = 0xA4;
 
 /// Where table `n`'s address is among the variables; its size follows.
-pub fn pair(vars: *mut u32, n: usize) -> *mut u32 {
-    vars.wrapping_add(2 + 2 * n)
+pub fn count_stages(table: u32) -> Result<u32, BadInput> {
+    let reads = CheckedReads::new();
+    let answer = rc2k_core::saves::tables::count_stages(|n| {
+        reads.dword(
+            table.wrapping_add(n * RECORD_LEN as u32),
+            "a stage record's tag",
+        )
+    });
+    reads.finish(answer)?.map_err(BadInput::from)
 }
 
-// ---- Rust version ----
-
-/// `saves::count_stages` (0x47C95D): the records with tag 0, up to the table's -1 (the
-/// first record is not looked at for the end).
-pub unsafe fn count_stages(table: *const u8) -> Result<u32, BadInput> {
-    // Converted: `rc2k_core::saves::tables::count_stages`.
-    Ok(rc2k_core::saves::tables::count_stages(|n| unsafe {
-        (table.add(n as usize * RECORD_LEN) as *const u32).read_unaligned()
-    })?)
-}
-
-/// The nine sizes for a table with that many stages. Converted:
-/// `rc2k_core::saves::tables::sizes`.
 pub fn sizes(stages: u32) -> [u32; TABLES] {
     rc2k_core::saves::tables::sizes(stages)
 }
 
-pub unsafe fn allocate_best_times(
-    vars: *mut u32,
-    list: *mut MemoryList,
-    records: *const u8,
-) -> Result<(), Refused> {
-    unsafe {
-        if vars.read_unaligned() == 1 {
-            return Ok(());
-        }
-        let sizes = sizes(count_stages(records)?);
-        vars.write_unaligned(1);
-        for (n, size) in sizes.into_iter().enumerate() {
-            let pair = pair(vars, n);
-            pair.add(1).write_unaligned(size);
-            let memory = allocate(list, size)?;
-            pair.write_unaligned(memory as u32);
-            if MARKED.contains(&n) {
-                (memory.add(size as usize - 4) as *mut u32).write_unaligned(u32::MAX);
-            }
-        }
-        Ok(())
+/// `saves::allocate_best_times` (0x47C4D8): once, the nine tables taken from `list`
+/// (`BEST_TIMES.tables`, an address and a size each), the marked ones ending in -1.
+pub unsafe fn allocate_best_times(list: *mut MemoryList, records: u32) -> Result<(), Refused> {
+    if BEST_TIMES.allocated.get() == 1 {
+        return Ok(());
     }
+    let sizes = sizes(count_stages(records)?);
+    BEST_TIMES.allocated.set(1);
+    for (n, size) in sizes.into_iter().enumerate() {
+        let place = &BEST_TIMES.tables[n];
+        place.size.set(size);
+        let memory = unsafe { allocate(list, size) }?;
+        place.address.set(memory as u32);
+        if MARKED.contains(&n) {
+            GamePtr::new(memory as u32 + size - 4).write(u32::MAX, "a table of best times")?;
+        }
+    }
+    Ok(())
 }

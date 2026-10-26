@@ -19,6 +19,8 @@
 //!   place, so many times: each pixel the average of four, counting only those of an
 //!   alpha above 0 for the colour.
 
+use crate::errors::BadInput;
+use crate::pointers::GamePtr;
 use crate::session::{Bytes, Dword};
 
 /// IDA's address of the grading variables.
@@ -58,37 +60,66 @@ pub const KEPT: usize = rc2k_core::gfx::pixels::KEPT;
 
 // Converted: `rc2k_core::gfx::pixels` (the pixels as slices of the counts given).
 
-pub unsafe fn alpha_from_kept(pixels: *mut u8, count: u32) {
-    let buffer = unsafe { std::slice::from_raw_parts_mut(pixels, KEPT + count as usize * 4) };
-    rc2k_core::gfx::pixels::alpha_from_kept(buffer, count as usize).expect("the slice holds both");
+pub fn alpha_from_kept(pixels: u32, count: u32) -> Result<(), BadInput> {
+    let place = GamePtr::new(pixels);
+    let mut buffer = place.read_bytes(KEPT + count as usize * 4, "a texture's pixels")?;
+    rc2k_core::gfx::pixels::alpha_from_kept(&mut buffer, count as usize)
+        .ok_or(BadInput("a texture's pixels shorter than both pictures"))?;
+    place.write_bytes(&buffer, "a texture's pixels")
 }
 
-pub unsafe fn key_texture_colours(pixels: *mut u32, count: u32, key: u32) {
-    let pixels = unsafe { std::slice::from_raw_parts_mut(pixels, count as usize) };
-    rc2k_core::gfx::pixels::key_colours(pixels, key);
+pub fn key_texture_colours(pixels: u32, count: u32, key: u32) -> Result<(), BadInput> {
+    let place = GamePtr::new(pixels);
+    let mut dwords = dwords_of(&place.read_bytes(count as usize * 4, "a texture's pixels")?);
+    rc2k_core::gfx::pixels::key_colours(&mut dwords, key);
+    place.write_bytes(&bytes_of(&dwords), "a texture's pixels")
+}
+
+fn dwords_of(bytes: &[u8]) -> Vec<u32> {
+    bytes
+        .as_chunks::<4>()
+        .0
+        .iter()
+        .map(|d| u32::from_le_bytes(*d))
+        .collect()
+}
+
+fn bytes_of(dwords: &[u32]) -> Vec<u8> {
+    dwords.iter().flat_map(|d| d.to_le_bytes()).collect()
 }
 
 pub use rc2k_core::gfx::pixels::{grades, grading, halvable, least_colour};
 
 /// `table` gets the grades (the game's `byte_4F4A30`).
-pub unsafe fn grade_texture(
-    pixels: *mut u8,
+pub fn grade_texture(
+    pixels: u32,
     count: u32,
     key: u32,
     scale: u32,
     saturation: u32,
     table: &mut [u8; 0x100],
-) {
+) -> Result<(), BadInput> {
     *table = grades(scale);
-    let pixels = unsafe { std::slice::from_raw_parts_mut(pixels as *mut u32, count as usize) };
-    rc2k_core::gfx::pixels::grade(pixels, key, saturation, table);
+    let place = GamePtr::new(pixels);
+    let mut dwords = dwords_of(&place.read_bytes(count as usize * 4, "a texture's pixels")?);
+    rc2k_core::gfx::pixels::grade(&mut dwords, key, saturation, table);
+    place.write_bytes(&bytes_of(&dwords), "a texture's pixels")
 }
 
 /// Returns the size after the last pass (as it was for no pass).
-pub unsafe fn halve_texture(pixels: *mut u32, width: u32, height: u32, times: u32) -> (u32, u32) {
-    let pixels =
-        unsafe { std::slice::from_raw_parts_mut(pixels, width as usize * height as usize) };
-    rc2k_core::gfx::pixels::halve(pixels, width, height, times).expect("the slice is the picture")
+pub fn halve_texture(
+    pixels: u32,
+    width: u32,
+    height: u32,
+    times: u32,
+) -> Result<(u32, u32), BadInput> {
+    let place = GamePtr::new(pixels);
+    let mut dwords =
+        dwords_of(&place.read_bytes(width as usize * height as usize * 4, "a texture's pixels")?);
+    let size = rc2k_core::gfx::pixels::halve(&mut dwords, width, height, times)
+        .ok_or(BadInput("a texture that is not its picture"))?;
+    place.write_bytes(&bytes_of(&dwords), "a texture's pixels")?;
+    Ok(size)
 }
 
 #[cfg(test)]

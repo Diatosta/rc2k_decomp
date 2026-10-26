@@ -7,12 +7,16 @@
 //!
 //! Caller: `drive::checkpoint_taken` (four cars).
 
+use crate::errors::BadInput;
 use rc2k_core::physics::line_places::car_near;
 
 /// The Rust core: whether the car block at `car` is near `checkpoint` (eax; the CF).
 /// The distance it leaves in ebx is read by no caller (`checkpoint_taken` keeps ebx).
 // Converted: `rc2k_core::physics::line_places::car_near`.
-pub unsafe fn near_at(car: u32, checkpoint: u32) -> bool {
-    let get = |o: u32| unsafe { ((car + o) as *const u32).read_unaligned() };
-    car_near(get(0x25C) != 0, || get(0x98), checkpoint).is_some_and(|n| n.1)
+pub fn near_at(car: u32, checkpoint: u32) -> Result<bool, BadInput> {
+    let reading = crate::scene::reading::Reading::new();
+    let get = |o: u32| reading.read::<u32>(car.wrapping_add(o), "a car's block");
+    let near = car_near(get(0x25C) != 0, || get(0x98), checkpoint).is_some_and(|n| n.1);
+    reading.finish()?;
+    Ok(near)
 }

@@ -38,9 +38,9 @@ impl Stepped {
 
 /// `key` (al) moving the highlight of the list menu `list` (edi) by the neighbours table
 /// `table` (ebx, 0 for none).
-pub unsafe fn list_step(key: u8, table: u32, list: u32) -> Stepped {
+pub fn list_step(key: u8, table: u32, list: u32) -> Result<Stepped, crate::errors::BadInput> {
     // Converted: `rc2k_core::menu::list_menu::step`.
-    let count = unsafe { ((list + 1) as *const u8).read() };
+    let count = crate::pointers::GamePtr::new(list + 1).read::<u8>("a list menu's count")?;
     if !MOVES.contains(&key) {
         // Not a move: the choice is not looked at (`step` answers `Other` or `NoTable`).
         let (carry, zero) = match step(key, 0, count, table != 0, |_| 0) {
@@ -48,21 +48,26 @@ pub unsafe fn list_step(key: u8, table: u32, list: u32) -> Stepped {
             Step::Other { below } => (below, false),
             _ => unreachable!("a move from a key that is not one"),
         };
-        return Stepped {
+        return Ok(Stepped {
             choice: None,
             carry,
             zero,
-        };
+        });
     }
     let ecx = INSTALLER_PAGES.choice.get();
-    let entry_of = |k: usize| unsafe {
-        (table
-            .wrapping_add(ecx.wrapping_mul(4))
-            .wrapping_add(k as u32) as *const u8)
-            .read()
+    let fault = crate::menu::event_flow::Fault::default();
+    let entry_of = |k: usize| {
+        fault.read::<u8>(
+            table
+                .wrapping_add(ecx.wrapping_mul(4))
+                .wrapping_add(k as u32),
+            "a neighbours table",
+        )
     };
     let with_cl = |cl: u8| ecx & !0xFF | cl as u32;
-    let (choice, carry, zero) = match step(key, ecx as u8, count, table != 0, entry_of) {
+    let stepped = step(key, ecx as u8, count, table != 0, entry_of);
+    fault.check()?;
+    let (choice, carry, zero) = match stepped {
         Step::Moved(cl) => {
             INSTALLER_PAGES.choice.set(with_cl(cl));
             (with_cl(cl), false, true)
@@ -71,9 +76,9 @@ pub unsafe fn list_step(key: u8, table: u32, list: u32) -> Stepped {
         Step::NoTable => (ecx, true, false),
         Step::Other { below } => (ecx, below, false),
     };
-    Stepped {
+    Ok(Stepped {
         choice: Some(choice),
         carry,
         zero,
-    }
+    })
 }

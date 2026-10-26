@@ -15,6 +15,7 @@
 
 use crate::errors::Refused;
 use crate::gfx::screen_state::DRAW_SURFACE;
+use crate::pointers::GamePtr;
 use crate::race::game_map::MAP;
 use rc2k_core::race::map::TILE;
 
@@ -47,24 +48,53 @@ pub unsafe fn blit_map_tiles(texture: u32, first_x: u32, first_y: u32) -> Result
             let (x, y) = (first_x.wrapping_add(col), first_y.wrapping_add(row));
             let mut to = pixels.wrapping_add(tile_offset(col, row, bytes, pitch));
             let tile = match tile_index(x, y) {
-                Some(n) => unsafe { ((tiles + 4 * n) as *const u32).read_unaligned() },
+                Some(n) => match GamePtr::new(tiles.wrapping_add(4 * n))
+                    .read::<u32>("a map tile's pointer")
+                {
+                    Ok(t) => t,
+                    Err(e) => {
+                        unsafe { unlock_texture(texture) }?;
+                        return Err(e.into());
+                    }
+                },
                 None => 0,
             };
             let wide = pixel_width(bytes);
-            let mut from = tile;
+            // The tile's pixels, read whole once (16 x 16 of them, contiguous).
+            let source = if tile != 0 {
+                match GamePtr::new(tile).read_bytes(
+                    (TILE * TILE) as usize * wide as usize,
+                    "a map tile's pixels",
+                ) {
+                    Ok(v) => v,
+                    Err(e) => {
+                        unsafe { unlock_texture(texture) }?;
+                        return Err(e.into());
+                    }
+                }
+            } else {
+                Vec::new()
+            };
+            let mut at = 0usize;
             for _ in 0..TILE {
                 for _ in 0..TILE {
+                    // The locked texture is the platform's memory (left for its own change).
                     unsafe {
                         if wide == 2 {
                             let v = if tile != 0 {
-                                (from as *const u16).read_unaligned()
+                                u16::from_le_bytes([source[at], source[at + 1]])
                             } else {
                                 black as u16
                             };
                             (to as *mut u16).write_unaligned(v);
                         } else {
                             let v = if tile != 0 {
-                                (from as *const u32).read_unaligned()
+                                u32::from_le_bytes([
+                                    source[at],
+                                    source[at + 1],
+                                    source[at + 2],
+                                    source[at + 3],
+                                ])
                             } else {
                                 black
                             };
@@ -72,7 +102,7 @@ pub unsafe fn blit_map_tiles(texture: u32, first_x: u32, first_y: u32) -> Result
                         }
                     }
                     to = to.wrapping_add(wide);
-                    from = from.wrapping_add(wide);
+                    at += wide as usize;
                 }
                 to = to.wrapping_add(gap);
             }

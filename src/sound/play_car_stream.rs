@@ -13,6 +13,7 @@ use crate::errors::Refused;
 use crate::framework::{game_read, rva};
 use crate::menu::load_car_background::shown_car;
 use crate::menu::option_work_store::OPTION_WORK;
+use crate::pointers::GamePtr;
 
 // ---- game data ----
 
@@ -26,13 +27,24 @@ pub unsafe fn play_car_stream(start: &mut dyn FnMut(u32, u32)) -> Result<(), Ref
     // Converted: `rc2k_core::sound::set_up::car_stream`.
     unsafe {
         let car = shown_car()?;
+        let failed = std::cell::Cell::new(None);
         let s = rc2k_core::sound::set_up::car_stream(
             // `MENU_LISTS.car_streams` (off_75A31E) has 24 entries; the original reads any
             // car's, past them what the image has after (`MOVED` resolves the address).
             game_read(rva(STREAMS_IDA + car as usize * 4)),
-            |list| (list as *const u32).read_unaligned(),
+            |list| {
+                GamePtr::new(list)
+                    .read::<u32>("a car's stream list")
+                    .unwrap_or_else(|e| {
+                        failed.set(Some(e));
+                        0
+                    })
+            },
             OPTION_WORK.speech_level.get(),
         );
+        if let Some(e) = failed.take() {
+            return Err(e.into());
+        }
         crate::sound::store::CAR_STREAM.on.set(s.on);
         crate::sound::store::CAR_STREAM.stream.set(s.list);
         crate::sound::store::CAR_STREAM.place.set(s.place);

@@ -8,25 +8,26 @@
 //! Caller: `sub_43703E` (0x4371BC, 0x43729B).
 
 use crate::physics::car_store::CAR;
+use crate::session::Cell32;
 
-unsafe fn core(v: &[u32]) {
-    for &a in v {
-        unsafe { (a as *mut u32).write_unaligned(0) };
+fn core(v: &[&dyn Cell32]) {
+    for cell in v {
+        cell.set_bits(0);
     }
 }
 
-fn game() -> Vec<u32> {
+fn game() -> Vec<&'static dyn Cell32> {
     vec![
-        CAR.driver_kind.addr() as u32,
-        CAR.checkpoint.addr() as u32,
-        CAR.engine_sound_speed_int.addr() as u32,
-        CAR.start_share.addr() as u32,
-        CAR.start_blend.addr() as u32,
-        CAR.unknown_44.addr() as u32,
+        &CAR.driver_kind,
+        &CAR.checkpoint,
+        &CAR.engine_sound_speed_int,
+        &CAR.start_share,
+        &CAR.start_blend,
+        &CAR.unknown_44,
     ]
 }
 
 /// The Rust version.
-pub unsafe fn clear_start_state() {
-    unsafe { core(&game()) }
+pub fn clear_start_state() {
+    core(&game())
 }

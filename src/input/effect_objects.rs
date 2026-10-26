@@ -15,33 +15,36 @@
 //! (`release_effect`). The methods are the object's own (DirectInput's in the game, Rust's
 //! in the standalone program, `input::di_objects`).
 
+use crate::errors::BadInput;
 use crate::field;
 use crate::input::devices::{at, put};
 use crate::input::di_harness::{method, slot};
 use crate::input::types::ForceEffect;
 
 /// `release_effect`'s Rust version.
-pub fn release_effect(effect: u32) {
-    let object = at(effect, field!(ForceEffect, object));
+pub fn release_effect(effect: u32) -> Result<(), BadInput> {
+    let object = at(effect, field!(ForceEffect, object))?;
     if object != 0 {
         method(object, slot::STOP, &[]);
         method(object, slot::RELEASE, &[]);
-        put(effect, field!(ForceEffect, object), 0);
+        put(effect, field!(ForceEffect, object), 0)?;
     }
+    Ok(())
 }
 
 /// `start_effect`'s Rust version.
-pub fn start_effect(effect: u32) {
-    let object = at(effect, field!(ForceEffect, object));
+pub fn start_effect(effect: u32) -> Result<(), BadInput> {
+    let object = at(effect, field!(ForceEffect, object))?;
     if object != 0 {
         method(object, slot::DOWNLOAD, &[]);
         method(object, slot::START, &[1, 0]);
     }
+    Ok(())
 }
 
 /// `set_effect_parameters`'s Rust version.
-pub fn set_effect_parameters(effect: u32, flags: u32) {
-    let object = at(effect, field!(ForceEffect, object));
+pub fn set_effect_parameters(effect: u32, flags: u32) -> Result<(), BadInput> {
+    let object = at(effect, field!(ForceEffect, object))?;
     if object != 0 {
         method(
             object,
@@ -49,12 +52,14 @@ pub fn set_effect_parameters(effect: u32, flags: u32) {
             &[effect.wrapping_add(field!(ForceEffect, effect)), flags],
         );
     }
+    Ok(())
 }
 
 /// `stop_effect`'s Rust version.
-pub fn stop_effect(effect: u32) {
-    let object = at(effect, field!(ForceEffect, object));
+pub fn stop_effect(effect: u32) -> Result<(), BadInput> {
+    let object = at(effect, field!(ForceEffect, object))?;
     if object != 0 {
         method(object, slot::STOP, &[]);
     }
+    Ok(())
 }

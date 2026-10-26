@@ -14,7 +14,7 @@ use crate::text::draw_text::Canvas;
 // ---- Rust version ----
 
 /// Returns the carry flag of the last text drawn.
-pub unsafe fn draw_empty_savegame(canvas: &mut dyn Canvas) -> Result<bool, Refused> {
+pub fn draw_empty_savegame(canvas: &mut dyn Canvas) -> Result<bool, Refused> {
     // Converted: `rc2k_core::screens::savegame_preview::empty`.
     rc2k_core::screens::savegame_preview::empty(
         &mut crate::screens::game_screen::PreviewScreen::new(canvas),

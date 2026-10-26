@@ -12,14 +12,17 @@
 
 use crate::errors::Refused;
 use crate::field;
-use crate::net::lobby::{copy_printable, log, log_hex, movsb, session};
+use crate::net::lobby::{copy_printable, log, log_hex, movsb_from_rust, session};
 use crate::net::store::NET;
 use crate::net::types::{DpSessionDesc, NetSession};
+use crate::pointers::GamePtr;
 use crate::race::viewer_screen_store::{VIEWER_PANEL, texts};
 use rc2k_core::net::lists::{self, Found};
 
+/// A dword of the callback's argument (memory Rust owns: DirectPlay's session record).
 fn get(at: u32) -> u32 {
-    unsafe { (at as *const u32).read_unaligned() }
+    // SAFETY: the callback's argument, a record of Rust's own.
+    unsafe { (at as usize as *const u32).read_unaligned() }
 }
 
 /// The Rust version: eax.
@@ -41,22 +44,24 @@ pub fn session_found(args: &[u32]) -> Result<u32, Refused> {
     NET.sessions.set(count + 1);
     let record = session(count)?;
     copy_printable(get(desc + 0x30), record, 0x40)?;
-    movsb(
+    movsb_from_rust(
         record + field!(NetSession, instance),
         desc + field!(DpSessionDesc, instance),
         0x10,
-    );
-    unsafe {
-        ((record + field!(NetSession, max_players)) as *mut u32)
-            .write_unaligned(get(desc + field!(DpSessionDesc, max_players)));
-        ((record + field!(NetSession, players)) as *mut u32)
-            .write_unaligned(get(desc + field!(DpSessionDesc, current_players)));
-    }
-    movsb(
+    )?;
+    GamePtr::new(record + field!(NetSession, max_players)).write(
+        get(desc + field!(DpSessionDesc, max_players)),
+        "a session's record",
+    )?;
+    GamePtr::new(record + field!(NetSession, players)).write(
+        get(desc + field!(DpSessionDesc, current_players)),
+        "a session's record",
+    )?;
+    movsb_from_rust(
         record + field!(NetSession, user),
         desc + field!(DpSessionDesc, user),
         0x10,
-    );
+    )?;
     Ok(1)
 }
 

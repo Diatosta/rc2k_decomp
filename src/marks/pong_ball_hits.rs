@@ -103,7 +103,7 @@ fn new_way_x87(p: &PongState, r: &PongRules, length: u32) {
 mod asm_reference {
     //! The original assembly blocks, kept verbatim as the reference the plain versions are tested against.
 
-    pub(super) unsafe fn centres_x87(mk: usize) {
+    pub(super) fn centres_x87(mk: usize) {
         unsafe {
             core::arch::asm!(
                     "fld dword ptr [{mk} + 0x3760]",
@@ -136,7 +136,7 @@ mod asm_reference {
         }
     }
 
-    pub(super) unsafe fn new_way_x87(mk: usize) {
+    pub(super) fn new_way_x87(mk: usize) {
         unsafe {
             core::arch::asm!(
                     "fld dword ptr [{mk} + 0x37B4]",
@@ -211,7 +211,7 @@ mod asm_differential {
         };
         differential(
             &SPEC,
-            |b| unsafe { reference::centres_x87(b[0]) },
+            |b| reference::centres_x87(b[0]),
             |b| super::centres_x87(state_at(b[0]), &rules_at(b[0])),
         );
     }
@@ -235,7 +235,7 @@ mod asm_differential {
         };
         differential(
             &SPEC,
-            |b| unsafe { reference::new_way_x87(b[0]) },
+            |b| reference::new_way_x87(b[0]),
             |b| {
                 let length = unsafe { ((b[0] + 0x22C) as *const u32).read_unaligned() };
                 super::new_way_x87(state_at(b[0]), &rules_at(b[0]), length)

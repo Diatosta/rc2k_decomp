@@ -18,8 +18,10 @@
 //! See `net/mod.rs`. One caller, `net::apply_received`. The distance with the original's
 //! x87 instructions.
 
+use crate::errors::BadInput;
 use crate::logfile::{log_int::log_int, log_write::log_write};
 use crate::net::store::NET;
+use crate::pointers::GamePtr;
 use crate::race::view_store::RACE_VIEW;
 use crate::race::work_store::RACE_WORK;
 use rc2k_core::net::race::{self, Arrival, Kind};
@@ -28,48 +30,54 @@ use rc2k_core::net::race::{self, Arrival, Kind};
 const TEXT: &std::ffi::CStr = c"rcvd fm plyr"; // "rcvd fm plyr"
 
 /// The Rust version.
-pub fn apply_message(player: u32, message: *const u8) {
-    let rd = |at: u32| unsafe { (at as *const u32).read_unaligned() };
-    let wr = |at: u32, v: u32| unsafe { (at as *mut u32).write_unaligned(v) };
+pub fn apply_message(player: u32, message: *const u8) -> Result<(), BadInput> {
+    let rd = |at: u32| GamePtr::new(at).read::<u32>("a received message or car block");
+    let wr = |at: u32, v: u32| GamePtr::new(at).write(v, "a car block's field");
     let message = message as u32;
     log_int(NET.player.get() as i32, false, 1);
     log_int(RACE_VIEW.local_car.get() as i32, false, 1);
-    log_int(unsafe { (message as *const u8).read() } as i32, false, 1);
+    log_int(
+        GamePtr::new(message).read::<u8>("a received message")? as i32,
+        false,
+        1,
+    );
     unsafe { log_write(TEXT.as_ptr().cast(), false, 1) };
     log_int(player as i32, true, 1);
     if player >= 8 {
-        return;
+        return Ok(());
     }
     let block = RACE_WORK.car_block(player as usize);
     // Converted: `rc2k_core::net::race` (`Kind`, `arrival`; the distance's test in `f64`,
     // exact for the decision).
-    let Some(kind) = Kind::of(rd(message)) else {
-        return;
+    let Some(kind) = Kind::of(rd(message)?) else {
+        return Ok(());
     };
     for n in 0..kind.fields().len() as u32 {
         wr(
             block + kind.destination(n as usize),
-            rd(message + 4 + 4 * n),
-        );
+            rd(message + 4 + 4 * n)?,
+        )?;
     }
     if kind != Kind::Position {
-        return;
+        return Ok(());
     }
-    let three = |at: u32| [rd(block + at), rd(block + at + 4), rd(block + at + 8)];
-    let (wanted, now) = (three(race::WANTED), three(race::PLACE));
-    let steps = rd(block + race::STEPS);
+    let three =
+        |at: u32| Ok::<_, BadInput>([rd(block + at)?, rd(block + at + 4)?, rd(block + at + 8)?]);
+    let (wanted, now) = (three(race::WANTED)?, three(race::PLACE)?);
+    let steps = rd(block + race::STEPS)?;
     let near = crate::race::numbers_store::NUMBERS.ten.get();
     match race::arrival(wanted, now, steps, near) {
         Arrival::Jump => {
             for (k, v) in (0..).zip(wanted) {
-                wr(block + race::PLACE + 4 * k, v);
+                wr(block + race::PLACE + 4 * k, v)?;
             }
         }
         Arrival::Glide(step) => {
             for (k, v) in (0..).zip(step) {
-                wr(block + race::WANTED + 4 * k, v);
+                wr(block + race::WANTED + 4 * k, v)?;
             }
-            wr(block + race::GLIDE_STEPS, race::GLIDE);
+            wr(block + race::GLIDE_STEPS, race::GLIDE)?;
         }
     }
+    Ok(())
 }

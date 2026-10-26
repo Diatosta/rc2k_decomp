@@ -14,7 +14,7 @@ use crate::menu::standings::*;
 
 /// The first player of any group in the table from `from` (edi); its `computers` is the
 /// player's number (ecx = the entry's +4). The caller's ebx is kept.
-pub unsafe fn first_player_unplaced(from: u32) -> Result<Found, Refused> {
+pub fn first_player_unplaced(from: u32) -> Result<Found, Refused> {
     // Converted: `rc2k_core::menu::standings::first_player` (any group), ecx the player.
     let found = crate::menu::standings::first_player(
         from,
@@ -26,7 +26,7 @@ pub unsafe fn first_player_unplaced(from: u32) -> Result<Found, Refused> {
         "Unable to locate player (find1stplayerinochamp)",
     )?;
     Ok(Found {
-        computers: get(found.entry + 4),
+        computers: get(found.entry + 4)?,
         ..found
     })
 }

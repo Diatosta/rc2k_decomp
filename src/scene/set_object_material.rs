@@ -30,6 +30,7 @@ use crate::errors::BadInput;
 use crate::math::next_random::next_random;
 use crate::math::x87;
 use crate::physics::tables_store::PHYSICS;
+use crate::pointers::GamePtr;
 use crate::race::course_store::COURSE;
 use crate::race::switches_store::FRAME_SWITCHES;
 use crate::race::vars_store::RACE_VARS;
@@ -50,7 +51,7 @@ const LENGTHS: [u32; 9] = [200, 400, 200, 400, 400, 400, 400, 400, 0];
 // ---- Rust version ----
 
 /// The state's address, or None without one.
-unsafe fn state() -> Option<usize> {
+fn state() -> Option<usize> {
     {
         let states: u32 = COURSE.course_faces.bits();
         (states != 0)
@@ -59,10 +60,10 @@ unsafe fn state() -> Option<usize> {
 }
 
 /// `sub_45079A`.
-unsafe fn step_shape(state: usize) {
+fn step_shape(state: usize) -> Result<(), BadInput> {
     unsafe {
-        let [last, mut time, mut length, mut phase]: [u32; 4] =
-            (state as *const [u32; 4]).read_unaligned();
+        let at = GamePtr::new(state as u32);
+        let [last, mut time, mut length, mut phase]: [u32; 4] = at.read("an object's state")?;
         crate::session::write_bits(&LIGHT_WORK.phase_lengths, LENGTHS);
         let clock: u32 = PHYSICS.scene_clock.bits();
         time = time.wrapping_add(clock.wrapping_sub(last).min(100));
@@ -84,44 +85,43 @@ unsafe fn step_shape(state: usize) {
             &crate::scene::object_slots_store::OBJECT_SLOTS.phase_work,
             &[length, time, phase],
         );
-        (state as *mut [u32; 4]).write_unaligned([clock, time, length, phase]);
+        at.write([clock, time, length, phase], "an object's state")?;
+        Ok(())
     }
 }
 
-pub unsafe fn set_object_material() -> Result<(), BadInput> {
-    unsafe {
-        let object: u32 = FRAME_SWITCHES.object_number.bits();
-        if object >= OBJECTS {
-            return Err(BadInput("an object's number past the tables"));
-        }
-        let kind: u32 = OBJECT_TABLES.object_kind(object);
-        let material = crate::scene::polygon::materials_addr()
-            .wrapping_add((kind as usize).wrapping_mul(MATERIAL_LEN));
-        let way = ((material + 0x20) as *const u8).read() as u32;
-        let state = state();
-        if way == 4 && state.is_none() {
-            return Err(BadInput("a moving object without its state"));
-        }
-        RACE_VARS.move_by.set_bits(0u32);
-        DRAW.polygon_colour.set_bits(0x00FF_FFFFu32);
-        FRAME_SWITCHES.other_way_kind.set_bits(way);
-        if let (4, Some(state)) = (way, state) {
-            let points: [u32; 2] = [
-                crate::scene::object_slots_store::OBJECT_SLOTS.first_point[object as usize].get(),
-                crate::scene::object_slots_store::OBJECT_SLOTS.first_point[object as usize + 1]
-                    .get(),
-            ];
-            RACE_VARS
-                .move_by
-                .set_bits(points[1].wrapping_sub(points[0]).wrapping_mul(12));
-            step_shape(state);
-        }
-        OBJECT_WORK.object_first_face.set_bits(
-            crate::scene::object_slots_store::OBJECT_SLOTS.first_face[object as usize].get(),
-        );
-        OBJECT_WORK.object_face_count.set_bits(
-            crate::scene::object_slots_store::OBJECT_SLOTS.face_counts[object as usize].get(),
-        );
-        Ok(())
+pub fn set_object_material() -> Result<(), BadInput> {
+    let object: u32 = FRAME_SWITCHES.object_number.bits();
+    if object >= OBJECTS {
+        return Err(BadInput("an object's number past the tables"));
     }
+    let kind: u32 = OBJECT_TABLES.object_kind(object);
+    let material = crate::scene::polygon::materials_addr()
+        .wrapping_add((kind as usize).wrapping_mul(MATERIAL_LEN));
+    let way =
+        GamePtr::new(material.wrapping_add(0x20) as u32).read::<u8>("an object's material")? as u32;
+    let state = state();
+    if way == 4 && state.is_none() {
+        return Err(BadInput("a moving object without its state"));
+    }
+    RACE_VARS.move_by.set_bits(0u32);
+    DRAW.polygon_colour.set_bits(0x00FF_FFFFu32);
+    FRAME_SWITCHES.other_way_kind.set_bits(way);
+    if let (4, Some(state)) = (way, state) {
+        let points: [u32; 2] = [
+            crate::scene::object_slots_store::OBJECT_SLOTS.first_point[object as usize].get(),
+            crate::scene::object_slots_store::OBJECT_SLOTS.first_point[object as usize + 1].get(),
+        ];
+        RACE_VARS
+            .move_by
+            .set_bits(points[1].wrapping_sub(points[0]).wrapping_mul(12));
+        step_shape(state)?;
+    }
+    OBJECT_WORK
+        .object_first_face
+        .set_bits(crate::scene::object_slots_store::OBJECT_SLOTS.first_face[object as usize].get());
+    OBJECT_WORK.object_face_count.set_bits(
+        crate::scene::object_slots_store::OBJECT_SLOTS.face_counts[object as usize].get(),
+    );
+    Ok(())
 }

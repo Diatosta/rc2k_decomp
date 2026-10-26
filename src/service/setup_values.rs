@@ -2,6 +2,7 @@
 //! one up or down, and the four that select or deselect a change.
 
 use crate::errors::{BadInput, Refused};
+use crate::pointers::GamePtr;
 use crate::service::state::current_player;
 use crate::session::Dword;
 
@@ -38,13 +39,14 @@ fn target(stepper: Stepper) -> Result<u32, BadInput> {
 
 pub unsafe fn step(stepper: Stepper) -> Result<(), Refused> {
     let addr = target(stepper)?;
-    let value = addr as *mut i32;
-    unsafe {
-        // Converted: `rc2k_core::service::repairs::step`.
-        let next =
-            rc2k_core::service::repairs::step(value.read_unaligned(), stepper.max, stepper.up);
-        value.write_unaligned(next);
-    }
+    let value = GamePtr::new(addr);
+    // Converted: `rc2k_core::service::repairs::step`.
+    let next = rc2k_core::service::repairs::step(
+        value.read::<i32>("a setup value")?,
+        stepper.max,
+        stepper.up,
+    );
+    value.write(next, "a setup value")?;
     Ok(())
 }
 

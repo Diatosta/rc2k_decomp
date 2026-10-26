@@ -21,6 +21,7 @@
 
 use crate::audio::store::AUDIO;
 use crate::errors::Refused;
+use crate::pointers::GamePtr;
 use crate::session::FLAGS;
 
 const START_TEXT: &std::ffi::CStr = c"AUDIOTDB:START"; // "AUDIOTDB:START"
@@ -34,10 +35,10 @@ pub unsafe fn audio_thread(slot: u32) -> Result<(), Refused> {
     use crate::threading::set_priority::set_priority;
     use windows_sys::Win32::System::Com::{CoInitialize, CoUninitialize};
     unsafe {
-        let running = (slot + 0xC) as *mut u8;
-        let started = running.read() != 1
+        let running = GamePtr::new(slot + 0xC);
+        let started = running.read::<u8>("the audio thread's slot")? != 1
             && {
-                running.write(1);
+                running.write(1u8, "the audio thread's slot")?;
                 sound_device::log_text(START_TEXT.as_ptr() as usize as u32, true);
                 CoInitialize(std::ptr::null());
                 AUDIO.no_audio.get() == 0
@@ -78,7 +79,7 @@ pub unsafe fn audio_thread(slot: u32) -> Result<(), Refused> {
         CoUninitialize();
         sound_device::log_text(QUIT_TEXT.as_ptr() as usize as u32, true);
         set_priority(0);
-        running.write(0);
+        running.write(0u8, "the audio thread's slot")?;
         windows_sys::Win32::System::Threading::ExitThread(0)
     }
 }

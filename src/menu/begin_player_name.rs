@@ -17,18 +17,16 @@ use crate::menu::text_entry::{Text, field, put_field, with_entry};
 
 // ---- Rust version ----
 
-pub unsafe fn begin_player_name() -> Result<(), Refused> {
+pub fn begin_player_name() -> Result<(), Refused> {
     // Converted: `rc2k_core::menu::text_entry::Entry::begin_player_name`.
     let with_4 = { SCREEN_FLOW.enter_with_4.get() } == 1;
     let at = if with_4 { None } else { Some(name()?) };
-    unsafe {
-        // The copy is written, not read.
-        let (mut text, mut copy) = (at.map_or(Text::default(), |at| field(at)), Text::default());
-        with_entry(|e| e.begin_player_name(with_4, &mut text, &mut copy));
-        if let Some(at) = at {
-            put_field(at, &text);
-            put_field(kept(), &copy);
-        }
+    // The copy is written, not read.
+    let (mut text, mut copy) = (at.map_or(Ok(Text::default()), field)?, Text::default());
+    with_entry(|e| e.begin_player_name(with_4, &mut text, &mut copy));
+    if let Some(at) = at {
+        put_field(at, &text)?;
+        put_field(kept(), &copy)?;
     }
     Ok(())
 }

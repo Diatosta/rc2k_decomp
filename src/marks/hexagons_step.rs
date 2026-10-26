@@ -8,6 +8,7 @@
 //!
 //! Caller: `sub_4BAC87` (0x4BAF7D). The call is `expire_hexagons`' Rust version.
 
+use crate::errors::Refused;
 use crate::marks::expire_hexagons::expire_hexagons;
 use crate::marks::hexagon_state::HEXAGON_STATE;
 use crate::marks::hexagon_vars::HEX;
@@ -15,15 +16,16 @@ use crate::marks::mask_picks::PICKS;
 
 /// The Rust version (see the header).
 // Converted: `rc2k_core::marks::steps::steps`
-pub unsafe fn hexagons_step() {
-    unsafe {
+pub fn hexagons_step() -> Result<(), Refused> {
+    {
         let clock: u32 = HEXAGON_STATE.clock.bits();
         let steps = rc2k_core::marks::steps::steps(PICKS.index.get(), clock);
         PICKS.index.set(clock);
         HEX.steps.set(steps);
-        expire_hexagons();
+        expire_hexagons()?;
         let latest = PICKS.index.get().wrapping_add(HEX.steps.get());
         PICKS.index.set(latest & 0xFF);
         HEXAGON_STATE.clock.set_bits(latest & 0xFF);
     }
+    Ok(())
 }

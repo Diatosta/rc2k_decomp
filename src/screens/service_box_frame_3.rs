@@ -12,7 +12,7 @@ use crate::screens::service_boxes::quad;
 
 /// The Rust version (see the header): the registers it leaves.
 #[allow(unused_assignments, clippy::needless_late_init)] // the translator's flags, one per `cmp`
-pub unsafe fn service_box_frame_3() -> Result<(), Refused> {
+pub fn service_box_frame_3() -> Result<(), Refused> {
     let mut c: (u32, u32);
     c = (MENU_STATE.service_ui.box_shown.get(), 0x1);
     'l492534: {

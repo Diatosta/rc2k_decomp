@@ -32,43 +32,49 @@ const MOST: u32 = 0x100;
 // ---- Rust version ----
 
 // Converted: `rc2k_core::scene::lamps::add_point_lights`
-pub unsafe fn add_point_lights() -> Result<(), Refused> {
+pub fn add_point_lights() -> Result<(), Refused> {
     use rc2k_core::scene::lamps::{self, Lamp};
-    unsafe {
-        let lamps: u32 = RACE_VIEW.lamp_count.bits();
-        if lamps == 0 {
-            return Ok(());
-        }
-        let points: u32 = COURSE.scene_points.bits();
-        if lamps > MOST || points == 0 {
-            return Err(BadInput("more lamps than the list holds, or no points").into());
-        }
-        let mmx = MACHINE.has_mmx.get() != 0;
-        let place: [u32; 3] = crate::session::read_bits(&LIGHT_STATE.lit_place);
-        let list = (0..lamps as usize).map(|n| {
-            // The list holds 16 lamps, the refusal allows `MOST`: read by address.
-            let [point, strength, colour] =
-                ((LEVEL_GRID.lamps[0].addr() + n * 0x10) as *const [u32; 3]).read_unaligned();
-            Lamp {
-                point,
-                strength,
-                colour,
-            }
-        });
-        let at = |point: u32| {
-            (points.wrapping_add(point.wrapping_mul(12)) as *const [u32; 3]).read_unaligned()
-        };
-        let out = lamps::add_point_lights(list, place, at, LIGHT_WORK.light_colour.bits(), mmx);
-        for (to, value) in [
-            (&GROUND_WORK.point_light_strength, out.strength),
-            (&LIGHT_WORK.lamp_tint, out.colour),
-            (&DRAW.scratch, out.distance),
-            (&LIGHT_WORK.light_colour, out.light),
-        ] {
-            if let Some(v) = value {
-                to.set_bits(v);
-            }
-        }
-        Ok(())
+
+    let lamps: u32 = RACE_VIEW.lamp_count.bits();
+    if lamps == 0 {
+        return Ok(());
     }
+    let points: u32 = COURSE.scene_points.bits();
+    if lamps > MOST || points == 0 {
+        return Err(BadInput("more lamps than the list holds, or no points").into());
+    }
+    let mmx = MACHINE.has_mmx.get() != 0;
+    let place: [u32; 3] = crate::session::read_bits(&LIGHT_STATE.lit_place);
+    let reading = crate::scene::reading::Reading::new();
+    let list = (0..lamps as usize).map(|n| {
+        // The list holds 16 lamps, the refusal allows `MOST`: read by address.
+        let [point, strength, colour] = reading.read::<[u32; 3]>(
+            (LEVEL_GRID.lamps[0].addr() + n * 0x10) as u32,
+            "a lamp of the level",
+        );
+        Lamp {
+            point,
+            strength,
+            colour,
+        }
+    });
+    let at = |point: u32| {
+        reading.read::<[u32; 3]>(
+            points.wrapping_add(point.wrapping_mul(12)),
+            "a point of the scene",
+        )
+    };
+    let out = lamps::add_point_lights(list, place, at, LIGHT_WORK.light_colour.bits(), mmx);
+    reading.finish()?;
+    for (to, value) in [
+        (&GROUND_WORK.point_light_strength, out.strength),
+        (&LIGHT_WORK.lamp_tint, out.colour),
+        (&DRAW.scratch, out.distance),
+        (&LIGHT_WORK.light_colour, out.light),
+    ] {
+        if let Some(v) = value {
+            to.set_bits(v);
+        }
+    }
+    Ok(())
 }

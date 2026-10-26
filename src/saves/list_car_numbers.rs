@@ -14,6 +14,7 @@ use crate::errors::BadInput;
 use crate::menu::car_numbers_store::CAR_NUMBERS;
 use crate::menu::lists_store::MENU_LISTS;
 use crate::session::Dword;
+use crate::system::checked_reads::CheckedReads;
 
 // ---- game data ----
 
@@ -27,16 +28,17 @@ const LISTS: [(&[Dword], &[Dword]); 2] = [
 
 // ---- Rust version ----
 
-pub unsafe fn list_car_numbers() -> Result<(), BadInput> {
+pub fn list_car_numbers() -> Result<(), BadInput> {
     // Converted: `rc2k_core::saves::cars::numbers`, both lists worked out before either is
     // written.
-    unsafe {
+    {
         let mut found = Vec::new();
         for (_, pointers) in LISTS {
             let list: Vec<u32> = (0..FILLED).map(|n| pointers[n].get()).collect();
-            found.push(rc2k_core::saves::cars::numbers(&list, |car| {
-                (car as *const u32).read_unaligned()
-            })?);
+            let reads = CheckedReads::new();
+            let answer =
+                rc2k_core::saves::cars::numbers(&list, |car| reads.dword(car, "a car's number"));
+            found.push(reads.finish(answer)??);
         }
         for ((numbers, _), list) in LISTS.into_iter().zip(found) {
             for (n, v) in list.into_iter().enumerate() {

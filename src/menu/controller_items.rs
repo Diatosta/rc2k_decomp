@@ -29,16 +29,16 @@ use crate::input::request_device_setup::request_device_setup;
 use crate::input::store::DEVICES;
 use crate::menu::player_settings::current;
 
-fn f(p: u32, o: u32) -> u32 {
-    unsafe { (p.wrapping_add(o) as *const u32).read_unaligned() }
+fn f(p: u32, o: u32) -> Result<u32, BadInput> {
+    crate::pointers::GamePtr::new(p.wrapping_add(o)).read::<u32>("a player field")
 }
 
-fn w(p: u32, o: u32, v: u32) {
-    unsafe { (p.wrapping_add(o) as *mut u32).write_unaligned(v) }
+fn w(p: u32, o: u32, v: u32) -> Result<(), BadInput> {
+    crate::pointers::GamePtr::new(p.wrapping_add(o)).write::<u32>(v, "a player field")
 }
 
 fn player() -> Result<u32, Refused> {
-    Ok(current()? as u32)
+    current()
 }
 
 fn count() -> u32 {
@@ -57,9 +57,9 @@ fn would_apply(controller: u32) -> Result<bool, Refused> {
 /// `menu::apply_controller`.
 pub unsafe fn apply_controller() -> Result<(), Refused> {
     let p = player()?;
-    let c = f(p, 0x2C);
+    let c = f(p, 0x2C)?;
     if would_apply(c)? {
-        unsafe { request_device_setup(c - 1, f(p, 0x34), f(p, 0x38), 0, 0) }?;
+        unsafe { request_device_setup(c - 1, f(p, 0x34)?, f(p, 0x38)?, 0, 0) }?;
     }
     Ok(())
 }
@@ -72,11 +72,11 @@ pub fn release_controller() {
 /// The release for 0, else the set-up; refused (before anything) as the set-up is.
 unsafe fn choose(p: u32, c: u32) -> Result<(), Refused> {
     let applies = if c == 0 { false } else { would_apply(c)? };
-    w(p, 0x2C, c);
+    w(p, 0x2C, c)?;
     if c == 0 {
         release_controller();
     } else if applies {
-        unsafe { request_device_setup(c - 1, f(p, 0x34), f(p, 0x38), 0, 0) }?;
+        unsafe { request_device_setup(c - 1, f(p, 0x34)?, f(p, 0x38)?, 0, 0) }?;
     }
     Ok(())
 }
@@ -84,7 +84,7 @@ unsafe fn choose(p: u32, c: u32) -> Result<(), Refused> {
 /// `menu::next_controller`.
 pub unsafe fn next_controller() -> Result<(), Refused> {
     let p = player()?;
-    let c = f(p, 0x2C);
+    let c = f(p, 0x2C)?;
     let c = rc2k_core::menu::steps::next_controller(c, count());
     unsafe { choose(p, c) }
 }
@@ -92,18 +92,18 @@ pub unsafe fn next_controller() -> Result<(), Refused> {
 /// `menu::previous_controller`.
 pub unsafe fn previous_controller() -> Result<(), Refused> {
     let p = player()?;
-    let c = f(p, 0x2C);
+    let c = f(p, 0x2C)?;
     let c = rc2k_core::menu::steps::previous_controller(c, count());
     unsafe { choose(p, c) }
 }
 
 /// +0x34 to `value` and the set-up, refused (before anything) as the set-up is.
 unsafe fn set_sensitivity(p: u32, value: u32) -> Result<(), Refused> {
-    let c = f(p, 0x2C);
+    let c = f(p, 0x2C)?;
     let applies = would_apply(c)?;
-    w(p, 0x34, value);
+    w(p, 0x34, value)?;
     if applies {
-        unsafe { request_device_setup(c - 1, value, f(p, 0x38), 0, 0) }?;
+        unsafe { request_device_setup(c - 1, value, f(p, 0x38)?, 0, 0) }?;
     }
     Ok(())
 }
@@ -112,7 +112,7 @@ unsafe fn set_sensitivity(p: u32, value: u32) -> Result<(), Refused> {
 pub unsafe fn lower_controller_sensitivity() -> Result<(), Refused> {
     // Converted: `rc2k_core::menu::steps::lower_sensitivity`.
     let p = player()?;
-    if let Some(s) = rc2k_core::menu::steps::lower_sensitivity(f(p, 0x2C), f(p, 0x34)) {
+    if let Some(s) = rc2k_core::menu::steps::lower_sensitivity(f(p, 0x2C)?, f(p, 0x34)?) {
         unsafe { set_sensitivity(p, s) }?;
     }
     Ok(())
@@ -123,12 +123,12 @@ pub unsafe fn raise_controller_sensitivity(edi: u32) -> Result<(), Refused> {
     if edi < 0x10000 {
         return Err(BadInput("an edi that points nowhere (the original reads +0x2C of it)").into());
     }
-    if f(edi, 0x2C) == 0 {
+    if f(edi, 0x2C)? == 0 {
         return Ok(());
     }
     // Converted: `rc2k_core::menu::steps::raise_sensitivity`.
     let p = player()?;
-    if let Some(s) = rc2k_core::menu::steps::raise_sensitivity(f(p, 0x34)) {
+    if let Some(s) = rc2k_core::menu::steps::raise_sensitivity(f(p, 0x34)?) {
         unsafe { set_sensitivity(p, s) }?;
     }
     Ok(())
@@ -137,10 +137,10 @@ pub unsafe fn raise_controller_sensitivity(edi: u32) -> Result<(), Refused> {
 /// A dead zone (`offset` 0x40 or 0x44) one more if the two leave more than 10.
 pub fn raise_dead_zone(offset: u32) -> Result<(), Refused> {
     let p = player()?;
-    let value = f(p, offset);
-    let (_, grows) = rc2k_core::menu::steps::dead_zone_room(f(p, 0x40), f(p, 0x44));
+    let value = f(p, offset)?;
+    let (_, grows) = rc2k_core::menu::steps::dead_zone_room(f(p, 0x40)?, f(p, 0x44)?);
     if grows {
-        w(p, offset, value.wrapping_add(1));
+        w(p, offset, value.wrapping_add(1))?;
     }
     Ok(())
 }

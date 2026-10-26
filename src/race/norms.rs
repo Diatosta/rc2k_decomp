@@ -2,9 +2,11 @@
 //! (faces of 0x40 bytes, points of 12), and each face's two normals (of its first three
 //! points and of its last three) stored in it.
 
+use crate::errors::BadInput;
 use crate::errors::Refused;
 use crate::math::x87;
 use crate::physics::ground_store::GROUND_WORK;
+use crate::pointers::GamePtr;
 use crate::race::course_lists_store::COURSE_LISTS;
 use crate::race::course_store::COURSE;
 use crate::race::numbers_store::NUMBERS;
@@ -20,10 +22,9 @@ pub unsafe fn normalise_work_vector() {
         let v = FRAME_SCRATCH.work_vector[0].addr() as *mut u32;
         let (length, zero) = x87::normalise_in_place(v, NUMBERS.zero.bits());
         DRAW.scratch.set_bits(length);
-        for n in 0..3 {
-            let part = v.add(n);
-            if zero || part.read_unaligned() == 0x8000_0000 {
-                part.write_unaligned(0);
+        for part in &FRAME_SCRATCH.work_vector[..3] {
+            if zero || part.bits() == 0x8000_0000 {
+                part.set_bits(0u32);
             }
         }
     }
@@ -33,13 +34,13 @@ pub unsafe fn normalise_work_vector() {
 /// `g_scenePoints` kept, the differences b - a and c - a (whole numbers), their cross
 /// product into `g_workVector` (each part as `math::x87::int_product_difference`),
 /// normalised. Its caller (`store_face_normal`) keeps every register round it.
-pub unsafe fn face_normal(a: u32, b: u32, c: u32) {
-    unsafe {
+pub fn face_normal(a: u32, b: u32, c: u32) -> Result<(), BadInput> {
+    {
         let points: u32 = COURSE.scene_points.bits();
-        let point = |n: u32| -> [i32; 3] {
-            ((points.wrapping_add(n.wrapping_mul(12))) as *const [i32; 3]).read_unaligned()
+        let point = |n: u32| -> Result<[i32; 3], BadInput> {
+            GamePtr::new(points.wrapping_add(n.wrapping_mul(12))).read("a scene point")
         };
-        let (a, b, c) = (point(a), point(b), point(c));
+        let (a, b, c) = (point(a)?, point(b)?, point(c)?);
         let d = [
             b[0].wrapping_sub(a[0]),
             c[0].wrapping_sub(a[0]),
@@ -61,8 +62,9 @@ pub unsafe fn face_normal(a: u32, b: u32, c: u32) {
             x87::int_product_difference(d[3], d[0], d[1], d[2]),
         ];
         crate::session::write_first(&FRAME_SCRATCH.work_vector, &normal);
-        normalise_work_vector();
+        unsafe { normalise_work_vector() };
     }
+    Ok(())
 }
 
 /// `race::store_face_normal` (0x421F72): face ebx. Nothing for a face whose first byte is
@@ -71,8 +73,11 @@ pub unsafe fn face_normal(a: u32, b: u32, c: u32) {
 /// otherwise; then, when all three are below `g_scenePointCount`, the normal of +4, +8,
 /// +0xC (else `g_workVector` as it was) into +0x18, +0x30, +0x38, and of +0x10, +0xC, +8
 /// into +0x1C, +0x34, +0x3C. Every register preserved (`face` gives the callee).
-pub unsafe fn store_face_normal(face_number: u32, normal: &mut dyn FnMut(u32, u32, u32)) {
-    unsafe {
+pub fn store_face_normal(
+    face_number: u32,
+    normal: &mut dyn FnMut(u32, u32, u32) -> Result<(), BadInput>,
+) -> Result<(), BadInput> {
+    {
         // Converted: `rc2k_core::race::faces::{takes_normals, repeated_points,
         // with_repeated, normal_made}`.
         use rc2k_core::race::faces::{
@@ -80,36 +85,40 @@ pub unsafe fn store_face_normal(face_number: u32, normal: &mut dyn FnMut(u32, u3
         };
         let faces: u32 = COURSE.course_faces.bits();
         let face = faces.wrapping_add(face_number << 6);
-        let dword = |o: u32| ((face + o) as *const u32).read_unaligned();
-        if !takes_normals(*(face as *const u8)) {
-            return;
+        let dword = |o: u32| GamePtr::new(face + o).read::<u32>("a course face word");
+        if !takes_normals(GamePtr::new(face).read::<u8>("a course face kind")?) {
+            return Ok(());
         }
-        let corners = [4, 8, 0xC, 0x10].map(dword);
+        let corners = [dword(4)?, dword(8)?, dword(0xC)?, dword(0x10)?];
         let repeated = repeated_points(
             corners,
             || RACE_VIEW.corners[3].bits() != u32::MAX, /* dword_63D9F8: -1 for faces of three points */
         );
-        let flags = (face + 2) as *mut u16;
-        flags.write_unaligned(with_repeated(flags.read_unaligned(), repeated));
+        let flags = GamePtr::new(face + 2);
+        flags.write(
+            with_repeated(flags.read("a course face switches")?, repeated),
+            "a course face switches",
+        )?;
         let count: u32 = COURSE.scene_point_count.bits();
         for (points, places) in NORMAL_TRIANGLES {
             let [a, b, c] = points.map(|k| corners[k]);
             if normal_made([a, b, c], count) {
-                normal(a, b, c);
+                normal(a, b, c)?;
             }
             let work: [u32; 3] = crate::session::read_first(&FRAME_SCRATCH.work_vector);
             for (place, value) in places.into_iter().zip(work) {
-                ((face + place) as *mut u32).write_unaligned(value);
+                GamePtr::new(face + place).write(value, "a course face normal")?;
             }
         }
     }
+    Ok(())
 }
 
 /// `race::lay_out_course` (0x421BE3): from `g_courseMemory` + 0x100, `dword_5CCD18`
 /// records of 0x20, the faces (`dword_5CCCBC`, `dword_5CCD1C` of 0x40), the points
 /// (`g_scenePoints`, `g_scenePointCount` of 12), and what follows (`dword_5CCCC4`, and its
 /// offset in `dword_5CCCC8`); the first at `dword_5CCCB8`. Every register preserved.
-pub unsafe fn lay_out_course() {
+pub fn lay_out_course() {
     {
         // Converted: `rc2k_core::race::faces::CourseLayout`.
         let layout = rc2k_core::race::faces::CourseLayout::of(
@@ -130,20 +139,22 @@ pub unsafe fn lay_out_course() {
 
 /// `race::store_norms` (0x421F02): `lay_out_course`, then `store_face_normal` for every
 /// face. Refuses no faces (the original counts round) or 0x100000 or more.
-pub unsafe fn store_norms(normal: &mut dyn FnMut(u32, u32, u32)) -> Result<(), Refused> {
-    unsafe {
+pub fn store_norms(
+    normal: &mut dyn FnMut(u32, u32, u32) -> Result<(), BadInput>,
+) -> Result<(), Refused> {
+    {
         // Converted: `rc2k_core::race::faces::check_face_count`.
         let count: u32 = COURSE.course_face_count.bits();
         rc2k_core::race::faces::check_face_count(count)?;
         lay_out_course();
         for face in 0..count {
-            store_face_normal(face, normal);
+            store_face_normal(face, normal)?;
         }
     }
     Ok(())
 }
 
 /// In the game: `face_normal` in Rust.
-pub fn game_normal(a: u32, b: u32, c: u32) {
-    unsafe { face_normal(a, b, c) };
+pub fn game_normal(a: u32, b: u32, c: u32) -> Result<(), BadInput> {
+    face_normal(a, b, c)
 }

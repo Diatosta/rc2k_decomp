@@ -36,7 +36,7 @@ pub fn shown_layout() -> u32 {
 
 /// The Rust version (see the header). What the original leaves in the registers is read
 /// by none of its callers (register liveness, 2026-10-23).
-pub unsafe fn overlay_pass() -> Result<(), Refused> {
+pub fn overlay_pass() -> Result<(), Refused> {
     use crate::scene::depth_buffer_on::depth_buffer;
     unsafe {
         PANEL.players.set(shown_layout());

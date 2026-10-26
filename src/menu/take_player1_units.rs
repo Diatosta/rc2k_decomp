@@ -15,6 +15,10 @@ pub fn take_player1_units() -> Result<(), Refused> {
         return Err(BadInput("no player 1 in g_players").into());
     }
     // g_isImperialUnits
-    crate::strings::units::set_units(unsafe { (*(p as *const Player)).metric_units });
+    crate::strings::units::set_units(
+        crate::pointers::GamePtr::new(p)
+            .read::<Player>("player 1")?
+            .metric_units,
+    );
     Ok(())
 }

@@ -26,69 +26,70 @@ use crate::marks::tilt_shape::SHAPE_TILT;
 use crate::marks::tuning::MARKS_KIND_FLOATS;
 use crate::marks::work_store::MARKS_WORK;
 use crate::math::x87;
+use crate::pointers::GamePtr;
 /// `unk_628A44`, past the 0x40 records of 0xC0 bytes.
 const BUFFER_BYTES: usize = 0x3000;
 const KINDS: u32 = 8;
 
-unsafe fn get(a: u32) -> u32 {
-    unsafe { (a as *const u32).read_unaligned() }
+fn get(a: u32) -> Result<u32, BadInput> {
+    GamePtr::new(a).read("a game field")
 }
 
-unsafe fn put(a: u32, v: u32) {
-    unsafe { (a as *mut u32).write_unaligned(v) }
+fn put(a: u32, v: u32) -> Result<(), BadInput> {
+    GamePtr::new(a).write(v, "a game field")
 }
 
 /// The original's 0x4BC107 .. 0x4BC12E: the drift at the item's cell (`g_marksHexagonCurve`[k]) into `flt_814772`, `flt_814776`.
-unsafe fn drift_cell(k: u32) {
+fn drift_cell(k: u32) {
     drift_cell_x87(k as usize)
 }
 
 /// The original's 0x4BC131 .. 0x4BC17B: the item's motion (+0x1C, +0x20) eased toward the drift times its kind's `flt_814BC2`[k] by `flt_81622A`, its place moved by it.
-unsafe fn drift_move(k: u32, s: u32) {
-    unsafe {
-        drift_move_x87(
-            crate::marks::hexagon_vars::HexagonVars::base(),
-            k as usize,
-            s as usize,
-        )
-    }
+fn drift_move(k: u32, s: u32) {
+    drift_move_x87(
+        crate::marks::hexagon_vars::HexagonVars::base(),
+        k as usize,
+        s as usize,
+    )
 }
 
 /// The original's 0x4BC1DD .. 0x4BC1EF and 0x4BB94D .. 0x4BB9BE: the cell place scaled and turned into `flt_814CAA` .., the depth also in `flt_814734`.
-unsafe fn sprite_depth() {
-    unsafe { sprite_depth_x87(crate::marks::hexagon_vars::HexagonVars::base()) }
+fn sprite_depth() {
+    sprite_depth_x87(crate::marks::hexagon_vars::HexagonVars::base())
 }
 
 /// The original's 0x4BB9CE .. 0x4BBB1E: the six corners (the kind's offsets at `flt_814CFE`[c] ..) into `flt_814CB6` .., the depth's inverse (left on the x87 stack, so returned).
-unsafe fn sprite_corners(c: u32) -> bh::X {
-    unsafe { sprite_corners_x87(crate::race::store::asm_base() as usize, c as usize) }
+fn sprite_corners(c: u32) -> bh::X {
+    sprite_corners_x87(crate::race::store::asm_base() as usize, c as usize)
 }
 
 /// The original's 0x4BBB24 .. 0x4BBE28: the centre and corners projected into the buffer at e (six vertices), drawn in by `flt_81619A` / `E`, their depth.
-unsafe fn sprite_project(e: u32, inverse_depth: bh::X) {
-    unsafe {
-        sprite_project_x87(
-            crate::race::store::asm_base() as usize,
-            crate::marks::hexagon_vars::HexagonVars::base(),
-            e as usize,
-            inverse_depth,
-        )
-    }
+fn sprite_project(e: u32, inverse_depth: bh::X) {
+    sprite_project_x87(
+        crate::race::store::asm_base() as usize,
+        crate::marks::hexagon_vars::HexagonVars::base(),
+        e as usize,
+        inverse_depth,
+    )
 }
 
 /// Why it refuses, if it does.
-unsafe fn refusal() -> Option<&'static str> {
-    unsafe {
+fn refusal() -> Result<Option<&'static str>, Refused> {
+    Ok({
         if crate::marks::setup::SETTINGS.pointer.get() == 0 {
-            return Some("no marks settings");
+            return Ok(Some("no marks settings"));
         }
         let base = HEX.items.addr() as u32;
-        let bad = (0..ITEMS).any(|n| {
+        let mut bad = false;
+        for n in 0..ITEMS {
             let e = base + n * ITEM_LEN;
-            get(e) == 1 && get(e + 4) >= KINDS
-        });
+            if get(e)? == 1 && get(e + 4)? >= KINDS {
+                bad = true;
+                break;
+            }
+        }
         bad.then_some("a live hexagon of a kind past 7")
-    }
+    })
 }
 
 /// The batch's draw (`d3d::draw_marks_hexagons`; its result unread).
@@ -98,11 +99,11 @@ pub fn draw_batch() -> Result<(), Refused> {
 }
 
 /// The Rust version (see the header).
-pub unsafe fn hexagons_frame() -> Result<(), Refused> {
-    if let Some(why) = unsafe { refusal() } {
+pub fn hexagons_frame() -> Result<(), Refused> {
+    if let Some(why) = refusal()? {
         return Err(BadInput(why).into());
     }
-    unsafe {
+    {
         if MARKS_KIND_FLOATS.running.bits() != 0 {
             crate::marks::hexagons_drift::hexagons_drift()?;
         }
@@ -111,30 +112,30 @@ pub unsafe fn hexagons_frame() -> Result<(), Refused> {
         let base = HEX.items.addr() as u32;
         for n in 0..ITEMS {
             let e = base + n * ITEM_LEN;
-            if get(e) != 1 {
+            if get(e)? != 1 {
                 continue;
             }
             HEXAGON_STATE
                 .live
                 .set(HEXAGON_STATE.live.get().wrapping_add(1));
             if MARKS_KIND_FLOATS.running.bits() != 0 {
-                let x = x87::to_int(get(e + 0x14));
+                let x = x87::to_int(get(e + 0x14)?);
                 MARKS_WORK.scratch.set(x as u32);
                 drift_cell(4 * (((x as u32) >> 3) & 0xFF));
-                drift_move(4 * get(e + 4), e);
+                drift_move(4 * get(e + 4)?, e);
             }
-            let x = x87::to_int(get(e + 0x14));
-            let z = x87::to_int(get(e + 0x18));
+            let x = x87::to_int(get(e + 0x14)?);
+            let z = x87::to_int(get(e + 0x18)?);
             HEXAGON_WORK.whole[0].set(x as u32);
             HEXAGON_WORK.whole[1].set(z as u32);
             if (x as u32 | (z as u32).wrapping_add(z as u32)) & 0x800 != 0 {
-                put(e, 0);
+                put(e, 0)?;
                 continue;
             }
-            let shape = get(e + 4);
+            let shape = get(e + 4)?;
             let cell = ((((z as u32) >> 3) & 0x7F) << 8) + (((x as u32) >> 3) & 0xFF);
             if EDGE_MASK.mask.get(cell as usize) != 0 {
-                put(e, 0);
+                put(e, 0)?;
                 continue;
             }
             sprite_depth();
@@ -154,8 +155,8 @@ pub unsafe fn hexagons_frame() -> Result<(), Refused> {
         }
         let settings: u32 = crate::marks::setup::SETTINGS.pointer.get();
         let live: u32 = HEXAGON_STATE.live.bits();
-        if (live as i32) < get(settings + 0x273C) as i32 && MARKS_KIND_FLOATS.running.bits() != 0 {
-            crate::marks::hexagons_spawn::hexagons_spawn();
+        if (live as i32) < get(settings + 0x273C)? as i32 && MARKS_KIND_FLOATS.running.bits() != 0 {
+            crate::marks::hexagons_spawn::hexagons_spawn()?;
         }
     }
     Ok(())
@@ -178,281 +179,273 @@ fn drift_cell_x87(k: usize) {
 }
 
 /// `drift_move`'s x87 block as plain Rust on the x87 model (18 instructions), same order and memory places.
-unsafe fn drift_move_x87(hx: usize, k: usize, s: usize) {
-    unsafe {
-        let t0 = bh::ld(HEXAGON_WORK.drift[0].bits());
-        let t1 = t0 * bh::ld(HEXAGON_WORK.radii[k / 4].bits());
-        let t2 = t1 - ld(s, 0x1C);
-        let t3 = t2 * ld(hx, 0xB12EA);
-        let t4 = t3 + ld(s, 0x1C);
-        st(s, 0x1C, t4);
-        let t5 = bh::ld(HEXAGON_WORK.drift[1].bits());
-        let t6 = t5 * bh::ld(HEXAGON_WORK.radii[k / 4].bits());
-        let t7 = t6 - ld(s, 0x20);
-        let t8 = t7 * ld(hx, 0xB12EA);
-        let t9 = t8 + ld(s, 0x20);
-        st(s, 0x20, t9);
-        let t10 = ld(s, 0x14);
-        let t11 = t10 + ld(s, 0x1C);
-        let t12 = ld(s, 0x18);
-        let t13 = t12 + ld(s, 0x20);
-        st(s, 0x18, t13);
-        st(s, 0x14, t11);
-    }
+fn drift_move_x87(hx: usize, k: usize, s: usize) {
+    let t0 = bh::ld(HEXAGON_WORK.drift[0].bits());
+    let t1 = t0 * bh::ld(HEXAGON_WORK.radii[k / 4].bits());
+    let t2 = t1 - ld(s, 0x1C);
+    let t3 = t2 * ld(hx, 0xB12EA);
+    let t4 = t3 + ld(s, 0x1C);
+    st(s, 0x1C, t4);
+    let t5 = bh::ld(HEXAGON_WORK.drift[1].bits());
+    let t6 = t5 * bh::ld(HEXAGON_WORK.radii[k / 4].bits());
+    let t7 = t6 - ld(s, 0x20);
+    let t8 = t7 * ld(hx, 0xB12EA);
+    let t9 = t8 + ld(s, 0x20);
+    st(s, 0x20, t9);
+    let t10 = ld(s, 0x14);
+    let t11 = t10 + ld(s, 0x1C);
+    let t12 = ld(s, 0x18);
+    let t13 = t12 + ld(s, 0x20);
+    st(s, 0x18, t13);
+    st(s, 0x14, t11);
 }
 
 /// `sprite_depth`'s x87 block as plain Rust on the x87 model (28 instructions), same order and memory places.
-unsafe fn sprite_depth_x87(hx: usize) {
-    unsafe {
-        let t0 = bh::int(HEXAGON_WORK.whole[0].bits() as i32);
-        let t1 = ld(hx, 0xC9366);
-        let t2 = t1 - bh::int(HEXAGON_WORK.whole[1].bits() as i32);
-        let t3 = t2 * bh::ld(HEXAGON_WORK.shares[1].bits());
-        let t4 = t0 * bh::ld(HEXAGON_WORK.shares[0].bits());
-        let t5 = t4 * bh::ld(HEXAGON_WORK.axes[0].bits());
-        let t6 = t3 * bh::ld(HEXAGON_WORK.axes[3].bits());
-        let t7 = t5 + t6;
-        let t8 = t7 + bh::ld(HEXAGON_WORK.place[0].bits());
-        HEXAGON_WORK.cell[0].set_bits(bh::st(t8));
-        let t9 = t4 * bh::ld(HEXAGON_WORK.axes[1].bits());
-        let t10 = t3 * bh::ld(HEXAGON_WORK.axes[4].bits());
-        let t11 = t9 + t10;
-        let t12 = t11 + bh::ld(HEXAGON_WORK.place[1].bits());
-        HEXAGON_WORK.cell[1].set_bits(bh::st(t12));
-        let t13 = t3 * bh::ld(HEXAGON_WORK.axes[5].bits());
-        let t14 = t4 * bh::ld(HEXAGON_WORK.axes[2].bits());
-        let t15 = t13 + t14;
-        let t16 = t15 + bh::ld(HEXAGON_WORK.place[2].bits());
-        HEXAGON_STATE.depth.set_bits(bh::st(t16));
-        HEXAGON_WORK.cell[2].set_bits(bh::st(t16));
-    }
+fn sprite_depth_x87(hx: usize) {
+    let t0 = bh::int(HEXAGON_WORK.whole[0].bits() as i32);
+    let t1 = ld(hx, 0xC9366);
+    let t2 = t1 - bh::int(HEXAGON_WORK.whole[1].bits() as i32);
+    let t3 = t2 * bh::ld(HEXAGON_WORK.shares[1].bits());
+    let t4 = t0 * bh::ld(HEXAGON_WORK.shares[0].bits());
+    let t5 = t4 * bh::ld(HEXAGON_WORK.axes[0].bits());
+    let t6 = t3 * bh::ld(HEXAGON_WORK.axes[3].bits());
+    let t7 = t5 + t6;
+    let t8 = t7 + bh::ld(HEXAGON_WORK.place[0].bits());
+    HEXAGON_WORK.cell[0].set_bits(bh::st(t8));
+    let t9 = t4 * bh::ld(HEXAGON_WORK.axes[1].bits());
+    let t10 = t3 * bh::ld(HEXAGON_WORK.axes[4].bits());
+    let t11 = t9 + t10;
+    let t12 = t11 + bh::ld(HEXAGON_WORK.place[1].bits());
+    HEXAGON_WORK.cell[1].set_bits(bh::st(t12));
+    let t13 = t3 * bh::ld(HEXAGON_WORK.axes[5].bits());
+    let t14 = t4 * bh::ld(HEXAGON_WORK.axes[2].bits());
+    let t15 = t13 + t14;
+    let t16 = t15 + bh::ld(HEXAGON_WORK.place[2].bits());
+    HEXAGON_STATE.depth.set_bits(bh::st(t16));
+    HEXAGON_WORK.cell[2].set_bits(bh::st(t16));
 }
 
 /// `sprite_corners`'s x87 block as plain Rust on the x87 model (56 instructions), same order and memory places.
-unsafe fn sprite_corners_x87(rc: usize, c: usize) -> bh::X {
-    unsafe {
-        let t0 = bh::ld(HEXAGON_WORK.cell[2].bits());
-        let t1 = ld(rc, 0x224088) / t0;
-        let t2 = bh::ld(HEXAGON_WORK.cell[0].bits());
-        let t3 = t2 + bh::ld(HEXAGON_WORK.scaled[c / 4].bits());
-        HEXAGON_WORK.corners[0].set_bits(bh::st(t3));
-        let t4 = bh::ld(HEXAGON_WORK.cell[0].bits());
-        let t5 = t4 + bh::ld(HEXAGON_WORK.scaled[c / 4 + 3].bits());
-        HEXAGON_WORK.corners[3].set_bits(bh::st(t5));
-        let t6 = bh::ld(HEXAGON_WORK.cell[0].bits());
-        let t7 = t6 + bh::ld(HEXAGON_WORK.scaled[c / 4 + 6].bits());
-        HEXAGON_WORK.corners[6].set_bits(bh::st(t7));
-        let t8 = bh::ld(HEXAGON_WORK.cell[0].bits());
-        let t9 = t8 + bh::ld(HEXAGON_WORK.scaled[c / 4 + 9].bits());
-        HEXAGON_WORK.corners[9].set_bits(bh::st(t9));
-        let t10 = bh::ld(HEXAGON_WORK.cell[0].bits());
-        let t11 = t10 + bh::ld(HEXAGON_WORK.scaled[c / 4 + 12].bits());
-        HEXAGON_WORK.corners[12].set_bits(bh::st(t11));
-        let t12 = bh::ld(HEXAGON_WORK.cell[0].bits());
-        let t13 = t12 + bh::ld(HEXAGON_WORK.scaled[c / 4 + 15].bits());
-        HEXAGON_WORK.corners[15].set_bits(bh::st(t13));
-        let t14 = bh::ld(HEXAGON_WORK.cell[1].bits());
-        let t15 = t14 + bh::ld(HEXAGON_WORK.scaled[c / 4 + 1].bits());
-        HEXAGON_WORK.corners[1].set_bits(bh::st(t15));
-        let t16 = bh::ld(HEXAGON_WORK.cell[1].bits());
-        let t17 = t16 + bh::ld(HEXAGON_WORK.scaled[c / 4 + 4].bits());
-        HEXAGON_WORK.corners[4].set_bits(bh::st(t17));
-        let t18 = bh::ld(HEXAGON_WORK.cell[1].bits());
-        let t19 = t18 + bh::ld(HEXAGON_WORK.scaled[c / 4 + 7].bits());
-        HEXAGON_WORK.corners[7].set_bits(bh::st(t19));
-        let t20 = bh::ld(HEXAGON_WORK.cell[1].bits());
-        let t21 = t20 + bh::ld(HEXAGON_WORK.scaled[c / 4 + 10].bits());
-        HEXAGON_WORK.corners[10].set_bits(bh::st(t21));
-        let t22 = bh::ld(HEXAGON_WORK.cell[1].bits());
-        let t23 = t22 + bh::ld(HEXAGON_WORK.scaled[c / 4 + 13].bits());
-        HEXAGON_WORK.corners[13].set_bits(bh::st(t23));
-        let t24 = bh::ld(HEXAGON_WORK.cell[1].bits());
-        let t25 = t24 + bh::ld(HEXAGON_WORK.scaled[c / 4 + 16].bits());
-        HEXAGON_WORK.corners[16].set_bits(bh::st(t25));
-        let t26 = bh::ld(HEXAGON_WORK.cell[2].bits());
-        let t27 = t26 + bh::ld(HEXAGON_WORK.scaled[c / 4 + 2].bits());
-        HEXAGON_WORK.corners[2].set_bits(bh::st(t27));
-        let t28 = bh::ld(HEXAGON_WORK.cell[2].bits());
-        let t29 = t28 + bh::ld(HEXAGON_WORK.scaled[c / 4 + 5].bits());
-        HEXAGON_WORK.corners[5].set_bits(bh::st(t29));
-        let t30 = bh::ld(HEXAGON_WORK.cell[2].bits());
-        let t31 = t30 + bh::ld(HEXAGON_WORK.scaled[c / 4 + 8].bits());
-        HEXAGON_WORK.corners[8].set_bits(bh::st(t31));
-        let t32 = bh::ld(HEXAGON_WORK.cell[2].bits());
-        let t33 = t32 + bh::ld(HEXAGON_WORK.scaled[c / 4 + 11].bits());
-        HEXAGON_WORK.corners[11].set_bits(bh::st(t33));
-        let t34 = bh::ld(HEXAGON_WORK.cell[2].bits());
-        let t35 = t34 + bh::ld(HEXAGON_WORK.scaled[c / 4 + 14].bits());
-        HEXAGON_WORK.corners[14].set_bits(bh::st(t35));
-        let t36 = bh::ld(HEXAGON_WORK.cell[2].bits());
-        let t37 = t36 + bh::ld(HEXAGON_WORK.scaled[c / 4 + 17].bits());
-        HEXAGON_WORK.corners[17].set_bits(bh::st(t37));
-        t1
-    }
+fn sprite_corners_x87(rc: usize, c: usize) -> bh::X {
+    let t0 = bh::ld(HEXAGON_WORK.cell[2].bits());
+    let t1 = ld(rc, 0x224088) / t0;
+    let t2 = bh::ld(HEXAGON_WORK.cell[0].bits());
+    let t3 = t2 + bh::ld(HEXAGON_WORK.scaled[c / 4].bits());
+    HEXAGON_WORK.corners[0].set_bits(bh::st(t3));
+    let t4 = bh::ld(HEXAGON_WORK.cell[0].bits());
+    let t5 = t4 + bh::ld(HEXAGON_WORK.scaled[c / 4 + 3].bits());
+    HEXAGON_WORK.corners[3].set_bits(bh::st(t5));
+    let t6 = bh::ld(HEXAGON_WORK.cell[0].bits());
+    let t7 = t6 + bh::ld(HEXAGON_WORK.scaled[c / 4 + 6].bits());
+    HEXAGON_WORK.corners[6].set_bits(bh::st(t7));
+    let t8 = bh::ld(HEXAGON_WORK.cell[0].bits());
+    let t9 = t8 + bh::ld(HEXAGON_WORK.scaled[c / 4 + 9].bits());
+    HEXAGON_WORK.corners[9].set_bits(bh::st(t9));
+    let t10 = bh::ld(HEXAGON_WORK.cell[0].bits());
+    let t11 = t10 + bh::ld(HEXAGON_WORK.scaled[c / 4 + 12].bits());
+    HEXAGON_WORK.corners[12].set_bits(bh::st(t11));
+    let t12 = bh::ld(HEXAGON_WORK.cell[0].bits());
+    let t13 = t12 + bh::ld(HEXAGON_WORK.scaled[c / 4 + 15].bits());
+    HEXAGON_WORK.corners[15].set_bits(bh::st(t13));
+    let t14 = bh::ld(HEXAGON_WORK.cell[1].bits());
+    let t15 = t14 + bh::ld(HEXAGON_WORK.scaled[c / 4 + 1].bits());
+    HEXAGON_WORK.corners[1].set_bits(bh::st(t15));
+    let t16 = bh::ld(HEXAGON_WORK.cell[1].bits());
+    let t17 = t16 + bh::ld(HEXAGON_WORK.scaled[c / 4 + 4].bits());
+    HEXAGON_WORK.corners[4].set_bits(bh::st(t17));
+    let t18 = bh::ld(HEXAGON_WORK.cell[1].bits());
+    let t19 = t18 + bh::ld(HEXAGON_WORK.scaled[c / 4 + 7].bits());
+    HEXAGON_WORK.corners[7].set_bits(bh::st(t19));
+    let t20 = bh::ld(HEXAGON_WORK.cell[1].bits());
+    let t21 = t20 + bh::ld(HEXAGON_WORK.scaled[c / 4 + 10].bits());
+    HEXAGON_WORK.corners[10].set_bits(bh::st(t21));
+    let t22 = bh::ld(HEXAGON_WORK.cell[1].bits());
+    let t23 = t22 + bh::ld(HEXAGON_WORK.scaled[c / 4 + 13].bits());
+    HEXAGON_WORK.corners[13].set_bits(bh::st(t23));
+    let t24 = bh::ld(HEXAGON_WORK.cell[1].bits());
+    let t25 = t24 + bh::ld(HEXAGON_WORK.scaled[c / 4 + 16].bits());
+    HEXAGON_WORK.corners[16].set_bits(bh::st(t25));
+    let t26 = bh::ld(HEXAGON_WORK.cell[2].bits());
+    let t27 = t26 + bh::ld(HEXAGON_WORK.scaled[c / 4 + 2].bits());
+    HEXAGON_WORK.corners[2].set_bits(bh::st(t27));
+    let t28 = bh::ld(HEXAGON_WORK.cell[2].bits());
+    let t29 = t28 + bh::ld(HEXAGON_WORK.scaled[c / 4 + 5].bits());
+    HEXAGON_WORK.corners[5].set_bits(bh::st(t29));
+    let t30 = bh::ld(HEXAGON_WORK.cell[2].bits());
+    let t31 = t30 + bh::ld(HEXAGON_WORK.scaled[c / 4 + 8].bits());
+    HEXAGON_WORK.corners[8].set_bits(bh::st(t31));
+    let t32 = bh::ld(HEXAGON_WORK.cell[2].bits());
+    let t33 = t32 + bh::ld(HEXAGON_WORK.scaled[c / 4 + 11].bits());
+    HEXAGON_WORK.corners[11].set_bits(bh::st(t33));
+    let t34 = bh::ld(HEXAGON_WORK.cell[2].bits());
+    let t35 = t34 + bh::ld(HEXAGON_WORK.scaled[c / 4 + 14].bits());
+    HEXAGON_WORK.corners[14].set_bits(bh::st(t35));
+    let t36 = bh::ld(HEXAGON_WORK.cell[2].bits());
+    let t37 = t36 + bh::ld(HEXAGON_WORK.scaled[c / 4 + 17].bits());
+    HEXAGON_WORK.corners[17].set_bits(bh::st(t37));
+    t1
 }
 
 /// `sprite_project`'s x87 block as plain Rust on the x87 model (152 instructions), same order and memory places.
-unsafe fn sprite_project_x87(rc: usize, hx: usize, e: usize, pre0: bh::X) {
-    unsafe {
-        HEXAGON_WORK.cell[2].set_bits(bh::st(pre0));
-        let t0 = bh::ld(HEXAGON_WORK.cell[1].bits());
-        let t1 = t0 * bh::ld(HEXAGON_WORK.cell[2].bits());
-        let t2 = -t1;
-        let t3 = bh::ld(HEXAGON_WORK.cell[0].bits());
-        let t4 = t3 * bh::ld(HEXAGON_WORK.cell[2].bits());
-        let t5 = t4 + ld(rc, 0x22409C);
-        HEXAGON_WORK.cell[0].set_bits(bh::st(t5));
-        let t6 = t2 + ld(rc, 0x2240A0);
-        HEXAGON_WORK.cell[1].set_bits(bh::st(t6));
-        let t7 = bh::ld(HEXAGON_WORK.corners[0].bits());
-        let t8 = t7 * bh::ld(HEXAGON_WORK.cell[2].bits());
-        let t9 = bh::ld(HEXAGON_WORK.corners[1].bits());
-        let t10 = t9 * bh::ld(HEXAGON_WORK.cell[2].bits());
-        let t11 = -t10;
-        let t12 = t11 + ld(rc, 0x2240A0);
-        st(e, 0x1C, t12);
-        st(e, 0x4, t12);
-        let t13 = t8 + ld(rc, 0x22409C);
-        st(e, 0x18, t13);
-        st(e, 0, t13);
-        let t14 = bh::ld(HEXAGON_WORK.corners[3].bits());
-        let t15 = t14 * bh::ld(HEXAGON_WORK.cell[2].bits());
-        let t16 = bh::ld(HEXAGON_WORK.corners[4].bits());
-        let t17 = t16 * bh::ld(HEXAGON_WORK.cell[2].bits());
-        let t18 = -t17;
-        let t19 = t18 + ld(rc, 0x2240A0);
-        st(e, 0x3C, t19);
-        st(e, 0x24, t19);
-        let t20 = t15 + ld(rc, 0x22409C);
-        st(e, 0x38, t20);
-        st(e, 0x20, t20);
-        let t21 = bh::ld(HEXAGON_WORK.corners[6].bits());
-        let t22 = t21 * bh::ld(HEXAGON_WORK.cell[2].bits());
-        let t23 = bh::ld(HEXAGON_WORK.corners[7].bits());
-        let t24 = t23 * bh::ld(HEXAGON_WORK.cell[2].bits());
-        let t25 = -t24;
-        let t26 = t25 + ld(rc, 0x2240A0);
-        st(e, 0x5C, t26);
-        st(e, 0x44, t26);
-        let t27 = t22 + ld(rc, 0x22409C);
-        st(e, 0x58, t27);
-        st(e, 0x40, t27);
-        let t28 = bh::ld(HEXAGON_WORK.corners[9].bits());
-        let t29 = t28 * bh::ld(HEXAGON_WORK.cell[2].bits());
-        let t30 = bh::ld(HEXAGON_WORK.corners[10].bits());
-        let t31 = t30 * bh::ld(HEXAGON_WORK.cell[2].bits());
-        let t32 = -t31;
-        let t33 = t32 + ld(rc, 0x2240A0);
-        st(e, 0x7C, t33);
-        st(e, 0x64, t33);
-        let t34 = t29 + ld(rc, 0x22409C);
-        st(e, 0x78, t34);
-        st(e, 0x60, t34);
-        let t35 = bh::ld(HEXAGON_WORK.corners[12].bits());
-        let t36 = t35 * bh::ld(HEXAGON_WORK.cell[2].bits());
-        let t37 = bh::ld(HEXAGON_WORK.corners[13].bits());
-        let t38 = t37 * bh::ld(HEXAGON_WORK.cell[2].bits());
-        let t39 = -t38;
-        let t40 = t39 + ld(rc, 0x2240A0);
-        st(e, 0x9C, t40);
-        st(e, 0x84, t40);
-        let t41 = t36 + ld(rc, 0x22409C);
-        st(e, 0x98, t41);
-        st(e, 0x80, t41);
-        let t42 = bh::ld(HEXAGON_WORK.corners[15].bits());
-        let t43 = t42 * bh::ld(HEXAGON_WORK.cell[2].bits());
-        let t44 = bh::ld(HEXAGON_WORK.corners[16].bits());
-        let t45 = t44 * bh::ld(HEXAGON_WORK.cell[2].bits());
-        let t46 = -t45;
-        let t47 = t46 + ld(rc, 0x2240A0);
-        st(e, 0xBC, t47);
-        st(e, 0xA4, t47);
-        let t48 = t43 + ld(rc, 0x22409C);
-        st(e, 0xB8, t48);
-        st(e, 0xA0, t48);
-        let t49 = bh::ld(HEXAGON_WORK.cell[0].bits());
-        let t50 = t49 * ld(hx, 0xB1252);
-        let t51 = bh::ld(HEXAGON_WORK.cell[1].bits());
-        let t52 = t51 * ld(hx, 0xB1256);
-        HEXAGON_WORK.screen[0].set_bits(bh::st(t50));
-        HEXAGON_WORK.screen[1].set_bits(bh::st(t52));
-        let t53 = ld(e, 0x18);
-        let t54 = t53 - bh::ld(HEXAGON_WORK.cell[0].bits());
-        let t55 = t54 * ld(hx, 0xB125A);
-        let t56 = t55 + bh::ld(HEXAGON_WORK.screen[0].bits());
-        st(e, 0x18, t56);
-        let t57 = ld(e, 0x1C);
-        let t58 = t57 - bh::ld(HEXAGON_WORK.cell[1].bits());
-        let t59 = t58 * ld(hx, 0xB125E);
-        let t60 = t59 + bh::ld(HEXAGON_WORK.screen[1].bits());
-        st(e, 0x1C, t60);
-        let t61 = ld(e, 0x38);
-        let t62 = t61 - bh::ld(HEXAGON_WORK.cell[0].bits());
-        let t63 = t62 * ld(hx, 0xB125A);
-        let t64 = t63 + bh::ld(HEXAGON_WORK.screen[0].bits());
-        st(e, 0x38, t64);
-        let t65 = ld(e, 0x3C);
-        let t66 = t65 - bh::ld(HEXAGON_WORK.cell[1].bits());
-        let t67 = t66 * ld(hx, 0xB125E);
-        let t68 = t67 + bh::ld(HEXAGON_WORK.screen[1].bits());
-        st(e, 0x3C, t68);
-        let t69 = ld(e, 0x58);
-        let t70 = t69 - bh::ld(HEXAGON_WORK.cell[0].bits());
-        let t71 = t70 * ld(hx, 0xB125A);
-        let t72 = t71 + bh::ld(HEXAGON_WORK.screen[0].bits());
-        st(e, 0x58, t72);
-        let t73 = ld(e, 0x5C);
-        let t74 = t73 - bh::ld(HEXAGON_WORK.cell[1].bits());
-        let t75 = t74 * ld(hx, 0xB125E);
-        let t76 = t75 + bh::ld(HEXAGON_WORK.screen[1].bits());
-        st(e, 0x5C, t76);
-        let t77 = ld(e, 0x78);
-        let t78 = t77 - bh::ld(HEXAGON_WORK.cell[0].bits());
-        let t79 = t78 * ld(hx, 0xB125A);
-        let t80 = t79 + bh::ld(HEXAGON_WORK.screen[0].bits());
-        st(e, 0x78, t80);
-        let t81 = ld(e, 0x7C);
-        let t82 = t81 - bh::ld(HEXAGON_WORK.cell[1].bits());
-        let t83 = t82 * ld(hx, 0xB125E);
-        let t84 = t83 + bh::ld(HEXAGON_WORK.screen[1].bits());
-        st(e, 0x7C, t84);
-        let t85 = ld(e, 0x98);
-        let t86 = t85 - bh::ld(HEXAGON_WORK.cell[0].bits());
-        let t87 = t86 * ld(hx, 0xB125A);
-        let t88 = t87 + bh::ld(HEXAGON_WORK.screen[0].bits());
-        st(e, 0x98, t88);
-        let t89 = ld(e, 0x9C);
-        let t90 = t89 - bh::ld(HEXAGON_WORK.cell[1].bits());
-        let t91 = t90 * ld(hx, 0xB125E);
-        let t92 = t91 + bh::ld(HEXAGON_WORK.screen[1].bits());
-        st(e, 0x9C, t92);
-        let t93 = ld(e, 0xB8);
-        let t94 = t93 - bh::ld(HEXAGON_WORK.cell[0].bits());
-        let t95 = t94 * ld(hx, 0xB125A);
-        let t96 = t95 + bh::ld(HEXAGON_WORK.screen[0].bits());
-        st(e, 0xB8, t96);
-        let t97 = ld(e, 0xBC);
-        let t98 = t97 - bh::ld(HEXAGON_WORK.cell[1].bits());
-        let t99 = t98 * ld(hx, 0xB125E);
-        let t100 = t99 + bh::ld(HEXAGON_WORK.screen[1].bits());
-        st(e, 0xBC, t100);
-        let t101 = bh::ld(HEXAGON_STATE.depth.bits());
-        let t102 = t101 + bh::ld(MARKS_KIND_FLOATS.kind_float.bits());
-        let t103 = t102 * bh::ld(HEXAGON_WORK.inverse.bits());
-        st(e, 0x8, t103);
-        st(e, 0x28, t103);
-        st(e, 0x48, t103);
-        st(e, 0x68, t103);
-        st(e, 0x88, t103);
-        st(e, 0xA8, t103);
-    }
+fn sprite_project_x87(rc: usize, hx: usize, e: usize, pre0: bh::X) {
+    HEXAGON_WORK.cell[2].set_bits(bh::st(pre0));
+    let t0 = bh::ld(HEXAGON_WORK.cell[1].bits());
+    let t1 = t0 * bh::ld(HEXAGON_WORK.cell[2].bits());
+    let t2 = -t1;
+    let t3 = bh::ld(HEXAGON_WORK.cell[0].bits());
+    let t4 = t3 * bh::ld(HEXAGON_WORK.cell[2].bits());
+    let t5 = t4 + ld(rc, 0x22409C);
+    HEXAGON_WORK.cell[0].set_bits(bh::st(t5));
+    let t6 = t2 + ld(rc, 0x2240A0);
+    HEXAGON_WORK.cell[1].set_bits(bh::st(t6));
+    let t7 = bh::ld(HEXAGON_WORK.corners[0].bits());
+    let t8 = t7 * bh::ld(HEXAGON_WORK.cell[2].bits());
+    let t9 = bh::ld(HEXAGON_WORK.corners[1].bits());
+    let t10 = t9 * bh::ld(HEXAGON_WORK.cell[2].bits());
+    let t11 = -t10;
+    let t12 = t11 + ld(rc, 0x2240A0);
+    st(e, 0x1C, t12);
+    st(e, 0x4, t12);
+    let t13 = t8 + ld(rc, 0x22409C);
+    st(e, 0x18, t13);
+    st(e, 0, t13);
+    let t14 = bh::ld(HEXAGON_WORK.corners[3].bits());
+    let t15 = t14 * bh::ld(HEXAGON_WORK.cell[2].bits());
+    let t16 = bh::ld(HEXAGON_WORK.corners[4].bits());
+    let t17 = t16 * bh::ld(HEXAGON_WORK.cell[2].bits());
+    let t18 = -t17;
+    let t19 = t18 + ld(rc, 0x2240A0);
+    st(e, 0x3C, t19);
+    st(e, 0x24, t19);
+    let t20 = t15 + ld(rc, 0x22409C);
+    st(e, 0x38, t20);
+    st(e, 0x20, t20);
+    let t21 = bh::ld(HEXAGON_WORK.corners[6].bits());
+    let t22 = t21 * bh::ld(HEXAGON_WORK.cell[2].bits());
+    let t23 = bh::ld(HEXAGON_WORK.corners[7].bits());
+    let t24 = t23 * bh::ld(HEXAGON_WORK.cell[2].bits());
+    let t25 = -t24;
+    let t26 = t25 + ld(rc, 0x2240A0);
+    st(e, 0x5C, t26);
+    st(e, 0x44, t26);
+    let t27 = t22 + ld(rc, 0x22409C);
+    st(e, 0x58, t27);
+    st(e, 0x40, t27);
+    let t28 = bh::ld(HEXAGON_WORK.corners[9].bits());
+    let t29 = t28 * bh::ld(HEXAGON_WORK.cell[2].bits());
+    let t30 = bh::ld(HEXAGON_WORK.corners[10].bits());
+    let t31 = t30 * bh::ld(HEXAGON_WORK.cell[2].bits());
+    let t32 = -t31;
+    let t33 = t32 + ld(rc, 0x2240A0);
+    st(e, 0x7C, t33);
+    st(e, 0x64, t33);
+    let t34 = t29 + ld(rc, 0x22409C);
+    st(e, 0x78, t34);
+    st(e, 0x60, t34);
+    let t35 = bh::ld(HEXAGON_WORK.corners[12].bits());
+    let t36 = t35 * bh::ld(HEXAGON_WORK.cell[2].bits());
+    let t37 = bh::ld(HEXAGON_WORK.corners[13].bits());
+    let t38 = t37 * bh::ld(HEXAGON_WORK.cell[2].bits());
+    let t39 = -t38;
+    let t40 = t39 + ld(rc, 0x2240A0);
+    st(e, 0x9C, t40);
+    st(e, 0x84, t40);
+    let t41 = t36 + ld(rc, 0x22409C);
+    st(e, 0x98, t41);
+    st(e, 0x80, t41);
+    let t42 = bh::ld(HEXAGON_WORK.corners[15].bits());
+    let t43 = t42 * bh::ld(HEXAGON_WORK.cell[2].bits());
+    let t44 = bh::ld(HEXAGON_WORK.corners[16].bits());
+    let t45 = t44 * bh::ld(HEXAGON_WORK.cell[2].bits());
+    let t46 = -t45;
+    let t47 = t46 + ld(rc, 0x2240A0);
+    st(e, 0xBC, t47);
+    st(e, 0xA4, t47);
+    let t48 = t43 + ld(rc, 0x22409C);
+    st(e, 0xB8, t48);
+    st(e, 0xA0, t48);
+    let t49 = bh::ld(HEXAGON_WORK.cell[0].bits());
+    let t50 = t49 * ld(hx, 0xB1252);
+    let t51 = bh::ld(HEXAGON_WORK.cell[1].bits());
+    let t52 = t51 * ld(hx, 0xB1256);
+    HEXAGON_WORK.screen[0].set_bits(bh::st(t50));
+    HEXAGON_WORK.screen[1].set_bits(bh::st(t52));
+    let t53 = ld(e, 0x18);
+    let t54 = t53 - bh::ld(HEXAGON_WORK.cell[0].bits());
+    let t55 = t54 * ld(hx, 0xB125A);
+    let t56 = t55 + bh::ld(HEXAGON_WORK.screen[0].bits());
+    st(e, 0x18, t56);
+    let t57 = ld(e, 0x1C);
+    let t58 = t57 - bh::ld(HEXAGON_WORK.cell[1].bits());
+    let t59 = t58 * ld(hx, 0xB125E);
+    let t60 = t59 + bh::ld(HEXAGON_WORK.screen[1].bits());
+    st(e, 0x1C, t60);
+    let t61 = ld(e, 0x38);
+    let t62 = t61 - bh::ld(HEXAGON_WORK.cell[0].bits());
+    let t63 = t62 * ld(hx, 0xB125A);
+    let t64 = t63 + bh::ld(HEXAGON_WORK.screen[0].bits());
+    st(e, 0x38, t64);
+    let t65 = ld(e, 0x3C);
+    let t66 = t65 - bh::ld(HEXAGON_WORK.cell[1].bits());
+    let t67 = t66 * ld(hx, 0xB125E);
+    let t68 = t67 + bh::ld(HEXAGON_WORK.screen[1].bits());
+    st(e, 0x3C, t68);
+    let t69 = ld(e, 0x58);
+    let t70 = t69 - bh::ld(HEXAGON_WORK.cell[0].bits());
+    let t71 = t70 * ld(hx, 0xB125A);
+    let t72 = t71 + bh::ld(HEXAGON_WORK.screen[0].bits());
+    st(e, 0x58, t72);
+    let t73 = ld(e, 0x5C);
+    let t74 = t73 - bh::ld(HEXAGON_WORK.cell[1].bits());
+    let t75 = t74 * ld(hx, 0xB125E);
+    let t76 = t75 + bh::ld(HEXAGON_WORK.screen[1].bits());
+    st(e, 0x5C, t76);
+    let t77 = ld(e, 0x78);
+    let t78 = t77 - bh::ld(HEXAGON_WORK.cell[0].bits());
+    let t79 = t78 * ld(hx, 0xB125A);
+    let t80 = t79 + bh::ld(HEXAGON_WORK.screen[0].bits());
+    st(e, 0x78, t80);
+    let t81 = ld(e, 0x7C);
+    let t82 = t81 - bh::ld(HEXAGON_WORK.cell[1].bits());
+    let t83 = t82 * ld(hx, 0xB125E);
+    let t84 = t83 + bh::ld(HEXAGON_WORK.screen[1].bits());
+    st(e, 0x7C, t84);
+    let t85 = ld(e, 0x98);
+    let t86 = t85 - bh::ld(HEXAGON_WORK.cell[0].bits());
+    let t87 = t86 * ld(hx, 0xB125A);
+    let t88 = t87 + bh::ld(HEXAGON_WORK.screen[0].bits());
+    st(e, 0x98, t88);
+    let t89 = ld(e, 0x9C);
+    let t90 = t89 - bh::ld(HEXAGON_WORK.cell[1].bits());
+    let t91 = t90 * ld(hx, 0xB125E);
+    let t92 = t91 + bh::ld(HEXAGON_WORK.screen[1].bits());
+    st(e, 0x9C, t92);
+    let t93 = ld(e, 0xB8);
+    let t94 = t93 - bh::ld(HEXAGON_WORK.cell[0].bits());
+    let t95 = t94 * ld(hx, 0xB125A);
+    let t96 = t95 + bh::ld(HEXAGON_WORK.screen[0].bits());
+    st(e, 0xB8, t96);
+    let t97 = ld(e, 0xBC);
+    let t98 = t97 - bh::ld(HEXAGON_WORK.cell[1].bits());
+    let t99 = t98 * ld(hx, 0xB125E);
+    let t100 = t99 + bh::ld(HEXAGON_WORK.screen[1].bits());
+    st(e, 0xBC, t100);
+    let t101 = bh::ld(HEXAGON_STATE.depth.bits());
+    let t102 = t101 + bh::ld(MARKS_KIND_FLOATS.kind_float.bits());
+    let t103 = t102 * bh::ld(HEXAGON_WORK.inverse.bits());
+    st(e, 0x8, t103);
+    st(e, 0x28, t103);
+    st(e, 0x48, t103);
+    st(e, 0x68, t103);
+    st(e, 0x88, t103);
+    st(e, 0xA8, t103);
 }
 
 #[cfg(test)]
 mod asm_reference {
     //! The original assembly blocks, kept verbatim as the reference the plain versions are tested against.
 
-    pub(super) unsafe fn drift_cell_x87(mk: usize, k: usize) {
+    pub(super) fn drift_cell_x87(mk: usize, k: usize) {
         unsafe {
             core::arch::asm!(
                     "fld dword ptr [{mk} + {k} + 0xAF882]",
@@ -471,7 +464,7 @@ mod asm_reference {
         }
     }
 
-    pub(super) unsafe fn drift_move_x87(mk: usize, k: usize, s: usize) {
+    pub(super) fn drift_move_x87(mk: usize, k: usize, s: usize) {
         unsafe {
             core::arch::asm!(
                     "fld dword ptr [{mk} + 0xAF832]",
@@ -502,7 +495,7 @@ mod asm_reference {
         }
     }
 
-    pub(super) unsafe fn sprite_depth_x87(mk: usize) {
+    pub(super) fn sprite_depth_x87(mk: usize) {
         unsafe {
             core::arch::asm!(
                     "fild dword ptr [{mk} + 0xB0242]",
@@ -541,7 +534,7 @@ mod asm_reference {
         }
     }
 
-    pub(super) unsafe fn sprite_corners_x87(rc: usize, mk: usize, c: usize) -> f64 {
+    pub(super) fn sprite_corners_x87(rc: usize, mk: usize, c: usize) -> f64 {
         let mut out = 0f64;
         unsafe {
             core::arch::asm!(
@@ -614,7 +607,7 @@ mod asm_reference {
         out
     }
 
-    pub(super) unsafe fn sprite_project_x87(rc: usize, mk: usize, e: usize, pre0: u32) {
+    pub(super) fn sprite_project_x87(rc: usize, mk: usize, e: usize, pre0: u32) {
         unsafe {
             core::arch::asm!(
                     "fld dword ptr [{pre0}]",
@@ -831,7 +824,7 @@ mod asm_differential {
         };
         differential(
             &SPEC,
-            |b| unsafe { reference::drift_cell_x87(b[0], b[1]) },
+            |b| reference::drift_cell_x87(b[0], b[1]),
             |b| hexagons(b[0], || super::drift_cell_x87(b[1])),
         );
     }
@@ -868,8 +861,8 @@ mod asm_differential {
         };
         differential(
             &SPEC,
-            |b| unsafe { reference::drift_move_x87(b[0], b[1], b[2]) },
-            |b| hexagons(b[0], || unsafe { super::drift_move_x87(b[0], b[1], b[2]) }),
+            |b| reference::drift_move_x87(b[0], b[1], b[2]),
+            |b| hexagons(b[0], || super::drift_move_x87(b[0], b[1], b[2])),
         );
     }
 
@@ -906,8 +899,8 @@ mod asm_differential {
         };
         differential(
             &SPEC,
-            |b| unsafe { reference::sprite_depth_x87(b[0]) },
-            |b| hexagons(b[0], || unsafe { super::sprite_depth_x87(b[0]) }),
+            |b| reference::sprite_depth_x87(b[0]),
+            |b| hexagons(b[0], || super::sprite_depth_x87(b[0])),
         );
     }
 
@@ -1028,8 +1021,8 @@ mod asm_differential {
         };
         differential(
             &SPEC,
-            |b| canon(unsafe { reference::sprite_corners_x87(b[0], b[1], b[2]) }),
-            |b| canon(hexagons(b[1], || unsafe { super::sprite_corners_x87(b[0], b[2]) }).0),
+            |b| canon(reference::sprite_corners_x87(b[0], b[1], b[2])),
+            |b| canon(hexagons(b[1], || super::sprite_corners_x87(b[0], b[2])).0),
         );
     }
 
@@ -1136,15 +1129,13 @@ mod asm_differential {
         };
         differential(
             &SPEC,
-            |b| unsafe { reference::sprite_project_x87(b[0], b[1], b[2], b[3] as u32) },
+            |b| reference::sprite_project_x87(b[0], b[1], b[2], b[3] as u32),
             |b| {
                 hexagons(b[1], || {
                     with_overlays(
                         b[1],
                         &[overlay(&MARKS_KIND_FLOATS, MarksKindFloats::START)],
-                        || unsafe {
-                            super::sprite_project_x87(b[0], b[1], b[2], super::bh::ld(b[3] as u32))
-                        },
+                        || super::sprite_project_x87(b[0], b[1], b[2], super::bh::ld(b[3] as u32)),
                     )
                 })
             },

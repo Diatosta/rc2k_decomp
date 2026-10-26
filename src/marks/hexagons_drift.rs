@@ -20,61 +20,54 @@ use crate::marks::adjugate3::adjugate3;
 use crate::marks::hexagon_vars::HEX;
 use crate::marks::setup::{CLOCK, MarksClock};
 use crate::marks::tilt_shape::SHAPE_TILT;
+use crate::pointers::GamePtr;
 use crate::race::matrices_store::MATRICES;
 use crate::scene::matrix3::{Axis, extended, turn_matrix3};
 
-unsafe fn get(a: u32) -> u32 {
-    unsafe { (a as *const u32).read_unaligned() }
+fn get(a: u32) -> Result<u32, BadInput> {
+    GamePtr::new(a).read("a game field")
 }
 
 /// The original's 0x4BCC3D .. 0x4BCD03: the view's move (the settings' +0x26AC .. less the kept `flt_8161D6` .., times `flt_764FE0`) into `flt_8161EE` .., less the last move into `flt_8161FA` .., plus the last move times `flt_82E326` ...
-unsafe fn view_moved(s: u32) {
-    unsafe {
-        view_moved_x87(
-            crate::marks::hexagon_vars::HexagonVars::base(),
-            s as usize,
-            &CLOCK,
-        )
-    }
+fn view_moved(s: u32) {
+    view_moved_x87(
+        crate::marks::hexagon_vars::HexagonVars::base(),
+        s as usize,
+        &CLOCK,
+    )
 }
 
 /// The original's 0x4BCD69 .. 0x4BCDCD: that move turned by the adjugate at m (`[esp]` temporaries at t), the three kept 80 bits at l.
-unsafe fn drift_turned(m: u32, t: u32, l: u32) {
-    unsafe {
-        drift_turned_x87(
-            crate::marks::hexagon_vars::HexagonVars::base(),
-            m as usize,
-            t as usize,
-            l as usize,
-        )
-    }
+fn drift_turned(m: u32, t: u32, l: u32) {
+    drift_turned_x87(
+        crate::marks::hexagon_vars::HexagonVars::base(),
+        m as usize,
+        t as usize,
+        l as usize,
+    )
 }
 
 /// The original's 0x4BCDE6 .. 0x4BCE6A: the three (from l) turned back by the matrix at m, negated, into `flt_81621E` .. and times `flt_82E336` .. into `flt_811BDF` ...
-unsafe fn drift_back(m: u32, t: u32, l: u32) {
-    unsafe {
-        drift_back_x87(
-            crate::marks::hexagon_vars::HexagonVars::base(),
-            m as usize,
-            t as usize,
-            l as usize,
-        )
-    }
+fn drift_back(m: u32, t: u32, l: u32) {
+    drift_back_x87(
+        crate::marks::hexagon_vars::HexagonVars::base(),
+        m as usize,
+        t as usize,
+        l as usize,
+    )
 }
 
 /// The original's 0x4BCE6A .. 0x4BCEB2: the view's move kept in `flt_8161E2` ...
-unsafe fn move_kept(s: u32) {
-    unsafe {
-        move_kept_x87(
-            crate::marks::hexagon_vars::HexagonVars::base(),
-            s as usize,
-            &CLOCK,
-        )
-    }
+fn move_kept(s: u32) {
+    move_kept_x87(
+        crate::marks::hexagon_vars::HexagonVars::base(),
+        s as usize,
+        &CLOCK,
+    )
 }
 
 /// The Rust version (see the header).
-pub unsafe fn hexagons_drift() -> Result<(), Refused> {
+pub fn hexagons_drift() -> Result<(), Refused> {
     unsafe {
         let s: u32 = crate::marks::setup::SETTINGS.pointer.get();
         if s == 0 {
@@ -93,9 +86,9 @@ pub unsafe fn hexagons_drift() -> Result<(), Refused> {
                 let view = MATRICES.view_place[0].addr() as u32;
                 for col in 0..3u32 {
                     let v = [
-                        get(view + 4 * col),
-                        get(view + 0x10 + 4 * col),
-                        get(view + 0x20 + 4 * col),
+                        get(view + 4 * col)?,
+                        get(view + 0x10 + 4 * col)?,
+                        get(view + 0x20 + 4 * col)?,
                     ];
                     for (k, x) in v.into_iter().enumerate() {
                         HEX.turn[3 * col as usize + k].set_bits(x);
@@ -113,7 +106,7 @@ pub unsafe fn hexagons_drift() -> Result<(), Refused> {
             }
             move_kept(s);
         }
-        for (k, v) in [get(s + 0x26AC), get(s + 0x26B0), get(s + 0x26B4)]
+        for (k, v) in [get(s + 0x26AC)?, get(s + 0x26B0)?, get(s + 0x26B4)?]
             .into_iter()
             .enumerate()
         {
@@ -127,136 +120,128 @@ use crate::marks::plain::{ld, ld80, st, st80};
 use crate::math::x87_float as bh;
 
 /// `view_moved`'s x87 block as plain Rust on the x87 model (33 instructions), same order and memory places.
-unsafe fn view_moved_x87(hx: usize, s: usize, c: &MarksClock) {
-    unsafe {
-        let t0 = ld(s, 0x26AC);
-        let t1 = t0 - ld(hx, 0xB1296);
-        let t2 = t1 * crate::math::x87_float::ld(c.reciprocal.bits());
-        let t3 = ld(s, 0x26B0);
-        let t4 = t3 - ld(hx, 0xB129A);
-        let t5 = t4 * crate::math::x87_float::ld(c.reciprocal.bits());
-        let t6 = ld(s, 0x26B4);
-        let t7 = t6 - ld(hx, 0xB129E);
-        let t8 = t7 * crate::math::x87_float::ld(c.reciprocal.bits());
-        st(hx, 0xB12B6, t8);
-        st(hx, 0xB12B2, t5);
-        st(hx, 0xB12AE, t2);
-        let t9 = ld(hx, 0xB12AE);
-        let t10 = t9 - ld(hx, 0xB12A2);
-        let t11 = ld(hx, 0xB12B2);
-        let t12 = t11 - ld(hx, 0xB12A6);
-        let t13 = ld(hx, 0xB12B6);
-        let t14 = t13 - ld(hx, 0xB12AA);
-        st(hx, 0xB12C2, t14);
-        st(hx, 0xB12BE, t12);
-        st(hx, 0xB12BA, t10);
-        let t15 = ld(hx, 0xB12A2);
-        let t16 = t15 * ld(hx, 0xC93E6);
-        let t17 = t16 + ld(hx, 0xB12BA);
-        st(hx, 0xB12BA, t17);
-        let t18 = ld(hx, 0xB12A6);
-        let t19 = t18 * ld(hx, 0xC93EA);
-        let t20 = t19 + ld(hx, 0xB12BE);
-        st(hx, 0xB12BE, t20);
-        let t21 = ld(hx, 0xB12AA);
-        let t22 = t21 * ld(hx, 0xC93EE);
-        let t23 = t22 + ld(hx, 0xB12C2);
-        st(hx, 0xB12C2, t23);
-    }
+fn view_moved_x87(hx: usize, s: usize, c: &MarksClock) {
+    let t0 = ld(s, 0x26AC);
+    let t1 = t0 - ld(hx, 0xB1296);
+    let t2 = t1 * crate::math::x87_float::ld(c.reciprocal.bits());
+    let t3 = ld(s, 0x26B0);
+    let t4 = t3 - ld(hx, 0xB129A);
+    let t5 = t4 * crate::math::x87_float::ld(c.reciprocal.bits());
+    let t6 = ld(s, 0x26B4);
+    let t7 = t6 - ld(hx, 0xB129E);
+    let t8 = t7 * crate::math::x87_float::ld(c.reciprocal.bits());
+    st(hx, 0xB12B6, t8);
+    st(hx, 0xB12B2, t5);
+    st(hx, 0xB12AE, t2);
+    let t9 = ld(hx, 0xB12AE);
+    let t10 = t9 - ld(hx, 0xB12A2);
+    let t11 = ld(hx, 0xB12B2);
+    let t12 = t11 - ld(hx, 0xB12A6);
+    let t13 = ld(hx, 0xB12B6);
+    let t14 = t13 - ld(hx, 0xB12AA);
+    st(hx, 0xB12C2, t14);
+    st(hx, 0xB12BE, t12);
+    st(hx, 0xB12BA, t10);
+    let t15 = ld(hx, 0xB12A2);
+    let t16 = t15 * ld(hx, 0xC93E6);
+    let t17 = t16 + ld(hx, 0xB12BA);
+    st(hx, 0xB12BA, t17);
+    let t18 = ld(hx, 0xB12A6);
+    let t19 = t18 * ld(hx, 0xC93EA);
+    let t20 = t19 + ld(hx, 0xB12BE);
+    st(hx, 0xB12BE, t20);
+    let t21 = ld(hx, 0xB12AA);
+    let t22 = t21 * ld(hx, 0xC93EE);
+    let t23 = t22 + ld(hx, 0xB12C2);
+    st(hx, 0xB12C2, t23);
 }
 
 /// `drift_turned`'s x87 block as plain Rust on the x87 model (33 instructions), same order and memory places.
-unsafe fn drift_turned_x87(hx: usize, m: usize, t: usize, l: usize) {
-    unsafe {
-        let t0 = ld(hx, 0xB12C2);
-        let t1 = ld(hx, 0xB12BE);
-        let t2 = ld(hx, 0xB12BA);
-        let t3 = t2 * ld(m, 0);
-        let t4 = t1 * ld(m, 0x4);
-        let t5 = t0 * ld(m, 0x8);
-        let t6 = t4 + t5;
-        let t7 = t3 + t6;
-        st(t, 0, t7);
-        let t8 = t2 * ld(m, 0xC);
-        let t9 = t1 * ld(m, 0x10);
-        let t10 = t0 * ld(m, 0x14);
-        let t11 = t9 + t10;
-        let t12 = t8 + t11;
-        st(t, 0x4, t12);
-        let t13 = t2 * ld(m, 0x18);
-        let t14 = t1 * ld(m, 0x1C);
-        let t15 = t0 * ld(m, 0x20);
-        let t16 = t13 + t15;
-        let t17 = t14 + t16;
-        let t18 = ld(t, 0x4);
-        let t19 = ld(t, 0);
-        st80(l, 0, t19);
-        st80(l, 0xA, t18);
-        st80(l, 0x14, t17);
-    }
+fn drift_turned_x87(hx: usize, m: usize, t: usize, l: usize) {
+    let t0 = ld(hx, 0xB12C2);
+    let t1 = ld(hx, 0xB12BE);
+    let t2 = ld(hx, 0xB12BA);
+    let t3 = t2 * ld(m, 0);
+    let t4 = t1 * ld(m, 0x4);
+    let t5 = t0 * ld(m, 0x8);
+    let t6 = t4 + t5;
+    let t7 = t3 + t6;
+    st(t, 0, t7);
+    let t8 = t2 * ld(m, 0xC);
+    let t9 = t1 * ld(m, 0x10);
+    let t10 = t0 * ld(m, 0x14);
+    let t11 = t9 + t10;
+    let t12 = t8 + t11;
+    st(t, 0x4, t12);
+    let t13 = t2 * ld(m, 0x18);
+    let t14 = t1 * ld(m, 0x1C);
+    let t15 = t0 * ld(m, 0x20);
+    let t16 = t13 + t15;
+    let t17 = t14 + t16;
+    let t18 = ld(t, 0x4);
+    let t19 = ld(t, 0);
+    st80(l, 0, t19);
+    st80(l, 0xA, t18);
+    st80(l, 0x14, t17);
 }
 
 /// `drift_back`'s x87 block as plain Rust on the x87 model (40 instructions), same order and memory places.
-unsafe fn drift_back_x87(hx: usize, m: usize, t: usize, l: usize) {
-    unsafe {
-        let t0 = bh::from_f80(ld80(l, 0x14));
-        let t1 = bh::from_f80(ld80(l, 0xA));
-        let t2 = bh::from_f80(ld80(l, 0));
-        let t3 = t2 * ld(m, 0);
-        let t4 = t1 * ld(m, 0x4);
-        let t5 = t0 * ld(m, 0x8);
-        let t6 = t4 + t5;
-        let t7 = t3 + t6;
-        st(t, 0, t7);
-        let t8 = t2 * ld(m, 0xC);
-        let t9 = t1 * ld(m, 0x10);
-        let t10 = t0 * ld(m, 0x14);
-        let t11 = t9 + t10;
-        let t12 = t8 + t11;
-        st(t, 0x4, t12);
-        let t13 = t2 * ld(m, 0x18);
-        let t14 = t1 * ld(m, 0x1C);
-        let t15 = t0 * ld(m, 0x20);
-        let t16 = t13 + t15;
-        let t17 = t14 + t16;
-        let t18 = ld(t, 0x4);
-        let t19 = ld(t, 0);
-        let t20 = -t19;
-        st(hx, 0xB12DE, t20);
-        let t21 = t20 * ld(hx, 0xC93F6);
-        SHAPE_TILT.point[0].set_bits(bh::st(t21));
-        st(hx, 0xB12E2, t18);
-        let t22 = t18 * ld(hx, 0xC93FA);
-        SHAPE_TILT.point[1].set_bits(bh::st(t22));
-        st(hx, 0xB12E6, t17);
-        let t23 = t17 * ld(hx, 0xC93FE);
-        SHAPE_TILT.point[2].set_bits(bh::st(t23));
-    }
+fn drift_back_x87(hx: usize, m: usize, t: usize, l: usize) {
+    let t0 = bh::from_f80(ld80(l, 0x14));
+    let t1 = bh::from_f80(ld80(l, 0xA));
+    let t2 = bh::from_f80(ld80(l, 0));
+    let t3 = t2 * ld(m, 0);
+    let t4 = t1 * ld(m, 0x4);
+    let t5 = t0 * ld(m, 0x8);
+    let t6 = t4 + t5;
+    let t7 = t3 + t6;
+    st(t, 0, t7);
+    let t8 = t2 * ld(m, 0xC);
+    let t9 = t1 * ld(m, 0x10);
+    let t10 = t0 * ld(m, 0x14);
+    let t11 = t9 + t10;
+    let t12 = t8 + t11;
+    st(t, 0x4, t12);
+    let t13 = t2 * ld(m, 0x18);
+    let t14 = t1 * ld(m, 0x1C);
+    let t15 = t0 * ld(m, 0x20);
+    let t16 = t13 + t15;
+    let t17 = t14 + t16;
+    let t18 = ld(t, 0x4);
+    let t19 = ld(t, 0);
+    let t20 = -t19;
+    st(hx, 0xB12DE, t20);
+    let t21 = t20 * ld(hx, 0xC93F6);
+    SHAPE_TILT.point[0].set_bits(bh::st(t21));
+    st(hx, 0xB12E2, t18);
+    let t22 = t18 * ld(hx, 0xC93FA);
+    SHAPE_TILT.point[1].set_bits(bh::st(t22));
+    st(hx, 0xB12E6, t17);
+    let t23 = t17 * ld(hx, 0xC93FE);
+    SHAPE_TILT.point[2].set_bits(bh::st(t23));
 }
 
 /// `move_kept`'s x87 block as plain Rust on the x87 model (12 instructions), same order and memory places.
-unsafe fn move_kept_x87(hx: usize, s: usize, c: &MarksClock) {
-    unsafe {
-        let t0 = ld(s, 0x26AC);
-        let t1 = t0 - ld(hx, 0xB1296);
-        let t2 = t1 * crate::math::x87_float::ld(c.reciprocal.bits());
-        let t3 = ld(s, 0x26B0);
-        let t4 = t3 - ld(hx, 0xB129A);
-        let t5 = t4 * crate::math::x87_float::ld(c.reciprocal.bits());
-        let t6 = ld(s, 0x26B4);
-        let t7 = t6 - ld(hx, 0xB129E);
-        let t8 = t7 * crate::math::x87_float::ld(c.reciprocal.bits());
-        st(hx, 0xB12AA, t8);
-        st(hx, 0xB12A6, t5);
-        st(hx, 0xB12A2, t2);
-    }
+fn move_kept_x87(hx: usize, s: usize, c: &MarksClock) {
+    let t0 = ld(s, 0x26AC);
+    let t1 = t0 - ld(hx, 0xB1296);
+    let t2 = t1 * crate::math::x87_float::ld(c.reciprocal.bits());
+    let t3 = ld(s, 0x26B0);
+    let t4 = t3 - ld(hx, 0xB129A);
+    let t5 = t4 * crate::math::x87_float::ld(c.reciprocal.bits());
+    let t6 = ld(s, 0x26B4);
+    let t7 = t6 - ld(hx, 0xB129E);
+    let t8 = t7 * crate::math::x87_float::ld(c.reciprocal.bits());
+    st(hx, 0xB12AA, t8);
+    st(hx, 0xB12A6, t5);
+    st(hx, 0xB12A2, t2);
 }
 
 #[cfg(test)]
 mod asm_reference {
     //! The original assembly blocks, kept verbatim as the reference the plain versions are tested against.
 
-    pub(super) unsafe fn view_moved_x87(mk: usize, s: usize) {
+    pub(super) fn view_moved_x87(mk: usize, s: usize) {
         unsafe {
             core::arch::asm!(
                     "fld dword ptr [{s} + 0x26AC]",
@@ -301,7 +286,7 @@ mod asm_reference {
         }
     }
 
-    pub(super) unsafe fn drift_turned_x87(mk: usize, m: usize, t: usize, l: usize) {
+    pub(super) fn drift_turned_x87(mk: usize, m: usize, t: usize, l: usize) {
         unsafe {
             core::arch::asm!(
                     "fld dword ptr [{mk} + 0xB12C2]",
@@ -348,7 +333,7 @@ mod asm_reference {
         }
     }
 
-    pub(super) unsafe fn drift_back_x87(mk: usize, m: usize, t: usize, l: usize) {
+    pub(super) fn drift_back_x87(mk: usize, m: usize, t: usize, l: usize) {
         unsafe {
             core::arch::asm!(
                     "fld tbyte ptr [{l} + 20]",
@@ -402,7 +387,7 @@ mod asm_reference {
         }
     }
 
-    pub(super) unsafe fn move_kept_x87(mk: usize, s: usize) {
+    pub(super) fn move_kept_x87(mk: usize, s: usize) {
         unsafe {
             core::arch::asm!(
                     "fld dword ptr [{s} + 0x26AC]",
@@ -480,8 +465,8 @@ mod asm_differential {
         };
         differential(
             &SPEC,
-            |b| unsafe { reference::view_moved_x87(b[0], b[1]) },
-            |b| unsafe { super::view_moved_x87(b[0], b[1], crate::marks::setup::clock_at(b[0])) },
+            |b| reference::view_moved_x87(b[0], b[1]),
+            |b| super::view_moved_x87(b[0], b[1], crate::marks::setup::clock_at(b[0])),
         );
     }
 
@@ -528,8 +513,8 @@ mod asm_differential {
         };
         differential(
             &SPEC,
-            |b| unsafe { reference::drift_turned_x87(b[0], b[1], b[2], b[3]) },
-            |b| unsafe { super::drift_turned_x87(b[0], b[1], b[2], b[3]) },
+            |b| reference::drift_turned_x87(b[0], b[1], b[2], b[3]),
+            |b| super::drift_turned_x87(b[0], b[1], b[2], b[3]),
         );
     }
 
@@ -583,9 +568,9 @@ mod asm_differential {
         };
         differential(
             &SPEC,
-            |b| unsafe { reference::drift_back_x87(b[0], b[1], b[2], b[3]) },
+            |b| reference::drift_back_x87(b[0], b[1], b[2], b[3]),
             |b| {
-                with_overlays(b[0], &[overlay(&SHAPE_TILT, ShapeTilt::START)], || unsafe {
+                with_overlays(b[0], &[overlay(&SHAPE_TILT, ShapeTilt::START)], || {
                     super::drift_back_x87(b[0], b[1], b[2], b[3])
                 })
             },
@@ -613,8 +598,8 @@ mod asm_differential {
         };
         differential(
             &SPEC,
-            |b| unsafe { reference::move_kept_x87(b[0], b[1]) },
-            |b| unsafe { super::move_kept_x87(b[0], b[1], crate::marks::setup::clock_at(b[0])) },
+            |b| reference::move_kept_x87(b[0], b[1]),
+            |b| super::move_kept_x87(b[0], b[1], crate::marks::setup::clock_at(b[0])),
         );
     }
 }

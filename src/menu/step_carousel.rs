@@ -21,7 +21,7 @@ use crate::physics::tables_store::PHYSICS;
 
 // ---- Rust version ----
 
-pub unsafe fn step_carousel() -> Result<(), BadInput> {
+pub fn step_carousel() -> Result<(), BadInput> {
     // Converted: `rc2k_core::menu::navigation` (`passed`, `spin`), worked out before
     // anything is written.
     use rc2k_core::menu::navigation::{Turn, passed, spin};

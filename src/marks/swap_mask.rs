@@ -16,12 +16,13 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::marks::mask_store::MASK_BLOCKS;
+use crate::pointers::GamePtr;
 use crate::scene::kind_texture_store::KIND_TEXTURES;
 
 /// The Rust version (see the header): the lock and unlock (`d3d::lock_texture`,
 /// `unlock_texture`), `gfx::put_surface_pixel`, `scene::forget_slot_texture`.
 // Converted: `rc2k_core::marks::masks::{swapped, check_width, texture_pixels}`
-pub unsafe fn swap_mask() -> Result<(), Refused> {
+pub fn swap_mask() -> Result<(), Refused> {
     use crate::marks::load_mask_pictures::{lock, put_pixel};
     use rc2k_core::marks::masks;
     unsafe {
@@ -29,7 +30,7 @@ pub unsafe fn swap_mask() -> Result<(), Refused> {
         if s == 0 {
             return Err(BadInput("no marks settings").into());
         }
-        let switch = ((s + 0x2704) as *const u32).read_unaligned();
+        let switch = GamePtr::new(s + 0x2704).read::<u32>("a mark's field")?;
         let Some(second) = masks::swapped(switch, MASK_BLOCKS.seen.get()) else {
             return Ok(());
         };
@@ -54,7 +55,7 @@ pub unsafe fn swap_mask() -> Result<(), Refused> {
         }
         for (row, col, at) in masks::texture_pixels(width) {
             let chosen: u32 = MASK_BLOCKS.chosen.get();
-            let pixel = ((chosen + 4 * at) as *const u32).read_unaligned();
+            let pixel = GamePtr::new(chosen + 4 * at).read::<u32>("a mark's field")?;
             put_pixel(pixel, col, row + masks::TEXTURE_ROW_AT)?;
         }
         lock(KIND_TEXTURES.kind_first_textures[202].bits(), false)?;

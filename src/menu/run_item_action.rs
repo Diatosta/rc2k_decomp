@@ -10,6 +10,7 @@
 //! mark. Refuses a menu without an end in its first 256 items.
 
 use crate::menu::draw_work_store::DRAW_WORK;
+use crate::menu::event_flow::Fault;
 use crate::menu::item_at::{ITEM_LEN, MENU_HEAD_LEN};
 use crate::menu::loop_store::LOOP_FLAGS;
 use crate::menu::screen_loop::Carried;
@@ -20,8 +21,8 @@ const TYPE_OFFSET: u32 = rc2k_core::menu::items::ITEM_TYPE;
 const ACTION_OFFSET: u32 = 0x44;
 const VALUE_OFFSET: u32 = 0x54;
 
-unsafe fn dword(at: u32) -> u32 {
-    unsafe { (at as *const u32).read_unaligned() }
+fn dword(at: u32) -> Result<u32, crate::errors::BadInput> {
+    crate::pointers::GamePtr::new(at).read::<u32>("a game value")
 }
 
 // ---- Rust version ----
@@ -30,29 +31,32 @@ unsafe fn dword(at: u32) -> u32 {
 /// original's every register but eax = the value, ebp = the item, edi = the menu: the
 /// flows started from items hand them on to their screens); what the action leaves is
 /// nobody's (the original keeps every register).
-pub unsafe fn run_item_action(menu: u32, carried: &Carried) -> Result<(), crate::errors::Refused> {
+pub fn run_item_action(menu: u32, carried: &Carried) -> Result<(), crate::errors::Refused> {
     let first = menu.wrapping_add(MENU_HEAD_LEN);
     let item_at = |n: u32| first.wrapping_add(n.wrapping_mul(ITEM_LEN));
-    unsafe {
+    {
         let highlighted: u32 = LOOP_FLAGS.item.get();
         // Converted: `rc2k_core::menu::items::highlighted_item`.
+        let fault = Fault::default();
         let found = rc2k_core::menu::items::highlighted_item(
             highlighted,
-            |n| dword(item_at(n) + TYPE_OFFSET),
-            |n| dword(item_at(n)),
-        )?;
+            |n| fault.get(item_at(n) + TYPE_OFFSET),
+            |n| fault.get(item_at(n)),
+        );
+        fault.check()?;
+        let found = found?;
         if let Some(n) = found {
             let item = item_at(n);
-            let value = dword(item + VALUE_OFFSET);
+            let value = dword(item + VALUE_OFFSET)?;
             DRAW_WORK.action_value.set(value);
             crate::menu::table_calls::call_action(
-                dword(item + ACTION_OFFSET),
+                dword(item + ACTION_OFFSET)?,
                 value,
                 item,
                 menu,
                 carried,
             );
-            LOOP_FLAGS.item.set(dword(item + TYPE_OFFSET));
+            LOOP_FLAGS.item.set(dword(item + TYPE_OFFSET)?);
         }
     }
     Ok(())

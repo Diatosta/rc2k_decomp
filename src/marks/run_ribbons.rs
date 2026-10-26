@@ -26,6 +26,7 @@ use crate::marks::setup::{CLOCK, MarksClock};
 use crate::marks::surface_store::SURFACE;
 use crate::marks::tuning::MARKS_KIND_FLOATS;
 use crate::math::x87;
+use crate::pointers::GamePtr;
 use crate::scene::fog_at::fog_at;
 use crate::session::Dword;
 
@@ -80,45 +81,41 @@ mod colours_tests {
     }
 }
 
-unsafe fn get(a: u32) -> u32 {
-    unsafe { (a as *const u32).read_unaligned() }
+fn get(a: u32) -> Result<u32, BadInput> {
+    GamePtr::new(a).read("a game field")
 }
 
-unsafe fn put(a: u32, v: u32) {
-    unsafe { (a as *mut u32).write_unaligned(v) }
+fn put(a: u32, v: u32) -> Result<(), BadInput> {
+    GamePtr::new(a).write(v, "a game field")
 }
 
 /// The original's 0x4CF890 .. 0x4CF94D: a new streak's place turned into its last (+0x1C ..), and a first move.
-unsafe fn first_frame(e: u32) {
-    unsafe {
-        first_frame_x87(
-            crate::race::store::asm_base() as usize,
-            e as usize,
-            &CLOCK,
-            &RING_KINDS as *const RingKinds as usize,
-        )
-    }
+fn first_frame(e: u32) {
+    first_frame_x87(
+        crate::race::store::asm_base() as usize,
+        e as usize,
+        &CLOCK,
+        &RING_KINDS as *const RingKinds as usize,
+    )
 }
 
 /// The original's 0x4CF94D .. 0x4CF98C: the place moved by the motion, the motion's y by `flt_93A572`.
-unsafe fn move_(e: u32) {
-    unsafe { move_x87(e as usize, &CLOCK, &RING_KINDS as *const RingKinds as usize) }
+fn move_(e: u32) {
+    move_x87(e as usize, &CLOCK, &RING_KINDS as *const RingKinds as usize)
 }
 
 /// The original's 0x4CF9A6 .. 0x4CFA2D: the place turned by the view into `flt_8EB8D5` ...
-unsafe fn turn_place(e: u32) {
-    unsafe {
-        turn_place_x87(
-            crate::race::store::asm_base() as usize,
-            e as usize,
-            &DRAW_WORK,
-        )
-    }
+fn turn_place(e: u32) {
+    turn_place_x87(
+        crate::race::store::asm_base() as usize,
+        e as usize,
+        &DRAW_WORK,
+    )
 }
 
 /// The size of the colour table in use: 128 colours (`SURFACE.colours`) while
 /// `MARKS_KIND_FLOATS.other` is not 0, else the 257 at 0x939DB2.
-unsafe fn colour_count() -> i32 {
+fn colour_count() -> i32 {
     if MARKS_KIND_FLOATS.other.bits() != 0 {
         128
     } else {
@@ -136,87 +133,85 @@ fn colour_at(i: usize) -> u32 {
 }
 
 /// Why it refuses, if it does: the walk as the original makes it, nothing written.
-unsafe fn refusal() -> Option<&'static str> {
-    unsafe {
+fn refusal() -> Result<Option<&'static str>, Refused> {
+    Ok({
         let s: u32 = crate::marks::setup::SETTINGS.pointer.get();
         if s == 0 {
-            return Some("no marks settings");
+            return Ok(Some("no marks settings"));
         }
         let ticks: u32 = CLOCK.frame_ticks.get();
         let mut e: u32 = RING_WORK.cursor.get();
         let count = RING_WORK.count.get() as i32;
-        if count > 0 && (e == 0 || get(e) == 0) {
-            return Some("a null ring entry");
+        if count > 0 && (e == 0 || get(e)? == 0) {
+            return Ok(Some("a null ring entry"));
         }
         for _ in 0..count.max(0) {
-            if e == 0 || get(e) == 0 || get(e + 4) == 0 {
-                return Some("a null ring entry or link");
+            if e == 0 || get(e)? == 0 || get(e + 4)? == 0 {
+                return Ok(Some("a null ring entry or link"));
             }
-            if get(s + 0x60) != 0 && get(e + 0xC) == STREAK {
-                let life = get(e + 0x84);
-                if life >= ticks && x87::compare_status(get(e + 0x14), get(e + 0x28)) != 0x100 {
+            if get(s + 0x60)? != 0 && get(e + 0xC)? == STREAK {
+                let life = get(e + 0x84)?;
+                if life >= ticks && x87::compare_status(get(e + 0x14)?, get(e + 0x28)?) != 0x100 {
                     if fog_at(0).is_err() {
-                        return Some("the fog table is not there");
+                        return Ok(Some("the fog table is not there"));
                     }
-                    let i = x87::int_times_to_int(life.wrapping_sub(ticks) as i32, get(e + 0x78));
+                    let i = x87::int_times_to_int(life.wrapping_sub(ticks) as i32, get(e + 0x78)?);
                     if !(0..colour_count()).contains(&i) {
-                        return Some("a streak's colour index past its table");
+                        return Ok(Some("a streak's colour index past its table"));
                     }
                 }
             }
-            e = get(e + 4);
+            e = get(e + 4)?;
         }
         None
-    }
+    })
 }
 
 /// The streak step at e (see the header): whether the entry dies.
-unsafe fn streak(e: u32) -> Result<bool, Refused> {
-    unsafe {
-        let t: u32 = CLOCK.frame_ticks.get();
-        let life = get(e + 0x84);
-        put(e + 0x84, life.wrapping_sub(t));
-        if life < t {
-            return Ok(true);
-        }
-        if x87::compare_status(get(e + 0x14), get(e + 0x28)) == 0x100 {
-            return Ok(true);
-        }
-        if get(e + 0x10) == 0 {
-            first_frame(e);
-        }
-        move_on(e);
-        DRAW_WORK.second[0].set_bits(get(e + 0x1C));
-        DRAW_WORK.second[1].set_bits(get(e + 0x20));
-        DRAW_WORK.second[2].set_bits(get(e + 0x24));
-        turn_place(e);
-        let s: u32 = crate::marks::setup::SETTINGS.pointer.get();
-        if get(s + 0xC) != 0 || get(s + 0x10) == 1 {
-            put(e + 0x1C, DRAW_WORK.turned[0].bits());
-            put(e + 0x20, DRAW_WORK.turned[1].bits());
-            put(e + 0x24, DRAW_WORK.turned[2].bits());
-        }
-        crate::d3d::vertices_store::VERTICES.vertices[0]
-            .specular
-            .set(fog_at(get(e + 0x24))?);
-        let i = x87::int_times_to_int(get(e + 0x84) as i32, get(e + 0x78));
-        RING_WORK.whole.set(i as u32);
-        let colour = colour_at(i as usize);
-        crate::marks::draw_ribbon::draw_ribbon(0x20, i as u32, 0x800, colour)?;
+fn streak(e: u32) -> Result<bool, Refused> {
+    let t: u32 = CLOCK.frame_ticks.get();
+    let life = get(e + 0x84)?;
+    put(e + 0x84, life.wrapping_sub(t))?;
+    if life < t {
+        return Ok(true);
     }
+    if x87::compare_status(get(e + 0x14)?, get(e + 0x28)?) == 0x100 {
+        return Ok(true);
+    }
+    if get(e + 0x10)? == 0 {
+        first_frame(e);
+    }
+    move_on(e);
+    DRAW_WORK.second[0].set_bits(get(e + 0x1C)?);
+    DRAW_WORK.second[1].set_bits(get(e + 0x20)?);
+    DRAW_WORK.second[2].set_bits(get(e + 0x24)?);
+    turn_place(e);
+    let s: u32 = crate::marks::setup::SETTINGS.pointer.get();
+    if get(s + 0xC)? != 0 || get(s + 0x10)? == 1 {
+        put(e + 0x1C, DRAW_WORK.turned[0].bits())?;
+        put(e + 0x20, DRAW_WORK.turned[1].bits())?;
+        put(e + 0x24, DRAW_WORK.turned[2].bits())?;
+    }
+    crate::d3d::vertices_store::VERTICES.vertices[0]
+        .specular
+        .set(fog_at(get(e + 0x24)?)?);
+    let i = x87::int_times_to_int(get(e + 0x84)? as i32, get(e + 0x78)?);
+    RING_WORK.whole.set(i as u32);
+    let colour = colour_at(i as usize);
+    crate::marks::draw_ribbon::draw_ribbon(0x20, i as u32, 0x800, colour)?;
     Ok(false)
 }
 
-unsafe fn move_on(e: u32) {
-    unsafe { move_(e) }
+fn move_on(e: u32) {
+    move_(e)
 }
 
 /// The Rust version (see the header).
-pub unsafe fn run_ribbons() -> Result<(), Refused> {
-    if let Some(why) = unsafe { refusal() } {
+pub fn run_ribbons() -> Result<(), Refused> {
+    if let Some(why) = refusal()? {
         return Err(BadInput(why).into());
     }
-    unsafe {
+    {
         let mut e: u32 = RING_WORK.cursor.get();
         let mut counter = RING_WORK.count.get() as i32;
         loop {
@@ -224,22 +219,22 @@ pub unsafe fn run_ribbons() -> Result<(), Refused> {
             if counter < 0 {
                 break;
             }
-            let next = get(e + 4);
+            let next = get(e + 4)?;
             let settings: u32 = crate::marks::setup::SETTINGS.pointer.get();
-            if get(settings + 0x60) != 0 && get(e + 0xC) == STREAK && streak(e)? {
+            if get(settings + 0x60)? != 0 && get(e + 0xC)? == STREAK && streak(e)? {
                 RING_WORK.count.set(RING_WORK.count.get().wrapping_sub(1));
                 if e == RING_WORK.cursor.get() {
-                    RING_WORK.cursor.set(get(e + 4));
+                    RING_WORK.cursor.set(get(e + 4)?);
                 } else {
-                    let (before, after) = (get(e), get(e + 4));
-                    put(before + 4, after);
-                    put(after, before);
+                    let (before, after) = (get(e)?, get(e + 4)?);
+                    put(before + 4, after)?;
+                    put(after, before)?;
                     let cursor: u32 = RING_WORK.cursor.get();
-                    let last = get(cursor);
-                    put(cursor, e);
-                    put(last + 4, e);
-                    put(e, last);
-                    put(e + 4, cursor);
+                    let last = get(cursor)?;
+                    put(cursor, e)?;
+                    put(last + 4, e)?;
+                    put(e, last)?;
+                    put(e + 4, cursor)?;
                 }
             }
             e = next;
@@ -254,126 +249,120 @@ use crate::math::x87_float as bh;
 
 /// `first_frame`'s x87 block as plain Rust on the x87 model (52 instructions), same order and memory places.
 /// `rk` the ring kinds' constants (`RingKinds`).
-unsafe fn first_frame_x87(rc: usize, e: usize, c: &MarksClock, rk: usize) {
-    unsafe {
-        let t0 = ld(e, 0x18);
-        let t1 = ld(e, 0x14);
-        let t2 = ld(e, 0x10);
-        let t3 = ld(rc, 0x1EA2CC);
-        let t4 = t3 * t2;
-        let t5 = ld(rc, 0x1EA2DC);
-        let t6 = t5 * t1;
-        let t7 = ld(rc, 0x1EA2EC);
-        let t8 = t7 * t0;
-        let t9 = t6 + t8;
-        let t10 = t4 + t9;
-        let t11 = t10 + ld(rc, 0x1EA2FC);
-        let t12 = ld(rc, 0x1EA2D0);
-        let t13 = t12 * t2;
-        let t14 = ld(rc, 0x1EA2E0);
-        let t15 = t14 * t1;
-        let t16 = ld(rc, 0x1EA2F0);
-        let t17 = t16 * t0;
-        let t18 = t15 + t17;
-        let t19 = t13 + t18;
-        let t20 = t19 + ld(rc, 0x1EA300);
-        let t21 = ld(rc, 0x1EA2D4);
-        let t22 = t2 * t21;
-        let t23 = ld(rc, 0x1EA2E4);
-        let t24 = t1 * t23;
-        let t25 = ld(rc, 0x1EA2F4);
-        let t26 = t0 * t25;
-        let t27 = t26 + t24;
-        let t28 = t22 + t27;
-        let t29 = t28 + ld(rc, 0x1EA304);
-        st(e, 0x1C, t11);
-        st(e, 0x20, t20);
-        st(e, 0x24, t29);
-        let t30 = ld(e, 0x2C);
-        let t31 = t30 * crate::math::x87_float::int(c.frame_ticks.get() as i32);
-        let t32 = t31 + ld(e, 0x10);
-        st(e, 0x10, t32);
-        let t33 = ld(e, 0x30);
-        let t34 = t33 * crate::math::x87_float::int(c.frame_ticks.get() as i32);
-        let t35 = t34 + ld(e, 0x14);
-        st(e, 0x14, t35);
-        let t36 = ld(e, 0x34);
-        let t37 = t36 * crate::math::x87_float::int(c.frame_ticks.get() as i32);
-        let t38 = t37 + ld(e, 0x18);
-        st(e, 0x18, t38);
-        let t39 = ld(rk, 0x94);
-        let t40 = t39 * crate::math::x87_float::int(c.frame_ticks.get() as i32);
-        let t41 = t40 + ld(e, 0x30);
-        st(e, 0x30, t41);
-    }
+fn first_frame_x87(rc: usize, e: usize, c: &MarksClock, rk: usize) {
+    let t0 = ld(e, 0x18);
+    let t1 = ld(e, 0x14);
+    let t2 = ld(e, 0x10);
+    let t3 = ld(rc, 0x1EA2CC);
+    let t4 = t3 * t2;
+    let t5 = ld(rc, 0x1EA2DC);
+    let t6 = t5 * t1;
+    let t7 = ld(rc, 0x1EA2EC);
+    let t8 = t7 * t0;
+    let t9 = t6 + t8;
+    let t10 = t4 + t9;
+    let t11 = t10 + ld(rc, 0x1EA2FC);
+    let t12 = ld(rc, 0x1EA2D0);
+    let t13 = t12 * t2;
+    let t14 = ld(rc, 0x1EA2E0);
+    let t15 = t14 * t1;
+    let t16 = ld(rc, 0x1EA2F0);
+    let t17 = t16 * t0;
+    let t18 = t15 + t17;
+    let t19 = t13 + t18;
+    let t20 = t19 + ld(rc, 0x1EA300);
+    let t21 = ld(rc, 0x1EA2D4);
+    let t22 = t2 * t21;
+    let t23 = ld(rc, 0x1EA2E4);
+    let t24 = t1 * t23;
+    let t25 = ld(rc, 0x1EA2F4);
+    let t26 = t0 * t25;
+    let t27 = t26 + t24;
+    let t28 = t22 + t27;
+    let t29 = t28 + ld(rc, 0x1EA304);
+    st(e, 0x1C, t11);
+    st(e, 0x20, t20);
+    st(e, 0x24, t29);
+    let t30 = ld(e, 0x2C);
+    let t31 = t30 * crate::math::x87_float::int(c.frame_ticks.get() as i32);
+    let t32 = t31 + ld(e, 0x10);
+    st(e, 0x10, t32);
+    let t33 = ld(e, 0x30);
+    let t34 = t33 * crate::math::x87_float::int(c.frame_ticks.get() as i32);
+    let t35 = t34 + ld(e, 0x14);
+    st(e, 0x14, t35);
+    let t36 = ld(e, 0x34);
+    let t37 = t36 * crate::math::x87_float::int(c.frame_ticks.get() as i32);
+    let t38 = t37 + ld(e, 0x18);
+    st(e, 0x18, t38);
+    let t39 = ld(rk, 0x94);
+    let t40 = t39 * crate::math::x87_float::int(c.frame_ticks.get() as i32);
+    let t41 = t40 + ld(e, 0x30);
+    st(e, 0x30, t41);
 }
 
 /// `move_`'s x87 block as plain Rust on the x87 model (16 instructions), same order and memory places.
-unsafe fn move_x87(e: usize, c: &MarksClock, rk: usize) {
-    unsafe {
-        let t0 = ld(e, 0x2C);
-        let t1 = t0 * crate::math::x87_float::int(c.frame_ticks.get() as i32);
-        let t2 = t1 + ld(e, 0x10);
-        st(e, 0x10, t2);
-        let t3 = ld(e, 0x30);
-        let t4 = t3 * crate::math::x87_float::int(c.frame_ticks.get() as i32);
-        let t5 = t4 + ld(e, 0x14);
-        st(e, 0x14, t5);
-        let t6 = ld(e, 0x34);
-        let t7 = t6 * crate::math::x87_float::int(c.frame_ticks.get() as i32);
-        let t8 = t7 + ld(e, 0x18);
-        st(e, 0x18, t8);
-        let t9 = ld(rk, 0x98);
-        let t10 = t9 * crate::math::x87_float::int(c.frame_ticks.get() as i32);
-        let t11 = t10 + ld(e, 0x30);
-        st(e, 0x30, t11);
-    }
+fn move_x87(e: usize, c: &MarksClock, rk: usize) {
+    let t0 = ld(e, 0x2C);
+    let t1 = t0 * crate::math::x87_float::int(c.frame_ticks.get() as i32);
+    let t2 = t1 + ld(e, 0x10);
+    st(e, 0x10, t2);
+    let t3 = ld(e, 0x30);
+    let t4 = t3 * crate::math::x87_float::int(c.frame_ticks.get() as i32);
+    let t5 = t4 + ld(e, 0x14);
+    st(e, 0x14, t5);
+    let t6 = ld(e, 0x34);
+    let t7 = t6 * crate::math::x87_float::int(c.frame_ticks.get() as i32);
+    let t8 = t7 + ld(e, 0x18);
+    st(e, 0x18, t8);
+    let t9 = ld(rk, 0x98);
+    let t10 = t9 * crate::math::x87_float::int(c.frame_ticks.get() as i32);
+    let t11 = t10 + ld(e, 0x30);
+    st(e, 0x30, t11);
 }
 
 /// `turn_place`'s x87 block as plain Rust on the x87 model (36 instructions), same order and memory places.
-unsafe fn turn_place_x87(rc: usize, e: usize, dw: &DrawWork) {
-    unsafe {
-        let t0 = ld(e, 0x18);
-        let t1 = ld(e, 0x14);
-        let t2 = ld(e, 0x10);
-        let t3 = ld(rc, 0x1EA2CC);
-        let t4 = t3 * t2;
-        let t5 = ld(rc, 0x1EA2DC);
-        let t6 = t5 * t1;
-        let t7 = ld(rc, 0x1EA2EC);
-        let t8 = t7 * t0;
-        let t9 = t6 + t8;
-        let t10 = t4 + t9;
-        let t11 = t10 + ld(rc, 0x1EA2FC);
-        let t12 = ld(rc, 0x1EA2D0);
-        let t13 = t12 * t2;
-        let t14 = ld(rc, 0x1EA2E0);
-        let t15 = t14 * t1;
-        let t16 = ld(rc, 0x1EA2F0);
-        let t17 = t16 * t0;
-        let t18 = t15 + t17;
-        let t19 = t13 + t18;
-        let t20 = t19 + ld(rc, 0x1EA300);
-        let t21 = ld(rc, 0x1EA2D4);
-        let t22 = t2 * t21;
-        let t23 = ld(rc, 0x1EA2E4);
-        let t24 = t1 * t23;
-        let t25 = ld(rc, 0x1EA2F4);
-        let t26 = t0 * t25;
-        let t27 = t26 + t24;
-        let t28 = t22 + t27;
-        let t29 = t28 + ld(rc, 0x1EA304);
-        dw.turned[0].set_bits(bh::st(t11));
-        dw.turned[1].set_bits(bh::st(t20));
-        dw.turned[2].set_bits(bh::st(t29));
-    }
+fn turn_place_x87(rc: usize, e: usize, dw: &DrawWork) {
+    let t0 = ld(e, 0x18);
+    let t1 = ld(e, 0x14);
+    let t2 = ld(e, 0x10);
+    let t3 = ld(rc, 0x1EA2CC);
+    let t4 = t3 * t2;
+    let t5 = ld(rc, 0x1EA2DC);
+    let t6 = t5 * t1;
+    let t7 = ld(rc, 0x1EA2EC);
+    let t8 = t7 * t0;
+    let t9 = t6 + t8;
+    let t10 = t4 + t9;
+    let t11 = t10 + ld(rc, 0x1EA2FC);
+    let t12 = ld(rc, 0x1EA2D0);
+    let t13 = t12 * t2;
+    let t14 = ld(rc, 0x1EA2E0);
+    let t15 = t14 * t1;
+    let t16 = ld(rc, 0x1EA2F0);
+    let t17 = t16 * t0;
+    let t18 = t15 + t17;
+    let t19 = t13 + t18;
+    let t20 = t19 + ld(rc, 0x1EA300);
+    let t21 = ld(rc, 0x1EA2D4);
+    let t22 = t2 * t21;
+    let t23 = ld(rc, 0x1EA2E4);
+    let t24 = t1 * t23;
+    let t25 = ld(rc, 0x1EA2F4);
+    let t26 = t0 * t25;
+    let t27 = t26 + t24;
+    let t28 = t22 + t27;
+    let t29 = t28 + ld(rc, 0x1EA304);
+    dw.turned[0].set_bits(bh::st(t11));
+    dw.turned[1].set_bits(bh::st(t20));
+    dw.turned[2].set_bits(bh::st(t29));
 }
 
 #[cfg(test)]
 mod asm_reference {
     //! The original assembly blocks, kept verbatim as the reference the plain versions are tested against.
 
-    pub(super) unsafe fn first_frame_x87(rc: usize, mk: usize, e: usize, rk: usize) {
+    pub(super) fn first_frame_x87(rc: usize, mk: usize, e: usize, rk: usize) {
         unsafe {
             core::arch::asm!(
                     "fld dword ptr [{e} + 0x18]",
@@ -439,7 +428,7 @@ mod asm_reference {
         }
     }
 
-    pub(super) unsafe fn move_x87(mk: usize, e: usize, rk: usize) {
+    pub(super) fn move_x87(mk: usize, e: usize, rk: usize) {
         unsafe {
             core::arch::asm!(
                     "fld dword ptr [{e} + 0x2C]",
@@ -468,7 +457,7 @@ mod asm_reference {
         }
     }
 
-    pub(super) unsafe fn turn_place_x87(rc: usize, mk: usize, e: usize) {
+    pub(super) fn turn_place_x87(rc: usize, mk: usize, e: usize) {
         unsafe {
             core::arch::asm!(
                     "fld dword ptr [{e} + 0x18]",
@@ -587,10 +576,8 @@ mod asm_differential {
         };
         differential(
             &SPEC,
-            |b| unsafe { reference::first_frame_x87(b[0], b[1], b[2], b[3]) },
-            |b| unsafe {
-                super::first_frame_x87(b[0], b[2], crate::marks::setup::clock_at(b[1]), b[3])
-            },
+            |b| reference::first_frame_x87(b[0], b[1], b[2], b[3]),
+            |b| super::first_frame_x87(b[0], b[2], crate::marks::setup::clock_at(b[1]), b[3]),
         );
     }
 
@@ -628,8 +615,8 @@ mod asm_differential {
         };
         differential(
             &SPEC,
-            |b| unsafe { reference::move_x87(b[0], b[1], b[2]) },
-            |b| unsafe { super::move_x87(b[1], crate::marks::setup::clock_at(b[0]), b[2]) },
+            |b| reference::move_x87(b[0], b[1], b[2]),
+            |b| super::move_x87(b[1], crate::marks::setup::clock_at(b[0]), b[2]),
         );
     }
 
@@ -673,9 +660,9 @@ mod asm_differential {
         };
         differential(
             &SPEC,
-            |b| unsafe { reference::turn_place_x87(b[0], b[1], b[2]) },
+            |b| reference::turn_place_x87(b[0], b[1], b[2]),
             |b| {
-                with_copy::<DrawWork, _>(b[1], DrawWork::START, |dw| unsafe {
+                with_copy::<DrawWork, _>(b[1], DrawWork::START, |dw| {
                     super::turn_place_x87(b[0], b[2], dw)
                 })
             },

@@ -60,18 +60,19 @@ pub fn sign(v: u32) -> bool {
 /// +0x3C) into `qword_6D3078` ..; the turn speed (`unk_71A15C` ..) into `dword_6D30B4`
 /// ..; the point (`flt_6D2214[n]`, `flt_6D2314[n]`, `flt_6D2414[n]`) into
 /// `dword_6D3090` ...
-pub fn take_contact(n: usize) {
+pub fn take_contact(n: usize) -> Result<(), Refused> {
     copy3(&CONTACT_WORK.contact_car_speed, &CAR.velocity);
     let face = (CAR.probe_point_face[n].get() << 6).wrapping_add(COURSE.course_faces.get());
     let parts = contacts::normal_offsets(CONTACT_WORK.probe_face_flip[n].get());
     for (k, o) in parts.iter().enumerate() {
-        let v = unsafe { ((face + o) as *const u32).read_unaligned() };
+        let v = crate::pointers::GamePtr::new(face + o).read::<u32>("a face's normal")?;
         CONTACT_WORK.contact_normal[k].set_bits(loaded(v));
     }
     copy3(&CONTACT_WORK.contact_turn_speed, &CAR.spin);
     CONTACT_WORK.contact_point[0].set_bits(CONTACT_WORK.probe_turned_x[n].bits());
     CONTACT_WORK.contact_point[1].set_bits(CONTACT_WORK.probe_turned_y[n].bits());
     CONTACT_WORK.contact_point[2].set_bits(CONTACT_WORK.probe_turned_z[n].bits());
+    Ok(())
 }
 
 /// The deepest point's number (`dword_6D306C`) for the long path; refused past 0x3F.
@@ -101,7 +102,7 @@ fn steps() -> Result<(), Refused> {
         .set(CONTACT_WORK.probe_ground_height[n].get());
     CAR.contact_point_z.set(CONTACT_WORK.probe_z[n].get());
     CAR.contact_found.set(1);
-    take_contact(n);
+    take_contact(n)?;
     let up = unsafe {
         rotate_point(
             CAR.crash_matrix[0].addr() as u32,

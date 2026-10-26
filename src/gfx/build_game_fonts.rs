@@ -29,6 +29,7 @@ use crate::gfx::pixel_format::PixelFormat;
 use crate::memory::MemoryList;
 use crate::memory::allocate::allocate;
 use crate::memory::take_from_list::{rewind_list, take_from_list};
+use crate::pointers::GamePtr;
 use crate::session::SCREEN;
 
 // ---- game data ----
@@ -80,7 +81,7 @@ fn fatal(code: u32) -> Refused {
 /// `pixels_b` is where the place of the second palette's pixels is read from when they
 /// are made. (The original's fatal error 0x80E48061 for a failed allocation cannot come:
 /// the allocator reports its own.)
-pub unsafe fn build_game_fonts(pixels_b: *const u32) -> Result<(), Refused> {
+pub unsafe fn build_game_fonts(pixels_b: u32) -> Result<(), Refused> {
     unsafe {
         let list = GAME_FONTS.memory.as_ptr();
         let bytes = GAME_FONTS
@@ -89,7 +90,7 @@ pub unsafe fn build_game_fonts(pixels_b: *const u32) -> Result<(), Refused> {
             .wrapping_mul(0x400)
             .wrapping_mul(SCREEN.bytes.get());
         allocate(list, bytes)?;
-        rewind_list(list);
+        rewind_list(list)?;
         begin_glyph_tables()?;
         DECODER.builder_flags.set(RUN_LENGTHS | WITH_ALPHA);
         // The textures' 8888 kind's description (`kinds[3]`): its pixel layout is 8 bytes in.
@@ -112,7 +113,7 @@ pub unsafe fn build_game_fonts(pixels_b: *const u32) -> Result<(), Refused> {
             return Err(fatal(0x80E4_8062));
         }
         alpha_palette();
-        palette_to_pixels(FONTS.game_fonts[0].get().palette as *mut u32)?;
+        palette_to_pixels(FONTS.game_fonts[0].get().palette)?;
         end_glyph_tables()?;
 
         let (glyphs, palette_a): (u32, u32) = (
@@ -127,20 +128,20 @@ pub unsafe fn build_game_fonts(pixels_b: *const u32) -> Result<(), Refused> {
         }
 
         // The sheet's palette made brighter where it lies, and its pixels.
-        let to = pixels_b.read_unaligned() as *mut u32;
-        let layout = DECODER.format.get() as *const PixelFormat;
-        if to.is_null() || layout.is_null() {
+        let to: u32 = GamePtr::new(pixels_b).read("the second palette's place")?;
+        let layout = DECODER.format.get();
+        if to == 0 || layout == 0 {
             return Err(BadInput("no place for the second palette, or no pixel layout").into());
         }
-        let layout = layout.read_unaligned();
+        let layout: PixelFormat = GamePtr::new(layout).read("the palette's pixel layout")?;
+        let mut pixels = Vec::with_capacity(256 * 4);
         for n in 0..256usize {
-            let place = DECODER.palette[n].as_ptr();
             // Converted: `rc2k_core::gfx::pixels::brighter`.
-            let brighter = rc2k_core::gfx::pixels::brighter(place.read_unaligned());
-            place.write_unaligned(brighter);
-            to.add(n)
-                .write_unaligned(components_to_pixel(&layout, brighter));
+            let brighter = rc2k_core::gfx::pixels::brighter(DECODER.palette[n].get());
+            DECODER.palette[n].set(brighter);
+            pixels.extend_from_slice(&components_to_pixel(&layout, brighter).to_le_bytes());
         }
+        GamePtr::new(to).write_bytes(&pixels, "the second palette's pixels")?;
 
         let palette_b: u32 = FONTS.game_fonts[3].get().palette;
         FONTS.game_fonts[3].update(|f| f.glyph_table = glyphs);
@@ -156,7 +157,9 @@ pub unsafe fn build_game_fonts(pixels_b: *const u32) -> Result<(), Refused> {
 
 /// With the third font's palette's place, as the stage's loading calls it.
 pub unsafe fn build_game_fonts_in_game() -> Result<(), Refused> {
-    unsafe { build_game_fonts(&raw const (*FONTS.game_fonts[3].as_ptr()).palette) }
+    unsafe {
+        build_game_fonts((&raw const (*FONTS.game_fonts[3].as_ptr()).palette) as usize as u32)
+    }
 }
 
 #[cfg(test)]

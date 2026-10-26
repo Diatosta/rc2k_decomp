@@ -29,8 +29,9 @@
 //! Hook removed 2026-10-22 (direct calls): Rust callers run its `entry` (`calls::call`,
 //! `routes.rs`); the registers above are the original's, for reference.
 
-use crate::errors::Refused;
+use crate::errors::{BadInput, Refused};
 use crate::framework::log;
+use crate::pointers::GamePtr;
 
 // ---- game data ----
 
@@ -55,39 +56,40 @@ const INSTALLER_MARK: u16 = 0xBD;
 
 /// Where the loop's variables are: the game's own, or a test's.
 #[derive(Clone, Copy)]
-pub struct Vars(pub [*mut u32; 12]);
+pub struct Vars(pub [GamePtr; 12]);
 
 impl Vars {
     fn game() -> Self {
         use crate::session::{CLOCKS, FLAGS};
-        let mut vars = VARS.map(|at| {
-            if at == 0 {
-                std::ptr::null_mut()
+        let at = |address: usize| GamePtr::new(address as u32);
+        let mut vars = VARS.map(|v| {
+            if v == 0 {
+                GamePtr::new(0)
             } else {
-                crate::moved::place(at) as *mut u32
+                at(crate::moved::place(v))
             }
         });
-        vars[0] = FLAGS.main_loop_stack.as_ptr();
-        vars[1] = FLAGS.quitting.as_ptr();
-        vars[2] = FLAGS.window_active.as_ptr();
-        vars[3] = CLOCKS.key_ticks.as_ptr();
-        vars[4] = FLAGS.f38c.as_ptr();
-        vars[5] = crate::sound::store::SETTINGS_APPLIED.done.as_ptr();
-        vars[6] = crate::install::vars::INSTALLER_PAGES.script_set_up.addr() as *mut u32;
-        vars[7] = crate::install::vars::INSTALLER_RUN.installing.as_ptr();
-        vars[8] = crate::install::vars::INSTALLER_RUN.updating.as_ptr();
-        vars[9] = crate::install::vars::INSTALLER_RUN.from_command.as_ptr();
-        vars[10] = crate::files::state::base_directory().cast();
-        vars[11] = crate::net::store::NET.lobby_launched.as_ptr();
+        vars[0] = at(FLAGS.main_loop_stack.addr());
+        vars[1] = at(FLAGS.quitting.addr());
+        vars[2] = at(FLAGS.window_active.addr());
+        vars[3] = at(CLOCKS.key_ticks.addr());
+        vars[4] = at(FLAGS.f38c.addr());
+        vars[5] = at(crate::sound::store::SETTINGS_APPLIED.done.addr());
+        vars[6] = at(crate::install::vars::INSTALLER_PAGES.script_set_up.addr());
+        vars[7] = at(crate::install::vars::INSTALLER_RUN.installing.addr());
+        vars[8] = at(crate::install::vars::INSTALLER_RUN.updating.addr());
+        vars[9] = at(crate::install::vars::INSTALLER_RUN.from_command.addr());
+        vars[10] = at(crate::files::state::base_directory() as usize);
+        vars[11] = at(crate::net::store::NET.lobby_launched.addr());
         Self(vars)
     }
 
-    unsafe fn get(&self, n: usize) -> u32 {
-        unsafe { self.0[n].read_unaligned() }
+    fn get(&self, n: usize) -> Result<u32, BadInput> {
+        self.0[n].read::<u32>("the main loop's variable")
     }
 
-    unsafe fn set(&self, n: usize, value: u32) {
-        unsafe { self.0[n].write_unaligned(value) }
+    fn set(&self, n: usize, value: u32) -> Result<(), BadInput> {
+        self.0[n].write(value, "the main loop's variable")
     }
 }
 
@@ -119,30 +121,30 @@ pub enum Call {
 pub type Outside<'a> = &'a mut dyn FnMut(Call) -> Result<(), Refused>;
 
 /// `stack` is the stack pointer at the loop's entry.
-pub unsafe fn main_loop(vars: &Vars, stack: u32, outside: Outside) -> Result<(), Refused> {
-    unsafe {
+pub fn main_loop(vars: &Vars, stack: u32, outside: Outside) -> Result<(), Refused> {
+    {
         let leaving = |outside: Outside| outside(Call::Log(LEAVING_RVA.as_ptr() as usize as u32));
         let quit_and_leave = |outside: Outside| {
             outside(Call::RequestQuit)?;
             outside(Call::Log(LEAVING_RVA.as_ptr() as usize as u32))
         };
-        if vars.get(0) != 0 {
+        if vars.get(0)? != 0 {
             return quit_and_leave(outside);
         }
-        vars.set(0, stack);
+        vars.set(0, stack)?;
         outside(Call::Log(0))?;
         outside(Call::Log(ENTERING_RVA.as_ptr() as usize as u32))?;
         loop {
             outside(Call::Sleep(1000))?;
-            if vars.get(1) == 1 {
+            if vars.get(1)? == 1 {
                 return leaving(outside);
             }
-            if vars.get(2) != 0 && vars.get(3) != 0 {
+            if vars.get(2)? != 0 && vars.get(3)? != 0 {
                 break;
             }
         }
-        vars.set(4, 0);
-        vars.set(5, 0);
+        vars.set(4, 0)?;
+        vars.set(5, 0)?;
         outside(Call::Sub404823)?;
         outside(Call::Sub40EFF3)?;
         outside(Call::Sub4075F3)?;
@@ -151,28 +153,30 @@ pub unsafe fn main_loop(vars: &Vars, stack: u32, outside: Outside) -> Result<(),
         // with `-u` (`dword_51B9CC`) it uninstalls where it is: its record is in the
         // installed folder, so the uninstall runs from there (the original's ran from the
         // CD, through the update's mark).
-        if (vars.0[6] as *const u16).read_unaligned() == INSTALLER_MARK
+        if vars.0[6].read::<u16>("the installer's mark")? == INSTALLER_MARK
             || crate::install::portable::is_source_folder()
-            || vars.get(8) == 1
+            || vars.get(8)? == 1
         {
             outside(Call::Installer)?;
             return quit_and_leave(outside);
         }
-        if vars.get(7) != 1 {
+        if vars.get(7)? != 1 {
             outside(Call::RunsFromSource)?;
         }
-        vars.set(7, 0);
-        vars.set(8, 0);
-        vars.set(9, 0);
+        vars.set(7, 0)?;
+        vars.set(8, 0)?;
+        vars.set(9, 0)?;
         outside(Call::Sub40FCAA)?;
-        outside(Call::IsCdDrive((vars.0[10] as *const u8).read()))?;
-        if vars.get(11) == 1 {
+        outside(Call::IsCdDrive(
+            vars.0[10].read::<u8>("the base directory")?,
+        ))?;
+        if vars.get(11)? == 1 {
             outside(Call::Sub418DF4)?;
             return quit_and_leave(outside);
         }
         outside(Call::RunFrontEnd)?;
         outside(Call::Sub40F826)?;
-        if vars.get(1) == 1 {
+        if vars.get(1)? == 1 {
             return leaving(outside);
         }
         outside(Call::SaveGameData)?;
@@ -227,7 +231,7 @@ pub fn main_loop_in_game() -> Result<(), Refused> {
     log("system::main_loop: the Rust version runs");
     let here = 0u32;
     let stack = &raw const here as u32;
-    unsafe { main_loop(&Vars::game(), stack, &mut in_game) }?;
+    main_loop(&Vars::game(), stack, &mut in_game)?;
     log("system::main_loop: the Rust version has come back");
     Ok(())
 }

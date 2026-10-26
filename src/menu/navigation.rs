@@ -19,8 +19,8 @@ use crate::menu::state_store::MENU_STATE;
 
 // ---- game data ----
 
-unsafe fn dword(at: u32) -> u32 {
-    unsafe { (at as *const u32).read_unaligned() }
+fn dword(at: u32) -> Result<u32, crate::errors::BadInput> {
+    crate::pointers::GamePtr::new(at).read::<u32>("a game value")
 }
 
 /// The four moves. Which is up and which is down is a reading: the keys are 0x66 and 0x6B.
@@ -50,13 +50,13 @@ impl Direction {
 
 /// The click is `sub_40F059` with sound 1 (`sound::play_menu_sound`); the callback gets
 /// the item (edi in the original, the only register its callbacks read).
-pub unsafe fn move_highlight(direction: Direction) -> Result<(), Refused> {
+pub fn move_highlight(direction: Direction) -> Result<(), Refused> {
     // Converted: `rc2k_core::menu::navigation` (`turn`, `link`, `walk`), everything worked
     // out before it is written.
     use rc2k_core::menu::navigation::{Link, Turn, link, turn, walk};
     let (link_at, callback) = direction.offsets();
     let sideways = matches!(direction, Direction::Left | Direction::Right);
-    unsafe {
+    {
         let highlighted: u32 = LOOP_FLAGS.item.get();
         let item = item_at(highlighted)?;
         let turned = (sideways && SCREEN_FLOW.turning.get() == 1).then(|| {
@@ -68,11 +68,12 @@ pub unsafe fn move_highlight(direction: Direction) -> Result<(), Refused> {
             };
             turn(t, direction == Direction::Right)
         });
-        let next = dword(item + link_at);
+        let next = dword(item + link_at)?;
         let to = match link(next) {
             Link::To(n) if !sideways => Some(walk(n, |n| {
                 let it = item_at(n).map_err(|e| rc2k_core::Invalid(e.0))?;
-                Ok((dword(it + link_at), dword(it + 0x48)))
+                let read = |at| dword(at).map_err(|e| rc2k_core::Invalid(e.0));
+                Ok((read(it + link_at)?, read(it + 0x48)?))
             })?),
             Link::To(n) => Some(n),
             _ => None,
@@ -90,7 +91,7 @@ pub unsafe fn move_highlight(direction: Direction) -> Result<(), Refused> {
         }
         match to {
             Some(n) => LOOP_FLAGS.item.set(n),
-            None => crate::menu::table_calls::call_key(dword(item + callback), item)?,
+            None => crate::menu::table_calls::call_key(dword(item + callback)?, item)?,
         }
     }
     Ok(())

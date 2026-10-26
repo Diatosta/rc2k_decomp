@@ -11,18 +11,15 @@
 use crate::menu::champ_store::CHAMP_VIEW;
 
 /// The Rust version (see the header): the registers it leaves.
-pub unsafe fn stage_range_caption() {
+pub fn stage_range_caption() -> Result<(), crate::errors::BadInput> {
     let first: u32 = { CHAMP_VIEW.first_row.get() };
     // Converted: `rc2k_core::menu::event::stage_range`.
     let mut text = rc2k_core::menu::event::stage_range(first);
     text.push(0);
-    unsafe {
-        std::ptr::copy_nonoverlapping(
-            text.as_ptr(),
-            crate::screens::text_buffers_store::TEXT_BUFFERS
-                .caption
-                .addr() as *mut u8,
-            text.len(),
-        )
-    };
+    crate::pointers::GamePtr::new(
+        crate::screens::text_buffers_store::TEXT_BUFFERS
+            .caption
+            .addr() as u32,
+    )
+    .write_bytes(&text, "the caption")
 }

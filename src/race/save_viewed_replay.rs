@@ -18,10 +18,13 @@
 //! `race::save_last_replay`. Saving into slot 222 would make the file it reads from anew (the
 //! original's way, kept).
 
+use crate::errors::BadInput;
 use crate::errors::Refused;
 use crate::files::handle;
+use crate::pointers::GamePtr;
 use crate::race::replay_file_store::REPLAY_FILE;
 use crate::race::replay_path::{LAST_RACE, replay_path};
+use crate::race::trap::file_write;
 use crate::race::viewer::{TABLE_LEN, move_dwords};
 use crate::race::viewer_state_store::REPLAY_VIEW;
 
@@ -53,11 +56,12 @@ fn save(slot: u32) -> Result<bool, Refused> {
             header.set_u32(4 * k, word);
         }
         header.set_u32(0xC, crate::system::packed_local_time::packed_local_time());
-        let name = crate::race::replay::REPLAYS
-            .names
-            .as_ptr()
-            .wrapping_add(name_offset(slot) as usize);
-        std::ptr::copy(name as *const u8, header.as_ptr().add(0x10), NAME_LEN);
+        let name = crate::race::replay::REPLAYS.names.addr() as u32 + name_offset(slot);
+        GamePtr::new(name).copy_to(
+            GamePtr::new(header.addr() as u32 + 0x10),
+            NAME_LEN,
+            "a replay's name",
+        )?;
         // The last race's file opened to read from, the slot's to write to.
         let Some(from) = handle::open_by_mode(LAST_RACE.addr() as *const u8, 0)? else {
             return Ok(false);
@@ -97,21 +101,22 @@ fn save(slot: u32) -> Result<bool, Refused> {
                     .get(),
             );
         };
-        let write = |buffer: u32, len: u32| {
-            handle::write(
+        let write = |buffer: u32, len: u32| -> Result<bool, BadInput> {
+            Ok(file_write(
                 crate::race::viewer_buffers_store::VIEWER_BUFFERS
                     .to_file
                     .get(),
-                buffer as *const u8,
+                buffer,
                 len,
-            )
-            .1
+                "the saved replay's bytes",
+            )?
+            .1)
         };
         REPLAY_VIEW.file_offset.set(HEADER_LEN); // the new file's length so far
         if !write(
             crate::race::replay::REPLAYS.header.addr() as u32,
             HEADER_LEN,
-        ) {
+        )? {
             close();
             return Ok(false);
         }
@@ -121,7 +126,7 @@ fn save(slot: u32) -> Result<bool, Refused> {
                 crate::race::viewer_buffers_store::VIEWER_BUFFERS
                     .from_file
                     .get(),
-                crate::race::replay::block_place(2 * block as usize) as i32,
+                crate::race::replay::block_place(2 * block as usize)? as i32,
                 0,
             );
             crate::drive::read_packed::read_packed(
@@ -129,7 +134,7 @@ fn save(slot: u32) -> Result<bool, Refused> {
                     .from_file
                     .get(),
                 crate::race::viewer_buffers_store::VIEWER_BUFFERS.block[0].addr() as u32,
-                crate::race::replay::block_place(2 * block as usize + 1),
+                crate::race::replay::block_place(2 * block as usize + 1)?,
             )?;
             move_dwords(
                 crate::race::viewer_buffers_store::VIEWER_BUFFERS.block[0].addr(),
@@ -138,7 +143,7 @@ fn save(slot: u32) -> Result<bool, Refused> {
                     .addr()
                     + 8 * block as usize,
                 CAMERA_DWORDS,
-            );
+            )?;
             crate::race::checkpoints_store::nth(
                 &crate::race::viewer_buffers_store::VIEWER_BUFFERS.undo_places[0],
                 2 * block as usize,
@@ -168,11 +173,11 @@ fn save(slot: u32) -> Result<bool, Refused> {
                 break;
             }
         }
-        let done = write(REPLAY_FILE.index_magic.addr() as u32, INDEX_HEAD_LEN)
+        let done = write(REPLAY_FILE.index_magic.addr() as u32, INDEX_HEAD_LEN)?
             && write(
                 crate::race::viewer_buffers_store::VIEWER_BUFFERS.undo_places[0].addr() as u32,
                 TABLE_LEN as u32,
-            );
+            )?;
         close();
         Ok(done)
     }

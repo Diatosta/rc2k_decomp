@@ -12,10 +12,11 @@ pub fn object(n: u32) -> u32 {
     crate::sound::store::RACE_SOUNDS.table[(n & 7) as usize].get()
 }
 
-unsafe fn wake(n: u32) {
-    unsafe { crate::sound::store::SoundObject::at(object(n)) }
+fn wake(n: u32) -> Result<(), BadInput> {
+    crate::sound::store::SoundObject::at(object(n))?
         .in_use
         .set(1);
+    Ok(())
 }
 
 pub fn objects_there() -> bool {
@@ -36,7 +37,7 @@ pub fn start_race_sounds() -> Result<(), Refused> {
             let count = count.clamp(1, OBJECTS);
             crate::sound::store::RACE_SOUNDS.count.set(count);
             for n in 0..count {
-                wake(n);
+                wake(n)?;
             }
         }
         crate::sound::let_sounds_play::let_sounds_play();
@@ -51,24 +52,24 @@ pub fn start_race_sounds() -> Result<(), Refused> {
 /// (the original leaves them in ebx and edi: it has no `pusha`). Refuses 0x10000 cars or
 /// more (the original counts on to them), an object missing.
 pub fn wake_car_sounds() -> Result<Option<(u32, u32)>, Refused> {
-    unsafe {
-        if RACE_WORK.in_credits.bits() != 0 {
-            return Ok(None);
-        }
-        let cars: u32 = RACE_VIEW.race_cars.bits();
-        if cars >= MOST_CARS {
-            return Err(BadInput("0x10000 cars or more").into());
-        }
-        if !objects_there() {
-            return Err(BadInput("a race sound object missing").into());
-        }
-        let woken = (cars != 0).then(|| {
-            for n in 0..cars {
-                wake(n);
-            }
-            (cars, object(cars - 1))
-        });
-        start_race_sounds()?;
-        Ok(woken)
+    if RACE_WORK.in_credits.bits() != 0 {
+        return Ok(None);
     }
+    let cars: u32 = RACE_VIEW.race_cars.bits();
+    if cars >= MOST_CARS {
+        return Err(BadInput("0x10000 cars or more").into());
+    }
+    if !objects_there() {
+        return Err(BadInput("a race sound object missing").into());
+    }
+    let woken = if cars != 0 {
+        for n in 0..cars {
+            wake(n)?;
+        }
+        Some((cars, object(cars - 1)))
+    } else {
+        None
+    };
+    start_race_sounds()?;
+    Ok(woken)
 }

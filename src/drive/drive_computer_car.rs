@@ -35,6 +35,7 @@ use crate::math::x87_run::{
     compare_full, float_hypot_to_int, int_toward_to_int, mul2_to_int, times_fist_compare,
 };
 use crate::physics::car_store::CAR;
+use crate::pointers::GamePtr;
 use crate::race::course_store::COURSE;
 use crate::race::norms::normalise_work_vector;
 use crate::race::numbers_store::NUMBERS;
@@ -44,12 +45,12 @@ use crate::race::work_store::RACE_WORK;
 use crate::scene::view_matrix::cross_product;
 use rc2k_core::drive::computer_driver as driver;
 
-unsafe fn at(addr: u32) -> u32 {
-    unsafe { (addr as *const u32).read_unaligned() }
+fn at(addr: u32) -> Result<u32, BadInput> {
+    GamePtr::new(addr).read("the computer driver's data")
 }
 
-unsafe fn put(addr: u32, v: u32) {
-    unsafe { (addr as *mut u32).write_unaligned(v) }
+fn put(addr: u32, v: u32) -> Result<(), BadInput> {
+    GamePtr::new(addr).write(v, "the computer driver's data")
 }
 
 /// `table[n + k]`, the index held to the count less one (unsigned) as the original holds
@@ -60,42 +61,40 @@ fn held(table: fn(usize) -> &'static crate::session::Dword, n: u32, k: u32) -> u
 }
 
 /// A checkpoint face's first point: (x, z).
-unsafe fn face_point(face: u32) -> (u32, u32) {
-    unsafe {
-        let f = COURSE.course_faces.get().wrapping_add(face << 6);
-        let pt = COURSE
-            .scene_points
-            .get()
-            .wrapping_add(at(f + 4).wrapping_mul(12));
-        (at(pt), at(pt + 8))
-    }
+fn face_point(face: u32) -> Result<(u32, u32), BadInput> {
+    let f = COURSE.course_faces.get().wrapping_add(face << 6);
+    let pt = COURSE
+        .scene_points
+        .get()
+        .wrapping_add(at(f + 4)?.wrapping_mul(12));
+    Ok((at(pt)?, at(pt + 8)?))
 }
 
 /// `sub_463296` then `sub_4632AE`: (to - from) in x and z, y 0, as floats, at `out`.
-fn flat_way(from: u32, to: u32, out: u32) {
-    unsafe {
-        put(out, at(to).wrapping_sub(at(from)));
-        put(out + 8, at(to + 8).wrapping_sub(at(from + 8)));
-        put(out + 4, 0);
-        for o in [0, 4, 8] {
-            put(out + o, x87::from_int(at(out + o) as i32));
-        }
+fn flat_way(from: u32, to: u32, out: u32) -> Result<(), BadInput> {
+    put(out, at(to)?.wrapping_sub(at(from)?))?;
+    put(out + 8, at(to + 8)?.wrapping_sub(at(from + 8)?))?;
+    put(out + 4, 0)?;
+    for o in [0, 4, 8] {
+        put(out + o, x87::from_int(at(out + o)? as i32))?;
     }
+    Ok(())
 }
 
 /// Through `g_workVector` and `race::normalise_work_vector`: the vector at `from` made one
 /// long into `to`.
-unsafe fn normalised(from: u32, to: u32) {
+unsafe fn normalised(from: u32, to: u32) -> Result<(), BadInput> {
     unsafe {
         let w = FRAME_SCRATCH.work_vector[0].addr() as u32;
         for o in [0, 4, 8] {
-            put(w + o, at(from + o));
+            put(w + o, at(from + o)?)?;
         }
         normalise_work_vector();
         for o in [0, 4, 8] {
-            put(to + o, at(w + o));
+            put(to + o, at(w + o)?)?;
         }
     }
+    Ok(())
 }
 
 /// The Rust version.
@@ -145,8 +144,8 @@ pub unsafe fn drive_computer_car() -> Result<(), Refused> {
             .get()
             .wrapping_add(held(crate::race::checkpoints_store::face, n, 2) << 6);
         let (b1, b2) = (
-            u32::from((f as *const u8).add(0xA).read()),
-            u32::from((f as *const u8).add(0xB).read()),
+            u32::from(GamePtr::new(f.wrapping_add(0xA)).read::<u8>("a face of the course")?),
+            u32::from(GamePtr::new(f.wrapping_add(0xB)).read::<u8>("a face of the course")?),
         );
         RACE_WORK.driver_bend_a.set(b1);
         RACE_WORK.driver_bend_b.set(b2);
@@ -196,9 +195,8 @@ pub unsafe fn drive_computer_car() -> Result<(), Refused> {
             CAR.wheel_surface_a[0].get(),
         )];
         let listed = u32::from(
-            (RACE_WORK.wanted_speeds[table].addr() as *const u8)
-                .add(bend as usize)
-                .read(),
+            GamePtr::new((RACE_WORK.wanted_speeds[table].addr() as u32).wrapping_add(bend))
+                .read::<u8>("the wanted speeds")?,
         );
         let s = RACE_WORK.driver_slot.get();
         let near = RACE_WORK.driver_bend_to[s as usize].get() != 0;
@@ -233,13 +231,13 @@ pub unsafe fn drive_computer_car() -> Result<(), Refused> {
         RACE_WORK
             .driver_speed_scale
             .set_bits(x87::loaded(RACE_WORK.bend_speeds[k as usize].bits())); // flt_71BE9C, 0x20 of them
-        let (x, z) = face_point(held(crate::race::checkpoints_store::face, n, 0));
+        let (x, z) = face_point(held(crate::race::checkpoints_store::face, n, 0))?;
         RACE_WORK.driver_from[0].set(x);
         RACE_WORK.driver_from[2].set(z);
         RACE_WORK.driver_from[1].set(0);
         let sharp = RACE_WORK.driver_bend_noted[RACE_WORK.driver_slot.get() as usize].get() != 0;
         let aim = driver::aim_ahead(sharp, !sharp && RACE_WORK.driver_aim.get() == 1, speed);
-        let (x, z) = face_point(held(crate::race::checkpoints_store::face, n, aim));
+        let (x, z) = face_point(held(crate::race::checkpoints_store::face, n, aim))?;
         RACE_WORK.driver_to[0].set(x);
         RACE_WORK.driver_to[2].set(z);
         RACE_WORK.driver_to[1].set(0);
@@ -247,11 +245,11 @@ pub unsafe fn drive_computer_car() -> Result<(), Refused> {
             RACE_WORK.driver_from[0].addr() as u32,
             RACE_WORK.driver_to[0].addr() as u32,
             RACE_WORK.driver_flat[0].addr() as u32,
-        );
+        )?;
         normalised(
             RACE_WORK.driver_flat[0].addr() as u32,
             RACE_WORK.driver_flat_unit[0].addr() as u32,
-        );
+        )?;
         cross_product(
             (RACE_WORK.driver_flat_unit[0].addr() as u32) as usize,
             (RACE_WORK.driver_vector[0].addr() as u32) as usize,
@@ -260,7 +258,7 @@ pub unsafe fn drive_computer_car() -> Result<(), Refused> {
         normalised(
             RACE_WORK.driver_ahead[0].addr() as u32,
             RACE_WORK.driver_ahead[0].addr() as u32,
-        );
+        )?;
         let (k1, k2) = (RACE_WORK.driver_speed_scale.bits(), NUMBERS.k65536.bits());
         RACE_WORK.driver_step_x.set(mul2_to_int(
             crate::race::work_store::RACE_WORK.driver_ahead[0].bits(),
@@ -283,21 +281,21 @@ pub unsafe fn drive_computer_car() -> Result<(), Refused> {
                 .wrapping_add(crate::race::work_store::RACE_WORK.driver_step_z.get()),
         );
         let here = RACE_WORK.driver_point_now.get();
-        put(here, CAR.position[0].get());
-        put(here + 8, CAR.position[2].get());
-        put(here + 4, 0);
+        put(here, CAR.position[0].get())?;
+        put(here + 8, CAR.position[2].get())?;
+        put(here + 4, 0)?;
         flat_way(
             here,
             RACE_WORK.driver_to[0].addr() as u32,
             RACE_WORK.driver_way[0].addr() as u32,
-        );
+        )?;
         normalised(
             RACE_WORK.driver_way[0].addr() as u32,
             RACE_WORK.driver_way_unit[0].addr() as u32,
-        );
+        )?;
         let m = CAR.crash_matrix[0].addr() as u32;
-        RACE_WORK.driver_side[2].set_bits(x87::loaded(at(m + 0x28)));
-        RACE_WORK.driver_side[0].set_bits(x87::negated(at(m + 8)));
+        RACE_WORK.driver_side[2].set_bits(x87::loaded(at(m + 0x28)?));
+        RACE_WORK.driver_side[0].set_bits(x87::negated(at(m + 8)?));
         RACE_WORK.driver_side[1].set_bits(0);
         cross_product(
             (RACE_WORK.driver_side[0].addr() as u32) as usize,
@@ -338,9 +336,9 @@ pub unsafe fn drive_computer_car() -> Result<(), Refused> {
             RACE_WORK.driver_point_now.get(),
             RACE_WORK.driver_point_then.get(),
         );
-        let (ax, az, cx, cz) = (at(now), at(now + 8), at(then), at(then + 8));
-        put(then, ax);
-        put(then + 8, az);
+        let (ax, az, cx, cz) = (at(now)?, at(now + 8)?, at(then)?, at(then + 8)?);
+        put(then, ax)?;
+        put(then + 8, az)?;
         let moved = driver::moved((ax, az), (cx, cz));
         RACE_WORK.driver_moved.set(moved);
         if !driver::stuck(moved) {

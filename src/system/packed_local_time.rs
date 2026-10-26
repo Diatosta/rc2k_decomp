@@ -23,7 +23,8 @@ pub fn pack(t: &SYSTEMTIME) -> u32 {
     rc2k_core::system::time::pack(t.wYear, t.wMonth, t.wDay, t.wHour, t.wMinute)
 }
 
-pub unsafe fn packed_local_time() -> u32 {
+pub fn packed_local_time() -> u32 {
+    // SAFETY: `GetLocalTime` fills the zeroed record.
     unsafe {
         let mut time: SYSTEMTIME = std::mem::zeroed();
         GetLocalTime(&mut time);

@@ -7,6 +7,8 @@
 //!
 //! Caller: `sub_45FFB6`.
 
+use crate::errors::BadInput;
+use crate::pointers::GamePtr;
 use crate::race::work_store::RACE_WORK;
 use rc2k_core::drive::replay_frames::{StartPiece, start_layout};
 
@@ -21,12 +23,13 @@ pub fn piece_addr(piece: StartPiece) -> usize {
 
 /// The Rust version.
 // Converted: `rc2k_core::drive::replay_frames::start_layout`.
-pub fn save_replay_cars() {
+pub fn save_replay_cars() -> Result<(), BadInput> {
     for (piece, offset, n) in start_layout() {
         let (state, place) = (
             crate::race::blocks_store::block_addr(8) as u32 + 4 * offset as u32,
             piece_addr(piece) as u32,
         );
-        unsafe { std::ptr::copy(place as *const u32, state as *mut u32, n) };
+        GamePtr::new(place).copy_to(GamePtr::new(state), n * 4, "the cars' starting state")?;
     }
+    Ok(())
 }

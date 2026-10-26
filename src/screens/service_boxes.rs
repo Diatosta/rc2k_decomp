@@ -14,8 +14,8 @@ pub fn set(a: &Dword, v: u32) {
 }
 
 /// The dword at `p` (the original's `[esi]`).
-pub fn at_esi(p: u32) -> u32 {
-    unsafe { (p as *const u32).read_unaligned() }
+pub fn at_esi(p: u32) -> Result<u32, crate::errors::BadInput> {
+    crate::pointers::GamePtr::new(p).read::<u32>("a game value")
 }
 
 /// One quad: x .. x + w, y .. y + h, the colour and see-through, then `draw_tinted_quad`.

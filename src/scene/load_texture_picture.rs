@@ -24,11 +24,12 @@
 //! Converted 2026-10-21: the digits, the names, the folder and the gravel rule through
 //! `rc2k_core::scene::pictures`.
 
-use crate::errors::Refused;
+use crate::errors::{BadInput, Refused};
 use crate::files::file_exists::file_exists;
 use crate::gfx::load_picture_to_texture::load_picture_to_texture_in_game;
 use crate::logfile::log_int::log_int;
 use crate::logfile::log_write::log_write;
+use crate::pointers::GamePtr;
 use crate::race::vars_store::RACE_VARS;
 use crate::race::view_store::RACE_VIEW;
 use crate::scene::file_numbers_store::FILE_NUMBERS;
@@ -66,23 +67,28 @@ pub enum Call {
 // ---- Rust version ----
 
 /// The numbers and the names: everything the function writes.
-unsafe fn write_names(number: u32, texture: u32) {
-    unsafe {
+fn write_names(number: u32, texture: u32) -> Result<(), BadInput> {
+    {
         FILE_NUMBERS.picture_number.set(number);
         FILE_NUMBERS.picture_texture.set(texture);
         for ((name, second_name, at), (first, second)) in folders().into_iter().zip(names(number)) {
-            ((name + at) as *mut [u8; 4]).write(first);
+            GamePtr::new((name + at) as u32).write(first, "a picture's file number")?;
             if let Some(second) = second {
-                ((second_name + at) as *mut [u8; 4]).write(second);
+                GamePtr::new((second_name + at) as u32).write(second, "a picture's file number")?;
             }
         }
+        Ok(())
     }
 }
 
 // Converted: `rc2k_core::scene::pictures`
-pub unsafe fn load_texture_picture(number: u32, texture: u32, call: &mut dyn FnMut(Call) -> bool) {
-    unsafe {
-        write_names(number, texture);
+pub fn load_texture_picture(
+    number: u32,
+    texture: u32,
+    call: &mut dyn FnMut(Call) -> bool,
+) -> Result<(), BadInput> {
+    {
+        write_names(number, texture)?;
         let mut gravel_chosen = false;
         let car = picture_car(
             number,
@@ -97,10 +103,11 @@ pub unsafe fn load_texture_picture(number: u32, texture: u32, call: &mut dyn FnM
             // Eight cars' gravel switches; a car past them (the race's cars are at most
             // eight) reads on, as the original.
             let tyres = &RACE_VARS.car_tyres;
-            let gravel = tyres.get(car as usize).map_or_else(
-                || ((tyres[0].addr() + car as usize * 4) as *const u32).read_unaligned(),
-                |c| c.get(),
-            );
+            let gravel = match tyres.get(car as usize) {
+                Some(cell) => cell.get(),
+                None => GamePtr::new((tyres[0].addr() + car as usize * 4) as u32)
+                    .read("a car's tyre switch")?,
+            };
             call(Call::Number(gravel));
             if takes_gravel(gravel) && call(Call::Exists(folders()[GRAVEL].0)) {
                 gravel_chosen = true;
@@ -109,6 +116,7 @@ pub unsafe fn load_texture_picture(number: u32, texture: u32, call: &mut dyn FnM
         }
         let (name, second, _) = folders()[folder(number, gravel_chosen)];
         call(Call::Load(name, second, texture));
+        Ok(())
     }
 }
 
@@ -135,7 +143,7 @@ pub unsafe fn load_texture_picture_in_game(number: u32, texture: u32) -> Result<
                 }
             }
             false
-        });
+        })?;
     }
     refused.map_or(Ok(()), Err)
 }

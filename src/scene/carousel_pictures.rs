@@ -4,6 +4,7 @@
 
 use crate::errors::BadInput;
 use crate::menu::state_store::MENU_STATE;
+use crate::pointers::GamePtr;
 use crate::scene::kind_texture_store::KIND_TEXTURES;
 use crate::scene::texture_places_store::TEXTURE_PLACES;
 use crate::scene::textures::SLOTS;
@@ -18,45 +19,41 @@ const ENTRIES: u32 = 0x100;
 /// the newly wanted ones (`scene::keep_held_pictures` 0x49036F); and each held
 /// picture's eight textures go to its eight slots (`scene::assign_picture_slots`
 /// 0x4903E3). Nothing is written before a refusal.
-pub unsafe fn update(entries: [u32; 4]) -> Result<(), BadInput> {
-    unsafe {
-        let table: u32 = MENU_STATE.carousel.entries.get();
-        if table == 0 {
-            return Err(BadInput("no carousel entries' records"));
-        }
-        let mut wanted = [0u32; 4];
-        let mut record = 0;
-        for (n, &entry) in entries.iter().enumerate() {
-            if entry >= ENTRIES {
-                return Err(BadInput("a carousel entry past the records"));
-            }
-            record = ((table + entry * 4) as *const u32).read_unaligned();
-            if record == 0 {
-                return Err(BadInput("a carousel entry without its record"));
-            }
-            wanted[n] = (record as *const u32).read_unaligned();
-        }
-        let first_slot: u32 = KIND_TEXTURES.kind_first_slots[KIND].get();
-        if first_slot.checked_add(32).is_none_or(|end| end > SLOTS) {
-            return Err(BadInput("the pictures' slots lie past the table"));
-        }
-        let first_texture: u32 = KIND_TEXTURES.kind_first_textures[KIND].get();
-        write_all(&MENU_STATE.carousel_pictures.shown, wanted);
-
-        // Converted: `rc2k_core::scene::carousel::{keep_held, picture_textures}`.
-        let (wanted, held) = rc2k_core::scene::carousel::keep_held(
-            wanted,
-            read_all(&MENU_STATE.carousel_pictures.held),
-        );
-        write_all(&MENU_STATE.carousel_pictures.wanted, wanted);
-        write_all(&MENU_STATE.carousel_pictures.held, held);
-        let textures = rc2k_core::scene::carousel::picture_textures(held, first_texture);
-        for (n, texture) in textures.into_iter().enumerate() {
-            TEXTURE_PLACES.slot_wanted[first_slot as usize + n].set(texture);
-        }
-        // What the original leaves in eax, ebx, ecx, esi and edi its callers' later calls
-        // overwrite or never read (the carousel takes ebx and ecx anew).
-        let _ = record;
-        Ok(())
+pub fn update(entries: [u32; 4]) -> Result<(), BadInput> {
+    let table: u32 = MENU_STATE.carousel.entries.get();
+    if table == 0 {
+        return Err(BadInput("no carousel entries' records"));
     }
+    let mut wanted = [0u32; 4];
+    let mut record = 0;
+    for (n, &entry) in entries.iter().enumerate() {
+        if entry >= ENTRIES {
+            return Err(BadInput("a carousel entry past the records"));
+        }
+        record = GamePtr::new(table.wrapping_add(entry * 4)).read("a carousel entry's record")?;
+        if record == 0 {
+            return Err(BadInput("a carousel entry without its record"));
+        }
+        wanted[n] = GamePtr::new(record).read("a carousel entry's picture")?;
+    }
+    let first_slot: u32 = KIND_TEXTURES.kind_first_slots[KIND].get();
+    if first_slot.checked_add(32).is_none_or(|end| end > SLOTS) {
+        return Err(BadInput("the pictures' slots lie past the table"));
+    }
+    let first_texture: u32 = KIND_TEXTURES.kind_first_textures[KIND].get();
+    write_all(&MENU_STATE.carousel_pictures.shown, wanted);
+
+    // Converted: `rc2k_core::scene::carousel::{keep_held, picture_textures}`.
+    let (wanted, held) =
+        rc2k_core::scene::carousel::keep_held(wanted, read_all(&MENU_STATE.carousel_pictures.held));
+    write_all(&MENU_STATE.carousel_pictures.wanted, wanted);
+    write_all(&MENU_STATE.carousel_pictures.held, held);
+    let textures = rc2k_core::scene::carousel::picture_textures(held, first_texture);
+    for (n, texture) in textures.into_iter().enumerate() {
+        TEXTURE_PLACES.slot_wanted[first_slot as usize + n].set(texture);
+    }
+    // What the original leaves in eax, ebx, ecx, esi and edi its callers' later calls
+    // overwrite or never read (the carousel takes ebx and ecx anew).
+    let _ = record;
+    Ok(())
 }

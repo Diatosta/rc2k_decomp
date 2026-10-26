@@ -18,7 +18,7 @@ pub const ITEM_LEN: u32 = 0x3C;
 
 /// The Rust version (see the header).
 // Converted: `rc2k_core::marks::expiry::{cell, square_ends}`
-pub unsafe fn expire_squares() {
+pub fn expire_squares() {
     use rc2k_core::marks::expiry;
 
     let al = MASKS.shapes[0].step.get() as u8;

@@ -18,6 +18,7 @@ use crate::marks::setup::CLOCK;
 use crate::marks::tuning::{MARKS_FRAME, MARKS_KIND_FLOATS};
 use crate::marks::{morph_object_points, scale_vectors_by, view_frame};
 use crate::math::x87;
+use crate::pointers::GamePtr;
 use crate::session::Dword;
 /// (the settings' field, the copy).
 static COPIES: [(u32, &Dword); 3] = [
@@ -32,25 +33,25 @@ fn rdtsc() -> (u32, u32) {
 }
 
 /// The Rust version (see the header).
-pub unsafe fn frame_marks() -> Result<(), Refused> {
+pub fn frame_marks() -> Result<(), Refused> {
     let settings: u32 = crate::marks::setup::SETTINGS.pointer.get();
     if settings == 0 {
         return Err(BadInput("no marks settings").into());
     }
-    unsafe {
+    {
         let (start, _) = rdtsc();
         let (now, _) = rdtsc();
         let last: u32 = MARKS_FRAME.last_count.bits();
         MARKS_FRAME.last_count.set_bits(now);
         MARKS_FRAME.frame_cycles.set_bits(now.wrapping_sub(last));
         for &(from, to) in &COPIES {
-            to.set(((settings + from) as *const u32).read_unaligned());
+            to.set(GamePtr::new(settings + from).read::<u32>("a mark's field")?);
         }
-        CLOCK.settings_copies[0].set(((settings + 0x18) as *const u32).read_unaligned());
+        CLOCK.settings_copies[0].set(GamePtr::new(settings + 0x18).read::<u32>("a mark's field")?);
         scale_vectors_by::scale_vectors_by();
         morph_object_points::morph_object_points()?;
         view_frame::view_frame()?;
-        ((settings + 0x18) as *mut u32).write_unaligned(0);
+        GamePtr::new(settings + 0x18).write::<u32>(0, "a mark's field")?;
         MARKS_FRAME
             .steps
             .set(MARKS_FRAME.steps.get().wrapping_add(1));

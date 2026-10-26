@@ -1,7 +1,9 @@
 //! The packed string table and the two string-pointer tables the string hooks read.
 
+use crate::errors::BadInput;
 use crate::framework::{game_addr, rva};
 use crate::moved::Place;
+use crate::pointers::GamePtr;
 use rc2k_core::strings::table::StringTable;
 use std::sync::atomic::{AtomicU32, Ordering};
 
@@ -26,15 +28,17 @@ pub fn use_lexicon() {
 
 /// Each slot by its own address: slots fall in moved ranges (the driver names' pointers,
 /// 0x95ECF8 .., are `src[0x5A5..]`), which the table's base does not follow.
-unsafe fn table_entry(table_rva: usize, id: u32) -> *const u8 {
-    let slot = game_addr(table_rva.wrapping_add(4 * id as usize)) as *const u32;
-    unsafe { slot.read_volatile() as usize as *const u8 }
+fn table_entry(table_rva: usize, id: u32) -> Result<u32, BadInput> {
+    GamePtr::new(game_addr(table_rva.wrapping_add(4 * id as usize)) as u32)
+        .read::<u32>("a string pointer")
 }
-pub unsafe fn ptr_high(id: u32) -> *const u8 {
-    unsafe { table_entry(PTRS_HIGH_RVA, id) }
+/// The address of the made text of `id` (0 if none).
+pub fn ptr_high(id: u32) -> Result<u32, BadInput> {
+    table_entry(PTRS_HIGH_RVA, id)
 }
-pub unsafe fn ptr_low(id: u32) -> *const u8 {
-    unsafe { table_entry(PTRS_LOW_RVA, id) }
+/// The address of the text of `id` in the pointer table (0 if none).
+pub fn ptr_low(id: u32) -> Result<u32, BadInput> {
+    table_entry(PTRS_LOW_RVA, id)
 }
 
 /// Where `strings::compile_lexicon` puts the table, and its room: out of the image since

@@ -38,18 +38,18 @@ pub unsafe fn draw_view_scene() -> Result<(), Refused> {
         }
         race_sound_tick()?; // 0x14
         car_light_modes()?;
-        clear_point_records();
+        clear_point_records()?;
         set_up_fog()?;
-        camera_view();
+        camera_view()?;
         draw_sky()?;
         crate::race::flush_draw_batch::flush_draw_batch()?;
         view_light()?;
         race_sound_tick()?; // 0x15
-        reset_lamps();
+        reset_lamps()?;
         RACE_VIEW.view_lamps.set_bits(0u32);
         prepare_course_view()?;
         gather_visible_faces()?;
-        eax_environment();
+        eax_environment()?;
         gather_lamps()?;
         lamps_wanted()?;
         race_sound_tick()?; // 0x16

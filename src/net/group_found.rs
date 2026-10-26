@@ -16,12 +16,10 @@ pub fn group_found(args: &[u32]) -> Result<u32, Refused> {
         return Ok(1);
     }
     let name = unsafe { ((args[2] + 8) as *const u32).read_unaligned() };
-    let order = unsafe {
-        crate::strings::same_text::compare_texts(
-            name as *const u8,
-            NET.group_name.addr() as *const u8,
-        )
-    };
+    let order = crate::strings::same_text::compare_texts(
+        name as *const u8,
+        NET.group_name.addr() as *const u8,
+    )?;
     if order != std::cmp::Ordering::Equal {
         return Ok(1);
     }

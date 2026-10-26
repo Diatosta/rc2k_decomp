@@ -16,6 +16,7 @@
 
 use crate::errors::Refused;
 use crate::hud::store::HUD;
+use crate::pointers::GamePtr;
 use crate::race::overlay_store::RACE_OVERLAY;
 use crate::session::Dword;
 
@@ -31,13 +32,13 @@ pub fn quad(colour: Option<u32>, c: [u32; 4]) -> Result<(), Refused> {
     for (n, v) in c.into_iter().enumerate() {
         set(1 + n, v);
     }
-    unsafe { crate::hud::add_solid_quad::add_solid_quad() }
+    crate::hud::add_solid_quad::add_solid_quad()
 }
 
 /// The bars of `kinds`' players (each player's colour into `colour_vars`), `dy` lower
 /// (see the header and `hud::draw_stage_bars_1`'s).
 // Converted: `rc2k_core::hud::stage_bars`
-pub unsafe fn bars(
+pub fn bars(
     record: u32,
     kinds: &[&[Dword]],
     colour_vars: &[&Dword],
@@ -45,8 +46,8 @@ pub unsafe fn bars(
 ) -> Result<(), Refused> {
     use rc2k_core::hud::stage_bars as sb;
     unsafe {
-        let get = |o: u32| ((record + o) as *const u32).read_unaligned();
-        let count = get(0x74);
+        let get = |o: u32| GamePtr::new(record + o).read::<u32>("a hud record's field");
+        let count = get(0x74)?;
         sb::check(count, kinds.len() as u32, |p, n| {
             kinds[p as usize][n as usize].get()
         })?;
@@ -60,7 +61,7 @@ pub unsafe fn bars(
         HUD.bar_width.set(sb::WIDTH);
         HUD.ends[0].set_bits(0);
         HUD.ends[1].set_bits(0);
-        let total = f32::from_bits(get(0x68));
+        let total = f32::from_bits(get(0x68)?);
         for n in 0..count {
             let left = count - n;
             let colours: Vec<u32> = kinds
@@ -98,13 +99,11 @@ pub unsafe fn bars(
 
 /// The Rust version (see the header).
 // Converted: `rc2k_core::hud::stage_bars` (through `bars`)
-pub unsafe fn draw_stage_bar(record: u32) -> Result<(), Refused> {
-    unsafe {
-        bars(
-            record,
-            &[&RACE_OVERLAY.overlay_part_kinds_a],
-            &[&HUD.bar_colour],
-            0,
-        )
-    }
+pub fn draw_stage_bar(record: u32) -> Result<(), Refused> {
+    bars(
+        record,
+        &[&RACE_OVERLAY.overlay_part_kinds_a],
+        &[&HUD.bar_colour],
+        0,
+    )
 }

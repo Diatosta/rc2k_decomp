@@ -157,3 +157,80 @@ pub mod view_step;
 pub mod view_vectors;
 pub mod waves;
 pub mod work_store;
+
+/// The first refusal met inside a callback that cannot return one (a closure handed to a
+/// core that asks for plain numbers): the callback answers the type's default after it, and
+/// the caller asks `done` once the core has returned, so the refusal is not lost.
+#[derive(Default)]
+pub struct Sticky(std::cell::Cell<Option<crate::errors::BadInput>>);
+
+impl Sticky {
+    /// `r`'s value, or the default after noting the first refusal.
+    pub fn take<T: Default>(&self, r: Result<T, crate::errors::BadInput>) -> T {
+        match r {
+            Ok(v) => v,
+            Err(e) => {
+                if self.0.get().is_none() {
+                    self.0.set(Some(e));
+                }
+                T::default()
+            }
+        }
+    }
+
+    /// The refusal noted by `take`, if any.
+    pub fn done(&self) -> Result<(), crate::errors::BadInput> {
+        match self.0.get() {
+            Some(e) => Err(e),
+            None => Ok(()),
+        }
+    }
+}
+
+/// `std::array::from_fn` for a closure that can refuse: the first refusal is returned (the
+/// closure goes on with the default after it, as `Sticky` does).
+pub fn try_from_fn<T: Default, const N: usize>(
+    mut f: impl FnMut(usize) -> Result<T, crate::errors::Refused>,
+) -> Result<[T; N], crate::errors::Refused> {
+    let mut first = None;
+    let out = std::array::from_fn(|k| match f(k) {
+        Ok(v) => v,
+        Err(e) => {
+            if first.is_none() {
+                first = Some(e);
+            }
+            T::default()
+        }
+    });
+    match first {
+        Some(e) => Err(e),
+        None => Ok(out),
+    }
+}
+
+/// Whether `f` holds for some item of `items` (stopping at the first, as `Iterator::any`),
+/// `f` able to refuse.
+pub fn try_any<I: Iterator>(
+    items: I,
+    mut f: impl FnMut(I::Item) -> Result<bool, crate::errors::Refused>,
+) -> Result<bool, crate::errors::Refused> {
+    for item in items {
+        if f(item)? {
+            return Ok(true);
+        }
+    }
+    Ok(false)
+}
+
+/// Whether `f` holds for every item of `items` (stopping at the first that fails).
+pub fn try_all<I: Iterator>(
+    items: I,
+    mut f: impl FnMut(I::Item) -> Result<bool, crate::errors::Refused>,
+) -> Result<bool, crate::errors::Refused> {
+    for item in items {
+        if !f(item)? {
+            return Ok(false);
+        }
+    }
+    Ok(true)
+}

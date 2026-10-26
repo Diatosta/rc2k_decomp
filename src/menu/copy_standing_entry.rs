@@ -13,25 +13,25 @@ use crate::menu::standings::*;
 
 /// `e` the entry (edi in the original), `p` the player's record (esi), `index` the
 /// player's index (ebx).
-pub unsafe fn copy_standing_entry(e: u32, p: u32, index: u32) -> Result<(), Refused> {
-    if e == 0 || p == 0 || get(p + 0x18) == 0 {
+pub fn copy_standing_entry(e: u32, p: u32, index: u32) -> Result<(), Refused> {
+    if e == 0 || p == 0 || get(p + 0x18)? == 0 {
         return Err(BadInput("a null entry, record or name").into());
     }
     // Converted: `rc2k_core::menu::standings::fill_a`.
     use rc2k_core::menu::standings::{PlayerA, fill_a};
-    let name_at = get(p + 0x18);
+    let name_at = get(p + 0x18)?;
     let source = PlayerA {
         index,
-        time: get(p + 0x88),
-        group: get(p + 0x90),
-        total: get(p + 0x8C),
+        time: get(p + 0x88)?,
+        group: get(p + 0x90)?,
+        total: get(p + 0x8C)?,
         name_at,
-        name: bytes(name_at),
-        nationality: get(p + 4),
-        car: get(p + 8),
-        entered: get(p + 0xD0),
+        name: bytes(name_at)?,
+        nationality: get(p + 4)?,
+        car: get(p + 8)?,
+        entered: get(p + 0xD0)?,
     };
     // The entry's bytes as far as it is written (to +0x50).
-    fill_a(&mut unsafe { table(e, 0x50, 1) }, 0, &source);
+    fill_a(&mut table(e, 0x50, 1)?, 0, &source);
     Ok(())
 }

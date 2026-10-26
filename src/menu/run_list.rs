@@ -14,24 +14,33 @@ const LIST_LIMIT: u32 = 256;
 
 // ---- Rust version ----
 
-unsafe fn list_entry(at: u32) -> u32 {
-    unsafe { (at as *const u32).read_unaligned() }
+fn list_entry(at: u32) -> Result<u32, crate::errors::BadInput> {
+    crate::pointers::GamePtr::new(at).read::<u32>("a game value")
 }
 
 /// Runs the functions of `list` in order. They are the typed tables' screen functions
 /// (`menu::table_calls::call_listed`), which take no register: the registers the original
 /// hands each (esi the place in the list, the rest as the one before left them) are
 /// nobody's (2026-10-24).
-pub unsafe fn run_list(list: u32) -> Result<(), Refused> {
-    unsafe {
-        if !(0..LIST_LIMIT).any(|n| list_entry(list.wrapping_add(4 * n)) == END) {
-            return Err(BadInput("a function list without an end").into());
-        }
-        let mut at = list;
-        while list_entry(at) != END {
-            crate::menu::table_calls::call_listed(list_entry(at))?;
-            at = at.wrapping_add(4);
+/// Whether the list has its end mark within `LIST_LIMIT` entries.
+fn has_end(list: u32) -> Result<bool, crate::errors::BadInput> {
+    for n in 0..LIST_LIMIT {
+        if list_entry(list.wrapping_add(4 * n))? == END {
+            return Ok(true);
         }
     }
+    Ok(false)
+}
+
+pub fn run_list(list: u32) -> Result<(), Refused> {
+    if !has_end(list)? {
+        return Err(BadInput("a function list without an end").into());
+    }
+    let mut at = list;
+    while list_entry(at)? != END {
+        crate::menu::table_calls::call_listed(list_entry(at)?)?;
+        at = at.wrapping_add(4);
+    }
+
     Ok(())
 }

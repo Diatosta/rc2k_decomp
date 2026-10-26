@@ -19,6 +19,7 @@ use crate::marks::store::game_addr;
 use crate::marks::tuning::{MARKS_FLOATS, MARKS_FRAME, MARKS_KIND_FLOATS};
 use crate::marks::work_store::MARKS_WORK;
 use crate::math::x87;
+use crate::pointers::GamePtr;
 use crate::session::SCREEN;
 
 const KIND_AT: u32 = 0x26A8; // the settings' kind
@@ -31,13 +32,13 @@ const KIND_FLOAT_PAST: u32 = 0x468E_8000;
 
 /// The Rust version (see the header): `settings` the settings (the original's esi), `seed`
 /// the seed (eax). The steps (`nullsub_1` before each, `nullsub_26` for step 7: nothing).
-pub unsafe fn init_marks(settings: u32, seed: u32) -> Result<(), Refused> {
+pub fn init_marks(settings: u32, seed: u32) -> Result<(), Refused> {
     use crate::marks::*;
-    unsafe {
+    {
         if settings == 0 {
             return Err(BadInput("no marks settings").into());
         }
-        if ((settings + KIND_AT) as *const u32).read_unaligned() >= KINDS {
+        if GamePtr::new(settings + KIND_AT).read::<u32>("a mark's field")? >= KINDS {
             return Err(BadInput("a marks kind of 0x22 or more").into());
         }
         crate::marks::setup::SETTINGS.pointer.set(settings);
@@ -57,11 +58,11 @@ pub unsafe fn init_marks(settings: u32, seed: u32) -> Result<(), Refused> {
         blocks::allocate_ring()?;
         lines::set_up_blocks()?;
         let settings: u32 = crate::marks::setup::SETTINGS.pointer.get();
-        ((settings + LIVE_AT) as *mut u32).write_unaligned(1);
+        GamePtr::new(settings + LIVE_AT).write::<u32>(1, "a mark's field")?;
         for r in &CLOCK.settings_copies {
             r.set(1);
         }
-        setup::tick_clock();
+        setup::tick_clock()?;
         MARKS_FRAME.steps.set_bits(0u32);
         let less: u32 = MARKS_FLOATS.one.bits();
         for (n, side) in [&SCREEN.width, &SCREEN.height].into_iter().enumerate() {

@@ -18,6 +18,7 @@
 
 use crate::errors::BadInput;
 use crate::moved::Place;
+use crate::pointers::GamePtr;
 use crate::settings::read_text::read_text;
 use crate::strings::format_u32::format_u32;
 
@@ -42,16 +43,16 @@ pub fn path() -> *const u8 {
 
 // ---- Rust version ----
 
-pub unsafe fn read_driver_names(path: *const u8) -> Result<(), BadInput> {
+pub fn read_driver_names(path: *const u8) -> Result<(), BadInput> {
     // Converted: `rc2k_core::files::settings::driver_names`; the pool's room checked before
     // anything is written. The key the original makes in place (`aName000`) is left as
     // its last one, "name179".
-    unsafe {
+    {
         let Some((text, _)) = read_text(path)? else {
             return Ok(());
         };
         let entries = rc2k_core::files::settings::driver_names(
-            &crate::bridge::Raw::new(text),
+            &GamePtr::new(text as u32).bytes("the driver names' text")?,
             &crate::strings::same_text::case_table(),
         )
         .map_err(|e| BadInput(e.0))?;
@@ -65,17 +66,19 @@ pub unsafe fn read_driver_names(path: *const u8) -> Result<(), BadInput> {
             return Err(BadInput("more driver names than their pool holds"));
         }
         let last = format_u32(DRIVERS as u32 - 1, 0x13);
-        std::ptr::copy(last.as_ptr(), (KEY.ptr() as *mut u8).add(4), last.len());
-        let mut pool = (NAMES.ptr() as *mut u8).add(NAMES_LEN);
+        GamePtr::new(KEY.addr() as u32 + 4).write_bytes(&last, "a driver name's key")?;
+        let mut pool = GamePtr::new((NAMES.addr() + NAMES_LEN) as u32);
         for (driver, entry) in entries.iter().enumerate() {
             let Some(entry) = entry else {
                 continue;
             };
             if let Some(name) = &entry.name {
-                ((NAMES.ptr() as *mut u32).add(driver)).write_unaligned(pool as u32);
-                std::ptr::copy(name.as_ptr(), pool, name.len());
-                pool.add(name.len()).write(0);
-                pool = pool.add(name.len() + 1);
+                GamePtr::new((NAMES.addr() + 4 * driver) as u32)
+                    .write(pool.addr(), "a driver name's pointer")?;
+                pool.write_bytes(name, "a driver name")?;
+                pool.offset(name.len() as u32)
+                    .write(0u8, "a driver name's end")?;
+                pool = pool.offset(name.len() as u32 + 1);
             }
             if let Some(n) = entry.first {
                 crate::menu::drivers_store::DRIVERS.drivers[driver]

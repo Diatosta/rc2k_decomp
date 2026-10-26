@@ -22,7 +22,7 @@ const STATES: [(u32, u32); 5] = [(4, 0x15), (5, 0x13), (6, 0x14), (0, 0x1C), (1,
 
 /// The Rust version (see the header): `scene::set_texture`, `scene::depth_buffer_on`,
 /// `scene::depth_test_off`, the render states (`scene::set_render_state`).
-pub unsafe fn begin_quads() {
+pub fn begin_quads() {
     {
         crate::scene::set_texture::set_texture(KIND_TEXTURES.kind_first_slots[202].bits());
         crate::scene::depth_buffer_on::depth_buffer(true);

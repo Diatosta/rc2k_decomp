@@ -30,32 +30,36 @@ const TEXTS_RVA: [&std::ffi::CStr; 2] = [c"CALCCPUTIMES:STARTED", c"CALCCPUTIMES
 
 /// The class time `c` as the original reads it, `dword_75AAE8`[c]: with no bound, so that a
 /// class past the four reads on into the variables that follow.
-unsafe fn class_time_at(c: u32) -> u32 {
-    unsafe {
-        ((MENU_STATE.menus.class_times[0].addr() + 4 * c as usize) as *const u32).read_unaligned()
-    }
+fn class_time_at(c: u32) -> Result<u32, BadInput> {
+    crate::pointers::GamePtr::new(MENU_STATE.menus.class_times[0].addr() as u32 + 4 * c)
+        .read::<u32>("a class time")
 }
 
 /// The drivers of class `c`, `dword_75AB00`[c], read the same way.
-unsafe fn class_count_at(c: u32) -> u32 {
-    unsafe {
-        ((MENU_STATE.menus.class_counts[0].addr() + 4 * c as usize) as *const u32).read_unaligned()
-    }
+fn class_count_at(c: u32) -> Result<u32, BadInput> {
+    crate::pointers::GamePtr::new(MENU_STATE.menus.class_counts[0].addr() as u32 + 4 * c)
+        .read::<u32>("a class driver count")
 }
 const DIVIDE_BY_ZERO: FatalError = FatalError {
     code: 0x80701010,
     message: "",
 };
+/// Whether any of the drivers is in class `c` (+8), the first found ending the look.
+fn any_in_class(drivers: &[u32], c: u32) -> Result<bool, BadInput> {
+    for &d in drivers {
+        if get(d + 8)? == c {
+            return Ok(true);
+        }
+    }
+    Ok(false)
+}
+
 /// The current record (see `standings::current_event`'s checks).
 pub fn record() -> Result<u32, BadInput> {
     current_event()?;
     let table = crate::records::stages_store::STAGE_TABLES.championship();
     let (section, index): (u32, u32) = { (SECTION_RVA.get(), INDEX_RVA.get()) };
-    Ok(crate::records::find_record::find_record_in(
-        table,
-        index as i32,
-        section,
-    ))
+    crate::records::find_record::find_record_in(table, index as i32, section)
 }
 
 /// What the Rust version refuses for the record `rec` (or its fatal error), before
@@ -67,35 +71,35 @@ pub fn check(rec: u32) -> Result<(u32, Vec<u32>, u32), Refused> {
     }
     let drivers = entries(crate::menu::drivers_store::DRIVERS.first(), DRIVER)?;
     let times = [
-        get(rec + 0x18),
-        get(rec + 0x1C),
-        get(rec + 0x20),
-        get(rec + 0x24),
+        get(rec + 0x18)?,
+        get(rec + 0x1C)?,
+        get(rec + 0x20)?,
+        get(rec + 0x24)?,
     ];
     let (times, _) = scaled(times, held_section());
-    let pack = unsafe { crate::records::trakpak_entry::record_entry(rec as *const u8) }?;
-    let length = get(pack + 0xC);
+    let pack = crate::records::trakpak_entry::record_entry(rec)?;
+    let length = get(pack + 0xC)?;
     if length.wrapping_mul(100) == 0 {
         return Err(DIVIDE_BY_ZERO.into());
     }
     // The class's time as the loop reads it: `dword_75AAE8`[c], past the four times
     // `dword_75AAF8` / `dword_75AAFC` as written just before.
-    let class_time = |c: u32| -> u32 {
+    let class_time = |c: u32| -> Result<u32, BadInput> {
         match c {
-            0..4 => times[c as usize],
-            4 => length,
-            5 => length.wrapping_mul(100) / 0x96A,
-            _ => unsafe { class_time_at(c) },
+            0..4 => Ok(times[c as usize]),
+            4 => Ok(length),
+            5 => Ok(length.wrapping_mul(100) / 0x96A),
+            _ => class_time_at(c),
         }
     };
     for c in 0..classes {
-        if !drivers.iter().any(|&d| get(d + 8) == c) {
+        if !any_in_class(&drivers, c)? {
             continue;
         }
-        if class_time(c) >> 1 == 0 {
+        if class_time(c)? >> 1 == 0 {
             return Err(DIVIDE_BY_ZERO.into());
         }
-        if unsafe { class_count_at(c) } == 0 {
+        if class_count_at(c)? == 0 {
             return Err(BadInput("a class's driver count of 0: the original divides by it").into());
         }
     }
@@ -110,7 +114,7 @@ pub unsafe fn calc_cpu_times() -> Result<(), Refused> {
     unsafe {
         log_write(TEXTS_RVA[0].as_ptr() as usize as *const u8, true, 1);
         for (k, t) in [0x18, 0x1C, 0x20, 0x24].into_iter().enumerate() {
-            MENU_STATE.menus.class_times[k].set(get(rec + t));
+            MENU_STATE.menus.class_times[k].set(get(rec + t)?);
         }
         crate::menu::scale_stage_times::scale_stage_times(rec)?;
         MENU_STATE.menus.track_length[0].set(length);
@@ -120,11 +124,11 @@ pub unsafe fn calc_cpu_times() -> Result<(), Refused> {
         for c in 0..classes {
             let mut gaps = 0u32;
             for &d in &drivers {
-                if get(d + 8) != c {
+                if get(d + 8)? != c {
                     continue;
                 }
-                let time = class_time_at(c);
-                let count = class_count_at(c);
+                let time = class_time_at(c)?;
+                let count = class_count_at(c)?;
                 let gap = cpu_gap(time, count);
                 DRAW_WORK.hhmm.set(gap);
                 let mut spread = Spread {
@@ -135,10 +139,10 @@ pub unsafe fn calc_cpu_times() -> Result<(), Refused> {
                 DRAW_WORK.figure.set(own);
                 EVENT_STATE.service_944.set(spread.first);
                 EVENT_STATE.dword_755948.set(spread.step);
-                if get(d + 0x24) == 1 {
+                if get(d + 0x24)? == 1 {
                     let own = cpu_time(own, gaps, time);
-                    put(d + 0xC, own);
-                    put(d + 0x10, get(d + 0x10).wrapping_add(own));
+                    put(d + 0xC, own)?;
+                    put(d + 0x10, get(d + 0x10)?.wrapping_add(own))?;
                 }
                 gaps = gaps.wrapping_add(gap);
             }

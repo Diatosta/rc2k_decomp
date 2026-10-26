@@ -11,6 +11,6 @@ use crate::hud::draw_signs::signs_with;
 
 /// The Rust version (see the header).
 // Converted: `rc2k_core::hud::signs` (through `signs_with`)
-pub unsafe fn draw_signs_1a(record: u32) -> Result<(), Refused> {
-    unsafe { signs_with(record, 0xA4, 0xB4, 0xFFFFFF38, 0x70, 0x20) }
+pub fn draw_signs_1a(record: u32) -> Result<(), Refused> {
+    signs_with(record, 0xA4, 0xB4, 0xFFFFFF38, 0x70, 0x20)
 }

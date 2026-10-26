@@ -28,6 +28,7 @@ use crate::d3d::cards_store::CARDS_3D;
 use crate::errors::BadInput;
 use crate::install::vars::INSTALLER_PATHS;
 use crate::install::vars::INSTALLER_RUN;
+use crate::pointers::GamePtr;
 use crate::session::Dword;
 use crate::system::start_texts::START_TEXTS;
 use windows_sys::Win32::System::Environment::GetCommandLineA;
@@ -88,7 +89,7 @@ pub unsafe fn read_command_line(line: *const u8) -> Result<Asked, BadInput> {
             (sw.no_audio, AUDIO.no_audio.addr()),
         ] {
             if on {
-                (place as *mut u32).write_unaligned(1);
+                GamePtr::new(place as u32).write(1u32, "a command-line switch")?;
             }
         }
         for i in &sw.install {
@@ -101,7 +102,9 @@ pub unsafe fn read_command_line(line: *const u8) -> Result<Asked, BadInput> {
             .into_iter()
             .zip(i.words)
             {
-                std::ptr::copy(line.wrapping_add(start), place as *mut u8, len);
+                // SAFETY: the command line's own text (the OS's memory), `len` bytes of it.
+                let word = std::slice::from_raw_parts(line.wrapping_add(start), len);
+                GamePtr::new(place as u32).write_bytes(word, "an installer path")?;
             }
             INSTALLER_RUN.given_mode.set(i.digits[0]);
             INSTALLER_RUN.given_language.set(i.digits[1]);

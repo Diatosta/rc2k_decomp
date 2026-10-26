@@ -53,8 +53,8 @@ use crate::text::draw_text::Canvas;
 // g_firstPlayerTime
 // hundredths
 // dword_7559D4
-fn get(a: u32) -> u32 {
-    unsafe { (a as *const u32).read_unaligned() }
+fn get(a: u32) -> Result<u32, crate::errors::BadInput> {
+    crate::pointers::GamePtr::new(a).read::<u32>("a game value")
 }
 
 #[derive(Clone, Copy)]
@@ -110,12 +110,12 @@ pub const OVERALL_STAGE: Page = Page {
 };
 
 /// The Rust version of one page.
-pub unsafe fn draw_results_page(page: &Page, canvas: &mut dyn Canvas) -> Result<(), Refused> {
+pub fn draw_results_page(page: &Page, canvas: &mut dyn Canvas) -> Result<(), Refused> {
     let (list, class) = (CHAMP_VIEW.ranked_times.get(), EVENT_STATE.class.get());
     if list == 0 {
         return Err(BadInput("no ranked list").into());
     }
-    if !section_there() {
+    if !section_there()? {
         return Err(BadInput("a section past the record table").into());
     }
     let rally = page.time == 0x18;
@@ -145,7 +145,7 @@ pub unsafe fn draw_results_page(page: &Page, canvas: &mut dyn Canvas) -> Result<
     use rc2k_core::screens::results_pages::{
         Heading as Drawn, NOT_TIMED as NONE, Row, results_page,
     };
-    unsafe {
+    {
         let heading = match page.heading {
             Heading::Titles(normal, alternative) => Drawn::Titles {
                 title: if MENU_STATE.menus.rally_done.get() == 1 {
@@ -157,9 +157,9 @@ pub unsafe fn draw_results_page(page: &Page, canvas: &mut dyn Canvas) -> Result<
                     crate::screens::stage_panel::table_dword_at(
                         MENU_LISTS.section_titles[0].addr(),
                         EVENT_STATE.section.get(),
-                    )
+                    )?
                 } else {
-                    get(record_at(0) + 0x38)
+                    get(record_at(0)? + 0x38)?
                 },
             },
             Heading::Record => {
@@ -167,23 +167,25 @@ pub unsafe fn draw_results_page(page: &Page, canvas: &mut dyn Canvas) -> Result<
                 Drawn::Drawn
             }
         };
+        let f = crate::menu::event_flow::Fault::default();
         let rows: Vec<Row<u32>> = rows
             .into_iter()
             .map(|e| {
-                let player = (get(e + 4) as i32) > 0;
+                let player = (f.get(e + 4) as i32) > 0;
                 let check = if player { page.check.1 } else { page.check.0 };
                 Row {
                     player,
-                    position: get(e + 0x44),
+                    position: f.get(e + 0x44),
                     name: e + 0x20,
-                    finished: get(e + 0x4C) == 1,
-                    not_timed: get(e + check) == NONE,
-                    time: get(e + page.time),
-                    nation: get(e + 8),
-                    car: get(e + 0x10),
+                    finished: f.get(e + 0x4C) == 1,
+                    not_timed: f.get(e + check) == NONE,
+                    time: f.get(e + page.time),
+                    nation: f.get(e + 8),
+                    car: f.get(e + 0x10),
                 }
             })
             .collect();
+        f.check()?;
         results_page(
             &mut crate::screens::game_screen::GameScreen::new(canvas),
             heading,
@@ -204,7 +206,7 @@ macro_rules! results_page_entry {
             use super::*;
             /// The Rust version the typed tables run (`menu::table_calls`).
             pub fn draw() -> Result<(), Refused> {
-                unsafe { draw_results_page(&$page, &mut crate::text::draw_text::GameCanvas) }
+                draw_results_page(&$page, &mut crate::text::draw_text::GameCanvas)
             }
         }
     };

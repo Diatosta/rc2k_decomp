@@ -10,6 +10,6 @@ use crate::hud::draw_stage_bars_1::bars_with;
 
 /// The Rust version (see the header).
 // Converted: `rc2k_core::hud::stage_bars` (through `draw_stage_bar::bars`)
-pub unsafe fn draw_stage_bars_2(record: u32) -> Result<(), Refused> {
-    unsafe { bars_with(record, 0x11E) }
+pub fn draw_stage_bars_2(record: u32) -> Result<(), Refused> {
+    bars_with(record, 0x11E)
 }

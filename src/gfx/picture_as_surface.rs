@@ -40,15 +40,13 @@ const PIXEL_KIND_COUNT: u32 = 2;
 /// is not touched).
 pub unsafe fn surface_of(flags: u32, pixels: u32) -> Result<[u32; SURFACE_DWORDS - 2], Refused> {
     // Converted: `rc2k_core::gfx::screen_modes::picture_surface`.
-    unsafe {
-        rc2k_core::gfx::screen_modes::picture_surface(
-            flags,
-            entries(MODES.sizes_addr() as u32, SIZE_COUNT),
-            entries(MODES.pixel_kinds_addr() as u32, PIXEL_KIND_COUNT),
-            surface_format_addr() as u32,
-            pixels,
-        )
-    }
+    rc2k_core::gfx::screen_modes::picture_surface(
+        flags,
+        entries(MODES.sizes_addr() as u32, SIZE_COUNT),
+        entries(MODES.pixel_kinds_addr() as u32, PIXEL_KIND_COUNT),
+        surface_format_addr() as u32,
+        pixels,
+    )
     .map_err(|e| {
         FatalError {
             code: e.code(),

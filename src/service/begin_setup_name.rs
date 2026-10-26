@@ -24,9 +24,9 @@ pub unsafe fn begin_setup_name() -> Result<(), BadInput> {
     if slot >= SLOT_COUNT {
         return Err(BadInput("slot past the name table"));
     }
-    unsafe {
-        backup_text(slot_name(slot));
-        clear_text(slot_name(slot));
+    {
+        backup_text(slot_name(slot) as usize as u32)?;
+        clear_text(slot_name(slot) as usize as u32)?;
         OPTION_WORK.typing.set(1u32);
     }
     set_length(0);

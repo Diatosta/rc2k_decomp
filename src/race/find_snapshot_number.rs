@@ -12,7 +12,9 @@
 //!
 //! Caller: `race::replay_viewer`.
 
+use crate::errors::BadInput;
 use crate::files::state::{FIND_HANDLE, LAST_FILE_PATH, SKIPPED_ATTRIBUTES, find_data};
+use crate::pointers::GamePtr;
 use crate::session::Bytes;
 use std::sync::atomic::Ordering::Relaxed;
 use windows_sys::Win32::Storage::FileSystem::{FindClose, FindFirstFileA, FindNextFileA};
@@ -76,9 +78,10 @@ pub unsafe fn close_search() {
 }
 
 /// The Rust version.
-pub unsafe fn find_snapshot_number() {
+pub unsafe fn find_snapshot_number() -> Result<(), BadInput> {
     unsafe {
-        (digits_place() as *mut u32).write_unaligned(u32::from_le_bytes(*b"???."));
+        GamePtr::new(digits_place() as usize as u32)
+            .write(u32::from_le_bytes(*b"???."), "the snapshot name")?;
         let mut highest = 0u32;
         if find_first(SNAPSHOT.addr() as u32) {
             loop {
@@ -96,8 +99,9 @@ pub unsafe fn find_snapshot_number() {
         }
         close_search();
         let digits = crate::strings::format_u32::format_u32(highest, 0x13);
-        std::ptr::copy_nonoverlapping(digits.as_ptr(), digits_place(), digits.len());
+        GamePtr::new(digits_place() as usize as u32).write_bytes(&digits, "the snapshot name")?;
     }
+    Ok(())
 }
 
 #[cfg(test)]

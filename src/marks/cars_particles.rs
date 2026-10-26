@@ -29,6 +29,7 @@ use crate::marks::splines::SPLINE_HEAD;
 use crate::marks::tuning::MARKS_FLOATS;
 use crate::marks::{emit_particle_13, emit_particle_19, emit_particle_22};
 use crate::math::x87;
+use crate::pointers::GamePtr;
 use crate::scene::adjugate_matrix::adjugate_matrix;
 use crate::session::{read_bits, write_bits};
 
@@ -40,52 +41,52 @@ const MOST_CARS: u32 = 8;
 // as the original does (`notes/bugs.md`): `SplineHead::look` reads past the table's end.
 const MODELS: u32 = 34;
 
-unsafe fn put(a: u32, v: u32) {
-    unsafe { (a as *mut u32).write_unaligned(v) }
+fn put(a: u32, v: u32) -> Result<(), BadInput> {
+    GamePtr::new(a).write(v, "a game field")
 }
 
 /// The cars, worked out without writing: none when the settings' +0x10 is not 1.
-unsafe fn cars(settings: u32) -> Vec<u32> {
-    unsafe {
-        if at(settings + 0x10) != 1 {
-            return Vec::new();
+fn cars(settings: u32) -> Result<Vec<u32>, Refused> {
+    Ok({
+        if at(settings + 0x10)? != 1 {
+            return Ok(Vec::new());
         }
-        let count = at(settings + 0x5C) as i32;
+        let count = at(settings + 0x5C)? as i32;
         (0..count.clamp(0, MOST_CARS as i32 + 1) as u32)
             .rev()
             .map(|n| settings + 0x60 + n * CAR_LEN)
             .collect()
-    }
+    })
 }
 
 /// Why the Rust version refuses, if it does (its own checks), worked out without writing.
-unsafe fn refusal(settings: u32) -> Option<&'static str> {
-    unsafe {
+fn refusal(settings: u32) -> Result<Option<&'static str>, Refused> {
+    Ok({
         if settings == 0 {
-            return Some("null marks settings");
+            return Ok(Some("null marks settings"));
         }
-        if at(settings + 0x10) == 1 && at(settings + 0x5C) as i32 > MOST_CARS as i32 {
-            return Some("more than 8 cars");
+        if at(settings + 0x10)? == 1 && at(settings + 0x5C)? as i32 > MOST_CARS as i32 {
+            return Ok(Some("more than 8 cars"));
         }
-        for car in cars(settings) {
-            if at(car + 0x24) == 0 || at(car + 0x28) == 0 {
-                return Some("a car's null matrix or vector");
+        for car in cars(settings)? {
+            if at(car + 0x24)? == 0 || at(car + 0x28)? == 0 {
+                return Ok(Some("a car's null matrix or vector"));
             }
-            if at(car + 4) >= MODELS {
-                return Some("a car model past the cars' 34");
+            if at(car + 4)? >= MODELS {
+                return Ok(Some("a car model past the cars' 34"));
             }
         }
         None
-    }
+    })
 }
 
 /// The Rust version (see the header).
-pub unsafe fn cars_particles() -> Result<(), Refused> {
+pub fn cars_particles() -> Result<(), Refused> {
     let settings: u32 = crate::marks::setup::SETTINGS.pointer.get();
-    if let Some(why) = unsafe { refusal(settings) } {
+    if let Some(why) = refusal(settings)? {
         return Err(BadInput(why).into());
     }
-    let count = unsafe { cars(settings) }.len() as u32;
+    let count = cars(settings)?.len() as u32;
     unsafe {
         for n in (0..count).rev() {
             EMITTER
@@ -93,20 +94,20 @@ pub unsafe fn cars_particles() -> Result<(), Refused> {
                 .set(x87::int_times_int_to_int(n as i32, EMITTER.tag_k.get() as i32) as u32);
             let car = settings + 0x60 + n * CAR_LEN;
             EMITTER.car.set(car);
-            let m = at(car + 0x24);
+            let m = at(car + 0x24)?;
             adjugate_matrix(m, car + 0x94);
             for (to, from) in [(0x7C, 0x70), (0x70, 0x64), (0x64, 0x58)] {
-                let v = [at(car + from), at(car + from + 4), at(car + from + 8)];
+                let v = [at(car + from)?, at(car + from + 4)?, at(car + from + 8)?];
                 for (k, x) in v.iter().enumerate() {
-                    put(car + to + 4 * k as u32, *x);
+                    put(car + to + 4 * k as u32, *x)?;
                 }
             }
             for k in 0..3 {
                 let k4 = 4 * k;
                 put(
                     car + 0x58 + k4,
-                    x87::sub(at(m + 0x30 + k4), at(car + 0x40 + k4)),
-                );
+                    x87::sub(at(m + 0x30 + k4)?, at(car + 0x40 + k4)?),
+                )?;
             }
             let mean_k: u32 = MARKS_FLOATS.quarter.bits();
             for k in 0..3 {
@@ -114,39 +115,39 @@ pub unsafe fn cars_particles() -> Result<(), Refused> {
                 put(
                     car + 0x4C + k4,
                     x87::sum4_times(
-                        at(car + 0x58 + k4),
-                        at(car + 0x64 + k4),
-                        at(car + 0x70 + k4),
-                        at(car + 0x7C + k4),
+                        at(car + 0x58 + k4)?,
+                        at(car + 0x64 + k4)?,
+                        at(car + 0x70 + k4)?,
+                        at(car + 0x7C + k4)?,
                         mean_k,
                     ),
-                );
+                )?;
             }
-            put(car + 0x40, at(m + 0x30));
-            put(car + 0x44, at(m + 0x34));
-            put(car + 0x48, at(m + 0x38));
+            put(car + 0x40, at(m + 0x30)?)?;
+            put(car + 0x44, at(m + 0x34)?)?;
+            put(car + 0x48, at(m + 0x38)?)?;
             let [k1, k2, k3] = read_bits(&EMITTER.rate_k);
             let one: u32 = MARKS_FLOATS.one.bits();
             let (length, rate) = x87::length_and_rate(
-                [at(car + 0x4C), at(car + 0x50), at(car + 0x54)],
+                [at(car + 0x4C)?, at(car + 0x50)?, at(car + 0x54)?],
                 k1,
                 k2,
                 one,
                 k3,
             );
-            put(car + 0x88, length as u32);
-            put(car + 0x90, rate as u32);
-            if at(car + 0x30) != 0 {
+            put(car + 0x88, length as u32)?;
+            put(car + 0x90, rate as u32)?;
+            if at(car + 0x30)? != 0 {
                 for o in [0x4C, 0x50, 0x54, 0x88] {
-                    put(car + o, 0);
+                    put(car + o, 0)?;
                 }
             }
-            let w = at(car + 0x28);
+            let w = at(car + 0x28)?;
             let up = read_bits(&EMITTER.up);
             let across = [
-                x87::product_difference(up[1], at(w + 8), up[2], at(w + 4)),
-                x87::product_difference(up[2], at(w), up[0], at(w + 8)),
-                x87::product_difference(up[0], at(w + 4), up[1], at(w)),
+                x87::product_difference(up[1], at(w + 8)?, up[2], at(w + 4)?),
+                x87::product_difference(up[2], at(w)?, up[0], at(w + 8)?),
+                x87::product_difference(up[0], at(w + 4)?, up[1], at(w)?),
             ];
             let across = x87::normalised3(across, one);
             write_bits(&EMITTER.across, across);
@@ -158,11 +159,11 @@ pub unsafe fn cars_particles() -> Result<(), Refused> {
                 x87::product_difference(b[0], across[1], b[1], across[0]),
             ];
             write_bits(&EMITTER.side_a, a);
-            let model = at(car + 4);
+            let model = at(car + 4)?;
             EMITTER.looks[0].set(SPLINE_HEAD.look(2 * model as usize));
             EMITTER.looks[1].set(SPLINE_HEAD.look(2 * model as usize + 2));
-            if at(car + 0x30) != 0 {
-                put(car + 0x30, at(car + 0x30).wrapping_sub(1));
+            if at(car + 0x30)? != 0 {
+                put(car + 0x30, at(car + 0x30)?.wrapping_sub(1))?;
             } else {
                 emit_car_particles(car)?;
             }

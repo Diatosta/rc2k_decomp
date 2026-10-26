@@ -16,10 +16,7 @@ pub use rc2k_core::menu::cars::{Button as Which, Call};
 
 /// A button through `rc2k_core::menu::cars::press`: the variables loaded, changed and
 /// stored, then its calls made.
-pub unsafe fn press(
-    b: Which,
-    call: &mut dyn FnMut(Call) -> Result<(), Refused>,
-) -> Result<(), Refused> {
+pub fn press(b: Which, call: &mut dyn FnMut(Call) -> Result<(), Refused>) -> Result<(), Refused> {
     use rc2k_core::menu::cars::Shown;
 
     let mut s = Shown {

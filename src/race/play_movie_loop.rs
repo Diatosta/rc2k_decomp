@@ -38,7 +38,7 @@ fn log_number(n: u32) {
 /// caller reads none either) reads none it leaves (`lq -s 0x4607A5`: nothing live).
 pub fn play_movie_loop() -> Result<(), Refused> {
     use crate::drive::race_parts;
-    unsafe { crate::race::stage_prefs::init_skidmarks() };
+    crate::race::stage_prefs::init_skidmarks()?;
     log_text(TEXTS[0], false);
     log_text(TEXTS[1], false);
     log_number(REPLAY_VIEW.replay_block.get());

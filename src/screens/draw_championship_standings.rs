@@ -26,23 +26,20 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::menu::champ_store::CHAMP_VIEW;
+use crate::menu::event_flow::Fault;
 use crate::menu::ranked_lookups::find_champ_position;
 use crate::screens::best_scores::section_there;
 use crate::text::draw_text::Canvas;
 
 // g_champRow
 // g_champRowEnd
-fn get(a: u32) -> u32 {
-    unsafe { (a as *const u32).read_unaligned() }
-}
-
 /// The Rust version.
-pub unsafe fn draw_championship_standings(canvas: &mut dyn Canvas) -> Result<(), Refused> {
+pub fn draw_championship_standings(canvas: &mut dyn Canvas) -> Result<(), Refused> {
     let history = CHAMP_VIEW.champ_history.get();
     if history == 0 {
         return Err(BadInput("no championship history").into());
     }
-    if !section_there() {
+    if !section_there()? {
         return Err(BadInput("a section past the record table").into());
     }
     let first_row = CHAMP_VIEW.first_row.get();
@@ -58,17 +55,19 @@ pub unsafe fn draw_championship_standings(canvas: &mut dyn Canvas) -> Result<(),
     }
     // Converted: `rc2k_core::screens::results_pages::championship_standings` (the rows found here).
     use rc2k_core::screens::results_pages::{StandingRow, championship_standings};
+    let f = Fault::default();
     let rows: Vec<StandingRow<u32>> = rows
         .into_iter()
         .map(|e| StandingRow {
-            player: (get(e + 4) as i32) > 0,
-            position: get(e + 0x70),
+            player: (f.get(e + 4) as i32) > 0,
+            position: f.get(e + 0x70),
             name: e + 0x14,
-            points: std::array::from_fn(|k| get(e + 0x38 + 4 * k as u32)),
-            nation: get(e + 8),
-            car: get(e + 0xC),
+            points: std::array::from_fn(|k| f.get(e + 0x38 + 4 * k as u32)),
+            nation: f.get(e + 8),
+            car: f.get(e + 0xC),
         })
         .collect();
+    f.check()?;
     championship_standings(
         &mut crate::screens::game_screen::GameScreen::new(canvas),
         first_row,

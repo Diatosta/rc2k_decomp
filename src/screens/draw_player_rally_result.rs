@@ -19,47 +19,49 @@ use crate::text::draw_text::Canvas;
 
 /// (id, x, y, font) of the labels.
 /// The Rust version.
-pub unsafe fn draw_player_rally_result(canvas: &mut dyn Canvas) -> Result<(), Refused> {
-    unsafe {
-        let p = crate::menu::player_settings::current()? as u32;
-        let f = |o: u32| ((p + o) as *const u32).read_unaligned();
-        let name = crate::menu::player_name::name()?;
-        if (RALLY_STAGE_TIMES.records)() == 0 {
-            return Err(crate::errors::BadInput("no rally stage records").into());
-        }
-        let speed = crate::strings::append_speed::append_speed(
-            f(0x94),
-            true,
-            crate::strings::units::units(),
-        )?;
-        // Converted: `rc2k_core::screens::player_result::rally_result`.
-        use crate::screens::game_screen::PlayerResultScreen;
-        let p = rc2k_core::screens::player_result::Player {
-            name: name as u32,
-            nation: f(4),
-            car: f(8),
-            time: f(0x88),
-            speed,
-        };
-        let figures = rc2k_core::screens::player_result::RallyFigures {
-            position: RESULT_FIGURES.positions[0].get(),
-            best: RESULT_FIGURES.time_bonus[0].get(),
-            column: [
-                RESULT_FIGURES.points[0].get(),
-                RESULT_FIGURES.time_bonus[0].get(),
-                RESULT_FIGURES.extra[0].get(),
-                RESULT_FIGURES.sums[0].get(),
-                RESULT_FIGURES.before[0].get(),
-                RESULT_FIGURES.totals[0].get(),
-            ],
-        };
-        rc2k_core::screens::player_result::rally_result(
-            &mut PlayerResultScreen::new(canvas),
-            &mut |s: &mut PlayerResultScreen| draw_times_heading(&RALLY_STAGE_TIMES, s.canvas),
-            &p,
-            &figures,
-            crate::strings::append_time::show_hours(),
-        )?;
-        Ok(())
+pub fn draw_player_rally_result(canvas: &mut dyn Canvas) -> Result<(), Refused> {
+    let p = crate::menu::player_settings::current()?;
+    let fault = crate::menu::event_flow::Fault::default();
+    let f = |o: u32| fault.get(p + o);
+    let name = crate::menu::player_name::name()?;
+    if (RALLY_STAGE_TIMES.records)()? == 0 {
+        return Err(crate::errors::BadInput("no rally stage records").into());
     }
+    let top_speed = f(0x94);
+    fault.check()?;
+    let speed = crate::strings::append_speed::append_speed(
+        top_speed,
+        true,
+        crate::strings::units::units(),
+    )?;
+    // Converted: `rc2k_core::screens::player_result::rally_result`.
+    use crate::screens::game_screen::PlayerResultScreen;
+    let p = rc2k_core::screens::player_result::Player {
+        name,
+        nation: f(4),
+        car: f(8),
+        time: f(0x88),
+        speed,
+    };
+    fault.check()?;
+    let figures = rc2k_core::screens::player_result::RallyFigures {
+        position: RESULT_FIGURES.positions[0].get(),
+        best: RESULT_FIGURES.time_bonus[0].get(),
+        column: [
+            RESULT_FIGURES.points[0].get(),
+            RESULT_FIGURES.time_bonus[0].get(),
+            RESULT_FIGURES.extra[0].get(),
+            RESULT_FIGURES.sums[0].get(),
+            RESULT_FIGURES.before[0].get(),
+            RESULT_FIGURES.totals[0].get(),
+        ],
+    };
+    rc2k_core::screens::player_result::rally_result(
+        &mut PlayerResultScreen::new(canvas),
+        &mut |s: &mut PlayerResultScreen| draw_times_heading(&RALLY_STAGE_TIMES, s.canvas),
+        &p,
+        &figures,
+        crate::strings::append_time::show_hours(),
+    )?;
+    Ok(())
 }

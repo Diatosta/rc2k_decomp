@@ -31,6 +31,7 @@
 use crate::errors::{BadInput, Refused};
 use crate::input::store::DEVICES;
 use crate::menu::names_store::NAME_BUFFERS;
+use crate::pointers::GamePtr;
 use crate::race::tyre_store::TYRE_CHANGE as TYRE;
 use crate::race::viewer_screen_store::VIEWER_PANEL;
 use crate::session::MACHINE;
@@ -48,12 +49,12 @@ fn p(x: usize, v: u32) {
     unsafe { crate::store::game_write(crate::framework::rva(x), v) }
 }
 
-unsafe fn get(a: u32) -> u32 {
-    unsafe { (a as *const u32).read_unaligned() }
+fn get(a: u32) -> Result<u32, BadInput> {
+    GamePtr::new(a).read("the tyre change device")
 }
 
-unsafe fn put(a: u32, v: u32) {
-    unsafe { (a as *mut u32).write_unaligned(v) }
+fn put(a: u32, v: u32) -> Result<(), BadInput> {
+    GamePtr::new(a).write(v, "the tyre change device")
 }
 
 /// The press time's constants: `TyreChange::{time_base, time_scale, gauge_unit,
@@ -86,12 +87,10 @@ struct GameIo {
 }
 
 impl GameIo {
-    fn store(&self, g: &Gauge) {
-        unsafe {
-            put(self.device + GAUGE, g.gauge);
-            put(self.device + STAGE, g.stage);
-            put(self.device + CLOCK, g.clock);
-        }
+    fn store(&self, g: &Gauge) -> Result<(), BadInput> {
+        put(self.device + GAUGE, g.gauge)?;
+        put(self.device + STAGE, g.stage)?;
+        put(self.device + CLOCK, g.clock)
     }
 }
 
@@ -102,10 +101,10 @@ impl Io for GameIo {
     }
     fn pressed(&mut self) -> Result<bool, Refused> {
         // `input_device_read` (0x40930D, inlined): ebx the device's +0x4E8.
-        Ok(unsafe { get(self.device + 0x4E8) } & 0xFF != 0)
+        Ok(get(self.device + 0x4E8)? & 0xFF != 0)
     }
     fn draw(&mut self, g: &Gauge) -> Result<(), Refused> {
-        self.store(g);
+        self.store(g)?;
         unsafe { crate::race::draw_tyre_change::draw_tyre_change(self.device) }
     }
     fn press_time(&mut self, s: u32) -> u32 {
@@ -119,9 +118,12 @@ impl Io for GameIo {
     }
     fn beaten(&mut self, time: u32) {
         TYRE.record.set(time);
-        // g_playerNames, or the second name, byte_7557A4.
-        let from = NAME_BUFFERS.player_names.addr() + 0x20 * (TYRE.player.get() != 0) as usize;
-        unsafe { std::ptr::copy(from as *const u8, TYRE.record_name.as_ptr(), 30) };
+        // g_playerNames, or the second name, byte_7557A4: 30 bytes.
+        let from = 0x20 * (TYRE.player.get() != 0) as usize;
+        for n in 0..30 {
+            TYRE.record_name
+                .set(n, NAME_BUFFERS.player_names.get(from + n));
+        }
     }
 }
 
@@ -138,17 +140,15 @@ pub fn tyre_change_gauge(start: bool, player: u32) -> Result<u32, Refused> {
     }
     TYRE.player.set(player);
     let mut io = GameIo { device: d };
-    let mut gauge = unsafe {
-        Gauge {
-            gauge: get(d + GAUGE),
-            stage: get(d + STAGE),
-            clock: get(d + CLOCK),
-        }
+    let mut gauge = Gauge {
+        gauge: get(d + GAUGE)?,
+        stage: get(d + STAGE)?,
+        clock: get(d + CLOCK)?,
     };
     let before = gauge;
     let result = turn(start, &mut gauge, &mut io)?;
     if gauge != before {
-        io.store(&gauge);
+        io.store(&gauge)?;
     }
     MACHINE.scratch.set(result);
     Ok(result)

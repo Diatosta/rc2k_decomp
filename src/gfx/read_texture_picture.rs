@@ -18,6 +18,7 @@ use crate::gfx::decoder::DECODER;
 use crate::gfx::picture::picture;
 use crate::gfx::picture_store::PICTURE;
 use crate::gfx::read_picture_file::read_picture_file;
+use crate::pointers::GamePtr;
 use rc2k_core::gfx::picture_size as sizes;
 
 // ---- Rust version ----
@@ -30,9 +31,10 @@ pub unsafe fn read_texture_picture(path: *mut u8) -> Result<(u32, u32, u32, bool
         if buffer.is_null() {
             return Err(BadInput("no picture buffer").into());
         }
+        let place = GamePtr::new(buffer as usize as u32);
         // Converted: `rc2k_core::gfx::picture_size` (`TEXTURE`, `TEXTURE_FILLED`).
         crate::gfx::picture::set_size(sizes::TEXTURE);
-        std::ptr::write_bytes(buffer, 0xFF, sizes::TEXTURE_FILLED * 4);
+        place.fill(0xFF, sizes::TEXTURE_FILLED * 4, "the picture buffer")?;
         let failed = if path.is_null() {
             false
         } else if read_picture_file(path)? {

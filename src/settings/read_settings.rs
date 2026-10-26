@@ -12,8 +12,8 @@
 //! Hook removed 2026-10-22 (conversion phase 4): Rust callers call this directly; the
 //! registers above are the original's, for reference.
 
-use crate::bridge::Raw;
 use crate::errors::BadInput;
+use crate::pointers::GamePtr;
 use crate::settings::read_text::read_text;
 use crate::strings::same_text::case_table;
 
@@ -138,10 +138,15 @@ pub unsafe fn apply_settings(text: *const u8) -> Result<(), BadInput> {
         let table = settings()?;
         let keys: Vec<&[u8]> = table.iter().map(|(key, _)| key.as_slice()).collect();
         // Found first, stored after: nothing is written if a key is refused.
-        let found = rc2k_core::files::settings::apply(&Raw::new(text), &keys, &case_table())?;
+        let found = rc2k_core::files::settings::apply(
+            &GamePtr::new(text as u32).bytes("a settings text")?,
+            &keys,
+            &case_table(),
+        )?;
         for (n, number) in found {
             // The table's (IDA) address, or where its variable lives now (`crate::moved`).
-            (crate::moved::place(table[n].1 as usize) as *mut u32).write_unaligned(number);
+            GamePtr::new(crate::moved::place(table[n].1 as usize) as u32)
+                .write(number, "a setting's variable")?;
         }
         Ok(())
     }

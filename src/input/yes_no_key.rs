@@ -48,11 +48,12 @@ pub unsafe fn answer_for_key(eax: u32) -> Result<u32, BadInput> {
         let lower = crate::strings::same_text::lower(character? as u8); // g_lowerCase
         // Converted: `rc2k_core::input::keyboard::answer`; each string built at the text
         // buffer's start without a NUL, as the original does (their lengths checked first).
-        let strings = ANSWERS.map(|(id, _)| {
+        let mut strings = Vec::new();
+        for (id, _) in ANSWERS {
             let mut string = Vec::new();
-            push_string(&mut string, id);
-            string
-        });
+            push_string(&mut string, id)?;
+            strings.push(string);
+        }
         if strings.iter().any(|s| s.len() > TEXT_LEN) {
             return Err(BadInput("a string longer than the text buffer"));
         }

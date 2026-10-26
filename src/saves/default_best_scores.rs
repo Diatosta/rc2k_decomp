@@ -18,6 +18,7 @@
 use crate::errors::{BadInput, Refused};
 use crate::menu::champ_store::CHAMP_VIEW;
 use crate::menu::state_store::MENU_STATE;
+use crate::pointers::GamePtr;
 use crate::saves::default_times::{GameSource, to_nowhere};
 use rc2k_core::saves::defaults::{SCORE_TABLE_LEN, best_scores, write_best_scores};
 
@@ -25,26 +26,23 @@ use rc2k_core::saves::defaults::{SCORE_TABLE_LEN, best_scores, write_best_scores
 
 // ---- Rust version ----
 
-pub unsafe fn default_best_scores() -> Result<(), Refused> {
-    // Converted: `rc2k_core::saves::defaults::best_scores`.
-    unsafe {
-        let table: u32 = CHAMP_VIEW.best_scores.get();
-        if table == 0 {
-            return Err(BadInput("no table of best scores").into());
-        }
-        let counts = std::array::from_fn(|g| MENU_STATE.menus.class_counts[g].get());
-        let firsts = std::array::from_fn(|g| MENU_STATE.menus.firsts[g].get());
-        let entries = best_scores(
-            &mut GameSource {
-                log: &mut to_nowhere,
-            },
-            counts,
-            firsts,
-        )?;
-        write_best_scores(
-            std::slice::from_raw_parts_mut(table as *mut u8, SCORE_TABLE_LEN),
-            &entries,
-        );
-        Ok(())
+pub fn default_best_scores() -> Result<(), Refused> {
+    let table: u32 = CHAMP_VIEW.best_scores.get();
+    if table == 0 {
+        return Err(BadInput("no table of best scores").into());
     }
+    let counts = std::array::from_fn(|g| MENU_STATE.menus.class_counts[g].get());
+    let firsts = std::array::from_fn(|g| MENU_STATE.menus.firsts[g].get());
+    let entries = best_scores(
+        &mut GameSource {
+            log: &mut to_nowhere,
+        },
+        counts,
+        firsts,
+    )?;
+    let at = GamePtr::new(table);
+    let mut bytes = at.read_bytes(SCORE_TABLE_LEN, "the best scores' table")?;
+    write_best_scores(&mut bytes, &entries);
+    at.write_bytes(&bytes, "the best scores' table")?;
+    Ok(())
 }

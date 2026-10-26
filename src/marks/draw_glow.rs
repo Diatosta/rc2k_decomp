@@ -20,8 +20,8 @@ const STATES: [(u32, u32); 5] = [(4, 0x15), (5, 0x13), (6, 0x14), (0, 0x1C), (1,
 
 /// The Rust version (see the header): the render states (`scene::set_render_state`), the
 /// texture (`scene::set_texture`), `draw_turned_sprite`.
-pub unsafe fn draw_glow() -> Result<(), Refused> {
-    unsafe {
+pub fn draw_glow() -> Result<(), Refused> {
+    {
         if GLOW.off.get() == 1 {
             return Ok(());
         }

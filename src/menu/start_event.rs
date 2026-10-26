@@ -67,7 +67,7 @@ impl starters::Event for Game {
                 C::TakeShownCar => m::take_shown_car::take_shown_car(self.f.c.cars)?,
                 C::ResetCars750724 => m::reset_cars_750724::reset_cars_750724()?,
                 C::RunA8Championship => m::run_a8_championship::run_a8_championship(&self.f.c)?,
-                C::ShowInGameOptions => m::in_game_options_items::show_in_game_options(),
+                C::ShowInGameOptions => m::in_game_options_items::show_in_game_options()?,
                 C::RunChampionship => m::run_championship::run_championship(&self.f.c)?,
             }
         }
@@ -96,7 +96,7 @@ fn var(v: starters::Var) -> &'static Dword {
 }
 
 /// The Rust version of a starter. `c` the carried values the item gets.
-pub unsafe fn start_event(s: &Starter, c: &Carried) -> Result<(), Refused> {
+pub fn start_event(s: &Starter, c: &Carried) -> Result<(), Refused> {
     players_there(s.kind.players())?;
     // Converted: `rc2k_core::menu::starters::start`.
     starters::start(s.kind, &mut Game { f: Flow::new(c) })

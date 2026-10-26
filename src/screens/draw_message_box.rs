@@ -52,7 +52,10 @@ pub unsafe fn draw_message_box(x: i32, canvas: &mut dyn Canvas) -> Result<(), Re
             m.outcome.y,
             sw,
             sh,
-            (font as *const u8).add(8).cast::<u32>().read_unaligned(),
+            crate::gfx::typefaces::fonts::BOX_TEXT
+                .object()
+                .line_height
+                .get(),
         );
         BOX[2].set(b.rect[2]);
         BOX[3].set(b.rect[3]);

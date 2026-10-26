@@ -31,8 +31,8 @@ fn negated_times_times_to_int(a: u32, b: u32, c: u32) -> u32 {
 
 /// The Rust version (see the header).
 // Converted: `rc2k_core::hud::disc::{ring_angles, disc_triangle}`
-pub unsafe fn draw_disc() -> Result<(), Refused> {
-    unsafe {
+pub fn draw_disc() -> Result<(), Refused> {
+    {
         use rc2k_core::hud::disc::{disc_triangle, ring_angles};
         // The texture's turn follows the x87's control word: the x87's.
         let t = negated_times_times_to_int(

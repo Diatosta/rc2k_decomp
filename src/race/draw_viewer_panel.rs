@@ -17,6 +17,7 @@
 
 use crate::errors::Refused;
 use crate::gfx::screen_state::DRAW_SURFACE;
+use crate::pointers::GamePtr;
 use crate::race::replay_file_store::REPLAY_FILE;
 use crate::race::viewer_screen_store::VIEWER_PANEL;
 use crate::race::viewer_state_store::REPLAY_VIEW;
@@ -44,6 +45,7 @@ pub fn draw_viewer_panel() -> Result<(), Refused> {
         let mut rows = DRAW_SURFACE.height.get();
         loop {
             let dwords = DRAW_SURFACE.row_dwords.get();
+            // The locked surface is the platform's memory (left for its own change).
             std::ptr::write_bytes(at as *mut u32, 0, dwords as usize);
             at = at
                 .wrapping_add(4 * dwords)
@@ -67,8 +69,8 @@ pub fn draw_viewer_panel() -> Result<(), Refused> {
             };
         // The text buffer drawn with a font at (x, y).
         let text = |font: crate::gfx::typefaces::FontId, x: i32, y: i32| -> Result<(), Refused> {
-            let font = font.as_ptr();
-            let mut copy = font.read_unaligned();
+            let font = GamePtr::new(font.addr() as u32);
+            let mut copy: crate::text::font::Font = font.read("a font record")?;
             crate::text::draw_text_keep_regs::draw_text_keep_regs(
                 &mut copy,
                 TEXT_BUFFER.text.addr() as u32 as *const u8,
@@ -76,25 +78,21 @@ pub fn draw_viewer_panel() -> Result<(), Refused> {
                 y,
                 &mut GameCanvas,
             )?;
-            if copy != font.read_unaligned() {
-                font.write_unaligned(copy);
+            if copy != font.read::<crate::text::font::Font>("a font record")? {
+                font.write(copy, "a font record")?;
             }
             Ok(())
         };
-        // The text buffer's end, a NUL put.
-        let nul = |end: *mut u8| end.write(0);
         // The time shown, the replay's length.
         let append_time = |hundredths: u32| {
             let time = crate::strings::append_time::append_time(
                 hundredths,
                 crate::strings::append_time::show_hours(),
             );
-            std::ptr::copy_nonoverlapping(
-                time.as_ptr(),
-                TEXT_BUFFER.text.addr() as u32 as *mut u8,
-                time.len(),
-            );
-            nul((TEXT_BUFFER.text.addr() as u32 as *mut u8).add(time.len()));
+            for (n, &b) in time.iter().enumerate() {
+                TEXT_BUFFER.text.set(n, b);
+            }
+            TEXT_BUFFER.text.set(time.len(), 0);
         };
         string(0x1A4, FONT_A, 4, 0)?;
         append_time(shown_time(
@@ -110,17 +108,19 @@ pub fn draw_viewer_panel() -> Result<(), Refused> {
         for byte in 0..2usize {
             let camera = camera_name(crate::race::viewer::camera_byte_at(
                 byte.wrapping_add(8 * REPLAY_VIEW.replay_block.get() as usize),
-            ));
+            )?);
             let id = crate::race::viewer_screen_store::VIEWER_PANEL.camera_name(camera as usize);
-            let mut out = TEXT_BUFFER.text.addr() as u32 as *mut u8;
+            let mut out = 0usize;
             crate::strings::append_string_by_id::append_string_by_id(
                 u32::from(id),
                 &mut |from, n| {
-                    std::ptr::copy_nonoverlapping(from, out, n);
-                    out = out.add(n);
+                    for k in 0..n {
+                        TEXT_BUFFER.text.set(out + k, from.add(k).read());
+                    }
+                    out += n;
                 },
-            );
-            nul(out);
+            )?;
+            TEXT_BUFFER.text.set(out, 0);
             if byte == 1 {
                 y += 0xD;
             }
@@ -143,7 +143,7 @@ pub fn draw_viewer_panel() -> Result<(), Refused> {
         // The quads.
         let camera_5 = crate::race::viewer::camera_byte_at(
             5usize.wrapping_add(8 * REPLAY_VIEW.replay_block.get() as usize),
-        );
+        )?;
         let (first, second) = switch_lights(camera_5);
         let white = 0x00FF_FFFF;
         let quad = |colour: u32| {

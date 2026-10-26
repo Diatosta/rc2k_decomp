@@ -10,10 +10,10 @@ use crate::errors::Refused;
 use crate::menu::standings::*;
 
 /// The Rust version (see the header): the registers it leaves.
-pub unsafe fn reset_player_totals() -> Result<(), Refused> {
+pub fn reset_player_totals() -> Result<(), Refused> {
     // Converted: `rc2k_core::menu::event::PLAYER_TOTALS`.
     for p in counted_players()? {
-        put_all(p, &rc2k_core::menu::event::PLAYER_TOTALS);
+        put_all(p, &rc2k_core::menu::event::PLAYER_TOTALS)?;
     }
     Ok(())
 }

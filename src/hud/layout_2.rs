@@ -19,6 +19,7 @@ use crate::hud::draw_signs::row_by;
 use crate::hud::layout_0::*;
 use crate::hud::layout_1::{pick, plain, scaled};
 use crate::hud::store::HUD;
+use crate::pointers::GamePtr;
 
 /// The upper half's rows: 0x10 down with `dword_6D1502` 0.
 fn upper(y: u32) -> u32 {
@@ -34,18 +35,18 @@ fn lower(y: u32) -> u32 {
 /// `record` the HUD's record.
 // Converted: `rc2k_core::hud::panels` (through `layout_0`'s panels and `needle_sign`),
 // `rc2k_core::hud::quads::int_over` (the sprites' scales)
-pub unsafe fn layout_2(record: u32) -> Result<(), Refused> {
+pub fn layout_2(record: u32) -> Result<(), Refused> {
     use crate::hud::*;
-    let get = |o: u32| unsafe { ((record + o) as *const u32).read_unaligned() };
-    let [f1, f2] = [get(0xF8), get(0xFC)];
+    let get = |o: u32| GamePtr::new(record + o).read::<u32>("a hud record's field");
+    let [f1, f2] = [get(0xF8)?, get(0xFC)?];
     HUD.quad[0].set(0xE0);
     HUD.texture.set(0xC6);
     if f1 & 0x10 != 0 {
-        unsafe { dials::disc(record, &disc_2a::SETUP) }?;
+        { dials::disc(record, &disc_2a::SETUP) }?;
     }
     HUD.texture.set(0xC7);
     if f2 & 0x10 != 0 {
-        unsafe { dials::disc(record, &disc_2b::SETUP) }?;
+        { dials::disc(record, &disc_2b::SETUP) }?;
     }
     HUD.texture.set(0xC0);
     HUD.quad[0].set(0xFF);
@@ -53,26 +54,26 @@ pub unsafe fn layout_2(record: u32) -> Result<(), Refused> {
     for (n, v) in [0, 0x12B, 0x320, 0x12D].into_iter().enumerate() {
         HUD.quad[1 + n].set(v);
     }
-    unsafe { add_solid_quad::add_solid_quad() }?;
+    { add_solid_quad::add_solid_quad() }?;
     if f1 & 0x40 != 0 {
-        unsafe { draw_stage_bars_2::draw_stage_bars_2(record) }?;
+        { draw_stage_bars_2::draw_stage_bars_2(record) }?;
     }
     HUD.quad[5].set(0xFFFF_FFFF);
     HUD.quad[0].set(0xFF);
     HUD.texture.set(0xDC);
-    unsafe { icons_2::icons_2(record) }?;
+    { icons_2::icons_2(record) }?;
     HUD.quad[5].set(0xFFFF_FFFF);
     HUD.quad[0].set(0xFF);
     HUD.texture.set(0xC1);
     if f1 & 0x20 != 0 {
         scaled(0x49, 7, upper(0xE8))?;
-        scaled(get(0x18).wrapping_add(0x41), 0xD, upper(0xEF))?;
+        scaled(get(0x18)?.wrapping_add(0x41), 0xD, upper(0xEF))?;
     }
     if f2 & 0x20 != 0 {
         scaled(0x49, 7, 0x223)?;
-        scaled(get(0x48).wrapping_add(0x41), 0xD, 0x22A)?;
+        scaled(get(0x48)?.wrapping_add(0x41), 0xD, 0x22A)?;
     }
-    let p = pick(get(0xD0));
+    let p = pick(get(0xD0)?);
     if f1 & 1 != 0 {
         scaled(p, 0x19, upper(0xA3))?;
     }
@@ -80,7 +81,7 @@ pub unsafe fn layout_2(record: u32) -> Result<(), Refused> {
     if f1 & 0x10 != 0 {
         scaled(0x5F, 0x2A7, upper(0xA3))?;
     }
-    let p = pick(get(0xD0));
+    let p = pick(get(0xD0)?);
     if f2 & 1 != 0 {
         scaled(p, 0x19, 0x1DE)?;
     }
@@ -89,21 +90,21 @@ pub unsafe fn layout_2(record: u32) -> Result<(), Refused> {
         scaled(0x5F, 0x2A7, 0x1DE)?;
     }
     if f1 & 0x40 != 0 {
-        unsafe { draw_markers_2::draw_markers_2(record) }?;
+        { draw_markers_2::draw_markers_2(record) }?;
     }
     HUD.quad[5].set(0xFFFF_FFFF);
     if f1 & 0x80 != 0 {
-        unsafe { draw_signs_2a::draw_signs_2a(record) }?;
+        { draw_signs_2a::draw_signs_2a(record) }?;
     }
     if f2 & 0x80 != 0 {
-        unsafe { draw_signs_2b::draw_signs_2b(record) }?;
+        { draw_signs_2b::draw_signs_2b(record) }?;
     }
     HUD.texture.set(0xC1);
     if f1 & 1 != 0 {
-        unsafe { dials::needle(record, &needle_2a::SETUP) }?;
+        { dials::needle(record, &needle_2a::SETUP) }?;
     }
     if f2 & 1 != 0 {
-        unsafe { dials::needle(record, &needle_2b::SETUP) }?;
+        { dials::needle(record, &needle_2b::SETUP) }?;
     }
     let xs = [0x23, 0x37, 0x4B, 0x53, 0x67, 0x7B, 0x83, 0x97];
     let laps = [
@@ -122,7 +123,7 @@ pub unsafe fn layout_2(record: u32) -> Result<(), Refused> {
         if flags & 2 == 0 {
             continue;
         }
-        let v = get(field);
+        let v = get(field)?;
         if v != 0xFFFF_FFFF {
             let d = time_digits(v, 2);
             sign(v, 0, 1);
@@ -132,11 +133,11 @@ pub unsafe fn layout_2(record: u32) -> Result<(), Refused> {
         plain(mark, sprites[0], sprites[1])?;
         plain(0x4A, sprites[2], sprites[3])?;
         let t = time.get();
-        unsafe { lap_panel(t, xs, y, &mut plain) }?;
+        { lap_panel(t, xs, y, &mut plain) }?;
     }
     for (flags, field, y) in [(f1, 0x14, upper(0x107)), (f2, 0x44, 0x245)] {
         if flags & 0x20 != 0 {
-            unsafe { leading_time(get(field), [0x43, 0x57, 0x6B], y, &mut plain) }?;
+            { leading_time(get(field)?, [0x43, 0x57, 0x6B], y, &mut plain) }?;
         }
     }
     let left = [8, 0x16, 0x23, 0x2A, 0x38, 0x45, 0x4C, 0x5A];
@@ -148,7 +149,7 @@ pub unsafe fn layout_2(record: u32) -> Result<(), Refused> {
         if f1 & 0x40 != 0 {
             for (time, xs) in [(times[0], left), (times[1], right)] {
                 let t = time.get();
-                unsafe { clock_panel(t, xs, y, &mut plain) }?;
+                { clock_panel(t, xs, y, &mut plain) }?;
             }
         }
     }

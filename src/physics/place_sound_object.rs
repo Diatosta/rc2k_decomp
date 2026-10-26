@@ -27,14 +27,19 @@ pub unsafe fn place_sound_object() -> Result<(), Refused> {
     if !listed(RACE_WORK.current_car.get())? {
         return Ok(());
     }
+    let trap = crate::physics::cells::Trap::new();
     let sound = object_sound(
         CONTACT_WORK.face_object.get(),
         |thing| OBJECT_TABLES.object_kind(thing),
-        |kind| unsafe {
-            *((crate::scene::polygon::materials_addr() + 0x24 + 0x80 * kind as usize) as *const u8)
+        |kind| {
+            trap.byte(
+                (crate::scene::polygon::materials_addr() + 0x24 + 0x80 * kind as usize) as u32,
+                "an object material's record",
+            )
         },
         |n| RACE_SOUND_SPOTS.object_kind_sounds[n as usize].get(),
     )?;
+    trap.finish()?;
     let scratch = RACE_SOUND_SPOTS.band_scratch.get();
     let b = band_value_plain(TWIN);
     if b == 0 {

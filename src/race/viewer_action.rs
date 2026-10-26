@@ -36,6 +36,7 @@
 use crate::errors::Refused;
 use crate::install::vars::INSTALLER_PAGES;
 use crate::menu::screen_loop::Carried;
+use crate::pointers::GamePtr;
 use crate::race::replay_file_store::REPLAY_FILE;
 use crate::race::replay_work_store::REPLAY_WORK;
 use crate::race::viewer::move_dwords;
@@ -161,20 +162,18 @@ pub fn viewer_action(action: u32, c: &Carried) -> Result<bool, Refused> {
                 let at = byte as *mut u8;
                 let old = unsafe { at.read() };
                 unsafe { at.write(old ^ 1) };
-                unsafe { crate::race::spread_camera::spread_camera(byte, old) }?;
+                crate::race::spread_camera::spread_camera(byte, old)?;
             }
         }
         Action::EditAndStep { camera, back } => {
             crate::race::edit_camera::edit_camera(camera);
-            unsafe { crate::race::edit_camera::step_camera(if back { -1 } else { 1 }) }?;
+            crate::race::edit_camera::step_camera(if back { -1 } else { 1 })?;
             crate::race::viewer_buffers_store::VIEWER_BUFFERS
                 .camera_edit
                 .set(0);
         }
         Action::Edit { camera } => crate::race::edit_camera::edit_camera(camera),
-        Action::Step { back } => {
-            unsafe { crate::race::edit_camera::step_camera(if back { -1 } else { 1 }) }?
-        }
+        Action::Step { back } => crate::race::edit_camera::step_camera(if back { -1 } else { 1 })?,
         Action::EndEdit => crate::race::viewer_buffers_store::VIEWER_BUFFERS
             .camera_edit
             .set(0),
@@ -219,7 +218,7 @@ fn cycle_byte(byte: usize) -> Result<(), Refused> {
     let old = unsafe { at.read() };
     let dl = rc2k_core::race::viewer::next_byte(byte as u32, old);
     unsafe { at.write(dl) };
-    unsafe { crate::race::spread_camera::spread_camera(byte_at, old) }
+    crate::race::spread_camera::spread_camera(byte_at, old)
 }
 
 /// 0x11: the marked blocks cut (`viewer::cut_marks`).
@@ -256,7 +255,7 @@ fn cut(_r: &mut Carried) -> Result<(), Refused> {
             table + 8 * first as usize,
             table + 8 * second as usize,
             2 * rest as usize,
-        );
+        )?;
         let end = table + 8 * (first + rest) as usize;
         unsafe { std::ptr::write_bytes(end as *mut u8, 0, 8 * count as usize) };
     }
@@ -285,19 +284,19 @@ fn paste() -> Result<(), Refused> {
             .block_cameras
             .addr(),
     ] {
-        unsafe {
-            std::ptr::copy(
-                (base + 8 * block as usize) as *const u8,
-                (base + 8 * (block + clip) as usize) as *mut u8,
+        {
+            GamePtr::new((base + 8 * block as usize) as u32).copy_to(
+                GamePtr::new((base + 8 * (block + clip) as usize) as u32),
                 8 * (blocks - block) as usize,
-            );
+                "game data",
+            )?;
         }
     }
     move_dwords(
         REPLAY_FILE.block_places[0].addr() + 8 * block as usize,
         crate::race::viewer_buffers_store::VIEWER_BUFFERS.clip_places[0].addr(),
         2 * clip as usize,
-    );
+    )?;
     move_dwords(
         crate::race::viewer_buffers_store::VIEWER_BUFFERS
             .block_cameras
@@ -305,7 +304,7 @@ fn paste() -> Result<(), Refused> {
             + 8 * block as usize,
         crate::race::viewer_buffers_store::VIEWER_BUFFERS.clip_cameras[0].addr(),
         2 * clip as usize,
-    );
+    )?;
     REPLAY_FILE.index_block_count.set(blocks + clip);
     crate::race::reset_marks::reset_marks()
 }

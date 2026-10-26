@@ -63,7 +63,9 @@ impl rc2k_core::audio::streams::Tunes for GamePlayer {
         unsafe { std::ptr::copy_nonoverlapping(d.as_ptr(), (self.path + 0xE) as *mut u8, d.len()) };
     }
     fn exists(&mut self) -> Result<bool, Refused> {
-        Ok(unsafe { crate::files::file_exists::file_exists(self.path as *const u8) }?)
+        Ok(crate::files::file_exists::file_exists(
+            self.path as *const u8,
+        )?)
     }
     fn gave_up(&mut self, tune: u32) {
         crate::framework::log(&format!(

@@ -19,6 +19,7 @@ use crate::drive::put_back_lead_car_values::put_back_lead_car_values;
 use crate::drive::set_listener::set_listener;
 use crate::drive::share_car_state::share_car_state;
 use crate::errors::{BadInput, Refused};
+use crate::pointers::GamePtr;
 use crate::race::blocks_store::CAR_BLOCKS;
 use crate::race::kind_store::KIND_TABLES;
 use crate::race::mud::car_file_number;
@@ -36,17 +37,17 @@ fn cars() -> [(u32, u32, u32); 8] {
 }
 
 /// The refusals, worked out before anything is written.
-unsafe fn refusal() -> Option<&'static str> {
+fn refusal() -> Result<Option<&'static str>, BadInput> {
     for (block, record, sound) in cars() {
         if block == 0 || record == 0 || sound == 0 {
-            return Some("a null car block, record or sound object");
+            return Ok(Some("a null car block, record or sound object"));
         }
-        let n = car_file_number(unsafe { ((block + 0x24) as *const u32).read_unaligned() });
+        let n = car_file_number(GamePtr::new(block.wrapping_add(0x24)).read("a car's block")?);
         if let Err(e) = sharing::check_light_record(n) {
-            return Some(e.0);
+            return Ok(Some(e.0));
         }
     }
-    None
+    Ok(None)
 }
 
 /// The Rust version. The registers it leaves are read by no caller (liveness: no read
@@ -54,7 +55,7 @@ unsafe fn refusal() -> Option<&'static str> {
 // Converted: `rc2k_core::drive::sharing::{check_light_record, cars_shown}`.
 pub unsafe fn share_all_cars() -> Result<(), Refused> {
     unsafe {
-        if let Some(why) = refusal() {
+        if let Some(why) = refusal()? {
             return Err(BadInput(why).into());
         }
         // `set_listener` refuses before writing; nothing is written before it but the
@@ -67,9 +68,11 @@ pub unsafe fn share_all_cars() -> Result<(), Refused> {
         }
         let first_record: u32 = RACE_WORK.car_records[0].bits();
         KIND_TABLES.sound_objects_shown.set_bits(0u32);
+        let reading = crate::scene::reading::Reading::new();
         let (shown, _) = sharing::cars_shown(CAR_BLOCKS.cars[0].car_kind.bits(), || {
-            ((first_record + 0x258) as *const u32).read_unaligned()
+            reading.read::<u32>(first_record.wrapping_add(0x258), "a car's record")
         });
+        reading.finish()?;
         if shown {
             KIND_TABLES.sound_objects_shown.set_bits(1u32);
         }

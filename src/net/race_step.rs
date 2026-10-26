@@ -25,7 +25,7 @@ pub fn race_step() -> Result<(), Refused> {
         send_turn::send_turn()?;
         apply_received::apply_received()
     } else {
-        follow_remote::follow_remote();
+        follow_remote::follow_remote()?;
         Ok(())
     }
 }

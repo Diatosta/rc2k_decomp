@@ -25,7 +25,7 @@ pub fn free_spot_voices(request: u32) -> Result<(), Refused> {
     }
     let mut voices = load_voices();
     let done = rc2k_core::sound::spot_voices::free_unheard::<Refused>(&mut voices, |_, sound| {
-        unsafe { (request as *mut u32).write_unaligned(sound) };
+        crate::sound::turn_parts::put(request, 0, sound)?;
         crate::sound::turn_parts::stop(request)
     });
     store_voices(&voices);

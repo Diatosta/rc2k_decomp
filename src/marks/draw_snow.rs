@@ -45,27 +45,25 @@ fn scratch() -> Vec<Region> {
 }
 
 /// The original's 0x4C2EF0 .. 0x4C2F79: the place (ebx, eax, ecx as `fild`ed) turned.
-unsafe fn turn(v: &[u32; 3]) {
-    unsafe { turn_x87(v.as_ptr() as usize, &SNOW) }
+fn turn(v: &[u32; 3]) {
+    turn_x87(v.as_ptr() as usize, &SNOW)
 }
 
 /// The original's 0x4C2F9C .. 0x4C3038: the light's dot and its fade index.
-unsafe fn fade() {
-    unsafe { fade_x87(&SNOW, &SNOW_LIGHT, &MARKS_FLOATS) }
+fn fade() {
+    fade_x87(&SNOW, &SNOW_LIGHT, &MARKS_FLOATS)
 }
 
 /// The original's 0x4C305B .. 0x4C30EE: the projected square, its depth and u.
-unsafe fn square(i: u32) {
-    unsafe {
-        square_x87(
-            crate::race::store::asm_base() as usize,
-            crate::d3d::vertices_store::piece_addr(),
-            i as usize,
-            &SNOW_TABLES,
-            &SNOW,
-            &SNOW_LIGHT,
-        )
-    }
+fn square(i: u32) {
+    square_x87(
+        crate::race::store::asm_base() as usize,
+        crate::d3d::vertices_store::piece_addr(),
+        i as usize,
+        &SNOW_TABLES,
+        &SNOW,
+        &SNOW_LIGHT,
+    )
 }
 
 /// Flake k's whole-number place and the two curve indices: (eax, ebx, ecx, x index, z
@@ -96,45 +94,43 @@ fn place(k: u32) -> ([u32; 3], [u32; 2], [u32; 3]) {
 }
 
 /// Why it refuses, if it does: a dry pass, its scratch put back.
-unsafe fn refusal() -> Option<&'static str> {
-    unsafe {
-        let n = SNOW.flakes.get() as i32;
-        if n > MOST {
-            return Some("more than 0x800 snowflakes");
+fn refusal() -> Option<&'static str> {
+    let n = SNOW.flakes.get() as i32;
+    if n > MOST {
+        return Some("more than 0x800 snowflakes");
+    }
+    if n > 0 && crate::marks::setup::SETTINGS.pointer.get() == 0 {
+        return Some("no marks settings");
+    }
+    let scratch = scratch();
+    let saved = capture(&scratch);
+    let mut why = None;
+    for k in 0..n.max(0) as u32 {
+        let ([eax, ebx, ecx], idx, _) = place(k);
+        if idx.iter().any(|&i| i >= CURVE) {
+            why = Some("a snow curve index past the table");
+            break;
         }
-        if n > 0 && crate::marks::setup::SETTINGS.pointer.get() == 0 {
-            return Some("no marks settings");
-        }
-        let scratch = scratch();
-        let saved = capture(&scratch);
-        let mut why = None;
-        for k in 0..n.max(0) as u32 {
-            let ([eax, ebx, ecx], idx, _) = place(k);
-            if idx.iter().any(|&i| i >= CURVE) {
-                why = Some("a snow curve index past the table");
+        turn(&[ebx, eax, ecx]);
+        if SNOW.depth.get() as i32 > 0x1_0000 && MARKS_KIND_FLOATS.fading.bits() != 0 {
+            fade();
+            let i = SNOW_LIGHT.fade_index.get();
+            if SNOW_LIGHT.dot.bits() as i32 >= 0 && i >= FADES {
+                why = Some("a snow fade index past the table");
                 break;
             }
-            turn(&[ebx, eax, ecx]);
-            if SNOW.depth.get() as i32 > 0x1_0000 && MARKS_KIND_FLOATS.fading.bits() != 0 {
-                fade();
-                let i = SNOW_LIGHT.fade_index.get();
-                if SNOW_LIGHT.dot.bits() as i32 >= 0 && i >= FADES {
-                    why = Some("a snow fade index past the table");
-                    break;
-                }
-            }
         }
-        restore(&scratch, &saved);
-        why
     }
+    restore(&scratch, &saved);
+    why
 }
 
 /// The Rust version (see the header).
-pub unsafe fn draw_snow() -> Result<(), Refused> {
-    if let Some(why) = unsafe { refusal() } {
+pub fn draw_snow() -> Result<(), Refused> {
+    if let Some(why) = refusal() {
         return Err(BadInput(why).into());
     }
-    unsafe {
+    {
         let n = SNOW.flakes.get() as i32;
         SNOW.count_copy.set(n as u32);
         SNOW_VARS.first.set(0);
@@ -177,38 +173,36 @@ use crate::marks::plain::{ld, ldi, st};
 use crate::math::x87_float as bh;
 
 /// `turn`'s x87 block as plain Rust on the x87 model (34 instructions), same order and memory places.
-unsafe fn turn_x87(v: usize, s: &SnowState) {
-    unsafe {
-        let t0 = ldi(v, 0);
-        let t1 = ldi(v, 0x4);
-        let t2 = ldi(v, 0x8);
-        let t3 = t1 * bh::ld(s.matrix_copy[0].bits());
-        let t4 = t0 * bh::ld(s.matrix_copy[3].bits());
-        let t5 = t2 * bh::ld(s.matrix_copy[6].bits());
-        let t6 = t4 + t5;
-        let t7 = t3 + t6;
-        let t8 = t7 + bh::int(s.point[0].get() as i32);
-        s.turned[0].set_bits(bh::st(t8));
-        let t9 = t1 * bh::ld(s.matrix_copy[1].bits());
-        let t10 = t0 * bh::ld(s.matrix_copy[4].bits());
-        let t11 = t2 * bh::ld(s.matrix_copy[7].bits());
-        let t12 = t10 + t11;
-        let t13 = t9 + t12;
-        let t14 = t13 + bh::int(s.point[1].get() as i32);
-        s.turned[1].set_bits(bh::st(t14));
-        let t15 = t1 * bh::ld(s.matrix_copy[2].bits());
-        let t16 = t0 * bh::ld(s.matrix_copy[5].bits());
-        let t17 = t2 * bh::ld(s.matrix_copy[8].bits());
-        let t18 = t16 + t17;
-        let t19 = t15 + t18;
-        let t20 = t19 + bh::int(s.point[2].get() as i32);
-        s.depth.set(bh::to_int(t20) as u32);
-        s.turned[2].set_bits(bh::st(t20));
-    }
+fn turn_x87(v: usize, s: &SnowState) {
+    let t0 = ldi(v, 0);
+    let t1 = ldi(v, 0x4);
+    let t2 = ldi(v, 0x8);
+    let t3 = t1 * bh::ld(s.matrix_copy[0].bits());
+    let t4 = t0 * bh::ld(s.matrix_copy[3].bits());
+    let t5 = t2 * bh::ld(s.matrix_copy[6].bits());
+    let t6 = t4 + t5;
+    let t7 = t3 + t6;
+    let t8 = t7 + bh::int(s.point[0].get() as i32);
+    s.turned[0].set_bits(bh::st(t8));
+    let t9 = t1 * bh::ld(s.matrix_copy[1].bits());
+    let t10 = t0 * bh::ld(s.matrix_copy[4].bits());
+    let t11 = t2 * bh::ld(s.matrix_copy[7].bits());
+    let t12 = t10 + t11;
+    let t13 = t9 + t12;
+    let t14 = t13 + bh::int(s.point[1].get() as i32);
+    s.turned[1].set_bits(bh::st(t14));
+    let t15 = t1 * bh::ld(s.matrix_copy[2].bits());
+    let t16 = t0 * bh::ld(s.matrix_copy[5].bits());
+    let t17 = t2 * bh::ld(s.matrix_copy[8].bits());
+    let t18 = t16 + t17;
+    let t19 = t15 + t18;
+    let t20 = t19 + bh::int(s.point[2].get() as i32);
+    s.depth.set(bh::to_int(t20) as u32);
+    s.turned[2].set_bits(bh::st(t20));
 }
 
 /// `fade`'s x87 block as plain Rust on the x87 model (34 instructions), same order and memory places.
-unsafe fn fade_x87(s: &SnowState, l: &SnowLight, f: &MarksFloats) {
+fn fade_x87(s: &SnowState, l: &SnowLight, f: &MarksFloats) {
     {
         let t0 = bh::ld(s.turned[0].bits());
         let t1 = t0 - bh::ld(l.light_place[0].bits());
@@ -245,52 +239,50 @@ unsafe fn fade_x87(s: &SnowState, l: &SnowLight, f: &MarksFloats) {
 }
 
 /// `square`'s x87 block as plain Rust on the x87 model (38 instructions), same order and memory places.
-unsafe fn square_x87(rc: usize, vt: usize, i: usize, t: &SnowTables, s: &SnowState, l: &SnowLight) {
-    unsafe {
-        let t0 = bh::ld(s.turned[2].bits());
-        let t1 = ld(rc, 0x224088) / t0;
-        s.depth.set(bh::st(t1));
-        let t2 = bh::ld(s.turned[1].bits());
-        let t3 = t2 * t1;
-        let t4 = t1 * bh::ld(s.turned[0].bits());
-        let t5 = -t3;
-        let t6 = t5 + ld(rc, 0x2240A0);
-        st(vt, 0x4, t6);
-        let t7 = t4 + ld(rc, 0x22409C);
-        st(vt, 0x0, t7);
-        let t8 = bh::ld(l.side.bits());
-        let t9 = t8 * bh::ld(s.depth.get());
-        let t10 = ld(vt, 0x0);
-        let t11 = t10 + t9;
-        st(vt, 0x20, t11);
-        st(vt, 0x40, t11);
-        let t12 = t11 - t9;
-        st(vt, 0x60, t12);
-        let t13 = ld(vt, 0x4);
-        st(vt, 0x24, t13);
-        let t14 = t9 + t13;
-        st(vt, 0x44, t14);
-        st(vt, 0x64, t14);
-        let t15 = bh::ld(s.turned[2].bits());
-        let t16 = t15 * bh::ld(s.inverse.bits());
-        st(vt, 0x8, t16);
-        st(vt, 0x28, t16);
-        st(vt, 0x48, t16);
-        st(vt, 0x68, t16);
-        let t17 = crate::math::x87_float::ld(t.spreads[i / 4].bits());
-        st(vt, 0x18, t17);
-        st(vt, 0x78, t17);
-        let t18 = t17 + bh::ld(l.u_offset.bits());
-        st(vt, 0x38, t18);
-        st(vt, 0x58, t18);
-    }
+fn square_x87(rc: usize, vt: usize, i: usize, t: &SnowTables, s: &SnowState, l: &SnowLight) {
+    let t0 = bh::ld(s.turned[2].bits());
+    let t1 = ld(rc, 0x224088) / t0;
+    s.depth.set(bh::st(t1));
+    let t2 = bh::ld(s.turned[1].bits());
+    let t3 = t2 * t1;
+    let t4 = t1 * bh::ld(s.turned[0].bits());
+    let t5 = -t3;
+    let t6 = t5 + ld(rc, 0x2240A0);
+    st(vt, 0x4, t6);
+    let t7 = t4 + ld(rc, 0x22409C);
+    st(vt, 0x0, t7);
+    let t8 = bh::ld(l.side.bits());
+    let t9 = t8 * bh::ld(s.depth.get());
+    let t10 = ld(vt, 0x0);
+    let t11 = t10 + t9;
+    st(vt, 0x20, t11);
+    st(vt, 0x40, t11);
+    let t12 = t11 - t9;
+    st(vt, 0x60, t12);
+    let t13 = ld(vt, 0x4);
+    st(vt, 0x24, t13);
+    let t14 = t9 + t13;
+    st(vt, 0x44, t14);
+    st(vt, 0x64, t14);
+    let t15 = bh::ld(s.turned[2].bits());
+    let t16 = t15 * bh::ld(s.inverse.bits());
+    st(vt, 0x8, t16);
+    st(vt, 0x28, t16);
+    st(vt, 0x48, t16);
+    st(vt, 0x68, t16);
+    let t17 = crate::math::x87_float::ld(t.spreads[i / 4].bits());
+    st(vt, 0x18, t17);
+    st(vt, 0x78, t17);
+    let t18 = t17 + bh::ld(l.u_offset.bits());
+    st(vt, 0x38, t18);
+    st(vt, 0x58, t18);
 }
 
 #[cfg(test)]
 mod asm_reference {
     //! The original assembly blocks, kept verbatim as the reference the plain versions are tested against.
 
-    pub(super) unsafe fn turn_x87(mk: usize, v: usize) {
+    pub(super) fn turn_x87(mk: usize, v: usize) {
         unsafe {
             core::arch::asm!(
                     "fild dword ptr [{v}]",
@@ -336,7 +328,7 @@ mod asm_reference {
         }
     }
 
-    pub(super) unsafe fn fade_x87(mk: usize) {
+    pub(super) fn fade_x87(mk: usize) {
         unsafe {
             core::arch::asm!(
                     "fld dword ptr [{mk} + 0x16D394]",
@@ -381,7 +373,7 @@ mod asm_reference {
         }
     }
 
-    pub(super) unsafe fn square_x87(rc: usize, bf: usize, mk: usize, i: usize) {
+    pub(super) fn square_x87(rc: usize, bf: usize, mk: usize, i: usize) {
         unsafe {
             core::arch::asm!(
                     "fld dword ptr [{mk} + 0x16D39C]",
@@ -482,12 +474,8 @@ mod asm_differential {
         };
         differential(
             &SPEC,
-            |b| unsafe { reference::turn_x87(b[0], b[1]) },
-            |b| {
-                with_copy(b[0], SnowState::START, |s| unsafe {
-                    super::turn_x87(b[1], s)
-                })
-            },
+            |b| reference::turn_x87(b[0], b[1]),
+            |b| with_copy(b[0], SnowState::START, |s| super::turn_x87(b[1], s)),
         );
     }
 
@@ -528,13 +516,11 @@ mod asm_differential {
         };
         differential(
             &SPEC,
-            |b| unsafe { reference::fade_x87(b[0]) },
+            |b| reference::fade_x87(b[0]),
             |b| {
                 with_copy(b[0], SnowState::START, |s| {
                     with_copy(b[0], SnowLight::START, |l| {
-                        with_copy(b[0], MarksFloats::START, |f| unsafe {
-                            super::fade_x87(s, l, f)
-                        })
+                        with_copy(b[0], MarksFloats::START, |f| super::fade_x87(s, l, f))
                     })
                 })
             },
@@ -599,11 +585,11 @@ mod asm_differential {
         };
         differential(
             &SPEC,
-            |b| unsafe { reference::square_x87(b[0], b[1], b[2], b[3]) },
+            |b| reference::square_x87(b[0], b[1], b[2], b[3]),
             |b| {
                 with_copy(b[2], SnowTables::START, |t| {
                     with_copy(b[2], SnowState::START, |s| {
-                        with_copy(b[2], SnowLight::START, |l| unsafe {
+                        with_copy(b[2], SnowLight::START, |l| {
                             super::square_x87(b[0], b[1].wrapping_add(0x5605A0), b[3], t, s, l)
                         })
                     })

@@ -21,7 +21,7 @@ use std::slice::from_raw_parts;
 /// The text of string `id` with its NUL, as the original leaves it in the text buffer.
 pub unsafe fn string_text(id: u32) -> Result<Vec<u8>, BadInput> {
     let mut out = Vec::new();
-    unsafe { append_string_by_id(id, &mut |p, n| out.extend_from_slice(from_raw_parts(p, n))) };
+    unsafe { append_string_by_id(id, &mut |p, n| out.extend_from_slice(from_raw_parts(p, n))) }?;
     out.push(0);
     if out.len() > TEXT_LEN {
         return Err(BadInput(
@@ -57,11 +57,11 @@ pub unsafe fn draw_string_by_id_at(
     canvas: &mut dyn Canvas,
 ) -> Result<Outcome, Refused> {
     unsafe {
-        let before = font.read_unaligned();
+        let before = crate::pointers::GamePtr::new(font as usize as u32).read::<Font>("a font")?;
         let mut copy = before;
         let out = draw_string_by_id(id, &mut copy, x, y, text(), canvas)?;
         if copy != before && canvas.keeps_font_changes() {
-            font.write_unaligned(copy);
+            crate::pointers::GamePtr::new(font as usize as u32).write(copy, "a font")?;
         }
         Ok(out)
     }

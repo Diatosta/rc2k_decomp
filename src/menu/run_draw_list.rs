@@ -15,6 +15,6 @@ use crate::menu::run_list::run_list;
 
 // ---- Rust version ----
 
-pub unsafe fn run_draw_list() -> Result<(), Refused> {
-    unsafe { run_list(SCREEN_FLOW.draw_list.get()) }
+pub fn run_draw_list() -> Result<(), Refused> {
+    run_list(SCREEN_FLOW.draw_list.get())
 }

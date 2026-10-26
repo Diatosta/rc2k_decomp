@@ -51,14 +51,14 @@ pub fn method(object: u32, slot: u32, args: &[u32]) -> u32 {
 
 /// The controller's entry for a record (`g_controllers` + 0x50 its number), unchecked as
 /// the original (`imul edi, [esi], 50h`).
-pub fn entry_of(record: u32) -> u32 {
-    (DEVICES.controllers[0].addr() as u32).wrapping_add(
+pub fn entry_of(record: u32) -> Result<u32, crate::errors::BadInput> {
+    Ok((DEVICES.controllers[0].addr() as u32).wrapping_add(
         crate::input::devices::at(
             record,
             crate::field!(crate::input::types::InputDevice, controller),
-        )
+        )?
         .wrapping_mul(CONTROLLER_LEN),
-    )
+    ))
 }
 
 /// The game's fatal error `code` with no message.

@@ -12,13 +12,11 @@ use crate::menu::car_buttons::*;
 
 // ---- Rust version ----
 
-pub unsafe fn previous_slideshow_picture(
+pub fn previous_slideshow_picture(
     call: &mut dyn FnMut(Call) -> Result<(), Refused>,
 ) -> Result<(), Refused> {
     // Converted: `rc2k_core::menu::cars::press`.
-    unsafe {
-        crate::menu::car_buttons::press(crate::menu::car_buttons::Which::PreviousPicture, call)
-    }
+    crate::menu::car_buttons::press(crate::menu::car_buttons::Which::PreviousPicture, call)
 }
 
 /// The Rust version the typed tables run.

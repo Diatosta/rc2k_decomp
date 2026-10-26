@@ -40,7 +40,8 @@ pub unsafe fn printable(text: *const u8, room: u32) -> Result<Vec<u8>, BadInput>
 pub unsafe fn copy_printable(text: *const u8, to: *mut u8, room: u32) -> Result<(), BadInput> {
     unsafe {
         let bytes = printable(text, room)?;
-        std::ptr::copy(bytes.as_ptr(), to, bytes.len());
+        crate::pointers::GamePtr::new(to as usize as u32)
+            .write_bytes(&bytes, "a printable name")?;
         Ok(())
     }
 }

@@ -77,42 +77,40 @@ impl PlaneTuning {
 }
 
 /// The original's 0x4C8F6A .. 0x4C9000: the rate (`flt_89CA34`), the place (`flt_89CEF6` ..) and the first axis (`flt_89CF1A` ..) from the settings, its length over `flt_934F34` into `flt_89CEEE`.
-unsafe fn plane_axes(s: u32) {
-    unsafe { plane_axes_x87(s as usize, &SQUARE_TIMING, &SQUARE_TABLES, &PLANE_TUNING) }
+fn plane_axes(s: u32) {
+    plane_axes_x87(s as usize, &SQUARE_TIMING, &SQUARE_TABLES, &PLANE_TUNING)
 }
 
 /// The original's 0x4C900D .. 0x4C906D: the second axis (`flt_89CF26` ..), its length over `flt_934F38` into `flt_89CEF2`.
-unsafe fn plane_up(s: u32) {
-    unsafe { plane_up_x87(s as usize, &SQUARE_TABLES, &PLANE_TUNING) }
+fn plane_up(s: u32) {
+    plane_up_x87(s as usize, &SQUARE_TABLES, &PLANE_TUNING)
 }
 
 /// The original's 0x4C90BE .. 0x4C90E2: the place as floats into `flt_8161A2` ...
-unsafe fn plane_place(s: u32) {
-    unsafe { plane_place_x87(crate::marks::hexagon_vars::HexagonVars::base(), s as usize) }
+fn plane_place(s: u32) {
+    plane_place_x87(crate::marks::hexagon_vars::HexagonVars::base(), s as usize)
 }
 
 /// The original's 0x4C90ED .. 0x4C9113: the place's way dotted with the third axis into `flt_814718`.
-unsafe fn plane_facing() {
-    unsafe {
-        plane_facing_x87(
-            crate::marks::hexagon_vars::HexagonVars::base(),
-            &SQUARE_TABLES,
-        )
-    }
+fn plane_facing() {
+    plane_facing_x87(
+        crate::marks::hexagon_vars::HexagonVars::base(),
+        &SQUARE_TABLES,
+    )
 }
 
 /// The original's 0x4C915A .. 0x4C9244: the plane's centre and corners (`flt_934C98` .. `flt_934CC4`) from the axes.
-unsafe fn plane_corners() {
-    unsafe { plane_corners_x87(&SQUARE_TABLES, &QUAD_3) }
+fn plane_corners() {
+    plane_corners_x87(&SQUARE_TABLES, &QUAD_3)
 }
 
 /// The original's 0x4C93FA .. 0x4C94CA: the four corners projected.
-unsafe fn plane_projected() {
-    unsafe { plane_projected_x87(crate::race::store::asm_base() as usize, &QUAD_3) }
+fn plane_projected() {
+    plane_projected_x87(crate::race::store::asm_base() as usize, &QUAD_3)
 }
 
 /// The Rust version (see the header).
-pub unsafe fn draw_plane() -> Result<(), Refused> {
+pub fn draw_plane() -> Result<(), Refused> {
     use crate::scene::set_render_state::set_render_state;
     unsafe {
         let s: u32 = crate::marks::setup::SETTINGS.pointer.get();
@@ -205,95 +203,87 @@ use crate::marks::squares_store::{SQUARE_TIMING, SquareTables, SquareTiming};
 use crate::math::x87_float as bh;
 
 /// `plane_axes`'s x87 block as plain Rust on the x87 model (29 instructions), same order and memory places.
-unsafe fn plane_axes_x87(s: usize, sti: &SquareTiming, sq: &SquareTables, pt: &PlaneTuning) {
-    unsafe {
-        let t0 = ldi(s, 0x2740);
-        let t1 = t0 * bh::ld(pt.rate_k.bits());
-        sti.rate.set_bits(bh::st(t1));
-        let t2 = ldi(s, 0x2720);
-        let t3 = ldi(s, 0x2724);
-        let t4 = ldi(s, 0x2728);
-        sq.place[2].set_bits(bh::st(t4));
-        sq.place[1].set_bits(bh::st(t3));
-        sq.place[0].set_bits(bh::st(t2));
-        let t5 = ldi(s, 0x272C);
-        let t6 = t5 - ldi(s, 0x2720);
-        sq.axes[0][0].set_bits(bh::st(t6));
-        let t7 = ldi(s, 0x2730);
-        let t8 = t7 - ldi(s, 0x2724);
-        sq.axes[0][1].set_bits(bh::st(t8));
-        let t9 = ldi(s, 0x2734);
-        let t10 = t9 - ldi(s, 0x2728);
-        sq.axes[0][2].set_bits(bh::st(t10));
-        let t11 = bh::ld(sq.axes[0][0].bits());
-        let t12 = t11 * t11;
-        let t13 = bh::ld(sq.axes[0][1].bits());
-        let t14 = t13 * t13;
-        let t15 = bh::ld(sq.axes[0][2].bits());
-        let t16 = t15 * t15;
-        let t17 = t14 + t16;
-        let t18 = t12 + t17;
-        let t19 = t18.sqrt();
-        let t20 = t19 / bh::ld(pt.shares[0].bits());
-        sq.lengths[0].set_bits(bh::st(t20));
-    }
+fn plane_axes_x87(s: usize, sti: &SquareTiming, sq: &SquareTables, pt: &PlaneTuning) {
+    let t0 = ldi(s, 0x2740);
+    let t1 = t0 * bh::ld(pt.rate_k.bits());
+    sti.rate.set_bits(bh::st(t1));
+    let t2 = ldi(s, 0x2720);
+    let t3 = ldi(s, 0x2724);
+    let t4 = ldi(s, 0x2728);
+    sq.place[2].set_bits(bh::st(t4));
+    sq.place[1].set_bits(bh::st(t3));
+    sq.place[0].set_bits(bh::st(t2));
+    let t5 = ldi(s, 0x272C);
+    let t6 = t5 - ldi(s, 0x2720);
+    sq.axes[0][0].set_bits(bh::st(t6));
+    let t7 = ldi(s, 0x2730);
+    let t8 = t7 - ldi(s, 0x2724);
+    sq.axes[0][1].set_bits(bh::st(t8));
+    let t9 = ldi(s, 0x2734);
+    let t10 = t9 - ldi(s, 0x2728);
+    sq.axes[0][2].set_bits(bh::st(t10));
+    let t11 = bh::ld(sq.axes[0][0].bits());
+    let t12 = t11 * t11;
+    let t13 = bh::ld(sq.axes[0][1].bits());
+    let t14 = t13 * t13;
+    let t15 = bh::ld(sq.axes[0][2].bits());
+    let t16 = t15 * t15;
+    let t17 = t14 + t16;
+    let t18 = t12 + t17;
+    let t19 = t18.sqrt();
+    let t20 = t19 / bh::ld(pt.shares[0].bits());
+    sq.lengths[0].set_bits(bh::st(t20));
 }
 
 /// `plane_up`'s x87 block as plain Rust on the x87 model (20 instructions), same order and memory places.
-unsafe fn plane_up_x87(s: usize, sq: &SquareTables, pt: &PlaneTuning) {
-    unsafe {
-        let t0 = ldi(s, 0x2708);
-        let t1 = t0 - ldi(s, 0x2720);
-        sq.axes[1][0].set_bits(bh::st(t1));
-        let t2 = ldi(s, 0x270C);
-        let t3 = t2 - ldi(s, 0x2724);
-        sq.axes[1][1].set_bits(bh::st(t3));
-        let t4 = ldi(s, 0x2710);
-        let t5 = t4 - ldi(s, 0x2728);
-        sq.axes[1][2].set_bits(bh::st(t5));
-        let t6 = bh::ld(sq.axes[1][0].bits());
-        let t7 = t6 * t6;
-        let t8 = bh::ld(sq.axes[1][1].bits());
-        let t9 = t8 * t8;
-        let t10 = bh::ld(sq.axes[1][2].bits());
-        let t11 = t10 * t10;
-        let t12 = t9 + t11;
-        let t13 = t7 + t12;
-        let t14 = t13.sqrt();
-        let t15 = t14 / bh::ld(pt.shares[1].bits());
-        sq.lengths[1].set_bits(bh::st(t15));
-    }
+fn plane_up_x87(s: usize, sq: &SquareTables, pt: &PlaneTuning) {
+    let t0 = ldi(s, 0x2708);
+    let t1 = t0 - ldi(s, 0x2720);
+    sq.axes[1][0].set_bits(bh::st(t1));
+    let t2 = ldi(s, 0x270C);
+    let t3 = t2 - ldi(s, 0x2724);
+    sq.axes[1][1].set_bits(bh::st(t3));
+    let t4 = ldi(s, 0x2710);
+    let t5 = t4 - ldi(s, 0x2728);
+    sq.axes[1][2].set_bits(bh::st(t5));
+    let t6 = bh::ld(sq.axes[1][0].bits());
+    let t7 = t6 * t6;
+    let t8 = bh::ld(sq.axes[1][1].bits());
+    let t9 = t8 * t8;
+    let t10 = bh::ld(sq.axes[1][2].bits());
+    let t11 = t10 * t10;
+    let t12 = t9 + t11;
+    let t13 = t7 + t12;
+    let t14 = t13.sqrt();
+    let t15 = t14 / bh::ld(pt.shares[1].bits());
+    sq.lengths[1].set_bits(bh::st(t15));
 }
 
 /// `plane_place`'s x87 block as plain Rust on the x87 model (6 instructions), same order and memory places.
-unsafe fn plane_place_x87(hx: usize, s: usize) {
-    unsafe {
-        let t0 = ldi(s, 0x2720);
-        st(hx, 0xB1262, t0);
-        let t1 = ldi(s, 0x2724);
-        st(hx, 0xB1266, t1);
-        let t2 = ldi(s, 0x2728);
-        st(hx, 0xB126A, t2);
-    }
+fn plane_place_x87(hx: usize, s: usize) {
+    let t0 = ldi(s, 0x2720);
+    st(hx, 0xB1262, t0);
+    let t1 = ldi(s, 0x2724);
+    st(hx, 0xB1266, t1);
+    let t2 = ldi(s, 0x2728);
+    st(hx, 0xB126A, t2);
 }
 
 /// `plane_facing`'s x87 block as plain Rust on the x87 model (9 instructions), same order and memory places.
-unsafe fn plane_facing_x87(hx: usize, sq: &SquareTables) {
-    unsafe {
-        let t0 = ld(hx, 0xB1262);
-        let t1 = t0 * bh::ld(sq.axes[2][0].bits());
-        let t2 = ld(hx, 0xB1266);
-        let t3 = t2 * bh::ld(sq.axes[2][1].bits());
-        let t4 = ld(hx, 0xB126A);
-        let t5 = t4 * bh::ld(sq.axes[2][2].bits());
-        let t6 = t3 + t5;
-        let t7 = t1 + t6;
-        HEXAGON_STATE.facing.set_bits(bh::st(t7));
-    }
+fn plane_facing_x87(hx: usize, sq: &SquareTables) {
+    let t0 = ld(hx, 0xB1262);
+    let t1 = t0 * bh::ld(sq.axes[2][0].bits());
+    let t2 = ld(hx, 0xB1266);
+    let t3 = t2 * bh::ld(sq.axes[2][1].bits());
+    let t4 = ld(hx, 0xB126A);
+    let t5 = t4 * bh::ld(sq.axes[2][2].bits());
+    let t6 = t3 + t5;
+    let t7 = t1 + t6;
+    HEXAGON_STATE.facing.set_bits(bh::st(t7));
 }
 
 /// `plane_corners`'s x87 block as plain Rust on the x87 model (47 instructions), same order and memory places.
-unsafe fn plane_corners_x87(sq: &SquareTables, q: &QuadWork) {
+fn plane_corners_x87(sq: &SquareTables, q: &QuadWork) {
     let t0 = bh::X(0.0);
     let t1 = bh::X(0.0);
     let t2 = t1 * bh::ld(sq.lengths[1].bits());
@@ -337,52 +327,50 @@ unsafe fn plane_corners_x87(sq: &SquareTables, q: &QuadWork) {
 }
 
 /// `plane_projected`'s x87 block as plain Rust on the x87 model (40 instructions), same order and memory places.
-unsafe fn plane_projected_x87(rc: usize, q: &QuadWork) {
-    unsafe {
-        let t0 = ld(rc, 0x224088);
-        let t1 = t0 / bh::ld(q.corners[0][2].bits());
-        let t2 = t1 * bh::ld(q.corners[0][0].bits());
-        let t3 = t2 + ld(rc, 0x22409C);
-        q.corners[0][0].set_bits(bh::st(t3));
-        let t4 = t1 * bh::ld(q.corners[0][1].bits());
-        let t5 = -t4;
-        let t6 = t5 + ld(rc, 0x2240A0);
-        q.corners[0][1].set_bits(bh::st(t6));
-        let t7 = ld(rc, 0x224088);
-        let t8 = t7 / bh::ld(q.corners[1][2].bits());
-        let t9 = t8 * bh::ld(q.corners[1][0].bits());
-        let t10 = t9 + ld(rc, 0x22409C);
-        q.corners[1][0].set_bits(bh::st(t10));
-        let t11 = t8 * bh::ld(q.corners[1][1].bits());
-        let t12 = -t11;
-        let t13 = t12 + ld(rc, 0x2240A0);
-        q.corners[1][1].set_bits(bh::st(t13));
-        let t14 = ld(rc, 0x224088);
-        let t15 = t14 / bh::ld(q.corners[2][2].bits());
-        let t16 = t15 * bh::ld(q.corners[2][0].bits());
-        let t17 = t16 + ld(rc, 0x22409C);
-        q.corners[2][0].set_bits(bh::st(t17));
-        let t18 = t15 * bh::ld(q.corners[2][1].bits());
-        let t19 = -t18;
-        let t20 = t19 + ld(rc, 0x2240A0);
-        q.corners[2][1].set_bits(bh::st(t20));
-        let t21 = ld(rc, 0x224088);
-        let t22 = t21 / bh::ld(q.corners[3][2].bits());
-        let t23 = t22 * bh::ld(q.corners[3][0].bits());
-        let t24 = t23 + ld(rc, 0x22409C);
-        q.corners[3][0].set_bits(bh::st(t24));
-        let t25 = t22 * bh::ld(q.corners[3][1].bits());
-        let t26 = -t25;
-        let t27 = t26 + ld(rc, 0x2240A0);
-        q.corners[3][1].set_bits(bh::st(t27));
-    }
+fn plane_projected_x87(rc: usize, q: &QuadWork) {
+    let t0 = ld(rc, 0x224088);
+    let t1 = t0 / bh::ld(q.corners[0][2].bits());
+    let t2 = t1 * bh::ld(q.corners[0][0].bits());
+    let t3 = t2 + ld(rc, 0x22409C);
+    q.corners[0][0].set_bits(bh::st(t3));
+    let t4 = t1 * bh::ld(q.corners[0][1].bits());
+    let t5 = -t4;
+    let t6 = t5 + ld(rc, 0x2240A0);
+    q.corners[0][1].set_bits(bh::st(t6));
+    let t7 = ld(rc, 0x224088);
+    let t8 = t7 / bh::ld(q.corners[1][2].bits());
+    let t9 = t8 * bh::ld(q.corners[1][0].bits());
+    let t10 = t9 + ld(rc, 0x22409C);
+    q.corners[1][0].set_bits(bh::st(t10));
+    let t11 = t8 * bh::ld(q.corners[1][1].bits());
+    let t12 = -t11;
+    let t13 = t12 + ld(rc, 0x2240A0);
+    q.corners[1][1].set_bits(bh::st(t13));
+    let t14 = ld(rc, 0x224088);
+    let t15 = t14 / bh::ld(q.corners[2][2].bits());
+    let t16 = t15 * bh::ld(q.corners[2][0].bits());
+    let t17 = t16 + ld(rc, 0x22409C);
+    q.corners[2][0].set_bits(bh::st(t17));
+    let t18 = t15 * bh::ld(q.corners[2][1].bits());
+    let t19 = -t18;
+    let t20 = t19 + ld(rc, 0x2240A0);
+    q.corners[2][1].set_bits(bh::st(t20));
+    let t21 = ld(rc, 0x224088);
+    let t22 = t21 / bh::ld(q.corners[3][2].bits());
+    let t23 = t22 * bh::ld(q.corners[3][0].bits());
+    let t24 = t23 + ld(rc, 0x22409C);
+    q.corners[3][0].set_bits(bh::st(t24));
+    let t25 = t22 * bh::ld(q.corners[3][1].bits());
+    let t26 = -t25;
+    let t27 = t26 + ld(rc, 0x2240A0);
+    q.corners[3][1].set_bits(bh::st(t27));
 }
 
 #[cfg(test)]
 mod asm_reference {
     //! The original assembly blocks, kept verbatim as the reference the plain versions are tested against.
 
-    pub(super) unsafe fn plane_axes_x87(mk: usize, s: usize) {
+    pub(super) fn plane_axes_x87(mk: usize, s: usize) {
         unsafe {
             core::arch::asm!(
                     "fild dword ptr [{s} + 0x2740]",
@@ -423,7 +411,7 @@ mod asm_reference {
         }
     }
 
-    pub(super) unsafe fn plane_up_x87(mk: usize, s: usize) {
+    pub(super) fn plane_up_x87(mk: usize, s: usize) {
         unsafe {
             core::arch::asm!(
                     "fild dword ptr [{s} + 0x2708]",
@@ -455,7 +443,7 @@ mod asm_reference {
         }
     }
 
-    pub(super) unsafe fn plane_place_x87(mk: usize, s: usize) {
+    pub(super) fn plane_place_x87(mk: usize, s: usize) {
         unsafe {
             core::arch::asm!(
                     "fild dword ptr [{s} + 0x2720]",
@@ -473,7 +461,7 @@ mod asm_reference {
         }
     }
 
-    pub(super) unsafe fn plane_facing_x87(mk: usize) {
+    pub(super) fn plane_facing_x87(mk: usize) {
         unsafe {
             core::arch::asm!(
                     "fld dword ptr [{mk} + 0xB1262]",
@@ -493,7 +481,7 @@ mod asm_reference {
         }
     }
 
-    pub(super) unsafe fn plane_corners_x87(mk: usize) {
+    pub(super) fn plane_corners_x87(mk: usize) {
         unsafe {
             core::arch::asm!(
                     ".byte 0xD9, 0xEE",
@@ -551,7 +539,7 @@ mod asm_reference {
         }
     }
 
-    pub(super) unsafe fn plane_projected_x87(rc: usize, mk: usize) {
+    pub(super) fn plane_projected_x87(rc: usize, mk: usize) {
         unsafe {
             core::arch::asm!(
                     "fld dword ptr [{rc} + 0x224088]",
@@ -659,11 +647,11 @@ mod asm_differential {
         };
         differential(
             &SPEC,
-            |b| unsafe { reference::plane_axes_x87(b[0], b[1]) },
+            |b| reference::plane_axes_x87(b[0], b[1]),
             |b| {
                 with_copy::<SquareTiming, _>(b[0], SquareTiming::START, |sti| {
                     with_copy::<SquareTables, _>(b[0], SquareTables::START, |sq| {
-                        with_copy::<PlaneTuning, _>(b[0], PlaneTuning::START, |pt| unsafe {
+                        with_copy::<PlaneTuning, _>(b[0], PlaneTuning::START, |pt| {
                             super::plane_axes_x87(b[1], sti, sq, pt)
                         })
                     })
@@ -710,10 +698,10 @@ mod asm_differential {
         };
         differential(
             &SPEC,
-            |b| unsafe { reference::plane_up_x87(b[0], b[1]) },
+            |b| reference::plane_up_x87(b[0], b[1]),
             |b| {
                 with_copy::<SquareTables, _>(b[0], SquareTables::START, |sq| {
-                    with_copy::<PlaneTuning, _>(b[0], PlaneTuning::START, |pt| unsafe {
+                    with_copy::<PlaneTuning, _>(b[0], PlaneTuning::START, |pt| {
                         super::plane_up_x87(b[1], sq, pt)
                     })
                 })
@@ -742,8 +730,8 @@ mod asm_differential {
         };
         differential(
             &SPEC,
-            |b| unsafe { reference::plane_place_x87(b[0], b[1]) },
-            |b| unsafe { super::plane_place_x87(b[0], b[1]) },
+            |b| reference::plane_place_x87(b[0], b[1]),
+            |b| super::plane_place_x87(b[0], b[1]),
         );
     }
 
@@ -767,13 +755,13 @@ mod asm_differential {
         };
         differential(
             &SPEC,
-            |b| unsafe { reference::plane_facing_x87(b[0]) },
+            |b| reference::plane_facing_x87(b[0]),
             |b| {
                 with_overlays(
                     b[0],
                     &[overlay(&HEXAGON_STATE, HexagonState::START)],
                     || {
-                        with_copy::<SquareTables, _>(b[0], SquareTables::START, |sq| unsafe {
+                        with_copy::<SquareTables, _>(b[0], SquareTables::START, |sq| {
                             super::plane_facing_x87(b[0], sq)
                         })
                     },
@@ -829,12 +817,10 @@ mod asm_differential {
         };
         differential(
             &SPEC,
-            |b| unsafe { reference::plane_corners_x87(b[0]) },
+            |b| reference::plane_corners_x87(b[0]),
             |b| {
                 with_copy::<SquareTables, _>(b[0], SquareTables::START, |sq| {
-                    with_copy::<QuadWork, _>(b[0], 0x934BD0, |q| unsafe {
-                        super::plane_corners_x87(sq, q)
-                    })
+                    with_copy::<QuadWork, _>(b[0], 0x934BD0, |q| super::plane_corners_x87(sq, q))
                 })
             },
         );
@@ -883,10 +869,8 @@ mod asm_differential {
         };
         differential(
             &SPEC,
-            |b| unsafe { reference::plane_projected_x87(b[0], b[1]) },
-            |b| unsafe {
-                with_copy::<QuadWork, _>(b[1], 0x934BD0, |q| super::plane_projected_x87(b[0], q))
-            },
+            |b| reference::plane_projected_x87(b[0], b[1]),
+            |b| with_copy::<QuadWork, _>(b[1], 0x934BD0, |q| super::plane_projected_x87(b[0], q)),
         );
     }
 }

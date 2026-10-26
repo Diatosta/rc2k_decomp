@@ -5,41 +5,47 @@ use crate::menu::captions_store::CAPTIONS;
 use crate::menu::champ_store::CHAMP_VIEW;
 use crate::menu::loop_store::LOOP_FLAGS;
 use crate::menu::state_store::MENU_STATE;
+use crate::pointers::GamePtr;
 use crate::text::draw_text::Canvas;
 
-unsafe fn get(a: u32) -> u32 {
-    unsafe { (a as *const u32).read_unaligned() }
+fn get(a: u32) -> Result<u32, crate::errors::BadInput> {
+    crate::pointers::GamePtr::new(a).read::<u32>("a game value")
 }
 
 /// The stage's record table and record (`off_735512[dword_7556F8][dword_75880E]`, + 0xA4 x
 /// `dword_758812`), none: 0.
-fn records() -> (u32, u32) {
-    unsafe {
-        let table =
-            crate::records::stages_store::STAGE_TABLES.group_list(CHAMP_VIEW.switch_f8.get());
-        if table == 0 {
-            return (0, 0);
-        }
-        let base = get(table + 4 * CAPTIONS.shown_group.get());
-        (
-            base,
-            base.wrapping_add(CAPTIONS.shown_stage.get().wrapping_mul(0xA4)),
-        )
+fn records() -> Result<(u32, u32), BadInput> {
+    let table = crate::records::stages_store::STAGE_TABLES.group_list(CHAMP_VIEW.switch_f8.get());
+    if table == 0 {
+        return Ok((0, 0));
     }
+    let base = get(table + 4 * CAPTIONS.shown_group.get())?;
+    Ok((
+        base,
+        base.wrapping_add(CAPTIONS.shown_stage.get().wrapping_mul(0xA4)),
+    ))
+}
+
+/// Whether the end mark comes within the ten rows (n = 1 .. 10 entries on).
+fn ends_within_ten(first: u32) -> Result<bool, BadInput> {
+    for n in 1..=10u32 {
+        if get(first.wrapping_add(0x9C * n))? == u32::MAX {
+            return Ok(true);
+        }
+    }
+    Ok(false)
 }
 
 /// The times table: `off_7354FE[dword_7556F8 (+ 2 when dword_7556FC is 1)]` points at the
 /// pointer to it.
-fn times_table() -> u32 {
-    unsafe {
-        let mut at = crate::records::stages_store::STAGE_TABLES.result_tables_addr()
-            + 4 * CHAMP_VIEW.switch_f8.get();
-        if CHAMP_VIEW.switch_fc.get() == 1 {
-            at += 8;
-        }
-        let p = get(at);
-        if p == 0 { 0 } else { get(p) }
+fn times_table() -> Result<u32, BadInput> {
+    let mut at = crate::records::stages_store::STAGE_TABLES.result_tables_addr()
+        + 4 * CHAMP_VIEW.switch_f8.get();
+    if CHAMP_VIEW.switch_fc.get() == 1 {
+        at += 8;
     }
+    let p = get(at)?;
+    if p == 0 { Ok(0) } else { get(p) }
 }
 
 /// `screens::draw_stage_results` (0x48E740): the time trial stage's results: the current
@@ -56,116 +62,123 @@ fn times_table() -> u32 {
 /// table, a stage line past its buffer, a times table whose end (-1) comes within the ten rows
 /// (the original's early exit leaves two dwords on the stack and returns through a `pusha`
 /// slot), and what the strings refuse.
-pub unsafe fn draw_stage_results(canvas: &mut dyn Canvas) -> Result<(), Refused> {
-    unsafe {
-        let menu = LOOP_FLAGS.menu.get();
-        let (base, record) = records();
-        if menu == 0 || base == 0 || times_table() == 0 {
-            return Err(BadInput("no current menu, stage records or times table").into());
-        }
-        let both_off = (CHAMP_VIEW.switch_f8.get() ^ 1) & (CHAMP_VIEW.switch_fc.get() ^ 1);
-        let fastest = if both_off == 1 {
-            crate::records::find_stage_record::find_stage_record(
-                crate::records::stages_store::STAGE_TABLES.championship(),
-                CAPTIONS.shown_group.get(),
-                CAPTIONS.shown_stage.get(),
-            )?
-        } else {
-            record
-        };
-        let second = both_off != 1 && CHAMP_VIEW.switch_fc.get() == 1;
-        let speed_at = if second { 0x2C } else { 0x30 };
-        let mut speed = crate::strings::append_speed::append_speed(
-            get(fastest + speed_at),
-            true,
-            crate::strings::units::units(),
-        )?;
-        speed.push(0);
-        let stage = crate::screens::page_settings::stage_line_bytes(0x481, record)?;
-        if stage.len() > 0x100 {
-            return Err(BadInput("a stage line past its buffer").into());
-        }
-        let first = times_table().wrapping_add(get(record + 0x3C).wrapping_mul(0x618));
-        if (1..=10).any(|n| get(first.wrapping_add(0x9C * n)) == u32::MAX) {
-            return Err(BadInput(
-                "a times table ending within the ten rows: the original returns through a wrong stack",
-            )
-            .into());
-        }
-        let set_item =
-            |n: u32, v: u32| ((menu + 4 + 0x5C * n + 0x14) as *mut u32).write_unaligned(v);
-        set_item(
-            1,
-            if CHAMP_VIEW.switch_f8.get() == 1 {
-                0x19C
-            } else {
-                0x19B
-            },
-        );
-        set_item(
-            2,
-            if CHAMP_VIEW.switch_fc.get() == 1 {
-                0x19E
-            } else {
-                0x19D
-            },
-        );
-        set_item(3, get(base + 0x38));
-        crate::screens::text_buffers_store::TEXT_BUFFERS
-            .stage_result_value
-            .set(get(record + 4));
-        std::ptr::copy_nonoverlapping(
-            stage.as_ptr(),
-            crate::screens::text_buffers_store::TEXT_BUFFERS
-                .stage_heading
-                .addr() as *mut u8,
-            stage.len(),
-        );
-        // Converted: `rc2k_core::screens::stage_results`.
-        use rc2k_core::screens::stage_results::{Entry, Fastest, stage_results};
-        let rows = std::array::from_fn(|n| {
-            let entry = first.wrapping_add(0x9C * n as u32);
-            let f = |o: u32| get(entry + o);
-            Entry {
-                name: entry + 0x20,
-                nation: f(8),
-                car: f(0x10),
-                time: f(0x14),
-                seal: (f(0x54), f(0x58)),
-            }
-        });
-        let (nation, name, car) = if second {
-            (0x9C, 0x7C, 0xA0)
-        } else {
-            (0x74, 0x54, 0x78)
-        };
-        speed.pop();
-        let fastest = Fastest {
-            nation: get(fastest + nation),
-            name: fastest + name,
-            car: get(fastest + car),
-            palette: if both_off == 1 {
-                CAPTIONS.shown_group.get()
-            } else {
-                both_off
-            },
-            speed,
-        };
-        let mut seal_code = |a: u32, b: u32| {
-            crate::strings::format_seal_code::format_seal_code(a, b);
-            let code = crate::strings::format_seal_code::SEAL_TEXT.ptr() as *const u8;
-            std::ffi::CStr::from_ptr(code as *const std::ffi::c_char)
-                .to_bytes()
-                .to_vec()
-        };
-        stage_results(
-            &mut crate::screens::game_screen::GameScreen::new(canvas),
-            MENU_STATE.menus.caption_choice.get() == 1,
-            crate::strings::append_time::show_hours(),
-            &rows,
-            &mut seal_code,
-            &fastest,
-        )?;
-        Ok(())
+pub fn draw_stage_results(canvas: &mut dyn Canvas) -> Result<(), Refused> {
+    let menu = LOOP_FLAGS.menu.get();
+    let (base, record) = records()?;
+    if menu == 0 || base == 0 || times_table()? == 0 {
+        return Err(BadInput("no current menu, stage records or times table").into());
     }
+    let both_off = (CHAMP_VIEW.switch_f8.get() ^ 1) & (CHAMP_VIEW.switch_fc.get() ^ 1);
+    let fastest = if both_off == 1 {
+        crate::records::find_stage_record::find_stage_record(
+            crate::records::stages_store::STAGE_TABLES.championship(),
+            CAPTIONS.shown_group.get(),
+            CAPTIONS.shown_stage.get(),
+        )?
+    } else {
+        record
+    };
+    let second = both_off != 1 && CHAMP_VIEW.switch_fc.get() == 1;
+    let speed_at = if second { 0x2C } else { 0x30 };
+    let mut speed = crate::strings::append_speed::append_speed(
+        get(fastest + speed_at)?,
+        true,
+        crate::strings::units::units(),
+    )?;
+    speed.push(0);
+    let stage = crate::screens::page_settings::stage_line_bytes(0x481, record)?;
+    if stage.len() > 0x100 {
+        return Err(BadInput("a stage line past its buffer").into());
+    }
+    let first = times_table()?.wrapping_add(get(record + 0x3C)?.wrapping_mul(0x618));
+    if ends_within_ten(first)? {
+        return Err(BadInput(
+            "a times table ending within the ten rows: the original returns through a wrong stack",
+        )
+        .into());
+    }
+    let set_item = |n: u32, v: u32| {
+        crate::pointers::GamePtr::new(menu + 4 + 0x5C * n + 0x14).write::<u32>(v, "a menu item")
+    };
+    set_item(
+        1,
+        if CHAMP_VIEW.switch_f8.get() == 1 {
+            0x19C
+        } else {
+            0x19B
+        },
+    )?;
+    set_item(
+        2,
+        if CHAMP_VIEW.switch_fc.get() == 1 {
+            0x19E
+        } else {
+            0x19D
+        },
+    )?;
+    set_item(3, get(base + 0x38)?)?;
+    crate::screens::text_buffers_store::TEXT_BUFFERS
+        .stage_result_value
+        .set(get(record + 4)?);
+    crate::pointers::GamePtr::new(
+        crate::screens::text_buffers_store::TEXT_BUFFERS
+            .stage_heading
+            .addr() as u32,
+    )
+    .write_bytes(&stage, "the stage line")?;
+    // Converted: `rc2k_core::screens::stage_results`.
+    use rc2k_core::screens::stage_results::{Entry, Fastest, stage_results};
+    let fault = crate::menu::event_flow::Fault::default();
+    let rows = std::array::from_fn(|n| {
+        let entry = first.wrapping_add(0x9C * n as u32);
+        let f = |o: u32| fault.get(entry + o);
+        Entry {
+            name: entry + 0x20,
+            nation: f(8),
+            car: f(0x10),
+            time: f(0x14),
+            seal: (f(0x54), f(0x58)),
+        }
+    });
+    fault.check()?;
+    let (nation, name, car) = if second {
+        (0x9C, 0x7C, 0xA0)
+    } else {
+        (0x74, 0x54, 0x78)
+    };
+    speed.pop();
+    let fastest = Fastest {
+        nation: get(fastest + nation)?,
+        name: fastest + name,
+        car: get(fastest + car)?,
+        palette: if both_off == 1 {
+            CAPTIONS.shown_group.get()
+        } else {
+            both_off
+        },
+        speed,
+    };
+    let seal_fault = crate::menu::event_flow::Fault::default();
+    let mut seal_code = |a: u32, b: u32| {
+        seal_fault.ok(crate::strings::format_seal_code::format_seal_code(a, b));
+        seal_fault.ok(crate::strings::text_length::nul_at(
+            crate::strings::format_seal_code::SEAL_TEXT.addr() as u32,
+            "the seal text",
+        )
+        .and_then(|len| {
+            GamePtr::new(crate::strings::format_seal_code::SEAL_TEXT.addr() as u32)
+                .read_bytes(len as usize, "the seal text")
+        }))
+    };
+    let drawn = stage_results(
+        &mut crate::screens::game_screen::GameScreen::new(canvas),
+        MENU_STATE.menus.caption_choice.get() == 1,
+        crate::strings::append_time::show_hours(),
+        &rows,
+        &mut seal_code,
+        &fastest,
+    );
+    seal_fault.check()?;
+    drawn?;
+    Ok(())
 }

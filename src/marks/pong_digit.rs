@@ -17,7 +17,7 @@ pub fn pong_digit(digit: u32) -> Result<(), Refused> {
     use rc2k_core::marks::pong as core;
     let mut pattern = PONG.digit_patterns.addr() as u32 + core::pattern(digit)?;
     for (col, row) in core::cells() {
-        unsafe { crate::marks::pong_cell::pong_cell(pattern, col, row)? };
+        crate::marks::pong_cell::pong_cell(pattern, col, row)?;
         pattern = pattern.wrapping_add(1);
     }
     PONG.digit_at[0].set(PONG.digit_at[0].get().wrapping_add(core::DIGIT_STEP));

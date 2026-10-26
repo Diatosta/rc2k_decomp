@@ -11,11 +11,11 @@ use crate::errors::{BadInput, Refused};
 use crate::marks::{copy_first_point, run_shapes, scale_setting, tilt_shape};
 
 /// The Rust version (see the header).
-pub unsafe fn shapes_frame() -> Result<(), Refused> {
+pub fn shapes_frame() -> Result<(), Refused> {
     if crate::marks::setup::SETTINGS.pointer.get() == 0 {
         return Err(BadInput("no marks settings").into());
     }
-    unsafe {
+    {
         copy_first_point::copy_first_point();
         tilt_shape::tilt_shape();
         scale_setting::scale_setting()?;

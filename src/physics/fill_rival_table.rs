@@ -13,6 +13,7 @@
 //! above are the original's, for reference.
 use crate::errors::Refused;
 use crate::physics::split_tables_store::SPLIT_TABLES;
+use crate::pointers::GamePtr;
 use crate::race::vars_store::RACE_VARS;
 use rc2k_core::physics::splits::{RIVALS, default_rival};
 
@@ -30,10 +31,10 @@ pub fn fill_rival_table() -> Result<(), Refused> {
         return Ok(());
     }
     for c in 0..RIVALS {
-        let at = |o: u32| unsafe { ((rival + o) as *const u32).read_unaligned() };
-        SPLIT_TABLES.rival_names[c].set(at(0));
-        SPLIT_TABLES.rival_cars[c].set(at(8));
-        SPLIT_TABLES.rival_times[c].set(at(12));
+        let at = |o: u32| GamePtr::new(rival + o).read::<u32>("a rival record");
+        SPLIT_TABLES.rival_names[c].set(at(0)?);
+        SPLIT_TABLES.rival_cars[c].set(at(8)?);
+        SPLIT_TABLES.rival_times[c].set(at(12)?);
         rival = rival.wrapping_add(0x50);
     }
     Ok(())

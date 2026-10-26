@@ -13,14 +13,15 @@ use crate::d3d::vertices_store::VERTICES;
 use crate::drive::tyre_parts::*;
 use crate::errors::Refused;
 
+use crate::pointers::GamePtr;
 use rc2k_core::drive::tyre_screen::quad_corners;
 
 /// The Rust version: the texture rectangle at `uv` (eax), the screen rectangle at `rect`
 /// (ebx), the colour `colour` (ecx); every register kept.
 // Converted: `rc2k_core::drive::tyre_screen::quad_corners` (the shared tail stays x87).
 pub unsafe fn tyre_quad(uv: u32, rect: u32, colour: u32) -> Result<(), Refused> {
-    let at = |o: u32| unsafe { ((rect + o) as *const u32).read_unaligned() };
-    let corners = quad_corners([at(0), at(4), at(8), at(0xC)]);
+    let rect: [u32; 4] = GamePtr::new(rect).read("a tyre's rectangle")?;
+    let corners = quad_corners(rect);
     for (k, [x, y]) in corners.into_iter().enumerate() {
         VERTICES.vertices[k].x.set_bits(x.to_bits());
         VERTICES.vertices[k].y.set_bits(y.to_bits());

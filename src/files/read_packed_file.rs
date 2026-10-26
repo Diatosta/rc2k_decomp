@@ -20,6 +20,7 @@
 
 use crate::errors::Refused;
 use crate::files::read_file::ReadResult;
+use crate::pointers::GamePtr;
 
 use rc2k_core::files::packed::MAGIC;
 
@@ -48,28 +49,31 @@ pub type Read<'a> = &'a mut dyn FnMut(u32, u32, u32) -> Result<ReadResult, Refus
 
 /// In the game: `files::read_file` in Rust.
 pub fn game_read(path: u32, buffer: u32, bytes: u32) -> Result<ReadResult, Refused> {
-    Ok(unsafe { crate::files::read_file::read_file(path as _, buffer as _, bytes, 0) }?)
+    Ok(crate::files::read_file::read_file(
+        path as _,
+        buffer as _,
+        bytes,
+        0,
+    )?)
 }
 
-unsafe fn get(at: u32) -> u32 {
-    unsafe { (at as *const u32).read_unaligned() }
+fn get(at: u32) -> Result<u32, crate::errors::BadInput> {
+    GamePtr::new(at).read::<u32>("a packed file's mark")
 }
 
 /// The unpacking of a file of `size` bytes read into the buffer of `room`: the bytes
 /// written (from the buffer's start). Converted: `rc2k_core::files::packed::unpack`.
-pub unsafe fn unpack(buffer: u32, room: u32, size: u32) -> Result<u32, Refused> {
-    let bytes = unsafe { std::slice::from_raw_parts_mut(buffer as *mut u8, room as usize) };
-    Ok(rc2k_core::files::packed::unpack(bytes, size as usize)? as u32)
+pub fn unpack(buffer: u32, room: u32, size: u32) -> Result<u32, Refused> {
+    let at = GamePtr::new(buffer);
+    let mut bytes = at.read_bytes(room as usize, "a packed file's buffer")?;
+    let written = rc2k_core::files::packed::unpack(&mut bytes, size as usize)? as u32;
+    at.write_bytes(&bytes, "a packed file's buffer")?;
+    Ok(written)
 }
 
 /// `files::read_packed_file` (see the header): the file at `path` into `buffer` of `room`
 /// bytes.
-pub unsafe fn read_packed_file(
-    path: u32,
-    buffer: u32,
-    room: u32,
-    read: Read,
-) -> Result<Outcome, Refused> {
+pub fn read_packed_file(path: u32, buffer: u32, room: u32, read: Read) -> Result<Outcome, Refused> {
     let got = Outcome::of_read(path, &read(path, buffer, room)?);
     // A failed read leaves zero clear (`Outcome::of_read`), as a file not "SQSL" does.
     let failed = Outcome {
@@ -80,10 +84,10 @@ pub unsafe fn read_packed_file(
     if got.carry {
         return Ok(failed);
     }
-    if unsafe { get(buffer) } != MAGIC {
+    if get(buffer)? != MAGIC {
         return Ok(failed);
     }
-    let bytes = unsafe { unpack(buffer, room, got.eax) }?;
+    let bytes = unpack(buffer, room, got.eax)?;
     Ok(Outcome {
         eax: bytes,
         carry: false,

@@ -19,7 +19,7 @@ const REG_SZ: u32 = 1;
 /// The value `name` (eax) set to the text `data` (ebx); `RegSetValueExA`'s answer (no
 /// caller reads it).
 pub fn set_lobby_value(name: u32, data: u32, api: Api) -> Result<u32, Refused> {
-    let len = unsafe { crate::strings::text_length::text_length(data as *const u8) }?;
+    let len = crate::strings::text_length::text_length(data as *const u8)?;
     let key = rd(INSTALLER_RUN.reg_key.addr() as u32);
     Ok(api(
         REG_SET_VALUE,

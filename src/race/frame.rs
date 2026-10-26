@@ -3,10 +3,12 @@
 //! its leaves.
 
 use crate::audio::store::AUDIO;
+use crate::errors::BadInput;
 use crate::errors::Refused;
 use crate::input::store::DEVICES;
 use crate::menu::option_work_store::OPTION_WORK;
 use crate::physics::tables_store::PHYSICS;
+use crate::pointers::GamePtr;
 use crate::race::vars_store::RACE_VARS;
 use crate::race::view_store::RACE_VIEW;
 
@@ -18,39 +20,41 @@ fn block(n: u32) -> u32 {
 /// chosen car's with `dword_52A910` 1, else each of the `dword_63DB94` players' (none: no
 /// carry). Every register kept. Refuses, before anything, a chosen car past 7 or more
 /// than 8 players (the original reads past the table).
-pub unsafe fn players_all_out() -> Result<bool, Refused> {
+pub fn players_all_out() -> Result<bool, Refused> {
     // Converted: `rc2k_core::race::cars::players_all_out`.
     use rc2k_core::race::cars::{Players, players_all_out};
-    unsafe {
-        let out = |n: u32| ((block(n) + 0xB0) as *const u32).read_unaligned() != 0;
+    {
+        let trap = crate::race::trap::Trap::new();
+        let out = |n: u32| trap.read::<u32>(block(n) + 0xB0, "a car block's out flag") != 0;
         let players = if crate::net::store::NET.session.get() == 1 {
             Players::Chosen(crate::net::store::NET.player.get())
         } else {
             Players::First(RACE_VIEW.players.bits())
         };
-        Ok(players_all_out(players, out)?)
+        let all = players_all_out(players, out)?;
+        trap.finish()?;
+        Ok(all)
     }
 }
 
 /// `race::set_car_counter` (0x43A96C): block esi's message (+0x71C eax, +0x72C 0x12C,
 /// +0x730 0), written in the original's order (+0x71C, +0x730, +0x72C).
-pub unsafe fn set_car_counter(at: u32, value: u32) {
+pub fn set_car_counter(at: u32, value: u32) -> Result<(), BadInput> {
     // Converted: `rc2k_core::race::cars::Message::new`.
     let m = rc2k_core::race::cars::Message::new(value);
-    unsafe {
-        ((at + 0x71C) as *mut u32).write_unaligned(m.id);
-        ((at + 0x730) as *mut u32).write_unaligned(m.age);
-        ((at + 0x72C) as *mut u32).write_unaligned(m.time_left);
-    }
+    GamePtr::new(at + 0x71C).write(m.id, "a car block's message")?;
+    GamePtr::new(at + 0x730).write(m.age, "a car block's message")?;
+    GamePtr::new(at + 0x72C).write(m.time_left, "a car block's message")
 }
 
 /// `race::set_both_counters` (0x43A987): `set_car_counter` of the first two blocks (by
 /// their fixed addresses), each with eax.
-pub unsafe fn set_both_counters(value: u32) {
+pub fn set_both_counters(value: u32) -> Result<(), BadInput> {
     // Converted: through `set_car_counter` (`rc2k_core::race::cars::Message`).
     for n in 0..2 {
-        unsafe { set_car_counter(crate::race::blocks_store::block_addr(n) as u32, value) };
+        set_car_counter(crate::race::blocks_store::block_addr(n) as u32, value)?;
     }
+    Ok(())
 }
 
 /// The view car `n`'s number: `dword_63DBA8`, `dword_63DBAC`, `dword_63DBA0`.
@@ -67,15 +71,12 @@ pub fn view_car(n: usize) -> &'static crate::session::Dword {
 /// view car's number, `drive::load_car`. (Its callers, `race::draw_race_scene` and
 /// `race::scroll_maps`, read no register it leaves.)
 pub unsafe fn load_view_car(n: usize) -> Result<(), Refused> {
-    unsafe { with_view_car(n, || crate::drive::load_car::load_car()) }
+    with_view_car(n, crate::drive::load_car::load_car)
 }
 
 /// `g_currentCar` the view car's number, then `then`; on a refusal `g_currentCar` is put
 /// back, so a refusing call has written nothing.
-unsafe fn with_view_car(
-    n: usize,
-    then: impl FnOnce() -> Result<(), Refused>,
-) -> Result<(), Refused> {
+fn with_view_car(n: usize, then: impl FnOnce() -> Result<(), Refused>) -> Result<(), Refused> {
     let current = &crate::race::work_store::RACE_WORK.current_car;
     let was = current.get();
     current.set(view_car(n).get());
@@ -90,7 +91,7 @@ unsafe fn with_view_car(
 /// view car's number, `drive::store_car`. (Its one caller, `race::scroll_maps`, reads no
 /// register it leaves.)
 pub unsafe fn store_view_car(n: usize) -> Result<(), Refused> {
-    unsafe { with_view_car(n, || crate::drive::store_car::store_car()) }
+    with_view_car(n, crate::drive::store_car::store_car)
 }
 
 // The race keys, by scan code in `g_keysPressed`; the second view's keys is `g_keysNow`'s 0x1D
@@ -112,114 +113,112 @@ fn pressed(key: usize) -> bool {
 /// reads no register at entry; the ones it leaves are read by none of its callers
 /// (`drive::race_loop`, `drive::pause_until_key`).
 pub unsafe fn race_keys() -> Result<(), Refused> {
-    unsafe {
-        crate::drive::choose_shown_cars::choose_shown_cars()?;
-        let second = DEVICES.keys_now.get(VIEW_MODE_KEY) != 0;
-        let view = RACE_VIEW.view_blocks[usize::from(second)].bits();
-        // Converted: `rc2k_core::race::keys::{first_key, split_flip, volume_key,
-        // volume_step, flip_bit}`.
-        use rc2k_core::race::keys::{
-            BIT_KEYS as BITS, COUNTED_VIEWS, Key, SHARED_BIT, first_key, flip_bit, split_flip,
-            volume_key, volume_step,
-        };
-        let key = first_key(|k| {
-            pressed(match k {
-                Key::NextView => NEXT_VIEW_KEY,
-                Key::Split => SPLIT_KEY,
-                Key::VolumeDown => DOWN_KEY,
-                Key::VolumeUp => UP_KEY,
-                Key::Bit(n) => BIT_KEYS[n],
-                Key::Shared => SHARED_KEY,
-            })
-        });
-        // The view block's +0x220 with `bit` flipped; gives the counter.
-        let flip = |view: u32, bit: (u32, u32, u32)| {
-            let flags = (view + 0x220) as *mut u32;
-            let (now, counter) = flip_bit(flags.read_unaligned(), bit);
-            flags.write_unaligned(now);
-            counter
-        };
-        match key {
-            Some(Key::NextView) => {
-                crate::drive::next_camera_view::next_camera_view(view);
-                let camera = ((view + 0x688) as *const u32).read_unaligned();
-                if camera < COUNTED_VIEWS {
-                    set_car_counter(view, PHYSICS.view_counters[camera as usize].get());
-                }
+    crate::drive::choose_shown_cars::choose_shown_cars()?;
+    let second = DEVICES.keys_now.get(VIEW_MODE_KEY) != 0;
+    let view = RACE_VIEW.view_blocks[usize::from(second)].bits();
+    // Converted: `rc2k_core::race::keys::{first_key, split_flip, volume_key,
+    // volume_step, flip_bit}`.
+    use rc2k_core::race::keys::{
+        BIT_KEYS as BITS, COUNTED_VIEWS, Key, SHARED_BIT, first_key, flip_bit, split_flip,
+        volume_key, volume_step,
+    };
+    let key = first_key(|k| {
+        pressed(match k {
+            Key::NextView => NEXT_VIEW_KEY,
+            Key::Split => SPLIT_KEY,
+            Key::VolumeDown => DOWN_KEY,
+            Key::VolumeUp => UP_KEY,
+            Key::Bit(n) => BIT_KEYS[n],
+            Key::Shared => SHARED_KEY,
+        })
+    });
+    // The view block's +0x220 with `bit` flipped; gives the counter.
+    let flip = |view: u32, bit: (u32, u32, u32)| -> Result<u32, BadInput> {
+        let flags = GamePtr::new(view + 0x220);
+        let (now, counter) = flip_bit(flags.read("a view block's flags")?, bit);
+        flags.write(now, "a view block's flags")?;
+        Ok(counter)
+    };
+    match key {
+        Some(Key::NextView) => {
+            crate::drive::next_camera_view::next_camera_view(view)?;
+            let camera = GamePtr::new(view + 0x688).read::<u32>("a view block's camera")?;
+            if camera < COUNTED_VIEWS {
+                set_car_counter(view, PHYSICS.view_counters[camera as usize].get())?;
             }
-            Some(Key::Split) => {
-                if RACE_VIEW.players.bits() == 1 {
-                    return Ok(());
-                }
-                let (split, counter) = split_flip(RACE_VARS.split.bits());
-                RACE_VARS.split.set_bits(split);
-                set_both_counters(counter);
-            }
-            Some(k @ (Key::VolumeDown | Key::VolumeUp)) => {
-                let up = k == Key::VolumeUp;
-                let (step, counter) = volume_key(up, second);
-                set_both_counters(counter);
-                if second {
-                    // The "up" step reads `dword_75568C`, not the music's volume (see bugs).
-                    let from: u32 = if up {
-                        OPTION_WORK.other_volume.get()
-                    } else {
-                        crate::sound::store::SOUND_OPTIONS.race_music_volume.get()
-                    };
-                    let volume = volume_step(from, step);
-                    crate::sound::store::SOUND_OPTIONS
-                        .race_music_volume
-                        .set(volume);
-                    crate::sound::set_music_volume::set_music_volume(volume);
-                } else {
-                    let volume = volume_step(AUDIO.master_volume.get(), step);
-                    AUDIO.master_volume.set(volume);
-                    // `pusha`, `push 8`, `send_command`, `pop eax`, `popa`.
-                    crate::sound::send_command_8::send_command_8(volume);
-                }
-            }
-            Some(Key::Bit(n)) => {
-                let counter = flip(view, BITS[n]);
-                set_car_counter(view, counter);
-            }
-            Some(Key::Shared) => {
-                let counter = flip(RACE_VIEW.view_blocks[0].bits(), SHARED_BIT);
-                set_both_counters(counter);
-            }
-            None => {}
         }
-        Ok(())
+        Some(Key::Split) => {
+            if RACE_VIEW.players.bits() == 1 {
+                return Ok(());
+            }
+            let (split, counter) = split_flip(RACE_VARS.split.bits());
+            RACE_VARS.split.set_bits(split);
+            set_both_counters(counter)?;
+        }
+        Some(k @ (Key::VolumeDown | Key::VolumeUp)) => {
+            let up = k == Key::VolumeUp;
+            let (step, counter) = volume_key(up, second);
+            set_both_counters(counter)?;
+            if second {
+                // The "up" step reads `dword_75568C`, not the music's volume (see bugs).
+                let from: u32 = if up {
+                    OPTION_WORK.other_volume.get()
+                } else {
+                    crate::sound::store::SOUND_OPTIONS.race_music_volume.get()
+                };
+                let volume = volume_step(from, step);
+                crate::sound::store::SOUND_OPTIONS
+                    .race_music_volume
+                    .set(volume);
+                crate::sound::set_music_volume::set_music_volume(volume);
+            } else {
+                let volume = volume_step(AUDIO.master_volume.get(), step);
+                AUDIO.master_volume.set(volume);
+                // `pusha`, `push 8`, `send_command`, `pop eax`, `popa`.
+                crate::sound::send_command_8::send_command_8(volume);
+            }
+        }
+        Some(Key::Bit(n)) => {
+            let counter = flip(view, BITS[n])?;
+            set_car_counter(view, counter)?;
+        }
+        Some(Key::Shared) => {
+            let counter = flip(RACE_VIEW.view_blocks[0].bits(), SHARED_BIT)?;
+            set_both_counters(counter)?;
+        }
+        None => {}
     }
+    Ok(())
 }
 
 /// `race::tyre_change` (0x444F7A), on the variables at `v` (`tyre_variables`' order; the
 /// last is the first of four dwords): `race::tyre_change_gauge` for player 0 started, then
 /// run, its time when done added. It reads no register at entry; the eax and esi it leaves
 /// are read by no caller (`drive::race_loop`).
-pub unsafe fn tyre_change_at(v: &[u32]) -> Result<(), Refused> {
+pub fn tyre_change_at(v: &[u32]) -> Result<(), Refused> {
     use crate::race::tyre_change_gauge::tyre_change_gauge;
-    let get = |k: usize| unsafe { (v[k] as *const u32).read_unaligned() };
-    let put = |k: usize, x: u32| unsafe { (v[k] as *mut u32).write_unaligned(x) };
-    put(0, get(2));
-    put(1, get(3));
-    if get(6) & 0x1E != 0x1E && get(5) == 0 && get(4) >= 0x12C {
+    let get = |k: usize| GamePtr::new(v[k]).read::<u32>("a tyre change variable");
+    let put = |k: usize, x: u32| GamePtr::new(v[k]).write(x, "a tyre change variable");
+    put(0, get(2)?)?;
+    put(1, get(3)?)?;
+    if get(6)? & 0x1E != 0x1E && get(5)? == 0 && get(4)? >= 0x12C {
         tyre_change_gauge(true, 0)?;
-        put(5, 1);
+        put(5, 1)?;
     }
-    if get(5) != 1 {
+    if get(5)? != 1 {
         return Ok(());
     }
     let time = tyre_change_gauge(false, 0)?;
     if time == 0 {
         return Ok(());
     }
-    put(7, get(7).wrapping_add(time));
-    put(5, 0xFFFF_FED3);
+    put(7, get(7)?.wrapping_add(time))?;
+    put(5, 0xFFFF_FED3)?;
     for bit in 1..=4 {
-        let bits = get(6);
-        put(6, bits | 1 << bit);
+        let bits = get(6)?;
+        put(6, bits | 1 << bit)?;
         if bits & 1 << bit == 0 {
-            unsafe { ((v[8] + 4 * (bit - 1)) as *mut u32).write_unaligned(0) };
+            GamePtr::new(v[8] + 4 * (bit - 1)).write(0u32, "a tyre change variable")?;
         }
     }
     Ok(())

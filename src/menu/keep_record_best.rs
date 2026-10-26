@@ -20,37 +20,33 @@ fn current_record() -> Result<u32, BadInput> {
     let index: u32 = { INDEX_RVA.get() };
     if section >= 64
         || index >= 64
-        || !crate::records::find_record::has_section(table, section, 600)
+        || !crate::records::find_record::has_section(table, section, 600)?
     {
         return Err(BadInput("a record past the table"));
     }
-    Ok(crate::records::find_record::find_record_in(
-        table,
-        index as i32,
-        section,
-    ))
+    crate::records::find_record::find_record_in(table, index as i32, section)
 }
 /// The Rust version (see the header): the registers it leaves.
-pub unsafe fn keep_record_best() -> Result<(), Refused> {
+pub fn keep_record_best() -> Result<(), Refused> {
     let players = counted_players()?;
-    if players.iter().any(|&p| get(p + 0x18) == 0) {
+    if any_unnamed(&players)? {
         return Err(BadInput("a player without a name").into());
     }
     let record = current_record()?;
     // Converted: `rc2k_core::menu::bests::{takes_record, take_record}`.
     use rc2k_core::menu::bests;
-    let mut r = unsafe { table(record, 0xA4, 1) };
+    let mut r = table(record, 0xA4, 1)?;
     for (n, &p) in players.iter().enumerate() {
         EVENT_STATE.current_player.set(n as u32);
-        let figure = get(p + 0x94);
+        let figure = get(p + 0x94)?;
         if !bests::takes_record(figure, r.get(0, bests::RECORD_HOLDER.figure)) {
             break;
         }
         let holder = bests::Holder {
             figure,
-            nationality: get(p + 4),
-            car: get(p + 8),
-            name: bytes(get(p + 0x18)),
+            nationality: get(p + 4)?,
+            car: get(p + 8)?,
+            name: bytes(get(p + 0x18)?)?,
         };
         bests::take_record(&mut r, 0, &bests::RECORD_HOLDER, &holder);
     }

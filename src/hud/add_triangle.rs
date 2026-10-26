@@ -9,9 +9,7 @@ use crate::errors::Refused;
 use crate::scene::draw_store::DRAW;
 
 /// The Rust version (see the header).
-pub unsafe fn add_triangle() -> Result<(), Refused> {
-    unsafe {
-        DRAW.polygon_vertex_count.set_bits(3u32);
-        crate::hud::add_polygon::add_polygon()
-    }
+pub fn add_triangle() -> Result<(), Refused> {
+    DRAW.polygon_vertex_count.set_bits(3u32);
+    crate::hud::add_polygon::add_polygon()
 }

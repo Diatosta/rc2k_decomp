@@ -10,27 +10,31 @@
 //! See `net/mod.rs`. One caller, `net::race_step`. Calls nothing.
 
 use crate::net::store::NET;
+use crate::pointers::GamePtr;
 use rc2k_core::net::race;
 
 /// The Rust version.
-pub fn follow_remote() {
+pub fn follow_remote() -> Result<(), crate::errors::BadInput> {
     let car = crate::physics::car_store::car_addr() as u32;
-    let rd = |at: u32| unsafe { (at as *const u32).read_volatile() };
-    let wr = |at: u32, v: u32| unsafe { (at as *mut u32).write_volatile(v) };
+    let rd = |at: u32| GamePtr::new(at).read::<u32>("the car's work block");
+    let wr = |at: u32, v: u32| GamePtr::new(at).write(v, "the car's work block");
     // Converted: `rc2k_core::net::race::glide` (the block read only with the race on).
-    let three = |at: u32| [rd(car + at), rd(car + at + 4), rd(car + at + 8)];
+    let three = |at: u32| {
+        Ok::<_, crate::errors::BadInput>([rd(car + at)?, rd(car + at + 4)?, rd(car + at + 8)?])
+    };
     if NET.session.get() == 0 {
-        return;
+        return Ok(());
     }
-    let steps = rd(car + race::GLIDE_STEPS);
+    let steps = rd(car + race::GLIDE_STEPS)?;
     if steps == 0 {
-        return;
+        return Ok(());
     }
-    let step = three(race::WANTED);
-    if let Some((left, place)) = race::glide(true, steps, three(race::PLACE), step) {
-        wr(car + race::GLIDE_STEPS, left);
+    let step = three(race::WANTED)?;
+    if let Some((left, place)) = race::glide(true, steps, three(race::PLACE)?, step) {
+        wr(car + race::GLIDE_STEPS, left)?;
         for (k, v) in (0..).zip(place) {
-            wr(car + race::PLACE + 4 * k, v);
+            wr(car + race::PLACE + 4 * k, v)?;
         }
     }
+    Ok(())
 }

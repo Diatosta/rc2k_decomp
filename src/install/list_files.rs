@@ -30,12 +30,10 @@ pub fn list_files(pattern: u32) -> Result<(), Refused> {
     if find_first(pattern) {
         loop {
             // append_directory (edx the pattern's path, ebx the cursor)
-            let (cursor, _) = unsafe {
-                crate::files::append_directory::append_directory(
-                    pattern as *const u8,
-                    INSTALLER_RUN.file_cursor.get() as *mut u8,
-                )
-            }?;
+            let (cursor, _) = crate::files::append_directory::append_directory(
+                pattern as *const u8,
+                INSTALLER_RUN.file_cursor.get() as *mut u8,
+            )?;
             let cursor = append_byte(str_append(find_name(), cursor as u32), 0);
             INSTALLER_RUN.file_cursor.set(cursor);
             INSTALLER_RUN

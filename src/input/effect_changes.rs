@@ -36,16 +36,17 @@ use crate::errors::{BadInput, Refused};
 use crate::field;
 use crate::input::store::DEVICES;
 use crate::input::types::{ForceEffect, InputDevice};
+use crate::pointers::GamePtr;
 
 // sub_409AEE
 // sub_409B1F
 // sub_409B0D
 
-fn put(effect: u32, o: u32, v: u32) {
-    unsafe { ((effect + o) as *mut u32).write_unaligned(v) }
+fn put(effect: u32, o: u32, v: u32) -> Result<(), BadInput> {
+    GamePtr::new(effect).offset(o).write(v, "an effect's dword")
 }
-fn get(a: u32) -> u32 {
-    unsafe { (a as *const u32).read_unaligned() }
+fn get(a: u32) -> Result<u32, BadInput> {
+    GamePtr::new(a).read("an effect's dword")
 }
 
 /// The change `what` (with `a`, `b`) of the effect at `effect` of the device `record`, by
@@ -63,15 +64,26 @@ pub unsafe fn effect_change(
     let e = effect;
     let row_at = |n: u32| DEVICES.effect_rows[0][0].addr() as u32 + 16 * n;
     // Converted: `rc2k_core::input::effect_changes::plan`.
+    let failed = std::cell::Cell::new(None);
+    let read = |at: u32| {
+        get(at).unwrap_or_else(|err| {
+            failed.set(failed.get().or(Some(err)));
+            0
+        })
+    };
     let p = plan(
         number,
         what,
         a,
         b,
-        || get(record + field!(InputDevice, sensitivity)),
-        |n| std::array::from_fn(|k| get(row_at(n) + 4 * k as u32)),
+        || read(record + field!(InputDevice, sensitivity)),
+        |n| std::array::from_fn(|k| read(row_at(n) + 4 * k as u32)),
     )
-    .map_err(BadInput::from)?;
+    .map_err(BadInput::from);
+    if let Some(err) = failed.get() {
+        return Err(err.into());
+    }
+    let p = p?;
     for (f, v) in p.stores {
         let (at, v) = match f {
             Field::Duration => (field!(ForceEffect, effect.duration), v),
@@ -84,12 +96,12 @@ pub unsafe fn effect_change(
             Field::Specific(n) => (field!(ForceEffect, type_specific) + 4 * n, v),
             Field::Found => (field!(ForceEffect, found), v),
         };
-        put(e, at, v);
+        put(e, at, v)?;
     }
     match p.call {
-        Some(Call::Start) => start_effect(e),
-        Some(Call::Set(flags)) => set_effect_parameters(e, flags),
-        Some(Call::Stop) => stop_effect(e),
+        Some(Call::Start) => start_effect(e)?,
+        Some(Call::Set(flags)) => set_effect_parameters(e, flags)?,
+        Some(Call::Stop) => stop_effect(e)?,
         None => {}
     }
     Ok(())

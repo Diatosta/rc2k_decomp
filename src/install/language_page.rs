@@ -36,7 +36,7 @@ pub fn language_page(state: u32, list: u32) -> Result<(), Refused> {
     } else if (state as i32) < 0 {
         let answer = INSTALLER_PAGES.list_answer.get() as u32;
         if answer != 0 {
-            unsafe { crate::install::choose_language::choose_language(answer) }?;
+            crate::install::choose_language::choose_language(answer)?;
             load_language()?;
         }
     }

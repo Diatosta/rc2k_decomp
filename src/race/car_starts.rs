@@ -31,7 +31,7 @@ fn zero(cells: &[&Dword]) {
     }
 }
 
-unsafe fn wheels() -> [u32; 4] {
+fn wheels() -> [u32; 4] {
     crate::session::read_first(&CONTACT_WORK.probe_height)
 }
 

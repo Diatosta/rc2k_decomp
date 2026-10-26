@@ -13,21 +13,33 @@
 
 use crate::d3d::recorder::{Call, note};
 use crate::d3d::{VERTEX_LEN, Vertex};
+use crate::errors::BadInput;
+use crate::pointers::GamePtr;
 
 /// Direct3D takes at most this many vertices in one primitive.
 const MOST: u32 = 0x400;
 
-unsafe fn vertices(at: u32, count: u32) -> Vec<Vertex> {
-    (0..count.min(MOST) as usize)
-        .map(|n| unsafe { ((at as usize + n * VERTEX_LEN) as *const Vertex).read_unaligned() })
-        .collect()
+fn vertices(at: u32, count: u32) -> Result<Vec<Vertex>, BadInput> {
+    let bytes =
+        GamePtr::new(at).read_bytes(count.min(MOST) as usize * VERTEX_LEN, "a strip's vertices")?;
+    Ok(bytes
+        .as_chunks::<VERTEX_LEN>()
+        .0
+        .iter()
+        .map(|vertex| {
+            std::array::from_fn(|n| {
+                u32::from_le_bytes(vertex[4 * n..4 * n + 4].try_into().unwrap())
+            })
+        })
+        .collect())
 }
 
 /// The strip of `count` vertices at `at` drawn: Direct3D's result, always 0 here.
-pub unsafe fn draw_vertex_strip(at: u32, count: u32) -> u32 {
-    let swallowed = note(|| Call::Fan(unsafe { vertices(at, count) }));
+pub fn draw_vertex_strip(at: u32, count: u32) -> Result<u32, BadInput> {
+    let vertices = vertices(at, count)?;
+    let swallowed = note(|| Call::Fan(vertices.clone()));
     if !swallowed {
-        crate::platform_3d::draw_strip(&unsafe { vertices(at, count) });
+        crate::platform_3d::draw_strip(&vertices);
     }
-    0
+    Ok(0)
 }

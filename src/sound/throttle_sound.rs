@@ -17,6 +17,7 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::math::x87_float::ld;
+use crate::pointers::GamePtr;
 use crate::scene::x87_mem::{fld, fstp};
 use rc2k_core::sound::engine::{computers, revs_stopped};
 
@@ -28,8 +29,7 @@ pub fn throttle_sound(o: u32, kind: u32, request: u32) -> Result<(), Refused> {
     if o == 0 || request == 0 {
         return Err(BadInput("no object or no request").into());
     }
-    let so = unsafe { crate::sound::store::SoundObject::at(o) };
-    let q = request as *mut u32;
+    let so = crate::sound::store::SoundObject::at(o)?;
     // Converted: `rc2k_core::sound::engine` (`computers`, `revs_stopped`).
     if computers(so.sound_offset.get()) {
         return Ok(());
@@ -41,8 +41,8 @@ pub fn throttle_sound(o: u32, kind: u32, request: u32) -> Result<(), Refused> {
     let sound = so
         .sound_offset
         .get()
-        .wrapping_add(unsafe { (set as *const u32).read_unaligned() });
-    unsafe { q.write_unaligned(sound) };
+        .wrapping_add(GamePtr::new(set).read::<u32>("a sound set")?);
+    crate::sound::turn_parts::put(request, 0, sound)?;
     if revs_stopped(so.state.get()) {
         return crate::sound::turn_parts::stop(request);
     }

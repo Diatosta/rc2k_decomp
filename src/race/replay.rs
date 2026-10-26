@@ -10,6 +10,7 @@ use crate::errors::{BadInput, Refused};
 use crate::files::scratch::SCRATCH;
 use crate::framework::rva;
 use crate::menu::names_store::NAME_BUFFERS;
+use crate::pointers::GamePtr;
 use crate::race::replay_file_store::REPLAY_FILE;
 use crate::race::replay_work_store::REPLAY_WORK;
 use crate::race::seal_store::SEAL_WORK;
@@ -78,12 +79,12 @@ mod block_tests {
 }
 pub const SEALED_RVA: usize = rva(0x719B54); // dword_719B54: the sealed part, 0x100
 
-unsafe fn get(a: usize) -> u32 {
-    unsafe { (game_addr(a) as *const u32).read_unaligned() }
+fn get(a: usize) -> Result<u32, BadInput> {
+    GamePtr::new(game_addr(a) as u32).read("a replay header word")
 }
 
-unsafe fn set(a: impl crate::store::Where, v: u32) {
-    unsafe { (crate::store::game_addr(a) as *mut u32).write_unaligned(v) };
+fn set(a: impl crate::store::Where, v: u32) -> Result<(), BadInput> {
+    GamePtr::new(crate::store::game_addr(a) as u32).write(v, "a replay header word")
 }
 
 /// `race::seal_replay_header` (0x41F0A3): the replay's sealed header part (`dword_719B54`,
@@ -105,11 +106,17 @@ pub unsafe fn seal_replay_header() -> Result<(), Refused> {
         for &(size, to, from) in &HEADER_MOVES {
             // `g_noticeKind` has left the image: its place by `crate::moved`.
             let (to, from) = (crate::moved::place(to), crate::moved::place(from));
-            std::ptr::copy(from as *const u8, to as *mut u8, size);
+            GamePtr::new(from as u32).copy_to(
+                GamePtr::new(to as u32),
+                size,
+                "the replay header",
+            )?;
         }
-        let dwords: Vec<u32> = (1..0x40).map(|n| get(SEALED_RVA + 4 * n)).collect();
+        let dwords: Vec<u32> = (1..0x40)
+            .map(|n| get(SEALED_RVA + 4 * n))
+            .collect::<Result<_, _>>()?;
         let sum = seal_checksum(&dwords);
-        set(SEALED_RVA, sum);
+        set(SEALED_RVA, sum)?;
         crate::race::replay::SEAL_KEY.set(sum);
         let w = &SEAL_WORK;
         let key = [w.key[0].get(), w.key[1].get()];
@@ -118,15 +125,15 @@ pub unsafe fn seal_replay_header() -> Result<(), Refused> {
         let (mut a, mut b) = (0u32, 0u32);
         for n in 0..0x20u32 {
             let at = SEALED_RVA + 8 * n as usize;
-            let [x, y] = chained([get(at), get(at + 4)], [a, b]);
+            let [x, y] = chained([get(at)?, get(at + 4)?], [a, b]);
             w.block[0].set(x);
             w.block[1].set(y);
             // `seal_block` works on the dwords at 0x4E052C .. (no register read).
             crate::race::save_seal::seal_block();
             a = w.sealed[0].get();
-            set(at, a);
+            set(at, a)?;
             b = w.sealed[1].get();
-            set(at + 4, b);
+            set(at + 4, b)?;
         }
         w.key[1].set(key[1]);
         w.key[0].set(key[0]);
@@ -170,9 +177,9 @@ const HEADER_MOVES: [(usize, usize, usize); 31] = [
 ];
 
 /// `files::write`: the bytes written and the carry (a failed write).
-unsafe fn write(handle: u32, from: u32, count: u32) -> (u32, bool) {
-    let (n, ok) = unsafe { crate::files::handle::write(handle, from as *const u8, count) };
-    (n, !ok)
+fn write(handle: u32, from: u32, count: u32) -> Result<(u32, bool), BadInput> {
+    let (n, ok) = crate::race::trap::file_write(handle, from, count, "the replay's bytes")?;
+    Ok((n, !ok))
 }
 
 /// `race::write_replay_chunk` (0x41EEE4): `count` bytes at `from` written to file
@@ -185,34 +192,37 @@ pub unsafe fn write_replay_chunk(
     from: u32,
     count: u32,
 ) -> Result<(u32, bool), Refused> {
-    unsafe {
+    {
         if REPLAY_FILE.chunks_plain.get() == 1 {
-            return Ok(write(handle, from, count));
+            return Ok(write(handle, from, count)?);
         }
         let packed_at = SCRATCH.buffer.addr() as u32;
-        let packed = crate::race::save_seal::pack_runs(from, count, packed_at);
+        let packed = crate::race::save_seal::pack_runs(from, count, packed_at)?;
         // Converted: `rc2k_core::race::replay::packed_size`.
         Ok(match rc2k_core::race::replay::packed_size(packed, count) {
             Some(size) => {
-                let (n, failed) = write(handle, packed_at, size);
+                let (n, failed) = write(handle, packed_at, size)?;
                 if failed {
                     (n, true)
                 } else {
                     (n.wrapping_neg(), false)
                 }
             }
-            None => write(handle, from, count),
+            None => write(handle, from, count)?,
         })
     }
 }
 
 /// The replay index's dword `k` (`lDistanceToMove` ..: offset and size a block). A block
 /// count past the index's 1800 (a broken file) reads on past it, as the original does.
-pub fn block_place(k: usize) -> u32 {
+pub fn block_place(k: usize) -> Result<u32, BadInput> {
     let places = &REPLAY_FILE.block_places;
     places.get(k).map_or_else(
-        || unsafe { (places[0].addr().wrapping_add(4 * k) as *const u32).read_unaligned() },
-        |c| c.get(),
+        || {
+            GamePtr::new(places[0].addr().wrapping_add(4 * k) as u32)
+                .read::<u32>("the replay index")
+        },
+        |c| Ok(c.get()),
     )
 }
 
@@ -277,7 +287,7 @@ pub unsafe fn add_replay_frame(from: u32, bytes: u32) -> Result<(), Refused> {
                 .set(REPLAY_FILE.index_frame_count.get().wrapping_add(1));
             REPLAY_VIEW.frames_in_block.set(in_block);
         }
-        std::ptr::copy(from as *const u8, cursor as *mut u8, 4 * dwords as usize);
+        GamePtr::new(from).copy_to(GamePtr::new(cursor), 4 * dwords as usize, "a replay frame")?;
         crate::race::viewer_buffers_store::VIEWER_BUFFERS
             .block_cursor
             .set(cursor + 4 * dwords);
@@ -312,12 +322,12 @@ pub unsafe fn close_replay() -> Result<(), Refused> {
             REPLAY_FILE.index_frame_count.get(),
         );
         REPLAY_VIEW.frames_in_block.set(frames);
-        crate::race::race_shell::seal_stage_time();
+        crate::race::race_shell::seal_stage_time()?;
         write(
             REPLAY_FILE.replay_handle.get(),
             REPLAY_FILE.index_magic.addr() as u32,
             INDEX_LEN,
-        );
+        )?;
         crate::files::handle::close(REPLAY_FILE.replay_handle.get());
         REPLAY_FILE.replay_open.set(0);
         REPLAY_FILE.replay_closed.set(1);
@@ -341,8 +351,8 @@ pub unsafe fn open_replay() -> Result<(), Refused> {
         };
         REPLAY_FILE.replay_closed.set(0);
         if !replays_on(
-            get(rva(0x5BEC78)),
-            get(rva(0x5BEC7C)),
+            get(rva(0x5BEC78))?,
+            get(rva(0x5BEC7C))?,
             crate::net::store::NET.session.get(),
             RACE_STATE.settings.no_replay.get(),
         ) {
@@ -364,32 +374,32 @@ pub unsafe fn open_replay() -> Result<(), Refused> {
         set(
             rva(0x719B34),
             crate::sound::store::RACE_SOUNDS.one_player.get(),
-        );
+        )?;
         set(
             rva(0x719B38),
             RACE_STATE.settings.cars[0].codriver_sex.get(),
-        );
+        )?;
         set(
             rva(0x719B3C),
             RACE_STATE.settings.cars[1].codriver_sex.get(),
-        );
-        set(rva(0x719C54), 6);
-        std::ptr::copy(
-            RACE_WORK.patch_switch.addr() as *const u8,
-            REPLAY_WORK.header_patches[0].addr() as *mut u8,
+        )?;
+        set(rva(0x719C54), 6)?;
+        GamePtr::new(RACE_WORK.patch_switch.addr() as u32).copy_to(
+            GamePtr::new(REPLAY_WORK.header_patches[0].addr() as u32),
             0xD * 4,
-        );
+            "the replay header's patches",
+        )?;
         seal_replay_header()?;
-        std::ptr::copy(
-            REPLAY_WORK.header_stage.addr() as *const u8,
-            REPLAYS.header.as_ptr().add(0x30),
+        GamePtr::new(REPLAY_WORK.header_stage.addr() as u32).copy_to(
+            GamePtr::new(REPLAYS.header.addr() as u32 + 0x30),
             0x400,
-        );
-        std::ptr::write_bytes(
-            REPLAY_FILE.index_magic.addr() as *mut u8,
+            "the replay header's stage",
+        )?;
+        GamePtr::new(REPLAY_FILE.index_magic.addr() as u32).fill(
             0,
             INDEX_LEN as usize,
-        );
+            "the replay index",
+        )?;
         REPLAY_FILE.index_magic.set(INDEX_MAGIC);
         crate::race::viewer_buffers_store::VIEWER_BUFFERS
             .block_cursor
@@ -412,7 +422,7 @@ pub unsafe fn open_replay() -> Result<(), Refused> {
                     REPLAY_FILE.replay_handle.get(),
                     REPLAYS.header.addr() as u32,
                     HEADER_LEN,
-                )
+                )?
                 .1
             }
         };

@@ -12,7 +12,7 @@ use crate::text::draw_text::Canvas;
 
 // ---- Rust version ----
 
-pub unsafe fn draw_leave_question(canvas: &mut dyn Canvas) -> Result<(), Refused> {
+pub fn draw_leave_question(canvas: &mut dyn Canvas) -> Result<(), Refused> {
     // Converted: `rc2k_core::screens::notes::LEAVE_QUESTION`.
     crate::screens::game_screen::draw_note(canvas, &rc2k_core::screens::notes::LEAVE_QUESTION)?;
     Ok(())

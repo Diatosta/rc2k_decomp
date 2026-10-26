@@ -11,6 +11,7 @@ use crate::marks::masks::{POINTS_A, POINTS_B, PointList};
 use crate::marks::shape_work::{MarkShapes, SHAPE_WORK};
 use crate::marks::tilt_shape::SHAPE_TILT;
 use crate::math::x87;
+use crate::pointers::GamePtr;
 use crate::race::course_lists_store::COURSE_LISTS;
 use crate::scene::matrix3::{Axis, extended, turn_matrix3, turnable};
 use crate::session::{Bytes, Dword, Float, read_bits, write_bits};
@@ -66,12 +67,12 @@ fn turn_z(n: usize) -> u32 {
 }
 pub const MOST_POINTS: u32 = 0x40;
 
-unsafe fn get(at: u32) -> u32 {
-    unsafe { (at as *const u32).read_unaligned() }
+fn get(at: u32) -> Result<u32, BadInput> {
+    GamePtr::new(at).read("a game field")
 }
 
-unsafe fn put(at: u32, v: u32) {
-    unsafe { (at as *mut u32).write_unaligned(v) }
+fn put(at: u32, v: u32) -> Result<(), BadInput> {
+    GamePtr::new(at).write(v, "a game field")
 }
 
 /// `marks::find_farthest_pairs` (0x4BDD1D): for points lists A and B, of the pairs of
@@ -79,8 +80,8 @@ unsafe fn put(at: u32, v: u32) {
 /// `g_marksTurnedA` / `B` (the length rounded; a later pair as far wins) into
 /// `g_marksFarthestA` / `B` (the inner then the outer number). Refuses a list of more
 /// than 0x40.
-pub unsafe fn find_farthest_pairs() -> Result<(), Refused> {
-    unsafe {
+pub fn find_farthest_pairs() -> Result<(), Refused> {
+    {
         let lists: [&PointList; 2] = [&POINTS_A, &POINTS_B];
         for list in lists {
             if list.count.get() as i32 > MOST_POINTS as i32 {
@@ -94,12 +95,13 @@ pub unsafe fn find_farthest_pairs() -> Result<(), Refused> {
             let mut farthest = 0i32;
             for j in (0..count).rev() {
                 for i in (0..count).rev() {
-                    if i == j || get(faces + 4 * i) != get(faces + 4 * j) {
+                    if i == j || get(faces + 4 * i)? != get(faces + 4 * j)? {
                         continue;
                     }
-                    let d =
-                        |o: u32| get(points + i * 12 + o).wrapping_sub(get(points + j * 12 + o));
-                    let length = x87::int_length3(d(0) as i32, d(4) as i32, d(8) as i32);
+                    let d = |o: u32| -> Result<_, Refused> {
+                        Ok(get(points + i * 12 + o)?.wrapping_sub(get(points + j * 12 + o)?))
+                    };
+                    let length = x87::int_length3(d(0)? as i32, d(4)? as i32, d(8)? as i32);
                     if farthest > length {
                         continue;
                     }
@@ -113,7 +115,7 @@ pub unsafe fn find_farthest_pairs() -> Result<(), Refused> {
 }
 
 /// What `turn_shape_points` refuses for turns `a`, `b`.
-pub unsafe fn turn_shape_checks(a: u32, b: u32) -> Result<(), Refused> {
+pub fn turn_shape_checks(a: u32, b: u32) -> Result<(), Refused> {
     for n in 0..2 {
         let n = set().count(n).get();
         if n as i32 > MOST_POINTS as i32 || n == 0x8000_0000 {
@@ -132,7 +134,7 @@ pub unsafe fn turn_shape_checks(a: u32, b: u32) -> Result<(), Refused> {
 /// them into `g_marksTurnedA` / `B`, and each turned point plus the list's offset
 /// (`fiadd`) into the point its target names (the last first). Refuses a list of more than
 /// 0x40 or of 0x80000000, or an angle `fsincos` cannot take, before writing.
-pub unsafe fn turn_shape_points(a: u32, b: u32) -> Result<(), Refused> {
+pub fn turn_shape_points(a: u32, b: u32) -> Result<(), Refused> {
     use crate::marks::splines::{multiply, transform};
     unsafe {
         turn_shape_checks(a, b)?;
@@ -161,10 +163,10 @@ pub unsafe fn turn_shape_points(a: u32, b: u32) -> Result<(), Refused> {
                 let point = turned + 12 * k;
                 for c in 0..3 {
                     let v = x87::int_sum(
-                        get(point + 4 * c) as i32,
+                        get(point + 4 * c)? as i32,
                         set.low(n)[c as usize].get() as i32,
                     );
-                    put(target + 4 * c, v as u32);
+                    put(target + 4 * c, v as u32)?;
                 }
             }
         }
@@ -195,11 +197,11 @@ static ALL_STEPS: [(&Dword, usize, &Dword, &Dword); 2] = [
 /// (`dword_844604` / `_08`) is 0, and `turn_shape_points` with them. The object's offset
 /// (times 0xAB8) is worked out and not used: the one set is turned every time (section
 /// 16). Refuses what `turn_shape_points` would, before writing.
-pub unsafe fn turn_all_shapes() -> Result<(), Refused> {
+pub fn turn_all_shapes() -> Result<(), Refused> {
     use crate::marks::turns::{smooth_pair, smooth_steps};
-    unsafe {
+    {
         let settings: u32 = crate::marks::setup::SETTINGS.pointer.get();
-        let count = get(settings + 0x26B8) as i32;
+        let count = get(settings + 0x26B8)? as i32;
         let pick = |n: usize, (first, second): (u32, u32)| -> u32 {
             if ALL_STEPS[n].3.get() == 0 {
                 first
@@ -240,7 +242,7 @@ const SETS_HELD: u32 = 33;
 
 /// What `make_shape_set` refuses for object `object`: a set count past 0x22 (or below 0),
 /// an object past 0xFF or its faces past `g_faces`, a tilt `fsincos` cannot take.
-unsafe fn shape_set_checks(object: u32) -> Result<(), Refused> {
+fn shape_set_checks(object: u32) -> Result<(), Refused> {
     use crate::scene::object_slots_store::OBJECT_SLOTS;
     use crate::scene::objects::FACES;
     let made = SHAPE_WORK.sets_made.get();
@@ -276,7 +278,7 @@ unsafe fn shape_set_checks(object: u32) -> Result<(), Refused> {
 /// (`turn_matrix3_x`, `transform_int_points`); `find_farthest_pairs`; the block copied to
 /// set n (`memory::move_bytes`), n counted. Refuses a set count past 0x22, an object past
 /// 0xFF or faces past `g_faces`, a tilt `fsincos` cannot take, before writing.
-pub unsafe fn make_shape_set(object: u32) -> Result<(), Refused> {
+pub fn make_shape_set(object: u32) -> Result<(), Refused> {
     use crate::marks::masks::collect_points;
     use crate::scene::object_slots_store::OBJECT_SLOTS;
     unsafe {
@@ -324,7 +326,7 @@ pub unsafe fn make_shape_set(object: u32) -> Result<(), Refused> {
         let kinds: [u32; 2] = read_bits(&SHAPE_SET_TUNING.face_kinds);
         for f in first..first + faces {
             let face: u32 = crate::scene::objects::face_cell(f as usize).get();
-            let kind = *((face + 7) as *const u8);
+            let kind = GamePtr::new(face + 7).read::<u8>("a face kind")?;
             if kind == kinds[0] as u8 {
                 collect_points(&POINTS_A, face)?;
             } else if kind == kinds[1] as u8 {
@@ -338,17 +340,17 @@ pub unsafe fn make_shape_set(object: u32) -> Result<(), Refused> {
             for k in (0..list.count.get()).rev() {
                 put(
                     ids + 4 * k,
-                    get(ids + 4 * k).wrapping_mul(12).wrapping_add(points),
-                );
+                    get(ids + 4 * k)?.wrapping_mul(12).wrapping_add(points),
+                )?;
             }
         }
         for (list, n) in lists.into_iter().zip(0..) {
             let ids = list.ids.as_ptr() as u32;
             let turned = turned(n).addr() as u32;
             for k in (0..list.count.get()).rev() {
-                let from = get(ids + 4 * k);
+                let from = get(ids + 4 * k)?;
                 for c in 0..3 {
-                    put(turned + k * 12 + 4 * c, get(from + 4 * c));
+                    put(turned + k * 12 + 4 * c, get(from + 4 * c)?)?;
                 }
             }
         }
@@ -357,10 +359,10 @@ pub unsafe fn make_shape_set(object: u32) -> Result<(), Refused> {
             let mut lowest = 0x7FFF_FFFF;
             for k in (0..list.count.get()).rev() {
                 let p = turned + k * 12;
-                if (get(p + 4) as i32) < lowest {
-                    lowest = get(p + 4) as i32;
+                if (get(p + 4)? as i32) < lowest {
+                    lowest = get(p + 4)? as i32;
                     for c in 0..3 {
-                        work.low(n)[c as usize].set(get(p + 4 * c));
+                        work.low(n)[c as usize].set(get(p + 4 * c)?);
                     }
                 }
             }
@@ -369,10 +371,12 @@ pub unsafe fn make_shape_set(object: u32) -> Result<(), Refused> {
             let turned = turned(n).addr() as u32;
             for k in (0..list.count.get()).rev() {
                 let p = turned + k * 12;
-                let d = |c: u32| get(p + 4 * c).wrapping_sub(work.low(n)[c as usize].get());
-                let v = [d(0), d(1), d(2)];
+                let d = |c: u32| -> Result<_, Refused> {
+                    Ok(get(p + 4 * c)?.wrapping_sub(work.low(n)[c as usize].get()))
+                };
+                let v = [d(0)?, d(1)?, d(2)?];
                 for (c, x) in v.into_iter().enumerate() {
-                    put(p + 4 * c as u32, x);
+                    put(p + 4 * c as u32, x)?;
                 }
             }
         }
@@ -386,11 +390,11 @@ pub unsafe fn make_shape_set(object: u32) -> Result<(), Refused> {
         }
         find_farthest_pairs()?;
         let set = core::ptr::addr_of!(SHAPE_WORK.sets) as u32 + made * SET_LEN;
-        std::ptr::copy(
-            core::ptr::addr_of!(SHAPE_WORK.work) as *const u8,
-            set as *mut u8,
+        GamePtr::new(core::ptr::addr_of!(SHAPE_WORK.work) as u32).copy_to(
+            GamePtr::new(set),
             SET_LEN as usize,
-        );
+            "a shape set",
+        )?;
         SHAPE_WORK.sets_made.set(made + 1);
     }
     Ok(())
@@ -401,21 +405,21 @@ pub unsafe fn make_shape_set(object: u32) -> Result<(), Refused> {
 /// inputs (the tilt twice into 0x764F60, _64; the kind's two values and two floats into
 /// 0x764F6C .. _78) and `make_shape_set`. Refuses a kind of 0x22 or more, more than 19
 /// objects, what `make_shape_set` refuses for any of them, before writing.
-pub unsafe fn make_shape_sets() -> Result<(), Refused> {
-    unsafe {
+pub fn make_shape_sets() -> Result<(), Refused> {
+    {
         let kind: u32 = MARKS_KIND.kind.bits();
         if kind >= SETS {
             return Err(BadInput("a marks' kind of 0x22 or more").into());
         }
         let settings: u32 = crate::marks::setup::SETTINGS.pointer.get();
-        let count = get(settings + 0x26B8) as i32;
+        let count = get(settings + 0x26B8)? as i32;
         if count > 19 {
             return Err(BadInput("more than 19 shape objects").into());
         }
         let objects: Vec<u32> = (0..count.max(0) as u32)
             .rev()
             .map(|k| get(settings + 0x26BC + 4 * k))
-            .collect();
+            .collect::<Result<_, _>>()?;
         let t = &SHAPE_SET_TUNING;
         let k = kind as usize; // under 0x22, checked above
         // The kind's two face kinds and the set's two ends (`dword_89C72C`, `_7B4`, `_8C4`, `_83C`).

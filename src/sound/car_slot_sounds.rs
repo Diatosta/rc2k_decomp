@@ -23,21 +23,21 @@ pub fn car_slot_sounds(o: u32, request: u32) -> Result<(), Refused> {
     if o == 0 || request == 0 {
         return Err(BadInput("no object or no request").into());
     }
-    let so = unsafe { crate::sound::store::SoundObject::at(o) };
+    let so = crate::sound::store::SoundObject::at(o)?;
     // Converted: `rc2k_core::sound::engine` (`computers`, `placed_slots`).
     if computers(so.sound_offset.get()) {
         return Ok(());
     }
-    let q = request as *mut u32;
-    let place = |from: &[crate::session::Float; 3]| {
+    let place = |from: &[crate::session::Float; 3]| -> Result<(), BadInput> {
         for (k, f) in from.iter().enumerate() {
-            unsafe { q.add(3 + k).write_unaligned(f.bits()) };
+            crate::sound::turn_parts::put(request, 3 + k, f.bits())?;
         }
+        Ok(())
     };
-    place(&so.place);
+    place(&so.place)?;
     for at in placed_slots(so.view_flag.get() == 0) {
         crate::sound::play_timed_slot::play_timed_slot(so.slot_at(at).addr(), request)?;
     }
-    place(&so.place_b);
+    place(&so.place_b)?;
     crate::sound::play_timed_slot::play_timed_slot(so.slot_b.addr(), request)
 }

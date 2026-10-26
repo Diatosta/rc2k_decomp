@@ -50,7 +50,7 @@ pub unsafe fn scale_stage_times(record: u32) -> Result<(), Refused> {
         let text = |n: usize| TEXTS_RVA[n].as_ptr() as usize as *const u8;
         log_write(text(0), false, 1);
         log_int(section as i32, false, 1);
-        log_int(get(record + 0x40) as i32, false, 1);
+        log_int(get(record + 0x40)? as i32, false, 1);
         log_write(text(1), false, 1);
         log_float(f32::from_bits(f[0]), 2, false, 1);
         log_write(text(2), false, 1);

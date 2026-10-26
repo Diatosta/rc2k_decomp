@@ -44,7 +44,7 @@ unsafe fn read_rows() -> Result<bool, BadInput> {
             return Ok(false);
         }
         PICTURE.flags.set(0x100u32);
-        lay_out_pcx();
+        lay_out_pcx()?;
 
         let (width, height, line_bytes): (u32, u32, u32) = (
             DECODER.width.get(),

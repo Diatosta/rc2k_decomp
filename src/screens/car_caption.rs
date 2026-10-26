@@ -26,17 +26,17 @@ pub unsafe fn put_string(id: u32, place: usize, room: usize) -> Result<(), Refus
         let mut text = Vec::new();
         append_string_by_id(id, &mut |p, n| {
             text.extend_from_slice(std::slice::from_raw_parts(p, n))
-        });
+        })?;
         // Converted: `rc2k_core::screens::captions::fit`.
         let text = rc2k_core::screens::captions::fit(text, room)?;
-        std::ptr::copy_nonoverlapping(text.as_ptr(), place as *mut u8, text.len());
+        crate::pointers::GamePtr::new(place as u32).write_bytes(&text, "a caption")?;
         Ok(())
     }
 }
 
 pub unsafe fn car_caption() -> Result<(), Refused> {
     unsafe {
-        let id = read(shown_description()?).name;
+        let id = read(shown_description()?)?.name;
         put_string(
             id,
             crate::screens::text_buffers_store::TEXT_BUFFERS

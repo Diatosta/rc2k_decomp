@@ -53,9 +53,9 @@ pub unsafe fn feel_ground() -> Result<(), Refused> {
             CAR.stuck_count.set(0);
         }
         let face = (CAR.probe_point_face[4].get() << 6).wrapping_add(COURSE.course_faces.get());
-        PHYSICS
-            .feel_word
-            .set(u32::from(((face + 0x26) as *const u16).read_unaligned()));
+        PHYSICS.feel_word.set(u32::from(
+            crate::pointers::GamePtr::new(face + 0x26).read::<u16>("a face's feel word")?,
+        ));
         Ok(())
     }
 }

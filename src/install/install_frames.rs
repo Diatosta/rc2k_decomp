@@ -75,13 +75,8 @@ pub fn progress_frame() -> Result<bool, Refused> {
         BLIT.clip.right.set(kept_clip);
         let mut text = crate::strings::append_percent::append_percent(width >> 2);
         text.push(0);
-        unsafe {
-            std::ptr::copy_nonoverlapping(
-                text.as_ptr(),
-                TEXT_BUFFER.text.addr() as u32 as *mut u8,
-                text.len(),
-            )
-        };
+        crate::pointers::GamePtr::new(TEXT_BUFFER.text.addr() as u32)
+            .write_bytes(&text, "the text buffer")?;
         draw_text(
             FONT.addr() as u32,
             TEXT_BUFFER.text.addr() as u32,

@@ -16,27 +16,26 @@ pub fn set_length(length: i32) {
     LOOP_FLAGS.text_length.set(length as u32)
 }
 
-pub fn backup() -> *mut u8 {
-    NAME_BUFFERS.text_backup.addr() as *mut u8
+/// Where the backup copy of the text is.
+pub fn backup() -> u32 {
+    NAME_BUFFERS.text_backup.addr() as u32
 }
 
 /// The entry's state, as the game holds it.
 pub fn entry() -> Entry {
-    unsafe {
-        Entry {
-            length: length(),
-            entering: OPTION_WORK.typing.get(),
-            backup: field(backup()),
-        }
+    Entry {
+        length: length(),
+        entering: OPTION_WORK.typing.get(),
+        backup: std::array::from_fn(|i| NAME_BUFFERS.text_backup.get(i)),
     }
 }
 
 /// The entry's state stored back.
 pub fn put_entry(e: &Entry) {
-    unsafe {
-        set_length(e.length);
-        OPTION_WORK.typing.set(e.entering);
-        put_field(backup(), &e.backup);
+    set_length(e.length);
+    OPTION_WORK.typing.set(e.entering);
+    for (i, &byte) in e.backup.iter().enumerate() {
+        NAME_BUFFERS.text_backup.set(i, byte);
     }
 }
 
@@ -49,12 +48,12 @@ pub fn with_entry<R>(f: impl FnOnce(&mut Entry) -> R) -> R {
 }
 
 /// A text field's text.
-pub unsafe fn field(at: *const u8) -> Text {
-    unsafe { (at as *const Text).read_unaligned() }
+pub fn field(at: u32) -> Result<Text, crate::errors::BadInput> {
+    crate::pointers::GamePtr::new(at).read::<Text>("a text field")
 }
 
-pub unsafe fn put_field(at: *mut u8, text: &Text) {
-    unsafe { (at as *mut Text).write_unaligned(*text) }
+pub fn put_field(at: u32, text: &Text) -> Result<(), crate::errors::BadInput> {
+    crate::pointers::GamePtr::new(at).write::<Text>(*text, "a text field")
 }
 
 /// Writes a NUL-terminated text to the game's log at level 1.
@@ -67,15 +66,16 @@ const BACKED_UP_RVA: &std::ffi::CStr = c"Backed up name="; // aBackedUpName: "Ba
 /// Starts an entry on the text field `field`, as the saved game and replay screens do it:
 /// the text is copied to the backup, "Backed up name=<backup>" goes to the log if `log` is
 /// set, the field is cleared, the length is 0 and an entry is going on.
-pub unsafe fn begin_logged(at: *mut u8, log: bool) {
+pub fn begin_logged(at: u32, log: bool) -> Result<(), crate::errors::BadInput> {
     // Converted: `rc2k_core::menu::text_entry::Entry::begin`.
-    unsafe {
-        let mut text = field(at);
-        with_entry(|e| e.begin(&mut text));
-        put_field(at, &text);
-        if log {
+    let mut text = field(at)?;
+    with_entry(|e| e.begin(&mut text));
+    put_field(at, &text)?;
+    if log {
+        unsafe {
             log_l1(BACKED_UP_RVA.as_ptr() as usize as *const u8, false);
-            log_l1(backup(), true);
+            log_l1(backup() as usize as *const u8, true);
         }
     }
+    Ok(())
 }

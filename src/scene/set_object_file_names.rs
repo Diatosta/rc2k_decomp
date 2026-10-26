@@ -12,6 +12,7 @@
 //! `????` of both (the thousands digit as one byte: anything above 9999 gives another
 //! character). One caller, `scene::load_object`.
 
+use crate::pointers::GamePtr;
 use crate::scene::file_numbers_store::{FILE_NUMBERS, texts};
 use crate::scene::object_store::OBJECT_WORK;
 
@@ -29,9 +30,9 @@ const FOLDERS: [(usize, usize, usize); 4] = [
 // ---- Rust version ----
 
 // Converted: `rc2k_core::scene::objects::{folder, number_digits}`
-pub unsafe fn set_object_file_names(folder_kind: u32) {
+pub fn set_object_file_names(folder_kind: u32) -> Result<(), crate::errors::BadInput> {
     use rc2k_core::scene::objects::{folder, number_digits};
-    unsafe {
+    {
         let (ro3, lwo, number) = FOLDERS[folder(folder_kind)];
         let (ro3_number, lwo_number) = (
             FILE_NUMBERS.text_addr(ro3 + number),
@@ -46,7 +47,8 @@ pub unsafe fn set_object_file_names(folder_kind: u32) {
             .set_bits(FILE_NUMBERS.text_addr(lwo) as u32);
         FILE_NUMBERS.object_lwo_number.set_bits(lwo_number as u32);
         let digits = number_digits(OBJECT_WORK.loading_kind.bits());
-        (ro3_number as *mut [u8; 4]).write(digits);
-        (lwo_number as *mut [u8; 4]).write(digits);
+        GamePtr::new(ro3_number as u32).write(digits, "the object's file number")?;
+        GamePtr::new(lwo_number as u32).write(digits, "the object's file number")?;
+        Ok(())
     }
 }

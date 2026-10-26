@@ -57,14 +57,14 @@ pub unsafe fn time_trial_service(f: &Flow) -> Result<(), Refused> {
                 break 'all;
             }
             unsafe { crate::service::apply_repairs::apply_repairs_in_game() }?;
-            unsafe { crate::menu::set_player_entry_kind::set_player_entry_kind() }?;
+            crate::menu::set_player_entry_kind::set_player_entry_kind()?;
             let current = get(CURRENT);
             if current >= 4 || player(current) == 0 {
                 return Err(BadInput("a current player past the four or missing").into());
             }
             let record = player(current);
-            if passes::is_out(dword(record + 0xD0)) {
-                unsafe { crate::menu::inspection_faults::inspection_faults() }?;
+            if passes::is_out(dword(record + 0xD0)?) {
+                crate::menu::inspection_faults::inspection_faults()?;
                 unsafe { run_screen_carried(&crate::menu::inspection_area_loop::SCREEN, &mut g) }?;
                 if yes() {
                     break 'all;

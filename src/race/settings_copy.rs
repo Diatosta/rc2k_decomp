@@ -181,10 +181,10 @@ impl rc2k_core::race::settings_copy::Machine<Place> for Game {
             clear_player_absences, copy_league_table, store_results_by_mode,
         };
         // Each keeps the registers the steps read (eax is set again before any use).
-        unsafe {
+        {
             match CALLS.iter().position(|&c| c == a) {
                 Some(0) => clear_player_absences(),
-                Some(1) => copy_league_table(),
+                Some(1) => copy_league_table()?,
                 Some(2) => store_results_by_mode(),
                 _ => unreachable!("a call the tables have"),
             }
@@ -194,20 +194,20 @@ impl rc2k_core::race::settings_copy::Machine<Place> for Game {
 }
 
 /// The steps from the first, in the original's order.
-pub unsafe fn run(steps: &[Step<Place>]) -> Result<(), Refused> {
+pub fn run(steps: &[Step<Place>]) -> Result<(), Refused> {
     // Converted: `rc2k_core::race::settings_copy::run` (the x87's conversions and the
     // brake's product kept, through `Machine`).
     rc2k_core::race::settings_copy::run(steps, &mut Game::default())
 }
 
 /// `race::copy_settings_in` (0x446EBE): `GRAHAM_TO_SHAUN`.
-pub unsafe fn copy_settings_in() -> Result<(), Refused> {
-    unsafe { run(&GRAHAM_TO_SHAUN) }
+pub fn copy_settings_in() -> Result<(), Refused> {
+    run(&GRAHAM_TO_SHAUN)
 }
 
 /// `race::copy_settings_out` (0x4486FB): `SHAUN_TO_GRAHAM`.
-pub unsafe fn copy_settings_out() -> Result<(), Refused> {
-    unsafe { run(&SHAUN_TO_GRAHAM) }
+pub fn copy_settings_out() -> Result<(), Refused> {
+    run(&SHAUN_TO_GRAHAM)
 }
 
 pub const GRAHAM_TO_SHAUN: [Step<Place>; 446] = [

@@ -29,12 +29,13 @@ use crate::net::dplay::{
 use crate::net::lobby::{co_create, copy_printable, log, net_allocate};
 use crate::net::store::{NET, PlayerRecord};
 use crate::net::{create_group, create_player, fill_own_player, join_group, list_players};
+use crate::pointers::GamePtr;
 use crate::race::viewer_screen_store::{VIEWER_PANEL, texts};
 
 const BUFFER_TOO_SMALL: u32 = 0x8877_001E; // DPERR_BUFFERTOOSMALL
 
-fn get(at: u32) -> u32 {
-    unsafe { (at as *const u32).read_unaligned() }
+fn get(at: u32) -> Result<u32, BadInput> {
+    GamePtr::new(at).read::<u32>("the lobby's connection settings")
 }
 
 /// The Rust version.
@@ -70,7 +71,8 @@ pub fn open_lobby() -> Result<bool, Refused> {
         {
             return Ok(false);
         }
-        ((get(NET.settings.get() + 8) + 4) as *mut u32).write_unaligned(0x44);
+        GamePtr::new(get(NET.settings.get() + 8)? + 4)
+            .write(0x44u32, "the lobby's connection settings")?;
         if call(
             &NET.lobby,
             SET_CONNECTION_SETTINGS,
@@ -95,13 +97,13 @@ pub fn open_lobby() -> Result<bool, Refused> {
         if queried != 0 {
             return Ok(false);
         }
-        let name = get(get(NET.settings.get() + 0xC) + 8);
+        let name = get(get(NET.settings.get() + 0xC)? + 8)?;
         copy_printable(name, NET.player_name.addr() as u32, 0x1F)?;
         fill_own_player::fill_own_player(name)?;
         if !create_player::create_player()? {
             return Ok(false);
         }
-        let joined = if get(NET.settings.get() + 4) & 2 != 0 {
+        let joined = if get(NET.settings.get() + 4)? & 2 != 0 {
             NET.own
                 .head
                 .set(PlayerRecord::STATE, NET.own.state() | 0x10);

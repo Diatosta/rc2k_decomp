@@ -20,75 +20,76 @@
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
 //! above are the original's, for reference.
 
-use crate::errors::Refused;
+use crate::errors::{BadInput, Refused};
 use crate::field;
 use crate::input::devices::{at, put};
 use crate::input::di_harness::{method, slot};
 use crate::input::types::{ForceEffect as F, InputDevice};
 
 /// The effect's `DIEFFECT` and parameters, as the original writes them (in its order).
-pub fn fill_parameters(e: u32) {
+pub fn fill_parameters(e: u32) -> Result<(), BadInput> {
     // Converted: `rc2k_core::input::force` (the figures, `type_specific`).
     use rc2k_core::input::force as k;
     let w = |offset: u32, v: u32| put(e, offset, v);
-    w(field!(F, effect.size), k::EFFECT_SIZE);
-    w(field!(F, effect.flags), k::EFFECT_FLAGS);
-    w(field!(F, effect.duration), k::FOR_EVER);
-    w(field!(F, effect.sample_period), 0);
-    w(field!(F, effect.gain), k::FULL_GAIN);
-    w(field!(F, effect.trigger_button), k::NO_BUTTON);
-    w(field!(F, effect.trigger_repeat_interval), 0);
-    w(field!(F, effect.axes_count), k::AXES_COUNT);
-    w(field!(F, effect.axes), e.wrapping_add(field!(F, axes)));
-    w(field!(F, axes), k::AXES[0]);
-    w(field!(F, axes) + 4, k::AXES[1]);
+    w(field!(F, effect.size), k::EFFECT_SIZE)?;
+    w(field!(F, effect.flags), k::EFFECT_FLAGS)?;
+    w(field!(F, effect.duration), k::FOR_EVER)?;
+    w(field!(F, effect.sample_period), 0)?;
+    w(field!(F, effect.gain), k::FULL_GAIN)?;
+    w(field!(F, effect.trigger_button), k::NO_BUTTON)?;
+    w(field!(F, effect.trigger_repeat_interval), 0)?;
+    w(field!(F, effect.axes_count), k::AXES_COUNT)?;
+    w(field!(F, effect.axes), e.wrapping_add(field!(F, axes)))?;
+    w(field!(F, axes), k::AXES[0])?;
+    w(field!(F, axes) + 4, k::AXES[1])?;
     w(
         field!(F, effect.directions),
         e.wrapping_add(field!(F, directions)),
-    );
-    w(field!(F, directions), k::DIRECTION);
-    w(field!(F, effect.envelope), 0);
-    w(field!(F, effect.type_specific_size), 0);
-    w(field!(F, effect.type_specific), 0);
+    )?;
+    w(field!(F, directions), k::DIRECTION)?;
+    w(field!(F, effect.envelope), 0)?;
+    w(field!(F, effect.type_specific_size), 0)?;
+    w(field!(F, effect.type_specific), 0)?;
     // an envelope of its size, all 0, not linked
-    w(field!(F, envelope.size), k::ENVELOPE_SIZE);
+    w(field!(F, envelope.size), k::ENVELOPE_SIZE)?;
     for offset in [
         field!(F, envelope.attack_level),
         field!(F, envelope.attack_time),
         field!(F, envelope.fade_level),
         field!(F, envelope.fade_time),
     ] {
-        w(offset, 0);
+        w(offset, 0)?;
     }
-    let params = k::type_specific(at(e, field!(F, kind)));
+    let params = k::type_specific(at(e, field!(F, kind))?);
     if params.is_empty() {
-        return;
+        return Ok(());
     }
     w(
         field!(F, effect.type_specific_size),
         4 * params.len() as u32,
-    );
+    )?;
     w(
         field!(F, effect.type_specific),
         e.wrapping_add(field!(F, type_specific)),
-    );
+    )?;
     for (n, &v) in params.iter().enumerate() {
-        w(field!(F, type_specific) + 4 * n as u32, v);
+        w(field!(F, type_specific) + 4 * n as u32, v)?;
     }
+    Ok(())
 }
 
 /// The device `record`'s effect `n` at `effect` made (see the header).
 pub fn make_effect(record: u32, effect: u32, n: u32) -> Result<(), Refused> {
     let e = effect;
-    if at(e, field!(F, object)) != 0 {
-        crate::input::effect_objects::release_effect(e);
+    if at(e, field!(F, object))? != 0 {
+        crate::input::effect_objects::release_effect(e)?;
     }
-    fill_parameters(e);
+    fill_parameters(e)?;
     // The effect's function with a change of 1, ecx the effect's number, edx 0.
-    crate::input::effect_changes::effect_change_at(at(e, field!(F, change)), record, e, 1, n, 0)?;
-    if at(e, field!(F, found)) == 1 {
+    crate::input::effect_changes::effect_change_at(at(e, field!(F, change))?, record, e, 1, n, 0)?;
+    if at(e, field!(F, found))? == 1 {
         method(
-            at(record, field!(InputDevice, device)),
+            at(record, field!(InputDevice, device))?,
             slot::CREATE_EFFECT,
             &[
                 e.wrapping_add(field!(F, guid)),

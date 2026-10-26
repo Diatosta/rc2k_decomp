@@ -41,7 +41,7 @@ pub fn png_setting_home() -> usize {
 unsafe fn ending(path: *const u8) -> Result<[u8; 4], BadInput> {
     let text = unsafe { std::ffi::CStr::from_ptr(path as *const std::ffi::c_char) }.to_bytes();
     // As the original measures it.
-    unsafe { text_length(path) }?;
+    text_length(path)?;
     Ok(rc2k_core::gfx::loading::ending(text)?)
 }
 

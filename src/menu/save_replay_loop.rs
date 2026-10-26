@@ -56,7 +56,7 @@ unsafe fn each_frame(c: &mut Carried) -> Result<Flow, Refused> {
 
 /// What the loop returns in eax, written by hand from the end of the listing (after the
 /// `popa`): `dword_755A0C`, which the step above leaves at -1 or at the replay's number.
-unsafe fn result() -> u32 {
+fn result() -> u32 {
     DRAW_WORK.work_0c.get()
 }
 

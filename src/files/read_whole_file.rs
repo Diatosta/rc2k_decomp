@@ -15,24 +15,23 @@
 
 use crate::errors::BadInput;
 use crate::files::state::BYTES_READ;
+use crate::pointers::GamePtr;
 
 // ---- Rust version ----
 
 /// Reads the whole file at `path` into `buffer` (`count` bytes at most). The bytes read
 /// go to `BYTES_READ` (0 after any failure but a failed read's own count).
-pub unsafe fn read_whole_file(
-    path: *const u8,
-    buffer: *mut u8,
-    count: u32,
-) -> Result<(), BadInput> {
+pub fn read_whole_file(path: *const u8, buffer: *mut u8, count: u32) -> Result<(), BadInput> {
     // Converted: `rc2k_core::files::io::read_whole_file`.
-    unsafe {
-        let into = std::slice::from_raw_parts_mut(buffer, count as usize);
+    {
+        let to = GamePtr::new(buffer as u32);
+        let mut into = to.read_bytes(count as usize, "a file's buffer")?;
         let w = rc2k_core::files::io::read_whole_file(
             &mut crate::files::handle::GameFiles::new(),
-            path,
-            into,
+            GamePtr::new(path as u32),
+            &mut into,
         )?;
+        to.write_bytes(&into, "a file's buffer")?;
         if !w.opened {
             BYTES_READ.store(0, std::sync::atomic::Ordering::Relaxed);
             return Ok(());

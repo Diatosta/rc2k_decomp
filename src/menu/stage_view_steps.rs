@@ -30,6 +30,7 @@
 
 use crate::errors::{BadInput, FatalError, Refused};
 use crate::menu::champ_store::CHAMP_VIEW;
+use crate::menu::event_flow::Fault;
 use crate::menu::event_store::EVENT_STATE;
 use crate::menu::lists_store::MENU_LISTS;
 use crate::menu::option_work_store::OPTION_WORK;
@@ -37,22 +38,22 @@ use crate::records::find_record::{find_record_in, has_section};
 use rc2k_core::menu::stage_screens;
 
 const RECORD: u32 = 0xA4;
-fn get(a: u32) -> u32 {
-    unsafe { (a as *const u32).read_unaligned() }
+fn get(a: u32) -> Result<u32, crate::errors::BadInput> {
+    crate::pointers::GamePtr::new(a).read::<u32>("a game value")
 }
 
 /// The record `index` / `section` pick.
 fn stage_record() -> Result<u32, Refused> {
     let table = crate::records::stages_store::STAGE_TABLES.championship();
     let section = EVENT_STATE.section.get();
-    if !has_section(table, section, 600) {
+    if !has_section(table, section, 600)? {
         return Err(BadInput("a section past the record table").into());
     }
     Ok(find_record_in(
         table,
         EVENT_STATE.index.get() as i32,
         section,
-    ))
+    )?)
 }
 
 fn championship() -> bool {
@@ -66,30 +67,35 @@ fn small_section() -> Result<u32, Refused> {
 pub fn count_stage_pages() -> Result<(), Refused> {
     let record = stage_record()?;
     // Converted: `rc2k_core::menu::event::stage_pages`.
-    let n = rc2k_core::menu::event::stage_pages(|k| get(record + RECORD * k))
-        .ok_or(BadInput("more than 256 stage pages"))?;
+    let fault = Fault::default();
+    let n = rc2k_core::menu::event::stage_pages(|k| fault.get(record + RECORD * k));
+    fault.check()?;
+    let n = n.ok_or(BadInput("more than 256 stage pages"))?;
     EVENT_STATE.stage_pages.set(n);
     Ok(())
 }
 
 /// `menu::play_stage_speech`.
-pub unsafe fn play_stage_speech() -> Result<(), Refused> {
+pub fn play_stage_speech() -> Result<(), Refused> {
     let record = stage_record()?;
     if championship() {
         // Converted: `rc2k_core::menu::stage_screens::stage_speech`.
-        let at = stage_screens::stage_speech(get(record + 4), |n| {
-            get(MENU_LISTS.stage_speeches[0].addr() as u32 + 4 * n)
-        })?;
+        let fault = Fault::default();
+        let at = stage_screens::stage_speech(get(record + 4)?, |n| {
+            fault.get(MENU_LISTS.stage_speeches[0].addr() as u32 + 4 * n)
+        });
+        fault.check()?;
+        let at = at?;
         crate::sound::store::CAR_STREAM.on.set(1);
         crate::sound::store::CAR_STREAM.stream.set(at);
         crate::sound::store::CAR_STREAM.place.set(0);
-        crate::sound::start_stream::start_stream(get(at), OPTION_WORK.speech_level.get());
+        crate::sound::start_stream::start_stream(get(at)?, OPTION_WORK.speech_level.get());
     }
     Ok(())
 }
 
 /// `menu::play_rally_speech`: a key taken (and dropped), then the rally's speech.
-pub unsafe fn play_rally_speech() -> Result<(), Refused> {
+pub fn play_rally_speech() -> Result<(), Refused> {
     // Converted: `rc2k_core::menu::stage_screens::rally_speech`.
     let section =
         stage_screens::rally_speech(CHAMP_VIEW.event_mode.get(), || EVENT_STATE.section.get())?
@@ -97,7 +103,7 @@ pub unsafe fn play_rally_speech() -> Result<(), Refused> {
     crate::input::take_key::take_key();
     if championship() {
         crate::sound::start_stream::start_stream(
-            get(MENU_LISTS.rally_speeches[0].addr() as u32 + 4 * section),
+            get(MENU_LISTS.rally_speeches[0].addr() as u32 + 4 * section)?,
             OPTION_WORK.speech_level.get(),
         );
     }
@@ -113,7 +119,7 @@ pub unsafe fn load_welcome_picture() -> Result<(), Refused> {
         stage_screens::Welcome::Championship => MENU_LISTS.welcome_championship[0].addr(),
         stage_screens::Welcome::Other => MENU_LISTS.welcome_other[0].addr(),
     };
-    let path = get(table as u32 + 4 * section);
+    let path = get(table as u32 + 4 * section)?;
     let title_bar = crate::menu::texts_store::MENU_TEXTS.titlebar_png.addr() as *mut u8;
     if unsafe {
         crate::gfx::load_picture_with_overlay::load_picture_with_overlay(path as *mut u8, title_bar)
@@ -160,10 +166,13 @@ pub fn style_stage_item(b: bool) -> Result<(), Refused> {
             crate::gfx::typefaces::fonts::STAGE_TITLE.addr() as u32,
         )
     };
-    unsafe {
-        ((item + 0x1C) as *mut u32).write_unaligned(a);
-        ((item + 0x20) as *mut u32).write_unaligned(c);
-        ((item + 0x50) as *mut u32).write_unaligned(font);
+    {
+        crate::pointers::GamePtr::new(item + 0x1C)
+            .write::<u32>(a, "stage view steps: a game value")?;
+        crate::pointers::GamePtr::new(item + 0x20)
+            .write::<u32>(c, "stage view steps: a game value")?;
+        crate::pointers::GamePtr::new(item + 0x50)
+            .write::<u32>(font, "stage view steps: a game value")?;
     }
     Ok(())
 }

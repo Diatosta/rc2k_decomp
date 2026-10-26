@@ -12,6 +12,6 @@ use crate::screens::best_scores::*;
 use crate::text::draw_text::Canvas;
 
 /// The Rust version (see the header).
-pub unsafe fn draw(canvas: &mut dyn Canvas) -> Result<(), Refused> {
-    unsafe { draw_stage_times(&RALLY_STAGE_TIMES, canvas) }
+pub fn draw(canvas: &mut dyn Canvas) -> Result<(), Refused> {
+    draw_stage_times(&RALLY_STAGE_TIMES, canvas)
 }

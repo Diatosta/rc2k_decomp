@@ -32,6 +32,7 @@
 use crate::errors::{FatalError, Refused};
 use crate::files::read_whole_file::read_whole_file;
 use crate::files::state::BYTES_READ;
+use crate::pointers::GamePtr;
 use crate::race::course_lists_store::COURSE_LISTS;
 use crate::race::course_store::COURSE;
 use crate::race::kind_store::KIND_TABLES;
@@ -170,10 +171,10 @@ pub unsafe fn load_object() -> Result<(), Refused> {
             return Err(crate::errors::BadInput("an object's slot past the tables").into());
         }
         OBJECT_TABLES.object_kinds[slot as usize].set(kind);
-        set_object_file_names(kind);
+        set_object_file_names(kind)?;
         let name = FILE_NUMBERS.object_ro3_number.bits();
         // The file read is the `.ro3` one, whatever the name's last character was.
-        ((name + 7) as *mut u8).write(b'3');
+        GamePtr::new(name.wrapping_add(7)).write(b'3', "an object's file name")?;
         BYTES_READ.store(0, std::sync::atomic::Ordering::Relaxed);
         read_whole_file(
             FILE_NUMBERS.object_ro3_path.bits() as *const u8,
@@ -183,7 +184,7 @@ pub unsafe fn load_object() -> Result<(), Refused> {
         if BYTES_READ.load(std::sync::atomic::Ordering::Relaxed) == 0 {
             return Ok(());
         }
-        ((name + 7) as *mut u8).write(b'3');
+        GamePtr::new(name.wrapping_add(7)).write(b'3', "an object's file name")?;
         if slot <= 0x40 {
             list_object_textures()?;
         }
@@ -197,7 +198,7 @@ pub unsafe fn load_object() -> Result<(), Refused> {
         // The kind's record from `dword_5C90C4` (its `groups`); the kind is not bounded.
         let record = LIGHT_RECORDS.record_addr(known) as usize + 0x58;
         for part in &PARTS {
-            let group: u32 = ((record + part.group) as *const u32).read_unaligned();
+            let group: u32 = GamePtr::new((record + part.group) as u32).read("a kind's record")?;
             let mut bits = 0;
             if group != u32::MAX {
                 bits = 1u32 << (group & 31);

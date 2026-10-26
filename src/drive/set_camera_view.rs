@@ -12,25 +12,27 @@
 //! A `jmp` is its first instruction: `.private_copy` with `.manual_patch`.
 //! Callers: `drive::next_camera_view`, `sub_43A649` (0x43A94F), and code at 0x43B62E.
 
+use crate::errors::BadInput;
+use crate::pointers::GamePtr;
+use crate::session::Dword;
 use rc2k_core::drive::camera_views::CameraView;
 
-unsafe fn put(a: u32, v: u32) {
-    unsafe { (a as *mut u32).write_unaligned(v) }
+fn put(a: u32, v: u32) -> Result<(), BadInput> {
+    GamePtr::new(a).write(v, "a car's block")
 }
 
-/// The Rust version on the block at `s`, the step count at `step`.
+/// The Rust version on the block at `s`, the step count `step`.
 // Converted: `rc2k_core::drive::camera_views::CameraView::take_wanted`.
-pub unsafe fn set_view_at(s: u32, step: u32) {
-    unsafe {
-        let mut v = CameraView {
-            wanted: (s.wrapping_add(0x688) as *const u32).read_unaligned(),
-            ..CameraView::default()
-        };
-        v.take_wanted((step as *const u32).read_unaligned());
-        put(s + 0x684, v.view);
-        put(s + 0x694, v.held);
-        put(s + 0x69C, v.w69c);
-        put(s + 0x698, v.w698);
-        put(s + 0x690, v.taken_at);
-    }
+pub fn set_view_at(s: u32, step: &Dword) -> Result<(), BadInput> {
+    let mut v = CameraView {
+        wanted: GamePtr::new(s.wrapping_add(0x688)).read("a car's block")?,
+        ..CameraView::default()
+    };
+    v.take_wanted(step.bits());
+    put(s + 0x684, v.view)?;
+    put(s + 0x694, v.held)?;
+    put(s + 0x69C, v.w69c)?;
+    put(s + 0x698, v.w698)?;
+    put(s + 0x690, v.taken_at)?;
+    Ok(())
 }

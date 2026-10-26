@@ -10,10 +10,8 @@
 //! are the original's.
 
 /// The Rust version: the cursor after the two bytes.
-pub unsafe fn end_text_line(cursor: u32) -> u32 {
-    unsafe {
-        (cursor as *mut u8).write(b'\n');
-        ((cursor + 1) as *mut u8).write(0);
-    }
+pub fn end_text_line(cursor: u32) -> u32 {
+    crate::install::installer::wb(cursor, b'\n');
+    crate::install::installer::wb(cursor + 1, 0);
     cursor + 2
 }

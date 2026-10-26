@@ -31,13 +31,14 @@ use crate::net::store::NET;
 use crate::net::store_received::store_received;
 use crate::net::system_message::system_message;
 use crate::net::{lock_received::lock_received, unlock_received::unlock_received};
+use crate::pointers::GamePtr;
 use rc2k_core::net::messages::{self, Kind};
 
 /// The players the blocks have room for.
 pub const MOST_PLAYERS: u32 = 16;
 
-fn get8(at: u32) -> u8 {
-    unsafe { (at as *const u8).read_volatile() }
+fn get8(at: u32) -> Result<u8, BadInput> {
+    GamePtr::new(at).read::<u8>("a received message")
 }
 
 /// The Rust version.
@@ -71,18 +72,29 @@ pub fn take_messages() -> Result<(), Refused> {
             continue;
         }
         let block = NET.player_block(player);
-        let first = get8(m.bytes);
+        let first = get8(m.bytes)?;
         // Converted: `rc2k_core::net::messages` (`Kind`, `this_round`, `answers_call`,
         // `notes_answer`, `answer`, `race_fits`).
         let own_state = NET.own.state();
-        let round = || messages::this_round(m.size, || (get8(m.bytes + 1), NET.sync.get()));
+        // The core asks for the second byte only when it needs it: a refusal is kept.
+        let round = || -> Result<bool, BadInput> {
+            let refused = std::cell::Cell::new(None);
+            let answer = messages::this_round(m.size, || {
+                let second = get8(m.bytes + 1).unwrap_or_else(|e| {
+                    refused.set(Some(e));
+                    0
+                });
+                (second, NET.sync.get())
+            });
+            refused.take().map_or(Ok(answer), Err)
+        };
         match Kind::of(first) {
             Kind::Chat => {
-                unsafe { (m.size.wrapping_add(m.bytes) as *mut u8).write_volatile(0) };
+                GamePtr::new(m.size.wrapping_add(m.bytes)).write(0u8, "a received message")?;
                 chat_line_locked(player, m.bytes.wrapping_add(1) as *const u8)?;
             }
             Kind::Call { reply, ready } => {
-                if !messages::answers_call(round(), own_state) {
+                if !messages::answers_call(round()?, own_state) {
                     continue;
                 }
                 let answer = messages::answer(reply, NET.sync.get());
@@ -96,7 +108,7 @@ pub fn take_messages() -> Result<(), Refused> {
                 .set(1);
             }
             Kind::Answer => {
-                if !messages::notes_answer(round(), own_state) {
+                if !messages::notes_answer(round()?, own_state) {
                     continue;
                 }
                 NET.set_synced(player as usize, 1);

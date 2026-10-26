@@ -12,12 +12,20 @@ use crate::errors::Refused;
 use crate::scene::light_store::LIGHT_STATE;
 
 /// The Rust version (see the header).
-pub unsafe fn fog_at(depth: u32) -> Result<u32, Refused> {
+pub fn fog_at(depth: u32) -> Result<u32, Refused> {
     // Converted: `rc2k_core::scene::fog::fog_at`.
-    Ok(rc2k_core::scene::fog::fog_at(
+    let reading = crate::scene::reading::Reading::new();
+    let answer = rc2k_core::scene::fog::fog_at(
         depth,
         LIGHT_STATE.fog_table_length.bits() as i32,
         // A byte of the table (the store types it in dwords).
-        |n| unsafe { ((LIGHT_STATE.fog_table[0].addr() + n) as *const u8).read() },
-    )?)
+        |n| {
+            reading.read::<u8>(
+                (LIGHT_STATE.fog_table[0].addr().wrapping_add(n)) as u32,
+                "the fog table",
+            )
+        },
+    );
+    reading.finish()?;
+    Ok(answer?)
 }

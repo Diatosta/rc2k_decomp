@@ -32,6 +32,7 @@
 use crate::errors::{BadInput, Refused};
 use crate::menu::champ_store::CHAMP_VIEW;
 use crate::menu::cheats_store::CHEAT_VARS;
+use crate::menu::event_flow::Fault;
 use crate::menu::event_flow::Flow;
 use crate::menu::event_store::EVENT_STATE;
 use crate::menu::flow_store::SCREEN_FLOW;
@@ -53,6 +54,8 @@ struct Game<'a> {
     first: u32,
     rec: u32,
     pack: u32,
+    /// A refused read or write of the core's variables (checked at each step and at the end).
+    fault: Fault,
 }
 
 /// The variables that are in the physics block.
@@ -81,6 +84,7 @@ impl races::EventRaces for Game<'_> {
     }
 
     fn step(&mut self, s: Step) -> Result<(), Refused> {
+        self.fault.check()?;
         let g = &mut *self.g;
         unsafe {
             match s {
@@ -108,11 +112,11 @@ impl races::EventRaces for Game<'_> {
                     g.c.palette = SECTION_RVA.get();
                     g.record = pack;
                     g.c.cars = pack;
-                    g.c.palette = get(rec + 4).wrapping_mul(0x40);
-                    g.c.measure_x = get(rec + 8);
+                    g.c.palette = get(rec + 4)?.wrapping_mul(0x40);
+                    g.c.measure_x = get(rec + 8)?;
                     g.c.clock = crate::records::trakpak_entry::loaded_pack_id();
                     g.c.cars = RACE_STATE.settings.rivals.addr() as u32;
-                    g.c.arg = get(pack + 0x34);
+                    g.c.arg = get(pack + 0x34)?;
                     RACE_STATE.settings.stage.set(g.c.arg);
                 }
                 Step::Race => {
@@ -140,31 +144,32 @@ impl races::EventRaces for Game<'_> {
         self.g.record = self.first + k * DRIVER;
         self.g.c.arg = added;
         let edi = self.g.record;
-        put(edi + 0xC, get(edi + 0xC).wrapping_add(added));
-        put(edi + 0x10, get(edi + 0x10).wrapping_add(added));
+        let fault = &self.fault;
+        fault.put(edi + 0xC, fault.get(edi + 0xC).wrapping_add(added));
+        fault.put(edi + 0x10, fault.get(edi + 0x10).wrapping_add(added));
     }
 
     fn running(&mut self, k: u32) -> bool {
         self.g.c.arg = k * DRIVER;
         self.g.record = self.first + self.g.c.arg;
-        get(self.g.record + 0x24) == races::RUNNING
+        self.fault.get(self.g.record + 0x24) == races::RUNNING
     }
 
     fn drop_out(&mut self) {
-        put(self.g.record + 0x24, races::DROPPED);
-        put(self.g.record + 0xC, races::DROPPED_TIME);
-        put(self.g.record + 0x10, races::DROPPED_TIME);
+        self.fault.put(self.g.record + 0x24, races::DROPPED);
+        self.fault.put(self.g.record + 0xC, races::DROPPED_TIME);
+        self.fault.put(self.g.record + 0x10, races::DROPPED_TIME);
     }
 
     fn takes_part(&mut self, i: u32) -> bool {
         self.g.record = player(i);
-        get(self.g.record + 0xD0) == races::TAKES_PART
+        self.fault.get(self.g.record + 0xD0) == races::TAKES_PART
     }
 
     fn fourth_out(&mut self) {
         self.g.record = player(3);
-        put(self.g.record + 0x88, races::FOURTH_TIME);
-        put(self.g.record + 0xD0, races::FOURTH_ENTRY);
+        self.fault.put(self.g.record + 0x88, races::FOURTH_TIME);
+        self.fault.put(self.g.record + 0xD0, races::FOURTH_ENTRY);
     }
 
     fn keep(&mut self, value: u32) {
@@ -178,15 +183,17 @@ impl races::EventRaces for Game<'_> {
 
 /// The Rust version (see the header). `f` the registers carried in and out (what it
 /// leaves is the last step's).
-pub unsafe fn run_event_races(f: &mut Flow) -> Result<(), Refused> {
+pub fn run_event_races(f: &mut Flow) -> Result<(), Refused> {
     let drivers = entries(crate::menu::drivers_store::DRIVERS.first(), DRIVER)?;
-    if drivers.len() < PICKED as usize
+    let fault = Fault::default();
+    let few_running = drivers.len() < PICKED as usize
         || drivers[..PICKED as usize]
             .iter()
-            .filter(|&&d| get(d + 0x24) == 1)
+            .filter(|&&d| fault.get(d + 0x24) == 1)
             .count()
-            < 4
-    {
+            < 4;
+    fault.check()?;
+    if few_running {
         return Err(BadInput("fewer than 0xB2 drivers, or fewer than four still running").into());
     }
     let mode: u32 = { EVENT_STATE.event_kind.get() };
@@ -198,13 +205,16 @@ pub unsafe fn run_event_races(f: &mut Flow) -> Result<(), Refused> {
     let reset_only = { MENU_PAGES.reset_times.get() } == 1;
     let rec = crate::menu::calc_cpu_times::record()?;
     crate::menu::calc_cpu_times::check(rec)?;
-    let pack = unsafe { crate::records::trakpak_entry::record_entry(rec as *const u8) }?;
+    let pack = crate::records::trakpak_entry::record_entry(rec)?;
     let mut game = Game {
         g: f,
         first: drivers[0],
         rec,
         pack,
+        fault: Fault::default(),
     };
     // Converted: `rc2k_core::menu::event_races::run_event_races`.
-    races::run_event_races(&mut game, mode, reset_only)
+    let done = races::run_event_races(&mut game, mode, reset_only);
+    game.fault.check()?;
+    done
 }

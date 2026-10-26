@@ -15,7 +15,7 @@
 //! original's). The effects' functions through `make_effect`'s `part`; the methods the
 //! device's own.
 
-use crate::errors::Refused;
+use crate::errors::{BadInput, Refused};
 use crate::field;
 use crate::input::devices::{at, put};
 use crate::input::di_harness::{EFFECT_LEN, EFFECTS_AT, entry_of, fatal, method, slot};
@@ -29,52 +29,52 @@ const DIPROP_FFGAIN: u32 = 7;
 const DIPROP_AUTOCENTER: u32 = 9;
 
 /// The `DIPROPDWORD` for the whole device with `data`: its address.
-pub fn dword_property(data: u32) -> u32 {
+pub fn dword_property(data: u32) -> Result<u32, BadInput> {
     let prop = DEVICES.dword_property.addr() as u32;
     put(
         prop,
         field!(DiPropDword, header.size),
         size_of::<DiPropDword>() as u32,
-    );
+    )?;
     put(
         prop,
         field!(DiPropDword, header.header_size),
         size_of::<DiPropHeader>() as u32,
-    );
-    put(prop, field!(DiPropDword, header.object), 0);
-    put(prop, field!(DiPropDword, header.how), 0);
-    put(prop, field!(DiPropDword, data), data);
-    prop
+    )?;
+    put(prop, field!(DiPropDword, header.object), 0)?;
+    put(prop, field!(DiPropDword, header.how), 0)?;
+    put(prop, field!(DiPropDword, data), data)?;
+    Ok(prop)
 }
 
 /// The Rust version (see the header).
 pub fn begin_force(record: u32) -> Result<(), Refused> {
-    let entry = entry_of(record);
-    if at(entry, field!(Controller, force_feedback)) != 1 {
+    let entry = entry_of(record)?;
+    if at(entry, field!(Controller, force_feedback))? != 1 {
         return Ok(());
     }
     unsafe {
         crate::logfile::log_write::log_write(USING_TEXT_RVA.as_ptr() as usize as *const u8, true, 2)
     };
-    let device = at(record, field!(InputDevice, device));
+    let device = at(record, field!(InputDevice, device))?;
     // Converted: `rc2k_core::input::acquire::gain`.
-    let Some(gain) = gain(at(record, field!(InputDevice, strength))) else {
+    let Some(gain) = gain(at(record, field!(InputDevice, strength))?) else {
         method(
             device,
             slot::SET_PROPERTY,
-            &[DIPROP_AUTOCENTER, dword_property(1)],
+            &[DIPROP_AUTOCENTER, dword_property(1)?],
         );
         return Ok(());
     };
     if method(
         device,
         slot::SET_PROPERTY,
-        &[DIPROP_AUTOCENTER, dword_property(0)],
+        &[DIPROP_AUTOCENTER, dword_property(0)?],
     ) != 0
     {
         return Err(fatal(0x8023_8421).into());
     }
-    let gain = dword_property(gain);
+    let gain = dword_property(gain)?;
     if method(device, slot::SET_PROPERTY, &[DIPROP_FFGAIN, gain]) != 0 {
         return Err(fatal(0x8023_8422).into());
     }
@@ -85,6 +85,6 @@ pub fn begin_force(record: u32) -> Result<(), Refused> {
         let effect = record.wrapping_add(EFFECTS_AT + n * EFFECT_LEN);
         crate::input::make_effect::make_effect(record, effect, n)?;
     }
-    put(record, field!(InputDevice, effects_on), 1);
+    put(record, field!(InputDevice, effects_on), 1)?;
     Ok(())
 }

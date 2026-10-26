@@ -11,16 +11,29 @@
 
 use crate::errors::Refused;
 use crate::menu::lists_store::MENU_LISTS;
-
-fn get(at: u32) -> u32 {
-    unsafe { (at as *const u32).read_unaligned() }
-}
+use crate::pointers::GamePtr;
 
 /// Whether one of the cars at `won` is in the list at `secret`.
 pub fn any_won(secret: u32, won: u32) -> Result<bool, Refused> {
     // Converted: `rc2k_core::net::cars::any_won`, the lists' dwords by index.
-    let at = |list: u32| move |n: u32| get(list.wrapping_add(4 * n));
-    Ok(rc2k_core::net::cars::any_won(at(secret), at(won))?)
+    // The core asks infallibly: the first refusal is kept and raised after.
+    let refused = std::cell::Cell::new(None);
+    let at = |list: u32| {
+        let refused = &refused;
+        move |n: u32| {
+            GamePtr::new(list.wrapping_add(4 * n))
+                .read::<u32>("a car list's entry")
+                .unwrap_or_else(|e| {
+                    refused.set(Some(e));
+                    0
+                })
+        }
+    };
+    let answer = rc2k_core::net::cars::any_won(at(secret), at(won));
+    if let Some(e) = refused.take() {
+        return Err(e.into());
+    }
+    Ok(answer?)
 }
 
 /// The Rust version.

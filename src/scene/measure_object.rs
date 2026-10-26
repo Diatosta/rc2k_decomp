@@ -25,7 +25,7 @@ const MOST: u32 = 0x10_0000;
 
 // ---- Rust version ----
 
-unsafe fn points_of(slot: u32) -> Result<(usize, u32), BadInput> {
+fn points_of(slot: u32) -> Result<(usize, u32), BadInput> {
     if slot >= SLOTS {
         return Err(BadInput("an object's slot past the tables"));
     }
@@ -39,17 +39,17 @@ unsafe fn points_of(slot: u32) -> Result<(usize, u32), BadInput> {
 }
 
 // Converted: `rc2k_core::scene::objects::measure`
-pub unsafe fn measure_object() -> Result<(), BadInput> {
+pub fn measure_object() -> Result<(), BadInput> {
     use rc2k_core::scene::objects::{HIGHEST_START, LOWEST_START, measure};
-    unsafe {
+    {
         let slot: u32 = OBJECT_WORK.loading_slot.bits();
         let (at, count) = points_of(slot)?;
-        let points: &mut [[u32; 3]] = if count == 0 {
-            &mut []
+        let mut points: Vec<[u32; 3]> = if count == 0 {
+            Vec::new()
         } else {
-            std::slice::from_raw_parts_mut(at as *mut [u32; 3], count as usize)
+            crate::scene::reading::read_records(at as u32, count as usize, "an object's points")?
         };
-        let Some(m) = measure(points) else {
+        let Some(m) = measure(&mut points) else {
             // The half extents are not touched for an object of no points.
             crate::session::write_first(&OBJECT_SLOTS.measures[..3], &[0u32; 3]);
             crate::session::write_first(
@@ -58,6 +58,7 @@ pub unsafe fn measure_object() -> Result<(), BadInput> {
             );
             return Ok(());
         };
+        crate::scene::reading::write_records(at as u32, &points, "an object's points")?;
         crate::session::write_first(
             &OBJECT_SLOTS.measures,
             &[m.middle, m.half, m.lowest, m.highest].concat(),

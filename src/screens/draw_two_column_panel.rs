@@ -14,12 +14,12 @@ use crate::menu::state_store::MENU_STATE;
 use crate::screens::service_boxes::quad;
 
 /// The Rust version: every register kept. Parts: 1 the quads, 2 the rules, 3 the boxes.
-pub unsafe fn draw_two_column_panel() -> Result<(), Refused> {
+pub fn draw_two_column_panel() -> Result<(), Refused> {
     // Converted: `rc2k_core::screens::panels::two_column_panel`.
     for a in rc2k_core::screens::panels::two_column_panel(MENU_STATE.service_ui.fade_full.get()) {
         quad(a.x, a.y, a.w, a.h, a.colour, a.see)?;
     }
-    unsafe { crate::screens::draw_column_rules::draw_column_rules() }?;
-    unsafe { crate::screens::draw_column_boxes::draw_column_boxes() }?;
+    crate::screens::draw_column_rules::draw_column_rules()?;
+    crate::screens::draw_column_boxes::draw_column_boxes()?;
     Ok(())
 }

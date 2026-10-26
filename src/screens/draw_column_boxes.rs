@@ -22,7 +22,7 @@ const MARKER_X: &Dword = &DRAW_WORK.marker_x; // g_markerX
 const MARKER_Y: &Dword = &DRAW_WORK.marker_y; // g_markerY
 
 /// The Rust version: every register kept.
-pub unsafe fn draw_column_boxes() -> Result<(), Refused> {
+pub fn draw_column_boxes() -> Result<(), Refused> {
     // Converted: `rc2k_core::screens::panels::row_box`; the row and marker variables
     // are left as the original leaves them.
     use rc2k_core::screens::panels::{BOXES_Y, COLUMNS, ROW_STEP, ROWS, row_box};

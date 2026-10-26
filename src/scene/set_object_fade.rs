@@ -21,12 +21,12 @@
 use crate::errors::BadInput;
 use crate::math::x87;
 use crate::physics::ground_store::GROUND_WORK;
+use crate::pointers::GamePtr;
 use crate::race::course_lists_store::COURSE_LISTS;
 use crate::race::course_store::COURSE;
 use crate::race::switches_store::FRAME_SWITCHES;
 use crate::scene::object_store::OBJECT_WORK;
 use crate::scene::object_tables_store::OBJECT_TABLES;
-use crate::scene::polygon::dword;
 use crate::scene::project_point::make_scene_record;
 use crate::scene::set_object_material::MATERIAL_LEN;
 
@@ -35,7 +35,7 @@ const OBJECTS: u32 = 0x100;
 
 // ---- Rust version ----
 
-unsafe fn record_at() -> Option<u32> {
+fn record_at() -> Option<u32> {
     {
         let (place, records): (u32, u32) = (
             OBJECT_WORK.object_place.bits(),
@@ -47,25 +47,29 @@ unsafe fn record_at() -> Option<u32> {
 
 /// The two words of the object's kind, and whether the object's place is looked at;
 /// None for an object's number past the tables.
-unsafe fn words() -> Option<(u32, u32, bool)> {
-    unsafe {
+fn words() -> Result<Option<(u32, u32, bool)>, BadInput> {
+    {
         let object: u32 = FRAME_SWITCHES.object_number.bits();
         if object >= OBJECTS {
-            return None;
+            return Ok(None);
         }
         let kind: u32 = OBJECT_TABLES.object_kind(object);
         let material = crate::scene::polygon::materials_addr()
             .wrapping_add((kind as usize).wrapping_mul(MATERIAL_LEN));
-        let word = |at: usize| ((material + at) as *const u16).read_unaligned() as u32;
-        let (other_kind, distance) = (word(0x1D), word(0x22));
+        let word = |at: usize| {
+            GamePtr::new(material.wrapping_add(at) as u32)
+                .read::<u16>("an object's material")
+                .map(u32::from)
+        };
+        let (other_kind, distance) = (word(0x1D)?, word(0x22)?);
         let looked_at = (other_kind | distance) != 0 && OBJECT_WORK.object_place.bits() != u32::MAX;
-        Some((other_kind, distance, looked_at))
+        Ok(Some((other_kind, distance, looked_at)))
     }
 }
 
 pub unsafe fn set_object_fade() -> Result<(), BadInput> {
     unsafe {
-        let Some((other_kind, distance, needs_record)) = words() else {
+        let Some((other_kind, distance, needs_record)) = words()? else {
             return Err(BadInput("an object's number past the tables"));
         };
         let place: u32 = OBJECT_WORK.object_place.bits();
@@ -74,7 +78,9 @@ pub unsafe fn set_object_fade() -> Result<(), BadInput> {
             (false, _) => 0,
             (true, None) => return Err(BadInput("no records for the points")),
             (true, Some(record)) => {
-                if dword(record as usize) != place && COURSE.scene_points.bits() == 0 {
+                if GamePtr::new(record).read::<u32>("a scene record")? != place
+                    && COURSE.scene_points.bits() == 0
+                {
                     return Err(BadInput("no points"));
                 }
                 record
@@ -88,11 +94,13 @@ pub unsafe fn set_object_fade() -> Result<(), BadInput> {
         if !needs_record {
             return Ok(());
         }
-        if dword(record as usize) != place {
+        let at = GamePtr::new(record);
+        if at.read::<u32>("a scene record")? != place {
             make_scene_record(place, record)?;
         }
-        OBJECT_WORK.object_position[0].set_bits(x87::to_int(dword(record as usize + 0x10)) as u32);
-        let depth = x87::to_int(dword(record as usize + 0x18));
+        OBJECT_WORK.object_position[0]
+            .set_bits(x87::to_int(at.offset(0x10).read("a scene record")?) as u32);
+        let depth = x87::to_int(at.offset(0x18).read("a scene record")?);
         OBJECT_WORK.object_position[2].set_bits(depth as u32);
         let near = ((distance << 16) as i32).wrapping_sub(depth);
         if near >= 0 {

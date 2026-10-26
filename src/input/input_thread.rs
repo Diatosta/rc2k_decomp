@@ -23,6 +23,7 @@
 use crate::errors::Refused;
 use crate::input::devices::record_addrs;
 use crate::input::store::DEVICES;
+use crate::pointers::GamePtr;
 use crate::session::CLOCKS;
 use crate::session::FLAGS;
 
@@ -39,12 +40,12 @@ fn log(text: &std::ffi::CStr) {
 pub unsafe fn input_thread() -> Result<(), Refused> {
     use crate::threading::set_priority::set_priority;
     let slot = crate::threading::thread_slot::slot(crate::threading::thread_slot::INPUT) as u32;
-    let flag = (slot + 0xC) as *mut u8;
+    let flag = GamePtr::new(slot + 0xC);
     'work: {
-        if unsafe { *flag } == 1 {
+        if flag.read::<u8>("the input thread's slot")? == 1 {
             break 'work;
         }
-        unsafe { *flag = 1 };
+        flag.write(1u8, "the input thread's slot")?;
         log(START_TEXT_RVA);
         // DirectInput made (in Rust, on SDL's joysticks); the keyboard and the mouse are
         // SDL's events: nothing to make for them.
@@ -95,7 +96,7 @@ pub unsafe fn input_thread() -> Result<(), Refused> {
     }
     log(QUIT_TEXT_RVA);
     set_priority(0);
-    unsafe { *flag = 0 };
+    flag.write(0u8, "the input thread's slot")?;
     Ok(())
 }
 

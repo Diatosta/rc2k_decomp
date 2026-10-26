@@ -9,6 +9,7 @@
 
 use crate::errors::Refused;
 use crate::files::write_file::write_file;
+use crate::pointers::GamePtr;
 use crate::saves::load_options::OPTIONS;
 use crate::system::packed_local_time::packed_local_time;
 
@@ -24,19 +25,17 @@ pub fn file_len() -> usize {
 // ---- Rust version ----
 
 /// True if the file was written.
-pub unsafe fn save_options(path: *const u8) -> Result<bool, Refused> {
-    unsafe {
-        let file = crate::files::scratch::SCRATCH.buffer.addr() as *mut u8;
-        // Converted: `rc2k_core::saves::kept::options_file`, put together in the scratch
-        // block as the original does.
-        let pieces: Vec<&[u8]> = OPTIONS
-            .iter()
-            .map(|&(place, len)| {
-                std::slice::from_raw_parts(crate::moved::place(place as usize) as *const u8, len)
-            })
-            .collect();
-        let bytes = rc2k_core::saves::kept::options_file(packed_local_time(), &pieces);
-        std::ptr::copy_nonoverlapping(bytes.as_ptr(), file, bytes.len());
-        Ok(write_file(path, file, file_len() as u32)?.ok)
+pub fn save_options(path: *const u8) -> Result<bool, Refused> {
+    let file = GamePtr::new(crate::files::scratch::SCRATCH.buffer.addr() as u32);
+    let mut owned = Vec::new();
+    for &(place, len) in OPTIONS.iter() {
+        owned.push(
+            GamePtr::new(crate::moved::place(place as usize) as u32)
+                .read_bytes(len, "a saved option")?,
+        );
     }
+    let pieces: Vec<&[u8]> = owned.iter().map(|piece| piece.as_slice()).collect();
+    let bytes = rc2k_core::saves::kept::options_file(packed_local_time(), &pieces);
+    file.write_bytes(&bytes, "the scratch buffer")?;
+    Ok(write_file(path, file.addr() as usize as *const u8, file_len() as u32)?.ok)
 }

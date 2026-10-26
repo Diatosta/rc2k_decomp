@@ -32,16 +32,17 @@ const CHAT_FONT: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fonts::N
 
 /// A time, or its gap to `first` with a '+' over its first character, written at the
 /// cursor.
-fn time_text(cursor: &mut Cursor, time: u32, gaps: bool, first: u32) {
+fn time_text(cursor: &mut Cursor, time: u32, gaps: bool, first: u32) -> Result<(), Refused> {
     let (value, plus) = screens::shown_time(time, first, gaps);
     let start = cursor.0;
     cursor.bytes(&crate::strings::append_time::append_time(
         value,
         crate::strings::append_time::show_hours(),
-    ));
+    ))?;
     if plus {
-        unsafe { (start as *mut u8).write(b'+') };
+        crate::pointers::GamePtr::new(start).write(b'+', "a text line")?;
     }
+    Ok(())
 }
 
 /// The Rust version (the original keeps every register). Called through
@@ -93,7 +94,7 @@ pub fn lobby_frame() -> Result<(), Refused> {
             x += 0x28;
             let mut cursor = Cursor::text();
             cursor.string(block.name.addr() as u32);
-            cursor.nul();
+            cursor.nul()?;
             let font = if block.record.state() & READY != 0 {
                 READY_FONT
             } else {
@@ -126,7 +127,7 @@ pub fn lobby_frame() -> Result<(), Refused> {
             let mut total_y = y;
             if time == players::NO_TIME {
                 cursor.string_id(screens::NO_TIME);
-                cursor.nul();
+                cursor.nul()?;
                 let out = unsafe {
                     crate::text::draw_text::draw_text_at(
                         NAME_FONT.as_ptr(),
@@ -138,8 +139,8 @@ pub fn lobby_frame() -> Result<(), Refused> {
                 }?;
                 total_y = out.y as u32;
             } else {
-                time_text(&mut cursor, time, gaps, first_time);
-                cursor.nul();
+                time_text(&mut cursor, time, gaps, first_time)?;
+                cursor.nul()?;
                 unsafe {
                     crate::text::draw_time_text::draw_time_text(
                         FONT.as_ptr(),
@@ -157,8 +158,8 @@ pub fn lobby_frame() -> Result<(), Refused> {
                 block.record.total.get(),
                 gaps && timed,
                 first_total,
-            );
-            cursor.nul();
+            )?;
+            cursor.nul()?;
             unsafe {
                 crate::text::draw_time_text::draw_time_text(
                     FONT.as_ptr(),

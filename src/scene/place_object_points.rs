@@ -29,6 +29,7 @@
 //! instructions are `asm_reference` in the tests (2026-10-24).
 
 use crate::errors::{BadInput, Refused};
+use crate::pointers::GamePtr;
 use crate::race::course_lists_store::COURSE_LISTS;
 use crate::race::course_store::COURSE;
 use crate::race::matrices_store::MATRICES;
@@ -47,11 +48,11 @@ const OBJECTS: u32 = 0x100;
 
 /// `sub_45C29B`: the point at `from` moved towards the one `by` bytes on, into
 /// `unk_5CCE18`.
-unsafe fn moved(from: usize, by: u32) {
+fn moved(from: usize, by: u32) -> Result<(), BadInput> {
     unsafe {
         let other = from.wrapping_add(by as usize);
-        let read = |at: usize| (at as *const [u32; 3]).read_unaligned();
-        let (a, b) = (read(from), read(other));
+        let read = |at: usize| GamePtr::new(at as u32).read::<[u32; 3]>("an object's point");
+        let (a, b) = (read(from)?, read(other)?);
         // The fraction, the two points, the result, the fraction as it is stored.
         let mut w = [
             RACE_VARS.move_fraction.bits(),
@@ -74,6 +75,7 @@ unsafe fn moved(from: usize, by: u32) {
         COURSE.group_masks[1].set(w[9]);
         DRAW.scratch.set_bits(w[10]);
     }
+    Ok(())
 }
 
 /// The block of `moved`: the fraction, the two points, the result (three whole numbers) and the
@@ -198,7 +200,7 @@ pub unsafe fn place_object_points() -> Result<(), Refused> {
             let record = record_of(object.records, number) as usize;
             put(record, number);
             let point = if move_by != 0 {
-                moved(from as usize, move_by);
+                moved(from as usize, move_by)?;
                 // x, y, z read on into `group_masks[0]`, `[1]`, as stored.
                 COURSE.point_moved.addr()
             } else {

@@ -12,6 +12,7 @@
 use crate::errors::{BadInput, Refused};
 use crate::net::lobby::movsb;
 use crate::net::store::{NET, PlayerBlock};
+use crate::pointers::GamePtr;
 use rc2k_core::net::players::{self, Standing};
 
 const BLOCK: u32 = std::mem::size_of::<PlayerBlock>() as u32;
@@ -27,18 +28,35 @@ fn standing(block: &PlayerBlock) -> Standing {
 }
 
 /// The two blocks swapped, a dword at a time.
-pub fn swap_blocks(one: &PlayerBlock, two: &PlayerBlock) {
+pub fn swap_blocks(one: &PlayerBlock, two: &PlayerBlock) -> Result<(), BadInput> {
     let (one, two) = (
-        one as *const PlayerBlock as *mut u32,
-        two as *const PlayerBlock as *mut u32,
+        GamePtr::new(one as *const PlayerBlock as u32),
+        GamePtr::new(two as *const PlayerBlock as u32),
     );
-    for n in 0..BLOCK as usize / 4 {
-        unsafe {
-            let v = one.add(n).read_volatile();
-            one.add(n).write_volatile(two.add(n).read_volatile());
-            two.add(n).write_volatile(v);
-        }
+    for n in 0..BLOCK / 4 {
+        let v = one.offset(4 * n).read::<u32>("a player's block")?;
+        let w = two.offset(4 * n).read::<u32>("a player's block")?;
+        one.offset(4 * n).write(w, "a player's block")?;
+        two.offset(4 * n).write(v, "a player's block")?;
     }
+    Ok(())
+}
+
+/// `players::bubble` over the blocks, `swap` refusing kept and raised after the sort.
+pub fn bubble_blocks(
+    count: u32,
+    after: impl FnMut(u32) -> bool,
+    swap: impl Fn(u32) -> Result<(), BadInput>,
+) -> Result<(), BadInput> {
+    let refused = std::cell::Cell::new(None);
+    players::bubble(count, after, |k| {
+        if refused.get().is_none()
+            && let Err(e) = swap(k)
+        {
+            refused.set(Some(e));
+        }
+    });
+    refused.take().map_or(Ok(()), Err)
 }
 
 /// The Rust version (the original keeps every register).
@@ -51,11 +69,11 @@ pub fn sort_players() -> Result<(), Refused> {
         NET.sorted.as_ptr() as u32,
         NET.received.as_ptr() as u32,
         ALL,
-    );
+    )?;
     // Converted: `rc2k_core::net::players` (`bubble`, `goes_after`).
     // `k + 1` is at most 7: `players` is at most eight.
     let sorted = &NET.sorted;
-    players::bubble(
+    bubble_blocks(
         players,
         |k| {
             players::goes_after(
@@ -64,6 +82,6 @@ pub fn sort_players() -> Result<(), Refused> {
             )
         },
         |k| swap_blocks(&sorted[k as usize], &sorted[k as usize + 1]),
-    );
+    )?;
     Ok(())
 }

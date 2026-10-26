@@ -22,7 +22,7 @@ fn frame() -> Result<(), Refused> {
 }
 
 /// A fade: `out` the way. Every register kept (`pusha` .. `popa`).
-pub unsafe fn fade(out: bool) -> Result<(), Refused> {
+pub fn fade(out: bool) -> Result<(), Refused> {
     // Converted: `rc2k_core::menu::fades` (`too_short`, `first_see`, `step`, `over`).
     use rc2k_core::menu::fades::{self, Stop};
     let length: u32 = MENU_STATE.menus.fade_length.get();

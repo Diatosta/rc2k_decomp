@@ -26,14 +26,20 @@ pub const DRIVER_LEN: u32 = 0x94;
 const MOST_DRIVERS: u32 = 0x400;
 const CURRENT_PLAYER: &Dword = crate::menu::take_shown_car::CURRENT_PLAYER_RVA;
 /// The drivers' count (with the first), or `None` without their end.
-pub fn drivers() -> Option<u32> {
+pub fn drivers() -> Result<Option<u32>, BadInput> {
     let first = crate::menu::drivers_store::DRIVERS.first();
-    (1..MOST_DRIVERS)
-        .find(|&n| unsafe { ((first + n * DRIVER_LEN) as *const u32).read() } == u32::MAX)
+    for n in 1..MOST_DRIVERS {
+        if crate::pointers::GamePtr::new(first + n * DRIVER_LEN).read::<u32>("a driver")?
+            == u32::MAX
+        {
+            return Ok(Some(n));
+        }
+    }
+    Ok(None)
 }
 
 pub unsafe fn begin_event() -> Result<(), Refused> {
-    let count = drivers().ok_or(BadInput("the drivers do not end within 0x400"))?;
+    let count = drivers()?.ok_or(BadInput("the drivers do not end within 0x400"))?;
     if (0..PLAYERS).any(|n| player_at(n) == 0) {
         return Err(BadInput("a player missing from g_players").into());
     }
@@ -44,17 +50,18 @@ pub unsafe fn begin_event() -> Result<(), Refused> {
         // `KEEPS_SETUP`, `setup_defaults`).
         use rc2k_core::menu::event::{DRIVER_BEGIN, PLAYER_BEGIN, setup_defaults};
         let first = crate::menu::drivers_store::DRIVERS.first();
-        crate::menu::standings::table(first, DRIVER_LEN, count).store_all(&DRIVER_BEGIN);
+        crate::menu::standings::table(first, DRIVER_LEN, count)?.store_all(&DRIVER_BEGIN);
         EVENT_STATE.event_goes_on.set(1u32);
         EVENT_STATE.event_out.set(0u32);
         for n in 0..PLAYERS {
             CURRENT_PLAYER.set(n);
             let p = player_at(n);
-            put_all(p, &PLAYER_BEGIN);
+            put_all(p, &PLAYER_BEGIN)?;
             crate::service::repair_parts::repair_car()?;
             if CHAMP_VIEW.event_mode.get() != KEEPS_SETUP {
-                let sensitivity = ((p + 0x280) as *const u32).read_unaligned();
-                put_all(p, &setup_defaults(sensitivity));
+                let sensitivity = crate::pointers::GamePtr::new(p + 0x280)
+                    .read::<u32>("begin event: a game value")?;
+                put_all(p, &setup_defaults(sensitivity))?;
             }
         }
     }

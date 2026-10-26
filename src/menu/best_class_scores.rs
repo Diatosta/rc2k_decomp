@@ -28,13 +28,13 @@ pub unsafe fn best_class_scores(c: &Carried) -> Result<(), Refused> {
             EVENT_STATE.any_time_qualified.set(0u32);
             for (n, &p) in players.iter().enumerate() {
                 EVENT_STATE.current_player.set(n as u32);
-                g.arg = get(p + 0xB0);
-                g.palette = get(p + 0x90);
+                g.arg = get(p + 0xB0)?;
+                g.palette = get(p + 0x90)?;
                 if g.palette == class {
                     g.palette = class * 0x258 + 0x21C;
                     g.cars = table + g.palette;
                     // Converted: `rc2k_core::menu::bests::makes_score`.
-                    if rc2k_core::menu::bests::makes_score(g.arg, get(g.cars + 0x38)) {
+                    if rc2k_core::menu::bests::makes_score(g.arg, get(g.cars + 0x38)?) {
                         enter_best(None, 0xB0)?;
                         EVENT_STATE.any_time_qualified.set(1u32);
                     }

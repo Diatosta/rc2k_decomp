@@ -12,7 +12,7 @@ use crate::menu::event_store::EVENT_STATE;
 use crate::menu::standings::*;
 
 /// The Rust version (see the header).
-pub unsafe fn beat_target_time() -> Result<(), Refused> {
+pub fn beat_target_time() -> Result<(), Refused> {
     let event = current_event()?;
     let n: u32 = { EVENT_STATE.current_player.get() };
     if n >= 4 || player(n) == 0 {
@@ -20,7 +20,7 @@ pub unsafe fn beat_target_time() -> Result<(), Refused> {
     }
     // Converted: `rc2k_core::menu::bests::makes_time`.
     let beaten =
-        rc2k_core::menu::bests::makes_time(get(player(n) + 0x88), get(event + 0x57C + 0x14));
+        rc2k_core::menu::bests::makes_time(get(player(n) + 0x88)?, get(event + 0x57C + 0x14)?);
     EVENT_STATE.time_qualifies.set(u32::from(beaten));
     Ok(())
 }

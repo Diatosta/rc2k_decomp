@@ -47,7 +47,7 @@ unsafe fn set_up_first(c: &mut Carried) -> Result<(), Refused> {
     Ok(())
 }
 
-unsafe fn after_first_frame(_c: &mut Carried) -> Result<Flow, Refused> {
+fn after_first_frame(_c: &mut Carried) -> Result<Flow, Refused> {
     if quitting() as u32 == 0x1 {
         return Ok(Flow::Leave);
     }

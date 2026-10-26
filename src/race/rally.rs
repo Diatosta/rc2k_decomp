@@ -4,13 +4,15 @@
 use crate::errors::{BadInput, Refused};
 use crate::menu::champ_store::CHAMP_VIEW;
 use crate::menu::event_store::EVENT_STATE;
+use crate::pointers::GamePtr;
+use crate::race::trap::Trap;
 
-unsafe fn get(a: u32) -> u32 {
-    unsafe { (a as *const u32).read_unaligned() }
+fn get(a: u32) -> Result<u32, BadInput> {
+    GamePtr::new(a).read("a rally times record")
 }
 
-unsafe fn put(a: u32, v: u32) {
-    unsafe { (a as *mut u32).write_unaligned(v) };
+fn put(a: u32, v: u32) -> Result<(), BadInput> {
+    GamePtr::new(a).write(v, "a rally times record")
 }
 
 /// The log calls' places.
@@ -42,19 +44,19 @@ const WORDS: [&std::ffi::CStr; 14] = [
 /// `dword_7558C8`'s table `off_735512`, the rally `dword_7558D0`, the stage
 /// `dword_7558CC` x 0xA4, its +0x3C x 0x618, from `dword_7556E4`, or `dword_7556E8`
 /// unless `dword_7558C8` is 1), and puts them (`dword_7556F4`). None for a null pointer.
-pub unsafe fn rally_times_places() -> Option<(u32, u32)> {
-    unsafe {
+pub fn rally_times_places() -> Result<Option<(u32, u32)>, BadInput> {
+    {
         let kind = EVENT_STATE.stage_group.get();
         let rallies = crate::records::stages_store::STAGE_TABLES.group_list(kind);
         if rallies == 0 {
-            return None;
+            return Ok(None);
         }
-        let stages = get(rallies.wrapping_add(4 * EVENT_STATE.stage_sub.get()));
+        let stages = get(rallies.wrapping_add(4 * EVENT_STATE.stage_sub.get()))?;
         if stages == 0 {
-            return None;
+            return Ok(None);
         }
         let stage = stages.wrapping_add(EVENT_STATE.stage_number.get().wrapping_mul(0xA4));
-        let offset = get(stage + 0x3C).wrapping_mul(0x618);
+        let offset = get(stage + 0x3C)?.wrapping_mul(0x618);
         let base = (if kind == 1 {
             &CHAMP_VIEW.stage_best_times_alt
         } else {
@@ -63,9 +65,9 @@ pub unsafe fn rally_times_places() -> Option<(u32, u32)> {
         .get();
         let to = CHAMP_VIEW.summary.get();
         if base == 0 || to == 0 {
-            return None;
+            return Ok(None);
         }
-        Some((offset.wrapping_add(base), to))
+        Ok(Some((offset.wrapping_add(base), to)))
     }
 }
 
@@ -75,17 +77,21 @@ pub unsafe fn rally_times_places() -> Option<(u32, u32)> {
 /// "CTs", "GB_Shaun", the name, the sixteen again, rules). Every register kept. Refuses,
 /// before anything, a null pointer on the way (the original reads through it). The logs
 /// read only eax (their text or number).
-pub unsafe fn copy_rally_times() -> Result<(), Refused> {
-    unsafe {
-        let Some((mut esi, mut edi)) = rally_times_places() else {
+pub fn copy_rally_times() -> Result<(), Refused> {
+    {
+        let Some((mut esi, mut edi)) = rally_times_places()? else {
             return Err(BadInput("a null pointer to the rally's times").into());
         };
         let mut ecx = 10u32;
         loop {
             // Converted: `rc2k_core::race::results::race_time`.
-            let time = rc2k_core::race::results::race_time(|off| get(esi + off));
+            let trap = Trap::new();
+            let time = rc2k_core::race::results::race_time(|off| {
+                trap.read::<u32>(esi + off, "a rally times record")
+            });
+            trap.finish()?;
             for (k, &v) in time.iter().enumerate() {
-                put(edi + 4 * k as u32, v);
+                put(edi + 4 * k as u32, v)?;
             }
             let log = |place: u32, value: u32| -> Result<(), Refused> { log_part(place, value) };
             let word = |n: usize| WORDS[n].as_ptr() as u32;
@@ -94,25 +100,25 @@ pub unsafe fn copy_rally_times() -> Result<(), Refused> {
             log(WRITE, word(2))?;
             log(INT, ecx)?;
             log(WRITE, word(3))?;
-            log(INT, get(esi + 0x14))?;
+            log(INT, get(esi + 0x14)?)?;
             log(WRITE, word(4))?;
             for k in 0..16u32 {
                 log(
                     if k == 7 || k == 15 { INT_NL } else { INT },
-                    get(esi + 0x5C + 4 * k),
+                    get(esi + 0x5C + 4 * k)?,
                 )?;
             }
             log(WRITE_NL, word(5))?;
             log(WRITE_NL, word(6))?;
             log(WRITE_NL, word(7))?;
             log(WRITE, word(8))?;
-            log(INT, get(edi + 0xC))?;
+            log(INT, get(edi + 0xC)?)?;
             log(WRITE_NL, edi)?;
             log(WRITE, word(9))?;
             for k in 0..16u32 {
                 log(
                     if k == 7 || k == 15 { INT_NL } else { INT },
-                    get(edi + 0x10 + 4 * k),
+                    get(edi + 0x10 + 4 * k)?,
                 )?;
             }
             for n in 10..14 {

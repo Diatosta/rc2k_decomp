@@ -19,21 +19,21 @@ pub fn keep_stage_best() -> Result<(), Refused> {
     let record = stage_record()?;
     let p = current_player()?;
     // Converted: `rc2k_core::menu::bests::{takes_record, take_record}`.
-    let figure = dword(p + 0x94);
-    if !bests::takes_record(figure, dword(record + 0x2C)) {
+    let figure = dword(p + 0x94)?;
+    if !bests::takes_record(figure, dword(record + 0x2C)?) {
         return Ok(());
     }
-    let name = dword(p + 0x18);
+    let name = dword(p + 0x18)?;
     if name == 0 {
         return Err(BadInput("a player's name pointer of 0").into());
     }
     let holder = bests::Holder {
         figure,
-        nationality: dword(p + 4),
-        car: dword(p + 8),
-        name: crate::menu::standings::bytes(name),
+        nationality: dword(p + 4)?,
+        car: dword(p + 8)?,
+        name: crate::menu::standings::bytes(name)?,
     };
-    let mut r = unsafe { crate::menu::standings::table(record, STAGE_RECORD, 1) };
+    let mut r = crate::menu::standings::table(record, STAGE_RECORD, 1)?;
     bests::take_record(&mut r, 0, &bests::STAGE_HOLDER, &holder);
     Ok(())
 }

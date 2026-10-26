@@ -25,12 +25,12 @@ use crate::input::effects::{EFFECT_LEN, EFFECTS, HAS_EFFECTS, REQUEST};
 pub fn set_effect(record: u32, effect: u32, what: u32, a: u32, b: u32) -> Result<(), Refused> {
     use rc2k_core::input::effects::{request, wanted};
     let race_on: u32 = crate::input::store::FORCE_FEEDBACK.race_on.get();
-    if wanted(at(record, HAS_EFFECTS) == 1, race_on == 1, effect, what)? {
+    if wanted(at(record, HAS_EFFECTS)? == 1, race_on == 1, effect, what)? {
         put(
             record,
             EFFECTS + EFFECT_LEN * effect + REQUEST,
             request(what, a, b),
-        );
+        )?;
     }
     Ok(())
 }

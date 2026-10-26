@@ -56,10 +56,11 @@ pub unsafe fn measure_text_at(
     canvas: &mut dyn Canvas,
 ) -> Result<Measured, Refused> {
     unsafe {
-        let mut copy = font.read_unaligned();
+        let mut copy =
+            crate::pointers::GamePtr::new(font as usize as u32).read::<Font>("a font")?;
         let measured = measure_text(&mut copy, text, x, canvas)?;
         if canvas.keeps_font_changes() {
-            font.write_unaligned(copy);
+            crate::pointers::GamePtr::new(font as usize as u32).write(copy, "a font")?;
         }
         Ok(measured)
     }

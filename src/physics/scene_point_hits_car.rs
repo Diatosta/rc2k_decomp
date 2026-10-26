@@ -7,15 +7,17 @@
 //!
 //! Caller: `sub_45E3BF` (0x45E48C, `jb`).
 
+use crate::errors::Refused;
 use crate::physics::contact_store::CONTACT_WORK;
 use crate::physics::flow::fill_cells;
 use crate::physics::point_hits_car::point_hits_car;
 use crate::physics::tables_store::PHYSICS;
+use crate::pointers::GamePtr;
 use crate::race::course_store::COURSE;
 
 /// The Rust version: (inside, ebx, esi).
-pub unsafe fn scene_point_hits_car(record: u32, object: u32) -> (bool, u32, u32) {
-    let number = unsafe { ((record + 4) as *const u32).read_unaligned() };
+pub unsafe fn scene_point_hits_car(record: u32, object: u32) -> Result<(bool, u32, u32), Refused> {
+    let number = GamePtr::new(record + 4).read::<u32>("a scene point record's number")?;
     let point = number
         .wrapping_mul(12)
         .wrapping_add(COURSE.scene_points.get());
@@ -26,5 +28,5 @@ pub unsafe fn scene_point_hits_car(record: u32, object: u32) -> (bool, u32, u32)
             .wrapping_add(1),
     );
     fill_cells(&CONTACT_WORK.object_offset, 0);
-    (unsafe { point_hits_car(point, object) }, number, point)
+    Ok((unsafe { point_hits_car(point, object) }?, number, point))
 }

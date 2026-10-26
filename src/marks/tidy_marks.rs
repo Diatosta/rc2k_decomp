@@ -22,6 +22,7 @@ use crate::marks::mask_store::MASK_BLOCKS;
 use crate::marks::morph_object_points::MORPH_WORK;
 use crate::memory::free_list::free_list;
 use crate::memory::{MemoryList, own_heap};
+use crate::pointers::GamePtr;
 
 const CAR_LEN: u32 = 0x4C8;
 const CAR_PART: u32 = 0x29C; // `sub_4D06F3`'s ebp: the car's +0x29C
@@ -38,39 +39,40 @@ fn lists() -> [u32; 6] {
     ]
 }
 /// Each car's list, worked out without writing (none for a count past the refusals).
-unsafe fn car_lists(settings: u32) -> Vec<u32> {
-    unsafe {
-        let count = (*((settings + 0x5C) as *const i32)).clamp(0, MOST_CARS) as u32;
-        (0..count)
-            .map(|n| settings + n * CAR_LEN + CAR_PART + 0x4C)
-            .collect()
-    }
+fn car_lists(settings: u32) -> Result<Vec<u32>, BadInput> {
+    let count = GamePtr::new(settings + 0x5C)
+        .read::<i32>("the cars' count")?
+        .clamp(0, MOST_CARS) as u32;
+    Ok((0..count)
+        .map(|n| settings + n * CAR_LEN + CAR_PART + 0x4C)
+        .collect())
 }
 
 /// Every list it frees, the cars' first.
-unsafe fn all_lists(settings: u32) -> Vec<u32> {
-    unsafe {
-        let mut r = car_lists(settings);
-        r.extend(lists());
-        r
-    }
+fn all_lists(settings: u32) -> Result<Vec<u32>, BadInput> {
+    let mut r = car_lists(settings)?;
+    r.extend(lists());
+    Ok(r)
 }
 
 /// The Rust version (see the header).
-pub unsafe fn tidy_marks() -> Result<(), Refused> {
+pub fn tidy_marks() -> Result<(), Refused> {
     unsafe {
         let settings: u32 = crate::marks::setup::SETTINGS.pointer.get();
         if settings == 0 {
             return Err(BadInput("no marks settings").into());
         }
-        let count = *((settings + 0x5C) as *const i32);
+        let count = GamePtr::new(settings + 0x5C).read::<i32>("the cars' count")?;
         if !(0..=MOST_CARS).contains(&count) {
             return Err(BadInput("a cars' count below 0 or above 8").into());
         }
         if own_heap() == 1
-            && all_lists(settings)
-                .iter()
-                .any(|&l| (*(l as *const MemoryList)).head != 0)
+            && crate::marks::try_any(all_lists(settings)?.iter(), |&l| {
+                Ok(GamePtr::new(l)
+                    .read::<MemoryList>("a car's block list")?
+                    .head
+                    != 0)
+            })?
         {
             return Err(
                 BadInput("the game's own heap is in use with a list holding blocks").into(),
@@ -79,7 +81,7 @@ pub unsafe fn tidy_marks() -> Result<(), Refused> {
         for n in 0..count as u32 {
             let car = settings + n * CAR_LEN + CAR_PART;
             free_list((car + 0x4C) as *mut MemoryList)?;
-            ((car + 0x8C) as *mut u32).write_unaligned(MORPH_WORK.taken.get());
+            GamePtr::new(car + 0x8C).write::<u32>(MORPH_WORK.taken.get(), "a mark's field")?;
         }
         for a in lists() {
             free_list(a as *mut MemoryList)?;

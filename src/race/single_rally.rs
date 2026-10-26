@@ -18,7 +18,7 @@
 //! the memory they leave, the calls (with the memory at each of them) and the result are
 //! compared.
 
-use crate::errors::{FatalError, Refused};
+use crate::errors::{BadInput, FatalError, Refused};
 use crate::framework::{game_addr, rva};
 use crate::menu::arcade_store::ARCADE_GAME;
 use crate::menu::champ_store::CHAMP_VIEW;
@@ -26,6 +26,7 @@ use crate::menu::event_store::EVENT_STATE;
 use crate::menu::flow_store::SCREEN_FLOW;
 use crate::menu::option_work_store::OPTION_WORK;
 use crate::menu::players_store::PLAYER_TABLE;
+use crate::pointers::GamePtr;
 use crate::race::state_store::RACE_STATE;
 use crate::race::viewer_screen_store::VIEWER_PANEL;
 use crate::session::{Bytes, Dword, Float};
@@ -515,51 +516,47 @@ unsafe fn set_var(a: impl Var, v: u32) {
     unsafe { a.store(v) }
 }
 
-unsafe fn field(rec: Record, off: u32) -> u32 {
-    unsafe { (rec.wrapping_add(off) as *const u32).read_unaligned() }
+fn field(rec: Record, off: u32) -> Result<u32, BadInput> {
+    GamePtr::new(rec.wrapping_add(off)).read("a player's record")
 }
 
-unsafe fn set_field(rec: Record, off: u32, v: u32) {
-    unsafe { (rec.wrapping_add(off) as *mut u32).write_unaligned(v) }
+fn set_field(rec: Record, off: u32, v: u32) -> Result<(), BadInput> {
+    GamePtr::new(rec.wrapping_add(off)).write(v, "a player's record")
 }
 
 /// `g_players`[n].
-pub unsafe fn player(n: u32) -> u32 {
-    unsafe {
-        ((PLAYERS.addr() as u32).wrapping_add(n.wrapping_mul(4)) as *const u32).read_unaligned()
-    }
+pub fn player(n: u32) -> Result<u32, BadInput> {
+    GamePtr::new((PLAYERS.addr() as u32).wrapping_add(n.wrapping_mul(4))).read("the players")
 }
 
 /// Words of a record into game variables, in order.
-unsafe fn take_words(rec: Record, list: &[(u32, &Dword)]) {
-    unsafe {
-        for &(off, to) in list {
-            to.set(field(rec, off));
-        }
+fn take_words(rec: Record, list: &[(u32, &Dword)]) -> Result<(), BadInput> {
+    for &(off, to) in list {
+        to.set(field(rec, off)?);
     }
+    Ok(())
 }
 
 /// The 12 bytes at a record's +0x1C .. +0x27 into a car's `keys`.
-unsafe fn take_keys(rec: Record, keys: &Bytes<12>) {
-    unsafe {
-        for k in 0..12 {
-            keys.set(k, *(rec.wrapping_add(0x1C + k as u32) as *const u8));
-        }
+fn take_keys(rec: Record, keys: &Bytes<12>) -> Result<(), BadInput> {
+    let bytes = GamePtr::new(rec.wrapping_add(0x1C)).read_bytes(12, "a player's keys")?;
+    for (k, &b) in bytes.iter().enumerate() {
+        keys.set(k, b);
     }
+    Ok(())
 }
 
 /// Game variables into words of a record, in order.
-unsafe fn give_words(rec: Record, list: &[(&Dword, u32)]) {
-    unsafe {
-        for &(from, off) in list {
-            set_field(rec, off, from.get());
-        }
+fn give_words(rec: Record, list: &[(&Dword, u32)]) -> Result<(), BadInput> {
+    for &(from, off) in list {
+        set_field(rec, off, from.get())?;
     }
+    Ok(())
 }
 
 /// `rep movsb` of `len` bytes.
-unsafe fn copy_bytes(from: u32, to: u32, len: u32) {
-    unsafe { std::ptr::copy(from as *const u8, to as *mut u8, len as usize) }
+fn copy_bytes(from: u32, to: u32, len: u32) -> Result<(), BadInput> {
+    GamePtr::new(from).copy_to(GamePtr::new(to), len as usize, "a player's record")
 }
 
 /// The total a record keeps at +0xD8: a tenth of the sum of four times, and a tenth of six
@@ -578,20 +575,21 @@ fn total(times: [&Dword; 4], extra: &Dword) -> u32 {
 /// A car's outcome into its record: a result of -1 or -2 puts the time (+0x88) at 0x36EE80
 /// and the state (+0xD0) at 6; any other copies the time, a word (+0x27C), the seconds
 /// rounded times 10 (+0x94) and 0x40 bytes of data (+0x20C).
-unsafe fn give_outcome(rec: Record, o: &Outcome) {
-    unsafe {
+fn give_outcome(rec: Record, o: &Outcome) -> Result<(), BadInput> {
+    {
         let r = o.result.get();
         if r == -2i32 as u32 || r == -1i32 as u32 {
-            set_field(rec, 0x88, 0x36EE80);
-            set_field(rec, 0xD0, 6);
+            set_field(rec, 0x88, 0x36EE80)?;
+            set_field(rec, 0xD0, 6)?;
         } else {
-            set_field(rec, 0x88, o.time.get());
-            set_field(rec, 0x27C, o.word.get());
+            set_field(rec, 0x88, o.time.get())?;
+            set_field(rec, 0x27C, o.word.get())?;
             let secs = crate::math::x87::to_int(o.secs.bits()) as u32;
-            set_field(rec, 0x94, secs.wrapping_mul(10));
-            copy_bytes(o.data.addr() as u32, rec.wrapping_add(0x20C), 0x40);
+            set_field(rec, 0x94, secs.wrapping_mul(10))?;
+            copy_bytes(o.data.addr() as u32, rec.wrapping_add(0x20C), 0x40)?;
         }
     }
+    Ok(())
 }
 
 /// `race::single_rally_race` (0x4843EC): `start` (eax) the run's start (1: the loading
@@ -609,7 +607,7 @@ unsafe fn guarded(
     step: &mut dyn FnMut(u32) -> Result<(), Refused>,
 ) -> Result<(), Refused> {
     unsafe {
-        if player(1) == 0 || player(var(CURRENT)) == 0 {
+        if player(1)? == 0 || player(var(CURRENT))? == 0 {
             return Err(crate::errors::BadInput("a player's record missing").into());
         }
         single_rally(start, kind, step)
@@ -651,52 +649,52 @@ unsafe fn single_rally(
         let mut entry = crate::records::stages_store::STAGE_TABLES
             .trak_pak()
             .wrapping_add(0x34);
-        while field(entry, 0x34) != stage {
+        while field(entry, 0x34)? != stage {
             entry = entry.wrapping_add(0x40);
-            if field(entry, 0) == u32::MAX {
+            if field(entry, 0)? == u32::MAX {
                 return Err(UNKNOWN_TRACK.into());
             }
         }
-        take_words(entry, &TRACK_TO_RACE);
+        take_words(entry, &TRACK_TO_RACE)?;
         for &(from, to) in &SETTINGS_TO_RACE {
             to.set(var(from));
         }
-        let first = player(1);
-        take_words(first, &PLAYER_1_WORDS);
-        take_keys(first, &RACE_STATE.settings.cars[1].keys);
+        let first = player(1)?;
+        take_words(first, &PLAYER_1_WORDS)?;
+        take_keys(first, &RACE_STATE.settings.cars[1].keys)?;
 
         let one_car = matches!(var(EVENT_MODE), 5 | 4 | 0xF | 0xA);
         if one_car {
             RACE_KEPT.set(var(KEPT));
             RACE_MODE.set(2);
-            if field(first, 0xD0) != 1 {
+            if field(first, 0xD0)? != 1 {
                 RESULT_2.set(u32::MAX);
             }
-            WORD_8_FIRST.set(field(first, 0x8));
-            take_words(first, &FIRST_HEAD);
-            copy_bytes(first.wrapping_add(0x24C), BLOCK_FIRST.addr() as u32, 0x20);
-            take_words(first, &FIRST_TAIL);
+            WORD_8_FIRST.set(field(first, 0x8)?);
+            take_words(first, &FIRST_HEAD)?;
+            copy_bytes(first.wrapping_add(0x24C), BLOCK_FIRST.addr() as u32, 0x20)?;
+            take_words(first, &FIRST_TAIL)?;
             set_var(CURRENT, 0);
-        } else if field(player(var(CURRENT)), 0xD0) != 1 {
+        } else if field(player(var(CURRENT))?, 0xD0)? != 1 {
             // The current player's record is not in use: no race.
             RESULT.set(u32::MAX);
             return finish(step);
         }
 
         // The current player's record (player 0 after an event's one-car race).
-        let rec = player(var(CURRENT));
-        WORD_8.set(field(rec, 0x8));
-        if field(rec, 0xD0) != 1 {
+        let rec = player(var(CURRENT))?;
+        WORD_8.set(field(rec, 0x8)?);
+        if field(rec, 0xD0)? != 1 {
             RESULT.set(u32::MAX);
         }
-        take_words(rec, &SECOND_HEAD);
-        copy_bytes(rec.wrapping_add(0x24C), BLOCK_CURRENT.addr() as u32, 0x20);
-        take_words(rec, &SECOND_MID);
+        take_words(rec, &SECOND_HEAD)?;
+        copy_bytes(rec.wrapping_add(0x24C), BLOCK_CURRENT.addr() as u32, 0x20)?;
+        take_words(rec, &SECOND_MID)?;
         if RACE_MODE.get() == 2 {
-            MODE_WORD.set(field(rec, 0x10));
+            MODE_WORD.set(field(rec, 0x10)?);
         }
-        take_words(rec, &SECOND_TAIL);
-        take_keys(rec, &RACE_STATE.settings.cars[0].keys);
+        take_words(rec, &SECOND_TAIL)?;
+        take_keys(rec, &RACE_STATE.settings.cars[0].keys)?;
 
         // The race.
         NO_REPLAY.set(0);
@@ -716,21 +714,21 @@ unsafe fn single_rally(
 
         // The outcome back into the records.
         if one_car {
-            let first = player(1);
-            give_words(first, &FIRST_BACK_A);
-            copy_bytes(BLOCK_FIRST.addr() as u32, first.wrapping_add(0x24C), 0x20);
-            set_field(first, 0xD8, total(TIMES_FIRST, EXTRA_FIRST));
-            give_words(first, &FIRST_BACK_B);
-            give_outcome(first, &OUTCOME_FIRST);
+            let first = player(1)?;
+            give_words(first, &FIRST_BACK_A)?;
+            copy_bytes(BLOCK_FIRST.addr() as u32, first.wrapping_add(0x24C), 0x20)?;
+            set_field(first, 0xD8, total(TIMES_FIRST, EXTRA_FIRST))?;
+            give_words(first, &FIRST_BACK_B)?;
+            give_outcome(first, &OUTCOME_FIRST)?;
             set_var(CURRENT, 0);
         }
-        let rec = player(var(CURRENT));
-        set_field(rec, 0x284, BACK_284_CURRENT.get());
-        copy_bytes(BLOCK_CURRENT.addr() as u32, rec.wrapping_add(0x24C), 0x20);
-        give_words(rec, &SECOND_BACK_A);
-        set_field(rec, 0xD8, total(TIMES_CURRENT, EXTRA_CURRENT));
-        give_words(rec, &SECOND_BACK_B);
-        give_outcome(rec, &OUTCOME_CURRENT);
+        let rec = player(var(CURRENT))?;
+        set_field(rec, 0x284, BACK_284_CURRENT.get())?;
+        copy_bytes(BLOCK_CURRENT.addr() as u32, rec.wrapping_add(0x24C), 0x20)?;
+        give_words(rec, &SECOND_BACK_A)?;
+        set_field(rec, 0xD8, total(TIMES_CURRENT, EXTRA_CURRENT))?;
+        give_words(rec, &SECOND_BACK_B)?;
+        give_outcome(rec, &OUTCOME_CURRENT)?;
 
         if var(SWITCH) != 1 {
             step(11)?; // scene::set_up_engine
@@ -1967,6 +1965,8 @@ mod tests {
     struct World {
         image: usize,
         records: Vec<Vec<u8>>,
+        /// The records as regions while the world lives.
+        _regions: Vec<crate::pointers::TestRegion>,
         /// Every range the table (and its calls' stand-ins) reads or writes: (address, length).
         ranges: Vec<(usize, usize)>,
     }
@@ -2007,9 +2007,14 @@ mod tests {
         }
         ranges.sort_unstable();
         ranges.dedup();
+        let _regions = records
+            .iter()
+            .map(|r| crate::pointers::TestRegion::new(r))
+            .collect();
         World {
             image: base,
             records,
+            _regions,
             ranges,
         }
     }
@@ -2155,7 +2160,8 @@ mod tests {
                     &PLAYER_TABLE.pointers[k],
                     if c.missing[k] { 0 } else { r.as_ptr() as u32 },
                 );
-                set_field(r.as_ptr() as u32, 0xD0, c.d0[k]);
+                set_field(r.as_ptr() as u32, 0xD0, c.d0[k])
+                    .expect("the test's memory is registered");
             }
             set_var(EVENT_MODE, c.mode);
             set_var(PLAYER_COUNT, c.count);
@@ -2170,19 +2176,19 @@ mod tests {
                 if id == c.stage {
                     id ^= 1;
                 }
-                set_field(entry(k), 0x34, id);
+                set_field(entry(k), 0x34, id).expect("the test's memory is registered");
                 if k > 0 {
                     let mut s = rng.next();
                     if s == u32::MAX {
                         s = 0;
                     }
-                    set_field(entry(k), 0, s);
+                    set_field(entry(k), 0, s).expect("the test's memory is registered");
                 }
             }
             if c.found {
-                set_field(entry(c.entry), 0x34, c.stage);
+                set_field(entry(c.entry), 0x34, c.stage).expect("the test's memory is registered");
             } else {
-                set_field(entry(c.entry), 0, u32::MAX);
+                set_field(entry(c.entry), 0, u32::MAX).expect("the test's memory is registered");
             }
         }
     }
@@ -2203,7 +2209,7 @@ mod tests {
                 log: Vec::new(),
                 rng: Rng(c.seed ^ 0x55AA),
             };
-            let result = if player(1) == 0 || player(var(CURRENT)) == 0 {
+            let result = if player(1).unwrap() == 0 || player(var(CURRENT)).unwrap() == 0 {
                 Err(BadInput("a player's record missing").into())
             } else {
                 super::table::run(

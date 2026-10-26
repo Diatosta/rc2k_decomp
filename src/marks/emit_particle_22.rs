@@ -22,8 +22,8 @@ pub static TWENTY_SECOND: TwinSet = TwinSet {
 };
 
 /// The Rust version (see the header).
-pub unsafe fn emit_particle_22(object: u32) -> Result<(), Refused> {
-    unsafe { emit_twin(&TWENTY_SECOND, object) }
+pub fn emit_particle_22(object: u32) -> Result<(), Refused> {
+    emit_twin(&TWENTY_SECOND, object)
 }
 
 /// `emit_particle_22`'s variables (IDA 0x93A4B2 .. 0x93A4DA).

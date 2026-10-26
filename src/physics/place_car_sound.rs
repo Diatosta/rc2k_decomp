@@ -30,7 +30,7 @@ pub unsafe fn place_car_sound() -> Result<(), Refused> {
     if o == 0 {
         return Err(BadInput("a null sound object").into());
     }
-    let so = unsafe { crate::sound::store::SoundObject::at(o) };
+    let so = crate::sound::store::SoundObject::at(o)?;
     unsafe {
         so.slot_b.start.set(1);
         let d = |a: &Dword, b: &Dword| ints_diff_80(a.get() as i32, b.get() as i32);

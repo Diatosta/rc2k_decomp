@@ -15,7 +15,7 @@ use crate::screens::controls_store::CONTROLS_SCREEN as C;
 /// (`dword_7551E4` ..: a 1 for "under 0x80"); a direction held over 0x1D of the last 32 polls
 /// while the others were not (its history empty) gives 0x400 / 0x800 / 0x100 / 0x200 with the
 /// button, else 0; into `dword_7559EC`. Every register kept.
-pub unsafe fn classify_controller(z: u32, buttons: u32, x: u32, y: u32) {
+pub fn classify_controller(z: u32, buttons: u32, x: u32, y: u32) {
     // Converted: `rc2k_core::input::devices::classify`.
     let (history, found) = rc2k_core::input::devices::classify(
         buttons,
@@ -66,26 +66,33 @@ pub unsafe fn learn_axis() -> Result<(), Refused> {
                 0x3BE,
                 crate::gfx::typefaces::fonts::LIST.as_ptr(),
                 0x1B8,
-                ((items + 0xC) as *const u32).read_unaligned() as i32,
+                crate::pointers::GamePtr::new(items + 0xC)
+                    .read::<u32>("controller: a game value")? as i32,
                 &mut crate::text::draw_text::GameCanvas,
             )?;
         }
-        let field = |o: u32| (player + o) as *mut u8;
         let mut take = true;
         let control = C.learned.get();
-        if l::by_axis(((player + 0x34) as *const u32).read_unaligned(), control) {
-            let m = crate::input::axes::axis_moved(1);
+        if l::by_axis(
+            crate::pointers::GamePtr::new(player + 0x34).read::<u32>("controller: a game value")?,
+            control,
+        ) {
+            let m = crate::input::axes::axis_moved(1)?;
             if !m.carry {
                 let (byte, found) = l::pedal(control);
-                field(byte).write(m.eax as u8);
-                crate::input::store::DEVICES.records[0]
-                    .set_u32(0x18, ((player + 0x38) as *const u32).read_unaligned());
+                crate::pointers::GamePtr::new(player + byte)
+                    .write::<u8>(m.eax as u8, "a controller binding")?;
+                crate::input::store::DEVICES.records[0].set_u32(
+                    0x18,
+                    crate::pointers::GamePtr::new(player + 0x38)
+                        .read::<u32>("controller: a game value")?,
+                );
                 DRAW_WORK.figure.set(found);
                 C.learning.set(0);
                 take = false;
             }
         } else {
-            let [ecx, edx, eax, ebx] = crate::input::axes::first_device_state();
+            let [ecx, edx, eax, ebx] = crate::input::axes::first_device_state()?;
             classify_controller(eax, ebx, ecx, edx);
         }
         if take {
@@ -97,24 +104,24 @@ pub unsafe fn learn_axis() -> Result<(), Refused> {
             }
         }
         let slot = player.wrapping_add(l::binding(C.learned.get()));
-        (slot as *mut u32).write_unaligned(DRAW_WORK.figure.get());
+        crate::pointers::GamePtr::new(slot)
+            .write::<u32>(DRAW_WORK.figure.get(), "controller: a game value")?;
         Ok(())
     }
 }
 
 /// What the controller page reads: refused before anything.
-pub unsafe fn controller_page_refuses() -> Result<u32, Refused> {
-    unsafe {
-        let player = crate::menu::player::player_at(EVENT_STATE.current_player.get());
-        if player == 0 {
-            return Err(crate::errors::BadInput("no current player record").into());
-        }
-        let device = ((player + 0x2C) as *const u32).read_unaligned();
-        if device != 0 && crate::input::store::DEVICES.input_devices[0].get() == 0 {
-            return Err(crate::errors::BadInput("no input device").into());
-        }
-        Ok(player)
+pub fn controller_page_refuses() -> Result<u32, Refused> {
+    let player = crate::menu::player::player_at(EVENT_STATE.current_player.get());
+    if player == 0 {
+        return Err(crate::errors::BadInput("no current player record").into());
     }
+    let device =
+        crate::pointers::GamePtr::new(player + 0x2C).read::<u32>("controller: a game value")?;
+    if device != 0 && crate::input::store::DEVICES.input_devices[0].get() == 0 {
+        return Err(crate::errors::BadInput("no input device").into());
+    }
+    Ok(player)
 }
 
 /// `screens::draw_controller_page` (0x46A454): the player's controller (+0x2C, 0 none: items
@@ -128,26 +135,28 @@ pub unsafe fn controller_page_refuses() -> Result<u32, Refused> {
 /// Every register kept. Refuses (before anything) no current player record, or no input
 /// device for a player that has one; an x whose x 100 is 0 is the original's fatal error
 /// 0x80701010.
-pub unsafe fn draw_controller_page(
+pub fn draw_controller_page(
     canvas: &mut dyn crate::text::draw_text::Canvas,
 ) -> Result<(), Refused> {
     // Converted: `rc2k_core::screens::controller_page::controller_page`.
     use rc2k_core::screens::controller_page::{Controller, Font, Work, controller_page};
-    unsafe {
+    {
         let player = controller_page_refuses()?;
-        let f = |o: u32| ((player + o) as *const u32).read_unaligned();
+        let fault = crate::menu::event_flow::Fault::default();
+        let f = |o: u32| fault.get(player + o);
         let device = f(0x2C);
+        fault.check()?;
         let mut screen = crate::screens::game_screen::GameScreen::<Font, Work>::new(canvas);
         if device == 0 {
             return controller_page(&mut screen, None);
         }
         let record = crate::input::store::DEVICES.controllers[0].addr() as u32
             + device.wrapping_sub(1).wrapping_mul(0x50);
-        let [stick_x, _, _, buttons] = crate::input::axes::first_device_state();
+        let [stick_x, _, _, buttons] = crate::input::axes::first_device_state()?;
         let c = Controller {
             record,
             name: record + 0x30,
-            has_strength: ((record + 0x1C) as *const u32).read_unaligned() == 1,
+            has_strength: fault.get(record + 0x1C) == 1,
             mode: f(0x3C),
             strength: f(0x48),
             sensitivity: f(0x34),
@@ -156,6 +165,7 @@ pub unsafe fn draw_controller_page(
             stick_x,
             buttons,
         };
+        fault.check()?;
         controller_page(&mut screen, Some(&c))
     }
 }

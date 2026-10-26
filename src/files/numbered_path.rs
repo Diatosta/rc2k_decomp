@@ -12,8 +12,7 @@
 //! registers above are the original's, for reference.
 
 use crate::errors::{BadInput, FatalError, Refused};
-use std::ffi::{CStr, c_char};
-use std::ptr::copy_nonoverlapping;
+use crate::pointers::GamePtr;
 
 // ---- game data ----
 
@@ -43,17 +42,9 @@ pub fn numbered_path(template: &[u8], number: u32) -> Result<Vec<u8>, Refused> {
 }
 
 /// For Rust callers: writes the buffer and returns it.
-pub unsafe fn numbered_path_in_game(
-    template: *const u8,
-    number: u32,
-) -> Result<*const u8, Refused> {
-    unsafe {
-        let path = numbered_path(cstr(template), number)?;
-        copy_nonoverlapping(path.as_ptr(), buffer(), path.len());
-    }
+pub fn numbered_path_in_game(template: *const u8, number: u32) -> Result<*const u8, Refused> {
+    let template = crate::files::cstring(GamePtr::new(template as u32), "a path template")?;
+    let path = numbered_path(&template, number)?;
+    GamePtr::new(buffer() as u32).write_bytes(&path, "the numbered path's buffer")?;
     Ok(buffer())
-}
-
-unsafe fn cstr<'a>(ptr: *const u8) -> &'a [u8] {
-    unsafe { CStr::from_ptr(ptr as *const c_char) }.to_bytes()
 }

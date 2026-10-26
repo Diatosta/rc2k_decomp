@@ -14,33 +14,30 @@
 //! One caller, `threading::shutdown_thread`, which calls it directly (2026-10-23). The
 //! registers above are the original's, for reference.
 
-use crate::threading::thread_slot::slot;
+use crate::threading::thread_slot::{ThreadSlot, slot_ref};
 
 /// `threading::resume_slot_thread` (0x410D1D): the slot's thread resumed if it was
 /// suspended (+0xC 0xFF, made 1).
-fn resume_slot_thread(slot: u32) {
+fn resume_slot_thread(slot: &ThreadSlot) {
     use windows_sys::Win32::System::Threading::ResumeThread;
-    let flag = (slot + 0xC) as *mut u8;
-    unsafe {
-        // Converted: `rc2k_core::threading::resumes`.
-        if rc2k_core::threading::resumes(flag.read_volatile()) {
-            flag.write_volatile(rc2k_core::threading::RESUMED);
-            ResumeThread(((slot + 8) as *const u32).read_unaligned() as _);
-        }
+    // Converted: `rc2k_core::threading::resumes`.
+    if rc2k_core::threading::resumes(slot.flag.get()) {
+        slot.flag.set(rc2k_core::threading::RESUMED);
+        unsafe { ResumeThread(slot.handle.get() as _) };
     }
 }
 
 /// The Rust version: the game's three slots' threads (input, audio, network) resumed and
 /// waited for, three seconds at most, their handles closed; the wait's result.
-pub fn wait_for_threads() -> u32 {
+pub fn wait_for_threads() -> Result<u32, crate::errors::BadInput> {
     // Converted: `rc2k_core::threading::{wait_order, WAIT_MS}`.
     use rc2k_core::threading::{WAIT_MS, WAITED, wait_order};
     use windows_sys::Win32::Foundation::CloseHandle;
     use windows_sys::Win32::System::Threading::WaitForMultipleObjects;
     let mut handles = [0u32; WAITED];
     for (k, handle) in handles.iter_mut().enumerate() {
-        let slot = slot(k) as u32;
-        *handle = unsafe { ((slot + 8) as *const u32).read_unaligned() };
+        let slot = slot_ref(k)?;
+        *handle = slot.handle.get();
         resume_slot_thread(slot);
     }
     // The stack: the last pushed first.
@@ -49,5 +46,5 @@ pub fn wait_for_threads() -> u32 {
     for handle in array {
         unsafe { CloseHandle(handle as _) };
     }
-    rc
+    Ok(rc)
 }

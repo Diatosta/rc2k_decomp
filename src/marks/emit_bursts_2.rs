@@ -21,8 +21,8 @@ pub static SECOND: BurstSet = BurstSet {
 };
 
 /// The Rust version (see the header).
-pub unsafe fn emit_bursts_2(wheel: u32, object: u32) -> Result<(), Refused> {
-    unsafe { emit_bursts_with(&SECOND, wheel, object) }
+pub fn emit_bursts_2(wheel: u32, object: u32) -> Result<(), Refused> {
+    emit_bursts_with(&SECOND, wheel, object)
 }
 
 /// `emit_bursts_2`'s factors and randoms (IDA 0x93A3F6 .. 0x93A41A).

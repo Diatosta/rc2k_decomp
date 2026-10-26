@@ -22,5 +22,5 @@ use rc2k_core::menu::finish;
 /// The Rust version (see the header).
 pub fn championship_finish() -> Result<(), Refused> {
     // Converted: `rc2k_core::menu::finish::championship_finish`.
-    finish::championship_finish(&mut Game::default())
+    Game::run(finish::championship_finish)
 }

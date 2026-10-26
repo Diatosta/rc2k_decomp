@@ -20,8 +20,8 @@ use crate::menu::event_store::EVENT_STATE;
 use crate::menu::flow_store::SCREEN_FLOW;
 use crate::menu::players_store::PLAYER_TABLE;
 use crate::menu::state_store::MENU_STATE;
+use crate::pointers::GamePtr;
 use crate::session::Dword;
-use std::ptr::copy_nonoverlapping;
 
 // ---- game data ----
 
@@ -44,13 +44,15 @@ pub use rc2k_core::saves::savegame::{NAME_AT as NAME_OFFSET, NAME_POINTER as NAM
 pub fn cars() -> Result<[u32; CARS], BadInput> {
     let mut cars = [0u32; CARS];
     for (n, car) in cars.iter_mut().enumerate() {
-        *car = unsafe { ((PLAYER_TABLE.pointers[0].addr() as *const u32).add(n)).read_unaligned() };
+        *car = GamePtr::new(PLAYER_TABLE.pointers[0].addr() as u32)
+            .offset(4 * n as u32)
+            .read::<u32>("the players' table")?;
         if *car == 0 {
             return Err(BadInput(
                 "a player is missing: the original reads through null",
             ));
         }
-        if unsafe { ((*car + NAME_PTR_OFFSET) as *const u32).read_unaligned() } == 0 {
+        if GamePtr::new(*car + NAME_PTR_OFFSET).read::<u32>("a player's record")? == 0 {
             return Err(BadInput(
                 "a car has no pointer at +0x18: the original reads through null",
             ));
@@ -61,26 +63,30 @@ pub fn cars() -> Result<[u32; CARS], BadInput> {
 
 // ---- Rust version ----
 
-pub unsafe fn gather_savegame(buffer: *mut u8) -> Result<(), BadInput> {
+pub fn gather_savegame(buffer: GamePtr) -> Result<(), BadInput> {
     use rc2k_core::saves::savegame::{CAR0_A, CAR0_B, RECORDS_AT, car_at};
-    // Converted: `rc2k_core::saves::savegame` (the state's layout).
     let cars = cars()?;
-    unsafe {
-        for (n, at) in head().into_iter().enumerate() {
-            (buffer.add(4 * n) as *mut u32).write_unaligned(at.get());
-        }
-        ((cars[0] + CAR0_A) as *mut u32).write_unaligned(SCREEN_FLOW.start_section.get());
-        ((cars[0] + CAR0_B) as *mut u32).write_unaligned(SCREEN_FLOW.start_section_a8.get());
-        for (n, car) in cars.into_iter().enumerate() {
-            let name = ((car + NAME_PTR_OFFSET) as *const u32).read_unaligned();
-            std::ptr::copy(name as *const u8, (car + NAME_OFFSET) as *mut u8, NAME_LEN);
-            copy_nonoverlapping(car as *const u8, buffer.add(car_at(n)), CAR_LEN);
-        }
-        copy_nonoverlapping(
-            crate::menu::drivers_store::drivers_addr() as *const u8,
-            buffer.add(RECORDS_AT),
-            RECORDS_LEN,
-        );
+    for (n, at) in head().into_iter().enumerate() {
+        buffer
+            .offset(4 * n as u32)
+            .write(at.get(), "the savegame's head")?;
     }
+    GamePtr::new(cars[0] + CAR0_A).write(SCREEN_FLOW.start_section.get(), "a player's record")?;
+    GamePtr::new(cars[0] + CAR0_B)
+        .write(SCREEN_FLOW.start_section_a8.get(), "a player's record")?;
+    for (n, car) in cars.into_iter().enumerate() {
+        let name = GamePtr::new(car + NAME_PTR_OFFSET).read::<u32>("a player's record")?;
+        GamePtr::new(name).copy_to(GamePtr::new(car + NAME_OFFSET), NAME_LEN, "a player's name")?;
+        GamePtr::new(car).copy_to(
+            buffer.offset(car_at(n) as u32),
+            CAR_LEN,
+            "a player's record",
+        )?;
+    }
+    GamePtr::new(crate::menu::drivers_store::drivers_addr() as u32).copy_to(
+        buffer.offset(RECORDS_AT as u32),
+        RECORDS_LEN,
+        "the drivers' records",
+    )?;
     Ok(())
 }

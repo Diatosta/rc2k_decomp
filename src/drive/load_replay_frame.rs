@@ -9,6 +9,7 @@
 
 use crate::drive::replay_frames_store::REPLAY_FRAMES;
 use crate::errors::Refused;
+use crate::pointers::GamePtr;
 
 const DWORDS: usize = 0xA04;
 
@@ -16,13 +17,12 @@ const DWORDS: usize = 0xA04;
 pub unsafe fn load_replay_frame() -> Result<(), Refused> {
     let frame = REPLAY_FRAMES.step_block.get();
     unsafe { crate::drive::read_replay_frame_0::read_replay_frame_0(frame) }?;
-    crate::drive::replay_frame_marks::replay_frame_marks();
-    unsafe {
-        std::ptr::copy(
-            crate::race::viewer_buffers_store::VIEWER_BUFFERS.block[0].addr() as *const u32,
-            crate::race::blocks_store::block_addr(8) as *mut u32,
-            DWORDS,
-        )
-    };
+    crate::drive::replay_frame_marks::replay_frame_marks()?;
+    GamePtr::new(crate::race::viewer_buffers_store::VIEWER_BUFFERS.block[0].addr() as u32)
+        .copy_to(
+            GamePtr::new(crate::race::blocks_store::block_addr(8) as u32),
+            DWORDS * 4,
+            "a car's block",
+        )?;
     Ok(())
 }

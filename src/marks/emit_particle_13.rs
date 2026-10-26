@@ -23,6 +23,7 @@ use crate::marks::setup::CLOCK;
 use crate::marks::splines::SPLINE_HEAD;
 use crate::marks::tuning::MARKS_FLOATS;
 use crate::math::x87;
+use crate::pointers::GamePtr;
 use crate::session::{Dword, Float, read_first};
 
 const MODELS: u32 = 34;
@@ -30,38 +31,38 @@ const LOOK: u32 = 0x3F;
 const LIFE: u32 = 0xFA;
 
 /// Why the Rust version refuses, if it does, worked out without writing.
-unsafe fn refusal(object: u32) -> Option<&'static str> {
-    unsafe {
+fn refusal(object: u32) -> Result<Option<&'static str>, Refused> {
+    Ok({
         if object == 0 {
-            return Some("a null object");
+            return Ok(Some("a null object"));
         }
         // The ring full: nothing more is read.
         next_entry()?;
         let car: u32 = EMITTER.car.get();
-        if car == 0 || at(car + 0x24) == 0 {
-            return Some("a null g_marksCar or matrix");
+        if car == 0 || at(car + 0x24)? == 0 {
+            return Ok(Some("a null g_marksCar or matrix"));
         }
-        if at(object + 4) >= MODELS {
-            return Some("a car model past flt_769312's 34 entries");
+        if at(object + 4)? >= MODELS {
+            return Ok(Some("a car model past flt_769312's 34 entries"));
         }
         None
-    }
+    })
 }
 
 /// The Rust version (see the header).
-pub unsafe fn emit_particle_13(object: u32) -> Result<(), Refused> {
+pub fn emit_particle_13(object: u32) -> Result<(), Refused> {
     unsafe {
-        if let Some(why) = refusal(object) {
+        if let Some(why) = refusal(object)? {
             return Err(BadInput(why).into());
         }
-        if next_entry().is_none() {
+        if next_entry()?.is_none() {
             return Ok(());
         }
-        let model = at(object + 4) as usize;
-        let e = take_entry(at(object + 0x1C) & 0xFF_FFFF, 0xD);
-        let put = |o: u32, v: u32| ((e + o) as *mut u32).write_unaligned(v);
+        let model = at(object + 4)? as usize;
+        let e = take_entry(at(object + 0x1C)? & 0xFF_FFFF, 0xD)?;
+        let put = |o: u32, v: u32| GamePtr::new(e + o).write::<u32>(v, "a mark's field");
         let car: u32 = EMITTER.car.get();
-        let m = at(car + 0x24);
+        let m = at(car + 0x24)?;
         let t: [u32; 3] = read_first(&SPLINE_HEAD.points[3 * model..]);
         let [x, y, y_less, z] = x87::turned_place_less(
             t,
@@ -70,23 +71,25 @@ pub unsafe fn emit_particle_13(object: u32) -> Result<(), Refused> {
             KIND13_SET.lift.bits(),
             m,
         );
-        put(0x10, x);
-        put(0x14, y);
-        put(0x28, y_less);
-        put(0x18, z);
+        put(0x10, x)?;
+        put(0x14, y)?;
+        put(0x28, y_less)?;
+        put(0x18, z)?;
         let one: u32 = MARKS_FLOATS.one.bits();
-        let s = x87::one_less_inverse(at(object + 8), KIND13_SET.strength_k.bits(), one);
+        let s = x87::one_less_inverse(at(object + 8)?, KIND13_SET.strength_k.bits(), one);
         RING_WORK.whole.set(s);
-        let motion: [u32; 3] = std::array::from_fn(|k| {
-            x87::mul2(
-                at(m + 0x20 + 4 * k as u32),
-                s,
-                KIND13_SET.motion_k[k].bits(),
-            )
-        });
-        put(0x2C, motion[0]);
-        put(0x30, motion[1]);
-        put(0x34, motion[2]);
+        let motion: [u32; 3] = crate::marks::try_from_fn(|k| {
+            Ok({
+                x87::mul2(
+                    at(m + 0x20 + 4 * k as u32)?,
+                    s,
+                    KIND13_SET.motion_k[k].bits(),
+                )
+            })
+        })?;
+        put(0x2C, motion[0])?;
+        put(0x30, motion[1])?;
+        put(0x34, motion[2])?;
         let r = (next_c5(&KIND13_SET.drift_random) & 0xFFFF) as i32;
         let moved = x87::drifted(
             r,
@@ -95,25 +98,25 @@ pub unsafe fn emit_particle_13(object: u32) -> Result<(), Refused> {
             CLOCK.frame_ticks.get() as i32,
             [x, y, z],
         );
-        put(0x10, moved[0]);
-        put(0x14, moved[1]);
-        put(0x18, moved[2]);
+        put(0x10, moved[0])?;
+        put(0x14, moved[1])?;
+        put(0x18, moved[2])?;
         let r = next_c5(&KIND13_SET.spin_random);
-        put(0x54, (r & 0x3F).wrapping_sub(0x20));
-        put(0x50, r.rotate_right(6) & 0xFFF);
-        put(0x58, LOOK);
-        put(0x84, LIFE);
+        put(0x54, (r & 0x3F).wrapping_sub(0x20))?;
+        put(0x50, r.rotate_right(6) & 0xFFF)?;
+        put(0x58, LOOK)?;
+        put(0x84, LIFE)?;
         put(
             0x78,
             x87::times_over_int(s, MARKS_FLOATS.two_fifty_seven.bits(), LIFE as i32),
-        );
-        put(0x74, x87::mul(s, MARKS_FLOATS.two_fifty_six.bits()));
-        put(0x68, car);
+        )?;
+        put(0x74, x87::mul(s, MARKS_FLOATS.two_fifty_six.bits()))?;
+        put(0x68, car)?;
         let size =
             x87::times_plus_to_int(KIND13_SET.size_k[0].bits(), s, KIND13_SET.size_k[1].bits());
-        put(0x70, size as u32);
-        put(0x6C, at(car + 0x88));
-        put(0x60, x87::int_times(size, KIND13_SET.size_k[2].bits()));
+        put(0x70, size as u32)?;
+        put(0x6C, at(car + 0x88)?)?;
+        put(0x60, x87::int_times(size, KIND13_SET.size_k[2].bits()))?;
     }
     Ok(())
 }

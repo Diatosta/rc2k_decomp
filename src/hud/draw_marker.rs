@@ -9,20 +9,21 @@
 
 use crate::errors::Refused;
 use crate::hud::store::{HUD, rect_addr};
+use crate::pointers::GamePtr;
 use rc2k_core::hud::quads::marker_x;
 
 const RECT: u32 = 0x5C;
 
 /// The Rust version (see the header).
 // Converted: `rc2k_core::hud::quads::marker_x`
-pub unsafe fn draw_marker(record: u32) -> Result<(), Refused> {
+pub fn draw_marker(record: u32) -> Result<(), Refused> {
     HUD.quad[5].set(HUD.marker_colours[0].get());
-    unsafe {
-        let get = |o: u32| ((record + o) as *const u32).read_unaligned();
+    {
+        let get = |o: u32| GamePtr::new(record + o).read::<u32>("a hud record's field");
         let f = f32::from_bits;
         let x = marker_x(
-            f(get(0x6C)),
-            f(get(0x68)),
+            f(get(0x6C)?),
+            f(get(0x68)?),
             HUD.marker_k[0].get(),
             HUD.marker_k[1].get(),
         );

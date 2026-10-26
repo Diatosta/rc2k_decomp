@@ -34,7 +34,7 @@ pub fn choose_car() -> Result<(), Refused> {
     };
     unsafe { run_screen(&crate::menu::select_car_loop::SCREEN, &entry) }?;
     if ESCAPED.get() != 1 {
-        unsafe { crate::menu::take_shown_car::take_shown_car(cars) }?;
+        crate::menu::take_shown_car::take_shown_car(cars)?;
         NET.own.head.set(
             PlayerRecord::CAR,
             PLAYER_TABLE.players[0].get().car_number as u8,

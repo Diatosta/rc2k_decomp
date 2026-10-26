@@ -19,10 +19,10 @@
 use crate::errors::{BadInput, FatalError, Refused};
 use crate::math::x87_float::{X, compare};
 use crate::physics::ground_store::GROUND_WORK;
+use crate::pointers::GamePtr;
 use crate::race::course_lists_store::COURSE_LISTS;
 use crate::race::scratch_store::FRAME_SCRATCH;
 use crate::scene::draw_store::DRAW;
-use crate::scene::polygon::dword;
 use crate::scene::x87_mem::{fld, fnstsw, fstp};
 
 // ---- game data ----
@@ -114,12 +114,21 @@ pub unsafe fn face_faces_away(face: usize) -> Result<bool, Refused> {
         if face == 0 || records == 0 {
             return Err(BadInput("no face or no records").into());
         }
-        let count = dword(face);
-        let point = |n: u32| dword(face + 0x10 + n as usize * 0x10);
+        let count: u32 = GamePtr::new(face as u32).read("a face")?;
         DRAW.polygon_vertex_count.set_bits(count);
         if count < 3 {
             return Ok(true);
         }
+        let len = (count as usize)
+            .checked_mul(0x10)
+            .and_then(|n| n.checked_add(0x10))
+            .ok_or(BadInput("a face of too many vertices"))?;
+        let words = GamePtr::new(face as u32).read_bytes(len, "a face")?;
+        let point = |n: u32| {
+            let at = 0x10 + n as usize * 0x10;
+            u32::from_le_bytes(words[at..at + 4].try_into().unwrap())
+        };
+        let table = crate::scene::reading::PointRecords::new(records)?;
         for n in 2..count {
             // The original looks at each triangle's numbers as it comes to it.
             if [0, n - 1, n].into_iter().any(|k| (point(k) as i32) < 0) {
@@ -127,8 +136,7 @@ pub unsafe fn face_faces_away(face: usize) -> Result<bool, Refused> {
             }
             let mut w = [0u32; 19];
             for (at, k) in [0, n - 1, n].into_iter().enumerate() {
-                let record = records.wrapping_add(((point(k) & 0xFFF) + 0x1000) << 5) as usize;
-                let place = ((record + 0x10) as *const [u32; 3]).read_unaligned();
+                let place = table.place(point(k))?;
                 w[at * 3..at * 3 + 3].copy_from_slice(&place);
             }
             triangle(&mut w);

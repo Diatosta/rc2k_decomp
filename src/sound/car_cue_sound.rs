@@ -27,8 +27,7 @@ pub fn car_cue_sound(o: u32, request: u32) -> Result<(), Refused> {
     if o == 0 || request == 0 {
         return Err(BadInput("no object or no request").into());
     }
-    let so = unsafe { crate::sound::store::SoundObject::at(o) };
-    let q = request as *mut u32;
+    let so = crate::sound::store::SoundObject::at(o)?;
     let mut waiting = so.cue_sound.get();
     let taken = one_off(
         &mut waiting,
@@ -43,17 +42,15 @@ pub fn car_cue_sound(o: u32, request: u32) -> Result<(), Refused> {
         return Ok(());
     }
     so.cue_sound.set(waiting);
-    unsafe { q.write_unaligned(sound) };
+    crate::sound::turn_parts::put(request, 0, sound)?;
     match turn {
         OneOff::Nothing | OneOff::Quiet { .. } => Ok(()),
         OneOff::Stop { .. } => crate::sound::turn_parts::stop(request),
         OneOff::Play { volume, rate } => {
-            unsafe {
-                q.add(2).write_unaligned(from_int(volume as i32));
-                q.add(1).write_unaligned(from_int(rate as i32));
-                for k in 0..3usize {
-                    q.add(3 + k).write_unaligned(so.cue_place[k].bits());
-                }
+            crate::sound::turn_parts::put(request, 2, from_int(volume as i32))?;
+            crate::sound::turn_parts::put(request, 1, from_int(rate as i32))?;
+            for k in 0..3usize {
+                crate::sound::turn_parts::put(request, 3 + k, so.cue_place[k].bits())?;
             }
             crate::sound::turn_parts::placed(request)
         }

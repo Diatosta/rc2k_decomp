@@ -22,7 +22,7 @@ use crate::menu::screen_loop::{Callee, Carried, List, Screen, Step, log_line, sc
 
 // ---- Rust version: `menu::screen_loop` with this ----
 
-unsafe fn before(c: &mut Carried) -> Result<(), Refused> {
+fn before(c: &mut Carried) -> Result<(), Refused> {
     c.measure_x = SCREEN_ITEMS.first[slot::VIEW_BEST_SCORES].get();
     SCREEN_ITEMS.current[slot::VIEW_BEST_SCORES].set(c.measure_x);
     Ok(())

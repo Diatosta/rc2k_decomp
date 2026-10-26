@@ -20,6 +20,7 @@ use crate::marks::frame_state::{DRAW_FRAME, VIEW_VARS};
 use crate::marks::tuning::MARKS_FRAME;
 use crate::marks::work_store::MARKS_WORK;
 use crate::math::x87;
+use crate::pointers::GamePtr;
 use crate::race::course_lists_store::COURSE_LISTS;
 use crate::race::matrices_store::MATRICES;
 use crate::scene::draw_switches_store::DRAW_SWITCHES;
@@ -40,7 +41,7 @@ fn rdtsc() -> u32 {
 
 /// The Rust version (see the header): `cars_particles`, `view_heading`, `view_motion`,
 /// `begin_quads`, `scene::depth_test_on`.
-pub unsafe fn draw_frame() -> Result<(), Refused> {
+pub fn draw_frame() -> Result<(), Refused> {
     use crate::marks::{begin_quads, cars_particles, view_heading, view_motion};
     unsafe {
         let info: u32 = COURSE_LISTS.course_info.bits();
@@ -55,11 +56,11 @@ pub unsafe fn draw_frame() -> Result<(), Refused> {
                 VIEW_VARS.turned_points[n][k].set_bits(rounded(*v));
             }
         }
-        std::ptr::copy(
-            (info + CORNERS_FROM) as *const u8,
-            MARK_CORNERS.corners.as_ptr() as *mut u8,
+        GamePtr::new(info + CORNERS_FROM).copy_to(
+            GamePtr::new(MARK_CORNERS.corners.as_ptr() as u32),
             CORNERS_LEN as usize,
-        );
+            "a stage record's corners",
+        )?;
         let source: u32 = DRAW_SWITCHES.marks_source.bits();
         if source != DRAW_FRAME.last_source.get() {
             VIEW_VARS.step.set(VIEW_VARS.step.get().wrapping_add(1) & 7);
@@ -70,7 +71,7 @@ pub unsafe fn draw_frame() -> Result<(), Refused> {
         VIEW_VARS.cleared.set(0);
         cars_particles::cars_particles()?;
         view_heading::view_heading();
-        view_motion::view_motion();
+        view_motion::view_motion()?;
         let start = rdtsc();
         begin_quads::begin_quads();
         let frame = MARKS_FRAME.frame_cycles.bits() as i32;

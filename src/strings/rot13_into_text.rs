@@ -11,7 +11,9 @@
 //! register use above is the original's, for reference.
 
 use crate::errors::BadInput;
+use crate::pointers::GamePtr;
 use crate::strings::text_from_ids::{TEXT_LEN, text};
+use rc2k_core::strings::bytes::Bytes;
 
 /// One byte coded.
 pub fn rot13(b: u8) -> u8 {
@@ -19,23 +21,26 @@ pub fn rot13(b: u8) -> u8 {
 }
 
 /// The Rust version: the text buffer's address.
-pub unsafe fn rot13_into_text(from: *const u8) -> Result<u32, BadInput> {
-    if from.is_null() {
+pub fn rot13_into_text(from: u32) -> Result<u32, BadInput> {
+    if from == 0 {
         return Err(BadInput("a null text"));
     }
+    let source = GamePtr::new(from).bytes("a text to code")?;
     let mut coded = Vec::new();
-    unsafe {
-        loop {
-            let b = from.add(coded.len()).read();
-            coded.push(rot13(b));
-            if b == 0 {
-                break;
-            }
-            if coded.len() >= TEXT_LEN {
-                return Err(BadInput("a text longer than the text buffer"));
-            }
+    loop {
+        let b = source
+            .byte(coded.len())
+            .ok_or(BadInput("a text without its end in its block"))?;
+        coded.push(rot13(b));
+        if b == 0 {
+            break;
         }
-        std::ptr::copy_nonoverlapping(coded.as_ptr(), text(), coded.len());
+        if coded.len() >= TEXT_LEN {
+            return Err(BadInput("a text longer than the text buffer"));
+        }
+    }
+    for (i, &b) in coded.iter().enumerate() {
+        crate::strings::text_buffer::TEXT_BUFFER.text.set(i, b);
     }
     Ok(text() as u32)
 }

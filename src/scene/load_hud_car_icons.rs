@@ -22,6 +22,7 @@
 //! room) and a car without its block.
 
 use crate::errors::{BadInput, Refused};
+use crate::pointers::GamePtr;
 use crate::race::blocks_store::CAR_BLOCKS;
 use crate::race::work_store::RACE_WORK;
 use crate::scene::car_icon_number::car_icon_number;
@@ -59,7 +60,7 @@ pub unsafe fn load_hud_car_icons() -> Result<(), Refused> {
             if block == 0 {
                 return Err(BadInput("a car without its block").into());
             }
-            ((block + 0x24) as *const u32).read_unaligned()
+            GamePtr::new(block.wrapping_add(0x24)).read("a car's block")?
         } else {
             CAR_BLOCKS.cars[0].car_kind.bits()
         };

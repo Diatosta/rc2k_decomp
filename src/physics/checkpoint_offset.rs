@@ -20,8 +20,8 @@ use crate::race::course_store::COURSE;
 use crate::race::vars_store::RACE_VARS;
 use rc2k_core::physics::progress::checkpoint_ahead;
 
-unsafe fn at(a: u32) -> u32 {
-    unsafe { (a as *const u32).read_unaligned() }
+fn at(a: u32) -> Result<u32, crate::errors::BadInput> {
+    crate::pointers::GamePtr::new(a).read::<u32>("a checkpoint face or scene point")
 }
 
 /// The Rust version.
@@ -41,12 +41,12 @@ pub unsafe fn checkpoint_offset() -> Result<(), Refused> {
         let angle = crate::race::checkpoints_store::angle(c as usize).get();
         let face = crate::race::checkpoints_store::face(c as usize).get();
         let f = (face << 6).wrapping_add(COURSE.course_faces.get());
-        let point = at(f + 4);
+        let point = at(f + 4)?;
         let pt = point
             .wrapping_mul(12)
             .wrapping_add(COURSE.scene_points.get());
-        let x = CAR.position[0].get().wrapping_sub(at(pt));
-        let z = CAR.position[2].get().wrapping_sub(at(pt + 8));
+        let x = CAR.position[0].get().wrapping_sub(at(pt)?);
+        let z = CAR.position[2].get().wrapping_sub(at(pt + 8)?);
         let [x2, _, z2, _] = turn_point_xz(x as i32, point as i32, z as i32, angle.wrapping_neg());
         CAR.checkpoint_offset[0].set(x2);
         CAR.checkpoint_offset[1].set(z2);

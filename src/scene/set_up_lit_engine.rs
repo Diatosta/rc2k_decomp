@@ -26,7 +26,7 @@ pub fn set_up_lit_engine() -> Result<(), Refused> {
         OBJECT_WORK.light_strength.set_bits(0xB4u32);
         OBJECT_WORK.light_turns[0].set_bits(0x6Eu32);
         OBJECT_WORK.light_turns[1].set_bits(0x1Eu32);
-        crate::scene::fill_light_tables::fill_light_tables();
+        crate::scene::fill_light_tables::fill_light_tables()?;
     }
     Ok(())
 }

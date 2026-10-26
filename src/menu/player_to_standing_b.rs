@@ -8,27 +8,30 @@
 //!
 //! Caller: `sub_4A44A0` (three times). Refuses a null entry, record or name, before anything.
 use crate::errors::{BadInput, Refused};
+use crate::menu::event_flow::Fault;
 use crate::menu::standings::*;
 
 /// `e` the entry (edi in the original), `p` the player's record (esi), `index` the
 /// player's index (ebx).
-pub unsafe fn player_to_standing_b(e: u32, p: u32, index: u32) -> Result<(), Refused> {
-    if e == 0 || p == 0 || get(p + 0x18) == 0 {
+pub fn player_to_standing_b(e: u32, p: u32, index: u32) -> Result<(), Refused> {
+    if e == 0 || p == 0 || get(p + 0x18)? == 0 {
         return Err(BadInput("a null entry, record or name").into());
     }
     // Converted: `rc2k_core::menu::standings::fill_b`.
     use rc2k_core::menu::standings::{PlayerB, fill_b};
+    let fault = Fault::default();
     let source = PlayerB {
         index,
-        name: bytes(get(p + 0x18)),
-        nationality: get(p + 4),
-        car: get(p + 8),
-        group: get(p + 0x90),
-        total: get(p + 0x8C),
-        b4: std::array::from_fn(|k| get(p + 0xB4 + 4 * k as u32)),
-        slots: std::array::from_fn(|k| get(p + 0x98 + 4 * k as u32)),
+        name: bytes(get(p + 0x18)?)?,
+        nationality: get(p + 4)?,
+        car: get(p + 8)?,
+        group: get(p + 0x90)?,
+        total: get(p + 0x8C)?,
+        b4: std::array::from_fn(|k| fault.get(p + 0xB4 + 4 * k as u32)),
+        slots: std::array::from_fn(|k| fault.get(p + 0x98 + 4 * k as u32)),
     };
+    fault.check()?;
     // The entry's bytes as far as it is written (to +0x70).
-    fill_b(&mut unsafe { table(e, 0x70, 1) }, 0, &source);
+    fill_b(&mut table(e, 0x70, 1)?, 0, &source);
     Ok(())
 }

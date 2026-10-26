@@ -112,7 +112,7 @@ pub fn steps() -> Result<(), Refused> {
         ph::ease_car_value::ease_car_value();
         ph::count_down_timers::count_down_timers();
         ph::wheel_surfaces::wheel_surfaces()?;
-        ph::surface_noise::surface_noise();
+        ph::surface_noise::surface_noise()?;
         ph::save_car_state::save_car_state()?;
         ph::clear_forces::clear_forces()?;
         ph::set_wheel_weights::set_wheel_weights();

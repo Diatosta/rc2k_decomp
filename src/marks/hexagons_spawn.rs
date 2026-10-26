@@ -11,6 +11,7 @@
 //! Caller: `sub_4BC0B1` (0x4BC225). The x87 run is plain Rust on the x87 model (`math::x87_float`), in the original's order, over the
 //! game's variables; the picks their Rust versions (under the same rounding).
 
+use crate::errors::Refused;
 use crate::marks::hexagon_state::HEXAGON_STATE;
 use crate::marks::hexagon_vars::HEX;
 use crate::marks::pick_hexagon::pick_hexagon;
@@ -21,19 +22,17 @@ use crate::math::x87;
 const MOST: i32 = 0x80;
 
 /// The original's 0x4BC60E .. 0x4BC66B: the rate, compared (`fstsw` into `g_fpuStatus`).
-unsafe fn rate() {
-    unsafe {
-        rate_x87(
-            crate::race::store::asm_base() as usize,
-            crate::marks::hexagon_vars::HexagonVars::base(),
-            &KEPT,
-        )
-    }
+fn rate() {
+    rate_x87(
+        crate::race::store::asm_base() as usize,
+        crate::marks::hexagon_vars::HexagonVars::base(),
+        &KEPT,
+    )
 }
 
 /// The Rust version (see the header).
-pub unsafe fn hexagons_spawn() {
-    unsafe {
+pub fn hexagons_spawn() -> Result<(), Refused> {
+    {
         HEXAGON_STATE
             .frames
             .set(HEXAGON_STATE.frames.get().wrapping_add(1));
@@ -45,17 +44,18 @@ pub unsafe fn hexagons_spawn() {
             let v: u32 = HEXAGON_STATE.spawn_rate.bits();
             let n = x87::to_int(v).min(MOST);
             for _ in 0..n.max(0) {
-                pick_hexagon();
+                pick_hexagon()?;
             }
             let share = x87::fraction_times_to_int(v, HEX.share_k.bits());
             let s = MARKS_WORK.seed.get().wrapping_mul(0x9D).wrapping_add(0x47);
             MARKS_WORK.seed.set(s);
             if ((s >> 8) & 0xFFFF) as i32 <= share {
-                pick_hexagon();
+                pick_hexagon()?;
             }
         }
         x87::set_control(old);
     }
+    Ok(())
 }
 
 use crate::marks::plain::{ld, st16};
@@ -63,33 +63,31 @@ use crate::marks::view_vectors::{KEPT, KeptView};
 use crate::math::x87_float as bh;
 
 /// `rate`'s x87 block as plain Rust on the x87 model (18 instructions), same order and memory places.
-unsafe fn rate_x87(rc: usize, hx: usize, kv: &KeptView) {
-    unsafe {
-        let t0 = bh::ld(kv.first_angle.bits());
-        let t1 = t0 + bh::ld(SHAPE_TILT.tilt.bits());
-        let t2 = t1.sin();
-        let t3 = t2 * bh::ld(HEXAGON_STATE.rate.bits());
-        HEXAGON_STATE.spawn_rate.set_bits(bh::st(t3));
-        let t4 = bh::ld(HEXAGON_STATE.rate.bits());
-        let t5 = t4 * bh::ld(SHAPE_TILT.point[2].bits());
-        let t6 = -t5;
-        let t7 = bh::ld(kv.first_angle.bits());
-        let t8 = t7 + bh::ld(SHAPE_TILT.tilt.bits());
-        let t9 = t8.cos();
-        let t10 = t6 * t9;
-        let t11 = t10 * ld(hx, 0xC936A);
-        let t12 = t11 + bh::ld(HEXAGON_STATE.spawn_rate.bits());
-        HEXAGON_STATE.spawn_rate.set_bits(bh::st(t12));
-        let t13 = bh::ld(HEXAGON_STATE.spawn_rate.bits());
-        st16(rc, 0x31C814, bh::compare(t13, ld(hx, 0xC936E)));
-    }
+fn rate_x87(rc: usize, hx: usize, kv: &KeptView) {
+    let t0 = bh::ld(kv.first_angle.bits());
+    let t1 = t0 + bh::ld(SHAPE_TILT.tilt.bits());
+    let t2 = t1.sin();
+    let t3 = t2 * bh::ld(HEXAGON_STATE.rate.bits());
+    HEXAGON_STATE.spawn_rate.set_bits(bh::st(t3));
+    let t4 = bh::ld(HEXAGON_STATE.rate.bits());
+    let t5 = t4 * bh::ld(SHAPE_TILT.point[2].bits());
+    let t6 = -t5;
+    let t7 = bh::ld(kv.first_angle.bits());
+    let t8 = t7 + bh::ld(SHAPE_TILT.tilt.bits());
+    let t9 = t8.cos();
+    let t10 = t6 * t9;
+    let t11 = t10 * ld(hx, 0xC936A);
+    let t12 = t11 + bh::ld(HEXAGON_STATE.spawn_rate.bits());
+    HEXAGON_STATE.spawn_rate.set_bits(bh::st(t12));
+    let t13 = bh::ld(HEXAGON_STATE.spawn_rate.bits());
+    st16(rc, 0x31C814, bh::compare(t13, ld(hx, 0xC936E)));
 }
 
 #[cfg(test)]
 mod asm_reference {
     //! The original assembly blocks, kept verbatim as the reference the plain versions are tested against.
 
-    pub(super) unsafe fn rate_x87(rc: usize, mk: usize) {
+    pub(super) fn rate_x87(rc: usize, mk: usize) {
         unsafe {
             core::arch::asm!(
                     "fld dword ptr [{mk} + 0x42FE]",
@@ -160,7 +158,7 @@ mod asm_differential {
         };
         differential(
             &SPEC,
-            |b| unsafe { reference::rate_x87(b[0], b[1]) },
+            |b| reference::rate_x87(b[0], b[1]),
             |b| {
                 with_copy(b[1], KeptView::START, |kv| {
                     with_overlays(
@@ -169,7 +167,7 @@ mod asm_differential {
                             overlay(&SHAPE_TILT, ShapeTilt::START),
                             overlay(&HEXAGON_STATE, HexagonState::START),
                         ],
-                        || unsafe { super::rate_x87(b[0], b[1], kv) },
+                        || super::rate_x87(b[0], b[1], kv),
                     )
                 })
             },

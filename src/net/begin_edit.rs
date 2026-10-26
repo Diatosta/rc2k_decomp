@@ -12,10 +12,15 @@ use crate::net::lobby::movsb;
 use crate::net::store::NET;
 
 /// The Rust version.
-pub fn begin_edit(item: u32, text: u32, width: u32, font: u32) {
+pub fn begin_edit(
+    item: u32,
+    text: u32,
+    width: u32,
+    font: u32,
+) -> Result<(), crate::errors::Refused> {
     NET.edited.set(item);
     NET.edit_text.set(text);
     NET.edit_width.set(width);
     NET.edit_font.set(font);
-    movsb(INSTALLER_PATHS.script_path.addr() as u32, text, 0x40);
+    movsb(INSTALLER_PATHS.script_path.addr() as u32, text, 0x40)
 }

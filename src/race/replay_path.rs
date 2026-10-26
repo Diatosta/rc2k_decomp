@@ -101,9 +101,7 @@ pub fn replay_path(slot: u32) -> Result<ReplayPath, Refused> {
             TEMPLATES.own.addr()
         }
     };
-    let path = unsafe {
-        crate::files::numbered_path::numbered_path_in_game(template as *const u8, number)
-    }?;
+    let path = crate::files::numbered_path::numbered_path_in_game(template as *const u8, number)?;
     Ok(ReplayPath {
         path: path as u32,
         number,

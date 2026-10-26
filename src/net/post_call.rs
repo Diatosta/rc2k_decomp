@@ -16,16 +16,14 @@
 
 use crate::net::store::NET;
 use crate::session::FLAGS;
-use std::sync::atomic::{AtomicU32, Ordering};
+use std::sync::atomic::Ordering;
 
 /// The Rust version.
 pub fn post_call(code: u32) -> u32 {
     if NET.posting.get() == 1 {
-        unsafe { ((NET.posted_call.addr() as u32) as *mut u32).write_volatile(code) };
+        NET.posted_call.set(code);
         loop {
-            let answered =
-                unsafe { AtomicU32::from_ptr((NET.posted_answered.addr() as u32) as *mut u32) }
-                    .swap(0, Ordering::SeqCst);
+            let answered = NET.posted_answered.atomic().swap(0, Ordering::SeqCst);
             if answered != 0 {
                 break;
             }
@@ -36,5 +34,5 @@ pub fn post_call(code: u32) -> u32 {
             }
         }
     }
-    unsafe { ((NET.posted_result.addr() as u32) as *const u32).read_volatile() }
+    NET.posted_result.get()
 }

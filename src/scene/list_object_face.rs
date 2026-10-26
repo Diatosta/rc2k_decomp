@@ -36,6 +36,7 @@
 use crate::errors::{BadInput, Refused};
 use crate::physics::car_store::CAR;
 use crate::physics::ground_store::GROUND_WORK;
+use crate::pointers::GamePtr;
 use crate::race::course_store::COURSE;
 use crate::race::kind_store::KIND_TABLES;
 use crate::race::light_records_store::LIGHT_RECORDS;
@@ -51,7 +52,6 @@ use crate::scene::face_faces_away::face_faces_away;
 use crate::scene::face_sort_key::face_sort_key;
 use crate::scene::light_work_store::LIGHT_WORK;
 use crate::scene::object_tables_store::OBJECT_TABLES;
-use crate::scene::polygon::dword;
 use rc2k_core::scene::face_tests::{Face, FaceWorld, dropped, listed_key};
 
 // ---- game data ----
@@ -61,12 +61,8 @@ const LIST_ROOM: u32 = 0x1000;
 
 // ---- Rust version ----
 
-unsafe fn byte(at: usize) -> u32 {
-    unsafe { (at as *const u8).read() as u32 }
-}
-
 /// The game's variables the tests read and write.
-struct GameFace;
+struct GameFace(crate::scene::reading::Reading);
 
 impl FaceWorld for GameFace {
     fn in_race(&self) -> bool {
@@ -83,10 +79,10 @@ impl FaceWorld for GameFace {
     }
     fn kind_groups(&self, place: usize) -> [u32; 2] {
         // `dword_5C90DC`, `dword_5C90E0`: groups [6] and [7] of the place's record.
-        unsafe {
-            ((LIGHT_RECORDS.record_addr(place as u32) as usize + 0x70) as *const [u32; 2])
-                .read_unaligned()
-        }
+        self.0.read(
+            LIGHT_RECORDS.record_addr(place as u32).wrapping_add(0x70),
+            "a kind's record",
+        )
     }
     fn hidden_groups(&self) -> [u32; 2] {
         crate::session::read_first(&COURSE.group_masks[13..15])
@@ -105,9 +101,10 @@ impl FaceWorld for GameFace {
     }
     fn group_table(&self, group: u32) -> u32 {
         // The table is typed by its first dword only.
-        unsafe {
-            ((DRAW_SWITCHES.group_table.addr() + group as usize * 4) as *const u32).read_unaligned()
-        }
+        self.0.read(
+            (DRAW_SWITCHES.group_table.addr() as u32).wrapping_add(group.wrapping_mul(4)),
+            "the groups' table",
+        )
     }
     fn no_second_mask(&self) -> u32 {
         CAR.camera_switch_active.bits()
@@ -134,7 +131,7 @@ impl FaceWorld for GameFace {
         GROUND_WORK.object_see_through.set_bits(value)
     }
     fn line_value(&self, extra: u32) -> Result<u32, rc2k_core::Invalid> {
-        unsafe {
+        {
             let which: u32 = VIEW_VARS.drawn_car.bits();
             let block: u32 = if which < BLOCKS {
                 RACE_WORK.car_block(which as usize)
@@ -144,27 +141,31 @@ impl FaceWorld for GameFace {
             if block == 0 {
                 return Err(rc2k_core::Invalid("no block for a face of kind 0x1C"));
             }
-            Ok(dword(block as usize + extra as usize * 4 + 0x6FC))
+            Ok(self.0.read(
+                block
+                    .wrapping_add(extra.wrapping_mul(4))
+                    .wrapping_add(0x6FC),
+                "a car's block",
+            ))
         }
     }
     fn kind_byte(&self, kind: u32) -> u32 {
         let at = OBJECT_TABLES.car_mark_textures[0]
             .addr()
             .wrapping_add((kind as usize).wrapping_mul(4));
-        unsafe { (at as *const u32).read_unaligned() }
+        self.0.read(at as u32, "the car marks' textures")
     }
 }
 
 /// The face's bytes the tests read.
-unsafe fn face_bytes(face: usize) -> Face {
-    unsafe {
-        Face {
-            kind: byte(face + 6) as u8,
-            group: byte(face + 7) as u8,
-            flags: byte(face + 8) as u8,
-            extra: byte(face + 0xB) as u8,
-        }
-    }
+fn face_bytes(face: usize) -> Result<Face, BadInput> {
+    let b = GamePtr::new(face as u32).read_bytes(0xC, "an object's face")?;
+    Ok(Face {
+        kind: b[6],
+        group: b[7],
+        flags: b[8],
+        extra: b[0xB],
+    })
 }
 
 // Converted: `rc2k_core::scene::face_tests::{dropped, listed_key}`
@@ -178,8 +179,11 @@ pub unsafe fn list_object_face(face: usize) -> Result<(), Refused> {
             return Err(BadInput("no room in the list of faces").into());
         }
         GROUND_WORK.object_see_through.set_bits(0x100u32);
-        let bytes = face_bytes(face);
-        match dropped(&mut GameFace, bytes) {
+        let bytes = face_bytes(face)?;
+        let mut world = GameFace(crate::scene::reading::Reading::new());
+        let answer = dropped(&mut world, bytes);
+        world.0.finish()?;
+        match answer {
             Ok(true) => return Ok(()),
             Ok(false) => {}
             Err(why) => return Err(why.into()),
@@ -187,7 +191,7 @@ pub unsafe fn list_object_face(face: usize) -> Result<(), Refused> {
         if face_faces_away(face)? {
             return Ok(());
         }
-        let count = dword(face);
+        let count: u32 = GamePtr::new(face as u32).read("an object's face")?;
         if count as i32 <= 0 {
             return Ok(());
         }
@@ -198,12 +202,15 @@ pub unsafe fn list_object_face(face: usize) -> Result<(), Refused> {
         let entry = crate::scene::object_slots_store::OBJECT_SLOTS.listed_faces[0].addr()
             + listed as usize * 0x10;
         let key = listed_key(bytes, DRAW.face_sort_key.bits());
-        (entry as *mut [u32; 4]).write_unaligned([
-            RACE_VARS.face_number.bits(),
-            key,
-            DRAW.entry_third.bits(),
-            GROUND_WORK.object_see_through.bits(),
-        ]);
+        GamePtr::new(entry as u32).write(
+            [
+                RACE_VARS.face_number.bits(),
+                key,
+                DRAW.entry_third.bits(),
+                GROUND_WORK.object_see_through.bits(),
+            ],
+            "the list of faces",
+        )?;
         LIGHT_WORK.listed_face_count.set_bits(listed + 1);
         Ok(())
     }

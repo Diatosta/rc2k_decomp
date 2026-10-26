@@ -28,14 +28,15 @@ use crate::physics::contact_force::contact_force;
 use crate::physics::contact_store::CONTACT_WORK;
 use crate::physics::flow::{a, copy_cells};
 use crate::physics::tables_store::PHYSICS;
+use crate::pointers::GamePtr;
 use crate::race::course_store::COURSE;
 use crate::race::numbers_store::NUMBERS;
 use crate::scene::draw_store::DRAW;
 use crate::scene::x87_mem::{fild, fistp, fld};
 use rc2k_core::physics::walls;
 
-fn rd(x: u32) -> u32 {
-    unsafe { (x as *const u32).read_unaligned() }
+fn rd(x: u32) -> Result<u32, Refused> {
+    Ok(GamePtr::new(x).read::<u32>("a face's or scene point's dword")?)
 }
 
 /// The normal across the edge from scene point `first` to `second` (0x45DAAA ..
@@ -44,12 +45,12 @@ fn rd(x: u32) -> u32 {
 /// `flt_5C5DD4` x `flt_5C5D98`, & 0xFFFF, through `dword_62400C`) << 16 + 0x40000000
 /// into `dword_6141C8`; (0, 0, 1) turned by it (`math::turn_float_point_xz`) into
 /// `qword_6D3078` ... Returns what that leaves in eax, ebx, ecx, edx.
-pub fn edge_normal(first: u32, second: u32) -> [u32; 4] {
+pub fn edge_normal(first: u32, second: u32) -> Result<[u32; 4], Refused> {
     let point = |k: u32| k.wrapping_mul(12).wrapping_add(COURSE.scene_points.get());
-    PHYSICS.edge_points[0].set(rd(point(first)));
-    PHYSICS.edge_points[1].set(rd(point(first) + 8));
-    PHYSICS.edge_points[2].set(rd(point(second)));
-    PHYSICS.edge_points[3].set(rd(point(second) + 8));
+    PHYSICS.edge_points[0].set(rd(point(first))?);
+    PHYSICS.edge_points[1].set(rd(point(first) + 8)?);
+    PHYSICS.edge_points[2].set(rd(point(second))?);
+    PHYSICS.edge_points[3].set(rd(point(second) + 8)?);
     let dx = PHYSICS.edge_points[2]
         .get()
         .wrapping_sub(PHYSICS.edge_points[0].get());
@@ -72,7 +73,7 @@ pub fn edge_normal(first: u32, second: u32) -> [u32; 4] {
     CONTACT_WORK.contact_normal[0].set_bits(out[0]);
     CONTACT_WORK.contact_normal[1].set_bits(out[1]);
     CONTACT_WORK.contact_normal[2].set_bits(out[2]);
-    out
+    Ok(out)
 }
 
 /// The steps, not guarded. The registers the original leaves are read by none of its
@@ -81,8 +82,19 @@ pub fn edge_normal(first: u32, second: u32) -> [u32; 4] {
 pub fn steps() -> Result<(), Refused> {
     let wall = (CONTACT_WORK.wall_face_before.get() << 6).wrapping_add(COURSE.course_faces.get());
     let face = (CONTACT_WORK.wall_face_now.get() << 6).wrapping_add(COURSE.course_faces.get());
-    let corners = [rd(face + 4), rd(face + 8), rd(face + 0xC), rd(face + 0x10)];
-    let (shared, to, from) = walls::shared_edge(|j| rd(wall + 4 + 4 * j as u32), corners);
+    let corners = [
+        rd(face + 4)?,
+        rd(face + 8)?,
+        rd(face + 0xC)?,
+        rd(face + 0x10)?,
+    ];
+    let wall_corners = [
+        rd(wall + 4)?,
+        rd(wall + 8)?,
+        rd(wall + 0xC)?,
+        rd(wall + 0x10)?,
+    ];
+    let (shared, to, from) = walls::shared_edge(|j| wall_corners[j], corners);
     if !shared {
         return crate::physics::wall_push_back::steps();
     }
@@ -91,7 +103,7 @@ pub fn steps() -> Result<(), Refused> {
     walls::check_probe(n)?;
     CONTACT_WORK.wall_edge_from.set(from);
     CONTACT_WORK.wall_edge_to.set(to);
-    edge_normal(to, from);
+    edge_normal(to, from)?;
     copy_cells(&CONTACT_WORK.contact_car_speed, &CAR.velocity);
     copy_cells(&CONTACT_WORK.contact_turn_speed, &CAR.spin);
     let n = n as usize;

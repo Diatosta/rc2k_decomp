@@ -65,18 +65,15 @@ fn held(value: i32, low: i32, high: i32) -> i32 {
 }
 
 /// The normal's place in the view to the light's work variables, the colour set to 0.
-unsafe fn set_normal(number: u32) -> Result<(), BadInput> {
-    unsafe {
-        let records: u32 = COURSE_LISTS.point_records.bits();
-        if records == 0 {
-            return Err(BadInput("no records for the points"));
-        }
-        let record = records.wrapping_add(((number & 0xFFF) + 0x1000) << 5) as usize;
-        LIGHT_WORK.light_colour.set_bits(0u32);
-        let place: [u32; 3] = ((record + 0x10) as *const [u32; 3]).read_unaligned();
-        crate::session::write_bits(&LIGHT_WORK.light_dot_point, place);
-        Ok(())
+fn set_normal(number: u32) -> Result<(), BadInput> {
+    let records: u32 = COURSE_LISTS.point_records.bits();
+    if records == 0 {
+        return Err(BadInput("no records for the points"));
     }
+    let place = crate::scene::reading::PointRecords::new(records)?.place(number)?;
+    LIGHT_WORK.light_colour.set_bits(0u32);
+    crate::session::write_bits(&LIGHT_WORK.light_dot_point, place);
+    Ok(())
 }
 
 /// The start of `sub_4511F1` and of `sub_451296`: the light on the normal as a number.

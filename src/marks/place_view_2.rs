@@ -19,20 +19,20 @@ use crate::math::x87;
 fn second() -> ViewPlace {
     let (s, l) = (&SNOW, &SNOW_LIGHT);
     ViewPlace {
-        point: s.point[0].addr(),
+        point: &s.point,
         start_z: 0x8_0000,
-        place: s.view_place[0].addr(),
-        matrix: s.view_matrix[0].addr(),
-        out: s.view[0].addr(),
-        height: l.height.addr(),
-        matrix_copy: s.matrix_copy[0].addr(),
+        place: &s.view_place,
+        matrix: &s.view_matrix,
+        out: &s.view,
+        height: &l.height,
+        matrix_copy: &s.matrix_copy,
     }
 }
 
 /// The Rust version (see the header).
-pub unsafe fn place_view_2() -> Result<(), Refused> {
+pub fn place_view_2() -> Result<(), Refused> {
     let second = second();
-    unsafe { place_view_with(&second)? };
+    place_view_with(&second)?;
     for cell in &SNOW.cleared {
         cell.set(0);
     }

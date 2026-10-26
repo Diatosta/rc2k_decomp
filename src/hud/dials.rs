@@ -4,7 +4,9 @@
 //! the copies by `push` / `pop`, so no register changes before the call. The layouts are
 //! the HUD's three (the record's +0xF4, `sub_4B1CD0`).
 
+use crate::errors::Refused;
 use crate::hud::store::{HUD, Hud};
+use crate::pointers::GamePtr;
 use crate::race::panel_store::PANEL;
 use crate::session::Cell32;
 
@@ -27,34 +29,31 @@ pub struct Setup {
 
 /// The Rust version of a set-up's copies (see the header); its caller then draws the
 /// shape (`hud::draw_disc` or `hud::draw_needle`).
-pub unsafe fn set_up(record: u32, s: &Setup) {
-    unsafe {
+pub fn set_up(record: u32, s: &Setup) -> Result<(), Refused> {
+    {
         let flat = PANEL.flat.get() == 0;
         for &(from, to, only_flat) in s.copies {
             if only_flat && !flat {
                 continue;
             }
             let v = match from {
-                From::Field(o) => ((record + o) as *const u32).read_unaligned(),
+                From::Field(o) => GamePtr::new(record + o).read::<u32>("a hud record's field")?,
                 From::Var(c) => c(&HUD).bits(),
             };
             to(&HUD).set_bits(v);
         }
     }
+    Ok(())
 }
 
 /// A disc's set-up and the disc.
-pub unsafe fn disc(record: u32, s: &Setup) -> Result<(), crate::errors::Refused> {
-    unsafe {
-        set_up(record, s);
-        crate::hud::draw_disc::draw_disc()
-    }
+pub fn disc(record: u32, s: &Setup) -> Result<(), crate::errors::Refused> {
+    set_up(record, s)?;
+    crate::hud::draw_disc::draw_disc()
 }
 
 /// A needle's set-up and the needle.
-pub unsafe fn needle(record: u32, s: &Setup) -> Result<(), crate::errors::Refused> {
-    unsafe {
-        set_up(record, s);
-        crate::hud::draw_needle::draw_needle()
-    }
+pub fn needle(record: u32, s: &Setup) -> Result<(), crate::errors::Refused> {
+    set_up(record, s)?;
+    crate::hud::draw_needle::draw_needle()
 }

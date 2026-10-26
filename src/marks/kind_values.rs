@@ -73,7 +73,7 @@ pub static SECOND: KindSet = KindSet {
 };
 
 /// The kind's values of one set. Refuses a kind past the tables (0x22).
-pub unsafe fn set_kind_values(k: &KindSet) -> Result<(), Refused> {
+pub fn set_kind_values(k: &KindSet) -> Result<(), Refused> {
     let kind: u32 = MARKS_KIND.kind.bits();
     if kind >= KINDS {
         return Err(BadInput("the marks' kind is past the tables (0x22)").into());

@@ -10,17 +10,21 @@
 //!
 //! the x87 version stays for the Rust callers in unconverted code).
 
+use crate::errors::Refused;
 use crate::marks::splines::SPLINE_HEAD;
 use crate::math::x87;
+use crate::pointers::GamePtr;
 
 /// The Rust version (see the header): the three values (x, y, z).
-pub unsafe fn blend_points(a: u32, b: u32, c: u32, entry: u8) -> [[u8; 10]; 3] {
-    let at = 12 * entry as usize;
-    let file = &SPLINE_HEAD.file;
-    let k: [u32; 3] = [file.get_u32(at + 8), file.get_u32(at + 4), file.get_u32(at)];
-    let p = |r: u32, c: u32| unsafe { ((r + 4 * c) as *const i32).read_unaligned() };
-    std::array::from_fn(|n| {
-        let n = n as u32;
-        x87::blend3_80(p(a, n), p(b, n), p(c, n), k)
+pub fn blend_points(a: u32, b: u32, c: u32, entry: u8) -> Result<[[u8; 10]; 3], Refused> {
+    Ok({
+        let at = 12 * entry as usize;
+        let file = &SPLINE_HEAD.file;
+        let k: [u32; 3] = [file.get_u32(at + 8), file.get_u32(at + 4), file.get_u32(at)];
+        let p = |r: u32, c: u32| GamePtr::new(r + 4 * c).read::<i32>("a mark's field");
+        crate::marks::try_from_fn(|n| {
+            let n = n as u32;
+            Ok(x87::blend3_80(p(a, n)?, p(b, n)?, p(c, n)?, k))
+        })?
     })
 }

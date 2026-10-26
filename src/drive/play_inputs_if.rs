@@ -10,8 +10,9 @@ use crate::race::numbers_store::NUMBERS;
 
 /// The Rust version.
 // Converted: `rc2k_core::drive::replay_frames::plays_inputs`.
-pub unsafe fn play_inputs_if() {
+pub fn play_inputs_if() -> Result<(), crate::errors::BadInput> {
     if rc2k_core::drive::replay_frames::plays_inputs(NUMBERS.replay_mode.get()) {
-        unsafe { crate::drive::play_inputs::play_inputs() };
+        crate::drive::play_inputs::play_inputs()?;
     }
+    Ok(())
 }

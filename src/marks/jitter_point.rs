@@ -16,7 +16,7 @@ use crate::scene::matrix3::{extended, rounded};
 
 /// The Rust version (see the header): the four as st(0) .. st(3), the three out the same
 /// way; the last random >> 12.
-pub unsafe fn jitter_point(inputs: [[u8; 10]; 4]) -> ([[u8; 10]; 3], u32) {
+pub fn jitter_point(inputs: [[u8; 10]; 4]) -> ([[u8; 10]; 3], u32) {
     let [spread, b, c, d] = inputs.map(rounded);
     let mut moved = [d, c, b];
     let mut last = 0;

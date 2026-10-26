@@ -32,20 +32,19 @@ pub fn find_present_courses() -> Result<(), Refused> {
     // Converted: `rc2k_core::race::stage_objects::{COURSES, course_present, PROBE_BYTES}`.
     use rc2k_core::race::stage_objects::{PROBE_BYTES, course_present};
     for n in 0..COURSES {
-        unsafe {
-            set_course_number(n);
-            set_cdat_number(0);
-            FRAME_SWITCHES.course_present[n as usize].set(0); // dword_621518, 100 flags
-            let present = course_present(paths().len() as u32, |file| {
-                BYTES_READ.store(0, std::sync::atomic::Ordering::Relaxed);
-                let buffer = DRAW.work_dword.addr() as u32;
-                let path = paths()[file as usize] as *const u8;
-                read_whole_file(path, buffer as *mut u8, PROBE_BYTES)?;
-                Ok::<u32, Refused>(BYTES_READ.load(std::sync::atomic::Ordering::Relaxed))
-            })?;
-            if present {
-                FRAME_SWITCHES.course_present[n as usize].set(1);
-            }
+        set_course_number(n)?;
+        set_cdat_number(0);
+        FRAME_SWITCHES.course_present[n as usize].set(0); // dword_621518, 100 flags
+        let present = course_present(paths().len() as u32, |file| {
+            BYTES_READ.store(0, std::sync::atomic::Ordering::Relaxed);
+            let mut buffer = DRAW.work_dword.get().to_le_bytes();
+            let path = paths()[file as usize] as *const u8;
+            read_whole_file(path, buffer.as_mut_ptr(), PROBE_BYTES)?;
+            DRAW.work_dword.set(u32::from_le_bytes(buffer));
+            Ok::<u32, Refused>(BYTES_READ.load(std::sync::atomic::Ordering::Relaxed))
+        })?;
+        if present {
+            FRAME_SWITCHES.course_present[n as usize].set(1);
         }
     }
     Ok(())

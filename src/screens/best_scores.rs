@@ -10,6 +10,7 @@
 use crate::errors::{BadInput, Refused};
 use crate::menu::arcade_store::ARCADE_GAME;
 use crate::menu::champ_store::CHAMP_VIEW;
+use crate::menu::event_flow::Fault;
 use crate::menu::event_store::EVENT_STATE;
 use crate::menu::lists_store::MENU_LISTS;
 use crate::menu::pages_store::MENU_PAGES;
@@ -88,15 +89,16 @@ pub type ScoresScreen<'a> =
     GameScreen<'a, rc2k_core::screens::best_scores::Font, rc2k_core::screens::best_scores::Work>;
 
 /// The rows of a list of `size`-byte entries from `first`, as the core reads them.
-fn rows_of(
+fn rows_of<'a>(
+    fault: &'a Fault,
     first: u32,
     size: u32,
     t: (u32, u32, u32, u32, Option<u32>),
-) -> impl Fn(u32) -> Row<u32> {
+) -> impl Fn(u32) -> Row<u32> + 'a {
     let (name, figure, nation, car, highlight) = t;
     move |n| {
         let entry = first.wrapping_add(n.wrapping_mul(size));
-        let f = |o: u32| unsafe { ((entry + o) as *const u32).read_unaligned() };
+        let f = |o: u32| fault.get(entry + o);
         Row {
             name: entry + name,
             figure: f(figure),
@@ -108,10 +110,8 @@ fn rows_of(
 }
 
 /// Whether the list from `first` ends at entry `n` (its first dword -1).
-fn ends_of(first: u32, size: u32) -> impl Fn(u32) -> bool {
-    move |n| unsafe {
-        (first.wrapping_add(n.wrapping_mul(size)) as *const u32).read_unaligned() == u32::MAX
-    }
+fn ends_of(fault: &Fault, first: u32, size: u32) -> impl Fn(u32) -> bool + '_ {
+    move |n| fault.get(first.wrapping_add(n.wrapping_mul(size))) == u32::MAX
 }
 
 /// `screens::draw_best_scores` (0x4A9300) / `screens::draw_class_times` (0x46D162): the
@@ -121,9 +121,9 @@ fn ends_of(first: u32, size: u32) -> impl Fn(u32) -> bool {
 /// the last one's y (`draw_text` leaves it), the next row 0x19 below; the sprites' palette
 /// the line buffer past its NUL (ebx after the rank's `draw_text`). Every register kept.
 /// Refuses (before anything) no table.
-pub unsafe fn draw_scores(t: &Table, canvas: &mut dyn Canvas) -> Result<(), Refused> {
+pub fn draw_scores(t: &Table, canvas: &mut dyn Canvas) -> Result<(), Refused> {
     // Converted: `rc2k_core::screens::best_scores::scores`.
-    unsafe {
+    {
         let base = t.at.get();
         if base == 0 {
             return Err(BadInput("no best scores table").into());
@@ -131,31 +131,39 @@ pub unsafe fn draw_scores(t: &Table, canvas: &mut dyn Canvas) -> Result<(), Refu
         let group = match (t.group_fixed, t.group_at) {
             (Some(g), _) => g,
             (None, Some(a)) => a.get(),
-            (None, None) => ((MENU_LISTS.page_titles_b[0].addr() as u32 + 4 * PAGE.get())
-                as *const u32)
-                .read_unaligned(),
+            (None, None) => crate::pointers::GamePtr::new(
+                MENU_LISTS.page_titles_b[0].addr() as u32 + 4 * PAGE.get(),
+            )
+            .read::<u32>("best scores: a game value")?,
         };
         let first = base.wrapping_add(group.wrapping_mul(t.group));
-        let row = rows_of(first, t.entry, (t.name, t.value, 8, t.car, t.highlight));
-        let ends = ends_of(first, t.entry);
+        let fault = Fault::default();
+        let row = rows_of(
+            &fault,
+            first,
+            t.entry,
+            (t.name, t.value, 8, t.car, t.highlight),
+        );
+        let ends = ends_of(&fault, first, t.entry);
         let rows = Rows {
             row: &row,
             ends_at: &ends,
         };
         let mut screen = ScoresScreen::new(canvas);
-        rc2k_core::screens::best_scores::scores(&mut screen, &rows, t.keeps_y, t.sprite_dy)
+        let drawn =
+            rc2k_core::screens::best_scores::scores(&mut screen, &rows, t.keeps_y, t.sprite_dy);
+        fault.check()?;
+        drawn
     }
 }
 
 /// `screens::draw_best_scores_page` (0x46D149): the best scores for pages up to 4, else
 /// the class times.
-pub unsafe fn draw_best_scores_page(canvas: &mut dyn Canvas) -> Result<(), Refused> {
-    unsafe {
-        if (PAGE.get() as i32) <= 4 {
-            draw_scores(&BEST_SCORES, canvas)
-        } else {
-            draw_scores(&CLASS_TIMES, canvas)
-        }
+pub fn draw_best_scores_page(canvas: &mut dyn Canvas) -> Result<(), Refused> {
+    if (PAGE.get() as i32) <= 4 {
+        draw_scores(&BEST_SCORES, canvas)
+    } else {
+        draw_scores(&CLASS_TIMES, canvas)
     }
 }
 
@@ -165,8 +173,10 @@ pub unsafe fn best_scores_caption() -> Result<(), Refused> {
     // Converted: `rc2k_core::screens::captions::fit` (through `car_caption::put_string`); refused
     // where the original writes past the caption's 0x100 bytes.
     unsafe {
-        let id = ((MENU_LISTS.page_titles_a[0].addr() as u32 + 4 * PAGE.get()) as *const u32)
-            .read_unaligned();
+        let id = crate::pointers::GamePtr::new(
+            MENU_LISTS.page_titles_a[0].addr() as u32 + 4 * PAGE.get(),
+        )
+        .read::<u32>("best scores: a game value")?;
         crate::screens::car_caption::put_string(
             id,
             crate::screens::text_buffers_store::TEXT_BUFFERS
@@ -179,26 +189,23 @@ pub unsafe fn best_scores_caption() -> Result<(), Refused> {
 
 /// `screens::replay_range_caption` (0x470501): the caption "n-m", n = `dword_755248` x 20,
 /// m = n + 19 (`strings::append_u32`, `append_minus`). Every register kept.
-pub unsafe fn replay_range_caption() {
+pub fn replay_range_caption() -> Result<(), BadInput> {
     // Converted: `rc2k_core::screens::best_scores::range_caption`.
     let mut bytes = rc2k_core::screens::best_scores::range_caption(MENU_PAGES.replay_page.get());
     bytes.push(0);
-    unsafe {
-        std::ptr::copy_nonoverlapping(
-            bytes.as_ptr(),
-            crate::screens::text_buffers_store::TEXT_BUFFERS
-                .caption
-                .addr() as *mut u8,
-            bytes.len(),
-        )
-    };
+    crate::pointers::GamePtr::new(
+        crate::screens::text_buffers_store::TEXT_BUFFERS
+            .caption
+            .addr() as u32,
+    )
+    .write_bytes(&bytes, "the caption")
 }
 
 /// A stage times page: where its stage record is and which table holds its times.
 pub struct StageTimes {
     /// The stage record's table (the records 0xA4 bytes; +0x38 the stage's name string, +0x3C
     /// its times' number) and the record's number.
-    pub records: fn() -> u32,
+    pub records: fn() -> Result<u32, BadInput>,
     pub record: &'static Dword,
     /// The times' table (groups of 0x618 bytes; entries 0x9C bytes: +8 the nationality, +0x10
     /// the car, +0x14 the time, +0x20 the name, +0x40 the player's own).
@@ -208,15 +215,14 @@ pub struct StageTimes {
     pub rally: bool,
 }
 
-fn champ_records() -> u32 {
-    unsafe {
-        let table =
-            crate::records::stages_store::STAGE_TABLES.group_list(EVENT_STATE.stage_group.get());
-        if table == 0 {
-            return 0;
-        }
-        ((table + 4 * EVENT_STATE.stage_sub.get()) as *const u32).read_unaligned()
+fn champ_records() -> Result<u32, BadInput> {
+    let table =
+        crate::records::stages_store::STAGE_TABLES.group_list(EVENT_STATE.stage_group.get());
+    if table == 0 {
+        return Ok(0);
     }
+    crate::pointers::GamePtr::new(table + 4 * EVENT_STATE.stage_sub.get())
+        .read::<u32>("a group\'s stage records")
 }
 
 fn champ_table() -> u32 {
@@ -227,8 +233,8 @@ fn champ_table() -> u32 {
     }
 }
 
-fn rally_records() -> u32 {
-    crate::records::stages_store::STAGE_TABLES.level_table(ARCADE_GAME.level.get())
+fn rally_records() -> Result<u32, BadInput> {
+    Ok(crate::records::stages_store::STAGE_TABLES.level_table(ARCADE_GAME.level.get()))
 }
 
 fn rally_table() -> u32 {
@@ -254,14 +260,15 @@ pub const RALLY_STAGE_TIMES: StageTimes = StageTimes {
 /// (0x48AAF6): the stage's name (string +0x38 of the records) at (0x2EB, 0x77) and its stage
 /// line (string 0x482 ..., built in the line buffer) at (0x2EB, 0x91), in the font at
 /// 0x51E9A4. Every register kept. Refuses (before anything) no stage records.
-pub unsafe fn draw_times_heading(p: &StageTimes, canvas: &mut dyn Canvas) -> Result<(), Refused> {
+pub fn draw_times_heading(p: &StageTimes, canvas: &mut dyn Canvas) -> Result<(), Refused> {
     // Converted: `rc2k_core::screens::best_scores::heading`.
-    unsafe {
-        let base = (p.records)();
+    {
+        let base = (p.records)()?;
         if base == 0 {
             return Err(BadInput("no stage records").into());
         }
-        let id = ((base + 0x38) as *const u32).read_unaligned();
+        let id =
+            crate::pointers::GamePtr::new(base + 0x38).read::<u32>("best scores: a game value")?;
         let record = base.wrapping_add(p.record.get().wrapping_mul(0xA4));
         let line = || -> Result<Vec<u8>, Refused> { stage_line_without_nul(0x482, record) };
         rc2k_core::screens::best_scores::heading(&mut ScoresScreen::new(canvas), id, Some(&line))
@@ -271,7 +278,7 @@ pub unsafe fn draw_times_heading(p: &StageTimes, canvas: &mut dyn Canvas) -> Res
 /// The stage line (`page_settings::stage_line_bytes`) without its NUL; refused past the
 /// line buffer, as the originals' callers check it.
 fn stage_line_without_nul(id: u32, record: u32) -> Result<Vec<u8>, Refused> {
-    let mut line = unsafe { crate::screens::page_settings::stage_line_bytes(id, record) }?;
+    let mut line = crate::screens::page_settings::stage_line_bytes(id, record)?;
     if line.len() > 0x100 {
         return Err(BadInput("a stage line past the line buffer").into());
     }
@@ -285,20 +292,19 @@ fn stage_line_without_nul(id: u32, record: u32) -> Result<Vec<u8>, Refused> {
 /// 0xC8), the car's and flag's sprites; the player's own in the highlight fonts; rows 0x19
 /// apart from the last text's y. Every register kept. Refuses (before anything) no stage
 /// records or no times table.
-pub unsafe fn draw_stage_times(p: &StageTimes, canvas: &mut dyn Canvas) -> Result<(), Refused> {
-    unsafe {
-        let base = (p.records)();
-        if base == 0 || (p.table)() == 0 {
-            return Err(BadInput("no stage records or times table").into());
-        }
-        draw_times_heading(p, canvas)?;
-        let record = base.wrapping_add(p.record.get().wrapping_mul(0xA4));
-        let group = ((record + 0x3C) as *const u32).read_unaligned();
-        let entry = (p.table)().wrapping_add(group.wrapping_mul(0x618));
-        let keep = if p.rally { Keep::Below4 } else { Keep::Nothing };
-        draw_time_rows(entry, keep, canvas)?;
-        Ok(())
+pub fn draw_stage_times(p: &StageTimes, canvas: &mut dyn Canvas) -> Result<(), Refused> {
+    let base = (p.records)()?;
+    if base == 0 || (p.table)() == 0 {
+        return Err(BadInput("no stage records or times table").into());
     }
+    draw_times_heading(p, canvas)?;
+    let record = base.wrapping_add(p.record.get().wrapping_mul(0xA4));
+    let group =
+        crate::pointers::GamePtr::new(record + 0x3C).read::<u32>("best scores: a game value")?;
+    let entry = (p.table)().wrapping_add(group.wrapping_mul(0x618));
+    let keep = if p.rally { Keep::Below4 } else { Keep::Nothing };
+    draw_time_rows(entry, keep, canvas)?;
+    Ok(())
 }
 
 pub use rc2k_core::screens::best_scores::Keep;
@@ -306,31 +312,30 @@ pub use rc2k_core::screens::best_scores::Keep;
 /// Up to ten times rows from `entry` (0x9C bytes each, see `StageTimes`). Gives whether all
 /// ten were drawn (the list did not end early). Converted:
 /// `rc2k_core::screens::best_scores::time_rows`.
-pub unsafe fn draw_time_rows(
-    entry: u32,
-    keep: Keep,
-    canvas: &mut dyn Canvas,
-) -> Result<bool, Refused> {
-    let row = rows_of(entry, 0x9C, (0x20, 0x14, 8, 0x10, Some(0x40)));
-    let ends = ends_of(entry, 0x9C);
+pub fn draw_time_rows(entry: u32, keep: Keep, canvas: &mut dyn Canvas) -> Result<bool, Refused> {
+    let fault = Fault::default();
+    let row = rows_of(&fault, entry, 0x9C, (0x20, 0x14, 8, 0x10, Some(0x40)));
+    let ends = ends_of(&fault, entry, 0x9C);
     let rows = Rows {
         row: &row,
         ends_at: &ends,
     };
     let show_hours = crate::strings::append_time::show_hours();
-    rc2k_core::screens::best_scores::time_rows(
+    let drawn = rc2k_core::screens::best_scores::time_rows(
         &mut ScoresScreen::new(canvas),
         &rows,
         keep,
         show_hours,
-    )
+    );
+    fault.check()?;
+    drawn
 }
 
 const SECTION: &Dword = &EVENT_STATE.section; // section
 const INDEX: &Dword = &EVENT_STATE.index; // index
 
 /// `records::find_record` of the record table: the section's record `index`.
-pub fn record_at(index: u32) -> u32 {
+pub fn record_at(index: u32) -> Result<u32, crate::errors::BadInput> {
     crate::records::find_record::find_record_in(
         crate::records::stages_store::STAGE_TABLES.championship(),
         index as i32,
@@ -339,7 +344,7 @@ pub fn record_at(index: u32) -> u32 {
 }
 
 /// Whether the record table has the section (the look-up has no end): for the refusals.
-pub fn section_there() -> bool {
+pub fn section_there() -> Result<bool, crate::errors::BadInput> {
     crate::records::find_record::has_section(
         crate::records::stages_store::STAGE_TABLES.championship(),
         SECTION.get(),
@@ -352,20 +357,22 @@ pub fn section_there() -> bool {
 /// record's +0x38 string), then record `index`'s stage line (string 0x481 ...) in the line
 /// buffer at (0x2EB, 0x91). Every register kept. Refuses (before anything) a section the
 /// table has not.
-pub unsafe fn draw_record_heading(canvas: &mut dyn Canvas) -> Result<(), Refused> {
+pub fn draw_record_heading(canvas: &mut dyn Canvas) -> Result<(), Refused> {
     // Converted: `rc2k_core::screens::best_scores::heading`.
-    unsafe {
-        if !section_there() {
+    {
+        if !section_there()? {
             return Err(BadInput("a section past the record table").into());
         }
-        let first = record_at(0);
+        let first = record_at(0)?;
         let id = if CHAMP_VIEW.event_mode.get() == 0x13 {
-            ((MENU_LISTS.section_titles[0].addr() as u32 + 4 * SECTION.get()) as *const u32)
-                .read_unaligned()
+            crate::pointers::GamePtr::new(
+                MENU_LISTS.section_titles[0].addr() as u32 + 4 * SECTION.get(),
+            )
+            .read::<u32>("best scores: a game value")?
         } else {
-            ((first + 0x38) as *const u32).read_unaligned()
+            crate::pointers::GamePtr::new(first + 0x38).read::<u32>("best scores: a game value")?
         };
-        let record = record_at(INDEX.get());
+        let record = record_at(INDEX.get())?;
         let line = || -> Result<Vec<u8>, Refused> { stage_line_without_nul(0x481, record) };
         rc2k_core::screens::best_scores::heading(&mut ScoresScreen::new(canvas), id, Some(&line))
     }
@@ -377,34 +384,36 @@ pub unsafe fn draw_record_heading(canvas: &mut dyn Canvas) -> Result<(), Refused
 /// name +0x54, the flag's sprite +0x78, the speed +0x30 with its unit; a list that ended early
 /// leaves it out: `notes/bugs.md`). Every register kept. Refuses (before anything) a section
 /// the table has not, no times table, and what `strings::append_speed` refuses.
-pub unsafe fn draw_record_times(canvas: &mut dyn Canvas) -> Result<(), Refused> {
-    unsafe {
-        if !section_there() || CHAMP_VIEW.stage_best_times.get() == 0 {
-            return Err(BadInput("a section past the record table, or no times table").into());
-        }
-        let record = record_at(INDEX.get());
-        let f = |o: u32| ((record + o) as *const u32).read_unaligned();
-        let speed = crate::strings::append_speed::append_speed(
-            f(0x30),
-            true,
-            crate::strings::units::units(),
-        )?;
-        draw_record_heading(canvas)?;
-        let entry = CHAMP_VIEW
-            .stage_best_times
-            .get()
-            .wrapping_add(f(0x3C).wrapping_mul(0x618));
-        if !draw_time_rows(entry, Keep::Y, canvas)? {
-            return Ok(());
-        }
-        rc2k_core::screens::best_scores::fastest(
-            &mut ScoresScreen::new(canvas),
-            f(0x74),
-            record + 0x54,
-            f(0x78),
-            &speed,
-        )
+pub fn draw_record_times(canvas: &mut dyn Canvas) -> Result<(), Refused> {
+    if !section_there()? || CHAMP_VIEW.stage_best_times.get() == 0 {
+        return Err(BadInput("a section past the record table, or no times table").into());
     }
+    let record = record_at(INDEX.get())?;
+    // The record's fields are read at once (nothing drawn in between writes them).
+    let fault = Fault::default();
+    let f = |o: u32| fault.get(record + o);
+    let (top_speed, times_at, nation, car) = (f(0x30), f(0x3C), f(0x74), f(0x78));
+    fault.check()?;
+    let speed = crate::strings::append_speed::append_speed(
+        top_speed,
+        true,
+        crate::strings::units::units(),
+    )?;
+    draw_record_heading(canvas)?;
+    let entry = CHAMP_VIEW
+        .stage_best_times
+        .get()
+        .wrapping_add(times_at.wrapping_mul(0x618));
+    if !draw_time_rows(entry, Keep::Y, canvas)? {
+        return Ok(());
+    }
+    rc2k_core::screens::best_scores::fastest(
+        &mut ScoresScreen::new(canvas),
+        nation,
+        record + 0x54,
+        car,
+        &speed,
+    )
 }
 
 /// `screens::draw_event_best_scores`' (0x4A8DBF): group `dword_7558F4`, the player's own
@@ -428,28 +437,29 @@ pub const OVERALL_BEST_SCORES: Table = Table {
 /// as `draw_scores`. (Both first look the section's first record up with
 /// `records::find_record` and do not use it: left out.) Every register kept. Refuses
 /// (before anything) no table.
-pub unsafe fn draw_scores_with_heading(
+pub fn draw_scores_with_heading(
     t: &Table,
     event: bool,
     canvas: &mut dyn Canvas,
 ) -> Result<(), Refused> {
-    unsafe {
-        if t.at.get() == 0 {
-            return Err(BadInput("no best scores table").into());
-        }
-        // Converted: `rc2k_core::screens::best_scores::scores_heading`, `heading`.
-        let section = (CHAMP_VIEW.event_mode.get() == 0x13).then(|| {
-            ((MENU_LISTS.section_titles[0].addr() as u32 + 4 * EVENT_STATE.section.get())
-                as *const u32)
-                .read_unaligned()
-        });
-        let mut screen = ScoresScreen::new(canvas);
-        let id = rc2k_core::screens::best_scores::scores_heading(
-            &mut screen,
-            section,
-            event.then(|| EVENT_STATE.class.get()),
-        );
-        rc2k_core::screens::best_scores::heading(&mut screen, id, None)?;
-        draw_scores(t, screen.canvas)
+    if t.at.get() == 0 {
+        return Err(BadInput("no best scores table").into());
     }
+    // Converted: `rc2k_core::screens::best_scores::scores_heading`, `heading`.
+    let section = (CHAMP_VIEW.event_mode.get() == 0x13)
+        .then(|| {
+            crate::pointers::GamePtr::new(
+                MENU_LISTS.section_titles[0].addr() as u32 + 4 * EVENT_STATE.section.get(),
+            )
+            .read::<u32>("a section title")
+        })
+        .transpose()?;
+    let mut screen = ScoresScreen::new(canvas);
+    let id = rc2k_core::screens::best_scores::scores_heading(
+        &mut screen,
+        section,
+        event.then(|| EVENT_STATE.class.get()),
+    );
+    rc2k_core::screens::best_scores::heading(&mut screen, id, None)?;
+    draw_scores(t, screen.canvas)
 }

@@ -7,6 +7,7 @@
 use crate::errors::Refused;
 use crate::gfx::fonts_store::FONTS;
 use crate::gfx::screen_state::DRAW_SURFACE;
+use crate::pointers::GamePtr;
 use crate::race::overlay_store::RACE_OVERLAY as OVERLAY;
 use crate::race::view_store::RACE_VIEW;
 use crate::scene::kind_texture_store::KIND_TEXTURES;
@@ -19,6 +20,7 @@ unsafe fn clear_rows(mut edi: u32, rows: u32) -> u32 {
         for _ in 0..rows {
             let n = DRAW_SURFACE.row_dwords.get();
             for d in 0..n {
+                // The locked surface is the platform's memory (left for its own change).
                 ((edi + 4 * d) as *mut u32).write_unaligned(0);
             }
             edi = edi
@@ -57,12 +59,14 @@ pub unsafe fn draw_name_plate(slot: u32, text: u32) -> Result<(), Refused> {
 /// kept.
 pub unsafe fn draw_plate_by_id(slot: u32, id: u32) -> Result<(), Refused> {
     unsafe {
-        let mut cursor = TEXT_BUFFER.text.addr() as u32 as *mut u8;
+        let mut cursor = 0usize;
         crate::strings::append_string_by_id::append_string_by_id(id, &mut |p, n| {
-            std::ptr::copy_nonoverlapping(p, cursor, n);
-            cursor = cursor.add(n);
-        });
-        cursor.write(0);
+            for k in 0..n {
+                TEXT_BUFFER.text.set(cursor + k, p.add(k).read());
+            }
+            cursor += n;
+        })?;
+        TEXT_BUFFER.text.set(cursor, 0);
         draw_name_plate(slot, TEXT_BUFFER.text.addr() as u32)
     }
 }
@@ -117,7 +121,7 @@ pub unsafe fn update_name_plates() -> Result<(), Refused> {
         }
         // Converted: `rc2k_core::race::plates::{times_changed, NameAsk}`.
         use rc2k_core::race::plates::{NameAsk, times_changed};
-        let field = |b: u32, o: u32| (b + o) as *mut u32;
+        let field = |b: u32, o: u32| GamePtr::new(b + o);
         let now = [
             OVERLAY.label_behind[0].get(),
             OVERLAY.label_behind[1].get(),
@@ -141,11 +145,11 @@ pub unsafe fn update_name_plates() -> Result<(), Refused> {
                 to.set(from.get());
             }
             for &b in &blocks {
-                field(b, 0x720).write_unaligned(1);
+                field(b, 0x720).write(1u32, "a view block's plate flag")?;
             }
         }
         for (b, slot) in blocks.into_iter().zip([196, 197]) {
-            let asked = field(b, 0x71C).read_unaligned();
+            let asked: u32 = field(b, 0x71C).read("a view block's plate ask")?;
             match NameAsk::of(asked) {
                 NameAsk::Nothing => continue,
                 NameAsk::Id(_) => {
@@ -156,10 +160,10 @@ pub unsafe fn update_name_plates() -> Result<(), Refused> {
                 }
             }
             // ebx at the store: the name asked for (every drawing keeps its registers).
-            field(b, 0x724).write_unaligned(asked);
-            field(b, 0x71C).write_unaligned(0);
-            field(b, 0x720).write_unaligned(1);
-            field(b, 0x728).write_unaligned(1);
+            field(b, 0x724).write(asked, "a view block's plate ask")?;
+            field(b, 0x71C).write(0u32, "a view block's plate ask")?;
+            field(b, 0x720).write(1u32, "a view block's plate flag")?;
+            field(b, 0x728).write(1u32, "a view block's plate flag")?;
         }
         Ok(())
     }
@@ -172,8 +176,8 @@ pub unsafe fn draw_text_in_game(font: u32, text: u32, x: u32, y: u32) -> Result<
     use crate::text::draw_text::GameCanvas;
     use crate::text::font::Font;
     unsafe {
-        let font = font as *mut Font;
-        let mut copy = font.read_unaligned();
+        let font = GamePtr::new(font);
+        let mut copy: Font = font.read("a font record")?;
         let wide = crate::text::draw_text_keep_regs::draw_text_keep_regs(
             &mut copy,
             text as *const u8,
@@ -181,8 +185,8 @@ pub unsafe fn draw_text_in_game(font: u32, text: u32, x: u32, y: u32) -> Result<
             y as i32,
             &mut GameCanvas,
         )?;
-        if copy != font.read_unaligned() {
-            font.write_unaligned(copy);
+        if copy != font.read::<Font>("a font record")? {
+            font.write(copy, "a font record")?;
         }
         Ok(wide)
     }

@@ -55,9 +55,9 @@ const CHEATS: [(&std::ffi::CStr, Option<usize>); 19] = [
 // ---- Rust version ----
 
 /// `log` gets the address of each line's text.
-pub unsafe fn apply_cheats(log: &mut dyn FnMut(*const u8)) -> Result<(), BadInput> {
+pub fn apply_cheats(log: &mut dyn FnMut(*const u8)) -> Result<(), BadInput> {
     // Converted: `rc2k_core::menu::car_lists::apply_cheats`.
-    unsafe {
+    {
         let cheats: u32 = CHEAT_VARS.cheats.get();
         let list = |l: List| -> Result<car_lists::List, BadInput> {
             Ok(car_lists::List {

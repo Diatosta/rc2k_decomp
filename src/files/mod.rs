@@ -45,10 +45,34 @@ pub fn ansi_text(bytes: &[u8]) -> String {
         .collect()
 }
 
+/// The text at `at` up to its NUL (not included), read inside one allocation: a text with
+/// no NUL before its allocation's end is refused.
+pub fn cstring(
+    at: crate::pointers::GamePtr,
+    what: &str,
+) -> Result<Vec<u8>, crate::errors::BadInput> {
+    use rc2k_core::strings::bytes::Bytes;
+    let bytes = at.bytes(what)?;
+    let mut text = Vec::new();
+    for n in 0.. {
+        match bytes.byte(n) {
+            Some(0) => return Ok(text),
+            Some(b) => text.push(b),
+            None => {
+                return Err(crate::errors::BadInput(
+                    "a text with no end in its allocation",
+                ));
+            }
+        }
+    }
+    unreachable!()
+}
+
 /// The NUL-terminated path at `at` (the game's ANSI bytes) as a `PathBuf`.
-pub unsafe fn ansi_path(at: *const u8) -> std::path::PathBuf {
-    let bytes = unsafe { std::ffi::CStr::from_ptr(at as *const std::ffi::c_char) }.to_bytes();
-    std::path::PathBuf::from(ansi_text(bytes))
+pub fn ansi_path(
+    at: crate::pointers::GamePtr,
+) -> Result<std::path::PathBuf, crate::errors::BadInput> {
+    Ok(std::path::PathBuf::from(ansi_text(&cstring(at, "a path")?)))
 }
 
 #[cfg(test)]

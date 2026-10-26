@@ -19,6 +19,7 @@
 use crate::errors::{BadInput, Refused};
 use crate::marks::clip::{CLIP, GLOW};
 use crate::math::x87;
+use crate::pointers::GamePtr;
 use crate::scene::draw_store::DRAW;
 /// Per mode 1 .. 4: the line's variable, its coordinate's offset, whether inside is at or
 /// below it.
@@ -29,59 +30,67 @@ const EDGES: [(usize, u32, bool); 4] = [
     (0, 0, false), // 4: g_marksScreenMiddleX
 ];
 
-unsafe fn get(a: u32) -> u32 {
-    unsafe { (a as *const u32).read_unaligned() }
+fn get(a: u32) -> Result<u32, BadInput> {
+    GamePtr::new(a).read("a game field")
 }
 
 /// The Rust version (see the header): whether all the quad is outside (the original's CF).
-pub unsafe fn clip_quad(q: u32) -> Result<bool, Refused> {
-    unsafe {
+pub fn clip_quad(q: u32) -> Result<bool, Refused> {
+    {
         let settings: u32 = crate::marks::setup::SETTINGS.pointer.get();
         if settings == 0 || q == 0 {
             return Err(BadInput("null marks settings or quad").into());
         }
-        let mode = get(settings + 8);
+        let mode = get(settings + 8)?;
         if !(1..=4).contains(&mode) {
             return Ok(false);
         }
         let (edge, coord, below) = EDGES[mode as usize - 1];
         let line: u32 = CLIP.edges[edge].bits();
         // The test of vertex k: inside.
-        let t = |k: u32| {
-            let v = get(q + 0x20 * k + coord) as i32;
-            if below {
-                line as i32 >= v
-            } else {
-                v >= line as i32
-            }
+        let t = |k: u32| -> Result<_, Refused> {
+            Ok({
+                let v = get(q + 0x20 * k + coord)? as i32;
+                if below {
+                    line as i32 >= v
+                } else {
+                    v >= line as i32
+                }
+            })
         };
         let (esi, edi);
-        if !t(0) {
-            let first = (1..=3).find(|&k| t(k));
+        if !t(0)? {
+            let mut first = None;
+            for k in 1..=3 {
+                if t(k)? {
+                    first = Some(k);
+                    break;
+                }
+            }
             let Some(first) = first else {
                 return Ok(true);
             };
             edi = 0x20 * first;
-            esi = if t(3) {
+            esi = if t(3)? {
                 0x60
-            } else if t(2) {
+            } else if t(2)? {
                 0x40
             } else {
                 0x20
             };
-        } else if !t(1) {
+        } else if !t(1)? {
             esi = 0;
-            edi = if t(2) {
+            edi = if t(2)? {
                 0x40
-            } else if t(3) {
+            } else if t(3)? {
                 0x60
             } else {
                 0
             };
-        } else if !t(2) {
+        } else if !t(2)? {
             esi = 0x20;
-            edi = if t(3) { 0x60 } else { 0 };
-        } else if !t(3) {
+            edi = if t(3)? { 0x60 } else { 0 };
+        } else if !t(3)? {
             esi = 0x40;
             edi = 0;
         } else {
@@ -91,7 +100,7 @@ pub unsafe fn clip_quad(q: u32) -> Result<bool, Refused> {
         let mut ebx = 0u32;
         let mut k = edi;
         loop {
-            std::ptr::copy((q + k) as *const u8, (work + ebx) as *mut u8, 0x20);
+            GamePtr::new(q + k).copy_to(GamePtr::new(work + ebx), 0x20, "a clipped vertex")?;
             ebx += 0x20;
             if k == esi {
                 break;
@@ -104,23 +113,23 @@ pub unsafe fn clip_quad(q: u32) -> Result<bool, Refused> {
         for (inside, outside) in [(esi, c), (edi, d)] {
             let (s, o) = (q + inside, q + outside);
             let pairs = [
-                [get(s + other), get(o + other)],
-                [get(s + 0x18), get(o + 0x18)],
-                [get(s + 0x1C), get(o + 0x1C)],
+                [get(s + other)?, get(o + other)?],
+                [get(s + 0x18)?, get(o + 0x18)?],
+                [get(s + 0x1C)?, get(o + 0x1C)?],
             ];
-            let v = x87::clip_lerp3(line, get(o + coord), get(s + coord), pairs);
+            let v = x87::clip_lerp3(line, get(o + coord)?, get(s + coord)?, pairs);
             let w = work + ebx;
-            let put = |off: u32, x: u32| ((w + off) as *mut u32).write_unaligned(x);
-            put(coord, line);
-            put(other, v[0]);
-            put(0x18, v[1]);
-            put(0x1C, v[2]);
+            let put = |off: u32, x: u32| GamePtr::new(w + off).write::<u32>(x, "a mark's field");
+            put(coord, line)?;
+            put(other, v[0])?;
+            put(0x18, v[1])?;
+            put(0x1C, v[2])?;
             for off in [8u32, 0xC, 0x10, 0x14] {
-                put(off, get(o + off));
+                put(off, get(o + off)?)?;
             }
             ebx += 0x20;
         }
-        std::ptr::copy(work as *const u8, q as *mut u8, ebx as usize);
+        GamePtr::new(work).copy_to(GamePtr::new(q), ebx as usize, "the clipped polygon")?;
         let count = ebx >> 5;
         DRAW.polygon_vertex_count.set_bits(count);
         GLOW.clip_count.set(count);
@@ -130,6 +139,6 @@ pub unsafe fn clip_quad(q: u32) -> Result<bool, Refused> {
 
 /// `scene::draw_fan` (0x44EB32) of `g_polygonVertices` (plain since the scene's
 /// conversion, 2026-10-23).
-pub unsafe fn draw_fan() {
+pub fn draw_fan() {
     crate::scene::draw_fan::draw_fan();
 }

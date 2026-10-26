@@ -8,6 +8,7 @@ use crate::framework::rva;
 use crate::marks::blocks::MARK_CORNERS;
 use crate::marks::frame_state::{DRAW_FRAME, DRAW_WORK};
 use crate::math::x87;
+use crate::pointers::GamePtr;
 use crate::race::course_lists_store::COURSE_LISTS;
 use crate::session::Dword;
 
@@ -26,12 +27,12 @@ fn ida_table(ida: u32) -> u32 {
     (PROFILE_TABLES.tables.as_ptr() as usize + (ida as usize - start)) as u32
 }
 
-unsafe fn get(at: u32) -> u32 {
-    unsafe { (at as *const u32).read_unaligned() }
+fn get(at: u32) -> Result<u32, BadInput> {
+    GamePtr::new(at).read("a game field")
 }
 
-unsafe fn put(at: u32, v: u32) {
-    unsafe { (at as *mut u32).write_unaligned(v) };
+fn put(at: u32, v: u32) -> Result<(), BadInput> {
+    GamePtr::new(at).write(v, "a game field")
 }
 
 /// The profiles' work, `flt_8EB871` .. `flt_8EB899`.
@@ -41,73 +42,78 @@ fn work(n: usize, v: u32) {
 
 /// A table's second half: each the next less this (whole numbers, so the last reads the
 /// second half's first, already a float), the first half made floats.
-unsafe fn differences(table: u32) {
-    unsafe {
+fn differences(table: u32) -> Result<(), Refused> {
+    {
         for n in 0..0x100 {
             let p = table + 0x400 + 4 * n;
             put(
                 p,
-                x87::int_less_int(get(p - 0x3FC) as i32, get(p - 0x400) as i32),
-            );
-            put(p - 0x400, x87::from_int(get(p - 0x400) as i32));
+                x87::int_less_int(get(p - 0x3FC)? as i32, get(p - 0x400)? as i32),
+            )?;
+            put(p - 0x400, x87::from_int(get(p - 0x400)? as i32))?;
         }
     }
+    Ok(())
 }
 
 /// The once-only tables.
-unsafe fn make_tables() {
-    unsafe {
+fn make_tables() -> Result<(), Refused> {
+    {
         for k in 0..3 {
             let t = ida_table(PROFILE_LISTS.ramps[k].get());
             let step = x87::int_less_int_over(
-                get(t + 4) as i32,
-                get(t) as i32,
+                get(t + 4)? as i32,
+                get(t)? as i32,
                 DRAW_FRAME.profile_steps[0].bits(),
             );
             work(2, step);
-            let mut v = x87::from_int(get(t) as i32);
+            let mut v = x87::from_int(get(t)? as i32);
             work(0, v);
             for n in 0..0x100 {
-                put(t + 4 * n, x87::to_int(v) as u32);
+                put(t + 4 * n, x87::to_int(v) as u32)?;
                 v = x87::add(v, step);
                 work(0, v);
             }
-            differences(t);
+            differences(t)?;
         }
         for k in 0..8 {
             let t = ida_table(PROFILE_LISTS.sines[k].get());
-            let p = [0, 1, 2, 3].map(|i| x87::loaded(get(t + 4 * i)));
+            let p: [u32; 4] = crate::marks::try_from_fn(|i__| {
+                let i = [0, 1, 2, 3][i__];
+                Ok(x87::loaded(get(t + 4 * i)?))
+            })?;
             for (i, &v) in p.iter().enumerate() {
                 work(3 + i, v);
             }
             let mut a = p[0];
             for n in 0..0x100 {
-                put(t + 4 * n, x87::sine_times_plus_to_int(a, p[2], p[1]) as u32);
+                put(t + 4 * n, x87::sine_times_plus_to_int(a, p[2], p[1]) as u32)?;
                 a = x87::add(a, p[3]);
                 work(3, a);
             }
-            differences(t);
+            differences(t)?;
         }
         for k in 0..2 {
             let t = ida_table(PROFILE_LISTS.curves[k].get());
-            let mut x = x87::loaded(get(t));
+            let mut x = x87::loaded(get(t)?);
             work(7, x);
-            let step = x87::sub_div(get(t + 4), get(t), DRAW_FRAME.profile_steps[1].bits());
+            let step = x87::sub_div(get(t + 4)?, get(t)?, DRAW_FRAME.profile_steps[1].bits());
             work(8, step);
-            let (scale, top) = (x87::loaded(get(t + 8)), x87::loaded(get(t + 12)));
+            let (scale, top) = (x87::loaded(get(t + 8)?), x87::loaded(get(t + 12)?));
             work(9, scale);
             work(10, top);
             for n in 0..0x100 {
                 put(
                     t + 4 * n,
                     x87::negated_square_times_plus_to_int(x, scale, top) as u32,
-                );
+                )?;
                 x = x87::add(x, step);
                 work(7, x);
             }
-            differences(t);
+            differences(t)?;
         }
     }
+    Ok(())
 }
 
 /// `marks::make_profiles` (0x4C3B01): `dword_8DD861` 0, the rings' before and after (of
@@ -117,8 +123,8 @@ unsafe fn make_tables() {
 /// then 0x8000 bytes of corners from `g_courseInfo` + 0x1C2000 (twice, as the original),
 /// `allocate_links` and `reset_settings_blocks`. Refuses a mark that is neither 0 nor
 /// `resume` (the original jumps to it). `resume` is `loc_4C3EA6`.
-pub unsafe fn make_profiles(resume: u32) -> Result<(), Refused> {
-    unsafe {
+pub fn make_profiles(resume: u32) -> Result<(), Refused> {
+    {
         let done: u32 = DRAW_FRAME.profiles_done.get();
         if done != 0 && done != resume {
             return Err(BadInput("the profiles' mark is neither 0 nor loc_4C3EA6").into());
@@ -129,14 +135,14 @@ pub unsafe fn make_profiles(resume: u32) -> Result<(), Refused> {
             PROFILE_RINGS.after[n as usize].set((n + 1) & 0xFF);
         }
         if done == 0 {
-            make_tables();
+            make_tables()?;
             DRAW_FRAME.profiles_done.set(resume);
         }
         let from = COURSE_LISTS.course_info.bits().wrapping_add(COURSE_CORNERS);
         let to = MARK_CORNERS.corners.as_ptr() as u32;
-        std::ptr::copy(from as *const u8, to as *mut u8, CORNERS_LEN);
+        GamePtr::new(from).copy_to(GamePtr::new(to), CORNERS_LEN, "the course corners")?;
         crate::marks::blocks::allocate_links()?;
-        crate::marks::blocks::reset_settings_blocks();
+        crate::marks::blocks::reset_settings_blocks()?;
     }
     Ok(())
 }

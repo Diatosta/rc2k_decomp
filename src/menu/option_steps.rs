@@ -147,18 +147,17 @@ const CHOICES: [(&Dword, usize); 6] = [
     (&OPTION_WORK.ds3d, 2),          // DS3D
 ];
 /// `menu::apply_audio_choices`: the registers it leaves (`popa`'s).
-pub unsafe fn apply_audio_choices() -> Result<(), Refused> {
-    {
-        for (work, n) in CHOICES {
-            let value = work.get();
-            AUDIO.audio_options.update(|o| o.choice[n] = value);
-        }
-        // `audio::choose_modes` with the game's log (the original's eax there, the last
-        // value copied, is read by none of it).
-        crate::audio::choose_modes::in_game(&mut crate::audio::choose_modes::real_log)?;
-        for (work, n) in CHOICES {
-            work.set(AUDIO.audio_options.get().applied[n]);
-        }
+pub fn apply_audio_choices() -> Result<(), Refused> {
+    for (work, n) in CHOICES {
+        let value = work.get();
+        AUDIO.audio_options.update(|o| o.choice[n] = value);
     }
+    // `audio::choose_modes` with the game's log (the original's eax there, the last
+    // value copied, is read by none of it).
+    crate::audio::choose_modes::in_game(&mut crate::audio::choose_modes::real_log)?;
+    for (work, n) in CHOICES {
+        work.set(AUDIO.audio_options.get().applied[n]);
+    }
+
     Ok(())
 }

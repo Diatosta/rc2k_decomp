@@ -27,7 +27,7 @@ pub unsafe fn gear_change_sound_at(current: u32, table: u32, word: u32) -> Resul
             if object == 0 {
                 return Err(BadInput("a null sound object").into());
             }
-            let o = crate::sound::store::SoundObject::at(object);
+            let o = crate::sound::store::SoundObject::at(object)?;
             match change {
                 GearChange::Up => o.slots[2].start.set(1),
                 GearChange::Down => o.slots[3].start.set(1),

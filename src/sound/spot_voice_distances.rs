@@ -20,28 +20,29 @@ use crate::sound::spot_voices::{VOICE_COUNT, set, voice, vw};
 
 // ---- Rust version ----
 
-pub fn spot_voice_distances() {
+pub fn spot_voice_distances() -> Result<(), crate::errors::BadInput> {
     for n in 0..VOICE_COUNT {
         let bx = voice(n);
-        if vw(bx, 4) != 1 {
+        if vw(bx, 4)? != 1 {
             continue;
         }
         x87_1(bx as usize, &crate::sound::store::RACE_CLOCK);
-        set(bx, 0x4C, 0);
-        set(bx, 0x48, 0x3F80_0000);
-        if vw(bx, 0x20) != 1 {
+        set(bx, 0x4C, 0)?;
+        set(bx, 0x48, 0x3F80_0000)?;
+        if vw(bx, 0x20)? != 1 {
             x87_2(
                 bx as usize,
                 &crate::sound::store::RACE_CLOCK,
                 &crate::sound::store::SURFACE_SOUNDS,
             );
         }
-        set(bx, 0x4C, 0x3F80_0000);
-        if vw(bx, 0x40) as i32 > 0x3F80_0000 {
+        set(bx, 0x4C, 0x3F80_0000)?;
+        if vw(bx, 0x40)? as i32 > 0x3F80_0000 {
             x87_3(bx as usize);
         }
-        set(bx, 0x20, 0);
+        set(bx, 0x20, 0)?;
     }
+    Ok(())
 }
 
 // ---- the arithmetic that was x87 assembly ----

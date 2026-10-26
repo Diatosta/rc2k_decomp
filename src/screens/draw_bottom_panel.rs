@@ -13,7 +13,7 @@ use crate::menu::state_store::MENU_STATE;
 use crate::screens::service_boxes::quad;
 
 /// The Rust version: every register kept.
-pub unsafe fn draw_bottom_panel() -> Result<(), Refused> {
+pub fn draw_bottom_panel() -> Result<(), Refused> {
     // Converted: `rc2k_core::screens::panels::bottom_panel`.
     for a in rc2k_core::screens::panels::bottom_panel(MENU_STATE.service_ui.fade_full.get()) {
         quad(a.x, a.y, a.w, a.h, a.colour, a.see)?;

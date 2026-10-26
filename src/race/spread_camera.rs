@@ -13,23 +13,29 @@
 //! is written.
 
 use crate::errors::Refused;
+use crate::pointers::GamePtr;
 use crate::race::replay_file_store::REPLAY_FILE;
+use crate::race::trap::Trap;
 use crate::race::viewer_state_store::REPLAY_VIEW;
 
 /// The Rust version: `byte` the changed camera byte's address, `old` its old value. What
 /// the original leaves (dl, eax, ecx) its callers do not read: `viewer_action` and the
 /// camera steps end with it, and `viewer_action` keeps every register.
-pub unsafe fn spread_camera(byte: u32, old: u8) -> Result<(), Refused> {
-    let at = |n: u32| (byte.wrapping_add(n.wrapping_mul(8))) as *mut u8;
-    let dl = unsafe { (byte as *const u8).read() };
+pub fn spread_camera(byte: u32, old: u8) -> Result<(), Refused> {
+    let at = |n: u32| GamePtr::new(byte.wrapping_add(n.wrapping_mul(8)));
+    let dl = GamePtr::new(byte).read::<u8>("a replay camera byte")?;
     let count = REPLAY_FILE
         .index_block_count
         .get()
         .wrapping_sub(REPLAY_VIEW.replay_block.get());
     // Converted: `rc2k_core::race::viewer::spread` (how far it goes, first).
-    let s = rc2k_core::race::viewer::spread(count, old, |n| unsafe { at(n).read() })?;
+    let trap = Trap::new();
+    let s = rc2k_core::race::viewer::spread(count, old, |n| {
+        trap.read::<u8>(byte.wrapping_add(n.wrapping_mul(8)), "a replay camera byte")
+    })?;
+    trap.finish()?;
     for n in 1..=s.taken {
-        unsafe { at(n).write(dl) };
+        at(n).write(dl, "a replay camera byte")?;
     }
     Ok(())
 }

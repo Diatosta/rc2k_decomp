@@ -16,7 +16,7 @@ pub fn close_viewed_replay() -> Result<(), Refused> {
     // Converted: `rc2k_core::race::viewer_flow::closes`.
     if rc2k_core::race::viewer_flow::closes(REPLAY_FILE.replay_open.get()) {
         crate::race::replay_patches::restore_replay_patches()?;
-        unsafe { crate::files::handle::close(REPLAY_FILE.replay_handle.get()) };
+        crate::files::handle::close(REPLAY_FILE.replay_handle.get());
         REPLAY_FILE.replay_open.set(0);
     }
     Ok(())

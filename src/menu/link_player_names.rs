@@ -9,16 +9,17 @@
 //! original's, for reference.
 
 use crate::errors::BadInput;
-use crate::menu::player_names::{CAR_NAME, CAR_NAME_POINTER, NAME_LEN, cars, name};
+use crate::menu::player_names::{CAR_NAME, CAR_NAME_POINTER, cars, name, name_bytes};
+use crate::pointers::GamePtr;
 
 // ---- Rust version ----
 
-pub unsafe fn link_player_names() -> Result<(), BadInput> {
-    unsafe {
-        for (player, car) in cars()?.into_iter().enumerate() {
-            ((car as usize + CAR_NAME_POINTER) as *mut u32).write_unaligned(name(player) as u32);
-            std::ptr::copy(name(player), (car as usize + CAR_NAME) as *mut u8, NAME_LEN);
-        }
-        Ok(())
+pub fn link_player_names() -> Result<(), BadInput> {
+    for (player, car) in cars()?.into_iter().enumerate() {
+        GamePtr::new(car + CAR_NAME_POINTER as u32)
+            .write::<u32>(name(player), "a player's name pointer")?;
+        GamePtr::new(car + CAR_NAME as u32)
+            .write_bytes(&name_bytes(player), "a player's name copy")?;
     }
+    Ok(())
 }

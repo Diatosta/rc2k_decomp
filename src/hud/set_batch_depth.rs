@@ -12,7 +12,7 @@ use crate::hud::store::HUD;
 use crate::math::x87;
 
 /// The Rust version (see the header).
-pub unsafe fn set_batch_depth() {
+pub fn set_batch_depth() {
     {
         let rhw = x87::loaded(HUD.rhw.bits());
         let depth = x87::loaded(HUD.depth.bits());

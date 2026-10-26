@@ -6,16 +6,21 @@
 //!
 //! Caller: `hud::draw_hud`.
 
+use crate::errors::Refused;
 use crate::hud::store::HUD;
+use crate::pointers::GamePtr;
 
 const FIELDS: [u32; 6] = [0x24, 0x2C, 0x20, 0x54, 0x58, 0x50];
 
 /// The Rust version (see the header): the record's six times in tenths.
-pub unsafe fn tenths(record: u32) {
+pub fn tenths(record: u32) -> Result<(), Refused> {
     // Converted: `rc2k_core::hud::tenths::tenths`.
-    let times = FIELDS.map(|f| unsafe { ((record + f) as *const i32).read_unaligned() });
+    let times: [i32; 6] = crate::marks::try_from_fn(|n| {
+        Ok(GamePtr::new(record + FIELDS[n]).read::<i32>("a hud record's field")?)
+    })?;
     let (tenths, _) = rc2k_core::hud::tenths::tenths(times);
     for (cell, v) in HUD.times.iter().zip(tenths) {
         cell.set(v as u32);
     }
+    Ok(())
 }

@@ -6,6 +6,7 @@ use crate::errors::{BadInput, Refused};
 use crate::marks::mask_constants::MASK_CONSTANTS;
 use crate::marks::mask_vars::MASKS;
 use crate::marks::spans::{span_quad, spans_fit, triangle_rows};
+use crate::pointers::GamePtr;
 
 use crate::math::x87;
 use crate::session::{read_bits, write_bits};
@@ -14,19 +15,24 @@ use crate::session::{read_bits, write_bits};
 pub const MOST_QUADS: u32 = 0x80;
 const ENTRY: u32 = 0x18;
 
-unsafe fn get(at: u32) -> u32 {
-    unsafe { (at as *const u32).read_unaligned() }
+fn get(at: u32) -> Result<u32, BadInput> {
+    GamePtr::new(at).read("a game field")
 }
 
-unsafe fn put(at: u32, v: u32) {
-    unsafe { (at as *mut u32).write_unaligned(v) }
+fn put(at: u32, v: u32) -> Result<(), BadInput> {
+    GamePtr::new(at).write(v, "a game field")
 }
 
 /// The quad of corner entries k and k + 1: k's +0, +4, k + 1's +0, +4, k + 1's +0xC, +0x10,
 /// k's +0xC, +0x10.
-unsafe fn quad(corners: u32, k: u32) -> [u32; 8] {
-    let e = corners.wrapping_add(k * ENTRY);
-    unsafe { [0, 4, 0x18, 0x1C, 0x24, 0x28, 0xC, 0x10].map(|o| get(e + o)) }
+fn quad(corners: u32, k: u32) -> Result<[u32; 8], Refused> {
+    Ok({
+        let e = corners.wrapping_add(k * ENTRY);
+        crate::marks::try_from_fn(|i__| {
+            let o = [0, 4, 0x18, 0x1C, 0x24, 0x28, 0xC, 0x10][i__];
+            Ok(get(e + o)?)
+        })?
+    })
 }
 
 /// `marks::span_ring_quad` (0x4BE592; it takes the quad's number from its
@@ -34,8 +40,8 @@ unsafe fn quad(corners: u32, k: u32) -> [u32; 8] {
 /// give by the shape's radii (+0x1C, +0x20) and middle (+0xC, +0x10) into
 /// `g_marksRingQuad`, then all eight of its floats replaced by corner entries k and k + 1
 /// (section 16), and that spanned (`span_quad`). `s` the shape.
-unsafe fn span_ring_quad(s: u32, k: u32) -> Result<(), Refused> {
-    unsafe {
+fn span_ring_quad(s: u32, k: u32) -> Result<(), Refused> {
+    {
         let [a1, a2]: [u32; 2] = read_bits(&MASKS.ring_angles);
         let turns = [
             x87::sine(a1),
@@ -44,7 +50,12 @@ unsafe fn span_ring_quad(s: u32, k: u32) -> Result<(), Refused> {
             x87::cosine(a2, true),
         ];
         write_bits(&MASKS.ring_turns, turns);
-        let (r1, r2, cx, cy) = (get(s + 0x1C), get(s + 0x20), get(s + 0xC), get(s + 0x10));
+        let (r1, r2, cx, cy) = (
+            get(s + 0x1C)?,
+            get(s + 0x20)?,
+            get(s + 0xC)?,
+            get(s + 0x10)?,
+        );
         let [s1, c1, s2, c2] = turns;
         write_bits(
             &MASKS.ring_quad,
@@ -60,7 +71,7 @@ unsafe fn span_ring_quad(s: u32, k: u32) -> Result<(), Refused> {
             ],
         );
         let corners: u32 = MASKS.ring_corners.get();
-        write_bits(&MASKS.ring_quad, quad(corners, k));
+        write_bits(&MASKS.ring_quad, quad(corners, k)?);
         span_quad(MASKS.ring_quad.as_ptr() as u32)?;
     }
     Ok(())
@@ -73,17 +84,17 @@ unsafe fn span_ring_quad(s: u32, k: u32) -> Result<(), Refused> {
 /// over the sines), and `span_ring_quad`; the angle on by pi over the count. Refuses a
 /// count of 0 or less or past 0x80 (the original's loop tests after counting), and runs or
 /// spans past their room, before writing.
-pub unsafe fn span_ring(s: u32, angles: u32) -> Result<(), Refused> {
+pub fn span_ring(s: u32, angles: u32) -> Result<(), Refused> {
     let mut table = angles;
-    unsafe {
-        let n = get(s + 4) as i32;
+    {
+        let n = get(s + 4)? as i32;
         if n <= 0 || n > MOST_QUADS as i32 {
             return Err(BadInput("a ring of no quads or more than 0x80").into());
         }
         let corners: u32 = MASKS.ring_corners.get();
         let mut rows = Some(0u32);
         for k in 0..n as u32 {
-            let q = quad(corners, k);
+            let q = quad(corners, k)?;
             for t in [
                 [q[0], q[1], q[2], q[3], q[4], q[5]],
                 [q[4], q[5], q[6], q[7], q[0], q[1]],
@@ -96,11 +107,11 @@ pub unsafe fn span_ring(s: u32, angles: u32) -> Result<(), Refused> {
         }
         spans_fit(2 * n as u32, rows)?;
         MASKS.run_count.set(MASKS.run_count.get().wrapping_add(1));
-        put(s + 8, MASKS.runs.get());
+        put(s + 8, MASKS.runs.get())?;
         let scales: [u32; 3] = read_bits(&MASK_CONSTANTS.ring_scales);
         let ends = [
-            x87::mul(get(s + 0x14), scales[0]),
-            x87::mul(get(s + 0x18), scales[1]),
+            x87::mul(get(s + 0x14)?, scales[0]),
+            x87::mul(get(s + 0x18)?, scales[1]),
         ];
         write_bits(&MASKS.ring_ends, ends);
         let (half, middle) = x87::half_and_middle(ends[1], ends[0], scales[2]);
@@ -115,11 +126,11 @@ pub unsafe fn span_ring(s: u32, angles: u32) -> Result<(), Refused> {
             let a2 = x87::less_cosine(angle, Some(step), half, middle);
             write_bits(&MASKS.ring_angles, [a1, a2]);
             for (o, a) in [(0, a1), (8, a2)] {
-                put(table + o + 4, x87::cosine(a, false));
-                put(table + o, x87::sine(a));
+                put(table + o + 4, x87::cosine(a, false))?;
+                put(table + o, x87::sine(a))?;
             }
-            put(table, a1);
-            put(table + 8, a2);
+            put(table, a1)?;
+            put(table + 8, a2)?;
             table += 8;
             span_ring_quad(s, k)?;
             angle = x87::add(angle, step);

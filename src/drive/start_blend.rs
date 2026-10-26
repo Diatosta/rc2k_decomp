@@ -16,56 +16,55 @@ use crate::race::blocks_store::CAR_BLOCKS;
 use crate::race::numbers_store::NUMBERS;
 use crate::race::tables_store::RACE_TABLES;
 use crate::scene::draw_store::DRAW;
+use crate::session::Cell32;
 
-unsafe fn get(v: &[u32], k: usize) -> u32 {
-    unsafe { (v[k] as *const u32).read_unaligned() }
+fn get(v: &[&dyn Cell32], k: usize) -> u32 {
+    v[k].bits()
 }
 
-unsafe fn put(v: &[u32], k: usize, x: u32) {
-    unsafe { (v[k] as *mut u32).write_unaligned(x) }
+fn put(v: &[&dyn Cell32], k: usize, x: u32) {
+    v[k].set_bits(x)
 }
 
 /// The Rust core on the variables at `v`: the held count.
-pub unsafe fn blend_at(v: &[u32]) -> u32 {
-    unsafe {
-        let mut n = get(v, 0).wrapping_sub(get(v, 1));
-        if (n as i32) < 0 {
-            n = 0;
-        }
-        if (n.wrapping_sub(100) as i32) >= 0 {
-            n = 100;
-        }
-        put(v, 2, n);
-        put(
-            v,
-            3,
-            x87::int_times(n as i32, RACE_TABLES.start_blend_step.bits()),
-        );
-        put(v, 6, add3(get(v, 4), get(v, 3), get(v, 5)));
-        let (low, high) = (NUMBERS.zero.bits(), NUMBERS.one.bits());
-        if compare_full(get(v, 6), low) & 0x100 != 0 {
-            put(v, 6, x87::loaded(low));
-        }
-        if compare_full(get(v, 6), high) & 0x100 == 0 {
-            put(v, 6, x87::loaded(high));
-        }
-        n
+pub fn blend_at(v: &[&dyn Cell32]) -> u32 {
+    let mut n = get(v, 0).wrapping_sub(get(v, 1));
+    if (n as i32) < 0 {
+        n = 0;
     }
+    if (n.wrapping_sub(100) as i32) >= 0 {
+        n = 100;
+    }
+    put(v, 2, n);
+    put(
+        v,
+        3,
+        x87::int_times(n as i32, RACE_TABLES.start_blend_step.bits()),
+    );
+    put(v, 6, add3(get(v, 4), get(v, 3), get(v, 5)));
+    let (low, high) = (NUMBERS.zero.bits(), NUMBERS.one.bits());
+    if compare_full(get(v, 6), low) & 0x100 != 0 {
+        put(v, 6, x87::loaded(low));
+    }
+    if compare_full(get(v, 6), high) & 0x100 == 0 {
+        put(v, 6, x87::loaded(high));
+    }
+    n
 }
 
-fn game() -> Vec<u32> {
+fn game() -> Vec<&'static dyn Cell32> {
     vec![
-        CAR.checkpoint.addr() as u32,
-        CAR_BLOCKS.cars[0].checkpoint.addr() as u32,
-        DRAW.scratch.addr() as u32,
-        CAR.start_blend_share.addr() as u32,
-        CAR.start_share.addr() as u32,
-        CAR.pace_push.addr() as u32,
-        CAR.start_blend.addr() as u32,
+        &CAR.checkpoint,
+        &CAR_BLOCKS.cars[0].checkpoint,
+        &DRAW.scratch,
+        &CAR.start_blend_share,
+        &CAR.start_share,
+        &CAR.pace_push,
+        &CAR.start_blend,
     ]
 }
 
 /// The Rust version (the exact one, for `drive::read_car_controls`).
-pub unsafe fn start_blend() -> u32 {
-    unsafe { blend_at(&game()) }
+pub fn start_blend() -> u32 {
+    blend_at(&game())
 }

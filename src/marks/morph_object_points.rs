@@ -17,6 +17,7 @@
 use crate::errors::{BadInput, Refused};
 use crate::marks::blend_corner::blend_corner;
 use crate::marks::lines::measure_lines;
+use crate::pointers::GamePtr;
 use crate::race::course_lists_store::COURSE_LISTS;
 use crate::scene::object_slots_store::{OBJECT_SLOTS, ObjectTables};
 use crate::scene::objects::SLOTS;
@@ -26,104 +27,113 @@ const CAR_LEN: u32 = 0x4C8;
 const BLOCK: u32 = 0x29C;
 const MOST_CARS: i32 = 8;
 
-unsafe fn get(a: u32) -> u32 {
-    unsafe { (a as *const u32).read_unaligned() }
+fn get(a: u32) -> Result<u32, BadInput> {
+    GamePtr::new(a).read("a game field")
 }
 
-unsafe fn put(a: u32, v: u32) {
-    unsafe { (a as *mut u32).write_unaligned(v) }
+fn put(a: u32, v: u32) -> Result<(), BadInput> {
+    GamePtr::new(a).write(v, "a game field")
 }
 
 /// The cars' blocks, the last first (none for a count of 0 or less).
-unsafe fn blocks(settings: u32) -> Vec<u32> {
-    let count = unsafe { get(settings + 0x5C) } as i32;
-    (0..count.clamp(0, MOST_CARS) as u32)
-        .rev()
-        .map(|n| settings + n * CAR_LEN + BLOCK)
-        .collect()
+fn blocks(settings: u32) -> Result<Vec<u32>, Refused> {
+    Ok({
+        let count = get(settings + 0x5C)? as i32;
+        (0..count.clamp(0, MOST_CARS) as u32)
+            .rev()
+            .map(|n| settings + n * CAR_LEN + BLOCK)
+            .collect()
+    })
 }
 
 /// Whether a block's factors differ from its kept ones.
-unsafe fn changed(b: u32) -> bool {
-    (0..8).any(|k| unsafe { get(b + 0x90 + 4 * k) != get(b + 0xB0 + 4 * k) })
+fn changed(b: u32) -> Result<bool, BadInput> {
+    for k in 0..8 {
+        if get(b + 0x90 + 4 * k)? != get(b + 0xB0 + 4 * k)? {
+            return Ok(true);
+        }
+    }
+    Ok(false)
 }
 
 /// A block's objects' first points (in `g_objectPoints`) and their count.
-unsafe fn points(b: u32) -> (u32, u32, i32) {
-    unsafe {
+fn points(b: u32) -> Result<(u32, u32, i32), Refused> {
+    Ok({
         let base: u32 = COURSE_LISTS.object_points.bits();
         let first = |id: u32| {
             base.wrapping_add(12 * ObjectTables::slot_value(&OBJECT_SLOTS.first_point, id as usize))
         };
-        let (a, c) = (get(b), get(b + 4));
+        let (a, c) = (get(b)?, get(b + 4)?);
         (
             first(a),
             first(c),
             ObjectTables::slot_value(&OBJECT_SLOTS.point_counts, a as usize) as i32,
         )
-    }
+    })
 }
 
 /// Why the Rust version refuses, if it does (its own checks), worked out without writing.
-unsafe fn refusal(settings: u32) -> Option<&'static str> {
-    unsafe {
+fn refusal(settings: u32) -> Result<Option<&'static str>, Refused> {
+    Ok({
         if settings == 0 {
-            return Some("no marks settings");
+            return Ok(Some("no marks settings"));
         }
-        if get(settings + 0x5C) as i32 > MOST_CARS {
-            return Some("more than 8 cars");
+        if get(settings + 0x5C)? as i32 > MOST_CARS {
+            return Ok(Some("more than 8 cars"));
         }
         let base: u32 = COURSE_LISTS.object_points.bits();
         let room: u32 = COURSE_LISTS.object_points_room.bits();
-        for b in blocks(settings) {
-            if !changed(b) {
+        for b in blocks(settings)? {
+            if !changed(b)? {
                 continue;
             }
-            if get(b) >= SLOTS || get(b + 4) >= SLOTS {
-                return Some("an object past 0xFF");
+            if get(b)? >= SLOTS || get(b + 4)? >= SLOTS {
+                return Ok(Some("an object past 0xFF"));
             }
-            if get(b + 0x8C) == 0 {
-                return Some("a null base point list");
+            if get(b + 0x8C)? == 0 {
+                return Ok(Some("a null base point list"));
             }
-            let (a, c, n) = points(b);
+            let (a, c, n) = points(b)?;
             if n < 0 {
-                return Some("a negative point count: the loop runs on");
+                return Ok(Some("a negative point count: the loop runs on"));
             }
             let end = base.wrapping_add(room);
             for p in [a, c] {
                 if p < base || p.wrapping_add(12 * n as u32) > end {
-                    return Some("points past the object points' room");
+                    return Ok(Some("points past the object points' room"));
                 }
             }
         }
         None
-    }
+    })
 }
 
 /// The Rust version (see the header).
-pub unsafe fn morph_object_points() -> Result<(), Refused> {
+pub fn morph_object_points() -> Result<(), Refused> {
     let settings: u32 = crate::marks::setup::SETTINGS.pointer.get();
-    if let Some(why) = unsafe { refusal(settings) } {
+    if let Some(why) = refusal(settings)? {
         return Err(BadInput(why).into());
     }
-    unsafe {
-        for b in blocks(settings) {
-            put(b + 0xC, get(b + 8));
-            if (0..8).all(|k| get(b + 0x90 + 4 * k) == get(b + 0xB0 + 4 * k)) {
+    {
+        for b in blocks(settings)? {
+            put(b + 0xC, get(b + 8)?)?;
+            if crate::marks::try_all(0..8, |k| {
+                Ok(get(b + 0x90 + 4 * k)? == get(b + 0xB0 + 4 * k)?)
+            })? {
                 continue;
             }
-            put(b + 0xC, 0xFFFF_FFFF);
+            put(b + 0xC, 0xFFFF_FFFF)?;
             for k in 0..8 {
-                let v = get(b + 0x90 + 4 * k);
-                put(b + 0xB0 + 4 * k, v);
+                let v = get(b + 0x90 + 4 * k)?;
+                put(b + 0xB0 + 4 * k, v)?;
                 MORPH_WORK.kept[k as usize].set(v);
             }
-            let (a, c, n) = points(b);
-            let base = get(b + 0x8C);
+            let (a, c, n) = points(b)?;
+            let base = get(b + 0x8C)?;
             for k in 0..n.max(0) as u32 {
                 let (to, from, base) = (a + 12 * k, c + 12 * k, base + 12 * k);
-                if (0..3).any(|i| get(base + 4 * i) != get(from + 4 * i)) {
-                    blend_corner(b, to, from, base);
+                if crate::marks::try_any(0..3, |i| Ok(get(base + 4 * i)? != get(from + 4 * i)?))? {
+                    blend_corner(b, to, from, base)?;
                 }
             }
         }

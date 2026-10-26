@@ -34,7 +34,7 @@ fn refresh() -> Result<bool, Refused> {
             NET.joined.addr() as u32,
             session(INSTALLER_PAGES.choice.get())? + field!(NetSession, instance),
             0x10,
-        );
+        )?;
     }
     let posting = NET.posting.get();
     NET.posting.set(0);
