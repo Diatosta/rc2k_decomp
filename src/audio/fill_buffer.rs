@@ -54,7 +54,11 @@ pub unsafe fn fill_buffer(v: &Voice) -> Result<bool, Refused> {
         let [p1, n1, p2, n2] = locked;
         let (first, second) = fill_copies(v.data, locked);
         for (from, to, bytes) in std::iter::once(first).chain(second) {
-            std::ptr::copy(from as *const u8, to as *mut u8, bytes as usize);
+            crate::pointers::GamePtr::new(from).copy_to(
+                crate::pointers::GamePtr::new(to),
+                bytes as usize,
+                "a voice's sound into its buffer",
+            )?;
         }
         let unlock: unsafe extern "system" fn(u32, u32, u32, u32, u32) -> i32 =
             std::mem::transmute(crate::audio::com::method(v.buffer, 0x4C));

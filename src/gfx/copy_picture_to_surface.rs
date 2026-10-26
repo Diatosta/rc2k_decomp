@@ -97,11 +97,19 @@ pub unsafe fn copy_picture_to_surface(surface: &mut dyn PictureSurface) -> Resul
     }
     let gap = surface.row_gap() as usize;
     for _ in 0..rows {
-        unsafe {
-            std::ptr::copy(from, to, row_bytes);
-            from = from.add(row_bytes);
-            to = to.wrapping_add(row_bytes).wrapping_add(gap);
+        let copied = crate::pointers::GamePtr::new(from as u32).copy_to(
+            crate::pointers::GamePtr::new(to as u32),
+            row_bytes,
+            "a picture's row onto the surface",
+        );
+        if let Err(why) = copied {
+            if !was_locked {
+                surface.unlock();
+            }
+            return Err(why);
         }
+        from = from.wrapping_add(row_bytes);
+        to = to.wrapping_add(row_bytes).wrapping_add(gap);
     }
     if !was_locked {
         surface.unlock();

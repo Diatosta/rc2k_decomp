@@ -19,7 +19,6 @@ use crate::errors::{BadInput, FatalError, Refused};
 use crate::gfx::blit::BLIT;
 use crate::gfx::surface::{Clip, Surface, clip, surface};
 use crate::pointers::{GameBytes, GamePtr};
-use std::ptr::copy_nonoverlapping;
 
 // ---- game data ----
 
@@ -205,6 +204,7 @@ pub unsafe fn blit_glyph_on_surface(
     let surface = surface();
     let record = glyph_record(&surface, table, glyph)?;
     let mut scratch = read_scratch();
+    let surface_window = crate::pointers::Window::new();
     let (exit, _) = unsafe {
         blit_glyph(
             &record,
@@ -214,7 +214,7 @@ pub unsafe fn blit_glyph_on_surface(
             &surface,
             &clip(),
             &mut scratch,
-            &mut |addr, bytes| copy_nonoverlapping(bytes.as_ptr(), addr as *mut u8, bytes.len()),
+            &mut |addr, bytes| surface_window.write_bytes_or_end(addr, bytes, "the surface"),
         )
     }?;
     write_scratch(&scratch);

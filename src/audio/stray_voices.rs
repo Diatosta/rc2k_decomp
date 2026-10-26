@@ -25,11 +25,9 @@ static LOGGED: Mutex<Vec<u32>> = Mutex::new(Vec::new());
 /// A list's voices, from the head `head` holds (at most the pool's count).
 unsafe fn list(head: &Dword) -> HashSet<u32> {
     let mut out = HashSet::new();
-    unsafe {
-        let mut at = head.get();
-        while at != 0 && out.len() <= VOICES as usize && out.insert(at) {
-            at = voice(at).next;
-        }
+    let mut at = head.get();
+    while at != 0 && out.len() <= VOICES as usize && out.insert(at) {
+        at = voice(at).next;
     }
     out
 }

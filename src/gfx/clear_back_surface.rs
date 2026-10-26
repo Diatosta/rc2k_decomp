@@ -31,7 +31,7 @@ pub fn clear_back_surface() -> Result<(), Refused> {
     let mut row = DRAW_SURFACE.present_pixels.get();
     for _ in 0..SCREEN.height.get() {
         let dwords = SCREEN.row_dwords.get();
-        unsafe { std::ptr::write_bytes(row as *mut u32, 0, dwords as usize) };
+        crate::pointers::GamePtr::new(row).fill(0, 4 * dwords as usize, "the back surface")?;
         row = row
             .wrapping_add(4 * dwords)
             .wrapping_add(DRAW_SURFACE.present_gap.get());

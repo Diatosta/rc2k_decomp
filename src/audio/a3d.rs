@@ -12,7 +12,7 @@ const IN_PROCESS: u32 = 1;
 
 /// `CoCreateInstance` (class, interface, where the object goes) -> its result.
 fn game_create(class: u32, interface: u32, out: u32) -> i32 {
-    unsafe {
+    let r = unsafe {
         windows_sys::Win32::System::Com::CoCreateInstance(
             class as *const _,
             std::ptr::null_mut(),
@@ -20,7 +20,18 @@ fn game_create(class: u32, interface: u32, out: u32) -> i32 {
             interface as *const _,
             out as *mut *mut core::ffi::c_void,
         )
+    };
+    if r >= 0 {
+        // The system's object: its table pointer and the table's first methods (as far as
+        // `Release`, all the game calls) made regions for the program's life.
+        let object: u32 = crate::pointers::read_or_end(out, "the A3D object's place");
+        if object != 0 {
+            crate::pointers::register(object, 4);
+            let table: u32 = crate::pointers::read_or_end(object, "the A3D object");
+            crate::pointers::register(table, crate::audio::com::RELEASE + 4);
+        }
     }
+    r
 }
 
 /// The object a cell holds released (when there is one) and forgotten.

@@ -69,8 +69,31 @@ impl Format {
     }
 }
 
+/// A buffer's bytes, a region while they live (the game's code writes them by address once
+/// locked: `pointers`); shared by a buffer and its duplicates.
+struct SoundData {
+    bytes: Vec<u8>,
+    _lent: crate::pointers::Lent,
+}
+
+impl SoundData {
+    fn new(bytes: Vec<u8>) -> Self {
+        Self {
+            _lent: crate::pointers::Lent::new(&bytes),
+            bytes,
+        }
+    }
+}
+
+impl std::ops::Deref for SoundData {
+    type Target = Vec<u8>;
+    fn deref(&self) -> &Vec<u8> {
+        &self.bytes
+    }
+}
+
 struct Buffer {
-    data: Arc<Vec<u8>>,
+    data: Arc<SoundData>,
     bytes: u32,
     flags: u32,
     format: Format,
@@ -146,6 +169,9 @@ struct Entry {
     object: Box<Object>,
     refs: u32,
     kind: Kind,
+    /// The object a region while it lives (the game's code reads its table by address:
+    /// `audio::com`).
+    _lent: crate::pointers::Lent,
 }
 
 struct State {
@@ -190,9 +216,13 @@ fn new_object(s: &mut State, table: *const usize, kind: Kind) -> u32 {
     s.next += 1;
     let object = Box::new(Object { table, id });
     let at = &*object as *const Object as u32;
+    // SAFETY: the object's own bytes, for the registry only.
+    let bytes =
+        unsafe { std::slice::from_raw_parts(at as usize as *const u8, size_of::<Object>()) };
     s.entries.insert(
         id,
         Entry {
+            _lent: crate::pointers::Lent::new(bytes),
             object,
             refs: 1,
             kind,
@@ -356,7 +386,10 @@ unsafe extern "system" fn create_buffer(_: u32, desc: u32, out: u32, _outer: u32
                 s,
                 BUFFER.start(),
                 Kind::Buffer(Buffer {
-                    data: Arc::new(vec![if format.bits == 8 { 0x80 } else { 0 }; room.max(4)]),
+                    data: Arc::new(SoundData::new(vec![
+                        if format.bits == 8 { 0x80 } else { 0 };
+                        room.max(4)
+                    ])),
                     bytes,
                     flags,
                     format,
@@ -904,6 +937,10 @@ fn mix_into(b: &mut Buffer, master: f32, rolloff: f32, out: &mut [f32]) {
     }
 }
 
+/// `DSBCAPS_STICKYFOCUS` and `DSBCAPS_GLOBALFOCUS`: heard without the window's focus.
+const STICKY_FOCUS: u32 = 0x4000;
+const GLOBAL_FOCUS: u32 = 0x8000;
+
 unsafe extern "C" fn feed(
     _: *mut core::ffi::c_void,
     stream: *mut SDL_AudioStream,
@@ -915,6 +952,11 @@ unsafe extern "C" fn feed(
         return;
     }
     let mut out = vec![0f32; frames * 2];
+    // DirectSound's focus: while the window is not in front, a buffer made without
+    // `DSBCAPS_GLOBALFOCUS` or `DSBCAPS_STICKYFOCUS` plays on unheard (the game asks for
+    // neither, so it goes quiet and comes back with the focus).
+    let focused = crate::session::FLAGS.window_focused.get() == 1;
+    let mut unheard = Vec::new();
     with(|s| {
         let master = s
             .primary
@@ -931,7 +973,13 @@ unsafe extern "C" fn feed(
                 // The primary buffer's own volume is the master's; its data is not
                 // scaled twice.
                 let m = if b.flags & PRIMARY != 0 { 1.0 } else { master };
-                mix_into(b, m, rolloff, &mut out);
+                if focused || b.flags & (GLOBAL_FOCUS | STICKY_FOCUS) != 0 {
+                    mix_into(b, m, rolloff, &mut out);
+                } else {
+                    unheard.clear();
+                    unheard.resize(out.len(), 0f32);
+                    mix_into(b, m, rolloff, &mut unheard);
+                }
             }
         }
     });

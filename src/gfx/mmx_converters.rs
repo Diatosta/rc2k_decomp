@@ -72,13 +72,16 @@ pub fn convert_rows(
     use rc2k_core::gfx::converters::{next_row, step};
     let k = masks(&c);
     let (mut from, mut to) = (from, to);
+    // The picture and the surface, checked through a window each.
+    let (pictures, surfaces) = (
+        crate::pointers::Window::new(),
+        crate::pointers::Window::new(),
+    );
     for _ in 0..rows {
         for _ in 0..steps {
-            unsafe {
-                let q0 = (from as *const u64).read_unaligned();
-                let q1 = ((from + 8) as *const u64).read_unaligned();
-                (to as *mut u64).write_unaligned(step(c.format, &k, q0, q1));
-            }
+            let q0: u64 = pictures.read_or_end(from, "a picture's pixels");
+            let q1: u64 = pictures.read_or_end(from + 8, "a picture's pixels");
+            surfaces.write_or_end(to, step(c.format, &k, q0, q1), "a surface's pixels");
             from = from.wrapping_add(0x10);
             to = to.wrapping_add(8);
         }

@@ -19,21 +19,43 @@ pub use rc2k_core::audio::voices::{SAMPLES, VOICES};
 pub use rc2k_core::audio::voices::{LOADED, MODE_3D, MixerChannel, SampleRecord, Voice};
 
 /// A dword at an address (the pointer a record or a COM call holds).
-pub unsafe fn read(at: u32) -> u32 {
+pub fn read(at: u32) -> u32 {
     crate::pointers::read_or_end::<u32>(at, "audio::voices's operand")
 }
 
-pub unsafe fn voice<'a>(at: u32) -> &'a mut Voice {
-    unsafe { &mut *(at as *mut Voice) }
+/// A record of `T` at `at`, once the address is known to hold one (inside one region,
+/// aligned); the program ends with the address otherwise.
+fn record_at<'a, T>(at: u32, what: &str) -> &'a mut T {
+    crate::pointers::check_or_end(at, size_of::<T>(), what);
+    if !(at as usize).is_multiple_of(align_of::<T>()) {
+        crate::fatal::raise::end(
+            "audio::voices",
+            crate::errors::BadInput("a record at an address out of line"),
+        );
+    }
+    // Safety: `at` .. `at + size_of::<T>()` lies in one live region and is aligned; the
+    // records are the audio thread's (its lock held), as the original's are.
+    unsafe { &mut *(at as usize as *mut T) }
 }
 
-/// The sample record of sound `number` (unchecked, as the original indexes the table).
-pub unsafe fn sample<'a>(number: u32) -> &'a mut SampleRecord {
-    unsafe { &mut *SAMPLE_RECORDS.records[0].as_ptr().add(number as usize) }
+pub fn voice<'a>(at: u32) -> &'a mut Voice {
+    record_at(at, "a voice")
 }
 
-pub unsafe fn channel<'a>(at: u32) -> &'a mut MixerChannel {
-    unsafe { &mut *(at as *mut MixerChannel) }
+/// The sample record of sound `number` (the original indexes the table unchecked; a
+/// number past it ends the program).
+pub fn sample<'a>(number: u32) -> &'a mut SampleRecord {
+    let Some(r) = SAMPLE_RECORDS.records.get(number as usize) else {
+        crate::fatal::raise::end(
+            "audio::voices",
+            crate::errors::BadInput("a sound number past the sample records"),
+        );
+    };
+    record_at(r.as_ptr() as u32, "a sample record")
+}
+
+pub fn channel<'a>(at: u32) -> &'a mut MixerChannel {
+    record_at(at, "a mixer channel")
 }
 
 /// The core's `Pool` over the game's memory: voices and channels by their addresses.
@@ -41,16 +63,16 @@ pub struct GamePool;
 
 impl rc2k_core::audio::voices::Pool for GamePool {
     fn voice(&mut self, at: u32) -> &mut Voice {
-        unsafe { voice(at) }
+        voice(at)
     }
     fn channel(&mut self, at: u32) -> &mut MixerChannel {
-        unsafe { channel(at) }
+        channel(at)
     }
     fn channel_at(&self, n: u32) -> u32 {
         AUDIO.channels[0].addr() as u32 + n * std::mem::size_of::<MixerChannel>() as u32
     }
     fn record(&mut self, n: u32) -> &mut SampleRecord {
-        unsafe { sample(n) }
+        sample(n)
     }
 }
 

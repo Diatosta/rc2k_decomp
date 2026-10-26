@@ -50,11 +50,20 @@ pub unsafe fn fill_stream_part(s: &mut AudioStream, at: u32, bytes: u32) -> Fill
         return None;
     }
     // Converted: `rc2k_core::audio::streams::AudioStream::after_read`.
-    let (read, _) = unsafe { crate::files::handle::read(s.file, at as *mut u8, bytes) };
+    let to = crate::pointers::GamePtr::new(at);
+    let read = match crate::files::handle::read_to(s.file, to, bytes, "a stream's part") {
+        Ok((read, _)) => read,
+        Err(e) => crate::fatal::raise::end("audio::fill_stream_part", e),
+    };
     let Some(quiet) = s.after_read(bytes, read) else {
         return Some((read, false));
     };
-    unsafe { std::ptr::write_bytes((at + read) as *mut u8, quiet, (bytes - read) as usize) };
+    if let Err(e) = to
+        .offset(read)
+        .fill(quiet, (bytes - read) as usize, "a stream's part")
+    {
+        crate::fatal::raise::end("audio::fill_stream_part", e);
+    }
     Some((read, true))
 }
 

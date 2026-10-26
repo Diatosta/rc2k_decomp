@@ -20,11 +20,11 @@ pub fn record(slot: u32) -> u32 {
 }
 
 pub fn get(a: u32) -> u32 {
-    unsafe { (a as *const u32).read_unaligned() }
+    crate::pointers::read_or_end(a, "a texture's record or surface")
 }
 
 pub fn put(a: u32, v: u32) {
-    unsafe { (a as *mut u32).write_unaligned(v) }
+    crate::pointers::write_or_end(a, v, "a texture's record or surface")
 }
 
 /// A surface's method at `offset` of its table, called with `args` after `this`

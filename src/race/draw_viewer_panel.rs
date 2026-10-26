@@ -45,8 +45,11 @@ pub fn draw_viewer_panel() -> Result<(), Refused> {
         let mut rows = DRAW_SURFACE.height.get();
         loop {
             let dwords = DRAW_SURFACE.row_dwords.get();
-            // The locked surface is the platform's memory (left for its own change).
-            std::ptr::write_bytes(at as *mut u32, 0, dwords as usize);
+            crate::pointers::GamePtr::new(at).fill(
+                0,
+                4 * dwords as usize,
+                "the panel's surface",
+            )?;
             at = at
                 .wrapping_add(4 * dwords)
                 .wrapping_add(DRAW_SURFACE.row_gap.get());

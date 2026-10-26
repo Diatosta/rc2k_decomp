@@ -164,6 +164,9 @@ fn record_at(pool: usize, number: u32) -> *mut TextureRecord {
 struct Level {
     pixels: Vec<u8>,
     pitch: u32,
+    /// The pixels a region while the level lives (locked, the game's code writes them by
+    /// address: `pointers`).
+    _lent: crate::pointers::Lent,
 }
 
 /// A surface's number: (pool, texture, level), the pool 0 for system, 1 for video.
@@ -182,9 +185,15 @@ fn objects() -> *mut [u32; 2] {
         let mut table = vec![0u32; 0x40];
         table[0x64 / 4] = lock as *const () as u32;
         table[0x80 / 4] = unlock as *const () as u32;
-        let table = Box::leak(table.into_boxed_slice()).as_ptr() as u32;
+        let table = Box::leak(table.into_boxed_slice());
+        // Both kept for the program's life, and regions: the game's code reaches a
+        // surface's methods through them (`d3d::texture_lock`).
+        crate::pointers::register(table.as_ptr() as u32, size_of_val(table) as u32);
+        let table = table.as_ptr() as u32;
         let objects: Vec<[u32; 2]> = (0..SURFACES as u32).map(|n| [table, n]).collect();
-        Box::leak(objects.into_boxed_slice()).as_mut_ptr() as usize
+        let objects = Box::leak(objects.into_boxed_slice());
+        crate::pointers::register(objects.as_ptr() as u32, size_of_val(objects) as u32);
+        objects.as_mut_ptr() as usize
     }) as *mut [u32; 2]
 }
 
@@ -802,8 +811,10 @@ unsafe fn make_texture(
             let surface = surface_number(pool, number, level);
             if level < levels {
                 let (w, h) = ((width >> level).max(1), (height >> level).max(1));
+                let pixels = vec![0; (w * h * bytes) as usize];
                 memory[surface] = Some(Level {
-                    pixels: vec![0; (w * h * bytes) as usize],
+                    _lent: crate::pointers::Lent::new(&pixels),
+                    pixels,
                     pitch: w * bytes,
                 });
                 record.surfaces[level as usize] = object(surface);

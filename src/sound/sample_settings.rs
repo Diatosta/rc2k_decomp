@@ -36,7 +36,7 @@ pub fn loaded(record: &SampleRecord) -> Option<rc2k_core::audio::samples::Loaded
     if record.first_voice == 0 {
         return None;
     }
-    let first = unsafe { voice(record.first_voice) };
+    let first = { voice(record.first_voice) };
     Some(rc2k_core::audio::samples::Loaded {
         voice_kind: record.voice_kind,
         volume: record.volume,

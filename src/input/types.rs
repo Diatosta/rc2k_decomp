@@ -132,6 +132,7 @@ pub struct InputDevice {
 
 /// DirectInput's `DIJOYSTATE` (`g_deviceState`).
 #[repr(C)]
+#[derive(Clone, Copy)]
 pub struct DiJoyState {
     pub axes: [i32; 6],
     pub sliders: [i32; 2],

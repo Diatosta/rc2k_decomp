@@ -16,19 +16,16 @@ use crate::strings::text_buffer::TEXT_BUFFER;
 /// `rows` rows of the locked surface from `edi` cleared (`rep stosd` of the row's dwords, then
 /// the row's gap). Gives edi after them.
 unsafe fn clear_rows(mut edi: u32, rows: u32) -> u32 {
-    unsafe {
-        for _ in 0..rows {
-            let n = DRAW_SURFACE.row_dwords.get();
-            for d in 0..n {
-                // The locked surface is the platform's memory (left for its own change).
-                ((edi + 4 * d) as *mut u32).write_unaligned(0);
-            }
-            edi = edi
-                .wrapping_add(4 * n)
-                .wrapping_add(DRAW_SURFACE.row_gap.get());
+    for _ in 0..rows {
+        let n = DRAW_SURFACE.row_dwords.get();
+        if let Err(e) = GamePtr::new(edi).fill(0, 4 * n as usize, "a plate's surface") {
+            crate::fatal::raise::end("race::name_plates", e);
         }
-        edi
+        edi = edi
+            .wrapping_add(4 * n)
+            .wrapping_add(DRAW_SURFACE.row_gap.get());
     }
+    edi
 }
 
 /// `race::draw_name_plate` (0x45B695): slot `slot`'s (eax) surface, locked and unlocked

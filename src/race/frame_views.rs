@@ -213,6 +213,8 @@ pub unsafe fn copy_mirror_picture() -> Result<(), Refused> {
             let mut surfaces = GameSurfaces {
                 screen: &screen,
                 format,
+                reads: crate::pointers::Window::new(),
+                writes: crate::pointers::Window::new(),
             };
             // eax at the copy: the destination's slot, as the lock was given it.
             copy_picture(&copy, esi, edi, to, &mut surfaces);
@@ -227,20 +229,24 @@ pub unsafe fn copy_mirror_picture() -> Result<(), Refused> {
 struct GameSurfaces<'a> {
     screen: &'a crate::gfx::pixel_format::PixelFormat,
     format: &'a crate::gfx::pixel_format::PixelFormat,
+    /// The surfaces' pixels checked (the screen's and the textures' buffers are regions),
+    /// a window for the one read and one for the one written.
+    reads: crate::pointers::Window,
+    writes: crate::pointers::Window,
 }
 
 impl rc2k_core::race::view_steps::Surfaces for GameSurfaces<'_> {
     fn read16(&mut self, at: u32) -> u16 {
-        unsafe { (at as *const u16).read_unaligned() }
+        self.reads.read_or_end(at, "a surface's pixel")
     }
     fn read32(&mut self, at: u32) -> u32 {
-        unsafe { (at as *const u32).read_unaligned() }
+        self.reads.read_or_end(at, "a surface's pixel")
     }
     fn write16(&mut self, at: u32, v: u16) {
-        unsafe { (at as *mut u16).write_unaligned(v) }
+        self.writes.write_or_end(at, v, "a surface's pixel")
     }
     fn write32(&mut self, at: u32, v: u32) {
-        unsafe { (at as *mut u32).write_unaligned(v) }
+        self.writes.write_or_end(at, v, "a surface's pixel")
     }
     fn components(&mut self, pixel: u32) -> u32 {
         crate::gfx::pixel_to_components::pixel_to_components(self.screen, pixel)

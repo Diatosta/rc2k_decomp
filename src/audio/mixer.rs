@@ -31,7 +31,7 @@ pub unsafe fn mix_channels(
     // where the channels point.
     let mut loaded: Vec<(Channel, u32)> = (0..count)
         .map(|n| {
-            let c = unsafe { channel(at(n)) };
+            let c = { channel(at(n)) };
             let core = Channel {
                 used: c.used,
                 format: c.format,
@@ -83,7 +83,7 @@ pub unsafe fn mix_channels(
     GamePtr::new(mix).write_bytes(&out, "the mix buffer")?;
     for (n, core) in cores.iter().enumerate() {
         // Only the channels that played: the original stores no others.
-        let c = unsafe { channel(at(n as u32)) };
+        let c = { channel(at(n as u32)) };
         if c.used == 1 {
             c.used = core.used;
             c.position = core.position;
@@ -104,6 +104,11 @@ pub unsafe fn mix_channels(
 pub unsafe fn write_mix(mode: u32, mix: u32, parts: [u32; 4]) -> Result<(), Refused> {
     // Converted: `rc2k_core::audio::mixer`; here the parts as slices of the locked buffer.
     let size = rc2k_core::audio::mixer::frame_bytes(mode) as u32;
+    // The locked parts checked (the buffers' bytes are regions while they live).
+    crate::race::trap::span(parts[0], (parts[1] / size * size) as usize, "a locked part")?;
+    if parts[2] != 0 {
+        crate::race::trap::span(parts[2], (parts[3] / size * size) as usize, "a locked part")?;
+    }
     let mut slices: Vec<&mut [u8]> = vec![unsafe {
         std::slice::from_raw_parts_mut(parts[0] as *mut u8, (parts[1] / size * size) as usize)
     }];

@@ -148,11 +148,14 @@ fn session(this: u32) -> Option<Arc<Session>> {
 }
 
 fn make(table: *const usize) -> u32 {
-    Box::into_raw(Box::new(Object {
+    let at = Box::into_raw(Box::new(Object {
         table,
         refs: AtomicU32::new(1),
         state: Mutex::new(State::default()),
-    })) as u32
+    })) as u32;
+    // A region until its last release: the game's code reads its table by address.
+    crate::pointers::register(at, size_of::<Object>() as u32);
+    at
 }
 
 unsafe fn read_guid(at: u32) -> Option<Guid> {
@@ -289,6 +292,7 @@ unsafe extern "system" fn release(this: u32) -> u32 {
         if let Some(s) = session(this) {
             s.close();
         }
+        crate::pointers::unregister(this);
         drop(unsafe { Box::from_raw(this as *mut Object) });
     }
     left

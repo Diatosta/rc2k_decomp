@@ -90,8 +90,9 @@ pub fn joy_state() -> rc2k_core::input::devices::State {
 /// offset) of its table, `stdcall` with the object first; the method's result.
 pub unsafe fn com_call(object: u32, slot: u32, args: &[u32]) -> u32 {
     unsafe {
-        let table = (object as *const u32).read_unaligned();
-        let f = ((table + slot) as *const u32).read_unaligned() as usize;
+        let table: u32 = crate::pointers::read_or_end(object, "a DirectInput object");
+        let f: u32 = crate::pointers::read_or_end(table + slot, "a DirectInput method table");
+        let f = f as usize;
         match *args {
             [] => {
                 let f: extern "system" fn(u32) -> u32 = std::mem::transmute(f);

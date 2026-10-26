@@ -383,6 +383,17 @@ impl Window {
         // SAFETY: the bytes lie in one live region (checked above).
         unsafe { (addr as usize as *mut T).write_unaligned(value) }
     }
+
+    /// Checked bytes written, as `write_or_end`.
+    pub fn write_bytes_or_end(&self, addr: u32, bytes: &[u8], what: &str) {
+        if let Err(e) = self.check(addr, bytes.len(), what) {
+            crate::fatal::raise::end(what, e)
+        }
+        // SAFETY: the bytes lie in one live region (checked above).
+        unsafe {
+            std::ptr::copy_nonoverlapping(bytes.as_ptr(), addr as usize as *mut u8, bytes.len())
+        }
+    }
 }
 
 /// A Rust buffer lent to code that takes the game's addresses (a file read into a `Vec`): a

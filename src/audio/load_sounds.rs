@@ -82,7 +82,7 @@ impl rc2k_core::audio::load::Loader for GameLoader {
         Ok(())
     }
     fn mark_loaded(&mut self, voice: u32) {
-        unsafe { crate::audio::voices::voice(voice).flags |= LOADED };
+        crate::audio::voices::voice(voice).flags |= LOADED;
     }
     fn quitting(&mut self) -> bool {
         FLAGS.quitting.get() == 1
@@ -97,7 +97,7 @@ pub unsafe fn load_sounds(list: u32) -> Result<(), Refused> {
     if crate::audio::buffer_settings::a3d() {
         return Err(BadInput("A3D").into());
     }
-    let entries = rc2k_core::audio::load::entries(|n| unsafe { read(list + n as u32 * 4) })?;
+    let entries = rc2k_core::audio::load::entries(|n| read(list + n as u32 * 4))?;
     let mut l = GameLoader;
     rc2k_core::audio::load::load(&mut l, &entries)
 }

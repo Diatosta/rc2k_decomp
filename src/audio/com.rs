@@ -3,10 +3,8 @@
 
 /// The method at `offset` of the object's table.
 pub unsafe fn method(object: u32, offset: u32) -> usize {
-    unsafe {
-        let table = (object as *const u32).read_unaligned();
-        ((table + offset) as *const u32).read_unaligned() as usize
-    }
+    let table: u32 = crate::pointers::read_or_end(object, "a COM object");
+    crate::pointers::read_or_end::<u32>(table + offset, "a COM object's table") as usize
 }
 
 /// A method that takes only the object.

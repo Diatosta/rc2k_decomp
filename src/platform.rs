@@ -51,6 +51,9 @@ struct Screen {
     height: usize,
     bits: u32,
     pixels: Vec<u8>,
+    /// The pixels a region while the screen lives (the game's code draws on them by
+    /// address: `pointers`).
+    _lent: crate::pointers::Lent,
 }
 
 static SCREEN: Mutex<Option<Screen>> = Mutex::new(None);
@@ -297,6 +300,7 @@ unsafe fn set_screen_mode(mode: u32) -> Result<(), String> {
             width: width as usize,
             height: height as usize,
             bits,
+            _lent: crate::pointers::Lent::new(&pixels),
             pixels,
         });
         SCREEN_MODE.mode_set.set(mode);
