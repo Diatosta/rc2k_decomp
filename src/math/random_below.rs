@@ -10,7 +10,7 @@ use crate::errors::BadInput;
 
 // ---- Rust version ----
 
-pub unsafe fn random_below(limit: u32) -> Result<u32, BadInput> {
+pub fn random_below(limit: u32) -> Result<u32, BadInput> {
     if limit == 0 {
         return Err(BadInput(
             "a random number under 0: the original divides by it",

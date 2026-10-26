@@ -24,12 +24,10 @@ use rc2k_core::drive::roaming::{roam_distance, roam_turn};
 /// and esi after `drive::race_tick`'s call have no read point).
 // Converted: `rc2k_core::drive::roaming::{roam_distance, roam_turn}`.
 pub unsafe fn simple_car_step() -> Result<(), Refused> {
-    unsafe {
-        crate::drive::car_input_words::car_input_words()?;
-        crate::drive::read_car_controls::read_car_controls()?;
-        crate::drive::steer_inputs::steer_inputs();
-        crate::drive::pedal_inputs::pedal_inputs();
-    }
+    crate::drive::car_input_words::car_input_words()?;
+    crate::drive::read_car_controls::read_car_controls()?;
+    crate::drive::steer_inputs::steer_inputs();
+    crate::drive::pedal_inputs::pedal_inputs();
     // The keys `drive::pedal_inputs` leaves in ebx (`reset_request` loads the same again
     // before `physics::reset_car`): the turn's y.
     let keys = CAR.input_keys.get();
@@ -39,7 +37,7 @@ pub unsafe fn simple_car_step() -> Result<(), Refused> {
         CAR_BLOCKS.cars[0].brake.bits(),
         crate::input::store::DEVICES.keys_now.get(0x1D) != 0, // byte_4F6B79
     );
-    let [x, _, z, _] = unsafe {
+    let [x, _, z, _] = {
         crate::math::turn_point_xz::turn_point_xz(
             0,
             keys as i32,
@@ -55,7 +53,7 @@ pub unsafe fn simple_car_step() -> Result<(), Refused> {
             .bits()
             .wrapping_add(roam_turn(CAR_BLOCKS.cars[0].steering.bits())),
     );
-    unsafe { crate::physics::wheel_surfaces::wheel_surfaces() }?;
+    { crate::physics::wheel_surfaces::wheel_surfaces() }?;
     GROUND_WORK.ground_x.set(COURSE.place_x.get());
     GROUND_WORK.ground_z.set(COURSE.place_z.get());
     unsafe { crate::physics::find_ground::find_ground() }?;
@@ -70,6 +68,6 @@ pub unsafe fn simple_car_step() -> Result<(), Refused> {
     CAR_BLOCKS.cars[0].car_pitch.set_bits(0);
     CAR_BLOCKS.cars[0].car_roll.set_bits(0);
     // `race::get_mat_crash` reads no register at entry (liveness): a scratch.
-    unsafe { crate::race::stage_prefs::get_mat_crash() };
+    crate::race::stage_prefs::get_mat_crash();
     Ok(())
 }

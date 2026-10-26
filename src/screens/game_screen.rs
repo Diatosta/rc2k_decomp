@@ -84,7 +84,7 @@ pub fn buffer_at(buffer: Buffer) -> *mut u8 {
 
 /// `bytes` (with their NUL) into a shared buffer; refused past its end (the line buffer
 /// 0x100 bytes: `byte_A8BC54` follows).
-pub unsafe fn store_in(buffer: Buffer, bytes: &[u8]) -> Result<(), Refused> {
+pub fn store_in(buffer: Buffer, bytes: &[u8]) -> Result<(), Refused> {
     let room = match buffer {
         Buffer::Line => 0x100,
         Buffer::Text => crate::strings::text_from_ids::TEXT_LEN,
@@ -105,7 +105,7 @@ impl<F: GameFont, W: GameWork> Screen for GameScreen<'_, F, W> {
     type Error = Refused;
 
     fn text(&mut self, font: F, text: u32, x: i32, y: i32) -> Result<Drawn, Refused> {
-        let out = unsafe { draw_text_at(font_of(font), text as *const u8, x, y, self.canvas) }?;
+        let out = { draw_text_at(font_of(font), text as *const u8, x, y, self.canvas) }?;
         Ok(Drawn {
             y: out.y,
             after: out.text as u32,
@@ -114,7 +114,7 @@ impl<F: GameFont, W: GameWork> Screen for GameScreen<'_, F, W> {
     }
 
     fn store(&mut self, buffer: Buffer, bytes: &[u8]) -> Result<(), Refused> {
-        unsafe { store_in(buffer, bytes) }
+        store_in(buffer, bytes)
     }
 
     fn draw(&mut self, font: F, buffer: Buffer, x: i32, y: i32) -> Result<Drawn, Refused> {
@@ -228,7 +228,7 @@ impl<F: GameFont, W: GameWork> Screen for GameScreen<'_, F, W> {
     }
 
     fn measure(&mut self, font: F, text: u32, x: i32) -> Result<(u32, u32), Refused> {
-        let m = unsafe {
+        let m = {
             crate::text::measure_text::measure_text_at(
                 font_of(font),
                 text as *const u8,

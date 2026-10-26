@@ -18,7 +18,7 @@ use crate::scene::draw_store::DRAW;
 use crate::scene::x87_mem::{fistp, fld};
 
 /// The Rust version (the exact one, for `physics::update_camera`).
-pub unsafe fn ease_view_angles() {
+pub fn ease_view_angles() {
     let esi = record();
     if rd(esi + 0x3C) == 0 {
         return;

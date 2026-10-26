@@ -10,7 +10,7 @@
 
 // ---- Rust version ----
 
-pub unsafe fn parse_number(text: *const u8) -> u32 {
+pub fn parse_number(text: *const u8) -> u32 {
     if text.is_null() {
         return 0;
     }

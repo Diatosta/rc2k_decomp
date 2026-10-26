@@ -19,20 +19,18 @@ fn game() -> Vec<u32> {
 
 /// The Rust version on the variables' addresses.
 // Converted: `rc2k_core::physics::start::CarStart::mark_started`.
-unsafe fn core(v: &[u32]) {
-    unsafe {
-        let was = CarStart {
-            started: get(v[0]),
-            moving: get(v[1]),
-            ..CarStart::default()
-        };
-        let mut c = was;
-        c.mark_started();
-        put_changed(v[0], was.started, c.started);
-    }
+fn core(v: &[u32]) {
+    let was = CarStart {
+        started: get(v[0]),
+        moving: get(v[1]),
+        ..CarStart::default()
+    };
+    let mut c = was;
+    c.mark_started();
+    put_changed(v[0], was.started, c.started);
 }
 
 /// The Rust version.
-pub unsafe fn mark_car_started() {
-    unsafe { core(&game()) }
+pub fn mark_car_started() {
+    core(&game())
 }

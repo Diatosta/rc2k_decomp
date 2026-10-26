@@ -126,8 +126,10 @@ pub fn game_ptr<T>(place: impl Where) -> *mut T {
 }
 
 /// Reads a variable (`framework::game_read`, over a block or the image).
-pub unsafe fn game_read<T: Copy>(place: impl Where) -> T {
+pub fn game_read<T: Copy>(place: impl Where) -> T {
     let p = game_ptr::<T>(place);
+    crate::pointers::check_or_end(p as u32, size_of::<T>(), "a game variable");
+    // SAFETY: inside one live region (checked above).
     unsafe {
         if p.is_aligned() {
             p.read_volatile()
@@ -138,8 +140,10 @@ pub unsafe fn game_read<T: Copy>(place: impl Where) -> T {
 }
 
 /// Writes a variable (`framework::game_write`, over a block or the image).
-pub unsafe fn game_write<T: Copy>(place: impl Where, value: T) {
+pub fn game_write<T: Copy>(place: impl Where, value: T) {
     let p = game_ptr::<T>(place);
+    crate::pointers::check_or_end(p as u32, size_of::<T>(), "a game variable");
+    // SAFETY: inside one live region (checked above).
     unsafe {
         if p.is_aligned() {
             p.write_volatile(value)

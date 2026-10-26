@@ -30,19 +30,17 @@ pub fn start_race_sounds() -> Result<(), Refused> {
     if !objects_there() {
         return Err(BadInput("a race sound object missing").into());
     }
-    unsafe {
-        crate::sound::race_clock::start_race_clock(crate::system::tick_count::tick_count());
-        let count: u32 = crate::sound::store::RACE_SOUNDS.count.get();
-        if count != 0 {
-            let count = count.clamp(1, OBJECTS);
-            crate::sound::store::RACE_SOUNDS.count.set(count);
-            for n in 0..count {
-                wake(n)?;
-            }
+    crate::sound::race_clock::start_race_clock(crate::system::tick_count::tick_count());
+    let count: u32 = crate::sound::store::RACE_SOUNDS.count.get();
+    if count != 0 {
+        let count = count.clamp(1, OBJECTS);
+        crate::sound::store::RACE_SOUNDS.count.set(count);
+        for n in 0..count {
+            wake(n)?;
         }
-        crate::sound::let_sounds_play::let_sounds_play();
-        crate::sound::store::RACE_CLOCK.started.set(1);
     }
+    crate::sound::let_sounds_play::let_sounds_play();
+    crate::sound::store::RACE_CLOCK.started.set(1);
     Ok(())
 }
 

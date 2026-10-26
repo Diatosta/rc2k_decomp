@@ -36,7 +36,7 @@ fn lift_car(rc: usize) {
 
 /// The Rust version. The registers it leaves are read by no caller (liveness: esi after
 /// `drive::finish_race`'s call has no read point).
-pub unsafe fn finish_run() -> Result<(), Refused> {
+pub fn finish_run() -> Result<(), Refused> {
     lift_car(crate::race::store::asm_base() as usize);
     restart_clock();
     CLOCK_TICKS.clock_a.set(PHYSICS.scene_clock.get());
@@ -52,7 +52,7 @@ pub unsafe fn finish_run() -> Result<(), Refused> {
     loop {
         crate::sound::store::RACE_SOUNDS.objects[0].revs.set(0);
         input_update();
-        unsafe { crate::drive::finish_timing::finish_timing() };
+        crate::drive::finish_timing::finish_timing();
         let n = RACE_STATE.results.finished.get();
         if n > 1 {
             return Err(BadInput("a finish length past the table's two").into());

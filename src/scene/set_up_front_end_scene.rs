@@ -86,7 +86,7 @@ fn picture_places() -> impl Iterator<Item = u32> {
 
 // ---- Rust version ----
 
-unsafe fn colours(dark_third: u32) {
+fn colours(dark_third: u32) {
     {
         crate::session::write_bits(&STAGE_PREFS.lit_colour, [0xFFu32; 3]);
         crate::session::write_bits(&STAGE_PREFS.dark_colour, [0u32, 0, dark_third]);

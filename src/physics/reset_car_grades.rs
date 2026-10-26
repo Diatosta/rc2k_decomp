@@ -14,7 +14,7 @@
 use crate::race::numbers_store::NUMBERS;
 use rc2k_core::physics::grades::{percentage, reset_writes};
 
-unsafe fn put(a: u32, v: u32) {
+fn put(a: u32, v: u32) {
     crate::pointers::write_or_end::<u32>(a, v, "physics::reset_car_grades's operand")
 }
 

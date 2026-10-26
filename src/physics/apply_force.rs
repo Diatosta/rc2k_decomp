@@ -20,11 +20,11 @@ use crate::scene::draw_store::DRAW;
 use crate::scene::matrix3::{extended, rounded};
 use crate::scene::rotate_point::rotate_point;
 
-unsafe fn at(a: u32) -> u32 {
+fn at(a: u32) -> u32 {
     crate::pointers::read_or_end::<u32>(a, "physics::apply_force's operand")
 }
 
-unsafe fn put(a: u32, v: u32) {
+fn put(a: u32, v: u32) {
     crate::pointers::write_or_end::<u32>(a, v, "physics::apply_force's operand")
 }
 

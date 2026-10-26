@@ -28,14 +28,14 @@ pub struct Measured {
 
 /// `font` is changed as the original changes the font object. Converted:
 /// `rc2k_core::text::measure`.
-pub unsafe fn measure_text(
+pub fn measure_text(
     font: &mut Font,
     text: *const u8,
     x: i32,
     canvas: &mut dyn Canvas,
 ) -> Result<Measured, Refused> {
     let copy = *font;
-    let m = unsafe {
+    let m = {
         run_core(&copy, text, canvas, |words, glyphs, c| {
             rc2k_core::text::measure(font, words, glyphs, x, c)
         })
@@ -49,19 +49,16 @@ pub unsafe fn measure_text(
 
 /// For Rust callers, with a font object in game memory: the object is only written if the
 /// canvas keeps font changes.
-pub unsafe fn measure_text_at(
+pub fn measure_text_at(
     font: *mut Font,
     text: *const u8,
     x: i32,
     canvas: &mut dyn Canvas,
 ) -> Result<Measured, Refused> {
-    unsafe {
-        let mut copy =
-            crate::pointers::GamePtr::new(font as usize as u32).read::<Font>("a font")?;
-        let measured = measure_text(&mut copy, text, x, canvas)?;
-        if canvas.keeps_font_changes() {
-            crate::pointers::GamePtr::new(font as usize as u32).write(copy, "a font")?;
-        }
-        Ok(measured)
+    let mut copy = crate::pointers::GamePtr::new(font as usize as u32).read::<Font>("a font")?;
+    let measured = measure_text(&mut copy, text, x, canvas)?;
+    if canvas.keeps_font_changes() {
+        crate::pointers::GamePtr::new(font as usize as u32).write(copy, "a font")?;
     }
+    Ok(measured)
 }

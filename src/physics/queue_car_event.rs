@@ -43,38 +43,32 @@ impl QueuePlaces {
 
 impl QueuePlaces {
     /// The queue at these places.
-    pub unsafe fn load(&self) -> CarEvents {
-        unsafe {
-            CarEvents {
-                times: get_list(self.times),
-                events: get_list(self.events),
-                count: get(self.count),
-                level: get(self.f9c),
-                shown: get(self.fa0),
-            }
+    pub fn load(&self) -> CarEvents {
+        CarEvents {
+            times: get_list(self.times),
+            events: get_list(self.events),
+            count: get(self.count),
+            level: get(self.f9c),
+            shown: get(self.fa0),
         }
     }
 
     /// What changed from `was` to `now` stored back.
-    pub unsafe fn store(&self, was: &CarEvents, now: &CarEvents) {
-        unsafe {
-            put_list_changed(self.times, &was.times, &now.times);
-            put_list_changed(self.events, &was.events, &now.events);
-            put_changed(self.count, was.count, now.count);
-            put_changed(self.f9c, was.level, now.level);
-            put_changed(self.fa0, was.shown, now.shown);
-        }
+    pub fn store(&self, was: &CarEvents, now: &CarEvents) {
+        put_list_changed(self.times, &was.times, &now.times);
+        put_list_changed(self.events, &was.events, &now.events);
+        put_changed(self.count, was.count, now.count);
+        put_changed(self.f9c, was.level, now.level);
+        put_changed(self.fa0, was.shown, now.shown);
     }
 }
 
 /// The Rust version on the variables at `p`.
 // Converted: `rc2k_core::physics::car_events::CarEvents::queue`.
-pub unsafe fn queue_car_event_at(p: &QueuePlaces, esi: u32, ebx: u32) -> Result<(), Refused> {
-    unsafe {
-        let was = p.load();
-        let mut q = was;
-        q.queue(get(p.clock), esi, ebx)?;
-        p.store(&was, &q);
-        Ok(())
-    }
+pub fn queue_car_event_at(p: &QueuePlaces, esi: u32, ebx: u32) -> Result<(), Refused> {
+    let was = p.load();
+    let mut q = was;
+    q.queue(get(p.clock), esi, ebx)?;
+    p.store(&was, &q);
+    Ok(())
 }

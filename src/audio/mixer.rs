@@ -17,7 +17,7 @@ pub const MIX_BUFFER_LEN: u32 = 0x3C00;
 /// channel (kind 1) goes back to 0 (the fraction kept), any other is no longer used and
 /// stops there. Positions are stored back. Refuses no channels, no frames with a channel
 /// used (both counts run 2^32 times in the original), more frames than the buffer holds.
-pub unsafe fn mix_channels(
+pub fn mix_channels(
     bytes: u32,
     shift: u32,
     mix: u32,

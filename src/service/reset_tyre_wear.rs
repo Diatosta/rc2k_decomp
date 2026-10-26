@@ -16,7 +16,7 @@ use crate::errors::BadInput;
 // five dwords
 // ---- Rust version ----
 
-pub unsafe fn reset_tyre_wear() -> Result<(), BadInput> {
+pub fn reset_tyre_wear() -> Result<(), BadInput> {
     // Converted: `rc2k_core::service::car` (`Player::reset_tyre_wear`).
     crate::service::repair_parts::with_player(|p| p.reset_tyre_wear())
 }

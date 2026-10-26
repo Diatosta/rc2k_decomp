@@ -61,8 +61,7 @@ fn steps() -> Result<(), Refused> {
             WishStep::Draw(_) => {
                 REPLAY_WORK.camera_last_frame[c].set(REPLAY_VIEW.replay_block.get());
                 // `Draw` comes only for the wishes that draw: the mode is there.
-                if let Some(mode) =
-                    unsafe { crate::drive::pick_replay_camera::pick_replay_camera(wish) }?
+                if let Some(mode) = { crate::drive::pick_replay_camera::pick_replay_camera(wish) }?
                 {
                     car.camera_view.set(mode);
                 }
@@ -102,6 +101,6 @@ fn steps() -> Result<(), Refused> {
 }
 
 /// The Rust version.
-pub unsafe fn replay_cameras() -> Result<(), Refused> {
+pub fn replay_cameras() -> Result<(), Refused> {
     steps()
 }

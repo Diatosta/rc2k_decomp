@@ -43,8 +43,7 @@ pub fn step_viewed_replay() -> Result<bool, Refused> {
         Step::PlayEnd { .. } => return Ok(stop(false)),
         Step::On { block, frame, read } => {
             if read {
-                let failed =
-                    { unsafe { crate::drive::read_replay_frame::read_replay_frame(block, 0) } }?;
+                let failed = crate::drive::read_replay_frame::read_replay_frame(block, 0)?;
                 if failed {
                     return Ok(stop(true));
                 }

@@ -19,15 +19,15 @@ use crate::scene::draw_store::DRAW;
 use crate::scene::x87_mem::{fild, fld, fstp};
 
 /// 0x43EA85 .. 0x43EAE7, as the original.
-unsafe fn run() {
+fn run() {
     x87_1(crate::race::store::asm_base() as usize);
 }
 
 /// The Rust version (the exact one, for `physics::free_rev_in_neutral`,
 /// `free_rev_clutch` and their callers).
-pub unsafe fn free_rev() {
-    unsafe { engine_torque() };
-    unsafe { run() };
+pub fn free_rev() {
+    engine_torque();
+    run();
     let (e, drag) = (CAR.engine_speed.bits(), DRAW.scratch.get());
     let x = f32::from_bits(e);
     if x == 0.0 || x.is_nan() {

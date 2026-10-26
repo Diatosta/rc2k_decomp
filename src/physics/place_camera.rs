@@ -128,9 +128,8 @@ pub unsafe fn place_camera() {
                 (parts[k].as_mut_ptr()) as usize,
             );
         }
-        let turned = unsafe {
-            crate::scene::rotate_point::rotate_point(CAR.crash_matrix[0].addr() as u32, parts)
-        };
+        let turned =
+            { crate::scene::rotate_point::rotate_point(CAR.crash_matrix[0].addr() as u32, parts) };
         let k = NUMBERS.k65536.bits();
         turned.map(|e| crate::math::x87_run::ext_to_int(crate::math::x87_run::ext_times(e, k)))
     };

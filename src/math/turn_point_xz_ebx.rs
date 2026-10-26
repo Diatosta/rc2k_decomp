@@ -14,7 +14,7 @@
 use crate::math::turn_point_xz::turn_point_xz;
 
 /// The Rust version: x', z' and the entry left in edx.
-pub unsafe fn turn_point_xz_ebx(x: i32, y: i32, z: i32, angle: u32) -> [u32; 3] {
-    let [x, _, z, entry] = unsafe { turn_point_xz(x, y, z, angle) };
+pub fn turn_point_xz_ebx(x: i32, y: i32, z: i32, angle: u32) -> [u32; 3] {
+    let [x, _, z, entry] = { turn_point_xz(x, y, z, angle) };
     [x, z, entry]
 }

@@ -22,22 +22,16 @@ use crate::physics::tables_store::PHYSICS;
 
 /// The Rust version on the bits at `bits` and the count `count`.
 // Converted: `rc2k_core::physics::gearbox::GearBits::higher_free`.
-pub unsafe fn higher_free_gear_at(
-    bits: u32,
-    count: u32,
-    gear: u32,
-) -> Result<Option<u32>, Refused> {
-    let s = unsafe { bits_at(bits) }.higher_free(gear, count)?;
+pub fn higher_free_gear_at(bits: u32, count: u32, gear: u32) -> Result<Option<u32>, Refused> {
+    let s = { bits_at(bits) }.higher_free(gear, count)?;
     Ok(s.found.then_some(s.gear))
 }
 
 /// The Rust version.
-pub unsafe fn higher_free_gear(gear: u32) -> Result<Option<u32>, Refused> {
-    unsafe {
-        higher_free_gear_at(
-            CAR.lost_gear_bits.addr() as u32,
-            PHYSICS.gear_count.bits(),
-            gear,
-        )
-    }
+pub fn higher_free_gear(gear: u32) -> Result<Option<u32>, Refused> {
+    higher_free_gear_at(
+        CAR.lost_gear_bits.addr() as u32,
+        PHYSICS.gear_count.bits(),
+        gear,
+    )
 }

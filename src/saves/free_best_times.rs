@@ -16,12 +16,12 @@ use crate::saves::best_times_store::BEST_TIMES;
 
 // ---- Rust version ----
 
-pub unsafe fn free_best_times(list: *mut MemoryList) -> Result<(), BadInput> {
-    unsafe { free_list(list)? };
+pub fn free_best_times(list: *mut MemoryList) -> Result<(), BadInput> {
+    free_list(list)?;
     BEST_TIMES.allocated.set(0);
     Ok(())
 }
 
 pub fn free_in_game() -> Result<(), BadInput> {
-    unsafe { free_best_times(BEST_TIMES.list()) }
+    free_best_times(BEST_TIMES.list())
 }

@@ -41,7 +41,7 @@ pub enum Step {
     Draw,
 }
 
-pub unsafe fn draw_clipped_polygon(
+pub fn draw_clipped_polygon(
     step: &mut dyn FnMut(Step) -> Result<(), Refused>,
 ) -> Result<(), Refused> {
     {

@@ -117,7 +117,7 @@ pub fn steps() -> Result<(), Refused> {
         PHYSICS.contacts[1].force[0].addr() as u32,
     );
     unsafe { contact_force() };
-    unsafe { crate::physics::place_sound_e1::place_sound_e1() }?;
+    { crate::physics::place_sound_e1::place_sound_e1() }?;
     Ok(())
 }
 

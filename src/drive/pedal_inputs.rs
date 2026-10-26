@@ -26,7 +26,7 @@ fn step_pedal(bit: u32, input: &Dword, at: &Dword) {
 
 /// The Rust version.
 // Converted: `rc2k_core::drive::controls::{pedal, handbrake}`.
-pub unsafe fn pedal_inputs() {
+pub fn pedal_inputs() {
     step_pedal(THROTTLE_KEY, &PHYSICS.input_throttle, &CAR.throttle);
     step_pedal(BRAKE_KEY, &PHYSICS.input_brake, &CAR.brake);
     let hand = PHYSICS.input_handbrake.get();

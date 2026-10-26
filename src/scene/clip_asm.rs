@@ -26,11 +26,11 @@ pub const CHECKED: usize = 0x13C;
 pub const PLANE: usize = 0x140;
 
 /// `sub_44D247` from after its `fstp flt_623F80` (the edge is in the block already) to its `call`.
-pub unsafe fn cut_at_x(w: *mut Work) {
-    unsafe { cut_x(w.cast()) }
+pub fn cut_at_x(w: *mut Work) {
+    cut_x(w.cast())
 }
 
-unsafe fn cut_x(w: *mut u8) {
+fn cut_x(w: *mut u8) {
     let t0 = fld(w, 0x38);
     let t1 = fld(w, 0x18);
     let t2 = t1 - t0;
@@ -158,11 +158,11 @@ unsafe fn cut_x(w: *mut u8) {
 }
 
 /// `sub_44D532`, likewise with `flt_623F84`.
-pub unsafe fn cut_at_y(w: *mut Work) {
-    unsafe { cut_y(w.cast()) }
+pub fn cut_at_y(w: *mut Work) {
+    cut_y(w.cast())
 }
 
-unsafe fn cut_y(w: *mut u8) {
+fn cut_y(w: *mut u8) {
     let t0 = fld(w, 0x38);
     let t1 = fld(w, 0x18);
     let t2 = t1 - t0;
@@ -290,11 +290,11 @@ unsafe fn cut_y(w: *mut u8) {
 }
 
 /// `sub_44DB93` from 0x44DC37 to 0x44DD9A (`sub_44DEAA` has the same there).
-pub unsafe fn cut_at_depth(w: *mut Work) {
-    unsafe { cut_depth(w.cast()) }
+pub fn cut_at_depth(w: *mut Work) {
+    cut_depth(w.cast())
 }
 
-unsafe fn cut_depth(w: *mut u8) {
+fn cut_depth(w: *mut u8) {
     let t0 = fild(w, 0x140);
     let t1 = fld(w, 0x18);
     let t2 = t0 - t1;
@@ -788,7 +788,7 @@ mod asm_reference {
             [Kind::Float; 0x51],
             fill,
             |base| unsafe { cut_x_ref(base) },
-            |base| unsafe { cut_x(base) },
+            cut_x,
         );
     }
 
@@ -801,7 +801,7 @@ mod asm_reference {
             [Kind::Float; 0x51],
             fill,
             |base| unsafe { cut_y_ref(base) },
-            |base| unsafe { cut_y(base) },
+            cut_y,
         );
     }
 
@@ -814,7 +814,7 @@ mod asm_reference {
             [Kind::Float; 0x51],
             fill,
             |base| unsafe { cut_depth_ref(base) },
-            |base| unsafe { cut_depth(base) },
+            cut_depth,
         );
     }
 }

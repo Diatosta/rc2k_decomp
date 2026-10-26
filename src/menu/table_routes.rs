@@ -184,11 +184,11 @@ pub fn item_fn(f: ItemFn, c: &crate::menu::table_calls::ItemCall) -> Result<(), 
         ItemFn::PreviousSlideshowPicture => crate::menu::previous_slideshow_picture::run(),
         ItemFn::NextSlideshowPicture => crate::menu::next_slideshow_picture::run(),
         ItemFn::NextController => {
-            unsafe { crate::menu::controller_items::next_controller() }?;
+            { crate::menu::controller_items::next_controller() }?;
             Ok(())
         }
         ItemFn::PreviousController => {
-            unsafe { crate::menu::controller_items::previous_controller() }?;
+            { crate::menu::controller_items::previous_controller() }?;
             Ok(())
         }
         ItemFn::KeepPlayerKeys => crate::menu::player_actions::keep_player_keys_hook::run(),
@@ -237,20 +237,20 @@ pub fn item_fn(f: ItemFn, c: &crate::menu::table_calls::ItemCall) -> Result<(), 
         ItemFn::LowerPlayer44 => crate::menu::player_actions::lower_player_44_hook::run(),
         ItemFn::RaiseDeadZoneB => crate::menu::raise_dead_zone_b::run(),
         ItemFn::LowerControllerSensitivity => {
-            unsafe { crate::menu::controller_items::lower_controller_sensitivity() }?;
+            { crate::menu::controller_items::lower_controller_sensitivity() }?;
             Ok(())
         }
-        ItemFn::RaiseControllerSensitivity => unsafe {
+        ItemFn::RaiseControllerSensitivity => {
             crate::menu::controller_items::raise_controller_sensitivity(c.menu)
-        },
+        }
         ItemFn::RaisePlayer48 => crate::menu::player_actions::raise_player_48_hook::run(),
         ItemFn::LowerPlayer48 => crate::menu::player_actions::lower_player_48_hook::run(),
-        ItemFn::BeginGearRatioEdit => unsafe {
+        ItemFn::BeginGearRatioEdit => {
             crate::service::begin_edits::begin_edit(crate::service::begin_edits::GEAR_RATIO)
-        },
-        ItemFn::BeginTyreEdit => unsafe {
+        }
+        ItemFn::BeginTyreEdit => {
             crate::service::begin_edits::begin_edit(crate::service::begin_edits::TYRE)
-        },
+        }
         ItemFn::OpenSteeringBox => {
             crate::menu::item_actions::open_service_box(3);
             Ok(())
@@ -259,16 +259,14 @@ pub fn item_fn(f: ItemFn, c: &crate::menu::table_calls::ItemCall) -> Result<(), 
             crate::menu::item_actions::open_service_box(4);
             Ok(())
         }
-        ItemFn::BeginRideHeightEdit => unsafe {
+        ItemFn::BeginRideHeightEdit => {
             crate::service::begin_edits::begin_edit(crate::service::begin_edits::RIDE_HEIGHT)
-        },
-        ItemFn::BeginSuspensionStiffnessEdit => unsafe {
-            crate::service::begin_edits::begin_edit(
-                crate::service::begin_edits::SUSPENSION_STIFFNESS,
-            )
-        },
+        }
+        ItemFn::BeginSuspensionStiffnessEdit => crate::service::begin_edits::begin_edit(
+            crate::service::begin_edits::SUSPENSION_STIFFNESS,
+        ),
         ItemFn::ToggleRepairChoice => {
-            unsafe { crate::service::toggle_repair_choice::toggle_repair_choice() }?;
+            { crate::service::toggle_repair_choice::toggle_repair_choice() }?;
             Ok(())
         }
         ItemFn::NextScoresPage => crate::menu::player_actions::next_scores_page_hook::run(),
@@ -293,7 +291,7 @@ pub fn item_fn(f: ItemFn, c: &crate::menu::table_calls::ItemCall) -> Result<(), 
         ItemFn::LoadChampionship46e899Loop => crate::menu::load_championship_46e899_loop::run(),
         ItemFn::SaveSetupLoop => crate::menu::save_setup_loop::run(),
         ItemFn::BeginSetupName => {
-            unsafe { crate::service::begin_setup_name::begin_setup_name() }?;
+            { crate::service::begin_setup_name::begin_setup_name() }?;
             Ok(())
         }
         ItemFn::LoadSetupSlot => {
@@ -352,8 +350,8 @@ pub fn item_fn(f: ItemFn, c: &crate::menu::table_calls::ItemCall) -> Result<(), 
         ItemFn::ApplyScreenMode => unsafe { crate::menu::apply_screen_mode::apply_screen_mode() },
         ItemFn::TogglePlayer3c => crate::menu::player_actions::toggle_player_3c_hook::run(),
         ItemFn::ReplayItemC => crate::menu::replay_item_c::replay_item_c(&c.carried()),
-        ItemFn::ReplayItemB => unsafe { crate::menu::replay_item_b::replay_item_b(&c.carried()) },
-        ItemFn::ReplayItemA => unsafe { crate::menu::replay_item_a::replay_item_a(&c.carried()) },
+        ItemFn::ReplayItemB => crate::menu::replay_item_b::replay_item_b(&c.carried()),
+        ItemFn::ReplayItemA => crate::menu::replay_item_a::replay_item_a(&c.carried()),
         ItemFn::ToggleCaptionChoice => {
             crate::menu::player_actions::toggle_caption_choice_hook::run()
         }
@@ -607,7 +605,7 @@ pub fn screen_fn(f: ScreenFn) -> Result<(), Refused> {
         }
         ScreenFn::LearnAxis => unsafe { crate::screens::controller::learn_axis() },
         ScreenFn::HandleEditKeys => {
-            unsafe { crate::service::handle_edit_keys::handle_edit_keys() }?;
+            { crate::service::handle_edit_keys::handle_edit_keys() }?;
             Ok(())
         }
         ScreenFn::BestScoresCaption => {
@@ -687,7 +685,7 @@ pub fn screen_fn(f: ScreenFn) -> Result<(), Refused> {
             Ok(())
         }
         ScreenFn::LoadSetupValues => {
-            unsafe { crate::service::load_setup_values::load_setup_values() }?;
+            { crate::service::load_setup_values::load_setup_values() }?;
             Ok(())
         }
         ScreenFn::LoadAudioSettings => {

@@ -12,6 +12,6 @@
 use crate::math::x87_run::length_80;
 
 /// The Rust version: the length as it is left in st(0).
-pub unsafe fn vector_length(v: u32) -> [u8; 10] {
-    unsafe { length_80(v as *const u32) }
+pub fn vector_length(v: u32) -> [u8; 10] {
+    length_80(v as *const u32)
 }

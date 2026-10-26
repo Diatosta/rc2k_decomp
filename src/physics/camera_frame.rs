@@ -34,8 +34,7 @@ fn steps() -> Result<(), Refused> {
         negate(&PHYSICS.camera_frame_limit);
         hold_low(&LIGHT_STATE.camera_frame_b, &PHYSICS.camera_frame_limit);
         negate(&PHYSICS.camera_frame_limit);
-        DRAW.scratch
-            .set(unsafe { crate::math::next_random::next_random() });
+        DRAW.scratch.set(crate::math::next_random::next_random());
         x87_2(crate::race::store::asm_base() as usize);
         if crate::physics::split_tables_store::SPLIT_TABLES.still.get() != 0 {
             LIGHT_STATE.camera_frame_b.set(0);

@@ -55,76 +55,74 @@ fn next_seed(s: u32) -> u32 {
 /// when the x is not below the span: `x87::random_step`); turned back
 /// (`set_line_turn_back`), rounded with the line's start added, the low bytes kept.
 pub fn map_pixel(row: u32, x: u32) -> Result<(), Refused> {
-    unsafe {
-        let lines = MASKS.lines.as_ptr() as u32;
-        let f = |o: u32| -> Result<_, Refused> { Ok(get(lines + o)?) };
-        MASKS.pixel[0].set(x);
-        let pixel: [u32; 2] = read_bits(&MASKS.pixel);
-        let turn = MASKS.turn.as_ptr() as u32;
-        let shake: u32 = MARKS_WORK.shake.get();
-        for half in HALVES {
-            write_bits(&MASKS.work_pixel, pixel);
-            crate::scene::matrix3::identity_matrix3(turn);
-            set_line_turn(lines + half.line, false)?;
-            scale_rows3(turn)?;
-            let (lx, ly) = (f(half.line)?, f(half.line + 4)?);
-            let turned = |x: [u8; 10], y: [u8; 10]| turn_pair([y, x]);
-            let a = turned(
-                x87::sub_80(f(half.other)?, lx),
-                x87::sub_80(f(half.other + 4)?, ly),
-            );
-            let b = turned(
-                x87::sub_80(f(half.other + 0xC)?, lx),
-                x87::sub_80(f(half.other + 0x10)?, ly),
-            );
-            let p = turned(
-                x87::int_sub_80(pixel[0] as i32, lx),
-                x87::int_sub_80(pixel[1] as i32, ly),
-            );
-            // 0x82E40A, _40E, then _416, _41A (0x82E412 is left).
-            let ends = [rounded(a[1]), rounded(a[0]), rounded(b[1]), rounded(b[0])];
-            MASKS.ends[0].set_bits(ends[0]);
-            MASKS.ends[1].set_bits(ends[1]);
-            MASKS.ends[3].set_bits(ends[2]);
-            MASKS.ends[4].set_bits(ends[3]);
-            let (px, py) = (rounded(p[1]), rounded(p[0]));
-            write_bits(&MASKS.work_pixel, [px, py]);
-            let mut span = x87::sub(ends[2], ends[0]);
-            let rise = x87::div(x87::sub(ends[3], ends[1]), span);
-            write_bits(&MASKS.slope, [span, rise]);
-            let negative = span & 0x8000_0000 != 0;
-            if negative {
-                span ^= 0x8000_0000;
-                MASKS.slope[0].set_bits(span);
-            }
-            let status = x87::sub_compare(px, ends[0], negative, span);
-            MARKS_WORK.fpu_status.set(status as u32);
-            let mut seed = next_seed(MARKS_WORK.seed.get());
-            let (mut r, mut c) = (
-                seed & 0x3FFF,
-                MASK_CONSTANTS.pixel_constants[half.constants].bits(),
-            );
-            if status != 0x100 {
-                seed = next_seed(seed);
-                (r, c) = (
-                    seed & 0xFFFF,
-                    MASK_CONSTANTS.pixel_constants[half.constants + 1].bits(),
-                );
-            }
-            MARKS_WORK.seed.set(seed);
-            let k: u32 = MASK_CONSTANTS.pixel_constants[half.constants + 2].bits();
-            let y = x87::random_step(r as i32, [shake, c, px, ends[0], rise, ends[1], k]);
-            MASKS.work_pixel[1].set(y);
-            set_line_turn(lines + half.line, true)?;
-            scale_rows3(turn)?;
-            let q = turn_pair([extended(y), extended(px)]);
-            let (qx, qy) = (rounded(q[1]), rounded(q[0]));
-            let out = [x87::add_to_int(qx, lx), x87::add_to_int(qy, ly)];
-            write_bits(&MASKS.work_pixel, out.map(|v| v as u32));
-            let at = row.wrapping_add(x.wrapping_mul(4)).wrapping_add(half.bytes);
-            GamePtr::new(at).write::<u8>(out[0] as u8, "a mask pixel")?;
-            GamePtr::new(at + 1).write::<u8>(out[1] as u8, "a mask pixel")?;
+    let lines = MASKS.lines.as_ptr() as u32;
+    let f = |o: u32| -> Result<_, Refused> { Ok(get(lines + o)?) };
+    MASKS.pixel[0].set(x);
+    let pixel: [u32; 2] = read_bits(&MASKS.pixel);
+    let turn = MASKS.turn.as_ptr() as u32;
+    let shake: u32 = MARKS_WORK.shake.get();
+    for half in HALVES {
+        write_bits(&MASKS.work_pixel, pixel);
+        crate::scene::matrix3::identity_matrix3(turn);
+        set_line_turn(lines + half.line, false)?;
+        scale_rows3(turn)?;
+        let (lx, ly) = (f(half.line)?, f(half.line + 4)?);
+        let turned = |x: [u8; 10], y: [u8; 10]| turn_pair([y, x]);
+        let a = turned(
+            x87::sub_80(f(half.other)?, lx),
+            x87::sub_80(f(half.other + 4)?, ly),
+        );
+        let b = turned(
+            x87::sub_80(f(half.other + 0xC)?, lx),
+            x87::sub_80(f(half.other + 0x10)?, ly),
+        );
+        let p = turned(
+            x87::int_sub_80(pixel[0] as i32, lx),
+            x87::int_sub_80(pixel[1] as i32, ly),
+        );
+        // 0x82E40A, _40E, then _416, _41A (0x82E412 is left).
+        let ends = [rounded(a[1]), rounded(a[0]), rounded(b[1]), rounded(b[0])];
+        MASKS.ends[0].set_bits(ends[0]);
+        MASKS.ends[1].set_bits(ends[1]);
+        MASKS.ends[3].set_bits(ends[2]);
+        MASKS.ends[4].set_bits(ends[3]);
+        let (px, py) = (rounded(p[1]), rounded(p[0]));
+        write_bits(&MASKS.work_pixel, [px, py]);
+        let mut span = x87::sub(ends[2], ends[0]);
+        let rise = x87::div(x87::sub(ends[3], ends[1]), span);
+        write_bits(&MASKS.slope, [span, rise]);
+        let negative = span & 0x8000_0000 != 0;
+        if negative {
+            span ^= 0x8000_0000;
+            MASKS.slope[0].set_bits(span);
         }
+        let status = x87::sub_compare(px, ends[0], negative, span);
+        MARKS_WORK.fpu_status.set(status as u32);
+        let mut seed = next_seed(MARKS_WORK.seed.get());
+        let (mut r, mut c) = (
+            seed & 0x3FFF,
+            MASK_CONSTANTS.pixel_constants[half.constants].bits(),
+        );
+        if status != 0x100 {
+            seed = next_seed(seed);
+            (r, c) = (
+                seed & 0xFFFF,
+                MASK_CONSTANTS.pixel_constants[half.constants + 1].bits(),
+            );
+        }
+        MARKS_WORK.seed.set(seed);
+        let k: u32 = MASK_CONSTANTS.pixel_constants[half.constants + 2].bits();
+        let y = x87::random_step(r as i32, [shake, c, px, ends[0], rise, ends[1], k]);
+        MASKS.work_pixel[1].set(y);
+        set_line_turn(lines + half.line, true)?;
+        scale_rows3(turn)?;
+        let q = turn_pair([extended(y), extended(px)]);
+        let (qx, qy) = (rounded(q[1]), rounded(q[0]));
+        let out = [x87::add_to_int(qx, lx), x87::add_to_int(qy, ly)];
+        write_bits(&MASKS.work_pixel, out.map(|v| v as u32));
+        let at = row.wrapping_add(x.wrapping_mul(4)).wrapping_add(half.bytes);
+        GamePtr::new(at).write::<u8>(out[0] as u8, "a mask pixel")?;
+        GamePtr::new(at + 1).write::<u8>(out[1] as u8, "a mask pixel")?;
     }
     Ok(())
 }

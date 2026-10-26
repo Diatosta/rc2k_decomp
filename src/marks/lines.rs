@@ -290,29 +290,27 @@ pub fn copy_block_points(block: u32) -> Result<(), Refused> {
 /// as `measure_starting_sums`, before anything is taken.
 // Converted: `rc2k_core::marks::lines::{measured, block_at}`
 pub fn set_up_blocks() -> Result<(), Refused> {
-    unsafe {
-        measured(crate::marks::setup::SETTINGS.pointer.get(), true)?;
-        measure_starting_sums()?;
-        let settings: u32 = crate::marks::setup::SETTINGS.pointer.get();
-        let count = get(settings + 0x5C)? as i32;
-        for k in (0..count.max(0) as u32).rev() {
-            let block = block_at(settings, k);
-            for o in (0x90..=0xCC).step_by(4) {
-                put(block + o, u32::MAX)?;
-            }
-            let points: u32 =
-                ObjectTables::slot_value(&OBJECT_SLOTS.point_counts, get(block)? as usize);
-            let taken = crate::memory::allocate::allocate(
-                (block + 0x4C) as *mut crate::memory::MemoryList,
-                points.wrapping_mul(12),
-            )? as u32;
-            MORPH_WORK.taken.set(taken);
-            put(block + 0x8C, taken)?;
-            copy_block_points(block)?;
-            for n in 0..8 {
-                let v = x87::loaded(LINES_WORK.block_start[n].bits());
-                put(block + 0x90 + 4 * n as u32, v)?;
-            }
+    measured(crate::marks::setup::SETTINGS.pointer.get(), true)?;
+    measure_starting_sums()?;
+    let settings: u32 = crate::marks::setup::SETTINGS.pointer.get();
+    let count = get(settings + 0x5C)? as i32;
+    for k in (0..count.max(0) as u32).rev() {
+        let block = block_at(settings, k);
+        for o in (0x90..=0xCC).step_by(4) {
+            put(block + o, u32::MAX)?;
+        }
+        let points: u32 =
+            ObjectTables::slot_value(&OBJECT_SLOTS.point_counts, get(block)? as usize);
+        let taken = crate::memory::allocate::allocate(
+            (block + 0x4C) as *mut crate::memory::MemoryList,
+            points.wrapping_mul(12),
+        )? as u32;
+        MORPH_WORK.taken.set(taken);
+        put(block + 0x8C, taken)?;
+        copy_block_points(block)?;
+        for n in 0..8 {
+            let v = x87::loaded(LINES_WORK.block_start[n].bits());
+            put(block + 0x90 + 4 * n as u32, v)?;
         }
     }
     Ok(())

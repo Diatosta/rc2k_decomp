@@ -21,7 +21,7 @@ use crate::service::state::flagged_item;
 use crate::service::state::{flags, marks, store_flags, store_marks, time_of};
 
 /// The Rust version (see the header).
-pub unsafe fn toggle_repair_choice() -> Result<(), Refused> {
+pub fn toggle_repair_choice() -> Result<(), Refused> {
     // Converted: `rc2k_core::service::repairs::toggle_choice` (nothing written when it
     // refuses).
     let item = flagged_item()?;

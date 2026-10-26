@@ -46,7 +46,7 @@ const MEASURING_FONT: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fon
 // ---- Rust version ----
 
 /// Writes the cursor and a NUL after the name's `len` characters.
-unsafe fn put_cursor(name: *mut u8) -> Result<(), BadInput> {
+fn put_cursor(name: *mut u8) -> Result<(), BadInput> {
     let mut tail = Vec::new();
     push_string(&mut tail, CURSOR_STRING)?;
     tail.push(0);

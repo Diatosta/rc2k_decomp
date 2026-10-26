@@ -23,58 +23,58 @@ const REG_BINARY: u32 = 3;
 
 // ---- Rust version ----
 
-/// The three registry calls, so that a test can answer them.
+/// The three registry calls, so that a test can answer them: the game's addresses of
+/// the names, the key, the type, the data and its size.
 pub trait Registry {
-    unsafe fn open(&mut self, name: *const u8, key: *mut u32) -> u32;
-    unsafe fn query(
-        &mut self,
-        key: u32,
-        name: *const u8,
-        kind: *mut u32,
-        data: *mut u8,
-        size: *mut u32,
-    ) -> u32;
-    unsafe fn close(&mut self, key: u32);
+    fn open(&mut self, name: u32, key: u32) -> u32;
+    fn query(&mut self, key: u32, name: u32, kind: u32, data: u32, size: u32) -> u32;
+    fn close(&mut self, key: u32);
 }
 
-pub unsafe fn read_registry(registry: &mut dyn Registry) {
-    unsafe {
-        let key = INSTALLER_RUN.reg_key.addr() as *mut u32;
-        if registry.open(INSTALLER_NAMES.key_name.addr() as *const u8, key) != 0 {
-            return;
-        }
-        let (kind, size) = (
-            INSTALLER_NAMES.reg_type.addr() as *mut u32,
-            INSTALLER_NAMES.source_size.addr() as *mut u32,
-        );
-        let (status, source) = (
-            INSTALLER_NAMES.status.addr() as *mut u8,
-            INSTALLER_NAMES.source.addr() as *mut u8,
-        );
-        let key = key.read_unaligned();
-        'values: {
-            size.write_unaligned(1);
-            let name = INSTALLER_NAMES.status_name.addr() as *const u8;
-            if registry.query(key, name, kind, status, size) != 0 {
-                break 'values;
-            }
-            if kind.read_unaligned() != REG_BINARY || size.read_unaligned() != 1 {
-                status.write(0);
-            }
-            size.write_unaligned(SOURCE_ROOM);
-            let name = INSTALLER_NAMES.source_name.addr() as *const u8;
-            if registry.query(key, name, kind, source, size) != 0 {
-                break 'values;
-            }
-            if kind.read_unaligned() != REG_SZ {
-                source.write(0);
-            }
-        }
-        registry.close(key);
+fn get(at: u32) -> u32 {
+    crate::pointers::read_or_end(at, "install::read_registry's operand")
+}
+
+fn set<T: Copy>(at: u32, value: T) {
+    crate::pointers::write_or_end(at, value, "install::read_registry's operand")
+}
+
+pub fn read_registry(registry: &mut dyn Registry) {
+    let key = INSTALLER_RUN.reg_key.addr() as u32;
+    if registry.open(INSTALLER_NAMES.key_name.addr() as u32, key) != 0 {
+        return;
     }
+    let (kind, size) = (
+        INSTALLER_NAMES.reg_type.addr() as u32,
+        INSTALLER_NAMES.source_size.addr() as u32,
+    );
+    let (status, source) = (
+        INSTALLER_NAMES.status.addr() as u32,
+        INSTALLER_NAMES.source.addr() as u32,
+    );
+    let key = get(key);
+    'values: {
+        set(size, 1u32);
+        let name = INSTALLER_NAMES.status_name.addr() as u32;
+        if registry.query(key, name, kind, status, size) != 0 {
+            break 'values;
+        }
+        if get(kind) != REG_BINARY || get(size) != 1 {
+            set(status, 0u8);
+        }
+        set(size, SOURCE_ROOM);
+        let name = INSTALLER_NAMES.source_name.addr() as u32;
+        if registry.query(key, name, kind, source, size) != 0 {
+            break 'values;
+        }
+        if get(kind) != REG_SZ {
+            set(source, 0u8);
+        }
+    }
+    registry.close(key);
 }
 
 /// The registry, or in the standalone the portable record (`install::portable`).
-pub unsafe fn read_registry_here() {
-    unsafe { read_registry(&mut crate::install::portable::Portable) };
+pub fn read_registry_here() {
+    read_registry(&mut crate::install::portable::Portable);
 }

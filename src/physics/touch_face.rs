@@ -48,7 +48,7 @@ fn mark(face: u32, mark: u32, clear_9: bool) -> Result<(), BadInput> {
 
 /// The Rust version.
 // Converted: `rc2k_core::drive::lit_faces::{touch, fall_mark, lucky}`.
-pub unsafe fn touch_face() -> Result<(), Refused> {
+pub fn touch_face() -> Result<(), Refused> {
     let number = CONTACT_WORK.face_number.get();
     let face = (number << 6).wrapping_add(g(&COURSE.course_faces));
     if GamePtr::new(face + 0x11).read::<u8>("a face's mark")? != 0 {
@@ -79,7 +79,7 @@ pub unsafe fn touch_face() -> Result<(), Refused> {
             Touch::Mark => mark(face, 1, true)?,
             Touch::Fall => mark(face, fall_mark(CONTACT_WORK.face_speed.get()), false)?,
             Touch::Chance => {
-                let (_, lucky) = lucky(unsafe { next_random() });
+                let (_, lucky) = lucky(next_random());
                 if lucky {
                     put(face + 0x11, 0xF)?;
                     CONTACT_WORK.lit_face_count.set(count + 1);
@@ -88,7 +88,7 @@ pub unsafe fn touch_face() -> Result<(), Refused> {
             }
             Touch::Sound => {}
         }
-        unsafe { place_sound_object() }?;
+        { place_sound_object() }?;
         CONTACT_WORK.lit_face_count.set(count + 1);
         Ok(())
     })()

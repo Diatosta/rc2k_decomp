@@ -45,7 +45,7 @@ pub type Filled = Option<(u32, bool)>;
 /// `audio::fill_stream_part`: `bytes` at `at` from the file; what is not there becomes
 /// silence (0, or 0x80 for eight bits), and a read that found nothing uses up `tail`
 /// (the player stops when it goes below 0).
-pub unsafe fn fill_stream_part(s: &mut AudioStream, at: u32, bytes: u32) -> Filled {
+pub fn fill_stream_part(s: &mut AudioStream, at: u32, bytes: u32) -> Filled {
     if at == 0 || bytes == 0 {
         return None;
     }

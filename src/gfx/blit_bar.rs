@@ -107,6 +107,6 @@ impl Bar {
 }
 
 /// The bar described by the bar globals. Converted: `rc2k_core::gfx::bars::bar`.
-pub unsafe fn blit_bar(blit: Blit) -> Result<(), Refused> {
+pub fn blit_bar(blit: Blit) -> Result<(), Refused> {
     rc2k_core::gfx::bars::bar(&mut GameBar(blit), &Bar::read().core())
 }

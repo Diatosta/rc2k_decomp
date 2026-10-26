@@ -25,7 +25,7 @@ const VOLUME_C: &Dword = &OPTION_WORK.menu_sounds_c; // dword_755690
 // ---- Rust version ----
 
 /// `sound` the menu's sound (0: none); `now` is asked for the clock.
-pub unsafe fn play_menu_sound(sound: u32, now: &mut dyn FnMut() -> u32) {
+pub fn play_menu_sound(sound: u32, now: &mut dyn FnMut() -> u32) {
     // Converted: `rc2k_core::sound::senders::menu_sound`.
     use rc2k_core::sound::senders::{MenuVolume, menu_sound};
     if sound == 0 {
@@ -52,5 +52,5 @@ pub unsafe fn play_menu_sound(sound: u32, now: &mut dyn FnMut() -> u32) {
 
 /// With the game's clock: what other Rust code calls.
 pub fn play_menu_sound_in_game(sound: u32) {
-    unsafe { play_menu_sound(sound, &mut tick_count) };
+    play_menu_sound(sound, &mut tick_count);
 }

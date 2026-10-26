@@ -263,8 +263,8 @@ pub fn quitting() -> bool {
 /// `scene::prepare_menu_scene` (0x46F7FD), with what the original leaves in the registers
 /// the loop carries: the view's place is zeroed first, so `set_view_matrices` leaves eax,
 /// ebx, ecx and edx 0 and esi the view's turn matrix.
-pub unsafe fn prepare_scene(c: &mut Carried) {
-    unsafe { crate::scene::prepare_menu_scene::prepare_menu_scene() };
+pub fn prepare_scene(c: &mut Carried) {
+    crate::scene::prepare_menu_scene::prepare_menu_scene();
     (c.arg, c.palette, c.measure_x, c.clock) = (0, 0, 0, 0);
     c.cars = MATRICES.view_turn_matrix[0].addr() as u32;
 }

@@ -15,7 +15,7 @@ use crate::math::x87;
 
 /// The Rust version (see the header), the x87's: for `marks::cars_particles`
 /// (unconverted).
-pub unsafe fn adjugate_matrix(matrix: u32, out: u32) {
+pub fn adjugate_matrix(matrix: u32, out: u32) {
     use rc2k_core::scene::matrices::COFACTORS;
     let get = |o: u32| {
         crate::pointers::read_or_end::<u32>(matrix + o, "scene::adjugate_matrix's operand")

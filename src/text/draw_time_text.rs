@@ -30,7 +30,7 @@ fn write32(at: u32, v: u32) -> Result<(), Refused> {
 /// The Rust version (see the header): the time text at `text` in `font` at (`x`, `y`).
 /// The flags the original leaves are read by neither caller (register liveness,
 /// 2026-10-23: after the two calls DF, ebp, ebx/edi, edx, esi, all kept).
-pub unsafe fn draw_time_text(font: *mut Font, text: u32, x: u32, y: u32) -> Result<(), Refused> {
+pub fn draw_time_text(font: *mut Font, text: u32, x: u32, y: u32) -> Result<(), Refused> {
     use crate::text::draw_text::GameCanvas;
     let font_at = font as u32;
     let (mut at, mut x, mut edi) = (text, x, 0u32);
@@ -46,15 +46,13 @@ pub unsafe fn draw_time_text(font: *mut Font, text: u32, x: u32, y: u32) -> Resu
         edi = kept;
         // `text::draw_text_keep_regs` on a copy of the font, written back if it changed.
         let mut copy = GamePtr::new(font_at).read::<Font>("a font")?;
-        unsafe {
-            crate::text::draw_text_keep_regs::draw_text_keep_regs(
-                &mut copy,
-                at as *const u8,
-                x as i32,
-                y as i32,
-                &mut GameCanvas,
-            )?;
-        }
+        crate::text::draw_text_keep_regs::draw_text_keep_regs(
+            &mut copy,
+            at as *const u8,
+            x as i32,
+            y as i32,
+            &mut GameCanvas,
+        )?;
         if copy != GamePtr::new(font_at).read::<Font>("a font")? {
             GamePtr::new(font_at).write(copy, "a font")?;
         }

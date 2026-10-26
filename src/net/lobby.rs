@@ -100,7 +100,7 @@ impl Cursor {
 /// `y`) with the palette at `palette`; the ebx it leaves (the next blit's palette in the
 /// original, which hands each the one before leaves).
 pub fn blit(glyph: u32, x: u32, y: u32, palette: u32) -> Result<u32, Refused> {
-    let exit = unsafe {
+    let exit = {
         crate::gfx::blit_glyph::blit_glyph_on_surface(
             glyph,
             crate::pointers::GamePtr::new(SPRITES.get()),
@@ -130,7 +130,7 @@ pub fn log_int_nl(value: u32, level: u8) {
 /// `memory::allocate` on the network's list (`g_netMemory`): the memory's address.
 pub fn net_allocate(bytes: u32) -> Result<u32, Refused> {
     Ok(
-        unsafe { crate::memory::allocate::allocate((NET.memory.as_ptr() as u32) as *mut _, bytes) }?
+        { crate::memory::allocate::allocate((NET.memory.as_ptr() as u32) as *mut _, bytes) }?
             as u32,
     )
 }
@@ -183,7 +183,7 @@ pub fn lock_surface() -> bool {
 
 /// `gfx::copy_picture_to_surface`.
 pub fn copy_picture() -> Result<(), Refused> {
-    unsafe {
+    {
         crate::gfx::copy_picture_to_surface::copy_picture_to_surface(
             &mut crate::gfx::copy_picture_to_surface::GameSurface,
         )
@@ -212,7 +212,7 @@ pub fn draw_string(
 
 /// `text::draw_text` with the font at the address `font`.
 pub fn draw_text(font: u32, text: u32, x: u32, y: u32) -> Result<(), Refused> {
-    unsafe {
+    {
         crate::text::draw_text::draw_text_at(
             font as *mut _,
             text as *const u8,
@@ -294,7 +294,7 @@ pub fn callback_entry(name: &str, ral: u32, args: &[u32], rust: Callback) -> u32
                 error.code, error.message
             ));
             let r = Regs::default();
-            unsafe { crate::fatal::raise::raise(error, &r) };
+            crate::fatal::raise::raise(error, &r);
             r.eax
         }
     }

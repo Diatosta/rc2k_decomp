@@ -74,7 +74,7 @@ pub fn slot_name(slot: u32) -> *mut u8 {
 // ---- Rust version ----
 
 /// True if the slot's file was read and accepted.
-pub unsafe fn read_setup_slot(slot: u32) -> Result<bool, Refused> {
+pub fn read_setup_slot(slot: u32) -> Result<bool, Refused> {
     if slot >= SLOT_COUNT {
         return Err(BadInput("slot past the name table").into());
     }

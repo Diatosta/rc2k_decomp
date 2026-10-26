@@ -68,50 +68,48 @@ fn move_kept(s: u32) {
 
 /// The Rust version (see the header).
 pub fn hexagons_drift() -> Result<(), Refused> {
-    unsafe {
-        let s: u32 = crate::marks::setup::SETTINGS.pointer.get();
-        if s == 0 {
-            return Err(BadInput("no marks settings").into());
-        }
-        for n in 0..3 {
-            SHAPE_TILT.point[n].set_bits(0);
-        }
-        let first: u32 = HEX.started.get();
-        HEX.started.set(1);
-        if first != 0 {
-            let second: u32 = HEX.moved.get();
-            HEX.moved.set(1);
-            if second != 0 {
-                view_moved(s);
-                let view = MATRICES.view_place[0].addr() as u32;
-                for col in 0..3u32 {
-                    let v = [
-                        get(view + 4 * col)?,
-                        get(view + 0x10 + 4 * col)?,
-                        get(view + 0x20 + 4 * col)?,
-                    ];
-                    for (k, x) in v.into_iter().enumerate() {
-                        HEX.turn[3 * col as usize + k].set_bits(x);
-                    }
+    let s: u32 = crate::marks::setup::SETTINGS.pointer.get();
+    if s == 0 {
+        return Err(BadInput("no marks settings").into());
+    }
+    for n in 0..3 {
+        SHAPE_TILT.point[n].set_bits(0);
+    }
+    let first: u32 = HEX.started.get();
+    HEX.started.set(1);
+    if first != 0 {
+        let second: u32 = HEX.moved.get();
+        HEX.moved.set(1);
+        if second != 0 {
+            view_moved(s);
+            let view = MATRICES.view_place[0].addr() as u32;
+            for col in 0..3u32 {
+                let v = [
+                    get(view + 4 * col)?,
+                    get(view + 0x10 + 4 * col)?,
+                    get(view + 0x20 + 4 * col)?,
+                ];
+                for (k, x) in v.into_iter().enumerate() {
+                    HEX.turn[3 * col as usize + k].set_bits(x);
                 }
-                let turn = HEX.turn.as_ptr() as u32;
-                let adj = HEX.adjugate.as_ptr() as u32;
-                adjugate3(turn, adj)?;
-                let mut temps = [0u32; 2];
-                let mut kept = [0u8; 30];
-                let (t, l) = (temps.as_mut_ptr() as u32, kept.as_mut_ptr() as u32);
-                drift_turned(adj, t, l);
-                turn_matrix3(Axis::X, turn, extended(HEX.angle.bits()))?;
-                drift_back(turn, t, l);
             }
-            move_kept(s);
+            let turn = HEX.turn.as_ptr() as u32;
+            let adj = HEX.adjugate.as_ptr() as u32;
+            adjugate3(turn, adj)?;
+            let mut temps = [0u32; 2];
+            let mut kept = [0u8; 30];
+            let (t, l) = (temps.as_mut_ptr() as u32, kept.as_mut_ptr() as u32);
+            drift_turned(adj, t, l);
+            turn_matrix3(Axis::X, turn, extended(HEX.angle.bits()))?;
+            drift_back(turn, t, l);
         }
-        for (k, v) in [get(s + 0x26AC)?, get(s + 0x26B0)?, get(s + 0x26B4)?]
-            .into_iter()
-            .enumerate()
-        {
-            HEX.kept_place[k].set_bits(v);
-        }
+        move_kept(s);
+    }
+    for (k, v) in [get(s + 0x26AC)?, get(s + 0x26B0)?, get(s + 0x26B4)?]
+        .into_iter()
+        .enumerate()
+    {
+        HEX.kept_place[k].set_bits(v);
     }
     Ok(())
 }

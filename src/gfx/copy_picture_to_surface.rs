@@ -74,7 +74,7 @@ impl PictureSurface for GameSurface {
     }
 }
 
-pub unsafe fn copy_picture_to_surface(surface: &mut dyn PictureSurface) -> Result<(), BadInput> {
+pub fn copy_picture_to_surface(surface: &mut dyn PictureSurface) -> Result<(), BadInput> {
     let was_locked = surface.locked();
     if !was_locked && !surface.lock() {
         return Ok(());

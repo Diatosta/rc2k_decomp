@@ -19,7 +19,7 @@ use crate::race::viewer_state_store::REPLAY_VIEW;
 use rc2k_core::drive::replay_frames::{frame_fault, past_end};
 
 /// The Rust version: CF.
-pub unsafe fn read_replay_frame(frame: u32, tenth: u32) -> Result<bool, Refused> {
+pub fn read_replay_frame(frame: u32, tenth: u32) -> Result<bool, Refused> {
     if REPLAY_FILE.replay_open.get() != 1 {
         return Ok(true);
     }
@@ -38,13 +38,11 @@ pub unsafe fn read_replay_frame(frame: u32, tenth: u32) -> Result<bool, Refused>
     REPLAY_FILE.replay_at_end.set(0);
     REPLAY_VIEW.replay_block.set(frame);
     let place = crate::race::replay::block_place(2 * frame as usize)?; // (place, count) a frame
-    if unsafe { crate::files::handle::seek(REPLAY_FILE.replay_handle.get(), place as i32, 0) }
-        .is_none()
-    {
+    if { crate::files::handle::seek(REPLAY_FILE.replay_handle.get(), place as i32, 0) }.is_none() {
         return Ok(true);
     }
     let count = crate::race::replay::block_place(2 * frame as usize + 1)?;
-    let (_, carry, _) = unsafe {
+    let (_, carry, _) = {
         crate::drive::read_packed::read_packed(
             REPLAY_FILE.replay_handle.get(),
             crate::race::viewer_buffers_store::VIEWER_BUFFERS.block[0].addr() as u32,

@@ -92,7 +92,7 @@ fn after() -> [(
 
 /// The Rust version (the exact one, for `race::settle_car` and
 /// `physics::car_physics_step`).
-pub unsafe fn set_handling() -> Result<(), Refused> {
+pub fn set_handling() -> Result<(), Refused> {
     let kind = CAR.drive_kind.get() as usize;
     if kind > 1 {
         return Err(BadInput("a drive kind above 1 (the pair tables hold two)").into());

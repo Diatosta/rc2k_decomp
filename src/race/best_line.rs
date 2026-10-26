@@ -531,7 +531,7 @@ pub fn map_segment() -> Result<(), Refused> {
             let p = [get(at)?, get(at + 8)?];
             work(0xCC).set(p[0]);
             work(0xD0).set(p[1]);
-            let [x, _, z, _] = unsafe {
+            let [x, _, z, _] = {
                 turn_point_xz(
                     p[0].wrapping_sub(point_a[0]) as i32,
                     number as i32,
@@ -542,7 +542,7 @@ pub fn map_segment() -> Result<(), Refused> {
             let x = x87::int_times_to_int(x as i32, scale);
             let z = x87::int_times_to_int(z as i32, scale);
             DRAW.scratch.set_bits(z as u32);
-            let [x, _, z, _] = unsafe { turn_point_xz(x, number as i32, z, map_angle) };
+            let [x, _, z, _] = { turn_point_xz(x, number as i32, z, map_angle) };
             write_n(
                 &crate::race::checkpoints_store::CHECKPOINTS.map_x[0],
                 e,

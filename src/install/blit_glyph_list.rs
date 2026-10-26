@@ -22,7 +22,7 @@ pub fn blit_glyph_list(count: u32, table: u32, x: u32, y: u32, glyphs: u32) -> R
         let record = table.wrapping_add(offset);
         let (x, y) = layout::list_place(rd(record), rd(record + 4), x, y);
         // gfx::blit_glyph (0x4069B2): eax the glyph, ebx the palette.
-        unsafe {
+        {
             crate::gfx::blit_glyph::blit_glyph_on_surface(
                 rd(record + 8),
                 crate::pointers::GamePtr::new(glyphs),

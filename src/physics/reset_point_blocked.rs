@@ -19,7 +19,7 @@ use crate::physics::tables_store::PHYSICS;
 use crate::race::vars_store::RACE_VARS;
 use rc2k_core::physics::line_places;
 
-unsafe fn at(a: u32) -> u32 {
+fn at(a: u32) -> u32 {
     crate::pointers::read_or_end::<u32>(a, "physics::reset_point_blocked's operand")
 }
 
@@ -27,25 +27,21 @@ unsafe fn at(a: u32) -> u32 {
 /// block tried (esi). Returns the carry (blocked); the eax and ebx it leaves are read by
 /// none of its callers.
 // Converted: `rc2k_core::physics::line_places::reset_point_blocked`.
-pub unsafe fn reset_point_blocked_at(candidate: u32, count: u32, block: u32) -> bool {
-    unsafe {
-        line_places::reset_point_blocked(
-            at(block + 0x25C),
-            at(candidate),
-            || at(count),
-            || at(block + 0x94),
-        )
-    }
+pub fn reset_point_blocked_at(candidate: u32, count: u32, block: u32) -> bool {
+    line_places::reset_point_blocked(
+        at(block + 0x25C),
+        at(candidate),
+        || at(count),
+        || at(block + 0x94),
+    )
     .carry()
 }
 
 /// The Rust version.
-pub unsafe fn reset_point_blocked(block: u32) -> bool {
-    unsafe {
-        reset_point_blocked_at(
-            PHYSICS.reset_candidate.addr() as u32,
-            RACE_VARS.checkpoint_count.addr() as u32,
-            block,
-        )
-    }
+pub fn reset_point_blocked(block: u32) -> bool {
+    reset_point_blocked_at(
+        PHYSICS.reset_candidate.addr() as u32,
+        RACE_VARS.checkpoint_count.addr() as u32,
+        block,
+    )
 }

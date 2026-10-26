@@ -426,115 +426,113 @@ const ARCADE_WORDS: [&std::ffi::CStr; 8] = [
 /// (`brake_value`), +0x66C, +0x65C, +0x660 0, +0x658 the cars behind; the types logged.
 /// Refuses a count of 0 or more than 89 (the `jnz` runs on / past the tables), before
 /// anything.
-pub unsafe fn set_up_mode_2_cars() -> Result<(), Refused> {
+pub fn set_up_mode_2_cars() -> Result<(), Refused> {
     let w = |n: usize| ARCADE_WORDS[n].as_ptr() as usize as u32;
-    unsafe {
-        let rally: u32 = RACE_VARS.race_level.bits();
-        // The arcade tables hold six by rally (`dword_60466C` ..) or stage (`dword_604684`),
-        // back to back: an index past them reads on into the next, as the original does.
-        let pick = |table: &[crate::session::Dword; 6], n: u32| {
-            GamePtr::new((table[0].addr() as u32).wrapping_add(n.wrapping_mul(4)))
-                .read::<u32>("the arcade tables")
-        };
-        let by_rally = |table: &[crate::session::Dword; 6]| pick(table, rally);
-        let cars: u32 = by_rally(&RACE_TABLES.arcade_cars_by_rally)?;
-        if cars == 0 || cars > MOST_ARCADE_CARS {
-            return Err(BadInput("an arcade car count of 0 or past the tables").into());
-        }
-        text(w(0), false);
-        text(w(1), false);
-        number(rally, false);
-        text(w(2), false);
-        let stage_in: u32 = RACE_VARS.race_stage.bits();
-        number(stage_in, false);
-        RACE_TABLES.arcade_cars.set_bits(cars);
-        RACE_TABLES
-            .arcade_a
-            .set_bits(by_rally(&RACE_TABLES.arcade_a_by_rally)?);
-        RACE_TABLES
-            .arcade_b
-            .set_bits(by_rally(&RACE_TABLES.arcade_b_by_rally)?);
-        // Converted: `rc2k_core::race::cars::{arcade_start_is_last, arcade_number,
-        // arcade_type_draw, arcade_swap_draw}`.
-        use crate::scene::next_noise::next_noise;
-        use rc2k_core::race::cars::{
-            arcade_number, arcade_start_is_last, arcade_swap_draw, arcade_type_draw,
-        };
-        if arcade_start_is_last(SPLIT_TABLES.arcade_kind.get(), stage_in) {
-            RACE_TABLES.start_place.set_bits(cars);
-        }
-        RACE_TABLES
-            .best_place
-            .set_bits(pick(&RACE_TABLES.arcade_best_place_by_stage, stage_in)?);
-        text(w(3), false);
-        number(cars, false);
-        text(w(4), false);
-        number(RACE_TABLES.best_place.bits(), false);
-        text(w(5), false);
-        number(RACE_TABLES.start_place.bits(), true);
-        RACE_VIEW.views.set_bits(1u32);
-        RACE_VIEW.players.set_bits(1u32);
-        RACE_VIEW.race_cars.set_bits(4u32);
-        reset_car_blocks()?;
-        drop_absent_player();
-        for n in 1..4 {
-            CAR_BLOCKS.cars[n as usize]
-                .steering_sensitivity
-                .set_bits(0x80u32);
-        }
-        for n in 1..4 {
-            CAR_BLOCKS.cars[n as usize].driver_kind.set_bits(0u32);
-        }
-        set_player_car_kinds();
-        PHYSICS.noise_state.set(RACE_TABLES.noise_seed.bits());
-        // Each car a type (never the last one's again) and a number.
-        let mut last_type = u32::MAX;
-        let mut number_next = 1u32;
-        for car in 0..cars {
-            let kind = loop {
-                let first: u32 = CAR_BLOCKS.cars[0].start_slot_value.bits();
-                let second = (RACE_VIEW.players.bits() != 1)
-                    .then(|| CAR_BLOCKS.cars[1].start_slot_value.bits());
-                number_next = arcade_number(number_next, first, second);
-                let (_, kind) = arcade_type_draw(next_noise(), car);
-                if kind != last_type {
-                    break kind;
-                }
-            };
-            last_type = kind;
-            RACE_TABLES.arcade_car_kinds[car as usize].set(kind + 1);
-            RACE_TABLES.arcade_car_numbers[car as usize].set(number_next);
-            number_next += 1;
-        }
-        // The numbers shuffled.
-        for car in 0..cars {
-            let mine: u32 = RACE_TABLES.arcade_car_numbers[car as usize].get();
-            let (_, other_car) = arcade_swap_draw(next_noise(), cars);
-            let other: u32 = RACE_TABLES.arcade_car_numbers[other_car as usize].get();
-            RACE_TABLES.arcade_car_numbers[car as usize].set(other);
-            RACE_TABLES.arcade_car_numbers[other_car as usize].set(mine);
-        }
-        clear_race_tables();
-        for n in 0..4 {
-            auto_set_up_car(crate::race::blocks_store::block_addr(n as usize) as u32)?;
-        }
-        CAR_BLOCKS.cars[0]
-            .steering_sensitivity
-            .set_bits(brake_value(0));
-        let lead = &CAR_BLOCKS.cars[0];
-        for cell in [&lead.pace_placed, &lead.pace_cars[0], &lead.pace_cars[1]] {
-            cell.set(0);
-        }
-        let behind = cars.wrapping_sub(RACE_TABLES.start_place.bits());
-        CAR_BLOCKS.cars[0].mode2_behind.set_bits(behind);
-        text(w(6), false);
-        number(behind, false);
-        text(w(7), false);
-        for car in 0..cars {
-            number(RACE_TABLES.arcade_car_kinds[car as usize].get(), false);
-        }
-        newline();
+    let rally: u32 = RACE_VARS.race_level.bits();
+    // The arcade tables hold six by rally (`dword_60466C` ..) or stage (`dword_604684`),
+    // back to back: an index past them reads on into the next, as the original does.
+    let pick = |table: &[crate::session::Dword; 6], n: u32| {
+        GamePtr::new((table[0].addr() as u32).wrapping_add(n.wrapping_mul(4)))
+            .read::<u32>("the arcade tables")
+    };
+    let by_rally = |table: &[crate::session::Dword; 6]| pick(table, rally);
+    let cars: u32 = by_rally(&RACE_TABLES.arcade_cars_by_rally)?;
+    if cars == 0 || cars > MOST_ARCADE_CARS {
+        return Err(BadInput("an arcade car count of 0 or past the tables").into());
     }
+    text(w(0), false);
+    text(w(1), false);
+    number(rally, false);
+    text(w(2), false);
+    let stage_in: u32 = RACE_VARS.race_stage.bits();
+    number(stage_in, false);
+    RACE_TABLES.arcade_cars.set_bits(cars);
+    RACE_TABLES
+        .arcade_a
+        .set_bits(by_rally(&RACE_TABLES.arcade_a_by_rally)?);
+    RACE_TABLES
+        .arcade_b
+        .set_bits(by_rally(&RACE_TABLES.arcade_b_by_rally)?);
+    // Converted: `rc2k_core::race::cars::{arcade_start_is_last, arcade_number,
+    // arcade_type_draw, arcade_swap_draw}`.
+    use crate::scene::next_noise::next_noise;
+    use rc2k_core::race::cars::{
+        arcade_number, arcade_start_is_last, arcade_swap_draw, arcade_type_draw,
+    };
+    if arcade_start_is_last(SPLIT_TABLES.arcade_kind.get(), stage_in) {
+        RACE_TABLES.start_place.set_bits(cars);
+    }
+    RACE_TABLES
+        .best_place
+        .set_bits(pick(&RACE_TABLES.arcade_best_place_by_stage, stage_in)?);
+    text(w(3), false);
+    number(cars, false);
+    text(w(4), false);
+    number(RACE_TABLES.best_place.bits(), false);
+    text(w(5), false);
+    number(RACE_TABLES.start_place.bits(), true);
+    RACE_VIEW.views.set_bits(1u32);
+    RACE_VIEW.players.set_bits(1u32);
+    RACE_VIEW.race_cars.set_bits(4u32);
+    reset_car_blocks()?;
+    drop_absent_player();
+    for n in 1..4 {
+        CAR_BLOCKS.cars[n as usize]
+            .steering_sensitivity
+            .set_bits(0x80u32);
+    }
+    for n in 1..4 {
+        CAR_BLOCKS.cars[n as usize].driver_kind.set_bits(0u32);
+    }
+    set_player_car_kinds();
+    PHYSICS.noise_state.set(RACE_TABLES.noise_seed.bits());
+    // Each car a type (never the last one's again) and a number.
+    let mut last_type = u32::MAX;
+    let mut number_next = 1u32;
+    for car in 0..cars {
+        let kind = loop {
+            let first: u32 = CAR_BLOCKS.cars[0].start_slot_value.bits();
+            let second =
+                (RACE_VIEW.players.bits() != 1).then(|| CAR_BLOCKS.cars[1].start_slot_value.bits());
+            number_next = arcade_number(number_next, first, second);
+            let (_, kind) = arcade_type_draw(next_noise(), car);
+            if kind != last_type {
+                break kind;
+            }
+        };
+        last_type = kind;
+        RACE_TABLES.arcade_car_kinds[car as usize].set(kind + 1);
+        RACE_TABLES.arcade_car_numbers[car as usize].set(number_next);
+        number_next += 1;
+    }
+    // The numbers shuffled.
+    for car in 0..cars {
+        let mine: u32 = RACE_TABLES.arcade_car_numbers[car as usize].get();
+        let (_, other_car) = arcade_swap_draw(next_noise(), cars);
+        let other: u32 = RACE_TABLES.arcade_car_numbers[other_car as usize].get();
+        RACE_TABLES.arcade_car_numbers[car as usize].set(other);
+        RACE_TABLES.arcade_car_numbers[other_car as usize].set(mine);
+    }
+    clear_race_tables();
+    for n in 0..4 {
+        auto_set_up_car(crate::race::blocks_store::block_addr(n as usize) as u32)?;
+    }
+    CAR_BLOCKS.cars[0]
+        .steering_sensitivity
+        .set_bits(brake_value(0));
+    let lead = &CAR_BLOCKS.cars[0];
+    for cell in [&lead.pace_placed, &lead.pace_cars[0], &lead.pace_cars[1]] {
+        cell.set(0);
+    }
+    let behind = cars.wrapping_sub(RACE_TABLES.start_place.bits());
+    CAR_BLOCKS.cars[0].mode2_behind.set_bits(behind);
+    text(w(6), false);
+    number(behind, false);
+    text(w(7), false);
+    for car in 0..cars {
+        number(RACE_TABLES.arcade_car_kinds[car as usize].get(), false);
+    }
+    newline();
     Ok(())
 }
 
@@ -543,31 +541,29 @@ pub unsafe fn set_up_mode_2_cars() -> Result<(), Refused> {
 /// numbers, the times, the arcade set-up, `dword_601C68` (0x40 dwords) 0; 1, 3, 0 (with
 /// the numbers first), 4 their set-ups; others nothing. The registers it leaves are read
 /// by no caller (conversion phase 3, 2026-10-24).
-pub unsafe fn set_up_cars() -> Result<(), Refused> {
-    unsafe {
-        text(c"gamemode".as_ptr() as usize as u32, false);
-        number(RACE_VARS.run_kind.bits(), true);
-        // Converted: `rc2k_core::race::cars::{PLAYER_RESETS, cars_steps}`.
-        use rc2k_core::race::cars::{CarsStep, PLAYER_RESETS, cars_steps};
-        for n in 0..2 {
-            for (off, v) in PLAYER_RESETS {
-                let b = crate::race::work_store::RACE_WORK.car_block(n as usize);
-                GamePtr::new(b + off).write(v, "a car block's word")?;
-            }
+pub fn set_up_cars() -> Result<(), Refused> {
+    text(c"gamemode".as_ptr() as usize as u32, false);
+    number(RACE_VARS.run_kind.bits(), true);
+    // Converted: `rc2k_core::race::cars::{PLAYER_RESETS, cars_steps}`.
+    use rc2k_core::race::cars::{CarsStep, PLAYER_RESETS, cars_steps};
+    for n in 0..2 {
+        for (off, v) in PLAYER_RESETS {
+            let b = crate::race::work_store::RACE_WORK.car_block(n as usize);
+            GamePtr::new(b + off).write(v, "a car block's word")?;
         }
-        for &step in cars_steps(RACE_VARS.run_kind.bits()) {
-            match step {
-                CarsStep::Numbers => read_stage_car_numbers()?,
-                CarsStep::Times => set_car_times()?,
-                CarsStep::SetUp(0) => set_up_mode_0_cars()?,
-                CarsStep::SetUp(1) => set_up_mode_1_cars()?,
-                CarsStep::SetUp(2) => set_up_mode_2_cars()?,
-                CarsStep::SetUp(3) => set_up_race_cars()?,
-                CarsStep::SetUp(_) => set_up_mode_4_cars()?,
-                CarsStep::ClearArcadeTable => {
-                    for k in 0..0x40 {
-                        SPLIT_TABLES.kept_times[k].set(0);
-                    }
+    }
+    for &step in cars_steps(RACE_VARS.run_kind.bits()) {
+        match step {
+            CarsStep::Numbers => read_stage_car_numbers()?,
+            CarsStep::Times => set_car_times()?,
+            CarsStep::SetUp(0) => set_up_mode_0_cars()?,
+            CarsStep::SetUp(1) => set_up_mode_1_cars()?,
+            CarsStep::SetUp(2) => set_up_mode_2_cars()?,
+            CarsStep::SetUp(3) => set_up_race_cars()?,
+            CarsStep::SetUp(_) => set_up_mode_4_cars()?,
+            CarsStep::ClearArcadeTable => {
+                for k in 0..0x40 {
+                    SPLIT_TABLES.kept_times[k].set(0);
                 }
             }
         }
@@ -609,51 +605,49 @@ fn opponent_kinds(first: u32) -> Result<Vec<u32>, BadInput> {
 /// usable, within 5 places of the first's and not taken: the second, third and fourth
 /// cars' (`dword_62385C`, `60`, `64`), each logged with its place. Refuses, before
 /// anything, a first kind with fewer than three such kinds (the original draws for ever).
-pub unsafe fn choose_arcade_opponents() -> Result<(), Refused> {
+pub fn choose_arcade_opponents() -> Result<(), Refused> {
     use crate::race::race_shell::{index_of_kind, kind_unusable};
-    unsafe {
-        if RACE_VARS.run_kind.bits() != 2 {
-            return Ok(());
-        }
-        let first: u32 = RACE_VARS.race_car_kinds[0].bits();
-        if opponent_kinds(first)?.len() < 3 {
-            return Err(BadInput("fewer than three opponents can be drawn").into());
-        }
-        let first_place = index_of_kind(first)?;
-        text(SEED_WORD_RVA.as_ptr() as usize as u32, false);
-        number(RACE_TABLES.noise_seed.bits(), true);
-        text(OPPONENT_WORDS[0].as_ptr() as usize as u32, false);
-        number(first, false);
-        text(OPPONENT_WORDS[1].as_ptr() as usize as u32, false);
-        number(first_place, true);
-        PHYSICS.noise_state.set(RACE_TABLES.noise_seed.bits());
-        let mut taken = vec![first];
-        for (n, at) in RACE_VARS.race_car_kinds[1..4].iter().enumerate() {
-            let (kind, place) = loop {
-                let random = if n == 0 {
-                    crate::scene::next_noise::next_noise()
-                } else {
-                    crate::math::next_random::next_random()
-                };
-                // Converted: `rc2k_core::race::cars::{drawn_kind, opponent_distance}`.
-                let kind = rc2k_core::race::cars::drawn_kind(random);
-                if kind_unusable(kind).0 {
-                    continue;
-                }
-                let place = index_of_kind(kind)?;
-                let (_, close) = rc2k_core::race::cars::opponent_distance(place, first_place);
-                if !close || taken.contains(&kind) {
-                    continue;
-                }
-                break (kind, place);
+    if RACE_VARS.run_kind.bits() != 2 {
+        return Ok(());
+    }
+    let first: u32 = RACE_VARS.race_car_kinds[0].bits();
+    if opponent_kinds(first)?.len() < 3 {
+        return Err(BadInput("fewer than three opponents can be drawn").into());
+    }
+    let first_place = index_of_kind(first)?;
+    text(SEED_WORD_RVA.as_ptr() as usize as u32, false);
+    number(RACE_TABLES.noise_seed.bits(), true);
+    text(OPPONENT_WORDS[0].as_ptr() as usize as u32, false);
+    number(first, false);
+    text(OPPONENT_WORDS[1].as_ptr() as usize as u32, false);
+    number(first_place, true);
+    PHYSICS.noise_state.set(RACE_TABLES.noise_seed.bits());
+    let mut taken = vec![first];
+    for (n, at) in RACE_VARS.race_car_kinds[1..4].iter().enumerate() {
+        let (kind, place) = loop {
+            let random = if n == 0 {
+                crate::scene::next_noise::next_noise()
+            } else {
+                crate::math::next_random::next_random()
             };
-            taken.push(kind);
-            at.set(kind);
-            text(OPPONENT_WORDS[2 * n + 2].as_ptr() as usize as u32, false);
-            number(kind, false);
-            text(OPPONENT_WORDS[2 * n + 3].as_ptr() as usize as u32, false);
-            number(place, true);
-        }
+            // Converted: `rc2k_core::race::cars::{drawn_kind, opponent_distance}`.
+            let kind = rc2k_core::race::cars::drawn_kind(random);
+            if kind_unusable(kind).0 {
+                continue;
+            }
+            let place = index_of_kind(kind)?;
+            let (_, close) = rc2k_core::race::cars::opponent_distance(place, first_place);
+            if !close || taken.contains(&kind) {
+                continue;
+            }
+            break (kind, place);
+        };
+        taken.push(kind);
+        at.set(kind);
+        text(OPPONENT_WORDS[2 * n + 2].as_ptr() as usize as u32, false);
+        number(kind, false);
+        text(OPPONENT_WORDS[2 * n + 3].as_ptr() as usize as u32, false);
+        number(place, true);
     }
     Ok(())
 }
@@ -662,21 +656,19 @@ pub unsafe fn choose_arcade_opponents() -> Result<(), Refused> {
 /// logged, `choose_arcade_opponents` (the log indented round it), `g_raceCars` 4; then
 /// each block's +0x24 its kind (`g_raceCarKinds` and the seven after). The original keeps
 /// every register (liveness): the route leaves its caller's as they were.
-pub unsafe fn set_up_arcade_cars() -> Result<(), Refused> {
-    unsafe {
-        if RACE_VARS.run_kind.bits() == 2 {
-            text(SETUP_ARCADE_WORD_RVA.as_ptr() as usize as u32, true);
-            let indent = &crate::logfile::write_line::state::INDENT;
-            indent.fetch_add(3, std::sync::atomic::Ordering::Relaxed);
-            choose_arcade_opponents()?;
-            indent.fetch_sub(3, std::sync::atomic::Ordering::Relaxed);
-            RACE_VIEW.race_cars.set_bits(4u32);
-        }
-        for n in 0..8 {
-            CAR_BLOCKS.cars[n]
-                .car_kind
-                .set_bits(RACE_VARS.race_car_kinds[n].get());
-        }
+pub fn set_up_arcade_cars() -> Result<(), Refused> {
+    if RACE_VARS.run_kind.bits() == 2 {
+        text(SETUP_ARCADE_WORD_RVA.as_ptr() as usize as u32, true);
+        let indent = &crate::logfile::write_line::state::INDENT;
+        indent.fetch_add(3, std::sync::atomic::Ordering::Relaxed);
+        choose_arcade_opponents()?;
+        indent.fetch_sub(3, std::sync::atomic::Ordering::Relaxed);
+        RACE_VIEW.race_cars.set_bits(4u32);
+    }
+    for n in 0..8 {
+        CAR_BLOCKS.cars[n]
+            .car_kind
+            .set_bits(RACE_VARS.race_car_kinds[n].get());
     }
     Ok(())
 }

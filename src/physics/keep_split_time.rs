@@ -34,7 +34,7 @@ impl SplitPlaces {
     }
 }
 
-unsafe fn at(a: u32) -> u32 {
+fn at(a: u32) -> u32 {
     crate::pointers::read_or_end::<u32>(a, "physics::keep_split_time's operand")
 }
 

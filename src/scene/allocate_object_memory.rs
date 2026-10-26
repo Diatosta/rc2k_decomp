@@ -24,7 +24,7 @@ use rc2k_core::scene::objects::object_rooms as rooms;
 
 /// `take`: what stands for `memory::allocate`, given the bytes and the list.
 // Converted: `rc2k_core::scene::objects::object_rooms`
-pub unsafe fn allocate_object_memory(
+pub fn allocate_object_memory(
     take: &mut dyn FnMut(u32, u32) -> Result<u32, Refused>,
 ) -> Result<(), Refused> {
     let (points, faces) = rooms(NUMBERS.in_race.bits() != 0);
@@ -45,10 +45,8 @@ pub unsafe fn allocate_object_memory(
     Ok(())
 }
 
-pub unsafe fn allocate_object_memory_in_game() -> Result<(), Refused> {
-    unsafe {
-        allocate_object_memory(&mut |bytes, _| {
-            Ok(allocate(COURSE_LISTS.object_points_list[0].addr() as *mut _, bytes)? as u32)
-        })
-    }
+pub fn allocate_object_memory_in_game() -> Result<(), Refused> {
+    allocate_object_memory(&mut |bytes, _| {
+        Ok(allocate(COURSE_LISTS.object_points_list[0].addr() as *mut _, bytes)? as u32)
+    })
 }

@@ -89,7 +89,7 @@ pub fn open_viewed_replay(slot: u32) -> Result<bool, Refused> {
         return failed();
     }
     // The index is the file's last 0x3850 bytes.
-    let at = unsafe {
+    let at = {
         handle::seek(
             REPLAY_FILE.replay_handle.get(),
             INDEX_LEN.wrapping_neg() as i32,
@@ -106,7 +106,7 @@ pub fn open_viewed_replay(slot: u32) -> Result<bool, Refused> {
     }
     let mut block = 0u32;
     loop {
-        if unsafe { crate::drive::read_replay_frame_0::read_replay_frame_0(block) }? {
+        if { crate::drive::read_replay_frame_0::read_replay_frame_0(block) }? {
             return failed();
         }
         crate::race::viewer::move_dwords(
@@ -132,7 +132,7 @@ pub fn open_viewed_replay(slot: u32) -> Result<bool, Refused> {
     crate::race::viewer_buffers_store::VIEWER_BUFFERS
         .block_cursor
         .set(crate::race::viewer_buffers_store::VIEWER_BUFFERS.block[0].addr() as u32);
-    if unsafe { crate::drive::read_replay_frame_0::read_replay_frame_0(0) }? {
+    if { crate::drive::read_replay_frame_0::read_replay_frame_0(0) }? {
         return failed();
     }
     GamePtr::new(crate::race::replay::REPLAYS.header.addr() as u32 + 0x30) // unk_528534

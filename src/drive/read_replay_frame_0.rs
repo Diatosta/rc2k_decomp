@@ -9,6 +9,6 @@
 use crate::errors::Refused;
 
 /// The Rust version: CF.
-pub unsafe fn read_replay_frame_0(frame: u32) -> Result<bool, Refused> {
-    unsafe { crate::drive::read_replay_frame::read_replay_frame(frame, 0) }
+pub fn read_replay_frame_0(frame: u32) -> Result<bool, Refused> {
+    crate::drive::read_replay_frame::read_replay_frame(frame, 0)
 }

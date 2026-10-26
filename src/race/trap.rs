@@ -68,14 +68,22 @@ pub fn span(addr: u32, len: usize, what: &str) -> Result<(), BadInput> {
 pub fn file_read(file: u32, addr: u32, count: u32, what: &str) -> Result<(u32, bool), BadInput> {
     span(addr, count as usize, what)?;
     // SAFETY: the span lies in one live region (checked above).
-    Ok(unsafe { crate::files::handle::read(file, addr as usize as *mut u8, count) })
+    Ok(crate::files::handle::read(
+        file,
+        addr as usize as *mut u8,
+        count,
+    ))
 }
 
 /// `files::handle::write` from game memory: the span checked first.
 pub fn file_write(file: u32, addr: u32, count: u32, what: &str) -> Result<(u32, bool), BadInput> {
     span(addr, count as usize, what)?;
     // SAFETY: the span lies in one live region (checked above).
-    Ok(unsafe { crate::files::handle::write(file, addr as usize as *const u8, count) })
+    Ok(crate::files::handle::write(
+        file,
+        addr as usize as *const u8,
+        count,
+    ))
 }
 
 /// The dword at offset `at` of bytes read in place (`GamePtr::bytes`): refused past the

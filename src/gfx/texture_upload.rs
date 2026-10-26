@@ -211,12 +211,7 @@ pub fn fatal(code: u32) -> Refused {
 
 /// The least colour, then the alpha from the kept picture or the colours keyed, then
 /// the grading.
-pub unsafe fn ready_picture(
-    record: &Record,
-    pixels: u32,
-    width: u32,
-    height: u32,
-) -> Result<(), Refused> {
+pub fn ready_picture(record: &Record, pixels: u32, width: u32, height: u32) -> Result<(), Refused> {
     let count = width.wrapping_mul(height);
     if count == 0 {
         return Err(BadInput("a picture of no pixels").into());

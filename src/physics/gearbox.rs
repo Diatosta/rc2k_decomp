@@ -44,24 +44,24 @@ pub fn neutral() {
 
 /// `gear_bit`: true for CF (the gear cannot be taken).
 pub fn bit(gear: u32) -> Result<bool, Refused> {
-    Ok(unsafe { gear_bit(gear) }?.carry)
+    Ok({ gear_bit(gear) }?.carry)
 }
 
 /// `wheels_from_revs` (its ebx, the gear, read by no caller).
 pub fn wheels() -> Result<(), Refused> {
-    unsafe { wheels_from_revs_at(&GearPlaces::game()) }?;
+    { wheels_from_revs_at(&GearPlaces::game()) }?;
     Ok(())
 }
 
 /// `revs_from_wheels` (its ebx read by no caller).
 pub fn revs() -> Result<(), Refused> {
-    unsafe { revs_from_wheels_at(&GearPlaces::game()) }?;
+    { revs_from_wheels_at(&GearPlaces::game()) }?;
     Ok(())
 }
 
 /// `revs_from_speed` (its ebx read by no caller).
 pub fn revs_speed() -> Result<(), Refused> {
-    unsafe { revs_from_speed_at(&GearPlaces::game()) }?;
+    { revs_from_speed_at(&GearPlaces::game()) }?;
     Ok(())
 }
 

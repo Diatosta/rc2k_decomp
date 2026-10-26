@@ -18,16 +18,16 @@ use crate::files::scratch::SCRATCH;
 /// The Rust version: (eax, CF, ZF when it unpacked).
 // Converted: `rc2k_core::drive::race_steps::packed_bytes` (the unpacking:
 // `rc2k_core::drive::rle`).
-pub unsafe fn read_packed(
+pub fn read_packed(
     file: u32,
     buffer: u32,
     count: u32,
 ) -> Result<(u32, bool, Option<bool>), Refused> {
     let Some(packed) = rc2k_core::drive::race_steps::packed_bytes(count) else {
-        let (n, ok) = unsafe { read(file, buffer as *mut u8, count) };
+        let (n, ok) = { read(file, buffer as *mut u8, count) };
         return Ok((n, !ok, None));
     };
-    let (n, ok) = unsafe { read(file, SCRATCH.buffer.addr() as u32 as *mut u8, packed) };
+    let (n, ok) = { read(file, SCRATCH.buffer.addr() as u32 as *mut u8, packed) };
     if !ok {
         return Ok((n, true, None));
     }

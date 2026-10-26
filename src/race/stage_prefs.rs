@@ -75,22 +75,20 @@ pub fn clear_prefs_qword() {
 }
 
 /// `files::read_whole_file` inside `pusha`.
-unsafe fn read(path: usize, buffer: usize, count: u32) -> Result<(), Refused> {
-    unsafe { crate::race::level_init::read(path as u32, buffer as u32, count) }
+fn read(path: usize, buffer: usize, count: u32) -> Result<(), Refused> {
+    crate::race::level_init::read(path as u32, buffer as u32, count)
 }
 
 /// `race::load_prefs` (0x445698): `files\levels\levelxx\localdat`, then
 /// `srclvls\levelxx\localdat`, each 0x206C bytes at most into 0x608CB4; then
 /// `swap_stage_texture`, `tweak_stage`, `clear_prefs_qword`.
-pub unsafe fn load_prefs() -> Result<(), Refused> {
-    unsafe {
-        for path in prefs_paths() {
-            read(path, STAGE_PREFS.prefs_head[0].addr(), PREFS_LEN)?;
-        }
-        swap_stage_texture();
-        tweak_stage();
-        clear_prefs_qword();
+pub fn load_prefs() -> Result<(), Refused> {
+    for path in prefs_paths() {
+        read(path, STAGE_PREFS.prefs_head[0].addr(), PREFS_LEN)?;
     }
+    swap_stage_texture();
+    tweak_stage();
+    clear_prefs_qword();
     Ok(())
 }
 
@@ -138,44 +136,40 @@ pub fn copy_lights_data() -> Result<(), BadInput> {
 
 /// `race::load_lights_data` (0x438AE5): `files\s\data\ldata` (0x1320 bytes at most) into
 /// the lights' data, then `copy_lights_data`.
-pub unsafe fn load_lights_data() -> Result<(), Refused> {
-    unsafe {
-        read(
-            CAMERA_WORK.lights_path[0].addr(), // "files\s\data\ldata"
-            crate::race::lights_store::LIGHTS_DATA.lights.addr(),
-            LIGHTS_LEN,
-        )?;
-        copy_lights_data()?;
-    }
+pub fn load_lights_data() -> Result<(), Refused> {
+    read(
+        CAMERA_WORK.lights_path[0].addr(), // "files\s\data\ldata"
+        crate::race::lights_store::LIGHTS_DATA.lights.addr(),
+        LIGHTS_LEN,
+    )?;
+    copy_lights_data()?;
     Ok(())
 }
 
 /// `race::get_mat_crash` (0x43D43E): the three angles (`dword_71A99C`, `dword_71A998`,
 /// `dword_71A9A0`, each >> 16) kept at `dword_63503C` .., the x, y and z turns made of
 /// them, Z x X into the lit matrix, that x Y into `dword_71A08C`.
-pub unsafe fn get_mat_crash() {
+pub fn get_mat_crash() {
     use crate::scene::matrix;
-    unsafe {
-        // Converted: `rc2k_core::race::stage_objects::crash_turns` (the matrices the
-        // scene's).
-        let turns = rc2k_core::race::stage_objects::crash_turns([
-            CAR.car_heading.get(),
-            CAR.car_pitch.get(),
-            CAR.car_roll.get(),
-        ]);
-        crate::session::write_bits(&OBJECT_WORK.angles, turns);
-        matrix::set_turn_x(turns[0]);
-        matrix::set_turn_y(turns[1]);
-        matrix::set_turn_z_16(turns[2]);
-        matrix::multiply_matrices(
-            MATRICES.turn_z_matrix[0].addr(),
-            MATRICES.turn_x_matrix[0].addr(),
-            MATRICES.lit_matrix[0].addr(),
-        );
-        matrix::multiply_matrices(
-            MATRICES.lit_matrix[0].addr(),
-            MATRICES.turn_y_matrix[0].addr(),
-            CAR.crash_matrix[0].addr(),
-        );
-    }
+    // Converted: `rc2k_core::race::stage_objects::crash_turns` (the matrices the
+    // scene's).
+    let turns = rc2k_core::race::stage_objects::crash_turns([
+        CAR.car_heading.get(),
+        CAR.car_pitch.get(),
+        CAR.car_roll.get(),
+    ]);
+    crate::session::write_bits(&OBJECT_WORK.angles, turns);
+    matrix::set_turn_x(turns[0]);
+    matrix::set_turn_y(turns[1]);
+    matrix::set_turn_z_16(turns[2]);
+    matrix::multiply_matrices(
+        MATRICES.turn_z_matrix[0].addr(),
+        MATRICES.turn_x_matrix[0].addr(),
+        MATRICES.lit_matrix[0].addr(),
+    );
+    matrix::multiply_matrices(
+        MATRICES.lit_matrix[0].addr(),
+        MATRICES.turn_y_matrix[0].addr(),
+        CAR.crash_matrix[0].addr(),
+    );
 }

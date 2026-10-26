@@ -56,7 +56,7 @@ pub fn edit_key(key: u8) -> Result<bool, Refused> {
                 {
                     let at = at as u32;
                     GamePtr::new(text + at).write(typed as u16, "an edited text")?;
-                    let width = unsafe {
+                    let width = {
                         measure_text_at(
                             NET.edit_font.get() as *mut _,
                             text as *const u8,

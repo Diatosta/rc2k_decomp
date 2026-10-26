@@ -27,7 +27,7 @@ use crate::system::packed_local_time::packed_local_time;
 // ---- Rust version ----
 
 /// True if the file was written.
-pub unsafe fn write_setup_slot(slot: u32) -> Result<bool, Refused> {
+pub fn write_setup_slot(slot: u32) -> Result<bool, Refused> {
     if slot >= SLOT_COUNT {
         return Err(BadInput("slot past the name table").into());
     }

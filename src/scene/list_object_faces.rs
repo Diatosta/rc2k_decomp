@@ -21,7 +21,7 @@ use crate::scene::object_store::OBJECT_WORK;
 // ---- Rust version ----
 
 // Converted: `rc2k_core::scene::objects::object_faces`
-pub unsafe fn list_object_faces(
+pub fn list_object_faces(
     list: &mut dyn FnMut(usize) -> Result<(), Refused>,
 ) -> Result<(), Refused> {
     {

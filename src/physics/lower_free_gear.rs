@@ -21,12 +21,12 @@ use crate::physics::gear_bit::bits_at;
 /// The Rust version on the bits at `bits`: the free lower gear (None when neutral is
 /// reached first: CF). The eax it leaves is read by no caller, so none goes in.
 // Converted: `rc2k_core::physics::gearbox::GearBits::lower_free`.
-pub unsafe fn lower_free_gear_at(bits: u32, gear: u32) -> Result<Option<u32>, Refused> {
-    let s = unsafe { bits_at(bits) }.lower_free(gear, 0)?;
+pub fn lower_free_gear_at(bits: u32, gear: u32) -> Result<Option<u32>, Refused> {
+    let s = { bits_at(bits) }.lower_free(gear, 0)?;
     Ok(s.found.then_some(s.gear))
 }
 
 /// The Rust version.
-pub unsafe fn lower_free_gear(gear: u32) -> Result<Option<u32>, Refused> {
-    unsafe { lower_free_gear_at(CAR.lost_gear_bits.addr() as u32, gear) }
+pub fn lower_free_gear(gear: u32) -> Result<Option<u32>, Refused> {
+    lower_free_gear_at(CAR.lost_gear_bits.addr() as u32, gear)
 }

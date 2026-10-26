@@ -24,7 +24,7 @@ use crate::scene::draw_menu_object::draw_menu_object_in_game;
 /// place. `lone_row`: ecx at the original's entry, the row place a lone entry is drawn at
 /// (the original sets ebx and edx for it, not ecx).
 // Converted: `rc2k_core::scene::carousel::drawn`
-pub unsafe fn draw_carousel(
+pub fn draw_carousel(
     lone_row: u32,
     entry: &mut dyn FnMut(u32, u32) -> Result<(), Refused>,
 ) -> Result<(), Refused> {

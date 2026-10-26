@@ -59,7 +59,7 @@ fn rd(x: u32) -> Result<u32, Refused> {
 }
 
 fn touch() -> Result<(), Refused> {
-    unsafe { touch_face() }?;
+    { touch_face() }?;
     Ok(())
 }
 
@@ -153,7 +153,7 @@ pub fn steps(number: u32) -> Result<(), Refused> {
     negate(&FRAME_SCRATCH.work_vector[1]);
     negate(&FRAME_SCRATCH.work_vector[2]);
     if compare_80(
-        unsafe { vector_length(FRAME_SCRATCH.work_vector[0].addr() as u32) },
+        vector_length(FRAME_SCRATCH.work_vector[0].addr() as u32),
         NUMBERS.zero.bits(),
     ) & 0x4000
         != 0
@@ -161,7 +161,7 @@ pub fn steps(number: u32) -> Result<(), Refused> {
         fill_cells(&FRAME_SCRATCH.work_vector, 0);
     }
     FRAME_SCRATCH.work_vector[1].set(0);
-    unsafe { normalise_work_vector() };
+    normalise_work_vector();
     copy_cells(&CONTACT_WORK.contact_normal, &FRAME_SCRATCH.work_vector);
     copy_cells(&CONTACT_WORK.contact_car_speed, &CAR.velocity);
     copy_cells(&CONTACT_WORK.contact_turn_speed, &CAR.spin);

@@ -21,12 +21,10 @@ use crate::physics::queue_car_event::QueuePlaces;
 
 /// The Rust version on the variables at `p`.
 // Converted: `rc2k_core::physics::car_events::CarEvents::expire`.
-pub unsafe fn expire_car_events_at(p: &QueuePlaces) -> Result<(), Refused> {
-    unsafe {
-        let was = p.load();
-        let mut q = was;
-        q.expire(get(p.clock))?;
-        p.store(&was, &q);
-        Ok(())
-    }
+pub fn expire_car_events_at(p: &QueuePlaces) -> Result<(), Refused> {
+    let was = p.load();
+    let mut q = was;
+    q.expire(get(p.clock))?;
+    p.store(&was, &q);
+    Ok(())
 }

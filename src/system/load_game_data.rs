@@ -83,7 +83,7 @@ pub enum Call {
 pub type Outside<'a> = &'a mut dyn FnMut(Call) -> Result<u32, Refused>;
 
 /// The string and what follows it, with a NUL, at `to`.
-unsafe fn default_name(to: *mut u8, room: usize, id: u32, after: &[u8]) -> Result<(), BadInput> {
+fn default_name(to: *mut u8, room: usize, id: u32, after: &[u8]) -> Result<(), BadInput> {
     let mut string = Vec::new();
     push_string(&mut string, id)?;
     let name = rc2k_core::system::game_data::default_name(&string, after, room)
@@ -93,7 +93,7 @@ unsafe fn default_name(to: *mut u8, room: usize, id: u32, after: &[u8]) -> Resul
 }
 
 /// A list of 100 names: every empty one becomes the string and the slot's number.
-unsafe fn number_empty_names<const N: usize>(names: &Bytes<N>, id: u32) -> Result<(), BadInput> {
+fn number_empty_names<const N: usize>(names: &Bytes<N>, id: u32) -> Result<(), BadInput> {
     for slot in 0..SLOTS {
         let name = slot as usize * NAME_LEN;
         if names.get(name) == 0 {

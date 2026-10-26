@@ -29,9 +29,10 @@ const FONT_1002: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fonts::L
 /// `memory::allocate` (0x4028A7) on the installer's list (it never fails with the
 /// original's carry: the fatal error `_code` is the original's for that).
 fn alloc(bytes: u32, _code: u32) -> Result<u32, Refused> {
-    Ok(unsafe {
-        crate::memory::allocate::allocate(INSTALLER_RUN.buffers.addr() as u32 as *mut _, bytes)
-    }? as u32)
+    Ok(
+        { crate::memory::allocate::allocate(INSTALLER_RUN.buffers.addr() as u32 as *mut _, bytes) }?
+            as u32,
+    )
 }
 
 /// `files::read_file` (0x402BB6): `count` bytes of `path` into `buffer`; failing is fatal

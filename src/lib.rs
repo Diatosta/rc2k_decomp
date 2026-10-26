@@ -6,7 +6,6 @@
 #![allow(clippy::missing_safety_doc)]
 
 mod audio;
-mod bridge;
 mod d3d;
 mod drive;
 mod errors;

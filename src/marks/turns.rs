@@ -36,13 +36,11 @@ pub fn set_line_turn(line: u32, back: bool) -> Result<(), Refused> {
 pub fn scale_rows3(rows: u32) -> Result<(), BadInput> {
     crate::race::trap::span(rows, 36, "a mark's three rows")?;
     // SAFETY: the nine floats lie in one live region (checked above).
-    unsafe {
-        for n in 0..3 {
-            x87::scale_row(
-                (rows + 12 * n) as *mut u32,
-                MASK_CONSTANTS.row_lengths[n as usize].bits(),
-            );
-        }
+    for n in 0..3 {
+        x87::scale_row(
+            (rows + 12 * n) as *mut u32,
+            MASK_CONSTANTS.row_lengths[n as usize].bits(),
+        );
     }
     Ok(())
 }

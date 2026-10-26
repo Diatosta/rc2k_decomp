@@ -46,38 +46,35 @@ use crate::scene::view_matrix::{square_matrix, unit_vector};
 
 pub const SLOT_LEN: u32 = 0x78;
 
-unsafe fn at(p: u32) -> u32 {
+fn at(p: u32) -> u32 {
     crate::pointers::read_or_end::<u32>(p, "physics::move_slot's operand")
 }
 
-unsafe fn put(p: u32, v: u32) {
+fn put(p: u32, v: u32) {
     crate::pointers::write_or_end::<u32>(p, v, "physics::move_slot's operand")
 }
 
-unsafe fn copy(from: u32, to: u32, n: u32) {
+fn copy(from: u32, to: u32, n: u32) {
     for k in 0..n {
-        unsafe { put(to + 4 * k, at(from + 4 * k)) };
+        put(to + 4 * k, at(from + 4 * k));
     }
 }
 
 /// `find_ground`'s refusal at the place the slot at `s` will move to (worked out without
 /// writing: the point is put back).
-pub unsafe fn slot_refusal(s: u32) -> Option<&'static str> {
-    unsafe {
-        let dt = PHYSICS.step_time.bits();
-        let k65536 = NUMBERS.k65536.bits();
-        let moved =
-            |c: u32, v: u32| at(s + c).wrapping_add(mul2_to_int(at(s + v), dt, k65536) as u32);
-        let (x, z) = (moved(4, 0x50), moved(0xC, 0x58));
-        let g = Ground::game();
-        let keep = (GROUND_WORK.ground_x.get(), GROUND_WORK.ground_z.get());
-        GROUND_WORK.ground_x.set(x);
-        GROUND_WORK.ground_z.set(z);
-        let why = crate::physics::ground::ground_refusal(&g);
-        GROUND_WORK.ground_x.set(keep.0);
-        GROUND_WORK.ground_z.set(keep.1);
-        why
-    }
+pub fn slot_refusal(s: u32) -> Option<&'static str> {
+    let dt = PHYSICS.step_time.bits();
+    let k65536 = NUMBERS.k65536.bits();
+    let moved = |c: u32, v: u32| at(s + c).wrapping_add(mul2_to_int(at(s + v), dt, k65536) as u32);
+    let (x, z) = (moved(4, 0x50), moved(0xC, 0x58));
+    let g = Ground::game();
+    let keep = (GROUND_WORK.ground_x.get(), GROUND_WORK.ground_z.get());
+    GROUND_WORK.ground_x.set(x);
+    GROUND_WORK.ground_z.set(z);
+    let why = crate::physics::ground::ground_refusal(&g);
+    GROUND_WORK.ground_x.set(keep.0);
+    GROUND_WORK.ground_z.set(keep.1);
+    why
 }
 
 /// The Rust core: the slot at `s` (the registers it leaves are dropped by its caller's

@@ -65,83 +65,80 @@ pub fn draw_mark_slots() -> Result<(), Refused> {
     if let Some(why) = refusal() {
         return Err(BadInput(why).into());
     }
-    unsafe {
-        let settings: u32 = crate::marks::setup::SETTINGS.pointer.get();
-        if get(settings + 0x8C)? != 0 {
-            crate::marks::add_mark_slot::add_mark_slot(
-                get(settings + 0x64)?,
-                MATRICES.view_place[0].addr() as u32,
-            );
+    let settings: u32 = crate::marks::setup::SETTINGS.pointer.get();
+    if get(settings + 0x8C)? != 0 {
+        crate::marks::add_mark_slot::add_mark_slot(
+            get(settings + 0x64)?,
+            MATRICES.view_place[0].addr() as u32,
+        );
+    }
+    crate::scene::set_texture::set_texture(KIND_TEXTURES.kind_first_slots[202].bits());
+    for s in SLOTS.slots.iter().rev() {
+        if (s.life.get() as i32) <= 0 {
+            continue;
         }
-        crate::scene::set_texture::set_texture(KIND_TEXTURES.kind_first_slots[202].bits());
-        for s in SLOTS.slots.iter().rev() {
-            if (s.life.get() as i32) <= 0 {
-                continue;
-            }
-            s.life
-                .set(s.life.get().wrapping_sub(CLOCK.frame_ticks.get()));
-            let p =
-                (SPLINE_HEAD.points[0].addr() as u32).wrapping_add(s.point.get().wrapping_mul(12));
-            let [a, b, c] = [get(p)? ^ 0x8000_0000, get(p + 4)?, get(p + 8)?];
-            let k4 = TUNING.place_k.each_ref().map(|f| f.bits());
-            let z = x87::mul(c, k4[0]);
-            let y = crate::math::x87_run::sub_mul(b, k4[1], k4[2]);
-            let x = x87::mul(a, k4[3]);
-            let once = rotate_point(s.matrix.get(), [extended(z), extended(y), extended(x)]);
-            let twice = rotate_point(MATRICES.view_matrix[0].addr() as u32, once);
-            let [z, y, x] = twice.map(rounded);
-            for (n, v) in [z, y, x].into_iter().enumerate() {
-                SLOTS.work[n].set(v);
-            }
-            let r = TUNING
-                .draw_random
-                .get()
-                .wrapping_mul(0xC5)
-                .wrapping_add(0x5D);
-            TUNING.draw_random.set(r);
-            let corner = &MARK_CORNERS.corners[((r & 7) + 0x50) as usize];
-            let word = |off: u32| u32::from(corner.words[off as usize / 2].get());
-            let uv_k: u32 = DRAW_WORK.uv_k.bits();
-            for (n, (u, v)) in UV_WORDS.into_iter().enumerate() {
-                let vertex = &VERTICES.vertices[n];
-                vertex.u.set_bits(x87::int_times(word(u) as i32, uv_k));
-                vertex.v.set_bits(x87::int_times(word(v) as i32, uv_k));
-            }
-            for n in 0..4 {
-                VERTICES.vertices[n].colour.set(0xFFFF_FFFFu32);
-            }
-            if (x as i32) <= (NUMBERS.k4096_a.bits() as i32) {
-                continue;
-            }
-            let [px, py, half] = x87::slot_project(
-                DRAW.view_scale.bits(),
-                x,
-                z,
-                DRAW.view_centre[0].bits(),
-                y,
-                DRAW.view_centre[1].bits(),
-                SLOTS.slots[0].size.bits(),
-            );
-            SLOTS.work[0].set(px);
-            SLOTS.work[1].set(py);
-            TUNING.half.set_bits(half);
-            let corners = [
-                (x87::sub(px, half), x87::sub(py, half)),
-                (x87::add(px, half), x87::sub(py, half)),
-                (x87::add(px, half), x87::add(py, half)),
-                (x87::sub(px, half), x87::add(py, half)),
-            ];
-            let depth = x87::mul(x, DRAW_WORK.z_k.bits());
-            let rhw = x87::reciprocal_times(x, TUNING.rhw_k.bits());
-            for (n, (vx, vy)) in corners.into_iter().enumerate() {
-                let vertex = &VERTICES.vertices[n];
-                vertex.x.set_bits(vx);
-                vertex.y.set_bits(vy);
-                vertex.z.set_bits(depth);
-                vertex.rhw.set_bits(rhw);
-            }
-            crate::marks::clip_quad::draw_fan();
+        s.life
+            .set(s.life.get().wrapping_sub(CLOCK.frame_ticks.get()));
+        let p = (SPLINE_HEAD.points[0].addr() as u32).wrapping_add(s.point.get().wrapping_mul(12));
+        let [a, b, c] = [get(p)? ^ 0x8000_0000, get(p + 4)?, get(p + 8)?];
+        let k4 = TUNING.place_k.each_ref().map(|f| f.bits());
+        let z = x87::mul(c, k4[0]);
+        let y = crate::math::x87_run::sub_mul(b, k4[1], k4[2]);
+        let x = x87::mul(a, k4[3]);
+        let once = rotate_point(s.matrix.get(), [extended(z), extended(y), extended(x)]);
+        let twice = rotate_point(MATRICES.view_matrix[0].addr() as u32, once);
+        let [z, y, x] = twice.map(rounded);
+        for (n, v) in [z, y, x].into_iter().enumerate() {
+            SLOTS.work[n].set(v);
         }
+        let r = TUNING
+            .draw_random
+            .get()
+            .wrapping_mul(0xC5)
+            .wrapping_add(0x5D);
+        TUNING.draw_random.set(r);
+        let corner = &MARK_CORNERS.corners[((r & 7) + 0x50) as usize];
+        let word = |off: u32| u32::from(corner.words[off as usize / 2].get());
+        let uv_k: u32 = DRAW_WORK.uv_k.bits();
+        for (n, (u, v)) in UV_WORDS.into_iter().enumerate() {
+            let vertex = &VERTICES.vertices[n];
+            vertex.u.set_bits(x87::int_times(word(u) as i32, uv_k));
+            vertex.v.set_bits(x87::int_times(word(v) as i32, uv_k));
+        }
+        for n in 0..4 {
+            VERTICES.vertices[n].colour.set(0xFFFF_FFFFu32);
+        }
+        if (x as i32) <= (NUMBERS.k4096_a.bits() as i32) {
+            continue;
+        }
+        let [px, py, half] = x87::slot_project(
+            DRAW.view_scale.bits(),
+            x,
+            z,
+            DRAW.view_centre[0].bits(),
+            y,
+            DRAW.view_centre[1].bits(),
+            SLOTS.slots[0].size.bits(),
+        );
+        SLOTS.work[0].set(px);
+        SLOTS.work[1].set(py);
+        TUNING.half.set_bits(half);
+        let corners = [
+            (x87::sub(px, half), x87::sub(py, half)),
+            (x87::add(px, half), x87::sub(py, half)),
+            (x87::add(px, half), x87::add(py, half)),
+            (x87::sub(px, half), x87::add(py, half)),
+        ];
+        let depth = x87::mul(x, DRAW_WORK.z_k.bits());
+        let rhw = x87::reciprocal_times(x, TUNING.rhw_k.bits());
+        for (n, (vx, vy)) in corners.into_iter().enumerate() {
+            let vertex = &VERTICES.vertices[n];
+            vertex.x.set_bits(vx);
+            vertex.y.set_bits(vy);
+            vertex.z.set_bits(depth);
+            vertex.rhw.set_bits(rhw);
+        }
+        crate::marks::clip_quad::draw_fan();
     }
     Ok(())
 }

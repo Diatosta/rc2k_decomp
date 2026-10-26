@@ -80,7 +80,7 @@ fn steer(cell: &Dword, step: u32) {
 
 /// The Rust version (the exact one, for `drive::simple_car_step`, `drive::replay_step`
 /// and `race::step_replay_cars`).
-pub unsafe fn steer_inputs() {
+pub fn steer_inputs() {
     let mut keys = PHYSICS.input_steer.get() == 0;
     if !keys && CAR.driver_kind.get() != 2 {
         keys = CAR.input_keys.get() & 0x1000 != 0;

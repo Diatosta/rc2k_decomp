@@ -49,87 +49,96 @@ pub enum Asked {
 }
 
 /// The `-v` part: the box, and out through `start`'s exit path. Does not return.
-pub unsafe fn show_version_and_leave() -> ! {
+pub fn show_version_and_leave() -> ! {
+    let leave = |e: BadInput| -> ! { crate::fatal::raise::end("system::read_command_line", e) };
+    let caption = crate::fatal::state::CAPTION.ptr() as u32;
+    // byte_4F6702: its `:`
+    GamePtr::new(caption + 5)
+        .write(0u8, "the caption")
+        .unwrap_or_else(|e| leave(e));
+    let c_text = |at: usize, what| {
+        crate::files::cstring(GamePtr::new(at as u32), what).unwrap_or_else(|e| leave(e))
+    };
+    let mut text = c_text(START_TEXTS.version.addr() + 6, "the version");
+    text.extend(*b"\t\r\n");
+    text.extend(c_text(START_TEXTS.second_text.addr(), "the second text"));
+    text.push(0);
+    let place = crate::fatal::state::TEXT.ptr() as u32; // Text
+    GamePtr::new(place)
+        .write_bytes(&text, "the version's text")
+        .unwrap_or_else(|e| leave(e));
+    // SAFETY: both texts end in their NULs, written above.
     unsafe {
-        crate::fatal::state::CAPTION
-            .ptr()
-            .cast::<u8>()
-            .add(5)
-            .write(0); // byte_4F6702: its `:`
-        let c_text = |at: usize| std::ffi::CStr::from_ptr(at as *const _).to_bytes();
-        let mut text = c_text(START_TEXTS.version.addr() + 6).to_vec();
-        text.extend(*b"\t\r\n");
-        text.extend(c_text(START_TEXTS.second_text.addr()));
-        text.push(0);
-        let place = crate::fatal::state::TEXT.ptr().cast::<u8>(); // Text
-        std::ptr::copy(text.as_ptr(), place, text.len());
         MessageBoxA(
             std::ptr::null_mut(),
-            place,
-            crate::fatal::state::CAPTION.ptr().cast::<u8>(),
+            place as usize as *const u8,
+            caption as usize as *const u8,
             0x2040,
-        );
-        // The exit path (0x401116) ends in `ExitProcess`; so does the standalone, here.
-        crate::standalone::finish(&format!("the game's way out {EXIT_PATH:#x} was reached"), 0)
-    }
+        )
+    };
+    // The exit path (0x401116) ends in `ExitProcess`; so does the standalone, here.
+    crate::standalone::finish(&format!("the game's way out {EXIT_PATH:#x} was reached"), 0)
 }
 
-pub unsafe fn read_command_line(line: *const u8) -> Result<Asked, BadInput> {
+/// The Rust version on a command line (its text with the NUL; kept for the program's
+/// life, as the game keeps a pointer into it).
+pub fn read_command_line(line: &'static [u8]) -> Result<Asked, BadInput> {
     // Converted: `rc2k_core::system::command_line::read`, the whole line read before
     // anything is written (a refused `-i` word now leaves nothing written).
-    unsafe {
-        let sw = rc2k_core::system::command_line::read(&crate::bridge::Raw::new(line))?;
-        COMMAND_LINE
-            .program
-            .set(line.wrapping_add(sw.program.0) as u32);
-        COMMAND_LINE.program_len.set(sw.program.1 as u32);
-        for (on, place) in [
-            (sw.u, INSTALLER_RUN.updating.addr()),
-            (sw.installing, INSTALLER_RUN.installing.addr()),
-            (sw.no_audio, AUDIO.no_audio.addr()),
-        ] {
-            if on {
-                GamePtr::new(place as u32).write(1u32, "a command-line switch")?;
-            }
+    let sw = rc2k_core::system::command_line::read(line)?;
+    COMMAND_LINE
+        .program
+        .set(line.as_ptr().wrapping_add(sw.program.0) as u32);
+    COMMAND_LINE.program_len.set(sw.program.1 as u32);
+    for (on, place) in [
+        (sw.u, INSTALLER_RUN.updating.addr()),
+        (sw.installing, INSTALLER_RUN.installing.addr()),
+        (sw.no_audio, AUDIO.no_audio.addr()),
+    ] {
+        if on {
+            GamePtr::new(place as u32).write(1u32, "a command-line switch")?;
         }
-        for i in &sw.install {
-            INSTALLER_RUN.from_command.set(1u32);
-            INSTALLER_RUN.ignore_room.set(1u32);
-            for (place, (start, len)) in [
-                INSTALLER_PATHS.game_dir.addr(),
-                INSTALLER_PATHS.installed.addr(),
-            ]
-            .into_iter()
-            .zip(i.words)
-            {
-                // SAFETY: the command line's own text (the OS's memory), `len` bytes of it.
-                let word = std::slice::from_raw_parts(line.wrapping_add(start), len);
-                GamePtr::new(place as u32).write_bytes(word, "an installer path")?;
-            }
-            INSTALLER_RUN.given_mode.set(i.digits[0]);
-            INSTALLER_RUN.given_language.set(i.digits[1]);
-        }
-        if sw.ignore_secondary {
-            CARDS_3D.ignore_secondary.set(1u32);
-        }
-        if sw.ignore_primary {
-            CARDS_3D.not_primary.set(1u32);
-        }
-        Ok(if sw.version {
-            Asked::Version
-        } else {
-            Asked::Nothing
-        })
     }
+    for i in &sw.install {
+        INSTALLER_RUN.from_command.set(1u32);
+        INSTALLER_RUN.ignore_room.set(1u32);
+        for (place, (start, len)) in [
+            INSTALLER_PATHS.game_dir.addr(),
+            INSTALLER_PATHS.installed.addr(),
+        ]
+        .into_iter()
+        .zip(i.words)
+        {
+            let word = line
+                .get(start..start + len)
+                .ok_or(BadInput("a word past the command line"))?;
+            GamePtr::new(place as u32).write_bytes(word, "an installer path")?;
+        }
+        INSTALLER_RUN.given_mode.set(i.digits[0]);
+        INSTALLER_RUN.given_language.set(i.digits[1]);
+    }
+    if sw.ignore_secondary {
+        CARDS_3D.ignore_secondary.set(1u32);
+    }
+    if sw.ignore_primary {
+        CARDS_3D.not_primary.set(1u32);
+    }
+    Ok(if sw.version {
+        Asked::Version
+    } else {
+        Asked::Nothing
+    })
 }
 
-/// The Rust version on the program's own command line (`GetCommandLineA`); `-v` shows the
-/// version and leaves through `start`'s exit path.
-pub unsafe fn read_own_command_line() -> Result<(), BadInput> {
-    unsafe {
-        if read_command_line(GetCommandLineA())? == Asked::Version {
-            show_version_and_leave();
-        }
+/// The Rust version on the program's own command line (`GetCommandLineA`, copied and kept
+/// as a region); `-v` shows the version and leaves through `start`'s exit path.
+pub fn read_own_command_line() -> Result<(), BadInput> {
+    // SAFETY: `GetCommandLineA` gives the process's NUL-ended command line.
+    let own = unsafe { std::ffi::CStr::from_ptr(GetCommandLineA() as *const _) };
+    let line: &'static [u8] = Box::leak(own.to_bytes_with_nul().to_vec().into_boxed_slice());
+    crate::pointers::register(line.as_ptr() as u32, line.len() as u32);
+    if read_command_line(line)? == Asked::Version {
+        show_version_and_leave();
     }
     Ok(())
 }

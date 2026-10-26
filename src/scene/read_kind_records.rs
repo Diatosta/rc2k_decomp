@@ -58,7 +58,7 @@ fn records(file: &KindFile) -> Region {
 
 // ---- Rust version ----
 
-pub unsafe fn read_kind_records() -> Result<(), Refused> {
+pub fn read_kind_records() -> Result<(), Refused> {
     for file in &FILES {
         let (to, room) = records(file);
         read_whole_file(

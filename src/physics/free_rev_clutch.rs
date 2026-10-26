@@ -16,7 +16,7 @@ use crate::physics::free_rev::free_rev;
 use crate::physics::gearing::{GearPlaces, wheels_from_revs_at};
 
 /// The Rust version (the exact one, for `physics::car_physics_step`).
-pub unsafe fn free_rev_clutch() -> Result<(), Refused> {
+pub fn free_rev_clutch() -> Result<(), Refused> {
     let gear = CAR.gear.get();
     if gear == 0 || CAR.driven_wheels_off.get() == 0 {
         return Ok(());
@@ -24,9 +24,7 @@ pub unsafe fn free_rev_clutch() -> Result<(), Refused> {
     if !(-1..=7).contains(&(gear as i32)) {
         return Err(BadInput("a gear outside g_gearRatios (-1 ..= 7)").into());
     }
-    unsafe {
-        free_rev();
-        wheels_from_revs_at(&GearPlaces::game())?;
-    }
+    free_rev();
+    wheels_from_revs_at(&GearPlaces::game())?;
     Ok(())
 }

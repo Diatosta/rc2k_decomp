@@ -205,52 +205,48 @@ pub fn face_switches() {
 
 /// `sub_453786`: the light at scene point `n` (`race::light_colour_at`, through
 /// `dword_62400C`), 0 for -1.
-unsafe fn point_light(n: u32) -> Result<u32, Refused> {
-    unsafe {
-        if n == u32::MAX {
-            return Ok(0);
-        }
-        let p = n.wrapping_mul(12).wrapping_add(COURSE.scene_points.bits());
-        LIGHT_STATE.lit_place[0].set(get(p)?);
-        LIGHT_STATE.lit_place[1].set(get(p + 4)?);
-        LIGHT_STATE.lit_place[2].set(get(p + 8)?);
-        crate::race::frame_draw::light_colour_at()?;
-        let light: u32 = LIGHT_WORK.light_colour.get();
-        DRAW.scratch.set(light);
-        Ok(light)
+fn point_light(n: u32) -> Result<u32, Refused> {
+    if n == u32::MAX {
+        return Ok(0);
     }
+    let p = n.wrapping_mul(12).wrapping_add(COURSE.scene_points.bits());
+    LIGHT_STATE.lit_place[0].set(get(p)?);
+    LIGHT_STATE.lit_place[1].set(get(p + 4)?);
+    LIGHT_STATE.lit_place[2].set(get(p + 8)?);
+    crate::race::frame_draw::light_colour_at()?;
+    let light: u32 = LIGHT_WORK.light_colour.get();
+    DRAW.scratch.set(light);
+    Ok(light)
 }
 
 /// `race::face_lights` (0x453715): the light at each of the face's four corners
 /// (`dword_63DA54` .. `dword_63DA60`; 0 for a missing fourth), when lamps are wanted
 /// (`g_lampsWanted`) and the face is not a plain mode-4 one; all 0 otherwise. Refuses
 /// (before anything) what `light_colour_at` refuses.
-pub unsafe fn face_lights() -> Result<(), Refused> {
-    unsafe {
-        // Converted: `rc2k_core::race::faces::corners_lit`.
-        let wanted: u32 = RACE_VIEW.lamps_wanted.get();
-        let lit = wanted != 0
-            && rc2k_core::race::faces::corners_lit(
-                wanted,
-                RACE_VIEW.texture_a.bits(),
-                RACE_VIEW.polygon_mode.bits(),
-            );
-        if lit {
-            crate::race::frame_draw::check_light_colour()?;
-        }
-        for k in 0..4 {
-            RACE_VIEW.corner_lights[k].set(0u32);
-        }
-        if !lit {
-            return Ok(());
-        }
-        for k in 0..4 {
-            let n: u32 = RACE_VIEW.corners[k].get();
-            let light = point_light(n)?;
-            RACE_VIEW.corner_lights[k].set(light);
-        }
-        Ok(())
+pub fn face_lights() -> Result<(), Refused> {
+    // Converted: `rc2k_core::race::faces::corners_lit`.
+    let wanted: u32 = RACE_VIEW.lamps_wanted.get();
+    let lit = wanted != 0
+        && rc2k_core::race::faces::corners_lit(
+            wanted,
+            RACE_VIEW.texture_a.bits(),
+            RACE_VIEW.polygon_mode.bits(),
+        );
+    if lit {
+        crate::race::frame_draw::check_light_colour()?;
     }
+    for k in 0..4 {
+        RACE_VIEW.corner_lights[k].set(0u32);
+    }
+    if !lit {
+        return Ok(());
+    }
+    for k in 0..4 {
+        let n: u32 = RACE_VIEW.corners[k].get();
+        let light = point_light(n)?;
+        RACE_VIEW.corner_lights[k].set(light);
+    }
+    Ok(())
 }
 
 /// `race::clip_and_draw_face` (0x454187): the face's polygon cut by depth (when some
@@ -283,35 +279,33 @@ pub unsafe fn clip_and_draw_face() -> Result<(), Refused> {
 /// the depth. The records are made when not there (as `sub_44CF33`). The eax and edx the
 /// original leaves are read by no one. Refuses (before anything) no point records or
 /// points.
-pub unsafe fn face_out_of_view() -> Result<bool, Refused> {
+pub fn face_out_of_view() -> Result<bool, Refused> {
     // Converted: `rc2k_core::race::face_drawing::corner_in_sight` (exact in `f64`).
     use rc2k_core::race::face_drawing::{InSight, corner_in_sight};
-    unsafe {
-        crate::race::frame_draw::points_there()?;
-        let near: u32 = RACE_VIEW.near.bits();
-        let slope: u32 = RACE_VIEW.slope.bits();
-        for k in 0..4 {
-            let n: u32 = RACE_VIEW.corners[k].get();
-            if k == 3 && n == u32::MAX {
-                break;
-            }
-            let (record, _) = crate::race::frame_draw::point_record(n)?;
-            let depth = get(record + 0x18)?;
-            if depth & 0x8000_0000 != 0 {
-                continue;
-            }
-            let x = get(record + 0x10)?;
-            match corner_in_sight(depth, x, near, slope) {
-                Some(InSight::Near) => {
-                    DRAW.scratch.set(x & 0x7FFF_FFFF);
-                    return Ok(false);
-                }
-                Some(InSight::Slope) => return Ok(false),
-                None => {}
-            }
+    crate::race::frame_draw::points_there()?;
+    let near: u32 = RACE_VIEW.near.bits();
+    let slope: u32 = RACE_VIEW.slope.bits();
+    for k in 0..4 {
+        let n: u32 = RACE_VIEW.corners[k].get();
+        if k == 3 && n == u32::MAX {
+            break;
         }
-        Ok(true)
+        let (record, _) = crate::race::frame_draw::point_record(n)?;
+        let depth = get(record + 0x18)?;
+        if depth & 0x8000_0000 != 0 {
+            continue;
+        }
+        let x = get(record + 0x10)?;
+        match corner_in_sight(depth, x, near, slope) {
+            Some(InSight::Near) => {
+                DRAW.scratch.set(x & 0x7FFF_FFFF);
+                return Ok(false);
+            }
+            Some(InSight::Slope) => return Ok(false),
+            None => {}
+        }
     }
+    Ok(true)
 }
 
 /// Where one of the face's two triangles keeps its texture's working values
@@ -1167,12 +1161,10 @@ mod asm_reference {
         let mut face = [0u32; 0x20];
         at_each_control_word(|| {
             for _ in 0..20000 {
-                unsafe {
-                    FRAME_SWITCHES.other_way.set(r.below(8));
-                    COURSE.scene_points.set(points.as_ptr() as u32);
-                    for a in [0x6062A4, 0x6062A8, 0x6062AC] {
-                        game_write(rva(a), r.float());
-                    }
+                FRAME_SWITCHES.other_way.set(r.below(8));
+                COURSE.scene_points.set(points.as_ptr() as u32);
+                for a in [0x6062A4, 0x6062A8, 0x6062AC] {
+                    game_write(rva(a), r.float());
                 }
                 for q in points.iter_mut() {
                     *q = r.int() as u32;
@@ -1231,31 +1223,29 @@ mod asm_reference {
         let mut r = Rng(13);
         at_each_control_word(|| {
             for n in 0..20000 {
-                unsafe {
-                    DRAW.scratch.set(0xAAAA_AAAAu32);
-                    STAGE_PREFS.flat_depth.set((n % 2) as u32);
-                    COURSE.flat_depth.set(r.int() as u32);
-                    DRAW.view_scale.set_bits(r.float());
-                    DRAW.view_centre[1].set_bits(r.float());
-                    DRAW.view_centre[0].set_bits(r.float());
-                    game_write(
-                        rva(0x5C5E40),
-                        if r.below(2) == 0 {
-                            0x3F00_0000
-                        } else {
-                            r.float()
-                        },
-                    );
-                    // mostly a depth the projection takes
-                    game_write(
-                        rva(0x5C5E18),
-                        if r.below(4) == 0 {
-                            r.float()
-                        } else {
-                            0x4580_0000
-                        },
-                    );
-                }
+                DRAW.scratch.set(0xAAAA_AAAAu32);
+                STAGE_PREFS.flat_depth.set((n % 2) as u32);
+                COURSE.flat_depth.set(r.int() as u32);
+                DRAW.view_scale.set_bits(r.float());
+                DRAW.view_centre[1].set_bits(r.float());
+                DRAW.view_centre[0].set_bits(r.float());
+                game_write(
+                    rva(0x5C5E40),
+                    if r.below(2) == 0 {
+                        0x3F00_0000
+                    } else {
+                        r.float()
+                    },
+                );
+                // mostly a depth the projection takes
+                game_write(
+                    rva(0x5C5E18),
+                    if r.below(4) == 0 {
+                        r.float()
+                    } else {
+                        0x4580_0000
+                    },
+                );
                 let (a, b) = (vertex(&mut r), vertex(&mut r));
                 let (mut v1, mut v2) = (vertex(&mut r), [0u32; 8]);
                 v2.copy_from_slice(&v1);
@@ -1285,16 +1275,14 @@ mod asm_reference {
         let mut r = Rng(14);
         at_each_control_word(|| {
             for _ in 0..20000 {
-                unsafe {
-                    game_write(
-                        rva(0x5C5E40),
-                        if r.below(2) == 0 {
-                            0x3F00_0000
-                        } else {
-                            r.float()
-                        },
-                    )
-                };
+                game_write(
+                    rva(0x5C5E40),
+                    if r.below(2) == 0 {
+                        0x3F00_0000
+                    } else {
+                        r.float()
+                    },
+                );
                 let entry = |r: &mut Rng| {
                     let mut e = [0u32; 10];
                     for (k, q) in e.iter_mut().enumerate() {

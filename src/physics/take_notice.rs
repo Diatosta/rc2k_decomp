@@ -37,28 +37,26 @@ impl Shown {
 
 /// The Rust version on the variables at `s` and `q`.
 // Converted: `rc2k_core::physics::notices::Notice::take`.
-pub unsafe fn take_notice_at(s: &Shown, q: &Contacts) {
-    unsafe {
-        let was = Notice {
-            id: get(s.id),
-            shown: get(s.busy),
-            time: get(s.time_b),
-            w708: get(s.time_a),
-            ..Notice::default()
-        };
-        let queue = q.load();
-        let (mut notice, mut now) = (was, queue);
-        if notice.take(&mut now).is_none() {
-            return;
-        }
-        put_changed(s.id, was.id, notice.id);
-        put_changed(s.time_a, was.w708, notice.w708);
-        put_changed(s.time_b, was.time, notice.time);
-        q.store(&queue, &now);
+pub fn take_notice_at(s: &Shown, q: &Contacts) {
+    let was = Notice {
+        id: get(s.id),
+        shown: get(s.busy),
+        time: get(s.time_b),
+        w708: get(s.time_a),
+        ..Notice::default()
+    };
+    let queue = q.load();
+    let (mut notice, mut now) = (was, queue);
+    if notice.take(&mut now).is_none() {
+        return;
     }
+    put_changed(s.id, was.id, notice.id);
+    put_changed(s.time_a, was.w708, notice.w708);
+    put_changed(s.time_b, was.time, notice.time);
+    q.store(&queue, &now);
 }
 
 /// The Rust version.
-pub unsafe fn take_notice() {
-    unsafe { take_notice_at(&Shown::game(), &Contacts::game()) }
+pub fn take_notice() {
+    take_notice_at(&Shown::game(), &Contacts::game())
 }

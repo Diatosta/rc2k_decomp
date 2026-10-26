@@ -44,7 +44,7 @@ pub fn take_commands() -> Result<(), Refused> {
             Command::Room(room) => AUDIO.eax_room.set(room),
             Command::Load(list) => {
                 AUDIO.sound_list_loaded.set(list);
-                unsafe { crate::audio::load_sounds::load_sounds(list)? };
+                crate::audio::load_sounds::load_sounds(list)?;
             }
             Command::Free => {
                 crate::audio::free_voices::free_voices()?;

@@ -15,16 +15,16 @@ use crate::errors::{BadInput, Refused};
 use crate::scene::x87_mem::{fld, fstp};
 
 /// The Rust version (see the header).
-pub unsafe fn cross_product3(a: u32, b: u32, out: u32) -> Result<(), Refused> {
+pub fn cross_product3(a: u32, b: u32, out: u32) -> Result<(), Refused> {
     if a == 0 || b == 0 || out == 0 {
         return Err(BadInput("a null vector").into());
     }
-    unsafe { cross(a as *const u8, b as *const u8, out as *mut u8) };
+    cross(a as *const u8, b as *const u8, out as *mut u8);
     Ok(())
 }
 
 /// The three products-differences, each stored as made (`fld; fmul; fld; fmul; fsubp; fstp`).
-unsafe fn cross(a: *const u8, b: *const u8, o: *mut u8) {
+fn cross(a: *const u8, b: *const u8, o: *mut u8) {
     fstp(o, 0, fld(a, 4) * fld(b, 8) - fld(a, 8) * fld(b, 4));
     fstp(o, 4, fld(a, 8) * fld(b, 0) - fld(a, 0) * fld(b, 8));
     fstp(o, 8, fld(a, 0) * fld(b, 4) - fld(a, 4) * fld(b, 0));

@@ -169,49 +169,47 @@ fn face_bytes(face: usize) -> Result<Face, BadInput> {
 }
 
 // Converted: `rc2k_core::scene::face_tests::{dropped, listed_key}`
-pub unsafe fn list_object_face(face: usize) -> Result<(), Refused> {
-    unsafe {
-        if face == 0 {
-            return Err(BadInput("no face").into());
-        }
-        let listed: u32 = LIGHT_WORK.listed_face_count.bits();
-        if listed >= LIST_ROOM {
-            return Err(BadInput("no room in the list of faces").into());
-        }
-        GROUND_WORK.object_see_through.set_bits(0x100u32);
-        let bytes = face_bytes(face)?;
-        let mut world = GameFace(crate::scene::reading::Reading::new());
-        let answer = dropped(&mut world, bytes);
-        world.0.finish()?;
-        match answer {
-            Ok(true) => return Ok(()),
-            Ok(false) => {}
-            Err(why) => return Err(why.into()),
-        }
-        if face_faces_away(face)? {
-            return Ok(());
-        }
-        let count: u32 = GamePtr::new(face as u32).read("an object's face")?;
-        if count as i32 <= 0 {
-            return Ok(());
-        }
-        DRAW.polygon_vertex_count.set_bits(count);
-        DRAW.face_sort_key.set_bits(0u32);
-        face_sort_key(face, count)?;
-        // The room is 0x1000 entries but 0x400 lie before the next table (a slip, kept).
-        let entry = crate::scene::object_slots_store::OBJECT_SLOTS.listed_faces[0].addr()
-            + listed as usize * 0x10;
-        let key = listed_key(bytes, DRAW.face_sort_key.bits());
-        GamePtr::new(entry as u32).write(
-            [
-                RACE_VARS.face_number.bits(),
-                key,
-                DRAW.entry_third.bits(),
-                GROUND_WORK.object_see_through.bits(),
-            ],
-            "the list of faces",
-        )?;
-        LIGHT_WORK.listed_face_count.set_bits(listed + 1);
-        Ok(())
+pub fn list_object_face(face: usize) -> Result<(), Refused> {
+    if face == 0 {
+        return Err(BadInput("no face").into());
     }
+    let listed: u32 = LIGHT_WORK.listed_face_count.bits();
+    if listed >= LIST_ROOM {
+        return Err(BadInput("no room in the list of faces").into());
+    }
+    GROUND_WORK.object_see_through.set_bits(0x100u32);
+    let bytes = face_bytes(face)?;
+    let mut world = GameFace(crate::scene::reading::Reading::new());
+    let answer = dropped(&mut world, bytes);
+    world.0.finish()?;
+    match answer {
+        Ok(true) => return Ok(()),
+        Ok(false) => {}
+        Err(why) => return Err(why.into()),
+    }
+    if face_faces_away(face)? {
+        return Ok(());
+    }
+    let count: u32 = GamePtr::new(face as u32).read("an object's face")?;
+    if count as i32 <= 0 {
+        return Ok(());
+    }
+    DRAW.polygon_vertex_count.set_bits(count);
+    DRAW.face_sort_key.set_bits(0u32);
+    face_sort_key(face, count)?;
+    // The room is 0x1000 entries but 0x400 lie before the next table (a slip, kept).
+    let entry = crate::scene::object_slots_store::OBJECT_SLOTS.listed_faces[0].addr()
+        + listed as usize * 0x10;
+    let key = listed_key(bytes, DRAW.face_sort_key.bits());
+    GamePtr::new(entry as u32).write(
+        [
+            RACE_VARS.face_number.bits(),
+            key,
+            DRAW.entry_third.bits(),
+            GROUND_WORK.object_see_through.bits(),
+        ],
+        "the list of faces",
+    )?;
+    LIGHT_WORK.listed_face_count.set_bits(listed + 1);
+    Ok(())
 }

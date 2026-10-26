@@ -29,7 +29,7 @@ fn features() -> [(&'static Dword, &'static Dword, &'static Dword); 3] {
 
 // ---- Rust version ----
 
-pub unsafe fn apply_feature_switches() {
+pub fn apply_feature_switches() {
     // Converted: `rc2k_core::files::settings::feature_switches`.
     {
         let has = features().map(|(_, _, has)| has.get());

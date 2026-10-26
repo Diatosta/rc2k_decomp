@@ -72,7 +72,7 @@ pub unsafe fn race_init() -> Result<(), Refused> {
     log(c"RACEINIT : initobjectsoncourse");
     indented(&mut || crate::race::course_data::reset_face_lights())?;
     log(c"RACEINIT : gamemodestuff_init");
-    indented(&mut || unsafe { crate::race::race_cars::set_up_cars() }.map(drop))?;
+    indented(&mut || { crate::race::race_cars::set_up_cars() }.map(drop))?;
     log(c"RACEINIT : messagesystem_init");
     indented(&mut || {
         crate::race::race_init::reset_car_race_state()?;
@@ -96,7 +96,7 @@ pub unsafe fn race_init() -> Result<(), Refused> {
     for _ in 0..race_steps::SETTLING_STEPS {
         unsafe { crate::drive::race_cars_step::race_cars_step() }?;
         VIEWER_PANEL.other_marks_shown.set(1);
-        unsafe { crate::drive::share_all_cars::share_all_cars() }?;
+        { crate::drive::share_all_cars::share_all_cars() }?;
         VIEWER_PANEL.other_marks_shown.set(0);
         crate::marks::frame_marks::frame_marks()?;
         crate::marks::run_frame::run_frame()?;

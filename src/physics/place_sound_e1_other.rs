@@ -21,7 +21,7 @@ use rc2k_core::physics::sound_places::{FIRST, SOUND_E1};
 
 /// The Rust version.
 // Converted: `rc2k_core::physics::sound_places`.
-pub unsafe fn place_sound_e1_other() -> Result<(), Refused> {
+pub fn place_sound_e1_other() -> Result<(), Refused> {
     if !listed(CONTACT_WORK.other_car_number.get())? && !listed(RACE_WORK.current_car.get())? {
         return Ok(());
     }
@@ -38,9 +38,7 @@ pub unsafe fn place_sound_e1_other() -> Result<(), Refused> {
             return Err(e);
         }
     };
-    unsafe {
-        RACE_SOUND_SPOTS.sound_scratch_b.set(b);
-        cue_plain(o, FIRST, SOUND_E1, b, None);
-    }
+    RACE_SOUND_SPOTS.sound_scratch_b.set(b);
+    cue_plain(o, FIRST, SOUND_E1, b, None);
     Ok(())
 }

@@ -26,7 +26,7 @@ use rc2k_core::physics::progress;
 /// (`race::nearest_checkpoint`). The other registers it leaves are read by none of its
 /// callers.
 // Converted: `rc2k_core::physics::progress::{near_window, search_all}`.
-pub unsafe fn find_car_checkpoint() -> Result<u32, Refused> {
+pub fn find_car_checkpoint() -> Result<u32, Refused> {
     GROUND_WORK.ground_x.set(CAR.position[0].get());
     GROUND_WORK.ground_z.set(CAR.position[2].get());
     if RACE_VARS.checkpoint_count.get() == 0 {

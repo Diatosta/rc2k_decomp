@@ -13,7 +13,7 @@
 
 // ---- Rust version ----
 
-pub unsafe fn seed_random() {
+pub fn seed_random() {
     crate::math::next_random::wait_for_random();
     // `byte_51839F`, `dword_5183A0`, `dword_5183A4` (`system::keep_start_time`).
     let kept = crate::system::keep_start_time::start_time();

@@ -106,94 +106,92 @@ impl Shadow<'_> {
 /// A shadow (see the header) on `sh`'s variables; `depth` the two depth calls first.
 pub fn draw_shadow_with(sh: &Shadow, depth: bool) -> Result<(), Refused> {
     use crate::scene::set_render_state::set_render_state;
-    unsafe {
-        let q = sh.quad;
-        let corner: u32 = q.corner.get();
-        if corner == 0xFFFF_FFFF {
+    let q = sh.quad;
+    let corner: u32 = q.corner.get();
+    if corner == 0xFFFF_FFFF {
+        return Ok(());
+    }
+    if corner >= 0x100 {
+        return Err(BadInput("a shadow corner past g_marksCorners").into());
+    }
+    if crate::marks::setup::SETTINGS.pointer.get() == 0 {
+        return Err(BadInput("no marks settings").into());
+    }
+    turnable(&angle(sh)?)?;
+    let mut temps = [0u32; 2];
+    let t = temps.as_mut_ptr() as u32;
+    if depth {
+        crate::scene::depth_buffer_on::depth_buffer(true);
+        crate::scene::depth_test_on::depth_test_on();
+    }
+    for (value, state) in STATES {
+        set_render_state(value, state);
+    }
+    for n in 0..2 {
+        for k in 0..3 {
+            q.frame[n][k].set_bits(q.sides[n][k].bits());
+        }
+    }
+    let [s0, s1, s2] = [0, 1, 2].map(|n| q.frame[n][0].addr() as u32);
+    normalise_vector3(s0);
+    normalise_vector3(s1);
+    cross_product3(s0, s1, s2)?;
+    cross_product3(s2, s0, s1)?;
+    normalise_vector3(s1);
+    normalise_vector3(s2);
+    let a = angle(sh)?;
+    let m = q.matrix[0].addr() as u32;
+    turn_matrix3(Axis::Z, m, a)?;
+    light_turned_x87(sh, m as usize, t as usize);
+    for n in 0..3 {
+        for k in 0..3 {
+            q.matrix[n + 3 * k].set_bits(q.frame[n][k].bits());
+        }
+    }
+    second_turned_x87(sh, m as usize, t as usize);
+    cross_product3(s2, s1, s0)?;
+    cross_product3(s2, s0, s1)?;
+    corners_x87(sh);
+    normalise_vector3(q.way[0].addr() as u32);
+    corners_in_x87(sh);
+    let view = MATRICES.listener_matrix[0].addr() as u32;
+    for n in 0..4 {
+        let p: [u32; 3] = std::array::from_fn(|k| q.corners[n][k].bits());
+        let turned = rotate_point(view, p.map(extended));
+        for (k, v) in turned.into_iter().enumerate() {
+            q.corners[n][k].set_bits(rounded(v));
+        }
+    }
+    let entry = &MARK_CORNERS.corners[corner as usize]; // under 0x100, checked before
+    let word = |off: u32| u32::from(entry.words[off as usize / 2].get());
+    let uv_k: u32 = DRAW_WORK.uv_k.bits();
+    for (n, (u, v)) in UV_WORDS.into_iter().enumerate() {
+        let vertex = &VERTICES.vertices[n];
+        vertex.u.set_bits(x87::int_times(word(u) as i32, uv_k));
+        vertex.v.set_bits(x87::int_times(word(v) as i32, uv_k));
+    }
+    let mut c = SURFACE.lives_by_level[8].get() | 0xFF00_0000;
+    let half = |shift: u32| ((!(c >> shift) & 0xFF) >> 1) << shift;
+    let (r, gr, bl) = (half(16), half(8), half(0));
+    c = c.wrapping_add(r).wrapping_add(gr).wrapping_add(bl);
+    for n in 0..4 {
+        VERTICES.vertices[n].colour.set(c);
+    }
+    for n in 0..4 {
+        if (q.corners[n][2].bits() as i32) <= (NUMBERS.k4096_a.bits() as i32) {
             return Ok(());
         }
-        if corner >= 0x100 {
-            return Err(BadInput("a shadow corner past g_marksCorners").into());
-        }
-        if crate::marks::setup::SETTINGS.pointer.get() == 0 {
-            return Err(BadInput("no marks settings").into());
-        }
-        turnable(&angle(sh)?)?;
-        let mut temps = [0u32; 2];
-        let t = temps.as_mut_ptr() as u32;
-        if depth {
-            crate::scene::depth_buffer_on::depth_buffer(true);
-            crate::scene::depth_test_on::depth_test_on();
-        }
-        for (value, state) in STATES {
-            set_render_state(value, state);
-        }
-        for n in 0..2 {
-            for k in 0..3 {
-                q.frame[n][k].set_bits(q.sides[n][k].bits());
-            }
-        }
-        let [s0, s1, s2] = [0, 1, 2].map(|n| q.frame[n][0].addr() as u32);
-        normalise_vector3(s0);
-        normalise_vector3(s1);
-        cross_product3(s0, s1, s2)?;
-        cross_product3(s2, s0, s1)?;
-        normalise_vector3(s1);
-        normalise_vector3(s2);
-        let a = angle(sh)?;
-        let m = q.matrix[0].addr() as u32;
-        turn_matrix3(Axis::Z, m, a)?;
-        light_turned_x87(sh, m as usize, t as usize);
-        for n in 0..3 {
-            for k in 0..3 {
-                q.matrix[n + 3 * k].set_bits(q.frame[n][k].bits());
-            }
-        }
-        second_turned_x87(sh, m as usize, t as usize);
-        cross_product3(s2, s1, s0)?;
-        cross_product3(s2, s0, s1)?;
-        corners_x87(sh);
-        normalise_vector3(q.way[0].addr() as u32);
-        corners_in_x87(sh);
-        let view = MATRICES.listener_matrix[0].addr() as u32;
-        for n in 0..4 {
-            let p: [u32; 3] = std::array::from_fn(|k| q.corners[n][k].bits());
-            let turned = rotate_point(view, p.map(extended));
-            for (k, v) in turned.into_iter().enumerate() {
-                q.corners[n][k].set_bits(rounded(v));
-            }
-        }
-        let entry = &MARK_CORNERS.corners[corner as usize]; // under 0x100, checked before
-        let word = |off: u32| u32::from(entry.words[off as usize / 2].get());
-        let uv_k: u32 = DRAW_WORK.uv_k.bits();
-        for (n, (u, v)) in UV_WORDS.into_iter().enumerate() {
-            let vertex = &VERTICES.vertices[n];
-            vertex.u.set_bits(x87::int_times(word(u) as i32, uv_k));
-            vertex.v.set_bits(x87::int_times(word(v) as i32, uv_k));
-        }
-        let mut c = SURFACE.lives_by_level[8].get() | 0xFF00_0000;
-        let half = |shift: u32| ((!(c >> shift) & 0xFF) >> 1) << shift;
-        let (r, gr, bl) = (half(16), half(8), half(0));
-        c = c.wrapping_add(r).wrapping_add(gr).wrapping_add(bl);
-        for n in 0..4 {
-            VERTICES.vertices[n].colour.set(c);
-        }
-        for n in 0..4 {
-            if (q.corners[n][2].bits() as i32) <= (NUMBERS.k4096_a.bits() as i32) {
-                return Ok(());
-            }
-        }
-        projected_x87(crate::race::store::asm_base() as usize, sh);
-        let z_k: u32 = DRAW_WORK.z_k.bits();
-        for n in 0..4 {
-            let vertex = &VERTICES.vertices[n];
-            vertex.x.set_bits(q.corners[n][0].bits());
-            vertex.y.set_bits(q.corners[n][1].bits());
-            let depth = x87_run::sub_mul(q.corners[n][2].bits(), sh.consts.lifts[n].bits(), z_k);
-            vertex.z.set_bits(depth);
-        }
-        crate::marks::clip_quad::draw_fan();
     }
+    projected_x87(crate::race::store::asm_base() as usize, sh);
+    let z_k: u32 = DRAW_WORK.z_k.bits();
+    for n in 0..4 {
+        let vertex = &VERTICES.vertices[n];
+        vertex.x.set_bits(q.corners[n][0].bits());
+        vertex.y.set_bits(q.corners[n][1].bits());
+        let depth = x87_run::sub_mul(q.corners[n][2].bits(), sh.consts.lifts[n].bits(), z_k);
+        vertex.z.set_bits(depth);
+    }
+    crate::marks::clip_quad::draw_fan();
     Ok(())
 }
 

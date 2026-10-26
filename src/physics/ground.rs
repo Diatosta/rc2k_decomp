@@ -51,7 +51,7 @@ impl Ground {
         }
     }
 
-    pub unsafe fn records(&self) -> RecordPlaces {
+    pub fn records(&self) -> RecordPlaces {
         RecordPlaces {
             firsts: KIND_RECORDS.first_records[0].addr() as u32,
             lasts: KIND_RECORDS.last_records[0].addr() as u32,
@@ -60,7 +60,7 @@ impl Ground {
         }
     }
 
-    unsafe fn point(&self, index: u32) -> u32 {
+    fn point(&self, index: u32) -> u32 {
         COURSE
             .scene_points
             .get()
@@ -77,84 +77,82 @@ fn at(a: u32) -> Result<u32, BadInput> {
 /// shares by the x87 (`math::x87_run::face_shares`; the `rcpss` way with the SSE switch).
 /// The registers it leaves (eax the last difference, ebx, ecx the third corner's y, z)
 /// are read by none of its callers.
-pub unsafe fn face_shares_at(g: &Ground) -> Result<(), Refused> {
-    unsafe {
-        let mut corner = [[0u32; 3]; 3];
-        for (k, c) in corner.iter_mut().enumerate() {
-            let p = g.point(GROUND_WORK.face_corner_numbers[k].get());
-            *c = [at(p)?, at(p + 4)?, at(p + 8)?];
-            for (n, &v) in c.iter().enumerate() {
-                GROUND_WORK.face_corners[3 * k + n].set(v);
-            }
+pub fn face_shares_at(g: &Ground) -> Result<(), Refused> {
+    let mut corner = [[0u32; 3]; 3];
+    for (k, c) in corner.iter_mut().enumerate() {
+        let p = g.point(GROUND_WORK.face_corner_numbers[k].get());
+        *c = [at(p)?, at(p + 4)?, at(p + 8)?];
+        for (n, &v) in c.iter().enumerate() {
+            GROUND_WORK.face_corners[3 * k + n].set(v);
         }
-        let (x, z) = (GROUND_WORK.ground_x.get(), GROUND_WORK.ground_z.get());
-        GROUND_WORK.face_point_x.set(x);
-        GROUND_WORK.face_point_z.set(z);
-        let d = [
-            (
-                &GROUND_WORK.corner_x_differences[0],
-                x.wrapping_sub(corner[0][0]),
-            ),
-            (
-                &GROUND_WORK.corner_x_differences[1],
-                corner[1][0].wrapping_sub(corner[0][0]),
-            ),
-            (
-                &GROUND_WORK.corner_x_differences[2],
-                corner[2][0].wrapping_sub(corner[0][0]),
-            ),
-            (
-                &GROUND_WORK.corner_z_differences[0],
-                z.wrapping_sub(corner[0][2]),
-            ),
-            (
-                &GROUND_WORK.corner_z_differences[1],
-                corner[1][2].wrapping_sub(corner[0][2]),
-            ),
-            (
-                &GROUND_WORK.corner_z_differences[2],
-                corner[2][2].wrapping_sub(corner[0][2]),
-            ),
-            (
-                &GROUND_WORK.corner_y_differences[0],
-                corner[1][1].wrapping_sub(corner[0][1]),
-            ),
-            (
-                &GROUND_WORK.corner_y_differences[1],
-                corner[2][1].wrapping_sub(corner[0][1]),
-            ),
-        ];
-        for &(cell, value) in &d {
-            cell.set(value);
-        }
-        let sse = DRAW_SWITCHES.use_sse.get() != 0;
-        let i = [
-            d[0].1,
-            d[1].1,
-            d[2].1,
-            d[3].1,
-            d[4].1,
-            d[5].1,
-            NUMBERS.k65536.bits(),
-        ];
-        let mut o = [0u32; 8];
-        crate::math::x87_run::face_shares(&i, &mut o, sse);
-        GROUND_WORK.face_share_a.set_bits(o[0]);
-        GROUND_WORK.face_share_b.set_bits(o[1]);
-        GROUND_WORK.face_share_c.set_bits(o[2]);
-        GROUND_WORK.plane_f.set_bits(o[3]);
-        GROUND_WORK.share_s.set(o[4]);
-        GROUND_WORK.plane_g.set_bits(o[5]);
-        GROUND_WORK.share_t.set(o[6]);
-        if sse {
-            GROUND_WORK.face_share_scale.set_bits(o[7]);
-        }
+    }
+    let (x, z) = (GROUND_WORK.ground_x.get(), GROUND_WORK.ground_z.get());
+    GROUND_WORK.face_point_x.set(x);
+    GROUND_WORK.face_point_z.set(z);
+    let d = [
+        (
+            &GROUND_WORK.corner_x_differences[0],
+            x.wrapping_sub(corner[0][0]),
+        ),
+        (
+            &GROUND_WORK.corner_x_differences[1],
+            corner[1][0].wrapping_sub(corner[0][0]),
+        ),
+        (
+            &GROUND_WORK.corner_x_differences[2],
+            corner[2][0].wrapping_sub(corner[0][0]),
+        ),
+        (
+            &GROUND_WORK.corner_z_differences[0],
+            z.wrapping_sub(corner[0][2]),
+        ),
+        (
+            &GROUND_WORK.corner_z_differences[1],
+            corner[1][2].wrapping_sub(corner[0][2]),
+        ),
+        (
+            &GROUND_WORK.corner_z_differences[2],
+            corner[2][2].wrapping_sub(corner[0][2]),
+        ),
+        (
+            &GROUND_WORK.corner_y_differences[0],
+            corner[1][1].wrapping_sub(corner[0][1]),
+        ),
+        (
+            &GROUND_WORK.corner_y_differences[1],
+            corner[2][1].wrapping_sub(corner[0][1]),
+        ),
+    ];
+    for &(cell, value) in &d {
+        cell.set(value);
+    }
+    let sse = DRAW_SWITCHES.use_sse.get() != 0;
+    let i = [
+        d[0].1,
+        d[1].1,
+        d[2].1,
+        d[3].1,
+        d[4].1,
+        d[5].1,
+        NUMBERS.k65536.bits(),
+    ];
+    let mut o = [0u32; 8];
+    crate::math::x87_run::face_shares(&i, &mut o, sse);
+    GROUND_WORK.face_share_a.set_bits(o[0]);
+    GROUND_WORK.face_share_b.set_bits(o[1]);
+    GROUND_WORK.face_share_c.set_bits(o[2]);
+    GROUND_WORK.plane_f.set_bits(o[3]);
+    GROUND_WORK.share_s.set(o[4]);
+    GROUND_WORK.plane_g.set_bits(o[5]);
+    GROUND_WORK.share_t.set(o[6]);
+    if sse {
+        GROUND_WORK.face_share_scale.set_bits(o[7]);
     }
     Ok(())
 }
 
 /// `face_under_point`'s refusal, worked out without writing.
-pub unsafe fn face_refusal(face: u32) -> Option<&'static str> {
+pub fn face_refusal(face: u32) -> Option<&'static str> {
     ground_search::check_face(face, COURSE.course_face_count.get())
         .err()
         .map(|e| e.0)
@@ -306,22 +304,20 @@ pub unsafe fn ground_search_at(g: &Ground) -> Result<bool, Refused> {
 
 /// `ground_search`'s refusals, worked out without writing: those of the cells' records it
 /// would come to (all nine are looked at; a refusal past the face found is refused too).
-pub unsafe fn ground_refusal(g: &Ground) -> Option<&'static str> {
-    unsafe {
-        let records = g.records();
-        for (dx, dz) in CELLS {
-            let x = GROUND_WORK.ground_x.get().wrapping_add(dx);
-            let z = GROUND_WORK.ground_z.get().wrapping_add(dz);
-            match find_course_record_at(&records, ground_search::cell_key(x, z).0) {
-                Err(_) => return Some("a cell's kind runs past g_courseRecordCount"),
-                Ok(Some(record)) => {
-                    if let Some(why) = record_refusal(record) {
-                        return Some(why);
-                    }
+pub fn ground_refusal(g: &Ground) -> Option<&'static str> {
+    let records = g.records();
+    for (dx, dz) in CELLS {
+        let x = GROUND_WORK.ground_x.get().wrapping_add(dx);
+        let z = GROUND_WORK.ground_z.get().wrapping_add(dz);
+        match find_course_record_at(&records, ground_search::cell_key(x, z).0) {
+            Err(_) => return Some("a cell's kind runs past g_courseRecordCount"),
+            Ok(Some(record)) => {
+                if let Some(why) = record_refusal(record) {
+                    return Some(why);
                 }
-                Ok(None) => {}
             }
+            Ok(None) => {}
         }
-        None
     }
+    None
 }

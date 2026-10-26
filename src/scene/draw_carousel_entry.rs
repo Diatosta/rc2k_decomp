@@ -66,74 +66,70 @@ pub(crate) fn own_place(own: u32) -> [u32; 3] {
         Some(place) => [place.size.get(), place.y.get(), place.angle.get()],
         None => {
             let at = OWN_PLACES_IDA + 12 * own as usize;
-            [0, 4, 8].map(|k| unsafe { game_read::<u32>(rva(at + k)) })
+            [0, 4, 8].map(|k| game_read::<u32>(rva(at + k)))
         }
     }
 }
 
 /// Reads only.
-unsafe fn settings(entry: u32, row: u32) -> Result<Settings, BadInput> {
-    unsafe {
-        if entry >= ENTRIES {
-            return Err(BadInput("a carousel entry past the table"));
-        }
-        let [spacing, y, z, forward] = [
-            MENU_STATE.carousel.spacing.get(),
-            MENU_STATE.carousel.y.get(),
-            MENU_STATE.carousel.z.get(),
-            MENU_STATE.carousel.forward.get(),
-        ];
-        let turn: u32 = MENU_STATE.carousel.angle.get();
-        let high = |a: u32, b: u32| ((a as u64 * b as u64) >> 32) as u32;
-        let x = high(spacing, !turn)
-            .wrapping_add((spacing as i32).wrapping_mul(row.wrapping_sub(1) as i32) as u32);
-        let z = match row {
-            0 => z.wrapping_sub(high(!turn, forward)),
-            1 => z.wrapping_sub(high(turn, forward)),
-            _ => z,
-        };
-        let clock: u32 = PHYSICS.scene_clock.bits();
-        let mut set = Settings {
-            place: [x, y, z],
-            size: None,
-            angle_x: 0,
-            angle_y: ((clock as u16) << 3) as u32,
-            kind: MENU_STATE.carousel.kinds[entry as usize].get(),
-            object: 0,
-        };
-        if set.kind as i32 > 0x258 {
-            let own = set.kind - 0x259;
-            if own >= OWN {
-                return Err(BadInput("a kind past the records of the kinds' own places"));
-            }
-            let [size, y, angle] = own_place(own);
-            set.size = Some(size);
-            set.place[1] = y;
-            set.angle_x = angle;
-        }
-        set.object = find_object_of_kind(set.kind);
-        Ok(set)
+fn settings(entry: u32, row: u32) -> Result<Settings, BadInput> {
+    if entry >= ENTRIES {
+        return Err(BadInput("a carousel entry past the table"));
     }
+    let [spacing, y, z, forward] = [
+        MENU_STATE.carousel.spacing.get(),
+        MENU_STATE.carousel.y.get(),
+        MENU_STATE.carousel.z.get(),
+        MENU_STATE.carousel.forward.get(),
+    ];
+    let turn: u32 = MENU_STATE.carousel.angle.get();
+    let high = |a: u32, b: u32| ((a as u64 * b as u64) >> 32) as u32;
+    let x = high(spacing, !turn)
+        .wrapping_add((spacing as i32).wrapping_mul(row.wrapping_sub(1) as i32) as u32);
+    let z = match row {
+        0 => z.wrapping_sub(high(!turn, forward)),
+        1 => z.wrapping_sub(high(turn, forward)),
+        _ => z,
+    };
+    let clock: u32 = PHYSICS.scene_clock.bits();
+    let mut set = Settings {
+        place: [x, y, z],
+        size: None,
+        angle_x: 0,
+        angle_y: ((clock as u16) << 3) as u32,
+        kind: MENU_STATE.carousel.kinds[entry as usize].get(),
+        object: 0,
+    };
+    if set.kind as i32 > 0x258 {
+        let own = set.kind - 0x259;
+        if own >= OWN {
+            return Err(BadInput("a kind past the records of the kinds' own places"));
+        }
+        let [size, y, angle] = own_place(own);
+        set.size = Some(size);
+        set.place[1] = y;
+        set.angle_x = angle;
+    }
+    set.object = find_object_of_kind(set.kind);
+    Ok(set)
 }
 
 /// Carousel entry `entry` in row place `row` (ebx and ecx at the original's entry) set
 /// up and drawn by `draw`.
-pub unsafe fn draw_carousel_entry(
+pub fn draw_carousel_entry(
     entry: u32,
     row: u32,
     draw: &mut dyn FnMut() -> Result<(), Refused>,
 ) -> Result<(), Refused> {
-    unsafe {
-        let set = settings(entry, row)?;
-        crate::session::write_bits(&OBJECT_WORK.place, set.place);
-        if let Some(size) = set.size {
-            OBJECT_WORK.size.set_bits(size);
-        }
-        OBJECT_WORK.angles[0].set_bits(set.angle_x);
-        OBJECT_WORK.angles[1].set_bits(set.angle_y);
-        crate::session::write_bits(&DRAW.view_offset, [0u32; 2]);
-        MENU_STATE.carousel.kind.set(set.kind);
-        FRAME_SWITCHES.object_number.set_bits(set.object);
-        draw()
+    let set = settings(entry, row)?;
+    crate::session::write_bits(&OBJECT_WORK.place, set.place);
+    if let Some(size) = set.size {
+        OBJECT_WORK.size.set_bits(size);
     }
+    OBJECT_WORK.angles[0].set_bits(set.angle_x);
+    OBJECT_WORK.angles[1].set_bits(set.angle_y);
+    crate::session::write_bits(&DRAW.view_offset, [0u32; 2]);
+    MENU_STATE.carousel.kind.set(set.kind);
+    FRAME_SWITCHES.object_number.set_bits(set.object);
+    draw()
 }

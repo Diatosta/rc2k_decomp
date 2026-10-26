@@ -50,7 +50,7 @@ pub(super) fn int_plus_less_squared(y: i32, a: u32, b: u32) -> u32 {
 /// One of the marks' kind records (0x30 bytes, 12 floats): +0xC and +0x24 negated in
 /// place, then each of the twelve times a / b (kept unrounded) rounded to a whole number in
 /// place (`fmul st, st(1)`; the last `fmulp`).
-pub(super) unsafe fn scale_record(r: *mut u32, a: u32, b: u32) {
+pub(super) fn scale_record(r: *mut u32, a: u32, b: u32) {
     x87!(
         "fld dword ptr [{r} + 0xC]", "fchs", "fstp dword ptr [{r} + 0xC]",
         "fld dword ptr [{r} + 0x24]", "fchs", "fstp dword ptr [{r} + 0x24]",
@@ -435,7 +435,7 @@ pub(super) fn abs_sum_times_to_int(a: u32, b: u32, k: u32) -> i32 {
 /// `sub_4CE05E`'s point: (-t0 k, (t1 - d) k, t2 k) turned by the matrix at `m` (its rows
 /// 0x10 apart), placed by +0x30 .. and the place taken off again, all on the x87 stack as
 /// the original does (`fxch`, register forms as bytes); then x, y, y less `lift`, z.
-pub(super) unsafe fn turned_place_less(t: [u32; 3], k: u32, d: u32, lift: u32, m: u32) -> [u32; 4] {
+pub(super) fn turned_place_less(t: [u32; 3], k: u32, d: u32, lift: u32, m: u32) -> [u32; 4] {
     let (v, mut out) = ([t[0], t[1], t[2], k, d, lift], [0u32; 4]);
     x87!(
         "fld dword ptr [{v}]", "fchs", "fmul dword ptr [{v} + 12]",
@@ -522,7 +522,7 @@ pub(super) fn mul_80(a: u32, b: u32) -> [u8; 10] {
 /// The point (st(0) p0, st(1) p1, st(2) p2) turned and placed by the matrix at `m` on the
 /// x87 stack as `sub_4CE283` does (`fxch`, register forms as bytes); then x, y, y less
 /// `lift`, z.
-pub(super) unsafe fn turned_place(p: [u32; 3], lift: u32, m: u32) -> [u32; 4] {
+pub(super) fn turned_place(p: [u32; 3], lift: u32, m: u32) -> [u32; 4] {
     let (v, mut out) = ([p[0], p[1], p[2], lift], [0u32; 4]);
     x87!(
         "fld dword ptr [{v} + 8]", "fld dword ptr [{v} + 4]", "fld dword ptr [{v}]",
@@ -600,7 +600,7 @@ pub(super) fn normalised3(p: [u32; 3], one: u32) -> [u32; 3] {
 /// `sub_4C9AF6`'s third side: the cross product of (p0, p1, p2) and the vector at `w`
 /// (unrounded) turned by the transposed matrix at `m` (rows 0x10 apart), as the original
 /// does it on the x87 stack (`fxch`, register forms as bytes).
-pub(super) unsafe fn crossed_turned(p: [u32; 3], w: u32, m: u32) -> [u32; 3] {
+pub(super) fn crossed_turned(p: [u32; 3], w: u32, m: u32) -> [u32; 3] {
     let mut out = [0u32; 3];
     x87!(
         "fld dword ptr [{p}]", "fmul dword ptr [{w} + 4]",
@@ -1553,10 +1553,8 @@ mod diff {
             }
             let (a, b) = (t.rng.fl(), t.rng.fl());
             let (mut want, mut got) = (r, r);
-            unsafe {
-                super::scale_record(want.as_mut_ptr(), a, b);
-                plain::scale_record(got.as_mut_ptr(), a, b);
-            }
+            super::scale_record(want.as_mut_ptr(), a, b);
+            plain::scale_record(got.as_mut_ptr(), a, b);
             let ok = want.same(&got, 0);
             t.record("scale_record", ok, || {
                 format!("{r:x?} {a:x} {b:x} want {want:x?} got {got:x?}")
@@ -1565,15 +1563,15 @@ mod diff {
             let m = matrix(&mut t.rng);
             let mp = m.as_ptr() as u32;
             let (p, k, d, lift) = (t.rng.a3(), t.rng.fl(), t.rng.fl(), t.rng.fl());
-            let want = unsafe { super::turned_place_less(p, k, d, lift, mp) };
-            let got = unsafe { plain::turned_place_less(p, k, d, lift, mp) };
+            let want = { super::turned_place_less(p, k, d, lift, mp) };
+            let got = { plain::turned_place_less(p, k, d, lift, mp) };
             let ok = want.same(&got, 0);
             t.record("turned_place_less", ok, || {
                 format!("{p:x?} {k:x} {d:x} {lift:x} {m:x?} want {want:x?} got {got:x?}")
             });
 
-            let want = unsafe { super::turned_place(p, lift, mp) };
-            let got = unsafe { plain::turned_place(p, lift, mp) };
+            let want = { super::turned_place(p, lift, mp) };
+            let got = { plain::turned_place(p, lift, mp) };
             let ok = want.same(&got, 0);
             t.record("turned_place", ok, || {
                 format!("{p:x?} {lift:x} {m:x?} want {want:x?} got {got:x?}")
@@ -1581,8 +1579,8 @@ mod diff {
 
             let w = t.rng.a3();
             let wp = w.as_ptr() as u32;
-            let want = unsafe { super::crossed_turned(p, wp, mp) };
-            let got = unsafe { plain::crossed_turned(p, wp, mp) };
+            let want = { super::crossed_turned(p, wp, mp) };
+            let got = { plain::crossed_turned(p, wp, mp) };
             let ok = want.same(&got, 0);
             t.record("crossed_turned", ok, || {
                 format!("{p:x?} {w:x?} {m:x?} want {want:x?} got {got:x?}")

@@ -24,29 +24,25 @@ pub struct Scratch {
 /// `math::turn_scratch_xz` exactly as the original (the x87, at whatever precision it is
 /// set to): what the Rust callers in modules not yet converted use, so that their own
 /// comparisons stay exact. The entry left in edx.
-pub unsafe fn turn_scratch_xz(point: &mut Scratch, angle: u32) -> u32 {
+pub fn turn_scratch_xz(point: &mut Scratch, angle: u32) -> u32 {
     let entry = angle.wrapping_add(0x8_0000) >> 20;
-    unsafe {
-        x87_turn(point, entry);
-    }
+    x87_turn(point, entry);
     entry
 }
 
-unsafe fn x87_turn(point: &mut Scratch, entry: u32) {
+fn x87_turn(point: &mut Scratch, entry: u32) {
     let a = |table: &crate::session::Float| table.addr() + 4 * entry as usize;
-    unsafe {
-        crate::math::x87::turn_in_place(
-            a(crate::scene::engine_tables_store::sine(0)) as *const u32,
-            a(crate::scene::engine_tables_store::cosine(0)) as *const u32,
-            &raw mut point.x,
-            &raw mut point.z,
-        )
-    };
+    crate::math::x87::turn_in_place(
+        a(crate::scene::engine_tables_store::sine(0)) as *const u32,
+        a(crate::scene::engine_tables_store::cosine(0)) as *const u32,
+        &raw mut point.x,
+        &raw mut point.z,
+    );
 }
 
 /// The converted version (`rc2k_core::math::geometry`, plain floats): the hook's, and what
 /// converted callers use. The entry left in edx.
-pub unsafe fn turn_scratch_xz_plain(point: &mut Scratch, angle: u32) -> u32 {
+pub fn turn_scratch_xz_plain(point: &mut Scratch, angle: u32) -> u32 {
     use rc2k_core::math::geometry;
     let entry = geometry::turn_entry(angle);
     {

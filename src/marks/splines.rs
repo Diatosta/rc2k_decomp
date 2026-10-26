@@ -227,13 +227,13 @@ fn negated(f: u32) -> [u8; 10] {
 
 /// `scene::multiply_matrices3` (`out` = `a` x `b`).
 pub fn multiply(a: u32, b: u32, out: u32) {
-    unsafe { crate::scene::matrix3::multiply_matrices3(a, b, out) };
+    crate::scene::matrix3::multiply_matrices3(a, b, out);
 }
 
 /// `scene::transform_int_points`: `count` points from `from` turned by the matrix at
 /// `matrix` into `to`.
 pub fn transform(from: u32, to: u32, count: u32, matrix: u32) -> Result<(), Refused> {
-    unsafe { crate::scene::matrix3::transform_int_points(from, to, count, matrix) }
+    crate::scene::matrix3::transform_int_points(from, to, count, matrix)
 }
 
 /// The X x Y x Z products of `turn_spline_points` and `turn_record`.
@@ -260,33 +260,31 @@ fn multiply_turns() {
 /// 0x80 points or an angle `fsincos` cannot take, before writing anything.
 pub fn turn_spline_points(s: u32) -> Result<(), Refused> {
     use crate::scene::matrix3::{Axis, turn_matrix3, turnable};
-    unsafe {
-        count(s)?;
-        let mut angles = [negated(0); 3];
-        for (a, o) in angles.iter_mut().zip([0x20u32, 0x24, 0x28]) {
-            *a = negated(get(s + o)?);
-        }
-        for a in &angles {
-            turnable(a)?;
-        }
-        for ((axis, to), angle) in [
-            (Axis::X, &SPLINE_WORK.turn_x[0]),
-            (Axis::Y, &SPLINE_WORK.turn_y[0]),
-            (Axis::Z, &SPLINE_WORK.turn_z[0]),
-        ]
-        .into_iter()
-        .zip(angles)
-        {
-            turn_matrix3(axis, at(to), angle)?;
-        }
-        multiply_turns();
-        transform(
-            s + COORDS,
-            s + COORDS,
-            get(s + COUNT)?,
-            at(&SPLINE_WORK.turn[0]),
-        )?;
+    count(s)?;
+    let mut angles = [negated(0); 3];
+    for (a, o) in angles.iter_mut().zip([0x20u32, 0x24, 0x28]) {
+        *a = negated(get(s + o)?);
     }
+    for a in &angles {
+        turnable(a)?;
+    }
+    for ((axis, to), angle) in [
+        (Axis::X, &SPLINE_WORK.turn_x[0]),
+        (Axis::Y, &SPLINE_WORK.turn_y[0]),
+        (Axis::Z, &SPLINE_WORK.turn_z[0]),
+    ]
+    .into_iter()
+    .zip(angles)
+    {
+        turn_matrix3(axis, at(to), angle)?;
+    }
+    multiply_turns();
+    transform(
+        s + COORDS,
+        s + COORDS,
+        get(s + COUNT)?,
+        at(&SPLINE_WORK.turn[0]),
+    )?;
     Ok(())
 }
 
@@ -328,19 +326,17 @@ pub fn turnable_record(s: u32, offsets: [u32; 3]) -> Result<(), Refused> {
 /// `sub_4BA0AE` and `sub_4BA16C` do.
 pub fn turn_record(s: u32, offsets: [u32; 3]) -> Result<(), Refused> {
     use crate::scene::matrix3::{Axis, extended, turn_matrix3};
-    unsafe {
-        for ((axis, to), o) in [
-            (Axis::X, &SPLINE_WORK.turn_x[0]),
-            (Axis::Y, &SPLINE_WORK.turn_y[0]),
-            (Axis::Z, &SPLINE_WORK.turn_z[0]),
-        ]
-        .into_iter()
-        .zip(offsets)
-        {
-            turn_matrix3(axis, at(to), extended(get(s + o)?))?;
-        }
-        multiply_turns();
+    for ((axis, to), o) in [
+        (Axis::X, &SPLINE_WORK.turn_x[0]),
+        (Axis::Y, &SPLINE_WORK.turn_y[0]),
+        (Axis::Z, &SPLINE_WORK.turn_z[0]),
+    ]
+    .into_iter()
+    .zip(offsets)
+    {
+        turn_matrix3(axis, at(to), extended(get(s + o)?))?;
     }
+    multiply_turns();
     Ok(())
 }
 
@@ -417,20 +413,18 @@ pub fn order_spline_points(s: u32) -> Result<(), Refused> {
 /// points. Converted: `rc2k_core::marks::splines::bounds` (the floats, the sizes made
 /// floats and the angle, stay the x87's: the first round as its control word says).
 pub fn bound_spline_points(s: u32) -> Result<(), Refused> {
-    unsafe {
-        let n = count(s)?;
-        let b = rc2k_core::marks::splines::bounds(&triples(s + COORDS, n)?);
-        let size = b.size;
-        let up = SPLINE_WORK.up[0].addr() as u32;
-        let size_at = SPLINE_WORK.size[0].addr() as u32;
-        put(size_at + 4, x87::from_int(size[1]))?;
-        put(size_at + 8, x87::from_int(size[2]))?;
-        for (c, &m) in b.middle.iter().enumerate() {
-            put(s + CENTRE + 4 * c as u32, m as u32)?;
-        }
-        let angle = crate::scene::vector3::angle_between_vectors(up, size_at);
-        put(s + 0x20, crate::scene::matrix3::rounded(angle))?;
+    let n = count(s)?;
+    let b = rc2k_core::marks::splines::bounds(&triples(s + COORDS, n)?);
+    let size = b.size;
+    let up = SPLINE_WORK.up[0].addr() as u32;
+    let size_at = SPLINE_WORK.size[0].addr() as u32;
+    put(size_at + 4, x87::from_int(size[1]))?;
+    put(size_at + 8, x87::from_int(size[2]))?;
+    for (c, &m) in b.middle.iter().enumerate() {
+        put(s + CENTRE + 4 * c as u32, m as u32)?;
     }
+    let angle = crate::scene::vector3::angle_between_vectors(up, size_at);
+    put(s + 0x20, crate::scene::matrix3::rounded(angle))?;
     Ok(())
 }
 

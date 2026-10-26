@@ -119,20 +119,18 @@ pub fn steps() -> Result<(), Refused> {
         ph::set_downforce::set_downforce();
     }
     ph::gearbox_step::gearbox_step()?;
-    unsafe { ph::drive_force::drive_force() }?;
+    { ph::drive_force::drive_force() }?;
     // 0x43B737: the side speed held within the limit.
     CAR.side_speed_held.set_bits(CAR.local_velocity[0].bits());
     hold_high(&CAR.side_speed_held, &PHYSICS.side_speed_limit);
     negate(&PHYSICS.side_speed_limit);
     hold_low(&CAR.side_speed_held, &PHYSICS.side_speed_limit);
     negate(&PHYSICS.side_speed_limit);
-    unsafe {
-        ph::drive_grip_forces::drive_grip_forces();
-        ph::drive_wheels_step::drive_wheels_step()?;
-        ph::settle_drive_speeds::settle_drive_speeds()?;
-        ph::free_rev_in_neutral::free_rev_in_neutral();
-        ph::free_rev_clutch::free_rev_clutch()?;
-    }
+    ph::drive_grip_forces::drive_grip_forces();
+    ph::drive_wheels_step::drive_wheels_step()?;
+    ph::settle_drive_speeds::settle_drive_speeds()?;
+    ph::free_rev_in_neutral::free_rev_in_neutral();
+    ph::free_rev_clutch::free_rev_clutch()?;
     // 0x43B7BC: the engine's speed held.
     if CAR.brake.get() == 0 {
         hold_low(&CAR.engine_speed, &PHYSICS.idle_engine_speed);
@@ -149,7 +147,7 @@ pub fn steps() -> Result<(), Refused> {
         ph::apply_wheel_torques::apply_wheel_torques()?;
     }
     motion();
-    PHYSICS.top_speed.set_bits(rounded(unsafe {
+    PHYSICS.top_speed.set_bits(rounded({
         ph::vector_length::vector_length(CAR.velocity[0].addr() as u32)
     }));
     // 0x43B851: the contacts' rounds.
@@ -212,19 +210,15 @@ pub fn steps() -> Result<(), Refused> {
     }
     ph::track_checkpoints::track_checkpoints()?;
     ph::pace_notes_step::pace_notes_step()?;
-    unsafe {
-        ph::count_down_notice::count_down_notice();
-        ph::turn_wheel_angles::turn_wheel_angles();
-    }
+    ph::count_down_notice::count_down_notice();
+    ph::turn_wheel_angles::turn_wheel_angles();
     x87_1(crate::race::store::asm_base() as usize);
-    unsafe { ph::store_motion_length::store_motion_length() };
+    ph::store_motion_length::store_motion_length();
     ph::damage_step::damage_step();
     ph::hit_part_checks::hit_part_checks()?;
     ph::damage_notices::damage_notices()?;
-    unsafe {
-        ph::take_notice::take_notice();
-        ph::drop_to_neutral::drop_to_neutral();
-    }
+    ph::take_notice::take_notice();
+    ph::drop_to_neutral::drop_to_neutral();
     // 0x43B96B: `physics::test_car_word_234` set only flags nobody reads: left out.
     // A car number past 7 (refused further down) reads past the field.
     let car = RACE_WORK.current_car.get() as usize;
@@ -252,7 +246,7 @@ pub fn steps() -> Result<(), Refused> {
 }
 
 /// The Rust version.
-pub unsafe fn car_physics_step() -> Result<(), Refused> {
+pub fn car_physics_step() -> Result<(), Refused> {
     if RACE_WORK.current_car.get() > 7 {
         return Err(BadInput("a current car past 7 (dword_641680's room)").into());
     }

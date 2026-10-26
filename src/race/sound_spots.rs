@@ -101,7 +101,7 @@ pub fn face_sound_spot(face_number: u32) -> Result<(), BadInput> {
             [get(face + 0x30)?, get(face + 0x34)?, get(face + 0x38)?],
         );
         crate::session::write_bits(&OBJECT_WORK.place, place);
-        let t = unsafe {
+        let t = {
             crate::scene::rotate_point::rotate_point(
                 MATRICES.view_matrix[0].addr() as u32,
                 place.map(int_80),

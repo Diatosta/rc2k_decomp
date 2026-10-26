@@ -154,35 +154,33 @@ pub fn wait_for_commands() {
 /// commands' registers but those the audio thread reads (command 2's eax) go as 0.
 /// Refuses, before anything, a sound object missing (the original writes through 0).
 pub fn reset_race_sounds(v: &SoundVars) -> Result<(), Refused> {
-    unsafe {
-        let objects: Vec<u32> = (0..8)
-            .map(|n| GamePtr::new(v.objects + 4 * n).read::<u32>("the race sound objects"))
-            .collect::<Result<_, _>>()?;
-        if objects.contains(&0) {
-            return Err(crate::errors::BadInput("a race sound object missing").into());
-        }
-        wait_for_commands();
-        command(7, 0);
-        command(0xA, 7);
-        wait_for_commands();
-        crate::sound::hold_sounds_back::hold_sounds_back();
-        crate::sound::race_clock::start_race_clock(crate::system::tick_count::tick_count());
-        for &o in &objects {
-            reset_object(crate::sound::store::SoundObject::at(o)?);
-        }
-        clear_stage_flags();
-        let first = v.voices;
-        for k in 0..0x48u32 {
-            let at = first + 0x50 * k;
-            GamePtr::new(at).write(0x1888_FFFFu32, "a sound voice")?;
-            GamePtr::new(at + 0x14).write(0xFFFF_FFFEu32, "a sound voice")?;
-        }
-        crate::sound::store::STAGE_SOUNDS.shared_count.set(0);
-        crate::sound::store::SPOT_PICKS.spot_work_a.set(0);
-        crate::audio::store::ENVIRONMENT.set(0x3F80_0000u32);
-        command(2, 3);
-        crate::sound::store::RACE_CLOCK.started.set(0);
+    let objects: Vec<u32> = (0..8)
+        .map(|n| GamePtr::new(v.objects + 4 * n).read::<u32>("the race sound objects"))
+        .collect::<Result<_, _>>()?;
+    if objects.contains(&0) {
+        return Err(crate::errors::BadInput("a race sound object missing").into());
     }
+    wait_for_commands();
+    command(7, 0);
+    command(0xA, 7);
+    wait_for_commands();
+    crate::sound::hold_sounds_back::hold_sounds_back();
+    crate::sound::race_clock::start_race_clock(crate::system::tick_count::tick_count());
+    for &o in &objects {
+        reset_object(crate::sound::store::SoundObject::at(o)?);
+    }
+    clear_stage_flags();
+    let first = v.voices;
+    for k in 0..0x48u32 {
+        let at = first + 0x50 * k;
+        GamePtr::new(at).write(0x1888_FFFFu32, "a sound voice")?;
+        GamePtr::new(at + 0x14).write(0xFFFF_FFFEu32, "a sound voice")?;
+    }
+    crate::sound::store::STAGE_SOUNDS.shared_count.set(0);
+    crate::sound::store::SPOT_PICKS.spot_work_a.set(0);
+    crate::audio::store::ENVIRONMENT.set(0x3F80_0000u32);
+    command(2, 3);
+    crate::sound::store::RACE_CLOCK.started.set(0);
     Ok(())
 }
 
@@ -283,7 +281,7 @@ pub unsafe fn tidy_stage() -> Result<(), Refused> {
             .store(enabled, std::sync::atomic::Ordering::Relaxed);
         s.indent(-3);
         s.step(STAGE_WORDS[3], || free(&FONTS))?;
-        s.step(STAGE_WORDS[4], || crate::race::game_map::free_game_map())?;
+        s.step(STAGE_WORDS[4], crate::race::game_map::free_game_map)?;
         s.step(STAGE_WORDS[5], || {
             crate::race::race_shell::release_stage_textures();
             Ok(())
@@ -376,7 +374,7 @@ pub unsafe fn run_race() -> Result<(), Refused> {
 /// `race::release_textures` (0x443396): `race::release_stage_textures`,
 /// `scene::reset_texture_tables`. Reads no register; what it leaves (ecx, edi, eax, the
 /// flags) no caller reads (taint at its ten sites).
-pub unsafe fn release_textures() {
+pub fn release_textures() {
     crate::race::race_shell::release_stage_textures();
     crate::scene::reset_texture_tables::reset_texture_tables();
 }

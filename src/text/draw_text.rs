@@ -46,15 +46,13 @@ impl Canvas for GameCanvas {
         unsafe { &mut *state_ptr() }
     }
     unsafe fn blit_glyph(&mut self, c: BlitCall) -> Result<(), Refused> {
-        unsafe {
-            blit_glyph_on_surface(
-                c.glyph,
-                GamePtr::new(c.table),
-                c.x,
-                c.y,
-                GamePtr::new(c.palette),
-            )
-        }
+        blit_glyph_on_surface(
+            c.glyph,
+            GamePtr::new(c.table),
+            c.x,
+            c.y,
+            GamePtr::new(c.palette),
+        )
         .map(|_| ())
     }
 }
@@ -101,7 +99,7 @@ impl rc2k_core::text::Canvas for Adapt<'_> {
 /// A core text function run on a text and a font's glyph table in game memory, with a
 /// canvas of this crate. The glyph table is the font's pointer, read inside its allocation
 /// (`pointers`): a read past it is refused.
-pub unsafe fn run_core<T>(
+pub fn run_core<T>(
     font: &Font,
     text: *const u8,
     canvas: &mut dyn Canvas,
@@ -130,7 +128,7 @@ pub fn outcome(text: *const u8, out: rc2k_core::text::Outcome) -> Outcome {
 
 /// `font` is changed only in `MODE_MEASURE`. An error can only come from the blitter; by then
 /// earlier glyphs are drawn. Converted: `rc2k_core::text::draw`.
-pub unsafe fn draw_text(
+pub fn draw_text(
     font: &mut Font,
     text: *const u8,
     x: i32,
@@ -138,7 +136,7 @@ pub unsafe fn draw_text(
     canvas: &mut dyn Canvas,
 ) -> Result<Outcome, Refused> {
     let copy = *font;
-    let out = unsafe {
+    let out = {
         run_core(&copy, text, canvas, |words, glyphs, c| {
             rc2k_core::text::draw(font, words, glyphs, x, y, c)
         })
@@ -148,20 +146,18 @@ pub unsafe fn draw_text(
 
 /// `draw_text` with a font object in game memory, for Rust callers. The object is only
 /// written (it only changes in `MODE_MEASURE`) if the canvas keeps font changes.
-pub unsafe fn draw_text_at(
+pub fn draw_text_at(
     font: *mut Font,
     text: *const u8,
     x: i32,
     y: i32,
     canvas: &mut dyn Canvas,
 ) -> Result<Outcome, Refused> {
-    unsafe {
-        let before = crate::pointers::GamePtr::new(font as usize as u32).read::<Font>("a font")?;
-        let mut copy = before;
-        let out = draw_text(&mut copy, text, x, y, canvas)?;
-        if copy != before && canvas.keeps_font_changes() {
-            crate::pointers::GamePtr::new(font as usize as u32).write(copy, "a font")?;
-        }
-        Ok(out)
+    let before = crate::pointers::GamePtr::new(font as usize as u32).read::<Font>("a font")?;
+    let mut copy = before;
+    let out = draw_text(&mut copy, text, x, y, canvas)?;
+    if copy != before && canvas.keeps_font_changes() {
+        crate::pointers::GamePtr::new(font as usize as u32).write(copy, "a font")?;
     }
+    Ok(out)
 }

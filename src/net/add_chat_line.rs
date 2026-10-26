@@ -58,7 +58,7 @@ pub fn add_chat_line(player: u32, message: *const u8) -> Result<(), Refused> {
             text += 1;
             end += 1;
             set_byte(end, 0)?;
-            let width = unsafe {
+            let width = {
                 measure_text_at(
                     CHAT_FONT.as_ptr(),
                     (NET.chat_line.addr() as u32) as *const u8,

@@ -12,30 +12,28 @@ use crate::math::x87_run::{minus_one, square_times_plus_times};
 use crate::physics::car_store::CAR;
 use crate::physics::tables_store::PHYSICS;
 
-unsafe fn at(a: u32) -> u32 {
+fn at(a: u32) -> u32 {
     crate::pointers::read_or_end::<u32>(a, "physics::set_downforce's operand")
 }
 
-unsafe fn put(a: u32, v: u32) {
+fn put(a: u32, v: u32) {
     crate::pointers::write_or_end::<u32>(a, v, "physics::set_downforce's operand")
 }
 
 /// The Rust core on the variables at `v`.
-pub unsafe fn set_downforce_at(v: &[u32; 6]) {
-    unsafe {
-        if at(v[0]) != 0 {
-            return;
-        }
-        let (load, negative) = square_times_plus_times(
-            at(v[1]),
-            PHYSICS.downforce_factor.bits(),
-            at(v[2]),
-            PHYSICS.gravity.bits(),
-        );
-        put(v[3], load);
-        put(v[4], negative);
-        put(v[5], minus_one());
+pub fn set_downforce_at(v: &[u32; 6]) {
+    if at(v[0]) != 0 {
+        return;
     }
+    let (load, negative) = square_times_plus_times(
+        at(v[1]),
+        PHYSICS.downforce_factor.bits(),
+        at(v[2]),
+        PHYSICS.gravity.bits(),
+    );
+    put(v[3], load);
+    put(v[4], negative);
+    put(v[5], minus_one());
 }
 
 fn game() -> [u32; 6] {
@@ -50,6 +48,6 @@ fn game() -> [u32; 6] {
 }
 
 /// The Rust version (the exact one, for `physics::car_physics_step`).
-pub unsafe fn set_downforce() {
-    unsafe { set_downforce_at(&game()) }
+pub fn set_downforce() {
+    set_downforce_at(&game())
 }

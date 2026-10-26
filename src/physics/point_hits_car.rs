@@ -73,9 +73,9 @@ pub unsafe fn point_hits_car(point: u32, object: u32) -> Result<bool, Refused> {
     }
     if contacts::kind_hits(CONTACT_WORK.contact_kind.get()) {
         x87_3(crate::race::store::asm_base() as usize);
-        CONTACT_WORK.contact_speed_length.set_bits(rounded(unsafe {
-            vector_length(CAR.velocity[0].addr() as u32)
-        }));
+        CONTACT_WORK
+            .contact_speed_length
+            .set_bits(rounded(vector_length(CAR.velocity[0].addr() as u32)));
         if let Some(hit) = rc2k_core::physics::walls::raised_hit(
             f32::from_bits(CONTACT_WORK.contact_speed_length.bits()),
             f32::from_bits(CAR.contact_depth.bits()),

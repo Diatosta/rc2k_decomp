@@ -34,7 +34,7 @@ fn blocked() -> bool {
             .wrapping_add(PHYSICS.reset_offset.get()),
     );
     // Blocks 1 .. 3: the other cars.
-    (1..4).any(|n| unsafe {
+    (1..4).any(|n| {
         crate::physics::reset_point_blocked::reset_point_blocked(
             crate::race::blocks_store::block_addr(n) as u32,
         )

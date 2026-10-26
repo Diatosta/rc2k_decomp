@@ -61,26 +61,24 @@ pub unsafe fn car_collisions() -> Result<(), Refused> {
             let block = RACE_WORK.car_block(car as usize);
             CONTACT_WORK.other_car_block.set(block);
             // SAFETY: a `g_carBlocks` entry of the eight, not null (both checked above).
-            if unsafe { Car::at(block) }.driver_kind.bits() == 0 {
+            if { Car::at(block) }.driver_kind.bits() == 0 {
                 continue;
             }
-            unsafe {
-                set_place([0usize, 1, 2].map(|k| {
-                    CAR.position[k]
-                        .get()
-                        .wrapping_sub(rd(block + 0x134 + 4 * k as u32))
-                }));
-                multiply_matrices(
-                    CAR.crash_matrix[0].addr() as u32 as usize,
-                    (MATRICES.placed_matrix[0].addr() as u32) as usize,
-                    (MATRICES.turned_matrix[0].addr() as u32) as usize,
-                );
-                multiply_matrices(
-                    (MATRICES.turned_matrix[0].addr() as u32) as usize,
-                    (block + 0x9CC) as usize,
-                    (CONTACT_WORK.corner_matrix[0].addr() as u32) as usize,
-                );
-            }
+            set_place([0usize, 1, 2].map(|k| {
+                CAR.position[k]
+                    .get()
+                    .wrapping_sub(rd(block + 0x134 + 4 * k as u32))
+            }));
+            multiply_matrices(
+                CAR.crash_matrix[0].addr() as u32 as usize,
+                (MATRICES.placed_matrix[0].addr() as u32) as usize,
+                (MATRICES.turned_matrix[0].addr() as u32) as usize,
+            );
+            multiply_matrices(
+                (MATRICES.turned_matrix[0].addr() as u32) as usize,
+                (block + 0x9CC) as usize,
+                (CONTACT_WORK.corner_matrix[0].addr() as u32) as usize,
+            );
             for k in 0..8 {
                 CONTACT_WORK.corner_in[0].set_bits(CONTACT_WORK.corner_x[k].bits());
                 CONTACT_WORK.corner_in[1].set_bits(CONTACT_WORK.corner_y[k].bits());

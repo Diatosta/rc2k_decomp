@@ -12,7 +12,7 @@ use crate::d3d::cards_store::CARDS_3D;
 
 /// The Rust version (see the header).
 // Converted: `rc2k_core::scene::render_states::fog_colour`
-pub unsafe fn set_fog_colour(colour: u32) {
+pub fn set_fog_colour(colour: u32) {
     {
         CARDS_3D.fade_from.set(colour);
         let s = rc2k_core::scene::render_states::fog_colour(colour);

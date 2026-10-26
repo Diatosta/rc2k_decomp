@@ -93,7 +93,7 @@ fn steps() -> Result<(), Refused> {
         PHYSICS.crash_depth.get(),
         CAR.all_wheels_off.get() != 0,
     ) {
-        unsafe { sound_cue_e5() }?;
+        { sound_cue_e5() }?;
         return Ok(());
     }
     let n = point_number()?;
@@ -103,7 +103,7 @@ fn steps() -> Result<(), Refused> {
     CAR.contact_point_z.set(CONTACT_WORK.probe_z[n].get());
     CAR.contact_found.set(1);
     take_contact(n)?;
-    let up = unsafe {
+    let up = {
         rotate_point(
             CAR.crash_matrix[0].addr() as u32,
             [extended(0), extended(0x3F80_0000), extended(0)],
@@ -112,7 +112,7 @@ fn steps() -> Result<(), Refused> {
     for (k, e) in up.iter().enumerate() {
         CONTACT_WORK.crash_car_up[k].set_bits(rounded(*e));
     }
-    CONTACT_WORK.crash_up_dot.set_bits(neg_rounded(unsafe {
+    CONTACT_WORK.crash_up_dot.set_bits(neg_rounded({
         dot_product(
             CONTACT_WORK.crash_car_up[0].addr() as u32,
             CONTACT_WORK.contact_normal[0].addr() as u32,
@@ -124,7 +124,7 @@ fn steps() -> Result<(), Refused> {
         PHYSICS.forces[21].force[0].addr() as u32,
     );
     unsafe { contact_force() };
-    unsafe { place_sound_e5() }?;
+    { place_sound_e5() }?;
     for k in 0..3 {
         CONTACT_WORK.ground_force[k].set(PHYSICS.forces[21].force[k].bits());
     }

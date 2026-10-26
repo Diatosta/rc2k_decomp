@@ -14,16 +14,16 @@ use crate::physics::vector_length::vector_length;
 use crate::scene::matrix3::rounded;
 
 /// The Rust core on the vector at `v` and the length at `out`.
-pub unsafe fn store_length(v: u32, out: u32) {
+pub fn store_length(v: u32, out: u32) {
     crate::pointers::write_or_end::<u32>(
         out,
-        rounded(unsafe { vector_length(v) }),
+        rounded(vector_length(v)),
         "physics::store_motion_length's operand",
     )
 }
 
 /// The Rust version (the exact one, for `physics::car_physics_step` and
 /// `physics::keep_motion_vectors`).
-pub unsafe fn store_motion_length() {
-    unsafe { store_length(CAR.velocity[0].addr() as u32, CAR.speed.addr() as u32) }
+pub fn store_motion_length() {
+    store_length(CAR.velocity[0].addr() as u32, CAR.speed.addr() as u32)
 }

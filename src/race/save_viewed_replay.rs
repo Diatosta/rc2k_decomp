@@ -50,135 +50,133 @@ fn save(slot: u32) -> Result<bool, Refused> {
     if !has_blocks(REPLAY_FILE.index_block_count.get()) {
         return Ok(false);
     }
-    unsafe {
-        let header = &crate::race::replay::REPLAYS.header;
-        for (k, word) in SAVED_HEADER.into_iter().enumerate() {
-            header.set_u32(4 * k, word);
-        }
-        header.set_u32(0xC, crate::system::packed_local_time::packed_local_time());
-        let name = crate::race::replay::REPLAYS.names.addr() as u32 + name_offset(slot);
-        GamePtr::new(name).copy_to(
-            GamePtr::new(header.addr() as u32 + 0x10),
-            NAME_LEN,
-            "a replay's name",
+    let header = &crate::race::replay::REPLAYS.header;
+    for (k, word) in SAVED_HEADER.into_iter().enumerate() {
+        header.set_u32(4 * k, word);
+    }
+    header.set_u32(0xC, crate::system::packed_local_time::packed_local_time());
+    let name = crate::race::replay::REPLAYS.names.addr() as u32 + name_offset(slot);
+    GamePtr::new(name).copy_to(
+        GamePtr::new(header.addr() as u32 + 0x10),
+        NAME_LEN,
+        "a replay's name",
+    )?;
+    // The last race's file opened to read from, the slot's to write to.
+    let Some(from) = handle::open_by_mode(LAST_RACE.addr() as *const u8, 0)? else {
+        return Ok(false);
+    };
+    crate::race::viewer_buffers_store::VIEWER_BUFFERS
+        .from_file
+        .set(from);
+    let path = replay_path(slot)?.path;
+    let Some(to) = handle::open_by_mode(path as *const u8, 1)? else {
+        handle::close(
+            crate::race::viewer_buffers_store::VIEWER_BUFFERS
+                .from_file
+                .get(),
+        );
+        return Ok(false);
+    };
+    crate::race::viewer_buffers_store::VIEWER_BUFFERS
+        .to_file
+        .set(to);
+    crate::race::viewer_buffers_store::VIEWER_BUFFERS
+        .undo_blocks
+        .set(0);
+    crate::system::zero_memory::zero_memory(
+        crate::race::viewer_buffers_store::VIEWER_BUFFERS.undo_places[0].addr() as *mut u8,
+        TABLE_LEN as u32,
+    )?;
+    // Both files closed on the way out (the new one only when it was made).
+    let close = || {
+        handle::close(
+            crate::race::viewer_buffers_store::VIEWER_BUFFERS
+                .to_file
+                .get(),
+        );
+        handle::close(
+            crate::race::viewer_buffers_store::VIEWER_BUFFERS
+                .from_file
+                .get(),
+        );
+    };
+    let write = |buffer: u32, len: u32| -> Result<bool, BadInput> {
+        Ok(file_write(
+            crate::race::viewer_buffers_store::VIEWER_BUFFERS
+                .to_file
+                .get(),
+            buffer,
+            len,
+            "the saved replay's bytes",
+        )?
+        .1)
+    };
+    REPLAY_VIEW.file_offset.set(HEADER_LEN); // the new file's length so far
+    if !write(
+        crate::race::replay::REPLAYS.header.addr() as u32,
+        HEADER_LEN,
+    )? {
+        close();
+        return Ok(false);
+    }
+    let mut block = 0u32;
+    loop {
+        handle::seek(
+            crate::race::viewer_buffers_store::VIEWER_BUFFERS
+                .from_file
+                .get(),
+            crate::race::replay::block_place(2 * block as usize)? as i32,
+            0,
+        );
+        crate::drive::read_packed::read_packed(
+            crate::race::viewer_buffers_store::VIEWER_BUFFERS
+                .from_file
+                .get(),
+            crate::race::viewer_buffers_store::VIEWER_BUFFERS.block[0].addr() as u32,
+            crate::race::replay::block_place(2 * block as usize + 1)?,
         )?;
-        // The last race's file opened to read from, the slot's to write to.
-        let Some(from) = handle::open_by_mode(LAST_RACE.addr() as *const u8, 0)? else {
-            return Ok(false);
-        };
-        crate::race::viewer_buffers_store::VIEWER_BUFFERS
-            .from_file
-            .set(from);
-        let path = replay_path(slot)?.path;
-        let Some(to) = handle::open_by_mode(path as *const u8, 1)? else {
-            handle::close(
-                crate::race::viewer_buffers_store::VIEWER_BUFFERS
-                    .from_file
-                    .get(),
-            );
-            return Ok(false);
-        };
-        crate::race::viewer_buffers_store::VIEWER_BUFFERS
-            .to_file
-            .set(to);
-        crate::race::viewer_buffers_store::VIEWER_BUFFERS
-            .undo_blocks
-            .set(0);
-        crate::system::zero_memory::zero_memory(
-            crate::race::viewer_buffers_store::VIEWER_BUFFERS.undo_places[0].addr() as *mut u8,
-            TABLE_LEN as u32,
+        move_dwords(
+            crate::race::viewer_buffers_store::VIEWER_BUFFERS.block[0].addr(),
+            crate::race::viewer_buffers_store::VIEWER_BUFFERS
+                .block_cameras
+                .addr()
+                + 8 * block as usize,
+            CAMERA_DWORDS,
         )?;
-        // Both files closed on the way out (the new one only when it was made).
-        let close = || {
-            handle::close(
-                crate::race::viewer_buffers_store::VIEWER_BUFFERS
-                    .to_file
-                    .get(),
-            );
-            handle::close(
-                crate::race::viewer_buffers_store::VIEWER_BUFFERS
-                    .from_file
-                    .get(),
-            );
-        };
-        let write = |buffer: u32, len: u32| -> Result<bool, BadInput> {
-            Ok(file_write(
-                crate::race::viewer_buffers_store::VIEWER_BUFFERS
-                    .to_file
-                    .get(),
-                buffer,
-                len,
-                "the saved replay's bytes",
-            )?
-            .1)
-        };
-        REPLAY_VIEW.file_offset.set(HEADER_LEN); // the new file's length so far
-        if !write(
-            crate::race::replay::REPLAYS.header.addr() as u32,
-            HEADER_LEN,
-        )? {
+        crate::race::checkpoints_store::nth(
+            &crate::race::viewer_buffers_store::VIEWER_BUFFERS.undo_places[0],
+            2 * block as usize,
+        )
+        .set(REPLAY_VIEW.file_offset.get());
+        let (written, failed) = crate::race::replay::write_replay_chunk(
+            crate::race::viewer_buffers_store::VIEWER_BUFFERS
+                .to_file
+                .get(),
+            crate::race::viewer_buffers_store::VIEWER_BUFFERS.block[0].addr() as u32,
+            BLOCK_LEN,
+        )?;
+        if failed {
             close();
             return Ok(false);
         }
-        let mut block = 0u32;
-        loop {
-            handle::seek(
-                crate::race::viewer_buffers_store::VIEWER_BUFFERS
-                    .from_file
-                    .get(),
-                crate::race::replay::block_place(2 * block as usize)? as i32,
-                0,
-            );
-            crate::drive::read_packed::read_packed(
-                crate::race::viewer_buffers_store::VIEWER_BUFFERS
-                    .from_file
-                    .get(),
-                crate::race::viewer_buffers_store::VIEWER_BUFFERS.block[0].addr() as u32,
-                crate::race::replay::block_place(2 * block as usize + 1)?,
-            )?;
-            move_dwords(
-                crate::race::viewer_buffers_store::VIEWER_BUFFERS.block[0].addr(),
-                crate::race::viewer_buffers_store::VIEWER_BUFFERS
-                    .block_cameras
-                    .addr()
-                    + 8 * block as usize,
-                CAMERA_DWORDS,
-            )?;
-            crate::race::checkpoints_store::nth(
-                &crate::race::viewer_buffers_store::VIEWER_BUFFERS.undo_places[0],
-                2 * block as usize,
-            )
-            .set(REPLAY_VIEW.file_offset.get());
-            let (written, failed) = crate::race::replay::write_replay_chunk(
-                crate::race::viewer_buffers_store::VIEWER_BUFFERS
-                    .to_file
-                    .get(),
-                crate::race::viewer_buffers_store::VIEWER_BUFFERS.block[0].addr() as u32,
-                BLOCK_LEN,
-            )?;
-            if failed {
-                close();
-                return Ok(false);
-            }
-            crate::race::checkpoints_store::nth(
-                &crate::race::viewer_buffers_store::VIEWER_BUFFERS.undo_places[0],
-                2 * block as usize + 1,
-            )
-            .set(written);
-            REPLAY_VIEW
-                .file_offset
-                .set(next_offset(REPLAY_VIEW.file_offset.get(), written));
-            block += 1;
-            if block == REPLAY_FILE.index_block_count.get() {
-                break;
-            }
+        crate::race::checkpoints_store::nth(
+            &crate::race::viewer_buffers_store::VIEWER_BUFFERS.undo_places[0],
+            2 * block as usize + 1,
+        )
+        .set(written);
+        REPLAY_VIEW
+            .file_offset
+            .set(next_offset(REPLAY_VIEW.file_offset.get(), written));
+        block += 1;
+        if block == REPLAY_FILE.index_block_count.get() {
+            break;
         }
-        let done = write(REPLAY_FILE.index_magic.addr() as u32, INDEX_HEAD_LEN)?
-            && write(
-                crate::race::viewer_buffers_store::VIEWER_BUFFERS.undo_places[0].addr() as u32,
-                TABLE_LEN as u32,
-            )?;
-        close();
-        Ok(done)
     }
+    let done = write(REPLAY_FILE.index_magic.addr() as u32, INDEX_HEAD_LEN)?
+        && write(
+            crate::race::viewer_buffers_store::VIEWER_BUFFERS.undo_places[0].addr() as u32,
+            TABLE_LEN as u32,
+        )?;
+    close();
+    Ok(done)
 }

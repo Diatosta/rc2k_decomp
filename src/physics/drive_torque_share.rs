@@ -19,43 +19,41 @@ use crate::race::numbers_store::NUMBERS;
 use crate::scene::draw_store::DRAW;
 use std::cmp::Ordering;
 
-unsafe fn at(a: u32) -> u32 {
+fn at(a: u32) -> u32 {
     crate::pointers::read_or_end::<u32>(a, "physics::drive_torque_share's operand")
 }
 
-unsafe fn put(a: u32, v: u32) {
+fn put(a: u32, v: u32) {
     crate::pointers::write_or_end::<u32>(a, v, "physics::drive_torque_share's operand")
 }
 
 /// The core on the variables' addresses: eax as the original leaves it (n less the
 /// word, its `sub eax, unk_71A000`).
-pub unsafe fn drive_torque_share_at(v: &[u32]) -> u32 {
-    unsafe {
-        let n = if at(v[1]) == 1 {
-            PHYSICS.torque_share_a.get()
-        } else {
-            PHYSICS.torque_share_b.get()
-        };
-        put(v[0], n);
-        put(
-            v[3],
-            abs_fidiv(at(v[2]), PHYSICS.torque_share_c.get() as i32),
-        );
-        let one = NUMBERS.one.bits();
-        let below = !matches!(
-            f32::from_bits(at(v[3])).partial_cmp(&f32::from_bits(one)),
-            Some(Ordering::Greater | Ordering::Equal)
-        );
-        if !below {
-            put(v[3], x87::loaded(one));
-        }
-        let eax = at(v[0]).wrapping_sub(at(v[5]));
-        put(v[4], eax);
-        put(v[4], int_fidiv(at(v[4]) as i32, at(v[0]) as i32));
-        put(v[6], one_less_times_plus(at(v[4]), at(v[3])));
-        put(v[7], x87::mul(at(v[7]), at(v[6])));
-        eax
+pub fn drive_torque_share_at(v: &[u32]) -> u32 {
+    let n = if at(v[1]) == 1 {
+        PHYSICS.torque_share_a.get()
+    } else {
+        PHYSICS.torque_share_b.get()
+    };
+    put(v[0], n);
+    put(
+        v[3],
+        abs_fidiv(at(v[2]), PHYSICS.torque_share_c.get() as i32),
+    );
+    let one = NUMBERS.one.bits();
+    let below = !matches!(
+        f32::from_bits(at(v[3])).partial_cmp(&f32::from_bits(one)),
+        Some(Ordering::Greater | Ordering::Equal)
+    );
+    if !below {
+        put(v[3], x87::loaded(one));
     }
+    let eax = at(v[0]).wrapping_sub(at(v[5]));
+    put(v[4], eax);
+    put(v[4], int_fidiv(at(v[4]) as i32, at(v[0]) as i32));
+    put(v[6], one_less_times_plus(at(v[4]), at(v[3])));
+    put(v[7], x87::mul(at(v[7]), at(v[6])));
+    eax
 }
 
 fn game() -> Vec<u32> {
@@ -73,6 +71,6 @@ fn game() -> Vec<u32> {
 
 /// The Rust version (the exact one, for `physics::drive_force` and
 /// `physics::test_drive_run`): eax as the original leaves it.
-pub unsafe fn drive_torque_share() -> u32 {
-    unsafe { drive_torque_share_at(&game()) }
+pub fn drive_torque_share() -> u32 {
+    drive_torque_share_at(&game())
 }

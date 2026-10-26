@@ -67,21 +67,19 @@ pub fn pick_pictures() -> Result<(), Refused> {
 }
 
 /// `sub_49040D`: the car shown's object set up and drawn by `draw`.
-pub unsafe fn draw_shown_car(draw: &mut dyn FnMut() -> Result<(), Refused>) -> Result<(), Refused> {
-    unsafe {
-        let car: u32 = EVENT_STATE.shown_car.get();
-        if car >= ENTRIES {
-            return Err(BadInput("a car shown past the carousel's kinds").into());
-        }
-        let clock: u32 = PHYSICS.scene_clock.bits();
-        OBJECT_WORK.angles[1].set((clock << 3) & 0xFFFF);
-        OBJECT_WORK.place[2].set(MENU_STATE.carousel.z.get());
-        let kind = MENU_STATE.carousel.kinds[car as usize].get();
-        MENU_STATE.carousel.kind.set(kind);
-        let object = find_object_of_kind(kind);
-        FRAME_SWITCHES.object_number.set_bits(object);
-        draw()
+pub fn draw_shown_car(draw: &mut dyn FnMut() -> Result<(), Refused>) -> Result<(), Refused> {
+    let car: u32 = EVENT_STATE.shown_car.get();
+    if car >= ENTRIES {
+        return Err(BadInput("a car shown past the carousel's kinds").into());
     }
+    let clock: u32 = PHYSICS.scene_clock.bits();
+    OBJECT_WORK.angles[1].set((clock << 3) & 0xFFFF);
+    OBJECT_WORK.place[2].set(MENU_STATE.carousel.z.get());
+    let kind = MENU_STATE.carousel.kinds[car as usize].get();
+    MENU_STATE.carousel.kind.set(kind);
+    let object = find_object_of_kind(kind);
+    FRAME_SWITCHES.object_number.set_bits(object);
+    draw()
 }
 
 /// The Rust version the typed tables run: nothing on a page other than the first, else

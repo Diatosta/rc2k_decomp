@@ -22,7 +22,7 @@ use crate::service::state::current_player;
 // ---- Rust version ----
 
 /// Refuses a missing player: the original reads through a null pointer.
-pub unsafe fn load_setup_values() -> Result<(), BadInput> {
+pub fn load_setup_values() -> Result<(), BadInput> {
     {
         if MENU_STATE.menus.skip_edit_values.get() == 1 {
             return Ok(());

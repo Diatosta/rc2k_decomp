@@ -70,7 +70,7 @@ pub fn view_car(n: usize) -> &'static crate::session::Dword {
 /// `race::load_car_a` / `_b` / `_c` (0x45422F, 0x454241, 0x454277): `g_currentCar` the
 /// view car's number, `drive::load_car`. (Its callers, `race::draw_race_scene` and
 /// `race::scroll_maps`, read no register it leaves.)
-pub unsafe fn load_view_car(n: usize) -> Result<(), Refused> {
+pub fn load_view_car(n: usize) -> Result<(), Refused> {
     with_view_car(n, crate::drive::load_car::load_car)
 }
 
@@ -90,7 +90,7 @@ fn with_view_car(n: usize, then: impl FnOnce() -> Result<(), Refused>) -> Result
 /// `race::store_car_a` / `_b` / `_c` (0x454253, 0x454265, 0x454289): `g_currentCar` the
 /// view car's number, `drive::store_car`. (Its one caller, `race::scroll_maps`, reads no
 /// register it leaves.)
-pub unsafe fn store_view_car(n: usize) -> Result<(), Refused> {
+pub fn store_view_car(n: usize) -> Result<(), Refused> {
     with_view_car(n, crate::drive::store_car::store_car)
 }
 
@@ -112,7 +112,7 @@ fn pressed(key: usize) -> bool {
 /// `race::race_keys` (0x43A649): the race's view and sound keys (see its header). It
 /// reads no register at entry; the ones it leaves are read by none of its callers
 /// (`drive::race_loop`, `drive::pause_until_key`).
-pub unsafe fn race_keys() -> Result<(), Refused> {
+pub fn race_keys() -> Result<(), Refused> {
     crate::drive::choose_shown_cars::choose_shown_cars()?;
     let second = DEVICES.keys_now.get(VIEW_MODE_KEY) != 0;
     let view = RACE_VIEW.view_blocks[usize::from(second)].bits();

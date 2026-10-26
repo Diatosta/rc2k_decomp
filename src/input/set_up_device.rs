@@ -24,7 +24,7 @@ use crate::input::types::InputDevice;
 use crate::pointers::GamePtr;
 
 /// The device `record` set up from its controls at `controls` (see the header).
-pub unsafe fn set_up_device(record: u32, controls: u32) -> Result<(), Refused> {
+pub fn set_up_device(record: u32, controls: u32) -> Result<(), Refused> {
     GamePtr::new(record)
         .offset(0x414)
         .fill(0, 0xC8, "a device record's bindings")?;

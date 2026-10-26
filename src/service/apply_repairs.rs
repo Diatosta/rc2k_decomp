@@ -113,7 +113,7 @@ impl Workshop for Game<'_> {
         timer(t).set(value);
     }
     fn reset_tyre_wear(&mut self) -> Result<(), Refused> {
-        Ok(unsafe { reset_tyre_wear() }?)
+        Ok({ reset_tyre_wear() }?)
     }
     fn install(&mut self, s: Setting) -> u32 {
         let page = match s {
@@ -145,7 +145,7 @@ fn timer(t: Timer) -> &'static Dword {
     }
 }
 
-pub unsafe fn apply_repairs(driver: &mut dyn Driver) -> Result<(), Refused> {
+pub fn apply_repairs(driver: &mut dyn Driver) -> Result<(), Refused> {
     let Some(player) = current_player() else {
         return Err(BadInput("no current player object: the original writes through null").into());
     };
@@ -156,6 +156,6 @@ pub unsafe fn apply_repairs(driver: &mut dyn Driver) -> Result<(), Refused> {
 /// For Rust callers: the Rust version with the game's clock, frames and sleep. Every
 /// register kept. A refusal is the caller's (before 2026-10-23 the original was called,
 /// which the standalone does not have: it ended there).
-pub unsafe fn apply_repairs_in_game() -> Result<(), Refused> {
-    unsafe { apply_repairs(&mut GameDriver) }
+pub fn apply_repairs_in_game() -> Result<(), Refused> {
+    apply_repairs(&mut GameDriver)
 }

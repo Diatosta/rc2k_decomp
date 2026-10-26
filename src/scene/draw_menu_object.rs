@@ -28,9 +28,7 @@ pub enum Step {
 
 /// `step`: what stands for the two calls. The original's eax (0x200, then 0x100: the
 /// shine) is read by neither call nor by its callers.
-pub unsafe fn draw_menu_object(
-    step: &mut dyn FnMut(Step) -> Result<(), Refused>,
-) -> Result<(), Refused> {
+pub fn draw_menu_object(step: &mut dyn FnMut(Step) -> Result<(), Refused>) -> Result<(), Refused> {
     {
         COURSE.shine.set_bits(0x200u32);
         step(Step::Matrix)?;

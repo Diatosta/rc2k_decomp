@@ -56,7 +56,7 @@ pub unsafe fn time_trial_service(f: &Flow) -> Result<(), Refused> {
             if yes() {
                 break 'all;
             }
-            unsafe { crate::service::apply_repairs::apply_repairs_in_game() }?;
+            { crate::service::apply_repairs::apply_repairs_in_game() }?;
             crate::menu::set_player_entry_kind::set_player_entry_kind()?;
             let current = get(CURRENT);
             if current >= 4 || player(current) == 0 {

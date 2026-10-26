@@ -17,7 +17,7 @@ use std::ffi::CString;
 /// does: on a thread without a thread slot through the exit path (which shows the report in
 /// a message box), on a slot's thread by entering its routine again. It only returns for a
 /// code without the fatal bit, which nothing in this build has.
-pub unsafe fn raise(error: FatalError, regs: &Regs) {
+pub fn raise(error: FatalError, regs: &Regs) {
     // The message has to outlive this call: the exit path shows it later. An error is raised
     // once, so the few bytes are simply never freed.
     let message = match CString::new(error.message) {
@@ -35,7 +35,7 @@ pub unsafe fn raise(error: FatalError, regs: &Regs) {
 /// so that it shows: the game ends with the report, and the log says which function raised
 /// it. If that ever happens where the original would have carried on, the Rust version is
 /// wrong.
-pub unsafe fn refused_in(name: &str, reason: impl Into<Refused>, r: &Regs) {
+pub fn refused_in(name: &str, reason: impl Into<Refused>, r: &Regs) {
     let error = match reason.into() {
         Refused::BadInput(why) => {
             crate::standalone::finish(&format!("{name} refused: {}", why.0), 1)
@@ -46,7 +46,7 @@ pub unsafe fn refused_in(name: &str, reason: impl Into<Refused>, r: &Regs) {
         "{name}: the Rust version raises fatal error {:#x} {:?}",
         error.code, error.message
     ));
-    unsafe { raise(error, r) };
+    raise(error, r);
 }
 
 /// The program ended for a refusal where no caller can carry it (a core's closure, a trait's
@@ -60,7 +60,7 @@ pub fn end(name: &str, reason: impl Into<Refused>) -> ! {
     }
     #[cfg(not(test))]
     {
-        unsafe { refused_in(name, reason, &Regs::default()) };
+        refused_in(name, reason, &Regs::default());
         crate::standalone::finish(
             &format!("{name}: a fatal error came back from its report"),
             1,

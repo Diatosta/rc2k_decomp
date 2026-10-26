@@ -27,38 +27,34 @@ use crate::scene::project_point::{NEAR, project_point, record_offset};
 
 // ---- Rust version ----
 
-pub unsafe fn project_polygon() -> Result<(), Refused> {
-    unsafe {
-        let entries = listed()?;
-        if entries.is_empty() {
-            return Err(BadInput("a polygon of no vertices").into());
-        }
-        // Nothing may be written before a refusal: every point is looked at first.
-        // The scene's points are only needed for a scene's point: the menus have none,
-        // and their objects' points (negative) only need the records.
-        let scene_point = entries.iter().any(|&entry| dword(entry) as i32 >= 0);
-        if COURSE_LISTS.point_records.bits() == 0
-            || (scene_point && COURSE.scene_points.bits() == 0)
-        {
-            return Err(BadInput("no points or no records for them").into());
-        }
-        for &entry in &entries {
-            record_offset(dword(entry))?;
-        }
-        let far = f32::from_bits(DRAW.farthest.bits());
-        let mut outside = 0u32;
-        for &entry in &entries {
-            let point = project_point(dword(entry))?;
-            put(entry + 4, point.record);
-            let depth = f32::from_bits(dword(point.record as usize + 0x18));
-            // Two compares, each taking "no number" for "below".
-            let near = depth.partial_cmp(&NEAR).is_none_or(|order| order.is_lt());
-            let in_reach = depth.partial_cmp(&far).is_none_or(|order| order.is_lt());
-            if near || !in_reach {
-                outside += 1;
-            }
-        }
-        DRAW.polygon_outside_count.set_bits(outside);
-        Ok(())
+pub fn project_polygon() -> Result<(), Refused> {
+    let entries = listed()?;
+    if entries.is_empty() {
+        return Err(BadInput("a polygon of no vertices").into());
     }
+    // Nothing may be written before a refusal: every point is looked at first.
+    // The scene's points are only needed for a scene's point: the menus have none,
+    // and their objects' points (negative) only need the records.
+    let scene_point = entries.iter().any(|&entry| dword(entry) as i32 >= 0);
+    if COURSE_LISTS.point_records.bits() == 0 || (scene_point && COURSE.scene_points.bits() == 0) {
+        return Err(BadInput("no points or no records for them").into());
+    }
+    for &entry in &entries {
+        record_offset(dword(entry))?;
+    }
+    let far = f32::from_bits(DRAW.farthest.bits());
+    let mut outside = 0u32;
+    for &entry in &entries {
+        let point = project_point(dword(entry))?;
+        put(entry + 4, point.record);
+        let depth = f32::from_bits(dword(point.record as usize + 0x18));
+        // Two compares, each taking "no number" for "below".
+        let near = depth.partial_cmp(&NEAR).is_none_or(|order| order.is_lt());
+        let in_reach = depth.partial_cmp(&far).is_none_or(|order| order.is_lt());
+        if near || !in_reach {
+            outside += 1;
+        }
+    }
+    DRAW.polygon_outside_count.set_bits(outside);
+    Ok(())
 }

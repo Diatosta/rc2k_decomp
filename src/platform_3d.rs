@@ -896,7 +896,7 @@ pub fn allocate_textures_for(
                 ebp: mips,
                 ..Regs::default()
             };
-            unsafe { crate::fatal::raise::refused_in(ALLOCATE.name(), e, &r) };
+            crate::fatal::raise::refused_in(ALLOCATE.name(), e, &r);
             (video, system)
         }
     }

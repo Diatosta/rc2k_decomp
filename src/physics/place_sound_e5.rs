@@ -17,12 +17,12 @@ use rc2k_core::physics::sound_places::{SECOND, SOUND_E5};
 
 /// The Rust version.
 // Converted: `rc2k_core::physics::sound_places`.
-pub unsafe fn place_sound_e5() -> Result<(), Refused> {
+pub fn place_sound_e5() -> Result<(), Refused> {
     if !listed(RACE_WORK.current_car.bits())? {
         return Ok(());
     }
     let o = object()?;
     let b = band_value_plain(TWIN);
-    unsafe { cue_plain(o, SECOND, SOUND_E5, b, None) };
+    cue_plain(o, SECOND, SOUND_E5, b, None);
     Ok(())
 }

@@ -48,7 +48,7 @@ fn try_place() -> Result<(), Refused> {
 pub fn steps() -> Result<(), Refused> {
     PHYSICS.clear_place_mark.set(clear_place::TRY_MARK);
     let factor = extended(PHYSICS.clear_place_share.bits());
-    unsafe { crate::physics::scale_vector::scale_vector(CAR.velocity[0].addr() as u32, factor) };
+    crate::physics::scale_vector::scale_vector(CAR.velocity[0].addr() as u32, factor);
     DRAW.scratch.set(rounded(factor));
     unsafe { crate::physics::restore_saved_car::restore_saved_car() }?;
     unsafe { crate::physics::lowest_body_point::lowest_body_point() }?;
@@ -93,7 +93,7 @@ pub fn steps() -> Result<(), Refused> {
 }
 
 /// The Rust version.
-pub unsafe fn find_clear_place() -> Result<(), Refused> {
+pub fn find_clear_place() -> Result<(), Refused> {
     crate::physics::wall_contacts::check()?;
     steps()
 }

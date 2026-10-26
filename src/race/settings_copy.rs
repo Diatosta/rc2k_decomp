@@ -44,7 +44,7 @@ impl Place {
     /// Its dword (a float's bits).
     pub fn get(self) -> u32 {
         match self {
-            Addr(a) => unsafe { get(a) },
+            Addr(a) => get(a),
             Cell(cell) => cell.get(),
             Bits(cell) => cell.bits(),
             CarCell(n, f) => f(&CAR_BLOCKS.cars[n]).get(),
@@ -56,7 +56,7 @@ impl Place {
     /// Its dword set (a float's bits).
     pub fn set(self, v: u32) {
         match self {
-            Addr(a) => unsafe { set(a, v) },
+            Addr(a) => set(a, v),
             Cell(cell) => cell.set(v),
             Bits(cell) => cell.set_bits(v),
             CarCell(n, f) => f(&CAR_BLOCKS.cars[n]).set(v),
@@ -111,12 +111,12 @@ fn at(a: usize) -> *mut u32 {
     game_addr(rva(a)) as *mut u32
 }
 
-unsafe fn get(a: usize) -> u32 {
-    unsafe { at(a).read_unaligned() }
+fn get(a: usize) -> u32 {
+    crate::pointers::read_or_end(at(a) as u32, "race::settings_copy's operand")
 }
 
-unsafe fn set(a: usize, v: u32) {
-    unsafe { at(a).write_unaligned(v) };
+fn set(a: usize, v: u32) {
+    crate::pointers::write_or_end(at(a) as u32, v, "race::settings_copy's operand")
 }
 
 /// The game as the steps' machine: its dwords at IDA addresses, the steps' own eax and ebx

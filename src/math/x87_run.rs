@@ -19,7 +19,7 @@ fn span<T>(p: *const T, bytes: usize) {
 }
 
 /// rounded to a float).
-pub unsafe fn length_80(v: *const u32) -> [u8; 10] {
+pub fn length_80(v: *const u32) -> [u8; 10] {
     span(v, 12);
 
     unsafe {
@@ -32,7 +32,7 @@ pub unsafe fn length_80(v: *const u32) -> [u8; 10] {
 }
 
 /// The three floats at `v` each times the 80-bit `s` and stored as floats.
-pub unsafe fn scale_by_80(v: *mut u32, s: [u8; 10]) {
+pub fn scale_by_80(v: *mut u32, s: [u8; 10]) {
     span(v, 12);
 
     unsafe {
@@ -62,7 +62,7 @@ pub fn plane_height(a: i32, b: i32, c: i32, f: u32, g: u32) -> i32 {
 /// `flt_5C5D98` (bits) at [6]. `o` gets f764, f75C, f760, f810, i800, f814, i804, and with
 /// `sse` f768 (`rcpss` of f764) at [7]. (`rcpss` is the SSE instruction itself: it is an
 /// approximation that differs between processors.)
-pub unsafe fn face_shares(i: &[u32; 7], o: &mut [u32; 8], sse: bool) {
+pub fn face_shares(i: &[u32; 7], o: &mut [u32; 8], sse: bool) {
     let n = |k: usize| int(i[k] as i32);
     let scale = ld(i[6]);
     // The three cross products, each stored as a float.
@@ -322,7 +322,7 @@ pub fn neg_product2_plus(a: u32, b: u32, c: u32, d: u32) -> u32 {
 /// angle whose sine is `x`, by `atan2` of `x` over the root of 1 less the square of `x`
 /// stored as a float and held to -limit ..= limit (`fpatan`: libm's `atan2` within 2 ulp
 /// of the instruction's). A compare that finds the values unordered counts as "below".
-pub unsafe fn clamped_asin_80(x: [u8; 10], s: *mut u32, l: *mut u32) -> [u8; 10] {
+pub fn clamped_asin_80(x: [u8; 10], s: *mut u32, l: *mut u32) -> [u8; 10] {
     span(s, 4);
     span(l, 4);
 

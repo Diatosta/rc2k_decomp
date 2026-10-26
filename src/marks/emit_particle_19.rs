@@ -89,69 +89,67 @@ pub fn emit_particle_19(object: u32) -> Result<(), Refused> {
 
 /// The shared body, on `set`'s variables.
 pub fn emit_twin(set: &TwinSet, object: u32) -> Result<(), Refused> {
-    unsafe {
-        if let Some(why) = refusal(set, object)? {
-            return Err(BadInput(why).into());
-        }
-        let level = at(object + set.level_at)?;
-        TWIN_STATE.level.set(level);
-        let r = next_c5(&set.tuning.chance_random);
-        if (r.rotate_right(16) & 7) as i32 >= level as i32 {
-            return Ok(());
-        }
-        SURFACE.wheel_flags.set(set.flags);
-        let motion = [at(object + 0x4C)?, at(object + 0x50)?, at(object + 0x54)?];
-        crate::session::write_bits(&TWIN_STATE.motion, motion);
-        if next_entry()?.is_none() {
-            return Ok(());
-        }
-        let e = take_entry(at(object + 0x1C)? & 0xFF_FFFF, set.kind)?;
-        let put = |o: u32, v: u32| GamePtr::new(e + o).write::<u32>(v, "a mark's field");
-        let car: u32 = EMITTER.car.get();
-        let m = at(car + 0x24)?;
-        let [x, y, y_less, z] = x87::turned_place(
-            crate::session::read_bits(&TWIN_STATE.point),
-            set.tuning.lift.bits(),
-            m,
-        );
-        put(0x10, x)?;
-        put(0x14, y)?;
-        put(0x28, y_less)?;
-        put(0x18, z)?;
-        let row = crate::marks::try_from_fn::<u32, 3>(|i| at(m + [0x18u32, 0x14, 0x10][i]))?
-            .into_iter()
-            .zip(set.tuning.row_k.iter())
-            .map(|(a, k)| x87::mul_80(a, k.bits()))
-            .collect::<Vec<_>>();
-        let (moved, _) = jitter_point([extended(set.tuning.spread.bits()), row[2], row[1], row[0]]);
-        let step: u32 = CLOCK.reciprocal.bits();
-        for n in 0..3 {
-            put(
-                0x2C + 4 * n as u32,
-                x87::product_plus(
-                    motion[n],
-                    step,
-                    set.tuning.motion_k[n].bits(),
-                    rounded(moved[n]),
-                ),
-            )?;
-        }
-        let r = next_c5(&set.tuning.spin_random);
-        put(0x54, (r & 0x3F).wrapping_sub(0x20))?;
-        put(0x50, r.rotate_right(6) & 0xFFF)?;
-        put(0x58, set.flags & 0x3F)?;
-        let size = (r.rotate_right(0x14) & 0x4000) + 0x4000;
-        RING_WORK.whole.set(size);
-        put(0x60, x87::from_int(size as i32))?;
-        let life: u32 = SURFACE.lives_by_level[level as usize].get();
-        put(0x84, life)?;
-        put(
-            0x78,
-            x87::over_int(MARKS_FLOATS.two_fifty_seven.bits(), life as i32),
-        )?;
-        put(0x74, MARKS_FLOATS.two_fifty_five.bits())?;
-        put(0x68, car)?;
+    if let Some(why) = refusal(set, object)? {
+        return Err(BadInput(why).into());
     }
+    let level = at(object + set.level_at)?;
+    TWIN_STATE.level.set(level);
+    let r = next_c5(&set.tuning.chance_random);
+    if (r.rotate_right(16) & 7) as i32 >= level as i32 {
+        return Ok(());
+    }
+    SURFACE.wheel_flags.set(set.flags);
+    let motion = [at(object + 0x4C)?, at(object + 0x50)?, at(object + 0x54)?];
+    crate::session::write_bits(&TWIN_STATE.motion, motion);
+    if next_entry()?.is_none() {
+        return Ok(());
+    }
+    let e = take_entry(at(object + 0x1C)? & 0xFF_FFFF, set.kind)?;
+    let put = |o: u32, v: u32| GamePtr::new(e + o).write::<u32>(v, "a mark's field");
+    let car: u32 = EMITTER.car.get();
+    let m = at(car + 0x24)?;
+    let [x, y, y_less, z] = x87::turned_place(
+        crate::session::read_bits(&TWIN_STATE.point),
+        set.tuning.lift.bits(),
+        m,
+    );
+    put(0x10, x)?;
+    put(0x14, y)?;
+    put(0x28, y_less)?;
+    put(0x18, z)?;
+    let row = crate::marks::try_from_fn::<u32, 3>(|i| at(m + [0x18u32, 0x14, 0x10][i]))?
+        .into_iter()
+        .zip(set.tuning.row_k.iter())
+        .map(|(a, k)| x87::mul_80(a, k.bits()))
+        .collect::<Vec<_>>();
+    let (moved, _) = jitter_point([extended(set.tuning.spread.bits()), row[2], row[1], row[0]]);
+    let step: u32 = CLOCK.reciprocal.bits();
+    for n in 0..3 {
+        put(
+            0x2C + 4 * n as u32,
+            x87::product_plus(
+                motion[n],
+                step,
+                set.tuning.motion_k[n].bits(),
+                rounded(moved[n]),
+            ),
+        )?;
+    }
+    let r = next_c5(&set.tuning.spin_random);
+    put(0x54, (r & 0x3F).wrapping_sub(0x20))?;
+    put(0x50, r.rotate_right(6) & 0xFFF)?;
+    put(0x58, set.flags & 0x3F)?;
+    let size = (r.rotate_right(0x14) & 0x4000) + 0x4000;
+    RING_WORK.whole.set(size);
+    put(0x60, x87::from_int(size as i32))?;
+    let life: u32 = SURFACE.lives_by_level[level as usize].get();
+    put(0x84, life)?;
+    put(
+        0x78,
+        x87::over_int(MARKS_FLOATS.two_fifty_seven.bits(), life as i32),
+    )?;
+    put(0x74, MARKS_FLOATS.two_fifty_five.bits())?;
+    put(0x68, car)?;
     Ok(())
 }
 

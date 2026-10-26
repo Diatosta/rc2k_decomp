@@ -18,7 +18,7 @@ use crate::scene::draw_store::DRAW;
 use crate::scene::x87_mem::{fild, fistp, fld};
 
 /// The Rust version (the exact one, for `physics::camera_avoid_ground`).
-pub unsafe fn ease_view_turn() {
+pub fn ease_view_turn() {
     if REPLAY_FRAMES.step_first.get() != 0 {
         for share in [
             &CAMERA_WORK.view_share_pitch,

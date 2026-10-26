@@ -27,23 +27,21 @@ use crate::scene::draw_store::DRAW;
 
 // ---- Rust version: `menu::screen_loop` with this ----
 
-unsafe fn set_up_first(c: &mut Carried) -> Result<(), Refused> {
-    unsafe {
-        c.arg = PLAYER_TABLE.players[0].get().metric_units;
-        crate::strings::units::set_units(c.arg); // g_isImperialUnits
-        DRAW.view_offset[0].set(0xFFFFFF64u32);
-        DRAW.view_offset[1].set(0x27u32);
-        DRAW.view_zoom.set(0x140u32);
-        prepare_scene(c);
-        SCREEN_FLOW.turning.set(0x1u32);
-        MENU_STATE.carousel.menu.set(0x7u32);
-        carousel(c)?;
-        c.arg = SCREEN_ITEMS.current[slot::OPTIONS].get();
-        LOOP_FLAGS.item.set(c.arg);
-        c.arg = c.arg.wrapping_sub(1);
-        MENU_STATE.carousel.front.set(c.arg);
-        SCREEN_FLOW.turning.set(0x0u32);
-    }
+fn set_up_first(c: &mut Carried) -> Result<(), Refused> {
+    c.arg = PLAYER_TABLE.players[0].get().metric_units;
+    crate::strings::units::set_units(c.arg); // g_isImperialUnits
+    DRAW.view_offset[0].set(0xFFFFFF64u32);
+    DRAW.view_offset[1].set(0x27u32);
+    DRAW.view_zoom.set(0x140u32);
+    prepare_scene(c);
+    SCREEN_FLOW.turning.set(0x1u32);
+    MENU_STATE.carousel.menu.set(0x7u32);
+    carousel(c)?;
+    c.arg = SCREEN_ITEMS.current[slot::OPTIONS].get();
+    LOOP_FLAGS.item.set(c.arg);
+    c.arg = c.arg.wrapping_sub(1);
+    MENU_STATE.carousel.front.set(c.arg);
+    SCREEN_FLOW.turning.set(0x0u32);
     Ok(())
 }
 

@@ -51,7 +51,7 @@ fn byte(a: u32) -> Result<u32, Refused> {
 }
 
 /// `fld v[c] x 65536; fistp` through `dword_62400C` (`v` the table's offset from the base).
-unsafe fn share_bit(v: u32, c: u32) -> u32 {
+fn share_bit(v: u32, c: u32) -> u32 {
     // The tables (0x6D2A14, 0x6D2B14) are the race core's (`race::store`).
     let b = crate::race::store::asm_base();
     x87_1(
@@ -76,7 +76,7 @@ fn check() -> Result<(), Refused> {
 
 /// The steps (a refusal may come after some are written: `wheel_surfaces` puts them
 /// back).
-unsafe fn steps() -> Result<(), Refused> {
+fn steps() -> Result<(), Refused> {
     check()?;
     let infos = crate::scene::polygon::texture_infos_addr() as u32;
     let surfaces = PHYSICS.surfaces.as_ptr() as u32;
@@ -84,8 +84,8 @@ unsafe fn steps() -> Result<(), Refused> {
         let cc = c as usize;
         let f = (CAR.probe_point_face[cc].get() << 6).wrapping_add(COURSE.course_faces.get());
         let t1 = infos + (byte(f + 1)? << 6);
-        let mut edx = unsafe { share_bit(0x2D2B14, c) };
-        let mut ebx = unsafe { share_bit(0x2D2A14, c) };
+        let mut edx = { share_bit(0x2D2B14, c) };
+        let mut ebx = { share_bit(0x2D2A14, c) };
         edx = (edx >> 15) & 1;
         ebx = (ebx >> 15) & 1;
         if CONTACT_WORK.probe_face_flip[cc].get() == 1 {
@@ -206,8 +206,8 @@ unsafe fn steps() -> Result<(), Refused> {
 }
 
 /// The Rust version: what was written is put back on a refusal.
-pub unsafe fn wheel_surfaces() -> Result<(), Refused> {
-    unsafe { steps() }
+pub fn wheel_surfaces() -> Result<(), Refused> {
+    steps()
 }
 
 // ---- the arithmetic that was x87 assembly ----

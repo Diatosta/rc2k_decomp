@@ -13,23 +13,21 @@ use crate::scene::draw_store::DRAW;
 use crate::session::SCREEN;
 
 /// The window chosen, then `set_view_window`.
-pub unsafe fn choose_view_window() {
+pub fn choose_view_window() {
     // Converted: `rc2k_core::scene::view_window::choose`.
     use rc2k_core::scene::view_window::{ViewSettings, choose};
-    unsafe {
-        let settings = ViewSettings {
-            framed: FRAME_SWITCHES.editor_mode.bits() != 0,
-            wide: FRAME_SWITCHES.other_way.bits() != 0,
-            mode: crate::scene::light_tables_store::LIGHT_TABLES
-                .view_mode
-                .get(),
-        };
-        let window = choose(settings, || [SCREEN.width.get(), SCREEN.height.get()]);
-        DRAW.view_size[0].set_bits(window.size[0]);
-        DRAW.view_size[1].set_bits(window.size[1]);
-        DRAW.view_offset[0].set_bits(window.offset[0]);
-        DRAW.view_offset[1].set_bits(window.offset[1]);
-        DRAW.view_zoom.set_bits(window.scale);
-        crate::scene::set_view_window::set_view_window();
-    }
+    let settings = ViewSettings {
+        framed: FRAME_SWITCHES.editor_mode.bits() != 0,
+        wide: FRAME_SWITCHES.other_way.bits() != 0,
+        mode: crate::scene::light_tables_store::LIGHT_TABLES
+            .view_mode
+            .get(),
+    };
+    let window = choose(settings, || [SCREEN.width.get(), SCREEN.height.get()]);
+    DRAW.view_size[0].set_bits(window.size[0]);
+    DRAW.view_size[1].set_bits(window.size[1]);
+    DRAW.view_offset[0].set_bits(window.offset[0]);
+    DRAW.view_offset[1].set_bits(window.offset[1]);
+    DRAW.view_zoom.set_bits(window.scale);
+    crate::scene::set_view_window::set_view_window();
 }

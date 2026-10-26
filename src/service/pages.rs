@@ -112,7 +112,7 @@ fn player() -> Result<u32, BadInput> {
 }
 
 /// The key, with the clock noted and the value stepped if it was an arrow. 0 = no key.
-unsafe fn key_and_step(down: Stepper, up: Stepper) -> Result<u8, Refused> {
+fn key_and_step(down: Stepper, up: Stepper) -> Result<u8, Refused> {
     // Converted: `rc2k_core::service::setups::page_key`.
     use rc2k_core::service::setups::{PageKey, page_key};
     let key = take_key();
@@ -120,25 +120,23 @@ unsafe fn key_and_step(down: Stepper, up: Stepper) -> Result<u8, Refused> {
     if action == PageKey::None {
         return Ok(0);
     }
-    unsafe {
-        CHAMP_VIEW.last_key_time.set(CLOCKS.frame.get());
-        match action {
-            PageKey::Down => {
-                step(down)?;
-            }
-            PageKey::Up => {
-                step(up)?;
-            }
-            _ => {}
+    CHAMP_VIEW.last_key_time.set(CLOCKS.frame.get());
+    match action {
+        PageKey::Down => {
+            step(down)?;
         }
+        PageKey::Up => {
+            step(up)?;
+        }
+        _ => {}
     }
     Ok(key)
 }
 
-pub unsafe fn simple_page(page: SimplePage) -> Result<(), Refused> {
+pub fn simple_page(page: SimplePage) -> Result<(), Refused> {
     // Nothing may be written before it is known that nothing will be refused.
     player()?;
-    if unsafe { key_and_step(page.down, page.up) }? == KEY_CONFIRM {
+    if { key_and_step(page.down, page.up) }? == KEY_CONFIRM {
         leave_edit_mode();
     }
     Ok(())
@@ -146,7 +144,7 @@ pub unsafe fn simple_page(page: SimplePage) -> Result<(), Refused> {
 
 /// `confirm`: act as if the confirm key had been pressed, without taking a key (the callers
 /// outside the key handler pass ebx = 1 for this).
-pub unsafe fn change_page(page: ChangePage, confirm: bool) -> Result<(), Refused> {
+pub fn change_page(page: ChangePage, confirm: bool) -> Result<(), Refused> {
     // Everything the steps below could refuse is checked first, so that an error never
     // leaves half of the work done.
     let item = flagged_item()?;
@@ -162,41 +160,39 @@ pub unsafe fn change_page(page: ChangePage, confirm: bool) -> Result<(), Refused
         None => None,
     };
 
-    unsafe {
-        if !confirm && key_and_step(page.down, page.up)? != KEY_CONFIRM {
-            return update_repair_total();
-        }
-
-        // Converted: `rc2k_core::service::repairs::confirm_change`.
-        use crate::service::state::{flags, marks, store_flags, store_marks, time_of};
-        let (mut f, mut m) = (flags(), marks());
-        let v = rc2k_core::service::repairs::Value {
-            chosen: page.change.chosen.get(),
-            installed: page.change.installed.get(),
-            entry: page.entry.get(),
-            in_car: installed_in_car
-                .map(|value| value.read::<u32>("the car's record"))
-                .transpose()?,
-        };
-        let c = rc2k_core::service::repairs::confirm_change(
-            &mut f,
-            &mut m,
-            item as usize,
-            EVENT_STATE.service_minutes.get() as i32,
-            v,
-            time_of,
-        )
-        .map_err(|e| BadInput(e.0))?;
-        store_flags(&f);
-        store_marks(&m);
-        page.change.chosen.set(c.chosen);
-        if let Some(status) = c.status {
-            MENU_STATE.service_ui.status.set(status);
-        }
-        MENU_STATE.driver_stats.repair_time.set(c.total as u32);
-        leave_edit_mode();
-        Ok(())
+    if !confirm && key_and_step(page.down, page.up)? != KEY_CONFIRM {
+        return update_repair_total();
     }
+
+    // Converted: `rc2k_core::service::repairs::confirm_change`.
+    use crate::service::state::{flags, marks, store_flags, store_marks, time_of};
+    let (mut f, mut m) = (flags(), marks());
+    let v = rc2k_core::service::repairs::Value {
+        chosen: page.change.chosen.get(),
+        installed: page.change.installed.get(),
+        entry: page.entry.get(),
+        in_car: installed_in_car
+            .map(|value| value.read::<u32>("the car's record"))
+            .transpose()?,
+    };
+    let c = rc2k_core::service::repairs::confirm_change(
+        &mut f,
+        &mut m,
+        item as usize,
+        EVENT_STATE.service_minutes.get() as i32,
+        v,
+        time_of,
+    )
+    .map_err(|e| BadInput(e.0))?;
+    store_flags(&f);
+    store_marks(&m);
+    page.change.chosen.set(c.chosen);
+    if let Some(status) = c.status {
+        MENU_STATE.service_ui.status.set(status);
+    }
+    MENU_STATE.driver_stats.repair_time.set(c.total as u32);
+    leave_edit_mode();
+    Ok(())
 }
 
 // ---- hook side ----

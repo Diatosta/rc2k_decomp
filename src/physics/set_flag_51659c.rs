@@ -10,6 +10,6 @@ use crate::errors::Refused;
 use crate::physics::listed_car_flags::set_flag;
 
 /// The Rust version.
-pub unsafe fn set_flag_51659c() -> Result<(), Refused> {
-    unsafe { set_flag(&crate::sound::store::STAGE_SOUNDS.once[0]) }
+pub fn set_flag_51659c() -> Result<(), Refused> {
+    set_flag(&crate::sound::store::STAGE_SOUNDS.once[0])
 }

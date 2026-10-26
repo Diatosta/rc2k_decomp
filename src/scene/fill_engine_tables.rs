@@ -47,7 +47,7 @@ const SEED: u32 = 0x0012_D687;
 
 /// `sub_41F792`: the tangent of an angle (0x2000 a turn here, its low four bits
 /// dropped) into `dword_5C5F48`.
-unsafe fn tangent(angle: u32) -> u32 {
+fn tangent(angle: u32) -> u32 {
     {
         let place = (angle >> 4) as usize;
         DRAW.scratch.set_bits(0x8000u32);
@@ -67,66 +67,64 @@ unsafe fn tangent(angle: u32) -> u32 {
 /// 0x100, edi the end of the arctangent table) are overwritten or unread by its one caller,
 /// `scene::set_up_engine`, whose leftovers are `physics::test_drive`'s (edi, ebp: read by
 /// none of its sites, `lq.py -s 442AF6`).
-pub unsafe fn fill_engine_tables() {
-    unsafe {
-        // sub_42142B
-        for n in 0..0x100usize {
-            let root = x87::int_over_root(n as i32 + 0x100, NUMBERS.k256.bits());
-            COURSE_LISTS.root_table[n].set_bits(root);
-        }
-        for n in 0..0x100usize {
-            COURSE_LISTS.exponent_root_table[n].set_bits(x87::sqrt((n as u32) << 23));
-        }
-        // sub_41F661
-        PHYSICS.noise_state.set_bits(SEED);
-        let word = |n: usize| &crate::scene::engine_tables_store::ENGINE_TABLES.shuffled_words[n];
-        for n in 0..0x1_0000usize {
-            word(n).set(n as u16);
-        }
-        for n in 0..0x1_0000usize {
-            let other = (next_noise() & 0xFFFF) as usize;
-            let (here, there) = (word(n).get(), word(other).get());
-            word(n).set(there);
-            word(other).set(here);
-        }
-        // sub_41F635
-        PHYSICS.noise_state.set_bits(SEED);
-        for n in 0..NOISE_LEN {
-            crate::scene::engine_tables_store::ENGINE_TABLES
-                .noise_bytes
-                .set(n, (next_noise() >> 12) as u8);
-        }
-        // sub_41F716
-        for n in 1..0x100usize {
-            COURSE_LISTS.face_key_factors[n].set_bits(x87::int_ratio(1, n as i32));
-        }
-        COURSE_LISTS.face_key_factors[0].set_bits(1.0f32.to_bits());
-        // sub_41F5EF
-        for n in 0..SINES {
-            crate::scene::engine_tables_store::ENGINE_TABLES.sines[n]
-                .set_bits(x87::sine_of_pi_fraction(n as i32, 0x800));
-        }
-        // sub_41F74A
-        for n in 0..0x1000usize {
-            let wanted = (n as u32) << 20;
-            let (mut angle, mut step) = (0x1000u32, 0x800u32);
-            while step != 0 {
-                if wanted < tangent(angle) {
-                    angle -= step;
-                } else {
-                    angle += step;
-                }
-                step >>= 1;
+pub fn fill_engine_tables() {
+    // sub_42142B
+    for n in 0..0x100usize {
+        let root = x87::int_over_root(n as i32 + 0x100, NUMBERS.k256.bits());
+        COURSE_LISTS.root_table[n].set_bits(root);
+    }
+    for n in 0..0x100usize {
+        COURSE_LISTS.exponent_root_table[n].set_bits(x87::sqrt((n as u32) << 23));
+    }
+    // sub_41F661
+    PHYSICS.noise_state.set_bits(SEED);
+    let word = |n: usize| &crate::scene::engine_tables_store::ENGINE_TABLES.shuffled_words[n];
+    for n in 0..0x1_0000usize {
+        word(n).set(n as u16);
+    }
+    for n in 0..0x1_0000usize {
+        let other = (next_noise() & 0xFFFF) as usize;
+        let (here, there) = (word(n).get(), word(other).get());
+        word(n).set(there);
+        word(other).set(here);
+    }
+    // sub_41F635
+    PHYSICS.noise_state.set_bits(SEED);
+    for n in 0..NOISE_LEN {
+        crate::scene::engine_tables_store::ENGINE_TABLES
+            .noise_bytes
+            .set(n, (next_noise() >> 12) as u8);
+    }
+    // sub_41F716
+    for n in 1..0x100usize {
+        COURSE_LISTS.face_key_factors[n].set_bits(x87::int_ratio(1, n as i32));
+    }
+    COURSE_LISTS.face_key_factors[0].set_bits(1.0f32.to_bits());
+    // sub_41F5EF
+    for n in 0..SINES {
+        crate::scene::engine_tables_store::ENGINE_TABLES.sines[n]
+            .set_bits(x87::sine_of_pi_fraction(n as i32, 0x800));
+    }
+    // sub_41F74A
+    for n in 0..0x1000usize {
+        let wanted = (n as u32) << 20;
+        let (mut angle, mut step) = (0x1000u32, 0x800u32);
+        while step != 0 {
+            if wanted < tangent(angle) {
+                angle -= step;
+            } else {
+                angle += step;
             }
-            crate::scene::engine_tables_store::ENGINE_TABLES.arctangents[n]
-                .set((angle & 0x1FF0) as u16);
+            step >>= 1;
         }
-        // The two loops whose results nothing keeps.
-        for angle in (0..0x2000).step_by(0x40) {
-            tangent(angle);
-        }
-        for place in 0..0x100u32 {
-            angle_of(place, 0x100);
-        }
+        crate::scene::engine_tables_store::ENGINE_TABLES.arctangents[n]
+            .set((angle & 0x1FF0) as u16);
+    }
+    // The two loops whose results nothing keeps.
+    for angle in (0..0x2000).step_by(0x40) {
+        tangent(angle);
+    }
+    for place in 0..0x100u32 {
+        angle_of(place, 0x100);
     }
 }

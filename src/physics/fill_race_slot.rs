@@ -27,11 +27,11 @@ use crate::scene::object_store::OBJECT_WORK;
 use crate::scene::rotate_point::rotate_point;
 use rc2k_core::physics::parts::{LAST_PART, choose_slot};
 
-unsafe fn at(a: u32) -> u32 {
+fn at(a: u32) -> u32 {
     crate::pointers::read_or_end::<u32>(a, "physics::fill_race_slot's operand")
 }
 
-unsafe fn put(a: u32, v: u32) {
+fn put(a: u32, v: u32) {
     crate::pointers::write_or_end::<u32>(a, v, "physics::fill_race_slot's operand")
 }
 
@@ -43,62 +43,60 @@ pub fn fill_race_slot(part: u32) -> Result<(), Refused> {
         return Err(BadInput("a part past 0xFF").into());
     }
     let first = RACE_WORK.race_slots[0].part.addr() as u32;
-    unsafe {
-        let slot_at = |c: usize| first + 0x78 * c as u32;
-        let Some(choice) = choose_slot(|c| at(slot_at(c)), |c| at(slot_at(c) + 0x64)) else {
-            return Err(BadInput("no race slot to take (every +0x64 -1)").into());
-        };
-        let s = slot_at(choice.slot);
-        put(s, part);
-        let i = |t: usize| {
-            int_80(
-                crate::scene::object_slots_store::OBJECT_SLOTS.part_extents[t][part as usize].get()
-                    as i32,
-                false,
-            )
-        };
-        let out = rotate_point(CAR.crash_matrix[0].addr() as u32, [i(0), i(1), i(2)]);
-        for (k, e) in out.iter().enumerate() {
-            let n = ext_to_int(*e) as u32;
-            OBJECT_WORK.object_position[k].set_bits(n);
-            put(s + 4 + 4 * k as u32, n.wrapping_add(CAR.position[k].get()));
-        }
-        put(s + 0x60, CAR.probe_point_face[4].get());
-        put(s + 0x64, CAR.step_clock.get());
-        for k in 0..16u32 {
-            put(s + 0x10 + 4 * k, CAR.crash_matrix[k as usize].bits());
-        }
-        let k = RACE_WORK.part_fling.bits();
-        put(
-            s + 0x50,
-            int_mul_add(
-                OBJECT_WORK.object_position[0].get() as i32,
-                k,
-                CAR.velocity[0].bits(),
-                None,
-            ),
-        );
-        put(
-            s + 0x54,
-            int_mul_add(
-                OBJECT_WORK.object_position[1].get() as i32,
-                k,
-                CAR.velocity[1].bits(),
-                Some(NUMBERS.two.bits()),
-            ),
-        );
-        put(
-            s + 0x58,
-            int_mul_add(
-                OBJECT_WORK.object_position[2].get() as i32,
-                k,
-                CAR.velocity[2].bits(),
-                None,
-            ),
-        );
-        for k in 0..3u32 {
-            put(s + 0x68 + 4 * k, CAR.spin[k as usize].bits());
-        }
+    let slot_at = |c: usize| first + 0x78 * c as u32;
+    let Some(choice) = choose_slot(|c| at(slot_at(c)), |c| at(slot_at(c) + 0x64)) else {
+        return Err(BadInput("no race slot to take (every +0x64 -1)").into());
+    };
+    let s = slot_at(choice.slot);
+    put(s, part);
+    let i = |t: usize| {
+        int_80(
+            crate::scene::object_slots_store::OBJECT_SLOTS.part_extents[t][part as usize].get()
+                as i32,
+            false,
+        )
+    };
+    let out = rotate_point(CAR.crash_matrix[0].addr() as u32, [i(0), i(1), i(2)]);
+    for (k, e) in out.iter().enumerate() {
+        let n = ext_to_int(*e) as u32;
+        OBJECT_WORK.object_position[k].set_bits(n);
+        put(s + 4 + 4 * k as u32, n.wrapping_add(CAR.position[k].get()));
+    }
+    put(s + 0x60, CAR.probe_point_face[4].get());
+    put(s + 0x64, CAR.step_clock.get());
+    for k in 0..16u32 {
+        put(s + 0x10 + 4 * k, CAR.crash_matrix[k as usize].bits());
+    }
+    let k = RACE_WORK.part_fling.bits();
+    put(
+        s + 0x50,
+        int_mul_add(
+            OBJECT_WORK.object_position[0].get() as i32,
+            k,
+            CAR.velocity[0].bits(),
+            None,
+        ),
+    );
+    put(
+        s + 0x54,
+        int_mul_add(
+            OBJECT_WORK.object_position[1].get() as i32,
+            k,
+            CAR.velocity[1].bits(),
+            Some(NUMBERS.two.bits()),
+        ),
+    );
+    put(
+        s + 0x58,
+        int_mul_add(
+            OBJECT_WORK.object_position[2].get() as i32,
+            k,
+            CAR.velocity[2].bits(),
+            None,
+        ),
+    );
+    for k in 0..3u32 {
+        put(s + 0x68 + 4 * k, CAR.spin[k as usize].bits());
     }
     Ok(())
 }

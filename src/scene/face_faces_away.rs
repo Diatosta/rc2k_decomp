@@ -37,7 +37,7 @@ const BAD_POINT: FatalError = FatalError {
 /// `sub_4520A5` from its first `fld`: the block is the three points (nine floats), the
 /// six differences, the cross product, and the x87's status after `fldz; fcompp` (only the
 /// condition bits are modelled).
-unsafe fn triangle_at(w: *mut u8) {
+fn triangle_at(w: *mut u8) {
     let t0 = fld(w, 0xC);
     let t1 = fld(w, 0x0);
     let t2 = t0 - t1;
@@ -102,53 +102,51 @@ unsafe fn triangle_at(w: *mut u8) {
     fnstsw(w, 0x48, t51); // status word C3 C2 C0 (TOP not modelled)
 }
 
-unsafe fn triangle(w: &mut [u32; 19]) {
-    unsafe { triangle_at(w.as_mut_ptr().cast()) }
+fn triangle(w: &mut [u32; 19]) {
+    triangle_at(w.as_mut_ptr().cast())
 }
 
-pub unsafe fn face_faces_away(face: usize) -> Result<bool, Refused> {
-    unsafe {
-        let records: u32 = COURSE_LISTS.point_records.bits();
-        if face == 0 || records == 0 {
-            return Err(BadInput("no face or no records").into());
-        }
-        let count: u32 = GamePtr::new(face as u32).read("a face")?;
-        DRAW.polygon_vertex_count.set_bits(count);
-        if count < 3 {
-            return Ok(true);
-        }
-        let len = (count as usize)
-            .checked_mul(0x10)
-            .and_then(|n| n.checked_add(0x10))
-            .ok_or(BadInput("a face of too many vertices"))?;
-        let words = GamePtr::new(face as u32).read_bytes(len, "a face")?;
-        let point = |n: u32| {
-            let at = 0x10 + n as usize * 0x10;
-            u32::from_le_bytes(words[at..at + 4].try_into().unwrap())
-        };
-        let table = crate::scene::reading::PointRecords::new(records)?;
-        for n in 2..count {
-            // The original looks at each triangle's numbers as it comes to it.
-            if [0, n - 1, n].into_iter().any(|k| (point(k) as i32) < 0) {
-                return Err(BAD_POINT.into());
-            }
-            let mut w = [0u32; 19];
-            for (at, k) in [0, n - 1, n].into_iter().enumerate() {
-                let place = table.place(point(k))?;
-                w[at * 3..at * 3 + 3].copy_from_slice(&place);
-            }
-            triangle(&mut w);
-            let work: [u32; 15] = w[..15].try_into().expect("15 dwords");
-            let cross: [u32; 3] = w[15..18].try_into().expect("3 dwords");
-            crate::session::write_bits(&GROUND_WORK.normal_work, work);
-            crate::session::write_first(&FRAME_SCRATCH.work_vector, &cross);
-            // The carry of the compare: 0 below the product, or no number.
-            if w[18] & 0x100 == 0 {
-                return Ok(false);
-            }
-        }
-        Ok(true)
+pub fn face_faces_away(face: usize) -> Result<bool, Refused> {
+    let records: u32 = COURSE_LISTS.point_records.bits();
+    if face == 0 || records == 0 {
+        return Err(BadInput("no face or no records").into());
     }
+    let count: u32 = GamePtr::new(face as u32).read("a face")?;
+    DRAW.polygon_vertex_count.set_bits(count);
+    if count < 3 {
+        return Ok(true);
+    }
+    let len = (count as usize)
+        .checked_mul(0x10)
+        .and_then(|n| n.checked_add(0x10))
+        .ok_or(BadInput("a face of too many vertices"))?;
+    let words = GamePtr::new(face as u32).read_bytes(len, "a face")?;
+    let point = |n: u32| {
+        let at = 0x10 + n as usize * 0x10;
+        u32::from_le_bytes(words[at..at + 4].try_into().unwrap())
+    };
+    let table = crate::scene::reading::PointRecords::new(records)?;
+    for n in 2..count {
+        // The original looks at each triangle's numbers as it comes to it.
+        if [0, n - 1, n].into_iter().any(|k| (point(k) as i32) < 0) {
+            return Err(BAD_POINT.into());
+        }
+        let mut w = [0u32; 19];
+        for (at, k) in [0, n - 1, n].into_iter().enumerate() {
+            let place = table.place(point(k))?;
+            w[at * 3..at * 3 + 3].copy_from_slice(&place);
+        }
+        triangle(&mut w);
+        let work: [u32; 15] = w[..15].try_into().expect("15 dwords");
+        let cross: [u32; 3] = w[15..18].try_into().expect("3 dwords");
+        crate::session::write_bits(&GROUND_WORK.normal_work, work);
+        crate::session::write_first(&FRAME_SCRATCH.work_vector, &cross);
+        // The carry of the compare: 0 below the product, or no number.
+        if w[18] & 0x100 == 0 {
+            return Ok(false);
+        }
+    }
+    Ok(true)
 }
 
 #[cfg(test)]

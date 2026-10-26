@@ -10,6 +10,6 @@
 use crate::math::x87_run::scale_by_80;
 
 /// The Rust version: the vector at `v` times the 80-bit `factor`.
-pub unsafe fn scale_vector(v: u32, factor: [u8; 10]) {
-    unsafe { scale_by_80(v as *mut u32, factor) }
+pub fn scale_vector(v: u32, factor: [u8; 10]) {
+    scale_by_80(v as *mut u32, factor)
 }

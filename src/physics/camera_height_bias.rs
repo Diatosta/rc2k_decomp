@@ -22,7 +22,7 @@ use crate::scene::draw_store::DRAW;
 use crate::scene::x87_mem::{fistp, fld, fstp};
 
 /// The Rust version (the exact one, for `physics::update_camera`).
-pub unsafe fn camera_height_bias() {
+pub fn camera_height_bias() {
     let esi = record();
     if rd(esi + 0x54) == 0 {
         return;

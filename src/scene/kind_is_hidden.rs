@@ -16,7 +16,7 @@ use crate::race::work_store::RACE_WORK;
 use crate::scene::object_tables_store::OBJECT_TABLES;
 
 /// The Rust version: the object's (hidden, eax left).
-pub unsafe fn kind_is_hidden(object: u32) -> Result<(bool, u32), Refused> {
+pub fn kind_is_hidden(object: u32) -> Result<(bool, u32), Refused> {
     // Converted: `rc2k_core::scene::kinds::kind_is_hidden`.
     let settings = rc2k_core::scene::kinds::HideSettings {
         switch: RACE_WORK.in_credits.bits(),

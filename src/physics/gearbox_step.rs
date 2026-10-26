@@ -41,7 +41,7 @@ pub fn gearbox_step() -> Result<(), Refused> {
         GearboxTurn::Idle => {}
         GearboxTurn::Manual => manual_gearbox()?,
         GearboxTurn::Asked => {
-            unsafe { take_asked_gear() }?;
+            { take_asked_gear() }?;
             return Ok(());
         }
         GearboxTurn::Auto => auto_gearbox()?,

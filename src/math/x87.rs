@@ -102,7 +102,7 @@ pub fn rcpss_times(a: u32, b: u32) -> u32 {
 
 /// A row of one matrix times a column of another: `a[0] b[0] + (a[1] b[4] + a[2] b[8])`,
 /// the last two products added first, stored to `out`.
-pub unsafe fn row_times_column(a: *const u32, b: *const u32, out: *mut u32) {
+pub fn row_times_column(a: *const u32, b: *const u32, out: *mut u32) {
     span(a, 12);
     span(b, 36);
     span(out, 4);
@@ -114,7 +114,7 @@ pub unsafe fn row_times_column(a: *const u32, b: *const u32, out: *mut u32) {
 }
 
 /// `out = a + out`.
-pub unsafe fn add_into(a: *const u32, out: *mut u32) {
+pub fn add_into(a: *const u32, out: *mut u32) {
     span(a, 4);
     span(out, 4);
 
@@ -150,7 +150,7 @@ pub fn negated_product_difference(a: u32, b: u32, c: u32, d: u32) -> u32 {
 }
 
 /// The length of three floats: `sqrt(v0 v0 + (v1 v1 + v2 v2))`.
-pub unsafe fn length(v: *const u32) -> u32 {
+pub fn length(v: *const u32) -> u32 {
     span(v, 12);
 
     let (x, y, z) = unsafe { (load(v, 0), load(v, 1), load(v, 2)) };
@@ -231,7 +231,7 @@ pub fn mul_div_div_to_int(a: u32, b: u32, c: u32, d: u32) -> i32 {
 /// compared with `zero`; unless equal (or unordered), each of the three is divided by the
 /// root (not rounded to a float first) and stored back; then the root is stored. Returns
 /// the root's bits and whether it compared equal.
-pub unsafe fn normalise_in_place(v: *mut u32, zero: u32) -> (u32, bool) {
+pub fn normalise_in_place(v: *mut u32, zero: u32) -> (u32, bool) {
     span(v, 12);
 
     let (x, y, z) = unsafe { (load(v, 0), load(v, 1), load(v, 2)) };
@@ -269,7 +269,7 @@ pub fn int_div_div_doubled(a: i32, b: u32, c: u32) -> u32 {
 
 /// `math::turn_scratch_xz`'s turn: x' = x cos + z sin, z' = z cos - x sin, each rounded
 /// once, written back over x and z.
-pub unsafe fn turn_in_place(sine: *const u32, cosine: *const u32, x: *mut u32, z: *mut u32) {
+pub fn turn_in_place(sine: *const u32, cosine: *const u32, x: *mut u32, z: *mut u32) {
     span(sine, 4);
     span(cosine, 4);
     span(x, 4);
@@ -322,7 +322,7 @@ pub fn int_div_less(a: i32, b: u32, c: u32) -> u32 {
 
 /// `count` sines of an angle that starts at 0 and grows by `step` each time (the angle kept
 /// as a double, never rounded to a float), stored one dword each from `out`.
-pub unsafe fn sine_table(step: u32, out: *mut u32, count: u32) {
+pub fn sine_table(step: u32, out: *mut u32, count: u32) {
     span(out, 4 * count as usize);
 
     let step = bh::ld(step);
@@ -385,7 +385,7 @@ pub fn int_times_plus(a: i32, b: u32, c: u32) -> u32 {
 /// The step `(last - first) / by`, then for each of `count` whole numbers at `values` the
 /// number less the running sum, rounded to a whole number and stored back, and the sum
 /// grown by the step (both kept as doubles).
-pub unsafe fn ramp_down(values: *mut i32, count: u32, last: i32, first: i32, by: i32) {
+pub fn ramp_down(values: *mut i32, count: u32, last: i32, first: i32, by: i32) {
     span(values, 4 * count as usize);
 
     let step = (bh::int(last) - bh::int(first)) / bh::int(by);
@@ -514,7 +514,7 @@ pub fn set_control_word(w: u16) {
 
 /// `row_times_column` for 3 x 3 matrices: `b`'s column read 12 bytes apart.
 /// `row_times_column` for 3 x 3 matrices: `b`'s column read 12 bytes apart.
-pub unsafe fn row_times_column_3(a: *const u32, b: *const u32, out: *mut u32) {
+pub fn row_times_column_3(a: *const u32, b: *const u32, out: *mut u32) {
     span(a, 12);
     span(b, 28);
     span(out, 4);
@@ -528,7 +528,7 @@ pub unsafe fn row_times_column_3(a: *const u32, b: *const u32, out: *mut u32) {
 /// A point of three whole numbers turned by a 3 x 3 matrix: x m0 + (y m1 + z m2) and
 /// x m3 + (y m4 + z m5) rounded to whole numbers at `out` and `out + 4`, and
 /// y m7 + (x m6 + z m8) at `out + 8` (the original's order). `out` may be `p`.
-pub unsafe fn turn_int_point(p: *const i32, m: *const u32, out: *mut i32) {
+pub fn turn_int_point(p: *const i32, m: *const u32, out: *mut i32) {
     span(p, 12);
     span(m, 36);
     span(out, 12);
@@ -564,13 +564,14 @@ pub fn circle_curve(i: i32, a: u32, b: u32, negate: bool) -> u32 {
 /// cos(angle) r, the dword between left alone. The angle starts at 0 and grows by
 /// `pi / c * d` each time, kept as a double. `count` at least 1 (the original would run 2^32
 /// times on 0; here nothing is done).
-pub unsafe fn circle_points(
-    r: *const u32,
-    out: *mut u32,
-    count: u32,
-    c: *const i32,
-    d: *const u32,
-) {
+pub fn circle_points(r: *const u32, out: *mut u32, count: u32, c: *const i32, d: *const u32) {
+    if count == 0 {
+        return;
+    }
+    span(r, 4);
+    span(c, 4);
+    span(d, 4);
+    span(out, 4 * (3 * (count as usize - 1) + 2));
     let mut angle = bh::X(0.0);
     for i in 0..count as usize {
         let (sin, cos) = angle.sin_cos();
@@ -603,7 +604,7 @@ pub fn cosine_step(c: i32, m: i32, t: u32, a: u32) -> u32 {
 
 /// Three floats at `row` each times `c` over their length: the root of
 /// `x x + (y y + z z)`, `c / root`, then each times that, rounded once and stored in turn.
-pub unsafe fn scale_row(row: *mut u32, c: u32) {
+pub fn scale_row(row: *mut u32, c: u32) {
     span(row, 12);
 
     let (x, y, z) = unsafe { (load(row, 0), load(row, 1), load(row, 2)) };
@@ -770,7 +771,7 @@ pub fn int_plus_less_squared(y: i32, a: u32, b: u32) -> u32 {
 /// One of the marks' kind records (0x30 bytes, 12 floats): +0xC and +0x24 negated in
 /// place, then each of the twelve times a / b (kept unrounded) rounded to a whole number in
 /// place.
-pub unsafe fn scale_record(r: *mut u32, a: u32, b: u32) {
+pub fn scale_record(r: *mut u32, a: u32, b: u32) {
     span(r, 48);
 
     unsafe {
@@ -1011,7 +1012,8 @@ pub fn abs_sum_times_to_int(a: u32, b: u32, k: u32) -> i32 {
 /// The point (a, b, c) (a on top of the x87 stack) by the matrix at `m` (its rows 0x10
 /// apart, as floats): x = (m0 a + (m4 b + m8 c)) [+ m12], y from m1, m5, m9 [m13], z from
 /// m2, m6, m10 [m14], unrounded.
-unsafe fn matrix_turn(m: *const u32, a: bh::X, b: bh::X, c: bh::X, translate: bool) -> [bh::X; 3] {
+fn matrix_turn(m: *const u32, a: bh::X, b: bh::X, c: bh::X, translate: bool) -> [bh::X; 3] {
+    span(m, 0x3C);
     let mut out = [bh::X(0.0); 3];
     for (col, o) in out.iter_mut().enumerate() {
         let at = |row: usize| bh::ld(unsafe { m.add(row * 4 + col).read() });
@@ -1027,13 +1029,13 @@ unsafe fn matrix_turn(m: *const u32, a: bh::X, b: bh::X, c: bh::X, translate: bo
 /// `sub_4CE05E`'s point: (-t0 k, (t1 - d) k, t2 k) turned by the matrix at `m` (its rows
 /// 0x10 apart), placed by +0x30 .. and the place taken off again; then x, y, y less
 /// `lift`, z.
-pub unsafe fn turned_place_less(t: [u32; 3], k: u32, d: u32, lift: u32, m: u32) -> [u32; 4] {
+pub fn turned_place_less(t: [u32; 3], k: u32, d: u32, lift: u32, m: u32) -> [u32; 4] {
     let kf = bh::ld(k);
     let a = -bh::ld(t[0]) * kf;
     let b = (bh::ld(t[1]) - bh::ld(d)) * kf;
     let c = bh::ld(t[2]) * kf;
     let m = m as usize as *const u32;
-    let [x, y, z] = unsafe { matrix_turn(m, c, b, a, true) };
+    let [x, y, z] = matrix_turn(m, c, b, a, true);
     let at = |i: usize| bh::ld(unsafe { m.add(i).read() });
     [
         bh::st(x - at(12)),
@@ -1068,9 +1070,9 @@ pub fn mul_80(a: u32, b: u32) -> [u8; 10] {
 
 /// The point (p0, p1, p2) turned and placed by the matrix at `m`; then x, y, y less
 /// `lift`, z.
-pub unsafe fn turned_place(p: [u32; 3], lift: u32, m: u32) -> [u32; 4] {
+pub fn turned_place(p: [u32; 3], lift: u32, m: u32) -> [u32; 4] {
     let m = m as usize as *const u32;
-    let [x, y, z] = unsafe { matrix_turn(m, bh::ld(p[0]), bh::ld(p[1]), bh::ld(p[2]), true) };
+    let [x, y, z] = matrix_turn(m, bh::ld(p[0]), bh::ld(p[1]), bh::ld(p[2]), true);
     [bh::st(x), bh::st(y), bh::st(y - bh::ld(lift)), bh::st(z)]
 }
 
@@ -1109,9 +1111,10 @@ pub fn normalised3(p: [u32; 3], one: u32) -> [u32; 3] {
 
 /// `sub_4C9AF6`'s third side: the cross product of (p0, p1, p2) and the vector at `w`
 /// (unrounded) turned by the transposed matrix at `m` (rows 0x10 apart).
-pub unsafe fn crossed_turned(p: [u32; 3], w: u32, m: u32) -> [u32; 3] {
+pub fn crossed_turned(p: [u32; 3], w: u32, m: u32) -> [u32; 3] {
     let wp = w as usize as *const u32;
     let m = m as usize as *const u32;
+    span(wp, 12);
     let (p0, p1, p2) = (bh::ld(p[0]), bh::ld(p[1]), bh::ld(p[2]));
     let (w0, w1, w2) = unsafe {
         (
@@ -1123,7 +1126,7 @@ pub unsafe fn crossed_turned(p: [u32; 3], w: u32, m: u32) -> [u32; 3] {
     let cz = p0 * w1 - p1 * w0;
     let cy = p2 * w0 - p0 * w2;
     let cx = p1 * w2 - p2 * w1;
-    let [x, y, z] = unsafe { matrix_turn(m, cx, cy, cz, false) };
+    let [x, y, z] = matrix_turn(m, cx, cy, cz, false);
     [bh::st(x), bh::st(y), bh::st(z)]
 }
 
@@ -1224,7 +1227,7 @@ pub fn diff_times_plus_times(b: u32, a: u32, k: u32, c: u32, m: u32) -> u32 {
 /// columns, each (m[c] x + (m[c+4] y + m[c+8] z)) + m[c+12]; the three rounded.
 pub fn column_turn(p: &[[u8; 10]; 3], m: u32) -> [u32; 3] {
     let m = m as usize as *const u32;
-    let [x, y, z] = unsafe {
+    let [x, y, z] = {
         matrix_turn(
             m,
             bh::from_f80(p[0]),

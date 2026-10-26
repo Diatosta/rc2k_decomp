@@ -13,29 +13,27 @@ use crate::physics::car_store::CAR;
 use crate::physics::tables_store::PHYSICS;
 use rc2k_core::physics::gearing::drops_to_neutral;
 
-unsafe fn at(a: u32) -> u32 {
+fn at(a: u32) -> u32 {
     crate::pointers::read_or_end::<u32>(a, "physics::drop_to_neutral's operand")
 }
 
-unsafe fn put(a: u32, v: u32) {
+fn put(a: u32, v: u32) {
     crate::pointers::write_or_end::<u32>(a, v, "physics::drop_to_neutral's operand")
 }
 
 /// The Rust core on the variables at `v` (in `VARIABLES`' order; a compare of floats
 /// only: the same at any precision).
 // Converted: `rc2k_core::physics::gearing::drops_to_neutral`.
-pub unsafe fn drop_to_neutral_at(v: &[u32; 10]) {
-    unsafe {
-        let f = |k: usize| f32::from_bits(at(v[k]));
-        if !drops_to_neutral(at(v[0]), at(v[1]), f(2), f(3), || at(v[4])) {
-            return;
-        }
-        put(v[1], 0);
-        put(v[6], at(v[5]));
-        put(v[7], 0x14);
-        put(v[8], 1);
-        put(v[9], 1);
+pub fn drop_to_neutral_at(v: &[u32; 10]) {
+    let f = |k: usize| f32::from_bits(at(v[k]));
+    if !drops_to_neutral(at(v[0]), at(v[1]), f(2), f(3), || at(v[4])) {
+        return;
     }
+    put(v[1], 0);
+    put(v[6], at(v[5]));
+    put(v[7], 0x14);
+    put(v[8], 1);
+    put(v[9], 1);
 }
 
 fn game() -> [u32; 10] {
@@ -54,6 +52,6 @@ fn game() -> [u32; 10] {
 }
 
 /// The Rust version.
-pub unsafe fn drop_to_neutral() {
-    unsafe { drop_to_neutral_at(&game()) }
+pub fn drop_to_neutral() {
+    drop_to_neutral_at(&game())
 }

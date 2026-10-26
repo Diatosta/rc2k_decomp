@@ -14,7 +14,7 @@ use crate::errors::BadInput;
 // The original's last instruction that sets flags is `and ebx, 3` on the length.
 // ---- Rust version ----
 
-pub unsafe fn zero_memory(block: *mut u8, length: u32) -> Result<(), BadInput> {
+pub fn zero_memory(block: *mut u8, length: u32) -> Result<(), BadInput> {
     if length == 0 {
         return Ok(());
     }

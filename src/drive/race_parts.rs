@@ -28,7 +28,7 @@ pub fn take_key() {
 
 /// `race::race_keys`.
 pub fn race_keys() -> Result<(), Refused> {
-    unsafe { crate::race::frame::race_keys() }?;
+    { crate::race::frame::race_keys() }?;
     Ok(())
 }
 

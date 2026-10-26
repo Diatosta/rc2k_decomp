@@ -31,7 +31,7 @@ pub struct Edit {
 }
 
 /// The Rust version (see the header).
-pub unsafe fn begin_edit(e: Edit) -> Result<(), Refused> {
+pub fn begin_edit(e: Edit) -> Result<(), Refused> {
     let item = flagged_item()?;
 
     // Converted: `rc2k_core::service::repairs::may_edit`.

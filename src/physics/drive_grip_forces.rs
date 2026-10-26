@@ -52,7 +52,7 @@ fn steer_force(e: u32) {
 }
 
 /// The Rust version. The eax, ebx and edx it leaves are read by none of its callers.
-pub unsafe fn drive_grip_forces() {
+pub fn drive_grip_forces() {
     let mut edx;
     let kind = CAR.drive_kind.get();
     // 0x43CD79: the share of +0x1F4 out of 50, from 1, held 0 ..= 1.

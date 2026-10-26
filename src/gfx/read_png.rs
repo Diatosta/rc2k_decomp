@@ -39,7 +39,7 @@ const HEAD_LEN: u32 = 0x80;
 // ---- Rust version ----
 
 /// What comes before the memory is taken: whether the file's head is a PNG the game takes.
-unsafe fn head_is_taken(path: *const u8) -> Result<bool, Refused> {
+fn head_is_taken(path: *const u8) -> Result<bool, Refused> {
     let head = crate::gfx::png::info().cast::<u8>();
     let place = GamePtr::new(head as usize as u32);
     place.write(0u32, "the PNG head")?;

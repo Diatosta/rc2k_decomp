@@ -100,7 +100,7 @@ pub fn lobby_frame() -> Result<(), Refused> {
             } else {
                 NAME_FONT
             };
-            let name = unsafe {
+            let name = {
                 crate::text::draw_text::draw_text_at(
                     font.as_ptr(),
                     TEXT_BUFFER.text.addr() as *const u8,
@@ -128,7 +128,7 @@ pub fn lobby_frame() -> Result<(), Refused> {
             if time == players::NO_TIME {
                 cursor.string_id(screens::NO_TIME);
                 cursor.nul()?;
-                let out = unsafe {
+                let out = {
                     crate::text::draw_text::draw_text_at(
                         NAME_FONT.as_ptr(),
                         TEXT_BUFFER.text.addr() as *const u8,
@@ -141,7 +141,7 @@ pub fn lobby_frame() -> Result<(), Refused> {
             } else {
                 time_text(&mut cursor, time, gaps, first_time)?;
                 cursor.nul()?;
-                unsafe {
+                {
                     crate::text::draw_time_text::draw_time_text(
                         FONT.as_ptr(),
                         TEXT_BUFFER.text.addr() as u32,
@@ -160,7 +160,7 @@ pub fn lobby_frame() -> Result<(), Refused> {
                 first_total,
             )?;
             cursor.nul()?;
-            unsafe {
+            {
                 crate::text::draw_time_text::draw_time_text(
                     FONT.as_ptr(),
                     TEXT_BUFFER.text.addr() as u32,
@@ -176,7 +176,7 @@ pub fn lobby_frame() -> Result<(), Refused> {
     }
     y = 0x158;
     crate::net::lock_received::lock_received();
-    unsafe {
+    {
         crate::text::draw_text::draw_text_at(
             CHAT_FONT.as_ptr(),
             (NET.chat.addr() as u32) as *const u8,

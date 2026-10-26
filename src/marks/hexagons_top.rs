@@ -64,59 +64,57 @@ fn point_turned(p: u32) {
 
 /// The Rust version (see the header).
 pub fn hexagons_top() -> Result<(), Refused> {
-    unsafe {
-        let s: u32 = crate::marks::setup::SETTINGS.pointer.get();
-        if s == 0 {
-            return Err(BadInput("no marks settings").into());
-        }
-        HEX.buffer.set(HEXAGON_BATCH.records.addr() as u32);
-        frame_axes(s);
-        let [a0, a1, a2] = [0, 3, 6].map(|n| HEXAGON_WORK.axes[n].addr() as u32);
-        normalise_vector3(a0);
-        frame_up(s);
-        normalise_vector3(a1);
-        cross_product3(a1, a0, a2)?;
-        normalise_vector3(a2);
-        cross_product3(a0, a2, a1)?;
-        frame_place(s);
-        normalise_vector3(HEX.place.as_ptr() as u32);
-        frame_facing();
-        if HEXAGON_STATE.facing.bits() & 0x8000_0000 == 0 {
-            return Ok(());
-        }
-        let [kx, ky] = HEXAGON_WORK.shares.each_ref().map(|f| f.bits());
-        for n in 0..POINTS as usize {
-            let (p, o) = (3 * n, 3 * n);
-            HEXAGON_WORK.scaled[o].set_bits(x87::mul(HEXAGON_WORK.points[p].bits(), kx));
-            HEXAGON_WORK.scaled[o + 1].set_bits(x87::mul(HEXAGON_WORK.points[p + 1].bits(), ky));
-            HEXAGON_WORK.scaled[o + 2].set_bits(0);
-        }
-        for n in 0..POINTS {
-            point_turned(HEXAGON_WORK.scaled[0].addr() as u32 + 12 * n);
-        }
-        if HEXAGON_STATE.rate.bits() != 0 {
-            crate::marks::hexagons_frame::hexagons_frame()?;
-            let at_now: u32 = HEX.buffer.get();
-            if at_now != HEXAGON_BATCH.records.addr() as u32 {
-                let quads = x87::int_over_int_to_int(
-                    at_now.wrapping_sub(HEXAGON_BATCH.records.addr() as u32) as i32,
-                    HEX.per_vertex.get() as i32,
-                ) as u32;
-                HEX.buffer.set(HEXAGON_BATCH.records.addr() as u32);
-                HEXAGON_BATCH.index_count.set(quads.wrapping_mul(12));
-                HEXAGON_BATCH.vertex_count.set(quads.wrapping_mul(6));
-                crate::marks::hexagons_frame::draw_batch()?;
-            }
-            let settings: u32 = crate::marks::setup::SETTINGS.pointer.get();
-            if GamePtr::new(settings + 0x2744).read::<u32>("a mark's field")? != 0
-                && MARKS_KIND_FLOATS.running.bits() != 0
-            {
-                crate::marks::hexagons_step::hexagons_step()?;
-            }
-        }
-        crate::scene::set_texture::set_texture(KIND_TEXTURES.kind_first_slots[202].bits());
-        DRAW.polygon_vertex_count.set_bits(4u32);
+    let s: u32 = crate::marks::setup::SETTINGS.pointer.get();
+    if s == 0 {
+        return Err(BadInput("no marks settings").into());
     }
+    HEX.buffer.set(HEXAGON_BATCH.records.addr() as u32);
+    frame_axes(s);
+    let [a0, a1, a2] = [0, 3, 6].map(|n| HEXAGON_WORK.axes[n].addr() as u32);
+    normalise_vector3(a0);
+    frame_up(s);
+    normalise_vector3(a1);
+    cross_product3(a1, a0, a2)?;
+    normalise_vector3(a2);
+    cross_product3(a0, a2, a1)?;
+    frame_place(s);
+    normalise_vector3(HEX.place.as_ptr() as u32);
+    frame_facing();
+    if HEXAGON_STATE.facing.bits() & 0x8000_0000 == 0 {
+        return Ok(());
+    }
+    let [kx, ky] = HEXAGON_WORK.shares.each_ref().map(|f| f.bits());
+    for n in 0..POINTS as usize {
+        let (p, o) = (3 * n, 3 * n);
+        HEXAGON_WORK.scaled[o].set_bits(x87::mul(HEXAGON_WORK.points[p].bits(), kx));
+        HEXAGON_WORK.scaled[o + 1].set_bits(x87::mul(HEXAGON_WORK.points[p + 1].bits(), ky));
+        HEXAGON_WORK.scaled[o + 2].set_bits(0);
+    }
+    for n in 0..POINTS {
+        point_turned(HEXAGON_WORK.scaled[0].addr() as u32 + 12 * n);
+    }
+    if HEXAGON_STATE.rate.bits() != 0 {
+        crate::marks::hexagons_frame::hexagons_frame()?;
+        let at_now: u32 = HEX.buffer.get();
+        if at_now != HEXAGON_BATCH.records.addr() as u32 {
+            let quads = x87::int_over_int_to_int(
+                at_now.wrapping_sub(HEXAGON_BATCH.records.addr() as u32) as i32,
+                HEX.per_vertex.get() as i32,
+            ) as u32;
+            HEX.buffer.set(HEXAGON_BATCH.records.addr() as u32);
+            HEXAGON_BATCH.index_count.set(quads.wrapping_mul(12));
+            HEXAGON_BATCH.vertex_count.set(quads.wrapping_mul(6));
+            crate::marks::hexagons_frame::draw_batch()?;
+        }
+        let settings: u32 = crate::marks::setup::SETTINGS.pointer.get();
+        if GamePtr::new(settings + 0x2744).read::<u32>("a mark's field")? != 0
+            && MARKS_KIND_FLOATS.running.bits() != 0
+        {
+            crate::marks::hexagons_step::hexagons_step()?;
+        }
+    }
+    crate::scene::set_texture::set_texture(KIND_TEXTURES.kind_first_slots[202].bits());
+    DRAW.polygon_vertex_count.set_bits(4u32);
     Ok(())
 }
 

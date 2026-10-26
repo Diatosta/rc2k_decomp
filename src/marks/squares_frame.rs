@@ -50,40 +50,38 @@ fn frame_facing() {
 
 /// The Rust version (see the header).
 pub fn squares_frame() -> Result<(), Refused> {
-    unsafe {
-        let s: u32 = crate::marks::setup::SETTINGS.pointer.get();
-        if s == 0 {
-            return Err(BadInput("no marks settings").into());
-        }
-        frame_axes(s);
-        let [a0, a1, a2] = [0, 1, 2].map(|n| address_of(&SQUARE_TABLES.axes[n]) as u32);
-        normalise_vector3(a0);
-        frame_up(s);
-        normalise_vector3(a1);
-        cross_product3(a1, a0, a2)?;
-        normalise_vector3(a2);
-        cross_product3(a0, a2, a1)?;
-        crate::marks::scale_axes::scale_axes();
-        frame_place(s);
-        normalise_vector3(HEX.place.as_ptr() as u32);
-        frame_facing();
-        if HEXAGON_STATE.facing.bits() & 0x8000_0000 == 0 {
-            return Ok(());
-        }
-        crate::marks::run_pong::run_pong()?;
-        if x87::mul_to_int(SQUARE_TIMING.rate.bits(), SQUARE_STATE.share.bits()) == 0 {
-            return Ok(());
-        }
-        crate::marks::run_squares::run_squares()?;
-        let s: u32 = crate::marks::setup::SETTINGS.pointer.get();
-        if GamePtr::new(s + 0x2744).read::<u32>("a mark's field")? == 0 {
-            return Ok(());
-        }
-        if MARKS_KIND_FLOATS.running.bits() == 0 {
-            return Ok(());
-        }
-        squares_step()?;
+    let s: u32 = crate::marks::setup::SETTINGS.pointer.get();
+    if s == 0 {
+        return Err(BadInput("no marks settings").into());
     }
+    frame_axes(s);
+    let [a0, a1, a2] = [0, 1, 2].map(|n| address_of(&SQUARE_TABLES.axes[n]) as u32);
+    normalise_vector3(a0);
+    frame_up(s);
+    normalise_vector3(a1);
+    cross_product3(a1, a0, a2)?;
+    normalise_vector3(a2);
+    cross_product3(a0, a2, a1)?;
+    crate::marks::scale_axes::scale_axes();
+    frame_place(s);
+    normalise_vector3(HEX.place.as_ptr() as u32);
+    frame_facing();
+    if HEXAGON_STATE.facing.bits() & 0x8000_0000 == 0 {
+        return Ok(());
+    }
+    crate::marks::run_pong::run_pong()?;
+    if x87::mul_to_int(SQUARE_TIMING.rate.bits(), SQUARE_STATE.share.bits()) == 0 {
+        return Ok(());
+    }
+    crate::marks::run_squares::run_squares()?;
+    let s: u32 = crate::marks::setup::SETTINGS.pointer.get();
+    if GamePtr::new(s + 0x2744).read::<u32>("a mark's field")? == 0 {
+        return Ok(());
+    }
+    if MARKS_KIND_FLOATS.running.bits() == 0 {
+        return Ok(());
+    }
+    squares_step()?;
     Ok(())
 }
 

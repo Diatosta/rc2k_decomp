@@ -38,47 +38,45 @@ fn records(table: u32) -> Result<usize, BadInput> {
     )?)
 }
 
-pub unsafe fn default_stage_records(table: u32) -> Result<(), Refused> {
-    unsafe {
-        if table == 0 {
-            return Err(BadInput("no record table").into());
-        }
-        if GamePtr::new(table + 0x54).read::<u8>("a record name")? != 0 {
-            return Ok(());
-        }
-        // (the record, the dwords by offset, the two names by offset)
-        type Made = (u32, [(u32, u32); 6], [(u32, Vec<u8>); 2]);
-        let mut made: Vec<Made> = Vec::new();
-        for n in 0..records(table)? {
-            let record = table + (n * RECORD_LEN) as u32;
-            if GamePtr::new(record).read::<u32>("a record tag")? != 0 {
-                continue;
-            }
-            let first = Driver::number(random_below(0xAA)?)?;
-            let time = random_below(0xAA)?.wrapping_add(1000);
-            let second = Driver::number(random_below(0xAA)?)?;
-            let speed = random_below(0xAA)?.wrapping_add(1000);
-            made.push((
-                record,
-                [
-                    (0x74, first.nation()),
-                    (0x78, first.car()),
-                    (0x30, time),
-                    (0x9C, second.nation()),
-                    (0xA0, second.car()),
-                    (0x2C, speed),
-                ],
-                [(0x54, first.name()?.1), (0x7C, second.name()?.1)],
-            ));
-        }
-        for (record, dwords, names) in made {
-            for (offset, value) in dwords {
-                GamePtr::new(record + offset).write(value, "a stage record")?;
-            }
-            for (offset, name) in names {
-                GamePtr::new(record + offset).write_bytes(&name, "a stage record")?;
-            }
-        }
-        Ok(())
+pub fn default_stage_records(table: u32) -> Result<(), Refused> {
+    if table == 0 {
+        return Err(BadInput("no record table").into());
     }
+    if GamePtr::new(table + 0x54).read::<u8>("a record name")? != 0 {
+        return Ok(());
+    }
+    // (the record, the dwords by offset, the two names by offset)
+    type Made = (u32, [(u32, u32); 6], [(u32, Vec<u8>); 2]);
+    let mut made: Vec<Made> = Vec::new();
+    for n in 0..records(table)? {
+        let record = table + (n * RECORD_LEN) as u32;
+        if GamePtr::new(record).read::<u32>("a record tag")? != 0 {
+            continue;
+        }
+        let first = Driver::number(random_below(0xAA)?)?;
+        let time = random_below(0xAA)?.wrapping_add(1000);
+        let second = Driver::number(random_below(0xAA)?)?;
+        let speed = random_below(0xAA)?.wrapping_add(1000);
+        made.push((
+            record,
+            [
+                (0x74, first.nation()),
+                (0x78, first.car()),
+                (0x30, time),
+                (0x9C, second.nation()),
+                (0xA0, second.car()),
+                (0x2C, speed),
+            ],
+            [(0x54, first.name()?.1), (0x7C, second.name()?.1)],
+        ));
+    }
+    for (record, dwords, names) in made {
+        for (offset, value) in dwords {
+            GamePtr::new(record + offset).write(value, "a stage record")?;
+        }
+        for (offset, name) in names {
+            GamePtr::new(record + offset).write_bytes(&name, "a stage record")?;
+        }
+    }
+    Ok(())
 }

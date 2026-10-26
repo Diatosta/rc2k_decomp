@@ -100,7 +100,7 @@ pub type Screenshot<'a> = &'a mut dyn FnMut();
 
 /// `gfx::screenshot_if_key` (0x43B573): `gfx::take_screenshot` while key 0x52 (Numpad 0) is down
 /// (in `g_keysNow`). Every register preserved.
-pub unsafe fn screenshot_if_key(shot: Screenshot) {
+pub fn screenshot_if_key(shot: Screenshot) {
     // Converted: `rc2k_core::input::frame::screenshot_wanted`.
     if rc2k_core::input::frame::screenshot_wanted(DEVICES.keys_now.get(SCREENSHOT_KEY as usize)) {
         shot();
@@ -109,7 +109,7 @@ pub unsafe fn screenshot_if_key(shot: Screenshot) {
 
 /// `input::end_frame` (0x43AA91): with `g_screenshotsOn`, `check` (`screenshot_if_key`);
 /// then `dword_6138F4` and `dword_6138F8` 0. Every register preserved.
-pub unsafe fn end_frame(check: Screenshot) {
+pub fn end_frame(check: Screenshot) {
     // Converted: `rc2k_core::input::frame::end_frame`.
     let left = rc2k_core::input::frame::end_frame(crate::gfx::shots::on(), check);
     for (cell, value) in PHYSICS.frame_cleared.iter().zip(left) {
@@ -137,13 +137,13 @@ pub fn update_input(shot: Screenshot) -> (u32, u32) {
     let (_, edx) = find_pressed_keys();
     repeat_keys();
     let right = take_mouse_clicks();
-    unsafe { end_frame(&mut || screenshot_if_key(&mut *shot)) };
+    end_frame(&mut || screenshot_if_key(&mut *shot));
     (right, edx)
 }
 
 /// In the game: `gfx::take_screenshot`'s Rust version.
 pub fn game_screenshot() {
     if let Err(e) = crate::gfx::take_screenshot::take_screenshot() {
-        unsafe { crate::fatal::raise::refused_in("gfx::take_screenshot", e, &Regs::default()) };
+        crate::fatal::raise::refused_in("gfx::take_screenshot", e, &Regs::default());
     }
 }

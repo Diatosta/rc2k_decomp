@@ -22,25 +22,23 @@ use crate::service::state::edit_mode;
 
 // ---- Rust version ----
 
-pub unsafe fn handle_edit_keys() -> Result<(), Refused> {
+pub fn handle_edit_keys() -> Result<(), Refused> {
     if !edit_mode() {
         return Ok(());
     }
-    unsafe {
-        // Converted: `rc2k_core::service::setups::EditPage`.
-        use rc2k_core::service::setups::EditPage;
-        match EditPage::from_number(MENU_STATE.service_ui.box_page.get()) {
-            Some(EditPage::GearRatio) => edit_gear_ratio(false),
-            Some(EditPage::Tyre) => edit_tyre(false),
-            Some(EditPage::SteeringSensitivity) => edit_steering_sensitivity(),
-            Some(EditPage::BrakeBalance) => edit_brake_balance(),
-            Some(EditPage::RideHeight) => edit_ride_height(false),
-            Some(EditPage::SuspensionStiffness) => edit_suspension_stiffness(false),
-            None => Err(FatalError {
-                code: 0x8070_9A9A,
-                message: "Incorrect Locked Box",
-            }
-            .into()),
+    // Converted: `rc2k_core::service::setups::EditPage`.
+    use rc2k_core::service::setups::EditPage;
+    match EditPage::from_number(MENU_STATE.service_ui.box_page.get()) {
+        Some(EditPage::GearRatio) => edit_gear_ratio(false),
+        Some(EditPage::Tyre) => edit_tyre(false),
+        Some(EditPage::SteeringSensitivity) => edit_steering_sensitivity(),
+        Some(EditPage::BrakeBalance) => edit_brake_balance(),
+        Some(EditPage::RideHeight) => edit_ride_height(false),
+        Some(EditPage::SuspensionStiffness) => edit_suspension_stiffness(false),
+        None => Err(FatalError {
+            code: 0x8070_9A9A,
+            message: "Incorrect Locked Box",
         }
+        .into()),
     }
 }

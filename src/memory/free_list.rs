@@ -23,7 +23,7 @@ use windows_sys::Win32::System::Memory::{MEM_RELEASE, VirtualFree};
 
 // ---- Rust version ----
 
-pub unsafe fn free_list(list: *mut MemoryList) -> Result<(), BadInput> {
+pub fn free_list(list: *mut MemoryList) -> Result<(), BadInput> {
     if list.is_null() {
         return Ok(());
     }

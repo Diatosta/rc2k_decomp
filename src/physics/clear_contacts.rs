@@ -12,6 +12,6 @@ use crate::physics::tables_store::PHYSICS;
 const COUNT: u32 = 7;
 
 /// The Rust version.
-pub unsafe fn clear_contacts() -> Result<(), Refused> {
-    unsafe { clear_records((PHYSICS.contacts.as_ptr() as usize) as u32, COUNT) }
+pub fn clear_contacts() -> Result<(), Refused> {
+    clear_records((PHYSICS.contacts.as_ptr() as usize) as u32, COUNT)
 }

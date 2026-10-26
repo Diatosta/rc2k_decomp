@@ -22,51 +22,49 @@ use crate::physics::tables_store::PHYSICS;
 use crate::race::vars_store::RACE_VARS;
 use rc2k_core::physics::gearbox::{GearCar, GearInputs};
 
-unsafe fn get(v: &[u32], k: usize) -> u32 {
+fn get(v: &[u32], k: usize) -> u32 {
     crate::pointers::read_or_end::<u32>(v[k], "physics::gear_input_rules's operand")
 }
 
-unsafe fn put(v: &[u32], k: usize, x: u32) {
+fn put(v: &[u32], k: usize, x: u32) {
     crate::pointers::write_or_end::<u32>(v[k], x, "physics::gear_input_rules's operand")
 }
 
 /// The Rust version on the variables at `v`; what the rules change is written back. The
 /// eax it leaves (the joined input) is read by none of its callers.
 // Converted: `rc2k_core::physics::gearbox::GearInputs::apply_rules`.
-pub unsafe fn rules_at(v: &[u32]) {
-    unsafe {
-        let car = GearCar {
-            state: get(v, 0),
-            box_mode: get(v, 7),
-            timer: get(v, 9),
-            race_mode: get(v, 10),
-            switches: [get(v, 12), get(v, 13), get(v, 14)],
-        };
-        let before = GearInputs {
-            w90: get(v, 11),
-            first: get(v, 3),
-            second: get(v, 4),
-            hold: get(v, 5),
-            wa0: get(v, 2),
-            wa4: get(v, 1),
-            joined: get(v, 8),
-        };
-        let gear_before = get(v, 6);
-        let (mut inputs, mut gear) = (before, gear_before);
-        inputs.apply_rules(&mut gear, &car);
-        for (k, now, was) in [
-            (11, inputs.w90, before.w90),
-            (3, inputs.first, before.first),
-            (4, inputs.second, before.second),
-            (5, inputs.hold, before.hold),
-            (2, inputs.wa0, before.wa0),
-            (1, inputs.wa4, before.wa4),
-            (8, inputs.joined, before.joined),
-            (6, gear, gear_before),
-        ] {
-            if now != was {
-                put(v, k, now);
-            }
+pub fn rules_at(v: &[u32]) {
+    let car = GearCar {
+        state: get(v, 0),
+        box_mode: get(v, 7),
+        timer: get(v, 9),
+        race_mode: get(v, 10),
+        switches: [get(v, 12), get(v, 13), get(v, 14)],
+    };
+    let before = GearInputs {
+        w90: get(v, 11),
+        first: get(v, 3),
+        second: get(v, 4),
+        hold: get(v, 5),
+        wa0: get(v, 2),
+        wa4: get(v, 1),
+        joined: get(v, 8),
+    };
+    let gear_before = get(v, 6);
+    let (mut inputs, mut gear) = (before, gear_before);
+    inputs.apply_rules(&mut gear, &car);
+    for (k, now, was) in [
+        (11, inputs.w90, before.w90),
+        (3, inputs.first, before.first),
+        (4, inputs.second, before.second),
+        (5, inputs.hold, before.hold),
+        (2, inputs.wa0, before.wa0),
+        (1, inputs.wa4, before.wa4),
+        (8, inputs.joined, before.joined),
+        (6, gear, gear_before),
+    ] {
+        if now != was {
+            put(v, k, now);
         }
     }
 }
@@ -92,6 +90,6 @@ fn game() -> Vec<u32> {
 }
 
 /// The Rust version.
-pub unsafe fn gear_input_rules() {
-    unsafe { rules_at(&game()) }
+pub fn gear_input_rules() {
+    rules_at(&game())
 }

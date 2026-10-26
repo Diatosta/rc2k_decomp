@@ -28,9 +28,7 @@ pub fn reset_marks() -> Result<(), Refused> {
         crate::race::viewer_buffers_store::VIEWER_BUFFERS
             .mark_out
             .set(mark_out);
-        unsafe {
-            crate::drive::read_replay_frame_0::read_replay_frame_0(REPLAY_VIEW.replay_block.get())
-        }?;
+        { crate::drive::read_replay_frame_0::read_replay_frame_0(REPLAY_VIEW.replay_block.get()) }?;
         Ok(())
     }
 }

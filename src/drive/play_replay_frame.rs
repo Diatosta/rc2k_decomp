@@ -15,7 +15,7 @@ use crate::race::viewer_state_store::REPLAY_VIEW;
 
 /// The Rust version.
 // Converted: `rc2k_core::drive::race_steps::play_frame`.
-pub unsafe fn play_replay_frame() -> Result<(), Refused> {
+pub fn play_replay_frame() -> Result<(), Refused> {
     let Some(whole) = rc2k_core::drive::race_steps::play_frame(NUMBERS.replay_mode.get(), || {
         REPLAY_FRAMES.step_block.set(REPLAY_VIEW.replay_block.get());
         REPLAY_FRAMES.step_frame.set(REPLAY_VIEW.replay_frame.get());
@@ -24,9 +24,9 @@ pub unsafe fn play_replay_frame() -> Result<(), Refused> {
         return Ok(());
     };
     if whole {
-        unsafe { crate::drive::load_replay_frame::load_replay_frame() }?;
+        { crate::drive::load_replay_frame::load_replay_frame() }?;
         crate::drive::replay_check::compare_frame()?;
         crate::drive::load_replay_cars::load_replay_cars()?;
     }
-    unsafe { crate::drive::replay_cameras::replay_cameras() }
+    crate::drive::replay_cameras::replay_cameras()
 }

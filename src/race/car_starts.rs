@@ -156,17 +156,15 @@ pub unsafe fn reset_car_motion() -> Result<(), Refused> {
 /// `math::turn_point_xz` of (x, 0, z) by the start place's heading: x and z moved. The
 /// original's y there is a leftover in ebx; it lands only in `g_scratchY`, which every
 /// reader writes first.
-unsafe fn move_turned(x: u32, z: u32) {
-    unsafe {
-        let [x, _, z, _] = crate::math::turn_point_xz::turn_point_xz(
-            x as i32,
-            0,
-            z as i32,
-            COURSE.place_heading.bits(),
-        );
-        add(&CAR.position[0], x);
-        add(&CAR.position[2], z);
-    }
+fn move_turned(x: u32, z: u32) {
+    let [x, _, z, _] = crate::math::turn_point_xz::turn_point_xz(
+        x as i32,
+        0,
+        z as i32,
+        COURSE.place_heading.bits(),
+    );
+    add(&CAR.position[0], x);
+    add(&CAR.position[2], z);
 }
 
 /// `race::start_car` (0x4464AD): the work car's +0x478, +0x694 0, +0xAD4/+0xAD8

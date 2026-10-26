@@ -18,20 +18,18 @@ use crate::scene::x87_mem::{fistp, fld};
 
 // ---- Rust version ----
 
-pub unsafe fn light_dot() -> i32 {
-    unsafe {
-        let [p0, p1, p2] = crate::session::read_bits(&LIGHT_WORK.light_dot_point);
-        let [l0, l1, l2] = crate::session::read_bits(&LIGHT_WORK.light_dot_light);
-        let v = [p0, p1, p2, l0, l1, l2, LIGHT_WORK.light_dot_factor.bits()];
-        let mut out = 0i32;
-        dot(v.as_ptr().cast(), (&raw mut out).cast());
-        DRAW.scratch.set_bits(out as u32);
-        out
-    }
+pub fn light_dot() -> i32 {
+    let [p0, p1, p2] = crate::session::read_bits(&LIGHT_WORK.light_dot_point);
+    let [l0, l1, l2] = crate::session::read_bits(&LIGHT_WORK.light_dot_light);
+    let v = [p0, p1, p2, l0, l1, l2, LIGHT_WORK.light_dot_factor.bits()];
+    let mut out = 0i32;
+    dot(v.as_ptr().cast(), (&raw mut out).cast());
+    DRAW.scratch.set_bits(out as u32);
+    out
 }
 
 /// `fld; fmul; fld; fmul; fld; fmul; faddp; faddp; fmul; fistp` over the seven floats at `v`.
-unsafe fn dot(v: *const u8, o: *mut u8) {
+fn dot(v: *const u8, o: *mut u8) {
     let t0 = fld(v, 0x0);
     let t1 = fld(v, 0xC);
     let t2 = t0 * t1;

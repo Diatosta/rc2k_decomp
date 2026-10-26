@@ -31,7 +31,7 @@ pub fn corner_inside() -> bool {
         .corner_in
         .each_ref()
         .map(|x| ext_times(extended(x.bits()), k));
-    let turned = unsafe { rotate_point(CONTACT_WORK.corner_matrix[0].addr() as u32, corner) };
+    let turned = { rotate_point(CONTACT_WORK.corner_matrix[0].addr() as u32, corner) };
     for (n, e) in turned.iter().enumerate() {
         x87_1(
             e.as_ptr() as usize,
@@ -56,7 +56,7 @@ pub unsafe fn corner_hits_car(block: u32) -> Result<(), Refused> {
     }
     CONTACT_WORK.corner_inside.set(1);
     unsafe { crate::physics::restore_saved_car::restore_saved_car() }?;
-    unsafe { crate::physics::bump_cars::bump_cars(block) }?;
+    { crate::physics::bump_cars::bump_cars(block) }?;
     Ok(())
 }
 

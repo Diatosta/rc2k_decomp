@@ -53,7 +53,7 @@ pub fn wait_for_random() {
 /// The numbers drawn so far (for tests that compare how many each side drew).
 pub static DRAWS: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::new(0);
 
-pub unsafe fn next_random() -> u32 {
+pub fn next_random() -> u32 {
     wait_for_random();
     DRAWS.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
     with_random(|r| r.draw())

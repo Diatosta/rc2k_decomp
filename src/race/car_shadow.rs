@@ -1152,14 +1152,12 @@ mod asm_reference {
                 for q in points.iter_mut() {
                     *q = r.int() as u32;
                 }
-                unsafe {
-                    COURSE.scene_points.set(points.as_ptr() as u32);
-                    for a in &places[2..6] {
-                        game_write(rva(*a), r.int() as u32);
-                    }
-                    GROUND_WORK.ground_x.set(0xAAAA_AAAAu32);
-                    GROUND_WORK.ground_z.set(0xAAAA_AAAAu32);
+                COURSE.scene_points.set(points.as_ptr() as u32);
+                for a in &places[2..6] {
+                    game_write(rva(*a), r.int() as u32);
                 }
+                GROUND_WORK.ground_x.set(0xAAAA_AAAAu32);
+                GROUND_WORK.ground_z.set(0xAAAA_AAAAu32);
                 let n = r.below(4);
                 let want = unsafe { inside_edge_asm(n) };
                 let seen = (GROUND_WORK.ground_x.get(), GROUND_WORK.ground_z.get());
@@ -1197,7 +1195,7 @@ mod asm_reference {
                     } else {
                         r.int()
                     };
-                    unsafe { game_write(rva(*a), v as u32) };
+                    game_write(rva(*a), v as u32);
                 }
                 let point = |r: &mut Rng| [r.int() as u32, r.u32(), r.int() as u32];
                 let (pa, pb) = (point(&mut r), point(&mut r));
@@ -1225,14 +1223,14 @@ mod asm_reference {
                     ea.as_ptr() as u32,
                     eb.as_ptr() as u32,
                 );
-                let read = || places.map(|a| unsafe { game_read::<u32>(rva(a)) });
+                let read = || places.map(|a| game_read::<u32>(rva(a)));
                 for a in &places[7..] {
-                    unsafe { game_write(rva(*a), 0xAAAA_AAAAu32) };
+                    game_write(rva(*a), 0xAAAA_AAAAu32);
                 }
                 unsafe { crossing_block_asm(args.0, args.1, args.2, args.3) };
                 let want = read();
                 for a in &places[7..] {
-                    unsafe { game_write(rva(*a), 0xAAAA_AAAAu32) };
+                    game_write(rva(*a), 0xAAAA_AAAAu32);
                 }
                 DRAW.scratch.set_bits(0xAAAA_AAAAu32);
                 crossing_block(args.0, args.1, args.2, args.3)
@@ -1270,16 +1268,12 @@ mod asm_reference {
                     continue;
                 }
                 unsafe { sun_slant_asm(sun, turn) };
-                let want =
-                    unsafe { [0x62400C, 0x643AC4, 0x643AC8].map(|a| game_read::<u32>(rva(a))) };
-                unsafe {
-                    for a in [0x62400C, 0x643AC4, 0x643AC8] {
-                        game_write(rva(a), 0xAAAA_AAAAu32);
-                    }
-                    sun_slant(sun, turn);
+                let want = { [0x62400C, 0x643AC4, 0x643AC8].map(|a| game_read::<u32>(rva(a))) };
+                for a in [0x62400C, 0x643AC4, 0x643AC8] {
+                    game_write(rva(a), 0xAAAA_AAAAu32);
                 }
-                let got =
-                    unsafe { [0x62400C, 0x643AC4, 0x643AC8].map(|a| game_read::<u32>(rva(a))) };
+                sun_slant(sun, turn);
+                let got = { [0x62400C, 0x643AC4, 0x643AC8].map(|a| game_read::<u32>(rva(a))) };
                 assert_eq!(want[0], got[0]);
                 for k in 1..3 {
                     assert!(

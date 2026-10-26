@@ -67,54 +67,52 @@ fn words() -> Result<Option<(u32, u32, bool)>, BadInput> {
     }
 }
 
-pub unsafe fn set_object_fade() -> Result<(), BadInput> {
-    unsafe {
-        let Some((other_kind, distance, needs_record)) = words()? else {
-            return Err(BadInput("an object's number past the tables"));
-        };
-        let place: u32 = OBJECT_WORK.object_place.bits();
-        // What can refuse is asked before anything is written.
-        let record = match (needs_record, record_at()) {
-            (false, _) => 0,
-            (true, None) => return Err(BadInput("no records for the points")),
-            (true, Some(record)) => {
-                if GamePtr::new(record).read::<u32>("a scene record")? != place
-                    && COURSE.scene_points.bits() == 0
-                {
-                    return Err(BadInput("no points"));
-                }
-                record
+pub fn set_object_fade() -> Result<(), BadInput> {
+    let Some((other_kind, distance, needs_record)) = words()? else {
+        return Err(BadInput("an object's number past the tables"));
+    };
+    let place: u32 = OBJECT_WORK.object_place.bits();
+    // What can refuse is asked before anything is written.
+    let record = match (needs_record, record_at()) {
+        (false, _) => 0,
+        (true, None) => return Err(BadInput("no records for the points")),
+        (true, Some(record)) => {
+            if GamePtr::new(record).read::<u32>("a scene record")? != place
+                && COURSE.scene_points.bits() == 0
+            {
+                return Err(BadInput("no points"));
             }
-        };
-        crate::session::write_bits(&FRAME_SWITCHES.fade_words, [other_kind, distance]);
-        OBJECT_WORK.object_position[0].set_bits(0u32);
-        OBJECT_WORK.object_position[2].set_bits(0u32);
-        GROUND_WORK.object_fading.set_bits(0u32);
-        GROUND_WORK.object_fade[0].set_bits(0x100u32);
-        if !needs_record {
-            return Ok(());
+            record
         }
-        let at = GamePtr::new(record);
-        if at.read::<u32>("a scene record")? != place {
-            make_scene_record(place, record)?;
-        }
-        OBJECT_WORK.object_position[0]
-            .set_bits(x87::to_int(at.offset(0x10).read("a scene record")?) as u32);
-        let depth = x87::to_int(at.offset(0x18).read("a scene record")?);
-        OBJECT_WORK.object_position[2].set_bits(depth as u32);
-        let near = ((distance << 16) as i32).wrapping_sub(depth);
-        if near >= 0 {
-            return Ok(());
-        }
-        let fade = (near.wrapping_add(0x10_0000).max(0) as u32) >> 12;
-        crate::session::write_bits(&GROUND_WORK.object_fade, [fade, fade]);
-        GROUND_WORK.object_fading.set_bits(1u32);
-        if other_kind != 0 {
-            let kinds: [u32; 0x100] = crate::session::read_bits(&OBJECT_TABLES.object_kinds);
-            if let Some(other) = (1..0x100).find(|&n| kinds[n] == other_kind) {
-                FRAME_SWITCHES.object_number.set_bits(other as u32);
-            }
-        }
-        Ok(())
+    };
+    crate::session::write_bits(&FRAME_SWITCHES.fade_words, [other_kind, distance]);
+    OBJECT_WORK.object_position[0].set_bits(0u32);
+    OBJECT_WORK.object_position[2].set_bits(0u32);
+    GROUND_WORK.object_fading.set_bits(0u32);
+    GROUND_WORK.object_fade[0].set_bits(0x100u32);
+    if !needs_record {
+        return Ok(());
     }
+    let at = GamePtr::new(record);
+    if at.read::<u32>("a scene record")? != place {
+        make_scene_record(place, record)?;
+    }
+    OBJECT_WORK.object_position[0]
+        .set_bits(x87::to_int(at.offset(0x10).read("a scene record")?) as u32);
+    let depth = x87::to_int(at.offset(0x18).read("a scene record")?);
+    OBJECT_WORK.object_position[2].set_bits(depth as u32);
+    let near = ((distance << 16) as i32).wrapping_sub(depth);
+    if near >= 0 {
+        return Ok(());
+    }
+    let fade = (near.wrapping_add(0x10_0000).max(0) as u32) >> 12;
+    crate::session::write_bits(&GROUND_WORK.object_fade, [fade, fade]);
+    GROUND_WORK.object_fading.set_bits(1u32);
+    if other_kind != 0 {
+        let kinds: [u32; 0x100] = crate::session::read_bits(&OBJECT_TABLES.object_kinds);
+        if let Some(other) = (1..0x100).find(|&n| kinds[n] == other_kind) {
+            FRAME_SWITCHES.object_number.set_bits(other as u32);
+        }
+    }
+    Ok(())
 }

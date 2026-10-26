@@ -29,15 +29,13 @@ fn car_step() -> Result<(), Refused> {
     }
     let slot = race_steps::block_slot(RACE_WORK.current_car.get());
     RACE_WORK.work_block.set(RACE_WORK.car_block(slot));
-    unsafe {
-        crate::drive::load_car::load_car()?;
-        if CAR.driver_kind.get() != 0 {
-            crate::drive::read_car_controls::read_car_controls()?;
-            crate::physics::gear_input_rules::gear_input_rules();
-            crate::physics::car_physics_step::car_physics_step()?;
-        }
-        crate::drive::store_car::store_car()?;
+    crate::drive::load_car::load_car()?;
+    if CAR.driver_kind.get() != 0 {
+        crate::drive::read_car_controls::read_car_controls()?;
+        crate::physics::gear_input_rules::gear_input_rules();
+        crate::physics::car_physics_step::car_physics_step()?;
     }
+    crate::drive::store_car::store_car()?;
     Ok(())
 }
 

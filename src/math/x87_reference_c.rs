@@ -113,7 +113,7 @@ pub(super) mod load {
     /// `scene::project_point::rotate` with its third store a `fistp`: the point (three whole
     /// numbers) through `matrix`, x and y stored as floats at `out[0]`, `out[1]`, z rounded
     /// into `out[2]` from the x87's precision (`sub_4573FA`).
-    pub(super) unsafe fn rotate_rounding_z(point: *const i32, matrix: *const u32, out: *mut u32) {
+    pub(super) fn rotate_rounding_z(point: *const i32, matrix: *const u32, out: *mut u32) {
         x87!(
             "fild dword ptr [{p} + 8]", "fild dword ptr [{p} + 4]", "fild dword ptr [{p}]",
             "fld dword ptr [{m}]", "fmul st(0), st(1)",
@@ -228,7 +228,7 @@ pub(super) mod load {
 
     /// `scene::project_point::rotate` with all three stores `fistp`: the point (three whole
     /// numbers) through `matrix`, each part rounded from the x87's precision into `out`.
-    pub(super) unsafe fn rotate_rounding(point: *const i32, matrix: *const u32, out: *mut u32) {
+    pub(super) fn rotate_rounding(point: *const i32, matrix: *const u32, out: *mut u32) {
         x87!(
             "fild dword ptr [{p} + 8]", "fild dword ptr [{p} + 4]", "fild dword ptr [{p}]",
             "fld dword ptr [{m}]", "fmul st(0), st(1)",
@@ -343,7 +343,7 @@ pub(super) mod load {
     /// instructions; `.byte 0xDE, 0xF1` its `fdivrp st(1), st`): `v` = x, y, z, the flat
     /// depth, the scale, the centre's y and x. Flat: z dropped (into `scratch`) for the flat
     /// depth + 1. Gives x as a float and rounded, y as a float and rounded.
-    pub(super) unsafe fn sun_on_screen(v: &[u32; 7], flat: bool, scratch: *mut u32) -> [u32; 4] {
+    pub(super) fn sun_on_screen(v: &[u32; 7], flat: bool, scratch: *mut u32) -> [u32; 4] {
         let mut out = [0u32; 4];
         if flat {
             x87!(
@@ -391,7 +391,7 @@ pub(super) mod run {
 
     /// `fld v[0]; fmul st, st; fld v[1]; fmul st, st; fld v[2]; fmul st, st; faddp; faddp;
     /// fsqrt`: the length of three floats as an 80-bit value (not rounded to a float).
-    pub(super) unsafe fn length_80(v: *const u32) -> [u8; 10] {
+    pub(super) fn length_80(v: *const u32) -> [u8; 10] {
         let mut out = [0u8; 10];
         x87!("fld dword ptr [{v}]", ".byte 0xD8, 0xC8",
         "fld dword ptr [{v} + 4]", ".byte 0xD8, 0xC8",
@@ -403,7 +403,7 @@ pub(super) mod run {
     }
 
     /// With the 80-bit `s` in st(0): `fld v[k]; fmul st, st(1); fstp v[k]` for k = 0, 1, 2.
-    pub(super) unsafe fn scale_by_80(v: *mut u32, s: [u8; 10]) {
+    pub(super) fn scale_by_80(v: *mut u32, s: [u8; 10]) {
         x87!("fld tbyte ptr [{s}]",
         "fld dword ptr [{v}]", ".byte 0xD8, 0xC9", "fstp dword ptr [{v}]",
         "fld dword ptr [{v} + 4]", ".byte 0xD8, 0xC9", "fstp dword ptr [{v} + 4]",
@@ -1797,12 +1797,16 @@ mod tests {
             matrix_input,
             |(p, m)| {
                 let mut o = [0xAAAA_AAAAu32; 3];
-                unsafe { load::rotate_rounding_z(p.as_ptr(), m.as_ptr(), o.as_mut_ptr()) };
+                {
+                    load::rotate_rounding_z(p.as_ptr(), m.as_ptr(), o.as_mut_ptr())
+                };
                 o
             },
             |(p, m)| {
                 let mut o = [0xAAAA_AAAAu32; 3];
-                unsafe { x87_load::rotate_rounding_z(p.as_ptr(), m.as_ptr(), o.as_mut_ptr()) };
+                {
+                    x87_load::rotate_rounding_z(p.as_ptr(), m.as_ptr(), o.as_mut_ptr())
+                };
                 o
             },
             |a, b| eqf(&a[0], &b[0]) && eqf(&a[1], &b[1]) && a[2] == b[2],
@@ -1812,12 +1816,16 @@ mod tests {
             matrix_input,
             |(p, m)| {
                 let mut o = [0xAAAA_AAAAu32; 3];
-                unsafe { load::rotate_rounding(p.as_ptr(), m.as_ptr(), o.as_mut_ptr()) };
+                {
+                    load::rotate_rounding(p.as_ptr(), m.as_ptr(), o.as_mut_ptr())
+                };
                 o
             },
             |(p, m)| {
                 let mut o = [0xAAAA_AAAAu32; 3];
-                unsafe { x87_load::rotate_rounding(p.as_ptr(), m.as_ptr(), o.as_mut_ptr()) };
+                {
+                    x87_load::rotate_rounding(p.as_ptr(), m.as_ptr(), o.as_mut_ptr())
+                };
                 o
             },
             exact,
@@ -1844,12 +1852,12 @@ mod tests {
             },
             |&(v, flat)| {
                 let mut scratch = 0xAAAA_AAAAu32;
-                let o = unsafe { load::sun_on_screen(&v, flat, &raw mut scratch) };
+                let o = { load::sun_on_screen(&v, flat, &raw mut scratch) };
                 (o, scratch)
             },
             |&(v, flat)| {
                 let mut scratch = 0xAAAA_AAAAu32;
-                let o = unsafe { x87_load::sun_on_screen(&v, flat, &raw mut scratch) };
+                let o = { x87_load::sun_on_screen(&v, flat, &raw mut scratch) };
                 (o, scratch)
             },
             |a, b| {
@@ -2362,8 +2370,8 @@ mod tests {
             "length_80",
             &ROUNDING,
             |g| [g.f(), g.f(), g.f()],
-            |v| unsafe { run::length_80(v.as_ptr()) },
-            |v| unsafe { x87_run::length_80(v.as_ptr()) },
+            |v| run::length_80(v.as_ptr()),
+            |v| x87_run::length_80(v.as_ptr()),
             eq80,
         );
         check(
@@ -2372,12 +2380,16 @@ mod tests {
             |g| ([g.f(), g.f(), g.f()], g.e80()),
             |&(v, s)| {
                 let mut v = v;
-                unsafe { run::scale_by_80(v.as_mut_ptr(), s) };
+                {
+                    run::scale_by_80(v.as_mut_ptr(), s)
+                };
                 v
             },
             |&(v, s)| {
                 let mut v = v;
-                unsafe { x87_run::scale_by_80(v.as_mut_ptr(), s) };
+                {
+                    x87_run::scale_by_80(v.as_mut_ptr(), s)
+                };
                 v
             },
             eqf3,
@@ -2486,7 +2498,9 @@ mod tests {
                 },
                 |&(i, sse)| {
                     let mut o = [0xAAAA_AAAAu32; 8];
-                    unsafe { x87_run::face_shares(&i, &mut o, sse) };
+                    {
+                        x87_run::face_shares(&i, &mut o, sse)
+                    };
                     o
                 },
                 |a, b| {

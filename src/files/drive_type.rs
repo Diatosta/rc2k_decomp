@@ -14,7 +14,7 @@ use windows_sys::Win32::Storage::FileSystem::GetDriveTypeA;
 // ---- Rust version ----
 
 /// The root that is asked about: `x:\`, or none for the current drive.
-pub unsafe fn drive_root(letter: u8) -> Option<[u8; 4]> {
+pub fn drive_root(letter: u8) -> Option<[u8; 4]> {
     // Converted: `rc2k_core::files::paths::drive_root`.
     rc2k_core::files::paths::drive_root(letter, crate::strings::same_text::lower)
 }

@@ -15,12 +15,10 @@ use crate::memory::own_heap;
 
 /// The Rust version (see the header).
 pub fn free_picture_buffer() -> Result<(), BadInput> {
-    unsafe {
-        if PICTURE.list.get().head != 0 && own_heap() == 1 {
-            return Err(BadInput("the game's own heap is in use (altmemenable)"));
-        }
-        PICTURE.flags.set(0u32);
-        PICTURE.buffer.set(0u32);
-        crate::memory::free_list::free_list(PICTURE.list.as_ptr())
+    if PICTURE.list.get().head != 0 && own_heap() == 1 {
+        return Err(BadInput("the game's own heap is in use (altmemenable)"));
     }
+    PICTURE.flags.set(0u32);
+    PICTURE.buffer.set(0u32);
+    crate::memory::free_list::free_list(PICTURE.list.as_ptr())
 }

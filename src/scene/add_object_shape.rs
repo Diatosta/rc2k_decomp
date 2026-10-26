@@ -195,7 +195,7 @@ struct Room {
     face_count: u32,
 }
 
-unsafe fn room(shape: &Shape) -> Result<Room, BadInput> {
+fn room(shape: &Shape) -> Result<Room, BadInput> {
     let room = Room {
         slot: OBJECT_WORK.loading_slot.bits(),
         points: COURSE_LISTS.object_points.bits(),
@@ -220,149 +220,147 @@ unsafe fn room(shape: &Shape) -> Result<Room, BadInput> {
     Ok(room)
 }
 
-pub unsafe fn add_object_shape(file: usize) -> Result<(), BadInput> {
-    unsafe {
-        if file != crate::scene::objects::file_addr() {
-            return Err(BadInput("an object's file elsewhere than in its buffer"));
-        }
-        let shape = match shape()? {
-            Ok(shape) => shape,
-            Err(points) => {
-                crate::session::write_first(&OBJECT_WORK.shape_counts[5..7], &[u32::MAX, 0]);
-                if let Some(points) = points {
-                    OBJECT_WORK.shape_counts[1].set_bits(points);
-                }
-                return Ok(());
-            }
-        };
-        let room = room(&shape)?;
-        let slot = room.slot as usize;
-        let read = |offset: usize| -> Result<u32, BadInput> {
-            GamePtr::new((crate::scene::objects::file_addr() + offset) as u32)
-                .read("a word of an object's file")
-        };
-
-        crate::session::write_first(&OBJECT_WORK.shape_counts[5..7], &[u32::MAX, 0]);
-        OBJECT_WORK.shape_counts[1].set_bits(shape.points as u32);
-        OBJECT_WORK.shape_counts[0].set_bits(shape.faces.len() as u32);
-        OBJECT_WORK.shape_counts[3].set_bits(shape.normals as u32);
-        for n in 0..MARKS {
-            let taken = shape.faces.get(n).is_some_and(|face| face.taken);
-            TEXTURE_PLACES.face_marks[n].set(taken as u32);
-            TEXTURE_PLACES.point_marks[n].set(shape.point_marks[n]);
-            TEXTURE_PLACES.normal_marks[n].set(shape.normal_marks[n]);
-        }
-
-        // The points.
-        let (first_point, first_face) = (room.point_count, room.face_count);
-        crate::session::write_prefix(&OBJECT_WORK.shape_firsts, &[first_point, first_face]);
-        OBJECT_SLOTS.first_point[slot].set(first_point);
-        OBJECT_SLOTS.first_face[slot].set(first_face);
-        let kind: u32 = OBJECT_WORK.loading_kind.bits();
-        let turned = (0x190..0x258).contains(&kind);
-        let drop: u32 = PHYSICS.ground_drop.bits();
-        let mut radius = 0u32;
-        let mut count = first_point;
-        let mut to = GamePtr::new(room.points.wrapping_add(count.wrapping_mul(12)));
-        for n in 0..shape.points {
-            if shape.point_marks[n] == u32::MAX {
-                continue;
-            }
-            let at = 0x2C + n * 12;
-            let mut point = [read(at)?, read(at + 4)?, read(at + 8)?];
-            if turned {
-                point = [
-                    point[2],
-                    point[1].wrapping_sub(drop),
-                    point[0].wrapping_neg(),
-                ];
-            }
-            to.write(point, "an object's point")?;
-            let reach = x87::int_hypot(point[0] as i32, point[2] as i32) as u32;
-            DRAW.scratch.set_bits(reach);
-            if (reach.wrapping_sub(radius) as i32) >= 0 {
-                radius = reach;
-            }
-            count += 1;
-            to = to.offset(12);
-        }
-        COURSE.shape_radius.set_bits(radius);
-        OBJECT_SLOTS.radii[slot].set(radius);
-        OBJECT_SLOTS.point_counts[slot].set(count - first_point);
-        let first_normal = count;
-        OBJECT_WORK.shape_firsts[2].set_bits(first_normal);
-
-        // The faces.
-        let no_normals = shape.normals == 0;
-        let mut without: u32 = OBJECT_SLOTS.no_normals.get();
-        let (mut lowest, mut highest) = (u32::MAX, 0u32);
-        let mut face_number = first_face;
-        let mut out = (room.face_memory + room.face_cursor) as usize;
-        let mut normal = |number: u32| {
-            if no_normals {
-                without = without.wrapping_add(1);
-                0
-            } else {
-                shape.normal_marks[number as usize].wrapping_add(first_normal)
-            }
-        };
-        for face in shape.faces.iter().filter(|face| face.taken) {
-            crate::scene::objects::face_cell(face_number as usize).set(out as u32);
-            let len = 0x10 + face.vertices * 0x10;
-            let source = GamePtr::new((crate::scene::objects::file_addr() + face.at) as u32)
-                .read_bytes(len, "a face of an object's file")?;
-            let word = |at: usize| u32::from_le_bytes(source[at..at + 4].try_into().unwrap());
-            let mut made = Vec::with_capacity(len);
-            let mut push = |value: u32| made.extend_from_slice(&value.to_le_bytes());
-            push(word(0));
-            push(word(4));
-            push(word(8));
-            let texture = word(4) & 0xFFFF;
-            if texture <= lowest {
-                lowest = texture;
-            }
-            if texture >= highest {
-                highest = texture;
-            }
-            push(normal(word(0xC)));
-            for vertex in 0..face.vertices {
-                let from = 0x10 + vertex * 0x10;
-                let mark = *shape.point_marks.get(word(from) as usize).ok_or(PAST)?;
-                push(mark.wrapping_add(first_point));
-                push(word(from + 4));
-                push(word(from + 8));
-                push(normal(word(from + 0xC)));
-            }
-            GamePtr::new(out as u32).write_bytes(&made, "a face of the objects' memory")?;
-            out += 0x10 + face.vertices * 0x10;
-            face_number += 1;
-        }
-        crate::session::write_first(&OBJECT_WORK.shape_counts[5..7], &[lowest, highest]);
-        OBJECT_SLOTS.no_normals.set(without);
-        OBJECT_TABLES.face_count.set(face_number);
-        OBJECT_TABLES
-            .normals_at
-            .set((file + shape.normals_at) as u32);
-        OBJECT_WORK
-            .face_cursor
-            .set_bits(out as u32 - room.face_memory);
-
-        // The normals.
-        for n in 0..shape.normals {
-            if shape.normal_marks[n] == u32::MAX {
-                continue;
-            }
-            let at = shape.normals_at + n * 12;
-            to.write(
-                [read(at)?, read(at + 4)?, read(at + 8)?],
-                "an object's normal",
-            )?;
-            count += 1;
-            to = to.offset(12);
-        }
-        OBJECT_TABLES.point_count.set(count);
-        OBJECT_SLOTS.normal_counts[slot].set(count - first_normal);
-        OBJECT_SLOTS.face_counts[slot].set(face_number - first_face);
-        Ok(())
+pub fn add_object_shape(file: usize) -> Result<(), BadInput> {
+    if file != crate::scene::objects::file_addr() {
+        return Err(BadInput("an object's file elsewhere than in its buffer"));
     }
+    let shape = match shape()? {
+        Ok(shape) => shape,
+        Err(points) => {
+            crate::session::write_first(&OBJECT_WORK.shape_counts[5..7], &[u32::MAX, 0]);
+            if let Some(points) = points {
+                OBJECT_WORK.shape_counts[1].set_bits(points);
+            }
+            return Ok(());
+        }
+    };
+    let room = room(&shape)?;
+    let slot = room.slot as usize;
+    let read = |offset: usize| -> Result<u32, BadInput> {
+        GamePtr::new((crate::scene::objects::file_addr() + offset) as u32)
+            .read("a word of an object's file")
+    };
+
+    crate::session::write_first(&OBJECT_WORK.shape_counts[5..7], &[u32::MAX, 0]);
+    OBJECT_WORK.shape_counts[1].set_bits(shape.points as u32);
+    OBJECT_WORK.shape_counts[0].set_bits(shape.faces.len() as u32);
+    OBJECT_WORK.shape_counts[3].set_bits(shape.normals as u32);
+    for n in 0..MARKS {
+        let taken = shape.faces.get(n).is_some_and(|face| face.taken);
+        TEXTURE_PLACES.face_marks[n].set(taken as u32);
+        TEXTURE_PLACES.point_marks[n].set(shape.point_marks[n]);
+        TEXTURE_PLACES.normal_marks[n].set(shape.normal_marks[n]);
+    }
+
+    // The points.
+    let (first_point, first_face) = (room.point_count, room.face_count);
+    crate::session::write_prefix(&OBJECT_WORK.shape_firsts, &[first_point, first_face]);
+    OBJECT_SLOTS.first_point[slot].set(first_point);
+    OBJECT_SLOTS.first_face[slot].set(first_face);
+    let kind: u32 = OBJECT_WORK.loading_kind.bits();
+    let turned = (0x190..0x258).contains(&kind);
+    let drop: u32 = PHYSICS.ground_drop.bits();
+    let mut radius = 0u32;
+    let mut count = first_point;
+    let mut to = GamePtr::new(room.points.wrapping_add(count.wrapping_mul(12)));
+    for n in 0..shape.points {
+        if shape.point_marks[n] == u32::MAX {
+            continue;
+        }
+        let at = 0x2C + n * 12;
+        let mut point = [read(at)?, read(at + 4)?, read(at + 8)?];
+        if turned {
+            point = [
+                point[2],
+                point[1].wrapping_sub(drop),
+                point[0].wrapping_neg(),
+            ];
+        }
+        to.write(point, "an object's point")?;
+        let reach = x87::int_hypot(point[0] as i32, point[2] as i32) as u32;
+        DRAW.scratch.set_bits(reach);
+        if (reach.wrapping_sub(radius) as i32) >= 0 {
+            radius = reach;
+        }
+        count += 1;
+        to = to.offset(12);
+    }
+    COURSE.shape_radius.set_bits(radius);
+    OBJECT_SLOTS.radii[slot].set(radius);
+    OBJECT_SLOTS.point_counts[slot].set(count - first_point);
+    let first_normal = count;
+    OBJECT_WORK.shape_firsts[2].set_bits(first_normal);
+
+    // The faces.
+    let no_normals = shape.normals == 0;
+    let mut without: u32 = OBJECT_SLOTS.no_normals.get();
+    let (mut lowest, mut highest) = (u32::MAX, 0u32);
+    let mut face_number = first_face;
+    let mut out = (room.face_memory + room.face_cursor) as usize;
+    let mut normal = |number: u32| {
+        if no_normals {
+            without = without.wrapping_add(1);
+            0
+        } else {
+            shape.normal_marks[number as usize].wrapping_add(first_normal)
+        }
+    };
+    for face in shape.faces.iter().filter(|face| face.taken) {
+        crate::scene::objects::face_cell(face_number as usize).set(out as u32);
+        let len = 0x10 + face.vertices * 0x10;
+        let source = GamePtr::new((crate::scene::objects::file_addr() + face.at) as u32)
+            .read_bytes(len, "a face of an object's file")?;
+        let word = |at: usize| u32::from_le_bytes(source[at..at + 4].try_into().unwrap());
+        let mut made = Vec::with_capacity(len);
+        let mut push = |value: u32| made.extend_from_slice(&value.to_le_bytes());
+        push(word(0));
+        push(word(4));
+        push(word(8));
+        let texture = word(4) & 0xFFFF;
+        if texture <= lowest {
+            lowest = texture;
+        }
+        if texture >= highest {
+            highest = texture;
+        }
+        push(normal(word(0xC)));
+        for vertex in 0..face.vertices {
+            let from = 0x10 + vertex * 0x10;
+            let mark = *shape.point_marks.get(word(from) as usize).ok_or(PAST)?;
+            push(mark.wrapping_add(first_point));
+            push(word(from + 4));
+            push(word(from + 8));
+            push(normal(word(from + 0xC)));
+        }
+        GamePtr::new(out as u32).write_bytes(&made, "a face of the objects' memory")?;
+        out += 0x10 + face.vertices * 0x10;
+        face_number += 1;
+    }
+    crate::session::write_first(&OBJECT_WORK.shape_counts[5..7], &[lowest, highest]);
+    OBJECT_SLOTS.no_normals.set(without);
+    OBJECT_TABLES.face_count.set(face_number);
+    OBJECT_TABLES
+        .normals_at
+        .set((file + shape.normals_at) as u32);
+    OBJECT_WORK
+        .face_cursor
+        .set_bits(out as u32 - room.face_memory);
+
+    // The normals.
+    for n in 0..shape.normals {
+        if shape.normal_marks[n] == u32::MAX {
+            continue;
+        }
+        let at = shape.normals_at + n * 12;
+        to.write(
+            [read(at)?, read(at + 4)?, read(at + 8)?],
+            "an object's normal",
+        )?;
+        count += 1;
+        to = to.offset(12);
+    }
+    OBJECT_TABLES.point_count.set(count);
+    OBJECT_SLOTS.normal_counts[slot].set(count - first_normal);
+    OBJECT_SLOTS.face_counts[slot].set(face_number - first_face);
+    Ok(())
 }

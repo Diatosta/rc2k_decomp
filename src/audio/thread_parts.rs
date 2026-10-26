@@ -6,21 +6,17 @@ use crate::errors::Refused;
 
 /// `audio::take_sample_buffer`: the setting's KB (0: one) taken on its list.
 pub fn take_sample_buffer() -> Result<(), Refused> {
-    unsafe {
-        // Converted: `rc2k_core::audio::levels::sample_buffer_size`.
-        let size = rc2k_core::audio::levels::sample_buffer_size(AUDIO.sample_buffer_kb.get());
-        AUDIO.sample_buffer_size.set(size);
-        let b = crate::memory::allocate::allocate(AUDIO.sample_buffer_memory.as_ptr(), size)?;
-        AUDIO.sample_buffer.set(b as u32);
-    }
+    // Converted: `rc2k_core::audio::levels::sample_buffer_size`.
+    let size = rc2k_core::audio::levels::sample_buffer_size(AUDIO.sample_buffer_kb.get());
+    AUDIO.sample_buffer_size.set(size);
+    let b = crate::memory::allocate::allocate(AUDIO.sample_buffer_memory.as_ptr(), size)?;
+    AUDIO.sample_buffer.set(b as u32);
     Ok(())
 }
 
 /// `audio::free_sample_buffer`: its list freed, size and buffer 0.
 pub fn free_sample_buffer() -> Result<(), Refused> {
-    unsafe {
-        crate::memory::free_list::free_list(AUDIO.sample_buffer_memory.as_ptr())?;
-    }
+    crate::memory::free_list::free_list(AUDIO.sample_buffer_memory.as_ptr())?;
     AUDIO.sample_buffer_size.set(0);
     AUDIO.sample_buffer.set(0);
     Ok(())

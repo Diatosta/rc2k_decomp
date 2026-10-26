@@ -69,7 +69,7 @@ fn stopped() -> Result<(), Refused> {
         crate::race::draw_viewer_item::draw_viewer_item(item, index)?;
         item += 0x10;
     }
-    let quad = |uv: &Dword, rect: &Dword, colour: u32| unsafe {
+    let quad = |uv: &Dword, rect: &Dword, colour: u32| {
         crate::drive::tyre_quad::tyre_quad(uv.addr() as u32, rect.addr() as u32, colour)
     };
     let v = &VIEWER_PANEL;

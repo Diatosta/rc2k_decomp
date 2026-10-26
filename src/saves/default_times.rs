@@ -59,7 +59,7 @@ pub struct GameSource<'a> {
 
 impl rc2k_core::saves::defaults::Source for GameSource<'_> {
     fn below(&mut self, limit: u32) -> Result<u32, Invalid> {
-        unsafe { random_below(limit) }.map_err(|e| Invalid(e.0))
+        { random_below(limit) }.map_err(|e| Invalid(e.0))
     }
 
     fn driver(&mut self, number: u32) -> Result<rc2k_core::saves::defaults::Driver, Invalid> {

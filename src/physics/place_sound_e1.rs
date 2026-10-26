@@ -17,7 +17,7 @@ use crate::race::work_store::RACE_WORK;
 
 /// The Rust version (the exact one, for `physics::wall_push_back` and
 /// `physics::wall_edge_contact`).
-pub unsafe fn place_sound_e1() -> Result<(), Refused> {
+pub fn place_sound_e1() -> Result<(), Refused> {
     if !listed(RACE_WORK.current_car.bits())? {
         return Ok(());
     }
@@ -34,11 +34,9 @@ pub unsafe fn place_sound_e1() -> Result<(), Refused> {
             return Err(e);
         }
     };
-    unsafe {
-        put(o + 0x238, 0xE1);
-        put(o + 0x23C, b);
-        place(o, 0x240, None);
-        put(o + 0x10, 1);
-    }
+    put(o + 0x238, 0xE1);
+    put(o + 0x23C, b);
+    place(o, 0x240, None);
+    put(o + 0x10, 1);
     Ok(())
 }

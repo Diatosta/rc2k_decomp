@@ -54,8 +54,8 @@ pub fn lock_failed() -> bool {
 }
 
 /// `gfx::copy_picture_to_surface` (0x4060E3): the background.
-pub unsafe fn copy_picture() -> Result<(), Refused> {
-    unsafe {
+pub fn copy_picture() -> Result<(), Refused> {
+    {
         crate::gfx::copy_picture_to_surface::copy_picture_to_surface(
             &mut crate::gfx::copy_picture_to_surface::GameSurface,
         )

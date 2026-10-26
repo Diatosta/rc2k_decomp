@@ -19,9 +19,7 @@ const MARK: u32 = 0xFFFF_00FF;
 
 // ---- Rust version ----
 
-pub unsafe fn draw_marked_polygon(
-    draw: &mut dyn FnMut() -> Result<(), BadInput>,
-) -> Result<(), BadInput> {
+pub fn draw_marked_polygon(draw: &mut dyn FnMut() -> Result<(), BadInput>) -> Result<(), BadInput> {
     {
         let marked = COURSE.polygon_flags.bits() & 0x8000_0000 != 0;
         RACE_VARS

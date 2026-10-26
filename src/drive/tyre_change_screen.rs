@@ -13,10 +13,10 @@ use crate::race::vars_store::RACE_VARS;
 
 /// The Rust version; every register kept.
 // Converted: `rc2k_core::drive::race_ticks::tyre_change_shown`.
-pub unsafe fn tyre_change_screen() -> Result<(), Refused> {
+pub fn tyre_change_screen() -> Result<(), Refused> {
     if !rc2k_core::drive::race_ticks::tyre_change_shown(CAR_BLOCKS.cars[0].tyre_change_state.get())
     {
         return Ok(());
     }
-    unsafe { crate::drive::tyre_screen::tyre_screen(RACE_VARS.split.get(), 0) }
+    crate::drive::tyre_screen::tyre_screen(RACE_VARS.split.get(), 0)
 }

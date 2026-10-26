@@ -11,11 +11,11 @@ use crate::scene::x87_mem::{fld, fnstsw, fstp, fstp80};
 /// `scene::normalise_vector3` (0x4654EA): the three floats at esi each times 1 over their
 /// length (`fsqrt` of the squares, the last two added first; `fld1; fdivrp`). Every
 /// register kept.
-pub unsafe fn normalise_vector3(v: u32) {
-    unsafe { normalise(v as *mut u8) }
+pub fn normalise_vector3(v: u32) {
+    normalise(v as *mut u8)
 }
 
-unsafe fn normalise(v: *mut u8) {
+fn normalise(v: *mut u8) {
     let t0 = fld(v, 0x0);
     let t1 = t0 * t0;
     let t2 = fld(v, 0x4);
@@ -40,13 +40,13 @@ unsafe fn normalise(v: *mut u8) {
 
 /// `scene::dot_product3` (0x46553C): esi . edi, x x' + (y y' + z z'), unrounded. Every
 /// register kept.
-pub unsafe fn dot_product3(a: u32, b: u32) -> [u8; 10] {
+pub fn dot_product3(a: u32, b: u32) -> [u8; 10] {
     let mut out = [0u8; 10];
-    unsafe { dot(a as *const u8, b as *const u8, out.as_mut_ptr()) };
+    dot(a as *const u8, b as *const u8, out.as_mut_ptr());
     out
 }
 
-unsafe fn dot(a: *const u8, b: *const u8, o: *mut u8) {
+fn dot(a: *const u8, b: *const u8, o: *mut u8) {
     let t0 = fld(a, 0x0);
     let t1 = fld(b, 0x0);
     let t2 = t0 * t1;
@@ -62,14 +62,14 @@ unsafe fn dot(a: *const u8, b: *const u8, o: *mut u8) {
 }
 
 /// `n` floats at `at` (the game's memory, unaligned).
-pub unsafe fn read_floats<const N: usize>(at: u32) -> [f32; N] {
+pub fn read_floats<const N: usize>(at: u32) -> [f32; N] {
     std::array::from_fn(|n| {
         crate::pointers::read_or_end::<f32>(at + 4 * n as u32, "scene::vector3's operand")
     })
 }
 
 /// The floats written at `at`.
-pub unsafe fn write_floats(at: u32, v: &[f32]) {
+pub fn write_floats(at: u32, v: &[f32]) {
     for (n, x) in v.iter().enumerate() {
         crate::pointers::write_or_end::<f32>(at + 4 * n as u32, *x, "scene::vector3's operand");
     }
@@ -78,17 +78,15 @@ pub unsafe fn write_floats(at: u32, v: &[f32]) {
 /// `fld a; fcos; fcomp b; fstsw`: the status word's C0 .. C2 (0x700).
 fn cosine_against(a: u32, b: u32) -> u32 {
     let mut status = 0u16;
-    unsafe {
-        cosine(
-            (&raw const a).cast(),
-            (&raw const b).cast(),
-            (&raw mut status).cast(),
-        )
-    };
+    cosine(
+        (&raw const a).cast(),
+        (&raw const b).cast(),
+        (&raw mut status).cast(),
+    );
     status as u32 & 0x700
 }
 
-unsafe fn cosine(a: *const u8, b: *const u8, s: *mut u8) {
+fn cosine(a: *const u8, b: *const u8, s: *mut u8) {
     let t0 = fld(a, 0x0);
     let t1 = t0.cos();
     let t2 = fld(b, 0x0);
@@ -101,26 +99,24 @@ unsafe fn cosine(a: *const u8, b: *const u8, s: *mut u8) {
 /// is found by 16 halvings from pi / 2 by pi / 4 (floats each step; out when the compare
 /// is unordered); the last compare's C0 .. C2 in `dword_71C814`. Every register kept.
 /// Returns the angle (a float, loaded).
-pub unsafe fn angle_between_vectors(a: u32, b: u32) -> [u8; 10] {
-    unsafe {
-        let mut angle = crate::math::x87::loaded(MARKS_WORK.cosine_start.get());
-        let mut step = crate::math::x87::loaded(MARKS_WORK.cosine_step.get());
-        normalise_vector3(b);
-        normalise_vector3(a);
-        let dot = crate::scene::matrix3::rounded(dot_product3(a, b));
-        let half: u32 = MARKS_WORK.cosine_half.get();
-        for _ in 0..16 {
-            let status = cosine_against(angle, dot);
-            MARKS_WORK.fpu_status.set(status);
-            match status {
-                0x400 => break,
-                0x100 => angle = crate::math::x87::sub(angle, step),
-                _ => angle = crate::math::x87::add(angle, step),
-            }
-            step = crate::math::x87::mul(step, half);
+pub fn angle_between_vectors(a: u32, b: u32) -> [u8; 10] {
+    let mut angle = crate::math::x87::loaded(MARKS_WORK.cosine_start.get());
+    let mut step = crate::math::x87::loaded(MARKS_WORK.cosine_step.get());
+    normalise_vector3(b);
+    normalise_vector3(a);
+    let dot = crate::scene::matrix3::rounded(dot_product3(a, b));
+    let half: u32 = MARKS_WORK.cosine_half.get();
+    for _ in 0..16 {
+        let status = cosine_against(angle, dot);
+        MARKS_WORK.fpu_status.set(status);
+        match status {
+            0x400 => break,
+            0x100 => angle = crate::math::x87::sub(angle, step),
+            _ => angle = crate::math::x87::add(angle, step),
         }
-        crate::scene::matrix3::extended(angle)
+        step = crate::math::x87::mul(step, half);
     }
+    crate::scene::matrix3::extended(angle)
 }
 
 #[cfg(test)]
@@ -198,7 +194,7 @@ mod asm_reference {
                 }
             },
             |base| unsafe { normalise_ref(base) },
-            |base| unsafe { normalise(base) },
+            normalise,
         );
     }
 

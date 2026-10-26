@@ -43,70 +43,68 @@ fn computer() -> bool {
 
 /// The Rust version: `r` as the original leaves it.
 // Converted: `rc2k_core::drive::controls::{read_keys, computer_drives, flipped}`.
-pub unsafe fn read_car_controls() -> Result<(), Refused> {
-    unsafe {
-        if computer() && RACE_VARS.checkpoint_count.get() == 0 && CAR.run_ticks.get() >= 0x320 {
-            // `drive_computer_car`'s refusal, before anything here is written.
-            let reaches = crate::math::x87_run::compare_full(
-                CAR.crash_matrix[5].bits(),
-                RACE_WORK.driver_tilt_limit.bits(),
-            ) & 0x100
-                == 0;
-            if reaches {
-                return Err(BadInput("no checkpoints for the computer's driving").into());
-            }
+pub fn read_car_controls() -> Result<(), Refused> {
+    if computer() && RACE_VARS.checkpoint_count.get() == 0 && CAR.run_ticks.get() >= 0x320 {
+        // `drive_computer_car`'s refusal, before anything here is written.
+        let reaches = crate::math::x87_run::compare_full(
+            CAR.crash_matrix[5].bits(),
+            RACE_WORK.driver_tilt_limit.bits(),
+        ) & 0x100
+            == 0;
+        if reaches {
+            return Err(BadInput("no checkpoints for the computer's driving").into());
         }
-        COURSE_LISTS.input_keys_mask.set(CAR.input_keys.get());
-        CAR.input_keys.set(0);
-        CAR.keys_pressed.set(0);
-        // The four input words (recorded or replayed) into the car's inputs.
-        let words = [
-            &CAR.input_throttle,
-            &CAR.input_keys,
-            &CAR.input_steering,
-            &CAR.input_brake,
-        ];
-        for (to, from) in words.into_iter().zip(&PHYSICS.input_words) {
-            to.set(from.get());
-        }
-        let keys = read_keys(COURSE_LISTS.input_keys_mask.get(), CAR.input_keys.get());
-        let pressed = keys.pressed;
-        CAR.keys_pressed.set(pressed);
-        PHYSICS.input_throttle.set(CAR.input_throttle.get());
-        PHYSICS.input_steer.set(CAR.input_steering.get());
-        PHYSICS.input_brake.set(CAR.input_brake.get());
-        PHYSICS.input_handbrake.set(keys.hand);
-        PHYSICS.input_gear_up.set(keys.up);
-        PHYSICS.input_gear_down.set(keys.down);
-        let replay = crate::net::store::NET.session.get() != 0;
-        if replay || RACE_WORK.current_car.get() < RACE_VIEW.players.get() {
-            if pressed & FLIP_BIT != 0 {
-                CAR.lights_on.set(flipped(CAR.lights_on.get()));
-            }
-            if pressed & VIEW_BIT != 0 {
-                next_camera_view(crate::physics::car_store::car_addr() as u32)?;
-            }
-        }
-        if !computer() {
-            return Ok(());
-        }
-        RACE_WORK.driver_slot.set(RACE_WORK.current_car.get());
-        start_blend();
-        RACE_WORK
-            .driver_start_blend
-            .set_bits(x87::loaded(CAR.start_blend.bits()));
-        drive_computer_car()?;
-        let (ph, w) = (&PHYSICS, &RACE_WORK);
-        for (to, from) in [
-            (&ph.input_steer, &w.driver_steer),
-            (&ph.input_throttle, &w.driver_throttle),
-            (&ph.input_brake, &w.driver_brake),
-            (&ph.input_handbrake, &w.driver_flags[0]),
-            (&ph.input_gear_up, &w.driver_flags[1]),
-            (&ph.input_gear_down, &w.driver_flags[2]),
-        ] {
-            to.set(from.get());
-        }
-        Ok(())
     }
+    COURSE_LISTS.input_keys_mask.set(CAR.input_keys.get());
+    CAR.input_keys.set(0);
+    CAR.keys_pressed.set(0);
+    // The four input words (recorded or replayed) into the car's inputs.
+    let words = [
+        &CAR.input_throttle,
+        &CAR.input_keys,
+        &CAR.input_steering,
+        &CAR.input_brake,
+    ];
+    for (to, from) in words.into_iter().zip(&PHYSICS.input_words) {
+        to.set(from.get());
+    }
+    let keys = read_keys(COURSE_LISTS.input_keys_mask.get(), CAR.input_keys.get());
+    let pressed = keys.pressed;
+    CAR.keys_pressed.set(pressed);
+    PHYSICS.input_throttle.set(CAR.input_throttle.get());
+    PHYSICS.input_steer.set(CAR.input_steering.get());
+    PHYSICS.input_brake.set(CAR.input_brake.get());
+    PHYSICS.input_handbrake.set(keys.hand);
+    PHYSICS.input_gear_up.set(keys.up);
+    PHYSICS.input_gear_down.set(keys.down);
+    let replay = crate::net::store::NET.session.get() != 0;
+    if replay || RACE_WORK.current_car.get() < RACE_VIEW.players.get() {
+        if pressed & FLIP_BIT != 0 {
+            CAR.lights_on.set(flipped(CAR.lights_on.get()));
+        }
+        if pressed & VIEW_BIT != 0 {
+            next_camera_view(crate::physics::car_store::car_addr() as u32)?;
+        }
+    }
+    if !computer() {
+        return Ok(());
+    }
+    RACE_WORK.driver_slot.set(RACE_WORK.current_car.get());
+    start_blend();
+    RACE_WORK
+        .driver_start_blend
+        .set_bits(x87::loaded(CAR.start_blend.bits()));
+    drive_computer_car()?;
+    let (ph, w) = (&PHYSICS, &RACE_WORK);
+    for (to, from) in [
+        (&ph.input_steer, &w.driver_steer),
+        (&ph.input_throttle, &w.driver_throttle),
+        (&ph.input_brake, &w.driver_brake),
+        (&ph.input_handbrake, &w.driver_flags[0]),
+        (&ph.input_gear_up, &w.driver_flags[1]),
+        (&ph.input_gear_down, &w.driver_flags[2]),
+    ] {
+        to.set(from.get());
+    }
+    Ok(())
 }

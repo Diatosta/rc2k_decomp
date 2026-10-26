@@ -18,7 +18,7 @@ use crate::scene::texture_places_store::TEXTURE_PLACES;
 
 /// `load`: what stands for `scene::load_texture`, given the texture and the slot.
 // Converted: `rc2k_core::scene::textures::slot_load`
-pub unsafe fn load_slot_texture(slot: u32, load: &mut dyn FnMut(u32, u32)) -> Result<(), BadInput> {
+pub fn load_slot_texture(slot: u32, load: &mut dyn FnMut(u32, u32)) -> Result<(), BadInput> {
     let Some(wanted) = rc2k_core::scene::textures::slot_load(
         slot,
         || TEXTURE_PLACES.slot_wanted[slot as usize].get(),
@@ -36,6 +36,6 @@ pub unsafe fn load_slot_texture(slot: u32, load: &mut dyn FnMut(u32, u32)) -> Re
 }
 
 /// With the game's loading (`scene::load_texture`, the platform's).
-pub unsafe fn load_slot_texture_in_game(slot: u32) -> Result<(), BadInput> {
-    unsafe { load_slot_texture(slot, &mut crate::platform_3d::load_texture) }
+pub fn load_slot_texture_in_game(slot: u32) -> Result<(), BadInput> {
+    load_slot_texture(slot, &mut crate::platform_3d::load_texture)
 }

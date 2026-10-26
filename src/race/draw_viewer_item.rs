@@ -69,11 +69,5 @@ pub fn draw_viewer_item(item: u32, index: u32) -> Result<(), Refused> {
                 .wrapping_sub(INSTALLER_PAGES.move_clock.get())
         },
     );
-    unsafe {
-        crate::drive::tyre_quad::tyre_quad(
-            picture,
-            VIEWER_PANEL.item_place[0].addr() as u32,
-            colour,
-        )
-    }
+    crate::drive::tyre_quad::tyre_quad(picture, VIEWER_PANEL.item_place[0].addr() as u32, colour)
 }

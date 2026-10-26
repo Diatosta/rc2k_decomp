@@ -34,7 +34,7 @@ pub fn compare_split_times() -> Result<(), Refused> {
     // Splits 16 .. 27 read past the sixteen rows (a slip of the original, kept).
     let list =
         (LEAGUE.rows[0].addr() as u32).wrapping_add(CAR.splits_recorded.get().wrapping_mul(0x28));
-    let kept: [u32; 10] = unsafe { get_list(list) };
+    let kept: [u32; 10] = { get_list(list) };
     let c = compare_split(time, &kept, |c| LEAGUE.names[c].get());
     let f = c.figures;
     for (k, v) in [

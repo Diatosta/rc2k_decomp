@@ -78,7 +78,7 @@ fn skid_vertex(n: u32, v: u32) -> Result<(), BadInput> {
             int_plus_float_80(get(p + 4)?, lift),
             int_80(get(p + 8)?),
         ];
-        let t = unsafe {
+        let t = {
             crate::scene::rotate_point::rotate_point(MATRICES.view_matrix[0].addr() as u32, point)
         };
         put(v + 0x10, float_of_80(t[0]))?;

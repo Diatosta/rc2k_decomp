@@ -15,30 +15,28 @@ use crate::physics::car_store::CAR;
 use crate::physics::tables_store::PHYSICS;
 use crate::scene::draw_store::DRAW;
 
-unsafe fn at(a: u32) -> u32 {
+fn at(a: u32) -> u32 {
     crate::pointers::read_or_end::<u32>(a, "physics::add_drive_forces's operand")
 }
 
-unsafe fn put(a: u32, v: u32) {
+fn put(a: u32, v: u32) {
     crate::pointers::write_or_end::<u32>(a, v, "physics::add_drive_forces's operand")
 }
 
 /// The core on the variables' addresses.
-pub unsafe fn add_drive_forces_at(v: &[u32]) {
-    unsafe {
-        let mut factor = PHYSICS.drive_force_factor[0].bits();
-        if at(v[1]) != 0 {
-            put(v[0], x87::loaded(factor));
-            factor = PHYSICS.drive_force_factor[1].bits();
-        }
-        put(
-            v[6],
-            x87::sum4_times(at(v[2]), at(v[3]), at(v[4]), at(v[5]), factor),
-        );
-        let scale = PHYSICS.drive_shares[2].bits();
-        put(v[9], mul2_plus(at(v[7]), at(v[6]), scale, at(v[9])));
-        put(v[10], mul2_plus(at(v[8]), at(v[6]), scale, at(v[10])));
+pub fn add_drive_forces_at(v: &[u32]) {
+    let mut factor = PHYSICS.drive_force_factor[0].bits();
+    if at(v[1]) != 0 {
+        put(v[0], x87::loaded(factor));
+        factor = PHYSICS.drive_force_factor[1].bits();
     }
+    put(
+        v[6],
+        x87::sum4_times(at(v[2]), at(v[3]), at(v[4]), at(v[5]), factor),
+    );
+    let scale = PHYSICS.drive_shares[2].bits();
+    put(v[9], mul2_plus(at(v[7]), at(v[6]), scale, at(v[9])));
+    put(v[10], mul2_plus(at(v[8]), at(v[6]), scale, at(v[10])));
 }
 
 fn game() -> Vec<u32> {
@@ -58,6 +56,6 @@ fn game() -> Vec<u32> {
 }
 
 /// The Rust version (the exact one, for `physics::drive_wheels_step`).
-pub unsafe fn add_drive_forces() {
-    unsafe { add_drive_forces_at(&game()) }
+pub fn add_drive_forces() {
+    add_drive_forces_at(&game())
 }

@@ -39,78 +39,70 @@ impl GearPlaces {
     }
 }
 
-unsafe fn at(a: u32) -> u32 {
+fn at(a: u32) -> u32 {
     crate::pointers::read_or_end::<u32>(a, "physics::gearing's operand")
 }
 
-unsafe fn put(a: u32, v: u32) {
+fn put(a: u32, v: u32) {
     crate::pointers::write_or_end::<u32>(a, v, "physics::gearing's operand")
 }
 
 /// The gear (None for neutral) and its ratio; refused outside the ratio table (-1 ..= 7).
-unsafe fn gear_ratio(p: &GearPlaces) -> Result<Option<(u32, u32)>, Refused> {
-    unsafe {
-        let gear = at(p.gear);
-        if gear == 0 {
-            return Ok(None);
-        }
-        if !(-1..=7).contains(&(gear as i32)) {
-            return Err(BadInput("a gear outside g_gearRatios (-1 ..= 7)").into());
-        }
-        Ok(Some((
-            gear,
-            at(p.ratios.wrapping_add(gear.wrapping_mul(4))),
-        )))
+fn gear_ratio(p: &GearPlaces) -> Result<Option<(u32, u32)>, Refused> {
+    let gear = at(p.gear);
+    if gear == 0 {
+        return Ok(None);
     }
+    if !(-1..=7).contains(&(gear as i32)) {
+        return Err(BadInput("a gear outside g_gearRatios (-1 ..= 7)").into());
+    }
+    Ok(Some((
+        gear,
+        at(p.ratios.wrapping_add(gear.wrapping_mul(4))),
+    )))
 }
 
 /// `physics::revs_from_wheels` (0x43C0C9): in gear, engine speed = the driven speed (with
 /// drive kind 1 the two driven speeds' sum times 0.5) over the gear's ratio.
-pub unsafe fn revs_from_wheels_at(p: &GearPlaces) -> Result<(), Refused> {
-    unsafe {
-        let Some((_, ratio)) = gear_ratio(p)? else {
-            return Ok(());
-        };
-        let speed = if at(p.drive_kind) == 1 {
-            crate::math::x87_run::sum_times_over(
-                at(p.drive_speed),
-                at(p.drive_speed_2),
-                NUMBERS.half.bits(),
-                ratio,
-            )
-        } else {
-            x87::div(at(p.drive_speed), ratio)
-        };
-        put(p.engine_speed, speed);
-        Ok(())
-    }
+pub fn revs_from_wheels_at(p: &GearPlaces) -> Result<(), Refused> {
+    let Some((_, ratio)) = gear_ratio(p)? else {
+        return Ok(());
+    };
+    let speed = if at(p.drive_kind) == 1 {
+        crate::math::x87_run::sum_times_over(
+            at(p.drive_speed),
+            at(p.drive_speed_2),
+            NUMBERS.half.bits(),
+            ratio,
+        )
+    } else {
+        x87::div(at(p.drive_speed), ratio)
+    };
+    put(p.engine_speed, speed);
+    Ok(())
 }
 
 /// `physics::wheels_from_revs` (0x43C124): in gear, driven speed = engine speed times the
 /// gear's ratio; with drive kind 1 the second driven speed the same (reloaded: `fld;
 /// fstp`).
-pub unsafe fn wheels_from_revs_at(p: &GearPlaces) -> Result<(), Refused> {
-    unsafe {
-        let Some((_, ratio)) = gear_ratio(p)? else {
-            return Ok(());
-        };
-        let speed = x87::mul(at(p.engine_speed), ratio);
-        put(p.drive_speed, speed);
-        if at(p.drive_kind) == 1 {
-            put(p.drive_speed_2, x87::loaded(speed));
-        }
-        Ok(())
+pub fn wheels_from_revs_at(p: &GearPlaces) -> Result<(), Refused> {
+    let Some((_, ratio)) = gear_ratio(p)? else {
+        return Ok(());
+    };
+    let speed = x87::mul(at(p.engine_speed), ratio);
+    put(p.drive_speed, speed);
+    if at(p.drive_kind) == 1 {
+        put(p.drive_speed_2, x87::loaded(speed));
     }
+    Ok(())
 }
 
 /// `physics::revs_from_speed` (0x43C101): in gear, engine speed = `g_carSpeed` over the
 /// gear's ratio.
-pub unsafe fn revs_from_speed_at(p: &GearPlaces) -> Result<(), Refused> {
-    unsafe {
-        let Some((_, ratio)) = gear_ratio(p)? else {
-            return Ok(());
-        };
-        put(p.engine_speed, x87::div(at(p.speed), ratio));
-        Ok(())
-    }
+pub fn revs_from_speed_at(p: &GearPlaces) -> Result<(), Refused> {
+    let Some((_, ratio)) = gear_ratio(p)? else {
+        return Ok(());
+    };
+    put(p.engine_speed, x87::div(at(p.speed), ratio));
+    Ok(())
 }

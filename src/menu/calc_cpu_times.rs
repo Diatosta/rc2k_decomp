@@ -135,7 +135,7 @@ pub unsafe fn calc_cpu_times() -> Result<(), Refused> {
                     first: EVENT_STATE.service_944.get(),
                     step: EVENT_STATE.dword_755948.get(),
                 };
-                let own = spread.next(|limit| crate::math::random_below::random_below(limit))?;
+                let own = spread.next(crate::math::random_below::random_below)?;
                 DRAW_WORK.figure.set(own);
                 EVENT_STATE.service_944.set(spread.first);
                 EVENT_STATE.dword_755948.set(spread.step);

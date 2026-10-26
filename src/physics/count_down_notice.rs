@@ -16,18 +16,16 @@ use rc2k_core::physics::notices::Notice;
 
 /// The Rust version on (shown, time) at `v`. The registers the original leaves are read by none of its callers (eax).
 // Converted: `rc2k_core::physics::notices::Notice::count_down`.
-pub unsafe fn count_down_at(v: [u32; 2]) {
-    unsafe {
-        let was = Notice {
-            shown: get(v[0]),
-            time: get(v[1]),
-            ..Notice::default()
-        };
-        let mut n = was;
-        n.count_down();
-        put_changed(v[1], was.time, n.time);
-        put_changed(v[0], was.shown, n.shown);
-    }
+pub fn count_down_at(v: [u32; 2]) {
+    let was = Notice {
+        shown: get(v[0]),
+        time: get(v[1]),
+        ..Notice::default()
+    };
+    let mut n = was;
+    n.count_down();
+    put_changed(v[1], was.time, n.time);
+    put_changed(v[0], was.shown, n.shown);
 }
 
 fn game() -> [u32; 2] {
@@ -38,6 +36,6 @@ fn game() -> [u32; 2] {
 }
 
 /// The Rust version.
-pub unsafe fn count_down_notice() {
-    unsafe { count_down_at(game()) }
+pub fn count_down_notice() {
+    count_down_at(game())
 }

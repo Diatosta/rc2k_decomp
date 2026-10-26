@@ -127,7 +127,7 @@ pub fn step_colour(c: Colour, up: bool) {
     c.number.set(n as u32);
     // `CAPTIONS.caption_lists` from `table_at`: the original does not check `n` (a kept
     // number past 6 steps on from it); the address is resolved by `MOVED`.
-    let pick: u32 = unsafe {
+    let pick: u32 = {
         crate::store::game_read(rva(0x758A12_usize
             .wrapping_add(4 * c.table_at)
             .wrapping_add((n as usize).wrapping_mul(4))))

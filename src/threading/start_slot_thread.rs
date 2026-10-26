@@ -62,7 +62,7 @@ unsafe extern "system" fn run_routine(routine: *mut c_void) -> u32 {
                 "threading::start_slot_thread: the routine {routine:#x} raises fatal error {:#x} {:?}",
                 error.code, error.message
             ));
-            unsafe { crate::fatal::raise::raise(error, &Regs::default()) };
+            crate::fatal::raise::raise(error, &Regs::default());
         }
         Some(Err(crate::errors::Refused::BadInput(why))) => crate::standalone::finish(
             &format!(

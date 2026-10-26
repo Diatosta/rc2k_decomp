@@ -124,7 +124,7 @@ const LONE_RETN: [usize; 119] = [
 /// Every hook's place and name.
 static HOOKED: OnceLock<Vec<(usize, &'static str)>> = OnceLock::new();
 
-unsafe fn install_and_lock(image: &Image) -> Result<(), String> {
+fn install_and_lock(image: &Image) -> Result<(), String> {
     // No code runs at the game's addresses: the platform's functions and the fatal
     // reporter are named by theirs, kept here to name a fault's place and for the calls
     // counted at the end.
@@ -356,8 +356,8 @@ fn rust(name: &str) {
 
 /// A Rust version's refusal in `start`: a refused input ends the program, a fatal error is
 /// raised.
-unsafe fn refused(name: &str, e: Refused, r: &Regs) {
-    unsafe { crate::fatal::raise::refused_in(name, e, r) };
+fn refused(name: &str, e: Refused, r: &Regs) {
+    crate::fatal::raise::refused_in(name, e, r);
 }
 
 fn stand_in(what: &str, variable: &crate::session::Dword, value: u32) {

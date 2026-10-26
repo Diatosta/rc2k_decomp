@@ -53,30 +53,28 @@ fn refusal() -> Result<Option<&'static str>, BadInput> {
 /// The Rust version. The registers it leaves are read by no caller (liveness: no read
 /// point after `drive::race_init`'s or `race::run_view_marks`' call).
 // Converted: `rc2k_core::drive::sharing::{check_light_record, cars_shown}`.
-pub unsafe fn share_all_cars() -> Result<(), Refused> {
-    unsafe {
-        if let Some(why) = refusal()? {
-            return Err(BadInput(why).into());
-        }
-        // `set_listener` refuses before writing; nothing is written before it but the
-        // lead car's values, which are kept again by the original.
-        set_listener()?;
-        keep_lead_car_values();
-        for (n, (block, record, sound)) in cars().into_iter().enumerate() {
-            RACE_WORK.current_car.set(n as u32);
-            share_car_state(block, record, sound)?;
-        }
-        let first_record: u32 = RACE_WORK.car_records[0].bits();
-        KIND_TABLES.sound_objects_shown.set_bits(0u32);
-        let reading = crate::scene::reading::Reading::new();
-        let (shown, _) = sharing::cars_shown(CAR_BLOCKS.cars[0].car_kind.bits(), || {
-            reading.read::<u32>(first_record.wrapping_add(0x258), "a car's record")
-        });
-        reading.finish()?;
-        if shown {
-            KIND_TABLES.sound_objects_shown.set_bits(1u32);
-        }
-        put_back_lead_car_values();
-        Ok(())
+pub fn share_all_cars() -> Result<(), Refused> {
+    if let Some(why) = refusal()? {
+        return Err(BadInput(why).into());
     }
+    // `set_listener` refuses before writing; nothing is written before it but the
+    // lead car's values, which are kept again by the original.
+    set_listener()?;
+    keep_lead_car_values();
+    for (n, (block, record, sound)) in cars().into_iter().enumerate() {
+        RACE_WORK.current_car.set(n as u32);
+        share_car_state(block, record, sound)?;
+    }
+    let first_record: u32 = RACE_WORK.car_records[0].bits();
+    KIND_TABLES.sound_objects_shown.set_bits(0u32);
+    let reading = crate::scene::reading::Reading::new();
+    let (shown, _) = sharing::cars_shown(CAR_BLOCKS.cars[0].car_kind.bits(), || {
+        reading.read::<u32>(first_record.wrapping_add(0x258), "a car's record")
+    });
+    reading.finish()?;
+    if shown {
+        KIND_TABLES.sound_objects_shown.set_bits(1u32);
+    }
+    put_back_lead_car_values();
+    Ok(())
 }

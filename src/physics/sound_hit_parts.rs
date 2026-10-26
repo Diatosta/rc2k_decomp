@@ -26,7 +26,7 @@ pub fn sound_hit_parts() -> Result<(), Refused> {
         return Ok(());
     }
     hit_tests(&SOUND_TESTS, &CAR.part_hit_damage, &mut |bit| {
-        unsafe { sound_on_bit(bit & 0xFF) }?;
+        { sound_on_bit(bit & 0xFF) }?;
         Ok(())
     })
 }

@@ -13,24 +13,22 @@ use crate::scene::x87_mem::{fld80, fstp};
 
 /// `scene::identity_matrix3` (0x46574E): the matrix at esi the identity (1.0 from `fld1`).
 /// Every register kept.
-pub unsafe fn identity_matrix3(at: u32) {
-    unsafe { write_floats(at, &rc2k_core::math::vector::IDENTITY) };
+pub fn identity_matrix3(at: u32) {
+    write_floats(at, &rc2k_core::math::vector::IDENTITY);
 }
 
 /// `scene::multiply_matrices3` (0x4657EC): `out` = `a` x `b`, column by column, each written
 /// as made (so an `out` that is one of the two behaves as there). The registers the
 /// original leaves (ecx and edx 0, edi and ebp 12 on) are read by no caller (liveness at the
 /// five call sites, all `marks`', which are Rust).
-pub unsafe fn multiply_matrices3(a: u32, b: u32, out: u32) {
-    unsafe {
-        for column in 0..3 {
-            for row in 0..3 {
-                x87::row_times_column_3(
-                    (a + 12 * row) as *const u32,
-                    (b + 4 * column) as *const u32,
-                    (out + 12 * row + 4 * column) as *mut u32,
-                );
-            }
+pub fn multiply_matrices3(a: u32, b: u32, out: u32) {
+    for column in 0..3 {
+        for row in 0..3 {
+            x87::row_times_column_3(
+                (a + 12 * row) as *const u32,
+                (b + 4 * column) as *const u32,
+                (out + 12 * row + 4 * column) as *mut u32,
+            );
         }
     }
 }
@@ -39,23 +37,16 @@ pub unsafe fn multiply_matrices3(a: u32, b: u32, out: u32) {
 /// `from` turned by the matrix at `matrix` into `to` (`math::x87::turn_int_point`). The
 /// registers it leaves (ecx -1, esi and edi past the points) are read by no caller. Refuses
 /// a count of 0x80000000 (the count would run away).
-pub unsafe fn transform_int_points(
-    from: u32,
-    to: u32,
-    count: u32,
-    matrix: u32,
-) -> Result<(), Refused> {
+pub fn transform_int_points(from: u32, to: u32, count: u32, matrix: u32) -> Result<(), Refused> {
     if count == 0x8000_0000 {
         return Err(BadInput("a count of 0x80000000: the original runs away").into());
     }
-    unsafe {
-        for n in 0..(count as i32).max(0) as u32 {
-            x87::turn_int_point(
-                from.wrapping_add(12 * n) as *const i32,
-                matrix as *const u32,
-                to.wrapping_add(12 * n) as *mut i32,
-            );
-        }
+    for n in 0..(count as i32).max(0) as u32 {
+        x87::turn_int_point(
+            from.wrapping_add(12 * n) as *const i32,
+            matrix as *const u32,
+            to.wrapping_add(12 * n) as *mut i32,
+        );
     }
     Ok(())
 }
@@ -81,23 +72,21 @@ pub fn turnable(angle: &[u8; 10]) -> Result<(), Refused> {
 /// `scene::turn_matrix3_x` (0x465783), `_y` (0x4657A6), `_z` (0x4657C9): the matrix at esi
 /// a turn by the angle about that axis (the original's `fsincos` and stores, in its order).
 /// Every register kept. Refuses an angle `fsincos` cannot take.
-pub unsafe fn turn_matrix3(axis: Axis, at: u32, angle: [u8; 10]) -> Result<(), Refused> {
+pub fn turn_matrix3(axis: Axis, at: u32, angle: [u8; 10]) -> Result<(), Refused> {
     turnable(&angle)?;
     let a = angle.as_ptr();
     let m = at as *mut u8;
-    unsafe {
-        match axis {
-            Axis::X => turn_x(a, m),
-            Axis::Y => turn_y(a, m),
-            Axis::Z => turn_z(a, m),
-        }
+    match axis {
+        Axis::X => turn_x(a, m),
+        Axis::Y => turn_y(a, m),
+        Axis::Z => turn_z(a, m),
     }
     Ok(())
 }
 
 /// `fld tbyte; fsincos; fld1; fstp ..; fldz; fst ..` for the turn about x: the identity's
 /// row and column of x, the cosine on the diagonal, the sine and minus the sine across.
-unsafe fn turn_x(a: *const u8, m: *mut u8) {
+fn turn_x(a: *const u8, m: *mut u8) {
     let t0 = fld80(a, 0x0);
     let t1 = t0.sin();
     let t2 = t0.cos();
@@ -116,7 +105,7 @@ unsafe fn turn_x(a: *const u8, m: *mut u8) {
 }
 
 /// The turn about y (see `turn_x`).
-unsafe fn turn_y(a: *const u8, m: *mut u8) {
+fn turn_y(a: *const u8, m: *mut u8) {
     let t0 = fld80(a, 0x0);
     let t1 = t0.sin();
     let t2 = t0.cos();
@@ -135,7 +124,7 @@ unsafe fn turn_y(a: *const u8, m: *mut u8) {
 }
 
 /// The turn about z (see `turn_x`).
-unsafe fn turn_z(a: *const u8, m: *mut u8) {
+fn turn_z(a: *const u8, m: *mut u8) {
     let t0 = fld80(a, 0x0);
     let t1 = t0.sin();
     let t2 = t0.cos();

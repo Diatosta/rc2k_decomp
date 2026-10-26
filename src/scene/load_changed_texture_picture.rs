@@ -24,7 +24,7 @@ pub const TEXTURES: u32 = 0x400;
 /// `load`: what stands for `scene::load_texture_picture`, given the picture and the
 /// texture.
 // Converted: `rc2k_core::scene::pictures::changed_picture`
-pub unsafe fn load_changed_texture_picture(
+pub fn load_changed_texture_picture(
     texture: u32,
     load: &mut dyn FnMut(u32, u32) -> Result<(), Refused>,
 ) -> Result<(), Refused> {

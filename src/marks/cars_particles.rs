@@ -87,90 +87,88 @@ pub fn cars_particles() -> Result<(), Refused> {
         return Err(BadInput(why).into());
     }
     let count = cars(settings)?.len() as u32;
-    unsafe {
-        for n in (0..count).rev() {
-            EMITTER
-                .tag
-                .set(x87::int_times_int_to_int(n as i32, EMITTER.tag_k.get() as i32) as u32);
-            let car = settings + 0x60 + n * CAR_LEN;
-            EMITTER.car.set(car);
-            let m = at(car + 0x24)?;
-            adjugate_matrix(m, car + 0x94);
-            for (to, from) in [(0x7C, 0x70), (0x70, 0x64), (0x64, 0x58)] {
-                let v = [at(car + from)?, at(car + from + 4)?, at(car + from + 8)?];
-                for (k, x) in v.iter().enumerate() {
-                    put(car + to + 4 * k as u32, *x)?;
-                }
+    for n in (0..count).rev() {
+        EMITTER
+            .tag
+            .set(x87::int_times_int_to_int(n as i32, EMITTER.tag_k.get() as i32) as u32);
+        let car = settings + 0x60 + n * CAR_LEN;
+        EMITTER.car.set(car);
+        let m = at(car + 0x24)?;
+        adjugate_matrix(m, car + 0x94);
+        for (to, from) in [(0x7C, 0x70), (0x70, 0x64), (0x64, 0x58)] {
+            let v = [at(car + from)?, at(car + from + 4)?, at(car + from + 8)?];
+            for (k, x) in v.iter().enumerate() {
+                put(car + to + 4 * k as u32, *x)?;
             }
-            for k in 0..3 {
-                let k4 = 4 * k;
-                put(
-                    car + 0x58 + k4,
-                    x87::sub(at(m + 0x30 + k4)?, at(car + 0x40 + k4)?),
-                )?;
-            }
-            let mean_k: u32 = MARKS_FLOATS.quarter.bits();
-            for k in 0..3 {
-                let k4 = 4 * k;
-                put(
-                    car + 0x4C + k4,
-                    x87::sum4_times(
-                        at(car + 0x58 + k4)?,
-                        at(car + 0x64 + k4)?,
-                        at(car + 0x70 + k4)?,
-                        at(car + 0x7C + k4)?,
-                        mean_k,
-                    ),
-                )?;
-            }
-            put(car + 0x40, at(m + 0x30)?)?;
-            put(car + 0x44, at(m + 0x34)?)?;
-            put(car + 0x48, at(m + 0x38)?)?;
-            let [k1, k2, k3] = read_bits(&EMITTER.rate_k);
-            let one: u32 = MARKS_FLOATS.one.bits();
-            let (length, rate) = x87::length_and_rate(
-                [at(car + 0x4C)?, at(car + 0x50)?, at(car + 0x54)?],
-                k1,
-                k2,
-                one,
-                k3,
-            );
-            put(car + 0x88, length as u32)?;
-            put(car + 0x90, rate as u32)?;
-            if at(car + 0x30)? != 0 {
-                for o in [0x4C, 0x50, 0x54, 0x88] {
-                    put(car + o, 0)?;
-                }
-            }
-            let w = at(car + 0x28)?;
-            let up = read_bits(&EMITTER.up);
-            let across = [
-                x87::product_difference(up[1], at(w + 8)?, up[2], at(w + 4)?),
-                x87::product_difference(up[2], at(w)?, up[0], at(w + 8)?),
-                x87::product_difference(up[0], at(w + 4)?, up[1], at(w)?),
-            ];
-            let across = x87::normalised3(across, one);
-            write_bits(&EMITTER.across, across);
-            let b = x87::crossed_turned(across, w, m);
-            write_bits(&EMITTER.side_b, b);
-            let a = [
-                x87::product_difference(b[1], across[2], b[2], across[1]),
-                x87::product_difference(b[2], across[0], b[0], across[2]),
-                x87::product_difference(b[0], across[1], b[1], across[0]),
-            ];
-            write_bits(&EMITTER.side_a, a);
-            let model = at(car + 4)?;
-            EMITTER.looks[0].set(SPLINE_HEAD.look(2 * model as usize));
-            EMITTER.looks[1].set(SPLINE_HEAD.look(2 * model as usize + 2));
-            if at(car + 0x30)? != 0 {
-                put(car + 0x30, at(car + 0x30)?.wrapping_sub(1))?;
-            } else {
-                emit_car_particles(car)?;
-            }
-            emit_particle_13::emit_particle_13(car)?;
-            emit_particle_19::emit_particle_19(car)?;
-            emit_particle_22::emit_particle_22(car)?;
         }
+        for k in 0..3 {
+            let k4 = 4 * k;
+            put(
+                car + 0x58 + k4,
+                x87::sub(at(m + 0x30 + k4)?, at(car + 0x40 + k4)?),
+            )?;
+        }
+        let mean_k: u32 = MARKS_FLOATS.quarter.bits();
+        for k in 0..3 {
+            let k4 = 4 * k;
+            put(
+                car + 0x4C + k4,
+                x87::sum4_times(
+                    at(car + 0x58 + k4)?,
+                    at(car + 0x64 + k4)?,
+                    at(car + 0x70 + k4)?,
+                    at(car + 0x7C + k4)?,
+                    mean_k,
+                ),
+            )?;
+        }
+        put(car + 0x40, at(m + 0x30)?)?;
+        put(car + 0x44, at(m + 0x34)?)?;
+        put(car + 0x48, at(m + 0x38)?)?;
+        let [k1, k2, k3] = read_bits(&EMITTER.rate_k);
+        let one: u32 = MARKS_FLOATS.one.bits();
+        let (length, rate) = x87::length_and_rate(
+            [at(car + 0x4C)?, at(car + 0x50)?, at(car + 0x54)?],
+            k1,
+            k2,
+            one,
+            k3,
+        );
+        put(car + 0x88, length as u32)?;
+        put(car + 0x90, rate as u32)?;
+        if at(car + 0x30)? != 0 {
+            for o in [0x4C, 0x50, 0x54, 0x88] {
+                put(car + o, 0)?;
+            }
+        }
+        let w = at(car + 0x28)?;
+        let up = read_bits(&EMITTER.up);
+        let across = [
+            x87::product_difference(up[1], at(w + 8)?, up[2], at(w + 4)?),
+            x87::product_difference(up[2], at(w)?, up[0], at(w + 8)?),
+            x87::product_difference(up[0], at(w + 4)?, up[1], at(w)?),
+        ];
+        let across = x87::normalised3(across, one);
+        write_bits(&EMITTER.across, across);
+        let b = x87::crossed_turned(across, w, m);
+        write_bits(&EMITTER.side_b, b);
+        let a = [
+            x87::product_difference(b[1], across[2], b[2], across[1]),
+            x87::product_difference(b[2], across[0], b[0], across[2]),
+            x87::product_difference(b[0], across[1], b[1], across[0]),
+        ];
+        write_bits(&EMITTER.side_a, a);
+        let model = at(car + 4)?;
+        EMITTER.looks[0].set(SPLINE_HEAD.look(2 * model as usize));
+        EMITTER.looks[1].set(SPLINE_HEAD.look(2 * model as usize + 2));
+        if at(car + 0x30)? != 0 {
+            put(car + 0x30, at(car + 0x30)?.wrapping_sub(1))?;
+        } else {
+            emit_car_particles(car)?;
+        }
+        emit_particle_13::emit_particle_13(car)?;
+        emit_particle_19::emit_particle_19(car)?;
+        emit_particle_22::emit_particle_22(car)?;
     }
     Ok(())
 }

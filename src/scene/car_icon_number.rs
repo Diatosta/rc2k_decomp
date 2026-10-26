@@ -10,7 +10,7 @@ use crate::race::kind_store::KIND_TABLES;
 
 // ---- Rust version ----
 
-pub unsafe fn car_icon_number(place: u32) -> u32 {
+pub fn car_icon_number(place: u32) -> u32 {
     // Converted: `rc2k_core::scene::kinds::known_place`.
     let place = rc2k_core::scene::kinds::known_place(place);
     KIND_TABLES.car_icon_numbers[place].get()

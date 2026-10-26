@@ -37,7 +37,7 @@ pub fn take(list: impl crate::marks::store::Where, bytes: u32) -> Result<u32, Re
 
 /// `bytes` bytes on `list` (`memory::allocate`).
 pub fn take_from(list: *mut MemoryList, bytes: u32) -> Result<u32, Refused> {
-    Ok(unsafe { crate::memory::allocate::allocate(list, bytes) }? as u32)
+    Ok({ crate::memory::allocate::allocate(list, bytes) }? as u32)
 }
 
 /// `marks::allocate_places` (0x4C38B1), step 6: 0x7024 bytes on `stru_8DB570` into

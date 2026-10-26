@@ -10,12 +10,12 @@ use crate::text::draw_text::{Canvas, draw_text};
 use crate::text::font::Font;
 
 /// Returns whether a line was too wide: the carry flag.
-pub unsafe fn draw_text_keep_regs(
+pub fn draw_text_keep_regs(
     font: &mut Font,
     text: *const u8,
     x: i32,
     y: i32,
     canvas: &mut dyn Canvas,
 ) -> Result<bool, Refused> {
-    Ok(unsafe { draw_text(font, text, x, y, canvas) }?.too_wide)
+    Ok({ draw_text(font, text, x, y, canvas) }?.too_wide)
 }

@@ -50,7 +50,7 @@ fn face_checkpoint(back: u32) -> bool {
         .wrapping_add(COURSE.scene_points.get());
     let first = CAR.position[0].get().wrapping_sub(rd(point));
     let second = CAR.position[2].get().wrapping_sub(rd(point + 8));
-    let angle = unsafe { crate::scene::angle_between::angle_of(first, second) };
+    let angle = { crate::scene::angle_between::angle_of(first, second) };
     CAR.camera_heading.set(angle << 16);
     true
 }
@@ -103,7 +103,7 @@ fn turn_back() -> Result<(), Refused> {
 // Converted: `rc2k_core::physics::camera_ground::{back_checkpoint, turn_step,
 // next_turn_step}`.
 pub fn steps() -> Result<(), Refused> {
-    unsafe { crate::physics::ease_view_turn::ease_view_turn() };
+    crate::physics::ease_view_turn::ease_view_turn();
     RACE_TABLES.camera_ground_flag.set(0);
     RACE_TABLES.camera_turn_step.set(u32::MAX);
     DRAW.camera_heading_kept.set(CAR.camera_heading.get());
@@ -140,10 +140,10 @@ pub fn steps() -> Result<(), Refused> {
     loop {
         if up {
             CAMERA_WORK.pitch_floor.set(CAR.camera_pitch.get());
-            unsafe { crate::physics::ease_pitch_up::ease_pitch_up() };
+            crate::physics::ease_pitch_up::ease_pitch_up();
         } else {
             CAMERA_WORK.pitch_ceiling.set(CAR.camera_pitch.get());
-            unsafe { crate::physics::ease_pitch_down::ease_pitch_down() };
+            crate::physics::ease_pitch_down::ease_pitch_down();
         }
         if CAMERA_WORK.pitch_step.get() == 0 {
             return Ok(());

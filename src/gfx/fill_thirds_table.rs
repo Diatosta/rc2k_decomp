@@ -23,7 +23,7 @@ pub fn home() -> usize {
 
 // ---- Rust version ----
 
-pub unsafe fn fill_thirds_table() {
+pub fn fill_thirds_table() {
     // Converted: `rc2k_core::gfx::pixels::thirds_table`.
     let table: [u8; TABLE_LEN] = rc2k_core::gfx::pixels::thirds_table();
     THIRDS.write(&table);

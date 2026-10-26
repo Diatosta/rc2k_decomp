@@ -31,7 +31,7 @@ use std::cmp::Ordering;
 
 /// The value at `v` held to ±(the limit at `l`), as the original: `fld l; fld v;
 /// fcompp`, the limit negated in place for the second compare and put back.
-unsafe fn hold(v: u32, l: u32) {
+fn hold(v: u32, l: u32) {
     hold_at(v as usize, l as usize);
 }
 
@@ -77,30 +77,28 @@ pub unsafe fn limit_motion() {
             CAR.spin[k].set_bits(0);
         }
     }
-    unsafe {
-        for k in 0..3usize {
-            hold(CAR.spin[k].addr() as u32, PHYSICS.spin_limit.addr() as u32);
-        }
-        for k in [0usize, 2, 1] {
-            hold(
-                CAR.velocity[k].addr() as u32,
-                PHYSICS.velocity_limit.addr() as u32,
-            );
-        }
-        let length = rounded(vector_length(CAR.velocity[0].addr() as u32));
-        DRAW.motion_length.set_bits(length);
-        let top = PHYSICS.top_speed.bits();
-        let past = matches!(
-            f32::from_bits(top).partial_cmp(&f32::from_bits(length)),
-            Some(Ordering::Less)
-        ) || f32::from_bits(top).is_nan()
-            || f32::from_bits(length).is_nan();
-        if past {
-            let factor = crate::math::x87_run::div_80(top, length);
-            scale_vector(CAR.velocity[0].addr() as u32, factor);
-            scale_vector(CAR.local_velocity[0].addr() as u32, factor);
-            DRAW.scratch.set(rounded(factor));
-        }
+    for k in 0..3usize {
+        hold(CAR.spin[k].addr() as u32, PHYSICS.spin_limit.addr() as u32);
+    }
+    for k in [0usize, 2, 1] {
+        hold(
+            CAR.velocity[k].addr() as u32,
+            PHYSICS.velocity_limit.addr() as u32,
+        );
+    }
+    let length = rounded(vector_length(CAR.velocity[0].addr() as u32));
+    DRAW.motion_length.set_bits(length);
+    let top = PHYSICS.top_speed.bits();
+    let past = matches!(
+        f32::from_bits(top).partial_cmp(&f32::from_bits(length)),
+        Some(Ordering::Less)
+    ) || f32::from_bits(top).is_nan()
+        || f32::from_bits(length).is_nan();
+    if past {
+        let factor = crate::math::x87_run::div_80(top, length);
+        scale_vector(CAR.velocity[0].addr() as u32, factor);
+        scale_vector(CAR.local_velocity[0].addr() as u32, factor);
+        DRAW.scratch.set(rounded(factor));
     }
 }
 

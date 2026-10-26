@@ -43,38 +43,34 @@ use crate::scene::object_store::OBJECT_WORK;
 // ---- Rust version ----
 
 /// `sub_49007F`: the highlighted item's object set up and drawn by `draw`.
-pub unsafe fn draw_highlighted(
-    draw: &mut dyn FnMut() -> Result<(), Refused>,
-) -> Result<(), Refused> {
-    unsafe {
-        let item = LOOP_FLAGS.item.get().wrapping_sub(1);
-        if item >= ENTRIES {
-            return Err(BadInput("a highlighted item of 0 or past the carousel's kinds").into());
-        }
-        let kind = MENU_STATE.carousel.kinds[item as usize].get();
-        let own = (kind as i32 > 0x258).then(|| kind.wrapping_sub(0x259));
-        if own.is_some_and(|own| own >= OWN) {
-            return Err(BadInput("a kind past the records of the kinds' own places").into());
-        }
-        let clock: u32 = PHYSICS.scene_clock.bits();
-        OBJECT_WORK.angles[1].set((clock << 3) & 0xFFFF);
-        OBJECT_WORK.place[2].set(MENU_STATE.carousel.z.get());
-        OBJECT_WORK.place[0].set_bits(0u32);
-        if let Some(own) = own {
-            let [size, y, angle] = own_place(own);
-            OBJECT_WORK.size.set_bits(size);
-            if y != u32::MAX {
-                OBJECT_WORK.place[1].set(y);
-            }
-            if angle != u32::MAX {
-                OBJECT_WORK.angles[0].set_bits(angle);
-            }
-        }
-        MENU_STATE.carousel.kind.set(kind);
-        let object = find_object_of_kind(kind);
-        FRAME_SWITCHES.object_number.set_bits(object);
-        draw()
+pub fn draw_highlighted(draw: &mut dyn FnMut() -> Result<(), Refused>) -> Result<(), Refused> {
+    let item = LOOP_FLAGS.item.get().wrapping_sub(1);
+    if item >= ENTRIES {
+        return Err(BadInput("a highlighted item of 0 or past the carousel's kinds").into());
     }
+    let kind = MENU_STATE.carousel.kinds[item as usize].get();
+    let own = (kind as i32 > 0x258).then(|| kind.wrapping_sub(0x259));
+    if own.is_some_and(|own| own >= OWN) {
+        return Err(BadInput("a kind past the records of the kinds' own places").into());
+    }
+    let clock: u32 = PHYSICS.scene_clock.bits();
+    OBJECT_WORK.angles[1].set((clock << 3) & 0xFFFF);
+    OBJECT_WORK.place[2].set(MENU_STATE.carousel.z.get());
+    OBJECT_WORK.place[0].set_bits(0u32);
+    if let Some(own) = own {
+        let [size, y, angle] = own_place(own);
+        OBJECT_WORK.size.set_bits(size);
+        if y != u32::MAX {
+            OBJECT_WORK.place[1].set(y);
+        }
+        if angle != u32::MAX {
+            OBJECT_WORK.angles[0].set_bits(angle);
+        }
+    }
+    MENU_STATE.carousel.kind.set(kind);
+    let object = find_object_of_kind(kind);
+    FRAME_SWITCHES.object_number.set_bits(object);
+    draw()
 }
 
 /// The Rust version the typed tables run: its six calls in order. It reads no register of

@@ -14,40 +14,36 @@ use crate::race::frame_store::FRAME_WORK;
 use crate::race::work_store::RACE_WORK;
 use rc2k_core::physics::listed_cars::{CUE_E5, cue_e5_object};
 
-unsafe fn at(a: u32) -> u32 {
+fn at(a: u32) -> u32 {
     crate::pointers::read_or_end::<u32>(a, "physics::sound_cue_e5's operand")
 }
 
-unsafe fn put(a: u32, v: u32) {
+fn put(a: u32, v: u32) {
     crate::pointers::write_or_end::<u32>(a, v, "physics::sound_cue_e5's operand")
 }
 
 /// The core: the car number, the listed table, the sound objects at these places.
 // Converted: `rc2k_core::physics::listed_cars::{cue_e5_object, CUE_E5}`.
-pub unsafe fn sound_cue_e5_at(current: u32, listed: u32, objects: u32) -> Result<(), Refused> {
-    unsafe {
-        let object = cue_e5_object(
-            at(current),
-            |car| at(listed + 4 * car),
-            |slot| at(objects + 4 * slot),
-        )?;
-        if let Some(object) = object {
-            for (offset, v) in CUE_E5 {
-                put(object + offset, v);
-            }
+pub fn sound_cue_e5_at(current: u32, listed: u32, objects: u32) -> Result<(), Refused> {
+    let object = cue_e5_object(
+        at(current),
+        |car| at(listed + 4 * car),
+        |slot| at(objects + 4 * slot),
+    )?;
+    if let Some(object) = object {
+        for (offset, v) in CUE_E5 {
+            put(object + offset, v);
         }
-        Ok(())
     }
+    Ok(())
 }
 
 /// The Rust version.
-pub unsafe fn sound_cue_e5() -> Result<(), Refused> {
+pub fn sound_cue_e5() -> Result<(), Refused> {
     let _g = |a: usize| game_addr(rva(a)) as u32;
-    unsafe {
-        sound_cue_e5_at(
-            RACE_WORK.current_car.addr() as u32,
-            FRAME_WORK.listed_car_sounds[0].addr() as u32,
-            crate::sound::store::RACE_SOUNDS.table.as_ptr() as usize as u32,
-        )
-    }
+    sound_cue_e5_at(
+        RACE_WORK.current_car.addr() as u32,
+        FRAME_WORK.listed_car_sounds[0].addr() as u32,
+        crate::sound::store::RACE_SOUNDS.table.as_ptr() as usize as u32,
+    )
 }

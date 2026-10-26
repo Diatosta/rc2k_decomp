@@ -54,7 +54,7 @@ fn span<T>(p: *const T, bytes: usize) {
 /// columns' at 0, 4, 8 / 0x10, 0x14, 0x18 / 0x20, 0x24, 0x28 and the translation at 0x30,
 /// 0x34, 0x38), as the original adds them: m0 x + (m4 y + m8 z) and so on, then the
 /// translation. Left at double precision.
-unsafe fn rotated(point: *const i32, matrix: *const u32) -> [X; 3] {
+fn rotated(point: *const i32, matrix: *const u32) -> [X; 3] {
     span(point, 12);
     span(matrix, 60);
 
@@ -75,7 +75,7 @@ unsafe fn rotated(point: *const i32, matrix: *const u32) -> [X; 3] {
 /// `scene::project_point::rotate` with its third store a `fistp`: the point (three whole
 /// numbers) through `matrix`, x and y stored as floats at `out[0]`, `out[1]`, z rounded
 /// into `out[2]` from the x87's precision (`sub_4573FA`).
-pub unsafe fn rotate_rounding_z(point: *const i32, matrix: *const u32, out: *mut u32) {
+pub fn rotate_rounding_z(point: *const i32, matrix: *const u32, out: *mut u32) {
     span(out, 12);
 
     unsafe {
@@ -123,7 +123,7 @@ pub fn abs_below_or_unordered(a: u32, k: u32) -> bool {
 
 /// `scene::project_point::rotate` with all three stores `fistp`: the point (three whole
 /// numbers) through `matrix`, each part rounded from the x87's precision into `out`.
-pub unsafe fn rotate_rounding(point: *const i32, matrix: *const u32, out: *mut u32) {
+pub fn rotate_rounding(point: *const i32, matrix: *const u32, out: *mut u32) {
     span(out, 12);
 
     unsafe {
@@ -191,7 +191,7 @@ pub fn tbyte_to_int(a: [u8; 10]) -> u32 {
 /// depth, the scale, the centre's y and x. Flat: z dropped (into `scratch`, as a float)
 /// and the scale over the flat depth + 1; else the scale over z. Gives x as a float and
 /// rounded, y as a float and rounded (each `x r + cx` and `cy - y r`, r the ratio).
-pub unsafe fn sun_on_screen(v: &[u32; 7], flat: bool, scratch: *mut u32) -> [u32; 4] {
+pub fn sun_on_screen(v: &[u32; 7], flat: bool, scratch: *mut u32) -> [u32; 4] {
     span(scratch, 4);
 
     let (x, y, z) = (int(v[0] as i32), int(v[1] as i32), int(v[2] as i32));

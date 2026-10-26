@@ -20,7 +20,7 @@ pub trait Outside {
 
     /// `install::read_registry`.
     unsafe fn read_registry(&mut self) {
-        unsafe { crate::install::read_registry::read_registry_here() };
+        crate::install::read_registry::read_registry_here();
     }
     // The same for the game and for a test:
     unsafe fn normalise_path(&mut self, path: *const u8, to: *mut u8) -> Result<bool, BadInput> {

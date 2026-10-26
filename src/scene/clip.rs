@@ -48,15 +48,12 @@ pub enum Edge {
 }
 
 /// The polygon's entries, each with its record.
-pub unsafe fn listed_with_records() -> Result<Vec<usize>, BadInput> {
-    let entries = unsafe { listed() }?;
+pub fn listed_with_records() -> Result<Vec<usize>, BadInput> {
+    let entries = { listed() }?;
     if entries.is_empty() {
         return Err(BadInput("a polygon of no vertices"));
     }
-    if entries
-        .iter()
-        .any(|&entry| unsafe { dword(entry + 4) } == 0)
-    {
+    if entries.iter().any(|&entry| { dword(entry + 4) } == 0) {
         return Err(BadInput("an entry without its record"));
     }
     Ok(entries)
@@ -208,6 +205,6 @@ pub unsafe fn clip_pass(edge: Edge, inside_past: bool, mask: u32) -> Result<(), 
 
 /// Runs `clip`, and if it refuses puts back what it had written by then: a pass that
 /// runs out of entries has changed the polygon.
-pub unsafe fn or_undone(clip: impl FnOnce() -> Result<(), BadInput>) -> Result<(), BadInput> {
+pub fn or_undone(clip: impl FnOnce() -> Result<(), BadInput>) -> Result<(), BadInput> {
     clip()
 }

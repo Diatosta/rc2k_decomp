@@ -46,7 +46,7 @@ fn add_turn(speed: Option<u32>, f1: &Float, f2: &Float, to: &[Float; 4]) {
 }
 
 /// The Rust version (the exact one, for `physics::car_physics_step`).
-pub unsafe fn turn_wheel_angles() {
+pub fn turn_wheel_angles() {
     let kind = CAR.car_kind.get();
     if kind >= 0x22 || KIND_TABLES.kind_turns_wheels[kind as usize].get() == 0 {
         return;

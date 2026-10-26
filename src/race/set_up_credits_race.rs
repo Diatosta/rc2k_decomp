@@ -100,7 +100,7 @@ pub const WRITES: [(Place, u32); 74] = [
 
 /// A draw (`math::next_random`) as a place among n.
 fn drawn_index(n: u32) -> u32 {
-    rc2k_core::race::credits::drawn_place(unsafe { next_random() }, n)
+    rc2k_core::race::credits::drawn_place(next_random(), n)
 }
 
 /// The Rust version. (The original leaves eax 3, ebx 0x17 and edx the car kind drawn;

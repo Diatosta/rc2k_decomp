@@ -87,8 +87,9 @@ pub fn game_ptr<T>(rva: usize) -> *mut T {
 }
 
 /// Reads a game global. Call it on every use: the game changes these at runtime.
-pub unsafe fn game_read<T: Copy>(rva: usize) -> T {
+pub fn game_read<T: Copy>(rva: usize) -> T {
     let p = game_ptr::<T>(rva);
+    crate::pointers::check_or_end(p as u32, size_of::<T>(), "a game global");
     // Some game tables sit on odd addresses.
     unsafe {
         if p.is_aligned() {
@@ -101,8 +102,9 @@ pub unsafe fn game_read<T: Copy>(rva: usize) -> T {
 
 /// Writes a game global (the tests' setups).
 #[cfg(test)]
-pub unsafe fn game_write<T: Copy>(rva: usize, value: T) {
+pub fn game_write<T: Copy>(rva: usize, value: T) {
     let p = game_ptr::<T>(rva);
+    crate::pointers::check_or_end(p as u32, size_of::<T>(), "a game global");
     unsafe {
         if p.is_aligned() {
             p.write_volatile(value)

@@ -15,7 +15,7 @@ use crate::service::state::{flags, marks, store_marks, time_of};
 
 // ---- Rust version ----
 
-pub unsafe fn update_repair_total() -> Result<(), Refused> {
+pub fn update_repair_total() -> Result<(), Refused> {
     // Converted: `rc2k_core::service::repairs::update_total`.
     let mut m = marks();
     let budget = { EVENT_STATE.service_minutes.get() as i32 };

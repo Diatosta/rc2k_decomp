@@ -40,11 +40,11 @@ impl ChangePlaces {
     }
 }
 
-unsafe fn at(a: u32) -> u32 {
+fn at(a: u32) -> u32 {
     crate::pointers::read_or_end::<u32>(a, "physics::change_gear's operand")
 }
 
-unsafe fn put(a: u32, v: u32) {
+fn put(a: u32, v: u32) {
     crate::pointers::write_or_end::<u32>(a, v, "physics::change_gear's operand")
 }
 
@@ -58,48 +58,46 @@ fn ratio_gear(g: u32) -> Result<(), Refused> {
 
 /// The core.
 // Converted: `rc2k_core::physics::gear_shifts::change`.
-pub unsafe fn change_gear_at(gp: &GearPlaces, c: &ChangePlaces) -> Result<(), Refused> {
-    unsafe {
-        let gear = at(gp.gear);
-        let w = at(c.wanted);
-        let way = rc2k_core::physics::gear_shifts::change(gear, w);
-        if way == Change::Same {
-            return Ok(());
-        }
-        let mark = || {
-            put(c.changed, 1);
-            put(c.changed_2, 1);
-        };
-        let neutral = || {
-            put(gp.gear, 0);
-            mark();
-            Ok(())
-        };
-        if way == Change::FromNeutral {
-            ratio_gear(w)?;
-            put(gp.gear, w);
-            wheels_from_revs_at(gp)?;
-            mark();
-            return Ok(());
-        }
-        if way == Change::ToNeutral {
-            return neutral();
-        }
-        let bit = gear_bit_at(c.bits, w)?;
-        if bit.carry {
-            return neutral();
-        }
-        ratio_gear(gear)?;
-        ratio_gear(w)?;
-        wheels_from_revs_at(gp)?;
-        put(gp.gear, w);
-        revs_from_wheels_at(gp)?;
+pub fn change_gear_at(gp: &GearPlaces, c: &ChangePlaces) -> Result<(), Refused> {
+    let gear = at(gp.gear);
+    let w = at(c.wanted);
+    let way = rc2k_core::physics::gear_shifts::change(gear, w);
+    if way == Change::Same {
+        return Ok(());
+    }
+    let mark = || {
+        put(c.changed, 1);
+        put(c.changed_2, 1);
+    };
+    let neutral = || {
+        put(gp.gear, 0);
         mark();
         Ok(())
+    };
+    if way == Change::FromNeutral {
+        ratio_gear(w)?;
+        put(gp.gear, w);
+        wheels_from_revs_at(gp)?;
+        mark();
+        return Ok(());
     }
+    if way == Change::ToNeutral {
+        return neutral();
+    }
+    let bit = gear_bit_at(c.bits, w)?;
+    if bit.carry {
+        return neutral();
+    }
+    ratio_gear(gear)?;
+    ratio_gear(w)?;
+    wheels_from_revs_at(gp)?;
+    put(gp.gear, w);
+    revs_from_wheels_at(gp)?;
+    mark();
+    Ok(())
 }
 
 /// The Rust version.
-pub unsafe fn change_gear() -> Result<(), Refused> {
-    unsafe { change_gear_at(&GearPlaces::game(), &ChangePlaces::game()) }
+pub fn change_gear() -> Result<(), Refused> {
+    change_gear_at(&GearPlaces::game(), &ChangePlaces::game())
 }

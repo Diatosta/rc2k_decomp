@@ -82,8 +82,16 @@ fn with_file<R>(file: u32, f: impl FnOnce(&mut std::fs::File) -> R) -> R {
 
 /// (the bytes read, whether the read succeeded): one `ReadFile`. A short read is not a
 /// failure.
-pub unsafe fn read(file: u32, buffer: *mut u8, count: u32) -> (u32, bool) {
-    let into = unsafe { std::slice::from_raw_parts_mut(buffer, count as usize) };
+pub fn read(file: u32, buffer: *mut u8, count: u32) -> (u32, bool) {
+    crate::pointers::check_or_end(buffer as u32, count as usize, "a file read's buffer");
+    // SAFETY: `count` bytes inside one live region (checked above).
+    read_slice(file, unsafe {
+        std::slice::from_raw_parts_mut(buffer, count as usize)
+    })
+}
+
+/// `read` into a Rust buffer.
+pub fn read_slice(file: u32, into: &mut [u8]) -> (u32, bool) {
     match with_file(file, |f| f.read(into)) {
         Ok(n) => (n as u32, true),
         Err(_) => (0, false),
@@ -94,8 +102,7 @@ pub unsafe fn read(file: u32, buffer: *mut u8, count: u32) -> (u32, bool) {
 /// holds is refused before anything is written.
 pub fn read_to(file: u32, to: GamePtr, count: u32, what: &str) -> Result<(u32, bool), BadInput> {
     let mut bytes = vec![0u8; count as usize];
-    // SAFETY: `bytes` is the `count` bytes asked for.
-    let (got, ok) = unsafe { read(file, bytes.as_mut_ptr(), count) };
+    let (got, ok) = read_slice(file, &mut bytes);
     to.write_bytes(&bytes[..got as usize], what)?;
     Ok((got, ok))
 }
@@ -108,13 +115,21 @@ pub fn write_from(
     what: &str,
 ) -> Result<(u32, bool), BadInput> {
     let bytes = from.read_bytes(count as usize, what)?;
-    // SAFETY: `bytes` is the `count` bytes written.
-    Ok(unsafe { write(file, bytes.as_ptr(), count) })
+    Ok(write_slice(file, &bytes))
 }
 
 /// (the bytes written, whether all of them were): one `WriteFile`.
-pub unsafe fn write(file: u32, buffer: *const u8, count: u32) -> (u32, bool) {
-    let from = unsafe { std::slice::from_raw_parts(buffer, count as usize) };
+pub fn write(file: u32, buffer: *const u8, count: u32) -> (u32, bool) {
+    crate::pointers::check_or_end(buffer as u32, count as usize, "a file write's buffer");
+    // SAFETY: `count` bytes inside one live region (checked above).
+    write_slice(file, unsafe {
+        std::slice::from_raw_parts(buffer, count as usize)
+    })
+}
+
+/// `write` from a Rust buffer.
+pub fn write_slice(file: u32, from: &[u8]) -> (u32, bool) {
+    let count = from.len() as u32;
     match with_file(file, |f| f.write(from)) {
         Ok(n) => (n as u32, n as u32 >= count),
         Err(_) => (0, false),
@@ -125,7 +140,7 @@ pub unsafe fn write(file: u32, buffer: *const u8, count: u32) -> (u32, bool) {
 /// `SetFilePointer` with no high dword answers: a negative distance from the start, a
 /// position before the start, one past 32 bits and one of 0xFFFFFFFF (its failure value)
 /// fail. Methods: 0 from the start, 1 from where it is, 2 from the end.
-pub unsafe fn seek(file: u32, distance: i32, method: u32) -> Option<u32> {
+pub fn seek(file: u32, distance: i32, method: u32) -> Option<u32> {
     let to = match method {
         0 => SeekFrom::Start(u64::try_from(distance).ok()?),
         1 => SeekFrom::Current(distance.into()),
@@ -139,20 +154,20 @@ pub unsafe fn seek(file: u32, distance: i32, method: u32) -> Option<u32> {
 /// `files::handle_size` (0x402EA9): the file's size (its low dword, as `GetFileSize`
 /// with no high dword gives it), or None if it could not be read or is 0xFFFFFFFF (which
 /// `GetFileSize`'s failure looks like).
-pub unsafe fn handle_size(file: u32) -> Option<u32> {
+pub fn handle_size(file: u32) -> Option<u32> {
     let size = with_file(file, |f| f.metadata()).ok()?.len() as u32;
     (size != u32::MAX).then_some(size)
 }
 
 /// `sub_402F1C`: the file's last write time as DOS date << 16 | time, or None.
-pub unsafe fn file_time(file: u32) -> Option<u32> {
+pub fn file_time(file: u32) -> Option<u32> {
     let modified = with_file(file, |f| f.metadata().and_then(|m| m.modified())).ok()?;
     rc2k_core::files::dos_time::from_ticks(ticks_of(modified)?)
 }
 
 /// `sub_402F4D`: a DOS date << 16 | time put on the file as its last access and write
 /// time; whether it worked (not for fields that are not a time).
-pub unsafe fn set_file_time(file: u32, dos: u32) -> bool {
+pub fn set_file_time(file: u32, dos: u32) -> bool {
     let Some(time) = rc2k_core::files::dos_time::to_ticks(dos).and_then(time_of) else {
         return false;
     };
@@ -217,25 +232,25 @@ impl rc2k_core::files::io::Files for GameFiles {
         open_by_mode_at(path, mode as u32).map_err(|e| rc2k_core::Invalid(e.0))
     }
     fn read(&mut self, file: u32, into: &mut [u8]) -> (u32, bool) {
-        unsafe { read(file, into.as_mut_ptr(), into.len() as u32) }
+        read_slice(file, into)
     }
     fn write(&mut self, file: u32, from: &[u8]) -> (u32, bool) {
-        unsafe { write(file, from.as_ptr(), from.len() as u32) }
+        write_slice(file, from)
     }
     fn seek(&mut self, file: u32, distance: i32, from: rc2k_core::files::io::From) -> Option<u32> {
-        unsafe { seek(file, distance, from as u32) }
+        seek(file, distance, from as u32)
     }
     fn size(&mut self, file: u32) -> Option<u32> {
-        unsafe { handle_size(file) }
+        handle_size(file)
     }
     fn close(&mut self, file: u32) -> bool {
         close(file)
     }
     fn time(&mut self, file: u32) -> Option<u32> {
-        unsafe { file_time(file) }
+        file_time(file)
     }
     fn set_time(&mut self, file: u32, dos: u32) -> bool {
-        unsafe { set_file_time(file, dos) }
+        set_file_time(file, dos)
     }
 }
 

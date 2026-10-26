@@ -11,6 +11,6 @@
 use crate::scene::vector3::*;
 
 /// The Rust version: the product as it is left in st(0).
-pub unsafe fn dot_product(a: u32, b: u32) -> [u8; 10] {
-    unsafe { dot_product3(a, b) }
+pub fn dot_product(a: u32, b: u32) -> [u8; 10] {
+    dot_product3(a, b)
 }

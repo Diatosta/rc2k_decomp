@@ -20,7 +20,7 @@ use crate::scene::x87_mem::{fld, fstp};
 
 /// The Rust version (the exact one, for `physics::update_camera`): `s` the view's record
 /// (esi). The registers it leaves are read by none of its callers.
-pub unsafe fn take_view_a(s: u32) {
+pub fn take_view_a(s: u32) {
     x87_1(s as usize, crate::race::store::asm_base() as usize);
     for (k, put) in copies().iter().enumerate() {
         put(rd(s + 0x10 + 4 * k as u32));

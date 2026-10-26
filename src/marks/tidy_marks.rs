@@ -57,35 +57,31 @@ fn all_lists(settings: u32) -> Result<Vec<u32>, BadInput> {
 
 /// The Rust version (see the header).
 pub fn tidy_marks() -> Result<(), Refused> {
-    unsafe {
-        let settings: u32 = crate::marks::setup::SETTINGS.pointer.get();
-        if settings == 0 {
-            return Err(BadInput("no marks settings").into());
-        }
-        let count = GamePtr::new(settings + 0x5C).read::<i32>("the cars' count")?;
-        if !(0..=MOST_CARS).contains(&count) {
-            return Err(BadInput("a cars' count below 0 or above 8").into());
-        }
-        if own_heap() == 1
-            && crate::marks::try_any(all_lists(settings)?.iter(), |&l| {
-                Ok(GamePtr::new(l)
-                    .read::<MemoryList>("a car's block list")?
-                    .head
-                    != 0)
-            })?
-        {
-            return Err(
-                BadInput("the game's own heap is in use with a list holding blocks").into(),
-            );
-        }
-        for n in 0..count as u32 {
-            let car = settings + n * CAR_LEN + CAR_PART;
-            free_list((car + 0x4C) as *mut MemoryList)?;
-            GamePtr::new(car + 0x8C).write::<u32>(MORPH_WORK.taken.get(), "a mark's field")?;
-        }
-        for a in lists() {
-            free_list(a as *mut MemoryList)?;
-        }
+    let settings: u32 = crate::marks::setup::SETTINGS.pointer.get();
+    if settings == 0 {
+        return Err(BadInput("no marks settings").into());
+    }
+    let count = GamePtr::new(settings + 0x5C).read::<i32>("the cars' count")?;
+    if !(0..=MOST_CARS).contains(&count) {
+        return Err(BadInput("a cars' count below 0 or above 8").into());
+    }
+    if own_heap() == 1
+        && crate::marks::try_any(all_lists(settings)?.iter(), |&l| {
+            Ok(GamePtr::new(l)
+                .read::<MemoryList>("a car's block list")?
+                .head
+                != 0)
+        })?
+    {
+        return Err(BadInput("the game's own heap is in use with a list holding blocks").into());
+    }
+    for n in 0..count as u32 {
+        let car = settings + n * CAR_LEN + CAR_PART;
+        free_list((car + 0x4C) as *mut MemoryList)?;
+        GamePtr::new(car + 0x8C).write::<u32>(MORPH_WORK.taken.get(), "a mark's field")?;
+    }
+    for a in lists() {
+        free_list(a as *mut MemoryList)?;
     }
     Ok(())
 }

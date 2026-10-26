@@ -43,13 +43,13 @@ const STRENGTH: usize = 0xABC;
 
 /// Three whole numbers through a matrix and back to whole numbers: `fild` three times,
 /// `scene::rotate_point`, `fistp` three times.
-unsafe fn turned(from: [u32; 3], matrix: *const u32) -> [u32; 3] {
+fn turned(from: [u32; 3], matrix: *const u32) -> [u32; 3] {
     let mut w = [from[0], from[1], from[2], 0, 0, 0];
-    unsafe { turned_at(w.as_mut_ptr().cast(), matrix.cast()) };
+    turned_at(w.as_mut_ptr().cast(), matrix.cast());
     [w[3], w[4], w[5]]
 }
 
-unsafe fn turned_at(w: *mut u8, m: *const u8) {
+fn turned_at(w: *mut u8, m: *const u8) {
     let t0 = fild(w, 0x8);
     let t1 = fild(w, 0x4);
     let t2 = fild(w, 0x0);
@@ -91,18 +91,16 @@ unsafe fn turned_at(w: *mut u8, m: *const u8) {
 /// `fild a; fmul st, st; fild b; fmul st, st; faddp; fmul k` (once or twice) `; fistp`.
 fn squares(a: u32, b: u32, factor: u32, twice: bool) -> u32 {
     let (v, mut out) = ([a, b, factor], 0u32);
-    unsafe {
-        if twice {
-            squares_twice(v.as_ptr().cast(), (&raw mut out).cast());
-        } else {
-            squares_once(v.as_ptr().cast(), (&raw mut out).cast());
-        }
+    if twice {
+        squares_twice(v.as_ptr().cast(), (&raw mut out).cast());
+    } else {
+        squares_once(v.as_ptr().cast(), (&raw mut out).cast());
     }
     out
 }
 
 /// Twice the factor.
-unsafe fn squares_twice(v: *const u8, o: *mut u8) {
+fn squares_twice(v: *const u8, o: *mut u8) {
     let t0 = fild(v, 0x0);
     let t1 = t0 * t0;
     let t2 = fild(v, 0x4);
@@ -116,7 +114,7 @@ unsafe fn squares_twice(v: *const u8, o: *mut u8) {
 }
 
 /// Once the factor.
-unsafe fn squares_once(v: *const u8, o: *mut u8) {
+fn squares_once(v: *const u8, o: *mut u8) {
     let t0 = fild(v, 0x0);
     let t1 = t0 * t0;
     let t2 = fild(v, 0x4);
@@ -137,44 +135,40 @@ fn held(value: i32) -> u32 {
     }
 }
 
-pub unsafe fn add_car_light(car: usize) -> Result<(), BadInput> {
-    unsafe {
-        if car == 0 {
-            return Err(BadInput("no car"));
-        }
-        let read =
-            |at: usize| GamePtr::new(car.wrapping_add(at) as u32).read::<u32>("a car's block");
-        if read(LAMPS_ON)? == 0 {
-            return Ok(());
-        }
-        let place: [u32; 3] = crate::session::read_bits(&LIGHT_STATE.lit_place);
-        let mut from = [0u32; 3];
-        for k in 0..3 {
-            from[k] = place[k].wrapping_sub(read(PLACE + k * 4)?);
-        }
-        let matrix: [u32; 16] =
-            GamePtr::new(car.wrapping_add(MATRIX) as u32).read("a car's matrix")?;
-        let seen = turned(from, matrix.as_ptr());
-        crate::session::write_bits(&LIGHT_STATE.turned_light, seen);
-        let [x, y, z] = seen;
-        let factor: u32 = NUMBERS.one_over_65536.bits();
-        let ahead = squares(z.wrapping_sub(0x20_0000), x.wrapping_add(x), factor, true);
-        let cone = held(0x100i32.wrapping_sub((ahead >> 2) as i32));
-        // Worked out and not used; its rounding is what `dword_62400C` is left with.
-        DRAW.scratch
-            .set(squares(z.wrapping_sub(0x10_0000), x, factor, false));
-        let height = if (y as i32) < 0 { y.wrapping_neg() } else { y };
-        let level = held((0x10_0000u32.wrapping_sub(height) as i32) >> 12);
-        let amount = (level.wrapping_mul(cone * 2) >> 8).wrapping_mul(read(STRENGTH)?) >> 8;
-        let colour: u32 = crate::scene::light_tables_store::LIGHT_TABLES.car_light_table
-            [held(amount as i32) as usize]
-            .get();
-        let mmx = MACHINE.has_mmx.get() != 0;
-        LIGHT_WORK
-            .light_colour
-            .set(plus(colour, LIGHT_WORK.light_colour.bits(), mmx));
-        Ok(())
+pub fn add_car_light(car: usize) -> Result<(), BadInput> {
+    if car == 0 {
+        return Err(BadInput("no car"));
     }
+    let read = |at: usize| GamePtr::new(car.wrapping_add(at) as u32).read::<u32>("a car's block");
+    if read(LAMPS_ON)? == 0 {
+        return Ok(());
+    }
+    let place: [u32; 3] = crate::session::read_bits(&LIGHT_STATE.lit_place);
+    let mut from = [0u32; 3];
+    for k in 0..3 {
+        from[k] = place[k].wrapping_sub(read(PLACE + k * 4)?);
+    }
+    let matrix: [u32; 16] = GamePtr::new(car.wrapping_add(MATRIX) as u32).read("a car's matrix")?;
+    let seen = turned(from, matrix.as_ptr());
+    crate::session::write_bits(&LIGHT_STATE.turned_light, seen);
+    let [x, y, z] = seen;
+    let factor: u32 = NUMBERS.one_over_65536.bits();
+    let ahead = squares(z.wrapping_sub(0x20_0000), x.wrapping_add(x), factor, true);
+    let cone = held(0x100i32.wrapping_sub((ahead >> 2) as i32));
+    // Worked out and not used; its rounding is what `dword_62400C` is left with.
+    DRAW.scratch
+        .set(squares(z.wrapping_sub(0x10_0000), x, factor, false));
+    let height = if (y as i32) < 0 { y.wrapping_neg() } else { y };
+    let level = held((0x10_0000u32.wrapping_sub(height) as i32) >> 12);
+    let amount = (level.wrapping_mul(cone * 2) >> 8).wrapping_mul(read(STRENGTH)?) >> 8;
+    let colour: u32 = crate::scene::light_tables_store::LIGHT_TABLES.car_light_table
+        [held(amount as i32) as usize]
+        .get();
+    let mmx = MACHINE.has_mmx.get() != 0;
+    LIGHT_WORK
+        .light_colour
+        .set(plus(colour, LIGHT_WORK.light_colour.bits(), mmx));
+    Ok(())
 }
 
 #[cfg(test)]

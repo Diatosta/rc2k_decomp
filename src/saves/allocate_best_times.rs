@@ -46,7 +46,7 @@ pub fn sizes(stages: u32) -> [u32; TABLES] {
 
 /// `saves::allocate_best_times` (0x47C4D8): once, the nine tables taken from `list`
 /// (`BEST_TIMES.tables`, an address and a size each), the marked ones ending in -1.
-pub unsafe fn allocate_best_times(list: *mut MemoryList, records: u32) -> Result<(), Refused> {
+pub fn allocate_best_times(list: *mut MemoryList, records: u32) -> Result<(), Refused> {
     if BEST_TIMES.allocated.get() == 1 {
         return Ok(());
     }
@@ -55,7 +55,7 @@ pub unsafe fn allocate_best_times(list: *mut MemoryList, records: u32) -> Result
     for (n, size) in sizes.into_iter().enumerate() {
         let place = &BEST_TIMES.tables[n];
         place.size.set(size);
-        let memory = unsafe { allocate(list, size) }?;
+        let memory = { allocate(list, size) }?;
         place.address.set(memory as u32);
         if MARKED.contains(&n) {
             GamePtr::new(memory as u32 + size - 4).write(u32::MAX, "a table of best times")?;

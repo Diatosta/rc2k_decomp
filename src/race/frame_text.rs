@@ -17,28 +17,26 @@ use crate::text::draw_text::{Canvas, draw_text_at};
 /// `race::draw_frame_rate` (0x4562B2): `dword_5C6604` 2; the frame rate (`flt_6214F0`,
 /// rounded into `dword_62400C`), when not 0 and `dword_5EB100` is set, drawn at (0x190, 4)
 /// in the font at 0x51DE90 as "fps: n" (its size; built in the text buffer).
-pub unsafe fn draw_frame_rate(canvas: &mut dyn Canvas) -> Result<(), Refused> {
+pub fn draw_frame_rate(canvas: &mut dyn Canvas) -> Result<(), Refused> {
     // Converted: `rc2k_core::race::frame_rate::{shown_rate, fps_text}`.
     use rc2k_core::race::frame_rate::{fps_text, shown_rate};
-    unsafe {
-        TEXT_STATE.text_mode.set(2);
-        let rate = shown_rate(f32::from_bits(FRAME_SWITCHES.frame_rate.bits()));
-        DRAW.scratch.set(rate as u32);
-        if rate == 0 || FRAME_COUNTER.show.get() == 0 {
-            return Ok(());
-        }
-        let t = text();
-        let bytes = fps_text(rate);
-        crate::pointers::GamePtr::new(t as u32).write_bytes(&bytes, "the frame rate's text")?;
-        draw_text_at(
-            font_at(crate::gfx::fonts_store::FONTS.menu_fonts[3].addr()),
-            t,
-            0x190,
-            4,
-            canvas,
-        )?;
-        Ok(())
+    TEXT_STATE.text_mode.set(2);
+    let rate = shown_rate(f32::from_bits(FRAME_SWITCHES.frame_rate.bits()));
+    DRAW.scratch.set(rate as u32);
+    if rate == 0 || FRAME_COUNTER.show.get() == 0 {
+        return Ok(());
     }
+    let t = text();
+    let bytes = fps_text(rate);
+    crate::pointers::GamePtr::new(t as u32).write_bytes(&bytes, "the frame rate's text")?;
+    draw_text_at(
+        font_at(crate::gfx::fonts_store::FONTS.menu_fonts[3].addr()),
+        t,
+        0x190,
+        4,
+        canvas,
+    )?;
+    Ok(())
 }
 
 /// `sub_4161BA`: string `id` in `font` at (x, y), unless y is at or above the screen's

@@ -113,7 +113,7 @@ impl finish::Finish for Game {
             Step::ObjectsTidy => unsafe { crate::race::stage_free::objects_tidy()? },
             // `nullsub_6`.
             Step::Nothing => {}
-            Step::ReleaseTextures => unsafe { crate::race::race_end::release_textures() },
+            Step::ReleaseTextures => crate::race::race_end::release_textures(),
             Step::FinishRace => unsafe { crate::drive::finish_race_0::finish_race_0()? },
             Step::StopMusic => crate::sound::stop_music::stop_music(),
             Step::MenuScreenMode => {

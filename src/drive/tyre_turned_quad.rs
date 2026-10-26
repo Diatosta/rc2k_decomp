@@ -51,12 +51,7 @@ fn turn(ty: &TyreChange, e: usize, d: usize, v: usize, t: usize) {
 /// The Rust version: the texture rectangle at `uv` (eax), the screen rectangle at `rect`
 /// (ebx), the colour `colour` (ecx), the input device `device` (esi; its +0x4EC turns
 /// the quad); every register kept.
-pub unsafe fn tyre_turned_quad(
-    uv: u32,
-    rect: u32,
-    colour: u32,
-    device: u32,
-) -> Result<(), Refused> {
+pub fn tyre_turned_quad(uv: u32, rect: u32, colour: u32, device: u32) -> Result<(), Refused> {
     MACHINE.scratch.set(0x40C9_0FDB);
     turn(
         &TYRE_CHANGE,

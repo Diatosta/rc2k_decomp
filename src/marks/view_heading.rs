@@ -19,16 +19,14 @@ use crate::session::{address_of, write_bits};
 
 /// The Rust version (see the header).
 pub fn view_heading() {
-    unsafe {
-        let x = x87::loaded(MATRICES.view_place[2].bits());
-        let z = x87::loaded(MATRICES.view_place[10].bits());
-        write_bits(&DRAW_FRAME.level, [x, 0, z]);
-        let level = address_of(&DRAW_FRAME.level) as u32;
-        let other = address_of(&DRAW_FRAME.other) as u32;
-        let mut heading = rounded(angle_between_vectors(level, other));
-        if DRAW_FRAME.level[0].bits() & 0x8000_0000 == 0 {
-            heading = x87::two_pi_less(heading);
-        }
-        VIEW_VARS.heading.set_bits(heading);
+    let x = x87::loaded(MATRICES.view_place[2].bits());
+    let z = x87::loaded(MATRICES.view_place[10].bits());
+    write_bits(&DRAW_FRAME.level, [x, 0, z]);
+    let level = address_of(&DRAW_FRAME.level) as u32;
+    let other = address_of(&DRAW_FRAME.other) as u32;
+    let mut heading = rounded(angle_between_vectors(level, other));
+    if DRAW_FRAME.level[0].bits() & 0x8000_0000 == 0 {
+        heading = x87::two_pi_less(heading);
     }
+    VIEW_VARS.heading.set_bits(heading);
 }

@@ -31,12 +31,12 @@ use crate::scene::rotate_point::rotate_point;
 use crate::scene::x87_mem::{fld, fstp};
 use crate::session::Dword;
 
-unsafe fn get(a: u32) -> u32 {
+fn get(a: u32) -> u32 {
     crate::pointers::read_or_end::<u32>(a, "physics::car_sound_state's operand")
 }
 
 /// 0x45CB02 .. 0x45CB88 (the shares into the voices), the integer steps between in Rust.
-unsafe fn shares(so: &crate::sound::store::SoundObject) {
+fn shares(so: &crate::sound::store::SoundObject) {
     x87_1(crate::race::store::asm_base() as usize);
     if CAR.all_wheels_off.get() != 0 {
         CAR.sound_slip_share.set_bits(0);
@@ -59,7 +59,7 @@ fn listener() -> u32 {
 }
 
 /// The exact x87 version (for `physics::engine_sound`).
-pub unsafe fn car_sound_state() -> Result<(), Refused> {
+pub fn car_sound_state() -> Result<(), Refused> {
     let o = object();
     if o == 0 {
         return Err(BadInput("a null sound object").into());
@@ -69,44 +69,42 @@ pub unsafe fn car_sound_state() -> Result<(), Refused> {
         return Err(BadInput("a null view block").into());
     }
     let so = crate::sound::store::SoundObject::at(o)?;
-    unsafe {
-        so.new_revs.set(1);
-        so.revs.set(CAR.engine_sound_revs.get());
-        let w = CAR.wheel_surface_a[4].get();
-        for voice in &so.voices {
-            voice.surface.set(w);
-        }
-        shares(so);
-        let n = CAR.throttle.get() as i32;
-        so.throttle.set(n.clamp(0, 0x100) as u32);
-        so.gear.set(CAR.gear.get());
-        so.speed.set_bits(CAR.mean_drive_speed.bits());
-        so.flag_ac
-            .set(CAR.front_wheels_off.get() & CAR.rear_wheels_off.get());
-        so.view_flag.set(CAR.camera_mode_is_2_or_3.get() ^ 1);
-        let d = |c: &Dword, k: u32| ints_diff_80(c.get() as i32, get(l + k) as i32);
-        let place = [
-            d(&CAR.position[0], 0x6A4),
-            d(&CAR.position[1], 0x6A8),
-            d(&CAR.position[2], 0x6AC),
-        ];
-        let m = MATRICES.view_turn_matrix[0].addr() as u32;
-        let out = rotate_point(m, place);
-        let k = NUMBERS.one_over_65536.bits();
-        for (i, e) in out.iter().enumerate() {
-            so.place[i].set_bits(rounded(ext_times(*e, k)));
-        }
-        let out = rotate_point(
-            m,
-            [
-                extended(CAR.crash_matrix[8].bits()),
-                extended(CAR.crash_matrix[9].bits()),
-                extended(CAR.crash_matrix[10].bits()),
-            ],
-        );
-        for (i, e) in out.iter().enumerate() {
-            so.motion[i].set_bits(rounded(*e));
-        }
+    so.new_revs.set(1);
+    so.revs.set(CAR.engine_sound_revs.get());
+    let w = CAR.wheel_surface_a[4].get();
+    for voice in &so.voices {
+        voice.surface.set(w);
+    }
+    shares(so);
+    let n = CAR.throttle.get() as i32;
+    so.throttle.set(n.clamp(0, 0x100) as u32);
+    so.gear.set(CAR.gear.get());
+    so.speed.set_bits(CAR.mean_drive_speed.bits());
+    so.flag_ac
+        .set(CAR.front_wheels_off.get() & CAR.rear_wheels_off.get());
+    so.view_flag.set(CAR.camera_mode_is_2_or_3.get() ^ 1);
+    let d = |c: &Dword, k: u32| ints_diff_80(c.get() as i32, get(l + k) as i32);
+    let place = [
+        d(&CAR.position[0], 0x6A4),
+        d(&CAR.position[1], 0x6A8),
+        d(&CAR.position[2], 0x6AC),
+    ];
+    let m = MATRICES.view_turn_matrix[0].addr() as u32;
+    let out = rotate_point(m, place);
+    let k = NUMBERS.one_over_65536.bits();
+    for (i, e) in out.iter().enumerate() {
+        so.place[i].set_bits(rounded(ext_times(*e, k)));
+    }
+    let out = rotate_point(
+        m,
+        [
+            extended(CAR.crash_matrix[8].bits()),
+            extended(CAR.crash_matrix[9].bits()),
+            extended(CAR.crash_matrix[10].bits()),
+        ],
+    );
+    for (i, e) in out.iter().enumerate() {
+        so.motion[i].set_bits(rounded(*e));
     }
     Ok(())
 }

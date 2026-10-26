@@ -35,7 +35,7 @@ use rc2k_core::physics::progress;
 use std::cmp::Ordering;
 
 /// 0x4416EC .. 0x441727: the distance to the point at `point`.
-unsafe fn distance(point: u32) {
+fn distance(point: u32) {
     distance_at(crate::race::store::asm_base() as usize, point as usize);
 }
 
@@ -62,7 +62,7 @@ fn distance_at(rc: usize, s: usize) {
 
 /// 0x441770 .. 0x4417AD: the angle from the point at `point` to the car, into
 /// `dword_62400C` (`fistp`, then the low 16 bits).
-unsafe fn angle(point: u32) {
+fn angle(point: u32) {
     angle_at(crate::race::store::asm_base() as usize, point as usize);
 }
 
@@ -121,14 +121,14 @@ fn point() -> Result<(u32, u32, u32), Refused> {
 /// leaves are read by none of its callers.
 // Converted: `rc2k_core::physics::progress::{check_split_point, face_known, passed_point}`
 // (the distance and the angle stay x87).
-pub unsafe fn passed_split_point() -> Result<bool, Refused> {
+pub fn passed_split_point() -> Result<bool, Refused> {
     if crate::drive::finish_store::FINISH.no_place.get() != 0 {
         return Ok(false);
     }
     let (cp, _, pt) = point()?;
     GROUND_WORK.ground_x.set(CAR.position[0].get());
     GROUND_WORK.ground_z.set(CAR.position[2].get());
-    unsafe { distance(pt) };
+    distance(pt);
     let within = !matches!(
         f32::from_bits(PHYSICS.split_point_distance.bits())
             .partial_cmp(&f32::from_bits(PHYSICS.split_distance.bits())),
@@ -137,7 +137,7 @@ pub unsafe fn passed_split_point() -> Result<bool, Refused> {
     if !within {
         return Ok(false);
     }
-    unsafe { angle(pt) };
+    angle(pt);
     let eax = DRAW.scratch.get() << 16;
     PHYSICS.split_word.set(eax);
     let heading = crate::race::checkpoints_store::angle(cp as usize).get();

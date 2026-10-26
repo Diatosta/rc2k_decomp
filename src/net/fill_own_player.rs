@@ -75,10 +75,10 @@ pub fn fill_own_player(name: u32) -> Result<(), Refused> {
     for (n, b) in own.into_iter().enumerate() {
         NET.own.head.set(n, b);
     }
-    NET.own.head.set(
-        record::RANDOM,
-        unsafe { crate::math::next_random::next_random() } as u8,
-    );
+    NET.own
+        .head
+        .set(record::RANDOM, { crate::math::next_random::next_random() }
+            as u8);
     NET.own.race_time.set(0);
     NET.own.total.set(0);
     for (to, from) in SETTINGS {

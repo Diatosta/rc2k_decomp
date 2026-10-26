@@ -25,11 +25,11 @@ fn below(a: u32, b: u32) -> bool {
     )
 }
 
-unsafe fn at(a: u32) -> u32 {
+fn at(a: u32) -> u32 {
     crate::pointers::read_or_end::<u32>(a, "physics::cap_drive_speed's operand")
 }
 
-unsafe fn put(a: u32, v: u32) {
+fn put(a: u32, v: u32) {
     crate::pointers::write_or_end::<u32>(a, v, "physics::cap_drive_speed's operand")
 }
 
@@ -37,25 +37,23 @@ unsafe fn put(a: u32, v: u32) {
 pub type CapPlaces = [u32; 4];
 
 /// The core.
-pub unsafe fn cap_drive_speed_at(v: CapPlaces) {
-    unsafe {
-        let zero = NUMBERS.zero.bits();
-        put(
-            v[0],
-            over_abs_plus_minus(
-                PHYSICS.drive_speed_cap.bits(),
-                at(v[1]),
-                PHYSICS.drive_speed_cap_a.bits(),
-                PHYSICS.drive_speed_cap_b.bits(),
-            ),
-        );
-        if below(at(v[0]), zero) {
-            put(v[0], x87::loaded(zero));
-        }
-        put(v[2], x87::add(at(v[0]), at(v[1])));
-        if !below(at(v[3]), at(v[2])) {
-            put(v[3], x87::loaded(at(v[2])));
-        }
+pub fn cap_drive_speed_at(v: CapPlaces) {
+    let zero = NUMBERS.zero.bits();
+    put(
+        v[0],
+        over_abs_plus_minus(
+            PHYSICS.drive_speed_cap.bits(),
+            at(v[1]),
+            PHYSICS.drive_speed_cap_a.bits(),
+            PHYSICS.drive_speed_cap_b.bits(),
+        ),
+    );
+    if below(at(v[0]), zero) {
+        put(v[0], x87::loaded(zero));
+    }
+    put(v[2], x87::add(at(v[0]), at(v[1])));
+    if !below(at(v[3]), at(v[2])) {
+        put(v[3], x87::loaded(at(v[2])));
     }
 }
 
@@ -70,6 +68,6 @@ fn game() -> CapPlaces {
 }
 
 /// The Rust version (the exact one, for `physics::drive_wheels_step`).
-pub unsafe fn cap_drive_speed() {
-    unsafe { cap_drive_speed_at(game()) }
+pub fn cap_drive_speed() {
+    cap_drive_speed_at(game())
 }

@@ -17,7 +17,7 @@ use crate::input::store::DEVICES;
 use crate::input::types::InputDevice;
 
 /// The Rust version (see the header).
-pub unsafe fn request_device_setup(
+pub fn request_device_setup(
     controller: u32,
     sensitivity: u32,
     mode: u32,

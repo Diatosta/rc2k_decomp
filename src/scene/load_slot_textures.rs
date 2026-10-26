@@ -17,7 +17,7 @@ use crate::scene::texture_places_store::TEXTURE_PLACES;
 /// The number of slots in use (ecx after the original, which `scene::draw_carousel`
 /// reads in the main menu).
 // Converted: `rc2k_core::scene::textures::slots_in_use`
-pub unsafe fn load_slot_textures(
+pub fn load_slot_textures(
     load: &mut dyn FnMut(u32) -> Result<(), BadInput>,
 ) -> Result<u32, BadInput> {
     let count = rc2k_core::scene::textures::slots_in_use(TEXTURE_PLACES.totals[2].get())?;
@@ -28,6 +28,6 @@ pub unsafe fn load_slot_textures(
 }
 
 /// With the game's loading.
-pub unsafe fn load_slot_textures_in_game() -> Result<u32, BadInput> {
-    unsafe { load_slot_textures(&mut |slot| load_slot_texture_in_game(slot)) }
+pub fn load_slot_textures_in_game() -> Result<u32, BadInput> {
+    load_slot_textures(&mut |slot| load_slot_texture_in_game(slot))
 }

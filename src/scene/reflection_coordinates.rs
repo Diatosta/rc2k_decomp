@@ -34,11 +34,11 @@ use crate::scene::x87_mem::{fistp, fld, fstp};
 /// `fld a; fmul half; fadd half; fmul scale_a; fmul scale_b; fistp`.
 fn coordinate(a: u32, half: u32, scales: [u32; 2]) -> i32 {
     let (v, mut out) = ([a, half, scales[0], scales[1]], 0i32);
-    unsafe { coordinate_at(v.as_ptr().cast(), (&raw mut out).cast()) };
+    coordinate_at(v.as_ptr().cast(), (&raw mut out).cast());
     out
 }
 
-unsafe fn coordinate_at(v: *const u8, o: *mut u8) {
+fn coordinate_at(v: *const u8, o: *mut u8) {
     let t0 = fld(v, 0x0);
     let t1 = fld(v, 0x4);
     let t2 = t0 * t1;
@@ -54,11 +54,11 @@ unsafe fn coordinate_at(v: *const u8, o: *mut u8) {
 /// `fld a; fchs; fstp`.
 fn negated(a: u32) -> u32 {
     let mut out = 0u32;
-    unsafe { negated_at((&raw const a).cast(), (&raw mut out).cast()) };
+    negated_at((&raw const a).cast(), (&raw mut out).cast());
     out
 }
 
-unsafe fn negated_at(a: *const u8, o: *mut u8) {
+fn negated_at(a: *const u8, o: *mut u8) {
     let t0 = fld(a, 0x0);
     let t1 = -t0;
     fstp(o, 0x0, t1);

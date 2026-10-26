@@ -17,35 +17,33 @@ use crate::race::frame_store::FRAME_WORK;
 use crate::race::work_store::RACE_WORK;
 use rc2k_core::physics::progress::{GO_NOTICE, GoFacts};
 
-unsafe fn at(a: u32) -> u32 {
+fn at(a: u32) -> u32 {
     crate::pointers::read_or_end::<u32>(a, "physics::start_go_notice's operand")
 }
 
-unsafe fn put(a: u32, v: u32) {
+fn put(a: u32, v: u32) {
     crate::pointers::write_or_end::<u32>(a, v, "physics::start_go_notice's operand")
 }
 
 /// The core: `v` the variables' addresses, then the twin's current, listed and flag.
 // Converted: `rc2k_core::physics::progress::GoFacts::go_due`.
-pub unsafe fn start_go_notice_at(v: &[u32], twin: [u32; 3]) -> Result<(), Refused> {
-    unsafe {
-        let facts = GoFacts {
-            mode: at(v[0]),
-            countdown: at(v[1]),
-            gone: at(v[2]),
-            finished: at(v[3]),
-            cheats: at(v[4]),
-        };
-        if !facts.go_due() {
-            return Ok(());
-        }
-        set_flag_at(twin[0], twin[1], twin[2])?;
-        put(v[2], 1);
-        put(v[5], GO_NOTICE);
-        put(v[6], 0x32);
-        put(v[7], u32::MAX);
-        Ok(())
+pub fn start_go_notice_at(v: &[u32], twin: [u32; 3]) -> Result<(), Refused> {
+    let facts = GoFacts {
+        mode: at(v[0]),
+        countdown: at(v[1]),
+        gone: at(v[2]),
+        finished: at(v[3]),
+        cheats: at(v[4]),
+    };
+    if !facts.go_due() {
+        return Ok(());
     }
+    set_flag_at(twin[0], twin[1], twin[2])?;
+    put(v[2], 1);
+    put(v[5], GO_NOTICE);
+    put(v[6], 0x32);
+    put(v[7], u32::MAX);
+    Ok(())
 }
 
 fn game() -> (Vec<u32>, [u32; 3]) {
@@ -71,7 +69,7 @@ fn game() -> (Vec<u32>, [u32; 3]) {
 }
 
 /// The Rust version.
-pub unsafe fn start_go_notice() -> Result<(), Refused> {
+pub fn start_go_notice() -> Result<(), Refused> {
     let (v, twin) = game();
-    unsafe { start_go_notice_at(&v, twin) }
+    start_go_notice_at(&v, twin)
 }

@@ -65,7 +65,7 @@ pub fn queue_pace_note(checkpoint: u32) -> Result<(), Refused> {
             }
             Code::Call => {
                 crate::physics::cue_listed_car_sound_last::cue_listed_car_sound_last(byte)?;
-                unsafe { crate::physics::queue_listed_event::queue_listed_event(byte) }?;
+                { crate::physics::queue_listed_event::queue_listed_event(byte) }?;
                 at = at.wrapping_add(1);
             }
         }

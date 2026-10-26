@@ -106,7 +106,7 @@ pub struct Area {}
 /// Returns the registers the original leaves and, unless the glyph is clipped away, the part
 /// of the surface it may have touched.
 #[allow(clippy::too_many_arguments)] // the original's five inputs, the surface, the clip and the sink
-pub unsafe fn blit_glyph(
+pub fn blit_glyph(
     record: &GameBytes,
     x: i32,
     y: i32,
@@ -194,7 +194,7 @@ pub unsafe fn blit_glyph(
 
 /// Draws glyph `glyph` of `table` on the game's surface with the game's clip rectangle, and
 /// updates the blitter's work globals: what a call of the original does.
-pub unsafe fn blit_glyph_on_surface(
+pub fn blit_glyph_on_surface(
     glyph: u32,
     table: GamePtr,
     x: i32,
@@ -205,7 +205,7 @@ pub unsafe fn blit_glyph_on_surface(
     let record = glyph_record(&surface, table, glyph)?;
     let mut scratch = read_scratch();
     let surface_window = crate::pointers::Window::new();
-    let (exit, _) = unsafe {
+    let (exit, _) = {
         blit_glyph(
             &record,
             x,

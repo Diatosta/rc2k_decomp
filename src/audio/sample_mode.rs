@@ -12,7 +12,7 @@ use crate::audio::samples::sample_mode;
 use crate::audio::voices::*;
 use crate::errors::{BadInput, Refused};
 
-pub unsafe fn sample_mode_of(mode: u32, sound: u32) -> Result<u32, Refused> {
+pub fn sample_mode_of(mode: u32, sound: u32) -> Result<u32, Refused> {
     if (sound as i32) < 0 {
         return Ok(mode);
     }

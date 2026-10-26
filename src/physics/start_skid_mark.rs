@@ -18,29 +18,27 @@ use rc2k_core::physics::ground::SkidStart;
 
 /// The Rust version on the variables at `v`. The registers the original leaves are read by none of its callers (eax).
 // Converted: `rc2k_core::physics::ground::SkidStart::start`.
-pub unsafe fn start_at(v: &[u32]) {
-    unsafe {
-        let wheels = [get(v[0]), get(v[1]), get(v[2]), get(v[3])];
-        let was = SkidStart {
-            pending: get(v[4]),
-            from: get(v[5]),
-            on: get(v[6]),
-            w674: get(v[7]),
-            w670: get(v[8]),
-            step: get(v[10]),
-        };
-        let mut s = was;
-        s.start(wheels, || get(v[9]));
-        for (k, before, now) in [
-            (5, was.from, s.from),
-            (6, was.on, s.on),
-            (7, was.w674, s.w674),
-            (8, was.w670, s.w670),
-            (10, was.step, s.step),
-            (4, was.pending, s.pending),
-        ] {
-            put_changed(v[k], before, now);
-        }
+pub fn start_at(v: &[u32]) {
+    let wheels = [get(v[0]), get(v[1]), get(v[2]), get(v[3])];
+    let was = SkidStart {
+        pending: get(v[4]),
+        from: get(v[5]),
+        on: get(v[6]),
+        w674: get(v[7]),
+        w670: get(v[8]),
+        step: get(v[10]),
+    };
+    let mut s = was;
+    s.start(wheels, || get(v[9]));
+    for (k, before, now) in [
+        (5, was.from, s.from),
+        (6, was.on, s.on),
+        (7, was.w674, s.w674),
+        (8, was.w670, s.w670),
+        (10, was.step, s.step),
+        (4, was.pending, s.pending),
+    ] {
+        put_changed(v[k], before, now);
     }
 }
 
@@ -61,6 +59,6 @@ fn game() -> Vec<u32> {
 }
 
 /// The Rust version.
-pub unsafe fn start_skid_mark() {
-    unsafe { start_at(&game()) }
+pub fn start_skid_mark() {
+    start_at(&game())
 }

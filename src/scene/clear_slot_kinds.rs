@@ -9,7 +9,7 @@ use crate::scene::object_tables_store::OBJECT_TABLES;
 
 // ---- Rust version ----
 
-pub unsafe fn clear_slot_kinds() {
+pub fn clear_slot_kinds() {
     for kind in &OBJECT_TABLES.slot_kinds {
         kind.set(0);
     }

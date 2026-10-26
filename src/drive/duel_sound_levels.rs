@@ -15,13 +15,13 @@ use rc2k_core::drive::replay_views::{RARE_FROM, first_level, rare_draw, second_l
 
 /// The Rust version.
 // Converted: `rc2k_core::drive::replay_views::{first_level, rare_draw, second_level}`.
-pub unsafe fn duel_sound_levels() {
+pub fn duel_sound_levels() {
     let stage = &crate::sound::store::STAGE_SOUNDS;
     stage
         .loop_volume_a
         .set(first_level(CAR_BLOCKS.cars[0].surface_noise_a.bits()));
     if stage.loop_volume_a.get() >= RARE_FROM {
-        let r = unsafe { crate::math::next_random::next_random() };
+        let r = { crate::math::next_random::next_random() };
         if rare_draw(r) {
             stage.timed_arm.set(1);
         }

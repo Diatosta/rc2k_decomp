@@ -73,7 +73,7 @@ fn fixed_camera(second: bool) {
     for k in 0..3 {
         CAR.camera_position[k as usize].set(rd(point + 4 * k));
     }
-    unsafe { crate::physics::camera_height_bias::camera_height_bias() };
+    crate::physics::camera_height_bias::camera_height_bias();
     let d = |k: usize| {
         CAR.position[k]
             .get()
@@ -88,7 +88,7 @@ fn fixed_camera(second: bool) {
     let w = [dx, dy, dz];
     x87_2(w.as_ptr() as usize, crate::race::store::asm_base() as usize);
     DRAW.scratch.set(dz);
-    VIEW_VARS.camera_distance.set_bits(rounded(unsafe {
+    VIEW_VARS.camera_distance.set_bits(rounded({
         crate::physics::vector_length::vector_length(VIEW_VARS.camera_vector[0].addr() as u32)
     }));
     CAR.camera_zoom
@@ -160,12 +160,8 @@ pub fn steps() -> Result<(), Refused> {
     }
     let (mode, before) = (CAR.camera_view.get(), CAR.camera_blend_view.get());
     camera_view::check_modes(mode, before)?;
-    unsafe {
-        crate::physics::take_view_a::take_view_a(VIEW_VARS.view_records[mode as usize].get())
-    };
-    unsafe {
-        crate::physics::take_view_b::take_view_b(VIEW_VARS.view_records[before as usize].get())
-    };
+    crate::physics::take_view_a::take_view_a(VIEW_VARS.view_records[mode as usize].get());
+    crate::physics::take_view_b::take_view_b(VIEW_VARS.view_records[before as usize].get());
     x87_6(crate::race::store::asm_base() as usize);
     // The offsets and turns: (to, from b, from a) each a + (b - a) x share, x 65536.
     let (work, offset_turns) = (&CAMERA_WORK, &CAR.camera_offset_turns);
@@ -236,8 +232,8 @@ pub fn steps() -> Result<(), Refused> {
         .set(CAMERA_WORK.view_a_aux_2.get());
     x87_8(crate::race::store::asm_base() as usize);
     hold_low(&CAR.camera_zoom, &VIEW_VARS.camera_zoom_hold);
-    unsafe { crate::physics::ease_view_angles::ease_view_angles() };
-    unsafe { crate::physics::ease_view_blend::ease_view_blend() };
+    crate::physics::ease_view_angles::ease_view_angles();
+    crate::physics::ease_view_blend::ease_view_blend();
     crate::physics::camera_avoid_ground::steps()?;
     x87_9(crate::race::store::asm_base() as usize);
     COURSE.camera_first.set(VIEW_VARS.view_angles[1].get());

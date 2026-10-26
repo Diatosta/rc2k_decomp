@@ -40,36 +40,32 @@ impl AnglePlaces {
     }
 }
 
-unsafe fn at(a: u32) -> u32 {
+fn at(a: u32) -> u32 {
     crate::pointers::read_or_end::<u32>(a, "physics::matrix_angles's operand")
 }
 
-unsafe fn put(a: u32, v: u32) {
+fn put(a: u32, v: u32) {
     crate::pointers::write_or_end::<u32>(a, v, "physics::matrix_angles's operand")
 }
 
 /// `rotate_point` of the unit vector `unit` by `m`, stored as floats at `p.turned`.
-unsafe fn turn_unit(m: u32, p: &AnglePlaces, unit: [u32; 3]) {
-    unsafe {
-        let out = rotate_point(m, unit.map(extended));
-        for (k, e) in out.iter().enumerate() {
-            put(p.turned + 4 * k as u32, rounded(*e));
-        }
+fn turn_unit(m: u32, p: &AnglePlaces, unit: [u32; 3]) {
+    let out = rotate_point(m, unit.map(extended));
+    for (k, e) in out.iter().enumerate() {
+        put(p.turned + 4 * k as u32, rounded(*e));
     }
 }
 
 /// The Rust core: the matrix at `m`, the variables at `p`.
-pub unsafe fn matrix_angles_at(m: u32, p: &AnglePlaces) {
+pub fn matrix_angles_at(m: u32, p: &AnglePlaces) {
     const ONE: u32 = 0x3F80_0000;
-    unsafe {
-        turn_unit(m, p, [0, 0, ONE]);
-        put(p.angles + 4, patan(at(p.turned), at(p.turned + 8)));
-        turn_unit(m, p, [0, 0, ONE]);
-        let pitch = clamped_asin_at(extended(at(p.turned + 4)), p.scratch, p.limit);
-        put(p.angles, neg_rounded(pitch));
-        turn_unit(m, p, [ONE, 0, 0]);
-        let sine = over_cos_80(at(p.turned + 4), at(p.angles));
-        let roll = clamped_asin_at(sine, p.scratch, p.limit);
-        put(p.angles + 8, rounded(roll));
-    }
+    turn_unit(m, p, [0, 0, ONE]);
+    put(p.angles + 4, patan(at(p.turned), at(p.turned + 8)));
+    turn_unit(m, p, [0, 0, ONE]);
+    let pitch = clamped_asin_at(extended(at(p.turned + 4)), p.scratch, p.limit);
+    put(p.angles, neg_rounded(pitch));
+    turn_unit(m, p, [ONE, 0, 0]);
+    let sine = over_cos_80(at(p.turned + 4), at(p.angles));
+    let roll = clamped_asin_at(sine, p.scratch, p.limit);
+    put(p.angles + 8, rounded(roll));
 }

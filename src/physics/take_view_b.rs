@@ -21,7 +21,7 @@ use crate::session::Cell32;
 
 /// The Rust version (the exact one, for `physics::update_camera`): `s` the view's record
 /// (esi). The eax and ebx it leaves are read by none of its callers.
-pub unsafe fn take_view_b(s: u32) {
+pub fn take_view_b(s: u32) {
     x87_1(s as usize, crate::race::store::asm_base() as usize);
     for (k, x) in copies().iter().enumerate() {
         x.set_bits(rd(s + 0x10 + 4 * k as u32));

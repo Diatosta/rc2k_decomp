@@ -15,7 +15,7 @@ use crate::strings::text_buffer::TEXT_BUFFER;
 
 /// `rows` rows of the locked surface from `edi` cleared (`rep stosd` of the row's dwords, then
 /// the row's gap). Gives edi after them.
-unsafe fn clear_rows(mut edi: u32, rows: u32) -> u32 {
+fn clear_rows(mut edi: u32, rows: u32) -> u32 {
     for _ in 0..rows {
         let n = DRAW_SURFACE.row_dwords.get();
         if let Err(e) = GamePtr::new(edi).fill(0, 4 * n as usize, "a plate's surface") {
@@ -169,22 +169,20 @@ pub unsafe fn update_name_plates() -> Result<(), Refused> {
 /// A text drawn in the game: `text::draw_text_keep_regs`'s Rust version on the game's
 /// surface, the font at `font`, the text at `text`, at (`x`, `y`); whether it was too wide
 /// (the original's carry).
-pub unsafe fn draw_text_in_game(font: u32, text: u32, x: u32, y: u32) -> Result<bool, Refused> {
+pub fn draw_text_in_game(font: u32, text: u32, x: u32, y: u32) -> Result<bool, Refused> {
     use crate::text::draw_text::GameCanvas;
     use crate::text::font::Font;
-    unsafe {
-        let font = GamePtr::new(font);
-        let mut copy: Font = font.read("a font record")?;
-        let wide = crate::text::draw_text_keep_regs::draw_text_keep_regs(
-            &mut copy,
-            text as *const u8,
-            x as i32,
-            y as i32,
-            &mut GameCanvas,
-        )?;
-        if copy != font.read::<Font>("a font record")? {
-            font.write(copy, "a font record")?;
-        }
-        Ok(wide)
+    let font = GamePtr::new(font);
+    let mut copy: Font = font.read("a font record")?;
+    let wide = crate::text::draw_text_keep_regs::draw_text_keep_regs(
+        &mut copy,
+        text as *const u8,
+        x as i32,
+        y as i32,
+        &mut GameCanvas,
+    )?;
+    if copy != font.read::<Font>("a font record")? {
+        font.write(copy, "a font record")?;
     }
+    Ok(wide)
 }

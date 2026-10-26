@@ -522,13 +522,12 @@ const _: () = assert!(core::mem::size_of::<Car>() == 0xFE0);
 unsafe impl crate::pointers::Cells for Car {}
 
 impl Car {
-    /// The car block at `address` (a `g_carBlocks` entry, a view's block, `g_car`).
-    ///
-    /// # Safety
-    /// `address` must be a car block's (in the race block, which lives as long as the
-    /// program), as the original reads it there.
-    pub unsafe fn at<'a>(address: u32) -> &'a Car {
-        unsafe { &*(address as usize as *const Car) }
+    /// The car block at `address` (a `g_carBlocks` entry, a view's block, `g_car`); an
+    /// address whose block is not inside one region (or is out of line) ends the program.
+    pub fn at(address: u32) -> &'static Car {
+        crate::pointers::GamePtr::new(address)
+            .record::<Car>("a car block")
+            .unwrap_or_else(|e| crate::fatal::raise::end("physics::Car::at", e))
     }
 }
 

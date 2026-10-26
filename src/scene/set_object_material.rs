@@ -61,33 +61,31 @@ fn state() -> Option<usize> {
 
 /// `sub_45079A`.
 fn step_shape(state: usize) -> Result<(), BadInput> {
-    unsafe {
-        let at = GamePtr::new(state as u32);
-        let [last, mut time, mut length, mut phase]: [u32; 4] = at.read("an object's state")?;
-        crate::session::write_bits(&LIGHT_WORK.phase_lengths, LENGTHS);
-        let clock: u32 = PHYSICS.scene_clock.bits();
-        time = time.wrapping_add(clock.wrapping_sub(last).min(100));
-        while time >= length {
-            time -= length;
-            phase = (phase + 1) & 3;
-            let part = ((next_random() as u64 * LENGTHS[4 + phase as usize] as u64) >> 32) as u32;
-            length = part.wrapping_add(LENGTHS[phase as usize]);
-        }
-        let fraction = match phase {
-            1 => x87::int_ratio(time as i32, length as i32),
-            2 => 1f32.to_bits(),
-            3 => x87::one_less_int_ratio(time as i32, length as i32),
-            _ => 0f32.to_bits(),
-        };
-        RACE_VARS.move_fraction.set_bits(fraction);
-        LIGHT_WORK.phase_clock.set_bits(clock);
-        crate::session::write_first(
-            &crate::scene::object_slots_store::OBJECT_SLOTS.phase_work,
-            &[length, time, phase],
-        );
-        at.write([clock, time, length, phase], "an object's state")?;
-        Ok(())
+    let at = GamePtr::new(state as u32);
+    let [last, mut time, mut length, mut phase]: [u32; 4] = at.read("an object's state")?;
+    crate::session::write_bits(&LIGHT_WORK.phase_lengths, LENGTHS);
+    let clock: u32 = PHYSICS.scene_clock.bits();
+    time = time.wrapping_add(clock.wrapping_sub(last).min(100));
+    while time >= length {
+        time -= length;
+        phase = (phase + 1) & 3;
+        let part = ((next_random() as u64 * LENGTHS[4 + phase as usize] as u64) >> 32) as u32;
+        length = part.wrapping_add(LENGTHS[phase as usize]);
     }
+    let fraction = match phase {
+        1 => x87::int_ratio(time as i32, length as i32),
+        2 => 1f32.to_bits(),
+        3 => x87::one_less_int_ratio(time as i32, length as i32),
+        _ => 0f32.to_bits(),
+    };
+    RACE_VARS.move_fraction.set_bits(fraction);
+    LIGHT_WORK.phase_clock.set_bits(clock);
+    crate::session::write_first(
+        &crate::scene::object_slots_store::OBJECT_SLOTS.phase_work,
+        &[length, time, phase],
+    );
+    at.write([clock, time, length, phase], "an object's state")?;
+    Ok(())
 }
 
 pub fn set_object_material() -> Result<(), BadInput> {

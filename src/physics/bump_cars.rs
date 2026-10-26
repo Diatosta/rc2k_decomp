@@ -44,7 +44,7 @@ fn turn_speed(block: u32) {
             "a car block's speed",
         ))
     };
-    let turned = unsafe { rotate_point(block + 0x9CC, [rd(0x198), rd(0x19C), rd(0x1A0)]) };
+    let turned = { rotate_point(block + 0x9CC, [rd(0x198), rd(0x19C), rd(0x1A0)]) };
     for (k, e) in turned.iter().enumerate() {
         crate::pointers::write_or_end(
             block + 0x1A4 + 4 * k as u32,
@@ -79,7 +79,7 @@ fn steps(edi: u32) -> Result<(), Refused> {
     crate::race::trap::car_at(edi)?;
     crate::pointers::write_or_end(edi + 0x234, 1u32, "a car block's contact flag");
     x87_1(crate::race::store::asm_base() as usize, edi as usize);
-    CONTACT_WORK.bump_speed_length.set_bits(rounded(unsafe {
+    CONTACT_WORK.bump_speed_length.set_bits(rounded({
         vector_length(a(&CONTACT_WORK.bump_relative_speed[0]))
     }));
     let esi = CONTACT_WORK.other_car_block.get();
@@ -88,17 +88,17 @@ fn steps(edi: u32) -> Result<(), Refused> {
     let other = CONTACT_WORK.other_car_block.get();
     x87_3(crate::race::store::asm_base() as usize, other as usize);
     let factor = extended(NUMBERS.three.bits());
-    unsafe { scale_vector(CONTACT_WORK.bump_push[0].addr() as u32, factor) };
+    scale_vector(CONTACT_WORK.bump_push[0].addr() as u32, factor);
     DRAW.scratch.set(rounded(factor));
     x87_4(crate::race::store::asm_base() as usize, other as usize);
     turn_speed(esi);
     turn_speed(crate::physics::car_store::car_addr() as u32);
-    unsafe { crate::physics::place_sound_e1_other::place_sound_e1_other() }?;
+    { crate::physics::place_sound_e1_other::place_sound_e1_other() }?;
     Ok(())
 }
 
 /// The Rust version: `edi` the other car's block (an address in the game's memory).
-pub unsafe fn bump_cars(edi: u32) -> Result<(), Refused> {
+pub fn bump_cars(edi: u32) -> Result<(), Refused> {
     if edi == 0 || CONTACT_WORK.other_car_block.get() == 0 {
         return Err(BadInput("a null car block").into());
     }

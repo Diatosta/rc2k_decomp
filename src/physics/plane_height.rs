@@ -38,7 +38,7 @@ impl Plane {
     }
 }
 
-unsafe fn at(a: u32) -> u32 {
+fn at(a: u32) -> u32 {
     crate::pointers::read_or_end::<u32>(a, "physics::plane_height's operand")
 }
 

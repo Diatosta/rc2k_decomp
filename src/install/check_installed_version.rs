@@ -41,9 +41,7 @@ pub fn check_installed_version() -> Result<(), Refused> {
     if !written || !set_cd(INSTALLER_PATHS.installed.addr() as u32) {
         return Ok(());
     }
-    unsafe {
-        crate::system::zero_memory::zero_memory(SCRATCH.buffer.addr() as u32 as *mut u8, 0x10000)
-    }?;
+    { crate::system::zero_memory::zero_memory(SCRATCH.buffer.addr() as u32 as *mut u8, 0x10000) }?;
     // The standalone checks its own program (the same version text is in its built-in
     // image). files::open_by_mode, mode 0.
     let program = crate::install::run_after_exit::RC2K.as_ptr();

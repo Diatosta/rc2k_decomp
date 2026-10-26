@@ -187,11 +187,7 @@ fn write(handle: u32, from: u32, count: u32) -> Result<(u32, bool), BadInput> {
 /// `g_pngInfo`, rounded up to a dword) and the packing written when smaller (eax then the
 /// bytes written negated). Gives eax and the carry (a failed write); the original keeps
 /// the rest (`pusha` / `popa`), and its zero flag is read by no caller.
-pub unsafe fn write_replay_chunk(
-    handle: u32,
-    from: u32,
-    count: u32,
-) -> Result<(u32, bool), Refused> {
+pub fn write_replay_chunk(handle: u32, from: u32, count: u32) -> Result<(u32, bool), Refused> {
     {
         if REPLAY_FILE.chunks_plain.get() == 1 {
             return Ok(write(handle, from, count)?);

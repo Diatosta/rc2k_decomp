@@ -111,7 +111,7 @@ fn steps() -> Result<(), Refused> {
         if gear == 0 {
             PHYSICS.drive_torque.set_bits(0);
         }
-        unsafe { crate::physics::cap_drive_speed::cap_drive_speed() };
+        crate::physics::cap_drive_speed::cap_drive_speed();
         PHYSICS.wheels_driven.set(0);
         let mut offset = 0;
         if CAR.brake.get() != 0 {
@@ -255,12 +255,12 @@ fn steps() -> Result<(), Refused> {
 
 /// `revs_from_wheels` (the gear checked before; the ebx it leaves is read by no one).
 fn revs() -> Result<(), Refused> {
-    unsafe { revs_from_wheels_at(&GearPlaces::game()) }?;
+    { revs_from_wheels_at(&GearPlaces::game()) }?;
     Ok(())
 }
 
 /// The Rust version. The eax and ebx it leaves are read by none of its callers.
-pub unsafe fn drive_wheels_step() -> Result<(), Refused> {
+pub fn drive_wheels_step() -> Result<(), Refused> {
     let gear = CAR.gear.get();
     if gear != 0 && !(-1..=7).contains(&(gear as i32)) {
         return Err(BadInput("a gear outside g_gearRatios (-1 ..= 7)").into());

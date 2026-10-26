@@ -25,34 +25,32 @@ use crate::session::Float;
 // ---- Rust version ----
 
 /// The polygon's entries and the mask of the edges some vertex is past.
-unsafe fn outside_mask() -> Result<u32, BadInput> {
-    unsafe {
-        let entries = listed_with_records()?;
-        let edge = |cell: &Float| cell.get() as f64;
-        let (left, right, top, bottom) = (
-            edge(&DRAW.clip_screen[2]),
-            edge(&DRAW.clip_screen[3]),
-            edge(&DRAW.clip_screen[0]),
-            edge(&DRAW.clip_screen[1]),
-        );
-        let mut mask = 0;
-        for &entry in &entries {
-            let record = dword(entry + 4) as usize;
-            let x = f32::from_bits(dword(record + 0xC)) as f64;
-            let y = f32::from_bits(dword(record + 0x1C)) as f64;
-            if !below(x, right) {
-                mask |= 2;
-            } else if below(x, left) {
-                mask |= 1;
-            }
-            if !below(y, bottom) {
-                mask |= 8;
-            } else if below(y, top) {
-                mask |= 4;
-            }
+fn outside_mask() -> Result<u32, BadInput> {
+    let entries = listed_with_records()?;
+    let edge = |cell: &Float| cell.get() as f64;
+    let (left, right, top, bottom) = (
+        edge(&DRAW.clip_screen[2]),
+        edge(&DRAW.clip_screen[3]),
+        edge(&DRAW.clip_screen[0]),
+        edge(&DRAW.clip_screen[1]),
+    );
+    let mut mask = 0;
+    for &entry in &entries {
+        let record = dword(entry + 4) as usize;
+        let x = f32::from_bits(dword(record + 0xC)) as f64;
+        let y = f32::from_bits(dword(record + 0x1C)) as f64;
+        if !below(x, right) {
+            mask |= 2;
+        } else if below(x, left) {
+            mask |= 1;
         }
-        Ok(mask)
+        if !below(y, bottom) {
+            mask |= 8;
+        } else if below(y, top) {
+            mask |= 4;
+        }
     }
+    Ok(mask)
 }
 
 pub unsafe fn clip_polygon_to_screen() -> Result<(), BadInput> {

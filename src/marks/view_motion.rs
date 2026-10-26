@@ -25,34 +25,32 @@ use crate::scene::vector3::{dot_product3, normalise_vector3};
 
 /// The Rust version (see the header).
 pub fn view_motion() -> Result<(), Refused> {
-    unsafe {
-        let m = MATRICES.view_place[0].addr() as u32;
-        let get = |a: u32| GamePtr::new(a).read::<u32>("a mark's field");
-        let mut local = [0u32; 6];
-        for (k, v) in local.iter_mut().take(3).enumerate() {
-            *v = x87::loaded(get(m + 0x20 + 4 * k as u32)?);
-        }
-        let zero = [extended(0); 3];
-        let place = rotate_point(m, zero);
-        for k in 0..3 {
-            let step = x87::ext_less(place[k], DRAW_FRAME.last[k].bits());
-            DRAW_WORK.step[k].set_bits(step);
-            local[3 + k] = step;
-        }
-        let at = local.as_mut_ptr() as u32;
-        normalise_vector3(at + 12);
-        VIEW_VARS
-            .facing
-            .set_bits(rounded(dot_product3(at, at + 12)));
-        let place = rotate_point(m, zero);
-        for (k, p) in place.iter().enumerate() {
-            DRAW_FRAME.last[k].set_bits(rounded(*p));
-        }
-        let ticks: i32 = CLOCK.frame_ticks.get() as i32;
-        for k in 0..3 {
-            let a = &DRAW_WORK.step[k];
-            a.set_bits(x87::over_int(a.bits(), ticks));
-        }
+    let m = MATRICES.view_place[0].addr() as u32;
+    let get = |a: u32| GamePtr::new(a).read::<u32>("a mark's field");
+    let mut local = [0u32; 6];
+    for (k, v) in local.iter_mut().take(3).enumerate() {
+        *v = x87::loaded(get(m + 0x20 + 4 * k as u32)?);
+    }
+    let zero = [extended(0); 3];
+    let place = rotate_point(m, zero);
+    for k in 0..3 {
+        let step = x87::ext_less(place[k], DRAW_FRAME.last[k].bits());
+        DRAW_WORK.step[k].set_bits(step);
+        local[3 + k] = step;
+    }
+    let at = local.as_mut_ptr() as u32;
+    normalise_vector3(at + 12);
+    VIEW_VARS
+        .facing
+        .set_bits(rounded(dot_product3(at, at + 12)));
+    let place = rotate_point(m, zero);
+    for (k, p) in place.iter().enumerate() {
+        DRAW_FRAME.last[k].set_bits(rounded(*p));
+    }
+    let ticks: i32 = CLOCK.frame_ticks.get() as i32;
+    for k in 0..3 {
+        let a = &DRAW_WORK.step[k];
+        a.set_bits(x87::over_int(a.bits(), ticks));
     }
     Ok(())
 }

@@ -22,13 +22,13 @@ fn set(cells: &[Dword; 4], v: [u32; 4]) {
 
 /// The Rust version: its quads (`drive::tyre_quad`); every register kept.
 // Converted: `rc2k_core::drive::tyre_screen::fixed_parts`.
-pub unsafe fn tyre_screen_parts() -> Result<(), Refused> {
+pub fn tyre_screen_parts() -> Result<(), Refused> {
     let parts = std::array::from_fn(|k| TYRE.parts[k].get());
     let wheel = std::array::from_fn(|k| TYRE.wheel[k].get());
     for (uv, rect) in fixed_parts(parts, wheel, TYRE.player.get() != 0) {
         set(&VIEWER_PANEL.texture_rect, uv); // dword_5C2A1C
         set(&VIEWER_PANEL.screen_rect, rect); // dword_5C2A0C
-        unsafe {
+        {
             crate::drive::tyre_quad::tyre_quad(
                 VIEWER_PANEL.texture_rect[0].addr() as u32,
                 VIEWER_PANEL.screen_rect[0].addr() as u32,

@@ -283,7 +283,7 @@ pub fn run_frame(frame: Option<Frame>) -> Result<bool, Refused> {
 
 /// `gfx::copy_picture_to_surface` (0x4060E3).
 pub fn copy_picture() -> Result<(), Refused> {
-    unsafe {
+    {
         crate::gfx::copy_picture_to_surface::copy_picture_to_surface(
             &mut crate::gfx::copy_picture_to_surface::GameSurface,
         )
@@ -313,15 +313,13 @@ pub fn draw_text(font: u32, text: u32, x: u32, y: u32) -> Result<(), Refused> {
     use crate::text::font::Font;
     let at = crate::pointers::GamePtr::new(font);
     let mut copy = at.read::<Font>("a font object")?;
-    unsafe {
-        crate::text::draw_text::draw_text(
-            &mut copy,
-            text as *const u8,
-            x as i32,
-            y as i32,
-            &mut GameCanvas,
-        )?;
-    }
+    crate::text::draw_text::draw_text(
+        &mut copy,
+        text as *const u8,
+        x as i32,
+        y as i32,
+        &mut GameCanvas,
+    )?;
     if copy != at.read::<Font>("a font object")? {
         at.write(copy, "a font object")?;
     }
@@ -331,7 +329,7 @@ pub fn draw_text(font: u32, text: u32, x: u32, y: u32) -> Result<(), Refused> {
 /// `text::measure_text` (0x40230B), ecx `x`: (the widest line, the last line's y).
 pub fn measure_text(font: u32, text: u32, x: u32) -> Result<(u32, u32), Refused> {
     use crate::text::draw_text::GameCanvas;
-    let m = unsafe {
+    let m = {
         crate::text::measure_text::measure_text_at(
             font as *mut crate::text::font::Font,
             text as *const u8,

@@ -17,7 +17,7 @@ use crate::physics::listed_car_flags::set_flag_at;
 use crate::race::frame_store::FRAME_WORK;
 use rc2k_core::physics::start::{CarStart, StartCount};
 
-unsafe fn at(a: u32) -> u32 {
+fn at(a: u32) -> u32 {
     crate::pointers::read_or_end::<u32>(a, "physics::count_down_start's operand")
 }
 

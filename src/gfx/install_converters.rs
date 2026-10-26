@@ -46,7 +46,7 @@ pub fn converters(has_mmx: u32, has_3dnow: u32) -> [u32; CONVERTER_COUNT] {
     })
 }
 
-pub unsafe fn install_converters() {
+pub fn install_converters() {
     let table = converters(MACHINE.has_mmx.get(), MACHINE.has_3dnow.get());
     for (cell, entry) in CONVERTERS.table.iter().zip(table) {
         cell.set(entry);

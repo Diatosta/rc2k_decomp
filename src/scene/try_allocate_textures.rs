@@ -90,9 +90,7 @@ impl rc2k_core::scene::textures::TextureMemory for GameMemory {
 
 /// Whether all the memory was had.
 // Converted: `rc2k_core::scene::textures::try_allocate`
-pub unsafe fn try_allocate_textures(
-    call: &mut dyn FnMut(Call) -> Option<u32>,
-) -> Result<bool, BadInput> {
+pub fn try_allocate_textures(call: &mut dyn FnMut(Call) -> Option<u32>) -> Result<bool, BadInput> {
     Ok(rc2k_core::scene::textures::try_allocate(
         &mut GameMemory,
         &mut |c| call(c),

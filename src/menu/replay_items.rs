@@ -9,7 +9,7 @@ use crate::race::state_store::RACE_STATE;
 /// `menu::replay_item_a` (0x47053E): unless `dword_75ACDC` is 1, with a replay there
 /// (`dword_5BEC84` 1) `race::replay_mode_1`; else half a second's sleep and the menu's sound
 /// 8. `c` the carried values the item gets.
-pub unsafe fn replay_item_a(c: &Carried) -> Result<(), Refused> {
+pub fn replay_item_a(c: &Carried) -> Result<(), Refused> {
     if RACE_STATE.settings.no_replay.get() != 1
         && crate::race::replay_file_store::REPLAY_FILE
             .replay_closed
@@ -24,7 +24,7 @@ pub unsafe fn replay_item_a(c: &Carried) -> Result<(), Refused> {
 }
 
 /// `menu::replay_item_b` (0x47052F): unless `dword_75ACDC` is 1, `race::replay_mode_3`.
-pub unsafe fn replay_item_b(c: &Carried) -> Result<(), Refused> {
+pub fn replay_item_b(c: &Carried) -> Result<(), Refused> {
     if RACE_STATE.settings.no_replay.get() != 1 {
         crate::race::replay_mode::replay_mode(c, 3)?;
     }

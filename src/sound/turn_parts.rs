@@ -48,5 +48,5 @@ pub fn placed(request: u32) -> Result<(), Refused> {
 
 /// `sound::step_race_clock`: true when a turn is due (the original's carry clear).
 pub fn step_clock() -> bool {
-    unsafe { crate::sound::race_clock::step_race_clock(crate::system::tick_count::tick_count()) }
+    crate::sound::race_clock::step_race_clock(crate::system::tick_count::tick_count())
 }

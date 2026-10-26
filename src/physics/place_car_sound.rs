@@ -25,26 +25,24 @@ fn object() -> u32 {
 }
 
 /// The exact x87 version (for `physics::sound_on_bit`).
-pub unsafe fn place_car_sound() -> Result<(), Refused> {
+pub fn place_car_sound() -> Result<(), Refused> {
     let o = object();
     if o == 0 {
         return Err(BadInput("a null sound object").into());
     }
     let so = crate::sound::store::SoundObject::at(o)?;
-    unsafe {
-        so.slot_b.start.set(1);
-        let d = |a: &Dword, b: &Dword| ints_diff_80(a.get() as i32, b.get() as i32);
-        let p = [
-            d(&CAR.position[0], &CAR.camera_position[0]),
-            d(&CAR.position[1], &CAR.camera_position[1]),
-            d(&CAR.position[2], &CAR.camera_position[2]),
-        ];
-        let out = rotate_point(MATRICES.view_turn_matrix[0].addr() as u32, p);
-        let k = NUMBERS.one_over_65536.bits();
-        for (n, e) in out.iter().enumerate() {
-            so.place_b[n].set_bits(rounded(ext_times(*e, k)));
-        }
-        so.new_revs.set(1);
+    so.slot_b.start.set(1);
+    let d = |a: &Dword, b: &Dword| ints_diff_80(a.get() as i32, b.get() as i32);
+    let p = [
+        d(&CAR.position[0], &CAR.camera_position[0]),
+        d(&CAR.position[1], &CAR.camera_position[1]),
+        d(&CAR.position[2], &CAR.camera_position[2]),
+    ];
+    let out = rotate_point(MATRICES.view_turn_matrix[0].addr() as u32, p);
+    let k = NUMBERS.one_over_65536.bits();
+    for (n, e) in out.iter().enumerate() {
+        so.place_b[n].set_bits(rounded(ext_times(*e, k)));
     }
+    so.new_revs.set(1);
     Ok(())
 }

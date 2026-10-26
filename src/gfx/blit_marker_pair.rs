@@ -36,7 +36,7 @@ pub fn marker_calls(
 }
 
 /// Stores a marker's position in the two globals, as the original does before each blit.
-pub unsafe fn set_marker_position(call: &BlitCall) {
+pub fn set_marker_position(call: &BlitCall) {
     DRAW_WORK.marker_x.set(call.x as u32);
     DRAW_WORK.marker_y.set(call.y as u32);
 }

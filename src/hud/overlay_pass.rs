@@ -38,31 +38,29 @@ pub fn shown_layout() -> u32 {
 /// by none of its callers (register liveness, 2026-10-23).
 pub fn overlay_pass() -> Result<(), Refused> {
     use crate::scene::depth_buffer_on::depth_buffer;
-    unsafe {
-        PANEL.players.set(shown_layout());
-        depth_buffer(false);
-        crate::hud::overlay_states::overlay_states();
-        let kept: [u32; 2] = [PANEL.hud_flags[0].get(), PANEL.hud_flags[1].get()];
-        if RACE_VIEW.views.bits() == 2 {
-            for n in 0..2 {
-                if CAR_BLOCKS.cars[n].view_covered.get() != 0 {
-                    PANEL.hud_flags[n].set(PANEL.hud_flags[n].get() & 0x40);
-                    PANEL.lights[n].fade.set(0);
-                }
+    PANEL.players.set(shown_layout());
+    depth_buffer(false);
+    crate::hud::overlay_states::overlay_states();
+    let kept: [u32; 2] = [PANEL.hud_flags[0].get(), PANEL.hud_flags[1].get()];
+    if RACE_VIEW.views.bits() == 2 {
+        for n in 0..2 {
+            if CAR_BLOCKS.cars[n].view_covered.get() != 0 {
+                PANEL.hud_flags[n].set(PANEL.hud_flags[n].get() & 0x40);
+                PANEL.lights[n].fade.set(0);
             }
         }
-        let done = crate::hud::draw_hud::draw_hud();
-        PANEL.hud_flags[1].set(kept[1]);
-        PANEL.hud_flags[0].set(kept[0]);
-        done?;
-        depth_buffer(true);
-        crate::scene::full_view_window::full_view_window();
-        crate::scene::set_render_state::set_render_state(3, 3);
-        LEVEL_GRID.plain_first.set(1);
-        LEVEL_GRID.plain_second.set(1);
-        crate::hud::draw_view_strips::draw_view_strips()?;
-        depth_buffer(false);
-        crate::scene::set_filters::set_filters();
     }
+    let done = crate::hud::draw_hud::draw_hud();
+    PANEL.hud_flags[1].set(kept[1]);
+    PANEL.hud_flags[0].set(kept[0]);
+    done?;
+    depth_buffer(true);
+    crate::scene::full_view_window::full_view_window();
+    crate::scene::set_render_state::set_render_state(3, 3);
+    LEVEL_GRID.plain_first.set(1);
+    LEVEL_GRID.plain_second.set(1);
+    crate::hud::draw_view_strips::draw_view_strips()?;
+    depth_buffer(false);
+    crate::scene::set_filters::set_filters();
     Ok(())
 }

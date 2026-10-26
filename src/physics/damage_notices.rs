@@ -40,7 +40,7 @@ fn steps() -> Result<(), Refused> {
         &mut levels,
         |k| f32::from_bits(gauge(k)),
         |t| DAMAGE.scratch.set_bits(from_int(t)),
-        |q| unsafe { queue_notice(q.notice, q.rank, gauge(q.gauge)) },
+        |q| queue_notice(q.notice, q.rank, gauge(q.gauge)),
     );
     for (k, &v) in levels.iter().enumerate() {
         CAR.damage_levels[k].set(v);

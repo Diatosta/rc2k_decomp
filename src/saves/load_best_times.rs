@@ -51,12 +51,10 @@ fn read_or_close(file: u32, to: GamePtr, count: u32) -> Result<bool, BadInput> {
 
 /// `saves::load_best_times` on the game's own file and tables: true if the file was loaded.
 pub fn load_game_best_times() -> Result<bool, Refused> {
-    unsafe {
-        allocate_best_times(
-            BEST_TIMES.list(),
-            crate::records::stages_store::STAGE_TABLES.championship(), // g_recordTable
-        )?;
-    }
+    allocate_best_times(
+        BEST_TIMES.list(),
+        crate::records::stages_store::STAGE_TABLES.championship(), // g_recordTable
+    )?;
     let Some(file) = open_by_mode(PATH.addr() as *const u8, 0)? else {
         return Ok(false);
     };

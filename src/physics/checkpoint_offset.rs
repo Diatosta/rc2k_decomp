@@ -27,7 +27,7 @@ fn at(a: u32) -> Result<u32, crate::errors::BadInput> {
 /// The Rust version.
 // Converted: `rc2k_core::physics::progress::checkpoint_ahead` (the turn stays
 // `math::turn_point_xz`'s).
-pub unsafe fn checkpoint_offset() -> Result<(), Refused> {
+pub fn checkpoint_offset() -> Result<(), Refused> {
     let c = CAR.checkpoint.get();
     if checkpoint_ahead(c, RACE_VARS.checkpoint_count.get())?.is_none() {
         CAR.checkpoint_offset[0].set(0);
@@ -37,19 +37,17 @@ pub unsafe fn checkpoint_offset() -> Result<(), Refused> {
     if COURSE.course_faces.get() == 0 || COURSE.scene_points.get() == 0 {
         return Err(BadInput("no course faces or points").into());
     }
-    unsafe {
-        let angle = crate::race::checkpoints_store::angle(c as usize).get();
-        let face = crate::race::checkpoints_store::face(c as usize).get();
-        let f = (face << 6).wrapping_add(COURSE.course_faces.get());
-        let point = at(f + 4)?;
-        let pt = point
-            .wrapping_mul(12)
-            .wrapping_add(COURSE.scene_points.get());
-        let x = CAR.position[0].get().wrapping_sub(at(pt)?);
-        let z = CAR.position[2].get().wrapping_sub(at(pt + 8)?);
-        let [x2, _, z2, _] = turn_point_xz(x as i32, point as i32, z as i32, angle.wrapping_neg());
-        CAR.checkpoint_offset[0].set(x2);
-        CAR.checkpoint_offset[1].set(z2);
-        Ok(())
-    }
+    let angle = crate::race::checkpoints_store::angle(c as usize).get();
+    let face = crate::race::checkpoints_store::face(c as usize).get();
+    let f = (face << 6).wrapping_add(COURSE.course_faces.get());
+    let point = at(f + 4)?;
+    let pt = point
+        .wrapping_mul(12)
+        .wrapping_add(COURSE.scene_points.get());
+    let x = CAR.position[0].get().wrapping_sub(at(pt)?);
+    let z = CAR.position[2].get().wrapping_sub(at(pt + 8)?);
+    let [x2, _, z2, _] = turn_point_xz(x as i32, point as i32, z as i32, angle.wrapping_neg());
+    CAR.checkpoint_offset[0].set(x2);
+    CAR.checkpoint_offset[1].set(z2);
+    Ok(())
 }

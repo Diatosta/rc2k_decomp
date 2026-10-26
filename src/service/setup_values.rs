@@ -37,7 +37,7 @@ fn target(stepper: Stepper) -> Result<u32, BadInput> {
     }
 }
 
-pub unsafe fn step(stepper: Stepper) -> Result<(), Refused> {
+pub fn step(stepper: Stepper) -> Result<(), Refused> {
     let addr = target(stepper)?;
     let value = GamePtr::new(addr);
     // Converted: `rc2k_core::service::repairs::step`.

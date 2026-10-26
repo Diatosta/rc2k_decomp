@@ -173,11 +173,11 @@ pub trait Outside: submit_polygon::Outside {
     fn state(&mut self, state: u32, value: u32);
 }
 
-unsafe fn dword(at: usize) -> u32 {
+fn dword(at: usize) -> u32 {
     crate::pointers::read_or_end::<u32>((at) as u32, "scene::draw_polygon's operand")
 }
 
-unsafe fn put(at: usize, value: u32) {
+fn put(at: usize, value: u32) {
     crate::pointers::write_or_end::<u32>((at) as u32, value, "scene::draw_polygon's operand")
 }
 
@@ -199,9 +199,9 @@ fn faded(from: u32, to: u32, by: u32) -> u32 {
 }
 
 /// The polygon's entries, in the list's order, as addresses.
-unsafe fn entries(count: u32) -> Result<Vec<usize>, BadInput> {
+fn entries(count: u32) -> Result<Vec<usize>, BadInput> {
     (0..count as usize)
-        .map(|n| unsafe {
+        .map(|n| {
             let number: u32 = crate::scene::polygon::list_cell(n).get();
             if number >= ENTRIES {
                 return Err(BadInput("a list entry past the work table"));
@@ -216,93 +216,87 @@ unsafe fn entries(count: u32) -> Result<Vec<usize>, BadInput> {
 }
 
 /// `sub_450147` with `sub_4501B6`: the hit test.
-unsafe fn hit_test(entries: &[usize]) {
-    unsafe {
-        if FRAME_WORK.sun_on_screen.bits() == 0 {
-            return;
-        }
-        let point = crate::session::read_bits(&FRAME_WORK.sun_hit).map(|v| v as i32);
-        crate::session::write_first(&LIGHT_STATE.hit_work, &point.map(|v| v as u32));
-        if entries.len() < 3 {
-            return;
-        }
-        for n in 0..entries.len() {
-            let corner = |entry: usize| {
-                let vertex = dword(entry + 4) as usize;
-                [
-                    x87::to_int(dword(vertex + 0x0C)),
-                    x87::to_int(dword(vertex + 0x1C)),
-                ]
-            };
-            let (from, to) = (corner(entries[n]), corner(entries[(n + 1) % entries.len()]));
-            crate::session::write_first(
-                &LIGHT_STATE.hit_work[2..6],
-                &[from[0] as u32, from[1] as u32, to[0] as u32, to[1] as u32],
-            );
-            let along = point[1].wrapping_sub(from[1]) as i64 * to[0].wrapping_sub(from[0]) as i64;
-            let across = point[0].wrapping_sub(from[0]) as i64 * to[1].wrapping_sub(from[1]) as i64;
-            // Not on the inner side of this edge: the switch stays.
-            if across.wrapping_sub(along) >= 0 {
-                return;
-            }
-        }
-        FRAME_WORK.sun_on_screen.set_bits(0u32);
+fn hit_test(entries: &[usize]) {
+    if FRAME_WORK.sun_on_screen.bits() == 0 {
+        return;
     }
+    let point = crate::session::read_bits(&FRAME_WORK.sun_hit).map(|v| v as i32);
+    crate::session::write_first(&LIGHT_STATE.hit_work, &point.map(|v| v as u32));
+    if entries.len() < 3 {
+        return;
+    }
+    for n in 0..entries.len() {
+        let corner = |entry: usize| {
+            let vertex = dword(entry + 4) as usize;
+            [
+                x87::to_int(dword(vertex + 0x0C)),
+                x87::to_int(dword(vertex + 0x1C)),
+            ]
+        };
+        let (from, to) = (corner(entries[n]), corner(entries[(n + 1) % entries.len()]));
+        crate::session::write_first(
+            &LIGHT_STATE.hit_work[2..6],
+            &[from[0] as u32, from[1] as u32, to[0] as u32, to[1] as u32],
+        );
+        let along = point[1].wrapping_sub(from[1]) as i64 * to[0].wrapping_sub(from[0]) as i64;
+        let across = point[0].wrapping_sub(from[0]) as i64 * to[1].wrapping_sub(from[1]) as i64;
+        // Not on the inner side of this edge: the switch stays.
+        if across.wrapping_sub(along) >= 0 {
+            return;
+        }
+    }
+    FRAME_WORK.sun_on_screen.set_bits(0u32);
 }
 
 /// `sub_44C9A9`, and `sub_44E6F4` for a mirrored view: the positions.
-unsafe fn place(entries: &[usize], mirrored: bool) {
-    unsafe {
-        let (x_offset, y_offset): (u32, u32) = (
-            DRAW.view_offset_float[0].bits(),
-            DRAW.view_offset_float[1].bits(),
+fn place(entries: &[usize], mirrored: bool) {
+    let (x_offset, y_offset): (u32, u32) = (
+        DRAW.view_offset_float[0].bits(),
+        DRAW.view_offset_float[1].bits(),
+    );
+    let depth_factor: u32 = DRAW.one_over_farthest.bits();
+    let sse = DRAW_SWITCHES.use_sse.bits() != 0;
+    let mirror_at: u32 = DRAW.view_centre[0].bits();
+    for (n, &entry) in entries.iter().enumerate() {
+        let vertex = dword(entry + 4) as usize;
+        let out = crate::d3d::vertices_store::piece_addr() + n * VERTEX_LEN;
+        let mut x = x87::add(dword(vertex + 0x0C), x_offset);
+        let depth = x87::mul(dword(vertex + 0x18), depth_factor);
+        put(out + 4, x87::add(dword(vertex + 0x1C), y_offset));
+        put(out + 8, depth);
+        put(
+            out + 0x0C,
+            if sse {
+                x87::rcpss_times(dword(vertex + 0x18), NUMBERS.k65536.bits())
+            } else {
+                x87::reciprocal_times(depth, RACE_OVERLAY.w_factor.bits())
+            },
         );
-        let depth_factor: u32 = DRAW.one_over_farthest.bits();
-        let sse = DRAW_SWITCHES.use_sse.bits() != 0;
-        let mirror_at: u32 = DRAW.view_centre[0].bits();
-        for (n, &entry) in entries.iter().enumerate() {
-            let vertex = dword(entry + 4) as usize;
-            let out = crate::d3d::vertices_store::piece_addr() + n * VERTEX_LEN;
-            let mut x = x87::add(dword(vertex + 0x0C), x_offset);
-            let depth = x87::mul(dword(vertex + 0x18), depth_factor);
-            put(out + 4, x87::add(dword(vertex + 0x1C), y_offset));
-            put(out + 8, depth);
-            put(
-                out + 0x0C,
-                if sse {
-                    x87::rcpss_times(dword(vertex + 0x18), NUMBERS.k65536.bits())
-                } else {
-                    x87::reciprocal_times(depth, RACE_OVERLAY.w_factor.bits())
-                },
-            );
-            if mirrored && entries.len() > 2 {
-                x = x87::mirrored(x, mirror_at, x_offset);
-            }
-            put(out, x);
+        if mirrored && entries.len() > 2 {
+            x = x87::mirrored(x, mirror_at, x_offset);
         }
+        put(out, x);
     }
 }
 
 /// `sub_44CA7A`: a set's texture coordinates, colour and specular into the buffer.
-unsafe fn copy_set(entries: &[usize], set: Set) {
+fn copy_set(entries: &[usize], set: Set) {
     let (uv, colour) = match set {
         Set::A => (0x08, 0x24),
         Set::B => (0x10, 0x2C),
     };
     for (n, &entry) in entries.iter().enumerate() {
-        unsafe {
-            let out = crate::d3d::vertices_store::piece_addr() + n * VERTEX_LEN;
-            put(out + 0x18, x87::loaded(dword(entry + uv)));
-            put(out + 0x1C, x87::loaded(dword(entry + uv + 4)));
-            put(out + 0x10, dword(entry + colour));
-            put(out + 0x14, dword(entry + colour + 4));
-        }
+        let out = crate::d3d::vertices_store::piece_addr() + n * VERTEX_LEN;
+        put(out + 0x18, x87::loaded(dword(entry + uv)));
+        put(out + 0x1C, x87::loaded(dword(entry + uv + 4)));
+        put(out + 0x10, dword(entry + colour));
+        put(out + 0x14, dword(entry + colour + 4));
     }
 }
 
 /// `sub_44CC8D` with `sub_44E668`: the texture filter's state, and the polygon's
 /// texture from the number in `dword_6240C4`.
-unsafe fn choose_texture(outside: &mut dyn Outside) {
+fn choose_texture(outside: &mut dyn Outside) {
     let smooth = LEVEL_GRID.smooth.bits() == 1;
     outside.state(3, if smooth { 3 } else { 1 });
     let number: u32 = DRAW.texture_page.bits();

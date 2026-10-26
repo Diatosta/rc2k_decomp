@@ -51,7 +51,7 @@ pub fn draw_setting_value(text: u32, item: u32, y: u32) -> Result<u32, Refused> 
         }
         Value::AsIs => text,
     };
-    unsafe {
+    {
         crate::text::draw_text::draw_text_at(
             FONT.as_ptr(),
             shown as *const u8,

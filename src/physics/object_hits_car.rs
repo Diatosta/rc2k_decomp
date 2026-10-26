@@ -38,7 +38,7 @@ use rc2k_core::physics::contacts;
 pub unsafe fn object_hits_car(point: u32, object: u32) -> Result<bool, Refused> {
     let number = CONTACT_WORK.face_object.get();
     contacts::check_object(number)?;
-    unsafe { object_turn_matrix() }?;
+    { object_turn_matrix() }?;
     PHYSICS.object_hits.set(
         crate::physics::tables_store::PHYSICS
             .object_hits
@@ -76,8 +76,7 @@ pub unsafe fn object_hits_car(point: u32, object: u32) -> Result<bool, Refused> 
                     return false;
                 }
             };
-            let turned =
-                unsafe { rotate_point(MATRICES.object_turn_matrix[0].addr() as u32, [x, y, z]) };
+            let turned = { rotate_point(MATRICES.object_turn_matrix[0].addr() as u32, [x, y, z]) };
             for (k, e) in turned.iter().enumerate() {
                 CONTACT_WORK.object_offset[k].set(ext_to_int(*e) as u32);
             }

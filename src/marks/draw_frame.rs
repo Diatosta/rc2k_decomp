@@ -43,48 +43,46 @@ fn rdtsc() -> u32 {
 /// `begin_quads`, `scene::depth_test_on`.
 pub fn draw_frame() -> Result<(), Refused> {
     use crate::marks::{begin_quads, cars_particles, view_heading, view_motion};
-    unsafe {
-        let info: u32 = COURSE_LISTS.course_info.bits();
-        if info == 0 {
-            return Err(BadInput("no course info (g_courseInfo 0)").into());
-        }
-        let m = MATRICES.view_place[0].addr() as u32;
-        for n in 0..3 {
-            let p: [u32; 3] = read_bits(&DRAW_FRAME.points[n]);
-            let turned = rotate_point(m, [extended(p[2]), extended(p[1]), extended(p[0])]);
-            for (k, v) in turned.iter().enumerate() {
-                VIEW_VARS.turned_points[n][k].set_bits(rounded(*v));
-            }
-        }
-        GamePtr::new(info + CORNERS_FROM).copy_to(
-            GamePtr::new(MARK_CORNERS.corners.as_ptr() as u32),
-            CORNERS_LEN as usize,
-            "a stage record's corners",
-        )?;
-        let source: u32 = DRAW_SWITCHES.marks_source.bits();
-        if source != DRAW_FRAME.last_source.get() {
-            VIEW_VARS.step.set(VIEW_VARS.step.get().wrapping_add(1) & 7);
-        }
-        DRAW_FRAME.last_source.set(source);
-        MARKS_WORK.sound_source.set(source);
-        MARKS_WORK.sound_zero.set(0);
-        VIEW_VARS.cleared.set(0);
-        cars_particles::cars_particles()?;
-        view_heading::view_heading();
-        view_motion::view_motion()?;
-        let start = rdtsc();
-        begin_quads::begin_quads();
-        let frame = MARKS_FRAME.frame_cycles.bits() as i32;
-        let took = rdtsc().wrapping_sub(start) as i32;
-        TIMES[0]
-            .1
-            .set_bits(x87::int_over_int_times(took, frame, TIMES[0].0.bits()));
-        let start = rdtsc();
-        let took = rdtsc().wrapping_sub(start) as i32;
-        TIMES[1]
-            .1
-            .set_bits(x87::int_over_int_times(took, frame, TIMES[1].0.bits()));
-        crate::scene::depth_test_on::depth_test_on();
+    let info: u32 = COURSE_LISTS.course_info.bits();
+    if info == 0 {
+        return Err(BadInput("no course info (g_courseInfo 0)").into());
     }
+    let m = MATRICES.view_place[0].addr() as u32;
+    for n in 0..3 {
+        let p: [u32; 3] = read_bits(&DRAW_FRAME.points[n]);
+        let turned = rotate_point(m, [extended(p[2]), extended(p[1]), extended(p[0])]);
+        for (k, v) in turned.iter().enumerate() {
+            VIEW_VARS.turned_points[n][k].set_bits(rounded(*v));
+        }
+    }
+    GamePtr::new(info + CORNERS_FROM).copy_to(
+        GamePtr::new(MARK_CORNERS.corners.as_ptr() as u32),
+        CORNERS_LEN as usize,
+        "a stage record's corners",
+    )?;
+    let source: u32 = DRAW_SWITCHES.marks_source.bits();
+    if source != DRAW_FRAME.last_source.get() {
+        VIEW_VARS.step.set(VIEW_VARS.step.get().wrapping_add(1) & 7);
+    }
+    DRAW_FRAME.last_source.set(source);
+    MARKS_WORK.sound_source.set(source);
+    MARKS_WORK.sound_zero.set(0);
+    VIEW_VARS.cleared.set(0);
+    cars_particles::cars_particles()?;
+    view_heading::view_heading();
+    view_motion::view_motion()?;
+    let start = rdtsc();
+    begin_quads::begin_quads();
+    let frame = MARKS_FRAME.frame_cycles.bits() as i32;
+    let took = rdtsc().wrapping_sub(start) as i32;
+    TIMES[0]
+        .1
+        .set_bits(x87::int_over_int_times(took, frame, TIMES[0].0.bits()));
+    let start = rdtsc();
+    let took = rdtsc().wrapping_sub(start) as i32;
+    TIMES[1]
+        .1
+        .set_bits(x87::int_over_int_times(took, frame, TIMES[1].0.bits()));
+    crate::scene::depth_test_on::depth_test_on();
     Ok(())
 }

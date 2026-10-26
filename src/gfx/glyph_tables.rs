@@ -56,29 +56,27 @@ pub fn home() -> usize {
 
 /// The work memory taken, the picture's size set for sheets, the pixel layout the
 /// surface's, and no table yet.
-pub unsafe fn begin_glyph_tables() -> Result<(), Refused> {
-    unsafe {
-        PICTURE.width.set(800u32);
-        PICTURE.height.set(600u32);
-        PICTURE.row_bytes.set(0xFFFF_FFFDu32);
-        DECODER.format.set(surface_format_addr() as u32);
-        let bytes = LEXICON
-            .kilobytes
-            .get()
-            .wrapping_mul(0x400)
-            .wrapping_mul(SCREEN.bytes.get());
-        // (The original's fatal error 0x80E48021 for no memory cannot come: the allocator
-        // reports its own.)
-        allocate(LEXICON.memory.as_ptr(), bytes)?;
-        SHEET.table.set(0u32);
-        SHEET.table_size.set(0u32);
-        Ok(())
-    }
+pub fn begin_glyph_tables() -> Result<(), Refused> {
+    PICTURE.width.set(800u32);
+    PICTURE.height.set(600u32);
+    PICTURE.row_bytes.set(0xFFFF_FFFDu32);
+    DECODER.format.set(surface_format_addr() as u32);
+    let bytes = LEXICON
+        .kilobytes
+        .get()
+        .wrapping_mul(0x400)
+        .wrapping_mul(SCREEN.bytes.get());
+    // (The original's fatal error 0x80E48021 for no memory cannot come: the allocator
+    // reports its own.)
+    allocate(LEXICON.memory.as_ptr(), bytes)?;
+    SHEET.table.set(0u32);
+    SHEET.table_size.set(0u32);
+    Ok(())
 }
 
 /// A new table starts where the list stands, after the padding that brings the table
 /// before it to whole dwords.
-pub unsafe fn begin_glyph_table(list: *mut MemoryList) -> Result<(), BadInput> {
+pub fn begin_glyph_table(list: *mut MemoryList) -> Result<(), BadInput> {
     let padding = SHEET.table_size.get().wrapping_neg() & 3;
     take_from_list(list, padding)?;
     SHEET.table.set(take_from_list(list, 0)?.unwrap_or(0));
@@ -86,8 +84,8 @@ pub unsafe fn begin_glyph_table(list: *mut MemoryList) -> Result<(), BadInput> {
     Ok(())
 }
 
-pub unsafe fn end_glyph_tables() -> Result<(), BadInput> {
-    unsafe { free_list(LEXICON.memory.as_ptr()) }
+pub fn end_glyph_tables() -> Result<(), BadInput> {
+    free_list(LEXICON.memory.as_ptr())
 }
 
 /// The last sheet's palette as 256 pixels of the builder's layout at `to`; nothing if `to`

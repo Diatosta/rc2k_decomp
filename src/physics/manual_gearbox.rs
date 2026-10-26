@@ -51,7 +51,7 @@ fn up() -> Result<Shift, Refused> {
         return Ok(shift);
     }
     wheels()?;
-    let Some(to) = unsafe { higher_free_gear(gear) }? else {
+    let Some(to) = { higher_free_gear(gear) }? else {
         return Ok(Shift::Done);
     };
     CAR.gear.set(to);
@@ -67,7 +67,7 @@ fn down() -> Result<Shift, Refused> {
         return Ok(shift);
     }
     wheels()?;
-    let Some(to) = unsafe { lower_free_gear(gear) }? else {
+    let Some(to) = { lower_free_gear(gear) }? else {
         return Ok(Shift::Neutral);
     };
     CAR.gear.set(to);
@@ -124,7 +124,7 @@ fn start_line() -> Result<Shift, Refused> {
         return Ok(Shift::Done);
     }
     DRAW.scratch.set(over_top());
-    let Some(lower) = unsafe { lower_free_gear(gear) }? else {
+    let Some(lower) = { lower_free_gear(gear) }? else {
         return Ok(Shift::Done);
     };
     let (rb, rc) = (ratio(gear)?, ratio(lower)?);

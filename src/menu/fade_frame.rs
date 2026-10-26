@@ -16,7 +16,7 @@ pub fn fade_frame() -> Result<bool, Refused> {
     if crate::platform::lock_surface() < 1 {
         return Ok(false);
     }
-    unsafe {
+    {
         crate::gfx::copy_picture_to_surface::copy_picture_to_surface(
             &mut crate::gfx::copy_picture_to_surface::GameSurface,
         )

@@ -34,15 +34,10 @@ pub fn steps() -> Result<(), Refused> {
     negate(&work[0]);
     negate(&work[1]);
     negate(&work[2]);
-    if compare_80(
-        unsafe { vector_length(work[0].addr() as u32) },
-        NUMBERS.zero.bits(),
-    ) & 0x4000
-        != 0
-    {
+    if compare_80(vector_length(work[0].addr() as u32), NUMBERS.zero.bits()) & 0x4000 != 0 {
         fill_cells(work, 0);
     }
-    unsafe { normalise_work_vector() };
+    normalise_work_vector();
     copy_cells(&CONTACT_WORK.contact_normal, work);
     copy_cells(&CONTACT_WORK.contact_car_speed, &CAR.velocity);
     copy_cells(&CONTACT_WORK.contact_turn_speed, &CAR.spin);
@@ -50,7 +45,7 @@ pub fn steps() -> Result<(), Refused> {
     CONTACT_WORK.contact_slide_limit.set_bits(0);
     PHYSICS.contact_record.set(a(&PHYSICS.contacts[4].force[0]));
     unsafe { contact_force() };
-    unsafe { crate::physics::place_sound_e1::place_sound_e1() }?;
+    { crate::physics::place_sound_e1::place_sound_e1() }?;
     PHYSICS.wall_heading.set(u32::MAX);
     Ok(())
 }

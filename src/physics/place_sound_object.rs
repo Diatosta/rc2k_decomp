@@ -23,7 +23,7 @@ use rc2k_core::physics::sound_places::{FIRST, object_sound};
 
 /// The Rust version.
 // Converted: `rc2k_core::physics::sound_places::{object_sound, place}`.
-pub unsafe fn place_sound_object() -> Result<(), Refused> {
+pub fn place_sound_object() -> Result<(), Refused> {
     if !listed(RACE_WORK.current_car.get())? {
         return Ok(());
     }
@@ -59,6 +59,6 @@ pub unsafe fn place_sound_object() -> Result<(), Refused> {
             .each_ref()
             .map(|c| c.bits()),
     );
-    unsafe { cue_plain(o, FIRST, sound, b, offset) };
+    cue_plain(o, FIRST, sound, b, offset);
     Ok(())
 }

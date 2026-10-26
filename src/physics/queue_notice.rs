@@ -49,47 +49,36 @@ impl Contacts {
     }
 
     /// The queue at these places.
-    pub unsafe fn load(&self) -> NoticeQueue {
-        unsafe {
-            NoticeQueue {
-                count: get(self.count),
-                ids: get_list(self.esis),
-                values: get_list(self.eaxs),
-                levels: get_list(self.ebxs),
-            }
+    pub fn load(&self) -> NoticeQueue {
+        NoticeQueue {
+            count: get(self.count),
+            ids: get_list(self.esis),
+            values: get_list(self.eaxs),
+            levels: get_list(self.ebxs),
         }
     }
 
     /// What changed from `was` to `now` stored back.
-    pub unsafe fn store(&self, was: &NoticeQueue, now: &NoticeQueue) {
-        unsafe {
-            put_list_changed(self.esis, &was.ids, &now.ids);
-            put_list_changed(self.eaxs, &was.values, &now.values);
-            put_list_changed(self.ebxs, &was.levels, &now.levels);
-            put_changed(self.count, was.count, now.count);
-        }
+    pub fn store(&self, was: &NoticeQueue, now: &NoticeQueue) {
+        put_list_changed(self.esis, &was.ids, &now.ids);
+        put_list_changed(self.eaxs, &was.values, &now.values);
+        put_list_changed(self.ebxs, &was.levels, &now.levels);
+        put_changed(self.count, was.count, now.count);
     }
 }
 
 /// The Rust version on the variables at `p`: notice `notice` (esi) of rank `rank` (ebx)
 /// and value `value` (eax). The edx it leaves (the slot) is read by none of its callers.
 // Converted: `rc2k_core::physics::notices::NoticeQueue::queue`.
-pub unsafe fn queue_notice_at(
-    p: &Contacts,
-    notice: u32,
-    rank: u32,
-    value: u32,
-) -> Result<(), Refused> {
-    unsafe {
-        let was = p.load();
-        let mut q = was;
-        q.queue(get(p.flags), notice, rank, value)?;
-        p.store(&was, &q);
-        Ok(())
-    }
+pub fn queue_notice_at(p: &Contacts, notice: u32, rank: u32, value: u32) -> Result<(), Refused> {
+    let was = p.load();
+    let mut q = was;
+    q.queue(get(p.flags), notice, rank, value)?;
+    p.store(&was, &q);
+    Ok(())
 }
 
 /// The Rust version.
-pub unsafe fn queue_notice(notice: u32, rank: u32, value: u32) -> Result<(), Refused> {
-    unsafe { queue_notice_at(&Contacts::game(), notice, rank, value) }
+pub fn queue_notice(notice: u32, rank: u32, value: u32) -> Result<(), Refused> {
+    queue_notice_at(&Contacts::game(), notice, rank, value)
 }

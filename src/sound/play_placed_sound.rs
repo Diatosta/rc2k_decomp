@@ -64,7 +64,7 @@ fn angle_and_place(y: u32, x: u32, per_angle: u32, centre: u32) -> (u32, u32) {
 
 /// `mode` is the sound mode. Outside the
 /// 3D modes, where `sound::play_sound` replaces it, the original hands on its caller's ebp.
-pub unsafe fn play_placed_sound(request: u32, mode: u32) -> Result<(), BadInput> {
+pub fn play_placed_sound(request: u32, mode: u32) -> Result<(), BadInput> {
     if request == 0 {
         return Err(BadInput("no request"));
     }
@@ -108,7 +108,7 @@ pub unsafe fn play_placed_sound(request: u32, mode: u32) -> Result<(), BadInput>
 
 /// In the game.
 pub fn play_placed_sound_in_game(request: u32) -> Result<(), BadInput> {
-    unsafe { play_placed_sound(request, AUDIO.sound_mode.get()) }
+    play_placed_sound(request, AUDIO.sound_mode.get())
 }
 
 // ---- the arithmetic that was x87 assembly ----

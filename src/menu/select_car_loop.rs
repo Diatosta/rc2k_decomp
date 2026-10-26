@@ -39,31 +39,28 @@ use crate::scene::draw_store::DRAW;
 
 // ---- Rust version: `menu::screen_loop` with this ----
 
-unsafe fn set_up_first(c: &mut Carried) -> Result<(), Refused> {
-    unsafe {
-        // The current player's +0x30 (its car).
-        let current: u32 = EVENT_STATE.current_player.get();
-        let player = read_at(
-            (PLAYER_TABLE.pointers[0].addr() as u32).wrapping_add(current.wrapping_mul(4)),
-        )?;
-        c.arg = read_at(player.wrapping_add(0x30))?;
-        SCREEN_FLOW.shown_gearing.set(c.arg);
-        SCREEN_FLOW.turning.set(0x1u32);
-        MENU_STATE.carousel.menu.set(0xDu32);
-        carousel(c)?;
-        c.arg = SCREEN_ITEMS.current[slot::SELECT_CAR].get();
-        LOOP_FLAGS.item.set(c.arg);
-        c.arg = c.arg.wrapping_sub(1);
-        MENU_STATE.carousel.front.set(c.arg);
-        SCREEN_FLOW.turning.set(0x0u32);
-        MENU_STATE.carousel.front.set(0x0u32);
-        EVENT_STATE.shown_car.set(0x0u32);
-        crate::menu::car_choice::find_player_car()?;
-        DRAW.view_offset[0].set(0x7u32);
-        DRAW.view_offset[1].set(0xFFFFFFCEu32);
-        DRAW.view_zoom.set(0x100u32);
-        prepare_scene(c);
-    }
+fn set_up_first(c: &mut Carried) -> Result<(), Refused> {
+    // The current player's +0x30 (its car).
+    let current: u32 = EVENT_STATE.current_player.get();
+    let player =
+        read_at((PLAYER_TABLE.pointers[0].addr() as u32).wrapping_add(current.wrapping_mul(4)))?;
+    c.arg = read_at(player.wrapping_add(0x30))?;
+    SCREEN_FLOW.shown_gearing.set(c.arg);
+    SCREEN_FLOW.turning.set(0x1u32);
+    MENU_STATE.carousel.menu.set(0xDu32);
+    carousel(c)?;
+    c.arg = SCREEN_ITEMS.current[slot::SELECT_CAR].get();
+    LOOP_FLAGS.item.set(c.arg);
+    c.arg = c.arg.wrapping_sub(1);
+    MENU_STATE.carousel.front.set(c.arg);
+    SCREEN_FLOW.turning.set(0x0u32);
+    MENU_STATE.carousel.front.set(0x0u32);
+    EVENT_STATE.shown_car.set(0x0u32);
+    crate::menu::car_choice::find_player_car()?;
+    DRAW.view_offset[0].set(0x7u32);
+    DRAW.view_offset[1].set(0xFFFFFFCEu32);
+    DRAW.view_zoom.set(0x100u32);
+    prepare_scene(c);
     Ok(())
 }
 

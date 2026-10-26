@@ -32,7 +32,7 @@ use rc2k_core::physics::engine::ease_revs;
 use rc2k_core::physics::x87::hold_low;
 
 /// 0x43DC72 .. 0x43DCC6: the speed figures (the original's `test` / `jz` is the `if`).
-unsafe fn run() {
+fn run() {
     run_at(crate::race::store::asm_base() as usize);
 }
 
@@ -58,7 +58,7 @@ fn run_at(rc: usize) {
 /// The Rust version.
 // Converted: `rc2k_core::physics::engine::ease_revs` and `x87::hold_low` (the speed figures
 // and the rounding stay x87).
-pub unsafe fn engine_sound() -> Result<(), Refused> {
+pub fn engine_sound() -> Result<(), Refused> {
     let o =
         crate::sound::store::RACE_SOUNDS.table[(RACE_WORK.current_car.get() & 7) as usize].get();
     if o == 0 {
@@ -67,7 +67,7 @@ pub unsafe fn engine_sound() -> Result<(), Refused> {
     if RACE_VIEW.players.get() == 1 && RACE_VIEW.view_blocks[0].get() == 0 {
         return Err(crate::errors::BadInput("a null view block").into());
     }
-    unsafe { run() };
+    run();
     DRAW.scratch.set(x87::loaded(CAR.engine_speed.bits()));
     let floor = PHYSICS.idle_engine_speed.bits();
     let held = hold_low(f32::from_bits(DRAW.scratch.get()), f32::from_bits(floor));
@@ -76,8 +76,8 @@ pub unsafe fn engine_sound() -> Result<(), Refused> {
         .set(ext_to_int(extended(DRAW.scratch.get())) as u32);
     let (revs, _) = ease_revs(CAR.engine_sound_revs.get(), DRAW.scratch.get());
     CAR.engine_sound_revs.set(revs);
-    unsafe { car_sound_state() }?;
-    unsafe { gear_change_sound() }
+    { car_sound_state() }?;
+    gear_change_sound()
 }
 
 #[cfg(test)]

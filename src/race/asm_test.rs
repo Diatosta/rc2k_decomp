@@ -80,7 +80,7 @@ impl Saved {
         use crate::framework::{game_read, rva};
         Saved(
             ida.iter()
-                .map(|&a| (a, unsafe { game_read::<u32>(rva(a)) }))
+                .map(|&a| (a, { game_read::<u32>(rva(a)) }))
                 .collect(),
         )
     }
@@ -90,7 +90,7 @@ impl Drop for Saved {
     fn drop(&mut self) {
         use crate::framework::{game_write, rva};
         for &(a, v) in &self.0 {
-            unsafe { game_write(rva(a), v) };
+            game_write(rva(a), v);
         }
     }
 }

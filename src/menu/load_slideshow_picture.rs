@@ -40,7 +40,7 @@ pub enum Step {
 
 // ---- Rust version ----
 
-pub unsafe fn load_slideshow_picture(
+pub fn load_slideshow_picture(
     way: u32,
     step: &mut dyn FnMut(Step) -> Result<bool, Refused>,
 ) -> Result<(), Refused> {

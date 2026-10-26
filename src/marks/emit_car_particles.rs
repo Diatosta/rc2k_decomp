@@ -40,61 +40,59 @@ pub fn emit_car_particles(o: u32) -> Result<(), Refused> {
     if o == 0 || { at(o + 0x24)? } == 0 {
         return Err(BadInput("a null car object or matrix").into());
     }
-    unsafe {
-        let k = read_bits(&EMITTER.place_k);
-        let z1 = x87::int_times(at(o + 0xC)? as i32, k[0]);
-        put(o + 0x118, z1)?;
-        put(o + 0x160, z1)?;
-        let z2 = x87::int_times(at(o + 0x10)? as i32, k[1]);
-        put(o + 0x1A8, z2)?;
-        put(o + 0x1F0, z2)?;
-        let (x, left) = x87::int_times_plus_and_negated(at(o + 0x14)? as i32, k[2], k[3]);
-        put(o + 0x158, x)?;
-        put(o + 0x1E8, x)?;
-        put(o + 0x110, left)?;
-        put(o + 0x1A0, left)?;
-        let y = x87::int_times_less_less(at(o + 0x18)? as i32, k[4], k[5], k[6]);
-        for a in [0x15C, 0x1EC, 0x114, 0x1A4] {
-            put(o + a, y)?;
-        }
-        EMITTER.looks[0].set(x87::to_int(at(o + 0x110)? & 0x7FFF_FFFF) as u32);
-        EMITTER.looks[1].set(x87::abs_sum_times_to_int(
-            at(o + 0x118)?,
-            at(o + 0x1A8)?,
-            MARKS_FLOATS.half.bits(),
-        ) as u32);
-        let m = at(o + 0x24)?;
-        for p in [0x110, 0x158, 0x1A0, 0x1E8] {
-            let turned = rotate_point(
-                m,
-                [
-                    extended(at(o + p)?),
-                    extended(at(o + p + 4)?),
-                    extended(at(o + p + 8)?),
-                ],
-            );
-            for (n, v) in turned.iter().enumerate() {
-                put(o + p + 4 * n as u32, rounded(*v))?;
-            }
-        }
-        for (n, &r) in RECORDS[..4].iter().enumerate() {
-            if n == 2 {
-                write_bits(&EMITTER.side_a, [at(m)?, at(m + 4)?, at(m + 8)?]);
-                write_bits(
-                    &EMITTER.side_b,
-                    crate::marks::try_from_fn(|i__| {
-                        let f = [0x20, 0x24, 0x28][i__];
-                        Ok(at(m + f)? ^ 0x8000_0000)
-                    })?,
-                );
-            }
-            EMITTER.record.set(n as u32);
-            emit_wheel_particles(o + r, o)?;
-        }
-        let sides: [u32; 6] = std::array::from_fn(|n| x87::loaded(EMITTER.body_k[n].bits()));
-        write_bits(&EMITTER.side_a, [sides[0], sides[1], sides[2]]);
-        write_bits(&EMITTER.side_b, [sides[3], sides[4], sides[5]]);
-        emit_body_particles(o + RECORDS[4], o)?;
+    let k = read_bits(&EMITTER.place_k);
+    let z1 = x87::int_times(at(o + 0xC)? as i32, k[0]);
+    put(o + 0x118, z1)?;
+    put(o + 0x160, z1)?;
+    let z2 = x87::int_times(at(o + 0x10)? as i32, k[1]);
+    put(o + 0x1A8, z2)?;
+    put(o + 0x1F0, z2)?;
+    let (x, left) = x87::int_times_plus_and_negated(at(o + 0x14)? as i32, k[2], k[3]);
+    put(o + 0x158, x)?;
+    put(o + 0x1E8, x)?;
+    put(o + 0x110, left)?;
+    put(o + 0x1A0, left)?;
+    let y = x87::int_times_less_less(at(o + 0x18)? as i32, k[4], k[5], k[6]);
+    for a in [0x15C, 0x1EC, 0x114, 0x1A4] {
+        put(o + a, y)?;
     }
+    EMITTER.looks[0].set(x87::to_int(at(o + 0x110)? & 0x7FFF_FFFF) as u32);
+    EMITTER.looks[1].set(x87::abs_sum_times_to_int(
+        at(o + 0x118)?,
+        at(o + 0x1A8)?,
+        MARKS_FLOATS.half.bits(),
+    ) as u32);
+    let m = at(o + 0x24)?;
+    for p in [0x110, 0x158, 0x1A0, 0x1E8] {
+        let turned = rotate_point(
+            m,
+            [
+                extended(at(o + p)?),
+                extended(at(o + p + 4)?),
+                extended(at(o + p + 8)?),
+            ],
+        );
+        for (n, v) in turned.iter().enumerate() {
+            put(o + p + 4 * n as u32, rounded(*v))?;
+        }
+    }
+    for (n, &r) in RECORDS[..4].iter().enumerate() {
+        if n == 2 {
+            write_bits(&EMITTER.side_a, [at(m)?, at(m + 4)?, at(m + 8)?]);
+            write_bits(
+                &EMITTER.side_b,
+                crate::marks::try_from_fn(|i__| {
+                    let f = [0x20, 0x24, 0x28][i__];
+                    Ok(at(m + f)? ^ 0x8000_0000)
+                })?,
+            );
+        }
+        EMITTER.record.set(n as u32);
+        emit_wheel_particles(o + r, o)?;
+    }
+    let sides: [u32; 6] = std::array::from_fn(|n| x87::loaded(EMITTER.body_k[n].bits()));
+    write_bits(&EMITTER.side_a, [sides[0], sides[1], sides[2]]);
+    write_bits(&EMITTER.side_b, [sides[3], sides[4], sides[5]]);
+    emit_body_particles(o + RECORDS[4], o)?;
     Ok(())
 }

@@ -19,18 +19,16 @@ use crate::scene::view_matrix::set_view_matrices;
 
 // ---- Rust version ----
 
-pub unsafe fn prepare_menu_scene() {
-    unsafe {
-        crate::session::write_bits(&VIEW_VARS.view_place, [0u32; 3]);
-        crate::session::write_first(&VIEW_VARS.view_angles, &[0u32; 3]);
-        crate::session::write_bits(&DRAW.view_size, [0x320u32, 0x258]);
-        set_view_window();
-        let o = &OBJECT_WORK;
-        o.light_lowest.set(0x50);
-        o.light_highest.set(0xFF);
-        o.light_level.set(0xB4);
-        o.light_strength.set(0xB4);
-        crate::session::write_bits(&OBJECT_WORK.light_turns, [0x6Eu32, 0x1E]);
-        set_view_matrices();
-    }
+pub fn prepare_menu_scene() {
+    crate::session::write_bits(&VIEW_VARS.view_place, [0u32; 3]);
+    crate::session::write_first(&VIEW_VARS.view_angles, &[0u32; 3]);
+    crate::session::write_bits(&DRAW.view_size, [0x320u32, 0x258]);
+    set_view_window();
+    let o = &OBJECT_WORK;
+    o.light_lowest.set(0x50);
+    o.light_highest.set(0xFF);
+    o.light_level.set(0xB4);
+    o.light_strength.set(0xB4);
+    crate::session::write_bits(&OBJECT_WORK.light_turns, [0x6Eu32, 0x1E]);
+    set_view_matrices();
 }

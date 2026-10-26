@@ -20,12 +20,12 @@ use crate::physics::tables_store::PHYSICS;
 use crate::race::numbers_store::NUMBERS;
 
 /// The Rust version (the exact one, for the Rust callers' exact comparisons).
-pub unsafe fn drive_force() -> Result<(), Refused> {
+pub fn drive_force() -> Result<(), Refused> {
     let gear = CAR.gear.get();
     if !(-1..=7).contains(&(gear as i32)) {
         return Err(BadInput("a gear outside g_gearRatios (-1 ..= 7)").into());
     }
-    unsafe { engine_torque_or_cut() };
+    engine_torque_or_cut();
     PHYSICS.drive_ratio.set_bits(sum_times_int_over_minus(
         PHYSICS.engine_force.bits(),
         PHYSICS.engine_torque.bits(),
@@ -41,6 +41,6 @@ pub unsafe fn drive_force() -> Result<(), Refused> {
     if CAR.drive_cut_steps.get() != 0 {
         PHYSICS.drive_torque.set_bits(0);
     }
-    unsafe { drive_torque_share() };
+    drive_torque_share();
     Ok(())
 }

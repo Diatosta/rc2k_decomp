@@ -18,24 +18,20 @@ use rc2k_core::physics::listed_cars::listed_entry;
 /// The Rust version: the current car at `current`, the table at `table`, the flag at
 /// `flag`.
 // Converted: `rc2k_core::physics::listed_cars::listed_entry`.
-pub unsafe fn set_flag_at(current: u32, table: u32, flag: u32) -> Result<(), Refused> {
-    unsafe {
-        let (_, listed) = listed_entry(get(current), |car| get(table + 4 * car))?;
-        if listed {
-            put(flag, 1);
-        }
-        Ok(())
+pub fn set_flag_at(current: u32, table: u32, flag: u32) -> Result<(), Refused> {
+    let (_, listed) = listed_entry(get(current), |car| get(table + 4 * car))?;
+    if listed {
+        put(flag, 1);
     }
+    Ok(())
 }
 
 /// On the game's variables.
-pub unsafe fn set_flag(flag: &crate::session::Dword) -> Result<(), Refused> {
+pub fn set_flag(flag: &crate::session::Dword) -> Result<(), Refused> {
     let current = crate::race::work_store::RACE_WORK.current_car.addr() as u32;
-    unsafe {
-        set_flag_at(
-            current,
-            FRAME_WORK.listed_car_sounds[0].addr() as u32,
-            flag.addr() as u32,
-        )
-    }
+    set_flag_at(
+        current,
+        FRAME_WORK.listed_car_sounds[0].addr() as u32,
+        flag.addr() as u32,
+    )
 }

@@ -60,28 +60,24 @@ pub fn part_matrices() -> [usize; 4] {
 /// (`flt_641760`) into `g_litMatrix`, times `g_viewMatrix` into `g_madeObjectMatrix`. The
 /// original leaves esi `g_litMatrix` (which `draw_car`'s drawing takes, see there), edi
 /// and ebp the last product's other two.
-pub unsafe fn car_part_matrix(a: usize) {
-    unsafe {
-        multiply_matrices(a, body_turn(), turned());
-        multiply_matrices(turned(), car_turn(), lit());
-        multiply_matrices(lit(), view_matrix(), made());
-    }
+pub fn car_part_matrix(a: usize) {
+    multiply_matrices(a, body_turn(), turned());
+    multiply_matrices(turned(), car_turn(), lit());
+    multiply_matrices(lit(), view_matrix(), made());
 }
 
 /// `race::car_body_matrix` (0x461EA1): the turns about x and z by 0 (`scene::set_fine_turn_x`,
 /// `scene::set_turn_z`) multiplied into `g_litMatrix`, then as `car_part_matrix` on it.
-pub unsafe fn car_body_matrix() {
+pub fn car_body_matrix() {
     use crate::scene::view_matrix::{Axis, set_fine_turn};
-    unsafe {
-        set_fine_turn(Axis::X, 0);
-        set_fine_turn(Axis::Z, 0);
-        multiply_matrices(
-            MATRICES.turn_x_matrix[0].addr(),
-            MATRICES.turn_z_matrix[0].addr(),
-            lit(),
-        );
-        car_part_matrix(lit());
-    }
+    set_fine_turn(Axis::X, 0);
+    set_fine_turn(Axis::Z, 0);
+    multiply_matrices(
+        MATRICES.turn_x_matrix[0].addr(),
+        MATRICES.turn_z_matrix[0].addr(),
+        lit(),
+    );
+    car_part_matrix(lit());
 }
 
 /// `race::clear_car_marks` (0x46202A): the 0x40 dwords at `dword_5CD688` (the car's
@@ -567,32 +563,27 @@ mod asm_reference {
     ];
 
     fn state() -> Vec<u32> {
-        PLACES
-            .iter()
-            .map(|&a| unsafe { game_read(rva(a)) })
-            .collect()
+        PLACES.iter().map(|&a| game_read(rva(a))).collect()
     }
 
     fn fill(r: &mut Rng) {
-        unsafe {
-            DRAW.scratch.set(0xAAAA_AAAAu32);
-            // the depth is a whole number around the view's reach
-            FRAME_WORK.car_depth.set((r.int() as u32) & 0x3F_FFFF);
-            RACE_WORK.car_nearness.set_bits(r.float());
-            COURSE.shine_whole.set(0xAAAA_AAAAu32);
-            COURSE.shine.set(r.int() as u32);
-            NUMBERS
-                .zero
-                .set_bits(if r.below(4) == 0 { r.float() } else { 0 });
-            game_write(
-                rva(0x5C5D38),
-                if r.below(4) == 0 {
-                    r.float()
-                } else {
-                    0x3F80_0000
-                },
-            );
-        }
+        DRAW.scratch.set(0xAAAA_AAAAu32);
+        // the depth is a whole number around the view's reach
+        FRAME_WORK.car_depth.set((r.int() as u32) & 0x3F_FFFF);
+        RACE_WORK.car_nearness.set_bits(r.float());
+        COURSE.shine_whole.set(0xAAAA_AAAAu32);
+        COURSE.shine.set(r.int() as u32);
+        NUMBERS
+            .zero
+            .set_bits(if r.below(4) == 0 { r.float() } else { 0 });
+        game_write(
+            rva(0x5C5D38),
+            if r.below(4) == 0 {
+                r.float()
+            } else {
+                0x3F80_0000
+            },
+        );
     }
 
     #[test]

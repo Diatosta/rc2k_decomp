@@ -44,7 +44,7 @@ impl rc2k_core::audio::load::Loader for GameLoader {
     }
     fn shared(&mut self, at: rc2k_core::audio::load::At) -> Result<u32, Refused> {
         let count = AUDIO.voice_count.get();
-        Ok(unsafe {
+        Ok({
             crate::audio::samples::find_shared_voice(
                 &SAMPLE_RECORDS.records[at.sound as usize].get(),
                 count.min(VOICES),
@@ -90,7 +90,7 @@ impl rc2k_core::audio::load::Loader for GameLoader {
 }
 
 /// Converted: `rc2k_core::audio::load` (`entries`, `load`).
-pub unsafe fn load_sounds(list: u32) -> Result<(), Refused> {
+pub fn load_sounds(list: u32) -> Result<(), Refused> {
     if list == 0 {
         return Ok(());
     }

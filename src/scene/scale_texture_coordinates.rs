@@ -22,29 +22,27 @@ use crate::session::MACHINE;
 // ---- Rust version ----
 
 // Converted: `rc2k_core::scene::texture_coordinates`
-pub unsafe fn scale_texture_coordinates() -> Result<(), Refused> {
+pub fn scale_texture_coordinates() -> Result<(), Refused> {
     use rc2k_core::scene::texture_coordinates as coordinates;
-    unsafe {
-        if (DRAW.polygon_vertex_count.bits() as i32) <= 0 {
-            return Ok(());
-        }
-        let entries = listed()?;
-        let switches: [u32; 2] = [DRAW.polygon_sides[0].bits(), DRAW.polygon_sides[1].bits()];
-        for &entry in &entries {
-            for (pair, switch) in switches.into_iter().enumerate() {
-                if switch == 0 {
-                    continue;
+    if (DRAW.polygon_vertex_count.bits() as i32) <= 0 {
+        return Ok(());
+    }
+    let entries = listed()?;
+    let switches: [u32; 2] = [DRAW.polygon_sides[0].bits(), DRAW.polygon_sides[1].bits()];
+    for &entry in &entries {
+        for (pair, switch) in switches.into_iter().enumerate() {
+            if switch == 0 {
+                continue;
+            }
+            for at in [entry + 8 + pair * 8, entry + 0xC + pair * 8] {
+                let value = dword(at);
+                if let Some(float) = coordinates::float_of(value) {
+                    MACHINE.work.set(value);
+                    MACHINE.work_float.set(float);
                 }
-                for at in [entry + 8 + pair * 8, entry + 0xC + pair * 8] {
-                    let value = dword(at);
-                    if let Some(float) = coordinates::float_of(value) {
-                        MACHINE.work.set(value);
-                        MACHINE.work_float.set(float);
-                    }
-                    put(at, coordinates::scaled(value));
-                }
+                put(at, coordinates::scaled(value));
             }
         }
-        Ok(())
     }
+    Ok(())
 }

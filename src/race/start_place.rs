@@ -158,11 +158,9 @@ pub fn nearest_checkpoint() -> Result<u32, Refused> {
 
 /// `race::invert_car_matrix` (0x43F16C): `scene::invert_turn` of the work car's matrix
 /// (`g_crashMatrix`, +0xB4) into its inverse (+0x9CC, 0x71A9A4), every register kept.
-pub unsafe fn invert_car_matrix() {
-    unsafe {
-        crate::scene::view_matrix::invert_turn(
-            CAR.crash_matrix[0].addr(),
-            CAR.car_inverse_matrix[0].addr(),
-        )
-    };
+pub fn invert_car_matrix() {
+    crate::scene::view_matrix::invert_turn(
+        CAR.crash_matrix[0].addr(),
+        CAR.car_inverse_matrix[0].addr(),
+    );
 }

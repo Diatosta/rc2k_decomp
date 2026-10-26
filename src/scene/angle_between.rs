@@ -17,7 +17,7 @@ use crate::scene::draw_store::DRAW;
 // ---- Rust version ----
 
 /// The angle of the two differences.
-pub unsafe fn angle_of(first: u32, second: u32) -> u32 {
+pub fn angle_of(first: u32, second: u32) -> u32 {
     {
         let angle = x87::angle_scaled_to_int(
             first as i32,

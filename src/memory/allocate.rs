@@ -24,8 +24,8 @@ use windows_sys::Win32::System::Memory::{MEM_COMMIT, MEM_RESERVE, PAGE_READWRITE
 // ---- Rust version ----
 
 /// The block's memory.
-pub unsafe fn allocate(list: *mut MemoryList, bytes: u32) -> Result<*mut u8, Refused> {
-    unsafe {
+pub fn allocate(list: *mut MemoryList, bytes: u32) -> Result<*mut u8, Refused> {
+    {
         if own_heap() == 1 {
             return Err(BadInput("the game's own heap is in use (altmemenable)").into());
         }
@@ -34,12 +34,15 @@ pub unsafe fn allocate(list: *mut MemoryList, bytes: u32) -> Result<*mut u8, Ref
         let (false, Some(whole)) = (list.is_null(), whole) else {
             return Err(BadInput("no list, or a size that wraps").into());
         };
-        let block = VirtualAlloc(
-            std::ptr::null(),
-            whole as usize,
-            MEM_COMMIT | MEM_RESERVE,
-            PAGE_READWRITE,
-        ) as *mut u32;
+        // SAFETY: a plain reservation, nothing passed in.
+        let block = unsafe {
+            VirtualAlloc(
+                std::ptr::null(),
+                whole as usize,
+                MEM_COMMIT | MEM_RESERVE,
+                PAGE_READWRITE,
+            )
+        } as *mut u32;
         if block.is_null() {
             return Err(FatalError {
                 code: 0x8010_8571,
@@ -55,7 +58,7 @@ pub unsafe fn allocate(list: *mut MemoryList, bytes: u32) -> Result<*mut u8, Ref
         GamePtr::new(block as u32).write(header[0], "a block's header")?;
         GamePtr::new(block as u32 + 4).write(header[1], "a block's header")?;
         with_figures(|f| f.taken(bytes));
-        Ok((block as *mut u8).add(HEADER_LEN as usize))
+        Ok((block as *mut u8).wrapping_add(HEADER_LEN as usize))
     }
 }
 

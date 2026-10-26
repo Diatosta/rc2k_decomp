@@ -68,7 +68,7 @@ fn words(spec: &CarSpec) {
 
 /// The Rust version (the exact one, for `physics::car_physics_step` and
 /// `physics::test_drive`).
-pub unsafe fn load_car_specs() -> Result<(), Refused> {
+pub fn load_car_specs() -> Result<(), Refused> {
     let kind = CAR.car_kind.get();
     let spec = record();
     // The x87 runs read the record at their operands' offsets.

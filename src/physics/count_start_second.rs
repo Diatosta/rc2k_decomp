@@ -24,23 +24,21 @@ fn game() -> Vec<u32> {
 
 /// The Rust version on the variables' addresses.
 // Converted: `rc2k_core::physics::start::CarStart::count_start_second`.
-unsafe fn core(v: &[u32]) {
-    unsafe {
-        let was = CarStart {
-            state: get(v[0]),
-            count: get(v[1]),
-            timer: get(v[2]),
-            finished: get(v[3]),
-            time: get(v[4]),
-            ..CarStart::default()
-        };
-        let mut c = was;
-        c.count_start_second();
-        put_changed(v[4], was.time, c.time);
-    }
+fn core(v: &[u32]) {
+    let was = CarStart {
+        state: get(v[0]),
+        count: get(v[1]),
+        timer: get(v[2]),
+        finished: get(v[3]),
+        time: get(v[4]),
+        ..CarStart::default()
+    };
+    let mut c = was;
+    c.count_start_second();
+    put_changed(v[4], was.time, c.time);
 }
 
 /// The Rust version.
-pub unsafe fn count_start_second() {
-    unsafe { core(&game()) }
+pub fn count_start_second() {
+    core(&game())
 }

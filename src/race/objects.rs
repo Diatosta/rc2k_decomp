@@ -186,7 +186,7 @@ pub fn set_up_car_points(slot: u32, block: u32, v: &CarPointVars) -> Result<(), 
 /// `dword_621844`; with cars, each car's three kinds (its `known_kind`, `car_kind_11`,
 /// `car_kind_10` of its block's +0x24) at slots 0x50 + 0x14 * n, +11, +10; the objects
 /// loaded; each car's points set up. Refuses more than the eight cars' blocks.
-pub unsafe fn set_object_kinds() -> Result<(), Refused> {
+pub fn set_object_kinds() -> Result<(), Refused> {
     // Converted: `rc2k_core::race::stage_objects::{FIXED_KINDS, DEFAULT_SLOTS, CAR_KINDS,
     // car_slot, check_object_cars}` (each car's slots one step on from the first's, as the
     // original counts edi).
@@ -194,45 +194,43 @@ pub unsafe fn set_object_kinds() -> Result<(), Refused> {
         CAR_KINDS, CAR_SLOT_STEP, CarKind, DEFAULT_SLOTS, FIRST_CAR_SLOT, FIXED_KINDS, car_slot,
         check_object_cars,
     };
-    unsafe {
-        crate::scene::clear_slot_kinds::clear_slot_kinds();
-        crate::session::write_bits(&STAGE_PREFS.fixed_kinds, FIXED_KINDS);
-        for n in DEFAULT_SLOTS {
-            // Slots 56 .. 62 read past `slot_kind_defaults` into `fixed_kinds`, just set above
-            // (the original's table is read on, a slip kept).
-            let default: u32 =
-                GamePtr::new((STAGE_PREFS.slot_kind_defaults[0].addr() + 4 * n as usize) as u32)
-                    .read("the slot kind defaults")?;
-            OBJECT_TABLES.slot_kinds[n as usize].set(default);
+    crate::scene::clear_slot_kinds::clear_slot_kinds();
+    crate::session::write_bits(&STAGE_PREFS.fixed_kinds, FIXED_KINDS);
+    for n in DEFAULT_SLOTS {
+        // Slots 56 .. 62 read past `slot_kind_defaults` into `fixed_kinds`, just set above
+        // (the original's table is read on, a slip kept).
+        let default: u32 =
+            GamePtr::new((STAGE_PREFS.slot_kind_defaults[0].addr() + 4 * n as usize) as u32)
+                .read("the slot kind defaults")?;
+        OBJECT_TABLES.slot_kinds[n as usize].set(default);
+    }
+    // `dword_5CCF7C` = `dword_621844`.
+    OBJECT_TABLES.slot_kinds[64].set(FRAME_SWITCHES.kept_kind.bits());
+    let cars: u32 = RACE_VIEW.race_cars.bits();
+    if cars == 0 {
+        return Ok(());
+    }
+    check_object_cars(cars)?;
+    let mut slots = car_slot(0);
+    for n in 0..cars {
+        let block: u32 = crate::race::work_store::RACE_WORK.car_block(n as usize);
+        for (kind, slot) in CAR_KINDS {
+            let car = car_at(block)?.car_kind.bits();
+            let k = match kind {
+                CarKind::Known => crate::scene::known_kind::known_kind(car),
+                CarKind::Table11 => car_table(&KIND_TABLES.kind_11_table, car),
+                CarKind::Table10 => car_table(&KIND_TABLES.kind_10_table, car),
+            };
+            OBJECT_TABLES.slot_kinds[(slots + slot) as usize].set(k);
         }
-        // `dword_5CCF7C` = `dword_621844`.
-        OBJECT_TABLES.slot_kinds[64].set(FRAME_SWITCHES.kept_kind.bits());
-        let cars: u32 = RACE_VIEW.race_cars.bits();
-        if cars == 0 {
-            return Ok(());
-        }
-        check_object_cars(cars)?;
-        let mut slots = car_slot(0);
-        for n in 0..cars {
-            let block: u32 = crate::race::work_store::RACE_WORK.car_block(n as usize);
-            for (kind, slot) in CAR_KINDS {
-                let car = car_at(block)?.car_kind.bits();
-                let k = match kind {
-                    CarKind::Known => crate::scene::known_kind::known_kind(car),
-                    CarKind::Table11 => car_table(&KIND_TABLES.kind_11_table, car),
-                    CarKind::Table10 => car_table(&KIND_TABLES.kind_10_table, car),
-                };
-                OBJECT_TABLES.slot_kinds[(slots + slot) as usize].set(k);
-            }
-            slots += CAR_SLOT_STEP;
-        }
-        crate::scene::load_front_end_objects::load_front_end_objects()?;
-        let mut slot = FIRST_CAR_SLOT;
-        for n in 0..cars {
-            let block: u32 = crate::race::work_store::RACE_WORK.car_block(n as usize);
-            set_up_car_points(slot, block, &CarPointVars::game())?;
-            slot += CAR_SLOT_STEP;
-        }
+        slots += CAR_SLOT_STEP;
+    }
+    crate::scene::load_front_end_objects::load_front_end_objects()?;
+    let mut slot = FIRST_CAR_SLOT;
+    for n in 0..cars {
+        let block: u32 = crate::race::work_store::RACE_WORK.car_block(n as usize);
+        set_up_car_points(slot, block, &CarPointVars::game())?;
+        slot += CAR_SLOT_STEP;
     }
     Ok(())
 }
@@ -240,19 +238,17 @@ pub unsafe fn set_object_kinds() -> Result<(), Refused> {
 /// `race::reload_objects` (0x425B2F): "LOAD OBJECTS - START" between two lines of dashes,
 /// `set_object_kinds`, then "total points", "total polys" and "facemem used" with their
 /// numbers, "LOAD OBJECTS - FINIS" and the dashes.
-pub unsafe fn reload_objects() -> Result<(), Refused> {
-    unsafe {
-        log(c"-------------------------------------", true);
-        log(c"LOAD OBJECTS - START", true);
-        set_object_kinds()?;
-        log(c"total points", false);
-        log_number(OBJECT_TABLES.point_count.get(), false);
-        log(c"total polys", false);
-        log_number(OBJECT_TABLES.face_count.get(), false);
-        log(c"facemem used", false);
-        log_number(OBJECT_WORK.face_cursor.bits(), true);
-        log(c"LOAD OBJECTS - FINIS", true);
-        log(c"-------------------------------------", true);
-    }
+pub fn reload_objects() -> Result<(), Refused> {
+    log(c"-------------------------------------", true);
+    log(c"LOAD OBJECTS - START", true);
+    set_object_kinds()?;
+    log(c"total points", false);
+    log_number(OBJECT_TABLES.point_count.get(), false);
+    log(c"total polys", false);
+    log_number(OBJECT_TABLES.face_count.get(), false);
+    log(c"facemem used", false);
+    log_number(OBJECT_WORK.face_cursor.bits(), true);
+    log(c"LOAD OBJECTS - FINIS", true);
+    log(c"-------------------------------------", true);
     Ok(())
 }

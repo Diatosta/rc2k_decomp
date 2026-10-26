@@ -37,7 +37,7 @@ use crate::session::SCREEN;
 
 // ---- Rust version ----
 
-pub unsafe fn set_view_window() {
+pub fn set_view_window() {
     let depth = STAGE_PREFS.grid_reach.bits().wrapping_mul(0x20);
     crate::session::write_bits(&RACE_VIEW.view_depth, [depth, depth]);
     let [width, height]: [u32; 2] = crate::session::read_bits(&DRAW.view_size);
@@ -101,7 +101,7 @@ pub unsafe fn set_view_window() {
 /// stays for its Rust callers in modules not converted (race, `choose_view_window`,
 /// `prepare_menu_scene`).
 // Converted: `rc2k_core::scene::view_window::window_settings`
-pub unsafe fn set_view_window_plain() {
+pub fn set_view_window_plain() {
     use rc2k_core::scene::view_window::{WindowInputs, window_settings};
     let i = WindowInputs {
         reach: STAGE_PREFS.grid_reach.bits(),

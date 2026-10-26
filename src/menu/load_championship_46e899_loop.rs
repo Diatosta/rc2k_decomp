@@ -24,17 +24,15 @@ use crate::scene::draw_store::DRAW;
 
 // ---- Rust version: `menu::screen_loop` with this ----
 
-unsafe fn prepare(c: &mut Carried) -> Result<(), Refused> {
-    unsafe {
-        DRAW.view_offset[0].set(0x0u32);
-        DRAW.view_offset[1].set(0x0u32);
-        DRAW.view_zoom.set(0x100u32);
-        prepare_scene(c);
-        DRAW.clip_edges[2].set(0x0u32);
-        DRAW.clip_edges[3].set(0x320u32);
-        DRAW.clip_screen[2].set(DRAW.clip_edges[2].bits() as i32 as f32);
-        DRAW.clip_screen[3].set(DRAW.clip_edges[3].bits() as i32 as f32);
-    }
+fn prepare(c: &mut Carried) -> Result<(), Refused> {
+    DRAW.view_offset[0].set(0x0u32);
+    DRAW.view_offset[1].set(0x0u32);
+    DRAW.view_zoom.set(0x100u32);
+    prepare_scene(c);
+    DRAW.clip_edges[2].set(0x0u32);
+    DRAW.clip_edges[3].set(0x320u32);
+    DRAW.clip_screen[2].set(DRAW.clip_edges[2].bits() as i32 as f32);
+    DRAW.clip_screen[3].set(DRAW.clip_edges[3].bits() as i32 as f32);
     Ok(())
 }
 

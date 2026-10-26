@@ -15,7 +15,7 @@ use rc2k_core::physics::car_events::listed_event;
 
 /// The core: the table at `table`, the queue at `q`.
 // Converted: `rc2k_core::physics::car_events::listed_event`.
-pub unsafe fn queue_listed_event_at(table: u32, q: &QueuePlaces, ebx: u32) -> Result<(), Refused> {
+pub fn queue_listed_event_at(table: u32, q: &QueuePlaces, ebx: u32) -> Result<(), Refused> {
     let entry = |n: u32| {
         crate::pointers::read_or_end::<u32>(table + 4 * n, "physics::queue_listed_event's operand")
     };
@@ -23,18 +23,16 @@ pub unsafe fn queue_listed_event_at(table: u32, q: &QueuePlaces, ebx: u32) -> Re
         return Ok(());
     };
     if queued {
-        unsafe { queue_car_event_at(q, 0, event) }?;
+        { queue_car_event_at(q, 0, event) }?;
     }
     Ok(())
 }
 
 /// The Rust version.
-pub unsafe fn queue_listed_event(ebx: u32) -> Result<(), Refused> {
-    unsafe {
-        queue_listed_event_at(
-            PHYSICS.listed_events[0].addr() as u32,
-            &QueuePlaces::game(),
-            ebx,
-        )
-    }
+pub fn queue_listed_event(ebx: u32) -> Result<(), Refused> {
+    queue_listed_event_at(
+        PHYSICS.listed_events[0].addr() as u32,
+        &QueuePlaces::game(),
+        ebx,
+    )
 }

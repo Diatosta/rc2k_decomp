@@ -66,20 +66,18 @@ pub enum Callee {
 pub type Game<'a> = &'a mut dyn FnMut(Callee, &mut Carried) -> Result<(), Refused>;
 
 fn in_game(callee: Callee, regs: &mut Carried) -> Result<(), Refused> {
-    unsafe {
-        match callee {
-            Callee::Prepare => crate::menu::ready_players::ready_players()?,
-            Callee::CopySomeData => {
-                crate::saves::keep_player_settings::keep_player_settings(regs.cars)?
-            }
-            // (The championship drivers keep every register of their caller.)
-            Callee::RunEvent => crate::menu::run_championship::run_championship(regs)?,
-            Callee::RunEventMode13 => crate::menu::run_a8_championship::run_a8_championship(regs)?,
-            Callee::AfterHead => crate::menu::drop_missing_controllers::drop_missing_controllers()?,
-            Callee::EventState => regs.arg = crate::menu::next_record_kind::next_record_kind()?,
-            Callee::BeforeEvent => crate::menu::link_player_names::link_player_names()?,
-            Callee::Refuse => crate::sound::play_menu_sound::play_menu_sound_in_game(regs.arg),
+    match callee {
+        Callee::Prepare => crate::menu::ready_players::ready_players()?,
+        Callee::CopySomeData => {
+            crate::saves::keep_player_settings::keep_player_settings(regs.cars)?
         }
+        // (The championship drivers keep every register of their caller.)
+        Callee::RunEvent => crate::menu::run_championship::run_championship(regs)?,
+        Callee::RunEventMode13 => crate::menu::run_a8_championship::run_a8_championship(regs)?,
+        Callee::AfterHead => crate::menu::drop_missing_controllers::drop_missing_controllers()?,
+        Callee::EventState => regs.arg = crate::menu::next_record_kind::next_record_kind()?,
+        Callee::BeforeEvent => crate::menu::link_player_names::link_player_names()?,
+        Callee::Refuse => crate::sound::play_menu_sound::play_menu_sound_in_game(regs.arg),
     }
     Ok(())
 }

@@ -20,7 +20,7 @@ use crate::text::font::Font;
 const CELLS_LEN: usize = 0x100;
 
 /// The Rust version: `text` .. `end`, the column of the last character at `x` + 0x32.
-pub unsafe fn draw_spaced_number(
+pub fn draw_spaced_number(
     font: *mut Font,
     text: *const u8,
     end: *const u8,
@@ -28,23 +28,21 @@ pub unsafe fn draw_spaced_number(
     y: i32,
     canvas: &mut dyn Canvas,
 ) -> Result<(), Refused> {
-    unsafe {
-        // Converted: `rc2k_core::screens::captions::spaced_places`.
-        let n = (end as u32).wrapping_sub(text as u32);
-        let places = rc2k_core::screens::captions::spaced_places(n, x, CELLS_LEN)?;
-        DRAW_WORK.work_b8.set(n);
-        let cells = crate::screens::text_buffers_store::TEXT_BUFFERS
-            .cells
-            .addr() as u32;
-        let digits = GamePtr::new(text as usize as u32).read_bytes(n as usize, "the digits")?;
-        let mut spaced = Vec::with_capacity(2 * digits.len());
-        for &digit in &digits {
-            spaced.extend([digit, 0]);
-        }
-        GamePtr::new(cells).write_bytes(&spaced, "the spaced digits")?;
-        for (i, x) in places {
-            draw_text_at(font, (cells as usize + 2 * i) as *const u8, x, y, canvas)?;
-        }
-        Ok(())
+    // Converted: `rc2k_core::screens::captions::spaced_places`.
+    let n = (end as u32).wrapping_sub(text as u32);
+    let places = rc2k_core::screens::captions::spaced_places(n, x, CELLS_LEN)?;
+    DRAW_WORK.work_b8.set(n);
+    let cells = crate::screens::text_buffers_store::TEXT_BUFFERS
+        .cells
+        .addr() as u32;
+    let digits = GamePtr::new(text as usize as u32).read_bytes(n as usize, "the digits")?;
+    let mut spaced = Vec::with_capacity(2 * digits.len());
+    for &digit in &digits {
+        spaced.extend([digit, 0]);
     }
+    GamePtr::new(cells).write_bytes(&spaced, "the spaced digits")?;
+    for (i, x) in places {
+        draw_text_at(font, (cells as usize + 2 * i) as *const u8, x, y, canvas)?;
+    }
+    Ok(())
 }

@@ -15,32 +15,28 @@ use crate::physics::car_store::CAR;
 use crate::physics::gear_bit::bits_at;
 use crate::race::numbers_store::NUMBERS;
 
-unsafe fn at(a: u32) -> u32 {
+fn at(a: u32) -> u32 {
     crate::pointers::read_or_end::<u32>(a, "physics::allowed_gear's operand")
 }
 
 /// The Rust version on the word +0x2B8, the word +0x3F4 and the gear bits at these places.
 // Converted: `rc2k_core::physics::gearbox::allowed_gear`.
-pub unsafe fn allowed_gear_at(locked: u32, open: u32, bits: u32, eax: u32) -> Result<u32, Refused> {
-    unsafe {
-        let locked = at(locked) == NUMBERS.hundred.bits();
-        Ok(rc2k_core::physics::gearbox::allowed_gear(
-            locked,
-            eax,
-            || bits_at(bits),
-            || at(open),
-        )?)
-    }
+pub fn allowed_gear_at(locked: u32, open: u32, bits: u32, eax: u32) -> Result<u32, Refused> {
+    let locked = at(locked) == NUMBERS.hundred.bits();
+    Ok(rc2k_core::physics::gearbox::allowed_gear(
+        locked,
+        eax,
+        || bits_at(bits),
+        || at(open),
+    )?)
 }
 
 /// The Rust version.
-pub unsafe fn allowed_gear(eax: u32) -> Result<u32, Refused> {
-    unsafe {
-        allowed_gear_at(
-            CAR.engine_damage.addr() as u32,
-            CAR.engine_power_factor.addr() as u32,
-            CAR.lost_gear_bits.addr() as u32,
-            eax,
-        )
-    }
+pub fn allowed_gear(eax: u32) -> Result<u32, Refused> {
+    allowed_gear_at(
+        CAR.engine_damage.addr() as u32,
+        CAR.engine_power_factor.addr() as u32,
+        CAR.lost_gear_bits.addr() as u32,
+        eax,
+    )
 }

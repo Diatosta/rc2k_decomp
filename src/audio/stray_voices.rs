@@ -23,7 +23,7 @@ static TURNS: AtomicU32 = AtomicU32::new(0);
 static LOGGED: Mutex<Vec<u32>> = Mutex::new(Vec::new());
 
 /// A list's voices, from the head `head` holds (at most the pool's count).
-unsafe fn list(head: &Dword) -> HashSet<u32> {
+fn list(head: &Dword) -> HashSet<u32> {
     let mut out = HashSet::new();
     let mut at = head.get();
     while at != 0 && out.len() <= VOICES as usize && out.insert(at) {

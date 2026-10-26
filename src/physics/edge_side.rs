@@ -24,7 +24,7 @@ pub struct EdgePlaces {
 
 impl EdgePlaces {}
 
-unsafe fn at(a: u32) -> u32 {
+fn at(a: u32) -> u32 {
     crate::pointers::read_or_end::<u32>(a, "physics::edge_side's operand")
 }
 

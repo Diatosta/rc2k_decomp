@@ -19,7 +19,7 @@ const KIND: usize = 0x258;
 
 // ---- Rust version ----
 
-pub unsafe fn assign_menu_textures() -> Result<(), BadInput> {
+pub fn assign_menu_textures() -> Result<(), BadInput> {
     // Converted: `rc2k_core::scene::textures::menu_textures`.
     let wanted = rc2k_core::scene::textures::menu_textures(
         read_all(&MENU_LISTS.carousel_textures),

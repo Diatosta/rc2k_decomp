@@ -12,6 +12,6 @@ use crate::physics::tables_store::PHYSICS;
 const COUNT: u32 = 0x17;
 
 /// The Rust version.
-pub unsafe fn clear_forces() -> Result<(), Refused> {
-    unsafe { clear_records((PHYSICS.forces.as_ptr() as usize) as u32, COUNT) }
+pub fn clear_forces() -> Result<(), Refused> {
+    clear_records((PHYSICS.forces.as_ptr() as usize) as u32, COUNT)
 }

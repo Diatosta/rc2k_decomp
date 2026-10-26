@@ -89,7 +89,7 @@ pub fn stage_sounds() -> Result<(), Refused> {
             continue;
         }
         stage.random[n].set(0);
-        let n = unsafe { crate::math::next_random::next_random() };
+        let n = { crate::math::next_random::next_random() };
         // Converted: `rc2k_core::sound::stage::random`.
         let r =
             rc2k_core::sound::stage::random(n, crate::audio::store::AUDIO.mix_rate_setting.get());

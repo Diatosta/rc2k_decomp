@@ -77,112 +77,101 @@ fn set_normal(number: u32) -> Result<(), BadInput> {
 }
 
 /// The start of `sub_4511F1` and of `sub_451296`: the light on the normal as a number.
-unsafe fn light() -> i32 {
-    unsafe {
-        let strength = OBJECT_WORK.light_strength.bits() as i32;
-        if strength == 0 {
-            return 0;
-        }
-        crate::session::write_bits(
-            &LIGHT_WORK.light_dot_light,
-            crate::session::read_bits::<_, 3>(&DRAW.light_direction),
-        );
-        LIGHT_WORK
-            .light_dot_factor
-            .set_bits(x87::from_int(strength));
-        light_dot()
+fn light() -> i32 {
+    let strength = OBJECT_WORK.light_strength.bits() as i32;
+    if strength == 0 {
+        return 0;
     }
+    crate::session::write_bits(
+        &LIGHT_WORK.light_dot_light,
+        crate::session::read_bits::<_, 3>(&DRAW.light_direction),
+    );
+    LIGHT_WORK
+        .light_dot_factor
+        .set_bits(x87::from_int(strength));
+    light_dot()
 }
 
 /// Where `sub_4511F1` would look in the table, checked.
-unsafe fn table_place() -> Result<usize, BadInput> {
-    unsafe {
-        let place = held(
-            light().wrapping_add(OBJECT_WORK.light_level.bits() as i32),
-            OBJECT_WORK.light_lowest.bits() as i32,
-            OBJECT_WORK.light_highest.bits() as i32,
-        );
-        if !(0..TABLE_LEN as i32).contains(&place) {
-            return Err(BadInput("a place outside the light table"));
-        }
-        Ok(place as usize)
+fn table_place() -> Result<usize, BadInput> {
+    let place = held(
+        light().wrapping_add(OBJECT_WORK.light_level.bits() as i32),
+        OBJECT_WORK.light_lowest.bits() as i32,
+        OBJECT_WORK.light_highest.bits() as i32,
+    );
+    if !(0..TABLE_LEN as i32).contains(&place) {
+        return Err(BadInput("a place outside the light table"));
     }
+    Ok(place as usize)
 }
 
 /// `sub_45112D` / `sub_451170` with `sub_4511F1`: the lit colour, left in `dword_62DAC4`.
-unsafe fn lit(number: u32, mmx: bool) -> Result<u32, BadInput> {
-    unsafe {
-        // The checks first, on a copy of what they would write.
-        let place = set_normal(number).and_then(|()| table_place());
-        let place = place?;
-        let colour = plus(
-            crate::scene::light_tables_store::LIGHT_TABLES.light_table[place].get(),
-            LIGHT_WORK.light_colour.bits(),
-            mmx,
-        );
-        LIGHT_WORK.light_colour.set_bits(colour);
-        Ok(colour)
-    }
+fn lit(number: u32, mmx: bool) -> Result<u32, BadInput> {
+    // The checks first, on a copy of what they would write.
+    let place = set_normal(number).and_then(|()| table_place());
+    let place = place?;
+    let colour = plus(
+        crate::scene::light_tables_store::LIGHT_TABLES.light_table[place].get(),
+        LIGHT_WORK.light_colour.bits(),
+        mmx,
+    );
+    LIGHT_WORK.light_colour.set_bits(colour);
+    Ok(colour)
 }
 
 /// `sub_451296`: the colour in `dword_62DAC4` blended by the light.
-unsafe fn blend() {
-    unsafe {
-        let amount = held(light(), -255, 255);
-        let (amount, towards) = if amount < 0 {
-            (amount.wrapping_neg(), &STAGE_PREFS.dark_colour)
-        } else {
-            (amount, &STAGE_PREFS.lit_colour)
-        };
-        let towards = crate::session::read_bits::<_, 3>(towards).map(|bits| bits as i32);
-        let mut colour: u32 = LIGHT_WORK.light_colour.bits();
-        // The third byte first, towards the first of the three.
-        for (n, to) in towards.into_iter().enumerate() {
-            let at = (2 - n) * 8;
-            let byte = (colour >> at & 0xFF) as i32;
-            let moved = (amount.wrapping_mul(to.wrapping_sub(byte)) >> 8).wrapping_add(byte);
-            colour = colour & !(0xFF << at) | (moved.clamp(0, 0xFF) as u32) << at;
-        }
-        LIGHT_WORK.light_colour.set_bits(colour);
+fn blend() {
+    let amount = held(light(), -255, 255);
+    let (amount, towards) = if amount < 0 {
+        (amount.wrapping_neg(), &STAGE_PREFS.dark_colour)
+    } else {
+        (amount, &STAGE_PREFS.lit_colour)
+    };
+    let towards = crate::session::read_bits::<_, 3>(towards).map(|bits| bits as i32);
+    let mut colour: u32 = LIGHT_WORK.light_colour.bits();
+    // The third byte first, towards the first of the three.
+    for (n, to) in towards.into_iter().enumerate() {
+        let at = (2 - n) * 8;
+        let byte = (colour >> at & 0xFF) as i32;
+        let moved = (amount.wrapping_mul(to.wrapping_sub(byte)) >> 8).wrapping_add(byte);
+        colour = colour & !(0xFF << at) | (moved.clamp(0, 0xFF) as u32) << at;
     }
+    LIGHT_WORK.light_colour.set_bits(colour);
 }
 
-pub unsafe fn vertex_light(number: u32) -> Result<u32, BadInput> {
-    unsafe {
-        let kind: u32 = LIGHT_WORK.light_kind.bits();
-        let mmx = MACHINE.has_mmx.get() != 0;
-        if kind == 4 {
-            // 0 plus the lit colour.
-            return Ok(plus(0, lit(number, mmx)?, mmx));
-        }
-        let lit_at_all = FRAME_SWITCHES.other_way.bits() != 0 || STAGE_PREFS.lit_b.bits() != 0;
-        if !lit_at_all || kind == 0 {
-            return Ok(0x00FF_FFFF);
-        }
-        let added: u32 = OBJECT_WORK.light_added.bits();
-        match kind {
-            2 | 5 => Ok(plus(plus(0, lit(number, mmx)?, mmx), added, mmx)),
-            1 => {
-                let level: u32 = OBJECT_WORK.light_level.bits();
-                if level >= TABLE_LEN {
-                    return Err(BadInput("a place outside the light table"));
-                }
-                Ok(plus(
-                    crate::scene::light_tables_store::LIGHT_TABLES.light_table[level as usize]
-                        .get(),
-                    added,
-                    mmx,
-                ))
+pub fn vertex_light(number: u32) -> Result<u32, BadInput> {
+    let kind: u32 = LIGHT_WORK.light_kind.bits();
+    let mmx = MACHINE.has_mmx.get() != 0;
+    if kind == 4 {
+        // 0 plus the lit colour.
+        return Ok(plus(0, lit(number, mmx)?, mmx));
+    }
+    let lit_at_all = FRAME_SWITCHES.other_way.bits() != 0 || STAGE_PREFS.lit_b.bits() != 0;
+    if !lit_at_all || kind == 0 {
+        return Ok(0x00FF_FFFF);
+    }
+    let added: u32 = OBJECT_WORK.light_added.bits();
+    match kind {
+        2 | 5 => Ok(plus(plus(0, lit(number, mmx)?, mmx), added, mmx)),
+        1 => {
+            let level: u32 = OBJECT_WORK.light_level.bits();
+            if level >= TABLE_LEN {
+                return Err(BadInput("a place outside the light table"));
             }
-            3 => {
-                set_normal(number)?;
-                // The colour was just set to 0.
-                let colour = plus(plus(LIGHT_WORK.view_light_base.bits(), 0, mmx), added, mmx);
-                LIGHT_WORK.light_colour.set_bits(colour);
-                blend();
-                Ok(LIGHT_WORK.light_colour.bits())
-            }
-            _ => Ok(number),
+            Ok(plus(
+                crate::scene::light_tables_store::LIGHT_TABLES.light_table[level as usize].get(),
+                added,
+                mmx,
+            ))
         }
+        3 => {
+            set_normal(number)?;
+            // The colour was just set to 0.
+            let colour = plus(plus(LIGHT_WORK.view_light_base.bits(), 0, mmx), added, mmx);
+            LIGHT_WORK.light_colour.set_bits(colour);
+            blend();
+            Ok(LIGHT_WORK.light_colour.bits())
+        }
+        _ => Ok(number),
     }
 }

@@ -14,31 +14,27 @@ use crate::errors::Refused;
 use crate::physics::restore_saved_car::SavedCar;
 use rc2k_core::physics::saved_car::{CarState, save_count};
 
-unsafe fn at(a: u32) -> u32 {
+fn at(a: u32) -> u32 {
     crate::pointers::read_or_end::<u32>(a, "physics::save_car_state's operand")
 }
 
 /// The pieces at these places, `n` faces.
-pub unsafe fn read_state(place: u32, matrix: u32, list: u32, n: usize) -> CarState {
-    unsafe {
-        CarState {
-            place: std::array::from_fn(|k| at(place + 4 * k as u32)),
-            matrix: std::array::from_fn(|k| at(matrix + 4 * k as u32)),
-            faces: (0..n as u32).map(|k| at(list + 4 * k)).collect(),
-        }
+pub fn read_state(place: u32, matrix: u32, list: u32, n: usize) -> CarState {
+    CarState {
+        place: std::array::from_fn(|k| at(place + 4 * k as u32)),
+        matrix: std::array::from_fn(|k| at(matrix + 4 * k as u32)),
+        faces: (0..n as u32).map(|k| at(list + 4 * k)).collect(),
     }
 }
 
 /// The pieces written at these places.
-pub unsafe fn write_state(s: &CarState, place: u32, matrix: u32, list: u32) {
-    unsafe {
-        put_dwords(place, &s.place);
-        put_dwords(matrix, &s.matrix);
-        put_dwords(list, &s.faces);
-    }
+pub fn write_state(s: &CarState, place: u32, matrix: u32, list: u32) {
+    put_dwords(place, &s.place);
+    put_dwords(matrix, &s.matrix);
+    put_dwords(list, &s.faces);
 }
 
-unsafe fn put_dwords(to: u32, v: &[u32]) {
+fn put_dwords(to: u32, v: &[u32]) {
     for (k, x) in v.iter().enumerate() {
         crate::pointers::write_or_end::<u32>(
             to + 4 * k as u32,

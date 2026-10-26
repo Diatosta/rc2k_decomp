@@ -9,9 +9,9 @@ use crate::physics::car_store::CAR;
 use crate::physics::free_rev::free_rev;
 
 /// The Rust version (the exact one, for `physics::car_physics_step`).
-pub unsafe fn free_rev_in_neutral() {
+pub fn free_rev_in_neutral() {
     if CAR.gear.get() != 0 {
         return;
     }
-    unsafe { free_rev() }
+    free_rev()
 }

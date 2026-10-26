@@ -15,8 +15,8 @@ use rc2k_core::physics::ground::surface_flag;
 
 /// The Rust version on the variables at `v`.
 // Converted: `rc2k_core::physics::ground::surface_flag`.
-pub unsafe fn note_at(v: &[u32]) {
-    unsafe { put(v[1], surface_flag(get(v[0]))) }
+pub fn note_at(v: &[u32]) {
+    put(v[1], surface_flag(get(v[0])))
 }
 
 fn game() -> Vec<u32> {
@@ -27,6 +27,6 @@ fn game() -> Vec<u32> {
 }
 
 /// The Rust version.
-pub unsafe fn note_surface_mode() {
-    unsafe { note_at(&game()) }
+pub fn note_surface_mode() {
+    note_at(&game())
 }

@@ -19,11 +19,11 @@
 use crate::errors::Refused;
 use rc2k_core::physics::sound_queue::{ENTRY_DWORDS, Place, check_cue, place, sounds};
 
-unsafe fn at(a: u32) -> u32 {
+fn at(a: u32) -> u32 {
     crate::pointers::read_or_end::<u32>(a, "physics::queue_sound_cue's operand")
 }
 
-unsafe fn put(a: u32, v: u32) {
+fn put(a: u32, v: u32) {
     crate::pointers::write_or_end::<u32>(a, v, "physics::queue_sound_cue's operand")
 }
 
@@ -34,34 +34,30 @@ unsafe fn put(a: u32, v: u32) {
 pub fn queue_sound_cue(first: bool, cue: u32, object: u32, queue: u32) -> Result<(), Refused> {
     check_cue(cue)?;
     let q = queue;
-    unsafe {
-        let count = at(q + 0xC);
-        let mut entry = q + 0x10;
-        match place(count, first) {
-            Place::Full => return Ok(()),
-            Place::At(n) => {
-                entry = entry.wrapping_add(n.wrapping_mul(ENTRY_DWORDS).wrapping_mul(4))
-            }
-            Place::First { count } => {
-                let playing = at(q.wrapping_add(at(q + 4).wrapping_mul(4)).wrapping_add(0x18));
-                crate::sound::turn_parts::play(playing, 0, 0, [0; 3]);
-                put(q + 4, u32::MAX);
-                let n = count.wrapping_mul(ENTRY_DWORDS);
-                let src = entry + n * 4 - 4;
-                let dst = entry + n * 4 + 0x1C;
-                for k in 0..n {
-                    put(dst - 4 * k, at(src - 4 * k));
-                }
+    let count = at(q + 0xC);
+    let mut entry = q + 0x10;
+    match place(count, first) {
+        Place::Full => return Ok(()),
+        Place::At(n) => entry = entry.wrapping_add(n.wrapping_mul(ENTRY_DWORDS).wrapping_mul(4)),
+        Place::First { count } => {
+            let playing = at(q.wrapping_add(at(q + 4).wrapping_mul(4)).wrapping_add(0x18));
+            crate::sound::turn_parts::play(playing, 0, 0, [0; 3]);
+            put(q + 4, u32::MAX);
+            let n = count.wrapping_mul(ENTRY_DWORDS);
+            let src = entry + n * 4 - 4;
+            let dst = entry + n * 4 + 0x1C;
+            for k in 0..n {
+                put(dst - 4 * k, at(src - 4 * k));
             }
         }
-        put(q + 0xC, at(q + 0xC).wrapping_add(1));
-        put(entry, cue);
-        let list: u32 = crate::sound::sets_store::CUE_LISTS.table[cue as usize].get();
-        let (written, n) = sounds(|k| at(list + 4 * k), at(object));
-        for (k, &v) in written.iter().enumerate() {
-            put(entry + 4 * k as u32 + 8, v);
-        }
-        put(entry + 4, n);
     }
+    put(q + 0xC, at(q + 0xC).wrapping_add(1));
+    put(entry, cue);
+    let list: u32 = crate::sound::sets_store::CUE_LISTS.table[cue as usize].get();
+    let (written, n) = sounds(|k| at(list + 4 * k), at(object));
+    for (k, &v) in written.iter().enumerate() {
+        put(entry + 4 * k as u32 + 8, v);
+    }
+    put(entry + 4, n);
     Ok(())
 }

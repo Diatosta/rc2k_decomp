@@ -9,7 +9,7 @@
 use crate::scene::object_tables_store::OBJECT_TABLES;
 
 /// `scene::find_object_of_kind` (see the header).
-pub unsafe fn find_object_of_kind(kind: u32) -> u32 {
+pub fn find_object_of_kind(kind: u32) -> u32 {
     // Converted: `rc2k_core::scene::kinds::first_of_kind`.
     rc2k_core::scene::kinds::first_of_kind(|n| OBJECT_TABLES.object_kind(n as u32), kind)
 }

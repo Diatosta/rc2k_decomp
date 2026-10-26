@@ -120,7 +120,7 @@ fn table_bytes() -> Vec<u8> {
 
 /// `sub_4114FF`: the settings a text names. Converted: `rc2k_core::files::settings::table` and
 /// `apply`; here the variables (the table's dwords are their addresses) are stored.
-unsafe fn settings() -> Result<Vec<(Vec<u8>, u32)>, BadInput> {
+fn settings() -> Result<Vec<(Vec<u8>, u32)>, BadInput> {
     // The empty key that ends it (0x5190F1 in the image).
     let mut bytes = table_bytes();
     bytes.push(0);
@@ -130,34 +130,30 @@ unsafe fn settings() -> Result<Vec<(Vec<u8>, u32)>, BadInput> {
     )?)
 }
 
-pub unsafe fn apply_settings(text: *const u8) -> Result<(), BadInput> {
+pub fn apply_settings(text: *const u8) -> Result<(), BadInput> {
     if text.is_null() {
         return Err(BadInput("no settings text or no key"));
     }
-    unsafe {
-        let table = settings()?;
-        let keys: Vec<&[u8]> = table.iter().map(|(key, _)| key.as_slice()).collect();
-        // Found first, stored after: nothing is written if a key is refused.
-        let found = rc2k_core::files::settings::apply(
-            &GamePtr::new(text as u32).bytes("a settings text")?,
-            &keys,
-            &case_table(),
-        )?;
-        for (n, number) in found {
-            // The table's (IDA) address, or where its variable lives now (`crate::moved`).
-            GamePtr::new(crate::moved::place(table[n].1 as usize) as u32)
-                .write(number, "a setting's variable")?;
-        }
-        Ok(())
+    let table = settings()?;
+    let keys: Vec<&[u8]> = table.iter().map(|(key, _)| key.as_slice()).collect();
+    // Found first, stored after: nothing is written if a key is refused.
+    let found = rc2k_core::files::settings::apply(
+        &GamePtr::new(text as u32).bytes("a settings text")?,
+        &keys,
+        &case_table(),
+    )?;
+    for (n, number) in found {
+        // The table's (IDA) address, or where its variable lives now (`crate::moved`).
+        GamePtr::new(crate::moved::place(table[n].1 as usize) as u32)
+            .write(number, "a setting's variable")?;
     }
+    Ok(())
 }
 
-pub unsafe fn read_settings() -> Result<(), BadInput> {
-    unsafe {
-        match read_text(PATH.as_ptr())? {
-            Some((text, _)) => apply_settings(text),
-            None => Ok(()),
-        }
+pub fn read_settings() -> Result<(), BadInput> {
+    match read_text(PATH.as_ptr())? {
+        Some((text, _)) => apply_settings(text),
+        None => Ok(()),
     }
 }
 
@@ -177,7 +173,7 @@ mod tests {
 
     #[test]
     fn table_reads_whole() {
-        let table = unsafe { super::settings() }.unwrap();
+        let table = { super::settings() }.unwrap();
         assert_eq!(table.len(), super::ENTRIES.len());
     }
 }

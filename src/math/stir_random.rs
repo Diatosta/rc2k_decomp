@@ -11,7 +11,7 @@
 
 // ---- Rust version ----
 
-pub unsafe fn stir_random(number: u32) {
+pub fn stir_random(number: u32) {
     crate::math::next_random::wait_for_random();
     crate::math::next_random::with_random(|r| r.stir(number));
 }

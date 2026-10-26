@@ -38,10 +38,7 @@ pub fn fit_name(text: u32, x: u32) -> Result<u32, Refused> {
     let font: *mut Font = MEASURING_FONT.as_ptr();
     text_entry::fit_name(len, x, |len, x| -> Result<u32, Refused> {
         GamePtr::new(text + len as u32).write::<u8>(0, "a name")?;
-        Ok(
-            unsafe { measure_text_at(font, text as usize as *mut u8, x as i32, &mut GameCanvas) }?
-                .width,
-        )
+        Ok({ measure_text_at(font, text as usize as *mut u8, x as i32, &mut GameCanvas) }?.width)
     })
 }
 

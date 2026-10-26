@@ -34,7 +34,7 @@ fn any_ending_key() -> u32 {
 // Converted: `rc2k_core::drive::race_ticks::{ends_pause, held_wait}`.
 /// The Rust version. The registers it leaves are read by no caller (liveness: nothing
 /// live after `race_loop`'s call).
-pub unsafe fn pause_until_key() -> Result<(), Refused> {
+pub fn pause_until_key() -> Result<(), Refused> {
     RACE_VARS.hold_count.set(0x19);
     for _ in 0..5 {
         take_key();

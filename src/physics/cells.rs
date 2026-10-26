@@ -1,44 +1,29 @@
 /// The dword at `a`.
-///
-/// # Safety
-/// `a` must be readable.
-pub unsafe fn get(a: u32) -> u32 {
+pub fn get(a: u32) -> u32 {
     crate::pointers::read_or_end::<u32>(a, "physics::cells's operand")
 }
 
 /// `v` into the dword at `a`.
-///
-/// # Safety
-/// `a` must be writable.
-pub unsafe fn put(a: u32, v: u32) {
+pub fn put(a: u32, v: u32) {
     crate::pointers::write_or_end::<u32>(a, v, "physics::cells's operand")
 }
 
 /// `now` into the dword at `a` when it is not `was` (what was loaded from there).
-///
-/// # Safety
-/// As `put`.
-pub unsafe fn put_changed(a: u32, was: u32, now: u32) {
+pub fn put_changed(a: u32, was: u32, now: u32) {
     if now != was {
-        unsafe { put(a, now) }
+        put(a, now)
     }
 }
 
 /// `N` dwords from `a` on.
-///
-/// # Safety
-/// The `N` dwords must be readable.
-pub unsafe fn get_list<const N: usize>(a: u32) -> [u32; N] {
-    std::array::from_fn(|k| unsafe { get(a + 4 * k as u32) })
+pub fn get_list<const N: usize>(a: u32) -> [u32; N] {
+    std::array::from_fn(|k| get(a + 4 * k as u32))
 }
 
 /// The dwords of `now` that are not `was`'s into their places from `a` on.
-///
-/// # Safety
-/// As `put`, for each of them.
-pub unsafe fn put_list_changed(a: u32, was: &[u32], now: &[u32]) {
+pub fn put_list_changed(a: u32, was: &[u32], now: &[u32]) {
     for (k, (&w, &n)) in was.iter().zip(now).enumerate() {
-        unsafe { put_changed(a + 4 * k as u32, w, n) }
+        put_changed(a + 4 * k as u32, w, n)
     }
 }
 

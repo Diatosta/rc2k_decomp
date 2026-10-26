@@ -87,7 +87,7 @@ fn put(at: u32, value: u32) -> Result<(), BadInput> {
 
 /// `files::read_whole_file` (inside `pusha` in every caller: what it leaves is read by
 /// nobody).
-pub unsafe fn read(path: u32, buffer: u32, count: u32) -> Result<(), Refused> {
+pub fn read(path: u32, buffer: u32, count: u32) -> Result<(), Refused> {
     span(buffer, count as usize, "a file's buffer")?;
     crate::files::read_whole_file::read_whole_file(path as *const u8, buffer as *mut u8, count)?;
     Ok(())
@@ -95,14 +95,13 @@ pub unsafe fn read(path: u32, buffer: u32, count: u32) -> Result<(), Refused> {
 
 /// `race::allocate_course_memory` (0x41F8C4): the course memory taken (`memory::allocate`
 /// on the list `list`).
-pub unsafe fn allocate_course_memory(v: &Vars, list: u32) -> Result<(), Refused> {
+pub fn allocate_course_memory(v: &Vars, list: u32) -> Result<(), Refused> {
     put(v.first_part, FIRST_PART)?;
     put(
         v.list_total,
         get(v.list_total)?.wrapping_add(FIRST_PART + INFO_PART),
     )?;
-    let memory =
-        unsafe { crate::memory::allocate::allocate(list as *mut _, FIRST_PART + INFO_PART) }?;
+    let memory = { crate::memory::allocate::allocate(list as *mut _, FIRST_PART + INFO_PART) }?;
     put(v.course_memory, memory as u32)?;
     put(v.course_info, (memory as u32).wrapping_add(FIRST_PART))?;
     Ok(())
@@ -123,31 +122,29 @@ pub fn copy_texture_info_tail(v: &Vars) -> Result<(), BadInput> {
 /// the course info, `files\m\markinfo` (0x8000) at +0x1C2000, `files\b\textinfo`
 /// (0x1F4000) at +0x1F4000; three line feeds at +0x5BD21; `copy_texture_info_tail`. Refuses
 /// no course info.
-pub unsafe fn load_texture_info(v: &Vars) -> Result<(), Refused> {
-    unsafe {
-        let info = get(v.course_info)?;
-        if info == 0 {
-            return Err(BadInput("no course memory: the original reads into 0").into());
-        }
-        read(
-            FILE_NUMBERS.text_addr(texts::TEXTURE_INFO_A) as u32,
-            info,
-            0x1F_4000,
-        )?;
-        read(
-            FILE_NUMBERS.text_addr(texts::MARK_INFO) as u32,
-            info + 0x1C_2000,
-            0x8000,
-        )?;
-        read(
-            FILE_NUMBERS.text_addr(texts::TEXTURE_INFO_B) as u32,
-            info + 0x1F_4000,
-            0x1F_4000,
-        )?;
-        GamePtr::new(info + 0x5_BD21).fill(0x0A, 3, "the course info's line feeds")?;
-        copy_texture_info_tail(v)?;
-        Ok(())
+pub fn load_texture_info(v: &Vars) -> Result<(), Refused> {
+    let info = get(v.course_info)?;
+    if info == 0 {
+        return Err(BadInput("no course memory: the original reads into 0").into());
     }
+    read(
+        FILE_NUMBERS.text_addr(texts::TEXTURE_INFO_A) as u32,
+        info,
+        0x1F_4000,
+    )?;
+    read(
+        FILE_NUMBERS.text_addr(texts::MARK_INFO) as u32,
+        info + 0x1C_2000,
+        0x8000,
+    )?;
+    read(
+        FILE_NUMBERS.text_addr(texts::TEXTURE_INFO_B) as u32,
+        info + 0x1F_4000,
+        0x1F_4000,
+    )?;
+    GamePtr::new(info + 0x5_BD21).fill(0x0A, 3, "the course info's line feeds")?;
+    copy_texture_info_tail(v)?;
+    Ok(())
 }
 
 /// `race::set_course_number` (0x43944F): al's two digits (tens, units, as `div 10` of the
@@ -163,14 +160,12 @@ pub fn set_course_number(eax: u32) -> Result<(), BadInput> {
 
 /// `race::load_error_list` (0x439A92): the file named at 0x60AE02, 0x2000 bytes at most, to
 /// 0x637660.
-pub unsafe fn load_error_list() -> Result<(), Refused> {
-    unsafe {
-        read(
-            FILE_NUMBERS.text_addr(texts::ERROR_LIST_PATH) as u32,
-            crate::race::error_list_store::ERROR_LIST.list.addr() as u32,
-            0x2000,
-        )
-    }
+pub fn load_error_list() -> Result<(), Refused> {
+    read(
+        FILE_NUMBERS.text_addr(texts::ERROR_LIST_PATH) as u32,
+        crate::race::error_list_store::ERROR_LIST.list.addr() as u32,
+        0x2000,
+    )
 }
 
 /// `race::build_texture_infos` (0x4393A0): nothing without course info; else for each of

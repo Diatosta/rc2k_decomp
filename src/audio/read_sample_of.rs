@@ -12,7 +12,7 @@ use crate::errors::Refused;
 // ---- Rust version ----
 
 /// `read`: the reading of a path, true for found. Returns true for the carry clear.
-pub unsafe fn read_sample_of(
+pub fn read_sample_of(
     record: &SampleRecord,
     read: &mut dyn FnMut(u32) -> Result<bool, Refused>,
 ) -> Result<bool, Refused> {

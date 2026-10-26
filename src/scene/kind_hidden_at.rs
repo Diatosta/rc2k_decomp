@@ -15,5 +15,5 @@ pub fn kind_hidden_at(record: u32) -> Result<bool, BadInput> {
     // Converted: `rc2k_core::scene::kinds::kind_is_hidden` (through `kind_is_hidden`).
     let object = GamePtr::new(record.wrapping_add(1)).read::<u8>("a course face")? as u32;
     // A byte: never past the table.
-    Ok(unsafe { kind_is_hidden(object) }.is_ok_and(|(hidden, _)| hidden))
+    Ok({ kind_is_hidden(object) }.is_ok_and(|(hidden, _)| hidden))
 }

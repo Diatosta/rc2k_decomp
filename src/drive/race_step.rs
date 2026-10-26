@@ -16,7 +16,7 @@ use crate::physics::tables_store::PHYSICS;
 /// `imul` and the physics; `race::play_movie_loop` has only DF live after it).
 // Converted: `rc2k_core::drive::race_ticks::run_ticks`.
 pub unsafe fn race_step() -> Result<(), Refused> {
-    unsafe { crate::drive::race_clock_tick::race_clock_tick() };
+    crate::drive::race_clock_tick::race_clock_tick();
     if PHYSICS.frame_cleared[1].get() == 0 {
         rc2k_core::drive::race_ticks::run_ticks(PHYSICS.race_tenths.get(), |ecx| {
             unsafe { crate::drive::race_tick::race_tick() }?;

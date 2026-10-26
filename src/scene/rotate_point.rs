@@ -11,14 +11,14 @@
 use crate::scene::x87_mem::{fld, fld80, fstp80};
 
 /// The Rust version: `p` as st(0) .. st(2), the result the same way.
-pub unsafe fn rotate_point(m: u32, p: [[u8; 10]; 3]) -> [[u8; 10]; 3] {
+pub fn rotate_point(m: u32, p: [[u8; 10]; 3]) -> [[u8; 10]; 3] {
     let mut out = [[0u8; 10]; 3];
-    unsafe { rotate(p.as_ptr().cast(), m as *const u8, out.as_mut_ptr().cast()) };
+    rotate(p.as_ptr().cast(), m as *const u8, out.as_mut_ptr().cast());
     out
 }
 
 /// `fld tbyte` x3, the three rows' sums of products plus the place, `fstp tbyte` x3.
-unsafe fn rotate(p: *const u8, m: *const u8, o: *mut u8) {
+fn rotate(p: *const u8, m: *const u8, o: *mut u8) {
     let t0 = fld80(p, 0x14);
     let t1 = fld80(p, 0xA);
     let t2 = fld80(p, 0x0);

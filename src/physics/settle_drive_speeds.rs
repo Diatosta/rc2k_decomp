@@ -44,68 +44,64 @@ impl SettlePlaces {
     }
 }
 
-unsafe fn at(a: u32) -> u32 {
+fn at(a: u32) -> u32 {
     crate::pointers::read_or_end::<u32>(a, "physics::settle_drive_speeds's operand")
 }
 
-unsafe fn put(a: u32, v: u32) {
+fn put(a: u32, v: u32) {
     crate::pointers::write_or_end::<u32>(a, v, "physics::settle_drive_speeds's operand")
 }
 
 /// One speed at `v` toward 0 by the step at `step`.
-unsafe fn settle(v: u32, step: u32) {
-    unsafe {
-        let x = f32::from_bits(at(v));
-        if x == 0.0 || x.is_nan() {
-            return;
+fn settle(v: u32, step: u32) {
+    let x = f32::from_bits(at(v));
+    if x == 0.0 || x.is_nan() {
+        return;
+    }
+    if x < 0.0 {
+        let y = x87::add(at(v), at(step));
+        put(v, y);
+        if f32::from_bits(y) >= 0.0 {
+            put(v, 0);
         }
-        if x < 0.0 {
-            let y = x87::add(at(v), at(step));
-            put(v, y);
-            if f32::from_bits(y) >= 0.0 {
-                put(v, 0);
-            }
-        } else {
-            let y = x87::sub(at(v), at(step));
-            put(v, y);
-            let y = f32::from_bits(y);
-            if y < 0.0 || y.is_nan() {
-                put(v, 0);
-            }
+    } else {
+        let y = x87::sub(at(v), at(step));
+        put(v, y);
+        let y = f32::from_bits(y);
+        if y < 0.0 || y.is_nan() {
+            put(v, 0);
         }
     }
 }
 
 /// The Rust core.
-pub unsafe fn settle_drive_speeds_at(g: &GearPlaces, s: &SettlePlaces) -> Result<(), Refused> {
-    unsafe {
-        let gear = at(g.gear);
-        if gear != 0 && !(-1..=7).contains(&(gear as i32)) {
-            return Err(BadInput("a gear outside g_gearRatios (-1 ..= 7)").into());
-        }
-        let step = || {
-            if at(s.fast) != 0 {
-                PHYSICS.settle_fast_step.bits()
-            } else {
-                PHYSICS.settle_slow_step.bits()
-            }
-        };
-        if at(s.first) != 0 && gear == 0 {
-            put(s.scratch, step());
-            settle(g.drive_speed, s.scratch);
-        }
-        if at(s.second) != 0 {
-            put(s.scratch, step());
-            settle(g.drive_speed_2, s.scratch);
-        }
-        if gear != 0 {
-            return revs_from_wheels_at(g);
-        }
-        Ok(())
+pub fn settle_drive_speeds_at(g: &GearPlaces, s: &SettlePlaces) -> Result<(), Refused> {
+    let gear = at(g.gear);
+    if gear != 0 && !(-1..=7).contains(&(gear as i32)) {
+        return Err(BadInput("a gear outside g_gearRatios (-1 ..= 7)").into());
     }
+    let step = || {
+        if at(s.fast) != 0 {
+            PHYSICS.settle_fast_step.bits()
+        } else {
+            PHYSICS.settle_slow_step.bits()
+        }
+    };
+    if at(s.first) != 0 && gear == 0 {
+        put(s.scratch, step());
+        settle(g.drive_speed, s.scratch);
+    }
+    if at(s.second) != 0 {
+        put(s.scratch, step());
+        settle(g.drive_speed_2, s.scratch);
+    }
+    if gear != 0 {
+        return revs_from_wheels_at(g);
+    }
+    Ok(())
 }
 
 /// The Rust version (the exact one, for `physics::car_physics_step`).
-pub unsafe fn settle_drive_speeds() -> Result<(), Refused> {
-    unsafe { settle_drive_speeds_at(&GearPlaces::game(), &SettlePlaces::game()) }
+pub fn settle_drive_speeds() -> Result<(), Refused> {
+    settle_drive_speeds_at(&GearPlaces::game(), &SettlePlaces::game())
 }

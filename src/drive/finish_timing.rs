@@ -73,7 +73,7 @@ pub fn timing_from(now: u32) {
 }
 
 /// The Rust version (the exact one, for `drive::finish_run`).
-pub unsafe fn finish_timing() {
+pub fn finish_timing() {
     let now = crate::scene::restart_clock::restart_clock(crate::system::tick_count::tick_count());
     timing_from(now)
 }

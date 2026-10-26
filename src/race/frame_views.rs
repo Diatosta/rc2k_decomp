@@ -32,19 +32,17 @@ use crate::session::SCREEN;
 /// `dword_623FB4` 0, `dword_624080` 0x100, `scene::set_view_window`), `dword_63993C` 0; the
 /// first also `dword_6365C4` 0. Its callers (`race::draw_race_scene`,
 /// `race::draw_mirror_view`) read no register it leaves.
-pub unsafe fn full_view_window(first: bool) {
-    unsafe {
-        DRAW.view_size[0].set(SCREEN.width.get());
-        DRAW.view_size[1].set(SCREEN.height.get());
-        DRAW.view_offset[0].set(0);
-        DRAW.view_offset[1].set(0);
-        DRAW.view_zoom.set(0x100);
-        crate::scene::set_view_window::set_view_window();
-        if first {
-            LIGHT_STATE.draw_mode.set(0);
-        }
-        GROUND_WORK.view_mirrored.set(0);
+pub fn full_view_window(first: bool) {
+    DRAW.view_size[0].set(SCREEN.width.get());
+    DRAW.view_size[1].set(SCREEN.height.get());
+    DRAW.view_offset[0].set(0);
+    DRAW.view_offset[1].set(0);
+    DRAW.view_zoom.set(0x100);
+    crate::scene::set_view_window::set_view_window();
+    if first {
+        LIGHT_STATE.draw_mode.set(0);
     }
+    GROUND_WORK.view_mirrored.set(0);
 }
 
 /// `race::mirror_view_window` (0x455F17): the rear-view mirror's window: its corner from
@@ -53,57 +51,55 @@ pub unsafe fn full_view_window(first: bool) {
 /// its edges `dword_624138` .. `dword_624144`; `dword_624080` 0x100,
 /// `scene::set_view_window`, the fog (`race::set_up_fog`), `dword_6365C4` 0,
 /// `dword_63993C` 1. Refuses (before anything) a size whose scaling would fault.
-pub unsafe fn mirror_view_window() -> Result<(), Refused> {
+pub fn mirror_view_window() -> Result<(), Refused> {
     // Converted: `rc2k_core::race::view::{mirror_entry, mirror_window}`.
     use rc2k_core::race::view::{Window, mirror_entry, mirror_window};
-    unsafe {
-        let n = mirror_entry(
-            RACE_VARS.split.get(),
-            RACE_VIEW.drawn_view.get(),
-            PANEL.flat.get() == 0,
-        );
-        // g_mirrorPlaces: 12 entries of two dwords; an entry past them reads on, as the
-        // original.
-        let places = &FRAME_WORK.mirror_places;
-        let trap = Trap::new();
-        let at = |word: usize| {
-            let k = (n as usize).wrapping_mul(2).wrapping_add(word);
-            places.get(k).map_or_else(
-                || {
-                    trap.read::<u32>(
-                        places[0].addr().wrapping_add(4 * k) as u32,
-                        "the mirror places",
-                    )
-                },
-                |c| c.get(),
-            )
-        };
-        let Some(Window {
-            x,
-            y,
-            width: sx,
-            height: sy,
-        }) = mirror_window((at(0), at(1)), (SCREEN.width.get(), SCREEN.height.get()))
-        else {
-            trap.finish()?;
-            return Err(BadInput("a mirror place whose scaling overflows").into());
-        };
+    let n = mirror_entry(
+        RACE_VARS.split.get(),
+        RACE_VIEW.drawn_view.get(),
+        PANEL.flat.get() == 0,
+    );
+    // g_mirrorPlaces: 12 entries of two dwords; an entry past them reads on, as the
+    // original.
+    let places = &FRAME_WORK.mirror_places;
+    let trap = Trap::new();
+    let at = |word: usize| {
+        let k = (n as usize).wrapping_mul(2).wrapping_add(word);
+        places.get(k).map_or_else(
+            || {
+                trap.read::<u32>(
+                    places[0].addr().wrapping_add(4 * k) as u32,
+                    "the mirror places",
+                )
+            },
+            |c| c.get(),
+        )
+    };
+    let Some(Window {
+        x,
+        y,
+        width: sx,
+        height: sy,
+    }) = mirror_window((at(0), at(1)), (SCREEN.width.get(), SCREEN.height.get()))
+    else {
         trap.finish()?;
-        DRAW.view_offset[0].set(x);
-        DRAW.view_offset[1].set(y);
-        DRAW.view_size[0].set(sx);
-        DRAW.view_size[1].set(sy);
-        DRAW.cleared_rectangle[0].set(x);
-        DRAW.cleared_rectangle[1].set(y);
-        DRAW.cleared_rectangle[2].set(x.wrapping_add(sx));
-        DRAW.cleared_rectangle[3].set(y.wrapping_add(sy));
-        DRAW.view_zoom.set(0x100);
-        crate::scene::set_view_window::set_view_window();
-        crate::race::frame_draw::set_up_fog()?;
-        LIGHT_STATE.draw_mode.set(0);
-        GROUND_WORK.view_mirrored.set(1);
-        Ok(())
-    }
+        return Err(BadInput("a mirror place whose scaling overflows").into());
+    };
+    trap.finish()?;
+    DRAW.view_offset[0].set(x);
+    DRAW.view_offset[1].set(y);
+    DRAW.view_size[0].set(sx);
+    DRAW.view_size[1].set(sy);
+    DRAW.cleared_rectangle[0].set(x);
+    DRAW.cleared_rectangle[1].set(y);
+    DRAW.cleared_rectangle[2].set(x.wrapping_add(sx));
+    DRAW.cleared_rectangle[3].set(y.wrapping_add(sy));
+    DRAW.view_zoom.set(0x100);
+    crate::scene::set_view_window::set_view_window();
+    crate::race::frame_draw::set_up_fog()?;
+    LIGHT_STATE.draw_mode.set(0);
+    GROUND_WORK.view_mirrored.set(1);
+    Ok(())
 }
 
 /// `race::draw_flat_triangle` (0x455912): three vertices at (1, 1, 0) with texture 0, 0,
@@ -146,7 +142,7 @@ fn shadow_refuses(sh: &crate::marks::draw_shadow::Shadow<'_>) -> Result<(), Refu
 
 /// `race::draw_marks_overlays` (0x45632B): `marks::draw_overlays`, then
 /// `marks::draw_shadow`. Refuses (before anything) the second shadow's refusals.
-pub unsafe fn draw_marks_overlays() -> Result<(), Refused> {
+pub fn draw_marks_overlays() -> Result<(), Refused> {
     shadow_refuses(&crate::marks::draw_shadow::FIRST)?;
     // Neither reads a register, and the race reads none they leave (only DF, ST).
     {
@@ -465,70 +461,66 @@ fn int_over_times(i: u32, a: u32, b: u32) -> u32 {
 /// `flt_6416C0[]`, height / `flt_5C5D70` x `flt_6416D4[]`) for `marks::frame_marks` (part 1)
 /// and, unless `dword_6416B8`, `marks::run_frame` (part 2), the centre put back. Refuses
 /// (before anything) a null view block or car record, or no marks settings.
-pub unsafe fn run_view_marks() -> Result<(), Refused> {
+pub fn run_view_marks() -> Result<(), Refused> {
     // Converted: `rc2k_core::race::view_steps::{check_view_marks, marks_shown,
     // layout_index, first_word}` (the centre's floats the x87's).
     use rc2k_core::race::view_steps::{
         CAR_RECORDS, check_view_marks, first_word, layout_index, marks_shown,
     };
-    unsafe {
-        if FRAME_SWITCHES.view_marks_on.get() == 0 {
-            return Ok(());
-        }
-        let view = RACE_VIEW.drawn_view.get();
-        let block = RACE_VIEW.view_blocks[view as usize].get();
-        check_view_marks(
-            block,
-            |b| RACE_WORK.car_record(b as usize),
-            || crate::marks::setup::SETTINGS.pointer.get(),
-        )?;
-        let (other, own) = marks_shown(
-            view,
-            RACE_VARS.scene_switch.get(),
-            crate::physics::split_tables_store::SPLIT_TABLES.still.get(),
-        );
-        VIEWER_PANEL.other_marks_shown.set(other);
-        VIEWER_PANEL.own_marks_shown.set(own);
-        let layout_at = layout_index(view, RACE_VARS.split.get());
-        let layout = FRAME_WORK.view_layouts[layout_at as usize].get();
-        VIEWER_PANEL.marks_layout.set(layout);
-        GamePtr::new(block + 0x8C0).copy_to(
-            GamePtr::new(MATRICES.view_place[0].addr() as u32),
-            0x40,
-            "a view car block's turn matrix",
-        )?;
-        crate::drive::share_all_cars::share_all_cars()?;
-        let first = first_word(RACE_VARS.run_kind.get());
-        for b in 0..CAR_RECORDS {
-            GamePtr::new(RACE_WORK.car_record(b as usize))
-                .write(first, "a car record's first word")?;
-        }
-        GamePtr::new(RACE_WORK.car_record(view as usize))
-            .write(1u32, "a car record's first word")?;
-        let centre = (DRAW.view_centre[0].bits(), DRAW.view_centre[1].bits());
-        let n = FRAME_WORK.view_layouts[layout_at as usize].get() as usize;
-        DRAW.view_centre[0].set_bits(int_over_times(
-            SCREEN.width.get(),
-            NUMBERS.k800.bits(),
-            FRAME_WORK.view_scale_x[n].bits(),
-        ));
-        DRAW.view_centre[1].set_bits(int_over_times(
-            SCREEN.height.get(),
-            NUMBERS.k600.bits(),
-            FRAME_WORK.view_scale_y[n].bits(),
-        ));
-        // Neither reads a register nor leaves one read after it (0x456464, 0x456472).
-        let done = crate::marks::frame_marks::frame_marks().and_then(|_| {
-            if FRAME_WORK.drawing.get() == 0 {
-                crate::marks::run_frame::run_frame()
-            } else {
-                Ok(())
-            }
-        });
-        DRAW.view_centre[1].set_bits(centre.1);
-        DRAW.view_centre[0].set_bits(centre.0);
-        done
+    if FRAME_SWITCHES.view_marks_on.get() == 0 {
+        return Ok(());
     }
+    let view = RACE_VIEW.drawn_view.get();
+    let block = RACE_VIEW.view_blocks[view as usize].get();
+    check_view_marks(
+        block,
+        |b| RACE_WORK.car_record(b as usize),
+        || crate::marks::setup::SETTINGS.pointer.get(),
+    )?;
+    let (other, own) = marks_shown(
+        view,
+        RACE_VARS.scene_switch.get(),
+        crate::physics::split_tables_store::SPLIT_TABLES.still.get(),
+    );
+    VIEWER_PANEL.other_marks_shown.set(other);
+    VIEWER_PANEL.own_marks_shown.set(own);
+    let layout_at = layout_index(view, RACE_VARS.split.get());
+    let layout = FRAME_WORK.view_layouts[layout_at as usize].get();
+    VIEWER_PANEL.marks_layout.set(layout);
+    GamePtr::new(block + 0x8C0).copy_to(
+        GamePtr::new(MATRICES.view_place[0].addr() as u32),
+        0x40,
+        "a view car block's turn matrix",
+    )?;
+    crate::drive::share_all_cars::share_all_cars()?;
+    let first = first_word(RACE_VARS.run_kind.get());
+    for b in 0..CAR_RECORDS {
+        GamePtr::new(RACE_WORK.car_record(b as usize)).write(first, "a car record's first word")?;
+    }
+    GamePtr::new(RACE_WORK.car_record(view as usize)).write(1u32, "a car record's first word")?;
+    let centre = (DRAW.view_centre[0].bits(), DRAW.view_centre[1].bits());
+    let n = FRAME_WORK.view_layouts[layout_at as usize].get() as usize;
+    DRAW.view_centre[0].set_bits(int_over_times(
+        SCREEN.width.get(),
+        NUMBERS.k800.bits(),
+        FRAME_WORK.view_scale_x[n].bits(),
+    ));
+    DRAW.view_centre[1].set_bits(int_over_times(
+        SCREEN.height.get(),
+        NUMBERS.k600.bits(),
+        FRAME_WORK.view_scale_y[n].bits(),
+    ));
+    // Neither reads a register nor leaves one read after it (0x456464, 0x456472).
+    let done = crate::marks::frame_marks::frame_marks().and_then(|_| {
+        if FRAME_WORK.drawing.get() == 0 {
+            crate::marks::run_frame::run_frame()
+        } else {
+            Ok(())
+        }
+    });
+    DRAW.view_centre[1].set_bits(centre.1);
+    DRAW.view_centre[0].set_bits(centre.0);
+    done
 }
 
 /// `d3d::clear_viewport_unless_held` (0x44E9EE, was `sub_44E9EE`; ported 2026-10-23, the

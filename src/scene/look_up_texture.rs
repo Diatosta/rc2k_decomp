@@ -13,7 +13,7 @@ use crate::scene::kind_texture_store::KIND_TEXTURES;
 use crate::scene::texture_places_store::TEXTURE_PLACES;
 
 /// The Rust version: what it leaves in eax.
-pub unsafe fn look_up_texture() -> u32 {
+pub fn look_up_texture() -> u32 {
     // Converted: `rc2k_core::scene::textures::look_up`.
     let found = rc2k_core::scene::textures::look_up(
         DRAW.texture_page.bits(),

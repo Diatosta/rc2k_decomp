@@ -26,7 +26,7 @@ pub fn chat_input_line(text: u32, item: u32, y: u32) -> Result<u32, Refused> {
     } else {
         text
     };
-    unsafe {
+    {
         crate::text::draw_text::draw_text_at(
             CHAT_FONT.as_ptr(),
             shown as *const u8,

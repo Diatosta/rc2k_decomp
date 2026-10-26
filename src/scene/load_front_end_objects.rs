@@ -24,26 +24,24 @@ use crate::scene::reset_objects::reset_objects;
 /// The Rust version. The registers the original leaves (eax the faces' memory used, ecx
 /// 0x100, edi, ebx) are read by no caller (taint at its sites: `race::set_object_kinds`' and
 /// `load_front_end_objects_logged`'s).
-pub unsafe fn load_front_end_objects() -> Result<(), Refused> {
-    unsafe {
-        reset_objects()?;
-        crate::scene::object_slots_store::OBJECT_SLOTS
-            .texture_count
-            .set(0);
-        crate::scene::object_slots_store::OBJECT_SLOTS
-            .no_normals
-            .set(0);
-        for slot in 0..SLOTS {
-            let kind: u32 = OBJECT_TABLES.slot_kinds[slot as usize].get();
-            OBJECT_WORK.loading_kind.set_bits(kind);
-            OBJECT_WORK.loading_slot.set_bits(slot);
-            load_object()?;
-        }
-        let cursor: u32 = OBJECT_WORK.face_cursor.bits();
-        OBJECT_WORK
-            .point_memory_total
-            .set_bits(OBJECT_TABLES.point_count.get().wrapping_mul(12));
-        OBJECT_WORK.face_memory_total.set_bits(cursor);
-        Ok(())
+pub fn load_front_end_objects() -> Result<(), Refused> {
+    reset_objects()?;
+    crate::scene::object_slots_store::OBJECT_SLOTS
+        .texture_count
+        .set(0);
+    crate::scene::object_slots_store::OBJECT_SLOTS
+        .no_normals
+        .set(0);
+    for slot in 0..SLOTS {
+        let kind: u32 = OBJECT_TABLES.slot_kinds[slot as usize].get();
+        OBJECT_WORK.loading_kind.set_bits(kind);
+        OBJECT_WORK.loading_slot.set_bits(slot);
+        load_object()?;
     }
+    let cursor: u32 = OBJECT_WORK.face_cursor.bits();
+    OBJECT_WORK
+        .point_memory_total
+        .set_bits(OBJECT_TABLES.point_count.get().wrapping_mul(12));
+    OBJECT_WORK.face_memory_total.set_bits(cursor);
+    Ok(())
 }

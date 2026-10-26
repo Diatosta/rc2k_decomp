@@ -16,16 +16,14 @@ use crate::physics::tables_store::PHYSICS;
 
 /// The Rust version.
 // Converted: `rc2k_core::physics::gearbox::asked_gear`.
-pub unsafe fn take_asked_gear() -> Result<(), Refused> {
+pub fn take_asked_gear() -> Result<(), Refused> {
     let run = || -> Result<(), Refused> {
-        unsafe {
-            CAR.gear_changed.set(0u32);
-            let word: u32 = CAR.input_keys.get();
-            let asked = rc2k_core::physics::gearbox::asked_gear(word);
-            let gear = allowed_gear(asked)?;
-            PHYSICS.gear_asked.set(gear);
-            change_gear()
-        }
+        CAR.gear_changed.set(0u32);
+        let word: u32 = CAR.input_keys.get();
+        let asked = rc2k_core::physics::gearbox::asked_gear(word);
+        let gear = allowed_gear(asked)?;
+        PHYSICS.gear_asked.set(gear);
+        change_gear()
     };
 
     run()

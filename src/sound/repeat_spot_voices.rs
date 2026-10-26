@@ -31,7 +31,7 @@ pub fn repeat_spot_voices() -> Result<(), Refused> {
         });
     let mut voices = load_voices();
     repeat::<Refused>(&mut voices, &table_of, |_, range| {
-        Ok(unsafe { crate::math::random_below::random_below(range) }?)
+        Ok({ crate::math::random_below::random_below(range) }?)
     })?;
     store_voices(&voices);
     Ok(())

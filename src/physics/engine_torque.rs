@@ -29,7 +29,7 @@ pub fn below(a: u32, b: u32) -> bool {
 
 /// The Rust version (the exact one, for `physics::engine_torque_or_cut`, `drive_force`,
 /// `free_rev*`, `test_drive_run`).
-pub unsafe fn engine_torque() {
+pub fn engine_torque() {
     let s = x87::div(CAR.engine_speed.bits(), CAR.engine_speed_limit.bits());
     DRAW.scratch.set(s);
     if below(s, NUMBERS.one.bits()) && !below(s, NUMBERS.zero.bits()) {

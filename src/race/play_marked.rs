@@ -27,7 +27,7 @@ use rc2k_core::race::viewer_flow::Play;
 pub fn play_tail(play: Play) -> Result<(), Refused> {
     REPLAY_VIEW.play_end.set(play.end);
     REPLAY_FILE.viewer_stopped.set(0);
-    unsafe { crate::drive::read_replay_frame::read_replay_frame(play.from, play.frame) }?;
+    { crate::drive::read_replay_frame::read_replay_frame(play.from, play.frame) }?;
     crate::race::play_replay_range::play_replay_range()?;
     REPLAY_VIEW.play_from_here.set(0);
     Ok(())

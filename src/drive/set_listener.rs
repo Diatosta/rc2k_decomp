@@ -47,7 +47,7 @@ use crate::scene::rotate_point::rotate_point;
 use rc2k_core::drive::listener;
 
 /// The car file's six figures times 65536 over 1000, or the refusal (before anything).
-unsafe fn figures() -> Result<[i32; 6], Refused> {
+fn figures() -> Result<[i32; 6], Refused> {
     let viewed = RACE_VIEW.drawn_view.get();
     listener::check_viewed(viewed, || RACE_WORK.car_block(viewed as usize) != 0)?;
     let n = car_file_number(CAR_BLOCKS.cars[0].car_kind.get());
@@ -63,114 +63,111 @@ unsafe fn figures() -> Result<[i32; 6], Refused> {
 /// The Rust version. The registers it leaves are read by no caller (liveness: eax and
 /// ebx after `share_all_cars`' call have no read point).
 // Converted: `rc2k_core::drive::listener` (the matrices, turns and x87 sums stay).
-pub unsafe fn set_listener() -> Result<(), Refused> {
-    unsafe {
-        let f = figures()?;
-        let car = &CAR_BLOCKS.cars[0];
-        let s = RACE_WORK.car_block(RACE_VIEW.drawn_view.get() as usize);
-        let place: [u32; 3] = GamePtr::new(s.wrapping_add(0x134)).read("a car's block")?;
-        let strength: u32 = GamePtr::new(s.wrapping_add(0xABC)).read("a car's block")?;
-        KIND_TABLES.listener_car_place[2].set_bits(x87::from_int(place[2] as i32));
-        KIND_TABLES.listener_car_place[1].set_bits(x87::from_int(place[1] as i32));
-        KIND_TABLES.listener_car_place[0].set_bits(x87::from_int(place[0] as i32));
-        VIEWER_PANEL
-            .listener_near
-            .set(u32::from(listener::car_ahead(strength)));
-        for k in 0..3 {
-            VIEWER_PANEL.listener_place[k].set(VIEW_VARS.view_place[k].get().wrapping_neg());
-        }
-        for (k, o) in listener::TURN_OFFSETS.into_iter().enumerate() {
-            VIEWER_PANEL.listener_turn[k]
-                .set_bits(MATRICES.view_turn_matrix[o as usize / 4].bits());
-        }
-        KIND_TABLES.listener_figures[0].set(listener::first_figure(
-            RACE_VARS.settings_words[0].get(),
-            || FRAME_WORK.view_out.get(),
-        ));
-        KIND_TABLES.listener_figures[1].set(FRAME_WORK.sun_place[0].get());
-        KIND_TABLES.listener_figures[2].set(FRAME_WORK.sun_place[1].get());
-        let f = listener::listener_points(f, PHYSICS.ground_drop.get());
-        for (k, &v) in f.iter().enumerate() {
-            CAMERA_WORK.listener_points[k].set(v as u32);
-        }
-        // The car block 0's matrix (0x70FC2C, 16 dwords of `unknown_734`).
-        for k in 0..16 {
-            MATRICES.turned_matrix[k].set_bits(car.unknown_734[67 + k].bits());
-        }
-        multiply_matrices(
-            MATRICES.turned_matrix[0].addr(),
-            car.unknown_734[83].addr(),
-            MATRICES.lit_matrix[0].addr(),
-        );
-        multiply_matrices(
-            MATRICES.lit_matrix[0].addr(),
-            MATRICES.view_matrix[0].addr(),
-            MATRICES.made_object_matrix[0].addr(),
-        );
-        for k in 0..16 {
-            MATRICES.listener_matrix[k].set_bits(MATRICES.made_object_matrix[k].bits());
-        }
-        let made = MATRICES.made_object_matrix[0].addr() as u32;
-        for (first, out, negate) in [
-            (0, &KIND_TABLES.listener_point_a_negated, true),
-            (0, &KIND_TABLES.listener_point_a, false),
-            (3, &KIND_TABLES.listener_point_b_negated, true),
-            (3, &KIND_TABLES.listener_point_b, false),
-        ] {
-            let p = [
-                int_80(f[first], negate),
-                int_80(f[first + 1], false),
-                int_80(f[first + 2], false),
-            ];
-            let r = rotate_point(made, p);
-            for (cell, e) in out.iter().zip(r.iter()) {
-                cell.set(ext_to_int(*e) as u32);
-            }
-        }
-        let switches = listener::switches(
-            FRAME_WORK.mirror_wanted.get() != 0,
-            car.surface_noise_a.get(),
-            car.surface_noise_b.get(),
-        );
-        for (cell, v) in [
-            &KIND_TABLES.listener_switch_0,
-            &KIND_TABLES.listener_switch_1,
-            &KIND_TABLES.listener_switch_2,
-            &KIND_TABLES.listener_switch_3,
-            &KIND_TABLES.listener_switch_4,
-            &KIND_TABLES.listener_switch_5,
-            &KIND_TABLES.listener_switch_6,
-            &KIND_TABLES.listener_switch_7,
-        ]
-        .into_iter()
-        .zip(switches)
-        {
-            cell.set(v);
-        }
-        let old = car.gear_changed_2.get();
-        if old != 0 {
-            KIND_TABLES.listener_gear_changed.set(old);
-        }
-        car.gear_changed_2.set(0);
-        KIND_TABLES
-            .listener_flag
-            .set(u32::from(car.handbrake.get() != 0));
-        DRAW.scratch.set(0x2000_0000);
-        KIND_TABLES.listener_scale.set_bits(int_over_int_plus(
-            car.steer_angle_visual.get() as i32,
-            0x2000_0000,
-            LIGHT_STATE.listener_camera.bits(),
-        ));
-        KIND_TABLES
-            .listener_float_a
-            .set_bits(x87::loaded(car.engine_speed.bits()));
-        KIND_TABLES
-            .listener_float_b
-            .set_bits(x87::loaded(car.engine_speed_scaled.bits()));
-        if crate::physics::split_tables_store::SPLIT_TABLES.still.get() != 0 {
-            KIND_TABLES.listener_flag.set(0);
-            KIND_TABLES.listener_gear_changed.set(0);
-        }
-        Ok(())
+pub fn set_listener() -> Result<(), Refused> {
+    let f = figures()?;
+    let car = &CAR_BLOCKS.cars[0];
+    let s = RACE_WORK.car_block(RACE_VIEW.drawn_view.get() as usize);
+    let place: [u32; 3] = GamePtr::new(s.wrapping_add(0x134)).read("a car's block")?;
+    let strength: u32 = GamePtr::new(s.wrapping_add(0xABC)).read("a car's block")?;
+    KIND_TABLES.listener_car_place[2].set_bits(x87::from_int(place[2] as i32));
+    KIND_TABLES.listener_car_place[1].set_bits(x87::from_int(place[1] as i32));
+    KIND_TABLES.listener_car_place[0].set_bits(x87::from_int(place[0] as i32));
+    VIEWER_PANEL
+        .listener_near
+        .set(u32::from(listener::car_ahead(strength)));
+    for k in 0..3 {
+        VIEWER_PANEL.listener_place[k].set(VIEW_VARS.view_place[k].get().wrapping_neg());
     }
+    for (k, o) in listener::TURN_OFFSETS.into_iter().enumerate() {
+        VIEWER_PANEL.listener_turn[k].set_bits(MATRICES.view_turn_matrix[o as usize / 4].bits());
+    }
+    KIND_TABLES.listener_figures[0].set(listener::first_figure(
+        RACE_VARS.settings_words[0].get(),
+        || FRAME_WORK.view_out.get(),
+    ));
+    KIND_TABLES.listener_figures[1].set(FRAME_WORK.sun_place[0].get());
+    KIND_TABLES.listener_figures[2].set(FRAME_WORK.sun_place[1].get());
+    let f = listener::listener_points(f, PHYSICS.ground_drop.get());
+    for (k, &v) in f.iter().enumerate() {
+        CAMERA_WORK.listener_points[k].set(v as u32);
+    }
+    // The car block 0's matrix (0x70FC2C, 16 dwords of `unknown_734`).
+    for k in 0..16 {
+        MATRICES.turned_matrix[k].set_bits(car.unknown_734[67 + k].bits());
+    }
+    multiply_matrices(
+        MATRICES.turned_matrix[0].addr(),
+        car.unknown_734[83].addr(),
+        MATRICES.lit_matrix[0].addr(),
+    );
+    multiply_matrices(
+        MATRICES.lit_matrix[0].addr(),
+        MATRICES.view_matrix[0].addr(),
+        MATRICES.made_object_matrix[0].addr(),
+    );
+    for k in 0..16 {
+        MATRICES.listener_matrix[k].set_bits(MATRICES.made_object_matrix[k].bits());
+    }
+    let made = MATRICES.made_object_matrix[0].addr() as u32;
+    for (first, out, negate) in [
+        (0, &KIND_TABLES.listener_point_a_negated, true),
+        (0, &KIND_TABLES.listener_point_a, false),
+        (3, &KIND_TABLES.listener_point_b_negated, true),
+        (3, &KIND_TABLES.listener_point_b, false),
+    ] {
+        let p = [
+            int_80(f[first], negate),
+            int_80(f[first + 1], false),
+            int_80(f[first + 2], false),
+        ];
+        let r = rotate_point(made, p);
+        for (cell, e) in out.iter().zip(r.iter()) {
+            cell.set(ext_to_int(*e) as u32);
+        }
+    }
+    let switches = listener::switches(
+        FRAME_WORK.mirror_wanted.get() != 0,
+        car.surface_noise_a.get(),
+        car.surface_noise_b.get(),
+    );
+    for (cell, v) in [
+        &KIND_TABLES.listener_switch_0,
+        &KIND_TABLES.listener_switch_1,
+        &KIND_TABLES.listener_switch_2,
+        &KIND_TABLES.listener_switch_3,
+        &KIND_TABLES.listener_switch_4,
+        &KIND_TABLES.listener_switch_5,
+        &KIND_TABLES.listener_switch_6,
+        &KIND_TABLES.listener_switch_7,
+    ]
+    .into_iter()
+    .zip(switches)
+    {
+        cell.set(v);
+    }
+    let old = car.gear_changed_2.get();
+    if old != 0 {
+        KIND_TABLES.listener_gear_changed.set(old);
+    }
+    car.gear_changed_2.set(0);
+    KIND_TABLES
+        .listener_flag
+        .set(u32::from(car.handbrake.get() != 0));
+    DRAW.scratch.set(0x2000_0000);
+    KIND_TABLES.listener_scale.set_bits(int_over_int_plus(
+        car.steer_angle_visual.get() as i32,
+        0x2000_0000,
+        LIGHT_STATE.listener_camera.bits(),
+    ));
+    KIND_TABLES
+        .listener_float_a
+        .set_bits(x87::loaded(car.engine_speed.bits()));
+    KIND_TABLES
+        .listener_float_b
+        .set_bits(x87::loaded(car.engine_speed_scaled.bits()));
+    if crate::physics::split_tables_store::SPLIT_TABLES.still.get() != 0 {
+        KIND_TABLES.listener_flag.set(0);
+        KIND_TABLES.listener_gear_changed.set(0);
+    }
+    Ok(())
 }

@@ -13,7 +13,7 @@ use crate::service::state::{flags, store_flags};
 
 // ---- Rust version ----
 
-pub unsafe fn clear_repair_flags() -> Result<(), BadInput> {
+pub fn clear_repair_flags() -> Result<(), BadInput> {
     // Converted: `rc2k_core::service::repairs::clear`.
     let mut t = flags();
     rc2k_core::service::repairs::clear(&mut t)?;

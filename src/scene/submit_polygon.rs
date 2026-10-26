@@ -59,7 +59,7 @@ pub fn vertices_fit(vertices: &[Vertex], width: u32, height: u32) -> bool {
         .all(|v| fits(v[0], width as f64) && fits(v[1], height as f64) && fits(v[2], 1.0))
 }
 
-pub unsafe fn submit_polygon(outside: &mut dyn Outside) {
+pub fn submit_polygon(outside: &mut dyn Outside) {
     let has_3d = OBJECT_TABLES.has_3d.get() != 0;
     let texture: u32 = DRAW.polygon_texture.bits();
     if texture == NO_TEXTURE {

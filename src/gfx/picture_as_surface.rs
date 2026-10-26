@@ -38,7 +38,7 @@ const PIXEL_KIND_COUNT: u32 = 2;
 
 /// The surface block for a picture with these flags, from its third dword on (the corner
 /// is not touched).
-pub unsafe fn surface_of(flags: u32, pixels: u32) -> Result<[u32; SURFACE_DWORDS - 2], Refused> {
+pub fn surface_of(flags: u32, pixels: u32) -> Result<[u32; SURFACE_DWORDS - 2], Refused> {
     // Converted: `rc2k_core::gfx::screen_modes::picture_surface`.
     rc2k_core::gfx::screen_modes::picture_surface(
         flags,

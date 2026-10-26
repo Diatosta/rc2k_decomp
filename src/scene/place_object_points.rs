@@ -49,38 +49,36 @@ const OBJECTS: u32 = 0x100;
 /// `sub_45C29B`: the point at `from` moved towards the one `by` bytes on, into
 /// `unk_5CCE18`.
 fn moved(from: usize, by: u32) -> Result<(), BadInput> {
-    unsafe {
-        let other = from.wrapping_add(by as usize);
-        let read = |at: usize| GamePtr::new(at as u32).read::<[u32; 3]>("an object's point");
-        let (a, b) = (read(from)?, read(other)?);
-        // The fraction, the two points, the result, the fraction as it is stored.
-        let mut w = [
-            RACE_VARS.move_fraction.bits(),
-            a[0],
-            a[1],
-            a[2],
-            b[0],
-            b[1],
-            b[2],
-            0,
-            0,
-            0,
-            0,
-        ];
-        moved_at(w.as_mut_ptr().cast());
-        // The original stores the three from `point_moved`, y and z on over the first two
-        // group masks (`notes/bugs.md`).
-        COURSE.point_moved.set(w[7]);
-        COURSE.group_masks[0].set(w[8]);
-        COURSE.group_masks[1].set(w[9]);
-        DRAW.scratch.set_bits(w[10]);
-    }
+    let other = from.wrapping_add(by as usize);
+    let read = |at: usize| GamePtr::new(at as u32).read::<[u32; 3]>("an object's point");
+    let (a, b) = (read(from)?, read(other)?);
+    // The fraction, the two points, the result, the fraction as it is stored.
+    let mut w = [
+        RACE_VARS.move_fraction.bits(),
+        a[0],
+        a[1],
+        a[2],
+        b[0],
+        b[1],
+        b[2],
+        0,
+        0,
+        0,
+        0,
+    ];
+    moved_at(w.as_mut_ptr().cast());
+    // The original stores the three from `point_moved`, y and z on over the first two
+    // group masks (`notes/bugs.md`).
+    COURSE.point_moved.set(w[7]);
+    COURSE.group_masks[0].set(w[8]);
+    COURSE.group_masks[1].set(w[9]);
+    DRAW.scratch.set_bits(w[10]);
     Ok(())
 }
 
 /// The block of `moved`: the fraction, the two points, the result (three whole numbers) and the
 /// fraction as it is stored.
-unsafe fn moved_at(w: *mut u8) {
+fn moved_at(w: *mut u8) {
     let t0 = fld(w, 0x0);
     let t1 = fild(w, 0xC);
     let t2 = fild(w, 0x18);
@@ -105,11 +103,11 @@ unsafe fn moved_at(w: *mut u8) {
 
 /// `sub_45C1E7`: a normal's three floats through the matrix's first three rows, into
 /// the record's +0x10, +0x14, +0x18.
-unsafe fn turn(normal: *const u32, matrix: *const u32, record: *mut u32) {
-    unsafe { turn_normal(normal.cast(), matrix.cast(), record.cast()) }
+fn turn(normal: *const u32, matrix: *const u32, record: *mut u32) {
+    turn_normal(normal.cast(), matrix.cast(), record.cast())
 }
 
-unsafe fn turn_normal(p: *const u8, m: *const u8, o: *mut u8) {
+fn turn_normal(p: *const u8, m: *const u8, o: *mut u8) {
     let t0 = fld(p, 0x8);
     let t1 = fld(p, 0x4);
     let t2 = fld(p, 0x0);
@@ -152,7 +150,7 @@ struct Object {
     matrix: u32,
 }
 
-unsafe fn object() -> Result<Object, BadInput> {
+fn object() -> Result<Object, BadInput> {
     let number: u32 = FRAME_SWITCHES.object_number.bits();
     if number >= OBJECTS {
         return Err(BadInput("an object's number past the tables"));
@@ -182,51 +180,49 @@ fn record_of(records: u32, number: u32) -> u32 {
 
 /// The object's points placed and projected, its normals turned. What the original
 /// leaves in the registers its one caller's callers never read (`draw_object`).
-pub unsafe fn place_object_points() -> Result<(), Refused> {
-    unsafe {
-        let object = object()?;
-        if object.points <= 0 {
-            return Ok(());
-        }
-        let matrix = object.matrix as *const u32;
-        let move_by: u32 = RACE_VARS.move_by.bits();
-        let mut number = object.first;
-        let mut from = object.table.wrapping_add(object.first.wrapping_mul(12));
-        for _ in 0..object.points {
-            let record = record_of(object.records, number) as usize;
-            put(record, number);
-            let point = if move_by != 0 {
-                moved(from as usize, move_by)?;
-                // x, y, z read on into `group_masks[0]`, `[1]`, as stored.
-                COURSE.point_moved.addr()
-            } else {
-                from as usize
-            };
-            rotate(point as *const i32, matrix, record as *mut u32);
-            put(record + 0xC, 0);
-            put(record + 0x1C, 0);
-            if f32::from_bits(dword(record + 0x18)) >= NEAR {
-                let v = [
-                    DRAW.view_scale.bits(),
-                    DRAW.view_centre[0].bits(),
-                    DRAW.view_centre[1].bits(),
-                    COURSE.flat_depth.bits(),
-                ];
-                let flat = STAGE_PREFS.flat_depth.bits() != 0;
-                to_screen(record as *mut u32, &v, flat, DRAW.scratch.as_ptr());
-            }
-            from = from.wrapping_add(12);
-            number = number.wrapping_add(1);
-        }
-        for _ in 0..object.normals.max(0) {
-            let record = record_of(object.records, number) as usize;
-            put(record, number);
-            turn(from as usize as *const u32, matrix, record as *mut u32);
-            from = from.wrapping_add(12);
-            number = number.wrapping_add(1);
-        }
-        Ok(())
+pub fn place_object_points() -> Result<(), Refused> {
+    let object = object()?;
+    if object.points <= 0 {
+        return Ok(());
     }
+    let matrix = object.matrix as *const u32;
+    let move_by: u32 = RACE_VARS.move_by.bits();
+    let mut number = object.first;
+    let mut from = object.table.wrapping_add(object.first.wrapping_mul(12));
+    for _ in 0..object.points {
+        let record = record_of(object.records, number) as usize;
+        put(record, number);
+        let point = if move_by != 0 {
+            moved(from as usize, move_by)?;
+            // x, y, z read on into `group_masks[0]`, `[1]`, as stored.
+            COURSE.point_moved.addr()
+        } else {
+            from as usize
+        };
+        rotate(point as *const i32, matrix, record as *mut u32);
+        put(record + 0xC, 0);
+        put(record + 0x1C, 0);
+        if f32::from_bits(dword(record + 0x18)) >= NEAR {
+            let v = [
+                DRAW.view_scale.bits(),
+                DRAW.view_centre[0].bits(),
+                DRAW.view_centre[1].bits(),
+                COURSE.flat_depth.bits(),
+            ];
+            let flat = STAGE_PREFS.flat_depth.bits() != 0;
+            to_screen(record as *mut u32, &v, flat, DRAW.scratch.as_ptr());
+        }
+        from = from.wrapping_add(12);
+        number = number.wrapping_add(1);
+    }
+    for _ in 0..object.normals.max(0) {
+        let record = record_of(object.records, number) as usize;
+        put(record, number);
+        turn(from as usize as *const u32, matrix, record as *mut u32);
+        from = from.wrapping_add(12);
+        number = number.wrapping_add(1);
+    }
+    Ok(())
 }
 
 #[cfg(test)]
@@ -338,7 +334,7 @@ mod asm_reference {
                 }
             },
             |base| unsafe { moved_at_ref(base) },
-            |base| unsafe { moved_at(base) },
+            moved_at,
         );
     }
 

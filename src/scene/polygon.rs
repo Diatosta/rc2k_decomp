@@ -40,17 +40,17 @@ pub fn materials_addr() -> usize {
     crate::scene::polygon_store::POLYGON_WORK.object_materials[0].words[0].addr()
 }
 
-pub unsafe fn dword(at: usize) -> u32 {
+pub fn dword(at: usize) -> u32 {
     crate::pointers::read_or_end::<u32>((at) as u32, "scene::polygon's operand")
 }
 
-pub unsafe fn put(at: usize, value: u32) {
+pub fn put(at: usize, value: u32) {
     crate::pointers::write_or_end::<u32>((at) as u32, value, "scene::polygon's operand")
 }
 
 /// The polygon's entries in the list's order, as addresses. Refuses what the originals
 /// go wrong on: more vertices than the vertex buffer holds, a list entry past the table.
-pub unsafe fn listed() -> Result<Vec<usize>, BadInput> {
+pub fn listed() -> Result<Vec<usize>, BadInput> {
     let count: u32 = DRAW.polygon_vertex_count.bits();
     if count > MOST {
         return Err(BadInput("a polygon of more than 256 vertices"));

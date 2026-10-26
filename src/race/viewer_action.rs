@@ -192,13 +192,13 @@ fn read_at(r: &mut Carried, block: u32, frame: u32) -> Result<(), Refused> {
     REPLAY_VIEW.replay_frame.set(frame);
     r.arg = block;
     r.palette = frame;
-    r.carry = unsafe { crate::drive::read_replay_frame::read_replay_frame(block, frame) }?;
+    r.carry = { crate::drive::read_replay_frame::read_replay_frame(block, frame) }?;
     Ok(())
 }
 
 /// `drive::read_replay_frame_0` of the block in `arg`; the carry says it failed.
 fn read_replay_frame_0(r: &mut Carried) -> Result<(), Refused> {
-    r.carry = unsafe { crate::drive::read_replay_frame_0::read_replay_frame_0(r.arg) }?;
+    r.carry = { crate::drive::read_replay_frame_0::read_replay_frame_0(r.arg) }?;
     Ok(())
 }
 

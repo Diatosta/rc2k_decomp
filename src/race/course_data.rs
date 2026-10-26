@@ -127,7 +127,7 @@ fn load_log(n: usize) {
 /// first part (`files::read_level_file`, the bytes in `dword_60B2CC`; a failed read is
 /// fatal error 0x80650210, without a message), its header copied, laid out, the faces'
 /// lights reset, with "loadlevel", "done", "next", "this", "then", "ok" in the log.
-pub unsafe fn load_level() -> Result<(), Refused> {
+pub fn load_level() -> Result<(), Refused> {
     use crate::files::{read_level_file, read_packed_file};
     set_cdat_number(0);
     crate::files::state::BYTES_READ.store(0, std::sync::atomic::Ordering::Relaxed);
@@ -157,12 +157,10 @@ pub unsafe fn load_level() -> Result<(), Refused> {
 /// `race::locate_current_course` (0x4394CB, "locacurrcourse"): `dword_609380` 0,
 /// `load_level`, `lay_out_course` (its test of `dword_621514` jumps to the next
 /// instruction either way: section 16), `group_records_by_kind`, `build_best_line`.
-pub unsafe fn locate_current_course() -> Result<(), Refused> {
-    unsafe {
-        STAGE_PREFS.cdat_number.set_bits(0u32);
-        load_level()?;
-        crate::race::norms::lay_out_course();
-        group_records_by_kind()?;
-        crate::race::best_line::build_best_line()
-    }
+pub fn locate_current_course() -> Result<(), Refused> {
+    STAGE_PREFS.cdat_number.set_bits(0u32);
+    load_level()?;
+    crate::race::norms::lay_out_course();
+    group_records_by_kind()?;
+    crate::race::best_line::build_best_line()
 }

@@ -160,15 +160,13 @@ mod squares {
             SQUARE_TABLES.curve[n].set_bits(x87::circle_curve(i, a, b, i < 0x400));
         }
         for n in 0..RADII as usize {
-            unsafe {
-                x87::circle_points(
-                    SQUARE_TABLES.radii[n].addr() as *const u32,
-                    address_of(&SQUARE_TABLES.points[n]) as *mut u32,
-                    SIDES as u32,
-                    SQUARE_STATE.steps.as_ptr() as *const i32,
-                    SQUARE_STATE.step_angle.addr() as *const u32,
-                );
-            }
+            x87::circle_points(
+                SQUARE_TABLES.radii[n].addr() as *const u32,
+                address_of(&SQUARE_TABLES.points[n]) as *mut u32,
+                SIDES as u32,
+                SQUARE_STATE.steps.as_ptr() as *const i32,
+                SQUARE_STATE.step_angle.addr() as *const u32,
+            );
         }
     }
 }
@@ -224,28 +222,26 @@ impl Shapes {
 
     /// The items cleared, the curve, the circles.
     fn make(&self) -> Result<(), Refused> {
-        unsafe {
-            let items = (self.items)() as u32;
-            for n in 0..ITEMS {
-                GamePtr::new(items + n * self.item_len).write::<u32>(0, "a mark item")?;
-            }
-            let (a, b): (u32, u32) = (self.curve_a.bits(), self.curve_b.bits());
-            for n in 0..CURVE {
-                let i = 8 * n as i32;
-                GamePtr::new((self.curve.addr() + 4 * n as usize) as u32)
-                    .write::<u32>(x87::circle_curve(i, a, b, i < 0x400), "the shapes' curve")?;
-            }
-            let radii = self.radii.addr() as u32;
-            let points = self.points.addr() as u32;
-            for n in 0..RADII {
-                x87::circle_points(
-                    (radii + 4 * n) as *const u32,
-                    (points + 12 * self.sides * n) as *mut u32,
-                    self.sides,
-                    self.step_c.addr() as *const i32,
-                    self.step_d.addr() as *const u32,
-                );
-            }
+        let items = (self.items)() as u32;
+        for n in 0..ITEMS {
+            GamePtr::new(items + n * self.item_len).write::<u32>(0, "a mark item")?;
+        }
+        let (a, b): (u32, u32) = (self.curve_a.bits(), self.curve_b.bits());
+        for n in 0..CURVE {
+            let i = 8 * n as i32;
+            GamePtr::new((self.curve.addr() + 4 * n as usize) as u32)
+                .write::<u32>(x87::circle_curve(i, a, b, i < 0x400), "the shapes' curve")?;
+        }
+        let radii = self.radii.addr() as u32;
+        let points = self.points.addr() as u32;
+        for n in 0..RADII {
+            x87::circle_points(
+                (radii + 4 * n) as *const u32,
+                (points + 12 * self.sides * n) as *mut u32,
+                self.sides,
+                self.step_c.addr() as *const i32,
+                self.step_d.addr() as *const u32,
+            );
         }
         Ok(())
     }

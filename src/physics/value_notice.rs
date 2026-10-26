@@ -15,22 +15,20 @@ use crate::physics::cells::{get, put_changed};
 use rc2k_core::physics::notices::Notice;
 
 // Converted: `rc2k_core::physics::notices::Notice::value_notice`.
-unsafe fn core(v: &[u32]) {
-    unsafe {
-        let was = Notice {
-            shown: get(v[1]),
-            last: get(v[2]),
-            id: get(v[3]),
-            time: get(v[4]),
-            ..Notice::default()
-        };
-        let mut n = was;
-        n.value_notice(get(v[0]));
-        put_changed(v[3], was.id, n.id);
-        put_changed(v[4], was.time, n.time);
-        put_changed(v[1], was.shown, n.shown);
-        put_changed(v[2], was.last, n.last);
-    }
+fn core(v: &[u32]) {
+    let was = Notice {
+        shown: get(v[1]),
+        last: get(v[2]),
+        id: get(v[3]),
+        time: get(v[4]),
+        ..Notice::default()
+    };
+    let mut n = was;
+    n.value_notice(get(v[0]));
+    put_changed(v[3], was.id, n.id);
+    put_changed(v[4], was.time, n.time);
+    put_changed(v[1], was.shown, n.shown);
+    put_changed(v[2], was.last, n.last);
 }
 
 fn game() -> Vec<u32> {
@@ -44,6 +42,6 @@ fn game() -> Vec<u32> {
 }
 
 /// The Rust version.
-pub unsafe fn value_notice() {
-    unsafe { core(&game()) }
+pub fn value_notice() {
+    core(&game())
 }

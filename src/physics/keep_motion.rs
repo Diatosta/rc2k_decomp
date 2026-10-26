@@ -9,7 +9,7 @@
 use crate::physics::car_store::CAR;
 use crate::physics::tables_store::PHYSICS;
 
-unsafe fn core(v: &[u32]) {
+fn core(v: &[u32]) {
     for k in 0..3 {
         crate::pointers::write_or_end::<u32>(
             v[k + 3],
@@ -31,6 +31,6 @@ fn game() -> Vec<u32> {
 }
 
 /// The Rust version.
-pub unsafe fn keep_motion() {
-    unsafe { core(&game()) }
+pub fn keep_motion() {
+    core(&game())
 }

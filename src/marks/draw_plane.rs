@@ -112,89 +112,87 @@ fn plane_projected() {
 /// The Rust version (see the header).
 pub fn draw_plane() -> Result<(), Refused> {
     use crate::scene::set_render_state::set_render_state;
-    unsafe {
-        let s: u32 = crate::marks::setup::SETTINGS.pointer.get();
-        if s == 0 {
-            return Err(BadInput("no marks settings").into());
-        }
-        let corner: u32 = QUAD_3.corner.get();
-        plane_axes(s);
-        let [a0, a1, a2] = [0, 1, 2].map(|n| address_of(&SQUARE_TABLES.axes[n]) as u32);
-        normalise_vector3(a0);
-        plane_up(s);
-        normalise_vector3(a1);
-        cross_product3(a1, a0, a2)?;
-        normalise_vector3(a2);
-        cross_product3(a0, a2, a1)?;
-        crate::marks::scale_axes::scale_axes();
-        plane_place(s);
-        normalise_vector3(HEX.place.as_ptr() as u32);
-        plane_facing();
-        if HEXAGON_STATE.facing.bits() & 0x8000_0000 == 0 {
-            return Ok(());
-        }
-        if FRAME_WORK.lead_kept[7].bits() == 0 {
-            return Ok(());
-        }
-        if corner >= 0x100 {
-            return Err(BadInput("a plane corner past g_marksCorners").into());
-        }
-        crate::scene::depth_test_off::depth_test_off();
-        for state in [0x11, 0x12] {
-            set_render_state(2, state);
-        }
-        crate::scene::set_texture::set_texture(KIND_TEXTURES.kind_first_slots[202].bits());
-        plane_corners();
-        let entry = &MARK_CORNERS.corners[corner as usize];
-        let word = |off: u32| u32::from(entry.words[off as usize / 2].get());
-        let uv_k: u32 = DRAW_WORK.uv_k.bits();
-        for (n, (u, v)) in UV_WORDS.into_iter().enumerate() {
-            let vertex = &VERTICES.vertices[n];
-            vertex.u.set_bits(x87::int_times(word(u) as i32, uv_k));
-            vertex.v.set_bits(x87::int_times(word(v) as i32, uv_k));
-        }
-        for n in 0..4 {
-            let vertex = &VERTICES.vertices[n];
-            vertex
-                .u
-                .set_bits(x87::loaded(PLANE_TUNING.places[n][0].bits()));
-            vertex
-                .v
-                .set_bits(x87::loaded(PLANE_TUNING.places[n][1].bits()));
-        }
-        let light: u32 = FRAME_WORK.view_light.bits();
-        for n in 0..4 {
-            VERTICES.vertices[n].colour.set(light);
-        }
-        for n in 0..4 {
-            if (QUAD_3.corners[n][2].bits() as i32) <= (NUMBERS.k4096_a.bits() as i32) {
-                return Ok(());
-            }
-        }
-        plane_projected();
-        let [kind, z_k]: [u32; 2] = [MARKS_KIND_FLOATS.kind_float.bits(), DRAW_WORK.z_k.bits()];
-        for n in 0..4 {
-            let c = &QUAD_3.corners[n];
-            let vertex = &VERTICES.vertices[n];
-            vertex.x.set_bits(c[0].bits());
-            vertex.y.set_bits(c[1].bits());
-            let depth: u32 = c[2].bits();
-            vertex.z.set_bits(x87::sum3_times(
-                depth,
-                kind,
-                PLANE_TUNING.lifts[n].bits(),
-                z_k,
-            ));
-        }
-        for n in 0..4 {
-            let depth: u32 = QUAD_3.corners[n][2].bits();
-            VERTICES.vertices[n]
-                .rhw
-                .set_bits(x87::reciprocal_times(depth, PLANE_TUNING.rhw_k[n].bits()));
-        }
-        crate::marks::clip_quad::draw_fan();
-        crate::scene::depth_test_on::depth_test_on();
+    let s: u32 = crate::marks::setup::SETTINGS.pointer.get();
+    if s == 0 {
+        return Err(BadInput("no marks settings").into());
     }
+    let corner: u32 = QUAD_3.corner.get();
+    plane_axes(s);
+    let [a0, a1, a2] = [0, 1, 2].map(|n| address_of(&SQUARE_TABLES.axes[n]) as u32);
+    normalise_vector3(a0);
+    plane_up(s);
+    normalise_vector3(a1);
+    cross_product3(a1, a0, a2)?;
+    normalise_vector3(a2);
+    cross_product3(a0, a2, a1)?;
+    crate::marks::scale_axes::scale_axes();
+    plane_place(s);
+    normalise_vector3(HEX.place.as_ptr() as u32);
+    plane_facing();
+    if HEXAGON_STATE.facing.bits() & 0x8000_0000 == 0 {
+        return Ok(());
+    }
+    if FRAME_WORK.lead_kept[7].bits() == 0 {
+        return Ok(());
+    }
+    if corner >= 0x100 {
+        return Err(BadInput("a plane corner past g_marksCorners").into());
+    }
+    crate::scene::depth_test_off::depth_test_off();
+    for state in [0x11, 0x12] {
+        set_render_state(2, state);
+    }
+    crate::scene::set_texture::set_texture(KIND_TEXTURES.kind_first_slots[202].bits());
+    plane_corners();
+    let entry = &MARK_CORNERS.corners[corner as usize];
+    let word = |off: u32| u32::from(entry.words[off as usize / 2].get());
+    let uv_k: u32 = DRAW_WORK.uv_k.bits();
+    for (n, (u, v)) in UV_WORDS.into_iter().enumerate() {
+        let vertex = &VERTICES.vertices[n];
+        vertex.u.set_bits(x87::int_times(word(u) as i32, uv_k));
+        vertex.v.set_bits(x87::int_times(word(v) as i32, uv_k));
+    }
+    for n in 0..4 {
+        let vertex = &VERTICES.vertices[n];
+        vertex
+            .u
+            .set_bits(x87::loaded(PLANE_TUNING.places[n][0].bits()));
+        vertex
+            .v
+            .set_bits(x87::loaded(PLANE_TUNING.places[n][1].bits()));
+    }
+    let light: u32 = FRAME_WORK.view_light.bits();
+    for n in 0..4 {
+        VERTICES.vertices[n].colour.set(light);
+    }
+    for n in 0..4 {
+        if (QUAD_3.corners[n][2].bits() as i32) <= (NUMBERS.k4096_a.bits() as i32) {
+            return Ok(());
+        }
+    }
+    plane_projected();
+    let [kind, z_k]: [u32; 2] = [MARKS_KIND_FLOATS.kind_float.bits(), DRAW_WORK.z_k.bits()];
+    for n in 0..4 {
+        let c = &QUAD_3.corners[n];
+        let vertex = &VERTICES.vertices[n];
+        vertex.x.set_bits(c[0].bits());
+        vertex.y.set_bits(c[1].bits());
+        let depth: u32 = c[2].bits();
+        vertex.z.set_bits(x87::sum3_times(
+            depth,
+            kind,
+            PLANE_TUNING.lifts[n].bits(),
+            z_k,
+        ));
+    }
+    for n in 0..4 {
+        let depth: u32 = QUAD_3.corners[n][2].bits();
+        VERTICES.vertices[n]
+            .rhw
+            .set_bits(x87::reciprocal_times(depth, PLANE_TUNING.rhw_k[n].bits()));
+    }
+    crate::marks::clip_quad::draw_fan();
+    crate::scene::depth_test_on::depth_test_on();
     Ok(())
 }
 

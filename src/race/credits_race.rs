@@ -38,10 +38,8 @@ pub fn credits_race() -> Result<(), Refused> {
         .set(2);
     FRAME_SWITCHES.editor_mode.set(0);
     crate::race::set_up_credits_race::set_up_credits_race()?;
-    unsafe {
-        crate::race::race_cars::set_up_arcade_cars()?;
-        crate::race::race_shell::set_start_states()?;
-    }
+    crate::race::race_cars::set_up_arcade_cars()?;
+    crate::race::race_shell::set_start_states()?;
     RACE_WORK.in_credits.set(1);
     let word = |n: usize| WORDS[n].as_ptr() as usize as *const u8;
     unsafe {

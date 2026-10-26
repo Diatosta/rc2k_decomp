@@ -18,7 +18,7 @@ use crate::physics::camera_view::{rd, record, share_done};
 use crate::scene::x87_mem::{fistp, fld, fstp};
 
 /// The Rust version (the exact one, for `physics::update_camera`).
-pub unsafe fn ease_view_blend() {
+pub fn ease_view_blend() {
     let esi = record();
     if rd(esi + 0x58) == 0 || rd(esi + 0x3C) == 0 {
         return;

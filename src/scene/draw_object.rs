@@ -45,9 +45,7 @@ pub enum Step {
 
 /// `step`: what stands for each call. The registers between the calls carry nothing
 /// a later call reads (the object's number goes to each through `g_objectNumber`).
-pub unsafe fn draw_object(
-    step: &mut dyn FnMut(Step) -> Result<(), Refused>,
-) -> Result<(), Refused> {
+pub fn draw_object(step: &mut dyn FnMut(Step) -> Result<(), Refused>) -> Result<(), Refused> {
     for s in [
         Step::Light,
         Step::Material,
@@ -65,14 +63,12 @@ pub unsafe fn draw_object(
 /// `scene::place_object_points_any` (0x45BDE1). The 3DNow and SSE ways (`sub_45BF89`,
 /// `sub_45C04E`) are not ported: a call of either ended the program ("not ported"), a
 /// refusal ends it now.
-unsafe fn place_object_points_any() -> Result<(), Refused> {
-    unsafe {
-        if DRAW_SWITCHES.use_3dnow.bits() != 0 || DRAW_SWITCHES.use_sse.bits() != 0 {
-            return Err(BadInput("the 3DNow and SSE ways of placing points are not ported").into());
-        }
-        place_object_points()?;
-        Ok(())
+fn place_object_points_any() -> Result<(), Refused> {
+    if DRAW_SWITCHES.use_3dnow.bits() != 0 || DRAW_SWITCHES.use_sse.bits() != 0 {
+        return Err(BadInput("the 3DNow and SSE ways of placing points are not ported").into());
     }
+    place_object_points()?;
+    Ok(())
 }
 
 /// With the steps' Rust versions.

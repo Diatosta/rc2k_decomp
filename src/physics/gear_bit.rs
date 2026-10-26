@@ -17,7 +17,7 @@ use crate::physics::flag_result::FlagResult;
 use rc2k_core::physics::gearbox::GearBits;
 
 /// The gear bits in the dword at `bits`.
-pub unsafe fn bits_at(bits: u32) -> GearBits {
+pub fn bits_at(bits: u32) -> GearBits {
     GearBits(crate::pointers::read_or_end::<u32>(
         bits,
         "physics::gear_bit's operand",
@@ -26,8 +26,8 @@ pub unsafe fn bits_at(bits: u32) -> GearBits {
 
 /// The Rust version on the dword at `bits`.
 // Converted: `rc2k_core::physics::gearbox::GearBits::test`.
-pub unsafe fn gear_bit_at(bits: u32, gear: u32) -> Result<FlagResult, Refused> {
-    let t = unsafe { bits_at(bits) }.test(gear)?;
+pub fn gear_bit_at(bits: u32, gear: u32) -> Result<FlagResult, Refused> {
+    let t = { bits_at(bits) }.test(gear)?;
     Ok(FlagResult {
         eax: t.bit,
         ecx: None,
@@ -38,6 +38,6 @@ pub unsafe fn gear_bit_at(bits: u32, gear: u32) -> Result<FlagResult, Refused> {
 }
 
 /// The Rust version.
-pub unsafe fn gear_bit(gear: u32) -> Result<FlagResult, Refused> {
-    unsafe { gear_bit_at(CAR.lost_gear_bits.addr() as u32, gear) }
+pub fn gear_bit(gear: u32) -> Result<FlagResult, Refused> {
+    gear_bit_at(CAR.lost_gear_bits.addr() as u32, gear)
 }

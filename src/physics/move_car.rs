@@ -13,27 +13,25 @@ use crate::physics::tables_store::PHYSICS;
 use crate::race::numbers_store::NUMBERS;
 use crate::scene::draw_store::DRAW;
 
-unsafe fn get(v: &[u32], k: usize) -> u32 {
+fn get(v: &[u32], k: usize) -> u32 {
     crate::pointers::read_or_end::<u32>(v[k], "physics::move_car's operand")
 }
 
-unsafe fn put(v: &[u32], k: usize, x: u32) {
+fn put(v: &[u32], k: usize, x: u32) {
     crate::pointers::write_or_end::<u32>(v[k], x, "physics::move_car's operand")
 }
 
 /// The Rust core on the variables at `v`: the last move.
-pub unsafe fn move_at(v: &[u32]) -> u32 {
-    unsafe {
-        let k65536: u32 = NUMBERS.k65536.bits();
-        let dt: u32 = PHYSICS.step_time.bits();
-        let mut last = 0;
-        for (motion, place) in [(0, 3), (2, 5), (1, 4)] {
-            last = mul2_to_int(get(v, motion), k65536, dt) as u32;
-            put(v, 6, last);
-            put(v, place, get(v, place).wrapping_add(last));
-        }
-        last
+pub fn move_at(v: &[u32]) -> u32 {
+    let k65536: u32 = NUMBERS.k65536.bits();
+    let dt: u32 = PHYSICS.step_time.bits();
+    let mut last = 0;
+    for (motion, place) in [(0, 3), (2, 5), (1, 4)] {
+        last = mul2_to_int(get(v, motion), k65536, dt) as u32;
+        put(v, 6, last);
+        put(v, place, get(v, place).wrapping_add(last));
     }
+    last
 }
 
 fn game() -> Vec<u32> {
@@ -50,6 +48,6 @@ fn game() -> Vec<u32> {
 
 /// The Rust version (the exact one, for `physics::car_physics_step` and
 /// `physics::apply_wheel_torques`).
-pub unsafe fn move_car() -> u32 {
-    unsafe { move_at(&game()) }
+pub fn move_car() -> u32 {
+    move_at(&game())
 }

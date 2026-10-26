@@ -33,7 +33,7 @@ const MEASURING_FONT: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fon
 
 // ---- Rust version ----
 
-pub unsafe fn edit_player_name(canvas: &mut dyn Canvas) -> Result<(), Refused> {
+pub fn edit_player_name(canvas: &mut dyn Canvas) -> Result<(), Refused> {
     // Everything that could be refused, before the key is taken.
     let name = name()?;
     let len = { LOOP_FLAGS.text_length.get() } as i32;
@@ -44,39 +44,36 @@ pub unsafe fn edit_player_name(canvas: &mut dyn Canvas) -> Result<(), Refused> {
         return Err(BadInput("no keyboard layout").into());
     }
 
-    unsafe {
-        let key = take_key();
-        // Converted: `rc2k_core::menu::text_entry` (`key`, `appends`, `too_wide`).
-        use rc2k_core::menu::text_entry::{self as entry, Key};
-        match entry::key(key) {
-            Key::None => {}
-            Key::Escape => {
+    let key = take_key();
+    // Converted: `rc2k_core::menu::text_entry` (`key`, `appends`, `too_wide`).
+    use rc2k_core::menu::text_entry::{self as entry, Key};
+    match entry::key(key) {
+        Key::None => {}
+        Key::Escape => {
+            bring_back_name(name)?;
+            OPTION_WORK.typing.set(0u32);
+        }
+        Key::Enter => {
+            if len == 0 {
                 bring_back_name(name)?;
-                OPTION_WORK.typing.set(0u32);
             }
-            Key::Enter => {
-                if len == 0 {
-                    bring_back_name(name)?;
-                }
-                OPTION_WORK.typing.set(0u32);
-            }
-            Key::Clear => clear_text(name)?,
-            Key::Backspace => backspace_name(name)?,
-            Key::Other(key) => {
-                let c = key_to_char(key as u32)? as u8;
-                if entry::appends(c, len, LOOP_FLAGS.text_max.get() as i32) {
-                    GamePtr::new(name.wrapping_add(len as u32))
-                        .write::<u8>(c, "a player's name")?;
-                    set_length(len.wrapping_add(1));
-                    let measured = measure_text_at(
-                        MEASURING_FONT.as_ptr(),
-                        name as usize as *const u8,
-                        len,
-                        canvas,
-                    )?;
-                    if entry::too_wide(measured.width as i32) {
-                        backspace_name(name)?;
-                    }
+            OPTION_WORK.typing.set(0u32);
+        }
+        Key::Clear => clear_text(name)?,
+        Key::Backspace => backspace_name(name)?,
+        Key::Other(key) => {
+            let c = key_to_char(key as u32)? as u8;
+            if entry::appends(c, len, LOOP_FLAGS.text_max.get() as i32) {
+                GamePtr::new(name.wrapping_add(len as u32)).write::<u8>(c, "a player's name")?;
+                set_length(len.wrapping_add(1));
+                let measured = measure_text_at(
+                    MEASURING_FONT.as_ptr(),
+                    name as usize as *const u8,
+                    len,
+                    canvas,
+                )?;
+                if entry::too_wide(measured.width as i32) {
+                    backspace_name(name)?;
                 }
             }
         }

@@ -13,7 +13,7 @@ use crate::physics::tables_store::PHYSICS;
 use crate::race::numbers_store::NUMBERS;
 use rc2k_core::physics::drive_forces::cap_reverse;
 
-unsafe fn at(a: u32) -> u32 {
+fn at(a: u32) -> u32 {
     crate::pointers::read_or_end::<u32>(a, "physics::cap_reverse_inputs's operand")
 }
 

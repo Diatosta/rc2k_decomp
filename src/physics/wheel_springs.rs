@@ -42,7 +42,7 @@ fn below(x: u32, b: u32) -> bool {
 }
 
 /// The Rust version (the exact one, for `physics::car_physics_step`).
-pub unsafe fn wheel_springs() {
+pub fn wheel_springs() {
     let (c, ph) = (&CAR, &PHYSICS);
     for k in 0..4 {
         let q = &c.wheel_squeeze[k];

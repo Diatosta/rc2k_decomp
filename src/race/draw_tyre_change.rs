@@ -52,7 +52,7 @@ fn line() -> u32 {
 }
 
 /// The text buffer: string `id`, then (with `time`) a time, then a NUL.
-unsafe fn build_text(id: u32, time: Option<u32>) -> Result<(), Refused> {
+fn build_text(id: u32, time: Option<u32>) -> Result<(), Refused> {
     use crate::strings::append_time::{append_time, show_hours};
     let mut t = Vec::new();
     crate::strings::append_string_by_id::push_string(&mut t, id)?;
@@ -86,7 +86,7 @@ fn fill(x: u32, y: u32, width: u32, height: u32) -> Result<(), Refused> {
 
 /// A text (`text::draw_text_keep_regs` on the game's surface) in `font` at (`x`, `y`).
 fn text(font: u32, text: u32, x: u32, y: u32) -> Result<(), Refused> {
-    unsafe { crate::race::name_plates::draw_text_in_game(font, text, x, y) }?;
+    { crate::race::name_plates::draw_text_in_game(font, text, x, y) }?;
     Ok(())
 }
 
@@ -143,7 +143,7 @@ pub unsafe fn draw_tyre_change(device: u32) -> Result<(), Refused> {
         }
         set_clip(&BLIT.clip.left, 0x80);
         fill(0x80, 0x32, 0x80, 0x4B)?;
-        unsafe { build_text(0x12E, Some(TYRE.record.get())) }?;
+        { build_text(0x12E, Some(TYRE.record.get())) }?;
         three_times(0x84, 0x32)?;
         set_clip(&BLIT.clip.left, 0);
         fill(0, 0x99, 0x100, 0x19)?;
@@ -160,9 +160,9 @@ pub unsafe fn draw_tyre_change(device: u32) -> Result<(), Refused> {
         let state = GamePtr::new(device + 0x4F0).read::<u32>("the tyre change device's state")?;
         if state == 1 {
             let time = GamePtr::new(device + 0x4F4).read::<u32>("the tyre change device's time")?;
-            unsafe { build_text(0x12D, Some(time)) }?;
+            { build_text(0x12D, Some(time)) }?;
         } else {
-            unsafe { build_text(0x12C, None) }?;
+            { build_text(0x12C, None) }?;
         }
         three_times(x.wrapping_add(4), 0xB2)?;
         unsafe { crate::d3d::unlock_texture::unlock_texture(TYRE.texture.get()) }?;

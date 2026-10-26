@@ -41,9 +41,9 @@ pub fn call_listed(function: u32) -> Result<(), Refused> {
 /// get none (2026-10-24, `tables_data.rs`' `on_key` against `item_fn`'s reads).
 pub fn call_key(function: u32, item: u32) -> Result<(), Refused> {
     match ItemFn::from_ral(ral(function)) {
-        Some(ItemFn::RaiseControllerSensitivity) => unsafe {
+        Some(ItemFn::RaiseControllerSensitivity) => {
             crate::menu::controller_items::raise_controller_sensitivity(item)
-        },
+        }
         Some(f) => item_fn(f, &ItemCall::default()),
         None => Err(BadInput("a key callback that is none of the items' functions").into()),
     }
@@ -125,7 +125,7 @@ pub fn refused(what: &str, e: Refused, r: &Regs) {
                 "menu::table_calls: {what}: the Rust version raises fatal error {:#x} {:?}",
                 error.code, error.message
             ));
-            unsafe { crate::fatal::raise::raise(error, r) };
+            crate::fatal::raise::raise(error, r);
         }
     }
 }

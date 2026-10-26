@@ -24,24 +24,20 @@ const FACTORS: u32 = 0x100;
 
 // ---- Rust version ----
 
-pub unsafe fn face_sort_key(face: usize, count: u32) -> Result<(), Refused> {
-    unsafe {
-        let records: u32 = COURSE_LISTS.point_records.bits();
-        let vertices: u32 = DRAW.polygon_vertex_count.bits();
-        if face == 0 || records == 0 || count == 0 || count > 0x1000 || vertices >= FACTORS {
-            return Err(
-                BadInput("no face, no records, or a count the key cannot be made for").into(),
-            );
-        }
-        let mut sum = 0f32.to_bits();
-        for n in 0..count as usize {
-            let offset = ((dword(face + 0x10 + n * 0x10) & 0xFFF) + 0x1000) << 5;
-            let record = records.wrapping_add(offset);
-            sum = x87::add(dword(record as usize + 0x18), sum);
-        }
-        let factor = COURSE_LISTS.face_key_factors[vertices as usize].bits();
-        DRAW.face_sort_key
-            .set_bits(x87::mul_to_int(sum, factor) as u32);
-        Ok(())
+pub fn face_sort_key(face: usize, count: u32) -> Result<(), Refused> {
+    let records: u32 = COURSE_LISTS.point_records.bits();
+    let vertices: u32 = DRAW.polygon_vertex_count.bits();
+    if face == 0 || records == 0 || count == 0 || count > 0x1000 || vertices >= FACTORS {
+        return Err(BadInput("no face, no records, or a count the key cannot be made for").into());
     }
+    let mut sum = 0f32.to_bits();
+    for n in 0..count as usize {
+        let offset = ((dword(face + 0x10 + n * 0x10) & 0xFFF) + 0x1000) << 5;
+        let record = records.wrapping_add(offset);
+        sum = x87::add(dword(record as usize + 0x18), sum);
+    }
+    let factor = COURSE_LISTS.face_key_factors[vertices as usize].bits();
+    DRAW.face_sort_key
+        .set_bits(x87::mul_to_int(sum, factor) as u32);
+    Ok(())
 }

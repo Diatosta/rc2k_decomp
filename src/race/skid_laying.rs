@@ -21,16 +21,14 @@ fn put(a: u32, v: u32) -> Result<(), BadInput> {
 }
 
 /// The edges' offset for an angle (`math::turn_point_xz` of (0x1555, y, 0) by angle << 16).
-unsafe fn offsets(angle: u32, y: u32) -> (u32, u32) {
-    unsafe {
-        let [x, _, z, _] = crate::math::turn_point_xz::turn_point_xz(
-            rc2k_core::race::skids::HALF_WIDTH,
-            y as i32,
-            0,
-            angle << 16,
-        );
-        (x, z)
-    }
+fn offsets(angle: u32, y: u32) -> (u32, u32) {
+    let [x, _, z, _] = crate::math::turn_point_xz::turn_point_xz(
+        rc2k_core::race::skids::HALF_WIDTH,
+        y as i32,
+        0,
+        angle << 16,
+    );
+    (x, z)
 }
 
 /// `race::add_skid_point` (0x45860C): a wheel's next skid point (`dword_645B10`, its slot
@@ -70,8 +68,8 @@ pub unsafe fn add_skid_point(slot: u32) -> Result<(), Refused> {
             crate::race::shadow_skids_store::SHADOW_SKIDS
                 .skid_cars
                 .get() as u16,
-            |dx, dz| crate::scene::angle_between::angle_of(dx, dz),
-            |angle, y| offsets(angle, y),
+            crate::scene::angle_between::angle_of,
+            offsets,
         )?;
         put(slot, n)?;
         crate::race::shadow_skids_store::SHADOW_SKIDS

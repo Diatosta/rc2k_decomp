@@ -30,7 +30,7 @@ fn kind_of(reading: &crate::scene::reading::Reading, mode: u32) -> u32 {
 /// The camera wish `wish` (eax); the mode kept (edx), or `None` for a wish that draws
 /// nothing (the original leaves edx then; its one caller draws only for the wishes that
 /// draw).
-pub unsafe fn pick_replay_camera(wish: u32) -> Result<Option<u32>, Refused> {
+pub fn pick_replay_camera(wish: u32) -> Result<Option<u32>, Refused> {
     let Some(kind) = wish_kind(wish) else {
         return Ok(None);
     };
@@ -42,7 +42,7 @@ pub unsafe fn pick_replay_camera(wish: u32) -> Result<Option<u32>, Refused> {
         return Err(BadInput("no camera mode the wish stops at").into());
     }
     let edx = loop {
-        let (_, edx) = draw(unsafe { crate::math::next_random::next_random() });
+        let (_, edx) = draw(crate::math::next_random::next_random());
         if fits(edx) {
             break edx;
         }

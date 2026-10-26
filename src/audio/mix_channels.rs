@@ -11,13 +11,11 @@ use crate::audio::store::AUDIO;
 use crate::errors::Refused;
 
 pub fn mix_channels_in_game(bytes: u32) -> Result<(), Refused> {
-    unsafe {
-        mix_channels(
-            bytes,
-            AUDIO.mix_shift.get(),
-            crate::audio::mix_buffer::MIX_BUFFER.samples.addr() as u32,
-            AUDIO.channels[0].addr() as u32,
-            AUDIO.channel_count.get(),
-        )
-    }
+    mix_channels(
+        bytes,
+        AUDIO.mix_shift.get(),
+        crate::audio::mix_buffer::MIX_BUFFER.samples.addr() as u32,
+        AUDIO.channels[0].addr() as u32,
+        AUDIO.channel_count.get(),
+    )
 }

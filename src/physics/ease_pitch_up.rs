@@ -22,16 +22,14 @@ fn game() -> Vec<u32> {
 
 /// The Rust version on the variables' addresses.
 // Converted: `rc2k_core::physics::easing::ease_up`.
-unsafe fn core(v: &[u32]) {
-    unsafe {
-        let mut value = get(v[1]);
-        let step = ease_up(&mut value, get(v[0]));
-        put(v[2], step);
-        put(v[1], value);
-    }
+fn core(v: &[u32]) {
+    let mut value = get(v[1]);
+    let step = ease_up(&mut value, get(v[0]));
+    put(v[2], step);
+    put(v[1], value);
 }
 
 /// The Rust version.
-pub unsafe fn ease_pitch_up() {
-    unsafe { core(&game()) }
+pub fn ease_pitch_up() {
+    core(&game())
 }

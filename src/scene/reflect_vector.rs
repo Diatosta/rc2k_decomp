@@ -18,25 +18,23 @@ use crate::scene::x87_mem::{fld, fstp};
 
 // ---- Rust version ----
 
-pub unsafe fn reflect_vector() {
-    unsafe {
-        let (v, n): ([u32; 3], [u32; 3]) = (
-            crate::session::read_bits(&MATRICES.reflect_vector),
-            crate::session::read_bits(&MATRICES.reflect_normal),
-        );
-        // The vector, the normal, d.
-        let mut w = [v[0], v[1], v[2], n[0], n[1], n[2], 0];
-        reflect(
-            w.as_mut_ptr().cast(),
-            (MATRICES.view_back_matrix[0].addr() as *mut u32).cast(),
-        );
-        crate::session::write_bits(&MATRICES.reflect_vector, [w[0], w[1], w[2]]);
-        DRAW.scratch.set_bits(w[6]);
-    }
+pub fn reflect_vector() {
+    let (v, n): ([u32; 3], [u32; 3]) = (
+        crate::session::read_bits(&MATRICES.reflect_vector),
+        crate::session::read_bits(&MATRICES.reflect_normal),
+    );
+    // The vector, the normal, d.
+    let mut w = [v[0], v[1], v[2], n[0], n[1], n[2], 0];
+    reflect(
+        w.as_mut_ptr().cast(),
+        (MATRICES.view_back_matrix[0].addr() as *mut u32).cast(),
+    );
+    crate::session::write_bits(&MATRICES.reflect_vector, [w[0], w[1], w[2]]);
+    DRAW.scratch.set_bits(w[6]);
 }
 
 /// The block's arithmetic: `w` the vector, the normal, d; `m` the matrix.
-unsafe fn reflect(w: *mut u8, m: *const u8) {
+fn reflect(w: *mut u8, m: *const u8) {
     let t0 = fld(w, 0x8);
     let t1 = fld(w, 0x14);
     let t2 = t0 * t1;

@@ -18,13 +18,11 @@ use rc2k_core::physics::easing::ease_value;
 
 /// The Rust version on the variables at `v`. The registers the original leaves are read by none of its callers (eax).
 // Converted: `rc2k_core::physics::easing::ease_value`.
-pub unsafe fn ease_at(v: &[u32; 4]) {
-    unsafe {
-        let was = get(v[3]);
-        let mut value = was;
-        ease_value(get(v[0]), get(v[1]), get(v[2]), &mut value);
-        put_changed(v[3], was, value);
-    }
+pub fn ease_at(v: &[u32; 4]) {
+    let was = get(v[3]);
+    let mut value = was;
+    ease_value(get(v[0]), get(v[1]), get(v[2]), &mut value);
+    put_changed(v[3], was, value);
 }
 
 fn game() -> [u32; 4] {
@@ -37,6 +35,6 @@ fn game() -> [u32; 4] {
 }
 
 /// The Rust version.
-pub unsafe fn ease_car_value() {
-    unsafe { ease_at(&game()) }
+pub fn ease_car_value() {
+    ease_at(&game())
 }

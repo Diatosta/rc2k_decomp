@@ -34,7 +34,7 @@ pub fn controller(record: u32, offset: usize) -> Result<u32, Refused> {
 }
 
 /// The pending changes of the device `record`'s effects.
-pub unsafe fn device_effects(record: u32) -> Result<(), Refused> {
+pub fn device_effects(record: u32) -> Result<(), Refused> {
     if at(record, field!(InputDevice, effects_on))? != 1
         || at(record, field!(InputDevice, device))? == 0
     {

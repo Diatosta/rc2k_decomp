@@ -14,7 +14,7 @@ use crate::gfx::pixel_format::PixelFormat;
 use crate::gfx::screen_state::DRAW_SURFACE;
 
 /// Where the pixel goes and how wide it is.
-pub unsafe fn place(x: u32, y: u32) -> (u32, u32) {
+pub fn place(x: u32, y: u32) -> (u32, u32) {
     // Converted: `rc2k_core::gfx::picture_size::pixel_place`.
     rc2k_core::gfx::picture_size::pixel_place(
         DRAW_SURFACE.pixels.get(),

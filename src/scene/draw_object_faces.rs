@@ -32,50 +32,47 @@ const FACES: u32 = 0xC000;
 
 // ---- Rust version ----
 
-pub unsafe fn draw_object_faces(
+pub fn draw_object_faces(
     draw: &mut dyn FnMut(usize) -> Result<(), Refused>,
 ) -> Result<(), Refused> {
-    unsafe {
-        let listed: u32 = LIGHT_WORK.listed_face_count.bits();
-        if listed == 0 {
-            return Ok(());
-        }
-        let first: u32 = OBJECT_WORK.object_first_face.bits();
-        // Every face is looked up before anything is written.
-        let mut faces = Vec::with_capacity(listed as usize);
-        for n in 0..listed as usize {
-            let entry = crate::scene::object_slots_store::OBJECT_SLOTS.listed_faces[0].addr()
-                + n * LIST_ENTRY_LEN;
-            let number = dword(entry).wrapping_add(first);
-            if number >= FACES {
-                return Err(BadInput("a face's number past the table").into());
-            }
-            let face: u32 = crate::scene::objects::face_cell(number as usize).get();
-            if face == 0 {
-                return Err(BadInput("a face that is not there").into());
-            }
-            faces.push((entry, number, face as usize));
-        }
-        for &(entry, _, face) in &faces {
-            GROUND_WORK.object_see_through.set_bits(dword(entry + 0xC));
-            RACE_VARS.face_number.set_bits(dword(entry));
-            let head = GamePtr::new(face as u32).read_bytes(0xC, "an object's face")?;
-            let texture = u16::from_le_bytes([head[4], head[5]]) as u32;
-            DRAW.polygon_textures[0].set_bits(
-                texture.wrapping_add(GROUND_WORK.object_texture_set.bits()) | 0x8000_0000,
-            );
-            RACE_SOUND_SPOTS.face_kind.set_bits(head[6] as u32);
-            RACE_SOUND_SPOTS.face_unlit.set_bits(head[0xB] as u32);
-            let shade = head[0xA] as u32;
-            DRAW.polygon_colour.set_bits(if shade == 0 {
-                0x00FF_FFFF
-            } else {
-                0x0001_0101 * shade
-            });
-            draw(face)?;
-            DRAW.polygon_colour.set_bits(0x00FF_FFFFu32);
-        }
-        DRAW.faces_done.set_bits(0u32);
-        Ok(())
+    let listed: u32 = LIGHT_WORK.listed_face_count.bits();
+    if listed == 0 {
+        return Ok(());
     }
+    let first: u32 = OBJECT_WORK.object_first_face.bits();
+    // Every face is looked up before anything is written.
+    let mut faces = Vec::with_capacity(listed as usize);
+    for n in 0..listed as usize {
+        let entry = crate::scene::object_slots_store::OBJECT_SLOTS.listed_faces[0].addr()
+            + n * LIST_ENTRY_LEN;
+        let number = dword(entry).wrapping_add(first);
+        if number >= FACES {
+            return Err(BadInput("a face's number past the table").into());
+        }
+        let face: u32 = crate::scene::objects::face_cell(number as usize).get();
+        if face == 0 {
+            return Err(BadInput("a face that is not there").into());
+        }
+        faces.push((entry, number, face as usize));
+    }
+    for &(entry, _, face) in &faces {
+        GROUND_WORK.object_see_through.set_bits(dword(entry + 0xC));
+        RACE_VARS.face_number.set_bits(dword(entry));
+        let head = GamePtr::new(face as u32).read_bytes(0xC, "an object's face")?;
+        let texture = u16::from_le_bytes([head[4], head[5]]) as u32;
+        DRAW.polygon_textures[0]
+            .set_bits(texture.wrapping_add(GROUND_WORK.object_texture_set.bits()) | 0x8000_0000);
+        RACE_SOUND_SPOTS.face_kind.set_bits(head[6] as u32);
+        RACE_SOUND_SPOTS.face_unlit.set_bits(head[0xB] as u32);
+        let shade = head[0xA] as u32;
+        DRAW.polygon_colour.set_bits(if shade == 0 {
+            0x00FF_FFFF
+        } else {
+            0x0001_0101 * shade
+        });
+        draw(face)?;
+        DRAW.polygon_colour.set_bits(0x00FF_FFFFu32);
+    }
+    DRAW.faces_done.set_bits(0u32);
+    Ok(())
 }

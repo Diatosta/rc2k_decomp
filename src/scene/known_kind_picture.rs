@@ -10,7 +10,7 @@ use crate::race::kind_store::KIND_TABLES;
 
 // ---- Rust version ----
 
-pub unsafe fn known_kind_picture(place: u32) -> u32 {
+pub fn known_kind_picture(place: u32) -> u32 {
     // Converted: `rc2k_core::scene::kinds::known_place`.
     let place = rc2k_core::scene::kinds::known_place(place);
     KIND_TABLES.known_kind_pictures[place].get()

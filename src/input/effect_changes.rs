@@ -51,7 +51,7 @@ fn get(a: u32) -> Result<u32, BadInput> {
 
 /// The change `what` (with `a`, `b`) of the effect at `effect` of the device `record`, by
 /// the effect's function `number` (`input::effect_N_change`).
-pub unsafe fn effect_change(
+pub fn effect_change(
     number: u32,
     record: u32,
     effect: u32,
@@ -127,5 +127,5 @@ pub fn effect_change_at(
     let Some(number) = FUNCTIONS.iter().position(|&f| f == at) else {
         return Err(BadInput("an effect's function that is none of the six").into());
     };
-    unsafe { effect_change(number as u32, record, effect, what, a, b) }
+    effect_change(number as u32, record, effect, what, a, b)
 }

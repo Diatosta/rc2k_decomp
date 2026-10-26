@@ -15,13 +15,13 @@ use rc2k_core::physics::parts::take_bit;
 
 /// The Rust version.
 // Converted: `rc2k_core::physics::parts::take_bit`.
-pub unsafe fn sound_on_bit(cl: u32) -> Result<(), Refused> {
+pub fn sound_on_bit(cl: u32) -> Result<(), Refused> {
     let (_, cleared) = take_bit(CAR.parts_present.bits(), cl);
     let Some(cleared) = cleared else {
         return Ok(());
     };
     object()?;
     CAR.parts_present.set(cleared);
-    unsafe { place_car_sound() }?;
+    { place_car_sound() }?;
     Ok(())
 }

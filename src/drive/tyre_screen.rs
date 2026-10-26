@@ -35,7 +35,7 @@ const STATES: [(u32, u32); 11] = [
 
 /// The Rust version: the mode `mode` (eax), the car `car` (esi); every register kept.
 // Converted: `rc2k_core::drive::tyre_screen::{layout, wheel_place}`.
-pub unsafe fn tyre_screen(mode: u32, car: u32) -> Result<(), Refused> {
+pub fn tyre_screen(mode: u32, car: u32) -> Result<(), Refused> {
     if car > 7 {
         return Err(crate::errors::BadInput("a car past 7 (g_inputDevices)").into());
     }
@@ -57,23 +57,21 @@ pub unsafe fn tyre_screen(mode: u32, car: u32) -> Result<(), Refused> {
     for (value, state) in STATES {
         set_render_state(value, state);
     }
-    unsafe {
-        crate::drive::tyre_quad::tyre_quad(
-            address_of(&TYRE.panel_texture) as u32,
-            address_of(&TYRE.panel) as u32,
-            0xFF_FFFF,
-        )?;
-        crate::drive::tyre_quad::tyre_quad(
-            address_of(&TYRE.wheel_texture) as u32,
-            address_of(&TYRE.wheel) as u32,
-            0xFF_FFFF,
-        )?;
-        crate::drive::tyre_turned_quad::tyre_turned_quad(
-            address_of(&TYRE.turning_texture) as u32,
-            address_of(&TYRE.turning_rect) as u32,
-            0xFF_FFFF,
-            device,
-        )?;
-        crate::drive::tyre_screen_parts::tyre_screen_parts()
-    }
+    crate::drive::tyre_quad::tyre_quad(
+        address_of(&TYRE.panel_texture) as u32,
+        address_of(&TYRE.panel) as u32,
+        0xFF_FFFF,
+    )?;
+    crate::drive::tyre_quad::tyre_quad(
+        address_of(&TYRE.wheel_texture) as u32,
+        address_of(&TYRE.wheel) as u32,
+        0xFF_FFFF,
+    )?;
+    crate::drive::tyre_turned_quad::tyre_turned_quad(
+        address_of(&TYRE.turning_texture) as u32,
+        address_of(&TYRE.turning_rect) as u32,
+        0xFF_FFFF,
+        device,
+    )?;
+    crate::drive::tyre_screen_parts::tyre_screen_parts()
 }

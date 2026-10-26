@@ -53,7 +53,7 @@ fn end_name(name: u32) -> Result<(), BadInput> {
 }
 
 /// Returns the carry flag.
-pub unsafe fn edit_replay_name(canvas: &mut dyn Canvas) -> Result<bool, Refused> {
+pub fn edit_replay_name(canvas: &mut dyn Canvas) -> Result<bool, Refused> {
     // Everything that could be refused, before the key is taken.
     let name = replay_name()?;
     let other_name = savegame_name()?;
@@ -64,56 +64,53 @@ pub unsafe fn edit_replay_name(canvas: &mut dyn Canvas) -> Result<bool, Refused>
         return Err(BadInput("no keyboard layout").into());
     }
 
-    unsafe {
-        let key = take_key();
-        // Converted: `rc2k_core::menu::text_entry` (`key`, `appends`, `too_wide`).
-        use rc2k_core::menu::text_entry::{self as entry, Key};
-        match entry::key(key) {
-            Key::None => {}
-            Key::Escape => {
+    let key = take_key();
+    // Converted: `rc2k_core::menu::text_entry` (`key`, `appends`, `too_wide`).
+    use rc2k_core::menu::text_entry::{self as entry, Key};
+    match entry::key(key) {
+        Key::None => {}
+        Key::Escape => {
+            restore_text(name)?;
+            OPTION_WORK.typing.set(0u32);
+            CAPTIONS.screen_left.set(1u32);
+            return Ok(true);
+        }
+        Key::Enter => {
+            if length() == 0 {
                 restore_text(name)?;
-                OPTION_WORK.typing.set(0u32);
-                CAPTIONS.screen_left.set(1u32);
-                return Ok(true);
+                add_text_length(name)?;
             }
-            Key::Enter => {
-                if length() == 0 {
-                    restore_text(name)?;
-                    add_text_length(name)?;
-                }
-                OPTION_WORK.typing.set(0u32);
-                end_name(name)?;
-                return Ok(false);
-            }
-            // The saved game's name, not the replay's: the original's slip.
-            Key::Clear => clear_text(other_name)?,
-            Key::Backspace => backspace_savegame_name()?,
-            Key::Other(key) => {
-                let c = key_to_char(key as u32)? as u8;
-                let len = length();
-                if entry::appends(c, len, LOOP_FLAGS.text_max.get() as i32) {
-                    GamePtr::new(name.wrapping_add(len as u32))
-                        .write::<u8>(c, "a replay's name")?;
-                    set_length(len.wrapping_add(1));
-                    let measured = measure_text_at(
-                        MEASURING_FONT.as_ptr(),
-                        name as usize as *const u8,
-                        len,
-                        canvas,
-                    )?;
-                    if entry::too_wide(measured.width as i32) {
-                        backspace_savegame_name()?;
-                    }
+            OPTION_WORK.typing.set(0u32);
+            end_name(name)?;
+            return Ok(false);
+        }
+        // The saved game's name, not the replay's: the original's slip.
+        Key::Clear => clear_text(other_name)?,
+        Key::Backspace => backspace_savegame_name()?,
+        Key::Other(key) => {
+            let c = key_to_char(key as u32)? as u8;
+            let len = length();
+            if entry::appends(c, len, LOOP_FLAGS.text_max.get() as i32) {
+                GamePtr::new(name.wrapping_add(len as u32)).write::<u8>(c, "a replay's name")?;
+                set_length(len.wrapping_add(1));
+                let measured = measure_text_at(
+                    MEASURING_FONT.as_ptr(),
+                    name as usize as *const u8,
+                    len,
+                    canvas,
+                )?;
+                if entry::too_wide(measured.width as i32) {
+                    backspace_savegame_name()?;
                 }
             }
         }
-        let cursor_on: u32 = DRAW_WORK.cursor_on.get();
-        let mut tail = Vec::new();
-        if cursor_on == 1 {
-            push_string(&mut tail, CURSOR_STRING)?;
-        }
-        tail.push(0);
-        GamePtr::new(name.wrapping_add(length() as u32)).write_bytes(&tail, "a replay's name")?;
-        Ok(cursor_on == 0)
     }
+    let cursor_on: u32 = DRAW_WORK.cursor_on.get();
+    let mut tail = Vec::new();
+    if cursor_on == 1 {
+        push_string(&mut tail, CURSOR_STRING)?;
+    }
+    tail.push(0);
+    GamePtr::new(name.wrapping_add(length() as u32)).write_bytes(&tail, "a replay's name")?;
+    Ok(cursor_on == 0)
 }

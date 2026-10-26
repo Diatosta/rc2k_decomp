@@ -14,6 +14,6 @@ use crate::service::pages::{SUSPENSION_STIFFNESS, change_page};
 
 // ---- Rust version ----
 
-pub unsafe fn edit_suspension_stiffness(confirm: bool) -> Result<(), Refused> {
-    unsafe { change_page(SUSPENSION_STIFFNESS, confirm) }
+pub fn edit_suspension_stiffness(confirm: bool) -> Result<(), Refused> {
+    change_page(SUSPENSION_STIFFNESS, confirm)
 }

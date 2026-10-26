@@ -14,9 +14,9 @@ use crate::pointers::GamePtr;
 const DWORDS: usize = 0xA04;
 
 /// The Rust version.
-pub unsafe fn load_replay_frame() -> Result<(), Refused> {
+pub fn load_replay_frame() -> Result<(), Refused> {
     let frame = REPLAY_FRAMES.step_block.get();
-    unsafe { crate::drive::read_replay_frame_0::read_replay_frame_0(frame) }?;
+    { crate::drive::read_replay_frame_0::read_replay_frame_0(frame) }?;
     crate::drive::replay_frame_marks::replay_frame_marks()?;
     GamePtr::new(crate::race::viewer_buffers_store::VIEWER_BUFFERS.block[0].addr() as u32)
         .copy_to(

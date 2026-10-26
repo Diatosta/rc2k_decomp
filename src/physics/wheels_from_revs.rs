@@ -15,6 +15,6 @@ use crate::physics::gearing::*;
 
 /// The Rust version (the exact one, for the gearbox's Rust callers), on the game's
 /// variables.
-pub unsafe fn wheels_from_revs() -> Result<(), Refused> {
-    unsafe { wheels_from_revs_at(&GearPlaces::game()) }
+pub fn wheels_from_revs() -> Result<(), Refused> {
+    wheels_from_revs_at(&GearPlaces::game())
 }

@@ -141,18 +141,16 @@ fn dword_in(data: &[u8], at: usize) -> Result<u32, BadInput> {
 }
 
 fn allocate(r: &Bytes<16>, bytes: u32) -> Result<u32, Refused> {
-    Ok(unsafe { crate::memory::allocate::allocate(list(r), bytes) }? as u32)
+    Ok({ crate::memory::allocate::allocate(list(r), bytes) }? as u32)
 }
 
 /// `race::free_game_map` (0x41B907): both map lists freed, the sheet, tiles and pixels 0.
 /// Every register preserved.
-pub unsafe fn free_game_map() -> Result<(), Refused> {
-    unsafe {
-        crate::memory::free_list::free_list(list(&MAP.key_list))?;
-        crate::memory::free_list::free_list(list(&MAP.list))?;
-        for cell in [&MAP.key_pixels, &MAP.tiles, &MAP.tile_pixels] {
-            cell.set(0);
-        }
+pub fn free_game_map() -> Result<(), Refused> {
+    crate::memory::free_list::free_list(list(&MAP.key_list))?;
+    crate::memory::free_list::free_list(list(&MAP.list))?;
+    for cell in [&MAP.key_pixels, &MAP.tiles, &MAP.tile_pixels] {
+        cell.set(0);
     }
     Ok(())
 }
@@ -163,7 +161,7 @@ pub unsafe fn free_game_map() -> Result<(), Refused> {
 /// count 0. Each read of the pixels is of 0x40 tiles at most. Every register preserved.
 /// Refuses a count of 0 or past 0xFFFF and a short read not of whole pixels (the original
 /// counts round).
-pub unsafe fn load_packed_game_map(path: u32) -> Result<(), Refused> {
+pub fn load_packed_game_map(path: u32) -> Result<(), Refused> {
     use crate::files::handle::{close, open_by_mode};
     let (bytes, format) = take_format()?;
     MAP.black
@@ -371,7 +369,7 @@ pub unsafe fn load_game_map(picture: u32, key_path: u32) -> Result<(), Refused> 
     PICTURE.buffer.set(kept[2]);
     PCX.height_limit.set(kept[1]);
     PCX.width_limit.set(kept[0]);
-    unsafe { crate::memory::free_list::free_list(list(&MAP.key_list))? };
+    crate::memory::free_list::free_list(list(&MAP.key_list))?;
     MAP.key_pixels.set(0u32);
     Ok(())
 }

@@ -17,15 +17,13 @@ use crate::scene::draw_store::DRAW;
 /// `race::normalise_work_vector` (0x41FC4D): `g_workVector` made one long by its 80-bit
 /// length (`math::x87::normalise_in_place`); a length equal to 0 makes it 0; -0.0 parts
 /// become 0. The length rounded into `dword_62400C`.
-pub unsafe fn normalise_work_vector() {
-    unsafe {
-        let v = FRAME_SCRATCH.work_vector[0].addr() as *mut u32;
-        let (length, zero) = x87::normalise_in_place(v, NUMBERS.zero.bits());
-        DRAW.scratch.set_bits(length);
-        for part in &FRAME_SCRATCH.work_vector[..3] {
-            if zero || part.bits() == 0x8000_0000 {
-                part.set_bits(0u32);
-            }
+pub fn normalise_work_vector() {
+    let v = FRAME_SCRATCH.work_vector[0].addr() as *mut u32;
+    let (length, zero) = x87::normalise_in_place(v, NUMBERS.zero.bits());
+    DRAW.scratch.set_bits(length);
+    for part in &FRAME_SCRATCH.work_vector[..3] {
+        if zero || part.bits() == 0x8000_0000 {
+            part.set_bits(0u32);
         }
     }
 }
@@ -62,7 +60,7 @@ pub fn face_normal(a: u32, b: u32, c: u32) -> Result<(), BadInput> {
             x87::int_product_difference(d[3], d[0], d[1], d[2]),
         ];
         crate::session::write_first(&FRAME_SCRATCH.work_vector, &normal);
-        unsafe { normalise_work_vector() };
+        normalise_work_vector();
     }
     Ok(())
 }

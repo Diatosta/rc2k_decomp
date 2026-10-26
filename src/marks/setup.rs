@@ -102,26 +102,24 @@ pub fn seed_noise() {
 /// jumps to it).
 pub fn make_wave_tables() -> Result<(), Refused> {
     use crate::marks::waves::{SINES as SINE_TABLE, WAVE, WAVE_LEVELS as LEVELS};
-    unsafe {
-        let done = WAVE.done.get();
-        let target = game_addr(WAVE_DONE_TARGET_RVA) as u32;
-        if done == target {
-            return Ok(());
-        }
-        if done != 0 {
-            return Err(BadInput("the wave tables' mark is neither 0 nor nullsub_23").into());
-        }
-        let (scale, less) = (WAVE.scale.bits(), WAVE.less.bits());
-        for level in LEVELS.levels.iter().take(WAVE_LEVELS as usize).rev() {
-            level.set(x87::int_div_less(level.get() as i32, scale, less));
-        }
-        x87::sine_table(
-            WAVE.sine_step.bits(),
-            SINE_TABLE.table.as_ptr() as *mut u32,
-            SINES,
-        );
-        WAVE.done.set(target);
+    let done = WAVE.done.get();
+    let target = game_addr(WAVE_DONE_TARGET_RVA) as u32;
+    if done == target {
+        return Ok(());
     }
+    if done != 0 {
+        return Err(BadInput("the wave tables' mark is neither 0 nor nullsub_23").into());
+    }
+    let (scale, less) = (WAVE.scale.bits(), WAVE.less.bits());
+    for level in LEVELS.levels.iter().take(WAVE_LEVELS as usize).rev() {
+        level.set(x87::int_div_less(level.get() as i32, scale, less));
+    }
+    x87::sine_table(
+        WAVE.sine_step.bits(),
+        SINE_TABLE.table.as_ptr() as *mut u32,
+        SINES,
+    );
+    WAVE.done.set(target);
     Ok(())
 }
 

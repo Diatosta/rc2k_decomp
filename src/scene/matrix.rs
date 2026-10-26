@@ -13,7 +13,7 @@ use crate::scene::project_point::rotate;
 
 /// An angle's sine and cosine from the game's tables: sixteen bits a turn, the low
 /// four dropped.
-unsafe fn sine_cosine(angle: u32) -> (u32, u32) {
+fn sine_cosine(angle: u32) -> (u32, u32) {
     let place = ((angle & 0xFFFF) >> 4) as usize;
     {
         (
@@ -24,43 +24,37 @@ unsafe fn sine_cosine(angle: u32) -> (u32, u32) {
 }
 
 /// `scene::set_turn_x` (0x426FE1).
-pub unsafe fn set_turn_x(angle: u32) {
-    unsafe {
-        let (sine, cosine) = sine_cosine(angle);
-        crate::session::write_bits(&DRAW.turn_x_work, [sine, cosine]);
-        MATRICES.turn_x_matrix[5].set_bits(cosine);
-        MATRICES.turn_x_matrix[6].set_bits(sine);
-        MATRICES.turn_x_matrix[9].set_bits(sine ^ 0x8000_0000);
-        MATRICES.turn_x_matrix[10].set_bits(cosine);
-    }
+pub fn set_turn_x(angle: u32) {
+    let (sine, cosine) = sine_cosine(angle);
+    crate::session::write_bits(&DRAW.turn_x_work, [sine, cosine]);
+    MATRICES.turn_x_matrix[5].set_bits(cosine);
+    MATRICES.turn_x_matrix[6].set_bits(sine);
+    MATRICES.turn_x_matrix[9].set_bits(sine ^ 0x8000_0000);
+    MATRICES.turn_x_matrix[10].set_bits(cosine);
 }
 
 /// `scene::set_turn_y` (0x42702A).
-pub unsafe fn set_turn_y(angle: u32) {
-    unsafe {
-        let (sine, cosine) = sine_cosine(angle);
-        crate::session::write_bits(&DRAW.turn_y_work, [sine, cosine]);
-        MATRICES.turn_y_matrix[0].set_bits(cosine);
-        MATRICES.turn_y_matrix[2].set_bits(sine ^ 0x8000_0000);
-        MATRICES.turn_y_matrix[8].set_bits(sine);
-        MATRICES.turn_y_matrix[10].set_bits(cosine);
-    }
+pub fn set_turn_y(angle: u32) {
+    let (sine, cosine) = sine_cosine(angle);
+    crate::session::write_bits(&DRAW.turn_y_work, [sine, cosine]);
+    MATRICES.turn_y_matrix[0].set_bits(cosine);
+    MATRICES.turn_y_matrix[2].set_bits(sine ^ 0x8000_0000);
+    MATRICES.turn_y_matrix[8].set_bits(sine);
+    MATRICES.turn_y_matrix[10].set_bits(cosine);
 }
 
 /// `scene::set_turn_z_16` (0x427072): as `set_turn_x`, about the z axis (the matrix and
 /// the work of `scene::set_turn_z`, whose angle is 32 bits a turn).
-pub unsafe fn set_turn_z_16(angle: u32) {
-    unsafe {
-        let (sine, cosine) = sine_cosine(angle);
-        crate::session::write_bits(&DRAW.turn_z_work, [sine, cosine]);
-        crate::session::write_first(&MATRICES.turn_z_matrix, &[cosine, sine]);
-        MATRICES.turn_z_matrix[4].set_bits(sine ^ 0x8000_0000);
-        MATRICES.turn_z_matrix[5].set_bits(cosine);
-    }
+pub fn set_turn_z_16(angle: u32) {
+    let (sine, cosine) = sine_cosine(angle);
+    crate::session::write_bits(&DRAW.turn_z_work, [sine, cosine]);
+    crate::session::write_first(&MATRICES.turn_z_matrix, &[cosine, sine]);
+    MATRICES.turn_z_matrix[4].set_bits(sine ^ 0x8000_0000);
+    MATRICES.turn_z_matrix[5].set_bits(cosine);
 }
 
 /// `scene::set_place` (0x4271AE).
-pub unsafe fn set_place(place: [u32; 3]) {
+pub fn set_place(place: [u32; 3]) {
     crate::session::write_first(
         &MATRICES.placed_matrix[12..15],
         &place.map(|part| x87::from_int(part as i32)),
@@ -72,21 +66,19 @@ pub unsafe fn set_place(place: [u32; 3]) {
 /// column, each row of `a` times that column of `b`; `b`'s fourth row added to the
 /// fourth. Written straight to `out`, in the original's order, so that an `out` that
 /// is one of the two behaves as there.
-pub unsafe fn multiply_matrices(a: usize, b: usize, out: usize) {
-    unsafe {
-        for column in 0..3 {
-            for row in 0..4 {
-                x87::row_times_column(
-                    (a + row * 0x10) as *const u32,
-                    (b + column * 4) as *const u32,
-                    (out + row * 0x10 + column * 4) as *mut u32,
-                );
-            }
-            x87::add_into(
-                (b + 0x30 + column * 4) as *const u32,
-                (out + 0x30 + column * 4) as *mut u32,
+pub fn multiply_matrices(a: usize, b: usize, out: usize) {
+    for column in 0..3 {
+        for row in 0..4 {
+            x87::row_times_column(
+                (a + row * 0x10) as *const u32,
+                (b + column * 4) as *const u32,
+                (out + row * 0x10 + column * 4) as *mut u32,
             );
         }
+        x87::add_into(
+            (b + 0x30 + column * 4) as *const u32,
+            (out + 0x30 + column * 4) as *mut u32,
+        );
     }
 }
 
@@ -108,28 +100,26 @@ pub unsafe fn copy_matrix_with_place(from: usize, other: usize, out: usize) {
 }
 
 /// `scene::set_light_direction` (0x427326).
-pub unsafe fn set_light_direction() {
-    unsafe {
-        set_turn_x((OBJECT_WORK.light_turns[1].bits() << 8).wrapping_neg());
-        set_turn_y((OBJECT_WORK.light_turns[0].bits() << 8).wrapping_neg());
-        multiply_matrices(
-            MATRICES.turn_x_matrix[0].addr(),
-            MATRICES.turn_y_matrix[0].addr(),
-            MATRICES.turned_matrix[0].addr(),
-        );
-        multiply_matrices(
-            MATRICES.turned_matrix[0].addr(),
-            MATRICES.view_turn_matrix[0].addr(),
-            MATRICES.lit_matrix[0].addr(),
-        );
-        // `fld1; fldz; fldz; call scene::rotate_point`, the results popped in turn.
-        let ahead = [0i32, 0, 1];
-        rotate(
-            ahead.as_ptr(),
-            MATRICES.lit_matrix[0].addr() as *const u32,
-            (DRAW.light_direction[0].addr() - 0x10) as *mut u32,
-        );
-    }
+pub fn set_light_direction() {
+    set_turn_x((OBJECT_WORK.light_turns[1].bits() << 8).wrapping_neg());
+    set_turn_y((OBJECT_WORK.light_turns[0].bits() << 8).wrapping_neg());
+    multiply_matrices(
+        MATRICES.turn_x_matrix[0].addr(),
+        MATRICES.turn_y_matrix[0].addr(),
+        MATRICES.turned_matrix[0].addr(),
+    );
+    multiply_matrices(
+        MATRICES.turned_matrix[0].addr(),
+        MATRICES.view_turn_matrix[0].addr(),
+        MATRICES.lit_matrix[0].addr(),
+    );
+    // `fld1; fldz; fldz; call scene::rotate_point`, the results popped in turn.
+    let ahead = [0i32, 0, 1];
+    rotate(
+        ahead.as_ptr(),
+        MATRICES.lit_matrix[0].addr() as *const u32,
+        (DRAW.light_direction[0].addr() - 0x10) as *mut u32,
+    );
 }
 
 /// `scene::make_object_matrix` (0x427812).

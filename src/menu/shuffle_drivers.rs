@@ -25,29 +25,27 @@ const TABLES: [(usize, &Dword); 4] = [
     (0, &MENU_STATE.menus.class_counts[0]),
 ];
 /// The Rust version (see the header): the registers it leaves.
-pub unsafe fn shuffle_drivers() -> Result<(), Refused> {
+pub fn shuffle_drivers() -> Result<(), Refused> {
     use crate::math::random_below::random_below;
-    unsafe {
-        if TABLES.iter().any(|&(_, c)| c.get() == 0) {
-            return Err(BadInput("a driver table count of 0").into());
-        }
-        let [t1, t2] = [
-            GamePtr::new(CAR_NUMBERS.shuffle_a.addr() as u32),
-            GamePtr::new(CAR_NUMBERS.shuffle_b.addr() as u32),
-        ];
-        for &(table, count) in &TABLES {
-            let first = GamePtr::new(
-                &crate::menu::drivers_store::DRIVERS.drivers[table] as *const _ as usize as u32,
-            );
-            let n = count.get();
-            for _ in 0..n {
-                DRAW_WORK.figure.set(random_below(n)?);
-                DRAW_WORK.hhmm.set(random_below(n)?);
-                first.copy_to(t1, 0x94, "a driver")?;
-                first.copy_to(t2, 0x94, "a driver")?;
-                t1.copy_to(first, 0x94, "a driver")?;
-                t2.copy_to(first, 0x94, "a driver")?;
-            }
+    if TABLES.iter().any(|&(_, c)| c.get() == 0) {
+        return Err(BadInput("a driver table count of 0").into());
+    }
+    let [t1, t2] = [
+        GamePtr::new(CAR_NUMBERS.shuffle_a.addr() as u32),
+        GamePtr::new(CAR_NUMBERS.shuffle_b.addr() as u32),
+    ];
+    for &(table, count) in &TABLES {
+        let first = GamePtr::new(
+            &crate::menu::drivers_store::DRIVERS.drivers[table] as *const _ as usize as u32,
+        );
+        let n = count.get();
+        for _ in 0..n {
+            DRAW_WORK.figure.set(random_below(n)?);
+            DRAW_WORK.hhmm.set(random_below(n)?);
+            first.copy_to(t1, 0x94, "a driver")?;
+            first.copy_to(t2, 0x94, "a driver")?;
+            t1.copy_to(first, 0x94, "a driver")?;
+            t2.copy_to(first, 0x94, "a driver")?;
         }
     }
     Ok(())

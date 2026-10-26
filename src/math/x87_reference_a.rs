@@ -93,7 +93,7 @@ pub(super) fn one_less_int_ratio(a: i32, b: i32) -> u32 {
 /// `fld a[0]; fld b[0]; fmulp; fld a[1]; fld b[4]; fmulp; fld a[2]; fld b[8]; fmulp;
 /// faddp; faddp; fstp out`: a row of one matrix times a column of another, the last
 /// two products added first.
-pub(super) unsafe fn row_times_column(a: *const u32, b: *const u32, out: *mut u32) {
+pub(super) fn row_times_column(a: *const u32, b: *const u32, out: *mut u32) {
     x87!(
         "fld dword ptr [{a}]", "fld dword ptr [{b}]", ".byte 0xDE, 0xC9",
         "fld dword ptr [{a} + 4]", "fld dword ptr [{b} + 0x10]", ".byte 0xDE, 0xC9",
@@ -105,7 +105,7 @@ pub(super) unsafe fn row_times_column(a: *const u32, b: *const u32, out: *mut u3
 }
 
 /// `fld a; fadd out; fstp out`.
-pub(super) unsafe fn add_into(a: *const u32, out: *mut u32) {
+pub(super) fn add_into(a: *const u32, out: *mut u32) {
     x87!("fld dword ptr [{a}]", "fadd dword ptr [{o}]", "fstp dword ptr [{o}]"; a = a, o = out);
 }
 
@@ -167,7 +167,7 @@ pub(super) fn negated_product_difference(a: u32, b: u32, c: u32, d: u32) -> u32 
 
 /// `fld v[0]; fmul st, st; fld v[1]; fmul st, st; fld v[2]; fmul st, st; faddp; faddp;
 /// fsqrt; fstp`: the length of three floats.
-pub(super) unsafe fn length(v: *const u32) -> u32 {
+pub(super) fn length(v: *const u32) -> u32 {
     let mut out = 0u32;
     x87!("fld dword ptr [{v}]", ".byte 0xD8, 0xC8",
         "fld dword ptr [{v} + 4]", ".byte 0xD8, 0xC8",
@@ -376,7 +376,7 @@ pub(super) fn int_div_div_doubled(a: i32, b: u32, c: u32) -> u32 {
 
 /// `math::turn_scratch_xz`'s turn, its stack steps as the original's bytes: x' = x cos +
 /// z sin, z' = z cos - x sin, each rounded once, written back over x and z.
-pub(super) unsafe fn turn_in_place(sine: *const u32, cosine: *const u32, x: *mut u32, z: *mut u32) {
+pub(super) fn turn_in_place(sine: *const u32, cosine: *const u32, x: *mut u32, z: *mut u32) {
     x87!(
         "fld dword ptr [{s}]", "fld dword ptr [{c}]", "fld dword ptr [{x}]",
         ".byte 0xD8, 0xC9", "fld dword ptr [{z}]", ".byte 0xD8, 0xCB", ".byte 0xDE, 0xC1",
@@ -664,7 +664,7 @@ pub(super) fn share_left_to_int(a: i32, b: i32, c: u32) -> i32 {
         v = v.as_ptr(), o = &raw mut out);
     out
 }
-pub(super) unsafe fn row_times_column_3(a: *const u32, b: *const u32, out: *mut u32) {
+pub(super) fn row_times_column_3(a: *const u32, b: *const u32, out: *mut u32) {
     x87!(
         "fld dword ptr [{a}]", "fld dword ptr [{b}]", ".byte 0xDE, 0xC9",
         "fld dword ptr [{a} + 4]", "fld dword ptr [{b} + 0xC]", ".byte 0xDE, 0xC9",
@@ -679,7 +679,7 @@ pub(super) unsafe fn row_times_column_3(a: *const u32, b: *const u32, out: *mut 
 /// to `out` and `out + 4`, and y m7 + (x m6 + z m8) to `out + 8` (the original's order:
 /// `fmul; fxch; fmul; fxch; fmul; faddp; faddp`). A point of three whole numbers turned
 /// by a 3 x 3 matrix; `out` may be `p`.
-pub(super) unsafe fn turn_int_point(p: *const i32, m: *const u32, out: *mut i32) {
+pub(super) fn turn_int_point(p: *const i32, m: *const u32, out: *mut i32) {
     x87!(
         "fild dword ptr [{p} + 8]", "fild dword ptr [{p} + 4]", "fild dword ptr [{p}]",
         "fld st(0)", "fmul dword ptr [{m}]",
@@ -793,7 +793,7 @@ pub(super) fn cosine_step(c: i32, m: i32, t: u32, a: u32) -> u32 {
 
 /// Three floats at `row` each times `c` over their length (`fsqrt`, the last two squares
 /// added first; `fdivr c`; `fld st` twice, each multiplied and stored in turn).
-pub(super) unsafe fn scale_row(row: *mut u32, c: u32) {
+pub(super) fn scale_row(row: *mut u32, c: u32) {
     x87!(
         "fld dword ptr [{r}]", ".byte 0xD8, 0xC8",
         "fld dword ptr [{r} + 4]", ".byte 0xD8, 0xC8",
@@ -1447,7 +1447,7 @@ fn comparisons_with_nan() {
         let mut p = r;
         let z = n;
         let one = unsafe { normalise_in_place(r.as_mut_ptr(), z) };
-        let two = unsafe { plain::normalise_in_place(p.as_mut_ptr(), z) };
+        let two = { plain::normalise_in_place(p.as_mut_ptr(), z) };
         compare(
             "normalise_in_place (nan zero)",
             EXACT,
@@ -1531,31 +1531,23 @@ fn pointer_functions() {
         let _lent_b = lend(&b);
         let (mut r, mut p) = (vec![0xAAAA_AAAAu32], vec![0xAAAA_AAAAu32]);
         let _lent = (lend(&r), lend(&p));
-        unsafe {
-            row_times_column(a.as_ptr(), b.as_ptr(), r.as_mut_ptr());
-            plain::row_times_column(a.as_ptr(), b.as_ptr(), p.as_mut_ptr());
-        }
+        row_times_column(a.as_ptr(), b.as_ptr(), r.as_mut_ptr());
+        plain::row_times_column(a.as_ptr(), b.as_ptr(), p.as_mut_ptr());
         compare("row_times_column", EXACT, r, p, format!("{a:x?} {b:x?}"));
         let (mut r, mut p) = (vec![0xAAAA_AAAAu32], vec![0xAAAA_AAAAu32]);
         let _lent = (lend(&r), lend(&p));
-        unsafe {
-            row_times_column_3(a.as_ptr(), m.as_ptr(), r.as_mut_ptr());
-            plain::row_times_column_3(a.as_ptr(), m.as_ptr(), p.as_mut_ptr());
-        }
+        row_times_column_3(a.as_ptr(), m.as_ptr(), r.as_mut_ptr());
+        plain::row_times_column_3(a.as_ptr(), m.as_ptr(), p.as_mut_ptr());
         compare("row_times_column_3", EXACT, r, p, format!("{a:x?} {m:x?}"));
 
         let (x, start) = (g.f(), g.f());
         let (mut r, mut p) = (vec![start], vec![start]);
         let _lent = (lend(&r), lend(&p));
-        unsafe {
-            add_into(&x, r.as_mut_ptr());
-            plain::add_into(&x, p.as_mut_ptr());
-        }
+        add_into(&x, r.as_mut_ptr());
+        plain::add_into(&x, p.as_mut_ptr());
         compare("add_into", EXACT, r, p, format!("{x:x} {start:x}"));
 
-        let (r1, p1) = (unsafe { length(a.as_ptr()) }, unsafe {
-            plain::length(a.as_ptr())
-        });
+        let (r1, p1) = ({ length(a.as_ptr()) }, { plain::length(a.as_ptr()) });
         compare("length", EXACT, r1, p1, format!("{a:x?}"));
 
         let zero = [0u32, 0x8000_0000, g.f(), 0x3F80_0000][g.below(4) as usize];
@@ -1565,7 +1557,7 @@ fn pointer_functions() {
         }
         let (mut r, mut p) = (v, v);
         let one = unsafe { normalise_in_place(r.as_mut_ptr(), zero) };
-        let two = unsafe { plain::normalise_in_place(p.as_mut_ptr(), zero) };
+        let two = { plain::normalise_in_place(p.as_mut_ptr(), zero) };
         compare(
             "normalise_in_place",
             EXACT,
@@ -1577,10 +1569,8 @@ fn pointer_functions() {
         let (s, c) = (g.fa(), g.fa());
         let (x, z) = (g.f(), g.f());
         let (mut rx, mut rz, mut px, mut pz) = (x, z, x, z);
-        unsafe {
-            turn_in_place(&s, &c, &mut rx, &mut rz);
-            plain::turn_in_place(&s, &c, &mut px, &mut pz);
-        }
+        turn_in_place(&s, &c, &mut rx, &mut rz);
+        plain::turn_in_place(&s, &c, &mut px, &mut pz);
         compare(
             "turn_in_place",
             EXACT,
@@ -1592,10 +1582,8 @@ fn pointer_functions() {
         let row = [g.f(), g.f(), g.f()];
         let k = g.f();
         let (mut r, mut p) = (row, row);
-        unsafe {
-            scale_row(r.as_mut_ptr(), k);
-            plain::scale_row(p.as_mut_ptr(), k);
-        }
+        scale_row(r.as_mut_ptr(), k);
+        plain::scale_row(p.as_mut_ptr(), k);
         compare(
             "scale_row",
             EXACT,
@@ -1631,17 +1619,13 @@ fn pointer_functions_to_int() {
         let _lent_mat = lend(&mat);
         let (mut r, mut p) = (vec![0x5555_5555i32; 3], vec![0x5555_5555i32; 3]);
         let _lent = (lend(&r), lend(&p));
-        unsafe {
-            turn_int_point(pt.as_ptr(), mat.as_ptr(), r.as_mut_ptr());
-            plain::turn_int_point(pt.as_ptr(), mat.as_ptr(), p.as_mut_ptr());
-        }
+        turn_int_point(pt.as_ptr(), mat.as_ptr(), r.as_mut_ptr());
+        plain::turn_int_point(pt.as_ptr(), mat.as_ptr(), p.as_mut_ptr());
         compare("turn_int_point", EXACT, r, p, format!("{pt:x?} {mat:x?}"));
         // out over p
         let (mut r, mut p) = (pt, pt);
-        unsafe {
-            turn_int_point(r.as_ptr(), mat.as_ptr(), r.as_mut_ptr());
-            plain::turn_int_point(p.as_ptr(), mat.as_ptr(), p.as_mut_ptr());
-        }
+        turn_int_point(r.as_ptr(), mat.as_ptr(), r.as_mut_ptr());
+        plain::turn_int_point(p.as_ptr(), mat.as_ptr(), p.as_mut_ptr());
         compare(
             "turn_int_point (in place)",
             EXACT,

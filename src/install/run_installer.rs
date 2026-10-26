@@ -58,7 +58,7 @@ pub fn run_installer() -> Result<(), Refused> {
                 INSTALLER_RUN.first_drive.get() as u8,
             );
         }
-        unsafe { i::read_registry::read_registry_here() };
+        i::read_registry::read_registry_here();
         if INSTALLER_NAMES.source.get(0) != 0 {
             let n = INSTALLER_NAMES.source_size.get();
             for k in 0..n {

@@ -22,7 +22,7 @@ const SPARE: u32 = 0xC80;
 /// The Rust version (see the header).
 pub fn allocate_picture_buffer() -> Result<(), Refused> {
     PICTURE.size.set(BUFFER_LEN);
-    let memory = unsafe { allocate(PICTURE.list.as_ptr(), BUFFER_LEN + SPARE) }?;
+    let memory = { allocate(PICTURE.list.as_ptr(), BUFFER_LEN + SPARE) }?;
     PICTURE.buffer.set(memory as u32);
     Ok(())
 }

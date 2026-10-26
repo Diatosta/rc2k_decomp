@@ -150,24 +150,22 @@ pub fn make_masks() -> Result<(), Refused> {
         PICKS.pixel_table_a.addr() as u32,
         PICKS.pixel_table_b.addr() as u32,
     ];
-    unsafe {
-        let list = MASKS.list.addr() as *mut crate::memory::MemoryList;
-        let work = crate::memory::allocate::allocate(list, WORK_LEN)? as u32;
-        MASKS.work.set(work);
-        crate::marks::shape_points::make_shape_sets()?;
-        crate::marks::corners::make_corners()?;
-        reset_mask_cursor();
-        for n in 0..2 {
-            MASKS.ring_corners.set(corners[n]);
-            crate::marks::rings::span_ring(shapes[n], ring_angles[n])?;
-        }
-        for n in 0..2 {
-            draw_mask(masks[n], shapes[n])?;
-        }
-        for n in 0..2 {
-            crate::marks::pixels::map_shapes(shapes[n], pixel_tables[n], corners[n])?;
-        }
-        crate::memory::free_list::free_list(list)?;
+    let list = MASKS.list.addr() as *mut crate::memory::MemoryList;
+    let work = crate::memory::allocate::allocate(list, WORK_LEN)? as u32;
+    MASKS.work.set(work);
+    crate::marks::shape_points::make_shape_sets()?;
+    crate::marks::corners::make_corners()?;
+    reset_mask_cursor();
+    for n in 0..2 {
+        MASKS.ring_corners.set(corners[n]);
+        crate::marks::rings::span_ring(shapes[n], ring_angles[n])?;
     }
+    for n in 0..2 {
+        draw_mask(masks[n], shapes[n])?;
+    }
+    for n in 0..2 {
+        crate::marks::pixels::map_shapes(shapes[n], pixel_tables[n], corners[n])?;
+    }
+    crate::memory::free_list::free_list(list)?;
     Ok(())
 }

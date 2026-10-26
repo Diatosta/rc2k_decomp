@@ -55,11 +55,11 @@ fn would_apply(controller: u32) -> Result<bool, Refused> {
 }
 
 /// `menu::apply_controller`.
-pub unsafe fn apply_controller() -> Result<(), Refused> {
+pub fn apply_controller() -> Result<(), Refused> {
     let p = player()?;
     let c = f(p, 0x2C)?;
     if would_apply(c)? {
-        unsafe { request_device_setup(c - 1, f(p, 0x34)?, f(p, 0x38)?, 0, 0) }?;
+        { request_device_setup(c - 1, f(p, 0x34)?, f(p, 0x38)?, 0, 0) }?;
     }
     Ok(())
 }
@@ -70,56 +70,56 @@ pub fn release_controller() {
 }
 
 /// The release for 0, else the set-up; refused (before anything) as the set-up is.
-unsafe fn choose(p: u32, c: u32) -> Result<(), Refused> {
+fn choose(p: u32, c: u32) -> Result<(), Refused> {
     let applies = if c == 0 { false } else { would_apply(c)? };
     w(p, 0x2C, c)?;
     if c == 0 {
         release_controller();
     } else if applies {
-        unsafe { request_device_setup(c - 1, f(p, 0x34)?, f(p, 0x38)?, 0, 0) }?;
+        { request_device_setup(c - 1, f(p, 0x34)?, f(p, 0x38)?, 0, 0) }?;
     }
     Ok(())
 }
 
 /// `menu::next_controller`.
-pub unsafe fn next_controller() -> Result<(), Refused> {
+pub fn next_controller() -> Result<(), Refused> {
     let p = player()?;
     let c = f(p, 0x2C)?;
     let c = rc2k_core::menu::steps::next_controller(c, count());
-    unsafe { choose(p, c) }
+    choose(p, c)
 }
 
 /// `menu::previous_controller`.
-pub unsafe fn previous_controller() -> Result<(), Refused> {
+pub fn previous_controller() -> Result<(), Refused> {
     let p = player()?;
     let c = f(p, 0x2C)?;
     let c = rc2k_core::menu::steps::previous_controller(c, count());
-    unsafe { choose(p, c) }
+    choose(p, c)
 }
 
 /// +0x34 to `value` and the set-up, refused (before anything) as the set-up is.
-unsafe fn set_sensitivity(p: u32, value: u32) -> Result<(), Refused> {
+fn set_sensitivity(p: u32, value: u32) -> Result<(), Refused> {
     let c = f(p, 0x2C)?;
     let applies = would_apply(c)?;
     w(p, 0x34, value)?;
     if applies {
-        unsafe { request_device_setup(c - 1, value, f(p, 0x38)?, 0, 0) }?;
+        { request_device_setup(c - 1, value, f(p, 0x38)?, 0, 0) }?;
     }
     Ok(())
 }
 
 /// `menu::lower_controller_sensitivity`.
-pub unsafe fn lower_controller_sensitivity() -> Result<(), Refused> {
+pub fn lower_controller_sensitivity() -> Result<(), Refused> {
     // Converted: `rc2k_core::menu::steps::lower_sensitivity`.
     let p = player()?;
     if let Some(s) = rc2k_core::menu::steps::lower_sensitivity(f(p, 0x2C)?, f(p, 0x34)?) {
-        unsafe { set_sensitivity(p, s) }?;
+        { set_sensitivity(p, s) }?;
     }
     Ok(())
 }
 
 /// `menu::raise_controller_sensitivity`; `edi` is the caller's.
-pub unsafe fn raise_controller_sensitivity(edi: u32) -> Result<(), Refused> {
+pub fn raise_controller_sensitivity(edi: u32) -> Result<(), Refused> {
     if edi < 0x10000 {
         return Err(BadInput("an edi that points nowhere (the original reads +0x2C of it)").into());
     }
@@ -129,7 +129,7 @@ pub unsafe fn raise_controller_sensitivity(edi: u32) -> Result<(), Refused> {
     // Converted: `rc2k_core::menu::steps::raise_sensitivity`.
     let p = player()?;
     if let Some(s) = rc2k_core::menu::steps::raise_sensitivity(f(p, 0x34)?) {
-        unsafe { set_sensitivity(p, s) }?;
+        { set_sensitivity(p, s) }?;
     }
     Ok(())
 }

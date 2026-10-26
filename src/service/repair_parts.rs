@@ -26,7 +26,7 @@ pub fn with_player(f: impl FnOnce(&mut Player)) -> Result<(), BadInput> {
 /// `service::repair_car`: the current car as new: the damage dwords, the body, the tyres'
 /// wear, the gearbox, the brakes, the lights, the suspension, the tyres' wear again, the
 /// flags -1 and +0x24C's eight dwords.
-pub unsafe fn repair_car() -> Result<(), BadInput> {
+pub fn repair_car() -> Result<(), BadInput> {
     // Converted: `rc2k_core::service::car` (`Player::repair_car`).
     with_player(Player::repair_car)
 }
