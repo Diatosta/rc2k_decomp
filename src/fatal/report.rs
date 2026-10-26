@@ -134,7 +134,7 @@ pub fn report_now(r: &Regs) {
         log: &mut |text| unsafe { log_l1(text, true) },
         // If no shutdown thread can be created there is nothing more to report: a report
         // is being made already, and the way out below ends the game anyway.
-        quit: &mut || unsafe {
+        quit: &mut || {
             let _ = request_quit();
         },
         thread_slot: &|| unsafe { crate::pointers::game_address(find_thread_slot()) },

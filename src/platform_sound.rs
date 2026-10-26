@@ -42,6 +42,7 @@ const CAPS_FLAGS: u32 = 0xF5F;
 /// A method table: the methods, shared by every thread, and (made at the first use) the
 /// table the game reads, of their game addresses.
 struct Table<const N: usize>([*const (); N], std::sync::OnceLock<[u32; N]>);
+// SAFETY: the methods' addresses only, never written after the table is made.
 unsafe impl<const N: usize> Sync for Table<N> {}
 
 impl<const N: usize> Table<N> {
@@ -188,7 +189,7 @@ struct State {
     rolloff: f32,
 }
 
-// The raw pointers in it are the game's to use; every access goes through the mutex.
+// SAFETY: the raw pointers in it are the game's to use; every access goes through the mutex.
 unsafe impl Send for State {}
 
 static STATE: Mutex<Option<State>> = Mutex::new(None);
@@ -227,11 +228,7 @@ fn new_object(s: &mut State, table: u32, kind: Kind) -> u32 {
     let id = s.next;
     s.next += 1;
     let object = Box::new(Object { table, id });
-    // SAFETY: the object's own bytes, for the registry only.
-    let bytes = unsafe {
-        std::slice::from_raw_parts(&*object as *const Object as *const u8, size_of::<Object>())
-    };
-    let lent = crate::pointers::Lent::new(bytes);
+    let lent = crate::pointers::Lent::of(&*object);
     let at = lent.addr();
     s.entries.insert(
         id,
@@ -537,7 +534,7 @@ extern "system" fn get_format(this: u32, format: u32, size: u32, written: u32) -
 
 macro_rules! getter {
     ($name:ident, $field:ident) => {
-        unsafe extern "system" fn $name(this: u32, out: u32) -> i32 {
+        extern "system" fn $name(this: u32, out: u32) -> i32 {
             with(|s| match buffer(s, this) {
                 Some(b) => {
                     {
@@ -626,7 +623,7 @@ extern "system" fn set_position(this: u32, at: u32) -> i32 {
     })
 }
 
-unsafe extern "system" fn set_format(this: u32, format: u32) -> i32 {
+extern "system" fn set_format(this: u32, format: u32) -> i32 {
     with(|s| match buffer(s, this) {
         Some(b) if b.flags & PRIMARY != 0 && format != 0 => {
             let f = { read_format(format) };
@@ -640,7 +637,10 @@ unsafe extern "system" fn set_format(this: u32, format: u32) -> i32 {
             // Silence in the new format: the 8-bit one's 0x80 bytes read as 16-bit are
             // -32640, a jump to near full scale (the clicks at the opening, 2026-10-15).
             let silence = if f.bits == 8 { 0x80 } else { 0 };
-            unsafe { std::ptr::write_bytes(b.data.as_ptr() as *mut u8, silence, b.data.len()) };
+            // The buffer is lent to the game (its region): filled as the game's memory.
+            crate::pointers::GamePtr::new(crate::pointers::game_address(b.data.as_ptr()))
+                .fill(silence, b.data.len(), "a sound buffer")
+                .unwrap_or_else(|e| crate::fatal::raise::end("platform_sound::set_format", e));
             b.format = f;
             b.bytes = primary_bytes(&f);
             b.position = 0.0;
@@ -652,7 +652,7 @@ unsafe extern "system" fn set_format(this: u32, format: u32) -> i32 {
 
 macro_rules! setter {
     ($name:ident, $field:ident, $ty:ty) => {
-        unsafe extern "system" fn $name(this: u32, value: u32) -> i32 {
+        extern "system" fn $name(this: u32, value: u32) -> i32 {
             with(|s| match buffer(s, this) {
                 Some(b) => {
                     b.$field = value as $ty;
@@ -766,7 +766,7 @@ extern "system" fn set_mode(this: u32, value: u32, _: u32) -> i32 {
 
 macro_rules! get_space {
     ($name:ident, $field:ident, $to:expr) => {
-        unsafe extern "system" fn $name(this: u32, out: u32) -> i32 {
+        extern "system" fn $name(this: u32, out: u32) -> i32 {
             with(|s| match space(s, this) {
                 Some(p) => {
                     let v: u32 = $to(p.$field);
@@ -893,14 +893,12 @@ fn mix_into(b: &mut Buffer, master: f32, rolloff: f32, out: &mut [f32]) {
         None if b.pan < 0 => (g, g * gain(b.pan)),
         None => (g * gain(-b.pan), g),
     };
-    let data = b.data.as_ptr();
+    let data: &[u8] = &b.data;
     let sample = |at: usize| -> f32 {
-        unsafe {
-            if f.bits == 8 {
-                (*data.add(at) as f32 - 128.0) / 128.0
-            } else {
-                (data.add(at) as *const i16).read_unaligned() as f32 / 32768.0
-            }
+        if f.bits == 8 {
+            (data[at] as f32 - 128.0) / 128.0
+        } else {
+            i16::from_le_bytes([data[at], data[at + 1]]) as f32 / 32768.0
         }
     };
     let bytes = (f.bits / 8) as usize;
@@ -946,12 +944,8 @@ fn mix_into(b: &mut Buffer, master: f32, rolloff: f32, out: &mut [f32]) {
 const STICKY_FOCUS: u32 = 0x4000;
 const GLOBAL_FOCUS: u32 = 0x8000;
 
-unsafe extern "C" fn feed(
-    _: *mut core::ffi::c_void,
-    stream: *mut SDL_AudioStream,
-    wanted: i32,
-    _: i32,
-) {
+/// SDL's audio callback: the playing buffers mixed into what the stream wants.
+extern "C" fn feed(_: *mut core::ffi::c_void, stream: *mut SDL_AudioStream, wanted: i32, _: i32) {
     let frames = (wanted.max(0) / 4) as usize;
     if frames == 0 {
         return;
@@ -992,6 +986,7 @@ unsafe extern "C" fn feed(
         .iter()
         .map(|x| (x * 32767.0).clamp(-32768.0, 32767.0) as i16)
         .collect();
+    // SAFETY: the stream SDL called back with; `pcm`'s bytes, their count.
     unsafe { SDL_PutAudioStreamData(stream, pcm.as_ptr().cast(), (pcm.len() * 2) as i32) };
 }
 
@@ -1002,6 +997,8 @@ static OPENED: Mutex<bool> = Mutex::new(false);
 pub fn direct_sound_create(out: u32) -> i32 {
     let mut opened = OPENED.lock().unwrap();
     if !*opened {
+        // SAFETY: SDL started on the main thread; the spec and callback live as SDL needs
+        // (`feed` is a plain function, the spec copied by SDL).
         unsafe {
             if !SDL_InitSubSystem(SDL_INIT_AUDIO) {
                 crate::framework::log("platform_sound: SDL audio cannot be started");

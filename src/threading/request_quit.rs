@@ -36,12 +36,10 @@ pub fn request_quit_with(
     start((crate::threading::thread_slot::slot(crate::threading::thread_slot::SHUTDOWN)) as u32)
 }
 
-pub unsafe fn request_quit() -> Result<(), FatalError> {
+pub fn request_quit() -> Result<(), FatalError> {
     let requested = FLAGS.quitting.atomic();
     let before = requested.load(Ordering::SeqCst);
-    let result = request_quit_with(requested, &mut |slot| unsafe {
-        start_slot_thread(crate::pointers::host(slot))
-    });
+    let result = request_quit_with(requested, &mut start_slot_thread);
     if result.is_err() {
         // Left as it was, so that the original, run in its place, tries the thread too.
         requested.store(before, Ordering::SeqCst);
@@ -54,7 +52,7 @@ pub fn request_quit_logged() -> Result<(), FatalError> {
     // It happens once, while the game is closing, when `stats` can no longer be asked: say
     // in the log which version ran.
     let was: u32 = FLAGS.quitting.get();
-    let result = unsafe { request_quit() };
+    let result = request_quit();
     log(&format!(
         "threading::request_quit: the Rust version ran (switch was {was}): {result:?}"
     ));

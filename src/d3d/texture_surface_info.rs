@@ -41,5 +41,5 @@ pub fn texture_surface_info(record: u32) -> Result<(), crate::errors::BadInput> 
     ] {
         put(s + at, v);
     }
-    unsafe { crate::gfx::set_clip::set_clip(crate::pointers::host(s) as *const [u32; 4]) }
+    crate::gfx::set_clip::set_clip_at(s)
 }

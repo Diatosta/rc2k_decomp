@@ -29,9 +29,7 @@ pub fn start_threads(start: &mut dyn FnMut(u32) -> Result<(), Refused>) -> Resul
 /// The three slots' threads started (`threading::start_slot_thread`).
 pub fn start_threads_in_game() -> Result<(), Refused> {
     start_threads(&mut |slot| {
-        unsafe {
-            crate::threading::start_slot_thread::start_slot_thread(crate::pointers::host(slot))
-        }?;
+        crate::threading::start_slot_thread::start_slot_thread(slot)?;
         Ok(())
     })
 }

@@ -60,34 +60,35 @@ pub(crate) const CODE: [(usize, usize); 2] = [(0x1000, 0xD6CD4), (0xD8000, 0x1F8
 /// reserved without access. A call into it is a hook's address or a function not ported,
 /// and a read of it an address with no home: the fault handler names either. The game's
 /// pointers in the moved blocks are pointed at their targets (`moved::point_into_homes`).
-unsafe fn build_image() -> Result<Image, String> {
-    unsafe {
-        let reserved = VirtualAlloc(std::ptr::null(), IMAGE_SIZE, MEM_RESERVE, PAGE_NOACCESS);
-        let base = match reserved.is_null() {
-            true => 0,
-            false => crate::pointers::map(reserved, IMAGE_SIZE),
-        };
-        if base == 0 {
-            return Err("no address range for the game's image".into());
-        }
-        let pointed = crate::moved::point_into_homes(base as usize).map_err(|ida| {
-            format!("a relocated pointer of the game's at {ida:#x} lies in no moved range")
-        })?;
-        log(&format!(
-            "standalone: {pointed} of the game's pointers point at their targets' homes"
-        ));
-        log(&format!(
-            "standalone: the game's addresses are reserved at {base:#x} ({IMAGE_SIZE:#x} bytes; no data or code of RAL.EXE)"
-        ));
-        Ok(Image {
-            base: base as usize,
-            size: IMAGE_SIZE,
-            code: CODE
-                .iter()
-                .map(|&(rva, len)| (base as usize + rva, len))
-                .collect(),
-        })
+fn build_image() -> Result<Image, String> {
+    // SAFETY: a reservation only (no access), kept for the program's life.
+    let reserved =
+        unsafe { VirtualAlloc(std::ptr::null(), IMAGE_SIZE, MEM_RESERVE, PAGE_NOACCESS) };
+    let base = match reserved.is_null() {
+        true => 0,
+        false => crate::pointers::map(reserved, IMAGE_SIZE),
+    };
+    if base == 0 {
+        return Err("no address range for the game's image".into());
     }
+    // SAFETY: once, at start, before any other thread reads the moved blocks.
+    let pointed = unsafe { crate::moved::point_into_homes(base as usize) }.map_err(|ida| {
+        format!("a relocated pointer of the game's at {ida:#x} lies in no moved range")
+    })?;
+    log(&format!(
+        "standalone: {pointed} of the game's pointers point at their targets' homes"
+    ));
+    log(&format!(
+        "standalone: the game's addresses are reserved at {base:#x} ({IMAGE_SIZE:#x} bytes; no data or code of RAL.EXE)"
+    ));
+    Ok(Image {
+        base: base as usize,
+        size: IMAGE_SIZE,
+        code: CODE
+            .iter()
+            .map(|&(rva, len)| (base as usize + rva, len))
+            .collect(),
+    })
 }
 
 /// The address as IDA shows it, if it lies in the game's image.
@@ -168,6 +169,8 @@ fn in_module(address: usize) -> Option<String> {
         GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS, GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
         GetModuleFileNameW, GetModuleHandleExW,
     };
+    // SAFETY: `address` is only looked up (UNCHANGED_REFCOUNT: nothing held); the module
+    // handle is live while the program runs; `name` is the length said.
     unsafe {
         let mut module = std::ptr::null_mut();
         let flags =
@@ -200,6 +203,8 @@ fn stack_returns(esp: usize) -> String {
     // 2 KB of stack: well inside it at any fault the game code can reach.
     for k in 0..512usize {
         let at = esp + 4 * k;
+        // SAFETY: the faulting thread's stack, 2 KB from its stack pointer: committed (the
+        // game's code runs well inside it), and that thread is stopped in the handler.
         let value =
             unsafe { std::ptr::with_exposed_provenance::<u32>(at).read_unaligned() } as usize;
         if let (Some(m), Some(own)) = (in_module(value), own.as_ref())
@@ -218,7 +223,7 @@ fn stack_returns(esp: usize) -> String {
 /// (0x4154B5 back into the main loop, which asks for the shutdown, logs "Leaving main
 /// loop..." and returns to `start`), the program ended as `start` ends it.
 pub fn leave_from_race() -> ! {
-    if let Err(e) = unsafe { crate::threading::request_quit::request_quit() } {
+    if let Err(e) = crate::threading::request_quit::request_quit() {
         log(&format!(
             "standalone: the shutdown thread did not start ({:#x})",
             e.code
@@ -253,6 +258,7 @@ pub fn finish(why: &str, code: u32) -> ! {
     }
     // Not `ExitProcess`: this may be an exception's handler, where the libraries'
     // leave-taking can hang.
+    // SAFETY: the process's own pseudo-handle; neither call returns.
     unsafe {
         TerminateProcess(GetCurrentProcess(), code);
         ExitProcess(code)
@@ -295,8 +301,13 @@ pub fn answers(at: usize) -> bool {
     SDL_DOES.iter().any(|w| w.0 == at) || LONE_RETN.contains(&at)
 }
 
+/// # Safety
+/// The system's vectored handler: `info` and the records it points at are the system's,
+/// live during the call.
 unsafe extern "system" fn on_exception(info: *mut EXCEPTION_POINTERS) -> i32 {
     const CONTINUE_SEARCH: i32 = 0;
+    // SAFETY: `info`'s records as the system hands them (the function's contract); the
+    // stack pointer's slot is the faulting thread's, committed.
     unsafe {
         let record = &*(*info).ExceptionRecord;
         let context = &mut *(*info).ContextRecord;
@@ -392,6 +403,10 @@ fn stand_in(what: &str, variable: &crate::session::Dword, value: u32) {
 
 /// The game's `start`, call for call. The checks it makes after calls of the platform
 /// (already running, no screen mode) cannot fail here.
+///
+/// # Safety
+/// Once, on the main thread, after the image is built: the start-up functions it calls are
+/// still `unsafe` (they write the game's state before any thread of the game's runs).
 unsafe fn start() {
     unsafe {
         let r = Regs::default();
@@ -618,27 +633,27 @@ pub fn run(log_file: &Path, frames: u32) -> ! {
     std::panic::set_hook(Box::new(|info| {
         log(&format!("standalone: panic: {info}"));
     }));
-    let image = match unsafe { build_image() } {
+    let image = match build_image() {
         Ok(image) => image,
         Err(why) => {
             log(&format!("standalone: {why}"));
+            // SAFETY: no arguments but the code; it does not return.
             unsafe { ExitProcess(2) }
         }
     };
     let image = IMAGE.get_or_init(|| image);
     menu_watch::snapshot();
-    unsafe {
-        if let Err(why) = install_and_lock(image) {
-            finish(&why, 2);
-        }
-        FILTER.store(
-            AddVectoredExceptionHandler(1, Some(on_exception)).expose_provenance(),
-            Ordering::SeqCst,
-        );
-        // The audio thread runs (its Rust version), on DirectSound over SDL
-        // (`platform_sound`).
-        start();
+    if let Err(why) = install_and_lock(image) {
+        finish(&why, 2);
     }
+    // SAFETY: `on_exception` is a handler of the system's signature, for the program's
+    // life.
+    let handler = unsafe { AddVectoredExceptionHandler(1, Some(on_exception)) };
+    FILTER.store(handler.expose_provenance(), Ordering::SeqCst);
+    // The audio thread runs (its Rust version), on DirectSound over SDL
+    // (`platform_sound`).
+    // SAFETY: once, here, on the main thread.
+    unsafe { start() };
     finish("start came to its end", 0)
 }
 
@@ -671,7 +686,8 @@ mod menu_watch {
     static START: OnceLock<Vec<Vec<u8>>> = OnceLock::new();
 
     fn bytes((_, at, len): (usize, usize, usize)) -> Vec<u8> {
-        // Each range lies whole in one of our statics, read-write.
+        // SAFETY: each range lies whole in one of our statics, read-write; read at start and
+        // at the end, a snapshot (a torn word only shows as changed).
         unsafe { std::slice::from_raw_parts(crate::pointers::host_at(at) as *const u8, len) }
             .to_vec()
     }

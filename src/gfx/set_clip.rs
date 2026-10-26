@@ -16,16 +16,19 @@ use crate::gfx::blit::BLIT;
 /// `rc2k_core::gfx::raster::clip_of`.
 pub use rc2k_core::gfx::raster::clip_of;
 
-pub unsafe fn set_clip(rectangle: *const [u32; 4]) -> Result<(), BadInput> {
-    if rectangle.is_null() {
+pub fn set_clip(rectangle: [u32; 4]) {
+    let [left, top, right, bottom] = clip_of(rectangle);
+    BLIT.clip.left.set(left);
+    BLIT.clip.top.set(top);
+    BLIT.clip.right.set(right);
+    BLIT.clip.bottom.set(bottom);
+}
+
+/// `set_clip` on the rectangle at game address `at` (checked).
+pub fn set_clip_at(at: u32) -> Result<(), BadInput> {
+    if at == 0 {
         return Err(BadInput("no rectangle to clip to"));
     }
-    unsafe {
-        let [left, top, right, bottom] = clip_of(rectangle.read_unaligned());
-        BLIT.clip.left.set(left);
-        BLIT.clip.top.set(top);
-        BLIT.clip.right.set(right);
-        BLIT.clip.bottom.set(bottom);
-    }
+    set_clip(crate::pointers::GamePtr::new(at).read("a rectangle to clip to")?);
     Ok(())
 }

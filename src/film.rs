@@ -52,6 +52,8 @@ pub fn no_fmv_home() -> usize {
 }
 
 // ---- FFmpeg (cdecl; only functions, and the frame's first fields, which are stable) ----
+// The declarations below are FFmpeg's (libavcodec 61 / libavutil 59), every pointer
+// argument a C pointer of the type named in its header.
 
 #[link(name = "avcodec")]
 unsafe extern "C" {
@@ -215,12 +217,50 @@ fn walk(b: &[u8], mut at: usize, end: usize, f: &mut Visit) -> Result<(), String
 
 // ---- the decoder ----
 
-/// A name FFmpeg gives a format, or "?".
-unsafe fn name_of(name: *const c_char) -> String {
+/// A name FFmpeg gives a format (its static text), or "?".
+fn name_of(name: *const c_char) -> String {
     if name.is_null() {
         "?".into()
     } else {
+        // SAFETY: FFmpeg's format names are static NUL-ended texts.
         unsafe { CStr::from_ptr(name).to_string_lossy().into_owned() }
+    }
+}
+
+/// A picture format's name.
+fn pixel_format_name(format: i32) -> String {
+    // SAFETY: a lookup by number; FFmpeg answers null for an unknown one.
+    name_of(unsafe { av_get_pix_fmt_name(format) })
+}
+
+/// A sound format's name.
+fn sample_format_name(format: i32) -> String {
+    // SAFETY: as `pixel_format_name`.
+    name_of(unsafe { av_get_sample_fmt_name(format) })
+}
+
+impl FrameHead {
+    /// Plane `p`'s `rows` rows of `linesize` bytes; None for a plane without rows.
+    fn plane(&self, p: usize, rows: usize) -> Option<&[u8]> {
+        let line = usize::try_from(self.linesize[p]).ok()?;
+        if self.data[p].is_null() || line == 0 {
+            return None;
+        }
+        // SAFETY: a frame `Decoder::decode` hands on is FFmpeg's, decoded: each plane holds
+        // its rows of `linesize` bytes, for as long as the frame is borrowed.
+        Some(unsafe { std::slice::from_raw_parts(self.data[p], line * rows) })
+    }
+
+    /// Plane `p` as `count` values of `T` (sound samples); None for an empty or
+    /// misaligned plane.
+    fn values<T: Copy>(&self, p: usize, count: usize) -> Option<&[T]> {
+        let at = self.data[p] as *const T;
+        if at.is_null() || !at.is_aligned() {
+            return None;
+        }
+        // SAFETY: as `plane`: a sound plane holds `nb_samples` samples (of every channel
+        // for an interleaved format).
+        Some(unsafe { std::slice::from_raw_parts(at, count) })
     }
 }
 
@@ -234,6 +274,8 @@ struct Decoder {
 
 impl Decoder {
     fn open(name: &CStr, parser: Option<i32>) -> Result<Self, String> {
+        // SAFETY: a NUL-ended name; each object FFmpeg hands back is checked for null before
+        // use, and freed by its own function (here on failure, else in `drop`).
         unsafe {
             let decoder = avcodec_find_decoder_by_name(name.as_ptr());
             if decoder.is_null() {
@@ -271,6 +313,8 @@ impl Decoder {
         loop {
             let rest = &stream[at.min(stream.len())..];
             let (mut data, mut size) = (std::ptr::null_mut::<u8>(), 0i32);
+            // SAFETY: the decoder's parser and context (open); `rest`'s bytes and length;
+            // `data` / `size` written by FFmpeg.
             let used = unsafe {
                 av_parser_parse2(
                     self.parser,
@@ -289,6 +333,7 @@ impl Decoder {
                 )
             };
             if size > 0 && !data.is_null() {
+                // SAFETY: the parser's `size` bytes at `data`, valid until its next call.
                 out.push(unsafe { std::slice::from_raw_parts(data, size as usize) }.to_vec());
             }
             if rest.is_empty() && size <= 0 {
@@ -309,6 +354,9 @@ impl Decoder {
         bytes: Option<&[u8]>,
         each: &mut dyn FnMut(&FrameHead) -> Result<(), String>,
     ) -> Result<(), String> {
+        // SAFETY: the packet's data is FFmpeg's own allocation, `PADDING` zero bytes past
+        // the copy as it asks, owned by the packet once made; the frame FFmpeg fills is laid
+        // out as `FrameHead` (its first fields) and lent to `each` only until the next one.
         unsafe {
             let sent = match bytes {
                 Some(bytes) => {
@@ -333,6 +381,7 @@ impl Decoder {
                 return Ok(());
             }
             while avcodec_receive_frame(self.context, self.frame) >= 0 {
+                // The frame's head as FFmpeg laid it out (`FrameHead`), borrowed for `each`.
                 each(&*(self.frame as *const FrameHead))?;
             }
             Ok(())
@@ -342,6 +391,7 @@ impl Decoder {
 
 impl Drop for Decoder {
     fn drop(&mut self) {
+        // SAFETY: the objects `open` made, each freed once by its own function.
         unsafe {
             if !self.parser.is_null() {
                 av_parser_close(self.parser);
@@ -361,8 +411,8 @@ struct Picture {
 }
 
 /// A video frame converted.
-unsafe fn picture(head: &FrameHead) -> Result<Picture, String> {
-    let name = unsafe { name_of(av_get_pix_fmt_name(head.format)) };
+fn picture(head: &FrameHead) -> Result<Picture, String> {
+    let name = pixel_format_name(head.format);
     let (cx, cy) = match name.as_ref() {
         "yuv410p" => (4, 4),
         "yuv420p" => (2, 2),
@@ -370,8 +420,17 @@ unsafe fn picture(head: &FrameHead) -> Result<Picture, String> {
     };
     let (width, height) = (head.width.max(0) as usize, head.height.max(0) as usize);
     let mut rgb = vec![0u32; width * height];
-    let at = |plane: usize, px: usize, py: usize| unsafe {
-        *head.data[plane].offset(py as isize * head.linesize[plane] as isize + px as isize) as i32
+    let planes = [
+        head.plane(0, height),
+        head.plane(1, height.div_ceil(cy)),
+        head.plane(2, height.div_ceil(cy)),
+    ];
+    let [Some(_), Some(_), Some(_)] = planes else {
+        return Err("a picture without its three planes".into());
+    };
+    let at = |plane: usize, px: usize, py: usize| -> i32 {
+        let line = head.linesize[plane] as usize;
+        planes[plane].map_or(0, |b| b.get(py * line + px).copied().unwrap_or(0) as i32)
     };
     for y in 0..height {
         for x in 0..width {
@@ -389,22 +448,29 @@ unsafe fn picture(head: &FrameHead) -> Result<Picture, String> {
 }
 
 /// An audio frame as 16-bit samples, interleaved, appended to `pcm` (`channels` of them).
-unsafe fn samples(head: &FrameHead, channels: usize, pcm: &mut Vec<i16>) -> Result<(), String> {
-    let name = unsafe { name_of(av_get_sample_fmt_name(head.format)) };
+fn samples(head: &FrameHead, channels: usize, pcm: &mut Vec<i16>) -> Result<(), String> {
+    let name = sample_format_name(head.format);
     let n = head.nb_samples.max(0) as usize;
-    for i in 0..n {
-        for c in 0..channels {
-            let v = unsafe {
-                match name.as_ref() {
-                    "s16p" => *(head.data[c] as *const i16).add(i),
-                    "s16" => *(head.data[0] as *const i16).add(i * channels + c),
-                    "fltp" => (*(head.data[c] as *const f32).add(i) * 32767.0)
-                        .clamp(-32768.0, 32767.0) as i16,
-                    other => return Err(format!("sound in {other}, which is not converted")),
-                }
-            };
-            pcm.push(v);
+    let missing = || format!("sound in {name} without its samples");
+    match name.as_ref() {
+        "s16" => pcm.extend_from_slice(head.values::<i16>(0, n * channels).ok_or_else(missing)?),
+        "s16p" | "fltp" => {
+            let planes = (0..channels)
+                .map(|c| match name.as_ref() {
+                    "s16p" => head.values::<i16>(c, n).map(|p| p.to_vec()),
+                    _ => head.values::<f32>(c, n).map(|p| {
+                        p.iter()
+                            .map(|&v| (v * 32767.0).clamp(-32768.0, 32767.0) as i16)
+                            .collect()
+                    }),
+                })
+                .collect::<Option<Vec<Vec<i16>>>>()
+                .ok_or_else(missing)?;
+            for i in 0..n {
+                pcm.extend(planes.iter().map(|p| p[i]));
+            }
         }
+        other => return Err(format!("sound in {other}, which is not converted")),
     }
     Ok(())
 }
@@ -520,40 +586,32 @@ fn pack(value: u32, mask: u32) -> u32 {
     ((value * most + 127) / 255) << shift
 }
 
-/// The picture stretched over the locked surface (`g_surface`).
-unsafe fn blit(p: &Picture) {
+/// The picture stretched over the locked surface (`g_surface`), a checked row at a time.
+fn blit(p: &Picture) {
     let (rgb, w, h) = (&p.rgb, p.width, p.height);
-    unsafe {
-        let surface = crate::pointers::host(DRAW_SURFACE.x.addr()) as *const u32;
-        let at = |n: usize| surface.add(n).read_unaligned();
-        let (sw, sh) = (at(2) as usize, at(3) as usize);
-        let bytes = at(5) as usize;
-        let pitch = at(9) as usize;
-        let pixels = crate::pointers::host(at(10));
-        let format = crate::pointers::host_at((crate::session::SCREEN.format_addr() + 4) as usize)
-            as *const u32;
-        // masks: blue, green, red, alpha
-        let (mb, mg, mr) = (
-            format.read_unaligned(),
-            format.add(1).read_unaligned(),
-            format.add(2).read_unaligned(),
-        );
-        if pixels.is_null() || sw == 0 || sh == 0 || w == 0 || h == 0 {
-            return;
+    let s = &DRAW_SURFACE;
+    let (sw, sh) = (s.width.get() as usize, s.height.get() as usize);
+    let bytes = s.bytes_per_pixel.get() as usize;
+    let pitch = s.pitch.get();
+    let pixels = s.pixels.get();
+    // masks: blue, green, red, alpha
+    let format = crate::session::SCREEN.format_addr() + 4;
+    let mask = |n: u32| crate::pointers::read_or_end::<u32>(format + 4 * n, "the screen's format");
+    let (mb, mg, mr) = (mask(0), mask(1), mask(2));
+    if pixels == 0 || sw == 0 || sh == 0 || w == 0 || h == 0 || !matches!(bytes, 2 | 4) {
+        return;
+    }
+    let mut row = vec![0u8; sw * bytes];
+    for y in 0..sh {
+        let from = (y * h / sh) * w;
+        for x in 0..sw {
+            let c = rgb[from + x * w / sw];
+            let p = pack(c >> 16 & 0xFF, mr) | pack(c >> 8 & 0xFF, mg) | pack(c & 0xFF, mb);
+            row[x * bytes..(x + 1) * bytes].copy_from_slice(&p.to_le_bytes()[..bytes]);
         }
-        for y in 0..sh {
-            let from = (y * h / sh) * w;
-            let row = pixels.add(y * pitch);
-            for x in 0..sw {
-                let c = rgb[from + x * w / sw];
-                let p = pack(c >> 16 & 0xFF, mr) | pack(c >> 8 & 0xFF, mg) | pack(c & 0xFF, mb);
-                match bytes {
-                    2 => (row.add(x * 2) as *mut u16).write_unaligned(p as u16),
-                    4 => (row.add(x * 4) as *mut u32).write_unaligned(p),
-                    _ => {}
-                }
-            }
-        }
+        crate::pointers::GamePtr::new(pixels.wrapping_add(y as u32 * pitch))
+            .write_bytes(&row, "the film's picture")
+            .unwrap_or_else(|e| crate::fatal::raise::end("gfx::play_film", e));
     }
 }
 
@@ -611,11 +669,9 @@ fn open(path: &str) -> Result<Film, String> {
                 let mut sound = Decoder::open(c"mp2", Some(MP2))?;
                 let mut pcm = Vec::new();
                 for packet in sound.cut(&audio) {
-                    sound.decode(Some(&packet), &mut |f| unsafe {
-                        samples(f, channels, &mut pcm)
-                    })?;
+                    sound.decode(Some(&packet), &mut |f| samples(f, channels, &mut pcm))?;
                 }
-                sound.decode(None, &mut |f| unsafe { samples(f, channels, &mut pcm) })?;
+                sound.decode(None, &mut |f| samples(f, channels, &mut pcm))?;
                 Some((pcm, hz, channels))
             }
             _ => None,
@@ -643,47 +699,44 @@ fn open(path: &str) -> Result<Film, String> {
 
 /// The Rust version (see the header) for the path at `path`: the zero flag it leaves
 /// (true: the film's end, false for a key or a film that does not play).
-pub unsafe fn play_film(path: u32) -> bool {
-    unsafe {
-        let reports: u32 = REPORTS.on.get();
-        REPORTS.on.set(0);
-        // A key pending before the film is dropped (`input::take_key`).
-        crate::input::take_key::take_key();
-        // the open: the path resolved (`files::resolve_path`), there (`files::file_exists`)
-        let found = crate::files::resolve_path::resolve_path_in_game(
-            crate::pointers::host(path) as *const u8
-        )
-        .and_then(|at| Ok((at, crate::files::file_exists::file_exists(at)?)));
-        let name = match found {
-            Ok((at, there)) => {
-                let name = CStr::from_ptr(at as *const c_char)
-                    .to_string_lossy()
-                    .into_owned();
-                if !there {
-                    log(&format!("gfx::play_film: {name} is not there"));
-                }
-                there.then_some(name)
+pub fn play_film(path: u32) -> bool {
+    let reports: u32 = REPORTS.on.get();
+    REPORTS.on.set(0);
+    // A key pending before the film is dropped (`input::take_key`).
+    crate::input::take_key::take_key();
+    // the open: the path resolved (`files::resolve_path`), there (`files::file_exists`)
+    let found = crate::files::resolve_path::resolve_path_at(crate::pointers::GamePtr::new(path))
+        .and_then(|at| {
+            let there = crate::files::file_exists::file_exists(crate::pointers::host(at.addr()))?;
+            Ok((crate::files::cstring(at, "a film's path")?, there))
+        });
+    let name = match found {
+        Ok((text, there)) => {
+            let name = crate::files::ansi_text(&text);
+            if !there {
+                log(&format!("gfx::play_film: {name} is not there"));
             }
-            Err(why) => {
-                log(&format!("gfx::play_film: the path refused: {}", why.0));
-                None
-            }
-        };
-        // The original's eax: the path (the zero flag clear when it does not open), else
-        // the key that ended the film (0 at its end).
-        let mut eax = path;
-        if let Some(name) = name {
-            match open(&name) {
-                Err(why) => log(&format!("gfx::play_film: {name} not played: {why}")),
-                Ok(mut film) => {
-                    log(&format!("gfx::play_film: {name}: {}", film.what));
-                    eax = u32::from(run(&mut film));
-                }
+            there.then_some(name)
+        }
+        Err(why) => {
+            log(&format!("gfx::play_film: the path refused: {}", why.0));
+            None
+        }
+    };
+    // The original's eax: the path (the zero flag clear when it does not open), else
+    // the key that ended the film (0 at its end).
+    let mut eax = path;
+    if let Some(name) = name {
+        match open(&name) {
+            Err(why) => log(&format!("gfx::play_film: {name} not played: {why}")),
+            Ok(mut film) => {
+                log(&format!("gfx::play_film: {name}: {}", film.what));
+                eax = u32::from(run(&mut film));
             }
         }
-        REPORTS.on.set(reports);
-        eax == 0
     }
+    REPORTS.on.set(reports);
+    eax == 0
 }
 
 /// The film's sound playing through SDL (stopped when dropped).
@@ -692,6 +745,8 @@ struct Sound(*mut sdl3_sys::everything::SDL_AudioStream);
 impl Sound {
     fn start(pcm: &[i16], hz: u32, channels: usize) -> Option<Self> {
         use sdl3_sys::everything::*;
+        // SAFETY: SDL's audio started; a spec SDL copies; the stream checked for null; `pcm`
+        // copied into it whole (its bytes and their count).
         unsafe {
             if !SDL_InitSubSystem(SDL_INIT_AUDIO) {
                 return None;
@@ -720,77 +775,76 @@ impl Sound {
 
 impl Drop for Sound {
     fn drop(&mut self) {
+        // SAFETY: the stream `start` opened, destroyed once.
         unsafe { sdl3_sys::everything::SDL_DestroyAudioStream(self.0) };
     }
 }
 
 /// The frames until the end or a key: the key, or 0 at the end.
-unsafe fn run(film: &mut Film) -> u8 {
-    unsafe {
-        let sound = film
-            .sound
-            .as_ref()
-            .and_then(|(pcm, hz, ch)| Sound::start(pcm, *hz, *ch));
-        let start = std::time::Instant::now();
-        let mut shown = 0u32;
-        let mut last: Option<Picture> = None;
-        let mut queue: std::collections::VecDeque<Picture> = Default::default();
-        let packets = std::mem::take(&mut film.packets);
-        let mut packets = packets.iter().map(Some).chain(std::iter::once(None));
-        let mut ended = false;
-        loop {
-            // the next picture: decoded until one comes out (an empty packet: the one
-            // before again)
-            while queue.is_empty() && !ended {
-                match packets.next() {
-                    None => ended = true,
-                    Some(Some(packet)) if packet.is_empty() => {
-                        if let Some(p) = &last {
-                            queue.push_back(Picture {
-                                rgb: p.rgb.clone(),
-                                width: p.width,
-                                height: p.height,
-                            });
-                        }
-                    }
-                    Some(packet) => {
-                        let result = film.decoder.decode(packet.map(|p| p.as_slice()), &mut |f| {
-                            queue.push_back(picture(f)?);
-                            Ok(())
+fn run(film: &mut Film) -> u8 {
+    let sound = film
+        .sound
+        .as_ref()
+        .and_then(|(pcm, hz, ch)| Sound::start(pcm, *hz, *ch));
+    let start = std::time::Instant::now();
+    let mut shown = 0u32;
+    let mut last: Option<Picture> = None;
+    let mut queue: std::collections::VecDeque<Picture> = Default::default();
+    let packets = std::mem::take(&mut film.packets);
+    let mut packets = packets.iter().map(Some).chain(std::iter::once(None));
+    let mut ended = false;
+    loop {
+        // the next picture: decoded until one comes out (an empty packet: the one
+        // before again)
+        while queue.is_empty() && !ended {
+            match packets.next() {
+                None => ended = true,
+                Some(Some(packet)) if packet.is_empty() => {
+                    if let Some(p) = &last {
+                        queue.push_back(Picture {
+                            rgb: p.rgb.clone(),
+                            width: p.width,
+                            height: p.height,
                         });
-                        if let Err(why) = result {
-                            log(&format!("gfx::play_film: frame {shown}: {why}"));
-                            ended = true;
-                        }
+                    }
+                }
+                Some(packet) => {
+                    let result = film.decoder.decode(packet.map(|p| p.as_slice()), &mut |f| {
+                        queue.push_back(picture(f)?);
+                        Ok(())
+                    });
+                    if let Err(why) = result {
+                        log(&format!("gfx::play_film: frame {shown}: {why}"));
+                        ended = true;
                     }
                 }
             }
-            let Some(next) = queue.pop_front() else {
-                break;
-            };
-            crate::platform::pump_messages_now();
-            // the frame's time, as the stream's Update waits for it
-            let due = film.frame * shown;
-            if let Some(wait) = due.checked_sub(start.elapsed()) {
-                std::thread::sleep(wait);
-            }
-            shown += 1;
-            // (`gfx::lock_surface` leaves the carry clear for a locked surface, 1.)
-            if crate::platform::lock_surface() >= 1 {
-                blit(&next);
-                crate::platform::unlock_surface();
-            }
-            last = Some(next);
-            crate::platform::show_frame_now();
-            let key = crate::input::take_key::take_key();
-            if key != 0 {
-                drop(sound);
-                return key;
-            }
         }
-        drop(sound);
-        0
+        let Some(next) = queue.pop_front() else {
+            break;
+        };
+        crate::platform::pump_messages_now();
+        // the frame's time, as the stream's Update waits for it
+        let due = film.frame * shown;
+        if let Some(wait) = due.checked_sub(start.elapsed()) {
+            std::thread::sleep(wait);
+        }
+        shown += 1;
+        // (`gfx::lock_surface` leaves the carry clear for a locked surface, 1.)
+        if crate::platform::lock_surface() >= 1 {
+            blit(&next);
+            crate::platform::unlock_surface();
+        }
+        last = Some(next);
+        crate::platform::show_frame_now();
+        let key = crate::input::take_key::take_key();
+        if key != 0 {
+            drop(sound);
+            return key;
+        }
     }
+    drop(sound);
+    0
 }
 
 /// `gfx::play_film` for its callers (the films' loop): nothing with the setting `nofmv`
@@ -800,7 +854,7 @@ pub fn play_film_now(path: u32) -> bool {
     if NO_FMV.get() != 0 {
         return false;
     }
-    unsafe { play_film(path) }
+    play_film(path)
 }
 
 #[cfg(test)]

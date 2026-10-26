@@ -56,21 +56,19 @@ pub fn surface_of(flags: u32, pixels: u32) -> Result<[u32; SURFACE_DWORDS - 2], 
     })
 }
 
-pub unsafe fn picture_as_surface() -> Result<(), Refused> {
-    unsafe {
-        let block = surface_of(PICTURE.flags.get(), PICTURE.buffer.get())?;
-        let s = &DRAW_SURFACE;
-        s.width.set(block[0]);
-        s.height.set(block[1]);
-        s.bits_per_pixel.set(block[2]);
-        s.bytes_per_pixel.set(block[3]);
-        s.row_bytes.set(block[4]);
-        s.row_dwords.set(block[5]);
-        s.format.set(block[6]);
-        s.pitch.set(block[7]);
-        s.pixels.set(block[8]);
-        s.row_gap.set(block[9]);
-        set_clip(crate::pointers::host(s.x.addr()) as *const [u32; 4])?;
-        Ok(())
-    }
+pub fn picture_as_surface() -> Result<(), Refused> {
+    let block = surface_of(PICTURE.flags.get(), PICTURE.buffer.get())?;
+    let s = &DRAW_SURFACE;
+    s.width.set(block[0]);
+    s.height.set(block[1]);
+    s.bits_per_pixel.set(block[2]);
+    s.bytes_per_pixel.set(block[3]);
+    s.row_bytes.set(block[4]);
+    s.row_dwords.set(block[5]);
+    s.format.set(block[6]);
+    s.pitch.set(block[7]);
+    s.pixels.set(block[8]);
+    s.row_gap.set(block[9]);
+    set_clip([s.x.get(), s.y.get(), s.width.get(), s.height.get()]);
+    Ok(())
 }

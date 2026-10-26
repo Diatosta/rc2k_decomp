@@ -371,6 +371,20 @@ impl GamePtr {
         })
     }
 
+    /// `len` bytes from the address as a slice, when all of them lie in one region; else the
+    /// program ends naming the address.
+    ///
+    /// # Safety
+    /// Nothing may write the bytes while the slice lives (the game's memory is shared).
+    pub unsafe fn slice<'a>(self, len: usize, what: &str) -> &'a [u8] {
+        if let Err(e) = self.check(len, what) {
+            crate::fatal::raise::end(what, e)
+        }
+        // SAFETY: the bytes lie in one live region (checked above); unwritten meanwhile
+        // (the caller's promise).
+        unsafe { std::slice::from_raw_parts(host(self.0), len) }
+    }
+
     /// The `T` at the address (unaligned, as the game's data may be), when all of it lies in
     /// one region.
     pub fn read<T: Copy>(self, what: &str) -> Result<T, BadInput> {
@@ -562,6 +576,11 @@ pub struct Lent(u32);
 impl Lent {
     pub fn new(bytes: &[u8]) -> Self {
         Self(lend(bytes.as_ptr(), bytes.len()))
+    }
+
+    /// A Rust value lent whole (a platform object the game reads by address).
+    pub fn of<T>(value: &T) -> Self {
+        Self(lend(value as *const T, size_of::<T>()))
     }
 
     /// The buffer's game address.

@@ -26,28 +26,37 @@ const HANDLE: usize = 8;
 const FLAG: usize = 0xC;
 // ---- Rust version ----
 
-pub unsafe fn start_slot_thread(slot: *mut u8) -> Result<(), FatalError> {
-    unsafe {
-        slot.add(FLAG).write(0);
-        // The slot holds the routine as the image did, an IDA address: the thread's
-        // parameter, `run_routine` finds its Rust version by it.
-        let routine = (slot.add(ROUTINE) as *const u32).read_unaligned() as usize;
-        let handle = CreateThread(
+/// The thread of the slot at game address `slot` started.
+pub fn start_slot_thread(slot: u32) -> Result<(), FatalError> {
+    let what = "a thread slot";
+    crate::pointers::check_or_end(slot, 0x10, what);
+    crate::pointers::write_or_end(slot + FLAG as u32, 0u8, what);
+    // The slot holds the routine as the image did, an IDA address: the thread's
+    // parameter, `run_routine` finds its Rust version by it.
+    let routine = crate::pointers::read_or_end::<u32>(slot + ROUTINE as u32, what) as usize;
+    // SAFETY: the thread's id goes straight into the slot (checked above), as the
+    // original's `CreateThread` put it there before the thread could look for its slot.
+    let handle = unsafe {
+        CreateThread(
             std::ptr::null(),
             0,
             Some(run_routine),
             std::ptr::without_provenance::<c_void>(routine),
             0,
-            slot.add(THREAD_ID).cast(),
-        );
-        if handle.is_null() {
-            return Err(FatalError {
-                code: 0x8010_8601,
-                message: "",
-            });
-        }
-        (slot.add(HANDLE) as *mut u32).write_unaligned(crate::pointers::handle_number(handle));
+            crate::pointers::host(slot + THREAD_ID as u32).cast(),
+        )
+    };
+    if handle.is_null() {
+        return Err(FatalError {
+            code: 0x8010_8601,
+            message: "",
+        });
     }
+    crate::pointers::write_or_end(
+        slot + HANDLE as u32,
+        crate::pointers::handle_number(handle),
+        what,
+    );
     Ok(())
 }
 

@@ -32,12 +32,10 @@
 use crate::d3d::cards_store::CARDS_3D;
 use crate::errors::FatalError;
 use crate::framework::{GameHook, RawHook, Regs, log, rva};
-use crate::gfx::describe_format::describe_format;
 use crate::gfx::reports::REPORTS;
 use crate::gfx::screen_state::DRAW_SURFACE;
 use crate::gfx::texture_upload::TEXTURE_TABLES;
 use crate::gfx::texture_upload::{TextureFormat, TextureRecord};
-use crate::logfile::log_write::log_write;
 use crate::race::viewer_screen_store::{VIEWER_PANEL, texts};
 use crate::scene::draw_store::DRAW;
 use crate::session::SCREEN;
@@ -110,7 +108,7 @@ mod block_tests {
 // ---- the texture formats ----
 
 /// `d3d::find_texture_formats`, for a screen of `bits`.
-pub unsafe fn describe_texture_formats(bits: u32) {
+pub fn describe_texture_formats(bits: u32) {
     // (bits, masks blue, green, red, alpha)
     let formats: [(u32, [u32; 4]); 4] = [
         (16, [0x001F, 0x03E0, 0x7C00, 0]),
@@ -118,47 +116,43 @@ pub unsafe fn describe_texture_formats(bits: u32) {
         (16, [0x000F, 0x00F0, 0x0F00, 0xF000]),
         (32, [0xFF, 0xFF00, 0xFF_0000, 0xFF00_0000]),
     ];
-    unsafe {
-        for (cell, (format_bits, masks)) in TEXTURE_TABLES.descriptions.iter().zip(formats) {
-            let description = cell.as_ptr().cast::<u32>();
-            for n in 0..0x10 {
-                description.add(n).write_unaligned(0);
-            }
-            description.write_unaligned(1);
-            description.add(1).write_unaligned(format_bits / 8);
-            for (n, mask) in masks.iter().enumerate() {
-                description.add(3 + n).write_unaligned(*mask);
-            }
-            // DirectDraw's pixel format: size, flags (RGB, with alpha), bits, the
+    for (cell, (format_bits, masks)) in TEXTURE_TABLES.descriptions.iter().zip(formats) {
+        let (layout, number) = crate::gfx::describe_format::describe_masks(masks);
+        cell.set(crate::gfx::texture_upload::TextureFormat {
+            found: 1,
+            bytes_per_pixel: format_bits / 8,
+            format: rc2k_core::gfx::pixels::PixelFormat { layout, masks },
+            number,
+            // DirectDraw's pixel format: size, flags (RGB, with alpha), four-CC, bits, the
             // masks red, green, blue, alpha.
-            description.add(8).write_unaligned(0x20);
-            description
-                .add(9)
-                .write_unaligned(if masks[3] == 0 { 0x40 } else { 0x41 });
-            description.add(11).write_unaligned(format_bits);
-            description.add(12).write_unaligned(masks[2]);
-            description.add(13).write_unaligned(masks[1]);
-            description.add(14).write_unaligned(masks[0]);
-            description.add(15).write_unaligned(masks[3]);
-            let _ = describe_format(description.add(2));
-        }
-        let at = |n: usize| TEXTURE_TABLES.descriptions[n].addr();
-        let kinds = if bits == 32 {
-            [at(3); 3]
-        } else {
-            [at(0), at(1), at(2)]
-        };
-        for (n, kind) in kinds.into_iter().enumerate() {
-            TEXTURE_TABLES.kinds[1 + n].set(kind);
-        }
+            dd: [
+                0x20,
+                if masks[3] == 0 { 0x40 } else { 0x41 },
+                0,
+                format_bits,
+                masks[2],
+                masks[1],
+                masks[0],
+                masks[3],
+            ],
+        });
+    }
+    let at = |n: usize| TEXTURE_TABLES.descriptions[n].addr();
+    let kinds = if bits == 32 {
+        [at(3); 3]
+    } else {
+        [at(0), at(1), at(2)]
+    };
+    for (n, kind) in kinds.into_iter().enumerate() {
+        TEXTURE_TABLES.kinds[1 + n].set(kind);
     }
 }
 
 // ---- the textures' memory ----
 
 /// A record of a pool (0 system, 1 video).
-fn record_at(pool: usize, number: u32) -> *mut TextureRecord {
-    TEXTURE_TABLES.pool(pool).records[number as usize].as_ptr()
+fn record_at(pool: usize, number: u32) -> &'static crate::session::Shared<TextureRecord> {
+    &TEXTURE_TABLES.pool(pool).records[number as usize]
 }
 
 struct Level {
@@ -196,7 +190,7 @@ fn objects() -> *mut [u32; 2] {
 }
 
 fn object(number: usize) -> u32 {
-    unsafe { crate::pointers::game_address(objects().add(number)) }
+    crate::pointers::game_address(objects().wrapping_add(number))
 }
 
 extern "system" fn lock(this: u32, _: u32, description: u32, _: u32, _: u32) -> i32 {
@@ -322,16 +316,14 @@ const TILE: usize = 64;
 
 /// The screen as the game has it now.
 fn screen() -> Option<Into> {
-    {
-        let pixels: u32 = DRAW_SURFACE.present_pixels.get();
-        (pixels != 0).then(|| Into {
-            pixels: pixels as usize,
-            pitch: DRAW_SURFACE.present_pitch.get() as usize,
-            width: SCREEN.width.get() as usize,
-            height: SCREEN.height.get() as usize,
-            bits: SCREEN.bits.get(),
-        })
-    }
+    let pixels: u32 = DRAW_SURFACE.present_pixels.get();
+    (pixels != 0).then(|| Into {
+        pixels: pixels as usize,
+        pitch: DRAW_SURFACE.present_pitch.get() as usize,
+        width: SCREEN.width.get() as usize,
+        height: SCREEN.height.get() as usize,
+        bits: SCREEN.bits.get(),
+    })
 }
 
 /// Notes `what` for the screen as it is now (the noted so far drawn first when that is
@@ -362,7 +354,7 @@ pub fn flush() {
 }
 
 fn draw_noted(pending: &mut Pending) {
-    use crate::rasteriser::{Clip, States, Target, Texture};
+    use crate::rasteriser::{Frame, States, Texture};
     use rayon::prelude::*;
     let noted = std::mem::take(&mut pending.noted);
     pending.textures.clear();
@@ -383,38 +375,31 @@ fn draw_noted(pending: &mut Pending) {
         if depth.width != into.width || depth.height != into.height {
             return;
         }
-        // Rust's own buffer, never the game's: kept as a host address.
-        let depth_at = depth.values.as_mut_ptr().expose_provenance();
-        let tiles: Vec<Clip> = if noted.len() < FEW {
-            vec![Clip {
-                left: 0,
-                top: 0,
-                right: into.width,
-                bottom: into.height,
-            }]
-        } else {
-            (0..into.height.div_ceil(TILE))
-                .flat_map(|ty| {
-                    (0..into.width.div_ceil(TILE)).map(move |tx| Clip {
-                        left: tx * TILE,
-                        top: ty * TILE,
-                        right: ((tx + 1) * TILE).min(into.width),
-                        bottom: ((ty + 1) * TILE).min(into.height),
-                    })
-                })
-                .collect()
+        // The screen's pixels are lent (a region the size of its rows), checked here; the
+        // depths are Rust's own, borrowed for the frame.
+        crate::pointers::check_or_end(
+            into.pixels as u32,
+            into.pitch * into.height,
+            "the screen's pixels",
+        );
+        // SAFETY: the pixels checked above, `height` rows of `pitch` bytes; the depths
+        // `width` x `height` floats (the sizes compared above), borrowed mutably here; the
+        // game's code does not run while the frame is drawn (under `PENDING`'s lock).
+        let mut frame = unsafe {
+            Frame::new(
+                crate::pointers::host_at(into.pixels),
+                into.pitch,
+                into.width,
+                into.height,
+                into.bits,
+                depth.values.as_mut_ptr(),
+            )
         };
+        let mut tiles = frame.tiles(if noted.len() < FEW { 0 } else { TILE });
         let noted = &noted;
-        let draw_tile = move |clip: &Clip| {
+        let draw_tile = move |tile: &mut crate::rasteriser::Tile| {
             let tile_started = std::time::Instant::now();
-            let target = Target {
-                pixels: crate::pointers::host_at(into.pixels),
-                pitch: into.pitch,
-                width: into.width,
-                height: into.height,
-                bits: into.bits,
-            };
-            let depth = std::ptr::with_exposed_provenance_mut::<f32>(depth_at);
+            let clip = *tile.clip();
             let mut written = 0u64;
             for what in noted {
                 match what {
@@ -433,11 +418,11 @@ fn draw_noted(pending: &mut Pending) {
                             continue;
                         }
                         let texture = texture.map(|t| Texture {
+                            // SAFETY: a noted texture is not written while it is drawn
+                            // from: locking it flushes the noted fans first (`lock`).
                             pixels: unsafe {
-                                std::slice::from_raw_parts(
-                                    crate::pointers::host_at(t.pixels) as *const u8,
-                                    t.len,
-                                )
+                                crate::pointers::GamePtr::new(t.pixels as u32)
+                                    .slice(t.len, "a texture's pixels")
                             },
                             width: t.width,
                             height: t.height,
@@ -445,26 +430,9 @@ fn draw_noted(pending: &mut Pending) {
                             bytes: t.bytes,
                             masks: t.masks,
                         });
-                        written += unsafe {
-                            crate::rasteriser::draw_fan_in(
-                                vertices,
-                                &target,
-                                &States(&states[..]),
-                                texture.as_ref(),
-                                depth,
-                                clip,
-                            )
-                        };
+                        written += tile.draw_fan(vertices, &States(&states[..]), texture.as_ref());
                     }
-                    Noted::Clear([left, top, right, bottom]) => {
-                        let (x0, x1) = ((*left).max(clip.left), (*right).min(clip.right));
-                        let (y0, y1) = ((*top).max(clip.top), (*bottom).min(clip.bottom));
-                        for y in y0..y1 {
-                            for x in x0..x1 {
-                                unsafe { *depth.add(y * into.width + x) = 1.0 };
-                            }
-                        }
-                    }
+                    Noted::Clear(rect) => tile.clear_depth(*rect),
                 }
             }
             PIXELS.fetch_add(written, std::sync::atomic::Ordering::Relaxed);
@@ -475,9 +443,9 @@ fn draw_noted(pending: &mut Pending) {
         };
         let parallel_started = std::time::Instant::now();
         if tiles.len() == 1 {
-            draw_tile(&tiles[0]);
+            draw_tile(&mut tiles[0]);
         } else {
-            tiles.par_iter().for_each(draw_tile);
+            tiles.par_iter_mut().for_each(draw_tile);
         }
         PARALLEL_MICROS.fetch_add(
             parallel_started.elapsed().as_micros() as u64,
@@ -544,9 +512,12 @@ fn dump_if_asked(noted: &[Noted], into: &Into) {
             put(&mut out, m);
         }
         put(&mut out, t.len as u32);
-        out.extend_from_slice(unsafe {
-            std::slice::from_raw_parts(crate::pointers::host_at(t.pixels) as *const u8, t.len)
-        });
+        let what = "a noted texture's pixels";
+        out.extend(
+            crate::pointers::GamePtr::new(t.pixels as u32)
+                .read_bytes(t.len, what)
+                .unwrap_or_else(|e| crate::fatal::raise::end(what, e)),
+        );
     }
     put(&mut out, noted.len() as u32);
     for n in noted {
@@ -621,56 +592,54 @@ fn note_fan(vertices: &[crate::rasteriser::Vertex]) {
     if vertices.len() < 3 {
         return;
     }
-    unsafe {
-        let states: [u32; STATES] = std::array::from_fn(|n| CARDS_3D.kept_states[n].get());
-        let current: u32 = CARDS_3D.current_texture.get();
-        let memory = LEVELS_MEMORY.lock().unwrap();
-        let texture = (current < MOST)
-            .then(|| {
-                let record = record_at(1, current).read_unaligned();
-                let level = memory.get(surface_number(1, current, 0))?.as_ref()?;
-                if record.format == 0 {
-                    return None;
-                }
-                let format =
-                    (crate::pointers::host(record.format) as *const TextureFormat).read_unaligned();
-                Some(TextureNote {
-                    pixels: (crate::pointers::game_address(level.pixels.as_ptr())) as usize,
-                    len: level.pixels.len(),
-                    width: record.width as usize,
-                    height: record.height as usize,
-                    pitch: level.pitch as usize,
-                    bytes: format.bytes_per_pixel as usize,
-                    masks: format.format.masks,
-                })
+    let states: [u32; STATES] = std::array::from_fn(|n| CARDS_3D.kept_states[n].get());
+    let current: u32 = CARDS_3D.current_texture.get();
+    let memory = LEVELS_MEMORY.lock().unwrap();
+    let texture = (current < MOST)
+        .then(|| {
+            let record = record_at(1, current).get();
+            let level = memory.get(surface_number(1, current, 0))?.as_ref()?;
+            if record.format == 0 {
+                return None;
+            }
+            let format =
+                crate::pointers::read_or_end::<TextureFormat>(record.format, "a texture format");
+            Some(TextureNote {
+                pixels: (crate::pointers::game_address(level.pixels.as_ptr())) as usize,
+                len: level.pixels.len(),
+                width: record.width as usize,
+                height: record.height as usize,
+                pitch: level.pitch as usize,
+                bytes: format.bytes_per_pixel as usize,
+                masks: format.format.masks,
             })
-            .flatten();
-        drop(memory);
-        let f = |v: &crate::rasteriser::Vertex, n: usize| f32::from_bits(v[n]);
-        let mut bounds = (f32::MAX, f32::MAX, f32::MIN, f32::MIN);
-        for v in vertices {
-            let (x, y) = (f(v, 0), f(v, 1));
-            bounds = (
-                bounds.0.min(x),
-                bounds.1.min(y),
-                bounds.2.max(x),
-                bounds.3.max(y),
-            );
-        }
-        if !(bounds.0.is_finite()
-            && bounds.1.is_finite()
-            && bounds.2.is_finite()
-            && bounds.3.is_finite())
-        {
-            bounds = (f32::MIN, f32::MIN, f32::MAX, f32::MAX);
-        }
-        note(Noted::Fan {
-            vertices: vertices.to_vec(),
-            states: Box::new(states),
-            texture,
-            bounds,
-        });
+        })
+        .flatten();
+    drop(memory);
+    let f = |v: &crate::rasteriser::Vertex, n: usize| f32::from_bits(v[n]);
+    let mut bounds = (f32::MAX, f32::MAX, f32::MIN, f32::MIN);
+    for v in vertices {
+        let (x, y) = (f(v, 0), f(v, 1));
+        bounds = (
+            bounds.0.min(x),
+            bounds.1.min(y),
+            bounds.2.max(x),
+            bounds.3.max(y),
+        );
     }
+    if !(bounds.0.is_finite()
+        && bounds.1.is_finite()
+        && bounds.2.is_finite()
+        && bounds.3.is_finite())
+    {
+        bounds = (f32::MIN, f32::MIN, f32::MAX, f32::MAX);
+    }
+    note(Noted::Fan {
+        vertices: vertices.to_vec(),
+        states: Box::new(states),
+        texture,
+        bounds,
+    });
 }
 
 /// The screen into system texture `number`'s first level, as DirectDraw's `Blt` without
@@ -685,51 +654,50 @@ pub fn copy_screen_to_system_texture(number: u32) {
     let Some(screen) = screen() else {
         return;
     };
-    unsafe {
-        let record = record_at(0, number).read_unaligned();
-        if record.format == 0 || record.width == 0 || record.height == 0 {
-            return;
+    let record = record_at(0, number).get();
+    if record.format == 0 || record.width == 0 || record.height == 0 {
+        return;
+    }
+    let format = crate::pointers::read_or_end::<TextureFormat>(record.format, "a texture format");
+    let bytes = format.bytes_per_pixel as usize;
+    let masks = format.format.masks;
+    let mut memory = LEVELS_MEMORY.lock().unwrap();
+    let Some(level) = memory
+        .get_mut(surface_number(0, number, 0))
+        .and_then(|l| l.as_mut())
+    else {
+        return;
+    };
+    let (w, h) = (record.width as usize, record.height as usize);
+    // A component (0 .. 255) into a mask's place.
+    let put = |c: u32, mask: u32| -> u32 {
+        if mask == 0 {
+            return 0;
         }
-        let format =
-            (crate::pointers::host(record.format) as *const TextureFormat).read_unaligned();
-        let bytes = format.bytes_per_pixel as usize;
-        let masks = format.format.masks;
-        let mut memory = LEVELS_MEMORY.lock().unwrap();
-        let Some(level) = memory
-            .get_mut(surface_number(0, number, 0))
-            .and_then(|l| l.as_mut())
-        else {
-            return;
-        };
-        let (w, h) = (record.width as usize, record.height as usize);
-        // A component (0 .. 255) into a mask's place.
-        let put = |c: u32, mask: u32| -> u32 {
-            if mask == 0 {
-                return 0;
-            }
-            let shift = mask.trailing_zeros();
-            let most = mask >> shift;
-            ((c * most + 127) / 255) << shift
-        };
-        for y in 0..h {
-            let sy = y * screen.height / h;
-            let row = crate::pointers::host_at(screen.pixels + sy * screen.pitch) as *const u8;
-            for x in 0..w {
-                let sx = x * screen.width / w;
-                let (red, green, blue) = if screen.bits == 16 {
-                    let p = (row.add(sx * 2) as *const u16).read_unaligned() as u32;
-                    let (r5, g6, b5) = (p >> 11 & 0x1F, p >> 5 & 0x3F, p & 0x1F);
-                    (r5 << 3 | r5 >> 2, g6 << 2 | g6 >> 4, b5 << 3 | b5 >> 2)
-                } else {
-                    let p = (row.add(sx * 4) as *const u32).read_unaligned();
-                    (p >> 16 & 0xFF, p >> 8 & 0xFF, p & 0xFF)
-                };
-                let texel =
-                    put(blue, masks[0]) | put(green, masks[1]) | put(red, masks[2]) | masks[3];
-                let at = y * level.pitch as usize + x * bytes;
-                if let Some(to) = level.pixels.get_mut(at..at + bytes) {
-                    to.copy_from_slice(&texel.to_le_bytes()[..bytes.min(4)]);
-                }
+        let shift = mask.trailing_zeros();
+        let most = mask >> shift;
+        ((c * most + 127) / 255) << shift
+    };
+    for y in 0..h {
+        let sy = y * screen.height / h;
+        let what = "the screen's row";
+        let row = crate::pointers::GamePtr::new((screen.pixels + sy * screen.pitch) as u32)
+            .read_bytes(screen.width * if screen.bits == 16 { 2 } else { 4 }, what)
+            .unwrap_or_else(|e| crate::fatal::raise::end(what, e));
+        for x in 0..w {
+            let sx = x * screen.width / w;
+            let (red, green, blue) = if screen.bits == 16 {
+                let p = u16::from_le_bytes([row[sx * 2], row[sx * 2 + 1]]) as u32;
+                let (r5, g6, b5) = (p >> 11 & 0x1F, p >> 5 & 0x3F, p & 0x1F);
+                (r5 << 3 | r5 >> 2, g6 << 2 | g6 >> 4, b5 << 3 | b5 >> 2)
+            } else {
+                let p = u32::from_le_bytes(row[sx * 4..sx * 4 + 4].try_into().unwrap());
+                (p >> 16 & 0xFF, p >> 8 & 0xFF, p & 0xFF)
+            };
+            let texel = put(blue, masks[0]) | put(green, masks[1]) | put(red, masks[2]) | masks[3];
+            let at = y * level.pitch as usize + x * bytes;
+            if let Some(to) = level.pixels.get_mut(at..at + bytes) {
+                to.copy_from_slice(&texel.to_le_bytes()[..bytes.min(4)]);
             }
         }
     }
@@ -786,7 +754,7 @@ fn size_of(code: u32) -> Option<u32> {
 }
 
 /// One texture more in a pool: its record made and its levels' memory.
-unsafe fn make_texture(
+fn make_texture(
     pool: usize,
     description: u32,
     width: u32,
@@ -795,14 +763,12 @@ unsafe fn make_texture(
 ) -> Result<u32, FatalError> {
     let full = if pool == 0 { 0x80D1_8501 } else { 0x80D1_8601 };
     let pool_vars = TEXTURE_TABLES.pool(pool);
-    unsafe {
-        let number: u32 = pool_vars.count.get();
-        if number >= MOST {
-            return Err(fatal(full));
-        }
-        pool_vars.count.set(number + 1);
-        let at = pool_vars.records[number as usize].as_ptr();
-        let mut record = at.read_unaligned();
+    let number: u32 = pool_vars.count.get();
+    if number >= MOST {
+        return Err(fatal(full));
+    }
+    pool_vars.count.set(number + 1);
+    pool_vars.records[number as usize].update(|record| {
         record.kind = if pool == 0 { 1 } else { 2 };
         record.width = width;
         record.height = height;
@@ -835,48 +801,42 @@ unsafe fn make_texture(
             record.texture = 1;
             record.handle = number + 1;
         }
-        at.write_unaligned(record);
-        Ok(number)
-    }
+    });
+    Ok(number)
 }
 
-unsafe fn allocate_textures(
+fn allocate_textures(
     video: u32,
     system: u32,
     sizes: u32,
     kind: u32,
     mips: u32,
 ) -> Result<(), FatalError> {
-    unsafe {
-        let width = size_of(sizes & 0xFF).ok_or(fatal(0x80A1_8641))?;
-        let height = if sizes & 0x1000 != 0 {
-            size_of((sizes >> 8) & 0xFF).ok_or(fatal(0x80A1_8642))?
-        } else {
-            width
-        };
-        let description: u32 = TEXTURE_TABLES.kind_entry(kind as usize & 0xFF);
-        TEXTURE_TABLES.alpha_kind.set((kind == 3) as u32);
-        let levels = if CARDS_3D.mips.get() == 1 { mips } else { 0 }.wrapping_add(1);
-        if levels > LEVELS {
-            return Err(fatal(0x80A1_8643));
-        }
-        TEXTURE_TABLES
-            .first_video
-            .set(TEXTURE_TABLES.video.count.get());
-        TEXTURE_TABLES
-            .first_system
-            .set(TEXTURE_TABLES.system.count.get());
-        for _ in 0..video {
-            make_texture(1, description, width, height, levels)?;
-        }
-        let alpha: u32 = TEXTURE_TABLES.alpha_kind.get();
-        for _ in 0..system {
-            let number = make_texture(0, description, width, height, levels)?;
-            let at = record_at(0, number);
-            let mut record = at.read_unaligned();
-            record.keeps_alpha = alpha;
-            at.write_unaligned(record);
-        }
+    let width = size_of(sizes & 0xFF).ok_or(fatal(0x80A1_8641))?;
+    let height = if sizes & 0x1000 != 0 {
+        size_of((sizes >> 8) & 0xFF).ok_or(fatal(0x80A1_8642))?
+    } else {
+        width
+    };
+    let description: u32 = TEXTURE_TABLES.kind_entry(kind as usize & 0xFF);
+    TEXTURE_TABLES.alpha_kind.set((kind == 3) as u32);
+    let levels = if CARDS_3D.mips.get() == 1 { mips } else { 0 }.wrapping_add(1);
+    if levels > LEVELS {
+        return Err(fatal(0x80A1_8643));
+    }
+    TEXTURE_TABLES
+        .first_video
+        .set(TEXTURE_TABLES.video.count.get());
+    TEXTURE_TABLES
+        .first_system
+        .set(TEXTURE_TABLES.system.count.get());
+    for _ in 0..video {
+        make_texture(1, description, width, height, levels)?;
+    }
+    let alpha: u32 = TEXTURE_TABLES.alpha_kind.get();
+    for _ in 0..system {
+        let number = make_texture(0, description, width, height, levels)?;
+        TEXTURE_TABLES.system.records[number as usize].update(|r| r.keeps_alpha = alpha);
     }
     Ok(())
 }
@@ -922,17 +882,15 @@ pub fn allocate_textures_now(
 ) -> Result<(u32, u32), FatalError> {
     ALLOCATE.count_call();
     flush();
-    unsafe {
-        let reports: u32 = REPORTS.on.get();
-        REPORTS.on.set(0);
-        let done = allocate_textures(video, system, sizes, kind, mips);
-        REPORTS.on.set(reports);
-        done?;
-        Ok((
-            TEXTURE_TABLES.first_video.get(),
-            TEXTURE_TABLES.first_system.get(),
-        ))
-    }
+    let reports: u32 = REPORTS.on.get();
+    REPORTS.on.set(0);
+    let done = allocate_textures(video, system, sizes, kind, mips);
+    REPORTS.on.set(reports);
+    done?;
+    Ok((
+        TEXTURE_TABLES.first_video.get(),
+        TEXTURE_TABLES.first_system.get(),
+    ))
 }
 
 // ---- gfx::release_all_textures (0x4051D3) ----
@@ -940,19 +898,17 @@ pub fn allocate_textures_now(
 static RELEASE: RawHook = RawHook::new("gfx::release_all_textures", rva(0x4051D3));
 
 /// `sub_41A3B2` for every texture of a pool, and the count 0.
-unsafe fn release_pool(pool: usize) {
+fn release_pool(pool: usize) {
     let pool_vars = TEXTURE_TABLES.pool(pool);
-    unsafe {
-        let count: u32 = pool_vars.count.get();
-        let mut memory = LEVELS_MEMORY.lock().unwrap();
-        for number in 0..count.min(MOST) {
-            let at = pool_vars.records[number as usize].as_ptr();
-            let mut record = at.read_unaligned();
-            for level in 0..LEVELS {
-                if let Some(slot) = memory.get_mut(surface_number(pool, number, level)) {
-                    *slot = None;
-                }
+    let count: u32 = pool_vars.count.get();
+    let mut memory = LEVELS_MEMORY.lock().unwrap();
+    for number in 0..count.min(MOST) {
+        for level in 0..LEVELS {
+            if let Some(slot) = memory.get_mut(surface_number(pool, number, level)) {
+                *slot = None;
             }
+        }
+        pool_vars.records[number as usize].update(|record| {
             record.surfaces = [0; 9];
             record.textures = [0; 9];
             record.texture = 0;
@@ -960,10 +916,9 @@ unsafe fn release_pool(pool: usize) {
             record.kind = 0;
             record.levels = 0;
             record.holds = u32::MAX;
-            at.write_unaligned(record);
-        }
-        pool_vars.count.set(0);
+        });
     }
+    pool_vars.count.set(0);
 }
 
 /// `gfx::release_all_textures` for Rust callers, as a call by its address.
@@ -976,15 +931,15 @@ pub fn release_textures() {
 /// `gfx::set_screen_mode` does first, 0x404C55).
 pub fn release_all_textures() {
     flush();
-    unsafe {
-        log_write(
-            crate::pointers::host(VIEWER_PANEL.text_addr(texts::SVM_RELEASE_TEXTURES)) as *const u8,
-            true,
-            2,
-        );
-        release_pool(1);
-        release_pool(0);
-    }
+    let what = "the release text";
+    let text = crate::files::cstring(
+        crate::pointers::GamePtr::new(VIEWER_PANEL.text_addr(texts::SVM_RELEASE_TEXTURES)),
+        what,
+    )
+    .unwrap_or_else(|e| crate::fatal::raise::end(what, e));
+    crate::logfile::write_line::log_text(&text, true, 2);
+    release_pool(1);
+    release_pool(0);
 }
 
 // ---- scene::load_texture (0x44E778) ----
@@ -1009,24 +964,19 @@ pub fn hold_texture(caller: &str, system: u32, video: u32) {
         ));
         return;
     }
-    unsafe {
-        let video_record = record_at(1, video);
-        let mut held = video_record.read_unaligned();
-        held.holds = system;
-        video_record.write_unaligned(held);
-        let levels = record_at(0, system).read_unaligned().levels.min(LEVELS);
-        let mut memory = LEVELS_MEMORY.lock().unwrap();
-        for level in 0..levels {
-            let from = surface_number(0, system, level);
-            let to = surface_number(1, video, level);
-            let pixels = match memory.get(from).and_then(|l| l.as_ref()) {
-                Some(level) => level.pixels.clone(),
-                None => continue,
-            };
-            if let Some(Some(target)) = memory.get_mut(to) {
-                let n = pixels.len().min(target.pixels.len());
-                target.pixels[..n].copy_from_slice(&pixels[..n]);
-            }
+    record_at(1, video).update(|held| held.holds = system);
+    let levels = record_at(0, system).get().levels.min(LEVELS);
+    let mut memory = LEVELS_MEMORY.lock().unwrap();
+    for level in 0..levels {
+        let from = surface_number(0, system, level);
+        let to = surface_number(1, video, level);
+        let pixels = match memory.get(from).and_then(|l| l.as_ref()) {
+            Some(level) => level.pixels.clone(),
+            None => continue,
+        };
+        if let Some(Some(target)) = memory.get_mut(to) {
+            let n = pixels.len().min(target.pixels.len());
+            target.pixels[..n].copy_from_slice(&pixels[..n]);
         }
     }
 }
@@ -1055,18 +1005,16 @@ const BEGIN_STATES: [(u32, u32); 12] = [
 /// texture set. It cannot fail (the original leaves eax 0, the carry clear, zero set).
 pub fn begin_layer() {
     BEGIN.count_call();
+    CARDS_3D.in_scene.set(1u32);
+    for (value, state) in BEGIN_STATES
+        .into_iter()
+        .chain([(CARDS_3D.fog_state.get(), 0x1A)])
     {
-        CARDS_3D.in_scene.set(1u32);
-        for (value, state) in BEGIN_STATES
-            .into_iter()
-            .chain([(CARDS_3D.fog_state.get(), 0x1A)])
-        {
-            crate::d3d::set_render_state::set_render_state(value, state);
-        }
-        // `sub_41ACDE`: no texture is the current one, then none is set.
-        CARDS_3D.current_texture.set(0xFFFF_FC44u32);
-        crate::d3d::set_texture::set_texture(NO_TEXTURE);
+        crate::d3d::set_render_state::set_render_state(value, state);
     }
+    // `sub_41ACDE`: no texture is the current one, then none is set.
+    CARDS_3D.current_texture.set(0xFFFF_FC44u32);
+    crate::d3d::set_texture::set_texture(NO_TEXTURE);
 }
 
 static END: RawHook = RawHook::new("d3d::end_scene", rva(0x41AB8A));

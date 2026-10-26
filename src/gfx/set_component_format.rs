@@ -17,13 +17,11 @@ const MASKS: [u32; 4] = rc2k_core::gfx::pixels::COMPONENT_MASKS;
 
 // ---- Rust version ----
 
-pub unsafe fn set_component_format() -> Result<(), Refused> {
-    unsafe {
-        let format = FORMATS.component_format.as_ptr() as *mut u32;
-        for (n, mask) in MASKS.into_iter().enumerate() {
-            format.add(1 + n).write_unaligned(mask);
-        }
-        describe_format(format)?;
+pub fn set_component_format() -> Result<(), Refused> {
+    let format = &FORMATS.component_format;
+    for (n, mask) in MASKS.into_iter().enumerate() {
+        format[1 + n].set(mask);
     }
+    describe_format(format);
     Ok(())
 }
