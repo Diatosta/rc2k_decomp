@@ -263,7 +263,7 @@ unsafe fn set_screen_mode(mode: u32) -> Result<(), String> {
 
         let mut screen = SCREEN.lock().map_err(|_| "the screen's lock")?;
         let window = match screen.as_ref() {
-            Some(old) => crate::pointers::host_at(old.window) as *mut SDL_Window,
+            Some(old) => std::ptr::with_exposed_provenance_mut::<SDL_Window>(old.window),
             None => {
                 if !SDL_Init(SDL_INIT_VIDEO) {
                     return Err("SDL does not start".into());
@@ -289,20 +289,19 @@ unsafe fn set_screen_mode(mode: u32) -> Result<(), String> {
             SDL_UpdateWindowSurface(window);
         }
         let pixels = vec![0u8; (bytes * width * height) as usize];
-        DRAW_SURFACE
-            .present_pixels
-            .set(crate::pointers::game_address(pixels.as_ptr()));
+        let lent = crate::pointers::Lent::new(&pixels);
+        DRAW_SURFACE.present_pixels.set(lent.addr());
         DRAW_SURFACE.present_pitch.set(bytes * width);
         DRAW_SURFACE.present_gap.set(0u32);
         // "There are surfaces": what the game's own code asks.
         SURFACES.front.set(1);
         SURFACES.back.set(1);
         *screen = Some(Screen {
-            window: crate::pointers::game_address(window) as usize,
+            window: window.expose_provenance(),
             width: width as usize,
             height: height as usize,
             bits,
-            _lent: crate::pointers::Lent::new(&pixels),
+            _lent: lent,
             pixels,
         });
         SCREEN_MODE.mode_set.set(mode);
@@ -450,13 +449,13 @@ fn start_sampler() {
                             OpenThread(THREAD_SUSPEND_RESUME | THREAD_GET_CONTEXT, 0, id)
                         };
                         if !h.is_null() {
-                            handles.push((id, crate::pointers::game_address(h) as usize));
+                            handles.push((id, h.expose_provenance()));
                         }
                     }
                 }
                 for &(_, h) in &handles {
-                    let thread =
-                        crate::pointers::host_at(h) as windows_sys::Win32::Foundation::HANDLE;
+                    let thread: windows_sys::Win32::Foundation::HANDLE =
+                        std::ptr::with_exposed_provenance_mut(h);
                     unsafe {
                         if SuspendThread(thread) == u32::MAX {
                             continue;
@@ -496,38 +495,37 @@ fn hot_places() -> String {
     if total == 0 {
         return String::new();
     }
-    let program = crate::pointers::game_address(unsafe { GetModuleHandleA(std::ptr::null()) });
-    let game = crate::framework::game_addr(0);
+    // Host addresses throughout (sampled instruction pointers, modules); the game's
+    // reserved image by its host address.
+    let program = unsafe { GetModuleHandleA(std::ptr::null()) }.expose_provenance();
+    let game = crate::pointers::host(crate::framework::game_addr(0)).expose_provenance();
     // by function-sized buckets would need symbols: by address, the top 24
     let mut places: Vec<(usize, u32)> = samples.into_iter().collect();
     places.sort_by_key(|p| std::cmp::Reverse(p.1));
-    // `at` is a sampled instruction pointer (a host address): as a game address, as
-    // everything below is.
     let name = |at: usize| -> String {
-        let at = crate::pointers::game_of(at) as usize;
         unsafe {
             let mut module = std::ptr::null_mut();
             if GetModuleHandleExA(
                 GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS
                     | GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
-                crate::pointers::host_at(at) as *const u8,
+                std::ptr::with_exposed_provenance::<u8>(at),
                 &mut module,
             ) == 0
             {
                 return format!("{at:#x}");
             }
-            let base = crate::pointers::game_address(module);
+            let base = module.expose_provenance();
             if base == program {
-                return format!("rc2k+{:#x}", at - base as usize);
+                return format!("rc2k+{:#x}", at - base);
             }
             if base == game.wrapping_add(0x40_0000) || base == game {
-                return format!("game {:#x}", at.wrapping_sub(game as usize));
+                return format!("game {:#x}", at.wrapping_sub(game));
             }
             let mut file = [0u8; 260];
             let n = GetModuleFileNameA(module, file.as_mut_ptr(), 260) as usize;
             let file = String::from_utf8_lossy(&file[..n]);
             let file = file.rsplit(['\\', '/']).next().unwrap_or("?").to_string();
-            format!("{file}+{:#x}", at - base as usize)
+            format!("{file}+{:#x}", at - base)
         }
     };
     // Every place, for adding up by function offline (`llvm-symbolizer` on rc2k.exe).
@@ -619,7 +617,7 @@ fn report_timing() {
 
 unsafe fn show_frame(screen: &Screen) -> Result<(), &'static str> {
     unsafe {
-        let window = crate::pointers::host_at(screen.window) as *mut SDL_Window;
+        let window = std::ptr::with_exposed_provenance_mut::<SDL_Window>(screen.window);
         let surface = SDL_GetWindowSurface(window);
         if surface.is_null() {
             return Err("the window has no surface");

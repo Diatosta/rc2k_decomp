@@ -202,7 +202,7 @@ pub fn update_car_effects(view: u32, object: u32, device: u32) -> Result<(), Ref
     update_car_effects_with(view, object, device, crate::session::MACHINE.scratch.addr())
 }
 
-#[cfg(test)]
+#[cfg(all(test, target_arch = "x86"))]
 mod asm_reference {
     use super::*;
     use crate::scene::asm_test::{Kind, differential};

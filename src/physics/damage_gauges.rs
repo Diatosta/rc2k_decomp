@@ -1387,7 +1387,7 @@ fn x87_13(rc: usize, m: &DamageModel) {
     fstp(rc, 0x31A430, t92);
 }
 
-#[cfg(test)]
+#[cfg(all(test, target_arch = "x86"))]
 mod asm_reference {
     use super::*;
 

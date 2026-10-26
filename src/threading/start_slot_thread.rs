@@ -36,7 +36,7 @@ pub unsafe fn start_slot_thread(slot: *mut u8) -> Result<(), FatalError> {
             std::ptr::null(),
             0,
             Some(run_routine),
-            crate::pointers::host_at(routine) as *const c_void,
+            std::ptr::without_provenance::<c_void>(routine),
             0,
             slot.add(THREAD_ID).cast(),
         );
@@ -46,7 +46,7 @@ pub unsafe fn start_slot_thread(slot: *mut u8) -> Result<(), FatalError> {
                 message: "",
             });
         }
-        (slot.add(HANDLE) as *mut u32).write_unaligned(crate::pointers::game_address(handle));
+        (slot.add(HANDLE) as *mut u32).write_unaligned(crate::pointers::handle_number(handle));
     }
     Ok(())
 }
@@ -54,7 +54,8 @@ pub unsafe fn start_slot_thread(slot: *mut u8) -> Result<(), FatalError> {
 /// A slot's thread: its routine (the IDA address the slot holds) run by its Rust version
 /// (`thread_slot::run_routine`). A routine with none, or one that refuses, ends the program.
 extern "system" fn run_routine(routine: *mut c_void) -> u32 {
-    let routine = crate::pointers::game_address(routine);
+    // The parameter is the IDA address itself, no memory.
+    let routine = routine.addr() as u32;
     match crate::threading::thread_slot::run_routine(routine) {
         Some(Ok(())) => {}
         Some(Err(crate::errors::Refused::Fatal(error))) => {

@@ -10,25 +10,27 @@ use crate::session::Dword;
 /// `CoCreateInstance`'s class context: in process.
 const IN_PROCESS: u32 = 1;
 
-/// `CoCreateInstance` (class, interface, where the object goes) -> its result.
-fn game_create(class: u32, interface: u32, out: u32) -> i32 {
+/// `CoCreateInstance` (class, interface) -> its result. The object never reaches the game:
+/// when there is one A3D is there, which the callers refuse, so it is released here at
+/// once (a system object's address need not fit the game's 32 bits).
+fn game_create(class: u32, interface: u32) -> i32 {
+    let mut object: *mut core::ffi::c_void = std::ptr::null_mut();
     let r = unsafe {
         windows_sys::Win32::System::Com::CoCreateInstance(
             crate::pointers::host(class) as *const _,
             std::ptr::null_mut(),
             IN_PROCESS,
             crate::pointers::host(interface) as *const _,
-            crate::pointers::host(out) as *mut *mut core::ffi::c_void,
+            &mut object,
         )
     };
-    if r >= 0 {
-        // The system's object: its table pointer and the table's first methods (as far as
-        // `Release`, all the game calls) made regions for the program's life.
-        let object: u32 = crate::pointers::read_or_end(out, "the A3D object's place");
-        if object != 0 {
-            crate::pointers::register(object, 4);
-            let table: u32 = crate::pointers::read_or_end(object, "the A3D object");
-            crate::pointers::register(table, crate::audio::com::RELEASE + 4);
+    if r >= 0 && !object.is_null() {
+        // SAFETY: a COM object the system made: its table's third method is `Release`.
+        unsafe {
+            let table = *(object as *const *const usize);
+            let release: unsafe extern "system" fn(*mut core::ffi::c_void) -> u32 =
+                std::mem::transmute(*table.add(2));
+            release(object);
         }
     }
     r
@@ -53,16 +55,10 @@ pub fn open_a3d() -> Result<bool, Refused> {
         return Ok(false);
     }
     AUDIO.a3d_ready.set(0);
-    if game_create(
-        AUDIO.a3d_clsid.addr(),
-        AUDIO.a3d_iid.addr(),
-        AUDIO.direct_sound.addr(),
-    ) != 0
-    {
-        AUDIO.direct_sound.set(0);
+    AUDIO.direct_sound.set(0);
+    if game_create(AUDIO.a3d_clsid.addr(), AUDIO.a3d_iid.addr()) != 0 {
         return Ok(false);
     }
-    release(&AUDIO.direct_sound);
     Err(BadInput(THERE).into())
 }
 
@@ -74,16 +70,10 @@ pub fn open_a3d2() -> Result<bool, Refused> {
         return Ok(false);
     }
     AUDIO.use_a3d.set(0);
-    if game_create(
-        AUDIO.a3d2_clsid.addr(),
-        AUDIO.a3d2_iid.addr(),
-        AUDIO.a3d_object.addr(),
-    ) != 0
-    {
-        AUDIO.a3d_object.set(0);
+    AUDIO.a3d_object.set(0);
+    if game_create(AUDIO.a3d2_clsid.addr(), AUDIO.a3d2_iid.addr()) != 0 {
         return Ok(false);
     }
-    release(&AUDIO.a3d_object);
     Err(BadInput(THERE).into())
 }
 

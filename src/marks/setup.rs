@@ -71,7 +71,7 @@ pub const WAVE_LEVELS: u32 = 0x11;
 pub const SINES: u32 = 0x140;
 
 /// A test buffer standing for the marks' block at `mk` (IDA 0x764F40): the clock in it.
-#[cfg(test)]
+#[cfg(all(test, target_arch = "x86"))]
 pub fn clock_at(mk: usize) -> &'static MarksClock {
     unsafe {
         &*(crate::pointers::host_at(

@@ -206,7 +206,7 @@ impl PongRules {
 
 /// A test buffer standing for the marks' block at `mk` (IDA 0x764F40): the court's state
 /// in it, as the x87 blocks' differential tests give it to the typed versions.
-#[cfg(test)]
+#[cfg(all(test, target_arch = "x86"))]
 pub fn state_at(mk: usize) -> &'static PongState {
     unsafe {
         &*(crate::pointers::host_at(
@@ -218,7 +218,7 @@ pub fn state_at(mk: usize) -> &'static PongState {
 
 /// The court's constants in the same buffer, copied out (they sit 2 bytes off a four in the
 /// image's addresses, so the buffer's copy of them is not aligned for the cells).
-#[cfg(test)]
+#[cfg(all(test, target_arch = "x86"))]
 pub fn rules_at(mk: usize) -> PongRules {
     unsafe {
         (crate::pointers::host_at(
@@ -381,7 +381,7 @@ fn less_compare_x87_2(v: usize, s: usize) {
     st16(s, 0, bh::compare(t2, t0));
 }
 
-#[cfg(test)]
+#[cfg(all(test, target_arch = "x86"))]
 mod asm_reference {
     //! The original assembly blocks, kept verbatim as the reference the plain versions are tested against.
 
@@ -437,7 +437,7 @@ mod asm_reference {
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, target_arch = "x86"))]
 mod asm_differential {
     use super::asm_reference as reference;
     use crate::marks::asm_test::Kind::*;

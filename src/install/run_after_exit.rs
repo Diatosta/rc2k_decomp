@@ -73,10 +73,9 @@ fn rd(at: u32) -> u32 {
 
 /// `files::set_current_directory` (0x403105): whether it worked.
 fn set_cd(path: u32) -> bool {
-    use windows_sys::Win32::System::Environment::SetCurrentDirectoryA;
     let path = checked_text(path, "a folder to go to");
-    // SAFETY: a NUL-ended copy.
-    unsafe { SetCurrentDirectoryA(path.as_ptr()) != 0 }
+    let path = path.strip_suffix(&[0]).unwrap_or(&path);
+    std::env::set_current_dir(crate::files::ansi_text(path)).is_ok()
 }
 
 /// The NUL-ended text at `at`, checked (`files::cstring`), with its NUL; one outside its

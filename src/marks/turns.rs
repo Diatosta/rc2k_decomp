@@ -148,7 +148,7 @@ fn int_over_80_x87(v: usize, k: usize, o: usize) {
     st80(o, 0, t1);
 }
 
-#[cfg(test)]
+#[cfg(all(test, target_arch = "x86"))]
 mod asm_reference {
     //! The original assembly blocks, kept verbatim as the reference the plain versions are tested against.
 
@@ -217,7 +217,7 @@ mod asm_reference {
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, target_arch = "x86"))]
 mod asm_differential {
     use super::asm_reference as reference;
     use crate::marks::asm_test::Kind::*;

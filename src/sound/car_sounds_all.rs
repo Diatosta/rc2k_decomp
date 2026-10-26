@@ -95,7 +95,7 @@ fn x87_1(si: &SoundObject, df: &crate::sound::store::RaceSounds) {
     df.nearest_distance.set_bits(st(t10));
 }
 
-#[cfg(test)]
+#[cfg(all(test, target_arch = "x86"))]
 mod asm_reference {
     use super::*;
     use crate::scene::asm_test::{Block, In, Operand, Out, reference, sparse};

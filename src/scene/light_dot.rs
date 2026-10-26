@@ -46,7 +46,7 @@ fn dot(v: *const u8, o: *mut u8) {
     fistp(o, 0x0, t12);
 }
 
-#[cfg(test)]
+#[cfg(all(test, target_arch = "x86"))]
 mod asm_reference {
     use super::*;
     use crate::scene::asm_test::{Kind, differential};

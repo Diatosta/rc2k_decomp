@@ -22,7 +22,8 @@ pub fn raise(error: FatalError, regs: &Regs) {
     // once, so the few bytes are simply never freed.
     let message = match CString::new(error.message) {
         Ok(text) if !error.message.is_empty() => {
-            crate::pointers::game_address(Box::leak(text.into_boxed_c_str()).as_ptr())
+            let text = Box::leak(text.into_boxed_c_str()).to_bytes_with_nul();
+            crate::pointers::lend(text.as_ptr(), text.len())
         }
         _ => 0,
     };

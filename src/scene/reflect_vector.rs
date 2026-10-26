@@ -109,7 +109,7 @@ fn reflect(w: *mut u8, m: *const u8) {
     fstp(w, 0x8, t61);
 }
 
-#[cfg(test)]
+#[cfg(all(test, target_arch = "x86"))]
 mod asm_reference {
     use super::*;
     use crate::scene::asm_test::{Kind, differential};

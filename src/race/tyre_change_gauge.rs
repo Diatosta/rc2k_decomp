@@ -38,13 +38,13 @@ use crate::session::MACHINE;
 use rc2k_core::race::tyre_change::{Gauge, Io, turn};
 
 /// flt_5C2C60 (`VIEWER_PANEL.one`): added to the square root in the press time's logarithm.
-#[cfg(test)]
+#[cfg(all(test, target_arch = "x86"))]
 const SQRT_OFFSET: usize = 0x5C2C60;
 const GAUGE: u32 = 0x4EC;
 const STAGE: u32 = 0x4F0;
 const CLOCK: u32 = 0x4F4;
 
-#[cfg(test)]
+#[cfg(all(test, target_arch = "x86"))]
 fn p(x: usize, v: u32) {
     crate::store::game_write(crate::framework::rva(x), v)
 }
@@ -154,7 +154,7 @@ pub fn tyre_change_gauge(start: bool, player: u32) -> Result<u32, Refused> {
     Ok(result)
 }
 
-#[cfg(test)]
+#[cfg(all(test, target_arch = "x86"))]
 mod asm_reference {
     use super::*;
     use crate::math::x87::x87;

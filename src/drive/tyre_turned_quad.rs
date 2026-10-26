@@ -70,7 +70,7 @@ pub fn tyre_turned_quad(uv: u32, rect: u32, colour: u32, device: u32) -> Result<
     draw()
 }
 
-#[cfg(test)]
+#[cfg(all(test, target_arch = "x86"))]
 mod asm_reference {
     use super::*;
     use crate::math::x87::{control_word, set_control_word};

@@ -494,7 +494,7 @@ pub unsafe fn draw_car_entry(entry: u32) -> Result<(), Refused> {
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, target_arch = "x86"))]
 mod asm_reference {
     use super::*;
     use crate::framework::{game_read, game_write, rva};

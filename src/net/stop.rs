@@ -18,7 +18,7 @@ use crate::session::FLAGS;
 pub fn stop() -> Result<(), Refused> {
     NET.session.set(0);
     while NET.receiving.get() != 0 {
-        unsafe { windows_sys::Win32::System::Threading::Sleep(1) };
+        crate::system::sleep::sleep(1);
         crate::platform::pump_messages_now();
         if FLAGS.quitting.get() == 1 && NET.receive_done.get() == 1 {
             break;

@@ -158,7 +158,7 @@ pub fn draw_view_backdrop() {
     crate::scene::depth_buffer_on::depth_buffer(true);
 }
 
-#[cfg(test)]
+#[cfg(all(test, target_arch = "x86"))]
 mod asm_reference {
     use super::*;
     use crate::race::asm_test::{Rng, Saved, at_each_control_word, lock, same};

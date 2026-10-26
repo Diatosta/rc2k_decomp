@@ -364,7 +364,7 @@ fn plane_projected_x87(rc: usize, q: &QuadWork) {
     q.corners[3][1].set_bits(bh::st(t27));
 }
 
-#[cfg(test)]
+#[cfg(all(test, target_arch = "x86"))]
 mod asm_reference {
     //! The original assembly blocks, kept verbatim as the reference the plain versions are tested against.
 
@@ -590,7 +590,7 @@ mod asm_reference {
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, target_arch = "x86"))]
 mod asm_differential {
     use super::asm_reference as reference;
     use super::{PlaneTuning, QuadWork};

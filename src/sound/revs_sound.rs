@@ -121,7 +121,7 @@ fn x87_3(bx: &crate::sound::store::SoundObject, si: usize) {
     fstp(si, 0x14, t8);
 }
 
-#[cfg(test)]
+#[cfg(all(test, target_arch = "x86"))]
 mod asm_reference {
     use super::*;
     use crate::scene::asm_test::{Block, In, Operand, Out, reference, sparse};

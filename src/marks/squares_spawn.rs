@@ -93,7 +93,7 @@ fn rate_x87(rc: usize, kv: &KeptView, sti: &SquareTiming, ss: &SquareState) {
     );
 }
 
-#[cfg(test)]
+#[cfg(all(test, target_arch = "x86"))]
 mod asm_reference {
     //! The original assembly blocks, kept verbatim as the reference the plain versions are tested against.
 
@@ -130,7 +130,7 @@ mod asm_reference {
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, target_arch = "x86"))]
 mod asm_differential {
     use super::asm_reference as reference;
 

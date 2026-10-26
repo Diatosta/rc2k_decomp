@@ -42,9 +42,10 @@ pub fn free_list(list: *mut MemoryList) -> Result<(), BadInput> {
     at.write(l, "a memory list")?;
     while block != 0 {
         let before = GamePtr::new(block).read::<u32>("a block's header")?;
-        crate::pointers::unregister(block);
+        let host = crate::pointers::host(block);
+        crate::pointers::forget(block);
         // SAFETY: the block is the system's, taken by `allocate`/`virtual_alloc`.
-        unsafe { VirtualFree(crate::pointers::host(block) as _, 0, MEM_RELEASE) };
+        unsafe { VirtualFree(host as _, 0, MEM_RELEASE) };
         block = before;
     }
     Ok(())

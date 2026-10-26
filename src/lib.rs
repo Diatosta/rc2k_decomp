@@ -5,6 +5,7 @@
 // function's own doc comment and in the `Err(BadInput)` cases it checks.
 #![allow(clippy::missing_safety_doc)]
 
+mod address_map;
 mod arch;
 mod audio;
 mod d3d;

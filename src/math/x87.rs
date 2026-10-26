@@ -6,7 +6,7 @@
 //! All values are floats given and returned as their bits.
 
 /// The original's instructions, for the reference versions the tests compare with.
-#[cfg(test)]
+#[cfg(all(test, target_arch = "x86"))]
 macro_rules! x87 {
     ($($line:literal),+; $($name:ident = $value:expr),+) => {
         unsafe {
@@ -20,7 +20,7 @@ macro_rules! x87 {
         }
     };
 }
-#[cfg(test)]
+#[cfg(all(test, target_arch = "x86"))]
 pub(crate) use x87;
 
 use super::x87_float as bh;
@@ -490,7 +490,7 @@ pub fn round_to_int(x: f64) -> i32 {
 pub fn finit() {
     CONTROL.with(|c| c.set(0x037F));
     // The real x87 only matters to the tests' reference assembly.
-    #[cfg(test)]
+    #[cfg(all(test, target_arch = "x86"))]
     unsafe {
         core::arch::asm!(
             ".byte 0x9B, 0xDB, 0xE3",
@@ -510,7 +510,7 @@ pub fn control_word() -> u16 {
 pub fn set_control_word(w: u16) {
     CONTROL.with(|c| c.set(w));
     // The real control word only matters to the tests' reference assembly.
-    #[cfg(test)]
+    #[cfg(all(test, target_arch = "x86"))]
     unsafe {
         core::arch::asm!("fldcw word ptr [{w}]", w = in(reg) &raw const w, options(nostack))
     };

@@ -12,10 +12,10 @@ pub mod turn_scratch_xz;
 pub mod x87;
 pub(crate) mod x87_float;
 pub mod x87_load;
-#[cfg(test)]
+#[cfg(all(test, target_arch = "x86"))]
 mod x87_reference_a;
-#[cfg(test)]
+#[cfg(all(test, target_arch = "x86"))]
 mod x87_reference_b;
-#[cfg(test)]
+#[cfg(all(test, target_arch = "x86"))]
 mod x87_reference_c;
 pub mod x87_run;

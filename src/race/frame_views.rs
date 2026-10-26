@@ -532,7 +532,7 @@ pub fn clear_viewport_unless_held() {
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, target_arch = "x86"))]
 mod asm_reference {
     use super::*;
     use crate::race::asm_test::{Rng, at_each_control_word, lock, same};

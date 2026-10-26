@@ -123,7 +123,7 @@ pub fn angle_between_vectors(a: u32, b: u32) -> [u8; 10] {
     crate::scene::matrix3::extended(angle)
 }
 
-#[cfg(test)]
+#[cfg(all(test, target_arch = "x86"))]
 mod asm_reference {
     use super::*;
     use crate::scene::asm_test::{Kind, differential};

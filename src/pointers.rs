@@ -124,12 +124,29 @@ fn exact_region(addr: u32) -> Option<(u32, u32)> {
 
 /// The image section `addr` lies in, as game addresses.
 fn own_section(addr: u32) -> Option<(u32, u32)> {
-    let at = to_host(addr);
+    let at = crate::address_map::host(addr)?;
     own_sections()
         .iter()
         .copied()
         .find(|&(s, t)| (s..t).contains(&at))
         .map(to_game)
+}
+
+/// The program's whole image (headers and sections): first byte and byte past the end
+/// (host addresses), for `address_map`.
+pub(crate) fn own_image() -> (usize, usize) {
+    let sections = own_sections();
+    // SAFETY: a documented call with no arguments that point anywhere.
+    let base =
+        unsafe { windows_sys::Win32::System::LibraryLoader::GetModuleHandleW(std::ptr::null()) }
+            .expose_provenance();
+    let end = sections.iter().map(|&(_, t)| t).max().unwrap_or(base);
+    (base, end.next_multiple_of(0x1000))
+}
+
+/// The running thread's stack (host addresses), for `address_map`.
+pub(crate) fn thread_stack() -> (usize, usize) {
+    stack()
 }
 
 /// The program's own image sections (statics, constants): first byte and byte past the end
@@ -178,40 +195,33 @@ fn stack() -> (usize, usize) {
 }
 
 /// Where a game address's bytes are in this process (phase 9, `notes/conversion.md`): the
-/// one place a game address becomes a host pointer. On 32 bits the two are the same number;
-/// a 64-bit build maps each region's game address to its host base here.
+/// one place a game address becomes a host pointer (`address_map`: the same number on 32
+/// bits, a table's range on 64). An address no range covers ends the program.
 #[inline]
 pub fn host(addr: u32) -> *mut u8 {
     if addr == 0 {
         return std::ptr::null_mut();
     }
-    std::ptr::with_exposed_provenance_mut(addr.wrapping_sub(shift()) as usize)
+    match crate::address_map::host(addr) {
+        Some(at) => std::ptr::with_exposed_provenance_mut(at),
+        None => unmapped(addr),
+    }
 }
 
-/// How far the game's addresses lie from the host's (phase 9, step 5): 0, or with the file
-/// `rc2k_shift.on` beside the program 0x8000_0000, so that a host address taken for a game
-/// one (a conversion missed) lands outside every region and is refused at once.
-#[inline]
-pub fn shift() -> u32 {
-    static SHIFT: std::sync::OnceLock<u32> = std::sync::OnceLock::new();
-    *SHIFT.get_or_init(|| {
-        if std::path::Path::new("rc2k_shift.on").exists() {
-            log("pointers: the game's addresses are shifted by 0x80000000 (rc2k_shift.on)");
-            0x8000_0000
-        } else {
-            0
-        }
-    })
+#[cold]
+fn unmapped(addr: u32) -> ! {
+    log(&format!(
+        "pointers: the game address {addr:#010x} has no memory behind it"
+    ));
+    crate::fatal::raise::end(
+        "a game address with no memory",
+        BadInput("a game address with no memory behind it (rc2k.log names it)"),
+    )
 }
 
 /// A host range (first byte, byte past the end) as game addresses.
 fn to_game((start, end): (usize, usize)) -> (u32, u32) {
     (game_of(start), game_of(end))
-}
-
-/// The host address a game address stands for, as a number (for a host range lookup).
-fn to_host(addr: u32) -> usize {
-    host_number(host(addr))
 }
 
 /// `host` for a game address held as a `usize` (an IDA-named place, `store::game_addr`).
@@ -222,18 +232,73 @@ pub fn host_at(addr: usize) -> *mut u8 {
     host(addr as u32)
 }
 
-/// The game address of a host pointer handed to the game (a lent buffer, a platform
-/// object): the inverse of `host`.
+/// The game address of a host pointer handed to the game: the inverse of `host`. The
+/// pointer must lie in the program's image, the thread's stack, or memory given a game
+/// range (`lend`, `map`); any other ends the program.
 #[inline]
 pub fn game_address(p: impl HostPointer) -> u32 {
-    game_of(p.exposed())
+    let at = p.exposed();
+    if at == 0 {
+        return 0;
+    }
+    match crate::address_map::game_of(at) {
+        Some(game) => game,
+        None => {
+            log(&format!(
+                "pointers: the host address {at:#x} was handed to the game with no game range"
+            ));
+            crate::fatal::raise::end(
+                "a host pointer with no game address",
+                BadInput("a host pointer handed to the game with no game range (rc2k.log)"),
+            )
+        }
+    }
+}
+
+/// A system handle (an event, a mutex, a thread, a file, a search) as the game keeps it:
+/// 32 bits. Not memory, so no game range: Windows keeps a handle's value within 32 bits
+/// on 64 bits too (sign-extended back, `INVALID_HANDLE_VALUE` included).
+pub fn handle_number(h: impl HostPointer) -> u32 {
+    h.exposed() as u32
+}
+
+/// The handle the game keeps as `n` (`handle_number`'s inverse).
+pub fn handle(n: u32) -> *mut core::ffi::c_void {
+    std::ptr::with_exposed_provenance_mut(n as i32 as isize as usize)
+}
+
+/// A game range for `len` bytes of host memory at `p` (no region: the memory is reached
+/// by address only, as the game's reserved image): its game address.
+pub fn map(p: impl HostPointer, len: usize) -> u32 {
+    crate::address_map::map(p.exposed(), len)
+}
+
+/// Host memory handed to the game for good or until `forget`: a game range and a region
+/// (a platform object, a block from the system). Its game address.
+pub fn lend(p: impl HostPointer, len: usize) -> u32 {
+    let at = map(p, len);
+    register(at, len as u32);
+    at
+}
+
+/// As `lend`, for a block from the system (`register_system_block`'s whole pages).
+pub fn lend_system_block(p: impl HostPointer, len: usize) -> u32 {
+    let at = map(p, len.next_multiple_of(0x1000));
+    register_system_block(at, len as u32);
+    at
+}
+
+/// Lent memory given back: its region and its game range.
+pub fn forget(at: u32) {
+    unregister(at);
+    crate::address_map::unmap(at);
 }
 
 /// The code a game address names (a method table's entry, a callback the game passes):
 /// its host address, for a `transmute` to a function pointer.
 #[inline]
 pub fn code(addr: u32) -> usize {
-    host_number(host(addr))
+    host(addr).expose_provenance()
 }
 
 /// The game address of a host address held as a number: this module's range tables, and
@@ -243,7 +308,7 @@ pub fn game_of(addr: usize) -> u32 {
     if addr == 0 {
         return 0;
     }
-    (addr as u32).wrapping_add(shift())
+    crate::address_map::game_of(addr).unwrap_or(0)
 }
 
 /// A host pointer as a number (this module's range tables, `code`).
@@ -496,15 +561,18 @@ pub struct Lent(u32);
 
 impl Lent {
     pub fn new(bytes: &[u8]) -> Self {
-        let start = game_address(bytes.as_ptr());
-        register(start, bytes.len() as u32);
-        Self(start)
+        Self(lend(bytes.as_ptr(), bytes.len()))
+    }
+
+    /// The buffer's game address.
+    pub fn addr(&self) -> u32 {
+        self.0
     }
 }
 
 impl Drop for Lent {
     fn drop(&mut self) {
-        unregister(self.0);
+        forget(self.0);
     }
 }
 
@@ -521,7 +589,7 @@ mod tests {
     fn reads_answer_inside_a_region_only() {
         // On the heap: the stack is a region of its own.
         let block = Box::new([7u8; 64]);
-        let start = game_address(block.as_ptr());
+        let start = map(block.as_ptr(), 64);
         register(start, 64);
         let p = GamePtr::new(start + 60);
         assert_eq!(p.read::<u32>("test").unwrap(), 0x0707_0707);
@@ -574,7 +642,7 @@ mod tests {
         );
         let heap = Box::new([0u8; 8]);
         assert!(
-            GamePtr::new(game_address(heap.as_ptr()))
+            GamePtr::new(map(heap.as_ptr(), 8))
                 .read::<u8>("test")
                 .is_err()
         );

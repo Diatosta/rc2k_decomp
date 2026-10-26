@@ -138,7 +138,7 @@ pub unsafe fn init_mud() -> Result<(), Refused> {
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, target_arch = "x86"))]
 mod asm_reference {
 
     /// The original block: `mov ax, [at]` over eax = the row's address.

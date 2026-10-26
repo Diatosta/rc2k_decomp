@@ -140,7 +140,7 @@ fn x87_1(d: usize, rc: usize) {
     fistp(rc, 0x22400C, t6);
 }
 
-#[cfg(test)]
+#[cfg(all(test, target_arch = "x86"))]
 mod asm_reference {
     use super::*;
     use crate::scene::asm_test::{Block, In, Operand, Out, reference, sparse};

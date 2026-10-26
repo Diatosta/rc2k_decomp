@@ -238,7 +238,7 @@ pub fn place_object_points() -> Result<(), Refused> {
     Ok(())
 }
 
-#[cfg(test)]
+#[cfg(all(test, target_arch = "x86"))]
 mod asm_reference {
     use super::*;
     use crate::scene::asm_test::{Kind, differential};

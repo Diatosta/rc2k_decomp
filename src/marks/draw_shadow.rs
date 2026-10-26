@@ -466,7 +466,7 @@ fn projected_x87(rc: usize, s: &Shadow) {
     s.quad.corners[3][1].set_bits(bh::st(t27));
 }
 
-#[cfg(test)]
+#[cfg(all(test, target_arch = "x86"))]
 mod asm_reference {
     //! The original assembly blocks, kept verbatim as the reference the plain versions are tested against.
 
@@ -1127,7 +1127,7 @@ mod asm_reference {
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, target_arch = "x86"))]
 mod asm_differential {
     use super::Shadow;
     use super::asm_reference as reference;

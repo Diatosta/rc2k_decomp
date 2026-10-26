@@ -80,7 +80,7 @@ fn x87_1(sf: &crate::sound::store::SurfaceSounds, si: usize) {
     fstp(si, 8, t0);
 }
 
-#[cfg(test)]
+#[cfg(all(test, target_arch = "x86"))]
 mod asm_reference {
     use super::*;
     use crate::scene::asm_test::{Block, In, Operand, Out, reference, sparse};

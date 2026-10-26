@@ -152,7 +152,7 @@ pub fn rounded(v: [u8; 10]) -> u32 {
     st(from_f80(v))
 }
 
-#[cfg(test)]
+#[cfg(all(test, target_arch = "x86"))]
 mod asm_reference {
     use super::*;
     use crate::scene::asm_test::{Kind, differential, put_t80};

@@ -151,14 +151,15 @@ fn session(this: u32) -> Option<Arc<Session>> {
 }
 
 fn make(table: u32) -> u32 {
-    let at = crate::pointers::game_address(Box::into_raw(Box::new(Object {
-        table,
-        refs: AtomicU32::new(1),
-        state: Mutex::new(State::default()),
-    })));
     // A region until its last release: the game's code reads its table by address.
-    crate::pointers::register(at, size_of::<Object>() as u32);
-    at
+    crate::pointers::lend(
+        Box::into_raw(Box::new(Object {
+            table,
+            refs: AtomicU32::new(1),
+            state: Mutex::new(State::default()),
+        })),
+        size_of::<Object>(),
+    )
 }
 
 fn read_guid(at: u32) -> Option<Guid> {
@@ -228,7 +229,7 @@ fn signal() -> Signal {
     Arc::new(|event: u32| {
         if event != 0 {
             unsafe {
-                windows_sys::Win32::System::Threading::SetEvent(crate::pointers::host(event) as _)
+                windows_sys::Win32::System::Threading::SetEvent(crate::pointers::handle(event))
             };
         }
     })
@@ -299,8 +300,9 @@ unsafe extern "system" fn release(this: u32) -> u32 {
         if let Some(s) = session(this) {
             s.close();
         }
-        crate::pointers::unregister(this);
-        drop(unsafe { Box::from_raw(crate::pointers::host(this) as *mut Object) });
+        let object = crate::pointers::host(this) as *mut Object;
+        crate::pointers::forget(this);
+        drop(unsafe { Box::from_raw(object) });
     }
     left
 }

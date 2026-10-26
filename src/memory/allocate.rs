@@ -50,7 +50,7 @@ pub fn allocate(list: *mut MemoryList, bytes: u32) -> Result<*mut u8, Refused> {
             }
             .into());
         }
-        crate::pointers::register_system_block(crate::pointers::game_address(block), whole);
+        crate::pointers::lend_system_block(block, whole as usize);
         let at = GamePtr::new(crate::pointers::game_address(list));
         let mut l = at.read::<MemoryList>("a memory list")?;
         let header = l.add(crate::pointers::game_address(block), bytes);

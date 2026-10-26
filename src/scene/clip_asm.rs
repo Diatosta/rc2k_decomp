@@ -373,7 +373,7 @@ fn cut_depth(w: *mut u8) {
     fstp(w, 0x13C, t6);
 }
 
-#[cfg(test)]
+#[cfg(all(test, target_arch = "x86"))]
 mod asm_reference {
     use super::*;
     use crate::scene::asm_test::{Kind, Rng, differential};

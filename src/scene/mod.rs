@@ -9,7 +9,7 @@ pub mod allocate_object_memory;
 pub mod allocate_point_records;
 pub mod angle_between;
 pub mod approximate_distance;
-#[cfg(test)]
+#[cfg(all(test, target_arch = "x86"))]
 pub(crate) mod asm_test;
 pub mod assign_kind_textures;
 pub mod assign_menu_textures;

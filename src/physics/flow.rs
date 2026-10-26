@@ -164,7 +164,7 @@ pub fn fill_cells<A: crate::session::Cell32>(to: &[A], v: u32) {
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, target_arch = "x86"))]
 mod asm_reference {
     use super::*;
     use crate::scene::asm_test::{Block, In, Operand, Out, reference, sparse};

@@ -152,7 +152,7 @@ pub fn passed_split_point() -> Result<bool, Refused> {
     Ok(carry)
 }
 
-#[cfg(test)]
+#[cfg(all(test, target_arch = "x86"))]
 mod asm_reference {
     use super::*;
     use crate::scene::asm_test::{Block, In, Operand, Out, reference_eax, sparse};

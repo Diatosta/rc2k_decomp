@@ -97,9 +97,7 @@ pub fn restore_lost() -> Result<(), Refused> {
     if crate::audio::buffer_settings::a3d() {
         return Err(BadInput("A3D (0x40CB0A)").into());
     }
-    unsafe {
-        windows_sys::Win32::System::Threading::Sleep(1000);
-    }
+    crate::system::sleep::sleep(1000);
     if FLAGS.window_active.get() == 0 {
         return Ok(());
     }

@@ -71,15 +71,13 @@ pub fn open_by_mode_at(path: GamePtr, mode: u32) -> Result<Option<u32>, BadInput
     let file = options.open(crate::files::ansi_path(resolved)?);
     Ok(file
         .ok()
-        .map(|f| crate::pointers::game_address(f.into_raw_handle())))
+        .map(|f| crate::pointers::handle_number(f.into_raw_handle())))
 }
 
 /// The game's handle as a `File` for one call, not closed after it.
 fn with_file<R>(file: u32, f: impl FnOnce(&mut std::fs::File) -> R) -> R {
     let mut file = std::mem::ManuallyDrop::new(unsafe {
-        std::fs::File::from_raw_handle(
-            crate::pointers::host_at(file as usize) as std::os::windows::io::RawHandle
-        )
+        std::fs::File::from_raw_handle(crate::pointers::handle(file))
     });
     f(&mut file)
 }
@@ -214,7 +212,7 @@ fn time_of(ticks: u64) -> Option<SystemTime> {
 pub fn close(file: u32) -> bool {
     LAST_FILE_PATH.store(0, std::sync::atomic::Ordering::Relaxed);
     // SAFETY: closing a handle the game owns; a bad handle only makes it answer false.
-    unsafe { CloseHandle(crate::pointers::host(file) as _) != 0 }
+    unsafe { CloseHandle(crate::pointers::handle(file)) != 0 }
 }
 
 /// The game's file primitives as the core's file system: paths are the game's (a path's

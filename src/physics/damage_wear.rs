@@ -346,7 +346,7 @@ fn x87_7(f: usize, m: &DamageModel, s: usize) {
     m.flt_75b484.set_bits(st(t10));
 }
 
-#[cfg(test)]
+#[cfg(all(test, target_arch = "x86"))]
 mod asm_reference {
     use super::*;
 

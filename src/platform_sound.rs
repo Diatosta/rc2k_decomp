@@ -227,15 +227,16 @@ fn new_object(s: &mut State, table: u32, kind: Kind) -> u32 {
     let id = s.next;
     s.next += 1;
     let object = Box::new(Object { table, id });
-    let at = crate::pointers::game_address(&*object as *const Object);
     // SAFETY: the object's own bytes, for the registry only.
     let bytes = unsafe {
-        std::slice::from_raw_parts(crate::pointers::host(at) as *const u8, size_of::<Object>())
+        std::slice::from_raw_parts(&*object as *const Object as *const u8, size_of::<Object>())
     };
+    let lent = crate::pointers::Lent::new(bytes);
+    let at = lent.addr();
     s.entries.insert(
         id,
         Entry {
-            _lent: crate::pointers::Lent::new(bytes),
+            _lent: lent,
             object,
             refs: 1,
             kind,

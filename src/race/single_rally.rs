@@ -1986,9 +1986,8 @@ mod tests {
 
     fn world() -> World {
         use std::sync::atomic::Ordering::Relaxed;
-        let base = crate::pointers::game_address(
-            Box::leak(vec![0u8; IMAGE_LEN].into_boxed_slice()).as_mut_ptr(),
-        );
+        let image = Box::leak(vec![0u8; IMAGE_LEN].into_boxed_slice());
+        let base = crate::pointers::lend(image.as_mut_ptr(), IMAGE_LEN);
         crate::framework::BASE
             .compare_exchange(0, base as usize, Relaxed, Relaxed)
             .expect("no other test sets the base");
@@ -2021,6 +2020,10 @@ mod tests {
         ] {
             ranges.push((a as usize, len));
         }
+        let _regions = records
+            .iter()
+            .map(|r| crate::pointers::TestRegion::new(r))
+            .collect();
         for r in &records {
             ranges.push((
                 crate::pointers::game_address(r.as_ptr()) as usize,
@@ -2029,10 +2032,6 @@ mod tests {
         }
         ranges.sort_unstable();
         ranges.dedup();
-        let _regions = records
-            .iter()
-            .map(|r| crate::pointers::TestRegion::new(r))
-            .collect();
         World {
             image: base as usize,
             records,

@@ -61,7 +61,7 @@ fn rotate(p: *const u8, m: *const u8, o: *mut u8) {
     fstp80(o, 0x14, t32);
 }
 
-#[cfg(test)]
+#[cfg(all(test, target_arch = "x86"))]
 mod asm_reference {
     use super::*;
     use crate::scene::asm_test::{Kind, differential, put_t80};

@@ -136,7 +136,7 @@ pub unsafe fn update_mud_texture() -> Result<(), Refused> {
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, target_arch = "x86"))]
 mod asm_reference {
     use super::*;
     use crate::scene::asm_test::{Block, In, Operand, Out, reference, sparse};

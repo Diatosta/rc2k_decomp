@@ -62,12 +62,11 @@ pub(crate) const CODE: [(usize, usize); 2] = [(0x1000, 0xD6CD4), (0xD8000, 0x1F8
 /// pointers in the moved blocks are pointed at their targets (`moved::point_into_homes`).
 unsafe fn build_image() -> Result<Image, String> {
     unsafe {
-        let base = crate::pointers::game_address(VirtualAlloc(
-            std::ptr::null(),
-            IMAGE_SIZE,
-            MEM_RESERVE,
-            PAGE_NOACCESS,
-        ));
+        let reserved = VirtualAlloc(std::ptr::null(), IMAGE_SIZE, MEM_RESERVE, PAGE_NOACCESS);
+        let base = match reserved.is_null() {
+            true => 0,
+            false => crate::pointers::map(reserved, IMAGE_SIZE),
+        };
         if base == 0 {
             return Err("no address range for the game's image".into());
         }
@@ -633,8 +632,7 @@ pub fn run(log_file: &Path, frames: u32) -> ! {
             finish(&why, 2);
         }
         FILTER.store(
-            (crate::pointers::game_address(AddVectoredExceptionHandler(1, Some(on_exception))))
-                as usize,
+            AddVectoredExceptionHandler(1, Some(on_exception)).expose_provenance(),
             Ordering::SeqCst,
         );
         // The audio thread runs (its Rust version), on DirectSound over SDL

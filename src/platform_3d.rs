@@ -188,18 +188,10 @@ fn objects() -> *mut [u32; 2] {
         let table = Box::leak(table.into_boxed_slice());
         // Both kept for the program's life, and regions: the game's code reaches a
         // surface's methods through them (`d3d::texture_lock`).
-        crate::pointers::register(
-            crate::pointers::game_address(table.as_ptr()),
-            size_of_val(table) as u32,
-        );
-        let table = crate::pointers::game_address(table.as_ptr());
+        let table = crate::pointers::lend(table.as_ptr(), size_of_val(table));
         let objects: Vec<[u32; 2]> = (0..SURFACES as u32).map(|n| [table, n]).collect();
         let objects = Box::leak(objects.into_boxed_slice());
-        crate::pointers::register(
-            crate::pointers::game_address(objects.as_ptr()),
-            size_of_val(objects) as u32,
-        );
-        (crate::pointers::game_address(objects.as_mut_ptr())) as usize
+        crate::pointers::lend(objects.as_ptr(), size_of_val(objects)) as usize
     })) as *mut [u32; 2]
 }
 
@@ -391,7 +383,8 @@ fn draw_noted(pending: &mut Pending) {
         if depth.width != into.width || depth.height != into.height {
             return;
         }
-        let depth_at = crate::pointers::game_address(depth.values.as_mut_ptr());
+        // Rust's own buffer, never the game's: kept as a host address.
+        let depth_at = depth.values.as_mut_ptr().expose_provenance();
         let tiles: Vec<Clip> = if noted.len() < FEW {
             vec![Clip {
                 left: 0,
@@ -421,7 +414,7 @@ fn draw_noted(pending: &mut Pending) {
                 height: into.height,
                 bits: into.bits,
             };
-            let depth = crate::pointers::host_at(depth_at as usize) as *mut f32;
+            let depth = std::ptr::with_exposed_provenance_mut::<f32>(depth_at);
             let mut written = 0u64;
             for what in noted {
                 match what {

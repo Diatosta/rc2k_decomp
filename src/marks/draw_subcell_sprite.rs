@@ -175,7 +175,7 @@ fn square_x87(rc: usize, vt: usize, dw: &DrawWork) {
     st(vt, 0x60, t18);
 }
 
-#[cfg(test)]
+#[cfg(all(test, target_arch = "x86"))]
 mod asm_reference {
     //! The original assembly blocks, kept verbatim as the reference the plain versions are tested against.
 
@@ -284,7 +284,7 @@ mod asm_reference {
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, target_arch = "x86"))]
 mod asm_differential {
     use super::asm_reference as reference;
     use crate::marks::asm_test::Kind::*;

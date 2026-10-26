@@ -217,7 +217,7 @@ pub fn copy_settings_out() -> Result<(), Refused> {
     run(&SHAUN_TO_GRAHAM)
 }
 
-pub const GRAHAM_TO_SHAUN: [Step<Place>; 446] = [
+pub static GRAHAM_TO_SHAUN: [Step<Place>; 446] = [
     Text(c"-------------------------------------", true),
     Text(c"COPY GRAHAM TO SHAUN", true),
     Copy(
@@ -1065,7 +1065,7 @@ pub const GRAHAM_TO_SHAUN: [Step<Place>; 446] = [
     Return,
 ];
 
-pub const SHAUN_TO_GRAHAM: [Step<Place>; 344] = [
+pub static SHAUN_TO_GRAHAM: [Step<Place>; 344] = [
     Text(c"-------------------------------------", true),
     Text(c"COPY SHAUN TO GRAHAM", true),
     JumpIfNot(var!(REPLAY_FILE.hold_car_revs), 0x0, 340),

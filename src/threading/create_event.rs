@@ -20,7 +20,7 @@ use windows_sys::Win32::System::Threading::CreateEventA;
 /// The handle, 0 for none.
 pub fn create_event(manual_reset: u32, signalled: u32) -> u32 {
     unsafe {
-        crate::pointers::game_address(CreateEventA(
+        crate::pointers::handle_number(CreateEventA(
             std::ptr::null(),
             manual_reset as i32,
             signalled as i32,

@@ -46,9 +46,9 @@ pub unsafe fn first_match_read(
         LAST_FILE_PATH.store(crate::pointers::game_address(resolved), Relaxed);
         let record = find_data();
         let search = FindFirstFileA(resolved, record);
-        FIND_HANDLE.store(crate::pointers::game_address(search), Relaxed);
+        FIND_HANDLE.store(crate::pointers::handle_number(search), Relaxed);
         let skipped = || (*record).dwFileAttributes & SKIPPED_ATTRIBUTES.load(Relaxed) != 0;
-        let mut found = crate::pointers::game_address(search) != NO_SEARCH;
+        let mut found = crate::pointers::handle_number(search) != NO_SEARCH;
         if found && skipped() {
             loop {
                 if FindNextFileA(search, record) == 0 {
@@ -76,7 +76,7 @@ pub unsafe fn first_match_read(
             None
         };
         if FIND_HANDLE.load(Relaxed) != NO_SEARCH {
-            FindClose(crate::pointers::host(FIND_HANDLE.load(Relaxed)) as _);
+            FindClose(crate::pointers::handle(FIND_HANDLE.load(Relaxed)));
             FIND_HANDLE.store(NO_SEARCH, Relaxed);
         }
         read.transpose()

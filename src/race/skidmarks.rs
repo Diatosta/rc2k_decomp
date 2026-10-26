@@ -193,7 +193,7 @@ pub unsafe fn draw_skidmarks_if_on() -> Result<(), Refused> {
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, target_arch = "x86"))]
 mod asm_reference {
     use super::*;
     use crate::math::x87_float::{X, f80};

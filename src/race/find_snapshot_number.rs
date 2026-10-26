@@ -44,12 +44,7 @@ const NO_SEARCH: u32 = u32::MAX;
 pub unsafe fn find_next_wanted() -> bool {
     let record = find_data();
     loop {
-        if unsafe {
-            FindNextFileA(
-                crate::pointers::host(FIND_HANDLE.load(Relaxed)) as _,
-                record,
-            )
-        } == 0
+        if unsafe { FindNextFileA(crate::pointers::handle(FIND_HANDLE.load(Relaxed)), record) } == 0
         {
             return false;
         }
@@ -64,7 +59,7 @@ pub unsafe fn find_next_wanted() -> bool {
 pub unsafe fn find_first(pattern: u32) -> bool {
     LAST_FILE_PATH.store(pattern, Relaxed);
     let record = find_data();
-    let search = crate::pointers::game_address(unsafe {
+    let search = crate::pointers::handle_number(unsafe {
         FindFirstFileA(crate::pointers::host(pattern) as *const u8, record)
     });
     FIND_HANDLE.store(search, Relaxed);
@@ -80,7 +75,7 @@ pub unsafe fn find_first(pattern: u32) -> bool {
 /// `files::close_search` (0x40301F): the search closed, if there is one.
 pub unsafe fn close_search() {
     if FIND_HANDLE.load(Relaxed) != NO_SEARCH {
-        unsafe { FindClose(crate::pointers::host(FIND_HANDLE.load(Relaxed)) as _) };
+        unsafe { FindClose(crate::pointers::handle(FIND_HANDLE.load(Relaxed))) };
         FIND_HANDLE.store(NO_SEARCH, Relaxed);
     }
 }

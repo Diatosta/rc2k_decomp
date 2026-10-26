@@ -6,17 +6,22 @@
 fn main() {
     println!("cargo:rerun-if-changed=build.rs");
     let dir = std::env::var("CARGO_MANIFEST_DIR").unwrap();
-    println!("cargo:rustc-link-search=native={dir}/third_party/sdl3/lib/x86");
-    println!("cargo:rustc-link-search=native={dir}/third_party/ffmpeg/bin");
+    // 32 or 64 bits: SDL's folder for it, and FFmpeg's (`tools/build_ffmpeg.sh x64`).
+    let (sdl, ffmpeg) = match std::env::var("CARGO_CFG_TARGET_ARCH").as_deref() {
+        Ok("x86_64") => ("third_party/sdl3/lib/x64", "third_party/ffmpeg-x64/bin"),
+        _ => ("third_party/sdl3/lib/x86", "third_party/ffmpeg/bin"),
+    };
+    println!("cargo:rustc-link-search=native={dir}/{sdl}");
+    println!("cargo:rustc-link-search=native={dir}/{ffmpeg}");
     // OUT_DIR is <profile>/build/<crate>-<hash>/out.
     let out = std::path::PathBuf::from(std::env::var("OUT_DIR").unwrap());
     let Some(profile) = out.ancestors().nth(3) else {
         return;
     };
     for dll in [
-        "third_party/sdl3/lib/x86/SDL3.dll",
-        "third_party/ffmpeg/bin/avcodec-61.dll",
-        "third_party/ffmpeg/bin/avutil-59.dll",
+        format!("{sdl}/SDL3.dll"),
+        format!("{ffmpeg}/avcodec-61.dll"),
+        format!("{ffmpeg}/avutil-59.dll"),
     ] {
         let from = std::path::Path::new(&dir).join(dll);
         println!("cargo:rerun-if-changed={}", from.display());

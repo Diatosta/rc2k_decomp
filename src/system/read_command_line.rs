@@ -139,10 +139,7 @@ pub fn read_own_command_line() -> Result<(), BadInput> {
     // SAFETY: `GetCommandLineA` gives the process's NUL-ended command line.
     let own = unsafe { std::ffi::CStr::from_ptr(GetCommandLineA() as *const _) };
     let line: &'static [u8] = Box::leak(own.to_bytes_with_nul().to_vec().into_boxed_slice());
-    crate::pointers::register(
-        crate::pointers::game_address(line.as_ptr()),
-        line.len() as u32,
-    );
+    crate::pointers::lend(line.as_ptr(), line.len());
     if read_command_line(line)? == Asked::Version {
         show_version_and_leave();
     }

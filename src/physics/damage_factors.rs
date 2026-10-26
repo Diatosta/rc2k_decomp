@@ -512,7 +512,7 @@ fn x87_17(m: &DamageModel) {
     m.wheel_loads[3].set_bits(st(t31));
 }
 
-#[cfg(test)]
+#[cfg(all(test, target_arch = "x86"))]
 mod asm_reference {
     use super::*;
 

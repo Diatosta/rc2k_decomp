@@ -34,7 +34,7 @@ fn cross(a: *const u8, b: *const u8, o: *mut u8) {
     fstp(o, 8, fld(a, 0) * fld(b, 4) - fld(a, 4) * fld(b, 0));
 }
 
-#[cfg(test)]
+#[cfg(all(test, target_arch = "x86"))]
 mod asm_reference {
     use super::*;
     use crate::scene::asm_test::{Kind, differential};

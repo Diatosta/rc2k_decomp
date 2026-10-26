@@ -113,7 +113,7 @@ fn axes_x87(hx: usize) {
     HEXAGON_WORK.setup_axes[11].set_bits(bh::st(t23));
 }
 
-#[cfg(test)]
+#[cfg(all(test, target_arch = "x86"))]
 mod asm_reference {
     //! The original assembly blocks, kept verbatim as the reference the plain versions are tested against.
 
@@ -165,7 +165,7 @@ mod asm_reference {
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, target_arch = "x86"))]
 mod asm_differential {
     use super::asm_reference as reference;
     use crate::marks::asm_test::Kind::*;

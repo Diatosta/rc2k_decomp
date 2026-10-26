@@ -149,7 +149,7 @@ pub fn face_faces_away(face: usize) -> Result<bool, Refused> {
     Ok(true)
 }
 
-#[cfg(test)]
+#[cfg(all(test, target_arch = "x86"))]
 mod asm_reference {
     use super::*;
     use crate::scene::asm_test::{Kind, differential};

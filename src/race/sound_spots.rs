@@ -157,7 +157,7 @@ pub fn find_sound_spots() -> Result<(), Refused> {
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, target_arch = "x86"))]
 mod asm_reference {
     use super::*;
     use crate::math::x87_float::{X, f80};

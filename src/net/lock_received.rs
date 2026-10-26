@@ -14,7 +14,7 @@ use crate::net::store::NET;
 pub fn lock_received() {
     unsafe {
         windows_sys::Win32::System::Threading::WaitForSingleObject(
-            crate::pointers::host(NET.mutex.get()) as _,
+            crate::pointers::handle(NET.mutex.get()),
             u32::MAX,
         )
     };

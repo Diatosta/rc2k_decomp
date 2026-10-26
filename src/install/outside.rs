@@ -6,7 +6,6 @@ use crate::files::file_exists::file_exists;
 use crate::install::normalise_path::{current_directory, normalise_path};
 use crate::install::read_record::read_record;
 use crate::logfile::log_write::log_write;
-use windows_sys::Win32::System::Environment::SetCurrentDirectoryA;
 
 pub trait Outside {
     unsafe fn file_exists(&mut self, path: *const u8) -> Result<bool, BadInput>;
@@ -52,7 +51,10 @@ impl Outside for Game {
         unsafe { drive_type(letter) }
     }
     unsafe fn set_directory(&mut self, path: *const u8) -> bool {
-        unsafe { SetCurrentDirectoryA(path) != 0 }
+        crate::menu::event_flow::refuse_here(
+            crate::files::directories::set_current_directory(path),
+            "install: a folder to go to",
+        ) != 0
     }
     unsafe fn read_record(&mut self) -> Result<(), BadInput> {
         read_record(crate::pointers::host_at(

@@ -66,21 +66,6 @@ impl Colours257 {
     }
 }
 
-#[cfg(test)]
-mod colours_tests {
-    use super::*;
-
-    #[test]
-    fn colours_start_as_the_games() {
-        assert_eq!(size_of::<Colours257>(), Colours257::LEN);
-        let p = &COLOURS_257 as *const Colours257 as *const u8;
-        let own: Vec<u8> = (0..Colours257::LEN)
-            .map(|i| unsafe { p.add(i).read() })
-            .collect();
-        assert!(own == crate::moved::image_bytes(Colours257::START, Colours257::LEN));
-    }
-}
-
 fn get(a: u32) -> Result<u32, BadInput> {
     GamePtr::new(a).read("a game field")
 }
@@ -362,7 +347,7 @@ fn turn_place_x87(rc: usize, e: usize, dw: &DrawWork) {
     dw.turned[2].set_bits(bh::st(t29));
 }
 
-#[cfg(test)]
+#[cfg(all(test, target_arch = "x86"))]
 mod asm_reference {
     //! The original assembly blocks, kept verbatim as the reference the plain versions are tested against.
 
@@ -511,7 +496,7 @@ mod asm_reference {
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, target_arch = "x86"))]
 mod asm_differential {
     use super::asm_reference as reference;
     use crate::marks::asm_test::Kind::*;
@@ -671,5 +656,20 @@ mod asm_differential {
                 })
             },
         );
+    }
+}
+
+#[cfg(test)]
+mod colours_tests {
+    use super::*;
+
+    #[test]
+    fn colours_start_as_the_games() {
+        assert_eq!(size_of::<Colours257>(), Colours257::LEN);
+        let p = &COLOURS_257 as *const Colours257 as *const u8;
+        let own: Vec<u8> = (0..Colours257::LEN)
+            .map(|i| unsafe { p.add(i).read() })
+            .collect();
+        assert!(own == crate::moved::image_bytes(Colours257::START, Colours257::LEN));
     }
 }

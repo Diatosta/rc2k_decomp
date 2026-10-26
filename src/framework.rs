@@ -105,7 +105,7 @@ pub fn game_read<T: Copy>(rva: usize) -> T {
 }
 
 /// Writes a game global (the tests' setups).
-#[cfg(test)]
+#[cfg(all(test, target_arch = "x86"))]
 pub fn game_write<T: Copy>(rva: usize, value: T) {
     let p = game_ptr::<T>(rva);
     crate::pointers::check_or_end(
