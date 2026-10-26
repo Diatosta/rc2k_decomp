@@ -10,88 +10,53 @@
 //! Out: the registers as the steps leave them; no flags read (the caller goes on with
 //!      calls)
 //!
-//! Caller: `sub_43B635` (0x43B64E).
-//! Refuses what the steps refuse; what was written is put back.
-//! Self-test: `physics/splits.rs` (`test_splits`), every mode.
+//! Caller: `sub_43B635` (0x43B64E). Refuses what the steps refuse; what was written is put
+//! back.
+//!
+//! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
+//! above are the original's, for reference.
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
+use crate::physics::car_store::CAR;
 use crate::physics::count_down_start::count_down_start;
 use crate::physics::count_start_second::count_start_second;
 use crate::physics::count_stop_timers::count_stop_timers;
 use crate::physics::mark_car_started::mark_car_started;
-use crate::physics::splits::{DONE, MODE, g, guarded, p, test_splits, written};
+use crate::physics::split_tables_store::SPLIT_TABLES;
 use crate::physics::start_go_notice::start_go_notice;
-use crate::physics::take_split::take_split_in;
-use crate::physics::take_split_counted::take_split_counted_in;
-use crate::screens::harness::Left;
-use crate::service::harness::{dispatch_state, state_entry};
-use std::sync::atomic::AtomicUsize;
+use crate::physics::tables_store::PHYSICS;
+use crate::physics::take_split::take_split;
+use crate::physics::take_split_counted::take_split_counted;
+use crate::race::vars_store::RACE_VARS;
 
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("physics::race_timers", rva(0x436790), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
-
-/// The steps on `r`.
+/// The Rust version. The registers the original leaves are read by none of its callers.
 // Converted: `rc2k_core::physics::splits::{timer_rate, timer_run}`.
-pub fn race_timers_in(r: &mut Regs) -> Result<(), Refused> {
+pub fn race_timers() -> Result<(), Refused> {
     use rc2k_core::physics::splits::{TimerRun, timer_rate, timer_run};
-    p(0x614170, 1.0f32.to_bits());
-    let finished = g(DONE) != 0;
-    let factor = if finished { g(0x601028) } else { 0 };
-    p(
-        0x614170,
-        timer_rate(finished, f32::from_bits(factor)).to_bits(),
-    );
-    let run = timer_run(g(MODE));
+    PHYSICS.weight.set_bits(1.0f32.to_bits());
+    let finished = CAR.finish_flag.get() != 0;
+    let factor = if finished {
+        SPLIT_TABLES.timer_factor.bits()
+    } else {
+        0
+    };
+    PHYSICS
+        .weight
+        .set_bits(timer_rate(finished, f32::from_bits(factor)).to_bits());
+    let run = timer_run(RACE_VARS.run_kind.bits());
     if run == TimerRun::None {
         return Ok(());
     }
     unsafe {
-        count_start_second().apply(r);
+        count_start_second();
         if run == TimerRun::Start {
-            count_down_start()?.apply(r);
-            take_split_counted_in(r)?;
-            start_go_notice()?.apply(r);
+            count_down_start()?;
+            take_split_counted()?;
+            start_go_notice()?;
         } else {
-            take_split_in(r)?;
+            take_split()?;
         }
         count_stop_timers();
-        mark_car_started().apply(r);
+        mark_car_started();
     }
     Ok(())
-}
-
-/// The Rust version.
-pub unsafe fn race_timers(entry: &Regs) -> Result<Left, Refused> {
-    guarded(entry, &race_timers_in)
-}
-
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    unsafe { race_timers(r) }
-}
-
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_state(&HOOK, r, call_original, &written(), &rust);
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    test_splits(&mut t, call_original, &rust, &|_| true);
-    t.finish()
 }

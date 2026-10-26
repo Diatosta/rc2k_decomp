@@ -10,21 +10,16 @@
 //! caller's ecx): the original leaves it in ecx, kept.
 //! One caller, the main menu's set-up `menu::set_up_front_end`.
 //! Refuses a name that would be cut to before its start, and what the measuring refuses.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{Regs, game_ptr, rva};
 use crate::menu::player_names::{PLAYERS, name};
-use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
+use crate::pointers::GamePtr;
 use crate::text::draw_text::GameCanvas;
 use crate::text::font::Font;
 use crate::text::measure_string_by_id::MEASURING_FONT;
 use crate::text::measure_text::measure_text_at;
 use rc2k_core::menu::text_entry;
+use rc2k_core::strings::bytes::Bytes;
 
 // ---- game data ----
 
@@ -34,38 +29,26 @@ const LONGEST: usize = 0x1000;
 // ---- Rust version ----
 
 /// `menu::fit_name` (0x411474). Returns the width of the name as it is left.
-pub unsafe fn fit_name(text: *mut u8, x: u32) -> Result<u32, Refused> {
-    unsafe {
-        let Some(len) = (0..LONGEST).find(|&n| text.add(n).read() == 0) else {
-            return Err(BadInput("a name without its end").into());
-        };
-        // Converted: `rc2k_core::menu::text_entry::fit_name`.
-        let font: *mut Font = game_ptr(rva(MEASURING_FONT));
-        text_entry::fit_name(len, x, |len, x| -> Result<u32, Refused> {
-            text.add(len).write(0);
-            Ok(measure_text_at(font, text, x as i32, &mut GameCanvas)?.width)
-        })
-    }
+pub fn fit_name(text: u32, x: u32) -> Result<u32, Refused> {
+    let name = GamePtr::new(text).bytes("a name")?;
+    let Some(len) = (0..LONGEST).find(|&n| name.byte(n) == Some(0)) else {
+        return Err(BadInput("a name without its end").into());
+    };
+    // Converted: `rc2k_core::menu::text_entry::fit_name`.
+    let font: *mut Font = MEASURING_FONT.as_ptr();
+    text_entry::fit_name(len, x, |len, x| -> Result<u32, Refused> {
+        GamePtr::new(text + len as u32).write::<u8>(0, "a name")?;
+        Ok(
+            { measure_text_at(font, crate::pointers::host(text), x as i32, &mut GameCanvas) }?
+                .width,
+        )
+    })
 }
 
-pub unsafe fn fit_player_names(x: u32) -> Result<(), Refused> {
+pub fn fit_player_names(x: u32) -> Result<(), Refused> {
     let mut x = x;
     for player in 0..PLAYERS {
-        x = unsafe { fit_name(name(player), x) }?;
+        x = fit_name(name(player), x)?;
     }
     Ok(())
 }
-
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    unsafe { fit_player_names(r.ecx) }?;
-    Ok(Left::nothing())
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
-}
-
-// ---- self-test: names of the test's in the game's place, measured with the game's
-// font; everything put back ----

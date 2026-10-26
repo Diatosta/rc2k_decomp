@@ -8,62 +8,32 @@
 //! In:  nothing
 //! Out: every register kept (`pusha` .. `popa`)
 //!
-//! Caller: `sub_473126`. The steps are their Rust versions; the pages through `part`, in
-//! the game their Rust versions. Ungated (the pages wait for the player). Refuses what the
-//! steps refuse.
-//! Hook removed 2026-10-22 (typed tables): the menus and draw lists run its `entry`
-//! (`menu::table_calls`); the registers above are the original's, for reference.
+//! Caller: `sub_473126`. The steps are their Rust versions. Refuses what the steps refuse. The
+//! menus and draw lists run its `entry` (`menu::table_calls`); the registers above are the
+//! original's, for reference.
 
 use crate::errors::Refused;
-use crate::framework::{Regs, game_read, game_write, rva};
+use crate::menu::champ_store::CHAMP_VIEW;
+use crate::menu::screen_loop::Carried;
+use crate::menu::state_store::MENU_STATE;
 
-const FLAG_RVA: usize = rva(0x75AADC); // dword_75AADC
-const EVENT_MODE_RVA: usize = rva(0x7556D0); // g_eventMode
-
-/// A call by place: 1 `menu::show_overall_rally_results`, 2 `menu::class_rally_results_pass`.
-pub type Part<'a> = &'a mut dyn FnMut(u32, &mut Regs) -> Result<(), Refused>;
-
-/// The Rust version (see the header): the registers it leaves.
-pub unsafe fn rally_results(entry: &Regs, part: Part) -> Result<Regs, Refused> {
-    let mut g = *entry;
+/// The Rust version (see the header). `c` the carried values (the registers the pages'
+/// screens are run with).
+pub unsafe fn rally_results(c: &Carried) -> Result<(), Refused> {
+    let mut g = *c;
     unsafe {
-        game_write(FLAG_RVA, 1u32);
-        g = crate::menu::standings_a_from_all::standings_a_from_all(&g)?;
+        MENU_STATE.menus.which_title.set(1u32);
+        crate::menu::standings_a_from_all::standings_a_from_all()?;
         // Converted: `rc2k_core::menu::results_pages::class_pages_only`.
-        if !rc2k_core::menu::results_pages::class_pages_only(game_read(EVENT_MODE_RVA)) {
-            g = crate::menu::sort_standings_by_total::sort_standings_by_total(&g)?;
-            g = crate::menu::clear_standings_a::clear_standings_a(&g)?;
-            g = crate::menu::number_all_a::number_all_a(&g)?;
-            part(1, &mut g)?;
+        if !rc2k_core::menu::results_pages::class_pages_only(CHAMP_VIEW.event_mode.get()) {
+            crate::menu::sort_standings_by_total::sort_standings_by_total()?;
+            crate::menu::clear_standings_a::clear_standings_a()?;
+            crate::menu::number_all_a::number_all_a()?.carry_on(&mut g);
+            crate::menu::show_overall_rally_results::show_overall_rally_results(&g)?;
         } else {
-            part(2, &mut g)?;
+            crate::menu::class_rally_results_pass::class_rally_results_pass(&g)?;
         }
-        game_write(FLAG_RVA, 0u32);
+        MENU_STATE.menus.which_title.set(0u32);
     }
-    Ok(*entry)
-}
-
-/// In the game: the pages' Rust versions.
-pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
-    unsafe {
-        *r = match place {
-            1 => {
-                use crate::menu::show_overall_rally_results as p;
-                p::show_overall_rally_results(r, &mut p::game_part)
-            }
-            _ => {
-                use crate::menu::class_rally_results_pass as p;
-                p::class_rally_results_pass(r, &mut p::game_part)
-            }
-        }?;
-    }
-    Ok(())
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    let left = unsafe { rally_results(r, &mut game_part) }?;
-    *r = Regs { esp: r.esp, ..left };
     Ok(())
 }

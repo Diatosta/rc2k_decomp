@@ -6,59 +6,30 @@
 //! Out: ecx 0, esi past the last piece, edi past the copy; the rest kept; no flags read
 //!
 //! Caller: `sub_45FFB6`.
-//! Self-test: the original and the Rust version on the pieces filled by pattern (saved
-//! and put back).
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
 
-use crate::errors::Refused;
-use crate::framework::{ECX, EDI, ESI, Regs};
-use crate::physics::flow::a;
-use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
-use rc2k_core::drive::replay_frames::{START_DWORDS, START_PIECES, StartPiece, start_layout};
+use crate::errors::BadInput;
+use crate::pointers::GamePtr;
+use crate::race::work_store::RACE_WORK;
+use rc2k_core::drive::replay_frames::{StartPiece, start_layout};
 
-const B: usize = 0x70F3EC; // g_carBlockStore (four blocks of 0xFE0)
-const SAVED: usize = 0x7172EC; // unk_7172EC
-
-/// Where a piece of the starting state is.
-pub fn piece_at(piece: StartPiece) -> usize {
+/// Where a piece of the starting state is now (an address).
+pub fn piece_addr(piece: StartPiece) -> u32 {
     match piece {
-        StartPiece::Car(k) => B + 0xFE0 * k as usize,
-        StartPiece::RaceSlots => 0x71BAC8, // g_raceSlots
-        StartPiece::Extra => 0x71BF84,     // unk_71BF84
+        StartPiece::Car(k) => crate::race::blocks_store::block_addr(k as usize),
+        StartPiece::RaceSlots => RACE_WORK.race_slots[0].part.addr(), // g_raceSlots
+        StartPiece::Extra => RACE_WORK.replay_extra.addr(),           // unk_71BF84
     }
-}
-
-/// The pieces in order: (where, dwords).
-pub fn pieces() -> Vec<(usize, usize)> {
-    START_PIECES
-        .iter()
-        .map(|&(x, n)| (piece_at(x), n))
-        .collect()
 }
 
 /// The Rust version.
 // Converted: `rc2k_core::drive::replay_frames::start_layout`.
-pub fn save_replay_cars() -> Left {
-    let mut end = 0;
+pub fn save_replay_cars() -> Result<(), BadInput> {
     for (piece, offset, n) in start_layout() {
-        let (state, place) = (a(SAVED) + 4 * offset as u32, a(piece_at(piece)));
-        unsafe { std::ptr::copy(place as *const u32, state as *mut u32, n) };
-        end = place + 4 * n as u32;
+        let (state, place) = (
+            crate::race::blocks_store::block_addr(8) + 4 * offset as u32,
+            piece_addr(piece),
+        );
+        GamePtr::new(place).copy_to(GamePtr::new(state), n * 4, "the cars' starting state")?;
     }
-    let past = a(SAVED) + 4 * START_DWORDS as u32;
-    Left::nothing().with(ECX, 0).with(ESI, end).with(EDI, past)
-}
-
-fn rust(_: &Regs) -> Result<Left, Refused> {
-    Ok(save_replay_cars())
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
+    Ok(())
 }

@@ -17,35 +17,36 @@
 //! and the self-test was the hook's.
 
 use crate::errors::BadInput;
-use crate::framework::game_read;
-use crate::memory::{MemoryList, OWN_HEAP_RVA, with_figures};
+use crate::memory::{MemoryList, own_heap, with_figures};
+use crate::pointers::GamePtr;
 use windows_sys::Win32::System::Memory::{MEM_RELEASE, VirtualFree};
 
 // ---- Rust version ----
 
-pub unsafe fn free_list(list: *mut MemoryList) -> Result<(), BadInput> {
-    unsafe {
-        if list.is_null() {
-            return Ok(());
-        }
-        let mut block = (*list).head;
-        if block != 0 && game_read::<u32>(OWN_HEAP_RVA) == 1 {
-            return Err(BadInput("the game's own heap is in use (altmemenable)"));
-        }
-        // Converted: `rc2k_core::memory` (`Figures::given_back`, `List::emptied`).
-        with_figures(|f| f.given_back((*list).total));
-        if block == 0 {
-            return Ok(());
-        }
-        block = (*list).emptied();
-        while block != 0 {
-            let before = (block as *const u32).read();
-            VirtualFree(block as _, 0, MEM_RELEASE);
-            block = before;
-        }
-        Ok(())
+pub fn free_list(list: *mut MemoryList) -> Result<(), BadInput> {
+    if list.is_null() {
+        return Ok(());
     }
+    let at = GamePtr::new(crate::pointers::game_address(list));
+    let mut l = at.read::<MemoryList>("a memory list")?;
+    let block = l.head;
+    if block != 0 && own_heap() == 1 {
+        return Err(BadInput("the game's own heap is in use (altmemenable)"));
+    }
+    // Converted: `rc2k_core::memory` (`Figures::given_back`, `List::emptied`).
+    with_figures(|f| f.given_back(l.total));
+    if block == 0 {
+        return Ok(());
+    }
+    let mut block = l.emptied();
+    at.write(l, "a memory list")?;
+    while block != 0 {
+        let before = GamePtr::new(block).read::<u32>("a block's header")?;
+        let host = crate::pointers::host(block);
+        crate::pointers::forget(block);
+        // SAFETY: the block is the system's, taken by `allocate`/`virtual_alloc`.
+        unsafe { VirtualFree(host as _, 0, MEM_RELEASE) };
+        block = before;
+    }
+    Ok(())
 }
-
-// ---- self-test: lists of blocks taken for the purpose, given back by both; the memory
-// figures are put back ----

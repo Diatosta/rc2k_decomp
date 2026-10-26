@@ -12,108 +12,95 @@
 //! Out: eax the head's byte 5, esi the first block, ebx and edx as the draws leave them;
 //!      the rest kept; no flags read
 //!
-//! Callers: `drive::play_replay_frame`, `sub_46062E`.
-//! Refuses what `pick_replay_camera` refuses (everything written put back).
-//! Self-test: the original and the Rust version on the game's variables (saved and put
-//! back): wishes, frames and last frames by lot, the random state.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Callers: `drive::play_replay_frame`, `sub_46062E`. Refuses what `pick_replay_camera`
+//! refuses (everything written put back).
 
-use crate::errors::Refused;
-use crate::framework::{EAX, ESI, Regs};
-use crate::physics::flow::{a, g, guard, p};
-use crate::screens::harness::Left;
-use crate::service::harness::{Region, state_entry};
+use crate::drive::replay_frames_store::REPLAY_FRAMES;
+use crate::errors::{BadInput, Refused};
+use crate::pointers::GamePtr;
+use crate::race::blocks_store::CAR_BLOCKS;
+use crate::race::replay_work_store::REPLAY_WORK;
+use crate::race::view_store::RACE_VIEW;
+use crate::race::viewer_state_store::REPLAY_VIEW;
 use rc2k_core::drive::replay_views::{WishStep, wish_step};
 
-const B: usize = 0x70F3EC; // g_carBlockStore
-const NEXT: usize = 0xFE0;
+/// Byte `k` of the frame's head (the first car block's start, `g_carBlockStore`).
+fn head_byte(k: usize) -> Result<u32, BadInput> {
+    GamePtr::new(CAR_BLOCKS.cars[0].unknown_0[0].addr() + k as u32)
+        .read::<u8>("a car's block")
+        .map(u32::from)
+}
 
-fn byte(x: usize) -> u32 {
-    unsafe { (a(x) as *const u8).read() as u32 }
+/// `dword_719F14[head byte]`: the table holds 47; a larger byte reads on into the
+/// variables after it, as the original does.
+fn wish_of(byte: usize) -> Result<u32, BadInput> {
+    match REPLAY_WORK.replay_camera_wishes.get(byte) {
+        Some(wish) => Ok(wish.get()),
+        None => GamePtr::new(REPLAY_WORK.replay_camera_wishes[0].addr() + (4 * byte) as u32)
+            .read("the replay camera wishes"),
+    }
 }
 
 // Converted: `rc2k_core::drive::replay_views::wish_step`.
-fn steps(entry: &Regs) -> Result<Left, Refused> {
-    let mut r = *entry;
-    p(0x6EF7D0, g(B));
-    p(0x6EF7D4, g(B + 4));
+fn steps() -> Result<(), Refused> {
+    REPLAY_FRAMES
+        .camera_word_0
+        .set(CAR_BLOCKS.cars[0].unknown_0[0].bits());
+    REPLAY_FRAMES
+        .camera_word_1
+        .set(CAR_BLOCKS.cars[0].unknown_0[1].bits());
     for c in 0..2usize {
-        let block = B + NEXT * c;
-        let wish = g(0x719F14 + 4 * byte(B + c) as usize);
-        r.eax = wish;
-        match wish_step(wish, g(0x5C2530), g(0x719FD0 + 4 * c), || g(block + 0x684)) {
-            WishStep::Draw(since) => {
-                r.ebx = since;
-                p(0x719FD0 + 4 * c, g(0x5C2530));
-                unsafe { crate::drive::pick_replay_camera::pick_replay_camera(&r) }?.apply(&mut r);
-                p(block + 0x684, r.edx);
-                p(block + 0x694, 0);
-                r.eax = g(block + 8);
-                p(block + 0x690, r.eax);
-            }
-            WishStep::Nothing(since) => {
-                if let Some(since) = since {
-                    r.ebx = since;
+        let car = &CAR_BLOCKS.cars[c];
+        let wish = wish_of(head_byte(c)? as usize)?;
+        match wish_step(
+            wish,
+            REPLAY_VIEW.replay_block.get(),
+            REPLAY_WORK.camera_last_frame[c].get(),
+            || car.camera_view.get(),
+        ) {
+            WishStep::Draw(_) => {
+                REPLAY_WORK.camera_last_frame[c].set(REPLAY_VIEW.replay_block.get());
+                // `Draw` comes only for the wishes that draw: the mode is there.
+                if let Some(mode) = { crate::drive::pick_replay_camera::pick_replay_camera(wish) }?
+                {
+                    car.camera_view.set(mode);
                 }
+                car.camera_switch_active.set(0);
+                car.camera_switch_clock.set(car.step_clock.get());
             }
+            WishStep::Nothing(_) => {}
             WishStep::Set => {
-                p(block + 0x688, wish);
-                p(block + 0x684, wish);
-                p(block + 0x694, 0);
-                r.eax = g(block + 8);
-                p(block + 0x690, r.eax);
-                p(0x719FD0 + 4 * c, 0);
+                car.camera_blend_view.set(wish);
+                car.camera_view.set(wish);
+                car.camera_view.set(wish);
+                car.camera_switch_active.set(0);
+                car.camera_switch_clock.set(car.step_clock.get());
+                REPLAY_WORK.camera_last_frame[c].set(0);
             }
         }
     }
-    p(B + 0x220, g(0x63DB7C));
-    p(B + NEXT + 0x220, g(0x63DB80));
-    for (k, to) in [0x63DB74usize, 0x63DB78, 0x63DB84, 0x63DB88]
-        .iter()
-        .enumerate()
-    {
-        r.eax = byte(B + 2 + k);
-        p(*to, r.eax);
-    }
-    r.esi = a(B);
-    Ok(Left::nothing()
-        .with(EAX, r.eax)
-        .with(crate::framework::EBX, r.ebx)
-        .with(crate::framework::EDX, r.edx)
-        .with(ESI, r.esi))
-}
-
-/// What it writes.
-pub fn regions() -> Vec<Region> {
-    vec![
-        (a(0x6EF7D0), 8),
-        (a(0x719FD0), 8),
-        (a(B + 0x220), 4),
-        (a(B + 0x684), 0x14),
-        (a(B + NEXT + 0x220), 4),
-        (a(B + NEXT + 0x684), 0x14),
-        (a(0x63DB74), 0x18),
-        (
-            crate::framework::game_addr(crate::math::next_random::STATE_RVA) as u32,
-            4,
-        ),
+    CAR_BLOCKS.cars[0]
+        .option_bits
+        .set_bits(RACE_VIEW.player_options[0].get());
+    CAR_BLOCKS.cars[1]
+        .option_bits
+        .set_bits(RACE_VIEW.player_options[1].get());
+    // The head's bytes 2 .. 5 into `dword_63DB74`, `63DB78`, `63DB84`, `63DB88`.
+    for (k, to) in [
+        &RACE_VIEW.view_on[0],
+        &RACE_VIEW.view_on[1],
+        &RACE_VIEW.after_credits,
+        &RACE_VIEW.view_switch,
     ]
+    .into_iter()
+    .enumerate()
+    {
+        to.set(head_byte(2 + k)?);
+    }
+    Ok(())
 }
 
 /// The Rust version.
-pub unsafe fn replay_cameras(entry: &Regs) -> Result<Left, Refused> {
-    guard(&regions(), || steps(entry))
-}
-
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    unsafe { replay_cameras(r) }
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
+pub fn replay_cameras() -> Result<(), Refused> {
+    steps()
 }

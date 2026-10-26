@@ -3,23 +3,18 @@
 //! In:  nothing
 //! Out: every register preserved
 //!
-//! The string `dword_759AFA[dword_755998]` (the page: 0x24C, 0x249, 0x24B, 0x24A) and a
-//! NUL into `byte_A8BF54`. In two draw lists.
-//! Refuses a page past the four, and a title longer than 0x100 bytes.
-//! Hook removed 2026-10-22 (typed tables): the menus and draw lists run its `entry`
-//! (`menu::table_calls`); the registers above are the original's, for reference.
+//! The string `dword_759AFA[dword_755998]` (the page: 0x24C, 0x249, 0x24B, 0x24A) and a NUL into
+//! `byte_A8BF54`. In two draw lists. Refuses a page past the four, and a title longer than 0x100
+//! bytes. The menus and draw lists run its `entry` (`menu::table_calls`); the registers above are
+//! the original's, for reference.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{Regs, game_read, rva};
+use crate::menu::event_store::EVENT_STATE;
+use crate::menu::lists_store::MENU_LISTS;
 use crate::screens::car_caption::put_string;
-use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
 
 // ---- game data ----
 
-const PAGE_RVA: usize = rva(0x755998); // dword_755998
-const TITLES_RVA: usize = rva(0x759AFA); // dword_759AFA
-const TITLE_RVA: usize = rva(0xA8BF54); // byte_A8BF54
 const TITLE_LEN: usize = 0x100;
 const PAGES: u32 = 4;
 
@@ -27,25 +22,16 @@ const PAGES: u32 = 4;
 
 pub unsafe fn car_page_title() -> Result<(), Refused> {
     unsafe {
-        let page: u32 = game_read(PAGE_RVA);
+        let page: u32 = EVENT_STATE.car_page.get();
         if page >= PAGES {
             return Err(BadInput("a page past the four").into());
         }
         put_string(
-            game_read(TITLES_RVA + page as usize * 4),
-            TITLE_RVA,
+            MENU_LISTS.car_page_titles[page as usize].get(),
+            (crate::screens::text_buffers_store::TEXT_BUFFERS
+                .title
+                .addr()) as usize,
             TITLE_LEN,
         )
     }
-}
-
-fn rust(_: &Regs) -> Result<Left, Refused> {
-    unsafe { car_page_title() }?;
-    Ok(Left::nothing())
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
 }

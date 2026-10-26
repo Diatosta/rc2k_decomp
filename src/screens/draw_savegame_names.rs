@@ -4,41 +4,28 @@
 //! In:  nothing
 //! Out: every register preserved; carry of the last `draw_text`
 //!
-//! The ten names of 0x20 bytes from `byte_526BB4` + page (`dword_75523C`) times 0x140,
-//! at x = 0xCF for the first five and 0x21C for the others, y = 0xB5, 0xD2, 0xEF, 0x10C,
-//! 0x129, with the font at 0x51E8C4. In two draw lists (the load and save screens). The
-//! twin of `screens::draw_setup_slot_names`.
-//! Refuses a page past the tenth (the list has 100 names).
-//! Hook removed 2026-10-22 (typed tables): the menus and draw lists run its `entry`
-//! (`menu::table_calls`); the registers above are the original's, for reference.
+//! The ten names of 0x20 bytes from `byte_526BB4` + page (`dword_75523C`) times 0x140, at x = 0xCF
+//! for the first five and 0x21C for the others, y = 0xB5, 0xD2, 0xEF, 0x10C, 0x129, with the font
+//! at 0x51E8C4. In two draw lists (the load and save screens). The twin of
+//! `screens::draw_setup_slot_names`. Refuses a page past the tenth (the list has 100 names). The
+//! menus and draw lists run its `entry` (`menu::table_calls`); the registers above are the
+//! original's, for reference.
 
 use crate::errors::Refused;
-use crate::framework::{Regs, game_addr, game_read};
-use crate::menu::name_lists::{SAVEGAME_NAMES_RVA, SAVEGAME_PAGE_RVA};
-use crate::screens::harness::{Left, draw_entry};
+use crate::menu::pages_store::MENU_PAGES;
 use crate::text::draw_text::Canvas;
 
 const NAME_LEN: usize = 0x20;
 // ---- Rust version ----
 
-pub unsafe fn draw_savegame_names(canvas: &mut dyn Canvas) -> Result<bool, Refused> {
+pub fn draw_savegame_names(canvas: &mut dyn Canvas) -> Result<bool, Refused> {
     // Converted: `rc2k_core::screens::slot_lists::names`.
-    let page: u32 = unsafe { game_read(SAVEGAME_PAGE_RVA) };
-    let names = game_addr(SAVEGAME_NAMES_RVA) as u32;
+    let page: u32 = MENU_PAGES.save_page.get();
+    let names = crate::saves::write_savegame_slot::SAVE_GAMES.names.addr();
     rc2k_core::screens::slot_lists::names(
         &mut crate::screens::game_screen::SlotScreen::new(canvas),
         &rc2k_core::screens::slot_lists::SAVED_GAMES,
         page,
         |slot| names.wrapping_add(slot * NAME_LEN as u32),
     )
-}
-
-fn rust(_: &Regs, canvas: &mut dyn Canvas) -> Result<Left, Refused> {
-    Ok(Left::carry(unsafe { draw_savegame_names(canvas) }?))
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    draw_entry("screens::draw_savegame_names", r, &rust)
 }

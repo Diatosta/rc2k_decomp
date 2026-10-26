@@ -3,32 +3,43 @@
 //! In:  nothing
 //! Out: every register preserved
 //! 0x300 bytes at `byte_4F4B30`: the mean of three components by their sum. One caller,
-//! `start`. Who reads the table has not been looked up.
+//! `start`, which calls it directly (2026-10-23). Who reads the table has not been looked up.
 
-use crate::errors::Refused;
-use crate::framework::{Regs, game_write, rva};
-use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
+use crate::session::Bytes;
 
 // ---- game data ----
 
-const TABLE_RVA: usize = rva(0x4F4B30); // byte_4F4B30
+/// IDA's address of the table.
+pub const START: usize = 0x4F4B30;
 const TABLE_LEN: usize = 0x300;
+
+/// `byte_4F4B30`: n / 3 for the sums of three components (zero until filled).
+pub static THIRDS: Bytes<TABLE_LEN> = Bytes::new([0; TABLE_LEN]);
+
+/// Where the table is (`moved::MOVED`'s home for IDA 0x4F4B30).
+pub fn home() -> usize {
+    THIRDS.addr() as usize
+}
 
 // ---- Rust version ----
 
-pub unsafe fn fill_thirds_table() {
+pub fn fill_thirds_table() {
     // Converted: `rc2k_core::gfx::pixels::thirds_table`.
     let table: [u8; TABLE_LEN] = rc2k_core::gfx::pixels::thirds_table();
-    unsafe { game_write(TABLE_RVA, table) };
+    THIRDS.write(&table);
 }
 
-fn rust(_: &Regs) -> Result<Left, Refused> {
-    unsafe { fill_thirds_table() };
-    Ok(Left::nothing())
-}
+#[cfg(test)]
+mod tests {
+    use super::*;
 
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
+    #[test]
+    fn first_values_are_the_games() {
+        crate::gfx::first_values_are_the_games(&THIRDS, START, START + TABLE_LEN);
+    }
+
+    #[test]
+    fn moved_knows_the_block() {
+        assert_eq!(crate::moved::place(START), THIRDS.addr() as usize);
+    }
 }

@@ -130,13 +130,16 @@ struct State {
 
 #[repr(C)]
 struct Object {
-    table: *const usize,
+    /// The table's game address.
+    table: u32,
     refs: AtomicU32,
     state: Mutex<State>,
 }
 
 fn object<'a>(this: u32) -> &'a Object {
-    unsafe { &*(this as *const Object) }
+    crate::pointers::check_or_end(this, size_of::<Object>(), "a DirectPlay object");
+    // SAFETY: a live object's region (registered in `make` until its last release).
+    unsafe { &*(crate::pointers::host(this) as *const Object) }
 }
 
 fn state(this: u32) -> std::sync::MutexGuard<'static, State> {
@@ -147,75 +150,87 @@ fn session(this: u32) -> Option<Arc<Session>> {
     state(this).session.clone()
 }
 
-fn make(table: *const usize) -> u32 {
-    Box::into_raw(Box::new(Object {
-        table,
-        refs: AtomicU32::new(1),
-        state: Mutex::new(State::default()),
-    })) as u32
+fn make(table: u32) -> u32 {
+    // A region until its last release: the game's code reads its table by address.
+    crate::pointers::lend(
+        Box::into_raw(Box::new(Object {
+            table,
+            refs: AtomicU32::new(1),
+            state: Mutex::new(State::default()),
+        })),
+        size_of::<Object>(),
+    )
 }
 
-unsafe fn read_guid(at: u32) -> Option<Guid> {
-    (at != 0).then(|| unsafe { (at as *const Guid).read_unaligned() })
+fn read_guid(at: u32) -> Option<Guid> {
+    (at != 0).then(|| crate::pointers::read_or_end(at, "a DirectPlay GUID"))
 }
 
-unsafe fn put(at: u32, v: u32) {
+fn put(at: u32, v: u32) {
     if at != 0 {
-        unsafe { (at as *mut u32).write_unaligned(v) };
+        crate::pointers::write_or_end(at, v, "a DirectPlay method's result")
     }
 }
 
-unsafe fn get(at: u32) -> u32 {
-    unsafe { (at as *const u32).read_unaligned() }
+fn get(at: u32) -> u32 {
+    crate::pointers::read_or_end(at, "a DirectPlay method's argument")
+}
+
+fn end(e: crate::errors::BadInput) -> ! {
+    crate::fatal::raise::end("net::dp_objects", e)
 }
 
 /// A NUL-ended text at `at` (none: empty).
-unsafe fn text(at: u32) -> String {
+fn text(at: u32) -> String {
     if at == 0 {
         return String::new();
     }
-    unsafe { std::ffi::CStr::from_ptr(at as *const std::ffi::c_char) }
-        .to_string_lossy()
-        .into_owned()
+    let bytes = crate::files::cstring(crate::pointers::GamePtr::new(at), "a DirectPlay text")
+        .unwrap_or_else(|e| end(e));
+    String::from_utf8_lossy(&bytes).into_owned()
 }
 
 /// A DPNAME's short name.
-unsafe fn short_name(name: u32) -> String {
+fn short_name(name: u32) -> String {
     if name == 0 {
         return String::new();
     }
-    unsafe { text((name as *const DpName).read_unaligned().short_name) }
+    text(crate::pointers::read_or_end::<DpName>(name, "a DPNAME").short_name)
 }
 
-unsafe fn bytes(at: u32, n: u32) -> Vec<u8> {
+fn bytes(at: u32, n: u32) -> Vec<u8> {
     if at == 0 || n == 0 {
         return vec![];
     }
-    unsafe { std::slice::from_raw_parts(at as *const u8, n as usize).to_vec() }
+    crate::pointers::GamePtr::new(at)
+        .read_bytes(n as usize, "DirectPlay data")
+        .unwrap_or_else(|e| end(e))
 }
 
 /// The thing's bytes copied to `at`, `size` (in: the room, out: the bytes' count) set:
 /// DPERR_BUFFERTOOSMALL when they do not fit.
-unsafe fn give(data: &[u8], at: u32, size: u32) -> u32 {
-    unsafe {
-        if size == 0 {
-            return DPERR_INVALIDPARAMS;
-        }
-        let room = get(size) as usize;
-        put(size, data.len() as u32);
-        if at == 0 || room < data.len() {
-            return DPERR_BUFFERTOOSMALL;
-        }
-        std::ptr::copy_nonoverlapping(data.as_ptr(), at as *mut u8, data.len());
-        DP_OK
+fn give(data: &[u8], at: u32, size: u32) -> u32 {
+    if size == 0 {
+        return DPERR_INVALIDPARAMS;
     }
+    let room = get(size) as usize;
+    put(size, data.len() as u32);
+    if at == 0 || room < data.len() {
+        return DPERR_BUFFERTOOSMALL;
+    }
+    crate::pointers::GamePtr::new(at)
+        .write_bytes(data, "DirectPlay data")
+        .unwrap_or_else(|e| end(e));
+    DP_OK
 }
 
 /// A player's event signalled (a Windows event's handle).
 fn signal() -> Signal {
     Arc::new(|event: u32| {
         if event != 0 {
-            unsafe { windows_sys::Win32::System::Threading::SetEvent(event as _) };
+            unsafe {
+                windows_sys::Win32::System::Threading::SetEvent(crate::pointers::handle(event))
+            };
         }
     })
 }
@@ -238,48 +253,44 @@ fn fresh_guid() -> Guid {
 }
 
 /// `CoCreateInstance` for DirectPlay's two classes: the object into `out`, or the error.
-pub unsafe fn create(class: u32, interface: u32, out: u32) -> i32 {
-    unsafe {
-        let (Some(class), Some(interface)) = (read_guid(class), read_guid(interface)) else {
-            return DPERR_INVALIDPARAMS as i32;
-        };
-        let made = if class == CLSID_DIRECTPLAY && interface == IID_IDIRECTPLAY4A {
-            make(play_table())
-        } else if class == CLSID_DIRECTPLAYLOBBY && interface == IID_IDIRECTPLAYLOBBY2A {
-            make(lobby_table())
-        } else {
-            put(out, 0);
-            return CLASS_NOT_REGISTERED as i32;
-        };
-        put(out, made);
-        DP_OK as i32
-    }
+pub fn create(class: u32, interface: u32, out: u32) -> i32 {
+    let (Some(class), Some(interface)) = (read_guid(class), read_guid(interface)) else {
+        return DPERR_INVALIDPARAMS as i32;
+    };
+    let made = if class == CLSID_DIRECTPLAY && interface == IID_IDIRECTPLAY4A {
+        make(play_table())
+    } else if class == CLSID_DIRECTPLAYLOBBY && interface == IID_IDIRECTPLAYLOBBY2A {
+        make(lobby_table())
+    } else {
+        put(out, 0);
+        return CLASS_NOT_REGISTERED as i32;
+    };
+    put(out, made);
+    DP_OK as i32
 }
 
 // ---- IUnknown ----
 
-unsafe extern "system" fn query_play(this: u32, iid: u32, out: u32) -> u32 {
-    unsafe { query(this, iid, out, IID_IDIRECTPLAY4A) }
+extern "system" fn query_play(this: u32, iid: u32, out: u32) -> u32 {
+    query(this, iid, out, IID_IDIRECTPLAY4A)
 }
 
-unsafe extern "system" fn query_lobby(this: u32, iid: u32, out: u32) -> u32 {
-    unsafe { query(this, iid, out, IID_IDIRECTPLAYLOBBY2A) }
+extern "system" fn query_lobby(this: u32, iid: u32, out: u32) -> u32 {
+    query(this, iid, out, IID_IDIRECTPLAYLOBBY2A)
 }
 
-unsafe fn query(this: u32, iid: u32, out: u32, own: Guid) -> u32 {
-    unsafe {
-        if read_guid(iid) == Some(own) {
-            object(this).refs.fetch_add(1, Ordering::SeqCst);
-            put(out, this);
-            DP_OK
-        } else {
-            put(out, 0);
-            E_NOINTERFACE
-        }
+fn query(this: u32, iid: u32, out: u32, own: Guid) -> u32 {
+    if read_guid(iid) == Some(own) {
+        object(this).refs.fetch_add(1, Ordering::SeqCst);
+        put(out, this);
+        DP_OK
+    } else {
+        put(out, 0);
+        E_NOINTERFACE
     }
 }
 
-unsafe extern "system" fn add_ref(this: u32) -> u32 {
+extern "system" fn add_ref(this: u32) -> u32 {
     object(this).refs.fetch_add(1, Ordering::SeqCst) + 1
 }
 
@@ -289,25 +300,27 @@ unsafe extern "system" fn release(this: u32) -> u32 {
         if let Some(s) = session(this) {
             s.close();
         }
-        drop(unsafe { Box::from_raw(this as *mut Object) });
+        let object = crate::pointers::host(this) as *mut Object;
+        crate::pointers::forget(this);
+        drop(unsafe { Box::from_raw(object) });
     }
     left
 }
 
 // ---- IDirectPlay4A ----
 
-unsafe extern "system" fn add_player_to_group(this: u32, group: u32, player: u32) -> u32 {
+extern "system" fn add_player_to_group(this: u32, group: u32, player: u32) -> u32 {
     session(this).map_or(DPERR_UNINITIALIZED, |s| s.add_to_group(group, player))
 }
 
-unsafe extern "system" fn close(this: u32) -> u32 {
+extern "system" fn close(this: u32) -> u32 {
     if let Some(s) = state(this).session.take() {
         s.close();
     }
     DP_OK
 }
 
-unsafe extern "system" fn create_group(
+extern "system" fn create_group(
     this: u32,
     id: u32,
     name: u32,
@@ -318,14 +331,14 @@ unsafe extern "system" fn create_group(
     let Some(s) = session(this) else {
         return DPERR_UNINITIALIZED;
     };
-    let (result, made) = unsafe { s.create_group(&short_name(name), &bytes(data, size)) };
+    let (result, made) = { s.create_group(&short_name(name), &bytes(data, size)) };
     if result == DP_OK {
-        unsafe { put(id, made) };
+        put(id, made);
     }
     result
 }
 
-unsafe extern "system" fn create_player(
+extern "system" fn create_player(
     this: u32,
     id: u32,
     name: u32,
@@ -337,18 +350,18 @@ unsafe extern "system" fn create_player(
     let Some(s) = session(this) else {
         return DPERR_UNINITIALIZED;
     };
-    let (result, made) = unsafe { s.create_player(&short_name(name), &bytes(data, size), event) };
+    let (result, made) = { s.create_player(&short_name(name), &bytes(data, size), event) };
     if result == DP_OK {
-        unsafe { put(id, made) };
+        put(id, made);
     }
     result
 }
 
-unsafe extern "system" fn delete_player_from_group(this: u32, group: u32, player: u32) -> u32 {
+extern "system" fn delete_player_from_group(this: u32, group: u32, player: u32) -> u32 {
     session(this).map_or(DPERR_UNINITIALIZED, |s| s.remove_from_group(group, player))
 }
 
-unsafe extern "system" fn destroy_player(this: u32, player: u32) -> u32 {
+extern "system" fn destroy_player(this: u32, player: u32) -> u32 {
     session(this).map_or(DPERR_UNINITIALIZED, |s| s.destroy_player(player))
 }
 
@@ -376,11 +389,23 @@ unsafe fn enumerate(this: u32, callback: u32, context: u32, kind: u32) -> u32 {
             .map(|(id, g)| (*id, g.name.clone()))
             .collect()
     };
-    let callback: EnumPlayersCallback = unsafe { std::mem::transmute(callback as usize) };
+    let callback: EnumPlayersCallback =
+        unsafe { std::mem::transmute(crate::pointers::code(callback)) };
     for (id, name) in list {
         let name = CString::new(name).unwrap_or_default();
+        // Lent to the callback, which reads it as the game's memory.
+        let _lent = crate::pointers::Lent::new(name.as_bytes_with_nul());
         let dpname = dp_name(&name);
-        if unsafe { callback(id, kind, &dpname as *const DpName as u32, 0, context) } == 0 {
+        if unsafe {
+            callback(
+                id,
+                kind,
+                crate::pointers::game_address(&dpname as *const DpName),
+                0,
+                context,
+            )
+        } == 0
+        {
             break;
         }
     }
@@ -416,7 +441,7 @@ fn session_desc(d: &Desc, name: &CString) -> DpSessionDesc {
         application: d.application,
         max_players: d.max_players,
         current_players: d.current_players,
-        name: name.as_ptr() as u32,
+        name: crate::pointers::game_address(name.as_ptr()),
         password: 0,
         reserved: [0; 2],
         user: d.user,
@@ -428,15 +453,15 @@ fn dp_name(name: &std::ffi::CStr) -> DpName {
     DpName {
         size: size_of::<DpName>() as u32,
         flags: 0,
-        short_name: name.as_ptr() as u32,
+        short_name: crate::pointers::game_address(name.as_ptr()),
         long_name: 0,
     }
 }
 
 /// A DPSESSIONDESC2 read (its instance, application, name, flags, most players, user data).
-unsafe fn read_desc(at: u32) -> Desc {
-    unsafe {
-        let d = (at as *const DpSessionDesc).read_unaligned();
+fn read_desc(at: u32) -> Desc {
+    {
+        let d: DpSessionDesc = crate::pointers::read_or_end(at, "a DPSESSIONDESC2");
         Desc {
             flags: d.flags,
             instance: d.instance,
@@ -469,10 +494,11 @@ unsafe extern "system" fn enum_sessions(
     if desc == 0 || callback == 0 {
         return DPERR_INVALIDPARAMS;
     }
-    let application = unsafe { read_desc(desc).application };
-    let callback: EnumSessionsCallback = unsafe { std::mem::transmute(callback as usize) };
+    let application = { read_desc(desc).application };
+    let callback: EnumSessionsCallback =
+        unsafe { std::mem::transmute(crate::pointers::code(callback)) };
     let mut time = timeout;
-    let time_at = &mut time as *mut u32 as u32;
+    let time_at = crate::pointers::game_address(&mut time as *mut u32);
     for (d, _) in find_sessions(&host, port, application) {
         let closed =
             d.flags & 0x21 != 0 || (d.max_players != 0 && d.current_players >= d.max_players);
@@ -480,8 +506,18 @@ unsafe extern "system" fn enum_sessions(
             continue;
         }
         let name = CString::new(d.name.clone()).unwrap_or_default();
+        // Lent to the callback, which reads it as the game's memory.
+        let _lent = crate::pointers::Lent::new(name.as_bytes_with_nul());
         let desc = session_desc(&d, &name);
-        if unsafe { callback(&desc as *const DpSessionDesc as u32, time_at, 0, context) } == 0 {
+        if unsafe {
+            callback(
+                crate::pointers::game_address(&desc as *const DpSessionDesc),
+                time_at,
+                0,
+                context,
+            )
+        } == 0
+        {
             return DP_OK;
         }
     }
@@ -489,7 +525,7 @@ unsafe extern "system" fn enum_sessions(
     DP_OK
 }
 
-unsafe extern "system" fn get_player_data(
+extern "system" fn get_player_data(
     this: u32,
     player: u32,
     data: u32,
@@ -500,12 +536,12 @@ unsafe extern "system" fn get_player_data(
         return DPERR_UNINITIALIZED;
     };
     match s.world().players.get(&player) {
-        Some(p) => unsafe { give(&p.data, data, size) },
+        Some(p) => give(&p.data, data, size),
         None => DPERR_INVALIDPLAYER,
     }
 }
 
-unsafe extern "system" fn open(this: u32, desc: u32, flags: u32) -> u32 {
+extern "system" fn open(this: u32, desc: u32, flags: u32) -> u32 {
     if desc == 0 {
         return DPERR_INVALIDPARAMS;
     }
@@ -519,7 +555,7 @@ unsafe extern "system" fn open(this: u32, desc: u32, flags: u32) -> u32 {
         }
         s.port
     };
-    let d = unsafe { read_desc(desc) };
+    let d = { read_desc(desc) };
     let made = if flags & DPOPEN_CREATE != 0 {
         let d = Desc {
             instance: fresh_guid(),
@@ -543,7 +579,7 @@ unsafe extern "system" fn open(this: u32, desc: u32, flags: u32) -> u32 {
     }
 }
 
-unsafe extern "system" fn receive(
+extern "system" fn receive(
     this: u32,
     from: u32,
     to: u32,
@@ -557,54 +593,47 @@ unsafe extern "system" fn receive(
     if size == 0 {
         return DPERR_INVALIDPARAMS;
     }
-    let room = unsafe { if data == 0 { 0 } else { get(size) as usize } };
+    let room = { if data == 0 { 0 } else { get(size) as usize } };
     match s.receive(room) {
         None => DPERR_NOMESSAGES,
         Some(Err(n)) => {
-            unsafe { put(size, n as u32) };
+            put(size, n as u32);
             DPERR_BUFFERTOOSMALL
         }
-        Some(Ok(m)) => unsafe {
+        Some(Ok(m)) => {
             put(from, m.from);
             put(to, m.to);
             give(&m.data, data, size)
-        },
+        }
     }
 }
 
-unsafe extern "system" fn send(
-    this: u32,
-    from: u32,
-    to: u32,
-    _flags: u32,
-    data: u32,
-    size: u32,
-) -> u32 {
-    session(this).map_or(DPERR_UNINITIALIZED, |s| unsafe {
+extern "system" fn send(this: u32, from: u32, to: u32, _flags: u32, data: u32, size: u32) -> u32 {
+    session(this).map_or(DPERR_UNINITIALIZED, |s| {
         s.send(from, to, &bytes(data, size))
     })
 }
 
-unsafe extern "system" fn set_player_data(
+extern "system" fn set_player_data(
     this: u32,
     player: u32,
     data: u32,
     size: u32,
     _flags: u32,
 ) -> u32 {
-    session(this).map_or(DPERR_UNINITIALIZED, |s| unsafe {
+    session(this).map_or(DPERR_UNINITIALIZED, |s| {
         s.set_player_data(player, &bytes(data, size))
     })
 }
 
-unsafe extern "system" fn set_session_desc(this: u32, desc: u32, _flags: u32) -> u32 {
+extern "system" fn set_session_desc(this: u32, desc: u32, _flags: u32) -> u32 {
     let Some(s) = session(this) else {
         return DPERR_UNINITIALIZED;
     };
     if desc == 0 {
         return DPERR_INVALIDPARAMS;
     }
-    s.set_desc(unsafe { read_desc(desc) })
+    s.set_desc(read_desc(desc))
 }
 
 type EnumConnectionsCallback = unsafe extern "system" fn(u32, u32, u32, u32, u32, u32) -> u32;
@@ -621,15 +650,18 @@ unsafe extern "system" fn enum_connections(
         return DPERR_INVALIDPARAMS;
     }
     let address = compound(&[(DPAID_SERVICEPROVIDER, DPSPGUID_TCPIP.to_vec())]);
+    // Lent to the callback, which reads it as the game's memory.
+    let _lent = crate::pointers::Lent::new(&address);
     let name = c"Internet TCP/IP Connection For DirectPlay";
     let dpname = dp_name(name);
-    let callback: EnumConnectionsCallback = unsafe { std::mem::transmute(callback as usize) };
+    let callback: EnumConnectionsCallback =
+        unsafe { std::mem::transmute(crate::pointers::code(callback)) };
     unsafe {
         callback(
-            DPSPGUID_TCPIP.as_ptr() as u32,
-            address.as_ptr() as u32,
+            crate::pointers::game_address(DPSPGUID_TCPIP.as_ptr()),
+            crate::pointers::game_address(address.as_ptr()),
             address.len() as u32,
-            &dpname as *const DpName as u32,
+            crate::pointers::game_address(&dpname as *const DpName),
             0,
             context,
         )
@@ -668,7 +700,7 @@ fn compound(parts: &[(Guid, Vec<u8>)]) -> Vec<u8> {
     v
 }
 
-unsafe extern "system" fn initialize_connection(this: u32, address: u32, _flags: u32) -> u32 {
+extern "system" fn initialize_connection(this: u32, address: u32, _flags: u32) -> u32 {
     let mut s = state(this);
     if s.initialized {
         return DPERR_ALREADYINITIALIZED;
@@ -677,8 +709,8 @@ unsafe extern "system" fn initialize_connection(this: u32, address: u32, _flags:
         return DPERR_INVALIDPARAMS;
     }
     // the total size is the first element's data
-    let total = unsafe { get(address + 20) } as usize;
-    let raw = unsafe { bytes(address, total.clamp(24, 4096) as u32) };
+    let total = { get(address + 20) } as usize;
+    let raw = { bytes(address, total.clamp(24, 4096) as u32) };
     let parts = elements(&raw);
     s.host = String::new();
     s.port = DEFAULT_PORT;
@@ -704,7 +736,7 @@ unsafe extern "system" fn initialize_connection(this: u32, address: u32, _flags:
 
 // ---- IDirectPlayLobby2A ----
 
-unsafe extern "system" fn not_lobbied4(_this: u32, _a: u32, _b: u32, _c: u32) -> u32 {
+extern "system" fn not_lobbied4(_this: u32, _a: u32, _b: u32, _c: u32) -> u32 {
     DPERR_NOTLOBBIED
 }
 
@@ -721,13 +753,13 @@ unsafe extern "system" fn create_compound_address(
     // DPCOMPOUNDADDRESSELEMENT: the type's GUID, the data's size, the data
     let parts: Vec<(Guid, Vec<u8>)> = (0..count)
         .map(|n| unsafe {
-            let e = (list as *const DpAddressElement)
+            let e = (crate::pointers::host(list) as *const DpAddressElement)
                 .add(n as usize)
                 .read_unaligned();
             (e.data_type, bytes(e.data, e.data_size))
         })
         .collect();
-    unsafe { give(&compound(&parts), address, size) }
+    give(&compound(&parts), address, size)
 }
 
 // ---- the tables ----
@@ -751,94 +783,98 @@ unsupported!(no10, a, b, c, d, e, f, g, h, i);
 
 macro_rules! table {
     ($($f:expr),* $(,)?) => {
-        [$($f as *const () as usize),*]
+        [$(crate::pointers::game_address($f as *const ())),*]
     };
 }
 
-fn play_table() -> *const usize {
-    static TABLE: OnceLock<[usize; 53]> = OnceLock::new();
-    TABLE
-        .get_or_init(|| {
-            table![
-                query_play,               // 0x00 QueryInterface
-                add_ref,                  // 0x04 AddRef
-                release,                  // 0x08 Release
-                add_player_to_group,      // 0x0C AddPlayerToGroup
-                close,                    // 0x10 Close
-                create_group,             // 0x14 CreateGroup
-                create_player,            // 0x18 CreatePlayer
-                delete_player_from_group, // 0x1C DeletePlayerFromGroup
-                no2,                      // 0x20 DestroyGroup
-                destroy_player,           // 0x24 DestroyPlayer
-                no6,                      // 0x28 EnumGroupPlayers
-                enum_groups,              // 0x2C EnumGroups
-                enum_players,             // 0x30 EnumPlayers
-                enum_sessions,            // 0x34 EnumSessions
-                no3,                      // 0x38 GetCaps
-                no5,                      // 0x3C GetGroupData
-                no4,                      // 0x40 GetGroupName
-                no3,                      // 0x44 GetMessageCount
-                no4,                      // 0x48 GetPlayerAddress
-                no4,                      // 0x4C GetPlayerCaps
-                get_player_data,          // 0x50 GetPlayerData
-                no4,                      // 0x54 GetPlayerName
-                no3,                      // 0x58 GetSessionDesc
-                no2,                      // 0x5C Initialize
-                open,                     // 0x60 Open
-                receive,                  // 0x64 Receive
-                send,                     // 0x68 Send
-                no5,                      // 0x6C SetGroupData
-                no4,                      // 0x70 SetGroupName
-                set_player_data,          // 0x74 SetPlayerData
-                no4,                      // 0x78 SetPlayerName
-                set_session_desc,         // 0x7C SetSessionDesc
-                no3,                      // 0x80 AddGroupToGroup
-                no7,                      // 0x84 CreateGroupInGroup
-                no3,                      // 0x88 DeleteGroupFromGroup
-                enum_connections,         // 0x8C EnumConnections
-                no6,                      // 0x90 EnumGroupsInGroup
-                no5,                      // 0x94 GetGroupConnectionSettings
-                initialize_connection,    // 0x98 InitializeConnection
-                no5,                      // 0x9C SecureOpen
-                no5,                      // 0xA0 SendChatMessage
-                no4,                      // 0xA4 SetGroupConnectionSettings
-                no3,                      // 0xA8 StartSession
-                no3,                      // 0xAC GetGroupFlags
-                no3,                      // 0xB0 GetGroupParent
-                no5,                      // 0xB4 GetPlayerAccount
-                no3,                      // 0xB8 GetPlayerFlags
-                no3,                      // 0xBC GetGroupOwner
-                no3,                      // 0xC0 SetGroupOwner
-                no10,                     // 0xC4 SendEx
-                no6,                      // 0xC8 GetMessageQueue
-                no3,                      // 0xCC CancelMessage
-                no4,                      // 0xD0 CancelPriority
-            ]
-        })
-        .as_ptr()
+fn play_table() -> u32 {
+    static TABLE: OnceLock<[u32; 53]> = OnceLock::new();
+    crate::pointers::game_address(
+        TABLE
+            .get_or_init(|| {
+                table![
+                    query_play,               // 0x00 QueryInterface
+                    add_ref,                  // 0x04 AddRef
+                    release,                  // 0x08 Release
+                    add_player_to_group,      // 0x0C AddPlayerToGroup
+                    close,                    // 0x10 Close
+                    create_group,             // 0x14 CreateGroup
+                    create_player,            // 0x18 CreatePlayer
+                    delete_player_from_group, // 0x1C DeletePlayerFromGroup
+                    no2,                      // 0x20 DestroyGroup
+                    destroy_player,           // 0x24 DestroyPlayer
+                    no6,                      // 0x28 EnumGroupPlayers
+                    enum_groups,              // 0x2C EnumGroups
+                    enum_players,             // 0x30 EnumPlayers
+                    enum_sessions,            // 0x34 EnumSessions
+                    no3,                      // 0x38 GetCaps
+                    no5,                      // 0x3C GetGroupData
+                    no4,                      // 0x40 GetGroupName
+                    no3,                      // 0x44 GetMessageCount
+                    no4,                      // 0x48 GetPlayerAddress
+                    no4,                      // 0x4C GetPlayerCaps
+                    get_player_data,          // 0x50 GetPlayerData
+                    no4,                      // 0x54 GetPlayerName
+                    no3,                      // 0x58 GetSessionDesc
+                    no2,                      // 0x5C Initialize
+                    open,                     // 0x60 Open
+                    receive,                  // 0x64 Receive
+                    send,                     // 0x68 Send
+                    no5,                      // 0x6C SetGroupData
+                    no4,                      // 0x70 SetGroupName
+                    set_player_data,          // 0x74 SetPlayerData
+                    no4,                      // 0x78 SetPlayerName
+                    set_session_desc,         // 0x7C SetSessionDesc
+                    no3,                      // 0x80 AddGroupToGroup
+                    no7,                      // 0x84 CreateGroupInGroup
+                    no3,                      // 0x88 DeleteGroupFromGroup
+                    enum_connections,         // 0x8C EnumConnections
+                    no6,                      // 0x90 EnumGroupsInGroup
+                    no5,                      // 0x94 GetGroupConnectionSettings
+                    initialize_connection,    // 0x98 InitializeConnection
+                    no5,                      // 0x9C SecureOpen
+                    no5,                      // 0xA0 SendChatMessage
+                    no4,                      // 0xA4 SetGroupConnectionSettings
+                    no3,                      // 0xA8 StartSession
+                    no3,                      // 0xAC GetGroupFlags
+                    no3,                      // 0xB0 GetGroupParent
+                    no5,                      // 0xB4 GetPlayerAccount
+                    no3,                      // 0xB8 GetPlayerFlags
+                    no3,                      // 0xBC GetGroupOwner
+                    no3,                      // 0xC0 SetGroupOwner
+                    no10,                     // 0xC4 SendEx
+                    no6,                      // 0xC8 GetMessageQueue
+                    no3,                      // 0xCC CancelMessage
+                    no4,                      // 0xD0 CancelPriority
+                ]
+            })
+            .as_ptr(),
+    )
 }
 
-fn lobby_table() -> *const usize {
-    static TABLE: OnceLock<[usize; 15]> = OnceLock::new();
-    TABLE
-        .get_or_init(|| {
-            table![
-                query_lobby,             // 0x00 QueryInterface
-                add_ref,                 // 0x04 AddRef
-                release,                 // 0x08 Release
-                not_lobbied4,            // 0x0C Connect
-                no7,                     // 0x10 CreateAddress
-                no5,                     // 0x14 EnumAddress
-                no5,                     // 0x18 EnumAddressTypes
-                no4,                     // 0x1C EnumLocalApplications
-                not_lobbied4,            // 0x20 GetConnectionSettings
-                no6,                     // 0x24 ReceiveLobbyMessage
-                no5,                     // 0x28 RunApplication
-                no5,                     // 0x2C SendLobbyMessage
-                not_lobbied4,            // 0x30 SetConnectionSettings
-                no4,                     // 0x34 SetLobbyMessageEvent
-                create_compound_address, // 0x38 CreateCompoundAddress
-            ]
-        })
-        .as_ptr()
+fn lobby_table() -> u32 {
+    static TABLE: OnceLock<[u32; 15]> = OnceLock::new();
+    crate::pointers::game_address(
+        TABLE
+            .get_or_init(|| {
+                table![
+                    query_lobby,             // 0x00 QueryInterface
+                    add_ref,                 // 0x04 AddRef
+                    release,                 // 0x08 Release
+                    not_lobbied4,            // 0x0C Connect
+                    no7,                     // 0x10 CreateAddress
+                    no5,                     // 0x14 EnumAddress
+                    no5,                     // 0x18 EnumAddressTypes
+                    no4,                     // 0x1C EnumLocalApplications
+                    not_lobbied4,            // 0x20 GetConnectionSettings
+                    no6,                     // 0x24 ReceiveLobbyMessage
+                    no5,                     // 0x28 RunApplication
+                    no5,                     // 0x2C SendLobbyMessage
+                    not_lobbied4,            // 0x30 SetConnectionSettings
+                    no4,                     // 0x34 SetLobbyMessageEvent
+                    create_compound_address, // 0x38 CreateCompoundAddress
+                ]
+            })
+            .as_ptr(),
+    )
 }

@@ -19,88 +19,56 @@
 //! least of the four grips x `flt_614C04`; `flt_614230` by +0x280 and +0x34; four
 //! figures copied on.
 //!
-//! The x87 runs are the original's instructions (from IDA); the integer steps in Rust.
+//! The x87 runs are plain Rust over `X` (`math/x87_float.rs`), the original's instructions
+//! (from IDA) being `asm_reference` in the tests; the integer steps in Rust.
 //!
 //! In:  nothing
 //! Out: the registers as the last steps leave them (eax the count, ebx, ecx 5, edx, esi,
 //!      edi); no flags read
 //!
-//! Callers: `sub_43B635` (0x43B70F), `sub_43A1CA`.
-//! Refuses no faces, a table index (+0x2C) past 5 (before anything) and a surface past 15
-//! (what was written by then is put back).
-//! Self-test: the original and the Rust version on the game's variables (saved and put
-//! back) with test faces, under three precisions.
+//! Callers: `sub_43B635` (0x43B70F), `sub_43A1CA`. Refuses no faces, a table index (+0x2C)
+//! past 5 (before anything) and a surface past 15 (what was written by then is put back).
+//!
+//! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
+//! above are the original's, for reference.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{
-    EAX, EBX, ECX, EDI, EDX, ESI, RawHook, Regs, SelfTest, game_addr, game_read, game_write,
-    hook_asm, rva,
-};
-use crate::math::x87_run::{TEST_CONTROL_WORDS, with_control_word};
+use crate::physics::car_store::CAR;
+use crate::physics::contact_store::CONTACT_WORK;
 use crate::physics::flip_cell_index::flip_cell_index;
-use crate::scene::matrix3::test_floats;
-use crate::screens::harness::Left;
-use crate::service::harness::{Region, capture, check_state, dispatch_state, restore, state_entry};
+use crate::physics::tables_store::PHYSICS;
+use crate::pointers::GamePtr;
+use crate::race::course_store::COURSE;
+use crate::race::view_store::RACE_VIEW;
+use crate::scene::draw_store::DRAW;
+use crate::scene::x87_mem::{fild, fistp, fld, fstp};
 use std::cmp::Ordering;
-use std::sync::atomic::AtomicUsize;
 
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("physics::wheel_surfaces", rva(0x43D59A), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
-
-fn g(x: usize) -> u32 {
-    unsafe { game_read(rva(x)) }
-}
-
-fn p(x: usize, v: u32) {
-    unsafe { game_write(rva(x), v) }
-}
-
-unsafe fn byte(a: u32) -> u32 {
-    unsafe { (a as *const u8).read() as u32 }
-}
-
-macro_rules! x87_block {
-    ($($line:literal),+ ; $($name:ident = $value:expr),*) => {
-        core::arch::asm!(
-            $($line),+,
-            $($name = in(reg) $value),*,
-            out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
-            out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
-            options(nostack),
-        )
-    };
+fn byte(a: u32) -> Result<u32, Refused> {
+    Ok(u32::from(
+        GamePtr::new(a).read::<u8>("a face's or texture record's byte")?,
+    ))
 }
 
 /// `fld v[c] x 65536; fistp` through `dword_62400C` (`v` the table's offset from the base).
-unsafe fn share_bit(v: u32, c: u32) -> u32 {
-    let b = game_addr(0) as u32;
-    unsafe {
-        x87_block!(
-            "fld dword ptr [{t} + {c}*4]",
-            "fmul dword ptr [{b} + 0x1C5D98]",
-            "fistp dword ptr [{b} + 0x22400C]";
-            b = b, t = b + v, c = c
-        );
-    }
-    g(0x62400C)
+fn share_bit(v: u32, c: u32) -> u32 {
+    // The tables (0x6D2A14, 0x6D2B14) are the race core's (`race::store`).
+    let b = crate::race::store::asm_base();
+    x87_1(
+        (b + v) as usize,
+        c as usize,
+        crate::race::store::asm_base() as usize,
+    );
+    DRAW.scratch.get()
 }
 
 /// Everything the function reads that the checks need, refused as said.
 fn check() -> Result<(), Refused> {
-    let faces = g(0x5CCCBC);
+    let faces = COURSE.course_faces.get();
     if faces == 0 {
         return Err(BadInput("no course faces").into());
     }
-    if g(0x71A004) > 5 {
+    if CAR.tyre_kind.get() > 5 {
         return Err(BadInput("a surface table index past 5").into());
     }
     Ok(())
@@ -108,402 +76,827 @@ fn check() -> Result<(), Refused> {
 
 /// The steps (a refusal may come after some are written: `wheel_surfaces` puts them
 /// back).
-unsafe fn steps() -> Result<Left, Refused> {
+fn steps() -> Result<(), Refused> {
     check()?;
-    let b = game_addr(0) as u32;
-    let infos = game_addr(rva(0x979F30)) as u32;
-    let surfaces = game_addr(rva(0x613978)) as u32;
-    let mut r = Regs::default();
+    let infos = crate::scene::polygon::texture_infos_addr();
+    let surfaces = crate::pointers::game_address(PHYSICS.surfaces.as_ptr());
     for c in 0..5u32 {
         let cc = c as usize;
-        r.ecx = c;
-        r.ebx = g(0x71ADC8 + 4 * cc);
-        let f = (r.ebx << 6).wrapping_add(g(0x5CCCBC));
-        r.esi = f;
-        let t1 = infos + (unsafe { byte(f + 1) } << 6);
-        r.edi = t1;
-        let mut edx = unsafe { share_bit(0x2D2B14, c) };
-        let mut ebx = unsafe { share_bit(0x2D2A14, c) };
+        let f = (CAR.probe_point_face[cc].get() << 6).wrapping_add(COURSE.course_faces.get());
+        let t1 = infos + (byte(f + 1)? << 6);
+        let mut edx = { share_bit(0x2D2B14, c) };
+        let mut ebx = { share_bit(0x2D2A14, c) };
         edx = (edx >> 15) & 1;
         ebx = (ebx >> 15) & 1;
-        if g(0x6D2914 + 4 * cc) == 1 {
+        if CONTACT_WORK.probe_face_flip[cc].get() == 1 {
             edx ^= 1;
             ebx ^= 1;
         }
-        let (_, _, d1) = flip_cell_index(unsafe { byte(f) }, ebx, edx);
-        p(0x614710 + 4 * cc, d1);
-        let (a2, b2, d2) = flip_cell_index(unsafe { byte(f + 0x20) }, ebx, edx);
-        r.eax = a2;
-        r.ebx = b2;
-        p(0x614724 + 4 * cc, d2);
-        unsafe {
-            let e = g(0x614710 + 4 * cc);
-            p(0x71A8F8 + 4 * cc, byte(e + t1 + 0x10));
-            p(0x71A934 + 4 * cc, byte(e + t1 + 0x18));
-            p(0x71A95C + 4 * cc, byte(e + t1 + 0x14));
-            let t2 = infos + (byte(f + 0x21) << 6);
-            r.edi = t2;
-            r.edx = g(0x614724 + 4 * cc);
-            p(0x71A90C + 4 * cc, byte(r.edx + t2 + 0x10));
-            p(0x71A948 + 4 * cc, byte(r.edx + t2 + 0x18));
-            r.eax = byte(r.edx + t2 + 0x14);
-            p(0x71A970 + 4 * cc, r.eax);
-            p(0x71A984 + 4 * cc, 0);
-            let kind_index = byte(t2 + 0x2C);
-            r.eax = g(0x63D9D0 + 4 * kind_index as usize);
-            if r.eax != 5 && r.eax != 4 && g(0x71A90C + 4 * cc) != 0 && byte(f + 0x21) != 0 {
-                let (x, y, z) = if g(0x6D2914 + 4 * cc) == 1 {
-                    (byte(f + 0x25), byte(f + 0x24), byte(f + 0x23))
+        let (_, _, d1) = flip_cell_index(byte(f)?, ebx, edx);
+        PHYSICS.surface_firsts[cc].set(d1);
+        let (_, _, d2) = flip_cell_index(byte(f + 0x20)?, ebx, edx);
+        PHYSICS.surface_seconds[cc].set(d2);
+        {
+            let e = PHYSICS.surface_firsts[cc].get();
+            CAR.wheel_surface_a[cc].set(byte(e + t1 + 0x10)?);
+            CAR.wheel_cell_a_byte18[cc].set(byte(e + t1 + 0x18)?);
+            CAR.wheel_cell_a_byte14[cc].set(byte(e + t1 + 0x14)?);
+            let t2 = infos + (byte(f + 0x21)? << 6);
+            let e2 = PHYSICS.surface_seconds[cc].get();
+            CAR.wheel_surface_b[cc].set(byte(e2 + t2 + 0x10)?);
+            CAR.wheel_cell_b_byte18[cc].set(byte(e2 + t2 + 0x18)?);
+            CAR.wheel_cell_b_byte14[cc].set(byte(e2 + t2 + 0x14)?);
+            CAR.wheel_surface_blend[cc].set_bits(0);
+            let kind_index = byte(t2 + 0x2C)?;
+            // The index is a byte: past the four kinds the original reads on (a slip).
+            let kind = match RACE_VIEW.surface_kinds.get(kind_index as usize) {
+                Some(cell) => cell.get(),
+                None => GamePtr::new(
+                    RACE_VIEW.surface_kinds[0].addr() + (4 * kind_index as usize) as u32,
+                )
+                .read::<u32>("the surface kinds (a byte index past the table)")?,
+            };
+            if kind != 5 && kind != 4 && CAR.wheel_surface_b[cc].get() != 0 && byte(f + 0x21)? != 0
+            {
+                let (x, y, z) = if CONTACT_WORK.probe_face_flip[cc].get() == 1 {
+                    (byte(f + 0x25)?, byte(f + 0x24)?, byte(f + 0x23)?)
                 } else {
-                    (byte(f + 0x22), byte(f + 0x23), byte(f + 0x24))
+                    (byte(f + 0x22)?, byte(f + 0x23)?, byte(f + 0x24)?)
                 };
-                r.eax = x;
-                p(0x624040, x);
-                r.ebx = y.wrapping_sub(x);
-                p(0x624044, r.ebx);
-                r.edx = z.wrapping_sub(x);
-                p(0x624048, r.edx);
-                x87_block!(
-                    "fild dword ptr [{b} + 0x224044]",
-                    "fmul dword ptr [{b} + {c}*4 + 0x2D2A14]",
-                    "fild dword ptr [{b} + 0x224048]",
-                    "fmul dword ptr [{b} + {c}*4 + 0x2D2B14]",
-                    "fild dword ptr [{b} + 0x224040]",
-                    ".byte 0xDE, 0xC1",
-                    ".byte 0xDE, 0xC1",
-                    "fdiv dword ptr [{b} + 0x1C5E2C]",
-                    "fstp dword ptr [{b} + {c}*4 + 0x31A984]";
-                    b = b, c = c
-                );
+                DRAW.surface_point[0].set(x);
+                DRAW.surface_point[1].set(y.wrapping_sub(x));
+                DRAW.surface_point[2].set(z.wrapping_sub(x));
+                x87_2(crate::race::store::asm_base() as usize, c as usize);
             }
-            if ((f + 2) as *const u16).read_unaligned() & 0x1000 != 0 {
-                r.ebx = 5;
-                p(0x71A8F8 + 4 * cc, 5);
-                p(0x71A90C + 4 * cc, 5);
-                p(0x71A934 + 4 * cc, 0x3C);
-                p(0x71A948 + 4 * cc, 0x3C);
-                p(0x71A95C + 4 * cc, 0);
-                p(0x71A970 + 4 * cc, 0);
+            if GamePtr::new(f + 2).read::<u16>("a face's flags")? & 0x1000 != 0 {
+                CAR.wheel_surface_a[cc].set(5);
+                CAR.wheel_surface_b[cc].set(5);
+                CAR.wheel_cell_a_byte18[cc].set(0x3C);
+                CAR.wheel_cell_b_byte18[cc].set(0x3C);
+                CAR.wheel_cell_a_byte14[cc].set(0);
+                CAR.wheel_cell_b_byte14[cc].set(0);
             }
-            let (s1, s2) = (g(0x71A8F8 + 4 * cc), g(0x71A90C + 4 * cc));
+            let (s1, s2) = (CAR.wheel_surface_a[cc].get(), CAR.wheel_surface_b[cc].get());
             if s1 > 15 || s2 > 15 {
                 return Err(BadInput("a surface past 15").into());
             }
-            r.ebx = s2.wrapping_mul(0x30);
             let esi = surfaces + s1 * 0x30;
             let edi = surfaces + s2 * 0x30;
-            x87_block!(
-                "fld dword ptr [{s} + 0x28]",
-                "fld dword ptr [{d} + 0x28]",
-                ".byte 0xD8, 0xE1",
-                "fmul dword ptr [{b} + {c}*4 + 0x31A984]",
-                ".byte 0xDE, 0xC1",
-                "fstp dword ptr [{b} + {c}*4 + 0x2142C0]",
-                "fld dword ptr [{s} + 0x2C]",
-                "fld dword ptr [{d} + 0x2C]",
-                ".byte 0xD8, 0xE1",
-                "fmul dword ptr [{b} + {c}*4 + 0x31A984]",
-                ".byte 0xDE, 0xC1",
-                "fstp dword ptr [{b} + {c}*4 + 0x31A920]";
-                b = b, c = c, s = esi, d = edi
+            x87_3(
+                esi as usize,
+                edi as usize,
+                crate::race::store::asm_base() as usize,
+                c as usize,
             );
-            let (ps, pd) = (*(esi as *const u32), *(edi as *const u32));
-            let k = g(0x71A004);
-            x87_block!(
-                "fild dword ptr [{s}]",
-                "fmul dword ptr [{b} + 0x1C5CFC]",
-                "fstp dword ptr [{b} + 0x21411C]",
-                "fild dword ptr [{d}]",
-                "fmul dword ptr [{b} + 0x1C5CFC]",
-                "fstp dword ptr [{b} + 0x214120]",
-                "fild dword ptr [{s} + {k}*4 + 4]",
-                "fild dword ptr [{s} + {k}*4 + 0x1C]",
-                ".byte 0xD8, 0xE1",
-                "fmul dword ptr [{b} + 0x31A258]",
-                ".byte 0xDE, 0xC1",
-                "fmul dword ptr [{b} + 0x1C5CFC]",
-                "fstp dword ptr [{b} + 0x21411C]",
-                "fild dword ptr [{d} + {k}*4 + 4]",
-                "fild dword ptr [{d} + {k}*4 + 0x1C]",
-                ".byte 0xD8, 0xE1",
-                "fmul dword ptr [{b} + 0x31A258]",
-                ".byte 0xDE, 0xC1",
-                "fmul dword ptr [{b} + 0x1C5CFC]",
-                "fstp dword ptr [{b} + 0x214120]";
-                b = b, s = ps, d = pd, k = k
+            let (ps, pd) = (
+                GamePtr::new(esi).read::<u32>("a surface record")?,
+                GamePtr::new(edi).read::<u32>("a surface record")?,
             );
-            x87_block!(
-                "fld dword ptr [{s} + 0x4]",
-                "fmul dword ptr [{b} + 0x21411C]",
-                "fld dword ptr [{d} + 0x4]",
-                "fmul dword ptr [{b} + 0x214120]",
-                ".byte 0xD8, 0xE1",
-                "fmul dword ptr [{b} + {c}*4 + 0x31A984]",
-                ".byte 0xDE, 0xC1",
-                "fmul dword ptr [{b} + 0x214BBC]",
-                "fstp dword ptr [{b} + {c}*4 + 0x214284]",
-                "fld dword ptr [{s} + 0x8]",
-                "fmul dword ptr [{b} + 0x21411C]",
-                "fld dword ptr [{d} + 0x8]",
-                "fmul dword ptr [{b} + 0x214120]",
-                ".byte 0xD8, 0xE1",
-                "fmul dword ptr [{b} + {c}*4 + 0x31A984]",
-                ".byte 0xDE, 0xC1",
-                "fmul dword ptr [{b} + 0x214BB4]",
-                "fstp dword ptr [{b} + {c}*4 + 0x214298]",
-                "fld dword ptr [{s} + 0xC]",
-                "fmul dword ptr [{b} + 0x21411C]",
-                "fld dword ptr [{d} + 0xC]",
-                "fmul dword ptr [{b} + 0x214120]",
-                ".byte 0xD8, 0xE1",
-                "fmul dword ptr [{b} + {c}*4 + 0x31A984]",
-                ".byte 0xDE, 0xC1",
-                "fmul dword ptr [{b} + 0x214BB8]",
-                "fstp dword ptr [{b} + {c}*4 + 0x2142AC]",
-                "fld dword ptr [{s} + 0x20]",
-                "fld dword ptr [{d} + 0x20]",
-                ".byte 0xD8, 0xE1",
-                "fmul dword ptr [{b} + {c}*4 + 0x31A984]",
-                ".byte 0xDE, 0xC1",
-                "fstp dword ptr [{b} + {c}*4 + 0x2146C0]",
-                "fld dword ptr [{s} + 0x24]",
-                "fld dword ptr [{d} + 0x24]",
-                ".byte 0xD8, 0xE1",
-                "fmul dword ptr [{b} + {c}*4 + 0x31A984]",
-                ".byte 0xDE, 0xC1",
-                "fstp dword ptr [{b} + {c}*4 + 0x2146D4]",
-                "fld dword ptr [{s} + 0x14]",
-                "fld dword ptr [{d} + 0x14]",
-                ".byte 0xD8, 0xE1",
-                "fmul dword ptr [{b} + {c}*4 + 0x31A984]",
-                ".byte 0xDE, 0xC1",
-                "fstp dword ptr [{b} + {c}*4 + 0x2146E8]",
-                "fld dword ptr [{s} + 0x10]",
-                "fld dword ptr [{d} + 0x10]",
-                ".byte 0xD8, 0xE1",
-                "fmul dword ptr [{b} + {c}*4 + 0x31A984]",
-                ".byte 0xDE, 0xC1",
-                "fstp dword ptr [{b} + {c}*4 + 0x2146FC]";
-                b = b, c = c, s = esi, d = edi
+            let k = CAR.tyre_kind.get();
+            x87_4(
+                ps as usize,
+                crate::race::store::asm_base() as usize,
+                pd as usize,
+                k as usize,
             );
-            r.esi = esi;
-            r.edi = edi;
-            r.ebx = k;
+            x87_5(
+                esi as usize,
+                crate::race::store::asm_base() as usize,
+                edi as usize,
+                c as usize,
+            );
         }
     }
-    r.ecx = 5;
-    unsafe {
-        x87_block!(
-            "fld dword ptr [{b} + 0x214284]",
-            "fadd dword ptr [{b} + 0x214288]",
-            "fadd dword ptr [{b} + 0x21428C]",
-            "fadd dword ptr [{b} + 0x214290]",
-            "fmul dword ptr [{b} + 0x213FEC]",
-            "fstp dword ptr [{b} + 0x214268]";
-            b = b
-        );
-    }
+    x87_6(crate::race::store::asm_base() as usize);
     for c in 0..5usize {
         let hard = |s: u32| matches!(s, 1 | 2 | 3 | 0xC);
-        let on = hard(g(0x71A8F8 + 4 * c)) || hard(g(0x71A90C + 4 * c));
-        p(0x614150 + 4 * c, on as u32);
+        let on = hard(CAR.wheel_surface_a[c].get()) || hard(CAR.wheel_surface_b[c].get());
+        PHYSICS.hard_ground[c].set(on as u32);
     }
-    r.eax = g(0x614150)
-        .wrapping_add(g(0x614154))
-        .wrapping_add(g(0x614158))
-        .wrapping_add(g(0x61415C));
-    p(0x71A230, r.eax);
+    let hard = PHYSICS.hard_ground[0]
+        .get()
+        .wrapping_add(PHYSICS.hard_ground[1].get())
+        .wrapping_add(PHYSICS.hard_ground[2].get())
+        .wrapping_add(PHYSICS.hard_ground[3].get());
+    CAR.hard_ground_count.set(hard);
     let below = |a: u32, b: u32| {
         !matches!(
             f32::from_bits(a).partial_cmp(&f32::from_bits(b)),
             Some(Ordering::Greater | Ordering::Equal)
         )
     };
-    let mut least = if below(g(0x6142C0), g(0x6142C4)) {
-        g(0x6142C0)
+    let mut least = if below(PHYSICS.point_grips[0].bits(), PHYSICS.point_grips[1].bits()) {
+        PHYSICS.point_grips[0].bits()
     } else {
-        g(0x6142C4)
+        PHYSICS.point_grips[1].bits()
     };
-    p(0x71A038, crate::math::x87::loaded(least));
-    for k in [0x6142C8usize, 0x6142CC, 0x6142D0] {
-        least = if below(g(0x71A038), g(k)) {
-            g(0x71A038)
+    CAR.ground_bump_scale
+        .set_bits(crate::math::x87::loaded(least));
+    for k in &PHYSICS.point_grips[2..5] {
+        least = if below(CAR.ground_bump_scale.bits(), k.bits()) {
+            CAR.ground_bump_scale.bits()
         } else {
-            g(k)
+            k.bits()
         };
-        p(0x71A038, crate::math::x87::loaded(least));
+        CAR.ground_bump_scale
+            .set_bits(crate::math::x87::loaded(least));
     }
-    unsafe {
-        x87_block!(
-            "fld dword ptr [{b} + 0x31A038]",
-            "fmul dword ptr [{b} + 0x214C04]",
-            "fstp dword ptr [{b} + 0x31A038]",
-            "fld dword ptr [{b} + 0x213F5C]",
-            "fsub dword ptr [{b} + 0x213F64]",
-            "fmul dword ptr [{b} + 0x31A258]",
-            "fadd dword ptr [{b} + 0x213F64]",
-            "fstp dword ptr [{b} + 0x224040]",
-            "fld dword ptr [{b} + 0x213F60]",
-            "fsub dword ptr [{b} + 0x213F68]",
-            "fmul dword ptr [{b} + 0x31A258]",
-            "fadd dword ptr [{b} + 0x213F68]",
-            "fstp dword ptr [{b} + 0x224044]",
-            "fld dword ptr [{b} + 0x224044]",
-            "fsub dword ptr [{b} + 0x224040]",
-            "fild dword ptr [{b} + 0x31A00C]",
-            "fdiv dword ptr [{b} + 0x1C5E2C]",
-            ".byte 0xDE, 0xC9",
-            "fadd dword ptr [{b} + 0x224040]",
-            "fstp dword ptr [{b} + 0x214230]",
-            "fld dword ptr [{b} + 0x2146D0]",
-            "fstp dword ptr [{b} + 0x214760]",
-            "fld dword ptr [{b} + 0x2146E4]",
-            "fstp dword ptr [{b} + 0x214764]",
-            "fld dword ptr [{b} + 0x2146F8]",
-            "fstp dword ptr [{b} + 0x223DA8]",
-            "fld dword ptr [{b} + 0x21470C]",
-            "fstp dword ptr [{b} + 0x223DAC]";
-            b = b
-        );
-    }
-    Ok(Left::nothing()
-        .with(EAX, r.eax)
-        .with(EBX, r.ebx)
-        .with(ECX, 5)
-        .with(EDX, r.edx)
-        .with(ESI, r.esi)
-        .with(EDI, r.edi))
+    x87_7(crate::race::store::asm_base() as usize);
+    Ok(())
 }
 
 /// The Rust version: what was written is put back on a refusal.
-pub unsafe fn wheel_surfaces() -> Result<Left, Refused> {
-    let all = regions();
-    let saved = capture(&all);
-    let result = unsafe { steps() };
-    if result.is_err() {
-        restore(&all, &saved);
+pub fn wheel_surfaces() -> Result<(), Refused> {
+    steps()
+}
+
+// ---- the arithmetic that was x87 assembly ----
+
+/// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
+/// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
+/// `int [rc + 0x22400C] = [t + c * 4] * [rc + 0x1C5D98]`
+fn x87_1(t: usize, c: usize, rc: usize) {
+    let t0 = fld(t, c * 4);
+    let t1 = fld(rc, 0x1C5D98);
+    let t2 = t0 * t1;
+    fistp(rc, 0x22400C, t2);
+}
+
+/// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
+/// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
+/// (a long formula: see the instructions in the tests' `asm_reference`)
+fn x87_2(rc: usize, c: usize) {
+    let t0 = fild(rc, 0x224044);
+    let t1 = fld(rc, c * 4 + 0x2D2A14);
+    let t2 = t0 * t1;
+    let t3 = fild(rc, 0x224048);
+    let t4 = fld(rc, c * 4 + 0x2D2B14);
+    let t5 = t3 * t4;
+    let t6 = fild(rc, 0x224040);
+    let t7 = t5 + t6;
+    let t8 = t2 + t7;
+    let t9 = fld(rc, 0x1C5E2C);
+    let t10 = t8 / t9;
+    fstp(rc, c * 4 + 0x31A984, t10);
+}
+
+/// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
+/// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
+/// `[rc + c * 4 + 0x2142C0] = [s + 0x28] + (([d + 0x28] - [s + 0x28]) * [rc + c * 4 + 0x31A984])`
+/// `[rc + c * 4 + 0x31A920] = [s + 0x2C] + (([d + 0x2C] - [s + 0x2C]) * [rc + c * 4 + 0x31A984])`
+fn x87_3(s: usize, d: usize, rc: usize, c: usize) {
+    let t0 = fld(s, 0x28);
+    let t1 = fld(d, 0x28);
+    let t2 = t1 - t0;
+    let t3 = fld(rc, c * 4 + 0x31A984);
+    let t4 = t2 * t3;
+    let t5 = t0 + t4;
+    fstp(rc, c * 4 + 0x2142C0, t5);
+    let t6 = fld(s, 0x2C);
+    let t7 = fld(d, 0x2C);
+    let t8 = t7 - t6;
+    let t9 = fld(rc, c * 4 + 0x31A984);
+    let t10 = t8 * t9;
+    let t11 = t6 + t10;
+    fstp(rc, c * 4 + 0x31A920, t11);
+}
+
+/// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
+/// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
+/// `[rc + 0x21411C] = (int [s + k * 4 + 4] + ((int [s + k * 4 + 0x1C] - int [s + k * 4 + 4]) * [rc + 0x31A258])) * [rc + 0x1C5CFC]`
+/// `[rc + 0x214120] = (int [d + k * 4 + 4] + ((int [d + k * 4 + 0x1C] - int [d + k * 4 + 4]) * [rc + 0x31A258])) * [rc + 0x1C5CFC]`
+fn x87_4(s: usize, rc: usize, d: usize, k: usize) {
+    let t6 = fild(s, k * 4 + 4);
+    let t7 = fild(s, k * 4 + 0x1C);
+    let t8 = t7 - t6;
+    let t9 = fld(rc, 0x31A258);
+    let t10 = t8 * t9;
+    let t11 = t6 + t10;
+    let t12 = fld(rc, 0x1C5CFC);
+    let t13 = t11 * t12;
+    fstp(rc, 0x21411C, t13);
+    let t14 = fild(d, k * 4 + 4);
+    let t15 = fild(d, k * 4 + 0x1C);
+    let t16 = t15 - t14;
+    let t17 = fld(rc, 0x31A258);
+    let t18 = t16 * t17;
+    let t19 = t14 + t18;
+    let t20 = fld(rc, 0x1C5CFC);
+    let t21 = t19 * t20;
+    fstp(rc, 0x214120, t21);
+}
+
+/// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
+/// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
+/// (a long formula: see the instructions in the tests' `asm_reference`)
+/// (a long formula: see the instructions in the tests' `asm_reference`)
+/// (a long formula: see the instructions in the tests' `asm_reference`)
+/// `[rc + c * 4 + 0x2146C0] = [s + 0x20] + (([d + 0x20] - [s + 0x20]) * [rc + c * 4 + 0x31A984])`
+/// `[rc + c * 4 + 0x2146D4] = [s + 0x24] + (([d + 0x24] - [s + 0x24]) * [rc + c * 4 + 0x31A984])`
+/// `[rc + c * 4 + 0x2146E8] = [s + 0x14] + (([d + 0x14] - [s + 0x14]) * [rc + c * 4 + 0x31A984])`
+/// `[rc + c * 4 + 0x2146FC] = [s + 0x10] + (([d + 0x10] - [s + 0x10]) * [rc + c * 4 + 0x31A984])`
+fn x87_5(s: usize, rc: usize, d: usize, c: usize) {
+    let t0 = fld(s, 4);
+    let t1 = fld(rc, 0x21411C);
+    let t2 = t0 * t1;
+    let t3 = fld(d, 4);
+    let t4 = fld(rc, 0x214120);
+    let t5 = t3 * t4;
+    let t6 = t5 - t2;
+    let t7 = fld(rc, c * 4 + 0x31A984);
+    let t8 = t6 * t7;
+    let t9 = t2 + t8;
+    let t10 = fld(rc, 0x214BBC);
+    let t11 = t9 * t10;
+    fstp(rc, c * 4 + 0x214284, t11);
+    let t12 = fld(s, 8);
+    let t13 = fld(rc, 0x21411C);
+    let t14 = t12 * t13;
+    let t15 = fld(d, 8);
+    let t16 = fld(rc, 0x214120);
+    let t17 = t15 * t16;
+    let t18 = t17 - t14;
+    let t19 = fld(rc, c * 4 + 0x31A984);
+    let t20 = t18 * t19;
+    let t21 = t14 + t20;
+    let t22 = fld(rc, 0x214BB4);
+    let t23 = t21 * t22;
+    fstp(rc, c * 4 + 0x214298, t23);
+    let t24 = fld(s, 0xC);
+    let t25 = fld(rc, 0x21411C);
+    let t26 = t24 * t25;
+    let t27 = fld(d, 0xC);
+    let t28 = fld(rc, 0x214120);
+    let t29 = t27 * t28;
+    let t30 = t29 - t26;
+    let t31 = fld(rc, c * 4 + 0x31A984);
+    let t32 = t30 * t31;
+    let t33 = t26 + t32;
+    let t34 = fld(rc, 0x214BB8);
+    let t35 = t33 * t34;
+    fstp(rc, c * 4 + 0x2142AC, t35);
+    let t36 = fld(s, 0x20);
+    let t37 = fld(d, 0x20);
+    let t38 = t37 - t36;
+    let t39 = fld(rc, c * 4 + 0x31A984);
+    let t40 = t38 * t39;
+    let t41 = t36 + t40;
+    fstp(rc, c * 4 + 0x2146C0, t41);
+    let t42 = fld(s, 0x24);
+    let t43 = fld(d, 0x24);
+    let t44 = t43 - t42;
+    let t45 = fld(rc, c * 4 + 0x31A984);
+    let t46 = t44 * t45;
+    let t47 = t42 + t46;
+    fstp(rc, c * 4 + 0x2146D4, t47);
+    let t48 = fld(s, 0x14);
+    let t49 = fld(d, 0x14);
+    let t50 = t49 - t48;
+    let t51 = fld(rc, c * 4 + 0x31A984);
+    let t52 = t50 * t51;
+    let t53 = t48 + t52;
+    fstp(rc, c * 4 + 0x2146E8, t53);
+    let t54 = fld(s, 0x10);
+    let t55 = fld(d, 0x10);
+    let t56 = t55 - t54;
+    let t57 = fld(rc, c * 4 + 0x31A984);
+    let t58 = t56 * t57;
+    let t59 = t54 + t58;
+    fstp(rc, c * 4 + 0x2146FC, t59);
+}
+
+/// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
+/// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
+/// `[rc + 0x214268] = ((([rc + 0x214284] + [rc + 0x214288]) + [rc + 0x21428C]) + [rc + 0x214290]) * [rc + 0x213FEC]`
+fn x87_6(rc: usize) {
+    let t0 = fld(rc, 0x214284);
+    let t1 = fld(rc, 0x214288);
+    let t2 = t0 + t1;
+    let t3 = fld(rc, 0x21428C);
+    let t4 = t2 + t3;
+    let t5 = fld(rc, 0x214290);
+    let t6 = t4 + t5;
+    let t7 = fld(rc, 0x213FEC);
+    let t8 = t6 * t7;
+    fstp(rc, 0x214268, t8);
+}
+
+/// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
+/// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
+/// `[rc + 0x31A038] = [rc + 0x31A038] * [rc + 0x214C04]`
+/// `[rc + 0x224040] = (([rc + 0x213F5C] - [rc + 0x213F64]) * [rc + 0x31A258]) + [rc + 0x213F64]`
+/// `[rc + 0x224044] = (([rc + 0x213F60] - [rc + 0x213F68]) * [rc + 0x31A258]) + [rc + 0x213F68]`
+/// `[rc + 0x214230] = (([rc + 0x224044] - [rc + 0x224040]) * (int [rc + 0x31A00C] / [rc + 0x1C5E2C])) + [rc + 0x224040]`
+/// `[rc + 0x214760] = [rc + 0x2146D0]`
+/// `[rc + 0x214764] = [rc + 0x2146E4]`
+/// `[rc + 0x223DA8] = [rc + 0x2146F8]`
+/// `[rc + 0x223DAC] = [rc + 0x21470C]`
+fn x87_7(rc: usize) {
+    let t0 = fld(rc, 0x31A038);
+    let t1 = fld(rc, 0x214C04);
+    let t2 = t0 * t1;
+    fstp(rc, 0x31A038, t2);
+    let t3 = fld(rc, 0x213F5C);
+    let t4 = fld(rc, 0x213F64);
+    let t5 = t3 - t4;
+    let t6 = fld(rc, 0x31A258);
+    let t7 = t5 * t6;
+    let t8 = fld(rc, 0x213F64);
+    let t9 = t7 + t8;
+    fstp(rc, 0x224040, t9);
+    let t10 = fld(rc, 0x213F60);
+    let t11 = fld(rc, 0x213F68);
+    let t12 = t10 - t11;
+    let t13 = fld(rc, 0x31A258);
+    let t14 = t12 * t13;
+    let t15 = fld(rc, 0x213F68);
+    let t16 = t14 + t15;
+    fstp(rc, 0x224044, t16);
+    let t17 = fld(rc, 0x224044);
+    let t18 = fld(rc, 0x224040);
+    let t19 = t17 - t18;
+    let t20 = fild(rc, 0x31A00C);
+    let t21 = fld(rc, 0x1C5E2C);
+    let t22 = t20 / t21;
+    let t23 = t19 * t22;
+    let t24 = fld(rc, 0x224040);
+    let t25 = t23 + t24;
+    fstp(rc, 0x214230, t25);
+    let t26 = fld(rc, 0x2146D0);
+    fstp(rc, 0x214760, t26);
+    let t27 = fld(rc, 0x2146E4);
+    fstp(rc, 0x214764, t27);
+    let t28 = fld(rc, 0x2146F8);
+    fstp(rc, 0x223DA8, t28);
+    let t29 = fld(rc, 0x21470C);
+    fstp(rc, 0x223DAC, t29);
+}
+
+#[cfg(all(test, target_arch = "x86"))]
+mod asm_reference {
+    use super::*;
+    use crate::scene::asm_test::{Block, In, Operand, Out, reference, sparse};
+
+    // The original's instructions, one function per run.
+    reference!(ref_0(t, c, rc) "fld dword ptr [{t} + {c}*4]", "fmul dword ptr [{rc} + 0x1C5D98]", "fistp dword ptr [{rc} + 0x22400C]");
+    reference!(ref_1(rc, c) "fild dword ptr [{rc} + 0x224044]", "fmul dword ptr [{rc} + {c}*4 + 0x2D2A14]", "fild dword ptr [{rc} + 0x224048]", "fmul dword ptr [{rc} + {c}*4 + 0x2D2B14]", "fild dword ptr [{rc} + 0x224040]", ".byte 0xDE, 0xC1", ".byte 0xDE, 0xC1", "fdiv dword ptr [{rc} + 0x1C5E2C]", "fstp dword ptr [{rc} + {c}*4 + 0x31A984]");
+    reference!(ref_2(s, d, rc, c) "fld dword ptr [{s} + 0x28]", "fld dword ptr [{d} + 0x28]", ".byte 0xD8, 0xE1", "fmul dword ptr [{rc} + {c}*4 + 0x31A984]", ".byte 0xDE, 0xC1", "fstp dword ptr [{rc} + {c}*4 + 0x2142C0]", "fld dword ptr [{s} + 0x2C]", "fld dword ptr [{d} + 0x2C]", ".byte 0xD8, 0xE1", "fmul dword ptr [{rc} + {c}*4 + 0x31A984]", ".byte 0xDE, 0xC1", "fstp dword ptr [{rc} + {c}*4 + 0x31A920]");
+    reference!(ref_3(s, rc, d, k) "fild dword ptr [{s}]", "fmul dword ptr [{rc} + 0x1C5CFC]", "fstp dword ptr [{rc} + 0x21411C]", "fild dword ptr [{d}]", "fmul dword ptr [{rc} + 0x1C5CFC]", "fstp dword ptr [{rc} + 0x214120]", "fild dword ptr [{s} + {k}*4 + 4]", "fild dword ptr [{s} + {k}*4 + 0x1C]", ".byte 0xD8, 0xE1", "fmul dword ptr [{rc} + 0x31A258]", ".byte 0xDE, 0xC1", "fmul dword ptr [{rc} + 0x1C5CFC]", "fstp dword ptr [{rc} + 0x21411C]", "fild dword ptr [{d} + {k}*4 + 4]", "fild dword ptr [{d} + {k}*4 + 0x1C]", ".byte 0xD8, 0xE1", "fmul dword ptr [{rc} + 0x31A258]", ".byte 0xDE, 0xC1", "fmul dword ptr [{rc} + 0x1C5CFC]", "fstp dword ptr [{rc} + 0x214120]");
+    reference!(ref_4(s, rc, d, c) "fld dword ptr [{s} + 0x4]", "fmul dword ptr [{rc} + 0x21411C]", "fld dword ptr [{d} + 0x4]", "fmul dword ptr [{rc} + 0x214120]", ".byte 0xD8, 0xE1", "fmul dword ptr [{rc} + {c}*4 + 0x31A984]", ".byte 0xDE, 0xC1", "fmul dword ptr [{rc} + 0x214BBC]", "fstp dword ptr [{rc} + {c}*4 + 0x214284]", "fld dword ptr [{s} + 0x8]", "fmul dword ptr [{rc} + 0x21411C]", "fld dword ptr [{d} + 0x8]", "fmul dword ptr [{rc} + 0x214120]", ".byte 0xD8, 0xE1", "fmul dword ptr [{rc} + {c}*4 + 0x31A984]", ".byte 0xDE, 0xC1", "fmul dword ptr [{rc} + 0x214BB4]", "fstp dword ptr [{rc} + {c}*4 + 0x214298]", "fld dword ptr [{s} + 0xC]", "fmul dword ptr [{rc} + 0x21411C]", "fld dword ptr [{d} + 0xC]", "fmul dword ptr [{rc} + 0x214120]", ".byte 0xD8, 0xE1", "fmul dword ptr [{rc} + {c}*4 + 0x31A984]", ".byte 0xDE, 0xC1", "fmul dword ptr [{rc} + 0x214BB8]", "fstp dword ptr [{rc} + {c}*4 + 0x2142AC]", "fld dword ptr [{s} + 0x20]", "fld dword ptr [{d} + 0x20]", ".byte 0xD8, 0xE1", "fmul dword ptr [{rc} + {c}*4 + 0x31A984]", ".byte 0xDE, 0xC1", "fstp dword ptr [{rc} + {c}*4 + 0x2146C0]", "fld dword ptr [{s} + 0x24]", "fld dword ptr [{d} + 0x24]", ".byte 0xD8, 0xE1", "fmul dword ptr [{rc} + {c}*4 + 0x31A984]", ".byte 0xDE, 0xC1", "fstp dword ptr [{rc} + {c}*4 + 0x2146D4]", "fld dword ptr [{s} + 0x14]", "fld dword ptr [{d} + 0x14]", ".byte 0xD8, 0xE1", "fmul dword ptr [{rc} + {c}*4 + 0x31A984]", ".byte 0xDE, 0xC1", "fstp dword ptr [{rc} + {c}*4 + 0x2146E8]", "fld dword ptr [{s} + 0x10]", "fld dword ptr [{d} + 0x10]", ".byte 0xD8, 0xE1", "fmul dword ptr [{rc} + {c}*4 + 0x31A984]", ".byte 0xDE, 0xC1", "fstp dword ptr [{rc} + {c}*4 + 0x2146FC]");
+    reference!(ref_5(rc) "fld dword ptr [{rc} + 0x214284]", "fadd dword ptr [{rc} + 0x214288]", "fadd dword ptr [{rc} + 0x21428C]", "fadd dword ptr [{rc} + 0x214290]", "fmul dword ptr [{rc} + 0x213FEC]", "fstp dword ptr [{rc} + 0x214268]");
+    reference!(ref_6(rc) "fld dword ptr [{rc} + 0x31A038]", "fmul dword ptr [{rc} + 0x214C04]", "fstp dword ptr [{rc} + 0x31A038]", "fld dword ptr [{rc} + 0x213F5C]", "fsub dword ptr [{rc} + 0x213F64]", "fmul dword ptr [{rc} + 0x31A258]", "fadd dword ptr [{rc} + 0x213F64]", "fstp dword ptr [{rc} + 0x224040]", "fld dword ptr [{rc} + 0x213F60]", "fsub dword ptr [{rc} + 0x213F68]", "fmul dword ptr [{rc} + 0x31A258]", "fadd dword ptr [{rc} + 0x213F68]", "fstp dword ptr [{rc} + 0x224044]", "fld dword ptr [{rc} + 0x224044]", "fsub dword ptr [{rc} + 0x224040]", "fild dword ptr [{rc} + 0x31A00C]", "fdiv dword ptr [{rc} + 0x1C5E2C]", ".byte 0xDE, 0xC9", "fadd dword ptr [{rc} + 0x224040]", "fstp dword ptr [{rc} + 0x214230]", "fld dword ptr [{rc} + 0x2146D0]", "fstp dword ptr [{rc} + 0x214760]", "fld dword ptr [{rc} + 0x2146E4]", "fstp dword ptr [{rc} + 0x214764]", "fld dword ptr [{rc} + 0x2146F8]", "fstp dword ptr [{rc} + 0x223DA8]", "fld dword ptr [{rc} + 0x21470C]", "fstp dword ptr [{rc} + 0x223DAC]");
+
+    fn blocks() -> Vec<Block> {
+        vec![
+            Block {
+                name: "wheel_surfaces line 68 idx c=0",
+                operands: vec![
+                    Operand::Buffer {
+                        reads: &[(0, In::F)],
+                        writes: &[],
+                    },
+                    Operand::Value(0),
+                    Operand::Buffer {
+                        reads: &[(0x1C5D98, In::F)],
+                        writes: &[(0x22400C, Out::I)],
+                    },
+                ],
+                ulps: 0,
+                reference: |a| unsafe { ref_0(a[0], a[1], a[2]) },
+                plain: |a| x87_1(a[0], a[1], a[2]),
+            },
+            Block {
+                name: "wheel_surfaces line 68 idx c=1",
+                operands: vec![
+                    Operand::Buffer {
+                        reads: &[(4, In::F)],
+                        writes: &[],
+                    },
+                    Operand::Value(1),
+                    Operand::Buffer {
+                        reads: &[(0x1C5D98, In::F)],
+                        writes: &[(0x22400C, Out::I)],
+                    },
+                ],
+                ulps: 0,
+                reference: |a| unsafe { ref_0(a[0], a[1], a[2]) },
+                plain: |a| x87_1(a[0], a[1], a[2]),
+            },
+            Block {
+                name: "wheel_surfaces line 68 idx c=4",
+                operands: vec![
+                    Operand::Buffer {
+                        reads: &[(0x10, In::F)],
+                        writes: &[],
+                    },
+                    Operand::Value(4),
+                    Operand::Buffer {
+                        reads: &[(0x1C5D98, In::F)],
+                        writes: &[(0x22400C, Out::I)],
+                    },
+                ],
+                ulps: 0,
+                reference: |a| unsafe { ref_0(a[0], a[1], a[2]) },
+                plain: |a| x87_1(a[0], a[1], a[2]),
+            },
+            Block {
+                name: "wheel_surfaces line 134 idx c=0",
+                operands: vec![
+                    Operand::Buffer {
+                        reads: &[
+                            (0x1C5E2C, In::F),
+                            (0x224040, In::I),
+                            (0x224044, In::I),
+                            (0x224048, In::I),
+                            (0x2D2A14, In::F),
+                            (0x2D2B14, In::F),
+                        ],
+                        writes: &[(0x31A984, Out::F)],
+                    },
+                    Operand::Value(0),
+                ],
+                ulps: 0,
+                reference: |a| unsafe { ref_1(a[0], a[1]) },
+                plain: |a| x87_2(a[0], a[1]),
+            },
+            Block {
+                name: "wheel_surfaces line 134 idx c=1",
+                operands: vec![
+                    Operand::Buffer {
+                        reads: &[
+                            (0x1C5E2C, In::F),
+                            (0x224040, In::I),
+                            (0x224044, In::I),
+                            (0x224048, In::I),
+                            (0x2D2A18, In::F),
+                            (0x2D2B18, In::F),
+                        ],
+                        writes: &[(0x31A988, Out::F)],
+                    },
+                    Operand::Value(1),
+                ],
+                ulps: 0,
+                reference: |a| unsafe { ref_1(a[0], a[1]) },
+                plain: |a| x87_2(a[0], a[1]),
+            },
+            Block {
+                name: "wheel_surfaces line 134 idx c=4",
+                operands: vec![
+                    Operand::Buffer {
+                        reads: &[
+                            (0x1C5E2C, In::F),
+                            (0x224040, In::I),
+                            (0x224044, In::I),
+                            (0x224048, In::I),
+                            (0x2D2A24, In::F),
+                            (0x2D2B24, In::F),
+                        ],
+                        writes: &[(0x31A994, Out::F)],
+                    },
+                    Operand::Value(4),
+                ],
+                ulps: 0,
+                reference: |a| unsafe { ref_1(a[0], a[1]) },
+                plain: |a| x87_2(a[0], a[1]),
+            },
+            Block {
+                name: "wheel_surfaces line 161 idx c=0",
+                operands: vec![
+                    Operand::Buffer {
+                        reads: &[(0x28, In::F), (0x2C, In::F)],
+                        writes: &[],
+                    },
+                    Operand::Buffer {
+                        reads: &[(0x28, In::F), (0x2C, In::F)],
+                        writes: &[],
+                    },
+                    Operand::Buffer {
+                        reads: &[(0x31A984, In::F)],
+                        writes: &[(0x2142C0, Out::F), (0x31A920, Out::F)],
+                    },
+                    Operand::Value(0),
+                ],
+                ulps: 0,
+                reference: |a| unsafe { ref_2(a[0], a[1], a[2], a[3]) },
+                plain: |a| x87_3(a[0], a[1], a[2], a[3]),
+            },
+            Block {
+                name: "wheel_surfaces line 161 idx c=1",
+                operands: vec![
+                    Operand::Buffer {
+                        reads: &[(0x28, In::F), (0x2C, In::F)],
+                        writes: &[],
+                    },
+                    Operand::Buffer {
+                        reads: &[(0x28, In::F), (0x2C, In::F)],
+                        writes: &[],
+                    },
+                    Operand::Buffer {
+                        reads: &[(0x31A988, In::F)],
+                        writes: &[(0x2142C4, Out::F), (0x31A924, Out::F)],
+                    },
+                    Operand::Value(1),
+                ],
+                ulps: 0,
+                reference: |a| unsafe { ref_2(a[0], a[1], a[2], a[3]) },
+                plain: |a| x87_3(a[0], a[1], a[2], a[3]),
+            },
+            Block {
+                name: "wheel_surfaces line 161 idx c=4",
+                operands: vec![
+                    Operand::Buffer {
+                        reads: &[(0x28, In::F), (0x2C, In::F)],
+                        writes: &[],
+                    },
+                    Operand::Buffer {
+                        reads: &[(0x28, In::F), (0x2C, In::F)],
+                        writes: &[],
+                    },
+                    Operand::Buffer {
+                        reads: &[(0x31A994, In::F)],
+                        writes: &[(0x2142D0, Out::F), (0x31A930, Out::F)],
+                    },
+                    Operand::Value(4),
+                ],
+                ulps: 0,
+                reference: |a| unsafe { ref_2(a[0], a[1], a[2], a[3]) },
+                plain: |a| x87_3(a[0], a[1], a[2], a[3]),
+            },
+            Block {
+                name: "wheel_surfaces line 178 idx k=0",
+                operands: vec![
+                    Operand::Buffer {
+                        reads: &[(0, In::I), (4, In::I), (0x1C, In::I)],
+                        writes: &[],
+                    },
+                    Operand::Buffer {
+                        reads: &[(0x1C5CFC, In::F), (0x31A258, In::F)],
+                        writes: &[(0x21411C, Out::F), (0x214120, Out::F)],
+                    },
+                    Operand::Buffer {
+                        reads: &[(0, In::I), (4, In::I), (0x1C, In::I)],
+                        writes: &[],
+                    },
+                    Operand::Value(0),
+                ],
+                ulps: 0,
+                reference: |a| unsafe { ref_3(a[0], a[1], a[2], a[3]) },
+                plain: |a| x87_4(a[0], a[1], a[2], a[3]),
+            },
+            Block {
+                name: "wheel_surfaces line 178 idx k=1",
+                operands: vec![
+                    Operand::Buffer {
+                        reads: &[(0, In::I), (8, In::I), (0x20, In::I)],
+                        writes: &[],
+                    },
+                    Operand::Buffer {
+                        reads: &[(0x1C5CFC, In::F), (0x31A258, In::F)],
+                        writes: &[(0x21411C, Out::F), (0x214120, Out::F)],
+                    },
+                    Operand::Buffer {
+                        reads: &[(0, In::I), (8, In::I), (0x20, In::I)],
+                        writes: &[],
+                    },
+                    Operand::Value(1),
+                ],
+                ulps: 0,
+                reference: |a| unsafe { ref_3(a[0], a[1], a[2], a[3]) },
+                plain: |a| x87_4(a[0], a[1], a[2], a[3]),
+            },
+            Block {
+                name: "wheel_surfaces line 178 idx k=4",
+                operands: vec![
+                    Operand::Buffer {
+                        reads: &[(0, In::I), (0x14, In::I), (0x2C, In::I)],
+                        writes: &[],
+                    },
+                    Operand::Buffer {
+                        reads: &[(0x1C5CFC, In::F), (0x31A258, In::F)],
+                        writes: &[(0x21411C, Out::F), (0x214120, Out::F)],
+                    },
+                    Operand::Buffer {
+                        reads: &[(0, In::I), (0x14, In::I), (0x2C, In::I)],
+                        writes: &[],
+                    },
+                    Operand::Value(4),
+                ],
+                ulps: 0,
+                reference: |a| unsafe { ref_3(a[0], a[1], a[2], a[3]) },
+                plain: |a| x87_4(a[0], a[1], a[2], a[3]),
+            },
+            Block {
+                name: "wheel_surfaces line 201 idx c=0",
+                operands: vec![
+                    Operand::Buffer {
+                        reads: &[
+                            (4, In::F),
+                            (8, In::F),
+                            (0xC, In::F),
+                            (0x10, In::F),
+                            (0x14, In::F),
+                            (0x20, In::F),
+                            (0x24, In::F),
+                        ],
+                        writes: &[],
+                    },
+                    Operand::Buffer {
+                        reads: &[
+                            (0x21411C, In::F),
+                            (0x214120, In::F),
+                            (0x214BB4, In::F),
+                            (0x214BB8, In::F),
+                            (0x214BBC, In::F),
+                            (0x31A984, In::F),
+                        ],
+                        writes: &[
+                            (0x214284, Out::F),
+                            (0x214298, Out::F),
+                            (0x2142AC, Out::F),
+                            (0x2146C0, Out::F),
+                            (0x2146D4, Out::F),
+                            (0x2146E8, Out::F),
+                            (0x2146FC, Out::F),
+                        ],
+                    },
+                    Operand::Buffer {
+                        reads: &[
+                            (4, In::F),
+                            (8, In::F),
+                            (0xC, In::F),
+                            (0x10, In::F),
+                            (0x14, In::F),
+                            (0x20, In::F),
+                            (0x24, In::F),
+                        ],
+                        writes: &[],
+                    },
+                    Operand::Value(0),
+                ],
+                ulps: 0,
+                reference: |a| unsafe { ref_4(a[0], a[1], a[2], a[3]) },
+                plain: |a| x87_5(a[0], a[1], a[2], a[3]),
+            },
+            Block {
+                name: "wheel_surfaces line 201 idx c=1",
+                operands: vec![
+                    Operand::Buffer {
+                        reads: &[
+                            (4, In::F),
+                            (8, In::F),
+                            (0xC, In::F),
+                            (0x10, In::F),
+                            (0x14, In::F),
+                            (0x20, In::F),
+                            (0x24, In::F),
+                        ],
+                        writes: &[],
+                    },
+                    Operand::Buffer {
+                        reads: &[
+                            (0x21411C, In::F),
+                            (0x214120, In::F),
+                            (0x214BB4, In::F),
+                            (0x214BB8, In::F),
+                            (0x214BBC, In::F),
+                            (0x31A988, In::F),
+                        ],
+                        writes: &[
+                            (0x214288, Out::F),
+                            (0x21429C, Out::F),
+                            (0x2142B0, Out::F),
+                            (0x2146C4, Out::F),
+                            (0x2146D8, Out::F),
+                            (0x2146EC, Out::F),
+                            (0x214700, Out::F),
+                        ],
+                    },
+                    Operand::Buffer {
+                        reads: &[
+                            (4, In::F),
+                            (8, In::F),
+                            (0xC, In::F),
+                            (0x10, In::F),
+                            (0x14, In::F),
+                            (0x20, In::F),
+                            (0x24, In::F),
+                        ],
+                        writes: &[],
+                    },
+                    Operand::Value(1),
+                ],
+                ulps: 0,
+                reference: |a| unsafe { ref_4(a[0], a[1], a[2], a[3]) },
+                plain: |a| x87_5(a[0], a[1], a[2], a[3]),
+            },
+            Block {
+                name: "wheel_surfaces line 201 idx c=4",
+                operands: vec![
+                    Operand::Buffer {
+                        reads: &[
+                            (4, In::F),
+                            (8, In::F),
+                            (0xC, In::F),
+                            (0x10, In::F),
+                            (0x14, In::F),
+                            (0x20, In::F),
+                            (0x24, In::F),
+                        ],
+                        writes: &[],
+                    },
+                    Operand::Buffer {
+                        reads: &[
+                            (0x21411C, In::F),
+                            (0x214120, In::F),
+                            (0x214BB4, In::F),
+                            (0x214BB8, In::F),
+                            (0x214BBC, In::F),
+                            (0x31A994, In::F),
+                        ],
+                        writes: &[
+                            (0x214294, Out::F),
+                            (0x2142A8, Out::F),
+                            (0x2142BC, Out::F),
+                            (0x2146D0, Out::F),
+                            (0x2146E4, Out::F),
+                            (0x2146F8, Out::F),
+                            (0x21470C, Out::F),
+                        ],
+                    },
+                    Operand::Buffer {
+                        reads: &[
+                            (4, In::F),
+                            (8, In::F),
+                            (0xC, In::F),
+                            (0x10, In::F),
+                            (0x14, In::F),
+                            (0x20, In::F),
+                            (0x24, In::F),
+                        ],
+                        writes: &[],
+                    },
+                    Operand::Value(4),
+                ],
+                ulps: 0,
+                reference: |a| unsafe { ref_4(a[0], a[1], a[2], a[3]) },
+                plain: |a| x87_5(a[0], a[1], a[2], a[3]),
+            },
+            Block {
+                name: "wheel_surfaces line 258",
+                operands: vec![Operand::Buffer {
+                    reads: &[
+                        (0x213FEC, In::F),
+                        (0x214284, In::F),
+                        (0x214288, In::F),
+                        (0x21428C, In::F),
+                        (0x214290, In::F),
+                    ],
+                    writes: &[(0x214268, Out::F)],
+                }],
+                ulps: 0,
+                reference: |a| unsafe { ref_5(a[0]) },
+                plain: |a| x87_6(a[0]),
+            },
+            Block {
+                name: "wheel_surfaces line 299",
+                operands: vec![Operand::Buffer {
+                    reads: &[
+                        (0x1C5E2C, In::F),
+                        (0x213F5C, In::F),
+                        (0x213F60, In::F),
+                        (0x213F64, In::F),
+                        (0x213F68, In::F),
+                        (0x2146D0, In::F),
+                        (0x2146E4, In::F),
+                        (0x2146F8, In::F),
+                        (0x21470C, In::F),
+                        (0x214C04, In::F),
+                        (0x224040, In::F),
+                        (0x224044, In::F),
+                        (0x31A00C, In::I),
+                        (0x31A038, In::F),
+                        (0x31A258, In::F),
+                    ],
+                    writes: &[
+                        (0x214230, Out::F),
+                        (0x214760, Out::F),
+                        (0x214764, Out::F),
+                        (0x223DA8, Out::F),
+                        (0x223DAC, Out::F),
+                        (0x224040, Out::F),
+                        (0x224044, Out::F),
+                        (0x31A038, Out::F),
+                    ],
+                }],
+                ulps: 0,
+                reference: |a| unsafe { ref_6(a[0]) },
+                plain: |a| x87_7(a[0]),
+            },
+        ]
     }
-    result
-}
 
-fn rust(_: &Regs) -> Result<Left, Refused> {
-    unsafe { wheel_surfaces() }
-}
-
-fn regions() -> Vec<Region> {
-    let a = |x: usize| game_addr(rva(x)) as u32;
-    vec![
-        (a(0x62400C), 4),
-        (a(0x624040), 12),
-        (a(0x614710), 0x28),
-        (a(0x71A8F8), 0xA0),
-        (a(0x71A038), 4),
-        (a(0x71A230), 4),
-        (a(0x61411C), 8),
-        (a(0x614150), 0x14),
-        (a(0x614230), 4),
-        (a(0x614268), 4),
-        (a(0x614284), 0x50),
-        (a(0x6146C0), 0x50),
-        (a(0x614760), 8),
-        (a(0x623DA8), 8),
-    ]
-}
-
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_state(&HOOK, r, call_original, &regions(), &rust);
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let mut faces = vec![0u8; 0x40 * 6];
-    let fa = faces.as_mut_ptr() as u32;
-    let a = |x: usize| game_addr(rva(x)) as u32;
-    let mut all = regions();
-    all.extend([
-        (a(0x71ADC8), 0x14),
-        (a(0x5CCCBC), 4),
-        (a(0x6D2914), 0x14),
-        (a(0x6D2A14), 0x14),
-        (a(0x6D2B14), 0x14),
-        (a(0x71A004), 4),
-        (a(0x71A00C), 4),
-        (a(0x71A258), 4),
-        (fa, 0x40 * 6),
-        (a(0x979F30 + 0xF0 * 0x40), 0x100),
-    ]);
-    let saved = capture(&all);
-    for word in TEST_CONTROL_WORDS {
-        with_control_word(word, &mut || {
-            for seed in 0..6u32 {
-                let set = || unsafe {
-                    for k in 0..(0x40 * 6u32) {
-                        ((fa + k) as *mut u8)
-                            .write((k.wrapping_mul(29) ^ seed.wrapping_mul(13)) as u8);
-                    }
-                    // Four test textures (0xF0 ..): surfaces 0 .. 15, kinds 0 .. 3.
-                    let tex = a(0x979F30 + 0xF0 * 0x40);
-                    for k in 0..0x100u32 {
-                        ((tex + k) as *mut u8).write((k.wrapping_mul(7) ^ seed) as u8);
-                    }
-                    for tx in 0..4u32 {
-                        for k in 0..12u32 {
-                            ((tex + 0x40 * tx + 0x10 + k) as *mut u8)
-                                .write(((k + tx + seed) % 16) as u8);
-                        }
-                        ((tex + 0x40 * tx + 0x2C) as *mut u8).write(tx as u8);
-                    }
-                    for face in 0..6u32 {
-                        let f = fa + 0x40 * face;
-                        // Flags with and without 0x1000.
-                        ((f + 1) as *mut u8).write(0xF0 + (face + seed) as u8 % 4);
-                        ((f + 0x21) as *mut u8).write(0xF0 + (face * 3 + seed) as u8 % 4);
-                        ((f + 2) as *mut u16).write_unaligned(if (face + seed) % 3 == 0 {
-                            0x1000
-                        } else {
-                            0
-                        });
-                    }
-                    p(0x5CCCBC, fa);
-                    let mut fl = [0u32; 10];
-                    test_floats(seed * 5 + 3, &mut fl);
-                    for c in 0..5usize {
-                        p(0x71ADC8 + 4 * c, (c as u32 + seed) % 6);
-                        p(0x6D2914 + 4 * c, (c as u32 + seed) % 2);
-                        p(
-                            0x6D2A14 + 4 * c,
-                            (f32::from_bits(fl[c]).abs() % 1.0).to_bits(),
-                        );
-                        p(
-                            0x6D2B14 + 4 * c,
-                            (f32::from_bits(fl[5 + c]).abs() % 1.0).to_bits(),
-                        );
-                    }
-                    p(0x71A004, seed % 6);
-                    p(0x71A00C, 100 + seed);
-                    p(0x71A258, (seed as f32 * 0.2).to_bits());
-                };
-                check_state(
-                    &mut t,
-                    &format!("control word {word:#x}, seed {seed}"),
-                    call_original,
-                    Regs::SENTINEL,
-                    &set,
-                    &all,
-                    &rust,
-                );
-            }
-        });
+    #[test]
+    fn x87_blocks_matches_the_assembly() {
+        sparse(&blocks(), 1200, 100);
     }
-    restore(&all, &saved);
-    drop(faces);
-    t.finish()
 }

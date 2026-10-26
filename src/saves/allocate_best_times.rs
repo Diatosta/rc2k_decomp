@@ -10,77 +10,57 @@
 //! -1 in their last dword. "Stages" is the number of records of the championship's table
 //! (`g_recordTable`) whose tag is 0 (`saves::count_stages`, 0x47C95D, a plain function
 //! here). Six of the nine are what `saves::load_best_times` reads `var\hst.dat` into.
-//! Callers: `saves::load_best_times` and `sub_47C63F`.
-//! The original has a fatal error for each block that cannot be taken (0x807010F1,
-//! 0x807010FB, 0x80701000 .. 0x80701005, 0x8070100A); none can come, the allocator
-//! reporting its own first.
-//! Shadow mode runs the original alone (the memory is taken once) and checks what it
-//! left. Self-test: a redirected copy whose variables, list and record table are the
-//! test's.
-//! Refuses a record table without its end, and what the allocator refuses.
-//!
-//! Hook removed 2026-10-22 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Callers: `saves::load_best_times` and `sub_47C63F`. The original has a fatal error for each
+//! block that cannot be taken (0x807010F1, 0x807010FB, 0x80701000 .. 0x80701005, 0x8070100A); none
+//! can come, the allocator reporting its own first. Refuses a record table without its end, and
+//! what the allocator refuses.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::rva;
 use crate::memory::MemoryList;
 use crate::memory::allocate::allocate;
+use crate::pointers::GamePtr;
+use crate::saves::best_times_store::BEST_TIMES;
+use crate::system::checked_reads::CheckedReads;
 use rc2k_core::saves::tables::{MARKED, TABLES};
 
 // ---- game data ----
 
-/// `dword_747610`: 1 once the memory is taken; `dword_747614` (the file is loaded); then
-/// nine pairs (address, size) from `dword_747618` on.
-pub const VARS_RVA: usize = rva(0x747610);
-pub const VARS_LEN: usize = 0x50;
-// stru_7475D0
 // g_recordTable
 const RECORD_LEN: usize = 0xA4;
 
 /// Where table `n`'s address is among the variables; its size follows.
-pub fn pair(vars: *mut u32, n: usize) -> *mut u32 {
-    vars.wrapping_add(2 + 2 * n)
+pub fn count_stages(table: u32) -> Result<u32, BadInput> {
+    let reads = CheckedReads::new();
+    let answer = rc2k_core::saves::tables::count_stages(|n| {
+        reads.dword(
+            table.wrapping_add(n * RECORD_LEN as u32),
+            "a stage record's tag",
+        )
+    });
+    reads.finish(answer)?.map_err(BadInput::from)
 }
 
-// ---- Rust version ----
-
-/// `saves::count_stages` (0x47C95D): the records with tag 0, up to the table's -1 (the
-/// first record is not looked at for the end).
-pub unsafe fn count_stages(table: *const u8) -> Result<u32, BadInput> {
-    // Converted: `rc2k_core::saves::tables::count_stages`.
-    Ok(rc2k_core::saves::tables::count_stages(|n| unsafe {
-        (table.add(n as usize * RECORD_LEN) as *const u32).read_unaligned()
-    })?)
-}
-
-/// The nine sizes for a table with that many stages. Converted:
-/// `rc2k_core::saves::tables::sizes`.
 pub fn sizes(stages: u32) -> [u32; TABLES] {
     rc2k_core::saves::tables::sizes(stages)
 }
 
-pub unsafe fn allocate_best_times(
-    vars: *mut u32,
-    list: *mut MemoryList,
-    records: *const u8,
-) -> Result<(), Refused> {
-    unsafe {
-        if vars.read_unaligned() == 1 {
-            return Ok(());
-        }
-        let sizes = sizes(count_stages(records)?);
-        vars.write_unaligned(1);
-        for (n, size) in sizes.into_iter().enumerate() {
-            let pair = pair(vars, n);
-            pair.add(1).write_unaligned(size);
-            let memory = allocate(list, size)?;
-            pair.write_unaligned(memory as u32);
-            if MARKED.contains(&n) {
-                (memory.add(size as usize - 4) as *mut u32).write_unaligned(u32::MAX);
-            }
-        }
-        Ok(())
+/// `saves::allocate_best_times` (0x47C4D8): once, the nine tables taken from `list`
+/// (`BEST_TIMES.tables`, an address and a size each), the marked ones ending in -1.
+pub fn allocate_best_times(list: *mut MemoryList, records: u32) -> Result<(), Refused> {
+    if BEST_TIMES.allocated.get() == 1 {
+        return Ok(());
     }
+    let sizes = sizes(count_stages(records)?);
+    BEST_TIMES.allocated.set(1);
+    for (n, size) in sizes.into_iter().enumerate() {
+        let place = &BEST_TIMES.tables[n];
+        place.size.set(size);
+        let memory = { allocate(list, size) }?;
+        place.address.set(crate::pointers::game_address(memory));
+        if MARKED.contains(&n) {
+            GamePtr::new(crate::pointers::game_address(memory) + size - 4)
+                .write(u32::MAX, "a table of best times")?;
+        }
+    }
+    Ok(())
 }

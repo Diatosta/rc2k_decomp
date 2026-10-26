@@ -7,19 +7,14 @@
 //! memory (`sub_409DFB`, inlined: `memory::allocate` on `g_sampleMemory`; its fatal
 //! error 0x80E28021 cannot come), the data copied there and the voice's data pointed at it. One caller,
 //! command 3 (`sub_40AEB9`).
-//! Shadow mode runs the original alone (memory would be taken twice). Self-test: a
-//! redirected copy whose allocation is the test's, 4 cases.
-//!
-//! Hook removed 2026-10-22 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
 
+use crate::audio::store::AUDIO;
 use crate::audio::voices::*;
 use crate::errors::Refused;
-use crate::framework::game_addr;
+use crate::pointers::GamePtr;
 
 /// `allocate`: `length` bytes of the samples' memory.
-pub unsafe fn keep_sample(
+pub fn keep_sample(
     v: &mut Voice,
     allocate: &mut dyn FnMut(u32) -> Result<u32, Refused>,
 ) -> Result<(), Refused> {
@@ -28,14 +23,16 @@ pub unsafe fn keep_sample(
         return Ok(());
     }
     let to = allocate(v.length)?;
-    unsafe { std::ptr::copy(v.data as *const u8, to as *mut u8, v.length as usize) };
+    GamePtr::new(v.data).copy_to(GamePtr::new(to), v.length as usize, "a voice's sample")?;
     v.data = to;
     Ok(())
 }
 
-pub unsafe fn allocate_in_game(length: u32) -> Result<u32, Refused> {
-    let list = game_addr(SAMPLE_MEMORY_RVA) as *mut _;
+pub fn allocate_in_game(length: u32) -> Result<u32, Refused> {
+    let list = AUDIO.sample_memory.as_ptr();
     // The allocator reports a failure itself (0x80108571), so `sub_409DFB`'s own fatal
     // error 0x80E28021 cannot come.
-    Ok(unsafe { crate::memory::allocate::allocate(list, length) }? as u32)
+    Ok(crate::pointers::game_address({
+        crate::memory::allocate::allocate(list, length)
+    }?))
 }

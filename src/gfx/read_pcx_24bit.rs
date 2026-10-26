@@ -12,27 +12,19 @@
 //! but the byte it repeats is 0 from the end of a row on (the zeroing leaves al 0). What
 //! `read_stream_byte` says about the end of the file is not looked at.
 //! It fails if the open, the header's read or the close fails.
-//! Two callers, `gfx::read_pcx` and `sub_4119AF`. Shadow mode decodes the file twice and
-//! compares.
-//! Refuses a decoded width or height of 0 (the original counts through all 32 bits) and
-//! what `open_stream` refuses. The name is a reading.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Two callers, `gfx::read_pcx` and `sub_4119AF`. Refuses a decoded width or height of 0 (the
+//! original counts through all 32 bits) and what `open_stream` refuses. The name is a reading.
 
 use crate::errors::BadInput;
 use crate::files::close_stream::close_stream;
 use crate::files::open_stream::open_stream;
 use crate::files::read_stream_block::read_stream_block;
 use crate::files::read_stream_byte::read_stream_byte;
-use crate::framework::{Regs, game_addr, game_read, game_write};
+use crate::gfx::decoder::DECODER;
 use crate::gfx::lay_out_pcx::lay_out_pcx;
-use crate::gfx::pcx::{
-    HEADER_LEN, HEADER_RVA, PIXELS_RVA, stream, test_header, test_plane_bytes, test_runs,
-};
-use crate::gfx::pcx_reader::reader_entry;
-use crate::gfx::picture::FLAGS_RVA;
+use crate::gfx::pcx::PCX;
+use crate::gfx::pcx::{HEADER_LEN, stream};
+use crate::gfx::picture_store::PICTURE;
 
 // ---- Rust version ----
 
@@ -40,18 +32,18 @@ use crate::gfx::picture::FLAGS_RVA;
 unsafe fn read_rows() -> Result<bool, BadInput> {
     unsafe {
         let stream = stream();
-        let header = game_addr(HEADER_RVA) as *mut u8;
+        let header = crate::pointers::host(PCX.header.addr());
         if read_stream_block(stream, header, HEADER_LEN as u32)?.1 {
             return Ok(false);
         }
-        game_write(FLAGS_RVA, 0x800u32);
-        let layout = lay_out_pcx();
+        PICTURE.flags.set(0x800u32);
+        let layout = lay_out_pcx()?;
         // Converted: `rc2k_core::gfx::pcx::decode_planes`.
-        let pixels: u32 = game_read(PIXELS_RVA);
+        let pixels: u32 = DECODER.pixels.get();
         rc2k_core::gfx::pcx::decode_planes(
             &layout,
             |eax| read_stream_byte(stream, eax).map(|r| r.eax),
-            |to, byte| (pixels.wrapping_add(to) as *mut u8).write(byte),
+            |to, byte| crate::pointers::host(pixels.wrapping_add(to)).write(byte),
         )?
         .ok_or(BadInput("a PCX picture without rows or columns"))?;
         Ok(true)
@@ -67,18 +59,4 @@ pub unsafe fn read_pcx_24bit(path: *const u8) -> Result<bool, BadInput> {
         let closed = close_stream(stream())?;
         Ok(rows? && closed)
     }
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    reader_entry(r, read_pcx_24bit)
-}
-
-/// A whole file: header and coded rows.
-pub fn test_file(width: u16, height: u16, planes: u8, line_bytes: u16, seed: u32) -> Vec<u8> {
-    let mut file = test_header(1, 1, width, height, planes, line_bytes);
-    let count = line_bytes as usize * planes as usize * height as usize;
-    file.extend(test_runs(&test_plane_bytes(count, seed)));
-    file
 }

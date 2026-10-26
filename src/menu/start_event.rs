@@ -1,7 +1,5 @@
-//! The championships' starters (IDA, 2026-10-19): the actions of the start menus' items
-//! that set a championship up for one to four players and run it. Ten of them, five for
-//! each championship, alike but for their numbers; each is a hook of its own
-//! (`menu::start_championship_*`, `menu::start_a8_*`), this is what they share.
+//! The championships' starters (IDA, 2026-10-19): the actions of the start menus' items that set a
+//! championship up for one to four players and run it.
 //!
 //! The common shape: `dword_755954` the event type (4, 5), `dword_758806` 0,
 //! `dword_75649C` 0xF, `menu::reset_driver_condition`, `index`, `section` and
@@ -14,30 +12,27 @@
 //! `dword_755980` 1. The one-player ones differ (see `Starter::first`).
 
 use crate::errors::Refused;
-use crate::framework::{Regs, SelfTest};
-use crate::menu::championship_welcome::addr;
+use crate::menu::cars_store::CAR_TABLE;
 use crate::menu::event_flow::*;
+use crate::menu::lists_store::MENU_LISTS;
+use crate::menu::screen_loop::{Carried, run_screen_carried};
+use crate::session::Dword;
 use rc2k_core::menu::starters;
 
-const REPAIR_SET: usize = 0x75649C; // dword_75649C: 0xF
+const REPAIR_SET: &Dword = &CAR_TABLE.last_car; // dword_75649C: 0xF
 
 pub struct Starter {
-    pub address: usize,
-    pub len: usize,
-    pub entry: &'static [u8],
-    pub calls: &'static [usize],
     /// The championship and the seats (see `rc2k_core::menu::starters`).
     pub kind: starters::Starter,
 }
 
 /// The game's variables and callees for `rc2k_core::menu::starters::start`, with the
-/// registers the original has at each call.
-struct Game<'a> {
-    g: Regs,
-    call: Call<'a>,
+/// registers the original has at each call (`f`).
+struct Game {
+    f: Flow,
 }
 
-impl starters::Event for Game<'_> {
+impl starters::Event for Game {
     type Error = Refused;
 
     fn get(&mut self, v: starters::Var) -> u32 {
@@ -49,35 +44,38 @@ impl starters::Event for Game<'_> {
     }
 
     fn call(&mut self, c: starters::Call) -> Result<(), Refused> {
+        use crate::menu as m;
         use starters::Call as C;
-        let callee = match c {
-            C::RepairCar { current } => {
-                if current {
-                    self.g.edi = player(get(CURRENT));
+        unsafe {
+            match c {
+                C::RepairCar { current } => {
+                    if current {
+                        self.f.record = player(get(CURRENT));
+                    }
+                    crate::service::repair_parts::repair_car()?
                 }
-                REPAIR_CAR
+                C::BeginEvent => m::begin_event::begin_event()?,
+                C::ResetDrivers => m::reset_drivers::reset_drivers()?,
+                C::ResetDriverCondition => m::reset_driver_condition::reset_driver_condition()?,
+                C::SelectCar(list) => {
+                    self.f.c.cars = match list {
+                        starters::CarList::Championship => MENU_LISTS.cars_championship[0].addr(),
+                        starters::CarList::A8 => MENU_LISTS.cars_a8[0].addr(),
+                    };
+                    run_screen_carried(&m::select_car_loop::SCREEN, &mut self.f.c)?
+                }
+                C::TakeShownCar => m::take_shown_car::take_shown_car(self.f.c.cars)?,
+                C::ResetCars750724 => m::reset_cars_750724::reset_cars_750724()?,
+                C::RunA8Championship => m::run_a8_championship::run_a8_championship(&self.f.c)?,
+                C::ShowInGameOptions => m::in_game_options_items::show_in_game_options()?,
+                C::RunChampionship => m::run_championship::run_championship(&self.f.c)?,
             }
-            C::BeginEvent => BEGIN_EVENT,
-            C::ResetDrivers => RESET_DRIVERS,
-            C::ResetDriverCondition => RESET_DRIVER_CONDITION,
-            C::SelectCar(list) => {
-                self.g.esi = addr(match list {
-                    starters::CarList::Championship => CARS_CHAMPIONSHIP,
-                    starters::CarList::A8 => CARS_A8,
-                });
-                SELECT_CAR_LOOP
-            }
-            C::TakeShownCar => TAKE_SHOWN_CAR,
-            C::ResetCars750724 => RESET_CARS_750724,
-            C::RunA8Championship => RUN_A8_CHAMPIONSHIP,
-            C::ShowInGameOptions => SHOW_IN_GAME_OPTIONS,
-            C::RunChampionship => RUN_CHAMPIONSHIP,
-        };
-        (self.call)(callee, &mut self.g)
+        }
+        Ok(())
     }
 }
 
-fn var(v: starters::Var) -> usize {
+fn var(v: starters::Var) -> &'static Dword {
     use starters::Var as V;
     match v {
         V::EventType => EVENT_TYPE,
@@ -97,88 +95,9 @@ fn var(v: starters::Var) -> usize {
     }
 }
 
-/// The Rust version of a starter.
-pub unsafe fn start_event(s: &Starter, entry: &Regs, call: Call) -> Result<Regs, Refused> {
+/// The Rust version of a starter. `c` the carried values the item gets.
+pub fn start_event(s: &Starter, c: &Carried) -> Result<(), Refused> {
     players_there(s.kind.players())?;
     // Converted: `rc2k_core::menu::starters::start`.
-    starters::start(s.kind, &mut Game { g: *entry, call })?;
-    Ok(*entry)
+    starters::start(s.kind, &mut Game { f: Flow::new(c) })
 }
-
-/// A starter's self-test: every car choice left in turn and none, both ways of a saved
-/// game for the A8's first.
-pub fn test_starter(t: SelfTest, s: &'static Starter) -> (usize, usize) {
-    if (0..s.kind.players()).any(|k| player(k) == 0) {
-        return t.skip("a player missing from g_players");
-    }
-    let flow = Flow {
-        address: s.address,
-        len: s.len,
-        entry: s.entry,
-        calls: s.calls,
-        fatal_jumps: &[],
-        writes: &[
-            EVENT_TYPE,
-            CAR_LEFT,
-            REPAIR_SET,
-            INDEX,
-            SECTION,
-            crate::menu::run_championship::STAGES_DONE,
-            PLAYER_COUNT,
-            CURRENT,
-            EVENT_MODE,
-            LEAVE,
-            ENDED_569,
-            ENDED_565,
-            DONE,
-            CONTINUING,
-        ],
-    };
-    let continuing: &[u32] = if s.kind.first() && s.kind.championship == starters::Championship::A8
-    {
-        &[0, 1]
-    } else {
-        &[0]
-    };
-    let prepares: Vec<Box<dyn Fn()>> = continuing
-        .iter()
-        .map(|&c| Box::new(move || set(CONTINUING, c)) as Box<dyn Fn()>)
-        .collect();
-    let mut cases = Vec::new();
-    for (prepare, &c) in prepares.iter().zip(continuing) {
-        for left in 0..=s.kind.players() as usize {
-            cases.push(Case {
-                what: format!("continuing {c}, the car choice left at {left}"),
-                prepare: prepare.as_ref(),
-                script: vec![(
-                    SELECT_CAR_LOOP,
-                    car_choices(s.kind.players() as usize, left),
-                )],
-                before: Regs::SENTINEL,
-            });
-        }
-    }
-    test_flow(t, &flow, &[], &cases, &|r, c| unsafe {
-        start_event(s, r, c)
-    })
-}
-
-/// A starter's hook file: the hook, its dispatch and its test.
-macro_rules! starter_hook {
-    ($name:literal, $starter:ident, $($patch:tt)*) => {
-        /// The Rust version where the typed tables run it (`menu::table_calls`; hook removed
-        /// 2026-10-22).
-        pub fn entry(r: &mut $crate::framework::Regs) -> Result<(), $crate::errors::Refused> {
-            let left = unsafe {
-                $crate::menu::start_event::start_event(
-                    &$starter,
-                    r,
-                    &mut $crate::menu::event_flow::game_call,
-                )
-            }?;
-            *r = $crate::framework::Regs { esp: r.esp, ..left };
-            Ok(())
-        }
-    };
-}
-pub(crate) use starter_hook;

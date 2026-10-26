@@ -9,55 +9,36 @@
 //! One caller, the main menu's set-up `sub_47C63F`, when `g_hasClio` is 1 (the Clio
 //! update's file is there).
 //! Refuses a list without its end within its room.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
 
-use crate::errors::{BadInput, Refused};
-use crate::framework::{Regs, game_addr, game_write, rva};
+use crate::errors::BadInput;
+use crate::menu::cars_store::CAR_TABLE;
+use crate::menu::lists_store::MENU_LISTS;
 use crate::menu::remove_secret_cars::{FIRST, List, read_list};
-use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
 use rc2k_core::menu::car_lists::place_if_missing;
 
 // ---- game data ----
 
-const CLIO_RVA: usize = rva(0x7574E0); // unk_7574E0
 /// The three lists, in the original's order, with the room each has before the next
 /// variable.
 const LISTS: [List; 3] = [
-    (rva(0x759DCA), 0x22), // off_759DCA
-    FIRST,                 // off_75A042
-    (rva(0x759E52), 0x3E), // off_759E52
+    (&MENU_LISTS.cars_first, 0x22),     // off_759DCA
+    FIRST,                              // off_75A042
+    (&MENU_LISTS.cars_with_clio, 0x3E), // off_759E52
 ];
 
 // ---- Rust version ----
 
-pub unsafe fn add_clio_car() -> Result<(), BadInput> {
-    unsafe {
-        let clio = game_addr(CLIO_RVA) as u32;
-        let mut ends = Vec::new();
-        // Converted: `rc2k_core::menu::car_lists::place_if_missing`.
-        for list in LISTS {
-            if let Some(n) = place_if_missing(&read_list(list)?, clio) {
-                ends.push(list.0 + n * 4);
-            }
+pub fn add_clio_car() -> Result<(), BadInput> {
+    let clio = CAR_TABLE.descriptions[33].addr();
+    let mut ends = Vec::new();
+    // Converted: `rc2k_core::menu::car_lists::place_if_missing`.
+    for list in LISTS {
+        if let Some(n) = place_if_missing(&read_list(list)?, clio) {
+            ends.push(&list.0[n]);
         }
-        for end in ends {
-            game_write(end, clio);
-        }
-        Ok(())
     }
-}
-
-fn rust(_: &Regs) -> Result<Left, Refused> {
-    unsafe { add_clio_car() }?;
-    Ok(Left::nothing())
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
+    for end in ends {
+        end.set(clio);
+    }
+    Ok(())
 }

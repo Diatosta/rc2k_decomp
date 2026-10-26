@@ -6,51 +6,21 @@
 //! In:  eax = the mode
 //! Out: every register kept (`pusha` .. `popa`); the flags as `try_screen_mode` leaves them
 //!
-//! One caller, `gfx::screen_mode_choices`. Its call through `part` (0; in both programs
-//! `try_screen_mode`'s Rust version). Shadow mode runs the original alone (the trial sets
-//! the screen). Self-test: a copy whose call goes to a stand-in (working or not), against
-//! the Rust version.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! One caller, `gfx::screen_mode_choices`, which calls it directly, as it calls
+//! `try_screen_mode` (2026-10-23).
 
 use crate::errors::Refused;
-use crate::framework::Regs;
-use crate::race::viewer::{Part, put, regs_entry};
+use crate::framework::Flags;
+use crate::gfx::screen_state::SCREEN_MODE;
 
-pub const RACE_MODE: usize = 0x4F4948; // g_raceScreenMode
-pub const MENU_MODE: usize = 0x4F4944; // g_menuScreenMode
-
-/// The Rust version: the registers and flags it leaves.
-pub fn keep_race_screen_mode(entry: &Regs, part: Part) -> Result<Regs, Refused> {
-    put(RACE_MODE, entry.eax);
+/// The Rust version on the race's mode `mode`: the flags it leaves (`try_screen_mode`'s).
+pub fn keep_race_screen_mode(mode: u32) -> Result<Flags, Refused> {
+    SCREEN_MODE.race_mode.set(mode);
     // Converted: `rc2k_core::gfx::screen_modes::menu_mode_for`.
-    let mut r = Regs {
-        eax: rc2k_core::gfx::screen_modes::menu_mode_for(entry.eax),
-        ..*entry
-    };
-    part(0, &mut r)?;
-    if !r.carry() {
-        put(MENU_MODE, r.eax);
+    let menu = rc2k_core::gfx::screen_modes::menu_mode_for(mode);
+    let flags = crate::gfx::try_screen_mode::try_screen_mode(menu)?;
+    if !flags.carry {
+        SCREEN_MODE.menu_mode.set(menu);
     }
-    Ok(Regs {
-        eflags: r.eflags,
-        ..*entry
-    })
-}
-
-/// In both programs: `try_screen_mode`'s Rust version (its calls through their hooks).
-pub fn game_part(_place: u32, r: &mut Regs) -> Result<(), Refused> {
-    *r = crate::gfx::try_screen_mode::try_screen_mode(
-        r,
-        &mut crate::gfx::try_screen_mode::game_part,
-    )?;
-    Ok(())
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    regs_entry(r, &|r| keep_race_screen_mode(r, &mut game_part))
+    Ok(flags)
 }

@@ -8,56 +8,59 @@
 //! a call or a store are the functions below, generated from the listing.
 //! The name is a reading from the title string of its menu, "PREFERÊNCIAS VISUAIS", not yet a
 //! visit.
-//! Callers: none in code: it is reached through a table.
-//! Hook removed 2026-10-22 (typed tables): the menus and draw lists run its `entry`
+//! Callers: none in code: it is reached through a table. The menus and draw lists run its `entry`
 //! (`menu::table_calls`); the registers above are the original's, for reference.
 
-use crate::framework::{Regs, game_read, game_write, rva};
-use crate::menu::screen_loop::{Env, List, Screen, Step, screen_entry};
+use crate::errors::Refused;
+use crate::framework::rva;
+use crate::menu::draw_lists_store::DRAW_LISTS;
+use crate::menu::flow_store::SCREEN_FLOW;
+use crate::menu::menus_store::MENUS;
+use crate::menu::screen_items_store::{SCREEN_ITEMS, slot};
+use crate::menu::screen_loop::{Callee, Carried, List, Screen, Step, screen_entry};
 
 // ---- Rust version: `menu::screen_loop` with this ----
 
-unsafe fn before(g: &mut Regs, _env: &mut dyn Env) {
-    unsafe {
-        g.ecx = game_read(rva(0x7478B4));
-        game_write(rva(0x747718), g.ecx);
-    }
+fn before(c: &mut Carried) -> Result<(), Refused> {
+    c.measure_x = SCREEN_ITEMS.first[slot::VISUAL_PREFERENCES].get();
+    SCREEN_ITEMS.current[slot::VISUAL_PREFERENCES].set(c.measure_x);
+    Ok(())
 }
 
 pub const SCREEN: Screen = Screen {
-    menu: rva(0x748280),
-    saved_item: rva(0x747718),
+    menu: || MENUS.visual_preferences.addr() as usize,
+    saved_item: || &SCREEN_ITEMS.current[slot::VISUAL_PREFERENCES],
     lists: &[
         List {
-            pointer: rva(0x7554F4), // g_unreadList
-            table: rva(0x758B72),
+            pointer: || &SCREEN_FLOW.unread_list, // g_unreadList
+            table: || DRAW_LISTS.unread_758b72.addr() as usize,
             run: false,
         },
         List {
-            pointer: rva(0x7554F8), // g_drawList
-            table: rva(0x758CAA),
+            pointer: || &SCREEN_FLOW.draw_list, // g_drawList
+            table: || DRAW_LISTS.draw_758caa.addr() as usize,
             run: false,
         },
         List {
-            pointer: rva(0x7554FC), // g_overlayList
-            table: rva(0x7591E2),
+            pointer: || &SCREEN_FLOW.overlay_list, // g_overlayList
+            table: || DRAW_LISTS.overlay_7591e2.addr() as usize,
             run: false,
         },
     ],
     first_frame_lists: Some(&[
         List {
-            pointer: rva(0x755504), // g_sceneList
-            table: rva(0x759006),
+            pointer: || &SCREEN_FLOW.scene_list, // g_sceneList
+            table: || DRAW_LISTS.visual_preferences_scene.addr() as usize,
             run: false,
         },
         List {
-            pointer: rva(0x7554F8), // g_drawList
-            table: rva(0x758CAA),
+            pointer: || &SCREEN_FLOW.draw_list, // g_drawList
+            table: || DRAW_LISTS.draw_758caa.addr() as usize,
             run: false,
         },
         List {
-            pointer: rva(0x7554FC), // g_overlayList
-            table: rva(0x7591E2),
+            pointer: || &SCREEN_FLOW.overlay_list, // g_overlayList
+            table: || DRAW_LISTS.overlay_7591e2.addr() as usize,
             run: false,
         },
     ]),
@@ -68,8 +71,12 @@ pub const SCREEN: Screen = Screen {
     prepare: &[],
     after_lists: &[],
     background: &[
-        Step::EaxAddr(rva(0x731DF9)),
-        Step::CallOrFatal(rva(0x47EFFF), 0x80712345),
+        Step::ArgAddr(|| {
+            (crate::menu::texts_store::MENU_TEXTS
+                .visual_preferences_picture
+                .addr()) as usize
+        }),
+        Step::CallOrFatal(Callee::LoadBackground, 0x80712345),
     ],
     after_first_frame: &[],
     confirm: None,
@@ -98,12 +105,10 @@ pub const SCREEN: Screen = Screen {
     after_blink: &[],
     restart_action_check: false,
     always_asks: false,
-    also_reads: &[],
-    also_writes: &[],
 };
 
-/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// The Rust version where the typed tables run it (a refusal is the
 /// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    screen_entry("menu::visual_preferences_loop", r, &SCREEN)
+pub fn run() -> Result<(), crate::errors::Refused> {
+    screen_entry("menu::visual_preferences_loop", &SCREEN)
 }

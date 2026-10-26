@@ -10,23 +10,16 @@
 //! (0x88780096) `g_soundBufferLost`. Callers: command 3 and `sub_40A7C9` (the lost
 //! buffers' restoring).
 //! Refuses A3D (the chunk at 0x40CDE8).
-//! Shadow mode runs the original alone. Self-test: a redirected copy whose parts and flag
-//! are the test's, on the test's DirectSound, 15 cases.
-//!
-//! Hook removed 2026-10-22 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
 
 use crate::audio::buffer_settings::a3d;
+use crate::audio::store::AUDIO;
 use crate::audio::voices::*;
 use crate::errors::{BadInput, Refused};
-use crate::framework::rva;
 
-pub const LOCKED_PARTS_RVA: usize = rva(0x506A98); // g_lockedParts
-
-/// `parts`: the four dwords the parts go to; `lost`: the lost buffer's flag. True for the
-/// carry clear.
-pub unsafe fn fill_buffer(v: &Voice, parts: u32, lost: u32) -> Result<bool, Refused> {
+/// The voice's buffer filled; the lost buffer's flag is `g_soundBufferLost`, the parts go
+/// to `g_lockedParts`. True for the carry clear.
+pub unsafe fn fill_buffer(v: &Voice) -> Result<bool, Refused> {
+    let parts = AUDIO.locked_parts[0].addr();
     if a3d() {
         return Err(BadInput("A3D (the chunk at 0x40CDE8)").into());
     }
@@ -38,7 +31,7 @@ pub unsafe fn fill_buffer(v: &Voice, parts: u32, lost: u32) -> Result<bool, Refu
     unsafe {
         let failed = |r: i32| {
             if lost_memory(r) {
-                write(lost, 1);
+                AUDIO.sound_buffer_lost.set(1);
             }
             false
         };
@@ -57,11 +50,15 @@ pub unsafe fn fill_buffer(v: &Voice, parts: u32, lost: u32) -> Result<bool, Refu
         if r != 0 {
             return Ok(failed(r));
         }
-        let locked = (parts as *const [u32; 4]).read_unaligned();
+        let locked = AUDIO.locked_parts.each_ref().map(|d| d.get());
         let [p1, n1, p2, n2] = locked;
         let (first, second) = fill_copies(v.data, locked);
         for (from, to, bytes) in std::iter::once(first).chain(second) {
-            std::ptr::copy(from as *const u8, to as *mut u8, bytes as usize);
+            crate::pointers::GamePtr::new(from).copy_to(
+                crate::pointers::GamePtr::new(to),
+                bytes as usize,
+                "a voice's sound into its buffer",
+            )?;
         }
         let unlock: unsafe extern "system" fn(u32, u32, u32, u32, u32) -> i32 =
             std::mem::transmute(crate::audio::com::method(v.buffer, 0x4C));

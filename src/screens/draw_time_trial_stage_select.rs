@@ -12,7 +12,7 @@
 //!
 //! In:  nothing in registers; it works from the selection (`draw_stage_records::selection`)
 //! Out: carry as `draw_stage_records` leaves it, or clear if the record rows are skipped;
-//!      every register preserved
+//! every register preserved
 //! Reached through the draw lists at 0x758CF6 (screen loop `sub_48EC30`, a menu entry) and
 //! 0x758E9E (screen loop `sub_482099`, six callers).
 //!
@@ -21,20 +21,21 @@
 //! Etapa"), whose two titles sit in menu boxes. Which of the two screen loops that was is not
 //! known.
 //!
-//! The record rows come from one of two best-time tables and are skipped while a table is
-//! missing (see `stage_panel::draw_records_for_group`).
-//! Hook removed 2026-10-22 (typed tables): the menus and draw lists run its `entry`
+//! The record rows come from one of two best-time tables and are skipped while a table is missing
+//! (see `stage_panel::draw_records_for_group`). The menus and draw lists run its `entry`
 //! (`menu::table_calls`); the registers above are the original's, for reference.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{Regs, game_write, rva};
+use crate::menu::champ_store::CHAMP_VIEW;
+use crate::pointers::GamePtr;
+use crate::race::state_store::RACE_STATE;
 use crate::screens::draw_selected_stage_menu::menu_titles;
 use crate::screens::draw_stage_records::selection;
 use crate::screens::draw_stage_records::{TIME_TRIAL_ROWS, draw_records_rows};
 use crate::screens::stage_panel::{
-    BEST_TIME_ENTRY_SIZE, GROUP_COPY_RVA, build_second_heading, draw_stage_body, dword,
-    menu_item_id, panel_entry,
+    BEST_TIME_ENTRY_SIZE, build_second_heading, draw_stage_body, dword, menu_item_id,
 };
+use crate::session::Dword;
 use crate::text::draw_text::Canvas;
 
 // ---- Rust version ----
@@ -42,14 +43,14 @@ use crate::text::draw_text::Canvas;
 /// What is left in ebx when the markers are drawn: 1 * 0x5C, from addressing menu item 1.
 const MARKER_PALETTE: u32 = 0x5C;
 
-const GROUP_1_TIMES_RVA: usize = rva(0x7556E4); // g_stageBestTimesAlt
-const TIMES_RVA: usize = rva(0x7556E8); // dword_7556E8
+const GROUP_1_TIMES: &Dword = &CHAMP_VIEW.stage_best_times_alt; // g_stageBestTimesAlt
+const TIMES: &Dword = &CHAMP_VIEW.time_trial_best_times; // dword_7556E8
 
 /// Returns the carry flag. Refuses a missing selection or menu: the original reads or writes
 /// through null.
 pub unsafe fn draw_time_trial_stage_select(canvas: &mut dyn Canvas) -> Result<bool, Refused> {
     unsafe {
-        let (Some(sel), Some((group_title, table_title))) = (selection(), menu_titles()) else {
+        let (Some(sel), Some((group_title, table_title))) = (selection()?, menu_titles()?) else {
             return Err(
                 BadInput("no record table is selected: the original reads through null").into(),
             );
@@ -59,15 +60,11 @@ pub unsafe fn draw_time_trial_stage_select(canvas: &mut dyn Canvas) -> Result<bo
                 BadInput("there is no current menu: the original writes through null").into(),
             );
         };
-        (item_0 as *mut u32).write_unaligned(group_title);
-        game_write(GROUP_COPY_RVA, sel.group);
-        (item_1 as *mut u32).write_unaligned(table_title);
+        GamePtr::new(item_0).write(group_title, "a menu item's string")?;
+        RACE_STATE.settings.direction.set(sel.group);
+        GamePtr::new(item_1).write(table_title, "a menu item's string")?;
 
-        let table: u32 = crate::framework::game_read(if sel.group == 1 {
-            GROUP_1_TIMES_RVA
-        } else {
-            TIMES_RVA
-        });
+        let table = (if sel.group == 1 { GROUP_1_TIMES } else { TIMES }).get();
         if table == 0 {
             return Err(
                 BadInput("no time trial best-times table: the original reads near 0").into(),
@@ -75,19 +72,9 @@ pub unsafe fn draw_time_trial_stage_select(canvas: &mut dyn Canvas) -> Result<bo
         }
         build_second_heading(sel.record)?;
         draw_stage_body(sel.record, MARKER_PALETTE, true, canvas)?;
-        let entry = dword(sel.record.wrapping_add(0x3C)).wrapping_mul(BEST_TIME_ENTRY_SIZE);
+        let entry = dword(sel.record.wrapping_add(0x3C))?.wrapping_mul(BEST_TIME_ENTRY_SIZE);
         draw_records_rows(table.wrapping_add(entry), &TIME_TRIAL_ROWS, canvas)
     }
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    panel_entry(
-        "screens::draw_time_trial_stage_select",
-        r,
-        &|canvas| unsafe { draw_time_trial_stage_select(canvas) },
-    )
 }
 
 //

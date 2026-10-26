@@ -7,67 +7,47 @@
 //! (3) and the flags 0x1C (not to be clipped, lit or measured). Two callers,
 //! `scene::draw_polygon_fan` and `sub_4651E6`.
 //! Platform: the original always runs, here the fan is only noted. In the standalone
-//! program the rasteriser draws it (`platform_3d::draw_fan`) and the result is 0. No
-//! self-test.
+//! program the rasteriser draws it (`platform_3d::draw_fan`) and the result is 0.
 
-use crate::d3d::recorder::{Call, note};
-use crate::d3d::{VERTEX_LEN, Vertex};
-use crate::framework::{RawHook, Regs, game_addr, game_read, hook_asm, rva, standalone};
-use std::sync::atomic::AtomicUsize;
+use crate::d3d::Vertex;
+use crate::d3d::vertices_store::VERTICES;
+use crate::scene::draw_store::DRAW;
 
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook = RawHook::new("d3d::draw_fan_unclipped", rva(0x41AD9C), thunk, &ORIGINAL);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
-
-pub const VERTICES_RVA: usize = rva(0x9605A0); // g_polygonVertices
-pub const COUNT_RVA: usize = rva(0x6240F8); // g_polygonVertexCount
-/// More than the buffer can hold is not noted: 0x6240F8 lies well past 0x9605A0 only by
-/// address, and a count gone wrong must not be read through.
-const MOST: u32 = 0x100;
-
-/// The polygon as it stands in the buffer.
+/// The polygon as it stands in the buffer (the store's `TLVertex[64]`). More vertices than
+/// the buffer holds is a count gone wrong (the original reads on past it, into other
+/// variables): a refusal.
 pub fn polygon() -> Vec<Vertex> {
-    let count = unsafe { game_read::<u32>(COUNT_RVA) }.min(MOST) as usize;
-    let at = game_addr(VERTICES_RVA);
-    (0..count)
-        .map(|n| unsafe { ((at + n * VERTEX_LEN) as *const Vertex).read_unaligned() })
+    let count = DRAW.polygon_vertex_count.bits() as usize;
+    let vertices = &VERTICES.vertices;
+    if count > vertices.len() {
+        crate::framework::log(&format!(
+            "d3d::draw_fan_unclipped: a polygon of {count} vertices, the buffer holds {}",
+            vertices.len()
+        ));
+        crate::fatal::raise::end(
+            "d3d::draw_fan_unclipped",
+            crate::errors::BadInput("a polygon of more vertices than its buffer holds"),
+        );
+    }
+    vertices[..count]
+        .iter()
+        .map(|v| {
+            [
+                v.x.bits(),
+                v.y.bits(),
+                v.z.bits(),
+                v.rhw.bits(),
+                v.colour.get(),
+                v.specular.get(),
+                v.u.bits(),
+                v.v.bits(),
+            ]
+        })
         .collect()
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    HOOK.count_call();
-    let swallowed = note(|| Call::Fan(polygon()));
-    if swallowed {
-        r.eax = 0;
-        return;
-    }
-    if standalone() {
-        #[cfg(feature = "standalone")]
-        crate::platform_3d::draw_fan(&polygon());
-        r.eax = 0;
-        return;
-    }
-    unsafe { call_original(r) };
-}
-
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's). In the
-/// hooked game it goes to the game's function, whose hook notes the call for the tests'
-/// recorder (`d3d::recorder`) and runs the original: noted here as well, a call would be
-/// noted twice.
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    if !standalone() {
-        unsafe { crate::framework::call_game(r, crate::framework::game_addr(rva(0x41AD9C))) };
-        return Ok(());
-    }
-    #[cfg(feature = "standalone")]
+/// The fan drawn: Direct3D's result, always 0 here.
+pub fn draw_fan_unclipped() -> u32 {
     crate::platform_3d::draw_fan(&polygon());
-    r.eax = 0;
-    Ok(())
+    0
 }

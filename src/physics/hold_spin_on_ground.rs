@@ -8,50 +8,23 @@
 //! Out: ecx the wheels down, ebx 4; the rest kept; no flags read
 //!
 //! Caller: `sub_43B635` (0x43B986), every physics step.
-//! Self-test: `physics/copy_hooks_test.rs` (a copy on test variables against the
-//! converted version), 24 cases; compares and copies of floats only: exact at any
-//! precision.
+//!
+//! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
+//! above are the original's, for reference.
 
-use crate::errors::Refused;
-use crate::framework::{EBX, ECX, RawHook, Regs, game_addr, hook_asm, rva};
-use crate::physics::copy_hooks_test::{lot, test_moves};
-use crate::screens::harness::Left;
-use crate::service::harness::{dispatch_state, state_entry};
+use crate::physics::car_store::CAR;
+use crate::physics::tables_store::PHYSICS;
 use rc2k_core::physics::motion::hold_spin;
-use std::sync::atomic::AtomicUsize;
 
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook = RawHook::new(
-    "physics::hold_spin_on_ground",
-    rva(0x43BAA4),
-    thunk,
-    &ORIGINAL,
-)
-.self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
-
-/// The four wheels, the limit, x, z, the flag.
-const VARIABLES: [usize; 8] = [
-    0x71A5D8, 0x71A5DC, 0x71A5E0, 0x71A5E4, 0x613EA0, 0x71A15C, 0x71A164, 0x614C24,
-];
-
-/// The converted version (`rc2k_core::physics::motion`) on the variables at `v`; `r` as
-/// the original leaves it.
+/// The converted version (`rc2k_core::physics::motion`) on the variables at `v`. The
+/// registers it leaves (ecx the wheels on the ground, ebx 4) are read by none of its
+/// callers.
 // Converted: `rc2k_core::physics::motion::hold_spin`.
-pub unsafe fn hold_at(v: &[u32], r: &mut Regs) {
+pub unsafe fn hold_at(v: &[u32]) {
     unsafe {
-        let get = |k: usize| (v[k] as *const u32).read_unaligned();
-        let put = |k: usize, x: u32| (v[k] as *mut u32).write_unaligned(x);
-        r.ecx = (0..4).filter(|&k| get(k) != 0).count() as u32;
-        r.ebx = 4;
-        if r.ecx != 4 {
+        let get = |k: usize| (crate::pointers::host(v[k]) as *const u32).read_unaligned();
+        let put = |k: usize, x: u32| (crate::pointers::host(v[k]) as *mut u32).write_unaligned(x);
+        if (0..4).any(|k| get(k) == 0) {
             return;
         }
         let f = |k: usize| f32::from_bits(get(k));
@@ -65,62 +38,20 @@ pub unsafe fn hold_at(v: &[u32], r: &mut Regs) {
 }
 
 fn game() -> Vec<u32> {
-    VARIABLES
-        .iter()
-        .map(|&x| game_addr(rva(x)) as u32)
-        .collect()
+    vec![
+        CAR.wheel_squeeze[0].addr(),
+        CAR.wheel_squeeze[1].addr(),
+        CAR.wheel_squeeze[2].addr(),
+        CAR.wheel_squeeze[3].addr(),
+        PHYSICS.ground_spin_limit.addr(),
+        CAR.spin[0].addr(),
+        CAR.spin[2].addr(),
+        PHYSICS.ground_spin.addr(),
+    ]
 }
 
 /// The Rust version (compares and copies of floats only: the same at any precision); `r`
-/// as the original leaves it.
-pub unsafe fn hold_spin_on_ground(r: &mut Regs) {
-    unsafe { hold_at(&game(), r) }
-}
-
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    let mut g = *r;
-    unsafe { hold_at(&game(), &mut g) };
-    Ok(Left::nothing().with(ECX, g.ecx).with(EBX, g.ebx))
-}
-
-extern "C" fn dispatch(r: &mut Regs) {
-    let v = game();
-    let regions: Vec<_> = [4usize, 5, 6, 7].iter().map(|&k| (v[k], 4)).collect();
-    dispatch_state(&HOOK, r, call_original, &regions, &rust);
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
-}
-
-fn fill(seed: u32, out: &mut [u32]) {
-    lot(seed, out);
-    for (k, o) in out.iter_mut().enumerate().take(4) {
-        if seed % 5 == k as u32 {
-            *o = 0;
-        }
-    }
-    let f = |x: f32| x.to_bits();
-    out[4] = f([2.0f32, 0.5, 0.0, f32::NAN][(seed % 4) as usize]);
-    out[5] = f([3.0f32, -3.0, 1.0, 2.0, -0.25, f32::NAN][(seed % 6) as usize]);
-    out[6] = f([-2.0f32, 0.5, 4.0][(seed % 3) as usize]);
-}
-
-fn self_test() -> (usize, usize) {
-    test_moves(
-        &HOOK,
-        0x43BAA4,
-        0x127,
-        &[0xB9, 0x00, 0x00, 0x00, 0x00],
-        &VARIABLES,
-        31,
-        24,
-        &fill,
-        &|v, r| {
-            unsafe { hold_at(v, r) };
-            Left::nothing().with(ECX, r.ecx).with(EBX, r.ebx)
-        },
-    )
+/// the registers it leaves are read by none of its callers.
+pub unsafe fn hold_spin_on_ground() {
+    unsafe { hold_at(&game()) }
 }

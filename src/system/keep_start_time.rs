@@ -7,18 +7,25 @@
 //! and hundredths to `dword_5183A4`: what `logfile::date_text` and `math::seed_random`
 //! read. One caller, `start`, as its first call: the hook DLL is not loaded then, so in the
 //! game this never gets a call; the standalone program needs it.
-//! Hook removed 2026-10-22 (direct calls): Rust callers run its `entry` (`calls::call`,
-//! `routes.rs`); the registers above are the original's, for reference.
+//! `start` calls it directly (2026-10-23); the registers above are the original's, for
+//! reference.
 
-use crate::framework::{Regs, game_ptr, game_write, rva};
+use crate::moved::Place;
 use windows_sys::Win32::Foundation::SYSTEMTIME;
 use windows_sys::Win32::System::SystemInformation::GetLocalTime;
 
 // ---- game data ----
 
-const SYSTEM_TIME_RVA: usize = rva(0x518988); // SystemTime
-const KEPT_RVA: usize = rva(0x51839F); // byte_51839F, dword_5183A0, dword_5183A4
-const KEPT_LEN: usize = 9;
+/// The nine bytes kept: out of the image since 2026-10-24 (phase 5; they were `byte_51839F`,
+/// `dword_5183A0`, `dword_5183A4`). Written once, by `start`'s first call.
+pub const KEPT_LEN: usize = 9;
+pub static KEPT: Place<[u8; KEPT_LEN]> = Place::new([0; KEPT_LEN]);
+
+/// The start's moment as kept (all 0 before `keep_start_time`).
+pub fn start_time() -> [u8; KEPT_LEN] {
+    // SAFETY: written once, before any reader, on the main thread.
+    unsafe { KEPT.ptr().read() }
+}
 
 // ---- Rust version ----
 
@@ -40,14 +47,9 @@ pub fn kept(t: &SYSTEMTIME) -> [u8; KEPT_LEN] {
 
 pub unsafe fn keep_start_time() {
     unsafe {
-        let time = game_ptr::<SYSTEMTIME>(SYSTEM_TIME_RVA);
-        GetLocalTime(time);
-        game_write(KEPT_RVA, kept(&time.read_unaligned()));
+        // The game's `SystemTime` (0x518988), a local here: nothing else read it.
+        let mut time: SYSTEMTIME = std::mem::zeroed();
+        GetLocalTime(&mut time);
+        KEPT.ptr().write(kept(&time));
     }
-}
-
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(_: &mut Regs) -> Result<(), crate::errors::Refused> {
-    unsafe { keep_start_time() };
-    Ok(())
 }

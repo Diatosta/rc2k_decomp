@@ -8,44 +8,45 @@
 //! to the second. One caller, `saves::load_options`, whose file holds the two lists of
 //! numbers. What they are lists of is a reading: cars that can be chosen.
 //! Refuses a list of numbers without its -1 within its own length, and a number of
-//! 0x400 or more (the original runs on, and reads wherever the number leads).
-//!
-//! Hook removed 2026-10-22 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! 0x400 or more.
 
 use crate::errors::BadInput;
-use crate::framework::{game_read, game_write, rva};
+use crate::menu::car_numbers_store::CAR_NUMBERS;
+use crate::menu::cars_store::CAR_TABLE;
+use crate::menu::lists_store::MENU_LISTS;
+use crate::session::Dword;
+use crate::system::checked_reads::CheckedReads;
 
 // ---- game data ----
 
-const TABLE_RVA: usize = rva(0x7564A0); // off_7564A0
 /// (the numbers, the pointers, how many entries each has)
-const LISTS: [(usize, usize, usize); 2] = [
-    (rva(0x755258), rva(0x75A042), 0x28), // unk_755258, off_75A042
-    (rva(0x7552F8), rva(0x75A12E), 0x14), // unk_7552F8, off_75A12E
+const LISTS: [(&[Dword], &[Dword], usize); 2] = [
+    (&CAR_NUMBERS.first_numbers, &MENU_LISTS.cars_second, 0x28), // unk_755258, off_75A042
+    (&CAR_NUMBERS.second_numbers, &MENU_LISTS.shown_cars, 0x14), // unk_7552F8, off_75A12E
 ];
 
 // ---- Rust version ----
 
-pub unsafe fn rebuild_car_lists() -> Result<(), BadInput> {
+pub fn rebuild_car_lists() -> Result<(), BadInput> {
     // Converted: `rc2k_core::saves::cars::pointers`, both lists worked out before either
     // is written.
-    unsafe {
-        let mut found = Vec::new();
-        for (numbers, _, len) in LISTS {
-            let list: Vec<u32> = (0..len)
-                .map(|n| game_read::<u32>(numbers + n * 4))
-                .collect();
-            found.push(rc2k_core::saves::cars::pointers(&list, |id| {
-                game_read::<u32>(TABLE_RVA + id as usize * 4)
-            })?);
-        }
-        for ((_, pointers, _), list) in LISTS.into_iter().zip(found) {
-            for (n, v) in list.into_iter().enumerate() {
-                game_write(pointers + n * 4, v);
-            }
-        }
-        Ok(())
+
+    let mut found = Vec::new();
+    for (numbers, _, len) in LISTS {
+        let list: Vec<u32> = (0..len).map(|n| numbers[n].get()).collect();
+        let reads = CheckedReads::new();
+        let answer = rc2k_core::saves::cars::pointers(&list, |id| {
+            reads.dword(
+                CAR_TABLE.cars[0].addr() + (4 * id as usize) as u32,
+                "a car table's entry",
+            )
+        });
+        found.push(reads.finish(answer)??);
     }
+    for ((_, pointers, _), list) in LISTS.into_iter().zip(found) {
+        for (n, v) in list.into_iter().enumerate() {
+            pointers[n].set(v);
+        }
+    }
+    Ok(())
 }

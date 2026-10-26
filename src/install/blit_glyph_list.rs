@@ -4,45 +4,34 @@
 //!
 //! In:  eax the count, ebx the table, ecx x, edx y
 //! Out: every register kept (`pusha` / `popa`)
-//! Caller the copy-progress frame (the install bar). The blits through `part`. Shadow mode
-//! runs the original alone. Refuses a count of 0 (the original's loop is a do-while: it
-//! would blit 2^32 records). Self-test: a copy whose blit goes to a stand-in, against the
-//! Rust version.
+//! Caller the copy-progress frame (the install bar). Refuses a count of 0
+//! (the original's loop is a do-while: it
+//! would blit 2^32 records).
 //!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Conversion phase 3 (2026-10-23): plain Rust with typed arguments; the registers above
+//! are the original's.
 
 use crate::errors::Refused;
-use crate::framework::Regs;
-use crate::install::installer::{BLIT_GLYPH, Part, at, rd};
-use crate::race::viewer::regs_entry;
+use crate::install::installer::rd;
 use rc2k_core::install::layout;
 
-pub fn blit_glyph_list(entry: &Regs, part: Part) -> Result<Regs, Refused> {
-    let (x, y) = (entry.ecx, entry.edx);
+/// `count` records of `table` blitted at (x, y) on, from the glyph table `glyphs` (esi).
+pub fn blit_glyph_list(count: u32, table: u32, x: u32, y: u32, glyphs: u32) -> Result<(), Refused> {
     // Converted: `rc2k_core::install::layout` (`list_records`, `list_place`).
-    for (offset, left) in layout::list_records(entry.eax)? {
-        let record = entry.ebx.wrapping_add(offset);
+    for (offset, _) in layout::list_records(count)? {
+        let record = table.wrapping_add(offset);
         let (x, y) = layout::list_place(rd(record), rd(record + 4), x, y);
-        let mut r = Regs {
-            ecx: x,
-            edx: y,
-            eax: rd(record + 8),
-            ebx: rd(record + 0xC),
-            edi: record.wrapping_add(layout::LIST_RECORD),
-            ebp: left,
-            ..*entry
-        };
-        part(at(BLIT_GLYPH), &mut r)?;
+        // gfx::blit_glyph (0x4069B2): eax the glyph, ebx the palette.
+        {
+            crate::gfx::blit_glyph::blit_glyph_on_surface(
+                rd(record + 8),
+                crate::pointers::GamePtr::new(glyphs),
+                x as i32,
+                y as i32,
+                // (The bar's records name the blended palette's home: `moved::point_into_homes`.)
+                crate::pointers::GamePtr::new(rd(record + 0xC)),
+            )
+        }?;
     }
-    Ok(*entry)
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    regs_entry(r, &|r| {
-        blit_glyph_list(r, &mut crate::install::installer::game_part)
-    })
+    Ok(())
 }

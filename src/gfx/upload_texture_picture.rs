@@ -21,34 +21,22 @@
 //!   pushed, so its `popa` and `ret` go astray: refused.
 //!
 //! One caller, `gfx::load_picture_to_texture` (the other reference, 0x425A52, is in code
-//! nothing reaches).
-//! The two DirectDraw calls go through `Surfaces`, which the standalone program can
-//! answer with textures of its own.
-//! Refuses a texture of 0x140 or more, a record without its format, more than nine
-//! levels, a picture that halves to nothing, and what `ready_picture` refuses; a
-//! refusal after the picture was changed hands the original the changed picture.
-//! Shadow mode runs the original alone.
-//! Self-test: the original and the Rust version on records of the test's whose
-//! surfaces are objects of the test's, 12 cases.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! nothing reaches). The two DirectDraw calls go through `Surfaces`, which the standalone
+//! program can answer with textures of its own. Refuses a texture of 0x140 or more, a record
+//! without its format, more than nine levels, a picture that halves to nothing, and what
+//! `ready_picture` refuses; a refusal after the picture was changed hands the original the
+//! changed picture.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{Regs, game_addr, game_read, rva};
 use crate::gfx::components_to_pixel::components_to_pixel;
+use crate::gfx::reports::REPORTS;
 use crate::gfx::texture_pixels::{halvable, halve_texture};
 use crate::gfx::texture_upload::{Record, fatal, halvings_apart, ready_picture};
+use crate::gfx::upload::UPLOAD;
+use crate::pointers::GamePtr;
 use rc2k_core::gfx::uploads::{self};
 
 // ---- game data ----
-
-/// `dword_5ABA18`: the surface description `Lock` fills (0x6C bytes).
-const DESCRIPTION_RVA: usize = rva(0x5ABA18);
-const PITCH_RVA: usize = rva(0x5ABA28); // dword_5ABA28: its pitch
-const PIXELS_RVA: usize = rva(0x5ABA3C); // dword_5ABA3C: its pixels
-const REPORTS_RVA: usize = rva(0x4F52AC); // dword_4F52AC: Direct3D's errors are fatal
 
 // ---- Rust version ----
 
@@ -67,7 +55,12 @@ type Unlock = unsafe extern "system" fn(u32, u32) -> i32;
 
 unsafe fn method(object: u32, offset: u32) -> usize {
     unsafe {
-        (((object as *const u32).read_unaligned() + offset) as *const u32).read_unaligned() as usize
+        crate::pointers::code(
+            (crate::pointers::host(
+                (crate::pointers::host(object) as *const u32).read_unaligned() + offset,
+            ) as *const u32)
+                .read_unaligned(),
+        )
     }
 }
 
@@ -75,8 +68,11 @@ impl Surfaces for GameSurfaces {
     fn lock(&mut self, surface: u32) -> Result<(u32, u32), i32> {
         unsafe {
             let lock: Lock = std::mem::transmute(method(surface, 0x64));
-            match lock(surface, 0, game_addr(DESCRIPTION_RVA) as u32, 1, 0) {
-                0 => Ok((game_read(PIXELS_RVA), game_read(PITCH_RVA))),
+            match lock(surface, 0, UPLOAD.description.addr(), 1, 0) {
+                0 => Ok((
+                    UPLOAD.description.pixels.get(),
+                    UPLOAD.description.pitch.get(),
+                )),
                 e => Err(e),
             }
         }
@@ -94,7 +90,7 @@ impl Surfaces for GameSurfaces {
 }
 
 fn direct_draw_failed(code: u32) -> Refused {
-    if unsafe { game_read::<u32>(REPORTS_RVA) } == 1 {
+    if REPORTS.on.get() == 1 {
         fatal(code)
     } else {
         BadInput("DirectDraw failed and the original's stack goes astray").into()
@@ -132,33 +128,40 @@ pub unsafe fn upload_texture_picture(
         if !halvable(width, height, apart + levels - 1) {
             return Err(BadInput("a picture that halves to nothing").into());
         }
-        let format = record.format();
-        let bytes = record.bytes_per_pixel();
+        let format = record.format()?;
+        let bytes = record.bytes_per_pixel()?;
         let (mut width, mut height) = (width, height);
         for level in 0..levels {
             let times = uploads::halvings_before(level, apart);
             if times != 0 {
-                (width, height) = halve_texture(pixels as *mut u32, width, height, times);
+                (width, height) = halve_texture(pixels, width, height, times)?;
             }
             let surface = record.get().surfaces[level as usize];
             let (mut target, pitch) = surfaces
                 .lock(surface)
                 .map_err(|_| direct_draw_failed(0x8021_8772))?;
-            let mut source = pixels as *const u32;
+            // The level's pixels read once; the surface is the platform's.
+            let picture = GamePtr::new(pixels)
+                .read_bytes(width as usize * height as usize * 4, "a texture's pixels")?;
+            let mut source = picture
+                .as_chunks::<4>()
+                .0
+                .iter()
+                .map(|d| u32::from_le_bytes(*d));
             for _ in 0..height {
                 match bytes {
                     2 => {
                         for n in 0..width {
-                            let pixel = components_to_pixel(&format, source.read_unaligned());
-                            ((target + n * 2) as *mut u16).write_unaligned(pixel as u16);
-                            source = source.add(1);
+                            let pixel = components_to_pixel(&format, source.next().unwrap_or(0));
+                            (crate::pointers::host(target + n * 2) as *mut u16)
+                                .write_unaligned(pixel as u16);
                         }
                     }
                     4 => {
                         for n in 0..width {
-                            let pixel = components_to_pixel(&format, source.read_unaligned());
-                            ((target + n * 4) as *mut u32).write_unaligned(pixel);
-                            source = source.add(1);
+                            let pixel = components_to_pixel(&format, source.next().unwrap_or(0));
+                            (crate::pointers::host(target + n * 4) as *mut u32)
+                                .write_unaligned(pixel);
                         }
                     }
                     _ => return Err(fatal(0x80A1_8775)),
@@ -169,15 +172,6 @@ pub unsafe fn upload_texture_picture(
                 .unlock(surface)
                 .map_err(|_| direct_draw_failed(0x8021_8773))?;
         }
-    }
-    Ok(())
-}
-
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    match unsafe { upload_texture_picture(r.eax, r.ebx, r.ecx, r.edx, &mut GameSurfaces) } {
-        Ok(()) => r.set_carry(false),
-        Err(e) => return Err(e),
     }
     Ok(())
 }

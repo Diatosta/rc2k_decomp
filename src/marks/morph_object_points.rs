@@ -7,282 +7,197 @@
 //! base and the second object's point differ. Then `marks::measure_lines`.
 //!
 //! In:  nothing (`g_marksSettings`)
-//! Out: the registers as `measure_lines` leaves them
+//! Out: nothing (no caller reads a register it leaves)
 //!
-//! Caller: `sub_4D14B4`. Refuses (before anything) null settings, more than 8 cars, and
-//! for a car whose factors changed: an object past 0xFF, a null base list, points past
-//! the object points' room, a point count below 0 (the loop runs on); and
-//! `measure_lines`' refusals (all it may write is put back first). Self-test: the game's
-//! settings (skipped without them or without object points), factors changed or not by
-//! lot, two objects' points of the game's; compared on all it may write.
+//! Caller: `sub_4D14B4`. Refuses (before anything) null settings, more than 8 cars, and for
+//! a car whose factors changed: an object past 0xFF, a null base list, points past the
+//! object points' room, a point count below 0 (the loop runs on); and `measure_lines`'
+//! refusals (all it may write is put back first).
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{RawHook, Regs, SelfTest, game_addr, game_read, game_write, hook_asm, rva};
-use crate::marks::blend_corner::{self, blend_corner};
-use crate::marks::lines::{SETTINGS_RVA, line_regions, measure_lines};
-use crate::race::stage_prefs::left_of;
-use crate::scene::objects::{
-    FIRST_POINT_RVA, POINT_COUNTS_RVA, POINTS_ROOM_RVA, POINTS_RVA, SLOTS,
-};
-use crate::screens::harness::Left;
-use crate::service::harness::{
-    Region, at, capture, check_state, dispatch_state, restore, state_entry,
-};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook = RawHook::new(
-    "marks::morph_object_points",
-    rva(0x4D08DD),
-    thunk,
-    &ORIGINAL,
-)
-.self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
+use crate::marks::blend_corner::blend_corner;
+use crate::marks::lines::measure_lines;
+use crate::pointers::GamePtr;
+use crate::race::course_lists_store::COURSE_LISTS;
+use crate::scene::object_slots_store::{OBJECT_SLOTS, ObjectTables};
+use crate::scene::objects::SLOTS;
+use crate::session::{Bytes, Dword};
 
 const CAR_LEN: u32 = 0x4C8;
 const BLOCK: u32 = 0x29C;
 const MOST_CARS: i32 = 8;
-const KEPT_RVA: usize = rva(0x93C6D4); // dword_93C6D4 .. dword_93C6F0
 
-unsafe fn get(a: u32) -> u32 {
-    unsafe { (a as *const u32).read_unaligned() }
+fn get(a: u32) -> Result<u32, BadInput> {
+    GamePtr::new(a).read("a game field")
 }
 
-unsafe fn put(a: u32, v: u32) {
-    unsafe { (a as *mut u32).write_unaligned(v) }
+fn put(a: u32, v: u32) -> Result<(), BadInput> {
+    GamePtr::new(a).write(v, "a game field")
 }
 
 /// The cars' blocks, the last first (none for a count of 0 or less).
-unsafe fn blocks(settings: u32) -> Vec<u32> {
-    let count = unsafe { get(settings + 0x5C) } as i32;
-    (0..count.clamp(0, MOST_CARS) as u32)
-        .rev()
-        .map(|n| settings + n * CAR_LEN + BLOCK)
-        .collect()
+fn blocks(settings: u32) -> Result<Vec<u32>, Refused> {
+    Ok({
+        let count = get(settings + 0x5C)? as i32;
+        (0..count.clamp(0, MOST_CARS) as u32)
+            .rev()
+            .map(|n| settings + n * CAR_LEN + BLOCK)
+            .collect()
+    })
 }
 
 /// Whether a block's factors differ from its kept ones.
-unsafe fn changed(b: u32) -> bool {
-    (0..8).any(|k| unsafe { get(b + 0x90 + 4 * k) != get(b + 0xB0 + 4 * k) })
+fn changed(b: u32) -> Result<bool, BadInput> {
+    for k in 0..8 {
+        if get(b + 0x90 + 4 * k)? != get(b + 0xB0 + 4 * k)? {
+            return Ok(true);
+        }
+    }
+    Ok(false)
 }
 
 /// A block's objects' first points (in `g_objectPoints`) and their count.
-unsafe fn points(b: u32) -> (u32, u32, i32) {
-    unsafe {
-        let base: u32 = game_read(POINTS_RVA);
-        let first =
-            |id: u32| base.wrapping_add(12 * game_read::<u32>(FIRST_POINT_RVA + 4 * id as usize));
-        let (a, c) = (get(b), get(b + 4));
+fn points(b: u32) -> Result<(u32, u32, i32), Refused> {
+    Ok({
+        let base: u32 = COURSE_LISTS.object_points.bits();
+        let first = |id: u32| {
+            base.wrapping_add(12 * ObjectTables::slot_value(&OBJECT_SLOTS.first_point, id as usize))
+        };
+        let (a, c) = (get(b)?, get(b + 4)?);
         (
             first(a),
             first(c),
-            game_read(POINT_COUNTS_RVA + 4 * a as usize),
+            ObjectTables::slot_value(&OBJECT_SLOTS.point_counts, a as usize) as i32,
         )
-    }
+    })
 }
 
 /// Why the Rust version refuses, if it does (its own checks), worked out without writing.
-unsafe fn refusal(settings: u32) -> Option<&'static str> {
-    unsafe {
+fn refusal(settings: u32) -> Result<Option<&'static str>, Refused> {
+    Ok({
         if settings == 0 {
-            return Some("no marks settings");
+            return Ok(Some("no marks settings"));
         }
-        if get(settings + 0x5C) as i32 > MOST_CARS {
-            return Some("more than 8 cars");
+        if get(settings + 0x5C)? as i32 > MOST_CARS {
+            return Ok(Some("more than 8 cars"));
         }
-        let base: u32 = game_read(POINTS_RVA);
-        let room: u32 = game_read(POINTS_ROOM_RVA);
-        for b in blocks(settings) {
-            if !changed(b) {
+        let base: u32 = COURSE_LISTS.object_points.bits();
+        let room: u32 = COURSE_LISTS.object_points_room.bits();
+        for b in blocks(settings)? {
+            if !changed(b)? {
                 continue;
             }
-            if get(b) >= SLOTS || get(b + 4) >= SLOTS {
-                return Some("an object past 0xFF");
+            if get(b)? >= SLOTS || get(b + 4)? >= SLOTS {
+                return Ok(Some("an object past 0xFF"));
             }
-            if get(b + 0x8C) == 0 {
-                return Some("a null base point list");
+            if get(b + 0x8C)? == 0 {
+                return Ok(Some("a null base point list"));
             }
-            let (a, c, n) = points(b);
+            let (a, c, n) = points(b)?;
             if n < 0 {
-                return Some("a negative point count: the loop runs on");
+                return Ok(Some("a negative point count: the loop runs on"));
             }
             let end = base.wrapping_add(room);
             for p in [a, c] {
                 if p < base || p.wrapping_add(12 * n as u32) > end {
-                    return Some("points past the object points' room");
+                    return Ok(Some("points past the object points' room"));
                 }
             }
         }
         None
-    }
+    })
 }
 
-/// What it may write.
-pub fn regions(settings: u32) -> Vec<Region> {
-    let mut r = line_regions();
-    r.push((game_addr(KEPT_RVA) as u32, 0x20));
-    r.push(at(blend_corner::FACTOR_RVA));
-    if settings == 0 {
-        return r;
-    }
-    unsafe {
-        for b in blocks(settings) {
-            r.push((b + 0xC, 4));
-            r.push((b + 0xB0, 0x20));
-            if changed(b) && get(b) < SLOTS && get(b + 4) < SLOTS {
-                let (a, _, n) = points(b);
-                if n > 0 {
-                    r.push((a, 12 * n as usize));
-                }
-            }
-        }
-    }
-    r
-}
-
-/// The Rust version (see the header): the registers it leaves.
-pub unsafe fn morph_object_points(entry: &Regs) -> Result<Regs, Refused> {
-    let settings: u32 = unsafe { game_read(SETTINGS_RVA) };
-    if let Some(why) = unsafe { refusal(settings) } {
+/// The Rust version (see the header).
+pub fn morph_object_points() -> Result<(), Refused> {
+    let settings: u32 = crate::marks::setup::SETTINGS.pointer.get();
+    if let Some(why) = refusal(settings)? {
         return Err(BadInput(why).into());
     }
-    let written = regions(settings);
-    let saved = capture(&written);
-    let done = unsafe { run(entry, settings) };
-    if done.is_err() {
-        restore(&written, &saved);
-    }
-    done
-}
-
-unsafe fn run(entry: &Regs, settings: u32) -> Result<Regs, Refused> {
-    let mut g = Regs {
-        ebp: settings,
-        ..*entry
-    };
-    unsafe {
-        for b in blocks(settings) {
-            g.ebp = b;
-            g.eax = get(b + 8);
-            put(b + 0xC, g.eax);
-            let mut differs = false;
-            for k in 0..8 {
-                g.eax = get(b + 0xB0 + 4 * k);
-                if get(b + 0x90 + 4 * k) != g.eax {
-                    differs = true;
-                    break;
-                }
-            }
-            if !differs {
+    {
+        for b in blocks(settings)? {
+            put(b + 0xC, get(b + 8)?)?;
+            if crate::marks::try_all(0..8, |k| {
+                Ok(get(b + 0x90 + 4 * k)? == get(b + 0xB0 + 4 * k)?)
+            })? {
                 continue;
             }
-            put(b + 0xC, 0xFFFF_FFFF);
+            put(b + 0xC, 0xFFFF_FFFF)?;
             for k in 0..8 {
-                g.eax = get(b + 0x90 + 4 * k);
-                put(b + 0xB0 + 4 * k, g.eax);
-                game_write(KEPT_RVA + 4 * k as usize, g.eax);
+                let v = get(b + 0x90 + 4 * k)?;
+                put(b + 0xB0 + 4 * k, v)?;
+                MORPH_WORK.kept[k as usize].set(v);
             }
-            let (a, c, n) = points(b);
-            g.esi = a;
-            g.edi = c;
-            g.edx = get(b + 0x8C);
-            g.eax = n as u32;
-            for _ in 0..n {
-                let mut same = true;
-                for k in 0..3 {
-                    g.eax = get(g.edx + 4 * k);
-                    if g.eax != get(g.edi + 4 * k) {
-                        same = false;
-                        break;
-                    }
+            let (a, c, n) = points(b)?;
+            let base = get(b + 0x8C)?;
+            for k in 0..n.max(0) as u32 {
+                let (to, from, base) = (a + 12 * k, c + 12 * k, base + 12 * k);
+                if crate::marks::try_any(0..3, |i| Ok(get(base + 4 * i)? != get(from + 4 * i)?))? {
+                    blend_corner(b, to, from, base)?;
                 }
-                if !same {
-                    g = blend_corner(&g);
-                }
-                g.esi = g.esi.wrapping_add(12);
-                g.edi = g.edi.wrapping_add(12);
-                g.edx = g.edx.wrapping_add(12);
             }
         }
-        g = measure_lines(&g)?;
+        measure_lines()?;
     }
-    Ok(g)
+    Ok(())
 }
 
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    Ok(left_of(&unsafe { morph_object_points(r) }?))
+/// The object morph's work (IDA 0x93C6CC .. 0x93C6F4, the image's layout; phase 7, typed state).
+#[repr(C)]
+pub struct MorphWork {
+    /// 0x93C6CC: `g_marksTaken`: the block last taken for a settings block's points (`lines::set_up_blocks`)
+    pub taken: Dword,
+    /// 0x93C6D0: Not named: 4 bytes (a gap, or unreferenced data)
+    pub _gap_93c6d0: Bytes<4>,
+    /// 0x93C6D4: `dword_93C6D4` .. `dword_93C6F0`: the factors kept
+    pub kept: [Dword; 8],
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    let settings: u32 = unsafe { game_read(SETTINGS_RVA) };
-    dispatch_state(&HOOK, r, call_original, &regions(settings), &rust);
-}
+/// MorphWork's first values.
+pub static MORPH_WORK: MorphWork = MorphWork {
+    taken: Dword::new(0x0),
+    _gap_93c6d0: Bytes::new([0; 4]),
+    kept: [
+        Dword::new(0x0),
+        Dword::new(0x0),
+        Dword::new(0x0),
+        Dword::new(0x0),
+        Dword::new(0x0),
+        Dword::new(0x0),
+        Dword::new(0x0),
+        Dword::new(0x0),
+    ],
+};
 
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let settings: u32 = unsafe { game_read(SETTINGS_RVA) };
-    if settings == 0 || unsafe { game_read::<u32>(POINTS_RVA) } == 0 {
-        return t.skip("no marks settings or object points");
+impl MorphWork {
+    pub const START: usize = 0x93C6CC;
+    pub const LEN: usize = 0x28;
+    /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
+    pub fn home() -> usize {
+        crate::pointers::game_address(&MORPH_WORK as *const MorphWork) as usize
     }
-    if unsafe { refusal(settings) }.is_some() {
-        return t.skip("the game's cars would be refused as they are");
+}
+
+#[cfg(test)]
+mod morph_work_tests {
+    use super::*;
+    use core::mem::offset_of;
+
+    fn bytes<T>(v: &T) -> Vec<u8> {
+        let p = v as *const T as *const u8;
+        (0..size_of::<T>())
+            .map(|i| unsafe { p.add(i).read() })
+            .collect()
     }
-    let cars = unsafe { blocks(settings) };
-    let mut fixed: Vec<Region> = cars.iter().map(|&b| (b + 0x90, 0x40)).collect();
-    fixed.extend(cars.iter().map(|&b| (b + 0xC, 4)));
-    let saved_fixed = capture(&fixed);
-    for case in 0..3u32 {
-        let prepare = || unsafe {
-            restore(&fixed, &saved_fixed);
-            // Case 0: nothing changed; 1: the first car's factors changed; 2: all.
-            for (n, &b) in cars.iter().enumerate() {
-                for k in 0..8 {
-                    let kept = get(b + 0xB0 + 4 * k);
-                    let now = if case == 2 || (case == 1 && n == 0) {
-                        (0.25f32 + k as f32 * 0.1).to_bits() ^ (n as u32)
-                    } else {
-                        kept
-                    };
-                    put(b + 0x90 + 4 * k, now);
-                }
-            }
-        };
-        prepare();
-        if unsafe { refusal(settings) }.is_some() {
-            continue;
-        }
-        let regions = regions(settings);
-        let saved = capture(&regions);
-        check_state(
-            &mut t,
-            &format!("case {case}"),
-            call_original,
-            Regs::SENTINEL,
-            &|| {
-                restore(&regions, &saved);
-                prepare();
-            },
-            &regions,
-            &rust,
+
+    #[test]
+    fn morph_work_starts_as_the_games() {
+        assert_eq!(size_of::<MorphWork>(), MorphWork::LEN);
+        assert!(
+            bytes(&MORPH_WORK) == crate::moved::image_bytes(MorphWork::START, MorphWork::LEN),
+            "MORPH_WORK starts differently from the image"
         );
-        restore(&regions, &saved);
+        assert_eq!(offset_of!(MorphWork, taken), 0x93C6CC - MorphWork::START);
+        assert_eq!(offset_of!(MorphWork, kept), 0x93C6D4 - MorphWork::START);
     }
-    restore(&fixed, &saved_fixed);
-    t.finish()
 }

@@ -6,77 +6,98 @@
 //! Out: every register kept; no flags read
 //!
 //! Caller: `drive::finish_run`.
-//! Self-test: the original and the converted version on the figures by lot, exact at
-//! double precision.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
 
-use crate::errors::Refused;
-use crate::framework::Regs;
-use crate::physics::flow::{base, g, p, x87_run};
-use crate::screens::harness::Left;
-use crate::service::floats::floats_entry;
-use rc2k_core::drive::finish_camera::{FinishLines, finish_camera as finish_camera_core};
+use crate::race::view_vars_store::VIEW_VARS;
+use crate::scene::x87_mem::{fld, fstp};
+
+/// `dword_606748`, `606730`, `606734` from the eased time, the share and the lines'
+/// constants, over the race block at `rc` (the dwords at RVA offsets).
+fn lines(rc: usize) {
+    fstp(rc, 0x206748, fld(rc, 0x24BB68) * fld(rc, 0x24BB4C));
+    let a = fld(rc, 0x24BB68) * fld(rc, 0x24BB5C) + fld(rc, 0x24BB54);
+    let b = fld(rc, 0x24BB6C) * fld(rc, 0x24BB7C);
+    fstp(rc, 0x206730, a + b);
+    fstp(
+        rc,
+        0x206734,
+        fld(rc, 0x24BB68) * fld(rc, 0x24BB58) + fld(rc, 0x24BB50),
+    );
+}
+
+/// `dword_606744` from the share and its constant.
+fn last_line(rc: usize) {
+    fstp(rc, 0x206744, fld(rc, 0x24BB6C) * fld(rc, 0x24BB78))
+}
 
 /// The Rust version (the exact one, for `drive::finish_run`).
 pub fn finish_camera() {
-    x87_run!(
-        "fld dword ptr [{b} + 0x24BB68]",
-        "fmul dword ptr [{b} + 0x24BB4C]",
-        "fstp dword ptr [{b} + 0x206748]",
-        "fld dword ptr [{b} + 0x24BB68]",
-        "fmul dword ptr [{b} + 0x24BB5C]",
-        "fadd dword ptr [{b} + 0x24BB54]",
-        "fld dword ptr [{b} + 0x24BB6C]",
-        "fmul dword ptr [{b} + 0x24BB7C]",
+    lines(crate::race::store::asm_base() as usize);
+    VIEW_VARS.finish_zero.set(0);
+    last_line(crate::race::store::asm_base() as usize);
+}
+
+#[cfg(all(test, target_arch = "x86"))]
+mod asm_reference {
+    use super::*;
+    use crate::scene::asm_test::{Block, In, Operand, Out, reference, sparse};
+
+    // The original's instructions, one function per run.
+    reference!(ref_lines(rc)
+        "fld dword ptr [{rc} + 0x24BB68]",
+        "fmul dword ptr [{rc} + 0x24BB4C]",
+        "fstp dword ptr [{rc} + 0x206748]",
+        "fld dword ptr [{rc} + 0x24BB68]",
+        "fmul dword ptr [{rc} + 0x24BB5C]",
+        "fadd dword ptr [{rc} + 0x24BB54]",
+        "fld dword ptr [{rc} + 0x24BB6C]",
+        "fmul dword ptr [{rc} + 0x24BB7C]",
         ".byte 0xDE, 0xC1", // faddp st(1), st
-        "fstp dword ptr [{b} + 0x206730]",
-        "fld dword ptr [{b} + 0x24BB68]",
-        "fmul dword ptr [{b} + 0x24BB58]",
-        "fadd dword ptr [{b} + 0x24BB50]",
-        "fstp dword ptr [{b} + 0x206734]";
-        b = base()
-    );
-    p(0x60672C, 0);
-    x87_run!(
-        "fld dword ptr [{b} + 0x24BB6C]",
-        "fmul dword ptr [{b} + 0x24BB78]",
-        "fstp dword ptr [{b} + 0x206744]";
-        b = base()
-    );
-}
+        "fstp dword ptr [{rc} + 0x206730]",
+        "fld dword ptr [{rc} + 0x24BB68]",
+        "fmul dword ptr [{rc} + 0x24BB58]",
+        "fadd dword ptr [{rc} + 0x24BB50]",
+        "fstp dword ptr [{rc} + 0x206734]");
+    reference!(ref_last(rc)
+        "fld dword ptr [{rc} + 0x24BB6C]",
+        "fmul dword ptr [{rc} + 0x24BB78]",
+        "fstp dword ptr [{rc} + 0x206744]");
 
-/// The converted version (`rc2k_core::drive::finish_camera`, plain floats): the hook's.
-// Converted: `rc2k_core::drive::finish_camera::finish_camera`.
-pub fn finish_camera_plain() {
-    let f = |x: usize| f32::from_bits(g(x));
-    let [a748, a730, a734, a744] = finish_camera_core(&FinishLines {
-        k4c: f(0x64BB4C),
-        k50: f(0x64BB50),
-        k54: f(0x64BB54),
-        k58: f(0x64BB58),
-        k5c: f(0x64BB5C),
-        time: f(0x64BB68),
-        share: f(0x64BB6C),
-        k78: f(0x64BB78),
-        k7c: f(0x64BB7C),
-    });
-    p(0x606748, a748.to_bits());
-    p(0x606730, a730.to_bits());
-    p(0x606734, a734.to_bits());
-    p(0x60672C, 0);
-    p(0x606744, a744.to_bits());
-}
+    fn blocks() -> Vec<Block> {
+        vec![
+            Block {
+                name: "finish_camera lines",
+                operands: vec![Operand::Buffer {
+                    reads: &[
+                        (0x24BB68, In::F),
+                        (0x24BB4C, In::F),
+                        (0x24BB5C, In::F),
+                        (0x24BB54, In::F),
+                        (0x24BB6C, In::F),
+                        (0x24BB7C, In::F),
+                        (0x24BB58, In::F),
+                        (0x24BB50, In::F),
+                    ],
+                    writes: &[(0x206748, Out::F), (0x206730, Out::F), (0x206734, Out::F)],
+                }],
+                ulps: 0,
+                reference: |a| unsafe { ref_lines(a[0]) },
+                plain: |a| lines(a[0]),
+            },
+            Block {
+                name: "finish_camera last line",
+                operands: vec![Operand::Buffer {
+                    reads: &[(0x24BB6C, In::F), (0x24BB78, In::F)],
+                    writes: &[(0x206744, Out::F)],
+                }],
+                ulps: 0,
+                reference: |a| unsafe { ref_last(a[0]) },
+                plain: |a| last_line(a[0]),
+            },
+        ]
+    }
 
-fn rust(_: &Regs) -> Result<Left, Refused> {
-    finish_camera_plain();
-    Ok(Left::nothing())
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    floats_entry(r, &rust)
+    #[test]
+    fn finish_camera_matches_the_assembly() {
+        sparse(&blocks(), 3000, 201);
+    }
 }

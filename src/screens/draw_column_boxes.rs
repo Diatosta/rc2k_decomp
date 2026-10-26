@@ -8,69 +8,41 @@
 //! In:  nothing
 //! Out: every register kept (`pusha` .. `popa`)
 //!
-//! Caller: `screens::draw_two_column_panel`. Shadow mode runs the original alone (it draws).
-//! Self-test: `service_boxes::test_boxes` (16 cases).
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Caller: `screens::draw_two_column_panel`.
 
 use crate::errors::Refused;
-use crate::framework::Regs;
-use crate::screens::service_boxes::{Inputs, Part, quad, quad_part, rd, set};
+use crate::menu::draw_work_store::DRAW_WORK;
+use crate::menu::loop_store::LOOP_FLAGS;
+use crate::menu::state_store::MENU_STATE;
+use crate::screens::service_boxes::{quad, rd, set};
+use crate::session::Dword;
 
-const ROWS: [u32; 32] = {
-    let mut v = [0u32; 32];
-    let mut k = 0;
-    while k < 32 {
-        v[k] = k as u32 + 1;
-        k += 1;
-    }
-    v
-};
-
-pub static INPUTS: Inputs = Inputs {
-    tested: &[(0x755525, &ROWS), (0x7559A4, &[1])],
-    read: &[0x75AA90],
-};
-
-const ROW: usize = 0x7559EC; // dword_7559EC
-const MARKER_X: usize = 0x755A18; // g_markerX
-const MARKER_Y: usize = 0x755A1C; // g_markerY
+const ROW: &Dword = &DRAW_WORK.figure; // dword_7559EC
+const MARKER_X: &Dword = &DRAW_WORK.marker_x; // g_markerX
+const MARKER_Y: &Dword = &DRAW_WORK.marker_y; // g_markerY
 
 /// The Rust version: every register kept.
-pub unsafe fn draw_column_boxes(entry: &Regs, part: Part) -> Result<Regs, Refused> {
+pub fn draw_column_boxes() -> Result<(), Refused> {
     // Converted: `rc2k_core::screens::panels::row_box`; the row and marker variables
     // are left as the original leaves them.
     use rc2k_core::screens::panels::{BOXES_Y, COLUMNS, ROW_STEP, ROWS, row_box};
-    let mut part = part;
-    let mut g = *entry;
     set(ROW, 1);
     for x in COLUMNS {
         set(MARKER_X, x);
         set(MARKER_Y, BOXES_Y);
         for _ in 0..ROWS {
-            let chosen = rd(0x755525) == rd(ROW) && rd(0x7559A4) == 1;
-            for a in row_box(rd(MARKER_X), rd(MARKER_Y), rd(0x75AA90), chosen) {
-                quad(&mut g, a.x, a.y, a.w, a.h, a.colour, a.see, &mut part)?;
+            let chosen = LOOP_FLAGS.item.get() == rd(ROW) && DRAW_WORK.blink.get() == 1;
+            for a in row_box(
+                rd(MARKER_X),
+                rd(MARKER_Y),
+                MENU_STATE.service_ui.box_colour_a.get(),
+                chosen,
+            ) {
+                quad(a.x, a.y, a.w, a.h, a.colour, a.see)?;
             }
             set(MARKER_Y, rd(MARKER_Y).wrapping_add(ROW_STEP));
             set(ROW, rd(ROW).wrapping_add(1));
         }
     }
-    Ok(*entry)
-}
-
-pub fn game_part(_place: u32, r: &mut Regs) -> Result<(), Refused> {
-    quad_part(r)
-}
-
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    if crate::screens::blanked("screens::draw_column_boxes") {
-        return Ok(());
-    }
-    let left = unsafe { draw_column_boxes(r, &mut game_part) }?;
-    *r = Regs { esp: r.esp, ..left };
     Ok(())
 }

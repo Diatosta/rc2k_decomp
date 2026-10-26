@@ -5,6 +5,10 @@ Usage: gen.py carousel.json > ../../src/scene/carousel_set_ups.rs
 
 Menus whose function is more than stores and the fill are left out (None): they are
 written by hand in set_up_carousel.rs.
+
+Historical (2026-10-25): the generated file has since been typed by hand (phase 7: `Set(&cell,
+v)`, `Run(|| &cell, v)` in place of `Store(address, v)`). Regenerating would undo that; edit
+src/scene/carousel_set_ups.rs directly.
 """
 import json
 import sys

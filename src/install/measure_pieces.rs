@@ -9,107 +9,84 @@
 //!
 //! In:  nothing (the pieces at `dword_51C407`)
 //! Out: every register kept (`pusha` / `popa`); no flags read
-//! No pieces would go round 2^32 times: refused. Caller `install::run_page`. Its calls
-//! through `part` (the measuring, and the items' text actions); the appending done here.
-//! Shadow mode runs the original alone (an item's action is the game's). Self-test: a copy
-//! whose two measures go to stand-ins (answering sizes), against the Rust version, on
-//! pages laid out by `install::lay_out_pieces` from lists of the test's.
+//! No pieces would go round 2^32 times: refused. Caller `install::run_page`.
 //!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Conversion phase 3 (2026-10-23): plain Rust with typed arguments; the registers above
+//! are the original's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::Regs;
 use crate::install::installer::{
-    COLOURS, FONTS, LAYOUT, MEASURE_STRING, MEASURE_TEXT, Part, TEXT, a, append_byte,
-    append_string_by_id, at, g, rb, rd, rw, wb, wd,
+    append_byte, append_string_by_id, measure_string, measure_text, rb, rd, rw, text_action, wb, wd,
 };
 use crate::install::lay_out_pieces::PIECE;
-use crate::race::viewer::regs_entry;
+use crate::install::vars::INSTALLER_PAGES;
+use crate::strings::text_buffer::TEXT_BUFFER;
 use rc2k_core::install::pieces::{self, Way};
 
 fn font_of(index: u32) -> u32 {
-    rd(a(FONTS) + 4 * index)
+    rd(crate::session::address_of(&INSTALLER_PAGES.fonts) + 4 * index)
 }
 
-pub fn measure_pieces(entry: &Regs, part: Part) -> Result<Regs, Refused> {
-    let count = g(LAYOUT);
+pub fn measure_pieces() -> Result<(), Refused> {
+    let count = INSTALLER_PAGES.layout.get_u32(0);
     if count == 0 {
         return Err(BadInput("a page of no pieces").into());
     }
-    let mut r = *entry;
-    r.eax = 0;
-    r.esi = a(LAYOUT) + 4;
-    r.ecx = count;
-    loop {
-        let left = r.ecx;
-        let esi = r.esi;
+    // The size each piece gets is what ecx and edx hold: ecx the pieces left (the measures
+    // get it as their x), edx the last height (a piece measured with neither keeps it).
+    let mut height = None;
+    for k in 0..count {
+        let left = count - k;
+        let piece = INSTALLER_PAGES.layout.addr() + 4 + PIECE * k;
         // Converted: `rc2k_core::install::pieces` (`measured_kind`, `Way`,
         // `measure_colour_at`).
-        let marks = rb(esi);
+        let marks = rb(piece);
         if marks & 0x20 != 0 {
-            wb(esi + 1, pieces::measured_kind(marks, rb(esi + 1)));
+            wb(piece + 1, pieces::measured_kind(marks, rb(piece + 1)));
         }
-        match Way::of(marks, rb(esi + 1)) {
+        let (width, high) = match Way::of(marks, rb(piece + 1)) {
             Way::String { font_kind } => {
-                r.eax = font_kind;
-                let font = rb(a(COLOURS) + pieces::measure_colour_at(font_kind)) as u32;
-                r.eax = rw(esi + 2) as u32;
-                r.ebx = font_of(font);
-                part(at(MEASURE_STRING), &mut r)?;
+                let font =
+                    rb(INSTALLER_PAGES.kind_fonts.addr() + pieces::measure_colour_at(font_kind))
+                        as u32;
+                measure_string(rw(piece + 2) as u32, font_of(font), left)?
             }
-            way => {
-                r.eax = r.eax & !0xFF | (marks & 0xF) as u32;
-                match way {
-                    Way::Edit => {
-                        r.edi = rd(esi + 4);
-                        let record = rd(r.edi + 0xC);
-                        r.ecx = rw(record + 6) as u32;
-                        r.edx = rb(a(COLOURS) + 7 + 8 * rb(record + 4) as u32) as u32;
-                    }
-                    Way::Text => {
-                        r.edi = rd(esi + 4);
-                        r.eax = rw(esi + 2) as u32;
-                        r.ebx = a(TEXT);
-                        append_string_by_id(&mut r);
-                        let action = rd(r.edi + 0xC);
-                        if action != 0 {
-                            r.eax = rd(r.edi + 8);
-                            part(action, &mut r)?;
-                        }
-                        append_byte(&mut r, 0);
-                        let kind = rb(r.edi + 1) as u32;
-                        let font = rb(a(COLOURS) + pieces::measure_colour_at(kind)) as u32;
-                        r.ebx = a(TEXT);
-                        r.eax = font_of(font);
-                        part(at(MEASURE_TEXT), &mut r)?;
-                    }
-                    Way::Action => {
-                        r.edi = rd(esi + 4);
-                        r.eax = rd(r.edi + 4);
-                        r.ecx = rd(r.eax + 8);
-                        r.edx = rd(r.eax + 0xC);
-                    }
-                    _ => {}
+            Way::Edit => {
+                let record = rd(rd(piece + 4) + 0xC);
+                let font_height =
+                    rb(INSTALLER_PAGES.kind_fonts.addr() + 7 + 8 * rb(record + 4) as u32) as u32;
+                (rw(record + 6) as u32, font_height)
+            }
+            Way::Text => {
+                let item = rd(piece + 4);
+                let mut cursor = append_string_by_id(rw(piece + 2) as u32, TEXT_BUFFER.text.addr());
+                let action = rd(item + 0xC);
+                if action != 0 {
+                    cursor = text_action(action, cursor)?;
                 }
+                append_byte(cursor, 0);
+                let kind = rb(item + 1) as u32;
+                let font =
+                    rb(INSTALLER_PAGES.kind_fonts.addr() + pieces::measure_colour_at(kind)) as u32;
+                measure_text(font_of(font), TEXT_BUFFER.text.addr(), left)?
             }
-        }
-        wd(esi + 0x10, r.ecx);
-        wd(esi + 0x14, r.edx);
-        r.ecx = left.wrapping_sub(1);
-        r.esi = esi.wrapping_add(PIECE);
-        if r.ecx == 0 {
-            break;
-        }
+            Way::Action => {
+                let the_box = rd(rd(piece + 4) + 4);
+                (rd(the_box + 8), rd(the_box + 0xC))
+            }
+            Way::Other => {
+                let Some(height) = height else {
+                    return Err(BadInput(
+                        "a first piece measured with nothing (the original's entry edx)",
+                    )
+                    .into());
+                };
+                (left, height)
+            }
+        };
+        height = Some(high);
+        wd(piece + 0x10, width);
+        wd(piece + 0x14, high);
     }
-    Ok(*entry)
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    regs_entry(r, &|r| {
-        measure_pieces(r, &mut crate::install::installer::game_part)
-    })
+    Ok(())
 }

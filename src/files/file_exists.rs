@@ -13,12 +13,9 @@ use crate::errors::BadInput;
 
 // ---- Rust version ----
 
-pub unsafe fn file_exists(path: *const u8) -> Result<bool, BadInput> {
-    // Converted: `rc2k_core::files::io::file_exists`.
-    unsafe {
-        Ok(rc2k_core::files::io::file_exists(
-            &mut crate::files::handle::GameFiles::new(),
-            path,
-        )?)
-    }
+pub fn file_exists(path: *const u8) -> Result<bool, BadInput> {
+    Ok(rc2k_core::files::io::file_exists(
+        &mut crate::files::handle::GameFiles::new(),
+        crate::pointers::GamePtr::new(crate::pointers::game_address(path)),
+    )?)
 }

@@ -11,64 +11,28 @@
 //!
 //! A `jmp` is its first instruction: `.private_copy` with `.manual_patch`.
 //! Callers: `drive::next_camera_view`, `sub_43A649` (0x43A94F), and code at 0x43B62E.
-//! Self-test: a copy of the original (its step count the test's) on a test block, 6
-//! fillings.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
 
-use crate::errors::Refused;
-use crate::framework::{EAX, Regs, game_addr, rva};
-use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
+use crate::errors::BadInput;
+use crate::pointers::GamePtr;
+use crate::session::Dword;
 use rc2k_core::drive::camera_views::CameraView;
 
-pub const STEP_RVA: usize = rva(0x719FE0); // dword_719FE0
-pub const VIEW_LEN: u32 = 0x6A0;
-
-unsafe fn put(a: u32, v: u32) {
-    unsafe { (a as *mut u32).write_unaligned(v) }
+fn put(a: u32, v: u32) -> Result<(), BadInput> {
+    GamePtr::new(a).write(v, "a car's block")
 }
 
-/// The Rust version on the block at `s`, the step count at `step`.
+/// The Rust version on the block at `s`, the step count `step`.
 // Converted: `rc2k_core::drive::camera_views::CameraView::take_wanted`.
-pub unsafe fn set_view_at(s: u32, step: u32) -> Left {
-    unsafe {
-        let mut v = CameraView {
-            wanted: (s.wrapping_add(0x688) as *const u32).read_unaligned(),
-            ..CameraView::default()
-        };
-        let n = v.take_wanted((step as *const u32).read_unaligned());
-        put(s + 0x684, v.view);
-        put(s + 0x694, v.held);
-        put(s + 0x69C, v.w69c);
-        put(s + 0x698, v.w698);
-        put(s + 0x690, v.taken_at);
-        Left::nothing().with(EAX, n)
-    }
-}
-
-/// The Rust version.
-pub unsafe fn set_camera_view(s: u32) -> Left {
-    unsafe { set_view_at(s, game_addr(STEP_RVA) as u32) }
-}
-
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    Ok(unsafe { set_camera_view(r.esi) })
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
-}
-
-/// Fills a test block (`VIEW_LEN` bytes) by `seed`.
-pub fn fill_block(s: u32, seed: u32) {
-    let mut x = seed.wrapping_mul(0x9E37_79B9) | 1;
-    for k in 0..VIEW_LEN / 4 {
-        x = x.wrapping_mul(1_103_515_245).wrapping_add(12345);
-        unsafe { put(s + 4 * k, x) };
-    }
+pub fn set_view_at(s: u32, step: &Dword) -> Result<(), BadInput> {
+    let mut v = CameraView {
+        wanted: GamePtr::new(s.wrapping_add(0x688)).read("a car's block")?,
+        ..CameraView::default()
+    };
+    v.take_wanted(step.bits());
+    put(s + 0x684, v.view)?;
+    put(s + 0x694, v.held)?;
+    put(s + 0x69C, v.w69c)?;
+    put(s + 0x698, v.w698)?;
+    put(s + 0x690, v.taken_at)?;
+    Ok(())
 }

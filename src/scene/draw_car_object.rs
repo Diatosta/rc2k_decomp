@@ -17,42 +17,27 @@
 //!   `dword_75A674[dword_755990]` to `dword_75A658`, its object to `g_objectNumber`,
 //!   `scene::draw_menu_object` with eax = it (between `pusha` and `popa`).
 //!
-//! In the scene list at 0x758F76; IDA had not made it a function.
-//! Refuses an entry past the 0x100 kinds, and what its parts refuse.
-//! Hook removed 2026-10-22 (typed tables): the menus and draw lists run its `entry`
-//! (`menu::table_calls`); the registers above are the original's, for reference.
+//! In the scene list at 0x758F76; IDA had not made it a function. Refuses an entry past the
+//! 0x100 kinds, and what its parts refuse. The menus and draw lists run its `run`
+//! (`menu::table_routes`); the registers above are the original's, for reference.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{Regs, game_read, game_write, rva};
+use crate::menu::event_store::EVENT_STATE;
+use crate::menu::state_store::MENU_STATE;
+use crate::physics::tables_store::PHYSICS;
+use crate::race::switches_store::FRAME_SWITCHES;
 use crate::scene::assign_kind_textures::assign_kind_textures;
 use crate::scene::carousel_pictures::update;
-use crate::scene::clear_depth_buffer::clear_depth_buffer_in_game;
-use crate::scene::draw_carousel_entry::{
-    ANGLE_Y_RVA, CLOCK_RVA, ENTRIES, KIND_RVA, KINDS_RVA, OBJECT_RVA, PLACE_RVA,
-    find_object_of_kind,
-};
+use crate::scene::clear_depth_buffer::clear_depth_buffer;
+use crate::scene::draw_carousel_entry::{ENTRIES, find_object_of_kind};
 use crate::scene::draw_menu_object::draw_menu_object_in_game;
-use crate::scene::load_slot_texture::load_slot_texture_in_game;
-use crate::scene::load_slot_textures::load_slot_textures;
+use crate::scene::light_store::LIGHT_STATE;
+use crate::scene::load_slot_textures::load_slot_textures_in_game;
 use crate::scene::map_texture_places::map_texture_places;
+use crate::scene::object_store::OBJECT_WORK;
+use crate::session::write_all;
 
 // ---- game data ----
-
-const PAGE_RVA: usize = rva(0x755998); // dword_755998
-const CAR_RVA: usize = rva(0x755990); // dword_755990: the entry shown
-const MENU_RVA: usize = rva(0x75AA74); // g_carouselMenu
-const COUNT_RVA: usize = rva(0x75AA78); // g_carouselCount
-const PICKED_RVA: usize = rva(0x75AAA8); // dword_75AAA8 .. dword_75AAB4
-const MODE_RVA: usize = rva(0x6365C4); // dword_6365C4
-const Z_RVA: usize = rva(0x75A66C); // dword_75A66C
-const STEPS: [usize; 6] = [
-    rva(0x44E967),
-    rva(0x4256D8),
-    rva(0x490238),
-    rva(0x42570D),
-    rva(0x425778),
-    rva(0x4901A3),
-];
 
 // ---- Rust version ----
 
@@ -71,86 +56,47 @@ pub fn picked(car: u32, count: u32) -> [u32; 4] {
 }
 
 /// `sub_490238`.
-pub unsafe fn pick_pictures(r: &mut Regs) -> Result<(), Refused> {
-    unsafe {
-        if game_read::<u32>(MENU_RVA) != 0xB {
-            return Ok(());
-        }
-        let entries = picked(game_read(CAR_RVA), game_read(COUNT_RVA));
-        game_write(PICKED_RVA, entries);
-        update(entries)?.apply(r);
-        Ok(())
+pub fn pick_pictures() -> Result<(), Refused> {
+    if MENU_STATE.carousel.menu.get() != 0xB {
+        return Ok(());
     }
+    let entries = picked(EVENT_STATE.shown_car.get(), MENU_STATE.carousel.count.get());
+    write_all(&MENU_STATE.carousel_pictures.wanted, entries);
+    update(entries)?;
+    Ok(())
 }
 
 /// `sub_49040D`: the car shown's object set up and drawn by `draw`.
-pub unsafe fn draw_shown_car(
-    r: &Regs,
-    draw: &mut dyn FnMut(&mut Regs) -> Result<(), Refused>,
-) -> Result<(), Refused> {
+pub fn draw_shown_car(draw: &mut dyn FnMut() -> Result<(), Refused>) -> Result<(), Refused> {
+    let car: u32 = EVENT_STATE.shown_car.get();
+    if car >= ENTRIES {
+        return Err(BadInput("a car shown past the carousel's kinds").into());
+    }
+    let clock: u32 = PHYSICS.scene_clock.bits();
+    OBJECT_WORK.angles[1].set((clock << 3) & 0xFFFF);
+    OBJECT_WORK.place[2].set(MENU_STATE.carousel.z.get());
+    let kind = MENU_STATE.carousel.kinds[car as usize].get();
+    MENU_STATE.carousel.kind.set(kind);
+    let object = find_object_of_kind(kind);
+    FRAME_SWITCHES.object_number.set_bits(object);
+    draw()
+}
+
+/// The Rust version the typed tables run: nothing on a page other than the first, else
+/// its six calls in order. It reads no register of its caller's (register liveness,
+/// 2026-10-23), and the drawing reads none of what the calls before it leave (the eax and
+/// ebx `sub_49040D` gives it included).
+pub fn run() -> Result<(), crate::errors::Refused> {
     unsafe {
-        let car: u32 = game_read(CAR_RVA);
-        if car >= ENTRIES {
-            return Err(BadInput("a car shown past the carousel's kinds").into());
+        if EVENT_STATE.car_page.get() != 0 {
+            return Ok(());
         }
-        let clock: u32 = game_read(CLOCK_RVA);
-        game_write(ANGLE_Y_RVA, (clock << 3) & 0xFFFF);
-        game_write(PLACE_RVA + 8, game_read::<u32>(Z_RVA));
-        let kind: u32 = game_read(KINDS_RVA + car as usize * 4);
-        game_write(KIND_RVA, kind);
-        let object = find_object_of_kind(kind);
-        game_write(OBJECT_RVA, object);
-        let mut inner = Regs {
-            eax: object,
-            ebx: car << 2,
-            ..*r
-        };
-        draw(&mut inner)
+        clear_depth_buffer();
+        assign_kind_textures()?;
+        pick_pictures()?;
+        map_texture_places();
+        load_slot_textures_in_game()?;
+        LIGHT_STATE.draw_mode.set_bits(0u32);
+        draw_shown_car(&mut || draw_menu_object_in_game())
     }
-}
-
-/// `step`: what stands for the six calls, by their order. Nothing on a page other than
-/// the first.
-pub unsafe fn draw_car_object(
-    r: &mut Regs,
-    step: &mut dyn FnMut(usize, &mut Regs) -> Result<(), Refused>,
-) -> Result<(), Refused> {
-    if unsafe { game_read::<u32>(PAGE_RVA) } != 0 {
-        return Ok(());
-    }
-    for n in 0..STEPS.len() {
-        step(n, r)?;
-    }
-    Ok(())
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    let entry = *r;
-    let done = unsafe {
-        draw_car_object(r, &mut |n, r| {
-            match n {
-                0 => clear_depth_buffer_in_game(r)?,
-                1 => assign_kind_textures()?.apply(r),
-                2 => pick_pictures(r)?,
-                3 => map_texture_places().apply(r),
-                4 => {
-                    let entry = *r;
-                    load_slot_textures(&mut |slot| load_slot_texture_in_game(slot, &entry))?
-                        .apply(r)
-                }
-                _ => {
-                    game_write(MODE_RVA, 0u32);
-                    draw_shown_car(r, &mut |r| draw_menu_object_in_game(r))?;
-                }
-            }
-            Ok(())
-        })
-    };
-    if let Err(e) = done {
-        *r = entry;
-        return Err(e);
-    }
-    Ok(())
 }

@@ -11,113 +11,167 @@
 //! In:  nothing
 //! Out: edx the turn, then as `add_polygon` leaves them
 //!
-//! Callers: the needles' set-ups (`hud::needle_*`). The corners and the polygon through
-//! `part` (1 a corner with its two values, 2 the polygon), in the game their Rust
-//! versions. Shadow mode runs the original alone (it draws). Self-test: a copy whose calls
-//! go to stand-ins (the corners' taking their values off), against the Rust version,
-//! values by lot on both ways.
+//! Callers: the needles' set-ups (`hud::needle_*`).
 //!
 //! Converted 2026-10-21: the holds, the choice of the angle's way, the turn's register and
 //! the corners through `rc2k_core::hud::disc` (compares of floats only: exact); the value
 //! made a float and the turn's arithmetic and rounding stay the x87's (they follow its
 //! control word). `dword_75C060` is written once, with the turn (the original also holds
 //! the value there between, read by nothing).
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{Regs, game_addr, game_read, game_write, rva};
-use crate::hud::batch::POLYGON_COUNT_RVA;
+use crate::hud::store::HUD;
 use crate::math::x87;
 use crate::scene::matrix3::extended;
-
-const KIND_RVA: usize = rva(0x75BFAC); // dword_75BFAC
-const VALUE_RVA: usize = rva(0x75C2E0); // dword_75C2E0
-const SCRATCH_RVA: usize = rva(0x75C060); // dword_75C060
-const LEAST_RVA: usize = rva(0x75C018); // flt_75C018
-/// flt_75C2BC .. flt_75C2D4: base, base 2, split, scale, scale 2, most, most 2
-const K_RVA: usize = rva(0x75C2BC);
-const TURN_K_RVA: [usize; 2] = [rva(0x75C010), rva(0x75C014)];
-const CORNERS_RVA: [usize; 4] = [rva(0x75C2A8), rva(0x75C2AC), rva(0x75C2B0), rva(0x75C2B4)];
-const VERTICES_RVA: usize = rva(0x9605A0); // g_polygonVertices
-
-/// A call by place (see the header), with its x87 values (st(0) first).
-pub type Part<'a> = &'a mut dyn FnMut(u32, &mut Regs, &[[u8; 10]]) -> Result<(), Refused>;
+use crate::scene::x87_mem::{fistp, fld};
 
 /// `fld v [; fsub less]; fdiv over; fadd plus; fmul k0; fmul k1; fistp`.
 fn turn_of(v: u32, less: Option<u32>, over: u32, plus: u32, k: [u32; 2]) -> u32 {
     let (a, mut out) = ([v, less.unwrap_or(0), over, plus, k[0], k[1]], 0u32);
-    unsafe {
-        if less.is_some() {
-            core::arch::asm!("fld dword ptr [{a}]", "fsub dword ptr [{a} + 4]", "fdiv dword ptr [{a} + 8]",
-                "fadd dword ptr [{a} + 12]", "fmul dword ptr [{a} + 16]", "fmul dword ptr [{a} + 20]", "fistp dword ptr [{o}]",
-                a = in(reg) a.as_ptr(), o = in(reg) &raw mut out, out("st(0)") _, options(nostack))
-        } else {
-            core::arch::asm!("fld dword ptr [{a}]", "fdiv dword ptr [{a} + 8]",
-                "fadd dword ptr [{a} + 12]", "fmul dword ptr [{a} + 16]", "fmul dword ptr [{a} + 20]", "fistp dword ptr [{o}]",
-                a = in(reg) a.as_ptr(), o = in(reg) &raw mut out, out("st(0)") _, options(nostack))
-        }
-    };
+    if less.is_some() {
+        x87_1(
+            (crate::pointers::game_address(a.as_ptr())) as usize,
+            crate::pointers::game_address(&raw mut out) as usize,
+        );
+    } else {
+        x87_2(
+            (crate::pointers::game_address(a.as_ptr())) as usize,
+            crate::pointers::game_address(&raw mut out) as usize,
+        );
+    }
     out
 }
 
-/// The Rust version (see the header): the registers it leaves.
+/// The Rust version (see the header).
 // Converted: `rc2k_core::hud::disc::{needle_turn, needle_edx, needle_corners}`
-pub unsafe fn draw_needle(entry: &Regs, part: Part) -> Result<Regs, Refused> {
-    let mut g = *entry;
-    unsafe {
-        use rc2k_core::hud::disc::{needle_corners, needle_edx, needle_turn};
-        let f = |r: usize| f32::from_bits(game_read(r));
-        let kind = game_read::<u32>(KIND_RVA) != 0;
-        let value = f32::from_bits(x87::from_int(game_read(VALUE_RVA)));
-        let t = needle_turn(value, kind, f(LEAST_RVA), |n| f(K_RVA + 4 * n));
-        let tk = TURN_K_RVA.map(|r| game_read::<u32>(r));
-        // The rounding follows the x87's control word: the x87's.
-        let turn = turn_of(
-            t.value.to_bits(),
-            t.less.map(f32::to_bits),
-            t.over.to_bits(),
-            t.plus.to_bits(),
-            tk,
-        );
-        game_write(SCRATCH_RVA, turn);
-        g.edx = needle_edx(turn);
-        for (n, (x, y)) in needle_corners(CORNERS_RVA.map(|r| game_read::<u32>(r)))
-            .into_iter()
-            .enumerate()
-        {
-            g.edi = game_addr(VERTICES_RVA) as u32 + 0x20 * n as u32;
-            part(1, &mut g, &[extended(y), extended(x)])?;
-        }
-        game_write(POLYGON_COUNT_RVA, 4u32);
-        part(2, &mut g, &[])?;
+pub fn draw_needle() -> Result<(), Refused> {
+    use rc2k_core::hud::disc::{needle_corners, needle_edx, needle_turn};
+    use rc2k_core::math::extended::to_f64;
+    let kind = HUD.needle_kind.get() != 0;
+    let value = f32::from_bits(x87::from_int(HUD.needle_value.get() as i32));
+    let t = needle_turn(value, kind, HUD.least.get(), |n| HUD.needle_k[n].get());
+    let tk = [HUD.uv_scale_y.bits(), HUD.turn_k.bits()];
+    // The rounding follows the x87's control word: the x87's.
+    let turn = turn_of(
+        t.value.to_bits(),
+        t.less.map(f32::to_bits),
+        t.over.to_bits(),
+        t.plus.to_bits(),
+        tk,
+    );
+    HUD.scratch.set(turn);
+    let angle = needle_edx(turn);
+    for (n, (x, y)) in needle_corners(HUD.needle_corners.each_ref().map(|c| c.bits()))
+        .into_iter()
+        .enumerate()
+    {
+        let vertex = crate::d3d::vertices_store::piece_addr() + 0x20 * n as u32;
+        let point = [extended(y), extended(x)].map(to_f64);
+        crate::hud::turned_vertex::turned_vertex(vertex, angle, point)?;
     }
-    Ok(g)
+    crate::scene::draw_store::DRAW
+        .polygon_vertex_count
+        .set_bits(4u32);
+    crate::hud::add_polygon::add_polygon()
 }
 
-/// In the game: the corner's and the polygon's Rust versions.
-pub fn game_part(place: u32, r: &mut Regs, v: &[[u8; 10]]) -> Result<(), Refused> {
-    use crate::hud::{add_polygon as ap, turned_vertex as tv};
-    unsafe {
-        *r = match place {
-            1 => tv::turned_vertex(r, [v[0], v[1]].map(rc2k_core::math::extended::to_f64))?,
-            _ => ap::add_polygon(r, &mut ap::game_part)?,
-        };
+// ---- the arithmetic that was x87 assembly ----
+
+/// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
+/// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
+/// `int [o + 0] = (((([a + 0] - [a + 4]) / [a + 8]) + [a + 0xC]) * [a + 0x10]) * [a + 0x14]`
+fn x87_1(a: usize, o: usize) {
+    let t0 = fld(a, 0);
+    let t1 = fld(a, 4);
+    let t2 = t0 - t1;
+    let t3 = fld(a, 8);
+    let t4 = t2 / t3;
+    let t5 = fld(a, 0xC);
+    let t6 = t4 + t5;
+    let t7 = fld(a, 0x10);
+    let t8 = t6 * t7;
+    let t9 = fld(a, 0x14);
+    let t10 = t8 * t9;
+    fistp(o, 0, t10);
+}
+
+/// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
+/// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
+/// `int [o + 0] = ((([a + 0] / [a + 8]) + [a + 0xC]) * [a + 0x10]) * [a + 0x14]`
+fn x87_2(a: usize, o: usize) {
+    let t0 = fld(a, 0);
+    let t1 = fld(a, 8);
+    let t2 = t0 / t1;
+    let t3 = fld(a, 0xC);
+    let t4 = t2 + t3;
+    let t5 = fld(a, 0x10);
+    let t6 = t4 * t5;
+    let t7 = fld(a, 0x14);
+    let t8 = t6 * t7;
+    fistp(o, 0, t8);
+}
+
+#[cfg(all(test, target_arch = "x86"))]
+mod asm_reference {
+    use super::*;
+    use crate::scene::asm_test::{Block, In, Operand, Out, reference, sparse};
+
+    // The original's instructions, one function per run.
+    reference!(ref_0(a, o) "fld dword ptr [{a}]", "fsub dword ptr [{a} + 4]", "fdiv dword ptr [{a} + 8]", "fadd dword ptr [{a} + 12]", "fmul dword ptr [{a} + 16]", "fmul dword ptr [{a} + 20]", "fistp dword ptr [{o}]");
+    reference!(ref_1(a, o) "fld dword ptr [{a}]", "fdiv dword ptr [{a} + 8]", "fadd dword ptr [{a} + 12]", "fmul dword ptr [{a} + 16]", "fmul dword ptr [{a} + 20]", "fistp dword ptr [{o}]");
+
+    fn blocks() -> Vec<Block> {
+        vec![
+            Block {
+                name: "draw_needle line 51",
+                operands: vec![
+                    Operand::Buffer {
+                        reads: &[
+                            (0, In::F),
+                            (4, In::F),
+                            (8, In::F),
+                            (0xC, In::F),
+                            (0x10, In::F),
+                            (0x14, In::F),
+                        ],
+                        writes: &[],
+                    },
+                    Operand::Buffer {
+                        reads: &[],
+                        writes: &[(0, Out::I)],
+                    },
+                ],
+                ulps: 0,
+                reference: |a| unsafe { ref_0(a[0], a[1]) },
+                plain: |a| x87_1(a[0], a[1]),
+            },
+            Block {
+                name: "draw_needle line 55",
+                operands: vec![
+                    Operand::Buffer {
+                        reads: &[
+                            (0, In::F),
+                            (8, In::F),
+                            (0xC, In::F),
+                            (0x10, In::F),
+                            (0x14, In::F),
+                        ],
+                        writes: &[],
+                    },
+                    Operand::Buffer {
+                        reads: &[],
+                        writes: &[(0, Out::I)],
+                    },
+                ],
+                ulps: 0,
+                reference: |a| unsafe { ref_1(a[0], a[1]) },
+                plain: |a| x87_2(a[0], a[1]),
+            },
+        ]
     }
-    Ok(())
-}
 
-/// In the game, for the needles' set-ups: this function's Rust version.
-pub fn game_part_needle(_place: u32, r: &mut Regs) -> Result<(), Refused> {
-    *r = unsafe { draw_needle(r, &mut game_part) }?;
-    Ok(())
-}
-
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    let left = unsafe { draw_needle(r, &mut game_part) }?;
-    *r = Regs { esp: r.esp, ..left };
-    Ok(())
+    #[test]
+    fn x87_blocks_matches_the_assembly() {
+        sparse(&blocks(), 1200, 100);
+    }
 }

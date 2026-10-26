@@ -4,26 +4,17 @@
 //! In:  nothing
 //! Out: every register kept (`pusha` .. `popa`)
 //!
-//! See `input/effects.rs` and `start_effects`. One caller, `input::end_effects`. Its calls
-//! through `part`. Shadow mode runs the original alone. Self-test: a copy whose calls go
-//! to the noting stand-ins, against the Rust version.
+//! See `input/effects.rs` and `start_effects`. One caller, `input::end_effects`.
 //!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
+//! above are the original's, for reference.
 
 use crate::errors::Refused;
-use crate::framework::Regs;
-use crate::input::effects::{Part, STOP_DEVICE, effects_entry};
-use crate::input::start_effects::both_records;
 
-/// The Rust version.
-pub fn stop_effects(r: &mut Regs, part: Part) -> Result<(), Refused> {
-    both_records(r, STOP_DEVICE, part)
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    effects_entry(r, stop_effects)
+/// Both devices' effects stopped.
+pub fn stop_effects() -> Result<(), Refused> {
+    for record in crate::input::start_effects::records() {
+        crate::input::stop_device_effects::stop_device_effects(record)?;
+    }
+    Ok(())
 }

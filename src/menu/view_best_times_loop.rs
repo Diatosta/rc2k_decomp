@@ -8,44 +8,47 @@
 //! steps that are more than a call or a store are the functions below, generated from the
 //! listing.
 //! The name is a reading from the title string of its menu, "MELHORES TEMPOS", not yet a visit.
-//! Callers: none in code: it is reached through a table.
-//! Hook removed 2026-10-22 (typed tables): the menus and draw lists run its `entry`
+//! Callers: none in code: it is reached through a table. The menus and draw lists run its `entry`
 //! (`menu::table_calls`); the registers above are the original's, for reference.
 
-use crate::framework::{Regs, game_read, game_write, rva};
-use crate::menu::screen_loop::{Env, List, Screen, Step, screen_entry};
+use crate::errors::Refused;
+use crate::framework::rva;
+use crate::menu::draw_lists_store::DRAW_LISTS;
+use crate::menu::flow_store::SCREEN_FLOW;
+use crate::menu::menus_store::MENUS;
+use crate::menu::screen_items_store::{SCREEN_ITEMS, slot};
+use crate::menu::screen_loop::{Callee, Carried, List, Screen, Step, screen_entry};
 
 // ---- Rust version: `menu::screen_loop` with this ----
 
-unsafe fn before(g: &mut Regs, _env: &mut dyn Env) {
-    unsafe {
-        g.ecx = game_read(rva(0x747890));
-        game_write(rva(0x7476F4), g.ecx);
-    }
+fn before(c: &mut Carried) -> Result<(), Refused> {
+    c.measure_x = SCREEN_ITEMS.first[slot::VIEW_BEST_TIMES].get();
+    SCREEN_ITEMS.current[slot::VIEW_BEST_TIMES].set(c.measure_x);
+    Ok(())
 }
 
 pub const SCREEN: Screen = Screen {
-    menu: rva(0x74DCE0),
-    saved_item: rva(0x7476F4),
+    menu: || MENUS.view_best_times.addr() as usize,
+    saved_item: || &SCREEN_ITEMS.current[slot::VIEW_BEST_TIMES],
     lists: &[
         List {
-            pointer: rva(0x755504), // g_sceneList
-            table: rva(0x758FCA),
+            pointer: || &SCREEN_FLOW.scene_list, // g_sceneList
+            table: || DRAW_LISTS.view_best_times_scene.addr() as usize,
             run: false,
         },
         List {
-            pointer: rva(0x7554F8), // g_drawList
-            table: rva(0x758D06),
+            pointer: || &SCREEN_FLOW.draw_list, // g_drawList
+            table: || DRAW_LISTS.view_best_times_draw.addr() as usize,
             run: false,
         },
         List {
-            pointer: rva(0x755500), // dword_755500
-            table: rva(0x75930A),
+            pointer: || &SCREEN_FLOW.setup_list, // dword_755500
+            table: || DRAW_LISTS.view_best_times_setup.addr() as usize,
             run: true,
         },
         List {
-            pointer: rva(0x7554FC), // g_overlayList
-            table: rva(0x75920E),
+            pointer: || &SCREEN_FLOW.overlay_list, // g_overlayList
+            table: || DRAW_LISTS.view_best_times_overlay.addr() as usize,
             run: false,
         },
     ],
@@ -57,8 +60,12 @@ pub const SCREEN: Screen = Screen {
     prepare: &[],
     after_lists: &[],
     background: &[
-        Step::EaxAddr(rva(0x731F85)),
-        Step::CallOrFatal(rva(0x47EFFF), 0x80712345),
+        Step::ArgAddr(|| {
+            (crate::menu::texts_store::MENU_TEXTS
+                .view_best_times_picture
+                .addr()) as usize
+        }),
+        Step::CallOrFatal(Callee::LoadBackground, 0x80712345),
     ],
     after_first_frame: &[],
     confirm: None,
@@ -87,12 +94,10 @@ pub const SCREEN: Screen = Screen {
     after_blink: &[],
     restart_action_check: false,
     always_asks: false,
-    also_reads: &[],
-    also_writes: &[],
 };
 
-/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// The Rust version where the typed tables run it (a refusal is the
 /// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    screen_entry("menu::view_best_times_loop", r, &SCREEN)
+pub fn run() -> Result<(), crate::errors::Refused> {
+    screen_entry("menu::view_best_times_loop", &SCREEN)
 }

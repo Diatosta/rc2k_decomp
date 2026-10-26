@@ -2,44 +2,17 @@
 //! (0x51B984): the fonts' glyph tables given back.
 //!
 //! In:  nothing
-//! Out: ebx = the list; the flags as `free_list` leaves them (carry clear)
+//! Out: ebx = the list; the flags as `free_list` leaves them (carry clear): neither caller
+//!      reads them (0x4703D4, 0x474D1F), the Rust version leaves nothing
 //!
 //! Caller: `menu::apply_screen_mode` (between `gfx::free_fonts` and `gfx::build_fonts`).
-//! The freeing through `part` (in the game `free_list`'s Rust version). Shadow mode runs
-//! the original alone (memory is given back). Self-test: a copy whose call goes to a
-//! stand-in, against the Rust version.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Called directly (2026-10-23).
 
 use crate::errors::Refused;
-use crate::framework::{Regs, game_addr, rva};
-use crate::menu::parts::{Part, parted_entry};
+use crate::gfx::glyph_tables::TABLES;
 
-const LIST_RVA: usize = rva(0x51B984); // g_glyphTablesMemory
-
-/// The Rust version: the registers it leaves.
-pub unsafe fn free_glyph_tables(entry: &Regs, part: Part) -> Result<Regs, Refused> {
-    let mut r = *entry;
-    r.ebx = game_addr(LIST_RVA) as u32;
-    part(0, &mut r)?;
-    Ok(r)
-}
-
-/// In the game: `free_list`'s Rust version; its carry is clear.
-pub fn game_part(_: u32, r: &mut Regs) -> Result<(), Refused> {
-    unsafe { crate::memory::free_list::free_list(r.ebx as *mut crate::memory::MemoryList) }?;
-    r.set_carry(false);
+/// The Rust version (see the header).
+pub fn free_glyph_tables() -> Result<(), Refused> {
+    { crate::memory::free_list::free_list(TABLES.memory.as_ptr()) }?;
     Ok(())
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    parted_entry(
-        r,
-        &|r, part| unsafe { free_glyph_tables(r, part) },
-        game_part,
-    )
 }

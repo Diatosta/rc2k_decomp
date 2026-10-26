@@ -4,66 +4,33 @@
 //! In:  nothing
 //! Out: carry clear; eax and ebx as `gfx::allocate_textures` leaves them
 //!
-//! `scene::build_texture_catalogue`; `dword_624234` = 0; then one system texture of
-//! size code 3 and pixel kind 4 without mip levels from `gfx::allocate_textures`
-//! (0x4051ED, Direct3D: not ported; eax = 0, ebx = 1, ecx = 3, edx = 4, ebp = 0), whose
-//! number (ebx) goes to `dword_624234`. If that one is refused: fatal error
-//! 0x80600943.
-//! Two callers.
-//! Hook removed 2026-10-22 (direct calls): Rust callers run its `entry` (`calls::call`,
-//! `routes.rs`); the registers above are the original's, for reference.
+//! `scene::build_texture_catalogue`; `dword_624234` = 0; then one system texture of size code 3
+//! and pixel kind 4 without mip levels from `gfx::allocate_textures` (0x4051ED, Direct3D: not
+//! ported; eax = 0, ebx = 1, ecx = 3, edx = 4, ebp = 0), whose number (ebx) goes to
+//! `dword_624234`. If that one is refused: fatal error 0x80600943. Two callers. The registers
+//! above are the original's; a call by address goes through `routes.rs`, which maps them.
 
-use crate::errors::{FatalError, Refused};
-use crate::framework::{Regs, game_write, rva};
+use crate::errors::Refused;
 use crate::scene::build_texture_catalogue::build_texture_catalogue_in_game;
+use crate::scene::draw_store::DRAW;
 
 // ---- game data ----
 
-const OWN_TEXTURE_RVA: usize = rva(0x624234); // dword_624234
-const ALLOCATE_RVA: usize = rva(0x4051ED); // gfx::allocate_textures
-
-const NO_OWN_TEXTURE: FatalError = FatalError {
-    code: 0x8060_0943,
-    message: "cant alloc sys video texture",
-};
-
 // ---- Rust version ----
 
-/// `catalogue`: what stands for `scene::build_texture_catalogue`; `allocate`: for
-/// `gfx::allocate_textures`, given the registers it is entered with, answering false
-/// if it refuses.
-pub unsafe fn set_up_textures(
-    r: &mut Regs,
-    catalogue: &mut dyn FnMut(&mut Regs) -> Result<(), Refused>,
-    allocate: &mut dyn FnMut(&mut Regs) -> bool,
-) -> Result<(), Refused> {
+/// The catalogue built, then one system texture of the scene's own (sizes 3, pixel kind
+/// 4, no mips; `gfx::allocate_textures`) kept in `dword_624234`. The allocation cannot
+/// come back refused (a failure raises its own fatal error), so the original's fatal
+/// error 0x80600943 ("cant alloc sys video texture") is never reached. The original
+/// leaves the carry clear and eax, ebx as the allocation leaves them; no caller reads
+/// those registers (register liveness, 2026-10-23: `race::textures_alloc` and
+/// `race::loadlevel_init` after it), the carry the register-threaded callers set.
+pub unsafe fn set_up_textures() -> Result<(), Refused> {
     unsafe {
-        catalogue(r)?;
-        game_write(OWN_TEXTURE_RVA, 0u32);
-        (r.eax, r.ebx, r.ecx, r.edx, r.ebp) = (0, 1, 3, 4, 0);
-        if !allocate(r) {
-            return Err(NO_OWN_TEXTURE.into());
-        }
-        game_write(OWN_TEXTURE_RVA, r.ebx);
+        build_texture_catalogue_in_game()?;
+        DRAW.mirror_picture.set_bits(0u32);
+        let (_, system) = crate::platform_3d::allocate_textures_for(0, 1, 3, 4, 0);
+        DRAW.mirror_picture.set_bits(system);
         Ok(())
     }
-}
-
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    let entry = *r;
-    let done = unsafe {
-        set_up_textures(r, &mut |_| build_texture_catalogue_in_game(), &mut |r| {
-            crate::calls::call(ALLOCATE_RVA, r);
-            !r.carry()
-        })
-    };
-    match done {
-        Ok(()) => r.set_carry(false),
-        Err(e) => {
-            *r = entry;
-            return Err(e);
-        }
-    }
-    Ok(())
 }

@@ -11,82 +11,96 @@
 //! In:  nothing
 //! Out: the registers as the steps leave them; no flags read
 //!
-//! Caller: `drive::finish_race`. Ungated: it plays for seconds.
-//! Refuses a length index past 1 (the table's two), and what its calls refuse. Shadow
-//! mode runs the original alone.
-//! Self-test: skipped (it plays the routine).
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Caller: `drive::finish_race`. Refuses a length index past 1 (the table's two), and what
+//! its calls refuse.
 
 use crate::drive::race_parts::{input_update, race_frame, restart_clock};
 use crate::errors::{BadInput, Refused};
-use crate::framework::Regs;
-use crate::physics::flow::{a, base, c0, g, p, x87_run};
-use crate::race::stage_prefs::left_of;
-use crate::screens::harness::Left;
+use crate::physics::flow::c0;
+use crate::physics::tables_store::PHYSICS;
+use crate::race::blocks_store::CAR_BLOCKS;
+use crate::race::clock_ticks_store::CLOCK_TICKS;
+use crate::race::state_store::RACE_STATE;
+use crate::race::viewer_state_store::REPLAY_VIEW;
+use crate::scene::x87_mem::{fild, fistp, fld};
 
-const B: usize = 0x70F3EC;
+/// The car's lift: `dword_70F524` += `flt_64BB38` x `flt_5C5D98` (`fiadd`, `fistp`), over the
+/// race block at `rc`.
+fn lift_car(rc: usize) {
+    fistp(
+        rc,
+        0x30F524,
+        fld(rc, 0x24BB38) * fld(rc, 0x1C5D98) + fild(rc, 0x30F524),
+    )
+}
 
-/// The Rust version.
-pub unsafe fn finish_run(entry: &Regs) -> Result<Left, Refused> {
-    let mut r = *entry;
-    x87_run!(
-        "fld dword ptr [{b} + 0x24BB38]",
-        "fmul dword ptr [{b} + 0x1C5D98]",
-        "fiadd dword ptr [{b} + 0x30F524]",
-        "fistp dword ptr [{b} + 0x30F524]";
-        b = base()
-    );
-    restart_clock(&mut r);
-    r.eax = g(0x613830);
-    p(0x5CC3B4, r.eax);
-    p(0x5CC3B0, r.eax);
-    for k in 0..0x20 {
-        p(0x5CC1B0 + 4 * k, u32::MAX);
+/// The Rust version. The registers it leaves are read by no caller (liveness: esi after
+/// `drive::finish_race`'s call has no read point).
+pub fn finish_run() -> Result<(), Refused> {
+    lift_car(crate::race::store::asm_base() as usize);
+    restart_clock();
+    CLOCK_TICKS.clock_a.set(PHYSICS.scene_clock.get());
+    CLOCK_TICKS.sound_tick_last.set(PHYSICS.scene_clock.get());
+    for mark in &CLOCK_TICKS.marks {
+        mark.set(u32::MAX);
     }
-    r.eax = u32::MAX;
-    r.ecx = 0;
-    r.edi = a(0x5CC1B0) + 0x80;
-    p(0x5C2538, u32::MAX);
-    restart_clock(&mut r);
-    r.eax = g(0x613830);
-    p(0x64BB60, r.eax);
+    REPLAY_VIEW.play_end.set(u32::MAX);
+    restart_clock();
+    crate::drive::finish_store::FINISH
+        .start_clock
+        .set(PHYSICS.scene_clock.get());
     loop {
-        p(0x512A44, 0);
-        input_update(&mut r);
-        unsafe { crate::drive::finish_timing::finish_timing() }.apply(&mut r);
-        let n = g(0x75B108);
+        crate::sound::store::RACE_SOUNDS.objects[0].revs.set(0);
+        input_update();
+        crate::drive::finish_timing::finish_timing();
+        let n = RACE_STATE.results.finished.get();
         if n > 1 {
             return Err(BadInput("a finish length past the table's two").into());
         }
-        r.eax = n;
-        if !c0(g(0x64BB64), g(0x64BB3C + 4 * n as usize)) {
+        if !c0(
+            crate::drive::finish_store::FINISH.time.bits(),
+            crate::drive::finish_store::FINISH.finish_lengths[n as usize].bits(),
+        ) {
             break;
         }
-        let key = |x: usize| unsafe { (a(x) as *const u8).read() } != 0;
-        if key(0x4F6CDD) || key(0x4F6CF8) {
+        let pressed = |key: usize| crate::input::store::DEVICES.keys_pressed.get(key) != 0;
+        if pressed(1) || pressed(0x1C) {
             break;
         }
-        p(B + 0x684, 6);
-        unsafe {
-            crate::race::frame_views::load_first_car()?.apply(&mut r);
-            crate::drive::finish_camera::finish_camera();
-            r = crate::physics::camera_frame::camera_frame(
-                &r,
-                &mut crate::physics::reset_parts::game_part,
-            )?;
-            crate::drive::store_first_car::store_first_car()?.apply(&mut r);
-        }
-        race_frame(&mut r);
+        CAR_BLOCKS.cars[0].camera_view.set_bits(6);
+        crate::race::frame_views::load_first_car()?;
+        crate::drive::finish_camera::finish_camera();
+        crate::physics::camera_frame::camera_frame()?;
+        crate::drive::store_first_car::store_first_car()?;
+        race_frame()?;
     }
-    Ok(left_of(&r))
+    Ok(())
 }
 
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    let left = unsafe { finish_run(r) }?;
-    left.apply(r);
-    Ok(())
+#[cfg(all(test, target_arch = "x86"))]
+mod asm_reference {
+    use super::*;
+    use crate::scene::asm_test::{Block, In, Operand, Out, reference, sparse};
+
+    // The original's instructions.
+    reference!(ref_lift(rc)
+        "fld dword ptr [{rc} + 0x24BB38]",
+        "fmul dword ptr [{rc} + 0x1C5D98]",
+        "fiadd dword ptr [{rc} + 0x30F524]",
+        "fistp dword ptr [{rc} + 0x30F524]");
+
+    #[test]
+    fn finish_run_matches_the_assembly() {
+        let blocks = vec![Block {
+            name: "finish_run lift",
+            operands: vec![Operand::Buffer {
+                reads: &[(0x24BB38, In::F), (0x1C5D98, In::F), (0x30F524, In::I)],
+                writes: &[(0x30F524, Out::I)],
+            }],
+            ulps: 0,
+            reference: |a| unsafe { ref_lift(a[0]) },
+            plain: |a| lift_car(a[0]),
+        }];
+        sparse(&blocks, 4000, 204);
+    }
 }

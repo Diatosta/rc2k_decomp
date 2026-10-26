@@ -6,64 +6,75 @@
 //! In:  esi the car object
 //! Out: every register kept
 //!
-//! Refuses as `emit_particle_19`. Self-test: as `emit_particle_19`'s.
+//! Refuses as `emit_particle_19`.
 
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
-use crate::marks::emit_particle_19::{TwinSet, emit_twin, regions, test_with};
-use crate::screens::harness::Left;
-use crate::service::harness::{dispatch_state, state_entry};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("marks::emit_particle_22", rva(0x4CE482), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
+use crate::marks::emit_particle_19::TwinTuning;
+use crate::marks::emit_particle_19::{TwinSet, emit_twin};
+use crate::session::{Dword, Float};
 
 /// `emit_particle_22`'s variables.
-pub const TWENTY_SECOND: TwinSet = TwinSet {
+pub static TWENTY_SECOND: TwinSet = TwinSet {
     kind: 0x16,
     level_at: 0x4C4,
     flags: 0x33,
-    chance_random: rva(0x93A4B2),
-    lift: rva(0x93A4B6),
-    row_k: [rva(0x93A4BA), rva(0x93A4BE), rva(0x93A4C2)],
-    spread: rva(0x93A4C6),
-    motion_k: [rva(0x93A4CA), rva(0x93A4CE), rva(0x93A4D2)],
-    spin_random: rva(0x93A4D6),
+    tuning: &TWENTY_SECOND_TUNING,
 };
 
 /// The Rust version (see the header).
-pub unsafe fn emit_particle_22(object: u32) -> Result<(), Refused> {
-    unsafe { emit_twin(&TWENTY_SECOND, object) }
+pub fn emit_particle_22(object: u32) -> Result<(), Refused> {
+    emit_twin(&TWENTY_SECOND, object)
 }
 
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    unsafe { emit_particle_22(r.esi) }?;
-    Ok(Left::nothing())
+/// `emit_particle_22`'s variables (IDA 0x93A4B2 .. 0x93A4DA).
+pub static TWENTY_SECOND_TUNING: TwinTuning = TwinTuning {
+    chance_random: Dword::new(0x0),
+    lift: Float::from_bits(0x47800000),
+    row_k: [
+        Float::from_bits(0x43000000),
+        Float::from_bits(0x43000000),
+        Float::from_bits(0x43000000),
+    ],
+    spread: Float::from_bits(0x42800000),
+    motion_k: [
+        Float::from_bits(0x3F4CCCCD),
+        Float::from_bits(0x3F4CCCCD),
+        Float::from_bits(0x3F4CCCCD),
+    ],
+    spin_random: Dword::new(0x0),
+};
+
+/// Marker for `moved::MOVED`: TWENTY_SECOND_TUNING's place in the image.
+pub struct TwentySecondTuning;
+
+impl TwentySecondTuning {
+    pub const START: usize = 0x93A4B2;
+    pub const LEN: usize = TwinTuning::LEN;
+
+    /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
+    pub fn home() -> usize {
+        crate::pointers::game_address(&TWENTY_SECOND_TUNING as *const TwinTuning) as usize
+    }
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_state(&HOOK, r, call_original, &regions(&TWENTY_SECOND), &rust);
-}
+#[cfg(test)]
+mod twenty_second_tuning_tests {
+    use super::*;
 
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
-}
+    fn bytes<T>(v: &T) -> Vec<u8> {
+        let p = v as *const T as *const u8;
+        (0..size_of::<T>())
+            .map(|i| unsafe { p.add(i).read() })
+            .collect()
+    }
 
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    test_with(&mut t, &TWENTY_SECOND, call_original, &rust);
-    t.finish()
+    #[test]
+    fn twenty_second_tuning_starts_as_the_games() {
+        assert_eq!(size_of::<TwinTuning>(), TwinTuning::LEN);
+        assert!(
+            bytes(&TWENTY_SECOND_TUNING)
+                == crate::moved::image_bytes(TwentySecondTuning::START, TwinTuning::LEN),
+            "TWENTY_SECOND_TUNING starts differently from the image"
+        );
+    }
 }

@@ -14,59 +14,59 @@
 //! error. Otherwise the installer's script is set up (as in `check_at_start`, with
 //! string 0x1038), the car's name `aRenaultClioSpo` is put in capitals up to its `(`,
 //! where a line feed ends it, and `off_51DD48` becomes `sub_41675B`.
-//! One caller, `start`.
-//! Self-test: a redirected copy in worlds of the test's.
+//! One caller, `start`, which calls it directly (2026-10-23).
 
 use crate::errors::{BadInput, FatalError, Refused};
-use crate::framework::{Regs, game_addr, game_read, game_write, rva};
-use crate::install::check_at_start::{INSTALLING_RVA, RECORD_RVA, set_script_entry};
-use crate::install::check_test::MEDIA_MODE_RVA;
-use crate::install::outside::{Game, Outside};
-use crate::install::read_registry::{SOURCE_RVA, STATUS_RVA};
+use crate::framework::{game_addr, rva};
+use crate::install::check_at_start::set_script_entry;
+use crate::install::outside::Outside;
 use crate::install::runs_from_source::runs_from_source;
-use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
+use crate::install::vars::INSTALLER_NAMES;
+use crate::install::vars::INSTALLER_PAGES;
+use crate::install::vars::INSTALLER_PATHS;
+use crate::install::vars::INSTALLER_RUN;
+
+const CAR_NAME_LEN: usize = 0x1B;
 
 // ---- game data ----
 
-const CLIO_FILE_RVA: usize = rva(0x529DB8); // "files\b\obj0570.ro3"
-const HAS_CLIO_RVA: usize = rva(0x529DB4); // g_hasClio
-const INSTALLER_DATA_RVA: usize = rva(0x51BEA1); // "files\d\gfx\install.bun"
-const BASE_B_RVA: usize = rva(0x5295B4); // unk_5295B4
-const B_BEFORE_RVA: usize = rva(0x95E8F8); // byte_95E8F8
-const B_AFTER_RVA: usize = rva(0x95E9F8); // byte_95E9F8
-const CAR_NAME_RVA: usize = rva(0x529F03); // "renault clio sport V6 (A7)"
-const CAR_NAME_LEN: usize = 0x1B;
-const STEP_RVA: usize = rva(0x51DD48); // off_51DD48
 const CLIO_STEP_RVA: usize = rva(0x41675B); // sub_41675B
 
 // ---- Rust version ----
 
 pub unsafe fn check_clio_disc(outside: &mut dyn Outside) -> Result<(), Refused> {
     unsafe {
-        if !outside.file_exists(game_addr(CLIO_FILE_RVA) as *const u8)? {
-            return Ok(());
-        }
-        game_write(HAS_CLIO_RVA, 1u32);
-        if game_read::<u32>(INSTALLING_RVA) == 1
-            || outside.file_exists(game_addr(RECORD_RVA) as *const u8)?
-            || runs_from_source(outside)?
-            || game_read::<u8>(STATUS_RVA) != 1
-            || game_read::<u8>(SOURCE_RVA) == 0
-            || outside.file_exists(game_addr(INSTALLER_DATA_RVA) as *const u8)?
+        if !outside.file_exists(crate::pointers::host_at(
+            crate::install::store::INSTALL.clio_file.addr() as usize,
+        ) as *const u8)?
         {
             return Ok(());
         }
-        let base_b = game_addr(BASE_B_RVA) as *const u8;
-        if !outside.normalise_path(base_b, game_addr(B_BEFORE_RVA) as *mut u8)? {
+        crate::install::store::INSTALL.has_clio.set(1);
+        if INSTALLER_RUN.installing.get() == 1
+            || outside.file_exists(crate::pointers::host_at(
+                crate::install::installer::INSTALL_TEXTS.record_path.addr() as usize,
+            ) as *const u8)?
+            || runs_from_source(outside)?
+            || INSTALLER_NAMES.status.get() != 1
+            || INSTALLER_NAMES.source.get(0) == 0
+            || outside.file_exists(
+                crate::pointers::host(INSTALLER_NAMES.installer_data.addr()) as *const u8
+            )?
+        {
             return Ok(());
         }
-        outside.set_directory(game_addr(SOURCE_RVA) as *const u8);
-        if !outside.normalise_path(base_b, game_addr(B_AFTER_RVA) as *mut u8)? {
+        let base_b = crate::pointers::host(crate::install::installer::INSTALL_TEXTS.base_b.addr())
+            as *const u8;
+        if !outside.normalise_path(base_b, crate::pointers::host(INSTALLER_PATHS.path_a.addr()))? {
+            return Ok(());
+        }
+        outside.set_directory(crate::pointers::host(INSTALLER_NAMES.source.addr()) as *const u8);
+        if !outside.normalise_path(base_b, crate::pointers::host(INSTALLER_PATHS.path_b.addr()))? {
             return Ok(());
         }
         outside.read_record()?;
-        if game_read::<u32>(MEDIA_MODE_RVA) < 2 {
+        if crate::files::state::MEDIA_MODE.load(std::sync::atomic::Ordering::Relaxed) < 2 {
             outside.log(
                 c"CLIO: Requires normal or full installation"
                     .as_ptr()
@@ -78,7 +78,8 @@ pub unsafe fn check_clio_disc(outside: &mut dyn Outside) -> Result<(), Refused> 
             }
             .into());
         }
-        let name = std::slice::from_raw_parts_mut(game_addr(CAR_NAME_RVA) as *mut u8, CAR_NAME_LEN);
+        let at = crate::pointers::GamePtr::new(crate::install::store::INSTALL.clio_car_name.addr());
+        let mut name = at.read_bytes(CAR_NAME_LEN, "the Clio's name")?;
         let Some(end) = name
             .iter()
             .position(|&c| c == b'(')
@@ -90,17 +91,8 @@ pub unsafe fn check_clio_disc(outside: &mut dyn Outside) -> Result<(), Refused> 
         name[..end].make_ascii_uppercase();
         name[end] = b'\n';
         name[end + 1] = 0;
-        game_write(STEP_RVA, game_addr(CLIO_STEP_RVA) as u32);
+        at.write_bytes(&name, "the Clio's name")?;
+        INSTALLER_PAGES.step.set_u32(0, game_addr(CLIO_STEP_RVA));
         Ok(())
     }
-}
-
-fn rust(_: &Regs) -> Result<Left, Refused> {
-    unsafe { check_clio_disc(&mut Game) }?;
-    Ok(Left::nothing())
-}
-
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
 }

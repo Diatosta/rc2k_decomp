@@ -9,66 +9,57 @@
 //! (`machinetype=`), the Windows version (`platform=`), the memory (`GlobalMemoryStatus`
 //! into `Buffer`, 0x4E0558) and the free space of the current drive in Kb (`sub_403175`
 //! and `sub_40317D` with no drive given, here as `free_space_kb`; kept in `dword_4E073A`).
-//! One caller, `start`.
+//! One caller, `start`, which calls it directly (2026-10-23).
 //! Shadow mode runs the original alone (the file can be deleted and begun once).
 //! Self-test, with the game running since it logs: a redirected copy that deletes
 //! nothing; both versions add a head to the log, and what each added is compared but for
 //! the two lines about memory, whose numbers move.
 
 use crate::errors::BadInput;
-use crate::framework::{Regs, game_addr, game_read, game_write, rva};
 use crate::logfile::date_text::write_date_text;
 use crate::logfile::log_hex8::log_hex8;
 use crate::logfile::log_int::log_int;
 use crate::logfile::log_write::log_write;
-use crate::logfile::write_line::LOG_LEVEL_RVA;
-use crate::settings::TEXT_RVA;
-use windows_sys::Win32::Storage::FileSystem::{DeleteFileA, GetDiskFreeSpaceA};
+use crate::logfile::numeric::scratch;
+use crate::logfile::write_line::{LOG_PATH, level};
+use crate::session::MACHINE as M;
+use std::sync::atomic::{AtomicU32, Ordering};
+use windows_sys::Win32::Storage::FileSystem::GetDiskFreeSpaceA;
 use windows_sys::Win32::System::SystemInformation::{GlobalMemoryStatus, MEMORYSTATUS};
 
 // ---- game data ----
 
-const LOG_PATH_RVA: usize = rva(0x4E00A8); // "var\logfile.txt"
-const VERSION_RVA: usize = rva(0x4E0000); // "$VER: Rally 5.30 (4.8.2000)"
-const SECOND_TEXT_RVA: usize = rva(0x4E0077); // byte_4E0077
-const SCRATCH_RVA: usize = rva(0x93E030); // dst
-const CPU_FAMILY_RVA: usize = rva(0x5183D0); // dword_5183D0
-const CPU_FLAGS_RVA: usize = rva(0x5183D4); // dword_5183D4
-const CPU_NAME_RVA: usize = rva(0x5183D8); // dword_5183D8: a text
-const CLOCK_RVA: usize = rva(0x5183E8); // dword_5183E8
-const FPU_RVA: usize = rva(0x5183EC); // g_hasFpu
-const MMX_RVA: usize = rva(0x5183F8); // dword_5183F8
-const KATMAI_RVA: usize = rva(0x5183FC); // dword_5183FC
-const AMD_3D_RVA: usize = rva(0x518400); // dword_518400
-const KEYBOARD_TYPE_RVA: usize = rva(0x518404); // g_keyboardType
-/// VersionInformation, an `OSVERSIONINFOA`: +4 major, +8 minor, +0xC build, +0x10 the
-/// platform, +0x14 the service pack's text.
-const VERSION_INFO_RVA: usize = rva(0x518408);
-const MEMORY_RVA: usize = rva(0x4E0558); // Buffer, a `MEMORYSTATUS`
-const FREE_SPACE_RVA: usize = rva(0x4E073A); // dword_4E073A
-// sub_402E8C
+/// `aVerRally530482` (0x4E0000): the version's text.
+pub const VERSION: &[u8] = b"$VER: Rally 5.30 (4.8.2000)\0";
+/// `byte_4E0077`: a second text, logged when not empty (it is empty).
+pub const SECOND_TEXT: &[u8] = b"\0";
+/// `g_freeSpaceKb` (0x4E073A in the image until 2026-10-24): what the log's head says of
+/// the current drive. Nothing reads it.
+pub static FREE_SPACE_KB: AtomicU32 = AtomicU32::new(0);
 
 // ---- Rust version ----
 
 /// `sub_40317D` with eax = 0: the free space of the current drive in Kb, or 0xFFFFFFFF if
-/// it cannot be asked or is 2^42 bytes or more. The four numbers asked for are left in
-/// the scratch block at 0x93E8B0, as the original leaves them.
+/// it cannot be asked or is 2^42 bytes or more. The original asks for the four numbers in
+/// the scratch block at 0x93E8B0 (`g_pngInfo`, written before read by each of its users):
+/// here locals.
 pub unsafe fn free_space_kb() -> u32 {
-    unsafe {
-        let numbers = game_addr(TEXT_RVA) as *mut u32;
-        let (total, free, sector_bytes, cluster_sectors) =
-            (numbers, numbers.add(1), numbers.add(2), numbers.add(3));
-        if GetDiskFreeSpaceA(std::ptr::null(), cluster_sectors, sector_bytes, free, total) == 0 {
-            return u32::MAX;
-        }
-        // The cluster's bytes as 32 bits, times the free clusters as 64.
-        // Converted: `rc2k_core::files::log::free_kb`.
-        rc2k_core::files::log::free_kb(
-            cluster_sectors.read_unaligned(),
-            sector_bytes.read_unaligned(),
-            free.read_unaligned(),
+    let (mut total, mut free, mut sector_bytes, mut cluster_sectors) = (0u32, 0u32, 0u32, 0u32);
+    if unsafe {
+        GetDiskFreeSpaceA(
+            std::ptr::null(),
+            &mut cluster_sectors,
+            &mut sector_bytes,
+            &mut free,
+            &mut total,
         )
+    } == 0
+    {
+        return u32::MAX;
     }
+    // The cluster's bytes as 32 bits, times the free clusters as 64.
+    // Converted: `rc2k_core::files::log::free_kb`.
+    rc2k_core::files::log::free_kb(cluster_sectors, sector_bytes, free)
 }
 
 unsafe fn text(text: &[u8], newline: bool) {
@@ -76,57 +67,63 @@ unsafe fn text(text: &[u8], newline: bool) {
     unsafe { log_write(text.as_ptr(), newline, 1) };
 }
 
-/// `delete` stands for the deleting of the log's file. Refuses, before doing anything, a
-/// start date the date's text refuses.
-pub unsafe fn start_log(delete: &mut dyn FnMut()) -> Result<(), BadInput> {
+/// The Rust version (see the header). Refuses, before doing anything, a start date the
+/// date's text refuses.
+pub unsafe fn start_log() -> Result<(), BadInput> {
     unsafe {
-        if game_read::<u32>(LOG_LEVEL_RVA) == 0 {
+        if level() == 0 {
             return Ok(());
         }
         crate::logfile::date_text::date_text()?;
-        delete();
+        let _ = std::fs::remove_file(crate::files::ansi_text(&LOG_PATH[..LOG_PATH.len() - 1]));
         // Converted: `rc2k_core::files::log::head`; the values gathered (the date text,
         // the memory and the drive's numbers left in game memory as the original leaves
         // them), then each message logged as the original's call.
         use rc2k_core::files::log::{Machine, Message, head};
         let c_text = |p: *const u8| {
-            std::ffi::CStr::from_ptr(p as *const std::ffi::c_char)
-                .to_bytes()
-                .to_vec()
+            crate::files::cstring(
+                crate::pointers::GamePtr::new(crate::pointers::game_address(p)),
+                "a start-up text",
+            )
         };
-        let scratch = game_addr(SCRATCH_RVA) as *mut u8;
+        // The date in the numbers' scratch buffer, as the original makes it (the log's
+        // lock is not held: no thread logs yet).
+        let scratch = scratch();
         write_date_text(scratch)?;
-        let memory = game_addr(MEMORY_RVA) as *mut MEMORYSTATUS;
-        (*memory).dwLength = 0x20;
-        GlobalMemoryStatus(memory);
+        // `Buffer` (0x4E0558), written and read here only: a local.
+        let mut memory: MEMORYSTATUS = std::mem::zeroed();
+        memory.dwLength = 0x20;
+        GlobalMemoryStatus(&mut memory);
+        let memory = &memory;
         let free = free_space_kb();
-        game_write(FREE_SPACE_RVA, free);
+        FREE_SPACE_KB.store(free, Ordering::Relaxed);
         let m = Machine {
-            date: c_text(scratch),
-            version: c_text(game_addr(VERSION_RVA) as *const u8),
-            second: (game_read::<u8>(SECOND_TEXT_RVA) != 0)
-                .then(|| c_text(game_addr(SECOND_TEXT_RVA) as *const u8)),
-            cpu_family: game_read(CPU_FAMILY_RVA),
-            cpu_flags: game_read(CPU_FLAGS_RVA),
-            cpu_name: c_text(game_addr(CPU_NAME_RVA) as *const u8),
-            clock: game_read(CLOCK_RVA),
-            fpu: game_read(FPU_RVA),
-            mmx: game_read(MMX_RVA),
-            amd_3d: game_read(AMD_3D_RVA),
-            katmai: game_read(KATMAI_RVA),
-            machine_type: game_read(KEYBOARD_TYPE_RVA),
+            date: c_text(scratch)?,
+            version: VERSION[..VERSION.len() - 1].to_vec(), // Rust's own text
+            second: (SECOND_TEXT[0] != 0).then(|| SECOND_TEXT[..SECOND_TEXT.len() - 1].to_vec()),
+            cpu_family: M.cpu_family.get() as i32,
+            cpu_flags: M.cpu_signature.get(),
+            cpu_name: c_text(crate::pointers::host(M.vendor_addr()) as *const u8)?,
+            clock: M.cpu_mhz.get() as i32,
+            fpu: M.has_fpu.get() as i32,
+            mmx: M.found_mmx.get() as i32,
+            amd_3d: M.found_3dnow.get() as i32,
+            katmai: M.found_sse.get() as i32,
+            machine_type: M.keyboard_type.get() as i32,
             platform: [
-                game_read(VERSION_INFO_RVA + 0x10),
-                game_read(VERSION_INFO_RVA + 4),
-                game_read(VERSION_INFO_RVA + 8),
-                game_read::<u16>(VERSION_INFO_RVA + 0xC) as i32,
+                M.version[4].get() as i32,
+                M.version[1].get() as i32,
+                M.version[2].get() as i32,
+                (M.version[3].get() & 0xFFFF) as i32,
             ],
-            platform_text: c_text(game_addr(VERSION_INFO_RVA + 0x14) as *const u8),
+            platform_text: c_text(
+                crate::pointers::host_at((M.version_addr() + 0x14) as usize) as *const u8
+            )?,
             memory: [
-                (*memory).dwAvailPhys as u32,
-                (*memory).dwTotalPhys as u32,
-                (*memory).dwAvailPageFile as u32,
-                (*memory).dwTotalPageFile as u32,
+                memory.dwAvailPhys as u32,
+                memory.dwTotalPhys as u32,
+                memory.dwAvailPageFile as u32,
+                memory.dwTotalPageFile as u32,
             ],
             free_kb: free,
         };
@@ -144,15 +141,13 @@ pub unsafe fn start_log(delete: &mut dyn FnMut()) -> Result<(), BadInput> {
     }
 }
 
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(_: &mut Regs) -> Result<(), crate::errors::Refused> {
-    let done = unsafe {
-        start_log(&mut || {
-            DeleteFileA(game_addr(LOG_PATH_RVA) as *const u8);
-        })
-    };
-    if let Err(e) = done {
-        return Err(e.into());
+#[cfg(test)]
+mod tests {
+    use crate::moved::image_bytes;
+
+    #[test]
+    fn texts_are_the_games() {
+        assert_eq!(image_bytes(0x4E0000, super::VERSION.len()), super::VERSION);
+        assert_eq!(image_bytes(0x4E0077, 1), super::SECOND_TEXT);
     }
-    Ok(())
 }

@@ -14,45 +14,51 @@
 use crate::errors::{BadInput, Refused};
 use crate::files::numbered_path::numbered_path_in_game;
 use crate::files::write_file::write_file;
-use crate::framework::{game_ptr, game_read};
+use crate::pointers::GamePtr;
 use crate::service::pages::{
     BRAKE_BALANCE, GEAR_RATIO, RIDE_HEIGHT, STEERING_SENSITIVITY, SUSPENSION_STIFFNESS, TYRE,
 };
 use crate::service::read_setup_slot::{
-    NAME_LEN, SETUP_FILE_LEN, SETUP_FILE_RVA, SLOT_COUNT, TEMPLATE_RVA, slot_name,
+    NAME_LEN, SET_UPS, SETUP_FILE_LEN, SLOT_COUNT, TEMPLATE, slot_name,
 };
 use crate::service::state::current_player;
 use crate::system::packed_local_time::packed_local_time;
-use std::ptr::copy_nonoverlapping;
 
 // ---- Rust version ----
 
 /// True if the file was written.
-pub unsafe fn write_setup_slot(slot: u32) -> Result<bool, Refused> {
+pub fn write_setup_slot(slot: u32) -> Result<bool, Refused> {
     if slot >= SLOT_COUNT {
         return Err(BadInput("slot past the name table").into());
     }
     let Some(player) = current_player() else {
         return Err(BadInput("no current player object: the original reads through null").into());
     };
-    unsafe {
-        let file: *mut u8 = game_ptr(SETUP_FILE_RVA);
+    {
+        let file = GamePtr::new(SET_UPS.file.addr());
         // Converted: `rc2k_core::saves::kept::setup_file`.
-        let in_car = |offset: u32| (player.wrapping_add(offset) as *const u32).read_unaligned();
+        let in_car =
+            |offset: u32| GamePtr::new(player.wrapping_add(offset)).read::<u32>("the car's record");
         let bytes = rc2k_core::saves::kept::setup_file(
             packed_local_time(),
-            &(slot_name(slot) as *const [u8; NAME_LEN]).read_unaligned(),
+            &GamePtr::new(crate::pointers::game_address(slot_name(slot)))
+                .read::<[u8; NAME_LEN]>("a setup's name")?,
             [
-                game_read(TYRE.change.chosen_rva),
-                in_car(BRAKE_BALANCE.car_offset),
-                game_read(RIDE_HEIGHT.change.chosen_rva),
-                game_read(SUSPENSION_STIFFNESS.change.chosen_rva),
-                in_car(STEERING_SENSITIVITY.car_offset),
-                game_read(GEAR_RATIO.change.chosen_rva),
+                TYRE.change.chosen.get(),
+                in_car(BRAKE_BALANCE.car_offset)?,
+                RIDE_HEIGHT.change.chosen.get(),
+                SUSPENSION_STIFFNESS.change.chosen.get(),
+                in_car(STEERING_SENSITIVITY.car_offset)?,
+                GEAR_RATIO.change.chosen.get(),
             ],
         );
-        copy_nonoverlapping(bytes.as_ptr(), file, bytes.len());
-        let path = numbered_path_in_game(game_ptr(TEMPLATE_RVA), slot)?;
-        Ok(write_file(path, file, SETUP_FILE_LEN as u32)?.ok)
+        file.write_bytes(&bytes, "the setup file")?;
+        let path = numbered_path_in_game(TEMPLATE.as_ptr(), slot)?;
+        Ok(write_file(
+            path,
+            crate::pointers::host(file.addr()) as *const u8,
+            SETUP_FILE_LEN as u32,
+        )?
+        .ok)
     }
 }

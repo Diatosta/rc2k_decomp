@@ -5,14 +5,12 @@
 //! services in `dword_755A0C`.
 
 use crate::errors::{FatalError, Refused};
-use crate::framework::{game_addr, game_read, rva};
+use crate::menu::champ_store::CHAMP_VIEW;
+use crate::menu::event_store::EVENT_STATE;
+use crate::menu::lists_store::MENU_LISTS;
 use crate::screens::best_scores::{record_at, section_there};
 use crate::screens::game_screen::GameScreen;
 use crate::text::draw_text::Canvas;
-
-fn k(a: usize) -> u32 {
-    unsafe { game_read(rva(a)) }
-}
 
 const INVALID_STAGE: FatalError = FatalError {
     code: 0x8070_D91A,
@@ -28,42 +26,46 @@ const INVALID_STAGE: FatalError = FatalError {
 /// number, and its time; tags 3 and 4 end the list, any other is fatal error 0x8070D91A
 /// "Invalid Stage ID". Every register kept. Refuses (before anything) a section past the
 /// table.
-pub unsafe fn draw_itinerary(canvas: &mut dyn Canvas) -> Result<(), Refused> {
+pub fn draw_itinerary(canvas: &mut dyn Canvas) -> Result<(), Refused> {
     // Converted: `rc2k_core::screens::itinerary`.
     use rc2k_core::screens::itinerary::Row;
-    unsafe {
-        if !section_there() {
+    {
+        if !section_there()? {
             return Err(crate::errors::BadInput("a section past the record table").into());
         }
-        let first = record_at(0);
-        let heading = if k(0x7556D0) == 0x13 {
-            ((game_addr(rva(0x75A28A)) as u32 + 4 * k(0x75595C)) as *const u32).read_unaligned()
+        let first = record_at(0)?;
+        let heading = if CHAMP_VIEW.event_mode.get() == 0x13 {
+            crate::pointers::GamePtr::new(
+                MENU_LISTS.section_titles[0].addr() + 4 * EVENT_STATE.section.get(),
+            )
+            .read::<u32>("a section title")?
         } else {
-            ((first + 0x38) as *const u32).read_unaligned()
+            crate::pointers::GamePtr::new(first + 0x38).read::<u32>("a stage record")?
         };
-        let base = record_at(1);
+        let base = record_at(1)?;
         let record = move |n: u32| base.wrapping_add((n - 1).wrapping_mul(0xA4));
-        let get = |a: u32| (a as *const u32).read_unaligned();
+        let get = |a: u32| crate::pointers::GamePtr::new(a).read::<u32>("a stage record");
         let row = |n: u32| -> Result<Row, Refused> {
             let r = record(n);
-            match get(r) {
+            match get(r)? {
                 1 => Ok(Row::Service {
-                    hhmm: get(r + 0x10),
+                    hhmm: get(r + 0x10)?,
                 }),
                 3 | 4 => Ok(Row::End),
                 0 => {
-                    let entry = crate::records::trakpak_entry::record_entry(r as *const u8)?;
+                    let entry = crate::records::trakpak_entry::record_entry(r)?;
                     Ok(Row::Stage {
-                        name: get(entry),
-                        length: get(entry + 0xC),
-                        hhmm: get(r + 0x10),
+                        name: get(entry)?,
+                        length: get(entry + 0xC)?,
+                        hhmm: get(r + 0x10)?,
                     })
                 }
                 _ => Err(INVALID_STAGE.into()),
             }
         };
-        let ends_at = |n: u32| get(record(n)) == u32::MAX;
-        rc2k_core::screens::itinerary::itinerary(
+        let fault = crate::menu::event_flow::Fault::default();
+        let ends_at = |n: u32| fault.ok(get(record(n))) == u32::MAX;
+        let drawn = rc2k_core::screens::itinerary::itinerary(
             &mut GameScreen::<
                 rc2k_core::screens::itinerary::Font,
                 rc2k_core::screens::itinerary::Work,
@@ -71,8 +73,10 @@ pub unsafe fn draw_itinerary(canvas: &mut dyn Canvas) -> Result<(), Refused> {
             heading,
             &row,
             &ends_at,
-            k(0x755958),
+            EVENT_STATE.index.get(),
             crate::strings::units::units(),
-        )
+        );
+        fault.check()?;
+        drawn
     }
 }

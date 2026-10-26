@@ -8,72 +8,76 @@
 //! about; its own 3D list goes to `g_sceneList` before the first frame only.
 //! Which screen it is has not been confirmed, hence the name. Its title string: "RESULTADOS
 //! GERAIS".
-//! Callers: `sub_4828B0`, `sub_482B7A`. Ungated thunk; shadow mode runs the original alone;
-//! each real call
-//! writes a line to hook.log. Self-test: `screen_loop::check_screen`.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Callers: `sub_4828B0`, `sub_482B7A`.
 
-use crate::framework::{Regs, rva};
-use crate::menu::screen_loop::{List, Screen, Step, screen_entry};
+use crate::framework::rva;
+use crate::menu::draw_lists_store::DRAW_LISTS;
+use crate::menu::event_store::EVENT_STATE;
+use crate::menu::flow_store::SCREEN_FLOW;
+use crate::menu::menus_store::MENUS;
+use crate::menu::option_work_store::OPTION_WORK;
+use crate::menu::screen_items_store::{SCREEN_ITEMS, slot};
+use crate::menu::screen_loop::{Callee, List, Screen, Step};
 
 // ---- Rust version: `menu::screen_loop` with this ----
 
 pub const SCREEN: Screen = Screen {
-    menu: rva(0x750CC0),
-    saved_item: rva(0x7477F0),
+    menu: || MENUS.screen_483163.addr() as usize,
+    saved_item: || &SCREEN_ITEMS.current[slot::SCREEN_483163],
     lists: &[
         List {
-            pointer: rva(0x7554F4), // g_unreadList
-            table: rva(0x758B72),
+            pointer: || &SCREEN_FLOW.unread_list, // g_unreadList
+            table: || DRAW_LISTS.unread_758b72.addr() as usize,
             run: false,
         },
         List {
-            pointer: rva(0x7554F8), // g_drawList
-            table: rva(0x758ECE),
+            pointer: || &SCREEN_FLOW.draw_list, // g_drawList
+            table: || DRAW_LISTS.draw_758ece.addr() as usize,
             run: false,
         },
         List {
-            pointer: rva(0x7554FC), // g_overlayList
-            table: rva(0x7592FE),
+            pointer: || &SCREEN_FLOW.overlay_list, // g_overlayList
+            table: || DRAW_LISTS.overlay_7592fe.addr() as usize,
             run: false,
         },
     ],
     first_frame_lists: Some(&[
         List {
-            pointer: rva(0x755504), // g_sceneList
-            table: rva(0x758F82),
+            pointer: || &SCREEN_FLOW.scene_list, // g_sceneList
+            table: || DRAW_LISTS.screen_483163_scene.addr() as usize,
             run: false,
         },
         List {
-            pointer: rva(0x7554F8), // g_drawList
-            table: rva(0x758ECE),
+            pointer: || &SCREEN_FLOW.draw_list, // g_drawList
+            table: || DRAW_LISTS.draw_758ece.addr() as usize,
             run: false,
         },
         List {
-            pointer: rva(0x7554FC), // g_overlayList
-            table: rva(0x7592FE),
+            pointer: || &SCREEN_FLOW.overlay_list, // g_overlayList
+            table: || DRAW_LISTS.overlay_7592fe.addr() as usize,
             run: false,
         },
     ]),
     frame_callback: rva(0x474D4B),
     later_frame_callback: None,
-    before: &[Step::Write(rva(0x755980), 0x0)],
-    set_up_first: &[Step::Call(rva(0x48356F))],
+    before: &[Step::Write(|| &EVENT_STATE.event_done, 0x0)],
+    set_up_first: &[Step::Call(Callee::RankTotals)],
     prepare: &[],
     after_lists: &[],
     background: &[
-        Step::EaxAddr(rva(0x732AF8)),
-        Step::CallOrFatal(rva(0x47EFFF), 0x80712345),
+        Step::ArgAddr(|| {
+            (crate::menu::texts_store::MENU_TEXTS
+                .screen_483163_picture
+                .addr()) as usize
+        }),
+        Step::CallOrFatal(Callee::LoadBackground, 0x80712345),
     ],
     after_first_frame: &[],
     confirm: None,
     ask_also_if: None,
     confirmed: &[],
     unasked_skips_save: false,
-    after: &[Step::Write(rva(0x7556A4), 0x6F)],
+    after: &[Step::Write(|| &OPTION_WORK.menu_sound, 0x6F)],
     escape_leaves: false,
     each_frame: &[],
     short_action_check: false,
@@ -95,12 +99,4 @@ pub const SCREEN: Screen = Screen {
     after_blink: &[],
     restart_action_check: false,
     always_asks: false,
-    also_reads: &[],
-    also_writes: &[],
 };
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    screen_entry("menu::screen_483163_loop", r, &SCREEN)
-}

@@ -24,163 +24,124 @@
 //! matrix, and normals without points (the original goes on from whatever eax and
 //! ecx hold).
 //!
-//! Converted 2026-10-21: the hook's Rust version is `place_object_points_plain`, through
-//! `rc2k_core::scene::projection` (plain floats; the x87 version stays for the Rust callers
-//! in unconverted code, and the moved point stays the x87's, its rounding following the
-//! control word). Shadow mode and the self-test compare the records' floats and
-//! `dword_62400C` within `service::floats`' tolerances (the self-test at both test
-//! precisions, exact at double).
+//! The arithmetic (the moved point, the rotation, the normals) is the x87's, in plain Rust
+//! over `X` (`math/x87_float.rs`), rounding as the control word says; the original's
+//! instructions are `asm_reference` in the tests (2026-10-24).
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{
-    EAX, EBP, EBX, ECX, ESI, RawHook, Regs, SelfTest, game_addr, game_ptr, game_read, game_write,
-    hook_asm, rva,
-};
-use crate::scene::draw_polygon::CHECKED_RVA;
+use crate::pointers::GamePtr;
+use crate::race::course_lists_store::COURSE_LISTS;
+use crate::race::course_store::COURSE;
+use crate::race::matrices_store::MATRICES;
+use crate::race::prefs_store::STAGE_PREFS;
+use crate::race::switches_store::FRAME_SWITCHES;
+use crate::race::vars_store::RACE_VARS;
+use crate::scene::draw_store::DRAW;
 use crate::scene::polygon::{dword, put};
-use crate::scene::project_point::{
-    CENTRE_X_RVA, CENTRE_Y_RVA, FLAT_DEPTH_RVA, FLAT_RVA, NEAR, RECORD_LEN, RECORDS_RVA, SCALE_RVA,
-    rotate, same_world, to_screen,
-};
-use crate::screens::harness::Left;
-use crate::service::harness::{Region, at, capture, restore};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook = RawHook::new(
-    "scene::place_object_points",
-    rva(0x45BE05),
-    thunk,
-    &ORIGINAL,
-)
-.self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
+use crate::scene::project_point::{NEAR, rotate, to_screen};
+use crate::scene::x87_mem::{fild, fistp, fld, fstp};
 
 // ---- game data ----
-
-const OBJECT_RVA: usize = rva(0x6214FC); // g_objectNumber
 const OBJECTS: u32 = 0x100;
-const FIRST_RVA: usize = rva(0x631F70); // dword_631F70
-const POINT_COUNT_RVA: usize = rva(0x632370); // dword_632370
-const NORMAL_COUNT_RVA: usize = rva(0x632770); // dword_632770
-const TABLE_RVA: usize = rva(0x5C6FA4); // dword_5C6FA4
-const MATRIX_RVA: usize = rva(0x5EA40C); // off_5EA40C
-const MOVE_BY_RVA: usize = rva(0x623DD0); // dword_623DD0
-const MOVE_FRACTION_RVA: usize = rva(0x623DD4); // flt_623DD4
-const MOVED_RVA: usize = rva(0x5CCE18); // unk_5CCE18
 
 // ---- Rust version ----
 
 /// `sub_45C29B`: the point at `from` moved towards the one `by` bytes on, into
 /// `unk_5CCE18`.
-unsafe fn moved(from: usize, by: u32) {
-    unsafe {
-        let other = from.wrapping_add(by as usize);
-        let read = |at: usize| (at as *const [u32; 3]).read_unaligned();
-        let (a, b) = (read(from), read(other));
-        // The fraction, the two points, the result, the fraction as it is stored.
-        let mut w = [
-            game_read::<u32>(MOVE_FRACTION_RVA),
-            a[0],
-            a[1],
-            a[2],
-            b[0],
-            b[1],
-            b[2],
-            0,
-            0,
-            0,
-            0,
-        ];
-        core::arch::asm!(
-            "fld dword ptr [{w}]",
-            "fild dword ptr [{w} + 12]",
-            "fild dword ptr [{w} + 24]",
-            ".byte 0xD8, 0xE1", // fsub st, st(1)
-            ".byte 0xD8, 0xCA", // fmul st, st(2)
-            ".byte 0xDE, 0xC1", // faddp st(1), st
-            "fild dword ptr [{w} + 8]",
-            "fild dword ptr [{w} + 20]",
-            ".byte 0xD8, 0xE1", // fsub st, st(1)
-            ".byte 0xD8, 0xCB", // fmul st, st(3)
-            ".byte 0xDE, 0xC1", // faddp st(1), st
-            "fild dword ptr [{w} + 4]",
-            "fild dword ptr [{w} + 16]",
-            ".byte 0xD8, 0xE1", // fsub st, st(1)
-            ".byte 0xD8, 0xCC", // fmul st, st(4)
-            ".byte 0xDE, 0xC1", // faddp st(1), st
-            "fistp dword ptr [{w} + 28]",
-            "fistp dword ptr [{w} + 32]",
-            "fistp dword ptr [{w} + 36]",
-            "fstp dword ptr [{w} + 40]",
-            w = in(reg) w.as_mut_ptr(),
-            out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
-            out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
-            options(nostack),
-        );
-        game_write(MOVED_RVA, [w[7], w[8], w[9]]);
-        game_write(CHECKED_RVA, w[10]);
-    }
+fn moved(from: usize, by: u32) -> Result<(), BadInput> {
+    let other = from.wrapping_add(by as usize);
+    let read = |at: usize| GamePtr::new(at as u32).read::<[u32; 3]>("an object's point");
+    let (a, b) = (read(from)?, read(other)?);
+    // The fraction, the two points, the result, the fraction as it is stored.
+    let mut w = [
+        RACE_VARS.move_fraction.bits(),
+        a[0],
+        a[1],
+        a[2],
+        b[0],
+        b[1],
+        b[2],
+        0,
+        0,
+        0,
+        0,
+    ];
+    moved_at(w.as_mut_ptr().cast());
+    // The original stores the three from `point_moved`, y and z on over the first two
+    // group masks (`notes/bugs.md`).
+    COURSE.point_moved.set(w[7]);
+    COURSE.group_masks[0].set(w[8]);
+    COURSE.group_masks[1].set(w[9]);
+    DRAW.scratch.set_bits(w[10]);
+    Ok(())
+}
+
+/// The block of `moved`: the fraction, the two points, the result (three whole numbers) and the
+/// fraction as it is stored.
+fn moved_at(w: *mut u8) {
+    let t0 = fld(w, 0x0);
+    let t1 = fild(w, 0xC);
+    let t2 = fild(w, 0x18);
+    let t3 = t2 - t1;
+    let t4 = t3 * t0;
+    let t5 = t1 + t4;
+    let t6 = fild(w, 0x8);
+    let t7 = fild(w, 0x14);
+    let t8 = t7 - t6;
+    let t9 = t8 * t0;
+    let t10 = t6 + t9;
+    let t11 = fild(w, 0x4);
+    let t12 = fild(w, 0x10);
+    let t13 = t12 - t11;
+    let t14 = t13 * t0;
+    let t15 = t11 + t14;
+    fistp(w, 0x1C, t15);
+    fistp(w, 0x20, t10);
+    fistp(w, 0x24, t5);
+    fstp(w, 0x28, t0);
 }
 
 /// `sub_45C1E7`: a normal's three floats through the matrix's first three rows, into
 /// the record's +0x10, +0x14, +0x18.
-unsafe fn turn(normal: *const u32, matrix: *const u32, record: *mut u32) {
-    unsafe {
-        core::arch::asm!(
-            "fld dword ptr [{p} + 8]",
-            "fld dword ptr [{p} + 4]",
-            "fld dword ptr [{p}]",
-            "fld dword ptr [{m}]",
-            "fmul st(0), st(1)",
-            "fld dword ptr [{m} + 0x10]",
-            "fmul st(0), st(3)",
-            "fld dword ptr [{m} + 0x20]",
-            "fmul st(0), st(5)",
-            "faddp st(1), st(0)",
-            "faddp st(1), st(0)",
-            "fxch st(3)",
-            "fld dword ptr [{m} + 4]",
-            "fmul st(0), st(2)",
-            "fld dword ptr [{m} + 0x14]",
-            "fmul st(0), st(4)",
-            "fld dword ptr [{m} + 0x24]",
-            "fmul st(0), st(3)",
-            "faddp st(1), st(0)",
-            "faddp st(1), st(0)",
-            "fxch st(3)",
-            "fld dword ptr [{m} + 8]",
-            "fmulp st(3), st(0)",
-            "fld dword ptr [{m} + 0x18]",
-            "fmulp st(1), st(0)",
-            "fld dword ptr [{m} + 0x28]",
-            "fmulp st(2), st(0)",
-            "faddp st(1), st(0)",
-            "faddp st(1), st(0)",
-            "fxch st(2)",
-            "fstp dword ptr [{o} + 0x10]",
-            "fstp dword ptr [{o} + 0x14]",
-            "fstp dword ptr [{o} + 0x18]",
-            p = in(reg) normal,
-            m = in(reg) matrix,
-            o = in(reg) record,
-            out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
-            out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
-            options(nostack),
-        );
-    }
+fn turn(normal: *const u32, matrix: *const u32, record: *mut u32) {
+    turn_normal(normal.cast(), matrix.cast(), record.cast())
+}
+
+fn turn_normal(p: *const u8, m: *const u8, o: *mut u8) {
+    let t0 = fld(p, 0x8);
+    let t1 = fld(p, 0x4);
+    let t2 = fld(p, 0x0);
+    let t3 = fld(m, 0x0);
+    let t4 = t3 * t2;
+    let t5 = fld(m, 0x10);
+    let t6 = t5 * t1;
+    let t7 = fld(m, 0x20);
+    let t8 = t7 * t0;
+    let t9 = t6 + t8;
+    let t10 = t4 + t9;
+    let t11 = fld(m, 0x4);
+    let t12 = t11 * t2;
+    let t13 = fld(m, 0x14);
+    let t14 = t13 * t1;
+    let t15 = fld(m, 0x24);
+    let t16 = t15 * t0;
+    let t17 = t14 + t16;
+    let t18 = t12 + t17;
+    let t19 = fld(m, 0x8);
+    let t20 = t2 * t19;
+    let t21 = fld(m, 0x18);
+    let t22 = t1 * t21;
+    let t23 = fld(m, 0x28);
+    let t24 = t0 * t23;
+    let t25 = t24 + t22;
+    let t26 = t20 + t25;
+    fstp(o, 0x10, t10);
+    fstp(o, 0x14, t18);
+    fstp(o, 0x18, t26);
 }
 
 /// What the object is made of, read and checked.
 struct Object {
-    number: u32,
     first: u32,
     points: i32,
     normals: i32,
@@ -189,333 +150,227 @@ struct Object {
     matrix: u32,
 }
 
-unsafe fn object() -> Result<Object, BadInput> {
-    unsafe {
-        let number: u32 = game_read(OBJECT_RVA);
-        if number >= OBJECTS {
-            return Err(BadInput("an object's number past the tables"));
-        }
-        let at = number as usize * 4;
-        let object = Object {
-            number,
-            first: game_read(FIRST_RVA + at),
-            points: game_read(POINT_COUNT_RVA + at),
-            normals: game_read(NORMAL_COUNT_RVA + at),
-            table: game_read(TABLE_RVA),
-            records: game_read(RECORDS_RVA),
-            matrix: game_read(MATRIX_RVA),
-        };
-        if object.points <= 0 && object.normals > 0 {
-            return Err(BadInput("an object of normals and no points"));
-        }
-        if object.points > 0 && (object.table == 0 || object.records == 0 || object.matrix == 0) {
-            return Err(BadInput("no points' table, no records or no matrix"));
-        }
-        Ok(object)
+fn object() -> Result<Object, BadInput> {
+    let number: u32 = FRAME_SWITCHES.object_number.bits();
+    if number >= OBJECTS {
+        return Err(BadInput("an object's number past the tables"));
     }
+    let object = Object {
+        first: crate::scene::object_slots_store::OBJECT_SLOTS.first_point[number as usize].get(),
+        points: crate::scene::object_slots_store::OBJECT_SLOTS.point_counts[number as usize].get()
+            as i32,
+        normals: crate::scene::object_slots_store::OBJECT_SLOTS.normal_counts[number as usize].get()
+            as i32,
+        table: COURSE_LISTS.object_points.bits(),
+        records: COURSE_LISTS.point_records.bits(),
+        matrix: MATRICES.object_matrix_ptr.bits(),
+    };
+    if object.points <= 0 && object.normals > 0 {
+        return Err(BadInput("an object of normals and no points"));
+    }
+    if object.points > 0 && (object.table == 0 || object.records == 0 || object.matrix == 0) {
+        return Err(BadInput("no points' table, no records or no matrix"));
+    }
+    Ok(object)
 }
 
 fn record_of(records: u32, number: u32) -> u32 {
     records.wrapping_add(((number & 0xFFF) + 0x1000) << 5)
 }
 
-pub unsafe fn place_object_points(entry: &Regs) -> Result<Left, Refused> {
-    unsafe {
-        let object = object()?;
-        let left = Left::nothing()
-            .with(ESI, object.matrix)
-            .with(EBX, object.number)
-            .with(EBP, object.normals.min(0) as u32);
-        if object.points <= 0 {
-            return Ok(left.with(EAX, entry.eax).with(ECX, entry.ecx));
-        }
-        let matrix = object.matrix as *const u32;
-        let move_by: u32 = game_read(MOVE_BY_RVA);
-        let mut number = object.first;
-        let mut from = object.table.wrapping_add(object.first.wrapping_mul(12));
-        for _ in 0..object.points {
-            let record = record_of(object.records, number) as usize;
-            put(record, number);
-            let point = if move_by != 0 {
-                moved(from as usize, move_by);
-                game_addr(MOVED_RVA)
-            } else {
-                from as usize
-            };
-            rotate(point as *const i32, matrix, record as *mut u32);
-            put(record + 0xC, 0);
-            put(record + 0x1C, 0);
-            if f32::from_bits(dword(record + 0x18)) >= NEAR {
-                let v = [
-                    game_read(SCALE_RVA),
-                    game_read(CENTRE_X_RVA),
-                    game_read(CENTRE_Y_RVA),
-                    game_read(FLAT_DEPTH_RVA),
-                ];
-                let flat = game_read::<u32>(FLAT_RVA) != 0;
-                to_screen(record as *mut u32, &v, flat, game_ptr(CHECKED_RVA));
-            }
-            from = from.wrapping_add(12);
-            number = number.wrapping_add(1);
-        }
-        for _ in 0..object.normals.max(0) {
-            let record = record_of(object.records, number) as usize;
-            put(record, number);
-            turn(from as usize as *const u32, matrix, record as *mut u32);
-            from = from.wrapping_add(12);
-            number = number.wrapping_add(1);
-        }
-        Ok(left.with(EAX, number).with(ECX, from))
+/// The object's points placed and projected, its normals turned. What the original
+/// leaves in the registers its one caller's callers never read (`draw_object`).
+pub fn place_object_points() -> Result<(), Refused> {
+    let object = object()?;
+    if object.points <= 0 {
+        return Ok(());
     }
-}
-
-/// The converted `place_object_points` (plain floats): the hook's. The x87 version above
-/// stays for the Rust callers in unconverted code. The moved point (`sub_45C29B`) stays the
-/// x87's: its rounding follows the control word.
-// Converted: `rc2k_core::scene::projection::{make_record, turn_normal}`
-pub unsafe fn place_object_points_plain(entry: &Regs) -> Result<Left, Refused> {
-    use rc2k_core::scene::projection::{make_record, turn_normal};
-    unsafe {
-        let object = object()?;
-        let left = Left::nothing()
-            .with(ESI, object.matrix)
-            .with(EBX, object.number)
-            .with(EBP, object.normals.min(0) as u32);
-        if object.points <= 0 {
-            return Ok(left.with(EAX, entry.eax).with(ECX, entry.ecx));
-        }
-        let matrix = (object.matrix as *const [u32; 16])
-            .read_unaligned()
-            .map(f32::from_bits);
-        let move_by: u32 = game_read(MOVE_BY_RVA);
-        let mut number = object.first;
-        let mut from = object.table.wrapping_add(object.first.wrapping_mul(12));
-        for _ in 0..object.points {
-            let record = record_of(object.records, number) as usize;
-            put(record, number);
-            let point = if move_by != 0 {
-                moved(from as usize, move_by);
-                game_addr(MOVED_RVA)
-            } else {
-                from as usize
-            };
-            let made = make_record(
-                (point as *const [i32; 3]).read_unaligned(),
-                &matrix,
-                crate::scene::project_point::screen,
-                false,
-            );
-            for (k, v) in made.view.into_iter().enumerate() {
-                put(record + 0x10 + 4 * k, v.to_bits());
-            }
-            put(record + 0xC, made.screen[0].to_bits());
-            put(record + 0x1C, made.screen[1].to_bits());
-            if let Some(checked) = made.checked {
-                game_write(CHECKED_RVA, checked.to_bits());
-            }
-            from = from.wrapping_add(12);
-            number = number.wrapping_add(1);
-        }
-        for _ in 0..object.normals.max(0) {
-            let record = record_of(object.records, number) as usize;
-            put(record, number);
-            let normal = (from as *const [u32; 3])
-                .read_unaligned()
-                .map(f32::from_bits);
-            for (k, v) in turn_normal(normal, &matrix).into_iter().enumerate() {
-                put(record + 0x10 + 4 * k, v.to_bits());
-            }
-            from = from.wrapping_add(12);
-            number = number.wrapping_add(1);
-        }
-        Ok(left.with(EAX, number).with(ECX, from))
-    }
-}
-
-// ---- hook ----
-
-fn regions() -> Vec<Region> {
-    let mut regions = vec![at(CHECKED_RVA), (game_addr(MOVED_RVA) as u32, 12)];
-    if let Ok(object) = unsafe { object() } {
-        let count = (object.points.max(0) as u32).wrapping_add(object.normals.max(0) as u32);
-        // More than the records there are: all of them.
-        if count >= 0x1000 {
-            regions.push((record_of(object.records, 0), 0x1000 * RECORD_LEN));
-        } else if object.records != 0 {
-            regions.extend((0..count).map(|n| {
-                (
-                    record_of(object.records, object.first.wrapping_add(n)),
-                    RECORD_LEN,
-                )
-            }));
-        }
-    }
-    regions
-}
-
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    unsafe { place_object_points_plain(r) }
-}
-
-/// The float places of `regions()`: `dword_62400C` and the records' five floats (`moved`'s
-/// whole numbers are the x87's).
-fn float_places() -> Vec<(Region, crate::service::floats::Tolerance)> {
-    use crate::service::floats::FLOAT;
-    let mut places = vec![(at(CHECKED_RVA), FLOAT)];
-    places.extend(regions().into_iter().skip(2).flat_map(|(start, len)| {
-        (0..len as u32 / RECORD_LEN as u32)
-            .map(move |k| ((start + k * RECORD_LEN as u32 + 0xC, 0x14), FLOAT))
-    }));
-    places
-}
-
-extern "C" fn dispatch(r: &mut Regs) {
-    use crate::service::floats::{Floats, dispatch_state_floats};
-    let places = float_places();
-    let floats = Floats {
-        memory: &places,
-        regs: &[],
-    };
-    dispatch_state_floats(&HOOK, r, call_original, &regions(), &floats, &rust);
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    crate::service::floats::floats_entry(r, &rust)
-}
-
-// ---- self-test: an object of the test's in a slot of the game's tables ----
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    const OBJECT: u32 = 0xFE;
-    const FIRST: u32 = 0x1FFD; // so that the records' numbers wrap
-    let slot = OBJECT as usize * 4;
-    let mut inputs: Vec<Region> = [
-        OBJECT_RVA,
-        FIRST_RVA + slot,
-        POINT_COUNT_RVA + slot,
-        NORMAL_COUNT_RVA + slot,
-        TABLE_RVA,
-        RECORDS_RVA,
-        MATRIX_RVA,
-        MOVE_BY_RVA,
-        MOVE_FRACTION_RVA,
-        FLAT_RVA,
-        FLAT_DEPTH_RVA,
-        SCALE_RVA,
-        CENTRE_X_RVA,
-        CENTRE_Y_RVA,
-        CHECKED_RVA,
-    ]
-    .map(at)
-    .to_vec();
-    inputs.push((game_addr(MOVED_RVA) as u32, 12));
-    let saved = capture(&inputs);
-    let f = |value: f32| value.to_bits();
-    // Twelve entries from FIRST on: whole numbers as bits, which read as floats are
-    // small or odd numbers, and the other way round; both are just bits to the test.
-    let mut table = vec![[0u32; 3]; FIRST as usize + 16];
-    for n in 0..16 {
-        let k = n as i32;
-        table[FIRST as usize + n] = if n % 3 == 2 {
-            [f(0.6 - k as f32 * 0.1), f(-0.8), f(0.01 * k as f32)]
+    let matrix = crate::pointers::host(object.matrix) as *const u32;
+    let move_by: u32 = RACE_VARS.move_by.bits();
+    let mut number = object.first;
+    let mut from = object.table.wrapping_add(object.first.wrapping_mul(12));
+    for _ in 0..object.points {
+        let record = record_of(object.records, number) as usize;
+        put(record, number);
+        let point = if move_by != 0 {
+            moved(from as usize, move_by)?;
+            // x, y, z read on into `group_masks[0]`, `[1]`, as stored.
+            COURSE.point_moved.addr()
         } else {
-            [
-                (k * 977 - 3000) as u32,
-                (2500 - k * 613) as u32,
-                (k * 1201 + 6000) as u32,
-            ]
+            from
         };
-    }
-    let matrices: [[f32; 16]; 3] = [
-        [
-            1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0,
-        ],
-        [
-            0.36, 0.48, -0.8, 0.0, -0.8, 0.6, 0.0, 0.0, 0.48, 0.64, 0.6, 0.0, 12.25, -7.5, 9000.3,
-            0.0,
-        ],
-        [
-            0.1234567, 3.3333333, -0.7171068, 0.0, 2.7282818, -0.5, 0.3333333, 0.0, -1.4242135,
-            0.0009765, 1.7320508, 0.0, -333.33334, 0.1, 600.7, 0.0,
-        ],
-    ];
-    let places = [(at(CHECKED_RVA), crate::service::floats::FLOAT)];
-    let tolerant = crate::service::floats::Floats {
-        memory: &places,
-        regs: &[],
-    };
-    crate::service::floats::at_test_precisions(&tolerant, &mut |word, held| {
-        let tolerance = held.memory[0].1;
-        let mut records = vec![[0u32; 8]; 0x2000];
-        let mut cases = 0u32;
-        for matrix in matrices {
-            let matrix = matrix.map(f);
-            for (points, normals) in [(0i32, 0i32), (-1, -5), (4, 0), (3, 3), (5, -2), (1, 6)] {
-                for (move_by, fraction) in [(0u32, 0.0f32), (12, 0.25), (24, 0.6666667), (36, -1.5)]
-                {
-                    cases += 1;
-                    let flat = cases.is_multiple_of(3);
-                    let before = Regs::SENTINEL;
-                    let set = |records: &mut Vec<[u32; 8]>| unsafe {
-                        records.fill([0xAAAA_AAAA; 8]);
-                        game_write(OBJECT_RVA, OBJECT);
-                        game_write(FIRST_RVA + slot, FIRST);
-                        game_write(POINT_COUNT_RVA + slot, points);
-                        game_write(NORMAL_COUNT_RVA + slot, normals);
-                        game_write(TABLE_RVA, table.as_ptr() as u32);
-                        game_write(RECORDS_RVA, records.as_mut_ptr() as u32);
-                        game_write(MATRIX_RVA, matrix.as_ptr() as u32);
-                        game_write(MOVE_BY_RVA, move_by);
-                        game_write(MOVE_FRACTION_RVA, f(fraction));
-                        game_write(FLAT_RVA, flat as u32);
-                        game_write(FLAT_DEPTH_RVA, 7999u32);
-                        game_write(SCALE_RVA, f(640.0));
-                        game_write(CENTRE_X_RVA, f(400.0));
-                        game_write(CENTRE_Y_RVA, f(300.5));
-                        game_write(CHECKED_RVA, 0xAAAA_AAAAu32);
-                        game_write(MOVED_RVA, [0xAAAA_AAAAu32; 3]);
-                    };
-                    let state = |records: &Vec<[u32; 8]>| unsafe {
-                        (
-                            records.clone(),
-                            game_read::<u32>(CHECKED_RVA),
-                            game_read::<[u32; 3]>(MOVED_RVA),
-                        )
-                    };
-                    set(&mut records);
-                    let mut ro = before;
-                    unsafe { call_original(&mut ro) };
-                    let theirs = state(&records);
-                    set(&mut records);
-                    let mine = rust(&before);
-                    let left = state(&records);
-                    let regs_ok = mine.as_ref().is_ok_and(|left| left.matches(&before, &ro));
-                    t.check(regs_ok && same_world(&(theirs.0.clone(), theirs.1), &(left.0.clone(), left.1), tolerance) && theirs.2 == left.2, || {
-                        let n = theirs.0.iter().zip(&left.0).position(|(a, b)| a != b);
-                        format!(
-                            "control word {word:#x}, {points} points, {normals} normals, moved by {move_by} {fraction}, flat {flat}, case {cases}: regs_ok={regs_ok} original eax {:#x} ecx {:#x} ebx {:#x} esi {:#x} ebp {:#x}, rust {mine:x?}; checked {:#x} {:#x}, moved {:x?} {:x?}; first different record {n:?}: {:x?} {:x?}",
-                            ro.eax,
-                            ro.ecx,
-                            ro.ebx,
-                            ro.esi,
-                            ro.ebp,
-                            theirs.1,
-                            left.1,
-                            theirs.2,
-                            left.2,
-                            n.map(|n| theirs.0[n]),
-                            n.map(|n| left.0[n]),
-                        )
-                    });
-                }
-            }
+        rotate(
+            crate::pointers::host_at(point as usize) as *const i32,
+            matrix,
+            crate::pointers::host_at(record) as *mut u32,
+        );
+        put(record + 0xC, 0);
+        put(record + 0x1C, 0);
+        if f32::from_bits(dword(record + 0x18)) >= NEAR {
+            let v = [
+                DRAW.view_scale.bits(),
+                DRAW.view_centre[0].bits(),
+                DRAW.view_centre[1].bits(),
+                COURSE.flat_depth.bits(),
+            ];
+            let flat = STAGE_PREFS.flat_depth.bits() != 0;
+            to_screen(
+                crate::pointers::host_at(record) as *mut u32,
+                &v,
+                flat,
+                DRAW.scratch.as_ptr(),
+            );
         }
-    });
-    restore(&inputs, &saved);
-    t.finish()
+        from = from.wrapping_add(12);
+        number = number.wrapping_add(1);
+    }
+    for _ in 0..object.normals.max(0) {
+        let record = record_of(object.records, number) as usize;
+        put(record, number);
+        turn(
+            crate::pointers::host(from) as *const u32,
+            matrix,
+            crate::pointers::host_at(record) as *mut u32,
+        );
+        from = from.wrapping_add(12);
+        number = number.wrapping_add(1);
+    }
+    Ok(())
+}
+
+#[cfg(all(test, target_arch = "x86"))]
+mod asm_reference {
+    use super::*;
+    use crate::scene::asm_test::{Kind, differential};
+
+    /// The original's instructions for `moved`.
+    unsafe fn moved_at_ref(w: *mut u8) {
+        unsafe {
+            core::arch::asm!(
+                "fld dword ptr [{w}]",
+                "fild dword ptr [{w} + 12]",
+                "fild dword ptr [{w} + 24]",
+                ".byte 0xD8, 0xE1", // fsub st, st(1)
+                ".byte 0xD8, 0xCA", // fmul st, st(2)
+                ".byte 0xDE, 0xC1", // faddp st(1), st
+                "fild dword ptr [{w} + 8]",
+                "fild dword ptr [{w} + 20]",
+                ".byte 0xD8, 0xE1", // fsub st, st(1)
+                ".byte 0xD8, 0xCB", // fmul st, st(3)
+                ".byte 0xDE, 0xC1", // faddp st(1), st
+                "fild dword ptr [{w} + 4]",
+                "fild dword ptr [{w} + 16]",
+                ".byte 0xD8, 0xE1", // fsub st, st(1)
+                ".byte 0xD8, 0xCC", // fmul st, st(4)
+                ".byte 0xDE, 0xC1", // faddp st(1), st
+                "fistp dword ptr [{w} + 28]",
+                "fistp dword ptr [{w} + 32]",
+                "fistp dword ptr [{w} + 36]",
+                "fstp dword ptr [{w} + 40]",
+                w = in(reg) w,
+                out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
+                out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
+                options(nostack),
+            );
+        }
+    }
+
+    /// The original's instructions for `turn`.
+    unsafe fn turn_normal_ref(p: *mut u8, m: *mut u8, o: *mut u8) {
+        unsafe {
+            core::arch::asm!(
+                "fld dword ptr [{p} + 8]",
+                "fld dword ptr [{p} + 4]",
+                "fld dword ptr [{p}]",
+                "fld dword ptr [{m}]",
+                "fmul st(0), st(1)",
+                "fld dword ptr [{m} + 0x10]",
+                "fmul st(0), st(3)",
+                "fld dword ptr [{m} + 0x20]",
+                "fmul st(0), st(5)",
+                "faddp st(1), st(0)",
+                "faddp st(1), st(0)",
+                "fxch st(3)",
+                "fld dword ptr [{m} + 4]",
+                "fmul st(0), st(2)",
+                "fld dword ptr [{m} + 0x14]",
+                "fmul st(0), st(4)",
+                "fld dword ptr [{m} + 0x24]",
+                "fmul st(0), st(3)",
+                "faddp st(1), st(0)",
+                "faddp st(1), st(0)",
+                "fxch st(3)",
+                "fld dword ptr [{m} + 8]",
+                "fmulp st(3), st(0)",
+                "fld dword ptr [{m} + 0x18]",
+                "fmulp st(1), st(0)",
+                "fld dword ptr [{m} + 0x28]",
+                "fmulp st(2), st(0)",
+                "faddp st(1), st(0)",
+                "faddp st(1), st(0)",
+                "fxch st(2)",
+                "fstp dword ptr [{o} + 0x10]",
+                "fstp dword ptr [{o} + 0x14]",
+                "fstp dword ptr [{o} + 0x18]",
+                p = in(reg) p,
+                m = in(reg) m,
+                o = in(reg) o,
+                out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
+                out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
+                options(nostack),
+            );
+        }
+    }
+
+    #[test]
+    fn moved_matches_the_assembly() {
+        // dword 0 the fraction, 1 .. 4 the point, 4 .. 7 the other, 7 .. 10 the whole numbers,
+        // 10 the fraction as stored
+        differential::<11>(
+            "place_object_points moved",
+            8000,
+            18,
+            [Kind::Exact; 11],
+            |rng, m| {
+                m.fill(0xAAAA_AAAA);
+                m[0] = match rng.below(3) {
+                    0 => rng.unit().to_bits(),
+                    1 => (rng.unit() * 2.0).to_bits(),
+                    _ => rng.fl(),
+                };
+                for d in m.iter_mut().skip(1).take(6) {
+                    *d = if rng.below(2) == 0 {
+                        rng.int()
+                    } else {
+                        rng.small() as u32
+                    };
+                }
+            },
+            |base| unsafe { moved_at_ref(base) },
+            moved_at,
+        );
+    }
+
+    #[test]
+    fn turn_matches_the_assembly() {
+        // dwords 0 .. 3 the normal, 4 .. 19 the matrix, 20 .. 28 the record
+        differential::<28>(
+            "place_object_points turn",
+            8000,
+            19,
+            [Kind::Exact; 28],
+            |rng, m| {
+                m.fill(0xAAAA_AAAA);
+                let moderate = rng.below(2) == 0;
+                for d in m.iter_mut().take(3) {
+                    *d = if moderate { rng.moderate() } else { rng.fl() };
+                }
+                for d in m.iter_mut().skip(4).take(15) {
+                    *d = if moderate { rng.moderate() } else { rng.fl() };
+                }
+            },
+            |base| unsafe { turn_normal_ref(base, base.add(16), base.add(80)) },
+            |base| unsafe { turn_normal(base, base.add(16), base.add(80)) },
+        );
+    }
 }

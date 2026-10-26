@@ -4,45 +4,23 @@
 //! In:  nothing
 //! Out: all kept
 //!
-//! Caller: `sub_4B1CD0` (the HUD's start). Self-test: the original and the Rust version on
-//! the vertices filled with 0xAA, values by lot; put back.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Caller: `sub_4B1CD0` (the HUD's start).
 
-use crate::errors::Refused;
-use crate::framework::{Regs, game_read, game_write, rva};
-use crate::hud::batch::POLYGON_RVA;
+use crate::d3d::vertices_store::VERTICES;
+
+use crate::hud::store::HUD;
 use crate::math::x87;
-use crate::race::stage_prefs::left_of;
-use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
-
-const DEPTH_RVA: usize = rva(0x75BFE8); // flt_75BFE8
-const RHW_RVA: usize = rva(0x75BFEC); // flt_75BFEC
 
 /// The Rust version (see the header).
-pub unsafe fn set_batch_depth() {
-    unsafe {
-        let rhw = x87::loaded(game_read(RHW_RVA));
-        let depth = x87::loaded(game_read(DEPTH_RVA));
+pub fn set_batch_depth() {
+    {
+        let rhw = x87::loaded(HUD.rhw.bits());
+        let depth = x87::loaded(HUD.depth.bits());
         for n in 0..4 {
-            let v = POLYGON_RVA + 0x20 * n;
-            game_write(v + 0xC, rhw);
-            game_write(v + 0x14, 0u32);
-            game_write(v + 8, depth);
+            let v = &VERTICES.vertices[n];
+            v.rhw.set_bits(rhw);
+            v.specular.set(0);
+            v.z.set_bits(depth);
         }
     }
-}
-
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    unsafe { set_batch_depth() };
-    Ok(left_of(r))
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
 }

@@ -19,36 +19,21 @@
 //!   `strings::append_string_by_id` leaves it, ebx past the NUL);
 //! - `menu::leave_with_carry` (0x471CCE): `dword_755561` and `dword_755565` 1, the carry set;
 //!
-//! 0x48558A, `pusha; popa; retn` in a draw list, does nothing and is too short for a hook's
-//! jump: the standalone counts it among the empty functions it skips.
-//!
 //! Refuses (before anything) no current player (or one past the four).
-//! Hooks removed 2026-10-22 (typed tables): the menus run their `entry` (`menu::table_calls`).
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{EAX, EBX, EDI, Regs, game_addr, game_read, game_write, rva};
-use crate::menu::parts::Part;
-use crate::screens::harness::Left;
+use crate::menu::event_store::EVENT_STATE;
+use crate::menu::keys_store::KEY_TABLES;
+use crate::menu::pages_store::MENU_PAGES;
+use crate::menu::screen_loop::Carried;
+use crate::menu::state_store::MENU_STATE;
+use crate::pointers::GamePtr;
 use rc2k_core::menu::player::Player;
 use rc2k_core::menu::steps;
 
-const CURRENT_PLAYER_RVA: usize = rva(0x75598C); // g_currentPlayer
-const KEYS_RVA: usize = rva(0x7555B1); // unk_7555B1: 0x2C bytes
-const SCORES_PAGE_RVA: usize = rva(0x755240); // dword_755240
-const REPLAY_RANGE_RVA: usize = rva(0x755248); // dword_755248
-const CHOICE_RVA: usize = rva(0x75AB30); // dword_75AB30
-const CAPTION_RVA: usize = rva(0xA8BE54); // g_captionText
-const SHOW_CAR_SPECS: usize = 0x46FD31; // menu::show_car_specs
-
-fn g(a: usize) -> u32 {
-    unsafe { game_read(a) }
-}
-fn p(a: usize, v: u32) {
-    unsafe { game_write(a, v) }
-}
 /// The current player's record.
 fn player() -> Result<u32, Refused> {
-    match crate::menu::player::player_at(g(CURRENT_PLAYER_RVA)) {
+    match crate::menu::player::player_at(EVENT_STATE.current_player.get()) {
         0 => Err(BadInput("no current player (or one past the four)").into()),
         p => Ok(p),
     }
@@ -62,16 +47,17 @@ fn player() -> Result<u32, Refused> {
 /// The current player's record changed by `f` (read, changed, written back whole).
 fn with_player<R>(f: impl FnOnce(&mut Player) -> R) -> Result<(u32, R), Refused> {
     let at = player()?;
-    unsafe {
-        let mut p = (at as *const Player).read_unaligned();
+    {
+        let mut p =
+            crate::pointers::GamePtr::new(at).read::<Player>("player actions: a game value")?;
         let r = f(&mut p);
-        (at as *mut Player).write_unaligned(p);
+        crate::pointers::GamePtr::new(at).write::<Player>(p, "player actions: a game value")?;
         Ok((at, r))
     }
 }
 
 pub fn keep_player_keys() -> Result<(), Refused> {
-    let controls = unsafe { game_read(KEYS_RVA) };
+    let controls = KEY_TABLES.controls.read();
     with_player(|p| p.controls_50 = controls)?;
     Ok(())
 }
@@ -102,49 +88,49 @@ pub fn toggle_player_3c() -> Result<(), Refused> {
 }
 
 pub fn next_scores_page() {
-    p(
-        SCORES_PAGE_RVA,
-        steps::scores_page(g(SCORES_PAGE_RVA), true),
-    );
+    MENU_PAGES
+        .scores_page
+        .set(steps::scores_page(MENU_PAGES.scores_page.get(), true));
 }
 
 pub fn previous_scores_page() {
-    p(
-        SCORES_PAGE_RVA,
-        steps::scores_page(g(SCORES_PAGE_RVA), false),
-    );
+    MENU_PAGES
+        .scores_page
+        .set(steps::scores_page(MENU_PAGES.scores_page.get(), false));
 }
 
-pub fn previous_replay_range() {
-    p(
-        REPLAY_RANGE_RVA,
-        steps::replay_range(g(REPLAY_RANGE_RVA), false),
-    );
-    unsafe { crate::screens::best_scores::replay_range_caption() };
+pub fn previous_replay_range() -> Result<(), BadInput> {
+    MENU_PAGES
+        .replay_page
+        .set(steps::replay_range(MENU_PAGES.replay_page.get(), false));
+    crate::screens::best_scores::replay_range_caption()
 }
 
-pub fn next_replay_range() {
-    p(
-        REPLAY_RANGE_RVA,
-        steps::replay_range(g(REPLAY_RANGE_RVA), true),
-    );
-    unsafe { crate::screens::best_scores::replay_range_caption() };
+pub fn next_replay_range() -> Result<(), BadInput> {
+    MENU_PAGES
+        .replay_page
+        .set(steps::replay_range(MENU_PAGES.replay_page.get(), true));
+    crate::screens::best_scores::replay_range_caption()
 }
 
 /// eax as `append_string_by_id` leaves it, ebx past the NUL.
-pub fn toggle_caption_choice() -> (u32, u32) {
-    let choice = steps::flip(g(CHOICE_RVA));
-    p(CHOICE_RVA, choice);
-    let mut cursor = game_addr(CAPTION_RVA) as u32;
+pub fn toggle_caption_choice() -> Result<(u32, u32), crate::errors::BadInput> {
+    let choice = steps::flip(MENU_STATE.menus.caption_choice.get());
+    MENU_STATE.menus.caption_choice.set(choice);
+    let mut cursor = crate::screens::text_buffers_store::TEXT_BUFFERS
+        .caption
+        .addr();
     let caption = rc2k_core::screens::page_values::stage_options_caption(choice);
-    let eax = unsafe {
-        crate::strings::append_string_by_id::append_string_by_id(caption, &mut |at, n| {
-            std::ptr::copy(at, cursor as *mut u8, n);
-            cursor += n as u32;
-        })
-    };
-    unsafe { (cursor as *mut u8).write(0) };
-    (eax, cursor + 1)
+    let fault = crate::menu::event_flow::Fault::default();
+    let eax = crate::strings::append_string_by_id::append_string_by_id(caption, &mut |at, n| {
+        // SAFETY: the `n` bytes at `at` were checked (or are the expansion\'s own `Vec`).
+        let text = unsafe { std::slice::from_raw_parts(at, n) };
+        fault.ok(GamePtr::new(cursor).write_bytes(text, "the caption"));
+        cursor += n as u32;
+    })?;
+    fault.check()?;
+    GamePtr::new(cursor).write::<u8>(0, "the caption")?;
+    Ok((eax, cursor + 1))
 }
 
 pub fn leave_with_carry() {
@@ -152,93 +138,50 @@ pub fn leave_with_carry() {
     crate::menu::leaving::with_leaving(|l| l.leave_with_carry());
 }
 
-pub unsafe fn player_car_specs(n: u32, entry: &Regs, part: Part) -> Result<Regs, Refused> {
-    let kept = g(CURRENT_PLAYER_RVA);
-    p(CURRENT_PLAYER_RVA, n);
-    let mut r = *entry;
-    let done = part(0, &mut r);
-    p(CURRENT_PLAYER_RVA, kept);
-    done?;
-    Ok(r)
+/// `menu::player_N_car_specs`: the car specifications screen with player `n` the current
+/// one. `c` the carried values the item gets.
+pub unsafe fn player_car_specs(n: u32, c: &Carried) -> Result<(), Refused> {
+    let kept = EVENT_STATE.current_player.get();
+    EVENT_STATE.current_player.set(n);
+    let done = unsafe { crate::menu::show_car_specs::show_car_specs(c) };
+    EVENT_STATE.current_player.set(kept);
+    done
 }
 
-fn car_specs_part(_: u32, r: &mut Regs) -> Result<(), Refused> {
-    crate::calls::call(rva(SHOW_CAR_SPECS), r);
-    Ok(())
-}
+// ---- by number: what the typed tables run ----
 
-// ---- by state: the Rust versions on the registers ----
-
-/// Each state action's Rust version as a `Left`, by its number.
-fn state_rust(which: u32, r: &Regs) -> Result<Left, Refused> {
-    Ok(match which {
-        0 => {
-            keep_player_keys()?;
-            Left::nothing()
-        }
+/// Each state action's Rust version by its number. What they leave in registers is read
+/// by none of their callers (the item call sites have nothing live after the call).
+fn state_run(which: u32) -> Result<(), Refused> {
+    match which {
+        0 => keep_player_keys()?,
         1 => {
-            let (edi, eax) = lower_player_40()?;
-            Left {
-                carry: Some(false),
-                zero: Some(eax == 0),
-                ..Left::nothing().with(EDI, edi).with(EAX, eax)
-            }
+            lower_player_40()?;
         }
-        2 => {
-            lower_player_44()?;
-            Left::nothing()
-        }
-        3 => {
-            raise_player_48()?;
-            Left::nothing()
-        }
-        4 => {
-            lower_player_48()?;
-            Left::nothing()
-        }
-        5 => {
-            toggle_player_3c()?;
-            Left::nothing()
-        }
-        6 => {
-            next_scores_page();
-            Left::nothing()
-        }
-        7 => {
-            previous_scores_page();
-            Left::nothing()
-        }
-        8 => {
-            previous_replay_range();
-            Left::nothing()
-        }
-        9 => {
-            next_replay_range();
-            Left::nothing()
-        }
+        2 => lower_player_44()?,
+        3 => raise_player_48()?,
+        4 => lower_player_48()?,
+        5 => toggle_player_3c()?,
+        6 => next_scores_page(),
+        7 => previous_scores_page(),
+        8 => previous_replay_range()?,
+        9 => next_replay_range()?,
         10 => {
-            let (eax, ebx) = toggle_caption_choice();
-            Left::nothing().with(EAX, eax).with(EBX, ebx)
+            toggle_caption_choice()?;
         }
-        11 => {
-            leave_with_carry();
-            Left::carry(true)
-        }
-        _ => {
-            let _ = r;
-            Left::nothing()
-        }
-    })
+        11 => leave_with_carry(),
+        _ => {}
+    }
+    Ok(())
 }
 
 macro_rules! state_action {
     ($module:ident, $name:literal, $address:expr, $which:expr) => {
         pub mod $module {
             use super::*;
-            /// The Rust version where the typed tables run it (`menu::table_calls`; hook removed
-            /// 2026-10-22).
-            pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-                crate::service::harness::state_entry(r, &|r| state_rust($which, r))
+            /// The Rust version where the typed tables run it (`menu::table_calls`).
+            pub fn run() -> Result<(), crate::errors::Refused> {
+                state_run($which)
             }
         }
     };
@@ -286,14 +229,9 @@ macro_rules! car_specs {
     ($module:ident, $name:literal, $address:expr, $n:expr, $entry:expr) => {
         pub mod $module {
             use super::*;
-            /// The Rust version where the typed tables run it (`menu::table_calls`; hook removed
-            /// 2026-10-22).
-            pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-                crate::menu::parts::parted_entry(
-                    r,
-                    &|r, part| unsafe { player_car_specs($n, r, part) },
-                    car_specs_part,
-                )
+            /// The Rust version where the typed tables run it (`menu::table_calls`).
+            pub fn run(c: &Carried) -> Result<(), crate::errors::Refused> {
+                unsafe { player_car_specs($n, c) }
             }
         }
     };

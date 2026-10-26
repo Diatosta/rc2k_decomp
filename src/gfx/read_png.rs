@@ -13,74 +13,67 @@
 //! The memory is given back (`memory::free_list`) on every way out. Once the decoder has been
 //! called the carry flag is clear, whatever it returned.
 //! One caller, the picture loader `sub_4119F4`, which falls back on the PCX reader.
-//! Shadow mode runs the Rust version and then the original and compares the picture, its
-//! variables and the layout (the palette only when the file has one: without one it is
-//! made from the info block's leftovers, see `decode_png`). The file is read and decoded
-//! twice, and its memory counted twice in the game's memory figures.
-//! Refuses what `read_file`, `file_size` and `decode_png` refuse. The name is a reading.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! The file is read and decoded twice, and its memory counted twice in the game's memory
+//! figures. Refuses what `read_file`, `file_size` and `decode_png` refuse. The name is a
+//! reading.
 
 use crate::errors::Refused;
 use crate::files::file_size::file_size;
 use crate::files::read_file::read_file;
-use crate::framework::{Regs, game_addr, game_ptr, game_read, game_write, rva};
-use crate::gfx::decode_png::{FILE_LEN_RVA, FILE_RVA, decode_png};
+use crate::gfx::decode_png::decode_png;
+use crate::gfx::decoder::DECODER;
 use crate::gfx::lay_out_png::lay_out_png;
 use crate::gfx::palette_pixels_to_dwords::palette_pixels_to_dwords;
-use crate::gfx::pcx::{DECODED_HEIGHT_RVA, DECODED_WIDTH_RVA, STRIDE_RVA};
-use crate::gfx::picture::{FLAGS_RVA, HEIGHT_RVA, ROW_BYTES_RVA, WIDTH_RVA, picture};
-use crate::gfx::png::INFO_RVA;
+use crate::gfx::picture::picture;
+use crate::gfx::picture_store::PICTURE;
+use crate::gfx::png_file::PNG_FILE;
 use crate::gfx::rgb_pixels_to_dwords::rgb_pixels_to_dwords;
-use crate::memory::MemoryList;
 use crate::memory::allocate::allocate;
 use crate::memory::free_list::free_list;
+use crate::pointers::GamePtr;
 
 // ---- game data ----
 
-const FILE_MEMORY_RVA: usize = rva(0x5BEC38); // dword_5BEC38: the list the file's memory is on
 const HEAD_LEN: u32 = 0x80;
 
 // ---- Rust version ----
 
 /// What comes before the memory is taken: whether the file's head is a PNG the game takes.
-unsafe fn head_is_taken(path: *const u8) -> Result<bool, Refused> {
-    unsafe {
-        let head = game_addr(INFO_RVA) as *mut u8;
-        (head as *mut u32).write_unaligned(0);
-        let read = read_file(path, head, HEAD_LEN, 0)?;
-        if !read.ok || read.bytes_read.is_none_or(|n| n < HEAD_LEN) {
-            return Ok(false);
-        }
-        // Converted: `rc2k_core::gfx::png::head_taken`.
-        Ok(rc2k_core::gfx::png::head_taken(
-            &(head as *const [u8; 0x80]).read_unaligned(),
-        ))
+fn head_is_taken(path: *const u8) -> Result<bool, Refused> {
+    let head = crate::gfx::png::info().cast::<u8>();
+    let place = GamePtr::new(crate::pointers::game_address(head));
+    place.write(0u32, "the PNG head")?;
+    let read = read_file(path, head, HEAD_LEN, 0)?;
+    if !read.ok || read.bytes_read.is_none_or(|n| n < HEAD_LEN) {
+        return Ok(false);
     }
+    // Converted: `rc2k_core::gfx::png::head_taken`.
+    Ok(rc2k_core::gfx::png::head_taken(
+        &place.read::<[u8; 0x80]>("the PNG head")?,
+    ))
 }
 
 /// The part with the file's memory held: whether it worked.
 unsafe fn read_held(path: *const u8, size: u32) -> Result<bool, Refused> {
     unsafe {
-        let file = allocate(game_addr(FILE_MEMORY_RVA) as *mut MemoryList, size)?;
-        game_write(FILE_RVA, file as u32);
+        let file = allocate(PNG_FILE.memory.as_ptr(), size)?;
+        PNG_FILE.file.set(crate::pointers::game_address(file));
         let read = read_file(path, file, size, 0)?;
         if !read.ok || read.bytes_read != Some(size) {
             return Ok(false);
         }
         decode_png(
-            std::slice::from_raw_parts(file, size as usize),
-            picture(),
-            game_ptr(INFO_RVA),
+            &GamePtr::new(crate::pointers::game_address(file))
+                .read_bytes(size as usize, "a PNG file")?,
+            crate::pointers::game_address(picture()),
+            crate::pointers::game_address(crate::gfx::png::info()),
         )?;
-        game_write(FLAGS_RVA, 0x802u32);
-        lay_out_png();
-        game_write(WIDTH_RVA, game_read::<u32>(DECODED_WIDTH_RVA));
-        game_write(HEIGHT_RVA, game_read::<u32>(DECODED_HEIGHT_RVA));
-        game_write(ROW_BYTES_RVA, game_read::<u32>(STRIDE_RVA));
-        if game_read::<u8>(INFO_RVA) == 1 {
+        PICTURE.flags.set(0x802u32);
+        lay_out_png()?;
+        PICTURE.width.set(DECODER.width.get());
+        PICTURE.height.set(DECODER.height.get());
+        PICTURE.row_bytes.set(DECODER.stride.get());
+        if (*crate::gfx::png::info()).has_palette == 1 {
             palette_pixels_to_dwords()?;
         } else {
             rgb_pixels_to_dwords()?;
@@ -94,7 +87,7 @@ pub unsafe fn read_png(path: *const u8) -> Result<bool, Refused> {
     unsafe {
         let free = || {
             // Refused only with the game's own heap, which `allocate` refuses first.
-            let _ = free_list(game_addr(FILE_MEMORY_RVA) as *mut MemoryList);
+            let _ = free_list(PNG_FILE.memory.as_ptr());
         };
         // The original gives the list back on every way out, also with nothing on it.
         let taken = head_is_taken(path).inspect_err(|_| free())?;
@@ -107,22 +100,9 @@ pub unsafe fn read_png(path: *const u8) -> Result<bool, Refused> {
             free();
             return Ok(false);
         }
-        game_write(FILE_LEN_RVA, size);
+        PNG_FILE.length.set(size);
         let worked = read_held(path, size);
         free();
         worked
     }
 }
-
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    let path = r.eax as *const u8;
-    {
-        let worked = unsafe { read_png(path) }?;
-        r.set_carry(!worked);
-    }
-    Ok(())
-}
-
-// ---- self-test: PNG files made for the purpose, read into the game's own picture buffer,
-// which is put back with everything else ----

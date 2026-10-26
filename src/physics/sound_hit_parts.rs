@@ -5,119 +5,28 @@
 //! In:  nothing
 //! Out: as the calls leave them; CF when the kind has no entry (no caller reads it)
 //!
-//! Caller: `physics::hit_part_checks`.
-//! Refuses what `sound_on_bit` refuses.
-//! Self-test: the original and the Rust version on the game's variables (saved and put
-//! back) with a test sound object.
+//! Caller: `physics::hit_part_checks`. Refuses what `sound_on_bit` refuses.
+//!
+//! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
+//! above are the original's, for reference.
 
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, SelfTest, game_addr, hook_asm, rva};
-use crate::physics::car_sounds::test_regions;
-use crate::physics::drop_hit_parts::{Timers, g, hit_tests, p, set_hits};
+use crate::physics::car_store::CAR;
+use crate::physics::drop_hit_parts::hit_tests;
 use crate::physics::sound_on_bit::sound_on_bit;
-use crate::screens::harness::Left;
-use crate::service::harness::{Region, capture, check_state, dispatch_state, restore, state_entry};
+use crate::race::kind_store::KIND_TABLES;
 use rc2k_core::physics::parts::{SOUND_TESTS, has_hit_sounds};
-use std::sync::atomic::AtomicUsize;
 
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("physics::sound_hit_parts", rva(0x4411EC), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
-
-const TIMERS: Timers = [0x71A32C, 0x71A330, 0x71A334, 0x71A338];
-
-/// The steps on `r`.
+/// The Rust version (its CF, set when the car has no hit sounds, is read by no caller).
 // Converted: `rc2k_core::physics::parts::{has_hit_sounds, hit_tests, SOUND_TESTS}`.
-pub fn sound_hit_parts_in(r: &mut Regs) -> Result<(), Refused> {
-    if !has_hit_sounds(g(0x719FFC), |kind| g(0x5C5BD0 + 4 * kind as usize)) {
-        r.set_carry(true);
+pub fn sound_hit_parts() -> Result<(), Refused> {
+    if !has_hit_sounds(CAR.car_kind.get(), |kind| {
+        KIND_TABLES.kind_hit_sounds[kind as usize].get()
+    }) {
         return Ok(());
     }
-    hit_tests(r, &SOUND_TESTS, &TIMERS, &mut |r| {
-        unsafe { sound_on_bit(r.ecx & 0xFF) }?.apply(r);
+    hit_tests(&SOUND_TESTS, &CAR.part_hit_damage, &mut |bit| {
+        { sound_on_bit(bit & 0xFF) }?;
         Ok(())
     })
-}
-
-/// The Rust version.
-pub unsafe fn sound_hit_parts(entry: &Regs) -> Result<Left, Refused> {
-    let mut r = *entry;
-    sound_hit_parts_in(&mut r)?;
-    let left = crate::race::stage_prefs::left_of(&r);
-    Ok(left)
-}
-
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    unsafe { sound_hit_parts(r) }
-}
-
-fn regions() -> Vec<Region> {
-    let a = |x: usize| game_addr(rva(x)) as u32;
-    let mut r = vec![(a(0x71A32C), 0x10), (a(0x71A270), 4)];
-    let o = g(0x512A10 + 4 * (g(0x71B3F8) & 7) as usize);
-    if o != 0 {
-        r.extend([(o + 0x10, 4), (o + 0x214, 0x14)]);
-    }
-    r
-}
-
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_state(&HOOK, r, call_original, &regions(), &rust);
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let mut object = vec![0u32; 0x98];
-    let o = object.as_mut_ptr() as u32;
-    let a = |x: usize| game_addr(rva(x)) as u32;
-    let mut all = test_regions(o);
-    all.extend([
-        (a(0x71A32C), 0x10),
-        (a(0x71A2D0), 0x10),
-        (a(0x71A270), 4),
-        (a(0x719FE4), 4),
-        (a(0x719FFC), 4),
-    ]);
-    let saved = capture(&all);
-    for seed in 0..20u32 {
-        check_state(
-            &mut t,
-            &format!("seed {seed}"),
-            call_original,
-            Regs::SENTINEL,
-            &|| {
-                unsafe {
-                    for k in 0..0x98u32 {
-                        ((o + 4 * k) as *mut u32).write(0xA5A5_0000 | k);
-                    }
-                }
-                for k in 0..8usize {
-                    p(0x512A10 + 4 * k, o);
-                }
-                p(0x71B3F8, seed % 8);
-                set_hits(seed);
-            },
-            &all,
-            &rust,
-        );
-    }
-    restore(&all, &saved);
-    drop(object);
-    t.finish()
 }

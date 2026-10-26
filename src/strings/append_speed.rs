@@ -12,7 +12,7 @@
 //! register use above is the original's, for reference.
 
 use crate::errors::BadInput;
-use crate::strings::units::{figure_bytes, setting, units};
+use crate::strings::units::{figure_bytes, setting};
 
 // ---- Rust version ----
 
@@ -25,11 +25,5 @@ pub fn append_speed(tenths: u32, with_label: bool, units: u32) -> Result<Vec<u8>
     if !with_label {
         figure.label = None;
     }
-    Ok(figure_bytes(figure))
-}
-
-/// Whether the original traps on this speed (metric, past `miles_to_km::MAX_INPUT`): tests
-/// that take players' live speeds (mid-race data in a stage) leave such cases out.
-pub fn traps(tenths: u32) -> bool {
-    append_speed(tenths, false, units()).is_err()
+    figure_bytes(figure)
 }

@@ -4,40 +4,17 @@
 //! Out: edx the difference plus one; the rest kept; no flags read
 //!
 //! See `drive/note_gaps.rs`. Caller: `sub_43703E` (0x43736B, 0x437397).
-//! Self-test: a copy of the original (the lead's checkpoint and the best the test's) on
-//! a test car, 7 cases.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
 
 use crate::drive::note_gaps::note_gap_at;
-use crate::errors::Refused;
-use crate::framework::{Regs, game_addr, rva};
-use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
-
-const BEST_RVA: usize = rva(0x70FA14);
-const LEAD_RVA: usize = rva(0x70F484); // dword_70F484: car block 0's +0x98
+use crate::errors::BadInput;
+use crate::race::blocks_store::CAR_BLOCKS;
 
 /// The Rust version.
-pub unsafe fn note_gap_ahead(car: u32) -> Left {
-    unsafe {
-        note_gap_at(
-            car,
-            game_addr(LEAD_RVA) as u32,
-            game_addr(BEST_RVA) as u32,
-            false,
-        )
-    }
-}
-
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    Ok(unsafe { note_gap_ahead(r.esi) })
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
+pub fn note_gap_ahead(car: u32) -> Result<u32, BadInput> {
+    note_gap_at(
+        car,
+        &CAR_BLOCKS.cars[0].checkpoint,
+        &CAR_BLOCKS.cars[0].pace_gaps[0],
+        false,
+    )
 }

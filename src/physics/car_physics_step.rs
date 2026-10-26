@@ -24,385 +24,286 @@
 //! spin on the ground, broken parts, lights, the forces' sum, the wheel load, the engine
 //! sound's share, the time mark, a false start, the value notice.
 //!
-//! The flow and the calls are Rust (each callee's Rust version with the registers its
-//! hook would leave); the holds are `physics/flow.rs`'s.
+//! the holds are `physics/flow.rs`'s.
 //!
 //! In:  nothing
 //! Out: the registers as the steps and calls leave them; no flags read (the callers
 //!      store the car next)
 //!
-//! Callers: `physics::race_cars_step` (0x4608BB), `sub_460835`, `sub_460B2F`. It begins
-//! with a call: hooked by a private copy of the whole function (0x37F bytes, one chunk)
-//! with its 83 calls relocated, and a hand-made patch.
-//! Refuses (before anything) a current car past 7 (`dword_641680` is read by it), and
-//! what its calls refuse; the work car and the physics' variables (`step_regions`) are
-//! put back then (the callees put back their own other writes). Shadow mode runs the
-//! original alone (a whole step: its parts are compared by their own hooks).
-//! Self-test (in a race; skipped otherwise): the original and the Rust version from the
-//! same state (everything the step writes saved and put back), the car where it is and
-//! moved into the ground, under three precisions.
+//! Callers: `physics::race_cars_step` (0x4608BB), `sub_460835`, `sub_460B2F`. Refuses
+//! (before anything) a current car past 7 (`dword_641680` is read by it), and what its
+//! calls refuse; the work car and the physics' variables (`step_regions`) are put back then
+//! (the callees put back their own other writes).
+//!
+//! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
+//! above are the original's, for reference.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{
-    EAX, EBX, ECX, EDI, EDX, ESI, RawHook, Regs, SelfTest, game_addr, hook_asm, rva, shadow,
-};
 use crate::math::x87::loaded;
-use crate::math::x87_run::{TEST_CONTROL_WORDS, with_control_word};
 use crate::physics as ph;
-use crate::physics::flow::{a, base, g, hold_high, hold_low, negate, p, x87_run};
-use crate::physics::reset_parts::game_part;
-use crate::race::stage_prefs::left_of;
+use crate::physics::camera_store::CAMERA_WORK;
+use crate::physics::car_store::CAR;
+use crate::physics::contact_store::CONTACT_WORK;
+use crate::physics::flow::{hold_high, hold_low, negate};
+use crate::physics::tables_store::PHYSICS;
+use crate::race::frame_store::FRAME_WORK;
+use crate::race::sound_spots_store::RACE_SOUND_SPOTS;
+use crate::race::work_store::RACE_WORK;
 use crate::scene::matrix3::rounded;
-use crate::screens::harness::Left;
-use crate::service::harness::{Region, capture, restore};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("physics::car_physics_step", rva(0x43B635), thunk, &ORIGINAL)
-        .private_copy(0x37F)
-        .relocate_calls(&CALLS)
-        .manual_patch()
-        .self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
-
-/// Every call in the copy (all out of the function).
-#[rustfmt::skip]
-const CALLS: [usize; 83] = [
-    0x0, 0x5, 0xA, 0xF, 0x14, 0x19, 0xBC, 0xC1, 0xC6, 0xCB, 0xD0, 0xD5, 0xDA, 0xDF, 0xE4,
-    0xE9, 0xEE, 0xF3, 0xF8, 0xFD, 0x16E, 0x173, 0x178, 0x17D, 0x182, 0x1D4, 0x1D9, 0x1DE,
-    0x1E3, 0x1E8, 0x1ED, 0x1F2, 0x1F7, 0x1FC, 0x201, 0x206, 0x211, 0x226, 0x22B, 0x230,
-    0x235, 0x23A, 0x23F, 0x244, 0x249, 0x24E, 0x253, 0x261, 0x266, 0x26B, 0x270, 0x275,
-    0x27A, 0x27F, 0x2A1, 0x2A6, 0x2BC, 0x2C1, 0x2C6, 0x2CB, 0x2D0, 0x2D5, 0x2DA, 0x2DF,
-    0x2E4, 0x2E9, 0x318, 0x31D, 0x322, 0x327, 0x32C, 0x331, 0x336, 0x34C, 0x351, 0x356,
-    0x35B, 0x360, 0x365, 0x36A, 0x36F, 0x374, 0x379,
-];
-
-/// A callee that changes the registers it is given, of which its hook reports `regs`.
-fn keep(r: &mut Regs, regs: &[u8], f: unsafe fn(&mut Regs)) {
-    let mut g = *r;
-    unsafe { f(&mut g) };
-    let mut left = Left::nothing();
-    for &reg in regs {
-        left = left.with(reg, *field(&g, reg));
-    }
-    left.apply(r);
-}
-
-fn field(g: &Regs, reg: u8) -> &u32 {
-    match reg {
-        EAX => &g.eax,
-        EBX => &g.ebx,
-        ECX => &g.ecx,
-        EDX => &g.edx,
-        ESI => &g.esi,
-        _ => &g.edi,
-    }
-}
+use crate::scene::x87_mem::{fld, fstp};
 
 /// The motion: moved, spun, levered, the inverse matrix, the angles.
-fn motion(r: &mut Regs) {
+fn motion() {
     unsafe {
-        r.eax = ph::move_car::move_car();
-        ph::spin_matrix::spin_matrix().apply(r);
-        ph::lever_pushes::lever_pushes().apply(r);
+        ph::move_car::move_car();
+        ph::spin_matrix::spin_matrix();
+        ph::lever_pushes::lever_pushes();
         crate::race::start_place::invert_car_matrix();
-        ph::update_car_angles::update_car_angles().apply(r);
+        ph::update_car_angles::update_car_angles();
     }
 }
 
-/// The steps; `r` as the original leaves it.
-pub fn steps(r: &mut Regs) -> Result<(), Refused> {
+/// The steps. What the callees leave in the registers is read by none of them (each reads
+/// what it needs from memory), nor by the callers.
+pub fn steps() -> Result<(), Refused> {
     unsafe {
-        r.eax = ph::stir_car_word::stir_car_word();
-        ph::load_car_specs::load_car_specs()?.apply(r);
-        r.ebx = ph::make_gear_ratios::make_gear_ratios()?;
+        ph::stir_car_word::stir_car_word();
+        ph::load_car_specs::load_car_specs()?;
+        ph::make_gear_ratios::make_gear_ratios()?;
         ph::store_motion_length::store_motion_length();
-        ph::set_handling::set_handling()?.apply(r);
-        ph::race_timers::race_timers(r)?.apply(r);
+        ph::set_handling::set_handling()?;
+        ph::race_timers::race_timers()?;
     }
-    r.ebx = 0;
-    for x in [
-        0x6D1AD0, 0x6D1AD4, 0x6D1AD8, 0x6D30E4, 0x608C3C, 0x608C40, 0x608C44,
+    for cell in [
+        &RACE_SOUND_SPOTS.sound_scratch_a,
+        &RACE_SOUND_SPOTS.sound_scratch_b,
+        &RACE_SOUND_SPOTS.sound_scratch_c,
     ] {
-        p(x, 0);
+        cell.set(0);
     }
-    p(0x614138, loaded(g(0x71A174)));
-    for x in [
-        0x614C28, 0x71A1FC, 0x71A200, 0x71A204, 0x71A208, 0x71A20C, 0x614108, 0x61410C, 0x614110,
+    CONTACT_WORK.contact_normal_speed[0].set_bits(0);
+    for cell in [
+        &CAMERA_WORK.ground_probes,
+        &CAMERA_WORK.ground_found,
+        &CAMERA_WORK.ground_same,
     ] {
-        p(x, 0);
+        cell.set(0);
+    }
+    PHYSICS
+        .vertical_speed
+        .set_bits(loaded(CAR.velocity[1].bits()));
+    for cell in [
+        &PHYSICS.clear_place_mark,
+        &CAR.contact_flag,
+        &PHYSICS.scene_point_hits,
+        &PHYSICS.object_hits,
+        &PHYSICS.point_hits,
+    ] {
+        cell.set(0);
+    }
+    for figure in CAR.contact_point.iter().chain([&CAR.contact_depth]) {
+        figure.set_bits(0);
     }
     unsafe {
         crate::race::start_place::invert_car_matrix();
-        ph::feel_ground::feel_ground(r)?;
-    }
-    keep(r, &[EAX], ph::start_skid_mark::start_skid_mark);
-    {
-        let mut g = *r;
-        unsafe { ph::probe_and_keep::probe_and_keep(&mut g) }?;
-        Left::nothing()
-            .with(EAX, g.eax)
-            .with(EBX, g.ebx)
-            .with(ECX, g.ecx)
-            .with(EDX, g.edx)
-            .with(ESI, g.esi)
-            .with(EDI, g.edi)
-            .apply(r);
-    }
-    keep(r, &[EAX], ph::ease_car_value::ease_car_value);
-    keep(r, &[EAX], ph::count_down_timers::count_down_timers);
-    unsafe {
-        ph::wheel_surfaces::wheel_surfaces()?.apply(r);
-        ph::surface_noise::surface_noise(r).apply(r);
-        ph::save_car_state::save_car_state()?.apply(r);
-        ph::clear_forces::clear_forces()?.apply(r);
-    }
-    keep(r, &[ESI], ph::set_wheel_weights::set_wheel_weights);
-    unsafe {
+        ph::feel_ground::feel_ground()?;
+        ph::start_skid_mark::start_skid_mark();
+        ph::probe_and_keep::probe_and_keep()?;
+        ph::ease_car_value::ease_car_value();
+        ph::count_down_timers::count_down_timers();
+        ph::wheel_surfaces::wheel_surfaces()?;
+        ph::surface_noise::surface_noise()?;
+        ph::save_car_state::save_car_state()?;
+        ph::clear_forces::clear_forces()?;
+        ph::set_wheel_weights::set_wheel_weights();
         ph::set_downforce::set_downforce();
-        ph::gearbox_step::gearbox_step(r)?.apply(r);
-        ph::drive_force::drive_force()?.apply(r);
     }
+    ph::gearbox_step::gearbox_step()?;
+    { ph::drive_force::drive_force() }?;
     // 0x43B737: the side speed held within the limit.
-    p(0x71A1A0, g(0x71A17C));
-    hold_high(0x71A1A0, 0x613EC8);
-    negate(0x613EC8);
-    hold_low(0x71A1A0, 0x613EC8);
-    negate(0x613EC8);
-    unsafe {
-        let [eax, ebx, edx] = ph::drive_grip_forces::drive_grip_forces(r.ebx);
-        r.eax = eax;
-        r.ebx = ebx;
-        r.edx = edx;
-        let [eax, ebx] = ph::drive_wheels_step::drive_wheels_step(r.eax, r.ebx)?;
-        r.eax = eax;
-        r.ebx = ebx;
-        ph::settle_drive_speeds::settle_drive_speeds()?.apply(r);
-        ph::free_rev_in_neutral::free_rev_in_neutral().apply(r);
-        ph::free_rev_clutch::free_rev_clutch(r)?.apply(r);
-    }
+    CAR.side_speed_held.set_bits(CAR.local_velocity[0].bits());
+    hold_high(&CAR.side_speed_held, &PHYSICS.side_speed_limit);
+    negate(&PHYSICS.side_speed_limit);
+    hold_low(&CAR.side_speed_held, &PHYSICS.side_speed_limit);
+    negate(&PHYSICS.side_speed_limit);
+    ph::drive_grip_forces::drive_grip_forces();
+    ph::drive_wheels_step::drive_wheels_step()?;
+    ph::settle_drive_speeds::settle_drive_speeds()?;
+    ph::free_rev_in_neutral::free_rev_in_neutral();
+    ph::free_rev_clutch::free_rev_clutch()?;
     // 0x43B7BC: the engine's speed held.
-    if g(0x71A614) == 0 {
-        hold_low(0x71A1B0, 0x6140F8);
+    if CAR.brake.get() == 0 {
+        hold_low(&CAR.engine_speed, &PHYSICS.idle_engine_speed);
     }
-    hold_high(0x71A1B0, 0x614104);
+    hold_high(&CAR.engine_speed, &PHYSICS.rev_limit);
     unsafe {
-        ph::wheels_from_revs::wheels_from_revs()?.apply(r);
+        ph::wheels_from_revs::wheels_from_revs()?;
         ph::air_drag::air_drag();
-        ph::wheel_springs::wheel_springs().apply(r);
-        ph::crash_contact::crash_contact(r)?.apply(r);
-        ph::apply_wheel_forces::apply_wheel_forces()?.apply(r);
-        ph::apply_wheel_torques::apply_wheel_torques()?.apply(r);
+        ph::wheel_springs::wheel_springs();
     }
-    motion(r);
-    r.esi = a(0x71A170);
-    p(
-        0x614100,
-        rounded(unsafe { ph::vector_length::vector_length(r.esi) }),
-    );
+    ph::crash_contact::crash_contact()?;
+    unsafe {
+        ph::apply_wheel_forces::apply_wheel_forces()?;
+        ph::apply_wheel_torques::apply_wheel_torques()?;
+    }
+    motion();
+    PHYSICS.top_speed.set_bits(rounded({
+        ph::vector_length::vector_length(CAR.velocity[0].addr())
+    }));
     // 0x43B851: the contacts' rounds.
-    p(0x614148, 0);
+    PHYSICS.contact_step.set(0);
     loop {
         unsafe {
-            ph::clear_contacts::clear_contacts()?.apply(r);
-            ph::feel_ground::feel_ground(r)?;
-            ph::crossed_edge::crossed_edge(r)?.apply(r);
-            ph::wall_contacts::wall_contacts(r)?.apply(r);
-            ph::ground_contact::ground_contact(r)?.apply(r);
-            ph::car_collisions::car_collisions(r)?.apply(r);
-            ph::face_contacts::face_contacts(r)?.apply(r);
-            ph::keep_motion::keep_motion();
-            ph::apply_contact_forces::apply_contact_forces()?.apply(r);
-            ph::apply_contact_torques::apply_contact_torques()?.apply(r);
+            ph::clear_contacts::clear_contacts()?;
+            ph::feel_ground::feel_ground()?;
         }
-        if g(0x614738) == 0 {
+        ph::crossed_edge::crossed_edge()?;
+        ph::wall_contacts::wall_contacts()?;
+        ph::ground_contact::ground_contact()?;
+        unsafe { ph::car_collisions::car_collisions() }?;
+        ph::face_contacts::face_contacts()?;
+        unsafe {
+            ph::keep_motion::keep_motion();
+            ph::apply_contact_forces::apply_contact_forces()?;
+            ph::apply_contact_torques::apply_contact_torques()?;
+        }
+        if PHYSICS.clear_place_count.get() == 0 {
             break;
         }
-        keep(r, &[ESI, EDI], ph::stall_when_still::stall_when_still);
-        unsafe { ph::keep_motion_vectors::keep_motion_vectors() };
-        motion(r);
-        p(0x614738, 0);
-        p(0x614148, g(0x614148).wrapping_add(1));
-        r.eax = g(0x614148);
-        if r.eax >= g(0x61414C) {
+        unsafe {
+            ph::stall_when_still::stall_when_still();
+            ph::keep_motion_vectors::keep_motion_vectors();
+        }
+        motion();
+        PHYSICS.clear_place_count.set(0);
+        PHYSICS.contact_step.set(
+            crate::physics::tables_store::PHYSICS
+                .contact_step
+                .get()
+                .wrapping_add(1),
+        );
+        if PHYSICS.contact_step.get() >= PHYSICS.contact_steps.get() {
             unsafe {
-                ph::limit_motion::limit_motion().apply(r);
-                ph::find_clear_place::find_clear_place(r)?.apply(r);
+                ph::limit_motion::limit_motion();
+                ph::find_clear_place::find_clear_place()?;
             }
-            p(0x6141D0, g(0x6141D0).wrapping_add(1));
+            PHYSICS.step_count.set(
+                crate::physics::tables_store::PHYSICS
+                    .step_count
+                    .get()
+                    .wrapping_add(1),
+            );
             break;
         }
     }
-    if g(0x614148) != 0 {
+    if PHYSICS.contact_step.get() != 0 {
         unsafe {
             ph::put_back_motion_vectors::put_back_motion_vectors();
-            ph::limit_motion::limit_motion().apply(r);
+            ph::limit_motion::limit_motion();
         }
     }
     unsafe {
-        ph::feel_ground::feel_ground(r)?;
-        *r = ph::reset_when_stuck::reset_when_stuck(r, &mut game_part)?;
-        ph::engine_sound::engine_sound()?.apply(r);
-        r.eax = ph::spin_wheels::spin_wheels();
-        ph::track_checkpoints::track_checkpoints_in(r, &mut ph::track_checkpoints::game_part)?;
-        ph::pace_notes_step::pace_notes_step_in(r, &mut ph::queue_pace_note::pace_part)?;
+        ph::feel_ground::feel_ground()?;
+        ph::reset_when_stuck::reset_when_stuck()?;
+        ph::engine_sound::engine_sound()?;
+        ph::spin_wheels::spin_wheels();
     }
-    keep(r, &[EAX], ph::count_down_notice::count_down_notice);
-    unsafe { ph::turn_wheel_angles::turn_wheel_angles() }.apply(r);
-    x87_run!(
-        "fld dword ptr [{b} + 0x31A190]",
-        "fadd dword ptr [{b} + 0x31A194]",
-        "fmul dword ptr [{b} + 0x1C5E40]",
-        "fstp dword ptr [{b} + 0x31A198]",
-        "fld dword ptr [{b} + 0x31A174]",
-        "fsub dword ptr [{b} + 0x214138]",
-        "fstp dword ptr [{b} + 0x31A8E4]";
-        b = base()
-    );
+    ph::track_checkpoints::track_checkpoints()?;
+    ph::pace_notes_step::pace_notes_step()?;
+    ph::count_down_notice::count_down_notice();
+    ph::turn_wheel_angles::turn_wheel_angles();
+    x87_1(crate::race::store::asm_base() as usize);
+    ph::store_motion_length::store_motion_length();
+    ph::damage_step::damage_step();
+    ph::hit_part_checks::hit_part_checks()?;
+    ph::damage_notices::damage_notices()?;
+    ph::take_notice::take_notice();
+    ph::drop_to_neutral::drop_to_neutral();
+    // 0x43B96B: `physics::test_car_word_234` set only flags nobody reads: left out.
+    // A car number past 7 (refused further down) reads past the field.
+    let car = RACE_WORK.current_car.get() as usize;
+    let listed = match FRAME_WORK.listed_car_sounds.get(car) {
+        Some(cell) => cell.get(),
+        None => unsafe {
+            (crate::pointers::host_at(
+                (FRAME_WORK.listed_car_sounds[0].addr() + (4 * car) as u32) as usize,
+            ) as *const u32)
+                .read_volatile()
+        },
+    };
+    if listed != u32::MAX {
+        ph::camera_frame::camera_frame()?;
+    }
+    unsafe { ph::hold_spin_on_ground::hold_spin_on_ground() };
+    ph::drop_broken_parts::drop_broken_parts()?;
+    ph::car_lighting::car_lighting()?;
     unsafe {
-        ph::store_motion_length::store_motion_length();
-        ph::damage_step::damage_step(r).apply(r);
-        ph::hit_part_checks::hit_part_checks(r)?.apply(r);
-        ph::damage_notices::damage_notices(r)?.apply(r);
-        ph::take_notice::take_notice().apply(r);
-        ph::drop_to_neutral::drop_to_neutral();
-        ph::test_car_word_234::test_car_word_234(r.eax).apply(r);
-    }
-    r.eax = g(0x71B3F8);
-    r.eax = g(0x641680 + 4 * r.eax as usize);
-    if r.eax != u32::MAX {
-        *r = unsafe { ph::camera_frame::camera_frame(r, &mut game_part) }?;
-    }
-    keep(r, &[ECX, EBX], ph::hold_spin_on_ground::hold_spin_on_ground);
-    unsafe {
-        ph::drop_broken_parts::drop_broken_parts(r)?.apply(r);
-        *r = ph::car_lighting::car_lighting(r, &mut game_part)?;
         ph::sum_forces::sum_forces();
-    }
-    keep(r, &[EDX], ph::blend_wheel_load::blend_wheel_load);
-    unsafe { ph::share_engine_sound::share_engine_sound() }?.apply(r);
-    keep(r, &[EAX], ph::note_time_mark::note_time_mark);
-    unsafe {
-        *r = ph::false_start::false_start(r, &mut game_part)?;
+        ph::blend_wheel_load::blend_wheel_load();
+        ph::share_engine_sound::share_engine_sound()?;
+        ph::note_time_mark::note_time_mark();
+        ph::false_start::false_start()?;
         ph::value_notice::value_notice();
     }
     Ok(())
 }
 
-/// The work car and the physics' variables (put back on a refusal; compared by the
-/// self-test with the callees' own regions).
-pub fn step_regions() -> Vec<Region> {
-    let a = |x: usize| game_addr(rva(x)) as u32;
-    vec![
-        (a(0x719FD8), 0xFE0),
-        (a(0x613800), 0x1800), // 0x613800 .. 0x615000
-        (a(0x620400), 0x3E00), // 0x620400 .. 0x624200
-        (a(0x6D1A00), 0x2300), // 0x6D1A00 .. 0x6D3D00
-        (a(0x608B00), 0x200),
-        (a(0x6396F0), 0x1B0),
-        (a(0x5C5F40), 0x30),
-        (a(0x5EA000), 0x500),
-        (a(0x75B340), 0x600),
-    ]
-}
-
 /// The Rust version.
-pub unsafe fn car_physics_step(entry: &Regs) -> Result<Left, Refused> {
-    if g(0x71B3F8) > 7 {
+pub fn car_physics_step() -> Result<(), Refused> {
+    if RACE_WORK.current_car.get() > 7 {
         return Err(BadInput("a current car past 7 (dword_641680's room)").into());
     }
-    let all = step_regions();
-    let saved = capture(&all);
-    let mut r = *entry;
-    match steps(&mut r) {
-        Ok(()) => Ok(left_of(&r)),
-        Err(e) => {
-            restore(&all, &saved);
-            Err(e)
-        }
-    }
+    steps()
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    HOOK.count_call();
-    if shadow() {
-        unsafe { call_original(r) };
-        return;
-    }
-    match unsafe { car_physics_step(r) } {
-        Ok(left) => left.apply(r),
-        Err(e) => unsafe { crate::fatal::raise::refused(&HOOK, e, r, call_original) },
-    }
+// ---- the arithmetic that was x87 assembly ----
+
+/// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
+/// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
+/// `[rc + 0x31A198] = ([rc + 0x31A190] + [rc + 0x31A194]) * [rc + 0x1C5E40]`
+/// `[rc + 0x31A8E4] = [rc + 0x31A174] - [rc + 0x214138]`
+fn x87_1(rc: usize) {
+    let t0 = fld(rc, 0x31A190);
+    let t1 = fld(rc, 0x31A194);
+    let t2 = t0 + t1;
+    let t3 = fld(rc, 0x1C5E40);
+    let t4 = t2 * t3;
+    fstp(rc, 0x31A198, t4);
+    let t5 = fld(rc, 0x31A174);
+    let t6 = fld(rc, 0x214138);
+    let t7 = t5 - t6;
+    fstp(rc, 0x31A8E4, t7);
 }
 
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    let left = unsafe { car_physics_step(r) }?;
-    left.apply(r);
-    Ok(())
-}
+#[cfg(all(test, target_arch = "x86"))]
+mod asm_reference {
+    use super::*;
+    use crate::scene::asm_test::{Block, In, Operand, Out, reference, sparse};
 
-/// Everything the step and its calls write, for the tests.
-pub fn test_regions() -> Vec<Region> {
-    let mut all = step_regions();
-    all.extend(ph::find_clear_place::regions());
-    all.extend(ph::update_camera::camera_regions());
-    all.extend(ph::damage_model::regions());
-    all.push(ph::face_contact::faces_region());
-    all
-}
+    // The original's instructions, one function per run.
+    reference!(ref_0(rc) "fld dword ptr [{rc} + 0x31A190]", "fadd dword ptr [{rc} + 0x31A194]", "fmul dword ptr [{rc} + 0x1C5E40]", "fstp dword ptr [{rc} + 0x31A198]", "fld dword ptr [{rc} + 0x31A174]", "fsub dword ptr [{rc} + 0x214138]", "fstp dword ptr [{rc} + 0x31A8E4]");
 
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    if !ph::move_slot::in_race() || !(1..=0x40).contains(&g(0x71A238)) || g(0x71B3F8) > 7 {
-        return t.skip("not in a race (no stage)");
+    fn blocks() -> Vec<Block> {
+        vec![Block {
+            name: "car_physics_step line 183",
+            operands: vec![Operand::Buffer {
+                reads: &[
+                    (0x1C5E40, In::F),
+                    (0x214138, In::F),
+                    (0x31A174, In::F),
+                    (0x31A190, In::F),
+                    (0x31A194, In::F),
+                ],
+                writes: &[(0x31A198, Out::F), (0x31A8E4, Out::F)],
+            }],
+            ulps: 0,
+            reference: |a| unsafe { ref_0(a[0]) },
+            plain: |a| x87_1(a[0]),
+        }]
     }
-    // Logging off for the two runs.
-    let mut all = test_regions();
-    all.push((game_addr(rva(0x4E0094)) as u32, 4));
-    let saved = capture(&all);
-    for word in TEST_CONTROL_WORDS {
-        with_control_word(word, &mut || {
-            for case in 0..3u32 {
-                let set = || {
-                    restore(&all, &saved);
-                    p(0x4E0094, 0);
-                    if case == 1 {
-                        // Into the ground.
-                        p(0x71A110, g(0x71A110).wrapping_sub(0x2_0000));
-                    }
-                    if case == 2 {
-                        p(0x61414C, 1);
-                    }
-                };
-                set();
-                let mut ro = Regs::SENTINEL;
-                unsafe { call_original(&mut ro) };
-                let theirs = (left_of(&ro), capture(&all));
-                set();
-                let mine = unsafe { car_physics_step(&Regs::SENTINEL) };
-                let state = capture(&all);
-                let ok = mine.as_ref().is_ok_and(|l| *l == theirs.0) && state == theirs.1;
-                t.check(ok, || {
-                    let diff = theirs.1.iter().zip(&state).position(|(x, y)| x != y);
-                    format!(
-                        "control word {word:#x}, case {case}: original {:x?}; rust {:x?}; memory first differs at {diff:x?}",
-                        theirs.0, mine
-                    )
-                });
-            }
-        });
+
+    #[test]
+    fn x87_blocks_matches_the_assembly() {
+        sparse(&blocks(), 1200, 100);
     }
-    restore(&all, &saved);
-    t.finish()
 }

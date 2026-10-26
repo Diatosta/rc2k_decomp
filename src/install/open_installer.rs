@@ -9,125 +9,92 @@
 //!
 //! In:  nothing
 //! Out: every register kept (`pusha` / `popa`)
-//! Caller `install::run_installer`. Its calls through `part`. Shadow mode runs the original
-//! alone. Self-test: a copy whose allocate/read/graphics calls go to stand-ins (allocation
-//! and reads scripted), against the Rust version; the table pointers, counts and the call
-//! sequence compared, and each fatal path.
+//! Caller `install::run_installer`.
 //!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Conversion phase 3 (2026-10-23): plain Rust with typed arguments; the registers above
+//! are the original's.
 
 use crate::errors::Refused;
-use crate::framework::Regs;
-use crate::install::installer::{
-    ALLOCATE, BUFFERS, COPY_PICTURE, DIR_COUNT, DIR_CURSOR, DIR_SCAN, DIRS, DRAW_STRING,
-    FILE_COUNT, FILE_CURSOR, FILES, Part, READ_FILE, SHOW, a, at, fatal, p,
-};
+use crate::gfx::picture_store::PICTURE;
+use crate::gfx::screen_state::SCREEN_MODE;
+use crate::install::installer::{components_to_pixels, copy_picture, draw_string, fatal, show};
+use crate::install::vars::INSTALLER_NAMES;
+use crate::install::vars::INSTALLER_PALETTE;
+use crate::install::vars::INSTALLER_RUN;
 
-const BAR_GLYPHS: usize = 0x51BB3C; // dword_51BB3C
-const INSTALL_BUN: usize = 0x51BEA1; // "files\d\gfx\install.bun"
-const INSTALL_PAL: usize = 0x51BEB9; // "files\d\gfx\install.pal"
-const INSTALL_PAL_BUF: usize = 0x4F3874; // unk_4F3874
-const BLENDED: usize = 0x4F3B74; // g_blendedPalette
-const SURFACE_FORMAT: usize = 0x4F496C; // g_surfaceFormat
-const BACKDROP: usize = 0x51BED1; // "files\d\gfx\backdrop.pcx"
-const MODE_FLAGS: usize = 0x4F4934; // g_screenModeFlags
-const PICTURE_FLAGS: usize = 0x4F49CC; // g_pictureFlags
-const PALETTE_TO_DWORDS: usize = 0x405DDE;
-const COMPONENTS_TO_PIXELS: usize = 0x405E02;
-const LOAD_PICTURE: usize = 0x411863;
-const CONVERT_PICTURE: usize = 0x406126;
-const PICTURE_AS_SURFACE: usize = 0x405FE7;
-const FONT_94: usize = 0x51E944; // stru_51E944
-const FONT_1000: usize = 0x51E404; // stru_51E404
-const FONT_1002: usize = 0x51E3E4; // stru_51E3E4
+const FONT_94: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fonts::HEAD;
+const FONT_1000: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fonts::NOTICE;
+const FONT_1002: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fonts::LABEL;
 
-fn alloc(bytes: u32, code: u32, r: &mut Regs, part: Part) -> Result<u32, Refused> {
-    r.eax = bytes;
-    r.ebx = a(BUFFERS);
-    part(at(ALLOCATE), r)?;
-    if r.carry() {
-        return Err(fatal(code));
-    }
-    Ok(r.eax)
+/// `memory::allocate` (0x4028A7) on the installer's list (it never fails with the
+/// original's carry: the fatal error `_code` is the original's for that).
+fn alloc(bytes: u32, _code: u32) -> Result<u32, Refused> {
+    Ok(crate::pointers::game_address({
+        crate::memory::allocate::allocate(
+            crate::pointers::host(INSTALLER_RUN.buffers.addr()) as *mut _,
+            bytes,
+        )
+    }?))
 }
 
-fn read(
-    path: usize,
-    buf: u32,
-    count: u32,
-    code: u32,
-    r: &mut Regs,
-    part: Part,
-) -> Result<(), Refused> {
-    r.eax = a(path);
-    r.ebx = buf;
-    r.ecx = count;
-    r.edx = 0;
-    part(at(READ_FILE), r)?;
-    if r.carry() {
+/// `files::read_file` (0x402BB6): `count` bytes of `path` into `buffer`; failing is fatal
+/// error `code`.
+fn read(path: usize, buffer: u32, count: u32, code: u32) -> Result<(), Refused> {
+    let read = crate::files::read_file::read_file(
+        crate::pointers::host_at(path) as *const u8,
+        crate::pointers::host(buffer),
+        count,
+        0,
+    )?;
+    if !read.ok {
         return Err(fatal(code));
     }
     Ok(())
 }
 
-fn draw(id: u32, font: usize, x: u32, y: u32, r: &mut Regs, part: Part) -> Result<(), Refused> {
-    r.eax = id;
-    r.ebx = a(font);
-    r.ecx = x;
-    r.edx = y;
-    part(at(DRAW_STRING), r)
-}
-
-pub fn open_installer(entry: &Regs, part: Part) -> Result<Regs, Refused> {
-    let mut r = *entry;
-    let dirs = alloc(0x10100, 0x80AF_7121, &mut r, part)?;
-    p(DIRS, dirs);
-    p(DIR_SCAN, dirs);
-    p(DIR_CURSOR, dirs);
-    let files = alloc(0x40100, 0x80AF_7122, &mut r, part)?;
-    p(FILES, files);
-    p(FILE_CURSOR, files);
-    r.eax = 0;
-    p(DIR_COUNT, 0);
-    p(FILE_COUNT, 0);
-    r.ecx = 0x3000; // mov eax, 3000h; mov ecx, eax
-    let glyphs = alloc(0x3000, 0x80AF_7022, &mut r, part)?;
-    p(BAR_GLYPHS, glyphs);
-    read(INSTALL_BUN, glyphs, 0x3000, 0x80AF_7444, &mut r, part)?;
+pub fn open_installer() -> Result<(), Refused> {
+    let dirs = alloc(0x10100, 0x80AF_7121)?;
+    INSTALLER_RUN.dirs.set(dirs);
+    INSTALLER_RUN.dir_scan.set(dirs);
+    INSTALLER_RUN.dir_cursor.set(dirs);
+    let files = alloc(0x40100, 0x80AF_7122)?;
+    INSTALLER_RUN.files.set(files);
+    INSTALLER_RUN.file_cursor.set(files);
+    INSTALLER_RUN.dir_count.set(0);
+    INSTALLER_RUN.file_count.set(0);
+    let glyphs = alloc(0x3000, 0x80AF_7022)?;
+    INSTALLER_RUN.bar_glyphs.set(glyphs);
     read(
-        INSTALL_PAL,
-        a(INSTALL_PAL_BUF),
+        INSTALLER_NAMES.installer_data.addr() as usize,
+        glyphs,
+        0x3000,
+        0x80AF_7444,
+    )?;
+    read(
+        INSTALLER_NAMES.install_pal.addr() as usize,
+        INSTALLER_PALETTE.palette.addr(),
         0x300,
         0x80AF_7445,
-        &mut r,
-        part,
     )?;
-    r.esi = a(INSTALL_PAL_BUF);
-    r.edi = a(BLENDED);
-    part(at(PALETTE_TO_DWORDS), &mut r)?;
-    r.ebx = a(SURFACE_FORMAT);
-    r.esi = r.edi;
-    part(at(COMPONENTS_TO_PIXELS), &mut r)?;
-    r.eax = a(BACKDROP);
-    part(at(LOAD_PICTURE), &mut r)?;
-    part(at(CONVERT_PICTURE), &mut r)?;
-    r.eax = crate::install::installer::g(MODE_FLAGS) & 0xFFF;
-    p(PICTURE_FLAGS, r.eax);
-    part(at(PICTURE_AS_SURFACE), &mut r)?;
-    draw(0x94, FONT_94, 0x316, 0x2F, &mut r, part)?;
-    draw(0x1000, FONT_1000, 0x320, 0x24B, &mut r, part)?;
-    draw(0x1002, FONT_1002, 0, 0x24B, &mut r, part)?;
-    part(at(COPY_PICTURE), &mut r)?;
-    part(at(SHOW), &mut r)?;
-    Ok(Regs { ..*entry })
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    crate::race::viewer::regs_entry(r, &|r| {
-        open_installer(r, &mut crate::install::installer::game_part)
-    })
+    unsafe {
+        crate::gfx::palette_to_dwords::palette_to_dwords(
+            INSTALLER_PALETTE.palette.addr(),
+            crate::text::blend_font::BLENDED_PALETTE.addr(),
+        )?;
+        let blended = crate::text::blend_font::BLENDED_PALETTE.addr();
+        components_to_pixels(blended, blended, crate::session::SCREEN.format_addr());
+        // gfx::load_picture: its carry is not read.
+        crate::gfx::load_picture::load_picture(crate::pointers::host(
+            INSTALLER_NAMES.backdrop.addr(),
+        ))?;
+        crate::gfx::convert_picture::convert_picture_now()?;
+    }
+    PICTURE.flags.set(SCREEN_MODE.mode_flags.get() & 0xFFF);
+    crate::gfx::picture_as_surface::picture_as_surface()?;
+    draw_string(0x94, FONT_94.addr(), 0x316, 0x2F)?;
+    draw_string(0x1000, FONT_1000.addr(), 0x320, 0x24B)?;
+    draw_string(0x1002, FONT_1002.addr(), 0, 0x24B)?;
+    copy_picture()?;
+    show();
+    Ok(())
 }

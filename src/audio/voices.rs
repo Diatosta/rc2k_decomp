@@ -11,147 +11,84 @@
 //! changes in a voice is marked in its `dirty` bits for the turn to carry out: 1 volume,
 //! 2 pan, 4 frequency, 8 place, 0x10 play, 0x20 restart.
 
-use crate::framework::{game_addr, rva};
+use crate::audio::store::{AUDIO, SAMPLE_RECORDS};
 
 pub use rc2k_core::audio::voices::{SAMPLES, VOICES};
 
-pub const SAMPLES_RVA: usize = rva(0x50A7A4); // g_sampleRecords
-pub const VOICES_RVA: usize = rva(0x4F834C); // g_voices
-pub const VOICE_COUNT_RVA: usize = rva(0x4F8348); // g_voiceCount
-pub const PLAYING_RVA: usize = rva(0x4F8340); // g_playingVoices
-pub const STOPPING_RVA: usize = rva(0x4F8344); // g_stoppingVoices
-pub const CHANNELS_USED_RVA: usize = rva(0x506350); // g_channelsUsed
-pub const CHANNEL_COUNT_RVA: usize = rva(0x50634C); // g_channelCount
-pub const CHANNELS_RVA: usize = rva(0x506354); // g_channels
-pub const SOUND_MODE_RVA: usize = rva(0x4F82BC); // g_soundMode
-pub const A3D_RVA: usize = rva(0x506D60); // g_useA3d
-pub const PRIMARY_RVA: usize = rva(0x506A8C); // g_primaryBuffer
-pub const VOLUMES_RVA: usize = rva(0x506B4C); // g_volumeTable: 65 volumes, -10000 .. 0
-pub const MASTER_VOLUME_RVA: usize = rva(0x4F82D8); // g_masterVolume
-pub const VOICE_MANAGER_RVA: usize = rva(0x506C58); // g_voiceManager: the voice manager's IKsPropertySet
-pub const EAX_RVA: usize = rva(0x506C74); // g_eaxProperties
-pub const EAX_ROOM_RVA: usize = rva(0x506C78); // g_eaxRoom: the room asked for
-pub const EAX_ROOM_SET_RVA: usize = rva(0x506C7C); // g_eaxRoomSet: the room set
-pub const BUFFER_LOST_RVA: usize = rva(0x4F82CC); // g_soundBufferLost
-pub const COMMIT_RVA: usize = rva(0x4F82D0); // g_commit3d: 3D settings to commit
-pub const SAMPLE_MEMORY_RVA: usize = rva(0x4F8300); // g_sampleMemory (a MemoryList)
 // The records, voices and channels and their constants: `rc2k_core::audio::voices`.
-pub use rc2k_core::audio::voices::{
-    CHANNELS_CLEARED, DEFAULT, DEFAULT_PLACE, DIRTY_FREQUENCY, DIRTY_PAN, DIRTY_PLACE, DIRTY_PLAY,
-    DIRTY_RESTART, DIRTY_VOLUME, LOADED, MODE_3D, MixerChannel, OWN_FREQUENCY, SampleRecord, Voice,
-};
+pub use rc2k_core::audio::voices::{LOADED, MODE_3D, MixerChannel, SampleRecord, Voice};
 
-/// Where the audio thread's tables and lists are: the game's, or a test's.
-#[derive(Clone, Copy, Debug)]
-pub struct World {
-    pub samples: u32,
-    pub playing: u32,
-    pub stopping: u32,
-    pub channels_used: u32,
-    pub channel_count: u32,
-    pub channels: u32,
-    pub sound_mode: u32,
+/// A dword at an address (the pointer a record or a COM call holds).
+pub fn read(at: u32) -> u32 {
+    crate::pointers::read_or_end::<u32>(at, "audio::voices's operand")
 }
 
-impl World {
-    pub fn game() -> Self {
-        let a = |r| game_addr(r) as u32;
-        Self {
-            samples: a(SAMPLES_RVA),
-            playing: a(PLAYING_RVA),
-            stopping: a(STOPPING_RVA),
-            channels_used: a(CHANNELS_USED_RVA),
-            channel_count: a(CHANNEL_COUNT_RVA),
-            channels: a(CHANNELS_RVA),
-            sound_mode: a(SOUND_MODE_RVA),
-        }
+/// A record of `T` at `at`, once the address is known to hold one (inside one region,
+/// aligned); the program ends with the address otherwise.
+fn record_at<'a, T>(at: u32, what: &str) -> &'a mut T {
+    crate::pointers::check_or_end(at, size_of::<T>(), what);
+    if !(at as usize).is_multiple_of(align_of::<T>()) {
+        crate::fatal::raise::end(
+            "audio::voices",
+            crate::errors::BadInput("a record at an address out of line"),
+        );
     }
-
-    /// The game's address of each, as the original's code holds it, with this world's.
-    pub fn pairs(&self) -> [(u32, u32); 7] {
-        let game = World::game();
-        [
-            (game.samples, self.samples),
-            (game.playing, self.playing),
-            (game.stopping, self.stopping),
-            (game.channels_used, self.channels_used),
-            (game.channel_count, self.channel_count),
-            (game.channels, self.channels),
-            (game.sound_mode, self.sound_mode),
-        ]
-    }
+    // Safety: `at` .. `at + size_of::<T>()` lies in one live region and is aligned; the
+    // records are the audio thread's (its lock held), as the original's are.
+    unsafe { &mut *(crate::pointers::host(at) as *mut T) }
 }
 
-/// A dword of the world.
-pub unsafe fn read(at: u32) -> u32 {
-    unsafe { (at as *const u32).read_unaligned() }
+pub fn voice<'a>(at: u32) -> &'a mut Voice {
+    record_at(at, "a voice")
 }
 
-pub unsafe fn write(at: u32, value: u32) {
-    unsafe { (at as *mut u32).write_unaligned(value) }
+/// The sample record of sound `number` (the original indexes the table unchecked; a
+/// number past it ends the program).
+pub fn sample<'a>(number: u32) -> &'a mut SampleRecord {
+    let Some(r) = SAMPLE_RECORDS.records.get(number as usize) else {
+        crate::fatal::raise::end(
+            "audio::voices",
+            crate::errors::BadInput("a sound number past the sample records"),
+        );
+    };
+    record_at(crate::pointers::game_address(r.as_ptr()), "a sample record")
 }
 
-pub unsafe fn voice<'a>(at: u32) -> &'a mut Voice {
-    unsafe { &mut *(at as *mut Voice) }
+pub fn channel<'a>(at: u32) -> &'a mut MixerChannel {
+    record_at(at, "a mixer channel")
 }
 
-pub unsafe fn sample<'a>(w: &World, number: u32) -> &'a mut SampleRecord {
-    unsafe { &mut *((w.samples as *mut SampleRecord).add(number as usize)) }
-}
-
-pub unsafe fn channel<'a>(at: u32) -> &'a mut MixerChannel {
-    unsafe { &mut *(at as *mut MixerChannel) }
-}
-
-/// The core's `Pool` over a world's memory: voices and channels by their addresses.
-pub struct GamePool {
-    samples: u32,
-    channels: u32,
-}
-
-impl GamePool {
-    /// `w`'s tables; every handle the core is given must be a voice or channel of the
-    /// world (the lists and records hold nothing else).
-    pub unsafe fn new(w: &World) -> Self {
-        GamePool {
-            samples: w.samples,
-            channels: w.channels,
-        }
-    }
-}
+/// The core's `Pool` over the game's memory: voices and channels by their addresses.
+pub struct GamePool;
 
 impl rc2k_core::audio::voices::Pool for GamePool {
     fn voice(&mut self, at: u32) -> &mut Voice {
-        unsafe { voice(at) }
+        voice(at)
     }
     fn channel(&mut self, at: u32) -> &mut MixerChannel {
-        unsafe { channel(at) }
+        channel(at)
     }
     fn channel_at(&self, n: u32) -> u32 {
-        self.channels + n * std::mem::size_of::<MixerChannel>() as u32
+        AUDIO.channels[0].addr() + n * std::mem::size_of::<MixerChannel>() as u32
     }
     fn record(&mut self, n: u32) -> &mut SampleRecord {
-        unsafe { &mut *((self.samples as *mut SampleRecord).add(n as usize)) }
+        sample(n)
     }
 }
 
-/// A world's lists, read.
-pub unsafe fn lists(w: &World) -> rc2k_core::audio::voices::Lists {
-    unsafe {
-        rc2k_core::audio::voices::Lists {
-            playing: read(w.playing),
-            stopping: read(w.stopping),
-            channels_used: read(w.channels_used),
-            channel_count: read(w.channel_count),
-        }
+/// The playing and stopping lists, the channels held and their count, read.
+pub fn lists() -> rc2k_core::audio::voices::Lists {
+    rc2k_core::audio::voices::Lists {
+        playing: AUDIO.playing_voices.get(),
+        stopping: AUDIO.stopping_voices.get(),
+        channels_used: AUDIO.channels_used.get(),
+        channel_count: AUDIO.channel_count.get(),
     }
 }
 
-/// A world's lists stored back (the channel count is not written).
-pub unsafe fn store_lists(w: &World, l: &rc2k_core::audio::voices::Lists) {
-    unsafe {
-        write(w.playing, l.playing);
-        write(w.stopping, l.stopping);
-        write(w.channels_used, l.channels_used);
-    }
+/// The lists stored back (the channel count is not written).
+pub fn store_lists(l: &rc2k_core::audio::voices::Lists) {
+    AUDIO.playing_voices.set(l.playing);
+    AUDIO.stopping_voices.set(l.stopping);
+    AUDIO.channels_used.set(l.channels_used);
 }

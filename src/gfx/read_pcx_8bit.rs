@@ -13,13 +13,8 @@
 //! file is not looked at: a file that ends early is filled up with palette entry 0.
 //! It fails if the open, a seek, the palette's read, the header's read or the close fails.
 //! A count byte of 0xC0, a run of none, makes a run of 2^32: the rest of the picture.
-//! One caller, `gfx::read_pcx`. Shadow mode decodes the file twice and compares.
-//! Refuses a decoded height of 0 (the original counts rows through all 32 bits) and what
-//! `open_stream` refuses. The name is a reading.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! One caller, `gfx::read_pcx`. Refuses a decoded height of 0 (the original counts rows through
+//! all 32 bits) and what `open_stream` refuses. The name is a reading.
 
 use crate::errors::BadInput;
 use crate::files::close_stream::close_stream;
@@ -27,14 +22,11 @@ use crate::files::handle::{read, seek};
 use crate::files::open_stream::open_stream;
 use crate::files::read_stream_block::read_stream_block;
 use crate::files::read_stream_byte::read_stream_byte;
-use crate::framework::{Regs, game_addr, game_read, game_write};
+use crate::gfx::decoder::DECODER;
 use crate::gfx::lay_out_pcx::lay_out_pcx;
-use crate::gfx::pcx::{
-    FILE_PALETTE_LEN, FILE_PALETTE_RVA, HEADER_LEN, HEADER_RVA, PALETTE_RVA, PIXELS_RVA, stream,
-    test_header, test_palette, test_plane_bytes, test_runs,
-};
-use crate::gfx::pcx_reader::reader_entry;
-use crate::gfx::picture::FLAGS_RVA;
+use crate::gfx::pcx::PCX;
+use crate::gfx::pcx::{FILE_PALETTE_LEN, HEADER_LEN, stream};
+use crate::gfx::picture_store::PICTURE;
 
 // ---- Rust version ----
 
@@ -46,27 +38,29 @@ unsafe fn read_rows() -> Result<bool, BadInput> {
         if seek(file, -(FILE_PALETTE_LEN as i32), 2).is_none() {
             return Ok(false);
         }
-        let palette_bytes = game_addr(FILE_PALETTE_RVA) as *mut u8;
+        let palette_bytes = crate::pointers::host(PCX.file_palette.addr());
         if !read(file, palette_bytes, FILE_PALETTE_LEN as u32).1 {
             return Ok(false);
         }
         if seek(file, 0, 0).is_none() {
             return Ok(false);
         }
-        let header = game_addr(HEADER_RVA) as *mut u8;
+        let header = crate::pointers::host(PCX.header.addr());
         if read_stream_block(stream, header, HEADER_LEN as u32)?.1 {
             return Ok(false);
         }
-        game_write(FLAGS_RVA, 0x800u32);
-        let layout = lay_out_pcx();
+        PICTURE.flags.set(0x800u32);
+        let layout = lay_out_pcx()?;
         // Converted: `rc2k_core::gfx::pcx::decode_8bit`.
-        let palette: [u32; 256] = game_read(PALETTE_RVA);
-        let pixels: u32 = game_read(PIXELS_RVA);
+        let palette: [u32; 256] = DECODER.palette();
+        let pixels: u32 = DECODER.pixels.get();
         rc2k_core::gfx::pcx::decode_8bit(
             &layout,
             &palette,
             |eax| read_stream_byte(stream, eax).map(|r| r.eax),
-            |to, pixel| (pixels.wrapping_add(to) as *mut u32).write_unaligned(pixel),
+            |to, pixel| {
+                (crate::pointers::host(pixels.wrapping_add(to)) as *mut u32).write_unaligned(pixel)
+            },
         )?
         .ok_or(BadInput("a PCX picture without rows"))?;
         Ok(true)
@@ -82,19 +76,4 @@ pub unsafe fn read_pcx_8bit(path: *const u8) -> Result<bool, BadInput> {
         let closed = close_stream(stream())?;
         Ok(rows? && closed)
     }
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    reader_entry(r, read_pcx_8bit)
-}
-
-/// A whole file: header, coded rows, palette.
-pub fn test_file(width: u16, height: u16, line_bytes: u16, seed: u32) -> Vec<u8> {
-    let mut file = test_header(2, 3, width, height, 1, line_bytes);
-    let rows = test_plane_bytes(line_bytes as usize * height as usize, seed);
-    file.extend(test_runs(&rows));
-    file.extend(test_palette());
-    file
 }

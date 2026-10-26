@@ -16,21 +16,16 @@
 //! registers above are the original's, for reference.
 
 use crate::errors::BadInput;
-use crate::files::read_file::{LAST_FILE_PATH_RVA, ReadResult, read_file};
+use crate::files::read_file::{ReadResult, read_file};
 use crate::files::resolve_path::resolve_path_in_game;
-use crate::framework::{game_addr, game_read, game_write, rva};
-use windows_sys::Win32::Storage::FileSystem::{
-    FindClose, FindFirstFileA, FindNextFileA, WIN32_FIND_DATAA,
-};
+use crate::files::scratch::SCRATCH;
+use crate::files::state::{FIND_HANDLE, LAST_FILE_PATH, SKIPPED_ATTRIBUTES, find_data};
+use crate::pointers::GamePtr;
+use std::sync::atomic::Ordering::Relaxed;
+use windows_sys::Win32::Storage::FileSystem::{FindClose, FindFirstFileA, FindNextFileA};
 
 // ---- game data ----
 
-const FIND_DATA_RVA: usize = rva(0x4E05A8); // FindFileData
-const FIND_HANDLE_RVA: usize = rva(0x4E05A4); // hFindFile
-/// The attributes a match must not have: the dword 0x13E into the search record.
-const SKIPPED_ATTRIBUTES_RVA: usize = rva(0x4E06E6);
-/// Where the found file's path is put together (the block the PNG reader also uses).
-const PATH_SCRATCH_RVA: usize = rva(0x93E8B0);
 const NO_SEARCH: u32 = u32::MAX;
 
 // ---- Rust version ----
@@ -48,13 +43,12 @@ pub unsafe fn first_match_read(
             return Err(BadInput("no path to match"));
         }
         let resolved = resolve_path_in_game(pattern)?;
-        game_write(LAST_FILE_PATH_RVA, resolved as u32);
-        let record = game_addr(FIND_DATA_RVA) as *mut WIN32_FIND_DATAA;
+        LAST_FILE_PATH.store(crate::pointers::game_address(resolved), Relaxed);
+        let record = find_data();
         let search = FindFirstFileA(resolved, record);
-        game_write(FIND_HANDLE_RVA, search as u32);
-        let skipped =
-            || game_read::<u32>(FIND_DATA_RVA) & game_read::<u32>(SKIPPED_ATTRIBUTES_RVA) != 0;
-        let mut found = search as u32 != NO_SEARCH;
+        FIND_HANDLE.store(crate::pointers::handle_number(search), Relaxed);
+        let skipped = || (*record).dwFileAttributes & SKIPPED_ATTRIBUTES.load(Relaxed) != 0;
+        let mut found = crate::pointers::handle_number(search) != NO_SEARCH;
         if found && skipped() {
             loop {
                 if FindNextFileA(search, record) == 0 {
@@ -68,18 +62,22 @@ pub unsafe fn first_match_read(
         }
         let read = if found {
             // Converted: `rc2k_core::files::io::match_path`.
-            let pattern = std::ffi::CStr::from_ptr(pattern.cast()).to_bytes();
+            let pattern = crate::files::cstring(
+                GamePtr::new(crate::pointers::game_address(pattern)),
+                "a search pattern",
+            )?;
             let name = std::ffi::CStr::from_ptr((&raw const (*record).cFileName).cast()).to_bytes();
-            let joined = rc2k_core::files::io::match_path(pattern, name);
-            let path = game_addr(PATH_SCRATCH_RVA) as *mut u8;
-            std::ptr::copy(joined.as_ptr(), path, joined.len());
+            let joined = rc2k_core::files::io::match_path(&pattern, name);
+            let path = crate::pointers::host(SCRATCH.buffer.addr());
+            GamePtr::new(crate::pointers::game_address(path))
+                .write_bytes(&joined, "the scratch buffer")?;
             Some(read_file(path, buffer, count, offset))
         } else {
             None
         };
-        if game_read::<u32>(FIND_HANDLE_RVA) != NO_SEARCH {
-            FindClose(game_read::<u32>(FIND_HANDLE_RVA) as _);
-            game_write(FIND_HANDLE_RVA, NO_SEARCH);
+        if FIND_HANDLE.load(Relaxed) != NO_SEARCH {
+            FindClose(crate::pointers::handle(FIND_HANDLE.load(Relaxed)));
+            FIND_HANDLE.store(NO_SEARCH, Relaxed);
         }
         read.transpose()
     }

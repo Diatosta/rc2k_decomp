@@ -23,33 +23,30 @@
 //! traps there). One caller, `start` (0x40101A); in the game this never gets a call (the
 //! hook DLL is loaded later); the standalone program needs it (it used a stand-in for
 //! `g_hasFpu`).
-//! Hook removed 2026-10-22 (direct calls): Rust callers run its `entry` (`calls::call`,
-//! `routes.rs`); the registers above are the original's, for reference.
+//! `start` calls it directly (2026-10-23); the registers above are the original's, for
+//! reference.
 
+use crate::arch::{__cpuid, _rdtsc};
 use crate::errors::{BadInput, Refused};
-use crate::framework::{Regs, game_read, game_write, rva};
-use core::arch::x86::{__cpuid, _rdtsc};
+use crate::files::scratch::SCRATCH;
+use crate::pointers::GamePtr;
+use crate::session::MACHINE;
 use rc2k_core::system::processor::{Var, test};
 use windows_sys::Win32::System::SystemInformation::GetTickCount;
 
 // ---- game data ----
 
-const FAMILY_RVA: usize = rva(0x5183D0); // dword_5183D0
-const SIGNATURE_RVA: usize = rva(0x5183D4); // dword_5183D4: leaf 1's eax
-const VENDOR_RVA: usize = rva(0x5183D8); // dword_5183D8 .. dword_5183E0
-const CLOCK_RVA: usize = rva(0x5183E8); // dword_5183E8: MHz
-const HAS_FPU_RVA: usize = rva(0x5183EC); // g_hasFpu
-const HAS_TSC_RVA: usize = rva(0x5183F0); // dword_5183F0
-const HAS_CMOV_RVA: usize = rva(0x5183F4); // dword_5183F4
-const HAS_MMX_RVA: usize = rva(0x5183F8); // dword_5183F8
-const HAS_SSE_RVA: usize = rva(0x5183FC); // dword_5183FC
-const HAS_3DNOW_RVA: usize = rva(0x518400); // dword_518400
-const RESUME_RVA: usize = rva(0x51849C); // dword_51849C: where the filter goes on
-const FPU_WORD_RVA: usize = rva(0x93E8B0); // g_pngInfo's first word
 // ---- Rust version ----
 
 /// Whether toggling `bit` in the flags changes them (`pushf` .. `popf` .. `pushf`); the
 /// flags are put back.
+#[cfg(target_arch = "x86_64")]
+fn flag_toggles(_bit: u32) -> bool {
+    // Every 64-bit processor has CPUID and the alignment flag.
+    true
+}
+
+#[cfg(target_arch = "x86")]
 fn flag_toggles(bit: u32) -> bool {
     let changed: u32;
     unsafe {
@@ -121,38 +118,55 @@ impl Processor for Real {
 }
 
 /// Where each variable is.
-fn place(v: Var) -> usize {
+fn place(v: Var) -> u32 {
+    let m = &MACHINE;
     match v {
-        Var::Family => FAMILY_RVA,
-        Var::Signature => SIGNATURE_RVA,
-        Var::Vendor(n) => VENDOR_RVA + 4 * n,
-        Var::Clock => CLOCK_RVA,
-        Var::HasFpu => HAS_FPU_RVA,
-        Var::HasTsc => HAS_TSC_RVA,
-        Var::HasCmov => HAS_CMOV_RVA,
-        Var::HasMmx => HAS_MMX_RVA,
-        Var::HasSse => HAS_SSE_RVA,
-        Var::Has3dNow => HAS_3DNOW_RVA,
-        Var::Resume => RESUME_RVA,
-        Var::FpuWord => FPU_WORD_RVA,
+        Var::Family => m.cpu_family.addr(),
+        Var::Signature => m.cpu_signature.addr(),
+        Var::Vendor(n) => m.cpu_vendor[n].addr(),
+        Var::Clock => m.cpu_mhz.addr(),
+        Var::HasFpu => m.has_fpu.addr(),
+        Var::HasTsc => m.has_tsc.addr(),
+        Var::HasCmov => m.has_cmov.addr(),
+        Var::HasMmx => m.found_mmx.addr(),
+        Var::HasSse => m.found_sse.addr(),
+        Var::Has3dNow => m.found_3dnow.addr(),
+        Var::Resume => m.exception_resume.addr(),
+        Var::FpuWord => SCRATCH.buffer.addr(),
     }
 }
 
-pub unsafe fn test_processor(p: &dyn Processor) -> Result<(), Refused> {
+pub fn test_processor(p: &dyn Processor) -> Result<(), Refused> {
     // Converted: `rc2k_core::system::processor::test`.
-    let mut put = |v: Var, value: u32| unsafe {
-        if v == Var::FpuWord {
-            game_write(place(v), value as u16);
-        } else {
-            game_write(place(v), value);
+    // The core's closures cannot refuse: the first refusal is kept and raised after.
+    let refused = std::cell::Cell::new(None);
+    let keep = |e: BadInput| {
+        if refused.get().is_none() {
+            refused.set(Some(e));
         }
     };
-    let get = |v: Var| unsafe { game_read::<u32>(place(v)) };
-    test(p, &mut put, &get).map_err(|e| BadInput::from(e).into())
-}
-
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(_: &mut Regs) -> Result<(), crate::errors::Refused> {
-    unsafe { test_processor(&Real) }?;
-    Ok(())
+    let mut put = |v: Var, value: u32| {
+        let at = GamePtr::new(place(v));
+        let done = if v == Var::FpuWord {
+            at.write(value as u16, "a processor test's variable")
+        } else {
+            at.write(value, "a processor test's variable")
+        };
+        if let Err(e) = done {
+            keep(e);
+        }
+    };
+    let get = |v: Var| {
+        GamePtr::new(place(v))
+            .read::<u32>("a processor test's variable")
+            .unwrap_or_else(|e| {
+                keep(e);
+                0
+            })
+    };
+    let answer = test(p, &mut put, &get);
+    if let Some(e) = refused.take() {
+        return Err(e.into());
+    }
+    answer.map_err(|e| BadInput::from(e).into())
 }

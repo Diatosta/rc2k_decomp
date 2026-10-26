@@ -8,12 +8,12 @@
 //! Hook removed 2026-10-22 (conversion phase 4): Rust callers call this directly; the
 //! registers above are the original's, for reference.
 
-use crate::framework::rva;
+use crate::menu::state_store::MENU_STATE;
 use crate::service::setup_values::Change;
 
 // ---- Rust version: `setup_values::toggle_change` with this ----
 
 pub const CHANGE: Change = Change {
-    chosen_rva: rva(0x75ACA8),
-    installed_rva: rva(0x75ACAC),
+    chosen: &MENU_STATE.driver_stats.setups[2].chosen,
+    installed: &MENU_STATE.driver_stats.setups[2].installed,
 };

@@ -3,38 +3,12 @@
 //! In:  nothing
 //! Out: eax = the number; everything else preserved
 //!
-//! One step on the state `dword_614C54` (`scene::noise_step`, 0x440F4E, inlined): bit
-//! 22, then bits 2 and 1 of the low byte as it then is, each flip bit 0; the whole
-//! turned right by one; then `xor` 0x87654321. `math::next_random`'s step with that
-//! last `xor` added.
-//! Five callers (two in the engine's tables, three unread).
-//! Self-test: 200 states.
+//! One step on the state `dword_614C54` (`scene::noise_step`, 0x440F4E, inlined): bit 22, then
+//! bits 2 and 1 of the low byte as it then is, each flip bit 0; the whole turned right by one;
+//! then `xor` 0x87654321. `math::next_random`'s step with that last `xor` added. Five callers
+//! (two in the engine's tables, three unread).
 
-use crate::bridge::Global;
-use crate::errors::Refused;
-use crate::framework::{EAX, RawHook, Regs, SelfTest, game_write, hook_asm, rva};
-use crate::screens::harness::Left;
-use crate::service::harness::{
-    Region, at, capture, check_state, dispatch_state, restore, state_entry,
-};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("scene::next_noise", rva(0x440F3E), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
-
-// ---- game data ----
-
-pub const STATE_RVA: usize = rva(0x614C54); // dword_614C54
-const STATE: Global<u32> = Global::at(0x614C54);
+use crate::physics::tables_store::PHYSICS;
 
 // ---- Rust version ----
 
@@ -44,60 +18,11 @@ pub fn noise_step(state: u32) -> u32 {
 }
 
 /// Converted: `rc2k_core::scene::noise::Noise::draw`.
-pub unsafe fn next_noise() -> u32 {
-    let mut n = rc2k_core::scene::noise::Noise { state: STATE.get() };
-    let number = n.draw();
-    STATE.set(n.state);
-    number
-}
-
-// ---- hook ----
-
-fn rust(_: &Regs) -> Result<Left, Refused> {
-    Ok(Left::nothing().with(EAX, unsafe { next_noise() }))
-}
-
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_state(&HOOK, r, call_original, &[at(STATE_RVA)], &rust);
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
-}
-
-// ---- self-test ----
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
+pub fn next_noise() -> u32 {
+    let mut n = rc2k_core::scene::noise::Noise {
+        state: PHYSICS.noise_state.bits(),
     };
-    let regions: [Region; 1] = [at(STATE_RVA)];
-    let saved = capture(&regions);
-    let mut state = 0x0012_D687u32;
-    for case in 0..200u32 {
-        let from = match case {
-            0 => 0,
-            1 => 0xFFFF_FFFF,
-            2 => 0x0040_0000,
-            3 => 6,
-            4 => 0x0040_0006,
-            _ => {
-                state = noise_step(state).wrapping_mul(0x9E37_79B9);
-                state
-            }
-        };
-        check_state(
-            &mut t,
-            &format!("state {from:#x}"),
-            call_original,
-            Regs::SENTINEL,
-            &|| unsafe { game_write(STATE_RVA, from) },
-            &regions,
-            &rust,
-        );
-    }
-    restore(&regions, &saved);
-    t.finish()
+    let number = n.draw();
+    PHYSICS.noise_state.set_bits(n.state);
+    number
 }

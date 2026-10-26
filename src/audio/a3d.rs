@@ -1,158 +1,96 @@
 //! Aureal's A3D (IDA, 2026-10-15): the two attempts to use it, its close, and the two
 //! functions that keep A3D's splash settings in the registry. A3D has not existed for a
 //! long time: the Rust versions make the same attempt (`CoCreateInstance`), go the
-//! original's way when it fails, and refuse when it works (the original then does it).
+//! original's way when it fails, and refuse when it works.
 
-use crate::audio::voices::{read, write};
+use crate::audio::store::AUDIO;
 use crate::errors::{BadInput, Refused};
-use crate::framework::{game_addr, rva};
+use crate::session::Dword;
 
-pub const NO_A3D_SETTING_RVA: usize = rva(0x506C5C); // g_noA3dSetting: 1 no A3D, 2 no A3D2
-pub const A3D2_INTERFACE_RVA: usize = rva(0x506D58); // g_a3d2Interface
-pub const SPLASH_KEPT_RVA: usize = rva(0x506C60); // g_a3dSplashKept (1: the splash pair acts)
-const A3D_CLSID_RVA: usize = rva(0x506CD8);
-const A3D_IID_RVA: usize = rva(0x506A28);
-const A3D2_CLSID_RVA: usize = rva(0x506D6C);
-const A3D2_IID_RVA: usize = rva(0x506D8C);
 /// `CoCreateInstance`'s class context: in process.
 const IN_PROCESS: u32 = 1;
 
-/// `CoCreateInstance` (class, interface, where the object goes) -> its result.
-pub type Create<'a> = &'a mut dyn FnMut(u32, u32, u32) -> i32;
-
-pub fn game_create(class: u32, interface: u32, out: u32) -> i32 {
-    unsafe {
+/// `CoCreateInstance` (class, interface) -> its result. The object never reaches the game:
+/// when there is one A3D is there, which the callers refuse, so it is released here at
+/// once (a system object's address need not fit the game's 32 bits).
+fn game_create(class: u32, interface: u32) -> i32 {
+    let mut object: *mut core::ffi::c_void = std::ptr::null_mut();
+    let r = unsafe {
         windows_sys::Win32::System::Com::CoCreateInstance(
-            class as *const _,
+            crate::pointers::host(class) as *const _,
             std::ptr::null_mut(),
             IN_PROCESS,
-            interface as *const _,
-            out as *mut *mut core::ffi::c_void,
+            crate::pointers::host(interface) as *const _,
+            &mut object,
         )
+    };
+    if r >= 0 && !object.is_null() {
+        // SAFETY: a COM object the system made: its table's third method is `Release`.
+        unsafe {
+            let table = *(object as *const *const usize);
+            let release: unsafe extern "system" fn(*mut core::ffi::c_void) -> u32 =
+                std::mem::transmute(*table.add(2));
+            release(object);
+        }
     }
+    r
 }
 
-unsafe fn release(at: u32) {
-    unsafe {
-        let o = read(at);
-        if o != 0 {
-            crate::audio::com::call(o, crate::audio::com::RELEASE);
-            write(at, 0);
-        }
+/// The object a cell holds released (when there is one) and forgotten.
+fn release(cell: &Dword) {
+    let o = cell.get();
+    if o != 0 {
+        unsafe { crate::audio::com::call(o, crate::audio::com::RELEASE) };
+        cell.set(0);
     }
 }
 
 const THERE: &str = "A3D is there (CoCreateInstance worked): not ported";
 
-/// Where the attempts' things are.
-#[derive(Clone, Copy)]
-pub struct A3dVars {
-    pub setting: u32,
-    pub ready: u32,
-    pub direct_sound: u32,
-    pub object: u32,
-    pub use_a3d: u32,
-}
-
-impl A3dVars {
-    pub fn game() -> Self {
-        let a = |r| game_addr(r) as u32;
-        Self {
-            setting: a(NO_A3D_SETTING_RVA),
-            ready: a(crate::audio::sound_device::A3D_READY_RVA),
-            direct_sound: a(crate::audio::make_buffer::DIRECT_SOUND_RVA),
-            object: a(crate::audio::sound_device::A3D_OBJECT_RVA),
-            use_a3d: a(crate::audio::voices::A3D_RVA),
-        }
-    }
-}
-
 /// `audio::open_a3d`: A3D as the DirectSound. False for the carry (not used).
-pub unsafe fn open_a3d(v: &A3dVars, create: Create) -> Result<bool, Refused> {
-    unsafe {
-        if read(v.setting) & 1 != 0 {
-            release(v.object);
-            release(v.direct_sound);
-            return Ok(false);
-        }
-        write(v.ready, 0);
-        if create(
-            game_addr(A3D_CLSID_RVA) as u32,
-            game_addr(A3D_IID_RVA) as u32,
-            v.direct_sound,
-        ) != 0
-        {
-            write(v.direct_sound, 0);
-            return Ok(false);
-        }
-        release(v.direct_sound);
+pub fn open_a3d() -> Result<bool, Refused> {
+    if AUDIO.no_a3d_setting.get() & 1 != 0 {
+        release(&AUDIO.a3d_object);
+        release(&AUDIO.direct_sound);
+        return Ok(false);
+    }
+    AUDIO.a3d_ready.set(0);
+    AUDIO.direct_sound.set(0);
+    if game_create(AUDIO.a3d_clsid.addr(), AUDIO.a3d_iid.addr()) != 0 {
+        return Ok(false);
     }
     Err(BadInput(THERE).into())
 }
 
 /// `audio::open_a3d2`: A3D's second interface. False for the carry (not used).
-pub unsafe fn open_a3d2(v: &A3dVars, create: Create) -> Result<bool, Refused> {
-    unsafe {
-        if read(v.setting) & 2 != 0 {
-            release(v.object);
-            write(v.object, 0);
-            return Ok(false);
-        }
-        write(v.use_a3d, 0);
-        if create(
-            game_addr(A3D2_CLSID_RVA) as u32,
-            game_addr(A3D2_IID_RVA) as u32,
-            v.object,
-        ) != 0
-        {
-            write(v.object, 0);
-            return Ok(false);
-        }
-        release(v.object);
+pub fn open_a3d2() -> Result<bool, Refused> {
+    if AUDIO.no_a3d_setting.get() & 2 != 0 {
+        release(&AUDIO.a3d_object);
+        AUDIO.a3d_object.set(0);
+        return Ok(false);
+    }
+    AUDIO.use_a3d.set(0);
+    AUDIO.a3d_object.set(0);
+    if game_create(AUDIO.a3d2_clsid.addr(), AUDIO.a3d2_iid.addr()) != 0 {
+        return Ok(false);
     }
     Err(BadInput(THERE).into())
 }
 
 /// `audio::close_a3d2`: its interface released, `release_a3d` (place 9), A3D off.
-pub unsafe fn close_a3d2(
-    interface: u32,
-    use_a3d: u32,
-    part: crate::audio::sound_device::Part,
-) -> Result<(), Refused> {
-    unsafe {
-        release(interface);
-        part(9, 0)?;
-        write(use_a3d, 0);
-    }
+pub fn close_a3d2() -> Result<(), Refused> {
+    release(&AUDIO.a3d2_interface);
+    crate::audio::sound_device::release_a3d_object();
+    AUDIO.use_a3d.set(0);
     Ok(())
 }
 
 /// `audio::read_splash` and `write_splash`: nothing unless A3D was found at the start
 /// (`g_a3dSplashKept` 1); then they read and turn off, or write back, A3D's
 /// "SplashScreen" and "SplashAudio" under HKLM\SOFTWARE\Aureal\A3D: refused.
-pub unsafe fn splash(kept: u32) -> Result<(), Refused> {
-    if unsafe { read(kept) } == 1 {
+pub fn splash() -> Result<(), Refused> {
+    if AUDIO.a3d_splash_kept.get() == 1 {
         return Err(BadInput("A3D's splash settings in the registry (not ported)").into());
     }
     Ok(())
-}
-
-// ---- for the self-tests ----
-
-/// `CoCreateInstance` in a copy: no object, "class not registered", its five arguments
-/// taken off the stack.
-#[unsafe(naked)]
-pub unsafe extern "C" fn no_class() {
-    core::arch::naked_asm!(
-        "mov eax, [esp + 0x14]",
-        "mov dword ptr [eax], 0",
-        "mov eax, 0x80040154",
-        "ret 0x14",
-    )
-}
-
-/// The Rust side's `CoCreateInstance` in a test: as `no_class`.
-pub fn test_create(_: u32, _: u32, out: u32) -> i32 {
-    unsafe { write(out, 0) };
-    0x8004_0154u32 as i32
 }

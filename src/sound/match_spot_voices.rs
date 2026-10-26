@@ -8,52 +8,37 @@
 //! free: the spot goes unheard. Then the voice's place = the spot's and heard (+4) 1.
 //! See `sound/spot_voices.rs`. One caller, `sound::spot_sounds`.
 //! Refuses (before anything) more than 36 spots (the table's size).
-//! Shadow mode: both, the voices compared.
-//! Self-test: the original against the Rust version on spots and voices of the test's
-//! (the game's tables, put back).
 //!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
+//! above are the original's, for reference.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{Regs, game_addr, rva};
-use crate::sound::spot_voices::{
-    MOST_KIND, MOST_SPOTS, SOUND_OF_KIND, SPOT_COUNT, SPOT_LEN, SPOTS, g, load_voices,
-    store_voices, vw,
-};
-use crate::sound::turn_parts::{Part, turn_entry};
+use crate::sound::spot_voices::{MOST_KIND, MOST_SPOTS, load_voices, store_voices};
 
 // ---- Rust version ----
 
-pub fn match_spot_voices_in(_: &mut Regs, _: Part) -> Result<(), Refused> {
+pub fn match_spot_voices() -> Result<(), Refused> {
     use rc2k_core::sound::spot_voices::Spot;
     // Converted: `rc2k_core::sound::spot_voices::match_spots`.
-    let count = g(SPOT_COUNT);
+    let stage = &crate::sound::store::STAGE_SOUNDS;
+    let count = stage.shared_count.get();
     if count > MOST_SPOTS {
         return Err(BadInput("more than 36 shared spots").into());
     }
-    let table = game_addr(rva(SPOTS)) as u32;
-    let spots: Vec<Spot> = (0..count)
-        .map(|s| {
-            let spot = table + s * SPOT_LEN;
-            Spot {
-                id: vw(spot, 0),
-                place: [vw(spot, 4), vw(spot, 8), vw(spot, 0xC)],
-                kind: vw(spot, 0x10),
-            }
+    let spots: Vec<Spot> = stage.shared_spots[..count as usize]
+        .iter()
+        .map(|spot| Spot {
+            id: spot.id.get(),
+            place: spot.place.each_ref().map(|f| f.bits()),
+            kind: spot.kind.get(),
         })
         .collect();
-    let kinds: [u32; MOST_KIND as usize + 1] =
-        unsafe { crate::framework::game_read(rva(SOUND_OF_KIND)) };
+    let kinds: [u32; MOST_KIND as usize + 1] = crate::sound::store::SPOT_PICKS
+        .kind_sounds
+        .each_ref()
+        .map(|d| d.get());
     let mut voices = load_voices();
     rc2k_core::sound::spot_voices::match_spots(&spots, &mut voices, &kinds)?;
     store_voices(&voices);
     Ok(())
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    turn_entry(r, match_spot_voices_in)
 }

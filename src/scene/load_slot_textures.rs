@@ -4,42 +4,30 @@
 //! In:  nothing
 //! Out: ecx = the number of slots; everything else preserved
 //!
-//! `scene::load_slot_texture` for the slots 0 .. `dword_5DC970`.
-//! Six callers.
-//! Refuses no slots (the original goes through 2^32) and more than the table has.
-//! Hook removed 2026-10-22 (direct calls): Rust callers run its `entry` (`calls::call`,
-//! `routes.rs`); the registers above are the original's, for reference.
+//! `scene::load_slot_texture` for the slots 0 .. `dword_5DC970`. Six callers. Refuses no slots
+//! (the original goes through 2^32) and more than the table has. The registers above are the
+//! original's; a call by address goes through `routes.rs`, which maps them.
 
-use crate::errors::{BadInput, Refused};
-use crate::framework::{ECX, Regs, game_read};
+use crate::errors::BadInput;
 use crate::scene::load_slot_texture::load_slot_texture_in_game;
-use crate::scene::textures::SLOT_COUNT_RVA;
-use crate::screens::harness::Left;
+use crate::scene::texture_places_store::TEXTURE_PLACES;
 
 // ---- Rust version ----
 
+/// The number of slots in use (ecx after the original, which `scene::draw_carousel`
+/// reads in the main menu).
 // Converted: `rc2k_core::scene::textures::slots_in_use`
-pub unsafe fn load_slot_textures(
+pub fn load_slot_textures(
     load: &mut dyn FnMut(u32) -> Result<(), BadInput>,
-) -> Result<Left, BadInput> {
-    unsafe {
-        let count = rc2k_core::scene::textures::slots_in_use(game_read(SLOT_COUNT_RVA))?;
-        for slot in 0..count {
-            load(slot)?;
-        }
-        Ok(Left::nothing().with(ECX, count))
+) -> Result<u32, BadInput> {
+    let count = rc2k_core::scene::textures::slots_in_use(TEXTURE_PLACES.totals[2].get())?;
+    for slot in 0..count {
+        load(slot)?;
     }
+    Ok(count)
 }
 
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    let entry = *r;
-    match unsafe { load_slot_textures(&mut |slot| load_slot_texture_in_game(slot, &entry)) } {
-        Ok(left) => left.apply(r),
-        Err(e) => {
-            let e: Refused = e.into();
-            return Err(e);
-        }
-    }
-    Ok(())
+/// With the game's loading.
+pub fn load_slot_textures_in_game() -> Result<u32, BadInput> {
+    load_slot_textures(&mut |slot| load_slot_texture_in_game(slot))
 }

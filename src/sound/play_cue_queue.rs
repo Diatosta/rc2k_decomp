@@ -17,79 +17,55 @@
 //! Two callers, `sound::play_cue_queues`.
 //! Refuses a null object, a queue of more than 16 or a cue of more than six sounds
 //! (before anything), and the duration's refusals (what was written put back).
-//! A near `jnz` in its first five bytes: private copy (0xA4 bytes, the three calls
-//! relocated), manual patch.
-//! Shadow mode runs the original alone (it sends sounds).
-//! Self-test: a copy whose calls (`drop_cue`, which the stand-in does, `play_sound`) go
-//! to stand-ins (the one of
-//! `sample_duration` left), against the Rust version, on a test object.
 //!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
+//! above are the original's, for reference.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{Regs, game_read, rva};
-use crate::physics::flow::guard;
+use crate::pointers::GamePtr;
 use crate::sound::sample_duration::sample_duration;
-use crate::sound::turn_parts::{CLOCK, OBJECT_LEN, PLAY, Part, turn_entry};
-
-const DROP: u32 = 0x40EE32;
-const QUEUE: u32 = 0x298;
 
 // ---- Rust version ----
 
-/// Converted: `rc2k_core::sound::cars::cue_turn`; the drops through `sound::drop_cue` with
-/// the registers the original has there, the queue in the game's memory meanwhile.
-pub fn play_cue_queue_in(c: &mut Regs, part: Part) -> Result<(), Refused> {
+/// Converted: `rc2k_core::sound::cars::cue_turn`; the drops through `sound::drop_cue`, the
+/// queue in the game's memory meanwhile. Object `o`'s queue of cues: the next one played
+/// when it is due.
+pub fn play_cue_queue(o: u32) -> Result<(), Refused> {
     use rc2k_core::sound::cars::{CueQueue, CueTurn, OWN, cue_turn};
-    let o = c.ebx;
     if o == 0 {
         return Err(BadInput("a null sound object").into());
     }
-    let in_use = unsafe { ((o + 8) as *const u32).read_unaligned() } == 1;
-    let q = (o + QUEUE) as *mut [u32; 0x84];
-    let mut queue = CueQueue::from_words(&unsafe { q.read_unaligned() });
-    let clock: u32 = unsafe { game_read(rva(CLOCK)) };
+    let so = crate::sound::store::SoundObject::at(o)?;
+    let in_use = so.in_use.get() == 1;
+    let q = GamePtr::new(crate::pointers::game_address(
+        &so.cue_queue as *const crate::sound::store::CueQueue,
+    ));
+    let mut queue = CueQueue::from_words(&q.read::<[u32; 0x84]>("a cue queue")?);
+    let clock = crate::sound::store::RACE_CLOCK.last.get();
     if !in_use {
         return Ok(());
     }
-    c.edi = q as u32;
-    guard(&[(o, OBJECT_LEN)], || {
-        let turn = cue_turn::<Refused>(
-            &mut queue,
-            in_use,
-            clock,
-            |sound| Ok(sample_duration(sound, OWN)?),
-            |queue, place| {
-                unsafe { q.write_unaligned(queue.to_words()) };
-                (c.eax, c.ebx) = (0, place);
-                part(DROP, c)?;
-                *queue = CueQueue::from_words(&unsafe { q.read_unaligned() });
-                Ok(())
-            },
-        )?;
-        match turn {
-            CueTurn::NotInUse | CueTurn::Empty => return Ok(()),
-            CueTurn::NotDue => {
-                c.eax = clock;
-                return Ok(());
-            }
-            _ => {}
-        }
-        unsafe { q.write_unaligned(queue.to_words()) };
-        match turn {
-            CueTurn::Play { sound } => {
-                (c.eax, c.ebx, c.edx, c.ecx, c.edi, c.ebp) = (sound, OWN, OWN, 0, 0, 0);
-                part(PLAY, c)
-            }
-            _ => Ok(()),
-        }
-    })
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    turn_entry(r, play_cue_queue_in)
+    let turn = cue_turn::<Refused>(
+        &mut queue,
+        in_use,
+        clock,
+        |sound| Ok(sample_duration(sound, OWN)?),
+        |queue, _| {
+            // The first cue taken out (`drop_cue` at 0; the place given was the
+            // original's ebx only).
+            q.write(queue.to_words(), "a cue queue")?;
+            crate::sound::drop_cue::drop_cue(q.addr(), 0)?;
+            *queue = CueQueue::from_words(&q.read::<[u32; 0x84]>("a cue queue")?);
+            Ok(())
+        },
+    )?;
+    match turn {
+        CueTurn::NotInUse | CueTurn::Empty | CueTurn::NotDue => return Ok(()),
+        _ => {}
+    }
+    q.write(queue.to_words(), "a cue queue")?;
+    if let CueTurn::Play { sound } = turn {
+        crate::sound::turn_parts::play(sound, OWN, OWN, [0; 3]);
+    }
+    Ok(())
 }

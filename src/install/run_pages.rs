@@ -6,51 +6,29 @@
 //! In:  esi the first entry (`off_51D594`, or `off_51D5D8` for an update)
 //! Out: esi 0 (or the next entry when quitting), edi the last page's list, eax its answer;
 //!      the flags of the last test
-//! Caller `sub_412DE0` (`install::run_installer`, twice). Its calls through `part`.
-//! Ungated. Shadow mode runs the original alone. Self-test: a copy whose page runs go to a
-//! stand-in answering as the test says, against the Rust version, on entries of the test's.
+//! Caller `sub_412DE0` (`install::run_installer`, twice).
 //!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Conversion phase 3 (2026-10-23): plain Rust with typed arguments; the registers above
+//! are the original's.
 
 use crate::errors::Refused;
-use crate::framework::Regs;
-use crate::install::installer::{Part, QUITTING, at, cmp, g, rd, wd};
-use crate::race::viewer::regs_entry;
+use crate::install::installer::{rd, wd};
+use crate::session::FLAGS;
 use rc2k_core::install::pages;
 
-const RUN_PAGE: usize = 0x4144CF; // install::run_page
-
-pub fn run_pages(entry: &Regs, part: Part) -> Result<Regs, Refused> {
-    let mut r = *entry;
+/// The pages from the entry `first` on.
+pub fn run_pages(first: u32) -> Result<(), Refused> {
+    let mut entry = first;
     loop {
-        r.edi = rd(r.esi);
-        part(at(RUN_PAGE), &mut r)?;
-        let answer = r.eax;
-        cmp(&mut r, answer, 1);
+        let list = rd(entry);
+        let answer = crate::install::run_page::run_page(list)?;
         // Converted: `rc2k_core::install::pages` (`resets_highlight`, `next_entry_at`).
         if pages::resets_highlight(answer) {
-            wd(r.edi + 4, 0);
+            wd(list + 4, 0);
         }
-        r.esi = rd(r.esi.wrapping_add(pages::next_entry_at(answer)));
-        let quitting = g(QUITTING);
-        cmp(&mut r, quitting, 1);
-        if quitting == 1 {
-            return Ok(r);
-        }
-        let next = r.esi;
-        crate::install::installer::logic(&mut r, next);
-        if r.esi == 0 {
-            return Ok(r);
+        entry = rd(entry.wrapping_add(pages::next_entry_at(answer)));
+        if FLAGS.quitting.get() == 1 || entry == 0 {
+            return Ok(());
         }
     }
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    regs_entry(r, &|r| {
-        run_pages(r, &mut crate::install::installer::game_part)
-    })
 }

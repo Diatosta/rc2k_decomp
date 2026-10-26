@@ -6,114 +6,28 @@
 //! In:  nothing
 //! Out: as `set_view_window` leaves them
 //!
-//! Callers: `scene::full_view_window`, code at 0x446810. `set_view_window` is its Rust
-//! version. Self-test: the original and the Rust version on the game's variables, every
-//! way.
+//! Callers: `scene::full_view_window`, code at 0x446810. `set_view_window` is its Rust version.
 
-use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, SelfTest, game_read, game_write, hook_asm, rva};
-use crate::screens::harness::Left;
-use crate::service::harness::{
-    Region, at, capture, check_state, dispatch_state, restore, state_entry,
-};
-use std::sync::atomic::AtomicUsize;
+use crate::race::switches_store::FRAME_SWITCHES;
+use crate::scene::draw_store::DRAW;
+use crate::session::SCREEN;
 
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("scene::choose_view_window", rva(0x44FE1A), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
-
-const FRAMED_RVA: usize = rva(0x621514); // dword_621514
-const WIDE_RVA: usize = rva(0x621480); // dword_621480
-pub const MODE_RVA: usize = rva(0x636526); // word_636526
-const WINDOW_RVA: [usize; 2] = [rva(0x62408C), rva(0x624090)];
-const OFFSET_RVA: [usize; 2] = [rva(0x623FB0), rva(0x623FB4)];
-const SCALE_RVA: usize = rva(0x624080); // dword_624080
-const SCREEN_RVA: [usize; 2] = [rva(0x4F494C), rva(0x4F4950)];
-
-/// The Rust version (see the header): what it leaves in the registers.
-pub unsafe fn choose_view_window() -> Left {
+/// The window chosen, then `set_view_window`.
+pub fn choose_view_window() {
     // Converted: `rc2k_core::scene::view_window::choose`.
     use rc2k_core::scene::view_window::{ViewSettings, choose};
-    unsafe {
-        let settings = ViewSettings {
-            framed: game_read::<u32>(FRAMED_RVA) != 0,
-            wide: game_read::<u32>(WIDE_RVA) != 0,
-            mode: game_read(MODE_RVA),
-        };
-        let window = choose(settings, || {
-            [game_read(SCREEN_RVA[0]), game_read(SCREEN_RVA[1])]
-        });
-        game_write(WINDOW_RVA[0], window.size[0]);
-        game_write(WINDOW_RVA[1], window.size[1]);
-        game_write(OFFSET_RVA[0], window.offset[0]);
-        game_write(OFFSET_RVA[1], window.offset[1]);
-        game_write(SCALE_RVA, window.scale);
-        crate::scene::set_view_window::set_view_window()
-    }
-}
-
-pub fn regions() -> Vec<Region> {
-    let mut r: Vec<Region> = crate::scene::set_view_window::regions().to_vec();
-    r.extend(
-        [
-            WINDOW_RVA[0],
-            WINDOW_RVA[1],
-            OFFSET_RVA[0],
-            OFFSET_RVA[1],
-            SCALE_RVA,
-        ]
-        .map(at),
-    );
-    r
-}
-
-fn rust(_: &Regs) -> Result<Left, Refused> {
-    Ok(unsafe { choose_view_window() })
-}
-
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_state(&HOOK, r, call_original, &regions(), &rust);
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
+    let settings = ViewSettings {
+        framed: FRAME_SWITCHES.editor_mode.bits() != 0,
+        wide: FRAME_SWITCHES.other_way.bits() != 0,
+        mode: crate::scene::light_tables_store::LIGHT_TABLES
+            .view_mode
+            .get(),
     };
-    let regions = regions();
-    let mut vars = regions.clone();
-    vars.extend(crate::scene::set_view_window::inputs());
-    vars.extend([FRAMED_RVA, WIDE_RVA, MODE_RVA].map(at));
-    let saved = capture(&vars);
-    for case in 0..6u32 {
-        check_state(
-            &mut t,
-            &format!("case {case}"),
-            call_original,
-            Regs::SENTINEL,
-            &|| unsafe {
-                restore(&vars, &saved);
-                game_write(FRAMED_RVA, u32::from(case != 0));
-                game_write(WIDE_RVA, u32::from(case == 2));
-                game_write(MODE_RVA, [0u16, 0, 0, 2, 1, 3][case as usize]);
-            },
-            &regions,
-            &rust,
-        );
-    }
-    restore(&vars, &saved);
-    t.finish()
+    let window = choose(settings, || [SCREEN.width.get(), SCREEN.height.get()]);
+    DRAW.view_size[0].set_bits(window.size[0]);
+    DRAW.view_size[1].set_bits(window.size[1]);
+    DRAW.view_offset[0].set_bits(window.offset[0]);
+    DRAW.view_offset[1].set_bits(window.offset[1]);
+    DRAW.view_zoom.set_bits(window.scale);
+    crate::scene::set_view_window::set_view_window();
 }

@@ -9,66 +9,64 @@
 //! and the part at that place of the list `dword_A8C184`; -1 ends it
 //! (`dword_A8C188` = 0), else `sound::start_stream` with it and `dword_755698`. Once a
 //! frame on four screens (the car specification, the slideshow, two stage screens).
-//! Hook removed 2026-10-22 (direct calls): Rust callers run its `entry` (`calls::call`,
-//! `routes.rs`); the registers above are the original's, for reference.
 
-use crate::framework::{Regs, game_read, game_write, rva};
+use crate::audio::store::AUDIO;
+use crate::errors::BadInput;
+use crate::menu::champ_store::CHAMP_VIEW;
+use crate::menu::option_work_store::OPTION_WORK;
+use crate::pointers::GamePtr;
 
 // ---- game data ----
 
-const KIND_RVA: usize = rva(0x7556D0); // dword_7556D0
-const ON_RVA: usize = rva(0xA8C188); // dword_A8C188
-const STREAM_RVA: usize = rva(0xA8C184); // dword_A8C184
-const PLACE_RVA: usize = rva(0xA8C180); // dword_A8C180
-const VOLUME_RVA: usize = rva(0x755698); // dword_755698
-const PLAYING_RVA: usize = rva(0x506960); // dword_506960
-const START_RVA: usize = rva(0x40F743); // sound::start_stream
 // sub_40C4D5
 
 // ---- Rust version ----
 
-/// `playing` stands for `sub_40C4D5`, `start` for `sound::start_stream`.
-pub unsafe fn step_car_stream(
-    r: &Regs,
+/// `playing` stands for `sub_40C4D5`, `start` for `sound::start_stream` (the part, the
+/// volume).
+pub fn step_car_stream(
     playing: &mut dyn FnMut() -> bool,
-    start: &mut dyn FnMut(&mut Regs),
-) {
-    unsafe {
-        // Converted: `rc2k_core::sound::race::stream_step`.
-        use rc2k_core::sound::race::{StreamStep, stream_step};
-        let list: u32 = game_read(STREAM_RVA);
-        let (place, part) = match stream_step(
-            game_read(KIND_RVA),
-            game_read(ON_RVA),
-            playing,
-            game_read(PLACE_RVA),
-            |place| ((list.wrapping_add(place.wrapping_mul(4))) as *const u32).read_unaligned(),
-        ) {
-            StreamStep::Nothing => return,
-            StreamStep::Ended { place } => {
-                game_write(PLACE_RVA, place);
-                game_write(ON_RVA, 0u32);
-                return;
-            }
-            StreamStep::Start { place, part } => (place, part),
-        };
-        game_write(PLACE_RVA, place);
-        let mut inner = Regs {
-            eax: part,
-            ebx: place,
-            ecx: game_read(VOLUME_RVA),
-            ..*r
-        };
-        start(&mut inner);
+    start: &mut dyn FnMut(u32, u32),
+) -> Result<(), BadInput> {
+    // Converted: `rc2k_core::sound::race::stream_step`.
+    use rc2k_core::sound::race::{StreamStep, stream_step};
+    let list: u32 = crate::sound::store::CAR_STREAM.stream.get();
+    let failed = std::cell::Cell::new(None);
+    let step = stream_step(
+        CHAMP_VIEW.event_mode.get(),
+        crate::sound::store::CAR_STREAM.on.get(),
+        playing,
+        crate::sound::store::CAR_STREAM.place.get(),
+        |place| {
+            GamePtr::new(list.wrapping_add(place.wrapping_mul(4)))
+                .read::<u32>("a car's stream list")
+                .unwrap_or_else(|e| {
+                    failed.set(Some(e));
+                    0
+                })
+        },
+    );
+    if let Some(e) = failed.take() {
+        return Err(e);
     }
+    let (place, part) = match step {
+        StreamStep::Nothing => return Ok(()),
+        StreamStep::Ended { place } => {
+            crate::sound::store::CAR_STREAM.place.set(place);
+            crate::sound::store::CAR_STREAM.on.set(0);
+            return Ok(());
+        }
+        StreamStep::Start { place, part } => (place, part),
+    };
+    crate::sound::store::CAR_STREAM.place.set(place);
+    start(part, OPTION_WORK.speech_level.get());
+    Ok(())
 }
 
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    unsafe {
-        step_car_stream(r, &mut || game_read::<u32>(PLAYING_RVA) == 1, &mut |r| {
-            crate::calls::call(START_RVA, r)
-        })
-    };
-    Ok(())
+/// With the game's stream flag and `sound::start_stream`.
+pub fn step_car_stream_in_game() -> Result<(), BadInput> {
+    step_car_stream(
+        &mut || AUDIO.sound_stream.get().playing == 1,
+        &mut crate::sound::start_stream::start_stream,
+    )
 }

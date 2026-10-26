@@ -5,41 +5,27 @@
 //! In:  ebx the script cursor, esi where to write
 //! Out: al the stop byte, ebx at it (not past), esi where the NUL went; the flags of
 //!      `cmp al, 20h` (no caller reads them)
-//! Caller `install::run_script` (three times). A loop back to its first byte: private copy,
-//! manual patch. Shadow mode compares. Self-test: scripts of the test's against the
-//! original.
+//! Caller `install::run_script` (three times).
 //!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Conversion phase 3 (2026-10-23): plain Rust with typed arguments; the registers above
+//! are the original's.
 
-use crate::bridge::Raw;
 use crate::errors::Refused;
-use crate::framework::Regs;
 use crate::install::installer::wb;
-use crate::race::viewer::regs_entry;
 use rc2k_core::install::script;
 
-pub fn script_name(entry: &Regs) -> Result<Regs, Refused> {
-    let mut r = *entry;
+/// The name at the script's `cursor` (ebx) written at `to` (esi), NUL-ended. Returns the
+/// cursor at the stop byte (not past it) and where the NUL went.
+pub fn script_name(cursor: u32, to: u32) -> Result<(u32, u32), Refused> {
     // Converted: `rc2k_core::install::script::script_name` (read whole, then written; a
     // name with no end is refused before anything is written).
-    let script = unsafe { Raw::new(r.ebx as *const u8) };
-    let (name, stop) = script::script_name(&script)?;
+    let words = crate::pointers::GamePtr::new(cursor).bytes("the installer's script")?;
+    let (name, _) = script::script_name(&words)?;
+    let mut at = to;
     for &c in &name {
-        wb(r.esi, c);
-        r.esi = r.esi.wrapping_add(1);
+        wb(at, c);
+        at = at.wrapping_add(1);
     }
-    wb(r.esi, 0);
-    r.ebx = r.ebx.wrapping_add(name.len() as u32);
-    r.eax = r.eax & !0xFF | stop as u32;
-    r.set_carry(true);
-    r.set_zero(false);
-    Ok(r)
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    regs_entry(r, &script_name)
+    wb(at, 0);
+    Ok((cursor.wrapping_add(name.len() as u32), at))
 }

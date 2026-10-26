@@ -11,7 +11,7 @@
 //! Hook removed 2026-10-22 (conversion phase 4): Rust callers call this directly; the
 //! registers above are the original's, for reference.
 
-use crate::errors::FatalError;
+use crate::errors::Refused;
 use crate::text::draw_text::{Canvas, Outcome, outcome, run_core};
 use crate::text::font::Font;
 
@@ -28,14 +28,14 @@ pub struct Measured {
 
 /// `font` is changed as the original changes the font object. Converted:
 /// `rc2k_core::text::measure`.
-pub unsafe fn measure_text(
+pub fn measure_text(
     font: &mut Font,
     text: *const u8,
     x: i32,
     canvas: &mut dyn Canvas,
-) -> Result<Measured, FatalError> {
+) -> Result<Measured, Refused> {
     let copy = *font;
-    let m = unsafe {
+    let m = {
         run_core(&copy, text, canvas, |words, glyphs, c| {
             rc2k_core::text::measure(font, words, glyphs, x, c)
         })
@@ -49,18 +49,17 @@ pub unsafe fn measure_text(
 
 /// For Rust callers, with a font object in game memory: the object is only written if the
 /// canvas keeps font changes.
-pub unsafe fn measure_text_at(
+pub fn measure_text_at(
     font: *mut Font,
     text: *const u8,
     x: i32,
     canvas: &mut dyn Canvas,
-) -> Result<Measured, FatalError> {
-    unsafe {
-        let mut copy = font.read_unaligned();
-        let measured = measure_text(&mut copy, text, x, canvas)?;
-        if canvas.keeps_font_changes() {
-            font.write_unaligned(copy);
-        }
-        Ok(measured)
+) -> Result<Measured, Refused> {
+    let mut copy = crate::pointers::GamePtr::new(crate::pointers::game_address(font))
+        .read::<Font>("a font")?;
+    let measured = measure_text(&mut copy, text, x, canvas)?;
+    if canvas.keeps_font_changes() {
+        crate::pointers::GamePtr::new(crate::pointers::game_address(font)).write(copy, "a font")?;
     }
+    Ok(measured)
 }

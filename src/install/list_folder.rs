@@ -5,44 +5,31 @@
 //!
 //! In:  eax the folder path
 //! Out: every register kept (`pusha` / `popa`)
-//! Caller `install::run_script` (opcode 1). Its resolve through `part`; the appending here.
-//! Shadow mode runs the original alone. Self-test: a copy whose resolve goes to a stand-in,
-//! against the Rust version, on paths of the test's; the table, cursors and count compared.
+//! Caller `install::run_script` (opcode 1).
 //!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Conversion phase 3 (2026-10-23): plain Rust with typed arguments; the registers above
+//! are the original's.
 
 use crate::errors::Refused;
-use crate::framework::Regs;
-use crate::install::installer::{
-    DIR_COUNT, DIR_CURSOR, DIR_SCAN, DIRS, Part, RESOLVE_PATH, at, fatal, g, p, str_append,
-};
+use crate::install::installer::{append_byte, fatal, resolve_path, str_append};
+use crate::install::vars::INSTALLER_RUN;
 use rc2k_core::install::script;
 
-pub fn list_folder(entry: &Regs, part: Part) -> Result<Regs, Refused> {
-    let mut r = *entry;
-    part(at(RESOLVE_PATH), &mut r)?;
-    r.ebx = g(DIR_CURSOR);
-    str_append(&mut r);
-    crate::install::installer::append_byte(&mut r, 0);
-    p(DIR_CURSOR, r.ebx);
-    p(DIR_SCAN, r.ebx);
-    p(DIR_COUNT, g(DIR_COUNT).wrapping_add(1));
+/// The folder `path` (eax) added to the folders' table.
+pub fn list_folder(path: u32) -> Result<(), Refused> {
+    let path = resolve_path(path)?;
+    let cursor = append_byte(str_append(path, INSTALLER_RUN.dir_cursor.get()), 0);
+    INSTALLER_RUN.dir_cursor.set(cursor);
+    INSTALLER_RUN.dir_scan.set(cursor);
+    INSTALLER_RUN
+        .dir_count
+        .set(INSTALLER_RUN.dir_count.get().wrapping_add(1));
     // Converted: `rc2k_core::install::script::room_left`.
     script::room_left(
-        r.ebx.wrapping_sub(g(DIRS)),
+        cursor.wrapping_sub(INSTALLER_RUN.dirs.get()),
         script::FOLDERS_ROOM,
         script::FOLDERS_FULL,
     )
     .map_err(fatal)?;
-    Ok(Regs { ..*entry })
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    crate::race::viewer::regs_entry(r, &|r| {
-        list_folder(r, &mut crate::install::installer::game_part)
-    })
+    Ok(())
 }

@@ -8,86 +8,57 @@
 //! In:  esi = the device's record
 //! Out: every register kept (`pusha` .. `popa`)
 //!
-//! Caller: `input::input_tick` (each device, each tick). The effects' functions through
-//! `part` (eax .. edi as above; in the game the function's address through the game:
-//! DirectInput's, section 15). Refuses (before anything) a controller number past the
-//! table's 16. Self-test: a copy whose calls go to stand-ins can not be made (the calls
-//! are through the effects' pointers): the original and the Rust version on records of
-//! the test's whose effects' functions are a noting stand-in of the test's.
+//! Caller: `input::input_tick` (each device, each tick). Refuses (before anything) a controller number past the
+//! table's 16.
 //!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
+//! above are the original's, for reference.
 
 use crate::errors::{BadInput, Refused};
 use crate::field;
-use crate::framework::{Regs, game_read, rva};
 use crate::input::devices::{at, put};
+use crate::input::store::DEVICES;
 use crate::input::types::{ForceEffect, InputDevice};
 
-pub const CONTROLLERS_RVA: usize = rva(0x4F78E4); // dword_4F78E4: 16 entries of 0x50
 pub const CONTROLLERS: u32 = 16;
 const EFFECTS: u32 = 0x3C;
 const EFFECT_LEN: u32 = 0xA4;
 
-/// A call by place: 0 an effect's function (`[edi]`, the registers as the header says).
-pub type Part<'a> = &'a mut dyn FnMut(u32, &mut Regs) -> Result<(), Refused>;
-
 /// The controller entry's dword at `offset` for the record's controller, or the refusal.
 pub fn controller(record: u32, offset: usize) -> Result<u32, Refused> {
-    let n = at(record, field!(InputDevice, controller));
+    let n = at(record, field!(InputDevice, controller))?;
     if n >= CONTROLLERS {
         return Err(BadInput("a controller number past the table's 16").into());
     }
-    Ok(unsafe { game_read(CONTROLLERS_RVA + 0x50 * n as usize + offset) })
+    Ok(DEVICES.controllers[n as usize].get_u32(offset))
 }
 
-/// The Rust version (see the header): the registers it leaves (`popa`'s: the entry's).
-pub unsafe fn device_effects(entry: &Regs, part: Part) -> Result<Regs, Refused> {
-    let record = entry.esi;
-    if at(record, field!(InputDevice, effects_on)) != 1
-        || at(record, field!(InputDevice, device)) == 0
+/// The pending changes of the device `record`'s effects.
+pub fn device_effects(record: u32) -> Result<(), Refused> {
+    if at(record, field!(InputDevice, effects_on))? != 1
+        || at(record, field!(InputDevice, device))? == 0
     {
-        return Ok(*entry);
+        return Ok(());
     }
     if controller(record, 0x1C)? != 1 {
-        return Ok(*entry);
+        return Ok(());
     }
     for k in 0..6 {
         let effect = record + EFFECTS + EFFECT_LEN * k;
-        if at(effect, field!(ForceEffect, object)) == 0 {
+        if at(effect, field!(ForceEffect, object))? == 0 {
             continue;
         }
-        let change = at(effect, field!(ForceEffect, pending));
-        put(effect, field!(ForceEffect, pending), 0);
+        let change = at(effect, field!(ForceEffect, pending))?;
+        put(effect, field!(ForceEffect, pending), 0)?;
         if change == 0 {
             continue;
         }
         // Converted: `rc2k_core::input::effects::change`.
         let (what, a, b) = rc2k_core::input::effects::change(change);
-        let mut r = Regs {
-            eax: what,
-            ecx: a as u32,
-            edx: b as u32,
-            esi: record,
-            edi: effect,
-            ..*entry
-        };
-        part(0, &mut r)?;
+        let function = at(effect, field!(ForceEffect, change))?;
+        crate::input::effect_changes::effect_change_at(
+            function, record, effect, what, a as u32, b as u32,
+        )?;
     }
-    Ok(*entry)
-}
-
-/// In the game: the effect's function (`[edi]`) through the game.
-pub fn game_part(_place: u32, r: &mut Regs) -> Result<(), Refused> {
-    let function = at(r.edi, 0);
-    crate::menu::table_calls::call_any(function, r);
-    Ok(())
-}
-
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    let left = unsafe { device_effects(r, &mut game_part) }?;
-    *r = Regs { esp: r.esp, ..left };
     Ok(())
 }

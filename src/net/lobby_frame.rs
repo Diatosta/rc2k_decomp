@@ -12,224 +12,199 @@
 //! at y 0x156 and 0x217, 0x320 long, colour 7); unlocked and shown.
 //!
 //! In:  nothing
-//! Out: every register kept (`pusha` .. `popa`)
+//! Out: nothing (the original keeps every register: `pusha` .. `popa`)
 //! More than eight players would read past the sorted copy: refused. Called by
-//! `screens::run_frame` for `net::lobby_loop`. Its calls through `part`
-//! (`strings::append_nul` inline). Shadow mode runs the original alone (it draws).
-//! Self-test: a copy whose calls go to stand-ins (the texts written), against the Rust
-//! version: the lock failing; no players; three players with and without gaps, ready or
-//! not, times and none; the buttons' switches.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! `screens::run_frame` for `net::lobby_loop`.
 
 use crate::errors::{BadInput, Refused};
-use crate::field;
-use crate::framework::Regs;
-use crate::net::lobby::{
-    APPEND_STRING, APPEND_TIME, BLIT, BLOCK, CAR_ITEM, CHAT, CHAT_INPUT, COPY_PICTURE, DRAW_HLINE,
-    DRAW_STRING, DRAW_TEXT, DRAW_TIME, FONT, LOCK, LOCK_RECEIVED, PLAYERS, Part, SHOW_FRAME,
-    SHOW_GAPS, SORTED, SPRITES, STAGE_ITEM, STR_APPEND, TEXT, UNLOCK, UNLOCK_RECEIVED, a, g,
-    lobby_entry, p,
-};
-use crate::net::types::NetPlayerBlock;
+use crate::gfx::fonts_store::FONTS;
+use crate::net::lobby::{Cursor, FONT, blit, copy_picture, lock_surface};
+use crate::net::store::NET;
+use crate::strings::text_buffer::TEXT_BUFFER;
+use crate::text::draw_text::GameCanvas;
 use rc2k_core::net::players::{self, READY};
 use rc2k_core::net::screens;
 
-const HEADING_FONT: usize = 0x51E564; // stru_51E564
-const NAME_FONT: usize = 0x51E6C4; // stru_51E6C4
-const READY_FONT: usize = 0x51E784; // stru_51E784
-const CHAT_FONT: usize = 0x51E584; // stru_51E584
-const SHOW_HOURS: usize = 0x4E0148; // g_timeShowHours
-const FONT_PALETTES: usize = 0x51DEB0; // g_fontPalettes
-const SORT_PLAYERS: u32 = 0x418108; // net::sort_players
-const CHAT_INPUT_LINE: u32 = 0x418083; // net::chat_input_line
-const LOBBY_BUTTON: u32 = 0x41802F; // net::lobby_button
+const HEADING_FONT: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fonts::TIME;
+const NAME_FONT: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fonts::VALUES;
+const READY_FONT: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fonts::READY;
+const CHAT_FONT: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fonts::NAME;
 
-fn get(at: u32) -> u32 {
-    unsafe { (at as *const u32).read_unaligned() }
-}
-
-fn byte(at: u32) -> u32 {
-    unsafe { (at as *const u8).read() as u32 }
-}
-
-fn nul(r: &mut Regs) {
-    unsafe { (r.ebx as *mut u8).write(0) };
-    r.ebx = r.ebx.wrapping_add(1);
-}
-
-/// A time, or its gap to `first` with a '+' over its first character, into the text buffer:
-/// eax the time; the registers as the original leaves them before its `append_nul`.
-fn time_text(r: &mut Regs, gaps: bool, first: u32, part: Part) -> Result<(), Refused> {
-    let (value, plus) = screens::shown_time(r.eax, first, gaps);
-    r.eax = value;
+/// A time, or its gap to `first` with a '+' over its first character, written at the
+/// cursor.
+fn time_text(cursor: &mut Cursor, time: u32, gaps: bool, first: u32) -> Result<(), Refused> {
+    let (value, plus) = screens::shown_time(time, first, gaps);
+    let start = cursor.0;
+    cursor.bytes(&crate::strings::append_time::append_time(
+        value,
+        crate::strings::append_time::show_hours(),
+    ))?;
     if plus {
-        r.ecx = r.ebx;
-        part(APPEND_TIME, r)?;
-        unsafe { (r.ecx as *mut u8).write(b'+') };
-        return Ok(());
+        crate::pointers::GamePtr::new(start).write(b'+', "a text line")?;
     }
-    part(APPEND_TIME, r)
+    Ok(())
 }
 
-/// The Rust version: the registers it leaves (the entry's).
-pub fn lobby_frame(entry: &Regs, part: Part) -> Result<Regs, Refused> {
-    let mut r = *entry;
+/// The Rust version (the original keeps every register). Called through
+/// `screens::run_frame` by `net::lobby_loop`.
+pub fn lobby_frame() -> Result<(), Refused> {
     // Converted: `rc2k_core::net::screens` (`shown_time`, `flag_sprite`, `car_sprite`,
     // `NO_TIME`, `lobby_buttons`), the ready bit and no time of `rc2k_core::net::players`.
-    let done = |r: &Regs| {
-        Ok(Regs {
-            eflags: r.eflags,
-            ..*entry
-        })
-    };
-    part(LOCK, &mut r)?;
-    if r.carry() {
-        return done(&r);
+    if !lock_surface() {
+        return Ok(());
     }
-    if g(PLAYERS) > 8 {
+    if NET.players.get() > 8 {
         return Err(BadInput("more than eight players").into());
     }
-    part(COPY_PICTURE, &mut r)?;
-    r.ebp = 0x6F;
+    copy_picture()?;
+    let mut canvas = GameCanvas;
+    let mut y = 0x6F;
+    // The blits are handed the palette (ebx) the drawing before them leaves: the text
+    // pointer a heading or a name leaves, or the text buffer.
+    let mut palette = 0;
     for (id, x) in [(0x15F, 0x21A), (0x160, 0x2C0)] {
-        r.eax = id;
-        r.ebx = a(HEADING_FONT);
-        r.ecx = x;
-        r.edx = r.ebp;
-        part(DRAW_STRING, &mut r)?;
+        let out = unsafe {
+            crate::text::draw_string_by_id::draw_string_by_id_at(
+                id,
+                HEADING_FONT.as_ptr(),
+                x,
+                y as i32,
+                &mut canvas,
+            )
+        }?;
+        palette = crate::pointers::game_address(out.text);
     }
-    r.ebp += 0x1D;
-    if g(PLAYERS) != 0 {
-        part(SORT_PLAYERS, &mut r)?;
-        let gaps = g(SHOW_GAPS) == 1;
-        let (first_time, first_total) = (get(a(SORTED) + 0x2C), get(a(SORTED) + 0x30));
-        for n in 0..g(PLAYERS) {
-            r.eax = n;
-            let block = a(SORTED).wrapping_add(n.wrapping_mul(BLOCK));
-            r.esi = block;
-            r.edi = 0x18;
-            let blit = |r: &mut Regs, glyph: u32, y: u32, part: Part| -> Result<(), Refused> {
-                r.eax = glyph;
-                r.ecx = r.edi;
-                r.edx = y;
-                r.esi = g(SPRITES);
-                part(BLIT, r)?;
-                r.esi = block;
-                Ok(())
-            };
-            let y = r.ebp;
+    y += 0x1D;
+    if NET.players.get() != 0 {
+        crate::net::sort_players::sort_players()?;
+        let gaps = NET.show_gaps.get() == 1;
+        let (first_time, first_total) = (
+            NET.sorted[0].record.race_time.get(),
+            NET.sorted[0].record.total.get(),
+        );
+        for n in 0..NET.players.get() {
+            let block = &NET.sorted[n as usize];
+            let mut x = 0x18;
             blit(
-                &mut r,
-                screens::flag_sprite(byte(block + 0x27) as u8),
+                screens::flag_sprite(block.record.head.get(3)),
+                x,
                 y,
-                part,
+                palette,
             )?;
-            r.edi += 0x28;
-            r.eax = block;
-            r.ebx = a(TEXT);
-            part(STR_APPEND, &mut r)?;
-            nul(&mut r);
-            r.eax = if byte(block + field!(NetPlayerBlock, record.state)) as u8 & READY != 0 {
-                a(READY_FONT)
+            x += 0x28;
+            let mut cursor = Cursor::text();
+            cursor.string(block.name.addr());
+            cursor.nul()?;
+            let font = if block.record.state() & READY != 0 {
+                READY_FONT
             } else {
-                a(NAME_FONT)
+                NAME_FONT
             };
-            r.ebx = a(TEXT);
-            r.ecx = r.edi;
-            r.edx = r.ebp;
-            part(DRAW_TEXT, &mut r)?;
-            r.edi += 0x14A;
-            let y = r.ebp + 1;
+            let name = {
+                crate::text::draw_text::draw_text_at(
+                    font.as_ptr(),
+                    crate::pointers::host(TEXT_BUFFER.text.addr()) as *const u8,
+                    x as i32,
+                    y as i32,
+                    &mut canvas,
+                )
+            }?;
+            x += 0x14A;
             blit(
-                &mut r,
-                screens::car_sprite(byte(block + 0x25) as u8),
-                y,
-                part,
+                screens::car_sprite(block.record.head.get(1)),
+                x,
+                y + 1,
+                crate::pointers::game_address(name.text),
             )?;
-            r.edi += 0x48;
-            let kept_hours = g(SHOW_HOURS);
-            p(SHOW_HOURS, 1);
-            r.eax = get(block + 0x2C);
-            r.ebx = a(TEXT);
-            if r.eax == players::NO_TIME {
-                r.eax = screens::NO_TIME;
-                part(APPEND_STRING, &mut r)?;
-                nul(&mut r);
-                r.eax = a(NAME_FONT);
-                r.ebx = a(TEXT);
-                r.ecx = r.edi;
-                r.edx = r.ebp;
-                part(DRAW_TEXT, &mut r)?;
+            x += 0x48;
+            use crate::strings::append_time::SHOW_HOURS; // g_timeShowHours
+            use std::sync::atomic::Ordering::Relaxed;
+            let kept_hours = SHOW_HOURS.swap(1, Relaxed);
+            let time = block.record.race_time.get();
+            let mut cursor = Cursor::text();
+            // The total is drawn at the y the drawing before it leaves in edx: the text's,
+            // font offset included, when there is no time (the original's slip).
+            let mut total_y = y;
+            if time == players::NO_TIME {
+                cursor.string_id(screens::NO_TIME);
+                cursor.nul()?;
+                let out = {
+                    crate::text::draw_text::draw_text_at(
+                        NAME_FONT.as_ptr(),
+                        crate::pointers::host(TEXT_BUFFER.text.addr()) as *const u8,
+                        x as i32,
+                        y as i32,
+                        &mut canvas,
+                    )
+                }?;
+                total_y = out.y as u32;
             } else {
-                time_text(&mut r, gaps, first_time, part)?;
-                nul(&mut r);
-                r.eax = a(FONT);
-                r.ebx = a(TEXT);
-                r.ecx = r.edi;
-                r.edx = r.ebp;
-                part(DRAW_TIME, &mut r)?;
+                time_text(&mut cursor, time, gaps, first_time)?;
+                cursor.nul()?;
+                {
+                    crate::text::draw_time_text::draw_time_text(
+                        FONT.as_ptr(),
+                        TEXT_BUFFER.text.addr(),
+                        x,
+                        y,
+                    )
+                }?;
             }
-            r.edi += 0xA5;
-            r.eax = get(block + 0x30);
-            r.ebx = a(TEXT);
-            let timed = get(block + 0x2C) != players::NO_TIME;
-            time_text(&mut r, gaps && timed, first_total, part)?;
-            nul(&mut r);
-            r.eax = a(FONT);
-            r.ebx = a(TEXT);
-            r.ecx = r.edi;
-            part(DRAW_TIME, &mut r)?;
-            p(SHOW_HOURS, kept_hours);
-            r.ebp = r.ebp.wrapping_add(get(a(NAME_FONT) + 8));
-            r.eax = n + 1;
+            x += 0xA5;
+            let timed = time != players::NO_TIME;
+            let mut cursor = Cursor::text();
+            time_text(
+                &mut cursor,
+                block.record.total.get(),
+                gaps && timed,
+                first_total,
+            )?;
+            cursor.nul()?;
+            {
+                crate::text::draw_time_text::draw_time_text(
+                    FONT.as_ptr(),
+                    TEXT_BUFFER.text.addr(),
+                    x,
+                    total_y,
+                )
+            }?;
+            SHOW_HOURS.store(kept_hours, Relaxed);
+            // The next row's blit gets the text buffer's address.
+            palette = TEXT_BUFFER.text.addr();
+            y = y.wrapping_add(NAME_FONT.object().line_height.get());
         }
     }
-    r.ebp = 0x158;
-    part(LOCK_RECEIVED, &mut r)?;
-    r.eax = a(CHAT_FONT);
-    r.ebx = a(CHAT);
-    r.ecx = 0xA;
-    r.edx = r.ebp;
-    part(DRAW_TEXT, &mut r)?;
-    part(UNLOCK_RECEIVED, &mut r)?;
-    r.eax = get(a(CHAT_FONT) + 8).wrapping_mul(8);
-    r.ebp = r.ebp.wrapping_add(r.eax);
-    r.esi = 3;
-    r.eax = a(CHAT_INPUT);
-    part(CHAT_INPUT_LINE, &mut r)?;
-    r.ebp = 0x223;
-    r.edi = 0x310;
-    r.esi = 0;
-    for (n, (id, shown)) in screens::lobby_buttons(g(CAR_ITEM), g(STAGE_ITEM))
+    y = 0x158;
+    crate::net::lock_received::lock_received();
+    {
+        crate::text::draw_text::draw_text_at(
+            CHAT_FONT.as_ptr(),
+            crate::pointers::host(NET.chat.addr()) as *const u8,
+            0xA,
+            y as i32,
+            &mut canvas,
+        )
+    }?;
+    crate::net::unlock_received::unlock_received();
+    y = y.wrapping_add(CHAT_FONT.object().line_height.get().wrapping_mul(8));
+    crate::net::chat_input_line::chat_input_line(NET.chat_input.addr(), 3, y)?;
+    let mut x = 0x310;
+    let mut item = 0;
+    for (n, (id, shown)) in screens::lobby_buttons(NET.car_item.get(), NET.stage_item.get())
         .into_iter()
         .enumerate()
     {
         if shown {
-            r.eax = id;
-            part(LOBBY_BUTTON, &mut r)?;
+            x = crate::net::lobby_button::lobby_button(id, item, x, 0x223)?;
         }
         if n != 3 {
-            r.esi += 1;
+            item += 1;
         }
     }
-    r.eax = 7;
-    r.ebx = 0x320;
-    r.ecx = 0;
-    r.edx = 0x156;
-    r.esi = g(FONT_PALETTES);
-    part(DRAW_HLINE, &mut r)?;
-    r.edx = 0x217;
-    part(DRAW_HLINE, &mut r)?;
-    part(UNLOCK, &mut r)?;
-    part(SHOW_FRAME, &mut r)?;
-    done(&r)
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    lobby_entry(r, lobby_frame)
+    for line_y in [0x156, 0x217] {
+        unsafe { crate::gfx::rect::draw_hline(0, line_y, 0x320, 7, FONTS.palettes.get()) };
+    }
+    crate::platform::unlock_surface();
+    crate::platform::show_frame_now();
+    Ok(())
 }

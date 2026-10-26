@@ -24,38 +24,22 @@
 //! and 6 (the original takes them for one byte a pixel); a width under 2 or a height of 0
 //! (the original counts through all 32 bits); a row filter above 4; data that does not
 //! inflate cleanly; a picture too big for the picture buffer. The name is a reading.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
 
 use crate::errors::BadInput;
-use crate::framework::{game_read, game_write, rva};
 use crate::gfx::picture::PICTURE_DWORDS;
-use crate::gfx::png::PngInfo;
+use crate::gfx::png_header::HEADER;
+use crate::pointers::GamePtr;
 
 // ---- game data ----
-
-const WIDTH_RVA: usize = rva(0xA8C190); // dword_A8C190
-const HEIGHT_RVA: usize = rva(0xA8C194); // dword_A8C194
-const COMPRESSION_RVA: usize = rva(0xA8C19A); // byte_A8C19A: the header's byte after the colour type
-const COLOUR_TYPE_RVA: usize = rva(0xA8C1A0); // dword_A8C1A0
-/// dword_5BEC30, dword_5BEC34: the file `read_png` holds in memory, and its length.
-pub const FILE_RVA: usize = rva(0x5BEC30);
-pub const FILE_LEN_RVA: usize = rva(0x5BEC34);
 
 // ---- Rust version ----
 // Converted: `rc2k_core::gfx::png`. Here the game's variables for the header, the pixel area
 // (with the row before it, which the first row's filters read) and the info block.
 
 /// Returns what the original returns in eax.
-pub unsafe fn decode_png(
-    file: &[u8],
-    pixels: *mut u8,
-    info: *mut PngInfo,
-) -> Result<u32, BadInput> {
+pub fn decode_png(file: &[u8], pixels: u32, info: u32) -> Result<u32, BadInput> {
     use rc2k_core::gfx::png;
-    if pixels.is_null() || info.is_null() {
+    if pixels == 0 || info == 0 {
         return Ok(1);
     }
     // First the whole walk and the checks without writing anything: what is refused here
@@ -66,50 +50,60 @@ pub unsafe fn decode_png(
         return Ok(2);
     };
     // Without a header in the file the variables keep what the last file left in them.
-    let header = found.header.unwrap_or_else(|| unsafe {
-        png::Header {
-            width: game_read(WIDTH_RVA),
-            height: game_read(HEIGHT_RVA),
-            colour_type: game_read(COLOUR_TYPE_RVA),
-            compression: 0,
-        }
+    let header = found.header.unwrap_or_else(|| png::Header {
+        width: HEADER.width.get(),
+        height: HEADER.height.get(),
+        colour_type: HEADER.colour_type.get(),
+        compression: 0,
     });
     let pixel_bytes = png::PIXEL_BYTES[header.colour_type as usize & 7];
     let area = match found.data {
         Some(_) => png::area_for(&header, PICTURE_DWORDS * 4)?,
         None => 0,
     };
-    unsafe {
-        if let Some(h) = found.header {
-            game_write(WIDTH_RVA, h.width);
-            game_write(HEIGHT_RVA, h.height);
-            game_write(COMPRESSION_RVA, h.compression);
-            game_write(COLOUR_TYPE_RVA, h.colour_type);
-        }
-        if let Some((start, length)) = found.data {
-            let (row_bytes, step) = png::row_layout(&header);
-            let buffer = std::slice::from_raw_parts_mut(pixels, area);
-            png::inflate(&file[start..start + length], buffer)?;
-            // The row above the first is the memory before the area, read only where the
-            // original reads it.
-            let before = pixels.wrapping_sub(row_bytes) as *const u8;
-            png::unfilter(buffer, row_bytes, header.height, step, &|i| {
-                before.wrapping_add(i).read()
-            })?;
-        }
-        (&raw mut (*info).has_palette).write(0);
-        (&raw mut (*info).width).write_unaligned(header.width);
-        (&raw mut (*info).height).write_unaligned(header.height);
-        if let Some(start) = found.palette {
-            (&raw mut (*info).has_palette).write(1);
-            std::ptr::copy(
-                file[start..].as_ptr(),
-                (&raw mut (*info).palette).cast(),
-                0x300,
-            );
-        }
+    let place = GamePtr::new(pixels);
+    let info_at = GamePtr::new(info);
+    if let Some(h) = found.header {
+        HEADER.width.set(h.width);
+        HEADER.height.set(h.height);
+        HEADER.compression.set(h.compression);
+        HEADER.colour_type.set(h.colour_type);
     }
-    let (info, pixels) = (info as u32, pixels as u32);
+    if let Some((start, length)) = found.data {
+        let (row_bytes, step) = png::row_layout(&header);
+        // The area as it is now, worked on as a copy and put back.
+        let mut buffer = place.read_bytes(area, "the picture buffer")?;
+        png::inflate(&file[start..start + length], &mut buffer)?;
+        // The row above the first is the memory before the area, read only where the
+        // original reads it.
+        let before = GamePtr::new(pixels.wrapping_sub(row_bytes as u32));
+        let failed = std::cell::Cell::new(None);
+        let unfiltered = png::unfilter(&mut buffer, row_bytes, header.height, step, &|i| {
+            before
+                .offset(i as u32)
+                .read::<u8>("the row above the picture")
+                .unwrap_or_else(|e| {
+                    failed.set(Some(e));
+                    0
+                })
+        });
+        if let Some(e) = failed.take() {
+            return Err(e);
+        }
+        unfiltered?;
+        place.write_bytes(&buffer, "the picture buffer")?;
+    }
+    let what = "the PNG info block";
+    info_at.write(0u8, what)?;
+    info_at.offset(4).write(header.width, what)?;
+    info_at.offset(8).write(header.height, what)?;
+    if let Some(start) = found.palette {
+        info_at.write(1u8, what)?;
+        let palette = file
+            .get(start..start + 0x300)
+            .ok_or(BadInput("a palette chunk that runs past the file"))?;
+        info_at.offset(12).write_bytes(palette, what)?;
+    }
     let end = pixel_bytes
         .wrapping_mul(header.width)
         .wrapping_mul(header.height)

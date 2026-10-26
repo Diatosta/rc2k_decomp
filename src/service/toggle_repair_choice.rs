@@ -15,41 +15,27 @@
 //! (`menu::table_calls`); the registers above are the original's, for reference.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{Regs, game_read, game_write};
-use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
-use crate::service::state::{
-    EDIT_MODE_RVA, REPAIR_TOTAL_RVA, STATUS_RVA, TIME_BUDGET_RVA, flagged_item,
-};
+use crate::menu::event_store::EVENT_STATE;
+use crate::menu::state_store::MENU_STATE;
+use crate::service::state::flagged_item;
 use crate::service::state::{flags, marks, store_flags, store_marks, time_of};
 
 /// The Rust version (see the header).
-pub unsafe fn toggle_repair_choice() -> Result<(), Refused> {
+pub fn toggle_repair_choice() -> Result<(), Refused> {
     // Converted: `rc2k_core::service::repairs::toggle_choice` (nothing written when it
     // refuses).
     let item = flagged_item()?;
     let (mut f, mut m) = (flags(), marks());
-    let budget = unsafe { game_read::<i32>(TIME_BUDGET_RVA) };
+    let budget = { EVENT_STATE.service_minutes.get() as i32 };
     let (total, status) =
         rc2k_core::service::repairs::toggle_choice(&mut f, &mut m, item as usize, budget, time_of)
             .map_err(|e| BadInput(e.0))?;
     store_flags(&f);
     store_marks(&m);
-    unsafe {
-        game_write(STATUS_RVA, status);
-        game_write(EDIT_MODE_RVA, 0u32);
-        game_write(REPAIR_TOTAL_RVA, total);
+    {
+        MENU_STATE.service_ui.status.set(status);
+        MENU_STATE.service_ui.box_shown.set(0u32);
+        MENU_STATE.driver_stats.repair_time.set(total as u32);
     }
     Ok(())
-}
-
-fn rust(_: &Regs) -> Result<Left, Refused> {
-    unsafe { toggle_repair_choice() }?;
-    Ok(Left::nothing())
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
 }

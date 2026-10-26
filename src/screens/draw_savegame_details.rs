@@ -6,14 +6,14 @@
 //! After the headings and row numbers it copies the saved game's seven dwords into its own
 //! variables (`dword_755150` .. `dword_755168`) and points `dword_75516C` at the saved cars.
 //! Then:
-//!   - a title line at (143, 353): string 0x1D9 (0x1DA if the saved mode is 0x13), " - ", the
-//!     title of the saved section (from a table in mode 0x13, else the section's first record
-//!     at +0x38), a space, and for the saved stage's record "<record +0x40>/6" unless that
-//!     value is 0;
-//!   - one row per saved car: its name (car +0x124), four numbers (car +0x14C, +0x150, then
-//!     +0x144 and +0x148, each of those two replaced by string 0x57A if the car's dword at
-//!     +0xB0, respectively +0xCC, is 0), a flag sprite (0x1C + car +4) and a car sprite
-//!     (0x44 + car +8, with 0x18 and 0x19 swapped). A negative number is drawn as "-".
+//! - a title line at (143, 353): string 0x1D9 (0x1DA if the saved mode is 0x13), " - ", the
+//!   title of the saved section (from a table in mode 0x13, else the section's first record
+//!   at +0x38), a space, and for the saved stage's record "<record +0x40>/6" unless that
+//!   value is 0;
+//! - one row per saved car: its name (car +0x124), four numbers (car +0x14C, +0x150, then
+//!   +0x144 and +0x148, each of those two replaced by string 0x57A if the car's dword at
+//!   +0xB0, respectively +0xCC, is 0), a flag sprite (0x1C + car +4) and a car sprite
+//!   (0x44 + car +8, with 0x18 and 0x19 swapped). A negative number is drawn as "-".
 //!
 //! Rows 2 to 4 only show a name and sprites if the first saved dword (the number of players,
 //! by this use; a reading) reaches them; otherwise string 0x578 and two 0x57A stand there,
@@ -30,117 +30,66 @@
 //! +0x144 and +0x148; string 0x57A is "-" and string 0x578 is "n/d". The save had one
 //! player, and rows 2 to 4 showed "-", "n/d", "-" and four "-". What each of the two numbers
 //! of a pair is (position and points, say) has not been worked out.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{Regs, game_addr, game_read, game_write, rva};
-use crate::records::find_record::{find_record_in, has_section};
+use crate::menu::lists_store::MENU_LISTS;
+use crate::records::find_record::find_record_in;
 use crate::saves::gather_savegame::CAR_LEN;
-use crate::saves::write_savegame_slot::FILE_RVA;
-use crate::screens::draw_stage_info::RECORD_TABLE_RVA;
-use crate::screens::harness::{Left, draw_entry};
-use crate::screens::stage_panel::{dword, table_dword};
-use crate::strings::string_table::is_table_id;
+use crate::saves::preview_store::SAVEGAME_PREVIEW;
+use crate::saves::write_savegame_slot::SAVE_GAMES;
+use crate::screens::stage_panel::{dword, table_dword_at};
 use crate::text::draw_text::Canvas;
 
 // ---- game data ----
 
-/// Where the seven dwords of the previewed saved game are kept, in the order they are saved:
-/// `dword_755150` .. `dword_755168`.
-const PREVIEW_RVAS: [usize; 7] = [
-    rva(0x755150), // the number of players, by its use here
-    rva(0x755154),
-    rva(0x755158), // the stage's index in its section
-    rva(0x75515C), // the section
-    rva(0x755160),
-    rva(0x755164), // the mode: 0x13 takes the title from the table
-    rva(0x755168),
-];
-const SAVED_CARS_PTR_RVA: usize = rva(0x75516C); // dword_75516C
 const PAYLOAD_OFFSET: usize = 0x30; // 0x51EBE4
-const SECTION_TITLES_RVA: usize = rva(0x75A28A); // dword_75A28A[section]: title string ids
 
 // ---- Rust version ----
 
 /// Returns the carry flag of the last text drawn.
-pub unsafe fn draw_savegame_details(canvas: &mut dyn Canvas) -> Result<bool, Refused> {
+pub fn draw_savegame_details(canvas: &mut dyn Canvas) -> Result<bool, Refused> {
     // Converted: `rc2k_core::screens::savegame_preview::details`; the saved game's dwords copied
     // into the preview's variables first (the original after the frame, which reads none).
     use rc2k_core::screens::savegame_preview::{Car, Title, details};
-    unsafe {
-        let payload = (game_addr(FILE_RVA) + PAYLOAD_OFFSET) as u32;
-        for (n, at) in PREVIEW_RVAS.into_iter().enumerate() {
-            game_write(at, dword(payload + 4 * n as u32));
+    {
+        let payload = SAVE_GAMES.file.addr() + PAYLOAD_OFFSET as u32;
+        for (n, cell) in SAVEGAME_PREVIEW.saved.iter().enumerate() {
+            cell.set(dword(payload + 4 * n as u32)?);
         }
-        let cars = payload + 4 * PREVIEW_RVAS.len() as u32;
-        game_write(SAVED_CARS_PTR_RVA, cars);
-        let players: i32 = game_read(PREVIEW_RVAS[0]);
-        let index: i32 = game_read(PREVIEW_RVAS[2]);
-        let section: u32 = game_read(PREVIEW_RVAS[3]);
-        let mode_13 = game_read::<u32>(PREVIEW_RVAS[5]) == 0x13;
-        let table = game_addr(RECORD_TABLE_RVA) as u32;
+        let cars = payload + 4 * SAVEGAME_PREVIEW.saved.len() as u32;
+        SAVEGAME_PREVIEW.saved_cars.set(cars);
+        let players = SAVEGAME_PREVIEW.saved[0].get() as i32;
+        let index = SAVEGAME_PREVIEW.saved[2].get() as i32;
+        let section = SAVEGAME_PREVIEW.saved[3].get();
+        let mode_13 = SAVEGAME_PREVIEW.saved[5].get() == 0x13;
+        let table = crate::records::stages_store::STAGE_TABLES.championship();
         let title = Title {
             mode_13,
             section: if mode_13 {
-                table_dword(SECTION_TITLES_RVA, section)
+                table_dword_at(MENU_LISTS.section_titles[0].addr() as usize, section)?
             } else {
-                dword(find_record_in(table, 0, section) + 0x38)
+                dword(find_record_in(table, 0, section)? + 0x38)?
             },
-            stage: dword(find_record_in(table, index, section) + 0x40),
+            stage: dword(find_record_in(table, index, section)? + 0x40)?,
         };
+        let f = crate::menu::event_flow::Fault::default();
         let car = |row: usize| {
             let car = cars + (row * CAR_LEN) as u32;
             Car {
                 name: car + 0x124,
-                nation: dword(car + 4),
-                car: dword(car + 8),
-                numbers: [0x14C, 0x150, 0x144, 0x148].map(|o| dword(car + o)),
-                shown: [dword(car + 0xB0) != 0, dword(car + 0xCC) != 0],
+                nation: f.get(car + 4),
+                car: f.get(car + 8),
+                numbers: [0x14C, 0x150, 0x144, 0x148].map(|o| f.get(car + o)),
+                shown: [f.get(car + 0xB0) != 0, f.get(car + 0xCC) != 0],
             }
         };
+        let cars = [car(0), car(1), car(2), car(3)];
+        f.check()?;
         details(
             &mut crate::screens::game_screen::PreviewScreen::new(canvas),
             title,
             players,
-            &[car(0), car(1), car(2), car(3)],
+            &cars,
         )
-    }
-}
-
-fn rust(_: &Regs, canvas: &mut dyn Canvas) -> Result<Left, Refused> {
-    Ok(Left::carry(unsafe { draw_savegame_details(canvas) }?))
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    draw_entry("screens::draw_savegame_details", r, &rust)
-}
-
-/// Why what the buffer holds cannot be drawn safely, or None. The original scans the record
-/// table for the saved section and follows what it finds, without checks.
-pub unsafe fn details_unusable() -> Option<&'static str> {
-    unsafe {
-        let payload = (game_addr(FILE_RVA) + PAYLOAD_OFFSET) as u32;
-        if game_read::<u32>(FILE_RVA) != crate::saves::write_savegame_slot::MAGIC {
-            return Some("no saved game is in the buffer");
-        }
-        let (index, section, mode) = (dword(payload + 8), dword(payload + 12), dword(payload + 20));
-        let table = game_addr(RECORD_TABLE_RVA) as u32;
-        if index >= 64 || section >= 64 || !has_section(table, section, 600) {
-            return Some("the saved section or stage is not in the record table");
-        }
-        let title = if mode == 0x13 {
-            table_dword(SECTION_TITLES_RVA, section)
-        } else {
-            dword(find_record_in(table, 0, section) + 0x38)
-        };
-        if !is_table_id(title) || !is_table_id(0x1D9) || !is_table_id(0x1DA) {
-            return Some("the saved section has no title string");
-        }
-        None
     }
 }

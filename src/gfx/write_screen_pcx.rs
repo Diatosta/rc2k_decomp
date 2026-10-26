@@ -18,33 +18,14 @@
 //! value of eax is used (reproduced). The runs go over the planes' ends (the format wants
 //! each plane's line coded alone; the game's own reader does not mind).
 //!
-//! Callers: `gfx::take_screenshot`, `race::viewer_snapshot`, `race::replay_screenshot`.
-//! Refuses what `open_stream` refuses. Shadow mode runs the original alone (it writes a file).
-//! Self-test: a surface of the test's (16 and 32 bits, 64 x 48), the file a name of the
-//! test's in `var` (removed after), against the original: the files' bytes, the header,
-//! the stream and the planes compared.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Callers: `gfx::take_screenshot`, `race::viewer_snapshot`, `race::replay_screenshot`. Refuses
+//! what `open_stream` refuses.
 
 use crate::errors::Refused;
 use crate::files::stream::Stream;
-use crate::framework::Regs;
+use crate::gfx::pcx::PCX;
 use crate::gfx::pixel_format::PixelFormat;
-use crate::physics::flow::{a, g};
-
-const HEADER: usize = 0x51B5F4; // g_pcxHeader
-const STREAM: usize = 0x5195E4; // g_pictureStream
-const PLANES: usize = 0x94F6F8; // byte_94F6F8
-pub const PICTURE_NAME: usize = 0x4F49C8; // dword_4F49C8: the file, or 0
-const SCREENSHOT_NAME: usize = 0x4F52BC; // "000.pcx"
-const WIDTH: usize = 0x4F49A0; // g_surface.width
-const HEIGHT: usize = 0x4F49A4; // g_surface.height
-const BITS: usize = 0x4F49A8; // g_surface.bits_per_pixel
-const FORMAT: usize = 0x4F49B8; // g_surface.format
-const PITCH: usize = 0x4F49BC; // g_surface.pitch
-const PIXELS: usize = 0x4F49C0; // g_surface.pixels
+use crate::gfx::screen_state::DRAW_SURFACE;
 
 /// `files::write_stream_byte` with the byte.
 unsafe fn write_stream_byte(stream: *mut Stream, byte: u8) -> Result<bool, Refused> {
@@ -72,12 +53,12 @@ pub use rc2k_core::gfx::pcx::screen_header as header;
 /// The Rust version: whether it worked (carry clear).
 pub unsafe fn write_screen_pcx() -> Result<bool, Refused> {
     unsafe {
-        let header_bytes = header(g(WIDTH), g(HEIGHT));
-        std::ptr::copy_nonoverlapping(header_bytes.as_ptr(), a(HEADER) as *mut u8, 0x80);
-        let mut path = g(PICTURE_NAME);
+        let header_bytes = header(DRAW_SURFACE.width.get(), DRAW_SURFACE.height.get());
+        std::ptr::copy_nonoverlapping(header_bytes.as_ptr(), PCX.header.as_ptr(), 0x80);
+        let mut path: u32 = crate::gfx::picture_store::PICTURE.name.get();
         if path == 0 {
-            path = a(SCREENSHOT_NAME);
-            let digits = path as *mut u8;
+            path = crate::gfx::shots::SHOTS.name.addr();
+            let digits = crate::pointers::host(path);
             for n in (0..3).rev() {
                 let d = digits.add(n);
                 d.write(d.read().wrapping_add(1));
@@ -87,8 +68,12 @@ pub unsafe fn write_screen_pcx() -> Result<bool, Refused> {
                 d.write(b'0');
             }
         }
-        let stream = a(STREAM) as *mut Stream;
-        if !crate::files::open_stream::open_stream(stream, path as *const u8, 1)? {
+        let stream = crate::gfx::pcx::stream();
+        if !crate::files::open_stream::open_stream(
+            stream,
+            crate::pointers::host(path) as *const u8,
+            1,
+        )? {
             return Ok(false);
         }
         let mut ok = write_stream_block(stream, &header_bytes)? && rows(stream)?;
@@ -102,54 +87,48 @@ pub unsafe fn write_screen_pcx() -> Result<bool, Refused> {
 /// `encode_line`; the planes are left in the game's buffer, as the original leaves them.
 unsafe fn rows(stream: *mut Stream) -> Result<bool, Refused> {
     unsafe {
-        let mut row = g(PIXELS);
+        let mut row = DRAW_SURFACE.pixels.get();
         // eax as the original has it: the block's byte count after the header (0x80).
         let mut eax: u32 = 0x80;
-        let width = g(WIDTH);
+        let width = DRAW_SURFACE.width.get();
         let mut y = 0u32;
         loop {
-            let format = (g(FORMAT) as *const PixelFormat).read_unaligned();
+            let format = (crate::pointers::host(DRAW_SURFACE.format.get()) as *const PixelFormat)
+                .read_unaligned();
             let planes =
-                rc2k_core::gfx::pcx::screen_planes(width, &mut eax, &mut |x, eax| match g(BITS) {
-                    0x10 => crate::gfx::pixel_to_components::pixel_to_components(
-                        &format,
-                        eax & 0xFFFF_0000 | ((row + 2 * x) as *const u16).read_unaligned() as u32,
-                    ),
-                    0x20 => crate::gfx::pixel_to_components::pixel_to_components(
-                        &format,
-                        ((row + 4 * x) as *const u32).read_unaligned(),
-                    ),
-                    _ => eax,
-                });
-            std::ptr::copy_nonoverlapping(planes.as_ptr(), a(PLANES) as *mut u8, planes.len());
+                rc2k_core::gfx::pcx::screen_planes(
+                    width,
+                    &mut eax,
+                    &mut |x, eax| match DRAW_SURFACE.bits_per_pixel.get() {
+                        0x10 => crate::gfx::pixel_to_components::pixel_to_components(
+                            &format,
+                            eax & 0xFFFF_0000
+                                | (crate::pointers::host(row + 2 * x) as *const u16)
+                                    .read_unaligned() as u32,
+                        ),
+                        0x20 => crate::gfx::pixel_to_components::pixel_to_components(
+                            &format,
+                            (crate::pointers::host(row + 4 * x) as *const u32).read_unaligned(),
+                        ),
+                        _ => eax,
+                    },
+                );
+            std::ptr::copy_nonoverlapping(
+                planes.as_ptr(),
+                crate::gfx::pcx_planes::PLANES.as_ptr(),
+                planes.len(),
+            );
             for byte in rc2k_core::gfx::pcx::encode_line(&planes, &mut eax) {
                 if !write_stream_byte(stream, byte)? {
                     return Ok(false);
                 }
             }
-            row = row.wrapping_add(g(PITCH));
+            row = row.wrapping_add(DRAW_SURFACE.pitch.get());
             y += 1;
-            if y == g(HEIGHT) {
+            if y == DRAW_SURFACE.height.get() {
                 break;
             }
         }
         Ok(true)
     }
-}
-
-/// For Rust callers in the game.
-pub unsafe fn write_screen_pcx_in_game(r: &mut Regs) -> Result<(), Refused> {
-    let ok = unsafe { write_screen_pcx() }?;
-    r.set_carry(!ok);
-    Ok(())
-}
-
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    let mut left = *r;
-    match unsafe { write_screen_pcx_in_game(&mut left) } {
-        Ok(()) => r.eflags = left.eflags,
-        Err(e) => return Err(e),
-    }
-    Ok(())
 }

@@ -46,13 +46,14 @@ pub struct SdlBackend {
     warned: Vec<String>,
 }
 
-// Safety: SDL's joystick and haptic functions take SDL's own lock; the backend is used under
+// SAFETY: SDL's joystick and haptic functions take SDL's own lock; the backend is used under
 // the objects' lock, one thread at a time.
 unsafe impl Send for SdlBackend {}
 
 impl SdlBackend {
     /// SDL's joysticks and haptics started (on the main thread, before the game's threads).
     pub fn start() {
+        // SAFETY: plain flags; SDL is started by then (`platform::start`).
         unsafe {
             if !SDL_InitSubSystem(SDL_INIT_JOYSTICK | SDL_INIT_GAMEPAD | SDL_INIT_HAPTIC) {
                 log("platform: SDL's joysticks do not start: no joysticks");
@@ -75,6 +76,8 @@ impl SdlBackend {
 
     /// New joysticks added to the list.
     fn look(&mut self) {
+        // SAFETY: SDL's array of `count` ids (null checked); the devices opened from them
+        // are kept in `devices` until closed.
         unsafe {
             let mut count = 0;
             let ids = SDL_GetJoysticks(&mut count);
@@ -95,7 +98,9 @@ impl SdlBackend {
         }
     }
 
-    unsafe fn add(&mut self, id: SDL_JoystickID) {
+    fn add(&mut self, id: SDL_JoystickID) {
+        // SAFETY: SDL's calls on a joystick id it listed; the handles it gives are kept in
+        // the device, open while it is.
         unsafe {
             let gamepad = if SDL_IsGamepad(id) {
                 SDL_OpenGamepad(id)
@@ -198,7 +203,9 @@ const PAD_BUTTONS: [SDL_GamepadButton; 10] = [
 ];
 
 /// A gamepad read as DirectInput reads an XInput pad (see the header).
-unsafe fn pad_reading(pad: *mut SDL_Gamepad) -> Reading {
+fn pad_reading(device: &Device) -> Reading {
+    let pad = device.gamepad;
+    // SAFETY: the device's gamepad, opened by `add` and open while the device is listed.
     unsafe {
         let mut r = Reading::default();
         if !SDL_GamepadConnected(pad) {
@@ -299,6 +306,7 @@ fn sdl_effect(e: &Effect, features: u32) -> Result<SDL_HapticEffect, String> {
         ],
         None => [0; 4],
     };
+    // SAFETY: a C union of plain integers: all zero is a valid value.
     let mut out: SDL_HapticEffect = unsafe { std::mem::zeroed() };
     match e.kind {
         Kind::Constant => {
@@ -394,12 +402,13 @@ impl Backend for SdlBackend {
             return Reading::default();
         };
         let mut r = Reading::default();
+        // SAFETY: the device's joystick, open while it is listed; the counts are SDL's own.
         unsafe {
             if !SDL_JoystickConnected(d.joystick) {
                 return r;
             }
             if !d.gamepad.is_null() {
-                return pad_reading(d.gamepad);
+                return pad_reading(d);
             }
             for n in 0..d.info.axes.count_ones() as usize {
                 r.axes[n] = SDL_GetJoystickAxis(d.joystick, n as i32) as i32;
@@ -431,6 +440,8 @@ impl Backend for SdlBackend {
             }
         };
         let (haptic, made) = (d.haptic, d.effects.get(&id).copied());
+        // SAFETY: the device's haptic (not null, open while listed), an effect made on it,
+        // and SDL's NUL-ended error text.
         unsafe {
             let sdl_id = match made {
                 Some(sdl_id) => {
@@ -463,6 +474,7 @@ impl Backend for SdlBackend {
             return;
         };
         if let Some(sdl_id) = d.effects.remove(&id) {
+            // SAFETY: the device's haptic, open while it is listed (SDL refuses a null one).
             unsafe { SDL_DestroyHapticEffect(d.haptic, sdl_id) };
         }
     }
@@ -471,6 +483,7 @@ impl Backend for SdlBackend {
         if let Some(d) = self.devices.get(device)
             && d.features & SDL_GAIN != 0
         {
+            // SAFETY: the device's haptic, open while it is listed (SDL refuses a null one).
             unsafe { SDL_SetHapticGain(d.haptic, (gain / 100) as i32) };
         }
     }
@@ -479,6 +492,7 @@ impl Backend for SdlBackend {
         if let Some(d) = self.devices.get(device)
             && d.features & SDL_AUTOCENTER != 0
         {
+            // SAFETY: the device's haptic, open while it is listed (SDL refuses a null one).
             unsafe { SDL_SetHapticAutocenter(d.haptic, if on { 100 } else { 0 }) };
         }
     }
@@ -489,6 +503,7 @@ impl Backend for SdlBackend {
             && let Some(d) = self.devices.get(device)
             && !d.haptic.is_null()
         {
+            // SAFETY: the device's haptic, open while it is listed (SDL refuses a null one).
             unsafe { SDL_StopHapticEffects(d.haptic) };
         }
     }

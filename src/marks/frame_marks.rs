@@ -7,181 +7,61 @@
 //! cycles this step took over the frame's, by `flt_93C8C0`.
 //!
 //! In:  nothing (`g_marksSettings`)
-//! Out: the registers as `view_frame` leaves them (edx before the calls the counter's high
-//!      half)
+//! Out: nothing (no caller reads the registers it leaves: none after 0x446403, 0x456464)
 //!
 //! Callers: race init (0x446403) and 0x456464. Refuses null settings before anything, and
-//! its steps' refusals (all it may write is put back first). Shadow mode and the
-//! self-test compare all but the three timing variables (`rdtsc`: no two runs agree).
-//! Self-test: as `view_frame`'s, when no spline is placed.
+//! its steps' refusals (all it may write is put back first).
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{RawHook, Regs, SelfTest, game_read, game_write, hook_asm, rva};
-use crate::marks::lines::SETTINGS_RVA;
+use crate::marks::run_frame::FRAME_K;
+use crate::marks::setup::CLOCK;
+use crate::marks::tuning::{MARKS_FRAME, MARKS_KIND_FLOATS};
 use crate::marks::{morph_object_points, scale_vectors_by, view_frame};
 use crate::math::x87;
-use crate::race::stage_prefs::left_of;
-use crate::screens::harness::Left;
-use crate::service::harness::{Region, at, capture, check_state, dispatch_state, restore};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("marks::frame_marks", rva(0x4D14B4), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
-
-const LAST_RVA: usize = rva(0x765110); // dword_765110
-const FRAME_CYCLES_RVA: usize = rva(0x765114); // dword_765114
-const SHARE_RVA: usize = rva(0x765128); // flt_765128
-const SHARE_K_RVA: usize = rva(0x93C8C0); // flt_93C8C0
+use crate::pointers::GamePtr;
+use crate::session::Dword;
 /// (the settings' field, the copy).
-const COPIES: [(u32, usize); 4] = [
-    (0x50, rva(0x76523C)),
-    (0x4C, rva(0x765238)),
-    (0x10, rva(0x7652A0)),
-    (0x18, rva(0x764FF0)),
+static COPIES: [(u32, &Dword); 3] = [
+    (0x50, &MARKS_KIND_FLOATS.fading),
+    (0x4C, &MARKS_KIND_FLOATS.other),
+    (0x10, &MARKS_KIND_FLOATS.running),
 ];
-const STEPS_RVA: usize = rva(0x76513C); // dword_76513C
 
 fn rdtsc() -> (u32, u32) {
-    let t = unsafe { core::arch::x86::_rdtsc() };
+    let t = unsafe { crate::arch::_rdtsc() };
     (t as u32, (t >> 32) as u32)
 }
 
-/// What it may write but the timing variables.
-fn regions() -> Vec<Region> {
-    let settings: u32 = unsafe { game_read(SETTINGS_RVA) };
-    let mut r: Vec<Region> = COPIES.map(|c| at(c.1)).to_vec();
-    r.push(at(STEPS_RVA));
-    if settings != 0 {
-        r.push((settings + 0x18, 4));
-    }
-    r.extend(scale_vectors_by::regions());
-    r.extend(morph_object_points::regions(settings));
-    r.extend(view_frame::regions());
-    r
-}
-
-/// The Rust version (see the header): the registers it leaves.
-pub unsafe fn frame_marks(entry: &Regs) -> Result<Regs, Refused> {
-    let settings: u32 = unsafe { game_read(SETTINGS_RVA) };
+/// The Rust version (see the header).
+pub fn frame_marks() -> Result<(), Refused> {
+    let settings: u32 = crate::marks::setup::SETTINGS.pointer.get();
     if settings == 0 {
         return Err(BadInput("no marks settings").into());
     }
-    let mut written = regions();
-    written.extend([LAST_RVA, FRAME_CYCLES_RVA, SHARE_RVA].map(at));
-    let saved = capture(&written);
-    let done = unsafe { run(entry, settings) };
-    if done.is_err() {
-        restore(&written, &saved);
-    }
-    done
-}
-
-unsafe fn run(entry: &Regs, settings: u32) -> Result<Regs, Refused> {
-    let mut g = *entry;
-    unsafe {
+    {
         let (start, _) = rdtsc();
-        let (now, high) = rdtsc();
-        g.ebx = game_read(LAST_RVA);
-        game_write(LAST_RVA, now);
-        g.eax = now.wrapping_sub(g.ebx);
-        g.edx = high;
-        game_write(FRAME_CYCLES_RVA, g.eax);
-        g.esi = settings;
-        for (from, to) in COPIES {
-            g.eax = ((settings + from) as *const u32).read_unaligned();
-            game_write(to, g.eax);
+        let (now, _) = rdtsc();
+        let last: u32 = MARKS_FRAME.last_count.bits();
+        MARKS_FRAME.last_count.set_bits(now);
+        MARKS_FRAME.frame_cycles.set_bits(now.wrapping_sub(last));
+        for &(from, to) in &COPIES {
+            to.set(GamePtr::new(settings + from).read::<u32>("a mark's field")?);
         }
+        CLOCK.settings_copies[0].set(GamePtr::new(settings + 0x18).read::<u32>("a mark's field")?);
         scale_vectors_by::scale_vectors_by();
-        g = morph_object_points::morph_object_points(&g)?;
-        g = view_frame::view_frame(&g)?;
-        g.esi = settings;
-        ((settings + 0x18) as *mut u32).write_unaligned(0);
-        game_write(STEPS_RVA, game_read::<u32>(STEPS_RVA).wrapping_add(1));
+        morph_object_points::morph_object_points()?;
+        view_frame::view_frame()?;
+        GamePtr::new(settings + 0x18).write::<u32>(0, "a mark's field")?;
+        MARKS_FRAME
+            .steps
+            .set(MARKS_FRAME.steps.get().wrapping_add(1));
         let (end, _) = rdtsc();
         let share = x87::int_over_int_times(
             end.wrapping_sub(start) as i32,
-            game_read(FRAME_CYCLES_RVA),
-            game_read(SHARE_K_RVA),
+            MARKS_FRAME.frame_cycles.bits() as i32,
+            FRAME_K.share_k.bits(),
         );
-        game_write(SHARE_RVA, share);
+        MARKS_FRAME.step_share.set_bits(share);
     }
-    Ok(g)
-}
-
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    let mut g = unsafe { frame_marks(r) }?;
-    // The counter's high half can tick between the two runs.
-    g.edx = r.edx;
-    Ok(left_of(&g))
-}
-
-/// The original, its edx made the caller's again (see `rust`).
-unsafe extern "C" fn original_without_edx(r: *mut Regs) {
-    unsafe {
-        let edx = (*r).edx;
-        call_original(r);
-        (*r).edx = edx;
-    }
-}
-
-extern "C" fn dispatch(r: &mut Regs) {
-    if crate::framework::shadow() {
-        dispatch_state(&HOOK, r, original_without_edx, &regions(), &rust);
-        return;
-    }
-    // Outside shadow mode the Rust version's edx stays as it leaves it.
-    dispatch_state(&HOOK, r, call_original, &regions(), &|r| {
-        Ok(left_of(&unsafe { frame_marks(r) }?))
-    });
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let settings: u32 = unsafe { game_read(SETTINGS_RVA) };
-    if settings == 0 {
-        return t.skip("no marks settings");
-    }
-    if unsafe { game_read::<u32>(crate::marks::splines::PLACE_RVA) } != 0 {
-        return t.skip("splines are placed (their pointers are the stage's)");
-    }
-    let regions = regions();
-    let mut vars = regions.clone();
-    vars.extend(
-        [
-            LAST_RVA,
-            FRAME_CYCLES_RVA,
-            SHARE_RVA,
-            rva(0x613830),
-            rva(0x764FD0),
-        ]
-        .map(at),
-    );
-    let saved = capture(&vars);
-    for case in 0..2u32 {
-        check_state(
-            &mut t,
-            &format!("case {case}"),
-            original_without_edx,
-            Regs::SENTINEL,
-            &|| unsafe {
-                restore(&vars, &saved);
-                game_write(rva(0x613830), 1000 + case * 13);
-            },
-            &regions,
-            &rust,
-        );
-    }
-    restore(&vars, &saved);
-    t.finish()
+    Ok(())
 }

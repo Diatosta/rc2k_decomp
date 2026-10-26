@@ -3,22 +3,19 @@
 //! In:  edi = the menu; ebx, ecx as they come (`draw_menu_items` uses them)
 //! Out: every register preserved
 //! `pusha`, `screens::draw_menu_labels`, `screens::draw_menu_items`, `popa`. Called by
-//! `menu::draw_frame` and `menu::frame_callback`, and by the screens with a frame callback
-//! of their own.
-//! Refuses what the two functions refuse.
-//! Hook removed 2026-10-22 (direct calls): Rust callers run its `entry` (`calls::call`,
-//! `routes.rs`); the registers above are the original's, for reference.
+//! `menu::draw_frame` and `menu::frame_callback`, and by the screens with a frame callback of their
+//! own. Refuses what the two functions refuse. Rust callers run its `entry` (`routes.rs`); the
+//! registers above are the original's, for reference.
 
 use crate::errors::Refused;
-use crate::framework::Regs;
 use crate::screens::draw_menu_items::draw_menu_items;
 use crate::screens::draw_menu_labels::draw_menu_labels;
-use crate::screens::harness::{Left, draw_entry};
 use crate::text::draw_text::Canvas;
 
 // ---- Rust version ----
 
-/// `ebx` and `ecx` are those registers at entry.
+/// `menu` (edi in the original); `ebx` and `ecx` are those registers at entry, used as
+/// they come (`screens::draw_menu_items`: the original's reads of what its caller left).
 pub unsafe fn draw_menu(
     menu: u32,
     ebx: u32,
@@ -30,17 +27,3 @@ pub unsafe fn draw_menu(
         draw_menu_items(menu, ebx, ecx, canvas)
     }
 }
-
-fn rust(r: &Regs, canvas: &mut dyn Canvas) -> Result<Left, Refused> {
-    unsafe { draw_menu(r.edi, r.ebx, r.ecx, canvas) }?;
-    Ok(Left::nothing())
-}
-
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    // As for `draw_menu_items`: the blended font is put back before the original runs.
-    draw_entry("menu::draw_menu", r, &rust)
-}
-
-// ---- self-test: a menu of its own with two labels and three plain items, each of them
-// highlighted in turn, with the game's strings and fonts ----

@@ -7,178 +7,50 @@
 //! `g_marksFrameTicks` (`fidiv`).
 //!
 //! In:  nothing
-//! Out: esi the view matrix; edi and ebp its stack scratch (not compared); the rest kept
+//! Out: nothing (no caller reads a register it leaves)
 //!
-//! Caller: `sub_4C3EEE`. Shadow mode and the self-test set edi and ebp back to the
-//! caller's on both sides (the original's are addresses on its stack). Self-test: view
-//! matrices, last places and ticks by lot; compared on the seven results.
+//! Caller: `sub_4C3EEE`.
 //!
-//! Converted 2026-10-21: the hook's Rust version is `view_motion_plain`, through
-//! `rc2k_core::marks::view::view_motion` (plain floats; the x87 version stays for the Rust
-//! callers in unconverted code). Shadow mode and the self-test compare within
-//! `service::floats`' tolerances (the self-test at both test precisions, exact at double).
+//! the x87 version stays for the Rust callers in unconverted code).
 
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, SelfTest, game_addr, game_read, game_write, hook_asm, rva};
+use crate::marks::frame_state::{DRAW_FRAME, DRAW_WORK, VIEW_VARS};
+use crate::marks::setup::CLOCK;
 use crate::math::x87;
-use crate::race::stage_prefs::left_of;
-use crate::scene::matrix::float_places;
+use crate::pointers::GamePtr;
+use crate::race::matrices_store::MATRICES;
 use crate::scene::matrix3::{extended, rounded};
 use crate::scene::rotate_point::rotate_point;
 use crate::scene::vector3::{dot_product3, normalise_vector3};
-use crate::screens::harness::Left;
-use crate::service::floats::*;
-use crate::service::harness::{Region, at, capture, restore};
-use std::sync::atomic::AtomicUsize;
 
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("marks::view_motion", rva(0x4C4D40), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
-
-const VIEW_RVA: usize = rva(0x5EA3CC); // flt_5EA3CC: the view matrix
-const LAST_RVA: usize = rva(0x91FFBE); // flt_91FFBE .. flt_91FFC6
-const STEP_RVA: usize = rva(0x8EB951); // flt_8EB951 .. flt_8EB959
-const FACING_RVA: usize = rva(0x8F397D); // flt_8F397D
-const TICKS_RVA: usize = rva(0x764FD0); // g_marksFrameTicks
-
-/// The Rust version (see the header): the registers it leaves.
-pub unsafe fn view_motion(entry: &Regs) -> Regs {
-    let mut g = *entry;
-    unsafe {
-        let m = game_addr(VIEW_RVA) as u32;
-        let get = |a: u32| (a as *const u32).read_unaligned();
-        let mut local = [0u32; 6];
-        for (k, v) in local.iter_mut().take(3).enumerate() {
-            *v = x87::loaded(get(m + 0x20 + 4 * k as u32));
-        }
-        let zero = [extended(0); 3];
-        let place = rotate_point(m, zero);
-        for k in 0..3 {
-            let step = x87::ext_less(place[k], game_read(LAST_RVA + 4 * k));
-            game_write(STEP_RVA + 4 * k, step);
-            local[3 + k] = step;
-        }
-        let at = local.as_mut_ptr() as u32;
-        normalise_vector3(at + 12);
-        game_write(FACING_RVA, rounded(dot_product3(at, at + 12)));
-        let place = rotate_point(m, zero);
-        for (k, p) in place.iter().enumerate() {
-            game_write(LAST_RVA + 4 * k, rounded(*p));
-        }
-        let ticks: i32 = game_read(TICKS_RVA);
-        for k in 0..3 {
-            let a = STEP_RVA + 4 * k;
-            game_write(a, x87::over_int(game_read(a), ticks));
-        }
-        g.esi = m;
+/// The Rust version (see the header).
+pub fn view_motion() -> Result<(), Refused> {
+    let m = MATRICES.view_place[0].addr();
+    let get = |a: u32| GamePtr::new(a).read::<u32>("a mark's field");
+    let mut local = [0u32; 6];
+    for (k, v) in local.iter_mut().take(3).enumerate() {
+        *v = x87::loaded(get(m + 0x20 + 4 * k as u32)?);
     }
-    g
-}
-
-/// The converted version (plain floats): the hook's.
-// Converted: `rc2k_core::marks::view::view_motion`
-pub unsafe fn view_motion_plain(entry: &Regs) -> Regs {
-    unsafe {
-        let m = game_addr(VIEW_RVA) as u32;
-        // The fourth float of each row is not read.
-        let matrix: [f32; 15] = std::array::from_fn(|n| {
-            if n % 4 == 3 {
-                0.0
-            } else {
-                f32::from_bits(((m + 4 * n as u32) as *const u32).read_unaligned())
-            }
-        });
-        let last: [u32; 3] = game_read(LAST_RVA);
-        let ticks: i32 = game_read(TICKS_RVA);
-        let v = rc2k_core::marks::view::view_motion(&matrix, last.map(f32::from_bits), ticks);
-        game_write(STEP_RVA, v.step.map(f32::to_bits));
-        game_write(FACING_RVA, v.facing.to_bits());
-        game_write(LAST_RVA, v.last.map(f32::to_bits));
-        game_write(STEP_RVA, v.per_tick.map(f32::to_bits));
-        Regs { esi: m, ..*entry }
+    let zero = [extended(0); 3];
+    let place = rotate_point(m, zero);
+    for k in 0..3 {
+        let step = x87::ext_less(place[k], DRAW_FRAME.last[k].bits());
+        DRAW_WORK.step[k].set_bits(step);
+        local[3 + k] = step;
     }
-}
-
-pub fn regions() -> Vec<Region> {
-    vec![
-        (game_addr(STEP_RVA) as u32, 12),
-        at(FACING_RVA),
-        (game_addr(LAST_RVA) as u32, 12),
-    ]
-}
-
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    Ok(left_of(&unsafe { view_motion_plain(r) }))
-}
-
-/// The original, its edi and ebp (stack addresses) made the caller's again.
-unsafe extern "C" fn original_without_scratch(r: *mut Regs) {
-    unsafe {
-        let (edi, ebp) = ((*r).edi, (*r).ebp);
-        call_original(r);
-        (*r).edi = edi;
-        (*r).ebp = ebp;
+    let at = crate::pointers::game_address(local.as_mut_ptr());
+    normalise_vector3(at + 12);
+    VIEW_VARS
+        .facing
+        .set_bits(rounded(dot_product3(at, at + 12)));
+    let place = rotate_point(m, zero);
+    for (k, p) in place.iter().enumerate() {
+        DRAW_FRAME.last[k].set_bits(rounded(*p));
     }
-}
-
-extern "C" fn dispatch(r: &mut Regs) {
-    let regions = regions();
-    let places = float_places(&regions);
-    let floats = Floats {
-        memory: &places,
-        regs: &[],
-    };
-    dispatch_state_floats(&HOOK, r, original_without_scratch, &regions, &floats, &rust);
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let regions = regions();
-    let mut vars = regions.clone();
-    vars.push((game_addr(VIEW_RVA) as u32, 0x40));
-    vars.push(at(TICKS_RVA));
-    let saved = capture(&vars);
-    let tolerant_places = float_places(&regions);
-    let tolerant = Floats {
-        memory: &tolerant_places,
-        regs: &[],
-    };
-    at_test_precisions(&tolerant, &mut |word, held| {
-        for case in 0..8u32 {
-            check_state_floats(
-                &mut t,
-                "marks::view_motion",
-                &format!("control word {word:#x}, case {case}"),
-                original_without_scratch,
-                Regs::SENTINEL,
-                &|| unsafe {
-                    restore(&vars, &saved);
-                    for k in 0..0x10 {
-                        let v = ((k as f32 - 6.0) * 0.31 + case as f32 * 1.7)
-                            * if k >= 12 { 40.0 } else { 1.0 };
-                        game_write(VIEW_RVA + 4 * k, v.to_bits());
-                    }
-                    for k in 0..3 {
-                        game_write(LAST_RVA + 4 * k, (k as f32 * 3.0 - case as f32).to_bits());
-                    }
-                    game_write(TICKS_RVA, case as i32 % 4);
-                },
-                &regions,
-                held,
-                &rust,
-            );
-        }
-    });
-    restore(&vars, &saved);
-    t.finish()
+    let ticks: i32 = CLOCK.frame_ticks.get() as i32;
+    for k in 0..3 {
+        let a = &DRAW_WORK.step[k];
+        a.set_bits(x87::over_int(a.bits(), ticks));
+    }
+    Ok(())
 }

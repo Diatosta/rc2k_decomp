@@ -7,104 +7,87 @@
 //! `dword_75AE24`: the co-driver, the race number, the view, the HUD's switches, the
 //! steering), the HUD's bits (`dword_75B00C`) -1, `dword_75B108` 0.
 //!
-//! In:  eax = the player's name
-//! Out: every register kept (`pusha` .. `popa`)
-//! Callers: `net::start_link`, `net::open_lobby`. Its calls through `part`
-//! (`net::lobby_calls`: the Rust versions). Shadow mode runs the original alone (the random
-//! numbers). Self-test: a copy whose calls go to stand-ins, against the Rust version, with
-//! a stage and with none.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! In:  `name` (eax: the player's name)
+//! Out: nothing (every register kept, `pusha` .. `popa`)
+//! Callers: `net::start_link`, `net::open_lobby`.
 
 use crate::errors::Refused;
-use crate::framework::Regs;
-use crate::net::lobby::{
-    COPY_PRINTABLE, NEXT_RANDOM, OWN, OWN_TIME, OWN_TOTAL, PLAYER_NAME, Part, a, g, lobby_entry, p,
-    pb,
-};
+use crate::menu::option_work_store::OPTION_WORK;
+use crate::menu::player::Player;
+use crate::menu::players_store::PLAYER_TABLE;
+use crate::net::lobby::copy_printable;
+use crate::net::store::NET;
+use crate::race::state_store::RACE_STATE;
+use crate::session::Dword;
 use rc2k_core::net::record;
 
-pub const STAGE: usize = 0x75ACD4; // dword_75ACD4: the stage chosen
-pub const DIRECTION: usize = 0x75ACF0; // dword_75ACF0
-const CAR: usize = 0x755A54; // g_player1.car_number
-const COLOURS: usize = 0x755A7C; // g_player1.field_30
-const RACE_NUMBER: usize = 0x755A74; // g_player1.race_number
-const NATIONALITY: usize = 0x755A50; // g_player1.nationality
+/// A setting copied: (to, from player 1's record).
+type Setting = (&'static Dword, fn(&Player) -> u32);
 
-/// The settings copied: (to, from).
-const SETTINGS: [(usize, usize); 13] = [
-    (0x75AE20, 0x755BA0), // codriver_sex
-    (0x75AE1C, 0x755A74), // race_number
-    (0x75AE24, 0x755A58), // view
-    (0x75ADF8, 0x755BA4), // map_area
-    (0x75ADFC, 0x755BA8), // rear_mirror
-    (0x75AE00, 0x755BAC), // rev_counter
-    (0x75AE08, 0x755BB4), // message_display
-    (0x75AE0C, 0x755BB0), // car_info
-    (0x75AE14, 0x755BBC), // driver_info
-    (0x75AE10, 0x755BB8), // progress_bar
-    (0x75AE18, 0x755BC0), // pace_notes
-    (0x75AE04, 0x755BC4), // metric_units
-    (0x75AD2C, 0x755B68), // steering_sensitivity
+/// The settings copied.
+const SETTINGS: [Setting; 13] = [
+    (&RACE_STATE.settings.cars[0].codriver_sex, |p| {
+        p.codriver_sex
+    }),
+    (&RACE_STATE.settings.cars[0].race_number, |p| p.race_number),
+    (&RACE_STATE.settings.cars[0].view, |p| p.view),
+    (&RACE_STATE.settings.cars[0].map_area, |p| p.map_area),
+    (&RACE_STATE.settings.cars[0].rear_mirror, |p| p.rear_mirror),
+    (&RACE_STATE.settings.cars[0].rev_counter, |p| p.rev_counter),
+    (&RACE_STATE.settings.cars[0].message_display, |p| {
+        p.message_display
+    }),
+    (&RACE_STATE.settings.cars[0].car_info, |p| p.car_info),
+    (&RACE_STATE.settings.cars[0].driver_info, |p| p.driver_info),
+    (&RACE_STATE.settings.cars[0].progress_bar, |p| {
+        p.progress_bar
+    }),
+    (&RACE_STATE.settings.cars[0].pace_notes, |p| p.pace_notes),
+    (&RACE_STATE.settings.cars[0].metric_units, |p| {
+        p.metric_units
+    }),
+    (&RACE_STATE.settings.cars[0].steering_sensitivity, |p| {
+        p.steering_sensitivity
+    }),
 ];
 /// Copied after the HUD's bits: (to, from).
-const MORE: [(usize, usize); 5] = [
-    (0x75AD00, 0x755650),
-    (0x75AD0C, 0x75565C),
-    (0x75AD10, 0x755660),
-    (0x75AD14, 0x755664),
-    (0x75AD18, 0x755668),
+const MORE: [(&Dword, &Dword); 5] = [
+    (&RACE_STATE.settings.setting_0, &OPTION_WORK.setting_0),
+    (&RACE_STATE.settings.setting_1, &OPTION_WORK.setting_1),
+    (&RACE_STATE.settings.setting_2, &OPTION_WORK.setting_2),
+    (&RACE_STATE.settings.setting_3, &OPTION_WORK.setting_3),
+    (&RACE_STATE.settings.setting_4, &OPTION_WORK.setting_4),
 ];
-pub const HUD_BITS: usize = 0x75B00C; // dword_75B00C
-const LAST: usize = 0x75B108; // dword_75B108
 
-/// The Rust version: the registers it leaves (the entry's).
-pub fn fill_own_player(entry: &Regs, part: Part) -> Result<Regs, Refused> {
-    let mut r = *entry;
-    let mut c = Regs {
-        ecx: 0x1F,
-        ebx: a(PLAYER_NAME),
-        ..r
-    };
-    part(COPY_PRINTABLE, &mut c)?;
+/// The Rust version.
+pub fn fill_own_player(name: u32) -> Result<(), Refused> {
+    copy_printable(name, NET.player_name.addr(), 0x1F)?;
     // Converted: `rc2k_core::net::record::own_record`.
+    let player = PLAYER_TABLE.players[0].get();
     let own = record::own_record(
-        g(CAR) as u8,
-        g(COLOURS) as u8,
-        g(NATIONALITY) as u8,
-        g(STAGE) as u8,
-        g(DIRECTION) as u8,
-        g(RACE_NUMBER) as u8,
+        player.car_number as u8,
+        player.gearing as u8,
+        player.nationality as u8,
+        RACE_STATE.settings.stage.get() as u8,
+        RACE_STATE.settings.direction.get() as u8,
+        player.race_number as u8,
     );
     for (n, b) in own.into_iter().enumerate() {
-        pb(OWN + n, b);
+        NET.own.head.set(n, b);
     }
-    r.eax = g(DIRECTION);
-    part(NEXT_RANDOM, &mut r)?;
-    pb(OWN + record::RANDOM, r.eax as u8);
-    r.eax = 0;
-    p(OWN_TIME, 0);
-    p(OWN_TOTAL, 0);
+    NET.own
+        .head
+        .set(record::RANDOM, { crate::math::next_random::next_random() }
+            as u8);
+    NET.own.race_time.set(0);
+    NET.own.total.set(0);
     for (to, from) in SETTINGS {
-        r.eax = g(from);
-        p(to, r.eax);
+        to.set(from(&player));
     }
-    p(HUD_BITS, u32::MAX);
+    RACE_STATE.results.hud_bits_current.set(u32::MAX);
     for (to, from) in MORE {
-        r.eax = g(from);
-        p(to, r.eax);
+        to.set(from.get());
     }
-    p(LAST, 0);
-    Ok(Regs {
-        eflags: r.eflags,
-        ..*entry
-    })
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    lobby_entry(r, fill_own_player)
+    RACE_STATE.results.finished.set(0);
+    Ok(())
 }

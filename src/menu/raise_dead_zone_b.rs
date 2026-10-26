@@ -2,21 +2,14 @@
 //!
 //! In:  nothing
 //! Out: every register kept
-//! The an item action of the controller pages.
-//! Hook removed 2026-10-22 (typed tables): the menus and draw lists run its `entry`
+//! The an item action of the controller pages. The menus and draw lists run its `entry`
 //! (`menu::table_calls`); the registers above are the original's, for reference.
 
 use crate::errors::Refused;
-use crate::framework::Regs;
-use crate::menu::controller_items::{dead_zone_left, item_entry};
-use crate::screens::harness::Left;
+use crate::menu::controller_items::raise_dead_zone;
 
-fn rust(_: &Regs) -> Result<Left, Refused> {
-    dead_zone_left(0x44)
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    item_entry(r, &rust)
+/// The Rust version the typed tables run (what it leaves in registers is read by
+/// none of its callers).
+pub fn run() -> Result<(), Refused> {
+    raise_dead_zone(0x44)
 }

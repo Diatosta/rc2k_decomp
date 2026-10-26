@@ -7,316 +7,459 @@
 //! `marks::squares_step`.
 //!
 //! In:  nothing (`g_marksSettings`)
-//! Out: the registers as the path leaves them
+//! Out: nothing (its caller reads no register after it)
 //!
-//! Caller: `sub_4C74DA` (0x4C7534). The x87 runs are the original's instructions over the
+//! Caller: `sub_4C74DA` (0x4C7534). The x87 runs are plain Rust on the x87 model (`math::x87_float`), in the original's order, over the
 //! game's variables; the vector helpers, `scale_axes` and `squares_step` their Rust
-//! versions; pong and the squares through `part` (1 `run_pong`, 2 `run_squares`), in the
-//! game their Rust versions. Refuses null settings and `squares_step`'s refusals. Shadow
-//! mode runs the original alone (it draws). Self-test: a copy whose pong and squares go
-//! to stand-ins, against the Rust version, on settings of the test's; put back.
+//! versions. Refuses null settings and `squares_step`'s refusals.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{
-    RawHook, Regs, SelfTest, game_addr, game_read, game_write, hook_asm, rva, shadow,
-};
-use crate::marks::setup::SETTINGS_RVA;
-use crate::marks::squares_step::{self, squares_step};
+use crate::marks::hexagon_state::HEXAGON_STATE;
+use crate::marks::hexagon_vars::HEX;
+use crate::marks::squares_step::squares_step;
+use crate::marks::tuning::MARKS_KIND_FLOATS;
 use crate::math::x87;
+use crate::math::x87_float as bh;
+use crate::pointers::GamePtr;
 use crate::scene::cross_product3::cross_product3;
 use crate::scene::vector3::normalise_vector3;
-use crate::service::harness::{Region, at, capture, restore};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("marks::squares_frame", rva(0x4BF60F), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
-
-const AXES: [usize; 3] = [rva(0x89CF1A), rva(0x89CF26), rva(0x89CF32)];
-const RATE_RVA: usize = rva(0x89CA34); // flt_89CA34
-const PLACE_RVA: usize = rva(0x8161A2); // flt_8161A2
-const FACING_RVA: usize = rva(0x814718); // flt_814718
-const SHARE_RVA: usize = rva(0x8BC1AA); // flt_8BC1AA
-const RUNNING_RVA: usize = rva(0x7652A0); // dword_7652A0
-
-/// A call by place (see the header).
-pub type Part<'a> = &'a mut dyn FnMut(u32, &mut Regs) -> Result<(), Refused>;
-
-fn addr(r: usize) -> u32 {
-    game_addr(r) as u32
-}
+use crate::session::address_of;
 
 /// The original's 0x4BF615 .. 0x4BF6AB: the rate (`flt_89CA34`), the place and the first axis from the settings, its length over `flt_8BC1A2` into `flt_89CEEE`.
-unsafe fn frame_axes(b: u32, s: u32) {
-    unsafe {
-        core::arch::asm!(
-            "fild dword ptr [{s} + 0x2740]",
-            "fmul dword ptr [{b} + 0x4BC19E]",
-            "fstp dword ptr [{b} + 0x49CA34]",
-            "fild dword ptr [{s} + 0x2720]",
-            "fild dword ptr [{s} + 0x2724]",
-            "fild dword ptr [{s} + 0x2728]",
-            "fstp dword ptr [{b} + 0x49CEFE]",
-            "fstp dword ptr [{b} + 0x49CEFA]",
-            "fstp dword ptr [{b} + 0x49CEF6]",
-            "fild dword ptr [{s} + 0x272C]",
-            "fisub dword ptr [{s} + 0x2720]",
-            "fstp dword ptr [{b} + 0x49CF1A]",
-            "fild dword ptr [{s} + 0x2730]",
-            "fisub dword ptr [{s} + 0x2724]",
-            "fstp dword ptr [{b} + 0x49CF1E]",
-            "fild dword ptr [{s} + 0x2734]",
-            "fisub dword ptr [{s} + 0x2728]",
-            "fstp dword ptr [{b} + 0x49CF22]",
-            "fld dword ptr [{b} + 0x49CF1A]",
-            ".byte 0xD8, 0xC8",
-            "fld dword ptr [{b} + 0x49CF1E]",
-            ".byte 0xD8, 0xC8",
-            "fld dword ptr [{b} + 0x49CF22]",
-            ".byte 0xD8, 0xC8",
-            ".byte 0xDE, 0xC1",
-            ".byte 0xDE, 0xC1",
-            ".byte 0xD9, 0xFA",
-            "fdiv dword ptr [{b} + 0x4BC1A2]",
-            "fstp dword ptr [{b} + 0x49CEEE]",
-            b = in(reg) b,
-            s = in(reg) s,
-            out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
-            out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
-            options(nostack),
-        )
-    }
+fn frame_axes(s: u32) {
+    frame_axes_x87(s as usize, &SQUARE_TIMING, &SQUARE_TABLES, &SQUARE_STATE)
 }
 
 /// The original's 0x4BF6B8 .. 0x4BF718: the second axis, its length over `flt_8BC1A6` into `flt_89CEF2`.
-unsafe fn frame_up(b: u32, s: u32) {
-    unsafe {
-        core::arch::asm!(
-            "fild dword ptr [{s} + 0x2708]",
+fn frame_up(s: u32) {
+    frame_up_x87(s as usize, &SQUARE_TABLES, &SQUARE_STATE)
+}
+
+/// The original's 0x4BF769 .. 0x4BF78D: the place as floats into `flt_8161A2` ...
+fn frame_place(s: u32) {
+    frame_place_x87(crate::marks::hexagon_vars::HexagonVars::base(), s as usize)
+}
+
+/// The original's 0x4BF7A4 .. 0x4BF7BE: the place's way dotted with the third axis into `flt_814718`.
+fn frame_facing() {
+    frame_facing_x87(
+        crate::marks::hexagon_vars::HexagonVars::base(),
+        &SQUARE_TABLES,
+    )
+}
+
+/// The Rust version (see the header).
+pub fn squares_frame() -> Result<(), Refused> {
+    let s: u32 = crate::marks::setup::SETTINGS.pointer.get();
+    if s == 0 {
+        return Err(BadInput("no marks settings").into());
+    }
+    frame_axes(s);
+    let [a0, a1, a2] = [0, 1, 2].map(|n| address_of(&SQUARE_TABLES.axes[n]));
+    normalise_vector3(a0);
+    frame_up(s);
+    normalise_vector3(a1);
+    cross_product3(a1, a0, a2)?;
+    normalise_vector3(a2);
+    cross_product3(a0, a2, a1)?;
+    crate::marks::scale_axes::scale_axes();
+    frame_place(s);
+    normalise_vector3(crate::pointers::game_address(HEX.place.as_ptr()));
+    frame_facing();
+    if HEXAGON_STATE.facing.bits() & 0x8000_0000 == 0 {
+        return Ok(());
+    }
+    crate::marks::run_pong::run_pong()?;
+    if x87::mul_to_int(SQUARE_TIMING.rate.bits(), SQUARE_STATE.share.bits()) == 0 {
+        return Ok(());
+    }
+    crate::marks::run_squares::run_squares()?;
+    let s: u32 = crate::marks::setup::SETTINGS.pointer.get();
+    if GamePtr::new(s + 0x2744).read::<u32>("a mark's field")? == 0 {
+        return Ok(());
+    }
+    if MARKS_KIND_FLOATS.running.bits() == 0 {
+        return Ok(());
+    }
+    squares_step()?;
+    Ok(())
+}
+
+use crate::marks::plain::{ld, ldi, st};
+use crate::marks::squares_store::{
+    SQUARE_STATE, SQUARE_TABLES, SQUARE_TIMING, SquareState, SquareTables, SquareTiming,
+};
+
+/// `frame_axes`'s x87 block as plain Rust on the x87 model (29 instructions), same order and memory places.
+fn frame_axes_x87(s: usize, sti: &SquareTiming, sq: &SquareTables, ss: &SquareState) {
+    let t0 = ldi(s, 0x2740);
+    let t1 = t0 * bh::ld(ss.rate_share.bits());
+    sti.rate.set_bits(bh::st(t1));
+    let t2 = ldi(s, 0x2720);
+    let t3 = ldi(s, 0x2724);
+    let t4 = ldi(s, 0x2728);
+    sq.place[2].set_bits(bh::st(t4));
+    sq.place[1].set_bits(bh::st(t3));
+    sq.place[0].set_bits(bh::st(t2));
+    let t5 = ldi(s, 0x272C);
+    let t6 = t5 - ldi(s, 0x2720);
+    sq.axes[0][0].set_bits(bh::st(t6));
+    let t7 = ldi(s, 0x2730);
+    let t8 = t7 - ldi(s, 0x2724);
+    sq.axes[0][1].set_bits(bh::st(t8));
+    let t9 = ldi(s, 0x2734);
+    let t10 = t9 - ldi(s, 0x2728);
+    sq.axes[0][2].set_bits(bh::st(t10));
+    let t11 = bh::ld(sq.axes[0][0].bits());
+    let t12 = t11 * t11;
+    let t13 = bh::ld(sq.axes[0][1].bits());
+    let t14 = t13 * t13;
+    let t15 = bh::ld(sq.axes[0][2].bits());
+    let t16 = t15 * t15;
+    let t17 = t14 + t16;
+    let t18 = t12 + t17;
+    let t19 = t18.sqrt();
+    let t20 = t19 / bh::ld(ss.length_divisors[0].bits());
+    sq.lengths[0].set_bits(bh::st(t20));
+}
+
+/// `frame_up`'s x87 block as plain Rust on the x87 model (20 instructions), same order and memory places.
+fn frame_up_x87(s: usize, sq: &SquareTables, ss: &SquareState) {
+    let t0 = ldi(s, 0x2708);
+    let t1 = t0 - ldi(s, 0x2720);
+    sq.axes[1][0].set_bits(bh::st(t1));
+    let t2 = ldi(s, 0x270C);
+    let t3 = t2 - ldi(s, 0x2724);
+    sq.axes[1][1].set_bits(bh::st(t3));
+    let t4 = ldi(s, 0x2710);
+    let t5 = t4 - ldi(s, 0x2728);
+    sq.axes[1][2].set_bits(bh::st(t5));
+    let t6 = bh::ld(sq.axes[1][0].bits());
+    let t7 = t6 * t6;
+    let t8 = bh::ld(sq.axes[1][1].bits());
+    let t9 = t8 * t8;
+    let t10 = bh::ld(sq.axes[1][2].bits());
+    let t11 = t10 * t10;
+    let t12 = t9 + t11;
+    let t13 = t7 + t12;
+    let t14 = t13.sqrt();
+    let t15 = t14 / bh::ld(ss.length_divisors[1].bits());
+    sq.lengths[1].set_bits(bh::st(t15));
+}
+
+/// `frame_place`'s x87 block as plain Rust on the x87 model (6 instructions), same order and memory places.
+fn frame_place_x87(hx: usize, s: usize) {
+    let t0 = ldi(s, 0x2720);
+    st(hx, 0xB1262, t0);
+    let t1 = ldi(s, 0x2724);
+    st(hx, 0xB1266, t1);
+    let t2 = ldi(s, 0x2728);
+    st(hx, 0xB126A, t2);
+}
+
+/// `frame_facing`'s x87 block as plain Rust on the x87 model (9 instructions), same order and memory places.
+fn frame_facing_x87(hx: usize, sq: &SquareTables) {
+    let t0 = ld(hx, 0xB1262);
+    let t1 = t0 * bh::ld(sq.axes[2][0].bits());
+    let t2 = ld(hx, 0xB1266);
+    let t3 = t2 * bh::ld(sq.axes[2][1].bits());
+    let t4 = ld(hx, 0xB126A);
+    let t5 = t4 * bh::ld(sq.axes[2][2].bits());
+    let t6 = t3 + t5;
+    let t7 = t1 + t6;
+    HEXAGON_STATE.facing.set_bits(bh::st(t7));
+}
+
+#[cfg(all(test, target_arch = "x86"))]
+mod asm_reference {
+    //! The original assembly blocks, kept verbatim as the reference the plain versions are tested against.
+
+    pub(super) fn frame_axes_x87(mk: usize, s: usize) {
+        unsafe {
+            core::arch::asm!(
+                    "fild dword ptr [{s} + 0x2740]",
+            "fmul dword ptr [{mk} + 0x15725E]",
+            "fstp dword ptr [{mk} + 0x137AF4]",
+            "fild dword ptr [{s} + 0x2720]",
+            "fild dword ptr [{s} + 0x2724]",
+            "fild dword ptr [{s} + 0x2728]",
+            "fstp dword ptr [{mk} + 0x137FBE]",
+            "fstp dword ptr [{mk} + 0x137FBA]",
+            "fstp dword ptr [{mk} + 0x137FB6]",
+            "fild dword ptr [{s} + 0x272C]",
             "fisub dword ptr [{s} + 0x2720]",
-            "fstp dword ptr [{b} + 0x49CF26]",
-            "fild dword ptr [{s} + 0x270C]",
+            "fstp dword ptr [{mk} + 0x137FDA]",
+            "fild dword ptr [{s} + 0x2730]",
             "fisub dword ptr [{s} + 0x2724]",
-            "fstp dword ptr [{b} + 0x49CF2A]",
-            "fild dword ptr [{s} + 0x2710]",
+            "fstp dword ptr [{mk} + 0x137FDE]",
+            "fild dword ptr [{s} + 0x2734]",
             "fisub dword ptr [{s} + 0x2728]",
-            "fstp dword ptr [{b} + 0x49CF2E]",
-            "fld dword ptr [{b} + 0x49CF26]",
+            "fstp dword ptr [{mk} + 0x137FE2]",
+            "fld dword ptr [{mk} + 0x137FDA]",
             ".byte 0xD8, 0xC8",
-            "fld dword ptr [{b} + 0x49CF2A]",
+            "fld dword ptr [{mk} + 0x137FDE]",
             ".byte 0xD8, 0xC8",
-            "fld dword ptr [{b} + 0x49CF2E]",
+            "fld dword ptr [{mk} + 0x137FE2]",
             ".byte 0xD8, 0xC8",
             ".byte 0xDE, 0xC1",
             ".byte 0xDE, 0xC1",
             ".byte 0xD9, 0xFA",
-            "fdiv dword ptr [{b} + 0x4BC1A6]",
-            "fstp dword ptr [{b} + 0x49CEF2]",
-            b = in(reg) b,
+            "fdiv dword ptr [{mk} + 0x157262]",
+            "fstp dword ptr [{mk} + 0x137FAE]",
+            mk = in(reg) mk,
             s = in(reg) s,
             out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
             out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
             options(nostack),
-        )
+            )
+        }
     }
-}
 
-/// The original's 0x4BF769 .. 0x4BF78D: the place as floats into `flt_8161A2` ...
-unsafe fn frame_place(b: u32, s: u32) {
-    unsafe {
-        core::arch::asm!(
-            "fild dword ptr [{s} + 0x2720]",
-            "fstp dword ptr [{b} + 0x4161A2]",
+    pub(super) fn frame_up_x87(mk: usize, s: usize) {
+        unsafe {
+            core::arch::asm!(
+                    "fild dword ptr [{s} + 0x2708]",
+            "fisub dword ptr [{s} + 0x2720]",
+            "fstp dword ptr [{mk} + 0x137FE6]",
+            "fild dword ptr [{s} + 0x270C]",
+            "fisub dword ptr [{s} + 0x2724]",
+            "fstp dword ptr [{mk} + 0x137FEA]",
+            "fild dword ptr [{s} + 0x2710]",
+            "fisub dword ptr [{s} + 0x2728]",
+            "fstp dword ptr [{mk} + 0x137FEE]",
+            "fld dword ptr [{mk} + 0x137FE6]",
+            ".byte 0xD8, 0xC8",
+            "fld dword ptr [{mk} + 0x137FEA]",
+            ".byte 0xD8, 0xC8",
+            "fld dword ptr [{mk} + 0x137FEE]",
+            ".byte 0xD8, 0xC8",
+            ".byte 0xDE, 0xC1",
+            ".byte 0xDE, 0xC1",
+            ".byte 0xD9, 0xFA",
+            "fdiv dword ptr [{mk} + 0x157266]",
+            "fstp dword ptr [{mk} + 0x137FB2]",
+            mk = in(reg) mk,
+            s = in(reg) s,
+            out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
+            out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
+            options(nostack),
+            )
+        }
+    }
+
+    pub(super) fn frame_place_x87(mk: usize, s: usize) {
+        unsafe {
+            core::arch::asm!(
+                    "fild dword ptr [{s} + 0x2720]",
+            "fstp dword ptr [{mk} + 0xB1262]",
             "fild dword ptr [{s} + 0x2724]",
-            "fstp dword ptr [{b} + 0x4161A6]",
+            "fstp dword ptr [{mk} + 0xB1266]",
             "fild dword ptr [{s} + 0x2728]",
-            "fstp dword ptr [{b} + 0x4161AA]",
-            b = in(reg) b,
+            "fstp dword ptr [{mk} + 0xB126A]",
+            mk = in(reg) mk,
             s = in(reg) s,
             out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
             out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
             options(nostack),
-        )
+            )
+        }
     }
-}
 
-/// The original's 0x4BF7A4 .. 0x4BF7BE: the place's way dotted with the third axis into `flt_814718`.
-unsafe fn frame_facing(b: u32) {
-    unsafe {
-        core::arch::asm!(
-            "fld dword ptr [{b} + 0x4161A2]",
-            "fmul dword ptr [{b} + 0x49CF32]",
-            "fld dword ptr [{b} + 0x4161A6]",
-            "fmul dword ptr [{b} + 0x49CF36]",
-            "fld dword ptr [{b} + 0x4161AA]",
-            "fmul dword ptr [{b} + 0x49CF3A]",
+    pub(super) fn frame_facing_x87(mk: usize) {
+        unsafe {
+            core::arch::asm!(
+                    "fld dword ptr [{mk} + 0xB1262]",
+            "fmul dword ptr [{mk} + 0x137FF2]",
+            "fld dword ptr [{mk} + 0xB1266]",
+            "fmul dword ptr [{mk} + 0x137FF6]",
+            "fld dword ptr [{mk} + 0xB126A]",
+            "fmul dword ptr [{mk} + 0x137FFA]",
             ".byte 0xDE, 0xC1",
             ".byte 0xDE, 0xC1",
-            "fstp dword ptr [{b} + 0x414718]",
-            b = in(reg) b,
+            "fstp dword ptr [{mk} + 0xAF7D8]",
+            mk = in(reg) mk,
             out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
             out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
             options(nostack),
-        )
+            )
+        }
     }
 }
 
-/// The Rust version (see the header): the registers it leaves.
-pub unsafe fn squares_frame(entry: &Regs, part: Part) -> Result<Regs, Refused> {
-    let mut g = *entry;
-    unsafe {
-        let s: u32 = game_read(SETTINGS_RVA);
-        if s == 0 {
-            return Err(BadInput("no marks settings").into());
-        }
-        let b = addr(0);
-        g.esi = s;
-        frame_axes(b, s);
-        let [a0, a1, a2] = AXES.map(addr);
-        normalise_vector3(a0);
-        frame_up(b, s);
-        normalise_vector3(a1);
-        [g.esi, g.edi, g.ebp] = [a1, a0, a2];
-        cross_product3(a1, a0, a2)?;
-        normalise_vector3(a2);
-        [g.esi, g.edi, g.ebp] = [a0, a2, a1];
-        cross_product3(a0, a2, a1)?;
-        g.esi = s;
-        g = crate::marks::scale_axes::scale_axes(&g);
-        g.esi = s;
-        frame_place(b, s);
-        normalise_vector3(addr(PLACE_RVA));
-        [g.esi, g.edi] = [addr(PLACE_RVA), a2];
-        frame_facing(b);
-        if game_read::<u32>(FACING_RVA) & 0x8000_0000 == 0 {
-            return Ok(g);
-        }
-        part(1, &mut g)?;
-        g.eax = x87::mul_to_int(game_read(RATE_RVA), game_read(SHARE_RVA)) as u32;
-        if g.eax == 0 {
-            return Ok(g);
-        }
-        part(2, &mut g)?;
-        g.esi = game_read(SETTINGS_RVA);
-        if ((g.esi + 0x2744) as *const u32).read_unaligned() == 0 {
-            return Ok(g);
-        }
-        if game_read::<u32>(RUNNING_RVA) == 0 {
-            return Ok(g);
-        }
-        g = squares_step(&g)?;
-    }
-    Ok(g)
-}
+#[cfg(all(test, target_arch = "x86"))]
+mod asm_differential {
+    use super::asm_reference as reference;
+    use crate::marks::asm_test::Kind::*;
+    use crate::marks::asm_test::with_copy;
+    use crate::marks::asm_test::{Op, Spec, differential};
+    use crate::marks::hexagon_state::{HEXAGON_STATE, HexagonState};
+    use crate::marks::squares_store::{SquareState, SquareTables, SquareTiming};
+    use crate::marks::typed_sync::{overlay, with_overlays};
 
-/// In the game: pong's and the squares' Rust versions.
-pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
-    use crate::marks::{run_pong, run_squares};
-    unsafe {
-        *r = match place {
-            1 => run_pong::run_pong(r, &mut run_pong::game_part)?,
-            _ => run_squares::run_squares(r, &mut run_squares::game_part)?,
+    #[test]
+    fn frame_axes_x87_matches() {
+        const SPEC: Spec = Spec {
+            operands: &[
+                Op::Base {
+                    lo: 0x137AF0,
+                    hi: 0x157326,
+                    reads: &[
+                        (0x137FDA, F32),
+                        (0x137FDE, F32),
+                        (0x137FE2, F32),
+                        (0x15725E, F32),
+                        (0x157262, F32),
+                    ],
+                    writes: &[
+                        (0x137AF4, F32),
+                        (0x137FAE, F32),
+                        (0x137FB6, F32),
+                        (0x137FBA, F32),
+                        (0x137FBE, F32),
+                        (0x137FDA, F32),
+                        (0x137FDE, F32),
+                        (0x137FE2, F32),
+                    ],
+                },
+                Op::Base {
+                    lo: 0x2720,
+                    hi: 0x2744,
+                    reads: &[
+                        (0x2720, I32),
+                        (0x2724, I32),
+                        (0x2728, I32),
+                        (0x272C, I32),
+                        (0x2730, I32),
+                        (0x2734, I32),
+                        (0x2740, I32),
+                    ],
+                    writes: &[],
+                },
+            ],
+            sincos: false,
         };
-    }
-    Ok(())
-}
-
-extern "C" fn dispatch(r: &mut Regs) {
-    HOOK.count_call();
-    if shadow() {
-        unsafe { call_original(r) };
-        return;
-    }
-    match unsafe { squares_frame(r, &mut game_part) } {
-        Ok(left) => *r = Regs { esp: r.esp, ..left },
-        Err(e) => unsafe { crate::fatal::raise::refused(&HOOK, e, r, call_original) },
-    }
-}
-
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    let left = unsafe { squares_frame(r, &mut game_part) }?;
-    *r = Regs { esp: r.esp, ..left };
-    Ok(())
-}
-
-fn self_test() -> (usize, usize) {
-    use crate::race::mud::{copy, run_both, test_part};
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    // mov esi, g_marksSettings
-    let entry: &[u8] = &[0x8B, 0x35, 0x28, 0x7A, 0x76, 0x00];
-    let copy = match copy(
-        0x4BF60F,
-        0x200,
-        entry,
-        &[
-            0xA3, 0x110, 0x127, 0x132, 0x149, 0x14F, 0x184, 0x1BC, 0x1DA, 0x1FA,
-        ],
-        &[(0x4B7EDA, 1), (0x4BFFEC, 2)],
-    ) {
-        Ok(c) => c,
-        Err(why) => return t.skip(why),
-    };
-    let mut settings = vec![0u32; 0x2748 / 4];
-    let sa = settings.as_mut_ptr() as u32;
-    let mut regions: Vec<Region> = vec![
-        at(RATE_RVA),
-        (addr(rva(0x89CEEE)), 0xA0),
-        (addr(PLACE_RVA), 12),
-        at(FACING_RVA),
-    ];
-    regions.extend(squares_step::regions());
-    let mut vars = regions.clone();
-    vars.extend(
-        [
-            SETTINGS_RVA,
-            SHARE_RVA,
-            RUNNING_RVA,
-            rva(0x82FC56),
-            rva(0x833D7E),
-        ]
-        .map(at),
-    );
-    let saved = capture(&vars);
-    for case in 0..8u32 {
-        run_both(
-            &mut t,
-            &format!("case {case}"),
-            &copy,
-            &regions,
-            &|| unsafe {
-                restore(&vars, &saved);
-                game_write(SETTINGS_RVA, sa);
-                let p = |o: u32, v: u32| ((sa + o) as *mut u32).write_unaligned(v);
-                let flip = if case % 2 == 0 { 1i32 } else { -1 };
-                for n in 0..3u32 {
-                    p(
-                        0x2720 + 4 * n,
-                        ([100i32, 50, 400][n as usize] * flip + case as i32 * 9) as u32,
-                    );
-                    p(0x272C + 4 * n, [300, 60, 380][n as usize]);
-                    p(0x2708 + 4 * n, [90, 250, 420][n as usize]);
-                }
-                p(0x2740, if case == 6 { 0 } else { 3 + case });
-                p(0x2744, u32::from(case != 4));
-                game_write(SHARE_RVA, 0.5f32.to_bits());
-                game_write(RUNNING_RVA, u32::from(case != 2));
-                crate::marks::expire_squares::test_items(case);
+        differential(
+            &SPEC,
+            |b| reference::frame_axes_x87(b[0], b[1]),
+            |b| {
+                with_copy::<SquareTiming, _>(b[0], SquareTiming::START, |sti| {
+                    with_copy::<SquareTables, _>(b[0], SquareTables::START, |sq| {
+                        with_copy::<SquareState, _>(b[0], SquareState::START, |ss| {
+                            super::frame_axes_x87(b[1], sti, sq, ss)
+                        })
+                    })
+                })
             },
-            &|r| unsafe { squares_frame(r, &mut test_part) },
         );
     }
-    restore(&vars, &saved);
-    drop(settings);
-    t.finish()
+
+    #[test]
+    fn frame_up_x87_matches() {
+        const SPEC: Spec = Spec {
+            operands: &[
+                Op::Base {
+                    lo: 0x137B8A,
+                    hi: 0x157326,
+                    reads: &[
+                        (0x137FE6, F32),
+                        (0x137FEA, F32),
+                        (0x137FEE, F32),
+                        (0x157266, F32),
+                    ],
+                    writes: &[
+                        (0x137FB2, F32),
+                        (0x137FE6, F32),
+                        (0x137FEA, F32),
+                        (0x137FEE, F32),
+                    ],
+                },
+                Op::Base {
+                    lo: 0x2708,
+                    hi: 0x272C,
+                    reads: &[
+                        (0x2708, I32),
+                        (0x270C, I32),
+                        (0x2710, I32),
+                        (0x2720, I32),
+                        (0x2724, I32),
+                        (0x2728, I32),
+                    ],
+                    writes: &[],
+                },
+            ],
+            sincos: false,
+        };
+        differential(
+            &SPEC,
+            |b| reference::frame_up_x87(b[0], b[1]),
+            |b| {
+                with_copy::<SquareTables, _>(b[0], SquareTables::START, |sq| {
+                    with_copy::<SquareState, _>(b[0], SquareState::START, |ss| {
+                        super::frame_up_x87(b[1], sq, ss)
+                    })
+                })
+            },
+        );
+    }
+
+    #[test]
+    fn frame_place_x87_matches() {
+        const SPEC: Spec = Spec {
+            operands: &[
+                Op::Base {
+                    lo: 0xB1262,
+                    hi: 0xB126E,
+                    reads: &[],
+                    writes: &[(0xB1262, F32), (0xB1266, F32), (0xB126A, F32)],
+                },
+                Op::Base {
+                    lo: 0x2720,
+                    hi: 0x272C,
+                    reads: &[(0x2720, I32), (0x2724, I32), (0x2728, I32)],
+                    writes: &[],
+                },
+            ],
+            sincos: false,
+        };
+        differential(
+            &SPEC,
+            |b| reference::frame_place_x87(b[0], b[1]),
+            |b| super::frame_place_x87(b[0], b[1]),
+        );
+    }
+
+    #[test]
+    fn frame_facing_x87_matches() {
+        const SPEC: Spec = Spec {
+            operands: &[Op::Base {
+                lo: 0xAF7D0,
+                hi: 0x13822A,
+                reads: &[
+                    (0xB1262, F32),
+                    (0xB1266, F32),
+                    (0xB126A, F32),
+                    (0x137FF2, F32),
+                    (0x137FF6, F32),
+                    (0x137FFA, F32),
+                ],
+                writes: &[(0xAF7D8, F32)],
+            }],
+            sincos: false,
+        };
+        differential(
+            &SPEC,
+            |b| reference::frame_facing_x87(b[0]),
+            |b| {
+                with_overlays(
+                    b[0],
+                    &[overlay(&HEXAGON_STATE, HexagonState::START)],
+                    || {
+                        with_copy::<SquareTables, _>(b[0], SquareTables::START, |sq| {
+                            super::frame_facing_x87(b[0], sq)
+                        })
+                    },
+                )
+            },
+        );
+    }
 }

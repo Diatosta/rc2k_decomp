@@ -5,94 +5,38 @@
 //! In:  nothing
 //! Out: every register kept; no flags read
 //!
-//! Caller: `sub_45D8FB`, `sub_45DA14`, `sub_45DC3E`, `sub_45EFF3`.
-//! Refuses (before anything) a car number past 7, a null sound object when it is
-//! written.
-//! Self-test: `physics/car_sounds.rs` (`test_sound`): the original and the Rust version on
-//! the game's variables (saved and put back) with a test object, exact at double precision.
+//! Caller: `sub_45D8FB`, `sub_45DA14`, `sub_45DC3E`, `sub_45EFF3`. Refuses (before
+//! anything) a car number past 7, a null sound object when it is written.
 
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, hook_asm, rva};
-use crate::physics::car_sounds::{
-    cue_plain, dispatch_placed, g, listed, object, place, put, test_sound,
-};
+use crate::physics::car_sounds::{listed, object, place, put};
 use crate::physics::sound_band_1::TWIN;
-use crate::physics::sound_bands::{band_value, band_value_plain};
-use crate::screens::harness::Left;
-use rc2k_core::physics::sound_places::{FIRST, SOUND_E1};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("physics::place_sound_e1", rva(0x45CEF9), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
+use crate::physics::sound_bands::band_value;
+use crate::race::sound_spots_store::RACE_SOUND_SPOTS;
+use crate::race::work_store::RACE_WORK;
 
 /// The Rust version (the exact one, for `physics::wall_push_back` and
 /// `physics::wall_edge_contact`).
-pub unsafe fn place_sound_e1() -> Result<Left, Refused> {
-    if !listed(g(0x71B3F8))? {
-        return Ok(Left::nothing());
+pub fn place_sound_e1() -> Result<(), Refused> {
+    if !listed(RACE_WORK.current_car.bits())? {
+        return Ok(());
     }
-    let scratch = g(0x6D1AEC);
-    let b = unsafe { band_value(TWIN) };
+    let scratch = RACE_SOUND_SPOTS.band_scratch.bits();
+    let b = band_value(TWIN);
     if b == 0 {
-        return Ok(Left::nothing());
+        return Ok(());
     }
     // The band left `dword_6D1AEC` written: put back if the object refuses.
     let o = match object() {
         Ok(o) => o,
         Err(e) => {
-            unsafe { crate::framework::game_write(rva(0x6D1AEC), scratch) };
+            RACE_SOUND_SPOTS.band_scratch.set_bits(scratch);
             return Err(e);
         }
     };
-    unsafe {
-        put(o + 0x238, 0xE1);
-        put(o + 0x23C, b);
-        place(o, 0x240, None);
-        put(o + 0x10, 1);
-    }
-    Ok(Left::nothing())
-}
-
-/// The converted version (`rc2k_core::physics::sound_places`, plain floats): the hook's.
-// Converted: `rc2k_core::physics::sound_places`.
-pub unsafe fn place_sound_e1_plain() -> Result<Left, Refused> {
-    if !listed(g(0x71B3F8))? {
-        return Ok(Left::nothing());
-    }
-    let scratch = g(0x6D1AEC);
-    let b = unsafe { band_value_plain(TWIN) };
-    if b == 0 {
-        return Ok(Left::nothing());
-    }
-    // The band left `dword_6D1AEC` written: put back if the object refuses.
-    let o = match object() {
-        Ok(o) => o,
-        Err(e) => {
-            unsafe { crate::framework::game_write(rva(0x6D1AEC), scratch) };
-            return Err(e);
-        }
-    };
-    unsafe { cue_plain(o, FIRST, SOUND_E1, b, None) };
-    Ok(Left::nothing())
-}
-
-fn rust(_: &Regs) -> Result<Left, Refused> {
-    unsafe { place_sound_e1_plain() }
-}
-
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_placed(&HOOK, r, call_original, &[], &rust);
-}
-
-fn self_test() -> (usize, usize) {
-    test_sound(&HOOK, call_original, &rust, &|_| {}, &[])
+    put(o + 0x238, 0xE1);
+    put(o + 0x23C, b);
+    place(o, 0x240, None);
+    put(o + 0x10, 1);
+    Ok(())
 }

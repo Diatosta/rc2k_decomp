@@ -21,11 +21,16 @@
 //!
 //! The names of the texture and colour steps are readings of their variables.
 
+use crate::audio::names_store::SAMPLE_NAMES;
+use crate::audio::store::AUDIO;
 use crate::errors::Refused;
-use crate::framework::{EAX, EBX, RawHook, Regs, SelfTest, game_addr, game_read, game_write, rva};
-use crate::menu::parts::{Part, copy, run_both, test_part};
-use crate::screens::harness::{CallOriginal, Left};
-use crate::service::harness::{Region, at, capture, check_state, dispatch_state, restore};
+use crate::framework::rva;
+use crate::gfx::choices_store::SCREEN_CHOICES;
+use crate::menu::captions_store::CAPTIONS;
+use crate::menu::flow_store::SCREEN_FLOW;
+use crate::menu::option_work_store::OPTION_WORK;
+use crate::race::state_store::RACE_STATE;
+use crate::session::Dword;
 
 // ---- the volume steps ----
 
@@ -39,349 +44,120 @@ pub enum Then {
 
 #[derive(Clone, Copy)]
 pub struct Volume {
-    pub address: usize,
-    pub len: usize,
-    pub entry: [u8; 6],
-    /// The call's offset.
-    pub call: usize,
-    pub value_rva: usize,
+    pub value: &'static Dword,
     pub up: bool,
     pub then: Then,
 }
 
-const MUSIC_RVA: usize = rva(0x5180FC); // g_musicVolume
-const SOUNDS_VOLUME_RVA: usize = rva(0x7554E8); // dword_7554E8
-const SPEECH_PATH_RVA: usize = rva(0x50962F); // ";3files\%speech\rally\st1.wav"
-pub const MUSIC_LEVEL_RVA: usize = rva(0x755688); // dword_755688
-pub const SPEECH_LEVEL_RVA: usize = rva(0x755698); // dword_755698
-pub const SOUNDS_A_RVA: usize = rva(0x75569C); // dword_75569C
-pub const SOUNDS_B_RVA: usize = rva(0x7556A0); // dword_7556A0
-const SET_MUSIC_VOLUME: usize = 0x40F83E;
-const START_STREAM: usize = 0x40F743;
-const PLAY_MENU_SOUND: usize = 0x40F059;
-
-fn callee(then: Then) -> &'static [usize] {
-    match then {
-        Then::Music => &[SET_MUSIC_VOLUME],
-        Then::Speech => &[START_STREAM],
-        Then::Sound(_) => &[PLAY_MENU_SOUND],
-    }
-}
-
-/// The Rust version of a volume step: the registers it leaves.
-pub unsafe fn volume_step(entry: &Regs, v: Volume, part: Part) -> Result<Regs, Refused> {
-    let mut r = *entry;
-    unsafe {
-        // Converted: `rc2k_core::menu::steps::volume`.
-        let value = rc2k_core::menu::steps::volume(game_read::<i32>(v.value_rva), v.up);
-        game_write(v.value_rva, value);
-        match v.then {
-            Then::Music => {
-                r.eax = value as u32;
-                game_write(MUSIC_RVA, r.eax);
-            }
-            Then::Speech => {
-                r.ecx = value as u32;
-                r.eax = game_addr(SPEECH_PATH_RVA) as u32;
-            }
-            Then::Sound(sound) => {
-                game_write(SOUNDS_VOLUME_RVA, value);
-                r.eax = sound;
-            }
+pub const MUSIC_LEVEL_RVA: &Dword = &OPTION_WORK.music_level; // dword_755688
+pub const SPEECH_LEVEL_RVA: &Dword = &OPTION_WORK.speech_level; // dword_755698
+pub const SOUNDS_A_RVA: &Dword = &OPTION_WORK.sounds_a; // dword_75569C
+pub const SOUNDS_B_RVA: &Dword = &OPTION_WORK.sounds_b; // dword_7556A0
+/// The Rust version of a volume step. What it leaves in registers is read by none of its
+/// callers (the item call sites have nothing live after the call).
+pub fn volume_step(v: Volume) {
+    // Converted: `rc2k_core::menu::steps::volume`.
+    let value = rc2k_core::menu::steps::volume(v.value.get() as i32, v.up);
+    v.value.set(value as u32);
+    match v.then {
+        Then::Music => {
+            crate::sound::store::SOUND_OPTIONS
+                .music_volume
+                .set(value as u32);
+            crate::sound::set_music_volume::set_music_volume(value as u32);
         }
-        part(0, &mut r)?;
+        Then::Speech => crate::sound::start_stream::start_stream(
+            SAMPLE_NAMES.menu_speech_st1.addr(),
+            value as u32,
+        ),
+        Then::Sound(sound) => {
+            SCREEN_FLOW.menu_sounds_volume.set(value as u32);
+            crate::sound::play_menu_sound::play_menu_sound_in_game(sound);
+        }
     }
-    Ok(r)
-}
-
-/// In the game: the senders' and the menu sound's Rust versions.
-pub fn volume_part(then: Then) -> fn(u32, &mut Regs) -> Result<(), Refused> {
-    fn music(_: u32, r: &mut Regs) -> Result<(), Refused> {
-        crate::sound::senders::send_in_game(&crate::sound::set_music_volume::SENDER, r);
-        Ok(())
-    }
-    fn speech(_: u32, r: &mut Regs) -> Result<(), Refused> {
-        crate::sound::senders::send_in_game(&crate::sound::start_stream::SENDER, r);
-        Ok(())
-    }
-    fn sound(_: u32, r: &mut Regs) -> Result<(), Refused> {
-        crate::sound::play_menu_sound::play_menu_sound_in_game(r);
-        Ok(())
-    }
-    match then {
-        Then::Music => music,
-        Then::Speech => speech,
-        Then::Sound(_) => sound,
-    }
-}
-
-pub fn dispatch_volume(hook: &RawHook, r: &mut Regs, call_original: CallOriginal, v: Volume) {
-    crate::menu::parts::dispatch_parted(
-        hook,
-        r,
-        call_original,
-        &|r, part| unsafe { volume_step(r, v, part) },
-        volume_part(v.then),
-    );
-}
-
-/// `dispatch_volume` without its hook (typed tables).
-pub fn volume_entry(r: &mut Regs, v: Volume) -> Result<(), Refused> {
-    crate::menu::parts::parted_entry(
-        r,
-        &|r, part| unsafe { volume_step(r, v, part) },
-        volume_part(v.then),
-    )
-}
-
-/// Self-test: a copy whose call goes to a stand-in, against the Rust version, values around
-/// both ends.
-pub fn test_volume(hook: &RawHook, v: Volume) -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(hook) else {
-        return (0, 0);
-    };
-    let copy = match copy(v.address, v.len, &v.entry, &[v.call], callee(v.then), &[]) {
-        Ok(c) => c,
-        Err(why) => return t.skip(why),
-    };
-    let regions = [at(v.value_rva), at(MUSIC_RVA), at(SOUNDS_VOLUME_RVA)];
-    let saved = capture(&regions);
-    for value in [-5i32, -1, 0, 1, 0x20, 0x3F, 0x40, 0x41, i32::MIN, i32::MAX] {
-        run_both(
-            &mut t,
-            &format!("value {value:#x}"),
-            &copy,
-            &regions,
-            &|| unsafe {
-                game_write(v.value_rva, value);
-                game_write(MUSIC_RVA, 0xAAAA_AAAAu32);
-                game_write(SOUNDS_VOLUME_RVA, 0xBBBB_BBBBu32);
-            },
-            Regs::SENTINEL,
-            false,
-            &|r| unsafe { volume_step(r, v, &mut test_part) },
-        );
-    }
-    restore(&regions, &saved);
-    t.finish()
 }
 
 // ---- the plain steps (no calls) ----
 
-const MODE_RVA: usize = rva(0x4F50C8); // dword_4F50C8: the screen mode chosen
-const MODES_RVA: usize = rva(0x4F50E4); // dword_4F50E4: how many
-const MODE_CHANGED_RVA: usize = rva(0x755648); // dword_755648
-const TEXTURE_RVA: usize = rva(0x755664); // dword_755664
-const TEXTURE_COPY_RVA: usize = rva(0x75AD14); // dword_75AD14
-
-/// `menu::next_screen_mode`: what it leaves.
-pub fn next_screen_mode() -> Left {
-    unsafe {
-        // Converted: `rc2k_core::menu::steps::next_mode`.
-        let last = game_read::<u32>(MODES_RVA).wrapping_sub(1);
-        let mode = rc2k_core::menu::steps::next_mode(game_read(MODE_RVA), game_read(MODES_RVA));
-        game_write(MODE_RVA, mode);
-        let changed = game_read::<u32>(MODE_CHANGED_RVA) ^ 1;
-        game_write(MODE_CHANGED_RVA, changed);
-        Left::nothing().with(EAX, changed).with(EBX, last)
-    }
+/// `menu::next_screen_mode`: the next screen mode chosen, the changed flag flipped.
+pub fn next_screen_mode() {
+    // Converted: `rc2k_core::menu::steps::next_mode`.
+    let mode = rc2k_core::menu::steps::next_mode(
+        SCREEN_CHOICES.resolution.get(),
+        SCREEN_CHOICES.resolutions.get(),
+    );
+    SCREEN_CHOICES.resolution.set(mode);
+    let changed = OPTION_WORK.mode_changed.get() ^ 1;
+    OPTION_WORK.mode_changed.set(changed);
 }
 
-/// `menu::previous_texture_setting` / `next_texture_setting`: what it leaves.
-pub fn step_texture_setting(up: bool) -> Left {
-    unsafe {
-        // Converted: `rc2k_core::menu::steps::texture`.
-        let v = rc2k_core::menu::steps::texture(game_read(TEXTURE_RVA), up);
-        game_write(TEXTURE_RVA, v);
-        game_write(TEXTURE_COPY_RVA, v);
-        Left::nothing().with(EAX, v)
-    }
+/// `menu::previous_texture_setting` / `next_texture_setting`: the texture setting one
+/// step down or up.
+pub fn step_texture_setting(up: bool) {
+    // Converted: `rc2k_core::menu::steps::texture`.
+    let v = rc2k_core::menu::steps::texture(OPTION_WORK.setting_3.get(), up);
+    OPTION_WORK.setting_3.set(v);
+    RACE_STATE.settings.setting_3.set(v);
 }
 
 /// One of the colour choices: (its number, the table, where the pick goes).
 #[derive(Clone, Copy)]
 pub struct Colour {
-    pub number_rva: usize,
-    pub table_rva: usize,
-    pub pick_rva: usize,
+    pub number: &'static Dword,
+    /// The table of the pictures' string ids, in `CAPTIONS.caption_lists`, from `table_at`.
+    pub table_at: usize,
+    pub pick: &'static Dword,
 }
 
 pub const COLOUR_A: Colour = Colour {
-    number_rva: rva(0x7554C0),
-    table_rva: rva(0x758A66),
-    pick_rva: rva(0x758A2E),
+    number: &SCREEN_FLOW.start_section,
+    table_at: 21,                     // dword_758A66
+    pick: &CAPTIONS.caption_lists[7], // dword_758A2E
 };
 pub const COLOUR_B: Colour = Colour {
-    number_rva: rva(0x7554C4),
-    table_rva: rva(0x758A46),
-    pick_rva: rva(0x758A32),
+    number: &SCREEN_FLOW.start_section_a8,
+    table_at: 13,                     // dword_758A46
+    pick: &CAPTIONS.caption_lists[8], // dword_758A32
 };
 
 /// `menu::next_colour_a` and the three others.
 pub fn step_colour(c: Colour, up: bool) {
-    unsafe {
-        // Converted: `rc2k_core::menu::steps::colour`.
-        let n = rc2k_core::menu::steps::colour(game_read(c.number_rva), up);
-        game_write(c.number_rva, n);
-        let pick = game_read::<u32>(c.table_rva + 4 * n as usize);
-        game_write(c.pick_rva, pick);
-    }
-}
-
-pub fn plain_regions() -> [Region; 9] {
-    [
-        at(MODE_RVA),
-        at(MODE_CHANGED_RVA),
-        at(TEXTURE_RVA),
-        at(TEXTURE_COPY_RVA),
-        at(COLOUR_A.number_rva),
-        at(COLOUR_A.pick_rva),
-        at(COLOUR_B.number_rva),
-        at(COLOUR_B.pick_rva),
-        at(MODES_RVA),
-    ]
-}
-
-/// The plain steps' dispatch: compared in shadow mode.
-pub fn dispatch_plain(
-    hook: &RawHook,
-    r: &mut Regs,
-    call_original: CallOriginal,
-    rust: crate::service::harness::Rust,
-) {
-    dispatch_state(hook, r, call_original, &plain_regions(), rust);
-}
-
-/// `dispatch_plain` without its hook (typed tables).
-pub fn plain_entry(r: &mut Regs, rust: crate::service::harness::Rust) -> Result<(), Refused> {
-    crate::service::harness::state_entry(r, rust)
-}
-
-/// The plain steps' self-test: each variable at values around its ends (the colour
-/// numbers only inside their table, which the original reads unchecked), put back.
-pub fn test_plain(
-    hook: &RawHook,
-    call_original: CallOriginal,
-    rust: crate::service::harness::Rust,
-) -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(hook) else {
-        return (0, 0);
+    // Converted: `rc2k_core::menu::steps::colour`.
+    let n = rc2k_core::menu::steps::colour(c.number.get() as i32, up);
+    c.number.set(n as u32);
+    // `CAPTIONS.caption_lists` from `table_at`: the original does not check `n` (a kept
+    // number past 6 steps on from it); the address is resolved by `MOVED`.
+    let pick: u32 = {
+        crate::store::game_read(rva(0x758A12_usize
+            .wrapping_add(4 * c.table_at)
+            .wrapping_add((n as usize).wrapping_mul(4))))
     };
-    let regions = plain_regions();
-    let saved = capture(&regions);
-    for (n, (value, modes)) in [
-        (0u32, 4u32),
-        (2, 4),
-        (3, 4),
-        (4, 4),
-        (0, 0),
-        (0xFFFF_FFFF, 3),
-        (1, 1),
-    ]
-    .into_iter()
-    .enumerate()
-    {
-        let colour = n as u32 % 7;
-        check_state(
-            &mut t,
-            &format!("value {value:#x}, modes {modes}, colour {colour}"),
-            call_original,
-            Regs::SENTINEL,
-            &|| unsafe {
-                game_write(MODE_RVA, value);
-                game_write(MODES_RVA, modes);
-                game_write(MODE_CHANGED_RVA, n as u32 & 1);
-                game_write(TEXTURE_RVA, value.min(2).wrapping_add(n as u32 / 3) % 3);
-                game_write(TEXTURE_COPY_RVA, 0xAAAA_AAAAu32);
-                game_write(COLOUR_A.number_rva, colour);
-                game_write(COLOUR_B.number_rva, 6 - colour);
-                game_write(COLOUR_A.pick_rva, 0xBBBB_BBBBu32);
-                game_write(COLOUR_B.pick_rva, 0xCCCC_CCCCu32);
-            },
-            &regions,
-            rust,
-        );
-    }
-    restore(&regions, &saved);
-    t.finish()
+    c.pick.set(pick);
 }
 
 // ---- the advanced audio page's choices ----
 
-/// (the work value, the choice, the applied) by `g_audioOptions`' fields.
-const AUDIO: [(usize, usize, usize); 6] = [
-    (0x75566C, 0x506C8C, 0x506CA4), // quality
-    (0x755680, 0x506C90, 0x506CA8), // channels
-    (0x75567C, 0x506CA0, 0x506CB8), // Dolby
-    (0x755678, 0x506C9C, 0x506CB4), // A3D
-    (0x755674, 0x506C98, 0x506CB0), // EAX
-    (0x755670, 0x506C94, 0x506CAC), // DS3D
+/// (the work value, its place among `g_audioOptions`' six choices and six applied).
+const CHOICES: [(&Dword, usize); 6] = [
+    (&OPTION_WORK.audio_quality, 0), // quality
+    (&OPTION_WORK.channels, 1),      // channels
+    (&OPTION_WORK.dolby, 5),         // Dolby
+    (&OPTION_WORK.a3d, 4),           // A3D
+    (&OPTION_WORK.eax, 3),           // EAX
+    (&OPTION_WORK.ds3d, 2),          // DS3D
 ];
-const CHOOSE_MODES: usize = 0x40A1CA;
-
 /// `menu::apply_audio_choices`: the registers it leaves (`popa`'s).
-pub unsafe fn apply_audio_choices(entry: &Regs, part: Part) -> Result<Regs, Refused> {
-    unsafe {
-        for (work, choice, _) in AUDIO {
-            game_write(rva(choice), game_read::<u32>(rva(work)));
-        }
-        // eax at the call: the last value copied (DS3D's).
-        let mut g = Regs {
-            eax: game_read::<u32>(rva(AUDIO[AUDIO.len() - 1].0)),
-            ..*entry
-        };
-        part(0, &mut g)?;
-        for (work, _, applied) in AUDIO {
-            game_write(rva(work), game_read::<u32>(rva(applied)));
-        }
+pub fn apply_audio_choices() -> Result<(), Refused> {
+    for (work, n) in CHOICES {
+        let value = work.get();
+        AUDIO.audio_options.update(|o| o.choice[n] = value);
     }
-    Ok(*entry)
-}
-
-/// In the game: `audio::choose_modes`' Rust version with the game's log.
-pub fn audio_part(_: u32, _: &mut Regs) -> Result<(), Refused> {
-    crate::audio::choose_modes::in_game(&mut crate::audio::choose_modes::real_log)
-}
-
-pub fn test_audio(hook: &RawHook) -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(hook) else {
-        return (0, 0);
-    };
-    let copy = match copy(
-        0x470766,
-        0x80,
-        &[0x60, 0xA1, 0x6C, 0x56, 0x75, 0x00],
-        &[0x3D],
-        &[CHOOSE_MODES],
-        &[],
-    ) {
-        Ok(c) => c,
-        Err(why) => return t.skip(why),
-    };
-    let regions: Vec<Region> = AUDIO
-        .iter()
-        .flat_map(|&(w, c, a)| [at(rva(w)), at(rva(c)), at(rva(a))])
-        .collect();
-    let saved = capture(&regions);
-    for seed in [0u32, 1, 7] {
-        run_both(
-            &mut t,
-            &format!("seed {seed}"),
-            &copy,
-            &regions,
-            &|| unsafe {
-                for (n, &(w, c, a)) in AUDIO.iter().enumerate() {
-                    let n = n as u32;
-                    game_write(rva(w), seed * 3 + n);
-                    game_write(rva(c), 0xAAAA_0000 + n);
-                    game_write(rva(a), 0xBBBB_0000 + seed + n);
-                }
-            },
-            Regs::SENTINEL,
-            false,
-            &|r| unsafe { apply_audio_choices(r, &mut test_part) },
-        );
+    // `audio::choose_modes` with the game's log (the original's eax there, the last
+    // value copied, is read by none of it).
+    crate::audio::choose_modes::in_game(&mut crate::audio::choose_modes::real_log)?;
+    for (work, n) in CHOICES {
+        work.set(AUDIO.audio_options.get().applied[n]);
     }
-    restore(&regions, &saved);
-    t.finish()
+
+    Ok(())
 }

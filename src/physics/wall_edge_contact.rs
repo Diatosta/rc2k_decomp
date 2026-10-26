@@ -14,49 +14,29 @@
 //! Out: ebp the wall, and the registers as the edge tests and `contact_force` leave them;
 //!      no flags read (the caller goes on)
 //!
-//! Caller: `physics::wall_contacts`. Its second chunk (0x45DA9E .. 0x45DC12) is entered
-//! only by the first's jumps: nothing to copy, the hook patches the first chunk's start.
-//! Refuses a probe point past 0x3F on the edge path (the tables' room), and what its
-//! calls refuse (what was written put back).
-//! Self-test: `physics/wall_contacts.rs` (`test_walls`): the original and the Rust version
-//! on the game's variables (saved and put back) with test faces and scene points
-//! (`g_courseFaces`, `g_scenePoints` pointed at them), every edge shared and none, under
-//! three precisions.
+//! Caller: `physics::wall_contacts`. Refuses a probe point past 0x3F on the edge path (the
+//! tables' room), and what its calls refuse (what was written put back).
+//!
+//! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
+//! above are the original's, for reference.
 
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, hook_asm, rva};
 use crate::math::turn_float_point_xz::turn_float_point_xz;
 use crate::math::x87::mul;
-use crate::physics::contact_force::{RECORD, contact_force};
-use crate::physics::flow::{a, base, copy3, g, guard, p, x87_run};
-use crate::physics::scene_point_hits_car::SCENE_POINTS;
-use crate::physics::touch_face::FACES;
-use crate::physics::wall_contacts::{WALL_RECORD, regions, test_walls};
-use crate::race::stage_prefs::left_of;
-use crate::screens::harness::Left;
-use crate::service::harness::{dispatch_state, state_entry};
+use crate::physics::car_store::CAR;
+use crate::physics::contact_force::contact_force;
+use crate::physics::contact_store::CONTACT_WORK;
+use crate::physics::flow::{a, copy_cells};
+use crate::physics::tables_store::PHYSICS;
+use crate::pointers::GamePtr;
+use crate::race::course_store::COURSE;
+use crate::race::numbers_store::NUMBERS;
+use crate::scene::draw_store::DRAW;
+use crate::scene::x87_mem::{fild, fistp, fld};
 use rc2k_core::physics::walls;
-use std::sync::atomic::AtomicUsize;
 
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook = RawHook::new(
-    "physics::wall_edge_contact",
-    rva(0x45DA14),
-    thunk,
-    &ORIGINAL,
-)
-.self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
-
-fn rd(x: u32) -> u32 {
-    unsafe { (x as *const u32).read_unaligned() }
+fn rd(x: u32) -> Result<u32, Refused> {
+    Ok(GamePtr::new(x).read::<u32>("a face's or scene point's dword")?)
 }
 
 /// The normal across the edge from scene point `first` to `second` (0x45DAAA ..
@@ -65,100 +45,130 @@ fn rd(x: u32) -> u32 {
 /// `flt_5C5DD4` x `flt_5C5D98`, & 0xFFFF, through `dword_62400C`) << 16 + 0x40000000
 /// into `dword_6141C8`; (0, 0, 1) turned by it (`math::turn_float_point_xz`) into
 /// `qword_6D3078` ... Returns what that leaves in eax, ebx, ecx, edx.
-pub fn edge_normal(first: u32, second: u32) -> [u32; 4] {
-    let point = |k: u32| k.wrapping_mul(12).wrapping_add(g(SCENE_POINTS));
-    p(0x6141AC, rd(point(first)));
-    p(0x6141B0, rd(point(first) + 8));
-    p(0x6141B4, rd(point(second)));
-    p(0x6141B8, rd(point(second) + 8));
-    let dx = g(0x6141B4).wrapping_sub(g(0x6141AC));
-    let dz = g(0x6141B8).wrapping_sub(g(0x6141B0));
+pub fn edge_normal(first: u32, second: u32) -> Result<[u32; 4], Refused> {
+    let point = |k: u32| k.wrapping_mul(12).wrapping_add(COURSE.scene_points.get());
+    PHYSICS.edge_points[0].set(rd(point(first))?);
+    PHYSICS.edge_points[1].set(rd(point(first) + 8)?);
+    PHYSICS.edge_points[2].set(rd(point(second))?);
+    PHYSICS.edge_points[3].set(rd(point(second) + 8)?);
+    let dx = PHYSICS.edge_points[2]
+        .get()
+        .wrapping_sub(PHYSICS.edge_points[0].get());
+    let dz = PHYSICS.edge_points[3]
+        .get()
+        .wrapping_sub(PHYSICS.edge_points[1].get());
     let d = [dx, dz];
-    x87_run!(
-        "fild dword ptr [{d}]",
-        "fild dword ptr [{d} + 4]",
-        ".byte 0xD9, 0xF3", // fpatan
-        "fmul dword ptr [{b} + 0x1C5DD4]",
-        "fmul dword ptr [{b} + 0x1C5D98]",
-        "fistp dword ptr [{b} + 0x22400C]";
-        b = base(), d = d.as_ptr()
+    x87_1(
+        (crate::pointers::game_address(d.as_ptr())) as usize,
+        crate::race::store::asm_base() as usize,
     );
-    p(0x62400C, g(0x62400C) & 0xFFFF);
-    let heading = (g(0x62400C) << 16).wrapping_add(0x4000_0000);
-    p(0x6141C8, heading);
-    let out = unsafe { turn_float_point_xz(g(0x5C5D90), g(0x5C5D90), g(0x5C5D38), heading) };
-    p(0x6D3078, out[0]);
-    p(0x6D307C, out[1]);
-    p(0x6D3080, out[2]);
-    out
+    DRAW.scratch.set(DRAW.scratch.get() & 0xFFFF);
+    let heading = (DRAW.scratch.get() << 16).wrapping_add(0x4000_0000);
+    PHYSICS.wall_heading.set(heading);
+    let out = unsafe {
+        turn_float_point_xz(
+            NUMBERS.zero.bits(),
+            NUMBERS.zero.bits(),
+            NUMBERS.one.bits(),
+            heading,
+        )
+    };
+    CONTACT_WORK.contact_normal[0].set_bits(out[0]);
+    CONTACT_WORK.contact_normal[1].set_bits(out[1]);
+    CONTACT_WORK.contact_normal[2].set_bits(out[2]);
+    Ok(out)
 }
 
-/// The steps, not guarded.
+/// The steps, not guarded. The registers the original leaves are read by none of its
+/// callers.
 // Converted: `rc2k_core::physics::walls::shared_edge` (the edge's heading stays x87).
-pub fn steps(r: &mut Regs) -> Result<(), Refused> {
-    r.ebp = (g(0x6D3170) << 6).wrapping_add(g(FACES));
-    r.esi = (g(0x6D3174) << 6).wrapping_add(g(FACES));
+pub fn steps() -> Result<(), Refused> {
+    let wall = (CONTACT_WORK.wall_face_before.get() << 6).wrapping_add(COURSE.course_faces.get());
+    let face = (CONTACT_WORK.wall_face_now.get() << 6).wrapping_add(COURSE.course_faces.get());
     let corners = [
-        rd(r.esi + 4),
-        rd(r.esi + 8),
-        rd(r.esi + 0xC),
-        rd(r.esi + 0x10),
+        rd(face + 4)?,
+        rd(face + 8)?,
+        rd(face + 0xC)?,
+        rd(face + 0x10)?,
     ];
-    let wall = r.ebp;
-    let shared;
-    (shared, r.eax, r.ebx) = walls::shared_edge(|j| rd(wall + 4 + 4 * j as u32), corners);
+    let wall_corners = [
+        rd(wall + 4)?,
+        rd(wall + 8)?,
+        rd(wall + 0xC)?,
+        rd(wall + 0x10)?,
+    ];
+    let (shared, to, from) = walls::shared_edge(|j| wall_corners[j], corners);
     if !shared {
-        return crate::physics::wall_push_back::steps(r);
+        return crate::physics::wall_push_back::steps();
     }
     // 0x45DA9E: along the edge.
-    let n = g(0x6D3214);
+    let n = CONTACT_WORK.probe_index.get();
     walls::check_probe(n)?;
-    let (from, to) = (r.ebx, r.eax);
-    p(0x6D3178, from);
-    p(0x6D317C, to);
-    let [x, y, z, edx] = edge_normal(to, from);
-    r.eax = x;
-    r.ebx = y;
-    r.ecx = z;
-    r.edx = edx;
-    copy3(0x6D30A8, 0x71A170);
-    copy3(0x6D30B4, 0x71A15C);
-    r.ebx = n;
+    CONTACT_WORK.wall_edge_from.set(from);
+    CONTACT_WORK.wall_edge_to.set(to);
+    edge_normal(to, from)?;
+    copy_cells(&CONTACT_WORK.contact_car_speed, &CAR.velocity);
+    copy_cells(&CONTACT_WORK.contact_turn_speed, &CAR.spin);
     let n = n as usize;
-    p(0x6D3090, g(0x6D2214 + 4 * n));
-    p(0x6D3094, g(0x6D2314 + 4 * n));
-    p(0x6D3098, g(0x6D2414 + 4 * n));
-    p(0x6D3094, mul(g(0x6D3094), g(0x5C5DD0)));
-    p(0x6D3100, 0);
-    p(RECORD, a(WALL_RECORD));
-    unsafe { contact_force() }.apply(r);
-    unsafe { crate::physics::place_sound_e1::place_sound_e1() }?;
+    CONTACT_WORK.contact_point[0].set_bits(CONTACT_WORK.probe_turned_x[n].bits());
+    CONTACT_WORK.contact_point[1].set_bits(CONTACT_WORK.probe_turned_y[n].bits());
+    CONTACT_WORK.contact_point[2].set_bits(CONTACT_WORK.probe_turned_z[n].bits());
+    CONTACT_WORK.contact_point[1].set_bits(mul(
+        CONTACT_WORK.contact_point[1].bits(),
+        NUMBERS.tenth.bits(),
+    ));
+    CONTACT_WORK.contact_slide_limit.set_bits(0);
+    PHYSICS.contact_record.set(a(&PHYSICS.contacts[4].force[0]));
+    unsafe { contact_force() };
+    { crate::physics::place_sound_e1::place_sound_e1() }?;
     Ok(())
 }
 
-/// The Rust version.
-pub unsafe fn wall_edge_contact(entry: &Regs) -> Result<Left, Refused> {
-    guard(&regions(), || {
-        let mut r = *entry;
-        steps(&mut r)?;
-        Ok(left_of(&r))
-    })
+// ---- the arithmetic that was x87 assembly ----
+
+/// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
+/// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
+/// `int [rc + 0x22400C] = (atan2(int [d + 0], int [d + 4]) * [rc + 0x1C5DD4]) * [rc + 0x1C5D98]`
+fn x87_1(d: usize, rc: usize) {
+    let t0 = fild(d, 0);
+    let t1 = fild(d, 4);
+    let t2 = t0.atan2(t1);
+    let t3 = fld(rc, 0x1C5DD4);
+    let t4 = t2 * t3;
+    let t5 = fld(rc, 0x1C5D98);
+    let t6 = t4 * t5;
+    fistp(rc, 0x22400C, t6);
 }
 
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    unsafe { wall_edge_contact(r) }
-}
+#[cfg(all(test, target_arch = "x86"))]
+mod asm_reference {
+    use super::*;
+    use crate::scene::asm_test::{Block, In, Operand, Out, reference, sparse};
 
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_state(&HOOK, r, call_original, &regions(), &rust);
-}
+    // The original's instructions, one function per run.
+    reference!(ref_0(d, rc) "fild dword ptr [{d}]", "fild dword ptr [{d} + 4]", ".byte 0xD9, 0xF3", "fmul dword ptr [{rc} + 0x1C5DD4]", "fmul dword ptr [{rc} + 0x1C5D98]", "fistp dword ptr [{rc} + 0x22400C]");
 
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
-}
+    fn blocks() -> Vec<Block> {
+        vec![Block {
+            name: "wall_edge_contact line 52",
+            operands: vec![
+                Operand::Buffer {
+                    reads: &[(0, In::I), (4, In::I)],
+                    writes: &[],
+                },
+                Operand::Buffer {
+                    reads: &[(0x1C5D98, In::F), (0x1C5DD4, In::F)],
+                    writes: &[(0x22400C, Out::I)],
+                },
+            ],
+            ulps: 0,
+            reference: |a| unsafe { ref_0(a[0], a[1]) },
+            plain: |a| x87_1(a[0], a[1]),
+        }]
+    }
 
-fn self_test() -> (usize, usize) {
-    test_walls(&HOOK, call_original, &rust)
+    #[test]
+    fn x87_blocks_matches_the_assembly() {
+        sparse(&blocks(), 1200, 100);
+    }
 }

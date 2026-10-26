@@ -11,33 +11,37 @@
 //! register use above is the original's, for reference.
 
 use crate::errors::BadInput;
-use crate::framework::{game_ptr, rva};
 use crate::strings::append_string_by_id::append_string_by_id;
 use std::slice::from_raw_parts;
 
 // ---- game data ----
 
-const TEXT_RVA: usize = rva(0x93E430); // text: shared text buffer, up to the kerning table
-pub const TEXT_LEN: usize = 0x93E830 - 0x93E430;
+/// The shared text buffer's length (`strings::text_buffer`).
+pub const TEXT_LEN: usize = 0x400;
 
 pub fn text() -> *mut u8 {
-    game_ptr(TEXT_RVA)
+    crate::strings::text_buffer::TEXT_BUFFER.text.as_ptr()
 }
 
 // ---- Rust version ----
 
 /// The bytes the original leaves in the text buffer, including the NUL (converted:
 /// `rc2k_core::strings::table::text_from_ids`).
-pub unsafe fn text_from_ids(first_id: u32, count: u32) -> Result<Vec<u8>, BadInput> {
+pub fn text_from_ids(first_id: u32, count: u32) -> Result<Vec<u8>, BadInput> {
     if count == 0 {
         return Err(BadInput(
             "count 0: the original's counter wraps and it never ends",
         ));
     }
-    rc2k_core::strings::table::text_from_ids(first_id, count, TEXT_LEN, |id, out| unsafe {
-        append_string_by_id(id, &mut |p, n| out.extend_from_slice(from_raw_parts(p, n)))
-    })
-    .ok_or(BadInput(
+    let fault = crate::menu::event_flow::Fault::default();
+    let text = rc2k_core::strings::table::text_from_ids(first_id, count, TEXT_LEN, |id, out| {
+        fault.ok(append_string_by_id(id, &mut |p, n| {
+            // SAFETY: `p` .. `p + n` was checked or is the expansion's own `Vec`.
+            out.extend_from_slice(unsafe { from_raw_parts(p, n) })
+        }))
+    });
+    fault.check()?;
+    text.ok_or(BadInput(
         "text longer than the text buffer: the original writes past it",
     ))
 }

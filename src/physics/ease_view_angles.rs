@@ -8,115 +8,74 @@
 //!      the record has no time); the rest kept; no flags read
 //!
 //! Caller: `sub_437A53`.
-//! Self-test: `physics/camera_view.rs` (`view_test_floats`), modes and times by lot,
-//! exact at double precision; at extended a step may land one off (<< 16 in the angle).
+//!
+//! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
+//! above are the original's, for reference.
 
-use crate::errors::Refused;
-use crate::framework::{EAX, ESI, RawHook, Regs, hook_asm, rva};
-use crate::physics::camera_view::{
-    rd, record, record_plain, share_done, share_done_plain, view_regions, view_test_floats,
-};
-use crate::physics::flow::{a, base, g, p, x87_run};
-use crate::screens::harness::Left;
-use crate::service::floats::{
-    FLOAT, Floats, ROUNDED, Tolerance, dispatch_state_floats, floats_entry,
-};
-use rc2k_core::physics::camera_view::ease_angles;
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("physics::ease_view_angles", rva(0x43846D), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
+use crate::physics::camera_view::{rd, record, share_done};
+use crate::physics::car_store::CAR;
+use crate::scene::draw_store::DRAW;
+use crate::scene::x87_mem::{fistp, fld};
 
 /// The Rust version (the exact one, for `physics::update_camera`).
-pub unsafe fn ease_view_angles(entry: &Regs) -> Left {
+pub fn ease_view_angles() {
     let esi = record();
-    let left = Left::nothing().with(ESI, esi);
     if rd(esi + 0x3C) == 0 {
-        return left;
+        return;
     }
     share_done(esi);
-    let mut eax = entry.eax;
-    for (k, to) in [0x71A694usize, 0x71A698, 0x71A69C].iter().enumerate() {
-        x87_run!(
-            "fld dword ptr [{s}]",
-            "fmul dword ptr [{b} + 0x205260]",
-            "fmul dword ptr [{b} + 0x1C5D98]",
-            "fistp dword ptr [{b} + 0x22400C]";
-            b = base(), s = esi + 0x40 + 4 * k as u32
+    for (k, to) in CAR.camera_offset_turns.iter().enumerate() {
+        x87_1(
+            (esi + 0x40 + 4 * k as u32) as usize,
+            crate::race::store::asm_base() as usize,
         );
-        eax = g(0x62400C) << 16;
-        p(*to, g(*to).wrapping_add(eax));
+        to.set(to.get().wrapping_add(DRAW.scratch.get() << 16));
     }
-    left.with(EAX, eax)
 }
 
-/// The converted version (`rc2k_core::physics::camera_view`, plain floats): the hook's.
-// Converted: `rc2k_core::physics::camera_view::{share_done, ease_angles}`.
-pub unsafe fn ease_view_angles_plain(_: &Regs) -> Left {
-    let esi = record_plain();
-    let left = Left::nothing().with(ESI, esi);
-    if rd(esi + 0x3C) == 0 {
-        return left;
+// ---- the arithmetic that was x87 assembly ----
+
+/// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
+/// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
+/// `int [rc + 0x22400C] = ([s + 0] * [rc + 0x205260]) * [rc + 0x1C5D98]`
+fn x87_1(s: usize, rc: usize) {
+    let t0 = fld(s, 0);
+    let t1 = fld(rc, 0x205260);
+    let t2 = t0 * t1;
+    let t3 = fld(rc, 0x1C5D98);
+    let t4 = t2 * t3;
+    fistp(rc, 0x22400C, t4);
+}
+
+#[cfg(all(test, target_arch = "x86"))]
+mod asm_reference {
+    use super::*;
+    use crate::scene::asm_test::{Block, In, Operand, Out, reference, sparse};
+
+    // The original's instructions, one function per run.
+    reference!(ref_0(s, rc) "fld dword ptr [{s}]", "fmul dword ptr [{rc} + 0x205260]", "fmul dword ptr [{rc} + 0x1C5D98]", "fistp dword ptr [{rc} + 0x22400C]");
+
+    fn blocks() -> Vec<Block> {
+        vec![Block {
+            name: "ease_view_angles line 26",
+            operands: vec![
+                Operand::Buffer {
+                    reads: &[(0, In::F)],
+                    writes: &[],
+                },
+                Operand::Buffer {
+                    reads: &[(0x1C5D98, In::F), (0x205260, In::F)],
+                    writes: &[(0x22400C, Out::I)],
+                },
+            ],
+            ulps: 0,
+            reference: |a| unsafe { ref_0(a[0], a[1]) },
+            plain: |a| x87_1(a[0], a[1]),
+        }]
     }
-    share_done_plain(esi);
-    let changes = [0x40, 0x44, 0x48].map(|k| f32::from_bits(rd(esi + k)));
-    let mut angles = ANGLES.map(g);
-    let share = f32::from_bits(g(0x605260));
-    let (n, added) = ease_angles(changes, share, f32::from_bits(g(0x5C5D98)), &mut angles);
-    p(0x62400C, n as u32);
-    for (x, v) in ANGLES.iter().zip(angles) {
-        p(*x, v);
+
+    #[test]
+    fn x87_blocks_matches_the_assembly() {
+        sparse(&blocks(), 1200, 100);
     }
-    left.with(EAX, added)
-}
-
-/// The three angles (`unk_71A694` ..).
-const ANGLES: [usize; 3] = [0x71A694, 0x71A698, 0x71A69C];
-
-/// What the angles may be off by at extended precision: a step one off, << 16.
-const ANGLE_STEP: Tolerance = Tolerance::Rounded(0x1_0000);
-
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    Ok(unsafe { ease_view_angles_plain(r) })
-}
-
-extern "C" fn dispatch(r: &mut Regs) {
-    let floats = Floats {
-        memory: &[
-            ((a(0x62400C), 4), ROUNDED),
-            ((a(0x605260), 4), FLOAT),
-            ((a(0x71A694), 12), ANGLE_STEP),
-        ],
-        regs: &[(EAX, ANGLE_STEP)],
-    };
-    dispatch_state_floats(&HOOK, r, call_original, &view_regions(), &floats, &rust);
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    floats_entry(r, &rust)
-}
-
-fn self_test() -> (usize, usize) {
-    view_test_floats(
-        &HOOK,
-        "physics::ease_view_angles",
-        call_original,
-        &rust,
-        &[
-            (0x62400C, 4, ROUNDED),
-            (0x605260, 4, FLOAT),
-            (0x71A694, 12, ANGLE_STEP),
-        ],
-    )
 }

@@ -8,63 +8,44 @@
 //! Out: eax the step count (when a view was taken), else kept; no flags read
 //!
 //! Callers: `sub_43A35A` (0x43A454), `sub_43A649` (0x43A66C).
-//! Self-test: a copy of the original (`dword_63DB94` the test's, its call to a copy of
-//! `set_camera_view`) on a test block: views 0 .. 8, held or not, cars 0 .. 0x23, one or
-//! two players.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
 
 use crate::drive::set_camera_view::set_view_at;
-use crate::errors::Refused;
-use crate::framework::{Regs, game_addr, game_read, rva};
-use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
+use crate::errors::BadInput;
+use crate::physics::car_store::CAR;
+use crate::pointers::GamePtr;
+use crate::race::kind_store::KIND_TABLES;
+use crate::race::view_store::RACE_VIEW;
+use crate::session::Dword;
 use rc2k_core::drive::camera_views::next_view;
 
-const PLAYERS_RVA: usize = rva(0x63DB94); // dword_63DB94
-const HAS_VIEWS_RVA: usize = rva(0x5C5AC0); // dword_5C5AC0, by car (0x22)
-
-unsafe fn at(a: u32) -> u32 {
-    unsafe { (a as *const u32).read_unaligned() }
+fn at(a: u32) -> Result<u32, BadInput> {
+    GamePtr::new(a).read("a car's block")
 }
 
-/// The Rust version on block `s`, the players at `players`, the step count at `step`.
+/// The Rust version on block `s`, the players `players`, the step count `step`.
 // Converted: `rc2k_core::drive::camera_views::next_view`.
-pub unsafe fn next_view_at(s: u32, players: u32, step: u32) -> Left {
-    unsafe {
-        if at(s + 0x694) != 0 {
-            return Left::nothing();
-        }
-        let view = next_view(
-            at(s + 0x684),
-            || at(s + 0x24),
-            |car| game_read::<u32>(HAS_VIEWS_RVA + 4 * car as usize) != 0,
-            || at(players),
-        );
-        (s.wrapping_add(0x688) as *mut u32).write_unaligned(view);
-        set_view_at(s, step)
+/// The eax it leaves is read by no caller (liveness: not live after either call).
+pub fn next_view_at(s: u32, players: &Dword, step: &Dword) -> Result<(), BadInput> {
+    if at(s + 0x694)? != 0 {
+        return Ok(());
     }
+    let reading = crate::scene::reading::Reading::new();
+    let view = next_view(
+        at(s + 0x684)?,
+        || reading.read::<u32>(s.wrapping_add(0x24), "a car's block"),
+        |car| KIND_TABLES.kind_has_views[car as usize].get() != 0, /* dword_5C5AC0, by car (0x22) */
+        || players.bits(),
+    );
+    reading.finish()?;
+    put(s.wrapping_add(0x688), view)?;
+    set_view_at(s, step)
+}
+
+fn put(a: u32, v: u32) -> Result<(), BadInput> {
+    GamePtr::new(a).write(v, "a car's block")
 }
 
 /// The Rust version.
-pub unsafe fn next_camera_view(s: u32) -> Left {
-    unsafe {
-        next_view_at(
-            s,
-            game_addr(PLAYERS_RVA) as u32,
-            game_addr(crate::drive::set_camera_view::STEP_RVA) as u32,
-        )
-    }
-}
-
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    Ok(unsafe { next_camera_view(r.esi) })
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
+pub fn next_camera_view(s: u32) -> Result<(), BadInput> {
+    next_view_at(s, &RACE_VIEW.players, &CAR.step_clock)
 }

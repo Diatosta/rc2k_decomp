@@ -11,86 +11,17 @@
 //! In:  nothing
 //! Out: every register preserved (`pusha` .. `popa`)
 //!
-//! Reached through the start menu's table. Refuses a missing player before anything, and what
-//! the callees refuse when they are reached.
-//! Hook removed 2026-10-22 (typed tables): the start menus run its `entry`
-//! (`menu::table_calls`).
+//! Reached through the start menu's table. Refuses a missing player before anything, and what the
+//! callees refuse when they are reached.
 
 use crate::errors::Refused;
-use crate::framework::Regs;
 use crate::menu::event_flow::*;
 use crate::menu::flow_game::Game;
+use crate::menu::screen_loop::Carried;
 use rc2k_core::menu::rounds;
 
-flow_hook!(
-    "menu::single_rally_two",
-    0x4826A2,
-    single_rally_two,
-    test,
-    copy(0x20E, CALLS)
-);
-
-pub unsafe fn single_rally_two(entry: &Regs, call: Call) -> Result<Regs, Refused> {
+pub fn single_rally_two(c: &Carried) -> Result<(), Refused> {
     players_there(4)?;
     // Converted: `rc2k_core::menu::rounds::single_rally_two`.
-    rounds::single_rally_two(&mut Game::new(entry, call))?;
-    Ok(*entry)
-}
-
-/// The multi-player rounds' scripts, for `n` players (`results` the results page).
-pub fn round_scripts(n: u32, results: usize) -> Vec<(String, Script)> {
-    let race = |v: u32| Answer::write(RACE_RESULT, v);
-    let mut out: Vec<(String, Script)> = vec![
-        (
-            "the stage choice's yes".into(),
-            vec![(SELECT_STAGE_LOOP, vec![Answer::yes()])],
-        ),
-        (
-            "the stage choice left".into(),
-            vec![(SELECT_STAGE_LOOP, vec![Answer::write(LEAVE, 1)])],
-        ),
-        (
-            "every race, the results, the review ends".into(),
-            vec![
-                (RACE, (0..n).map(|k| race(0x10 + k)).collect()),
-                (REVIEW_485F5E, vec![Answer::write(ENDED_569, 1)]),
-            ],
-        ),
-        (
-            "no results, the review's yes".into(),
-            vec![
-                (RACE, (0..n).map(|_| race(u32::MAX)).collect()),
-                (REVIEW_485F5E, vec![Answer::yes()]),
-            ],
-        ),
-        (
-            "the results page's yes".into(),
-            vec![
-                (RACE, (0..n).map(race).collect()),
-                (results, vec![Answer::yes()]),
-            ],
-        ),
-        (
-            "two rounds, then the stage choice's yes".into(),
-            vec![
-                (RACE, (0..2 * n).map(|k| race(k * 3)).collect()),
-                (
-                    SELECT_STAGE_LOOP,
-                    vec![Answer::none(), Answer::none(), Answer::yes()],
-                ),
-            ],
-        ),
-    ];
-    for k in 0..n {
-        let mut races: Vec<Answer> = (0..k).map(|j| race(j + 1)).collect();
-        races.push(race(0xFFFF_FFFE));
-        out.push((
-            format!("race {k} left (-2), then the review leaves"),
-            vec![
-                (RACE, races),
-                (REVIEW_485F5E, vec![Answer::write(LEAVE, 1)]),
-            ],
-        ));
-    }
-    out
+    Game::new(c).run(rounds::single_rally_two)
 }

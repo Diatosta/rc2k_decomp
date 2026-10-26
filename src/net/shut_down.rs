@@ -4,38 +4,23 @@
 //! `CloseHandle` if not 0).
 //!
 //! In:  nothing
-//! Out: every register kept (`pusha` .. `popa`)
+//! Out: nothing (every register kept, `pusha` .. `popa`)
 //!
-//! See `net/mod.rs`. Two callers: `start`'s way out (0x4010EE) and `sub_4104F2`. Its calls
-//! through `part` (in the game `stop`'s Rust version and `CloseHandle`). A call in its first
-//! five bytes: private copy (0x22 bytes, three calls relocated), manual patch. It may wait on
-//! the receiving thread: the thunk does not wait for self-tests.
-//! Hook removed 2026-10-22 (direct calls): Rust callers run its `entry` (`calls::call`,
-//! `routes.rs`); the registers above are the original's, for reference.
+//! See `net/mod.rs`. One caller in the standalone, `start`'s way out (0x4010EE; the
+//! original's other, `sub_4104F2`, is not reached). Refuses what `net::stop` refuses.
 
 use crate::errors::Refused;
-use crate::framework::Regs;
-use crate::net::{CLOSE_EVENT, CLOSE_MUTEX, EVENT, MUTEX, Part, STOP, a, net_entry};
-use std::sync::atomic::{AtomicU32, Ordering};
-
-/// The Rust version on the handles at `mutex` and `event`.
-pub fn shut_down_with(r: &mut Regs, mutex: u32, event: u32, part: Part) -> Result<(), Refused> {
-    let mut g = *r;
-    part(STOP, &mut g)?;
-    for (at, place) in [(mutex, CLOSE_MUTEX), (event, CLOSE_EVENT)] {
-        g.eax = unsafe { &*(at as *const AtomicU32) }.swap(0, Ordering::SeqCst);
-        part(place, &mut g)?;
-    }
-    Ok(())
-}
+use crate::net::store::NET;
+use std::sync::atomic::Ordering;
 
 /// The Rust version.
-pub fn shut_down(r: &mut Regs, part: Part) -> Result<(), Refused> {
-    shut_down_with(r, a(MUTEX), a(EVENT), part)
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    net_entry(r, shut_down)
+pub fn shut_down() -> Result<(), Refused> {
+    crate::net::stop::stop()?;
+    for cell in [&NET.mutex, &NET.event] {
+        let handle = cell.atomic().swap(0, Ordering::SeqCst);
+        if handle != 0 {
+            unsafe { windows_sys::Win32::Foundation::CloseHandle(crate::pointers::handle(handle)) };
+        }
+    }
+    Ok(())
 }

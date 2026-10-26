@@ -6,69 +6,29 @@
 //! In:  nothing
 //! Out: as the step leaves them (mode 2: eax the place); no flags read
 //!
-//! Callers: `physics::take_split`, `physics::take_split_counted`.
-//! Refuses what the steps refuse.
-//! Self-test: `physics/splits.rs` (`test_splits`).
+//! Callers: `physics::take_split`, `physics::take_split_counted`. Refuses what the steps
+//! refuse.
+//!
+//! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
+//! above are the original's, for reference.
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
-use crate::physics::compare_split_times::compare_split_times_in;
-use crate::physics::rank_split_time::rank_split_time_in;
-use crate::physics::splits::{FIGURE, MODE, g, guarded, p, test_splits, written};
-use crate::screens::harness::Left;
-use crate::service::harness::{dispatch_state, state_entry};
+use crate::physics::car_store::CAR;
+use crate::physics::compare_split_times::compare_split_times;
+use crate::physics::rank_split_time::rank_split_time;
+use crate::race::blocks_store::CAR_BLOCKS;
+use crate::race::vars_store::RACE_VARS;
 use rc2k_core::physics::splits::{SplitFigure, split_figure};
-use std::sync::atomic::AtomicUsize;
 
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("physics::split_by_mode", rva(0x436B99), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
-
-/// The steps on `r`.
+/// The Rust version. The registers the original leaves are read by none of its callers.
 // Converted: `rc2k_core::physics::splits::split_figure`.
-pub fn split_by_mode_in(r: &mut Regs) -> Result<(), Refused> {
-    match split_figure(g(MODE)) {
+pub fn split_by_mode() -> Result<(), Refused> {
+    match split_figure(RACE_VARS.run_kind.get()) {
         SplitFigure::Place => {
-            r.eax = g(0x70FA40);
-            p(FIGURE, r.eax);
+            CAR.split_gaps[0].set(CAR_BLOCKS.cars[0].mode2_place.get());
             Ok(())
         }
-        SplitFigure::Rank => rank_split_time_in(r),
-        SplitFigure::Compare => compare_split_times_in(r),
+        SplitFigure::Rank => rank_split_time(),
+        SplitFigure::Compare => compare_split_times(),
         SplitFigure::Nothing => Ok(()),
     }
-}
-
-/// The Rust version.
-pub unsafe fn split_by_mode(entry: &Regs) -> Result<Left, Refused> {
-    guarded(entry, &split_by_mode_in)
-}
-
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    unsafe { split_by_mode(r) }
-}
-
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_state(&HOOK, r, call_original, &written(), &rust);
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    test_splits(&mut t, call_original, &rust, &|_| true);
-    t.finish()
 }

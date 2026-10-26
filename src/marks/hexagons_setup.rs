@@ -8,42 +8,19 @@
 //! `flt_6241C8`.
 //!
 //! In:  nothing
-//! Out: eax `dword_82E2A2`, esi `unk_814C7A`, edi `g_polygonVertices`; the rest as the
-//!      device calls leave them
+//! Out: nothing (its caller reads no register after it)
 //!
-//! Caller: `sub_4BC0B1` (0x4BC0BF). The x87 run is the original's instructions over the
-//! game's variables; the device calls through `part` (1 the depth buffer, 2 the texture,
-//! 3 a render state), in the game their Rust versions. Shadow mode runs the original alone
-//! (it tells the device). Self-test: a copy whose calls go to stand-ins, against the Rust
-//! version.
+//! Caller: `sub_4BC0B1` (0x4BC0BF). The x87 run is plain Rust on the x87 model (`math::x87_float`), in the original's order, over the
+//! game's variables.
 
-use crate::errors::Refused;
-use crate::framework::{
-    RawHook, Regs, SelfTest, game_addr, game_read, game_write, hook_asm, rva, shadow,
-};
+use crate::marks::hexagon_state::HEXAGON_WORK;
+use crate::marks::hexagon_vars::HEX;
 use crate::math::x87;
-use crate::service::harness::{Region, at, capture, restore};
-use std::sync::atomic::AtomicUsize;
+use crate::math::x87_float as bh;
+use crate::scene::draw_store::DRAW;
+use crate::scene::texture_places_store::TEXTURE_PLACES;
 
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("marks::hexagons_setup", rva(0x4BBE62), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
-
-const TEXTURE_RVA: usize = rva(0x5D5A24); // dword_5D5A24
-const VERTICES_RVA: usize = rva(0x9605A0); // g_polygonVertices
-const COUNT_RVA: usize = rva(0x6240F8); // g_polygonVertexCount
-const SCRATCH_RVA: usize = rva(0x62400C); // dword_62400C
-const SIDE_RVA: usize = rva(0x82E2A2); // dword_82E2A2
-const DEPTH_OF_RVA: usize = rva(0x6241C8); // flt_6241C8
-const INVERSE_RVA: usize = rva(0x814C02); // flt_814C02
+use crate::d3d::vertices_store::VERTICES;
 const STATES: [(u32, u32); 8] = [
     (1, 0x11),
     (1, 0x12),
@@ -55,187 +32,199 @@ const STATES: [(u32, u32); 8] = [
     (1, 3),
 ];
 
-/// A call by place (see the header).
-pub type Part<'a> = &'a mut dyn FnMut(u32, &mut Regs) -> Result<(), Refused>;
-
 /// The original's 0x4BBE62 .. 0x4BBF1A: the axes scaled.
-unsafe fn axes(b: u32) {
-    unsafe {
-        core::arch::asm!(
-            "fld dword ptr [{b} + 0x414C1A]",
-            "fmul dword ptr [{b} + 0x414BC2]",
-            "fstp dword ptr [{b} + 0x414C6E]",
-            "fld dword ptr [{b} + 0x414C1E]",
-            "fmul dword ptr [{b} + 0x414BC2]",
-            "fstp dword ptr [{b} + 0x414C72]",
-            "fld dword ptr [{b} + 0x414C22]",
-            "fmul dword ptr [{b} + 0x414BC2]",
-            "fstp dword ptr [{b} + 0x414C76]",
-            "fld dword ptr [{b} + 0x414C26]",
-            "fmul dword ptr [{b} + 0x414BC2]",
-            "fstp dword ptr [{b} + 0x414C7A]",
-            "fld dword ptr [{b} + 0x414C2A]",
-            "fmul dword ptr [{b} + 0x414BC2]",
-            "fstp dword ptr [{b} + 0x414C7E]",
-            "fld dword ptr [{b} + 0x414C2E]",
-            "fmul dword ptr [{b} + 0x414BC2]",
-            "fstp dword ptr [{b} + 0x414C82]",
-            "fld dword ptr [{b} + 0x414C6E]",
-            "fmul dword ptr [{b} + 0x42E286]",
-            "fstp dword ptr [{b} + 0x414C86]",
-            "fld dword ptr [{b} + 0x414C72]",
-            "fmul dword ptr [{b} + 0x42E28A]",
-            "fstp dword ptr [{b} + 0x414C8A]",
-            "fld dword ptr [{b} + 0x414C76]",
-            "fmul dword ptr [{b} + 0x42E28E]",
-            "fstp dword ptr [{b} + 0x414C8E]",
-            "fld dword ptr [{b} + 0x414C7A]",
-            "fmul dword ptr [{b} + 0x42E292]",
-            "fstp dword ptr [{b} + 0x414C92]",
-            "fld dword ptr [{b} + 0x414C7E]",
-            "fmul dword ptr [{b} + 0x42E296]",
-            "fstp dword ptr [{b} + 0x414C96]",
-            "fld dword ptr [{b} + 0x414C82]",
-            "fmul dword ptr [{b} + 0x42E29A]",
-            "fstp dword ptr [{b} + 0x414C9A]",
-            b = in(reg) b,
-            out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
-            out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
-            options(nostack),
-        )
-    }
+fn axes() {
+    axes_x87(crate::marks::hexagon_vars::HexagonVars::base())
 }
 
-/// The Rust version (see the header): the registers it leaves.
-pub unsafe fn hexagons_setup(entry: &Regs, part: Part) -> Result<Regs, Refused> {
-    let mut g = *entry;
-    unsafe {
-        axes(game_addr(0) as u32);
-        [g.esi, g.edi] = [
-            game_addr(rva(0x814C7A)) as u32,
-            game_addr(rva(0x814C92)) as u32,
-        ];
-        part(1, &mut g)?;
-        g.eax = game_read(TEXTURE_RVA);
-        part(2, &mut g)?;
+/// The Rust version (see the header).
+pub fn hexagons_setup() {
+    use crate::scene::set_render_state::set_render_state;
+    {
+        axes();
+        crate::scene::depth_buffer_on::depth_buffer(true);
+        // `dword_5D5A24`, entry 1999 of the places' slots.
+        crate::scene::set_texture::set_texture(TEXTURE_PLACES.place_slot[1999].get());
         for (value, state) in STATES {
-            [g.eax, g.ebx] = [value, state];
-            part(3, &mut g)?;
-        }
-        g.edi = game_addr(VERTICES_RVA) as u32;
-        g.eax = 0x100;
-        for n in 0..6 {
-            game_write(SCRATCH_RVA, g.eax);
-            game_write(
-                VERTICES_RVA + 0x20 * n + 0xC,
-                x87::int_to_float(g.eax as i32),
-            );
+            set_render_state(value, state);
         }
         for n in 0..6 {
-            game_write(VERTICES_RVA + 0x20 * n + 0x10, 0xFFFF_FFFFu32);
-            game_write(VERTICES_RVA + 0x20 * n + 0x14, 0xFF00_0000u32);
+            DRAW.scratch.set_bits(0x100u32);
+            VERTICES.vertices[n].rhw.set_bits(x87::int_to_float(0x100));
         }
-        g.eax = game_read(SIDE_RVA);
-        for (n, (u, v)) in [(0, 0), (g.eax, 0), (g.eax, g.eax), (0, g.eax)]
+        for n in 0..6 {
+            VERTICES.vertices[n].colour.set(0xFFFF_FFFFu32);
+            VERTICES.vertices[n].specular.set(0xFF00_0000u32);
+        }
+        let side: u32 = HEX.side.get();
+        for (n, (u, v)) in [(0, 0), (side, 0), (side, side), (0, side)]
             .into_iter()
             .enumerate()
         {
-            game_write(VERTICES_RVA + 0x20 * n + 0x18, u);
-            game_write(VERTICES_RVA + 0x20 * n + 0x1C, v);
+            VERTICES.vertices[n].u.set_bits(u);
+            VERTICES.vertices[n].v.set_bits(v);
         }
-        game_write(COUNT_RVA, 6u32);
-        game_write(INVERSE_RVA, x87::reciprocal(game_read(DEPTH_OF_RVA)));
+        DRAW.polygon_vertex_count.set_bits(6u32);
+        HEXAGON_WORK
+            .inverse
+            .set_bits(x87::reciprocal(DRAW.farthest.bits()));
     }
-    Ok(g)
 }
 
-/// In the game: the device calls' Rust versions.
-pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
-    unsafe {
-        match place {
-            1 => crate::scene::depth_buffer_on::depth_buffer(r, true),
-            2 => crate::scene::set_texture::set_texture_in_game(r),
-            _ => {
-                let (value, state) = (r.eax, r.ebx);
-                crate::scene::set_render_state::set_render_state(r, value, state);
-            }
+use crate::marks::plain::ld;
+
+/// `axes`'s x87 block as plain Rust on the x87 model (36 instructions), same order and memory places.
+fn axes_x87(hx: usize) {
+    let t0 = bh::ld(HEXAGON_WORK.axes[0].bits());
+    let t1 = t0 * bh::ld(HEXAGON_WORK.radii[0].bits());
+    HEXAGON_WORK.setup_axes[0].set_bits(bh::st(t1));
+    let t2 = bh::ld(HEXAGON_WORK.axes[1].bits());
+    let t3 = t2 * bh::ld(HEXAGON_WORK.radii[0].bits());
+    HEXAGON_WORK.setup_axes[1].set_bits(bh::st(t3));
+    let t4 = bh::ld(HEXAGON_WORK.axes[2].bits());
+    let t5 = t4 * bh::ld(HEXAGON_WORK.radii[0].bits());
+    HEXAGON_WORK.setup_axes[2].set_bits(bh::st(t5));
+    let t6 = bh::ld(HEXAGON_WORK.axes[3].bits());
+    let t7 = t6 * bh::ld(HEXAGON_WORK.radii[0].bits());
+    HEXAGON_WORK.setup_axes[3].set_bits(bh::st(t7));
+    let t8 = bh::ld(HEXAGON_WORK.axes[4].bits());
+    let t9 = t8 * bh::ld(HEXAGON_WORK.radii[0].bits());
+    HEXAGON_WORK.setup_axes[4].set_bits(bh::st(t9));
+    let t10 = bh::ld(HEXAGON_WORK.axes[5].bits());
+    let t11 = t10 * bh::ld(HEXAGON_WORK.radii[0].bits());
+    HEXAGON_WORK.setup_axes[5].set_bits(bh::st(t11));
+    let t12 = bh::ld(HEXAGON_WORK.setup_axes[0].bits());
+    let t13 = t12 * ld(hx, 0xC9346);
+    HEXAGON_WORK.setup_axes[6].set_bits(bh::st(t13));
+    let t14 = bh::ld(HEXAGON_WORK.setup_axes[1].bits());
+    let t15 = t14 * ld(hx, 0xC934A);
+    HEXAGON_WORK.setup_axes[7].set_bits(bh::st(t15));
+    let t16 = bh::ld(HEXAGON_WORK.setup_axes[2].bits());
+    let t17 = t16 * ld(hx, 0xC934E);
+    HEXAGON_WORK.setup_axes[8].set_bits(bh::st(t17));
+    let t18 = bh::ld(HEXAGON_WORK.setup_axes[3].bits());
+    let t19 = t18 * ld(hx, 0xC9352);
+    HEXAGON_WORK.setup_axes[9].set_bits(bh::st(t19));
+    let t20 = bh::ld(HEXAGON_WORK.setup_axes[4].bits());
+    let t21 = t20 * ld(hx, 0xC9356);
+    HEXAGON_WORK.setup_axes[10].set_bits(bh::st(t21));
+    let t22 = bh::ld(HEXAGON_WORK.setup_axes[5].bits());
+    let t23 = t22 * ld(hx, 0xC935A);
+    HEXAGON_WORK.setup_axes[11].set_bits(bh::st(t23));
+}
+
+#[cfg(all(test, target_arch = "x86"))]
+mod asm_reference {
+    //! The original assembly blocks, kept verbatim as the reference the plain versions are tested against.
+
+    pub(super) fn axes_x87(mk: usize) {
+        unsafe {
+            core::arch::asm!(
+                    "fld dword ptr [{mk} + 0xAFCDA]",
+            "fmul dword ptr [{mk} + 0xAFC82]",
+            "fstp dword ptr [{mk} + 0xAFD2E]",
+            "fld dword ptr [{mk} + 0xAFCDE]",
+            "fmul dword ptr [{mk} + 0xAFC82]",
+            "fstp dword ptr [{mk} + 0xAFD32]",
+            "fld dword ptr [{mk} + 0xAFCE2]",
+            "fmul dword ptr [{mk} + 0xAFC82]",
+            "fstp dword ptr [{mk} + 0xAFD36]",
+            "fld dword ptr [{mk} + 0xAFCE6]",
+            "fmul dword ptr [{mk} + 0xAFC82]",
+            "fstp dword ptr [{mk} + 0xAFD3A]",
+            "fld dword ptr [{mk} + 0xAFCEA]",
+            "fmul dword ptr [{mk} + 0xAFC82]",
+            "fstp dword ptr [{mk} + 0xAFD3E]",
+            "fld dword ptr [{mk} + 0xAFCEE]",
+            "fmul dword ptr [{mk} + 0xAFC82]",
+            "fstp dword ptr [{mk} + 0xAFD42]",
+            "fld dword ptr [{mk} + 0xAFD2E]",
+            "fmul dword ptr [{mk} + 0xC9346]",
+            "fstp dword ptr [{mk} + 0xAFD46]",
+            "fld dword ptr [{mk} + 0xAFD32]",
+            "fmul dword ptr [{mk} + 0xC934A]",
+            "fstp dword ptr [{mk} + 0xAFD4A]",
+            "fld dword ptr [{mk} + 0xAFD36]",
+            "fmul dword ptr [{mk} + 0xC934E]",
+            "fstp dword ptr [{mk} + 0xAFD4E]",
+            "fld dword ptr [{mk} + 0xAFD3A]",
+            "fmul dword ptr [{mk} + 0xC9352]",
+            "fstp dword ptr [{mk} + 0xAFD52]",
+            "fld dword ptr [{mk} + 0xAFD3E]",
+            "fmul dword ptr [{mk} + 0xC9356]",
+            "fstp dword ptr [{mk} + 0xAFD56]",
+            "fld dword ptr [{mk} + 0xAFD42]",
+            "fmul dword ptr [{mk} + 0xC935A]",
+            "fstp dword ptr [{mk} + 0xAFD5A]",
+            mk = in(reg) mk,
+            out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
+            out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
+            options(nostack),
+            )
         }
     }
-    Ok(())
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    HOOK.count_call();
-    if shadow() {
-        unsafe { call_original(r) };
-        return;
-    }
-    match unsafe { hexagons_setup(r, &mut game_part) } {
-        Ok(left) => *r = Regs { esp: r.esp, ..left },
-        Err(e) => unsafe { crate::fatal::raise::refused(&HOOK, e, r, call_original) },
-    }
-}
+#[cfg(all(test, target_arch = "x86"))]
+mod asm_differential {
+    use super::asm_reference as reference;
+    use crate::marks::asm_test::Kind::*;
+    use crate::marks::asm_test::{Op, Spec, differential};
+    use crate::marks::hexagon_state::{HEXAGON_WORK, HexagonWork};
+    use crate::marks::typed_sync::{overlay, with_overlays};
 
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    let left = unsafe { hexagons_setup(r, &mut game_part) }?;
-    *r = Regs { esp: r.esp, ..left };
-    Ok(())
-}
-
-fn self_test() -> (usize, usize) {
-    use crate::race::mud::{copy, run_both, test_part};
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    // lea esi, flt_814C1A
-    let entry: &[u8] = &[0x8D, 0x35, 0x1A, 0x4C, 0x81, 0x00];
-    let copy = match copy(
-        0x4BBE62,
-        0x24F,
-        entry,
-        &[
-            0xB8, 0xC2, 0xD1, 0xE0, 0xEF, 0xFE, 0x10D, 0x11C, 0x12B, 0x13A,
-        ],
-        &[(0x44E41F, 1), (0x44E77E, 2), (0x44EB72, 3)],
-    ) {
-        Ok(c) => c,
-        Err(why) => return t.skip(why),
-    };
-    let regions: Vec<Region> = vec![
-        (game_addr(rva(0x814C6E)) as u32, 0x30),
-        (game_addr(VERTICES_RVA) as u32, 0xC0),
-        at(COUNT_RVA),
-        at(SCRATCH_RVA),
-        at(INVERSE_RVA),
-    ];
-    let mut vars = regions.clone();
-    vars.extend([TEXTURE_RVA, SIDE_RVA, DEPTH_OF_RVA, rva(0x814BC2)].map(at));
-    vars.push((game_addr(rva(0x814C1A)) as u32, 0x18));
-    vars.push((game_addr(rva(0x82E286)) as u32, 0x18));
-    let saved = capture(&vars);
-    for case in 0..3u32 {
-        run_both(
-            &mut t,
-            &format!("case {case}"),
-            &copy,
-            &regions,
-            &|| unsafe {
-                restore(&vars, &saved);
-                let k = case as f32;
-                for n in 0..6 {
-                    game_write(rva(0x814C1A) + 4 * n, (n as f32 * 1.5 - 3.0 + k).to_bits());
-                    game_write(rva(0x82E286) + 4 * n, (0.25 * n as f32 + 0.1).to_bits());
-                }
-                game_write(rva(0x814BC2), (0.75f32 + k).to_bits());
-                game_write(SIDE_RVA, (0.5f32 * (k + 1.0)).to_bits());
-                game_write(DEPTH_OF_RVA, 3000.0f32.to_bits());
-                game_write(TEXTURE_RVA, 0x31 + case);
-                std::ptr::write_bytes(game_addr(VERTICES_RVA) as *mut u8, 0xAA, 0xC0);
+    #[test]
+    fn axes_x87_matches() {
+        const SPEC: Spec = Spec {
+            operands: &[Op::Base {
+                lo: 0xAF832,
+                hi: 0xC935E,
+                reads: &[
+                    (0xAFC82, F32),
+                    (0xAFCDA, F32),
+                    (0xAFCDE, F32),
+                    (0xAFCE2, F32),
+                    (0xAFCE6, F32),
+                    (0xAFCEA, F32),
+                    (0xAFCEE, F32),
+                    (0xAFD2E, F32),
+                    (0xAFD32, F32),
+                    (0xAFD36, F32),
+                    (0xAFD3A, F32),
+                    (0xAFD3E, F32),
+                    (0xAFD42, F32),
+                    (0xC9346, F32),
+                    (0xC934A, F32),
+                    (0xC934E, F32),
+                    (0xC9352, F32),
+                    (0xC9356, F32),
+                    (0xC935A, F32),
+                ],
+                writes: &[
+                    (0xAFD2E, F32),
+                    (0xAFD32, F32),
+                    (0xAFD36, F32),
+                    (0xAFD3A, F32),
+                    (0xAFD3E, F32),
+                    (0xAFD42, F32),
+                    (0xAFD46, F32),
+                    (0xAFD4A, F32),
+                    (0xAFD4E, F32),
+                    (0xAFD52, F32),
+                    (0xAFD56, F32),
+                    (0xAFD5A, F32),
+                ],
+            }],
+            sincos: false,
+        };
+        differential(
+            &SPEC,
+            |b| reference::axes_x87(b[0]),
+            |b| {
+                with_overlays(b[0], &[overlay(&HEXAGON_WORK, HexagonWork::START)], || {
+                    super::axes_x87(b[0])
+                })
             },
-            &|r| unsafe { hexagons_setup(r, &mut test_part) },
         );
     }
-    restore(&vars, &saved);
-    t.finish()
 }

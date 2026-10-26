@@ -16,42 +16,23 @@
 //!   squared) times `flt_5C5DA0`, whose rounding is left in `dword_62400C`);
 //! - (0x100000 less y without its sign) over 0x1000: how near the car's height.
 //!
-//! The third times twice the first over 256, times the block's dword +0xABC over 256,
-//! held to 255, picks a colour from the table `dword_635D18`, which is added to
-//! `g_lightColour` byte by byte without overflow. x87 with the original's
-//! instructions.
-//! Callers: `sub_44F1FE`, twice.
+//! The third times twice the first over 256, times the block's dword +0xABC over 256, held to
+//! 255, picks a colour from the table `dword_635D18`, which is added to `g_lightColour` byte by
+//! byte without overflow. The x87's arithmetic in `X` (plain Rust since 2026-10-24; the
+//! original's instructions are `asm_reference` in the tests). Callers: `sub_44F1FE`, twice.
 //! Refuses when there is no block.
-//! Shadow mode: the Rust version, its writes put back, the original, compared.
 
 use crate::errors::BadInput;
-use crate::framework::{
-    RawHook, Regs, SelfTest, game_addr, game_read, game_write, hook_asm, rva, shadow,
-};
-use crate::scene::add_point_lights::{LIGHT_COLOUR_RVA, LIT_PLACE_RVA, MMX_RVA};
-use crate::scene::draw_polygon::CHECKED_RVA;
-use crate::scene::polygon::dword;
+use crate::pointers::GamePtr;
+use crate::race::numbers_store::NUMBERS;
+use crate::scene::draw_store::DRAW;
+use crate::scene::light_store::LIGHT_STATE;
+use crate::scene::light_work_store::LIGHT_WORK;
 use crate::scene::vertex_light::plus;
-use crate::service::harness::{Region, at, capture, restore};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("scene::add_car_light", rva(0x44F29F), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
+use crate::scene::x87_mem::{fild, fistp, fld};
+use crate::session::MACHINE;
 
 // ---- game data ----
-
-const SEEN_RVA: usize = rva(0x6365B8); // dword_6365B8, dword_6365BC, dword_6365C0
-const FACTOR_RVA: usize = rva(0x5C5DA0); // flt_5C5DA0
-const TABLE_RVA: usize = rva(0x635D18); // dword_635D18
 /// In a car's block.
 const LAMPS_ON: usize = 0x84;
 const PLACE: usize = 0x134;
@@ -62,94 +43,86 @@ const STRENGTH: usize = 0xABC;
 
 /// Three whole numbers through a matrix and back to whole numbers: `fild` three times,
 /// `scene::rotate_point`, `fistp` three times.
-unsafe fn turned(from: [u32; 3], matrix: *const u32) -> [u32; 3] {
+fn turned(from: [u32; 3], matrix: *const u32) -> [u32; 3] {
     let mut w = [from[0], from[1], from[2], 0, 0, 0];
-    unsafe {
-        core::arch::asm!(
-            "fild dword ptr [{w} + 8]",
-            "fild dword ptr [{w} + 4]",
-            "fild dword ptr [{w}]",
-            "fld dword ptr [{m}]",
-            "fmul st(0), st(1)",
-            "fld dword ptr [{m} + 0x10]",
-            "fmul st(0), st(3)",
-            "fld dword ptr [{m} + 0x20]",
-            "fmul st(0), st(5)",
-            "faddp st(1), st(0)",
-            "faddp st(1), st(0)",
-            "fadd dword ptr [{m} + 0x30]",
-            "fxch st(3)",
-            "fld dword ptr [{m} + 4]",
-            "fmul st(0), st(2)",
-            "fld dword ptr [{m} + 0x14]",
-            "fmul st(0), st(4)",
-            "fld dword ptr [{m} + 0x24]",
-            "fmul st(0), st(3)",
-            "faddp st(1), st(0)",
-            "faddp st(1), st(0)",
-            "fadd dword ptr [{m} + 0x34]",
-            "fxch st(3)",
-            "fld dword ptr [{m} + 8]",
-            "fmulp st(3), st(0)",
-            "fld dword ptr [{m} + 0x18]",
-            "fmulp st(1), st(0)",
-            "fld dword ptr [{m} + 0x28]",
-            "fmulp st(2), st(0)",
-            "faddp st(1), st(0)",
-            "faddp st(1), st(0)",
-            "fadd dword ptr [{m} + 0x38]",
-            "fxch st(2)",
-            "fistp dword ptr [{w} + 12]",
-            "fistp dword ptr [{w} + 16]",
-            "fistp dword ptr [{w} + 20]",
-            w = in(reg) w.as_mut_ptr(),
-            m = in(reg) matrix,
-            out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
-            out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
-            options(nostack),
-        );
-    }
+    turned_at(w.as_mut_ptr().cast(), matrix.cast());
     [w[3], w[4], w[5]]
+}
+
+fn turned_at(w: *mut u8, m: *const u8) {
+    let t0 = fild(w, 0x8);
+    let t1 = fild(w, 0x4);
+    let t2 = fild(w, 0x0);
+    let t3 = fld(m, 0x0);
+    let t4 = t3 * t2;
+    let t5 = fld(m, 0x10);
+    let t6 = t5 * t1;
+    let t7 = fld(m, 0x20);
+    let t8 = t7 * t0;
+    let t9 = t6 + t8;
+    let t10 = t4 + t9;
+    let t11 = fld(m, 0x30);
+    let t12 = t10 + t11;
+    let t13 = fld(m, 0x4);
+    let t14 = t13 * t2;
+    let t15 = fld(m, 0x14);
+    let t16 = t15 * t1;
+    let t17 = fld(m, 0x24);
+    let t18 = t17 * t0;
+    let t19 = t16 + t18;
+    let t20 = t14 + t19;
+    let t21 = fld(m, 0x34);
+    let t22 = t20 + t21;
+    let t23 = fld(m, 0x8);
+    let t24 = t2 * t23;
+    let t25 = fld(m, 0x18);
+    let t26 = t1 * t25;
+    let t27 = fld(m, 0x28);
+    let t28 = t0 * t27;
+    let t29 = t28 + t26;
+    let t30 = t24 + t29;
+    let t31 = fld(m, 0x38);
+    let t32 = t30 + t31;
+    fistp(w, 0xC, t12);
+    fistp(w, 0x10, t22);
+    fistp(w, 0x14, t32);
 }
 
 /// `fild a; fmul st, st; fild b; fmul st, st; faddp; fmul k` (once or twice) `; fistp`.
 fn squares(a: u32, b: u32, factor: u32, twice: bool) -> u32 {
     let (v, mut out) = ([a, b, factor], 0u32);
-    unsafe {
-        if twice {
-            core::arch::asm!(
-                "fild dword ptr [{v}]",
-                ".byte 0xD8, 0xC8", // fmul st, st
-                "fild dword ptr [{v} + 4]",
-                ".byte 0xD8, 0xC8",
-                ".byte 0xDE, 0xC1", // faddp st(1), st
-                "fmul dword ptr [{v} + 8]",
-                "fmul dword ptr [{v} + 8]",
-                "fistp dword ptr [{o}]",
-                v = in(reg) v.as_ptr(),
-                o = in(reg) &raw mut out,
-                out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
-                out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
-                options(nostack),
-            );
-        } else {
-            core::arch::asm!(
-                "fild dword ptr [{v}]",
-                ".byte 0xD8, 0xC8",
-                "fild dword ptr [{v} + 4]",
-                ".byte 0xD8, 0xC8",
-                ".byte 0xDE, 0xC1",
-                "fmul dword ptr [{v} + 8]",
-                "fistp dword ptr [{o}]",
-                v = in(reg) v.as_ptr(),
-                o = in(reg) &raw mut out,
-                out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
-                out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
-                options(nostack),
-            );
-        }
+    if twice {
+        squares_twice(v.as_ptr().cast(), (&raw mut out).cast());
+    } else {
+        squares_once(v.as_ptr().cast(), (&raw mut out).cast());
     }
     out
+}
+
+/// Twice the factor.
+fn squares_twice(v: *const u8, o: *mut u8) {
+    let t0 = fild(v, 0x0);
+    let t1 = t0 * t0;
+    let t2 = fild(v, 0x4);
+    let t3 = t2 * t2;
+    let t4 = t1 + t3;
+    let t5 = fld(v, 0x8);
+    let t6 = t4 * t5;
+    let t7 = fld(v, 0x8);
+    let t8 = t6 * t7;
+    fistp(o, 0x0, t8);
+}
+
+/// Once the factor.
+fn squares_once(v: *const u8, o: *mut u8) {
+    let t0 = fild(v, 0x0);
+    let t1 = t0 * t0;
+    let t2 = fild(v, 0x4);
+    let t3 = t2 * t2;
+    let t4 = t1 + t3;
+    let t5 = fld(v, 0x8);
+    let t6 = t4 * t5;
+    fistp(o, 0x0, t6);
 }
 
 /// `cmp eax, 0; jns; eax = 0` and `cmp eax, 0FFh; js; eax = 0FFh`.
@@ -162,173 +135,188 @@ fn held(value: i32) -> u32 {
     }
 }
 
-pub unsafe fn add_car_light(car: usize) -> Result<(), BadInput> {
-    unsafe {
-        if car == 0 {
-            return Err(BadInput("no car"));
-        }
-        if dword(car + LAMPS_ON) == 0 {
-            return Ok(());
-        }
-        let place: [u32; 3] = game_read(LIT_PLACE_RVA);
-        let from = [0, 1, 2].map(|k| place[k].wrapping_sub(dword(car + PLACE + k * 4)));
-        let seen = turned(from, (car + MATRIX) as *const u32);
-        game_write(SEEN_RVA, seen);
-        let [x, y, z] = seen;
-        let factor: u32 = game_read(FACTOR_RVA);
-        let ahead = squares(z.wrapping_sub(0x20_0000), x.wrapping_add(x), factor, true);
-        let cone = held(0x100i32.wrapping_sub((ahead >> 2) as i32));
-        // Worked out and not used; its rounding is what `dword_62400C` is left with.
-        game_write(
-            CHECKED_RVA,
-            squares(z.wrapping_sub(0x10_0000), x, factor, false),
-        );
-        let height = if (y as i32) < 0 { y.wrapping_neg() } else { y };
-        let level = held((0x10_0000u32.wrapping_sub(height) as i32) >> 12);
-        let amount = (level.wrapping_mul(cone * 2) >> 8).wrapping_mul(dword(car + STRENGTH)) >> 8;
-        let colour: u32 = game_read(TABLE_RVA + held(amount as i32) as usize * 4);
-        let mmx = game_read::<u32>(MMX_RVA) != 0;
-        game_write(
-            LIGHT_COLOUR_RVA,
-            plus(colour, game_read(LIGHT_COLOUR_RVA), mmx),
-        );
-        Ok(())
+pub fn add_car_light(car: usize) -> Result<(), BadInput> {
+    if car == 0 {
+        return Err(BadInput("no car"));
     }
-}
-
-// ---- hook ----
-
-fn regions() -> [Region; 3] {
-    [
-        (game_addr(SEEN_RVA) as u32, 12),
-        at(CHECKED_RVA),
-        at(LIGHT_COLOUR_RVA),
-    ]
-}
-
-extern "C" fn dispatch(r: &mut Regs) {
-    HOOK.count_call();
-    let car = r.esi as usize;
-    if !shadow() {
-        if let Err(e) = unsafe { add_car_light(car) } {
-            unsafe { crate::fatal::raise::refused(&HOOK, e, r, call_original) };
-        }
-        return;
+    let read = |at: usize| GamePtr::new(car.wrapping_add(at) as u32).read::<u32>("a car's block");
+    if read(LAMPS_ON)? == 0 {
+        return Ok(());
     }
-    let regions = regions();
-    let before = capture(&regions);
-    let mine = unsafe { add_car_light(car) }.map(|()| capture(&regions));
-    restore(&regions, &before);
-    unsafe { call_original(r) };
-    let Ok(mine) = mine else {
-        return;
-    };
-    let theirs = capture(&regions);
-    if mine != theirs {
-        HOOK.mismatch(|| format!("before {before:x?}: original {theirs:x?}; rust {mine:x?}"));
+    let place: [u32; 3] = crate::session::read_bits(&LIGHT_STATE.lit_place);
+    let mut from = [0u32; 3];
+    for k in 0..3 {
+        from[k] = place[k].wrapping_sub(read(PLACE + k * 4)?);
     }
-}
-
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    let car = r.esi as usize;
-    if let Err(e) = unsafe { add_car_light(car) } {
-        return Err(e.into());
-    }
+    let matrix: [u32; 16] = GamePtr::new(car.wrapping_add(MATRIX) as u32).read("a car's matrix")?;
+    let seen = turned(from, matrix.as_ptr());
+    crate::session::write_bits(&LIGHT_STATE.turned_light, seen);
+    let [x, y, z] = seen;
+    let factor: u32 = NUMBERS.one_over_65536.bits();
+    let ahead = squares(z.wrapping_sub(0x20_0000), x.wrapping_add(x), factor, true);
+    let cone = held(0x100i32.wrapping_sub((ahead >> 2) as i32));
+    // Worked out and not used; its rounding is what `dword_62400C` is left with.
+    DRAW.scratch
+        .set(squares(z.wrapping_sub(0x10_0000), x, factor, false));
+    let height = if (y as i32) < 0 { y.wrapping_neg() } else { y };
+    let level = held((0x10_0000u32.wrapping_sub(height) as i32) >> 12);
+    let amount = (level.wrapping_mul(cone * 2) >> 8).wrapping_mul(read(STRENGTH)?) >> 8;
+    let colour: u32 = crate::scene::light_tables_store::LIGHT_TABLES.car_light_table
+        [held(amount as i32) as usize]
+        .get();
+    let mmx = MACHINE.has_mmx.get() != 0;
+    LIGHT_WORK
+        .light_colour
+        .set(plus(colour, LIGHT_WORK.light_colour.bits(), mmx));
     Ok(())
 }
 
-// ---- self-test ----
+#[cfg(all(test, target_arch = "x86"))]
+mod asm_reference {
+    use super::*;
+    use crate::scene::asm_test::{Kind, differential};
 
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let regions = regions();
-    let inputs = [
-        (game_addr(LIT_PLACE_RVA) as u32, 12),
-        at(MMX_RVA),
-        (game_addr(TABLE_RVA) as u32, 0x100 * 4),
-    ];
-    let saved = (capture(&regions), capture(&inputs));
-    let table: Vec<u32> = (0..0x100u32)
-        .map(|n| n.wrapping_mul(0x0102_0304) ^ 0x00A5_5A0F)
-        .collect();
-    let f = |value: f32| value.to_bits();
-    let matrices: [[f32; 16]; 3] = [
-        [
-            1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0,
-        ],
-        [
-            0.36, 0.48, -0.8, 0.0, -0.8, 0.6, 0.0, 0.0, 0.48, 0.64, 0.6, 0.0, 1000.5, -70000.0,
-            250000.25, 0.0,
-        ],
-        [
-            0.0, 0.0, 1.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
-        ],
-    ];
-    let places: [[i32; 3]; 8] = [
-        [0, 0, 0x20_0000],
-        [0x1_0000, 0x2000, 0x1F_0000],
-        [-0x4_0000, -0x8_0000, 0x18_0000],
-        [0, 0x10_0000, 0x20_0000],
-        [0x100, 0x100, 0x100],
-        [0x7FFF_FFFF, i32::MIN, 0x12_3456],
-        [-0x1_8000, 0x7_FFFF, 0x22_0000],
-        [0, 0xF_F000, 0x20_0800],
-    ];
-    let mut cases = 0u32;
-    for matrix in matrices {
-        for place in places {
-            for (on, strength) in [
-                (1u32, 0x100u32),
-                (0, 0x100),
-                (7, 0x80),
-                (1, 0x1_0000),
-                (1, 0),
-            ] {
-                cases += 1;
-                let mut car = vec![0u32; 0xAC0 / 4];
-                car[LAMPS_ON / 4] = on;
-                car[PLACE / 4..PLACE / 4 + 3].copy_from_slice(&[0x1000, 0xFFFF_F000, 0x800]);
-                car[MATRIX / 4..MATRIX / 4 + 16].copy_from_slice(&matrix.map(f));
-                car[STRENGTH / 4] = strength;
-                let car_at = car.as_ptr() as usize;
-                let run = |rust: bool| unsafe {
-                    restore(&regions, &vec![0xAA; saved.0.len()]);
-                    game_write(LIT_PLACE_RVA, place);
-                    game_write(MMX_RVA, cases % 2);
-                    game_write(
-                        LIGHT_COLOUR_RVA,
-                        [0u32, 0x8010_F0FE][(cases / 2 % 2) as usize],
-                    );
-                    std::ptr::copy_nonoverlapping(
-                        table.as_ptr(),
-                        game_addr(TABLE_RVA) as *mut u32,
-                        table.len(),
-                    );
-                    let done = if rust {
-                        add_car_light(car_at).is_ok()
-                    } else {
-                        let mut ro = Regs {
-                            esi: car_at as u32,
-                            ..Regs::default()
-                        };
-                        call_original(&mut ro);
-                        true
-                    };
-                    (done, capture(&regions))
-                };
-                let (theirs, mine) = (run(false), run(true));
-                t.check(theirs == mine, || {
-                    format!(
-                        "case {cases}: place {place:x?}, on {on}, strength {strength:#x}: original {theirs:x?}; rust {mine:x?}"
-                    )
-                });
-            }
+    /// The original's instructions for `turned`.
+    unsafe fn turned_at_ref(w: *mut u8, m: *mut u8) {
+        unsafe {
+            core::arch::asm!(
+                "fild dword ptr [{w} + 8]",
+                "fild dword ptr [{w} + 4]",
+                "fild dword ptr [{w}]",
+                "fld dword ptr [{m}]",
+                "fmul st(0), st(1)",
+                "fld dword ptr [{m} + 0x10]",
+                "fmul st(0), st(3)",
+                "fld dword ptr [{m} + 0x20]",
+                "fmul st(0), st(5)",
+                "faddp st(1), st(0)",
+                "faddp st(1), st(0)",
+                "fadd dword ptr [{m} + 0x30]",
+                "fxch st(3)",
+                "fld dword ptr [{m} + 4]",
+                "fmul st(0), st(2)",
+                "fld dword ptr [{m} + 0x14]",
+                "fmul st(0), st(4)",
+                "fld dword ptr [{m} + 0x24]",
+                "fmul st(0), st(3)",
+                "faddp st(1), st(0)",
+                "faddp st(1), st(0)",
+                "fadd dword ptr [{m} + 0x34]",
+                "fxch st(3)",
+                "fld dword ptr [{m} + 8]",
+                "fmulp st(3), st(0)",
+                "fld dword ptr [{m} + 0x18]",
+                "fmulp st(1), st(0)",
+                "fld dword ptr [{m} + 0x28]",
+                "fmulp st(2), st(0)",
+                "faddp st(1), st(0)",
+                "faddp st(1), st(0)",
+                "fadd dword ptr [{m} + 0x38]",
+                "fxch st(2)",
+                "fistp dword ptr [{w} + 12]",
+                "fistp dword ptr [{w} + 16]",
+                "fistp dword ptr [{w} + 20]",
+                w = in(reg) w,
+                m = in(reg) m,
+                out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
+                out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
+                options(nostack),
+            );
         }
     }
-    restore(&regions, &saved.0);
-    restore(&inputs, &saved.1);
-    t.finish()
+
+    /// The original's instructions for `squares` (twice).
+    unsafe fn squares_twice_ref(v: *mut u8, o: *mut u8) {
+        unsafe {
+            core::arch::asm!(
+                "fild dword ptr [{v}]",
+                ".byte 0xD8, 0xC8", // fmul st, st
+                "fild dword ptr [{v} + 4]",
+                ".byte 0xD8, 0xC8",
+                ".byte 0xDE, 0xC1", // faddp st(1), st
+                "fmul dword ptr [{v} + 8]",
+                "fmul dword ptr [{v} + 8]",
+                "fistp dword ptr [{o}]",
+                v = in(reg) v,
+                o = in(reg) o,
+                out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
+                out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
+                options(nostack),
+            );
+        }
+    }
+
+    /// The original's instructions for `squares` (once).
+    unsafe fn squares_once_ref(v: *mut u8, o: *mut u8) {
+        unsafe {
+            core::arch::asm!(
+                "fild dword ptr [{v}]",
+                ".byte 0xD8, 0xC8",
+                "fild dword ptr [{v} + 4]",
+                ".byte 0xD8, 0xC8",
+                ".byte 0xDE, 0xC1",
+                "fmul dword ptr [{v} + 8]",
+                "fistp dword ptr [{o}]",
+                v = in(reg) v,
+                o = in(reg) o,
+                out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
+                out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
+                options(nostack),
+            );
+        }
+    }
+
+    #[test]
+    fn turned_matches_the_assembly() {
+        // dwords 0 .. 3 the place, 3 .. 6 the result, 8 .. 23 the matrix
+        differential::<23>(
+            "add_car_light turned",
+            8000,
+            16,
+            [Kind::Exact; 23],
+            |rng, m| {
+                m.fill(0xAAAA_AAAA);
+                for d in m.iter_mut().take(3) {
+                    *d = rng.int();
+                }
+                let moderate = rng.below(2) == 0;
+                for d in m.iter_mut().skip(8) {
+                    *d = if moderate { rng.moderate() } else { rng.fl() };
+                }
+            },
+            |base| unsafe { turned_at_ref(base, base.add(32)) },
+            |base| unsafe { turned_at(base, base.add(32)) },
+        );
+    }
+
+    #[test]
+    fn squares_matches_the_assembly() {
+        // dwords 0 .. 3 the two whole numbers and the factor, 3 the result of the first
+        // way, 4 of the second
+        differential::<5>(
+            "add_car_light squares",
+            8000,
+            17,
+            [Kind::Exact; 5],
+            |rng, m| {
+                m[0] = rng.int();
+                m[1] = rng.int();
+                m[2] = if rng.below(2) == 0 {
+                    rng.moderate()
+                } else {
+                    rng.fl()
+                };
+                m[3] = 0xAAAA_AAAA;
+                m[4] = 0xAAAA_AAAA;
+            },
+            |base| unsafe {
+                squares_twice_ref(base, base.add(12));
+                squares_once_ref(base, base.add(16));
+            },
+            |base| unsafe {
+                squares_twice(base, base.add(12));
+                squares_once(base, base.add(16));
+            },
+        );
+    }
 }

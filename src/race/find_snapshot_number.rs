@@ -10,53 +10,45 @@
 //! In:  nothing
 //! Out: every register kept (`pusha` / `popa`); no flags read
 //!
-//! Caller: `race::replay_viewer`. Shadow mode compares (the search only reads the
-//! folder). Self-test: the original against the Rust version on the folder as it is.
+//! Caller: `race::replay_viewer`.
 
-use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
-use crate::physics::flow::a;
-use crate::race::viewer::{Saved, check_original, dispatch_regs, get, put, region, regs_entry};
-use crate::service::harness::Region;
-use std::sync::atomic::AtomicUsize;
-use windows_sys::Win32::Storage::FileSystem::{
-    FindClose, FindFirstFileA, FindNextFileA, WIN32_FIND_DATAA,
-};
+use crate::errors::BadInput;
+use crate::files::state::{FIND_HANDLE, LAST_FILE_PATH, SKIPPED_ATTRIBUTES, find_data};
+use crate::pointers::GamePtr;
+use crate::session::Bytes;
+use std::sync::atomic::Ordering::Relaxed;
+use windows_sys::Win32::Storage::FileSystem::{FindClose, FindFirstFileA, FindNextFileA};
 
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
+/// IDA's address of the snapshot picture's name.
+pub const SNAPSHOT_START: usize = 0x529731;
+/// The three digits' place in the name.
+pub const DIGITS_AT: usize = 0x12;
 
-pub static HOOK: RawHook = RawHook::new(
-    "race::find_snapshot_number",
-    rva(0x41EF51),
-    thunk,
-    &ORIGINAL,
-)
-.self_test(self_test);
+/// `aSavedataSnapsh`: the viewer's snapshot picture's name, its three digits counted up.
+pub static SNAPSHOT: Bytes<26> = Bytes::new(*b"savedata\\snapshot\\000.pcx\0");
 
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
+/// Where the name is (`moved::MOVED`'s home for IDA 0x529731).
+pub fn snapshot_home() -> usize {
+    SNAPSHOT.addr() as usize
+}
 
-pub const SNAPSHOT_PATH: usize = 0x529731; // "savedata\snapshot\000.pcx"
-pub const SNAPSHOT_DIGITS: usize = SNAPSHOT_PATH + 0x12;
-const FIND_DATA: usize = 0x4E05A8; // FindFileData
-const FIND_HANDLE: usize = 0x4E05A4; // hFindFile
-const SKIPPED: usize = 0x4E06E6; // the attributes a search passes over
-const LAST_PATH: usize = 0x4F52B0; // g_lastFilePath
+/// Where the name's three digits are.
+pub fn digits_place() -> *mut u8 {
+    SNAPSHOT.as_ptr().wrapping_add(DIGITS_AT)
+}
+
 const NO_SEARCH: u32 = u32::MAX;
 
 /// `files::find_next_wanted` (0x402FF6): the next name not of the skipped attributes;
 /// false (carry) when there is none.
 pub unsafe fn find_next_wanted() -> bool {
-    let record = a(FIND_DATA) as *mut WIN32_FIND_DATAA;
+    let record = find_data();
     loop {
-        if unsafe { FindNextFileA(get(FIND_HANDLE) as _, record) } == 0 {
+        if unsafe { FindNextFileA(crate::pointers::handle(FIND_HANDLE.load(Relaxed)), record) } == 0
+        {
             return false;
         }
-        if get(FIND_DATA) & get(SKIPPED) == 0 {
+        if unsafe { (*record).dwFileAttributes } & SKIPPED_ATTRIBUTES.load(Relaxed) == 0 {
             return true;
         }
     }
@@ -65,14 +57,16 @@ pub unsafe fn find_next_wanted() -> bool {
 /// `files::find_first` (0x402FC2): the first name matching `pattern` (not resolved; it
 /// becomes `g_lastFilePath`) not of the skipped attributes; false (carry) when none.
 pub unsafe fn find_first(pattern: u32) -> bool {
-    put(LAST_PATH, pattern);
-    let record = a(FIND_DATA) as *mut WIN32_FIND_DATAA;
-    let search = unsafe { FindFirstFileA(pattern as *const u8, record) } as u32;
-    put(FIND_HANDLE, search);
+    LAST_FILE_PATH.store(pattern, Relaxed);
+    let record = find_data();
+    let search = crate::pointers::handle_number(unsafe {
+        FindFirstFileA(crate::pointers::host(pattern) as *const u8, record)
+    });
+    FIND_HANDLE.store(search, Relaxed);
     if search == NO_SEARCH {
         return false;
     }
-    if get(FIND_DATA) & get(SKIPPED) != 0 {
+    if unsafe { (*record).dwFileAttributes } & SKIPPED_ATTRIBUTES.load(Relaxed) != 0 {
         return unsafe { find_next_wanted() };
     }
     true
@@ -80,21 +74,22 @@ pub unsafe fn find_first(pattern: u32) -> bool {
 
 /// `files::close_search` (0x40301F): the search closed, if there is one.
 pub unsafe fn close_search() {
-    if get(FIND_HANDLE) != NO_SEARCH {
-        unsafe { FindClose(get(FIND_HANDLE) as _) };
-        put(FIND_HANDLE, NO_SEARCH);
+    if FIND_HANDLE.load(Relaxed) != NO_SEARCH {
+        unsafe { FindClose(crate::pointers::handle(FIND_HANDLE.load(Relaxed))) };
+        FIND_HANDLE.store(NO_SEARCH, Relaxed);
     }
 }
 
 /// The Rust version.
-pub unsafe fn find_snapshot_number() {
+pub unsafe fn find_snapshot_number() -> Result<(), BadInput> {
     unsafe {
-        (a(SNAPSHOT_DIGITS) as *mut u32).write_unaligned(u32::from_le_bytes(*b"???."));
+        GamePtr::new(crate::pointers::game_address(digits_place()))
+            .write(u32::from_le_bytes(*b"???."), "the snapshot name")?;
         let mut highest = 0u32;
-        if find_first(a(SNAPSHOT_PATH)) {
+        if find_first(SNAPSHOT.addr()) {
             loop {
                 // Converted: `rc2k_core::race::viewer::snapshot_number`.
-                let name = &(*(a(FIND_DATA) as *const WIN32_FIND_DATAA)).cFileName;
+                let name = &(*find_data()).cFileName;
                 if let Some(number) = rc2k_core::race::viewer::snapshot_number(|n| name[n] as u8)
                     && number > highest
                 {
@@ -107,52 +102,22 @@ pub unsafe fn find_snapshot_number() {
         }
         close_search();
         let digits = crate::strings::format_u32::format_u32(highest, 0x13);
-        std::ptr::copy_nonoverlapping(digits.as_ptr(), a(SNAPSHOT_DIGITS) as *mut u8, digits.len());
+        GamePtr::new(crate::pointers::game_address(digits_place()))
+            .write_bytes(&digits, "the snapshot name")?;
     }
+    Ok(())
 }
 
-fn regions() -> Vec<Region> {
-    vec![
-        region(SNAPSHOT_PATH, 0x1A),
-        region(FIND_DATA, 0x140),
-        region(FIND_HANDLE, 4),
-        region(LAST_PATH, 4),
-    ]
-}
+#[cfg(test)]
+mod block_tests {
+    use super::*;
 
-fn rust(r: &Regs) -> Result<Regs, Refused> {
-    unsafe { find_snapshot_number() };
-    Ok(*r)
-}
-
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_regs(&HOOK, r, call_original, &regions(), 0, &rust);
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    regs_entry(r, &rust)
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let saved = Saved::new(&regions());
-    check_original(
-        &mut t,
-        "the snapshot folder as it is",
-        call_original,
-        Regs::SENTINEL,
-        &regions(),
-        0,
-        &|| {
-            put(FIND_HANDLE, NO_SEARCH);
-            crate::race::viewer::fill(FIND_DATA, 0x140, 13);
-        },
-        &rust,
-    );
-    drop(saved);
-    t.finish()
+    #[test]
+    fn first_value_is_the_games() {
+        crate::gfx::first_values_are_the_games(&SNAPSHOT, SNAPSHOT_START, SNAPSHOT_START + 26);
+        assert_eq!(
+            crate::moved::place(SNAPSHOT_START),
+            SNAPSHOT.addr() as usize
+        );
+    }
 }

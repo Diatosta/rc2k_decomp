@@ -22,396 +22,265 @@
 //! Out: the registers as the steps and calls leave them (eax's low byte from the face's
 //!      bytes where the original loads `al`); no flags read (the caller goes on)
 //!
-//! Caller: `physics::record_face_contacts`.
-//! Refuses a kind past the 0x4B0 material records, and what its calls refuse; what was
-//! written is put back (the faces touched included).
-//! Self-test (in a race; skipped otherwise): the original and the Rust version on the
-//! stage's own faces (everything written saved and put back), the car where it is and
-//! moved onto each object face's point (so the paths inside are taken), both directions.
+//! Caller: `physics::record_face_contacts`. Refuses a kind past the 0x4B0 material records,
+//! and what its calls refuse.
+//!
+//! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
+//! above are the original's, for reference.
 
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
 use crate::math::x87::int_hypot;
 use crate::math::x87_run::compare_80;
-use crate::physics::contact_force::{self, RECORD, contact_force};
-use crate::physics::flow::{a, base, copy3, fill3, g, negate, p, x87_run};
-use crate::physics::point_hits_car::{self, KIND};
-use crate::physics::touch_face::{self, FACES, touch_face};
+use crate::physics::car_store::CAR;
+use crate::physics::contact_force::contact_force;
+use crate::physics::contact_store::CONTACT_WORK;
+use crate::physics::flow::{copy_cells, fill_cells, negate};
+use crate::physics::tables_store::PHYSICS;
+use crate::physics::touch_face::touch_face;
 use crate::physics::vector_length::vector_length;
-use crate::race::norms::norm_regions;
+use crate::pointers::GamePtr;
+use crate::race::course_store::COURSE;
 use crate::race::norms::normalise_work_vector;
-use crate::race::stage_prefs::left_of;
-use crate::screens::harness::{CallOriginal, Left};
-use crate::service::harness::{Region, capture, check_state, dispatch_state, restore};
+use crate::race::numbers_store::NUMBERS;
+use crate::race::scratch_store::FRAME_SCRATCH;
+use crate::race::work_store::RACE_WORK;
+use crate::scene::draw_store::DRAW;
+use crate::scene::object_store::OBJECT_WORK;
+use crate::scene::object_tables_store::OBJECT_TABLES;
+use crate::scene::x87_mem::{fild, fistp, fld, fstp};
 use rc2k_core::physics::face_contacts::{self as contacts, FaceObject, Inside};
-use std::sync::atomic::AtomicUsize;
 
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("physics::face_contact", rva(0x45E3BF), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
-
-const WORK: usize = 0x5C5F60; // g_workVector
-const OBJECT: usize = 0x6D321C; // dword_6D321C
-
-/// The faces `touch_face` may write, saved before it runs: put back on a refusal.
-pub type Touched = Vec<(u32, [u8; 0x40])>;
-
-fn byte(x: u32) -> u32 {
-    unsafe { (x as *const u8).read() as u32 }
+fn byte(x: u32) -> Result<u32, Refused> {
+    Ok(u32::from(GamePtr::new(x).read::<u8>("a face's byte")?))
 }
 
-fn low(r: &mut Regs, v: u32) {
-    r.eax = (r.eax & !0xFF) | v;
+fn rd(x: u32) -> Result<u32, Refused> {
+    Ok(GamePtr::new(x).read::<u32>("a face's or scene point's dword")?)
 }
 
-fn touch(r: &mut Regs, face: u32, touched: &mut Touched) -> Result<(), Refused> {
-    touched.push((face, unsafe {
-        (face as *const [u8; 0x40]).read_unaligned()
-    }));
-    unsafe { touch_face() }?.apply(r);
+fn touch() -> Result<(), Refused> {
+    { touch_face() }?;
     Ok(())
 }
 
-/// The steps, not guarded (`guarded` puts back): `r` as the original leaves it.
+/// The steps for face `number` (ebx). The registers the original leaves are read by none
+/// of its callers.
 // Converted: `rc2k_core::physics::face_contacts` (the x87 steps stay).
-pub fn steps(r: &mut Regs, touched: &mut Touched) -> Result<(), Refused> {
-    p(0x6D3218, r.ebx);
-    r.esi = (r.ebx << 6).wrapping_add(g(FACES));
-    let face = r.esi;
-    if unsafe { crate::scene::kind_hidden_at::kind_hidden_at(face) } {
+pub fn steps(number: u32) -> Result<(), Refused> {
+    CONTACT_WORK.face_number.set(number);
+    let face = (number << 6).wrapping_add(COURSE.course_faces.get());
+    if crate::scene::kind_hidden_at::kind_hidden_at(face)? {
         return Ok(());
     }
-    low(r, byte(face));
-    let object = match contacts::face_object(byte(face), || byte(face + 1)) {
+    let mut refused = None;
+    let found = contacts::face_object(byte(face)?, || {
+        byte(face + 1).unwrap_or_else(|e| {
+            refused = Some(e);
+            0
+        })
+    });
+    if let Some(e) = refused {
+        return Err(e);
+    }
+    let object = match found {
         FaceObject::NotObject => return Ok(()),
         FaceObject::TouchOnly => {
-            low(r, contacts::TOUCH_ONLY);
-            p(KIND, 0xFF);
-            return touch(r, face, touched);
+            CONTACT_WORK.contact_kind.set(0xFF);
+            return touch();
         }
         FaceObject::Object(object) => object,
     };
-    r.eax = object;
-    p(OBJECT, object);
-    let kind = g(0x5CD27C + 4 * object as usize);
+    CONTACT_WORK.face_object.set(object);
+    let kind = OBJECT_TABLES.object_kind(object);
     contacts::check_material(kind)?;
-    p(KIND, byte(a(0x97DF30) + 0x80 * kind + 0x1C));
-    if let Err(eax) = contacts::object_tried(byte(face + 0x25), g(0x71B400), object) {
-        r.eax = eax;
+    CONTACT_WORK.contact_kind.set(byte(
+        crate::scene::polygon::materials_addr() + 0x80 * kind + 0x1C,
+    )?);
+    if contacts::object_tried(byte(face + 0x25)?, RACE_WORK.stage_direction.get(), object).is_err()
+    {
         return Ok(());
     }
-    r.eax = object;
     for (k, o) in [8u32, 0xC, 0x10].iter().enumerate() {
-        r.eax = contacts::turn_word(byte(face + o));
-        p(0x63503C + 4 * k, r.eax);
+        OBJECT_WORK.angles[k].set(contacts::turn_word(byte(face + o)?));
     }
-    r.eax = byte(face + 0x18);
-    p(0x635038, r.eax);
-    r.ebp = face;
-    let (inside, ebx, esi) =
-        unsafe { crate::physics::scene_point_hits_car::scene_point_hits_car(r.esi, r.ebp) };
-    r.ebx = ebx;
-    r.esi = esi;
+    OBJECT_WORK.size.set(byte(face + 0x18)?);
+    // esi and ebp both the face here.
+    let (inside, _, point) =
+        unsafe { crate::physics::scene_point_hits_car::scene_point_hits_car(face, face) }?;
     if !inside {
-        if !contacts::tries_points(g(KIND)) {
+        if !contacts::tries_points(CONTACT_WORK.contact_kind.get()) {
             return Ok(());
         }
-        let rd = |x: u32| unsafe { (x as *const u32).read_unaligned() };
-        r.eax = rd(r.esi)
-            .wrapping_add(rd(r.ebp + 0x30))
-            .wrapping_sub(g(0x71A10C));
-        r.ecx = rd(r.esi + 8)
-            .wrapping_add(rd(r.ebp + 0x38))
-            .wrapping_sub(g(0x71A114));
-        let distance = int_hypot(r.eax as i32, r.ecx as i32) as u32;
-        p(0x62400C, distance);
-        r.ebx = g(OBJECT);
-        (r.eax, r.edx) = contacts::reach(g(0x634BA0 + 4 * r.ebx as usize), g(0x635038));
-        if contacts::out_of_reach(r.eax, distance) {
+        let dx = rd(point)?
+            .wrapping_add(rd(face + 0x30)?)
+            .wrapping_sub(CAR.position[0].get());
+        let dz = rd(point + 8)?
+            .wrapping_add(rd(face + 0x38)?)
+            .wrapping_sub(CAR.position[2].get());
+        let distance = int_hypot(dx as i32, dz as i32) as u32;
+        DRAW.scratch.set(distance);
+        let (reach, _) = contacts::reach(
+            crate::scene::object_slots_store::OBJECT_SLOTS.radii
+                [CONTACT_WORK.face_object.get() as usize]
+                .get(),
+            OBJECT_WORK.size.get(),
+        );
+        if contacts::out_of_reach(reach, distance) {
             return Ok(());
         }
-        let left = unsafe { crate::physics::object_hits_car::object_hits_car(r) }?;
-        left.apply(r);
-        if !left.carry.unwrap_or(false) {
+        // esi the scene point, ebp the face.
+        if !unsafe { crate::physics::object_hits_car::object_hits_car(point, face) }? {
             return Ok(());
         }
     }
     // 0x45E523: inside.
-    x87_run!(
-        "fild dword ptr [{b} + 0x2D3B4C]",
-        "fild dword ptr [{b} + 0x2D3B54]",
-        ".byte 0xD9, 0xF3", // fpatan
-        "fmul dword ptr [{b} + 0x1C5E2C]",
-        "fmul dword ptr [{b} + 0x1C5DD4]",
-        "fistp dword ptr [{b} + 0x2D3B70]";
-        b = base()
-    );
-    p(0x6D3B70, g(0x6D3B70).wrapping_add(0x80) & 0xFF);
-    x87_run!(
-        "fld dword ptr [{b} + 0x31A170]",
-        ".byte 0xD8, 0xC8", // fmul st, st
-        "fld dword ptr [{b} + 0x31A178]",
-        ".byte 0xD8, 0xC8",
-        "fld dword ptr [{b} + 0x31A174]",
-        ".byte 0xD8, 0xC8",
-        ".byte 0xDE, 0xC1", // faddp st(1), st
-        ".byte 0xDE, 0xC1",
-        ".byte 0xD9, 0xFA", // fsqrt
-        "fmul dword ptr [{b} + 0x1C5D98]",
-        "fistp dword ptr [{b} + 0x2D3B74]",
-        "fild dword ptr [{b} + 0x2D3090]",
-        "fdiv dword ptr [{b} + 0x1C5D98]",
-        "fstp dword ptr [{b} + 0x2D3B58]",
-        "fild dword ptr [{b} + 0x2D3094]",
-        "fdiv dword ptr [{b} + 0x1C5D98]",
-        "fstp dword ptr [{b} + 0x2D3B5C]",
-        "fild dword ptr [{b} + 0x2D3098]",
-        "fdiv dword ptr [{b} + 0x1C5D98]",
-        "fstp dword ptr [{b} + 0x2D3B60]";
-        b = base()
-    );
-    r.eax = g(KIND);
-    match contacts::inside(r.eax) {
+    x87_1(crate::race::store::asm_base() as usize);
+    CONTACT_WORK
+        .face_angle
+        .set(CONTACT_WORK.face_angle.get().wrapping_add(0x80) & 0xFF);
+    x87_2(crate::race::store::asm_base() as usize);
+    match contacts::inside(CONTACT_WORK.contact_kind.get()) {
         Inside::PushBack => {}
-        Inside::Touch => return touch(r, face, touched),
+        Inside::Touch => return touch(),
         Inside::Nothing => return Ok(()),
     }
-    unsafe { crate::physics::restore_saved_car::restore_saved_car() }?.apply(r);
-    unsafe { crate::physics::feel_ground::feel_ground(r) }?;
-    touch(r, face, touched)?;
+    unsafe { crate::physics::restore_saved_car::restore_saved_car() }?;
+    unsafe { crate::physics::feel_ground::feel_ground() }?;
+    touch()?;
     // 0x45E62A: pushed back against the motion, level.
-    copy3(WORK, 0x71A170);
-    negate(WORK);
-    negate(WORK + 4);
-    negate(WORK + 8);
-    if compare_80(unsafe { vector_length(a(WORK)) }, g(0x5C5D90)) & 0x4000 != 0 {
-        fill3(WORK, 0);
+    copy_cells(&FRAME_SCRATCH.work_vector, &CAR.velocity);
+    negate(&FRAME_SCRATCH.work_vector[0]);
+    negate(&FRAME_SCRATCH.work_vector[1]);
+    negate(&FRAME_SCRATCH.work_vector[2]);
+    if compare_80(
+        vector_length(FRAME_SCRATCH.work_vector[0].addr()),
+        NUMBERS.zero.bits(),
+    ) & 0x4000
+        != 0
+    {
+        fill_cells(&FRAME_SCRATCH.work_vector, 0);
     }
-    p(WORK + 4, 0);
-    unsafe { normalise_work_vector() };
-    copy3(0x6D3078, WORK);
-    copy3(0x6D30A8, 0x71A170);
-    copy3(0x6D30B4, 0x71A15C);
-    copy3(0x6D3090, 0x6D3B78);
-    p(0x6D3094, 0);
-    p(0x6D3100, 0);
-    p(RECORD, a(0x614A50));
-    unsafe { contact_force() }.apply(r);
+    FRAME_SCRATCH.work_vector[1].set(0);
+    normalise_work_vector();
+    copy_cells(&CONTACT_WORK.contact_normal, &FRAME_SCRATCH.work_vector);
+    copy_cells(&CONTACT_WORK.contact_car_speed, &CAR.velocity);
+    copy_cells(&CONTACT_WORK.contact_turn_speed, &CAR.spin);
+    copy_cells(
+        &CONTACT_WORK.contact_point,
+        &CONTACT_WORK.object_point_scaled,
+    );
+    CONTACT_WORK.contact_point[1].set_bits(0);
+    CONTACT_WORK.contact_slide_limit.set_bits(0);
+    PHYSICS
+        .contact_record
+        .set(crate::pointers::game_address(PHYSICS.contacts.as_ptr()));
+    unsafe { contact_force() };
     Ok(())
 }
 
-/// Everything the face contacts and their calls write but the faces.
-pub fn regions() -> Vec<Region> {
-    let mut all = contact_force::regions();
-    all.extend(point_hits_car::regions());
-    all.extend(crate::physics::object_turn_matrix::regions());
-    all.extend(touch_face::regions());
-    all.extend(crate::physics::feel_ground::regions());
-    all.extend(norm_regions());
-    all.extend([
-        (a(0x614A50), 0x18),
-        (a(RECORD), 4),
-        (a(0x614108), 8),
-        (a(0x6D3B40), 12),
-        (a(0x614738), 4),
-        (a(0x71A10C), 12),
-        (a(0x71A08C), 0x40),
-        (a(0x71ADC8), 0x100),
-        (a(0x6D3218), 8),
-        (a(KIND), 4),
-        (a(0x635038), 0x10),
-        (a(0x6D3B70), 8),
-        (a(0x62400C), 4),
-        (a(0x639824), 12),
-    ]);
-    all
+// ---- the arithmetic that was x87 assembly ----
+
+/// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
+/// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
+/// `int [rc + 0x2D3B70] = (atan2(int [rc + 0x2D3B4C], int [rc + 0x2D3B54]) * [rc + 0x1C5E2C]) * [rc + 0x1C5DD4]`
+fn x87_1(rc: usize) {
+    let t0 = fild(rc, 0x2D3B4C);
+    let t1 = fild(rc, 0x2D3B54);
+    let t2 = t0.atan2(t1);
+    let t3 = fld(rc, 0x1C5E2C);
+    let t4 = t2 * t3;
+    let t5 = fld(rc, 0x1C5DD4);
+    let t6 = t4 * t5;
+    fistp(rc, 0x2D3B70, t6);
 }
 
-/// `f` on a copy of `entry`, everything written put back when it refuses.
-pub fn guarded(
-    entry: &Regs,
-    f: impl FnOnce(&mut Regs, &mut Touched) -> Result<(), Refused>,
-) -> Result<Left, Refused> {
-    let all = regions();
-    let saved = capture(&all);
-    let (mut r, mut touched) = (*entry, Touched::new());
-    match f(&mut r, &mut touched) {
-        Ok(()) => Ok(left_of(&r)),
-        Err(e) => {
-            restore(&all, &saved);
-            for (face, bytes) in touched.iter().rev() {
-                unsafe { (*face as *mut [u8; 0x40]).write_unaligned(*bytes) };
-            }
-            Err(e)
-        }
+/// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
+/// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
+/// (a long formula: see the instructions in the tests' `asm_reference`)
+/// `[rc + 0x2D3B58] = int [rc + 0x2D3090] / [rc + 0x1C5D98]`
+/// `[rc + 0x2D3B5C] = int [rc + 0x2D3094] / [rc + 0x1C5D98]`
+/// `[rc + 0x2D3B60] = int [rc + 0x2D3098] / [rc + 0x1C5D98]`
+fn x87_2(rc: usize) {
+    let t0 = fld(rc, 0x31A170);
+    let t1 = t0 * t0;
+    let t2 = fld(rc, 0x31A178);
+    let t3 = t2 * t2;
+    let t4 = fld(rc, 0x31A174);
+    let t5 = t4 * t4;
+    let t6 = t3 + t5;
+    let t7 = t1 + t6;
+    let t8 = t7.sqrt();
+    let t9 = fld(rc, 0x1C5D98);
+    let t10 = t8 * t9;
+    fistp(rc, 0x2D3B74, t10);
+    let t11 = fild(rc, 0x2D3090);
+    let t12 = fld(rc, 0x1C5D98);
+    let t13 = t11 / t12;
+    fstp(rc, 0x2D3B58, t13);
+    let t14 = fild(rc, 0x2D3094);
+    let t15 = fld(rc, 0x1C5D98);
+    let t16 = t14 / t15;
+    fstp(rc, 0x2D3B5C, t16);
+    let t17 = fild(rc, 0x2D3098);
+    let t18 = fld(rc, 0x1C5D98);
+    let t19 = t17 / t18;
+    fstp(rc, 0x2D3B60, t19);
+}
+
+#[cfg(all(test, target_arch = "x86"))]
+mod asm_reference {
+    use super::*;
+    use crate::scene::asm_test::{Block, In, Operand, Out, reference, sparse};
+
+    // The original's instructions, one function per run.
+    reference!(ref_0(rc) "fild dword ptr [{rc} + 0x2D3B4C]", "fild dword ptr [{rc} + 0x2D3B54]", ".byte 0xD9, 0xF3", "fmul dword ptr [{rc} + 0x1C5E2C]", "fmul dword ptr [{rc} + 0x1C5DD4]", "fistp dword ptr [{rc} + 0x2D3B70]");
+    reference!(ref_1(rc) "fld dword ptr [{rc} + 0x31A170]", ".byte 0xD8, 0xC8", "fld dword ptr [{rc} + 0x31A178]", ".byte 0xD8, 0xC8", "fld dword ptr [{rc} + 0x31A174]", ".byte 0xD8, 0xC8", ".byte 0xDE, 0xC1", ".byte 0xDE, 0xC1", ".byte 0xD9, 0xFA", "fmul dword ptr [{rc} + 0x1C5D98]", "fistp dword ptr [{rc} + 0x2D3B74]", "fild dword ptr [{rc} + 0x2D3090]", "fdiv dword ptr [{rc} + 0x1C5D98]", "fstp dword ptr [{rc} + 0x2D3B58]", "fild dword ptr [{rc} + 0x2D3094]", "fdiv dword ptr [{rc} + 0x1C5D98]", "fstp dword ptr [{rc} + 0x2D3B5C]", "fild dword ptr [{rc} + 0x2D3098]", "fdiv dword ptr [{rc} + 0x1C5D98]", "fstp dword ptr [{rc} + 0x2D3B60]");
+
+    fn blocks() -> Vec<Block> {
+        vec![
+            Block {
+                name: "face_contact line 111",
+                operands: vec![Operand::Buffer {
+                    reads: &[
+                        (0x1C5DD4, In::F),
+                        (0x1C5E2C, In::F),
+                        (0x2D3B4C, In::I),
+                        (0x2D3B54, In::I),
+                    ],
+                    writes: &[(0x2D3B70, Out::I)],
+                }],
+                ulps: 0,
+                reference: |a| unsafe { ref_0(a[0]) },
+                plain: |a| x87_1(a[0]),
+            },
+            Block {
+                name: "face_contact line 121",
+                operands: vec![Operand::Buffer {
+                    reads: &[
+                        (0x1C5D98, In::F),
+                        (0x2D3090, In::I),
+                        (0x2D3094, In::I),
+                        (0x2D3098, In::I),
+                        (0x31A170, In::F),
+                        (0x31A174, In::F),
+                        (0x31A178, In::F),
+                    ],
+                    writes: &[
+                        (0x2D3B58, Out::F),
+                        (0x2D3B5C, Out::F),
+                        (0x2D3B60, Out::F),
+                        (0x2D3B74, Out::I),
+                    ],
+                }],
+                ulps: 0,
+                reference: |a| unsafe { ref_1(a[0]) },
+                plain: |a| x87_2(a[0]),
+            },
+        ]
     }
-}
 
-/// The Rust version.
-pub unsafe fn face_contact(entry: &Regs) -> Result<Left, Refused> {
-    guarded(entry, steps)
-}
-
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    unsafe { face_contact(r) }
-}
-
-/// The stage's faces, for the tests.
-pub fn faces_region() -> Region {
-    (g(FACES), 0x40 * g(0x5CCD1C).min(0x4_0000) as usize)
-}
-
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_faces(&HOOK, r, call_original, steps);
-}
-
-/// The faces' bytes now, in `touched`'s order.
-pub fn face_bytes(touched: &Touched) -> Vec<[u8; 0x40]> {
-    touched
-        .iter()
-        .map(|&(face, _)| unsafe { (face as *const [u8; 0x40]).read_unaligned() })
-        .collect()
-}
-
-pub fn put_back_faces(touched: &Touched) {
-    for (face, bytes) in touched.iter().rev() {
-        unsafe { (*face as *mut [u8; 0x40]).write_unaligned(*bytes) };
+    #[test]
+    fn x87_blocks_matches_the_assembly() {
+        sparse(&blocks(), 1200, 100);
     }
-}
-
-/// `dispatch_state` for the face contacts, whose writes to the faces are not known
-/// before: `regions()` (the lit-face list among them) and the faces the Rust version
-/// handed to `touch_face` (it logs them) are compared, not the whole face array. A face
-/// the original wrote and the Rust version did not shows in the list.
-pub fn dispatch_faces(
-    hook: &RawHook,
-    r: &mut Regs,
-    call_original: CallOriginal,
-    steps: fn(&mut Regs, &mut Touched) -> Result<(), Refused>,
-) {
-    if !crate::framework::shadow() {
-        dispatch_state(hook, r, call_original, &[], &|e| guarded(e, steps));
-        return;
-    }
-    hook.count_call();
-    if !crate::service::harness::shadow_due(hook) {
-        unsafe { call_original(r) };
-        return;
-    }
-    let all = regions();
-    let before = capture(&all);
-    let (mut mine_regs, mut touched) = (*r, Touched::new());
-    if let Err(e) = steps(&mut mine_regs, &mut touched) {
-        restore(&all, &before);
-        put_back_faces(&touched);
-        unsafe { crate::fatal::raise::refused(hook, e, r, call_original) };
-        return;
-    }
-    let left = left_of(&mine_regs);
-    let mine = (capture(&all), face_bytes(&touched));
-    restore(&all, &before);
-    put_back_faces(&touched);
-    let mut o = *r;
-    unsafe { call_original(&mut o) };
-    let theirs = (capture(&all), face_bytes(&touched));
-    if theirs != mine || !left.matches(r, &o) {
-        crate::screens::harness::mismatch_unless_disturbed(hook, || {
-            format!(
-                "faces {:x?}: original {theirs:x?}; rust {mine:x?} regs_ok={}",
-                touched.iter().map(|t| t.0).collect::<Vec<_>>(),
-                left.matches(r, &o)
-            )
-        });
-    }
-    let esp = r.esp;
-    *r = o;
-    r.esp = esp;
-}
-
-/// Up to `n` object faces (first byte 0xFF, object byte not 0x3B) of the stage.
-pub fn object_faces(n: usize) -> Vec<u32> {
-    let (faces, count) = (g(FACES), g(0x5CCD1C));
-    (0..count)
-        .filter(|&k| byte(faces + 0x40 * k) == 0xFF && byte(faces + 0x40 * k + 1) != 0x3B)
-        .take(n)
-        .collect()
-}
-
-/// The car moved onto the object face `k`'s point (its scene point + the face's place).
-pub fn move_car_onto(k: u32) {
-    let face = g(FACES) + 0x40 * k;
-    let rd = |x: u32| unsafe { (x as *const u32).read_unaligned() };
-    let point = rd(face + 4)
-        .wrapping_mul(12)
-        .wrapping_add(g(crate::physics::scene_point_hits_car::SCENE_POINTS));
-    for j in 0..3 {
-        p(
-            0x71A10C + 4 * j as usize,
-            rd(point + 4 * j).wrapping_add(rd(face + 0x30 + 4 * j)),
-        );
-    }
-}
-
-/// The tests' frame: in a race, everything written (and the car's place, the direction)
-/// saved; `case(set)` runs each case with `set` putting the state back first; restored
-/// at the end. None outside a race.
-pub fn in_race_test(
-    hook: &RawHook,
-    case: &mut dyn FnMut(&mut SelfTest, &dyn Fn()),
-) -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(hook) else {
-        return (0, 0);
-    };
-    if !crate::physics::move_slot::in_race() || g(0x71A238) > 0x40 {
-        return t.skip("not in a race (no stage)");
-    }
-    let mut all = regions();
-    all.extend([faces_region(), (a(0x71B400), 4), (a(0x5C5F60), 12)]);
-    let saved = capture(&all);
-    let put_back = || restore(&all, &saved);
-    case(&mut t, &put_back);
-    put_back();
-    t.finish()
-}
-
-fn self_test() -> (usize, usize) {
-    in_race_test(&HOOK, &mut |t, put_back| {
-        let mut all = regions();
-        all.push(faces_region());
-        let mut faces = object_faces(24);
-        faces.extend([0, 1, 2, 3]);
-        for (n, &k) in faces.iter().enumerate() {
-            for moved in [false, true] {
-                let set = || {
-                    put_back();
-                    if moved {
-                        move_car_onto(k);
-                    }
-                    if n % 2 == 1 {
-                        p(0x71B400, g(0x71B400) ^ 1);
-                    }
-                };
-                check_state(
-                    t,
-                    &format!("face {k}, moved {moved}"),
-                    call_original,
-                    Regs {
-                        ebx: k,
-                        ..Regs::SENTINEL
-                    },
-                    &set,
-                    &all,
-                    &rust,
-                );
-            }
-        }
-    })
 }

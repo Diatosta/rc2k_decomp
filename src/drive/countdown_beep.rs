@@ -8,58 +8,32 @@
 //! Out: eax the second, edx the remainder, ebx 100 or the sound; the rest kept; no flags
 //!      read
 //!
-//! Caller: `drive::countdown_beeps`.
-//! Refuses what `countdown_cue` refuses.
-//! Self-test: the original and the Rust version on a test block and the game's variables
-//! (saved and put back), the car with no sound slot: before, during, after.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Caller: `drive::countdown_beeps`. Refuses what `countdown_cue` refuses.
 
 use crate::errors::Refused;
-use crate::framework::{EAX, EBX, EDX, Regs};
-use crate::physics::flow::{g, p};
-use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
+use crate::physics::tables_store::PHYSICS;
+use crate::race::overlay_store::RACE_OVERLAY;
+use crate::race::panel_store::Loose32;
 use rc2k_core::drive::countdown::{self, Beep};
 
 /// The Rust version: the block at `block`, the second into `to`.
 // Converted: `rc2k_core::drive::countdown::countdown_beep`.
-pub unsafe fn countdown_beep(block: u32, to: u32) -> Result<Left, Refused> {
-    let rd = |o: u32| unsafe { ((block + o) as *const u32).read_unaligned() };
-    let beep =
-        countdown::countdown_beep(rd(0x1C), rd(0x25C), || rd(0x14).wrapping_sub(g(0x6D1814)));
-    let (second, remainder, cue) = match beep {
-        Beep::Idle => return Ok(Left::nothing()),
-        Beep::Before(t) => return Ok(Left::nothing().with(EAX, t)),
-        Beep::At {
-            second,
-            remainder,
-            cue,
-        } => (second, remainder, cue),
+pub fn countdown_beep(block: u32, to: &Loose32) -> Result<(), Refused> {
+    let reading = crate::scene::reading::Reading::new();
+    let rd = |o: u32| reading.read::<u32>(block.wrapping_add(o), "a car's block");
+    let beep = countdown::countdown_beep(rd(0x1C), rd(0x25C), || {
+        rd(0x14).wrapping_sub(RACE_OVERLAY.countdown_start.get())
+    });
+    reading.finish()?;
+    let (second, cue) = match beep {
+        Beep::Idle | Beep::Before(_) => return Ok(()),
+        Beep::At { second, cue, .. } => (second, cue),
     };
-    unsafe { (to as *mut u32).write_unaligned(second) };
-    let mut left = Left::nothing()
-        .with(EAX, second)
-        .with(EDX, remainder)
-        .with(EBX, 100);
+    to.set(second);
     if cue {
-        let sound = g(0x6D1818 + 4 * second as usize);
-        p(0x614114, sound);
-        left = left
-            .with(EBX, sound)
-            .with(EAX, crate::drive::countdown_cue::countdown_cue(sound)?);
+        let sound = RACE_OVERLAY.countdown_sounds[second as usize].get(); // dword_6D1818, the cue is only for 0 .. SECONDS
+        PHYSICS.countdown_sound.set(sound);
+        crate::drive::countdown_cue::countdown_cue(sound)?;
     }
-    Ok(left)
-}
-
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    unsafe { countdown_beep(r.esi, r.edi) }
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
+    Ok(())
 }

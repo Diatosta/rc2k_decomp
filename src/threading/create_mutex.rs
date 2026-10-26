@@ -19,5 +19,5 @@ use windows_sys::Win32::System::Threading::CreateMutexA;
 
 /// The handle, 0 for none.
 pub fn create_mutex() -> u32 {
-    unsafe { CreateMutexA(std::ptr::null(), 0, std::ptr::null()) as u32 }
+    unsafe { crate::pointers::handle_number(CreateMutexA(std::ptr::null(), 0, std::ptr::null())) }
 }

@@ -4,39 +4,23 @@
 //! In:  esi a car list
 //! Out: esi; carry = the bit (`bt`); the rest kept
 //!
-//! Callers: the time trial's events, before each car choice. Self-test: each bit value,
-//! `g_cheats` put back.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Callers: the time trial's events, before each car choice.
 
-use crate::errors::Refused;
-use crate::framework::{ESI, Regs, game_addr, game_read, rva};
-use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
+use crate::menu::cheats_store::CHEAT_VARS;
+use crate::menu::lists_store::MENU_LISTS;
 
-const CHEATS_RVA: usize = rva(0x75870C); // g_cheats
-const CHEAT_CARS_RVA: usize = rva(0x75A412); // off_75A412
-
-/// The Rust version: esi and the carry in `r`.
-pub fn cheat_car_list(r: &mut Regs) {
+/// The Rust version: the cheat cars' list (`off_75A412`) when the cheat is on.
+pub fn cheat_car_list() -> Option<u32> {
     // Converted: `rc2k_core::menu::car_lists::cheat_cars`.
-    let on = rc2k_core::menu::car_lists::cheat_cars(unsafe { game_read(CHEATS_RVA) });
-    if on {
-        r.esi = game_addr(CHEAT_CARS_RVA) as u32;
+    let on = rc2k_core::menu::car_lists::cheat_cars(CHEAT_VARS.cheats.get());
+    on.then(|| MENU_LISTS.cheat_cars[0].addr())
+}
+
+/// The registers the original leaves for `list`, for register-threaded callers: esi the
+/// list when there is one, the carry whether there is.
+pub fn carry_on(list: Option<u32>, c: &mut crate::menu::screen_loop::Carried) {
+    if let Some(list) = list {
+        c.cars = list;
     }
-    r.set_carry(on);
-}
-
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    let mut g = *r;
-    cheat_car_list(&mut g);
-    Ok(Left::carry(g.carry()).with(ESI, g.esi))
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
+    c.carry = list.is_some();
 }

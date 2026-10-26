@@ -5,26 +5,16 @@
 //! In:  eax = the class, ebx = 1 for +0x18, edi = the list
 //! Out: eax = the dword; the rest kept (edi pushed and popped)
 //!
-//! Caller: `screens::draw_class_times` (the first time of the class). Compared in shadow
-//! mode. Refuses a list without its end in 0x400 entries (the original runs on). Manual
-//! patch with a private copy (0x20 bytes, nothing to relocate): its loop comes back to the
-//! second byte, and a `jz` sits in the first five. Self-test: lists of the test's, classes
-//! in them and not, ebx 1 and 0.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Caller: `screens::draw_class_times` (the first time of the class). Refuses a list without its
+//! end in 0x400 entries.
 
-use crate::errors::{BadInput, Refused};
-use crate::framework::{EAX, Regs};
-use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
+use crate::errors::BadInput;
 
 pub const ENTRY_LEN: u32 = 0x9C;
 const LIMIT: u32 = 0x400;
 
-fn get(a: u32) -> u32 {
-    unsafe { (a as *const u32).read_unaligned() }
+fn get(a: u32) -> Result<u32, crate::errors::BadInput> {
+    crate::pointers::GamePtr::new(a).read::<u32>("a game value")
 }
 
 /// The entry the original stops at.
@@ -33,14 +23,17 @@ pub fn class_entry(list: u32, class: u32) -> Result<u32, BadInput> {
     use rc2k_core::menu::standings::{Found, search};
     let at = |n: u32| list.wrapping_add(n.wrapping_mul(ENTRY_LEN));
     let mut last = 0;
-    match search(
+    let fault = crate::menu::event_flow::Fault::default();
+    let found = search(
         |n| {
             last = n;
-            get(at(n))
+            fault.get(at(n))
         },
-        |n| get(at(n) + 0x1C) == class,
+        |n| fault.get(at(n) + 0x1C) == class,
         LIMIT,
-    ) {
+    );
+    fault.check()?;
+    match found {
         Found::At(n) => Ok(at(n)),
         Found::End => Ok(at(last)),
         Found::NoEnd => Err(BadInput("a list without its end in 0x400 entries")),
@@ -50,16 +43,5 @@ pub fn class_entry(list: u32, class: u32) -> Result<u32, BadInput> {
 /// The Rust version (see the header).
 pub fn find_class_time(list: u32, class: u32, second: bool) -> Result<u32, BadInput> {
     let e = class_entry(list, class)?;
-    Ok(get(e + if second { 0x18 } else { 0x14 }))
-}
-
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    let v = find_class_time(r.edi, r.eax, r.ebx == 1)?;
-    Ok(Left::nothing().with(EAX, v))
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
+    get(e + if second { 0x18 } else { 0x14 })
 }

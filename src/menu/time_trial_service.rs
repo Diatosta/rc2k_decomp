@@ -12,70 +12,67 @@
 //! In:  nothing
 //! Out: every register preserved (`pusha` .. `popa`)
 //!
-//! `menu::service_pass` without its due test, its money and its keys. Callers: the time
-//! trial's events. The calls through `event_flow::Call` (in the game `game_call`).
-//! Ungated (the pages wait for the player). Refuses a player count of 0 or past 4 or a
-//! player missing before anything, a current player past the four when it is read.
-//! Shadow mode runs the original alone. Self-test: `event_flow::test_flow`, scripts of
-//! the two pages' answers and the players' +0xD0.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! `menu::service_pass` without its due test, its money and its keys. Callers: the time trial's
+//! events. The calls through `event_flow::Call`. Refuses a player count of 0 or past 4 or a player
+//! missing before anything, a current player past the four when it is read.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::Regs;
 use crate::menu::event_flow::*;
+use crate::menu::event_store::EVENT_STATE;
+use crate::menu::screen_loop::run_screen_carried;
+use crate::menu::state_store::MENU_STATE;
+use crate::session::Dword;
 
-const SERVICE_TIME: usize = 0x75593C; // dword_75593C
-const GOES_ON: usize = 0x75592C; // dword_75592C
-const CLEARED: [usize; 2] = [0x75AC8C, 0x75AB38]; // dword_75AC8C, dword_75AB38
-const OUT: usize = 0x755978; // dword_755978
-const DUE: usize = 0x755938; // dword_755938
+const SERVICE_TIME: &Dword = &EVENT_STATE.service_minutes; // dword_75593C
+const GOES_ON: &Dword = &EVENT_STATE.event_goes_on; // dword_75592C
+const OUT: &Dword = &EVENT_STATE.event_out; // dword_755978
+const DUE: &Dword = &EVENT_STATE.service_due; // dword_755938
 
-pub unsafe fn time_trial_service(entry: &Regs, call: Call) -> Result<Regs, Refused> {
+/// The Rust version. `f` the registers the caller carries; the original keeps every
+/// register of it (`pusha` .. `popa`).
+pub unsafe fn time_trial_service(f: &Flow) -> Result<(), Refused> {
     // Converted: `rc2k_core::menu::passes` (the minutes, the pauses, who is out,
     // `goes_on`).
     use rc2k_core::menu::passes;
     crate::menu::standings::counted_players()?;
-    let mut g = *entry;
+    let mut g = f.c;
     set(SERVICE_TIME, passes::TIME_TRIAL_MINUTES);
     set(GOES_ON, 1);
-    g.ecx = 0;
-    g.ebx = 0;
+    g.measure_x = 0;
+    g.palette = 0;
     'all: {
         loop {
-            set(CURRENT, g.ecx);
-            call(INSPECTION_SCREEN, &mut g)?;
-            g.eax = passes::SCREEN_PAUSE;
-            call(SLEEP, &mut g)?;
-            call(FADE_IN, &mut g)?;
-            g.eax = passes::FADE_PAUSE;
-            call(SLEEP, &mut g)?;
-            set(CLEARED[0], 0);
-            call(DRIVER_STATS, &mut g)?;
-            set(CLEARED[1], 0);
-            call(SERVICE_AREA_LOOP, &mut g)?;
+            set(CURRENT, g.measure_x);
+            unsafe { crate::menu::inspection_screen::inspection_screen() }?;
+            g.arg = passes::SCREEN_PAUSE;
+            crate::system::sleep::sleep(g.arg);
+            crate::menu::fade_in::fade_in()?;
+            g.arg = passes::FADE_PAUSE;
+            crate::system::sleep::sleep(g.arg);
+            MENU_STATE.driver_stats.repair_time.set(0);
+            unsafe { crate::menu::driver_stats::driver_stats() }?;
+            MENU_STATE.menus.service_flag.set(0);
+            unsafe { run_screen_carried(&crate::service::service_area_loop::SCREEN, &mut g) }?;
             if yes() {
                 break 'all;
             }
-            call(APPLY_REPAIRS, &mut g)?;
-            call(SET_PLAYER_ENTRY_KIND, &mut g)?;
+            { crate::service::apply_repairs::apply_repairs_in_game() }?;
+            crate::menu::set_player_entry_kind::set_player_entry_kind()?;
             let current = get(CURRENT);
             if current >= 4 || player(current) == 0 {
                 return Err(BadInput("a current player past the four or missing").into());
             }
-            g.edi = player(current);
-            if passes::is_out(dword(g.edi + 0xD0)) {
-                call(INSPECTION_FAULTS, &mut g)?;
-                call(INSPECTION_AREA_LOOP, &mut g)?;
+            let record = player(current);
+            if passes::is_out(dword(record + 0xD0)?) {
+                crate::menu::inspection_faults::inspection_faults()?;
+                unsafe { run_screen_carried(&crate::menu::inspection_area_loop::SCREEN, &mut g) }?;
                 if yes() {
                     break 'all;
                 }
                 inc(OUT);
             }
-            g.ecx = g.ecx.wrapping_add(1);
-            if g.ecx == get(PLAYER_COUNT) {
+            g.measure_x = g.measure_x.wrapping_add(1);
+            if g.measure_x == get(PLAYER_COUNT) {
                 break;
             }
         }
@@ -84,12 +81,5 @@ pub unsafe fn time_trial_service(entry: &Regs, call: Call) -> Result<Regs, Refus
         }
     }
     set(DUE, 0);
-    Ok(*entry)
-}
-
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    let left = unsafe { time_trial_service(r, &mut game_call) }?;
-    *r = Regs { esp: r.esp, ..left };
     Ok(())
 }

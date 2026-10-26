@@ -18,79 +18,89 @@
 //! `sub_4A27B5`, `sub_4A28B4`, `sub_4A28B4`, `sub_4A28B4`, `sub_4A29F4`, `sub_4A29F4`,
 //! `sub_4A29F4`, `sub_4A29F4`, `sub_4A9C9B`, `sub_4A9D5C`, `sub_4A9D5C`, `sub_4A9E3D`,
 //! `sub_4A9E3D`, `sub_4A9F1E`, `sub_4A9F1E`, `sub_4A9F1E`, `sub_4AA040`, `sub_4AA040`,
-//! `sub_4AA040`, `sub_4AA040`.
-//! Hook removed 2026-10-22 (direct calls): Rust callers run its `entry` (`calls::call`,
-//! `routes.rs`); the registers above are the original's, for reference.
+//! `sub_4AA040`, `sub_4AA040`. Rust callers run its `entry` (`routes.rs`); the registers above are
+//! the original's, for reference.
 
-use crate::framework::{Regs, game_addr, game_read, game_write, rva};
-use crate::menu::screen_loop::{Env, Flow, List, Screen, Step, read_at, screen_entry};
+use crate::errors::Refused;
+use crate::framework::rva;
+use crate::menu::captions_store::CAPTIONS;
+use crate::menu::draw_lists_store::DRAW_LISTS;
+use crate::menu::event_store::EVENT_STATE;
+use crate::menu::flow_store::SCREEN_FLOW;
+use crate::menu::loop_store::LOOP_FLAGS;
+use crate::menu::menus_store::MENUS;
+use crate::menu::players_store::PLAYER_TABLE;
+use crate::menu::screen_items_store::{SCREEN_ITEMS, slot};
+use crate::menu::screen_loop::{
+    Callee, Carried, Flow, List, Screen, Step, carousel, prepare_scene, quitting, read_at,
+};
+use crate::menu::state_store::MENU_STATE;
+use crate::scene::draw_store::DRAW;
 
 // ---- Rust version: `menu::screen_loop` with this ----
 
-unsafe fn set_up_first(g: &mut Regs, env: &mut dyn Env) {
-    unsafe {
-        let mut stack: Vec<u32> = Vec::new();
-        stack.push(g.eax);
-        g.eax = game_read(rva(0x75598C));
-        g.edi = read_at((game_addr(rva(0x75647C)) as u32).wrapping_add(g.eax.wrapping_mul(4)));
-        g.eax = stack.pop().expect("a pop without its push");
-        g.eax = read_at(g.edi.wrapping_add(0x30));
-        game_write(rva(0x7554F0), g.eax);
-        game_write(rva(0x7554EC), 0x1u32);
-        game_write(rva(0x75AA74), 0xDu32);
-        env.call(rva(0x4904DD), g);
-        g.eax = game_read(rva(0x7476DC));
-        game_write(rva(0x755525), g.eax);
-        g.eax = g.eax.wrapping_add(0xFFFFFFFF);
-        game_write(rva(0x75AA7C), g.eax);
-        game_write(rva(0x7554EC), 0x0u32);
-        game_write(rva(0x75AA7C), 0x0u32);
-        game_write(rva(0x755990), 0x0u32);
-        env.call(rva(0x4708FD), g);
-        game_write(rva(0x623FB0), 0x7u32);
-        game_write(rva(0x623FB4), 0xFFFFFFCEu32);
-        game_write(rva(0x624080), 0x100u32);
-        env.call(rva(0x46F7FD), g);
-    }
+fn set_up_first(c: &mut Carried) -> Result<(), Refused> {
+    // The current player's +0x30 (its car).
+    let current: u32 = EVENT_STATE.current_player.get();
+    let player = read_at((PLAYER_TABLE.pointers[0].addr()).wrapping_add(current.wrapping_mul(4)))?;
+    c.arg = read_at(player.wrapping_add(0x30))?;
+    SCREEN_FLOW.shown_gearing.set(c.arg);
+    SCREEN_FLOW.turning.set(0x1u32);
+    MENU_STATE.carousel.menu.set(0xDu32);
+    carousel(c)?;
+    c.arg = SCREEN_ITEMS.current[slot::SELECT_CAR].get();
+    LOOP_FLAGS.item.set(c.arg);
+    c.arg = c.arg.wrapping_sub(1);
+    MENU_STATE.carousel.front.set(c.arg);
+    SCREEN_FLOW.turning.set(0x0u32);
+    MENU_STATE.carousel.front.set(0x0u32);
+    EVENT_STATE.shown_car.set(0x0u32);
+    crate::menu::car_choice::find_player_car()?;
+    DRAW.view_offset[0].set(0x7u32);
+    DRAW.view_offset[1].set(0xFFFFFFCEu32);
+    DRAW.view_zoom.set(0x100u32);
+    prepare_scene(c);
+    Ok(())
 }
 
-unsafe fn after_first_frame(_g: &mut Regs, env: &mut dyn Env) -> Flow {
-    if env.quitting() as u32 == 0x1 {
-        return Flow::Leave;
+fn after_first_frame(_c: &mut Carried) -> Result<Flow, Refused> {
+    if quitting() as u32 == 0x1 {
+        return Ok(Flow::Leave);
     }
-    Flow::On
+    Ok(Flow::On)
 }
 
-unsafe fn leaving(g: &mut Regs, env: &mut dyn Env) {
+unsafe fn leaving(c: &mut Carried) -> Result<(), Refused> {
     unsafe {
-        if game_read::<u32>(rva(0x758806)) == 0x1 {
-            env.call(rva(0x471C82), g);
+        if CAPTIONS.screen_left.get() == 0x1 {
+            Callee::GoBack.run(c)?;
         }
     }
+    Ok(())
 }
 
 pub const SCREEN: Screen = Screen {
-    menu: rva(0x74B918),
-    saved_item: rva(0x7476DC),
+    menu: || MENUS.select_car.addr() as usize,
+    saved_item: || &SCREEN_ITEMS.current[slot::SELECT_CAR],
     lists: &[
         List {
-            pointer: rva(0x755504), // g_sceneList
-            table: rva(0x758F5E),
+            pointer: || &SCREEN_FLOW.scene_list, // g_sceneList
+            table: || DRAW_LISTS.select_car_scene.addr() as usize,
             run: false,
         },
         List {
-            pointer: rva(0x7554F8), // g_drawList
-            table: rva(0x758C32),
+            pointer: || &SCREEN_FLOW.draw_list, // g_drawList
+            table: || DRAW_LISTS.select_car_draw.addr() as usize,
             run: false,
         },
         List {
-            pointer: rva(0x755500), // dword_755500
-            table: rva(0x7593FE),
+            pointer: || &SCREEN_FLOW.setup_list, // dword_755500
+            table: || DRAW_LISTS.select_car_setup.addr() as usize,
             run: true,
         },
         List {
-            pointer: rva(0x7554FC), // g_overlayList
-            table: rva(0x7591A2),
+            pointer: || &SCREEN_FLOW.overlay_list, // g_overlayList
+            table: || DRAW_LISTS.select_car_overlay.addr() as usize,
             run: false,
         },
     ],
@@ -102,8 +112,12 @@ pub const SCREEN: Screen = Screen {
     prepare: &[],
     after_lists: &[],
     background: &[
-        Step::EaxAddr(rva(0x731F19)),
-        Step::CallOrFatal(rva(0x47EFFF), 0x80712345),
+        Step::ArgAddr(|| {
+            (crate::menu::texts_store::MENU_TEXTS
+                .select_car_picture
+                .addr()) as usize
+        }),
+        Step::CallOrFatal(Callee::LoadBackground, 0x80712345),
     ],
     after_first_frame: &[Step::DoFlow(after_first_frame)],
     confirm: None,
@@ -132,21 +146,4 @@ pub const SCREEN: Screen = Screen {
     after_blink: &[],
     restart_action_check: false,
     always_asks: false,
-    also_reads: &[],
-    also_writes: &[
-        rva(0x623FB0),
-        rva(0x623FB4),
-        rva(0x624080),
-        rva(0x7554EC),
-        rva(0x7554F0),
-        rva(0x755990),
-        rva(0x75AA74),
-        rva(0x75AA7C),
-    ],
 };
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    screen_entry("menu::select_car_loop", r, &SCREEN)
-}

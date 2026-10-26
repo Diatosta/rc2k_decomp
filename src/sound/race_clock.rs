@@ -3,40 +3,26 @@
 //! milliseconds, `dword_5124F4` the turns counted. `sound::start_race_clock` (0x40F1E9)
 //! sets it going and `sound::step_race_clock` (0x40F20E) says whether a turn is due.
 
-use crate::framework::{game_read, game_write, rva};
-use crate::service::harness::{Region, at};
-
-pub const LAST_RVA: usize = rva(0x5124E8); // dword_5124E8
-pub const RATE_RVA: usize = rva(0x5124EC); // dword_5124EC
-pub const STEP_RVA: usize = rva(0x5124F0); // dword_5124F0
-pub const TURNS_RVA: usize = rva(0x5124F4); // dword_5124F4
-
-pub fn regions() -> [Region; 4] {
-    [at(LAST_RVA), at(RATE_RVA), at(STEP_RVA), at(TURNS_RVA)]
-}
+use crate::sound::store::RACE_CLOCK as C;
 
 fn load() -> rc2k_core::sound::clock::RaceClock {
-    unsafe {
-        rc2k_core::sound::clock::RaceClock {
-            last: game_read(LAST_RVA),
-            turns_a_second: f32::from_bits(game_read(RATE_RVA)),
-            step: game_read(STEP_RVA),
-            turns: game_read(TURNS_RVA),
-        }
+    rc2k_core::sound::clock::RaceClock {
+        last: C.last.get(),
+        turns_a_second: C.turns_a_second.get(),
+        step: C.step.get(),
+        turns: C.turns.get(),
     }
 }
 
 fn store(c: &rc2k_core::sound::clock::RaceClock) {
-    unsafe {
-        game_write(LAST_RVA, c.last);
-        game_write(RATE_RVA, c.turns_a_second.to_bits());
-        game_write(STEP_RVA, c.step);
-        game_write(TURNS_RVA, c.turns);
-    }
+    C.last.set(c.last);
+    C.turns_a_second.set(c.turns_a_second);
+    C.step.set(c.step);
+    C.turns.set(c.turns);
 }
 
 /// `sound::start_race_clock` (0x40F1E9). Converted: `rc2k_core::sound::clock`.
-pub unsafe fn start_race_clock(now: u32) {
+pub fn start_race_clock(now: u32) {
     let mut c = load();
     c.start(now);
     store(&c);
@@ -45,7 +31,7 @@ pub unsafe fn start_race_clock(now: u32) {
 /// `sound::step_race_clock` (0x40F20E): true if 20 ms or more have passed since the last
 /// turn, which then becomes this one. Converted: `rc2k_core::sound::clock`; nothing is
 /// stored when no turn is due.
-pub unsafe fn step_race_clock(now: u32) -> bool {
+pub fn step_race_clock(now: u32) -> bool {
     let mut c = load();
     let due = c.step(now);
     if due {

@@ -17,226 +17,85 @@
 //! both modes are kept, the race mode is the probe's and at once the menu's 0x11221 (the
 //! probe thrown away: section 16); `audio::choose_modes`; "AUD: Using modes" and both;
 //! `audio::close_sound`; the mode 0. One caller, the audio thread.
-//! Shadow mode runs the original alone. Self-test: a redirected copy whose calls go to
-//! stand-ins noting what each reads, 20 cases.
-//!
-//! Hook removed 2026-10-22 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
 
-use crate::audio::voices::{read, write};
+use crate::audio::store::AUDIO;
 use crate::errors::Refused;
-use crate::framework::{Regs, game_addr, rva};
 
-const USING_MODES_TEXT: usize = rva(0x4DA6AD); // "AUD: Using modes"
-
-#[derive(Clone, Copy)]
-pub struct StartVars {
-    pub use_a3d: u32,
-    pub has_a3d2: u32,
-    pub mode: u32,
-    pub a3d_ready: u32,
-    pub splash_kept: u32,
-    /// `g_soundCaps`: flags at +4, free hardware buffers at +0x14, free 3D ones at +0x3C.
-    pub caps: u32,
-    pub has_3d: u32,
-    pub voices: u32,
-    pub mix_rate_setting: u32,
-    pub voice_manager_on: u32,
-    pub has_eax: u32,
-    pub menu: u32,
-    pub race: u32,
-}
-
-impl StartVars {
-    pub fn game() -> Self {
-        let a = |r: usize| game_addr(rva(r)) as u32;
-        Self {
-            use_a3d: a(0x506D60),
-            has_a3d2: a(0x506D5C),
-            mode: a(0x4F82BC),
-            a3d_ready: a(0x506C64),
-            splash_kept: a(0x506C60),
-            caps: a(0x506AA8),
-            has_3d: a(0x506B46),
-            voices: a(0x4F834C),
-            mix_rate_setting: a(0x4F82D4),
-            voice_manager_on: a(0x506C54),
-            has_eax: a(0x506C70),
-            menu: a(0x4F82C4),
-            race: a(0x4F82C8),
-        }
-    }
-}
-
-/// A call (its place, the registers the original has there) -> its carry.
-pub type Part<'a> = &'a mut dyn FnMut(u32, &mut Regs) -> Result<bool, Refused>;
+const USING_MODES_TEXT: &std::ffi::CStr = c"AUD: Using modes"; // "AUD: Using modes"
 
 /// False for the carry (no race mode).
-pub unsafe fn start(entry: &Regs, v: &StartVars, part: Part) -> Result<bool, Refused> {
+pub fn start() -> Result<bool, Refused> {
+    use crate::audio::sound_device as sd;
     use rc2k_core::audio::device::{
         A3D2_MODE, CAPS_EMULATED, Fact, MENU_MODE, modes_kept, probed_race_mode,
     };
-    unsafe {
-        let mut c = *entry;
-        let mut call = |place: u32, c: &Regs| -> Result<bool, Refused> {
-            let mut r = *c;
-            part(place, &mut r)
-        };
-        c.eax = 0;
-        call(0, &c)?;
-        c.eax = read(v.use_a3d);
-        write(v.has_a3d2, c.eax);
-        call(1, &c)?;
-        c.ebx = MENU_MODE;
-        write(v.mode, c.ebx | 0x190_0000);
-        c.eax = 0;
-        let mut to_log = false;
-        if call(2, &c)? {
-            if read(v.has_a3d2) == 1 {
-                c.ebx = A3D2_MODE;
-            } else {
-                c.eax = 0;
-                write(v.menu, 0);
-                write(v.race, 0);
-                to_log = true;
-            }
+    crate::audio::a3d::open_a3d2()?;
+    AUDIO.has_a3d2.set(AUDIO.use_a3d.get());
+    crate::audio::a3d::close_a3d2()?;
+    // The original's ebx: the race mode found.
+    let mut found = MENU_MODE;
+    AUDIO.sound_mode.set(MENU_MODE | 0x190_0000);
+    let mut to_log = false;
+    if !sd::open_sound_in_game(0)? {
+        if AUDIO.has_a3d2.get() == 1 {
+            found = A3D2_MODE;
         } else {
-            c.eax = read(v.a3d_ready);
-            write(v.splash_kept, c.eax);
-            let flags = |v: &StartVars| read(v.caps + 4);
-            if !call(3, &c)? && flags(v) & CAPS_EMULATED == 0 {
-                call(4, &c)?;
-                c.eax = (read(v.mode) & 0x10_0000 != 0) as u32;
-                (v.has_3d as *mut u32).write_unaligned(c.eax);
-                call(5, &c)?;
-                c.esi = v.voices;
-                std::ptr::write_bytes(c.esi as *mut u8, 0, 0x70);
-                write(c.esi + 0x28, 0x121);
-                c.eax = read(v.mix_rate_setting);
-                write(c.esi + 0x60, c.eax);
-                write(c.esi, 1);
-                write(c.esi + 0x20, 0x4000);
-                for place in 6..12 {
-                    call(place, &c)?;
-                }
-                // Converted: `rc2k_core::audio::device::probed_race_mode`.
-                c.ebx = probed_race_mode(|fact| match fact {
-                    Fact::CapsFlags => flags(v),
-                    Fact::FreeHardware => read(v.caps + 0x14),
-                    Fact::Has3d => (v.has_3d as *const u32).read_unaligned(),
-                    Fact::HasA3d2 => read(v.has_a3d2),
-                    Fact::VoiceManagerOn => read(v.voice_manager_on),
-                    Fact::Free3d => read(v.caps + 0x3C),
-                    Fact::HasEax => read(v.has_eax),
-                });
-            }
+            AUDIO.menu_sound_mode.set(0);
+            AUDIO.race_sound_mode.set(0);
+            to_log = true;
         }
-        if !to_log {
-            if !modes_kept(read(v.race), || read(v.menu)) {
-                write(v.race, c.ebx);
-                c.ebx = MENU_MODE;
-                write(v.menu, c.ebx);
-                write(v.race, c.ebx);
-            }
-            call(12, &c)?;
+    } else {
+        AUDIO.a3d_splash_kept.set(AUDIO.a3d_ready.get());
+        let flags = || AUDIO.sound_caps.get_u32(4);
+        if sd::read_caps()? && flags() & CAPS_EMULATED == 0 {
+            crate::audio::primary::make_primary()?;
+            let has_3d = (AUDIO.sound_mode.get() & 0x10_0000 != 0) as u32;
+            AUDIO.has_3d.set(has_3d);
+            crate::audio::mixer_set_up::open_way(AUDIO.sound_mode.get())?;
+            // A probe voice in the pool's first record: zeroed, then its format, the mixing
+            // rate setting, flags 1 and 0x4000 bytes.
+            let probe = &AUDIO.voices[0];
+            probe.update(|v| {
+                *v = Default::default();
+                v.format = 0x121;
+                v.frequency = AUDIO.mix_rate_setting.get();
+                v.flags = 1;
+                v.length = 0x4000;
+            });
+            let voice = probe.addr();
+            unsafe { crate::audio::make_buffer::make_buffer(voice, MENU_MODE)? };
+            crate::audio::release_eax::release_eax();
+            crate::audio::release_voice_manager::release_voice_manager();
+            unsafe { crate::audio::release_voice::release_voice_in_game(voice) };
+            crate::audio::mixer_set_up::close_way(AUDIO.sound_mode.get())?;
+            sd::release_primary()?;
+            // Converted: `rc2k_core::audio::device::probed_race_mode`.
+            found = probed_race_mode(|fact| match fact {
+                Fact::CapsFlags => flags(),
+                Fact::FreeHardware => AUDIO.sound_caps.get_u32(0x14),
+                Fact::Has3d => AUDIO.has_3d.get(),
+                Fact::HasA3d2 => AUDIO.has_a3d2.get(),
+                Fact::VoiceManagerOn => AUDIO.voice_manager_on.get(),
+                Fact::Free3d => AUDIO.sound_caps.get_u32(0x3C),
+                Fact::HasEax => AUDIO.has_eax.get(),
+            });
         }
-        for (place, eax) in [
-            (13, game_addr(USING_MODES_TEXT) as u32),
-            (14, read(v.menu)),
-            (15, read(v.race)),
-        ] {
-            call(place, &Regs { eax, ..c })?;
-        }
-        call(16, &c)?;
-        write(v.mode, 0);
-        Ok(read(v.race) >= 1)
     }
-}
-
-pub fn game_part(place: u32, r: &mut Regs) -> Result<bool, Refused> {
-    use crate::audio::sound_device as sd;
-    unsafe {
-        Ok(match place {
-            0 => !crate::audio::a3d::open_a3d2(
-                &crate::audio::a3d::A3dVars::game(),
-                &mut crate::audio::a3d::game_create,
-            )?,
-            1 => {
-                crate::audio::a3d::close_a3d2(
-                    game_addr(crate::audio::a3d::A3D2_INTERFACE_RVA) as u32,
-                    game_addr(crate::audio::voices::A3D_RVA) as u32,
-                    &mut sd::game_part,
-                )?;
-                false
-            }
-            2 => !sd::open_sound(
-                r.eax,
-                &sd::OpenVars::game(),
-                &mut sd::game_part,
-                &mut sd::game_direct_sound_create,
-            )?,
-            3 => !sd::read_caps(
-                game_addr(crate::audio::make_buffer::DIRECT_SOUND_RVA) as u32,
-                game_addr(sd::CAPS_RVA) as u32,
-                &mut sd::game_part,
-            )?,
-            4 => !crate::audio::primary::make_primary(
-                &crate::audio::primary::PrimaryVars::game(),
-                &mut sd::game_part,
-            )?,
-            5 => crate::audio::mixer_set_up::open_way(
-                crate::framework::game_read(crate::audio::voices::SOUND_MODE_RVA),
-                &mut crate::audio::restore::game_part,
-            )?,
-            6 => !crate::audio::make_buffer::make_buffer(
-                r.esi,
-                r.ebx,
-                &crate::audio::make_buffer::Vars::game(),
-                &mut crate::audio::make_buffer::game_part,
-            )?,
-            7 => {
-                crate::audio::release_eax::release_eax(crate::audio::release_eax::game_vars());
-                false
-            }
-            8 => {
-                crate::audio::release_voice_manager::release_voice_manager(game_addr(
-                    crate::audio::voices::VOICE_MANAGER_RVA,
-                )
-                    as u32);
-                false
-            }
-            9 => {
-                crate::audio::release_voice::release_voice_in_game(r.esi);
-                false
-            }
-            10 => crate::audio::mixer_set_up::close_way(
-                crate::framework::game_read(crate::audio::voices::SOUND_MODE_RVA),
-                &mut crate::audio::restore::game_part,
-            )?,
-            11 => {
-                sd::release_primary(
-                    game_addr(crate::audio::voices::PRIMARY_RVA) as u32,
-                    game_addr(sd::VOLUME_KEPT_RVA) as u32,
-                    &mut sd::game_part,
-                )?;
-                false
-            }
-            12 => {
-                crate::audio::choose_modes::in_game(&mut crate::audio::choose_modes::real_log)?;
-                false
-            }
-            13 => sd::game_part(0, r.eax)?,
-            14 => sd::game_part(2, r.eax)?,
-            15 => sd::game_part(3, r.eax)?,
-            _ => {
-                sd::close_sound(
-                    game_addr(crate::audio::make_buffer::DIRECT_SOUND_RVA) as u32,
-                    game_addr(sd::WINDOW_RVA) as u32,
-                    &mut sd::game_part,
-                )?;
-                false
-            }
-        })
+    if !to_log {
+        if !modes_kept(AUDIO.race_sound_mode.get(), || AUDIO.menu_sound_mode.get()) {
+            AUDIO.race_sound_mode.set(found);
+            AUDIO.menu_sound_mode.set(MENU_MODE);
+            AUDIO.race_sound_mode.set(MENU_MODE);
+        }
+        crate::audio::choose_modes::in_game(&mut crate::audio::choose_modes::real_log)?;
     }
+    sd::log_text(
+        crate::pointers::game_address(USING_MODES_TEXT.as_ptr()),
+        false,
+    );
+    sd::log_hex(AUDIO.menu_sound_mode.get(), false);
+    sd::log_hex(AUDIO.race_sound_mode.get(), true);
+    sd::close_sound()?;
+    AUDIO.sound_mode.set(0);
+    Ok(AUDIO.race_sound_mode.get() >= 1)
 }

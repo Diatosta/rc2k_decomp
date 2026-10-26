@@ -8,72 +8,44 @@
 //! Out: eax .. edx the readings (eax the car with a replay on), esi the device or the
 //!      block; the rest kept; no flags read
 //!
-//! Callers: `drive::car_controls` (`sub_43A1CA`), `sub_460835`, `sub_460B2F`.
-//! Refuses (before anything) a current car past 7, and what `device_axes` refuses.
-//! Self-test: the original and the Rust version on the game's variables (saved and put
-//! back) with a test device and a test block: device or not, replay off, playing and
-//! recording.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Callers: `drive::car_controls` (`sub_43A1CA`), `sub_460835`, `sub_460B2F`. Refuses
+//! (before anything) a current car past 7, and what `device_axes` refuses.
 
 use crate::errors::Refused;
-use crate::framework::{EAX, EBX, ECX, EDX, ESI, Regs};
-use crate::physics::flow::{g, p};
-use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
-
-const WORDS: usize = 0x6138C4;
-const CURRENT: usize = 0x71B3F8;
+use crate::physics::tables_store::PHYSICS;
+use crate::pointers::GamePtr;
+use crate::race::frame_store::FRAME_WORK;
+use crate::race::work_store::RACE_WORK;
 
 /// The Rust version.
 // Converted: `rc2k_core::drive::inputs::{check_car, device_words, replay_words}`.
-pub unsafe fn car_input_words(entry: &Regs) -> Result<Left, Refused> {
+pub fn car_input_words() -> Result<(), Refused> {
     use rc2k_core::drive::inputs::{NO_DEVICE, ReplayWords, check_car, device_words, replay_words};
-    let car = g(CURRENT);
+    let car = RACE_WORK.current_car.get();
     check_car(car)?;
-    let mut r = *entry;
-    let device = g(0x641680 + 4 * car as usize);
+    let device = FRAME_WORK.listed_car_sounds[car as usize].get();
     let readings = if device != NO_DEVICE {
-        Some(unsafe { crate::drive::device_axes::device_axes(device) }?)
+        Some(crate::drive::device_axes::device_axes(device)?)
     } else {
         None
     };
     let words = device_words(readings);
     for (k, v) in words.iter().enumerate() {
-        p(WORDS + 4 * k, *v);
+        PHYSICS.input_words[k].set(*v);
     }
-    r.esi = device;
-    if let Some([eax, ebx, ecx, edx]) = readings {
-        (r.eax, r.ebx, r.ecx, r.edx) = (eax, ebx, ecx, edx);
-    }
-    if g(0x52A910) != 0 {
-        r.esi = g(0x71B3B8 + 4 * car as usize);
-        r.eax = car;
-        let block = (r.esi + 0xFD0) as *mut u32;
-        for k in 0..4 {
-            let at = unsafe { block.add(k) };
-            match replay_words(car, g(0x52A920)) {
-                ReplayWords::FromBlock => p(WORDS + 4 * k, unsafe { at.read_unaligned() }),
-                ReplayWords::IntoBlock => unsafe { at.write_unaligned(g(WORDS + 4 * k)) },
+    if crate::net::store::NET.session.get() != 0 {
+        let block = RACE_WORK.car_block(car as usize).wrapping_add(0xFD0);
+        for k in 0..4u32 {
+            let at = GamePtr::new(block.wrapping_add(4 * k));
+            match replay_words(car, crate::net::store::NET.player.get()) {
+                ReplayWords::FromBlock => {
+                    PHYSICS.input_words[k as usize].set(at.read::<u32>("a car's block")?)
+                }
+                ReplayWords::IntoBlock => {
+                    at.write(PHYSICS.input_words[k as usize].get(), "a car's block")?
+                }
             }
         }
     }
-    Ok(Left::nothing()
-        .with(EAX, r.eax)
-        .with(EBX, r.ebx)
-        .with(ECX, r.ecx)
-        .with(EDX, r.edx)
-        .with(ESI, r.esi))
-}
-
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    unsafe { car_input_words(r) }
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
+    Ok(())
 }

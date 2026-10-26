@@ -1,15 +1,7 @@
 //! The global drawing surface and clip rectangle that the game's blitters read.
 
-use crate::framework::{game_read, rva};
-
-pub const BITS_PER_PIXEL_RVA: usize = rva(0x4F49A8); // g_surfaceBitsPerPixel
-pub const BYTES_PER_PIXEL_RVA: usize = rva(0x4F49AC); // g_surfaceBytesPerPixel
-pub const PITCH_RVA: usize = rva(0x4F49BC); // g_surfacePitch
-pub const BASE_RVA: usize = rva(0x4F49C0); // g_surfacePixels
-pub const CLIP_LEFT_RVA: usize = rva(0x4F503C); // g_clipLeft
-pub const CLIP_RIGHT_RVA: usize = rva(0x4F5040); // g_clipRight
-pub const CLIP_TOP_RVA: usize = rva(0x4F5044); // g_clipTop
-pub const CLIP_BOTTOM_RVA: usize = rva(0x4F5048); // g_clipBottom
+use crate::gfx::blit::BLIT;
+use crate::gfx::screen_state::DRAW_SURFACE;
 
 /// Where pixels go. `base` is an address; 0 means no surface is set.
 #[derive(Clone, Copy, Debug)]
@@ -31,23 +23,19 @@ pub struct Clip {
 }
 
 pub fn surface() -> Surface {
-    unsafe {
-        Surface {
-            base: game_read(BASE_RVA),
-            pitch: game_read(PITCH_RVA),
-            bytes_per_pixel: game_read(BYTES_PER_PIXEL_RVA),
-            bits_per_pixel: game_read(BITS_PER_PIXEL_RVA),
-        }
+    Surface {
+        base: DRAW_SURFACE.pixels.get(),
+        pitch: DRAW_SURFACE.pitch.get() as i32,
+        bytes_per_pixel: DRAW_SURFACE.bytes_per_pixel.get() as i32,
+        bits_per_pixel: DRAW_SURFACE.bits_per_pixel.get(),
     }
 }
 
 pub fn clip() -> Clip {
-    unsafe {
-        Clip {
-            left: game_read(CLIP_LEFT_RVA),
-            right: game_read(CLIP_RIGHT_RVA),
-            top: game_read(CLIP_TOP_RVA),
-            bottom: game_read(CLIP_BOTTOM_RVA),
-        }
+    Clip {
+        left: BLIT.clip.left.get() as i32,
+        right: BLIT.clip.right.get() as i32,
+        top: BLIT.clip.top.get() as i32,
+        bottom: BLIT.clip.bottom.get() as i32,
     }
 }

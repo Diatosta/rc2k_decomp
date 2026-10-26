@@ -6,43 +6,31 @@
 //! A dword is the entry's first byte shifted up 16, its second shifted up 8, and its third;
 //! the top byte is 0. Entry 255 is done first. Four callers, the picture readers.
 //! Refuses null pointers. The name is a reading.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
 
-use crate::errors::{BadInput, Refused};
-use crate::framework::Regs;
-use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
+use crate::errors::BadInput;
+use crate::pointers::GamePtr;
 
 pub const ENTRIES: usize = 256;
 
 // ---- Rust version ----
 
-pub unsafe fn palette_to_dwords(from: *const u8, to: *mut u32) -> Result<(), BadInput> {
-    if from.is_null() || to.is_null() {
+pub fn palette_to_dwords(from: u32, to: u32) -> Result<(), BadInput> {
+    if from == 0 || to == 0 {
         return Err(BadInput("no palette"));
     }
-    // From the last entry down, as the original goes: it matters if the two overlap.
-    for entry in (0..ENTRIES).rev() {
-        unsafe {
-            // Converted: `rc2k_core::gfx::pixels::palette_entry`.
-            let bytes = (from.add(entry * 3) as *const [u8; 3]).read();
-            to.add(entry)
-                .write_unaligned(rc2k_core::gfx::pixels::palette_entry(bytes));
-        }
+    // From the last entry down, as the original goes: it matters if the two overlap. The
+    // bytes are read first (an entry's three bytes lie below its dword, so the order of the
+    // writes cannot change a read that comes after it).
+    let palette = GamePtr::new(from).read_bytes(ENTRIES * 3, "a palette")?;
+    let mut dwords = Vec::with_capacity(ENTRIES * 4);
+    for entry in 0..ENTRIES {
+        // Converted: `rc2k_core::gfx::pixels::palette_entry`.
+        let bytes = [
+            palette[entry * 3],
+            palette[entry * 3 + 1],
+            palette[entry * 3 + 2],
+        ];
+        dwords.extend_from_slice(&rc2k_core::gfx::pixels::palette_entry(bytes).to_le_bytes());
     }
-    Ok(())
-}
-
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    unsafe { palette_to_dwords(r.esi as *const u8, r.edi as *mut u32) }?;
-    Ok(Left::nothing())
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
+    GamePtr::new(to).write_bytes(&dwords, "a palette's dwords")
 }

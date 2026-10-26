@@ -22,29 +22,18 @@
 //! Refuses, before anything is written: a number of 0x1CD or more (its own or the chosen
 //! voice's); no channels left and no voice playing; a playing list that does not end
 //! within 0x200 voices; a playing voice to stop without its channel.
-//! Compared in shadow mode. Self-test: a redirected copy on a world of the test's, 600
-//! states and commands by lot.
-//!
-//! Hook removed 2026-10-22 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
 
-use crate::audio::voices::*;
+use crate::audio::store::AUDIO;
+use crate::audio::voices::{GamePool, lists, store_lists};
 use crate::errors::Refused;
 
 // ---- Rust version ----
 
 /// Converted: `rc2k_core::audio::voices::start_voice`; nothing is written when it refuses.
-pub unsafe fn start_voice(w: &World, sound: i32, cmd: &[u32; 8]) -> Result<(), Refused> {
-    unsafe {
-        let mut l = lists(w);
-        let mode = read(w.sound_mode);
-        rc2k_core::audio::voices::start_voice(&mut GamePool::new(w), &mut l, mode, sound, cmd)?;
-        store_lists(w, &l);
-    }
+pub fn start_voice(sound: i32, cmd: &[u32; 8]) -> Result<(), Refused> {
+    let mut l = lists();
+    let mode = AUDIO.sound_mode.get();
+    rc2k_core::audio::voices::start_voice(&mut GamePool, &mut l, mode, sound, cmd)?;
+    store_lists(&l);
     Ok(())
-}
-
-pub fn command(at: u32) -> [u32; 8] {
-    unsafe { (at as *const [u32; 8]).read_unaligned() }
 }

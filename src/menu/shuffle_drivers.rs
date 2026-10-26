@@ -8,59 +8,45 @@
 //! In:  nothing
 //! Out: every register kept (`pusha` .. `popa`)
 //!
-//! Callers: `sub_473126` and one of the game's. The random numbers are
-//! `math::random_below`'s. Refuses a count of 0 (the original's `div` traps, its loop runs
-//! on), before anything. Self-test: the original and the Rust version on the game's
-//! tables, counts and the random state by lot; put back.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Callers: `sub_473126` and one of the game's. The random numbers are `math::random_below`'s.
+//! Refuses a count of 0 (the original's `div` traps, its loop runs on), before anything.
 use crate::errors::{BadInput, Refused};
-use crate::framework::{Regs, game_addr, game_read, game_write, rva};
-use crate::menu::standings::*;
-use crate::race::stage_prefs::left_of;
-use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
+use crate::menu::car_numbers_store::CAR_NUMBERS;
+use crate::menu::draw_work_store::DRAW_WORK;
+use crate::menu::state_store::MENU_STATE;
+use crate::pointers::GamePtr;
+use crate::session::Dword;
 
-const TABLES: [(usize, usize); 4] = [
-    (rva(0x73EA7C), rva(0x75AB04)),
-    (rva(0x740764), rva(0x75AB08)),
-    (rva(0x7418BC), rva(0x75AB0C)),
-    (DRIVERS_RVA, rva(0x75AB00)),
+/// The four classes' first drivers (`g_drivers` + 90, + 140, + 170, + 0) and counts.
+const TABLES: [(usize, &Dword); 4] = [
+    (90, &MENU_STATE.menus.class_counts[1]),
+    (140, &MENU_STATE.menus.class_counts[2]),
+    (170, &MENU_STATE.menus.class_counts[3]),
+    (0, &MENU_STATE.menus.class_counts[0]),
 ];
-const TEMP_RVA: [usize; 2] = [rva(0x755398), rva(0x75542C)]; // unk_755398, unk_75542C
-const PICKS_RVA: [usize; 2] = [rva(0x7559EC), rva(0x7559F0)]; // dword_7559EC, hhmm
 /// The Rust version (see the header): the registers it leaves.
-pub unsafe fn shuffle_drivers(entry: &Regs) -> Result<Regs, Refused> {
+pub fn shuffle_drivers() -> Result<(), Refused> {
     use crate::math::random_below::random_below;
-    unsafe {
-        if TABLES.iter().any(|&(_, c)| game_read::<u32>(c) == 0) {
-            return Err(BadInput("a driver table count of 0").into());
-        }
-        let [t1, t2] = TEMP_RVA.map(|r| game_addr(r) as *mut u8);
-        for &(table, count) in &TABLES {
-            let first = game_addr(table) as *mut u8;
-            let n: u32 = game_read(count);
-            for _ in 0..n {
-                game_write(PICKS_RVA[0], random_below(n)?);
-                game_write(PICKS_RVA[1], random_below(n)?);
-                std::ptr::copy(first, t1, 0x94);
-                std::ptr::copy(first, t2, 0x94);
-                std::ptr::copy(t1, first, 0x94);
-                std::ptr::copy(t2, first, 0x94);
-            }
+    if TABLES.iter().any(|&(_, c)| c.get() == 0) {
+        return Err(BadInput("a driver table count of 0").into());
+    }
+    let [t1, t2] = [
+        GamePtr::new(CAR_NUMBERS.shuffle_a.addr()),
+        GamePtr::new(CAR_NUMBERS.shuffle_b.addr()),
+    ];
+    for &(table, count) in &TABLES {
+        let first = GamePtr::new(crate::pointers::game_address(
+            &crate::menu::drivers_store::DRIVERS.drivers[table] as *const _,
+        ));
+        let n = count.get();
+        for _ in 0..n {
+            DRAW_WORK.figure.set(random_below(n)?);
+            DRAW_WORK.hhmm.set(random_below(n)?);
+            first.copy_to(t1, 0x94, "a driver")?;
+            first.copy_to(t2, 0x94, "a driver")?;
+            t1.copy_to(first, 0x94, "a driver")?;
+            t2.copy_to(first, 0x94, "a driver")?;
         }
     }
-    Ok(*entry)
-}
-
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    Ok(left_of(&unsafe { shuffle_drivers(r) }?))
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
+    Ok(())
 }

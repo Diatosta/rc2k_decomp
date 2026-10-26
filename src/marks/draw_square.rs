@@ -10,49 +10,214 @@
 //!
 //! In:  st(0) the along share, st(1) the across share (popped), esi the item, edx the
 //!      colour
-//! Out: eax, ebx, ecx the places a, b, c; ebp `g_polygonVertices`; the rest as `draw_fan`
-//!      leaves them when drawn
+//! Out: nothing (its caller reads no register after it)
 //!
-//! Caller: `sub_4BFFEC` (0x4C00FE). The x87 runs are the original's instructions over the
-//! game's variables; the draw through `part` (1 `draw_fan`), in the game its Rust version.
-//! Thunk by `two_in_hook!`. Shadow mode runs the original alone (it draws). Self-test: a
-//! copy whose draw goes to a stand-in, against the Rust version, items near and far.
+//! Caller: `sub_4BFFEC` (0x4C00FE). The x87 runs are plain Rust on the x87 model (`math::x87_float`), in the original's order, over the
+//! game's variables.
 
-use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, SelfTest, game_addr, game_read, game_write, rva, shadow};
-use crate::scene::matrix3::extended;
-use crate::scene::vector3::{Pair80, call_with_two, two_in_hook};
-use crate::service::harness::{Region, at, capture, restore};
-use std::sync::atomic::AtomicUsize;
+use crate::marks::squares_store::SQUARE_STATE;
+use crate::marks::tuning::{MARKS_KIND_FLOATS, MarksKindFloats};
+use crate::session::read_bits;
 
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-static PAIR: Pair80 = Pair80::new();
-
-pub static HOOK: RawHook =
-    RawHook::new("marks::draw_square", rva(0x4BF80F), thunk, &ORIGINAL).self_test(self_test);
-
-two_in_hook!(
-    thunk,
-    call_original,
-    original_with_two,
-    dispatch = dispatch,
-    original = ORIGINAL,
-    pair = PAIR
-);
-
-const VERTICES_RVA: usize = rva(0x9605A0); // g_polygonVertices
-const PLACES_RVA: usize = rva(0x8BC1AE); // dword_8BC1AE .. dword_8BC1BA
-const CORNERS_RVA: usize = rva(0x89CF92); // flt_89CF92 .. flt_89CFBE: four of 12
+use crate::d3d::vertices_store::VERTICES;
 const FAR_ENOUGH: i32 = 0x4580_0000; // 4096.0
 
-/// A call by place: 1 `draw_fan`.
-pub type Part<'a> = &'a mut dyn FnMut(u32, &mut Regs) -> Result<(), Refused>;
-
 /// The original's 0x4BF845 .. 0x4BF88D: the item's texture shift added to the places.
-unsafe fn shifted_places(s: u32, p: u32) {
-    unsafe {
-        core::arch::asm!(
-            "fld dword ptr [{s} + 0xC]",
+fn shifted_places(s: u32, p: u32) {
+    shifted_places_x87(s as usize, p as usize)
+}
+
+/// The original's 0x4BF88E .. 0x4BF9AA on the two values: the corners.
+fn corners(v: &[[u8; 10]; 2]) {
+    corners_x87(
+        (crate::pointers::game_address(v.as_ptr())) as usize,
+        &SQUARE_TABLES,
+    )
+}
+
+/// The original's 0x4BF9BA .. 0x4BFAD6: the corners projected, their depth.
+fn projected(p: u32) {
+    projected_x87(
+        crate::race::store::asm_base() as usize,
+        p as usize,
+        &MARKS_KIND_FLOATS,
+        &SQUARE_TABLES,
+    )
+}
+
+/// The Rust version (see the header): `item` (esi), `colour` (edx).
+pub fn draw_square(item: u32, colour: u32, shares: [[u8; 10]; 2]) {
+    let vertices = crate::d3d::vertices_store::piece_addr();
+    let [a, pb, c, d]: [u32; 4] = read_bits(&SQUARE_STATE.places);
+    for (n, (u, v)) in [(a, pb), (c, pb), (c, d), (a, d)].into_iter().enumerate() {
+        VERTICES.vertices[n].u.set_bits(u);
+        VERTICES.vertices[n].v.set_bits(v);
+    }
+    shifted_places(item, vertices);
+    corners(&shares);
+    if SQUARE_TABLES.corners[0][2].bits() as i32 <= FAR_ENOUGH {
+        return;
+    }
+    projected(vertices);
+    for n in 0..4 {
+        VERTICES.vertices[n].colour.set(colour);
+    }
+    crate::marks::clip_quad::draw_fan();
+}
+
+use crate::marks::plain::{ld, ld80, st};
+use crate::marks::squares_store::{SQUARE_TABLES, SquareTables};
+use crate::math::x87_float as bh;
+
+/// `shifted_places`'s x87 block as plain Rust on the x87 model (24 instructions), same order and memory places.
+fn shifted_places_x87(s: usize, p: usize) {
+    let t0 = ld(s, 0xC);
+    let t1 = t0 + ld(p, 0x18);
+    st(p, 0x18, t1);
+    let t2 = ld(s, 0xC);
+    let t3 = t2 + ld(p, 0x38);
+    st(p, 0x38, t3);
+    let t4 = ld(s, 0xC);
+    let t5 = t4 + ld(p, 0x58);
+    st(p, 0x58, t5);
+    let t6 = ld(s, 0xC);
+    let t7 = t6 + ld(p, 0x78);
+    st(p, 0x78, t7);
+    let t8 = ld(s, 0x10);
+    let t9 = t8 + ld(p, 0x1C);
+    st(p, 0x1C, t9);
+    let t10 = ld(s, 0x10);
+    let t11 = t10 + ld(p, 0x3C);
+    st(p, 0x3C, t11);
+    let t12 = ld(s, 0x10);
+    let t13 = t12 + ld(p, 0x5C);
+    st(p, 0x5C, t13);
+    let t14 = ld(s, 0x10);
+    let t15 = t14 + ld(p, 0x7C);
+    st(p, 0x7C, t15);
+}
+
+/// `corners`'s x87 block as plain Rust on the x87 model (56 instructions), same order and memory places.
+fn corners_x87(v: usize, sq: &SquareTables) {
+    let t0 = bh::from_f80(ld80(v, 0xA));
+    let t1 = bh::from_f80(ld80(v, 0));
+    let t2 = t1 * bh::ld(sq.lengths[1].bits());
+    let t3 = t0 * bh::ld(sq.lengths[0].bits());
+    let t4 = t3 * bh::ld(sq.axes[0][0].bits());
+    let t5 = t2 * bh::ld(sq.axes[1][0].bits());
+    let t6 = t4 + t5;
+    let t7 = t6 + bh::ld(sq.place[0].bits());
+    sq.corners[0][0].set_bits(bh::st(t7));
+    let t8 = t3 * bh::ld(sq.axes[0][1].bits());
+    let t9 = t2 * bh::ld(sq.axes[1][1].bits());
+    let t10 = t8 + t9;
+    let t11 = t10 + bh::ld(sq.place[1].bits());
+    sq.corners[0][1].set_bits(bh::st(t11));
+    let t12 = t2 * bh::ld(sq.axes[1][2].bits());
+    let t13 = t3 * bh::ld(sq.axes[0][2].bits());
+    let t14 = t12 + t13;
+    let t15 = t14 + bh::ld(sq.place[2].bits());
+    sq.corners[0][2].set_bits(bh::st(t15));
+    let t16 = bh::ld(sq.corners[0][0].bits());
+    let t17 = t16 - bh::ld(sq.half_axes[0][0].bits());
+    let t18 = t17 - bh::ld(sq.half_axes[1][0].bits());
+    sq.corners[0][0].set_bits(bh::st(t18));
+    let t19 = t18 + bh::ld(sq.scaled_by_radius[1][0].bits());
+    sq.corners[1][0].set_bits(bh::st(t19));
+    let t20 = t19 + bh::ld(sq.scaled_by_radius[0][0].bits());
+    sq.corners[2][0].set_bits(bh::st(t20));
+    let t21 = t20 - bh::ld(sq.scaled_by_radius[1][0].bits());
+    sq.corners[3][0].set_bits(bh::st(t21));
+    let t22 = bh::ld(sq.corners[0][1].bits());
+    let t23 = t22 - bh::ld(sq.half_axes[0][1].bits());
+    let t24 = t23 - bh::ld(sq.half_axes[1][1].bits());
+    sq.corners[0][1].set_bits(bh::st(t24));
+    let t25 = t24 + bh::ld(sq.scaled_by_radius[1][1].bits());
+    sq.corners[1][1].set_bits(bh::st(t25));
+    let t26 = t25 + bh::ld(sq.scaled_by_radius[0][1].bits());
+    sq.corners[2][1].set_bits(bh::st(t26));
+    let t27 = t26 - bh::ld(sq.scaled_by_radius[1][1].bits());
+    sq.corners[3][1].set_bits(bh::st(t27));
+    let t28 = bh::ld(sq.corners[0][2].bits());
+    let t29 = t28 - bh::ld(sq.half_axes[0][2].bits());
+    let t30 = t29 - bh::ld(sq.half_axes[1][2].bits());
+    sq.corners[0][2].set_bits(bh::st(t30));
+    let t31 = t30 + bh::ld(sq.scaled_by_radius[1][2].bits());
+    sq.corners[1][2].set_bits(bh::st(t31));
+    let t32 = t31 + bh::ld(sq.scaled_by_radius[0][2].bits());
+    sq.corners[2][2].set_bits(bh::st(t32));
+    let t33 = t32 - bh::ld(sq.scaled_by_radius[1][2].bits());
+    sq.corners[3][2].set_bits(bh::st(t33));
+}
+
+/// `projected`'s x87 block as plain Rust on the x87 model (64 instructions), same order and memory places.
+fn projected_x87(rc: usize, p: usize, k: &MarksKindFloats, sq: &SquareTables) {
+    let t0 = ld(rc, 0x224088);
+    let t1 = t0 / bh::ld(sq.corners[3][2].bits());
+    let t2 = ld(rc, 0x224088);
+    let t3 = t2 / bh::ld(sq.corners[2][2].bits());
+    let t4 = ld(rc, 0x224088);
+    let t5 = t4 / bh::ld(sq.corners[1][2].bits());
+    let t6 = ld(rc, 0x224088);
+    let t7 = t6 / bh::ld(sq.corners[0][2].bits());
+    let t8 = bh::ld(sq.corners[0][1].bits());
+    let t9 = t8 * t7;
+    let t10 = t7 * bh::ld(sq.corners[0][0].bits());
+    let t11 = -t9;
+    let t12 = t11 + ld(rc, 0x2240A0);
+    st(p, 0x4, t12);
+    let t13 = t10 + ld(rc, 0x22409C);
+    st(p, 0, t13);
+    let t14 = bh::ld(sq.corners[1][1].bits());
+    let t15 = t14 * t5;
+    let t16 = t5 * bh::ld(sq.corners[1][0].bits());
+    let t17 = -t15;
+    let t18 = t17 + ld(rc, 0x2240A0);
+    st(p, 0x24, t18);
+    let t19 = t16 + ld(rc, 0x22409C);
+    st(p, 0x20, t19);
+    let t20 = bh::ld(sq.corners[2][1].bits());
+    let t21 = t20 * t3;
+    let t22 = t3 * bh::ld(sq.corners[2][0].bits());
+    let t23 = -t21;
+    let t24 = t23 + ld(rc, 0x2240A0);
+    st(p, 0x44, t24);
+    let t25 = t22 + ld(rc, 0x22409C);
+    st(p, 0x40, t25);
+    let t26 = bh::ld(sq.corners[3][1].bits());
+    let t27 = t26 * t1;
+    let t28 = t1 * bh::ld(sq.corners[3][0].bits());
+    let t29 = -t27;
+    let t30 = t29 + ld(rc, 0x2240A0);
+    st(p, 0x64, t30);
+    let t31 = t28 + ld(rc, 0x22409C);
+    st(p, 0x60, t31);
+    let t32 = bh::ld(sq.corners[0][2].bits());
+    let t33 = t32 + bh::ld(k.kind_float.bits());
+    let t34 = t33 * bh::ld(sq.inverse.bits());
+    let t35 = bh::ld(sq.corners[1][2].bits());
+    let t36 = t35 + bh::ld(k.kind_float.bits());
+    let t37 = t36 * bh::ld(sq.inverse.bits());
+    let t38 = bh::ld(sq.corners[2][2].bits());
+    let t39 = t38 + bh::ld(k.kind_float.bits());
+    let t40 = t39 * bh::ld(sq.inverse.bits());
+    let t41 = bh::ld(sq.corners[3][2].bits());
+    let t42 = t41 + bh::ld(k.kind_float.bits());
+    let t43 = t42 * bh::ld(sq.inverse.bits());
+    st(p, 0x68, t43);
+    st(p, 0x48, t40);
+    st(p, 0x28, t37);
+    st(p, 0x8, t34);
+}
+
+#[cfg(all(test, target_arch = "x86"))]
+mod asm_reference {
+    //! The original assembly blocks, kept verbatim as the reference the plain versions are tested against.
+
+    pub(super) fn shifted_places_x87(s: usize, p: usize) {
+        unsafe {
+            core::arch::asm!(
+                    "fld dword ptr [{s} + 0xC]",
             "fadd dword ptr [{p} + 0x18]",
             "fstp dword ptr [{p} + 0x18]",
             "fld dword ptr [{s} + 0xC]",
@@ -81,301 +246,342 @@ unsafe fn shifted_places(s: u32, p: u32) {
             out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
             out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
             options(nostack),
-        )
+            )
+        }
     }
-}
 
-/// The original's 0x4BF88E .. 0x4BF9AA on the two values: the corners.
-unsafe fn corners(b: u32, v: &[[u8; 10]; 2]) {
-    unsafe {
-        core::arch::asm!(
-            "fld tbyte ptr [{v} + 10]",
+    pub(super) fn corners_x87(mk: usize, v: usize) {
+        unsafe {
+            core::arch::asm!(
+                    "fld tbyte ptr [{v} + 10]",
             "fld tbyte ptr [{v}]",
-            "fmul dword ptr [{b} + 0x49CEF2]",
+            "fmul dword ptr [{mk} + 0x137FB2]",
             ".byte 0xD9, 0xC9",
-            "fmul dword ptr [{b} + 0x49CEEE]",
+            "fmul dword ptr [{mk} + 0x137FAE]",
             ".byte 0xD9, 0xC9",
             ".byte 0xD9, 0xC1",
-            "fmul dword ptr [{b} + 0x49CF1A]",
+            "fmul dword ptr [{mk} + 0x137FDA]",
             ".byte 0xD9, 0xC1",
-            "fmul dword ptr [{b} + 0x49CF26]",
+            "fmul dword ptr [{mk} + 0x137FE6]",
             ".byte 0xDE, 0xC1",
-            "fadd dword ptr [{b} + 0x49CEF6]",
-            "fstp dword ptr [{b} + 0x49CF92]",
+            "fadd dword ptr [{mk} + 0x137FB6]",
+            "fstp dword ptr [{mk} + 0x138052]",
             ".byte 0xD9, 0xC1",
-            "fmul dword ptr [{b} + 0x49CF1E]",
+            "fmul dword ptr [{mk} + 0x137FDE]",
             ".byte 0xD9, 0xC1",
-            "fmul dword ptr [{b} + 0x49CF2A]",
+            "fmul dword ptr [{mk} + 0x137FEA]",
             ".byte 0xDE, 0xC1",
-            "fadd dword ptr [{b} + 0x49CEFA]",
-            "fstp dword ptr [{b} + 0x49CF96]",
-            "fmul dword ptr [{b} + 0x49CF2E]",
+            "fadd dword ptr [{mk} + 0x137FBA]",
+            "fstp dword ptr [{mk} + 0x138056]",
+            "fmul dword ptr [{mk} + 0x137FEE]",
             ".byte 0xD9, 0xC9",
-            "fmul dword ptr [{b} + 0x49CF22]",
+            "fmul dword ptr [{mk} + 0x137FE2]",
             ".byte 0xDE, 0xC1",
-            "fadd dword ptr [{b} + 0x49CEFE]",
-            "fstp dword ptr [{b} + 0x49CF9A]",
-            "fld dword ptr [{b} + 0x49CF92]",
-            "fsub dword ptr [{b} + 0x49CF56]",
-            "fsub dword ptr [{b} + 0x49CF62]",
-            "fst dword ptr [{b} + 0x49CF92]",
-            "fadd dword ptr [{b} + 0x49CF4A]",
-            "fst dword ptr [{b} + 0x49CF9E]",
-            "fadd dword ptr [{b} + 0x49CF3E]",
-            "fst dword ptr [{b} + 0x49CFAA]",
-            "fsub dword ptr [{b} + 0x49CF4A]",
-            "fstp dword ptr [{b} + 0x49CFB6]",
-            "fld dword ptr [{b} + 0x49CF96]",
-            "fsub dword ptr [{b} + 0x49CF5A]",
-            "fsub dword ptr [{b} + 0x49CF66]",
-            "fst dword ptr [{b} + 0x49CF96]",
-            "fadd dword ptr [{b} + 0x49CF4E]",
-            "fst dword ptr [{b} + 0x49CFA2]",
-            "fadd dword ptr [{b} + 0x49CF42]",
-            "fst dword ptr [{b} + 0x49CFAE]",
-            "fsub dword ptr [{b} + 0x49CF4E]",
-            "fstp dword ptr [{b} + 0x49CFBA]",
-            "fld dword ptr [{b} + 0x49CF9A]",
-            "fsub dword ptr [{b} + 0x49CF5E]",
-            "fsub dword ptr [{b} + 0x49CF6A]",
-            "fst dword ptr [{b} + 0x49CF9A]",
-            "fadd dword ptr [{b} + 0x49CF52]",
-            "fst dword ptr [{b} + 0x49CFA6]",
-            "fadd dword ptr [{b} + 0x49CF46]",
-            "fst dword ptr [{b} + 0x49CFB2]",
-            "fsub dword ptr [{b} + 0x49CF52]",
-            "fstp dword ptr [{b} + 0x49CFBE]",
-            b = in(reg) b,
-            v = in(reg) v.as_ptr(),
+            "fadd dword ptr [{mk} + 0x137FBE]",
+            "fstp dword ptr [{mk} + 0x13805A]",
+            "fld dword ptr [{mk} + 0x138052]",
+            "fsub dword ptr [{mk} + 0x138016]",
+            "fsub dword ptr [{mk} + 0x138022]",
+            "fst dword ptr [{mk} + 0x138052]",
+            "fadd dword ptr [{mk} + 0x13800A]",
+            "fst dword ptr [{mk} + 0x13805E]",
+            "fadd dword ptr [{mk} + 0x137FFE]",
+            "fst dword ptr [{mk} + 0x13806A]",
+            "fsub dword ptr [{mk} + 0x13800A]",
+            "fstp dword ptr [{mk} + 0x138076]",
+            "fld dword ptr [{mk} + 0x138056]",
+            "fsub dword ptr [{mk} + 0x13801A]",
+            "fsub dword ptr [{mk} + 0x138026]",
+            "fst dword ptr [{mk} + 0x138056]",
+            "fadd dword ptr [{mk} + 0x13800E]",
+            "fst dword ptr [{mk} + 0x138062]",
+            "fadd dword ptr [{mk} + 0x138002]",
+            "fst dword ptr [{mk} + 0x13806E]",
+            "fsub dword ptr [{mk} + 0x13800E]",
+            "fstp dword ptr [{mk} + 0x13807A]",
+            "fld dword ptr [{mk} + 0x13805A]",
+            "fsub dword ptr [{mk} + 0x13801E]",
+            "fsub dword ptr [{mk} + 0x13802A]",
+            "fst dword ptr [{mk} + 0x13805A]",
+            "fadd dword ptr [{mk} + 0x138012]",
+            "fst dword ptr [{mk} + 0x138066]",
+            "fadd dword ptr [{mk} + 0x138006]",
+            "fst dword ptr [{mk} + 0x138072]",
+            "fsub dword ptr [{mk} + 0x138012]",
+            "fstp dword ptr [{mk} + 0x13807E]",
+            mk = in(reg) mk,
+            v = in(reg) v,
             out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
             out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
             options(nostack),
-        )
+            )
+        }
     }
-}
 
-/// The original's 0x4BF9BA .. 0x4BFAD6: the corners projected, their depth.
-unsafe fn projected(b: u32, p: u32) {
-    unsafe {
-        core::arch::asm!(
-            "fld dword ptr [{b} + 0x224088]",
-            "fdiv dword ptr [{b} + 0x49CFBE]",
-            "fld dword ptr [{b} + 0x224088]",
-            "fdiv dword ptr [{b} + 0x49CFB2]",
-            "fld dword ptr [{b} + 0x224088]",
-            "fdiv dword ptr [{b} + 0x49CFA6]",
-            "fld dword ptr [{b} + 0x224088]",
-            "fdiv dword ptr [{b} + 0x49CF9A]",
-            "fld dword ptr [{b} + 0x49CF96]",
+    pub(super) fn projected_x87(rc: usize, mk: usize, p: usize) {
+        unsafe {
+            core::arch::asm!(
+                    "fld dword ptr [{rc} + 0x224088]",
+            "fdiv dword ptr [{mk} + 0x13807E]",
+            "fld dword ptr [{rc} + 0x224088]",
+            "fdiv dword ptr [{mk} + 0x138072]",
+            "fld dword ptr [{rc} + 0x224088]",
+            "fdiv dword ptr [{mk} + 0x138066]",
+            "fld dword ptr [{rc} + 0x224088]",
+            "fdiv dword ptr [{mk} + 0x13805A]",
+            "fld dword ptr [{mk} + 0x138056]",
             ".byte 0xD8, 0xC9",
             ".byte 0xD9, 0xC9",
-            "fmul dword ptr [{b} + 0x49CF92]",
+            "fmul dword ptr [{mk} + 0x138052]",
             ".byte 0xD9, 0xC9",
             ".byte 0xD9, 0xE0",
-            "fadd dword ptr [{b} + 0x2240A0]",
+            "fadd dword ptr [{rc} + 0x2240A0]",
             "fstp dword ptr [{p} + 0x4]",
-            "fadd dword ptr [{b} + 0x22409C]",
+            "fadd dword ptr [{rc} + 0x22409C]",
             "fstp dword ptr [{p} + 0x0]",
-            "fld dword ptr [{b} + 0x49CFA2]",
+            "fld dword ptr [{mk} + 0x138062]",
             ".byte 0xD8, 0xC9",
             ".byte 0xD9, 0xC9",
-            "fmul dword ptr [{b} + 0x49CF9E]",
+            "fmul dword ptr [{mk} + 0x13805E]",
             ".byte 0xD9, 0xC9",
             ".byte 0xD9, 0xE0",
-            "fadd dword ptr [{b} + 0x2240A0]",
+            "fadd dword ptr [{rc} + 0x2240A0]",
             "fstp dword ptr [{p} + 0x24]",
-            "fadd dword ptr [{b} + 0x22409C]",
+            "fadd dword ptr [{rc} + 0x22409C]",
             "fstp dword ptr [{p} + 0x20]",
-            "fld dword ptr [{b} + 0x49CFAE]",
+            "fld dword ptr [{mk} + 0x13806E]",
             ".byte 0xD8, 0xC9",
             ".byte 0xD9, 0xC9",
-            "fmul dword ptr [{b} + 0x49CFAA]",
+            "fmul dword ptr [{mk} + 0x13806A]",
             ".byte 0xD9, 0xC9",
             ".byte 0xD9, 0xE0",
-            "fadd dword ptr [{b} + 0x2240A0]",
+            "fadd dword ptr [{rc} + 0x2240A0]",
             "fstp dword ptr [{p} + 0x44]",
-            "fadd dword ptr [{b} + 0x22409C]",
+            "fadd dword ptr [{rc} + 0x22409C]",
             "fstp dword ptr [{p} + 0x40]",
-            "fld dword ptr [{b} + 0x49CFBA]",
+            "fld dword ptr [{mk} + 0x13807A]",
             ".byte 0xD8, 0xC9",
             ".byte 0xD9, 0xC9",
-            "fmul dword ptr [{b} + 0x49CFB6]",
+            "fmul dword ptr [{mk} + 0x138076]",
             ".byte 0xD9, 0xC9",
             ".byte 0xD9, 0xE0",
-            "fadd dword ptr [{b} + 0x2240A0]",
+            "fadd dword ptr [{rc} + 0x2240A0]",
             "fstp dword ptr [{p} + 0x64]",
-            "fadd dword ptr [{b} + 0x22409C]",
+            "fadd dword ptr [{rc} + 0x22409C]",
             "fstp dword ptr [{p} + 0x60]",
-            "fld dword ptr [{b} + 0x49CF9A]",
-            "fadd dword ptr [{b} + 0x36529C]",
-            "fmul dword ptr [{b} + 0x49CEEA]",
-            "fld dword ptr [{b} + 0x49CFA6]",
-            "fadd dword ptr [{b} + 0x36529C]",
-            "fmul dword ptr [{b} + 0x49CEEA]",
-            "fld dword ptr [{b} + 0x49CFB2]",
-            "fadd dword ptr [{b} + 0x36529C]",
-            "fmul dword ptr [{b} + 0x49CEEA]",
-            "fld dword ptr [{b} + 0x49CFBE]",
-            "fadd dword ptr [{b} + 0x36529C]",
-            "fmul dword ptr [{b} + 0x49CEEA]",
+            "fld dword ptr [{mk} + 0x13805A]",
+            "fadd dword ptr [{mk} + 0x35C]",
+            "fmul dword ptr [{mk} + 0x137FAA]",
+            "fld dword ptr [{mk} + 0x138066]",
+            "fadd dword ptr [{mk} + 0x35C]",
+            "fmul dword ptr [{mk} + 0x137FAA]",
+            "fld dword ptr [{mk} + 0x138072]",
+            "fadd dword ptr [{mk} + 0x35C]",
+            "fmul dword ptr [{mk} + 0x137FAA]",
+            "fld dword ptr [{mk} + 0x13807E]",
+            "fadd dword ptr [{mk} + 0x35C]",
+            "fmul dword ptr [{mk} + 0x137FAA]",
             "fstp dword ptr [{p} + 0x68]",
             "fstp dword ptr [{p} + 0x48]",
             "fstp dword ptr [{p} + 0x28]",
             "fstp dword ptr [{p} + 0x8]",
-            b = in(reg) b,
+            rc = in(reg) rc,
+            mk = in(reg) mk,
             p = in(reg) p,
             out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
             out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
             options(nostack),
-        )
-    }
-}
-
-/// The Rust version (see the header): the registers it leaves.
-pub unsafe fn draw_square(
-    entry: &Regs,
-    shares: [[u8; 10]; 2],
-    part: Part,
-) -> Result<Regs, Refused> {
-    let mut g = *entry;
-    unsafe {
-        let b = game_addr(0) as u32;
-        g.ebp = game_addr(VERTICES_RVA) as u32;
-        let [a, pb, c, d]: [u32; 4] = game_read(PLACES_RVA);
-        for (n, (u, v)) in [(a, pb), (c, pb), (c, d), (a, d)].into_iter().enumerate() {
-            game_write(VERTICES_RVA + 0x20 * n + 0x18, u);
-            game_write(VERTICES_RVA + 0x20 * n + 0x1C, v);
-        }
-        [g.eax, g.ebx, g.ecx] = [a, pb, c];
-        shifted_places(g.esi, g.ebp);
-        corners(b, &shares);
-        if game_read::<i32>(CORNERS_RVA + 8) <= FAR_ENOUGH {
-            return Ok(g);
-        }
-        projected(b, g.ebp);
-        for n in 0..4 {
-            game_write(VERTICES_RVA + 0x20 * n + 0x10, g.edx);
-        }
-        part(1, &mut g)?;
-    }
-    Ok(g)
-}
-
-/// In the game: `draw_fan`'s Rust version.
-pub fn game_part(_place: u32, r: &mut Regs) -> Result<(), Refused> {
-    unsafe { crate::scene::draw_fan::draw_fan(r, &mut crate::scene::draw_fan::game_part) };
-    Ok(())
-}
-
-extern "C" fn dispatch(r: &mut Regs) {
-    HOOK.count_call();
-    if shadow() {
-        unsafe { original_with_two(r) };
-        return;
-    }
-    match unsafe { draw_square(r, PAIR.inputs(), &mut game_part) } {
-        Ok(left) => *r = Regs { esp: r.esp, ..left },
-        Err(e) => unsafe { crate::fatal::raise::refused(&HOOK, e, r, original_with_two) },
-    }
-}
-
-fn self_test() -> (usize, usize) {
-    use crate::race::level_init::{note, take_called};
-    use crate::race::mud::copy;
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    // lea ebp, g_polygonVertices
-    let entry: &[u8] = &[0x8D, 0x2D, 0xA0, 0x05, 0x96, 0x00];
-    let copy = match copy(0x4BF80F, 0x2D9, entry, &[0x2D3], &[(0x44EA65, 1)]) {
-        Ok(c) => c,
-        Err(why) => return t.skip(why),
-    };
-    let frame = (game_addr(rva(0x89CEEE)) as u32, 0x7C);
-    let regions: Vec<Region> = vec![
-        (game_addr(VERTICES_RVA) as u32, 0x80),
-        (game_addr(CORNERS_RVA) as u32, 0x30),
-    ];
-    let mut vars = regions.clone();
-    vars.push(frame);
-    vars.push((game_addr(PLACES_RVA) as u32, 16));
-    vars.extend(
-        [
-            rva(0x624088),
-            rva(0x62409C),
-            rva(0x6240A0),
-            rva(0x76529C),
-            rva(0x89CEEA),
-        ]
-        .map(at),
-    );
-    let saved = capture(&vars);
-    let mut item = [0u32; 0x3C / 4];
-    let regs = |r: &Regs| [r.eax, r.ebx, r.ecx, r.edx, r.esi, r.edi, r.ebp];
-    for case in 0..5u32 {
-        let k = case as f32;
-        item[3] = (0.125 * k).to_bits();
-        item[4] = (0.5 - 0.0625 * k).to_bits();
-        let ia = item.as_ptr() as u32;
-        let shares = [
-            extended((300.0f32 - k * 70.0).to_bits()),
-            extended((40.0f32 + k * 13.0).to_bits()),
-        ];
-        let before = Regs {
-            esi: ia,
-            edx: 0x7F00_FF00u32.rotate_left(case),
-            ..Regs::SENTINEL
-        };
-        let prepare = || unsafe {
-            restore(&vars, &saved);
-            let f = frame.0 as *mut f32;
-            // flt_89CEEE .. flt_89CF6A: shares, place, the axes, the corner offsets
-            for n in 0..(0x7C / 4) {
-                *f.add(n) = ((n as f32) * 0.37 - 3.0 + k * 0.1).sin() * 2.0;
-            }
-            // flt_89CEFE: the place's depth
-            *f.add(4) = 5000.0 + if case == 3 { -9000.0 } else { k * 300.0 };
-            for n in 0..4 {
-                game_write(
-                    PLACES_RVA + 4 * n,
-                    ((n as u32 + case) as f32 * 0.25).to_bits(),
-                );
-            }
-            game_write(rva(0x624088), 320.0f32.to_bits());
-            game_write(rva(0x62409C), 320.5f32.to_bits());
-            game_write(rva(0x6240A0), 240.25f32.to_bits());
-            game_write(rva(0x76529C), 1.5f32.to_bits());
-            game_write(rva(0x89CEEA), (1.0f32 / 3000.0).to_bits());
-            std::ptr::write_bytes(game_addr(VERTICES_RVA) as *mut u8, 0xAA, 0x80);
-        };
-        prepare();
-        take_called();
-        let mut ro = before;
-        unsafe { call_with_two(&mut ro, copy.addr(), &shares) };
-        let theirs = (Some(regs(&ro)), take_called(), capture(&regions));
-        prepare();
-        let mine = unsafe {
-            draw_square(&before, shares, &mut |p, r| {
-                note(p, r);
-                Ok(())
-            })
-        };
-        let mine = (
-            mine.as_ref().ok().map(regs),
-            take_called(),
-            capture(&regions),
-        );
-        t.check(theirs == mine, || {
-            format!(
-                "case {case}: original {:x?} {:x?}; rust {:x?} {:x?}; state first differs at {:?}",
-                theirs.0,
-                theirs.1,
-                mine.0,
-                mine.1,
-                theirs.2.iter().zip(&mine.2).position(|(a, b)| a != b)
             )
-        });
+        }
     }
-    restore(&vars, &saved);
-    t.finish()
+}
+
+#[cfg(all(test, target_arch = "x86"))]
+mod asm_differential {
+    use super::asm_reference as reference;
+    use crate::marks::asm_test::Kind::*;
+    use crate::marks::asm_test::with_copy;
+    use crate::marks::asm_test::{Op, Spec, differential};
+    use crate::marks::squares_store::SquareTables;
+    use crate::marks::tuning::MarksKindFloats;
+
+    #[test]
+    fn shifted_places_x87_matches() {
+        const SPEC: Spec = Spec {
+            operands: &[
+                Op::Base {
+                    lo: 0xC,
+                    hi: 0x14,
+                    reads: &[(0xC, F32), (0x10, F32)],
+                    writes: &[],
+                },
+                Op::Base {
+                    lo: 0x18,
+                    hi: 0x80,
+                    reads: &[
+                        (0x18, F32),
+                        (0x1C, F32),
+                        (0x38, F32),
+                        (0x3C, F32),
+                        (0x58, F32),
+                        (0x5C, F32),
+                        (0x78, F32),
+                        (0x7C, F32),
+                    ],
+                    writes: &[
+                        (0x18, F32),
+                        (0x1C, F32),
+                        (0x38, F32),
+                        (0x3C, F32),
+                        (0x58, F32),
+                        (0x5C, F32),
+                        (0x78, F32),
+                        (0x7C, F32),
+                    ],
+                },
+            ],
+            sincos: false,
+        };
+        differential(
+            &SPEC,
+            |b| reference::shifted_places_x87(b[0], b[1]),
+            |b| super::shifted_places_x87(b[0], b[1]),
+        );
+    }
+
+    #[test]
+    fn corners_x87_matches() {
+        const SPEC: Spec = Spec {
+            operands: &[
+                Op::Base {
+                    lo: 0x137B8A,
+                    hi: 0x13822A,
+                    reads: &[
+                        (0x137FAE, F32),
+                        (0x137FB2, F32),
+                        (0x137FB6, F32),
+                        (0x137FBA, F32),
+                        (0x137FBE, F32),
+                        (0x137FDA, F32),
+                        (0x137FDE, F32),
+                        (0x137FE2, F32),
+                        (0x137FE6, F32),
+                        (0x137FEA, F32),
+                        (0x137FEE, F32),
+                        (0x137FFE, F32),
+                        (0x138002, F32),
+                        (0x138006, F32),
+                        (0x13800A, F32),
+                        (0x13800E, F32),
+                        (0x138012, F32),
+                        (0x138016, F32),
+                        (0x13801A, F32),
+                        (0x13801E, F32),
+                        (0x138022, F32),
+                        (0x138026, F32),
+                        (0x13802A, F32),
+                        (0x138052, F32),
+                        (0x138056, F32),
+                        (0x13805A, F32),
+                    ],
+                    writes: &[
+                        (0x138052, F32),
+                        (0x138056, F32),
+                        (0x13805A, F32),
+                        (0x13805E, F32),
+                        (0x138062, F32),
+                        (0x138066, F32),
+                        (0x13806A, F32),
+                        (0x13806E, F32),
+                        (0x138072, F32),
+                        (0x138076, F32),
+                        (0x13807A, F32),
+                        (0x13807E, F32),
+                    ],
+                },
+                Op::Base {
+                    lo: 0x0,
+                    hi: 0x14,
+                    reads: &[(0x0, F80), (0xA, F80)],
+                    writes: &[],
+                },
+            ],
+            sincos: false,
+        };
+        differential(
+            &SPEC,
+            |b| reference::corners_x87(b[0], b[1]),
+            |b| {
+                with_copy::<SquareTables, _>(b[0], SquareTables::START, |sq| {
+                    super::corners_x87(b[1], sq)
+                })
+            },
+        );
+    }
+
+    #[test]
+    fn projected_x87_matches() {
+        const SPEC: Spec = Spec {
+            operands: &[
+                Op::Base {
+                    lo: 0x224088,
+                    hi: 0x2240A4,
+                    reads: &[(0x224088, F32), (0x22409C, F32), (0x2240A0, F32)],
+                    writes: &[],
+                },
+                Op::Base {
+                    lo: 0x2F8,
+                    hi: 0x13822A,
+                    reads: &[
+                        (0x35C, F32),
+                        (0x137FAA, F32),
+                        (0x138052, F32),
+                        (0x138056, F32),
+                        (0x13805A, F32),
+                        (0x13805E, F32),
+                        (0x138062, F32),
+                        (0x138066, F32),
+                        (0x13806A, F32),
+                        (0x13806E, F32),
+                        (0x138072, F32),
+                        (0x138076, F32),
+                        (0x13807A, F32),
+                        (0x13807E, F32),
+                    ],
+                    writes: &[],
+                },
+                Op::Base {
+                    lo: 0x0,
+                    hi: 0x6C,
+                    reads: &[],
+                    writes: &[
+                        (0x0, F32),
+                        (0x4, F32),
+                        (0x8, F32),
+                        (0x20, F32),
+                        (0x24, F32),
+                        (0x28, F32),
+                        (0x40, F32),
+                        (0x44, F32),
+                        (0x48, F32),
+                        (0x60, F32),
+                        (0x64, F32),
+                        (0x68, F32),
+                    ],
+                },
+            ],
+            sincos: false,
+        };
+        differential(
+            &SPEC,
+            |b| reference::projected_x87(b[0], b[1], b[2]),
+            |b| {
+                with_copy::<MarksKindFloats, _>(b[1], MarksKindFloats::START, |k| {
+                    with_copy::<SquareTables, _>(b[1], SquareTables::START, |sq| {
+                        super::projected_x87(b[0], b[2], k, sq)
+                    })
+                })
+            },
+        );
+    }
 }

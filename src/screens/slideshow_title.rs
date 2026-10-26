@@ -3,34 +3,26 @@
 //! In:  nothing
 //! Out: every register preserved
 //!
-//! String 0x33D and a NUL into `byte_A8BF54`. In two draw lists (the slideshow).
-//! Refuses a title longer than 0x100 bytes.
-//! Hook removed 2026-10-22 (typed tables): the menus and draw lists run its `entry`
-//! (`menu::table_calls`); the registers above are the original's, for reference.
+//! String 0x33D and a NUL into `byte_A8BF54`. In two draw lists (the slideshow). Refuses a title
+//! longer than 0x100 bytes. The menus and draw lists run its `entry` (`menu::table_calls`); the
+//! registers above are the original's, for reference.
 
 use crate::errors::Refused;
-use crate::framework::{Regs, rva};
 use crate::screens::car_caption::put_string;
-use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
 
-const TITLE_RVA: usize = rva(0xA8BF54); // byte_A8BF54
 const TITLE_LEN: usize = 0x100;
 const TITLE: u32 = 0x33D;
 
 // ---- Rust version ----
 
 pub unsafe fn slideshow_title() -> Result<(), Refused> {
-    unsafe { put_string(TITLE, TITLE_RVA, TITLE_LEN) }
-}
-
-fn rust(_: &Regs) -> Result<Left, Refused> {
-    unsafe { slideshow_title() }?;
-    Ok(Left::nothing())
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
+    unsafe {
+        put_string(
+            TITLE,
+            (crate::screens::text_buffers_store::TEXT_BUFFERS
+                .title
+                .addr()) as usize,
+            TITLE_LEN,
+        )
+    }
 }

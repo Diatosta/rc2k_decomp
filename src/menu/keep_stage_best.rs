@@ -6,54 +6,34 @@
 //! In:  nothing
 //! Out: every register preserved (`pusha` .. `popa`)
 //!
-//! Callers: the time trial's events, after the results. What +0x94 is is not read (a
-//! figure of the stage's; the time trial's stage page may show it). Refuses (before
-//! anything) a current player past the four or missing, a stage the tables do not give
-//! (`event_flow::stage_record`), or a name pointer of 0 when the record is taken.
-//! Self-test: the game's records for each stage choice there, the figure below, equal to
-//! and above the record's, put back.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Callers: the time trial's events, after the results. What +0x94 is is not read (a figure of the
+//! stage's; the time trial's stage page may show it). Refuses (before anything) a current player
+//! past the four or missing, a stage the tables do not give (`event_flow::stage_record`), or a name
+//! pointer of 0 when the record is taken.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::Regs;
 use crate::menu::event_flow::*;
-use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
 
 pub fn keep_stage_best() -> Result<(), Refused> {
     use rc2k_core::menu::bests;
     let record = stage_record()?;
     let p = current_player()?;
     // Converted: `rc2k_core::menu::bests::{takes_record, take_record}`.
-    let figure = dword(p + 0x94);
-    if !bests::takes_record(figure, dword(record + 0x2C)) {
+    let figure = dword(p + 0x94)?;
+    if !bests::takes_record(figure, dword(record + 0x2C)?) {
         return Ok(());
     }
-    let name = dword(p + 0x18);
+    let name = dword(p + 0x18)?;
     if name == 0 {
         return Err(BadInput("a player's name pointer of 0").into());
     }
     let holder = bests::Holder {
         figure,
-        nationality: dword(p + 4),
-        car: dword(p + 8),
-        name: crate::menu::standings::bytes(name),
+        nationality: dword(p + 4)?,
+        car: dword(p + 8)?,
+        name: crate::menu::standings::bytes(name)?,
     };
-    let mut r = unsafe { crate::menu::standings::table(record, STAGE_RECORD, 1) };
+    let mut r = crate::menu::standings::table(record, STAGE_RECORD, 1)?;
     bests::take_record(&mut r, 0, &bests::STAGE_HOLDER, &holder);
     Ok(())
-}
-
-fn rust(_: &Regs) -> Result<Left, Refused> {
-    keep_stage_best()?;
-    Ok(Left::nothing())
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
 }

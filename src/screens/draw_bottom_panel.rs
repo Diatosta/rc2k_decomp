@@ -5,42 +5,18 @@
 //! In:  nothing
 //! Out: every register kept (`pusha` .. `popa`)
 //!
-//! In a menu loop's draw list (0x7590BA).
-//! Hook removed 2026-10-22 (typed tables): the menus and draw lists run its `entry`
+//! In a menu loop's draw list (0x7590BA). The menus and draw lists run its `entry`
 //! (`menu::table_calls`); the registers above are the original's, for reference.
 
 use crate::errors::Refused;
-use crate::framework::Regs;
-use crate::screens::service_boxes::{Inputs, Part, quad, quad_part, rd};
-
-pub static INPUTS: Inputs = Inputs {
-    tested: &[],
-    read: &[0x75AA94],
-};
+use crate::menu::state_store::MENU_STATE;
+use crate::screens::service_boxes::quad;
 
 /// The Rust version: every register kept.
-pub unsafe fn draw_bottom_panel(entry: &Regs, part: Part) -> Result<Regs, Refused> {
+pub fn draw_bottom_panel() -> Result<(), Refused> {
     // Converted: `rc2k_core::screens::panels::bottom_panel`.
-    let mut part = part;
-    for a in rc2k_core::screens::panels::bottom_panel(rd(0x75AA94)) {
-        // Each inside `pusha` .. `popa`.
-        let mut g = *entry;
-        quad(&mut g, a.x, a.y, a.w, a.h, a.colour, a.see, &mut part)?;
+    for a in rc2k_core::screens::panels::bottom_panel(MENU_STATE.service_ui.fade_full.get()) {
+        quad(a.x, a.y, a.w, a.h, a.colour, a.see)?;
     }
-    Ok(*entry)
-}
-
-pub fn game_part(_place: u32, r: &mut Regs) -> Result<(), Refused> {
-    quad_part(r)
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    if crate::screens::blanked("screens::draw_bottom_panel") {
-        return Ok(());
-    }
-    let left = unsafe { draw_bottom_panel(r, &mut game_part) }?;
-    *r = Regs { esp: r.esp, ..left };
     Ok(())
 }

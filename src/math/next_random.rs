@@ -11,20 +11,21 @@
 //! Hook removed 2026-10-22 (conversion phase 4): Rust callers call this directly; the
 //! registers above are the original's, for reference.
 
-use crate::framework::rva;
-
-/// dword_4E0140: the generator's state.
-pub const STATE_RVA: usize = rva(0x4E0140);
+use std::sync::atomic::{AtomicU32, Ordering};
 
 // ---- Rust version ----
 
-/// The bridge (`src/bridge.rs`): the generator loaded from `dword_4E0140`, `f` run on it,
-/// its state stored back.
+/// The generator's state: out of the image since 2026-10-24 (phase 5; it was
+/// `g_randomState`, 0x4E0140, whose first value it keeps until `seed_random`).
+pub static STATE: AtomicU32 = AtomicU32::new(0x9570_1114);
+
+/// The generator loaded from `STATE`, `f` run on it, its state stored back.
 pub fn with_random<R>(f: impl FnOnce(&mut rc2k_core::math::random::Random) -> R) -> R {
-    static STATE: crate::bridge::Global<u32> = crate::bridge::Global::at(0x4E_0140);
-    let mut random = rc2k_core::math::random::Random { state: STATE.get() };
+    let mut random = rc2k_core::math::random::Random {
+        state: STATE.load(Ordering::Relaxed),
+    };
     let value = f(&mut random);
-    STATE.set(random.state);
+    STATE.store(random.state, Ordering::Relaxed);
     value
 }
 
@@ -35,21 +36,6 @@ static OWNER: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::new(0
 
 fn this_thread() -> u32 {
     unsafe { windows_sys::Win32::System::Threading::GetCurrentThreadId() }
-}
-
-/// Runs `f` (a self-test) with the generator to this thread alone.
-pub fn own_random<R>(f: impl FnOnce() -> R) -> R {
-    use std::sync::atomic::Ordering;
-    /// Gives the generator back however `f` ends (a panic too), or the game would wait.
-    struct Release;
-    impl Drop for Release {
-        fn drop(&mut self) {
-            OWNER.store(0, Ordering::SeqCst);
-        }
-    }
-    OWNER.store(this_thread(), Ordering::SeqCst);
-    let _release = Release;
-    f()
 }
 
 /// Waits while another thread owns the generator (`own_random`).
@@ -67,23 +53,20 @@ pub fn wait_for_random() {
 /// The numbers drawn so far (for tests that compare how many each side drew).
 pub static DRAWS: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::new(0);
 
-pub unsafe fn next_random() -> u32 {
+pub fn next_random() -> u32 {
     wait_for_random();
     DRAWS.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
     with_random(|r| r.draw())
 }
 
-pub const TEST_STATES: [u32; 12] = [
-    0,
-    1,
-    2,
-    4,
-    6,
-    7,
-    0x40_0000,
-    0x40_0006,
-    0xFFFF_FFFF,
-    0x8000_0001,
-    0x1234_5678,
-    0xDEAD_BEEF,
-];
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn state_starts_as_the_games() {
+        let d = crate::moved::image_bytes(0x4E0140, 4);
+        assert_eq!(
+            u32::from_le_bytes(d.try_into().unwrap()),
+            super::STATE.load(std::sync::atomic::Ordering::Relaxed)
+        );
+    }
+}

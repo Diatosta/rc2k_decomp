@@ -14,71 +14,82 @@
 //! - +0x4DC .. +0x4E8 its four readings (steering, brake, throttle, the bits), which
 //!   `drive::device_axes` reads.
 
-use crate::framework::{game_addr, game_read, rva};
-use crate::service::harness::Region;
+use crate::errors::BadInput;
+use crate::input::store::DEVICES;
+use crate::pointers::GamePtr;
 
-pub const RECORDS: [usize; 2] = [rva(0x4F6EF0), rva(0x4F73E8)];
-pub const RECORD_LEN: usize = 0x4F8;
-pub const KEYS_DOWN_RVA: usize = rva(0x4F6ADC); // g_keysDown: a byte a key, 0x80 down
-pub const KEYS: usize = 0x100;
-pub const STATE_RVA: usize = rva(0x4F6A28); // dword_4F6A28: the device's state, 0x50 bytes
+/// The two records' places (`g_inputRecord1`, `g_inputRecord2`).
+pub fn record_addrs() -> [u32; 2] {
+    DEVICES.records.each_ref().map(|record| record.addr())
+}
+
+/// The device's state (`g_deviceState`), 0x50 bytes.
 pub const STATE_LEN: usize = 0x50;
 
 /// A dword of the record at `record`.
-pub fn at(record: u32, offset: u32) -> u32 {
-    unsafe { ((record.wrapping_add(offset)) as *const u32).read_unaligned() }
+pub fn at(record: u32, offset: u32) -> Result<u32, BadInput> {
+    GamePtr::new(record)
+        .offset(offset)
+        .read("a device record's dword")
 }
 
 /// Writes a dword of the record at `record`.
-pub fn put(record: u32, offset: u32, v: u32) {
-    unsafe { ((record.wrapping_add(offset)) as *mut u32).write_unaligned(v) }
-}
-
-/// A byte of the device's state.
-pub fn state_byte(offset: usize) -> u8 {
-    unsafe { game_read(STATE_RVA + offset) }
+pub fn put(record: u32, offset: u32, v: u32) -> Result<(), BadInput> {
+    GamePtr::new(record)
+        .offset(offset)
+        .write(v, "a device record's dword")
 }
 
 /// Whether key `key` is down.
 /// A record's bytes, for the core (`rc2k_core::input::devices`).
-pub fn record_bytes(record: u32) -> rc2k_core::input::devices::Record {
-    unsafe { (record as *const rc2k_core::input::devices::Record).read_unaligned() }
+pub fn record_bytes(record: u32) -> Result<rc2k_core::input::devices::Record, BadInput> {
+    GamePtr::new(record).read("a device record")
+}
+
+/// A refusal met inside a closure the core asks for a value (it has no failure to give):
+/// the first one is kept, the closure answers 0, and the caller asks `finish` afterwards.
+#[derive(Default)]
+pub struct Deferred(std::cell::Cell<Option<BadInput>>);
+
+impl Deferred {
+    pub fn get(&self, read: Result<u32, BadInput>) -> u32 {
+        read.unwrap_or_else(|e| {
+            self.0.set(self.0.get().or(Some(e)));
+            0
+        })
+    }
+
+    pub fn finish(&self) -> Result<(), BadInput> {
+        self.0.get().map_or(Ok(()), Err)
+    }
+}
+
+/// What the program does with a refusal where a Windows callback leaves no way to hand it
+/// on: it ends, saying which function refused and why.
+pub fn refused_here(name: &str, e: impl Into<crate::errors::Refused>) {
+    crate::fatal::raise::refused_in(name, e, &crate::framework::Regs::default());
 }
 
 /// The key table and the device's state, for the core.
 pub fn key_table() -> rc2k_core::input::devices::KeyTable {
-    unsafe { game_read(KEYS_DOWN_RVA) }
+    DEVICES.key_table()
 }
 
 pub fn joy_state() -> rc2k_core::input::devices::State {
-    unsafe { game_read(STATE_RVA) }
-}
-
-pub fn key_down(key: u32) -> bool {
-    unsafe { game_read::<u8>(KEYS_DOWN_RVA + (key as usize & 0xFF)) & 0x80 != 0 }
-}
-
-/// The key table and the device's state, as regions.
-pub fn shared_regions() -> [Region; 2] {
-    [
-        (game_addr(KEYS_DOWN_RVA) as u32, KEYS),
-        (game_addr(STATE_RVA) as u32, STATE_LEN),
-    ]
-}
-
-/// A record of the test's: 0x4F8 bytes of a pattern.
-pub fn test_record(seed: u32) -> Vec<u8> {
-    (0..RECORD_LEN as u32)
-        .map(|n| (n.wrapping_mul(0x9D) ^ seed.wrapping_mul(0x3B)) as u8)
-        .collect()
+    let mut state = [0u8; STATE_LEN];
+    for (n, dword) in DEVICES.device_state.iter().enumerate() {
+        state[4 * n..4 * n + 4].copy_from_slice(&dword.get().to_le_bytes());
+    }
+    state
 }
 
 /// A method of a COM object (DirectInput's device): the function in slot `slot` (a byte
 /// offset) of its table, `stdcall` with the object first; the method's result.
 pub unsafe fn com_call(object: u32, slot: u32, args: &[u32]) -> u32 {
     unsafe {
-        let table = (object as *const u32).read_unaligned();
-        let f = ((table + slot) as *const u32).read_unaligned() as usize;
+        let table: u32 = crate::pointers::read_or_end(object, "a DirectInput object");
+        let f: u32 = crate::pointers::read_or_end(table + slot, "a DirectInput method table");
+        let f = crate::pointers::code(f);
         match *args {
             [] => {
                 let f: extern "system" fn(u32) -> u32 = std::mem::transmute(f);

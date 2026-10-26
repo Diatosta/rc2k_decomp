@@ -8,81 +8,42 @@
 //! In:  nothing
 //! Out: as the path leaves them (esi the last block looked at)
 //!
-//! Caller: `sub_45A893` (0x45A92E). The strips and the tail through `part` (1 the strip,
-//! 2 the tail), in the game their Rust versions. Shadow mode runs the original alone (it
-//! draws). Self-test: a copy whose strip calls and tail jump go to stand-ins, against the
-//! Rust version, blocks by lot.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Caller: `sub_45A893` (0x45A92E).
 
-use crate::errors::Refused;
-use crate::framework::{Regs, game_read, game_write, rva};
-use crate::hud::draw_view_strip::TEXTURE_RVA;
+use crate::errors::{BadInput, Refused};
+use crate::hud::overlay_pass::shown_layout;
+use crate::pointers::GamePtr;
+use crate::race::replay_file_store::REPLAY_FILE;
+use crate::race::view_store::RACE_VIEW;
+use crate::scene::draw_store::DRAW;
 
-const OFF_RVA: usize = rva(0x5BEC94); // dword_5BEC94
-const BLOCKS_RVA: usize = rva(0x63DBB0); // g_viewBlocks
-const PLAYERS_RVA: usize = rva(0x6238A4); // dword_6238A4
-
-/// A call by place (see the header).
-pub type Part<'a> = &'a mut dyn FnMut(u32, &mut Regs) -> Result<(), Refused>;
-
-/// Whether esi's block's strip is shown (see the header); eax / edx / ebx as the test
-/// leaves them.
-unsafe fn flashing(g: &mut Regs) -> bool {
-    use rc2k_core::hud::strips::{Strip, strip};
-    let b = g.esi;
-    let s = strip(|o| unsafe { ((b + o) as *const u32).read_unaligned() });
-    if let Strip::Flashing(f) = s {
-        [g.eax, g.edx, g.ebx] = [f.quotient, f.remainder, f.half];
-    }
-    s.shown()
+/// Whether the block at `block`'s strip is shown (see the header).
+fn flashing(block: u32) -> Result<bool, BadInput> {
+    use rc2k_core::hud::strips::strip;
+    let bad = crate::marks::Sticky::default();
+    let shown =
+        strip(|o| bad.take(GamePtr::new(block + o).read::<u32>("a hud record's field"))).shown();
+    bad.done()?;
+    Ok(shown)
 }
 
-/// The Rust version (see the header): the registers it leaves.
+/// The Rust version (see the header). What the original leaves in the registers is read
+/// by none of its callers (register liveness, 2026-10-23).
 // Converted: `rc2k_core::hud::strips`
-pub unsafe fn draw_view_strips(entry: &Regs, part: Part) -> Result<Regs, Refused> {
+pub fn draw_view_strips() -> Result<(), Refused> {
+    use crate::hud::draw_view_strip::{draw_view_strip, overlay_tail};
     use rc2k_core::hud::strips::{SECOND_VIEW, TEXTURES};
-    let mut g = *entry;
-    unsafe {
-        if game_read::<u32>(OFF_RVA) == 0 {
-            g.esi = game_read(BLOCKS_RVA);
-            if flashing(&mut g) {
-                g.ebp = game_read(PLAYERS_RVA);
-                game_write(TEXTURE_RVA, TEXTURES[0]);
-                part(1, &mut g)?;
+    {
+        if REPLAY_FILE.hold_car_revs.bits() == 0 {
+            if flashing(RACE_VIEW.view_blocks[0].bits())? {
+                DRAW.polygon_textures[0].set_bits(TEXTURES[0]);
+                draw_view_strip(shown_layout())?;
             }
-            g.ebp = game_read(PLAYERS_RVA);
-            if g.ebp != 0 {
-                g.esi = game_read(BLOCKS_RVA + 4);
-                if flashing(&mut g) {
-                    g.ebp = game_read::<u32>(PLAYERS_RVA).wrapping_add(SECOND_VIEW);
-                    game_write(TEXTURE_RVA, TEXTURES[1]);
-                    part(1, &mut g)?;
-                }
+            if shown_layout() != 0 && flashing(RACE_VIEW.view_blocks[1].bits())? {
+                DRAW.polygon_textures[0].set_bits(TEXTURES[1]);
+                draw_view_strip(shown_layout().wrapping_add(SECOND_VIEW))?;
             }
         }
-        part(2, &mut g)?;
+        overlay_tail()
     }
-    Ok(g)
-}
-
-/// In the game: the strip's and the tail's Rust versions.
-pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
-    use crate::hud::draw_view_strip as vs;
-    unsafe {
-        match place {
-            1 => *r = vs::draw_view_strip(r, &mut vs::game_part)?,
-            _ => vs::overlay_tail(r, &mut (&mut vs::game_part as vs::Part))?,
-        }
-    }
-    Ok(())
-}
-
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    let left = unsafe { draw_view_strips(r, &mut game_part) }?;
-    *r = Regs { esp: r.esp, ..left };
-    Ok(())
 }

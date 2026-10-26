@@ -27,421 +27,189 @@
 //!    kind than 0 is dropped unless its byte +0xB is `dword_5CD688[kind]`.
 //! 5. `sub_45071B`: dropped if `scene::face_faces_away`.
 //!
-//! A face that is left and has a vertex gets its key (`scene::face_sort_key`) and the
-//! next entry of the list: its number, the key plus bit 30 unless bit 0 of its byte
-//! +8 is set, `dword_624130`, the see-through value.
-//! One caller, `scene::list_object_faces`.
-//! Refuses an object's number or a list's length past their tables, no block for
-//! kind 0x1C, and what its parts refuse.
-//! Shadow mode: the Rust version, its writes put back, the original, compared.
+//! A face that is left and has a vertex gets its key (`scene::face_sort_key`) and the next
+//! entry of the list: its number, the key plus bit 30 unless bit 0 of its byte +8 is set,
+//! `dword_624130`, the see-through value. One caller, `scene::list_object_faces`. Refuses an
+//! object's number or a list's length past their tables, no block for kind 0x1C, and what its
+//! parts refuse.
 
-use crate::d3d::draw_fan_unclipped::COUNT_RVA;
 use crate::errors::{BadInput, Refused};
-use crate::framework::{
-    RawHook, Regs, SelfTest, game_addr, game_read, game_write, hook_asm, rva, shadow,
-};
-use crate::math::normalise_vector::VECTOR_RVA;
-use crate::scene::draw_object_faces::{LIST_RVA, LISTED_RVA};
+use crate::physics::car_store::CAR;
+use crate::physics::ground_store::GROUND_WORK;
+use crate::pointers::GamePtr;
+use crate::race::course_store::COURSE;
+use crate::race::kind_store::KIND_TABLES;
+use crate::race::light_records_store::LIGHT_RECORDS;
+use crate::race::numbers_store::NUMBERS;
+use crate::race::sound_spots_store::RACE_SOUND_SPOTS;
+use crate::race::switches_store::FRAME_SWITCHES;
+use crate::race::vars_store::RACE_VARS;
+use crate::race::view_vars_store::VIEW_VARS;
+use crate::race::work_store::RACE_WORK;
+use crate::scene::draw_store::DRAW;
+use crate::scene::draw_switches_store::DRAW_SWITCHES;
 use crate::scene::face_faces_away::face_faces_away;
-use crate::scene::face_sort_key::{KEY_RVA, face_sort_key};
-use crate::scene::polygon::dword;
-use crate::scene::project_point::RECORDS_RVA;
-use crate::service::harness::{Region, at, capture, restore};
+use crate::scene::face_sort_key::face_sort_key;
+use crate::scene::light_work_store::LIGHT_WORK;
+use crate::scene::object_tables_store::OBJECT_TABLES;
 use rc2k_core::scene::face_tests::{Face, FaceWorld, dropped, listed_key};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("scene::list_object_face", rva(0x4504CB), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
 
 // ---- game data ----
 
-pub const SEE_THROUGH_RVA: usize = rva(0x639970); // g_objectSeeThrough
-const IN_RACE_RVA: usize = rva(0x5C5CEC); // dword_5C5CEC
-const OBJECT_RVA: usize = rva(0x6214FC); // g_objectNumber
-const OBJECT_KINDS_RVA: usize = rva(0x5CD27C); // dword_5CD27C
-const KNOWN_KINDS_RVA: usize = rva(0x5C5790); // dword_5C5790
-const KNOWN_KINDS: usize = 0x22;
-const KIND_GROUPS_RVA: usize = rva(0x5C90DC); // dword_5C90DC, dword_5C90E0
-const KIND_LEN: usize = 0x134;
-pub const HIDDEN_GROUPS_RVA: usize = rva(0x5CCE50); // dword_5CCE50, dword_5CCE54
-const OTHER_GROUPS_RVA: usize = rva(0x5CCE58); // dword_5CCE58, dword_5CCE5C
-const LONE_GROUP_RVA: usize = rva(0x5CCE60); // dword_5CCE60
-const LONE_GROUP_ON_RVA: usize = rva(0x62DAD0); // dword_62DAD0
-const GROUPS_WHICH_RVA: usize = rva(0x6D18D4); // dword_6D18D4
-const GROUP_MASK_RVA: usize = rva(0x62150C); // dword_62150C
-const GROUP_MASK_2_RVA: usize = rva(0x606280); // dword_606280
-const MASK_KIND_RVA: usize = rva(0x621870); // dword_621870
-const GROUP_TABLE_RVA: usize = rva(0x621934); // dword_621934
-const NO_MASK_2_RVA: usize = rva(0x71A66C); // dword_71A66C
-const SEE_THROUGH_ON_RVA: usize = rva(0x63996C); // dword_63996C
-const SEE_THROUGH_VALUE_RVA: usize = rva(0x639974); // dword_639974
-const BLOCKS_RVA: usize = rva(0x71B3B8); // off_71B3B8
 const BLOCKS: u32 = 8;
-const BLOCK_RVA: usize = rva(0x60627C); // dword_60627C
-const KIND_BYTES_RVA: usize = rva(0x5CD688); // dword_5CD688
-const FACE_NUMBER_RVA: usize = rva(0x623620); // dword_623620
-const ENTRY_THIRD_RVA: usize = rva(0x624130); // dword_624130
 const LIST_ROOM: u32 = 0x1000;
 
 // ---- Rust version ----
 
-unsafe fn byte(at: usize) -> u32 {
-    unsafe { (at as *const u8).read() as u32 }
-}
-
 /// The game's variables the tests read and write.
-struct GameFace;
+struct GameFace(crate::scene::reading::Reading);
 
 impl FaceWorld for GameFace {
     fn in_race(&self) -> bool {
-        unsafe { game_read::<u32>(IN_RACE_RVA) != 0 }
+        NUMBERS.in_race.bits() != 0
     }
     fn object(&self) -> u32 {
-        unsafe { game_read(OBJECT_RVA) }
+        FRAME_SWITCHES.object_number.bits()
     }
     fn object_kind(&self, object: u32) -> u32 {
-        unsafe { game_read(OBJECT_KINDS_RVA + object as usize * 4) }
+        OBJECT_TABLES.object_kind(object)
     }
     fn known_kind(&self, place: usize) -> u32 {
-        unsafe { game_read(KNOWN_KINDS_RVA + place * 4) }
+        KIND_TABLES.known_object_kinds[place].get()
     }
     fn kind_groups(&self, place: usize) -> [u32; 2] {
-        unsafe { game_read(KIND_GROUPS_RVA + place * KIND_LEN) }
+        // `dword_5C90DC`, `dword_5C90E0`: groups [6] and [7] of the place's record.
+        self.0.read(
+            LIGHT_RECORDS.record_addr(place as u32).wrapping_add(0x70),
+            "a kind's record",
+        )
     }
     fn hidden_groups(&self) -> [u32; 2] {
-        unsafe { game_read(HIDDEN_GROUPS_RVA) }
+        crate::session::read_first(&COURSE.group_masks[13..15])
     }
     fn set_hidden_groups(&mut self, groups: [u32; 2]) {
-        unsafe { game_write(HIDDEN_GROUPS_RVA, groups) }
+        crate::session::write_first(&COURSE.group_masks[13..15], &groups)
     }
     fn other_groups(&self) -> [u32; 2] {
-        unsafe { game_read(OTHER_GROUPS_RVA) }
+        [15, 16].map(|k| COURSE.group_masks[k].get())
     }
     fn group_mask(&self) -> u32 {
-        unsafe { game_read(GROUP_MASK_RVA) }
+        FRAME_SWITCHES.group_mask.bits()
     }
     fn mask_kind(&self) -> u32 {
-        unsafe { game_read(MASK_KIND_RVA) }
+        FRAME_SWITCHES.mask_kind.bits()
     }
     fn group_table(&self, group: u32) -> u32 {
-        unsafe { game_read(GROUP_TABLE_RVA + group as usize * 4) }
+        // The table is typed by its first dword only.
+        self.0.read(
+            (DRAW_SWITCHES.group_table.addr()).wrapping_add(group.wrapping_mul(4)),
+            "the groups' table",
+        )
     }
     fn no_second_mask(&self) -> u32 {
-        unsafe { game_read(NO_MASK_2_RVA) }
+        CAR.camera_switch_active.bits()
     }
     fn second_mask(&self) -> u32 {
-        unsafe { game_read(GROUP_MASK_2_RVA) }
+        VIEW_VARS.group_mask.bits()
     }
     fn lone_group(&self) -> u32 {
-        unsafe { game_read(LONE_GROUP_RVA) }
+        COURSE.group_masks[17].bits()
     }
     fn lone_group_on(&self) -> u32 {
-        unsafe { game_read(LONE_GROUP_ON_RVA) }
+        LIGHT_WORK.marks_mask.bits()
     }
     fn groups_which(&self) -> u32 {
-        unsafe { game_read(GROUPS_WHICH_RVA) }
+        RACE_SOUND_SPOTS.groups_which.bits()
     }
     fn see_through_on(&self) -> u32 {
-        unsafe { game_read(SEE_THROUGH_ON_RVA) }
+        GROUND_WORK.object_fading.bits()
     }
     fn see_through_value(&self) -> u32 {
-        unsafe { game_read(SEE_THROUGH_VALUE_RVA) }
+        GROUND_WORK.object_fade[0].bits()
     }
     fn set_see_through(&mut self, value: u32) {
-        unsafe { game_write(SEE_THROUGH_RVA, value) }
+        GROUND_WORK.object_see_through.set_bits(value)
     }
     fn line_value(&self, extra: u32) -> Result<u32, rc2k_core::Invalid> {
-        unsafe {
-            let which: u32 = game_read(BLOCK_RVA);
+        {
+            let which: u32 = VIEW_VARS.drawn_car.bits();
             let block: u32 = if which < BLOCKS {
-                game_read(BLOCKS_RVA + which as usize * 4)
+                RACE_WORK.car_block(which as usize)
             } else {
                 0
             };
             if block == 0 {
                 return Err(rc2k_core::Invalid("no block for a face of kind 0x1C"));
             }
-            Ok(dword(block as usize + extra as usize * 4 + 0x6FC))
+            Ok(self.0.read(
+                block
+                    .wrapping_add(extra.wrapping_mul(4))
+                    .wrapping_add(0x6FC),
+                "a car's block",
+            ))
         }
     }
     fn kind_byte(&self, kind: u32) -> u32 {
-        unsafe { game_read(KIND_BYTES_RVA + kind as usize * 4) }
+        let at = OBJECT_TABLES.car_mark_textures[0]
+            .addr()
+            .wrapping_add(((kind as usize).wrapping_mul(4)) as u32);
+        self.0.read(at, "the car marks' textures")
     }
 }
 
 /// The face's bytes the tests read.
-unsafe fn face_bytes(face: usize) -> Face {
-    unsafe {
-        Face {
-            kind: byte(face + 6) as u8,
-            group: byte(face + 7) as u8,
-            flags: byte(face + 8) as u8,
-            extra: byte(face + 0xB) as u8,
-        }
-    }
+fn face_bytes(face: usize) -> Result<Face, BadInput> {
+    let b = GamePtr::new(face as u32).read_bytes(0xC, "an object's face")?;
+    Ok(Face {
+        kind: b[6],
+        group: b[7],
+        flags: b[8],
+        extra: b[0xB],
+    })
 }
 
 // Converted: `rc2k_core::scene::face_tests::{dropped, listed_key}`
-pub unsafe fn list_object_face(face: usize) -> Result<(), Refused> {
-    unsafe {
-        if face == 0 {
-            return Err(BadInput("no face").into());
-        }
-        let listed: u32 = game_read(LISTED_RVA);
-        if listed >= LIST_ROOM {
-            return Err(BadInput("no room in the list of faces").into());
-        }
-        // The tests write three variables; a refusal puts them back.
-        let regions = [
-            at(SEE_THROUGH_RVA),
-            (game_addr(HIDDEN_GROUPS_RVA) as u32, 8),
-        ];
-        let before = capture(&regions);
-        game_write(SEE_THROUGH_RVA, 0x100u32);
-        let bytes = face_bytes(face);
-        match dropped(&mut GameFace, bytes) {
-            Ok(true) => return Ok(()),
-            Ok(false) => {}
-            Err(why) => {
-                restore(&regions, &before);
-                return Err(why.into());
-            }
-        }
-        if face_faces_away(face)? {
-            return Ok(());
-        }
-        let count = dword(face);
-        if count as i32 <= 0 {
-            return Ok(());
-        }
-        game_write(COUNT_RVA, count);
-        game_write(KEY_RVA, 0u32);
-        face_sort_key(face, count)?;
-        let entry = LIST_RVA + listed as usize * 0x10;
-        let key = listed_key(bytes, game_read(KEY_RVA));
-        game_write(
-            entry,
-            [
-                game_read::<u32>(FACE_NUMBER_RVA),
-                key,
-                game_read(ENTRY_THIRD_RVA),
-                game_read(SEE_THROUGH_RVA),
-            ],
-        );
-        game_write(LISTED_RVA, listed + 1);
-        Ok(())
+pub fn list_object_face(face: usize) -> Result<(), Refused> {
+    if face == 0 {
+        return Err(BadInput("no face").into());
     }
-}
-
-// ---- hook ----
-
-/// Everything a call may write, as the list stands before it.
-pub fn regions() -> Vec<Region> {
-    let listed = unsafe { game_read::<u32>(LISTED_RVA) }.min(LIST_ROOM - 1) as usize;
-    vec![
-        at(SEE_THROUGH_RVA),
-        (game_addr(HIDDEN_GROUPS_RVA) as u32, 8),
-        at(COUNT_RVA),
-        at(KEY_RVA),
-        at(LISTED_RVA),
-        (game_addr(LIST_RVA + listed * 0x10) as u32, 0x10),
-        // What `scene::face_faces_away` works in.
-        (game_addr(rva(0x6396A0)) as u32, 60),
-        (game_addr(VECTOR_RVA) as u32, 12),
-    ]
-}
-
-extern "C" fn dispatch(r: &mut Regs) {
-    HOOK.count_call();
-    let face = r.ebp as usize;
-    if !shadow() {
-        if let Err(e) = unsafe { list_object_face(face) } {
-            unsafe { crate::fatal::raise::refused(&HOOK, e, r, call_original) };
-        }
-        return;
+    let listed: u32 = LIGHT_WORK.listed_face_count.bits();
+    if listed >= LIST_ROOM {
+        return Err(BadInput("no room in the list of faces").into());
     }
-    let regions = regions();
-    let before = capture(&regions);
-    let mine = unsafe { list_object_face(face) }.map(|()| capture(&regions));
-    restore(&regions, &before);
-    unsafe { call_original(r) };
-    let Ok(mine) = mine else {
-        return;
-    };
-    let theirs = capture(&regions);
-    if mine != theirs {
-        HOOK.mismatch(|| {
-            format!(
-                "object {:#x}, face {:x?}: original {theirs:x?}; rust {mine:x?}",
-                unsafe { game_read::<u32>(OBJECT_RVA) },
-                unsafe { (face as *const [u32; 4]).read_unaligned() }
-            )
-        });
+    GROUND_WORK.object_see_through.set_bits(0x100u32);
+    let bytes = face_bytes(face)?;
+    let mut world = GameFace(crate::scene::reading::Reading::new());
+    let answer = dropped(&mut world, bytes);
+    world.0.finish()?;
+    match answer {
+        Ok(true) => return Ok(()),
+        Ok(false) => {}
+        Err(why) => return Err(why.into()),
     }
-}
-
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    let face = r.ebp as usize;
-    unsafe { list_object_face(face) }?;
+    if face_faces_away(face)? {
+        return Ok(());
+    }
+    let count: u32 = GamePtr::new(face as u32).read("an object's face")?;
+    if count as i32 <= 0 {
+        return Ok(());
+    }
+    DRAW.polygon_vertex_count.set_bits(count);
+    DRAW.face_sort_key.set_bits(0u32);
+    face_sort_key(face, count)?;
+    // The room is 0x1000 entries but 0x400 lie before the next table (a slip, kept).
+    let entry = crate::scene::object_slots_store::OBJECT_SLOTS.listed_faces[0].addr()
+        + (listed as usize * 0x10) as u32;
+    let key = listed_key(bytes, DRAW.face_sort_key.bits());
+    GamePtr::new(entry).write(
+        [
+            RACE_VARS.face_number.bits(),
+            key,
+            DRAW.entry_third.bits(),
+            GROUND_WORK.object_see_through.bits(),
+        ],
+        "the list of faces",
+    )?;
+    LIGHT_WORK.listed_face_count.set_bits(listed + 1);
     Ok(())
-}
-
-// ---- self-test: faces and switches drawn by lot ----
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    // The objects the test uses, and the kinds' places it looks at.
-    const TEST_OBJECTS: [u32; 4] = [0x3C, 0x51, 0x64, 0xF0];
-    let known: [u32; KNOWN_KINDS] = unsafe { game_read(KNOWN_KINDS_RVA) };
-    let mut inputs: Vec<Region> = [
-        IN_RACE_RVA,
-        OBJECT_RVA,
-        OTHER_GROUPS_RVA,
-        OTHER_GROUPS_RVA + 4,
-        LONE_GROUP_RVA,
-        LONE_GROUP_ON_RVA,
-        GROUPS_WHICH_RVA,
-        GROUP_MASK_RVA,
-        GROUP_MASK_2_RVA,
-        MASK_KIND_RVA,
-        NO_MASK_2_RVA,
-        SEE_THROUGH_ON_RVA,
-        SEE_THROUGH_VALUE_RVA,
-        BLOCK_RVA,
-        BLOCKS_RVA + 7 * 4,
-        FACE_NUMBER_RVA,
-        ENTRY_THIRD_RVA,
-        RECORDS_RVA,
-        // The key's factor for three vertices.
-        rva(0x5C6950) + 3 * 4,
-    ]
-    .map(at)
-    .to_vec();
-    inputs.extend(TEST_OBJECTS.map(|object| at(OBJECT_KINDS_RVA + object as usize * 4)));
-    inputs.push((game_addr(GROUP_TABLE_RVA) as u32, 0x20 * 4));
-    inputs.push((game_addr(KIND_BYTES_RVA) as u32, 8 * 4));
-    inputs.push((game_addr(KIND_BYTES_RVA + 0x1C * 4) as u32, 4));
-    inputs.push((game_addr(KIND_GROUPS_RVA + 3 * KIND_LEN) as u32, 8));
-    // What the function writes: the list's first three entries can be the place.
-    inputs.extend([SEE_THROUGH_RVA, COUNT_RVA, KEY_RVA, LISTED_RVA].map(at));
-    inputs.push((game_addr(HIDDEN_GROUPS_RVA) as u32, 8));
-    inputs.push((game_addr(LIST_RVA) as u32, 3 * 0x10));
-    inputs.push((game_addr(rva(0x6396A0)) as u32, 60));
-    inputs.push((game_addr(VECTOR_RVA) as u32, 12));
-    let saved_inputs = capture(&inputs);
-
-    let f = |value: f32| value.to_bits();
-    let mut records = vec![[0u32; 8]; 0x2000];
-    for (n, place) in [
-        [0.0f32, 0.0, 9000.0],
-        [100.0, 0.0, 9000.0],
-        [0.0, 100.0, 9500.0],
-    ]
-    .into_iter()
-    .enumerate()
-    {
-        records[0x1000 + 0x50 + n][4..7].copy_from_slice(&place.map(f));
-    }
-    let mut block = vec![0u32; 0x720 / 4];
-    block[0x6FC / 4 + 1..0x6FC / 4 + 7].copy_from_slice(&[0, 9, 10, 0x8000_0000, 0x7FFF_FFFF, 500]);
-
-    let mut seed = 0x0BAD_5EEDu32;
-    let mut lot = move |below: u32| {
-        seed = seed.wrapping_mul(1_664_525).wrapping_add(1_013_904_223);
-        (seed >> 10) % below
-    };
-    for case in 0..400u32 {
-        let object = TEST_OBJECTS[lot(4) as usize];
-        let group = lot(6);
-        let kind = [0u32, 0, 3, 0x1C][lot(4) as usize];
-        let extra = lot(8);
-        let flags = [0u32, 1, 4, 5, 8, 0xC][lot(6) as usize];
-        // Seen from the front, from behind, or no vertices at all.
-        let shape = lot(4);
-        let mut face = [0u32; 4 + 3 * 4];
-        face[0] = if shape == 3 { 0 } else { 3 };
-        face[1] = kind << 16 | group << 24 | 0xE000_0000;
-        face[2] = flags | extra << 24;
-        let order = if shape == 1 { [0, 2, 1] } else { [0, 1, 2] };
-        for (n, point) in order.into_iter().enumerate() {
-            face[4 + n * 4] = 0x4050 + point;
-        }
-        let object_kind = [0x7777_7777, known[3], known[3].wrapping_add(1)][lot(3) as usize];
-        let set: Vec<(usize, u32)> = vec![
-            (IN_RACE_RVA, lot(2)),
-            (OBJECT_RVA, object),
-            (OBJECT_KINDS_RVA + object as usize * 4, object_kind),
-            (KIND_GROUPS_RVA + 3 * KIND_LEN, lot(6)),
-            (KIND_GROUPS_RVA + 3 * KIND_LEN + 4, lot(6)),
-            (OTHER_GROUPS_RVA, lot(6)),
-            (OTHER_GROUPS_RVA + 4, lot(6)),
-            (LONE_GROUP_RVA, lot(6)),
-            (LONE_GROUP_ON_RVA, lot(2)),
-            (GROUPS_WHICH_RVA, lot(3)),
-            (GROUP_MASK_RVA, [u32::MAX, u32::MAX, 0x2A][lot(3) as usize]),
-            (GROUP_MASK_2_RVA, [u32::MAX, 0x15, 0][lot(3) as usize]),
-            (MASK_KIND_RVA, [0u32, 5][lot(2) as usize]),
-            (NO_MASK_2_RVA, lot(2)),
-            (GROUP_TABLE_RVA + group as usize * 4, lot(2)),
-            (SEE_THROUGH_ON_RVA, lot(2)),
-            (SEE_THROUGH_VALUE_RVA, [0u32, 0x80][lot(2) as usize]),
-            (BLOCK_RVA, 7),
-            (BLOCKS_RVA + 7 * 4, block.as_ptr() as u32),
-            (KIND_BYTES_RVA + kind as usize * 4, lot(8)),
-            (FACE_NUMBER_RVA, 0x100 + case),
-            (ENTRY_THIRD_RVA, 0x3333_0000 + case),
-            (RECORDS_RVA, records.as_ptr() as u32),
-            (rva(0x5C6950) + 3 * 4, f(0.33333334)),
-            (LISTED_RVA, lot(3)),
-            // Left by an earlier face, for the faces the first test does not reach.
-            (HIDDEN_GROUPS_RVA, lot(6)),
-            (HIDDEN_GROUPS_RVA + 4, lot(6)),
-        ];
-        let face_at = face.as_ptr() as usize;
-        let run = |rust: bool| unsafe {
-            for &(at, value) in &set {
-                game_write(at, value);
-            }
-            let regions = regions();
-            let blotted: Vec<Region> = regions
-                .iter()
-                .copied()
-                .filter(|&(at, _)| {
-                    at != game_addr(LISTED_RVA) as u32 && at != game_addr(HIDDEN_GROUPS_RVA) as u32
-                })
-                .collect();
-            restore(&blotted, &vec![0xAA; blotted.iter().map(|r| r.1).sum()]);
-            let done = if rust {
-                list_object_face(face_at).is_ok()
-            } else {
-                let mut ro = Regs {
-                    ebp: face_at as u32,
-                    ..Regs::default()
-                };
-                call_original(&mut ro);
-                true
-            };
-            (done, capture(&regions))
-        };
-        let (theirs, mine) = (run(false), run(true));
-        t.check(theirs == mine, || {
-            format!(
-                "case {case}: face {face:x?}, set {set:x?}: original {theirs:x?}; rust {mine:x?}"
-            )
-        });
-    }
-    restore(&inputs, &saved_inputs);
-    t.finish()
 }

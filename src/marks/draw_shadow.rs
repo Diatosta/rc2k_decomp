@@ -13,1096 +13,1652 @@
 //! `scene::draw_fan`.
 //!
 //! In:  nothing
-//! Out: the registers as the path leaves them
+//! Out: nothing (its caller reads no register after it)
 //!
-//! Caller: the race's frame (0x456330). The long x87 runs are the original's instructions
-//! over the game's variables; the vector helpers their Rust versions; the device calls
-//! through `part` (1 the depth buffer, 2 the depth test, 3 a render state, 4 `draw_fan`),
-//! in the game their Rust versions. Refuses, before anything, a corner past
-//! `g_marksCorners` and an angle `fsincos` cannot take. Shadow mode runs the original alone
-//! (it draws). Self-test: a copy whose device calls go to stand-ins (the vector helpers
-//! real), against the Rust version, on the game's variables with sides and settings of the
-//! test's.
+//! Caller: the race's frame (0x456330). The long x87 runs are plain Rust on the x87 model (`math::x87_float`), in the original's order,
+//! over the game's variables; the vector helpers their Rust versions. Refuses, before
+//! anything, a corner past `g_marksCorners` and an angle `fsincos` cannot take.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{
-    RawHook, Regs, SelfTest, game_addr, game_read, game_write, hook_asm, rva, shadow,
+use crate::marks::blocks::MARK_CORNERS;
+use crate::marks::frame_state::DRAW_WORK;
+use crate::marks::kind_store::{
+    CONSTS_1, CONSTS_2, EXTRA_2, EXTRAS_1, KindConsts, QUAD_1, QUAD_2, QuadWork,
 };
-use crate::marks::setup::SETTINGS_RVA;
+use crate::marks::surface_store::SURFACE;
 use crate::math::{x87, x87_run};
+use crate::pointers::GamePtr;
+use crate::race::matrices_store::MATRICES;
+use crate::race::numbers_store::NUMBERS;
 use crate::scene::cross_product3::cross_product3;
 use crate::scene::matrix3::{Axis, extended, rounded, turn_matrix3, turnable};
 use crate::scene::rotate_point::rotate_point;
 use crate::scene::vector3::normalise_vector3;
-use crate::service::harness::{Region, at, capture, restore};
-use std::sync::atomic::AtomicUsize;
+use crate::session::Float;
 
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
+use crate::d3d::vertices_store::VERTICES;
 
-pub static HOOK: RawHook =
-    RawHook::new("marks::draw_shadow", rva(0x4C8168), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
-
-const VIEW_RVA: usize = rva(0x5EA0CC); // unk_5EA0CC
-const MARK_CORNERS_RVA: usize = rva(0x8EB971); // g_marksCorners
-const UV_K_RVA: usize = rva(0x8EB969); // flt_8EB969
-const TINT_RVA: usize = rva(0x939BA6); // dword_939BA6
-const NEAR_RVA: usize = rva(0x5C5E18); // flt_5C5E18
-const Z_K_RVA: usize = rva(0x8EB96D); // flt_8EB96D
-const VERTICES_RVA: usize = rva(0x9605A0); // g_polygonVertices
-
-/// A shadow's variables (the second, `sub_4C74DA`'s, 0xD1C lower, its constants 0xD08 lower)
-/// and its x87 blocks.
-pub struct Shadow {
-    corner: usize,
-    sides: [usize; 2],
-    side: [usize; 3],
-    matrix: usize,
-    split: usize,
-    /// (factor, base) below the split, (factor, base) above it.
-    lines: [(usize, usize); 2],
-    way: usize,
-    corners: usize,
-    lifts: usize,
+/// A shadow's variables (the typed statics of `marks::kind_store`: the second shadow's,
+/// `sub_4C74DA`'s, are set 1's, the first's set 2's) and its x87 blocks.
+pub struct Shadow<'a> {
+    pub quad: &'a QuadWork,
+    pub consts: &'a KindConsts,
+    /// The quad is lifted along it (`flt_934B78`, set 1's `flt_933E70`).
+    pub up: &'a Float,
     /// The settings' field the angle comes from.
-    field: u32,
-    light_turned: unsafe fn(u32, u32, u32),
-    second_turned: unsafe fn(u32, u32, u32),
-    corners_block: unsafe fn(u32),
-    corners_in: unsafe fn(u32),
-    projected: unsafe fn(u32),
+    pub field: u32,
 }
 
 /// `draw_shadow`'s.
-pub const FIRST: Shadow = Shadow {
-    corner: rva(0x933F64),
-    sides: [rva(0x933F1C), rva(0x933F28)],
-    side: [rva(0x933F40), rva(0x933F4C), rva(0x933F58)],
-    matrix: rva(0x933EEC),
-    split: rva(0x933F78),
-    lines: [
-        (rva(0x933F74), rva(0x933F70)),
-        (rva(0x933F84), rva(0x933F80)),
-    ],
-    way: rva(0x933F8C),
-    corners: rva(0x933F98),
-    lifts: rva(0x934BC0),
+pub static FIRST: Shadow<'static> = Shadow {
+    quad: &QUAD_2,
+    consts: &CONSTS_2,
+    up: &EXTRA_2.extra,
     field: 0x26A4,
-    light_turned,
-    second_turned,
-    corners_block: corners,
-    corners_in,
-    projected,
 };
 
 /// `sub_4C74DA`'s.
-pub const SECOND: Shadow = Shadow {
-    corner: rva(0x933248),
-    sides: [rva(0x933200), rva(0x93320C)],
-    side: [rva(0x933224), rva(0x933230), rva(0x93323C)],
-    matrix: rva(0x9331D0),
-    split: rva(0x93325C),
-    lines: [
-        (rva(0x933258), rva(0x933254)),
-        (rva(0x933268), rva(0x933264)),
-    ],
-    way: rva(0x933270),
-    corners: rva(0x93327C),
-    lifts: rva(0x933EC0),
+pub static SECOND: Shadow<'static> = Shadow {
+    quad: &QUAD_1,
+    consts: &CONSTS_1,
+    up: &EXTRAS_1.extra,
     field: 0x26A0,
-    light_turned: light_turned_2,
-    second_turned: second_turned_2,
-    corners_block: corners_2,
-    corners_in: corners_in_2,
-    projected: projected_2,
 };
 
 /// Each vertex's texture place: the corner entry's word offsets (u, v).
 const UV_WORDS: [(u32, u32); 4] = [(0xC, 0xE), (8, 0xA), (0, 2), (4, 6)];
 const STATES: [(u32, u32); 5] = [(4, 0x15), (5, 0x13), (6, 0x14), (0, 0x1C), (1, 0x1B)];
 
-/// A call by place (see the header).
-pub type Part<'a> = &'a mut dyn FnMut(u32, &mut Regs) -> Result<(), Refused>;
-
-fn addr(r: usize) -> u32 {
-    game_addr(r) as u32
-}
-
-/// The original's 0x4C82B4 .. 0x4C8324: `flt_934BB4` .. turned by the matrix at m (`[esp]` temporaries at t) into `flt_933EE0` ...
-unsafe fn light_turned(b: u32, m: u32, t: u32) {
-    unsafe {
-        core::arch::asm!(
-            "fld dword ptr [{b} + 0x534BB4]",
-            "fld dword ptr [{b} + 0x534BB8]",
-            "fld dword ptr [{b} + 0x534BBC]",
-            ".byte 0xD9, 0xC0",
-            "fmul dword ptr [{m} + 0x0]",
-            ".byte 0xD9, 0xC2",
-            "fmul dword ptr [{m} + 0x4]",
-            ".byte 0xD9, 0xC4",
-            "fmul dword ptr [{m} + 0x8]",
-            ".byte 0xDE, 0xC1",
-            ".byte 0xDE, 0xC1",
-            "fstp dword ptr [{t} + 0x0]",
-            ".byte 0xD9, 0xC0",
-            "fmul dword ptr [{m} + 0xC]",
-            ".byte 0xD9, 0xC2",
-            "fmul dword ptr [{m} + 0x10]",
-            ".byte 0xD9, 0xC4",
-            "fmul dword ptr [{m} + 0x14]",
-            ".byte 0xDE, 0xC1",
-            ".byte 0xDE, 0xC1",
-            "fstp dword ptr [{t} + 0x4]",
-            "fmul dword ptr [{m} + 0x18]",
-            ".byte 0xD9, 0xC9",
-            "fmul dword ptr [{m} + 0x1C]",
-            ".byte 0xD9, 0xCA",
-            "fmul dword ptr [{m} + 0x20]",
-            ".byte 0xDE, 0xC1",
-            ".byte 0xDE, 0xC1",
-            "fld dword ptr [{t} + 0x4]",
-            "fld dword ptr [{t} + 0x0]",
-            "fstp dword ptr [{b} + 0x533EE0]",
-            "fstp dword ptr [{b} + 0x533EE4]",
-            "fstp dword ptr [{b} + 0x533EE8]",
-            b = in(reg) b,
-            m = in(reg) m,
-            t = in(reg) t,
-            out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
-            out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
-            options(nostack),
-        )
-    }
-}
-
-/// The original's 0x4C838A .. 0x4C83FA: `flt_933EE0` .. turned by the matrix at m into `dword_933F4C` ...
-unsafe fn second_turned(b: u32, m: u32, t: u32) {
-    unsafe {
-        core::arch::asm!(
-            "fld dword ptr [{b} + 0x533EE8]",
-            "fld dword ptr [{b} + 0x533EE4]",
-            "fld dword ptr [{b} + 0x533EE0]",
-            ".byte 0xD9, 0xC0",
-            "fmul dword ptr [{m} + 0x0]",
-            ".byte 0xD9, 0xC2",
-            "fmul dword ptr [{m} + 0x4]",
-            ".byte 0xD9, 0xC4",
-            "fmul dword ptr [{m} + 0x8]",
-            ".byte 0xDE, 0xC1",
-            ".byte 0xDE, 0xC1",
-            "fstp dword ptr [{t} + 0x0]",
-            ".byte 0xD9, 0xC0",
-            "fmul dword ptr [{m} + 0xC]",
-            ".byte 0xD9, 0xC2",
-            "fmul dword ptr [{m} + 0x10]",
-            ".byte 0xD9, 0xC4",
-            "fmul dword ptr [{m} + 0x14]",
-            ".byte 0xDE, 0xC1",
-            ".byte 0xDE, 0xC1",
-            "fstp dword ptr [{t} + 0x4]",
-            "fmul dword ptr [{m} + 0x18]",
-            ".byte 0xD9, 0xC9",
-            "fmul dword ptr [{m} + 0x1C]",
-            ".byte 0xD9, 0xCA",
-            "fmul dword ptr [{m} + 0x20]",
-            ".byte 0xDE, 0xC1",
-            ".byte 0xDE, 0xC1",
-            "fld dword ptr [{t} + 0x4]",
-            "fld dword ptr [{t} + 0x0]",
-            "fstp dword ptr [{b} + 0x533F4C]",
-            "fstp dword ptr [{b} + 0x533F50]",
-            "fstp dword ptr [{b} + 0x533F54]",
-            b = in(reg) b,
-            m = in(reg) m,
-            t = in(reg) t,
-            out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
-            out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
-            options(nostack),
-        )
-    }
-}
-
-/// The original's 0x4C8428 .. 0x4C86E6: the two sides scaled, the quad's four corners about `flt_933ED0` .., lifted along the up (`flt_934B78`), the way between two corners into `flt_933F8C` ...
-unsafe fn corners(b: u32) {
-    unsafe {
-        core::arch::asm!(
-            "fld dword ptr [{b} + 0x533F40]",
-            "fmul dword ptr [{b} + 0x533F68]",
-            "fstp dword ptr [{b} + 0x533F40]",
-            "fld dword ptr [{b} + 0x533F44]",
-            "fmul dword ptr [{b} + 0x533F68]",
-            "fstp dword ptr [{b} + 0x533F44]",
-            "fld dword ptr [{b} + 0x533F48]",
-            "fmul dword ptr [{b} + 0x533F68]",
-            "fstp dword ptr [{b} + 0x533F48]",
-            "fld dword ptr [{b} + 0x533F4C]",
-            "fmul dword ptr [{b} + 0x533F6C]",
-            "fstp dword ptr [{b} + 0x533F4C]",
-            "fld dword ptr [{b} + 0x533F50]",
-            "fmul dword ptr [{b} + 0x533F6C]",
-            "fstp dword ptr [{b} + 0x533F50]",
-            "fld dword ptr [{b} + 0x533F54]",
-            "fmul dword ptr [{b} + 0x533F6C]",
-            "fstp dword ptr [{b} + 0x533F54]",
-            "fld dword ptr [{b} + 0x533ED0]",
-            "fsub dword ptr [{b} + 0x533F40]",
-            "fstp dword ptr [{b} + 0x533F98]",
-            "fld dword ptr [{b} + 0x533ED4]",
-            "fsub dword ptr [{b} + 0x533F44]",
-            "fstp dword ptr [{b} + 0x533F9C]",
-            "fld dword ptr [{b} + 0x533ED8]",
-            "fsub dword ptr [{b} + 0x533F48]",
-            "fstp dword ptr [{b} + 0x533FA0]",
-            "fld dword ptr [{b} + 0x533ED0]",
-            "fadd dword ptr [{b} + 0x533F40]",
-            "fstp dword ptr [{b} + 0x533FA4]",
-            "fld dword ptr [{b} + 0x533ED4]",
-            "fadd dword ptr [{b} + 0x533F44]",
-            "fstp dword ptr [{b} + 0x533FA8]",
-            "fld dword ptr [{b} + 0x533ED8]",
-            "fadd dword ptr [{b} + 0x533F48]",
-            "fstp dword ptr [{b} + 0x533FAC]",
-            "fld dword ptr [{b} + 0x533ED0]",
-            "fadd dword ptr [{b} + 0x533F40]",
-            "fadd dword ptr [{b} + 0x533F4C]",
-            "fstp dword ptr [{b} + 0x533FB0]",
-            "fld dword ptr [{b} + 0x533ED4]",
-            "fadd dword ptr [{b} + 0x533F44]",
-            "fadd dword ptr [{b} + 0x533F50]",
-            "fstp dword ptr [{b} + 0x533FB4]",
-            "fld dword ptr [{b} + 0x533ED8]",
-            "fadd dword ptr [{b} + 0x533F48]",
-            "fadd dword ptr [{b} + 0x533F54]",
-            "fstp dword ptr [{b} + 0x533FB8]",
-            "fld dword ptr [{b} + 0x533ED0]",
-            "fsub dword ptr [{b} + 0x533F40]",
-            "fadd dword ptr [{b} + 0x533F4C]",
-            "fstp dword ptr [{b} + 0x533FBC]",
-            "fld dword ptr [{b} + 0x533ED4]",
-            "fsub dword ptr [{b} + 0x533F44]",
-            "fadd dword ptr [{b} + 0x533F50]",
-            "fstp dword ptr [{b} + 0x533FC0]",
-            "fld dword ptr [{b} + 0x533ED8]",
-            "fsub dword ptr [{b} + 0x533F48]",
-            "fadd dword ptr [{b} + 0x533F54]",
-            "fstp dword ptr [{b} + 0x533FC4]",
-            "fld dword ptr [{b} + 0x533EF0]",
-            "fmul dword ptr [{b} + 0x534B78]",
-            "fadd dword ptr [{b} + 0x533F98]",
-            "fstp dword ptr [{b} + 0x533F98]",
-            "fld dword ptr [{b} + 0x533EFC]",
-            "fmul dword ptr [{b} + 0x534B78]",
-            "fadd dword ptr [{b} + 0x533F9C]",
-            "fstp dword ptr [{b} + 0x533F9C]",
-            "fld dword ptr [{b} + 0x533F08]",
-            "fmul dword ptr [{b} + 0x534B78]",
-            "fadd dword ptr [{b} + 0x533FA0]",
-            "fstp dword ptr [{b} + 0x533FA0]",
-            "fld dword ptr [{b} + 0x533EF0]",
-            "fmul dword ptr [{b} + 0x534B78]",
-            "fadd dword ptr [{b} + 0x533FA4]",
-            "fstp dword ptr [{b} + 0x533FA4]",
-            "fld dword ptr [{b} + 0x533EFC]",
-            "fmul dword ptr [{b} + 0x534B78]",
-            "fadd dword ptr [{b} + 0x533FA8]",
-            "fstp dword ptr [{b} + 0x533FA8]",
-            "fld dword ptr [{b} + 0x533F08]",
-            "fmul dword ptr [{b} + 0x534B78]",
-            "fadd dword ptr [{b} + 0x533FAC]",
-            "fstp dword ptr [{b} + 0x533FAC]",
-            "fld dword ptr [{b} + 0x533EF0]",
-            "fmul dword ptr [{b} + 0x534B78]",
-            "fadd dword ptr [{b} + 0x533FB0]",
-            "fstp dword ptr [{b} + 0x533FB0]",
-            "fld dword ptr [{b} + 0x533EFC]",
-            "fmul dword ptr [{b} + 0x534B78]",
-            "fadd dword ptr [{b} + 0x533FB4]",
-            "fstp dword ptr [{b} + 0x533FB4]",
-            "fld dword ptr [{b} + 0x533F08]",
-            "fmul dword ptr [{b} + 0x534B78]",
-            "fadd dword ptr [{b} + 0x533FB8]",
-            "fstp dword ptr [{b} + 0x533FB8]",
-            "fld dword ptr [{b} + 0x533EF0]",
-            "fmul dword ptr [{b} + 0x534B78]",
-            "fadd dword ptr [{b} + 0x533FBC]",
-            "fstp dword ptr [{b} + 0x533FBC]",
-            "fld dword ptr [{b} + 0x533EFC]",
-            "fmul dword ptr [{b} + 0x534B78]",
-            "fadd dword ptr [{b} + 0x533FC0]",
-            "fstp dword ptr [{b} + 0x533FC0]",
-            "fld dword ptr [{b} + 0x533F08]",
-            "fmul dword ptr [{b} + 0x534B78]",
-            "fadd dword ptr [{b} + 0x533FC4]",
-            "fstp dword ptr [{b} + 0x533FC4]",
-            "fld dword ptr [{b} + 0x533FB0]",
-            "fsub dword ptr [{b} + 0x533FA4]",
-            "fstp dword ptr [{b} + 0x533F8C]",
-            "fld dword ptr [{b} + 0x533FB4]",
-            "fsub dword ptr [{b} + 0x533FA8]",
-            "fstp dword ptr [{b} + 0x533F90]",
-            "fld dword ptr [{b} + 0x533FB8]",
-            "fsub dword ptr [{b} + 0x533FAC]",
-            "fstp dword ptr [{b} + 0x533F94]",
-            b = in(reg) b,
-            out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
-            out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
-            options(nostack),
-        )
-    }
-}
-
-/// The original's 0x4C86F1 .. 0x4C87FF: that way times `flt_933F88`, taken off every corner.
-unsafe fn corners_in(b: u32) {
-    unsafe {
-        core::arch::asm!(
-            "fld dword ptr [{b} + 0x533F8C]",
-            "fmul dword ptr [{b} + 0x533F88]",
-            "fstp dword ptr [{b} + 0x533F8C]",
-            "fld dword ptr [{b} + 0x533F90]",
-            "fmul dword ptr [{b} + 0x533F88]",
-            "fstp dword ptr [{b} + 0x533F90]",
-            "fld dword ptr [{b} + 0x533F94]",
-            "fmul dword ptr [{b} + 0x533F88]",
-            "fstp dword ptr [{b} + 0x533F94]",
-            "fld dword ptr [{b} + 0x533F98]",
-            "fsub dword ptr [{b} + 0x533F8C]",
-            "fstp dword ptr [{b} + 0x533F98]",
-            "fld dword ptr [{b} + 0x533F9C]",
-            "fsub dword ptr [{b} + 0x533F90]",
-            "fstp dword ptr [{b} + 0x533F9C]",
-            "fld dword ptr [{b} + 0x533FA0]",
-            "fsub dword ptr [{b} + 0x533F94]",
-            "fstp dword ptr [{b} + 0x533FA0]",
-            "fld dword ptr [{b} + 0x533FA4]",
-            "fsub dword ptr [{b} + 0x533F8C]",
-            "fstp dword ptr [{b} + 0x533FA4]",
-            "fld dword ptr [{b} + 0x533FA8]",
-            "fsub dword ptr [{b} + 0x533F90]",
-            "fstp dword ptr [{b} + 0x533FA8]",
-            "fld dword ptr [{b} + 0x533FAC]",
-            "fsub dword ptr [{b} + 0x533F94]",
-            "fstp dword ptr [{b} + 0x533FAC]",
-            "fld dword ptr [{b} + 0x533FB0]",
-            "fsub dword ptr [{b} + 0x533F8C]",
-            "fstp dword ptr [{b} + 0x533FB0]",
-            "fld dword ptr [{b} + 0x533FB4]",
-            "fsub dword ptr [{b} + 0x533F90]",
-            "fstp dword ptr [{b} + 0x533FB4]",
-            "fld dword ptr [{b} + 0x533FB8]",
-            "fsub dword ptr [{b} + 0x533F94]",
-            "fstp dword ptr [{b} + 0x533FB8]",
-            "fld dword ptr [{b} + 0x533FBC]",
-            "fsub dword ptr [{b} + 0x533F8C]",
-            "fstp dword ptr [{b} + 0x533FBC]",
-            "fld dword ptr [{b} + 0x533FC0]",
-            "fsub dword ptr [{b} + 0x533F90]",
-            "fstp dword ptr [{b} + 0x533FC0]",
-            "fld dword ptr [{b} + 0x533FC4]",
-            "fsub dword ptr [{b} + 0x533F94]",
-            "fstp dword ptr [{b} + 0x533FC4]",
-            b = in(reg) b,
-            out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
-            out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
-            options(nostack),
-        )
-    }
-}
-
-/// The original's 0x4C8A4A .. 0x4C8B1A: the four corners projected.
-unsafe fn projected(b: u32) {
-    unsafe {
-        core::arch::asm!(
-            "fld dword ptr [{b} + 0x224088]",
-            "fdiv dword ptr [{b} + 0x533FA0]",
-            ".byte 0xD9, 0xC0",
-            "fmul dword ptr [{b} + 0x533F98]",
-            "fadd dword ptr [{b} + 0x22409C]",
-            "fstp dword ptr [{b} + 0x533F98]",
-            "fmul dword ptr [{b} + 0x533F9C]",
-            ".byte 0xD9, 0xE0",
-            "fadd dword ptr [{b} + 0x2240A0]",
-            "fstp dword ptr [{b} + 0x533F9C]",
-            "fld dword ptr [{b} + 0x224088]",
-            "fdiv dword ptr [{b} + 0x533FAC]",
-            ".byte 0xD9, 0xC0",
-            "fmul dword ptr [{b} + 0x533FA4]",
-            "fadd dword ptr [{b} + 0x22409C]",
-            "fstp dword ptr [{b} + 0x533FA4]",
-            "fmul dword ptr [{b} + 0x533FA8]",
-            ".byte 0xD9, 0xE0",
-            "fadd dword ptr [{b} + 0x2240A0]",
-            "fstp dword ptr [{b} + 0x533FA8]",
-            "fld dword ptr [{b} + 0x224088]",
-            "fdiv dword ptr [{b} + 0x533FB8]",
-            ".byte 0xD9, 0xC0",
-            "fmul dword ptr [{b} + 0x533FB0]",
-            "fadd dword ptr [{b} + 0x22409C]",
-            "fstp dword ptr [{b} + 0x533FB0]",
-            "fmul dword ptr [{b} + 0x533FB4]",
-            ".byte 0xD9, 0xE0",
-            "fadd dword ptr [{b} + 0x2240A0]",
-            "fstp dword ptr [{b} + 0x533FB4]",
-            "fld dword ptr [{b} + 0x224088]",
-            "fdiv dword ptr [{b} + 0x533FC4]",
-            ".byte 0xD9, 0xC0",
-            "fmul dword ptr [{b} + 0x533FBC]",
-            "fadd dword ptr [{b} + 0x22409C]",
-            "fstp dword ptr [{b} + 0x533FBC]",
-            "fmul dword ptr [{b} + 0x533FC0]",
-            ".byte 0xD9, 0xE0",
-            "fadd dword ptr [{b} + 0x2240A0]",
-            "fstp dword ptr [{b} + 0x533FC0]",
-            b = in(reg) b,
-            out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
-            out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
-            options(nostack),
-        )
-    }
-}
-
-/// The twin's (0x4C7680 ..): as `light_turned`, on the second shadow's variables.
-unsafe fn light_turned_2(b: u32, m: u32, t: u32) {
-    unsafe {
-        core::arch::asm!(
-            "fld dword ptr [{b} + 0x533EB4]",
-            "fld dword ptr [{b} + 0x533EB8]",
-            "fld dword ptr [{b} + 0x533EBC]",
-            ".byte 0xD9, 0xC0",
-            "fmul dword ptr [{m} + 0x0]",
-            ".byte 0xD9, 0xC2",
-            "fmul dword ptr [{m} + 0x4]",
-            ".byte 0xD9, 0xC4",
-            "fmul dword ptr [{m} + 0x8]",
-            ".byte 0xDE, 0xC1",
-            ".byte 0xDE, 0xC1",
-            "fstp dword ptr [{t} + 0x0]",
-            ".byte 0xD9, 0xC0",
-            "fmul dword ptr [{m} + 0xC]",
-            ".byte 0xD9, 0xC2",
-            "fmul dword ptr [{m} + 0x10]",
-            ".byte 0xD9, 0xC4",
-            "fmul dword ptr [{m} + 0x14]",
-            ".byte 0xDE, 0xC1",
-            ".byte 0xDE, 0xC1",
-            "fstp dword ptr [{t} + 0x4]",
-            "fmul dword ptr [{m} + 0x18]",
-            ".byte 0xD9, 0xC9",
-            "fmul dword ptr [{m} + 0x1C]",
-            ".byte 0xD9, 0xCA",
-            "fmul dword ptr [{m} + 0x20]",
-            ".byte 0xDE, 0xC1",
-            ".byte 0xDE, 0xC1",
-            "fld dword ptr [{t} + 0x4]",
-            "fld dword ptr [{t} + 0x0]",
-            "fstp dword ptr [{b} + 0x5331C4]",
-            "fstp dword ptr [{b} + 0x5331C8]",
-            "fstp dword ptr [{b} + 0x5331CC]",
-            b = in(reg) b,
-            m = in(reg) m,
-            t = in(reg) t,
-            out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
-            out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
-            options(nostack),
-        )
-    }
-}
-
-/// The twin's: as `second_turned`.
-unsafe fn second_turned_2(b: u32, m: u32, t: u32) {
-    unsafe {
-        core::arch::asm!(
-            "fld dword ptr [{b} + 0x5331CC]",
-            "fld dword ptr [{b} + 0x5331C8]",
-            "fld dword ptr [{b} + 0x5331C4]",
-            ".byte 0xD9, 0xC0",
-            "fmul dword ptr [{m} + 0x0]",
-            ".byte 0xD9, 0xC2",
-            "fmul dword ptr [{m} + 0x4]",
-            ".byte 0xD9, 0xC4",
-            "fmul dword ptr [{m} + 0x8]",
-            ".byte 0xDE, 0xC1",
-            ".byte 0xDE, 0xC1",
-            "fstp dword ptr [{t} + 0x0]",
-            ".byte 0xD9, 0xC0",
-            "fmul dword ptr [{m} + 0xC]",
-            ".byte 0xD9, 0xC2",
-            "fmul dword ptr [{m} + 0x10]",
-            ".byte 0xD9, 0xC4",
-            "fmul dword ptr [{m} + 0x14]",
-            ".byte 0xDE, 0xC1",
-            ".byte 0xDE, 0xC1",
-            "fstp dword ptr [{t} + 0x4]",
-            "fmul dword ptr [{m} + 0x18]",
-            ".byte 0xD9, 0xC9",
-            "fmul dword ptr [{m} + 0x1C]",
-            ".byte 0xD9, 0xCA",
-            "fmul dword ptr [{m} + 0x20]",
-            ".byte 0xDE, 0xC1",
-            ".byte 0xDE, 0xC1",
-            "fld dword ptr [{t} + 0x4]",
-            "fld dword ptr [{t} + 0x0]",
-            "fstp dword ptr [{b} + 0x533230]",
-            "fstp dword ptr [{b} + 0x533234]",
-            "fstp dword ptr [{b} + 0x533238]",
-            b = in(reg) b,
-            m = in(reg) m,
-            t = in(reg) t,
-            out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
-            out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
-            options(nostack),
-        )
-    }
-}
-
-/// The twin's: as `corners`.
-unsafe fn corners_2(b: u32) {
-    unsafe {
-        core::arch::asm!(
-            "fld dword ptr [{b} + 0x533224]",
-            "fmul dword ptr [{b} + 0x53324C]",
-            "fstp dword ptr [{b} + 0x533224]",
-            "fld dword ptr [{b} + 0x533228]",
-            "fmul dword ptr [{b} + 0x53324C]",
-            "fstp dword ptr [{b} + 0x533228]",
-            "fld dword ptr [{b} + 0x53322C]",
-            "fmul dword ptr [{b} + 0x53324C]",
-            "fstp dword ptr [{b} + 0x53322C]",
-            "fld dword ptr [{b} + 0x533230]",
-            "fmul dword ptr [{b} + 0x533250]",
-            "fstp dword ptr [{b} + 0x533230]",
-            "fld dword ptr [{b} + 0x533234]",
-            "fmul dword ptr [{b} + 0x533250]",
-            "fstp dword ptr [{b} + 0x533234]",
-            "fld dword ptr [{b} + 0x533238]",
-            "fmul dword ptr [{b} + 0x533250]",
-            "fstp dword ptr [{b} + 0x533238]",
-            "fld dword ptr [{b} + 0x5331B4]",
-            "fsub dword ptr [{b} + 0x533224]",
-            "fstp dword ptr [{b} + 0x53327C]",
-            "fld dword ptr [{b} + 0x5331B8]",
-            "fsub dword ptr [{b} + 0x533228]",
-            "fstp dword ptr [{b} + 0x533280]",
-            "fld dword ptr [{b} + 0x5331BC]",
-            "fsub dword ptr [{b} + 0x53322C]",
-            "fstp dword ptr [{b} + 0x533284]",
-            "fld dword ptr [{b} + 0x5331B4]",
-            "fadd dword ptr [{b} + 0x533224]",
-            "fstp dword ptr [{b} + 0x533288]",
-            "fld dword ptr [{b} + 0x5331B8]",
-            "fadd dword ptr [{b} + 0x533228]",
-            "fstp dword ptr [{b} + 0x53328C]",
-            "fld dword ptr [{b} + 0x5331BC]",
-            "fadd dword ptr [{b} + 0x53322C]",
-            "fstp dword ptr [{b} + 0x533290]",
-            "fld dword ptr [{b} + 0x5331B4]",
-            "fadd dword ptr [{b} + 0x533224]",
-            "fadd dword ptr [{b} + 0x533230]",
-            "fstp dword ptr [{b} + 0x533294]",
-            "fld dword ptr [{b} + 0x5331B8]",
-            "fadd dword ptr [{b} + 0x533228]",
-            "fadd dword ptr [{b} + 0x533234]",
-            "fstp dword ptr [{b} + 0x533298]",
-            "fld dword ptr [{b} + 0x5331BC]",
-            "fadd dword ptr [{b} + 0x53322C]",
-            "fadd dword ptr [{b} + 0x533238]",
-            "fstp dword ptr [{b} + 0x53329C]",
-            "fld dword ptr [{b} + 0x5331B4]",
-            "fsub dword ptr [{b} + 0x533224]",
-            "fadd dword ptr [{b} + 0x533230]",
-            "fstp dword ptr [{b} + 0x5332A0]",
-            "fld dword ptr [{b} + 0x5331B8]",
-            "fsub dword ptr [{b} + 0x533228]",
-            "fadd dword ptr [{b} + 0x533234]",
-            "fstp dword ptr [{b} + 0x5332A4]",
-            "fld dword ptr [{b} + 0x5331BC]",
-            "fsub dword ptr [{b} + 0x53322C]",
-            "fadd dword ptr [{b} + 0x533238]",
-            "fstp dword ptr [{b} + 0x5332A8]",
-            "fld dword ptr [{b} + 0x5331D4]",
-            "fmul dword ptr [{b} + 0x533E70]",
-            "fadd dword ptr [{b} + 0x53327C]",
-            "fstp dword ptr [{b} + 0x53327C]",
-            "fld dword ptr [{b} + 0x5331E0]",
-            "fmul dword ptr [{b} + 0x533E70]",
-            "fadd dword ptr [{b} + 0x533280]",
-            "fstp dword ptr [{b} + 0x533280]",
-            "fld dword ptr [{b} + 0x5331EC]",
-            "fmul dword ptr [{b} + 0x533E70]",
-            "fadd dword ptr [{b} + 0x533284]",
-            "fstp dword ptr [{b} + 0x533284]",
-            "fld dword ptr [{b} + 0x5331D4]",
-            "fmul dword ptr [{b} + 0x533E70]",
-            "fadd dword ptr [{b} + 0x533288]",
-            "fstp dword ptr [{b} + 0x533288]",
-            "fld dword ptr [{b} + 0x5331E0]",
-            "fmul dword ptr [{b} + 0x533E70]",
-            "fadd dword ptr [{b} + 0x53328C]",
-            "fstp dword ptr [{b} + 0x53328C]",
-            "fld dword ptr [{b} + 0x5331EC]",
-            "fmul dword ptr [{b} + 0x533E70]",
-            "fadd dword ptr [{b} + 0x533290]",
-            "fstp dword ptr [{b} + 0x533290]",
-            "fld dword ptr [{b} + 0x5331D4]",
-            "fmul dword ptr [{b} + 0x533E70]",
-            "fadd dword ptr [{b} + 0x533294]",
-            "fstp dword ptr [{b} + 0x533294]",
-            "fld dword ptr [{b} + 0x5331E0]",
-            "fmul dword ptr [{b} + 0x533E70]",
-            "fadd dword ptr [{b} + 0x533298]",
-            "fstp dword ptr [{b} + 0x533298]",
-            "fld dword ptr [{b} + 0x5331EC]",
-            "fmul dword ptr [{b} + 0x533E70]",
-            "fadd dword ptr [{b} + 0x53329C]",
-            "fstp dword ptr [{b} + 0x53329C]",
-            "fld dword ptr [{b} + 0x5331D4]",
-            "fmul dword ptr [{b} + 0x533E70]",
-            "fadd dword ptr [{b} + 0x5332A0]",
-            "fstp dword ptr [{b} + 0x5332A0]",
-            "fld dword ptr [{b} + 0x5331E0]",
-            "fmul dword ptr [{b} + 0x533E70]",
-            "fadd dword ptr [{b} + 0x5332A4]",
-            "fstp dword ptr [{b} + 0x5332A4]",
-            "fld dword ptr [{b} + 0x5331EC]",
-            "fmul dword ptr [{b} + 0x533E70]",
-            "fadd dword ptr [{b} + 0x5332A8]",
-            "fstp dword ptr [{b} + 0x5332A8]",
-            "fld dword ptr [{b} + 0x533294]",
-            "fsub dword ptr [{b} + 0x533288]",
-            "fstp dword ptr [{b} + 0x533270]",
-            "fld dword ptr [{b} + 0x533298]",
-            "fsub dword ptr [{b} + 0x53328C]",
-            "fstp dword ptr [{b} + 0x533274]",
-            "fld dword ptr [{b} + 0x53329C]",
-            "fsub dword ptr [{b} + 0x533290]",
-            "fstp dword ptr [{b} + 0x533278]",
-            b = in(reg) b,
-            out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
-            out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
-            options(nostack),
-        )
-    }
-}
-
-/// The twin's: as `corners_in`.
-unsafe fn corners_in_2(b: u32) {
-    unsafe {
-        core::arch::asm!(
-            "fld dword ptr [{b} + 0x533270]",
-            "fmul dword ptr [{b} + 0x53326C]",
-            "fstp dword ptr [{b} + 0x533270]",
-            "fld dword ptr [{b} + 0x533274]",
-            "fmul dword ptr [{b} + 0x53326C]",
-            "fstp dword ptr [{b} + 0x533274]",
-            "fld dword ptr [{b} + 0x533278]",
-            "fmul dword ptr [{b} + 0x53326C]",
-            "fstp dword ptr [{b} + 0x533278]",
-            "fld dword ptr [{b} + 0x53327C]",
-            "fsub dword ptr [{b} + 0x533270]",
-            "fstp dword ptr [{b} + 0x53327C]",
-            "fld dword ptr [{b} + 0x533280]",
-            "fsub dword ptr [{b} + 0x533274]",
-            "fstp dword ptr [{b} + 0x533280]",
-            "fld dword ptr [{b} + 0x533284]",
-            "fsub dword ptr [{b} + 0x533278]",
-            "fstp dword ptr [{b} + 0x533284]",
-            "fld dword ptr [{b} + 0x533288]",
-            "fsub dword ptr [{b} + 0x533270]",
-            "fstp dword ptr [{b} + 0x533288]",
-            "fld dword ptr [{b} + 0x53328C]",
-            "fsub dword ptr [{b} + 0x533274]",
-            "fstp dword ptr [{b} + 0x53328C]",
-            "fld dword ptr [{b} + 0x533290]",
-            "fsub dword ptr [{b} + 0x533278]",
-            "fstp dword ptr [{b} + 0x533290]",
-            "fld dword ptr [{b} + 0x533294]",
-            "fsub dword ptr [{b} + 0x533270]",
-            "fstp dword ptr [{b} + 0x533294]",
-            "fld dword ptr [{b} + 0x533298]",
-            "fsub dword ptr [{b} + 0x533274]",
-            "fstp dword ptr [{b} + 0x533298]",
-            "fld dword ptr [{b} + 0x53329C]",
-            "fsub dword ptr [{b} + 0x533278]",
-            "fstp dword ptr [{b} + 0x53329C]",
-            "fld dword ptr [{b} + 0x5332A0]",
-            "fsub dword ptr [{b} + 0x533270]",
-            "fstp dword ptr [{b} + 0x5332A0]",
-            "fld dword ptr [{b} + 0x5332A4]",
-            "fsub dword ptr [{b} + 0x533274]",
-            "fstp dword ptr [{b} + 0x5332A4]",
-            "fld dword ptr [{b} + 0x5332A8]",
-            "fsub dword ptr [{b} + 0x533278]",
-            "fstp dword ptr [{b} + 0x5332A8]",
-            b = in(reg) b,
-            out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
-            out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
-            options(nostack),
-        )
-    }
-}
-
-/// The twin's: as `projected`.
-unsafe fn projected_2(b: u32) {
-    unsafe {
-        core::arch::asm!(
-            "fld dword ptr [{b} + 0x224088]",
-            "fdiv dword ptr [{b} + 0x533284]",
-            ".byte 0xD9, 0xC0",
-            "fmul dword ptr [{b} + 0x53327C]",
-            "fadd dword ptr [{b} + 0x22409C]",
-            "fstp dword ptr [{b} + 0x53327C]",
-            "fmul dword ptr [{b} + 0x533280]",
-            ".byte 0xD9, 0xE0",
-            "fadd dword ptr [{b} + 0x2240A0]",
-            "fstp dword ptr [{b} + 0x533280]",
-            "fld dword ptr [{b} + 0x224088]",
-            "fdiv dword ptr [{b} + 0x533290]",
-            ".byte 0xD9, 0xC0",
-            "fmul dword ptr [{b} + 0x533288]",
-            "fadd dword ptr [{b} + 0x22409C]",
-            "fstp dword ptr [{b} + 0x533288]",
-            "fmul dword ptr [{b} + 0x53328C]",
-            ".byte 0xD9, 0xE0",
-            "fadd dword ptr [{b} + 0x2240A0]",
-            "fstp dword ptr [{b} + 0x53328C]",
-            "fld dword ptr [{b} + 0x224088]",
-            "fdiv dword ptr [{b} + 0x53329C]",
-            ".byte 0xD9, 0xC0",
-            "fmul dword ptr [{b} + 0x533294]",
-            "fadd dword ptr [{b} + 0x22409C]",
-            "fstp dword ptr [{b} + 0x533294]",
-            "fmul dword ptr [{b} + 0x533298]",
-            ".byte 0xD9, 0xE0",
-            "fadd dword ptr [{b} + 0x2240A0]",
-            "fstp dword ptr [{b} + 0x533298]",
-            "fld dword ptr [{b} + 0x224088]",
-            "fdiv dword ptr [{b} + 0x5332A8]",
-            ".byte 0xD9, 0xC0",
-            "fmul dword ptr [{b} + 0x5332A0]",
-            "fadd dword ptr [{b} + 0x22409C]",
-            "fstp dword ptr [{b} + 0x5332A0]",
-            "fmul dword ptr [{b} + 0x5332A4]",
-            ".byte 0xD9, 0xE0",
-            "fadd dword ptr [{b} + 0x2240A0]",
-            "fstp dword ptr [{b} + 0x5332A4]",
-            b = in(reg) b,
-            out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
-            out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
-            options(nostack),
-        )
-    }
-}
-
 /// The z turn's angle (see the header), 80 bits.
-unsafe fn angle(g: &mut Regs, sh: &Shadow) -> [u8; 10] {
-    unsafe {
-        g.esi = game_read(SETTINGS_RVA);
-        g.eax = game_read(sh.split);
-        let v = ((g.esi + sh.field) as *const u32).read_unaligned();
-        if (g.eax as i32) <= v as i32 {
-            let (k, c) = sh.lines[1];
-            x87::less_times_plus_negated_80(v, g.eax, game_read(k), game_read(c))
+fn angle(sh: &Shadow) -> Result<[u8; 10], Refused> {
+    Ok({
+        let settings: u32 = crate::marks::setup::SETTINGS.pointer.get();
+        let split: u32 = sh.quad.low.bits();
+        let v = GamePtr::new(settings + sh.field).read::<u32>("a mark's field")?;
+        if (split as i32) <= v as i32 {
+            x87::less_times_plus_negated_80(v, split, sh.quad.slope.bits(), sh.quad.middle.bits())
         } else {
-            let (k, c) = sh.lines[0];
-            x87::times_plus_negated_80(v, game_read(k), game_read(c))
+            x87::times_plus_negated_80(v, sh.quad.step.bits(), sh.quad.start.bits())
         }
-    }
+    })
 }
 
-/// The Rust version (see the header): the registers it leaves.
-pub unsafe fn draw_shadow(entry: &Regs, part: Part) -> Result<Regs, Refused> {
-    unsafe { draw_shadow_with(entry, &FIRST, true, part) }
+/// The Rust version (see the header).
+pub fn draw_shadow() -> Result<(), Refused> {
+    draw_shadow_with(&FIRST, true)
 }
 
-impl Shadow {
-    /// The corner's variable (-1: no shadow).
-    pub fn corner(&self) -> usize {
-        self.corner
+impl Shadow<'_> {
+    /// The corner (-1: no shadow).
+    pub fn corner(&self) -> u32 {
+        self.quad.corner.get()
     }
 
     /// The angle's refusal, if any (for a caller that checks before drawing).
     pub fn angle_refuses(&self) -> Option<Refused> {
-        unsafe { turnable(&angle(&mut Regs::default(), self)) }.err()
+        match angle(self) {
+            Err(e) => Some(e),
+            Ok(a) => { turnable(&a) }.err(),
+        }
     }
 }
 
 /// A shadow (see the header) on `sh`'s variables; `depth` the two depth calls first.
-pub unsafe fn draw_shadow_with(
-    entry: &Regs,
-    sh: &Shadow,
-    depth: bool,
-    part: Part,
-) -> Result<Regs, Refused> {
-    let mut g = *entry;
-    unsafe {
-        let corner: u32 = game_read(sh.corner);
-        if corner == 0xFFFF_FFFF {
-            return Ok(g);
-        }
-        if corner >= 0x100 {
-            return Err(BadInput("a shadow corner past g_marksCorners").into());
-        }
-        if game_read::<u32>(SETTINGS_RVA) == 0 {
-            return Err(BadInput("no marks settings").into());
-        }
-        turnable(&angle(&mut g.clone(), sh))?;
-        let b = addr(0);
-        let mut temps = [0u32; 2];
-        let t = temps.as_mut_ptr() as u32;
-        if depth {
-            part(1, &mut g)?;
-            part(2, &mut g)?;
-        }
-        for (value, state) in STATES {
-            [g.eax, g.ebx] = [value, state];
-            part(3, &mut g)?;
-        }
-        for (n, from) in sh.sides.into_iter().enumerate() {
-            let v: [u32; 3] = game_read(from);
-            [g.eax, g.ebx, g.ecx] = v;
-            for (k, x) in v.into_iter().enumerate() {
-                game_write(sh.side[n] + 4 * k, x);
-            }
-        }
-        let [s0, s1, s2] = sh.side.map(addr);
-        g.esi = s0;
-        normalise_vector3(s0);
-        g.esi = s1;
-        normalise_vector3(s1);
-        [g.esi, g.edi, g.ebp] = [s0, s1, s2];
-        cross_product3(s0, s1, s2)?;
-        [g.esi, g.edi, g.ebp] = [s2, s0, s1];
-        cross_product3(s2, s0, s1)?;
-        g.esi = s1;
-        normalise_vector3(s1);
-        g.esi = s2;
-        normalise_vector3(s2);
-        let a = angle(&mut g, sh);
-        g.esi = addr(sh.matrix);
-        turn_matrix3(Axis::Z, g.esi, a)?;
-        (sh.light_turned)(b, g.esi, t);
-        let m = g.esi;
-        for (n, side) in sh.side.into_iter().enumerate() {
-            let v: [u32; 3] = game_read(side);
-            [g.eax, g.ebx, g.ecx] = v;
-            for (k, x) in v.into_iter().enumerate() {
-                ((m + 4 * n as u32 + 0xC * k as u32) as *mut u32).write_unaligned(x);
-            }
-        }
-        (sh.second_turned)(b, m, t);
-        [g.esi, g.edi, g.ebp] = [s2, s1, s0];
-        cross_product3(s2, s1, s0)?;
-        [g.esi, g.edi, g.ebp] = [s2, s0, s1];
-        cross_product3(s2, s0, s1)?;
-        (sh.corners_block)(b);
-        g.esi = addr(sh.way);
-        normalise_vector3(g.esi);
-        (sh.corners_in)(b);
-        g.esi = addr(VIEW_RVA);
-        for n in 0..4 {
-            let c = sh.corners + 12 * n;
-            let p: [u32; 3] = game_read(c);
-            let turned = rotate_point(g.esi, p.map(extended));
-            for (k, v) in turned.into_iter().enumerate() {
-                game_write(c + 4 * k, rounded(v));
-            }
-        }
-        g.eax = addr(MARK_CORNERS_RVA) + corner * 0x80;
-        let word = |off: u32| ((g.eax + off) as *const u16).read_unaligned() as u32;
-        let uv_k: u32 = game_read(UV_K_RVA);
-        for (n, (u, v)) in UV_WORDS.into_iter().enumerate() {
-            let vertex = VERTICES_RVA + 0x20 * n;
-            game_write(vertex + 0x18, x87::int_times(word(u) as i32, uv_k));
-            game_write(vertex + 0x1C, x87::int_times(word(v) as i32, uv_k));
-        }
-        [g.ebp, g.edi] = [word(8), word(0xA)];
-        let mut c = game_read::<u32>(TINT_RVA) | 0xFF00_0000;
-        let half = |shift: u32| ((!(c >> shift) & 0xFF) >> 1) << shift;
-        let (r, gr, bl) = (half(16), half(8), half(0));
-        c = c.wrapping_add(r).wrapping_add(gr).wrapping_add(bl);
-        g.ecx = c;
-        for n in 0..4 {
-            game_write(VERTICES_RVA + 0x20 * n + 0x10, c);
-        }
-        for n in 0..4 {
-            g.ecx = game_read(sh.corners + 12 * n + 8);
-            if (g.ecx as i32) <= game_read::<i32>(NEAR_RVA) {
-                return Ok(g);
-            }
-        }
-        (sh.projected)(b);
-        let z_k: u32 = game_read(Z_K_RVA);
-        for n in 0..4 {
-            let c = sh.corners + 12 * n;
-            let vertex = VERTICES_RVA + 0x20 * n;
-            [g.eax, g.ebx] = [game_read(c), game_read(c + 4)];
-            game_write(vertex, g.eax);
-            game_write(vertex + 4, g.ebx);
-            let depth = x87_run::sub_mul(game_read(c + 8), game_read(sh.lifts + 4 * n), z_k);
-            game_write(vertex + 8, depth);
-        }
-        part(4, &mut g)?;
+pub fn draw_shadow_with(sh: &Shadow, depth: bool) -> Result<(), Refused> {
+    use crate::scene::set_render_state::set_render_state;
+    let q = sh.quad;
+    let corner: u32 = q.corner.get();
+    if corner == 0xFFFF_FFFF {
+        return Ok(());
     }
-    Ok(g)
-}
-
-/// In the game: the device calls' Rust versions.
-pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
-    unsafe {
-        match place {
-            1 => crate::scene::depth_buffer_on::depth_buffer(r, true),
-            2 => crate::scene::depth_test_on::depth_test_on(r),
-            3 => {
-                let (value, state) = (r.eax, r.ebx);
-                crate::scene::set_render_state::set_render_state(r, value, state);
-            }
-            _ => crate::scene::draw_fan::draw_fan(r, &mut crate::scene::draw_fan::game_part),
+    if corner >= 0x100 {
+        return Err(BadInput("a shadow corner past g_marksCorners").into());
+    }
+    if crate::marks::setup::SETTINGS.pointer.get() == 0 {
+        return Err(BadInput("no marks settings").into());
+    }
+    turnable(&angle(sh)?)?;
+    let mut temps = [0u32; 2];
+    let t = crate::pointers::game_address(temps.as_mut_ptr());
+    if depth {
+        crate::scene::depth_buffer_on::depth_buffer(true);
+        crate::scene::depth_test_on::depth_test_on();
+    }
+    for (value, state) in STATES {
+        set_render_state(value, state);
+    }
+    for n in 0..2 {
+        for k in 0..3 {
+            q.frame[n][k].set_bits(q.sides[n][k].bits());
         }
     }
+    let [s0, s1, s2] = [0, 1, 2].map(|n| q.frame[n][0].addr());
+    normalise_vector3(s0);
+    normalise_vector3(s1);
+    cross_product3(s0, s1, s2)?;
+    cross_product3(s2, s0, s1)?;
+    normalise_vector3(s1);
+    normalise_vector3(s2);
+    let a = angle(sh)?;
+    let m = q.matrix[0].addr();
+    turn_matrix3(Axis::Z, m, a)?;
+    light_turned_x87(sh, m as usize, t as usize);
+    for n in 0..3 {
+        for k in 0..3 {
+            q.matrix[n + 3 * k].set_bits(q.frame[n][k].bits());
+        }
+    }
+    second_turned_x87(sh, m as usize, t as usize);
+    cross_product3(s2, s1, s0)?;
+    cross_product3(s2, s0, s1)?;
+    corners_x87(sh);
+    normalise_vector3(q.way[0].addr());
+    corners_in_x87(sh);
+    let view = MATRICES.listener_matrix[0].addr();
+    for n in 0..4 {
+        let p: [u32; 3] = std::array::from_fn(|k| q.corners[n][k].bits());
+        let turned = rotate_point(view, p.map(extended));
+        for (k, v) in turned.into_iter().enumerate() {
+            q.corners[n][k].set_bits(rounded(v));
+        }
+    }
+    let entry = &MARK_CORNERS.corners[corner as usize]; // under 0x100, checked before
+    let word = |off: u32| u32::from(entry.words[off as usize / 2].get());
+    let uv_k: u32 = DRAW_WORK.uv_k.bits();
+    for (n, (u, v)) in UV_WORDS.into_iter().enumerate() {
+        let vertex = &VERTICES.vertices[n];
+        vertex.u.set_bits(x87::int_times(word(u) as i32, uv_k));
+        vertex.v.set_bits(x87::int_times(word(v) as i32, uv_k));
+    }
+    let mut c = SURFACE.lives_by_level[8].get() | 0xFF00_0000;
+    let half = |shift: u32| ((!(c >> shift) & 0xFF) >> 1) << shift;
+    let (r, gr, bl) = (half(16), half(8), half(0));
+    c = c.wrapping_add(r).wrapping_add(gr).wrapping_add(bl);
+    for n in 0..4 {
+        VERTICES.vertices[n].colour.set(c);
+    }
+    for n in 0..4 {
+        if (q.corners[n][2].bits() as i32) <= (NUMBERS.k4096_a.bits() as i32) {
+            return Ok(());
+        }
+    }
+    projected_x87(crate::race::store::asm_base() as usize, sh);
+    let z_k: u32 = DRAW_WORK.z_k.bits();
+    for n in 0..4 {
+        let vertex = &VERTICES.vertices[n];
+        vertex.x.set_bits(q.corners[n][0].bits());
+        vertex.y.set_bits(q.corners[n][1].bits());
+        let depth = x87_run::sub_mul(q.corners[n][2].bits(), sh.consts.lifts[n].bits(), z_k);
+        vertex.z.set_bits(depth);
+    }
+    crate::marks::clip_quad::draw_fan();
     Ok(())
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    HOOK.count_call();
-    if shadow() {
-        unsafe { call_original(r) };
-        return;
+use crate::marks::plain::{ld, st};
+use crate::math::x87_float as bh;
+
+/// `light_turned`'s x87 block as plain Rust on the x87 model (33 instructions), same order and memory places, on either shadow's variables.
+fn light_turned_x87(s: &Shadow, m: usize, t: usize) {
+    let t0 = bh::ld(s.consts.light[0].bits());
+    let t1 = bh::ld(s.consts.light[1].bits());
+    let t2 = bh::ld(s.consts.light[2].bits());
+    let t3 = t2 * ld(m, 0);
+    let t4 = t1 * ld(m, 0x4);
+    let t5 = t0 * ld(m, 0x8);
+    let t6 = t4 + t5;
+    let t7 = t3 + t6;
+    st(t, 0, t7);
+    let t8 = t2 * ld(m, 0xC);
+    let t9 = t1 * ld(m, 0x10);
+    let t10 = t0 * ld(m, 0x14);
+    let t11 = t9 + t10;
+    let t12 = t8 + t11;
+    st(t, 0x4, t12);
+    let t13 = t2 * ld(m, 0x18);
+    let t14 = t1 * ld(m, 0x1C);
+    let t15 = t0 * ld(m, 0x20);
+    let t16 = t13 + t15;
+    let t17 = t14 + t16;
+    let t18 = ld(t, 0x4);
+    let t19 = ld(t, 0);
+    s.quad.light_turned[0].set_bits(bh::st(t19));
+    s.quad.light_turned[1].set_bits(bh::st(t18));
+    s.quad.light_turned[2].set_bits(bh::st(t17));
+}
+
+/// `second_turned`'s x87 block as plain Rust on the x87 model (33 instructions), same order and memory places, on either shadow's variables.
+fn second_turned_x87(s: &Shadow, m: usize, t: usize) {
+    let t0 = bh::ld(s.quad.light_turned[2].bits());
+    let t1 = bh::ld(s.quad.light_turned[1].bits());
+    let t2 = bh::ld(s.quad.light_turned[0].bits());
+    let t3 = t2 * ld(m, 0);
+    let t4 = t1 * ld(m, 0x4);
+    let t5 = t0 * ld(m, 0x8);
+    let t6 = t4 + t5;
+    let t7 = t3 + t6;
+    st(t, 0, t7);
+    let t8 = t2 * ld(m, 0xC);
+    let t9 = t1 * ld(m, 0x10);
+    let t10 = t0 * ld(m, 0x14);
+    let t11 = t9 + t10;
+    let t12 = t8 + t11;
+    st(t, 0x4, t12);
+    let t13 = t2 * ld(m, 0x18);
+    let t14 = t1 * ld(m, 0x1C);
+    let t15 = t0 * ld(m, 0x20);
+    let t16 = t13 + t15;
+    let t17 = t14 + t16;
+    let t18 = ld(t, 0x4);
+    let t19 = ld(t, 0);
+    s.quad.frame[1][0].set_bits(bh::st(t19));
+    s.quad.frame[1][1].set_bits(bh::st(t18));
+    s.quad.frame[1][2].set_bits(bh::st(t17));
+}
+
+/// `corners`'s x87 block as plain Rust on the x87 model (117 instructions), same order and memory places, on either shadow's variables.
+fn corners_x87(s: &Shadow) {
+    let t0 = bh::ld(s.quad.frame[0][0].bits());
+    let t1 = t0 * bh::ld(s.quad.ratio.bits());
+    s.quad.frame[0][0].set_bits(bh::st(t1));
+    let t2 = bh::ld(s.quad.frame[0][1].bits());
+    let t3 = t2 * bh::ld(s.quad.ratio.bits());
+    s.quad.frame[0][1].set_bits(bh::st(t3));
+    let t4 = bh::ld(s.quad.frame[0][2].bits());
+    let t5 = t4 * bh::ld(s.quad.ratio.bits());
+    s.quad.frame[0][2].set_bits(bh::st(t5));
+    let t6 = bh::ld(s.quad.frame[1][0].bits());
+    let t7 = t6 * bh::ld(s.quad.size.bits());
+    s.quad.frame[1][0].set_bits(bh::st(t7));
+    let t8 = bh::ld(s.quad.frame[1][1].bits());
+    let t9 = t8 * bh::ld(s.quad.size.bits());
+    s.quad.frame[1][1].set_bits(bh::st(t9));
+    let t10 = bh::ld(s.quad.frame[1][2].bits());
+    let t11 = t10 * bh::ld(s.quad.size.bits());
+    s.quad.frame[1][2].set_bits(bh::st(t11));
+    let t12 = bh::ld(s.quad.place[0].bits());
+    let t13 = t12 - bh::ld(s.quad.frame[0][0].bits());
+    s.quad.corners[0][0].set_bits(bh::st(t13));
+    let t14 = bh::ld(s.quad.place[1].bits());
+    let t15 = t14 - bh::ld(s.quad.frame[0][1].bits());
+    s.quad.corners[0][1].set_bits(bh::st(t15));
+    let t16 = bh::ld(s.quad.place[2].bits());
+    let t17 = t16 - bh::ld(s.quad.frame[0][2].bits());
+    s.quad.corners[0][2].set_bits(bh::st(t17));
+    let t18 = bh::ld(s.quad.place[0].bits());
+    let t19 = t18 + bh::ld(s.quad.frame[0][0].bits());
+    s.quad.corners[1][0].set_bits(bh::st(t19));
+    let t20 = bh::ld(s.quad.place[1].bits());
+    let t21 = t20 + bh::ld(s.quad.frame[0][1].bits());
+    s.quad.corners[1][1].set_bits(bh::st(t21));
+    let t22 = bh::ld(s.quad.place[2].bits());
+    let t23 = t22 + bh::ld(s.quad.frame[0][2].bits());
+    s.quad.corners[1][2].set_bits(bh::st(t23));
+    let t24 = bh::ld(s.quad.place[0].bits());
+    let t25 = t24 + bh::ld(s.quad.frame[0][0].bits());
+    let t26 = t25 + bh::ld(s.quad.frame[1][0].bits());
+    s.quad.corners[2][0].set_bits(bh::st(t26));
+    let t27 = bh::ld(s.quad.place[1].bits());
+    let t28 = t27 + bh::ld(s.quad.frame[0][1].bits());
+    let t29 = t28 + bh::ld(s.quad.frame[1][1].bits());
+    s.quad.corners[2][1].set_bits(bh::st(t29));
+    let t30 = bh::ld(s.quad.place[2].bits());
+    let t31 = t30 + bh::ld(s.quad.frame[0][2].bits());
+    let t32 = t31 + bh::ld(s.quad.frame[1][2].bits());
+    s.quad.corners[2][2].set_bits(bh::st(t32));
+    let t33 = bh::ld(s.quad.place[0].bits());
+    let t34 = t33 - bh::ld(s.quad.frame[0][0].bits());
+    let t35 = t34 + bh::ld(s.quad.frame[1][0].bits());
+    s.quad.corners[3][0].set_bits(bh::st(t35));
+    let t36 = bh::ld(s.quad.place[1].bits());
+    let t37 = t36 - bh::ld(s.quad.frame[0][1].bits());
+    let t38 = t37 + bh::ld(s.quad.frame[1][1].bits());
+    s.quad.corners[3][1].set_bits(bh::st(t38));
+    let t39 = bh::ld(s.quad.place[2].bits());
+    let t40 = t39 - bh::ld(s.quad.frame[0][2].bits());
+    let t41 = t40 + bh::ld(s.quad.frame[1][2].bits());
+    s.quad.corners[3][2].set_bits(bh::st(t41));
+    let t42 = bh::ld(s.quad.matrix[1].bits());
+    let t43 = t42 * bh::ld(s.up.bits());
+    let t44 = t43 + bh::ld(s.quad.corners[0][0].bits());
+    s.quad.corners[0][0].set_bits(bh::st(t44));
+    let t45 = bh::ld(s.quad.matrix[4].bits());
+    let t46 = t45 * bh::ld(s.up.bits());
+    let t47 = t46 + bh::ld(s.quad.corners[0][1].bits());
+    s.quad.corners[0][1].set_bits(bh::st(t47));
+    let t48 = bh::ld(s.quad.matrix[7].bits());
+    let t49 = t48 * bh::ld(s.up.bits());
+    let t50 = t49 + bh::ld(s.quad.corners[0][2].bits());
+    s.quad.corners[0][2].set_bits(bh::st(t50));
+    let t51 = bh::ld(s.quad.matrix[1].bits());
+    let t52 = t51 * bh::ld(s.up.bits());
+    let t53 = t52 + bh::ld(s.quad.corners[1][0].bits());
+    s.quad.corners[1][0].set_bits(bh::st(t53));
+    let t54 = bh::ld(s.quad.matrix[4].bits());
+    let t55 = t54 * bh::ld(s.up.bits());
+    let t56 = t55 + bh::ld(s.quad.corners[1][1].bits());
+    s.quad.corners[1][1].set_bits(bh::st(t56));
+    let t57 = bh::ld(s.quad.matrix[7].bits());
+    let t58 = t57 * bh::ld(s.up.bits());
+    let t59 = t58 + bh::ld(s.quad.corners[1][2].bits());
+    s.quad.corners[1][2].set_bits(bh::st(t59));
+    let t60 = bh::ld(s.quad.matrix[1].bits());
+    let t61 = t60 * bh::ld(s.up.bits());
+    let t62 = t61 + bh::ld(s.quad.corners[2][0].bits());
+    s.quad.corners[2][0].set_bits(bh::st(t62));
+    let t63 = bh::ld(s.quad.matrix[4].bits());
+    let t64 = t63 * bh::ld(s.up.bits());
+    let t65 = t64 + bh::ld(s.quad.corners[2][1].bits());
+    s.quad.corners[2][1].set_bits(bh::st(t65));
+    let t66 = bh::ld(s.quad.matrix[7].bits());
+    let t67 = t66 * bh::ld(s.up.bits());
+    let t68 = t67 + bh::ld(s.quad.corners[2][2].bits());
+    s.quad.corners[2][2].set_bits(bh::st(t68));
+    let t69 = bh::ld(s.quad.matrix[1].bits());
+    let t70 = t69 * bh::ld(s.up.bits());
+    let t71 = t70 + bh::ld(s.quad.corners[3][0].bits());
+    s.quad.corners[3][0].set_bits(bh::st(t71));
+    let t72 = bh::ld(s.quad.matrix[4].bits());
+    let t73 = t72 * bh::ld(s.up.bits());
+    let t74 = t73 + bh::ld(s.quad.corners[3][1].bits());
+    s.quad.corners[3][1].set_bits(bh::st(t74));
+    let t75 = bh::ld(s.quad.matrix[7].bits());
+    let t76 = t75 * bh::ld(s.up.bits());
+    let t77 = t76 + bh::ld(s.quad.corners[3][2].bits());
+    s.quad.corners[3][2].set_bits(bh::st(t77));
+    let t78 = bh::ld(s.quad.corners[2][0].bits());
+    let t79 = t78 - bh::ld(s.quad.corners[1][0].bits());
+    s.quad.way[0].set_bits(bh::st(t79));
+    let t80 = bh::ld(s.quad.corners[2][1].bits());
+    let t81 = t80 - bh::ld(s.quad.corners[1][1].bits());
+    s.quad.way[1].set_bits(bh::st(t81));
+    let t82 = bh::ld(s.quad.corners[2][2].bits());
+    let t83 = t82 - bh::ld(s.quad.corners[1][2].bits());
+    s.quad.way[2].set_bits(bh::st(t83));
+}
+
+/// `corners_in`'s x87 block as plain Rust on the x87 model (45 instructions), same order and memory places, on either shadow's variables.
+fn corners_in_x87(s: &Shadow) {
+    let t0 = bh::ld(s.quad.way[0].bits());
+    let t1 = t0 * bh::ld(s.quad.spread.bits());
+    s.quad.way[0].set_bits(bh::st(t1));
+    let t2 = bh::ld(s.quad.way[1].bits());
+    let t3 = t2 * bh::ld(s.quad.spread.bits());
+    s.quad.way[1].set_bits(bh::st(t3));
+    let t4 = bh::ld(s.quad.way[2].bits());
+    let t5 = t4 * bh::ld(s.quad.spread.bits());
+    s.quad.way[2].set_bits(bh::st(t5));
+    let t6 = bh::ld(s.quad.corners[0][0].bits());
+    let t7 = t6 - bh::ld(s.quad.way[0].bits());
+    s.quad.corners[0][0].set_bits(bh::st(t7));
+    let t8 = bh::ld(s.quad.corners[0][1].bits());
+    let t9 = t8 - bh::ld(s.quad.way[1].bits());
+    s.quad.corners[0][1].set_bits(bh::st(t9));
+    let t10 = bh::ld(s.quad.corners[0][2].bits());
+    let t11 = t10 - bh::ld(s.quad.way[2].bits());
+    s.quad.corners[0][2].set_bits(bh::st(t11));
+    let t12 = bh::ld(s.quad.corners[1][0].bits());
+    let t13 = t12 - bh::ld(s.quad.way[0].bits());
+    s.quad.corners[1][0].set_bits(bh::st(t13));
+    let t14 = bh::ld(s.quad.corners[1][1].bits());
+    let t15 = t14 - bh::ld(s.quad.way[1].bits());
+    s.quad.corners[1][1].set_bits(bh::st(t15));
+    let t16 = bh::ld(s.quad.corners[1][2].bits());
+    let t17 = t16 - bh::ld(s.quad.way[2].bits());
+    s.quad.corners[1][2].set_bits(bh::st(t17));
+    let t18 = bh::ld(s.quad.corners[2][0].bits());
+    let t19 = t18 - bh::ld(s.quad.way[0].bits());
+    s.quad.corners[2][0].set_bits(bh::st(t19));
+    let t20 = bh::ld(s.quad.corners[2][1].bits());
+    let t21 = t20 - bh::ld(s.quad.way[1].bits());
+    s.quad.corners[2][1].set_bits(bh::st(t21));
+    let t22 = bh::ld(s.quad.corners[2][2].bits());
+    let t23 = t22 - bh::ld(s.quad.way[2].bits());
+    s.quad.corners[2][2].set_bits(bh::st(t23));
+    let t24 = bh::ld(s.quad.corners[3][0].bits());
+    let t25 = t24 - bh::ld(s.quad.way[0].bits());
+    s.quad.corners[3][0].set_bits(bh::st(t25));
+    let t26 = bh::ld(s.quad.corners[3][1].bits());
+    let t27 = t26 - bh::ld(s.quad.way[1].bits());
+    s.quad.corners[3][1].set_bits(bh::st(t27));
+    let t28 = bh::ld(s.quad.corners[3][2].bits());
+    let t29 = t28 - bh::ld(s.quad.way[2].bits());
+    s.quad.corners[3][2].set_bits(bh::st(t29));
+}
+
+/// `projected`'s x87 block as plain Rust on the x87 model (40 instructions), same order and memory places, on either shadow's variables.
+fn projected_x87(rc: usize, s: &Shadow) {
+    let t0 = ld(rc, 0x224088);
+    let t1 = t0 / bh::ld(s.quad.corners[0][2].bits());
+    let t2 = t1 * bh::ld(s.quad.corners[0][0].bits());
+    let t3 = t2 + ld(rc, 0x22409C);
+    s.quad.corners[0][0].set_bits(bh::st(t3));
+    let t4 = t1 * bh::ld(s.quad.corners[0][1].bits());
+    let t5 = -t4;
+    let t6 = t5 + ld(rc, 0x2240A0);
+    s.quad.corners[0][1].set_bits(bh::st(t6));
+    let t7 = ld(rc, 0x224088);
+    let t8 = t7 / bh::ld(s.quad.corners[1][2].bits());
+    let t9 = t8 * bh::ld(s.quad.corners[1][0].bits());
+    let t10 = t9 + ld(rc, 0x22409C);
+    s.quad.corners[1][0].set_bits(bh::st(t10));
+    let t11 = t8 * bh::ld(s.quad.corners[1][1].bits());
+    let t12 = -t11;
+    let t13 = t12 + ld(rc, 0x2240A0);
+    s.quad.corners[1][1].set_bits(bh::st(t13));
+    let t14 = ld(rc, 0x224088);
+    let t15 = t14 / bh::ld(s.quad.corners[2][2].bits());
+    let t16 = t15 * bh::ld(s.quad.corners[2][0].bits());
+    let t17 = t16 + ld(rc, 0x22409C);
+    s.quad.corners[2][0].set_bits(bh::st(t17));
+    let t18 = t15 * bh::ld(s.quad.corners[2][1].bits());
+    let t19 = -t18;
+    let t20 = t19 + ld(rc, 0x2240A0);
+    s.quad.corners[2][1].set_bits(bh::st(t20));
+    let t21 = ld(rc, 0x224088);
+    let t22 = t21 / bh::ld(s.quad.corners[3][2].bits());
+    let t23 = t22 * bh::ld(s.quad.corners[3][0].bits());
+    let t24 = t23 + ld(rc, 0x22409C);
+    s.quad.corners[3][0].set_bits(bh::st(t24));
+    let t25 = t22 * bh::ld(s.quad.corners[3][1].bits());
+    let t26 = -t25;
+    let t27 = t26 + ld(rc, 0x2240A0);
+    s.quad.corners[3][1].set_bits(bh::st(t27));
+}
+
+#[cfg(all(test, target_arch = "x86"))]
+mod asm_reference {
+    //! The original assembly blocks, kept verbatim as the reference the plain versions are tested against.
+
+    pub(super) fn light_turned_x87(mk: usize, m: usize, t: usize) {
+        unsafe {
+            core::arch::asm!(
+                    "fld dword ptr [{mk} + 0x1CFC74]",
+            "fld dword ptr [{mk} + 0x1CFC78]",
+            "fld dword ptr [{mk} + 0x1CFC7C]",
+            ".byte 0xD9, 0xC0",
+            "fmul dword ptr [{m} + 0x0]",
+            ".byte 0xD9, 0xC2",
+            "fmul dword ptr [{m} + 0x4]",
+            ".byte 0xD9, 0xC4",
+            "fmul dword ptr [{m} + 0x8]",
+            ".byte 0xDE, 0xC1",
+            ".byte 0xDE, 0xC1",
+            "fstp dword ptr [{t} + 0x0]",
+            ".byte 0xD9, 0xC0",
+            "fmul dword ptr [{m} + 0xC]",
+            ".byte 0xD9, 0xC2",
+            "fmul dword ptr [{m} + 0x10]",
+            ".byte 0xD9, 0xC4",
+            "fmul dword ptr [{m} + 0x14]",
+            ".byte 0xDE, 0xC1",
+            ".byte 0xDE, 0xC1",
+            "fstp dword ptr [{t} + 0x4]",
+            "fmul dword ptr [{m} + 0x18]",
+            ".byte 0xD9, 0xC9",
+            "fmul dword ptr [{m} + 0x1C]",
+            ".byte 0xD9, 0xCA",
+            "fmul dword ptr [{m} + 0x20]",
+            ".byte 0xDE, 0xC1",
+            ".byte 0xDE, 0xC1",
+            "fld dword ptr [{t} + 0x4]",
+            "fld dword ptr [{t} + 0x0]",
+            "fstp dword ptr [{mk} + 0x1CEFA0]",
+            "fstp dword ptr [{mk} + 0x1CEFA4]",
+            "fstp dword ptr [{mk} + 0x1CEFA8]",
+            mk = in(reg) mk,
+            m = in(reg) m,
+            t = in(reg) t,
+            out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
+            out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
+            options(nostack),
+            )
+        }
     }
-    match unsafe { draw_shadow(r, &mut game_part) } {
-        Ok(left) => *r = Regs { esp: r.esp, ..left },
-        Err(e) => unsafe { crate::fatal::raise::refused(&HOOK, e, r, call_original) },
+
+    pub(super) fn second_turned_x87(mk: usize, m: usize, t: usize) {
+        unsafe {
+            core::arch::asm!(
+                    "fld dword ptr [{mk} + 0x1CEFA8]",
+            "fld dword ptr [{mk} + 0x1CEFA4]",
+            "fld dword ptr [{mk} + 0x1CEFA0]",
+            ".byte 0xD9, 0xC0",
+            "fmul dword ptr [{m} + 0x0]",
+            ".byte 0xD9, 0xC2",
+            "fmul dword ptr [{m} + 0x4]",
+            ".byte 0xD9, 0xC4",
+            "fmul dword ptr [{m} + 0x8]",
+            ".byte 0xDE, 0xC1",
+            ".byte 0xDE, 0xC1",
+            "fstp dword ptr [{t} + 0x0]",
+            ".byte 0xD9, 0xC0",
+            "fmul dword ptr [{m} + 0xC]",
+            ".byte 0xD9, 0xC2",
+            "fmul dword ptr [{m} + 0x10]",
+            ".byte 0xD9, 0xC4",
+            "fmul dword ptr [{m} + 0x14]",
+            ".byte 0xDE, 0xC1",
+            ".byte 0xDE, 0xC1",
+            "fstp dword ptr [{t} + 0x4]",
+            "fmul dword ptr [{m} + 0x18]",
+            ".byte 0xD9, 0xC9",
+            "fmul dword ptr [{m} + 0x1C]",
+            ".byte 0xD9, 0xCA",
+            "fmul dword ptr [{m} + 0x20]",
+            ".byte 0xDE, 0xC1",
+            ".byte 0xDE, 0xC1",
+            "fld dword ptr [{t} + 0x4]",
+            "fld dword ptr [{t} + 0x0]",
+            "fstp dword ptr [{mk} + 0x1CF00C]",
+            "fstp dword ptr [{mk} + 0x1CF010]",
+            "fstp dword ptr [{mk} + 0x1CF014]",
+            mk = in(reg) mk,
+            m = in(reg) m,
+            t = in(reg) t,
+            out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
+            out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
+            options(nostack),
+            )
+        }
+    }
+
+    pub(super) fn corners_x87(mk: usize) {
+        unsafe {
+            core::arch::asm!(
+                    "fld dword ptr [{mk} + 0x1CF000]",
+            "fmul dword ptr [{mk} + 0x1CF028]",
+            "fstp dword ptr [{mk} + 0x1CF000]",
+            "fld dword ptr [{mk} + 0x1CF004]",
+            "fmul dword ptr [{mk} + 0x1CF028]",
+            "fstp dword ptr [{mk} + 0x1CF004]",
+            "fld dword ptr [{mk} + 0x1CF008]",
+            "fmul dword ptr [{mk} + 0x1CF028]",
+            "fstp dword ptr [{mk} + 0x1CF008]",
+            "fld dword ptr [{mk} + 0x1CF00C]",
+            "fmul dword ptr [{mk} + 0x1CF02C]",
+            "fstp dword ptr [{mk} + 0x1CF00C]",
+            "fld dword ptr [{mk} + 0x1CF010]",
+            "fmul dword ptr [{mk} + 0x1CF02C]",
+            "fstp dword ptr [{mk} + 0x1CF010]",
+            "fld dword ptr [{mk} + 0x1CF014]",
+            "fmul dword ptr [{mk} + 0x1CF02C]",
+            "fstp dword ptr [{mk} + 0x1CF014]",
+            "fld dword ptr [{mk} + 0x1CEF90]",
+            "fsub dword ptr [{mk} + 0x1CF000]",
+            "fstp dword ptr [{mk} + 0x1CF058]",
+            "fld dword ptr [{mk} + 0x1CEF94]",
+            "fsub dword ptr [{mk} + 0x1CF004]",
+            "fstp dword ptr [{mk} + 0x1CF05C]",
+            "fld dword ptr [{mk} + 0x1CEF98]",
+            "fsub dword ptr [{mk} + 0x1CF008]",
+            "fstp dword ptr [{mk} + 0x1CF060]",
+            "fld dword ptr [{mk} + 0x1CEF90]",
+            "fadd dword ptr [{mk} + 0x1CF000]",
+            "fstp dword ptr [{mk} + 0x1CF064]",
+            "fld dword ptr [{mk} + 0x1CEF94]",
+            "fadd dword ptr [{mk} + 0x1CF004]",
+            "fstp dword ptr [{mk} + 0x1CF068]",
+            "fld dword ptr [{mk} + 0x1CEF98]",
+            "fadd dword ptr [{mk} + 0x1CF008]",
+            "fstp dword ptr [{mk} + 0x1CF06C]",
+            "fld dword ptr [{mk} + 0x1CEF90]",
+            "fadd dword ptr [{mk} + 0x1CF000]",
+            "fadd dword ptr [{mk} + 0x1CF00C]",
+            "fstp dword ptr [{mk} + 0x1CF070]",
+            "fld dword ptr [{mk} + 0x1CEF94]",
+            "fadd dword ptr [{mk} + 0x1CF004]",
+            "fadd dword ptr [{mk} + 0x1CF010]",
+            "fstp dword ptr [{mk} + 0x1CF074]",
+            "fld dword ptr [{mk} + 0x1CEF98]",
+            "fadd dword ptr [{mk} + 0x1CF008]",
+            "fadd dword ptr [{mk} + 0x1CF014]",
+            "fstp dword ptr [{mk} + 0x1CF078]",
+            "fld dword ptr [{mk} + 0x1CEF90]",
+            "fsub dword ptr [{mk} + 0x1CF000]",
+            "fadd dword ptr [{mk} + 0x1CF00C]",
+            "fstp dword ptr [{mk} + 0x1CF07C]",
+            "fld dword ptr [{mk} + 0x1CEF94]",
+            "fsub dword ptr [{mk} + 0x1CF004]",
+            "fadd dword ptr [{mk} + 0x1CF010]",
+            "fstp dword ptr [{mk} + 0x1CF080]",
+            "fld dword ptr [{mk} + 0x1CEF98]",
+            "fsub dword ptr [{mk} + 0x1CF008]",
+            "fadd dword ptr [{mk} + 0x1CF014]",
+            "fstp dword ptr [{mk} + 0x1CF084]",
+            "fld dword ptr [{mk} + 0x1CEFB0]",
+            "fmul dword ptr [{mk} + 0x1CFC38]",
+            "fadd dword ptr [{mk} + 0x1CF058]",
+            "fstp dword ptr [{mk} + 0x1CF058]",
+            "fld dword ptr [{mk} + 0x1CEFBC]",
+            "fmul dword ptr [{mk} + 0x1CFC38]",
+            "fadd dword ptr [{mk} + 0x1CF05C]",
+            "fstp dword ptr [{mk} + 0x1CF05C]",
+            "fld dword ptr [{mk} + 0x1CEFC8]",
+            "fmul dword ptr [{mk} + 0x1CFC38]",
+            "fadd dword ptr [{mk} + 0x1CF060]",
+            "fstp dword ptr [{mk} + 0x1CF060]",
+            "fld dword ptr [{mk} + 0x1CEFB0]",
+            "fmul dword ptr [{mk} + 0x1CFC38]",
+            "fadd dword ptr [{mk} + 0x1CF064]",
+            "fstp dword ptr [{mk} + 0x1CF064]",
+            "fld dword ptr [{mk} + 0x1CEFBC]",
+            "fmul dword ptr [{mk} + 0x1CFC38]",
+            "fadd dword ptr [{mk} + 0x1CF068]",
+            "fstp dword ptr [{mk} + 0x1CF068]",
+            "fld dword ptr [{mk} + 0x1CEFC8]",
+            "fmul dword ptr [{mk} + 0x1CFC38]",
+            "fadd dword ptr [{mk} + 0x1CF06C]",
+            "fstp dword ptr [{mk} + 0x1CF06C]",
+            "fld dword ptr [{mk} + 0x1CEFB0]",
+            "fmul dword ptr [{mk} + 0x1CFC38]",
+            "fadd dword ptr [{mk} + 0x1CF070]",
+            "fstp dword ptr [{mk} + 0x1CF070]",
+            "fld dword ptr [{mk} + 0x1CEFBC]",
+            "fmul dword ptr [{mk} + 0x1CFC38]",
+            "fadd dword ptr [{mk} + 0x1CF074]",
+            "fstp dword ptr [{mk} + 0x1CF074]",
+            "fld dword ptr [{mk} + 0x1CEFC8]",
+            "fmul dword ptr [{mk} + 0x1CFC38]",
+            "fadd dword ptr [{mk} + 0x1CF078]",
+            "fstp dword ptr [{mk} + 0x1CF078]",
+            "fld dword ptr [{mk} + 0x1CEFB0]",
+            "fmul dword ptr [{mk} + 0x1CFC38]",
+            "fadd dword ptr [{mk} + 0x1CF07C]",
+            "fstp dword ptr [{mk} + 0x1CF07C]",
+            "fld dword ptr [{mk} + 0x1CEFBC]",
+            "fmul dword ptr [{mk} + 0x1CFC38]",
+            "fadd dword ptr [{mk} + 0x1CF080]",
+            "fstp dword ptr [{mk} + 0x1CF080]",
+            "fld dword ptr [{mk} + 0x1CEFC8]",
+            "fmul dword ptr [{mk} + 0x1CFC38]",
+            "fadd dword ptr [{mk} + 0x1CF084]",
+            "fstp dword ptr [{mk} + 0x1CF084]",
+            "fld dword ptr [{mk} + 0x1CF070]",
+            "fsub dword ptr [{mk} + 0x1CF064]",
+            "fstp dword ptr [{mk} + 0x1CF04C]",
+            "fld dword ptr [{mk} + 0x1CF074]",
+            "fsub dword ptr [{mk} + 0x1CF068]",
+            "fstp dword ptr [{mk} + 0x1CF050]",
+            "fld dword ptr [{mk} + 0x1CF078]",
+            "fsub dword ptr [{mk} + 0x1CF06C]",
+            "fstp dword ptr [{mk} + 0x1CF054]",
+            mk = in(reg) mk,
+            out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
+            out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
+            options(nostack),
+            )
+        }
+    }
+
+    pub(super) fn corners_in_x87(mk: usize) {
+        unsafe {
+            core::arch::asm!(
+                    "fld dword ptr [{mk} + 0x1CF04C]",
+            "fmul dword ptr [{mk} + 0x1CF048]",
+            "fstp dword ptr [{mk} + 0x1CF04C]",
+            "fld dword ptr [{mk} + 0x1CF050]",
+            "fmul dword ptr [{mk} + 0x1CF048]",
+            "fstp dword ptr [{mk} + 0x1CF050]",
+            "fld dword ptr [{mk} + 0x1CF054]",
+            "fmul dword ptr [{mk} + 0x1CF048]",
+            "fstp dword ptr [{mk} + 0x1CF054]",
+            "fld dword ptr [{mk} + 0x1CF058]",
+            "fsub dword ptr [{mk} + 0x1CF04C]",
+            "fstp dword ptr [{mk} + 0x1CF058]",
+            "fld dword ptr [{mk} + 0x1CF05C]",
+            "fsub dword ptr [{mk} + 0x1CF050]",
+            "fstp dword ptr [{mk} + 0x1CF05C]",
+            "fld dword ptr [{mk} + 0x1CF060]",
+            "fsub dword ptr [{mk} + 0x1CF054]",
+            "fstp dword ptr [{mk} + 0x1CF060]",
+            "fld dword ptr [{mk} + 0x1CF064]",
+            "fsub dword ptr [{mk} + 0x1CF04C]",
+            "fstp dword ptr [{mk} + 0x1CF064]",
+            "fld dword ptr [{mk} + 0x1CF068]",
+            "fsub dword ptr [{mk} + 0x1CF050]",
+            "fstp dword ptr [{mk} + 0x1CF068]",
+            "fld dword ptr [{mk} + 0x1CF06C]",
+            "fsub dword ptr [{mk} + 0x1CF054]",
+            "fstp dword ptr [{mk} + 0x1CF06C]",
+            "fld dword ptr [{mk} + 0x1CF070]",
+            "fsub dword ptr [{mk} + 0x1CF04C]",
+            "fstp dword ptr [{mk} + 0x1CF070]",
+            "fld dword ptr [{mk} + 0x1CF074]",
+            "fsub dword ptr [{mk} + 0x1CF050]",
+            "fstp dword ptr [{mk} + 0x1CF074]",
+            "fld dword ptr [{mk} + 0x1CF078]",
+            "fsub dword ptr [{mk} + 0x1CF054]",
+            "fstp dword ptr [{mk} + 0x1CF078]",
+            "fld dword ptr [{mk} + 0x1CF07C]",
+            "fsub dword ptr [{mk} + 0x1CF04C]",
+            "fstp dword ptr [{mk} + 0x1CF07C]",
+            "fld dword ptr [{mk} + 0x1CF080]",
+            "fsub dword ptr [{mk} + 0x1CF050]",
+            "fstp dword ptr [{mk} + 0x1CF080]",
+            "fld dword ptr [{mk} + 0x1CF084]",
+            "fsub dword ptr [{mk} + 0x1CF054]",
+            "fstp dword ptr [{mk} + 0x1CF084]",
+            mk = in(reg) mk,
+            out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
+            out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
+            options(nostack),
+            )
+        }
+    }
+
+    pub(super) fn projected_x87(rc: usize, mk: usize) {
+        unsafe {
+            core::arch::asm!(
+                    "fld dword ptr [{rc} + 0x224088]",
+            "fdiv dword ptr [{mk} + 0x1CF060]",
+            ".byte 0xD9, 0xC0",
+            "fmul dword ptr [{mk} + 0x1CF058]",
+            "fadd dword ptr [{rc} + 0x22409C]",
+            "fstp dword ptr [{mk} + 0x1CF058]",
+            "fmul dword ptr [{mk} + 0x1CF05C]",
+            ".byte 0xD9, 0xE0",
+            "fadd dword ptr [{rc} + 0x2240A0]",
+            "fstp dword ptr [{mk} + 0x1CF05C]",
+            "fld dword ptr [{rc} + 0x224088]",
+            "fdiv dword ptr [{mk} + 0x1CF06C]",
+            ".byte 0xD9, 0xC0",
+            "fmul dword ptr [{mk} + 0x1CF064]",
+            "fadd dword ptr [{rc} + 0x22409C]",
+            "fstp dword ptr [{mk} + 0x1CF064]",
+            "fmul dword ptr [{mk} + 0x1CF068]",
+            ".byte 0xD9, 0xE0",
+            "fadd dword ptr [{rc} + 0x2240A0]",
+            "fstp dword ptr [{mk} + 0x1CF068]",
+            "fld dword ptr [{rc} + 0x224088]",
+            "fdiv dword ptr [{mk} + 0x1CF078]",
+            ".byte 0xD9, 0xC0",
+            "fmul dword ptr [{mk} + 0x1CF070]",
+            "fadd dword ptr [{rc} + 0x22409C]",
+            "fstp dword ptr [{mk} + 0x1CF070]",
+            "fmul dword ptr [{mk} + 0x1CF074]",
+            ".byte 0xD9, 0xE0",
+            "fadd dword ptr [{rc} + 0x2240A0]",
+            "fstp dword ptr [{mk} + 0x1CF074]",
+            "fld dword ptr [{rc} + 0x224088]",
+            "fdiv dword ptr [{mk} + 0x1CF084]",
+            ".byte 0xD9, 0xC0",
+            "fmul dword ptr [{mk} + 0x1CF07C]",
+            "fadd dword ptr [{rc} + 0x22409C]",
+            "fstp dword ptr [{mk} + 0x1CF07C]",
+            "fmul dword ptr [{mk} + 0x1CF080]",
+            ".byte 0xD9, 0xE0",
+            "fadd dword ptr [{rc} + 0x2240A0]",
+            "fstp dword ptr [{mk} + 0x1CF080]",
+            rc = in(reg) rc,
+            mk = in(reg) mk,
+            out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
+            out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
+            options(nostack),
+            )
+        }
+    }
+
+    pub(super) fn light_turned_2_x87(mk: usize, m: usize, t: usize) {
+        unsafe {
+            core::arch::asm!(
+                    "fld dword ptr [{mk} + 0x1CEF74]",
+            "fld dword ptr [{mk} + 0x1CEF78]",
+            "fld dword ptr [{mk} + 0x1CEF7C]",
+            ".byte 0xD9, 0xC0",
+            "fmul dword ptr [{m} + 0x0]",
+            ".byte 0xD9, 0xC2",
+            "fmul dword ptr [{m} + 0x4]",
+            ".byte 0xD9, 0xC4",
+            "fmul dword ptr [{m} + 0x8]",
+            ".byte 0xDE, 0xC1",
+            ".byte 0xDE, 0xC1",
+            "fstp dword ptr [{t} + 0x0]",
+            ".byte 0xD9, 0xC0",
+            "fmul dword ptr [{m} + 0xC]",
+            ".byte 0xD9, 0xC2",
+            "fmul dword ptr [{m} + 0x10]",
+            ".byte 0xD9, 0xC4",
+            "fmul dword ptr [{m} + 0x14]",
+            ".byte 0xDE, 0xC1",
+            ".byte 0xDE, 0xC1",
+            "fstp dword ptr [{t} + 0x4]",
+            "fmul dword ptr [{m} + 0x18]",
+            ".byte 0xD9, 0xC9",
+            "fmul dword ptr [{m} + 0x1C]",
+            ".byte 0xD9, 0xCA",
+            "fmul dword ptr [{m} + 0x20]",
+            ".byte 0xDE, 0xC1",
+            ".byte 0xDE, 0xC1",
+            "fld dword ptr [{t} + 0x4]",
+            "fld dword ptr [{t} + 0x0]",
+            "fstp dword ptr [{mk} + 0x1CE284]",
+            "fstp dword ptr [{mk} + 0x1CE288]",
+            "fstp dword ptr [{mk} + 0x1CE28C]",
+            mk = in(reg) mk,
+            m = in(reg) m,
+            t = in(reg) t,
+            out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
+            out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
+            options(nostack),
+            )
+        }
+    }
+
+    pub(super) fn second_turned_2_x87(mk: usize, m: usize, t: usize) {
+        unsafe {
+            core::arch::asm!(
+                    "fld dword ptr [{mk} + 0x1CE28C]",
+            "fld dword ptr [{mk} + 0x1CE288]",
+            "fld dword ptr [{mk} + 0x1CE284]",
+            ".byte 0xD9, 0xC0",
+            "fmul dword ptr [{m} + 0x0]",
+            ".byte 0xD9, 0xC2",
+            "fmul dword ptr [{m} + 0x4]",
+            ".byte 0xD9, 0xC4",
+            "fmul dword ptr [{m} + 0x8]",
+            ".byte 0xDE, 0xC1",
+            ".byte 0xDE, 0xC1",
+            "fstp dword ptr [{t} + 0x0]",
+            ".byte 0xD9, 0xC0",
+            "fmul dword ptr [{m} + 0xC]",
+            ".byte 0xD9, 0xC2",
+            "fmul dword ptr [{m} + 0x10]",
+            ".byte 0xD9, 0xC4",
+            "fmul dword ptr [{m} + 0x14]",
+            ".byte 0xDE, 0xC1",
+            ".byte 0xDE, 0xC1",
+            "fstp dword ptr [{t} + 0x4]",
+            "fmul dword ptr [{m} + 0x18]",
+            ".byte 0xD9, 0xC9",
+            "fmul dword ptr [{m} + 0x1C]",
+            ".byte 0xD9, 0xCA",
+            "fmul dword ptr [{m} + 0x20]",
+            ".byte 0xDE, 0xC1",
+            ".byte 0xDE, 0xC1",
+            "fld dword ptr [{t} + 0x4]",
+            "fld dword ptr [{t} + 0x0]",
+            "fstp dword ptr [{mk} + 0x1CE2F0]",
+            "fstp dword ptr [{mk} + 0x1CE2F4]",
+            "fstp dword ptr [{mk} + 0x1CE2F8]",
+            mk = in(reg) mk,
+            m = in(reg) m,
+            t = in(reg) t,
+            out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
+            out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
+            options(nostack),
+            )
+        }
+    }
+
+    pub(super) fn corners_2_x87(mk: usize) {
+        unsafe {
+            core::arch::asm!(
+                    "fld dword ptr [{mk} + 0x1CE2E4]",
+            "fmul dword ptr [{mk} + 0x1CE30C]",
+            "fstp dword ptr [{mk} + 0x1CE2E4]",
+            "fld dword ptr [{mk} + 0x1CE2E8]",
+            "fmul dword ptr [{mk} + 0x1CE30C]",
+            "fstp dword ptr [{mk} + 0x1CE2E8]",
+            "fld dword ptr [{mk} + 0x1CE2EC]",
+            "fmul dword ptr [{mk} + 0x1CE30C]",
+            "fstp dword ptr [{mk} + 0x1CE2EC]",
+            "fld dword ptr [{mk} + 0x1CE2F0]",
+            "fmul dword ptr [{mk} + 0x1CE310]",
+            "fstp dword ptr [{mk} + 0x1CE2F0]",
+            "fld dword ptr [{mk} + 0x1CE2F4]",
+            "fmul dword ptr [{mk} + 0x1CE310]",
+            "fstp dword ptr [{mk} + 0x1CE2F4]",
+            "fld dword ptr [{mk} + 0x1CE2F8]",
+            "fmul dword ptr [{mk} + 0x1CE310]",
+            "fstp dword ptr [{mk} + 0x1CE2F8]",
+            "fld dword ptr [{mk} + 0x1CE274]",
+            "fsub dword ptr [{mk} + 0x1CE2E4]",
+            "fstp dword ptr [{mk} + 0x1CE33C]",
+            "fld dword ptr [{mk} + 0x1CE278]",
+            "fsub dword ptr [{mk} + 0x1CE2E8]",
+            "fstp dword ptr [{mk} + 0x1CE340]",
+            "fld dword ptr [{mk} + 0x1CE27C]",
+            "fsub dword ptr [{mk} + 0x1CE2EC]",
+            "fstp dword ptr [{mk} + 0x1CE344]",
+            "fld dword ptr [{mk} + 0x1CE274]",
+            "fadd dword ptr [{mk} + 0x1CE2E4]",
+            "fstp dword ptr [{mk} + 0x1CE348]",
+            "fld dword ptr [{mk} + 0x1CE278]",
+            "fadd dword ptr [{mk} + 0x1CE2E8]",
+            "fstp dword ptr [{mk} + 0x1CE34C]",
+            "fld dword ptr [{mk} + 0x1CE27C]",
+            "fadd dword ptr [{mk} + 0x1CE2EC]",
+            "fstp dword ptr [{mk} + 0x1CE350]",
+            "fld dword ptr [{mk} + 0x1CE274]",
+            "fadd dword ptr [{mk} + 0x1CE2E4]",
+            "fadd dword ptr [{mk} + 0x1CE2F0]",
+            "fstp dword ptr [{mk} + 0x1CE354]",
+            "fld dword ptr [{mk} + 0x1CE278]",
+            "fadd dword ptr [{mk} + 0x1CE2E8]",
+            "fadd dword ptr [{mk} + 0x1CE2F4]",
+            "fstp dword ptr [{mk} + 0x1CE358]",
+            "fld dword ptr [{mk} + 0x1CE27C]",
+            "fadd dword ptr [{mk} + 0x1CE2EC]",
+            "fadd dword ptr [{mk} + 0x1CE2F8]",
+            "fstp dword ptr [{mk} + 0x1CE35C]",
+            "fld dword ptr [{mk} + 0x1CE274]",
+            "fsub dword ptr [{mk} + 0x1CE2E4]",
+            "fadd dword ptr [{mk} + 0x1CE2F0]",
+            "fstp dword ptr [{mk} + 0x1CE360]",
+            "fld dword ptr [{mk} + 0x1CE278]",
+            "fsub dword ptr [{mk} + 0x1CE2E8]",
+            "fadd dword ptr [{mk} + 0x1CE2F4]",
+            "fstp dword ptr [{mk} + 0x1CE364]",
+            "fld dword ptr [{mk} + 0x1CE27C]",
+            "fsub dword ptr [{mk} + 0x1CE2EC]",
+            "fadd dword ptr [{mk} + 0x1CE2F8]",
+            "fstp dword ptr [{mk} + 0x1CE368]",
+            "fld dword ptr [{mk} + 0x1CE294]",
+            "fmul dword ptr [{mk} + 0x1CEF30]",
+            "fadd dword ptr [{mk} + 0x1CE33C]",
+            "fstp dword ptr [{mk} + 0x1CE33C]",
+            "fld dword ptr [{mk} + 0x1CE2A0]",
+            "fmul dword ptr [{mk} + 0x1CEF30]",
+            "fadd dword ptr [{mk} + 0x1CE340]",
+            "fstp dword ptr [{mk} + 0x1CE340]",
+            "fld dword ptr [{mk} + 0x1CE2AC]",
+            "fmul dword ptr [{mk} + 0x1CEF30]",
+            "fadd dword ptr [{mk} + 0x1CE344]",
+            "fstp dword ptr [{mk} + 0x1CE344]",
+            "fld dword ptr [{mk} + 0x1CE294]",
+            "fmul dword ptr [{mk} + 0x1CEF30]",
+            "fadd dword ptr [{mk} + 0x1CE348]",
+            "fstp dword ptr [{mk} + 0x1CE348]",
+            "fld dword ptr [{mk} + 0x1CE2A0]",
+            "fmul dword ptr [{mk} + 0x1CEF30]",
+            "fadd dword ptr [{mk} + 0x1CE34C]",
+            "fstp dword ptr [{mk} + 0x1CE34C]",
+            "fld dword ptr [{mk} + 0x1CE2AC]",
+            "fmul dword ptr [{mk} + 0x1CEF30]",
+            "fadd dword ptr [{mk} + 0x1CE350]",
+            "fstp dword ptr [{mk} + 0x1CE350]",
+            "fld dword ptr [{mk} + 0x1CE294]",
+            "fmul dword ptr [{mk} + 0x1CEF30]",
+            "fadd dword ptr [{mk} + 0x1CE354]",
+            "fstp dword ptr [{mk} + 0x1CE354]",
+            "fld dword ptr [{mk} + 0x1CE2A0]",
+            "fmul dword ptr [{mk} + 0x1CEF30]",
+            "fadd dword ptr [{mk} + 0x1CE358]",
+            "fstp dword ptr [{mk} + 0x1CE358]",
+            "fld dword ptr [{mk} + 0x1CE2AC]",
+            "fmul dword ptr [{mk} + 0x1CEF30]",
+            "fadd dword ptr [{mk} + 0x1CE35C]",
+            "fstp dword ptr [{mk} + 0x1CE35C]",
+            "fld dword ptr [{mk} + 0x1CE294]",
+            "fmul dword ptr [{mk} + 0x1CEF30]",
+            "fadd dword ptr [{mk} + 0x1CE360]",
+            "fstp dword ptr [{mk} + 0x1CE360]",
+            "fld dword ptr [{mk} + 0x1CE2A0]",
+            "fmul dword ptr [{mk} + 0x1CEF30]",
+            "fadd dword ptr [{mk} + 0x1CE364]",
+            "fstp dword ptr [{mk} + 0x1CE364]",
+            "fld dword ptr [{mk} + 0x1CE2AC]",
+            "fmul dword ptr [{mk} + 0x1CEF30]",
+            "fadd dword ptr [{mk} + 0x1CE368]",
+            "fstp dword ptr [{mk} + 0x1CE368]",
+            "fld dword ptr [{mk} + 0x1CE354]",
+            "fsub dword ptr [{mk} + 0x1CE348]",
+            "fstp dword ptr [{mk} + 0x1CE330]",
+            "fld dword ptr [{mk} + 0x1CE358]",
+            "fsub dword ptr [{mk} + 0x1CE34C]",
+            "fstp dword ptr [{mk} + 0x1CE334]",
+            "fld dword ptr [{mk} + 0x1CE35C]",
+            "fsub dword ptr [{mk} + 0x1CE350]",
+            "fstp dword ptr [{mk} + 0x1CE338]",
+            mk = in(reg) mk,
+            out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
+            out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
+            options(nostack),
+            )
+        }
+    }
+
+    pub(super) fn corners_in_2_x87(mk: usize) {
+        unsafe {
+            core::arch::asm!(
+                    "fld dword ptr [{mk} + 0x1CE330]",
+            "fmul dword ptr [{mk} + 0x1CE32C]",
+            "fstp dword ptr [{mk} + 0x1CE330]",
+            "fld dword ptr [{mk} + 0x1CE334]",
+            "fmul dword ptr [{mk} + 0x1CE32C]",
+            "fstp dword ptr [{mk} + 0x1CE334]",
+            "fld dword ptr [{mk} + 0x1CE338]",
+            "fmul dword ptr [{mk} + 0x1CE32C]",
+            "fstp dword ptr [{mk} + 0x1CE338]",
+            "fld dword ptr [{mk} + 0x1CE33C]",
+            "fsub dword ptr [{mk} + 0x1CE330]",
+            "fstp dword ptr [{mk} + 0x1CE33C]",
+            "fld dword ptr [{mk} + 0x1CE340]",
+            "fsub dword ptr [{mk} + 0x1CE334]",
+            "fstp dword ptr [{mk} + 0x1CE340]",
+            "fld dword ptr [{mk} + 0x1CE344]",
+            "fsub dword ptr [{mk} + 0x1CE338]",
+            "fstp dword ptr [{mk} + 0x1CE344]",
+            "fld dword ptr [{mk} + 0x1CE348]",
+            "fsub dword ptr [{mk} + 0x1CE330]",
+            "fstp dword ptr [{mk} + 0x1CE348]",
+            "fld dword ptr [{mk} + 0x1CE34C]",
+            "fsub dword ptr [{mk} + 0x1CE334]",
+            "fstp dword ptr [{mk} + 0x1CE34C]",
+            "fld dword ptr [{mk} + 0x1CE350]",
+            "fsub dword ptr [{mk} + 0x1CE338]",
+            "fstp dword ptr [{mk} + 0x1CE350]",
+            "fld dword ptr [{mk} + 0x1CE354]",
+            "fsub dword ptr [{mk} + 0x1CE330]",
+            "fstp dword ptr [{mk} + 0x1CE354]",
+            "fld dword ptr [{mk} + 0x1CE358]",
+            "fsub dword ptr [{mk} + 0x1CE334]",
+            "fstp dword ptr [{mk} + 0x1CE358]",
+            "fld dword ptr [{mk} + 0x1CE35C]",
+            "fsub dword ptr [{mk} + 0x1CE338]",
+            "fstp dword ptr [{mk} + 0x1CE35C]",
+            "fld dword ptr [{mk} + 0x1CE360]",
+            "fsub dword ptr [{mk} + 0x1CE330]",
+            "fstp dword ptr [{mk} + 0x1CE360]",
+            "fld dword ptr [{mk} + 0x1CE364]",
+            "fsub dword ptr [{mk} + 0x1CE334]",
+            "fstp dword ptr [{mk} + 0x1CE364]",
+            "fld dword ptr [{mk} + 0x1CE368]",
+            "fsub dword ptr [{mk} + 0x1CE338]",
+            "fstp dword ptr [{mk} + 0x1CE368]",
+            mk = in(reg) mk,
+            out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
+            out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
+            options(nostack),
+            )
+        }
+    }
+
+    pub(super) fn projected_2_x87(rc: usize, mk: usize) {
+        unsafe {
+            core::arch::asm!(
+                    "fld dword ptr [{rc} + 0x224088]",
+            "fdiv dword ptr [{mk} + 0x1CE344]",
+            ".byte 0xD9, 0xC0",
+            "fmul dword ptr [{mk} + 0x1CE33C]",
+            "fadd dword ptr [{rc} + 0x22409C]",
+            "fstp dword ptr [{mk} + 0x1CE33C]",
+            "fmul dword ptr [{mk} + 0x1CE340]",
+            ".byte 0xD9, 0xE0",
+            "fadd dword ptr [{rc} + 0x2240A0]",
+            "fstp dword ptr [{mk} + 0x1CE340]",
+            "fld dword ptr [{rc} + 0x224088]",
+            "fdiv dword ptr [{mk} + 0x1CE350]",
+            ".byte 0xD9, 0xC0",
+            "fmul dword ptr [{mk} + 0x1CE348]",
+            "fadd dword ptr [{rc} + 0x22409C]",
+            "fstp dword ptr [{mk} + 0x1CE348]",
+            "fmul dword ptr [{mk} + 0x1CE34C]",
+            ".byte 0xD9, 0xE0",
+            "fadd dword ptr [{rc} + 0x2240A0]",
+            "fstp dword ptr [{mk} + 0x1CE34C]",
+            "fld dword ptr [{rc} + 0x224088]",
+            "fdiv dword ptr [{mk} + 0x1CE35C]",
+            ".byte 0xD9, 0xC0",
+            "fmul dword ptr [{mk} + 0x1CE354]",
+            "fadd dword ptr [{rc} + 0x22409C]",
+            "fstp dword ptr [{mk} + 0x1CE354]",
+            "fmul dword ptr [{mk} + 0x1CE358]",
+            ".byte 0xD9, 0xE0",
+            "fadd dword ptr [{rc} + 0x2240A0]",
+            "fstp dword ptr [{mk} + 0x1CE358]",
+            "fld dword ptr [{rc} + 0x224088]",
+            "fdiv dword ptr [{mk} + 0x1CE368]",
+            ".byte 0xD9, 0xC0",
+            "fmul dword ptr [{mk} + 0x1CE360]",
+            "fadd dword ptr [{rc} + 0x22409C]",
+            "fstp dword ptr [{mk} + 0x1CE360]",
+            "fmul dword ptr [{mk} + 0x1CE364]",
+            ".byte 0xD9, 0xE0",
+            "fadd dword ptr [{rc} + 0x2240A0]",
+            "fstp dword ptr [{mk} + 0x1CE364]",
+            rc = in(reg) rc,
+            mk = in(reg) mk,
+            out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
+            out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
+            options(nostack),
+            )
+        }
     }
 }
 
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    let left = unsafe { draw_shadow(r, &mut game_part) }?;
-    *r = Regs { esp: r.esp, ..left };
-    Ok(())
-}
+#[cfg(all(test, target_arch = "x86"))]
+mod asm_differential {
+    use super::Shadow;
+    use super::asm_reference as reference;
+    use crate::marks::asm_test::with_copy;
+    use crate::marks::kind_store::{KindConsts, QuadWork};
+    use crate::session::Float;
 
-/// The constants a shadow's test sets: the side scales, the in-draw, the up, the light's
-/// way (each `sh`'s, 0xD08 apart from the first's for the second).
-pub struct ShadowTest {
-    pub scales: [usize; 3],
-    pub up: usize,
-    pub light: usize,
-}
+    /// A shadow's variables: the quad, the constants and the up (IDA addresses).
+    #[derive(Clone, Copy)]
+    struct Layout(usize, usize, usize, u32);
+    const SET_1: Layout = Layout(0x9331B4, 0x933E7C, 0x933E70, 0x26A0);
+    const SET_2: Layout = Layout(0x933ED0, 0x934B7C, 0x934B78, 0x26A4);
 
-pub const FIRST_TEST: ShadowTest = ShadowTest {
-    scales: [rva(0x933F68), rva(0x933F6C), rva(0x933F88)],
-    up: rva(0x934B78),
-    light: rva(0x934BB4),
-};
-
-pub const SECOND_TEST: ShadowTest = ShadowTest {
-    scales: [rva(0x93324C), rva(0x933250), rva(0x93326C)],
-    up: rva(0x933E70),
-    light: rva(0x933EB4),
-};
-
-/// The variables a shadow's test watches and sets.
-pub fn test_vars(sh: &Shadow, st: &ShadowTest) -> (Vec<Region>, Vec<Region>) {
-    let regions: Vec<Region> = vec![(addr(sh.matrix) - 0x1C, 0x100), (addr(VERTICES_RVA), 0x80)];
-    let mut vars = regions.clone();
-    vars.extend([SETTINGS_RVA, TINT_RVA, NEAR_RVA, Z_K_RVA, UV_K_RVA].map(at));
-    vars.push((addr(st.up), 0x58));
-    vars.push((addr(VIEW_RVA), 0x40));
-    vars.push((addr(sh.lifts), 0x10)); // `test_prepare` writes them (left changed until 2026-10-18)
-    vars.push((addr(MARK_CORNERS_RVA) + 0x10 * 0x80, 4 * 0x80));
-    (regions, vars)
-}
-
-/// A shadow's test set-up for case `case` (settings at `sa`).
-pub unsafe fn test_prepare(sh: &Shadow, st: &ShadowTest, sa: u32, case: u32) {
-    let fl = |v: f32| v.to_bits();
-    let k = case as f32;
-    unsafe {
-        game_write(SETTINGS_RVA, sa);
-        ((sa + sh.field) as *mut u32).write_unaligned(fl(0.3 + k * 0.4));
-        game_write(sh.corner, if case == 3 { 0xFFFF_FFFF } else { 0x10 + case });
-        game_write(sh.split, fl(0.5));
-        let consts = [
-            sh.lines[0].1,
-            sh.lines[0].0,
-            sh.lines[1].1,
-            sh.lines[1].0,
-            st.scales[0],
-            st.scales[1],
-            st.scales[2],
-        ];
-        for (n, r) in consts.into_iter().enumerate() {
-            game_write(r, fl(0.2 + n as f32 * 0.15));
-        }
-        let place = addr(sh.matrix) - 0x1C;
-        for n in 0..3usize {
-            game_write(sh.sides[0] + 4 * n, fl([1.0, 0.1, 0.2][n] + k * 0.05));
-            game_write(sh.sides[1] + 4 * n, fl([0.0, 0.3, 1.0][n] - k * 0.05));
-            ((place + 4 * n as u32) as *mut u32).write_unaligned(fl([5.0, 1.0, 40.0][n] + k));
-            game_write(st.light + 4 * n, fl([0.3, -0.9, 0.2][n]));
-        }
-        game_write(st.up, fl(0.05));
-        for n in 0..4 {
-            game_write(sh.lifts + 4 * n, fl(0.01 * n as f32));
-        }
-        for n in 0..16 {
-            game_write(VIEW_RVA + 4 * n, fl(if n % 5 == 0 { 1.0 } else { 0.0 }));
-        }
-        game_write(NEAR_RVA, fl(1.0));
-        game_write(Z_K_RVA, fl(1.0 / 3000.0));
-        game_write(UV_K_RVA, fl(1.0 / 256.0));
-        game_write(TINT_RVA, 0x0040_80C0u32 + case);
-        let corners = addr(MARK_CORNERS_RVA) + 0x10 * 0x80;
-        for n in 0..4 * 0x40u32 {
-            ((corners + 2 * n) as *mut u16).write_unaligned((n * 13) as u16);
-        }
-        std::ptr::write_bytes(addr(VERTICES_RVA) as *mut u8, 0xAA, 0x80);
+    /// `f` on copies of a shadow's variables in the test buffer standing for the marks'
+    /// block at `mk`, put back afterwards.
+    fn with_shadow<R>(mk: usize, l: Layout, f: impl FnOnce(&Shadow) -> R) -> R {
+        with_copy::<QuadWork, R>(mk, l.0, |quad| {
+            with_copy::<KindConsts, R>(mk, l.1, |consts| {
+                with_copy::<Float, R>(mk, l.2, |up| {
+                    f(&Shadow {
+                        quad,
+                        consts,
+                        up,
+                        field: l.3,
+                    })
+                })
+            })
+        })
     }
-}
+    use crate::marks::asm_test::Kind::*;
+    use crate::marks::asm_test::{Op, Spec, differential};
 
-fn self_test() -> (usize, usize) {
-    use crate::race::mud::{copy, run_both, test_part};
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    // cmp dword_933F64, 0FFFFFFFFh
-    let entry: &[u8] = &[0x83, 0x3D, 0x64, 0x3F, 0x93, 0x00, 0xFF];
-    let copy = match copy(
-        0x4C8168,
-        0xA70,
-        entry,
-        &[
-            0xD, 0x12, 0x21, 0x30, 0x3F, 0x4E, 0x5D, 0xAC, 0xB7, 0xCE, 0xE5, 0xF0, 0xFB, 0x147,
-            0x2A4, 0x2BB, 0x584, 0x6AF, 0x6D8, 0x701, 0x72A, 0xA6A,
-        ],
-        &[(0x44E41F, 1), (0x44E3E1, 2), (0x44EB72, 3), (0x44EA65, 4)],
-    ) {
-        Ok(c) => c,
-        Err(why) => return t.skip(why),
-    };
-    let mut settings = vec![0u32; 0x26A8 / 4];
-    let sa = settings.as_mut_ptr() as u32;
-    let (regions, vars) = test_vars(&FIRST, &FIRST_TEST);
-    let saved = capture(&vars);
-    for case in 0..4u32 {
-        run_both(
-            &mut t,
-            &format!("case {case}"),
-            &copy,
-            &regions,
-            &|| unsafe {
-                restore(&vars, &saved);
-                test_prepare(&FIRST, &FIRST_TEST, sa, case);
-            },
-            &|r| unsafe { draw_shadow(r, &mut test_part) },
+    #[test]
+    fn light_turned_x87_matches() {
+        const SPEC: Spec = Spec {
+            operands: &[
+                Op::Base {
+                    lo: 0x1CEF90,
+                    hi: 0x1CFC90,
+                    reads: &[(0x1CFC74, F32), (0x1CFC78, F32), (0x1CFC7C, F32)],
+                    writes: &[(0x1CEFA0, F32), (0x1CEFA4, F32), (0x1CEFA8, F32)],
+                },
+                Op::Base {
+                    lo: 0x0,
+                    hi: 0x24,
+                    reads: &[
+                        (0x0, F32),
+                        (0x4, F32),
+                        (0x8, F32),
+                        (0xC, F32),
+                        (0x10, F32),
+                        (0x14, F32),
+                        (0x18, F32),
+                        (0x1C, F32),
+                        (0x20, F32),
+                    ],
+                    writes: &[],
+                },
+                Op::Base {
+                    lo: 0x0,
+                    hi: 0x8,
+                    reads: &[(0x0, F32), (0x4, F32)],
+                    writes: &[(0x0, F32), (0x4, F32)],
+                },
+            ],
+            sincos: false,
+        };
+        differential(
+            &SPEC,
+            |b| reference::light_turned_x87(b[0], b[1], b[2]),
+            |b| with_shadow(b[0], SET_2, |s| super::light_turned_x87(s, b[1], b[2])),
         );
     }
-    restore(&vars, &saved);
-    drop(settings);
-    t.finish()
+
+    #[test]
+    fn second_turned_x87_matches() {
+        const SPEC: Spec = Spec {
+            operands: &[
+                Op::Base {
+                    lo: 0x1CEF90,
+                    hi: 0x1CFC90,
+                    reads: &[(0x1CEFA0, F32), (0x1CEFA4, F32), (0x1CEFA8, F32)],
+                    writes: &[(0x1CF00C, F32), (0x1CF010, F32), (0x1CF014, F32)],
+                },
+                Op::Base {
+                    lo: 0x0,
+                    hi: 0x24,
+                    reads: &[
+                        (0x0, F32),
+                        (0x4, F32),
+                        (0x8, F32),
+                        (0xC, F32),
+                        (0x10, F32),
+                        (0x14, F32),
+                        (0x18, F32),
+                        (0x1C, F32),
+                        (0x20, F32),
+                    ],
+                    writes: &[],
+                },
+                Op::Base {
+                    lo: 0x0,
+                    hi: 0x8,
+                    reads: &[(0x0, F32), (0x4, F32)],
+                    writes: &[(0x0, F32), (0x4, F32)],
+                },
+            ],
+            sincos: false,
+        };
+        differential(
+            &SPEC,
+            |b| reference::second_turned_x87(b[0], b[1], b[2]),
+            |b| with_shadow(b[0], SET_2, |s| super::second_turned_x87(s, b[1], b[2])),
+        );
+    }
+
+    #[test]
+    fn corners_x87_matches() {
+        const SPEC: Spec = Spec {
+            operands: &[Op::Base {
+                lo: 0x1CEF90,
+                hi: 0x1CFC90,
+                reads: &[
+                    (0x1CEF90, F32),
+                    (0x1CEF94, F32),
+                    (0x1CEF98, F32),
+                    (0x1CEFB0, F32),
+                    (0x1CEFBC, F32),
+                    (0x1CEFC8, F32),
+                    (0x1CF000, F32),
+                    (0x1CF004, F32),
+                    (0x1CF008, F32),
+                    (0x1CF00C, F32),
+                    (0x1CF010, F32),
+                    (0x1CF014, F32),
+                    (0x1CF028, F32),
+                    (0x1CF02C, F32),
+                    (0x1CF058, F32),
+                    (0x1CF05C, F32),
+                    (0x1CF060, F32),
+                    (0x1CF064, F32),
+                    (0x1CF068, F32),
+                    (0x1CF06C, F32),
+                    (0x1CF070, F32),
+                    (0x1CF074, F32),
+                    (0x1CF078, F32),
+                    (0x1CF07C, F32),
+                    (0x1CF080, F32),
+                    (0x1CF084, F32),
+                    (0x1CFC38, F32),
+                ],
+                writes: &[
+                    (0x1CF000, F32),
+                    (0x1CF004, F32),
+                    (0x1CF008, F32),
+                    (0x1CF00C, F32),
+                    (0x1CF010, F32),
+                    (0x1CF014, F32),
+                    (0x1CF04C, F32),
+                    (0x1CF050, F32),
+                    (0x1CF054, F32),
+                    (0x1CF058, F32),
+                    (0x1CF05C, F32),
+                    (0x1CF060, F32),
+                    (0x1CF064, F32),
+                    (0x1CF068, F32),
+                    (0x1CF06C, F32),
+                    (0x1CF070, F32),
+                    (0x1CF074, F32),
+                    (0x1CF078, F32),
+                    (0x1CF07C, F32),
+                    (0x1CF080, F32),
+                    (0x1CF084, F32),
+                ],
+            }],
+            sincos: false,
+        };
+        differential(
+            &SPEC,
+            |b| reference::corners_x87(b[0]),
+            |b| with_shadow(b[0], SET_2, super::corners_x87),
+        );
+    }
+
+    #[test]
+    fn corners_in_x87_matches() {
+        const SPEC: Spec = Spec {
+            operands: &[Op::Base {
+                lo: 0x1CEF90,
+                hi: 0x1CFC90,
+                reads: &[
+                    (0x1CF048, F32),
+                    (0x1CF04C, F32),
+                    (0x1CF050, F32),
+                    (0x1CF054, F32),
+                    (0x1CF058, F32),
+                    (0x1CF05C, F32),
+                    (0x1CF060, F32),
+                    (0x1CF064, F32),
+                    (0x1CF068, F32),
+                    (0x1CF06C, F32),
+                    (0x1CF070, F32),
+                    (0x1CF074, F32),
+                    (0x1CF078, F32),
+                    (0x1CF07C, F32),
+                    (0x1CF080, F32),
+                    (0x1CF084, F32),
+                ],
+                writes: &[
+                    (0x1CF04C, F32),
+                    (0x1CF050, F32),
+                    (0x1CF054, F32),
+                    (0x1CF058, F32),
+                    (0x1CF05C, F32),
+                    (0x1CF060, F32),
+                    (0x1CF064, F32),
+                    (0x1CF068, F32),
+                    (0x1CF06C, F32),
+                    (0x1CF070, F32),
+                    (0x1CF074, F32),
+                    (0x1CF078, F32),
+                    (0x1CF07C, F32),
+                    (0x1CF080, F32),
+                    (0x1CF084, F32),
+                ],
+            }],
+            sincos: false,
+        };
+        differential(
+            &SPEC,
+            |b| reference::corners_in_x87(b[0]),
+            |b| with_shadow(b[0], SET_2, super::corners_in_x87),
+        );
+    }
+
+    #[test]
+    fn projected_x87_matches() {
+        const SPEC: Spec = Spec {
+            operands: &[
+                Op::Base {
+                    lo: 0x224088,
+                    hi: 0x2240A4,
+                    reads: &[(0x224088, F32), (0x22409C, F32), (0x2240A0, F32)],
+                    writes: &[],
+                },
+                Op::Base {
+                    lo: 0x1CEF90,
+                    hi: 0x1CFC90,
+                    reads: &[
+                        (0x1CF058, F32),
+                        (0x1CF05C, F32),
+                        (0x1CF060, F32),
+                        (0x1CF064, F32),
+                        (0x1CF068, F32),
+                        (0x1CF06C, F32),
+                        (0x1CF070, F32),
+                        (0x1CF074, F32),
+                        (0x1CF078, F32),
+                        (0x1CF07C, F32),
+                        (0x1CF080, F32),
+                        (0x1CF084, F32),
+                    ],
+                    writes: &[
+                        (0x1CF058, F32),
+                        (0x1CF05C, F32),
+                        (0x1CF064, F32),
+                        (0x1CF068, F32),
+                        (0x1CF070, F32),
+                        (0x1CF074, F32),
+                        (0x1CF07C, F32),
+                        (0x1CF080, F32),
+                    ],
+                },
+            ],
+            sincos: false,
+        };
+        differential(
+            &SPEC,
+            |b| reference::projected_x87(b[0], b[1]),
+            |b| with_shadow(b[1], SET_2, |s| super::projected_x87(b[0], s)),
+        );
+    }
+
+    #[test]
+    fn light_turned_2_x87_matches() {
+        const SPEC: Spec = Spec {
+            operands: &[
+                Op::Base {
+                    lo: 0x1CE274,
+                    hi: 0x1CEF90,
+                    reads: &[(0x1CEF74, F32), (0x1CEF78, F32), (0x1CEF7C, F32)],
+                    writes: &[(0x1CE284, F32), (0x1CE288, F32), (0x1CE28C, F32)],
+                },
+                Op::Base {
+                    lo: 0x0,
+                    hi: 0x24,
+                    reads: &[
+                        (0x0, F32),
+                        (0x4, F32),
+                        (0x8, F32),
+                        (0xC, F32),
+                        (0x10, F32),
+                        (0x14, F32),
+                        (0x18, F32),
+                        (0x1C, F32),
+                        (0x20, F32),
+                    ],
+                    writes: &[],
+                },
+                Op::Base {
+                    lo: 0x0,
+                    hi: 0x8,
+                    reads: &[(0x0, F32), (0x4, F32)],
+                    writes: &[(0x0, F32), (0x4, F32)],
+                },
+            ],
+            sincos: false,
+        };
+        differential(
+            &SPEC,
+            |b| reference::light_turned_2_x87(b[0], b[1], b[2]),
+            |b| with_shadow(b[0], SET_1, |s| super::light_turned_x87(s, b[1], b[2])),
+        );
+    }
+
+    #[test]
+    fn second_turned_2_x87_matches() {
+        const SPEC: Spec = Spec {
+            operands: &[
+                Op::Base {
+                    lo: 0x1CE274,
+                    hi: 0x1CEF90,
+                    reads: &[(0x1CE284, F32), (0x1CE288, F32), (0x1CE28C, F32)],
+                    writes: &[(0x1CE2F0, F32), (0x1CE2F4, F32), (0x1CE2F8, F32)],
+                },
+                Op::Base {
+                    lo: 0x0,
+                    hi: 0x24,
+                    reads: &[
+                        (0x0, F32),
+                        (0x4, F32),
+                        (0x8, F32),
+                        (0xC, F32),
+                        (0x10, F32),
+                        (0x14, F32),
+                        (0x18, F32),
+                        (0x1C, F32),
+                        (0x20, F32),
+                    ],
+                    writes: &[],
+                },
+                Op::Base {
+                    lo: 0x0,
+                    hi: 0x8,
+                    reads: &[(0x0, F32), (0x4, F32)],
+                    writes: &[(0x0, F32), (0x4, F32)],
+                },
+            ],
+            sincos: false,
+        };
+        differential(
+            &SPEC,
+            |b| reference::second_turned_2_x87(b[0], b[1], b[2]),
+            |b| with_shadow(b[0], SET_1, |s| super::second_turned_x87(s, b[1], b[2])),
+        );
+    }
+
+    #[test]
+    fn corners_2_x87_matches() {
+        const SPEC: Spec = Spec {
+            operands: &[Op::Base {
+                lo: 0x1CE274,
+                hi: 0x1CEF90,
+                reads: &[
+                    (0x1CE274, F32),
+                    (0x1CE278, F32),
+                    (0x1CE27C, F32),
+                    (0x1CE294, F32),
+                    (0x1CE2A0, F32),
+                    (0x1CE2AC, F32),
+                    (0x1CE2E4, F32),
+                    (0x1CE2E8, F32),
+                    (0x1CE2EC, F32),
+                    (0x1CE2F0, F32),
+                    (0x1CE2F4, F32),
+                    (0x1CE2F8, F32),
+                    (0x1CE30C, F32),
+                    (0x1CE310, F32),
+                    (0x1CE33C, F32),
+                    (0x1CE340, F32),
+                    (0x1CE344, F32),
+                    (0x1CE348, F32),
+                    (0x1CE34C, F32),
+                    (0x1CE350, F32),
+                    (0x1CE354, F32),
+                    (0x1CE358, F32),
+                    (0x1CE35C, F32),
+                    (0x1CE360, F32),
+                    (0x1CE364, F32),
+                    (0x1CE368, F32),
+                    (0x1CEF30, F32),
+                ],
+                writes: &[
+                    (0x1CE2E4, F32),
+                    (0x1CE2E8, F32),
+                    (0x1CE2EC, F32),
+                    (0x1CE2F0, F32),
+                    (0x1CE2F4, F32),
+                    (0x1CE2F8, F32),
+                    (0x1CE330, F32),
+                    (0x1CE334, F32),
+                    (0x1CE338, F32),
+                    (0x1CE33C, F32),
+                    (0x1CE340, F32),
+                    (0x1CE344, F32),
+                    (0x1CE348, F32),
+                    (0x1CE34C, F32),
+                    (0x1CE350, F32),
+                    (0x1CE354, F32),
+                    (0x1CE358, F32),
+                    (0x1CE35C, F32),
+                    (0x1CE360, F32),
+                    (0x1CE364, F32),
+                    (0x1CE368, F32),
+                ],
+            }],
+            sincos: false,
+        };
+        differential(
+            &SPEC,
+            |b| reference::corners_2_x87(b[0]),
+            |b| with_shadow(b[0], SET_1, super::corners_x87),
+        );
+    }
+
+    #[test]
+    fn corners_in_2_x87_matches() {
+        const SPEC: Spec = Spec {
+            operands: &[Op::Base {
+                lo: 0x1CE274,
+                hi: 0x1CEF90,
+                reads: &[
+                    (0x1CE32C, F32),
+                    (0x1CE330, F32),
+                    (0x1CE334, F32),
+                    (0x1CE338, F32),
+                    (0x1CE33C, F32),
+                    (0x1CE340, F32),
+                    (0x1CE344, F32),
+                    (0x1CE348, F32),
+                    (0x1CE34C, F32),
+                    (0x1CE350, F32),
+                    (0x1CE354, F32),
+                    (0x1CE358, F32),
+                    (0x1CE35C, F32),
+                    (0x1CE360, F32),
+                    (0x1CE364, F32),
+                    (0x1CE368, F32),
+                ],
+                writes: &[
+                    (0x1CE330, F32),
+                    (0x1CE334, F32),
+                    (0x1CE338, F32),
+                    (0x1CE33C, F32),
+                    (0x1CE340, F32),
+                    (0x1CE344, F32),
+                    (0x1CE348, F32),
+                    (0x1CE34C, F32),
+                    (0x1CE350, F32),
+                    (0x1CE354, F32),
+                    (0x1CE358, F32),
+                    (0x1CE35C, F32),
+                    (0x1CE360, F32),
+                    (0x1CE364, F32),
+                    (0x1CE368, F32),
+                ],
+            }],
+            sincos: false,
+        };
+        differential(
+            &SPEC,
+            |b| reference::corners_in_2_x87(b[0]),
+            |b| with_shadow(b[0], SET_1, super::corners_in_x87),
+        );
+    }
+
+    #[test]
+    fn projected_2_x87_matches() {
+        const SPEC: Spec = Spec {
+            operands: &[
+                Op::Base {
+                    lo: 0x224088,
+                    hi: 0x2240A4,
+                    reads: &[(0x224088, F32), (0x22409C, F32), (0x2240A0, F32)],
+                    writes: &[],
+                },
+                Op::Base {
+                    lo: 0x1CE274,
+                    hi: 0x1CEF90,
+                    reads: &[
+                        (0x1CE33C, F32),
+                        (0x1CE340, F32),
+                        (0x1CE344, F32),
+                        (0x1CE348, F32),
+                        (0x1CE34C, F32),
+                        (0x1CE350, F32),
+                        (0x1CE354, F32),
+                        (0x1CE358, F32),
+                        (0x1CE35C, F32),
+                        (0x1CE360, F32),
+                        (0x1CE364, F32),
+                        (0x1CE368, F32),
+                    ],
+                    writes: &[
+                        (0x1CE33C, F32),
+                        (0x1CE340, F32),
+                        (0x1CE348, F32),
+                        (0x1CE34C, F32),
+                        (0x1CE354, F32),
+                        (0x1CE358, F32),
+                        (0x1CE360, F32),
+                        (0x1CE364, F32),
+                    ],
+                },
+            ],
+            sincos: false,
+        };
+        differential(
+            &SPEC,
+            |b| reference::projected_2_x87(b[0], b[1]),
+            |b| with_shadow(b[1], SET_1, |s| super::projected_x87(b[0], s)),
+        );
+    }
 }

@@ -6,76 +6,59 @@
 //! "NET: Open" and its result logged, the window restored; then `dword_52ACFC` 1, the player
 //! made (`net::create_player`), the group joined (`net::join_group`), "NET: Join complete".
 //!
-//! In:  eax = the session's number
-//! Out: every register kept (`pusha` .. `popa`); carry set if something failed, else the
-//!      flags of `test eax, eax`
-//! Caller: `net::joining`. Its calls through `part`; `Open` from Rust (`net::dplay`; posted,
-//! `posted_open_join`). Shadow mode runs the original alone. Self-test: as
-//! `net::host_session`'s, the session's record a test one.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! In:  `session` (eax: the session's number)
+//! Out: true when joined (the original: carry clear, the flags of `test eax, eax`; every
+//!      register kept), false for the carry
+//! Caller: `net::joining`.
 
 use crate::errors::Refused;
 use crate::field;
-use crate::framework::Regs;
 use crate::net::host_session::{OPEN_JOIN, finish, open};
-use crate::net::lobby::{
-    DPLAY, JOINED, JOINED_MOST, JOINED_NAME, JOINED_PASSWORD, LOG_INT_L1_NL, LOG_L2, Part,
-    SESSION_DESC, ZERO_MEMORY, a, cmp_flags, g, lobby_entry, log_text, movsb, p,
-};
+use crate::net::lobby::{log, log_int_nl, movsb, session, zero};
+use crate::net::store::NET;
 use crate::net::types::NetSession;
-
-const JOIN: usize = 0x5C2F01; // "NET: Join session"
-const COMPLETE: usize = 0x5C2F13; // "NET: Join complete"
-pub const POSTED_CODE: u32 = 0x418D77; // the piece posted: `Open` to join
-const SESSION_ENTRY: u32 = 0x418553; // net::session_entry
-// net::create_player
-const JOIN_GROUP: u32 = 0x419354; // net::join_group
+use crate::race::viewer_screen_store::{VIEWER_PANEL, texts};
 
 /// The code at 0x418D77 as the receiving thread calls it when it is posted.
 pub extern "C" fn posted_open_join() -> u32 {
     unsafe { open(OPEN_JOIN) }
 }
 
-/// The Rust version: the registers it leaves (the entry's, the flags).
-pub fn join_session(entry: &Regs, part: Part) -> Result<Regs, Refused> {
-    let mut r = *entry;
-    let left = |r: &Regs| Regs {
-        eflags: r.eflags,
-        ..*entry
-    };
-    log_text(LOG_L2, a(JOIN), &r, part)?;
-    let mut l = r;
-    part(LOG_INT_L1_NL, &mut l)?;
-    cmp_flags(&mut r, g(DPLAY), 0);
-    if g(DPLAY) == 0 {
-        r.set_carry(true);
-        return Ok(left(&r));
-    }
-    part(SESSION_ENTRY, &mut r)?;
-    r.esi = r.eax;
-    let record = r.esi;
-    movsb(a(JOINED), record + field!(NetSession, instance), 0x10);
-    movsb(a(JOINED_NAME), record, 0x40);
-    r.eax = unsafe { ((record + 0x50) as *const u32).read_unaligned() }; // mov eax, [esi+50h]
-    p(JOINED_MOST, r.eax);
-    movsb(a(JOINED_PASSWORD), record + field!(NetSession, user), 0x10);
-    let mut c = Regs {
-        ebx: a(SESSION_DESC),
-        ecx: 0x50,
-        ..r
-    };
-    part(ZERO_MEMORY, &mut c)?;
-    p(SESSION_DESC, 0x50);
-    movsb(a(SESSION_DESC) + 8, a(JOINED), 0x10);
-    finish(&mut r, OPEN_JOIN, POSTED_CODE, JOIN_GROUP, COMPLETE, part)?;
-    Ok(left(&r))
+fn join_group() -> Result<bool, Refused> {
+    Ok(crate::net::join_group::join_group())
 }
 
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    lobby_entry(r, join_session)
+/// The Rust version.
+pub fn join_session(number: u32) -> Result<bool, Refused> {
+    log(VIEWER_PANEL.text_addr(texts::NET_JOIN_SESSION), false, 2);
+    log_int_nl(number, 1);
+    if NET.dplay.get() == 0 {
+        return Ok(false);
+    }
+    let record = session(number)?;
+    movsb(
+        NET.joined.addr(),
+        record + field!(NetSession, instance),
+        0x10,
+    )?;
+    movsb(NET.joined_name.addr(), record, 0x40)?;
+    NET.joined_most
+        .set(crate::pointers::GamePtr::new(record + 0x50).read::<u32>("a session's record")?);
+    movsb(
+        NET.joined_password.addr(),
+        record + field!(NetSession, user),
+        0x10,
+    )?;
+    zero(NET.session_desc.addr(), 0x50)?;
+    NET.session_desc.size.set(0x50);
+    movsb(
+        crate::pointers::game_address(NET.session_desc.instance.as_ptr()),
+        NET.joined.addr(),
+        0x10,
+    )?;
+    finish(
+        posted_open_join,
+        join_group,
+        VIEWER_PANEL.text_addr(texts::NET_JOIN_COMPLETE),
+    )
 }

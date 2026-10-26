@@ -8,44 +8,54 @@
 //! quit switch is not looked at; the steps that are more than a call or a store are the
 //! functions below, generated from the listing.
 //! The name is a reading from the title string of its menu, "RALI EM REDE", not yet a visit.
-//! Callers: none in code: it is reached through a table.
-//! Hook removed 2026-10-22 (typed tables): the menus and draw lists run its `entry`
+//! Callers: none in code: it is reached through a table. The menus and draw lists run its `entry`
 //! (`menu::table_calls`); the registers above are the original's, for reference.
 
-use crate::framework::{Regs, game_read, game_write, rva};
-use crate::menu::screen_loop::{Env, List, Screen, Step, screen_entry};
+use crate::errors::Refused;
+use crate::framework::rva;
+use crate::menu::captions_store::CAPTIONS;
+use crate::menu::draw_lists_store::DRAW_LISTS;
+use crate::menu::draw_work_store::DRAW_WORK;
+use crate::menu::flow_store::SCREEN_FLOW;
+use crate::menu::loop_store::LOOP_FLAGS;
+use crate::menu::menus_store::MENUS;
+use crate::menu::option_work_store::OPTION_WORK;
+use crate::menu::screen_items_store::{SCREEN_ITEMS, slot};
+use crate::menu::screen_loop::{Callee, Carried, List, Screen, Step, carousel, screen_entry};
+use crate::menu::state_store::MENU_STATE;
+use crate::scene::draw_store::DRAW;
 
 // ---- Rust version: `menu::screen_loop` with this ----
 
-unsafe fn set_up_first(g: &mut Regs, env: &mut dyn Env) {
-    unsafe {
-        game_write(rva(0x7554EC), 0x1u32);
-        game_write(rva(0x75AA74), 0x6u32);
-        env.call(rva(0x4904DD), g);
-        g.eax = game_read(rva(0x7476A0));
-        game_write(rva(0x755525), g.eax);
-        g.eax = g.eax.wrapping_add(0xFFFFFFFF);
-        game_write(rva(0x75AA7C), g.eax);
-    }
+fn set_up_first(c: &mut Carried) -> Result<(), Refused> {
+    SCREEN_FLOW.turning.set(0x1u32);
+    MENU_STATE.carousel.menu.set(0x6u32);
+    carousel(c)?;
+    c.arg = SCREEN_ITEMS.current[slot::NETWORK_RALLY].get();
+    LOOP_FLAGS.item.set(c.arg);
+    c.arg = c.arg.wrapping_sub(1);
+    MENU_STATE.carousel.front.set(c.arg);
+
+    Ok(())
 }
 
 pub const SCREEN: Screen = Screen {
-    menu: rva(0x749118),
-    saved_item: rva(0x7476A0),
+    menu: || MENUS.network_rally.addr() as usize,
+    saved_item: || &SCREEN_ITEMS.current[slot::NETWORK_RALLY],
     lists: &[
         List {
-            pointer: rva(0x755504), // g_sceneList
-            table: rva(0x758F56),
+            pointer: || &SCREEN_FLOW.scene_list, // g_sceneList
+            table: || DRAW_LISTS.network_rally_scene.addr() as usize,
             run: false,
         },
         List {
-            pointer: rva(0x7554F8), // g_drawList
-            table: rva(0x758C26),
+            pointer: || &SCREEN_FLOW.draw_list, // g_drawList
+            table: || DRAW_LISTS.network_rally_draw.addr() as usize,
             run: false,
         },
         List {
-            pointer: rva(0x7554FC), // g_overlayList
-            table: rva(0x75919A),
+            pointer: || &SCREEN_FLOW.overlay_list, // g_overlayList
+            table: || DRAW_LISTS.network_rally_overlay.addr() as usize,
             run: false,
         },
     ],
@@ -57,25 +67,29 @@ pub const SCREEN: Screen = Screen {
     prepare: &[],
     after_lists: &[],
     background: &[
-        Step::EaxAddr(rva(0x731CC1)),
-        Step::CallOrFatal(rva(0x47EFFF), 0x80712345),
+        Step::ArgAddr(|| {
+            (crate::menu::texts_store::MENU_TEXTS
+                .network_rally_picture
+                .addr()) as usize
+        }),
+        Step::CallOrFatal(Callee::LoadBackground, 0x80712345),
     ],
     after_first_frame: &[
-        Step::Write(rva(0x623FB0), 0x7),
-        Step::Write(rva(0x623FB4), 0xA),
-        Step::Write(rva(0x624080), 0x100),
-        Step::Call(rva(0x46F7FD)),
+        Step::Write(|| &DRAW.view_offset[0], 0x7),
+        Step::Write(|| &DRAW.view_offset[1], 0xA),
+        Step::Write(|| &DRAW.view_zoom, 0x100),
+        Step::Call(Callee::PrepareScene),
     ],
     confirm: None,
     ask_also_if: None,
     confirmed: &[],
     unasked_skips_save: false,
     after: &[
-        Step::Write(rva(0x758806), 0x0),
-        Step::Write(rva(0x755569), 0x0),
-        Step::Write(rva(0x755A3C), 0x0),
-        Step::Write(rva(0x7556A4), 0x6F),
-        Step::Write(rva(0x755561), 0x0),
+        Step::Write(|| &CAPTIONS.screen_left, 0x0),
+        Step::Write(|| &LOOP_FLAGS.ended_a, 0x0),
+        Step::Write(|| &DRAW_WORK.escaped, 0x0),
+        Step::Write(|| &OPTION_WORK.menu_sound, 0x6F),
+        Step::Write(|| &LOOP_FLAGS.back, 0x0),
     ],
     escape_leaves: false,
     each_frame: &[],
@@ -98,20 +112,10 @@ pub const SCREEN: Screen = Screen {
     after_blink: &[],
     restart_action_check: false,
     always_asks: false,
-    also_reads: &[],
-    also_writes: &[
-        rva(0x623FB0),
-        rva(0x623FB4),
-        rva(0x624080),
-        rva(0x7554EC),
-        rva(0x755569),
-        rva(0x75AA74),
-        rva(0x75AA7C),
-    ],
 };
 
-/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// The Rust version where the typed tables run it (a refusal is the
 /// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    screen_entry("menu::network_rally_loop", r, &SCREEN)
+pub fn run() -> Result<(), crate::errors::Refused> {
+    screen_entry("menu::network_rally_loop", &SCREEN)
 }

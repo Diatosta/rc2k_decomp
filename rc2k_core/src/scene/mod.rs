@@ -1,5 +1,6 @@
 //! The scene: its objects, textures, lights and view.
 
+pub mod car_icons;
 pub mod carousel;
 pub mod distance;
 pub mod face_order;
@@ -15,7 +16,6 @@ pub mod noise;
 pub mod objects;
 pub mod pictures;
 pub mod places;
-pub mod plates;
 pub mod polygons;
 pub mod projection;
 pub mod reflection;

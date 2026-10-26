@@ -6,58 +6,39 @@
 //! In:  ebx the class
 //! Out: every register kept (`pusha` .. `popa`)
 //!
-//! Caller: `sub_4A32A5`. The steps are their Rust versions; the page through `part` (1), in
-//! the game its Rust version (`screen_loop::run_screen`). Ungated (the page waits for the
-//! player). Refuses what the steps refuse, before anything; raises the search's fatal
-//! error as the original. Self-test: a copy whose page call goes to a stand-in, against
-//! the Rust version, on a standings table of the test's.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Caller: `sub_4A32A5`. The steps are their Rust versions. Refuses what the steps refuse, before
+//! anything; raises the search's fatal error as the original.
 
 use crate::errors::Refused;
-use crate::framework::{Regs, game_read, game_write, rva};
+use crate::menu::champ_store::CHAMP_VIEW;
+use crate::menu::draw_work_store::DRAW_WORK;
+use crate::menu::event_store::EVENT_STATE;
+use crate::menu::screen_loop::{Carried, run_screen};
 use crate::menu::standings::*;
 use rc2k_core::menu::results_pages::{Page, held_figure};
 
-const CLASS_RVA: usize = rva(0x7558F4); // dword_7558F4
-const COUNT_RVA: usize = rva(0x7556B4); // dword_7556B4
-const EVENT_MODE_RVA: usize = rva(0x7556D0); // g_eventMode
-
-/// A call by place: 1 the page.
-pub type Part<'a> = &'a mut dyn FnMut(u32, &mut Regs) -> Result<(), Refused>;
-
-/// The Rust version (see the header): the registers it leaves.
-pub unsafe fn show_class_rally_results(entry: &Regs, part: Part) -> Result<Regs, Refused> {
-    let mut g = *entry;
+/// The Rust version (see the header). `c` the carried values (the registers the page's
+/// screen is run with).
+pub unsafe fn show_class_rally_results(class: u32, c: &Carried) -> Result<(), Refused> {
     unsafe {
-        g.eax = game_read(rva(0x7559AC)); // seconds
-        game_write(CLASS_RVA, g.ebx);
-        g.edi = game_read(TABLE_A_RVA);
-        let found = crate::menu::first_player_a::first_player_a(&g)?;
+        let mut c = Carried {
+            palette: class,
+            ..*c
+        };
+        c.arg = DRAW_WORK.seconds.get(); // seconds
+        EVENT_STATE.class.set(class);
+        let found = crate::menu::first_player_a::first_player_a(TABLE_A_RVA.get(), class)?;
+        found.carry_on(&mut c);
         // Converted: `rc2k_core::menu::results_pages::held_figure`.
-        let a8 = game_read::<u32>(EVENT_MODE_RVA) == rc2k_core::menu::results_pages::A8;
-        let count = held_figure(Page::ClassRally { a8 }, found.edx);
-        game_write(COUNT_RVA, count);
-        let g = crate::menu::first_page_stage::first_page_stage(&found)?;
-        let mut r = crate::menu::stage_range_caption::stage_range_caption(&g)?;
-        part(1, &mut r)?;
+        let a8 = CHAMP_VIEW.event_mode.get() == rc2k_core::menu::results_pages::A8;
+        let count = held_figure(Page::ClassRally { a8 }, found.figure);
+        CHAMP_VIEW.count.set(count);
+        crate::menu::first_page_stage::carry_on(
+            crate::menu::first_page_stage::first_page_stage(),
+            &mut c,
+        );
+        crate::menu::stage_range_caption::stage_range_caption()?;
+        run_screen(&crate::menu::class_rally_results_loop::SCREEN, &c)?;
     }
-    Ok(*entry)
-}
-
-/// In the game: the page's Rust version.
-pub fn game_part(_place: u32, r: &mut Regs) -> Result<(), Refused> {
-    unsafe {
-        crate::menu::screen_loop::run_screen(&crate::menu::class_rally_results_loop::SCREEN, r)
-    };
-    Ok(())
-}
-
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    let left = unsafe { show_class_rally_results(r, &mut game_part) }?;
-    *r = Regs { esp: r.esp, ..left };
     Ok(())
 }

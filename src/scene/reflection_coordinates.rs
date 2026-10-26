@@ -18,276 +18,176 @@
 //! Callers: `scene::cached_reflection_coordinates`, by a call and by a jump.
 //! Refuses when there are no records and what `math::normalise_vector` refuses.
 
-use crate::errors::{BadInput, Refused};
-use crate::framework::{
-    EAX, EDX, ESI, RawHook, Regs, SelfTest, game_addr, game_read, game_write, hook_asm, rva,
-};
-use crate::math::normalise_vector::{LENGTH_RVA, VECTOR_RVA, normalise_vector};
+use crate::errors::BadInput;
+use crate::math::normalise_vector::normalise_vector;
 use crate::math::x87;
-use crate::scene::draw_polygon::CHECKED_RVA;
-use crate::scene::project_point::RECORDS_RVA;
-use crate::scene::reflect_vector::{
-    MATRIX_RVA, NORMAL_RVA, VECTOR_RVA as MIRRORED_RVA, reflect_vector,
-};
-use crate::screens::harness::Left;
-use crate::service::harness::{
-    Region, at, capture, check_state, dispatch_state, restore, state_entry,
-};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook = RawHook::new(
-    "scene::reflection_coordinates",
-    rva(0x45198C),
-    thunk,
-    &ORIGINAL,
-)
-.self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
-
-// ---- game data ----
-
-pub const NORMAL_NUMBER_RVA: usize = rva(0x6399A8); // dword_6399A8
-pub const POINT_NUMBER_RVA: usize = rva(0x6399AC); // dword_6399AC
-pub const COORDINATES_RVA: usize = rva(0x6399B0); // dword_6399B0, dword_6399B4
-const LIFT_RVA: usize = rva(0x5C5D38); // flt_5C5D38
-const HALF_RVA: usize = rva(0x5C5E40); // flt_5C5E40
-const SCALE_A_RVA: usize = rva(0x5C5D98); // flt_5C5D98
-const SCALE_B_RVA: usize = rva(0x5C5E2C); // flt_5C5E2C
+use crate::physics::ground_store::GROUND_WORK;
+use crate::race::course_lists_store::COURSE_LISTS;
+use crate::race::matrices_store::MATRICES;
+use crate::race::numbers_store::NUMBERS;
+use crate::race::scratch_store::FRAME_SCRATCH;
+use crate::scene::reflect_vector::reflect_vector;
+use crate::scene::x87_mem::{fistp, fld, fstp};
 
 // ---- Rust version ----
 
 /// `fld a; fmul half; fadd half; fmul scale_a; fmul scale_b; fistp`.
 fn coordinate(a: u32, half: u32, scales: [u32; 2]) -> i32 {
     let (v, mut out) = ([a, half, scales[0], scales[1]], 0i32);
-    unsafe {
-        core::arch::asm!(
-            "fld dword ptr [{v}]",
-            "fmul dword ptr [{v} + 4]",
-            "fadd dword ptr [{v} + 4]",
-            "fmul dword ptr [{v} + 8]",
-            "fmul dword ptr [{v} + 12]",
-            "fistp dword ptr [{o}]",
-            v = in(reg) v.as_ptr(),
-            o = in(reg) &raw mut out,
-            out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
-            out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
-            options(nostack),
-        );
-    }
+    coordinate_at(v.as_ptr().cast(), (&raw mut out).cast());
     out
+}
+
+fn coordinate_at(v: *const u8, o: *mut u8) {
+    let t0 = fld(v, 0x0);
+    let t1 = fld(v, 0x4);
+    let t2 = t0 * t1;
+    let t3 = fld(v, 0x4);
+    let t4 = t2 + t3;
+    let t5 = fld(v, 0x8);
+    let t6 = t4 * t5;
+    let t7 = fld(v, 0xC);
+    let t8 = t6 * t7;
+    fistp(o, 0x0, t8);
 }
 
 /// `fld a; fchs; fstp`.
 fn negated(a: u32) -> u32 {
     let mut out = 0u32;
-    unsafe {
-        core::arch::asm!(
-            "fld dword ptr [{a}]",
-            "fchs",
-            "fstp dword ptr [{o}]",
-            a = in(reg) &raw const a,
-            o = in(reg) &raw mut out,
-            out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
-            out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
-            options(nostack),
-        );
-    }
+    negated_at((&raw const a).cast(), (&raw mut out).cast());
     out
 }
 
-/// What the function leaves in registers.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct Leftovers {
-    pub eax: u32,
-    pub edx: u32,
-    pub esi: u32,
+fn negated_at(a: *const u8, o: *mut u8) {
+    let t0 = fld(a, 0x0);
+    let t1 = -t0;
+    fstp(o, 0x0, t1);
 }
 
-pub unsafe fn reflection_coordinates() -> Result<Leftovers, BadInput> {
+pub unsafe fn reflection_coordinates() -> Result<(), BadInput> {
     unsafe {
-        let records: u32 = game_read(RECORDS_RVA);
+        let records: u32 = COURSE_LISTS.point_records.bits();
         if records == 0 {
             return Err(BadInput("no records for the points"));
         }
-        let record = |number: u32| records.wrapping_add(((number & 0xFFF) + 0x1000) << 5);
-        let place = |record: u32| ((record as usize + 0x10) as *const [u32; 3]).read_unaligned();
-        let normal = record(game_read(NORMAL_NUMBER_RVA));
-        game_write(MIRRORED_RVA, place(normal));
-        let point = record(game_read::<u32>(POINT_NUMBER_RVA).wrapping_neg());
-        game_write(VECTOR_RVA, place(point).map(negated));
+        let table = crate::scene::reading::PointRecords::new(records)?;
+        let normal = table.place(GROUND_WORK.reflection_normal_number.bits())?;
+        let point = table.place(GROUND_WORK.reflection_point_number.bits().wrapping_neg())?;
+        crate::session::write_bits(&MATRICES.reflect_vector, normal);
+        crate::session::write_first(&FRAME_SCRATCH.work_vector, &point.map(negated));
         normalise_vector()?;
-        let to_eye: [u32; 3] = game_read(VECTOR_RVA);
-        game_write(NORMAL_RVA, to_eye);
+        let to_eye: [u32; 3] = crate::session::read_first(&FRAME_SCRATCH.work_vector);
+        crate::session::write_bits(&MATRICES.reflect_normal, to_eye);
         reflect_vector();
-        let mirrored: [u32; 3] = game_read(MIRRORED_RVA);
-        game_write(
-            VECTOR_RVA,
-            [
+        let mirrored: [u32; 3] = crate::session::read_bits(&MATRICES.reflect_vector);
+        crate::session::write_first(
+            &FRAME_SCRATCH.work_vector,
+            &[
                 x87::loaded(mirrored[0]),
-                x87::add(mirrored[1], game_read(LIFT_RVA)),
+                x87::add(mirrored[1], NUMBERS.one.bits()),
                 x87::loaded(mirrored[2]),
             ],
         );
-        // Without the x87 way's sum eax is what was last loaded: the third part.
-        let eax = normalise_vector()?.unwrap_or(to_eye[2]);
-        let looks: [u32; 3] = game_read(VECTOR_RVA);
-        let half: u32 = game_read(HALF_RVA);
-        let scales = [game_read(SCALE_A_RVA), game_read(SCALE_B_RVA)];
-        game_write(
-            COORDINATES_RVA,
+        normalise_vector()?;
+        let looks: [u32; 3] = crate::session::read_first(&FRAME_SCRATCH.work_vector);
+        let half: u32 = NUMBERS.half.bits();
+        let scales = [NUMBERS.k65536.bits(), NUMBERS.k256.bits()];
+        crate::session::write_bits(
+            &GROUND_WORK.reflection_coordinates,
             [
-                coordinate(looks[0], half, scales),
-                coordinate(looks[2], half, scales),
+                coordinate(looks[0], half, scales) as u32,
+                coordinate(looks[2], half, scales) as u32,
             ],
         );
-        Ok(Leftovers {
-            eax,
-            edx: point,
-            esi: game_addr(MATRIX_RVA) as u32,
-        })
+        Ok(())
     }
 }
 
-// ---- hook ----
+#[cfg(all(test, target_arch = "x86"))]
+mod asm_reference {
+    use super::*;
+    use crate::scene::asm_test::{Kind, differential};
 
-/// What the function and its parts write.
-pub fn regions() -> Vec<Region> {
-    vec![
-        (game_addr(COORDINATES_RVA) as u32, 8),
-        (game_addr(MIRRORED_RVA) as u32, 12),
-        (game_addr(NORMAL_RVA) as u32, 12),
-        (game_addr(VECTOR_RVA) as u32, 32),
-        at(LENGTH_RVA),
-        at(CHECKED_RVA),
-    ]
-}
-
-fn rust(_: &Regs) -> Result<Left, Refused> {
-    let left = unsafe { reflection_coordinates() }?;
-    Ok(Left::nothing()
-        .with(EAX, left.eax)
-        .with(EDX, left.edx)
-        .with(ESI, left.esi))
-}
-
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_state(&HOOK, r, call_original, &regions(), &rust);
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
-}
-
-// ---- self-test ----
-
-/// Records of the test's for a few normals and points, and the matrix; `inputs()` is
-/// what a test that uses them puts back.
-pub struct Mirrors {
-    records: Vec<[u32; 8]>,
-}
-
-pub const TEST_NORMALS: u32 = 4;
-pub const TEST_POINTS: u32 = 4;
-
-impl Mirrors {
-    pub fn new() -> Self {
-        let f = |value: f32| value.to_bits();
-        let mut records = vec![[0u32; 8]; 0x2000];
-        let normals = [
-            [0.0f32, 0.0, -1.0],
-            [0.6, -0.8, 0.0],
-            [-0.577, 0.577, -0.577],
-            [0.1, 0.2, -0.97],
-        ];
-        let points = [
-            [0.0f32, 0.0, 9000.0],
-            [1200.5, -300.25, 8000.0],
-            [-4000.0, 2500.0, 12000.0],
-            [0.001, 0.002, 4096.0],
-        ];
-        for (n, normal) in normals.into_iter().enumerate() {
-            records[0x1000 + 0x10 + n][4..7].copy_from_slice(&normal.map(f));
-        }
-        for (n, point) in points.into_iter().enumerate() {
-            records[0x1000 + 0x20 + n][4..7].copy_from_slice(&point.map(f));
-        }
-        Self { records }
-    }
-
-    pub fn inputs() -> Vec<Region> {
-        vec![
-            at(RECORDS_RVA),
-            at(NORMAL_NUMBER_RVA),
-            at(POINT_NUMBER_RVA),
-            (game_addr(MATRIX_RVA) as u32, 0x40),
-        ]
-    }
-
-    /// Normal `normal` and point `point` (0 .. 3 each) as the function's inputs.
-    pub unsafe fn set(&self, normal: u32, point: u32, turned: bool) {
-        let matrix: [f32; 16] = if turned {
-            [
-                0.36, 0.48, -0.8, 0.0, -0.8, 0.6, 0.0, 0.0, 0.48, 0.64, 0.6, 0.0, 0.0, 0.0, 0.0,
-                0.0,
-            ]
-        } else {
-            [
-                1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0,
-            ]
-        };
+    /// The original's instructions for `coordinate`.
+    unsafe fn coordinate_at_ref(v: *mut u8, o: *mut u8) {
         unsafe {
-            game_write(RECORDS_RVA, self.records.as_ptr() as u32);
-            // Numbers past 0xFFF, as an object's are taken: by their low twelve bits.
-            game_write(NORMAL_NUMBER_RVA, 0x5010 + normal);
-            game_write(POINT_NUMBER_RVA, (0x3020 + point).wrapping_neg());
-            game_write(MATRIX_RVA, matrix.map(f32::to_bits));
+            core::arch::asm!(
+                "fld dword ptr [{v}]",
+                "fmul dword ptr [{v} + 4]",
+                "fadd dword ptr [{v} + 4]",
+                "fmul dword ptr [{v} + 8]",
+                "fmul dword ptr [{v} + 12]",
+                "fistp dword ptr [{o}]",
+                v = in(reg) v,
+                o = in(reg) o,
+                out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
+                out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
+                options(nostack),
+            );
         }
     }
-}
 
-impl Default for Mirrors {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let regions = regions();
-    let inputs = Mirrors::inputs();
-    let saved = (capture(&regions), capture(&inputs));
-    let mirrors = Mirrors::new();
-    for normal in 0..TEST_NORMALS {
-        for point in 0..TEST_POINTS {
-            for turned in [false, true] {
-                check_state(
-                    &mut t,
-                    &format!("normal {normal}, point {point}, turned {turned}"),
-                    call_original,
-                    Regs::SENTINEL,
-                    &|| unsafe {
-                        restore(&regions, &vec![0xAA; saved.0.len()]);
-                        mirrors.set(normal, point, turned);
-                    },
-                    &regions,
-                    &rust,
-                );
-            }
+    /// The original's instructions for `negated`.
+    unsafe fn negated_at_ref(a: *mut u8, o: *mut u8) {
+        unsafe {
+            core::arch::asm!(
+                "fld dword ptr [{a}]",
+                "fchs",
+                "fstp dword ptr [{o}]",
+                a = in(reg) a,
+                o = in(reg) o,
+                out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
+                out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
+                options(nostack),
+            );
         }
     }
-    restore(&regions, &saved.0);
-    restore(&inputs, &saved.1);
-    t.finish()
+
+    #[test]
+    fn coordinate_matches_the_assembly() {
+        // dwords 0 .. 4 the four floats, 4 the whole number
+        differential::<5>(
+            "reflection_coordinates coordinate",
+            8000,
+            20,
+            [Kind::Exact; 5],
+            |rng, m| {
+                m[0] = rng.unit().to_bits();
+                m[1] = if rng.below(2) == 0 {
+                    0.5f32.to_bits()
+                } else {
+                    rng.fl()
+                };
+                m[2] = if rng.below(2) == 0 {
+                    65536.0f32.to_bits()
+                } else {
+                    rng.moderate()
+                };
+                m[3] = if rng.below(2) == 0 {
+                    256.0f32.to_bits()
+                } else {
+                    rng.moderate()
+                };
+                m[4] = 0xAAAA_AAAA;
+            },
+            |base| unsafe { coordinate_at_ref(base, base.add(16)) },
+            |base| unsafe { coordinate_at(base, base.add(16)) },
+        );
+    }
+
+    #[test]
+    fn negated_matches_the_assembly() {
+        differential::<2>(
+            "reflection_coordinates negated",
+            8000,
+            21,
+            [Kind::Exact; 2],
+            |rng, m| {
+                m[0] = rng.fl();
+                m[1] = 0xAAAA_AAAA;
+            },
+            |base| unsafe { negated_at_ref(base, base.add(4)) },
+            |base| unsafe { negated_at(base, base.add(4)) },
+        );
+    }
 }

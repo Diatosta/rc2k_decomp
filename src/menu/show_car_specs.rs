@@ -7,35 +7,21 @@
 //!
 //! In:  nothing
 //! Out: the registers as its callees leave them (not `pusha`'d); esi the list
-//! An item action (a reading: the main menu's "car specifications"). Its calls through
-//! `part`: the list's choice and the car's taking in Rust, the screen at the game's
-//! address (its hook chooses). Ungated thunk (a screen); shadow mode runs the original
-//! alone. Self-test: a copy whose calls go to stand-ins (the screen answering
-//! `dword_758806`), against the Rust version, kinds 1 .. 5 (not the fatal one: the copy
-//! has no `pusha` for `fatal_landing`).
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! An item action (a reading: the main menu's "car specifications").
 
 use crate::errors::{FatalError, Refused};
-use crate::framework::{Regs, game_addr, game_read, rva};
-use crate::menu::parts::{Part, parted_entry};
+use crate::menu::captions_store::CAPTIONS;
+use crate::menu::event_store::EVENT_STATE;
+use crate::menu::lists_store::MENU_LISTS;
+use crate::menu::screen_loop::{Carried, run_screen_carried};
 
-const CALLEES: [usize; 3] = [
-    0x480D35, // 0 menu::secret_car_list
-    0x47AF4C, // 1 menu::car_specs_47af4c_loop
-    0x47B29D, // 2 menu::take_shown_car
-];
-const KIND_RVA: usize = rva(0x755954); // dword_755954
-const LEFT_RVA: usize = rva(0x758806); // dword_758806
-
-/// The Rust version: the registers it leaves.
-pub unsafe fn show_car_specs(entry: &Regs, part: Part) -> Result<Regs, Refused> {
+/// The Rust version. `c` the carried values the item gets. (The original leaves the
+/// registers its callees leave, esi the list; an item's caller reads none.)
+pub unsafe fn show_car_specs(c: &Carried) -> Result<(), Refused> {
     // Converted: `rc2k_core::menu::cars::specs_list`.
     use rc2k_core::menu::cars::{SpecsList, specs_list};
-    let mut r = *entry;
-    let kind: u32 = unsafe { game_read(KIND_RVA) };
+    let mut r = *c;
+    let kind: u32 = { EVENT_STATE.event_type.get() };
     let Some((list, choice)) = specs_list(kind) else {
         return Err(FatalError {
             code: 0x8071_3214,
@@ -43,34 +29,19 @@ pub unsafe fn show_car_specs(entry: &Regs, part: Part) -> Result<Regs, Refused> 
         }
         .into());
     };
-    r.esi = game_addr(rva(match list {
-        SpecsList::Events => 0x75A042,
-        SpecsList::Kind4 => 0x759CAE,
-        SpecsList::Kind5 => 0x759D16,
-    })) as u32;
+    r.cars = match list {
+        SpecsList::Events => MENU_LISTS.cars_second[0].addr(),
+        SpecsList::Kind4 => MENU_LISTS.cars_championship[0].addr(),
+        SpecsList::Kind5 => MENU_LISTS.cars_a8[0].addr(),
+    };
     if !choice {
-        part(1, &mut r)?;
-        return Ok(r);
+        unsafe { run_screen_carried(&crate::menu::car_specs_47af4c_loop::SCREEN, &mut r) }?;
+        return Ok(());
     }
-    part(0, &mut r)?;
-    part(1, &mut r)?;
-    if unsafe { game_read::<u32>(LEFT_RVA) } != 1 {
-        part(2, &mut r)?;
-    }
-    Ok(r)
-}
-
-pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
-    match place {
-        0 => crate::menu::arcade_steps::secret_car_list().apply(r),
-        2 => unsafe { crate::menu::take_shown_car::take_shown_car(r.esi) }?,
-        _ => crate::calls::call(rva(CALLEES[place as usize]), r),
+    crate::menu::cheat_car_list::carry_on(crate::menu::cheat_car_list::cheat_car_list(), &mut r);
+    unsafe { run_screen_carried(&crate::menu::car_specs_47af4c_loop::SCREEN, &mut r) }?;
+    if { CAPTIONS.screen_left.get() } != 1 {
+        crate::menu::take_shown_car::take_shown_car(r.cars)?;
     }
     Ok(())
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    parted_entry(r, &|r, part| unsafe { show_car_specs(r, part) }, game_part)
 }

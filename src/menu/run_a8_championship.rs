@@ -13,27 +13,14 @@
 //! Out: every register as `menu::show_in_game_options` leaves the entry's (all kept)
 //!
 //! Callers: `saves::load_savegame` (`dword_7556D0` 0x13) and the five starters
-//! (`menu::start_a8_*`). Ungated (a whole event). Refuses what its callees refuse, when
-//! they are reached (the original then runs from the start). Shadow mode runs the
-//! original alone. Self-test: `run_championship::test_event`.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! (`menu::start_a8_*`). Refuses what its callees refuse, when they are
+//! reached.
 
 use crate::errors::Refused;
-use crate::framework::Regs;
-use crate::menu::event_flow::{Call, game_call};
 use crate::menu::run_championship::run_event;
+use crate::menu::screen_loop::Carried;
 
-pub unsafe fn run_a8_championship(entry: &Regs, call: Call) -> Result<Regs, Refused> {
+pub fn run_a8_championship(c: &Carried) -> Result<(), Refused> {
     // Converted: `rc2k_core::menu::championship::run` (`a8`).
-    unsafe { run_event(entry, call, true) }
-}
-
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    let left = unsafe { run_a8_championship(r, &mut game_call) }?;
-    *r = Regs { esp: r.esp, ..left };
-    Ok(())
+    run_event(c, true)
 }

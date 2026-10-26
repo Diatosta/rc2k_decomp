@@ -5,94 +5,25 @@
 //! In:  ebx the cue
 //! Out: eax the entry; the rest kept; no flags read
 //!
-//! Caller: `physics::queue_pace_note` (inside `pusha` / `popa`).
-//! Refuses (before anything) a current car past 7.
-//! Shadow mode runs the original alone (`physics/sound_cues.rs`).
-//! Self-test: a copy whose call goes to a stand-in, against the Rust version: cars 0 ..
-//! 7 listed and not.
+//! Caller: `physics::queue_pace_note` (inside `pusha` / `popa`). Refuses (before anything)
+//! a current car past 7.
+//!
+//! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
+//! above are the original's, for reference.
 
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, SelfTest, game_addr, game_read, game_write, hook_asm, rva};
-use crate::physics::sound_cues::{CUE_LAST, Part, both, copy_of, dispatch_cue};
-use crate::service::harness::{capture, restore};
+use crate::race::frame_store::FRAME_WORK;
+use crate::race::work_store::RACE_WORK;
 use rc2k_core::physics::listed_cars::listed_entry;
-use std::sync::atomic::AtomicUsize;
 
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook = RawHook::new(
-    "physics::cue_listed_car_sound_last",
-    rva(0x45D1D3),
-    thunk,
-    &ORIGINAL,
-)
-.self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
-
-fn g(x: usize) -> u32 {
-    unsafe { game_read(rva(x)) }
-}
-
-/// The steps on `r`.
+/// `cue` for the listed car, if it is listed: its entry returned (the original's eax).
 // Converted: `rc2k_core::physics::listed_cars::listed_entry`.
-pub fn cue_listed_car_sound_last_in(r: &mut Regs, part: Part) -> Result<(), Refused> {
-    let (entry, listed) = listed_entry(g(0x71B3F8), |car| g(0x641680 + 4 * car as usize))?;
-    r.eax = entry;
+pub fn cue_listed_car_sound_last(cue: u32) -> Result<u32, Refused> {
+    let (entry, listed) = listed_entry(RACE_WORK.current_car.get(), |car| {
+        FRAME_WORK.listed_car_sounds[car as usize].get()
+    })?;
     if listed {
-        part(CUE_LAST, r)?;
+        crate::physics::cue_car_sound_last::cue_car_sound_last(entry, cue)?;
     }
-    Ok(())
-}
-
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_cue(&HOOK, r, call_original, cue_listed_car_sound_last_in);
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let copy = match copy_of(0x45D1D3, 0x17, &[0xA1, 0xF8, 0xB3, 0x71, 0x00], &[0x11]) {
-        Ok(c) => c,
-        Err(why) => return t.skip(why),
-    };
-    let a = |x: usize| game_addr(rva(x)) as u32;
-    let all = [(a(0x71B3F8), 4), (a(0x641680), 0x20)];
-    let saved = capture(&all);
-    for car in 0..8u32 {
-        let fill = || unsafe {
-            game_write(rva(0x71B3F8), car);
-            for k in 0..8usize {
-                game_write(
-                    rva(0x641680 + 4 * k),
-                    if (k as u32 + car).is_multiple_of(3) {
-                        u32::MAX
-                    } else {
-                        k as u32 % 2
-                    },
-                );
-            }
-        };
-        both(
-            &mut t,
-            &format!("car {car}"),
-            &copy,
-            Regs {
-                ebx: 0x52,
-                ..Regs::SENTINEL
-            },
-            &fill,
-            &all,
-            cue_listed_car_sound_last_in,
-        );
-    }
-    restore(&all, &saved);
-    drop(copy);
-    t.finish()
+    Ok(entry)
 }

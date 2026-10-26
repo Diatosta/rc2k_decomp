@@ -29,45 +29,68 @@
 //! Hook removed 2026-10-22 (direct calls): Rust callers run its `entry` (`calls::call`,
 //! `routes.rs`); the registers above are the original's, for reference.
 
-use crate::errors::Refused;
-use crate::framework::{Regs, game_addr, log, rva};
+use crate::errors::{BadInput, Refused};
+use crate::framework::log;
+use crate::pointers::GamePtr;
 
 // ---- game data ----
 
 /// The variables the loop reads and writes, in the order of `Vars`'s fields.
 const VARS: [usize; 12] = [
-    0x518390, // dword_518390: the stack pointer at entry, 0 before
-    0x51837C, // dword_51837C: the quit switch
-    0x518374, // dword_518374: the window is the active one
-    0x518998, // dword_518998: counted up by the key thread
-    0x51838C, // dword_51838C
-    0x518080, // dword_518080
-    0x51D752, // word_51D752: 0xBD when the installer's script is set up
-    0x51B9E0, // g_installing
-    0x51B9CC, // dword_51B9CC
-    0x51B9D0, // dword_51B9D0
-    0x5189A8, // g_baseDirectory
-    0x5AB290, // dword_5AB290
+    0, // dword_518390: the stack pointer at entry, 0 before (`session`)
+    0, // dword_51837C: the quit switch (`session`)
+    0, // dword_518374: the window is the active one (`session`)
+    0, // dword_518998: counted up by the key thread (`session`)
+    0, // dword_51838C (`session`)
+    0, // dword_518080 (`sound::store`)
+    0, // word_51D752: 0xBD when the installer's script is set up (`install::vars`)
+    0, // g_installing (`install::vars`)
+    0, // dword_51B9CC (`install::vars`)
+    0, // dword_51B9D0 (`install::vars`)
+    0, // g_baseDirectory (`files::state`)
+    0, // dword_5AB290: `g_lobbyLaunched` (`net::store`)
 ];
-const ENTERING_RVA: usize = rva(0x4DAA80); // "Entering main loop..."
-const LEAVING_RVA: usize = rva(0x4DAA96); // "Leaving main loop..."
+const ENTERING_RVA: &std::ffi::CStr = c"Entering main loop..."; // "Entering main loop..."
+const LEAVING_RVA: &std::ffi::CStr = c"Leaving main loop..."; // "Leaving main loop..."
 const INSTALLER_MARK: u16 = 0xBD;
 
 /// Where the loop's variables are: the game's own, or a test's.
 #[derive(Clone, Copy)]
-pub struct Vars(pub [*mut u32; 12]);
+pub struct Vars(pub [GamePtr; 12]);
 
 impl Vars {
     fn game() -> Self {
-        Self(VARS.map(|at| game_addr(rva(at)) as *mut u32))
+        use crate::session::{CLOCKS, FLAGS};
+        let at = |address: usize| GamePtr::new(address as u32);
+        let mut vars = VARS.map(|v| {
+            if v == 0 {
+                GamePtr::new(0)
+            } else {
+                at(crate::moved::place(v))
+            }
+        });
+        vars[0] = at(FLAGS.main_loop_stack.addr() as usize);
+        vars[1] = at(FLAGS.quitting.addr() as usize);
+        vars[2] = at(FLAGS.window_active.addr() as usize);
+        vars[3] = at(CLOCKS.key_ticks.addr() as usize);
+        vars[4] = at(FLAGS.f38c.addr() as usize);
+        vars[5] = at(crate::sound::store::SETTINGS_APPLIED.done.addr() as usize);
+        vars[6] = at(crate::install::vars::INSTALLER_PAGES.script_set_up.addr() as usize);
+        vars[7] = at(crate::install::vars::INSTALLER_RUN.installing.addr() as usize);
+        vars[8] = at(crate::install::vars::INSTALLER_RUN.updating.addr() as usize);
+        vars[9] = at(crate::install::vars::INSTALLER_RUN.from_command.addr() as usize);
+        vars[10] =
+            at((crate::pointers::game_address(crate::files::state::base_directory())) as usize);
+        vars[11] = at(crate::net::store::NET.lobby_launched.addr() as usize);
+        Self(vars)
     }
 
-    unsafe fn get(&self, n: usize) -> u32 {
-        unsafe { self.0[n].read_unaligned() }
+    fn get(&self, n: usize) -> Result<u32, BadInput> {
+        self.0[n].read::<u32>("the main loop's variable")
     }
 
-    unsafe fn set(&self, n: usize, value: u32) {
-        unsafe { self.0[n].write_unaligned(value) }
+    fn set(&self, n: usize, value: u32) -> Result<(), BadInput> {
+        self.0[n].write(value, "the main loop's variable")
     }
 }
 
@@ -99,30 +122,38 @@ pub enum Call {
 pub type Outside<'a> = &'a mut dyn FnMut(Call) -> Result<(), Refused>;
 
 /// `stack` is the stack pointer at the loop's entry.
-pub unsafe fn main_loop(vars: &Vars, stack: u32, outside: Outside) -> Result<(), Refused> {
-    unsafe {
-        let leaving = |outside: Outside| outside(Call::Log(game_addr(LEAVING_RVA) as u32));
+pub fn main_loop(vars: &Vars, stack: u32, outside: Outside) -> Result<(), Refused> {
+    {
+        let leaving = |outside: Outside| {
+            outside(Call::Log(crate::pointers::game_address(
+                LEAVING_RVA.as_ptr(),
+            )))
+        };
         let quit_and_leave = |outside: Outside| {
             outside(Call::RequestQuit)?;
-            outside(Call::Log(game_addr(LEAVING_RVA) as u32))
+            outside(Call::Log(crate::pointers::game_address(
+                LEAVING_RVA.as_ptr(),
+            )))
         };
-        if vars.get(0) != 0 {
+        if vars.get(0)? != 0 {
             return quit_and_leave(outside);
         }
-        vars.set(0, stack);
+        vars.set(0, stack)?;
         outside(Call::Log(0))?;
-        outside(Call::Log(game_addr(ENTERING_RVA) as u32))?;
+        outside(Call::Log(crate::pointers::game_address(
+            ENTERING_RVA.as_ptr(),
+        )))?;
         loop {
             outside(Call::Sleep(1000))?;
-            if vars.get(1) == 1 {
+            if vars.get(1)? == 1 {
                 return leaving(outside);
             }
-            if vars.get(2) != 0 && vars.get(3) != 0 {
+            if vars.get(2)? != 0 && vars.get(3)? != 0 {
                 break;
             }
         }
-        vars.set(4, 0);
-        vars.set(5, 0);
+        vars.set(4, 0)?;
+        vars.set(5, 0)?;
         outside(Call::Sub404823)?;
         outside(Call::Sub40EFF3)?;
         outside(Call::Sub4075F3)?;
@@ -131,28 +162,30 @@ pub unsafe fn main_loop(vars: &Vars, stack: u32, outside: Outside) -> Result<(),
         // with `-u` (`dword_51B9CC`) it uninstalls where it is: its record is in the
         // installed folder, so the uninstall runs from there (the original's ran from the
         // CD, through the update's mark).
-        if (vars.0[6] as *const u16).read_unaligned() == INSTALLER_MARK
-            || (crate::framework::standalone()
-                && (crate::install::portable::is_source_folder() || vars.get(8) == 1))
+        if vars.0[6].read::<u16>("the installer's mark")? == INSTALLER_MARK
+            || crate::install::portable::is_source_folder()
+            || vars.get(8)? == 1
         {
             outside(Call::Installer)?;
             return quit_and_leave(outside);
         }
-        if vars.get(7) != 1 {
+        if vars.get(7)? != 1 {
             outside(Call::RunsFromSource)?;
         }
-        vars.set(7, 0);
-        vars.set(8, 0);
-        vars.set(9, 0);
+        vars.set(7, 0)?;
+        vars.set(8, 0)?;
+        vars.set(9, 0)?;
         outside(Call::Sub40FCAA)?;
-        outside(Call::IsCdDrive((vars.0[10] as *const u8).read()))?;
-        if vars.get(11) == 1 {
+        outside(Call::IsCdDrive(
+            vars.0[10].read::<u8>("the base directory")?,
+        ))?;
+        if vars.get(11)? == 1 {
             outside(Call::Sub418DF4)?;
             return quit_and_leave(outside);
         }
         outside(Call::RunFrontEnd)?;
         outside(Call::Sub40F826)?;
-        if vars.get(1) == 1 {
+        if vars.get(1)? == 1 {
             return leaving(outside);
         }
         outside(Call::SaveGameData)?;
@@ -161,66 +194,55 @@ pub unsafe fn main_loop(vars: &Vars, stack: u32, outside: Outside) -> Result<(),
     }
 }
 
-/// The calls: the Rust versions of what is ported, the game for the rest (the front end
-/// through its own hook).
+/// The calls: the Rust versions, those still taking registers by their address (a
+/// local register set, their scratch: none of them reads one).
 fn in_game(call: Call) -> Result<(), Refused> {
-    let game = |at: usize, eax: u32| {
-        crate::calls::call(
-            rva(at),
-            &mut Regs {
-                eax,
-                ..Regs::default()
-            },
-        )
-    };
     unsafe {
         match call {
             Call::Log(0) => crate::menu::text_entry::log_l1(c"".as_ptr() as *const u8, true),
-            Call::Log(text) => crate::menu::text_entry::log_l1(text as *const u8, true),
+            Call::Log(text) => {
+                crate::menu::text_entry::log_l1(crate::pointers::host(text) as *const u8, true)
+            }
             Call::Sleep(milliseconds) => crate::system::sleep::sleep(milliseconds),
-            Call::Sub404823 => game(0x404823, 0),
-            Call::Sub40EFF3 => game(0x40EFF3, 0),
-            Call::Sub4075F3 => game(0x4075F3, 0),
-            Call::Sub4165F1 => game(0x4165F1, 0),
-            Call::RunsFromSource => game(0x412DA3, 0),
-            Call::Installer => crate::install::run_installer::run_installer(
-                &Regs::default(),
-                &mut crate::install::installer::game_part,
-            )
-            .map(|_| ())?,
-            Call::Sub40FCAA => game(0x40FCAA, 0),
+            Call::Sub404823 => {
+                crate::platform::set_menu_mode_now();
+            }
+            Call::Sub40EFF3 => crate::sound::apply_settings::apply_settings()?,
+            Call::Sub4075F3 => crate::gfx::load_jade::load_jade_in_game()?,
+            Call::Sub4165F1 => crate::menu::build_notice::build_notice(),
+            Call::RunsFromSource => {
+                crate::install::runs_from_source::source_against_directory(
+                    &mut crate::install::outside::Game,
+                )?;
+            }
+            Call::Installer => crate::install::run_installer::run_installer()?,
+            Call::Sub40FCAA => crate::sound::stop_cd_audio::stop_cd_audio(),
             // Its answer is not read.
             Call::IsCdDrive(drive) => {
                 crate::files::is_cd_drive::is_cd_drive(drive);
             }
             // `net::lobby_launched_game`'s Rust version (a case it refuses through its hook).
-            Call::Sub418DF4 => {
-                crate::race::loadlevel::or_in_game(0x418DF4, &mut Regs::default(), |r| {
-                    *r = crate::net::lobby_launched_game::lobby_launched_game(
-                        r,
-                        &mut crate::net::lobby::game_part,
-                    )?;
-                    Ok(())
-                })?
+            Call::Sub418DF4 => crate::net::lobby_launched_game::lobby_launched_game()?,
+            Call::RunFrontEnd => crate::menu::run_front_end::run_front_end()?,
+            Call::Sub40F826 => crate::sound::stop_music::stop_music(),
+            Call::SaveGameData => {
+                crate::saves::save_game_data::save_in_game()?;
             }
-            Call::RunFrontEnd => game(0x47486C, 0),
-            Call::Sub40F826 => game(0x40F826, 0),
-            Call::SaveGameData => game(0x411499, 0),
-            Call::FreeBestTimes => game(0x47C627, 0),
-            Call::RequestQuit => game(0x410BF9, 0),
+            Call::FreeBestTimes => crate::saves::free_best_times::free_in_game()?,
+            Call::RequestQuit => crate::threading::request_quit::request_quit_logged()?,
         }
     }
     Ok(())
 }
 
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's). The
-/// stack pointer it keeps in `dword_518390` is only the game's way out's (0x4154B5), which
-/// no Rust code takes: any value but 0 does, so this frame's.
-pub fn entry(_: &mut Regs) -> Result<(), crate::errors::Refused> {
+/// The Rust version on the game's own calls. The stack pointer it keeps in
+/// `dword_518390` is only the game's way out's (0x4154B5), which no Rust code takes: any
+/// value but 0 does, so this frame's.
+pub fn main_loop_in_game() -> Result<(), Refused> {
     log("system::main_loop: the Rust version runs");
     let here = 0u32;
-    let stack = &raw const here as u32;
-    unsafe { main_loop(&Vars::game(), stack, &mut in_game) }?;
+    let stack = crate::pointers::game_address(&raw const here);
+    main_loop(&Vars::game(), stack, &mut in_game)?;
     log("system::main_loop: the Rust version has come back");
     Ok(())
 }

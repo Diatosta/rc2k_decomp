@@ -23,382 +23,226 @@
 //! In:  eax 0 to start, else to run; esi the player (`dword_5BEBEC`)
 //! Out: eax the result; the rest kept (`pusha` / `popa`); no flags read
 //!
-//! Caller: `race::tyre_change` (twice), which calls the Rust version directly. Its calls
-//! by place: 0 `system::tick_count`, 1 `race::draw_tyre_change`, 2 `input_device_read`
-//! (0x40930D: ecx, edx, eax, ebx the device's +0x4DC .. +0x4E8; inlined).
-//! Refuses (before anything) a player past 7 or a null device.
-//! Shadow mode runs the original alone (it reads the clock and the buttons and keeps its
-//! own state). Self-test: a copy whose calls go to stand-ins (a scripted clock, the draw
-//! noted, the device read from the test's device), against the Rust version with the same:
-//! each stage, the button, the developer's machine, the timeout, records beaten and not,
-//! both players.
+//! Caller: `race::tyre_change` (twice), which calls the Rust version directly and reads only
+//! eax. Its calls: `system::tick_count`, `race::draw_tyre_change`, `input_device_read`
+//! (0x40930D: ecx, edx, eax, ebx the device's +0x4DC .. +0x4E8; inlined). Refuses (before
+//! anything) a player past 7 or a null device.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{
-    RawHook, Regs, SelfTest, call_game, game_addr, game_read, game_write, hook_asm, rva, shadow,
-};
-use crate::install::stand_ins::{set_handler, stand_in};
-use crate::math::x87::x87;
-use crate::race::frame::Part;
-use crate::redirect::RedirectedCopy;
-use crate::service::harness::{Region, capture, restore};
-use rc2k_core::race::tyre_change::{FILL_MS, Gauge, Io, turn};
-use std::sync::Mutex;
-use std::sync::atomic::{AtomicU32, AtomicUsize, Ordering};
+use crate::input::store::DEVICES;
+use crate::menu::names_store::NAME_BUFFERS;
+use crate::pointers::GamePtr;
+use crate::race::tyre_store::TYRE_CHANGE as TYRE;
+use crate::race::viewer_screen_store::VIEWER_PANEL;
+use crate::session::MACHINE;
+use rc2k_core::race::tyre_change::{Gauge, Io, turn};
 
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("race::tyre_change_gauge", rva(0x41C1D6), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
-
-pub const TICK: u32 = 0;
-pub const DRAW: u32 = 1;
-pub const READ: u32 = 2;
-
-const DEVICES: usize = 0x4F6EE8; // g_inputDevices
-const PLAYER: usize = 0x5BEBEC; // dword_5BEBEC
-const RECORD: usize = 0x5BEC28; // g_tyreChangeRecord
-const RECORD_NAME: usize = 0x5BEC08; // g_tyreChangeRecordName (30 bytes)
-const NAMES: [usize; 2] = [0x755784, 0x7557A4]; // g_playerNames, byte_7557A4
-const DEVELOPER: usize = 0x529D94; // g_developerMachine
-const SCRATCH: usize = 0x5183CC; // g_soundScratch
-/// flt_5BEAC0, flt_5BEAC4, flt_5BEAC8, flt_5BEACC, flt_5C2C60.
-const FLOATS: [usize; 5] = [0x5BEAC0, 0x5BEAC4, 0x5BEAC8, 0x5BEACC, 0x5C2C60];
+/// flt_5C2C60 (`VIEWER_PANEL.one`): added to the square root in the press time's logarithm.
+#[cfg(all(test, target_arch = "x86"))]
+const SQRT_OFFSET: usize = 0x5C2C60;
 const GAUGE: u32 = 0x4EC;
 const STAGE: u32 = 0x4F0;
 const CLOCK: u32 = 0x4F4;
 
-fn g(x: usize) -> u32 {
-    unsafe { game_read(rva(x)) }
-}
-
+#[cfg(all(test, target_arch = "x86"))]
 fn p(x: usize, v: u32) {
-    unsafe { game_write(rva(x), v) }
+    crate::store::game_write(crate::framework::rva(x), v)
 }
 
-unsafe fn get(a: u32) -> u32 {
-    unsafe { (a as *const u32).read_unaligned() }
+fn get(a: u32) -> Result<u32, BadInput> {
+    GamePtr::new(a).read("the tyre change device")
 }
 
-unsafe fn put(a: u32, v: u32) {
-    unsafe { (a as *mut u32).write_unaligned(v) }
+fn put(a: u32, v: u32) -> Result<(), BadInput> {
+    GamePtr::new(a).write(v, "the tyre change device")
+}
+
+/// The press time's constants: `TyreChange::{time_base, time_scale, gauge_unit,
+/// log_two_ten}` and flt_5C2C60.
+fn constants() -> [u32; 5] {
+    [
+        TYRE.time_base.bits(),
+        TYRE.time_scale.bits(),
+        TYRE.gauge_unit.bits(),
+        TYRE.log_two_ten.bits(),
+        VIEWER_PANEL.one.bits(),
+    ]
 }
 
 /// 0x41C2C7 .. 0x41C320: the time of a press, from s = 0x10000 less the gauge.
 pub fn press_time(s: i32) -> i32 {
-    let f = FLOATS.map(g);
-    let v = [
-        f[1],
-        f[3],
-        s as u32,
-        f[2],
-        f[4],
-        f[0],
-        0x447A_0000,
-        0x4120_0000,
-    ];
-    let mut out = 0i32;
-    x87!(
-        "fld dword ptr [{v}]",
-        "fmul dword ptr [{v}+4]",
-        "fild dword ptr [{v}+8]",
-        "fmul dword ptr [{v}+12]",
-        "fsqrt",
-        "fadd dword ptr [{v}+16]",
-        "fyl2x",
-        "fdiv dword ptr [{v}+4]",
-        "fadd dword ptr [{v}+20]",
-        "fmul dword ptr [{v}+24]",
-        "fdiv dword ptr [{v}+28]",
-        "fistp dword ptr [{o}]";
-        v = v.as_ptr(), o = &raw mut out
-    );
-    out
+    use crate::math::x87_float::{X, int, ld, to_int};
+    let f = constants().map(ld);
+    // `fyl2x` (libm's log2): the product and the sum are the x87's
+    let log = (int(s) * f[2]).sqrt() + f[4];
+    let r = f[1] * f[3] * X(log.0.log2());
+    let t = (r / f[3] + f[0]) * ld(0x447A_0000) / ld(0x4120_0000);
+    to_int(t)
 }
 
-/// The gauge's dealings with the game: the parts on the working registers (the device in
-/// esi), its state written into the device before each drawing.
-struct GameIo<'a> {
-    w: Regs,
+/// The gauge's dealings with the game: the device's state written into it before each
+/// drawing.
+struct GameIo {
     device: u32,
-    part: Part<'a>,
 }
 
-impl GameIo<'_> {
-    fn store(&self, g: &Gauge) {
-        unsafe {
-            put(self.device + GAUGE, g.gauge);
-            put(self.device + STAGE, g.stage);
-            put(self.device + CLOCK, g.clock);
+impl GameIo {
+    fn store(&self, g: &Gauge) -> Result<(), BadInput> {
+        put(self.device + GAUGE, g.gauge)?;
+        put(self.device + STAGE, g.stage)?;
+        put(self.device + CLOCK, g.clock)
+    }
+}
+
+impl Io for GameIo {
+    type Error = Refused;
+    fn tick(&mut self) -> Result<u32, Refused> {
+        Ok(crate::system::tick_count::tick_count())
+    }
+    fn pressed(&mut self) -> Result<bool, Refused> {
+        // `input_device_read` (0x40930D, inlined): ebx the device's +0x4E8.
+        Ok(get(self.device + 0x4E8)? & 0xFF != 0)
+    }
+    fn draw(&mut self, g: &Gauge) -> Result<(), Refused> {
+        self.store(g)?;
+        unsafe { crate::race::draw_tyre_change::draw_tyre_change(self.device) }
+    }
+    fn press_time(&mut self, s: u32) -> u32 {
+        press_time(s as i32) as u32
+    }
+    fn developer(&mut self) -> bool {
+        crate::system::check_developer_machine::DEVELOPER.get() == 1
+    }
+    fn record(&mut self) -> u32 {
+        TYRE.record.get()
+    }
+    fn beaten(&mut self, time: u32) {
+        TYRE.record.set(time);
+        // g_playerNames, or the second name, byte_7557A4: 30 bytes.
+        let from = 0x20 * (TYRE.player.get() != 0) as usize;
+        for n in 0..30 {
+            TYRE.record_name
+                .set(n, NAME_BUFFERS.player_names.get(from + n));
         }
     }
 }
 
-impl Io for GameIo<'_> {
-    type Error = Refused;
-    fn tick(&mut self) -> Result<u32, Refused> {
-        (self.part)(TICK, &mut self.w)?;
-        Ok(self.w.eax)
-    }
-    fn pressed(&mut self) -> Result<bool, Refused> {
-        (self.part)(READ, &mut self.w)?;
-        Ok(self.w.ebx & 0xFF != 0)
-    }
-    fn draw(&mut self, g: &Gauge) -> Result<(), Refused> {
-        self.store(g);
-        (self.part)(DRAW, &mut self.w)
-    }
-    fn press_time(&mut self, s: u32) -> u32 {
-        // eax the time as stored.
-        self.w.eax = press_time(s as i32) as u32;
-        self.w.eax
-    }
-    fn developer(&mut self) -> bool {
-        g(DEVELOPER) == 1
-    }
-    fn record(&mut self) -> u32 {
-        g(RECORD)
-    }
-    fn ran(&mut self, gauge: u32, rest: u32) {
-        (self.w.eax, self.w.edx, self.w.ebx) = (gauge, rest, FILL_MS);
-    }
-    fn timed_out(&mut self, elapsed: u32) {
-        self.w.eax = elapsed;
-    }
-    fn timed(&mut self, elapsed: u32, s: u32) {
-        (self.w.eax, self.w.ebx) = (elapsed, s);
-    }
-    fn beaten(&mut self, time: u32) {
-        p(RECORD, time);
-        let from = NAMES[(g(PLAYER) != 0) as usize];
-        self.w.eax = game_addr(rva(from)) as u32;
-        unsafe {
-            std::ptr::copy(
-                self.w.eax as *const u8,
-                game_addr(rva(RECORD_NAME)) as *mut u8,
-                30,
-            )
-        };
-    }
-}
-
-/// The steps on `r` (eax the result; the rest as at entry).
-pub fn tyre_change_gauge_in(r: &mut Regs, part: Part) -> Result<(), Refused> {
+/// The Rust version: `start` (eax 0) starts the gauge, else runs it, for player `player`
+/// (esi); gives the result (eax; the original keeps the rest).
+pub fn tyre_change_gauge(start: bool, player: u32) -> Result<u32, Refused> {
     // Converted: `rc2k_core::race::tyre_change::turn`.
-    let entry = *r;
-    if entry.esi > 7 {
+    if player > 7 {
         return Err(BadInput("a tyre change player past 7").into());
     }
-    let d = g(DEVICES + 4 * entry.esi as usize);
+    let d = DEVICES.input_device(player as usize);
     if d == 0 {
         return Err(BadInput("a tyre change player without a device").into());
     }
-    p(PLAYER, entry.esi);
-    let mut io = GameIo {
-        w: Regs {
-            esi: d,
-            edi: entry.eax,
-            ..entry
-        },
-        device: d,
-        part,
-    };
-    let mut gauge = unsafe {
-        Gauge {
-            gauge: get(d + GAUGE),
-            stage: get(d + STAGE),
-            clock: get(d + CLOCK),
-        }
+    TYRE.player.set(player);
+    let mut io = GameIo { device: d };
+    let mut gauge = Gauge {
+        gauge: get(d + GAUGE)?,
+        stage: get(d + STAGE)?,
+        clock: get(d + CLOCK)?,
     };
     let before = gauge;
-    let result = turn(entry.eax == 0, &mut gauge, &mut io)?;
+    let result = turn(start, &mut gauge, &mut io)?;
     if gauge != before {
-        io.store(&gauge);
+        io.store(&gauge)?;
     }
-    p(SCRATCH, result);
-    r.eax = result;
-    Ok(())
+    MACHINE.scratch.set(result);
+    Ok(result)
 }
 
-/// `input_device_read` (0x40930D): the device esi's four readings.
-fn read_device(r: &mut Regs) {
-    unsafe {
-        r.ecx = get(r.esi + 0x4DC);
-        r.edx = get(r.esi + 0x4E0);
-        r.eax = get(r.esi + 0x4E4);
-        r.ebx = get(r.esi + 0x4E8);
-    }
-}
+#[cfg(all(test, target_arch = "x86"))]
+mod asm_reference {
+    use super::*;
+    use crate::math::x87::x87;
+    use crate::race::asm_test::{Rng, Saved, at_each_control_word, lock};
 
-/// The calls in the game: the Rust versions.
-pub fn gauge_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
-    match place {
-        TICK => r.eax = crate::system::tick_count::tick_count(),
-        DRAW => unsafe {
-            crate::race::draw_tyre_change::draw_tyre_change_in(
-                r,
-                &mut crate::race::draw_tyre_change::draw_part,
-            )?
-        },
-        _ => read_device(r),
-    }
-    Ok(())
-}
+    /// The four constants as they were, put back when dropped.
+    struct Kept([u32; 4]);
 
-extern "C" fn dispatch(r: &mut Regs) {
-    HOOK.count_call();
-    if shadow() {
-        unsafe { call_original(r) };
-        return;
-    }
-    let mut w = *r;
-    match tyre_change_gauge_in(&mut w, &mut gauge_part) {
-        Ok(()) => r.eax = w.eax,
-        Err(e) => unsafe { crate::fatal::raise::refused(&HOOK, e, r, call_original) },
-    }
-}
-
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    let mut w = *r;
-    match tyre_change_gauge_in(&mut w, &mut gauge_part) {
-        Ok(()) => r.eax = w.eax,
-        Err(e) => return Err(e),
-    }
-    Ok(())
-}
-
-// ---- self-test ----
-
-static CALLED: Mutex<Vec<(u32, [u32; 7])>> = Mutex::new(Vec::new());
-/// What the clock's stand-in gives.
-static CLOCK_GIVES: AtomicU32 = AtomicU32::new(0);
-
-fn handler(place: u32, r: &mut Regs) {
-    CALLED
-        .lock()
-        .unwrap()
-        .push((place, [r.eax, r.ebx, r.ecx, r.edx, r.esi, r.edi, r.ebp]));
-    match place {
-        TICK => r.eax = CLOCK_GIVES.load(Ordering::SeqCst),
-        READ => read_device(r),
-        _ => {}
-    }
-}
-
-fn take_called() -> Vec<(u32, [u32; 7])> {
-    std::mem::take(&mut *CALLED.lock().unwrap())
-}
-
-const PLACES: [(usize, u32); 3] = [(0x411024, TICK), (0x41C38C, DRAW), (0x40930D, READ)];
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    set_handler(handler);
-    let copy = match unsafe {
-        RedirectedCopy::new(
-            game_addr(rva(0x41C1D6)),
-            0x1B6,
-            &[0x60, 0x89, 0x35, 0xEC, 0xEB, 0x5B, 0x00],
-            &[0x14, 0x33, 0x38, 0x70, 0x7D, 0xD8, 0x193],
-            &|c| {
-                PLACES
-                    .iter()
-                    .find(|&&(k, _)| rva(k) == c)
-                    .map(|&(_, n)| stand_in(n))
-            },
-        )
-    } {
-        Ok(c) => c,
-        Err(why) => return t.skip(why),
-    };
-    let mut device = vec![0u32; 0x500 / 4];
-    let dev = device.as_mut_ptr() as u32;
-    let a = |x: usize, len: usize| (game_addr(rva(x)) as u32, len);
-    let written: Vec<Region> = vec![
-        (dev, 0x500),
-        a(PLAYER, 4),
-        a(RECORD, 4),
-        a(RECORD_NAME, 30),
-        a(SCRATCH, 4),
-    ];
-    let mut kept = written.clone();
-    kept.extend([a(DEVICES, 0x20), a(DEVELOPER, 4)]);
-    let saved = capture(&kept);
-    // (eax, player, stage, button, developer, gauge, elapsed, record)
-    let mut cases = vec![];
-    for player in [0u32, 1] {
-        cases.push((0u32, player, 1u32, 0u32, 0u32, 0u32, 0u32, 0xFFFF_FFFFu32));
-        cases.push((0, player, 1, 1, 0, 0, 0, 0xFFFF_FFFF));
-        for stage in [u32::MAX, 0, 1, 2, 7] {
-            for button in [0u32, 0x100, 1] {
-                for developer in [0u32, 1] {
-                    for (gauge, elapsed, record) in [
-                        (0x1234u32, 250u32, 0xFFFF_FFFFu32),
-                        (0xF700, 499, 50),
-                        (0x8000, 60000, 0xFFFF_FFFF),
-                        (0xFFFF, 1000, 0),
-                    ] {
-                        cases.push((1, player, stage, button, developer, gauge, elapsed, record));
-                    }
-                }
-            }
+    impl Drop for Kept {
+        fn drop(&mut self) {
+            TYRE.time_base.set_bits(self.0[0]);
+            TYRE.time_scale.set_bits(self.0[1]);
+            TYRE.gauge_unit.set_bits(self.0[2]);
+            TYRE.log_two_ten.set_bits(self.0[3]);
         }
     }
-    for (eax, player, stage, button, developer, gauge, elapsed, record) in cases {
-        let fill = || unsafe {
-            restore(&kept, &saved);
-            for k in 0..0x140u32 {
-                put(dev + 4 * k, 0x0101_0000 + k);
-            }
-            put(dev + 0x4E8, button);
-            put(dev + GAUGE, gauge);
-            put(dev + STAGE, stage);
-            put(dev + CLOCK, 100_000);
-            game_write(rva(DEVICES) + 4 * player as usize, dev);
-            p(DEVELOPER, developer);
-            p(RECORD, record);
-            CLOCK_GIVES.store(100_000 + elapsed, Ordering::SeqCst);
-        };
-        let entry = Regs {
-            eax,
-            esi: player,
-            ..Regs::SENTINEL
-        };
-        let regs = |r: &Regs| [r.eax, r.ebx, r.ecx, r.edx, r.esi, r.edi, r.ebp];
-        fill();
-        take_called();
-        let mut ro = entry;
-        unsafe { call_game(&mut ro, copy.addr()) };
-        let theirs = (Some(regs(&ro)), take_called(), capture(&written));
-        fill();
-        let mut rr = entry;
-        let ok = tyre_change_gauge_in(&mut rr, &mut |p, r| {
-            handler(p, r);
-            Ok(())
-        })
-        .is_ok();
-        let mine = (ok.then(|| regs(&rr)), take_called(), capture(&written));
-        t.check(theirs == mine, || {
-            let diff = theirs.2.iter().zip(&mine.2).position(|(x, y)| x != y);
-            format!(
-                "eax {eax}, player {player}, stage {stage:#x}, button {button:#x}, developer \
-                 {developer}, gauge {gauge:#x}, elapsed {elapsed}, record {record:#x}: original \
-                 {:x?} {:x?}; rust {:x?} {:x?}; memory first differs at {diff:x?}",
-                theirs.0, theirs.1, mine.0, mine.1
-            )
-        });
+
+    // The original block, verbatim.
+    pub(super) fn press_time_asm(s: i32) -> i32 {
+        let f = constants();
+        let v = [
+            f[1],
+            f[3],
+            s as u32,
+            f[2],
+            f[4],
+            f[0],
+            0x447A_0000,
+            0x4120_0000,
+        ];
+        let mut out = 0i32;
+        x87!(
+            "fld dword ptr [{v}]",
+            "fmul dword ptr [{v}+4]",
+            "fild dword ptr [{v}+8]",
+            "fmul dword ptr [{v}+12]",
+            "fsqrt",
+            "fadd dword ptr [{v}+16]",
+            "fyl2x",
+            "fdiv dword ptr [{v}+4]",
+            "fadd dword ptr [{v}+20]",
+            "fmul dword ptr [{v}+24]",
+            "fdiv dword ptr [{v}+28]",
+            "fistp dword ptr [{o}]";
+            v = v.as_ptr(), o = &raw mut out
+        );
+        out
     }
-    restore(&kept, &saved);
-    drop((copy, device));
-    t.finish()
+
+    /// With the game's own constants, over the whole range of the gauge, then with other
+    /// constants. `fyl2x` is libm's here: a result may differ by one where the x87's log2
+    /// and libm's disagree at the last bit and the sum falls on a whole number; counted.
+    #[test]
+    fn press_time_matches() {
+        let _l = lock();
+        let _saved = Saved::new(&[SQRT_OFFSET]);
+        let _kept = Kept([
+            TYRE.time_base.bits(),
+            TYRE.time_scale.bits(),
+            TYRE.gauge_unit.bits(),
+            TYRE.log_two_ten.bits(),
+        ]);
+        let mut r = Rng(31);
+        let mut off = 0;
+        let mut total = 0;
+        at_each_control_word(|| {
+            for n in 0..60000u32 {
+                if n >= 20000 {
+                    TYRE.time_base.set_bits(r.float());
+                    TYRE.time_scale.set_bits(r.float());
+                    TYRE.gauge_unit.set_bits(r.float());
+                    TYRE.log_two_ten.set_bits(r.float());
+                    p(SQRT_OFFSET, r.float());
+                }
+                let s = if n < 20000 {
+                    (n % 0x10000) as i32
+                } else {
+                    r.int()
+                };
+                let (want, got) = (press_time_asm(s), press_time(s));
+                total += 1;
+                if want != got {
+                    off += 1;
+                    assert!(n >= 20000 || want.abs_diff(got) <= 1, "{s}: {want} {got}");
+                }
+            }
+        });
+        eprintln!("press_time: {off} of {total} differ");
+        assert!(off * 1000 < total, "{off} of {total}");
+    }
 }

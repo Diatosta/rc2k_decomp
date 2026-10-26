@@ -4,96 +4,28 @@
 //! steps (low byte) and back into `dword_814714`.
 //!
 //! In:  nothing
-//! Out: as `expire_hexagons` leaves them, eax the new `dword_84460C` before its masking
+//! Out: nothing (its caller reads no register after it)
 //!
 //! Caller: `sub_4BAC87` (0x4BAF7D). The call is `expire_hexagons`' Rust version.
-//! Self-test: the original and the Rust version on the game's items (as
-//! `expire_hexagons`'), clocks by lot; put back.
 
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, SelfTest, game_addr, game_read, game_write, hook_asm, rva};
-use crate::marks::expire_hexagons::{self, LATEST_RVA, STEPS_RVA, expire_hexagons, test_items};
-use crate::race::stage_prefs::left_of;
-use crate::screens::harness::Left;
-use crate::service::harness::{at, capture, check_state, dispatch_state, restore, state_entry};
-use std::sync::atomic::AtomicUsize;
+use crate::marks::expire_hexagons::expire_hexagons;
+use crate::marks::hexagon_state::HEXAGON_STATE;
+use crate::marks::hexagon_vars::HEX;
+use crate::marks::mask_picks::PICKS;
 
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("marks::hexagons_step", rva(0x4BCAD0), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
-
-const CLOCK_RVA: usize = rva(0x814714); // dword_814714
-
-/// The Rust version (see the header): the registers it leaves.
+/// The Rust version (see the header).
 // Converted: `rc2k_core::marks::steps::steps`
-pub unsafe fn hexagons_step(entry: &Regs) -> Regs {
-    unsafe {
-        let clock: u32 = game_read(CLOCK_RVA);
-        let steps = rc2k_core::marks::steps::steps(game_read(LATEST_RVA), clock);
-        game_write(LATEST_RVA, clock);
-        game_write(STEPS_RVA, steps);
-        let mut g = expire_hexagons(&Regs {
-            eax: steps,
-            ..*entry
-        });
-        g.eax = game_read::<u32>(LATEST_RVA).wrapping_add(game_read(STEPS_RVA));
-        game_write(LATEST_RVA, g.eax & 0xFF);
-        game_write(CLOCK_RVA, g.eax & 0xFF);
-        g
+pub fn hexagons_step() -> Result<(), Refused> {
+    {
+        let clock: u32 = HEXAGON_STATE.clock.bits();
+        let steps = rc2k_core::marks::steps::steps(PICKS.index.get(), clock);
+        PICKS.index.set(clock);
+        HEX.steps.set(steps);
+        expire_hexagons()?;
+        let latest = PICKS.index.get().wrapping_add(HEX.steps.get());
+        PICKS.index.set(latest & 0xFF);
+        HEXAGON_STATE.clock.set_bits(latest & 0xFF);
     }
-}
-
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    Ok(left_of(&unsafe { hexagons_step(r) }))
-}
-
-fn regions() -> Vec<crate::service::harness::Region> {
-    let mut r = expire_hexagons::regions();
-    r.extend([CLOCK_RVA, LATEST_RVA, STEPS_RVA].map(at));
-    r
-}
-
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_state(&HOOK, r, call_original, &regions(), &rust);
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let regions = regions();
-    let mut vars = regions.clone();
-    vars.push((game_addr(rva(0x844A10)) as u32, 0x400));
-    let saved = capture(&vars);
-    for case in 0..6u32 {
-        check_state(
-            &mut t,
-            &format!("case {case}"),
-            call_original,
-            Regs::SENTINEL,
-            &|| unsafe {
-                restore(&vars, &saved);
-                test_items(case);
-                game_write(CLOCK_RVA, case * 3 + 1);
-            },
-            &regions,
-            &rust,
-        );
-    }
-    restore(&vars, &saved);
-    t.finish()
+    Ok(())
 }

@@ -8,38 +8,35 @@
 //! `menu::load_background` (carry afterwards = fatal error 0x80712345); leaving is asked about;
 //! returns at once on leaving if `dword_75AB34` is 1.
 //! A reading from the title string of its menu, not yet a visit: "CAMPEONATO DE CLASSE".
-//! Callers: `sub_4A4AD5`. Ungated thunk; shadow mode runs the original alone; each real call
-//! writes a line to hook.log. Self-test: `screen_loop::check_screen`.
-//! Manual patch with a private copy (0x2B3 bytes; 9 calls and 1 jump to a fatal-error stub
-//! relocated): a call or a
-//! jump target sits in the first bytes.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Callers: `sub_4A4AD5`.
 
-use crate::framework::{Regs, rva};
-use crate::menu::screen_loop::{List, Screen, Step, screen_entry};
+use crate::framework::rva;
+use crate::menu::draw_lists_store::DRAW_LISTS;
+use crate::menu::flow_store::SCREEN_FLOW;
+use crate::menu::menus_store::MENUS;
+use crate::menu::screen_items_store::{SCREEN_ITEMS, slot};
+use crate::menu::screen_loop::{Callee, List, Screen, Step};
+use crate::menu::state_store::MENU_STATE;
 
 // ---- Rust version: `menu::screen_loop` with this ----
 
 pub const SCREEN: Screen = Screen {
-    menu: rva(0x74FF0C),
-    saved_item: rva(0x7477B8),
+    menu: || MENUS.class_championship_standings.addr() as usize,
+    saved_item: || &SCREEN_ITEMS.current[slot::CLASS_CHAMPIONSHIP_STANDINGS],
     lists: &[
         List {
-            pointer: rva(0x755504), // g_sceneList
-            table: rva(0x7590F2),
+            pointer: || &SCREEN_FLOW.scene_list, // g_sceneList
+            table: || DRAW_LISTS.class_championship_standings_scene.addr() as usize,
             run: false,
         },
         List {
-            pointer: rva(0x7554F8), // g_drawList
-            table: rva(0x758E56),
+            pointer: || &SCREEN_FLOW.draw_list, // g_drawList
+            table: || DRAW_LISTS.class_championship_standings_draw.addr() as usize,
             run: false,
         },
         List {
-            pointer: rva(0x7554FC), // g_overlayList
-            table: rva(0x7592B2),
+            pointer: || &SCREEN_FLOW.overlay_list, // g_overlayList
+            table: || DRAW_LISTS.class_championship_standings_overlay.addr() as usize,
             run: false,
         },
     ],
@@ -51,8 +48,12 @@ pub const SCREEN: Screen = Screen {
     prepare: &[],
     after_lists: &[],
     background: &[
-        Step::EaxAddr(rva(0x7328C2)),
-        Step::CallOrFatal(rva(0x47EFFF), 0x80712345),
+        Step::ArgAddr(|| {
+            (crate::menu::texts_store::MENU_TEXTS
+                .class_championship_standings_picture
+                .addr()) as usize
+        }),
+        Step::CallOrFatal(Callee::LoadBackground, 0x80712345),
     ],
     after_first_frame: &[],
     confirm: Some(&[]),
@@ -63,7 +64,7 @@ pub const SCREEN: Screen = Screen {
     escape_leaves: false,
     each_frame: &[],
     short_action_check: false,
-    leave_at_once: Some(rva(0x75AB34)),
+    leave_at_once: Some(|| &MENU_STATE.menus.standings_shown),
     next_frame_repeats_first: false,
     action_saved_item: None,
     action_menu: None,
@@ -81,12 +82,4 @@ pub const SCREEN: Screen = Screen {
     after_blink: &[],
     restart_action_check: false,
     always_asks: false,
-    also_reads: &[],
-    also_writes: &[],
 };
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    screen_entry("menu::class_championship_standings_loop", r, &SCREEN)
-}

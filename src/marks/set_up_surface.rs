@@ -4,438 +4,214 @@
 //! tables of texture places (0x40 cells of an 8 x 8 grid, and 0x40 of 4 x 4 sub-cells).
 //!
 //! In:  nothing
-//! Out: eax 0, ebx 0, ecx the ring, esi 0xF0, edi and ebp past the 0x40000 block, edx
-//!      as the steps leave it
+//! Out: nothing (no caller reads a register it leaves)
 //!
 //! The surface's lock and unlock are the game's (`sub_41AA4B` / `sub_41AB02`, DirectDraw).
-//! Callers: `marks::init_marks` and code at 0x4D1BC8 (not in a function). Shadow mode runs
-//! the original alone (it takes memory and reads files). Refuses (section 15) memory not
-//! had; a surface under 256 x 256 or a picture not read, after the lock (unlocked again,
-//! the 0x40000 block left taken). Self-test: a redirected copy whose calls go to
-//! stand-ins noting every register (blocks and a picture of the test's), against the Rust
-//! version on the same stand-ins, with the game's constants and two other sets; put back
-//! afterwards.
+//! Callers: `marks::init_marks` and code at 0x4D1BC8 (not in a function). Refuses memory
+//! not had; a surface under 256 x 256 or a picture not read, after the lock (unlocked
+//! again, the 0x40000 block left taken).
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{
-    RawHook, Regs, SelfTest, game_addr, game_read, game_write, hook_asm, rva, shadow,
-};
-use crate::marks::load_mask_pictures::{BLOCK_AT, FAIL_READ, TAKEN, note, test_part};
-use crate::marks::masks::NOTED;
+use crate::gfx::picture_store::PICTURE;
+use crate::marks::blocks::{Address, take};
+use crate::marks::load_mask_pictures::{lock, put_pixel};
+use crate::marks::ring_store::{PICTURE_NAMES, RING_WORK};
+use crate::marks::surface_store::SURFACE;
+use crate::marks::tuning::MARKS_FLOATS;
 use crate::math::x87;
-use crate::race::level_init::Part;
-use crate::service::harness::{Region, at, capture, restore};
-use std::sync::atomic::{AtomicUsize, Ordering};
+use crate::pointers::GamePtr;
+use crate::scene::kind_texture_store::KIND_TEXTURES;
+use crate::session::{Bytes, Dword};
 
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("marks::set_up_surface", rva(0x4CB0BC), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
-
-const MASK_LIST_RVA: usize = rva(0x93A1DA); // stru_93A1DA
 const MASK_BYTES: u32 = 0x4_0000;
-const SLOT_RVA: usize = rva(0x5D0E34); // dword_5D0E34: the surface drawn into
-const TEXTURE_RVA: usize = rva(0x5D1E34); // dword_5D1E34: the texture slot forgotten
-const SURFMASK_RVA: usize = rva(0x935751); // "files\m\surfmask.pcx"
-const SURFDATA_RVA: usize = rva(0x93573C); // "files\m\surfdata.pcx"
 const PIXELS: u32 = 0x1_0000;
-const SURFACE_WIDTH_RVA: usize = rva(0x4F49A0); // g_surface.width
-const SURFACE_HEIGHT_RVA: usize = rva(0x4F49A4); // g_surface.height
 const SIDE: u32 = 0x100;
-const RING_LIST_RVA: usize = rva(0x935620); // stru_935620
 const RING_BYTES: u32 = 0x2_5000;
-pub const RING_RVA: usize = rva(0x935668); // g_marksRingBlock (g_marksRing is 0x93A5C8)
-pub const RING_CURSOR_RVA: usize = rva(0x935660); // g_marksRingCursor
-pub const RING_COUNT_RVA: usize = rva(0x9356C8); // g_marksRingCount
 const RING: u32 = 0x400;
 const RECORD: u32 = 0x94;
-const CELLS_RVA: usize = rva(0x935766); // g_marksCellPlaces: 0x40 of four floats
-const SUBCELLS_RVA: usize = rva(0x935B66); // g_marksSubcellPlaces: 0x40 of 0x100 bytes
 const CELLS: u32 = 0x40;
-/// flt_7651C0 (1/8), flt_7651C8 (1/512), flt_7651CC (1/256), flt_7651D0 (1/32).
-const EIGHTH_RVA: usize = rva(0x7651C0);
-const EDGE_RVA: usize = rva(0x7651C8);
-const PIXEL_RVA: usize = rva(0x7651CC);
-const STEP_RVA: usize = rva(0x7651D0);
-
-/// Place 2 at 256 x 256 (the picture's sizes kept round it); the carry set when not read.
-unsafe fn read(g: &mut Regs, path: usize, part: Part) -> Result<bool, Refused> {
-    use crate::gfx::picture::{HEIGHT_RVA, ROW_BYTES_RVA, WIDTH_RVA};
+/// `gfx::read_picture_file` at 256 x 256 (the picture's sizes kept round it): whether it
+/// was read.
+fn read(path: &Bytes<21>) -> Result<bool, Refused> {
     unsafe {
         let sizes: [u32; 3] = [
-            game_read(WIDTH_RVA),
-            game_read(HEIGHT_RVA),
-            game_read(ROW_BYTES_RVA),
+            PICTURE.width.get(),
+            PICTURE.height.get(),
+            PICTURE.row_bytes.get(),
         ];
-        game_write(WIDTH_RVA, SIDE);
-        game_write(HEIGHT_RVA, SIDE);
-        game_write(ROW_BYTES_RVA, 0xFFFF_FFFEu32);
-        g.eax = game_addr(path) as u32;
-        let read = part(2, g);
-        game_write(WIDTH_RVA, sizes[0]);
-        game_write(HEIGHT_RVA, sizes[1]);
-        game_write(ROW_BYTES_RVA, sizes[2]);
-        read?;
-        Ok(!g.carry())
+        PICTURE.width.set(SIDE);
+        PICTURE.height.set(SIDE);
+        PICTURE.row_bytes.set(0xFFFF_FFFEu32);
+        let read = crate::gfx::read_picture_file::read_picture_file(path.as_ptr());
+        PICTURE.width.set(sizes[0]);
+        PICTURE.height.set(sizes[1]);
+        PICTURE.row_bytes.set(sizes[2]);
+        read
     }
 }
 
-/// Unlocks the surface (place 4) and refuses with `why`.
-unsafe fn unlock_refusing(g: &mut Regs, part: Part, why: &'static str) -> Result<Regs, Refused> {
-    unsafe {
-        g.eax = game_read(SLOT_RVA);
-        part(4, g)?;
-    }
+/// Unlocks the surface and refuses with `why`.
+fn unlock_refusing(why: &'static str) -> Result<(), Refused> {
+    lock(KIND_TEXTURES.kind_first_textures[211].bits(), false)?;
     Err(BadInput(why).into())
 }
 
-/// The Rust version (see the header). Places: 0 `memory::allocate`, 1 / 4 the lock /
-/// unlock, 2 `gfx::read_picture_file`, 3 `gfx::put_surface_pixel`,
-/// 5 `scene::forget_slot_texture`, 6 `memory::free_list`, 7 `nullsub_33`.
-pub unsafe fn set_up_surface(entry: &Regs, part: Part) -> Result<Regs, Refused> {
-    use crate::gfx::picture::PICTURE_RVA;
-    let mut g = *entry;
+/// The Rust version (see the header): `memory::allocate`, `d3d::lock_texture` /
+/// `unlock_texture`, `gfx::read_picture_file`, `gfx::put_surface_pixel`,
+/// `scene::forget_slot_texture`, `memory::free_list`, `nullsub_33` (nothing).
+pub fn set_up_surface() -> Result<(), Refused> {
     unsafe {
-        g.eax = MASK_BYTES;
-        g.ebx = game_addr(MASK_LIST_RVA) as u32;
-        part(0, &mut g)?;
-        let block = g.eax;
-        g.eax = game_read(SLOT_RVA);
-        part(1, &mut g)?;
-        if game_read::<u32>(SURFACE_WIDTH_RVA) < SIDE || game_read::<u32>(SURFACE_HEIGHT_RVA) < SIDE
+        let block = take(
+            Address((crate::pointers::game_address(MASK_LIST.list[0].as_ptr())) as usize),
+            MASK_BYTES,
+        )?;
+        lock(KIND_TEXTURES.kind_first_textures[211].bits(), true)?;
+        if crate::gfx::screen_state::DRAW_SURFACE.width.get() < SIDE
+            || crate::gfx::screen_state::DRAW_SURFACE.height.get() < SIDE
         {
-            return unlock_refusing(&mut g, part, "a surface under 256 x 256");
+            return unlock_refusing("a surface under 256 x 256");
         }
-        if !read(&mut g, SURFMASK_RVA, part)? {
-            return unlock_refusing(&mut g, part, "surfmask.pcx was not read");
+        if !read(&PICTURE_NAMES.surfmask)? {
+            return unlock_refusing("surfmask.pcx was not read");
         }
-        g.esi = game_read(PICTURE_RVA);
-        g.edi = block;
-        for _ in 0..PIXELS {
-            g.eax = (g.esi as *const u32).read_unaligned();
-            (g.edi as *mut u32).write_unaligned(g.eax);
-            g.esi += 4;
-            g.edi += 4;
+        GamePtr::new(PICTURE.buffer.get()).copy_to(
+            GamePtr::new(block),
+            4 * PIXELS as usize,
+            "the surface mask picture",
+        )?;
+        if !read(&PICTURE_NAMES.surfdata)? {
+            return unlock_refusing("surfdata.pcx was not read");
         }
-        g.eax = PIXELS;
-        if !read(&mut g, SURFDATA_RVA, part)? {
-            return unlock_refusing(&mut g, part, "surfdata.pcx was not read");
-        }
-        g.esi = game_read(PICTURE_RVA);
-        g.ebp = block;
+        let picture: u32 = PICTURE.buffer.get();
         for n in 0..PIXELS {
-            g.ecx = n & 0xFF;
-            g.edx = n >> 8;
-            g.eax = (g.esi as *const u32).read_unaligned();
-            g.ebx = (g.ebp as *const u32).read_unaligned();
-            g.ebx = ((g.ebx << 8) & 0xFF00_0000) ^ 0xFF00_0000;
-            g.eax = (g.eax & 0xFF_FFFF) | g.ebx;
-            let kept = g;
-            part(3, &mut g)?;
-            g = Regs {
-                eflags: g.eflags,
-                ..kept
-            };
-            g.esi += 4;
-            g.ebp += 4;
+            let data = GamePtr::new(picture + 4 * n).read::<u32>("a mark's field")?;
+            let mask = GamePtr::new(block + 4 * n).read::<u32>("a mark's field")?;
+            let alpha = ((mask << 8) & 0xFF00_0000) ^ 0xFF00_0000;
+            put_pixel((data & 0xFF_FFFF) | alpha, n & 0xFF, n >> 8)?;
         }
-        g.eax = game_read(SLOT_RVA);
-        part(4, &mut g)?;
-        g.eax = game_read(TEXTURE_RVA);
-        part(5, &mut g)?;
-        g.eax = block;
-        g.ebx = game_addr(MASK_LIST_RVA) as u32;
-        part(6, &mut g)?;
+        lock(KIND_TEXTURES.kind_first_textures[211].bits(), false)?;
+        crate::scene::forget_slot_texture::forget_slot_texture(
+            KIND_TEXTURES.kind_first_slots[211].bits(),
+        )?;
+        crate::memory::free_list::free_list(
+            MASK_LIST.list[0].as_ptr() as *mut crate::memory::MemoryList
+        )?;
 
-        g.eax = RING_BYTES;
-        g.ebx = game_addr(RING_LIST_RVA) as u32;
-        part(0, &mut g)?;
-        game_write(RING_RVA, g.eax);
-        game_write(RING_CURSOR_RVA, g.eax);
-        game_write(RING_COUNT_RVA, 0u32);
-        g.esi = game_read(RING_RVA);
+        let ring = take(Address(RING_WORK.list.addr() as usize), RING_BYTES)?;
+        RING_WORK.block.set(ring);
+        RING_WORK.cursor.set(ring);
+        RING_WORK.count.set(0);
         for i in 0..RING {
-            g.ebx = (i.wrapping_sub(1) & (RING - 1)) * RECORD + g.esi;
-            g.ecx = ((i + 1) & (RING - 1)) * RECORD + g.esi;
-            g.eax = i * RECORD;
-            ((g.eax + g.esi) as *mut u32).write_unaligned(g.ebx);
-            ((g.eax + g.esi + 4) as *mut u32).write_unaligned(g.ecx);
+            let before = (i.wrapping_sub(1) & (RING - 1)) * RECORD + ring;
+            let after = ((i + 1) & (RING - 1)) * RECORD + ring;
+            GamePtr::new(i * RECORD + ring).write::<u32>(before, "a mark's field")?;
+            GamePtr::new(i * RECORD + ring + 4).write::<u32>(after, "a mark's field")?;
         }
-        g.eax = RING;
 
-        let [eighth, edge, pixel, step]: [u32; 4] =
-            [EIGHTH_RVA, EDGE_RVA, PIXEL_RVA, STEP_RVA].map(|r| game_read(r));
-        let put = |at: u32, v: u32| (at as *mut u32).write_unaligned(v);
-        let get = |at: u32| (at as *const u32).read_unaligned();
-        let cells = game_addr(CELLS_RVA) as u32;
+        let [eighth, edge, pixel, step]: [u32; 4] = [
+            MARKS_FLOATS.eighth.bits(),
+            MARKS_FLOATS.over_512.bits(),
+            MARKS_FLOATS.over_256.bits(),
+            MARKS_FLOATS.over_32.bits(),
+        ];
+        let put = |at: u32, v: u32| GamePtr::new(at).write::<u32>(v, "a mark's field");
+        let get = |at: u32| GamePtr::new(at).read::<u32>("a mark's field");
+        let cells = SURFACE.places.addr();
         for k in (0..CELLS).rev() {
-            g.esi = k * 0x10;
-            g.eax = k & 7;
-            g.ebx = k >> 3;
-            let (u0, u1) = x87::int_times_plus_on(g.eax as i32, eighth, edge, eighth, pixel);
-            put(cells + g.esi, u0);
-            put(cells + g.esi + 8, u1);
-            let (v0, v1) = x87::int_times_plus_on(g.ebx as i32, eighth, edge, eighth, pixel);
-            put(cells + g.esi + 4, v0);
-            put(cells + g.esi + 0xC, v1);
+            let at = cells + k * 0x10;
+            let (u0, u1) = x87::int_times_plus_on((k & 7) as i32, eighth, edge, eighth, pixel);
+            put(at, u0)?;
+            put(at + 8, u1)?;
+            let (v0, v1) = x87::int_times_plus_on((k >> 3) as i32, eighth, edge, eighth, pixel);
+            put(at + 4, v0)?;
+            put(at + 0xC, v1)?;
         }
         // Each cell's 4 rows of 4 sub-cells: 0x100 bytes.
-        let sub = game_addr(SUBCELLS_RVA) as u32;
+        let sub = cells + 0x400;
         for j in (0..CELLS).rev() {
-            g.esi = j * 0x100;
-            g.eax = j & 7;
-            g.ebx = j >> 3;
-            let (u0, u1) = x87::int_times_plus_on(g.eax as i32, eighth, edge, step, pixel);
-            put(sub + g.esi, u0);
-            put(sub + g.esi + 8, u1);
-            let (v0, v1) = x87::int_times_plus_on(g.ebx as i32, eighth, edge, step, pixel);
-            put(sub + g.esi + 4, v0);
-            put(sub + g.esi + 0xC, v1);
-            let across = |g: &mut Regs| {
-                let p = sub + g.esi;
-                put(p + 0x10, x87::add(get(p), step));
-                put(p + 0x14, x87::loaded(get(p + 4)));
-                put(p + 0x18, x87::add(get(p + 8), step));
-                put(p + 0x1C, x87::loaded(get(p + 0xC)));
-                g.esi += 0x10;
+            let mut at = sub + j * 0x100;
+            let (u0, u1) = x87::int_times_plus_on((j & 7) as i32, eighth, edge, step, pixel);
+            put(at, u0)?;
+            put(at + 8, u1)?;
+            let (v0, v1) = x87::int_times_plus_on((j >> 3) as i32, eighth, edge, step, pixel);
+            put(at + 4, v0)?;
+            put(at + 0xC, v1)?;
+            let across = |at: &mut u32| -> Result<_, Refused> {
+                let p = *at;
+                put(p + 0x10, x87::add(get(p)?, step))?;
+                put(p + 0x14, x87::loaded(get(p + 4)?))?;
+                put(p + 0x18, x87::add(get(p + 8)?, step))?;
+                put(p + 0x1C, x87::loaded(get(p + 0xC)?))?;
+                *at += 0x10;
+                Ok(())
             };
             for _ in 0..3 {
-                across(&mut g);
+                across(&mut at)?;
             }
             for _ in 0..3 {
-                let p = sub + g.esi;
-                put(p + 0x10, x87::sub_thrice(get(p), step));
-                put(p + 0x14, x87::add(get(p + 4), step));
-                put(p + 0x18, x87::sub_thrice(get(p + 8), step));
-                put(p + 0x1C, x87::add(get(p + 0xC), step));
-                g.esi += 0x10;
+                let p = at;
+                put(p + 0x10, x87::sub_thrice(get(p)?, step))?;
+                put(p + 0x14, x87::add(get(p + 4)?, step))?;
+                put(p + 0x18, x87::sub_thrice(get(p + 8)?, step))?;
+                put(p + 0x1C, x87::add(get(p + 0xC)?, step))?;
+                at += 0x10;
                 for _ in 0..3 {
-                    across(&mut g);
+                    across(&mut at)?;
                 }
             }
-        }
-        part(7, &mut g)?;
-    }
-    Ok(g)
-}
-
-/// In the game (see `set_up_surface`).
-pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
-    unsafe {
-        match place {
-            0 => crate::race::level_init::game_part(0, r)?,
-            1 => crate::calls::call(rva(0x41AA4B), r),
-            2 => {
-                let read = crate::gfx::read_picture_file::read_picture_file(r.eax as *mut u8)?;
-                r.set_carry(!read);
-            }
-            3 => r.eax = crate::gfx::put_surface_pixel::put_surface_pixel(r)?.eax,
-            4 => crate::calls::call(rva(0x41AB02), r),
-            5 => crate::scene::forget_slot_texture::forget_slot_texture(r.eax)?,
-            6 => crate::memory::free_list::free_list(r.ebx as *mut crate::memory::MemoryList)?,
-            // `nullsub_33`.
-            _ => {}
         }
     }
     Ok(())
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    HOOK.count_call();
-    if shadow() {
-        unsafe { call_original(r) };
-        return;
-    }
-    match unsafe { set_up_surface(r, &mut game_part) } {
-        Ok(left) => {
-            *r = Regs {
-                esp: r.esp,
-                eflags: r.eflags,
-                ..left
-            }
-        }
-        Err(e) => unsafe { crate::fatal::raise::refused(&HOOK, e, r, call_original) },
+/// The surface masks' memory list and the bytes after it (IDA 0x93A1DA .. 0x93A21A, the image's layout; phase 7, typed state).
+#[repr(C)]
+pub struct MaskList {
+    /// 0x93A1DA: `stru_93A1DA`: a `memory::List` (head, total, cursor, remaining)
+    pub list: [Dword; 4],
+    /// 0x93A1EA: Not named: 48 bytes (a gap, or unreferenced data)
+    pub _gap_93a1ea: Bytes<48>,
+}
+
+/// MaskList's first values.
+pub static MASK_LIST: MaskList = MaskList {
+    list: [
+        Dword::new(0x0),
+        Dword::new(0x0),
+        Dword::new(0x0),
+        Dword::new(0x0),
+    ],
+    _gap_93a1ea: Bytes::new([0; 48]),
+};
+
+impl MaskList {
+    pub const START: usize = 0x93A1DA;
+    pub const LEN: usize = 0x40;
+    /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
+    pub fn home() -> usize {
+        crate::pointers::game_address(&MASK_LIST as *const MaskList) as usize
     }
 }
 
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    {
-        let left = unsafe { set_up_surface(r, &mut game_part) }?;
-        *r = Regs {
-            esp: r.esp,
-            eflags: r.eflags,
-            ..left
-        }
-    }
-    Ok(())
-}
+#[cfg(test)]
+mod mask_list_tests {
+    use super::*;
+    use core::mem::offset_of;
 
-fn self_test() -> (usize, usize) {
-    use crate::gfx::picture::{HEIGHT_RVA, PICTURE_RVA, ROW_BYTES_RVA, WIDTH_RVA};
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    // push 40000h
-    let entry: &[u8] = &[0x68, 0x00, 0x00, 0x04, 0x00];
-    let copy = match crate::race::mud::copy(
-        0x4CB0BC,
-        0x4EC,
-        entry,
-        &[
-            0xC, 0x30, 0x6B, 0xE4, 0x146, 0x167, 0x171, 0x178, 0x188, 0x4E6,
-        ],
-        &[
-            (0x4028A7, 0),
-            (0x41AA4B, 1),
-            (0x4119F4, 2),
-            (0x4065BB, 3),
-            (0x41AB02, 4),
-            (0x44EB66, 5),
-            (0x4028F5, 6),
-            (0x4D0BA7, 7),
-        ],
-    ) {
-        Ok(c) => c,
-        Err(why) => return t.skip(why),
-    };
-    crate::install::stand_ins::set_handler(note);
-    let mut blocks: [Vec<u32>; 2] = [
-        vec![0; (MASK_BYTES / 4) as usize],
-        vec![0; (RING_BYTES / 4) as usize],
-    ];
-    for (b, at) in blocks.iter_mut().zip(&BLOCK_AT) {
-        at.store(b.as_mut_ptr() as u32, Ordering::SeqCst);
+    fn bytes<T>(v: &T) -> Vec<u8> {
+        let p = v as *const T as *const u8;
+        (0..size_of::<T>())
+            .map(|i| unsafe { p.add(i).read() })
+            .collect()
     }
-    let picture: Vec<u32> = (0..PIXELS)
-        .map(|n| n.wrapping_mul(0x0103_0507) ^ 0x5A00_C3A5)
-        .collect();
-    let a = |r: usize| game_addr(r) as u32;
-    let mut regions: Vec<Region> = [
-        RING_RVA,
-        RING_CURSOR_RVA,
-        RING_COUNT_RVA,
-        SURFACE_WIDTH_RVA,
-        SURFACE_HEIGHT_RVA,
-        PICTURE_RVA,
-        WIDTH_RVA,
-        HEIGHT_RVA,
-        ROW_BYTES_RVA,
-    ]
-    .map(at)
-    .to_vec();
-    regions.push((a(EIGHTH_RVA), 0x14));
-    regions.push((a(CELLS_RVA), (CELLS * 0x10) as usize));
-    regions.push((a(SUBCELLS_RVA), (CELLS * 0x100) as usize));
-    let saved = capture(&regions);
-    let mut blocks_of = regions.clone();
-    blocks_of.extend(blocks.iter().map(|b| (b.as_ptr() as u32, 4 * b.len())));
-    let regs = |r: &Regs| [r.eax, r.ebx, r.ecx, r.edx, r.esi, r.edi, r.ebp];
-    let constants: [Option<[f32; 4]>; 3] = [
-        None,
-        Some([0.1, 1.0 / 3.0, 0.7, 1.0 / 7.0]),
-        Some([-3.5e7, 1.1e-3, 9.9, 2.0e-9]),
-    ];
-    for c in constants {
-        let prepare = |blocks: &mut [Vec<u32>; 2]| unsafe {
-            restore(&regions, &saved);
-            if let Some(c) = c {
-                for (r, v) in [EIGHTH_RVA, EDGE_RVA, PIXEL_RVA, STEP_RVA].iter().zip(c) {
-                    game_write(*r, v.to_bits());
-                }
-            }
-            game_write(SURFACE_WIDTH_RVA, SIDE);
-            game_write(SURFACE_HEIGHT_RVA, SIDE);
-            game_write(PICTURE_RVA, picture.as_ptr() as u32);
-            for b in blocks.iter_mut() {
-                b.fill(0xAAAA_AAAA);
-            }
-            TAKEN.store(0, Ordering::SeqCst);
-            NOTED.lock().unwrap().clear();
-        };
-        prepare(&mut blocks);
-        let mut theirs = Regs::SENTINEL;
-        unsafe { crate::framework::call_game(&mut theirs, copy.addr()) };
-        let theirs = (
-            regs(&theirs),
-            std::mem::take(&mut *NOTED.lock().unwrap()),
-            capture(&blocks_of),
+
+    #[test]
+    fn mask_list_starts_as_the_games() {
+        assert_eq!(size_of::<MaskList>(), MaskList::LEN);
+        assert!(
+            bytes(&MASK_LIST) == crate::moved::image_bytes(MaskList::START, MaskList::LEN),
+            "MASK_LIST starts differently from the image"
         );
-        prepare(&mut blocks);
-        let mine = unsafe { set_up_surface(&Regs::SENTINEL, &mut test_part) };
-        let mine = (
-            mine.as_ref().map(regs).unwrap_or_default(),
-            std::mem::take(&mut *NOTED.lock().unwrap()),
-            capture(&blocks_of),
-        );
-        t.check(theirs == mine, || {
-            let first = theirs.1.iter().zip(&mine.1).position(|(a, b)| a != b);
-            let memory: Vec<usize> = (0..theirs.2.len())
-                .filter(|&i| theirs.2[i] != mine.2[i])
-                .collect();
-            format!(
-                "constants {c:?}: original {:x?}, {} calls; rust {:x?}, {} calls; first \
-                 differing call {first:?}; differing regions {memory:?}",
-                theirs.0,
-                theirs.1.len(),
-                mine.0,
-                mine.1.len(),
-            )
-        });
+        assert_eq!(offset_of!(MaskList, list), 0x93A1DA - MaskList::START);
     }
-    // The refusals: a narrow and a short surface, either picture not read.
-    for (width, height, fail_at) in [
-        (0xFF, SIDE, 0),
-        (SIDE, 0xFF, 0),
-        (SIDE, SIDE, 1),
-        (SIDE, SIDE, 2),
-    ] {
-        unsafe {
-            restore(&regions, &saved);
-            game_write(SURFACE_WIDTH_RVA, width);
-            game_write(SURFACE_HEIGHT_RVA, height);
-            game_write(PICTURE_RVA, picture.as_ptr() as u32);
-            TAKEN.store(0, Ordering::SeqCst);
-            NOTED.lock().unwrap().clear();
-        }
-        // The `fail_at`-th read fails (0: none).
-        let mut reads = 0;
-        let mut part = |place: u32, r: &mut Regs| {
-            if place == 2 {
-                reads += 1;
-                FAIL_READ.store(reads == fail_at, Ordering::SeqCst);
-            }
-            test_part(place, r)
-        };
-        let got = unsafe { set_up_surface(&Regs::SENTINEL, &mut part) };
-        FAIL_READ.store(false, Ordering::SeqCst);
-        let places: Vec<u32> = NOTED
-            .lock()
-            .unwrap()
-            .drain(..)
-            .map(|(p, _)| p)
-            .filter(|&p| p != 3)
-            .collect();
-        let want: &[u32] = match fail_at {
-            0 => &[0, 1, 4],
-            1 => &[0, 1, 2, 4],
-            _ => &[0, 1, 2, 2, 4],
-        };
-        t.check(got.is_err() && places == want, || {
-            format!(
-                "{width:#x} x {height:#x}, read {fail_at} failing: refused {}, calls {places:?}",
-                got.is_err()
-            )
-        });
-    }
-    restore(&regions, &saved);
-    drop(blocks);
-    t.finish()
 }

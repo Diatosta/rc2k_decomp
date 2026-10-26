@@ -14,22 +14,18 @@
 //! `PictureSurface`, which is where a build without the game puts its own surface.
 //! Refuses a row count of 0 (the original counts through all 32 bits) and null pointers. The
 //! name is a reading.
-//! Hook removed 2026-10-22 (direct calls): Rust callers run its `entry` (`calls::call`,
-//! `routes.rs`); the registers above are the original's, for reference.
+//! The registers above are the original's, for reference; a call by address goes through
+//! `routes.rs`.
 
 use crate::errors::BadInput;
-use crate::framework::{Regs, game_read, rva};
+use crate::gfx::locked::LOCKED;
 use crate::gfx::picture::picture;
-use crate::gfx::surface::BASE_RVA;
+use crate::gfx::screen_state::DRAW_SURFACE;
 
 // ---- game data ----
 
-const LOCKED_RVA: usize = rva(0x4F3870); // dword_4F3870: 1 while the surface is locked
-const ROWS_RVA: usize = rva(0x4F49A4); // dword_4F49A4
-const ROW_DWORDS_RVA: usize = rva(0x4F49B4); // dword_4F49B4
-const ROW_GAP_RVA: usize = rva(0x4F49C4); // dword_4F49C4: surface bytes after a row's pixels
-const LOCK_SURFACE: usize = rva(0x4058AD); // gfx::lock_surface
-const UNLOCK_SURFACE: usize = rva(0x405949); // gfx::unlock_surface
+// The surface's height (dword_4F49A4: rows), row_dwords (dword_4F49B4) and row_gap
+// (dword_4F49C4: surface bytes after a row's pixels) are `DRAW_SURFACE`'s.
 
 // ---- Rust version ----
 
@@ -52,35 +48,33 @@ pub struct GameSurface;
 
 impl PictureSurface for GameSurface {
     fn locked(&self) -> bool {
-        unsafe { game_read::<u32>(LOCKED_RVA) != 0 }
+        LOCKED.surface.get() != 0
     }
     fn lock(&mut self) -> bool {
-        let mut g = Regs::default();
-        crate::calls::call(LOCK_SURFACE, &mut g);
-        !g.carry()
+        // `cmp g_surfaceLocked, 1`'s carry clear: locked.
+        crate::platform::lock_surface() >= 1
     }
     fn unlock(&mut self) {
-        let mut g = Regs::default();
-        crate::calls::call(UNLOCK_SURFACE, &mut g);
+        crate::platform::unlock_surface();
     }
     fn picture(&self) -> *const u8 {
         picture()
     }
     fn pixels(&self) -> *mut u8 {
-        unsafe { game_read::<u32>(BASE_RVA) as *mut u8 }
+        crate::pointers::host(DRAW_SURFACE.pixels.get())
     }
     fn rows(&self) -> u32 {
-        unsafe { game_read(ROWS_RVA) }
+        DRAW_SURFACE.height.get()
     }
     fn row_dwords(&self) -> u32 {
-        unsafe { game_read(ROW_DWORDS_RVA) }
+        DRAW_SURFACE.row_dwords.get()
     }
     fn row_gap(&self) -> u32 {
-        unsafe { game_read(ROW_GAP_RVA) }
+        DRAW_SURFACE.row_gap.get()
     }
 }
 
-pub unsafe fn copy_picture_to_surface(surface: &mut dyn PictureSurface) -> Result<(), BadInput> {
+pub fn copy_picture_to_surface(surface: &mut dyn PictureSurface) -> Result<(), BadInput> {
     let was_locked = surface.locked();
     if !was_locked && !surface.lock() {
         return Ok(());
@@ -103,25 +97,22 @@ pub unsafe fn copy_picture_to_surface(surface: &mut dyn PictureSurface) -> Resul
     }
     let gap = surface.row_gap() as usize;
     for _ in 0..rows {
-        unsafe {
-            std::ptr::copy(from, to, row_bytes);
-            from = from.add(row_bytes);
-            to = to.wrapping_add(row_bytes).wrapping_add(gap);
+        let copied = crate::pointers::GamePtr::new(crate::pointers::game_address(from)).copy_to(
+            crate::pointers::GamePtr::new(crate::pointers::game_address(to)),
+            row_bytes,
+            "a picture's row onto the surface",
+        );
+        if let Err(why) = copied {
+            if !was_locked {
+                surface.unlock();
+            }
+            return Err(why);
         }
+        from = from.wrapping_add(row_bytes);
+        to = to.wrapping_add(row_bytes).wrapping_add(gap);
     }
     if !was_locked {
         surface.unlock();
     }
     Ok(())
 }
-
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(_: &mut Regs) -> Result<(), crate::errors::Refused> {
-    if let Err(e) = unsafe { copy_picture_to_surface(&mut GameSurface) } {
-        return Err(e.into());
-    }
-    Ok(())
-}
-
-// ---- self-test: a copy of the original whose lock and unlock are stand-ins and whose six
-// variables are the test's, copying between two buffers of the test ----

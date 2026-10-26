@@ -11,15 +11,16 @@
 //! Hook removed 2026-10-22 (conversion phase 4): Rust callers call this directly; the
 //! registers above are the original's, for reference.
 
-use crate::errors::FatalError;
-use crate::framework::{game_addr, game_read, rva};
+use crate::errors::{FatalError, Refused};
+use crate::pointers::GamePtr;
 
 // ---- game data ----
 
-const HEADER_RVA: usize = rva(0x734BC6); // g_trakPakHeader: +0 link, +4 pack id, +0x34 entries
-
 pub fn loaded_pack_id() -> u32 {
-    unsafe { game_read(HEADER_RVA + 4) }
+    crate::records::stages_store::STAGE_TABLES
+        .trak_pak
+        .pack_id
+        .get()
 }
 
 // ---- Rust version ----
@@ -46,17 +47,14 @@ pub fn trakpak_entry(
 }
 
 /// The entry for the record at `record`, in the pack the game has loaded.
-pub unsafe fn record_entry(record: *const u8) -> Result<u32, FatalError> {
-    let (index, pack_id) = unsafe {
-        (
-            record.add(4).cast::<u32>().read_unaligned(),
-            record.add(8).cast::<u32>().read_unaligned(),
-        )
-    };
-    trakpak_entry(
-        game_addr(HEADER_RVA) as u32,
+pub fn record_entry(record: u32) -> Result<u32, Refused> {
+    let record = GamePtr::new(record);
+    let index = record.offset(4).read::<u32>("a record\'s pack entry")?;
+    let pack_id = record.offset(8).read::<u32>("a record\'s pack id")?;
+    Ok(trakpak_entry(
+        crate::records::stages_store::STAGE_TABLES.trak_pak(),
         index,
         pack_id,
         loaded_pack_id(),
-    )
+    )?)
 }

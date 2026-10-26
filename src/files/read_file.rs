@@ -13,32 +13,28 @@
 //! registers above are the original's, for reference.
 
 use crate::errors::BadInput;
-use crate::framework::rva;
-
-// ---- game data ----
-
-pub const LAST_FILE_PATH_RVA: usize = rva(0x4F52B0); // g_lastFilePath
-
 // ---- Rust version ----
 
 use crate::files::handle::GameFiles;
+use crate::pointers::GamePtr;
 pub use rc2k_core::files::io::ReadResult;
 
 /// Refuses what `resolve_path` refuses.
-pub unsafe fn read_file(
+pub fn read_file(
     path: *const u8,
     buffer: *mut u8,
     count: u32,
     offset: u32,
 ) -> Result<ReadResult, BadInput> {
     // Converted: `rc2k_core::files::io::read_file`.
-    unsafe {
-        let into = std::slice::from_raw_parts_mut(buffer, count as usize);
-        Ok(rc2k_core::files::io::read_file(
-            &mut GameFiles::new(),
-            path,
-            into,
-            offset,
-        )?)
-    }
+    let to = GamePtr::new(crate::pointers::game_address(buffer));
+    let mut into = to.read_bytes(count as usize, "a file's buffer")?;
+    let result = rc2k_core::files::io::read_file(
+        &mut GameFiles::new(),
+        GamePtr::new(crate::pointers::game_address(path)),
+        &mut into,
+        offset,
+    )?;
+    to.write_bytes(&into, "a file's buffer")?;
+    Ok(result)
 }

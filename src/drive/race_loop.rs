@@ -15,144 +15,153 @@
 //! In:  nothing
 //! Out: the registers as the steps leave them; no flags read
 //!
-//! Caller: `drive::play_race`. Ungated: the race's step loop.
-//! Refuses what its calls refuse. Shadow mode runs the original alone.
-//! Self-test: skipped (it plays a race).
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Caller: `drive::play_race`. Refuses what its calls refuse.
 
 use crate::drive::race_parts::{
     input_update, players_all_out, race_frame, race_keys, restart_clock, tyre_change,
 };
-use crate::errors::Refused;
-use crate::framework::Regs;
-use crate::physics::flow::{a, g, p};
-use crate::race::stage_prefs::left_of;
-use crate::screens::harness::Left;
+use crate::errors::{BadInput, Refused};
+use crate::physics::tables_store::PHYSICS;
+use crate::pointers::GamePtr;
+use crate::race::blocks_store::CAR_BLOCKS;
+use crate::race::clock_ticks_store::CLOCK_TICKS;
+use crate::race::vars_store::RACE_VARS;
+use crate::race::view_store::RACE_VIEW;
+use crate::race::viewer_state_store::REPLAY_VIEW;
+use crate::race::work_store::RACE_WORK;
+use crate::session::{Dword, FLAGS};
 
-const B: usize = 0x70F3EC;
-const NEXT: usize = 0xFE0;
-const PAUSED: usize = 0x518398;
-
-fn view_bit(view: usize) -> bool {
-    let bits = unsafe { ((g(view) + 0x468) as *const u32).read_unaligned() };
-    bits & 0x40 != 0
+fn view_bit(view: &Dword) -> Result<bool, BadInput> {
+    let bits: u32 = GamePtr::new(view.get().wrapping_add(0x468)).read("a view's block")?;
+    Ok(bits & 0x40 != 0)
 }
 
-/// The quit answer put into the cars (0x444EB5 ..).
-fn answer(r: &Regs) {
-    if g(0x52A910) != 0 {
-        let block = g(0x71B3B8 + 4 * g(0x52A920) as usize);
-        unsafe { ((block + 0xB0) as *mut u32).write_unaligned(r.eax) };
-        return;
+/// The quit answer `answer` put into the cars (0x444EB5 ..).
+fn put_answer(answer: u32) -> Result<(), BadInput> {
+    if crate::net::store::NET.session.get() != 0 {
+        let block = RACE_WORK.car_block(crate::net::store::NET.player.get() as usize);
+        GamePtr::new(block.wrapping_add(0xB0)).write(answer, "a car's block")?;
+        return Ok(());
     }
-    p(B + 0xB0, r.eax);
-    p(B + NEXT + 0xB0, r.eax);
-    if g(0x63DB94) != 2 {
-        return;
+    CAR_BLOCKS.cars[0].stop_state.set_bits(answer);
+    CAR_BLOCKS.cars[1].stop_state.set_bits(answer);
+    if RACE_VIEW.players.get() != 2 {
+        return Ok(());
     }
-    if g(B + 0xA8) != 0 {
-        p(B + 0xB0, 2);
+    if CAR_BLOCKS.cars[0].finish_flag.bits() != 0 {
+        CAR_BLOCKS.cars[0].stop_state.set_bits(2);
     }
-    if g(B + NEXT + 0xA8) != 0 {
-        p(B + NEXT + 0xB0, 2);
+    if CAR_BLOCKS.cars[1].finish_flag.bits() != 0 {
+        CAR_BLOCKS.cars[1].stop_state.set_bits(2);
     }
+    Ok(())
 }
 
-/// The Rust version.
-pub unsafe fn race_loop(entry: &Regs) -> Result<Left, Refused> {
-    let mut r = *entry;
+/// The Rust version. The registers it leaves are read by no caller (liveness: ecx, edi,
+/// edx and esi after `drive::play_race`'s call have no read point).
+pub unsafe fn race_loop() -> Result<(), Refused> {
     for c in 0..8 {
-        p(B + NEXT * c + 0xFAC, 10);
+        CAR_BLOCKS.cars[c as usize].reset_marker.set_bits(10);
     }
-    p(PAUSED, 0);
-    p(0x6235E8, 0);
-    restart_clock(&mut r);
-    r.eax = g(0x613830);
-    p(0x5CC3B4, r.eax);
-    p(0x5CC3B0, r.eax);
-    for k in 0..0x20 {
-        p(0x5CC1B0 + 4 * k, u32::MAX);
+    FLAGS.paused.set(0);
+    RACE_VARS.scene_switch.set(0);
+    restart_clock();
+    CLOCK_TICKS.clock_a.set(PHYSICS.scene_clock.get());
+    CLOCK_TICKS.sound_tick_last.set(PHYSICS.scene_clock.get());
+    for mark in &CLOCK_TICKS.marks {
+        mark.set(u32::MAX);
     }
-    r.eax = u32::MAX;
-    r.ecx = 0;
-    r.edi = a(0x5CC1B0) + 0x80;
-    p(0x5C2538, u32::MAX);
+    REPLAY_VIEW.play_end.set(u32::MAX);
     loop {
-        restart_clock(&mut r);
-        r.eax = g(0x613830);
-        p(0x613840, r.eax);
+        restart_clock();
+        PHYSICS
+            .race_clock_base
+            .set(crate::physics::tables_store::PHYSICS.scene_clock.get());
         // 0x444DE9: a frame.
         let paused = loop {
-            if g(0x518374) == 0 {
-                p(PAUSED, 1);
+            if FLAGS.window_active.get() == 0 {
+                FLAGS.paused.set(1);
             }
-            if g(PAUSED) != 0 {
+            if FLAGS.paused.get() != 0 {
                 break true;
             }
-            input_update(&mut r);
-            if g(0x71C3E0) != 0 {
-                if g(0x529854) != 0 {
-                    return Ok(left_of(&r));
+            input_update();
+            if RACE_WORK.in_credits.get() != 0 {
+                if crate::race::frame_text::CREDITS.done.get() != 0 {
+                    crate::framework::log("drive::race_loop: the credits race ends: rolled off");
+                    return Ok(());
                 }
-                let (or, esi) = unsafe { crate::drive::any_key_down::any_key_down() };
-                r.eax = or;
-                r.ecx = 0x80;
-                r.esi = esi;
+                let (or, _) = { crate::drive::any_key_down::any_key_down() };
                 if or != 0 {
-                    return Ok(left_of(&r));
+                    // Which keys (`g_keysPressed`, by scan code), and the window's own state
+                    // of them (`g_keysDown`), for the credits race that ends at once after
+                    // the intro (the owner, 2026-10-24).
+                    let keys = |table: &crate::session::Bytes<0x80>| {
+                        (0..0x80usize)
+                            .filter(|&n| table.get(n) != 0)
+                            .map(|n| format!("{n:#x}"))
+                            .collect::<Vec<_>>()
+                            .join(" ")
+                    };
+                    crate::framework::log(&format!(
+                        "drive::race_loop: the credits race ends: keys pressed [{}], down [{}], \
+                         frame {}",
+                        keys(&crate::input::store::DEVICES.keys_pressed),
+                        keys(&crate::input::store::DEVICES.keys_down),
+                        PHYSICS.scene_clock.get()
+                    ));
+                    return Ok(());
                 }
             }
-            if unsafe { (a(0x4F6CDD) as *const u8).read() } != 0 {
-                unsafe { crate::drive::quit_question::quit_question(&r) }?.apply(&mut r);
-                if r.eax == 0 {
+            if crate::input::store::DEVICES.keys_pressed.get(1) != 0 {
+                let answer = unsafe { crate::drive::quit_question::quit_question() }?;
+                if answer == 0 {
                     break false;
                 }
-                answer(&r);
-                return Ok(left_of(&r));
+                if RACE_WORK.in_credits.get() != 0 {
+                    crate::framework::log(&format!(
+                        "drive::race_loop: the credits race ends: the quit question (Escape latched), answer {answer:#x}, frame {}",
+                        PHYSICS.scene_clock.get()
+                    ));
+                }
+                put_answer(answer)?;
+                return Ok(());
             }
-            if g(0x6235EC) == 0 {
-                r.ebx = g(0x63DBB0);
-                if view_bit(0x63DBB0) {
+            if RACE_VARS.hold_count.get() == 0 {
+                if view_bit(&RACE_VIEW.view_blocks[0])? {
                     break true;
                 }
-                if g(0x63DB98) != 1 {
-                    r.ebx = g(0x63DBB4);
-                    if view_bit(0x63DBB4) {
-                        break true;
-                    }
+                if RACE_VIEW.views.get() != 1 && view_bit(&RACE_VIEW.view_blocks[1])? {
+                    break true;
                 }
             }
-            if g(PAUSED) != 0 {
+            if FLAGS.paused.get() != 0 {
                 break true;
             }
-            race_keys(&mut r)?;
-            unsafe { crate::drive::race_step::race_step(&r) }?.apply(&mut r);
-            tyre_change(&mut r)?;
-            if players_all_out(&mut r)? {
-                return Ok(left_of(&r));
+            race_keys()?;
+            unsafe { crate::drive::race_step::race_step() }?;
+            tyre_change()?;
+            if players_all_out()? {
+                if RACE_WORK.in_credits.get() != 0 {
+                    crate::framework::log(&format!(
+                        "drive::race_loop: the credits race ends: every player out, frame {}",
+                        PHYSICS.scene_clock.get()
+                    ));
+                }
+                return Ok(());
             }
-            race_frame(&mut r);
+            race_frame()?;
         };
         if !paused {
             continue;
         }
         // 0x444F0F: paused.
-        if g(0x52A910) != 0 {
-            let block = g(0x71B3B8 + 4 * g(0x52A920) as usize);
-            unsafe { ((block + 0x468) as *mut u32).write_unaligned(0) };
+        if crate::net::store::NET.session.get() != 0 {
+            let block = RACE_WORK.car_block(crate::net::store::NET.player.get() as usize);
+            GamePtr::new(block.wrapping_add(0x468)).write(0u32, "a car's block")?;
         } else {
-            unsafe { crate::drive::pause_until_key::pause_until_key(&r) }?.apply(&mut r);
+            { crate::drive::pause_until_key::pause_until_key() }?;
         }
-        p(PAUSED, 0);
+        FLAGS.paused.set(0);
     }
-}
-
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    let left = unsafe { race_loop(r) }?;
-    left.apply(r);
-    Ok(())
 }

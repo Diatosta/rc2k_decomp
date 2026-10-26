@@ -14,7 +14,7 @@ use crate::service::state::{marks, store_marks};
 
 // ---- Rust version ----
 
-pub unsafe fn clear_repair_marks() -> Result<(), BadInput> {
+pub fn clear_repair_marks() -> Result<(), BadInput> {
     // Converted: `rc2k_core::service::repairs::clear`.
     let mut t = marks();
     rc2k_core::service::repairs::clear(&mut t)?;

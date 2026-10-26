@@ -1,61 +1,148 @@
 //! The race frame's texts (`sub_4547AE`'s, IDA 2026-10-18): the frame rate and the credits
 //! that roll over the race (`dword_71C3E0`), also used by the credits' screen.
 
+use crate::audio::store::AUDIO;
 use crate::errors::Refused;
-use crate::framework::{Regs, game_read, game_write, rva};
+use crate::race::frame_counter_store::FRAME_COUNTER;
+use crate::race::switches_store::FRAME_SWITCHES;
+use crate::race::text_state_store::TEXT_STATE;
+use crate::race::trap::Trap;
+use crate::scene::draw_store::DRAW;
 use crate::screens::font_at;
-use crate::screens::harness::Left;
+use crate::session::{Dword, SCREEN};
 use crate::strings::text_from_ids::text;
 use crate::text::draw_string_by_id::draw_string_by_id_at;
 use crate::text::draw_text::{Canvas, draw_text_at};
 
 /// `race::draw_frame_rate` (0x4562B2): `dword_5C6604` 2; the frame rate (`flt_6214F0`,
 /// rounded into `dword_62400C`), when not 0 and `dword_5EB100` is set, drawn at (0x190, 4)
-/// in the font at 0x51DE90 as "fps: n" (its size; built in the text buffer). Gives what
-/// `draw_text` leaves, or nothing.
-pub unsafe fn draw_frame_rate(canvas: &mut dyn Canvas) -> Result<Left, Refused> {
+/// in the font at 0x51DE90 as "fps: n" (its size; built in the text buffer).
+pub fn draw_frame_rate(canvas: &mut dyn Canvas) -> Result<(), Refused> {
     // Converted: `rc2k_core::race::frame_rate::{shown_rate, fps_text}`.
     use rc2k_core::race::frame_rate::{fps_text, shown_rate};
-    unsafe {
-        game_write(rva(0x5C6604), 2u32);
-        let rate = shown_rate(f32::from_bits(game_read(rva(0x6214F0))));
-        game_write(rva(0x62400C), rate as u32);
-        if rate == 0 || game_read::<u32>(rva(0x5EB100)) == 0 {
-            return Ok(Left::nothing());
-        }
-        let t = text();
-        let bytes = fps_text(rate);
-        std::ptr::copy_nonoverlapping(bytes.as_ptr(), t, bytes.len());
-        let out = draw_text_at(font_at(0x51DE90), t, 0x190, 4, canvas)?;
-        Ok(Left::of_text(&out))
+    TEXT_STATE.text_mode.set(2);
+    let rate = shown_rate(f32::from_bits(FRAME_SWITCHES.frame_rate.bits()));
+    DRAW.scratch.set(rate as u32);
+    if rate == 0 || FRAME_COUNTER.show.get() == 0 {
+        return Ok(());
     }
+    let t = text();
+    let bytes = fps_text(rate);
+    crate::pointers::GamePtr::new(crate::pointers::game_address(t))
+        .write_bytes(&bytes, "the frame rate's text")?;
+    draw_text_at(
+        font_at(crate::gfx::fonts_store::FONTS.menu_fonts[3].addr() as usize),
+        t,
+        0x190,
+        4,
+        canvas,
+    )?;
+    Ok(())
 }
 
 /// `sub_4161BA`: string `id` in `font` at (x, y), unless y is at or above the screen's
-/// bottom (`g_screenHeight`) or at or below -0x1B. Gives what `draw_text` leaves, or
-/// nothing.
+/// bottom (`g_screenHeight`) or at or below -0x1B.
 unsafe fn credit_line(
     id: u32,
     font: u32,
     x: i32,
     y: i32,
     canvas: &mut dyn Canvas,
-) -> Result<Left, Refused> {
+) -> Result<(), Refused> {
     // Converted: `rc2k_core::race::credits::shown`.
     unsafe {
-        if !rc2k_core::race::credits::shown(y, game_read(rva(0x4F4950))) {
-            return Ok(Left::nothing());
+        if !rc2k_core::race::credits::shown(y, SCREEN.height.get()) {
+            return Ok(());
         }
-        let out = draw_string_by_id_at(id, font as *mut crate::text::font::Font, x, y, canvas)?;
-        Ok(Left::of_text(&out))
+        draw_string_by_id_at(
+            id,
+            crate::pointers::host(font) as *mut crate::text::font::Font,
+            x,
+            y,
+            canvas,
+        )?;
+        Ok(())
     }
 }
 
-/// What the credits leave: the registers (all kept by `pusha` .. `popa`) and the flags:
-/// carry when they have rolled off and the music has stopped, else not and zero by eax.
-pub struct Rolled {
-    pub carry: bool,
-    pub zero: bool,
+/// IDA's address of the credits' variables.
+pub const CREDITS_START: usize = 0x52984C;
+/// Their length.
+pub const CREDITS_LEN: usize = 0x529D94 - CREDITS_START;
+/// The script's words.
+pub const SCRIPT_WORDS: usize = 670;
+
+/// The credits' state and script.
+#[repr(C)]
+pub struct Credits {
+    /// `dword_52984C`: the top of the script on the screen.
+    pub top: Dword,
+    /// `dword_529850`: the clock the top moves by.
+    pub clock: Dword,
+    /// `dword_529854`: 1 when the credits are over.
+    pub done: Dword,
+    /// `0x529858`: the script, words (1, 2, 7, 8 a string in a font, ...; see
+    /// `rc2k_core::race::credits::lay_out`); never written.
+    pub script: [u16; SCRIPT_WORDS],
+}
+
+/// The credits; the first values are the image's.
+pub static CREDITS: Credits = Credits {
+    top: Dword::new(0),
+    clock: Dword::new(0),
+    done: Dword::new(0),
+    script: [
+        0x1, 0x659, 0x6, 0x1b, 0x2, 0x65a, 0x6, 0x14, 0x3, 0x65b, 0x4, 0x65c, 0x4, 0x65d, 0x6, 0xa,
+        0x3, 0x65e, 0x4, 0x65f, 0x6, 0xa, 0x3, 0x660, 0x4, 0x661, 0x4, 0x662, 0x4, 0x663, 0x4,
+        0x664, 0x4, 0x665, 0x6, 0xa, 0x3, 0x666, 0x4, 0x667, 0x4, 0x1037, 0x6, 0xa, 0x3, 0x668,
+        0x4, 0x669, 0x6, 0xa, 0x3, 0x66a, 0x4, 0x66b, 0x6, 0xa, 0x3, 0x66c, 0x4, 0x66d, 0x6, 0xa,
+        0x3, 0x66e, 0x4, 0x66f, 0x6, 0x28, 0x1, 0x670, 0x6, 0x1b, 0x2, 0x671, 0x6, 0x14, 0x3,
+        0x65b, 0x4, 0x672, 0x4, 0x673, 0x6, 0xa, 0x3, 0x660, 0x4, 0x674, 0x4, 0x675, 0x4, 0x676,
+        0x4, 0x677, 0x6, 0xa, 0x3, 0x678, 0x4, 0x679, 0x6, 0x28, 0x1, 0x67a, 0x6, 0x1b, 0x2, 0x67b,
+        0x6, 0x14, 0x3, 0x67c, 0x4, 0x67d, 0x3, 0x67e, 0x4, 0x67f, 0x3, 0x680, 0x4, 0x681, 0x3,
+        0x682, 0x4, 0x683, 0x3, 0x684, 0x4, 0x685, 0x3, 0x686, 0x4, 0x687, 0x3, 0x678, 0x4, 0x688,
+        0x6, 0x28, 0x1, 0x689, 0x6, 0x14, 0x3, 0x68a, 0x4, 0x68b, 0x5, 0x0, 0x0, 0x68c, 0x5, 0x0,
+        0x0, 0x68d, 0x5, 0x0, 0x0, 0x68e, 0x6, 0xa, 0x3, 0x68f, 0x4, 0x690, 0x5, 0x0, 0x0, 0x691,
+        0x6, 0xa, 0x3, 0x692, 0x4, 0x66d, 0x3, 0x693, 0x4, 0x694, 0x3, 0x695, 0x4, 0x696, 0x3,
+        0x697, 0x4, 0x698, 0x3, 0x699, 0x4, 0x69a, 0x4, 0x69b, 0x4, 0x69c, 0x4, 0x69d, 0x3, 0x69e,
+        0x4, 0x69f, 0x3, 0x6a0, 0x4, 0x6a1, 0x6, 0x28, 0x1, 0x6a2, 0x6, 0x14, 0x3, 0x6a3, 0x4,
+        0x6a1, 0x4, 0x6a4, 0x4, 0x6a5, 0x4, 0x69d, 0x4, 0x6a6, 0x4, 0x6a7, 0x4, 0x6a8, 0x4, 0x6a9,
+        0x6, 0xa, 0x3, 0x6aa, 0x4, 0x6b6, 0x4, 0x6b0, 0x4, 0x6af, 0x4, 0x6b1, 0x4, 0x6b5, 0x4,
+        0x6ac, 0x4, 0x6ad, 0x4, 0x6ab, 0x4, 0x6b3, 0x4, 0x6a6, 0x4, 0x6a9, 0x4, 0x6a4, 0x4, 0x6ae,
+        0x4, 0x6b2, 0x4, 0x6b4, 0x4, 0x6a1, 0x4, 0x6a8, 0x6, 0xa, 0x3, 0x6b7, 0x4, 0x6b8, 0x4,
+        0x6b9, 0x4, 0x6ba, 0x4, 0x6bb, 0x4, 0x6bc, 0x4, 0x6bd, 0x4, 0x6be, 0x6, 0xa, 0x3, 0x6bf,
+        0x4, 0x6c0, 0x6, 0x28, 0x2, 0x6c1, 0x2, 0x6c2, 0x6, 0x1e, 0x1, 0x6c3, 0x6, 0x14, 0x2,
+        0x6c4, 0x6, 0xa, 0x3, 0x6c5, 0x4, 0x69d, 0x3, 0x6c6, 0x4, 0x6c7, 0x6, 0x28, 0x1, 0x6c8,
+        0x6, 0x14, 0x2, 0x6c9, 0x2, 0x6ca, 0x2, 0x6cb, 0x2, 0x6cc, 0x2, 0x6cd, 0x2, 0x6ce, 0x2,
+        0x6cf, 0x2, 0x6d0, 0x2, 0x6d1, 0x2, 0x6d2, 0x2, 0x6d3, 0x2, 0x6d4, 0x2, 0x6d5, 0x2, 0x6d6,
+        0x2, 0x6d7, 0x2, 0x6d8, 0x2, 0x6d9, 0x2, 0x6da, 0x2, 0x6db, 0x2, 0x6dc, 0x2, 0x6dd, 0x2,
+        0x6de, 0x2, 0x6df, 0x6, 0x28, 0x1, 0x6e0, 0x6, 0x14, 0x5, 0x6e1, 0x0, 0x0, 0x5, 0x6e2, 0x0,
+        0x0, 0x5, 0x6e3, 0x0, 0x0, 0x5, 0x6e4, 0x0, 0x0, 0x5, 0x6e5, 0x0, 0x0, 0x5, 0x6e6, 0x0,
+        0x0, 0x5, 0x6e7, 0x6e8, 0x0, 0x5, 0x6e9, 0x0, 0x0, 0x6, 0x17, 0x5, 0x6ea, 0x0, 0x0, 0x5,
+        0x6eb, 0x0, 0x0, 0x5, 0x6ec, 0x0, 0x0, 0x5, 0x6ed, 0x0, 0x0, 0x5, 0x6ee, 0x0, 0x0, 0x5,
+        0x6ef, 0x0, 0x0, 0x5, 0x6f0, 0x6f1, 0x0, 0x5, 0x6f2, 0x6f3, 0x0, 0x6, 0x14, 0x8, 0x6f4,
+        0x8, 0x6f5, 0x8, 0x6f6, 0x6, 0x14, 0x8, 0x6f7, 0x8, 0x6f8, 0x8, 0x6f9, 0x6, 0x14, 0x8,
+        0x6fa, 0x8, 0x6fb, 0x8, 0x6fc, 0x6, 0x28, 0x2, 0x6fd, 0x6, 0x3f, 0x1, 0x6fe, 0x6, 0x14,
+        0x5, 0x6ff, 0x700, 0x701, 0x5, 0x702, 0x703, 0x704, 0x6, 0x36, 0x2, 0x705, 0x2, 0x706, 0x6,
+        0x14, 0x5, 0x707, 0x708, 0x709, 0x6, 0x5, 0x5, 0x70a, 0x70b, 0x70c, 0x6, 0x5, 0x5, 0x70d,
+        0x70e, 0x70f, 0x6, 0x5, 0x5, 0x710, 0x711, 0x712, 0x6, 0x5, 0x5, 0x713, 0x714, 0x715, 0x6,
+        0x5, 0x5, 0x716, 0x717, 0x718, 0x6, 0x5, 0x5, 0x719, 0x71a, 0x71b, 0x6, 0x5, 0x5, 0x71c,
+        0x71d, 0x71e, 0x6, 0x5, 0x5, 0x71f, 0x720, 0x721, 0x6, 0x5, 0x5, 0x722, 0x723, 0x724, 0x6,
+        0x5, 0x5, 0x725, 0x726, 0x727, 0x6, 0x5, 0x5, 0x728, 0x729, 0x72a, 0x6, 0x5, 0x5, 0x72b,
+        0x72c, 0x72d, 0x6, 0x5, 0x5, 0x72e, 0x72f, 0x730, 0x6, 0x5, 0x5, 0x731, 0x732, 0x733, 0x6,
+        0x5, 0x5, 0x734, 0x735, 0x736, 0x6, 0x5, 0x5, 0x737, 0x738, 0x739, 0x6, 0x5, 0x5, 0x73a,
+        0x73b, 0x73c, 0x6, 0x5, 0x5, 0x73d, 0x73e, 0x73f, 0x6, 0x5, 0x5, 0x740, 0x741, 0x742, 0x6,
+        0x5, 0x5, 0x743, 0x744, 0x745, 0x6, 0x5, 0x5, 0x746, 0x747, 0x748, 0x6, 0x5, 0x5, 0x749,
+        0x74a, 0x74b, 0x6, 0x5, 0x5, 0x74c, 0x74d, 0x74e, 0x6, 0x28, 0x2, 0x74f, 0x2, 0x750, 0x2,
+        0x751, 0x6, 0x28, 0x2, 0x752, 0x2, 0x753, 0x2, 0x754, 0x6, 0x28, 0x2, 0x755, 0x6, 0x28,
+        0x2, 0x756, 0x6, 0x28, 0x7, 0x1000, 0x6, 0xa, 0x7, 0x1001, 0x6, 0x14, 0x7, 0x1002, 0x0,
+        0x0,
+    ],
+};
+
+/// Where the block is (`moved::MOVED`'s home for IDA 0x52984C).
+pub fn credits_home() -> usize {
+    crate::pointers::game_address(&CREDITS as *const Credits) as usize
 }
 
 /// `race::roll_credits` (0x415FC2): eax 0 starts them (the clock `dword_529850`, the top
@@ -65,87 +152,94 @@ pub struct Rolled {
 /// string left / right of the middle (only 4 moves down); 5 three strings in columns; 6 a
 /// signed move; 9 nothing; any other the end) from the top down, moves the top up a pixel
 /// for each 0x12 ms passed, and when the last line is above -0xAF and the music has
-/// stopped, `dword_529854` 1 and carry.
+/// stopped, `dword_529854` 1 (the original also leaves flags no caller reads).
 pub unsafe fn roll_credits(
     eax: u32,
     canvas: &mut dyn Canvas,
-    sound: &mut dyn FnMut(&Regs),
-    entry: &Regs,
-) -> Result<Rolled, Refused> {
+    sound: &mut dyn FnMut(),
+) -> Result<(), Refused> {
     // Converted: `rc2k_core::race::credits::{start_top, lay_out, catch_up, rolled_off}`.
     use crate::system::tick_count::tick_count;
     use rc2k_core::race::credits::{Font, catch_up, lay_out, rolled_off, start_top};
     unsafe {
-        let width = game_read::<u32>(rva(0x4F494C)) as i32;
-        let height: u32 = game_read(rva(0x4F4950));
+        let width = SCREEN.width.get() as i32;
+        let height: u32 = SCREEN.height.get();
         if eax == 0 {
-            game_write(rva(0x529850), tick_count());
+            CREDITS.clock.set(tick_count());
             let top = start_top(height);
-            game_write(rva(0x52984C), top);
-            game_write(rva(0x529854), 0u32);
-            // eax holds the top when the tune is sent, and is tested on the way out.
-            sound(&Regs { eax: top, ..*entry });
-            return Ok(Rolled {
-                carry: false,
-                zero: top == 0,
-            });
+            CREDITS.top.set(top);
+            CREDITS.done.set(0);
+            sound();
+            return Ok(());
         }
         let font_of = |f: Font| {
-            let at = match f.0 {
-                1 => 0x51E8A4,
-                2 => 0x51E6A4,
-                3 => 0x51E6E4,
-                4 => 0x51E6C4,
-                7 => 0x51E564,
-                _ => 0x51E584,
+            use crate::gfx::typefaces::fonts;
+            let font = match f.0 {
+                1 => fonts::TITLE,
+                2 => fonts::HEADING_23,
+                3 => fonts::LABELS,
+                4 => fonts::VALUES,
+                7 => fonts::TIME,
+                _ => fonts::NAME,
             };
-            crate::framework::game_addr(rva(at)) as u32
+            font.addr()
         };
-        let mut at = crate::framework::game_addr(rva(0x529858)) as u32;
+        let mut at = crate::pointers::game_address(CREDITS.script.as_ptr());
+        let trap = Trap::new();
         let (lines, below) = lay_out(
             || {
-                let v = (at as *const u16).read_unaligned();
+                let v = trap.read::<u16>(at, "the credits' script");
                 at += 2;
                 v
             },
             width,
-            game_read::<u32>(rva(0x52984C)) as i32,
-            |f| ((font_of(f) + 8) as *const i32).read_unaligned(),
+            CREDITS.top.get() as i32,
+            |f| trap.read::<i32>(font_of(f) + 8, "a font record"),
         );
+        trap.finish()?;
         for line in lines {
             credit_line(line.id, font_of(line.font), line.x, line.y, canvas)?;
         }
-        let (top, clock, elapsed) =
-            catch_up(game_read(rva(0x52984C)), game_read(rva(0x529850)), || {
-                tick_count()
-            });
-        game_write(rva(0x52984C), top);
-        game_write(rva(0x529850), clock);
-        if !rolled_off(below, game_read(rva(0x506990))) {
-            return Ok(Rolled {
-                carry: false,
-                zero: elapsed == 0,
-            });
+        let (top, clock, _) = catch_up(CREDITS.top.get(), CREDITS.clock.get(), tick_count);
+        CREDITS.top.set(top);
+        CREDITS.clock.set(clock);
+        if !rolled_off(below, AUDIO.music_stream.get().playing) {
+            return Ok(());
         }
-        game_write(rva(0x529854), 1u32);
-        Ok(Rolled {
-            carry: true,
-            zero: false,
-        })
+        CREDITS.done.set(1);
+        Ok(())
     }
 }
 
 /// `roll_credits`' tune in the game: `sound::play_tune_2`'s command, sent and waited for.
-pub fn credits_tune(entry: &Regs) {
-    use crate::sound::queue::{Queue, send_command, sent};
-    use crate::sound::wait_for_commands::{Game, wait_for_commands};
-    if let Some(with) = crate::sound::play_tune_2::play_tune_2(entry) {
-        unsafe { send_command(&Queue::game(), 0xB, sent(&with)) };
-        wait_for_commands(&mut Game(sent(&with)));
-    }
+pub fn credits_tune() {
+    crate::sound::play_tune_2::play_tune_2();
 }
 
-/// `credit_line` for the hook of 0x4161BA (`race::credit_line`).
-pub unsafe fn credit_line_at(r: &Regs, canvas: &mut dyn Canvas) -> Result<Left, Refused> {
-    unsafe { credit_line(r.eax, r.ebx, r.ecx as i32, r.edx as i32, canvas) }
+#[cfg(test)]
+mod block_tests {
+    use super::*;
+    use core::mem::offset_of;
+
+    #[test]
+    fn first_values_are_the_games() {
+        crate::gfx::first_values_are_the_games(
+            &CREDITS,
+            CREDITS_START,
+            CREDITS_START + CREDITS_LEN,
+        );
+    }
+
+    #[test]
+    fn moved_knows_the_block() {
+        assert_eq!(offset_of!(Credits, script), 0x529858 - CREDITS_START);
+        assert_eq!(
+            crate::moved::place(CREDITS_START),
+            CREDITS.top.addr() as usize
+        );
+        assert_eq!(
+            crate::moved::place(0x529858),
+            (crate::pointers::game_address(CREDITS.script.as_ptr())) as usize
+        );
+    }
 }

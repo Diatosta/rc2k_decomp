@@ -1,5 +1,4 @@
-//! The physics patches a replay was recorded with (IDA 2026-10-19), and the self-test of
-//! the two hooks:
+//! The physics patches a replay was recorded with (IDA 2026-10-19):
 //! - `race::apply_replay_patches` (0x41F2C9): when the replay's header has them
 //!   (`dword_719C54`) and they are not in force (`dword_5C2C94` 0): in force, the game's
 //!   switches (`g_patchSwitch`, 13 dwords) kept in `unk_5C2C98`, the replay's
@@ -8,121 +7,57 @@
 //! - `race::restore_replay_patches` (0x41F31D): when the header has them and they are in
 //!   force: no longer, the kept switches back, applied again.
 //!
-//! Both keep every register (`pusha` / `popa`). Their call through `part` (1
-//! `physics::apply_patches`; in the game its Rust version).
+//! Both keep every register (`pusha` / `popa`).
 
 use crate::errors::Refused;
-use crate::framework::Regs;
-use crate::race::viewer::{Part, Saved, dword, fill, get, move_dwords, put, region, run_both};
-use crate::service::harness::Region;
+use crate::race::replay_work_store::REPLAY_WORK;
+use crate::race::viewer_screen_store::VIEWER_PANEL;
+use crate::race::work_store::RACE_WORK;
+use crate::session::Dword;
 
-const IN_HEADER: usize = 0x719C54; // dword_719C54
-const IN_FORCE: usize = 0x5C2C94; // dword_5C2C94
-const SWITCHES: usize = 0x71C6D0; // g_patchSwitch, 13 dwords
-const KEPT: usize = 0x5C2C98; // unk_5C2C98
-const REPLAYS: usize = 0x719C58; // unk_719C58
-const APPLIED: usize = 0x71C72C; // g_patchesApplied
+/// `g_patchSwitch` and the twelve settings after it (13 dwords from 0x71C6D0).
+fn switches() -> impl Iterator<Item = &'static Dword> {
+    std::iter::once(&RACE_WORK.patch_switch).chain(RACE_WORK.patch_settings.iter())
+}
+
+/// `rep movsd` of the dwords, forwards.
+fn move_dwords<'a>(to: impl Iterator<Item = &'a Dword>, from: impl Iterator<Item = &'a Dword>) {
+    for (to, from) in to.zip(from) {
+        to.set(from.get());
+    }
+}
 
 /// `apply_replay_patches`.
-pub fn apply_replay_patches(entry: &Regs, part: Part) -> Result<Regs, Refused> {
-    // Converted: `rc2k_core::race::viewer_flow::{patches_change, PATCH_DWORDS}`.
-    use rc2k_core::race::viewer_flow::{PATCH_DWORDS, patches_change};
-    if patches_change(get(IN_HEADER), get(IN_FORCE), false) {
-        put(IN_FORCE, 1);
-        move_dwords(KEPT, SWITCHES, PATCH_DWORDS);
-        move_dwords(SWITCHES, REPLAYS, PATCH_DWORDS);
-        put(APPLIED, 0);
-        let mut r = Regs {
-            ecx: 0,
-            esi: crate::physics::flow::a(REPLAYS) + 0x34,
-            edi: crate::physics::flow::a(SWITCHES) + 0x34,
-            ..*entry
-        };
-        part(1, &mut r)?;
+pub fn apply_replay_patches() -> Result<(), Refused> {
+    // Converted: `rc2k_core::race::viewer_flow::patches_change`.
+    use rc2k_core::race::viewer_flow::patches_change;
+    if patches_change(
+        REPLAY_WORK.patches_in_header.get(),
+        VIEWER_PANEL.patches_in_force.get(),
+        false,
+    ) {
+        VIEWER_PANEL.patches_in_force.set(1);
+        move_dwords(VIEWER_PANEL.kept_patch_switches.iter(), switches()); // unk_5C2C98
+        move_dwords(switches(), REPLAY_WORK.header_patches.iter()); // unk_719C58
+        RACE_WORK.patches_applied.set(0);
+        crate::physics::apply_patches::apply_patches();
     }
-    Ok(*entry)
-}
-
-/// `restore_replay_patches`.
-pub fn restore_replay_patches(entry: &Regs, part: Part) -> Result<Regs, Refused> {
-    // Converted: `rc2k_core::race::viewer_flow::{patches_change, PATCH_DWORDS}`.
-    use rc2k_core::race::viewer_flow::{PATCH_DWORDS, patches_change};
-    if patches_change(get(IN_HEADER), get(IN_FORCE), true) {
-        put(IN_FORCE, 0);
-        move_dwords(SWITCHES, KEPT, PATCH_DWORDS);
-        put(APPLIED, 0);
-        let mut r = Regs {
-            ecx: 0,
-            esi: crate::physics::flow::a(KEPT) + 0x34,
-            edi: crate::physics::flow::a(SWITCHES) + 0x34,
-            ..*entry
-        };
-        part(1, &mut r)?;
-    }
-    Ok(*entry)
-}
-
-/// In the game: `physics::apply_patches`.
-pub fn game_part(_place: u32, _r: &mut Regs) -> Result<(), Refused> {
-    unsafe { crate::physics::apply_patches::apply_patches() };
     Ok(())
 }
 
-pub fn regions() -> Vec<Region> {
-    vec![
-        dword(IN_FORCE),
-        region(SWITCHES, 0x34),
-        region(KEPT, 0x34),
-        dword(APPLIED),
-    ]
-}
-
-/// The self-test of either: a copy whose call goes to a stand-in, against the Rust
-/// version; in the header or not, in force or not.
-pub fn test_patches(
-    hook: &crate::framework::RawHook,
-    address: usize,
-    len: usize,
-    call: usize,
-    rust: &dyn Fn(&Regs, Part) -> Result<Regs, Refused>,
-) -> (usize, usize) {
-    let Some(mut t) = crate::framework::SelfTest::begin(hook) else {
-        return (0, 0);
-    };
-    // pusha; cmp dword_719C54, 0
-    let copy = match crate::race::viewer::copy(
-        address,
-        len,
-        &[0x60, 0x83, 0x3D, 0x54, 0x9C, 0x71, 0x00, 0x00],
-        &[call],
-        &[(0x4648BD, 1)],
+/// `restore_replay_patches`.
+pub fn restore_replay_patches() -> Result<(), Refused> {
+    // Converted: `rc2k_core::race::viewer_flow::patches_change`.
+    use rc2k_core::race::viewer_flow::patches_change;
+    if patches_change(
+        REPLAY_WORK.patches_in_header.get(),
+        VIEWER_PANEL.patches_in_force.get(),
+        true,
     ) {
-        Ok(c) => c,
-        Err(why) => return t.skip(why),
-    };
-    crate::race::viewer::quiet();
-    let mut all = regions();
-    all.extend([dword(IN_HEADER), region(REPLAYS, 0x34)]);
-    let saved = Saved::new(&all);
-    for (header, force) in [(0u32, 0u32), (0, 1), (5, 0), (5, 1)] {
-        run_both(
-            &mut t,
-            &format!("in the header {header}, in force {force}"),
-            copy.addr(),
-            Regs::SENTINEL,
-            &regions(),
-            0,
-            &|| {
-                put(IN_HEADER, header);
-                put(IN_FORCE, force);
-                fill(SWITCHES, 0x34, 14);
-                fill(KEPT, 0x34, 15);
-                fill(REPLAYS, 0x34, 16);
-                put(APPLIED, 1);
-            },
-            &|r| rust(r, &mut crate::race::viewer::test_part),
-        );
+        VIEWER_PANEL.patches_in_force.set(0);
+        move_dwords(switches(), VIEWER_PANEL.kept_patch_switches.iter());
+        RACE_WORK.patches_applied.set(0);
+        crate::physics::apply_patches::apply_patches();
     }
-    drop(saved);
-    t.finish()
+    Ok(())
 }

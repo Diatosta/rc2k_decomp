@@ -16,138 +16,146 @@
 //! Out: eax = 1 go on, 0 stop; ebx, esi, edi, ebp kept; `ret 8`
 //!
 //! Caller: DirectInput, from `input::list_joysticks`. The methods the objects' own.
-//! Shadow mode runs the original alone. Self-test: the original and the Rust version on
-//! DirectInput objects made in Rust (`input::di_harness`): the joystick and the wheel, a
-//! device that is not there (`CreateDevice` fails), 0, 5, 15 and 16 controllers before,
-//! the force-feedback switch both ways.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
 
+use crate::errors::BadInput;
 use crate::field;
-use crate::framework::rva;
-use crate::input::devices::{at, put};
+use crate::input::devices::put;
 use crate::input::di_harness::{
-    CAPS_LEN, CAPS_RVA, CONTROLLER_COUNT_RVA, CONTROLLER_LEN, CONTROLLERS, CONTROLLERS_RVA,
-    DIRECT_INPUT_RVA, HWND_RVA, IID_DEVICE2_RVA, JOYSTICK_FORMAT_RVA, NEW_DEVICE_RVA,
-    NEW_DEVICE2_RVA, a, g, method, p, slot,
+    CAPS_LEN, CONTROLLER_LEN, CONTROLLERS, JOYSTICK_FORMAT_RVA, a, method, slot,
 };
+use crate::input::guids::INPUT_GUIDS;
+use crate::input::store::DEVICES;
 use crate::input::types::{Controller, DiDevCaps, DiDeviceInstance};
-
-pub const NO_FORCE_RVA: usize = rva(0x4F68F4); // dword_4F68F4: force feedback turned off
-pub const KEEP_CASE_RVA: usize = rva(0x4E0144); // dword_4E0144
+use crate::pointers::GamePtr;
+use crate::session::MACHINE;
 
 /// Looks the joystick over and fills the entry: false at the first failure.
-fn look_over(instance: u32, entry: u32) -> bool {
-    let input = g(DIRECT_INPUT_RVA);
+fn look_over(instance: u32, entry: u32) -> Result<bool, BadInput> {
+    let input = DEVICES.direct_input.get();
     let ok = |hr: u32| hr == 0;
     if !ok(method(
         input,
         slot::CREATE_DEVICE,
         &[
             instance + field!(DiDeviceInstance, instance),
-            a(NEW_DEVICE_RVA),
+            DEVICES.new_joystick.addr(),
             0,
         ],
     )) {
-        return false;
+        return Ok(false);
     }
-    let device = g(NEW_DEVICE_RVA);
+    let device = DEVICES.new_joystick.get();
     if !ok(method(
         device,
         slot::QUERY,
-        &[a(IID_DEVICE2_RVA), a(NEW_DEVICE2_RVA)],
+        &[INPUT_GUIDS.device2.addr(), DEVICES.new_joystick2.addr()],
     )) {
-        return false;
+        return Ok(false);
     }
-    let device2 = g(NEW_DEVICE2_RVA);
+    let device2 = DEVICES.new_joystick2.get();
     if !ok(method(
         device2,
         slot::SET_DATA_FORMAT,
         &[a(JOYSTICK_FORMAT_RVA)],
     )) {
-        return false;
+        return Ok(false);
     }
     if !ok(method(
         device2,
         slot::SET_COOPERATIVE_LEVEL,
-        &[g(HWND_RVA), 5],
+        &[MACHINE.window.get(), 5],
     )) {
-        return false;
+        return Ok(false);
     }
-    p(CAPS_RVA, CAPS_LEN as u32);
-    if !ok(method(device2, slot::GET_CAPABILITIES, &[a(CAPS_RVA)])) {
-        return false;
+    DEVICES.joystick_caps.set_u32(0, CAPS_LEN as u32);
+    if !ok(method(
+        device2,
+        slot::GET_CAPABILITIES,
+        &[DEVICES.joystick_caps.addr()],
+    )) {
+        return Ok(false);
     }
-    let found = crate::input::axis_found::callback as unsafe extern "system" fn(u32, u32) -> u32
-        as usize as u32;
+    let found = crate::pointers::game_address(crate::input::axis_found::callback as *const ());
     method(device2, slot::ENUM_OBJECTS, &[found, entry, 0]);
-    put(
-        entry,
-        field!(Controller, dev_type),
-        at(instance, field!(DiDeviceInstance, dev_type)),
-    );
-    let guid = instance + field!(DiDeviceInstance, instance);
-    let to = entry + field!(Controller, instance);
-    unsafe { std::ptr::copy(guid as *const u8, to as *mut u8, 16) };
+    // SAFETY: `instance` is the `DIDEVICEINSTANCEA` the emulation lists (a local of its own,
+    // no allocation of the game's), alive for this call.
+    let (dev_type, guid) = unsafe {
+        (
+            (crate::pointers::host(instance + field!(DiDeviceInstance, dev_type)) as *const u32)
+                .read_unaligned(),
+            (crate::pointers::host(instance + field!(DiDeviceInstance, instance))
+                as *const [u8; 16])
+                .read_unaligned(),
+        )
+    };
+    put(entry, field!(Controller, dev_type), dev_type)?;
+    GamePtr::new(entry)
+        .offset(field!(Controller, instance))
+        .write(guid, "a controller's instance GUID")?;
     // Converted: `rc2k_core::input::joystick::{name_prefix, found}`.
     use rc2k_core::input::joystick::{NAME_ROOM, name_prefix};
-    let count = g(CONTROLLER_COUNT_RVA);
+    let count = DEVICES.controller_count.get();
     let name = name_prefix(count);
     let at_name = entry + field!(Controller, name);
-    unsafe { std::ptr::copy(name.as_ptr(), at_name as *mut u8, name.len()) };
-    let kept = g(KEEP_CASE_RVA);
-    p(KEEP_CASE_RVA, 0);
+    GamePtr::new(at_name).write_bytes(&name, "a controller's name")?;
+    use crate::strings::copy_printable::KEEP_CASE; // dword_4E0144
+    use std::sync::atomic::Ordering::Relaxed;
+    let kept = KEEP_CASE.swap(0, Relaxed);
     let to = at_name as usize + name.len();
     // room 0x19 is never refused
     let _ = unsafe {
         crate::strings::copy_printable::copy_printable(
-            (instance + field!(DiDeviceInstance, instance_name)) as *const u8,
-            to as *mut u8,
+            crate::pointers::host(instance + field!(DiDeviceInstance, instance_name)) as *const u8,
+            crate::pointers::host_at(to),
             NAME_ROOM,
         )
     };
-    p(KEEP_CASE_RVA, kept);
-    let caps = |offset: u32| g(CAPS_RVA + offset as usize);
+    KEEP_CASE.store(kept, Relaxed);
+    let caps = |offset: u32| DEVICES.joystick_caps.get_u32(offset as usize);
     let f = rc2k_core::input::joystick::found(
         caps(field!(DiDevCaps, flags)),
         caps(field!(DiDevCaps, axes)),
         caps(field!(DiDevCaps, buttons)),
         caps(field!(DiDevCaps, hats)),
-        g(NO_FORCE_RVA),
+        DEVICES.no_force_feedback.get(),
     );
-    put(entry, field!(Controller, caps_flags), f.caps_flags);
-    put(entry, field!(Controller, axes), f.axes);
-    put(entry, field!(Controller, buttons), f.buttons);
-    put(entry, field!(Controller, hats), f.hats);
-    put(entry, field!(Controller, attached), f.attached);
+    put(entry, field!(Controller, caps_flags), f.caps_flags)?;
+    put(entry, field!(Controller, axes), f.axes)?;
+    put(entry, field!(Controller, buttons), f.buttons)?;
+    put(entry, field!(Controller, hats), f.hats)?;
+    put(entry, field!(Controller, attached), f.attached)?;
     if let Some(force) = f.force_feedback {
-        put(entry, field!(Controller, force_feedback), force);
+        put(entry, field!(Controller, force_feedback), force)?;
     }
-    p(CONTROLLER_COUNT_RVA, count.wrapping_add(1));
-    true
+    DEVICES.controller_count.set(count.wrapping_add(1));
+    Ok(true)
 }
 
 /// The Rust version: eax.
-/// `joystick_found` as DirectInput calls it: what Rust callers hand `EnumDevices` (no hook).
-pub unsafe extern "system" fn callback(instance: u32, context: u32) -> u32 {
-    joystick_found(instance, context)
-}
-
-pub fn joystick_found(instance: u32, _context: u32) -> u32 {
-    let count = g(CONTROLLER_COUNT_RVA);
-    if count >= CONTROLLERS {
-        return 0;
-    }
-    let entry = a(CONTROLLERS_RVA) + count * CONTROLLER_LEN;
-    look_over(instance, entry);
-    for at in [NEW_DEVICE2_RVA, NEW_DEVICE_RVA] {
-        let object = g(at);
-        if object != 0 {
-            method(object, slot::RELEASE, &[]);
-            p(at, 0);
+/// `joystick_found` as DirectInput calls it: what Rust callers hand `EnumDevices`.
+pub extern "system" fn callback(instance: u32, context: u32) -> u32 {
+    match joystick_found(instance, context) {
+        Ok(eax) => eax,
+        Err(e) => {
+            crate::input::devices::refused_here("input::joystick_found", e);
+            0
         }
     }
-    1
+}
+
+pub fn joystick_found(instance: u32, _context: u32) -> Result<u32, BadInput> {
+    let count = DEVICES.controller_count.get();
+    if count >= CONTROLLERS {
+        return Ok(0);
+    }
+    let entry = DEVICES.controllers[0].addr() + count * CONTROLLER_LEN;
+    look_over(instance, entry)?;
+    for cell in [&DEVICES.new_joystick2, &DEVICES.new_joystick] {
+        let object = cell.get();
+        if object != 0 {
+            method(object, slot::RELEASE, &[]);
+            cell.set(0);
+        }
+    }
+    Ok(1)
 }

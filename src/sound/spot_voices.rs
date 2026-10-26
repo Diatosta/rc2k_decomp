@@ -10,85 +10,47 @@
 //! +0x3C the volume (floats), +0x40 the distance, +0x44 its change, +0x48 and +0x4C the
 //! pitch and volume factors.
 
-use crate::framework::{Regs, game_addr, game_read, game_write, rva};
-use crate::service::harness::{Region, at};
+use crate::errors::BadInput;
+use crate::pointers::GamePtr;
+use crate::session::MACHINE;
+use crate::sound::sets_store::SPOT_VOICES;
 
-/// unk_5168C0.
-pub const VOICES: usize = 0x5168C0;
 pub const VOICE_LEN: u32 = 0x50;
 pub const VOICE_COUNT: u32 = 0x48;
-pub const FREE: u32 = 0x1888_FFFF;
-/// g_sharedSoundSpots, g_sharedSoundSpotCount.
-pub const SPOTS: usize = 0x5165F0;
-pub const SPOT_COUNT: usize = 0x5165EC;
-pub const SPOT_LEN: u32 = 0x14;
 pub const MOST_SPOTS: u32 = 36;
-/// dword_517F54: a kind's sound, 22 of them.
-pub const SOUND_OF_KIND: usize = 0x517F54;
-/// unk_517FAC: a kind's repeats (8 bytes, kind 1 first: +2 the most, +4 and +6 the
-/// least and most delay, words).
-pub const REPEATS: usize = 0x517FAC;
 pub const MOST_KIND: u32 = 0x15;
-/// dword_517F40 .. dword_517F50: the work of the two pickers (the playing one, the
-/// nearest's distance and voice, the next's distance and voice).
-pub const WORK: usize = 0x517F40;
 
 /// The address of voice `n`.
 pub fn voice(n: u32) -> u32 {
-    game_addr(rva(VOICES)) as u32 + n * VOICE_LEN
+    crate::session::address_of(&SPOT_VOICES.voices) + n * VOICE_LEN
 }
 
 /// The dword at `at` of the voice at `v`.
-pub fn vw(v: u32, at: u32) -> u32 {
-    unsafe { ((v + at) as *const u32).read_unaligned() }
+pub fn vw(v: u32, at: u32) -> Result<u32, BadInput> {
+    GamePtr::new(v).offset(at).read("a spot voice's dword")
 }
 
-pub fn set(v: u32, at: u32, value: u32) {
-    unsafe { ((v + at) as *mut u32).write_unaligned(value) }
-}
-
-pub fn g(x: usize) -> u32 {
-    unsafe { game_read(rva(x)) }
-}
-
-pub fn p(x: usize, v: u32) {
-    unsafe { game_write(rva(x), v) }
-}
-
-/// The voices, the pickers' work and the scratch dword.
-pub fn voice_regions() -> Vec<Region> {
-    vec![
-        (voice(0), (VOICE_LEN * VOICE_COUNT) as usize),
-        (game_addr(rva(WORK)) as u32, 0x14),
-        at(rva(crate::sound::turn_parts::SCRATCH)),
-    ]
-}
-
-/// The voices filled for a test: a pattern, then `each` for every voice.
-pub fn fill_voices(seed: u32, each: &dyn Fn(u32, u32)) {
-    for n in 0..VOICE_COUNT {
-        let v = voice(n);
-        for k in 0..VOICE_LEN / 4 {
-            set(
-                v,
-                4 * k,
-                (n.wrapping_mul(0x9E37_79B9) ^ seed ^ (k * 0x0101_0101)) & 0x3F7F_FFFF,
-            );
-        }
-        each(n, v);
-    }
+pub fn set(v: u32, at: u32, value: u32) -> Result<(), BadInput> {
+    GamePtr::new(v)
+        .offset(at)
+        .write(value, "a spot voice's dword")
 }
 
 /// The voices as the core's (`rc2k_core::sound::spot_voices`).
 pub fn load_voices() -> [rc2k_core::sound::spot_voices::Voice; VOICE_COUNT as usize] {
-    let words: [[u32; 20]; VOICE_COUNT as usize] = unsafe { game_read(rva(VOICES)) };
+    let words: [[u32; 20]; VOICE_COUNT as usize] =
+        std::array::from_fn(|n| std::array::from_fn(|k| SPOT_VOICES.voices[n][k].get()));
     words.map(rc2k_core::sound::spot_voices::Voice::from_words)
 }
 
 /// The voices stored back.
 pub fn store_voices(voices: &[rc2k_core::sound::spot_voices::Voice; VOICE_COUNT as usize]) {
     let words = voices.map(|v| v.to_words());
-    unsafe { game_write(rva(VOICES), words) };
+    for (voice, words) in SPOT_VOICES.voices.iter().zip(words) {
+        for (cell, word) in voice.iter().zip(words) {
+            cell.set(word);
+        }
+    }
 }
 
 /// A voice's address, or 0 for none (the pickers' work holds addresses).
@@ -102,29 +64,13 @@ pub fn store_picks(
     picks: &rc2k_core::sound::spot_voices::Picks,
     trail: &rc2k_core::sound::spot_voices::Trail,
 ) {
-    p(WORK, voice_or_0(picks.playing));
-    p(WORK + 4, picks.nearest_distance);
-    p(WORK + 8, voice_or_0(picks.nearest));
-    p(WORK + 12, picks.next_distance);
-    p(WORK + 16, voice_or_0(picks.next));
+    let work = &crate::sound::store::SPOT_PICKS;
+    work.pick_playing.set(voice_or_0(picks.playing));
+    work.pick_nearest_distance.set(picks.nearest_distance);
+    work.pick_nearest.set(voice_or_0(picks.nearest));
+    work.pick_next_distance.set(picks.next_distance);
+    work.pick_next.set(voice_or_0(picks.next));
     if let Some(d) = trail.last_distance {
-        p(crate::sound::turn_parts::SCRATCH, d);
+        MACHINE.scratch.set(d);
     }
-}
-
-/// The registers a pick leaves: ebp the sound; ebx / ecx the end of the voices and 0 (or
-/// where a search ended); eax the last distance (else the sound); edx the next pushed
-/// out last (else as it came).
-pub fn pick_regs(entry: &Regs, trail: &rc2k_core::sound::spot_voices::Trail) -> Regs {
-    let mut c = *entry;
-    c.ebp = entry.eax;
-    c.eax = trail.last_distance.unwrap_or(entry.eax);
-    if let Some(out) = trail.pushed_out {
-        c.edx = voice_or_0(out);
-    }
-    match trail.ended_at {
-        Some(n) => (c.ebx, c.ecx) = (voice(n as u32), VOICE_COUNT - n as u32),
-        None => (c.ebx, c.ecx) = (voice(0) + VOICE_COUNT * VOICE_LEN, 0),
-    }
-    c
 }

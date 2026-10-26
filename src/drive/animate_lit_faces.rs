@@ -25,221 +25,164 @@
 //! Out: the registers as the last face leaves them (see `animate_at`); no flags read
 //!      (`sub_45E9CA` calls `physics::move_slots` next)
 //!
-//! Caller: `drive::animate_stage` (0x45E9CA).
-//! Refuses (before anything) more than 0x100 lit faces (the list's room) and a face
-//! number past `g_courseFaceCount`; `find_ground`'s refusals mid-way (what it wrote is
-//! put back first).
-//! Self-test: in a race only: a copy of the original (its calls the game's) against the
-//! Rust version on the game's own stage, with a list of the test's (twelve faces of the
-//! stage, their objects and bytes by lot); every game variable it writes saved and put
-//! back.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Caller: `drive::animate_stage` (0x45E9CA). Refuses (before anything) more than 0x100 lit
+//! faces (the list's room) and a face number past `g_courseFaceCount`; `find_ground`'s
+//! refusals mid-way (what it wrote is put back first).
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{EAX, EBX, ECX, EDX, ESI, Regs, game_addr, game_read, game_write, rva};
-use crate::physics::ground::Ground;
-use crate::screens::harness::Left;
-use crate::service::harness::{Region, capture, restore, state_entry};
+use crate::physics::contact_store::CONTACT_WORK;
+use crate::physics::ground_store::GROUND_WORK;
+use crate::pointers::GamePtr;
+use crate::race::blocks_store::CAR_BLOCKS;
+use crate::race::course_store::COURSE;
+use crate::scene::draw_store::DRAW;
+use crate::scene::object_tables_store::OBJECT_TABLES;
 use rc2k_core::drive::lit_faces::{
     COUNTDOWN_OBJECT, FaceBytes, RISE_TOP, align, blink, count_down, fall_turn, pace, rise,
 };
 
-const LIST_RVA: usize = rva(0x6D3220); // g_litFaces
-const COUNT_RVA: usize = rva(0x6D3620); // g_litFaceCount
 const MOST: u32 = 0x100;
-const FACES_RVA: usize = rva(0x5CCCBC); // g_courseFaces
-const FACE_COUNT_RVA: usize = rva(0x5CCD1C); // g_courseFaceCount
-const POINTS_RVA: usize = rva(0x5CCCC0); // g_scenePoints
-const OBJECT_KINDS_RVA: usize = rva(0x5CD27C); // g_objectKinds
-const KIND_TABLE_RVA: usize = rva(0x97DF4C); // byte_97DF4C, by kind * 0x80
-const BLINK_RVA: usize = rva(0x6D1DFC); // byte_6D1DFC
-const LEAD_X_RVA: usize = rva(0x70F520); // car block 0 +0x134
-const LEAD_Z_RVA: usize = rva(0x70F528); // car block 0 +0x13C
 
-unsafe fn at(p: u32) -> u32 {
-    unsafe { (p as *const u32).read_unaligned() }
+fn at(p: u32) -> Result<u32, BadInput> {
+    GamePtr::new(p).read("a face of the course")
 }
 
-unsafe fn put(p: u32, v: u32) {
-    unsafe { (p as *mut u32).write_unaligned(v) }
+fn put(p: u32, v: u32) -> Result<(), BadInput> {
+    GamePtr::new(p).write(v, "a face of the course")
 }
 
-unsafe fn byte(p: u32) -> u8 {
-    unsafe { (p as *const u8).read() }
+fn byte(p: u32) -> Result<u8, BadInput> {
+    GamePtr::new(p).read("a face of the course")
 }
 
-unsafe fn set_byte(p: u32, v: u8) {
-    unsafe { (p as *mut u8).write(v) }
+fn set_byte(p: u32, v: u8) -> Result<(), BadInput> {
+    GamePtr::new(p).write(v, "a face of the course")
 }
 
 /// The face's animated bytes.
-unsafe fn load(f: u32) -> FaceBytes {
-    unsafe {
-        FaceBytes {
-            b8: byte(f + 8),
-            b9: byte(f + 9),
-            b11: byte(f + 0x11),
-            b12: byte(f + 0x12),
-            b13: byte(f + 0x13),
-        }
+fn load(f: u32) -> Result<FaceBytes, BadInput> {
+    Ok(FaceBytes {
+        b8: byte(f + 8)?,
+        b9: byte(f + 9)?,
+        b11: byte(f + 0x11)?,
+        b12: byte(f + 0x12)?,
+        b13: byte(f + 0x13)?,
+    })
+}
+
+fn store(f: u32, b: &FaceBytes) -> Result<(), BadInput> {
+    for (o, v) in [(9, b.b9), (0x11, b.b11), (0x13, b.b13)] {
+        set_byte(f + o, v)?;
     }
+    Ok(())
 }
 
-unsafe fn store(f: u32, b: &FaceBytes) {
-    unsafe {
-        for (o, v) in [(9, b.b9), (0x11, b.b11), (0x13, b.b13)] {
-            set_byte(f + o, v);
-        }
-    }
-}
-
-fn list(k: u32) -> usize {
-    LIST_RVA + 4 * k as usize
-}
-
-/// The faces' records it may change (all those listed now).
-unsafe fn face_regions() -> Vec<Region> {
-    unsafe {
-        let count = game_read::<u32>(COUNT_RVA).min(MOST);
-        let faces: u32 = game_read(FACES_RVA);
-        (0..count)
-            .map(|k| (faces.wrapping_add(game_read::<u32>(list(k)) << 6), 0x40))
-            .collect()
-    }
-}
-
-/// Everything it writes.
-pub fn regions() -> Vec<Region> {
-    let a = |x: usize| game_addr(rva(x)) as u32;
-    let mut r = Ground::game().regions();
-    r.extend([
-        (game_addr(LIST_RVA) as u32, 4 * MOST as usize),
-        (game_addr(COUNT_RVA) as u32, 4),
-        (a(0x62400C), 4),
-        (a(0x6D302C), 0x18),
-        (a(0x5C5F4C), 0x0C),
-        (a(0x620470), 4),
-    ]);
-    r.extend(unsafe { face_regions() });
-    r
+/// `g_litFaces`[k] (0x100 of them; the count is checked below).
+fn list(k: u32) -> &'static crate::session::Dword {
+    &CONTACT_WORK.lit_faces[k as usize]
 }
 
 /// The refusals, worked out before anything is written.
-unsafe fn refusal() -> Option<&'static str> {
-    unsafe {
-        let count: u32 = game_read(COUNT_RVA);
-        if count > MOST {
-            return Some("more than 0x100 lit faces (past g_litFaces)");
-        }
-        let faces: u32 = game_read(FACE_COUNT_RVA);
-        for k in 0..count {
-            if game_read::<u32>(list(k)) >= faces {
-                return Some("a lit face past g_courseFaceCount");
-            }
-        }
-        None
+fn refusal() -> Option<&'static str> {
+    let count: u32 = CONTACT_WORK.lit_face_count.bits();
+    if count > MOST {
+        return Some("more than 0x100 lit faces (past g_litFaces)");
     }
+    let faces: u32 = COURSE.course_face_count.bits();
+    for k in 0..count {
+        if list(k).get() >= faces {
+            return Some("a lit face past g_courseFaceCount");
+        }
+    }
+    None
 }
 
-/// The Rust core; `r` as the original leaves it.
-pub unsafe fn animate_at(r: &mut Regs) -> Result<(), Refused> {
+/// The Rust core. The registers it leaves are read by no caller.
+pub unsafe fn animate_at() -> Result<(), Refused> {
     unsafe {
         if let Some(why) = refusal() {
             return Err(BadInput(why).into());
         }
-        if game_read::<u32>(COUNT_RVA) == 0 {
+        if CONTACT_WORK.lit_face_count.bits() == 0 {
             return Ok(());
         }
-        let all = regions();
-        let saved = capture(&all);
-        let result = animate_faces(r);
-        if result.is_err() {
-            restore(&all, &saved);
-        }
-        result
+
+        animate_faces()
     }
 }
 
 // Converted: `rc2k_core::drive::lit_faces` (all but kind 4's turn and ground).
-unsafe fn animate_faces(r: &mut Regs) -> Result<(), Refused> {
+unsafe fn animate_faces() -> Result<(), Refused> {
     unsafe {
-        let faces: u32 = game_read(FACES_RVA);
-        let points: u32 = game_read(POINTS_RVA);
+        let faces: u32 = COURSE.course_faces.bits();
+        let points: u32 = COURSE.scene_points.bits();
         let point = |n: u32| points.wrapping_add(n.wrapping_mul(12));
-        r.ecx = 0;
+        let mut k = 0;
         loop {
-            r.ebx = game_read(list(r.ecx));
-            let f = faces.wrapping_add(r.ebx << 6);
-            r.esi = f;
-            let mut bytes = load(f);
+            let f = faces.wrapping_add(list(k).get() << 6);
+            let mut bytes = load(f)?;
             let leave = 'face: {
-                let object = byte(f + 1);
+                let object = byte(f + 1)?;
                 if object == COUNTDOWN_OBJECT {
                     break 'face count_down(&mut bytes);
                 }
-                r.ebx = at(f + 4);
-                let p = point(r.ebx);
-                let dx = at(p).wrapping_sub(game_read(LEAD_X_RVA));
-                game_write(rva(0x62400C), dx);
-                let dz = at(p + 8).wrapping_sub(game_read(LEAD_Z_RVA));
-                game_write(rva(0x62400C), dz);
+                let point_number = at(f + 4)?;
+                let p = point(point_number);
+                let dx = at(p)?.wrapping_sub(CAR_BLOCKS.cars[0].position[0].bits());
+                DRAW.scratch.set(dx);
+                let dz = at(p + 8)?.wrapping_sub(CAR_BLOCKS.cars[0].position[2].bits());
+                DRAW.scratch.set(dz);
                 let d = crate::math::x87::int_hypot(dx as i32, dz as i32) as u32;
-                game_write(rva(0x6D303C), d);
-                r.edx = pace(d);
-                game_write(rva(0x6D3040), r.edx);
-                let pace = r.edx;
-                let kind_of: u32 = game_read(OBJECT_KINDS_RVA + 4 * object as usize);
-                r.eax = u32::from(game_read::<u8>(
-                    KIND_TABLE_RVA + (kind_of.wrapping_mul(0x80)) as usize,
-                ));
-                match r.eax {
-                    1 | 9 => match blink(&mut bytes, |n| game_read::<u8>(BLINK_RVA + n as usize)) {
-                        None => true,
-                        Some(b) => {
-                            r.eax = u32::from(b);
-                            false
-                        }
-                    },
-                    2 => {
-                        let (leave, edx) = rise(&mut bytes, pace, RISE_TOP);
-                        r.edx = edx;
-                        leave
+                CONTACT_WORK.lit_face_distance.set(d);
+                let step = pace(d);
+                CONTACT_WORK.lit_face_pace.set(step);
+                let kind_of: u32 = OBJECT_TABLES.object_kind(object as u32);
+                let kind: u8 = GamePtr::new(
+                    (crate::scene::polygon::materials_addr())
+                        .wrapping_add(0x1C)
+                        .wrapping_add(kind_of.wrapping_mul(0x80)),
+                )
+                .read("an object's material")?;
+                match kind {
+                    1 | 9 => {
+                        blink(&mut bytes, |n| {
+                            // byte_6D1DFC: the step is below 0x18 (`BLINK_STEPS`).
+                            (CONTACT_WORK.blink_levels[n as usize / 4].get() >> (8 * (n % 4))) as u8
+                        })
+                        .is_none()
                     }
-                    3 | 8 => {
-                        let (leave, edx, al) = align(&mut bytes, pace);
-                        r.edx = edx;
-                        r.eax = (r.eax & !0xFF) | u32::from(al);
-                        leave
-                    }
+                    2 => rise(&mut bytes, step, RISE_TOP).0,
+                    3 | 8 => align(&mut bytes, step).0,
                     4 => {
                         let Some((distance, angle)) = fall_turn(&bytes) else {
                             break 'face true;
                         };
                         let [x, _, z, _] = crate::math::turn_point_xz::turn_point_xz(
                             0,
-                            r.ebx as i32,
+                            point_number as i32,
                             distance as i32,
                             angle,
                         );
-                        game_write(rva(0x6D302C), at(f + 0x30));
-                        game_write(rva(0x6D3030), at(f + 0x38));
-                        put(f + 0x30, at(f + 0x30).wrapping_add(x));
-                        put(f + 0x38, at(f + 0x38).wrapping_add(z));
-                        let p = point(at(f + 4));
-                        game_write(rva(0x639824), at(p).wrapping_add(at(f + 0x30)));
-                        game_write(rva(0x63982C), at(p + 8).wrapping_add(at(f + 0x38)));
-                        game_write(rva(0x5CCC78), game_read::<u32>(rva(0x7101EC)));
+                        CONTACT_WORK.lit_face_saved_30.set(at(f + 0x30)?);
+                        CONTACT_WORK.lit_face_saved_38.set(at(f + 0x38)?);
+                        put(f + 0x30, at(f + 0x30)?.wrapping_add(x))?;
+                        put(f + 0x38, at(f + 0x38)?.wrapping_add(z))?;
+                        let p = point(at(f + 4)?);
+                        GROUND_WORK.ground_x.set(at(p)?.wrapping_add(at(f + 0x30)?));
+                        GROUND_WORK
+                            .ground_z
+                            .set(at(p + 8)?.wrapping_add(at(f + 0x38)?));
+                        COURSE
+                            .ground_face_last
+                            .set(CAR_BLOCKS.cars[0].probe_point_face[4].bits());
                         crate::physics::find_ground::find_ground()?;
                         put(
                             f + 0x34,
-                            game_read::<u32>(rva(0x639828)).wrapping_sub(at(p + 4)),
-                        );
-                        if game_read::<u32>(rva(0x5CCC74)) == u32::MAX {
-                            put(f + 0x30, game_read(rva(0x6D302C)));
-                            put(f + 0x38, game_read(rva(0x6D3030)));
+                            GROUND_WORK.ground_height.get().wrapping_sub(at(p + 4)?),
+                        )?;
+                        if COURSE.ground_slot.get() == u32::MAX {
+                            put(f + 0x30, CONTACT_WORK.lit_face_saved_30.bits())?;
+                            put(f + 0x38, CONTACT_WORK.lit_face_saved_38.bits())?;
                         }
                         bytes.b11 = bytes.b11.wrapping_sub(1);
                         false
@@ -247,40 +190,21 @@ unsafe fn animate_faces(r: &mut Regs) -> Result<(), Refused> {
                     _ => false,
                 }
             };
-            store(f, &bytes);
+            store(f, &bytes)?;
             if leave {
-                let count: u32 = game_read(COUNT_RVA);
-                r.ebx = count.wrapping_sub(1);
-                r.eax = game_read(list(r.ebx));
-                game_write(list(r.ecx), r.eax);
-                game_write(COUNT_RVA, r.ebx);
+                let last = CONTACT_WORK.lit_face_count.bits().wrapping_sub(1);
+                list(k).set(list(last).get());
+                CONTACT_WORK.lit_face_count.set_bits(last);
             }
-            r.ecx += 1;
-            if r.ecx >= game_read::<u32>(COUNT_RVA) {
+            k += 1;
+            if k >= CONTACT_WORK.lit_face_count.bits() {
                 return Ok(());
             }
         }
     }
 }
 
-/// The Rust version: `r` as the original leaves it.
-pub unsafe fn animate_lit_faces(r: &mut Regs) -> Result<(), Refused> {
-    unsafe { animate_at(r) }
-}
-
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    let mut g = *r;
-    unsafe { animate_lit_faces(&mut g) }?;
-    Ok(Left::nothing()
-        .with(EAX, g.eax)
-        .with(EBX, g.ebx)
-        .with(ECX, g.ecx)
-        .with(EDX, g.edx)
-        .with(ESI, g.esi))
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
+/// The Rust version.
+pub unsafe fn animate_lit_faces() -> Result<(), Refused> {
+    unsafe { animate_at() }
 }

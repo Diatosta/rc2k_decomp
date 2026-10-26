@@ -10,79 +10,36 @@
 //! `memory::free_list` on `g_sampleMemory`, inlined). Callers: `sub_409DD5` (the thread's
 //! end), `audio::set_mode`, `audio::take_commands`.
 //! Refuses more than 0x200 voices in use.
-//! Shadow mode runs the original alone. Self-test: a redirected copy whose variables are
-//! the test's and whose five calls note themselves, 8 cases.
-//!
-//! Hook removed 2026-10-22 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
 
-use crate::audio::voices::*;
+use crate::audio::store::{AUDIO, SAMPLE_RECORDS};
+use crate::audio::voices::{SAMPLES, VOICES};
 use crate::errors::{BadInput, Refused};
-use crate::framework::game_addr;
 
 // ---- Rust version ----
 
-/// What it calls: 0 `release_eax`, 1 `release_voice_manager`, 2 `release_voice` (the voice),
-/// 3 `clear_channels`, 4 the samples' memory.
-pub type Part<'a> = &'a mut dyn FnMut(u32, u32) -> Result<(), Refused>;
-
-/// Where its variables are: `World` and these.
-#[derive(Clone, Copy)]
-pub struct Vars {
-    pub voice_count: u32,
-    pub voices: u32,
-    pub lost: u32,
-    pub commit: u32,
-}
-
-pub unsafe fn free_voices(w: &World, v: &Vars, part: Part) -> Result<(), Refused> {
-    unsafe {
-        let count = read(v.voice_count);
-        if count > VOICES {
-            return Err(BadInput("more than 0x200 voices").into());
-        }
-        if count != 0 {
-            part(0, 0)?;
-            part(1, 0)?;
-            for n in 0..count {
-                part(2, v.voices + n * std::mem::size_of::<Voice>() as u32)?;
-            }
-            write(v.voice_count, 0);
-        }
-        for n in 0..SAMPLES {
-            sample(w, n).first_voice = 0;
-        }
-        part(3, 0)?;
-        write(v.lost, 0);
-        write(v.commit, 0);
-        write(w.channels_used, 0);
-        write(w.playing, 0);
-        write(w.stopping, 0);
-        part(4, 0)
+pub fn free_voices() -> Result<(), Refused> {
+    let count = AUDIO.voice_count.get();
+    if count > VOICES {
+        return Err(BadInput("more than 0x200 voices").into());
     }
-}
-
-pub fn game_vars() -> Vars {
-    Vars {
-        voice_count: game_addr(VOICE_COUNT_RVA) as u32,
-        voices: game_addr(VOICES_RVA) as u32,
-        lost: game_addr(BUFFER_LOST_RVA) as u32,
-        commit: game_addr(COMMIT_RVA) as u32,
-    }
-}
-
-pub fn game_part(which: u32, at: u32) -> Result<(), Refused> {
-    unsafe {
-        match which {
-            0 => crate::audio::release_eax::release_eax(crate::audio::release_eax::game_vars()),
-            1 => crate::audio::release_voice_manager::release_voice_manager(game_addr(
-                VOICE_MANAGER_RVA,
-            ) as u32),
-            2 => crate::audio::release_voice::release_voice_in_game(at),
-            3 => crate::audio::clear_channels::clear_channels(World::game().channels),
-            _ => crate::memory::free_list::free_list(game_addr(SAMPLE_MEMORY_RVA) as *mut _)?,
+    if count != 0 {
+        crate::audio::release_eax::release_eax();
+        crate::audio::release_voice_manager::release_voice_manager();
+        // The voices by their places, as the original steps over them.
+        for n in 0..count as usize {
+            unsafe { crate::audio::release_voice::release_voice_in_game(AUDIO.voices[n].addr()) };
         }
+        AUDIO.voice_count.set(0);
     }
+    for n in 0..SAMPLES as usize {
+        SAMPLE_RECORDS.records[n].update(|r| r.first_voice = 0);
+    }
+    crate::audio::clear_channels::clear_channels();
+    AUDIO.sound_buffer_lost.set(0);
+    AUDIO.commit_3d.set(0);
+    AUDIO.channels_used.set(0);
+    AUDIO.playing_voices.set(0);
+    AUDIO.stopping_voices.set(0);
+    crate::memory::free_list::free_list(AUDIO.sample_memory.as_ptr())?;
     Ok(())
 }

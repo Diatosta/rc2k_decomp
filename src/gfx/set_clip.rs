@@ -5,16 +5,10 @@
 //! Out: every register preserved
 //! `g_clipLeft` = x, `g_clipTop` = y, `g_clipRight` = x + width - 1, `g_clipBottom` = y +
 //! height - 1. Three callers, each with the surface's own rectangle (`g_surface`).
-//! Shadow mode runs the original and checks the four variables against the Rust
-//! arithmetic. Refuses a null rectangle. The name is a reading.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Refuses a null rectangle. The name is a reading.
 
 use crate::errors::BadInput;
-use crate::framework::{Regs, game_write};
-use crate::gfx::surface::{CLIP_BOTTOM_RVA, CLIP_LEFT_RVA, CLIP_RIGHT_RVA, CLIP_TOP_RVA};
+use crate::gfx::blit::BLIT;
 
 // ---- Rust version ----
 
@@ -22,28 +16,19 @@ use crate::gfx::surface::{CLIP_BOTTOM_RVA, CLIP_LEFT_RVA, CLIP_RIGHT_RVA, CLIP_T
 /// `rc2k_core::gfx::raster::clip_of`.
 pub use rc2k_core::gfx::raster::clip_of;
 
-pub unsafe fn set_clip(rectangle: *const [u32; 4]) -> Result<(), BadInput> {
-    if rectangle.is_null() {
+pub fn set_clip(rectangle: [u32; 4]) {
+    let [left, top, right, bottom] = clip_of(rectangle);
+    BLIT.clip.left.set(left);
+    BLIT.clip.top.set(top);
+    BLIT.clip.right.set(right);
+    BLIT.clip.bottom.set(bottom);
+}
+
+/// `set_clip` on the rectangle at game address `at` (checked).
+pub fn set_clip_at(at: u32) -> Result<(), BadInput> {
+    if at == 0 {
         return Err(BadInput("no rectangle to clip to"));
     }
-    unsafe {
-        let [left, top, right, bottom] = clip_of(rectangle.read_unaligned());
-        game_write(CLIP_LEFT_RVA, left);
-        game_write(CLIP_TOP_RVA, top);
-        game_write(CLIP_RIGHT_RVA, right);
-        game_write(CLIP_BOTTOM_RVA, bottom);
-    }
+    set_clip(crate::pointers::GamePtr::new(at).read("a rectangle to clip to")?);
     Ok(())
 }
-
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    let rectangle = r.ebx as *const [u32; 4];
-    if let Err(e) = unsafe { set_clip(rectangle) } {
-        return Err(e.into());
-    }
-    Ok(())
-}
-
-// ---- self-test: a copy of the original that writes four variables of the test's instead
-// of the clip rectangle, which the game's drawing reads all the time ----

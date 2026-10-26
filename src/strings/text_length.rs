@@ -10,18 +10,26 @@
 //! Refuses a null pointer.
 
 use crate::errors::BadInput;
+use crate::pointers::GamePtr;
+use rc2k_core::strings::bytes::Bytes;
 
 // The original returns from `cmp byte ptr [ecx + ebx], 0` on the NUL: the same compare again
 // leaves the same flags.
 // ---- Rust version ----
 
-pub unsafe fn text_length(text: *const u8) -> Result<u32, BadInput> {
+pub fn text_length(text: *const u8) -> Result<u32, BadInput> {
     if text.is_null() {
         return Err(BadInput("no text"));
     }
-    Ok(
-        unsafe { std::ffi::CStr::from_ptr(text as *const std::ffi::c_char) }
-            .to_bytes()
-            .len() as u32,
-    )
+    nul_at(crate::pointers::game_address(text), "a text")
+}
+
+/// The length of the text at `at` (to its NUL), which must end inside its block.
+pub fn nul_at(at: u32, what: &str) -> Result<u32, BadInput> {
+    let bytes = GamePtr::new(at).bytes(what)?;
+    (0..)
+        .map_while(|n| bytes.byte(n))
+        .position(|b| b == 0)
+        .map(|len| len as u32)
+        .ok_or(BadInput("a text without its end in its block"))
 }

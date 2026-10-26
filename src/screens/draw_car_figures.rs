@@ -26,56 +26,43 @@
 //!   +0x54 .. +0x68 (`append_length`) at 0x10A .. 0x17D, 0x17 apart; weight +0x6C
 //!   (`append_weight`) at 0x194.
 //!
-//! In two draw lists (the car specification screens).
-//! Refuses a page past the four, what the record's lookup refuses, and a line longer
-//! than the line buffer.
-//! Hook removed 2026-10-22 (typed tables): the menus and draw lists run its `entry`
-//! (`menu::table_calls`); the registers above are the original's, for reference.
+//! In two draw lists (the car specification screens). Refuses a page past the four, what the
+//! record's lookup refuses, and a line longer than the line buffer. The menus and draw lists run
+//! its `entry` (`menu::table_calls`); the registers above are the original's, for reference.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{Regs, game_addr, game_read, rva};
 use crate::menu::car_description::{CarDescription, read, shown_description};
-use crate::screens::LINE_BUFFER_RVA;
-use crate::screens::harness::{Left, draw_entry};
-use crate::service::harness::{at, capture};
-use crate::strings::text_from_ids::{TEXT_LEN, text};
+use crate::menu::event_store::EVENT_STATE;
 use crate::text::draw_text::Canvas;
 
 // ---- game data ----
 
-const PAGE_RVA: usize = rva(0x755998); // dword_755998
 // dword_755990
-pub const NOTICE_KIND_RVA: usize = rva(0x4E07A0); // g_noticeKind
-pub const TEXT_KEPT_RVA: usize = rva(0x7559EC); // dword_7559EC
-pub const LINE_LEN: usize = 0x100;
+// dword_7559EC
 const PAGES: u32 = 4;
 
 // ---- Rust version ----
 
 /// Returns the carry of the last text drawn.
-pub unsafe fn draw_car_figures(canvas: &mut dyn Canvas) -> Result<bool, Refused> {
-    let page: u32 = unsafe { game_read(PAGE_RVA) };
+pub fn draw_car_figures(canvas: &mut dyn Canvas) -> Result<bool, Refused> {
+    let page: u32 = { EVENT_STATE.car_page.get() };
     if page >= PAGES {
         return Err(BadInput("a page past the four").into());
     }
-    unsafe { draw_car_page(page, shown_description()?, canvas) }
+    draw_car_page(page, shown_description()?, canvas)
 }
 
 /// One page (`sub_469C40`, `sub_469F12`, `sub_46A193`, `sub_469CA0` for 0 .. 3) of the
 /// record at `record`: the carry of the last text drawn. Converted:
 /// `rc2k_core::screens::car_pages::page` (the record written back when it changed it: the Clio's
 /// strings).
-pub unsafe fn draw_car_page(
-    page: u32,
-    record: *mut CarDescription,
-    canvas: &mut dyn Canvas,
-) -> Result<bool, Refused> {
+pub fn draw_car_page(page: u32, record: u32, canvas: &mut dyn Canvas) -> Result<bool, Refused> {
     use crate::screens::game_screen::GameScreen;
     use rc2k_core::screens::car_pages::{Font, Work};
-    unsafe {
-        let before = read(record);
+    {
+        let before = read(record)?;
         let mut d = before;
-        let notice: u8 = game_read(NOTICE_KIND_RVA);
+        let notice = crate::strings::load_language::notice_kind(); // g_noticeKind
         let carry = rc2k_core::screens::car_pages::page(
             &mut GameScreen::<Font, Work>::new(canvas),
             page,
@@ -84,49 +71,9 @@ pub unsafe fn draw_car_page(
             crate::strings::units::units(),
         );
         if d != before {
-            record.write_unaligned(d);
+            crate::pointers::GamePtr::new(record)
+                .write::<CarDescription>(d, "a car description")?;
         }
         carry
     }
-}
-
-fn rust(_: &Regs, canvas: &mut dyn Canvas) -> Result<Left, Refused> {
-    Ok(Left::carry(unsafe { draw_car_figures(canvas) }?))
-}
-
-pub fn state() -> Vec<u8> {
-    capture(&[
-        (game_addr(LINE_BUFFER_RVA) as u32, LINE_LEN),
-        (text() as u32, TEXT_LEN),
-        at(TEXT_KEPT_RVA),
-    ])
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    draw_entry("screens::draw_car_figures", r, &rust)
-}
-
-/// A record of the test's: string ids where the pages take strings, figures elsewhere.
-pub fn test_record(car: u32, seed: u32) -> [u32; 0x1D] {
-    let mut lot = seed;
-    let mut next = |below: u32| {
-        lot = lot.wrapping_mul(1_664_525).wrapping_add(1_013_904_223);
-        (lot >> 8) % below
-    };
-    let mut record = [0u32; 0x1D];
-    record[0] = car;
-    for value in record.iter_mut().skip(3) {
-        *value = match next(5) {
-            0 => 0,
-            1 => 0xFF00 | next(0x100),
-            _ => next(30_000),
-        };
-    }
-    // The strings.
-    for offset in [0x10, 0x2C, 0x30, 0x34, 0x38, 0x44, 0x48, 0x4C, 0x50, 0x70] {
-        record[offset / 4] = 0x249 + next(0x18);
-    }
-    record
 }

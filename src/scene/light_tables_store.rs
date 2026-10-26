@@ -1,0 +1,72 @@
+//! The lighting tables (IDA 0x635118 .. 0x636588; phase 7, typed): the colours the lights
+//! pick from (the light table, two lamp tables, the car light table, a third lamp table),
+//! the view window's mode and the words around it. `#[repr(C)]` with the image's layout,
+//! over the race block's bytes (`LIGHT_TABLES`). Names are readings unless IDA's.
+
+use crate::session::{Bytes, Dword, Word};
+
+#[repr(C)]
+pub struct LightTables {
+    /// +0x0 (0x635118): `g_lightTable`: 256 colours (`scene::vertex_light`, `physics::car_lighting`, `race::course_faces`).
+    pub light_table: [Dword; 256],
+    /// +0x400 (0x635518): `dword_635518`: lamp A's 256 colours.
+    pub lamp_table_a: [Dword; 256],
+    /// +0x800 (0x635918): `dword_635918`: lamp B's 256 colours.
+    pub lamp_table_b: [Dword; 256],
+    /// +0xc00 (0x635D18): `g_carLightTable`: 256 colours (`scene::add_car_light`, `race::frame_draw`).
+    pub car_light_table: [Dword; 256],
+    /// +0x1000 (0x636118): `unk_636118`: a third lamp table of 256 colours (`scene::fill_light_tables`).
+    pub lamp_table_c: [Dword; 256],
+    /// +0x1400 (0x636518): not named.
+    pub unknown_400: Bytes<0xE>,
+    /// +0x140e (0x636526): `word_636526`: the view window's mode (`scene::choose_view_window`, `scene::full_view_window`).
+    pub view_mode: Word,
+    /// +0x1410 (0x636528): not named.
+    pub unknown_410: [Dword; 24],
+}
+
+/// The piece: the race block's bytes at IDA 0x635118 seen as `LightTables`.
+pub struct InBlock;
+
+impl core::ops::Deref for InBlock {
+    type Target = LightTables;
+    fn deref(&self) -> &LightTables {
+        // SAFETY: the race block lives as long as the program and is aligned to 4 (the
+        // test checks); every field is an atomic or a cell, as the block's bytes were shared.
+        unsafe { &*(crate::pointers::host(piece_addr()) as *const LightTables) }
+    }
+}
+
+pub static LIGHT_TABLES: InBlock = InBlock;
+
+/// IDA 0x635118, the first byte of the piece.
+pub const START: usize = 0x635118;
+/// IDA 0x636588, the end of the piece.
+pub const END: usize = 0x636588;
+
+const _: () = assert!(END - START == core::mem::size_of::<LightTables>());
+
+/// Where IDA 0x635118 is now.
+pub fn piece_addr() -> u32 {
+    crate::moved::place(START) as u32
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use core::mem::offset_of;
+
+    #[test]
+    fn piece_sits_on_the_block() {
+        assert_eq!(piece_addr() % 4, 0);
+        assert_eq!(
+            crate::moved::place(END - 1),
+            (piece_addr() + (END - START) as u32 - 1) as usize
+        );
+        assert_eq!(offset_of!(LightTables, lamp_table_a), 0x635518 - START);
+        assert_eq!(offset_of!(LightTables, car_light_table), 0x635D18 - START);
+        assert_eq!(offset_of!(LightTables, lamp_table_c), 0x636118 - START);
+        assert_eq!(offset_of!(LightTables, view_mode), 0x636526 - START);
+        assert_eq!(offset_of!(LightTables, unknown_410), 0x636528 - START);
+    }
+}

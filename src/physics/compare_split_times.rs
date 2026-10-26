@@ -10,47 +10,31 @@
 //! Out: eax, ebx (split x 0x28), ecx, esi, edi as left; no flags read (the caller
 //!      returns)
 //!
-//! Caller: `physics::split_by_mode`.
-//! Refuses (before anything) a split past 27 (the kept tables' size not worked out).
-//! Self-test: `physics/splits.rs` (`test_splits`), mode 3.
+//! Caller: `physics::split_by_mode`. Refuses (before anything) a split past 27 (the kept
+//! tables' size not worked out).
+//!
+//! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
+//! above are the original's, for reference.
 use crate::errors::{BadInput, Refused};
-use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
+use crate::physics::car_store::CAR;
 use crate::physics::cells::get_list;
-use crate::physics::splits::{FIGURE, SPLIT, TIME, g, guarded, p, test_splits, written};
-use crate::screens::harness::Left;
-use crate::service::harness::{dispatch_state, state_entry};
+use crate::race::league_store::LEAGUE;
+use crate::race::state_store::RACE_STATE;
+use crate::race::work_store::RACE_WORK;
 use rc2k_core::physics::splits::{LAST_COMPARED_SPLIT, compare_split};
-use std::sync::atomic::AtomicUsize;
 
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook = RawHook::new(
-    "physics::compare_split_times",
-    rva(0x436E11),
-    thunk,
-    &ORIGINAL,
-)
-.self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
-
-/// The steps on `r`.
+/// The Rust version. The registers the original leaves are read by none of its callers.
 // Converted: `rc2k_core::physics::splits::compare_split`.
-pub fn compare_split_times_in(r: &mut Regs) -> Result<(), Refused> {
-    if g(SPLIT) > LAST_COMPARED_SPLIT {
+pub fn compare_split_times() -> Result<(), Refused> {
+    if CAR.splits_recorded.get() > LAST_COMPARED_SPLIT {
         return Err(BadInput("a split past 27").into());
     }
-    let time = g(TIME);
-    p(0x6043F8, time);
-    r.ebx = g(SPLIT).wrapping_mul(0x28);
-    r.esi = (crate::framework::game_addr(rva(0x604134)) as u32).wrapping_add(r.ebx);
-    let kept: [u32; 10] = unsafe { get_list(r.esi) };
-    let c = compare_split(time, &kept, |c| g(0x60410C + 4 * c));
+    let time = CAR.stage_time.get();
+    LEAGUE.car_time.set(time);
+    // Splits 16 .. 27 read past the sixteen rows (a slip of the original, kept).
+    let list = (LEAGUE.rows[0].addr()).wrapping_add(CAR.splits_recorded.get().wrapping_mul(0x28));
+    let kept: [u32; 10] = { get_list(list) };
+    let c = compare_split(time, &kept, |c| LEAGUE.names[c].get());
     let f = c.figures;
     for (k, v) in [
         f.place,
@@ -62,48 +46,15 @@ pub fn compare_split_times_in(r: &mut Regs) -> Result<(), Refused> {
     .into_iter()
     .enumerate()
     {
-        p(FIGURE + 4 * k, v);
+        CAR.split_gaps[k].set(v);
     }
-    r.eax = c.last;
-    r.ecx = 10;
-    let a = |x: usize| crate::framework::game_addr(rva(x)) as u32;
-    r.edi = a(0x75B02C);
-    let car = g(0x71B3F8);
-    if car != 0 {
-        r.edi = a(0x75B09C);
-        if car != 1 {
-            return Ok(());
-        }
-    }
-    r.ecx = g(SPLIT);
-    r.eax = time;
-    unsafe { ((r.edi + 4 * r.ecx) as *mut u32).write_unaligned(r.eax) };
-    Ok(())
-}
-
-/// The Rust version.
-pub unsafe fn compare_split_times(entry: &Regs) -> Result<Left, Refused> {
-    guarded(entry, &compare_split_times_in)
-}
-
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    unsafe { compare_split_times(r) }
-}
-
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_state(&HOOK, r, call_original, &written(), &rust);
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
+    let car = RACE_WORK.current_car.get();
+    let times = match car {
+        0 => RACE_STATE.results.results[0].data.addr(),
+        1 => RACE_STATE.results.results[1].data.addr(),
+        _ => return Ok(()),
     };
-    test_splits(&mut t, call_original, &rust, &|c| c.mode == 3);
-    t.finish()
+    crate::pointers::GamePtr::new(times + 4 * CAR.splits_recorded.get())
+        .write(time, "a result's split times")?;
+    Ok(())
 }

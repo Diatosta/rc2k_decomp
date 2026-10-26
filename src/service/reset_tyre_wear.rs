@@ -13,13 +13,10 @@ use crate::errors::BadInput;
 
 // ---- game data ----
 
-pub const WEAR_OFFSET: u32 = 0x1F8; // five dwords
-pub const WEAR_DWORDS: u32 = 5;
-pub const TYRE_DAMAGE_OFFSET: u32 = 0x108;
-
+// five dwords
 // ---- Rust version ----
 
-pub unsafe fn reset_tyre_wear() -> Result<(), BadInput> {
+pub fn reset_tyre_wear() -> Result<(), BadInput> {
     // Converted: `rc2k_core::service::car` (`Player::reset_tyre_wear`).
     crate::service::repair_parts::with_player(|p| p.reset_tyre_wear())
 }

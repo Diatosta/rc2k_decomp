@@ -14,164 +14,62 @@
 //!      `restore_saved_car` and `feel_ground` leave them, eax the depth; no flags read
 //!      (the caller calls on)
 //!
-//! Caller: `sub_43B635`, every physics step.
-//! Refuses a point past 0x3F on the long path (the tables' room), and what its calls
-//! refuse; what was written is put back.
-//! Self-test: the original and the Rust version on the game's variables (saved and put
-//! back) with test faces (`g_courseFaces` pointed at them for the test): depths 0 ..
-//! 0x1800, the contact's figures and the matrices by lot, both paths, the current car not
-//! listed (no sound), under three precisions. Not reached: a depth below 0
-//! (`restore_saved_car` and `feel_ground` need the stage; their own tests cover them).
+//! Caller: `sub_43B635`, every physics step. Refuses a point past 0x3F on the long path
+//! (the tables' room), and what its calls refuse; what was written is put back. Not
+//! reached: a depth below 0 (`restore_saved_car` and `feel_ground` need the stage; their
+//! own tests cover them).
+//!
+//! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
+//! above are the original's, for reference.
 
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
-use crate::math::x87_run::{TEST_CONTROL_WORDS, with_control_word};
-use crate::physics::contact_force::{self, RECORD, contact_force};
-use crate::physics::crash_contact::{
-    point_number, set_test_inputs, sign, sound_regions, take_contact, test_inputs,
-};
+use crate::physics::car_store::CAR;
+use crate::physics::contact_force::contact_force;
+use crate::physics::contact_store::CONTACT_WORK;
+use crate::physics::crash_contact::{point_number, sign, take_contact};
 use crate::physics::feel_ground::feel_ground;
-use crate::physics::flow::{a, copy3, g, guard, p};
+use crate::physics::flow::copy_cells;
 use crate::physics::lowest_body_point::lowest_body_point;
 use crate::physics::place_sound_e1::place_sound_e1;
 use crate::physics::restore_saved_car::restore_saved_car;
-use crate::race::stage_prefs::left_of;
-use crate::screens::harness::Left;
-use crate::service::harness::{Region, capture, check_state, dispatch_state, restore, state_entry};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("physics::ground_contact", rva(0x45EFF3), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
-
-/// Contact record 2 (`g_contactRecords` + 0x40).
-const FORCE: usize = 0x614A90;
+use crate::physics::tables_store::PHYSICS;
 
 // Converted: `rc2k_core::physics::contacts::touches` and `walls::raised_hit` (the x87 steps stay).
-fn steps(r: &mut Regs) -> Result<(), Refused> {
-    p(0x6D3028, 0);
-    unsafe { lowest_body_point(r) }?;
-    let depth = g(0x6D3068);
-    r.eax = depth;
+fn steps() -> Result<(), Refused> {
+    CONTACT_WORK.ground_contact_started.set(0);
+    unsafe { lowest_body_point() }?;
+    let depth = CONTACT_WORK.lowest_depth.get();
     let limit = rc2k_core::physics::contacts::GROUND_LIMIT;
-    if !rc2k_core::physics::contacts::touches(depth, limit, g(0x71A22C) != 0) {
+    if !rc2k_core::physics::contacts::touches(depth, limit, CAR.all_wheels_off.get() != 0) {
         return Ok(());
     }
     let n = point_number()?;
-    r.ebx = n as u32;
-    p(0x6D3028, 1);
-    p(0x71A1FC, g(0x71AAC8 + 4 * n));
-    p(0x71A200, g(0x71ABC8 + 4 * n));
-    p(0x71A204, g(0x71ACC8 + 4 * n));
-    take_contact(n);
-    p(0x6D3100, 0);
-    p(RECORD, a(FORCE));
-    unsafe { contact_force() }.apply(r);
-    unsafe { place_sound_e1() }?;
+    CONTACT_WORK.ground_contact_started.set(1);
+    CAR.contact_point[0].set_bits(CAR.probe_point_x[n].bits());
+    CAR.contact_point[1].set_bits(CAR.probe_point_y[n].bits());
+    CAR.contact_point[2].set_bits(CAR.probe_point_z[n].bits());
+    take_contact(n)?;
+    CONTACT_WORK.contact_slide_limit.set_bits(0);
+    PHYSICS
+        .contact_record
+        .set(PHYSICS.contacts[2].force[0].addr());
+    unsafe { contact_force() };
+    { place_sound_e1() }?;
     if let Some(hit) = rc2k_core::physics::walls::raised_hit(
-        f32::from_bits(g(0x6D3108)),
-        f32::from_bits(g(0x71A208)),
+        f32::from_bits(CONTACT_WORK.contact_speed_length.bits()),
+        f32::from_bits(CAR.contact_depth.bits()),
     ) {
-        p(0x71A208, hit.to_bits());
+        CAR.contact_depth.set_bits(hit.to_bits());
     }
-    copy3(0x6D3018, FORCE);
-    r.eax = g(0x6D3068);
-    if sign(r.eax) {
-        unsafe { restore_saved_car() }?.apply(r);
-        unsafe { feel_ground(r) }?;
+    copy_cells(&CONTACT_WORK.ground_force, &PHYSICS.contacts[2].force);
+    if sign(CONTACT_WORK.lowest_depth.get()) {
+        unsafe { restore_saved_car() }?;
+        unsafe { feel_ground() }?;
     }
     Ok(())
 }
 
-/// The Rust version.
-pub unsafe fn ground_contact(entry: &Regs) -> Result<Left, Refused> {
-    guard(&regions(), || {
-        let mut r = *entry;
-        steps(&mut r)?;
-        Ok(left_of(&r))
-    })
-}
-
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    unsafe { ground_contact(r) }
-}
-
-fn regions() -> Vec<Region> {
-    let mut all = contact_force::regions();
-    all.extend([
-        (a(0x6D3028), 4),
-        (a(0x6D3068), 12),
-        (a(0x71A1FC), 0x10),
-        (a(FORCE), 0x18),
-        (a(0x6D3018), 12),
-        (a(RECORD), 4),
-        // `restore_saved_car`'s
-        (a(0x614738), 4),
-        (a(0x71A10C), 12),
-        (a(0x71A08C), 0x40),
-        (a(0x71ADC8), 0x100),
-    ]);
-    all.extend(crate::physics::feel_ground::regions());
-    all.extend(sound_regions());
-    all
-}
-
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_state(&HOOK, r, call_original, &regions(), &rust);
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let mut all = regions();
-    all.extend(test_inputs());
-    let saved = capture(&all);
-    let mut faces = [0u32; 0x80];
-    let fs = faces.as_mut_ptr() as u32;
-    all.push((fs, 0x200));
-    let mut long = 0;
-    for word in TEST_CONTROL_WORDS {
-        with_control_word(word, &mut || {
-            for seed in 0..16u32 {
-                let low = [0i32, 0x400, 0x900, 0][(seed % 4) as usize];
-                let set = || {
-                    set_test_inputs(seed, low, fs);
-                    if seed % 4 == 3 {
-                        p(0x71A22C, 0);
-                    }
-                };
-                check_state(
-                    &mut t,
-                    &format!("control word {word:#x}, seed {seed}"),
-                    call_original,
-                    Regs::SENTINEL,
-                    &set,
-                    &all,
-                    &rust,
-                );
-                set();
-                let _ = unsafe { ground_contact(&Regs::SENTINEL) };
-                long += g(0x6D3028);
-            }
-        });
-    }
-    t.check(long > 0, || "the long path not taken".into());
-    all.pop();
-    restore(&all, &saved);
-    t.finish()
+/// The Rust version. The registers it leaves are read by none of its callers.
+pub fn ground_contact() -> Result<(), Refused> {
+    steps()
 }

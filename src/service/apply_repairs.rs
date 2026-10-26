@@ -30,22 +30,17 @@
 //! registers above are the original's, for reference.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{Regs, game_addr, game_read, game_write, rva};
+use crate::framework::Regs;
+use crate::menu::state_store::MENU_STATE;
+use crate::pointers::GamePtr;
 use crate::service::pages::{GEAR_RATIO, RIDE_HEIGHT, SUSPENSION_STIFFNESS, TYRE};
 use crate::service::reset_tyre_wear::reset_tyre_wear;
 use crate::service::state::{current_player, repair_flag, set_repair_flag};
+use crate::session::Dword;
 use crate::system::sleep::sleep;
 use crate::system::tick_count::tick_count;
 
 // ---- game data ----
-
-const WORKING_RVA: usize = rva(0x75AB38); // dword_75AB38: set to 1 here
-const START_RVA: usize = rva(0x75AB48); // dword_75AB48: the clock when a phase started
-const ELAPSED_RVA: usize = rva(0x75AB4C); // dword_75AB4C
-const LAST_STEP_RVA: usize = rva(0x75AB54); // dword_75AB54: `elapsed` at the last step
-
-const FRAME_FUNCTION_RVA: usize = rva(0x405A71); // sub_405A71
-const DRAW_CALLBACK_RVA: usize = rva(0x46CFD7); // sub_46CFD7
 
 // Converted: `rc2k_core::service::workshop` (the car's offsets, the items, the order).
 use rc2k_core::service::workshop::{Setting, Timer, Workshop};
@@ -65,20 +60,22 @@ impl Driver for GameDriver {
     fn clock(&mut self) -> u32 {
         tick_count()
     }
+    /// `screens::run_frame` with the service area's frame (`screens::service_area_frame`).
     fn frame(&mut self) {
-        let mut regs = Regs {
-            eax: game_addr(DRAW_CALLBACK_RVA) as u32,
-            ..Regs::default()
-        };
-        crate::calls::call(FRAME_FUNCTION_RVA, &mut regs);
+        let ran = crate::platform::run_frame_now(|| unsafe {
+            crate::screens::service_area_frame::service_area_frame()
+        });
+        if let Some(Err(e)) = ran {
+            crate::menu::table_calls::refused("screens::service_area_frame", e, &Regs::default());
+        }
     }
     fn sleep(&mut self, milliseconds: u32) {
         sleep(milliseconds);
     }
 }
 
-unsafe fn field(player: u32, offset: u32) -> *mut i32 {
-    player.wrapping_add(offset) as *mut i32
+fn field(player: u32, offset: u32) -> GamePtr {
+    GamePtr::new(player.wrapping_add(offset))
 }
 
 /// The work on the game's variables and the current player's car, with `driver`'s time,
@@ -97,22 +94,26 @@ impl Workshop for Game<'_> {
         set_repair_flag(item, value);
     }
     fn car(&mut self, offset: u32) -> u32 {
-        unsafe { field(self.player, offset).read_unaligned() as u32 }
+        field(self.player, offset)
+            .read::<u32>("the car's record")
+            .unwrap_or_else(|e| crate::system::checked_reads::refuse(e))
     }
     fn set_car(&mut self, offset: u32, value: u32) {
-        unsafe { field(self.player, offset).write_unaligned(value as i32) };
+        field(self.player, offset)
+            .write(value, "the car's record")
+            .unwrap_or_else(|e| crate::system::checked_reads::refuse(e));
     }
     fn set_working(&mut self) {
-        unsafe { game_write(WORKING_RVA, 1u32) };
+        MENU_STATE.menus.service_flag.set(1u32);
     }
     fn timer(&mut self, t: Timer) -> u32 {
-        unsafe { game_read(timer_rva(t)) }
+        timer(t).get()
     }
     fn set_timer(&mut self, t: Timer, value: u32) {
-        unsafe { game_write(timer_rva(t), value) };
+        timer(t).set(value);
     }
     fn reset_tyre_wear(&mut self) -> Result<(), Refused> {
-        Ok(unsafe { reset_tyre_wear() }?)
+        Ok({ reset_tyre_wear() }?)
     }
     fn install(&mut self, s: Setting) -> u32 {
         let page = match s {
@@ -121,11 +122,9 @@ impl Workshop for Game<'_> {
             Setting::RideHeight => RIDE_HEIGHT,
             Setting::Stiffness => SUSPENSION_STIFFNESS,
         };
-        unsafe {
-            let value: u32 = game_read(page.change.chosen_rva);
-            game_write(page.change.installed_rva, value);
-            value
-        }
+        let value = page.change.chosen.get();
+        page.change.installed.set(value);
+        value
     }
     fn clock(&mut self) -> u32 {
         self.driver.clock()
@@ -138,15 +137,15 @@ impl Workshop for Game<'_> {
     }
 }
 
-fn timer_rva(t: Timer) -> usize {
+fn timer(t: Timer) -> &'static Dword {
     match t {
-        Timer::Start => START_RVA,
-        Timer::Elapsed => ELAPSED_RVA,
-        Timer::LastStep => LAST_STEP_RVA,
+        Timer::Start => &MENU_STATE.menus.fade_start,
+        Timer::Elapsed => &MENU_STATE.menus.fade_gone,
+        Timer::LastStep => &MENU_STATE.menus.repair_last_step,
     }
 }
 
-pub unsafe fn apply_repairs(driver: &mut dyn Driver) -> Result<(), Refused> {
+pub fn apply_repairs(driver: &mut dyn Driver) -> Result<(), Refused> {
     let Some(player) = current_player() else {
         return Err(BadInput("no current player object: the original writes through null").into());
     };
@@ -154,12 +153,9 @@ pub unsafe fn apply_repairs(driver: &mut dyn Driver) -> Result<(), Refused> {
     rc2k_core::service::workshop::apply_repairs(&mut Game { player, driver })
 }
 
-/// For Rust callers: the Rust version, or, for a missing player or a refusal, the original
-/// (as the hook did; it has not written anything then). Every register kept.
-pub unsafe fn apply_repairs_in_game(r: &mut Regs) {
-    unsafe {
-        if current_player().is_none() || apply_repairs(&mut GameDriver).is_err() {
-            crate::calls::call(rva(0x46C14D), r);
-        }
-    }
+/// For Rust callers: the Rust version with the game's clock, frames and sleep. Every
+/// register kept. A refusal is the caller's (before 2026-10-23 the original was called,
+/// which the standalone does not have: it ended there).
+pub fn apply_repairs_in_game() -> Result<(), Refused> {
+    apply_repairs(&mut GameDriver)
 }

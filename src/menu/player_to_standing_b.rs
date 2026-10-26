@@ -6,49 +6,32 @@
 //! In:  edi the entry, esi the record, ebx its index
 //! Out: every register kept (`pusha` .. `popa`)
 //!
-//! Caller: `sub_4A44A0` (three times). Refuses a null entry, record or name, before
-//! anything. Self-test: the original and the Rust version on an entry and a record of the
-//! test's.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Caller: `sub_4A44A0` (three times). Refuses a null entry, record or name, before anything.
 use crate::errors::{BadInput, Refused};
-use crate::framework::Regs;
+use crate::menu::event_flow::Fault;
 use crate::menu::standings::*;
-use crate::race::stage_prefs::left_of;
-use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
 
-/// The Rust version (see the header): the registers it leaves.
-pub unsafe fn player_to_standing_b(entry: &Regs) -> Result<Regs, Refused> {
-    let (e, p) = (entry.edi, entry.esi);
-    if e == 0 || p == 0 || get(p + 0x18) == 0 {
+/// `e` the entry (edi in the original), `p` the player's record (esi), `index` the
+/// player's index (ebx).
+pub fn player_to_standing_b(e: u32, p: u32, index: u32) -> Result<(), Refused> {
+    if e == 0 || p == 0 || get(p + 0x18)? == 0 {
         return Err(BadInput("a null entry, record or name").into());
     }
     // Converted: `rc2k_core::menu::standings::fill_b`.
     use rc2k_core::menu::standings::{PlayerB, fill_b};
+    let fault = Fault::default();
     let source = PlayerB {
-        index: entry.ebx,
-        name: bytes(get(p + 0x18)),
-        nationality: get(p + 4),
-        car: get(p + 8),
-        group: get(p + 0x90),
-        total: get(p + 0x8C),
-        b4: std::array::from_fn(|k| get(p + 0xB4 + 4 * k as u32)),
-        slots: std::array::from_fn(|k| get(p + 0x98 + 4 * k as u32)),
+        index,
+        name: bytes(get(p + 0x18)?)?,
+        nationality: get(p + 4)?,
+        car: get(p + 8)?,
+        group: get(p + 0x90)?,
+        total: get(p + 0x8C)?,
+        b4: std::array::from_fn(|k| fault.get(p + 0xB4 + 4 * k as u32)),
+        slots: std::array::from_fn(|k| fault.get(p + 0x98 + 4 * k as u32)),
     };
+    fault.check()?;
     // The entry's bytes as far as it is written (to +0x70).
-    fill_b(&mut unsafe { table(e, 0x70, 1) }, 0, &source);
-    Ok(*entry)
-}
-
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    Ok(left_of(&unsafe { player_to_standing_b(r) }?))
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
+    fill_b(&mut table(e, 0x70, 1)?, 0, &source);
+    Ok(())
 }

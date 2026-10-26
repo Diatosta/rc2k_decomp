@@ -11,154 +11,303 @@
 //! and `g_polygonVertexCount` 4. Rain, by the look of it (a reading).
 //!
 //! In:  st(0) .. st(2) the point (popped)
-//! Out: the registers as they come when not drawn; else as `clip_quad` / `draw_fan` leave
-//!      them (edi `flt_8BDE3D`, esi `flt_8BDE49` going in)
+//! Out: nothing (its caller reads no register after it)
 //!
-//! Caller: `sub_4C16F9` (0x4C1AD0). The arithmetic is the original's instructions over the
-//! game's variables (register forms as bytes); the clip its Rust version (the copy's call
-//! goes to its hook); the draw through `part` (1 `draw_fan`), in the game its Rust version.
-//! Refuses null marks settings (`clip_quad`'s refusal), before anything. Thunk by
-//! `three_in_hook!`. Shadow mode runs the original alone (it draws). Self-test: a copy
-//! whose draw goes to a stand-in, against the Rust version, points near and far.
+//! Caller: `sub_4C16F9` (0x4C1AD0). The arithmetic is plain Rust on the x87 model (`math::x87_float`), in the original's order, over the
+//! game's variables. Refuses null marks settings (`clip_quad`'s
+//! refusal), before anything.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{RawHook, Regs, SelfTest, game_addr, game_read, game_write, rva, shadow};
-use crate::marks::clip_quad::clip_quad;
-use crate::scene::matrix3::extended;
-use crate::scene::vector3::{Triple80, call_with_three, three_in_hook};
-use crate::service::harness::{Region, at, capture, restore};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-static TRIPLE: Triple80 = Triple80::new();
-
-pub static HOOK: RawHook =
-    RawHook::new("marks::draw_streak", rva(0x4C1DCD), thunk, &ORIGINAL).self_test(self_test);
-
-three_in_hook!(
-    thunk,
-    call_original,
-    original_with_three,
-    dispatch = dispatch,
-    original = ORIGINAL,
-    triple = TRIPLE
-);
-
-const WORK_RVA: usize = rva(0x8BDD29); // flt_8BDD29 .. flt_8BDE51
-const WORK_LEN: usize = 0x12C;
-const DEPTH_RVA: usize = rva(0x8BDD5D); // flt_8BDD5D
-const FAR_RVA: usize = rva(0x8BDE51); // flt_8BDE51
-const SWITCH_RVA: usize = rva(0x8BC405); // dword_8BC405
-const VERTICES_RVA: usize = rva(0x9605A0); // g_polygonVertices
-const COUNT_RVA: usize = rva(0x6240F8); // g_polygonVertexCount
-
-/// A call by place: 1 `draw_fan`.
-pub type Part<'a> = &'a mut dyn FnMut(u32, &mut Regs) -> Result<(), Refused>;
+use crate::marks::clip_quad::{clip_quad, draw_fan};
+use crate::marks::rain::{RAIN, RAIN_RULES, RainRules, RainState};
+use crate::scene::draw_store::DRAW;
 
 /// The original's 0x4C1DCD .. 0x4C1F11: the point scaled and turned, and the last place.
-unsafe fn turn(b: u32, p: &[[u8; 10]; 3]) {
-    unsafe {
-        core::arch::asm!(
-            "fld tbyte ptr [{p} + 20]",
-            "fld tbyte ptr [{p} + 10]",
-            "fld tbyte ptr [{p}]",
-            ".byte 0xD9, 0xCA",
-            "fmul dword ptr [{b} + 0x4BDD65]",
-            "fst dword ptr [{b} + 0x4BDE49]",
-            ".byte 0xD9, 0xC9",
-            "fmul dword ptr [{b} + 0x4BDD69]",
-            "fst dword ptr [{b} + 0x4BDE4D]",
-            ".byte 0xD9, 0xCA",
-            "fmul dword ptr [{b} + 0x4BDD6D]",
-            "fst dword ptr [{b} + 0x4BDE51]",
-            ".byte 0xD9, 0xC1",
-            "fmul dword ptr [{b} + 0x4BDD89]",
-            ".byte 0xD9, 0xC3",
-            "fmul dword ptr [{b} + 0x4BDD95]",
-            ".byte 0xD9, 0xC2",
-            "fmul dword ptr [{b} + 0x4BDDA1]",
-            ".byte 0xDE, 0xC1",
-            ".byte 0xDE, 0xC1",
-            "fiadd dword ptr [{b} + 0x4BDD71]",
-            "fstp dword ptr [{b} + 0x4BDE3D]",
-            ".byte 0xD9, 0xC1",
-            "fmul dword ptr [{b} + 0x4BDD8D]",
-            ".byte 0xD9, 0xC3",
-            "fmul dword ptr [{b} + 0x4BDD99]",
-            ".byte 0xD9, 0xC2",
-            "fmul dword ptr [{b} + 0x4BDDA5]",
-            ".byte 0xDE, 0xC1",
-            ".byte 0xDE, 0xC1",
-            "fiadd dword ptr [{b} + 0x4BDD75]",
-            "fstp dword ptr [{b} + 0x4BDE41]",
-            ".byte 0xD9, 0xC9",
-            "fmul dword ptr [{b} + 0x4BDD91]",
-            ".byte 0xD9, 0xCA",
-            "fmul dword ptr [{b} + 0x4BDD9D]",
-            ".byte 0xD9, 0xC9",
-            "fmul dword ptr [{b} + 0x4BDDA9]",
-            ".byte 0xDE, 0xC1",
-            ".byte 0xDE, 0xC1",
-            "fiadd dword ptr [{b} + 0x4BDD79]",
-            "fst dword ptr [{b} + 0x4BDD5D]",
-            "fstp dword ptr [{b} + 0x4BDE45]",
-            "fld dword ptr [{b} + 0x4BDE4D]",
-            "fsub dword ptr [{b} + 0x4BC481]",
-            "fld dword ptr [{b} + 0x4BDE49]",
-            "fsub dword ptr [{b} + 0x4BC47D]",
-            "fld dword ptr [{b} + 0x4BDE51]",
-            "fsub dword ptr [{b} + 0x4BC485]",
-            ".byte 0xD9, 0xC1",
-            "fmul dword ptr [{b} + 0x4BDD89]",
-            ".byte 0xD9, 0xC3",
-            "fmul dword ptr [{b} + 0x4BDD95]",
-            ".byte 0xD9, 0xC2",
-            "fmul dword ptr [{b} + 0x4BDDA1]",
-            ".byte 0xDE, 0xC1",
-            ".byte 0xDE, 0xC1",
-            "fiadd dword ptr [{b} + 0x4BDD71]",
-            "fstp dword ptr [{b} + 0x4BDE49]",
-            ".byte 0xD9, 0xC1",
-            "fmul dword ptr [{b} + 0x4BDD8D]",
-            ".byte 0xD9, 0xC3",
-            "fmul dword ptr [{b} + 0x4BDD99]",
-            ".byte 0xD9, 0xC2",
-            "fmul dword ptr [{b} + 0x4BDDA5]",
-            ".byte 0xDE, 0xC1",
-            ".byte 0xDE, 0xC1",
-            "fiadd dword ptr [{b} + 0x4BDD75]",
-            "fstp dword ptr [{b} + 0x4BDE4D]",
-            ".byte 0xD9, 0xC9",
-            "fmul dword ptr [{b} + 0x4BDD91]",
-            ".byte 0xD9, 0xCA",
-            "fmul dword ptr [{b} + 0x4BDD9D]",
-            ".byte 0xD9, 0xC9",
-            "fmul dword ptr [{b} + 0x4BDDA9]",
-            ".byte 0xDE, 0xC1",
-            ".byte 0xDE, 0xC1",
-            "fiadd dword ptr [{b} + 0x4BDD79]",
-            "fstp dword ptr [{b} + 0x4BDE51]",
-            b = in(reg) b,
-            p = in(reg) p.as_ptr(),
-            out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
-            out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
-            options(nostack),
-        )
-    }
+fn turn(p: &[[u8; 10]; 3]) {
+    turn_x87((crate::pointers::game_address(p.as_ptr())) as usize, &RAIN)
 }
 
 /// The original's 0x4C1F4A .. 0x4C20B3: both projected and the quad's x, y and depth.
-unsafe fn project(b: u32) {
-    unsafe {
-        core::arch::asm!(
-            "fld dword ptr [{b} + 0x4BDE51]",
-            "fdivr dword ptr [{b} + 0x224088]",
-            "fld dword ptr [{b} + 0x4BDE45]",
-            "fdivr dword ptr [{b} + 0x224088]",
-            "fld dword ptr [{b} + 0x4BDE49]",
-            "fld dword ptr [{b} + 0x4BDE4D]",
-            "fld dword ptr [{b} + 0x4BDE3D]",
-            "fld dword ptr [{b} + 0x4BDE41]",
+fn project() {
+    project_x87(
+        crate::race::store::asm_base() as usize,
+        crate::d3d::vertices_store::piece_addr() as usize,
+        &RAIN,
+        &RAIN_RULES,
+    )
+}
+
+/// The Rust version (see the header).
+pub fn draw_streak(place: [[u8; 10]; 3]) -> Result<(), Refused> {
+    {
+        if crate::marks::setup::SETTINGS.pointer.get() == 0 {
+            return Err(BadInput("no marks settings").into());
+        }
+        turn(&place);
+        if RAIN.depth.bits() as i32 <= 0x2_0000
+            || RAIN.drawn.get() == 0
+            || RAIN.second[2].bits() as i32 <= 0x4800_0000
+        {
+            return Ok(());
+        }
+        project();
+        if clip_quad(crate::d3d::vertices_store::piece_addr())? {
+            return Ok(());
+        }
+        draw_fan();
+        DRAW.polygon_vertex_count.set_bits(4u32);
+    }
+    Ok(())
+}
+
+use crate::marks::plain::{ld, ld80, st};
+use crate::math::x87_float as bh;
+
+/// `turn`'s x87 block as plain Rust on the x87 model (79 instructions), same order and memory places.
+fn turn_x87(p: usize, r: &RainState) {
+    let t0 = bh::from_f80(ld80(p, 0x14));
+    let t1 = bh::from_f80(ld80(p, 0xA));
+    let t2 = bh::from_f80(ld80(p, 0));
+    let t3 = t0 * bh::ld(r.point_scale[0].bits());
+    r.second[0].set_bits(bh::st(t3));
+    let t4 = t1 * bh::ld(r.point_scale[1].bits());
+    r.second[1].set_bits(bh::st(t4));
+    let t5 = t2 * bh::ld(r.point_scale[2].bits());
+    r.second[2].set_bits(bh::st(t5));
+    let t6 = t3 * bh::ld(r.matrix_copy[0].bits());
+    let t7 = t4 * bh::ld(r.matrix_copy[3].bits());
+    let t8 = t5 * bh::ld(r.matrix_copy[6].bits());
+    let t9 = t7 + t8;
+    let t10 = t6 + t9;
+    let t11 = t10 + bh::int(r.point[0].get() as i32);
+    r.turned[0].set_bits(bh::st(t11));
+    let t12 = t3 * bh::ld(r.matrix_copy[1].bits());
+    let t13 = t4 * bh::ld(r.matrix_copy[4].bits());
+    let t14 = t5 * bh::ld(r.matrix_copy[7].bits());
+    let t15 = t13 + t14;
+    let t16 = t12 + t15;
+    let t17 = t16 + bh::int(r.point[1].get() as i32);
+    r.turned[1].set_bits(bh::st(t17));
+    let t18 = t3 * bh::ld(r.matrix_copy[2].bits());
+    let t19 = t4 * bh::ld(r.matrix_copy[5].bits());
+    let t20 = t5 * bh::ld(r.matrix_copy[8].bits());
+    let t21 = t19 + t20;
+    let t22 = t18 + t21;
+    let t23 = t22 + bh::int(r.point[2].get() as i32);
+    r.depth.set_bits(bh::st(t23));
+    r.turned[2].set_bits(bh::st(t23));
+    let t24 = bh::ld(r.second[1].bits());
+    let t25 = t24 - bh::ld(r.motion[1].bits());
+    let t26 = bh::ld(r.second[0].bits());
+    let t27 = t26 - bh::ld(r.motion[0].bits());
+    let t28 = bh::ld(r.second[2].bits());
+    let t29 = t28 - bh::ld(r.motion[2].bits());
+    let t30 = t27 * bh::ld(r.matrix_copy[0].bits());
+    let t31 = t25 * bh::ld(r.matrix_copy[3].bits());
+    let t32 = t29 * bh::ld(r.matrix_copy[6].bits());
+    let t33 = t31 + t32;
+    let t34 = t30 + t33;
+    let t35 = t34 + bh::int(r.point[0].get() as i32);
+    r.second[0].set_bits(bh::st(t35));
+    let t36 = t27 * bh::ld(r.matrix_copy[1].bits());
+    let t37 = t25 * bh::ld(r.matrix_copy[4].bits());
+    let t38 = t29 * bh::ld(r.matrix_copy[7].bits());
+    let t39 = t37 + t38;
+    let t40 = t36 + t39;
+    let t41 = t40 + bh::int(r.point[1].get() as i32);
+    r.second[1].set_bits(bh::st(t41));
+    let t42 = t27 * bh::ld(r.matrix_copy[2].bits());
+    let t43 = t25 * bh::ld(r.matrix_copy[5].bits());
+    let t44 = t29 * bh::ld(r.matrix_copy[8].bits());
+    let t45 = t43 + t44;
+    let t46 = t42 + t45;
+    let t47 = t46 + bh::int(r.point[2].get() as i32);
+    r.second[2].set_bits(bh::st(t47));
+}
+
+/// `project`'s x87 block as plain Rust on the x87 model (85 instructions), same order and memory places.
+fn project_x87(rc: usize, vt: usize, r: &RainState, k: &RainRules) {
+    let t0 = bh::ld(r.second[2].bits());
+    let t1 = ld(rc, 0x224088) / t0;
+    let t2 = bh::ld(r.turned[2].bits());
+    let t3 = ld(rc, 0x224088) / t2;
+    let t4 = bh::ld(r.second[0].bits());
+    let t5 = bh::ld(r.second[1].bits());
+    let t6 = bh::ld(r.turned[0].bits());
+    let t7 = bh::ld(r.turned[1].bits());
+    let t8 = t4 * t1;
+    let t9 = t5 * t1;
+    let t10 = t6 * t3;
+    let t11 = t7 * t3;
+    let t12 = t1 * bh::ld(k.view_scale[0].bits());
+    let t13 = t3 * bh::ld(k.view_scale[1].bits());
+    let t14 = t8 + ld(rc, 0x22409C);
+    r.ends[0][0].set_bits(bh::st(t14));
+    let t15 = -t9;
+    let t16 = t15 + ld(rc, 0x2240A0);
+    r.ends[0][1].set_bits(bh::st(t16));
+    let t17 = t10 + ld(rc, 0x22409C);
+    r.ends[1][0].set_bits(bh::st(t17));
+    let t18 = -t11;
+    let t19 = t18 + ld(rc, 0x2240A0);
+    r.ends[1][1].set_bits(bh::st(t19));
+    r.ends[0][2].set_bits(bh::st(t12));
+    r.ends[1][2].set_bits(bh::st(t13));
+    let t20 = bh::ONE;
+    let t21 = t20 / ld(rc, 0x2241C8);
+    let t22 = bh::ld(r.ends[1][0].bits());
+    let t23 = t22 - bh::ld(r.ends[0][0].bits());
+    r.edge_a[1].set_bits(bh::st(t23));
+    let t24 = t23 * t23;
+    let t25 = bh::ld(r.ends[1][1].bits());
+    let t26 = t25 - bh::ld(r.ends[0][1].bits());
+    let t27 = -t26;
+    r.edge_a[0].set_bits(bh::st(t27));
+    let t28 = t27 * t27;
+    let t29 = t24 + t28;
+    let t30 = t29.sqrt();
+    let t31 = bh::ld(k.half_width.bits()) / t30;
+    let t32 = t31 * bh::ld(r.edge_a[0].bits());
+    let t33 = t32 * bh::ld(r.ends[0][2].bits());
+    r.edge_a[0].set_bits(bh::st(t33));
+    let t34 = t32 * bh::ld(r.ends[1][2].bits());
+    r.edge_b[0].set_bits(bh::st(t34));
+    let t35 = t31 * bh::ld(r.edge_a[1].bits());
+    let t36 = t35 * bh::ld(r.ends[0][2].bits());
+    r.edge_a[1].set_bits(bh::st(t36));
+    let t37 = t35 * bh::ld(r.ends[1][2].bits());
+    r.edge_b[1].set_bits(bh::st(t37));
+    r.depth_scale.set_bits(bh::st(t21));
+    let t38 = bh::ld(r.second[2].bits());
+    let t39 = t38 * bh::ld(r.depth_scale.bits());
+    st(vt, 0x8, t39);
+    st(vt, 0x28, t39);
+    st(vt, 0x48, t39);
+    st(vt, 0x68, t39);
+    let t40 = bh::ld(r.ends[0][0].bits());
+    st(vt, 0x0, t40);
+    let t41 = t40 - bh::ld(r.edge_a[0].bits());
+    st(vt, 0x20, t41);
+    let t42 = bh::ld(r.ends[1][0].bits());
+    st(vt, 0x60, t42);
+    let t43 = t42 - bh::ld(r.edge_b[0].bits());
+    st(vt, 0x40, t43);
+    let t44 = bh::ld(r.ends[0][1].bits());
+    st(vt, 0x4, t44);
+    let t45 = t44 - bh::ld(r.edge_a[1].bits());
+    st(vt, 0x24, t45);
+    let t46 = bh::ld(r.ends[1][1].bits());
+    st(vt, 0x64, t46);
+    let t47 = t46 - bh::ld(r.edge_b[1].bits());
+    st(vt, 0x44, t47);
+}
+
+#[cfg(all(test, target_arch = "x86"))]
+mod asm_reference {
+    //! The original assembly blocks, kept verbatim as the reference the plain versions are tested against.
+
+    pub(super) fn turn_x87(mk: usize, p: usize) {
+        unsafe {
+            core::arch::asm!(
+                    "fld tbyte ptr [{p} + 20]",
+            "fld tbyte ptr [{p} + 10]",
+            "fld tbyte ptr [{p}]",
+            ".byte 0xD9, 0xCA",
+            "fmul dword ptr [{mk} + 0x158E25]",
+            "fst dword ptr [{mk} + 0x158F09]",
+            ".byte 0xD9, 0xC9",
+            "fmul dword ptr [{mk} + 0x158E29]",
+            "fst dword ptr [{mk} + 0x158F0D]",
+            ".byte 0xD9, 0xCA",
+            "fmul dword ptr [{mk} + 0x158E2D]",
+            "fst dword ptr [{mk} + 0x158F11]",
+            ".byte 0xD9, 0xC1",
+            "fmul dword ptr [{mk} + 0x158E49]",
+            ".byte 0xD9, 0xC3",
+            "fmul dword ptr [{mk} + 0x158E55]",
+            ".byte 0xD9, 0xC2",
+            "fmul dword ptr [{mk} + 0x158E61]",
+            ".byte 0xDE, 0xC1",
+            ".byte 0xDE, 0xC1",
+            "fiadd dword ptr [{mk} + 0x158E31]",
+            "fstp dword ptr [{mk} + 0x158EFD]",
+            ".byte 0xD9, 0xC1",
+            "fmul dword ptr [{mk} + 0x158E4D]",
+            ".byte 0xD9, 0xC3",
+            "fmul dword ptr [{mk} + 0x158E59]",
+            ".byte 0xD9, 0xC2",
+            "fmul dword ptr [{mk} + 0x158E65]",
+            ".byte 0xDE, 0xC1",
+            ".byte 0xDE, 0xC1",
+            "fiadd dword ptr [{mk} + 0x158E35]",
+            "fstp dword ptr [{mk} + 0x158F01]",
+            ".byte 0xD9, 0xC9",
+            "fmul dword ptr [{mk} + 0x158E51]",
+            ".byte 0xD9, 0xCA",
+            "fmul dword ptr [{mk} + 0x158E5D]",
+            ".byte 0xD9, 0xC9",
+            "fmul dword ptr [{mk} + 0x158E69]",
+            ".byte 0xDE, 0xC1",
+            ".byte 0xDE, 0xC1",
+            "fiadd dword ptr [{mk} + 0x158E39]",
+            "fst dword ptr [{mk} + 0x158E1D]",
+            "fstp dword ptr [{mk} + 0x158F05]",
+            "fld dword ptr [{mk} + 0x158F0D]",
+            "fsub dword ptr [{mk} + 0x157541]",
+            "fld dword ptr [{mk} + 0x158F09]",
+            "fsub dword ptr [{mk} + 0x15753D]",
+            "fld dword ptr [{mk} + 0x158F11]",
+            "fsub dword ptr [{mk} + 0x157545]",
+            ".byte 0xD9, 0xC1",
+            "fmul dword ptr [{mk} + 0x158E49]",
+            ".byte 0xD9, 0xC3",
+            "fmul dword ptr [{mk} + 0x158E55]",
+            ".byte 0xD9, 0xC2",
+            "fmul dword ptr [{mk} + 0x158E61]",
+            ".byte 0xDE, 0xC1",
+            ".byte 0xDE, 0xC1",
+            "fiadd dword ptr [{mk} + 0x158E31]",
+            "fstp dword ptr [{mk} + 0x158F09]",
+            ".byte 0xD9, 0xC1",
+            "fmul dword ptr [{mk} + 0x158E4D]",
+            ".byte 0xD9, 0xC3",
+            "fmul dword ptr [{mk} + 0x158E59]",
+            ".byte 0xD9, 0xC2",
+            "fmul dword ptr [{mk} + 0x158E65]",
+            ".byte 0xDE, 0xC1",
+            ".byte 0xDE, 0xC1",
+            "fiadd dword ptr [{mk} + 0x158E35]",
+            "fstp dword ptr [{mk} + 0x158F0D]",
+            ".byte 0xD9, 0xC9",
+            "fmul dword ptr [{mk} + 0x158E51]",
+            ".byte 0xD9, 0xCA",
+            "fmul dword ptr [{mk} + 0x158E5D]",
+            ".byte 0xD9, 0xC9",
+            "fmul dword ptr [{mk} + 0x158E69]",
+            ".byte 0xDE, 0xC1",
+            ".byte 0xDE, 0xC1",
+            "fiadd dword ptr [{mk} + 0x158E39]",
+            "fstp dword ptr [{mk} + 0x158F11]",
+            mk = in(reg) mk,
+            p = in(reg) p,
+            out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
+            out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
+            options(nostack),
+            )
+        }
+    }
+
+    pub(super) fn project_x87(rc: usize, bf: usize, mk: usize) {
+        unsafe {
+            core::arch::asm!(
+                    "fld dword ptr [{mk} + 0x158F11]",
+            "fdivr dword ptr [{rc} + 0x224088]",
+            "fld dword ptr [{mk} + 0x158F05]",
+            "fdivr dword ptr [{rc} + 0x224088]",
+            "fld dword ptr [{mk} + 0x158F09]",
+            "fld dword ptr [{mk} + 0x158F0D]",
+            "fld dword ptr [{mk} + 0x158EFD]",
+            "fld dword ptr [{mk} + 0x158F01]",
             ".byte 0xD9, 0xCB",
             ".byte 0xD8, 0xCD",
             ".byte 0xD9, 0xCA",
@@ -168,228 +317,232 @@ unsafe fn project(b: u32) {
             ".byte 0xD9, 0xCB",
             ".byte 0xD8, 0xCC",
             ".byte 0xD9, 0xCD",
-            "fmul dword ptr [{b} + 0x4C5FE5]",
+            "fmul dword ptr [{mk} + 0x1610A5]",
             ".byte 0xD9, 0xCC",
-            "fmul dword ptr [{b} + 0x4C5FE9]",
+            "fmul dword ptr [{mk} + 0x1610A9]",
             ".byte 0xD9, 0xCA",
-            "fadd dword ptr [{b} + 0x22409C]",
-            "fstp dword ptr [{b} + 0x4BDD41]",
+            "fadd dword ptr [{rc} + 0x22409C]",
+            "fstp dword ptr [{mk} + 0x158E01]",
             ".byte 0xD9, 0xE0",
-            "fadd dword ptr [{b} + 0x2240A0]",
-            "fstp dword ptr [{b} + 0x4BDD45]",
+            "fadd dword ptr [{rc} + 0x2240A0]",
+            "fstp dword ptr [{mk} + 0x158E05]",
             ".byte 0xD9, 0xC9",
-            "fadd dword ptr [{b} + 0x22409C]",
-            "fstp dword ptr [{b} + 0x4BDD4D]",
+            "fadd dword ptr [{rc} + 0x22409C]",
+            "fstp dword ptr [{mk} + 0x158E0D]",
             ".byte 0xD9, 0xCA",
             ".byte 0xD9, 0xE0",
-            "fadd dword ptr [{b} + 0x2240A0]",
-            "fstp dword ptr [{b} + 0x4BDD51]",
-            "fstp dword ptr [{b} + 0x4BDD49]",
-            "fstp dword ptr [{b} + 0x4BDD55]",
+            "fadd dword ptr [{rc} + 0x2240A0]",
+            "fstp dword ptr [{mk} + 0x158E11]",
+            "fstp dword ptr [{mk} + 0x158E09]",
+            "fstp dword ptr [{mk} + 0x158E15]",
             ".byte 0xD9, 0xE8",
-            "fdiv dword ptr [{b} + 0x2241C8]",
-            "fld dword ptr [{b} + 0x4BDD4D]",
-            "fsub dword ptr [{b} + 0x4BDD41]",
-            "fst dword ptr [{b} + 0x4BDD2D]",
+            "fdiv dword ptr [{rc} + 0x2241C8]",
+            "fld dword ptr [{mk} + 0x158E0D]",
+            "fsub dword ptr [{mk} + 0x158E01]",
+            "fst dword ptr [{mk} + 0x158DED]",
             ".byte 0xD8, 0xC8",
-            "fld dword ptr [{b} + 0x4BDD51]",
-            "fsub dword ptr [{b} + 0x4BDD45]",
+            "fld dword ptr [{mk} + 0x158E11]",
+            "fsub dword ptr [{mk} + 0x158E05]",
             ".byte 0xD9, 0xE0",
-            "fst dword ptr [{b} + 0x4BDD29]",
+            "fst dword ptr [{mk} + 0x158DE9]",
             ".byte 0xD8, 0xC8",
             ".byte 0xDE, 0xC1",
             ".byte 0xD9, 0xFA",
-            "fdivr dword ptr [{b} + 0x4C5FED]",
+            "fdivr dword ptr [{mk} + 0x1610AD]",
             ".byte 0xD9, 0xC0",
-            "fmul dword ptr [{b} + 0x4BDD29]",
+            "fmul dword ptr [{mk} + 0x158DE9]",
             ".byte 0xD9, 0xC0",
-            "fmul dword ptr [{b} + 0x4BDD49]",
-            "fstp dword ptr [{b} + 0x4BDD29]",
-            "fmul dword ptr [{b} + 0x4BDD55]",
-            "fstp dword ptr [{b} + 0x4BDD35]",
-            "fmul dword ptr [{b} + 0x4BDD2D]",
+            "fmul dword ptr [{mk} + 0x158E09]",
+            "fstp dword ptr [{mk} + 0x158DE9]",
+            "fmul dword ptr [{mk} + 0x158E15]",
+            "fstp dword ptr [{mk} + 0x158DF5]",
+            "fmul dword ptr [{mk} + 0x158DED]",
             ".byte 0xD9, 0xC0",
-            "fmul dword ptr [{b} + 0x4BDD49]",
-            "fstp dword ptr [{b} + 0x4BDD2D]",
-            "fmul dword ptr [{b} + 0x4BDD55]",
-            "fstp dword ptr [{b} + 0x4BDD39]",
-            "fstp dword ptr [{b} + 0x4BDD61]",
-            "fld dword ptr [{b} + 0x4BDE51]",
-            "fmul dword ptr [{b} + 0x4BDD61]",
-            "fst dword ptr [{b} + 0x5605A8]",
-            "fst dword ptr [{b} + 0x5605C8]",
-            "fst dword ptr [{b} + 0x5605E8]",
-            "fstp dword ptr [{b} + 0x560608]",
-            "fld dword ptr [{b} + 0x4BDD41]",
-            "fst dword ptr [{b} + 0x5605A0]",
-            "fsub dword ptr [{b} + 0x4BDD29]",
-            "fstp dword ptr [{b} + 0x5605C0]",
-            "fld dword ptr [{b} + 0x4BDD4D]",
-            "fst dword ptr [{b} + 0x560600]",
-            "fsub dword ptr [{b} + 0x4BDD35]",
-            "fstp dword ptr [{b} + 0x5605E0]",
-            "fld dword ptr [{b} + 0x4BDD45]",
-            "fst dword ptr [{b} + 0x5605A4]",
-            "fsub dword ptr [{b} + 0x4BDD2D]",
-            "fstp dword ptr [{b} + 0x5605C4]",
-            "fld dword ptr [{b} + 0x4BDD51]",
-            "fst dword ptr [{b} + 0x560604]",
-            "fsub dword ptr [{b} + 0x4BDD39]",
-            "fstp dword ptr [{b} + 0x5605E4]",
-            b = in(reg) b,
+            "fmul dword ptr [{mk} + 0x158E09]",
+            "fstp dword ptr [{mk} + 0x158DED]",
+            "fmul dword ptr [{mk} + 0x158E15]",
+            "fstp dword ptr [{mk} + 0x158DF9]",
+            "fstp dword ptr [{mk} + 0x158E21]",
+            "fld dword ptr [{mk} + 0x158F11]",
+            "fmul dword ptr [{mk} + 0x158E21]",
+            "fst dword ptr [{bf} + 0x5605A8]",
+            "fst dword ptr [{bf} + 0x5605C8]",
+            "fst dword ptr [{bf} + 0x5605E8]",
+            "fstp dword ptr [{bf} + 0x560608]",
+            "fld dword ptr [{mk} + 0x158E01]",
+            "fst dword ptr [{bf} + 0x5605A0]",
+            "fsub dword ptr [{mk} + 0x158DE9]",
+            "fstp dword ptr [{bf} + 0x5605C0]",
+            "fld dword ptr [{mk} + 0x158E0D]",
+            "fst dword ptr [{bf} + 0x560600]",
+            "fsub dword ptr [{mk} + 0x158DF5]",
+            "fstp dword ptr [{bf} + 0x5605E0]",
+            "fld dword ptr [{mk} + 0x158E05]",
+            "fst dword ptr [{bf} + 0x5605A4]",
+            "fsub dword ptr [{mk} + 0x158DED]",
+            "fstp dword ptr [{bf} + 0x5605C4]",
+            "fld dword ptr [{mk} + 0x158E11]",
+            "fst dword ptr [{bf} + 0x560604]",
+            "fsub dword ptr [{mk} + 0x158DF9]",
+            "fstp dword ptr [{bf} + 0x5605E4]",
+            rc = in(reg) rc,
+            bf = in(reg) bf,
+            mk = in(reg) mk,
             out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
             out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
             options(nostack),
-        )
-    }
-}
-
-/// The Rust version (see the header): the registers it leaves.
-pub unsafe fn draw_streak(entry: &Regs, place: [[u8; 10]; 3], part: Part) -> Result<Regs, Refused> {
-    let mut g = *entry;
-    unsafe {
-        if game_read::<u32>(crate::marks::setup::SETTINGS_RVA) == 0 {
-            return Err(BadInput("no marks settings").into());
-        }
-        let b = game_addr(0) as u32;
-        turn(b, &place);
-        if game_read::<i32>(DEPTH_RVA) <= 0x2_0000
-            || game_read::<u32>(SWITCH_RVA) == 0
-            || game_read::<i32>(FAR_RVA) <= 0x4800_0000
-        {
-            return Ok(g);
-        }
-        project(b);
-        g.edi = game_addr(rva(0x8BDE3D)) as u32;
-        g.esi = game_addr(rva(0x8BDE49)) as u32;
-        g.ebp = game_addr(VERTICES_RVA) as u32;
-        g = clip_quad(&g)?;
-        if g.carry() {
-            return Ok(g);
-        }
-        part(1, &mut g)?;
-        game_write(COUNT_RVA, 4u32);
-    }
-    Ok(g)
-}
-
-/// In the game: `draw_fan`'s Rust version.
-pub fn game_part(_place: u32, r: &mut Regs) -> Result<(), Refused> {
-    unsafe { crate::scene::draw_fan::draw_fan(r, &mut crate::scene::draw_fan::game_part) };
-    Ok(())
-}
-
-extern "C" fn dispatch(r: &mut Regs) {
-    HOOK.count_call();
-    if shadow() {
-        unsafe { original_with_three(r) };
-        return;
-    }
-    match unsafe { draw_streak(r, TRIPLE.inputs(), &mut game_part) } {
-        Ok(left) => *r = Regs { esp: r.esp, ..left },
-        Err(e) => unsafe { crate::fatal::raise::refused(&HOOK, e, r, original_with_three) },
-    }
-}
-
-fn self_test() -> (usize, usize) {
-    use crate::race::level_init::{note, take_called};
-    use crate::race::mud::copy;
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    if unsafe { game_read::<u32>(crate::marks::setup::SETTINGS_RVA) } == 0 {
-        return t.skip("no marks settings (the clip reads them)");
-    }
-    // fxch st(2); fmul flt_8BDD65
-    let entry: &[u8] = &[0xD9, 0xCA, 0xD8, 0x0D, 0x65, 0xDD, 0x8B, 0x00];
-    let copy = match copy(0x4C1DCD, 0x303, entry, &[0x2EC, 0x2F3], &[(0x44EA65, 1)]) {
-        Ok(c) => c,
-        Err(why) => return t.skip(why),
-    };
-    let regions: Vec<Region> = vec![
-        (game_addr(WORK_RVA) as u32, WORK_LEN),
-        (game_addr(VERTICES_RVA) as u32, 0xC0),
-        at(COUNT_RVA),
-        (game_addr(rva(0x7687F4)) as u32, 6 * 0x20),
-        at(rva(0x93CC94)),
-    ];
-    let mut vars = regions.clone();
-    vars.extend(
-        [
-            SWITCH_RVA,
-            rva(0x624088),
-            rva(0x62409C),
-            rva(0x6240A0),
-            rva(0x6241C8),
-        ]
-        .map(at),
-    );
-    vars.push((game_addr(rva(0x8BC47D)) as u32, 12));
-    vars.push((game_addr(rva(0x8C5FE5)) as u32, 12));
-    let saved = capture(&vars);
-    let put = |r: usize, v: f32| unsafe { game_write(r, v.to_bits()) };
-    let regs = |r: &Regs| [r.eax, r.ebx, r.ecx, r.edx, r.esi, r.edi, r.ebp];
-    for case in 0..5u32 {
-        let k = case as f32;
-        let place = [
-            extended((k * 3.0 - 5.0).to_bits()),
-            extended((2.0 + k).to_bits()),
-            extended((if case == 3 { -40.0 } else { 30.0 + k * 20.0 }).to_bits()),
-        ];
-        let prepare = || unsafe {
-            restore(&vars, &saved);
-            game_write(SWITCH_RVA, u32::from(case != 4));
-            // Scales 1, the turn the identity, places 0, the last place a little back.
-            for n in 0..3 {
-                put(rva(0x8BDD65) + 4 * n, 1.0);
-                game_write(rva(0x8BDD71) + 4 * n, 0u32);
-                for m in 0..3 {
-                    put(
-                        rva(0x8BDD89) + 0xC * n + 4 * m,
-                        if n == m { 0x10000 as f32 } else { 0.0 },
-                    );
-                }
-            }
-            put(rva(0x8BC47D), 0.25 + k * 0.1);
-            put(rva(0x8BC481), -0.5);
-            put(rva(0x8BC485), 0.75);
-            put(rva(0x624088), 320.0);
-            put(rva(0x62409C), 320.5);
-            put(rva(0x6240A0), 240.25);
-            put(rva(0x6241C8), 3000.0);
-            put(rva(0x8C5FE5), 1.0);
-            put(rva(0x8C5FE9), 1.0);
-            put(rva(0x8C5FED), 1.5 + k);
-            std::ptr::write_bytes(game_addr(VERTICES_RVA) as *mut u8, 0xAA, 0xC0);
-        };
-        prepare();
-        take_called();
-        let mut ro = Regs::SENTINEL;
-        unsafe { call_with_three(&mut ro, copy.addr(), &place) };
-        let theirs = (Some(regs(&ro)), take_called(), capture(&regions));
-        prepare();
-        let mine = unsafe {
-            draw_streak(&Regs::SENTINEL, place, &mut |p, r| {
-                note(p, r);
-                Ok(())
-            })
-        };
-        let mine = (
-            mine.as_ref().ok().map(regs),
-            take_called(),
-            capture(&regions),
-        );
-        t.check(theirs == mine, || {
-            format!(
-                "case {case}: original {:x?} {:x?}; rust {:x?} {:x?}; state first differs at {:?}",
-                theirs.0,
-                theirs.1,
-                mine.0,
-                mine.1,
-                theirs.2.iter().zip(&mine.2).position(|(a, b)| a != b)
             )
-        });
+        }
     }
-    restore(&vars, &saved);
-    t.finish()
+}
+
+#[cfg(all(test, target_arch = "x86"))]
+mod asm_differential {
+    use super::asm_reference as reference;
+    use crate::marks::asm_test::Kind::*;
+    use crate::marks::asm_test::{Op, Spec, differential};
+    use crate::marks::rain::tests::with_state_at;
+
+    #[test]
+    fn turn_x87_matches() {
+        const SPEC: Spec = Spec {
+            operands: &[
+                Op::Base {
+                    lo: 0x1574C5,
+                    hi: 0x158F15,
+                    reads: &[
+                        (0x15753D, F32),
+                        (0x157541, F32),
+                        (0x157545, F32),
+                        (0x158E25, F32),
+                        (0x158E29, F32),
+                        (0x158E2D, F32),
+                        (0x158E31, I32),
+                        (0x158E35, I32),
+                        (0x158E39, I32),
+                        (0x158E49, F32),
+                        (0x158E4D, F32),
+                        (0x158E51, F32),
+                        (0x158E55, F32),
+                        (0x158E59, F32),
+                        (0x158E5D, F32),
+                        (0x158E61, F32),
+                        (0x158E65, F32),
+                        (0x158E69, F32),
+                        (0x158F09, F32),
+                        (0x158F0D, F32),
+                        (0x158F11, F32),
+                    ],
+                    writes: &[
+                        (0x158E1D, F32),
+                        (0x158EFD, F32),
+                        (0x158F01, F32),
+                        (0x158F05, F32),
+                        (0x158F09, F32),
+                        (0x158F0D, F32),
+                        (0x158F11, F32),
+                    ],
+                },
+                Op::Base {
+                    lo: 0x0,
+                    hi: 0x1E,
+                    reads: &[(0x0, F80), (0xA, F80), (0x14, F80)],
+                    writes: &[],
+                },
+            ],
+            sincos: false,
+        };
+        differential(
+            &SPEC,
+            |b| reference::turn_x87(b[0], b[1]),
+            |b| with_state_at(b[0], |r, _| super::turn_x87(b[1], r)),
+        );
+    }
+
+    #[test]
+    fn project_x87_matches() {
+        const SPEC: Spec = Spec {
+            operands: &[
+                Op::Base {
+                    lo: 0x224088,
+                    hi: 0x2241CC,
+                    reads: &[
+                        (0x224088, F32),
+                        (0x22409C, F32),
+                        (0x2240A0, F32),
+                        (0x2241C8, F32),
+                    ],
+                    writes: &[],
+                },
+                Op::Base {
+                    lo: 0x5605A0,
+                    hi: 0x56060C,
+                    reads: &[],
+                    writes: &[
+                        (0x5605A0, F32),
+                        (0x5605A4, F32),
+                        (0x5605A8, F32),
+                        (0x5605C0, F32),
+                        (0x5605C4, F32),
+                        (0x5605C8, F32),
+                        (0x5605E0, F32),
+                        (0x5605E4, F32),
+                        (0x5605E8, F32),
+                        (0x560600, F32),
+                        (0x560604, F32),
+                        (0x560608, F32),
+                    ],
+                },
+                Op::Base {
+                    lo: 0x1574C5,
+                    hi: 0x1610BD,
+                    reads: &[
+                        (0x158DE9, F32),
+                        (0x158DED, F32),
+                        (0x158DF5, F32),
+                        (0x158DF9, F32),
+                        (0x158E01, F32),
+                        (0x158E05, F32),
+                        (0x158E09, F32),
+                        (0x158E0D, F32),
+                        (0x158E11, F32),
+                        (0x158E15, F32),
+                        (0x158E21, F32),
+                        (0x158EFD, F32),
+                        (0x158F01, F32),
+                        (0x158F05, F32),
+                        (0x158F09, F32),
+                        (0x158F0D, F32),
+                        (0x158F11, F32),
+                        (0x1610A5, F32),
+                        (0x1610A9, F32),
+                        (0x1610AD, F32),
+                    ],
+                    writes: &[
+                        (0x158DE9, F32),
+                        (0x158DED, F32),
+                        (0x158DF5, F32),
+                        (0x158DF9, F32),
+                        (0x158E01, F32),
+                        (0x158E05, F32),
+                        (0x158E09, F32),
+                        (0x158E0D, F32),
+                        (0x158E11, F32),
+                        (0x158E15, F32),
+                        (0x158E21, F32),
+                    ],
+                },
+            ],
+            sincos: false,
+        };
+        differential(
+            &SPEC,
+            |b| reference::project_x87(b[0], b[1], b[2]),
+            |b| {
+                with_state_at(b[2], |r, k| {
+                    super::project_x87(b[0], b[1].wrapping_add(0x5605A0), r, k)
+                })
+            },
+        );
+    }
 }

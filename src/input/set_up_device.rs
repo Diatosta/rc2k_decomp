@@ -12,34 +12,25 @@
 //!
 //! Caller: `input::device_command` (the race's start, both players). The acquiring through
 //! `part` (0, esi and edi as here, eax [edi+8] or 2; in the game
-//! `input::acquire_device`'s Rust version). Shadow mode runs the original alone (it acquires the device).
-//! Self-test: a copy whose acquiring goes to a stand-in (which says the device acquired or
-//! not), against the Rust version, on records and controls of the test's.
+//! `input::acquire_device`'s Rust version).
 //!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
+//! above are the original's, for reference.
 
 use crate::errors::Refused;
 use crate::field;
-use crate::framework::Regs;
 use crate::input::devices::{at, put};
 use crate::input::types::InputDevice;
+use crate::pointers::GamePtr;
 
-pub const CONTROLS_LEN: usize = 0x60;
-
-/// A call by place (see the header).
-pub type Part<'a> = &'a mut dyn FnMut(u32, &mut Regs) -> Result<(), Refused>;
-
-/// The Rust version (see the header): the registers it leaves (`popa`'s: the entry's).
-pub unsafe fn set_up_device(entry: &Regs, part: Part) -> Result<Regs, Refused> {
-    let (record, controls) = (entry.esi, entry.edi);
-    unsafe {
-        crate::system::zero_memory::zero_memory((record + 0x414) as *mut u8, 0xC8)?;
-    }
-    let n = at(controls, 0);
+/// The device `record` set up from its controls at `controls` (see the header).
+pub fn set_up_device(record: u32, controls: u32) -> Result<(), Refused> {
+    GamePtr::new(record)
+        .offset(0x414)
+        .fill(0, 0xC8, "a device record's bindings")?;
+    let n = at(controls, 0)?;
     if n != 0 {
-        put(record, field!(InputDevice, controller), n - 1);
+        put(record, field!(InputDevice, controller), n - 1)?;
         for (to, from) in [
             (0x418, 0x10),
             (0xC, 0x1C),
@@ -47,43 +38,28 @@ pub unsafe fn set_up_device(entry: &Regs, part: Part) -> Result<Regs, Refused> {
             (0x14, 0x14),
             (0x18, 0xC),
         ] {
-            put(record, to, at(controls, from));
+            put(record, to, at(controls, from)?)?;
         }
         // Converted: `rc2k_core::input::devices::device_kind`.
-        let kind = at(controls, 8);
-        put(record, field!(InputDevice, sensitivity), kind);
+        let kind = at(controls, 8)?;
+        put(record, field!(InputDevice, sensitivity), kind)?;
         let kind = rc2k_core::input::devices::device_kind(kind);
-        put(record, field!(InputDevice, kind), kind);
-        let mut r = Regs {
-            eax: kind,
-            ..*entry
-        };
-        part(0, &mut r)?;
+        put(record, field!(InputDevice, kind), kind)?;
+        crate::input::acquire_device::acquire_device(record)?;
     }
     // Converted: `rc2k_core::input::devices::binding` over `DEVICE_BINDINGS`.
     for (key, word, to) in rc2k_core::input::devices::DEVICE_BINDINGS {
-        let key = unsafe { ((controls + key as u32) as *const u8).read() };
+        let key: u8 = GamePtr::new(controls)
+            .offset(key as u32)
+            .read("a device's control key")?;
         let b = rc2k_core::input::devices::binding(
             key,
-            at(controls, word as u32),
-            at(record, 0x24) == 1,
+            at(controls, word as u32)?,
+            at(record, 0x24)? == 1,
         );
         for (n, v) in b.into_iter().enumerate() {
-            put(record, to as u32 + 4 * n as u32, v);
+            put(record, to as u32 + 4 * n as u32, v)?;
         }
     }
-    Ok(*entry)
-}
-
-/// In the game: the acquiring through the game.
-/// In the game: `input::acquire_device`'s Rust version.
-pub fn game_part(_place: u32, r: &mut Regs) -> Result<(), Refused> {
-    crate::input::acquire_device::acquire_device(r.esi, &mut crate::input::make_effect::game_part)
-}
-
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    let left = unsafe { set_up_device(r, &mut game_part) }?;
-    *r = Regs { esp: r.esp, ..left };
     Ok(())
 }

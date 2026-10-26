@@ -11,92 +11,53 @@
 //! Out: the registers as the calls leave them (eax, ebx, ecx); no flags read (the
 //!      callers return)
 //!
-//! Callers: `physics::manual_gearbox`, `physics::auto_gearbox`.
-//! Refuses what the calls refuse; what was written is put back.
-//! Self-test: `physics/gearbox.rs` (`test_gearbox`), gears made 0 first.
+//! Callers: `physics::manual_gearbox`, `physics::auto_gearbox`. Refuses what the calls
+//! refuse; what was written is put back.
+//!
+//! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
+//! above are the original's, for reference.
 
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
 use crate::math::x87;
 use crate::math::x87_run::sub_mul_add;
+use crate::physics::car_store::CAR;
 use crate::physics::copy_car_word_8::copy_car_word_8;
+use crate::physics::gear_store::GEAR;
 use crate::physics::gearbox::*;
-use crate::screens::harness::Left;
-use crate::service::harness::{dispatch_state, state_entry};
+use crate::physics::tables_store::PHYSICS;
+use crate::race::numbers_store::NUMBERS;
 use rc2k_core::physics::gear_shifts as shifts;
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("physics::pick_start_gear", rva(0x43C8AC), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
 
 /// The steps on `r`.
 // Converted: `rc2k_core::physics::gear_shifts::pick_start` (the engine's sums and compares
 // stay x87).
-pub fn pick_start_gear_in(r: &mut Regs) -> Result<(), Refused> {
-    unsafe { copy_car_word_8() }.apply(r);
-    p(0x614144, g(ENGINE));
-    revs_speed(r)?;
-    r.ebx = 1;
-    p(0x614140, 0);
-    p(0x61413C, x87::loaded(g(0x5C5D14)));
+pub fn pick_start_gear() -> Result<(), Refused> {
+    unsafe { copy_car_word_8() };
+    PHYSICS.start_gear_figures[2].set(CAR.engine_speed.bits());
+    revs_speed()?;
+    PHYSICS.start_gear_figures[1].set(0);
+    PHYSICS.start_gear_figures[0].set(x87::loaded(NUMBERS.hundred.bits()));
     let taken = shifts::pick_start(|gear| {
-        r.ebx = gear;
-        if bit(r, gear)? {
+        if bit(gear)? {
             return Ok::<_, Refused>(false);
         }
-        p(GEAR, gear);
-        revs_speed(r)?;
-        p(ENGINE, over_top());
-        Ok(below(g(ENGINE), g(0x5CB958)))
+        CAR.gear.set(gear);
+        revs_speed()?;
+        CAR.engine_speed.set_bits(over_top());
+        Ok(below(CAR.engine_speed.bits(), GEAR.shift_up_point.bits()))
     })?;
     let Some(gear) = taken else {
-        r.ebx = 7;
         return Ok(());
     };
-    r.ebx = gear;
-    p(GEAR, r.ebx);
-    revs_speed(r)?;
-    p(
-        ENGINE,
-        sub_mul_add(g(0x614144), g(ENGINE), g(0x613FE0), g(ENGINE)),
-    );
-    wheels(r)?;
+    CAR.gear.set(gear);
+    revs_speed()?;
+    CAR.engine_speed.set_bits(sub_mul_add(
+        PHYSICS.start_gear_figures[2].get(),
+        CAR.engine_speed.bits(),
+        PHYSICS.start_gear_share.bits(),
+        CAR.engine_speed.bits(),
+    ));
+    wheels()?;
     settle();
     Ok(())
-}
-
-/// The Rust version.
-pub unsafe fn pick_start_gear(entry: &Regs) -> Result<Left, Refused> {
-    guarded(entry, &pick_start_gear_in)
-}
-
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    unsafe { pick_start_gear(r) }
-}
-
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_state(&HOOK, r, call_original, &regions(), &rust);
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    test_gearbox(&mut t, call_original, &rust, &|c| c.gear = 0);
-    t.finish()
 }

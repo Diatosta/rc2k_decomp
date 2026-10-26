@@ -5,36 +5,18 @@
 //! In:  nothing
 //! Out: every register preserved
 //! It writes "Backed up name=<the name>" to the game's log (`logfile::log_write`). In six menu
-//! tables. Refuses a name past the list. Hook removed 2026-10-22 (typed tables): the menus and
-//! draw lists run its `entry` (`menu::table_calls`); the registers above are the original's,
-//! for reference.
+//! tables. Refuses a name past the list. The menus and draw lists run its `entry`
+//! (`menu::table_calls`); the registers above are the original's, for reference.
 
-use crate::errors::{BadInput, Refused};
-use crate::framework::Regs;
+use crate::errors::BadInput;
 use crate::menu::name_lists::savegame_name;
 use crate::menu::text_entry::begin_logged;
-use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
 
 // ---- Rust version ----
 
 /// `log` = false leaves the log lines out.
-pub unsafe fn begin_savegame_name(log: bool) -> Result<(), BadInput> {
+pub fn begin_savegame_name(log: bool) -> Result<(), BadInput> {
     let name = savegame_name()?;
     // Converted: `rc2k_core::menu::text_entry::Entry::begin` (through `begin_logged`).
-    unsafe {
-        begin_logged(name, log);
-    }
-    Ok(())
-}
-
-fn rust(_: &Regs) -> Result<Left, Refused> {
-    unsafe { begin_savegame_name(true) }?;
-    Ok(Left::nothing())
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
+    begin_logged(name, log)
 }

@@ -1,42 +1,7 @@
-//! `sound::stop_stream` (0x40F757): command 9 with four zeros, and the wait for it.
-//!
-//! In:  nothing
-//! Out: every register preserved
-//! Command 9 (the audio thread's `sub_40C194` with eax, ecx, edx) with eax, ebx, ecx and
-//! edx = 0, then `sound::wait_for_commands`. What command 9 plays is not read; "stream"
-//! and "stop" are guesses from command 0xB's shape. Nine callers (the event loops, four
-//! screen loops).
-//! Hook removed 2026-10-22 (direct calls): Rust callers run its `entry` (`calls::call`,
-//! `routes.rs`); the registers above are the original's, for reference.
+//! Plain since 2026-10-23 (phase 3): its arguments are what the audio thread reads of the
+//! command (`rc2k_core::audio::commands::decode`); the registers above are the original's,
+//! for reference.
 
-use crate::framework::Regs;
-use crate::sound::senders::*;
-
-// ---- Rust version ----
-
-/// The registers the command is sent with.
-pub fn stop_stream(entry: &Regs) -> Option<Regs> {
-    Some(Regs {
-        eax: 0,
-        ebx: 0,
-        ecx: 0,
-        edx: 0,
-        ..*entry
-    })
-}
-
-const SENDER: Sender = Sender {
-    address: 0x40F757,
-    len: 0x18,
-    entry: [0x60, 0x33, 0xC0, 0x33, 0xDB, 0x33, 0xC9, 0xBA],
-    calls: &[0xC, 0x11],
-    command: 0x9,
-    sends: stop_stream,
-    reads: &[],
-};
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    send_entry(r, &SENDER)
+pub fn stop_stream() {
+    crate::sound::senders::send_and_wait(9, [0; 4]);
 }

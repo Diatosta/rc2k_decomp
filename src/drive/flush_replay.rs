@@ -5,42 +5,19 @@
 //! In:  nothing
 //! Out: ecx 0, esi and edi past the copy; the rest kept; no flags read
 //!
-//! Caller: `drive::flush_replay_if`.
-//! Refuses what `write_replay_frames` refuses. Shadow mode runs the original alone (a
-//! file write).
-//! Self-test: the original and the Rust version with the replay not being written.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Caller: `drive::flush_replay_if`. Refuses what `write_replay_frames` refuses.
 
 use crate::errors::Refused;
-use crate::framework::{ECX, EDI, ESI, Regs};
-use crate::physics::flow::a;
-use crate::screens::harness::Left;
+use crate::pointers::GamePtr;
 
 const DWORDS: usize = 0xA04;
 
 /// The Rust version.
-pub unsafe fn flush_replay(entry: &Regs) -> Result<Left, Refused> {
-    unsafe { std::ptr::copy(a(0x7172EC) as *const u32, a(0x9613A4) as *mut u32, DWORDS) };
-    let left = Left::nothing()
-        .with(ECX, 0)
-        .with(ESI, a(0x7172EC) + 4 * DWORDS as u32)
-        .with(EDI, a(0x9613A4) + 4 * DWORDS as u32);
-    let mut r = *entry;
-    left.apply(&mut r);
-    unsafe { crate::drive::write_replay_frames::write_replay_frames(&r) }?;
-    Ok(left)
-}
-
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    unsafe { flush_replay(r) }
-}
-
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    let left = rust(r)?;
-    left.apply(r);
-    Ok(())
+pub unsafe fn flush_replay() -> Result<(), Refused> {
+    GamePtr::new(crate::race::blocks_store::block_addr(8)).copy_to(
+        GamePtr::new(crate::race::viewer_buffers_store::VIEWER_BUFFERS.block[0].addr()),
+        DWORDS * 4,
+        "a car's block",
+    )?;
+    unsafe { crate::drive::write_replay_frames::write_replay_frames() }
 }

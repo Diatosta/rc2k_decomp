@@ -4,17 +4,11 @@
 //! primary buffer's format. The standalone program will mix this way.
 
 use crate::audio::voices::*;
-use crate::errors::Refused;
-use crate::framework::rva;
+use crate::errors::{BadInput, Refused};
+use crate::pointers::GamePtr;
+use rc2k_core::strings::bytes::Bytes as _;
 
-pub const MIX_BUFFER_RVA: usize = rva(0x952AF8); // g_mixBuffer
 pub const MIX_BUFFER_LEN: u32 = 0x3C00;
-pub const MIX_RATE_RVA: usize = rva(0x5068D4); // g_mixRate
-pub const PRIMARY_SIZE_RVA: usize = rva(0x5068D8); // g_primarySize
-pub const MIX_MOST_RVA: usize = rva(0x5068DC); // g_mixMost: 40 ms of bytes
-pub const MIX_SHIFT_RVA: usize = rva(0x5068E0); // g_mixShift: bytes to frames
-pub const PLAY_CURSOR_RVA: usize = rva(0x5068E4); // g_playCursor
-pub const WRITE_CURSOR_RVA: usize = rva(0x5068E8); // g_writeCursor
 
 /// `audio::mix_channels` (`sub_40BECC`): `bytes` of the primary buffer's worth, `>> shift`
 /// frames, of every used channel (`count` from `channels`) added into `mix` (zeroed
@@ -23,7 +17,7 @@ pub const WRITE_CURSOR_RVA: usize = rva(0x5068E8); // g_writeCursor
 /// channel (kind 1) goes back to 0 (the fraction kept), any other is no longer used and
 /// stops there. Positions are stored back. Refuses no channels, no frames with a channel
 /// used (both counts run 2^32 times in the original), more frames than the buffer holds.
-pub unsafe fn mix_channels(
+pub fn mix_channels(
     bytes: u32,
     shift: u32,
     mix: u32,
@@ -37,7 +31,7 @@ pub unsafe fn mix_channels(
     // where the channels point.
     let mut loaded: Vec<(Channel, u32)> = (0..count)
         .map(|n| {
-            let c = unsafe { channel(at(n)) };
+            let c = { channel(at(n)) };
             let core = Channel {
                 used: c.used,
                 format: c.format,
@@ -55,13 +49,41 @@ pub unsafe fn mix_channels(
         .collect();
     let data: Vec<u32> = loaded.iter().map(|(_, d)| *d).collect();
     let mut cores: Vec<Channel> = loaded.drain(..).map(|(c, _)| c).collect();
-    let buffer =
-        unsafe { std::slice::from_raw_parts_mut(mix as *mut i32, MIX_BUFFER_LEN as usize / 4) };
-    let byte = |n: usize, offset: u32| unsafe { *(data[n].wrapping_add(offset) as *const u8) };
-    rc2k_core::audio::mixer::mix_channels(bytes >> (shift & 0x1F), &mut cores, &byte, buffer)?;
+    // The mix buffer worked on as a vector of its dwords (the core zeroes it first), written
+    // back whole; a channel's sample data resolved when the channel is first read.
+    let mut buffer = vec![0i32; MIX_BUFFER_LEN as usize / 4];
+    let samples: Vec<std::cell::OnceCell<Result<crate::pointers::GameBytes, BadInput>>> =
+        data.iter().map(|_| std::cell::OnceCell::new()).collect();
+    let failed = std::cell::Cell::new(None);
+    let byte = |n: usize, offset: u32| {
+        let bytes = samples[n]
+            .get_or_init(|| GamePtr::new(data[n]).bytes("a channel's sample data"))
+            .as_ref()
+            .map_err(|e| *e)
+            .and_then(|b| {
+                b.byte(offset as usize)
+                    .ok_or(BadInput("a channel read past its sample data"))
+            });
+        bytes.unwrap_or_else(|e| {
+            failed.set(failed.get().or(Some(e)));
+            0
+        })
+    };
+    let mixed = rc2k_core::audio::mixer::mix_channels(
+        bytes >> (shift & 0x1F),
+        &mut cores,
+        &byte,
+        &mut buffer,
+    );
+    if let Some(e) = failed.get() {
+        return Err(e.into());
+    }
+    mixed?;
+    let out: Vec<u8> = buffer.iter().flat_map(|d| d.to_le_bytes()).collect();
+    GamePtr::new(mix).write_bytes(&out, "the mix buffer")?;
     for (n, core) in cores.iter().enumerate() {
         // Only the channels that played: the original stores no others.
-        let c = unsafe { channel(at(n as u32)) };
+        let c = { channel(at(n as u32)) };
         if c.used == 1 {
             c.used = core.used;
             c.position = core.position;
@@ -82,19 +104,35 @@ pub unsafe fn mix_channels(
 pub unsafe fn write_mix(mode: u32, mix: u32, parts: [u32; 4]) -> Result<(), Refused> {
     // Converted: `rc2k_core::audio::mixer`; here the parts as slices of the locked buffer.
     let size = rc2k_core::audio::mixer::frame_bytes(mode) as u32;
+    // The locked parts checked (the buffers' bytes are regions while they live).
+    crate::race::trap::span(parts[0], (parts[1] / size * size) as usize, "a locked part")?;
+    if parts[2] != 0 {
+        crate::race::trap::span(parts[2], (parts[3] / size * size) as usize, "a locked part")?;
+    }
     let mut slices: Vec<&mut [u8]> = vec![unsafe {
-        std::slice::from_raw_parts_mut(parts[0] as *mut u8, (parts[1] / size * size) as usize)
+        std::slice::from_raw_parts_mut(
+            crate::pointers::host(parts[0]),
+            (parts[1] / size * size) as usize,
+        )
     }];
     if parts[2] != 0 {
         slices.push(unsafe {
-            std::slice::from_raw_parts_mut(parts[2] as *mut u8, (parts[3] / size * size) as usize)
+            std::slice::from_raw_parts_mut(
+                crate::pointers::host(parts[2]),
+                (parts[3] / size * size) as usize,
+            )
         });
     }
-    let buffer =
-        unsafe { std::slice::from_raw_parts(mix as *const i32, MIX_BUFFER_LEN as usize / 4) };
+    let buffer: Vec<i32> = GamePtr::new(mix)
+        .read_bytes(MIX_BUFFER_LEN as usize, "the mix buffer")?
+        .as_chunks::<4>()
+        .0
+        .iter()
+        .map(|d| i32::from_le_bytes(*d))
+        .collect();
     Ok(rc2k_core::audio::mixer::write_mix(
         mode,
-        buffer,
+        &buffer,
         &mut slices,
     )?)
 }

@@ -10,85 +10,52 @@
 //!      DPNAME: +8 the short name), the flags, the context
 //! Out: eax = 1 to go on, 0 to stop; ebx, esi, edi, ebp kept; `ret 18h`
 //! A full list stops the enumeration after the memory is taken (it stays on the list).
-//! Caller: DirectPlay, from `net::find_connections`. Its thunk is a `stdcall` Rust function
-//! (`net::lobby::dispatch_callback`). Its calls through `part`. Shadow mode runs the original
-//! alone. Self-test: a copy called with test arguments, its calls to stand-ins (the GUIDs
-//! compared, the memory given, the records in a test table, the name copied), against the
-//! Rust version: each way out.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): DirectPlay is given `callback`, the Rust
-//! version; in the hooked DLL the game's own code passes the original. What the header
-//! says of the thunk, shadow mode and the self-test was the hook's.
+//! Caller: DirectPlay, from `net::find_connections` (`callback`, a `stdcall` Rust function).
 
 use crate::errors::Refused;
 use crate::field;
-use crate::framework::{Regs, ZERO_FLAG};
-use crate::net::lobby::{
-    ALLOCATE, CONNECTIONS, COPY_PRINTABLE, LOG_L2, LOG_L2_NL, NET_MEMORY, NOTICE_KIND, Part,
-    SAME_GUID, a, g, gb, log_text, movsb, p,
-};
+use crate::net::lobby::{connection, copy_printable, log, movsb_from_rust, net_allocate};
+use crate::net::store::NET;
 use crate::net::types::NetConnection;
+use crate::pointers::GamePtr;
+use crate::race::viewer_screen_store::{VIEWER_PANEL, texts};
+use crate::system::same_guid::same_guid;
 use rc2k_core::net::lists;
 
-const FOUND: usize = 0x5C2E75; // "NET: Found"
-const LEFT_OUT: [usize; 2] = [0x5AB370, 0x5AB380]; // unk_5AB370, unk_5AB380
-const CONNECTION_ENTRY: u32 = 0x418530; // net::connection_entry
-
+/// A dword of the callback's argument (memory Rust owns: DirectPlay's name record).
 fn get(at: u32) -> u32 {
-    unsafe { (at as *const u32).read_unaligned() }
+    crate::pointers::read_or_end(at, "DirectPlay's name record")
 }
 
 /// The Rust version: eax.
-pub fn connection_found(args: &[u32], part: Part) -> Result<u32, Refused> {
+pub fn connection_found(args: &[u32]) -> Result<u32, Refused> {
     let (guid, data, size, name) = (args[0], args[1], args[2], args[3]);
-    let mut r = Regs::default();
-    log_text(LOG_L2, a(FOUND), &r, part)?;
+    log(VIEWER_PANEL.text_addr(texts::NET_FOUND), false, 2);
     let short = get(name + 8);
-    log_text(LOG_L2_NL, short, &r, part)?;
+    log(short, true, 2);
     // Converted: `rc2k_core::net::lists` (`LEAVES_OUT_PROVIDERS`, `connection_listed`).
-    if gb(NOTICE_KIND) == lists::LEAVES_OUT_PROVIDERS {
-        for left_out in LEFT_OUT {
-            r.eax = guid;
-            r.ebx = a(left_out);
-            part(SAME_GUID, &mut r)?;
-            if r.eflags & ZERO_FLAG != 0 {
-                return Ok(1);
-            }
-        }
+    if crate::strings::load_language::notice_kind() == lists::LEAVES_OUT_PROVIDERS
+        && [&NET.sp_serial, &NET.sp_modem]
+            .into_iter()
+            .any(|left_out| same_guid(guid, left_out.addr()))
+    {
+        return Ok(1);
     }
-    r.eax = size;
-    r.ebx = a(NET_MEMORY);
-    part(ALLOCATE, &mut r)?;
-    if r.carry() {
-        return Ok(0);
-    }
-    let memory = r.eax;
-    let Some(count) = lists::connection_listed(g(CONNECTIONS)) else {
+    let memory = net_allocate(size)?;
+    let Some(count) = lists::connection_listed(NET.connections.get()) else {
         return Ok(0);
     };
-    p(CONNECTIONS, count + 1);
-    let mut e = Regs {
-        eax: count,
-        ebx: memory,
-        ..r
-    };
-    part(CONNECTION_ENTRY, &mut e)?;
-    let record = e.eax;
-    unsafe { ((record + field!(NetConnection, data)) as *mut u32).write_unaligned(memory) };
-    movsb(memory, data, size);
-    movsb(record + field!(NetConnection, service_provider), guid, 0x10);
-    let mut c = Regs {
-        eax: short,
-        ebx: record,
-        ecx: 0x40,
-        ..e
-    };
-    part(COPY_PRINTABLE, &mut c)?;
+    NET.connections.set(count + 1);
+    let record = connection(count)?;
+    GamePtr::new(record + field!(NetConnection, data)).write(memory, "a connection's record")?;
+    movsb_from_rust(memory, data, size)?;
+    movsb_from_rust(record + field!(NetConnection, service_provider), guid, 0x10)?;
+    copy_printable(short, record, 0x40)?;
     Ok(1)
 }
 
-/// The callback DirectPlay is given (no hook; 2026-10-23): the Rust version.
-pub unsafe extern "system" fn callback(a: u32, b: u32, c: u32, d: u32, e: u32, f: u32) -> u32 {
+/// The callback DirectPlay is given: the Rust version.
+pub extern "system" fn callback(a: u32, b: u32, c: u32, d: u32, e: u32, f: u32) -> u32 {
     crate::net::lobby::callback_entry(
         "net::connection_found",
         0x4186E5,

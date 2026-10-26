@@ -1,0 +1,212 @@
+# ida	name	kind	count	reading   (kind: D dword, F float, S surface record, R force record)
+0x613828	reset_speed_limit	F	1	5.0: a reset is allowed below this speed (`drive::reset_request`).
+0x613830	scene_clock	D	1	`g_sceneClock`: the scene's clock, read by everything timed.
+0x613838	frame_rate_count	D	1	`g_frameRateCount`: frames counted by `race::measure_frame_rate`.
+0x61383C	race_clock_now	D	1	the race clock's last reading (`drive::race_clock_tick`).
+0x613840	race_clock_base	D	1	the clock's count the race's time is taken from (`drive::race_clock_tick`, the films).
+0x613844	race_tenths	D	1	the race's ticks to run (`drive::race_clock_tick` -> `drive::race_step`).
+0x61388C	step_time	F	1	0.01: the physics step's length in seconds.
+0x613890	input_steer	D	1	the steering input (`drive::read_car_controls`, `drive::steer_inputs`).
+0x613894	input_throttle	D	1	the throttle input.
+0x613898	input_brake	D	1	the brake input.
+0x61389C	input_handbrake	D	1	the handbrake input (500 at the start line, `physics::gear_input_rules`).
+0x6138A0	input_gear_up	D	1	the gear-up key (`physics::manual_gearbox`).
+0x6138A4	input_gear_down	D	1	the gear-down key.
+0x6138A8	input_gear_wanted	D	1	the gear asked for, -1 none (`physics::auto_gearbox`).
+0x6138C4	input_words	D	4	the four input words recorded and replayed (`drive::record_inputs`, `drive::play_inputs`).
+0x6138D4	view_counters	D	7	a counter by camera view (`race::frame::store_view_car`).
+0x6138F4	frame_cleared	D	2	the frame's cleared flags (`input::keys`, `drive::race_step`).
+0x613978	surfaces	S	16	`off_613978`: the ground kinds' records (`physics::wheel_surfaces`; twelve patched by `physics::apply_patches`).
+0x613C78	surface_tables	D	104	eight tables of 13 dwords the surface records point at: [0] then six figures by tyre kind and six more (`physics::wheel_surfaces`).
+0x613E40	stall_speed	F	1	8.0: below it the car may stall (`physics::stall_when_still`).
+0x613E44	stall_share	F	1	0.5 (`physics::stall_when_still`).
+0x613E48	drive_speed_cap	F	1	800.0 (`physics::cap_drive_speed`).
+0x613E4C	drive_speed_cap_a	F	1	20.0 (`physics::cap_drive_speed`).
+0x613E50	drive_speed_cap_b	F	1	20.0 (`physics::cap_drive_speed`).
+0x613E54	grip_front_drive	F	2	2.4 / 1.6 by drive kind 1 or not (`physics::drive_grip_forces`).
+0x613E5C	grip_rear_drive	F	2	0.5 / 0.4 by drive kind 1 or not (`physics::drive_grip_forces`).
+0x613E64	low_speed_limit	F	1	20.0 (`physics::ease_low_speed_forces`).
+0x613E68	low_speed_add	F	1	1.0 (`physics::ease_low_speed_forces`).
+0x613E6C	low_speed_scale	F	1	0.5 (`physics::ease_low_speed_forces`).
+0x613E70	spin_limit	F	1	4.0: the spin held to it (`physics::limit_motion`).
+0x613E74	velocity_limit	F	1	80.0: the motion held to it (`physics::limit_motion`).
+0x613E78	grip_slide_scale	F	1	7.5 (`physics::drive_grip_forces`).
+0x613E7C	grip_slip_limit	F	1	5.0 (`physics::drive_grip_forces`).
+0x613E80	grip_force_limit	F	1	10.0, held both ways (`physics::drive_grip_forces`).
+0x613E84	grip_slow_speed	F	1	1.0 (`physics::drive_grip_forces`).
+0x613E88	spec_scale_a4	F	1	0.9 (`physics::load_car_specs`).
+0x613E8C	probe_lift	F	1	0.15 (`physics::probe_ground`).
+0x613E94	auto_gear_speed_up	F	1	1.0 (`physics::auto_gearbox`).
+0x613E98	auto_gear_speed_down	F	1	-1.0 (`physics::auto_gearbox`).
+0x613E9C	engine_ease	F	1	0.95: the engine's speed eased by it (`physics::gearbox_step`).
+0x613EA0	ground_spin_limit	F	1	2.0 (`physics::hold_spin_on_ground`).
+0x613EA4	grip_ease_step	F	1	0.1 (`physics::drive_grip_forces`).
+0x613EAC	grip_factor	F	2	2.0 / 2.2 by drive kind (`physics::drive_grip_forces`).
+0x613EB4	side_grip_share	F	1	0.5 (`physics::drive_grip_forces`).
+0x613EB8	rev_limit_scale	F	1	8500.0 (`physics::load_car_specs`).
+0x613EBC	wheel_spin_share	F	1	0.65 (`physics::spin_wheels`).
+0x613EC0	spring_share	F	1	0.325 (`physics::wheel_springs`).
+0x613EC4	drive_speed_scale	F	1	2.5 (`physics::drive_wheels_step`).
+0x613EC8	side_speed_limit	F	1	15.0, held both ways (`physics::car_physics_step`).
+0x613ECC	side_force_scale	F	1	0.05 (`physics::drive_grip_forces`).
+0x613ED0	slip_blend	F	1	0.5 (`physics::drive_wheels_step`).
+0x613ED4	slip_share	F	1	0.5 (`physics::drive_wheels_step`).
+0x613ED8	wheel_speed_margin	F	1	1.5 (`physics::drive_wheels_step`).
+0x613EDC	wheel_speed_gap	F	1	0.1 (`physics::drive_wheels_step`).
+0x613EE0	sound_speed_scale	F	1	1.0 (`physics::car_sound_state`).
+0x613EE4	drive_force_factor	F	2	0.0045 / 0.0025 (`physics::add_drive_forces`).
+0x613EEC	torque_share_a	D	1	8 (`physics::drive_torque_share`).
+0x613EF0	torque_share_b	D	1	0x20 (`physics::drive_torque_share`).
+0x613EF4	torque_share_c	D	1	32.0's bits, divided by as an integer (`physics::drive_torque_share`).
+0x613EF8	crash_depth	D	1	0x1000 (`physics::crash_contact`).
+0x613EFC	spec_default_ba0	D	1	2.4's bits, copied into 0x614BA0 (`physics::load_car_specs`).
+0x613F00	spec_default_ba4	D	1	0.5's bits, copied into 0x614BA4.
+0x613F04	spec_default_bc0	D	3	0x76C, 0x640, 0x384, scaled into 0x614BC0 .. (`physics::load_car_specs`).
+0x613F10	spec_scale_1b8	F	1	0.85 (`physics::load_car_specs`).
+0x613F14	spec_default_ba8	D	1	4.0's bits, copied into 0x614BA8.
+0x613F18	auto_gear_engine_share	F	1	0.95 (`physics::auto_gearbox`).
+0x613F1C	handling_ranges_a	F	6	`physics::set_handling`'s (lo, hi) pairs for 0x614BF0, 0x614C0C, 0x614C08.
+0x613F34	grip_ramp	F	1	2.0 (`physics::drive_grip_forces`).
+0x613F38	grip_ramp_share	F	1	0.25 (`physics::drive_grip_forces`).
+0x613F3C	settle_fast_step	F	1	1.0 (`physics::settle_drive_speeds`).
+0x613F40	settle_slow_step	F	1	0.01 (`physics::settle_drive_speeds`).
+0x613F44	handling_ranges_b	F	6	`physics::set_handling`'s pairs for 0x614BF4 and, by kind, 0x614BFC.
+0x613F5C	surface_blend	F	4	1.0, 0.9, 0.85, 1.0 (`physics::wheel_surfaces`).
+0x613F6C	handling_ranges_c	F	8	`physics::set_handling`'s pairs for 0x614BF8, 0x614C00, 0x614C04, 0x614BEC.
+0x613F8C	probe_share	F	1	0.5 (`physics::probe_ground`, `physics::wheel_springs`).
+0x613F90	spring_force_scale	F	1	2.0 (`physics::wheel_springs`).
+0x613F94	torque_ease	F	1	0.25 (`physics::engine_torque`).
+0x613FA4	drive_cut_steps	D	1	5: the steps the drive is cut after a change (`physics::gearbox`).
+0x613FA8	inertia	F	3	0.85, 0.75, 2.5: the car's turning inertia by axis (`physics::apply_torque`).
+0x613FB4	downforce_factor	F	1	0.0001 (`physics::set_downforce`).
+0x613FB8	rev_limits	F	2	3000.0 then one more, by spec (`physics::load_car_specs`).
+0x613FC0	camera_drop	F	1	0.7 (`physics::update_camera`, the car's shadow).
+0x613FC4	ground_drop	D	1	0xB333: the car's places dropped by it (`race::start_place`, `scene::add_object_shape`).
+0x613FC8	gravity	F	1	9.8 (`physics::apply_patches`).
+0x613FCC	air_drag	F	1	5.0 (`physics::air_drag`, the test drive).
+0x613FD0	rolling_drag	F	1	0.75 (the test drive).
+0x613FD4	free_rev_add	F	1	5.0 (`physics::free_rev`).
+0x613FD8	free_rev_scale	F	1	0.005 (`physics::free_rev`).
+0x613FDC	clear_place_share	F	1	0.9 (`physics::find_clear_place`).
+0x613FE0	start_gear_share	F	1	0.99 (`physics::pick_start_gear`).
+0x613FE4	rev_top_scale	F	1	1.2 (`physics::load_car_specs`).
+0x613FE8	gear_ratio_step	F	1	0.001 (`physics::make_gear_ratios`).
+0x613FEC	wheel_load_scale	F	1	0.0025 (`physics::wheel_surfaces`).
+0x613FF0	torque_curve	F	9	the engine's torque curve read in pairs (`physics::engine_torque`).
+0x614014	clear_place_steps_a	D	16	`physics::find_clear_place`'s first table (with 0x71A10C).
+0x614054	clear_place_steps_b	D	16	its second table (with 0x71A114).
+0x614094	camera_frame_limit	F	1	0.02, held both ways (`physics::camera_frame`).
+0x614098	camera_frame_scale	F	1	0.05 (`physics::camera_frame`).
+0x61409C	kept_motion	D	3	the motion kept by `physics::keep_motion`.
+0x6140AC	stall_figure	F	1	`physics::stall_when_still`'s.
+0x6140B0	drive_shares	F	3	two shares held to 0 .. 1 and their blend (`physics::drive_wheels_step`).
+0x6140BC	gear_ratios	F	9	`g_gearRatios` from gear -1 (reverse) to 7 (`physics::make_gear_ratios`).
+0x6140E4	lever_pushes	D	2	the two lever pushes (`physics::lever_push`).
+0x6140EC	time_marks	D	2	the time marks noted (`physics::note_time_mark`).
+0x6140F4	drive_force_scale	F	1	`physics::add_drive_forces`'.
+0x6140F8	idle_engine_speed	F	1	the engine's lowest speed (`physics::load_car_specs`).
+0x6140FC	stall_engine_speed	F	1	the idle speed + a step, the drop to neutral below it.
+0x614100	top_speed	F	1	the motion's limit (`physics::limit_motion`).
+0x614104	rev_limit	F	1	the engine's highest speed.
+0x614108	scene_point_hits	D	1	hits of scene points on the car this step.
+0x61410C	object_hits	D	1	hits of objects on the car this step.
+0x614110	point_hits	D	1	hits of points on the car this step.
+0x614114	countdown_sound	D	1	the count-down's last beep (`drive::countdown_beep`).
+0x614118	clear_place_face	D	1	the face `physics::find_clear_place` logs.
+0x61411C	surface_scales	F	2	the two surfaces' scales by tyre kind (`physics::wheel_surfaces`).
+0x614124	spring_damping	F	4	the wheels' spring damping (`physics::wheel_springs`).
+0x614134	wheels_driven	D	1	0 / 1 (`physics::drive_wheels_step`).
+0x614138	vertical_speed	F	1	the car's vertical speed kept (`physics::car_physics_step`).
+0x61413C	start_gear_figures	D	3	`physics::pick_start_gear`'s.
+0x614148	contact_step	D	1	steps since a contact (`physics::car_physics_step`, `physics::apply_contact_torques`).
+0x61414C	contact_steps	D	1	10: the contact steps' limit.
+0x614150	hard_ground	D	5	1 for each point on hard ground (`physics::wheel_surfaces`).
+0x614164	grip_drive_word	D	1	`physics::drive_grip_forces`' integer.
+0x614168	drive_speed_figure	F	1	(`physics::cap_drive_speed`).
+0x61416C	no_auto_neutral	D	1	the `noautoneutral` setting.
+0x614170	weight	F	1	the car's weight factor (`physics::race_timers`, `physics::set_wheel_weights`).
+0x614174	downforce	F	1	(`physics::set_downforce`).
+0x614178	spring_forces	F	4	the wheels' spring forces (`physics::wheel_springs`).
+0x6141AC	edge_points	D	4	the wall edge's two points' x and z (`physics::wall_edge_contact`).
+0x6141BC	crossed_edge	D	2	the edge crossed from / to (`physics::crossed_edge_contact`).
+0x6141C8	wall_heading	D	1	the wall's heading, -1 none.
+0x6141D0	step_count	D	1	physics steps counted (`physics::car_physics_step`).
+0x6141D4	wheel_spin_push	F	2	the two axles' pushes (`physics::drive_wheels_step`, `physics::wheel_springs`).
+0x6141DC	feel_word	D	1	(`physics::feel_ground`).
+0x6141E0	saved_place	D	3	the car's place saved (`physics::restore_saved_car`).
+0x6141EC	saved_matrix	F	16	the car's matrix saved.
+0x61422C	wheel_speed_step	F	1	(`physics::drive_wheels_step`).
+0x614230	surface_softness	F	1	(`physics::wheel_surfaces`).
+0x614234	wheel_slips	F	2	|front / rear wheel speed - the car's| (`physics::drive_wheels_step`).
+0x61423C	drive_limits	F	3	(`physics::drive_wheels_step`).
+0x614248	drive_forces	F	2	the two axles' drive forces.
+0x614250	drive_slip	F	2	the drive's slip and its eased value.
+0x614258	axle_slips	F	2	the two axles' slips.
+0x614260	grip_limit	F	1	(`physics::drive_grip_forces`).
+0x614264	slip_limit	F	1	(`physics::drive_wheels_step`).
+0x614268	wheel_load	F	1	the four wheel loads' sum x `wheel_load_scale`.
+0x61426C	settle_steps	D	2	the pitch and roll steps of a car settling (`race::car_starts`).
+0x614274	torque_cross	F	3	(`physics::apply_torque`).
+0x614284	wheel_loads	F	4	the four wheels' loads (`physics::wheel_surfaces`).
+0x614294	crash_figure	F	1	(`physics::crash_contact`).
+0x614298	wheel_grips	F	5	the five points' grips.
+0x6142AC	wheel_grips_b	F	5	the five points' second figures.
+0x6142C0	point_grips	F	5	the five points' grips blended (`physics::wheel_surfaces`).
+0x6146C0	surface_blends	F	20	the surface records' +0x20, +0x24, +0x14, +0x10 blended for the five points.
+0x614710	surface_firsts	D	5	the first surface of each point (`physics::wheel_surfaces`).
+0x614724	surface_seconds	D	5	the second surface of each point.
+0x614738	clear_place_count	D	1	`physics::find_clear_place`'s count, 0 when clear.
+0x61473C	clear_place_tries	D	1	its tries.
+0x614740	drive_ratio	F	1	(`physics::drive_force`, `physics::free_rev`).
+0x614744	engine_torque	F	1	(`physics::engine_torque`).
+0x614748	engine_force	F	1	the engine's torque, 0 when cut.
+0x61474C	test_drive_figure	F	1	(the test drive).
+0x614750	drive_torque	F	1	(`physics::drive_force`).
+0x614758	torque_share	F	1	(`physics::drive_torque_share`).
+0x61475C	low_speed_share	F	1	(`physics::ease_low_speed_forces`).
+0x614760	wheel_drag	F	2	(`physics::drive_wheels_step`).
+0x614768	lever_share	F	1	held to 0 .. 1 (`physics::drive_grip_forces`, `physics::lever_push`).
+0x61476C	downforce_spec	D	1	the spec's +0x60 (`physics::load_car_specs`).
+0x614770	forces	R	23	`g_forceRecords`: force records (0x20: a force, a point): 0..3 the wheels' weights, then springs, drive and grip (`physics::clear_forces`).
+0x614A50	contacts	R	7	`g_contactRecords`: the contacts' force records (`physics::clear_contacts`).
+0x614B30	push_record	D	4	the push `physics::apply_force` takes.
+0x614B40	contact_record	D	1	`physics::contact_force`'s record.
+0x614B44	lever_push_vector	D	4	`physics::lever_push`'s vector.
+0x614B54	lever_push_turned	D	4	the push turned by the car's matrix.
+0x614B64	lever_push_place	D	4	the place turned by the inverse.
+0x614B74	grip_scale	F	1	(`physics::drive_grip_forces`).
+0x614B78	side_grip_scale	F	1	(`physics::drive_grip_forces`).
+0x614B7C	spec_torque	D	9	the spec's +0x7C .. (`physics::load_car_specs`, `physics::engine_torque`).
+0x614BA0	spec_grip	F	1	(`physics::drive_grip_forces`; from 0x613EFC).
+0x614BA4	spec_grip_b	F	1	from 0x613F00.
+0x614BA8	spec_wheel	F	1	from 0x613F14 (`physics::drive_wheels_step`).
+0x614BAC	spec_drive	F	2	(`physics::drive_wheels_step`).
+0x614BB4	spec_surface	F	3	the spec's +0x2C .. +0x34 (`physics::wheel_surfaces`).
+0x614BC0	spec_ints	D	3	the spec's +0x40 .. scaled (`physics::load_car_specs`).
+0x614BCC	kept_vectors	D	8	the motion and spin kept (`physics::keep_motion_vectors`).
+0x614BEC	handling	F	9	`physics::set_handling`'s figures (0x614BEC .. 0x614C0C) by the set-up.
+0x614C10	gear_count	D	1	`g_gearCount`: forward gears.
+0x614C18	spec_a0	D	1	the spec's +0xA0.
+0x614C1C	axle_slip_limits	F	2	(`physics::drive_wheels_step`).
+0x614C24	ground_spin	F	1	(`physics::hold_spin_on_ground`).
+0x614C28	clear_place_mark	D	1	(`physics::find_clear_place`).
+0x614C2C	force_sums	F	5	`physics::sum_forces`' five sums.
+0x614C40	gear_asked	D	1	the gear asked for (`physics::take_asked_gear`).
+0x614C44	lever_share_start	F	1	(`physics::lever_pushes`).
+0x614C48	lever_share_left	F	1	(`physics::lever_pushes`).
+0x614C4C	reset_offset	D	1	(`physics::reset_car`).
+0x614C50	reset_candidate	D	1	the checkpoint tried (`physics::reset_point_blocked`).
+0x614C54	noise_state	D	1	`g_noiseState`: the noise's state (`scene::next_noise`).
+0x614C64	wheel_load_limit	F	1	(`physics::blend_wheel_load`).
+0x614C68	nearest_checkpoint_distance	F	1	`g_nearestCheckpointDistance`.
+0x614C6C	off_line_distance	F	1	(`physics::off_line_warnings`).
+0x614C70	split_distance	F	1	(`physics::passed_split_point`).
+0x614C74	off_line_word	D	1	(`physics::off_line_warnings`).
+0x614C78	pace_scale	F	1	(`physics::pace_notes_step`).
+0x614C7C	listed_events	D	32	the events listed (`physics::queue_listed_event`).
+0x614CFC	split_word	D	1	(`physics::passed_split_point`).
+0x614D00	split_heading	D	1	(`physics::passed_split_point`).
+0x614D04	split_point_distance	F	1	the distance to the split point.
+0x614D08	checkpoint_colours	D	3	near, far, distance (`race::frame_draw`).
+0x614D14	pace_slot_offsets	D	8	`g_paceSlotOffsets`: each slot's byte in the face.
+0x614D34	pace_slot	D	1	`g_paceSlot`: the slot 0 .. 7.

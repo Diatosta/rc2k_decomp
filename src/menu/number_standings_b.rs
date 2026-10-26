@@ -3,60 +3,49 @@
 //!
 //! In:  ebx the group
 //! Out: ecx the group's count, edi the end entry; esi / eax the last player's record and
-//!      number less 1 (when one was numbered); the rest kept
+//! number less 1 (when one was numbered); the rest kept
 //!
-//! Callers: the event pages' code. Refuses a table without its end entry or a player past
-//! 4 or missing, before anything. Self-test: the original and the Rust version on the
-//! game's table and players, groups 1 .. 3; put back.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Callers: the event pages' code. Refuses a table without its end entry or a player past 4 or
+//! missing, before anything.
 use crate::errors::{BadInput, Refused};
-use crate::framework::{Regs, game_read};
 use crate::menu::standings::*;
-use crate::race::stage_prefs::left_of;
-use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
 
-/// The Rust version (see the header): the registers it leaves.
-pub unsafe fn number_standings_b(entry: &Regs) -> Result<Regs, Refused> {
-    let mut g = *entry;
-    let first: u32 = unsafe { game_read(TABLE_B_RVA) };
+/// The Rust version (see the header); what it leaves in the registers as `Numbered`.
+pub fn number_standings_b(class: u32) -> Result<Numbered, Refused> {
+    let mut last_number = 0;
+    let mut last_player = None;
+    let first: u32 = { TABLE_B_RVA.get() };
     let all = entries(first, B_ENTRY)?;
     // Converted: `rc2k_core::menu::standings::{Numbering, number}`.
     use rc2k_core::menu::standings::{Numbering, number};
-    let which = Numbering::Group(g.ebx);
-    let groups: Vec<u32> = all.iter().map(|&e| get(e + 0x10)).collect();
+    let which = Numbering::Group(class);
+    let groups: Vec<u32> = all
+        .iter()
+        .map(|&e| get(e + 0x10))
+        .collect::<Result<_, _>>()?;
     for (&e, &group) in all.iter().zip(&groups) {
-        let p = get(e + 4);
+        let p = get(e + 4)?;
         if which.counts(group) && p != 0 && (p > 4 || player(p - 1) == 0) {
             return Err(BadInput("a standings player past 4 or missing").into());
         }
     }
-    g.ecx = 0;
     for (&e, n) in all.iter().zip(number(&groups, which)) {
         let Some(n) = n else {
             continue;
         };
-        g.ecx = n;
-        if get(e + 4) != 0 {
-            g.eax = get(e + 4) - 1;
-            g.esi = player(g.eax);
-            put(g.esi + 0x144, n);
+        last_number = n;
+        if get(e + 4)? != 0 {
+            let index = get(e + 4)? - 1;
+            let record = player(index);
+            put(record + 0x144, n)?;
+            last_player = Some((index, record));
         }
-        put(e + 0x70, n);
+        put(e + 0x70, n)?;
     }
-    g.edi = first + B_ENTRY * all.len() as u32;
-    Ok(g)
-}
-
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    Ok(left_of(&unsafe { number_standings_b(r) }?))
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
+    let end = first + B_ENTRY * all.len() as u32;
+    Ok(Numbered {
+        last_number,
+        last_player,
+        end,
+    })
 }

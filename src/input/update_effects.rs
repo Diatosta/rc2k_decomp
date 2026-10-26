@@ -12,32 +12,21 @@
 //!      the car's sound object), or as `update_car_effects` leaves them after a call;
 //!      flags not read (the caller's `test eax, eax` is inside its `pusha`)
 //!
-//! See `input/effects.rs`. One caller, `input::step_effects_clock`. Its calls through
-//! `part` (`update_car_effects`). Refuses (before anything: the way through is worked out
+//! See `input/effects.rs`. One caller, `input::step_effects_clock`. Refuses (before anything: the way
+//! through is worked out
 //! first, nothing it calls changes what decides it) a car number past the eight sound
-//! objects and a null device on the way taken. Shadow mode runs the original alone (requests are sent).
-//! Self-test: a copy whose fifteen references to the variables go to the test's and whose
-//! calls go to the noting stand-in, against the Rust version: every way through.
+//! objects and a null device on the way taken.
 //!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
+//! above are the original's, for reference.
 
-use crate::errors::Refused;
-use crate::framework::{Regs, game_addr, rva};
-use crate::input::devices::at;
-use crate::input::effects::{CAR, HAS_EFFECTS, Part, effects_entry};
-
-/// g_playerCarA, g_playerCarB, g_onePlayer, g_raceSoundObjectCount (four dwords).
-const CARS: usize = 0x514F70;
-/// g_inputDevices: the two records' addresses.
-const DEVICES: usize = 0x4F6EE8;
-/// g_viewBlocks: the two views' blocks.
-const VIEWS: usize = 0x63DBB0;
-/// g_raceSoundObjects: eight sound objects.
-const OBJECTS: usize = 0x512A10;
-/// dword_4F68FC: 1 when both devices are player A's.
-const TWO_DEVICES: usize = 0x4F68FC;
+use crate::errors::{BadInput, Refused};
+use crate::input::devices::{Deferred, at};
+use crate::input::effects::HAS_EFFECTS;
+use crate::input::store::DEVICES;
+use crate::pointers::GamePtr;
+use crate::race::view_store::RACE_VIEW;
+use crate::sound::store::RACE_SOUNDS;
 
 /// Where the variables are (the game's or a test's).
 #[derive(Clone, Copy)]
@@ -51,54 +40,49 @@ pub struct Vars {
 
 impl Vars {
     pub fn game() -> Self {
-        let a = |x: usize| game_addr(rva(x)) as u32;
         Self {
-            cars: a(CARS),
-            devices: a(DEVICES),
-            views: a(VIEWS),
-            objects: a(OBJECTS),
-            two_devices: a(TWO_DEVICES),
+            // g_playerCarA, g_playerCarB, g_onePlayer, g_raceSoundObjectCount (four dwords).
+            cars: crate::pointers::game_address(RACE_SOUNDS.player_cars.as_ptr()),
+            devices: DEVICES.input_devices[0].addr(),
+            views: (RACE_VIEW.view_blocks[0].addr()),
+            objects: crate::pointers::game_address(RACE_SOUNDS.table.as_ptr()),
+            two_devices: DEVICES.two_devices_one_player.addr(),
         }
     }
 }
 
-fn rd(at: u32) -> u32 {
-    unsafe { (at as *const u32).read_volatile() }
+fn rd(at: u32) -> Result<u32, BadInput> {
+    GamePtr::new(at).read("a variable of the force feedback's update")
 }
 
 /// The Rust version on the variables in `v`.
 /// Converted: `rc2k_core::input::effects::loads` (the way worked out before any call:
 /// nothing a call changes decides it).
-pub fn update_effects_with(r: &mut Regs, v: &Vars, part: Part) -> Result<(), Refused> {
+pub fn update_effects_with(v: &Vars) -> Result<(), Refused> {
     use rc2k_core::input::effects::{Players, loads};
-    if rd(v.cars + 0xC) == 0 {
+    if rd(v.cars + 0xC)? == 0 {
         return Ok(());
     }
     let p = Players {
-        cars: [rd(v.cars), rd(v.cars + 4)],
-        one_player: rd(v.cars + 8) == 1,
-        devices: [rd(v.devices), rd(v.devices + 4)],
-        views: [rd(v.views), rd(v.views + 4)],
-        one_players_devices: rd(v.two_devices) != 0,
+        cars: [rd(v.cars)?, rd(v.cars + 4)?],
+        one_player: rd(v.cars + 8)? == 1,
+        devices: [rd(v.devices)?, rd(v.devices + 4)?],
+        views: [rd(v.views)?, rd(v.views + 4)?],
+        one_players_devices: rd(v.two_devices)? != 0,
     };
-    for load in loads(&p, |device| at(device, HAS_EFFECTS) == 1)? {
-        r.eax = load.car;
-        r.esi = load.device;
-        r.ebx = load.view;
-        r.edi = rd(v.objects + 4 * load.car);
+    let late = Deferred::default();
+    let loaded = loads(&p, |device| late.get(at(device, HAS_EFFECTS)) == 1)?;
+    late.finish()?;
+    for load in loaded {
         if load.update {
-            part(CAR, r)?;
+            let object = rd(v.objects + 4 * load.car)?;
+            crate::input::update_car_effects::update_car_effects(load.view, object, load.device)?;
         }
     }
     Ok(())
 }
 
-pub fn update_effects(r: &mut Regs, part: Part) -> Result<(), Refused> {
-    update_effects_with(r, &Vars::game(), part)
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    effects_entry(r, update_effects)
+/// The race's force feedback brought up to date.
+pub fn update_effects() -> Result<(), Refused> {
+    update_effects_with(&Vars::game())
 }

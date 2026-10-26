@@ -8,51 +8,45 @@
 //! `sound::start_stream` with eax = the first dword there and ecx = `dword_755698`.
 //! Five call sites, next to `load_car_background`'s.
 //! Refuses what the record's lookup refuses.
-//! Hook removed 2026-10-22 (direct calls): Rust callers run its `entry` (`calls::call`,
-//! `routes.rs`); the registers above are the original's, for reference.
 
 use crate::errors::Refused;
-use crate::framework::{Regs, game_read, game_write, rva};
+use crate::framework::{game_read, rva};
 use crate::menu::load_car_background::shown_car;
+use crate::menu::option_work_store::OPTION_WORK;
+use crate::pointers::GamePtr;
 
 // ---- game data ----
 
 // dword_755990
-const STREAMS_RVA: usize = rva(0x75A31E); // off_75A31E
-const ON_RVA: usize = rva(0xA8C188); // dword_A8C188
-const STREAM_RVA: usize = rva(0xA8C184); // dword_A8C184
-const PLACE_RVA: usize = rva(0xA8C180); // dword_A8C180
-const VOLUME_RVA: usize = rva(0x755698); // dword_755698
-const START_RVA: usize = rva(0x40F743); // sound::start_stream
+const STREAMS_IDA: usize = 0x75A31E; // off_75A31E: `MENU_LISTS.car_streams`
 
 // ---- Rust version ----
 
-/// `start` gets the registers `sound::start_stream` is called with.
-pub unsafe fn play_car_stream(r: &Regs, start: &mut dyn FnMut(&mut Regs)) -> Result<(), Refused> {
+/// `start` is `sound::start_stream` (the file, the volume).
+pub fn play_car_stream(start: &mut dyn FnMut(u32, u32)) -> Result<(), Refused> {
     // Converted: `rc2k_core::sound::set_up::car_stream`.
-    unsafe {
-        let car = shown_car()?;
-        let s = rc2k_core::sound::set_up::car_stream(
-            game_read(STREAMS_RVA + car as usize * 4),
-            |list| (list as *const u32).read_unaligned(),
-            game_read(VOLUME_RVA),
-        );
-        game_write(ON_RVA, s.on);
-        game_write(STREAM_RVA, s.list);
-        game_write(PLACE_RVA, s.place);
-        let mut inner = Regs {
-            eax: s.first,
-            ecx: s.volume,
-            ..*r
-        };
-        start(&mut inner);
-        Ok(())
+    let car = shown_car()?;
+    let failed = std::cell::Cell::new(None);
+    let s = rc2k_core::sound::set_up::car_stream(
+        // `MENU_LISTS.car_streams` (off_75A31E) has 24 entries; the original reads any
+        // car's, past them what the image has after (`MOVED` resolves the address).
+        game_read(rva(STREAMS_IDA + car as usize * 4)),
+        |list| {
+            GamePtr::new(list)
+                .read::<u32>("a car's stream list")
+                .unwrap_or_else(|e| {
+                    failed.set(Some(e));
+                    0
+                })
+        },
+        OPTION_WORK.speech_level.get(),
+    );
+    if let Some(e) = failed.take() {
+        return Err(e.into());
     }
-}
-
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    let done = unsafe { play_car_stream(r, &mut |r| crate::calls::call(START_RVA, r)) };
-    done?;
+    crate::sound::store::CAR_STREAM.on.set(s.on);
+    crate::sound::store::CAR_STREAM.stream.set(s.list);
+    crate::sound::store::CAR_STREAM.place.set(s.place);
+    start(s.first, s.volume);
     Ok(())
 }

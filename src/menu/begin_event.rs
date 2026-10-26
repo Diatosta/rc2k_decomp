@@ -4,81 +4,64 @@
 //! In:  nothing
 //! Out: every register preserved
 //!
-//! `dword_755254` and `dword_755950` 0; every driver of `g_drivers` (0x94 bytes each, up to
-//! the one whose +0 is -1; the first always) gets +0x10, +0xC, +0x20 = 0 and +0x24 = 1;
-//! `dword_75592C` 1, `dword_755978` 0; then for each player n (the current player
-//! `dword_75598C` = n, left at 3): `field_8c` and `field_84` 0, +0xD0 1, `service::repair_car`,
-//! and unless the event mode `dword_7556D0` is 3 the setup's defaults: gear ratio 2, brake
-//! balance 0x32, tyre 3, ride height 0x46, suspension 0x1E, steering sensitivity = the
-//! controller's (+0x280). Callers: the event loops' starts (`sub_482382` and nine more).
-//! Refuses drivers without their end within 0x400 (the original runs on), a missing player.
-//! Self-test: the game's drivers and players, modes 0 and 3, put back afterwards.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! `dword_755254` and `dword_755950` 0; every driver of `g_drivers` (0x94 bytes each, up to the one
+//! whose +0 is -1; the first always) gets +0x10, +0xC, +0x20 = 0 and +0x24 = 1; `dword_75592C` 1,
+//! `dword_755978` 0; then for each player n (the current player `dword_75598C` = n, left at 3):
+//! `field_8c` and `field_84` 0, +0xD0 1, `service::repair_car`, and unless the event mode
+//! `dword_7556D0` is 3 the setup's defaults: gear ratio 2, brake balance 0x32, tyre 3, ride height
+//! 0x46, suspension 0x1E, steering sensitivity = the controller's (+0x280). Callers: the event
+//! loops' starts (`sub_482382` and nine more). Refuses drivers without their end within 0x400, a
+//! missing player.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{Regs, game_addr, game_read, game_write, rva};
+use crate::menu::champ_store::CHAMP_VIEW;
+use crate::menu::event_store::EVENT_STATE;
+use crate::menu::pages_store::MENU_PAGES;
 use crate::menu::player::{PLAYERS, player_at};
 use crate::menu::standings::put_all;
-use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
+use crate::session::Dword;
 use rc2k_core::menu::event::KEEPS_SETUP;
 
-pub const DRIVERS_RVA: usize = rva(0x73B674); // g_drivers
 pub const DRIVER_LEN: u32 = 0x94;
 const MOST_DRIVERS: u32 = 0x400;
-const CLEARED_A_RVA: usize = rva(0x755254); // dword_755254
-const STATE_RVA: usize = rva(0x755950); // dword_755950
-const NEW_EVENT_RVA: usize = rva(0x75592C); // dword_75592C
-const CLEARED_B_RVA: usize = rva(0x755978); // dword_755978
-const CURRENT_PLAYER_RVA: usize = crate::menu::take_shown_car::CURRENT_PLAYER_RVA;
-pub const MODE_RVA: usize = rva(0x7556D0); // dword_7556D0: the event's mode
-
+const CURRENT_PLAYER: &Dword = crate::menu::take_shown_car::CURRENT_PLAYER_RVA;
 /// The drivers' count (with the first), or `None` without their end.
-pub fn drivers() -> Option<u32> {
-    let first = game_addr(DRIVERS_RVA) as u32;
-    (1..MOST_DRIVERS)
-        .find(|&n| unsafe { ((first + n * DRIVER_LEN) as *const u32).read() } == u32::MAX)
+pub fn drivers() -> Result<Option<u32>, BadInput> {
+    let first = crate::menu::drivers_store::DRIVERS.first();
+    for n in 1..MOST_DRIVERS {
+        if crate::pointers::GamePtr::new(first + n * DRIVER_LEN).read::<u32>("a driver")?
+            == u32::MAX
+        {
+            return Ok(Some(n));
+        }
+    }
+    Ok(None)
 }
 
-pub unsafe fn begin_event() -> Result<(), Refused> {
-    let count = drivers().ok_or(BadInput("the drivers do not end within 0x400"))?;
+pub fn begin_event() -> Result<(), Refused> {
+    let count = drivers()?.ok_or(BadInput("the drivers do not end within 0x400"))?;
     if (0..PLAYERS).any(|n| player_at(n) == 0) {
         return Err(BadInput("a player missing from g_players").into());
     }
-    unsafe {
-        game_write(CLEARED_A_RVA, 0u32);
-        game_write(STATE_RVA, 0u32);
-        // Converted: `rc2k_core::menu::event` (`DRIVER_BEGIN`, `PLAYER_BEGIN`,
-        // `KEEPS_SETUP`, `setup_defaults`).
-        use rc2k_core::menu::event::{DRIVER_BEGIN, PLAYER_BEGIN, setup_defaults};
-        let first = game_addr(DRIVERS_RVA) as u32;
-        crate::menu::standings::table(first, DRIVER_LEN, count).store_all(&DRIVER_BEGIN);
-        game_write(NEW_EVENT_RVA, 1u32);
-        game_write(CLEARED_B_RVA, 0u32);
-        for n in 0..PLAYERS {
-            game_write(CURRENT_PLAYER_RVA, n);
-            let p = player_at(n);
-            put_all(p, &PLAYER_BEGIN);
-            crate::service::repair_parts::repair_car()?;
-            if game_read::<u32>(MODE_RVA) != KEEPS_SETUP {
-                let sensitivity = ((p + 0x280) as *const u32).read_unaligned();
-                put_all(p, &setup_defaults(sensitivity));
-            }
+    MENU_PAGES.services.set(0u32);
+    EVENT_STATE.stages_done.set(0u32);
+    // Converted: `rc2k_core::menu::event` (`DRIVER_BEGIN`, `PLAYER_BEGIN`,
+    // `KEEPS_SETUP`, `setup_defaults`).
+    use rc2k_core::menu::event::{DRIVER_BEGIN, PLAYER_BEGIN, setup_defaults};
+    let first = crate::menu::drivers_store::DRIVERS.first();
+    crate::menu::standings::table(first, DRIVER_LEN, count)?.store_all(&DRIVER_BEGIN);
+    EVENT_STATE.event_goes_on.set(1u32);
+    EVENT_STATE.event_out.set(0u32);
+    for n in 0..PLAYERS {
+        CURRENT_PLAYER.set(n);
+        let p = player_at(n);
+        put_all(p, &PLAYER_BEGIN)?;
+        crate::service::repair_parts::repair_car()?;
+        if CHAMP_VIEW.event_mode.get() != KEEPS_SETUP {
+            let sensitivity = crate::pointers::GamePtr::new(p + 0x280)
+                .read::<u32>("begin event: a game value")?;
+            put_all(p, &setup_defaults(sensitivity))?;
         }
     }
     Ok(())
-}
-
-fn rust(_: &Regs) -> Result<Left, Refused> {
-    unsafe { begin_event() }?;
-    Ok(Left::nothing())
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
 }

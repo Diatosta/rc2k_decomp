@@ -12,11 +12,10 @@
 //! NUL there; with more than nine, whatever the scratch buffer held shows through.
 //! Special texts: zero of either sign is "=0." and decimals, without a sign; a number of 2^32
 //! or more is the sign and ">=2^32"; then the sign and "infinity" or "nan".
-//! Hook removed 2026-10-22 (direct calls): Rust callers run its `entry` (`calls::call`,
-//! `routes.rs`); the registers above are the original's, for reference.
+//! Hook removed 2026-10-22 (direct calls): Rust callers run the typed
+//! function; calls by address `numeric::number_entry` (`routes.rs`); the registers above are the original's, for reference.
 
 use crate::errors::BadInput;
-use crate::framework::{Regs, rva};
 use crate::logfile::numeric::{Body, NumberText, log_number};
 
 // ---- Rust version ----
@@ -30,8 +29,8 @@ pub fn float_text(bits: u32, decimals: u32) -> NumberText {
     }
 }
 
-fn text(r: &Regs) -> Result<NumberText, BadInput> {
-    Ok(float_text(r.eax, r.ecx))
+fn text(bits: u32, decimals: u32) -> Result<NumberText, BadInput> {
+    Ok(float_text(bits, decimals))
 }
 
 /// For Rust callers.
@@ -39,12 +38,4 @@ pub fn log_float(value: f32, decimals: u32, newline: bool, level: u8) {
     log_number(&BODY, value.to_bits(), decimals, newline, level);
 }
 
-pub const BODY: Body = Body {
-    after_lock_call_rva: rva(0x4014EA),
-    text,
-};
-
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    crate::logfile::numeric::number_entry(r, &BODY)
-}
+pub const BODY: Body = Body { text };

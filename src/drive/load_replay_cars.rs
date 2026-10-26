@@ -6,42 +6,21 @@
 //! Out: ecx 0, esi past the copy, edi past the last piece; the rest kept; no flags read
 //!
 //! Callers: `sub_460049`, `sub_46062E` (twice).
-//! Self-test: the original and the Rust version on the copy filled by pattern (saved and
-//! put back).
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
 
-use crate::drive::save_replay_cars::piece_at;
-use crate::errors::Refused;
-use crate::framework::{ECX, EDI, ESI, Regs};
-use crate::physics::flow::a;
-use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
-use rc2k_core::drive::replay_frames::{START_DWORDS, start_layout};
-
-const SAVED: usize = 0x7172EC; // unk_7172EC
+use crate::drive::save_replay_cars::piece_addr;
+use crate::errors::BadInput;
+use crate::pointers::GamePtr;
+use rc2k_core::drive::replay_frames::start_layout;
 
 /// The Rust version.
 // Converted: `rc2k_core::drive::replay_frames::start_layout`.
-pub fn load_replay_cars() -> Left {
-    let mut end = 0;
+pub fn load_replay_cars() -> Result<(), BadInput> {
     for (piece, offset, n) in start_layout() {
-        let (state, place) = (a(SAVED) + 4 * offset as u32, a(piece_at(piece)));
-        unsafe { std::ptr::copy(state as *const u32, place as *mut u32, n) };
-        end = place + 4 * n as u32;
+        let (state, place) = (
+            crate::race::blocks_store::block_addr(8) + 4 * offset as u32,
+            piece_addr(piece),
+        );
+        GamePtr::new(state).copy_to(GamePtr::new(place), n * 4, "the cars' starting state")?;
     }
-    let past = a(SAVED) + 4 * START_DWORDS as u32;
-    Left::nothing().with(ECX, 0).with(EDI, end).with(ESI, past)
-}
-
-fn rust(_: &Regs) -> Result<Left, Refused> {
-    Ok(load_replay_cars())
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
+    Ok(())
 }

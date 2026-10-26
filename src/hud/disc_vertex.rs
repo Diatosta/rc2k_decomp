@@ -8,154 +8,209 @@
 //! In:  ecx the ring entry (0 the centre .. 0x10), edi the vertex
 //! Out: eax the colour; the rest kept
 //!
-//! Caller: `hud::draw_disc` (three a triangle). Refuses an entry past 0x10, before
-//! anything. Self-test: the original and the Rust version on a vertex of the test's,
-//! every entry.
+//! Caller: `hud::draw_disc` (three a triangle). Refuses an entry past 0x10, before anything.
 //!
-//! Converted 2026-10-21: the hook's Rust version is `disc_vertex_plain`, through
-//! `rc2k_core::hud::disc::vertex` (plain floats; the x87 version stays for the Rust callers
-//! in unconverted code). Shadow mode and the self-test compare within `service::floats`'
-//! tolerances (the self-test at both test precisions, exact at double).
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! The arithmetic is the x87's, in plain Rust over `X` (`math/x87_float.rs`); the original's
+//! instructions are `asm_reference` in the tests (2026-10-24).
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{Regs, game_addr, game_read, rva};
-use crate::hud::add_quad::QUAD_RVA;
-use crate::race::stage_prefs::left_of;
-use crate::screens::harness::Left;
-use crate::service::floats::*;
-use crate::service::harness::Region;
+use crate::hud::store::{HUD, Hud};
+use crate::math::x87_float::ld;
+use crate::pointers::GamePtr;
+use crate::scene::x87_mem::fstp;
 
 pub use rc2k_core::hud::disc::ENTRIES;
 
-unsafe fn place(b: u32, k: u32, e: u32) {
-    unsafe {
-        core::arch::asm!(
-            "fld dword ptr [{b} + {k} + 0x35C210]",
-            "fmul dword ptr [{b} + 0x35C050]",
-            "fmul dword ptr [{b} + 0x35C04C]",
-            "fadd dword ptr [{b} + 0x35C01C]",
-            "fadd dword ptr [{b} + 0x35C054]",
-            "fdiv dword ptr [{b} + 0x35C020]",
-            "fstp dword ptr [{e} + 0x18]",
-            "fld dword ptr [{b} + {k} + 0x35C254]",
-            "fchs",
-            "fmul dword ptr [{b} + 0x35C050]",
-            "fmul dword ptr [{b} + 0x35C04C]",
-            "fadd dword ptr [{b} + 0x35C01C]",
-            "fadd dword ptr [{b} + 0x35C058]",
-            "fdiv dword ptr [{b} + 0x35C020]",
-            "fstp dword ptr [{e} + 0x1C]",
-            "fld dword ptr [{b} + {k} + 0x35C188]",
-            "fmul dword ptr [{b} + 0x35C050]",
-            "fadd dword ptr [{b} + 0x35C044]",
-            "fstp dword ptr [{e}]",
-            "fld dword ptr [{b} + {k} + 0x35C1CC]",
-            "fchs",
-            "fmul dword ptr [{b} + 0x35C050]",
-            "fadd dword ptr [{b} + 0x35C048]",
-            "fstp dword ptr [{e} + 4]",
-            b = in(reg) b,
-            k = in(reg) k,
-            e = in(reg) e,
-            out("st(0)") _,
-            options(nostack),
-        )
-    }
+fn place(h: &Hud, k: u32, e: u32) {
+    x87_1(h, k as usize, e as usize)
 }
 
-/// The Rust version (see the header): the registers it leaves.
-pub unsafe fn disc_vertex(entry: &Regs) -> Result<Regs, Refused> {
-    let mut g = *entry;
-    if g.ecx >= ENTRIES {
+/// The Rust version (see the header): ring entry `entry` into the vertex at `vertex`.
+pub fn disc_vertex(entry: u32, vertex: u32) -> Result<(), Refused> {
+    if entry >= ENTRIES {
         return Err(BadInput("a disc entry past the ring").into());
     }
-    unsafe {
-        place(game_addr(0) as u32, g.ecx * 4, g.edi);
-        g.eax = (game_read::<u32>(QUAD_RVA) << 24) | 0xFF_FFFF;
-        ((g.edi + 0x10) as *mut u32).write_unaligned(g.eax);
-        ((g.edi + 0x14) as *mut u32).write_unaligned(0);
+    {
+        place(&HUD, entry * 4, vertex);
+        let colour = (HUD.quad[0].get() << 24) | 0xFF_FFFF;
+        GamePtr::new(vertex + 0x10).write::<u32>(colour, "a hud record's field")?;
+        GamePtr::new(vertex + 0x14).write::<u32>(0, "a hud record's field")?;
     }
-    Ok(g)
+    Ok(())
 }
 
-/// The converted version (plain floats): the hook's.
-// Converted: `rc2k_core::hud::disc::vertex`
-pub unsafe fn disc_vertex_plain(entry: &Regs) -> Result<Regs, Refused> {
-    use rc2k_core::hud::disc::{Disc, RingEntry, vertex, white_under};
-    let mut g = *entry;
-    if g.ecx >= ENTRIES {
-        return Err(BadInput("a disc entry past the ring").into());
+// ---- the arithmetic that was x87 assembly ----
+
+/// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
+/// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
+/// `[e + 0x18] = (((([b + k + 0x8D0] * [b + 0x710]) * [b + 0x70C]) + [b + 0x6DC]) + [b + 0x714]) / [b + 0x6E0]`
+/// `[e + 0x1C] = ((((-[b + k + 0x914] * [b + 0x710]) * [b + 0x70C]) + [b + 0x6DC]) + [b + 0x718]) / [b + 0x6E0]`
+/// `[e + 0] = ([b + k + 0x848] * [b + 0x710]) + [b + 0x704]`
+/// `[e + 4] = (-[b + k + 0x88C] * [b + 0x710]) + [b + 0x708]`
+fn x87_1(h: &Hud, k: usize, e: usize) {
+    let t0 = ld(h.texture_ring_sines[k / 4].bits());
+    let t1 = ld(h.disc_size.bits());
+    let t2 = t0 * t1;
+    let t3 = ld(h.disc_texture_scale.bits());
+    let t4 = t2 * t3;
+    let t5 = ld(h.texture_base.bits());
+    let t6 = t4 + t5;
+    let t7 = ld(h.disc_texture_shift[0].bits());
+    let t8 = t6 + t7;
+    let t9 = ld(h.texture_size.bits());
+    let t10 = t8 / t9;
+    fstp(e, 0x18, t10);
+    let t11 = ld(h.texture_ring_cosines[k / 4].bits());
+    let t12 = -t11;
+    let t13 = ld(h.disc_size.bits());
+    let t14 = t12 * t13;
+    let t15 = ld(h.disc_texture_scale.bits());
+    let t16 = t14 * t15;
+    let t17 = ld(h.texture_base.bits());
+    let t18 = t16 + t17;
+    let t19 = ld(h.disc_texture_shift[1].bits());
+    let t20 = t18 + t19;
+    let t21 = ld(h.texture_size.bits());
+    let t22 = t20 / t21;
+    fstp(e, 0x1C, t22);
+    let t23 = ld(h.ring_sines[k / 4].bits());
+    let t24 = ld(h.disc_size.bits());
+    let t25 = t23 * t24;
+    let t26 = ld(h.disc_centre[0].bits());
+    let t27 = t25 + t26;
+    fstp(e, 0, t27);
+    let t28 = ld(h.ring_cosines[k / 4].bits());
+    let t29 = -t28;
+    let t30 = ld(h.disc_size.bits());
+    let t31 = t29 * t30;
+    let t32 = ld(h.disc_centre[1].bits());
+    let t33 = t31 + t32;
+    fstp(e, 4, t33);
+}
+
+#[cfg(all(test, target_arch = "x86"))]
+mod asm_reference {
+    use super::*;
+    use crate::scene::asm_test::{Block, In, Operand, Out, reference, sparse};
+
+    // The original's instructions, one function per run.
+    reference!(ref_0(b, k, e) "fld dword ptr [{b} + {k} + 0x8D0]", "fmul dword ptr [{b} + 0x710]", "fmul dword ptr [{b} + 0x70C]", "fadd dword ptr [{b} + 0x6DC]", "fadd dword ptr [{b} + 0x714]", "fdiv dword ptr [{b} + 0x6E0]", "fstp dword ptr [{e} + 0x18]", "fld dword ptr [{b} + {k} + 0x914]", "fchs", "fmul dword ptr [{b} + 0x710]", "fmul dword ptr [{b} + 0x70C]", "fadd dword ptr [{b} + 0x6DC]", "fadd dword ptr [{b} + 0x718]", "fdiv dword ptr [{b} + 0x6E0]", "fstp dword ptr [{e} + 0x1C]", "fld dword ptr [{b} + {k} + 0x848]", "fmul dword ptr [{b} + 0x710]", "fadd dword ptr [{b} + 0x704]", "fstp dword ptr [{e}]", "fld dword ptr [{b} + {k} + 0x88C]", "fchs", "fmul dword ptr [{b} + 0x710]", "fadd dword ptr [{b} + 0x708]", "fstp dword ptr [{e} + 4]");
+
+    fn blocks() -> Vec<Block> {
+        vec![
+            Block {
+                name: "disc_vertex line 25 idx k=0",
+                operands: vec![
+                    Operand::Buffer {
+                        reads: &[
+                            (0x6DC, In::F),
+                            (0x6E0, In::F),
+                            (0x704, In::F),
+                            (0x708, In::F),
+                            (0x70C, In::F),
+                            (0x710, In::F),
+                            (0x714, In::F),
+                            (0x718, In::F),
+                            (0x848, In::F),
+                            (0x88C, In::F),
+                            (0x8D0, In::F),
+                            (0x914, In::F),
+                        ],
+                        writes: &[],
+                    },
+                    Operand::Value(0),
+                    Operand::Buffer {
+                        reads: &[],
+                        writes: &[(0, Out::F), (4, Out::F), (0x18, Out::F), (0x1C, Out::F)],
+                    },
+                ],
+                ulps: 0,
+                reference: |a| unsafe { ref_0(a[0], a[1], a[2]) },
+                plain: |a| {
+                    x87_1(
+                        unsafe { &*(crate::pointers::host_at(a[0]) as *const Hud) },
+                        a[1],
+                        a[2],
+                    )
+                },
+            },
+            Block {
+                name: "disc_vertex line 25 idx k=4",
+                operands: vec![
+                    Operand::Buffer {
+                        reads: &[
+                            (0x6DC, In::F),
+                            (0x6E0, In::F),
+                            (0x704, In::F),
+                            (0x708, In::F),
+                            (0x70C, In::F),
+                            (0x710, In::F),
+                            (0x714, In::F),
+                            (0x718, In::F),
+                            (0x84C, In::F),
+                            (0x890, In::F),
+                            (0x8D4, In::F),
+                            (0x918, In::F),
+                        ],
+                        writes: &[],
+                    },
+                    Operand::Value(4),
+                    Operand::Buffer {
+                        reads: &[],
+                        writes: &[(0, Out::F), (4, Out::F), (0x18, Out::F), (0x1C, Out::F)],
+                    },
+                ],
+                ulps: 0,
+                reference: |a| unsafe { ref_0(a[0], a[1], a[2]) },
+                plain: |a| {
+                    x87_1(
+                        unsafe { &*(crate::pointers::host_at(a[0]) as *const Hud) },
+                        a[1],
+                        a[2],
+                    )
+                },
+            },
+            Block {
+                name: "disc_vertex line 25 idx k=36",
+                operands: vec![
+                    Operand::Buffer {
+                        reads: &[
+                            (0x6DC, In::F),
+                            (0x6E0, In::F),
+                            (0x704, In::F),
+                            (0x708, In::F),
+                            (0x70C, In::F),
+                            (0x710, In::F),
+                            (0x714, In::F),
+                            (0x718, In::F),
+                            (0x86C, In::F),
+                            (0x8B0, In::F),
+                            (0x8F4, In::F),
+                            (0x938, In::F),
+                        ],
+                        writes: &[],
+                    },
+                    Operand::Value(36),
+                    Operand::Buffer {
+                        reads: &[],
+                        writes: &[(0, Out::F), (4, Out::F), (0x18, Out::F), (0x1C, Out::F)],
+                    },
+                ],
+                ulps: 0,
+                reference: |a| unsafe { ref_0(a[0], a[1], a[2]) },
+                plain: |a| {
+                    x87_1(
+                        unsafe { &*(crate::pointers::host_at(a[0]) as *const Hud) },
+                        a[1],
+                        a[2],
+                    )
+                },
+            },
+        ]
     }
-    unsafe {
-        let f = |a: usize| f32::from_bits(game_read(rva(a)));
-        let ring = |table: usize| f32::from_bits(game_read(rva(table) + 4 * g.ecx as usize));
-        let e = RingEntry {
-            x: ring(0x75C188),
-            y: ring(0x75C1CC),
-            u: ring(0x75C210),
-            v: ring(0x75C254),
-        };
-        let d = Disc {
-            radius: f(0x75C050),
-            texture_scale: f(0x75C04C),
-            texture_middle: f(0x75C01C),
-            texture_shift: [f(0x75C054), f(0x75C058)],
-            texture_size: f(0x75C020),
-            centre: [f(0x75C044), f(0x75C048)],
-        };
-        let v = vertex(e, &d);
-        let put = |o: u32, x: u32| ((g.edi + o) as *mut u32).write_unaligned(x);
-        put(0x18, v.texture[0].to_bits());
-        put(0x1C, v.texture[1].to_bits());
-        put(0, v.place[0].to_bits());
-        put(4, v.place[1].to_bits());
-        g.eax = white_under(game_read(QUAD_RVA));
-        put(0x10, g.eax);
-        put(0x14, 0);
+
+    #[test]
+    fn x87_blocks_matches_the_assembly() {
+        sparse(&blocks(), 1200, 100);
     }
-    Ok(g)
-}
-
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    Ok(left_of(&unsafe { disc_vertex_plain(r) }?))
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    floats_entry(r, &rust)
-}
-
-/// The disc's tables by lot (for this test and `draw_disc`'s); what they held is the
-/// caller's to put back (`tables()`).
-pub unsafe fn test_tables(case: u32) {
-    unsafe {
-        let f = game_addr(rva(0x75C188)) as *mut f32;
-        for n in 0..(4 * ENTRIES as usize) {
-            *f.add(n) = ((n as f32) * 0.3 + case as f32).sin();
-        }
-        let v = |r: usize, x: f32| crate::framework::game_write(rva(r), x.to_bits());
-        v(0x75C050, 40.0 + case as f32);
-        v(0x75C04C, 0.9);
-        v(0x75C01C, 128.0);
-        v(0x75C054, 3.0);
-        v(0x75C058, -2.0);
-        v(0x75C020, 256.0);
-        v(0x75C044, 320.0);
-        v(0x75C048, 240.0);
-        crate::framework::game_write(QUAD_RVA, 0xC0 + case);
-    }
-}
-
-/// What `test_tables` writes.
-pub fn tables() -> Vec<Region> {
-    let mut r = vec![(game_addr(rva(0x75C188)) as u32, 0x44 * 4)];
-    r.push((game_addr(rva(0x75C01C)) as u32, 8));
-    r.push((game_addr(rva(0x75C044)) as u32, 0x18));
-    r.push((game_addr(QUAD_RVA) as u32, 4));
-    r
 }

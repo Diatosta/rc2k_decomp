@@ -6,65 +6,32 @@
 //! In:  nothing
 //! Out: ebp the record; the rest as the flush leaves them
 //!
-//! Caller: `sub_45A893` (0x45A8F0). Hooked through a private copy (a call at the entry).
-//! The depth and tenths are their Rust versions; the layouts and the flush through `part`
-//! (1 / 2 / 3 the layouts 0 / 1 / 2, 4 the flush), in the game their Rust versions. Shadow
-//! mode runs the original alone (it draws). Self-test: a copy whose layouts and flush go
-//! to stand-ins, against the Rust version, every layout.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Caller: `sub_45A893` (0x45A8F0).
 
 use crate::errors::Refused;
-use crate::framework::{Regs, game_addr, game_write, rva};
-use crate::hud::batch::{BATCH_TEXTURE_RVA, INDEX_COUNT_RVA, VERTEX_COUNT_RVA};
+use crate::hud::store::HUD;
+use crate::pointers::GamePtr;
+use crate::race::panel_store::PANEL;
 
-pub const RECORD_RVA: usize = rva(0x6D13FE); // unk_6D13FE
-
-/// A call by place (see the header).
-pub type Part<'a> = &'a mut dyn FnMut(u32, &mut Regs) -> Result<(), Refused>;
-
-/// The Rust version (see the header): the registers it leaves.
+/// The Rust version (see the header). What the original leaves in the registers is read
+/// by none of its callers (register liveness, 2026-10-23).
 // Converted: `rc2k_core::hud::batch::{Layout, NO_TEXTURE}`
-pub unsafe fn draw_hud(entry: &Regs, part: Part) -> Result<Regs, Refused> {
-    use rc2k_core::hud::batch;
-    let mut g = *entry;
-    unsafe {
-        crate::hud::set_batch_depth::set_batch_depth();
-        game_write(BATCH_TEXTURE_RVA, batch::NO_TEXTURE);
-        game_write(VERTEX_COUNT_RVA, 0u32);
-        game_write(INDEX_COUNT_RVA, 0u32);
-        g.ebp = game_addr(RECORD_RVA) as u32;
-        g = crate::hud::tenths::tenths(&g);
-        let layout = match batch::Layout::of(((g.ebp + 0xF4) as *const u32).read_unaligned()) {
-            batch::Layout::Single => 1,
-            batch::Layout::One => 2,
-            batch::Layout::Two => 3,
-        };
-        part(layout, &mut g)?;
-        part(4, &mut g)?;
-    }
-    Ok(g)
-}
-
-/// In the game: the layouts' and the flush's Rust versions.
-pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
+pub fn draw_hud() -> Result<(), Refused> {
     use crate::hud::*;
-    unsafe {
-        *r = match place {
-            1 => layout_0::layout_0(r, &mut layout_0::game_part)?,
-            2 => layout_1::layout_1(r, &mut layout_1::game_part)?,
-            3 => layout_2::layout_2(r, &mut layout_2::game_part)?,
-            _ => flush_batch::flush_batch(r, &mut flush_batch::game_part)?,
-        };
+    use rc2k_core::hud::batch;
+    {
+        set_batch_depth::set_batch_depth();
+        HUD.batch_texture.set(batch::NO_TEXTURE);
+        HUD.vertex_count.set(0);
+        HUD.index_count.set(0);
+        let record = PANEL.split_6.addr();
+        tenths::tenths(record)?;
+        match batch::Layout::of(GamePtr::new(record + 0xF4).read::<u32>("a hud record's field")?) {
+            batch::Layout::Single => layout_0::layout_0(record)?,
+            batch::Layout::One => layout_1::layout_1(record)?,
+            batch::Layout::Two => layout_2::layout_2(record)?,
+        }
+        flush_batch::flush_batch();
     }
-    Ok(())
-}
-
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    let left = unsafe { draw_hud(r, &mut game_part) }?;
-    *r = Regs { esp: r.esp, ..left };
     Ok(())
 }

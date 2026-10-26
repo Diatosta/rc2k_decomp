@@ -10,63 +10,39 @@
 //!      flags read
 //!
 //! Caller: `drive::replay_step`.
-//! Self-test: the original and the Rust version on the game's variables (saved and put
-//! back): modes, whole frames and not.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
 
-use crate::errors::Refused;
-use crate::framework::{EAX, EBX, ECX, EDI, EDX, ESI, Regs};
-use crate::physics::flow::{a, g, p};
-use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
+use crate::drive::replay_frames_store::REPLAY_FRAMES;
+use crate::errors::BadInput;
+use crate::pointers::GamePtr;
+use crate::race::blocks_store::CAR_BLOCKS;
+use crate::race::numbers_store::NUMBERS;
 use rc2k_core::drive::replay_frames::{
-    PLAYING, RECORDING, SLOT_SIZE, TENTHS, frame_and_tenth, slot_offset,
+    PLAYING, RECORDING, SLOT_SIZE, frame_and_tenth, slot_offset,
 };
 
-const B: usize = 0x70F3EC; // g_carBlockStore
-const SLOTS: usize = 0x6EF7E8; // unk_6EF7E8: eight of 0x3F80
 const SIZE: usize = SLOT_SIZE as usize;
 
 /// The Rust version.
 // Converted: `rc2k_core::drive::replay_frames::{frame_and_tenth, slot_offset}`.
-pub unsafe fn keep_replay_frame() -> Left {
-    let mut left = Left::nothing();
-    p(0x6EF7D8, 0);
-    p(0x6EF7DC, 0);
-    if g(0x5C5CE0) != PLAYING {
-        let (frame, tenth) = frame_and_tenth(g(B + 8));
-        p(0x6EF7D8, frame);
-        p(0x6EF7DC, tenth);
-        left = left.with(EAX, frame).with(EDX, tenth).with(EBX, TENTHS);
+pub fn keep_replay_frame() -> Result<(), BadInput> {
+    REPLAY_FRAMES.frame.set(0);
+    REPLAY_FRAMES.tenth.set(0);
+    if NUMBERS.replay_mode.get() != PLAYING {
+        let (frame, tenth) = frame_and_tenth(CAR_BLOCKS.cars[0].step_clock.bits());
+        REPLAY_FRAMES.frame.set(frame);
+        REPLAY_FRAMES.tenth.set(tenth);
     }
-    if g(0x6EF7DC) == 0 {
-        let offset = slot_offset(g(0x6EF7D8));
-        let to = a(SLOTS) + offset;
-        unsafe { std::ptr::copy(a(B) as *const u8, to as *mut u8, SIZE) };
-        left = left
-            .with(EAX, offset)
-            .with(ESI, a(B) + SIZE as u32)
-            .with(EDI, to + SIZE as u32)
-            .with(ECX, 0);
-        if g(0x5C5CE0) == RECORDING {
-            let saved = crate::drive::save_replay_cars::save_replay_cars();
-            for &(reg, v) in &saved.regs {
-                left = left.with(reg, v);
-            }
+    if REPLAY_FRAMES.tenth.get() == 0 {
+        let offset = slot_offset(REPLAY_FRAMES.frame.get());
+        let to = REPLAY_FRAMES.slots.addr() + offset;
+        GamePtr::new(crate::race::blocks_store::block_addr(0)).copy_to(
+            GamePtr::new(to),
+            SIZE,
+            "a car's block",
+        )?;
+        if NUMBERS.replay_mode.get() == RECORDING {
+            crate::drive::save_replay_cars::save_replay_cars()?;
         }
     }
-    left
-}
-
-fn rust(_: &Regs) -> Result<Left, Refused> {
-    Ok(unsafe { keep_replay_frame() })
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
+    Ok(())
 }

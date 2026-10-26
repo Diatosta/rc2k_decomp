@@ -14,6 +14,6 @@ use crate::service::pages::{RIDE_HEIGHT, change_page};
 
 // ---- Rust version ----
 
-pub unsafe fn edit_ride_height(confirm: bool) -> Result<(), Refused> {
-    unsafe { change_page(RIDE_HEIGHT, confirm) }
+pub fn edit_ride_height(confirm: bool) -> Result<(), Refused> {
+    change_page(RIDE_HEIGHT, confirm)
 }

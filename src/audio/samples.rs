@@ -9,19 +9,11 @@
 //! The format word: 0x10 eight bits, 0x20 sixteen; 0x100 mono, 0x200 stereo; the low four
 //! bits how many times the data was halved (the frequency is shifted right by them).
 
+use crate::audio::store::AUDIO;
 use crate::audio::voices::*;
 use crate::errors::Refused;
-use crate::framework::{game_addr, game_read, rva};
-
-pub const SAMPLE_FILE_RVA: usize = rva(0x506938); // g_sampleFile
-pub const BUFFER_RVA: usize = rva(0x506930); // g_sampleBuffer
-pub const BUFFER_SIZE_RVA: usize = rva(0x506934); // g_sampleBufferSize
-pub const SAMPLE_BITS_FLAGS_RVA: usize = rva(0x4F82E0); // g_sampleBitsFlags: {flag, bits} x 2
-pub const SAMPLE_CHANNEL_FLAGS_RVA: usize = rva(0x4F82F0); // g_sampleChannelFlags: {flag, channels} x 2
-
-pub const EIGHT_BITS: u32 = 0x10;
-pub const MONO: u32 = 0x100;
-pub const SHIFT: u32 = 0xF;
+use crate::pointers::GamePtr;
+use crate::session::{Dword, Shared};
 
 #[repr(C)]
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
@@ -38,23 +30,20 @@ pub struct SampleFile {
 
 const _: () = assert!(std::mem::size_of::<SampleFile>() == 0x20);
 
-unsafe fn dword(at: u32) -> u32 {
-    unsafe { (at as *const u32).read_unaligned() }
-}
-
 /// Reads and parses a sample file: true for the carry clear (a sample was found).
 pub unsafe fn read_sample(
     path: *const u8,
     buffer: u32,
     size: u32,
-    out: *mut SampleFile,
+    out: &Shared<SampleFile>,
 ) -> Result<bool, Refused> {
     unsafe {
-        let f = &mut *out;
+        let f = out.borrow();
         f.channels = 1;
         f.rate = 0x5622;
         f.bits = 16;
-        let read = crate::files::read_file::read_file(path, buffer as *mut u8, size, 0)?;
+        let read =
+            crate::files::read_file::read_file(path, crate::pointers::host(buffer), size, 0)?;
         if !read.ok {
             return Ok(false);
         }
@@ -70,15 +59,15 @@ pub unsafe fn read_sample(
             frame_bytes: f.frame_bytes,
             frames: f.frames,
         };
-        let file = crate::bridge::Raw::new(buffer as *const u8);
+        let file = GamePtr::new(buffer).bytes("a sample file")?;
         let found = rc2k_core::audio::samples::parse(
             &file,
             read.bytes_read.unwrap_or(0),
             &mut core,
-            &flags(SAMPLE_BITS_FLAGS_RVA),
-            &flags(SAMPLE_CHANNEL_FLAGS_RVA),
+            &flags(&AUDIO.sample_bits_flags),
+            &flags(&AUDIO.sample_channel_flags),
         );
-        let found = crate::bridge::read_through(found);
+        let found = found?;
         *f = SampleFile {
             data: core.data.wrapping_add(buffer),
             length: core.length,
@@ -94,9 +83,11 @@ pub unsafe fn read_sample(
 }
 
 /// A table of two {flag, value} entries, as the core takes it.
-pub fn flags(table: usize) -> rc2k_core::audio::samples::Flags {
-    let t: [u32; 4] = unsafe { game_read(table) };
-    [(t[0], t[1]), (t[2], t[3])]
+pub fn flags(table: &[Dword; 4]) -> rc2k_core::audio::samples::Flags {
+    [
+        (table[0].get(), table[1].get()),
+        (table[2].get(), table[3].get()),
+    ]
 }
 
 /// The game's: the work buffer and `g_sampleFile`.
@@ -104,25 +95,30 @@ pub unsafe fn read_sample_in_game(path: *const u8) -> Result<bool, Refused> {
     unsafe {
         read_sample(
             path,
-            game_read(BUFFER_RVA),
-            game_read(BUFFER_SIZE_RVA),
-            game_addr(SAMPLE_FILE_RVA) as *mut SampleFile,
+            AUDIO.sample_buffer.get(),
+            AUDIO.sample_buffer_size.get(),
+            &AUDIO.sample_file,
         )
     }
 }
 
 /// The voice of `count` from `voices` whose `data_key` is the record's (0: none).
-pub unsafe fn find_shared_voice(record: &SampleRecord, voices: u32, count: u32) -> u32 {
+pub fn find_shared_voice(record: &SampleRecord, count: u32) -> u32 {
     // Converted: `rc2k_core::audio::voices::find_shared`.
-    let mut pool = unsafe { crate::audio::voices::GamePool::new(&World::game()) };
+    let voices = AUDIO.voices[0].addr();
     let size = std::mem::size_of::<Voice>() as u32;
-    rc2k_core::audio::voices::find_shared(&mut pool, count, |n| voices + n * size, record.data_key)
-        .unwrap_or(0)
+    rc2k_core::audio::voices::find_shared(
+        &mut GamePool,
+        count,
+        |n| voices + n * size,
+        record.data_key,
+    )
+    .unwrap_or(0)
 }
 
 /// `audio::fill_voice`: the voice `at` for the record (`record` is its address), from the
 /// sample file or, with `shared`, from that voice.
-pub unsafe fn fill_voice(
+pub fn fill_voice(
     at: u32,
     record_at: u32,
     shared: u32,
@@ -130,7 +126,7 @@ pub unsafe fn fill_voice(
     sound_mode: u32,
 ) -> Result<(), Refused> {
     // Converted: `rc2k_core::audio::voices::fill_voice`.
-    let record = unsafe { *(record_at as *const SampleRecord) };
+    let record: SampleRecord = GamePtr::new(record_at).read("a sample record")?;
     let from_file = rc2k_core::audio::voices::FileSample {
         data: file.data,
         length: file.length,
@@ -138,16 +134,29 @@ pub unsafe fn fill_voice(
         frames: file.frames,
         rate: file.rate,
     };
-    let mut pool = unsafe { crate::audio::voices::GamePool::new(&World::game()) };
-    rc2k_core::audio::voices::fill_voice(
-        &mut pool,
+    let failed = std::cell::Cell::new(None);
+    let filled = rc2k_core::audio::voices::fill_voice(
+        &mut GamePool,
         at,
         &record,
         shared,
         &from_file,
         sound_mode & 0x1_0000 != 0,
-        |factor| unsafe { dword(factor) },
-    )?;
+        // The record's pointer (pointed at its target's home at start:
+        // `moved::point_into_homes`).
+        |factor| {
+            GamePtr::new(factor)
+                .read::<u32>("a sample's volume factor")
+                .unwrap_or_else(|e| {
+                    failed.set(failed.get().or(Some(e)));
+                    0
+                })
+        },
+    );
+    if let Some(e) = failed.get() {
+        return Err(e.into());
+    }
+    filled?;
     Ok(())
 }
 
@@ -160,7 +169,7 @@ pub fn sample_mode(mode: u32, record: Option<&SampleRecord>) -> u32 {
 /// `audio::prepare_sample`: the voice's data, in place, scaled by `scale` / 64, halved
 /// until its shift is the mode's, and made eight bits if the mode asks. Converted:
 /// `rc2k_core::audio::samples::prepare`, on the voice's data in game memory.
-pub unsafe fn prepare_sample(v: &mut Voice, mode: u32) -> Result<(), Refused> {
+pub fn prepare_sample(v: &mut Voice, mode: u32) -> Result<(), Refused> {
     if v.data == 0 || v.length == 0 || v.data_key == 0 {
         return Ok(());
     }
@@ -171,8 +180,12 @@ pub unsafe fn prepare_sample(v: &mut Voice, mode: u32) -> Result<(), Refused> {
         scale: v.scale,
         own_frequency: v.own_frequency,
     };
-    let mut data = unsafe { crate::bridge::RawMut::new(v.data as *mut u8) };
+    // The data is worked on as a copy of its `length` bytes (the loops stay inside them) and
+    // put back.
+    let place = GamePtr::new(v.data);
+    let mut data = place.read_bytes(v.length as usize, "a sample's data")?;
     rc2k_core::audio::samples::prepare(&mut shape, mode, &mut data)?;
+    place.write_bytes(&data, "a sample's data")?;
     v.length = shape.length;
     v.format = shape.format;
     v.frames = shape.frames;

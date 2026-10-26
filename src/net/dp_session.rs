@@ -38,7 +38,6 @@ pub const DPERR_CANTADDPLAYER: u32 = 0x8877_0028;
 pub const DPERR_INVALIDPLAYER: u32 = 0x8877_0096;
 pub const DPERR_INVALIDGROUP: u32 = 0x8877_009B;
 pub const DPERR_NOCONNECTION: u32 = 0x8877_00AA;
-pub const DPERR_NOSESSIONS: u32 = 0x8877_00DC;
 pub const DPERR_TIMEOUT: u32 = 0x8877_00F0;
 pub const DPERR_SESSIONLOST: u32 = 0x8877_0136;
 pub const DPERR_NONEWPLAYERS: u32 = 0x8877_014A;
@@ -1040,10 +1039,6 @@ impl Session {
 
     pub fn set_desc(&self, desc: Desc) -> u32 {
         self.ask(Op::SetDesc(desc)).0
-    }
-
-    pub fn desc(&self) -> Desc {
-        self.lock().world.desc.clone()
     }
 
     pub fn world(&self) -> World {

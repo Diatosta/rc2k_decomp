@@ -8,54 +8,25 @@
 //! Out: every register kept; no flags read
 //!
 //! Callers: `drive::tyre_screen` (two), `drive::tyre_screen_parts` (ten).
-//!
-//! Shadow mode runs the original alone (it draws). Self-test: a copy whose calls go to
-//! stand-ins noting them (`drive/tyre_parts.rs`), against the Rust version with the same.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
 
+use crate::d3d::vertices_store::VERTICES;
 use crate::drive::tyre_parts::*;
 use crate::errors::Refused;
-use crate::framework::Regs;
-use crate::physics::flow::p;
-use crate::race::car_starts::Part;
+
+use crate::pointers::GamePtr;
 use rc2k_core::drive::tyre_screen::quad_corners;
 
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    {
-        let g = unsafe { tyre_quad(r, &mut game_part) }?;
-        let esp = r.esp;
-        *r = Regs {
-            eflags: r.eflags,
-            ..g
-        };
-        r.esp = esp;
-    }
-    Ok(())
-}
-
-/// The Rust version, the draw through `part`.
+/// The Rust version: the texture rectangle at `uv` (eax), the screen rectangle at `rect`
+/// (ebx), the colour `colour` (ecx); every register kept.
 // Converted: `rc2k_core::drive::tyre_screen::quad_corners` (the shared tail stays x87).
-pub unsafe fn tyre_quad(entry: &Regs, part: Part) -> Result<Regs, Refused> {
-    let (uv, rect, colour) = (entry.eax, entry.ebx, entry.ecx);
-    let at = |o: u32| unsafe { ((rect + o) as *const u32).read_unaligned() };
-    let corners = quad_corners([at(0), at(4), at(8), at(0xC)]);
+pub fn tyre_quad(uv: u32, rect: u32, colour: u32) -> Result<(), Refused> {
+    let rect: [u32; 4] = GamePtr::new(rect).read("a tyre's rectangle")?;
+    let corners = quad_corners(rect);
     for (k, [x, y]) in corners.into_iter().enumerate() {
-        p(VERTS + 0x20 * k, x.to_bits());
-        p(VERTS + 0x20 * k + 4, y.to_bits());
+        VERTICES.vertices[k].x.set_bits(x.to_bits());
+        VERTICES.vertices[k].y.set_bits(y.to_bits());
     }
     quad_words(colour);
     quad_tail(uv);
-    draw(
-        &Regs {
-            esi: uv,
-            edi: rect,
-            ..*entry
-        },
-        part,
-    )?;
-    Ok(*entry)
+    draw()
 }

@@ -6,34 +6,25 @@
 //! `fiadd` / `fisub` (exact), turned by `g_viewTurnMatrix`, each part x `flt_5C5DA0`
 //! (1/65536); then +0x10 1. All in `pusha` / `popa`.
 //!
-//! This file: the shared steps and the test of the four. The four hooks run the
-//! converted steps (`rc2k_core::physics::sound_places`); `place` is the exact x87 one,
-//! for `place_sound_e1`'s exact version (its Rust callers).
+//! This file: the shared steps and the test of the four. `place` is the exact x87 one, for
+//! `place_sound_e1`'s exact version (its Rust callers).
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{RawHook, Regs, SelfTest, game_addr, game_read, game_write, rva};
 use crate::math::x87_run::ext_times;
-use crate::scene::matrix3::{rounded, test_floats};
+use crate::physics::car_store::CAR;
+use crate::race::frame_store::FRAME_WORK;
+use crate::race::matrices_store::MATRICES;
+use crate::race::numbers_store::NUMBERS;
+use crate::race::work_store::RACE_WORK;
+use crate::scene::matrix3::rounded;
 use crate::scene::rotate_point::rotate_point;
 use crate::scene::vector3::{read_floats, write_floats};
-use crate::screens::harness::Left;
-use crate::service::floats::{
-    FLOAT, Floats, Tolerance, at_test_precisions, check_state_floats, dispatch_state_floats,
-};
-use crate::service::harness::{Region, capture, restore};
+use crate::scene::x87_mem::{fild, fstp80};
+use crate::session::Dword;
 use rc2k_core::physics::sound_places::{PLAY, PLAYING, Slot};
 
-pub const CURRENT: usize = 0x71B3F8; // g_currentCar
-pub const LISTED: usize = 0x641680; // dword_641680
-pub const OBJECTS: usize = 0x512A10; // g_raceSoundObjects
-pub const VIEW_TURN: usize = 0x5EA24C; // g_viewTurnMatrix
-
-pub fn g(x: usize) -> u32 {
-    unsafe { game_read(rva(x)) }
-}
-
-pub unsafe fn put(a: u32, v: u32) {
-    unsafe { (a as *mut u32).write_unaligned(v) }
+pub fn put(a: u32, v: u32) {
+    crate::pointers::write_or_end::<u32>(a, v, "physics::car_sounds's operand")
 }
 
 /// Whether car `car` (a number) is listed; refused past 7.
@@ -41,12 +32,13 @@ pub fn listed(car: u32) -> Result<bool, Refused> {
     if car > 7 {
         return Err(BadInput("a car number past 7").into());
     }
-    Ok(g(LISTED + 4 * car as usize) != u32::MAX)
+    Ok(FRAME_WORK.listed_car_sounds[car as usize].get() != u32::MAX)
 }
 
 /// The current car's sound object; refused when null.
 pub fn object() -> Result<u32, Refused> {
-    let o = g(OBJECTS + 4 * (g(CURRENT) & 7) as usize);
+    let o =
+        crate::sound::store::RACE_SOUNDS.table[(RACE_WORK.current_car.get() & 7) as usize].get();
     if o == 0 {
         return Err(BadInput("a null sound object").into());
     }
@@ -55,64 +47,60 @@ pub fn object() -> Result<u32, Refused> {
 
 /// The place (with `offset` added to the car's, when given), turned and scaled, into
 /// the object at +`at` .. +`at` + 8.
-pub unsafe fn place(o: u32, at: u32, offset: Option<[u32; 3]>) {
+pub fn place(o: u32, at: u32, offset: Option<[u32; 3]>) {
     // The original's own steps (`fild` the offset, `fiadd` the car's, `fisub` the
     // listener's; without an offset `fild` the car's, `fisub`): each rounds to the
     // control word's precision, so a big difference keeps fewer bits at 24.
     let part = |k: usize| {
-        let car = g(0x71A10C + 4 * k);
-        let listener = g(0x71A67C + 4 * k);
+        let car = CAR.position[k].get();
+        let listener = CAR.camera_position[k].get();
         match offset {
             Some(o) => offset_part(o[k], car, listener),
             None => car_part(car, listener),
         }
     };
-    unsafe {
-        let out = rotate_point(
-            game_addr(rva(VIEW_TURN)) as u32,
-            [part(0), part(1), part(2)],
-        );
-        let k = g(0x5C5DA0);
-        for (n, e) in out.iter().enumerate() {
-            put(o + at + 4 * n as u32, rounded(ext_times(*e, k)));
-        }
+    let out = rotate_point(
+        MATRICES.view_turn_matrix[0].addr(),
+        [part(0), part(1), part(2)],
+    );
+    let k = NUMBERS.one_over_65536.bits();
+    for (n, e) in out.iter().enumerate() {
+        put(o + at + 4 * n as u32, rounded(ext_times(*e, k)));
     }
 }
 
 /// The converted place (`rc2k_core::physics::sound_places::place`) into the object at
 /// +`at` .. +`at` + 8.
-pub unsafe fn place_plain(o: u32, at: u32, offset: Option<[u32; 3]>) {
-    let whole = |x: usize| [0, 1, 2].map(|k| g(x + 4 * k) as i32);
-    unsafe {
-        let p = rc2k_core::physics::sound_places::place(
-            whole(0x71A10C),
-            whole(0x71A67C),
-            offset.map(|o| o.map(|v| v as i32)),
-            &read_floats(game_addr(rva(VIEW_TURN)) as u32),
-            f32::from_bits(g(0x5C5DA0)),
-        );
-        write_floats(o + at, &p);
-    }
+pub fn place_plain(o: u32, at: u32, offset: Option<[u32; 3]>) {
+    let whole = |x: &[Dword; 3]| [0, 1, 2].map(|k| x[k].get() as i32);
+    let p = rc2k_core::physics::sound_places::place(
+        whole(&CAR.position),
+        whole(&CAR.camera_position),
+        offset.map(|o| o.map(|v| v as i32)),
+        &read_floats(MATRICES.view_turn_matrix[0].addr()),
+        f32::from_bits(NUMBERS.one_over_65536.bits()),
+    );
+    write_floats(o + at, &p);
 }
 
 /// The converted steps' end: the sound and the band in the object's `slot`, the place
 /// (with `offset`), the object told to play.
 // Converted: `rc2k_core::physics::sound_places`.
-pub unsafe fn cue_plain(o: u32, slot: Slot, sound: u32, band: u32, offset: Option<[u32; 3]>) {
-    unsafe {
-        put(o + slot.sound, sound);
-        put(o + slot.band, band);
-        place_plain(o, slot.place, offset);
-        put(o + PLAYING, PLAY);
-    }
+pub fn cue_plain(o: u32, slot: Slot, sound: u32, band: u32, offset: Option<[u32; 3]>) {
+    put(o + slot.sound, sound);
+    put(o + slot.band, band);
+    place_plain(o, slot.place, offset);
+    put(o + PLAYING, PLAY);
 }
 
 /// `fild car; fisub listener`, as an 80-bit value.
 fn car_part(car: u32, listener: u32) -> [u8; 10] {
     let mut out = [0u8; 10];
     let v = [car, listener];
-    crate::math::x87::x87!("fild dword ptr [{v}]", "fisub dword ptr [{v} + 4]", "fstp tbyte ptr [{o}]";
-        v = v.as_ptr(), o = out.as_mut_ptr());
+    x87_1(
+        (crate::pointers::game_address(v.as_ptr())) as usize,
+        (crate::pointers::game_address(out.as_mut_ptr())) as usize,
+    );
     out
 }
 
@@ -120,145 +108,85 @@ fn car_part(car: u32, listener: u32) -> [u8; 10] {
 fn offset_part(offset: u32, car: u32, listener: u32) -> [u8; 10] {
     let mut out = [0u8; 10];
     let v = [offset, car, listener];
-    crate::math::x87::x87!("fild dword ptr [{v}]", "fiadd dword ptr [{v} + 4]", "fisub dword ptr [{v} + 8]",
-        "fstp tbyte ptr [{o}]";
-        v = v.as_ptr(), o = out.as_mut_ptr());
+    x87_2(
+        (crate::pointers::game_address(v.as_ptr())) as usize,
+        (crate::pointers::game_address(out.as_mut_ptr())) as usize,
+    );
     out
 }
 
-/// The dispatch of the four: what the object's slots, the scratch and `extra` hold, the
-/// places within `FLOAT` at extended precision (none when the object is null: refused).
-pub fn dispatch_placed(
-    hook: &'static RawHook,
-    r: &mut Regs,
-    call_original: crate::screens::harness::CallOriginal,
-    extra: &[Region],
-    rust: crate::service::harness::Rust,
-) {
-    let (regions, memory): (Vec<Region>, Vec<(Region, Tolerance)>) = match object() {
-        Ok(o) => {
-            let mut regions = vec![
-                (o + 0x10, 4),
-                (o + 0x238, 0x28),
-                (game_addr(rva(0x6D1AEC)) as u32, 4),
-            ];
-            regions.extend_from_slice(extra);
-            (
-                regions,
-                vec![((o + 0x240, 12), FLOAT), ((o + 0x254, 12), FLOAT)],
-            )
-        }
-        Err(_) => (vec![], vec![]),
-    };
-    let floats = Floats {
-        memory: &memory,
-        regs: &[],
-    };
-    dispatch_state_floats(hook, r, call_original, &regions, &floats, rust);
+// ---- the arithmetic that was x87 assembly ----
+
+/// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
+/// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
+/// `ext [o + 0] = int [v + 0] - int [v + 4]`
+fn x87_1(v: usize, o: usize) {
+    let t0 = fild(v, 0);
+    let t1 = fild(v, 4);
+    let t2 = t0 - t1;
+    fstp80(o, 0, t2);
 }
 
-/// What a test sets and the functions write: the test object, the tables, the places,
-/// the view matrix, the band inputs.
-pub fn test_regions(object: u32) -> Vec<Region> {
-    let a = |x: usize| game_addr(rva(x)) as u32;
-    vec![
-        (object, 0x260),
-        (a(CURRENT), 4),
-        (a(LISTED), 0x20),
-        (a(OBJECTS), 0x20),
-        (a(0x71A10C), 12),
-        (a(0x71A67C), 12),
-        (a(VIEW_TURN), 0x40),
-        (a(0x6D1AE0), 0xC),
-        (a(0x6D1AEC), 4),
-        (a(0x6D3108), 4),
-        (a(0x6D3CD0), 8),
-        (a(0x71A19C), 4),
-        (a(0x6D1AD4), 4),
-        (a(0x6D3B4C), 12),
-        (a(0x6D321C), 4),
-        (a(0x6D1A90), 0x40),
-    ]
+/// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
+/// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
+/// `ext [o + 0] = (int [v + 0] + int [v + 4]) - int [v + 8]`
+fn x87_2(v: usize, o: usize) {
+    let t0 = fild(v, 0);
+    let t1 = fild(v, 4);
+    let t2 = t0 + t1;
+    let t3 = fild(v, 8);
+    let t4 = t2 - t3;
+    fstp80(o, 0, t4);
 }
 
-/// The test of one of them: the original and the Rust version on the game's variables
-/// (saved and put back) with a test object; `set` adds the function's own inputs. Exact
-/// at double precision, the places within `FLOAT` at extended.
-pub fn test_sound(
-    hook: &RawHook,
-    original: unsafe extern "C" fn(*mut Regs),
-    rust: &dyn Fn(&Regs) -> Result<Left, Refused>,
-    set: &dyn Fn(u32),
-    extra: &[Region],
-) -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(hook) else {
-        return (0, 0);
-    };
-    let mut cells = vec![0u32; 0x98];
-    let o = cells.as_mut_ptr() as u32;
-    let mut all = test_regions(o);
-    all.extend_from_slice(extra);
-    let saved = capture(&all);
-    let memory = [((o + 0x240, 12), FLOAT), ((o + 0x254, 12), FLOAT)];
-    let tolerant = Floats {
-        memory: &memory,
-        regs: &[],
-    };
-    at_test_precisions(&tolerant, &mut |word, fl| {
-        for seed in 0..8u32 {
-            let prepare = || unsafe {
-                for k in 0..0x98u32 {
-                    put(o + 4 * k, 0xA5A5_0000 | k);
-                }
-                game_write(rva(CURRENT), seed % 8);
-                for k in 0..8usize {
-                    game_write(rva(OBJECTS + 4 * k), o);
-                    let v = if (k as u32 + seed).is_multiple_of(3) {
-                        u32::MAX
-                    } else {
-                        k as u32
-                    };
-                    game_write(rva(LISTED + 4 * k), v);
-                }
-                let mut f = [0u32; 24];
-                test_floats(seed * 19 + 3, &mut f);
-                for (k, v) in f.iter().take(16).enumerate() {
-                    game_write(rva(VIEW_TURN + 4 * k), *v);
-                }
-                for k in 0..3usize {
-                    game_write(
-                        rva(0x71A10C + 4 * k),
-                        seed.wrapping_mul(0x0246_8ACE) ^ k as u32,
-                    );
-                    game_write(
-                        rva(0x71A67C + 4 * k),
-                        (seed + 3).wrapping_mul(0x1357_9BDF) >> 2,
-                    );
-                }
-                // The bands' inputs: values about 0 .. 0x50 by the factors 1.
-                for v in [0x6D1AE0usize, 0x6D1AE4, 0x6D1AE8] {
-                    game_write(rva(v), 1.0f32.to_bits());
-                }
-                let band = |n: u32| ((seed * 7 + n * 11) % 0x50) as f32;
-                game_write(rva(0x6D3108), band(1).to_bits());
-                game_write(rva(0x6D3CD0), band(2).to_bits());
-                game_write(rva(0x71A19C), band(3).to_bits());
-                set(seed);
-            };
-            check_state_floats(
-                &mut t,
-                crate::framework::GameHook::name(hook),
-                &format!("control word {word:#x}, seed {seed}"),
-                original,
-                Regs::SENTINEL,
-                &prepare,
-                &all,
-                fl,
-                rust,
-            );
-        }
-    });
-    restore(&all, &saved);
-    drop(cells);
-    t.finish()
+#[cfg(all(test, target_arch = "x86"))]
+mod asm_reference {
+    use super::*;
+    use crate::scene::asm_test::{Block, In, Operand, Out, reference, sparse};
+
+    // The original's instructions, one function per run.
+    reference!(ref_0(v, o) "fild dword ptr [{v}]", "fisub dword ptr [{v} + 4]", "fstp tbyte ptr [{o}]");
+    reference!(ref_1(v, o) "fild dword ptr [{v}]", "fiadd dword ptr [{v} + 4]", "fisub dword ptr [{v} + 8]", "fstp tbyte ptr [{o}]");
+
+    fn blocks() -> Vec<Block> {
+        vec![
+            Block {
+                name: "car_sounds line 110",
+                operands: vec![
+                    Operand::Buffer {
+                        reads: &[(0, In::I), (4, In::I)],
+                        writes: &[],
+                    },
+                    Operand::Buffer {
+                        reads: &[],
+                        writes: &[(0, Out::T)],
+                    },
+                ],
+                ulps: 0,
+                reference: |a| unsafe { ref_0(a[0], a[1]) },
+                plain: |a| x87_1(a[0], a[1]),
+            },
+            Block {
+                name: "car_sounds line 119",
+                operands: vec![
+                    Operand::Buffer {
+                        reads: &[(0, In::I), (4, In::I), (8, In::I)],
+                        writes: &[],
+                    },
+                    Operand::Buffer {
+                        reads: &[],
+                        writes: &[(0, Out::T)],
+                    },
+                ],
+                ulps: 0,
+                reference: |a| unsafe { ref_1(a[0], a[1]) },
+                plain: |a| x87_2(a[0], a[1]),
+            },
+        ]
+    }
+
+    #[test]
+    fn x87_blocks_matches_the_assembly() {
+        sparse(&blocks(), 1200, 100);
+    }
 }

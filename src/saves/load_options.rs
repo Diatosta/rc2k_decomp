@@ -2,33 +2,59 @@
 //!
 //! In:  nothing
 //! Out: carry = not loaded; every register preserved
-//! `g_optionsLoaded` (0x75557D) = 0. Up to 0x10000 bytes of the file into the scratch block
-//! at 0x93E8B0; it is taken if it starts "R5CI" and has 0x50004 at +8. From +0x10 on it is
-//! copied out piece by piece to the 69 places of `OPTIONS` (0xB656 bytes: the screen
-//! modes, the sound's and the network's settings, the four players, the record
-//! table, the players' names and much else). After the last piece the file must have
-//! "####", else fatal error 0x80ACFF01 "ral.dat out of date" (the pieces have been copied
-//! by then). Then `saves::rebuild_car_lists`, and `g_optionsLoaded` = 1.
-//! A file shorter than that is not noticed as such: what the scratch block held decides.
-//! One caller, `sub_411239`. `sub_4AAE57` writes the file, the same pieces the other way.
-//! Shadow mode reads twice and compares every place. Self-test: a redirected copy that
-//! reads files of the test's and copies the pieces into memory of the test's, so that
-//! the game's own options are not touched.
-//!
-//! Hook removed 2026-10-22 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! `g_optionsLoaded` (0x75557D) = 0. Up to 0x10000 bytes of the file into the scratch block at
+//! 0x93E8B0; it is taken if it starts "R5CI" and has 0x50004 at +8. From +0x10 on it is copied out
+//! piece by piece to the 69 places of `OPTIONS` (0xB656 bytes: the screen modes, the sound's and
+//! the network's settings, the four players, the record table, the players' names and much else).
+//! After the last piece the file must have "####", else fatal error 0x80ACFF01 "ral.dat out of
+//! date" (the pieces have been copied by then). Then `saves::rebuild_car_lists`, and
+//! `g_optionsLoaded` = 1. A file shorter than that is not noticed as such: what the scratch block
+//! held decides. One caller, `sub_411239`. `sub_4AAE57` writes the file, the same pieces the other
+//! way.
 
 use crate::errors::{BadInput, FatalError, Refused};
 use crate::files::read_file::read_file;
-use crate::framework::{game_addr, rva};
+use crate::menu::loop_store::LOOP_FLAGS;
+use crate::pointers::GamePtr;
 use crate::saves::rebuild_car_lists::rebuild_car_lists;
-use crate::settings::{TEXT_ROOM, TEXT_RVA};
+use crate::settings::TEXT_ROOM;
+
+/// `unk_4F66DD`, `unk_4F66E1`, `unk_4F66E5` (-1 at start), `unk_4F66E9`: four dwords the
+/// options file keeps (here and in `saves::save_options`, by address); nothing else of the
+/// game reads them (a table of the developers' variables names the first). The fifth
+/// (0x4F66ED) is a gap. Split 2026-10-25 from sound's wheel surfaces after them.
+pub static KEPT: [crate::session::Dword; 5] = [
+    crate::session::Dword::new(0),
+    crate::session::Dword::new(0),
+    crate::session::Dword::new(0xFFFF_FFFF),
+    crate::session::Dword::new(0),
+    crate::session::Dword::new(0),
+];
 
 // ---- game data ----
 
-const PATH_RVA: usize = rva(0x5295D8); // "var\ral.dat"
-pub const LOADED_RVA: usize = rva(0x75557D); // g_optionsLoaded
+/// IDA's address of the options file's name.
+pub const PATH_START: usize = 0x5295D8;
+
+/// `aVarRalDat`: the options file's name.
+pub static PATH: crate::session::Bytes<12> = crate::session::Bytes::new(*b"var\\ral.dat\0");
+
+/// Where the name is (`moved::MOVED`'s home for IDA 0x5295D8).
+pub fn path_home() -> usize {
+    PATH.addr() as usize
+}
+
+#[cfg(test)]
+mod path_tests {
+    use super::*;
+
+    #[test]
+    fn first_values_are_the_games() {
+        crate::gfx::first_values_are_the_games(&PATH, PATH_START, PATH_START + 12);
+        assert_eq!(crate::moved::place(PATH_START), PATH.addr() as usize);
+    }
+}
+
 /// The file's pieces after its head, in order: (where each goes, its length).
 #[rustfmt::skip]
 pub const OPTIONS: [(u32, usize); 69] = [
@@ -117,53 +143,71 @@ const _: () = {
 
 /// Where the function works: the game's own places, or a test's.
 pub struct Places<'a> {
-    pub loaded: *mut u32,
-    /// Where the piece with this number goes.
-    pub piece: &'a dyn Fn(usize) -> *mut u8,
+    pub loaded: &'a crate::session::Dword,
+    pub piece: &'a dyn Fn(usize) -> GamePtr,
     pub rebuild_car_lists: &'a mut dyn FnMut() -> Result<(), BadInput>,
 }
 
-/// True if the options were loaded.
-pub unsafe fn load_options(path: *const u8, places: &mut Places) -> Result<bool, Refused> {
-    unsafe {
-        places.loaded.write_unaligned(0);
-        let file = game_addr(TEXT_RVA) as *mut u8;
-        let read = read_file(path, file, TEXT_ROOM + 1, 0)?;
-        // Converted: `rc2k_core::saves::kept` (`head_ok`, `pieces`), over the scratch block
-        // the file was read into (what it held past the file decides, as in the original).
-        use rc2k_core::saves::kept;
-        let block = std::slice::from_raw_parts(file, TEXT_ROOM as usize + 1);
-        if !read.ok || !kept::head_ok(block, kept::OPTIONS) {
-            return Ok(false);
-        }
-        let sizes = OPTIONS.map(|(_, len)| len);
-        let (pieces, ended) = kept::pieces(block, &sizes)?;
-        for (n, piece) in pieces.into_iter().enumerate() {
-            std::ptr::copy(piece.as_ptr(), (places.piece)(n), piece.len());
-        }
-        if !ended {
-            return Err(FatalError {
-                code: 0x80AC_FF01,
-                message: "ral.dat out of date",
-            }
-            .into());
-        }
-        (places.rebuild_car_lists)()?;
-        places.loaded.write_unaligned(1);
-        Ok(true)
+/// `saves::load_options` (see the header).
+pub fn load_options(path: *const u8, places: &mut Places) -> Result<bool, Refused> {
+    places.loaded.set(0);
+    let file = GamePtr::new(crate::files::scratch::SCRATCH.buffer.addr());
+    let read = read_file(path, crate::pointers::host(file.addr()), TEXT_ROOM + 1, 0)?;
+    use rc2k_core::saves::kept;
+    let block = file.read_bytes(TEXT_ROOM as usize + 1, "the options file")?;
+    if !read.ok || !kept::head_ok(&block, kept::OPTIONS) {
+        return Ok(false);
     }
+    let sizes = OPTIONS.map(|(_, len)| len);
+    let (pieces, ended) = kept::pieces(&block, &sizes)?;
+    for (n, piece) in pieces.into_iter().enumerate() {
+        (places.piece)(n).write_bytes(piece, "an option")?;
+    }
+    if !ended {
+        return Err(FatalError {
+            code: 0x80AC_FF01,
+            message: "ral.dat out of date",
+        }
+        .into());
+    }
+    (places.rebuild_car_lists)()?;
+    places.loaded.set(1);
+    Ok(true)
 }
 
-/// `load_options` on the game's own file and places.
-pub unsafe fn load_game_options() -> Result<bool, Refused> {
-    unsafe {
-        load_options(
-            game_addr(PATH_RVA) as *const u8,
-            &mut Places {
-                loaded: game_addr(LOADED_RVA) as *mut u32,
-                piece: &|n| game_addr(rva(OPTIONS[n].0 as usize)) as *mut u8,
-                rebuild_car_lists: &mut || rebuild_car_lists(),
-            },
-        )
+pub fn load_game_options() -> Result<bool, Refused> {
+    load_options(
+        crate::pointers::host(PATH.addr()) as *const u8,
+        &mut Places {
+            loaded: &LOOP_FLAGS.options_loaded,
+            piece: &|n| GamePtr::new((crate::moved::place(OPTIONS[n].0 as usize)) as u32),
+            rebuild_car_lists: &mut || rebuild_car_lists(),
+        },
+    )
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn kept_starts_as_the_games() {
+        let image = crate::moved::image_bytes(0x4F66DD, 20);
+        let mine = unsafe { std::slice::from_raw_parts(super::KEPT.as_ptr() as *const u8, 20) };
+        assert_eq!(mine, &image[..]);
+    }
+
+    /// Every piece lies whole in one place: all in the image or all in one moved home.
+    #[test]
+    fn no_piece_is_split_by_a_move() {
+        for &(at, len) in &super::OPTIONS {
+            let at = at as usize;
+            let first = crate::moved::place(at);
+            for k in 1..len {
+                assert_eq!(
+                    crate::moved::place(at + k),
+                    first + k,
+                    "piece {at:#x} is split at +{k:#x}"
+                );
+            }
+        }
     }
 }

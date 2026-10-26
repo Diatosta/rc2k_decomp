@@ -9,46 +9,35 @@
 //! white in the surface's format (`sub_407629`: `gfx::components_to_pixel` of 0xFFFFFF).
 //! One caller, `system::main_loop`.
 //! Refuses what `read_file` refuses.
-//! Hook removed 2026-10-22 (direct calls): Rust callers run its `entry` (`calls::call`,
-//! `routes.rs`); the registers above are the original's, for reference.
+//! The registers above are the original's, for reference; a call by address goes through
+//! `routes.rs`.
 
 use crate::errors::{FatalError, Refused};
 use crate::files::read_file::read_file;
-use crate::framework::{Regs, game_addr, game_write, rva};
 use crate::gfx::components_to_pixel::components_to_pixel;
+use crate::gfx::jade_store::JADE_FONT;
 use crate::gfx::pixel_format::surface_format;
-use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
 
 // ---- game data ----
 
-const PATH_RVA: usize = rva(0x4F66C8); // "files\d\gfx\jade.bun"
-const GLYPHS_RVA: usize = rva(0x4F52C4); // unk_4F52C4
 const ROOM: u32 = rc2k_core::gfx::screenshot::JADE_ROOM;
-const COLOUR_RVA: usize = rva(0x4F66C4); // dword_4F66C4
 
 // ---- Rust version ----
 
-pub unsafe fn load_jade(path: *const u8) -> Result<(), Refused> {
-    unsafe {
-        // Converted: `rc2k_core::gfx::screenshot::jade_read`.
-        use rc2k_core::gfx::screenshot::{JADE_COLOUR, jade_read};
-        let read = read_file(path, game_addr(GLYPHS_RVA) as *mut u8, ROOM, 0)?;
-        jade_read(read.ok, read.bytes_read).map_err(|code| FatalError { code, message: "" })?;
-        game_write(
-            COLOUR_RVA,
-            components_to_pixel(&surface_format(), JADE_COLOUR),
-        );
-        Ok(())
-    }
+pub fn load_jade(path: *const u8) -> Result<(), Refused> {
+    // Converted: `rc2k_core::gfx::screenshot::jade_read`.
+    use rc2k_core::gfx::screenshot::{JADE_COLOUR, jade_read};
+    let read = read_file(path, JADE_FONT.glyphs.as_ptr(), ROOM, 0)?;
+    jade_read(read.ok, read.bytes_read).map_err(|code| FatalError { code, message: "" })?;
+    JADE_FONT
+        .colour
+        .set(components_to_pixel(&surface_format()?, JADE_COLOUR));
+    Ok(())
 }
 
-fn rust(_: &Regs) -> Result<Left, Refused> {
-    unsafe { load_jade(game_addr(PATH_RVA) as *const u8) }?;
-    Ok(Left::nothing())
-}
-
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
+/// The game's `files\d\gfx\jade.bun`.
+pub fn load_jade_in_game() -> Result<(), Refused> {
+    load_jade(
+        crate::pointers::host(crate::gfx::texts::address(&crate::gfx::texts::JADE)) as *const u8,
+    )
 }

@@ -6,60 +6,151 @@
 //! (IDA 2026-10-17), and `run` does them in order as the original's code does.
 
 use crate::errors::Refused;
-use crate::framework::{Regs, game_addr, rva};
+use crate::framework::{game_addr, rva};
+use crate::gfx::choices_store::SCREEN_CHOICES;
 use crate::math::x87;
-use crate::service::harness::Region;
-
-pub type Part<'a> = &'a mut dyn FnMut(u32, &mut Regs) -> Result<(), Refused>;
-
-pub use rc2k_core::race::settings_copy::{Kind, Step};
+use crate::physics::car_store::Car;
+use crate::race::blocks_store::CAR_BLOCKS;
+use crate::race::numbers_store::NUMBERS;
+use crate::race::replay_file_store::REPLAY_FILE;
+use crate::race::state_store::RACE_STATE;
+use crate::race::tables_store::RACE_TABLES;
+use crate::race::vars_store::RACE_VARS;
+use crate::race::view_store::RACE_VIEW;
+use crate::session::{Dword, Float};
 
 use Step::*;
+pub use rc2k_core::race::settings_copy::Kind;
+use rc2k_core::race::settings_copy::Step;
 
-/// The parts' places: the five log calls, then the calls.
-pub const WRITE: u32 = 1;
-pub const WRITE_NL: u32 = 2;
-pub const INT_NL: u32 = 3;
-pub const HEX8_NL: u32 = 4;
-pub const FLOAT_NL: u32 = 5;
+/// A variable of the steps: one of the physics block's cells, a field of a car's block,
+/// or the game's at an IDA address (the race's, the texts, the calls).
+#[derive(Clone, Copy)]
+pub enum Place {
+    Addr(usize),
+    Cell(&'static Dword),
+    /// A float of the physics block, by its bits.
+    Bits(&'static Float),
+    /// A dword of car block n (`CAR_BLOCKS.cars[n]`), by field (`car!`).
+    CarCell(usize, fn(&Car) -> &Dword),
+    /// A float of car block n, by its bits (`car_bits!`).
+    CarBits(usize, fn(&Car) -> &Float),
+    /// A dword of an overlay store on the race block (`var!`: `RACE_VARS.stage_number`).
+    Var(fn() -> &'static Dword),
+}
+use Place::{Addr, Bits, CarBits, CarCell, Cell, Var};
+
+impl Place {
+    /// Its dword (a float's bits).
+    pub fn get(self) -> u32 {
+        match self {
+            Addr(a) => get(a),
+            Cell(cell) => cell.get(),
+            Bits(cell) => cell.bits(),
+            CarCell(n, f) => f(&CAR_BLOCKS.cars[n]).get(),
+            CarBits(n, f) => f(&CAR_BLOCKS.cars[n]).bits(),
+            Var(f) => f().get(),
+        }
+    }
+
+    /// Its dword set (a float's bits).
+    pub fn set(self, v: u32) {
+        match self {
+            Addr(a) => set(a, v),
+            Cell(cell) => cell.set(v),
+            Bits(cell) => cell.set_bits(v),
+            CarCell(n, f) => f(&CAR_BLOCKS.cars[n]).set(v),
+            CarBits(n, f) => f(&CAR_BLOCKS.cars[n]).set_bits(v),
+            Var(f) => f().set(v),
+        }
+    }
+}
+
+/// `car!(n, field)`: car block n's dword `field` as a `Place` (a `fn` item, so the tables
+/// stay `const`).
+macro_rules! car {
+    ($n:literal, $($f:tt)+) => {
+        $crate::race::settings_copy::Place::CarCell($n, {
+            fn f(c: &$crate::physics::car_store::Car) -> &$crate::session::Dword {
+                &c.$($f)+
+            }
+            f
+        })
+    };
+}
+
+/// `car_bits!(n, field)`: car block n's float `field`, by its bits.
+macro_rules! car_bits {
+    ($n:literal, $($f:tt)+) => {
+        $crate::race::settings_copy::Place::CarBits($n, {
+            fn f(c: &$crate::physics::car_store::Car) -> &$crate::session::Float {
+                &c.$($f)+
+            }
+            f
+        })
+    };
+}
+
+/// `var!(STATIC.field)`: a dword of an overlay store as a `Place` (a `fn` item, as `car!`).
+macro_rules! var {
+    ($s:ident . $($f:tt)+) => {
+        $crate::race::settings_copy::Place::Var({
+            fn f() -> &'static $crate::session::Dword {
+                &$s.$($f)+
+            }
+            f
+        })
+    };
+}
+pub(crate) use {car, car_bits, var};
+
 /// `race::clear_player_absences`, `race::copy_league_table`, `race::store_results_by_mode`.
 pub const CALLS: [usize; 3] = [0x449D44, 0x4650B7, 0x449957];
 
 fn at(a: usize) -> *mut u32 {
-    game_addr(rva(a)) as *mut u32
+    crate::pointers::host(game_addr(rva(a))) as *mut u32
 }
 
-unsafe fn get(a: usize) -> u32 {
-    unsafe { at(a).read_unaligned() }
+fn get(a: usize) -> u32 {
+    crate::pointers::read_or_end(
+        crate::pointers::game_address(at(a)),
+        "race::settings_copy's operand",
+    )
 }
 
-unsafe fn set(a: usize, v: u32) {
-    unsafe { at(a).write_unaligned(v) };
+fn set(a: usize, v: u32) {
+    crate::pointers::write_or_end(
+        crate::pointers::game_address(at(a)),
+        v,
+        "race::settings_copy's operand",
+    )
 }
 
-/// The game as the steps' machine: its dwords at IDA addresses, the registers, the x87's
-/// conversions, and the logs and calls through `part`.
-struct Game<'a, 'p> {
-    g: Regs,
-    part: &'a mut Part<'p>,
+/// The game as the steps' machine: its dwords at IDA addresses, the steps' own eax and ebx
+/// (the original reads no register at entry: they start from nothing), the x87's
+/// conversions, and the logs and calls.
+#[derive(Default)]
+struct Game {
+    eax: u32,
+    ebx: u32,
 }
 
-impl rc2k_core::race::settings_copy::Machine<usize> for Game<'_, '_> {
+impl rc2k_core::race::settings_copy::Machine<Place> for Game {
     type Error = Refused;
-    fn get(&mut self, a: usize) -> u32 {
-        unsafe { get(a) }
+    fn get(&mut self, a: Place) -> u32 {
+        a.get()
     }
-    fn set(&mut self, a: usize, v: u32) {
-        unsafe { set(a, v) }
+    fn set(&mut self, a: Place, v: u32) {
+        a.set(v)
     }
     fn eax(&self) -> u32 {
-        self.g.eax
+        self.eax
     }
     fn set_eax(&mut self, v: u32) {
-        self.g.eax = v;
+        self.eax = v;
     }
     fn set_ebx(&mut self, v: u32) {
-        self.g.ebx = v;
+        self.ebx = v;
     }
     fn int_to_float(&mut self, v: u32) -> u32 {
         x87::from_int(v as i32)
@@ -71,922 +162,1576 @@ impl rc2k_core::race::settings_copy::Machine<usize> for Game<'_, '_> {
         x87::loaded(v)
     }
     fn scaled_brake(&mut self, v: i32) -> u32 {
-        x87::int_times_to_int(v, unsafe { get(0x5C5E00) }) as u32
+        x87::int_times_to_int(v, NUMBERS.brake_scale.bits()) as u32
     }
-    fn text(&mut self, text: usize, nl: bool) -> Result<(), Refused> {
-        let mut r = Regs {
-            eax: game_addr(rva(text)) as u32,
-            ..self.g
-        };
-        (self.part)(if nl { WRITE_NL } else { WRITE }, &mut r)
+    fn text(&mut self, text: &'static std::ffi::CStr, nl: bool) -> Result<(), Refused> {
+        unsafe { crate::logfile::log_write::log_write(text.as_ptr().cast(), nl, 1) };
+        Ok(())
     }
     fn value(&mut self, v: u32, kind: Kind) -> Result<(), Refused> {
-        let mut r = Regs { eax: v, ..self.g };
-        (self.part)(if kind == Kind::Int { INT_NL } else { HEX8_NL }, &mut r)
+        if kind == Kind::Int {
+            crate::logfile::log_int::log_int(v as i32, true, 1);
+        } else {
+            crate::logfile::log_hex8::log_hex8(v, true, 1);
+        }
+        Ok(())
     }
     fn float(&mut self, v: u32) -> Result<(), Refused> {
-        let mut r = Regs {
-            eax: v,
-            ecx: 2,
-            ..self.g
-        };
-        (self.part)(FLOAT_NL, &mut r)
+        crate::logfile::log_float::log_float(f32::from_bits(v), 2, true, 1);
+        Ok(())
     }
-    fn call(&mut self, a: usize) -> Result<(), Refused> {
-        let n = CALLS
-            .iter()
-            .position(|&c| c == a)
-            .expect("a call the tables have");
-        (self.part)(6 + n as u32, &mut self.g)
+    fn call(&mut self, a: Place) -> Result<(), Refused> {
+        let Addr(a) = a else {
+            unreachable!("the calls are the image's");
+        };
+        use crate::race::race_shell::{
+            clear_player_absences, copy_league_table, store_results_by_mode,
+        };
+        // Each keeps the registers the steps read (eax is set again before any use).
+        {
+            match CALLS.iter().position(|&c| c == a) {
+                Some(0) => clear_player_absences(),
+                Some(1) => copy_league_table()?,
+                Some(2) => store_results_by_mode(),
+                _ => unreachable!("a call the tables have"),
+            }
+        }
+        Ok(())
     }
 }
 
-/// The steps from the first, as the original runs them. Leaves the registers as it
-/// does (eax and ebx from the steps that set them, the rest as the calls leave them).
-pub unsafe fn run(steps: &[Step], entry: &Regs, mut part: Part) -> Result<Regs, Refused> {
+/// The steps from the first, in the original's order.
+pub fn run(steps: &[Step<Place>]) -> Result<(), Refused> {
     // Converted: `rc2k_core::race::settings_copy::run` (the x87's conversions and the
     // brake's product kept, through `Machine`).
-    let mut game = Game {
-        g: *entry,
-        part: &mut part,
-    };
-    rc2k_core::race::settings_copy::run(steps, &mut game)?;
-    Ok(game.g)
+    rc2k_core::race::settings_copy::run(steps, &mut Game::default())
 }
 
 /// `race::copy_settings_in` (0x446EBE): `GRAHAM_TO_SHAUN`.
-pub unsafe fn copy_settings_in(entry: &Regs, part: Part) -> Result<Regs, Refused> {
-    unsafe { run(&GRAHAM_TO_SHAUN, entry, part) }
+pub fn copy_settings_in() -> Result<(), Refused> {
+    run(&GRAHAM_TO_SHAUN)
 }
 
 /// `race::copy_settings_out` (0x4486FB): `SHAUN_TO_GRAHAM`.
-pub unsafe fn copy_settings_out(entry: &Regs, part: Part) -> Result<Regs, Refused> {
-    unsafe { run(&SHAUN_TO_GRAHAM, entry, part) }
+pub fn copy_settings_out() -> Result<(), Refused> {
+    run(&SHAUN_TO_GRAHAM)
 }
 
-/// The steps' calls in the game: the logs and the Rust versions.
-pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
-    use crate::logfile::{log_float, log_hex8, log_int, log_write};
-    unsafe {
-        match place {
-            WRITE | WRITE_NL => log_write::log_write(r.eax as *const u8, place == WRITE_NL, 1),
-            INT_NL => log_int::log_int(r.eax as i32, true, 1),
-            HEX8_NL => log_hex8::log_hex8(r.eax, true, 1),
-            FLOAT_NL => log_float::log_float(f32::from_bits(r.eax), r.ecx, true, 1),
-            6 => crate::race::race_shell::clear_player_absences(),
-            7 => *r = crate::race::race_shell::copy_league_table(r),
-            _ => *r = crate::race::race_shell::store_results_by_mode(r),
-        }
-    }
-    Ok(())
-}
-
-/// The dwords a table's steps write.
-pub fn written(steps: &[Step]) -> Vec<usize> {
-    let mut w: Vec<usize> = steps
-        .iter()
-        .filter_map(|s| match *s {
-            Copy(to, _)
-            | IntToFloat(to, _)
-            | FloatToInt(to, _)
-            | FloatCopy(to, _)
-            | Brake(to, _)
-            | Put(to, _)
-            | Store(to)
-            | Dec(to) => Some(to),
-            _ => None,
-        })
-        .collect();
-    w.sort();
-    w.dedup();
-    w
-}
-
-/// The dwords a table's steps read.
-pub fn read(steps: &[Step]) -> Vec<usize> {
-    let mut r: Vec<usize> = steps
-        .iter()
-        .filter_map(|s| match *s {
-            Copy(_, from)
-            | IntToFloat(_, from)
-            | FloatToInt(_, from)
-            | FloatCopy(_, from)
-            | Brake(_, from)
-            | Load(from)
-            | SubEax(from)
-            | BitIf(from, _)
-            | Value(from, _)
-            | Float(from)
-            | JumpIfNot(from, _, _)
-            | Dec(from) => Some(from),
-            _ => None,
-        })
-        .collect();
-    r.sort();
-    r.dedup();
-    r
-}
-
-/// Regions of dwords.
-pub fn regions_of(dwords: &[usize]) -> Vec<Region> {
-    dwords
-        .iter()
-        .map(|&a| (game_addr(rva(a)) as u32, 4))
-        .collect()
-}
-
-pub const GRAHAM_TO_SHAUN: [Step; 446] = [
-    Text(0x4DC69A, true),
-    Text(0x4DC6C0, true),
-    Copy(0x6238C0, 0x75ACDC),
-    Copy(0x6238BC, 0x75ACD0),
-    Copy(0x623858, 0x75ACE8),
-    Copy(0x62385C, 0x75ACEC),
-    Copy(0x63DB94, 0x75ACE0),
-    Copy(0x6238A4, 0x75ACE4),
-    Copy(0x623850, 0x75ACD4),
-    Copy(0x623854, 0x75ACF0),
-    Copy(0x6238CC, 0x75AFF8),
-    Copy(0x6238D0, 0x75AFF4),
-    Dec(0x6238D0),
-    Copy(0x62389C, 0x75ACD8),
-    Copy(0x63DB90, 0x63DB94),
-    Copy(0x6235FC, 0x75AD1C),
-    Copy(0x623600, 0x75AE88),
-    Copy(0x623898, 0x4F50D0),
-    Copy(0x6238A8, 0x75AD00),
-    Copy(0x6238AC, 0x75AD0C),
-    Copy(0x6238B0, 0x75AD10),
-    Copy(0x6238B4, 0x75AD14),
-    Copy(0x6238B8, 0x75AD18),
-    Text(0x4DC6D5, false),
-    Value(0x63DB94, Kind::Int),
-    Text(0x4DC6E7, false),
-    Value(0x6238A4, Kind::Int),
-    Text(0x4DC6F8, false),
-    Value(0x623850, Kind::Int),
-    Text(0x4DC708, false),
-    Value(0x623854, Kind::Int),
-    Text(0x4DC718, false),
-    Value(0x6238CC, Kind::Int),
-    Text(0x4DC72B, false),
-    Value(0x6238D0, Kind::Int),
-    Text(0x4DC73E, false),
-    Value(0x62389C, Kind::Int),
-    Text(0x4DC74B, false),
-    Value(0x63DB90, Kind::Int),
-    Text(0x4DC75A, false),
-    Value(0x623898, Kind::Int),
-    Text(0x4DC76C, false),
-    Value(0x6238A8, Kind::Int),
-    Text(0x4DC77D, false),
-    Value(0x6238AC, Kind::Int),
-    Text(0x4DC790, false),
-    Value(0x6238B0, Kind::Int),
-    Text(0x4DC7A1, false),
-    Value(0x6238B4, Kind::Int),
-    Text(0x4DC7B2, false),
-    Value(0x6238B8, Kind::Int),
-    Brake(0x70F428, 0x75AD2C),
-    Brake(0x70F40C, 0x75AD20),
-    Brake(0x70F41C, 0x75AD24),
-    Brake(0x70F420, 0x75AD28),
-    Copy(0x70F414, 0x75AD30),
-    Brake(0x710408, 0x75AE98),
-    Brake(0x7103EC, 0x75AE8C),
-    Brake(0x7103FC, 0x75AE90),
-    Brake(0x710400, 0x75AE94),
-    Copy(0x7103F4, 0x75AE9C),
+pub static GRAHAM_TO_SHAUN: [Step<Place>; 446] = [
+    Text(c"-------------------------------------", true),
+    Text(c"COPY GRAHAM TO SHAUN", true),
+    Copy(
+        var!(RACE_VARS.no_replay),
+        Cell(&RACE_STATE.settings.no_replay),
+    ),
+    Copy(var!(RACE_VARS.rivals), Cell(&RACE_STATE.settings.rivals)),
+    Copy(
+        var!(RACE_VARS.race_car_kinds[0]),
+        Cell(&RACE_STATE.settings.car_kind_current),
+    ),
+    Copy(
+        var!(RACE_VARS.race_car_kinds[1]),
+        Cell(&RACE_STATE.settings.car_kind_first),
+    ),
+    Copy(
+        var!(RACE_VIEW.players),
+        Cell(&RACE_STATE.settings.race_mode),
+    ),
+    Copy(var!(RACE_VARS.split), Cell(&RACE_STATE.settings.kept)),
+    Copy(
+        var!(RACE_VARS.stage_number),
+        Cell(&RACE_STATE.settings.stage),
+    ),
+    Copy(
+        var!(RACE_VARS.direction),
+        Cell(&RACE_STATE.settings.direction),
+    ),
+    Copy(
+        var!(RACE_VARS.race_level),
+        Cell(&RACE_STATE.results.race_level),
+    ),
+    Copy(
+        var!(RACE_VARS.race_stage),
+        Cell(&RACE_STATE.results.race_stage),
+    ),
+    Dec(var!(RACE_VARS.race_stage)),
+    Copy(
+        var!(RACE_VARS.run_kind),
+        Cell(&RACE_STATE.settings.run_kind),
+    ),
+    Copy(var!(RACE_VIEW.race_cars), var!(RACE_VIEW.players)),
+    Copy(
+        var!(RACE_VARS.car_tyres[0]),
+        Cell(&RACE_STATE.settings.cars[0].tyre),
+    ),
+    Copy(
+        var!(RACE_VARS.car_tyres[1]),
+        Cell(&RACE_STATE.settings.cars[1].tyre),
+    ),
+    Copy(var!(RACE_VARS.mip_setting), var!(SCREEN_CHOICES.mipmapping)),
+    Copy(
+        var!(RACE_VARS.settings_words[0]),
+        Cell(&RACE_STATE.settings.setting_0),
+    ),
+    Copy(
+        var!(RACE_VARS.settings_words[1]),
+        Cell(&RACE_STATE.settings.setting_1),
+    ),
+    Copy(
+        var!(RACE_VARS.settings_words[2]),
+        Cell(&RACE_STATE.settings.setting_2),
+    ),
+    Copy(
+        var!(RACE_VARS.settings_words[3]),
+        Cell(&RACE_STATE.settings.setting_3),
+    ),
+    Copy(
+        var!(RACE_VARS.settings_words[4]),
+        Cell(&RACE_STATE.settings.setting_4),
+    ),
+    Text(c"[shaunnumplayers]", false),
+    Value(var!(RACE_VIEW.players), Kind::Int),
+    Text(c"[shaunsplitmode]", false),
+    Value(var!(RACE_VARS.split), Kind::Int),
+    Text(c"[shauntracknum]", false),
+    Value(var!(RACE_VARS.stage_number), Kind::Int),
+    Text(c"[shauncrsdirec]", false),
+    Value(var!(RACE_VARS.direction), Kind::Int),
+    Text(c"[shaunrallynumber]", false),
+    Value(var!(RACE_VARS.race_level), Kind::Int),
+    Text(c"[shaunstagenumber]", false),
+    Value(var!(RACE_VARS.race_stage), Kind::Int),
+    Text(c"[shaungmode]", false),
+    Value(var!(RACE_VARS.run_kind), Kind::Int),
+    Text(c"[shaunnumcars]", false),
+    Value(var!(RACE_VIEW.race_cars), Kind::Int),
+    Text(c"[shaunmipmapping]", false),
+    Value(var!(RACE_VARS.mip_setting), Kind::Int),
+    Text(c"[shaunlensflare]", false),
+    Value(var!(RACE_VARS.settings_words[0]), Kind::Int),
+    Text(c"[shaunreflections]", false),
+    Value(var!(RACE_VARS.settings_words[1]), Kind::Int),
+    Text(c"[shauncarshadow]", false),
+    Value(var!(RACE_VARS.settings_words[2]), Kind::Int),
+    Text(c"[shauncardetail]", false),
+    Value(var!(RACE_VARS.settings_words[3]), Kind::Int),
+    Text(c"[shaunheadlights]", false),
+    Value(var!(RACE_VARS.settings_words[4]), Kind::Int),
+    Brake(
+        car!(0, steering_sensitivity),
+        Cell(&RACE_STATE.settings.cars[0].steering_sensitivity),
+    ),
+    Brake(
+        car!(0, brake_balance),
+        Cell(&RACE_STATE.settings.cars[0].brake_balance),
+    ),
+    Brake(
+        car!(0, ride_height),
+        Cell(&RACE_STATE.settings.cars[0].ride_height),
+    ),
+    Brake(
+        car!(0, suspension_stiffness),
+        Cell(&RACE_STATE.settings.cars[0].suspension_stiffness),
+    ),
+    Copy(
+        car!(0, gear_ratio_setting),
+        Cell(&RACE_STATE.settings.cars[0].gear_ratio),
+    ),
+    Brake(
+        car!(1, steering_sensitivity),
+        Cell(&RACE_STATE.settings.cars[1].steering_sensitivity),
+    ),
+    Brake(
+        car!(1, brake_balance),
+        Cell(&RACE_STATE.settings.cars[1].brake_balance),
+    ),
+    Brake(
+        car!(1, ride_height),
+        Cell(&RACE_STATE.settings.cars[1].ride_height),
+    ),
+    Brake(
+        car!(1, suspension_stiffness),
+        Cell(&RACE_STATE.settings.cars[1].suspension_stiffness),
+    ),
+    Copy(
+        car!(1, gear_ratio_setting),
+        Cell(&RACE_STATE.settings.cars[1].gear_ratio),
+    ),
     LoadImm(0x100),
-    SubEax(0x70F40C),
-    Store(0x70F40C),
-    Load(0x75AE2C),
-    Store(0x623878),
-    Load(0x75AF98),
-    Store(0x62387C),
-    Copy(0x70FE94, 0x75AE1C),
-    Copy(0x710E74, 0x75AF88),
-    Load(0x75AE24),
-    Store(0x70FA70),
-    Store(0x70FA74),
-    Load(0x75AF90),
-    Store(0x710A50),
-    Store(0x710A54),
-    Text(0x4DC7C4, false),
-    Value(0x75B00C, Kind::Int),
-    Text(0x4DC7DB, false),
-    Value(0x75B010, Kind::Int),
-    Load(0x75B00C),
+    SubEax(car!(0, brake_balance)),
+    Store(car!(0, brake_balance)),
+    Load(Cell(&RACE_STATE.settings.cars[0].record_30)),
+    Store(var!(RACE_VARS.car_colours[0])),
+    Load(Cell(&RACE_STATE.settings.cars[1].record_30)),
+    Store(var!(RACE_VARS.car_colours[1])),
+    Copy(
+        car!(0, start_slot_value),
+        Cell(&RACE_STATE.settings.cars[0].race_number),
+    ),
+    Copy(
+        car!(1, start_slot_value),
+        Cell(&RACE_STATE.settings.cars[1].race_number),
+    ),
+    Load(Cell(&RACE_STATE.settings.cars[0].view)),
+    Store(car!(0, camera_view)),
+    Store(car!(0, camera_blend_view)),
+    Load(Cell(&RACE_STATE.settings.cars[1].view)),
+    Store(car!(1, camera_view)),
+    Store(car!(1, camera_blend_view)),
+    Text(c"[onerace.car1overbits]", false),
+    Value(Cell(&RACE_STATE.results.hud_bits_current), Kind::Int),
+    Text(c"[onerace.car2overbits]", false),
+    Value(Cell(&RACE_STATE.results.hud_bits_first), Kind::Int),
+    Load(Cell(&RACE_STATE.results.hud_bits_current)),
     JumpIfEaxNot(0xFFFFFFFF, 92),
     LoadImm(0),
-    BitIf(0x75ADF8, 0x10),
-    BitIf(0x75ADFC, 0x8),
-    BitIf(0x75AE00, 0x1),
-    BitIf(0x75AE08, 0x4),
-    BitIf(0x75AE14, 0x2),
-    BitIf(0x75AE04, 0x100),
-    BitIf(0x75AE10, 0x40),
-    BitIf(0x75AE0C, 0x20),
-    BitIf(0x75AE18, 0x80),
-    Store(0x70F60C),
-    Store(0x63DB7C),
-    Load(0x75B010),
+    BitIf(Cell(&RACE_STATE.settings.cars[0].map_area), 0x10),
+    BitIf(Cell(&RACE_STATE.settings.cars[0].rear_mirror), 0x8),
+    BitIf(Cell(&RACE_STATE.settings.cars[0].rev_counter), 0x1),
+    BitIf(Cell(&RACE_STATE.settings.cars[0].message_display), 0x4),
+    BitIf(Cell(&RACE_STATE.settings.cars[0].driver_info), 0x2),
+    BitIf(Cell(&RACE_STATE.settings.cars[0].metric_units), 0x100),
+    BitIf(Cell(&RACE_STATE.settings.cars[0].progress_bar), 0x40),
+    BitIf(Cell(&RACE_STATE.settings.cars[0].car_info), 0x20),
+    BitIf(Cell(&RACE_STATE.settings.cars[0].pace_notes), 0x80),
+    Store(car!(0, option_bits)),
+    Store(var!(RACE_VIEW.player_options[0])),
+    Load(Cell(&RACE_STATE.results.hud_bits_first)),
     JumpIfEaxNot(0xFFFFFFFF, 106),
     LoadImm(0),
-    BitIf(0x75AF64, 0x10),
-    BitIf(0x75AF68, 0x8),
-    BitIf(0x75AF6C, 0x1),
-    BitIf(0x75AF74, 0x4),
-    BitIf(0x75AF80, 0x2),
-    BitIf(0x75AF70, 0x100),
-    BitIf(0x75AF7C, 0x40),
-    BitIf(0x75AF78, 0x20),
-    BitIf(0x75AF84, 0x80),
-    Store(0x7105EC),
-    Store(0x63DB80),
-    IntToFloat(0x70F6A4, 0x75AD34),
-    IntToFloat(0x70F6A8, 0x75AD3C),
-    IntToFloat(0x70F6FC, 0x75AD40),
-    IntToFloat(0x70F6AC, 0x75AD44),
-    IntToFloat(0x70F6B0, 0x75AD4C),
-    IntToFloat(0x70F71C, 0x75AD50),
-    IntToFloat(0x70F6B4, 0x75AD54),
-    IntToFloat(0x70F6B8, 0x75AD5C),
-    IntToFloat(0x70F730, 0x75ADD4),
-    IntToFloat(0x70F750, 0x75ADF4),
-    IntToFloat(0x70F73C, 0x75ADE0),
-    IntToFloat(0x70F718, 0x75ADC0),
-    IntToFloat(0x70F6E0, 0x75AD8C),
-    IntToFloat(0x70F6F8, 0x75AD38),
-    IntToFloat(0x70F6BC, 0x75AD68),
-    IntToFloat(0x70F6C4, 0x75AD70),
-    IntToFloat(0x70F6C8, 0x75AD74),
-    IntToFloat(0x70F6CC, 0x75AD78),
-    IntToFloat(0x70F6D0, 0x75AD7C),
-    IntToFloat(0x70F6D4, 0x75AD80),
-    IntToFloat(0x70F6D8, 0x75AD84),
-    IntToFloat(0x70F6DC, 0x75AD88),
-    IntToFloat(0x70F6E4, 0x75AD90),
-    IntToFloat(0x70F6E8, 0x75AD94),
-    IntToFloat(0x70F6EC, 0x75AD98),
-    IntToFloat(0x70F6F0, 0x75AD9C),
-    IntToFloat(0x70F6F4, 0x75ADA0),
-    IntToFloat(0x70F700, 0x75ADA8),
-    IntToFloat(0x70F704, 0x75ADAC),
-    IntToFloat(0x70F708, 0x75ADB0),
-    IntToFloat(0x70F70C, 0x75ADB4),
-    IntToFloat(0x70F710, 0x75ADB8),
-    IntToFloat(0x70F714, 0x75ADBC),
-    IntToFloat(0x70F720, 0x75ADC4),
-    IntToFloat(0x70F724, 0x75ADC8),
-    IntToFloat(0x70F728, 0x75ADCC),
-    IntToFloat(0x70F72C, 0x75ADD0),
-    IntToFloat(0x70F734, 0x75ADD8),
-    IntToFloat(0x70F738, 0x75ADDC),
-    IntToFloat(0x70F740, 0x75ADE4),
-    IntToFloat(0x70F744, 0x75ADE8),
-    IntToFloat(0x70F748, 0x75ADEC),
-    IntToFloat(0x70F74C, 0x75ADF0),
-    Copy(0x70F450, 0x75B06C),
-    Copy(0x70F454, 0x75B070),
-    Copy(0x70F458, 0x75B074),
-    Copy(0x70F45C, 0x75B078),
-    Copy(0x70F460, 0x75B07C),
-    Copy(0x70F464, 0x75B080),
-    Copy(0x70F468, 0x75B084),
-    Copy(0x70F46C, 0x75B088),
-    IntToFloat(0x710684, 0x75AEA0),
-    IntToFloat(0x710688, 0x75AEA8),
-    IntToFloat(0x7106DC, 0x75AEAC),
-    IntToFloat(0x71068C, 0x75AEB0),
-    IntToFloat(0x710690, 0x75AEB8),
-    IntToFloat(0x7106FC, 0x75AEBC),
-    IntToFloat(0x710694, 0x75AEC0),
-    IntToFloat(0x710698, 0x75AEC8),
-    IntToFloat(0x710710, 0x75AF40),
-    IntToFloat(0x710730, 0x75AF60),
-    IntToFloat(0x71071C, 0x75AF4C),
-    IntToFloat(0x7106F8, 0x75AF2C),
-    IntToFloat(0x7106C0, 0x75AEF8),
-    IntToFloat(0x7106D8, 0x75AEA4),
-    IntToFloat(0x71069C, 0x75AED4),
-    IntToFloat(0x7106A4, 0x75AEDC),
-    IntToFloat(0x7106A8, 0x75AEE0),
-    IntToFloat(0x7106AC, 0x75AEE4),
-    IntToFloat(0x7106B0, 0x75AEE8),
-    IntToFloat(0x7106B4, 0x75AEEC),
-    IntToFloat(0x7106B8, 0x75AEF0),
-    IntToFloat(0x7106BC, 0x75AEF4),
-    IntToFloat(0x7106C4, 0x75AEFC),
-    IntToFloat(0x7106C8, 0x75AF00),
-    IntToFloat(0x7106CC, 0x75AF04),
-    IntToFloat(0x7106D0, 0x75AF08),
-    IntToFloat(0x7106D4, 0x75AF0C),
-    IntToFloat(0x7106E0, 0x75AF14),
-    IntToFloat(0x7106E4, 0x75AF18),
-    IntToFloat(0x7106E8, 0x75AF1C),
-    IntToFloat(0x7106EC, 0x75AF20),
-    IntToFloat(0x7106F0, 0x75AF24),
-    IntToFloat(0x7106F4, 0x75AF28),
-    IntToFloat(0x710700, 0x75AF30),
-    IntToFloat(0x710704, 0x75AF34),
-    IntToFloat(0x710708, 0x75AF38),
-    IntToFloat(0x71070C, 0x75AF3C),
-    IntToFloat(0x710714, 0x75AF44),
-    IntToFloat(0x710718, 0x75AF48),
-    IntToFloat(0x710720, 0x75AF50),
-    IntToFloat(0x710724, 0x75AF54),
-    IntToFloat(0x710728, 0x75AF58),
-    IntToFloat(0x71072C, 0x75AF5C),
-    Copy(0x710430, 0x75B0DC),
-    Copy(0x710434, 0x75B0E0),
-    Copy(0x710438, 0x75B0E4),
-    Copy(0x71043C, 0x75B0E8),
-    Copy(0x710440, 0x75B0EC),
-    Copy(0x710444, 0x75B0F0),
-    Copy(0x710448, 0x75B0F4),
-    Copy(0x71044C, 0x75B0F8),
-    Copy(0x70F684, 0x75B014),
-    Copy(0x710664, 0x75B018),
-    Copy(0x6051BC, 0x75B000),
-    Copy(0x70FA40, 0x75B000),
-    Text(0x4DC7F2, false),
-    Value(0x70F410, Kind::Int),
-    Text(0x4DC806, false),
-    Value(0x70F684, Kind::Hex8),
-    Text(0x4DC81A, false),
-    Value(0x70F418, Kind::Int),
-    Text(0x4DC830, false),
-    Float(0x70F6A4),
-    Text(0x4DC842, false),
-    Float(0x70F6A8),
-    Text(0x4DC855, false),
-    Float(0x70F6FC),
-    Text(0x4DC866, false),
-    Float(0x70F6AC),
-    Text(0x4DC877, false),
-    Float(0x70F6B0),
-    Text(0x4DC88A, false),
-    Float(0x70F71C),
-    Text(0x4DC89B, false),
-    Float(0x70F6B4),
-    Text(0x4DC8AD, false),
-    Float(0x70F6B8),
-    Text(0x4DC8BD, false),
-    Float(0x70F730),
-    Text(0x4DC8CD, false),
-    Float(0x70F750),
-    Text(0x4DC8DE, false),
-    Float(0x70F73C),
-    Text(0x4DC8F0, false),
-    Float(0x70F718),
-    Text(0x4DC902, false),
-    Float(0x70F6E0),
-    Text(0x4DC915, false),
-    Float(0x70F6F8),
-    Text(0x4DC925, false),
-    Float(0x70F6BC),
-    Text(0x4DC938, false),
-    Float(0x70F6C4),
-    Text(0x4DC949, false),
-    Float(0x70F6C8),
-    Text(0x4DC95A, false),
-    Float(0x70F6CC),
-    Text(0x4DC96B, false),
-    Float(0x70F6D0),
-    Text(0x4DC97C, false),
-    Float(0x70F6D4),
-    Text(0x4DC98D, false),
-    Float(0x70F6D8),
-    Text(0x4DC99E, false),
-    Float(0x70F6DC),
-    Text(0x4DC9AF, false),
-    Float(0x70F6E4),
-    Text(0x4DC9BF, false),
-    Float(0x70F6E8),
-    Text(0x4DC9CF, false),
-    Float(0x70F6EC),
-    Text(0x4DC9DF, false),
-    Float(0x70F6F0),
-    Text(0x4DC9EF, false),
-    Float(0x70F6F4),
-    Text(0x4DCA01, false),
-    Float(0x70F700),
-    Text(0x4DCA14, false),
-    Float(0x70F704),
-    Text(0x4DCA27, false),
-    Float(0x70F708),
-    Text(0x4DCA3A, false),
-    Float(0x70F70C),
-    Text(0x4DCA4D, false),
-    Float(0x70F710),
-    Text(0x4DCA60, false),
-    Float(0x70F714),
-    Text(0x4DCA73, false),
-    Float(0x70F720),
-    Text(0x4DCA84, false),
-    Float(0x70F724),
-    Text(0x4DCA95, false),
-    Float(0x70F728),
-    Text(0x4DCAA6, false),
-    Float(0x70F72C),
-    Text(0x4DCAB7, false),
-    Float(0x70F734),
-    Text(0x4DCAC9, false),
-    Float(0x70F738),
-    Text(0x4DCADB, false),
-    Float(0x70F740),
-    Text(0x4DCAEC, false),
-    Float(0x70F744),
-    Text(0x4DCAFD, false),
-    Float(0x70F748),
-    Text(0x4DCB0E, false),
-    Float(0x70F74C),
-    Text(0x4DCB1F, false),
-    Float(0x70F450),
-    Text(0x4DCB34, false),
-    Float(0x70F454),
-    Text(0x4DCB49, false),
-    Float(0x70F458),
-    Text(0x4DCB5E, false),
-    Float(0x70F45C),
-    Text(0x4DCB73, false),
-    Float(0x70F460),
-    Text(0x4DCB88, false),
-    Float(0x70F464),
-    Text(0x4DCB9D, false),
-    Float(0x70F468),
-    Text(0x4DCBB2, false),
-    Float(0x70F46C),
-    JumpIfNot(0x63DB94, 0x2, 431),
-    Text(0x4DCBC7, false),
-    Value(0x7103F0, Kind::Int),
-    Text(0x4DCBDB, false),
-    Value(0x710664, Kind::Hex8),
-    Text(0x4DCBEF, false),
-    Value(0x7103F8, Kind::Int),
-    Text(0x4DCC05, false),
-    Float(0x710684),
-    Text(0x4DCC17, false),
-    Float(0x710688),
-    Text(0x4DCC2A, false),
-    Float(0x7106DC),
-    Text(0x4DCC3B, false),
-    Float(0x71068C),
-    Text(0x4DCC4C, false),
-    Float(0x710690),
-    Text(0x4DCC5F, false),
-    Float(0x7106FC),
-    Text(0x4DCC70, false),
-    Float(0x710694),
-    Text(0x4DCC82, false),
-    Float(0x710698),
-    Text(0x4DCC92, false),
-    Float(0x710710),
-    Text(0x4DCCA2, false),
-    Float(0x710730),
-    Text(0x4DCCB3, false),
-    Float(0x71071C),
-    Text(0x4DCCC5, false),
-    Float(0x7106F8),
-    Text(0x4DCCD7, false),
-    Float(0x7106C0),
-    Text(0x4DCCEA, false),
-    Float(0x7106D8),
-    Text(0x4DCCFA, false),
-    Float(0x71069C),
-    Text(0x4DCD0D, false),
-    Float(0x7106A4),
-    Text(0x4DCD1E, false),
-    Float(0x7106A8),
-    Text(0x4DCD2F, false),
-    Float(0x7106AC),
-    Text(0x4DCD40, false),
-    Float(0x7106B0),
-    Text(0x4DCD51, false),
-    Float(0x7106B4),
-    Text(0x4DCD62, false),
-    Float(0x7106B8),
-    Text(0x4DCD73, false),
-    Float(0x7106BC),
-    Text(0x4DCD84, false),
-    Float(0x7106C4),
-    Text(0x4DCD94, false),
-    Float(0x7106C8),
-    Text(0x4DCDA4, false),
-    Float(0x7106CC),
-    Text(0x4DCDB4, false),
-    Float(0x7106D0),
-    Text(0x4DCDC4, false),
-    Float(0x7106D4),
-    Text(0x4DCDD6, false),
-    Float(0x7106E0),
-    Text(0x4DCDE9, false),
-    Float(0x7106E4),
-    Text(0x4DCDFC, false),
-    Float(0x7106E8),
-    Text(0x4DCE0F, false),
-    Float(0x7106EC),
-    Text(0x4DCE22, false),
-    Float(0x7106F0),
-    Text(0x4DCE35, false),
-    Float(0x7106F4),
-    Text(0x4DCE48, false),
-    Float(0x710700),
-    Text(0x4DCE59, false),
-    Float(0x710704),
-    Text(0x4DCE6A, false),
-    Float(0x710708),
-    Text(0x4DCE7B, false),
-    Float(0x71070C),
-    Text(0x4DCE8C, false),
-    Float(0x710714),
-    Text(0x4DCE9E, false),
-    Float(0x710718),
-    Text(0x4DCEB0, false),
-    Float(0x710720),
-    Text(0x4DCEC1, false),
-    Float(0x710724),
-    Text(0x4DCED2, false),
-    Float(0x710728),
-    Text(0x4DCEE3, false),
-    Float(0x71072C),
-    Text(0x4DCEF4, false),
-    Float(0x710430),
-    Text(0x4DCF09, false),
-    Float(0x710434),
-    Text(0x4DCF1E, false),
-    Float(0x710438),
-    Text(0x4DCF33, false),
-    Float(0x71043C),
-    Text(0x4DCF48, false),
-    Float(0x710440),
-    Text(0x4DCF5D, false),
-    Float(0x710444),
-    Text(0x4DCF72, false),
-    Float(0x710448),
-    Text(0x4DCF87, false),
-    Float(0x71044C),
-    Call(0x449D44),
-    Load(0x75B028),
-    Store(0x70F49C),
-    Load(0x75B098),
-    Store(0x71047C),
-    Text(0x4DCF9C, false),
-    Value(0x6051BC, Kind::Int),
-    Text(0x4DCFB2, false),
-    Value(0x70FA40, Kind::Int),
-    Text(0x4DCFC8, false),
-    Value(0x75B000, Kind::Int),
-    Call(0x4650B7),
-    Text(0x4DCFE5, true),
-    Text(0x4DCFFA, true),
+    BitIf(Cell(&RACE_STATE.settings.cars[1].map_area), 0x10),
+    BitIf(Cell(&RACE_STATE.settings.cars[1].rear_mirror), 0x8),
+    BitIf(Cell(&RACE_STATE.settings.cars[1].rev_counter), 0x1),
+    BitIf(Cell(&RACE_STATE.settings.cars[1].message_display), 0x4),
+    BitIf(Cell(&RACE_STATE.settings.cars[1].driver_info), 0x2),
+    BitIf(Cell(&RACE_STATE.settings.cars[1].metric_units), 0x100),
+    BitIf(Cell(&RACE_STATE.settings.cars[1].progress_bar), 0x40),
+    BitIf(Cell(&RACE_STATE.settings.cars[1].car_info), 0x20),
+    BitIf(Cell(&RACE_STATE.settings.cars[1].pace_notes), 0x80),
+    Store(car!(1, option_bits)),
+    Store(var!(RACE_VIEW.player_options[1])),
+    IntToFloat(
+        car_bits!(0, engine_damage),
+        Cell(&RACE_STATE.settings.cars[0].damage[0]),
+    ),
+    IntToFloat(
+        car_bits!(0, exhaust_damage),
+        Cell(&RACE_STATE.settings.cars[0].damage[2]),
+    ),
+    IntToFloat(
+        car_bits!(0, electrics_damage),
+        Cell(&RACE_STATE.settings.cars[0].damage[3]),
+    ),
+    IntToFloat(
+        car_bits!(0, turbo_damage),
+        Cell(&RACE_STATE.settings.cars[0].damage[4]),
+    ),
+    IntToFloat(
+        car_bits!(0, cooling_damage),
+        Cell(&RACE_STATE.settings.cars[0].damage[6]),
+    ),
+    IntToFloat(
+        car_bits!(0, steering_damage),
+        Cell(&RACE_STATE.settings.cars[0].damage[7]),
+    ),
+    IntToFloat(
+        car_bits!(0, clutch_damage),
+        Cell(&RACE_STATE.settings.cars[0].damage[8]),
+    ),
+    IntToFloat(
+        car_bits!(0, differential_damage),
+        Cell(&RACE_STATE.settings.cars[0].damage[10]),
+    ),
+    IntToFloat(
+        car_bits!(0, overall_suspension_damage),
+        Cell(&RACE_STATE.settings.cars[0].wear[27]),
+    ),
+    IntToFloat(
+        car_bits!(0, tyre_wear),
+        Cell(&RACE_STATE.settings.cars[0].wear[35]),
+    ),
+    IntToFloat(
+        car_bits!(0, brake_damage),
+        Cell(&RACE_STATE.settings.cars[0].wear[30]),
+    ),
+    IntToFloat(
+        car_bits!(0, lights_damage),
+        Cell(&RACE_STATE.settings.cars[0].wear[22]),
+    ),
+    IntToFloat(
+        car_bits!(0, gearbox_damage),
+        Cell(&RACE_STATE.settings.cars[0].wear[9]),
+    ),
+    IntToFloat(
+        car_bits!(0, body_damage),
+        Cell(&RACE_STATE.settings.cars[0].damage[1]),
+    ),
+    IntToFloat(
+        car_bits!(0, gear_wear[0]),
+        Cell(&RACE_STATE.settings.cars[0].wear[0]),
+    ),
+    IntToFloat(
+        car_bits!(0, gear_wear[2]),
+        Cell(&RACE_STATE.settings.cars[0].wear[2]),
+    ),
+    IntToFloat(
+        car_bits!(0, gear_wear[3]),
+        Cell(&RACE_STATE.settings.cars[0].wear[3]),
+    ),
+    IntToFloat(
+        car_bits!(0, gear_wear[4]),
+        Cell(&RACE_STATE.settings.cars[0].wear[4]),
+    ),
+    IntToFloat(
+        car_bits!(0, gear_wear[5]),
+        Cell(&RACE_STATE.settings.cars[0].wear[5]),
+    ),
+    IntToFloat(
+        car_bits!(0, gear_wear[6]),
+        Cell(&RACE_STATE.settings.cars[0].wear[6]),
+    ),
+    IntToFloat(
+        car_bits!(0, gear_wear[7]),
+        Cell(&RACE_STATE.settings.cars[0].wear[7]),
+    ),
+    IntToFloat(
+        car_bits!(0, gear_wear[8]),
+        Cell(&RACE_STATE.settings.cars[0].wear[8]),
+    ),
+    IntToFloat(
+        car_bits!(0, wheel_hit_damage[0]),
+        Cell(&RACE_STATE.settings.cars[0].wear[10]),
+    ),
+    IntToFloat(
+        car_bits!(0, wheel_hit_damage[1]),
+        Cell(&RACE_STATE.settings.cars[0].wear[11]),
+    ),
+    IntToFloat(
+        car_bits!(0, wheel_hit_damage[2]),
+        Cell(&RACE_STATE.settings.cars[0].wear[12]),
+    ),
+    IntToFloat(
+        car_bits!(0, wheel_hit_damage[3]),
+        Cell(&RACE_STATE.settings.cars[0].wear[13]),
+    ),
+    IntToFloat(
+        car_bits!(0, body_hit_damage),
+        Cell(&RACE_STATE.settings.cars[0].wear[14]),
+    ),
+    IntToFloat(
+        car_bits!(0, light_damage[0]),
+        Cell(&RACE_STATE.settings.cars[0].wear[16]),
+    ),
+    IntToFloat(
+        car_bits!(0, light_damage[1]),
+        Cell(&RACE_STATE.settings.cars[0].wear[17]),
+    ),
+    IntToFloat(
+        car_bits!(0, light_damage[2]),
+        Cell(&RACE_STATE.settings.cars[0].wear[18]),
+    ),
+    IntToFloat(
+        car_bits!(0, light_damage[3]),
+        Cell(&RACE_STATE.settings.cars[0].wear[19]),
+    ),
+    IntToFloat(
+        car_bits!(0, light_damage[4]),
+        Cell(&RACE_STATE.settings.cars[0].wear[20]),
+    ),
+    IntToFloat(
+        car_bits!(0, light_damage[5]),
+        Cell(&RACE_STATE.settings.cars[0].wear[21]),
+    ),
+    IntToFloat(
+        car_bits!(0, suspension_damage[0]),
+        Cell(&RACE_STATE.settings.cars[0].wear[23]),
+    ),
+    IntToFloat(
+        car_bits!(0, suspension_damage[1]),
+        Cell(&RACE_STATE.settings.cars[0].wear[24]),
+    ),
+    IntToFloat(
+        car_bits!(0, suspension_damage[2]),
+        Cell(&RACE_STATE.settings.cars[0].wear[25]),
+    ),
+    IntToFloat(
+        car_bits!(0, suspension_damage[3]),
+        Cell(&RACE_STATE.settings.cars[0].wear[26]),
+    ),
+    IntToFloat(
+        car_bits!(0, brake_wear_a),
+        Cell(&RACE_STATE.settings.cars[0].wear[28]),
+    ),
+    IntToFloat(
+        car_bits!(0, brake_wear_b),
+        Cell(&RACE_STATE.settings.cars[0].wear[29]),
+    ),
+    IntToFloat(
+        car_bits!(0, part_hit_damage[0]),
+        Cell(&RACE_STATE.settings.cars[0].wear[31]),
+    ),
+    IntToFloat(
+        car_bits!(0, part_hit_damage[1]),
+        Cell(&RACE_STATE.settings.cars[0].wear[32]),
+    ),
+    IntToFloat(
+        car_bits!(0, part_hit_damage[2]),
+        Cell(&RACE_STATE.settings.cars[0].wear[33]),
+    ),
+    IntToFloat(
+        car_bits!(0, part_hit_damage[3]),
+        Cell(&RACE_STATE.settings.cars[0].wear[34]),
+    ),
+    Copy(
+        car_bits!(0, impact_octant_marks[0]),
+        Cell(&RACE_STATE.results.results[0].block[0]),
+    ),
+    Copy(
+        car_bits!(0, impact_octant_marks[1]),
+        Cell(&RACE_STATE.results.results[0].block[1]),
+    ),
+    Copy(
+        car_bits!(0, impact_octant_marks[2]),
+        Cell(&RACE_STATE.results.results[0].block[2]),
+    ),
+    Copy(
+        car_bits!(0, impact_octant_marks[3]),
+        Cell(&RACE_STATE.results.results[0].block[3]),
+    ),
+    Copy(
+        car_bits!(0, impact_octant_marks[4]),
+        Cell(&RACE_STATE.results.results[0].block[4]),
+    ),
+    Copy(
+        car_bits!(0, impact_octant_marks[5]),
+        Cell(&RACE_STATE.results.results[0].block[5]),
+    ),
+    Copy(
+        car_bits!(0, impact_octant_marks[6]),
+        Cell(&RACE_STATE.results.results[0].block[6]),
+    ),
+    Copy(
+        car_bits!(0, impact_octant_marks[7]),
+        Cell(&RACE_STATE.results.results[0].block[7]),
+    ),
+    IntToFloat(
+        car_bits!(1, engine_damage),
+        Cell(&RACE_STATE.settings.cars[1].damage[0]),
+    ),
+    IntToFloat(
+        car_bits!(1, exhaust_damage),
+        Cell(&RACE_STATE.settings.cars[1].damage[2]),
+    ),
+    IntToFloat(
+        car_bits!(1, electrics_damage),
+        Cell(&RACE_STATE.settings.cars[1].damage[3]),
+    ),
+    IntToFloat(
+        car_bits!(1, turbo_damage),
+        Cell(&RACE_STATE.settings.cars[1].damage[4]),
+    ),
+    IntToFloat(
+        car_bits!(1, cooling_damage),
+        Cell(&RACE_STATE.settings.cars[1].damage[6]),
+    ),
+    IntToFloat(
+        car_bits!(1, steering_damage),
+        Cell(&RACE_STATE.settings.cars[1].damage[7]),
+    ),
+    IntToFloat(
+        car_bits!(1, clutch_damage),
+        Cell(&RACE_STATE.settings.cars[1].damage[8]),
+    ),
+    IntToFloat(
+        car_bits!(1, differential_damage),
+        Cell(&RACE_STATE.settings.cars[1].damage[10]),
+    ),
+    IntToFloat(
+        car_bits!(1, overall_suspension_damage),
+        Cell(&RACE_STATE.settings.cars[1].wear[27]),
+    ),
+    IntToFloat(
+        car_bits!(1, tyre_wear),
+        Cell(&RACE_STATE.settings.cars[1].wear[35]),
+    ),
+    IntToFloat(
+        car_bits!(1, brake_damage),
+        Cell(&RACE_STATE.settings.cars[1].wear[30]),
+    ),
+    IntToFloat(
+        car_bits!(1, lights_damage),
+        Cell(&RACE_STATE.settings.cars[1].wear[22]),
+    ),
+    IntToFloat(
+        car_bits!(1, gearbox_damage),
+        Cell(&RACE_STATE.settings.cars[1].wear[9]),
+    ),
+    IntToFloat(
+        car_bits!(1, body_damage),
+        Cell(&RACE_STATE.settings.cars[1].damage[1]),
+    ),
+    IntToFloat(
+        car_bits!(1, gear_wear[0]),
+        Cell(&RACE_STATE.settings.cars[1].wear[0]),
+    ),
+    IntToFloat(
+        car_bits!(1, gear_wear[2]),
+        Cell(&RACE_STATE.settings.cars[1].wear[2]),
+    ),
+    IntToFloat(
+        car_bits!(1, gear_wear[3]),
+        Cell(&RACE_STATE.settings.cars[1].wear[3]),
+    ),
+    IntToFloat(
+        car_bits!(1, gear_wear[4]),
+        Cell(&RACE_STATE.settings.cars[1].wear[4]),
+    ),
+    IntToFloat(
+        car_bits!(1, gear_wear[5]),
+        Cell(&RACE_STATE.settings.cars[1].wear[5]),
+    ),
+    IntToFloat(
+        car_bits!(1, gear_wear[6]),
+        Cell(&RACE_STATE.settings.cars[1].wear[6]),
+    ),
+    IntToFloat(
+        car_bits!(1, gear_wear[7]),
+        Cell(&RACE_STATE.settings.cars[1].wear[7]),
+    ),
+    IntToFloat(
+        car_bits!(1, gear_wear[8]),
+        Cell(&RACE_STATE.settings.cars[1].wear[8]),
+    ),
+    IntToFloat(
+        car_bits!(1, wheel_hit_damage[0]),
+        Cell(&RACE_STATE.settings.cars[1].wear[10]),
+    ),
+    IntToFloat(
+        car_bits!(1, wheel_hit_damage[1]),
+        Cell(&RACE_STATE.settings.cars[1].wear[11]),
+    ),
+    IntToFloat(
+        car_bits!(1, wheel_hit_damage[2]),
+        Cell(&RACE_STATE.settings.cars[1].wear[12]),
+    ),
+    IntToFloat(
+        car_bits!(1, wheel_hit_damage[3]),
+        Cell(&RACE_STATE.settings.cars[1].wear[13]),
+    ),
+    IntToFloat(
+        car_bits!(1, body_hit_damage),
+        Cell(&RACE_STATE.settings.cars[1].wear[14]),
+    ),
+    IntToFloat(
+        car_bits!(1, light_damage[0]),
+        Cell(&RACE_STATE.settings.cars[1].wear[16]),
+    ),
+    IntToFloat(
+        car_bits!(1, light_damage[1]),
+        Cell(&RACE_STATE.settings.cars[1].wear[17]),
+    ),
+    IntToFloat(
+        car_bits!(1, light_damage[2]),
+        Cell(&RACE_STATE.settings.cars[1].wear[18]),
+    ),
+    IntToFloat(
+        car_bits!(1, light_damage[3]),
+        Cell(&RACE_STATE.settings.cars[1].wear[19]),
+    ),
+    IntToFloat(
+        car_bits!(1, light_damage[4]),
+        Cell(&RACE_STATE.settings.cars[1].wear[20]),
+    ),
+    IntToFloat(
+        car_bits!(1, light_damage[5]),
+        Cell(&RACE_STATE.settings.cars[1].wear[21]),
+    ),
+    IntToFloat(
+        car_bits!(1, suspension_damage[0]),
+        Cell(&RACE_STATE.settings.cars[1].wear[23]),
+    ),
+    IntToFloat(
+        car_bits!(1, suspension_damage[1]),
+        Cell(&RACE_STATE.settings.cars[1].wear[24]),
+    ),
+    IntToFloat(
+        car_bits!(1, suspension_damage[2]),
+        Cell(&RACE_STATE.settings.cars[1].wear[25]),
+    ),
+    IntToFloat(
+        car_bits!(1, suspension_damage[3]),
+        Cell(&RACE_STATE.settings.cars[1].wear[26]),
+    ),
+    IntToFloat(
+        car_bits!(1, brake_wear_a),
+        Cell(&RACE_STATE.settings.cars[1].wear[28]),
+    ),
+    IntToFloat(
+        car_bits!(1, brake_wear_b),
+        Cell(&RACE_STATE.settings.cars[1].wear[29]),
+    ),
+    IntToFloat(
+        car_bits!(1, part_hit_damage[0]),
+        Cell(&RACE_STATE.settings.cars[1].wear[31]),
+    ),
+    IntToFloat(
+        car_bits!(1, part_hit_damage[1]),
+        Cell(&RACE_STATE.settings.cars[1].wear[32]),
+    ),
+    IntToFloat(
+        car_bits!(1, part_hit_damage[2]),
+        Cell(&RACE_STATE.settings.cars[1].wear[33]),
+    ),
+    IntToFloat(
+        car_bits!(1, part_hit_damage[3]),
+        Cell(&RACE_STATE.settings.cars[1].wear[34]),
+    ),
+    Copy(
+        car_bits!(1, impact_octant_marks[0]),
+        Cell(&RACE_STATE.results.results[1].block[0]),
+    ),
+    Copy(
+        car_bits!(1, impact_octant_marks[1]),
+        Cell(&RACE_STATE.results.results[1].block[1]),
+    ),
+    Copy(
+        car_bits!(1, impact_octant_marks[2]),
+        Cell(&RACE_STATE.results.results[1].block[2]),
+    ),
+    Copy(
+        car_bits!(1, impact_octant_marks[3]),
+        Cell(&RACE_STATE.results.results[1].block[3]),
+    ),
+    Copy(
+        car_bits!(1, impact_octant_marks[4]),
+        Cell(&RACE_STATE.results.results[1].block[4]),
+    ),
+    Copy(
+        car_bits!(1, impact_octant_marks[5]),
+        Cell(&RACE_STATE.results.results[1].block[5]),
+    ),
+    Copy(
+        car_bits!(1, impact_octant_marks[6]),
+        Cell(&RACE_STATE.results.results[1].block[6]),
+    ),
+    Copy(
+        car_bits!(1, impact_octant_marks[7]),
+        Cell(&RACE_STATE.results.results[1].block[7]),
+    ),
+    Copy(
+        car!(0, parts_present),
+        Cell(&RACE_STATE.results.flags_current),
+    ),
+    Copy(
+        car!(1, parts_present),
+        Cell(&RACE_STATE.results.flags_first),
+    ),
+    Copy(
+        var!(RACE_TABLES.start_place),
+        Cell(&RACE_STATE.results.figure_000),
+    ),
+    Copy(car!(0, mode2_place), Cell(&RACE_STATE.results.figure_000)),
+    Text(c"[car1.shauncarnum1]", false),
+    Value(car!(0, car_kind), Kind::Int),
+    Text(c"[car1.carpartsleft]", false),
+    Value(car!(0, parts_present), Kind::Hex8),
+    Text(c"[car1.shauntyretype1]", false),
+    Value(car!(0, tyre_kind), Kind::Int),
+    Text(c"[car1.dam_engine]", false),
+    Float(car_bits!(0, engine_damage)),
+    Text(c"[car1.dam_exhaust]", false),
+    Float(car_bits!(0, exhaust_damage)),
+    Text(c"[car1.dam_elect]", false),
+    Float(car_bits!(0, electrics_damage)),
+    Text(c"[car1.dam_turbo]", false),
+    Float(car_bits!(0, turbo_damage)),
+    Text(c"[car1.dam_cooling]", false),
+    Float(car_bits!(0, cooling_damage)),
+    Text(c"[car1.dam_steer]", false),
+    Float(car_bits!(0, steering_damage)),
+    Text(c"[car1.dam_clutch]", false),
+    Float(car_bits!(0, clutch_damage)),
+    Text(c"[car1.dam_diff]", false),
+    Float(car_bits!(0, differential_damage)),
+    Text(c"[car1.dam_susp]", false),
+    Float(car_bits!(0, overall_suspension_damage)),
+    Text(c"[car1.dam_tyres]", false),
+    Float(car_bits!(0, tyre_wear)),
+    Text(c"[car1.dam_brakes]", false),
+    Float(car_bits!(0, brake_damage)),
+    Text(c"[car1.dam_lights]", false),
+    Float(car_bits!(0, lights_damage)),
+    Text(c"[car1.dam_gearbox]", false),
+    Float(car_bits!(0, gearbox_damage)),
+    Text(c"[car1.dam_body]", false),
+    Float(car_bits!(0, body_damage)),
+    Text(c"[car1.dam_gearrvs]", false),
+    Float(car_bits!(0, gear_wear[0])),
+    Text(c"[car1.dam_gear1]", false),
+    Float(car_bits!(0, gear_wear[2])),
+    Text(c"[car1.dam_gear2]", false),
+    Float(car_bits!(0, gear_wear[3])),
+    Text(c"[car1.dam_gear3]", false),
+    Float(car_bits!(0, gear_wear[4])),
+    Text(c"[car1.dam_gear4]", false),
+    Float(car_bits!(0, gear_wear[5])),
+    Text(c"[car1.dam_gear5]", false),
+    Float(car_bits!(0, gear_wear[6])),
+    Text(c"[car1.dam_gear6]", false),
+    Float(car_bits!(0, gear_wear[7])),
+    Text(c"[car1.dam_gear7]", false),
+    Float(car_bits!(0, gear_wear[8])),
+    Text(c"[car1.dam_whl1]", false),
+    Float(car_bits!(0, wheel_hit_damage[0])),
+    Text(c"[car1.dam_whl2]", false),
+    Float(car_bits!(0, wheel_hit_damage[1])),
+    Text(c"[car1.dam_whl3]", false),
+    Float(car_bits!(0, wheel_hit_damage[2])),
+    Text(c"[car1.dam_whl4]", false),
+    Float(car_bits!(0, wheel_hit_damage[3])),
+    Text(c"[car1.dam_bdywrk]", false),
+    Float(car_bits!(0, body_hit_damage)),
+    Text(c"[car1.dam_lights1]", false),
+    Float(car_bits!(0, light_damage[0])),
+    Text(c"[car1.dam_lights2]", false),
+    Float(car_bits!(0, light_damage[1])),
+    Text(c"[car1.dam_lights3]", false),
+    Float(car_bits!(0, light_damage[2])),
+    Text(c"[car1.dam_lights4]", false),
+    Float(car_bits!(0, light_damage[3])),
+    Text(c"[car1.dam_lightsf]", false),
+    Float(car_bits!(0, light_damage[4])),
+    Text(c"[car1.dam_lightsb]", false),
+    Float(car_bits!(0, light_damage[5])),
+    Text(c"[car1.dam_susp1]", false),
+    Float(car_bits!(0, suspension_damage[0])),
+    Text(c"[car1.dam_susp2]", false),
+    Float(car_bits!(0, suspension_damage[1])),
+    Text(c"[car1.dam_susp3]", false),
+    Float(car_bits!(0, suspension_damage[2])),
+    Text(c"[car1.dam_susp4]", false),
+    Float(car_bits!(0, suspension_damage[3])),
+    Text(c"[car1.dam_brakef]", false),
+    Float(car_bits!(0, brake_wear_a)),
+    Text(c"[car1.dam_brakeb]", false),
+    Float(car_bits!(0, brake_wear_b)),
+    Text(c"[car1.dam_tyre1]", false),
+    Float(car_bits!(0, part_hit_damage[0])),
+    Text(c"[car1.dam_tyre2]", false),
+    Float(car_bits!(0, part_hit_damage[1])),
+    Text(c"[car1.dam_tyre3]", false),
+    Float(car_bits!(0, part_hit_damage[2])),
+    Text(c"[car1.dam_tyre4]", false),
+    Float(car_bits!(0, part_hit_damage[3])),
+    Text(c"[car1.caroctdamage0]", false),
+    Float(car_bits!(0, impact_octant_marks[0])),
+    Text(c"[car1.caroctdamage1]", false),
+    Float(car_bits!(0, impact_octant_marks[1])),
+    Text(c"[car1.caroctdamage2]", false),
+    Float(car_bits!(0, impact_octant_marks[2])),
+    Text(c"[car1.caroctdamage3]", false),
+    Float(car_bits!(0, impact_octant_marks[3])),
+    Text(c"[car1.caroctdamage4]", false),
+    Float(car_bits!(0, impact_octant_marks[4])),
+    Text(c"[car1.caroctdamage5]", false),
+    Float(car_bits!(0, impact_octant_marks[5])),
+    Text(c"[car1.caroctdamage6]", false),
+    Float(car_bits!(0, impact_octant_marks[6])),
+    Text(c"[car1.caroctdamage7]", false),
+    Float(car_bits!(0, impact_octant_marks[7])),
+    JumpIfNot(var!(RACE_VIEW.players), 0x2, 431),
+    Text(c"[car2.shauncarnum1]", false),
+    Value(car!(1, car_kind), Kind::Int),
+    Text(c"[car2.carpartsleft]", false),
+    Value(car!(1, parts_present), Kind::Hex8),
+    Text(c"[car2.shauntyretype1]", false),
+    Value(car!(1, tyre_kind), Kind::Int),
+    Text(c"[car2.dam_engine]", false),
+    Float(car_bits!(1, engine_damage)),
+    Text(c"[car2.dam_exhaust]", false),
+    Float(car_bits!(1, exhaust_damage)),
+    Text(c"[car2.dam_elect]", false),
+    Float(car_bits!(1, electrics_damage)),
+    Text(c"[car2.dam_turbo]", false),
+    Float(car_bits!(1, turbo_damage)),
+    Text(c"[car2.dam_cooling]", false),
+    Float(car_bits!(1, cooling_damage)),
+    Text(c"[car2.dam_steer]", false),
+    Float(car_bits!(1, steering_damage)),
+    Text(c"[car2.dam_clutch]", false),
+    Float(car_bits!(1, clutch_damage)),
+    Text(c"[car2.dam_diff]", false),
+    Float(car_bits!(1, differential_damage)),
+    Text(c"[car2.dam_susp]", false),
+    Float(car_bits!(1, overall_suspension_damage)),
+    Text(c"[car2.dam_tyres]", false),
+    Float(car_bits!(1, tyre_wear)),
+    Text(c"[car2.dam_brakes]", false),
+    Float(car_bits!(1, brake_damage)),
+    Text(c"[car2.dam_lights]", false),
+    Float(car_bits!(1, lights_damage)),
+    Text(c"[car2.dam_gearbox]", false),
+    Float(car_bits!(1, gearbox_damage)),
+    Text(c"[car2.dam_body]", false),
+    Float(car_bits!(1, body_damage)),
+    Text(c"[car2.dam_gearrvs]", false),
+    Float(car_bits!(1, gear_wear[0])),
+    Text(c"[car2.dam_gear1]", false),
+    Float(car_bits!(1, gear_wear[2])),
+    Text(c"[car2.dam_gear2]", false),
+    Float(car_bits!(1, gear_wear[3])),
+    Text(c"[car2.dam_gear3]", false),
+    Float(car_bits!(1, gear_wear[4])),
+    Text(c"[car2.dam_gear4]", false),
+    Float(car_bits!(1, gear_wear[5])),
+    Text(c"[car2.dam_gear5]", false),
+    Float(car_bits!(1, gear_wear[6])),
+    Text(c"[car2.dam_gear6]", false),
+    Float(car_bits!(1, gear_wear[7])),
+    Text(c"[car2.dam_gear7]", false),
+    Float(car_bits!(1, gear_wear[8])),
+    Text(c"[car2.dam_whl1]", false),
+    Float(car_bits!(1, wheel_hit_damage[0])),
+    Text(c"[car2.dam_whl2]", false),
+    Float(car_bits!(1, wheel_hit_damage[1])),
+    Text(c"[car2.dam_whl3]", false),
+    Float(car_bits!(1, wheel_hit_damage[2])),
+    Text(c"[car2.dam_whl4]", false),
+    Float(car_bits!(1, wheel_hit_damage[3])),
+    Text(c"[car2.dam_bdywrk]", false),
+    Float(car_bits!(1, body_hit_damage)),
+    Text(c"[car2.dam_lights1]", false),
+    Float(car_bits!(1, light_damage[0])),
+    Text(c"[car2.dam_lights2]", false),
+    Float(car_bits!(1, light_damage[1])),
+    Text(c"[car2.dam_lights3]", false),
+    Float(car_bits!(1, light_damage[2])),
+    Text(c"[car2.dam_lights4]", false),
+    Float(car_bits!(1, light_damage[3])),
+    Text(c"[car2.dam_lightsf]", false),
+    Float(car_bits!(1, light_damage[4])),
+    Text(c"[car2.dam_lightsb]", false),
+    Float(car_bits!(1, light_damage[5])),
+    Text(c"[car2.dam_susp1]", false),
+    Float(car_bits!(1, suspension_damage[0])),
+    Text(c"[car2.dam_susp2]", false),
+    Float(car_bits!(1, suspension_damage[1])),
+    Text(c"[car2.dam_susp3]", false),
+    Float(car_bits!(1, suspension_damage[2])),
+    Text(c"[car2.dam_susp4]", false),
+    Float(car_bits!(1, suspension_damage[3])),
+    Text(c"[car2.dam_brakef]", false),
+    Float(car_bits!(1, brake_wear_a)),
+    Text(c"[car2.dam_brakeb]", false),
+    Float(car_bits!(1, brake_wear_b)),
+    Text(c"[car2.dam_tyre1]", false),
+    Float(car_bits!(1, part_hit_damage[0])),
+    Text(c"[car2.dam_tyre2]", false),
+    Float(car_bits!(1, part_hit_damage[1])),
+    Text(c"[car2.dam_tyre3]", false),
+    Float(car_bits!(1, part_hit_damage[2])),
+    Text(c"[car2.dam_tyre4]", false),
+    Float(car_bits!(1, part_hit_damage[3])),
+    Text(c"[car2.caroctdamage0]", false),
+    Float(car_bits!(1, impact_octant_marks[0])),
+    Text(c"[car2.caroctdamage1]", false),
+    Float(car_bits!(1, impact_octant_marks[1])),
+    Text(c"[car2.caroctdamage2]", false),
+    Float(car_bits!(1, impact_octant_marks[2])),
+    Text(c"[car2.caroctdamage3]", false),
+    Float(car_bits!(1, impact_octant_marks[3])),
+    Text(c"[car2.caroctdamage4]", false),
+    Float(car_bits!(1, impact_octant_marks[4])),
+    Text(c"[car2.caroctdamage5]", false),
+    Float(car_bits!(1, impact_octant_marks[5])),
+    Text(c"[car2.caroctdamage6]", false),
+    Float(car_bits!(1, impact_octant_marks[6])),
+    Text(c"[car2.caroctdamage7]", false),
+    Float(car_bits!(1, impact_octant_marks[7])),
+    Call(Addr(0x449D44)),
+    Load(Cell(&RACE_STATE.results.results[0].result)),
+    Store(car!(0, stop_state)),
+    Load(Cell(&RACE_STATE.results.results[1].result)),
+    Store(car!(1, stop_state)),
+    Text(c"[arcadestartposition]", false),
+    Value(var!(RACE_TABLES.start_place), Kind::Int),
+    Text(c"[car1.arcadeposition]", false),
+    Value(car!(0, mode2_place), Kind::Int),
+    Text(c"[onerace.car1arcadeposition]", false),
+    Value(Cell(&RACE_STATE.results.figure_000), Kind::Int),
+    Call(Addr(0x4650B7)),
+    Text(c"COPY GRAHAM TO SHAUN", true),
+    Text(c"-------------------------------------", true),
     Return,
 ];
 
-pub const SHAUN_TO_GRAHAM: [Step; 344] = [
-    Text(0x4DD020, true),
-    Text(0x4DD046, true),
-    JumpIfNot(0x5BEC94, 0x0, 340),
-    Copy(0x75B00C, 0x70F60C),
-    Copy(0x75B010, 0x7105EC),
-    FloatToInt(0x75AD34, 0x70F6A4),
-    FloatToInt(0x75AD3C, 0x70F6A8),
-    FloatToInt(0x75AD40, 0x70F6FC),
-    FloatToInt(0x75AD44, 0x70F6AC),
-    FloatToInt(0x75AD4C, 0x70F6B0),
-    FloatToInt(0x75AD50, 0x70F71C),
-    FloatToInt(0x75AD54, 0x70F6B4),
-    FloatToInt(0x75AD5C, 0x70F6B8),
-    FloatToInt(0x75ADD4, 0x70F730),
-    FloatToInt(0x75ADF4, 0x70F750),
-    FloatToInt(0x75ADE0, 0x70F73C),
-    FloatToInt(0x75ADC0, 0x70F718),
-    FloatToInt(0x75AD8C, 0x70F6E0),
-    FloatToInt(0x75AD38, 0x70F6F8),
-    FloatToInt(0x75AD68, 0x70F6BC),
-    FloatToInt(0x75AD70, 0x70F6C4),
-    FloatToInt(0x75AD74, 0x70F6C8),
-    FloatToInt(0x75AD78, 0x70F6CC),
-    FloatToInt(0x75AD7C, 0x70F6D0),
-    FloatToInt(0x75AD80, 0x70F6D4),
-    FloatToInt(0x75AD84, 0x70F6D8),
-    FloatToInt(0x75AD88, 0x70F6DC),
-    FloatToInt(0x75AD90, 0x70F6E4),
-    FloatToInt(0x75AD94, 0x70F6E8),
-    FloatToInt(0x75AD98, 0x70F6EC),
-    FloatToInt(0x75AD9C, 0x70F6F0),
-    FloatToInt(0x75ADA0, 0x70F6F4),
-    FloatToInt(0x75ADA8, 0x70F700),
-    FloatToInt(0x75ADAC, 0x70F704),
-    FloatToInt(0x75ADB0, 0x70F708),
-    FloatToInt(0x75ADB4, 0x70F70C),
-    FloatToInt(0x75ADB8, 0x70F710),
-    FloatToInt(0x75ADBC, 0x70F714),
-    FloatToInt(0x75ADC4, 0x70F720),
-    FloatToInt(0x75ADC8, 0x70F724),
-    FloatToInt(0x75ADCC, 0x70F728),
-    FloatToInt(0x75ADD0, 0x70F72C),
-    FloatToInt(0x75ADD8, 0x70F734),
-    FloatToInt(0x75ADDC, 0x70F738),
-    FloatToInt(0x75ADE4, 0x70F740),
-    FloatToInt(0x75ADE8, 0x70F744),
-    FloatToInt(0x75ADEC, 0x70F748),
-    FloatToInt(0x75ADF0, 0x70F74C),
-    Copy(0x75B06C, 0x70F450),
-    Copy(0x75B070, 0x70F454),
-    Copy(0x75B074, 0x70F458),
-    Copy(0x75B078, 0x70F45C),
-    Copy(0x75B07C, 0x70F460),
-    Copy(0x75B080, 0x70F464),
-    Copy(0x75B084, 0x70F468),
-    Copy(0x75B088, 0x70F46C),
-    FloatToInt(0x75AEA0, 0x710684),
-    FloatToInt(0x75AEA8, 0x710688),
-    FloatToInt(0x75AEAC, 0x7106DC),
-    FloatToInt(0x75AEB0, 0x71068C),
-    FloatToInt(0x75AEB8, 0x710690),
-    FloatToInt(0x75AEBC, 0x7106FC),
-    FloatToInt(0x75AEC0, 0x710694),
-    FloatToInt(0x75AEC8, 0x710698),
-    FloatToInt(0x75AF40, 0x710710),
-    FloatToInt(0x75AF60, 0x710730),
-    FloatToInt(0x75AF4C, 0x71071C),
-    FloatToInt(0x75AF2C, 0x7106F8),
-    FloatToInt(0x75AEF8, 0x7106C0),
-    FloatToInt(0x75AEA4, 0x7106D8),
-    FloatToInt(0x75AED4, 0x71069C),
-    FloatToInt(0x75AEDC, 0x7106A4),
-    FloatToInt(0x75AEE0, 0x7106A8),
-    FloatToInt(0x75AEE4, 0x7106AC),
-    FloatToInt(0x75AEE8, 0x7106B0),
-    FloatToInt(0x75AEEC, 0x7106B4),
-    FloatToInt(0x75AEF0, 0x7106B8),
-    FloatToInt(0x75AEF4, 0x7106BC),
-    FloatToInt(0x75AEFC, 0x7106C4),
-    FloatToInt(0x75AF00, 0x7106C8),
-    FloatToInt(0x75AF04, 0x7106CC),
-    FloatToInt(0x75AF08, 0x7106D0),
-    FloatToInt(0x75AF0C, 0x7106D4),
-    FloatToInt(0x75AF14, 0x7106E0),
-    FloatToInt(0x75AF18, 0x7106E4),
-    FloatToInt(0x75AF1C, 0x7106E8),
-    FloatToInt(0x75AF20, 0x7106EC),
-    FloatToInt(0x75AF24, 0x7106F0),
-    FloatToInt(0x75AF28, 0x7106F4),
-    FloatToInt(0x75AF30, 0x710700),
-    FloatToInt(0x75AF34, 0x710704),
-    FloatToInt(0x75AF38, 0x710708),
-    FloatToInt(0x75AF3C, 0x71070C),
-    FloatToInt(0x75AF44, 0x710714),
-    FloatToInt(0x75AF48, 0x710718),
-    FloatToInt(0x75AF50, 0x710720),
-    FloatToInt(0x75AF54, 0x710724),
-    FloatToInt(0x75AF58, 0x710728),
-    FloatToInt(0x75AF5C, 0x71072C),
-    Copy(0x75B0DC, 0x710430),
-    Copy(0x75B0E0, 0x710434),
-    Copy(0x75B0E4, 0x710438),
-    Copy(0x75B0E8, 0x71043C),
-    Copy(0x75B0EC, 0x710440),
-    Copy(0x75B0F0, 0x710444),
-    Copy(0x75B0F4, 0x710448),
-    Copy(0x75B0F8, 0x71044C),
-    Call(0x449957),
-    Load(0x70F49C),
-    Store(0x75B028),
-    Load(0x71047C),
-    Store(0x75B098),
-    FloatCopy(0x75B024, 0x70F9E8),
-    FloatCopy(0x75B094, 0x7109C8),
-    Copy(0x75B014, 0x70F684),
-    Copy(0x75B018, 0x710664),
-    Text(0x4DD05B, false),
-    Value(0x70F410, Kind::Int),
-    Text(0x4DD06F, false),
-    Value(0x70F684, Kind::Hex8),
-    Text(0x4DD083, false),
-    Value(0x70F418, Kind::Int),
-    Text(0x4DD099, false),
-    Float(0x70F6A4),
-    Text(0x4DD0AB, false),
-    Float(0x70F6A8),
-    Text(0x4DD0BE, false),
-    Float(0x70F6FC),
-    Text(0x4DD0CF, false),
-    Float(0x70F6AC),
-    Text(0x4DD0E0, false),
-    Float(0x70F6B0),
-    Text(0x4DD0F3, false),
-    Float(0x70F71C),
-    Text(0x4DD104, false),
-    Float(0x70F6B4),
-    Text(0x4DD116, false),
-    Float(0x70F6B8),
-    Text(0x4DD126, false),
-    Float(0x70F730),
-    Text(0x4DD136, false),
-    Float(0x70F750),
-    Text(0x4DD147, false),
-    Float(0x70F73C),
-    Text(0x4DD159, false),
-    Float(0x70F718),
-    Text(0x4DD16B, false),
-    Float(0x70F6E0),
-    Text(0x4DD17E, false),
-    Float(0x70F6F8),
-    Text(0x4DD18E, false),
-    Float(0x70F6BC),
-    Text(0x4DD1A1, false),
-    Float(0x70F6C4),
-    Text(0x4DD1B2, false),
-    Float(0x70F6C8),
-    Text(0x4DD1C3, false),
-    Float(0x70F6CC),
-    Text(0x4DD1D4, false),
-    Float(0x70F6D0),
-    Text(0x4DD1E5, false),
-    Float(0x70F6D4),
-    Text(0x4DD1F6, false),
-    Float(0x70F6D8),
-    Text(0x4DD207, false),
-    Float(0x70F6DC),
-    Text(0x4DD218, false),
-    Float(0x70F6E4),
-    Text(0x4DD228, false),
-    Float(0x70F6E8),
-    Text(0x4DD238, false),
-    Float(0x70F6EC),
-    Text(0x4DD248, false),
-    Float(0x70F6F0),
-    Text(0x4DD258, false),
-    Float(0x70F6F4),
-    Text(0x4DD26A, false),
-    Float(0x70F700),
-    Text(0x4DD27D, false),
-    Float(0x70F704),
-    Text(0x4DD290, false),
-    Float(0x70F708),
-    Text(0x4DD2A3, false),
-    Float(0x70F70C),
-    Text(0x4DD2B6, false),
-    Float(0x70F710),
-    Text(0x4DD2C9, false),
-    Float(0x70F714),
-    Text(0x4DD2DC, false),
-    Float(0x70F720),
-    Text(0x4DD2ED, false),
-    Float(0x70F724),
-    Text(0x4DD2FE, false),
-    Float(0x70F728),
-    Text(0x4DD30F, false),
-    Float(0x70F72C),
-    Text(0x4DD320, false),
-    Float(0x70F734),
-    Text(0x4DD332, false),
-    Float(0x70F738),
-    Text(0x4DD344, false),
-    Float(0x70F740),
-    Text(0x4DD355, false),
-    Float(0x70F744),
-    Text(0x4DD366, false),
-    Float(0x70F748),
-    Text(0x4DD377, false),
-    Float(0x70F74C),
-    Text(0x4DD388, false),
-    Float(0x70F450),
-    Text(0x4DD39D, false),
-    Float(0x70F454),
-    Text(0x4DD3B2, false),
-    Float(0x70F458),
-    Text(0x4DD3C7, false),
-    Float(0x70F45C),
-    Text(0x4DD3DC, false),
-    Float(0x70F460),
-    Text(0x4DD3F1, false),
-    Float(0x70F464),
-    Text(0x4DD406, false),
-    Float(0x70F468),
-    Text(0x4DD41B, false),
-    Float(0x70F46C),
-    JumpIfNot(0x63DB94, 0x2, 333),
-    Text(0x4DD430, false),
-    Value(0x7103F0, Kind::Int),
-    Text(0x4DD444, false),
-    Value(0x710664, Kind::Hex8),
-    Text(0x4DD458, false),
-    Value(0x7103F8, Kind::Int),
-    Text(0x4DD46E, false),
-    Float(0x710684),
-    Text(0x4DD480, false),
-    Float(0x710688),
-    Text(0x4DD493, false),
-    Float(0x7106DC),
-    Text(0x4DD4A4, false),
-    Float(0x71068C),
-    Text(0x4DD4B5, false),
-    Float(0x710690),
-    Text(0x4DD4C8, false),
-    Float(0x7106FC),
-    Text(0x4DD4D9, false),
-    Float(0x710694),
-    Text(0x4DD4EB, false),
-    Float(0x710698),
-    Text(0x4DD4FB, false),
-    Float(0x710710),
-    Text(0x4DD50B, false),
-    Float(0x710730),
-    Text(0x4DD51C, false),
-    Float(0x71071C),
-    Text(0x4DD52E, false),
-    Float(0x7106F8),
-    Text(0x4DD540, false),
-    Float(0x7106C0),
-    Text(0x4DD553, false),
-    Float(0x7106D8),
-    Text(0x4DD563, false),
-    Float(0x71069C),
-    Text(0x4DD576, false),
-    Float(0x7106A4),
-    Text(0x4DD587, false),
-    Float(0x7106A8),
-    Text(0x4DD598, false),
-    Float(0x7106AC),
-    Text(0x4DD5A9, false),
-    Float(0x7106B0),
-    Text(0x4DD5BA, false),
-    Float(0x7106B4),
-    Text(0x4DD5CB, false),
-    Float(0x7106B8),
-    Text(0x4DD5DC, false),
-    Float(0x7106BC),
-    Text(0x4DD5ED, false),
-    Float(0x7106C4),
-    Text(0x4DD5FD, false),
-    Float(0x7106C8),
-    Text(0x4DD60D, false),
-    Float(0x7106CC),
-    Text(0x4DD61D, false),
-    Float(0x7106D0),
-    Text(0x4DD62D, false),
-    Float(0x7106D4),
-    Text(0x4DD63F, false),
-    Float(0x7106E0),
-    Text(0x4DD652, false),
-    Float(0x7106E4),
-    Text(0x4DD665, false),
-    Float(0x7106E8),
-    Text(0x4DD678, false),
-    Float(0x7106EC),
-    Text(0x4DD68B, false),
-    Float(0x7106F0),
-    Text(0x4DD69E, false),
-    Float(0x7106F4),
-    Text(0x4DD6B1, false),
-    Float(0x710700),
-    Text(0x4DD6C2, false),
-    Float(0x710704),
-    Text(0x4DD6D3, false),
-    Float(0x710708),
-    Text(0x4DD6E4, false),
-    Float(0x71070C),
-    Text(0x4DD6F5, false),
-    Float(0x710714),
-    Text(0x4DD707, false),
-    Float(0x710718),
-    Text(0x4DD719, false),
-    Float(0x710720),
-    Text(0x4DD72A, false),
-    Float(0x710724),
-    Text(0x4DD73B, false),
-    Float(0x710728),
-    Text(0x4DD74C, false),
-    Float(0x71072C),
-    Text(0x4DD75D, false),
-    Float(0x710430),
-    Text(0x4DD772, false),
-    Float(0x710434),
-    Text(0x4DD787, false),
-    Float(0x710438),
-    Text(0x4DD79C, false),
-    Float(0x71043C),
-    Text(0x4DD7B1, false),
-    Float(0x710440),
-    Text(0x4DD7C6, false),
-    Float(0x710444),
-    Text(0x4DD7DB, false),
-    Float(0x710448),
-    Text(0x4DD7F0, false),
-    Float(0x71044C),
-    Text(0x4DD805, false),
-    Value(0x6051BC, Kind::Int),
-    Text(0x4DD81B, false),
-    Value(0x70FA40, Kind::Int),
-    Text(0x4DD831, false),
-    Value(0x75B000, Kind::Int),
+pub static SHAUN_TO_GRAHAM: [Step<Place>; 344] = [
+    Text(c"-------------------------------------", true),
+    Text(c"COPY SHAUN TO GRAHAM", true),
+    JumpIfNot(var!(REPLAY_FILE.hold_car_revs), 0x0, 340),
+    Copy(
+        Cell(&RACE_STATE.results.hud_bits_current),
+        car!(0, option_bits),
+    ),
+    Copy(
+        Cell(&RACE_STATE.results.hud_bits_first),
+        car!(1, option_bits),
+    ),
+    FloatToInt(
+        Cell(&RACE_STATE.settings.cars[0].damage[0]),
+        car_bits!(0, engine_damage),
+    ),
+    FloatToInt(
+        Cell(&RACE_STATE.settings.cars[0].damage[2]),
+        car_bits!(0, exhaust_damage),
+    ),
+    FloatToInt(
+        Cell(&RACE_STATE.settings.cars[0].damage[3]),
+        car_bits!(0, electrics_damage),
+    ),
+    FloatToInt(
+        Cell(&RACE_STATE.settings.cars[0].damage[4]),
+        car_bits!(0, turbo_damage),
+    ),
+    FloatToInt(
+        Cell(&RACE_STATE.settings.cars[0].damage[6]),
+        car_bits!(0, cooling_damage),
+    ),
+    FloatToInt(
+        Cell(&RACE_STATE.settings.cars[0].damage[7]),
+        car_bits!(0, steering_damage),
+    ),
+    FloatToInt(
+        Cell(&RACE_STATE.settings.cars[0].damage[8]),
+        car_bits!(0, clutch_damage),
+    ),
+    FloatToInt(
+        Cell(&RACE_STATE.settings.cars[0].damage[10]),
+        car_bits!(0, differential_damage),
+    ),
+    FloatToInt(
+        Cell(&RACE_STATE.settings.cars[0].wear[27]),
+        car_bits!(0, overall_suspension_damage),
+    ),
+    FloatToInt(
+        Cell(&RACE_STATE.settings.cars[0].wear[35]),
+        car_bits!(0, tyre_wear),
+    ),
+    FloatToInt(
+        Cell(&RACE_STATE.settings.cars[0].wear[30]),
+        car_bits!(0, brake_damage),
+    ),
+    FloatToInt(
+        Cell(&RACE_STATE.settings.cars[0].wear[22]),
+        car_bits!(0, lights_damage),
+    ),
+    FloatToInt(
+        Cell(&RACE_STATE.settings.cars[0].wear[9]),
+        car_bits!(0, gearbox_damage),
+    ),
+    FloatToInt(
+        Cell(&RACE_STATE.settings.cars[0].damage[1]),
+        car_bits!(0, body_damage),
+    ),
+    FloatToInt(
+        Cell(&RACE_STATE.settings.cars[0].wear[0]),
+        car_bits!(0, gear_wear[0]),
+    ),
+    FloatToInt(
+        Cell(&RACE_STATE.settings.cars[0].wear[2]),
+        car_bits!(0, gear_wear[2]),
+    ),
+    FloatToInt(
+        Cell(&RACE_STATE.settings.cars[0].wear[3]),
+        car_bits!(0, gear_wear[3]),
+    ),
+    FloatToInt(
+        Cell(&RACE_STATE.settings.cars[0].wear[4]),
+        car_bits!(0, gear_wear[4]),
+    ),
+    FloatToInt(
+        Cell(&RACE_STATE.settings.cars[0].wear[5]),
+        car_bits!(0, gear_wear[5]),
+    ),
+    FloatToInt(
+        Cell(&RACE_STATE.settings.cars[0].wear[6]),
+        car_bits!(0, gear_wear[6]),
+    ),
+    FloatToInt(
+        Cell(&RACE_STATE.settings.cars[0].wear[7]),
+        car_bits!(0, gear_wear[7]),
+    ),
+    FloatToInt(
+        Cell(&RACE_STATE.settings.cars[0].wear[8]),
+        car_bits!(0, gear_wear[8]),
+    ),
+    FloatToInt(
+        Cell(&RACE_STATE.settings.cars[0].wear[10]),
+        car_bits!(0, wheel_hit_damage[0]),
+    ),
+    FloatToInt(
+        Cell(&RACE_STATE.settings.cars[0].wear[11]),
+        car_bits!(0, wheel_hit_damage[1]),
+    ),
+    FloatToInt(
+        Cell(&RACE_STATE.settings.cars[0].wear[12]),
+        car_bits!(0, wheel_hit_damage[2]),
+    ),
+    FloatToInt(
+        Cell(&RACE_STATE.settings.cars[0].wear[13]),
+        car_bits!(0, wheel_hit_damage[3]),
+    ),
+    FloatToInt(
+        Cell(&RACE_STATE.settings.cars[0].wear[14]),
+        car_bits!(0, body_hit_damage),
+    ),
+    FloatToInt(
+        Cell(&RACE_STATE.settings.cars[0].wear[16]),
+        car_bits!(0, light_damage[0]),
+    ),
+    FloatToInt(
+        Cell(&RACE_STATE.settings.cars[0].wear[17]),
+        car_bits!(0, light_damage[1]),
+    ),
+    FloatToInt(
+        Cell(&RACE_STATE.settings.cars[0].wear[18]),
+        car_bits!(0, light_damage[2]),
+    ),
+    FloatToInt(
+        Cell(&RACE_STATE.settings.cars[0].wear[19]),
+        car_bits!(0, light_damage[3]),
+    ),
+    FloatToInt(
+        Cell(&RACE_STATE.settings.cars[0].wear[20]),
+        car_bits!(0, light_damage[4]),
+    ),
+    FloatToInt(
+        Cell(&RACE_STATE.settings.cars[0].wear[21]),
+        car_bits!(0, light_damage[5]),
+    ),
+    FloatToInt(
+        Cell(&RACE_STATE.settings.cars[0].wear[23]),
+        car_bits!(0, suspension_damage[0]),
+    ),
+    FloatToInt(
+        Cell(&RACE_STATE.settings.cars[0].wear[24]),
+        car_bits!(0, suspension_damage[1]),
+    ),
+    FloatToInt(
+        Cell(&RACE_STATE.settings.cars[0].wear[25]),
+        car_bits!(0, suspension_damage[2]),
+    ),
+    FloatToInt(
+        Cell(&RACE_STATE.settings.cars[0].wear[26]),
+        car_bits!(0, suspension_damage[3]),
+    ),
+    FloatToInt(
+        Cell(&RACE_STATE.settings.cars[0].wear[28]),
+        car_bits!(0, brake_wear_a),
+    ),
+    FloatToInt(
+        Cell(&RACE_STATE.settings.cars[0].wear[29]),
+        car_bits!(0, brake_wear_b),
+    ),
+    FloatToInt(
+        Cell(&RACE_STATE.settings.cars[0].wear[31]),
+        car_bits!(0, part_hit_damage[0]),
+    ),
+    FloatToInt(
+        Cell(&RACE_STATE.settings.cars[0].wear[32]),
+        car_bits!(0, part_hit_damage[1]),
+    ),
+    FloatToInt(
+        Cell(&RACE_STATE.settings.cars[0].wear[33]),
+        car_bits!(0, part_hit_damage[2]),
+    ),
+    FloatToInt(
+        Cell(&RACE_STATE.settings.cars[0].wear[34]),
+        car_bits!(0, part_hit_damage[3]),
+    ),
+    Copy(
+        Cell(&RACE_STATE.results.results[0].block[0]),
+        car_bits!(0, impact_octant_marks[0]),
+    ),
+    Copy(
+        Cell(&RACE_STATE.results.results[0].block[1]),
+        car_bits!(0, impact_octant_marks[1]),
+    ),
+    Copy(
+        Cell(&RACE_STATE.results.results[0].block[2]),
+        car_bits!(0, impact_octant_marks[2]),
+    ),
+    Copy(
+        Cell(&RACE_STATE.results.results[0].block[3]),
+        car_bits!(0, impact_octant_marks[3]),
+    ),
+    Copy(
+        Cell(&RACE_STATE.results.results[0].block[4]),
+        car_bits!(0, impact_octant_marks[4]),
+    ),
+    Copy(
+        Cell(&RACE_STATE.results.results[0].block[5]),
+        car_bits!(0, impact_octant_marks[5]),
+    ),
+    Copy(
+        Cell(&RACE_STATE.results.results[0].block[6]),
+        car_bits!(0, impact_octant_marks[6]),
+    ),
+    Copy(
+        Cell(&RACE_STATE.results.results[0].block[7]),
+        car_bits!(0, impact_octant_marks[7]),
+    ),
+    FloatToInt(
+        Cell(&RACE_STATE.settings.cars[1].damage[0]),
+        car_bits!(1, engine_damage),
+    ),
+    FloatToInt(
+        Cell(&RACE_STATE.settings.cars[1].damage[2]),
+        car_bits!(1, exhaust_damage),
+    ),
+    FloatToInt(
+        Cell(&RACE_STATE.settings.cars[1].damage[3]),
+        car_bits!(1, electrics_damage),
+    ),
+    FloatToInt(
+        Cell(&RACE_STATE.settings.cars[1].damage[4]),
+        car_bits!(1, turbo_damage),
+    ),
+    FloatToInt(
+        Cell(&RACE_STATE.settings.cars[1].damage[6]),
+        car_bits!(1, cooling_damage),
+    ),
+    FloatToInt(
+        Cell(&RACE_STATE.settings.cars[1].damage[7]),
+        car_bits!(1, steering_damage),
+    ),
+    FloatToInt(
+        Cell(&RACE_STATE.settings.cars[1].damage[8]),
+        car_bits!(1, clutch_damage),
+    ),
+    FloatToInt(
+        Cell(&RACE_STATE.settings.cars[1].damage[10]),
+        car_bits!(1, differential_damage),
+    ),
+    FloatToInt(
+        Cell(&RACE_STATE.settings.cars[1].wear[27]),
+        car_bits!(1, overall_suspension_damage),
+    ),
+    FloatToInt(
+        Cell(&RACE_STATE.settings.cars[1].wear[35]),
+        car_bits!(1, tyre_wear),
+    ),
+    FloatToInt(
+        Cell(&RACE_STATE.settings.cars[1].wear[30]),
+        car_bits!(1, brake_damage),
+    ),
+    FloatToInt(
+        Cell(&RACE_STATE.settings.cars[1].wear[22]),
+        car_bits!(1, lights_damage),
+    ),
+    FloatToInt(
+        Cell(&RACE_STATE.settings.cars[1].wear[9]),
+        car_bits!(1, gearbox_damage),
+    ),
+    FloatToInt(
+        Cell(&RACE_STATE.settings.cars[1].damage[1]),
+        car_bits!(1, body_damage),
+    ),
+    FloatToInt(
+        Cell(&RACE_STATE.settings.cars[1].wear[0]),
+        car_bits!(1, gear_wear[0]),
+    ),
+    FloatToInt(
+        Cell(&RACE_STATE.settings.cars[1].wear[2]),
+        car_bits!(1, gear_wear[2]),
+    ),
+    FloatToInt(
+        Cell(&RACE_STATE.settings.cars[1].wear[3]),
+        car_bits!(1, gear_wear[3]),
+    ),
+    FloatToInt(
+        Cell(&RACE_STATE.settings.cars[1].wear[4]),
+        car_bits!(1, gear_wear[4]),
+    ),
+    FloatToInt(
+        Cell(&RACE_STATE.settings.cars[1].wear[5]),
+        car_bits!(1, gear_wear[5]),
+    ),
+    FloatToInt(
+        Cell(&RACE_STATE.settings.cars[1].wear[6]),
+        car_bits!(1, gear_wear[6]),
+    ),
+    FloatToInt(
+        Cell(&RACE_STATE.settings.cars[1].wear[7]),
+        car_bits!(1, gear_wear[7]),
+    ),
+    FloatToInt(
+        Cell(&RACE_STATE.settings.cars[1].wear[8]),
+        car_bits!(1, gear_wear[8]),
+    ),
+    FloatToInt(
+        Cell(&RACE_STATE.settings.cars[1].wear[10]),
+        car_bits!(1, wheel_hit_damage[0]),
+    ),
+    FloatToInt(
+        Cell(&RACE_STATE.settings.cars[1].wear[11]),
+        car_bits!(1, wheel_hit_damage[1]),
+    ),
+    FloatToInt(
+        Cell(&RACE_STATE.settings.cars[1].wear[12]),
+        car_bits!(1, wheel_hit_damage[2]),
+    ),
+    FloatToInt(
+        Cell(&RACE_STATE.settings.cars[1].wear[13]),
+        car_bits!(1, wheel_hit_damage[3]),
+    ),
+    FloatToInt(
+        Cell(&RACE_STATE.settings.cars[1].wear[14]),
+        car_bits!(1, body_hit_damage),
+    ),
+    FloatToInt(
+        Cell(&RACE_STATE.settings.cars[1].wear[16]),
+        car_bits!(1, light_damage[0]),
+    ),
+    FloatToInt(
+        Cell(&RACE_STATE.settings.cars[1].wear[17]),
+        car_bits!(1, light_damage[1]),
+    ),
+    FloatToInt(
+        Cell(&RACE_STATE.settings.cars[1].wear[18]),
+        car_bits!(1, light_damage[2]),
+    ),
+    FloatToInt(
+        Cell(&RACE_STATE.settings.cars[1].wear[19]),
+        car_bits!(1, light_damage[3]),
+    ),
+    FloatToInt(
+        Cell(&RACE_STATE.settings.cars[1].wear[20]),
+        car_bits!(1, light_damage[4]),
+    ),
+    FloatToInt(
+        Cell(&RACE_STATE.settings.cars[1].wear[21]),
+        car_bits!(1, light_damage[5]),
+    ),
+    FloatToInt(
+        Cell(&RACE_STATE.settings.cars[1].wear[23]),
+        car_bits!(1, suspension_damage[0]),
+    ),
+    FloatToInt(
+        Cell(&RACE_STATE.settings.cars[1].wear[24]),
+        car_bits!(1, suspension_damage[1]),
+    ),
+    FloatToInt(
+        Cell(&RACE_STATE.settings.cars[1].wear[25]),
+        car_bits!(1, suspension_damage[2]),
+    ),
+    FloatToInt(
+        Cell(&RACE_STATE.settings.cars[1].wear[26]),
+        car_bits!(1, suspension_damage[3]),
+    ),
+    FloatToInt(
+        Cell(&RACE_STATE.settings.cars[1].wear[28]),
+        car_bits!(1, brake_wear_a),
+    ),
+    FloatToInt(
+        Cell(&RACE_STATE.settings.cars[1].wear[29]),
+        car_bits!(1, brake_wear_b),
+    ),
+    FloatToInt(
+        Cell(&RACE_STATE.settings.cars[1].wear[31]),
+        car_bits!(1, part_hit_damage[0]),
+    ),
+    FloatToInt(
+        Cell(&RACE_STATE.settings.cars[1].wear[32]),
+        car_bits!(1, part_hit_damage[1]),
+    ),
+    FloatToInt(
+        Cell(&RACE_STATE.settings.cars[1].wear[33]),
+        car_bits!(1, part_hit_damage[2]),
+    ),
+    FloatToInt(
+        Cell(&RACE_STATE.settings.cars[1].wear[34]),
+        car_bits!(1, part_hit_damage[3]),
+    ),
+    Copy(
+        Cell(&RACE_STATE.results.results[1].block[0]),
+        car_bits!(1, impact_octant_marks[0]),
+    ),
+    Copy(
+        Cell(&RACE_STATE.results.results[1].block[1]),
+        car_bits!(1, impact_octant_marks[1]),
+    ),
+    Copy(
+        Cell(&RACE_STATE.results.results[1].block[2]),
+        car_bits!(1, impact_octant_marks[2]),
+    ),
+    Copy(
+        Cell(&RACE_STATE.results.results[1].block[3]),
+        car_bits!(1, impact_octant_marks[3]),
+    ),
+    Copy(
+        Cell(&RACE_STATE.results.results[1].block[4]),
+        car_bits!(1, impact_octant_marks[4]),
+    ),
+    Copy(
+        Cell(&RACE_STATE.results.results[1].block[5]),
+        car_bits!(1, impact_octant_marks[5]),
+    ),
+    Copy(
+        Cell(&RACE_STATE.results.results[1].block[6]),
+        car_bits!(1, impact_octant_marks[6]),
+    ),
+    Copy(
+        Cell(&RACE_STATE.results.results[1].block[7]),
+        car_bits!(1, impact_octant_marks[7]),
+    ),
+    Call(Addr(0x449957)),
+    Load(car!(0, stop_state)),
+    Store(Cell(&RACE_STATE.results.results[0].result)),
+    Load(car!(1, stop_state)),
+    Store(Cell(&RACE_STATE.results.results[1].result)),
+    FloatCopy(
+        Bits(&RACE_STATE.results.results[0].secs),
+        car_bits!(0, top_speed),
+    ),
+    FloatCopy(
+        Bits(&RACE_STATE.results.results[1].secs),
+        car_bits!(1, top_speed),
+    ),
+    Copy(
+        Cell(&RACE_STATE.results.flags_current),
+        car!(0, parts_present),
+    ),
+    Copy(
+        Cell(&RACE_STATE.results.flags_first),
+        car!(1, parts_present),
+    ),
+    Text(c"[car1.shauncarnum1]", false),
+    Value(car!(0, car_kind), Kind::Int),
+    Text(c"[car1.carpartsleft]", false),
+    Value(car!(0, parts_present), Kind::Hex8),
+    Text(c"[car1.shauntyretype1]", false),
+    Value(car!(0, tyre_kind), Kind::Int),
+    Text(c"[car1.dam_engine]", false),
+    Float(car_bits!(0, engine_damage)),
+    Text(c"[car1.dam_exhaust]", false),
+    Float(car_bits!(0, exhaust_damage)),
+    Text(c"[car1.dam_elect]", false),
+    Float(car_bits!(0, electrics_damage)),
+    Text(c"[car1.dam_turbo]", false),
+    Float(car_bits!(0, turbo_damage)),
+    Text(c"[car1.dam_cooling]", false),
+    Float(car_bits!(0, cooling_damage)),
+    Text(c"[car1.dam_steer]", false),
+    Float(car_bits!(0, steering_damage)),
+    Text(c"[car1.dam_clutch]", false),
+    Float(car_bits!(0, clutch_damage)),
+    Text(c"[car1.dam_diff]", false),
+    Float(car_bits!(0, differential_damage)),
+    Text(c"[car1.dam_susp]", false),
+    Float(car_bits!(0, overall_suspension_damage)),
+    Text(c"[car1.dam_tyres]", false),
+    Float(car_bits!(0, tyre_wear)),
+    Text(c"[car1.dam_brakes]", false),
+    Float(car_bits!(0, brake_damage)),
+    Text(c"[car1.dam_lights]", false),
+    Float(car_bits!(0, lights_damage)),
+    Text(c"[car1.dam_gearbox]", false),
+    Float(car_bits!(0, gearbox_damage)),
+    Text(c"[car1.dam_body]", false),
+    Float(car_bits!(0, body_damage)),
+    Text(c"[car1.dam_gearrvs]", false),
+    Float(car_bits!(0, gear_wear[0])),
+    Text(c"[car1.dam_gear1]", false),
+    Float(car_bits!(0, gear_wear[2])),
+    Text(c"[car1.dam_gear2]", false),
+    Float(car_bits!(0, gear_wear[3])),
+    Text(c"[car1.dam_gear3]", false),
+    Float(car_bits!(0, gear_wear[4])),
+    Text(c"[car1.dam_gear4]", false),
+    Float(car_bits!(0, gear_wear[5])),
+    Text(c"[car1.dam_gear5]", false),
+    Float(car_bits!(0, gear_wear[6])),
+    Text(c"[car1.dam_gear6]", false),
+    Float(car_bits!(0, gear_wear[7])),
+    Text(c"[car1.dam_gear7]", false),
+    Float(car_bits!(0, gear_wear[8])),
+    Text(c"[car1.dam_whl1]", false),
+    Float(car_bits!(0, wheel_hit_damage[0])),
+    Text(c"[car1.dam_whl2]", false),
+    Float(car_bits!(0, wheel_hit_damage[1])),
+    Text(c"[car1.dam_whl3]", false),
+    Float(car_bits!(0, wheel_hit_damage[2])),
+    Text(c"[car1.dam_whl4]", false),
+    Float(car_bits!(0, wheel_hit_damage[3])),
+    Text(c"[car1.dam_bdywrk]", false),
+    Float(car_bits!(0, body_hit_damage)),
+    Text(c"[car1.dam_lights1]", false),
+    Float(car_bits!(0, light_damage[0])),
+    Text(c"[car1.dam_lights2]", false),
+    Float(car_bits!(0, light_damage[1])),
+    Text(c"[car1.dam_lights3]", false),
+    Float(car_bits!(0, light_damage[2])),
+    Text(c"[car1.dam_lights4]", false),
+    Float(car_bits!(0, light_damage[3])),
+    Text(c"[car1.dam_lightsf]", false),
+    Float(car_bits!(0, light_damage[4])),
+    Text(c"[car1.dam_lightsb]", false),
+    Float(car_bits!(0, light_damage[5])),
+    Text(c"[car1.dam_susp1]", false),
+    Float(car_bits!(0, suspension_damage[0])),
+    Text(c"[car1.dam_susp2]", false),
+    Float(car_bits!(0, suspension_damage[1])),
+    Text(c"[car1.dam_susp3]", false),
+    Float(car_bits!(0, suspension_damage[2])),
+    Text(c"[car1.dam_susp4]", false),
+    Float(car_bits!(0, suspension_damage[3])),
+    Text(c"[car1.dam_brakef]", false),
+    Float(car_bits!(0, brake_wear_a)),
+    Text(c"[car1.dam_brakeb]", false),
+    Float(car_bits!(0, brake_wear_b)),
+    Text(c"[car1.dam_tyre1]", false),
+    Float(car_bits!(0, part_hit_damage[0])),
+    Text(c"[car1.dam_tyre2]", false),
+    Float(car_bits!(0, part_hit_damage[1])),
+    Text(c"[car1.dam_tyre3]", false),
+    Float(car_bits!(0, part_hit_damage[2])),
+    Text(c"[car1.dam_tyre4]", false),
+    Float(car_bits!(0, part_hit_damage[3])),
+    Text(c"[car1.caroctdamage0]", false),
+    Float(car_bits!(0, impact_octant_marks[0])),
+    Text(c"[car1.caroctdamage1]", false),
+    Float(car_bits!(0, impact_octant_marks[1])),
+    Text(c"[car1.caroctdamage2]", false),
+    Float(car_bits!(0, impact_octant_marks[2])),
+    Text(c"[car1.caroctdamage3]", false),
+    Float(car_bits!(0, impact_octant_marks[3])),
+    Text(c"[car1.caroctdamage4]", false),
+    Float(car_bits!(0, impact_octant_marks[4])),
+    Text(c"[car1.caroctdamage5]", false),
+    Float(car_bits!(0, impact_octant_marks[5])),
+    Text(c"[car1.caroctdamage6]", false),
+    Float(car_bits!(0, impact_octant_marks[6])),
+    Text(c"[car1.caroctdamage7]", false),
+    Float(car_bits!(0, impact_octant_marks[7])),
+    JumpIfNot(var!(RACE_VIEW.players), 0x2, 333),
+    Text(c"[car2.shauncarnum1]", false),
+    Value(car!(1, car_kind), Kind::Int),
+    Text(c"[car2.carpartsleft]", false),
+    Value(car!(1, parts_present), Kind::Hex8),
+    Text(c"[car2.shauntyretype1]", false),
+    Value(car!(1, tyre_kind), Kind::Int),
+    Text(c"[car2.dam_engine]", false),
+    Float(car_bits!(1, engine_damage)),
+    Text(c"[car2.dam_exhaust]", false),
+    Float(car_bits!(1, exhaust_damage)),
+    Text(c"[car2.dam_elect]", false),
+    Float(car_bits!(1, electrics_damage)),
+    Text(c"[car2.dam_turbo]", false),
+    Float(car_bits!(1, turbo_damage)),
+    Text(c"[car2.dam_cooling]", false),
+    Float(car_bits!(1, cooling_damage)),
+    Text(c"[car2.dam_steer]", false),
+    Float(car_bits!(1, steering_damage)),
+    Text(c"[car2.dam_clutch]", false),
+    Float(car_bits!(1, clutch_damage)),
+    Text(c"[car2.dam_diff]", false),
+    Float(car_bits!(1, differential_damage)),
+    Text(c"[car2.dam_susp]", false),
+    Float(car_bits!(1, overall_suspension_damage)),
+    Text(c"[car2.dam_tyres]", false),
+    Float(car_bits!(1, tyre_wear)),
+    Text(c"[car2.dam_brakes]", false),
+    Float(car_bits!(1, brake_damage)),
+    Text(c"[car2.dam_lights]", false),
+    Float(car_bits!(1, lights_damage)),
+    Text(c"[car2.dam_gearbox]", false),
+    Float(car_bits!(1, gearbox_damage)),
+    Text(c"[car2.dam_body]", false),
+    Float(car_bits!(1, body_damage)),
+    Text(c"[car2.dam_gearrvs]", false),
+    Float(car_bits!(1, gear_wear[0])),
+    Text(c"[car2.dam_gear1]", false),
+    Float(car_bits!(1, gear_wear[2])),
+    Text(c"[car2.dam_gear2]", false),
+    Float(car_bits!(1, gear_wear[3])),
+    Text(c"[car2.dam_gear3]", false),
+    Float(car_bits!(1, gear_wear[4])),
+    Text(c"[car2.dam_gear4]", false),
+    Float(car_bits!(1, gear_wear[5])),
+    Text(c"[car2.dam_gear5]", false),
+    Float(car_bits!(1, gear_wear[6])),
+    Text(c"[car2.dam_gear6]", false),
+    Float(car_bits!(1, gear_wear[7])),
+    Text(c"[car2.dam_gear7]", false),
+    Float(car_bits!(1, gear_wear[8])),
+    Text(c"[car2.dam_whl1]", false),
+    Float(car_bits!(1, wheel_hit_damage[0])),
+    Text(c"[car2.dam_whl2]", false),
+    Float(car_bits!(1, wheel_hit_damage[1])),
+    Text(c"[car2.dam_whl3]", false),
+    Float(car_bits!(1, wheel_hit_damage[2])),
+    Text(c"[car2.dam_whl4]", false),
+    Float(car_bits!(1, wheel_hit_damage[3])),
+    Text(c"[car2.dam_bdywrk]", false),
+    Float(car_bits!(1, body_hit_damage)),
+    Text(c"[car2.dam_lights1]", false),
+    Float(car_bits!(1, light_damage[0])),
+    Text(c"[car2.dam_lights2]", false),
+    Float(car_bits!(1, light_damage[1])),
+    Text(c"[car2.dam_lights3]", false),
+    Float(car_bits!(1, light_damage[2])),
+    Text(c"[car2.dam_lights4]", false),
+    Float(car_bits!(1, light_damage[3])),
+    Text(c"[car2.dam_lightsf]", false),
+    Float(car_bits!(1, light_damage[4])),
+    Text(c"[car2.dam_lightsb]", false),
+    Float(car_bits!(1, light_damage[5])),
+    Text(c"[car2.dam_susp1]", false),
+    Float(car_bits!(1, suspension_damage[0])),
+    Text(c"[car2.dam_susp2]", false),
+    Float(car_bits!(1, suspension_damage[1])),
+    Text(c"[car2.dam_susp3]", false),
+    Float(car_bits!(1, suspension_damage[2])),
+    Text(c"[car2.dam_susp4]", false),
+    Float(car_bits!(1, suspension_damage[3])),
+    Text(c"[car2.dam_brakef]", false),
+    Float(car_bits!(1, brake_wear_a)),
+    Text(c"[car2.dam_brakeb]", false),
+    Float(car_bits!(1, brake_wear_b)),
+    Text(c"[car2.dam_tyre1]", false),
+    Float(car_bits!(1, part_hit_damage[0])),
+    Text(c"[car2.dam_tyre2]", false),
+    Float(car_bits!(1, part_hit_damage[1])),
+    Text(c"[car2.dam_tyre3]", false),
+    Float(car_bits!(1, part_hit_damage[2])),
+    Text(c"[car2.dam_tyre4]", false),
+    Float(car_bits!(1, part_hit_damage[3])),
+    Text(c"[car2.caroctdamage0]", false),
+    Float(car_bits!(1, impact_octant_marks[0])),
+    Text(c"[car2.caroctdamage1]", false),
+    Float(car_bits!(1, impact_octant_marks[1])),
+    Text(c"[car2.caroctdamage2]", false),
+    Float(car_bits!(1, impact_octant_marks[2])),
+    Text(c"[car2.caroctdamage3]", false),
+    Float(car_bits!(1, impact_octant_marks[3])),
+    Text(c"[car2.caroctdamage4]", false),
+    Float(car_bits!(1, impact_octant_marks[4])),
+    Text(c"[car2.caroctdamage5]", false),
+    Float(car_bits!(1, impact_octant_marks[5])),
+    Text(c"[car2.caroctdamage6]", false),
+    Float(car_bits!(1, impact_octant_marks[6])),
+    Text(c"[car2.caroctdamage7]", false),
+    Float(car_bits!(1, impact_octant_marks[7])),
+    Text(c"[arcadestartposition]", false),
+    Value(var!(RACE_TABLES.start_place), Kind::Int),
+    Text(c"[car1.arcadeposition]", false),
+    Value(car!(0, mode2_place), Kind::Int),
+    Text(c"[onerace.car1arcadeposition]", false),
+    Value(Cell(&RACE_STATE.results.figure_000), Kind::Int),
     Jump(341),
-    Text(0x4DD84E, true),
-    Text(0x4DD861, true),
-    Text(0x4DD876, true),
+    Text(c"SKIPPING - REPLAY!", true),
+    Text(c"COPY SHAUN TO GRAHAM", true),
+    Text(c"-------------------------------------", true),
     Return,
 ];

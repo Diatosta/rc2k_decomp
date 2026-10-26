@@ -6,44 +6,28 @@
 //! Out: every register kept; no flags read (`drive::store_car` next)
 //!
 //! Caller: `sub_43703E` (0x4371BC, 0x43729B).
-//! Self-test: `physics/copy_hooks_test.rs`, 4 fillings.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
 
-use crate::errors::Refused;
-use crate::framework::{Regs, game_addr, rva};
-use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
+use crate::physics::car_store::CAR;
+use crate::session::Cell32;
 
-const VARIABLES: [usize; 6] = [0x71A234, 0x71A070, 0x71AA88, 0x71A650, 0x71A658, 0x71A01C];
-
-unsafe fn core(v: &[u32]) {
-    for &a in v {
-        unsafe { (a as *mut u32).write_unaligned(0) };
+fn core(v: &[&dyn Cell32]) {
+    for cell in v {
+        cell.set_bits(0);
     }
 }
 
-fn game() -> Vec<u32> {
-    VARIABLES
-        .iter()
-        .map(|&x| game_addr(rva(x)) as u32)
-        .collect()
+fn game() -> Vec<&'static dyn Cell32> {
+    vec![
+        &CAR.driver_kind,
+        &CAR.checkpoint,
+        &CAR.engine_sound_speed_int,
+        &CAR.start_share,
+        &CAR.start_blend,
+        &CAR.unknown_44,
+    ]
 }
 
 /// The Rust version.
-pub unsafe fn clear_start_state() {
-    unsafe { core(&game()) }
-}
-
-fn rust(_: &Regs) -> Result<Left, Refused> {
-    unsafe { clear_start_state() };
-    Ok(Left::nothing())
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
+pub fn clear_start_state() {
+    core(&game())
 }

@@ -14,43 +14,39 @@
 //! rectangle is set to the block's rectangle (`set_clip`).
 //! Five callers, `menu::load_background` among them.
 //! The name is a reading.
-//! Hook removed 2026-10-22 (direct calls): Rust callers run its `entry` (`calls::call`,
-//! `routes.rs`); the registers above are the original's, for reference.
+//! The registers above are the original's, for reference; a call by address goes through
+//! `routes.rs`.
 
 use crate::errors::{FatalError, Refused};
-use crate::framework::{Regs, game_addr, game_read, game_write, rva};
-use crate::gfx::picture::{FLAGS_RVA, PICTURE_RVA};
-use crate::gfx::pixel_format::SURFACE_FORMAT_RVA;
+use crate::gfx::modes::MODES;
+use crate::gfx::picture_store::PICTURE;
+use crate::gfx::pixel_format::surface_format_addr;
+use crate::gfx::screen_state::DRAW_SURFACE;
 use crate::gfx::set_clip::set_clip;
 use crate::system::find_entry::entries;
 
 // ---- game data ----
 
-/// unk_4F4998: the surface block, twelve dwords: x, y, width, height, bits a pixel, bytes
-/// a pixel, bytes of a row's pixels, dwords of a row, the pixel format, the pitch, the
-/// pixels, the gap after a row.
-pub const SURFACE_RVA: usize = rva(0x4F4998);
+// unk_4F4998 is `DRAW_SURFACE`'s x: the surface block, twelve dwords: x, y, width, height,
+// bits a pixel, bytes a pixel, bytes of a row's pixels, dwords of a row, the pixel format,
+// the pitch, the pixels, the gap after a row.
 pub const SURFACE_DWORDS: usize = 12;
-const SIZES_RVA: usize = rva(0x4F4E50); // dword_4F4E50: key, width and height as words
 const SIZE_COUNT: u32 = 8;
-const PIXEL_KINDS_RVA: usize = rva(0x4F4E40); // dword_4F4E40: key, bits
 const PIXEL_KIND_COUNT: u32 = 2;
 
 // ---- Rust version ----
 
 /// The surface block for a picture with these flags, from its third dword on (the corner
 /// is not touched).
-pub unsafe fn surface_of(flags: u32, pixels: u32) -> Result<[u32; SURFACE_DWORDS - 2], Refused> {
+pub fn surface_of(flags: u32, pixels: u32) -> Result<[u32; SURFACE_DWORDS - 2], Refused> {
     // Converted: `rc2k_core::gfx::screen_modes::picture_surface`.
-    unsafe {
-        rc2k_core::gfx::screen_modes::picture_surface(
-            flags,
-            entries(game_addr(SIZES_RVA) as u32, SIZE_COUNT),
-            entries(game_addr(PIXEL_KINDS_RVA) as u32, PIXEL_KIND_COUNT),
-            game_addr(SURFACE_FORMAT_RVA) as u32,
-            pixels,
-        )
-    }
+    rc2k_core::gfx::screen_modes::picture_surface(
+        flags,
+        entries(MODES.sizes_addr() as u32, SIZE_COUNT),
+        entries(MODES.pixel_kinds_addr() as u32, PIXEL_KIND_COUNT),
+        surface_format_addr(),
+        pixels,
+    )
     .map_err(|e| {
         FatalError {
             code: e.code(),
@@ -60,21 +56,19 @@ pub unsafe fn surface_of(flags: u32, pixels: u32) -> Result<[u32; SURFACE_DWORDS
     })
 }
 
-pub unsafe fn picture_as_surface() -> Result<(), Refused> {
-    unsafe {
-        let block = surface_of(game_read(FLAGS_RVA), game_read(PICTURE_RVA))?;
-        game_write(SURFACE_RVA + 8, block);
-        set_clip(game_addr(SURFACE_RVA) as *const [u32; 4])?;
-        Ok(())
-    }
-}
-
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(_: &mut Regs) -> Result<(), crate::errors::Refused> {
-    unsafe { picture_as_surface() }?;
+pub fn picture_as_surface() -> Result<(), Refused> {
+    let block = surface_of(PICTURE.flags.get(), PICTURE.buffer.get())?;
+    let s = &DRAW_SURFACE;
+    s.width.set(block[0]);
+    s.height.set(block[1]);
+    s.bits_per_pixel.set(block[2]);
+    s.bytes_per_pixel.set(block[3]);
+    s.row_bytes.set(block[4]);
+    s.row_dwords.set(block[5]);
+    s.format.set(block[6]);
+    s.pitch.set(block[7]);
+    s.pixels.set(block[8]);
+    s.row_gap.set(block[9]);
+    set_clip([s.x.get(), s.y.get(), s.width.get(), s.height.get()]);
     Ok(())
 }
-
-// ---- self-test: a copy of the original that reads the flags from a test variable, writes a
-// surface block of the test's and hands the clip rectangle to a stand-in; the real surface
-// and clip rectangle are what the game's drawing reads all the time ----

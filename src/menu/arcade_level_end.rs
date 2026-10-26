@@ -7,92 +7,42 @@
 //!
 //! In:  nothing
 //! Out: every register kept (`pusha` .. `popa`)
-//! The callees get eax the level (from the won level's test on) and esi as above. The
-//! screens, the tunes and the save at the game's addresses (their hooks choose), the car
-//! steps' Rust versions. Refuses (before anything) a level past 5. Ungated thunk (the
-//! finale runs a race's drive); shadow mode runs the original alone. Self-test: a copy
-//! whose calls go to stand-ins, against the Rust version: lost, won the first time, won
-//! again.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! The callees get eax the level (from the won level's test on) and esi as above. Refuses (before
+//! anything) a level past 5.
 
 use crate::errors::Refused;
-use crate::framework::{Regs, game_addr, game_read, game_write, rva};
-use crate::menu::parts::{Part, parted_entry};
+use crate::menu::arcade_store::ARCADE_GAME;
+use crate::menu::lists_store::MENU_LISTS;
+use crate::menu::results_store::RESULT_FIGURES;
+use crate::menu::screen_loop::{Carried, run_screen_carried};
 
-const CALLEES: [usize; 8] = [
-    0x40F7DA, // 0 sound::play_tune_7
-    0x488F4C, // 1 menu::screen_488f4c_loop
-    0x40F7C8, // 2 sound::play_tune_6
-    0x488155, // 3 menu::arcade_finale
-    0x47AF4C, // 4 menu::car_specs_47af4c_loop
-    0x486BD2, // 5 menu::add_shown_car
-    0x486BF5, // 6 menu::remove_shown_car
-    0x411499, // 7 saves::save_game_data
-];
-const WON_RVA: usize = rva(0x758768); // dword_758768: the place
-const LEVEL_RVA: usize = rva(0x7587EC); // dword_7587EC
-const RETRY_RVA: usize = rva(0x7587F4); // dword_7587F4
-const DONE_RVA: usize = rva(0x758800); // byte_758800: a level won before
-const SECRET_CARS_RVA: usize = rva(0x75A12E); // off_75A12E
-
-/// The Rust version: the registers it leaves.
-pub unsafe fn arcade_level_end(entry: &Regs, part: Part) -> Result<Regs, Refused> {
+/// The Rust version. `c` the carried values the level end is entered with; the original
+/// keeps every register of the caller (`pusha` .. `popa`).
+pub unsafe fn arcade_level_end(c: &Carried) -> Result<(), Refused> {
     unsafe {
-        let mut r = *entry;
+        let mut r = *c;
         // Converted: `rc2k_core::menu::arcade` (`won`, `won_level`, `first_win`).
         use rc2k_core::menu::arcade::{first_win, won, won_level};
-        if !won(game_read(WON_RVA)) {
-            part(0, &mut r)?;
-            part(1, &mut r)?;
-            game_write(RETRY_RVA, 1u32);
-            return Ok(*entry);
+        if !won(RESULT_FIGURES.positions[0].get()) {
+            crate::sound::play_tune_7::play_tune_7();
+            run_screen_carried(&crate::menu::screen_488f4c_loop::SCREEN, &mut r)?;
+            ARCADE_GAME.retry.set(1u32);
+            return Ok(());
         }
-        let level = won_level(game_read(LEVEL_RVA))?;
-        part(2, &mut r)?;
-        part(3, &mut r)?;
-        r.eax = level;
-        if first_win(game_read(DONE_RVA + level as usize)) {
-            game_write(DONE_RVA + level as usize, 1u8);
-            r.esi = game_addr(SECRET_CARS_RVA) as u32;
-            part(4, &mut r)?;
-            part(5, &mut r)?;
-            part(6, &mut r)?;
+        let level = won_level(ARCADE_GAME.level.get())?;
+        crate::sound::play_tune_6::play_tune_6();
+        crate::menu::arcade_finale::arcade_finale()?;
+        r.arg = level;
+        if first_win(ARCADE_GAME.levels_won.get(level as usize)) {
+            ARCADE_GAME.levels_won.set(level as usize, 1);
+            r.cars = MENU_LISTS.shown_cars[0].addr();
+            run_screen_carried(&crate::menu::car_specs_47af4c_loop::SCREEN, &mut r)?;
+            crate::menu::arcade_steps::add_shown_car()?;
+            crate::menu::arcade_steps::remove_shown_car(&mut || {
+                crate::saves::list_car_numbers::list_car_numbers().map_err(Refused::from)
+            })?;
         }
-        part(7, &mut r)?;
-    }
-    Ok(*entry)
-}
-
-/// In the game: the car steps' Rust versions, the rest at the game's addresses.
-pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
-    use crate::menu::arcade_steps::{add_shown_car, remove_shown_car};
-    match place {
-        3 => {
-            *r = unsafe {
-                crate::menu::arcade_finale::arcade_finale(
-                    r,
-                    &mut crate::menu::arcade_finale::game_part,
-                )
-            }?
-        }
-        5 => add_shown_car()?,
-        6 => remove_shown_car(&mut || unsafe {
-            crate::saves::list_car_numbers::list_car_numbers().map_err(Refused::from)
-        })?,
-        _ => crate::calls::call(rva(CALLEES[place as usize]), r),
+        crate::saves::save_game_data::save_in_game()?;
     }
     Ok(())
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    parted_entry(
-        r,
-        &|r, part| unsafe { arcade_level_end(r, part) },
-        game_part,
-    )
 }

@@ -17,250 +17,271 @@
 //! `sub_4703C2`, `sub_41CDC2`, `sub_412DE0`, `sub_443104`.
 //! A refusal from one of the steps leaves the work half done; none can come with the
 //! game's own files.
-//! Hook removed 2026-10-22 (direct calls): Rust callers run its `entry` (`calls::call`,
-//! `routes.rs`); the registers above are the original's, for reference.
+//! The registers above are the original's, for reference; a call by address goes through
+//! `routes.rs`.
 
 use crate::errors::{FatalError, Refused};
-use crate::framework::{Regs, game_addr, game_read, game_write, rva};
-use crate::gfx::build_glyphs::{BUILDER_FLAGS_RVA, TABLE_RVA};
+use crate::gfx::build_glyphs::SHEET;
+use crate::gfx::build_glyphs::build_glyphs;
+use crate::gfx::decoder::DECODER;
+use crate::gfx::fonts_store::FONTS as MENU_FONTS;
 use crate::gfx::glyph_builder::RUN_LENGTHS;
 use crate::gfx::glyph_tables::{
-    ALLOCATE, BEGIN_TABLE, BEGIN_TABLES, BUILD_GLYPHS, END_TABLES, Game, PALETTE_TO_PIXELS, Parts,
-    REWIND_LIST, TABLES_LIST_RVA, TABLES_UNITS_RVA, TAKE_FROM_LIST, UNIT_FACTOR_RVA,
+    TABLES, begin_glyph_table, begin_glyph_tables, end_glyph_tables, palette_to_pixels,
 };
-use crate::gfx::pcx::PALETTE_RVA;
+use crate::gfx::typefaces::FONTS;
+use crate::memory::allocate::allocate;
+use crate::memory::take_from_list::{rewind_list, take_from_list};
+use crate::pointers::GamePtr;
+use crate::session::{Dword, SCREEN};
 
 // ---- game data ----
 
-/// dword_51DEB0: 256 pixels, the fonts' palettes; 0 = the fonts are not built.
-pub const PALETTES_RVA: usize = rva(0x51DEB0);
-const FONT27_RVA: usize = rva(0x51DEB4); // dword_51DEB4 (first the palette sheet's table)
-const FONT23_RVA: usize = rva(0x51DEB8); // dword_51DEB8
-const FONT21_RVA: usize = rva(0x51DEBC); // dword_51DEBC
-const FONT13_RVA: usize = rva(0x51DEC0); // dword_51DEC0
-const PALETTE_COPY_RVA: usize = rva(0x51DEC4); // unk_51DEC4: the palette sheet's 256 dwords
-const PALETTE_BYTES: usize = 0x400;
-const PALETTE_SHEET_RVA: usize = rva(0x5297DE); // "files\d\fnt\pal_00.pcx"
-/// The four font sheets and where each one's table is kept.
-const FONT_SHEETS: [(usize, usize); 4] = [
-    (rva(0x52977A), FONT13_RVA), // fnt13_00.pcx
-    (rva(0x529793), FONT21_RVA), // fnt21_00.pcx
-    (rva(0x5297AC), FONT23_RVA), // fnt23_00.pcx
-    (rva(0x5297C5), FONT27_RVA), // fnt27_00.pcx
-];
+/// The variables a store of `HUNG` reads: `FONTS.palettes` (dword_51DEB0: 256 pixels, the
+/// fonts' palettes; 0 = the fonts are not built) and the four glyph tables' places.
+#[derive(Clone, Copy)]
+enum Source {
+    Palettes,
+    Font13,
+    Font21,
+    Font23,
+    Font27,
+}
 
-const P: usize = PALETTES_RVA;
-const F13: usize = FONT13_RVA;
-const F21: usize = FONT21_RVA;
-const F23: usize = FONT23_RVA;
-const F27: usize = FONT27_RVA;
-/// The stores, in the original's order: (where, the variable stored, plus this much).
+impl Source {
+    fn cell(self) -> &'static Dword {
+        match self {
+            Source::Palettes => &MENU_FONTS.palettes,
+            Source::Font13 => &MENU_FONTS.font13_glyphs,
+            Source::Font21 => &MENU_FONTS.font21_glyphs,
+            Source::Font23 => &MENU_FONTS.font23_glyphs,
+            Source::Font27 => &MENU_FONTS.font27_glyphs,
+        }
+    }
+}
+const PALETTE_BYTES: usize = 0x400;
+/// The four font sheets and where each one's table is kept.
+fn font_sheets() -> [(u32, &'static Dword); 4] {
+    use crate::gfx::texts::{FNT13, FNT21, FNT23, FNT27, address};
+    [
+        (address(&FNT13), &MENU_FONTS.font13_glyphs), // fnt13_00.pcx
+        (address(&FNT21), &MENU_FONTS.font21_glyphs), // fnt21_00.pcx
+        (address(&FNT23), &MENU_FONTS.font23_glyphs), // fnt23_00.pcx
+        (address(&FNT27), &MENU_FONTS.font27_glyphs), // fnt27_00.pcx
+    ]
+}
+
+const P: Source = Source::Palettes;
+const F13: Source = Source::Font13;
+const F21: Source = Source::Font21;
+const F23: Source = Source::Font23;
+const F27: Source = Source::Font27;
+/// Which field of a font object a store sets.
+#[derive(Clone, Copy)]
+enum Field {
+    Palette,
+    GlyphTable,
+}
+use Field::{GlyphTable, Palette};
+
+/// The stores, in the original's order: (the font object's number, its field, the variable
+/// stored, plus this much).
 #[rustfmt::skip]
-const HUNG: [(u32, usize, u32); 125] = [
-    (0x51E3B8, P, 0x0),
-    (0x51E3BC, F13, 0x0),
-    (0x51E3F8, P, 0x300),
-    (0x51E3FC, F13, 0x0),
-    (0x51E3D8, P, 0x300),
-    (0x51E3DC, F13, 0x0),
-    (0x51E418, P, 0x300),
-    (0x51E41C, F13, 0x0),
-    (0x51E438, P, 0x0),
-    (0x51E43C, F21, 0x0),
-    (0x51E478, P, 0x180),
-    (0x51E47C, F21, 0x0),
-    (0x51E498, P, 0x180),
-    (0x51E49C, F21, 0x0),
-    (0x51E458, P, 0x180),
-    (0x51E45C, F21, 0x0),
-    (0x51E4D8, P, 0x200),
-    (0x51E4DC, F21, 0x0),
-    (0x51E4F8, P, 0x200),
-    (0x51E4FC, F21, 0x0),
-    (0x51E4B8, P, 0x200),
-    (0x51E4BC, F21, 0x0),
-    (0x51E538, P, 0x80),
-    (0x51E53C, F21, 0x0),
-    (0x51E558, P, 0x80),
-    (0x51E55C, F21, 0x0),
-    (0x51E518, P, 0x80),
-    (0x51E51C, F21, 0x0),
-    (0x51E598, P, 0x0),
-    (0x51E59C, F21, 0x0),
-    (0x51E578, P, 0x0),
-    (0x51E57C, F21, 0x0),
-    (0x51E5B8, P, 0x0),
-    (0x51E5BC, F21, 0x0),
-    (0x51E5F8, P, 0x380),
-    (0x51E5FC, F21, 0x0),
-    (0x51E5D8, P, 0x380),
-    (0x51E5DC, F21, 0x0),
-    (0x51E618, P, 0x380),
-    (0x51E61C, F21, 0x0),
-    (0x51E638, P, 0x0),
-    (0x51E63C, F23, 0x0),
-    (0x51E678, P, 0x80),
-    (0x51E67C, F23, 0x0),
-    (0x51E658, P, 0x80),
-    (0x51E65C, F23, 0x0),
-    (0x51E698, P, 0x80),
-    (0x51E69C, F23, 0x0),
-    (0x51E6D8, P, 0x0),
-    (0x51E6DC, F23, 0x0),
-    (0x51E6B8, P, 0x0),
-    (0x51E6BC, F23, 0x0),
-    (0x51E6F8, P, 0x0),
-    (0x51E6FC, F23, 0x0),
-    (0x51E738, P, 0x380),
-    (0x51E73C, F23, 0x0),
-    (0x51E718, P, 0x380),
-    (0x51E71C, F23, 0x0),
-    (0x51E758, P, 0x380),
-    (0x51E75C, F23, 0x0),
-    (0x51E798, P, 0x340),
-    (0x51E79C, F23, 0x0),
-    (0x51E778, P, 0x340),
-    (0x51E77C, F23, 0x0),
-    (0x51E7B8, P, 0x340),
-    (0x51E7BC, F23, 0x0),
-    (0x51E7F8, P, 0x180),
-    (0x51E7FC, F23, 0x0),
-    (0x51E7D8, P, 0x180),
-    (0x51E7DC, F23, 0x0),
-    (0x51E818, P, 0x180),
-    (0x51E81C, F23, 0x0),
-    (0x51E838, P, 0x0),
-    (0x51E83C, F27, 0x0),
-    (0x51E878, P, 0x80),
-    (0x51E87C, F27, 0x0),
-    (0x51E858, P, 0x80),
-    (0x51E85C, F27, 0x0),
-    (0x51E898, P, 0x80),
-    (0x51E89C, F27, 0x0),
-    (0x51E8D8, P, 0x0),
-    (0x51E8DC, F27, 0x0),
-    (0x51E8B8, P, 0x0),
-    (0x51E8BC, F27, 0x0),
-    (0x51E8F8, P, 0x0),
-    (0x51E8FC, F27, 0x0),
-    (0x51E938, P, 0x100),
-    (0x51E93C, F27, 0x0),
-    (0x51E918, P, 0x100),
-    (0x51E91C, F27, 0x0),
-    (0x51E958, P, 0x100),
-    (0x51E95C, F27, 0x0),
-    (0x51E998, P, 0x380),
-    (0x51E99C, F27, 0x0),
-    (0x51E978, P, 0x380),
-    (0x51E97C, F27, 0x0),
-    (0x51E9B8, P, 0x380),
-    (0x51E9BC, F27, 0x0),
-    (0x51EA58, P, 0x340),
-    (0x51EA5C, F27, 0x0),
-    (0x51EA38, P, 0x340),
-    (0x51EA3C, F27, 0x0),
-    (0x51EA78, P, 0x340),
-    (0x51EA7C, F27, 0x0),
-    (0x51E9F8, P, 0x180),
-    (0x51E9FC, F27, 0x0),
-    (0x51E9D8, P, 0x180),
-    (0x51E9DC, F27, 0x0),
-    (0x51EA18, P, 0x180),
-    (0x51EA1C, F27, 0x0),
-    (0x51EA98, P, 0xC0),
-    (0x51EA9C, F27, 0x0),
-    (0x51EABC, F27, 0x0),
-    (0x51EAF8, P, 0x300),
-    (0x51EAFC, F13, 0x0),
-    (0x51EAD8, P, 0x300),
-    (0x51EADC, F13, 0x0),
-    (0x51EB18, P, 0x300),
-    (0x51EB1C, F13, 0x0),
-    (0x51EB58, P, 0x0),
-    (0x51EB5C, F21, 0x0),
-    (0x51EB38, P, 0x0),
-    (0x51EB3C, F21, 0x0),
-    (0x51EB78, P, 0x0),
-    (0x51EB7C, F21, 0x0),
+const HUNG: [(usize, Field, Source, u32); 125] = [
+    (0, Palette, P, 0x0),
+    (0, GlyphTable, F13, 0x0),
+    (2, Palette, P, 0x300),
+    (2, GlyphTable, F13, 0x0),
+    (1, Palette, P, 0x300),
+    (1, GlyphTable, F13, 0x0),
+    (3, Palette, P, 0x300),
+    (3, GlyphTable, F13, 0x0),
+    (4, Palette, P, 0x0),
+    (4, GlyphTable, F21, 0x0),
+    (6, Palette, P, 0x180),
+    (6, GlyphTable, F21, 0x0),
+    (7, Palette, P, 0x180),
+    (7, GlyphTable, F21, 0x0),
+    (5, Palette, P, 0x180),
+    (5, GlyphTable, F21, 0x0),
+    (9, Palette, P, 0x200),
+    (9, GlyphTable, F21, 0x0),
+    (10, Palette, P, 0x200),
+    (10, GlyphTable, F21, 0x0),
+    (8, Palette, P, 0x200),
+    (8, GlyphTable, F21, 0x0),
+    (12, Palette, P, 0x80),
+    (12, GlyphTable, F21, 0x0),
+    (13, Palette, P, 0x80),
+    (13, GlyphTable, F21, 0x0),
+    (11, Palette, P, 0x80),
+    (11, GlyphTable, F21, 0x0),
+    (15, Palette, P, 0x0),
+    (15, GlyphTable, F21, 0x0),
+    (14, Palette, P, 0x0),
+    (14, GlyphTable, F21, 0x0),
+    (16, Palette, P, 0x0),
+    (16, GlyphTable, F21, 0x0),
+    (18, Palette, P, 0x380),
+    (18, GlyphTable, F21, 0x0),
+    (17, Palette, P, 0x380),
+    (17, GlyphTable, F21, 0x0),
+    (19, Palette, P, 0x380),
+    (19, GlyphTable, F21, 0x0),
+    (20, Palette, P, 0x0),
+    (20, GlyphTable, F23, 0x0),
+    (22, Palette, P, 0x80),
+    (22, GlyphTable, F23, 0x0),
+    (21, Palette, P, 0x80),
+    (21, GlyphTable, F23, 0x0),
+    (23, Palette, P, 0x80),
+    (23, GlyphTable, F23, 0x0),
+    (25, Palette, P, 0x0),
+    (25, GlyphTable, F23, 0x0),
+    (24, Palette, P, 0x0),
+    (24, GlyphTable, F23, 0x0),
+    (26, Palette, P, 0x0),
+    (26, GlyphTable, F23, 0x0),
+    (28, Palette, P, 0x380),
+    (28, GlyphTable, F23, 0x0),
+    (27, Palette, P, 0x380),
+    (27, GlyphTable, F23, 0x0),
+    (29, Palette, P, 0x380),
+    (29, GlyphTable, F23, 0x0),
+    (31, Palette, P, 0x340),
+    (31, GlyphTable, F23, 0x0),
+    (30, Palette, P, 0x340),
+    (30, GlyphTable, F23, 0x0),
+    (32, Palette, P, 0x340),
+    (32, GlyphTable, F23, 0x0),
+    (34, Palette, P, 0x180),
+    (34, GlyphTable, F23, 0x0),
+    (33, Palette, P, 0x180),
+    (33, GlyphTable, F23, 0x0),
+    (35, Palette, P, 0x180),
+    (35, GlyphTable, F23, 0x0),
+    (36, Palette, P, 0x0),
+    (36, GlyphTable, F27, 0x0),
+    (38, Palette, P, 0x80),
+    (38, GlyphTable, F27, 0x0),
+    (37, Palette, P, 0x80),
+    (37, GlyphTable, F27, 0x0),
+    (39, Palette, P, 0x80),
+    (39, GlyphTable, F27, 0x0),
+    (41, Palette, P, 0x0),
+    (41, GlyphTable, F27, 0x0),
+    (40, Palette, P, 0x0),
+    (40, GlyphTable, F27, 0x0),
+    (42, Palette, P, 0x0),
+    (42, GlyphTable, F27, 0x0),
+    (44, Palette, P, 0x100),
+    (44, GlyphTable, F27, 0x0),
+    (43, Palette, P, 0x100),
+    (43, GlyphTable, F27, 0x0),
+    (45, Palette, P, 0x100),
+    (45, GlyphTable, F27, 0x0),
+    (47, Palette, P, 0x380),
+    (47, GlyphTable, F27, 0x0),
+    (46, Palette, P, 0x380),
+    (46, GlyphTable, F27, 0x0),
+    (48, Palette, P, 0x380),
+    (48, GlyphTable, F27, 0x0),
+    (53, Palette, P, 0x340),
+    (53, GlyphTable, F27, 0x0),
+    (52, Palette, P, 0x340),
+    (52, GlyphTable, F27, 0x0),
+    (54, Palette, P, 0x340),
+    (54, GlyphTable, F27, 0x0),
+    (50, Palette, P, 0x180),
+    (50, GlyphTable, F27, 0x0),
+    (49, Palette, P, 0x180),
+    (49, GlyphTable, F27, 0x0),
+    (51, Palette, P, 0x180),
+    (51, GlyphTable, F27, 0x0),
+    (55, Palette, P, 0xC0),
+    (55, GlyphTable, F27, 0x0),
+    (56, GlyphTable, F27, 0x0),
+    (58, Palette, P, 0x300),
+    (58, GlyphTable, F13, 0x0),
+    (57, Palette, P, 0x300),
+    (57, GlyphTable, F13, 0x0),
+    (59, Palette, P, 0x300),
+    (59, GlyphTable, F13, 0x0),
+    (61, Palette, P, 0x0),
+    (61, GlyphTable, F21, 0x0),
+    (60, Palette, P, 0x0),
+    (60, GlyphTable, F21, 0x0),
+    (62, Palette, P, 0x0),
+    (62, GlyphTable, F21, 0x0),
 ];
 
 // ---- Rust version ----
 
-/// The part with the calls. `entry` are the registers at entry; `palettes` is where the
-/// palettes' place is kept.
-unsafe fn tables(entry: &Regs, parts: &mut dyn Parts, palettes: *mut u32) -> Result<(), Refused> {
+/// The part with the calls; `palettes` is where the palettes' place is kept. (The
+/// original's fatal error 0x80E48023 for a failed allocation cannot come: the allocator
+/// reports its own.)
+unsafe fn tables(palettes: u32) -> Result<(), Refused> {
     unsafe {
-        let mut g = *entry;
-        g.eax = game_read::<u32>(TABLES_UNITS_RVA)
+        let list = TABLES.memory.as_ptr();
+        let bytes = TABLES
+            .units
+            .get()
             .wrapping_mul(0x400)
-            .wrapping_mul(game_read(UNIT_FACTOR_RVA));
-        g.ebx = game_addr(TABLES_LIST_RVA) as u32;
-        parts.call(ALLOCATE, &mut g)?;
-        if g.carry() {
-            return Err(FatalError {
-                code: 0x80E4_8023,
-                message: "",
-            }
-            .into());
-        }
-        parts.call(REWIND_LIST, &mut g)?;
-        parts.call(BEGIN_TABLES, &mut g)?;
-        game_write(BUILDER_FLAGS_RVA, RUN_LENGTHS);
-        g.eax = 0x400;
-        parts.call(TAKE_FROM_LIST, &mut g)?;
-        palettes.write_unaligned(g.eax);
-        parts.call(BEGIN_TABLE, &mut g)?;
-        g.eax = game_addr(PALETTE_SHEET_RVA) as u32;
-        parts.call(BUILD_GLYPHS, &mut g)?;
-        g.eax = game_read(TABLE_RVA);
-        game_write(FONT27_RVA, g.eax);
-        g.edi = palettes.read_unaligned();
-        parts.call(PALETTE_TO_PIXELS, &mut g)?;
-        std::ptr::copy(
-            game_addr(PALETTE_RVA) as *const u8,
-            game_addr(PALETTE_COPY_RVA) as *mut u8,
+            .wrapping_mul(SCREEN.bytes.get());
+        allocate(list, bytes)?;
+        rewind_list(list)?;
+        begin_glyph_tables()?;
+        DECODER.builder_flags.set(RUN_LENGTHS);
+        GamePtr::new(palettes).write(
+            take_from_list(list, 0x400)?.unwrap_or(0),
+            "the fonts' palettes' place",
+        )?;
+        begin_glyph_table(list)?;
+        build_glyphs(
+            crate::pointers::host(crate::gfx::texts::address(&crate::gfx::texts::PAL_00))
+                as *const u8,
+            list,
+        )?;
+        MENU_FONTS.font27_glyphs.set(SHEET.table.get());
+        palette_to_pixels(GamePtr::new(palettes).read("the fonts' palettes' place")?)?;
+        GamePtr::new(crate::pointers::game_address(DECODER.palette_ptr())).copy_to(
+            GamePtr::new(crate::session::address_of(&MENU_FONTS.palette_sheet)),
             PALETTE_BYTES,
-        );
-        g.esi = (game_addr(PALETTE_RVA) + PALETTE_BYTES) as u32;
-        g.edi = (game_addr(PALETTE_COPY_RVA) + PALETTE_BYTES) as u32;
-        g.ecx = 0;
-        for (sheet, kept) in FONT_SHEETS {
-            parts.call(BEGIN_TABLE, &mut g)?;
-            g.eax = game_addr(sheet) as u32;
-            parts.call(BUILD_GLYPHS, &mut g)?;
-            g.eax = game_read(TABLE_RVA);
-            game_write(kept, g.eax);
+            "the fonts' palette sheet",
+        )?;
+        for (sheet, kept) in font_sheets() {
+            begin_glyph_table(list)?;
+            build_glyphs(crate::pointers::host(sheet) as *const u8, list)?;
+            kept.set(SHEET.table.get());
         }
-        parts.call(END_TABLES, &mut g)?;
+        end_glyph_tables()?;
         Ok(())
     }
 }
 
 /// What a store of `HUNG` stores.
-unsafe fn hung_value(variable: usize, plus: u32) -> u32 {
-    unsafe { game_read::<u32>(variable).wrapping_add(plus) }
+fn hung_value(variable: Source, plus: u32) -> u32 {
+    variable.cell().get().wrapping_add(plus)
 }
 
-pub unsafe fn build_fonts(entry: &Regs, parts: &mut dyn Parts) -> Result<(), Refused> {
+pub unsafe fn build_fonts() -> Result<(), Refused> {
     unsafe {
-        if game_read::<u32>(PALETTES_RVA) != 0 {
+        if MENU_FONTS.palettes.get() != 0 {
             return Err(FatalError {
                 code: 0x80A4_8020,
                 message: "",
             }
             .into());
         }
-        tables(entry, parts, game_addr(PALETTES_RVA) as *mut u32)?;
-        for (place, variable, plus) in HUNG {
-            game_write(rva(place as usize), hung_value(variable, plus));
+        tables(MENU_FONTS.palettes.addr())?;
+        for (font, field, variable, plus) in HUNG {
+            let object = &FONTS.objects[font];
+            let value = hung_value(variable, plus);
+            match field {
+                Palette => object.palette.set(value),
+                GlyphTable => object.glyph_table.set(value),
+            }
         }
         Ok(())
     }
-}
-
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    let entry = *r;
-    unsafe { build_fonts(&entry, &mut Game) }?;
-    Ok(())
 }

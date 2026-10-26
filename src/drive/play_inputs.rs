@@ -7,55 +7,32 @@
 //!      read
 //!
 //! Callers: `drive::play_inputs_if`, `sub_460835`.
-//! Self-test: the original and the Rust version on the game's variables (saved and put
-//! back): cars 0 .. 2, frames and words by lot.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
 
-use crate::errors::Refused;
-use crate::framework::{EAX, EBX, ECX, EDX, ESI, Regs};
-use crate::physics::flow::{a, g, p};
-use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
+use crate::drive::replay_frames_store::REPLAY_FRAMES;
+use crate::errors::BadInput;
+use crate::physics::tables_store::PHYSICS;
+use crate::pointers::GamePtr;
+use crate::race::replay_work_store::REPLAY_WORK;
+use crate::race::work_store::RACE_WORK;
 use rc2k_core::drive::replay_frames::{on_tape, tape_offset};
-
-const WORDS: usize = 0x6138C4; // dword_6138C4 .. 6138D0: the input words
-const TAPE: usize = 0x7194BC; // dword_7194BC / 7194C0: the replay's inputs, 16 bytes a frame
-const CURRENT: usize = 0x71B3F8; // g_currentCar
 
 /// The Rust version.
 // Converted: `rc2k_core::drive::replay_frames::{on_tape, tape_offset}`.
-pub unsafe fn play_inputs(entry: &Regs) -> Left {
-    let car = g(CURRENT);
+pub fn play_inputs() -> Result<(), BadInput> {
+    let car = RACE_WORK.current_car.get();
     if !on_tape(car) {
-        return Left::nothing();
+        return Ok(());
     }
-    let esi = tape_offset(g(0x6EF7E4), car);
-    let at = |o: u32| a(TAPE).wrapping_add(esi).wrapping_add(o);
-    let ebx = unsafe { (at(0) as *const u32).read_unaligned() };
-    let [eax, ecx, edx] = crate::drive::unpack_inputs::unpack_inputs(unsafe {
-        (at(4) as *const u32).read_unaligned()
-    });
+    let esi = tape_offset(REPLAY_FRAMES.step_frame.get(), car);
+    let at = |o: u32| {
+        (REPLAY_WORK.replay_tape[0].addr())
+            .wrapping_add(esi)
+            .wrapping_add(o)
+    };
+    let [ebx, second]: [u32; 2] = GamePtr::new(at(0)).read("the replay tape")?;
+    let [eax, ecx, edx] = crate::drive::unpack_inputs::unpack_inputs(second);
     for (k, v) in [eax, ebx, ecx, edx].iter().enumerate() {
-        p(WORDS + 4 * k, *v);
+        PHYSICS.input_words[k].set(*v);
     }
-    let _ = entry;
-    Left::nothing()
-        .with(EAX, eax)
-        .with(EBX, ebx)
-        .with(ECX, ecx)
-        .with(EDX, edx)
-        .with(ESI, esi)
-}
-
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    Ok(unsafe { play_inputs(r) })
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
+    Ok(())
 }

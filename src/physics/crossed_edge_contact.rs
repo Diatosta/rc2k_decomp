@@ -15,155 +15,110 @@
 //! Out: ebp the face, and the registers as the steps and `contact_force` leave them; no
 //!      flags read (the caller goes on)
 //!
-//! Caller: `physics::crossed_edge`.
-//! Refuses (before anything) a probe point past 0x3F (the tables' room), and what
-//! `place_sound_e1` refuses (what was written put back).
-//! Self-test: `physics/crossed_edge.rs` (`test_crossed`): the original and the Rust
-//! version on the game's variables (saved and put back) with a test face and scene
-//! points, paths across each edge, under three precisions.
+//! Caller: `physics::crossed_edge`. Refuses (before anything) a probe point past 0x3F (the
+//! tables' room), and what `place_sound_e1` refuses (what was written put back).
+//!
+//! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
+//! above are the original's, for reference.
 
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, hook_asm, rva};
 use crate::math::x87::mul;
-use crate::physics::contact_force::{RECORD, contact_force};
-use crate::physics::crossed_edge::{regions, test_crossed};
-use crate::physics::flow::{a, copy3, g, guard, p};
-use crate::physics::scene_point_hits_car::SCENE_POINTS;
-use crate::physics::touch_face::FACES;
+use crate::physics::car_store::CAR;
+use crate::physics::contact_force::contact_force;
+use crate::physics::contact_store::CONTACT_WORK;
+use crate::physics::flow::p;
+use crate::physics::tables_store::PHYSICS;
 use crate::physics::wall_edge_contact::edge_normal;
-use crate::race::stage_prefs::left_of;
-use crate::screens::harness::Left;
-use crate::service::harness::{dispatch_state, state_entry};
+use crate::pointers::GamePtr;
+use crate::race::course_store::COURSE;
+use crate::race::numbers_store::NUMBERS;
+use crate::session::Float;
 use rc2k_core::physics::walls;
-use std::sync::atomic::AtomicUsize;
 
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
+/// Three floats copied as bits, in order.
+fn copy3(to: &[Float], from: &[Float]) {
+    for k in 0..3 {
+        to[k].set_bits(from[k].bits());
+    }
+}
 
-pub static HOOK: RawHook = RawHook::new(
-    "physics::crossed_edge_contact",
-    rva(0x45DC3E),
-    thunk,
-    &ORIGINAL,
-)
-.self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
-
-/// `dword_6D3B84`: the probe point that crossed an edge (-1 for none).
-pub const CROSSED: usize = 0x6D3B84;
-
-fn rd(x: u32) -> u32 {
-    unsafe { (x as *const u32).read_unaligned() }
+fn rd(x: u32) -> Result<u32, Refused> {
+    Ok(GamePtr::new(x).read::<u32>("a face's or scene point's dword")?)
 }
 
 /// Which side of the probe's path the point (x, z) lies: true for not left of it (the
-/// 64-bit difference not below 0, `jns` / `stc`). `qword_620460` the first product, eax
-/// the difference's low dword.
-fn side(r: &mut Regs, x: u32, z: u32) -> bool {
+/// 64-bit difference not below 0, `jns` / `stc`). `qword_620460` the first product.
+fn side(x: u32, z: u32) -> bool {
     let (first, difference) = walls::path_side(
-        (g(0x6D31A0), g(0x6D31A4)),
-        (g(0x6D31A8), g(0x6D31AC)),
+        (
+            CONTACT_WORK.crossed_figures[0].get(),
+            CONTACT_WORK.crossed_figures[1].get(),
+        ),
+        (
+            CONTACT_WORK.crossed_figures[2].get(),
+            CONTACT_WORK.crossed_figures[3].get(),
+        ),
         (x, z),
     );
-    p(0x620460, first as u32);
-    p(0x620464, (first >> 32) as u32);
-    r.eax = difference as u32;
+    crate::physics::ground_probe_store::GROUND_PROBE.product[0].set(first as u32);
+    crate::physics::ground_probe_store::GROUND_PROBE.product[1].set((first >> 32) as u32);
     difference >= 0
 }
 
-/// The steps, not guarded (the probe checked before).
+/// The steps, not guarded (the probe checked before). The registers the original leaves
+/// are read by none of its callers.
 // Converted: `rc2k_core::physics::walls::{path_side, crossed_edge}`.
-pub fn steps(r: &mut Regs) -> Result<(), Refused> {
-    let n = g(CROSSED);
-    r.ebx = n;
-    p(0x6D3214, n);
+pub fn steps() -> Result<(), Refused> {
+    let n = CONTACT_WORK.crossed_probe.get();
+    CONTACT_WORK.probe_index.set(n);
     let k = n as usize;
-    for (to, from) in [
-        (0x6D31A0, 0x6D2C14),
-        (0x6D31A4, 0x6D2E14),
-        (0x6D31A8, 0x6D1E14),
-        (0x6D31AC, 0x6D2014),
-        (0x6D31B0, 0x6D2F14),
-    ] {
-        r.eax = g(from + 4 * k);
-        p(to, r.eax);
-    }
-    r.ebx = g(0x6D31B0);
-    let face = (r.ebx << 6).wrapping_add(g(FACES));
-    r.ebp = face;
+    let figures = &CONTACT_WORK.crossed_figures;
+    figures[0].set(CONTACT_WORK.saved_probe_x[k].get());
+    figures[1].set(CONTACT_WORK.saved_probe_z[k].get());
+    figures[2].set(CONTACT_WORK.probe_x[k].get());
+    figures[3].set(CONTACT_WORK.probe_z[k].get());
+    figures[4].set(CONTACT_WORK.saved_probe_faces[k].get());
+    let face = (CONTACT_WORK.crossed_figures[4].get() << 6).wrapping_add(COURSE.course_faces.get());
     for j in 0..4u32 {
-        r.ebx = rd(face + 4 + 4 * j);
-        r.esi = r.ebx.wrapping_mul(12).wrapping_add(g(SCENE_POINTS));
-        r.eax = rd(r.esi);
-        p(0x6D3180 + 8 * j as usize, r.eax);
-        r.eax = rd(r.esi + 8);
-        p(0x6D3184 + 8 * j as usize, r.eax);
+        let point = rd(face + 4 + 4 * j)?
+            .wrapping_mul(12)
+            .wrapping_add(COURSE.scene_points.get());
+        CONTACT_WORK.crossed_corners[2 * j as usize].set(rd(point)?);
+        CONTACT_WORK.crossed_corners[2 * j as usize + 1].set(rd(point + 8)?);
     }
-    r.esi = face;
-    let corner = |j: usize| (g(0x6D3180 + 8 * j), g(0x6D3184 + 8 * j));
+    let corner = |j: usize| {
+        (
+            CONTACT_WORK.crossed_corners[2 * j].get(),
+            CONTACT_WORK.crossed_corners[2 * j + 1].get(),
+        )
+    };
     // The original's order of tests (each computed, `qword_620460` the last one's).
     let (first, second) = walls::crossed_edge(|j| {
         let (x, z) = corner(j);
-        side(r, x, z)
+        side(x, z)
     });
-    r.eax = rd(face + first);
-    r.ebx = rd(face + second);
-    p(0x6141BC, r.eax);
-    p(0x6141C0, r.ebx);
-    let [x, y, z, edx] = edge_normal(r.eax, r.ebx);
-    p(0x6D31B4, g(0x6141C8));
-    r.eax = x;
-    r.ebx = y;
-    r.ecx = z;
-    r.edx = edx;
-    copy3(0x6D30A8, 0x71A170);
-    copy3(0x6D30B4, 0x71A15C);
-    r.ebx = n;
-    p(0x6D3090, g(0x6D2214 + 4 * k));
-    p(0x6D3094, g(0x6D2314 + 4 * k));
-    p(0x6D3098, g(0x6D2414 + 4 * k));
-    p(0x6D3094, mul(g(0x6D3094), g(0x5C5DD0)));
-    p(0x6D3100, 0);
-    p(RECORD, a(0x614A70));
-    unsafe { contact_force() }.apply(r);
-    unsafe { crate::physics::place_sound_e1::place_sound_e1() }?;
+    let (from, to) = (rd(face + first)?, rd(face + second)?);
+    PHYSICS.crossed_edge[0].set(from);
+    PHYSICS.crossed_edge[1].set(to);
+    edge_normal(from, to)?;
+    CONTACT_WORK.crossed_heading.set(PHYSICS.wall_heading.get());
+    copy3(&CONTACT_WORK.contact_car_speed, &CAR.velocity);
+    copy3(&CONTACT_WORK.contact_turn_speed, &CAR.spin);
+    CONTACT_WORK.contact_point[0].set_bits(CONTACT_WORK.probe_turned_x[k].bits());
+    CONTACT_WORK.contact_point[1].set_bits(CONTACT_WORK.probe_turned_y[k].bits());
+    CONTACT_WORK.contact_point[2].set_bits(CONTACT_WORK.probe_turned_z[k].bits());
+    CONTACT_WORK.contact_point[1].set_bits(mul(
+        CONTACT_WORK.contact_point[1].bits(),
+        NUMBERS.tenth.bits(),
+    ));
+    CONTACT_WORK.contact_slide_limit.set_bits(0);
+    p(&PHYSICS.contact_record, PHYSICS.contacts[1].force[0].addr());
+    unsafe { contact_force() };
+    { crate::physics::place_sound_e1::place_sound_e1() }?;
     Ok(())
 }
 
 /// The probe checked: refused past 0x3F.
 pub fn check_probe() -> Result<(), Refused> {
-    Ok(walls::check_probe(g(CROSSED))?)
-}
-
-/// The Rust version.
-pub unsafe fn crossed_edge_contact(entry: &Regs) -> Result<Left, Refused> {
-    check_probe()?;
-    guard(&regions(), || {
-        let mut r = *entry;
-        steps(&mut r)?;
-        Ok(left_of(&r))
-    })
-}
-
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    unsafe { crossed_edge_contact(r) }
-}
-
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_state(&HOOK, r, call_original, &regions(), &rust);
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
-}
-
-fn self_test() -> (usize, usize) {
-    test_crossed(&HOOK, call_original, &rust)
+    Ok(walls::check_probe(CONTACT_WORK.crossed_probe.get())?)
 }

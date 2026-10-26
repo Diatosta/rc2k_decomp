@@ -9,22 +9,19 @@
 //! nothing, unless the processor has MMX (`dword_5183A8` is 1): then 1 to 4 get `sub_4070F9`,
 //! `sub_407171`, `sub_4071ED`, `sub_407276`, or with 3DNow as well (`dword_5183B8` is 1)
 //! `sub_4072FB`, `sub_407377`, `sub_4073F7`, `sub_407484`. Those eight are not ported. The name
-//! is a reading. Hook removed 2026-10-22 (direct calls): Rust callers run its `entry`
-//! (`calls::call`, `routes.rs`); the registers above are the original's, for reference.
+//! is a reading. `start` calls it directly (2026-10-23); the registers above are the
+//! original's, for reference.
 
-use crate::errors::Refused;
-use crate::framework::{Regs, game_addr, game_read, rva};
+use crate::framework::rva;
 use crate::gfx::components_to_4444_rows::COMPONENTS_TO_4444_ROWS;
+use crate::gfx::converters::CONVERTERS;
 use crate::gfx::copy_pixel_rows::COPY_PIXEL_ROWS;
-use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
+use crate::session::MACHINE;
+use crate::store::game_addr;
 
 // ---- game data ----
 
-pub const CONVERTERS_RVA: usize = rva(0x4F5288); // dword_4F5288
 pub const CONVERTER_COUNT: usize = rc2k_core::gfx::converters::CONVERTERS;
-const HAS_MMX_RVA: usize = rva(0x5183A8); // dword_5183A8
-const HAS_3DNOW_RVA: usize = rva(0x5183B8); // dword_5183B8
 
 /// The converters for formats 1 to 4 with MMX, and with 3DNow as well.
 const MMX: [usize; 4] = [rva(0x4070F9), rva(0x407171), rva(0x4071ED), rva(0x407276)];
@@ -45,24 +42,13 @@ pub fn converters(has_mmx: u32, has_3dnow: u32) -> [u32; CONVERTER_COUNT] {
             Converter::Mmx(n) => MMX[n as usize - 1],
             Converter::ThreeDNow(n) => AMD[n as usize - 1],
         };
-        game_addr(at) as u32
+        game_addr(at)
     })
 }
 
-pub unsafe fn install_converters() {
-    let table = unsafe { converters(game_read(HAS_MMX_RVA), game_read(HAS_3DNOW_RVA)) };
-    unsafe { (game_addr(CONVERTERS_RVA) as *mut [u32; CONVERTER_COUNT]).write_unaligned(table) };
+pub fn install_converters() {
+    let table = converters(MACHINE.has_mmx.get(), MACHINE.has_3dnow.get());
+    for (cell, entry) in CONVERTERS.table.iter().zip(table) {
+        cell.set(entry);
+    }
 }
-
-fn rust(_: &Regs) -> Result<Left, Refused> {
-    unsafe { install_converters() };
-    Ok(Left::nothing())
-}
-
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
-}
-
-// ---- self-test: a copy of the original that reads the two processor flags from test
-// variables and fills a table of the test's ----

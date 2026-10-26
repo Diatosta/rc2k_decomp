@@ -9,52 +9,30 @@
 //! equal); then with no limit (+2 0), or the repeats (+0x2C) below it (counted up), the
 //! restart flag +0x24 1. One caller, `sound::spot_sounds`.
 //! Refuses (before anything) a voice of kind 0 or past 0x15.
-//! Shadow mode: both (nothing sent; the random state put back between), compared.
-//! Self-test: a copy whose call goes to a stand-in (the test's random numbers), against
-//! the Rust version, on the game's voices (put back).
 //!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
+//! above are the original's, for reference.
 
 use crate::errors::Refused;
-use crate::framework::{Regs, game_addr, rva};
-use crate::sound::spot_voices::{MOST_KIND, REPEATS, VOICE_COUNT, voice, vw};
-use crate::sound::turn_parts::{BELOW, Part, turn_entry};
 
 // ---- Rust version ----
 
-/// Converted: `rc2k_core::sound::spot_voices::repeat`; each random number asked with the
-/// registers the original has there.
-pub fn repeat_spot_voices_in(r: &mut Regs, part: Part) -> Result<(), Refused> {
+/// Converted: `rc2k_core::sound::spot_voices::repeat`.
+pub fn repeat_spot_voices() -> Result<(), Refused> {
     use crate::sound::spot_voices::{load_voices, store_voices};
     use rc2k_core::sound::spot_voices::{Repeats, repeat};
-    let table = game_addr(rva(REPEATS)) as u32;
-    let records: [[u8; 8]; MOST_KIND as usize] =
-        unsafe { crate::framework::game_read(rva(REPEATS)) };
-    let table_of = records.map(Repeats::from_bytes);
+    let table_of = crate::sound::store::SPOT_PICKS
+        .kind_repeats
+        .each_ref()
+        .map(|r| Repeats {
+            most: r.most.get(),
+            least_delay: r.least_delay.get(),
+            most_delay: r.most_delay.get(),
+        });
     let mut voices = load_voices();
-    let mut c = *r;
-    let done = repeat::<Refused>(&mut voices, &table_of, |n, range| {
-        c.ebx = voice(n as u32);
-        c.ecx = VOICE_COUNT - n as u32;
-        c.edx = table + (voices_kind(n) - 1) * 8;
-        c.eax = range;
-        part(BELOW, &mut c)?;
-        Ok(c.eax)
-    });
-    done?;
+    repeat::<Refused>(&mut voices, &table_of, |_, range| {
+        Ok({ crate::math::random_below::random_below(range) }?)
+    })?;
     store_voices(&voices);
     Ok(())
-}
-
-/// A voice's kind as the game holds it (read before the core changes anything of it).
-fn voices_kind(n: usize) -> u32 {
-    vw(voice(n as u32), 0x18)
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    turn_entry(r, repeat_spot_voices_in)
 }

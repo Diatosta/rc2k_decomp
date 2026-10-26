@@ -10,34 +10,28 @@
 //! One caller, `sound::car_sounds`.
 //! Refuses (before anything) a null object or request and a sound past the sample
 //! records.
-//! Shadow mode runs the original alone (it sends a sound).
-//! Self-test: a copy whose calls go to stand-ins (the one of `sample_settings` left),
-//! against the Rust version, on an object of the test's, real samples.
 //!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
+//! above are the original's, for reference.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::Regs;
 use crate::sound::sample_settings::{record, sample_settings};
-use crate::sound::turn_parts::{PLACED, Part, turn_entry};
 
 // ---- Rust version ----
 
 /// Converted: `rc2k_core::sound::cars::one_off`.
-pub fn car_cue_sound_in(r: &mut Regs, part: Part) -> Result<(), Refused> {
+///
+/// The waiting cue sound of object `o`, through `request`.
+pub fn car_cue_sound(o: u32, request: u32) -> Result<(), Refused> {
     use rc2k_core::sound::cars::{OneOff, from_int, one_off};
-    if r.ebx == 0 || r.esi == 0 {
+    if o == 0 || request == 0 {
         return Err(BadInput("no object or no request").into());
     }
-    let o = r.ebx;
-    let w = |at: u32| unsafe { ((o + at) as *const u32).read_unaligned() };
-    let q = r.esi as *mut u32;
-    let mut waiting = w(WAITING);
+    let so = crate::sound::store::SoundObject::at(o)?;
+    let mut waiting = so.cue_sound.get();
     let taken = one_off(
         &mut waiting,
-        w(WAITING + 4),
+        so.cue_volume.get(),
         LEAST,
         STOP_QUIET,
         |sound| record(sound).map(|_| ()),
@@ -47,39 +41,21 @@ pub fn car_cue_sound_in(r: &mut Regs, part: Part) -> Result<(), Refused> {
     if turn == OneOff::Nothing {
         return Ok(());
     }
-    unsafe {
-        ((o + WAITING) as *mut u32).write_unaligned(waiting);
-        q.write_unaligned(sound);
-    }
-    let mut c = Regs { eax: sound, ..*r };
+    so.cue_sound.set(waiting);
+    crate::sound::turn_parts::put(request, 0, sound)?;
     match turn {
         OneOff::Nothing | OneOff::Quiet { .. } => Ok(()),
-        OneOff::Stop { volume, rate } => {
-            (c.ecx, c.edx) = (volume, rate);
-            part(crate::sound::turn_parts::STOP, &mut c)
-        }
+        OneOff::Stop { .. } => crate::sound::turn_parts::stop(request),
         OneOff::Play { volume, rate } => {
-            (c.ecx, c.edx) = (volume, rate);
-            unsafe {
-                q.add(2).write_unaligned(from_int(volume as i32));
-                q.add(1).write_unaligned(from_int(rate as i32));
-                for k in 0..3 {
-                    c.eax = w(WAITING + 8 + 4 * k);
-                    q.add(3 + k as usize).write_unaligned(c.eax);
-                }
+            crate::sound::turn_parts::put(request, 2, from_int(volume as i32))?;
+            crate::sound::turn_parts::put(request, 1, from_int(rate as i32))?;
+            for k in 0..3usize {
+                crate::sound::turn_parts::put(request, 3 + k, so.cue_place[k].bits())?;
             }
-            part(PLACED, &mut c)
+            crate::sound::turn_parts::placed(request)
         }
     }
 }
 
-/// The sound object's waiting sound (its volume after it, its place after that).
-const WAITING: u32 = 0x24C;
 const LEAST: u32 = 1;
 const STOP_QUIET: bool = true;
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    turn_entry(r, car_cue_sound_in)
-}

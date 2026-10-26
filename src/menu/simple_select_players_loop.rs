@@ -12,78 +12,91 @@
 //! but the arcade mode is another one and has no player count (the owner, 2026-10-12).
 //! Named `select_players_481771_loop`, then by mistake `championship_select_players_loop`
 //! and `arcade_select_players_loop`.
-//! Callers: none in code: it is reached through a table.
-//! Hook removed 2026-10-22 (typed tables): the menus and draw lists run its `entry`
+//! Callers: none in code: it is reached through a table. The menus and draw lists run its `entry`
 //! (`menu::table_calls`); the registers above are the original's, for reference.
 
-use crate::framework::{Regs, game_read, game_write, rva};
-use crate::menu::screen_loop::{Env, Flow, List, Screen, Step, screen_entry};
+use crate::errors::Refused;
+use crate::framework::rva;
+use crate::menu::captions_store::CAPTIONS;
+use crate::menu::draw_lists_store::DRAW_LISTS;
+use crate::menu::event_store::EVENT_STATE;
+use crate::menu::flow_store::SCREEN_FLOW;
+use crate::menu::loop_store::LOOP_FLAGS;
+use crate::menu::menus_store::MENUS;
+use crate::menu::option_work_store::OPTION_WORK;
+use crate::menu::screen_items_store::{SCREEN_ITEMS, slot};
+use crate::menu::screen_loop::{
+    Callee, Carried, Flow, List, Screen, Step, carousel, prepare_scene, screen_entry,
+};
+use crate::menu::state_store::MENU_STATE;
+use crate::scene::draw_store::DRAW;
 
 // ---- Rust version: `menu::screen_loop` with this ----
 
-unsafe fn set_up_first(g: &mut Regs, env: &mut dyn Env) {
-    unsafe {
-        game_write(rva(0x7554EC), 0x1u32);
-        game_write(rva(0x75AA74), 0x2u32);
-        env.call(rva(0x4904DD), g);
-        g.eax = game_read(rva(0x747670));
-        game_write(rva(0x755525), g.eax);
-        g.eax = g.eax.wrapping_add(0xFFFFFFFF);
-        game_write(rva(0x75AA7C), g.eax);
-        game_write(rva(0x623FB0), 0x7u32);
-        game_write(rva(0x623FB4), 0xAu32);
-        game_write(rva(0x624080), 0x100u32);
-        env.call(rva(0x46F7FD), g);
-    }
+fn set_up_first(c: &mut Carried) -> Result<(), Refused> {
+    SCREEN_FLOW.turning.set(0x1u32);
+    MENU_STATE.carousel.menu.set(0x2u32);
+    carousel(c)?;
+    c.arg = SCREEN_ITEMS.current[slot::SIMPLE_SELECT_PLAYERS].get();
+    LOOP_FLAGS.item.set(c.arg);
+    c.arg = c.arg.wrapping_sub(1);
+    MENU_STATE.carousel.front.set(c.arg);
+    DRAW.view_offset[0].set(0x7u32);
+    DRAW.view_offset[1].set(0xAu32);
+    DRAW.view_zoom.set(0x100u32);
+    prepare_scene(c);
+    Ok(())
 }
 
-unsafe fn after_first_frame(_g: &mut Regs, _env: &mut dyn Env) -> Flow {
-    unsafe {
-        if game_read::<u32>(rva(0x758806)) == 0x1 {
-            game_write(rva(0x758806), 0x0u32);
-            return Flow::SetUp;
-        }
-        Flow::On
+fn after_first_frame(_c: &mut Carried) -> Result<Flow, Refused> {
+    if CAPTIONS.screen_left.get() == 0x1 {
+        CAPTIONS.screen_left.set(0x0u32);
+        return Ok(Flow::SetUp);
     }
+    Ok(Flow::On)
 }
 
 pub const SCREEN: Screen = Screen {
-    menu: rva(0x748A88),
-    saved_item: rva(0x747670),
+    menu: || MENUS.simple_select_players.addr() as usize,
+    saved_item: || &SCREEN_ITEMS.current[slot::SIMPLE_SELECT_PLAYERS],
     lists: &[
         List {
-            pointer: rva(0x755504), // g_sceneList
-            table: rva(0x758EF6),
+            pointer: || &SCREEN_FLOW.scene_list, // g_sceneList
+            table: || DRAW_LISTS.simple_select_players_scene.addr() as usize,
             run: false,
         },
         List {
-            pointer: rva(0x7554F8), // g_drawList
-            table: rva(0x758B8E),
+            pointer: || &SCREEN_FLOW.draw_list, // g_drawList
+            table: || DRAW_LISTS.simple_select_players_draw.addr() as usize,
             run: false,
         },
         List {
-            pointer: rva(0x7554FC), // g_overlayList
-            table: rva(0x759136),
+            pointer: || &SCREEN_FLOW.overlay_list, // g_overlayList
+            table: || DRAW_LISTS.simple_select_players_overlay.addr() as usize,
             run: false,
         },
     ],
     first_frame_lists: None,
     frame_callback: rva(0x474D4B),
     later_frame_callback: None,
-    before: &[Step::Write(rva(0x755980), 0x0)],
+    before: &[Step::Write(|| &EVENT_STATE.event_done, 0x0)],
     set_up_first: &[Step::Do(set_up_first)],
     prepare: &[],
     after_lists: &[],
     background: &[
-        Step::EaxAddr(rva(0x73290C)),
-        Step::CallOrFatal(rva(0x47EFFF), 0x80712345),
+        Step::ArgAddr(|| {
+            (crate::menu::texts_store::MENU_TEXTS
+                .simple_select_players_picture
+                .addr()) as usize
+        }),
+        Step::CallOrFatal(Callee::LoadBackground, 0x80712345),
     ],
     after_first_frame: &[Step::DoFlow(after_first_frame)],
     confirm: None,
     ask_also_if: None,
     confirmed: &[],
     unasked_skips_save: false,
-    after: &[Step::Write(rva(0x7556A4), 0x6F)],
+    after: &[Step::Write(|| &OPTION_WORK.menu_sound, 0x6F)],
     escape_leaves: false,
     each_frame: &[],
     short_action_check: false,
@@ -105,20 +118,10 @@ pub const SCREEN: Screen = Screen {
     after_blink: &[],
     restart_action_check: false,
     always_asks: false,
-    also_reads: &[],
-    also_writes: &[
-        rva(0x623FB0),
-        rva(0x623FB4),
-        rva(0x624080),
-        rva(0x7554EC),
-        rva(0x755980),
-        rva(0x75AA74),
-        rva(0x75AA7C),
-    ],
 };
 
-/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// The Rust version where the typed tables run it (a refusal is the
 /// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    screen_entry("menu::simple_select_players_loop", r, &SCREEN)
+pub fn run() -> Result<(), crate::errors::Refused> {
+    screen_entry("menu::simple_select_players_loop", &SCREEN)
 }

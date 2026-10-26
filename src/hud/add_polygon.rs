@@ -11,133 +11,63 @@
 //! Out: eax the count, ecx 0, esi past the vertices, edi the triangle's indices; ebx and
 //!      the rest as the flush leaves them
 //!
-//! Callers: `sub_4B5A86`, `hud::add_triangle`, `sub_4B7058`, `hud::add_quad`. The flush
-//! and the texture through `part` (1, 2), in the game their Rust versions. Refuses a count
+//! Callers: `sub_4B5A86`, `hud::add_triangle`, `sub_4B7058`, `hud::add_quad`. Refuses a count
 //! of 0 (the original's loop would run on) or past 0x10, and a batch it would write past,
-//! before anything. Shadow mode runs the original alone (it draws). Self-test: a copy
-//! whose two calls go to stand-ins, against the Rust version, batch counts and textures by
-//! lot, at both test control words (the scaled places within `FLOAT` at extended).
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! before anything.
 
+use crate::d3d::vertices_store::VERTICES;
 use crate::errors::Refused;
-use crate::framework::{Regs, game_addr, game_read, game_write, rva};
-use crate::hud::batch::*;
 
-const WIDTH_RVA: usize = rva(0x4F494C); // g_screenWidth
-const HEIGHT_RVA: usize = rva(0x4F4950); // g_screenHeight
-const VIRTUAL_RVA: [usize; 2] = [rva(0x75C02C), rva(0x75C030)]; // flt_75C02C, flt_75C030
+use crate::hud::store::HUD;
+use crate::race::panel_store::PANEL;
+use crate::scene::draw_store::DRAW;
+use crate::session::SCREEN;
 
-/// A call by place: 1 `flush_batch`, 2 `set_batch_texture`.
-pub type Part<'a> = &'a mut dyn FnMut(u32, &mut Regs) -> Result<(), Refused>;
-
-/// The Rust version (see the header): the registers it leaves.
+/// The Rust version (see the header). What the original leaves in eax, ecx, esi and edi
+/// is read by none of its callers (register liveness, 2026-10-23).
 // Converted: `rc2k_core::hud::batch::{flushes, check_polygon, polygon_indices}`,
 // `rc2k_core::hud::quads::screen_scaled`
-pub unsafe fn add_polygon(entry: &Regs, part: Part) -> Result<Regs, Refused> {
+pub fn add_polygon() -> Result<(), Refused> {
     use rc2k_core::hud::batch::{self, MOST_VERTICES};
     use rc2k_core::hud::quads::screen_scaled;
-    let mut g = *entry;
-    unsafe {
-        let count: u32 = game_read(POLYGON_COUNT_RVA);
-        let texture: u32 = game_read(TEXTURE_RVA);
-        let vertices: u32 = game_read(VERTEX_COUNT_RVA);
+    {
+        let count: u32 = DRAW.polygon_vertex_count.bits();
+        let texture = HUD.texture.get();
+        let vertices = HUD.vertex_count.get();
         let flushes = if count == 0 || count > MOST_VERTICES {
             false
         } else {
-            batch::flushes(vertices, texture, game_read(BATCH_TEXTURE_RVA))
+            batch::flushes(vertices, texture, HUD.batch_texture.get())
         };
-        batch::check_polygon(count, vertices, game_read(INDEX_COUNT_RVA), flushes)?;
-        let [w, h]: [u32; 2] = [game_read(WIDTH_RVA), game_read(HEIGHT_RVA)];
-        let [kx, ky] = VIRTUAL_RVA.map(|r| f32::from_bits(game_read(r)));
-        let f = |r: usize| f32::from_bits(game_read(r));
+        batch::check_polygon(count, vertices, HUD.index_count.get(), flushes)?;
+        let [w, h]: [u32; 2] = [SCREEN.width.get(), SCREEN.height.get()];
+        let [kx, ky] = [HUD.virtual_screen[0].get(), HUD.virtual_screen[1].get()];
         for n in 0..count as usize {
-            let v = POLYGON_RVA + 0x20 * n;
-            game_write(v, screen_scaled(f(v), w, kx).to_bits());
-            game_write(v + 4, screen_scaled(f(v + 4), h, ky).to_bits());
+            let v = &VERTICES.vertices[n];
+            v.x.set_bits(screen_scaled(v.x.get(), w, kx).to_bits());
+            v.y.set_bits(screen_scaled(v.y.get(), h, ky).to_bits());
         }
-        g.ecx = count;
         if flushes {
-            // Not full: the flush is reached from the texture's compare (eax the texture).
-            if game_read::<u32>(VERTEX_COUNT_RVA) <= batch::FULL {
-                g.eax = texture;
-            }
-            part(1, &mut g)?;
-            game_write(SHOWN_TEXTURE_RVA, texture);
-            game_write(BATCH_TEXTURE_RVA, texture);
-            g.eax = texture;
-            part(2, &mut g)?;
+            crate::hud::flush_batch::flush_batch();
+            PANEL.shown_texture.set(texture);
+            HUD.batch_texture.set(texture);
+            crate::hud::set_batch_texture::set_batch_texture()?;
         }
-        let vc: u32 = game_read(VERTEX_COUNT_RVA);
-        std::ptr::copy(
-            game_addr(POLYGON_RVA) as *const u8,
-            (game_addr(VERTICES_RVA) as u32 + vc * 0x20) as *mut u8,
+        let vc = HUD.vertex_count.get();
+        crate::pointers::GamePtr::new(crate::d3d::vertices_store::piece_addr()).copy_to(
+            crate::pointers::GamePtr::new(
+                crate::pointers::game_address(HUD.vertices.as_ptr()) + vc * 0x20,
+            ),
             (count * 0x20) as usize,
-        );
-        g.esi = game_addr(POLYGON_RVA) as u32 + count * 0x20;
-        g.ecx = 0;
-        let ic: u32 = game_read(INDEX_COUNT_RVA);
-        g.edi = game_addr(INDICES_RVA) as u32 + ic * 2;
+            "the hud's vertices",
+        )?;
+        let ic = HUD.index_count.get();
         let indices = batch::polygon_indices(vc, count);
         for (k, &i) in indices.iter().enumerate() {
-            ((g.edi + 2 * k as u32) as *mut u16).write_unaligned(i);
+            HUD.indices[ic as usize + k].set(i);
         }
-        game_write(INDEX_COUNT_RVA, ic + indices.len() as u32);
-        g.eax = count;
-        game_write(VERTEX_COUNT_RVA, vc + count);
-    }
-    Ok(g)
-}
-
-/// In the game: the flush's and the texture's Rust versions.
-pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
-    use crate::hud::{flush_batch, set_batch_texture};
-    unsafe {
-        *r = match place {
-            1 => flush_batch::flush_batch(r, &mut flush_batch::game_part)?,
-            _ => set_batch_texture::set_batch_texture(r, &mut set_batch_texture::game_part)?,
-        };
+        HUD.index_count.set(ic + indices.len() as u32);
+        HUD.vertex_count.set(vc + count);
     }
     Ok(())
-}
-
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    let left = unsafe { add_polygon(r, &mut game_part) }?;
-    *r = Regs { esp: r.esp, ..left };
-    Ok(())
-}
-
-/// The batch and the polygon by lot (for this test and the HUD's other tests).
-pub unsafe fn test_batch(case: u32) {
-    unsafe {
-        std::ptr::write_bytes(
-            game_addr(VERTICES_RVA) as *mut u8,
-            0xAA,
-            (VERTEX_ROOM * 0x20) as usize,
-        );
-        std::ptr::write_bytes(
-            game_addr(INDICES_RVA) as *mut u8,
-            0xAA,
-            (INDEX_ROOM * 2) as usize,
-        );
-        game_write(
-            VERTEX_COUNT_RVA,
-            [0u32, 40, 0x64, 0x65, 0x90][case as usize % 5],
-        );
-        game_write(
-            INDEX_COUNT_RVA,
-            [0u32, 60, 0x96, 0, 0xD8][case as usize % 5],
-        );
-        game_write(TEXTURE_RVA, 3 + case % 2);
-        game_write(BATCH_TEXTURE_RVA, 3u32);
-        game_write(VIRTUAL_RVA[0], 640.0f32.to_bits());
-        game_write(VIRTUAL_RVA[1], 480.0f32.to_bits());
-        let p = game_addr(POLYGON_RVA) as *mut f32;
-        for n in 0..32 {
-            *p.add(n) = n as f32 * 7.5 + case as f32;
-        }
-    }
 }

@@ -10,7 +10,7 @@
 //! Hook removed 2026-10-22 (conversion phase 4): Rust callers call this directly; the
 //! registers above are the original's, for reference.
 
-use crate::errors::FatalError;
+use crate::errors::Refused;
 use crate::text::draw_text::Canvas;
 use crate::text::draw_text_keep_regs::draw_text_keep_regs;
 use crate::text::font::Font;
@@ -29,7 +29,7 @@ pub unsafe fn draw_clock_fixed_pitch(
     x: i32,
     y: i32,
     canvas: &mut dyn Canvas,
-) -> Result<(bool, bool), FatalError> {
+) -> Result<(bool, bool), Refused> {
     let at = columns(x, &CLOCK_STEPS);
     unsafe {
         let cell = text.add(CELL_OFFSET);
@@ -52,13 +52,15 @@ pub unsafe fn draw_clock_fixed_pitch_at(
     x: i32,
     y: i32,
     canvas: &mut dyn Canvas,
-) -> Result<(bool, bool), FatalError> {
+) -> Result<(bool, bool), Refused> {
     unsafe {
-        let before = font.read_unaligned();
+        let before = crate::pointers::GamePtr::new(crate::pointers::game_address(font))
+            .read::<Font>("a font")?;
         let mut copy = before;
         let too_wide = draw_clock_fixed_pitch(&mut copy, text, x, y, canvas)?;
         if copy != before && canvas.keeps_font_changes() {
-            font.write_unaligned(copy);
+            crate::pointers::GamePtr::new(crate::pointers::game_address(font))
+                .write(copy, "a font")?;
         }
         Ok(too_wide)
     }

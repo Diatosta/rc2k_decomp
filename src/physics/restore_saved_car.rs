@@ -9,37 +9,16 @@
 //!      count); flags the `add`'s (no caller reads them)
 //!
 //! Callers (7): `sub_43BDD1`, `sub_45D737`, `sub_45D7B6` (twice), `sub_45E3BF`,
-//! `sub_45EFF3`, `sub_45F703`, under `sub_4454D2` (most followed by `sub_43F1A8`).
-//! Refuses a count above 0x7C (unsigned: the list would run past the work copy's end,
-//! 0x71AFB8), before writing.
-//! Self-test: a copy of the original whose twelve references are the test's, counts 0 ..
-//! 0x7C; the refusal.
+//! `sub_45EFF3`, `sub_45F703`, under `sub_4454D2` (most followed by `sub_43F1A8`). Refuses
+//! a count above 0x7C (unsigned: the list would run past the work copy's end, 0x71AFB8),
+//! before writing.
 
 use crate::errors::Refused;
-use crate::framework::{
-    ECX, EDI, ESI, RawHook, Regs, SelfTest, call_game, game_addr, hook_asm, rva,
-};
-use crate::screens::harness::Left;
-use crate::service::harness::{Region, capture, dispatch_state, state_entry};
-use rc2k_core::physics::saved_car::{MOST_LISTED, restore_count, restored};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook = RawHook::new(
-    "physics::restore_saved_car",
-    rva(0x43DC25),
-    thunk,
-    &ORIGINAL,
-)
-.self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
+use crate::framework::{game_addr, rva};
+use crate::physics::car_store::CAR;
+use crate::physics::contact_store::CONTACT_WORK;
+use crate::physics::tables_store::PHYSICS;
+use rc2k_core::physics::saved_car::{restore_count, restored};
 
 /// The variables' addresses: the game's, or a test's.
 #[derive(Clone, Copy)]
@@ -56,154 +35,39 @@ pub struct SavedCar {
 
 impl SavedCar {
     pub fn game() -> Self {
-        let a = |x: usize| game_addr(rva(x)) as u32;
+        let _a = |x: usize| game_addr(rva(x));
         Self {
-            counter: a(0x614738),
-            saved_place: a(0x6141E0),
-            place: a(0x71A10C),
-            saved_matrix: a(0x6141EC),
-            matrix: a(0x71A08C),
-            saved_list: a(0x6D2814),
-            list: a(0x71ADC8),
-            count: a(0x71A238),
+            counter: (PHYSICS.clear_place_count.addr()),
+            saved_place: (PHYSICS.saved_place[0].addr()),
+            place: (CAR.position[0].addr()),
+            saved_matrix: (PHYSICS.saved_matrix[0].addr()),
+            matrix: (CAR.crash_matrix[0].addr()),
+            saved_list: (CONTACT_WORK.probe_saved_faces[0].addr()),
+            list: (CAR.probe_point_face[0].addr()),
+            count: (CAR.probe_count.addr()),
         }
     }
 
-    /// What it writes, for a count of `n`.
-    pub fn regions(&self, n: u32) -> Vec<Region> {
-        vec![
-            (self.counter, 4),
-            (self.place, 12),
-            (self.matrix, 0x40),
-            (self.list, 4 * n.min(MOST_LISTED) as usize),
-        ]
-    }
-
-    unsafe fn at(a: u32) -> u32 {
-        unsafe { (a as *const u32).read_unaligned() }
+    fn at(a: u32) -> u32 {
+        crate::pointers::read_or_end::<u32>(a, "physics::restore_saved_car's operand")
     }
 }
 
 /// The Rust core on the variables at `p`.
 // Converted: `rc2k_core::physics::saved_car::{restore_count, restored}`.
-pub unsafe fn restore_saved_car_at(p: &SavedCar) -> Result<Left, Refused> {
+pub unsafe fn restore_saved_car_at(p: &SavedCar) -> Result<(), Refused> {
     use crate::physics::save_car_state::{read_state, write_state};
     unsafe {
         let n = restore_count(SavedCar::at(p.count))?;
         let c = restored(SavedCar::at(p.counter));
-        (p.counter as *mut u32).write_unaligned(c);
+        (crate::pointers::host(p.counter) as *mut u32).write_unaligned(c);
         let state = read_state(p.saved_place, p.saved_matrix, p.saved_list, n);
         write_state(&state, p.place, p.matrix, p.list);
-        let n = n as u32;
-        Ok(Left::nothing()
-            .with(crate::framework::EAX, state.place[2])
-            .with(ECX, 0)
-            .with(ESI, p.saved_list + 4 * n)
-            .with(EDI, p.list + 4 * n))
+        Ok(())
     }
 }
 
 /// The Rust version.
-pub unsafe fn restore_saved_car() -> Result<Left, Refused> {
+pub unsafe fn restore_saved_car() -> Result<(), Refused> {
     unsafe { restore_saved_car_at(&SavedCar::game()) }
-}
-
-fn rust(_: &Regs) -> Result<Left, Refused> {
-    unsafe { restore_saved_car() }
-}
-
-extern "C" fn dispatch(r: &mut Regs) {
-    let p = SavedCar::game();
-    let n = unsafe { SavedCar::at(p.count) };
-    dispatch_state(&HOOK, r, call_original, &p.regions(n), &rust);
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    // counter, saved place 3, place 3, saved matrix 16, matrix 16, saved list 0x80, list
-    // 0x80, count.
-    let len = 1 + 3 + 3 + 16 + 16 + 0x80 + 0x80 + 1;
-    let mut cells = vec![0u32; len];
-    let base = cells.as_mut_ptr() as u32;
-    let p = SavedCar {
-        counter: base,
-        saved_place: base + 4,
-        place: base + 16,
-        saved_matrix: base + 28,
-        matrix: base + 92,
-        saved_list: base + 156,
-        list: base + 156 + 0x200,
-        count: base + 156 + 0x400,
-    };
-    let copy = match crate::audio::test_copy::make(
-        &HOOK,
-        &crate::audio::test_copy::Copy {
-            address: 0x43DC25,
-            len: 0x4D,
-            entry: &[0x83, 0x05, 0x38, 0x47, 0x61, 0x00, 0x01],
-            calls: &[],
-            jumps_out: &[],
-        },
-        &|_| None,
-        &[
-            (0x614738, p.counter),
-            (0x6141E0, p.saved_place),
-            (0x6141E4, p.saved_place + 4),
-            (0x6141E8, p.saved_place + 8),
-            (0x71A10C, p.place),
-            (0x71A110, p.place + 4),
-            (0x71A114, p.place + 8),
-            (0x6141EC, p.saved_matrix),
-            (0x71A08C, p.matrix),
-            (0x6D2814, p.saved_list),
-            (0x71ADC8, p.list),
-            (0x71A238, p.count),
-        ],
-        12,
-    ) {
-        Ok(copy) => copy,
-        Err(why) => return t.skip(&why),
-    };
-    let all: [Region; 1] = [(base, 4 * len)];
-    let fill = |n: u32, seed: u32| {
-        let cell = base as *mut u32;
-        let mut s = seed;
-        for k in 0..len {
-            s = s.wrapping_mul(1_103_515_245).wrapping_add(12345);
-            unsafe { cell.add(k).write_volatile(s) };
-        }
-        unsafe { (p.count as *mut u32).write_volatile(n) };
-    };
-    for (k, n) in [0u32, 1, 2, 7, 0x40, 0x7B, 0x7C].into_iter().enumerate() {
-        let seed = k as u32 * 0x2545_F491 + 9;
-        fill(n, seed);
-        let mut ro = Regs::SENTINEL;
-        unsafe { call_game(&mut ro, copy.addr()) };
-        let theirs = capture(&all);
-        fill(n, seed);
-        let mine = unsafe { restore_saved_car_at(&p) };
-        let state = capture(&all);
-        let regs_ok = mine.as_ref().is_ok_and(|l| l.matches(&Regs::SENTINEL, &ro));
-        t.check(regs_ok && theirs == state, || {
-            format!("count {n:#x}: regs_ok={regs_ok} {mine:?}; the memory differs")
-        });
-    }
-    for n in [0x7Du32, 0x8000_0000] {
-        fill(n, 1);
-        let before = capture(&all);
-        let refused = unsafe { restore_saved_car_at(&p) }.is_err();
-        t.check(refused && capture(&all) == before, || {
-            format!("count {n:#x}: refused {refused}, or something written")
-        });
-    }
-    drop((copy, cells));
-    t.finish()
 }

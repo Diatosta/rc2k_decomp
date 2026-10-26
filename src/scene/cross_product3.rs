@@ -6,131 +6,97 @@
 //! In:  esi a, edi b, ebp the result
 //! Out: every register kept
 //!
-//! See `scene/vector3.rs`. 16 callers (the marks' tyre marks and their kin). The original's
-//! instructions (`fsubp` as its bytes). Refuses a null pointer. Self-test: the original and
-//! the Rust version on vectors by lot, the result apart and over each input.
+//! See `scene/vector3.rs`. 16 callers (the marks' tyre marks and their kin). Refuses a null pointer.
 //!
-//! Converted 2026-10-21: the hook's Rust version is `cross_product3_plain`, through
-//! `rc2k_core::scene::matrices::cross3` (plain floats; the x87 version stays for the Rust
-//! callers in unconverted code). Shadow mode and the self-test compare within
-//! `service::floats`' tolerances (the self-test at both test precisions, exact at double).
+//! Plain Rust since 2026-10-24 (no assembly): the arithmetic is the x87's, in `X`
+//! (`math/x87_float.rs`); the original's instructions are kept as `asm_reference` in the tests.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
-use crate::race::stage_prefs::left_of;
-use crate::scene::matrix::float_places;
-use crate::screens::harness::Left;
-use crate::service::floats::*;
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("scene::cross_product3", rva(0x465551), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
+use crate::scene::x87_mem::{fld, fstp};
 
 /// The Rust version (see the header).
-pub unsafe fn cross_product3(a: u32, b: u32, out: u32) -> Result<(), Refused> {
+pub fn cross_product3(a: u32, b: u32, out: u32) -> Result<(), Refused> {
     if a == 0 || b == 0 || out == 0 {
         return Err(BadInput("a null vector").into());
     }
-    unsafe {
-        core::arch::asm!(
-            "fld dword ptr [{a} + 4]", "fmul dword ptr [{b} + 8]",
-            "fld dword ptr [{a} + 8]", "fmul dword ptr [{b} + 4]",
-            ".byte 0xDE, 0xE9", "fstp dword ptr [{o}]",
-            "fld dword ptr [{a} + 8]", "fmul dword ptr [{b}]",
-            "fld dword ptr [{a}]", "fmul dword ptr [{b} + 8]",
-            ".byte 0xDE, 0xE9", "fstp dword ptr [{o} + 4]",
-            "fld dword ptr [{a}]", "fmul dword ptr [{b} + 4]",
-            "fld dword ptr [{a} + 4]", "fmul dword ptr [{b}]",
-            ".byte 0xDE, 0xE9", "fstp dword ptr [{o} + 8]",
-            a = in(reg) a,
-            b = in(reg) b,
-            o = in(reg) out,
-            out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
-            out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
-            options(nostack),
-        )
-    }
+    cross(
+        crate::pointers::host(a) as *const u8,
+        crate::pointers::host(b) as *const u8,
+        crate::pointers::host(out),
+    );
     Ok(())
 }
 
-/// The converted version (plain floats): the hook's.
-// Converted: `rc2k_core::scene::matrices::cross3`
-pub unsafe fn cross_product3_plain(a: u32, b: u32, out: u32) -> Result<(), Refused> {
-    if a == 0 || b == 0 || out == 0 {
-        return Err(BadInput("a null vector").into());
-    }
-    let p = &mut unsafe { crate::scene::matrix::GamePlaces::new() };
-    rc2k_core::scene::matrices::cross3(p, a, b, out);
-    Ok(())
+/// The three products-differences, each stored as made (`fld; fmul; fld; fmul; fsubp; fstp`).
+fn cross(a: *const u8, b: *const u8, o: *mut u8) {
+    fstp(o, 0, fld(a, 4) * fld(b, 8) - fld(a, 8) * fld(b, 4));
+    fstp(o, 4, fld(a, 8) * fld(b, 0) - fld(a, 0) * fld(b, 8));
+    fstp(o, 8, fld(a, 0) * fld(b, 4) - fld(a, 4) * fld(b, 0));
 }
 
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    unsafe { cross_product3_plain(r.esi, r.edi, r.ebp) }?;
-    Ok(left_of(r))
-}
+#[cfg(all(test, target_arch = "x86"))]
+mod asm_reference {
+    use super::*;
+    use crate::scene::asm_test::{Kind, differential};
 
-extern "C" fn dispatch(r: &mut Regs) {
-    let places = float_places(&[(r.ebp, 12)]);
-    let floats = Floats {
-        memory: &places,
-        regs: &[],
-    };
-    dispatch_state_floats(&HOOK, r, call_original, &[(r.ebp, 12)], &floats, &rust);
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    floats_entry(r, &rust)
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let mut v = [0u32; 9];
-    let base = v.as_mut_ptr() as u32;
-    let tolerant_places = float_places(&[(base, 36)]);
-    let tolerant = Floats {
-        memory: &tolerant_places,
-        regs: &[],
-    };
-    at_test_precisions(&tolerant, &mut |word, held| {
-        for case in 0..12u32 {
-            let seed = case.wrapping_mul(0x9E37_79B9);
-            // The result apart (case % 3 == 0), over a (1) or over b (2).
-            let out = base + 12 * [2, 0, 1][(case % 3) as usize];
-            check_state_floats(
-                &mut t,
-                "scene::cross_product3",
-                &format!("control word {word:#x}, case {case}"),
-                call_original,
-                Regs {
-                    esi: base,
-                    edi: base + 12,
-                    ebp: out,
-                    ..Regs::SENTINEL
-                },
-                &|| unsafe {
-                    for n in 0..9u32 {
-                        let x = (seed ^ n.wrapping_mul(0x85EB_CA6B)) as i32 as f32 / 1e8;
-                        ((base + 4 * n) as *mut u32).write(x.to_bits());
-                    }
-                },
-                &[(base, 36)],
-                held,
-                &rust,
+    /// The original's instructions.
+    unsafe fn cross_ref(a: *mut u8, b: *mut u8, o: *mut u8) {
+        unsafe {
+            core::arch::asm!(
+                "fld dword ptr [{a} + 4]", "fmul dword ptr [{b} + 8]",
+                "fld dword ptr [{a} + 8]", "fmul dword ptr [{b} + 4]",
+                ".byte 0xDE, 0xE9", "fstp dword ptr [{o}]",
+                "fld dword ptr [{a} + 8]", "fmul dword ptr [{b}]",
+                "fld dword ptr [{a}]", "fmul dword ptr [{b} + 8]",
+                ".byte 0xDE, 0xE9", "fstp dword ptr [{o} + 4]",
+                "fld dword ptr [{a}]", "fmul dword ptr [{b} + 4]",
+                "fld dword ptr [{a} + 4]", "fmul dword ptr [{b}]",
+                ".byte 0xDE, 0xE9", "fstp dword ptr [{o} + 8]",
+                a = in(reg) a,
+                b = in(reg) b,
+                o = in(reg) o,
+                out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
+                out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
+                options(nostack),
             );
         }
-    });
-    t.finish()
+    }
+
+    /// Distinct vectors, then the result over an input.
+    #[test]
+    fn cross_matches_the_assembly() {
+        // dwords 0..3 a, 3..6 b, 6..9 the result, 9 the mode
+        differential::<10>(
+            "cross_product3",
+            5000,
+            1,
+            [Kind::Float; 10],
+            |rng, m| {
+                for d in m.iter_mut().take(9) {
+                    *d = rng.fl();
+                }
+                m[9] = rng.below(3) as u32;
+            },
+            |base| unsafe { run(base, true) },
+            |base| unsafe { run(base, false) },
+        );
+    }
+
+    unsafe fn run(base: *mut u8, reference: bool) {
+        unsafe {
+            let mode = base.add(36).cast::<u32>().read();
+            // 0: apart; 1: the result is a; 2: the result is b
+            let o = match mode {
+                1 => base,
+                2 => base.add(12),
+                _ => base.add(24),
+            };
+            let (a, b) = (base, base.add(12));
+            if reference {
+                cross_ref(a, b, o)
+            } else {
+                cross(a, b, o)
+            }
+        }
+    }
 }

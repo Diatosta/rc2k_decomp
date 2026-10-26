@@ -4,29 +4,25 @@
 //! In:  nothing
 //! Out: every register preserved
 //!
-//! `dword_7554F0` = the current player's (`dword_75598C`) `gearing`; the string and a NUL
-//! into `byte_A8BF54`. In two entry lists (0x7593FE, 0x75941A). Refuses a current player
-//! past four, a text longer than its place (0x100).
-//! Hook removed 2026-10-22 (typed tables): the menus and draw lists run its `entry`
+//! `dword_7554F0` = the current player's (`dword_75598C`) `gearing`; the string and a NUL into
+//! `byte_A8BF54`. In two entry lists (0x7593FE, 0x75941A). Refuses a current player past four, a
+//! text longer than its place (0x100). The menus and draw lists run its `entry`
 //! (`menu::table_calls`); the registers above are the original's, for reference.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{Regs, game_addr, game_read, game_write, rva};
+use crate::menu::event_store::EVENT_STATE;
+use crate::menu::flow_store::SCREEN_FLOW;
 use crate::menu::player::{Player, player_at};
-use crate::menu::take_shown_car::CURRENT_PLAYER_RVA;
+use crate::pointers::GamePtr;
 use crate::screens::car_caption::put_string;
-use crate::screens::harness::Left;
-use crate::service::harness::{Region, at, state_entry};
 
-pub const KEPT_RVA: usize = rva(0x7554F0); // dword_7554F0
-pub const TEXT_RVA: usize = rva(0xA8BF54); // byte_A8BF54
 pub const TEXT_LEN: usize = 0x100;
 const FIRST_STRING: u32 = 0x21F;
 
 const _: () = assert!(std::mem::offset_of!(Player, gearing) == 0x30);
 
 pub fn current() -> Result<u32, Refused> {
-    let n: u32 = unsafe { game_read(CURRENT_PLAYER_RVA) };
+    let n: u32 = { EVENT_STATE.current_player.get() };
     let p = player_at(n);
     if n >= 4 || p == 0 {
         return Err(BadInput("a current player past the four").into());
@@ -35,10 +31,18 @@ pub fn current() -> Result<u32, Refused> {
 }
 
 pub unsafe fn gearing_text() -> Result<(), Refused> {
-    let value = unsafe { (*(current()? as *const Player)).gearing };
+    let value = GamePtr::new(current()?)
+        .read::<Player>("the current player")?
+        .gearing;
     unsafe {
-        put_string(FIRST_STRING.wrapping_add(value), TEXT_RVA, TEXT_LEN)?;
-        game_write(KEPT_RVA, value);
+        put_string(
+            FIRST_STRING.wrapping_add(value),
+            (crate::screens::text_buffers_store::TEXT_BUFFERS
+                .title
+                .addr()) as usize,
+            TEXT_LEN,
+        )?;
+        SCREEN_FLOW.shown_gearing.set(value);
     }
     Ok(())
 }
@@ -48,27 +52,21 @@ pub unsafe fn gearing_text() -> Result<(), Refused> {
 pub unsafe fn step_gearing(on: bool) -> Result<(), Refused> {
     let p = current()?;
     unsafe {
-        let kept: i32 = game_read(KEPT_RVA);
+        let kept = SCREEN_FLOW.shown_gearing.get() as i32;
         // Converted: `rc2k_core::screens::captions::step_gearing`.
         let value = rc2k_core::screens::captions::step_gearing(kept, on);
-        put_string(FIRST_STRING.wrapping_add(value), TEXT_RVA, TEXT_LEN)?;
-        game_write(KEPT_RVA, value);
-        (*(p as *mut Player)).gearing = value;
+        put_string(
+            FIRST_STRING.wrapping_add(value),
+            (crate::screens::text_buffers_store::TEXT_BUFFERS
+                .title
+                .addr()) as usize,
+            TEXT_LEN,
+        )?;
+        SCREEN_FLOW.shown_gearing.set(value);
+        let at = GamePtr::new(p);
+        let mut player = at.read::<Player>("the current player")?;
+        player.gearing = value;
+        at.write(player, "the current player")?;
     }
     Ok(())
-}
-
-pub fn regions() -> [Region; 2] {
-    [at(KEPT_RVA), (game_addr(TEXT_RVA) as u32, TEXT_LEN)]
-}
-
-fn rust(_: &Regs) -> Result<Left, Refused> {
-    unsafe { gearing_text() }?;
-    Ok(Left::nothing())
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
 }

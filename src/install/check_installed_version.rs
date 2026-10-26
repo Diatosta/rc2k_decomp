@@ -9,114 +9,78 @@
 //!
 //! In:  nothing
 //! Out: every register kept (`pusha` / `popa`)
-//! Caller `install::run_installer`. Its directory and file calls through `part`; the scan
-//! here. Shadow mode runs the original alone (it reads a file). Self-test: a copy whose
-//! directory/file calls go to the fake file system, against the Rust version, with a
-//! matching ral.exe, a non-matching one, and no installation.
+//! Caller `install::run_installer`.
 //!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Conversion phase 3 (2026-10-23): plain Rust with typed arguments; the registers above
+//! are the original's.
 
-use crate::bridge::{Raw, read_through};
 use crate::errors::Refused;
-use crate::framework::Regs;
-use crate::install::installer::{
-    CLOSE, INSTALLED, OPEN, Part, READ, SET_CD, STATUS, a, at, gb, p, rb,
-};
+use crate::files::scratch::SCRATCH;
+use crate::install::installer::{rb, set_cd, wb};
+use crate::install::vars::INSTALLER_NAMES;
+use crate::install::vars::INSTALLER_PATHS;
+use crate::install::vars::INSTALLER_RUN;
+use crate::pointers::GamePtr;
+use crate::system::start_texts::START_TEXTS;
 use rc2k_core::install::version::{self, Scan};
 
-const SAME_VERSION: usize = 0x51B9C8; // dword_51B9C8
-const SOURCE: usize = 0x51BB8D; // g_installSource
-const BASE_A: usize = 0x95E6F8; // byte_95E6F8: the folder to go back to
-const BUF: usize = 0x93E8B0; // g_pngInfo
-const READ_TARGET: usize = BUF + 0x100;
-const TAIL: usize = BUF + 0xFF00;
+const READ_TARGET: usize = 0x100; // into the scratch
+const TAIL: usize = 0xFF00;
 const SCAN_LEN: u32 = version::CHUNK;
-const RAL_EXE: usize = 0x51BE3E; // ".\ral.exe"
-const COPYRIGHT: usize = 0x4E001C; // byte_4E001C
 
-pub fn check_installed_version(entry: &Regs, part: Part) -> Result<Regs, Refused> {
-    let mut r = *entry;
-    p(SAME_VERSION, 0);
-    if gb(STATUS) != 1 || gb(SOURCE) == 0 {
-        return Ok(*entry);
+pub fn check_installed_version() -> Result<(), Refused> {
+    INSTALLER_RUN.same_version.set(0);
+    if INSTALLER_NAMES.status.get() != 1 || INSTALLER_NAMES.source.get(0) == 0 {
+        return Ok(());
     }
     // normalise the source into byte_95E7F8, cd there
-    let written = unsafe {
-        crate::install::normalise_path::normalise_path(
-            a(SOURCE) as *const u8,
-            a(INSTALLED) as *mut u8,
+    let written = crate::install::normalise_path::normalise_path(
+        crate::pointers::host(INSTALLER_NAMES.source.addr()) as *const u8,
+        crate::pointers::host(INSTALLER_PATHS.installed.addr()),
+    )?;
+    if !written || !set_cd(INSTALLER_PATHS.installed.addr()) {
+        return Ok(());
+    }
+    {
+        crate::system::zero_memory::zero_memory(
+            crate::pointers::host(SCRATCH.buffer.addr()),
+            0x10000,
         )
     }?;
-    if !written {
-        return Ok(*entry);
-    }
-    r.esi = a(SOURCE);
-    r.edx = a(INSTALLED);
-    part(at(SET_CD), &mut r)?;
-    if r.carry() {
-        return Ok(*entry);
-    }
-    unsafe { crate::system::zero_memory::zero_memory(a(BUF) as *mut u8, 0x10000) }?;
     // The standalone checks its own program (the same version text is in its built-in
-    // image).
-    r.eax = if crate::framework::standalone() {
-        crate::install::run_after_exit::RC2K.as_ptr() as u32
-    } else {
-        a(RAL_EXE)
-    };
-    r.ebx = 0;
-    part(at(OPEN), &mut r)?;
-    if !r.carry() {
-        // Register for register: edx the handle; the close gets ebx and ecx where the scan
-        // stopped (`loc_413C13`).
-        r.edx = r.eax;
-        'read: loop {
+    // image). files::open_by_mode, mode 0.
+    let program = crate::install::run_after_exit::RC2K.as_ptr();
+    if let Some(file) = crate::files::handle::open_by_mode(program, 0)? {
+        loop {
             // the previous tail carried to the front (`rep movsd`, 0x40 dwords)
             for n in 0..0x100u32 {
-                let b = rb(a(TAIL) + n);
-                crate::install::installer::wb(a(BUF) + n, b);
+                wb(
+                    SCRATCH.buffer.addr() + n,
+                    rb(SCRATCH.buffer.addr() + TAIL as u32 + n),
+                );
             }
-            r.esi = a(TAIL) + 0x100;
-            r.edi = a(BUF) + 0x100;
-            r.eax = r.edx;
-            r.ebx = a(READ_TARGET);
-            r.ecx = SCAN_LEN;
-            part(at(READ), &mut r)?;
-            if r.carry() || r.eax == 0 {
+            let (read, ok) = crate::files::handle::read_to(
+                file,
+                GamePtr::new(SCRATCH.buffer.addr() + READ_TARGET as u32),
+                SCAN_LEN,
+                "the program's bytes",
+            )?;
+            if !ok || read == 0 {
                 break;
             }
             // Converted: `rc2k_core::install::version::scan`.
-            let buffer = unsafe { Raw::new(a(BUF) as *const u8) };
-            let copyright = unsafe { Raw::new(a(COPYRIGHT) as *const u8) };
-            match read_through(version::scan(&buffer, &copyright)) {
-                Scan::Nothing => {
-                    r.ebx = a(BUF) + SCAN_LEN;
-                    r.ecx = 0;
+            let buffer = GamePtr::new(SCRATCH.buffer.addr()).bytes("the scan buffer")?;
+            let copyright =
+                GamePtr::new(START_TEXTS.copyright.addr()).bytes("the copyright text")?;
+            if let Scan::Stopped { same, .. } = version::scan(&buffer, &copyright)? {
+                if same {
+                    INSTALLER_RUN.same_version.set(1);
                 }
-                Scan::Stopped { same, at, count } => {
-                    if same {
-                        p(SAME_VERSION, 1);
-                    }
-                    r.ebx = a(BUF) + at;
-                    r.ecx = count;
-                    break 'read;
-                }
+                break;
             }
         }
-        r.eax = r.edx;
-        part(at(CLOSE), &mut r)?;
+        crate::files::handle::close(file);
     }
-    r.edx = a(BASE_A);
-    part(at(SET_CD), &mut r)?;
-    Ok(Regs { ..*entry })
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    crate::race::viewer::regs_entry(r, &|r| {
-        check_installed_version(r, &mut crate::install::installer::game_part)
-    })
+    set_cd(INSTALLER_PATHS.game_dir.addr());
+    Ok(())
 }

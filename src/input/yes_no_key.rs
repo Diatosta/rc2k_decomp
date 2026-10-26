@@ -10,41 +10,20 @@
 //! empty one is "compared" through whatever was there.
 //! Two callers: `yes_no_for_key` and `sub_445069`.
 //! Refuses a missing keyboard layout (before the key is taken) and what `key_to_char` does.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
 
-use crate::errors::{BadInput, Refused};
-use crate::framework::{EAX, Regs, SelfTest, game_addr, game_ptr, game_read, game_write, rva};
-use crate::input::key_to_char::{
-    LAYOUT_A_RVA, LAYOUT_MODE_RVA, LAYOUT_RVA, has_layout, key_to_char,
-};
+use crate::errors::BadInput;
+use crate::input::key_to_char::{has_layout, key_to_char};
+use crate::input::store::{KEYBOARD, KEYBOARD_FILE};
 use crate::input::take_key::take_key;
-use crate::screens::harness::{CallOriginal, Left};
-use crate::service::harness::{Region, Rust, at, capture, check_state, restore, state_entry};
 use crate::strings::append_string_by_id::push_string;
-use crate::strings::string_table::{blob, is_table_id};
 use crate::strings::text_from_ids::{TEXT_LEN, text};
 
 // ---- game data ----
 
-pub const KEY_GIVEN_RVA: usize = rva(0x4F7FD8); // dword_4F7FD8: 1 = the key comes in eax
-const LOWER_CASE_RVA: usize = rva(0x4F0BC8); // byte_4F0BC8: 256 characters
 /// (string id, answer)
 use rc2k_core::input::keyboard::ANSWERS;
 pub const YES: u32 = 1;
 pub const NO: u32 = u32::MAX;
-
-/// What the two yes/no functions may write: `key_to_char`'s state and the start of the text
-/// buffer.
-pub fn yes_no_regions() -> Vec<Region> {
-    [
-        &crate::input::key_to_char::regions()[..],
-        &[(text() as u32, 0x100)],
-    ]
-    .concat()
-}
 
 // ---- Rust version ----
 
@@ -55,23 +34,26 @@ pub unsafe fn answer_for_key(eax: u32) -> Result<u32, BadInput> {
         return Ok(0);
     }
     unsafe {
-        let own_layout = game_read::<u8>(LAYOUT_MODE_RVA) == 2;
-        let layout: u32 = game_read(LAYOUT_RVA);
+        let own_layout = KEYBOARD_FILE.mode.get() == 2;
+        let layout = KEYBOARD_FILE.layout.get();
         if own_layout {
-            game_write(LAYOUT_RVA, game_addr(LAYOUT_A_RVA) as u32);
+            KEYBOARD_FILE
+                .layout
+                .set(KEYBOARD_FILE.layouts[0].dead_keys.addr());
         }
         let character = key_to_char(eax);
         if own_layout {
-            game_write(LAYOUT_RVA, layout);
+            KEYBOARD_FILE.layout.set(layout);
         }
-        let lower = *game_ptr::<u8>(LOWER_CASE_RVA).add(character? as u8 as usize);
+        let lower = crate::strings::same_text::lower(character? as u8); // g_lowerCase
         // Converted: `rc2k_core::input::keyboard::answer`; each string built at the text
         // buffer's start without a NUL, as the original does (their lengths checked first).
-        let strings = ANSWERS.map(|(id, _)| {
+        let mut strings = Vec::new();
+        for (id, _) in ANSWERS {
             let mut string = Vec::new();
-            push_string(&mut string, id);
-            string
-        });
+            push_string(&mut string, id)?;
+            strings.push(string);
+        }
         if strings.iter().any(|s| s.len() > TEXT_LEN) {
             return Err(BadInput("a string longer than the text buffer"));
         }
@@ -88,54 +70,11 @@ pub unsafe fn yes_no_key(given: u32) -> Result<u32, BadInput> {
         return Err(BadInput("no keyboard layout"));
     }
     unsafe {
-        let eax = if game_read::<u32>(KEY_GIVEN_RVA) == 1 {
+        let eax = if KEYBOARD.yes_no_key_given.get() == 1 {
             given
         } else {
             take_key() as u32
         };
         answer_for_key(eax)
     }
-}
-
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    Ok(Left::nothing().with(EAX, unsafe { yes_no_key(r.eax) }?))
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
-}
-
-/// Why the yes/no functions cannot be tested, or None if they can.
-pub fn yes_no_unavailable() -> Option<&'static str> {
-    if !has_layout() {
-        return Some("no keyboard layout");
-    }
-    (blob().is_null() || !ANSWERS.iter().all(|&(id, _)| is_table_id(id)))
-        .then_some("the strings are not loaded")
-}
-
-/// The test of both entries: `call_original` gets the key in eax.
-pub fn check_keys(t: &mut SelfTest, call_original: CallOriginal, rust: Rust) {
-    let regions = [&yes_no_regions()[..], &[at(KEY_GIVEN_RVA)]].concat();
-    let saved = capture(&regions);
-    for high in [0u32, 0x1234_5600] {
-        for key in 0..0x80u32 {
-            let before = Regs {
-                eax: high | key,
-                ..Regs::SENTINEL
-            };
-            check_state(
-                t,
-                &format!("eax={:#x}", high | key),
-                call_original,
-                before,
-                &|| restore(&regions, &saved),
-                &regions,
-                rust,
-            );
-        }
-    }
-    restore(&regions, &saved);
 }

@@ -5,50 +5,32 @@
 //!
 //! In:  eax = the number, esi = the item, ebp = y
 //! Out: as `net::draw_setting_value` leaves them; no `pusha`
-//! Caller: `net::settings_frame` (the most players). Its calls through `part`
-//! (`strings::append_nul` inline). Shadow mode runs the original alone (it draws).
-//! Self-test: a copy of it and `net::draw_setting_value` after it, whose calls go to
-//! stand-ins, against the Rust version: edited, 0, 4.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Caller: `net::settings_frame` (the most players).
 
 use crate::errors::Refused;
-use crate::framework::Regs;
+use crate::install::vars::INSTALLER_PATHS;
 use crate::net::draw_setting_value::draw_setting_value;
-use crate::net::lobby::{
-    APPEND_STRING, EDITED, FORMAT_U32, NUMBER_TEXT, Part, TEXT, a, g, lobby_entry,
-};
+use crate::net::lobby::Cursor;
+use crate::net::store::NET;
+use crate::strings::text_buffer::TEXT_BUFFER;
 use rc2k_core::net::screens::{self, Number};
 
-/// The Rust version: the registers it leaves.
-pub fn draw_number_value(entry: &Regs, part: Part) -> Result<Regs, Refused> {
-    let mut r = *entry;
+/// The Rust version: the number `number` for item `item` at `y`, as the text being typed,
+/// "nothing" or its digits; returns the next y (`draw_setting_value`'s).
+pub fn draw_number_value(number: u32, item: u32, y: u32) -> Result<u32, Refused> {
     // Converted: `rc2k_core::net::screens` (`number_value`, `Number`, `NOTHING`).
-    let shown = screens::number_value(r.esi == g(EDITED), r.eax);
-    if shown == Number::Typed {
-        r.eax = a(NUMBER_TEXT);
+    let shown = screens::number_value(item == NET.edited.get(), number);
+    let text = if shown == Number::Typed {
+        INSTALLER_PATHS.path_a.addr()
     } else {
-        r.ebx = a(TEXT);
-        let kept_ecx = r.ecx;
-        r.ecx = 0;
+        let mut cursor = Cursor::text();
         if shown == Number::Nothing {
-            r.eax = screens::NOTHING;
-            part(APPEND_STRING, &mut r)?;
+            cursor.string_id(screens::NOTHING);
         } else {
-            part(FORMAT_U32, &mut r)?;
+            cursor.bytes(&crate::strings::format_u32::format_u32(number, 0))?;
         }
-        unsafe { (r.ebx as *mut u8).write(0) };
-        r.ebx = r.ebx.wrapping_add(1);
-        r.ecx = kept_ecx;
-        r.eax = a(TEXT);
-    }
-    draw_setting_value(&r, part)
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    lobby_entry(r, draw_number_value)
+        cursor.nul()?;
+        TEXT_BUFFER.text.addr()
+    };
+    draw_setting_value(text, item, y)
 }

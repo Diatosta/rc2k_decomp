@@ -4,158 +4,116 @@
 //! `dword_51E424`, one character more at a time into `byte_52A808`), each line going in at
 //! the bottom and the top one dropped.
 //!
-//! In:  eax = the player, ebx = the message (nothing if empty)
-//! Out: every register kept (`pusha` .. `popa`)
+//! In:  `player` (eax), `message` (ebx; nothing if empty). The original also reads ecx: the
+//!      x of its first `text::measure_text`, which in measure mode changes only the x the
+//!      measure leaves, not the width it reads (`rc2k_core::text::draw`); dropped.
+//! Out: nothing (every register kept, `pusha` .. `popa`)
 //! A character wider than a line alone leaves the line empty and the text where it was: the
 //! original never ends then (refused, as is a chat with no line end in its 0x300 bytes).
 //! Callers: `net::send_chat` and `net::chat_line_locked` (each with the received messages'
-//! lock held). Its calls through `part` (`net::lobby_calls`: the Rust versions;
-//! `strings::append_nul` inline). Shadow mode runs the original alone. Self-test: a copy
-//! whose calls go to stand-ins (`str_append` done, the width one character's 0x50 times
-//! their number), against the Rust version: an empty message, a short one, one of three
-//! lines.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! lock held).
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::Regs;
-use crate::net::lobby::{
-    CHAT, CHAT_LINE, CHAT_TEXT, MEASURE_TEXT, Part, STR_APPEND, a, block, lobby_entry, put_text,
-};
+use crate::net::store::NET;
+use crate::pointers::GamePtr;
+use crate::strings::str_append::str_append;
+use crate::text::draw_text::GameCanvas;
+use crate::text::measure_text::measure_text_at;
 
-const CHAT_FONT: usize = 0x51E424; // dword_51E424
+const CHAT_FONT: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fonts::CHAT_LINE;
 const LINE_WIDTH: u32 = 0x30C;
 const CHAT_LEN: u32 = 0x300;
 
-fn byte(at: u32) -> u8 {
-    unsafe { (at as *const u8).read() }
+fn byte(at: u32) -> Result<u8, BadInput> {
+    GamePtr::new(at).read::<u8>("the chat's text")
 }
 
-fn set_byte(at: u32, v: u8) {
-    unsafe { (at as *mut u8).write(v) }
+fn set_byte(at: u32, v: u8) -> Result<(), BadInput> {
+    GamePtr::new(at).write(v, "the chat's text")
 }
 
-/// The Rust version: the registers it leaves (the entry's).
-pub fn add_chat_line(entry: &Regs, part: Part) -> Result<Regs, Refused> {
-    let mut r = *entry;
-    if byte(r.ebx) == 0 {
-        return Ok(*entry);
+/// The Rust version.
+pub fn add_chat_line(player: u32, message: *const u8) -> Result<(), Refused> {
+    if byte(crate::pointers::game_address(message))? == 0 {
+        return Ok(());
     }
-    r.esi = r.ebx;
-    r.eax = block(r.eax);
-    r.ebx = a(CHAT_TEXT);
-    part(STR_APPEND, &mut r)?;
-    unsafe { (r.ebx as *mut u16).write_unaligned(0x203E) };
-    r.ebx += 2;
-    r.eax = r.esi;
-    part(STR_APPEND, &mut r)?;
-    set_byte(r.ebx, 0);
-    r.ebx += 1;
-    r.ebp = a(CHAT_TEXT);
-    let low = |r: &mut Regs, c: u8| r.eax = r.eax & !0xFF | c as u32;
+    // "name> text"
+    let cursor = str_append(
+        crate::pointers::host(NET.player_block(player).name.addr()) as *const u8,
+        crate::pointers::host(NET.chat_text.addr()),
+    )?;
+    GamePtr::new(crate::pointers::game_address(cursor)).write(0x203Eu16, "the chat's text")?;
+    let cursor = str_append(message, cursor.wrapping_add(2))?;
+    GamePtr::new(crate::pointers::game_address(cursor)).write(0u8, "the chat's text")?;
+    let mut text = NET.chat_text.addr();
     loop {
-        r.edi = a(CHAT_LINE);
+        // The next line: one character more at a time while it fits.
+        let mut end = NET.chat_line.addr();
         loop {
-            let c = byte(r.ebp);
-            low(&mut r, c);
-            set_byte(r.edi, c);
+            let c = byte(text)?;
+            set_byte(end, c)?;
             if c == 0 {
                 break;
             }
-            r.ebp += 1;
-            r.edi += 1;
-            set_byte(r.edi, 0);
-            r.eax = a(CHAT_FONT);
-            r.ebx = a(CHAT_LINE);
-            part(MEASURE_TEXT, &mut r)?;
-            if r.ecx > LINE_WIDTH {
-                set_byte(r.edi - 1, 0);
-                r.ebp -= 1;
+            text += 1;
+            end += 1;
+            set_byte(end, 0)?;
+            let width = {
+                measure_text_at(
+                    CHAT_FONT.as_ptr(),
+                    crate::pointers::host(NET.chat_line.addr()) as *const u8,
+                    0,
+                    &mut GameCanvas,
+                )
+            }?
+            .width;
+            if width > LINE_WIDTH {
+                set_byte(end - 1, 0)?;
+                text -= 1;
                 break;
             }
         }
-        if byte(a(CHAT_LINE)) == 0 && byte(r.ebp) != 0 {
+        if byte(NET.chat_line.addr())? == 0 && byte(text)? != 0 {
             return Err(
                 BadInput("a character wider than a chat line: the original never ends").into(),
             );
         }
         // The top line dropped, the rest moved up.
-        r.esi = a(CHAT);
-        r.edi = r.esi;
+        let mut from = NET.chat.addr();
+        let mut to = from;
         loop {
-            if r.esi >= a(CHAT) + CHAT_LEN {
+            if from >= (NET.chat.addr()) + CHAT_LEN {
                 return Err(BadInput("a chat with no line end").into());
             }
-            let c = byte(r.esi);
-            r.esi += 1;
-            low(&mut r, c);
+            let c = byte(from)?;
+            from += 1;
             if c == 0x0A {
                 break;
             }
         }
         loop {
-            let c = byte(r.esi);
-            r.esi += 1;
-            set_byte(r.edi, c);
-            r.edi += 1;
-            low(&mut r, c);
+            let c = byte(from)?;
+            from += 1;
+            set_byte(to, c)?;
+            to += 1;
             if c == 0 {
                 break;
             }
         }
-        r.esi = a(CHAT_LINE);
-        set_byte(r.edi - 1, 0x0A);
+        // The new line at the bottom.
+        from = NET.chat_line.addr();
+        set_byte(to - 1, 0x0A)?;
         loop {
-            let c = byte(r.esi);
-            r.esi += 1;
-            set_byte(r.edi, c);
-            r.edi += 1;
-            low(&mut r, c);
+            let c = byte(from)?;
+            from += 1;
+            set_byte(to, c)?;
+            to += 1;
             if c == 0 {
                 break;
             }
         }
-        if byte(r.ebp) == 0 {
-            break;
+        if byte(text)? == 0 {
+            return Ok(());
         }
     }
-    Ok(Regs {
-        eflags: r.eflags,
-        ..*entry
-    })
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    lobby_entry(r, add_chat_line)
-}
-
-/// The test's answers: `str_append` done; a line's width 0x50 a character.
-pub fn chat_answers() -> crate::net::lobby::Answer {
-    Box::new(|place, r| match place {
-        STR_APPEND => {
-            r.ebx = unsafe {
-                crate::strings::str_append::str_append(r.eax as *const u8, r.ebx as *mut u8)
-            } as u32
-        }
-        MEASURE_TEXT => {
-            let mut n = 0;
-            while byte(r.ebx + n) != 0 {
-                n += 1;
-            }
-            r.eax = 0;
-            r.ecx = 0x50 * n;
-            r.ebx = 1;
-            r.edx = 0x22;
-        }
-        _ => {}
-    })
-}
-
-/// The chat as a test starts it: "a\nb\nc\nd\ne\nf\ng\nh".
-pub fn test_chat() {
-    put_text(CHAT, b"a\nb\nc\nd\ne\nf\ng\nh");
 }

@@ -14,54 +14,35 @@
 //! with a shift key switches the layout: left shift picks 0x4F07F8, right shift 0x4F080C.
 //! Refuses: no layout; a dead key pending with no plain table (the original reads through
 //! null); lists without an end within 256 entries.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
 
 use crate::errors::BadInput;
-use crate::framework::{Regs, game_addr, game_read, game_write, rva};
-use crate::service::harness::{Region, at};
+use crate::input::store::{DEVICES, KEYBOARD, KEYBOARD_FILE};
 
 // ---- game data ----
 
-pub const LAYOUT_MODE_RVA: usize = rva(0x4F07D2); // byte_4F07D2
-pub const LAYOUT_RVA: usize = rva(0x4F07D4); // dword_4F07D4: the current layout block
-pub const LAYOUT_A_RVA: usize = rva(0x4F07F8); // dword_4F07F8
-const LAYOUT_B_RVA: usize = rva(0x4F080C); // unk_4F080C
-pub const DEAD_KEY_RVA: usize = rva(0x4F6AD0); // byte_4F6AD0
-// The key-down table starts at the pending key, 0x4F6ADC, and is indexed by scan code.
-pub const LEFT_SHIFT_RVA: usize = rva(0x4F6B06); // byte_4F6B06 (key 0x2A)
-pub const RIGHT_SHIFT_RVA: usize = rva(0x4F6B12); // byte_4F6B12 (key 0x36)
-pub const ALT_RVA: usize = rva(0x4F6B14); // byte_4F6B14 (key 0x38)
-pub const ALT_GR_RVA: usize = rva(0x4F6B40); // byte_4F6B40
-const SILENT_KEYS_RVA: usize = rva(0x4F7FF0); // dword_4F7FF0: one bit per key
-const COMPOSE_RVA: usize = rva(0x4F8000); // unk_4F8000
+// The key-down table (`g_keysDown`) is indexed by scan code: left shift 0x2A
+// (`byte_4F6B06`), right shift 0x36 (`byte_4F6B12`), Alt 0x38 (`byte_4F6B14`), AltGr 0x64
+// (`byte_4F6B40`).
+const LEFT_SHIFT: usize = 0x2A;
+const RIGHT_SHIFT: usize = 0x36;
+const ALT: usize = 0x38;
+const ALT_GR: usize = 0x64;
 
-use crate::bridge::Raw;
+use crate::pointers::{GameBytes, GamePtr};
 
-unsafe fn dword(addr: u32) -> u32 {
-    unsafe { (addr as *const u32).read_unaligned() }
-}
-
-fn down(rva: usize) -> bool {
-    unsafe { game_read::<u8>(rva) != 0 }
+fn down(key: usize) -> bool {
+    DEVICES.keys_down.get(key) != 0
 }
 
 /// True if a keyboard layout is set.
 pub fn has_layout() -> bool {
-    unsafe { game_read::<u32>(LAYOUT_RVA) != 0 }
-}
-
-/// What the function may write.
-pub fn regions() -> [Region; 2] {
-    [at(LAYOUT_RVA), (game_addr(DEAD_KEY_RVA) as u32, 1)]
+    KEYBOARD_FILE.layout.get() != 0
 }
 
 // ---- Rust version ----
 
 /// eax as the original leaves it; the character is its low byte.
-pub unsafe fn key_to_char(eax: u32) -> Result<u32, BadInput> {
+pub fn key_to_char(eax: u32) -> Result<u32, BadInput> {
     use rc2k_core::input::keyboard::{self, Layout, Switch};
     let key = eax as u8;
     if key & 0x80 != 0 {
@@ -69,68 +50,55 @@ pub unsafe fn key_to_char(eax: u32) -> Result<u32, BadInput> {
     }
     // Converted: `rc2k_core::input::keyboard`; here the layout block's pointers as tables, and
     // the switch and the pending key stored.
-    unsafe {
-        let switched = keyboard::switch(
-            game_read(LAYOUT_MODE_RVA),
-            down(ALT_RVA),
-            down(ALT_GR_RVA),
-            down(LEFT_SHIFT_RVA),
-            down(RIGHT_SHIFT_RVA),
-        );
-        let layout: u32 = match switched {
-            Some(Switch::First) => game_addr(LAYOUT_A_RVA) as u32,
-            Some(Switch::Second) => game_addr(LAYOUT_B_RVA) as u32,
-            None => game_read(LAYOUT_RVA),
-        };
-        if layout == 0 {
-            return Err(BadInput("no keyboard layout"));
-        }
-        let table = |at: u32| {
-            let p = dword(layout + at);
-            (p != 0).then(|| Raw::new(p as *const u8))
-        };
-        let tables = [table(0), table(4), table(8), table(0xC)];
-        fn as_bytes(t: &Option<Raw>) -> Option<&dyn rc2k_core::strings::bytes::Bytes> {
-            t.as_ref()
-                .map(|t| t as &dyn rc2k_core::strings::bytes::Bytes)
-        }
-        let typed = keyboard::key_to_char(
-            key,
-            &Layout {
-                dead_keys: as_bytes(&tables[0]),
-                plain: as_bytes(&tables[1]),
-                shifted: as_bytes(&tables[2]),
-                alt_gr: as_bytes(&tables[3]),
-            },
-            &Raw::new(game_addr(COMPOSE_RVA) as *const u8),
-            &Raw::new(game_addr(SILENT_KEYS_RVA) as *const u8),
-            down(LEFT_SHIFT_RVA) || down(RIGHT_SHIFT_RVA),
-            down(ALT_GR_RVA),
-            game_read(DEAD_KEY_RVA),
-        )?;
-        if switched.is_some() {
-            game_write(LAYOUT_RVA, layout);
-        }
-        if let Some(pending) = typed.pending {
-            game_write(DEAD_KEY_RVA, pending);
-        }
-        Ok(typed.eax)
+    let switched = keyboard::switch(
+        KEYBOARD_FILE.mode.get(),
+        down(ALT),
+        down(ALT_GR),
+        down(LEFT_SHIFT),
+        down(RIGHT_SHIFT),
+    );
+    let layout: u32 = match switched {
+        Some(Switch::First) => KEYBOARD_FILE.layouts[0].dead_keys.addr(),
+        Some(Switch::Second) => KEYBOARD_FILE.layouts[1].dead_keys.addr(),
+        None => KEYBOARD_FILE.layout.get(),
+    };
+    if layout == 0 {
+        return Err(BadInput("no keyboard layout"));
     }
-}
-
-fn set_result(r: &mut Regs, eax: u32) {
-    r.eax = eax;
-    r.set_carry(eax as u8 == 0);
-    r.set_zero(eax as u8 == 1);
-}
-
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    match unsafe { key_to_char(r.eax) } {
-        Ok(eax) => set_result(r, eax),
-        Err(_) => unsafe {
-            crate::framework::call_game(r, crate::framework::game_addr(rva(0x407E43)))
+    // The built-in layout's pointers name its tables' homes (`moved::point_into_homes`);
+    // a keyboard file's layout's are given as places.
+    let table = |at: u32| -> Result<Option<GameBytes>, BadInput> {
+        let p: u32 = GamePtr::new(layout)
+            .offset(at)
+            .read("a keyboard layout's table")?;
+        (p != 0)
+            .then(|| GamePtr::new(p).bytes("a keyboard layout's table"))
+            .transpose()
+    };
+    let tables = [table(0)?, table(4)?, table(8)?, table(0xC)?];
+    fn as_bytes(t: &Option<GameBytes>) -> Option<&dyn rc2k_core::strings::bytes::Bytes> {
+        t.as_ref()
+            .map(|t| t as &dyn rc2k_core::strings::bytes::Bytes)
+    }
+    let typed = keyboard::key_to_char(
+        key,
+        &Layout {
+            dead_keys: as_bytes(&tables[0]),
+            plain: as_bytes(&tables[1]),
+            shifted: as_bytes(&tables[2]),
+            alt_gr: as_bytes(&tables[3]),
         },
+        &GamePtr::new(KEYBOARD.compose.addr()).bytes("the compose table")?,
+        &GamePtr::new(KEYBOARD.silent_keys[0].addr()).bytes("the silent keys")?,
+        down(LEFT_SHIFT) || down(RIGHT_SHIFT),
+        down(ALT_GR),
+        DEVICES.dead_key.get(),
+    )?;
+    if switched.is_some() {
+        KEYBOARD_FILE.layout.set(layout);
     }
-    Ok(())
+    if let Some(pending) = typed.pending {
+        DEVICES.dead_key.set(pending);
+    }
+    Ok(typed.eax)
 }

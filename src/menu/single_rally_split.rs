@@ -12,28 +12,17 @@
 //! In:  nothing
 //! Out: every register preserved (`pusha` .. `popa`)
 //!
-//! Reached through the start menu's table. Refuses a missing player before anything, and what
-//! the callees refuse when they are reached.
-//! Hook removed 2026-10-22 (typed tables): the start menus run its `entry`
-//! (`menu::table_calls`).
+//! Reached through the start menu's table. Refuses a missing player before anything, and what the
+//! callees refuse when they are reached.
 
 use crate::errors::Refused;
-use crate::framework::Regs;
 use crate::menu::event_flow::*;
 use crate::menu::flow_game::Game;
+use crate::menu::screen_loop::Carried;
 use rc2k_core::menu::rounds;
 
-flow_hook!(
-    "menu::single_rally_split",
-    0x4824C1,
-    single_rally_split,
-    test,
-    copy(0x1E1, CALLS)
-);
-
-pub unsafe fn single_rally_split(entry: &Regs, call: Call) -> Result<Regs, Refused> {
+pub fn single_rally_split(c: &Carried) -> Result<(), Refused> {
     players_there(4)?;
     // Converted: `rc2k_core::menu::rounds::single_rally_split`.
-    rounds::single_rally_split(&mut Game::new(entry, call))?;
-    Ok(*entry)
+    Game::new(c).run(rounds::single_rally_split)
 }

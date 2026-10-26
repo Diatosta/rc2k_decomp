@@ -6,47 +6,27 @@
 //! In:  edi the first entry
 //! Out: edx its +0x70, ecx its player (+4), edi the entry; the rest kept
 //!
-//! Callers: the event code. Refuses a table without its end entry, before anything;
-//! raises the fatal error as the original. Self-test: `standings::test_first_player`.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Callers: the event code. Refuses a table without its end entry, before anything; raises the
+//! fatal error as the original.
 
 use crate::errors::Refused;
-use crate::framework::Regs;
 use crate::menu::standings::*;
-use crate::race::stage_prefs::left_of;
-use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
 
-/// The Rust version (see the header): the registers it leaves.
-pub unsafe fn first_player_unplaced(entry: &Regs) -> Result<Regs, Refused> {
+/// The first player of any group in the table from `from` (edi); its `computers` is the
+/// player's number (ecx = the entry's +4). The caller's ebx is kept.
+pub fn first_player_unplaced(from: u32) -> Result<Found, Refused> {
     // Converted: `rc2k_core::menu::standings::first_player` (any group), ecx the player.
     let found = crate::menu::standings::first_player(
-        &Regs {
-            ebx: rc2k_core::menu::standings::ANY_GROUP,
-            ..*entry
-        },
+        from,
+        rc2k_core::menu::standings::ANY_GROUP,
         B_ENTRY,
         0x10,
         0x70,
         0x8070A0AE,
         "Unable to locate player (find1stplayerinochamp)",
     )?;
-    Ok(Regs {
-        ecx: get(found.edi + 4),
-        ebx: entry.ebx,
+    Ok(Found {
+        computers: get(found.entry + 4)?,
         ..found
     })
-}
-
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    Ok(left_of(&unsafe { first_player_unplaced(r) }?))
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
 }

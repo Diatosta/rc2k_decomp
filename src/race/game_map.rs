@@ -12,30 +12,86 @@
 //! dwords not all 0), and the map picture gives their pixels.
 
 use crate::errors::{BadInput, FatalError, Refused};
-use crate::framework::{Regs, game_addr, game_read, game_write, rva};
+use crate::files::scratch::SCRATCH;
+use crate::gfx::pcx::PCX;
+use crate::gfx::picture_store::PICTURE;
 use crate::gfx::pixel_format::PixelFormat;
 use crate::memory::MemoryList;
+use crate::pointers::GamePtr;
+use crate::race::trap::file_read;
+use crate::session::{Bytes, Loose};
 
-pub const KEY_PIXELS_RVA: usize = rva(0x5BE98D); // g_mapKeyPixels: the sheet, 16 MB
-pub const TILES_RVA: usize = rva(0x5BE991); // g_mapTiles
-pub const TILE_PIXELS_RVA: usize = rva(0x5BE995); // g_mapTilePixels
-pub const TILE_COUNT_RVA: usize = rva(0x5BE999); // g_mapTileCount
-pub const PICTURE_PATH_RVA: usize = rva(0x5BE99D); // g_mapPicturePath
-pub const KEY_PATH_RVA: usize = rva(0x5BE9A1); // g_mapKeyPath
-pub const PIXEL_BYTES_RVA: usize = rva(0x5BE9A5); // g_mapPixelBytes
-pub const FORMAT_RVA: usize = rva(0x5BE9A9); // g_mapPixelFormat
-pub const BLACK_RVA: usize = rva(0x5BE9B1); // g_mapBlack
-pub const USE_PACKED_RVA: usize = rva(0x5BE9B5); // g_usePackedMaps
-/// The map's variables, `g_mapKeyPixels` .. `g_usePackedMaps`.
-pub const VARS: (usize, usize) = (KEY_PIXELS_RVA, 0x5BE9B9 - 0x5BE98D);
-pub const LIST_RVA: usize = rva(0x5BE90D); // g_mapList
-pub const KEY_LIST_RVA: usize = rva(0x5BE94D); // g_mapKeyList
-const KINDS_RVA: usize = rva(0x5ABAC0); // off_5ABAC0: the pixel kinds
-const READ_BUFFER_RVA: usize = rva(0x93E8B0); // g_pngInfo, used as the read buffer
-pub const READ_BUFFER_LEN: usize = 0xC000;
-pub const PACKED_PATH_RVA: usize = rva(0x5BE9BD); // g_packedPath
 const MAGIC: u32 = 0x4D53_5153; // "SQSM"
 const VERSION: u32 = 0x5_0000;
+
+/// IDA's address of the map's variables.
+pub const START: usize = 0x5BE90D;
+/// Their length.
+pub const LEN: usize = 0x5BE9BD - START;
+
+/// The in-race map's variables. The dwords are at addresses that are not multiples of 4
+/// (`Loose`), as are the lists (16 bytes each, a `MemoryList`).
+#[repr(C)]
+pub struct MapVars {
+    /// `g_mapList` (`0x5BE90D`): the list the tiles' memory is on.
+    pub list: Bytes<16>,
+    /// `0x5BE91D` .. `0x5BE94D`: nothing reads or writes them (a gap).
+    pub _gap_10: Bytes<0x30>,
+    /// `g_mapKeyList` (`0x5BE94D`): the list the key sheet's memory is on.
+    pub key_list: Bytes<16>,
+    /// `0x5BE95D` .. `0x5BE98D`: nothing reads or writes them (a gap).
+    pub _gap_50: Bytes<0x30>,
+    /// `g_mapKeyPixels` (`0x5BE98D`): the sheet, 16 MB.
+    pub key_pixels: Loose,
+    /// `g_mapTiles` (`0x5BE991`): each tile's place in the pixels (128 x 128 dwords).
+    pub tiles: Loose,
+    /// `g_mapTilePixels` (`0x5BE995`).
+    pub tile_pixels: Loose,
+    /// `g_mapTileCount` (`0x5BE999`).
+    pub tile_count: Loose,
+    /// `g_mapPicturePath` (`0x5BE99D`).
+    pub picture_path: Loose,
+    /// `g_mapKeyPath` (`0x5BE9A1`).
+    pub key_path: Loose,
+    /// `g_mapPixelBytes` (`0x5BE9A5`): bytes a pixel.
+    pub pixel_bytes: Loose,
+    /// `g_mapPixelFormat` (`0x5BE9A9`): the pixel format's place.
+    pub format: Loose,
+    /// `dword_5BE9AD`: the surface's gap after a row (`blit_map_tiles`).
+    pub row_gap: Loose,
+    /// `g_mapBlack` (`0x5BE9B1`): the format's opaque black.
+    pub black: Loose,
+    /// `g_usePackedMaps` (`0x5BE9B5`).
+    pub use_packed: Loose,
+    /// `dword_5BE9B9`.
+    pub packed_2: Loose,
+}
+
+/// The map's variables; the first values are the image's.
+pub static MAP: MapVars = MapVars {
+    list: Bytes::new([0; 16]),
+    _gap_10: Bytes::new([0; 0x30]),
+    key_list: Bytes::new([0; 16]),
+    _gap_50: Bytes::new([0; 0x30]),
+    key_pixels: Loose::new(0),
+    tiles: Loose::new(0),
+    tile_pixels: Loose::new(0),
+    tile_count: Loose::new(0),
+    picture_path: Loose::new(0),
+    key_path: Loose::new(0),
+    pixel_bytes: Loose::new(0),
+    format: Loose::new(0),
+    row_gap: Loose::new(0),
+    black: Loose::new(0),
+    use_packed: Loose::new(1),
+    packed_2: Loose::new(1),
+};
+
+/// Where the block is (`moved::MOVED`'s home for IDA 0x5BE90D).
+pub fn home() -> usize {
+    crate::pointers::game_address(&MAP as *const MapVars) as usize
+}
+
 const SIDE: u32 = 0x80;
 const TILES: u32 = SIDE * SIDE;
 const MOST_TILES: u32 = 0xFFFF;
@@ -47,57 +103,56 @@ const NOT_8BIT: FatalError = FatalError {
     message: "Game mapkey file must be 8bit",
 };
 
-unsafe fn get(at: u32) -> u32 {
-    unsafe { (at as *const u32).read_unaligned() }
+fn get(at: u32) -> Result<u32, BadInput> {
+    GamePtr::new(at).read("a map word")
 }
 
-unsafe fn put(at: u32, value: u32) {
-    unsafe { (at as *mut u32).write_unaligned(value) };
-}
-
-fn list(r: usize) -> *mut MemoryList {
-    game_addr(r) as *mut MemoryList
+fn list(bytes: &Bytes<16>) -> *mut MemoryList {
+    bytes.as_ptr().cast()
 }
 
 /// Entry 3 of the pixel kinds: (bytes a pixel, the format), into the map's variables.
-unsafe fn take_format() -> (u32, &'static PixelFormat) {
-    unsafe {
-        let kind: u32 = game_read(KINDS_RVA + 0xC);
-        let bytes = get(kind + 4);
-        game_write(PIXEL_BYTES_RVA, bytes);
-        game_write(FORMAT_RVA, kind + 8);
-        (bytes, &*((kind + 8) as *const PixelFormat))
+fn take_format() -> Result<(u32, PixelFormat), BadInput> {
+    let kind: u32 = crate::gfx::texture_upload::TEXTURE_TABLES.kinds[3].get();
+    let bytes = get(kind + 4)?;
+    MAP.pixel_bytes.set(bytes);
+    MAP.format.set(kind + 8);
+    let format = GamePtr::new(kind + 8).read::<PixelFormat>("the map's pixel format")?;
+    Ok((bytes, format))
+}
+
+/// A pixel of 24-bit components (the dword read: its top byte replaced) added to the bytes
+/// going into the tiles.
+fn store_pixel(out: &mut Vec<u8>, bytes: u32, format: &PixelFormat, components: u32) {
+    let pixel = crate::gfx::components_to_pixel::components_to_pixel(format, components | OPAQUE);
+    if bytes == 2 {
+        out.extend_from_slice(&(pixel as u16).to_le_bytes());
+    } else {
+        out.extend_from_slice(&pixel.to_le_bytes());
     }
 }
 
-/// A pixel of 24-bit components (the dword read: its top byte replaced) into the tiles.
-unsafe fn store_pixel(at: &mut u32, bytes: u32, format: &PixelFormat, components: u32) {
-    unsafe {
-        let pixel =
-            crate::gfx::components_to_pixel::components_to_pixel(format, components | OPAQUE);
-        if bytes == 2 {
-            (*at as *mut u16).write_unaligned(pixel as u16);
-            *at += 2;
-        } else {
-            put(*at, pixel);
-            *at += 4;
-        }
-    }
+/// The dword at `at` in bytes read from the game's memory (the 4th byte may be the next
+/// pixel's, as in the original).
+fn dword_in(data: &[u8], at: usize) -> Result<u32, BadInput> {
+    data.get(at..at + 4)
+        .map(|b| u32::from_le_bytes([b[0], b[1], b[2], b[3]]))
+        .ok_or(BadInput("a map read past the bytes it was given"))
 }
 
-fn allocate(r: usize, bytes: u32) -> Result<u32, Refused> {
-    Ok(unsafe { crate::memory::allocate::allocate(list(r), bytes) }? as u32)
+fn allocate(r: &Bytes<16>, bytes: u32) -> Result<u32, Refused> {
+    Ok(crate::pointers::game_address({
+        crate::memory::allocate::allocate(list(r), bytes)
+    }?))
 }
 
 /// `race::free_game_map` (0x41B907): both map lists freed, the sheet, tiles and pixels 0.
 /// Every register preserved.
-pub unsafe fn free_game_map() -> Result<(), Refused> {
-    unsafe {
-        crate::memory::free_list::free_list(list(KEY_LIST_RVA))?;
-        crate::memory::free_list::free_list(list(LIST_RVA))?;
-        for r in [KEY_PIXELS_RVA, TILES_RVA, TILE_PIXELS_RVA] {
-            game_write(r, 0u32);
-        }
+pub fn free_game_map() -> Result<(), Refused> {
+    crate::memory::free_list::free_list(list(&MAP.key_list))?;
+    crate::memory::free_list::free_list(list(&MAP.list))?;
+    for cell in [&MAP.key_pixels, &MAP.tiles, &MAP.tile_pixels] {
+        cell.set(0);
     }
     Ok(())
 }
@@ -108,259 +163,246 @@ pub unsafe fn free_game_map() -> Result<(), Refused> {
 /// count 0. Each read of the pixels is of 0x40 tiles at most. Every register preserved.
 /// Refuses a count of 0 or past 0xFFFF and a short read not of whole pixels (the original
 /// counts round).
-pub unsafe fn load_packed_game_map(path: u32) -> Result<(), Refused> {
-    use crate::files::handle::{close, open_by_mode, read};
-    unsafe {
-        let (bytes, format) = take_format();
-        game_write(
-            BLACK_RVA,
-            crate::gfx::components_to_pixel::components_to_pixel(format, OPAQUE),
-        );
-        let tiles = allocate(LIST_RVA, 0x1_0000)?;
-        game_write(TILES_RVA, tiles);
-        game_write(TILE_COUNT_RVA, 0u32);
-        let Some(file) = open_by_mode(path as *const u8, 0)? else {
+pub fn load_packed_game_map(path: u32) -> Result<(), Refused> {
+    use crate::files::handle::{close, open_by_mode};
+    let (bytes, format) = take_format()?;
+    MAP.black
+        .set(crate::gfx::components_to_pixel::components_to_pixel(
+            &format, OPAQUE,
+        ));
+    let tiles = allocate(&MAP.list, 0x1_0000)?;
+    MAP.tiles.set(tiles);
+    MAP.tile_count.set(0u32);
+    let Some(file) = open_by_mode(crate::pointers::host(path) as *const u8, 0)? else {
+        return Ok(());
+    };
+    let buffer = SCRATCH.buffer.addr();
+    let result = (|| -> Result<(), Refused> {
+        let (_, ok) = file_read(file, buffer, 0x10, "the map's scratch buffer")?;
+        let head = GamePtr::new(buffer).read_bytes(0x10, "the map's scratch buffer")?;
+        if !ok || dword_in(&head, 0)? != MAGIC || dword_in(&head, 8)? != VERSION {
             return Ok(());
-        };
-        let buffer = game_addr(READ_BUFFER_RVA) as u32;
-        let result = (|| -> Result<(), Refused> {
-            let (_, ok) = read(file, buffer as *mut u8, 0x10);
-            if !ok || get(buffer) != MAGIC || get(buffer + 8) != VERSION {
-                return Ok(());
-            }
-            let count = get(buffer + 0xC);
-            game_write(TILE_COUNT_RVA, count);
-            if count == 0 || count > MOST_TILES {
-                return Err(BadInput("a packed map of no tiles or more than 0xFFFF").into());
-            }
-            let pixels = allocate(LIST_RVA, (count << 8).wrapping_mul(bytes))?;
-            game_write(TILE_PIXELS_RVA, pixels);
-            let (_, ok) = read(file, buffer as *mut u8, 0x8000);
+        }
+        let count = dword_in(&head, 0xC)?;
+        MAP.tile_count.set(count);
+        if count == 0 || count > MOST_TILES {
+            return Err(BadInput("a packed map of no tiles or more than 0xFFFF").into());
+        }
+        let pixels = allocate(&MAP.list, (count << 8).wrapping_mul(bytes))?;
+        MAP.tile_pixels.set(pixels);
+        let (_, ok) = file_read(file, buffer, 0x8000, "the map's scratch buffer")?;
+        if !ok {
+            return Ok(());
+        }
+        let words = GamePtr::new(buffer).read_bytes(2 * TILES as usize, "the map's tile words")?;
+        let mut table = Vec::with_capacity(4 * TILES as usize);
+        for n in 0..TILES as usize {
+            let word = u16::from_le_bytes([words[2 * n], words[2 * n + 1]]) as u32;
+            let at = if word == 0 {
+                0
+            } else {
+                ((word - 1) << 8).wrapping_mul(bytes).wrapping_add(pixels)
+            };
+            table.extend_from_slice(&at.to_le_bytes());
+        }
+        GamePtr::new(tiles).write_bytes(&table, "the map's tile table")?;
+        let mut out = pixels;
+        let mut left = count;
+        while left != 0 {
+            let n = left.min(0x40);
+            left -= n;
+            let (got, ok) = file_read(file, buffer, n * 0x300, "the map's scratch buffer")?;
             if !ok {
                 return Ok(());
             }
-            for n in 0..TILES {
-                let word = *((buffer + 2 * n) as *const u16) as u32;
-                let at = if word == 0 {
-                    0
-                } else {
-                    ((word - 1) << 8).wrapping_mul(bytes).wrapping_add(pixels)
-                };
-                put(tiles + 4 * n, at);
+            if got == 0 || got % 3 != 0 {
+                return Err(BadInput("a packed map's short read, not whole pixels").into());
             }
-            let mut out = pixels;
-            let mut left = count;
-            while left != 0 {
-                let n = left.min(0x40);
-                left -= n;
-                let (got, ok) = read(file, buffer as *mut u8, n * 0x300);
-                if !ok {
-                    return Ok(());
-                }
-                if got == 0 || got % 3 != 0 {
-                    return Err(BadInput("a packed map's short read, not whole pixels").into());
-                }
-                for k in 0..got / 3 {
-                    store_pixel(&mut out, bytes, format, get(buffer + 3 * k));
-                }
+            let data = GamePtr::new(buffer).read_bytes(got as usize + 1, "the map's pixels")?;
+            let mut chunk = Vec::new();
+            for k in 0..got / 3 {
+                store_pixel(&mut chunk, bytes, &format, dword_in(&data, 3 * k as usize)?);
             }
-            Ok(())
-        })();
-        close(file);
-        result
-    }
+            GamePtr::new(out).write_bytes(&chunk, "the map's tile pixels")?;
+            out += chunk.len() as u32;
+        }
+        Ok(())
+    })();
+    close(file);
+    result
 }
 
-/// `race::load_game_map`'s calls into the picture readers, as places of `Part`: 0
-/// `files::file_exists` (eax the path; carry: not there), 1 `gfx::read_sheet`, 2
-/// `gfx::read_picture_file` (eax the path; carry: not read).
-pub type Part<'a> = &'a mut dyn FnMut(u32, &mut Regs) -> Result<(), Refused>;
-
-/// `race::load_game_map` (0x41B480): the map (eax the picture's path, ebx the key's; see
-/// the header). Leaves eax `g_packedPath` when it reads the packed file, else every
-/// register preserved. A key not 8-bit is fatal error 0x80E48073. The key's list freed
-/// and `g_mapKeyPixels` 0 at the end; the picture limits and buffer put back.
-pub unsafe fn load_game_map(entry: &Regs, part: Part) -> Result<Regs, Refused> {
-    use crate::gfx::pcx::{HEIGHT_LIMIT_RVA, WIDTH_LIMIT_RVA};
-    use crate::gfx::picture::{FLAGS_RVA, HEIGHT_RVA, PICTURE_RVA, ROW_BYTES_RVA, WIDTH_RVA};
-    let mut g = *entry;
+/// `race::load_game_map` (0x41B480): the map (`picture` the picture's path, `key_path` the
+/// key's; see the header). The eax it leaves (`g_packedPath` when it reads the packed
+/// file) is read by no caller (conversion phase 3, 2026-10-24). A key not 8-bit is fatal
+/// error 0x80E48073. The key's list freed and `g_mapKeyPixels` 0 at the end; the picture
+/// limits and buffer put back.
+pub unsafe fn load_game_map(picture: u32, key_path: u32) -> Result<(), Refused> {
     unsafe {
-        if game_read::<u32>(USE_PACKED_RVA) == 1 {
-            let mut r = g;
-            part(0, &mut r)?;
-            if r.carry() {
-                let path = game_addr(PACKED_PATH_RVA) as *mut u8;
-                let cursor =
-                    crate::strings::str_append::str_append(g.eax as *const u8, path.add(3));
-                put(cursor as u32 - 4, 0x0071_732E);
-                (path as *mut [u8; 6]).write_unaligned(*b"files\\");
-                load_packed_game_map(path as u32)?;
-                g.eax = path as u32;
-                return Ok(g);
+        if MAP.use_packed.get() == 1
+            && !crate::files::file_exists::file_exists(crate::pointers::host(picture) as *const u8)?
+        {
+            let path = crate::files::state::PACKED_PATH.ptr().cast::<u8>();
+            let cursor = crate::strings::str_append::str_append(
+                crate::pointers::host(picture) as *const u8,
+                path.add(3),
+            )?;
+            GamePtr::new(crate::pointers::game_address(cursor) - 4)
+                .write(0x0071_732Eu32, "the packed map's path")?;
+            GamePtr::new(crate::pointers::game_address(path))
+                .write_bytes(b"files\\", "the packed map's path")?;
+            load_packed_game_map(crate::pointers::game_address(path))?;
+            return Ok(());
+        }
+    }
+    MAP.tile_count.set(0u32);
+    MAP.picture_path.set(picture);
+    MAP.key_path.set(key_path);
+    let (bytes, format) = take_format()?;
+    let tiles = allocate(&MAP.list, 0x1_0000)?;
+    MAP.tiles.set(tiles);
+    let key = allocate(&MAP.key_list, 0x100_0000)?;
+    MAP.key_pixels.set(key);
+    let kept: [u32; 3] = [
+        PCX.width_limit.get(),
+        PCX.height_limit.get(),
+        PICTURE.buffer.get(),
+    ];
+    PCX.width_limit.set(KEY_SIDE);
+    PCX.height_limit.set(KEY_SIDE);
+    PICTURE.width.set(KEY_SIDE);
+    PICTURE.height.set(KEY_SIDE);
+    PICTURE.row_bytes.set(KEY_ROW_BYTES);
+    PICTURE.buffer.set(key);
+    let built = (|| -> Result<(), Refused> {
+        if !unsafe {
+            crate::gfx::read_sheet::read_sheet(
+                crate::pointers::host(MAP.key_path.get()) as *const u8
+            )
+        }? {
+            return Ok(());
+        }
+        if PICTURE.flags.get() & 0x100 == 0 {
+            return Err(NOT_8BIT.into());
+        }
+        let row: u32 = PICTURE.row_bytes.get();
+        // The key sheet, read in place (its extent is the allocation's).
+        let sheet = GamePtr::new(key).bytes("the map key sheet")?;
+        let dword = |at: u32| -> Result<u32, BadInput> {
+            let at = (at.wrapping_sub(key)) as usize;
+            let mut b = [0u8; 4];
+            for (k, v) in b.iter_mut().enumerate() {
+                *v = rc2k_core::strings::bytes::Bytes::byte(&sheet, at + k)
+                    .ok_or(BadInput("a map key read past its sheet"))?;
+            }
+            Ok(u32::from_le_bytes(b))
+        };
+        // The tile table, worked on here and put back whole.
+        let mut table = vec![0u32; TILES as usize];
+        let stored = GamePtr::new(tiles).read_bytes(4 * TILES as usize, "the map's tile table")?;
+        for (v, c) in table.iter_mut().zip(stored.as_chunks::<4>().0) {
+            *v = u32::from_le_bytes([c[0], c[1], c[2], c[3]]);
+        }
+        let put_table = |table: &[u32]| -> Result<(), BadInput> {
+            let bytes: Vec<u8> = table.iter().flat_map(|v| v.to_le_bytes()).collect();
+            GamePtr::new(tiles).write_bytes(&bytes, "the map's tile table")
+        };
+        for ty in 0..SIDE {
+            for tx in 0..SIDE {
+                let mut used = 0;
+                let block = key.wrapping_add(ty * 16 * row).wrapping_add(tx * 16);
+                for y in 0..16 {
+                    for k in 0..4 {
+                        used |= dword(block.wrapping_add(y * row) + 4 * k)?;
+                    }
+                }
+                if used == 0 {
+                    continue;
+                }
+                for dy in -3i32..=3 {
+                    let y = (dy + ty as i32) as u32;
+                    if y >= SIDE {
+                        continue;
+                    }
+                    for dx in -3i32..=3 {
+                        let x = (dx + tx as i32) as u32;
+                        if x < SIDE {
+                            table[(y * SIDE + x) as usize] = 1;
+                        }
+                    }
+                }
             }
         }
-        game_write(TILE_COUNT_RVA, 0u32);
-        game_write(PICTURE_PATH_RVA, g.eax);
-        game_write(KEY_PATH_RVA, g.ebx);
-        let (bytes, format) = take_format();
-        let tiles = allocate(LIST_RVA, 0x1_0000)?;
-        game_write(TILES_RVA, tiles);
-        let key = allocate(KEY_LIST_RVA, 0x100_0000)?;
-        game_write(KEY_PIXELS_RVA, key);
-        let kept: [u32; 3] = [
-            game_read(WIDTH_LIMIT_RVA),
-            game_read(HEIGHT_LIMIT_RVA),
-            game_read(PICTURE_RVA),
-        ];
-        game_write(WIDTH_LIMIT_RVA, KEY_SIDE);
-        game_write(HEIGHT_LIMIT_RVA, KEY_SIDE);
-        game_write(WIDTH_RVA, KEY_SIDE);
-        game_write(HEIGHT_RVA, KEY_SIDE);
-        game_write(ROW_BYTES_RVA, KEY_ROW_BYTES);
-        game_write(PICTURE_RVA, key);
-        let built = (|| -> Result<(), Refused> {
-            let mut r = Regs {
-                eax: game_read(KEY_PATH_RVA),
-                ..g
-            };
-            part(1, &mut r)?;
-            if r.carry() {
-                return Ok(());
-            }
-            if game_read::<u32>(FLAGS_RVA) & 0x100 == 0 {
-                return Err(NOT_8BIT.into());
-            }
-            let row: u32 = game_read(ROW_BYTES_RVA);
-            for ty in 0..SIDE {
-                for tx in 0..SIDE {
-                    let mut used = 0;
-                    let block = key.wrapping_add(ty * 16 * row).wrapping_add(tx * 16);
-                    for y in 0..16 {
-                        for k in 0..4 {
-                            used |= get(block.wrapping_add(y * row) + 4 * k);
-                        }
-                    }
-                    if used == 0 {
-                        continue;
-                    }
-                    for dy in -3i32..=3 {
-                        let y = (dy + ty as i32) as u32;
-                        if y >= SIDE {
-                            continue;
-                        }
-                        for dx in -3i32..=3 {
-                            let x = (dx + tx as i32) as u32;
-                            if x < SIDE {
-                                put(tiles + y * 0x200 + 4 * x, 1);
-                            }
-                        }
-                    }
+        put_table(&table)?;
+        let marked = table.iter().filter(|&&v| v != 0).count() as u32;
+        let pixels = allocate(&MAP.list, (marked << 8).wrapping_mul(bytes))?;
+        MAP.tile_pixels.set(pixels);
+        if !unsafe {
+            crate::gfx::read_picture_file::read_picture_file(crate::pointers::host(
+                MAP.picture_path.get(),
+            ))
+        }? {
+            return Ok(());
+        }
+        MAP.tile_count.set(0u32);
+        let row: u32 = PICTURE.row_bytes.get();
+        let mut out = pixels;
+        for ty in 0..SIDE {
+            for tx in 0..SIDE {
+                let n = (ty * SIDE + tx) as usize;
+                if table[n] == 0 {
+                    continue;
                 }
-            }
-            let marked = (0..TILES).filter(|&n| get(tiles + 4 * n) != 0).count() as u32;
-            let pixels = allocate(LIST_RVA, (marked << 8).wrapping_mul(bytes))?;
-            game_write(TILE_PIXELS_RVA, pixels);
-            let mut r = Regs {
-                eax: game_read(PICTURE_PATH_RVA),
-                ..g
-            };
-            part(2, &mut r)?;
-            if r.carry() {
-                return Ok(());
-            }
-            game_write(TILE_COUNT_RVA, 0u32);
-            let row: u32 = game_read(ROW_BYTES_RVA);
-            let mut out = pixels;
-            for ty in 0..SIDE {
-                for tx in 0..SIDE {
-                    let at = tiles + 4 * (ty * SIDE + tx);
-                    if get(at) == 0 {
-                        continue;
+                table[n] = out;
+                MAP.tile_count.set(MAP.tile_count.get() + 1);
+                let mut from = (ty << 4)
+                    .wrapping_mul(row)
+                    .wrapping_add(tx << 6)
+                    .wrapping_add(key);
+                let mut tile = Vec::new();
+                for _ in 0..16 {
+                    for k in 0..16 {
+                        store_pixel(&mut tile, bytes, &format, dword(from + 4 * k)?);
                     }
-                    put(at, out);
-                    game_write(TILE_COUNT_RVA, game_read::<u32>(TILE_COUNT_RVA) + 1);
-                    let mut from = (ty << 4)
-                        .wrapping_mul(row)
-                        .wrapping_add(tx << 6)
-                        .wrapping_add(key);
-                    for _ in 0..16 {
-                        for k in 0..16 {
-                            store_pixel(&mut out, bytes, format, get(from + 4 * k));
-                        }
-                        from = from.wrapping_add(row);
-                    }
+                    from = from.wrapping_add(row);
                 }
+                GamePtr::new(out).write_bytes(&tile, "the map's tile pixels")?;
+                out += tile.len() as u32;
             }
-            game_write(
-                BLACK_RVA,
-                crate::gfx::components_to_pixel::components_to_pixel(format, OPAQUE),
-            );
-            Ok(())
-        })();
-        // A fatal error or a refusal leaves everything as it stood.
-        built?;
-        game_write(PICTURE_RVA, kept[2]);
-        game_write(HEIGHT_LIMIT_RVA, kept[1]);
-        game_write(WIDTH_LIMIT_RVA, kept[0]);
-        crate::memory::free_list::free_list(list(KEY_LIST_RVA))?;
-        game_write(KEY_PIXELS_RVA, 0u32);
-    }
-    Ok(g)
-}
-
-/// `load_game_map`'s calls in the game: the Rust versions.
-pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
-    unsafe {
-        let ok = match place {
-            0 => crate::files::file_exists::file_exists(r.eax as *const u8)?,
-            1 => crate::gfx::read_sheet::read_sheet(r.eax as *const u8)?,
-            _ => crate::gfx::read_picture_file::read_picture_file(r.eax as *mut u8)?,
-        };
-        r.set_carry(!ok);
-    }
+        }
+        put_table(&table)?;
+        MAP.black
+            .set(crate::gfx::components_to_pixel::components_to_pixel(
+                &format, OPAQUE,
+            ));
+        Ok(())
+    })();
+    // A fatal error or a refusal leaves everything as it stood.
+    built?;
+    PICTURE.buffer.set(kept[2]);
+    PCX.height_limit.set(kept[1]);
+    PCX.width_limit.set(kept[0]);
+    crate::memory::free_list::free_list(list(&MAP.key_list))?;
+    MAP.key_pixels.set(0u32);
     Ok(())
 }
 
-// ---- for the self-tests ----
+#[cfg(test)]
+mod block_tests {
+    use super::*;
+    use core::mem::offset_of;
 
-/// The map's state after a run, made comparable: the variables but the pointers, each
-/// tile's offset in the pixels (or -1), and the pixels.
-pub fn snapshot() -> Vec<u32> {
-    unsafe {
-        let mut s = Vec::new();
-        for r in [TILE_COUNT_RVA, PIXEL_BYTES_RVA, FORMAT_RVA, BLACK_RVA] {
-            s.push(game_read::<u32>(r));
-        }
-        let (tiles, pixels): (u32, u32) = (game_read(TILES_RVA), game_read(TILE_PIXELS_RVA));
-        s.push((tiles != 0) as u32);
-        s.push(game_read::<u32>(KEY_PIXELS_RVA));
-        if tiles != 0 {
-            for n in 0..TILES {
-                let at = get(tiles + 4 * n);
-                s.push(if at == 0 || at == 1 {
-                    at.wrapping_sub(2)
-                } else {
-                    at.wrapping_sub(pixels)
-                });
-            }
-        }
-        if pixels != 0 {
-            let len = (game_read::<u32>(TILE_COUNT_RVA).min(MOST_TILES) << 8)
-                * game_read::<u32>(PIXEL_BYTES_RVA);
-            for k in 0..len / 4 {
-                s.push(get(pixels + 4 * k));
-            }
-        }
-        s
+    #[test]
+    fn first_values_are_the_games() {
+        crate::gfx::first_values_are_the_games(&MAP, START, START + LEN);
     }
-}
 
-/// Whether the map's lists are empty (a test frees them after each run).
-pub fn lists_empty() -> bool {
-    unsafe { (*list(LIST_RVA)).head == 0 && (*list(KEY_LIST_RVA)).head == 0 }
-}
-
-/// Whether entry 3 of the pixel kinds is there yet.
-pub fn format_ready() -> bool {
-    unsafe { game_read::<u32>(KINDS_RVA + 0xC) != 0 }
+    #[test]
+    fn moved_knows_the_block() {
+        assert_eq!(offset_of!(MapVars, key_list), 0x5BE94D - START);
+        assert_eq!(offset_of!(MapVars, key_pixels), 0x5BE98D - START);
+        assert_eq!(offset_of!(MapVars, use_packed), 0x5BE9B5 - START);
+        assert_eq!(crate::moved::place(START), MAP.list.addr() as usize);
+        assert_eq!(crate::moved::place(0x5BE94D), MAP.key_list.addr() as usize);
+    }
 }

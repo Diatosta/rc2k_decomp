@@ -8,83 +8,34 @@
 //! Out: eax, ebx 23, ecx 90, edx, esi (the table's end, or 0) as left; no flags read
 //!
 //! Callers: `physics::rank_split_time`, `sub_435F43`.
-//! Self-test: `physics/splits.rs` (`test_splits`), with and without a table.
+//!
+//! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
+//! above are the original's, for reference.
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
-use crate::physics::splits::{g, guarded, p, test_splits, written};
-use crate::screens::harness::Left;
-use crate::service::harness::{dispatch_state, state_entry};
+use crate::physics::split_tables_store::SPLIT_TABLES;
+use crate::pointers::GamePtr;
+use crate::race::vars_store::RACE_VARS;
 use rc2k_core::physics::splits::{RIVALS, default_rival};
-use std::sync::atomic::AtomicUsize;
 
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("physics::fill_rival_table", rva(0x436BD6), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
-
-/// The steps on `r`.
+/// The Rust version. The registers the original leaves are read by none of its callers.
 // Converted: `rc2k_core::physics::splits::default_rival`.
-pub fn fill_rival_table_in(r: &mut Regs) -> Result<(), Refused> {
+pub fn fill_rival_table() -> Result<(), Refused> {
     for c in 0..RIVALS as u32 {
-        r.ecx = c;
         let (time, car, name) = default_rival(c);
-        p(0x601ED0 + 4 * c as usize, time);
-        r.ebx = 0x17;
-        r.eax = c / 0x17;
-        r.edx = car;
-        p(0x602038 + 4 * c as usize, car);
-        r.eax = name;
-        p(0x601D68 + 4 * c as usize, name);
+        SPLIT_TABLES.rival_times[c as usize].set(time);
+        SPLIT_TABLES.rival_cars[c as usize].set(car);
+        SPLIT_TABLES.rival_names[c as usize].set(name);
     }
-    r.ecx = 0x5A;
-    r.esi = g(0x6238BC);
-    if r.esi == 0 {
+    let mut rival = RACE_VARS.rivals.get();
+    if rival == 0 {
         return Ok(());
     }
     for c in 0..RIVALS {
-        let at = |o: u32| unsafe { ((r.esi + o) as *const u32).read_unaligned() };
-        r.eax = at(0);
-        p(0x601D68 + 4 * c, r.eax);
-        r.eax = at(8);
-        p(0x602038 + 4 * c, r.eax);
-        r.eax = at(12);
-        p(0x601ED0 + 4 * c, r.eax);
-        r.esi = r.esi.wrapping_add(0x50);
+        let at = |o: u32| GamePtr::new(rival + o).read::<u32>("a rival record");
+        SPLIT_TABLES.rival_names[c].set(at(0)?);
+        SPLIT_TABLES.rival_cars[c].set(at(8)?);
+        SPLIT_TABLES.rival_times[c].set(at(12)?);
+        rival = rival.wrapping_add(0x50);
     }
-    r.ecx = 0x5A;
     Ok(())
-}
-
-/// The Rust version.
-pub unsafe fn fill_rival_table(entry: &Regs) -> Result<Left, Refused> {
-    guarded(entry, &fill_rival_table_in)
-}
-
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    unsafe { fill_rival_table(r) }
-}
-
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_state(&HOOK, r, call_original, &written(), &rust);
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    test_splits(&mut t, call_original, &rust, &|c| c.mode == 1);
-    t.finish()
 }

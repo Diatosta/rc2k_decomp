@@ -1,15 +1,9 @@
 //! The service area's logic: what happens between the stages besides drawing.
 
-use crate::framework::GameHook;
-
 pub mod apply_repairs;
 pub mod backspace_setup_name;
 pub mod begin_edits;
-pub mod begin_gear_ratio_edit;
-pub mod begin_ride_height_edit;
 pub mod begin_setup_name;
-pub mod begin_suspension_stiffness_edit;
-pub mod begin_tyre_edit;
 pub mod clear_repair_flags;
 pub mod clear_repair_marks;
 pub mod edit_brake_balance;
@@ -19,7 +13,6 @@ pub mod edit_setup_name;
 pub mod edit_steering_sensitivity;
 pub mod edit_suspension_stiffness;
 pub mod edit_tyre;
-pub mod floats;
 pub mod handle_edit_keys;
 pub mod harness;
 pub mod load_background;
@@ -52,5 +45,3 @@ pub mod toggle_suspension_stiffness_change;
 pub mod toggle_tyre_change;
 pub mod update_repair_total;
 pub mod write_setup_slot;
-
-pub static HOOKS: &[&dyn GameHook] = &[];

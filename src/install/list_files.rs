@@ -7,59 +7,55 @@
 //!
 //! In:  eax the pattern
 //! Out: every register kept (`pusha` / `popa`)
-//! Caller `install::run_script` (opcode 3). Its resolve, search and `append_directory`
-//! through `part`; the appending here. Shadow mode runs the original alone. Self-test: a
-//! copy whose disk calls go to the fake file system, against the Rust version.
+//! Caller `install::run_script` (opcode 3).
 //!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Conversion phase 3 (2026-10-23): plain Rust with typed arguments; the registers above
+//! are the original's.
 
 use crate::errors::Refused;
-use crate::framework::Regs;
 use crate::install::installer::{
-    CLOSE_SEARCH, FILE_COUNT, FILE_CURSOR, FILES, FIND_FIRST, FIND_NEXT, Part, RESOLVE_PATH, a,
-    append_byte, at, fatal, g, p, str_append,
+    append_byte, close_search, fatal, find_first, find_next, resolve_path, str_append,
 };
+use crate::install::vars::INSTALLER_RUN;
 use rc2k_core::install::script;
 
-const FIND_NAME: usize = 0x4E05A8 + 0x2C; // FindFileData.cFileName
-
-pub fn list_files(entry: &Regs, part: Part) -> Result<Regs, Refused> {
-    let mut r = *entry;
-    part(at(RESOLVE_PATH), &mut r)?;
-    r.edx = r.eax;
-    part(at(FIND_FIRST), &mut r)?;
-    if r.carry() {
-        part(at(CLOSE_SEARCH), &mut r)?;
-        return Ok(*entry);
+/// FindFileData.cFileName (the search record: `files::state`).
+fn find_name() -> u32 {
+    unsafe {
+        crate::pointers::game_address(&raw const (*crate::files::state::find_data()).cFileName)
     }
-    loop {
-        r.ebx = g(FILE_CURSOR);
-        // append_directory(edx = the pattern's path, ebx = the cursor): pure, called direct
-        r = unsafe { crate::files::append_directory::append_directory_regs(&r) }?;
-        r.eax = a(FIND_NAME);
-        str_append(&mut r);
-        append_byte(&mut r, 0);
-        p(FILE_CURSOR, r.ebx);
-        p(FILE_COUNT, g(FILE_COUNT).wrapping_add(1));
-        // `sub ebx, [table]`: find_next gets the bytes used in ebx.
-        r.ebx = r.ebx.wrapping_sub(g(FILES));
-        // Converted: `rc2k_core::install::script::room_left`.
-        script::room_left(r.ebx, script::FILES_ROOM, script::FILES_FULL).map_err(fatal)?;
-        part(at(FIND_NEXT), &mut r)?;
-        if r.carry() {
-            break;
-        }
-    }
-    part(at(CLOSE_SEARCH), &mut r)?;
-    Ok(Regs { ..*entry })
 }
 
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    crate::race::viewer::regs_entry(r, &|r| {
-        list_files(r, &mut crate::install::installer::game_part)
-    })
+/// The files of `pattern` (eax) added to the files' table.
+pub fn list_files(pattern: u32) -> Result<(), Refused> {
+    let pattern = resolve_path(pattern)?;
+    if find_first(pattern) {
+        loop {
+            // append_directory (edx the pattern's path, ebx the cursor)
+            let (cursor, _) = crate::files::append_directory::append_directory(
+                crate::pointers::host(pattern) as *const u8,
+                crate::pointers::host(INSTALLER_RUN.file_cursor.get()),
+            )?;
+            let cursor = append_byte(
+                str_append(find_name(), crate::pointers::game_address(cursor)),
+                0,
+            );
+            INSTALLER_RUN.file_cursor.set(cursor);
+            INSTALLER_RUN
+                .file_count
+                .set(INSTALLER_RUN.file_count.get().wrapping_add(1));
+            // Converted: `rc2k_core::install::script::room_left` (`sub ebx, [table]`).
+            script::room_left(
+                cursor.wrapping_sub(INSTALLER_RUN.files.get()),
+                script::FILES_ROOM,
+                script::FILES_FULL,
+            )
+            .map_err(fatal)?;
+            if !find_next() {
+                break;
+            }
+        }
+    }
+    close_search();
+    Ok(())
 }

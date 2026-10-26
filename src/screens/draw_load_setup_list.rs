@@ -4,39 +4,26 @@
 //!
 //! In:  nothing
 //! Out: every register preserved; carry clear
-//! Its address is in the draw list at 0x75915E. That it is the "load" screen is a reading:
-//! by elimination from `draw_save_setup_list`. IDA had no function here until 2026-10-10.
-//! Hook removed 2026-10-22 (typed tables): the menus and draw lists run its `entry`
-//! (`menu::table_calls`); the registers above are the original's, for reference.
+//! Its address is in the draw list at 0x75915E. That it is the "load" screen is a reading: by
+//! elimination from `draw_save_setup_list`. IDA had no function here until 2026-10-10. The menus
+//! and draw lists run its `entry` (`menu::table_calls`); the registers above are the original's,
+//! for reference.
 
 use crate::errors::Refused;
-use crate::framework::Regs;
-use crate::screens::harness::{Left, draw_entry};
-use crate::service::load_setup_slot::SLOT_PAGE_RVA;
+use crate::menu::pages_store::MENU_PAGES;
 use crate::text::draw_text::Canvas;
 
 // ---- game data ----
 
 // ---- Rust version ----
 
-pub unsafe fn draw_load_setup_list(canvas: &mut dyn Canvas) -> Result<(), Refused> {
+pub fn draw_load_setup_list(canvas: &mut dyn Canvas) -> Result<(), Refused> {
     // Converted: `rc2k_core::screens::slot_lists::setup_page`.
-    let page: u32 = unsafe { crate::framework::game_read(SLOT_PAGE_RVA) };
+    let page: u32 = { MENU_PAGES.setup_slot_page.get() };
     rc2k_core::screens::slot_lists::setup_page(
         &mut crate::screens::game_screen::SlotScreen::new(canvas),
         rc2k_core::screens::slot_lists::LOAD_SETUP_TITLE,
         page,
-        |slot| crate::service::read_setup_slot::slot_name(slot) as u32,
+        |slot| crate::pointers::game_address(crate::service::read_setup_slot::slot_name(slot)),
     )
-}
-
-fn rust(_: &Regs, canvas: &mut dyn Canvas) -> Result<Left, Refused> {
-    unsafe { draw_load_setup_list(canvas) }?;
-    Ok(Left::carry(false))
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    draw_entry("screens::draw_load_setup_list", r, &rust)
 }

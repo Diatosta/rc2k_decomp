@@ -42,43 +42,40 @@
 //! Hook removed 2026-10-22 (conversion phase 4): Rust callers call this directly; the
 //! registers above are the original's, for reference.
 
-use crate::framework::rva;
-use crate::menu::run_draw_list::DRAW_LIST_RVA;
-use crate::menu::screen_loop::{FRAME_CALLBACK, List, Screen, Step, TAKE_KEY};
+use crate::menu::draw_lists_store::DRAW_LISTS;
+use crate::menu::flow_store::SCREEN_FLOW;
+use crate::menu::menus_store::MENUS;
+use crate::menu::screen_items_store::{SCREEN_ITEMS, slot};
+use crate::menu::screen_loop::{Callee, FRAME_CALLBACK, List, Screen, Step};
+use crate::menu::state_store::MENU_STATE;
+use crate::scene::draw_store::DRAW;
 
 // ---- game data ----
-
-const SETUP_LOADED_RVA: usize = rva(0x75AAE0); // dword_75AAE0: 1 = `load_setup_values` does nothing
-const LEFT_RVA: usize = rva(0x7554E4); // dword_7554E4: 0 on the screen, 1 after it
-const PREPARE_SCENE: usize = rva(0x46F7FD); // scene::prepare_menu_scene
-const SUB_40F7A4: usize = rva(0x40F7A4);
-const LOAD_BACKGROUND: usize = rva(0x470F55); // service::load_background: the picture for the car
-const SUB_40F826: usize = rva(0x40F826);
 
 // ---- Rust version: `menu::screen_loop` with this ----
 
 pub const SCREEN: Screen = Screen {
-    menu: rva(0x74D24C),       // off_74D24C
-    saved_item: rva(0x74777C), // g_serviceSavedItem
+    menu: || MENUS.service_area.addr() as usize, // off_74D24C
+    saved_item: || &SCREEN_ITEMS.current[slot::SERVICE_AREA], // g_serviceSavedItem
     lists: &[
         List {
-            pointer: rva(0x755504), // dword_755504
-            table: rva(0x759082),   // off_759082: the scene
+            pointer: || &SCREEN_FLOW.scene_list, // dword_755504
+            table: || DRAW_LISTS.service_area_scene.addr() as usize, // off_759082: the scene
             run: false,
         },
         List {
-            pointer: DRAW_LIST_RVA,
-            table: rva(0x758D6E), // off_758D6E: `handle_edit_keys`
+            pointer: || &SCREEN_FLOW.draw_list,
+            table: || DRAW_LISTS.service_area_draw.addr() as usize, // off_758D6E: `handle_edit_keys`
             run: false,
         },
         List {
-            pointer: rva(0x755500), // dword_755500
-            table: rva(0x759436),   // off_759436: `load_setup_values`
+            pointer: || &SCREEN_FLOW.setup_list, // dword_755500
+            table: || DRAW_LISTS.service_area_setup.addr() as usize, // off_759436: `load_setup_values`
             run: true,
         },
         List {
-            pointer: rva(0x7554FC), // dword_7554FC
-            table: rva(0x75924A),   // off_75924A: `draw_service_area`
+            pointer: || &SCREEN_FLOW.overlay_list, // dword_7554FC
+            table: || DRAW_LISTS.service_area_overlay.addr() as usize, // off_75924A: `draw_service_area`
             run: false,
         },
     ],
@@ -87,38 +84,38 @@ pub const SCREEN: Screen = Screen {
     later_frame_callback: None,
     // The key buffer is emptied first.
     before: &[
-        Step::Call(TAKE_KEY),
-        Step::Call(TAKE_KEY),
-        Step::Call(TAKE_KEY),
-        Step::Call(TAKE_KEY),
-        Step::Call(TAKE_KEY),
-        Step::Call(TAKE_KEY),
-        Step::Eax(0),
-        Step::Write(SETUP_LOADED_RVA, 0),
+        Step::Call(Callee::TakeKey),
+        Step::Call(Callee::TakeKey),
+        Step::Call(Callee::TakeKey),
+        Step::Call(Callee::TakeKey),
+        Step::Call(Callee::TakeKey),
+        Step::Call(Callee::TakeKey),
+        Step::Arg(0),
+        Step::Write(|| &MENU_STATE.menus.skip_edit_values, 0),
     ],
-    set_up_first: &[Step::Write(LEFT_RVA, 0)],
+    set_up_first: &[Step::Write(|| &SCREEN_FLOW.left_service, 0)],
     prepare: &[
-        Step::Write(rva(0x623FB0), 0),     // dword_623FB0
-        Step::Write(rva(0x623FB4), 0),     // dword_623FB4
-        Step::Write(rva(0x624080), 0x100), // dword_624080
-        Step::Call(PREPARE_SCENE),
-        Step::Write(rva(0x6241DC), 0),        // dword_6241DC
-        Step::Write(rva(0x6241E0), 800),      // dword_6241E0
-        Step::WriteF32(rva(0x6241EC), 0.0),   // flt_6241EC
-        Step::WriteF32(rva(0x6241F0), 800.0), // flt_6241F0
-        Step::Call(SUB_40F7A4),
+        Step::Write(|| &DRAW.view_offset[0], 0), // dword_623FB0
+        Step::Write(|| &DRAW.view_offset[1], 0), // dword_623FB4
+        Step::Write(|| &DRAW.view_zoom, 0x100),  // dword_624080
+        Step::Call(Callee::PrepareScene),
+        Step::Write(|| &DRAW.clip_edges[2], 0), // dword_6241DC
+        Step::Write(|| &DRAW.clip_edges[3], 800), // dword_6241E0
+        Step::WriteF32(|| &DRAW.clip_screen[2], 0.0), // flt_6241EC
+        Step::WriteF32(|| &DRAW.clip_screen[3], 800.0), // flt_6241F0
+        Step::Call(Callee::PlayTune9),
     ],
     after_lists: &[],
-    background: &[Step::Call(LOAD_BACKGROUND)],
-    after_first_frame: &[Step::Write(SETUP_LOADED_RVA, 1)],
-    confirm: Some(&[Step::Call(LOAD_BACKGROUND)]),
+    background: &[Step::Call(Callee::LoadServiceBackground)],
+    after_first_frame: &[Step::Write(|| &MENU_STATE.menus.skip_edit_values, 1)],
+    confirm: Some(&[Step::Call(Callee::LoadServiceBackground)]),
     ask_also_if: None,
     confirmed: &[],
     unasked_skips_save: false,
     after: &[
-        Step::Write(LEFT_RVA, 1),
-        Step::Call(SUB_40F826),
-        Step::Write(SETUP_LOADED_RVA, 0),
+        Step::Write(|| &SCREEN_FLOW.left_service, 1),
+        Step::Call(Callee::StopMusic),
+        Step::Write(|| &MENU_STATE.menus.skip_edit_values, 0),
     ],
     escape_leaves: false,
     each_frame: &[],
@@ -141,6 +138,4 @@ pub const SCREEN: Screen = Screen {
     after_blink: &[],
     restart_action_check: false,
     always_asks: false,
-    also_reads: &[],
-    also_writes: &[],
 };

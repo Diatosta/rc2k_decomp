@@ -10,46 +10,35 @@
 //! last of 22 items (all at 747, 551) of the service area's menu at 0x74D24C.
 //!
 //! Screen: confirmed by the owner on 2026-10-10: the stage details that can be opened from the
-//! service area of a championship, the screen after the first stage details where the car is
-//! set up and repaired before the stage. Named `draw_stage_info_alt` until then.
-//! Hook removed 2026-10-22 (typed tables): the menus and draw lists run its `entry`
-//! (`menu::table_calls`); the registers above are the original's, for reference.
+//! service area of a championship, the screen after the first stage details where the car is set up
+//! and repaired before the stage. Named `draw_stage_info_alt` until then. The menus and draw lists
+//! run its `entry` (`menu::table_calls`); the registers above are the original's, for reference.
 
 use crate::errors::Refused;
-use crate::framework::{Regs, game_read, rva};
+use crate::menu::champ_store::CHAMP_VIEW;
+use crate::menu::event_store::EVENT_STATE;
 use crate::screens::draw_stage_heading::draw_stage_heading;
-use crate::screens::draw_stage_info::{MODE_RVA, TITLE_X, TITLE_Y, event_stage, event_title};
+use crate::screens::draw_stage_info::{TITLE_X, TITLE_Y, event_stage, event_title};
 use crate::screens::stage_panel::{
-    BEST_TIMES_PTR_RVA, TITLE_FONT, build_second_heading, draw_records_from, draw_stage_body,
-    label, panel_entry,
+    TITLE_FONT, build_second_heading, draw_records_from, draw_stage_body, label,
 };
 use crate::text::draw_text::Canvas;
 
 // ---- game data ----
-
-const HEADING_SWITCH_RVA: usize = rva(0x755968); // dword_755968: 0 lets mode 2 draw the heading
 
 // ---- Rust version ----
 
 /// Returns the carry flag of `draw_stage_records`.
 pub unsafe fn draw_service_stage_info(canvas: &mut dyn Canvas) -> Result<bool, Refused> {
     unsafe {
-        label(canvas, event_title(), TITLE_FONT, TITLE_X, TITLE_Y)?;
-        let (record, section) = event_stage();
-        if game_read::<u32>(MODE_RVA) == 2 && game_read::<u32>(HEADING_SWITCH_RVA) == 0 {
-            draw_stage_heading(record as *const u8, canvas)?;
+        label(canvas, event_title()?, TITLE_FONT, TITLE_X, TITLE_Y)?;
+        let (record, section) = event_stage()?;
+        if CHAMP_VIEW.event_mode.get() == 2 && EVENT_STATE.stage_pages.get() == 0 {
+            draw_stage_heading(record, canvas)?;
         }
         build_second_heading(record)?;
         // ebx, the markers' palette, still holds the section here.
         draw_stage_body(record, section, false, canvas)?;
-        draw_records_from(game_read(BEST_TIMES_PTR_RVA), record, canvas)
+        draw_records_from(CHAMP_VIEW.stage_best_times.get(), record, canvas)
     }
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    panel_entry("screens::draw_service_stage_info", r, &|canvas| unsafe {
-        draw_service_stage_info(canvas)
-    })
 }

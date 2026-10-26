@@ -11,23 +11,18 @@
 //! with a fourth mask.
 //! One caller, `text::blend_font`.
 //! Refuses a count of 0 (the original goes through all 32 bits) and null pointers.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
 
-use crate::errors::{BadInput, Refused};
-use crate::framework::{Regs, game_write};
-use crate::gfx::pixel_format::{PixelFormat, SCRATCH_RVA};
-use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
+use crate::errors::BadInput;
+use crate::gfx::formats::FORMATS;
+use crate::gfx::pixel_format::PixelFormat;
+use crate::pointers::GamePtr;
 
 // ---- Rust version ----
 
-pub unsafe fn blend_palette(
-    first: *const u32,
-    second: *const u32,
-    out: *mut u32,
+pub fn blend_palette(
+    first: GamePtr,
+    second: GamePtr,
+    out: GamePtr,
     count: u32,
     towards_second: u32,
     format: &PixelFormat,
@@ -37,50 +32,24 @@ pub unsafe fn blend_palette(
             "no entries: the original goes through all 32 bits",
         ));
     }
-    if first.is_null() || second.is_null() || out.is_null() {
+    if first.addr() == 0 || second.addr() == 0 || out.addr() == 0 {
         return Err(BadInput("a null palette"));
     }
-    for n in 0..count as usize {
-        unsafe {
-            // Converted: `rc2k_core::gfx::pixels::blend_entry`; the scratch bytes as
-            // `components_to_pixel` leaves them.
-            let entry = out.add(n);
-            let (pixel, scratch) = rc2k_core::gfx::pixels::blend_entry(
-                format,
-                first.add(n).read_unaligned(),
-                second.add(n).read_unaligned(),
-                entry.read_unaligned(),
-                towards_second,
-            );
-            if let Some(scratch) = scratch {
-                game_write(SCRATCH_RVA, scratch);
-            }
-            entry.write_unaligned(pixel);
+    for n in 0..count {
+        // Converted: `rc2k_core::gfx::pixels::blend_entry`; the scratch bytes as
+        // `components_to_pixel` leaves them.
+        let entry = out.offset(4 * n);
+        let (pixel, scratch) = rc2k_core::gfx::pixels::blend_entry(
+            format,
+            first.offset(4 * n).read::<u32>("a palette")?,
+            second.offset(4 * n).read::<u32>("a palette")?,
+            entry.read::<u32>("a palette")?,
+            towards_second,
+        );
+        if let Some(scratch) = scratch {
+            FORMATS.scratch.write(&scratch);
         }
+        entry.write(pixel, "a palette")?;
     }
     Ok(())
-}
-
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    if r.ebx == 0 {
-        return Err(BadInput("no pixel format").into());
-    }
-    unsafe {
-        let format = (r.ebx as *const PixelFormat).read_unaligned();
-        blend_palette(
-            r.esi as *const u32,
-            r.edx as *const u32,
-            r.edi as *mut u32,
-            r.ecx,
-            r.eax,
-            &format,
-        )?;
-    }
-    Ok(Left::nothing())
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
 }

@@ -9,68 +9,34 @@
 //! Out: every register kept (`pusha` .. `popa`)
 //! Not DirectInput itself: the request is the input thread's to act on. Caller:
 //! `menu::apply_controller`. Refuses (before anything) no first record (null pointer).
-//! Self-test: the original and the Rust version on a record of the test's in the pointer's
-//! place, ebx 0 and not, put back.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
 
 use crate::errors::BadInput;
 use crate::field;
-use crate::framework::{Regs, game_read, game_write, rva};
 use crate::input::devices::put;
-use crate::input::input_tick::COMMAND_RVA;
+use crate::input::store::DEVICES;
 use crate::input::types::InputDevice;
-use crate::screens::harness::Left;
-use crate::service::harness::{Region, at, state_entry};
-
-pub const DEVICES_RVA: usize = rva(0x4F6EE8); // g_inputDevices
-/// The bytes of the record this writes.
-pub const WRITTEN: usize = 0x24;
-
-/// What it writes: the record and the command.
-pub fn regions() -> Vec<Region> {
-    let record = unsafe { game_read::<u32>(DEVICES_RVA) };
-    let mut r = vec![at(COMMAND_RVA)];
-    if record != 0 {
-        r.push((record, WRITTEN));
-    }
-    r
-}
 
 /// The Rust version (see the header).
-pub unsafe fn request_device_setup(
+pub fn request_device_setup(
     controller: u32,
     sensitivity: u32,
     mode: u32,
     edx: u32,
     ebp: u32,
 ) -> Result<(), BadInput> {
-    let record = unsafe { game_read::<u32>(DEVICES_RVA) };
+    let record = DEVICES.input_devices[0].get();
     if record == 0 {
         return Err(BadInput("no first input device record"));
     }
     // Converted: `rc2k_core::input::joystick::device_setup`.
     let s = rc2k_core::input::joystick::device_setup(controller, sensitivity, mode, edx, ebp);
-    put(record, field!(InputDevice, controller), s.controller);
-    put(record, field!(InputDevice, sensitivity), s.sensitivity);
-    put(record, field!(InputDevice, kind), s.kind);
-    put(record, field!(InputDevice, axis_code), s.axis_code);
-    put(record, field!(InputDevice, strength), s.strength);
-    put(record, field!(InputDevice, dead_zone), s.dead_zone);
-    put(record, field!(InputDevice, end_zone), s.end_zone);
-    unsafe { game_write(COMMAND_RVA, 1u32) };
+    put(record, field!(InputDevice, controller), s.controller)?;
+    put(record, field!(InputDevice, sensitivity), s.sensitivity)?;
+    put(record, field!(InputDevice, kind), s.kind)?;
+    put(record, field!(InputDevice, axis_code), s.axis_code)?;
+    put(record, field!(InputDevice, strength), s.strength)?;
+    put(record, field!(InputDevice, dead_zone), s.dead_zone)?;
+    put(record, field!(InputDevice, end_zone), s.end_zone)?;
+    DEVICES.input_command.set(1);
     Ok(())
-}
-
-fn rust(r: &Regs) -> Result<Left, crate::errors::Refused> {
-    unsafe { request_device_setup(r.eax, r.ebx, r.ecx, r.edx, r.ebp) }?;
-    Ok(Left::nothing())
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
 }

@@ -5,59 +5,31 @@
 //!
 //! In:  al the key, ah its bits, edi the list
 //! Out: every register kept; the flags of its last test (no caller reads them read back)
-//! Caller `install::run_page` (the folder page). Shadow mode compares. Self-test: lists of
-//! the test's against the original, every key and both bit-3 states.
+//! Caller `install::run_page` (the folder page).
 //!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Conversion phase 3 (2026-10-23): plain Rust with typed arguments; the registers above
+//! are the original's.
 
-use crate::errors::Refused;
-use crate::framework::Regs;
-use crate::install::installer::{LIST_ANSWER, LIST_LEAVE, logic, pb, rb};
-use crate::race::viewer::regs_entry;
+use crate::install::installer::rb;
+use crate::install::vars::INSTALLER_PAGES;
 use rc2k_core::install::items::FolderKey;
 
-pub fn folder_key(entry: &Regs) -> Regs {
-    let mut r = *entry;
+/// `key` as eax (al the key, ah its bits); whether it was taken (the original's zero).
+pub fn folder_key(key: u32, list: u32) -> bool {
     // Converted: `rc2k_core::install::items::FolderKey`.
-    let key = FolderKey::of(r.eax);
-    let answer = key.answer(|| rb(r.edi));
-    match key {
-        FolderKey::NotEdited => {
-            // test eax, eax
-            let v = r.eax;
-            logic(&mut r, v);
-        }
-        // test byte [edi], 10h
-        FolderKey::Back => {
-            r.set_zero(answer.is_some());
-            r.set_carry(false);
-        }
-        // cmp al, 1Ch: equal
-        FolderKey::On => {
-            r.set_zero(true);
-            r.set_carry(false);
-        }
-        // cmp al, 1Ch: not equal
-        FolderKey::Other => {
-            let v = (r.eax as u8).wrapping_sub(0x1C) as u32;
-            logic(&mut r, v);
-        }
-    }
+    let way = FolderKey::of(key);
+    let answer = way.answer(|| rb(list));
     if let Some(answer) = answer {
-        pb(LIST_ANSWER, answer);
-        pb(LIST_LEAVE, 1);
+        INSTALLER_PAGES.list_answer.set(answer);
+        INSTALLER_PAGES.list_leave.set(1);
     }
-    r
-}
-
-fn rust(r: &Regs) -> Result<Regs, Refused> {
-    Ok(folder_key(r))
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    regs_entry(r, &rust)
+    match way {
+        // test eax, eax
+        FolderKey::NotEdited => key == 0,
+        // test byte ptr [edi], 10h
+        FolderKey::Back => answer.is_some(),
+        // cmp al, 1Ch
+        FolderKey::On => true,
+        FolderKey::Other => false,
+    }
 }

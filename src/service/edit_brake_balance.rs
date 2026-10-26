@@ -13,6 +13,6 @@ use crate::service::pages::{BRAKE_BALANCE, simple_page};
 
 // ---- Rust version ----
 
-pub unsafe fn edit_brake_balance() -> Result<(), Refused> {
-    unsafe { simple_page(BRAKE_BALANCE) }
+pub fn edit_brake_balance() -> Result<(), Refused> {
+    simple_page(BRAKE_BALANCE)
 }

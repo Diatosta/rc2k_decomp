@@ -3,51 +3,40 @@
 //!
 //! In:  nothing
 //! Out: every register preserved
-//! For each stage of the championship's record table (counted into `seconds`): the ten
-//! entries of the stage in the table at `dword_7556E8` get the record's +0x18 + 24,000
-//! and 0x9F more each, and a driver, with the record's +4 as the stage for the
-//! checkpoints (`saves/default_times.rs`; its caller has `dword_755A0C` at 1 for this
-//! one, so the checkpoint times are guessed and some 9,000 pieces go to the game's log).
-//! Then the records are gone through once more as in `default_championship_times`, but
-//! only `dword_7559B0` is added up and cleared: nothing is done with it.
-//! One caller, `menu::set_up_front_end`, when `var\hst.dat` was not loaded.
-//! Refuses a missing table and a record table without stages or without its end.
-//! Converted: `rc2k_core::saves::defaults::championship_times` (a refusal now leaves
-//! nothing written).
-//! Self-test: without the checkpoints against the original; with them against a copy
-//! whose log calls go to the test (and a copy of `default_time_entry` under it).
-//!
-//! Hook removed 2026-10-22 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! For each stage of the championship's record table (counted into `seconds`): the ten entries of
+//! the stage in the table at `dword_7556E8` get the record's +0x18 + 24,000 and 0x9F more each, and
+//! a driver, with the record's +4 as the stage for the checkpoints (`saves/default_times.rs`; its
+//! caller has `dword_755A0C` at 1 for this one, so the checkpoint times are guessed and some 9,000
+//! pieces go to the game's log). Then the records are gone through once more as in
+//! `default_championship_times`, but only `dword_7559B0` is added up and cleared: nothing is done
+//! with it. One caller, `menu::set_up_front_end`, when `var\hst.dat` was not loaded. Refuses a
+//! missing table and a record table without stages or without its end. Converted:
+//! `rc2k_core::saves::defaults::championship_times` (a refusal now leaves nothing written).
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{game_addr, game_read, rva};
+use crate::menu::champ_store::CHAMP_VIEW;
 use crate::saves::allocate_best_times::count_stages;
 use crate::saves::default_times::*;
 use rc2k_core::saves::defaults::{Championship, RALLIES, championship_times};
 
 // ---- game data ----
 
-const RECORD_TABLE_RVA: usize = rva(0x735576); // g_recordTable
-const TABLE_RVA: usize = rva(0x7556E8); // dword_7556E8
-
 // ---- Rust version ----
 
 /// `ebp` is not used: the stage comes from the record.
-pub unsafe fn default_checkpoint_times(_ebp: u32, log: Log) -> Result<(), Refused> {
+pub fn default_checkpoint_times(_ebp: u32, log: Log) -> Result<(), Refused> {
     // Converted: `rc2k_core::saves::defaults::championship_times`.
-    unsafe {
-        let records_at = game_addr(RECORD_TABLE_RVA) as u32;
-        let stages = count_stages(records_at as *const u8)?;
+    {
+        let records_at = crate::records::stages_store::STAGE_TABLES.championship();
+        let stages = count_stages(records_at)?;
         let count = records(records_at)?;
-        let table: u32 = game_read(TABLE_RVA);
+        let table: u32 = CHAMP_VIEW.time_trial_best_times.get();
         if stages == 0 || table == 0 {
             return Err(BadInput("no stages, or no table for their times").into());
         }
         let records: Vec<_> = (0..count as u32)
             .map(|n| read_record(records_at + n * RECORD_LEN))
-            .collect();
+            .collect::<Result<_, _>>()?;
         let tables = [(table, (stages * STAGE_LEN) as usize)];
         let filled = championship_times(
             &mut GameSource { log },
@@ -56,7 +45,7 @@ pub unsafe fn default_checkpoint_times(_ebp: u32, log: Log) -> Result<(), Refuse
             [false; RALLIES],
             crate::saves::default_times::with_checkpoints(),
         )?;
-        apply(&filled, &tables);
+        apply(&filled, &tables)?;
         Ok(())
     }
 }

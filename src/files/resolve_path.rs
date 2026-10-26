@@ -9,50 +9,47 @@
 //! registers above are the original's, for reference.
 
 use crate::errors::BadInput;
-use crate::framework::{game_ptr, game_read, rva};
-use crate::threading::find_thread_slot::find_thread_slot;
-use std::ffi::{CStr, c_char};
-use std::ptr::copy_nonoverlapping;
+use crate::pointers::GamePtr;
 
 // ---- game data ----
 
-const MEDIA_MODE_RVA: usize = rva(0x5189A4); // g_mediaMode
-const BASE_A_RVA: usize = rva(0x5189A8); // base directory A (string)
-const BASE_B_RVA: usize = rva(0x5295B4); // base directory B (string)
-const PCT_RVA: usize = rva(0x518AA8); // string that replaces each '%'
-const GLOBAL_BUF_RVA: usize = rva(0x94E9B0); // output buffer for threads without a slot
-
 const BUF_LEN: usize = 0x100; // ThreadSlot + 0x10 .. + 0x110
 
-unsafe fn cstr<'a>(ptr: *const u8) -> &'a [u8] {
-    unsafe { CStr::from_ptr(ptr as *const c_char) }.to_bytes()
-}
-
-struct Globals<'a> {
+struct Globals {
     mode: u32,
-    a: &'a [u8],
-    b: &'a [u8],
-    pct: &'a [u8],
-}
-unsafe fn globals<'a>() -> Globals<'a> {
-    unsafe {
-        Globals {
-            mode: game_read(MEDIA_MODE_RVA),
-            a: cstr(game_ptr(BASE_A_RVA)),
-            b: cstr(game_ptr(BASE_B_RVA)),
-            pct: cstr(game_ptr(PCT_RVA)),
-        }
-    }
+    a: Vec<u8>,
+    b: Vec<u8>,
+    pct: Vec<u8>,
 }
 
-/// slot + 0x10 if the current thread has a ThreadSlot, else the global buffer.
-fn out_buffer() -> *mut u8 {
-    let slot = unsafe { find_thread_slot() };
-    if slot.is_null() {
-        game_ptr(GLOBAL_BUF_RVA)
-    } else {
-        unsafe { (slot as *mut u8).add(0x10) }
-    }
+fn text_at(addr: usize, what: &str) -> Result<Vec<u8>, BadInput> {
+    crate::files::cstring(GamePtr::new(addr as u32), what)
+}
+
+fn globals() -> Result<Globals, BadInput> {
+    Ok(Globals {
+        mode: crate::files::state::MEDIA_MODE.load(std::sync::atomic::Ordering::Relaxed),
+        a: text_at(
+            (crate::pointers::game_address(crate::files::state::base_directory())) as usize,
+            "the base directory",
+        )?, // g_baseDirectory
+        b: text_at(
+            crate::install::installer::INSTALL_TEXTS.base_b.addr() as usize,
+            "the second base directory",
+        )?,
+        pct: text_at(
+            (crate::pointers::game_address(crate::files::state::locale_directory())) as usize,
+            "the locale directory",
+        )?, // g_localeDirectory: replaces each '%'
+    })
+}
+
+/// The buffer the resolved path is written to: the current thread's slot's, else the global one.
+fn out_buffer() -> Result<GamePtr, BadInput> {
+    Ok(match crate::threading::find_thread_slot::current_slot()? {
+        None => GamePtr::new(crate::files::state::PATHS.addr()).offset(0x100),
+        Some(slot) => GamePtr::new(slot.path.addr()),
+    })
 }
 
 // ---- Rust version ----
@@ -86,14 +83,20 @@ pub fn resolve_path(
 
 /// The path as the game would open it, for Rust callers: the pointer given if the path is used
 /// as it is, else the resolved path written to this thread's buffer.
-pub unsafe fn resolve_path_in_game(path: *const u8) -> Result<*const u8, BadInput> {
-    unsafe {
-        let g = globals();
-        let Some(resolved) = resolve_path(cstr(path), g.mode, g.a, g.b, g.pct)? else {
-            return Ok(path);
-        };
-        let buf = out_buffer();
-        copy_nonoverlapping(resolved.as_ptr(), buf, resolved.len());
-        Ok(buf)
-    }
+pub fn resolve_path_in_game(path: *const u8) -> Result<*const u8, BadInput> {
+    Ok(crate::pointers::host(
+        resolve_path_at(GamePtr::new(crate::pointers::game_address(path)))?.addr(),
+    ) as *const u8)
+}
+
+/// `resolve_path_in_game` on a checked address.
+pub fn resolve_path_at(path: GamePtr) -> Result<GamePtr, BadInput> {
+    let g = globals()?;
+    let text = crate::files::cstring(path, "a path")?;
+    let Some(resolved) = resolve_path(&text, g.mode, &g.a, &g.b, &g.pct)? else {
+        return Ok(path);
+    };
+    let buf = out_buffer()?;
+    buf.write_bytes(&resolved, "the resolved path's buffer")?;
+    Ok(buf)
 }

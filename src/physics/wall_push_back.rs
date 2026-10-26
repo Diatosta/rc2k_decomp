@@ -8,82 +8,44 @@
 //! In:  nothing
 //! Out: the registers as `contact_force` leaves them; no flags read (callers go on)
 //!
-//! Callers: `physics::wall_contacts`, `physics::wall_edge_contact`.
-//! Refuses what `place_sound_e1` refuses (what was written put back).
-//! Self-test: `physics/wall_contacts.rs` (`test_walls`): the original and the Rust version
-//! on the game's variables (saved and put back), speeds and figures by lot (standing
-//! still too), under three precisions.
+//! Callers: `physics::wall_contacts`, `physics::wall_edge_contact`. Refuses what
+//! `place_sound_e1` refuses (what was written put back).
+//!
+//! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
+//! above are the original's, for reference.
 
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, hook_asm, rva};
 use crate::math::x87_run::compare_80;
-use crate::physics::contact_force::{RECORD, contact_force};
-use crate::physics::flow::{a, copy3, fill3, g, guard, negate, p};
+use crate::physics::car_store::CAR;
+use crate::physics::contact_force::contact_force;
+use crate::physics::contact_store::CONTACT_WORK;
+use crate::physics::flow::{a, copy_cells, fill_cells, negate};
+use crate::physics::tables_store::PHYSICS;
 use crate::physics::vector_length::vector_length;
-use crate::physics::wall_contacts::{WALL_RECORD, WORK, regions, test_walls};
 use crate::race::norms::normalise_work_vector;
-use crate::race::stage_prefs::left_of;
-use crate::screens::harness::Left;
-use crate::service::harness::{dispatch_state, state_entry};
-use std::sync::atomic::AtomicUsize;
+use crate::race::numbers_store::NUMBERS;
+use crate::race::scratch_store::FRAME_SCRATCH;
 
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("physics::wall_push_back", rva(0x45D8FB), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
-
-/// The steps, not guarded.
-pub fn steps(r: &mut Regs) -> Result<(), Refused> {
-    copy3(WORK, 0x71A170);
-    negate(WORK);
-    negate(WORK + 4);
-    negate(WORK + 8);
-    if compare_80(unsafe { vector_length(a(WORK)) }, g(0x5C5D90)) & 0x4000 != 0 {
-        fill3(WORK, 0);
+/// The steps, not guarded. The registers the original leaves are read by none of its
+/// callers.
+pub fn steps() -> Result<(), Refused> {
+    let work = &FRAME_SCRATCH.work_vector;
+    copy_cells(work, &CAR.velocity);
+    negate(&work[0]);
+    negate(&work[1]);
+    negate(&work[2]);
+    if compare_80(vector_length(work[0].addr()), NUMBERS.zero.bits()) & 0x4000 != 0 {
+        fill_cells(work, 0);
     }
-    unsafe { normalise_work_vector() };
-    copy3(0x6D3078, WORK);
-    copy3(0x6D30A8, 0x71A170);
-    copy3(0x6D30B4, 0x71A15C);
-    fill3(0x6D3090, 0);
-    p(0x6D3100, 0);
-    p(RECORD, a(WALL_RECORD));
-    unsafe { contact_force() }.apply(r);
-    unsafe { crate::physics::place_sound_e1::place_sound_e1() }?;
-    p(0x6141C8, u32::MAX);
+    normalise_work_vector();
+    copy_cells(&CONTACT_WORK.contact_normal, work);
+    copy_cells(&CONTACT_WORK.contact_car_speed, &CAR.velocity);
+    copy_cells(&CONTACT_WORK.contact_turn_speed, &CAR.spin);
+    fill_cells(&CONTACT_WORK.contact_point, 0);
+    CONTACT_WORK.contact_slide_limit.set_bits(0);
+    PHYSICS.contact_record.set(a(&PHYSICS.contacts[4].force[0]));
+    unsafe { contact_force() };
+    { crate::physics::place_sound_e1::place_sound_e1() }?;
+    PHYSICS.wall_heading.set(u32::MAX);
     Ok(())
-}
-
-/// The Rust version.
-pub unsafe fn wall_push_back(entry: &Regs) -> Result<Left, Refused> {
-    guard(&regions(), || {
-        let mut r = *entry;
-        steps(&mut r)?;
-        Ok(left_of(&r))
-    })
-}
-
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    unsafe { wall_push_back(r) }
-}
-
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_state(&HOOK, r, call_original, &regions(), &rust);
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
-}
-
-fn self_test() -> (usize, usize) {
-    test_walls(&HOOK, call_original, &rust)
 }

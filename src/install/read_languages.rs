@@ -10,56 +10,42 @@
 //! first of them. Without the file nothing changes, not even the count.
 //! Callers: `start` and `sub_412DE0`.
 //! Refuses a value of 0x80 bytes or more (the original writes on into the next slot).
-//! Hook removed 2026-10-22 (direct calls): Rust callers run its `entry` (`calls::call`,
-//! `routes.rs`); the registers above are the original's, for reference.
+//! Conversion phase 3 (2026-10-23): plain Rust with typed arguments; the registers above
+//! are the original's.
 
-use crate::bridge::Raw;
-use crate::errors::{BadInput, Refused};
-use crate::framework::{Regs, game_addr, game_write, rva};
-use crate::install::choose_language::{
-    LANGUAGE_COUNT_RVA, LANGUAGE_SLOT, LANGUAGE_SLOTS, LANGUAGES_RVA, choose_language,
-};
-use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
+use crate::errors::BadInput;
+use crate::install::choose_language::{LANGUAGE_SLOT, LANGUAGE_SLOTS, choose_language};
+use crate::install::vars::INSTALLER_NAMES;
 use crate::settings::read_text::read_text;
 use crate::strings::same_text::case_table;
 use rc2k_core::install::config;
 
 // ---- game data ----
 
-const PATH_RVA: usize = rva(0x51C36E); // "lang.cfg"
-
 // ---- Rust version ----
 
-pub unsafe fn read_languages(path: *const u8) -> Result<(), BadInput> {
-    unsafe {
+pub fn read_languages(path: *const u8) -> Result<(), BadInput> {
+    {
         let Some((text, _)) = read_text(path)? else {
             return Ok(());
         };
         // Converted: `rc2k_core::install::config` (`find_languages`, its keys as constants;
         // `keep_languages`). Found first, stored after (`sub_4139AB`).
-        let found = config::find_languages(&Raw::new(text), &case_table())?;
-        let slots = std::slice::from_raw_parts_mut(
-            game_addr(LANGUAGES_RVA) as *mut u8,
-            LANGUAGE_SLOT * LANGUAGE_SLOTS,
-        );
+        let found = config::find_languages(
+            &crate::pointers::GamePtr::new(crate::pointers::game_address(text))
+                .bytes("the languages' text")?,
+            &case_table(),
+        )?;
+        let all = crate::pointers::GamePtr::new(INSTALLER_NAMES.languages.addr());
+        let mut slots = all.read_bytes(LANGUAGE_SLOT * LANGUAGE_SLOTS, "the languages' slots")?;
         for (slot, value) in found {
             let at = slot * LANGUAGE_SLOT;
             slots[at..at + value.len()].copy_from_slice(&value);
             slots[at + value.len()] = 0;
         }
-        let kept = config::keep_languages(slots);
-        game_write(LANGUAGE_COUNT_RVA, kept);
+        all.write_bytes(&slots, "the languages' slots")?;
+        let kept = config::keep_languages(&mut slots);
+        INSTALLER_NAMES.language_count.set(kept);
         choose_language(1)
     }
-}
-
-fn rust(_: &Regs) -> Result<Left, Refused> {
-    unsafe { read_languages(game_addr(PATH_RVA) as *const u8) }?;
-    Ok(Left::nothing())
-}
-
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
 }

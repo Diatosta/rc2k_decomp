@@ -16,17 +16,17 @@
 //! and the self-test was the hook's.
 
 use crate::errors::{BadInput, FatalError, Refused};
-use crate::framework::game_read;
-use crate::memory::{HEADER_LEN, MemoryList, OWN_HEAP_RVA, with_figures};
+use crate::memory::{HEADER_LEN, MemoryList, own_heap, with_figures};
+use crate::pointers::GamePtr;
 use rc2k_core::memory::block_size;
 use windows_sys::Win32::System::Memory::{MEM_COMMIT, MEM_RESERVE, PAGE_READWRITE, VirtualAlloc};
 
 // ---- Rust version ----
 
 /// The block's memory.
-pub unsafe fn allocate(list: *mut MemoryList, bytes: u32) -> Result<*mut u8, Refused> {
-    unsafe {
-        if game_read::<u32>(OWN_HEAP_RVA) == 1 {
+pub fn allocate(list: *mut MemoryList, bytes: u32) -> Result<*mut u8, Refused> {
+    {
+        if own_heap() == 1 {
             return Err(BadInput("the game's own heap is in use (altmemenable)").into());
         }
         // Converted: `rc2k_core::memory` (`block_size`, `List::add`, `Figures::taken`).
@@ -34,12 +34,15 @@ pub unsafe fn allocate(list: *mut MemoryList, bytes: u32) -> Result<*mut u8, Ref
         let (false, Some(whole)) = (list.is_null(), whole) else {
             return Err(BadInput("no list, or a size that wraps").into());
         };
-        let block = VirtualAlloc(
-            std::ptr::null(),
-            whole as usize,
-            MEM_COMMIT | MEM_RESERVE,
-            PAGE_READWRITE,
-        ) as *mut u32;
+        // SAFETY: a plain reservation, nothing passed in.
+        let block = unsafe {
+            VirtualAlloc(
+                std::ptr::null(),
+                whole as usize,
+                MEM_COMMIT | MEM_RESERVE,
+                PAGE_READWRITE,
+            )
+        } as *mut u32;
         if block.is_null() {
             return Err(FatalError {
                 code: 0x8010_8571,
@@ -47,11 +50,16 @@ pub unsafe fn allocate(list: *mut MemoryList, bytes: u32) -> Result<*mut u8, Ref
             }
             .into());
         }
-        let header = (*list).add(block as u32, bytes);
-        block.write(header[0]);
-        block.add(1).write(header[1]);
+        crate::pointers::lend_system_block(block, whole as usize);
+        let at = GamePtr::new(crate::pointers::game_address(list));
+        let mut l = at.read::<MemoryList>("a memory list")?;
+        let header = l.add(crate::pointers::game_address(block), bytes);
+        at.write(l, "a memory list")?;
+        GamePtr::new(crate::pointers::game_address(block)).write(header[0], "a block's header")?;
+        GamePtr::new(crate::pointers::game_address(block) + 4)
+            .write(header[1], "a block's header")?;
         with_figures(|f| f.taken(bytes));
-        Ok((block as *mut u8).add(HEADER_LEN as usize))
+        Ok((block as *mut u8).wrapping_add(HEADER_LEN as usize))
     }
 }
 

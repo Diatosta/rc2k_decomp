@@ -11,57 +11,43 @@
 //! One caller, `system::load_game_data`, when the setting `allsecretcars` is 0.
 //! Refuses a list without its end within its room, and a list that would be left with no
 //! car at all: the original copies one entry back and then counts through all 32 bits.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
 
-use crate::errors::{BadInput, Refused};
-use crate::framework::{Regs, game_addr, game_read, game_write, rva};
-use crate::screens::harness::Left;
-use crate::service::harness::{Region, state_entry};
+use crate::errors::BadInput;
+use crate::menu::cheats_store::CHEAT_VARS;
+use crate::menu::lists_store::MENU_LISTS;
+use crate::session::Dword;
 use rc2k_core::menu::car_lists;
 
 // ---- game data ----
 
-/// A list of dwords ended by -1: where it is and how many dwords it has room for.
-pub type List = (usize, usize);
+/// A list of dwords ended by -1: its cells and how many dwords it has room for.
+pub type List = (&'static [Dword], usize);
 /// off_75A042: the cars of one kind of event (0x28 entries are kept in `var\ral.dat`).
-pub const FIRST: List = (rva(0x75A042), 0x28);
+pub const FIRST: List = (&MENU_LISTS.cars_second, 0x28);
 /// off_759D16: the next variable is 0xB4 bytes on.
-pub const SECOND: List = (rva(0x759D16), 0x2D);
+pub const SECOND: List = (&MENU_LISTS.cars_a8, 0x2D);
 /// off_759F4A: the secret cars.
-const SECRET: List = (rva(0x759F4A), 0x0C);
+const SECRET: List = (&MENU_LISTS.secret_cars, 0x0C);
 /// unk_759F7A: where a list is copied to and back from.
-const SCRATCH: List = (rva(0x759F7A), 0x32);
-pub const CHEATS_RVA: usize = rva(0x75870C); // g_cheats
-
-pub fn region(list: List) -> Region {
-    (game_addr(list.0) as u32, list.1 * 4)
-}
-
+const SCRATCH: List = (&MENU_LISTS.cars_scratch, 0x32);
 /// The list's entries before its -1.
-pub unsafe fn read_list(list: List) -> Result<Vec<u32>, BadInput> {
-    Ok(car_lists::entries(list.1, |n| unsafe {
-        game_read::<u32>(list.0 + n * 4)
-    })?)
+pub fn read_list(list: List) -> Result<Vec<u32>, BadInput> {
+    Ok(car_lists::entries(list.1, |n| list.0[n].get())?)
 }
 
 /// The entries and a -1 after them. The caller has made sure of the room.
-pub unsafe fn write_list(list: List, entries: &[u32]) {
-    unsafe {
-        for (n, &entry) in entries.iter().enumerate() {
-            game_write(list.0 + n * 4, entry);
-        }
-        game_write(list.0 + entries.len() * 4, car_lists::END);
+pub fn write_list(list: List, entries: &[u32]) {
+    for (n, &entry) in entries.iter().enumerate() {
+        list.0[n].set(entry);
     }
+    list.0[entries.len()].set(car_lists::END);
 }
 
 // ---- Rust version ----
 
-pub unsafe fn remove_secret_cars() -> Result<(), BadInput> {
+pub fn remove_secret_cars() -> Result<(), BadInput> {
     // Converted: `rc2k_core::menu::car_lists` (`entries`, `without_secret`).
-    unsafe {
+    {
         let secret = read_list(SECRET)?;
         // Each list read and checked in turn, as the original goes.
         let mut kept = Vec::new();
@@ -75,22 +61,11 @@ pub unsafe fn remove_secret_cars() -> Result<(), BadInput> {
         for (list, cars) in [FIRST, SECOND].into_iter().zip(&kept) {
             // The scratch list gets no end mark.
             for (n, &car) in cars.iter().enumerate() {
-                game_write(SCRATCH.0 + n * 4, car);
+                SCRATCH.0[n].set(car);
             }
             write_list(list, cars);
-            game_write(CHEATS_RVA, 0u32);
+            CHEAT_VARS.cheats.set(0u32);
         }
         Ok(())
     }
-}
-
-fn rust(_: &Regs) -> Result<Left, Refused> {
-    unsafe { remove_secret_cars() }?;
-    Ok(Left::nothing())
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
 }

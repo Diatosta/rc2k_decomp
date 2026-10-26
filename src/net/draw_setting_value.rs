@@ -6,87 +6,59 @@
 //! In:  eax = the text, esi = the item, ebp = y
 //! Out: as `text::draw_text` leaves them (eax 0, ebx past the text, ecx, edx); ebp + 0x1E;
 //!      no `pusha`
-//! Callers: `net::settings_frame`, `net::draw_number_value` (which goes on into it). Its
-//! calls through `part` (`strings::append_nul` inline). Shadow mode runs the original alone
-//! (it draws). Self-test: a copy whose calls go to stand-ins (the strings appended), against
-//! the Rust version: edited, empty, a text.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Callers: `net::settings_frame`, `net::draw_number_value` (which goes on into it).
 
 use crate::errors::Refused;
-use crate::framework::Regs;
-use crate::net::lobby::{
-    APPEND_STRING, DRAW_TEXT, EDITED, FONT, Part, STR_APPEND, TEXT, a, g, lobby_entry,
-};
+use crate::net::lobby::{Cursor, FONT};
+use crate::net::store::NET;
+use crate::pointers::GamePtr;
+use crate::strings::text_buffer::TEXT_BUFFER;
+use crate::text::draw_text::GameCanvas;
 use rc2k_core::net::screens::{self, Value};
 
-fn nul(r: &mut Regs) {
-    unsafe { (r.ebx as *mut u8).write(0) };
-    r.ebx = r.ebx.wrapping_add(1);
-}
-
-/// The Rust version: the registers it leaves.
-pub fn draw_setting_value(entry: &Regs, part: Part) -> Result<Regs, Refused> {
-    let mut r = *entry;
+/// The Rust version: the text at `text` for item `item` at `y` (x 0x190), edited (with the
+/// caret), nothing (the "nothing" string) or as it is; returns the next y (y + 0x1E, the
+/// original's ebp). The registers it leaves are read by no caller (`settings_frame`,
+/// `draw_number_value`).
+pub fn draw_setting_value(text: u32, item: u32, y: u32) -> Result<u32, Refused> {
     // Converted: `rc2k_core::net::screens` (`text_value`, `Value`, `CARET`, `NOTHING`).
-    let text = r.eax;
-    match screens::text_value(r.esi == g(EDITED), || unsafe { (text as *const u8).read() }) {
+    // The core asks for the first byte only when it needs it: a refusal is kept and raised.
+    let refused = std::cell::Cell::new(None);
+    let value = screens::text_value(item == NET.edited.get(), || {
+        GamePtr::new(text)
+            .read::<u8>("a setting's text")
+            .unwrap_or_else(|e| {
+                refused.set(Some(e));
+                0
+            })
+    });
+    if let Some(e) = refused.take() {
+        return Err(e.into());
+    }
+    let shown = match value {
         Value::Edited => {
-            r.ebx = a(TEXT);
-            part(STR_APPEND, &mut r)?;
-            r.eax = screens::CARET;
-            part(APPEND_STRING, &mut r)?;
-            nul(&mut r);
-            r.eax = a(TEXT);
+            let mut cursor = Cursor::text();
+            cursor.string(text);
+            cursor.string_id(screens::CARET);
+            cursor.nul()?;
+            TEXT_BUFFER.text.addr()
         }
         Value::Nothing => {
-            r.eax = screens::NOTHING;
-            r.ebx = a(TEXT);
-            part(APPEND_STRING, &mut r)?;
-            nul(&mut r);
-            r.eax = a(TEXT);
+            let mut cursor = Cursor::text();
+            cursor.string_id(screens::NOTHING);
+            cursor.nul()?;
+            TEXT_BUFFER.text.addr()
         }
-        Value::AsIs => {}
-    }
-    r.ebx = r.eax;
-    r.eax = a(FONT);
-    r.ecx = 0x190;
-    r.edx = r.ebp;
-    r.ebp = r.ebp.wrapping_add(0x1E);
-    part(DRAW_TEXT, &mut r)?;
-    Ok(r)
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    lobby_entry(r, draw_setting_value)
-}
-
-/// The test's answers for the strings: appended as the game's.
-pub fn string_answers() -> crate::net::lobby::Answer {
-    Box::new(|place, r| match place {
-        STR_APPEND => {
-            r.ebx = unsafe {
-                crate::strings::str_append::str_append(r.eax as *const u8, r.ebx as *mut u8)
-            } as u32
-        }
-        APPEND_STRING => {
-            unsafe { (r.ebx as *mut [u8; 2]).write_unaligned(*b"#!") };
-            r.ebx += 2;
-            r.eax |= 0x0055_0000;
-        }
-        crate::net::lobby::FORMAT_U32 => {
-            let text = crate::strings::format_u32::format_u32(r.eax, r.ecx as u8);
-            unsafe { std::ptr::copy_nonoverlapping(text.as_ptr(), r.ebx as *mut u8, text.len()) };
-            r.ebx += text.len() as u32;
-        }
-        DRAW_TEXT => {
-            r.eax = 0;
-            r.ebx = r.ebx.wrapping_add(3);
-        }
-        _ => {}
-    })
+        Value::AsIs => text,
+    };
+    {
+        crate::text::draw_text::draw_text_at(
+            FONT.as_ptr(),
+            crate::pointers::host(shown) as *const u8,
+            0x190,
+            y as i32,
+            &mut GameCanvas,
+        )
+    }?;
+    Ok(y.wrapping_add(0x1E))
 }

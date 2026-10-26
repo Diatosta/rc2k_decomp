@@ -6,84 +6,30 @@
 //! Out: eax the step; the rest kept; no flags read
 //!
 //! Caller: `sub_43907F` (0x4392F3).
-//! Self-test: `physics/copy_hooks_test.rs`, 8 fillings.
 
-use crate::errors::Refused;
-use crate::framework::{EAX, RawHook, Regs, game_addr, hook_asm, rva};
+use crate::physics::camera_store::CAMERA_WORK;
+use crate::physics::car_store::CAR;
 use crate::physics::cells::{get, put};
-use crate::physics::copy_hooks_test::{lot, test_moves};
-use crate::screens::harness::Left;
-use crate::service::harness::{dispatch_state, state_entry};
 use rc2k_core::physics::easing::ease_down;
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("physics::ease_pitch_down", rva(0x438CD3), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
 
 fn game() -> Vec<u32> {
-    VARIABLES
-        .iter()
-        .map(|&x| game_addr(rva(x)) as u32)
-        .collect()
+    vec![
+        CAR.camera_pitch.addr(),
+        CAMERA_WORK.pitch_floor.addr(),
+        CAMERA_WORK.pitch_step.addr(),
+    ]
 }
-
-/// The variables (IDA addresses).
-const VARIABLES: [usize; 3] = [0x71A690, 0x608C1C, 0x608C24];
 
 /// The Rust version on the variables' addresses.
 // Converted: `rc2k_core::physics::easing::ease_down`.
-unsafe fn core(v: &[u32]) -> Left {
-    unsafe {
-        let mut value = get(v[0]);
-        let step = ease_down(&mut value, get(v[1]));
-        put(v[2], step);
-        put(v[0], value);
-        Left::nothing().with(EAX, step)
-    }
+fn core(v: &[u32]) {
+    let mut value = get(v[0]);
+    let step = ease_down(&mut value, get(v[1]));
+    put(v[2], step);
+    put(v[0], value);
 }
 
 /// The Rust version.
-pub unsafe fn ease_pitch_down() -> Left {
-    unsafe { core(&game()) }
-}
-
-fn rust(_: &Regs) -> Result<Left, Refused> {
-    Ok(unsafe { ease_pitch_down() })
-}
-
-extern "C" fn dispatch(r: &mut Regs) {
-    let v = game();
-    dispatch_state(&HOOK, r, call_original, &[(v[0], 4), (v[2], 4)], &rust);
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
-}
-
-fn self_test() -> (usize, usize) {
-    test_moves(
-        &HOOK,
-        0x438CD3,
-        0x19,
-        &[0xA1, 0x90, 0xA6, 0x71, 0x00],
-        &VARIABLES,
-        4,
-        8,
-        &|seed, out| {
-            lot(seed, out);
-            let _ = out;
-        },
-        &|v, _| unsafe { core(v) },
-    )
+pub fn ease_pitch_down() {
+    core(&game())
 }

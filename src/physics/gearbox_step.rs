@@ -9,86 +9,48 @@
 //! In:  nothing
 //! Out: the registers as the steps leave them; no flags read (the callers return)
 //!
-//! Callers: `sub_43CB14` (under `sub_43B635`), `sub_421848`.
-//! Refuses what the steps refuse; what was written is put back.
-//! Self-test: `physics/gearbox.rs` (`test_gearbox`), with gears asked for and not.
+//! Callers: `sub_43CB14` (under `sub_43B635`), `sub_421848`. Refuses what the steps refuse;
+//! what was written is put back.
+//!
+//! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
+//! above are the original's, for reference.
 
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
 use crate::math::x87;
-use crate::physics::auto_gearbox::auto_gearbox_in;
+use crate::physics::auto_gearbox::auto_gearbox;
+use crate::physics::car_store::CAR;
 use crate::physics::gearbox::*;
-use crate::physics::manual_gearbox::manual_gearbox_in;
+use crate::physics::manual_gearbox::manual_gearbox;
+use crate::physics::tables_store::PHYSICS;
 use crate::physics::take_asked_gear::take_asked_gear;
-use crate::screens::harness::Left;
-use crate::service::harness::{dispatch_state, state_entry};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("physics::gearbox_step", rva(0x43C15C), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
+use crate::race::vars_store::RACE_VARS;
 
 /// The steps on `r`.
 // Converted: `rc2k_core::physics::gearbox::gearbox_turn`.
-pub fn gearbox_step_in(r: &mut Regs) -> Result<(), Refused> {
+pub fn gearbox_step() -> Result<(), Refused> {
     use rc2k_core::physics::gearbox::{GearboxTurn, gearbox_turn};
     let turn = gearbox_turn(
-        g(0x71A080),
-        || g(0x62389C),
-        || g(0x719FEC),
-        || g(0x71A234),
-        || g(0x71A440),
-        || g(0x71A010),
+        CAR.finish_flag.get(),
+        || RACE_VARS.run_kind.get(),
+        || CAR.run_ticks.get(),
+        || CAR.driver_kind.get(),
+        || CAR.input_keys.get(),
+        || CAR.gearbox_kind.get(),
     );
     match turn {
         GearboxTurn::Idle => {}
-        GearboxTurn::Manual => manual_gearbox_in(r)?,
+        GearboxTurn::Manual => manual_gearbox()?,
         GearboxTurn::Asked => {
-            unsafe { take_asked_gear() }?.apply(r);
+            { take_asked_gear() }?;
             return Ok(());
         }
-        GearboxTurn::Auto => auto_gearbox_in(r)?,
+        GearboxTurn::Auto => auto_gearbox()?,
     }
-    if g(CHANGED) == 1 {
-        p(ENGINE, x87::mul(g(ENGINE), g(0x613E9C)));
+    if CAR.gear_changed.get() == 1 {
+        CAR.engine_speed.set_bits(x87::mul(
+            CAR.engine_speed.bits(),
+            PHYSICS.engine_ease.bits(),
+        ));
     }
-    wheels(r)
-}
-
-/// The Rust version.
-pub unsafe fn gearbox_step(entry: &Regs) -> Result<Left, Refused> {
-    guarded(entry, &gearbox_step_in)
-}
-
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    unsafe { gearbox_step(r) }
-}
-
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_state(&HOOK, r, call_original, &regions(), &rust);
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    test_gearbox(&mut t, call_original, &rust, &|_| {});
-    test_gearbox(&mut t, call_original, &rust, &|c| {
-        c.asked = (c.gear.wrapping_add(c.bits)) & 7
-    });
-    t.finish()
+    wheels()
 }

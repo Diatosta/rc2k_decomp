@@ -6,17 +6,23 @@
 //! `dword_529D94` = 0; the computer's name is asked for into the text buffer
 //! (`GetComputerNameA`, through `sub_410848`; if that fails the buffer is looked at as it
 //! is); if its first six characters are "andrew" in any case, `dword_529D94` = 1.
-//! (`race::tyre_change_gauge` reads it.) One caller, `start`.
-//! Shadow mode asks twice. Self-test: a redirected copy whose name comes from the test.
+//! (`race::tyre_change_gauge` reads it.) One caller, `start`, which calls it directly
+//! (2026-10-23); the registers above are the original's, for reference.
 
-use crate::errors::Refused;
-use crate::framework::{EAX, EBX, Regs, game_write, rva};
-use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
 use crate::strings::text_from_ids::text;
 use windows_sys::Win32::System::WindowsProgramming::GetComputerNameA;
 
-const DEVELOPER_RVA: usize = rva(0x529D94); // dword_529D94
+/// IDA's address of the switch.
+pub const DEVELOPER_START: usize = 0x529D94;
+
+/// `g_developerMachine` (`dword_529D94`): 1 on a computer called "andrew".
+pub static DEVELOPER: crate::session::Dword = crate::session::Dword::new(0);
+
+/// Where the switch is (`moved::MOVED`'s home for IDA 0x529D94).
+pub fn developer_home() -> usize {
+    DEVELOPER.addr() as usize
+}
+
 const NAME_ROOM: u32 = 0x40;
 
 // ---- Rust version ----
@@ -27,38 +33,30 @@ pub unsafe fn computer_name(to: *mut u8) -> bool {
     unsafe { GetComputerNameA(to, &mut room) != 0 }
 }
 
-/// `name` writes the computer's name at the place it is given, if it can. Returns the
-/// low word the original leaves in eax.
-pub unsafe fn check_developer_machine(name: &mut dyn FnMut(*mut u8)) -> u16 {
+/// The Rust version (see the header).
+pub fn check_developer_machine() {
     unsafe {
-        game_write(DEVELOPER_RVA, 0u32);
-        name(text());
+        DEVELOPER.set(0);
+        computer_name(text());
         // Converted: `rc2k_core::system::machine::developer`.
-        let (yes, last) =
+        let (yes, _) =
             rc2k_core::system::machine::developer((text() as *const [u8; 6]).read_unaligned());
         if yes {
-            game_write(DEVELOPER_RVA, 1u32);
+            DEVELOPER.set(1);
         }
-        last
     }
 }
 
-fn left(r: &Regs, last: u16) -> Left {
-    Left::nothing()
-        .with(EBX, text() as u32)
-        .with(EAX, r.eax & 0xFFFF_0000 | last as u32)
-}
+#[cfg(test)]
+mod developer_tests {
+    use super::*;
 
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    let last = unsafe {
-        check_developer_machine(&mut |to| {
-            computer_name(to);
-        })
-    };
-    Ok(left(r, last))
-}
-
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
+    #[test]
+    fn first_value_is_the_games() {
+        crate::gfx::first_values_are_the_games(&DEVELOPER, DEVELOPER_START, DEVELOPER_START + 4);
+        assert_eq!(
+            crate::moved::place(DEVELOPER_START),
+            DEVELOPER.addr() as usize
+        );
+    }
 }

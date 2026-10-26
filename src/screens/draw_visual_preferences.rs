@@ -3,20 +3,18 @@
 //! In:  nothing
 //! Out: every register preserved; carry of the last text
 //!
-//! For the current player (`dword_75598C`), at x = 0x1D1 from y = 0xC8 on every 0x1D, in the
-//! font at 0x51E8C4: string 0x56B + the setting ("não", "sim") for the progress bar, the
-//! driver's information, the pace notes, the rear mirror, the message bar, the rev counter, the
-//! car's information and the local map, then string 0x373 + the units' setting ("imperial",
-//! "métrico"). Each id is stored in `dword_7559EC` first. In the draw list 0x758CAA
+//! For the current player (`dword_75598C`), at x = 0x1D1 from y = 0xC8 on every 0x1D, in the font
+//! at 0x51E8C4: string 0x56B + the setting ("não", "sim") for the progress bar, the driver's
+//! information, the pace notes, the rear mirror, the message bar, the rev counter, the car's
+//! information and the local map, then string 0x373 + the units' setting ("imperial", "métrico").
+//! Each id is stored in `dword_7559EC` first. In the draw list 0x758CAA
 //! (`menu::visual_preferences_loop`). Refuses no current player and what `draw_string_by_id`
-//! refuses. Hook removed 2026-10-22 (typed tables): the menus and draw lists run its `entry`
-//! (`menu::table_calls`); the registers above are the original's, for reference.
+//! refuses. The menus and draw lists run its `entry` (`menu::table_calls`); the registers above are
+//! the original's, for reference.
 
 use crate::errors::Refused;
-use crate::framework::Regs;
 use crate::menu::player::Player;
 use crate::menu::player_settings::current;
-use crate::screens::harness::{Left, draw_entry};
 use crate::text::draw_text::Canvas;
 
 // ---- game data ----
@@ -43,22 +41,13 @@ fn rows(p: &Player) -> [(u32, u32); 9] {
 }
 
 /// Returns the carry.
-pub unsafe fn draw_visual_preferences(canvas: &mut dyn Canvas) -> Result<bool, Refused> {
+pub fn draw_visual_preferences(canvas: &mut dyn Canvas) -> Result<bool, Refused> {
     // Converted: `rc2k_core::screens::settings_pages::visual_preferences`.
-    let player = unsafe { current()?.read_unaligned() };
+    let player = crate::pointers::GamePtr::new(current()?)
+        .read::<rc2k_core::menu::player::Player>("the current player")?;
     let ids = rows(&player).map(|(value, first)| value.wrapping_add(first));
     rc2k_core::screens::settings_pages::visual_preferences(
         &mut crate::screens::game_screen::SettingsScreen::new(canvas),
         ids,
     )
-}
-
-fn rust(_: &Regs, canvas: &mut dyn Canvas) -> Result<Left, Refused> {
-    Ok(Left::carry(unsafe { draw_visual_preferences(canvas) }?))
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    draw_entry("screens::draw_visual_preferences", r, &rust)
 }

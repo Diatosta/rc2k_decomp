@@ -14,47 +14,35 @@
 //! Refuses a missing table, a group without drivers (the original divides by 0), a
 //! driver past the 180, and a name that does not fit.
 //! Converted: `rc2k_core::saves::defaults::best_scores`.
-//!
-//! Hook removed 2026-10-22 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{game_read, rva};
+use crate::menu::champ_store::CHAMP_VIEW;
+use crate::menu::state_store::MENU_STATE;
+use crate::pointers::GamePtr;
 use crate::saves::default_times::{GameSource, to_nowhere};
 use rc2k_core::saves::defaults::{SCORE_TABLE_LEN, best_scores, write_best_scores};
 
 // ---- game data ----
 
-const TABLE_RVA: usize = rva(0x7556D4); // dword_7556D4
-const COUNTS_RVA: usize = rva(0x75AB00); // dword_75AB00[group]
-const FIRSTS_RVA: usize = rva(0x75AB10); // dword_75AB10[group]
-
 // ---- Rust version ----
 
-pub unsafe fn default_best_scores() -> Result<(), Refused> {
-    // Converted: `rc2k_core::saves::defaults::best_scores`.
-    unsafe {
-        let table: u32 = game_read(TABLE_RVA);
-        if table == 0 {
-            return Err(BadInput("no table of best scores").into());
-        }
-        let counts = std::array::from_fn(|g| game_read(COUNTS_RVA + g * 4));
-        let firsts = std::array::from_fn(|g| game_read(FIRSTS_RVA + g * 4));
-        let entries = best_scores(
-            &mut GameSource {
-                log: &mut to_nowhere,
-            },
-            counts,
-            firsts,
-        )?;
-        write_best_scores(
-            std::slice::from_raw_parts_mut(table as *mut u8, SCORE_TABLE_LEN),
-            &entries,
-        );
-        Ok(())
+pub fn default_best_scores() -> Result<(), Refused> {
+    let table: u32 = CHAMP_VIEW.best_scores.get();
+    if table == 0 {
+        return Err(BadInput("no table of best scores").into());
     }
+    let counts = std::array::from_fn(|g| MENU_STATE.menus.class_counts[g].get());
+    let firsts = std::array::from_fn(|g| MENU_STATE.menus.firsts[g].get());
+    let entries = best_scores(
+        &mut GameSource {
+            log: &mut to_nowhere,
+        },
+        counts,
+        firsts,
+    )?;
+    let at = GamePtr::new(table);
+    let mut bytes = at.read_bytes(SCORE_TABLE_LEN, "the best scores' table")?;
+    write_best_scores(&mut bytes, &entries);
+    at.write_bytes(&bytes, "the best scores' table")?;
+    Ok(())
 }
-
-// ---- self-test: the game's table, filled by both from the same random numbers, and put
-// back ----

@@ -14,185 +14,211 @@
 //! Out: ebx 5000, eax the last step / 20, ecx 20, edx its remainder (the gear when 0); the
 //!      rest kept; no flags read
 //!
-//! Caller: `physics::test_drive`.
-//! Refuses a gear outside -1 ..= 7 (past `g_gearRatios`) and what its calls refuse;
-//! everything written put back.
-//! Self-test: the original and the Rust version from the same state (the work car, the
-//! physics' variables and the tables saved and put back), the car as it is and with its
-//! drive force by lot, under three precisions.
+//! Caller: `physics::test_drive`. Refuses a gear outside -1 ..= 7 (past `g_gearRatios`) and
+//! what its calls refuse; everything written put back.
+//!
+//! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
+//! above are the original's, for reference.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{EAX, EBX, ECX, EDX, RawHook, Regs, SelfTest, hook_asm, rva};
-use crate::math::x87_run::{TEST_CONTROL_WORDS, with_control_word};
-use crate::physics::flow::{a, base, c0, g, guard, p, x87_run};
-use crate::screens::harness::Left;
-use crate::service::harness::{Region, capture, check_state, dispatch_state, restore, state_entry};
-use std::sync::atomic::AtomicUsize;
+use crate::physics::car_store::CAR;
+use crate::physics::flow::c0;
+use crate::physics::gear_store::GEAR;
+use crate::physics::tables_store::PHYSICS;
+use crate::race::numbers_store::NUMBERS;
+use crate::scene::x87_mem::{fild, fld, fstp};
 
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
+pub const STEPS: u32 = 0x1388;
 
-pub static HOOK: RawHook =
-    RawHook::new("physics::test_drive_run", rva(0x421848), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
-
-const DRIVE: usize = 0x71A190; // g_carDriveSpeed
-const GEAR: usize = 0x71A1AC; // g_carGear
-const STEPS: u32 = 0x1388;
-
-/// One step (0x42189D .., in `pusha` / `popa`): `r` the registers there (ebx the step).
-fn step(mut r: Regs) -> Result<(), Refused> {
-    p(0x71A184, crate::math::x87::loaded(g(DRIVE)));
+/// One step (0x42189D .., in `pusha` / `popa`).
+fn step() -> Result<(), Refused> {
+    CAR.local_velocity[2].set_bits(crate::math::x87::loaded(CAR.drive_speed_a.bits()));
     unsafe {
-        crate::physics::count_down_timers::count_down_timers(&mut r);
-        crate::physics::gearbox_step::gearbox_step(&r)?;
+        crate::physics::count_down_timers::count_down_timers();
+        crate::physics::gearbox_step::gearbox_step()?;
         crate::physics::engine_torque::engine_torque();
     }
-    let gear = g(GEAR);
+    let gear = CAR.gear.get();
     if !(-1..=7).contains(&(gear as i32)) {
         return Err(BadInput("a gear outside g_gearRatios (-1 ..= 7)").into());
     }
-    x87_run!(
-        "fld dword ptr [{b} + 0x214748]",
-        "fmul dword ptr [{b} + 0x1CB968]",
-        "fdiv dword ptr [{r}]",
-        "fdiv dword ptr [{b} + 0x1C5E34]",
-        "fstp dword ptr [{b} + 0x214750]";
-        b = base(), r = a(0x6140C0).wrapping_add(gear.wrapping_mul(4))
+    x87_1(
+        crate::race::store::asm_base() as usize,
+        ((PHYSICS.gear_ratios[1].addr()).wrapping_add(gear.wrapping_mul(4))) as usize,
     );
-    unsafe { crate::physics::drive_torque_share::drive_torque_share() };
-    x87_run!(
-        "fld dword ptr [{b} + 0x31A190]",
-        ".byte 0xD8, 0xC8", // fmul st, st
-        "fmul dword ptr [{b} + 0x213FCC]",
-        "fdiv dword ptr [{b} + 0x1C5E34]",
-        "fadd dword ptr [{b} + 0x213FD0]",
-        ".byte 0xD9, 0xE0", // fchs
-        "fst dword ptr [{b} + 0x22400C]",
-        "fadd dword ptr [{b} + 0x214750]",
-        "fmul dword ptr [{b} + 0x21388C]",
-        "fadd dword ptr [{b} + 0x31A190]",
-        "fst dword ptr [{b} + 0x31A190]",
-        "fstp dword ptr [{b} + 0x31A194]";
-        b = base()
-    );
-    unsafe { crate::physics::revs_from_wheels::revs_from_wheels() }?;
+    crate::physics::drive_torque_share::drive_torque_share();
+    x87_2(crate::race::store::asm_base() as usize);
+    { crate::physics::revs_from_wheels::revs_from_wheels() }?;
     Ok(())
 }
 
-fn steps(entry: &Regs) -> Result<Left, Refused> {
-    for x in [0x5CB97C, 0x5CB980, 0x5CB984, DRIVE, 0x71A194, 0x71A1B0] {
-        p(x, 0);
+fn steps() -> Result<(), Refused> {
+    for mark in &GEAR.test_marks {
+        mark.set(0);
     }
-    p(GEAR, 1);
-    p(0x71A010, 1);
-    let (mut eax, mut edx) = (0, 0);
-    for ebx in 0..STEPS {
-        step(Regs { ebx, ..*entry })?;
-        if g(0x5CB97C) == 0 && !c0(g(DRIVE), g(0x5CB988)) {
-            p(0x5CB97C, ebx);
+    CAR.drive_speed_a.set_bits(0);
+    CAR.drive_speed_b.set_bits(0);
+    CAR.engine_speed.set_bits(0);
+    CAR.gear.set(1);
+    CAR.gearbox_kind.set(1);
+    for n in 0..STEPS {
+        step()?;
+        if GEAR.test_marks[0].get() == 0
+            && !c0(CAR.drive_speed_a.bits(), GEAR.test_limits[0].bits())
+        {
+            GEAR.test_marks[0].set(n);
         }
-        if g(0x5CB980) == 0 && !c0(g(DRIVE), g(0x5CB98C)) {
-            p(0x5CB980, ebx);
+        if GEAR.test_marks[1].get() == 0
+            && !c0(CAR.drive_speed_a.bits(), GEAR.test_limits[1].bits())
+        {
+            GEAR.test_marks[1].set(n);
         }
-        eax = ebx / 20;
-        edx = ebx % 20;
-        if edx == 0 {
-            p(
-                0x5CB990 + 4 * eax as usize,
-                crate::math::x87::mul(g(DRIVE), g(0x5C5D00)),
-            );
-            edx = g(GEAR);
-            p(0x5CBD90 + 4 * eax as usize, edx);
+        if n % 20 == 0 {
+            let slot = (n / 20) as usize;
+            GEAR.test_speeds[slot].set_bits(crate::math::x87::mul(
+                CAR.drive_speed_a.bits(),
+                NUMBERS.two_and_a_quarter.bits(),
+            ));
+            GEAR.test_gears[slot].set(CAR.gear.get());
         }
     }
-    x87_run!(
-        "fld dword ptr [{b} + 0x31A190]",
-        "fmul dword ptr [{b} + 0x1C5D00]",
-        "fstp dword ptr [{b} + 0x1CB984]",
-        "fild dword ptr [{b} + 0x1CB97C]",
-        "fdiv dword ptr [{b} + 0x1C5D14]",
-        "fstp dword ptr [{b} + 0x1CB97C]",
-        "fild dword ptr [{b} + 0x1CB980]",
-        "fdiv dword ptr [{b} + 0x1C5D14]",
-        "fstp dword ptr [{b} + 0x1CB980]";
-        b = base()
-    );
-    Ok(Left::nothing()
-        .with(EAX, eax)
-        .with(EBX, STEPS)
-        .with(ECX, 20)
-        .with(EDX, edx))
+    x87_3(crate::race::store::asm_base() as usize);
+    Ok(())
 }
 
-/// What the run and its calls write: the work car, the physics' variables, the tables.
-pub fn regions() -> Vec<Region> {
-    let mut all = crate::physics::car_physics_step::step_regions();
-    all.push((a(0x5CB960), 0x5CC1A0 - 0x5CB960));
-    all
+/// The Rust version.
+pub fn test_drive_run() -> Result<(), Refused> {
+    steps()
 }
 
-/// The Rust version; everything written put back when it refuses.
-pub unsafe fn test_drive_run(entry: &Regs) -> Result<Left, Refused> {
-    guard(&regions(), || steps(entry))
+// ---- the arithmetic that was x87 assembly ----
+
+/// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
+/// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
+/// `[rc + 0x214750] = (([rc + 0x214748] * [rc + 0x1CB968]) / [r + 0]) / [rc + 0x1C5E34]`
+fn x87_1(rc: usize, r: usize) {
+    let t0 = fld(rc, 0x214748);
+    let t1 = fld(rc, 0x1CB968);
+    let t2 = t0 * t1;
+    let t3 = fld(r, 0);
+    let t4 = t2 / t3;
+    let t5 = fld(rc, 0x1C5E34);
+    let t6 = t4 / t5;
+    fstp(rc, 0x214750, t6);
 }
 
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    unsafe { test_drive_run(r) }
+/// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
+/// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
+/// `[rc + 0x22400C] = -(((([rc + 0x31A190] * [rc + 0x31A190]) * [rc + 0x213FCC]) / [rc + 0x1C5E34]) + [rc + 0x213FD0])`
+/// (a long formula: see the instructions in the tests' `asm_reference`)
+/// (a long formula: see the instructions in the tests' `asm_reference`)
+fn x87_2(rc: usize) {
+    let t0 = fld(rc, 0x31A190);
+    let t1 = t0 * t0;
+    let t2 = fld(rc, 0x213FCC);
+    let t3 = t1 * t2;
+    let t4 = fld(rc, 0x1C5E34);
+    let t5 = t3 / t4;
+    let t6 = fld(rc, 0x213FD0);
+    let t7 = t5 + t6;
+    let t8 = -t7;
+    fstp(rc, 0x22400C, t8);
+    let t9 = fld(rc, 0x214750);
+    let t10 = t8 + t9;
+    let t11 = fld(rc, 0x21388C);
+    let t12 = t10 * t11;
+    let t13 = fld(rc, 0x31A190);
+    let t14 = t12 + t13;
+    fstp(rc, 0x31A190, t14);
+    fstp(rc, 0x31A194, t14);
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_state(&HOOK, r, call_original, &regions(), &rust);
+/// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
+/// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
+/// `[rc + 0x1CB984] = [rc + 0x31A190] * [rc + 0x1C5D00]`
+/// `[rc + 0x1CB97C] = int [rc + 0x1CB97C] / [rc + 0x1C5D14]`
+/// `[rc + 0x1CB980] = int [rc + 0x1CB980] / [rc + 0x1C5D14]`
+fn x87_3(rc: usize) {
+    let t0 = fld(rc, 0x31A190);
+    let t1 = fld(rc, 0x1C5D00);
+    let t2 = t0 * t1;
+    fstp(rc, 0x1CB984, t2);
+    let t3 = fild(rc, 0x1CB97C);
+    let t4 = fld(rc, 0x1C5D14);
+    let t5 = t3 / t4;
+    fstp(rc, 0x1CB97C, t5);
+    let t6 = fild(rc, 0x1CB980);
+    let t7 = fld(rc, 0x1C5D14);
+    let t8 = t6 / t7;
+    fstp(rc, 0x1CB980, t8);
 }
 
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
-}
+#[cfg(all(test, target_arch = "x86"))]
+mod asm_reference {
+    use super::*;
+    use crate::scene::asm_test::{Block, In, Operand, Out, reference, sparse};
 
-/// The test of the run and of `physics::test_drive`: from the same state, the drive force
-/// as it is and by lot.
-pub fn drive_test(
-    hook: &RawHook,
-    call_original: crate::screens::harness::CallOriginal,
-    rust: crate::service::harness::Rust,
-) -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(hook) else {
-        return (0, 0);
-    };
-    let all = regions();
-    let saved = capture(&all);
-    for word in TEST_CONTROL_WORDS {
-        with_control_word(word, &mut || {
-            for case in 0..3u32 {
-                let set = || {
-                    restore(&all, &saved);
-                    if case > 0 {
-                        p(0x5CB968, (1.5f32 * case as f32).to_bits());
-                    }
-                };
-                check_state(
-                    &mut t,
-                    &format!("control word {word:#x}, case {case}"),
-                    call_original,
-                    Regs::SENTINEL,
-                    &set,
-                    &all,
-                    rust,
-                );
-            }
-        });
+    // The original's instructions, one function per run.
+    reference!(ref_0(rc, r) "fld dword ptr [{rc} + 0x214748]", "fmul dword ptr [{rc} + 0x1CB968]", "fdiv dword ptr [{r}]", "fdiv dword ptr [{rc} + 0x1C5E34]", "fstp dword ptr [{rc} + 0x214750]");
+    reference!(ref_1(rc) "fld dword ptr [{rc} + 0x31A190]", ".byte 0xD8, 0xC8", "fmul dword ptr [{rc} + 0x213FCC]", "fdiv dword ptr [{rc} + 0x1C5E34]", "fadd dword ptr [{rc} + 0x213FD0]", ".byte 0xD9, 0xE0", "fst dword ptr [{rc} + 0x22400C]", "fadd dword ptr [{rc} + 0x214750]", "fmul dword ptr [{rc} + 0x21388C]", "fadd dword ptr [{rc} + 0x31A190]", "fst dword ptr [{rc} + 0x31A190]", "fstp dword ptr [{rc} + 0x31A194]");
+    reference!(ref_2(rc) "fld dword ptr [{rc} + 0x31A190]", "fmul dword ptr [{rc} + 0x1C5D00]", "fstp dword ptr [{rc} + 0x1CB984]", "fild dword ptr [{rc} + 0x1CB97C]", "fdiv dword ptr [{rc} + 0x1C5D14]", "fstp dword ptr [{rc} + 0x1CB97C]", "fild dword ptr [{rc} + 0x1CB980]", "fdiv dword ptr [{rc} + 0x1C5D14]", "fstp dword ptr [{rc} + 0x1CB980]");
+
+    fn blocks() -> Vec<Block> {
+        vec![
+            Block {
+                name: "test_drive_run line 42",
+                operands: vec![
+                    Operand::Buffer {
+                        reads: &[(0x1C5E34, In::F), (0x1CB968, In::F), (0x214748, In::F)],
+                        writes: &[(0x214750, Out::F)],
+                    },
+                    Operand::Buffer {
+                        reads: &[(0, In::F)],
+                        writes: &[],
+                    },
+                ],
+                ulps: 0,
+                reference: |a| unsafe { ref_0(a[0], a[1]) },
+                plain: |a| x87_1(a[0], a[1]),
+            },
+            Block {
+                name: "test_drive_run line 51",
+                operands: vec![Operand::Buffer {
+                    reads: &[
+                        (0x1C5E34, In::F),
+                        (0x21388C, In::F),
+                        (0x213FCC, In::F),
+                        (0x213FD0, In::F),
+                        (0x214750, In::F),
+                        (0x31A190, In::F),
+                    ],
+                    writes: &[(0x22400C, Out::F), (0x31A190, Out::F), (0x31A194, Out::F)],
+                }],
+                ulps: 0,
+                reference: |a| unsafe { ref_1(a[0]) },
+                plain: |a| x87_2(a[0]),
+            },
+            Block {
+                name: "test_drive_run line 93",
+                operands: vec![Operand::Buffer {
+                    reads: &[
+                        (0x1C5D00, In::F),
+                        (0x1C5D14, In::F),
+                        (0x1CB97C, In::I),
+                        (0x1CB980, In::I),
+                        (0x31A190, In::F),
+                    ],
+                    writes: &[(0x1CB97C, Out::F), (0x1CB980, Out::F), (0x1CB984, Out::F)],
+                }],
+                ulps: 0,
+                reference: |a| unsafe { ref_2(a[0]) },
+                plain: |a| x87_3(a[0]),
+            },
+        ]
     }
-    restore(&all, &saved);
-    t.finish()
-}
 
-fn self_test() -> (usize, usize) {
-    drive_test(&HOOK, call_original, &rust)
+    #[test]
+    fn x87_blocks_matches_the_assembly() {
+        sparse(&blocks(), 1200, 100);
+    }
 }

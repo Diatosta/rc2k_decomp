@@ -6,41 +6,23 @@
 //! In:  nothing
 //! Out: ecx the tenths left, the rest as the ticks leave them; no flags read
 //!
-//! Callers: `drive::race_loop`, `sub_4607A5`. It begins with a call: hooked by a private
-//! copy of its 0x34 bytes (four calls relocated) and a hand-made patch.
-//! Refuses what its calls refuse. Shadow mode runs the original alone (the clock moves).
-//! Self-test: skipped (its parts carry their own; the race in play checks it).
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Callers: `drive::race_loop`, `sub_4607A5`. Refuses what its calls refuse.
 
 use crate::errors::Refused;
-use crate::framework::Regs;
-use crate::physics::flow::g;
-use crate::race::stage_prefs::left_of;
-use crate::screens::harness::Left;
+use crate::physics::tables_store::PHYSICS;
 
-/// The Rust version.
+/// The Rust version. The registers it leaves are read by no caller (liveness: edi, edx
+/// and esi after `drive::race_loop`'s call have no read point but the false ones of
+/// `imul` and the physics; `race::play_movie_loop` has only DF live after it).
 // Converted: `rc2k_core::drive::race_ticks::run_ticks`.
-pub unsafe fn race_step(entry: &Regs) -> Result<Left, Refused> {
-    let mut r = *entry;
-    unsafe { crate::drive::race_clock_tick::race_clock_tick() }.apply(&mut r);
-    if g(0x6138F8) == 0 {
-        r.ecx = rc2k_core::drive::race_ticks::run_ticks(g(0x613844), |ecx| {
-            r.ecx = ecx;
-            unsafe { crate::drive::race_tick::race_tick(&r) }?.apply(&mut r);
-            r.ecx = ecx;
-            let out = crate::drive::race_parts::players_all_out(&mut r)?;
-            Ok::<_, Refused>((out, r.ecx))
+pub unsafe fn race_step() -> Result<(), Refused> {
+    crate::drive::race_clock_tick::race_clock_tick();
+    if PHYSICS.frame_cleared[1].get() == 0 {
+        rc2k_core::drive::race_ticks::run_ticks(PHYSICS.race_tenths.get(), |ecx| {
+            unsafe { crate::drive::race_tick::race_tick() }?;
+            let out = crate::race::frame::players_all_out()?;
+            Ok::<_, Refused>((out, ecx))
         })?;
     }
-    Ok(left_of(&r))
-}
-
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    let left = unsafe { race_step(r) }?;
-    left.apply(r);
     Ok(())
 }

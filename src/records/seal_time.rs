@@ -11,11 +11,10 @@
 //! Hook removed 2026-10-22 (conversion phase 4): Rust callers call this directly; the
 //! registers above are the original's, for reference.
 
-use crate::framework::{Regs, game_read, game_write, rva};
-use crate::race::save_seal::{BLOCK_RVA, SEALED_RVA, seal_block};
-
-const CHEATS_RVA: usize = rva(0x75870C); // g_cheats
-const PATCH_SWITCH_RVA: usize = rva(0x71C6D0); // g_patchSwitch
+use crate::menu::cheats_store::CHEAT_VARS;
+use crate::race::save_seal::seal_block;
+use crate::race::seal_store::SEAL_WORK;
+use crate::race::work_store::RACE_WORK;
 /// The time as sealed (converted: `rc2k_core::files::records::sealed_value`).
 pub fn sealed_value(time: u32, cheats: u32, patch_switch: u32) -> u32 {
     rc2k_core::files::records::sealed_value(time, cheats, patch_switch != 0)
@@ -24,21 +23,14 @@ pub fn sealed_value(time: u32, cheats: u32, patch_switch: u32) -> u32 {
 /// The block's eight bytes (converted: `rc2k_core::files::records::seal_block`).
 pub use rc2k_core::files::records::seal_block as block;
 
-/// The Rust version (see the header): the registers it leaves.
-pub unsafe fn seal_time(entry: &Regs) -> Regs {
-    unsafe {
-        let value = sealed_value(
-            entry.eax,
-            game_read(CHEATS_RVA),
-            game_read(PATCH_SWITCH_RVA),
-        );
-        let b = block(value, [entry.ebx as u8, entry.ecx as u8, entry.edx as u8]);
-        game_write(BLOCK_RVA, b);
-        seal_block();
-        Regs {
-            eax: game_read(SEALED_RVA[0]),
-            ebx: game_read(SEALED_RVA[1]),
-            ..*entry
-        }
-    }
+/// The Rust version (see the header): `time` and the block's three bytes (the original's
+/// bl, cl, dl) in; the sealed block's two dwords (its eax, ebx) out. Its callers read
+/// nothing else it leaves (register liveness, 2026-10-23).
+pub fn seal_time(time: u32, bytes: [u8; 3]) -> [u32; 2] {
+    let value = sealed_value(time, CHEAT_VARS.cheats.get(), RACE_WORK.patch_switch.bits());
+    let bytes = block(value, bytes);
+    SEAL_WORK.block[0].set(u32::from_le_bytes(bytes[..4].try_into().unwrap()));
+    SEAL_WORK.block[1].set(u32::from_le_bytes(bytes[4..].try_into().unwrap()));
+    seal_block();
+    [SEAL_WORK.sealed[0].get(), SEAL_WORK.sealed[1].get()]
 }

@@ -4,34 +4,21 @@
 //!
 //! In:  nothing
 //! Out: every register kept (`pusha` / `popa`)
-//! Caller `install::run_installer`. The free through `part`. Shadow mode runs the original
-//! alone (memory cannot be freed twice). Self-test: a copy whose one call goes to a
-//! stand-in, against the Rust version.
+//! Caller `install::run_installer`.
 //!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Conversion phase 3 (2026-10-23): plain Rust with typed arguments; the registers above
+//! are the original's.
 
 use crate::errors::Refused;
-use crate::framework::Regs;
-use crate::install::installer::{BUFFERS, DIRS, FILES, FREE_LIST, Part, a, at, p};
-use crate::race::viewer::regs_entry;
+use crate::install::vars::INSTALLER_RUN;
 
-pub fn close_installer(entry: &Regs, part: Part) -> Result<Regs, Refused> {
-    let mut r = Regs {
-        ebx: a(BUFFERS),
-        ..*entry
-    };
-    part(at(FREE_LIST), &mut r)?;
-    p(DIRS, 0);
-    p(FILES, 0);
-    Ok(*entry)
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    regs_entry(r, &|r| {
-        close_installer(r, &mut crate::install::installer::game_part)
-    })
+pub fn close_installer() -> Result<(), Refused> {
+    {
+        crate::memory::free_list::free_list(
+            crate::pointers::host(INSTALLER_RUN.buffers.addr()) as *mut _
+        )
+    }?;
+    INSTALLER_RUN.dirs.set(0);
+    INSTALLER_RUN.files.set(0);
+    Ok(())
 }

@@ -9,122 +9,108 @@
 //!      read
 //!
 //! Caller: `sub_437A53`.
-//! Self-test: `physics/camera_view.rs` (`view_test_floats`), modes and times by lot,
-//! exact at double precision.
+//!
+//! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
+//! above are the original's, for reference.
 
-use crate::errors::Refused;
-use crate::framework::{EAX, ESI, RawHook, Regs, hook_asm, rva};
-use crate::physics::camera_view::{
-    rd, record, record_plain, share_done, share_done_plain, view_regions, view_test_floats,
-};
-use crate::physics::flow::{a, base, g, p, x87_run};
-use crate::screens::harness::Left;
-use crate::service::floats::{
-    FLOAT, Floats, ROUNDED, Tolerance, dispatch_state_floats, floats_entry,
-};
-use rc2k_core::physics::camera_view::ease_blend;
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("physics::ease_view_blend", rva(0x4385EB), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
+use crate::math::x87_float::X;
+use crate::physics::camera_view::{rd, record, share_done};
+use crate::scene::x87_mem::{fistp, fld, fstp};
 
 /// The Rust version (the exact one, for `physics::update_camera`).
-pub unsafe fn ease_view_blend(_: &Regs) -> Left {
+pub fn ease_view_blend() {
     let esi = record();
-    let left = Left::nothing().with(ESI, esi);
     if rd(esi + 0x58) == 0 || rd(esi + 0x3C) == 0 {
-        return left;
+        return;
     }
-    let eax = share_done(esi);
+    share_done(esi);
     if (rd(esi + 0x58) as i32) < 0 {
-        x87_run!(
-            ".byte 0xD9, 0xE8", // fld1
-            "fsub dword ptr [{b} + 0x205260]",
-            "fstp dword ptr [{b} + 0x205260]";
-            b = base()
-        );
+        x87_1(crate::race::store::asm_base() as usize);
     }
-    x87_run!(
-        "fld dword ptr [{b} + 0x208B24]",
-        "fsub dword ptr [{b} + 0x208B20]",
-        "fmul dword ptr [{b} + 0x205260]",
-        "fadd dword ptr [{b} + 0x208B20]",
-        "fstp dword ptr [{b} + 0x31A6A0]",
-        "fld dword ptr [{b} + 0x208B2C]",
-        "fsub dword ptr [{b} + 0x208B28]",
-        "fmul dword ptr [{b} + 0x205260]",
-        "fadd dword ptr [{b} + 0x208B28]",
-        "fmul dword ptr [{b} + 0x1C5D98]",
-        ".byte 0xD9, 0xE0", // fchs
-        "fistp dword ptr [{b} + 0x208B38]";
-        b = base()
-    );
-    left.with(EAX, eax)
+    x87_2(crate::race::store::asm_base() as usize);
 }
 
-/// The converted version (`rc2k_core::physics::camera_view`, plain floats): the hook's.
-// Converted: `rc2k_core::physics::camera_view::{share_done, ease_blend}`.
-pub unsafe fn ease_view_blend_plain(_: &Regs) -> Left {
-    let esi = record_plain();
-    let left = Left::nothing().with(ESI, esi);
-    if rd(esi + 0x58) == 0 || rd(esi + 0x3C) == 0 {
-        return left;
+// ---- the arithmetic that was x87 assembly ----
+
+/// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
+/// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
+/// `[rc + 0x205260] = 1 - [rc + 0x205260]`
+fn x87_1(rc: usize) {
+    let t0 = X(1.0);
+    let t1 = fld(rc, 0x205260);
+    let t2 = t0 - t1;
+    fstp(rc, 0x205260, t2);
+}
+
+/// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
+/// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
+/// `[rc + 0x31A6A0] = (([rc + 0x208B24] - [rc + 0x208B20]) * [rc + 0x205260]) + [rc + 0x208B20]`
+/// `int [rc + 0x208B38] = -(((([rc + 0x208B2C] - [rc + 0x208B28]) * [rc + 0x205260]) + [rc + 0x208B28]) * [rc + 0x1C5D98])`
+fn x87_2(rc: usize) {
+    let t0 = fld(rc, 0x208B24);
+    let t1 = fld(rc, 0x208B20);
+    let t2 = t0 - t1;
+    let t3 = fld(rc, 0x205260);
+    let t4 = t2 * t3;
+    let t5 = fld(rc, 0x208B20);
+    let t6 = t4 + t5;
+    fstp(rc, 0x31A6A0, t6);
+    let t7 = fld(rc, 0x208B2C);
+    let t8 = fld(rc, 0x208B28);
+    let t9 = t7 - t8;
+    let t10 = fld(rc, 0x205260);
+    let t11 = t9 * t10;
+    let t12 = fld(rc, 0x208B28);
+    let t13 = t11 + t12;
+    let t14 = fld(rc, 0x1C5D98);
+    let t15 = t13 * t14;
+    let t16 = -t15;
+    fistp(rc, 0x208B38, t16);
+}
+
+#[cfg(all(test, target_arch = "x86"))]
+mod asm_reference {
+    use super::*;
+    use crate::scene::asm_test::{Block, In, Operand, Out, reference, sparse};
+
+    // The original's instructions, one function per run.
+    reference!(ref_0(rc) ".byte 0xD9, 0xE8", "fsub dword ptr [{rc} + 0x205260]", "fstp dword ptr [{rc} + 0x205260]");
+    reference!(ref_1(rc) "fld dword ptr [{rc} + 0x208B24]", "fsub dword ptr [{rc} + 0x208B20]", "fmul dword ptr [{rc} + 0x205260]", "fadd dword ptr [{rc} + 0x208B20]", "fstp dword ptr [{rc} + 0x31A6A0]", "fld dword ptr [{rc} + 0x208B2C]", "fsub dword ptr [{rc} + 0x208B28]", "fmul dword ptr [{rc} + 0x205260]", "fadd dword ptr [{rc} + 0x208B28]", "fmul dword ptr [{rc} + 0x1C5D98]", ".byte 0xD9, 0xE0", "fistp dword ptr [{rc} + 0x208B38]");
+
+    fn blocks() -> Vec<Block> {
+        vec![
+            Block {
+                name: "ease_view_blend line 27",
+                operands: vec![Operand::Buffer {
+                    reads: &[(0x205260, In::F)],
+                    writes: &[(0x205260, Out::F)],
+                }],
+                ulps: 0,
+                reference: |a| unsafe { ref_0(a[0]) },
+                plain: |a| x87_1(a[0]),
+            },
+            Block {
+                name: "ease_view_blend line 34",
+                operands: vec![Operand::Buffer {
+                    reads: &[
+                        (0x1C5D98, In::F),
+                        (0x205260, In::F),
+                        (0x208B20, In::F),
+                        (0x208B24, In::F),
+                        (0x208B28, In::F),
+                        (0x208B2C, In::F),
+                    ],
+                    writes: &[(0x208B38, Out::I), (0x31A6A0, Out::F)],
+                }],
+                ulps: 0,
+                reference: |a| unsafe { ref_1(a[0]) },
+                plain: |a| x87_2(a[0]),
+            },
+        ]
     }
-    let eax = share_done_plain(esi);
-    let f = |x: usize| f32::from_bits(g(x));
-    let b = ease_blend(
-        f(0x605260),
-        (rd(esi + 0x58) as i32) < 0,
-        [f(0x608B20), f(0x608B24), f(0x608B28), f(0x608B2C)],
-        f(0x5C5D98),
-    );
-    p(0x605260, b.share.to_bits());
-    p(0x71A6A0, b.between.to_bits());
-    p(0x608B38, b.tilt as u32);
-    left.with(EAX, eax)
-}
 
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    Ok(unsafe { ease_view_blend_plain(r) })
-}
-
-/// The float places and what they are held to at extended precision.
-const FLOATS: [(usize, usize, Tolerance); 3] = [
-    (0x605260, 4, FLOAT),
-    (0x71A6A0, 4, FLOAT),
-    (0x608B38, 4, ROUNDED),
-];
-
-extern "C" fn dispatch(r: &mut Regs) {
-    let memory = FLOATS.map(|(x, len, tl)| ((a(x), len), tl));
-    let floats = Floats {
-        memory: &memory,
-        regs: &[],
-    };
-    dispatch_state_floats(&HOOK, r, call_original, &view_regions(), &floats, &rust);
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    floats_entry(r, &rust)
-}
-
-fn self_test() -> (usize, usize) {
-    view_test_floats(
-        &HOOK,
-        "physics::ease_view_blend",
-        call_original,
-        &rust,
-        &FLOATS,
-    )
+    #[test]
+    fn x87_blocks_matches_the_assembly() {
+        sparse(&blocks(), 1200, 100);
+    }
 }

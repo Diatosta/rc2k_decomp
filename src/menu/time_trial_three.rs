@@ -15,22 +15,17 @@
 //! In:  nothing
 //! Out: every register preserved (`pusha` .. `popa`)
 //!
-//! Reached through the time trial's start menu. Refuses a missing player before anything, and
-//! what the callees and the stage's record (`Hand::Stage`) refuse when they are reached.
-//! Hook removed 2026-10-22 (typed tables): the start menus run its `entry`
-//! (`menu::table_calls`).
+//! Reached through the time trial's start menu. Refuses a missing player before anything, and what
+//! the callees and the stage's record (`Hand::Stage`) refuse when they are reached.
 
 use crate::errors::Refused;
-use crate::framework::Regs;
 use crate::menu::event_flow::*;
 use crate::menu::flow_game::Game;
+use crate::menu::screen_loop::Carried;
 use rc2k_core::menu::rounds;
 
-flow_hook!("menu::time_trial_three", 0x48B54B, time_trial_three, test);
-
-pub unsafe fn time_trial_three(entry: &Regs, call: Call) -> Result<Regs, Refused> {
+pub fn time_trial_three(c: &Carried) -> Result<(), Refused> {
     players_there(4)?;
     // Converted: `rc2k_core::menu::rounds::time_trial_three`.
-    rounds::time_trial_three(&mut Game::new(entry, call))?;
-    Ok(*entry)
+    Game::new(c).run(rounds::time_trial_three)
 }

@@ -9,87 +9,64 @@
 //! Out: every register kept (`pusha` .. `popa`)
 //!
 //! Callers: the event drivers, `sub_4A9583`. The steps are their Rust versions
-//! (`strings::append_string_by_id`'s for the names). Refuses no table, more drivers than
-//! its 200 entries, a name past the entry, a player count of 0 or past 4, a player missing
-//! or without a name, before anything. Self-test: the original and the Rust version on the
-//! game's tables, the players' groups by lot; put back.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! (`strings::append_string_by_id`'s for the names). Refuses no table, more drivers than its 200
+//! entries, a name past the entry, a player count of 0 or past 4, a player missing or without a
+//! name, before anything.
 use crate::errors::{BadInput, Refused};
-use crate::framework::{Regs, game_addr, game_read, rva};
 use crate::menu::standings::*;
-use crate::race::stage_prefs::left_of;
-use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
 
-const NAMES_RVA: usize = rva(0x741E88); // g_driverNames
 /// Each group's (0 .. 3) players, in order, into the table's entries from the group's slot
 /// down (`player_to_standing_b`, ebx the player's index).
-unsafe fn players_by_group(
-    entry: &Regs,
-    first: u32,
-    size: u32,
-    firsts: [usize; 4],
-) -> Result<(), Refused> {
+fn players_by_group(first: u32, size: u32, firsts: [usize; 4]) -> Result<(), Refused> {
     let players = counted_players()?;
-    let groups: Vec<u32> = players.iter().map(|&p| get(p + 0x90)).collect();
+    let groups: Vec<u32> = players
+        .iter()
+        .map(|&p| get(p + 0x90))
+        .collect::<Result<_, _>>()?;
     // Converted: `rc2k_core::menu::standings::by_group`.
     for (n, e) in rc2k_core::menu::standings::by_group(&groups, firsts) {
-        unsafe {
-            crate::menu::player_to_standing_b::player_to_standing_b(&Regs {
-                edi: first + size * e as u32,
-                esi: players[n],
-                ebx: n as u32,
-                ..*entry
-            })
+        {
+            crate::menu::player_to_standing_b::player_to_standing_b(
+                first + size * e as u32,
+                players[n],
+                n as u32,
+            )
         }?;
     }
     Ok(())
 }
 
 /// The Rust version (see the header): the registers it leaves.
-pub unsafe fn standings_b_from_all(entry: &Regs) -> Result<Regs, Refused> {
-    let first: u32 = unsafe { game_read(TABLE_B_RVA) };
-    let drivers = entries(game_addr(DRIVERS_RVA) as u32, DRIVER)?;
+pub fn standings_b_from_all() -> Result<(), Refused> {
+    let first: u32 = { TABLE_B_RVA.get() };
+    let drivers = entries(crate::menu::drivers_store::DRIVERS.first(), DRIVER)?;
     if first == 0 || drivers.len() > 200 {
         return Err(BadInput("no standings table, or more drivers than it holds").into());
     }
     let players = counted_players()?;
-    if players.iter().any(|&p| get(p + 0x18) == 0) {
+    if any_unnamed(&players)? {
         return Err(BadInput("a player without a name").into());
     }
     let mut texts = Vec::new();
     for &d in &drivers {
-        let id: u32 = unsafe { game_read(NAMES_RVA + 0x14 * get(d) as usize) };
+        let id: u32 = crate::menu::drivers_store::name_string(get(d)?);
         let mut text = Vec::new();
-        unsafe { crate::strings::append_string_by_id::push_string(&mut text, id) };
+        crate::strings::append_string_by_id::push_string(&mut text, id)?;
         text.push(0);
         if text.len() > (B_ENTRY - 0x14) as usize {
             return Err(BadInput("a driver's name past its entry").into());
         }
         texts.push(text);
     }
-    unsafe { crate::menu::init_standings_b::init_standings_b(entry) }?;
+    crate::menu::init_standings_b::init_standings_b()?;
     // Converted: `rc2k_core::menu::standings::fill_b_from_driver`.
     let count = drivers.len() as u32;
-    let all = unsafe { table(drivers[0], DRIVER, count) };
-    let mut t = unsafe { table(first, B_ENTRY, count) };
+    let all = table(drivers[0], DRIVER, count)?;
+    let mut t = table(first, B_ENTRY, count)?;
     for (n, text) in texts.into_iter().enumerate() {
         rc2k_core::menu::standings::fill_b_from_driver(&mut t, n, &all, n, &text);
     }
     use rc2k_core::menu::standings::B_GROUP_FIRSTS;
-    unsafe { players_by_group(entry, first, B_ENTRY, B_GROUP_FIRSTS) }?;
-    Ok(*entry)
-}
-
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    Ok(left_of(&unsafe { standings_b_from_all(r) }?))
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
+    players_by_group(first, B_ENTRY, B_GROUP_FIRSTS)?;
+    Ok(())
 }

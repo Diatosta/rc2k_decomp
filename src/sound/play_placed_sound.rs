@@ -16,64 +16,48 @@
 //! With 3D: the volume as a whole number (not stored) and the three floats as they are.
 //! Then +4 = +4 x +0x20 as a whole number, and `sound::play_sound` with eax the sound,
 //! ebx the volume, ecx the place (3D: ecx, edi, ebp the three floats), edx = +4.
-//! The x87 is used with the original's own instructions, so that the rounding is its.
-//! Eight callers (the race's sounds). Shadow mode: the Rust version on a copy of the
-//! request without sending, then the original, and the two requests compared.
-//! Self-test: a redirected copy whose mode and sample records are the test's.
+//! The x87's arithmetic is plain Rust over `X` (`math/x87_float.rs`), rounding as the control
+//! word says; the original's instructions are `asm_reference` in the tests.
+//! Eight callers (the race's sounds).
 //! Refuses a null request and, without 3D, a sound past the 0x1CD sample records.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
 
+use crate::audio::store::{AUDIO, SAMPLE_RECORDS};
 use crate::errors::BadInput;
-use crate::framework::{Regs, game_addr, game_read, rva};
-use crate::sound::play_sound::play_sound_in_game;
+use crate::pointers::GamePtr;
+use crate::scene::x87_mem::{fistp, fld, fstp};
 use rc2k_core::sound::placed::{self, MODE_3D};
 
 // ---- game data ----
 
-pub const MODE_RVA: usize = rva(0x4F82BC); // g_soundMode
-pub const SAMPLES_RVA: usize = rva(0x50A7A4); // unk_50A7A4
-const CENTRE_RVA: usize = rva(0x512500); // flt_512500
-const PER_ANGLE_RVA: usize = rva(0x512504); // flt_512504
-const SAMPLE_LEN: usize = 0x40;
 // ---- the x87's arithmetic, with the original's instructions ----
-
-macro_rules! x87 {
-    ($($line:literal),+; $($name:ident = $value:expr),+) => {
-        unsafe {
-            core::arch::asm!(
-                $($line),+,
-                $($name = in(reg) $value),+,
-                out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
-                out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
-                options(nostack),
-            )
-        }
-    };
-}
 
 /// `fld a; fmul b; fmul c; fistp`.
 fn product3_to_int(a: u32, b: u32, c: u32) -> u32 {
     let (v, mut out) = ([a, b, c], 0u32);
-    x87!("fld dword ptr [{v}]", "fmul dword ptr [{v} + 4]", "fmul dword ptr [{v} + 8]",
-        "fistp dword ptr [{o}]"; v = v.as_ptr(), o = &raw mut out);
+    x87_1(
+        (crate::pointers::game_address(v.as_ptr())) as usize,
+        crate::pointers::game_address(&raw mut out) as usize,
+    );
     out
 }
 
 /// `fld a; fmul b; fistp`.
 pub fn product_to_int(a: u32, b: u32) -> u32 {
     let (v, mut out) = ([a, b], 0u32);
-    x87!("fld dword ptr [{v}]", "fmul dword ptr [{v} + 4]", "fistp dword ptr [{o}]";
-        v = v.as_ptr(), o = &raw mut out);
+    x87_2(
+        (crate::pointers::game_address(v.as_ptr())) as usize,
+        crate::pointers::game_address(&raw mut out) as usize,
+    );
     out
 }
 
 /// `fld a; fistp`.
 fn to_int(a: u32) -> u32 {
     let mut out = 0u32;
-    x87!("fld dword ptr [{a}]", "fistp dword ptr [{o}]"; a = &raw const a, o = &raw mut out);
+    x87_3(
+        crate::pointers::game_address(&raw const a) as usize,
+        crate::pointers::game_address(&raw mut out) as usize,
+    );
     out
 }
 
@@ -81,78 +65,195 @@ fn to_int(a: u32) -> u32 {
 /// angle's bits and the whole number.
 fn angle_and_place(y: u32, x: u32, per_angle: u32, centre: u32) -> (u32, u32) {
     let (v, mut out) = ([y, x, per_angle, centre], [0u32; 2]);
-    x87!("fld dword ptr [{v}]", "fld dword ptr [{v} + 4]", "fpatan", "fst dword ptr [{o}]",
-        "fabs", "fmul dword ptr [{v} + 8]", "fsubr dword ptr [{v} + 12]",
-        "fistp dword ptr [{o} + 4]"; v = v.as_ptr(), o = out.as_mut_ptr());
+    x87_4(
+        (crate::pointers::game_address(v.as_ptr())) as usize,
+        (crate::pointers::game_address(out.as_mut_ptr())) as usize,
+    );
     (out[0], out[1])
 }
 
 // ---- Rust version ----
 
-/// The request is at `entry.esi`; `mode` is the sound mode and `samples` the address of
-/// the sample records. `play` gets the registers `sound::play_sound` is called with.
-pub unsafe fn play_placed_sound(
-    entry: &Regs,
-    mode: u32,
-    samples: usize,
-    play: &mut dyn FnMut(&Regs),
-) -> Result<(), BadInput> {
-    unsafe {
-        let request = entry.esi as *mut u32;
-        if request.is_null() {
-            return Err(BadInput("no request"));
-        }
-        let get = |n: usize| request.add(n).read_unaligned();
-        let put = |n: usize, value: u32| request.add(n).write_unaligned(value);
-        // Converted: `rc2k_core::sound::placed` (`played`, `sample_of`, `volume`,
-        // `place`); the products and the angle are the original's x87.
-        let sound = get(0);
-        if !placed::played(sound) {
-            return Ok(());
-        }
-        let (ebx, ecx, edi, ebp);
-        if mode & MODE_3D == 0 {
-            let number = placed::sample_of(sound)?;
-            let record = samples + number as usize * SAMPLE_LEN;
-            let factor = ((record + 0x24) as *const u32).read_unaligned();
-            let volume = placed::volume(product3_to_int(get(2), factor, get(9)));
-            put(2, volume);
-            let (angle, place) = angle_and_place(
-                get(5),
-                get(3),
-                game_read(PER_ANGLE_RVA),
-                game_read(CENTRE_RVA),
-            );
-            put(6, angle);
-            put(7, place);
-            let place = placed::place(place, get(3), angle, mode);
-            (ebx, ecx, edi, ebp) = (volume, place, record as u32, entry.ebp);
-        } else {
-            (ebx, ecx, edi, ebp) = (to_int(get(2)), get(3), get(4), get(5));
-        }
-        let edx = product_to_int(get(1), get(8));
-        put(1, edx);
-        play(&Regs {
-            eax: sound,
-            ebx,
-            ecx,
-            edx,
-            edi,
-            ebp,
-            ..*entry
-        });
-        Ok(())
+/// `mode` is the sound mode. Outside the
+/// 3D modes, where `sound::play_sound` replaces it, the original hands on its caller's ebp.
+pub fn play_placed_sound(request: u32, mode: u32) -> Result<(), BadInput> {
+    if request == 0 {
+        return Err(BadInput("no request"));
     }
+    let get = |n: usize| {
+        GamePtr::new(request)
+            .offset(4 * n as u32)
+            .read::<u32>("a sound request")
+    };
+    let put = |n: usize, value: u32| crate::sound::turn_parts::put(request, n, value);
+    // Converted: `rc2k_core::sound::placed` (`played`, `sample_of`, `volume`,
+    // `place`); the products and the angle are the original's x87.
+    let sound = get(0)?;
+    if !placed::played(sound) {
+        return Ok(());
+    }
+    let (ebx, ecx, edi, ebp);
+    if mode & MODE_3D == 0 {
+        let number = placed::sample_of(sound)?;
+        let record = &SAMPLE_RECORDS.records[number as usize];
+        let factor = record.get().min_distance;
+        let volume = placed::volume(product3_to_int(get(2)?, factor, get(9)?));
+        put(2, volume)?;
+        let (angle, place) = angle_and_place(
+            get(5)?,
+            get(3)?,
+            crate::sound::store::RACE_CLOCK.pan_per_radian.bits(),
+            crate::sound::store::RACE_CLOCK.pan_centre.bits(),
+        );
+        put(6, angle)?;
+        put(7, place)?;
+        let place = placed::place(place, get(3)?, angle, mode);
+        (ebx, ecx, edi, ebp) = (volume, place, record.addr(), 0);
+    } else {
+        (ebx, ecx, edi, ebp) = (to_int(get(2)?), get(3)?, get(4)?, get(5)?);
+    }
+    let edx = product_to_int(get(1)?, get(8)?);
+    put(1, edx)?;
+    crate::sound::play_sound::play_sound(sound, ebx, edx, [ecx, edi, ebp]);
+    Ok(())
 }
 
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    let (mode, samples) = unsafe { (game_read(MODE_RVA), game_addr(SAMPLES_RVA)) };
-    let entry = *r;
-    let done =
-        unsafe { play_placed_sound(&entry, mode, samples, &mut |with| play_sound_in_game(with)) };
-    if let Err(e) = done {
-        return Err(e.into());
+/// In the game.
+pub fn play_placed_sound_in_game(request: u32) -> Result<(), BadInput> {
+    play_placed_sound(request, AUDIO.sound_mode.get())
+}
+
+// ---- the arithmetic that was x87 assembly ----
+
+/// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
+/// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
+/// `int [o + 0] = ([v + 0] * [v + 4]) * [v + 8]`
+fn x87_1(v: usize, o: usize) {
+    let t0 = fld(v, 0);
+    let t1 = fld(v, 4);
+    let t2 = t0 * t1;
+    let t3 = fld(v, 8);
+    let t4 = t2 * t3;
+    fistp(o, 0, t4);
+}
+
+/// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
+/// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
+/// `int [o + 0] = [v + 0] * [v + 4]`
+fn x87_2(v: usize, o: usize) {
+    let t0 = fld(v, 0);
+    let t1 = fld(v, 4);
+    let t2 = t0 * t1;
+    fistp(o, 0, t2);
+}
+
+/// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
+/// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
+/// `int [o + 0] = [a + 0]`
+fn x87_3(a: usize, o: usize) {
+    let t0 = fld(a, 0);
+    fistp(o, 0, t0);
+}
+
+/// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
+/// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
+/// `[o + 0] = atan2([v + 0], [v + 4])`
+/// `int [o + 4] = [v + 0xC] - (|atan2([v + 0], [v + 4])| * [v + 8])`
+fn x87_4(v: usize, o: usize) {
+    let t0 = fld(v, 0);
+    let t1 = fld(v, 4);
+    let t2 = t0.atan2(t1);
+    fstp(o, 0, t2);
+    let t3 = t2.abs();
+    let t4 = fld(v, 8);
+    let t5 = t3 * t4;
+    let t6 = fld(v, 0xC);
+    let t7 = t6 - t5;
+    fistp(o, 4, t7);
+}
+
+#[cfg(all(test, target_arch = "x86"))]
+mod asm_reference {
+    use super::*;
+    use crate::scene::asm_test::{Block, In, Operand, Out, reference, sparse};
+
+    // The original's instructions, one function per run.
+    reference!(ref_0(v, o) "fld dword ptr [{v}]", "fmul dword ptr [{v} + 4]", "fmul dword ptr [{v} + 8]", "fistp dword ptr [{o}]");
+    reference!(ref_1(v, o) "fld dword ptr [{v}]", "fmul dword ptr [{v} + 4]", "fistp dword ptr [{o}]");
+    reference!(ref_2(a, o) "fld dword ptr [{a}]", "fistp dword ptr [{o}]");
+    reference!(ref_3(v, o) "fld dword ptr [{v}]", "fld dword ptr [{v} + 4]", "fpatan", "fst dword ptr [{o}]", "fabs", "fmul dword ptr [{v} + 8]", "fsubr dword ptr [{v} + 12]", "fistp dword ptr [{o} + 4]");
+
+    fn blocks() -> Vec<Block> {
+        vec![
+            Block {
+                name: "play_placed_sound line 56",
+                operands: vec![
+                    Operand::Buffer {
+                        reads: &[(0, In::F), (4, In::F), (8, In::F)],
+                        writes: &[],
+                    },
+                    Operand::Buffer {
+                        reads: &[],
+                        writes: &[(0, Out::I)],
+                    },
+                ],
+                ulps: 0,
+                reference: |a| unsafe { ref_0(a[0], a[1]) },
+                plain: |a| x87_1(a[0], a[1]),
+            },
+            Block {
+                name: "play_placed_sound line 64",
+                operands: vec![
+                    Operand::Buffer {
+                        reads: &[(0, In::F), (4, In::F)],
+                        writes: &[],
+                    },
+                    Operand::Buffer {
+                        reads: &[],
+                        writes: &[(0, Out::I)],
+                    },
+                ],
+                ulps: 0,
+                reference: |a| unsafe { ref_1(a[0], a[1]) },
+                plain: |a| x87_2(a[0], a[1]),
+            },
+            Block {
+                name: "play_placed_sound line 72",
+                operands: vec![
+                    Operand::Buffer {
+                        reads: &[(0, In::F)],
+                        writes: &[],
+                    },
+                    Operand::Buffer {
+                        reads: &[],
+                        writes: &[(0, Out::I)],
+                    },
+                ],
+                ulps: 0,
+                reference: |a| unsafe { ref_2(a[0], a[1]) },
+                plain: |a| x87_3(a[0], a[1]),
+            },
+            Block {
+                name: "play_placed_sound line 80",
+                operands: vec![
+                    Operand::Buffer {
+                        reads: &[(0, In::F), (4, In::F), (8, In::F), (0xC, In::F)],
+                        writes: &[],
+                    },
+                    Operand::Buffer {
+                        reads: &[],
+                        writes: &[(0, Out::F), (4, Out::I)],
+                    },
+                ],
+                ulps: 1,
+                reference: |a| unsafe { ref_3(a[0], a[1]) },
+                plain: |a| x87_4(a[0], a[1]),
+            },
+        ]
     }
-    Ok(())
+
+    #[test]
+    fn x87_blocks_matches_the_assembly() {
+        sparse(&blocks(), 1200, 100);
+    }
 }

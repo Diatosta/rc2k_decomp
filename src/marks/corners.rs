@@ -4,46 +4,57 @@
 //! (`clamp_pair`); `span_ring` makes the rings of them.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{Regs, game_addr, game_read, game_write, rva};
-use crate::marks::shape_points::{FARTHEST_RVA, TURNED_RVA, turn_shape_checks, turn_shape_points};
+use crate::marks::edges::KIND_BOXES;
+use crate::marks::kind_values::MARKS_KIND;
+use crate::marks::mask_constants::MASK_CONSTANTS;
+use crate::marks::mask_vars::MASKS;
+use crate::marks::shape_points::{farthest_pair, turn_shape_checks, turn_shape_points, turned};
+use crate::marks::shape_work::SHAPE_WORK;
 use crate::marks::turns::{clamp_pair, smooth_pair, smooth_steps};
+use crate::marks::work_store::MARKS_WORK;
 use crate::math::x87;
+use crate::pointers::GamePtr;
 use crate::scene::matrix3::{extended, rounded};
-use crate::service::harness::{Region, at};
+use crate::session::{Dword, read_bits, read_first, write_bits};
 
-pub const CORNERS_RVA: [usize; 2] = [rva(0x82E426), rva(0x82F03E)]; // g_marksCornersA, _B
+/// The two corner tables' addresses (`g_marksCornersA`, `_B`).
+pub fn tables() -> [u32; 2] {
+    [MASKS.corners_a.addr(), MASKS.corners_b.addr()]
+}
 pub const ENTRIES: u32 = 0x81;
 const ENTRY: u32 = 0x18;
 /// Each table's two steps' starts and the end they both go to.
-const STEPS: [([usize; 2], usize); 2] = [
-    ([rva(0x89C9CC), rva(0x89C9D4)], rva(0x884FC4)),
-    ([rva(0x89C9DC), rva(0x89C9E4)], rva(0x884FC8)),
+static STEPS: [([usize; 2], &Dword); 2] = [
+    ([0, 2], &SHAPE_WORK.work.steps[0]), // `MaskConstants::corner_angles`: dword_89C9CC, dword_89C9D4; dword_884FC4
+    ([4, 6], &SHAPE_WORK.work.steps[1]), // dword_89C9DC, dword_89C9E4; dword_884FC8
 ];
 const LIFT: u32 = 0xB2A7;
-const BOXES_RVA: usize = rva(0x811BEB); // the kinds' 0x30-byte records
-const SCALE_RVA: usize = rva(0x82E38E); // flt_82E38E, flt_82E392
-const DIVISORS_RVA: usize = rva(0x89C9EC); // dword_89C9EC, dword_89C9F0
-const FLIPS_RVA: usize = rva(0x89C9F4); // dword_89C9F4, dword_89C9F8
-const OFFSETS_RVA: [usize; 2] = [rva(0x8859F4), rva(0x885A00)]; // the block's lowest points
-
-unsafe fn get(at: u32) -> u32 {
-    unsafe { (at as *const u32).read_unaligned() }
+/// The block's lowest points (x, y).
+fn offsets(n: usize) -> [u32; 2] {
+    let low = if n == 0 {
+        &SHAPE_WORK.work.low_a
+    } else {
+        &SHAPE_WORK.work.low_b
+    };
+    read_first(low)
 }
 
-unsafe fn put(at: u32, v: u32) {
-    unsafe { (at as *mut u32).write_unaligned(v) }
+fn get(at: u32) -> Result<u32, BadInput> {
+    GamePtr::new(at).read("a game field")
+}
+
+fn put(at: u32, v: u32) -> Result<(), BadInput> {
+    GamePtr::new(at).write(v, "a game field")
 }
 
 /// The two turns step k gives table n: the second result of each of its two steps.
 fn turns(n: usize, k: u32) -> (u32, u32) {
-    unsafe {
-        let (starts, end) = STEPS[n];
-        let b: u32 = game_read(end);
-        (
-            smooth_pair(k, game_read(starts[0]), b).1,
-            smooth_pair(k, game_read(starts[1]), b).1,
-        )
-    }
+    let (starts, end) = STEPS[n];
+    let b: u32 = end.get();
+    (
+        smooth_pair(k, MASK_CONSTANTS.corner_angles[starts[0]].bits(), b).1,
+        smooth_pair(k, MASK_CONSTANTS.corner_angles[starts[1]].bits(), b).1,
+    )
 }
 
 /// `marks::make_corners` (0x4BEB25): for each table and each of 0x81 steps k, shape set 0
@@ -52,18 +63,17 @@ fn turns(n: usize, k: u32) -> (u32, u32) {
 /// in each entry the corners swapped (x, y) unless the second is farther from the middle
 /// (`fcompp`, `g_fpuStatus`); the scales of the kind's box (its +0x24 - +0x18 over 0x100,
 /// +4 - +0x1C over 0x80); each corner (x, y plus the list's lowest point, less the box's
-/// +0x18, +0x1C) over them as floats; y from 0x80; and `clamp_pair`. Leaves eax 0x102, esi
-/// the box, the rest as the last corner leaves them. Refuses a kind of 0x22 or more, a
-/// farthest pair past 0x3F, what `turn_shape_points` refuses at any step, before writing.
-pub unsafe fn make_corners(entry: &Regs) -> Result<Regs, Refused> {
-    let mut g = *entry;
-    unsafe {
-        let kind: u32 = game_read(crate::marks::kind_values::KIND_RVA);
+/// +0x18, +0x1C) over them as floats; y from 0x80; and `clamp_pair`. Refuses a kind of
+/// 0x22 or more, a farthest pair past 0x3F, what `turn_shape_points` refuses at any step,
+/// before writing.
+pub fn make_corners() -> Result<(), Refused> {
+    {
+        let kind: u32 = MARKS_KIND.kind.bits();
         if kind >= 0x22 {
             return Err(BadInput("a marks' kind of 0x22 or more").into());
         }
-        for f in FARTHEST_RVA {
-            let pair: [u32; 2] = game_read(f);
+        for n in 0..2 {
+            let pair: [u32; 2] = read_bits(farthest_pair(n));
             if pair.iter().any(|&i| i >= 0x40) {
                 return Err(BadInput("a farthest pair past 0x3F").into());
             }
@@ -74,106 +84,79 @@ pub unsafe fn make_corners(entry: &Regs) -> Result<Regs, Refused> {
                 turn_shape_checks(a, b)?;
             }
         }
-        for n in 0..2 {
-            let (starts, end) = STEPS[n];
+        for (n, &(starts, end)) in STEPS.iter().enumerate() {
             for k in 0..ENTRIES {
-                g.eax = k;
-                g.ebx = game_read(starts[0]);
-                g.ecx = game_read(end);
-                g = smooth_steps(&g);
-                let first = g.ebx;
-                g.eax = k;
-                g.ebx = game_read(starts[1]);
-                g.ecx = game_read(end);
-                g = smooth_steps(&g);
-                g.ecx = g.ebx;
-                g.ebx = first;
-                g.eax = k;
-                let esi = g.esi;
-                g = turn_shape_points(&g)?;
-                g.esi = esi;
-                g.edi = game_addr(CORNERS_RVA[n]) as u32 + k * ENTRY;
-                let pair: [u32; 2] = game_read(FARTHEST_RVA[n]);
-                let turned = game_addr(TURNED_RVA[n]) as u32;
+                let first =
+                    smooth_steps(k, MASK_CONSTANTS.corner_angles[starts[0]].bits(), end.get()).1;
+                let second =
+                    smooth_steps(k, MASK_CONSTANTS.corner_angles[starts[1]].bits(), end.get()).1;
+                turn_shape_points(first, second)?;
+                let mut to = tables()[n] + k * ENTRY;
+                let pair: [u32; 2] = read_bits(farthest_pair(n));
+                let turned = turned(n).addr();
                 for p in pair {
-                    g.esi = turned + p * 12;
+                    let from = turned + p * 12;
                     for c in 0..3 {
-                        put(g.edi + 4 * c, get(g.esi + 4 * c));
+                        put(to + 4 * c, get(from + 4 * c)?)?;
                     }
-                    put(g.edi + 4, get(g.edi + 4).wrapping_add(LIFT));
-                    g.edi += 12;
+                    put(to + 4, get(to + 4)?.wrapping_add(LIFT))?;
+                    to += 12;
                 }
-                g.edi -= 12;
             }
         }
         for k in 0..ENTRIES {
-            for table in CORNERS_RVA {
-                g.edi = game_addr(table) as u32 + k * ENTRY;
-                let c = |o: u32| get(g.edi + o) as i32;
-                let status = x87::compare_squares(c(0), c(4), c(0xC), c(0x10));
-                game_write(crate::scene::vector3::STATUS_RVA, status as u32);
+            for table in tables() {
+                let e = table + k * ENTRY;
+                let c = |o: u32| -> Result<_, Refused> { Ok(get(e + o)? as i32) };
+                let status = x87::compare_squares(c(0)?, c(4)?, c(0xC)?, c(0x10)?);
+                MARKS_WORK.fpu_status.set(status as u32);
                 if status != 0 {
                     for (a, b) in [(0, 0xC), (4, 0x10)] {
-                        let (x, y) = (get(g.edi + a), get(g.edi + b));
-                        put(g.edi + a, y);
-                        put(g.edi + b, x);
+                        let (x, y) = (get(e + a)?, get(e + b)?);
+                        put(e + a, y)?;
+                        put(e + b, x)?;
                     }
                 }
             }
         }
-        g.esi = game_addr(BOXES_RVA) as u32 + kind * 0x30;
-        let bx = |o: u32| get(g.esi + o) as i32;
-        let divisors: [i32; 2] = game_read(DIVISORS_RVA);
+        let bx_at = KIND_BOXES.boxes.addr() + kind * 0x30;
+        let bx = |o: u32| -> Result<_, Refused> { Ok(get(bx_at + o)? as i32) };
+        let divisors: [i32; 2] = MASK_CONSTANTS.divisors.each_ref().map(|c| c.get() as i32);
         let scales = [
-            x87::int_div_int(bx(0x24).wrapping_sub(bx(0x18)), divisors[0]),
-            x87::int_div_int(bx(4).wrapping_sub(bx(0x1C)), divisors[1]),
+            x87::int_div_int(bx(0x24)?.wrapping_sub(bx(0x18)?), divisors[0]),
+            x87::int_div_int(bx(4)?.wrapping_sub(bx(0x1C)?), divisors[1]),
         ];
-        game_write(SCALE_RVA, scales);
+        write_bits(&MASKS.corner_scale, scales);
         let corners = 2 * ENTRIES;
         for k in 0..corners {
             for n in 0..2 {
-                g.edi = game_addr(CORNERS_RVA[n]) as u32 + 12 * k;
-                let offset: [u32; 2] = game_read(OFFSETS_RVA[n]);
-                g.eax = get(g.edi)
+                let e = tables()[n] + 12 * k;
+                let offset: [u32; 2] = offsets(n);
+                let x = get(e)?
                     .wrapping_add(offset[0])
-                    .wrapping_sub(bx(0x18) as u32);
-                g.ebx = get(g.edi + 4)
+                    .wrapping_sub(bx(0x18)? as u32);
+                let y = get(e + 4)?
                     .wrapping_add(offset[1])
-                    .wrapping_sub(bx(0x1C) as u32);
-                put(g.edi + 4, x87::int_over(g.ebx as i32, scales[1]));
-                put(g.edi, x87::int_over(g.eax as i32, scales[0]));
+                    .wrapping_sub(bx(0x1C)? as u32);
+                put(e + 4, x87::int_over(y as i32, scales[1]))?;
+                put(e, x87::int_over(x as i32, scales[0]))?;
             }
         }
-        let flips: [i32; 2] = game_read(FLIPS_RVA);
+        let flips: [i32; 2] = MASK_CONSTANTS.flips.each_ref().map(|c| c.get() as i32);
         for k in 0..corners {
-            for n in 0..2 {
-                g.edi = game_addr(CORNERS_RVA[n]) as u32 + 12 * k;
-                put(g.edi + 4, x87::int_less(flips[n], get(g.edi + 4)));
+            for (n, &flip) in flips.iter().enumerate() {
+                let e = tables()[n] + 12 * k;
+                put(e + 4, x87::int_less(flip, get(e + 4)?))?;
             }
         }
         for k in 0..corners {
-            for table in CORNERS_RVA {
-                g.edi = game_addr(table) as u32 + 12 * k;
-                let (left, out) = clamp_pair(&g, [extended(get(g.edi + 4)), extended(get(g.edi))]);
-                g = left;
-                put(g.edi + 4, rounded(out[0]));
-                put(g.edi, rounded(out[1]));
+            for table in tables() {
+                let e = table + 12 * k;
+                let out = clamp_pair([extended(get(e + 4)?), extended(get(e)?)]);
+                put(e + 4, rounded(out[0]))?;
+                put(e, rounded(out[1]))?;
             }
         }
-        g.eax = corners;
     }
-    Ok(g)
-}
-
-/// What `make_corners` writes besides what `turn_shape_points` does.
-pub fn corner_regions() -> Vec<Region> {
-    let a = |r: usize| game_addr(r) as u32;
-    let mut r: Vec<Region> = CORNERS_RVA
-        .iter()
-        .map(|&t| (a(t), (ENTRIES * ENTRY) as usize))
-        .collect();
-    r.extend([(a(SCALE_RVA), 8), at(crate::scene::vector3::STATUS_RVA)]);
-    r.extend(crate::marks::shape_points::turn_regions());
-    r.extend(crate::marks::turns::step_regions());
-    r
+    Ok(())
 }

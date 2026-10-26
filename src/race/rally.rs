@@ -2,21 +2,17 @@
 //! (`race::copy_rally_times`).
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{Regs, game_addr, rva};
-use crate::service::harness::Region;
+use crate::menu::champ_store::CHAMP_VIEW;
+use crate::menu::event_store::EVENT_STATE;
+use crate::pointers::GamePtr;
+use crate::race::trap::Trap;
 
-pub type Part<'a> = &'a mut dyn FnMut(u32, &mut Regs) -> Result<(), Refused>;
-
-fn at(a: usize) -> u32 {
-    game_addr(rva(a)) as u32
+fn get(a: u32) -> Result<u32, BadInput> {
+    GamePtr::new(a).read("a rally times record")
 }
 
-unsafe fn get(a: u32) -> u32 {
-    unsafe { (a as *const u32).read_unaligned() }
-}
-
-unsafe fn put(a: u32, v: u32) {
-    unsafe { (a as *mut u32).write_unaligned(v) };
+fn put(a: u32, v: u32) -> Result<(), BadInput> {
+    GamePtr::new(a).write(v, "a rally times record")
 }
 
 /// The log calls' places.
@@ -27,34 +23,51 @@ pub const INT_NL: u32 = 4;
 
 /// " ", "-----", "Count:", "GB_Timed: t:- ", "CTs:-", "-----", "%%%%%", "-----",
 /// "GB_Shaun: ", "CTs:", "-----", "%%%%%", "%%%%%", "%%%%%".
-const WORDS: [usize; 14] = [
-    0x4DE93A, 0x4DE93C, 0x4DE969, 0x4DE970, 0x4DE97F, 0x4DE985, 0x4DE9B2, 0x4DE9DF, 0x4DEA0C,
-    0x4DEA17, 0x4DEA1C, 0x4DEA49, 0x4DEA76, 0x4DEAA3,
+const WORDS: [&std::ffi::CStr; 14] = [
+    c" ",
+    c"--------------------------------------------",
+    c"Count:",
+    c"GB_Timed: t:- ",
+    c"CTs:-",
+    c"--------------------------------------------",
+    c"%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%",
+    c"--------------------------------------------",
+    c"GB_Shaun: ",
+    c"CTs:",
+    c"--------------------------------------------",
+    c"%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%",
+    c"%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%",
+    c"%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%",
 ];
 
 /// Where `copy_rally_times` takes its ten records from: the rally's times (by
 /// `dword_7558C8`'s table `off_735512`, the rally `dword_7558D0`, the stage
 /// `dword_7558CC` x 0xA4, its +0x3C x 0x618, from `dword_7556E4`, or `dword_7556E8`
 /// unless `dword_7558C8` is 1), and puts them (`dword_7556F4`). None for a null pointer.
-pub unsafe fn rally_times_places() -> Option<(u32, u32)> {
-    unsafe {
-        let kind = get(at(0x7558C8));
-        let rallies = get(at(0x735512).wrapping_add(4 * kind));
+pub fn rally_times_places() -> Result<Option<(u32, u32)>, BadInput> {
+    {
+        let kind = EVENT_STATE.stage_group.get();
+        let rallies = crate::records::stages_store::STAGE_TABLES.group_list(kind);
         if rallies == 0 {
-            return None;
+            return Ok(None);
         }
-        let stages = get(rallies.wrapping_add(4 * get(at(0x7558D0))));
+        let stages = get(rallies.wrapping_add(4 * EVENT_STATE.stage_sub.get()))?;
         if stages == 0 {
-            return None;
+            return Ok(None);
         }
-        let stage = stages.wrapping_add(get(at(0x7558CC)).wrapping_mul(0xA4));
-        let offset = get(stage + 0x3C).wrapping_mul(0x618);
-        let base = get(at(if kind == 1 { 0x7556E4 } else { 0x7556E8 }));
-        let to = get(at(0x7556F4));
+        let stage = stages.wrapping_add(EVENT_STATE.stage_number.get().wrapping_mul(0xA4));
+        let offset = get(stage + 0x3C)?.wrapping_mul(0x618);
+        let base = (if kind == 1 {
+            &CHAMP_VIEW.stage_best_times_alt
+        } else {
+            &CHAMP_VIEW.time_trial_best_times
+        })
+        .get();
+        let to = CHAMP_VIEW.summary.get();
         if base == 0 || to == 0 {
-            return None;
+            return Ok(None);
         }
-        Some((offset.wrapping_add(base), to))
+        Ok(Some((offset.wrapping_add(base), to)))
     }
 }
 
@@ -62,60 +75,50 @@ pub unsafe fn rally_times_places() -> Option<(u32, u32)> {
 /// the race's (0x50 each, `dword_7556F4`): +0xC, +4, +8, +0 from +0x14, +8, +0x10, +0xC
 /// and 0x40 bytes from +0x5C at +0x10; each logged (the count, "GB_Timed", the sixteen
 /// "CTs", "GB_Shaun", the name, the sixteen again, rules). Every register kept. Refuses,
-/// before anything, a null pointer on the way (the original reads through it).
-pub unsafe fn copy_rally_times(entry: &Regs, part: Part) -> Result<Regs, Refused> {
-    let g = entry;
-    unsafe {
-        let Some((mut esi, mut edi)) = rally_times_places() else {
+/// before anything, a null pointer on the way (the original reads through it). The logs
+/// read only eax (their text or number).
+pub fn copy_rally_times() -> Result<(), Refused> {
+    {
+        let Some((mut esi, mut edi)) = rally_times_places()? else {
             return Err(BadInput("a null pointer to the rally's times").into());
         };
         let mut ecx = 10u32;
         loop {
             // Converted: `rc2k_core::race::results::race_time`.
-            let time = rc2k_core::race::results::race_time(|off| get(esi + off));
+            let trap = Trap::new();
+            let time = rc2k_core::race::results::race_time(|off| {
+                trap.read::<u32>(esi + off, "a rally times record")
+            });
+            trap.finish()?;
             for (k, &v) in time.iter().enumerate() {
-                put(edi + 4 * k as u32, v);
+                put(edi + 4 * k as u32, v)?;
             }
-            let eax = time[0];
-            // The registers inside each `pusha`: the loop's, eax as last loaded.
-            // ebx `dword_7558D0` from the way in (the times' place).
-            let regs = Regs {
-                eax,
-                ebx: get(at(0x7558D0)),
-                ecx,
-                esi,
-                edi,
-                ..*g
-            };
-            let mut log = |place: u32, value: u32| -> Result<(), Refused> {
-                let mut r = Regs { eax: value, ..regs };
-                part(place, &mut r)
-            };
-            let word = |n: usize| at(WORDS[n]);
+            let log = |place: u32, value: u32| -> Result<(), Refused> { log_part(place, value) };
+            let word = |n: usize| crate::pointers::game_address(WORDS[n].as_ptr());
             log(WRITE_NL, word(0))?;
             log(WRITE_NL, word(1))?;
             log(WRITE, word(2))?;
             log(INT, ecx)?;
             log(WRITE, word(3))?;
-            log(INT, get(esi + 0x14))?;
+            log(INT, get(esi + 0x14)?)?;
             log(WRITE, word(4))?;
             for k in 0..16u32 {
                 log(
                     if k == 7 || k == 15 { INT_NL } else { INT },
-                    get(esi + 0x5C + 4 * k),
+                    get(esi + 0x5C + 4 * k)?,
                 )?;
             }
             log(WRITE_NL, word(5))?;
             log(WRITE_NL, word(6))?;
             log(WRITE_NL, word(7))?;
             log(WRITE, word(8))?;
-            log(INT, get(edi + 0xC))?;
+            log(INT, get(edi + 0xC)?)?;
             log(WRITE_NL, edi)?;
             log(WRITE, word(9))?;
             for k in 0..16u32 {
                 log(
                     if k == 7 || k == 15 { INT_NL } else { INT },
-                    get(edi + 0x10 + 4 * k),
+                    get(edi + 0x10 + 4 * k)?,
                 )?;
             }
             for n in 10..14 {
@@ -129,25 +132,15 @@ pub unsafe fn copy_rally_times(entry: &Regs, part: Part) -> Result<Regs, Refused
             }
         }
     }
-    Ok(*g)
-}
-
-/// The log calls in the game.
-pub fn log_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
-    use crate::logfile::{log_int::log_int, log_write::log_write};
-    unsafe {
-        match place {
-            WRITE | WRITE_NL => log_write(r.eax as *const u8, place == WRITE_NL, 1),
-            _ => log_int(r.eax as i32, place == INT_NL, 1),
-        }
-    }
     Ok(())
 }
 
-/// What `copy_rally_times` writes (with the game's pointers).
-pub fn times_regions() -> Vec<Region> {
-    match unsafe { rally_times_places() } {
-        Some((_, to)) => vec![(to, 10 * 0x50)],
-        None => Vec::new(),
+/// The log calls in the game.
+fn log_part(place: u32, value: u32) -> Result<(), Refused> {
+    use crate::logfile::log_int::log_int;
+    match place {
+        WRITE | WRITE_NL => crate::logfile::log_write::log_at(value, place == WRITE_NL, 1),
+        _ => log_int(value as i32, place == INT_NL, 1),
     }
+    Ok(())
 }

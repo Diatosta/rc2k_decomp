@@ -2,60 +2,51 @@
 //! open (stream A, part F1, 2026-10-18).
 
 use crate::errors::Refused;
-use crate::framework::{EAX, Regs, game_addr, game_read, rva};
-use crate::screens::harness::Left;
+use crate::menu::arcade_store::ARCADE_GAME;
+use crate::menu::cheats_store::CHEAT_VARS;
+use crate::menu::loop_store::LOOP_FLAGS;
+use crate::race::state_store::RACE_STATE;
 
-fn k(a: usize) -> u32 {
-    unsafe { game_read(rva(a)) }
-}
-
-/// What a note leaves, with the box put up through `part` (converted:
-/// `rc2k_core::screens::locked`).
-fn leave(
-    note: rc2k_core::screens::locked::Note,
-    r: &mut Regs,
-    part: crate::race::frame::Part,
-) -> Result<Left, Refused> {
-    let Some(eax) = note.eax else {
-        return Ok(Left::nothing());
-    };
-    r.eax = eax;
-    if note.show {
-        part(1, r)?;
+/// A note's box put up (converted: `rc2k_core::screens::locked`). The original's x for the
+/// box is the caller's ecx, which only the measuring of the text gets, in a font in measure
+/// mode (`dword_51E824`'s mode 4): it changes nothing, so 0. What the original leaves (eax)
+/// is read by no list entry after it.
+fn show(note: rc2k_core::screens::locked::Note) -> Result<(), Refused> {
+    if note.eax.is_some() && note.show {
+        unsafe {
+            crate::screens::draw_message_box::draw_message_box(
+                0,
+                &mut crate::text::draw_text::GameCanvas,
+            )?
+        };
     }
-    Ok(Left::nothing().with(EAX, r.eax))
+    Ok(())
 }
 
 /// `screens::note_locked_item_3` (0x4AAAB8): unless cheat 0x11 is on, with item 3 chosen
-/// (`dword_755525`) and `dword_75ACCC` not 1, the message box (part 1). Gives eax as the
-/// original leaves it (the item, when it looks at it).
-pub unsafe fn note_locked_item_3(
-    r: &mut Regs,
-    part: crate::race::frame::Part,
-) -> Result<Left, Refused> {
-    let note = rc2k_core::screens::locked::item_3(k(0x75870C), k(0x755525), k(0x75ACCC));
-    leave(note, r, part)
+/// (`dword_755525`) and `dword_75ACCC` not 1, the message box.
+pub fn note_locked_item_3() -> Result<(), Refused> {
+    show(rc2k_core::screens::locked::item_3(
+        CHEAT_VARS.cheats.get(),
+        LOOP_FLAGS.item.get(),
+        RACE_STATE.settings.a8_game.get(),
+    ))
 }
 
 /// `screens::note_locked_stage` (0x48ADCE): unless cheat 0 is on, with an item chosen other
-/// than 1 and 7 whose stage (`byte_758800[item - 2]`) is not open (1), the message box
-/// (part 1). Gives eax as the original leaves it.
-pub unsafe fn note_locked_stage(
-    r: &mut Regs,
-    part: crate::race::frame::Part,
-) -> Result<Left, Refused> {
-    let note = rc2k_core::screens::locked::stage(k(0x75870C), k(0x755525), |index| unsafe {
-        ((game_addr(rva(0x758800)) as u32).wrapping_add(index) as *const u8).read()
-    });
-    leave(note, r, part)
-}
-
-/// Their part in the game: the message box (x the caller's ecx).
-pub fn box_part(_: u32, r: &mut Regs) -> Result<(), Refused> {
-    unsafe {
-        crate::screens::draw_message_box::draw_message_box(
-            r.ecx as i32,
-            &mut crate::text::draw_text::GameCanvas,
-        )
-    }
+/// than 1 and 7 whose stage (`byte_758800[item - 2]`) is not open (1), the message box.
+pub fn note_locked_stage() -> Result<(), Refused> {
+    let fault = crate::menu::event_flow::Fault::default();
+    let note = rc2k_core::screens::locked::stage(
+        CHEAT_VARS.cheats.get(),
+        LOOP_FLAGS.item.get(),
+        |index| {
+            fault.read::<u8>(
+                (ARCADE_GAME.levels_won.addr()).wrapping_add(index),
+                "a stage\'s lock",
+            )
+        },
+    );
+    fault.check()?;
+    show(note)
 }

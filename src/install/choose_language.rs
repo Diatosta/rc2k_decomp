@@ -10,52 +10,38 @@
 //! Refuses number 0 (the original takes the slot before the first) and a slot whose two
 //! texts do not end inside it.
 //!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Conversion phase 3 (2026-10-23): plain Rust with typed arguments; the registers above
+//! are the original's.
 
-use crate::errors::{BadInput, Refused};
-use crate::framework::{Regs, game_addr, game_read, rva};
-use crate::install::LOCALE_RVA;
-use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
+use crate::errors::BadInput;
+use crate::install::vars::INSTALLER_NAMES;
 use rc2k_core::install::config;
 
 // ---- game data ----
 
-pub const LANGUAGE_COUNT_RVA: usize = rva(0x51BEEA); // dword_51BEEA
-pub const LANGUAGES_RVA: usize = rva(0x51BEEE); // unk_51BEEE
 pub const LANGUAGE_SLOT: usize = config::SLOT;
 pub const LANGUAGE_SLOTS: usize = config::SLOTS;
 
 // ---- Rust version ----
 
-pub unsafe fn choose_language(number: u32) -> Result<(), BadInput> {
-    unsafe {
+pub fn choose_language(number: u32) -> Result<(), BadInput> {
+    {
         // Converted: `rc2k_core::install::config` (`language_slot`, `language_directory`).
-        let Some(slot) = config::language_slot(number, game_read::<u32>(LANGUAGE_COUNT_RVA))?
+        let Some(slot) = config::language_slot(number, INSTALLER_NAMES.language_count.get())?
         else {
             return Ok(());
         };
-        let slot = std::slice::from_raw_parts(
-            game_addr(LANGUAGES_RVA + slot * LANGUAGE_SLOT) as *const u8,
-            LANGUAGE_SLOT,
-        );
-        let directory = config::language_directory(slot)?;
-        let to = game_addr(LOCALE_RVA) as *mut u8;
-        std::ptr::copy(directory.as_ptr(), to, directory.len());
-        to.add(directory.len()).write(0);
+        let slot = crate::pointers::GamePtr::new(
+            INSTALLER_NAMES.languages.addr() + (slot * LANGUAGE_SLOT) as u32,
+        )
+        .read_bytes(LANGUAGE_SLOT, "a language's slot")?;
+        let directory = config::language_directory(&slot)?;
+        let to = crate::pointers::GamePtr::new(crate::pointers::game_address(
+            crate::files::state::locale_directory(),
+        ));
+        to.write_bytes(directory, "the locale directory")?;
+        to.offset(directory.len() as u32)
+            .write(0u8, "the locale directory")?;
         Ok(())
     }
-}
-
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    unsafe { choose_language(r.eax) }?;
-    Ok(Left::nothing())
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
 }

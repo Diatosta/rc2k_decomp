@@ -6,40 +6,17 @@
 //! Out: eax the mode, esi 0 when drawn; the rest kept; no flags read
 //!
 //! Caller: `sub_45429B` (the race's frame, stream A's).
-//!
-//! Shadow mode runs the original alone (it draws). Self-test: a copy whose calls go to
-//! stand-ins noting them (`drive/tyre_parts.rs`), against the Rust version with the same.
 
-use crate::drive::tyre_parts::*;
 use crate::errors::Refused;
-use crate::framework::Regs;
-use crate::physics::flow::g;
-use crate::race::car_starts::Part;
+use crate::race::blocks_store::CAR_BLOCKS;
+use crate::race::vars_store::RACE_VARS;
 
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    {
-        let g = unsafe { tyre_change_screen(r, &mut game_part) }?;
-        let esp = r.esp;
-        *r = Regs {
-            eflags: r.eflags,
-            ..g
-        };
-        r.esp = esp;
-    }
-    Ok(())
-}
-
-/// The Rust version, the screen through `part`.
+/// The Rust version; every register kept.
 // Converted: `rc2k_core::drive::race_ticks::tyre_change_shown`.
-pub unsafe fn tyre_change_screen(entry: &Regs, part: Part) -> Result<Regs, Refused> {
-    let mut r = *entry;
-    if !rc2k_core::drive::race_ticks::tyre_change_shown(g(0x70F3EC + 0x26C)) {
-        return Ok(r);
+pub fn tyre_change_screen() -> Result<(), Refused> {
+    if !rc2k_core::drive::race_ticks::tyre_change_shown(CAR_BLOCKS.cars[0].tyre_change_state.get())
+    {
+        return Ok(());
     }
-    r.eax = g(0x6238A4);
-    r.esi = 0;
-    let mut s = r;
-    part(SCREEN, &mut s)?;
-    Ok(r)
+    crate::drive::tyre_screen::tyre_screen(RACE_VARS.split.get(), 0)
 }

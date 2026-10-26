@@ -8,59 +8,67 @@
 //! a frame; the steps that are more than a call or a store are the functions below, generated
 //! from the listing.
 //! The name is a reading from the title string of its menu, "{}", not yet a visit.
-//! Callers: none in code: it is reached through a table.
-//! Hook removed 2026-10-22 (typed tables): the menus and draw lists run its `entry`
+//! Callers: none in code: it is reached through a table. The menus and draw lists run its `entry`
 //! (`menu::table_calls`); the registers above are the original's, for reference.
 
-use crate::framework::{Regs, game_read, game_write, rva};
-use crate::menu::screen_loop::{Env, Flow, List, Screen, Step, screen_entry};
+use crate::errors::Refused;
+use crate::framework::rva;
+use crate::menu::draw_lists_store::DRAW_LISTS;
+use crate::menu::draw_work_store::DRAW_WORK;
+use crate::menu::flow_store::SCREEN_FLOW;
+use crate::menu::menus_store::MENUS;
+use crate::menu::option_work_store::OPTION_WORK;
+use crate::menu::screen_items_store::{SCREEN_ITEMS, slot};
+use crate::menu::screen_loop::{
+    Callee, Carried, Flow, List, Screen, Step, prepare_scene, screen_entry,
+};
+use crate::scene::draw_store::DRAW;
 
 // ---- Rust version: `menu::screen_loop` with this ----
 
-unsafe fn prepare(g: &mut Regs, env: &mut dyn Env) {
-    unsafe {
-        game_write(rva(0x623FB0), 0x0u32);
-        game_write(rva(0x623FB4), 0x0u32);
-        game_write(rva(0x624080), 0x100u32);
-        env.call(rva(0x46F7FD), g);
-        game_write(rva(0x6241DC), 0x0u32);
-        game_write(rva(0x6241E0), 0x320u32);
-        game_write(rva(0x6241EC), game_read::<i32>(rva(0x6241DC)) as f32);
-        game_write(rva(0x6241F0), game_read::<i32>(rva(0x6241E0)) as f32);
-    }
+fn prepare(c: &mut Carried) -> Result<(), Refused> {
+    DRAW.view_offset[0].set(0x0u32);
+    DRAW.view_offset[1].set(0x0u32);
+    DRAW.view_zoom.set(0x100u32);
+    prepare_scene(c);
+    DRAW.clip_edges[2].set(0x0u32);
+    DRAW.clip_edges[3].set(0x320u32);
+    DRAW.clip_screen[2].set(DRAW.clip_edges[2].bits() as i32 as f32);
+    DRAW.clip_screen[3].set(DRAW.clip_edges[3].bits() as i32 as f32);
+    Ok(())
 }
 
-unsafe fn each_frame(g: &mut Regs, env: &mut dyn Env) -> Flow {
+unsafe fn each_frame(c: &mut Carried) -> Result<Flow, Refused> {
     unsafe {
-        if game_read::<u32>(rva(0x7556A8)) == 0x1 {
-            env.call(rva(0x46F1A9), g);
-            if game_read::<u32>(rva(0x7556A8)) != 0x0 {
-                return Flow::NextFrame;
+        if OPTION_WORK.typing.get() == 0x1 {
+            Callee::EditSetupName.run(c)?;
+            if OPTION_WORK.typing.get() != 0x0 {
+                return Ok(Flow::NextFrame);
             }
-            game_write(rva(0x755A38), 0x2u32);
-            return Flow::Leave;
+            DRAW_WORK.action_value.set(0x2u32);
+            return Ok(Flow::Leave);
         }
-        Flow::On
+        Ok(Flow::On)
     }
 }
 
 pub const SCREEN: Screen = Screen {
-    menu: rva(0x75296C),
-    saved_item: rva(0x747678),
+    menu: || MENUS.save_setup.addr() as usize,
+    saved_item: || &SCREEN_ITEMS.current[slot::SAVE_SETUP],
     lists: &[
         List {
-            pointer: rva(0x755504), // g_sceneList
-            table: rva(0x758F12),
+            pointer: || &SCREEN_FLOW.scene_list, // g_sceneList
+            table: || DRAW_LISTS.save_setup_scene.addr() as usize,
             run: false,
         },
         List {
-            pointer: rva(0x7554F8), // g_drawList
-            table: rva(0x758BB6),
+            pointer: || &SCREEN_FLOW.draw_list, // g_drawList
+            table: || DRAW_LISTS.save_setup_draw.addr() as usize,
             run: false,
         },
         List {
-            pointer: rva(0x7554FC), // g_overlayList
-            table: rva(0x759156),
+            pointer: || &SCREEN_FLOW.overlay_list, // g_overlayList
+            table: || DRAW_LISTS.save_setup_overlay.addr() as usize,
             run: false,
         },
     ],
@@ -68,7 +76,7 @@ pub const SCREEN: Screen = Screen {
     frame_callback: rva(0x474D4B),
     later_frame_callback: None,
     before: &[],
-    set_up_first: &[Step::Write(rva(0x7554E4), 0x0)],
+    set_up_first: &[Step::Write(|| &SCREEN_FLOW.left_service, 0x0)],
     prepare: &[Step::Do(prepare)],
     after_lists: &[],
     background: &[],
@@ -77,7 +85,7 @@ pub const SCREEN: Screen = Screen {
     ask_also_if: None,
     confirmed: &[],
     unasked_skips_save: false,
-    after: &[Step::Write(rva(0x7554E4), 0x1)],
+    after: &[Step::Write(|| &SCREEN_FLOW.left_service, 0x1)],
     escape_leaves: false,
     each_frame: &[Step::DoFlow(each_frame)],
     short_action_check: false,
@@ -99,22 +107,10 @@ pub const SCREEN: Screen = Screen {
     after_blink: &[],
     restart_action_check: false,
     always_asks: false,
-    also_reads: &[],
-    also_writes: &[
-        rva(0x623FB0),
-        rva(0x623FB4),
-        rva(0x624080),
-        rva(0x6241DC),
-        rva(0x6241E0),
-        rva(0x6241EC),
-        rva(0x6241F0),
-        rva(0x7554E4),
-        rva(0x755A38),
-    ],
 };
 
-/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// The Rust version where the typed tables run it (a refusal is the
 /// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    screen_entry("menu::save_setup_loop", r, &SCREEN)
+pub fn run() -> Result<(), crate::errors::Refused> {
+    screen_entry("menu::save_setup_loop", &SCREEN)
 }

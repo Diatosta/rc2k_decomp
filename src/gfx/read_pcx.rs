@@ -6,17 +6,12 @@
 //! into it with `files::read_file`; then by the header's number of planes: 1 goes to
 //! `read_pcx_8bit`, 3 to `read_pcx_24bit` (each opens the file again), anything else is a
 //! failure. Three callers, all in the picture loader `sub_4119F4`.
-//! Shadow mode runs the original alone: the two readers it calls are compared in their own
-//! hooks. Refuses what `read_file` and the readers refuse. The name is a reading.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Refuses what `read_file` and the readers refuse. The name is a reading.
 
 use crate::errors::BadInput;
 use crate::files::read_file::read_file;
-use crate::framework::{Regs, game_addr, game_read};
-use crate::gfx::pcx::{HEADER_LEN, HEADER_RVA};
+use crate::gfx::pcx::HEADER_LEN;
+use crate::gfx::pcx::PCX;
 use crate::gfx::read_pcx_8bit::read_pcx_8bit;
 use crate::gfx::read_pcx_24bit::read_pcx_24bit;
 use crate::system::zero_memory::zero_memory;
@@ -26,27 +21,17 @@ use crate::system::zero_memory::zero_memory;
 /// Returns whether the picture was decoded.
 pub unsafe fn read_pcx(path: *const u8) -> Result<bool, BadInput> {
     unsafe {
-        let header = game_addr(HEADER_RVA) as *mut u8;
+        let header = crate::pointers::host(PCX.header.addr());
         zero_memory(header, HEADER_LEN as u32)?;
         if !read_file(path, header, HEADER_LEN as u32, 0)?.ok {
             return Ok(false);
         }
         // Converted: `rc2k_core::gfx::pcx::kind`.
         use rc2k_core::gfx::pcx::{Kind, kind};
-        match kind(&game_read(HEADER_RVA)) {
+        match kind(&PCX.header.read()) {
             Some(Kind::Palette) => read_pcx_8bit(path),
             Some(Kind::Planes) => read_pcx_24bit(path),
             None => Ok(false),
         }
     }
-}
-
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    {
-        let worked = unsafe { read_pcx(r.eax as *const u8) }?;
-        r.set_carry(!worked);
-        r.set_zero(worked);
-    }
-    Ok(())
 }

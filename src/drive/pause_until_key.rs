@@ -11,96 +11,76 @@
 //! In:  nothing
 //! Out: the registers as the steps leave them; no flags read
 //!
-//! Caller: `drive::race_loop`. Ungated: it waits for the player.
-//! Refuses what its calls refuse. Shadow mode runs the original alone.
-//! Self-test: skipped (it waits for a key).
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Caller: `drive::race_loop`. Refuses what its calls refuse.
 
 use crate::drive::race_parts::{
     input_update, race_frame, race_keys, stop_race_sounds, take_key, wake_car_sounds,
 };
 use crate::errors::Refused;
-use crate::framework::Regs;
-use crate::physics::flow::{a, g, p};
-use crate::race::stage_prefs::left_of;
-use crate::screens::harness::Left;
+use crate::input::store::DEVICES;
+use crate::race::blocks_store::CAR_BLOCKS;
+use crate::race::vars_store::RACE_VARS;
+use crate::session::FLAGS;
 use rc2k_core::drive::race_ticks;
-
-const B: usize = 0x70F3EC;
-const KEYS: usize = 0x4F6CDC; // g_keysPressed
 
 /// Whether a key ends the pause: any of 1 .. 0x7F but 0x1D, 0x38, 0x0F, 0x3B .. 0x44, 0x57.
 fn any_ending_key() -> u32 {
     (1..0x80usize)
         .filter(|&k| race_ticks::ends_pause(k))
-        .fold(0u32, |o, k| {
-            o | unsafe { (a(KEYS + k) as *const u8).read() } as u32
-        })
+        .fold(0u32, |o, k| o | DEVICES.keys_pressed.get(k) as u32)
 }
 
 /// The Rust version.
 // Converted: `rc2k_core::drive::race_ticks::{ends_pause, held_wait}`.
-pub unsafe fn pause_until_key(entry: &Regs) -> Result<Left, Refused> {
-    let mut r = *entry;
-    p(0x6235EC, 0x19);
+/// The Rust version. The registers it leaves are read by no caller (liveness: nothing
+/// live after `race_loop`'s call).
+pub fn pause_until_key() -> Result<(), Refused> {
+    RACE_VARS.hold_count.set(0x19);
     for _ in 0..5 {
-        take_key(&mut r);
+        take_key();
     }
-    stop_race_sounds(&mut r)?;
-    p(0x6235E8, 1);
+    stop_race_sounds()?;
+    RACE_VARS.scene_switch.set(1);
     for c in 0..2 {
-        p(B + 0xFE0 * c + 0x71C, 0xCB);
-        p(B + 0xFE0 * c + 0x730, 0);
-        p(B + 0xFE0 * c + 0x72C, u32::MAX);
+        CAR_BLOCKS.cars[c as usize].notice_id.set_bits(0xCB);
+        CAR_BLOCKS.cars[c as usize].notice_time_b.set_bits(0);
+        CAR_BLOCKS.cars[c as usize].notice_time.set_bits(u32::MAX);
     }
-    p(0x6235F0, 0x1E);
+    RACE_VARS.pause_wait.set(0x1E);
     // From 0x4453EE (the wait held) or 0x445401 (a turn).
     let mut hold = true;
     loop {
         if hold {
-            let wait = g(0x6235F0);
+            let wait = RACE_VARS.pause_wait.get();
             if race_ticks::held_wait(wait) != wait {
-                p(0x6235F0, race_ticks::held_wait(wait));
+                RACE_VARS.pause_wait.set(race_ticks::held_wait(wait));
             }
         }
-        take_key(&mut r);
-        race_frame(&mut r);
-        if g(0x518374) == 0 {
+        take_key();
+        race_frame()?;
+        if FLAGS.window_active.get() == 0 {
             hold = true;
             continue;
         }
         hold = false;
-        input_update(&mut r);
-        if g(0x6235F0) != 0 {
-            p(0x6235F0, g(0x6235F0) - 1);
+        input_update();
+        if RACE_VARS.pause_wait.get() != 0 {
+            RACE_VARS.pause_wait.set(RACE_VARS.pause_wait.get() - 1);
             continue;
         }
-        race_keys(&mut r)?;
-        r.eax = any_ending_key();
-        r.esi = a(KEYS);
-        r.ecx = 0x80;
-        if r.eax != 0 {
+        race_keys()?;
+        if any_ending_key() != 0 {
             break;
         }
     }
     for c in 0..2 {
-        p(B + 0xFE0 * c + 0x728, 0);
-        p(B + 0xFE0 * c + 0x71C, 0);
-        p(B + 0xFE0 * c + 0x724, 0);
+        CAR_BLOCKS.cars[c as usize].notice_shown.set_bits(0);
+        CAR_BLOCKS.cars[c as usize].notice_id.set_bits(0);
+        CAR_BLOCKS.cars[c as usize].notice_last.set_bits(0);
     }
-    p(0x6235E8, 0);
-    wake_car_sounds(&r)?;
-    take_key(&mut r);
-    p(B + 0x468, 0);
-    Ok(left_of(&r))
-}
-
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    let left = unsafe { pause_until_key(r) }?;
-    left.apply(r);
+    RACE_VARS.scene_switch.set(0);
+    wake_car_sounds()?;
+    take_key();
+    CAR_BLOCKS.cars[0].input_keys.set_bits(0);
     Ok(())
 }

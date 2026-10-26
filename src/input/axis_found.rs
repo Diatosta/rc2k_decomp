@@ -7,37 +7,46 @@
 //! In:  (stdcall) the `DIDEVICEOBJECTINSTANCEA`, the context (the controller's entry)
 //! Out: eax = 1; ebx, esi, edi, ebp kept; `ret 8`
 //!
-//! Caller: DirectInput, from `input::joystick_found`. Shadow mode runs the original alone.
-//! Self-test: the original and the Rust version called with each axis's GUID, a button's
-//! and a slider's, on entries of the test's.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Caller: DirectInput, from `input::joystick_found`.
 
+use crate::errors::BadInput;
 use crate::field;
-use crate::framework::{game_addr, rva};
 use crate::input::devices::{at, put};
+use crate::input::guids::INPUT_GUIDS;
 use crate::input::types::{Controller, DiDeviceObjectInstance};
+use crate::pointers::GamePtr;
 
-const AXES_RVA: usize = rva(0x4F7E38); // unk_4F7E38: the six axes' GUIDs, 16 bytes each
-
-/// The Rust version: eax.
-/// `axis_found` as DirectInput calls it: what Rust callers hand `EnumObjects` (no hook).
-pub unsafe extern "system" fn callback(object: u32, entry: u32) -> u32 {
-    axis_found(object, entry)
+/// `axis_found` as DirectInput calls it: what Rust callers hand `EnumObjects`.
+pub extern "system" fn callback(object: u32, entry: u32) -> u32 {
+    match axis_found(object, entry) {
+        Ok(eax) => eax,
+        Err(e) => {
+            crate::input::devices::refused_here("input::axis_found", e);
+            0
+        }
+    }
 }
 
-pub fn axis_found(object: u32, entry: u32) -> u32 {
+/// The Rust version: eax.
+pub fn axis_found(object: u32, entry: u32) -> Result<u32, BadInput> {
     // Converted: `rc2k_core::input::joystick::axis_bits`.
-    let guid = |at: u32| unsafe { (at as *const [u8; 16]).read_unaligned() };
-    let object_type = guid(object.wrapping_add(field!(DiDeviceObjectInstance, guid_type)));
-    let axes = std::array::from_fn(|n| guid(game_addr(AXES_RVA) as u32 + 16 * n as u32));
+    // SAFETY: `object` is the `DIDEVICEOBJECTINSTANCEA` the emulation lists (a local of its
+    // own, no allocation of the game's), alive for this call.
+    let object_type = unsafe {
+        (crate::pointers::host_at(
+            (object.wrapping_add(field!(DiDeviceObjectInstance, guid_type))) as usize,
+        ) as *const [u8; 16])
+            .read_unaligned()
+    };
+    let mut axes = [[0u8; 16]; 6];
+    for (n, axis) in axes.iter_mut().enumerate() {
+        *axis = GamePtr::new(INPUT_GUIDS.axes.addr() + 16 * n as u32).read("an axis GUID")?;
+    }
     let bits = rc2k_core::input::joystick::axis_bits(
-        at(entry, field!(Controller, axis_bits)),
+        at(entry, field!(Controller, axis_bits))?,
         &object_type,
         &axes,
     );
-    put(entry, field!(Controller, axis_bits), bits);
-    1
+    put(entry, field!(Controller, axis_bits), bits)?;
+    Ok(1)
 }

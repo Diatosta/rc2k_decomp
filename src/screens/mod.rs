@@ -1,43 +1,25 @@
 //! Functions that lay out parts of a screen: fixed positions, fonts and string ids.
 
-use crate::framework::{game_ptr, rva};
 use crate::text::font::Font;
-use std::sync::Mutex;
-use std::sync::atomic::{AtomicBool, Ordering};
 
 pub mod best_scores;
-pub mod best_scores_caption;
 pub mod buttons;
 pub mod car_caption;
-pub mod car_caption_2;
-pub mod car_page_description;
-pub mod car_page_dimensions;
-pub mod car_page_engine;
 pub mod car_page_title;
-pub mod car_page_transmission;
-pub mod car_pages;
 pub mod championship_table;
-pub mod classify_controller;
 pub mod controller;
+pub mod controls_store;
 pub mod draw_arcade_stage_title;
 pub mod draw_background_band;
-pub mod draw_best_scores;
-pub mod draw_best_scores_page;
 pub mod draw_bottom_panel;
 pub mod draw_brake_balance_marker;
-pub mod draw_button;
-pub mod draw_button_alt;
-pub mod draw_button_highlighted;
 pub mod draw_car_figures;
 pub mod draw_championship_standings;
-pub mod draw_championship_table;
 pub mod draw_class_ranking;
-pub mod draw_class_times;
 pub mod draw_class_times_marked;
 pub mod draw_column_boxes;
 pub mod draw_column_rules;
 pub mod draw_control_bindings;
-pub mod draw_controller_page;
 pub mod draw_duel_result;
 pub mod draw_empty_savegame;
 pub mod draw_event_best_scores;
@@ -45,36 +27,22 @@ pub mod draw_fade_overlay;
 pub mod draw_graphics_settings;
 pub mod draw_highlighted_caption;
 pub mod draw_inspection_status;
-pub mod draw_item_button;
-pub mod draw_item_button_centred;
-pub mod draw_item_button_centred_highlighted;
-pub mod draw_item_button_right;
-pub mod draw_item_button_right_highlighted;
-pub mod draw_itinerary;
 pub mod draw_leave_question;
 pub mod draw_load_setup_list;
-pub mod draw_menu_item_text;
 pub mod draw_menu_items;
 pub mod draw_menu_labels;
 pub mod draw_message_box;
 pub mod draw_name_cursor;
-pub mod draw_no_controller;
 pub mod draw_note_1fd;
 pub mod draw_options_checklist;
 pub mod draw_overall_best_scores;
-pub mod draw_player2_details;
-pub mod draw_player34_details;
 pub mod draw_player_details;
 pub mod draw_player_rally_result;
 pub mod draw_player_stage_result;
 pub mod draw_players_results;
 pub mod draw_players_results_points;
 pub mod draw_players_standings;
-pub mod draw_rally_stage_info;
 pub mod draw_rally_stage_times;
-pub mod draw_rally_times_heading;
-pub mod draw_record_heading;
-pub mod draw_record_times;
 pub mod draw_redefined_keys;
 pub mod draw_repair_times;
 pub mod draw_replay_slot_names;
@@ -90,47 +58,29 @@ pub mod draw_service_area;
 pub mod draw_service_boxes;
 pub mod draw_service_stage_info;
 pub mod draw_service_time;
-pub mod draw_setup_slot_names;
 pub mod draw_sound_settings;
 pub mod draw_spaced_number;
-pub mod draw_stage_best_and_fastest;
 pub mod draw_stage_heading;
 pub mod draw_stage_info;
 pub mod draw_stage_records;
-pub mod draw_stage_results;
 pub mod draw_stage_times;
-pub mod draw_stage_times_heading;
 pub mod draw_steering_sensitivity_marker;
 pub mod draw_suspension_stiffness_installed_marker;
 pub mod draw_suspension_stiffness_marker;
-pub mod draw_time_trial_records;
 pub mod draw_time_trial_stage_info;
 pub mod draw_time_trial_stage_select;
 pub mod draw_two_column_panel;
 pub mod draw_visual_preferences;
 pub mod draw_volume_settings;
-pub mod find_history_entry;
 pub mod game_screen;
 pub mod gearing_text;
-pub mod harness;
 pub mod itinerary;
-pub mod learn_axis;
-pub mod load_audio_settings;
 pub mod locked_notes;
-pub mod note_locked_item_3;
-pub mod note_locked_stage;
 pub mod page_settings;
-pub mod pick_player_1;
-pub mod pick_player_2;
-pub mod pick_player_3;
-pub mod pick_player_4;
 pub mod player_number_text;
 pub mod players_results;
-pub mod read_controller;
-pub mod replay_range_caption;
 pub mod results_pages;
 pub mod savegame_page_numbers;
-pub mod savegame_preview;
 pub mod service_area_frame;
 pub mod service_box_frame_1;
 pub mod service_box_frame_2;
@@ -140,58 +90,20 @@ pub mod service_boxes;
 pub mod set_stage_choice_titles;
 pub mod setup_markers;
 pub mod slideshow_title;
-pub mod stage_choice_texts;
 pub mod stage_info;
-pub mod stage_options_texts;
 pub mod stage_panel;
 pub mod stage_results;
+pub mod text_buffers_store;
 pub mod yes_no_caption;
 
-/// Console switch `blank on [prefix]` / `blank off`, kept for every hook in this module: a
-/// blanked hook returns at once, running neither the original nor the Rust version, so
-/// whatever it draws disappears from the screen. That is how to confirm, in the game, what a
-/// screen function draws. Without a prefix every hook of this module is blanked; with one,
-/// only the hooks whose name starts with it, or the one hook with exactly that name. It is harmless for these functions because they
-/// preserve every register; a new hook in this module must check `blanked(name)` right after
-/// `count_call()`.
-static BLANK: AtomicBool = AtomicBool::new(false);
-static BLANK_PREFIX: Mutex<String> = Mutex::new(String::new());
-
-pub fn set_blank(on: bool, prefix: &str) {
-    if let Ok(mut p) = BLANK_PREFIX.lock() {
-        *p = prefix.to_string();
-    }
-    BLANK.store(on, Ordering::Relaxed);
-}
-
-/// True if the hook called `name` is blanked at the moment. A prefix that is itself the full
-/// name of a hook selects only that hook (`screens::draw_time_trial_stage_info` is also how
-/// `screens::draw_selected_stage_menu` starts).
-pub fn blanked(name: &str) -> bool {
-    BLANK.load(Ordering::Relaxed)
-        && BLANK_PREFIX
-            .lock()
-            .is_ok_and(|prefix| crate::registry::selects(prefix.as_str(), name))
-}
-
-/// byte_A8BB54: the text buffer these functions build their lines in.
-pub const LINE_BUFFER_RVA: usize = rva(0xA8BB54);
-
 pub fn line_buffer() -> *mut u8 {
-    game_ptr(LINE_BUFFER_RVA)
+    crate::screens::text_buffers_store::TEXT_BUFFERS
+        .line
+        .as_ptr()
 }
 
-/// A font object in game memory, by its address in IDA.
+/// A font object in game memory, by its address in IDA (where it lives now, if it has moved:
+/// `crate::moved::place`).
 pub fn font_at(addr: usize) -> *mut Font {
-    game_ptr(rva(addr))
-}
-
-/// Copies `bytes` (a text with its NUL) to the line buffer.
-pub unsafe fn set_line(bytes: &[u8]) {
-    unsafe { std::ptr::copy_nonoverlapping(bytes.as_ptr(), line_buffer(), bytes.len()) };
-}
-
-/// True if the font object at `addr` has a glyph table, so that text can be measured with it.
-pub fn font_is_loaded(addr: usize) -> bool {
-    unsafe { font_at(addr).read_unaligned() }.glyph_table != 0
+    crate::pointers::host_at(crate::moved::place(addr)) as *mut Font
 }

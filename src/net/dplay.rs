@@ -1,4 +1,4 @@
-//! DirectPlay, called from Rust (the platform, section 15): `CoCreateInstance` and the
+//! DirectPlay, called from Rust (the platform): `CoCreateInstance` and the
 //! methods of the game's objects (`g_dplay` 0x5AB288, an `IDirectPlay4A`; `g_dplayLobby`
 //! 0x5AB28C, an `IDirectPlayLobby2A`; `dword_5AB284`). Each call takes the object from its
 //! variable, as the original does at the call, and gives the method's result. ecx and edx,
@@ -11,9 +11,6 @@
 //! 0x74 SetPlayerData, 0x7C SetSessionDesc, 0x8C EnumConnections, 0x98 InitializeConnection;
 //! (IDirectPlayLobby2A) 8 Release, 0xC Connect, 0x20 GetConnectionSettings,
 //! 0x30 SetConnectionSettings, 0x38 CreateCompoundAddress.
-//! In the self-tests the variables point at test objects (`net::lobby::TestObject`).
-
-use crate::net::lobby::g;
 
 pub const QUERY_INTERFACE: u32 = 0x00;
 pub const RELEASE: u32 = 0x08;
@@ -65,25 +62,13 @@ pub unsafe fn method(object: u32, offset: u32, args: &[u32]) -> u32 {
     }
 }
 
-/// A method of the object in the variable at IDA address `var`.
-pub unsafe fn call(var: usize, offset: u32, args: &[u32]) -> u32 {
-    unsafe { method(g(var), offset, args) }
+/// A method of the object in the variable `var`.
+pub unsafe fn call(var: &crate::session::Dword, offset: u32, args: &[u32]) -> u32 {
+    unsafe { method(var.get(), offset, args) }
 }
 
 /// `CoCreateInstance(class, 0, CLSCTX_INPROC_SERVER, interface, out)`; in the standalone
 /// program DirectPlay's objects made in Rust (`net::dp_objects`).
-pub unsafe fn create_instance(class: u32, interface: u32, out: u32) -> i32 {
-    use windows_sys::Win32::System::Com::{CLSCTX_INPROC_SERVER, CoCreateInstance};
-    if crate::framework::standalone() {
-        return unsafe { crate::net::dp_objects::create(class, interface, out) };
-    }
-    unsafe {
-        CoCreateInstance(
-            class as *const _,
-            std::ptr::null_mut(),
-            CLSCTX_INPROC_SERVER,
-            interface as *const _,
-            out as *mut _,
-        )
-    }
+pub fn create_instance(class: u32, interface: u32, out: u32) -> i32 {
+    crate::net::dp_objects::create(class, interface, out)
 }

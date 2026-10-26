@@ -4,43 +4,30 @@
 //!
 //! In:  nothing (the pieces at `dword_51C407`)
 //! Out: every register kept (`pusha` / `popa`); no flags read
-//! No pieces would go round 2^32 times: refused. Caller `install::run_page`. Shadow mode
-//! compares. Self-test: pages laid out by `install::lay_out_pieces` from lists of the
-//! test's, measured as the test says, against the original.
+//! No pieces would go round 2^32 times: refused. Caller `install::run_page`.
 //!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Conversion phase 3 (2026-10-23): plain Rust with typed arguments; the registers above
+//! are the original's.
 
 use crate::errors::Refused;
-use crate::framework::Regs;
-use crate::install::installer::{LAYOUT, a, g, rd};
+use crate::install::installer::rd;
 use crate::install::lay_out_pieces::PIECE;
-use crate::race::viewer::regs_entry;
+use crate::install::vars::INSTALLER_PAGES;
 
-const TITLE_BOX: usize = 0x51DD98; // unk_51DD98
-
-pub fn place_pieces(entry: &Regs) -> Result<Regs, Refused> {
-    let base = a(LAYOUT) + 4;
+pub fn place_pieces() -> Result<(), Refused> {
+    let base = INSTALLER_PAGES.layout.addr() + 4;
     let at = |k: u32| base.wrapping_add(PIECE * k);
     // Converted: `rc2k_core::install::layout::rows` (each piece's box read through its item).
-    let rows = rc2k_core::install::layout::rows(g(LAYOUT), |k| rd(rd(at(k) + 4) + 4))?;
-    let mut r = *entry;
+    let rows = rc2k_core::install::layout::rows(INSTALLER_PAGES.layout.get_u32(0), |k| {
+        rd(rd(at(k) + 4) + 4)
+    })?;
     for (first, n, the_box) in rows {
-        let place = if the_box == 0 { a(TITLE_BOX) } else { the_box };
-        r = crate::install::place_row::place_row(&Regs {
-            eax: the_box,
-            ebx: at(first),
-            ecx: n,
-            esi: place,
-            ..r
-        })?;
+        let place = if the_box == 0 {
+            INSTALLER_PAGES.title_box.addr()
+        } else {
+            the_box
+        };
+        crate::install::place_row::place_row(at(first), n, place, the_box)?;
     }
-    Ok(*entry)
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    regs_entry(r, &place_pieces)
+    Ok(())
 }

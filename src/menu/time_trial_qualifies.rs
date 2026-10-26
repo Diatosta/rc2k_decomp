@@ -6,25 +6,18 @@
 //! In:  nothing
 //! Out: every register preserved (`pusha` .. `popa`)
 //!
-//! Callers: the time trial's events, after the results. Refuses (before anything) a
-//! current player past the four or missing, a stage kind past the table or a null pointer
-//! to the stage's records or times (`event_flow::stage_times`). Self-test: the game's
-//! tables for each stage choice there, the player's time below, equal to and above the
-//! tenth.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Callers: the time trial's events, after the results. Refuses (before anything) a current player
+//! past the four or missing, a stage kind past the table or a null pointer to the stage's records
+//! or times (`event_flow::stage_times`).
 
 use crate::errors::Refused;
-use crate::framework::Regs;
 use crate::menu::event_flow::*;
-use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
+use crate::menu::event_store::EVENT_STATE;
+use crate::session::Dword;
 
-pub const QUALIFIES: usize = 0x755918; // dword_755918
-pub const TIME: usize = 0x755914; // dword_755914
-pub const ANY_QUALIFIED: usize = 0x755920; // dword_755920
+pub const QUALIFIES: &Dword = &EVENT_STATE.time_qualifies; // dword_755918
+pub const TIME: &Dword = &EVENT_STATE.player_time; // dword_755914
+pub const ANY_QUALIFIED: &Dword = &EVENT_STATE.any_time_qualified; // dword_755920
 /// The tenth entry of the best times.
 pub const TENTH: u32 = 9 * TIME_ENTRY;
 
@@ -32,23 +25,12 @@ pub fn time_trial_qualifies() -> Result<(), Refused> {
     let tenth = stage_times()? + TENTH;
     let p = current_player()?;
     set(QUALIFIES, 0);
-    let time = dword(p + 0x88);
+    let time = dword(p + 0x88)?;
     set(TIME, time);
     // Converted: `rc2k_core::menu::bests::makes_time`.
-    if rc2k_core::menu::bests::makes_time(time, dword(tenth + 0x14)) {
+    if rc2k_core::menu::bests::makes_time(time, dword(tenth + 0x14)?) {
         set(QUALIFIES, 1);
         set(ANY_QUALIFIED, 1);
     }
     Ok(())
-}
-
-fn rust(_: &Regs) -> Result<Left, Refused> {
-    time_trial_qualifies()?;
-    Ok(Left::nothing())
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
 }

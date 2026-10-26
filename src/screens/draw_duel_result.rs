@@ -12,40 +12,38 @@
 //! In:  nothing
 //! Out: every register preserved (`pusha` .. `popa`)
 //!
-//! In a menu loop's draw list (0x758E86). The sprites' palettes are ebx as the original
-//! leaves it. Refuses (before anything) players 1 or 2 missing or without a name, no stage
-//! records, a stage line past the line buffer, and a string index past `dword_7588D2`'s 21
-//! (the original reads the -1 ends or past them).
-//! Hook removed 2026-10-22 (typed tables): the menus and draw lists run its `entry`
-//! (`menu::table_calls`); the registers above are the original's, for reference.
+//! In a menu loop's draw list (0x758E86). The sprites' palettes are ebx as the original leaves it.
+//! Refuses (before anything) players 1 or 2 missing or without a name, no stage records, a stage
+//! line past the line buffer, and a string index past `dword_7588D2`'s 21 (the original reads the
+//! -1 ends or past them). The menus and draw lists run its `entry` (`menu::table_calls`); the
+//! registers above are the original's, for reference.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{Regs, game_addr, game_read, rva};
+use crate::menu::captions_store::CAPTIONS;
+use crate::menu::event_store::EVENT_STATE;
 use crate::menu::player::player_at;
-use crate::screens::harness::{Left, draw_entry};
+use crate::menu::results_store::RESULT_FIGURES;
 use crate::text::draw_text::Canvas;
 
 // dword_758720: byte offset in g_players
 // dword_758724
-fn k(a: usize) -> u32 {
-    unsafe { game_read(rva(a)) }
-}
-
-unsafe fn get(a: u32) -> u32 {
-    unsafe { (a as *const u32).read_unaligned() }
+fn get(a: u32) -> Result<u32, crate::errors::BadInput> {
+    crate::pointers::GamePtr::new(a).read::<u32>("a game value")
 }
 
 /// The stage's section's first record and the stage's record (`off_735512[dword_7558C8]
 /// [dword_7558D0]`, + 0xA4 x `dword_7558CC`); none: 0.
-fn records() -> (u32, u32) {
-    unsafe {
-        let table = get(game_addr(rva(0x735512)) as u32 + 4 * k(0x7558C8));
-        if table == 0 {
-            return (0, 0);
-        }
-        let base = get(table + 4 * k(0x7558D0));
-        (base, base.wrapping_add(k(0x7558CC).wrapping_mul(0xA4)))
+fn records() -> Result<(u32, u32), BadInput> {
+    let table =
+        crate::records::stages_store::STAGE_TABLES.group_list(EVENT_STATE.stage_group.get());
+    if table == 0 {
+        return Ok((0, 0));
     }
+    let base = get(table + 4 * EVENT_STATE.stage_sub.get())?;
+    Ok((
+        base,
+        base.wrapping_add(EVENT_STATE.stage_number.get().wrapping_mul(0xA4)),
+    ))
 }
 
 /// `dword_7588D2[v - 1]`, refused outside its 21 entries.
@@ -53,64 +51,63 @@ fn label(v: u32) -> Result<u32, Refused> {
     if !(1..=21).contains(&v) {
         return Err(BadInput("a string index past dword_7588D2's 21").into());
     }
-    Ok(k(0x7588D2 + 4 * (v as usize - 1)))
+    Ok(CAPTIONS.duel_labels[v as usize - 1].get())
 }
 
-pub unsafe fn draw_duel_result(canvas: &mut dyn Canvas) -> Result<(), Refused> {
-    unsafe {
-        let (p1, p2) = (player_at(0), player_at(1));
-        if p1 == 0 || p2 == 0 || get(p1 + 0x18) == 0 || get(p2 + 0x18) == 0 {
-            return Err(BadInput("player 1 or 2 missing or without a name").into());
-        }
-        let (base, record) = records();
-        if base == 0 {
-            return Err(BadInput("no stage records").into());
-        }
-        let stage = crate::screens::page_settings::stage_line_bytes(0x482, record)?;
-        if stage.len() > 0x100 {
-            return Err(BadInput("a stage line past the line buffer").into());
-        }
-        let (label1, label2) = (label(k(0x758768))?, label(k(0x75876C))?);
-        // Converted: `rc2k_core::screens::duel_result`.
-        use rc2k_core::screens::player_result::Player;
-        let units = crate::strings::units::units();
-        let player = |p: u32| -> Result<Player<u32>, Refused> {
-            Ok(Player {
-                name: get(p + 0x18),
-                nation: get(p + 4),
-                car: get(p + 8),
-                time: get(p + 0x88),
-                speed: crate::strings::append_speed::append_speed(get(p + 0x94), true, units)?,
-            })
-        };
-        let players = [player(p1)?, player(p2)?];
-        let figures = rc2k_core::screens::duel_result::Figures {
-            labels: [label1, label2],
-            best: [k(0x758758), k(0x75875C)],
-            columns: [
-                [0x758778, 0x758758, 0x758788, 0x758798, 0x7587A8, 0x7587B8].map(k),
-                [0x75877C, 0x75875C, 0x75878C, 0x75879C, 0x7587AC, 0x7587BC].map(k),
-            ],
-        };
-        rc2k_core::screens::duel_result::duel_result(
-            &mut crate::screens::game_screen::GameScreen::new(canvas),
-            &players,
-            get(base + 0x38),
-            &stage,
-            &figures,
-            crate::strings::append_time::show_hours(),
-        )?;
-        Ok(())
+pub fn draw_duel_result(canvas: &mut dyn Canvas) -> Result<(), Refused> {
+    let (p1, p2) = (player_at(0), player_at(1));
+    if p1 == 0 || p2 == 0 || get(p1 + 0x18)? == 0 || get(p2 + 0x18)? == 0 {
+        return Err(BadInput("player 1 or 2 missing or without a name").into());
     }
-}
-
-fn rust(_: &Regs, canvas: &mut dyn Canvas) -> Result<Left, Refused> {
-    unsafe { draw_duel_result(canvas) }?;
-    Ok(Left::nothing())
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    draw_entry("screens::draw_duel_result", r, &rust)
+    let (base, record) = records()?;
+    if base == 0 {
+        return Err(BadInput("no stage records").into());
+    }
+    let stage = crate::screens::page_settings::stage_line_bytes(0x482, record)?;
+    if stage.len() > 0x100 {
+        return Err(BadInput("a stage line past the line buffer").into());
+    }
+    let (label1, label2) = (
+        label(RESULT_FIGURES.positions[0].get())?,
+        label(RESULT_FIGURES.positions[1].get())?,
+    );
+    // Converted: `rc2k_core::screens::duel_result`.
+    use rc2k_core::screens::player_result::Player;
+    let units = crate::strings::units::units();
+    let player = |p: u32| -> Result<Player<u32>, Refused> {
+        Ok(Player {
+            name: get(p + 0x18)?,
+            nation: get(p + 4)?,
+            car: get(p + 8)?,
+            time: get(p + 0x88)?,
+            speed: crate::strings::append_speed::append_speed(get(p + 0x94)?, true, units)?,
+        })
+    };
+    let players = [player(p1)?, player(p2)?];
+    let figures = rc2k_core::screens::duel_result::Figures {
+        labels: [label1, label2],
+        best: [
+            RESULT_FIGURES.time_bonus[0].get(),
+            RESULT_FIGURES.time_bonus[1].get(),
+        ],
+        columns: [0, 1].map(|p| {
+            [
+                RESULT_FIGURES.points[p].get(),
+                RESULT_FIGURES.time_bonus[p].get(),
+                RESULT_FIGURES.extra[p].get(),
+                RESULT_FIGURES.sums[p].get(),
+                RESULT_FIGURES.before[p].get(),
+                RESULT_FIGURES.totals[p].get(),
+            ]
+        }),
+    };
+    rc2k_core::screens::duel_result::duel_result(
+        &mut crate::screens::game_screen::GameScreen::new(canvas),
+        &players,
+        get(base + 0x38)?,
+        &stage,
+        &figures,
+        crate::strings::append_time::show_hours(),
+    )?;
+    Ok(())
 }

@@ -6,50 +6,31 @@
 //! In:  nothing
 //! Out: every register kept (`pusha` .. `popa`)
 //!
-//! Caller: `sub_473126`. Refuses null tables and a table A that runs out (the original
-//! walks on past its end), before anything. Self-test: the original and the Rust version
-//! on the game's tables, both modes; put back.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Caller: `sub_473126`. Refuses null tables and a table A that runs out (the original walks on
+//! past its end), before anything.
 use crate::errors::{BadInput, Refused};
-use crate::framework::{Regs, game_read, rva};
+use crate::menu::champ_store::CHAMP_VIEW;
 use crate::menu::standings::*;
-use crate::race::stage_prefs::left_of;
-use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
+use crate::menu::state_store::MENU_STATE;
 
-const SUMMARY_RVA: usize = rva(0x7556F4); // dword_7556F4
-const MODE_RVA: usize = rva(0x75AB40); // dword_75AB40
 /// The Rust version (see the header): the registers it leaves.
-pub unsafe fn copy_standings_summary(entry: &Regs) -> Result<Regs, Refused> {
-    let (summary, first): (u32, u32) = unsafe { (game_read(SUMMARY_RVA), game_read(TABLE_A_RVA)) };
+pub fn copy_standings_summary() -> Result<(), Refused> {
+    let (summary, first): (u32, u32) = { (CHAMP_VIEW.summary.get(), TABLE_A_RVA.get()) };
     if summary == 0 || first == 0 {
         return Err(BadInput("no standings tables").into());
     }
-    let grouped = unsafe { game_read::<u32>(MODE_RVA) } == 2;
+    let grouped = MENU_STATE.menus.class_mode.get() == 2;
     let all = entries(first, A_ENTRY)?;
     // Converted: `rc2k_core::menu::standings::summary_rows`.
-    let t = unsafe { table(first, A_ENTRY, all.len() as u32) };
+    let t = table(first, A_ENTRY, all.len() as u32)?;
     let Some(rows) = rc2k_core::menu::standings::summary_rows(&t, grouped) else {
         return Err(BadInput("standings table A runs out").into());
     };
     for (n, row) in rows.into_iter().enumerate() {
         let s = summary + 0x50 * n as u32;
         for (k, v) in row.into_iter().enumerate() {
-            put(s + 4 * k as u32, v);
+            put(s + 4 * k as u32, v)?;
         }
     }
-    Ok(*entry)
-}
-
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    Ok(left_of(&unsafe { copy_standings_summary(r) }?))
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
+    Ok(())
 }

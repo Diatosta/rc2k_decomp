@@ -11,57 +11,66 @@
 //!
 //! In:  edi the list
 //! Out: every register kept (`pusha` / `popa`); no flags read
-//! Callers: `install::run_page` (twice). Shadow mode compares. Self-test: lists of the
-//! test's (every kind, marks, highlights and clocks) against the original.
+//! Callers: `install::run_page` (twice).
 //!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Conversion phase 3 (2026-10-23): plain Rust with typed arguments; the registers above
+//! are the original's.
 
-use crate::errors::Refused;
-use crate::framework::Regs;
-use crate::install::installer::{CHOICE, FRAME_CLOCK, MOVE_CLOCK, g, rb, rd, wb};
-use crate::race::viewer::regs_entry;
+use crate::install::installer::{rb, rd, wb};
+use crate::install::vars::INSTALLER_PAGES;
 use rc2k_core::install::items::{self, MARKS};
 use rc2k_core::install::pages::UNUSABLE;
 
-pub fn mark_page(entry: &Regs) -> Regs {
-    let list = entry.edi;
+pub fn mark_page(list: u32) {
     let mut cl = 0u8;
     let mut esi = list + 0x18;
     // Converted: `rc2k_core::install::items` (`walked`, `mark_choices`, `lone_choice`,
     // `lit`).
-    let table = |item: u32| unsafe {
-        std::slice::from_raw_parts_mut(rd(item + 0xC) as *mut u8, 2 * items::walked(rb(item + 1)))
+    let place = |item: u32| {
+        (
+            crate::pointers::GamePtr::new(rd(item + 0xC)),
+            2 * items::walked(rb(item + 1)),
+        )
+    };
+    let table = |item: u32| {
+        let (at, len) = place(item);
+        at.read_bytes(len, "an item's choices")
+            .unwrap_or_else(|e| crate::install::installer::refuse(e))
     };
     loop {
         let byte = rb(esi);
         if byte & 0xF == 2 {
             let ah = byte & MARKS;
             if ah == UNUSABLE {
-                items::mark_choices(table(esi), ah);
+                let mut choices = table(esi);
+                items::mark_choices(&mut choices, ah);
+                place(esi)
+                    .0
+                    .write_bytes(&choices, "an item's choices")
+                    .unwrap_or_else(|e| crate::install::installer::refuse(e));
             } else if ah == 0
-                && let Some(chosen) = items::lone_choice(table(esi), rb(esi + 1))
+                && let Some(chosen) = items::lone_choice(&table(esi), rb(esi + 1))
             {
                 wb(rd(esi + 8), chosen);
                 wb(esi, rb(esi) | UNUSABLE);
             }
         }
         let byte = rb(esi);
-        if byte & MARKS == 0 && cl as u32 == g(CHOICE) {
+        if byte & MARKS == 0 && cl as u32 == INSTALLER_PAGES.choice.get() {
             let mut editing = None;
             if byte & 0xF == 4 {
                 let record = rd(esi + 0xC);
                 if rb(record) & 4 != 0 {
-                    crate::install::next_edit::next_edit(&Regs {
-                        ebx: 0,
-                        edi: list,
-                        ..*entry
-                    });
+                    crate::install::next_edit::next_edit(0, list);
                 }
                 editing = Some(rb(record) & 1 != 0);
             }
-            let clock = || g(FRAME_CLOCK).wrapping_sub(g(MOVE_CLOCK));
+            let clock = || {
+                INSTALLER_PAGES
+                    .frame_clock
+                    .get()
+                    .wrapping_sub(INSTALLER_PAGES.move_clock.get())
+            };
             if editing == Some(true) || items::lit(editing, clock()) {
                 wb(esi, rb(esi) | MARKS);
             }
@@ -81,18 +90,4 @@ pub fn mark_page(entry: &Regs) -> Regs {
             break;
         }
     }
-    let mut r = *entry;
-    r.set_zero(true);
-    r.set_carry(false);
-    r
-}
-
-fn rust(r: &Regs) -> Result<Regs, Refused> {
-    Ok(mark_page(r))
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    regs_entry(r, &rust)
 }

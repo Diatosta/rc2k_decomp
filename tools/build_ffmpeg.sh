@@ -6,7 +6,8 @@
 # films need (ALLOGO.AVI: Indeo 4; MFLOGO.MPG, INTRO.MPG: MPEG-1 video and MPEG audio
 # layer 2) and their parsers, no assembly (no nasm needed), shared (LGPL 2.1). Into
 # third_party/ffmpeg (not in git): bin/avcodec-61.dll, bin/avutil-59.dll and their import
-# libraries bin/avcodec.lib, bin/avutil.lib.
+# libraries bin/avcodec.lib, bin/avutil.lib. `build_ffmpeg.sh x64` builds the same for
+# 64-bit Windows into third_party/ffmpeg-x64.
 # Needs: curl, gpg, clang-cl, lld-link, llvm-lib, llvm-nm, make; a cargo xwin build run
 # once (for the SDK).
 set -euo pipefail
@@ -19,8 +20,15 @@ URL="https://ffmpeg.org/releases/ffmpeg-$VERSION.tar.xz"
 # What the build turns on, part of what is checked to say it is already built.
 CONFIG="indeo4 mpeg1video mp2"
 
+ARCH="${1:-x86}"
+case "$ARCH" in
+    x86) TRIPLE=i686-pc-windows-msvc; FFARCH=x86; SUFFIX="" ;;
+    x64) TRIPLE=x86_64-pc-windows-msvc; FFARCH=x86_64; SUFFIX="-x64" ;;
+    *) echo "usage: build_ffmpeg.sh [x86|x64]" >&2; exit 1 ;;
+esac
+
 cd "$(dirname "$0")/.."
-DEST="$PWD/third_party/ffmpeg"
+DEST="$PWD/third_party/ffmpeg$SUFFIX"
 
 if [ -f "$DEST/VERSION" ] && [ "$(cat "$DEST/VERSION")" = "$VERSION $CONFIG" ]; then
     echo "FFmpeg $VERSION ($CONFIG) is already in $DEST"
@@ -28,7 +36,7 @@ if [ -f "$DEST/VERSION" ] && [ "$(cat "$DEST/VERSION")" = "$VERSION $CONFIG" ]; 
 fi
 
 XWIN="${XWIN_CACHE:-$HOME/.cache/cargo-xwin/xwin}"
-[ -d "$XWIN/crt/include" ] || { echo "no Windows SDK in $XWIN: run a cargo xwin build first" >&2; exit 1; }
+[ -d "$XWIN/crt/lib/$FFARCH" ] || { echo "no Windows SDK for $FFARCH in $XWIN: run a cargo xwin build for it first" >&2; exit 1; }
 
 TMP="$(mktemp -d)"
 trap 'rm -rf "$TMP"' EXIT
@@ -53,10 +61,10 @@ chmod +x "$TMP/shim/lib.exe"
 
 mkdir "$TMP/build"
 cd "$TMP/build"
-CFLAGS="--target=i686-pc-windows-msvc -imsvc $XWIN/crt/include -imsvc $XWIN/sdk/include/ucrt -imsvc $XWIN/sdk/include/um -imsvc $XWIN/sdk/include/shared"
-LDFLAGS="-libpath:$XWIN/crt/lib/x86 -libpath:$XWIN/sdk/lib/um/x86 -libpath:$XWIN/sdk/lib/ucrt/x86"
+CFLAGS="--target=$TRIPLE -imsvc $XWIN/crt/include -imsvc $XWIN/sdk/include/ucrt -imsvc $XWIN/sdk/include/um -imsvc $XWIN/sdk/include/shared"
+LDFLAGS="-libpath:$XWIN/crt/lib/$FFARCH -libpath:$XWIN/sdk/lib/um/$FFARCH -libpath:$XWIN/sdk/lib/ucrt/$FFARCH"
 "$SRC/configure" --toolchain=msvc --cc=clang-cl --cxx=clang-cl --ld=lld-link --ar=llvm-lib \
-    --nm=llvm-nm --target-os=win32 --arch=x86 --enable-cross-compile --disable-asm \
+    --nm=llvm-nm --target-os=win32 --arch=$FFARCH --enable-cross-compile --disable-asm \
     --disable-everything --enable-decoder=indeo4,mpeg1video,mp2 \
     --enable-parser=mpegvideo,mpegaudio --disable-programs --disable-doc \
     --disable-avformat --disable-avdevice --disable-avfilter --disable-swscale \

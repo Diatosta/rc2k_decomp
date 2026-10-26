@@ -12,28 +12,20 @@
 //!      the rest kept; no flags read
 //!
 //! Callers: `sub_43907F` (seven).
-//! Self-test: `physics/camera_view.rs` (`view_test`), figures by lot, three precisions.
+//!
+//! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
+//! above are the original's, for reference.
 
-use crate::errors::Refused;
-use crate::framework::{EAX, EBX, ECX, EDX, ESI, RawHook, Regs, hook_asm, rva};
-use crate::physics::camera_view::{rd, view_regions, view_test_floats_regs};
-use crate::physics::flow::{a, base, g, p, x87_run};
-use crate::screens::harness::Left;
-use crate::service::floats::{Floats, ROUNDED, Tolerance, dispatch_state_floats, floats_entry};
-use rc2k_core::physics::camera_place::{SECOND_RECORD_MODE, add_offset, turned_offset};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("physics::place_camera", rva(0x438E5A), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
+use crate::physics::camera_store::CAMERA_WORK;
+use crate::physics::camera_view::rd;
+use crate::physics::car_store::CAR;
+use crate::race::frame_store::FRAME_WORK;
+use crate::race::numbers_store::NUMBERS;
+use crate::race::vars_store::RACE_VARS;
+use crate::race::view_vars_store::VIEW_VARS;
+use crate::scene::draw_store::DRAW;
+use crate::scene::x87_mem::{fild, fld, fstp80};
+use rc2k_core::physics::camera_place::{SECOND_RECORD_MODE, add_offset};
 
 /// The turns: `math::turn_point_xz_ebx`, `_ecx` and `turn_point_xz`, exact or plain.
 type Turns = (
@@ -43,83 +35,102 @@ type Turns = (
 );
 
 /// The steps both versions share; `second` the second offset turned with the car.
-unsafe fn place_with(turns: Turns, second: &dyn Fn() -> [i32; 3]) -> Left {
-    let esi = if g(0x6238A4) == SECOND_RECORD_MODE {
-        a(0x6077CC)
+unsafe fn place_with(turns: Turns, second: &dyn Fn() -> [i32; 3]) {
+    let esi = if RACE_VARS.split.get() == SECOND_RECORD_MODE {
+        crate::race::lights_store::LIGHTS_DATA.place_second[0].addr()
     } else {
-        a(0x6077B0)
+        crate::race::lights_store::LIGHTS_DATA.place_usual[0].addr()
     };
-    for (k, to) in [
-        0x606678usize,
-        0x60667C,
-        0x6066D4,
-        0x6066D8,
-        0x606730,
-        0x606734,
-    ]
-    .iter()
-    .enumerate()
-    {
-        p(*to, rd(esi + 4 * k as u32));
+    let places = [
+        &VIEW_VARS.place_a,
+        &VIEW_VARS.place_b,
+        &VIEW_VARS.place_c,
+        &VIEW_VARS.place_d,
+        &VIEW_VARS.place_e,
+        &VIEW_VARS.place_f,
+    ];
+    for (k, to) in places.iter().enumerate() {
+        to.set(rd(esi + 4 * k as u32));
     }
     let last = rd(esi + 0x18);
-    for to in [0x60668C, 0x6066E8, 0x606744] {
-        p(to, last);
+    for to in [
+        &VIEW_VARS.place_last_a,
+        &VIEW_VARS.place_last_b,
+        &VIEW_VARS.place_last_c,
+    ] {
+        to.set(last);
     }
-    let (mut eax, mut ebx, mut ecx) = (g(0x608B30), g(0x608B34), g(0x608B38));
-    let mut edx = 0;
+    let (mut eax, mut ebx, mut ecx) = (
+        CAMERA_WORK.camera_offset_x.get(),
+        CAMERA_WORK.camera_offset_y.get(),
+        CAMERA_WORK.camera_offset_z.get(),
+    );
     for (ebx_turn, ecx_turn, eax_turn) in [
-        (0x71A69C, 0x71A694, 0x71A698),
-        (0x71A68C, 0x71A690, 0x71A688),
+        (
+            &CAR.camera_offset_turns[2],
+            &CAR.camera_offset_turns[0],
+            &CAR.camera_offset_turns[1],
+        ),
+        (
+            &CAR.camera_roll_turn,
+            &CAR.camera_pitch,
+            &CAR.camera_heading,
+        ),
     ] {
         let i = |v: u32| v as i32;
-        let [x, z, _] = unsafe { turns.0(i(ebx), i(ecx), i(eax), g(ebx_turn)) };
+        let [x, z, _] = unsafe { turns.0(i(ebx), i(ecx), i(eax), ebx_turn.get()) };
         ebx = x;
         eax = z;
-        let [x, z, _] = unsafe { turns.1(i(ecx), i(eax), i(ebx), g(ecx_turn)) };
+        let [x, z, _] = unsafe { turns.1(i(ecx), i(eax), i(ebx), ecx_turn.get()) };
         ecx = x;
         ebx = z;
-        let [x, _, z, e2] = unsafe { turns.2(i(eax), i(ebx), i(ecx), g(eax_turn)) };
+        let [x, _, z, _] = unsafe { turns.2(i(eax), i(ebx), i(ecx), eax_turn.get()) };
         eax = x;
         ecx = z;
-        edx = e2;
     }
-    p(0x71A67C, eax);
-    p(0x71A680, ebx);
-    p(0x71A684, ecx);
+    CAR.camera_position[0].set(eax);
+    CAR.camera_position[1].set(ebx);
+    CAR.camera_position[2].set(ecx);
     // 0x438F14: the second offset, turned with the car.
     let whole = second();
-    p(0x62400C, whole[2] as u32);
-    let car = [g(0x6416E8), g(0x6416EC), g(0x6416F0)];
-    let place = [g(0x71A67C), g(0x71A680), g(0x71A684)];
-    let ([eax, ebx, ecx], place) = add_offset(place, whole, car);
-    p(0x71A67C, place[0]);
-    p(0x71A680, place[1]);
-    p(0x71A684, place[2]);
-    Left::nothing()
-        .with(EAX, eax)
-        .with(EBX, ebx)
-        .with(ECX, ecx)
-        .with(EDX, edx)
-        // 0x438F5A: esi is left at the crash matrix (`lea esi, g_crashMatrix`).
-        .with(ESI, a(0x71A08C))
+    DRAW.scratch.set(whole[2] as u32);
+    let car = [
+        FRAME_WORK.camera_car[0].get(),
+        FRAME_WORK.camera_car[1].get(),
+        FRAME_WORK.camera_car[2].get(),
+    ];
+    let place = [
+        CAR.camera_position[0].get(),
+        CAR.camera_position[1].get(),
+        CAR.camera_position[2].get(),
+    ];
+    let (_, place) = add_offset(place, whole, car);
+    CAR.camera_position[0].set(place[0]);
+    CAR.camera_position[1].set(place[1]);
+    CAR.camera_position[2].set(place[2]);
 }
 
-/// The Rust version (the exact one, for `physics::camera_avoid_ground`).
-pub unsafe fn place_camera(_: &Regs) -> Left {
+/// The Rust version (the exact one, for `physics::camera_avoid_ground`). The registers it
+/// leaves are read by none of its callers.
+pub unsafe fn place_camera() {
     use crate::math::{turn_point_xz, turn_point_xz_ebx, turn_point_xz_ecx};
     let second = || {
         let mut parts = [[0u8; 10]; 3];
-        for (k, x) in [0x608B74usize, 0x608B78, 0x608B7C].iter().enumerate() {
-            x87_run!(
-                "fild dword ptr [{v}]",
-                "fdiv dword ptr [{b} + 0x1C5D98]",
-                "fstp tbyte ptr [{o}]";
-                b = base(), v = a(*x), o = parts[k].as_mut_ptr()
+        let turns = [
+            &CAMERA_WORK.view_turn_x,
+            &CAMERA_WORK.view_turn_y,
+            &CAMERA_WORK.view_turn_z,
+        ];
+        for (k, x) in turns.iter().enumerate() {
+            x87_1(
+                x.addr() as usize,
+                crate::race::store::asm_base() as usize,
+                (crate::pointers::game_address(parts[k].as_mut_ptr())) as usize,
             );
         }
-        let turned = unsafe { crate::scene::rotate_point::rotate_point(a(0x71A08C), parts) };
-        let k = g(0x5C5D98);
+        let turned =
+            { crate::scene::rotate_point::rotate_point(CAR.crash_matrix[0].addr(), parts) };
+        let k = NUMBERS.k65536.bits();
         turned.map(|e| crate::math::x87_run::ext_to_int(crate::math::x87_run::ext_times(e, k)))
     };
     unsafe {
@@ -134,58 +145,51 @@ pub unsafe fn place_camera(_: &Regs) -> Left {
     }
 }
 
-/// The converted version (`rc2k_core::physics::camera_place`, plain floats): the hook's.
-// Converted: `rc2k_core::physics::camera_place::{turned_offset, add_offset}`.
-pub unsafe fn place_camera_plain(_: &Regs) -> Left {
-    use crate::math::{turn_point_xz, turn_point_xz_ebx, turn_point_xz_ecx};
-    let second = || {
-        let m = unsafe { crate::scene::vector3::read_floats::<15>(a(0x71A08C)) };
-        let offset = [0x608B74usize, 0x608B78, 0x608B7C].map(|x| g(x) as i32);
-        turned_offset(&m, offset, f32::from_bits(g(0x5C5D98)))
-    };
-    unsafe {
-        place_with(
-            (
-                turn_point_xz_ebx::turn_point_xz_ebx_plain,
-                turn_point_xz_ecx::turn_point_xz_ecx_plain,
-                turn_point_xz::turn_point_xz_plain,
-            ),
-            &second,
-        )
+// ---- the arithmetic that was x87 assembly ----
+
+/// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
+/// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
+/// `ext [o + 0] = int [v + 0] / [rc + 0x1C5D98]`
+fn x87_1(v: usize, rc: usize, o: usize) {
+    let t0 = fild(v, 0);
+    let t1 = fld(rc, 0x1C5D98);
+    let t2 = t0 / t1;
+    fstp80(o, 0, t2);
+}
+
+#[cfg(all(test, target_arch = "x86"))]
+mod asm_reference {
+    use super::*;
+    use crate::scene::asm_test::{Block, In, Operand, Out, reference, sparse};
+
+    // The original's instructions, one function per run.
+    reference!(ref_0(v, rc, o) "fild dword ptr [{v}]", "fdiv dword ptr [{rc} + 0x1C5D98]", "fstp tbyte ptr [{o}]");
+
+    fn blocks() -> Vec<Block> {
+        vec![Block {
+            name: "place_camera line 91",
+            operands: vec![
+                Operand::Buffer {
+                    reads: &[(0, In::I)],
+                    writes: &[],
+                },
+                Operand::Buffer {
+                    reads: &[(0x1C5D98, In::F)],
+                    writes: &[],
+                },
+                Operand::Buffer {
+                    reads: &[],
+                    writes: &[(0, Out::T)],
+                },
+            ],
+            ulps: 0,
+            reference: |a| unsafe { ref_0(a[0], a[1], a[2]) },
+            plain: |a| x87_1(a[0], a[1], a[2]),
+        }]
     }
-}
 
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    Ok(unsafe { place_camera_plain(r) })
-}
-
-/// The places from floats: the camera's place, the scratch (whole numbers), and the
-/// registers left with the last offset.
-const PLACES: [(usize, usize, Tolerance); 2] = [(0x71A67C, 12, ROUNDED), (0x62400C, 4, ROUNDED)];
-const REGS: [(u8, Tolerance); 3] = [(EAX, ROUNDED), (EBX, ROUNDED), (ECX, ROUNDED)];
-
-extern "C" fn dispatch(r: &mut Regs) {
-    let memory: Vec<_> = PLACES.iter().map(|&(x, n, t)| ((a(x), n), t)).collect();
-    let floats = Floats {
-        memory: &memory,
-        regs: &REGS,
-    };
-    dispatch_state_floats(&HOOK, r, call_original, &view_regions(), &floats, &rust);
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    floats_entry(r, &rust)
-}
-
-fn self_test() -> (usize, usize) {
-    view_test_floats_regs(
-        &HOOK,
-        "physics::place_camera",
-        call_original,
-        &rust,
-        &PLACES,
-        &REGS,
-    )
+    #[test]
+    fn x87_blocks_matches_the_assembly() {
+        sparse(&blocks(), 1200, 100);
+    }
 }

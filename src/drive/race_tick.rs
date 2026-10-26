@@ -8,48 +8,36 @@
 //! In:  nothing
 //! Out: the registers as the step leaves them; no flags read
 //!
-//! Caller: `drive::race_step`.
-//! Raises 0x80600655 as the original; refuses what the steps refuse.
-//! Self-test: skipped (its steps carry their own tests; a race's ticks in play check it).
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Caller: `drive::race_step`. Raises 0x80600655 as the original; refuses what the steps
+//! refuse.
 
 use crate::errors::{FatalError, Refused};
-use crate::framework::Regs;
-use crate::physics::flow::{g, p};
-use crate::race::stage_prefs::left_of;
-use crate::screens::harness::Left;
-
-const B: usize = 0x70F3EC;
+use crate::race::blocks_store::CAR_BLOCKS;
+use crate::race::switches_store::FRAME_SWITCHES;
+use crate::race::vars_store::RACE_VARS;
+use crate::race::view_store::RACE_VIEW;
 
 /// The Rust version.
 // Converted: `rc2k_core::drive::race_ticks::{tick_runs, NO_CAR_FATAL}`.
-pub unsafe fn race_tick(entry: &Regs) -> Result<Left, Refused> {
-    if g(B + 0x260) == 0 {
+pub unsafe fn race_tick() -> Result<(), Refused> {
+    if CAR_BLOCKS.cars[0].probe_count.bits() == 0 {
         return Err(FatalError {
             code: rc2k_core::drive::race_ticks::NO_CAR_FATAL,
             message: "",
         }
         .into());
     }
-    if g(0x621884) == 0 {
-        return unsafe { crate::drive::simple_car_step::simple_car_step(entry) };
+    if FRAME_SWITCHES.levers_on.get() == 0 {
+        return unsafe { crate::drive::simple_car_step::simple_car_step() };
     }
-    p(0x6235F8, g(0x6235F8).wrapping_add(1));
-    if !rc2k_core::drive::race_ticks::tick_runs(g(0x6235F8), g(0x63DB84)) {
-        return Ok(Left::nothing());
+    RACE_VARS
+        .race_ticks
+        .set(RACE_VARS.race_ticks.get().wrapping_add(1));
+    if !rc2k_core::drive::race_ticks::tick_runs(
+        RACE_VARS.race_ticks.get(),
+        RACE_VIEW.after_credits.get(),
+    ) {
+        return Ok(());
     }
-    let left = unsafe { crate::drive::replay_step::replay_step(entry) }?;
-    let mut r = *entry;
-    left.apply(&mut r);
-    Ok(left_of(&r))
-}
-
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    let left = unsafe { race_tick(r) }?;
-    left.apply(r);
-    Ok(())
+    unsafe { crate::drive::replay_step::replay_step() }
 }

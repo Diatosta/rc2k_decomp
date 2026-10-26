@@ -1,0 +1,72 @@
+//! The MMX converters' masks and the converters table, out of RAL.EXE's image (phase 5;
+//! typed in phase 7, `notes/conversion.md`): IDA 0x4F51F0 .. 0x4F52A4.
+
+use crate::session::Dword;
+
+/// IDA's address of the block's first byte.
+pub const START: usize = 0x4F51F0;
+/// The block's length.
+pub const LEN: usize = 0x4F52A4 - START;
+
+/// How many masks (qwords) there are.
+pub const MASKS: usize = 19;
+
+/// The converters' masks and table.
+#[repr(C)]
+pub struct Converters {
+    /// `0x4F51F0` .. `0x4F5288`: the masks the MMX and 3DNow converters work with, 19
+    /// qwords as (low, high) dwords, never written (the four formats' sets of five start
+    /// at qwords 1, 5, 9 and 14 and share some: `mmx_converters`). The first qword is
+    /// not used.
+    pub masks: [u32; 2 * MASKS],
+    /// `dword_4F5288`: the converter (an address of the game's code) for each of the
+    /// pixel formats' numbers, 0 for none (`install_converters`).
+    pub table: [Dword; 7],
+}
+
+/// The masks and the table; the first values are the image's.
+pub static CONVERTERS: Converters = Converters {
+    masks: [
+        0xffff0000, 0xffff0000, 0x00ff00ff, 0x00ff00ff, 0xf800f800, 0xf800f800, 0x07e007e0,
+        0x07e007e0, 0x001f001f, 0x001f001f, 0x00ff00ff, 0x00ff00ff, 0x7c007c00, 0x7c007c00,
+        0x03e003e0, 0x03e003e0, 0x001f001f, 0x001f001f, 0x00ff00ff, 0x00ff00ff, 0x7c007c00,
+        0x7c007c00, 0x03e003e0, 0x03e003e0, 0x001f001f, 0x001f001f, 0x80008000, 0x80008000,
+        0x00ff00ff, 0x00ff00ff, 0x0f000f00, 0x0f000f00, 0x00f000f0, 0x00f000f0, 0x000f000f,
+        0x000f000f, 0xf000f000, 0xf000f000,
+    ],
+    table: [const { Dword::new(0) }; 7],
+};
+
+/// Where the block is (`moved::MOVED`'s home for IDA 0x4F51F0).
+pub fn home() -> usize {
+    crate::pointers::game_address(&CONVERTERS as *const Converters) as usize
+}
+
+impl Converters {
+    /// Mask number `n` (a qword).
+    pub fn mask(&self, n: usize) -> u64 {
+        u64::from(self.masks[2 * n]) | u64::from(self.masks[2 * n + 1]) << 32
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use core::mem::offset_of;
+
+    #[test]
+    fn first_values_are_the_games() {
+        crate::gfx::first_values_are_the_games(&CONVERTERS, START, START + LEN);
+    }
+
+    #[test]
+    fn moved_knows_the_block() {
+        assert_eq!(offset_of!(Converters, table), 0x4F5288 - START);
+        assert_eq!(crate::moved::place(START), home());
+        assert_eq!(
+            crate::moved::place(0x4F5288),
+            CONVERTERS.table[0].addr() as usize
+        );
+        assert_eq!(CONVERTERS.mask(1), 0x00ff_00ff_00ff_00ff);
+    }
+}

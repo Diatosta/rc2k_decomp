@@ -13,44 +13,88 @@
 //! registers above are the original's, for reference.
 
 use crate::errors::{BadInput, Refused};
-use crate::files::numbered_path::{buffer as path_buffer, numbered_path_in_game};
-use crate::files::read_file::{LAST_FILE_PATH_RVA, read_file};
-use crate::framework::{game_addr, game_ptr, rva};
-use crate::service::harness::{Region, at};
-use std::ptr::copy_nonoverlapping;
+use crate::files::numbered_path::numbered_path_in_game;
+use crate::files::read_file::read_file;
+use crate::pointers::GamePtr;
+use crate::session::{Bytes, Dword};
 
 // ---- game data ----
 
-pub const TEMPLATE_RVA: usize = rva(0x529716); // aSavedataCarset: "savedata\carsetup\carset00"
-pub const SETUP_FILE_RVA: usize = rva(0x527838); // dword_527838: the head of a setup file
 pub const SETUP_FILE_LEN: usize = 0x48;
-const SLOT_NAMES_RVA: usize = rva(0x527880); // byte_527880[100][0x20]
 pub const SLOT_COUNT: u32 = 100;
 pub const NAME_LEN: usize = 0x20;
 
+/// IDA's address of the set-ups' variables.
+pub const START: usize = 0x527838;
+/// Their length.
+pub const LEN: usize = 0x528504 - START;
+
+/// The car set-ups' buffers.
+#[repr(C)]
+pub struct SetUps {
+    /// `dword_527838`: the head of a set-up file as it is read or written.
+    pub file: Bytes<SETUP_FILE_LEN>,
+    /// `byte_527880`: the set-ups' names, 100 of 0x20 bytes.
+    pub names: Bytes<{ SLOT_COUNT as usize * NAME_LEN }>,
+    /// `dword_528500`: a value the options file keeps; nothing else reads it.
+    pub kept: Dword,
+}
+
+/// The set-ups' buffers; the first values are the image's (all zero).
+pub static SET_UPS: SetUps = SetUps {
+    file: Bytes::new([0; SETUP_FILE_LEN]),
+    names: Bytes::new([0; SLOT_COUNT as usize * NAME_LEN]),
+    kept: Dword::new(0),
+};
+
+/// Where the block is (`moved::MOVED`'s home for IDA 0x527838).
+pub fn home() -> usize {
+    crate::pointers::game_address(&SET_UPS as *const SetUps) as usize
+}
+
+/// IDA's address of the file name's template.
+pub const TEMPLATE_START: usize = 0x529716;
+
+/// `aSavedataCarset`: the set-up file's name, the number's two digits last.
+pub static TEMPLATE: Bytes<27> = Bytes::new(*b"savedata\\carsetup\\carset00\0");
+
+/// Where the template is (`moved::MOVED`'s home for IDA 0x529716).
+pub fn template_home() -> usize {
+    TEMPLATE.addr() as usize
+}
+
 // "CRSU"
 pub fn slot_name(slot: u32) -> *mut u8 {
-    game_ptr::<u8>(SLOT_NAMES_RVA).wrapping_add(slot as usize * NAME_LEN)
+    SET_UPS
+        .names
+        .as_ptr()
+        .wrapping_add(slot as usize * NAME_LEN)
 }
 
 // ---- Rust version ----
 
 /// True if the slot's file was read and accepted.
-pub unsafe fn read_setup_slot(slot: u32) -> Result<bool, Refused> {
+pub fn read_setup_slot(slot: u32) -> Result<bool, Refused> {
     if slot >= SLOT_COUNT {
         return Err(BadInput("slot past the name table").into());
     }
-    unsafe {
-        let path = numbered_path_in_game(game_ptr(TEMPLATE_RVA), slot)?;
-        let file: *mut u8 = game_ptr(SETUP_FILE_RVA);
-        let read = read_file(path, file, SETUP_FILE_LEN as u32, 0)?;
+    {
+        let path = numbered_path_in_game(TEMPLATE.as_ptr(), slot)?;
+        let file = GamePtr::new(SET_UPS.file.addr());
+        let read = read_file(
+            path,
+            crate::pointers::host(file.addr()),
+            SETUP_FILE_LEN as u32,
+            0,
+        )?;
         // Converted: `rc2k_core::saves::kept::setup_name`.
         let name = rc2k_core::saves::kept::setup_name(
-            &(file as *const [u8; SETUP_FILE_LEN]).read_unaligned(),
+            &file.read::<[u8; SETUP_FILE_LEN]>("the setup file")?,
         );
         match name {
             Some(name) if read.ok => {
-                copy_nonoverlapping(name.as_ptr(), slot_name(slot), NAME_LEN);
+                GamePtr::new(crate::pointers::game_address(slot_name(slot)))
+                    .write_bytes(&name[..NAME_LEN], "a setup's name")?;
                 Ok(true)
             }
             _ => Ok(false),
@@ -58,15 +102,26 @@ pub unsafe fn read_setup_slot(slot: u32) -> Result<bool, Refused> {
     }
 }
 
-/// What reading slot `slot` may write.
-pub fn regions(slot: u32) -> Vec<Region> {
-    let mut regions = vec![
-        (game_addr(SETUP_FILE_RVA) as u32, SETUP_FILE_LEN),
-        (path_buffer() as u32, 0x100),
-        at(LAST_FILE_PATH_RVA),
-    ];
-    if slot < SLOT_COUNT {
-        regions.push((slot_name(slot) as u32, NAME_LEN));
+#[cfg(test)]
+mod block_tests {
+    use super::*;
+    use core::mem::offset_of;
+
+    #[test]
+    fn first_values_are_the_games() {
+        crate::gfx::first_values_are_the_games(&SET_UPS, START, START + LEN);
+        crate::gfx::first_values_are_the_games(&TEMPLATE, TEMPLATE_START, TEMPLATE_START + 27);
     }
-    regions
+
+    #[test]
+    fn moved_knows_the_block() {
+        assert_eq!(offset_of!(SetUps, names), 0x527880 - START);
+        assert_eq!(offset_of!(SetUps, kept), 0x528500 - START);
+        assert_eq!(crate::moved::place(START), SET_UPS.file.addr() as usize);
+        assert_eq!(crate::moved::place(0x527880), SET_UPS.names.addr() as usize);
+        assert_eq!(
+            crate::moved::place(TEMPLATE_START),
+            TEMPLATE.addr() as usize
+        );
+    }
 }

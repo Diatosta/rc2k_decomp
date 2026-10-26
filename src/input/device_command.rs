@@ -12,128 +12,56 @@
 //! In:  al = the command, ah = the device (for 1)
 //! Out: every register kept (`pusha` .. `popa`)
 //!
-//! Caller: `input::input_tick` (when `g_inputCommand` was set). Its calls through `part`:
-//! 0 the release (esi), 1 the acquiring (esi), 2 the effects' end, 3 the tick, 4 the set-up
-//! (esi, edi), 5 the sleep (eax the milliseconds), 6 the effects' start; in the game the
-//! Rust versions of all (the acquiring `input::acquire_device`). Refuses (before
+//! Caller: `input::input_tick` (when `g_inputCommand` was set). Refuses (before
 //! anything) a device past 1 for command 1.
-//! Shadow mode runs the original alone (it acquires devices). Self-test: a copy whose
-//! calls go to stand-ins, against the Rust version: each command, each player setting.
 //!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
+//! above are the original's, for reference.
 
 use crate::errors::Refused;
-use crate::framework::{Regs, game_addr, game_read, game_write, rva};
 use crate::input::devices::put;
-
-pub const DEVICES_RVA: usize = rva(0x4F6EE8); // g_inputDevices: the two records
-const EFFECTS_ON_RVA: usize = rva(0x518090); // dword_518090
-const CONTROLS_RVA: [usize; 2] = [rva(0x75AE28), rva(0x75AF94)]; // dword_75AE28, dword_75AF94
-const TWO_DEVICES_RVA: usize = rva(0x4F68FC); // dword_4F68FC
-const ONE_PLAYER_RVA: usize = rva(0x514F78); // g_onePlayer
-const CALLEES: [usize; 7] = [
-    0x4087F3, 0x408473, 0x40F2B8, 0x408A56, 0x408BCD, 0x41100C, 0x40F29D,
-];
-
-/// A call by place (see the header).
-pub type Part<'a> = &'a mut dyn FnMut(u32, &mut Regs) -> Result<(), Refused>;
+use crate::input::store::DEVICES;
+use crate::race::state_store::RACE_STATE;
+use crate::sound::store::RACE_SOUNDS;
 
 fn device(n: usize) -> u32 {
-    unsafe { game_read(DEVICES_RVA + 4 * n) }
+    DEVICES.input_devices[n].get()
 }
 
-/// The Rust version (see the header): the registers it leaves (`popa`'s: the entry's).
-pub unsafe fn device_command(entry: &Regs, part: Part) -> Result<Regs, Refused> {
-    // Converted: `rc2k_core::input::devices::command_steps`; the registers are carried
-    // through the steps as the original has them.
+/// The command `command` (its low byte the command, the next the device; see the header).
+pub unsafe fn device_command(command: u32) -> Result<(), Refused> {
+    // Converted: `rc2k_core::input::devices::command_steps`.
     use rc2k_core::input::devices::{CommandStep::*, command_steps};
-    let mut r = *entry;
     unsafe {
         let steps = command_steps(
-            r.eax as u8,
-            (r.eax >> 8) as u8,
-            game_read(TWO_DEVICES_RVA),
-            game_read(ONE_PLAYER_RVA),
+            command as u8,
+            (command >> 8) as u8,
+            DEVICES.two_devices_one_player.get(),
+            RACE_SOUNDS.one_player.get(),
         )?;
         for step in steps {
             match step {
-                EffectsOn(on) => game_write(EFFECTS_ON_RVA, on as u32),
-                Release(n) => {
-                    r.esi = device(n);
-                    part(0, &mut r)?;
-                }
-                Acquire(n) => {
-                    r.esi = device(n);
-                    part(1, &mut r)?;
-                }
-                EndEffects => part(2, &mut r)?,
-                Tick => part(3, &mut r)?,
-                SetUp(n) => {
-                    r.esi = device(n);
-                    r.edi = game_addr(CONTROLS_RVA[n]) as u32;
-                    part(4, &mut r)?;
-                }
-                Reading(n, on) => put(device(n), 0x414, on as u32),
+                EffectsOn(on) => crate::input::store::FORCE_FEEDBACK.race_on.set(on as u32),
+                Release(n) => crate::input::release_device::release_device(device(n))?,
+                Acquire(n) => crate::input::acquire_device::acquire_device(device(n))?,
+                EndEffects => crate::input::end_effects::end_effects()?,
+                Tick => crate::input::input_tick::input_tick()?,
+                SetUp(n) => crate::input::set_up_device::set_up_device(
+                    device(n),
+                    RACE_STATE.settings.cars[n].record_2c.addr(),
+                )?,
+                Reading(n, on) => put(device(n), 0x414, on as u32)?,
                 SecondApart => {
-                    r.eax = game_read(CONTROLS_RVA[0]);
-                    if r.eax == game_read::<u32>(CONTROLS_RVA[1]) {
-                        game_write(CONTROLS_RVA[1], 0u32);
+                    if RACE_STATE.settings.cars[0].record_2c.get()
+                        == RACE_STATE.settings.cars[1].record_2c.get()
+                    {
+                        RACE_STATE.settings.cars[1].record_2c.set(0);
                     }
                 }
-                Sleep(ms) => {
-                    r.eax = ms;
-                    part(5, &mut r)?;
-                }
-                BeginEffects => part(6, &mut r)?,
+                Sleep(ms) => crate::system::sleep::sleep(ms),
+                BeginEffects => crate::input::begin_effects::begin_effects()?,
             }
         }
     }
-    Ok(*entry)
-}
-
-/// In the game: the Rust versions.
-pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
-    unsafe {
-        match place {
-            0 => {
-                *r = crate::input::release_device::release_device(
-                    r,
-                    &mut crate::input::release_device::game_part,
-                )?
-            }
-            3 => {
-                *r = crate::input::input_tick::input_tick(
-                    r,
-                    &mut crate::input::input_tick::game_part,
-                )?
-            }
-            4 => {
-                *r = crate::input::set_up_device::set_up_device(
-                    r,
-                    &mut crate::input::set_up_device::game_part,
-                )?
-            }
-            1 => crate::input::acquire_device::acquire_device(
-                r.esi,
-                &mut crate::input::make_effect::game_part,
-            )?,
-            5 => crate::system::sleep::sleep(r.eax),
-            2 => crate::input::end_effects::end_effects(r, &mut crate::input::effects::game_part)?,
-            6 => crate::input::begin_effects::begin_effects(
-                r,
-                &mut crate::input::effects::game_part,
-            )?,
-            p => crate::calls::call(rva(CALLEES[p as usize]), r),
-        }
-    }
-    Ok(())
-}
-
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    let left = unsafe { device_command(r, &mut game_part) }?;
-    *r = Regs { esp: r.esp, ..left };
     Ok(())
 }

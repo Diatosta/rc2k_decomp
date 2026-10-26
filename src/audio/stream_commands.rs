@@ -12,99 +12,64 @@
 //! past 5 starts from 0, and after `RETRIES` plays in a row that stop at their first feed
 //! the music stops (the original: both for ever, the audio thread hung).
 
+use crate::audio::store::AUDIO;
 use crate::audio::stream::*;
 use crate::errors::Refused;
-use crate::framework::{Regs, game_addr};
+use crate::session::Shared;
 
-/// The calls by the game's addresses, each with the registers it reads: 0 `start_stream`
-/// (eax the path, esi; the carry), 1 `feed_stream`, 2 `stop_stream`, 3 `set_stream_volume`
-/// (esi), 4 `files::file_exists` (eax; the carry: not there).
-pub type Part<'a> = &'a mut dyn FnMut(u32, &mut Regs) -> Result<(), Refused>;
-pub const START: u32 = 0;
-pub const FEED: u32 = 1;
-pub const STOP: u32 = 2;
-pub const VOLUME: u32 = 3;
-pub const EXISTS: u32 = 4;
-
-/// The Rust versions, as the game has them.
-pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
-    unsafe {
-        let s = stream(r.esi);
-        match place {
-            START => {
-                let started = start_stream(s, r.eax as *const u8, &StartVars::game())?;
-                r.set_carry(!started);
-            }
-            FEED => {
-                let fed = feed_stream(
-                    s,
-                    game_addr(crate::audio::fill_buffer::LOCKED_PARTS_RVA) as u32,
-                )?;
-                r.set_carry(!fed);
-            }
-            STOP => stop_stream(s)?,
-            VOLUME => set_stream_volume(s)?,
-            _ => {
-                let there = crate::files::file_exists::file_exists(r.eax as *const u8)?;
-                r.set_carry(!there);
-            }
-        }
-    }
-    Ok(())
+fn playing(player: &Shared<AudioStream>) -> bool {
+    player.get().playing == 1
 }
 
-/// One call: carry out.
-fn call(part: &mut Part, place: u32, eax: u32, player: u32) -> Result<bool, Refused> {
-    let mut r = Regs {
-        eax,
-        esi: player,
-        ..Regs::default()
-    };
-    part(place, &mut r)?;
-    Ok(r.carry())
-}
-
-fn playing(player: u32) -> bool {
-    unsafe { stream(player).playing == 1 }
-}
-
-/// The core's player: the game's stream player at `player`, its calls through `part`
-/// with the registers the original gives them (eax the file's path for a start).
-struct GamePlayer<'a, 'b> {
-    player: u32,
+/// The core's player: one of the game's stream players, `path` the file it starts (an
+/// address).
+struct GamePlayer {
+    player: &'static Shared<AudioStream>,
     path: u32,
-    part: &'a mut Part<'b>,
 }
 
-impl rc2k_core::audio::streams::Player for GamePlayer<'_, '_> {
+impl GamePlayer {
+    /// The player's record, to work on in place.
+    unsafe fn stream(&self) -> &'static mut AudioStream {
+        unsafe { self.player.borrow() }
+    }
+}
+
+impl rc2k_core::audio::streams::Player for GamePlayer {
     type Error = Refused;
     fn playing(&mut self) -> bool {
         playing(self.player)
     }
     fn keep_volume(&mut self, volume: u32) {
-        unsafe { stream(self.player).volume = volume };
+        unsafe { self.stream().volume = volume };
     }
     fn start(&mut self) -> Result<bool, Refused> {
-        Ok(!call(self.part, START, self.path, self.player)?)
+        unsafe { start_stream(self.stream(), crate::pointers::host(self.path) as *const u8) }
     }
     fn feed(&mut self) -> Result<(), Refused> {
-        call(self.part, FEED, 0, self.player).map(|_| ())
+        unsafe { feed_stream(self.stream()) }.map(|_| ())
     }
     fn stop(&mut self) -> Result<(), Refused> {
-        call(self.part, STOP, 0, self.player).map(|_| ())
+        unsafe { stop_stream(self.stream()) }
     }
     fn apply_volume(&mut self) -> Result<(), Refused> {
-        call(self.part, VOLUME, 0, self.player).map(|_| ())
+        unsafe { set_stream_volume(self.stream()) }
     }
 }
 
-impl rc2k_core::audio::streams::Tunes for GamePlayer<'_, '_> {
+impl rc2k_core::audio::streams::Tunes for GamePlayer {
     fn name(&mut self, n: u32) {
         let d = crate::strings::format_u32::format_u32(n, 0x12);
-        unsafe { std::ptr::copy_nonoverlapping(d.as_ptr(), (self.path + 0xE) as *mut u8, d.len()) };
+        if let Err(e) =
+            crate::pointers::GamePtr::new(self.path + 0xE).write_bytes(&d, "a tune's path")
+        {
+            crate::fatal::raise::end("audio::stream_commands", e);
+        }
     }
     fn exists(&mut self) -> Result<bool, Refused> {
-        Ok(!call(self.part, EXISTS, self.path, self.player)?)
+        Ok(crate::files::file_exists::file_exists(
+            crate::pointers::host(self.path) as *const u8,
+        )?)
     }
     fn gave_up(&mut self, tune: u32) {
         crate::framework::log(&format!(
@@ -116,140 +81,30 @@ impl rc2k_core::audio::streams::Tunes for GamePlayer<'_, '_> {
 
 /// `audio::stream_command` on the player at `player`. Converted:
 /// `rc2k_core::audio::streams::stream_command`.
-pub fn stream_command(
-    path: u32,
-    volume: i32,
-    action: u32,
-    player: u32,
-    mut part: Part,
-) -> Result<(), Refused> {
+pub fn stream_command(path: u32, volume: i32, action: u32) -> Result<(), Refused> {
     let mut p = GamePlayer {
-        player,
+        player: &AUDIO.sound_stream,
         path,
-        part: &mut part,
     };
     rc2k_core::audio::streams::stream_command(&mut p, path != 0, volume, action)
-}
-
-/// Where `music_command` keeps its things.
-#[derive(Clone, Copy)]
-pub struct MusicVars {
-    pub player: u32,
-    pub next_tune: u32,
-    pub no_music: u32,
-    pub path: u32,
-    pub turn: u32,
-}
-
-impl MusicVars {
-    pub fn game() -> Self {
-        let a = |r| game_addr(r) as u32;
-        Self {
-            player: a(MUSIC_STREAM_RVA),
-            next_tune: a(NEXT_TUNE_RVA),
-            no_music: a(NO_MUSIC_RVA),
-            path: a(MUSIC_PATH_RVA),
-            turn: a(TUNE_TURN_RVA),
-        }
-    }
 }
 
 /// `audio::music_command`: `tune` with `next` to follow. Converted:
 /// `rc2k_core::audio::streams::music_command` (its calls do not read the three variables,
 /// which are stored once it is done).
-pub fn music_command(
-    tune: u32,
-    next: u32,
-    volume: i32,
-    action: u32,
-    v: &MusicVars,
-    mut part: Part,
-) -> Result<(), Refused> {
-    use crate::audio::voices::{read, write};
-    let mut m = unsafe {
-        rc2k_core::audio::streams::Music {
-            next_tune: read(v.next_tune),
-            no_music: read(v.no_music),
-            turn: read(v.turn),
-        }
+pub fn music_command(tune: u32, next: u32, volume: i32, action: u32) -> Result<(), Refused> {
+    let turn = &crate::sound::store::SOUND_OPTIONS.tune_turn;
+    let mut m = rc2k_core::audio::streams::Music {
+        next_tune: AUDIO.next_tune.get(),
+        no_music: AUDIO.no_music.get(),
+        turn: turn.get(),
     };
     let mut p = GamePlayer {
-        player: v.player,
-        path: v.path,
-        part: &mut part,
+        player: &AUDIO.music_stream,
+        path: AUDIO.music_path.addr(),
     };
     let done = rc2k_core::audio::streams::music_command(&mut p, &mut m, tune, next, volume, action);
-    unsafe {
-        write(v.next_tune, m.next_tune);
-        write(v.turn, m.turn);
-    }
+    AUDIO.next_tune.set(m.next_tune);
+    turn.set(m.turn);
     done
-}
-
-// ---- for the self-tests: stand-ins for the five calls ----
-
-use std::sync::Mutex;
-
-/// What the stand-ins do: `start` fails with `start_fails`; the first `feed_stops` feeds
-/// end the tune; a file exists for each tune whose bit (its two digits) is in `present`.
-#[derive(Clone, Copy, Debug, Default)]
-pub struct Script {
-    pub start_fails: bool,
-    pub feed_stops: u32,
-    pub present: u64,
-    pub feeds: u32,
-}
-
-pub static SCRIPT: Mutex<Script> = Mutex::new(Script {
-    start_fails: false,
-    feed_stops: 0,
-    present: 0,
-    feeds: 0,
-});
-/// Each call: the place, eax where it is read (start, exists), esi.
-pub static NOTED: Mutex<Vec<[u32; 3]>> = Mutex::new(Vec::new());
-
-pub fn handler(place: u32, r: &mut Regs) {
-    let eax = if place == START || place == EXISTS {
-        r.eax
-    } else {
-        0
-    };
-    NOTED.lock().unwrap().push([place, eax, r.esi]);
-    let mut s = SCRIPT.lock().unwrap();
-    unsafe {
-        let p = stream(r.esi);
-        match place {
-            START => {
-                r.set_carry(s.start_fails);
-                if !s.start_fails {
-                    p.playing = 1;
-                }
-            }
-            FEED => {
-                s.feeds += 1;
-                if s.feeds <= s.feed_stops {
-                    p.playing = 0;
-                }
-                r.set_carry(false);
-            }
-            STOP => p.playing = 0,
-            VOLUME => {}
-            _ => {
-                let d = std::slice::from_raw_parts((r.eax + 0xE) as *const u8, 2);
-                let n = (d[0].wrapping_sub(b'0') as u32) * 10 + d[1].wrapping_sub(b'0') as u32;
-                r.set_carry(n >= 64 || s.present & (1 << n) == 0);
-            }
-        }
-    }
-}
-
-/// Begins a run of the stand-ins.
-pub fn begin(script: Script) {
-    *SCRIPT.lock().unwrap() = script;
-    NOTED.lock().unwrap().clear();
-}
-
-pub fn noted() -> Vec<[u32; 3]> {
-    std::mem::take(&mut *NOTED.lock().unwrap())
 }

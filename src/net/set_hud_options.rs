@@ -6,68 +6,61 @@
 //! (`dword_75AD00`, `75AD0C` .. `75AD18`) to `dword_6238A8` ...
 //!
 //! In:  nothing
-//! Out: esi = the car's block, eax = its HUD bits; with the switches read, ebx = the last
-//!      (`dword_75AE18`); the flags of the last compare (no caller reads them)
-//! Caller: `net::lets_race`. Shadow mode: both run, the block's two dwords and the
-//! settings compared. Self-test: a copy against the Rust version, on bits given and on
-//! the switches in two patterns, on a test block.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Out: nothing (the original leaves esi the car's block, eax its HUD bits, ebx the last
+//!      switch read; its one caller, `net::lets_race`, calls `drive::play_race` next, which
+//!      reads no register: `lq 0x444CEE`, live_in empty)
+//! Caller: `net::lets_race`.
 
-use crate::errors::Refused;
-use crate::framework::Regs;
-use crate::net::lobby::{PLAYER, Part, g, p};
-use crate::net::reset_cars::CAR_BLOCKS;
+use crate::net::store::NET;
+use crate::pointers::GamePtr;
+use crate::race::state_store::RACE_STATE;
+use crate::race::vars_store::RACE_VARS;
+use crate::race::work_store::RACE_WORK;
+use crate::session::Dword;
 use rc2k_core::net::cars;
 
-pub const HUD_BITS: usize = 0x75B00C; // dword_75B00C
 /// The switches, in the original's order (their bits: `rc2k_core::net::cars::HUD_SWITCH_BITS`).
-const SWITCHES: [usize; 9] = [
-    0x75ADF8, 0x75ADFC, 0x75AE00, 0x75AE08, 0x75AE14, 0x75AE04, 0x75AE10, 0x75AE0C, 0x75AE18,
+const SWITCHES: [&Dword; 9] = [
+    &RACE_STATE.settings.cars[0].map_area,
+    &RACE_STATE.settings.cars[0].rear_mirror,
+    &RACE_STATE.settings.cars[0].rev_counter,
+    &RACE_STATE.settings.cars[0].message_display,
+    &RACE_STATE.settings.cars[0].driver_info,
+    &RACE_STATE.settings.cars[0].metric_units,
+    &RACE_STATE.settings.cars[0].progress_bar,
+    &RACE_STATE.settings.cars[0].car_info,
+    &RACE_STATE.settings.cars[0].pace_notes,
 ];
-const VIEW: usize = 0x75AE24;
-/// The settings copied: (to, from).
-const COPIED: [(usize, usize); 6] = [
-    (0x623898, 0x4F50D0),
-    (0x6238A8, 0x75AD00),
-    (0x6238AC, 0x75AD0C),
-    (0x6238B0, 0x75AD10),
-    (0x6238B4, 0x75AD14),
-    (0x6238B8, 0x75AD18),
+/// The settings words copied to the race's variables (`RACE_VARS.settings_words`).
+const COPIED_WORDS: [&Dword; 5] = [
+    &RACE_STATE.settings.setting_0,
+    &RACE_STATE.settings.setting_1,
+    &RACE_STATE.settings.setting_2,
+    &RACE_STATE.settings.setting_3,
+    &RACE_STATE.settings.setting_4,
 ];
 
 /// This machine's car's block.
 pub fn own_block() -> u32 {
-    g(CAR_BLOCKS + 4 * g(PLAYER) as usize)
+    RACE_WORK.car_block(NET.player.get() as usize)
 }
 
-/// The Rust version: the registers it leaves.
-pub fn set_hud_options(entry: &Regs, _: Part) -> Result<Regs, Refused> {
-    let mut r = *entry;
-    r.esi = own_block();
-    r.eax = g(HUD_BITS);
+/// The Rust version.
+pub fn set_hud_options() -> Result<(), crate::errors::BadInput> {
+    let block = own_block();
+    let mut bits = RACE_STATE.results.hud_bits_current.get();
     // Converted: `rc2k_core::net::cars::hud_bits`.
-    if r.eax == cars::NOT_KEPT {
-        let switches = SWITCHES.map(g);
-        r.eax = cars::hud_bits(switches);
-        r.ebx = switches[8];
+    if bits == cars::NOT_KEPT {
+        bits = cars::hud_bits(SWITCHES.map(|cell| cell.get()));
     }
-    unsafe {
-        ((r.esi + 0x220) as *mut u32).write_unaligned(r.eax);
-        ((r.esi + 0x684) as *mut u32).write_unaligned(g(VIEW));
+    GamePtr::new(block + 0x220).write(bits, "a car block's HUD bits")?;
+    GamePtr::new(block + 0x684)
+        .write(RACE_STATE.settings.cars[0].view.get(), "a car block's view")?;
+    RACE_VARS
+        .mip_setting
+        .set(crate::gfx::choices_store::SCREEN_CHOICES.mipmapping.get());
+    for (to, from) in RACE_VARS.settings_words.iter().zip(COPIED_WORDS) {
+        to.set(from.get());
     }
-    for (to, from) in COPIED {
-        p(to, g(from));
-    }
-    Ok(r)
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    crate::race::viewer::regs_entry(r, &|r| {
-        set_hud_options(r, &mut crate::net::lobby::game_part)
-    })
+    Ok(())
 }

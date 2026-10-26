@@ -38,12 +38,18 @@
 //! Rust-compiled lexicon with everything else it writes blotted out first.
 
 use crate::errors::{BadInput, FatalError, Refused};
-use crate::files::file_exists::file_exists;
 use crate::files::read_first_match::read_first_match;
-use crate::framework::{game_addr, game_read, game_write, rva};
-use crate::input::key_to_char::{LAYOUT_A_RVA, LAYOUT_RVA};
-use crate::settings::find_key::LOWER_RVA;
+use crate::gfx::glyph_tables::TABLES;
+use crate::input::store::{KEYBOARD, KEYBOARD_FILE};
+use crate::install::vars::INSTALLER_RUN;
+use crate::menu::players_store::PLAYER_TABLE;
+use crate::moved::Place;
+use crate::pointers::GamePtr;
+use crate::session::MACHINE;
 use crate::strings::append_string_by_id::push_string;
+use crate::strings::keyboard_tables::KEYBOARD_TABLES;
+use crate::strings::same_text::set_case_table;
+use crate::strings::string_table::{LEXICON_ROOM, lexicon, use_lexicon};
 use crate::strings::text_from_ids::text;
 use rc2k_core::strings::case::CaseTable;
 use rc2k_core::strings::language::Locale;
@@ -51,30 +57,50 @@ use windows_sys::Win32::Globalization::GetSystemDefaultLCID;
 
 // ---- game data ----
 
-const LEXICON_RVA: usize = rva(0x4E07F8); // g_lexicon
-const LEXICON_ROOM: usize = 0x4F07C8 - 0x4E07F8;
-const STRING_TABLE_RVA: usize = rva(0x4E07D4); // g_stringTable
-const BUILT_IN_LAYOUT_RVA: usize = rva(0x4F7FDC); // unk_4F7FDC
-const LOCALE_FILES_RVA: usize = rva(0x4E075C); // "files\%locale\*.loc"
-const KEYBOARD_FILES_RVA: usize = rva(0x4E0784); // "files\%locale\*.kim"
-/// dword_4E0798: the `.loc` file's 0x30 bytes. +0 "LOCL", +8 the notice kind, +0xF units.
-const LOCALE_RVA: usize = rva(0x4E0798);
-const LOCALE_LEN: usize = 0x30;
-/// dword_4F07C8: the `.kim` file, 0x400 bytes. +0 "KEYB", +8 a kind, +9 and +0xA two modes,
-/// +0xB the layout's number, +0xC the layout chosen (written here), +0x30 the layouts.
-const KEYBOARD_RVA: usize = rva(0x4F07C8);
+/// `aFilesLocaleLoc` (0x4E075C), `aFilesLocaleKim` (0x4E0784).
+const LOCALE_FILES: &[u8] = b"files\\%locale\\*.loc\0";
+const KEYBOARD_FILES: &[u8] = b"files\\%locale\\*.kim\0";
+/// The `.loc` file's 0x30 bytes: +0 "LOCL", +8 the notice kind (`g_noticeKind`), +0xF
+/// units. Out of the image since 2026-10-24 (phase 5; it was `g_localeFile`, 0x4E0798),
+/// with the image's first bytes (`tests::first_values_are_the_games`).
+pub const LOCALE_LEN: usize = 0x30;
+pub static LOCALE: Place<[u8; LOCALE_LEN]> = Place::new([
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x01, 0x01, 0x01, 0x2F, 0x2E, 0x2C, 0x00,
+    0x64, 0x65, 0x66, 0x61, 0x75, 0x6C, 0x74, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+]);
+
+/// `g_noticeKind` (the `.loc` file's byte +8, 0x4E07A0 in the image): which notice the
+/// language shows (2: the builds' notice; 7: Japan).
+pub fn notice_kind() -> u8 {
+    // SAFETY: written only by `load_language`, as the image's bytes were.
+    unsafe { (*LOCALE.ptr())[8] }
+}
+
+/// `g_plainLetters` (0x4F0CC8 in the image until 2026-10-24): `g_lowerCase` with the
+/// accented letters made plain; made here, read by nothing now. The image's first values.
+pub static PLAIN_LETTERS: Place<[u8; 256]> = Place::new([
+    0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F,
+    0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17, 0x18, 0x19, 0x1A, 0x1B, 0x1C, 0x1D, 0x1E, 0x1F,
+    0x20, 0x21, 0x22, 0x23, 0x24, 0x25, 0x26, 0x27, 0x28, 0x29, 0x2A, 0x2B, 0x2C, 0x2D, 0x2E, 0x2F,
+    0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37, 0x38, 0x39, 0x3A, 0x3B, 0x3C, 0x3D, 0x3E, 0x3F,
+    0x40, 0x61, 0x62, 0x63, 0x64, 0x65, 0x66, 0x67, 0x68, 0x69, 0x6A, 0x6B, 0x6C, 0x6D, 0x6E, 0x6F,
+    0x70, 0x71, 0x72, 0x73, 0x74, 0x75, 0x76, 0x77, 0x78, 0x79, 0x7A, 0x5B, 0x5C, 0x5D, 0x5E, 0x5F,
+    0x60, 0x61, 0x62, 0x63, 0x64, 0x65, 0x66, 0x67, 0x68, 0x69, 0x6A, 0x6B, 0x6C, 0x6D, 0x6E, 0x6F,
+    0x70, 0x71, 0x72, 0x73, 0x74, 0x75, 0x76, 0x77, 0x78, 0x79, 0x7A, 0x7B, 0x7C, 0x7D, 0x7E, 0x7F,
+    0x80, 0x81, 0x82, 0x83, 0x84, 0x85, 0x86, 0x87, 0x88, 0x89, 0x8A, 0x8B, 0x8C, 0x8D, 0x8E, 0x8F,
+    0x90, 0x91, 0x92, 0x93, 0x94, 0x95, 0x96, 0x97, 0x98, 0x99, 0x9A, 0x9B, 0x9C, 0x9D, 0x9E, 0x9F,
+    0xA0, 0xA1, 0xA2, 0xA3, 0xA4, 0xA5, 0xA6, 0xA7, 0xA8, 0xA9, 0xAA, 0xAB, 0xAC, 0xAD, 0xAE, 0xAF,
+    0xB0, 0xB1, 0xB2, 0xB3, 0xB4, 0xB5, 0xB6, 0xB7, 0xB8, 0xB9, 0xBA, 0xBB, 0xBC, 0xBD, 0xBE, 0xBF,
+    0x61, 0x61, 0x61, 0x61, 0x61, 0x61, 0x61, 0x63, 0x65, 0x65, 0x65, 0x65, 0x69, 0x69, 0x69, 0x69,
+    0x64, 0x6E, 0x6F, 0x6F, 0x6F, 0x6F, 0x6F, 0xD7, 0x6F, 0x75, 0x75, 0x75, 0x75, 0x79, 0x74, 0x73,
+    0x61, 0x61, 0x61, 0x61, 0x61, 0x61, 0x61, 0x63, 0x65, 0x65, 0x65, 0x65, 0x69, 0x69, 0x69, 0x69,
+    0x64, 0x6E, 0x6F, 0x6F, 0x6F, 0x6F, 0x6F, 0xF7, 0x6F, 0x75, 0x75, 0x75, 0x75, 0x79, 0x74, 0x79,
+]);
+/// `KEYBOARD_FILE` (dword_4F07C8): the `.kim` file, 0x400 bytes. +0 "KEYB", +8 a kind, +9
+/// and +0xA two modes, +0xB the layout's number, +0xC the layout chosen (written here),
+/// +0x30 the layouts.
 const KEYBOARD_LEN: usize = 0x400;
-const UNITS_RVA: usize = rva(0x51DE2C); // g_isImperialUnits
-/// Each car's copy of the units, at its +0x178.
-const CAR_UNITS: [usize; 4] = [rva(0x755BC4), rva(0x755E50), rva(0x7560DC), rva(0x756368)];
-const PLAIN_LETTERS_RVA: usize = rva(0x4F0CC8); // byte_4F0CC8
-const KEYBOARD_TYPE_RVA: usize = rva(0x518404); // dword_518404
-const NEC_KEYBOARD_RVA: usize = rva(0x4F0DE0); // aKeyb: a built-in file head, and
-const NEC_LAYOUT_RVA: usize = rva(0x4F0E10); // unk_4F0E10: its layout
-const NEC_MARK_RVA: usize = rva(0x51BAE4); // dword_51BAE4
-const TABLES_UNITS_RVA: usize = rva(0x51B980); // dword_51B980 (`bundleheapsize`)
-const REGISTRATION_RVA: usize = rva(0x51B9E4); // dword_51B9E4
-const REGISTRATION_PROGRAM_RVA: usize = rva(0x51B9EC); // ";4ereg\eregip.exe"
 
 // ---- Rust version ----
 
@@ -83,42 +109,36 @@ fn fatal(code: u32, message: &'static str) -> Refused {
 }
 
 /// String `id` as the original builds it: in the text buffer. Returns its bytes.
-unsafe fn built(id: u32, with_nul: bool) -> Result<Vec<u8>, BadInput> {
-    unsafe {
-        let mut bytes = Vec::new();
-        push_string(&mut bytes, id);
-        if bytes.len() >= 0x100 {
-            return Err(BadInput(
-                "a string of the language's set-up longer than expected",
-            ));
-        }
-        std::ptr::copy(bytes.as_ptr(), text(), bytes.len());
-        if with_nul {
-            text().add(bytes.len()).write(0);
-        }
-        Ok(bytes)
+fn built(id: u32, with_nul: bool) -> Result<Vec<u8>, BadInput> {
+    let mut bytes = Vec::new();
+    push_string(&mut bytes, id)?;
+    if bytes.len() >= 0x100 {
+        return Err(BadInput(
+            "a string of the language's set-up longer than expected",
+        ));
     }
+    let at = GamePtr::new(crate::pointers::game_address(text()));
+    at.write_bytes(&bytes, "the text buffer")?;
+    if with_nul {
+        at.offset(bytes.len() as u32)
+            .write::<u8>(0, "the text buffer")?;
+    }
+    Ok(bytes)
 }
 
 /// `sub_4034C2` (converted: `rc2k_core::strings::case::CaseTable::{for_language, plain_letters}`).
-unsafe fn make_case_tables() -> Result<(), BadInput> {
-    unsafe {
-        let lower = CaseTable::for_language(&built(2, true)?)?;
-        std::ptr::copy(lower.lower.as_ptr(), game_addr(LOWER_RVA) as *mut u8, 256);
-        let plain = lower.plain_letters(&built(3, true)?);
-        std::ptr::copy(
-            plain.lower.as_ptr(),
-            game_addr(PLAIN_LETTERS_RVA) as *mut u8,
-            256,
-        );
-        Ok(())
-    }
+fn make_case_tables() -> Result<(), BadInput> {
+    let lower = CaseTable::for_language(&built(2, true)?)?;
+    set_case_table(&lower.lower);
+    let plain = lower.plain_letters(&built(3, true)?);
+    // SAFETY: `PLAIN_LETTERS` is the game\'s table, written by this one function.
+    unsafe { PLAIN_LETTERS.ptr().write(plain.lower) };
+    Ok(())
 }
 
 /// `sub_416389` (converted: `rc2k_core::strings::lexicon::correct`), on the lexicon's room.
 unsafe fn correct_lexicon() -> Result<(), BadInput> {
-    let table =
-        unsafe { std::slice::from_raw_parts_mut(game_addr(LEXICON_RVA) as *mut u8, LEXICON_ROOM) };
+    let table = unsafe { std::slice::from_raw_parts_mut(lexicon(), LEXICON_ROOM) };
     Ok(rc2k_core::strings::lexicon::correct(table)?)
 }
 
@@ -128,49 +148,59 @@ pub unsafe fn load_language(
 ) -> Result<(), Refused> {
     unsafe {
         compile()?;
-        game_write(STRING_TABLE_RVA, game_addr(LEXICON_RVA) as u32);
-        game_write(LAYOUT_RVA, game_addr(BUILT_IN_LAYOUT_RVA) as u32);
-        game_write(KEYBOARD_RVA + 9, 1u8);
-        game_write(KEYBOARD_RVA + 0xA, 1u8);
+        use_lexicon();
+        KEYBOARD_FILE
+            .layout
+            .set(KEYBOARD.built_in_layout.dead_keys.addr());
+        KEYBOARD_FILE.built_in.set(1);
+        KEYBOARD_FILE.mode.set(1);
 
-        let locale = game_addr(LOCALE_RVA) as *mut u8;
-        let pattern = game_addr(LOCALE_FILES_RVA) as *const u8;
-        if read_first_match(pattern, locale, LOCALE_LEN as u32, 0)?.is_none() {
+        let locale = LOCALE.ptr().cast::<u8>();
+        if read_first_match(LOCALE_FILES.as_ptr(), locale, LOCALE_LEN as u32, 0)?.is_none() {
             return Err(fatal(0x80E3_8381, ""));
         }
         // Converted: `rc2k_core::strings::language::Locale`.
-        let Ok(file) = Locale::parse(&game_read::<[u8; LOCALE_LEN]>(LOCALE_RVA)) else {
+        let Ok(file) = Locale::parse(&LOCALE.ptr().read()) else {
             return Err(fatal(0x80E3_8382, ""));
         };
         let units = file.units as u32;
-        game_write(UNITS_RVA, units);
-        for car in CAR_UNITS {
-            game_write(car, units);
+        crate::strings::units::set_units(units);
+        // Each car's copy of the units, at its +0x178.
+        for player in &PLAYER_TABLE.players {
+            player.update(|p| p.metric_units = units);
         }
 
-        let keyboard = game_addr(KEYBOARD_RVA) as *mut u8;
-        let pattern = game_addr(KEYBOARD_FILES_RVA) as *const u8;
-        if read_first_match(pattern, keyboard, KEYBOARD_LEN as u32, 0)?.is_some() {
-            if &game_read::<[u8; 4]>(KEYBOARD_RVA) != b"KEYB" {
+        let keyboard = KEYBOARD_FILE.magic.as_ptr();
+        if read_first_match(KEYBOARD_FILES.as_ptr(), keyboard, KEYBOARD_LEN as u32, 0)?.is_some() {
+            if &KEYBOARD_FILE.magic.read() != b"KEYB" {
                 return Err(fatal(0x80E3_83A2, ""));
             }
-            let layouts = game_addr(LAYOUT_A_RVA) as u32;
-            for n in 0..10 {
-                let offset: u32 = game_read(LAYOUT_A_RVA + n * 4);
-                if offset != 0 {
-                    game_write(LAYOUT_A_RVA + n * 4, offset.wrapping_add(layouts));
+            let layouts = KEYBOARD_FILE.layouts[0].dead_keys.addr();
+            for layout in &KEYBOARD_FILE.layouts {
+                for table in [
+                    &layout.dead_keys,
+                    &layout.plain,
+                    &layout.shifted,
+                    &layout.alt_gr,
+                    &layout.key_names,
+                ] {
+                    let offset = table.get();
+                    if offset != 0 {
+                        table.set(offset.wrapping_add(layouts));
+                    }
                 }
             }
-            let chosen = game_read::<u8>(KEYBOARD_RVA + 0xB) as u32 * 0x14;
+            let chosen = KEYBOARD_FILE.chosen.get() as u32 * 0x14;
             let layout = layouts.wrapping_add(chosen);
-            game_write(LAYOUT_RVA, layout);
-            if game_read::<u8>(KEYBOARD_RVA + 8) == 0x0C {
-                let fourth = ((layout + 0x10) as *const u32).read_unaligned() as *mut u8;
-                if fourth.is_null() {
+            KEYBOARD_FILE.layout.set(layout);
+            if KEYBOARD_FILE.kind.get() == 0x0C {
+                let fourth = GamePtr::new(layout + 0x10).read::<u32>("a keyboard layout")?;
+                if fourth == 0 {
                     return Err(BadInput("a keyboard of kind 0x0C without its fourth table").into());
                 }
                 for (at, value) in [(0x34, 0x1034u16), (0x36, 0x1035), (0x52, 0x1036)] {
-                    (fourth.add(at) as *mut u16).write_unaligned(value);
+                    GamePtr::new(fourth.wrapping_add(at))
+                        .write::<u16>(value, "a keyboard table")?;
                 }
             }
         }
@@ -178,10 +208,14 @@ pub unsafe fn load_language(
         make_case_tables()?;
 
         // `sub_403462`
-        if game_read::<u32>(KEYBOARD_TYPE_RVA) == 2 {
-            std::ptr::copy(game_addr(NEC_KEYBOARD_RVA) as *const u8, keyboard, 0x30);
-            game_write(LAYOUT_RVA, game_addr(NEC_LAYOUT_RVA) as u32);
-            game_write(NEC_MARK_RVA, 0x61u32);
+        if MACHINE.keyboard_type.get() == 2 {
+            GamePtr::new(KEYBOARD_TABLES.nec_head.addr()).copy_to(
+                GamePtr::new(crate::pointers::game_address(keyboard)),
+                0x30,
+                "the NEC keyboard head",
+            )?;
+            KEYBOARD_FILE.layout.set(KEYBOARD_TABLES.nec_layout.addr());
+            INSTALLER_RUN.first_drive.set(0x61u32);
         }
 
         // `sub_403495`
@@ -193,20 +227,36 @@ pub unsafe fn load_language(
             ));
         }
         if kind == 7 {
-            game_write(TABLES_UNITS_RVA, 0x2EEu32);
+            TABLES.units.set(0x2EEu32);
         }
 
         correct_lexicon()?;
 
-        game_write(REGISTRATION_RVA, 0u32);
+        INSTALLER_RUN.offer_registration.set(0u32);
         // The standalone offers no registration (owner, 2026-10-19).
-        if kind == 2
-            && !crate::framework::standalone()
-            && !built(0x57C, false)?.is_empty()
-            && file_exists(game_addr(REGISTRATION_PROGRAM_RVA) as *const u8)?
-        {
-            game_write(REGISTRATION_RVA, 1u32);
-        }
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::moved::image_bytes;
+
+    #[test]
+    fn first_values_are_the_games() {
+        assert_eq!(
+            image_bytes(0x4E075C, super::LOCALE_FILES.len()),
+            super::LOCALE_FILES
+        );
+        assert_eq!(
+            image_bytes(0x4E0784, super::KEYBOARD_FILES.len()),
+            super::KEYBOARD_FILES
+        );
+        assert_eq!(image_bytes(0x4E0798, super::LOCALE_LEN), unsafe {
+            super::LOCALE.ptr().read()
+        });
+        assert_eq!(image_bytes(0x4F0CC8, 256), unsafe {
+            super::PLAIN_LETTERS.ptr().read()
+        });
     }
 }

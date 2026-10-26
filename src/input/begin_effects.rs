@@ -7,40 +7,21 @@
 //! Out: every register kept (`pusha` .. `popa`)
 //!
 //! See `input/effects.rs`. One caller, `input::device_command` (command 3, the race's
-//! start). Its calls through `part`. Shadow mode runs the original alone. Self-test: a
-//! copy whose two variables are the test's and whose calls go to the noting stand-ins
-//! (the clock the test's), against the Rust version, with a count of 0 and not.
+//! start).
 //!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
+//! above are the original's, for reference.
 
 use crate::errors::Refused;
-use crate::framework::{Regs, game_addr, rva};
-use crate::input::effects::{LAST_TIME, Part, START, TICK, effects_entry};
-use crate::sound::turn_parts::COUNT;
 
-/// The Rust version on the variables at `count` and `last` (addresses).
-pub fn begin_effects_with(r: &mut Regs, count: u32, last: u32, part: Part) -> Result<(), Refused> {
-    let mut g = *r;
-    unsafe {
-        if (count as *const u32).read_volatile() != 0 {
-            part(START, &mut g)?;
-        }
-        part(TICK, &mut g)?;
-        (last as *mut u32).write_volatile(g.eax);
+/// The effects started with sound objects in use (`g_raceSoundObjectCount`), and the
+/// effects' clock set.
+pub fn begin_effects() -> Result<(), Refused> {
+    if crate::sound::store::RACE_SOUNDS.count.get() != 0 {
+        crate::input::start_effects::start_effects()?;
     }
+    crate::input::store::FORCE_FEEDBACK
+        .last_time
+        .set(crate::system::tick_count::tick_count());
     Ok(())
-}
-
-/// The Rust version.
-pub fn begin_effects(r: &mut Regs, part: Part) -> Result<(), Refused> {
-    let a = |x: usize| game_addr(rva(x)) as u32;
-    begin_effects_with(r, a(COUNT), a(LAST_TIME), part)
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    effects_entry(r, begin_effects)
 }

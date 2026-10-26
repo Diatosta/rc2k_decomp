@@ -1,7 +1,5 @@
 //! The 3D scene: the game's own code above the Direct3D layer (`d3d`).
 
-use crate::framework::GameHook;
-
 pub mod add_car_light;
 pub mod add_car_lights;
 pub mod add_object_shape;
@@ -10,13 +8,15 @@ pub mod adjugate_matrix;
 pub mod allocate_object_memory;
 pub mod allocate_point_records;
 pub mod angle_between;
-pub mod angle_between_vectors;
 pub mod approximate_distance;
+#[cfg(all(test, target_arch = "x86"))]
+pub(crate) mod asm_test;
 pub mod assign_kind_textures;
 pub mod assign_menu_textures;
 pub mod begin_scene;
 pub mod build_texture_catalogue;
 pub mod cached_reflection_coordinates;
+pub mod car_icon_number;
 pub mod carousel_pictures;
 pub mod carousel_set_ups;
 pub mod choose_carousel_pictures;
@@ -25,20 +25,16 @@ pub mod clear_depth_buffer;
 pub mod clear_fog;
 pub mod clear_slot_kinds;
 pub mod clear_slot_textures;
+pub mod clear_texture;
 pub mod clip;
 pub mod clip_asm;
 pub mod clip_polygon_by_depth;
 pub mod clip_polygon_to_screen;
-pub mod clip_test;
-pub mod copy_matrix_with_place;
 pub mod count_texture_needs;
-pub mod cross_product;
 pub mod cross_product3;
-pub mod depth_buffer_off;
 pub mod depth_buffer_on;
 pub mod depth_test_off;
 pub mod depth_test_on;
-pub mod dot_product3;
 pub mod draw_car_object;
 pub mod draw_carousel;
 pub mod draw_carousel_entry;
@@ -58,39 +54,41 @@ pub mod draw_object_polygon;
 pub mod draw_polygon;
 pub mod draw_scene_object;
 pub mod draw_shown_object;
+pub mod draw_store;
+pub mod draw_switches_store;
 pub mod draw_tinted_quad;
 pub mod end_scene;
+pub mod engine_tables_store;
 pub mod face_faces_away;
 pub mod face_sort_key;
+pub mod faces_store;
+pub mod file_numbers_store;
 pub mod fill_engine_tables;
-pub mod fill_light_ramp;
-pub mod fill_light_scale;
 pub mod fill_light_tables;
 pub mod fill_scene_light_tables;
-pub mod find_object_kind;
 pub mod find_object_of_kind;
 pub mod fog_at;
 pub mod fog_polygon;
 pub mod forget_slot_texture;
 pub mod full_view_window;
 pub mod glow_render_states;
-pub mod identity_matrix3;
-pub mod init_texture_levels;
-pub mod invert_turn;
 pub mod kind_hidden_at;
 pub mod kind_is_hidden;
+pub mod kind_texture_store;
 pub mod known_kind;
 pub mod known_kind_picture;
-pub mod known_kind_plate;
 pub mod light_dot;
+pub mod light_store;
 pub mod light_tables;
+pub mod light_tables_store;
+pub mod light_work_store;
 pub mod list_object_face;
 pub mod list_object_faces;
 pub mod list_object_textures;
 pub mod load_changed_texture_picture;
 pub mod load_front_end_objects;
 pub mod load_front_end_objects_logged;
-pub mod load_number_plates;
+pub mod load_hud_car_icons;
 pub mod load_object;
 pub mod load_slot_texture;
 pub mod load_slot_textures;
@@ -99,26 +97,25 @@ pub mod load_wanted_textures;
 pub mod lock_frame;
 pub mod log_bad_polygon;
 pub mod look_up_texture;
-pub mod make_object_matrix;
 pub mod map_texture_places;
 pub mod matrix;
 pub mod matrix3;
 pub mod measure_object;
-pub mod multiply_matrices;
-pub mod multiply_matrices3;
 pub mod next_noise;
-pub mod no_mips_for;
-pub mod noise_step;
-pub mod normalise_vector3;
+pub mod object_slots_store;
+pub mod object_store;
+pub mod object_tables_store;
 pub mod objects;
 pub mod place_object_points;
 pub mod polygon;
+pub mod polygon_store;
 pub mod prepare_menu_scene;
 pub mod present_frame;
 pub mod project_point;
 pub mod project_polygon;
 pub mod raise_texture_needs;
 pub mod read_kind_records;
+pub mod reading;
 pub mod rebuild_front_end;
 pub mod reflect_vector;
 pub mod reflection_coordinates;
@@ -131,193 +128,33 @@ pub mod restart_clock;
 pub mod rotate_point;
 pub mod scale_texture_coordinates;
 pub mod set_filters;
-pub mod set_fine_turn_x;
-pub mod set_fine_turn_y;
 pub mod set_fog_colour;
-pub mod set_light_direction;
 pub mod set_object_fade;
 pub mod set_object_file_names;
 pub mod set_object_light;
 pub mod set_object_material;
-pub mod set_place;
 pub mod set_render_state;
 pub mod set_texture;
-pub mod set_texture_levels;
-pub mod set_turn_x;
-pub mod set_turn_y;
-pub mod set_turn_z;
-pub mod set_turn_z_16;
 pub mod set_up_carousel;
 pub mod set_up_engine;
 pub mod set_up_front_end_scene;
 pub mod set_up_lit_engine;
 pub mod set_up_object_memory;
 pub mod set_up_textures;
-pub mod set_view_matrices;
 pub mod set_view_window;
 pub mod show_bad_polygon;
 pub mod sort_listed_faces;
-pub mod square_matrix;
 pub mod step_loading_bar;
 pub mod submit_polygon;
 pub mod texture_levels;
 pub mod texture_needs;
-pub mod texture_picture_folder;
+pub mod texture_places_store;
 pub mod texture_steps;
 pub mod textures;
-pub mod transform_int_points;
 pub mod try_allocate_textures;
-pub mod turn_matrix3_x;
-pub mod turn_matrix3_y;
-pub mod turn_matrix3_z;
-pub mod turn_stage_object_point;
-pub mod unit_vector;
 pub mod unlock_frame;
-pub mod update_carousel_pictures;
-pub mod upload_plate;
+pub mod upload_car_icon;
 pub mod vector3;
 pub mod vertex_light;
 pub mod view_matrix;
-pub mod widen_object_radius;
-
-pub static HOOKS: &[&dyn GameHook] = &[
-    &adjugate_matrix::HOOK,
-    &choose_view_window::HOOK,
-    &cross_product3::HOOK,
-    &depth_buffer_off::HOOK,
-    &depth_test_off::HOOK,
-    &depth_test_on::HOOK,
-    &draw_fan::HOOK,
-    &draw_flat_quad::HOOK,
-    &draw_polygon::HOOK,
-    &draw_tinted_quad::HOOK,
-    &fog_at::HOOK,
-    &full_view_window::HOOK,
-    &rotate_point::HOOK,
-    &set_texture::HOOK,
-    &submit_polygon::HOOK,
-    &draw_marked_polygon::HOOK,
-    &project_point::HOOK,
-    &project_polygon::HOOK,
-    &scale_texture_coordinates::HOOK,
-    &fog_polygon::HOOK,
-    &clip_polygon_by_depth::HOOK,
-    &clip_polygon_to_screen::HOOK,
-    &draw_clipped_polygon::HOOK,
-    &draw_object_polygon::HOOK,
-    &light_dot::HOOK,
-    &reflect_vector::HOOK,
-    &reflection_coordinates::HOOK,
-    &cached_reflection_coordinates::HOOK,
-    &vertex_light::HOOK,
-    &draw_object_face::HOOK,
-    &draw_object_faces::HOOK,
-    &draw_object::HOOK,
-    &draw_shown_object::HOOK,
-    &kind_is_hidden::HOOK,
-    &kind_hidden_at::HOOK,
-    &draw_described_object::HOOK,
-    &look_up_texture::HOOK,
-    &draw_scene_object::HOOK,
-    &set_turn_x::HOOK,
-    &set_turn_y::HOOK,
-    &set_place::HOOK,
-    &multiply_matrices::HOOK,
-    &copy_matrix_with_place::HOOK,
-    &set_light_direction::HOOK,
-    &make_object_matrix::HOOK,
-    &set_fine_turn_x::HOOK,
-    &set_fine_turn_y::HOOK,
-    &set_turn_z::HOOK,
-    &set_turn_z_16::HOOK,
-    &unit_vector::HOOK,
-    &cross_product::HOOK,
-    &square_matrix::HOOK,
-    &invert_turn::HOOK,
-    &set_view_matrices::HOOK,
-    &fill_engine_tables::HOOK,
-    &next_noise::HOOK,
-    &angle_between::HOOK,
-    &set_view_window::HOOK,
-    &draw_menu_object::HOOK,
-    &draw_carousel_entry::HOOK,
-    &draw_carousel::HOOK,
-    &draw_main_menu_carousel::HOOK,
-    &load_slot_texture::HOOK,
-    &assign_menu_textures::HOOK,
-    &update_carousel_pictures::HOOK,
-    &choose_carousel_pictures::HOOK,
-    &clear_depth_buffer::HOOK,
-    &set_object_file_names::HOOK,
-    &measure_object::HOOK,
-    &list_object_textures::HOOK,
-    &add_object_shape::HOOK,
-    &reset_objects::HOOK,
-    &load_object::HOOK,
-    &reset_texture_tables::HOOK,
-    &clear_slot_kinds::HOOK,
-    &clear_fog::HOOK,
-    &reset_texture_places::HOOK,
-    &clear_slot_textures::HOOK,
-    &fill_light_ramp::HOOK,
-    &fill_light_scale::HOOK,
-    &fill_light_tables::HOOK,
-    &known_kind::HOOK,
-    &known_kind_picture::HOOK,
-    &raise_texture_needs::HOOK,
-    &count_texture_needs::HOOK,
-    &allocate_object_memory::HOOK,
-    &allocate_point_records::HOOK,
-    &read_kind_records::HOOK,
-    &set_up_object_memory::HOOK,
-    &load_wanted_textures::HOOK,
-    &reload_slot_textures::HOOK,
-    &fill_scene_light_tables::HOOK,
-    &try_allocate_textures::HOOK,
-    &build_texture_catalogue::HOOK,
-    &load_texture_picture::HOOK,
-    &load_changed_texture_picture::HOOK,
-    &step_loading_bar::HOOK,
-    &known_kind_plate::HOOK,
-    &set_fog_colour::HOOK,
-    &glow_render_states::HOOK,
-    &upload_plate::HOOK,
-    &load_number_plates::HOOK,
-    &place_object_points::HOOK,
-    &sort_listed_faces::HOOK,
-    &face_faces_away::HOOK,
-    &face_sort_key::HOOK,
-    &list_object_face::HOOK,
-    &list_object_faces::HOOK,
-    &set_object_material::HOOK,
-    &set_object_fade::HOOK,
-    &approximate_distance::HOOK,
-    &add_point_lights::HOOK,
-    &add_car_light::HOOK,
-    &add_car_lights::HOOK,
-    &set_object_light::HOOK,
-    &set_texture_levels::HOOK,
-    &init_texture_levels::HOOK,
-    &find_object_of_kind::HOOK,
-    &identity_matrix3::HOOK,
-    &multiply_matrices3::HOOK,
-    &transform_int_points::HOOK,
-    &turn_matrix3_x::HOOK,
-    &turn_matrix3_y::HOOK,
-    &turn_matrix3_z::HOOK,
-    &normalise_vector3::HOOK,
-    &dot_product3::HOOK,
-    &angle_between_vectors::HOOK,
-    &forget_slot_texture::HOOK,
-    &no_mips_for::HOOK,
-    &noise_step::HOOK,
-    &find_object_kind::HOOK,
-    &turn_stage_object_point::HOOK,
-    &widen_object_radius::HOOK,
-    &texture_picture_folder::HOOK,
-    &set_up_lit_engine::HOOK,
-    &rebuild_front_end::HOOK,
-    &load_front_end_objects_logged::HOOK,
-    &log_bad_polygon::HOOK,
-    &show_bad_polygon::HOOK,
-];
+pub(crate) mod x87_mem;

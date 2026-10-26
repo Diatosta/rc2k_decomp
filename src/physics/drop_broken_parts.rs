@@ -6,122 +6,32 @@
 //! In:  nothing
 //! Out: as the last `fill_slot_on_bit` leaves them; no flags read
 //!
-//! Caller: `sub_43B635` (0x43B98B), every physics step.
-//! Refuses what `fill_slot_on_bit` refuses; what was written is put back.
-//! Self-test: the original and the Rust version on the game's variables (saved and put
-//! back): damage about the limits, the switch.
+//! Caller: `sub_43B635` (0x43B98B), every physics step. Refuses what `fill_slot_on_bit`
+//! refuses; what was written is put back.
+//!
+//! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
+//! above are the original's, for reference.
 
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
-use crate::physics::fill_race_slot::{g, inputs, p, regions, set_slots};
-use crate::physics::fill_slot_on_bit::fill_slot_on_bit_in;
-use crate::screens::harness::Left;
-use crate::service::harness::{capture, check_state, dispatch_state, restore, state_entry};
+use crate::physics::car_store::CAR;
+use crate::physics::fill_slot_on_bit::fill_slot_on_bit;
+use crate::race::work_store::RACE_WORK;
+use crate::scene::light_work_store::LIGHT_WORK;
 use rc2k_core::physics::parts::{BROKEN_BITS, breaks, broken_checked};
-use std::sync::atomic::AtomicUsize;
 
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook = RawHook::new(
-    "physics::drop_broken_parts",
-    rva(0x462386),
-    thunk,
-    &ORIGINAL,
-)
-.self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
-
-/// The steps on `r`.
+/// The Rust version. The registers the original leaves are read by none of its callers.
 // Converted: `rc2k_core::physics::parts::{BROKEN_BITS, broken_checked, breaks}`.
-pub fn drop_broken_parts_in(r: &mut Regs) -> Result<(), Refused> {
+pub fn drop_broken_parts() -> Result<(), Refused> {
     for (k, &bit) in BROKEN_BITS.iter().enumerate() {
-        if !broken_checked(k, || g(0x62DAD0) != 0) {
+        if !broken_checked(k, || LIGHT_WORK.marks_mask.get() != 0) {
             continue;
         }
-        let limit = || {
-            r.eax = g(0x71BA2C + 4 * k);
-            r.eax
-        };
-        if !breaks(g(0x71AA14 + 4 * k), limit) {
+        if !breaks(CAR.part_damage_limits[k].get(), || {
+            RACE_WORK.part_break_limits[k].get()
+        }) {
             continue;
         }
-        r.ecx = bit;
-        fill_slot_on_bit_in(r)?;
+        fill_slot_on_bit(bit)?;
     }
     Ok(())
-}
-
-/// The Rust version.
-pub unsafe fn drop_broken_parts(entry: &Regs) -> Result<Left, Refused> {
-    let all = regions();
-    let saved = capture(&all);
-    let mut r = *entry;
-    match drop_broken_parts_in(&mut r) {
-        Ok(()) => Ok(crate::race::stage_prefs::left_of(&r)),
-        Err(e) => {
-            restore(&all, &saved);
-            Err(e)
-        }
-    }
-}
-
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    unsafe { drop_broken_parts(r) }
-}
-
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_state(&HOOK, r, call_original, &regions(), &rust);
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let mut all = regions();
-    all.extend(inputs());
-    let saved = capture(&all);
-    for seed in 0..8u32 {
-        check_state(
-            &mut t,
-            &format!("seed {seed}"),
-            call_original,
-            Regs {
-                ebp: 0x1234,
-                ..Regs::SENTINEL
-            },
-            &|| {
-                set_slots(seed, Some(seed % 4));
-                p(0x71B3F8, seed % 8);
-                p(0x71A270, 0xFFFF_FFFF ^ (seed << 10));
-                p(0x62DAD0, seed % 2);
-                for k in 0..7usize {
-                    let limit = 100 + 10 * k as u32;
-                    p(0x71BA2C + 4 * k, limit);
-                    let d = match (seed as usize + k) % 4 {
-                        0 => 0x8000_0000,
-                        1 => limit - 1,
-                        2 => limit,
-                        _ => limit + 50,
-                    };
-                    p(0x71AA14 + 4 * k, d);
-                }
-            },
-            &all,
-            &rust,
-        );
-    }
-    restore(&all, &saved);
-    t.finish()
 }

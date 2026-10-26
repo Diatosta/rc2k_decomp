@@ -10,63 +10,69 @@
 //! store are the functions below, generated from the listing.
 //! The name is a reading from the title string of its menu, "ESCOLHA ETAPA", not yet a visit.
 //! Callers: `sub_418347`, `sub_482382`, `sub_4824C1`, `sub_4826A2`, `sub_4828B0`, `sub_482B7A`.
-//! Hook removed 2026-10-22 (direct calls): Rust callers run its `entry` (`calls::call`,
-//! `routes.rs`); the registers above are the original's, for reference.
+//! Rust callers run its `entry` (`routes.rs`); the registers above are the original's, for
+//! reference.
 
-use crate::framework::{Regs, game_read, game_write, rva};
-use crate::menu::screen_loop::{Env, Flow, List, Screen, Step, screen_entry};
+use crate::errors::Refused;
+use crate::framework::rva;
+use crate::menu::captions_store::CAPTIONS;
+use crate::menu::draw_lists_store::DRAW_LISTS;
+use crate::menu::flow_store::SCREEN_FLOW;
+use crate::menu::menus_store::MENUS;
+use crate::menu::option_work_store::OPTION_WORK;
+use crate::menu::pages_store::MENU_PAGES;
+use crate::menu::screen_items_store::{SCREEN_ITEMS, slot};
+use crate::menu::screen_loop::{Callee, Carried, Flow, List, Screen, Step};
 
 // ---- Rust version: `menu::screen_loop` with this ----
 
-unsafe fn after_first_frame(_g: &mut Regs, _env: &mut dyn Env) -> Flow {
-    unsafe {
-        if game_read::<u32>(rva(0x758806)) == 0x1 {
-            game_write(rva(0x758806), 0x0u32);
-            return Flow::SetUp;
-        }
-        Flow::On
+fn after_first_frame(_c: &mut Carried) -> Result<Flow, Refused> {
+    if CAPTIONS.screen_left.get() == 0x1 {
+        CAPTIONS.screen_left.set(0x0u32);
+        return Ok(Flow::SetUp);
     }
+    Ok(Flow::On)
 }
 
 pub const SCREEN: Screen = Screen {
-    menu: rva(0x748620),
-    saved_item: rva(0x747660),
+    menu: || MENUS.select_stage.addr() as usize,
+    saved_item: || &SCREEN_ITEMS.current[slot::SELECT_STAGE],
     lists: &[
         List {
-            pointer: rva(0x755504), // g_sceneList
-            table: rva(0x759052),
+            pointer: || &SCREEN_FLOW.scene_list, // g_sceneList
+            table: || DRAW_LISTS.select_stage_scene.addr() as usize,
             run: false,
         },
         List {
-            pointer: rva(0x7554F8), // g_drawList
-            table: rva(0x758E9E),
+            pointer: || &SCREEN_FLOW.draw_list, // g_drawList
+            table: || DRAW_LISTS.select_stage_draw.addr() as usize,
             run: false,
         },
         List {
-            pointer: rva(0x755500), // dword_755500
-            table: rva(0x75931E),
+            pointer: || &SCREEN_FLOW.setup_list, // dword_755500
+            table: || DRAW_LISTS.select_stage_setup.addr() as usize,
             run: true,
         },
         List {
-            pointer: rva(0x7554FC), // g_overlayList
-            table: rva(0x7592D6),
+            pointer: || &SCREEN_FLOW.overlay_list, // g_overlayList
+            table: || DRAW_LISTS.select_stage_overlay.addr() as usize,
             run: false,
         },
     ],
     first_frame_lists: None,
     frame_callback: rva(0x474D4B),
     later_frame_callback: None,
-    before: &[Step::Write(rva(0x75524C), 0x0)],
-    set_up_first: &[Step::Call(rva(0x486C21))],
+    before: &[Step::Write(|| &MENU_PAGES.yes_no_answer, 0x0)],
+    set_up_first: &[Step::Call(Callee::MarkStageChoice)],
     prepare: &[],
     after_lists: &[],
-    background: &[Step::Call(rva(0x4683CF))],
+    background: &[Step::Call(Callee::DrawStageMap)],
     after_first_frame: &[Step::DoFlow(after_first_frame)],
     confirm: Some(&[]),
     ask_also_if: None,
     confirmed: &[],
     unasked_skips_save: true,
-    after: &[Step::Write(rva(0x7556A4), 0x6F)],
+    after: &[Step::Write(|| &OPTION_WORK.menu_sound, 0x6F)],
     escape_leaves: false,
     each_frame: &[],
     short_action_check: false,
@@ -76,7 +82,7 @@ pub const SCREEN: Screen = Screen {
     action_menu: None,
     no_quit_check: false,
     before_asking: &[],
-    ask_unless: Some(rva(0x52A910)),
+    ask_unless: Some(|| crate::net::store::NET.session.get()),
     leaving: &[],
     leave_saved_item: None,
     keys_menu: None,
@@ -88,12 +94,4 @@ pub const SCREEN: Screen = Screen {
     after_blink: &[],
     restart_action_check: false,
     always_asks: false,
-    also_reads: &[],
-    also_writes: &[rva(0x75524C)],
 };
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    screen_entry("menu::select_stage_loop", r, &SCREEN)
-}

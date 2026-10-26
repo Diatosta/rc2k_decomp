@@ -6,37 +6,31 @@
 //! In:  eax = the string, ecx = x, esi = the item, ebp = y
 //! Out: ebx = the font, edx = the y, ebp lower; eax .. edx as the drawing leaves them; no
 //!      `pusha`
-//! Caller: `net::settings_frame` (its last item). Its call through `part`. Shadow mode runs
-//! the original alone (it draws). Self-test: a copy whose call goes to a stand-in, against
-//! the Rust version: highlighted or not, edited, blinking.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Caller: `net::settings_frame` (its last item).
 
 use crate::errors::Refused;
-use crate::framework::Regs;
 use crate::net::draw_button::item_font;
-use crate::net::lobby::{DRAW_STRING, Part, lobby_entry};
+use crate::text::draw_text::GameCanvas;
 
-const PLAIN: usize = 0x51E744; // unk_51E744
-const LIT: usize = 0x51E684; // stru_51E684
+const PLAIN: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fonts::CENTRED_PLAIN;
+const LIT: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fonts::CENTRED_LIT;
 
-/// The Rust version: the registers it leaves.
-pub fn draw_centred_item(entry: &Regs, part: Part) -> Result<Regs, Refused> {
-    let mut r = *entry;
+/// The Rust version: the string `string` for item `item` at (`x`, `y`) in the item's font;
+/// returns the next y (y plus the font's line height; the original's ebp). The registers it
+/// leaves (ebx the font, edx the y, eax .. edx as the drawing leaves them) are read by no
+/// caller (`net::settings_frame` only).
+pub fn draw_centred_item(string: u32, item: u32, x: u32, y: u32) -> Result<u32, Refused> {
     // Converted: `rc2k_core::net::screens::item_lit` (in `item_font`).
-    r.ebx = item_font(r.esi, PLAIN, LIT);
-    r.edx = r.ebp;
-    r.ebp = r
-        .ebp
-        .wrapping_add(unsafe { ((r.ebx + 8) as *const u32).read_unaligned() });
-    part(DRAW_STRING, &mut r)?;
-    Ok(r)
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    lobby_entry(r, draw_centred_item)
+    let font = item_font(item, PLAIN, LIT);
+    let next = y.wrapping_add(font.object().line_height.get());
+    unsafe {
+        crate::text::draw_string_by_id::draw_string_by_id_at(
+            string,
+            font.as_ptr(),
+            x as i32,
+            y as i32,
+            &mut GameCanvas,
+        )
+    }?;
+    Ok(next)
 }

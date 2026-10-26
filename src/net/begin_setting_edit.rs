@@ -6,57 +6,32 @@
 //! In:  nothing (the item is `g_listChoice`)
 //! Out: eax = the item, ebx = the text, ecx = 0x30C, edx = `palette` when an edit starts;
 //!      for other items ebx = `dword_52ABD0`; no `pusha`
-//! Caller: `net::settings_loop`. Its calls through `part` (`strings::append_nul` inline).
-//! Shadow mode runs the original alone. Self-test: a copy whose calls go to stand-ins,
-//! against the Rust version, on items 0 .. 4.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Caller: `net::settings_loop`.
 
-use crate::errors::Refused;
-use crate::framework::Regs;
-use crate::net::lobby::{
-    CHOICE, FORMAT_U32, HOST_ADDRESS, MACHINE_NAME, MOST_PLAYERS, NUMBER_TEXT, PALETTE, Part, a, g,
-    lobby_entry,
-};
+use crate::install::vars::INSTALLER_PAGES;
+use crate::install::vars::INSTALLER_PATHS;
+use crate::net::lobby::{Cursor, PALETTE};
+use crate::net::store::NET;
 use rc2k_core::net::editing::{self, Setting};
 
-const BEGIN_EDIT: u32 = 0x416E1A; // net::begin_edit
-
-/// The Rust version: the registers it leaves.
-pub fn begin_setting_edit(entry: &Regs, part: Part) -> Result<Regs, Refused> {
-    let mut r = *entry;
+/// The Rust version. The registers the original leaves when an edit starts (eax the item,
+/// ebx the text, ecx the width, edx the font) are read by no caller (`settings_loop`).
+pub fn begin_setting_edit() -> Result<(), crate::errors::Refused> {
     // Converted: `rc2k_core::net::editing` (`Setting`, `WIDTH`).
-    r.eax = g(CHOICE);
-    let setting = Setting::of(r.eax);
-    r.ebx = match setting {
-        Setting::Name => a(MACHINE_NAME),
-        Setting::HostAddress => a(HOST_ADDRESS),
-        _ => g(MOST_PLAYERS),
-    };
-    match setting {
-        Setting::Name | Setting::HostAddress => {}
+    let item = INSTALLER_PAGES.choice.get();
+    let text = match Setting::of(item) {
+        Setting::Name => NET.machine_name.addr(),
+        Setting::HostAddress => NET.host_address.addr(),
         Setting::MostPlayers => {
-            let item = r.eax;
-            r.eax = r.ebx;
-            r.ebx = a(NUMBER_TEXT);
-            r.ecx = 0;
-            part(FORMAT_U32, &mut r)?;
-            unsafe { (r.ebx as *mut u8).write(0) };
-            r.ebx = a(NUMBER_TEXT);
-            r.eax = item;
+            let mut cursor = Cursor(INSTALLER_PATHS.path_a.addr());
+            cursor.bytes(&crate::strings::format_u32::format_u32(
+                NET.most_players.get(),
+                0,
+            ))?;
+            cursor.nul()?;
+            INSTALLER_PATHS.path_a.addr()
         }
-        Setting::None => return Ok(r),
-    }
-    r.ecx = editing::WIDTH;
-    r.edx = a(PALETTE);
-    part(BEGIN_EDIT, &mut r)?;
-    Ok(r)
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    lobby_entry(r, begin_setting_edit)
+        Setting::None => return Ok(()),
+    };
+    crate::net::begin_edit::begin_edit(item, text, editing::WIDTH, PALETTE.addr())
 }

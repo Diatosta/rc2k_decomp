@@ -23,48 +23,25 @@
 //!   `system::pump_messages` (0x410535): SDL's events; closing the window sets the
 //!   quit switch, and the keys the menus know become the game's pending key.
 
-use crate::framework::{
-    GameHook, RawHook, Regs, game_addr, game_ptr, game_read, game_write, hook_asm, log, rva,
-};
+use crate::framework::{GameHook, RawHook, log, rva};
 use crate::gfx::describe_format::describe_format;
+use crate::gfx::front::SURFACES;
+use crate::gfx::locked::LOCKED;
+use crate::gfx::modes::MODES;
+use crate::gfx::screen_state::DRAW_SURFACE;
+use crate::gfx::screen_state::SCREEN_MODE;
 use crate::gfx::set_clip::set_clip;
+use crate::input::store::DEVICES;
+use crate::session::FLAGS;
+use crate::session::SCREEN as GAME_SCREEN;
 use crate::system::find_entry::find_entry;
 use sdl3_sys::everything::*;
 use std::sync::Mutex;
 use std::sync::atomic::{AtomicU32, AtomicUsize, Ordering};
 
-// ---- game data ----
-
-const QUIT_RVA: usize = rva(0x51837C); // dword_51837C
-const PENDING_KEY_RVA: usize = rva(0x4F6ADC); // byte_4F6ADC
-const FOCUSED_RVA: usize = rva(0x518378); // dword_518378: 1 while the window has the focus
-const MENU_MODE_RVA: usize = rva(0x4F4944); // dword_4F4944
-const RACE_MODE_RVA: usize = rva(0x4F4948); // dword_4F4948
-const MODE_FLAGS_RVA: usize = rva(0x4F4934); // g_screenModeFlags
-const MODE_SET_RVA: usize = rva(0x4F4938); // dword_4F4938
-const WIDTH_RVA: usize = rva(0x4F494C); // g_screenWidth
-const HEIGHT_RVA: usize = rva(0x4F4950); // g_screenHeight
-const BITS_RVA: usize = rva(0x4F4954); // g_screenBits
-const BYTES_RVA: usize = rva(0x4F4958); // dword_4F4958
-const ROW_BYTES_RVA: usize = rva(0x4F495C); // dword_4F495C
-const ROW_DWORDS_RVA: usize = rva(0x4F4960); // dword_4F4960
-const DEPTH_BITS_RVA: usize = rva(0x4F4964); // dword_4F4964
-const KIND_RVA: usize = rva(0x4F4968); // dword_4F4968
-const FORMAT_RVA: usize = rva(0x4F496C); // g_surfaceFormat
-const PITCH_RVA: usize = rva(0x4F4984); // dword_4F4984
-const PIXELS_RVA: usize = rva(0x4F4988); // dword_4F4988
-const GAP_RVA: usize = rva(0x4F498C); // dword_4F498C
-const FLIPPED_RVA: usize = rva(0x4F4990); // dword_4F4990
-const FRAMES_RVA: usize = rva(0x4F4994); // dword_4F4994
-const SURFACE_RVA: usize = rva(0x4F4998); // g_surface
-const LOCKED_RVA: usize = rva(0x4F3870); // g_surfaceLocked
-const FRONT_RVA: usize = rva(0x4F32B4); // dword_4F32B4: the DirectDraw surfaces
-const BACK_RVA: usize = rva(0x4F32B8); // dword_4F32B8
-const SIZES_RVA: usize = rva(0x4F4E50); // g_screenSizes
-const PIXEL_KINDS_RVA: usize = rva(0x4F4E40); // g_pixelKinds
-const KINDS_RVA: usize = rva(0x4F4E90); // dword_4F4E90
-const FORMAT_SET_RVA: usize = rva(0x5ABBD4); // dword_5ABBD4, dword_5ABBD8, unk_5ABBDC
 const DEFAULT_MODE: u32 = 0x32_2802;
+
+// ---- game data ----
 
 // ---- the screen ----
 
@@ -74,6 +51,9 @@ struct Screen {
     height: usize,
     bits: u32,
     pixels: Vec<u8>,
+    /// The pixels a region while the screen lives (the game's code draws on them by
+    /// address: `pointers`).
+    _lent: crate::pointers::Lent,
 }
 
 static SCREEN: Mutex<Option<Screen>> = Mutex::new(None);
@@ -84,40 +64,72 @@ pub static FRAMES_TO_SHOW: AtomicU32 = AtomicU32::new(0);
 static LAST_SHOWN: AtomicUsize = AtomicUsize::new(0);
 
 fn quitting() -> bool {
-    unsafe { game_read::<u32>(QUIT_RVA) == 1 }
+    FLAGS.quitting.get() == 1
+}
+
+/// An SDL event the program looks at.
+enum Event {
+    Quit,
+    Focus(bool),
+    Key { scancode: i32, down: bool },
+    Other,
+}
+
+/// SDL's next event, if there is one.
+fn next_event() -> Option<Event> {
+    // SAFETY: an all-zero `SDL_Event` is valid (a union of plain records); SDL fills it, and
+    // its `type` says which member the reads below take.
+    unsafe {
+        let mut event: SDL_Event = std::mem::zeroed();
+        if !SDL_PollEvent(&mut event) {
+            return None;
+        }
+        let kind = event.r#type;
+        Some(if kind == SDL_EVENT_QUIT.0 {
+            Event::Quit
+        } else if kind == SDL_EVENT_WINDOW_FOCUS_GAINED.0 {
+            Event::Focus(true)
+        } else if kind == SDL_EVENT_WINDOW_FOCUS_LOST.0 {
+            Event::Focus(false)
+        } else if kind == SDL_EVENT_KEY_DOWN.0 || kind == SDL_EVENT_KEY_UP.0 {
+            Event::Key {
+                scancode: event.key.scancode.0,
+                down: event.key.down,
+            }
+        } else {
+            Event::Other
+        })
+    }
 }
 
 /// SDL's events: the window's closing, and the keys the menus take.
 fn pump() {
-    unsafe {
-        let mut event: SDL_Event = std::mem::zeroed();
-        while SDL_PollEvent(&mut event) {
-            if event.r#type == SDL_EVENT_QUIT.0 {
+    while let Some(event) = next_event() {
+        match event {
+            Event::Quit => {
                 log("platform: the window was closed: the quit switch is set");
-                game_write(QUIT_RVA, 1u32);
-            } else if event.r#type == SDL_EVENT_WINDOW_FOCUS_GAINED.0
-                || event.r#type == SDL_EVENT_WINDOW_FOCUS_LOST.0
-            {
-                // As the window's procedure on `WM_ACTIVATE`: the input thread reads the
-                // devices (and does not sleep a second a tick) while it is 1.
-                let focused = event.r#type == SDL_EVENT_WINDOW_FOCUS_GAINED.0;
-                game_write(FOCUSED_RVA, focused as u32);
-            } else if event.r#type == SDL_EVENT_KEY_DOWN.0 || event.r#type == SDL_EVENT_KEY_UP.0 {
-                let key = game_key(event.key.scancode.0);
+                FLAGS.quitting.set(1);
+            }
+            // As the window's procedure on `WM_ACTIVATE`: the input thread reads the devices
+            // (and does not sleep a second a tick) while it is 1.
+            Event::Focus(focused) => FLAGS.window_focused.set(focused as u32),
+            Event::Key { scancode, down } => {
+                let key = game_key(scancode);
                 if key == 0 {
                     continue;
                 }
-                // The key-down table starts at the pending key and is indexed by the
-                // game's key code (0xFF down, as `sar al, 7` leaves it); a key that goes
-                // down, or repeats, is the pending key, as the key thread makes it.
-                let state = (game_addr(PENDING_KEY_RVA) as *mut u8).add(key as usize);
-                if event.key.down {
-                    state.write_volatile(0xFF);
-                    game_write(PENDING_KEY_RVA, key);
+                // The key-down table starts at the pending key and is indexed by the game's
+                // key code (0xFF down, as `sar al, 7` leaves it); a key that goes down, or
+                // repeats, is the pending key, as the key thread makes it.
+                if down {
+                    DEVICES.set_key_state(key, 0xFF);
+                    crate::input::take_key::pending_key()
+                        .store(key, std::sync::atomic::Ordering::SeqCst);
                 } else {
-                    state.write_volatile(0);
+                    DEVICES.set_key_state(key, 0);
                 }
             }
+            Event::Other => {}
         }
     }
 }
@@ -191,117 +203,102 @@ fn game_key(scancode: i32) -> u8 {
 
 // ---- gfx::choose_screen_modes (0x404481) ----
 
-static CHOOSE_ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-static CHOOSE: RawHook = RawHook::new(
-    "gfx::choose_screen_modes",
-    rva(0x404481),
-    choose_thunk,
-    &CHOOSE_ORIGINAL,
-);
-hook_asm!(
-    choose_thunk,
-    choose_original,
-    dispatch = choose,
-    original = CHOOSE_ORIGINAL
-);
+static CHOOSE: RawHook = RawHook::new("gfx::choose_screen_modes", rva(0x404481));
 
-extern "C" fn choose(r: &mut Regs) {
+/// `gfx::choose_screen_modes`: the menus' and the race's modes (the default where none is
+/// kept) and the graphics options' choices. It cannot fail here (the original's carry).
+pub fn choose_screen_modes() {
     CHOOSE.count_call();
-    unsafe {
-        for mode in [MENU_MODE_RVA, RACE_MODE_RVA] {
-            if game_read::<u32>(mode) == 0 {
-                game_write(mode, DEFAULT_MODE);
+    {
+        for mode in [&SCREEN_MODE.menu_mode, &SCREEN_MODE.race_mode] {
+            if mode.get() == 0 {
+                mode.set(DEFAULT_MODE);
             }
         }
         log(&format!(
             "platform: screen modes {:#x} for the menus, {:#x} for a race",
-            game_read::<u32>(MENU_MODE_RVA),
-            game_read::<u32>(RACE_MODE_RVA)
+            SCREEN_MODE.menu_mode.get(),
+            SCREEN_MODE.race_mode.get()
         ));
     }
     // The graphics options' choices made, as the original ends (`loc_4045CA`): the list
-    // the options page shows its resolution from.
-    let made = crate::gfx::screen_mode_choices::screen_mode_choices(
-        r,
-        &mut crate::gfx::screen_mode_choices::game_part,
-    );
+    // the options page shows its resolution from (not made yet at the start, so made
+    // whatever eax holds).
+    let made = crate::gfx::screen_mode_choices::screen_mode_choices(false);
     if let Err(e) = made {
         log(&format!(
             "platform: the screen mode choices are not made: {e:?}"
         ));
     }
-    r.set_carry(false);
 }
 
 // ---- gfx::set_screen_mode (0x404B63) ----
 
-static SET_MODE_ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-static SET_MODE: RawHook = RawHook::new(
-    "gfx::set_screen_mode",
-    rva(0x404B63),
-    set_mode_thunk,
-    &SET_MODE_ORIGINAL,
-);
-hook_asm!(
-    set_mode_thunk,
-    set_mode_original,
-    dispatch = set_mode,
-    original = SET_MODE_ORIGINAL
-);
+static SET_MODE: RawHook = RawHook::new("gfx::set_screen_mode", rva(0x404B63));
 
 /// The value of a table's entry for a key.
-unsafe fn looked_up(key: u32, table: usize, entries: u32) -> Option<u32> {
-    unsafe {
-        let entry = find_entry(key, game_addr(table) as u32, entries).ok()??;
-        Some(((entry + 4) as *const u32).read_unaligned())
-    }
+fn looked_up(key: u32, table: usize, entries: u32) -> Option<u32> {
+    let entry = find_entry(key, table as u32, entries).ok()??;
+    Some(crate::pointers::read_or_end(
+        entry + 4,
+        "a screen mode table",
+    ))
 }
 
-unsafe fn set_screen_mode(mode: u32) -> Result<(), String> {
-    unsafe {
-        game_write(MODE_FLAGS_RVA, mode);
-        let size = looked_up(mode & 0xFF, SIZES_RVA, 8).ok_or("a screen size that is not known")?;
-        let (width, height) = (size & 0xFFFF, size >> 16);
-        let bits = looked_up(mode & 0xF00, PIXEL_KINDS_RVA, 2)
-            .ok_or("a kind of pixel that is not known")?;
-        let kind = looked_up(mode & 0xF_0000, KINDS_RVA, 3).ok_or("a kind that is not known")?;
-        let bytes = bits >> 3;
-        // As the original (0x404C55): every texture given back before the screen changes;
-        // the game loads again what it needs (a trial's 0x40 more found the pool full).
-        crate::platform_3d::release_all_textures();
-        game_write(WIDTH_RVA, width);
-        game_write(HEIGHT_RVA, height);
-        game_write(BITS_RVA, bits);
-        game_write(BYTES_RVA, bytes);
-        game_write(ROW_BYTES_RVA, bytes * width);
-        game_write(ROW_DWORDS_RVA, (bytes * width) >> 2);
-        game_write(KIND_RVA, kind);
-        // The z-buffer's depth, which the original picks by the 3D device: none here.
-        game_write(DEPTH_BITS_RVA, 0x10u32);
+fn set_screen_mode(mode: u32) -> Result<(), String> {
+    SCREEN_MODE.mode_flags.set(mode);
+    let size =
+        looked_up(mode & 0xFF, MODES.sizes_addr(), 8).ok_or("a screen size that is not known")?;
+    let (width, height) = (size & 0xFFFF, size >> 16);
+    let bits = looked_up(mode & 0xF00, MODES.pixel_kinds_addr(), 2)
+        .ok_or("a kind of pixel that is not known")?;
+    let kind =
+        looked_up(mode & 0xF_0000, MODES.kinds_addr(), 3).ok_or("a kind that is not known")?;
+    let bytes = bits >> 3;
+    // As the original (0x404C55): every texture given back before the screen changes;
+    // the game loads again what it needs (a trial's 0x40 more found the pool full).
+    crate::platform_3d::release_all_textures();
+    GAME_SCREEN.width.set(width);
+    GAME_SCREEN.height.set(height);
+    GAME_SCREEN.bits.set(bits);
+    GAME_SCREEN.bytes.set(bytes);
+    GAME_SCREEN.row_bytes.set(bytes * width);
+    GAME_SCREEN.row_dwords.set((bytes * width) >> 2);
+    GAME_SCREEN.kind.set(kind);
+    // The z-buffer's depth, which the original picks by the 3D device: none here.
+    GAME_SCREEN.depth_bits.set(0x10u32);
 
-        // The surface's pixel format, as DirectDraw would report it: +4 blue, +8 green,
-        // +0xC red, +0x10 no alpha.
-        let masks: [u32; 3] = if bits == 32 {
-            [0xFF, 0xFF00, 0xFF_0000]
-        } else {
-            [0x001F, 0x07E0, 0xF800]
+    // The surface's pixel format, as DirectDraw would report it: +4 blue, +8 green,
+    // +0xC red, +0x10 no alpha.
+    let masks: [u32; 3] = if bits == 32 {
+        [0xFF, 0xFF00, 0xFF_0000]
+    } else {
+        [0x001F, 0x07E0, 0xF800]
+    };
+    let format = &GAME_SCREEN.format;
+    for (n, mask) in masks.into_iter().enumerate() {
+        format[1 + n].set(mask);
+    }
+    format[4].set(0);
+    describe_format(format);
+    // The screen's own texture description (`TEXTURE_TABLES.descriptions[4]`).
+    crate::gfx::texture_upload::TEXTURE_TABLES.descriptions[4].update(|d| {
+        d.found = 1;
+        d.bytes_per_pixel = bytes;
+        let six: [u32; 6] = std::array::from_fn(|n| format[n].get());
+        d.format = rc2k_core::gfx::pixels::PixelFormat {
+            layout: six[0],
+            masks: [six[1], six[2], six[3], six[4]],
         };
-        let format = game_ptr::<u32>(FORMAT_RVA);
-        for (n, mask) in masks.into_iter().enumerate() {
-            format.add(1 + n).write_unaligned(mask);
-        }
-        format.add(4).write_unaligned(0);
-        describe_format(format).map_err(|e| e.0)?;
-        game_write(FORMAT_SET_RVA, 1u32);
-        game_write(FORMAT_SET_RVA + 4, bytes);
-        game_write(
-            FORMAT_SET_RVA + 8,
-            (format as *const [u32; 6]).read_unaligned(),
-        );
+        d.number = six[5];
+    });
 
-        let mut screen = SCREEN.lock().map_err(|_| "the screen's lock")?;
+    let mut screen = SCREEN.lock().map_err(|_| "the screen's lock")?;
+    // SAFETY: SDL's calls on the window SDL made (kept in `SCREEN` while it lives), on
+    // the thread that opened it.
+    let window = unsafe {
         let window = match screen.as_ref() {
-            Some(old) => old.window as *mut SDL_Window,
+            Some(old) => std::ptr::with_exposed_provenance_mut::<SDL_Window>(old.window),
             None => {
                 if !SDL_Init(SDL_INIT_VIDEO) {
                     return Err("SDL does not start".into());
@@ -318,174 +315,125 @@ unsafe fn set_screen_mode(mode: u32) -> Result<(), String> {
             return Err("SDL opens no window".into());
         }
         SDL_SetWindowSize(window, width as i32, height as i32);
-        // Black at once, as a mode change leaves the screen: until the first frame is shown
-        // the resized window would show what the window system puts there (white under
-        // Wine, a frame's flash before the loading picture: owner, 2026-10-19).
+        // Black at once, as a mode change leaves the screen: until the first frame is
+        // shown the resized window would show what the window system puts there (white
+        // under Wine, a frame's flash before the loading picture: owner, 2026-10-19).
         let surface = SDL_GetWindowSurface(window);
         if !surface.is_null() {
             SDL_FillSurfaceRect(surface, std::ptr::null(), 0);
             SDL_UpdateWindowSurface(window);
         }
-        let pixels = vec![0u8; (bytes * width * height) as usize];
-        game_write(PIXELS_RVA, pixels.as_ptr() as u32);
-        game_write(PITCH_RVA, bytes * width);
-        game_write(GAP_RVA, 0u32);
-        // "There are surfaces": what the game's own code asks.
-        game_write(FRONT_RVA, 1u32);
-        game_write(BACK_RVA, 1u32);
-        *screen = Some(Screen {
-            window: window as usize,
-            width: width as usize,
-            height: height as usize,
-            bits,
-            pixels,
-        });
-        game_write(MODE_SET_RVA, mode);
-        crate::platform_3d::describe_texture_formats(bits);
-        log(&format!(
-            "platform: screen mode {mode:#x}: {width} x {height}, {bits} bits"
-        ));
-        Ok(())
-    }
+        window
+    };
+    let pixels = vec![0u8; (bytes * width * height) as usize];
+    let lent = crate::pointers::Lent::new(&pixels);
+    DRAW_SURFACE.present_pixels.set(lent.addr());
+    DRAW_SURFACE.present_pitch.set(bytes * width);
+    DRAW_SURFACE.present_gap.set(0u32);
+    // "There are surfaces": what the game's own code asks.
+    SURFACES.front.set(1);
+    SURFACES.back.set(1);
+    *screen = Some(Screen {
+        window: window.expose_provenance(),
+        width: width as usize,
+        height: height as usize,
+        bits,
+        _lent: lent,
+        pixels,
+    });
+    SCREEN_MODE.mode_set.set(mode);
+    crate::platform_3d::describe_texture_formats(bits);
+    log(&format!(
+        "platform: screen mode {mode:#x}: {width} x {height}, {bits} bits"
+    ));
+    Ok(())
 }
 
-extern "C" fn set_mode(r: &mut Regs) {
+/// `gfx::set_screen_mode`: the screen in `mode`; false (and logged) if it cannot be.
+pub fn set_mode_now(mode: u32) -> bool {
     // The 3D drawing noted so far, before the screen is shown, written or changed.
     crate::platform_3d::flush();
     SET_MODE.count_call();
-    let done = unsafe { set_screen_mode(r.eax) };
+    let done = set_screen_mode(mode);
     if let Err(why) = &done {
-        log(&format!("platform: screen mode {:#x}: {why}", r.eax));
+        log(&format!("platform: screen mode {mode:#x}: {why}"));
     }
-    r.set_carry(done.is_err());
+    done.is_ok()
 }
 
 // ---- gfx::set_menu_screen_mode (0x404823) ----
 
-static MENU_MODE_ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-static MENU_MODE: RawHook = RawHook::new(
-    "gfx::set_menu_screen_mode",
-    rva(0x404823),
-    menu_mode_thunk,
-    &MENU_MODE_ORIGINAL,
-);
-hook_asm!(
-    menu_mode_thunk,
-    menu_mode_original,
-    dispatch = menu_mode,
-    original = MENU_MODE_ORIGINAL
-);
+static MENU_MODE: RawHook = RawHook::new("gfx::set_menu_screen_mode", rva(0x404823));
 
-/// `gfx::set_screen_mode` with the menus' mode; every register kept, the flags its.
-extern "C" fn menu_mode(r: &mut Regs) {
+/// `gfx::set_menu_screen_mode`: `gfx::set_screen_mode` with the menus' mode; false (and
+/// logged) if it cannot be.
+pub fn set_menu_mode_now() -> bool {
     // The 3D drawing noted so far, before the screen is shown, written or changed.
     crate::platform_3d::flush();
     MENU_MODE.count_call();
-    let mode = unsafe { game_read(MENU_MODE_RVA) };
-    let done = unsafe { set_screen_mode(mode) };
+    let mode = { SCREEN_MODE.menu_mode.get() };
+    let done = set_screen_mode(mode);
     if let Err(why) = &done {
         log(&format!("platform: screen mode {mode:#x}: {why}"));
     }
-    r.set_carry(done.is_err());
+    done.is_ok()
 }
 
 // ---- gfx::lock_surface (0x4058AD), gfx::unlock_surface (0x405949) ----
 
-static LOCK_ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-static LOCK: RawHook = RawHook::new(
-    "gfx::lock_surface",
-    rva(0x4058AD),
-    lock_thunk,
-    &LOCK_ORIGINAL,
-);
-hook_asm!(
-    lock_thunk,
-    lock_original,
-    dispatch = lock,
-    original = LOCK_ORIGINAL
-);
+static LOCK: RawHook = RawHook::new("gfx::lock_surface", rva(0x4058AD));
 
-/// The flags of `cmp g_surfaceLocked, 1`.
-fn compared_with_one(r: &mut Regs, locked: u32) {
-    r.set_carry(locked < 1);
-    r.set_zero(locked == 1);
-}
-
-extern "C" fn lock(r: &mut Regs) {
+/// `gfx::lock_surface`: the surface locked for drawing (unless quitting or there is no
+/// screen); `g_surfaceLocked` after it (1: locked).
+pub fn lock_surface() -> u32 {
     // The 3D drawing noted so far, before the screen is shown, written or changed.
     crate::platform_3d::flush();
     LOCK.count_call();
-    unsafe {
-        let have = SCREEN.lock().is_ok_and(|screen| screen.is_some());
-        if !quitting() && have {
-            game_write(LOCKED_RVA, 1u32);
-            // `sub_405726`: the surface the blitters draw on, and the clip rectangle.
-            let surface = game_ptr::<u32>(SURFACE_RVA);
-            let (row_bytes, pitch): (u32, u32) = (game_read(ROW_BYTES_RVA), game_read(PITCH_RVA));
-            let fields = [
-                (2, game_read(WIDTH_RVA)),
-                (3, game_read(HEIGHT_RVA)),
-                (4, game_read(BITS_RVA)),
-                (5, game_read(BYTES_RVA)),
-                (6, row_bytes),
-                (7, game_read(ROW_DWORDS_RVA)),
-                (8, game_addr(FORMAT_RVA) as u32),
-                (9, pitch),
-                (10, game_read(PIXELS_RVA)),
-                (11, pitch.wrapping_sub(row_bytes)),
-            ];
-            for (n, value) in fields {
-                surface.add(n).write_unaligned(value);
-            }
-            let _ = set_clip(surface as *const [u32; 4]);
-        }
-        compared_with_one(r, game_read(LOCKED_RVA));
+    let have = SCREEN.lock().is_ok_and(|screen| screen.is_some());
+    if !quitting() && have {
+        LOCKED.surface.set(1);
+        // `sub_405726`: the surface the blitters draw on, and the clip rectangle.
+        let s = &DRAW_SURFACE;
+        let (row_bytes, pitch): (u32, u32) = (
+            GAME_SCREEN.row_bytes.get(),
+            DRAW_SURFACE.present_pitch.get(),
+        );
+        s.width.set(GAME_SCREEN.width.get());
+        s.height.set(GAME_SCREEN.height.get());
+        s.bits_per_pixel.set(GAME_SCREEN.bits.get());
+        s.bytes_per_pixel.set(GAME_SCREEN.bytes.get());
+        s.row_bytes.set(row_bytes);
+        s.row_dwords.set(GAME_SCREEN.row_dwords.get());
+        s.format.set(GAME_SCREEN.format_addr());
+        s.pitch.set(pitch);
+        s.pixels.set(DRAW_SURFACE.present_pixels.get());
+        s.row_gap.set(pitch.wrapping_sub(row_bytes));
+        set_clip([s.x.get(), s.y.get(), s.width.get(), s.height.get()]);
     }
+    LOCKED.surface.get()
 }
 
-static UNLOCK_ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-static UNLOCK: RawHook = RawHook::new(
-    "gfx::unlock_surface",
-    rva(0x405949),
-    unlock_thunk,
-    &UNLOCK_ORIGINAL,
-);
-hook_asm!(
-    unlock_thunk,
-    unlock_original,
-    dispatch = unlock,
-    original = UNLOCK_ORIGINAL
-);
+static UNLOCK: RawHook = RawHook::new("gfx::unlock_surface", rva(0x405949));
 
-extern "C" fn unlock(r: &mut Regs) {
+/// `gfx::unlock_surface`: the surface unlocked if it was locked; `g_surfaceLocked` before
+/// it (1: it was).
+pub fn unlock_surface() -> u32 {
     UNLOCK.count_call();
-    unsafe {
-        let locked: u32 = game_read(LOCKED_RVA);
-        if locked == 1 {
-            game_write(LOCKED_RVA, 0u32);
-            r.set_carry(false);
-            r.set_zero(true);
-        } else {
-            compared_with_one(r, locked);
-        }
+    let locked: u32 = LOCKED.surface.get();
+    if locked == 1 {
+        LOCKED.surface.set(0);
     }
+    locked
 }
 
 // ---- gfx::show_frame (0x4057D1) ----
 
-static SHOW_ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-static SHOW: RawHook = RawHook::new("gfx::show_frame", rva(0x4057D1), show_thunk, &SHOW_ORIGINAL);
-hook_asm!(
-    show_thunk,
-    show_original,
-    dispatch = show,
-    original = SHOW_ORIGINAL
-);
+static SHOW: RawHook = RawHook::new("gfx::show_frame", rva(0x4057D1));
 
 // ---- where the time goes: the main thread and the rasteriser's sampled every millisecond ----
 
 /// Where the sampled threads were, by address, since the last report.
-static SAMPLES: std::sync::Mutex<Option<std::collections::HashMap<u32, u32>>> =
+static SAMPLES: std::sync::Mutex<Option<std::collections::HashMap<usize, u32>>> =
     std::sync::Mutex::new(None);
 
 /// The time putting frames on the screen (`show_frame`), in microseconds.
@@ -498,6 +446,7 @@ static SAMPLED: std::sync::Mutex<Vec<u32>> = std::sync::Mutex::new(Vec::new());
 pub fn start_threads() {
     let _ = rayon::ThreadPoolBuilder::new()
         .start_handler(|_| {
+            // SAFETY: no arguments; the calling thread's id.
             let id = unsafe { windows_sys::Win32::System::Threading::GetCurrentThreadId() };
             SAMPLED.lock().unwrap().push(id);
         })
@@ -508,9 +457,7 @@ pub fn start_threads() {
 /// thread every millisecond, notes its instruction pointer and lets it go on.
 fn start_sampler() {
     use std::sync::Once;
-    use windows_sys::Win32::System::Diagnostics::Debug::{
-        CONTEXT, CONTEXT_CONTROL_X86, GetThreadContext,
-    };
+    use windows_sys::Win32::System::Diagnostics::Debug::{CONTEXT, GetThreadContext};
     use windows_sys::Win32::System::Threading::{
         GetCurrentThreadId, OpenThread, ResumeThread, SuspendThread, THREAD_GET_CONTEXT,
         THREAD_SUSPEND_RESUME,
@@ -520,6 +467,7 @@ fn start_sampler() {
         SAMPLED
             .lock()
             .unwrap()
+            // SAFETY: no arguments.
             .insert(0, unsafe { GetCurrentThreadId() });
         *SAMPLES.lock().unwrap() = Some(Default::default());
         std::thread::spawn(move || {
@@ -528,29 +476,35 @@ fn start_sampler() {
                 std::thread::sleep(std::time::Duration::from_millis(1));
                 for &id in SAMPLED.lock().unwrap().iter() {
                     if !handles.iter().any(|h| h.0 == id) {
+                        // SAFETY: a thread id; a null handle on failure, checked.
                         let h = unsafe {
                             OpenThread(THREAD_SUSPEND_RESUME | THREAD_GET_CONTEXT, 0, id)
                         };
                         if !h.is_null() {
-                            handles.push((id, h as usize));
+                            handles.push((id, h.expose_provenance()));
                         }
                     }
                 }
                 for &(_, h) in &handles {
-                    let thread = h as windows_sys::Win32::Foundation::HANDLE;
+                    let thread: windows_sys::Win32::Foundation::HANDLE =
+                        std::ptr::with_exposed_provenance_mut(h);
+                    // SAFETY: a handle opened above with suspend and context rights, kept
+                    // open for the program's life; the thread is resumed before `SAMPLES`
+                    // is locked (it may have been stopped holding that lock); `CONTEXT` is
+                    // plain data, zeroed as the API expects.
                     unsafe {
                         if SuspendThread(thread) == u32::MAX {
                             continue;
                         }
                         let mut context: CONTEXT = std::mem::zeroed();
-                        context.ContextFlags = CONTEXT_CONTROL_X86;
+                        context.ContextFlags = crate::arch::CONTEXT_CONTROL;
                         let got = GetThreadContext(thread, &mut context) != 0;
                         ResumeThread(thread);
                         if got
                             && let Ok(mut samples) = SAMPLES.lock()
                             && let Some(samples) = samples.as_mut()
                         {
-                            *samples.entry(context.Eip).or_insert(0) += 1;
+                            *samples.entry(crate::arch::ip(&context)).or_insert(0) += 1;
                         }
                     }
                 }
@@ -577,24 +531,29 @@ fn hot_places() -> String {
     if total == 0 {
         return String::new();
     }
-    let program = unsafe { GetModuleHandleA(std::ptr::null()) } as u32;
-    let game = crate::framework::game_addr(0) as u32;
+    // Host addresses throughout (sampled instruction pointers, modules); the game's
+    // reserved image by its host address.
+    // SAFETY: a null name asks for the program's own module.
+    let program = unsafe { GetModuleHandleA(std::ptr::null()) }.expose_provenance();
+    let game = crate::pointers::host(crate::framework::game_addr(0)).expose_provenance();
     // by function-sized buckets would need symbols: by address, the top 24
-    let mut places: Vec<(u32, u32)> = samples.into_iter().collect();
+    let mut places: Vec<(usize, u32)> = samples.into_iter().collect();
     places.sort_by_key(|p| std::cmp::Reverse(p.1));
-    let name = |at: u32| -> String {
+    let name = |at: usize| -> String {
+        // SAFETY: `at` is only looked up (UNCHANGED_REFCOUNT: nothing held); the module
+        // handle is live while the program runs; `file` is the 260 bytes said.
         unsafe {
             let mut module = std::ptr::null_mut();
             if GetModuleHandleExA(
                 GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS
                     | GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
-                at as usize as *const u8,
+                std::ptr::with_exposed_provenance::<u8>(at),
                 &mut module,
             ) == 0
             {
                 return format!("{at:#x}");
             }
-            let base = module as u32;
+            let base = module.expose_provenance();
             if base == program {
                 return format!("rc2k+{:#x}", at - base);
             }
@@ -646,9 +605,7 @@ fn report_timing() {
         crate::platform_3d::PIXELS.load(Relaxed),
     );
     // The screen's places, for the pixels a frame in screens.
-    let screen = unsafe {
-        (game_read::<u32>(rva(0x4F494C)).max(1) * game_read::<u32>(rva(0x4F4950)).max(1)) as f64
-    };
+    let screen = (GAME_SCREEN.width.get().max(1) * GAME_SCREEN.height.get().max(1)) as f64;
     let Ok(mut last) = LAST.lock() else {
         return;
     };
@@ -697,51 +654,61 @@ fn report_timing() {
     }
 }
 
-unsafe fn show_frame(screen: &Screen) -> Result<(), &'static str> {
-    unsafe {
-        let window = screen.window as *mut SDL_Window;
-        let surface = SDL_GetWindowSurface(window);
-        if surface.is_null() {
-            return Err("the window has no surface");
-        }
-        let s = &*surface;
-        if s.format != SDL_PIXELFORMAT_XRGB8888 || s.pixels.is_null() {
-            return Err("the window's surface is not 32 bits of red, green, blue");
-        }
-        let rows = screen.height.min(s.h as usize);
-        let columns = screen.width.min(s.w as usize);
-        for y in 0..rows {
-            let to = (s.pixels as *mut u8).add(y * s.pitch as usize) as *mut u32;
-            if screen.bits == 32 {
-                let from = screen.pixels.as_ptr().add(y * screen.width * 4) as *const u32;
-                std::ptr::copy_nonoverlapping(from, to, columns);
-            } else {
-                let from = screen.pixels.as_ptr().add(y * screen.width * 2) as *const u16;
-                for x in 0..columns {
-                    let p = from.add(x).read_unaligned() as u32;
-                    let (red, green, blue) = (p >> 11 & 0x1F, p >> 5 & 0x3F, p & 0x1F);
-                    to.add(x).write_unaligned(
-                        (red << 3 | red >> 2) << 16
-                            | (green << 2 | green >> 4) << 8
-                            | blue << 3
-                            | blue >> 2,
-                    );
-                }
-            }
-        }
-        SDL_UpdateWindowSurface(window);
-        Ok(())
+fn show_frame(screen: &Screen) -> Result<(), &'static str> {
+    let window = std::ptr::with_exposed_provenance_mut::<SDL_Window>(screen.window);
+    // SAFETY: the window SDL made (`set_screen_mode`), alive while `SCREEN` holds it.
+    let surface = unsafe { SDL_GetWindowSurface(window) };
+    if surface.is_null() {
+        return Err("the window has no surface");
     }
+    // SAFETY: SDL's surface of a live window, until the next call on the window.
+    let s = unsafe { &*surface };
+    if s.format != SDL_PIXELFORMAT_XRGB8888 || s.pixels.is_null() || s.pitch <= 0 {
+        return Err("the window's surface is not 32 bits of red, green, blue");
+    }
+    let rows = screen.height.min(s.h as usize);
+    let columns = screen.width.min(s.w as usize);
+    // SAFETY: the surface's `h` rows of `pitch` bytes (SDL's surface), written only here.
+    let to_all = unsafe {
+        std::slice::from_raw_parts_mut(s.pixels as *mut u8, s.pitch as usize * s.h as usize)
+    };
+    let bytes = (screen.bits / 8) as usize;
+    for y in 0..rows {
+        let to = &mut to_all[y * s.pitch as usize..][..columns * 4];
+        let from = &screen.pixels[y * screen.width * bytes..][..columns * bytes];
+        if bytes == 4 {
+            to.copy_from_slice(from);
+            continue;
+        }
+        for (to, from) in to
+            .as_chunks_mut::<4>()
+            .0
+            .iter_mut()
+            .zip(from.as_chunks::<2>().0)
+        {
+            let p = u16::from_le_bytes(*from) as u32;
+            let (red, green, blue) = (p >> 11 & 0x1F, p >> 5 & 0x3F, p & 0x1F);
+            let p = (red << 3 | red >> 2) << 16
+                | (green << 2 | green >> 4) << 8
+                | blue << 3
+                | blue >> 2;
+            to.copy_from_slice(&p.to_le_bytes());
+        }
+    }
+    // SAFETY: as above.
+    unsafe { SDL_UpdateWindowSurface(window) };
+    Ok(())
 }
 
-extern "C" fn show(r: &mut Regs) {
+/// `gfx::show_frame`: the frame drawn shown (at most some sixty a second); false while
+/// quitting (nothing shown).
+pub fn show_frame_now() -> bool {
     // The 3D drawing noted so far, before the screen is shown, written or changed.
     crate::platform_3d::flush();
     SHOW.count_call();
-    unsafe {
+    {
         if quitting() {
-            r.set_carry(true);
-            return;
+            return false;
         }
         if let Ok(screen) = SCREEN.lock()
             && let Some(screen) = screen.as_ref()
@@ -755,8 +722,10 @@ extern "C" fn show(r: &mut Regs) {
             if let Err(why) = shown_ok {
                 log(&format!("platform: no frame shown: {why}"));
             }
-            game_write(FLIPPED_RVA, game_read::<u32>(FLIPPED_RVA) ^ 1);
-            game_write(FRAMES_RVA, game_read::<u32>(FRAMES_RVA).wrapping_add(1));
+            DRAW_SURFACE.flipped.set(DRAW_SURFACE.flipped.get() ^ 1);
+            DRAW_SURFACE
+                .frames
+                .set(DRAW_SURFACE.frames.get().wrapping_add(1));
             let shown = SHOWN.fetch_add(1, Ordering::SeqCst) + 1;
             let wanted = FRAMES_TO_SHOW.load(Ordering::SeqCst);
             if wanted != 0 && shown == wanted {
@@ -765,92 +734,42 @@ extern "C" fn show(r: &mut Regs) {
                     "platform: {shown} frames shown; the last is in rc2k_frame.raw ({} x {}, {} bits); quitting",
                     screen.width, screen.height, screen.bits
                 ));
-                game_write(QUIT_RVA, 1u32);
+                FLAGS.quitting.set(1);
             }
         }
         start_sampler();
         report_timing();
         // A flip waits for the screen: some sixty frames a second at most.
-        let now = SDL_GetTicks() as usize;
+        // SAFETY: SDL's clock and wait, no arguments that point anywhere.
+        let now = unsafe { SDL_GetTicks() } as usize;
         let since = now.wrapping_sub(LAST_SHOWN.swap(now, Ordering::SeqCst));
         if since < 16 {
-            SDL_Delay((16 - since) as u32);
+            // SAFETY: as above.
+            unsafe { SDL_Delay((16 - since) as u32) };
         }
-        r.set_carry(false);
     }
+    true
 }
 
 // ---- system::pump_messages (0x410535), screens::run_frame (0x405A71) ----
 
-static PUMP_ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-static PUMP: RawHook = RawHook::new(
-    "system::pump_messages",
-    rva(0x410535),
-    pump_thunk,
-    &PUMP_ORIGINAL,
-);
-hook_asm!(
-    pump_thunk,
-    pump_original,
-    dispatch = pump_messages,
-    original = PUMP_ORIGINAL
-);
+static PUMP: RawHook = RawHook::new("system::pump_messages", rva(0x410535));
 
-extern "C" fn pump_messages(r: &mut Regs) {
+/// `system::pump_messages`: the window's events (SDL's).
+pub fn pump_messages_now() {
     PUMP.count_call();
     pump();
-    r.set_carry(false);
 }
 
-static RUN_FRAME_ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-static RUN_FRAME: RawHook = RawHook::new(
-    "screens::run_frame",
-    rva(0x405A71),
-    run_frame_thunk,
-    &RUN_FRAME_ORIGINAL,
-);
-hook_asm!(
-    run_frame_thunk,
-    run_frame_original,
-    dispatch = run_frame,
-    original = RUN_FRAME_ORIGINAL,
-    ungated
-);
+static RUN_FRAME: RawHook = RawHook::new("screens::run_frame", rva(0x405A71));
 
-/// The messages, then the frame's function in eax, whose registers and flags are what
-/// the caller gets. (The original also waits for the window to be the active one and
-/// gets a lost surface back: neither can happen here.)
-extern "C" fn run_frame(r: &mut Regs) {
+/// `screens::run_frame` for Rust callers with a frame of their own (the screen loops,
+/// 2026-10-24): the messages, then the frame unless quitting (None then).
+pub fn run_frame_now<T>(frame: impl FnOnce() -> T) -> Option<T> {
     RUN_FRAME.count_call();
     pump();
-    if quitting() {
-        r.set_carry(false);
-        r.set_zero(true);
-        return;
-    }
-    if r.eax == 0 {
-        r.set_carry(false);
-        r.set_zero(true);
-        return;
-    }
-    let frame = r.eax as usize;
-    crate::menu::table_calls::call_any(frame as u32, r);
-    if !r.carry() {
-        r.set_zero(r.eax == 0);
-    }
+    if quitting() { None } else { Some(frame()) }
 }
-
-// None of these has an original to go back to.
-const _: [unsafe extern "C" fn(*mut Regs); 8] = [
-    menu_mode_original,
-    choose_original,
-    set_mode_original,
-    lock_original,
-    unlock_original,
-    show_original,
-    pump_original,
-    run_frame_original,
-];
 
 pub static HOOKS: &[&dyn GameHook] = &[
     &CHOOSE,

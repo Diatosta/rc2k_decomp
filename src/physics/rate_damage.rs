@@ -24,365 +24,287 @@
 //!      `fild`)
 //!
 //! Caller: `physics::rate_current_car` (0x4AB5D0), its only one.
-//! Self-test: a copy of the original on a `physics::Mirror` of the work copy and
-//! 0x75B340 .. 0x75B6AC (filled from the game's, then the figures, switches and random by
-//! lot), against the converted version: exact at double precision, the grades within
-//! `FLOAT` at extended.
 
-use crate::errors::Refused;
-use crate::framework::{EAX, ECX, ESI, RawHook, Regs, SelfTest, call_game, hook_asm, rva};
 use crate::math::x87;
 use crate::math::x87_run::{compare_full, ext_times, mul3, one_less_products, ramp, square};
-use crate::physics::mirror::{Mirror, Spec};
+use crate::physics::car_store::CAR;
+use crate::physics::store::DAMAGE;
 use crate::scene::matrix3::rounded;
-use crate::screens::harness::Left;
-use crate::service::floats::{
-    Agreement, FLOAT, Floats, Tolerance, at_test_precisions, compare_memory, dispatch_state_floats,
-    floats_entry,
-};
-use crate::service::harness::{Region, capture};
-use rc2k_core::physics::handling::{At, Figures};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("physics::rate_damage", rva(0x4AF1EC), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
-
-/// The mirrored ranges of the tests: the work copy and the grades' block.
-pub const RANGES: [(u32, u32); 2] = [(0x719FD8, 0x71AFB8), (0x75B340, 0x75B6AC)];
-pub const SPEC: Spec = (
-    0x4AF1EC,
-    0x1055,
-    &[0xD9, 0xE8, 0xD9, 0x05, 0x90, 0xA2, 0x71, 0x00],
-    &[],
-    349,
-);
-
-const K: u32 = 0x75B388;
-const LOW: u32 = 0x75B350;
-const HIGH: u32 = 0x75B348;
-const ZERO: u32 = 0x75B34C;
-const CHANCE: u32 = 0x75B340;
-const RANDOM: u32 = 0x75B4A0;
-const SCRATCH: u32 = 0x75B36C;
+use crate::session::{Dword, Float};
 
 /// The ramps in order: (destination, figure, table).
-const RAMPS_A: [(u32, u32, u32); 2] = [
-    (0x71A3D8, 0x71A27C, 0x75B4E8),
-    (0x71A3DC, 0x71A280, 0x75B4E8),
-];
-const RAMPS_C: [(u32, u32, u32); 18] = [
-    (0x75B490, 0x71A2A0, 0x75B518),
-    (0x75B494, 0x71A2CC, 0x75B528),
-    (0x75B498, 0x71A2CC, 0x75B538),
-    (0x75B49C, 0x71A328, 0x75B548),
-    (0x75B404, 0x71A2E8, 0x75B558),
-    (0x75B408, 0x71A2EC, 0x75B558),
-    (0x75B40C, 0x71A2F0, 0x75B558),
-    (0x75B410, 0x71A2F4, 0x75B558),
-    (0x75B414, 0x71A2F8, 0x75B558),
-    (0x75B418, 0x71A2FC, 0x75B558),
-    (0x75B41C, 0x71A300, 0x75B558),
-    (0x75B420, 0x71A2E8, 0x75B558),
-    (0x75B424, 0x71A2EC, 0x75B568),
-    (0x75B428, 0x71A2F0, 0x75B568),
-    (0x75B42C, 0x71A2F4, 0x75B568),
-    (0x75B430, 0x71A2F8, 0x75B568),
-    (0x75B434, 0x71A2FC, 0x75B568),
-    (0x75B438, 0x71A300, 0x75B568),
-];
-/// The failures that come and go: (flag, figure while set, figure while clear, turn).
-const FAILURES: [(u32, u32, u32, u32); 7] = [
-    (0x71A3E4, 0x75B420, 0x75B404, 4),
-    (0x71A3E8, 0x75B424, 0x75B408, 5),
-    (0x71A3EC, 0x75B428, 0x75B40C, 6),
-    (0x71A3F0, 0x75B42C, 0x75B410, 7),
-    (0x71A3F4, 0x75B430, 0x75B414, 8),
-    (0x71A3F8, 0x75B434, 0x75B418, 9),
-    (0x71A3FC, 0x75B438, 0x75B41C, 0xA),
-];
-
-/// What it writes.
-pub fn regions(m: &Mirror) -> Vec<Region> {
-    let mut r: Vec<Region> = [
-        0x71A274, 0x71A2AC, 0x71A3CC, 0x71A3D0, 0x71A3D4, 0x71A3D8, 0x71A3DC, 0x71A3E0, 0x71A400,
-        0x71A404, 0x71A408, 0x71A40C, SCRATCH, 0x75B43C,
-    ]
-    .iter()
-    .map(|&v| (m.a(v), 4))
-    .collect();
-    r.push((m.a(0x71A3E4), 0x1C));
-    r.push((m.a(0x75B404), 0x38));
-    r.push((m.a(0x75B490), 0x10));
-    r
-}
-
-/// The variables of `rc2k_core::physics::handling` where `m` has them.
-pub struct OnMirror<'a>(pub &'a Mirror);
-
-/// The IDA address of a variable.
-pub fn ida(at: At) -> u32 {
-    match at {
-        At::Car(o) => 0x719FD8 + o,
-        At::Grades(o) => 0x75B340 + o,
-        At::Handling(o) => 0x613E00 + o,
-        At::Scale => 0x5C5E2C,
-    }
-}
-
-impl Figures for OnMirror<'_> {
-    fn get(&self, at: At) -> u32 {
-        unsafe { self.0.get(ida(at)) }
-    }
-    fn put(&mut self, at: At, v: u32) {
-        unsafe { self.0.put(ida(at), v) }
-    }
-}
-
-/// The float places it writes, held to `FLOAT` at extended precision.
-pub fn floats(m: &Mirror) -> Vec<(Region, Tolerance)> {
+fn ramps_a() -> [(&'static Float, &'static Float, &'static [Float; 4]); 2] {
     [
-        (0x71A3CC, 0x18),
-        (0x75B43C, 4),
-        (0x75B404, 0x38),
-        (0x75B490, 0x10),
+        (
+            &CAR.drive_efficiency[0],
+            &CAR.damper_wear[0],
+            &DAMAGE.lerp_tables[4],
+        ),
+        (
+            &CAR.drive_efficiency[1],
+            &CAR.damper_wear[1],
+            &DAMAGE.lerp_tables[4],
+        ),
+    ]
+}
+/// More ramps: (destination in the model, the car's figure, table).
+fn ramps_c() -> [(&'static Float, &'static Float, &'static [Float; 4]); 18] {
+    [
+        (
+            &DAMAGE.flt_75b490,
+            &CAR.clutch_damage,
+            &DAMAGE.lerp_tables[7],
+        ),
+        (
+            &DAMAGE.flt_75b494,
+            &CAR.gearbox_damage,
+            &DAMAGE.lerp_tables[8],
+        ),
+        (
+            &DAMAGE.flt_75b498,
+            &CAR.gearbox_damage,
+            &DAMAGE.lerp_tables[9],
+        ),
+        (
+            &DAMAGE.flt_75b49c,
+            &CAR.brake_damage,
+            &DAMAGE.lerp_tables[10],
+        ),
+        (
+            &DAMAGE.flt_75b404,
+            &CAR.electrics_damage,
+            &DAMAGE.lerp_tables[11],
+        ),
+        (
+            &DAMAGE.flt_75b408,
+            &CAR.light_damage[0],
+            &DAMAGE.lerp_tables[11],
+        ),
+        (
+            &DAMAGE.flt_75b40c,
+            &CAR.light_damage[1],
+            &DAMAGE.lerp_tables[11],
+        ),
+        (
+            &DAMAGE.flt_75b410,
+            &CAR.light_damage[2],
+            &DAMAGE.lerp_tables[11],
+        ),
+        (
+            &DAMAGE.flt_75b414,
+            &CAR.light_damage[3],
+            &DAMAGE.lerp_tables[11],
+        ),
+        (
+            &DAMAGE.flt_75b418,
+            &CAR.light_damage[4],
+            &DAMAGE.lerp_tables[11],
+        ),
+        (
+            &DAMAGE.flt_75b41c,
+            &CAR.light_damage[5],
+            &DAMAGE.lerp_tables[11],
+        ),
+        (
+            &DAMAGE.flt_75b420,
+            &CAR.electrics_damage,
+            &DAMAGE.lerp_tables[11],
+        ),
+        (
+            &DAMAGE.flt_75b424,
+            &CAR.light_damage[0],
+            &DAMAGE.lerp_tables[12],
+        ),
+        (
+            &DAMAGE.flt_75b428,
+            &CAR.light_damage[1],
+            &DAMAGE.lerp_tables[12],
+        ),
+        (
+            &DAMAGE.flt_75b42c,
+            &CAR.light_damage[2],
+            &DAMAGE.lerp_tables[12],
+        ),
+        (
+            &DAMAGE.flt_75b430,
+            &CAR.light_damage[3],
+            &DAMAGE.lerp_tables[12],
+        ),
+        (
+            &DAMAGE.flt_75b434,
+            &CAR.light_damage[4],
+            &DAMAGE.lerp_tables[12],
+        ),
+        (
+            &DAMAGE.flt_75b438,
+            &CAR.light_damage[5],
+            &DAMAGE.lerp_tables[12],
+        ),
+    ]
+}
+/// The failures that come and go: (flag, figure while set, figure while clear, turn).
+fn failures() -> [(&'static Dword, &'static Float, &'static Float, u32); 7] {
+    [
+        (
+            &CAR.electrical_failures[0],
+            &DAMAGE.flt_75b420,
+            &DAMAGE.flt_75b404,
+            0x4,
+        ),
+        (
+            &CAR.electrical_failures[1],
+            &DAMAGE.flt_75b424,
+            &DAMAGE.flt_75b408,
+            0x5,
+        ),
+        (
+            &CAR.electrical_failures[2],
+            &DAMAGE.flt_75b428,
+            &DAMAGE.flt_75b40c,
+            0x6,
+        ),
+        (
+            &CAR.electrical_failures[3],
+            &DAMAGE.flt_75b42c,
+            &DAMAGE.flt_75b410,
+            0x7,
+        ),
+        (
+            &CAR.electrical_failures[4],
+            &DAMAGE.flt_75b430,
+            &DAMAGE.flt_75b414,
+            0x8,
+        ),
+        (
+            &CAR.electrical_failures[5],
+            &DAMAGE.flt_75b434,
+            &DAMAGE.flt_75b418,
+            0x9,
+        ),
+        (
+            &CAR.electrical_failures[6],
+            &DAMAGE.flt_75b438,
+            &DAMAGE.flt_75b41c,
+            0xA,
+        ),
+    ]
+}
+
+/// The Rust version (the exact one, for `physics::grade_or_reset` and
+/// `physics::rate_current_car`).
+pub fn rate_damage() {
+    let d = &DAMAGE;
+    let c = &CAR;
+    let less = |a: u32, b: u32| compare_full(a, b) & 0x100 != 0;
+    let hold = |v: &Float| {
+        if less(v.bits(), d.gauge_low.bits()) {
+            v.set_bits(x87::loaded(d.gauge_low.bits()));
+        }
+        if !less(v.bits(), d.grade_high.bits()) {
+            v.set_bits(x87::loaded(d.grade_high.bits()));
+        }
+    };
+    let k = d.grade_k.bits();
+    let mut e = one_less_products(&[
+        [c.engine_damage.bits(), k, d.figures[7].bits()],
+        [c.exhaust_damage.bits(), k, d.figures[8].bits()],
+    ]);
+    if d.flt_75b3e4.bits() != 0 && !less(c.turbo_damage.bits(), d.gauge_top.bits()) {
+        e = ext_times(e, d.wear_rates[10].bits());
+    }
+    c.engine_power_factor.set_bits(rounded(e));
+    hold(&c.engine_power_factor);
+    for (out, a, b) in [
+        (&c.brake_efficiency[0], &c.brake_heat[0], &c.brake_wear_a),
+        (&c.brake_efficiency[1], &c.brake_heat[1], &c.brake_wear_b),
+    ] {
+        let e = one_less_products(&[
+            [a.bits(), k, d.figures[10].bits()],
+            [b.bits(), k, d.figures[9].bits()],
+            [c.brake_fade.bits(), k, d.figures[11].bits()],
+            [d.dword_75b3f0.bits(), k, d.figures[12].bits()],
+        ]);
+        out.set_bits(rounded(e));
+        hold(out);
+    }
+    let table_of = |t: &[Float; 4]| [t[0].bits(), t[1].bits(), t[2].bits(), t[3].bits()];
+    for (out, x, t) in ramps_a() {
+        out.set_bits(ramp(x.bits(), table_of(t), d.gauge_low.bits()));
+    }
+    for (out, x) in [
+        (&c.drive_efficiency[0], &d.flt_75b440),
+        (&c.drive_efficiency[1], &d.flt_75b444),
+    ] {
+        d.flt_75b43c.set_bits(ramp(
+            x.bits(),
+            table_of(&d.lerp_tables[5]),
+            d.gauge_low.bits(),
+        ));
+        out.set_bits(mul3(d.flt_75b43c.bits(), k, k, out.bits()));
+    }
+    c.steering_efficiency.set_bits(ramp(
+        c.steering_damage.bits(),
+        table_of(&d.lerp_tables[6]),
+        d.gauge_low.bits(),
+    ));
+    c.steering_efficiency
+        .set_bits(square(c.steering_efficiency.bits()));
+    for (out, x, t) in ramps_c() {
+        out.set_bits(ramp(x.bits(), table_of(t), d.gauge_low.bits()));
+    }
+    // Chance: the figure times `flt_75B340` against the random's low word turned.
+    let chance = |figure: &Float, turn: u32| {
+        let t = x87::mul_to_int(figure.bits(), d.chance_scale.bits()) as u32;
+        d.scratch.set_bits(t);
+        let r = d.clock.get().rotate_right(turn) & 0xFFFF;
+        (r.wrapping_sub(t) as i32) < 0
+    };
+    if c.handbrake_failed.get() == 0 && chance(&d.flt_75b49c, 0xD) {
+        c.handbrake_failed.set(1);
+    }
+    for (flag, set, clear, turn) in failures() {
+        if flag.get() != 0 {
+            if chance(set, turn) {
+                flag.set(0);
+            }
+        } else if chance(clear, turn) {
+            flag.set(1);
+        }
+    }
+    c.gear_change_blocked.set(0);
+    if chance(&d.flt_75b490, 0xB) {
+        c.gear_change_blocked.set(1);
+    }
+    if chance(&d.flt_75b494, 0x19) {
+        c.gear_change_blocked.set(1);
+    }
+    c.forced_neutral.set(0);
+    if chance(&d.flt_75b498, 0x12) {
+        c.forced_neutral.set(1);
+    }
+    c.gear_wear[1].set_bits(0);
+    let mut bits = 0u32;
+    for (n, wear) in c.gear_wear.iter().enumerate() {
+        if compare_full(wear.bits(), d.gauge_top.bits()) & 0x4000 != 0 {
+            bits |= 1 << n;
+        }
+    }
+    c.lost_gear_bits.set(bits);
+    let all_below = [
+        &c.engine_damage,
+        &c.clutch_damage,
+        &c.differential_damage,
+        &c.gearbox_damage,
+        &c.electrics_damage,
     ]
     .iter()
-    .map(|&(v, len)| ((m.a(v), len), FLOAT))
-    .collect()
-}
-
-/// The converted version (`rc2k_core::physics::handling`, plain floats) on the variables
-/// `m` reaches: the hook's.
-// Converted: `rc2k_core::physics::handling::rate_damage`.
-pub fn rate_damage_plain_at(m: &Mirror) -> Left {
-    let bits = rc2k_core::physics::handling::rate_damage(&mut OnMirror(m));
-    Left::nothing()
-        .with(EAX, bits)
-        .with(ECX, rc2k_core::physics::handling::GEARS)
-        .with(ESI, m.a(ida(rc2k_core::physics::handling::LAST_TABLE)))
-}
-
-/// The Rust core on the variables `m` reaches; what it leaves in the registers (the
-/// exact one, for `physics::grade_or_reset` and `physics::rate_current_car`).
-pub unsafe fn rate_damage_at(m: &Mirror) -> Left {
-    unsafe {
-        let g = |v: u32| m.get(v);
-        let less = |a: u32, b: u32| compare_full(a, b) & 0x100 != 0;
-        let hold = |v: u32| {
-            if less(g(v), g(LOW)) {
-                m.put(v, x87::loaded(g(LOW)));
-            }
-            if !less(g(v), g(HIGH)) {
-                m.put(v, x87::loaded(g(HIGH)));
-            }
-        };
-        let k = g(K);
-        let mut e =
-            one_less_products(&[[g(0x71A290), k, g(0x75B694)], [g(0x71A294), k, g(0x75B698)]]);
-        if g(0x75B3E4) != 0 && !less(g(0x71A298), g(ZERO)) {
-            e = ext_times(e, g(0x75B5A0));
-        }
-        m.put(0x71A3CC, rounded(e));
-        hold(0x71A3CC);
-        for (out, a, b) in [
-            (0x71A3D0, 0x71A284, 0x71A320),
-            (0x71A3D4, 0x71A288, 0x71A324),
-        ] {
-            let e = one_less_products(&[
-                [g(a), k, g(0x75B6A0)],
-                [g(b), k, g(0x75B69C)],
-                [g(0x71A278), k, g(0x75B6A4)],
-                [g(0x75B3F0), k, g(0x75B6A8)],
-            ]);
-            m.put(out, rounded(e));
-            hold(out);
-        }
-        let ramp_into = |out: u32, x: u32, t: u32| {
-            let table = [g(t), g(t + 4), g(t + 8), g(t + 12)];
-            m.put(out, ramp(g(x), table, g(LOW)));
-        };
-        for (out, x, t) in RAMPS_A {
-            ramp_into(out, x, t);
-        }
-        for (out, x) in [(0x71A3D8, 0x75B440), (0x71A3DC, 0x75B444)] {
-            ramp_into(0x75B43C, x, 0x75B4F8);
-            m.put(out, mul3(g(0x75B43C), k, k, g(out)));
-        }
-        ramp_into(0x71A3E0, 0x71A308, 0x75B508);
-        m.put(0x71A3E0, square(g(0x71A3E0)));
-        for (out, x, t) in RAMPS_C {
-            ramp_into(out, x, t);
-        }
-        // Chance: the figure times `flt_75B340` against the random's low word turned.
-        let chance = |figure: u32, turn: u32| {
-            let t = x87::mul_to_int(g(figure), g(CHANCE)) as u32;
-            m.put(SCRATCH, t);
-            let r = g(RANDOM).rotate_right(turn) & 0xFFFF;
-            (r.wrapping_sub(t) as i32) < 0
-        };
-        if g(0x71A400) == 0 && chance(0x75B49C, 0xD) {
-            m.put(0x71A400, 1);
-        }
-        for (flag, set, clear, turn) in FAILURES {
-            if g(flag) != 0 {
-                if chance(set, turn) {
-                    m.put(flag, 0);
-                }
-            } else if chance(clear, turn) {
-                m.put(flag, 1);
-            }
-        }
-        m.put(0x71A404, 0);
-        if chance(0x75B490, 0xB) {
-            m.put(0x71A404, 1);
-        }
-        if chance(0x75B494, 0x19) {
-            m.put(0x71A404, 1);
-        }
-        m.put(0x71A408, 0);
-        if chance(0x75B498, 0x12) {
-            m.put(0x71A408, 1);
-        }
-        m.put(0x71A2AC, 0);
-        let mut bits = 0u32;
-        for n in 0..9 {
-            if compare_full(g(0x71A2A8 + 4 * n), g(ZERO)) & 0x4000 != 0 {
-                bits |= 1 << n;
-            }
-        }
-        m.put(0x71A40C, bits);
-        let all_below = [0x71A290, 0x71A2A0, 0x71A2A4, 0x71A2CC, 0x71A2E8]
-            .iter()
-            .all(|&v| less(g(v), g(ZERO)));
-        if all_below {
-            m.put(0x71A274, 0);
-        } else {
-            m.put(0x71A274, 1);
-            if !less(g(0x71A2E8), g(ZERO)) {
-                m.put(0x71A3CC, 0);
-            }
-        }
-        Left::nothing()
-            .with(EAX, bits)
-            .with(ECX, 9)
-            .with(ESI, m.a(0x75B568))
-    }
-}
-
-/// The Rust version (the exact one, for `physics::rate_current_car`).
-pub unsafe fn rate_damage() -> Left {
-    unsafe { rate_damage_at(&Mirror::game()) }
-}
-
-fn rust(_: &Regs) -> Result<Left, Refused> {
-    Ok(rate_damage_plain_at(&Mirror::game()))
-}
-
-extern "C" fn dispatch(r: &mut Regs) {
-    let m = Mirror::game();
-    let memory = floats(&m);
-    let floats = Floats {
-        memory: &memory,
-        regs: &[],
-    };
-    dispatch_state_floats(&HOOK, r, call_original, &regions(&m), &floats, &rust);
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    floats_entry(r, &rust)
-}
-
-/// A case's inputs in the mirror: the figures 0x71A278 .. 0x71A32C (and 0x75B440,
-/// 0x75B444, 0x75B3F0) between -0.5 and 2 with some exact grades, the flags, the switch
-/// and the random by `seed`; the tables kept (the game's), but for one case with a flat
-/// table.
-pub fn fill(m: &Mirror, seed: u32) {
-    let mut s = seed.wrapping_mul(0x9E37_79B9) | 1;
-    let mut next = move || {
-        s = s.wrapping_mul(1_103_515_245).wrapping_add(12345);
-        s >> 8
-    };
-    unsafe {
-        let zero = m.get(ZERO);
-        for v in (0x71A278..0x71A32C)
-            .step_by(4)
-            .chain([0x75B440, 0x75B444, 0x75B3F0])
-        {
-            let r = next();
-            let f = match r % 7 {
-                0 => zero,
-                1 => 1.0f32.to_bits(),
-                _ => (((r >> 3) % 2500) as f32 / 1000.0 - 0.5).to_bits(),
-            };
-            m.put(v, f);
-        }
-        for v in (0x71A3E4..0x71A40C).step_by(4) {
-            m.put(v, next() % 2);
-        }
-        m.put(
-            0x75B3E4,
-            if seed.is_multiple_of(3) {
-                0
-            } else {
-                1.0f32.to_bits()
-            },
-        );
-        m.put(RANDOM, next().wrapping_mul(0x01F3_A9C5));
-        if seed % 5 == 4 {
-            m.put(0x75B558 + 8, m.get(0x75B558));
+    .all(|v| less(v.bits(), d.gauge_top.bits()));
+    if all_below {
+        c.damage_failed.set(0);
+    } else {
+        c.damage_failed.set(1);
+        if !less(c.electrics_damage.bits(), d.gauge_top.bits()) {
+            c.engine_power_factor.set_bits(0);
         }
     }
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let m = Mirror::of(&RANGES);
-    let copy = match m.copy(SPEC, &|_| None) {
-        Ok(c) => c,
-        Err(why) => return t.skip(&why),
-    };
-    let all = m.regions();
-    let memory = floats(&m);
-    let tolerant = Floats {
-        memory: &memory,
-        regs: &[],
-    };
-    at_test_precisions(&tolerant, &mut |word, fl| {
-        for seed in 1..=10u32 {
-            let saved = capture(&all);
-            fill(&m, seed);
-            let input = capture(&all);
-            let mut ro = Regs::SENTINEL;
-            unsafe { call_game(&mut ro, copy.addr()) };
-            let theirs = capture(&all);
-            crate::service::harness::restore(&all, &input);
-            let left = rate_damage_plain_at(&m);
-            let mine = capture(&all);
-            let regs_ok = left.matches(&Regs::SENTINEL, &ro);
-            let agreement = compare_memory(&all, &theirs, &mine, fl);
-            t.check(regs_ok && agreement != Agreement::Differ, || {
-                let first = theirs.iter().zip(&mine).position(|(a, b)| a != b);
-                format!(
-                    "control word {word:#x}, seed {seed}: regs_ok={regs_ok} (original eax {:#x}), first difference at byte {first:?}",
-                    ro.eax
-                )
-            });
-            crate::service::harness::restore(&all, &saved);
-        }
-    });
-    drop(copy);
-    t.finish()
 }

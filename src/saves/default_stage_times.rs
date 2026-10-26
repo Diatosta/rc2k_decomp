@@ -9,42 +9,40 @@
 //! One caller, `menu::set_up_front_end`, when `var\hst.dat` was not loaded.
 //! Refuses a missing table and a record that picks entries past the table's 36 stages.
 //! Converted: `rc2k_core::saves::defaults::stage_times` (a refusal now leaves nothing written).
-//!
-//! Hook removed 2026-10-22 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{game_read, rva};
+use crate::menu::champ_store::CHAMP_VIEW;
 use crate::saves::default_times::*;
 use rc2k_core::saves::defaults::stage_times;
 
 // ---- game data ----
 
-const TABLE_RVA: usize = rva(0x7556E0); // dword_7556E0
-const RECORD_TABLES_RVA: usize = rva(0x73555A); // off_73555A
 const TABLES: usize = 6;
 /// The stages the table has room for.
 const ROOM: u32 = 36;
 
 // ---- Rust version ----
 
-pub unsafe fn default_stage_times(ebp: u32, log: Log) -> Result<(), Refused> {
+pub fn default_stage_times(ebp: u32, log: Log) -> Result<(), Refused> {
     // Converted: `rc2k_core::saves::defaults::stage_times`.
-    unsafe {
-        let table: u32 = game_read(TABLE_RVA);
+    {
+        let table: u32 = CHAMP_VIEW.course_best_times.get();
         if table == 0 {
             return Err(BadInput("no table for the times").into());
         }
         let mut tables = Vec::new();
         for n in 0..TABLES {
-            let records: u32 = game_read(RECORD_TABLES_RVA + n * 4);
+            let records = crate::records::stages_store::STAGE_TABLES.level_table(n as u32);
             if records == 0 || records == u32::MAX {
                 return Err(BadInput("a record table is missing").into());
             }
-            tables.push(std::array::from_fn(|stage| {
-                read_record(records + (stage as u32 + 1) * RECORD_LEN)
-            }));
+            let six = (0..6u32)
+                .map(|stage| read_record(records + (stage + 1) * RECORD_LEN))
+                .collect::<Result<Vec<_>, _>>()?;
+            tables.push(
+                six.try_into()
+                    .map_err(|_| BadInput("a table of other than six records"))?,
+            );
         }
         let filled = stage_times(
             &mut GameSource { log },
@@ -52,7 +50,7 @@ pub unsafe fn default_stage_times(ebp: u32, log: Log) -> Result<(), Refused> {
             Some(ebp),
             with_checkpoints(),
         )?;
-        apply(&filled, &[(table, (ROOM * STAGE_LEN) as usize)]);
+        apply(&filled, &[(table, (ROOM * STAGE_LEN) as usize)])?;
         Ok(())
     }
 }

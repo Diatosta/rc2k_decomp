@@ -5,55 +5,17 @@
 //! Out: ebx the band; the rest kept
 //!
 //! Caller: `sub_45CEF9`.
-//! Self-test: `sound_bands::test_twin`.
+//!
+//! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
+//! above are the original's, for reference.
 
-use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, game_addr, hook_asm, rva};
-use crate::physics::sound_bands::{SCRATCH, Twin, band_plain, test_twin};
-use crate::screens::harness::Left;
-use crate::service::harness::{dispatch_state, state_entry};
-use std::sync::atomic::AtomicUsize;
+use crate::physics::contact_store::CONTACT_WORK;
+use crate::physics::sound_bands::Twin;
+use crate::race::sound_spots_store::RACE_SOUND_SPOTS;
 
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("physics::sound_band_1", rva(0x45D067), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
+pub const TWIN: Twin = (
+    0x45D067,
+    || &CONTACT_WORK.contact_speed_length,
+    || &RACE_SOUND_SPOTS.band_scale_1,
+    1,
 );
-
-pub const TWIN: Twin = (0x45D067, 0x6D3108, 0x6D1AE0, 1);
-
-/// The converted version (plain floats).
-// Converted: `rc2k_core::physics::sound_bands::sound_band`.
-pub unsafe fn sound_band_1_plain() -> Left {
-    unsafe { band_plain(TWIN) }
-}
-
-fn rust(_: &Regs) -> Result<Left, Refused> {
-    Ok(unsafe { sound_band_1_plain() })
-}
-
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_state(
-        &HOOK,
-        r,
-        call_original,
-        &[(game_addr(rva(SCRATCH)) as u32, 4)],
-        &rust,
-    );
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
-}
-
-fn self_test() -> (usize, usize) {
-    test_twin(&HOOK, TWIN, &[0xD9, 0x05, 0x08, 0x31, 0x6D, 0x00])
-}

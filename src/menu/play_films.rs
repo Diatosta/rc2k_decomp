@@ -18,173 +18,176 @@
 //!   `sub_442AF6`, `sub_40F780`.
 //!
 //! What the unnamed ones do has not been read. Callers: `menu::run_front_end` (with 0),
-//! `menu::main_menu_loop`'s idle step (with 1), and 0x470593.
-//! Every call goes through the game's address (hooks where ported), the registers handed
-//! from one to the next as they come back; but `nullsub_6` is not called, and
-//! `scene::set_up_lit_engine` (`sub_415515`) and `race::credits_race` (`sub_463666`) are
-//! their Rust versions (2026-10-19). Each real call writes a line to hook.log saying which
-//! version runs.
-//! Hook removed 2026-10-22 (direct calls): Rust callers run its `entry` (`calls::call`,
-//! `routes.rs`); the registers above are the original's, for reference.
+//! `menu::main_menu_loop`'s idle step (with 1), and 0x470593. Rust callers run its `entry`
+//! (`routes.rs`); the registers above are the original's, for reference.
 
-use crate::framework::{Regs, game_addr, log, rva};
+use crate::errors::Refused;
+use crate::framework::log;
+use crate::session::SCREEN;
 use rc2k_core::menu::films::{self, Film, Flags, Step};
 
 // ---- game data ----
 
-const NO_FMV_RVA: usize = rva(0x5BE870); // g_noFmv
-const SCREEN_BITS_RVA: usize = rva(0x4F4954); // g_screenBits
-const AL_LOGO_RVA: usize = rva(0x529822); // ";3files\fmv\allogo.avi"
-const MF_LOGO_RVA: usize = rva(0x52980B); // ";3files\fmv\mflogo.mpg"
-const INTRO_RVA: usize = rva(0x5297F5); // ";3files\fmv\intro.mpg"
-const ZERO_FLAG: u32 = 0x40;
+/// IDA's address of the films' names.
+pub const FILMS_START: usize = 0x5297F5;
+/// Their length.
+pub const FILMS_LEN: usize = 0x52983C - FILMS_START;
 
-const TAKE_KEY: usize = 0x407F95;
-const SWAP_MISSING_EXTENSION: usize = 0x4032DB;
-const PLAYER: usize = 0x41AE39;
-const FILE_EXISTS: usize = 0x402EBE;
-const DEMONSTRATION: usize = 0x463666;
+/// The films' file names.
+#[repr(C)]
+pub struct Films {
+    /// `a3filesFmvIntro` (`0x5297F5`).
+    pub intro: crate::session::Bytes<22>,
+    /// `a3filesFmvMflog` (`0x52980B`).
+    pub mflogo: crate::session::Bytes<23>,
+    /// `a3filesFmvAllog` (`0x529822`).
+    pub allogo: crate::session::Bytes<23>,
+    /// `0x529839` .. `0x52983C`: nothing reads or writes them (a gap).
+    pub _gap_44: crate::session::Bytes<3>,
+}
+
+/// The films' names (the leading `;3` is the game's own marker for the file functions).
+pub static FILMS: Films = Films {
+    intro: crate::session::Bytes::new(*b";3files\\fmv\\intro.mpg\0"),
+    mflogo: crate::session::Bytes::new(*b";3files\\fmv\\mflogo.mpg\0"),
+    allogo: crate::session::Bytes::new(*b";3files\\fmv\\allogo.avi\0"),
+    _gap_44: crate::session::Bytes::new([0; 3]),
+};
+
+/// Where the names are (`moved::MOVED`'s home for IDA 0x5297F5).
+pub fn films_home() -> usize {
+    crate::pointers::game_address(&FILMS as *const Films) as usize
+}
 
 // ---- Rust version ----
 
-/// Calls the function at that address (as IDA shows it) with the registers, which come
-/// back as it leaves them.
-pub type CallAt<'a> = &'a mut dyn FnMut(usize, &mut Regs);
-
-/// The game for `rc2k_core::menu::films`: the settings where `settings` says, the steps
-/// at their addresses with the registers the original gives them (one set carried
-/// through, `r`).
-struct Game<'a, 'b> {
-    r: &'a mut Regs,
-    settings: [*const u32; 2],
-    call: CallAt<'b>,
+/// The game for `rc2k_core::menu::films`: the settings, the steps their Rust versions.
+/// A step that refuses ends the films: its error is kept (`failed`), every step after it
+/// does nothing and answers "a key was pressed", and `play_films` returns the error.
+struct Game {
+    failed: Option<Refused>,
 }
 
 fn film(f: Film) -> u32 {
-    game_addr(match f {
-        Film::AlLogo => AL_LOGO_RVA,
-        Film::MfLogo => MF_LOGO_RVA,
-        Film::Intro => INTRO_RVA,
-    }) as u32
+    match f {
+        Film::AlLogo => FILMS.allogo.addr(),
+        Film::MfLogo => FILMS.mflogo.addr(),
+        Film::Intro => FILMS.intro.addr(),
+    }
 }
 
-impl films::Films for Game<'_, '_> {
+/// The film player (`gfx::play_film`, the platform's) for the file at `path`: the zero
+/// flag it leaves (the film's end).
+fn play(path: u32) -> bool {
+    crate::film::play_film_now(path)
+}
+
+impl Game {
+    fn run(&mut self, s: Step) -> Result<Flags, Refused> {
+        let mut flags = Flags::default();
+        unsafe {
+            match s {
+                Step::StopMusic => crate::sound::stop_music::stop_music(),
+                Step::Step4059F4 => crate::gfx::clear_front_surface::clear_front_surface()?,
+                Step::TakeKey => {
+                    flags.zero = crate::input::take_key::take_key() == 0;
+                }
+                Step::SwapMissingExtension(f) => {
+                    crate::files::swap_missing_extension::swap_missing_extension(
+                        crate::pointers::host(film(f)),
+                    )?;
+                }
+                Step::Player(f) => {
+                    flags.zero = play(film(f.unwrap_or(Film::AlLogo)));
+                }
+                Step::LitEngine => crate::scene::set_up_lit_engine::set_up_lit_engine()?,
+                Step::Render3dTidy => crate::race::stage_free::render3d_tidy()?,
+                Step::ObjectsTidy => crate::race::stage_free::objects_tidy()?,
+                // `nullsub_6`.
+                Step::Nothing => {}
+                Step::ReleaseTextures => crate::race::race_end::release_textures(),
+                Step::FileExists(f) => {
+                    let there = crate::files::file_exists::file_exists(
+                        crate::pointers::host(film(f)) as *const u8,
+                    )?;
+                    flags.carry = !there;
+                    flags.zero = there;
+                }
+                // Fixed (2026-10-24, `wiki/Fixed-bugs.md`): the players' absences cleared
+                // first, as the original's other caller of the demonstration (`sub_443104`)
+                // does; the original's films kept the quit answer of the last race left by
+                // the quit question, and its demonstration ended at its first frame.
+                Step::Demonstration => {
+                    crate::race::race_shell::clear_player_absences();
+                    crate::race::credits_race::credits_race()?
+                }
+                Step::Step409B76 => crate::sound::let_sounds_play::let_sounds_play(),
+                Step::SetUpEngine => crate::scene::set_up_engine::set_up_engine()?,
+                Step::FrontEndScene => {
+                    crate::scene::set_up_front_end_scene::set_up_front_end_scene()?
+                }
+                Step::Tune3 => crate::sound::play_tune_3::play_tune_3(),
+            }
+        }
+        Ok(flags)
+    }
+}
+
+impl films::Films for Game {
     fn no_fmv(&mut self) -> bool {
-        unsafe { self.settings[0].read_unaligned() != 0 }
+        crate::film::NO_FMV.get() != 0
     }
 
     fn screen_bits(&mut self) -> u32 {
-        unsafe { self.settings[1].read_unaligned() }
+        SCREEN.bits.get()
     }
 
     fn step(&mut self, s: Step) -> Flags {
-        let r = &mut *self.r;
-        let at = match s {
-            Step::StopMusic => 0x40F826,
-            Step::Step4059F4 => 0x4059F4,
-            Step::TakeKey => TAKE_KEY,
-            Step::SwapMissingExtension(f) => {
-                r.eax = film(f);
-                SWAP_MISSING_EXTENSION
-            }
-            Step::Player(f) => {
-                if let Some(f) = f {
-                    r.eax = film(f);
-                }
-                r.ebx = 0;
-                PLAYER
-            }
-            Step::LitEngine => 0x415515,
-            Step::Render3dTidy => 0x4433A7,
-            Step::ObjectsTidy => 0x44346B,
-            Step::Nothing => 0x44347E,
-            Step::ReleaseTextures => 0x443396,
-            Step::FileExists(f) => {
-                r.eax = film(f);
-                FILE_EXISTS
-            }
-            Step::Demonstration => DEMONSTRATION,
-            Step::Step409B76 => 0x409B76,
-            Step::SetUpEngine => 0x442AF6,
-            Step::FrontEndScene => 0x474E04,
-            Step::Tune3 => 0x40F780,
-        };
-        if s == Step::Demonstration {
-            // ebp is pushed and popped around this one.
-            let kept = r.ebp;
-            (self.call)(at, r);
-            r.ebp = kept;
-        } else {
-            (self.call)(at, r);
+        if self.failed.is_some() {
+            // "A key was pressed", which ends the loop.
+            return Flags {
+                carry: true,
+                zero: false,
+            };
         }
-        Flags {
-            carry: r.carry(),
-            zero: r.eflags & ZERO_FLAG != 0,
+        match self.run(s) {
+            Ok(flags) => flags,
+            Err(e) => {
+                self.failed = Some(e);
+                Flags {
+                    carry: true,
+                    zero: false,
+                }
+            }
         }
     }
 }
 
-/// `r` holds the registers at entry (eax the mode); `settings` are where `g_noFmv` and
-/// `g_screenBits` are.
-pub unsafe fn play_films(r: &mut Regs, settings: [*const u32; 2], call: CallAt) {
-    let mode = r.eax;
-    r.ebp = mode;
-    // Converted: `rc2k_core::menu::films::play_films`.
-    films::play_films(&mut Game { r, settings, call }, mode != 0);
-}
-
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+/// The Rust version (`idle`: from the main menu when it has stood idle, else the game's
+/// start). The original keeps every register of its caller.
+pub fn play_films(idle: bool) -> Result<(), Refused> {
     log(&format!(
         "menu::play_films: the Rust version runs (mode {})",
-        r.eax
+        u32::from(idle)
     ));
-    // Between `pusha` and `popa`: the caller's registers stay as they are.
-    let mut running = *r;
-    let settings = [NO_FMV_RVA, SCREEN_BITS_RVA].map(|at| game_addr(at) as *const u32);
-    unsafe {
-        play_films(&mut running, settings, &mut |at, regs| match at {
-            // `nullsub_6`.
-            0x44347E => {}
-            0x415515 => in_game_unless(at, regs, |r| {
-                crate::scene::set_up_lit_engine::set_up_lit_engine_in(
-                    r,
-                    &mut crate::scene::set_up_lit_engine::lit_part,
-                )
-            }),
-            DEMONSTRATION => in_game_unless(at, regs, |r| {
-                crate::race::credits_race::credits_race_in(
-                    r,
-                    &mut crate::race::credits_race::credits_part,
-                )
-            }),
-            SWAP_MISSING_EXTENSION => in_game_unless(at, regs, |r| {
-                crate::files::swap_missing_extension::swap_missing_extension(r.eax as *mut u8)?;
-                Ok(())
-            }),
-            FILE_EXISTS => in_game_unless(at, regs, |r| {
-                let there = crate::files::file_exists::file_exists(r.eax as *const u8)?;
-                r.set_carry(!there);
-                r.set_zero(there);
-                Ok(())
-            }),
-            _ => crate::calls::call(rva(at), regs),
-        });
-    }
+    let mut game = Game { failed: None };
+    // Converted: `rc2k_core::menu::films::play_films`.
+    films::play_films(&mut game, idle);
     log("menu::play_films: the Rust version has come back");
-    Ok(())
+    match game.failed {
+        Some(e) => Err(e),
+        None => Ok(()),
+    }
 }
 
-/// A ported callee's Rust version; when it refuses, the callee at its hook (which refuses
-/// again, logs it and runs its original), from the registers it was given.
-fn in_game_unless(
-    at: usize,
-    regs: &mut Regs,
-    rust: impl FnOnce(&mut Regs) -> Result<(), crate::errors::Refused>,
-) {
-    let entry = *regs;
-    if rust(regs).is_err() {
-        *regs = entry;
-        crate::calls::call(rva(at), regs);
+#[cfg(test)]
+mod films_tests {
+    use super::*;
+
+    #[test]
+    fn first_values_are_the_games() {
+        crate::gfx::first_values_are_the_games(&FILMS, FILMS_START, FILMS_START + FILMS_LEN);
+        assert_eq!(crate::moved::place(0x52980B), FILMS.mflogo.addr() as usize);
+        assert_eq!(crate::moved::place(0x529822), FILMS.allogo.addr() as usize);
     }
 }

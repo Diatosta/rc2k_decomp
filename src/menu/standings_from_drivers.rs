@@ -3,57 +3,37 @@
 //! In:  nothing
 //! Out: every register kept (`pusha` .. `popa`)
 //!
-//! Caller: `sub_473126`. `strings::append_string_by_id`'s Rust version. Refuses no table, more drivers than its 200 entries, a name past the entry, before anything. Self-test: the original and the Rust version on the game's
-//! tables; put back.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Caller: `sub_473126`. `strings::append_string_by_id`'s Rust version. Refuses no table, more
+//! drivers than its 200 entries, a name past the entry, before anything.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{Regs, game_addr, game_read, rva};
 use crate::menu::standings::*;
-use crate::race::stage_prefs::left_of;
-use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
-
-const NAMES_RVA: usize = rva(0x741E88); // g_driverNames
 
 /// The Rust version (see the header): the registers it leaves.
-pub unsafe fn standings_from_drivers(entry: &Regs) -> Result<Regs, Refused> {
-    let first: u32 = unsafe { game_read(TABLE_A_RVA) };
-    let drivers = entries(game_addr(DRIVERS_RVA) as u32, DRIVER)?;
+pub fn standings_from_drivers() -> Result<(), Refused> {
+    let first: u32 = { TABLE_A_RVA.get() };
+    let drivers = entries(crate::menu::drivers_store::DRIVERS.first(), DRIVER)?;
     if first == 0 || drivers.len() > 200 {
         return Err(BadInput("no standings table, or more drivers than it holds").into());
     }
     let mut texts = Vec::new();
     for &d in &drivers {
-        let id: u32 = unsafe { game_read(NAMES_RVA + 0x14 * get(d) as usize) };
+        let id: u32 = crate::menu::drivers_store::name_string(get(d)?);
         let mut text = Vec::new();
-        unsafe { crate::strings::append_string_by_id::push_string(&mut text, id) };
+        crate::strings::append_string_by_id::push_string(&mut text, id)?;
         text.push(0);
         if text.len() > (A_ENTRY - 0x20) as usize {
             return Err(BadInput("a driver's name past its entry").into());
         }
         texts.push((id, text));
     }
-    unsafe { crate::menu::init_standings_a::init_standings_a(entry) }?;
+    crate::menu::init_standings_a::init_standings_a()?;
     // Converted: `rc2k_core::menu::standings::fill_a_from_driver`.
     let count = drivers.len() as u32;
-    let all = unsafe { table(drivers[0], DRIVER, count) };
-    let mut t = unsafe { table(first, A_ENTRY, count) };
+    let all = table(drivers[0], DRIVER, count)?;
+    let mut t = table(first, A_ENTRY, count)?;
     for (n, (id, text)) in texts.into_iter().enumerate() {
         rc2k_core::menu::standings::fill_a_from_driver(&mut t, n, &all, n, id, &text);
     }
-    Ok(*entry)
-}
-
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    Ok(left_of(&unsafe { standings_from_drivers(r) }?))
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
+    Ok(())
 }

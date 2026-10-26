@@ -3,51 +3,26 @@
 //! memory list (`g_netMemory`, `memory::allocate`), and both counts 0.
 //!
 //! In:  nothing
-//! Out: every register kept (`pusha` .. `popa`)
+//! Out: nothing (every register kept, `pusha` .. `popa`)
 //! `memory::allocate` coming back with carry: fatal error 0x80E68021 for the first, 0x80E68022
-//! for the second. Caller: `net::find_connections`. Its calls through `part`
-//! (`net::lobby_calls`: the Rust version). Shadow mode runs the original alone (memory is
-//! taken). Self-test: a copy whose calls go to a stand-in and whose jumps to the fatal stubs
-//! land in the test, against the Rust version: both taken, either failing.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! for the second. Caller: `net::find_connections`.
 
 use crate::errors::Refused;
-use crate::framework::Regs;
-use crate::net::lobby::{
-    ALLOCATE, CONNECTION_TABLE, CONNECTIONS, NET_MEMORY, Part, SESSION_TABLE, SESSIONS, a, fatal,
-    lobby_entry, p,
-};
+use crate::net::lobby::net_allocate;
+use crate::net::store::NET;
 use rc2k_core::net::lists;
 
-/// The Rust version: the registers it leaves (the entry's).
-pub fn allocate_lists(entry: &Regs, part: Part) -> Result<Regs, Refused> {
-    let mut r = *entry;
+/// The Rust version (`memory::allocate` refuses rather than come back with the carry, so
+/// the fatal errors 0x80E68021 / 0x80E68022 are not reached).
+pub fn allocate_lists() -> Result<(), Refused> {
     // Converted: `rc2k_core::net::lists::TABLES`.
-    for ((bytes, code), table) in lists::TABLES
+    for ((bytes, _code), table) in lists::TABLES
         .into_iter()
-        .zip([CONNECTION_TABLE, SESSION_TABLE])
+        .zip([&NET.connection_table, &NET.session_table])
     {
-        r.eax = bytes;
-        r.ebx = a(NET_MEMORY);
-        part(ALLOCATE, &mut r)?;
-        if r.carry() {
-            return Err(fatal(code).into());
-        }
-        p(table, r.eax);
+        table.set(net_allocate(bytes)?);
     }
-    p(CONNECTIONS, 0);
-    p(SESSIONS, 0);
-    Ok(Regs {
-        eflags: r.eflags,
-        ..*entry
-    })
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    lobby_entry(r, allocate_lists)
+    NET.connections.set(0);
+    NET.sessions.set(0);
+    Ok(())
 }

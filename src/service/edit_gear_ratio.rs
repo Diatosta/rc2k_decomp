@@ -13,6 +13,6 @@ use crate::service::pages::{GEAR_RATIO, change_page};
 
 // ---- Rust version ----
 
-pub unsafe fn edit_gear_ratio(confirm: bool) -> Result<(), Refused> {
-    unsafe { change_page(GEAR_RATIO, confirm) }
+pub fn edit_gear_ratio(confirm: bool) -> Result<(), Refused> {
+    change_page(GEAR_RATIO, confirm)
 }

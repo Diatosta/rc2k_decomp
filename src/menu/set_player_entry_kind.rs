@@ -5,39 +5,21 @@
 //! Out: every register kept (`pusha` .. `popa`)
 //!
 //! Callers: `sub_48E093`, `sub_4A15E3`. Refuses a current player past 3 or missing, before
-//! anything. Self-test: the original and the Rust version on players of the test's.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! anything.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{Regs, game_read, rva};
+use crate::menu::event_store::EVENT_STATE;
 use crate::menu::standings::*;
-use crate::race::stage_prefs::left_of;
-use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
+use crate::menu::state_store::MENU_STATE;
 
-const CURRENT_RVA: usize = rva(0x75598C); // dword_75598C
-const SCORE_RVA: usize = rva(0x75AC80); // dword_75AC80
 /// The Rust version (see the header): the registers it leaves.
-pub unsafe fn set_player_entry_kind(entry: &Regs) -> Result<Regs, Refused> {
-    let n: u32 = unsafe { game_read(CURRENT_RVA) };
+pub fn set_player_entry_kind() -> Result<(), Refused> {
+    let n: u32 = { EVENT_STATE.current_player.get() };
     if n >= 4 || player(n) == 0 {
         return Err(BadInput("a current player past 3 or missing").into());
     }
     // Converted: `rc2k_core::menu::player::entry_kind`.
-    let score: i32 = unsafe { game_read(SCORE_RVA) };
-    put(player(n) + 0xD0, rc2k_core::menu::player::entry_kind(score));
-    Ok(*entry)
-}
-
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    Ok(left_of(&unsafe { set_player_entry_kind(r) }?))
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
+    let score: i32 = MENU_STATE.driver_stats.score.get() as i32;
+    put(player(n) + 0xD0, rc2k_core::menu::player::entry_kind(score))?;
+    Ok(())
 }

@@ -7,242 +7,211 @@
 //! v = the three floats at `dword_5EA428`, n = the three at `qword_5EA438`:
 //! d = v . n (the first and second products added first, then the third); v = v * d, each rounded to a
 //! float; `dword_62400C` = d; v = v + v - n; then v through the matrix `flt_5EA20C`
-//! (`scene::rotate_point`, inlined) and back to its place. x87, with the original's
-//! instructions; d stays in the x87's own width between its uses.
+//! (`scene::rotate_point`, inlined) and back to its place. d stays unrounded between its uses.
+//! Plain Rust since 2026-10-24 (the x87's arithmetic in `X`, `math/x87_float.rs`); the
+//! original's instructions are `asm_reference` in the tests.
 //! One caller, `sub_45198C` (the reflection's texture coordinates).
-//!
-//! Converted 2026-10-21: the hook's Rust version is `reflect_vector_plain`, through
-//! `rc2k_core::scene::reflection::reflect` (plain floats; the x87 version stays for the
-//! Rust callers in unconverted code). Shadow mode and the self-test compare within
-//! `service::floats`' tolerances (the self-test at both test precisions, exact at double).
 
-use crate::errors::Refused;
-use crate::framework::{
-    ESI, RawHook, Regs, SelfTest, game_addr, game_ptr, game_read, game_write, hook_asm, rva,
-};
-use crate::scene::draw_polygon::CHECKED_RVA;
-use crate::scene::matrix::float_places;
-use crate::screens::harness::Left;
-use crate::service::floats::*;
-use crate::service::harness::{Region, at, capture, restore};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("scene::reflect_vector", rva(0x451A9D), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
-
-// ---- game data ----
-
-pub const VECTOR_RVA: usize = rva(0x5EA428); // dword_5EA428, dword_5EA42C, dword_5EA430
-pub const NORMAL_RVA: usize = rva(0x5EA438); // qword_5EA438, dword_5EA440
-pub const MATRIX_RVA: usize = rva(0x5EA20C); // flt_5EA20C
+use crate::race::matrices_store::MATRICES;
+use crate::scene::draw_store::DRAW;
+use crate::scene::x87_mem::{fld, fstp};
 
 // ---- Rust version ----
 
-pub unsafe fn reflect_vector() {
-    unsafe {
-        let (v, n): ([u32; 3], [u32; 3]) = (game_read(VECTOR_RVA), game_read(NORMAL_RVA));
-        // The vector, the normal, d.
-        let mut w = [v[0], v[1], v[2], n[0], n[1], n[2], 0];
-        core::arch::asm!(
-            "fld dword ptr [{w} + 8]",
-            "fmul dword ptr [{w} + 20]",
-            "fld dword ptr [{w} + 4]",
-            "fmul dword ptr [{w} + 16]",
-            "fld dword ptr [{w}]",
-            "fmul dword ptr [{w} + 12]",
-            ".byte 0xDE, 0xC1", // faddp st(1), st
-            ".byte 0xDE, 0xC1", // faddp st(1), st
-            "fld dword ptr [{w} + 8]",
-            ".byte 0xD8, 0xC9", // fmul st, st(1)
-            "fstp dword ptr [{w} + 8]",
-            "fld dword ptr [{w} + 4]",
-            ".byte 0xD8, 0xC9", // fmul st, st(1)
-            "fstp dword ptr [{w} + 4]",
-            "fld dword ptr [{w}]",
-            ".byte 0xD8, 0xC9", // fmul st, st(1)
-            "fstp dword ptr [{w}]",
-            "fstp dword ptr [{w} + 24]",
-            "fld dword ptr [{w}]",
-            ".byte 0xD8, 0xC0", // fadd st, st
-            "fsub dword ptr [{w} + 12]",
-            "fstp dword ptr [{w}]",
-            "fld dword ptr [{w} + 4]",
-            ".byte 0xD8, 0xC0", // fadd st, st
-            "fsub dword ptr [{w} + 16]",
-            "fstp dword ptr [{w} + 4]",
-            "fld dword ptr [{w} + 8]",
-            ".byte 0xD8, 0xC0", // fadd st, st
-            "fsub dword ptr [{w} + 20]",
-            "fstp dword ptr [{w} + 8]",
-            "fld dword ptr [{w} + 8]",
-            "fld dword ptr [{w} + 4]",
-            "fld dword ptr [{w}]",
-            // `scene::rotate_point` (0x44D110), as in `project_point.rs`.
-            "fld dword ptr [{m}]",
-            "fmul st(0), st(1)",
-            "fld dword ptr [{m} + 0x10]",
-            "fmul st(0), st(3)",
-            "fld dword ptr [{m} + 0x20]",
-            "fmul st(0), st(5)",
-            "faddp st(1), st(0)",
-            "faddp st(1), st(0)",
-            "fadd dword ptr [{m} + 0x30]",
-            "fxch st(3)",
-            "fld dword ptr [{m} + 4]",
-            "fmul st(0), st(2)",
-            "fld dword ptr [{m} + 0x14]",
-            "fmul st(0), st(4)",
-            "fld dword ptr [{m} + 0x24]",
-            "fmul st(0), st(3)",
-            "faddp st(1), st(0)",
-            "faddp st(1), st(0)",
-            "fadd dword ptr [{m} + 0x34]",
-            "fxch st(3)",
-            "fld dword ptr [{m} + 8]",
-            "fmulp st(3), st(0)",
-            "fld dword ptr [{m} + 0x18]",
-            "fmulp st(1), st(0)",
-            "fld dword ptr [{m} + 0x28]",
-            "fmulp st(2), st(0)",
-            "faddp st(1), st(0)",
-            "faddp st(1), st(0)",
-            "fadd dword ptr [{m} + 0x38]",
-            "fxch st(2)",
-            "fstp dword ptr [{w}]",
-            "fstp dword ptr [{w} + 4]",
-            "fstp dword ptr [{w} + 8]",
-            w = in(reg) w.as_mut_ptr(),
-            m = in(reg) game_ptr::<u32>(MATRIX_RVA),
-            out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
-            out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
-            options(nostack),
-        );
-        game_write(VECTOR_RVA, [w[0], w[1], w[2]]);
-        game_write(CHECKED_RVA, w[6]);
-    }
+pub fn reflect_vector() {
+    let (v, n): ([u32; 3], [u32; 3]) = (
+        crate::session::read_bits(&MATRICES.reflect_vector),
+        crate::session::read_bits(&MATRICES.reflect_normal),
+    );
+    // The vector, the normal, d.
+    let mut w = [v[0], v[1], v[2], n[0], n[1], n[2], 0];
+    reflect(
+        w.as_mut_ptr().cast(),
+        (crate::pointers::host(MATRICES.view_back_matrix[0].addr()) as *mut u32).cast(),
+    );
+    crate::session::write_bits(&MATRICES.reflect_vector, [w[0], w[1], w[2]]);
+    DRAW.scratch.set_bits(w[6]);
 }
 
-/// The converted version (plain floats): the hook's.
-// Converted: `rc2k_core::scene::reflection::reflect`
-pub unsafe fn reflect_vector_plain() {
-    unsafe {
-        let (v, n): ([u32; 3], [u32; 3]) = (game_read(VECTOR_RVA), game_read(NORMAL_RVA));
-        let m = game_addr(MATRIX_RVA) as u32;
-        // The fourth float of each row is not read.
-        let matrix: [f32; 15] = std::array::from_fn(|i| {
-            if i % 4 == 3 {
-                0.0
-            } else {
-                f32::from_bits(((m + 4 * i as u32) as *const u32).read_unaligned())
-            }
-        });
-        let (r, d) = rc2k_core::scene::reflection::reflect(
-            v.map(f32::from_bits),
-            n.map(f32::from_bits),
-            &matrix,
-        );
-        game_write(VECTOR_RVA, r.map(f32::to_bits));
-        game_write(CHECKED_RVA, d.to_bits());
-    }
+/// The block's arithmetic: `w` the vector, the normal, d; `m` the matrix.
+fn reflect(w: *mut u8, m: *const u8) {
+    let t0 = fld(w, 0x8);
+    let t1 = fld(w, 0x14);
+    let t2 = t0 * t1;
+    let t3 = fld(w, 0x4);
+    let t4 = fld(w, 0x10);
+    let t5 = t3 * t4;
+    let t6 = fld(w, 0x0);
+    let t7 = fld(w, 0xC);
+    let t8 = t6 * t7;
+    let t9 = t5 + t8;
+    let t10 = t2 + t9;
+    let t11 = fld(w, 0x8);
+    let t12 = t11 * t10;
+    fstp(w, 0x8, t12);
+    let t13 = fld(w, 0x4);
+    let t14 = t13 * t10;
+    fstp(w, 0x4, t14);
+    let t15 = fld(w, 0x0);
+    let t16 = t15 * t10;
+    fstp(w, 0x0, t16);
+    fstp(w, 0x18, t10);
+    let t17 = fld(w, 0x0);
+    let t18 = t17 + t17;
+    let t19 = fld(w, 0xC);
+    let t20 = t18 - t19;
+    fstp(w, 0x0, t20);
+    let t21 = fld(w, 0x4);
+    let t22 = t21 + t21;
+    let t23 = fld(w, 0x10);
+    let t24 = t22 - t23;
+    fstp(w, 0x4, t24);
+    let t25 = fld(w, 0x8);
+    let t26 = t25 + t25;
+    let t27 = fld(w, 0x14);
+    let t28 = t26 - t27;
+    fstp(w, 0x8, t28);
+    let t29 = fld(w, 0x8);
+    let t30 = fld(w, 0x4);
+    let t31 = fld(w, 0x0);
+    let t32 = fld(m, 0x0);
+    let t33 = t32 * t31;
+    let t34 = fld(m, 0x10);
+    let t35 = t34 * t30;
+    let t36 = fld(m, 0x20);
+    let t37 = t36 * t29;
+    let t38 = t35 + t37;
+    let t39 = t33 + t38;
+    let t40 = fld(m, 0x30);
+    let t41 = t39 + t40;
+    let t42 = fld(m, 0x4);
+    let t43 = t42 * t31;
+    let t44 = fld(m, 0x14);
+    let t45 = t44 * t30;
+    let t46 = fld(m, 0x24);
+    let t47 = t46 * t29;
+    let t48 = t45 + t47;
+    let t49 = t43 + t48;
+    let t50 = fld(m, 0x34);
+    let t51 = t49 + t50;
+    let t52 = fld(m, 0x8);
+    let t53 = t31 * t52;
+    let t54 = fld(m, 0x18);
+    let t55 = t30 * t54;
+    let t56 = fld(m, 0x28);
+    let t57 = t29 * t56;
+    let t58 = t57 + t55;
+    let t59 = t53 + t58;
+    let t60 = fld(m, 0x38);
+    let t61 = t59 + t60;
+    fstp(w, 0x0, t41);
+    fstp(w, 0x4, t51);
+    fstp(w, 0x8, t61);
 }
 
-// ---- hook ----
+#[cfg(all(test, target_arch = "x86"))]
+mod asm_reference {
+    use super::*;
+    use crate::scene::asm_test::{Kind, differential};
 
-fn regions() -> [Region; 2] {
-    [(game_addr(VECTOR_RVA) as u32, 12), at(CHECKED_RVA)]
-}
-
-fn rust(_: &Regs) -> Result<Left, Refused> {
-    unsafe { reflect_vector_plain() };
-    Ok(Left::nothing().with(ESI, game_addr(MATRIX_RVA) as u32))
-}
-
-extern "C" fn dispatch(r: &mut Regs) {
-    let places = float_places(&regions());
-    let floats = Floats {
-        memory: &places,
-        regs: &[],
-    };
-    dispatch_state_floats(&HOOK, r, call_original, &regions(), &floats, &rust);
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    floats_entry(r, &rust)
-}
-
-// ---- self-test ----
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let regions = regions();
-    let inputs = [
-        (game_addr(NORMAL_RVA) as u32, 12),
-        (game_addr(MATRIX_RVA) as u32, 0x40),
-    ];
-    let saved = (capture(&regions), capture(&inputs));
-    let matrices: [[f32; 16]; 3] = [
-        [
-            1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0,
-        ],
-        [
-            0.36, 0.48, -0.8, 0.0, -0.8, 0.6, 0.0, 0.0, 0.48, 0.64, 0.6, 0.0, 0.0, 0.0, 0.0, 0.0,
-        ],
-        [
-            0.1234567, 3.3333333, -0.7171068, 9.0, 2.7282818, -0.5, 0.3333333, 9.0, -1.4242135,
-            0.0009765, 1.7320508, 9.0, -33.333332, 0.1, 6.7, 9.0,
-        ],
-    ];
-    let vectors: [([f32; 3], [f32; 3]); 8] = [
-        ([0.0, 0.0, 1.0], [0.0, 0.0, 1.0]),
-        ([0.6, -0.8, 0.0], [0.0, 1.0, 0.0]),
-        ([0.577, 0.577, 0.577], [-0.267, 0.534, 0.802]),
-        ([0.33333334, 0.6666667, -0.6666667], [0.1, 0.2, 0.3]),
-        ([1e-20, 1e20, 3.0], [1e20, 1e-20, 0.33333334]),
-        ([0.0, 0.0, 0.0], [1.0, 0.0, 0.0]),
-        ([-0.123, 0.456, -0.789], [0.987, -0.654, 0.321]),
-        ([f32::NAN, 1.0, 1.0], [1.0, 1.0, 1.0]),
-    ];
-    let tolerant_places = float_places(&regions);
-    let tolerant = Floats {
-        memory: &tolerant_places,
-        regs: &[],
-    };
-    at_test_precisions(&tolerant, &mut |word, held| {
-        for (m, matrix) in matrices.into_iter().enumerate() {
-            for (v, n) in vectors {
-                check_state_floats(
-                    &mut t,
-                    "scene::reflect_vector",
-                    &format!("control word {word:#x}, matrix {m}, vector {v:?}, normal {n:?}"),
-                    call_original,
-                    Regs::SENTINEL,
-                    &|| unsafe {
-                        game_write(CHECKED_RVA, 0xAAAA_AAAAu32);
-                        game_write(VECTOR_RVA, v.map(f32::to_bits));
-                        game_write(NORMAL_RVA, n.map(f32::to_bits));
-                        game_write(MATRIX_RVA, matrix.map(f32::to_bits));
-                    },
-                    &regions,
-                    held,
-                    &rust,
-                );
-            }
+    /// The original's instructions (the block of `reflect_vector`).
+    unsafe fn reflect_ref(w: *mut u8, m: *mut u8) {
+        unsafe {
+            core::arch::asm!(
+                "fld dword ptr [{w} + 8]",
+                "fmul dword ptr [{w} + 20]",
+                "fld dword ptr [{w} + 4]",
+                "fmul dword ptr [{w} + 16]",
+                "fld dword ptr [{w}]",
+                "fmul dword ptr [{w} + 12]",
+                ".byte 0xDE, 0xC1", // faddp st(1), st
+                ".byte 0xDE, 0xC1", // faddp st(1), st
+                "fld dword ptr [{w} + 8]",
+                ".byte 0xD8, 0xC9", // fmul st, st(1)
+                "fstp dword ptr [{w} + 8]",
+                "fld dword ptr [{w} + 4]",
+                ".byte 0xD8, 0xC9", // fmul st, st(1)
+                "fstp dword ptr [{w} + 4]",
+                "fld dword ptr [{w}]",
+                ".byte 0xD8, 0xC9", // fmul st, st(1)
+                "fstp dword ptr [{w}]",
+                "fstp dword ptr [{w} + 24]",
+                "fld dword ptr [{w}]",
+                ".byte 0xD8, 0xC0", // fadd st, st
+                "fsub dword ptr [{w} + 12]",
+                "fstp dword ptr [{w}]",
+                "fld dword ptr [{w} + 4]",
+                ".byte 0xD8, 0xC0", // fadd st, st
+                "fsub dword ptr [{w} + 16]",
+                "fstp dword ptr [{w} + 4]",
+                "fld dword ptr [{w} + 8]",
+                ".byte 0xD8, 0xC0", // fadd st, st
+                "fsub dword ptr [{w} + 20]",
+                "fstp dword ptr [{w} + 8]",
+                "fld dword ptr [{w} + 8]",
+                "fld dword ptr [{w} + 4]",
+                "fld dword ptr [{w}]",
+                // `scene::rotate_point` (0x44D110), as in `project_point.rs`.
+                "fld dword ptr [{m}]",
+                "fmul st(0), st(1)",
+                "fld dword ptr [{m} + 0x10]",
+                "fmul st(0), st(3)",
+                "fld dword ptr [{m} + 0x20]",
+                "fmul st(0), st(5)",
+                "faddp st(1), st(0)",
+                "faddp st(1), st(0)",
+                "fadd dword ptr [{m} + 0x30]",
+                "fxch st(3)",
+                "fld dword ptr [{m} + 4]",
+                "fmul st(0), st(2)",
+                "fld dword ptr [{m} + 0x14]",
+                "fmul st(0), st(4)",
+                "fld dword ptr [{m} + 0x24]",
+                "fmul st(0), st(3)",
+                "faddp st(1), st(0)",
+                "faddp st(1), st(0)",
+                "fadd dword ptr [{m} + 0x34]",
+                "fxch st(3)",
+                "fld dword ptr [{m} + 8]",
+                "fmulp st(3), st(0)",
+                "fld dword ptr [{m} + 0x18]",
+                "fmulp st(1), st(0)",
+                "fld dword ptr [{m} + 0x28]",
+                "fmulp st(2), st(0)",
+                "faddp st(1), st(0)",
+                "faddp st(1), st(0)",
+                "fadd dword ptr [{m} + 0x38]",
+                "fxch st(2)",
+                "fstp dword ptr [{w}]",
+                "fstp dword ptr [{w} + 4]",
+                "fstp dword ptr [{w} + 8]",
+                w = in(reg) w,
+                m = in(reg) m,
+                out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
+                out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
+                options(nostack),
+            );
         }
-    });
-    restore(&regions, &saved.0);
-    restore(&inputs, &saved.1);
-    t.finish()
+    }
+
+    #[test]
+    fn reflect_matches_the_assembly() {
+        // dwords 0 .. 7 the vector, the normal, d; 8 .. 23 the matrix
+        differential::<23>(
+            "reflect_vector",
+            8000,
+            12,
+            [Kind::Float; 23],
+            |rng, m| {
+                let moderate = rng.below(2) == 0;
+                for d in m.iter_mut() {
+                    *d = if moderate { rng.moderate() } else { rng.fl() };
+                }
+                m[6] = 0xAAAA_AAAA;
+                m[7] = 0xAAAA_AAAA;
+            },
+            |base| unsafe { reflect_ref(base, base.add(32)) },
+            |base| unsafe { reflect(base, base.add(32)) },
+        );
+    }
 }

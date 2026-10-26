@@ -5,34 +5,22 @@
 //! Out: every register preserved
 //! `g_pictureWidth` * `g_pictureHeight` pixels, from the last down, each through
 //! `g_decodedPalette`. One caller, `gfx::read_png`, for a file with a palette (none of the
-//! game's has one, so the self-test is all it gets).
+//! game's has one).
 //! Refuses what `pixels_to_dwords::pixel_count` refuses. The name is a reading.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
 
 use crate::errors::BadInput;
-use crate::framework::{Regs, game_read};
-use crate::gfx::pcx::PALETTE_RVA;
-use crate::gfx::picture::picture;
-use crate::gfx::pixels_to_dwords::{pixel_count, spread_entry};
+use crate::gfx::decoder::DECODER;
+use crate::gfx::picture::picture_ptr;
+use crate::gfx::pixels_to_dwords::pixel_count;
 
 // ---- Rust version ----
 
-pub unsafe fn palette_pixels_to_dwords() -> Result<(), BadInput> {
-    unsafe {
-        let count = pixel_count()?;
-        // Converted: `rc2k_core::gfx::pixels::palette_to_dwords`.
-        let buffer = std::slice::from_raw_parts_mut(picture(), count * 4);
-        let palette: [u32; 256] = game_read(PALETTE_RVA);
-        rc2k_core::gfx::pixels::palette_to_dwords(buffer, count, &palette)
-            .ok_or(BadInput("a picture buffer shorter than its dwords"))
-    }
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    spread_entry(r, palette_pixels_to_dwords)
+pub fn palette_pixels_to_dwords() -> Result<(), BadInput> {
+    let count = pixel_count()?;
+    // Converted: `rc2k_core::gfx::pixels::palette_to_dwords`, on a copy of the pixels' bytes.
+    let mut buffer = picture_ptr().read_bytes(count * 4, "the picture buffer")?;
+    let palette: [u32; 256] = DECODER.palette();
+    rc2k_core::gfx::pixels::palette_to_dwords(&mut buffer, count, &palette)
+        .ok_or(BadInput("a picture buffer shorter than its dwords"))?;
+    picture_ptr().write_bytes(&buffer, "the picture buffer")
 }

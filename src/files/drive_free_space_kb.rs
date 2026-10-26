@@ -14,26 +14,26 @@
 //! Hook removed 2026-10-22 (conversion phase 4): Rust callers call this directly; the
 //! registers above are the original's, for reference.
 
-use crate::framework::Regs;
-use crate::install::installer::{Api, GET_DISK_FREE, SCRATCH, a, rd};
+use crate::files::scratch::SCRATCH;
+use crate::install::installer::{Api, GET_DISK_FREE, rd};
 
-/// The registers and flags it leaves.
-pub fn free_space_regs(entry: &Regs, api: Api) -> Regs {
-    let mut r = *entry;
-    let root = unsafe { crate::files::drive_type::drive_root(r.eax as u8) };
-    let root_ptr = root.as_ref().map_or(0, |b| b.as_ptr() as u32);
-    let s = a(SCRATCH);
+/// The free KB of drive `letter` (its low byte), or None when `GetDiskFreeSpaceA` failed
+/// (the original's carry; eax -1 then). The bytes a sector the original leaves in ebx are
+/// read by no caller.
+pub fn drive_free_space_kb(letter: u32, api: Api) -> Option<u32> {
+    let root = { crate::files::drive_type::drive_root(letter as u8) };
+    let root_ptr = root
+        .as_ref()
+        .map_or(0, |b| crate::pointers::game_address(b.as_ptr()));
+    let s = SCRATCH.buffer.addr();
     let answer = api(GET_DISK_FREE, &[root_ptr, s + 0xC, s + 8, s + 4, s]);
     if answer < 1 {
-        r.eax = u32::MAX;
-        r.set_carry(true);
-        r.set_zero(false);
-        return r;
+        return None;
     }
-    r.ebx = rd(s + 8);
     // Converted: `rc2k_core::files::log::free_kb`.
-    r.eax = rc2k_core::files::log::free_kb(rd(s + 0xC), rd(s + 8), rd(s + 4));
-    r.set_carry(false);
-    r.set_zero(r.eax == 0);
-    r
+    Some(rc2k_core::files::log::free_kb(
+        rd(s + 0xC),
+        rd(s + 8),
+        rd(s + 4),
+    ))
 }

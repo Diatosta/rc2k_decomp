@@ -7,26 +7,15 @@
 //! reports fatal error 0x80701010. The blitter is given the fill's end x as its palette,
 //! which only works because these sprites do not use one; it is reproduced as is.
 //! Also leaves the fill's end x in `seconds` (0x7559AC), a work variable.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
 
-use crate::errors::FatalError;
-use crate::framework::{Regs, game_read, game_write, rva};
-use crate::gfx::blit_glyph::{BlitCall, blit_glyph_on_surface, glyph_record};
+use crate::errors::{FatalError, Refused};
+use crate::gfx::bar_store::BAR;
+use crate::gfx::blit_glyph::BlitCall;
 use crate::gfx::blit_marker_pair::sprite_table;
-use crate::gfx::surface::{CLIP_RIGHT_RVA, clip, surface};
+use crate::gfx::surface::clip;
+use crate::menu::draw_work_store::DRAW_WORK;
 
 // ---- game data ----
-
-const BAR_X_RVA: usize = rva(0x755224); // dword_755224
-const BAR_Y_RVA: usize = rva(0x755228); // dword_755228
-const BAR_WIDTH_RVA: usize = rva(0x75522C); // dword_75522C
-const BAR_FILL_GLYPH_RVA: usize = rva(0x755230); // dword_755230
-const BAR_END_GLYPH_RVA: usize = rva(0x755234); // dword_755234
-const BAR_PERCENT_RVA: usize = rva(0x755238); // dword_755238
-const FILL_END_RVA: usize = rva(0x7559AC); // seconds: a work variable, here the fill's end x
 
 /// The six globals a caller fills in before drawing a bar or its marker.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -43,36 +32,23 @@ pub struct Bar {
 
 impl Bar {
     pub fn read() -> Self {
-        unsafe {
-            Self {
-                x: game_read(BAR_X_RVA),
-                y: game_read(BAR_Y_RVA),
-                width: game_read(BAR_WIDTH_RVA),
-                fill_glyph: game_read(BAR_FILL_GLYPH_RVA),
-                end_glyph: game_read(BAR_END_GLYPH_RVA),
-                percent: game_read(BAR_PERCENT_RVA),
-            }
+        Self {
+            x: BAR.x.get() as i32,
+            y: BAR.y.get() as i32,
+            width: BAR.width.get() as i32,
+            fill_glyph: BAR.fill_glyph.get(),
+            end_glyph: BAR.end_glyph.get(),
+            percent: BAR.percent.get() as i32,
         }
     }
 
     pub fn write(&self) {
-        unsafe {
-            game_write(BAR_X_RVA, self.x);
-            game_write(BAR_Y_RVA, self.y);
-            game_write(BAR_WIDTH_RVA, self.width);
-            game_write(BAR_FILL_GLYPH_RVA, self.fill_glyph);
-            game_write(BAR_END_GLYPH_RVA, self.end_glyph);
-            game_write(BAR_PERCENT_RVA, self.percent);
-        }
-    }
-
-    /// Pixels from x to where `percent` of the width ends: an unsigned division by 100.
-    pub fn length(&self) -> Result<i32, FatalError> {
-        let product = self.width.wrapping_mul(self.percent);
-        if product == 0 {
-            return Err(BAR_HAS_NO_LENGTH);
-        }
-        Ok((product as u32 / 100) as i32)
+        BAR.x.set(self.x as u32);
+        BAR.y.set(self.y as u32);
+        BAR.width.set(self.width as u32);
+        BAR.fill_glyph.set(self.fill_glyph);
+        BAR.end_glyph.set(self.end_glyph);
+        BAR.percent.set(self.percent as u32);
     }
 }
 
@@ -83,50 +59,36 @@ pub const BAR_HAS_NO_LENGTH: FatalError = FatalError {
 };
 
 pub fn set_bar_x(x: i32) {
-    unsafe { game_write(BAR_X_RVA, x) };
+    BAR.x.set(x as u32);
 }
 
 // ---- Rust version ----
 
 /// Where a blitter call goes: the game's surface, or a list.
-pub type Blit<'a> = &'a mut dyn FnMut(BlitCall) -> Result<(), FatalError>;
-
-/// Draws on the game's surface.
-pub fn on_surface(call: BlitCall) -> Result<(), FatalError> {
-    unsafe {
-        blit_glyph_on_surface(
-            call.glyph,
-            call.table as *const u8,
-            call.x,
-            call.y,
-            call.palette as *const u32,
-        )
-    }
-    .map(|_| ())
-}
+pub type Blit<'a> = &'a mut dyn FnMut(BlitCall) -> Result<(), Refused>;
 
 /// The game's side of a bar: the blits through `blit`, the clip and the bar's globals.
 pub struct GameBar<'a>(pub Blit<'a>);
 
 impl rc2k_core::gfx::bars::BarCanvas for GameBar<'_> {
-    type Error = FatalError;
-    fn sprite(&mut self, glyph: u32, x: i32, y: i32, palette: u32) -> Result<(), FatalError> {
+    type Error = Refused;
+    fn sprite(&mut self, glyph: u32, x: i32, y: i32, palette: u32) -> Result<(), Refused> {
         (self.0)(BlitCall::new(glyph, x, y, palette, sprite_table()))
     }
     fn clip_right(&mut self) -> i32 {
         clip().right
     }
     fn set_clip_right(&mut self, x: i32) {
-        unsafe { game_write(CLIP_RIGHT_RVA, x) };
+        crate::gfx::blit::BLIT.clip.right.set(x as u32);
     }
     fn keep_fill_end(&mut self, x: i32) {
-        unsafe { game_write(FILL_END_RVA, x) };
+        DRAW_WORK.seconds.set(x as u32);
     }
     fn set_bar_x(&mut self, x: i32) {
         set_bar_x(x);
     }
-    fn no_length(&mut self) -> FatalError {
-        BAR_HAS_NO_LENGTH
+    fn no_length(&mut self) -> Refused {
+        BAR_HAS_NO_LENGTH.into()
     }
 }
 
@@ -145,26 +107,6 @@ impl Bar {
 }
 
 /// The bar described by the bar globals. Converted: `rc2k_core::gfx::bars::bar`.
-pub unsafe fn blit_bar(blit: Blit) -> Result<(), FatalError> {
+pub fn blit_bar(blit: Blit) -> Result<(), Refused> {
     rc2k_core::gfx::bars::bar(&mut GameBar(blit), &Bar::read().core())
-}
-
-/// A `Blit` that lists the calls and makes the blitter's own checks, without drawing.
-pub fn checked_list(
-    calls: &mut Vec<BlitCall>,
-) -> impl FnMut(BlitCall) -> Result<(), FatalError> + '_ {
-    |call| {
-        unsafe { glyph_record(&surface(), call.table as *const u8, call.glyph) }?;
-        calls.push(call);
-        Ok(())
-    }
-}
-
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(_: &mut Regs) -> Result<(), crate::errors::Refused> {
-    // A fatal error: the original, run from the start, meets the same one.
-    if let Err(e) = unsafe { blit_bar(&mut on_surface) } {
-        return Err(e.into());
-    }
-    Ok(())
 }

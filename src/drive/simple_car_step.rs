@@ -10,82 +10,64 @@
 //! In:  nothing
 //! Out: the registers as the steps and calls leave them; no flags read
 //!
-//! Caller: `drive::race_tick`. It begins with a call: hooked by a private copy of its
-//! 0xB4 bytes (its nine calls relocated) and a hand-made patch.
-//! Refuses what its calls refuse.
-//! Self-test (in a race; skipped otherwise): the original and the Rust version from the
-//! same state (the first block, the inputs and the ground saved and put back).
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Caller: `drive::race_tick`. Refuses what its calls refuse.
 
 use crate::errors::Refused;
-use crate::framework::Regs;
-use crate::physics::flow::{a, g, p};
-use crate::race::stage_prefs::left_of;
-use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
+use crate::physics::car_store::CAR;
+use crate::physics::ground_store::GROUND_WORK;
+use crate::physics::tables_store::PHYSICS;
+use crate::race::blocks_store::CAR_BLOCKS;
+use crate::race::course_store::COURSE;
 use rc2k_core::drive::roaming::{roam_distance, roam_turn};
 
-const B: usize = 0x70F3EC; // g_carBlockStore
-
-/// The Rust version.
+/// The Rust version. The registers it leaves are read by no caller (liveness: ecx, edi
+/// and esi after `drive::race_tick`'s call have no read point).
 // Converted: `rc2k_core::drive::roaming::{roam_distance, roam_turn}`.
-pub unsafe fn simple_car_step(entry: &Regs) -> Result<Left, Refused> {
-    let mut r = *entry;
-    unsafe {
-        crate::drive::car_input_words::car_input_words(&r)?.apply(&mut r);
-        let mut c = r;
-        crate::drive::read_car_controls::read_car_controls(&mut c)?;
-        r.eax = c.eax;
-        r.esi = c.esi;
-        crate::drive::steer_inputs::steer_inputs(&r).apply(&mut r);
-        crate::drive::pedal_inputs::pedal_inputs().apply(&mut r);
-        r = crate::drive::reset_request::reset_request(
-            &r,
-            &mut crate::physics::reset_parts::game_part,
-        )?;
-    }
-    r.eax = 0;
-    r.ecx = roam_distance(
-        g(B + 0x638),
-        g(B + 0x63C),
-        unsafe { (a(0x4F6B79) as *const u8).read() } != 0,
+pub unsafe fn simple_car_step() -> Result<(), Refused> {
+    crate::drive::car_input_words::car_input_words()?;
+    crate::drive::read_car_controls::read_car_controls()?;
+    crate::drive::steer_inputs::steer_inputs();
+    crate::drive::pedal_inputs::pedal_inputs();
+    // The keys `drive::pedal_inputs` leaves in ebx (`reset_request` loads the same again
+    // before `physics::reset_car`): the turn's y.
+    let keys = CAR.input_keys.get();
+    unsafe { crate::drive::reset_request::reset_request() }?;
+    let distance = roam_distance(
+        CAR_BLOCKS.cars[0].throttle.bits(),
+        CAR_BLOCKS.cars[0].brake.bits(),
+        crate::input::store::DEVICES.keys_now.get(0x1D) != 0, // byte_4F6B79
     );
-    r.edx = g(B + 0x9C0);
-    let [x, _, z, edx] =
-        unsafe { crate::math::turn_point_xz::turn_point_xz(0, r.ebx as i32, r.ecx as i32, r.edx) };
-    r.eax = x;
-    r.ecx = z;
-    r.edx = edx;
-    p(B + 0x134, g(B + 0x134).wrapping_add(x));
-    p(B + 0x13C, g(B + 0x13C).wrapping_add(z));
-    r.eax = roam_turn(g(B + 0x644));
-    p(B + 0x9C0, g(B + 0x9C0).wrapping_add(r.eax));
-    unsafe { crate::physics::wheel_surfaces::wheel_surfaces() }?.apply(&mut r);
-    r.eax = g(0x5CCDA0);
-    p(0x639824, r.eax);
-    r.eax = g(0x5CCDE0);
-    p(0x63982C, r.eax);
+    let [x, _, z, _] = {
+        crate::math::turn_point_xz::turn_point_xz(
+            0,
+            keys as i32,
+            distance as i32,
+            CAR_BLOCKS.cars[0].car_heading.bits(),
+        )
+    };
+    CAR_BLOCKS.cars[0].position[0].set_bits(CAR_BLOCKS.cars[0].position[0].bits().wrapping_add(x));
+    CAR_BLOCKS.cars[0].position[2].set_bits(CAR_BLOCKS.cars[0].position[2].bits().wrapping_add(z));
+    CAR_BLOCKS.cars[0].car_heading.set_bits(
+        CAR_BLOCKS.cars[0]
+            .car_heading
+            .bits()
+            .wrapping_add(roam_turn(CAR_BLOCKS.cars[0].steering.bits())),
+    );
+    { crate::physics::wheel_surfaces::wheel_surfaces() }?;
+    GROUND_WORK.ground_x.set(COURSE.place_x.get());
+    GROUND_WORK.ground_z.set(COURSE.place_z.get());
     unsafe { crate::physics::find_ground::find_ground() }?;
-    if g(0x5CCC74) != u32::MAX {
-        r.eax = g(0x639828).wrapping_add(g(0x613FC4));
-        p(0x5CCDC0, r.eax);
-        p(B + 0x138, r.eax);
+    if COURSE.ground_slot.get() != u32::MAX {
+        let y = GROUND_WORK
+            .ground_height
+            .get()
+            .wrapping_add(PHYSICS.ground_drop.get());
+        COURSE.place_y.set(y);
+        CAR_BLOCKS.cars[0].position[1].set_bits(y);
     }
-    p(B + 0x9C4, 0);
-    p(B + 0x9C8, 0);
-    r = unsafe { crate::race::stage_prefs::get_mat_crash(&r) };
-    Ok(left_of(&r))
-}
-
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    unsafe { simple_car_step(r) }
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
+    CAR_BLOCKS.cars[0].car_pitch.set_bits(0);
+    CAR_BLOCKS.cars[0].car_roll.set_bits(0);
+    // `race::get_mat_crash` reads no register at entry (liveness): a scratch.
+    crate::race::stage_prefs::get_mat_crash();
+    Ok(())
 }

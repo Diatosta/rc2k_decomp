@@ -18,47 +18,46 @@
 //! In:  nothing
 //! Out: the registers as the parts leave them (ecx 0x32 after the steps); no flags read
 //!
-//! Caller: `race::load_stage` (0x44412D).
-//! Refuses what its parts refuse; raises 0x80600D1E as the original (section 15).
-//! Hook removed 2026-10-22 (direct calls): Rust callers run its `entry` (`calls::call`,
-//! `routes.rs`); the registers above are the original's, for reference.
+//! Caller: `race::load_stage` (0x44412D). Refuses what its parts refuse; raises 0x80600D1E
+//! as the original.
 
 use crate::errors::{FatalError, Refused};
-use crate::framework::Regs;
-use crate::physics::flow::{a, g, p};
-use crate::race::stage_prefs::left_of;
-use crate::screens::harness::Left;
+use crate::race::switches_store::FRAME_SWITCHES;
+use crate::race::vars_store::RACE_VARS;
+use crate::race::viewer_screen_store::VIEWER_PANEL;
 use rc2k_core::drive::race_steps;
 
-const INDENT: usize = 0x4E00A0; // g_logIndent
+/// `g_logIndent` changed by `by` (wrapping, as the original's `add`).
+fn indent_by(by: u32) {
+    let indent = &crate::logfile::write_line::state::INDENT;
+    indent.fetch_add(by as i32, std::sync::atomic::Ordering::Relaxed);
+}
 
 /// A "RACEINIT : ..." line (level 1, a line break; in `pusha` / `popa`).
-fn log(text: usize) {
-    unsafe { crate::logfile::log_write::log_write(a(text) as *const u8, true, 1) };
+fn log(text: &std::ffi::CStr) {
+    unsafe { crate::logfile::log_write::log_write(text.as_ptr().cast(), true, 1) };
 }
 
 /// The log indented round a part (`pushf`; +- 3; `popf`).
-fn indented(
-    r: &mut Regs,
-    part: &mut dyn FnMut(&mut Regs) -> Result<(), Refused>,
-) -> Result<(), Refused> {
-    p(INDENT, g(INDENT).wrapping_add(race_steps::LOG_INDENT));
-    part(r)?;
-    p(INDENT, g(INDENT).wrapping_sub(race_steps::LOG_INDENT));
+fn indented(part: &mut dyn FnMut() -> Result<(), Refused>) -> Result<(), Refused> {
+    indent_by(race_steps::LOG_INDENT);
+    part()?;
+    indent_by(race_steps::LOG_INDENT.wrapping_neg());
     Ok(())
 }
 
-/// The steps; `r` as the original leaves it.
+/// The Rust version. The registers it leaves are read by no caller (liveness: ecx and edx
+/// after `race::load_stage`'s call have no read point). The caller's ecx, which the
+/// original hands on to `race::checkpoint_distances`, is never read there: that function
+/// is reached only with two checkpoints or more (conversion phase 3, 2026-10-24).
 // Converted: `rc2k_core::drive::race_steps::{no_best_line, NO_BEST_LINE, SETTLING_STEPS,
 // LOG_INDENT}`.
-pub fn steps(r: &mut Regs) -> Result<(), Refused> {
-    log(0x4DC558);
-    p(INDENT, g(INDENT).wrapping_add(race_steps::LOG_INDENT));
-    *r = unsafe {
-        crate::race::best_line::build_best_line(r, &mut crate::race::best_line::build_part)
-    }?;
-    if race_steps::no_best_line(g(0x623640)) {
-        if g(0x621514) != 0 {
+pub unsafe fn race_init() -> Result<(), Refused> {
+    log(c"RACEINIT : setbestline");
+    indent_by(race_steps::LOG_INDENT);
+    crate::race::best_line::build_best_line()?;
+    if race_steps::no_best_line(RACE_VARS.checkpoint_count.get()) {
+        if FRAME_SWITCHES.editor_mode.get() != 0 {
             return Ok(());
         }
         return Err(FatalError {
@@ -67,96 +66,48 @@ pub fn steps(r: &mut Regs) -> Result<(), Refused> {
         }
         .into());
     }
-    p(INDENT, g(INDENT).wrapping_sub(race_steps::LOG_INDENT));
-    log(0x4DC56F);
-    indented(r, &mut |r| {
-        *r = unsafe {
-            crate::race::car_starts::start_cars(r, &mut crate::race::car_starts::game_part)
-        }?;
+    indent_by(race_steps::LOG_INDENT.wrapping_neg());
+    log(c"RACEINIT : initcarpositions");
+    indented(&mut || unsafe { crate::race::car_starts::start_cars() })?;
+    log(c"RACEINIT : initobjectsoncourse");
+    indented(&mut || crate::race::course_data::reset_face_lights())?;
+    log(c"RACEINIT : gamemodestuff_init");
+    indented(&mut || { crate::race::race_cars::set_up_cars() }.map(drop))?;
+    log(c"RACEINIT : messagesystem_init");
+    indented(&mut || {
+        crate::race::race_init::reset_car_race_state()?;
         Ok(())
     })?;
-    log(0x4DC58B);
-    indented(r, &mut |r| {
-        *r = unsafe { crate::race::course_data::reset_face_lights(r) }?;
+    log(c"RACEINIT : carparts_init");
+    indented(&mut || {
+        crate::race::race_init::clear_race_slots();
         Ok(())
     })?;
-    log(0x4DC5AA);
-    indented(r, &mut |r| {
-        *r = unsafe {
-            crate::race::race_cars::set_up_cars(r, &mut crate::race::race_cars::cars_part)
-        }?;
-        Ok(())
-    })?;
-    log(0x4DC5C8);
-    indented(r, &mut |r| {
-        let g = unsafe { crate::race::race_init::reset_car_race_state(r) };
-        r.ebx = g.ebx;
-        r.edi = g.edi;
-        Ok(())
-    })?;
-    log(0x4DC5E6);
-    indented(r, &mut |r| {
-        let g = unsafe { crate::race::race_init::clear_race_slots(r) };
-        r.edi = g.edi;
-        r.ecx = g.ecx;
-        Ok(())
-    })?;
-    log(0x4DC5FF);
-    indented(r, &mut |r| {
-        for f in [
-            crate::race::race_init::reset_car_starts,
-            crate::race::race_init::seed_car_randoms,
-        ] {
-            let g = unsafe { f(r) };
-            r.eax = g.eax;
-            r.ecx = g.ecx;
-            r.esi = g.esi;
+    log(c"RACEINIT : resettimers");
+    indented(&mut || {
+        {
+            crate::race::race_init::reset_car_starts()?;
+            crate::race::race_init::seed_car_randoms()?;
         }
         Ok(())
     })?;
-    log(0x4DC616);
-    p(INDENT, g(INDENT).wrapping_add(race_steps::LOG_INDENT));
-    r.ecx = 0;
-    while r.ecx != race_steps::SETTLING_STEPS {
-        let mut c = *r;
-        unsafe { crate::drive::race_cars_step::race_cars_step(&c) }?;
-        c = *r;
-        p(0x5C2F94, 1);
-        unsafe { crate::drive::share_all_cars::share_all_cars() }?.apply(&mut c);
-        p(0x5C2F94, 0);
-        c = unsafe { crate::marks::frame_marks::frame_marks(&c) }?;
-        let _ = unsafe {
-            crate::marks::run_frame::run_frame(&c, &mut crate::marks::run_frame::game_part)
-        }?;
-        r.ecx += 1;
+    log(c"RACEINIT : singlecarinit");
+    indent_by(race_steps::LOG_INDENT);
+    for _ in 0..race_steps::SETTLING_STEPS {
+        unsafe { crate::drive::race_cars_step::race_cars_step() }?;
+        VIEWER_PANEL.other_marks_shown.set(1);
+        { crate::drive::share_all_cars::share_all_cars() }?;
+        VIEWER_PANEL.other_marks_shown.set(0);
+        crate::marks::frame_marks::frame_marks()?;
+        crate::marks::run_frame::run_frame()?;
     }
-    let s = unsafe { crate::race::race_init::clear_race_slots(r) };
-    r.edi = s.edi;
-    r.ecx = s.ecx;
-    p(INDENT, g(INDENT).wrapping_sub(race_steps::LOG_INDENT));
-    log(0x4DC62F);
-    indented(r, &mut |r| {
-        let g = unsafe { crate::race::car_grades::grade_all_cars(r) };
-        r.eax = g.eax;
-        r.ebx = g.ebx;
-        r.esi = g.esi;
-        r.set_carry(false);
+    crate::race::race_init::clear_race_slots();
+    indent_by(race_steps::LOG_INDENT.wrapping_neg());
+    log(c"RACEINIT : resetalldamagemessages");
+    indented(&mut || {
+        crate::race::car_grades::grade_all_cars()?;
         Ok(())
     })?;
-    log(0x4DC651);
-    Ok(())
-}
-
-/// The Rust version.
-pub unsafe fn race_init(entry: &Regs) -> Result<Left, Refused> {
-    let mut r = *entry;
-    steps(&mut r)?;
-    Ok(left_of(&r))
-}
-
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    let left = unsafe { race_init(r) }?;
-    left.apply(r);
+    log(c"RACEINIT : end");
     Ok(())
 }

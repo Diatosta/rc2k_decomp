@@ -4,44 +4,24 @@
 //!
 //! In:  nothing
 //! Out: every register kept (`pusha` / `popa`)
-//! A list action (`off_51DD48` for the update script). Caller `install::run_page`. Its two
-//! calls through `part`. Shadow mode runs the original alone (it changes directory).
-//! Self-test: a copy whose two calls go to stand-ins, against the Rust version.
+//! A list action (`off_51DD48` for the update script). Caller `install::run_page`.
 //!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Conversion phase 3 (2026-10-23): plain Rust with typed arguments; the registers above
+//! are the original's.
 
 use crate::errors::Refused;
-use crate::framework::Regs;
-use crate::install::installer::{INSTALLED, INSTALLING, NORMALISE, Part, SET_CD, a, at, p};
-use crate::race::viewer::regs_entry;
+use crate::install::installer::{normalise, set_cd};
+use crate::install::vars::INSTALLER_NAMES;
+use crate::install::vars::INSTALLER_PATHS;
+use crate::install::vars::INSTALLER_RUN;
 
-const SOURCE_PATH: usize = 0x51BB8D; // g_installSource
-
-pub fn open_installed(entry: &Regs, part: Part) -> Result<Regs, Refused> {
-    let mut r = Regs {
-        esi: a(SOURCE_PATH),
-        edx: a(INSTALLED),
-        ..*entry
-    };
-    part(at(NORMALISE), &mut r)?;
-    if r.carry() {
-        return Ok(*entry);
+pub fn open_installed() -> Result<(), Refused> {
+    if normalise(
+        INSTALLER_NAMES.source.addr(),
+        INSTALLER_PATHS.installed.addr(),
+    )? && set_cd(INSTALLER_PATHS.installed.addr())
+    {
+        INSTALLER_RUN.installing.set(1);
     }
-    r.edx = a(INSTALLED);
-    part(at(SET_CD), &mut r)?;
-    if r.carry() {
-        return Ok(*entry);
-    }
-    p(INSTALLING, 1);
-    Ok(*entry)
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    regs_entry(r, &|r| {
-        open_installed(r, &mut crate::install::installer::game_part)
-    })
+    Ok(())
 }

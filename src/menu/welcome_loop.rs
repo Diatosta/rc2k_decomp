@@ -7,52 +7,53 @@
 //! as extracted from the disassembly: leaving is asked about; something runs before the
 //! question is put.
 //! The name is a reading from the title string of its menu, "BEM-VINDO", not yet a visit.
-//! Callers: `sub_4A0E60`, `sub_4AA4D7`. Ungated thunk; shadow mode runs the original alone;
-//! each real call writes a line to hook.log. Self-test: `screen_loop::check_screen`.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Callers: `sub_4A0E60`, `sub_4AA4D7`.
 
-use crate::framework::{Regs, rva};
-use crate::menu::screen_loop::{List, Screen, Step, screen_entry};
+use crate::framework::rva;
+use crate::menu::draw_lists_store::DRAW_LISTS;
+use crate::menu::draw_work_store::DRAW_WORK;
+use crate::menu::flow_store::SCREEN_FLOW;
+use crate::menu::menus_store::MENUS;
+use crate::menu::pages_store::MENU_PAGES;
+use crate::menu::screen_items_store::{SCREEN_ITEMS, slot};
+use crate::menu::screen_loop::{Callee, List, Screen, Step};
 
 // ---- Rust version: `menu::screen_loop` with this ----
 
 pub const SCREEN: Screen = Screen {
-    menu: rva(0x7506C0),
-    saved_item: rva(0x7477B4),
+    menu: || MENUS.welcome.addr() as usize,
+    saved_item: || &SCREEN_ITEMS.current[slot::WELCOME],
     lists: &[
         List {
-            pointer: rva(0x755504), // g_sceneList
-            table: rva(0x75905A),
+            pointer: || &SCREEN_FLOW.scene_list, // g_sceneList
+            table: || DRAW_LISTS.welcome_scene.addr() as usize,
             run: false,
         },
         List {
-            pointer: rva(0x7554F8), // g_drawList
-            table: rva(0x758D4E),
+            pointer: || &SCREEN_FLOW.draw_list, // g_drawList
+            table: || DRAW_LISTS.welcome_draw.addr() as usize,
             run: false,
         },
         List {
-            pointer: rva(0x7554FC), // g_overlayList
-            table: rva(0x759232),
+            pointer: || &SCREEN_FLOW.overlay_list, // g_overlayList
+            table: || DRAW_LISTS.welcome_overlay.addr() as usize,
             run: false,
         },
     ],
     first_frame_lists: None,
     frame_callback: rva(0x474D4B),
     later_frame_callback: None,
-    before: &[Step::Write(rva(0x755A3C), 0x0)],
-    set_up_first: &[Step::Write(rva(0x75524C), 0x0)],
+    before: &[Step::Write(|| &DRAW_WORK.escaped, 0x0)],
+    set_up_first: &[Step::Write(|| &MENU_PAGES.yes_no_answer, 0x0)],
     prepare: &[],
     after_lists: &[],
-    background: &[Step::Call(rva(0x4684BD))],
-    after_first_frame: &[Step::Call(rva(0x47F40F))],
+    background: &[Step::Call(Callee::LoadWelcomePicture)],
+    after_first_frame: &[Step::Call(Callee::PlayRallySpeech)],
     confirm: Some(&[]),
     ask_also_if: None,
     confirmed: &[],
     unasked_skips_save: false,
-    after: &[Step::Call(rva(0x40F757))],
+    after: &[Step::Call(Callee::StopStream)],
     escape_leaves: false,
     each_frame: &[],
     short_action_check: false,
@@ -61,7 +62,7 @@ pub const SCREEN: Screen = Screen {
     action_saved_item: None,
     action_menu: None,
     no_quit_check: false,
-    before_asking: &[Step::Call(rva(0x40F757))],
+    before_asking: &[Step::Call(Callee::StopStream)],
     ask_unless: None,
     leaving: &[],
     leave_saved_item: None,
@@ -74,12 +75,4 @@ pub const SCREEN: Screen = Screen {
     after_blink: &[],
     restart_action_check: false,
     always_asks: false,
-    also_reads: &[],
-    also_writes: &[],
 };
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    screen_entry("menu::welcome_loop", r, &SCREEN)
-}

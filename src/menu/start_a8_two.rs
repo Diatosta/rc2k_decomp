@@ -6,24 +6,21 @@
 //!
 //! Reached through a start menu's table. Refuses a missing player before anything, and what the
 //! callees refuse when they are reached.
-//! Hook removed 2026-10-22 (typed tables): the start menus run its `entry`
-//! (`menu::table_calls`).
 
-use crate::menu::start_event::{Starter, starter_hook};
+use crate::errors::Refused;
+use crate::menu::screen_loop::Carried;
+use crate::menu::start_event::{Starter, start_event};
 use rc2k_core::menu::starters::{self, Championship, Seats};
 
 pub const START_A8_TWO: Starter = Starter {
-    address: 0x4A9E3D,
-    len: 0xE1,
     // pusha; mov dword_755954, 5
-    entry: &[
-        0x60, 0xC7, 0x05, 0x54, 0x59, 0x75, 0x00, 0x05, 0x00, 0x00, 0x00,
-    ],
-    calls: &[0x1F, 0x6B, 0x76, 0x84, 0xA8, 0xB3, 0xC1, 0xD0],
     kind: starters::Starter {
         championship: Championship::A8,
         seats: Seats::Two,
     },
 };
 
-starter_hook!("menu::start_a8_two", START_A8_TWO,);
+/// The Rust version (`c` the carried values the item gets).
+pub fn start_a8_two(c: &Carried) -> Result<(), Refused> {
+    start_event(&START_A8_TWO, c)
+}

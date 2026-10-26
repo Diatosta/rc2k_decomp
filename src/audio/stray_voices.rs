@@ -1,18 +1,16 @@
-//! A diagnostic (2026-10-20, no hook): the owner hears, now and then, a sound stuck over
+//! A diagnostic (2026-10-20): the owner hears, now and then, a sound stuck over
 //! everything that even a pause does not stop, with the audio thread still turning. A
 //! sound only stops through the playing and stopping lists (`audio::update_voices`,
 //! `audio::stop_all_voices`), so a buffer that plays while its voice is on neither list
 //! can never be stopped. Once a second, after the turn's update (the voices' own buffers'
 //! way only: not A3D, not the game's mixer), every voice of the pool whose buffer plays is
 //! looked for on the two lists; one on neither is logged once ("audio: stray voice"), with
-//! what it holds, until it is quiet again. Called by the Rust thread's turn and by
-//! `audio::update_voices`' dispatch (the original thread's, with shadow mode on).
+//! what it holds, until it is quiet again.
 
-use crate::audio::voices::{
-    A3D_RVA, PLAYING_RVA, SOUND_MODE_RVA, STOPPING_RVA, VOICE_COUNT_RVA, VOICES, VOICES_RVA, Voice,
-    read, voice,
-};
-use crate::framework::{game_addr, log};
+use crate::audio::store::AUDIO;
+use crate::audio::voices::{VOICES, Voice, voice};
+use crate::framework::log;
+use crate::session::Dword;
 use std::collections::HashSet;
 use std::sync::Mutex;
 use std::sync::atomic::{AtomicU32, Ordering};
@@ -24,14 +22,12 @@ static TURNS: AtomicU32 = AtomicU32::new(0);
 /// The strays already logged.
 static LOGGED: Mutex<Vec<u32>> = Mutex::new(Vec::new());
 
-/// A list's voices, from the head at `head` (at most the pool's count).
-unsafe fn list(head: u32) -> HashSet<u32> {
+/// A list's voices, from the head `head` holds (at most the pool's count).
+fn list(head: &Dword) -> HashSet<u32> {
     let mut out = HashSet::new();
-    unsafe {
-        let mut at = read(head);
-        while at != 0 && out.len() <= VOICES as usize && out.insert(at) {
-            at = voice(at).next;
-        }
+    let mut at = head.get();
+    while at != 0 && out.len() <= VOICES as usize && out.insert(at) {
+        at = voice(at).next;
     }
     out
 }
@@ -41,18 +37,17 @@ pub fn check() {
     if !TURNS.fetch_add(1, Ordering::Relaxed).is_multiple_of(EVERY) {
         return;
     }
-    let a = |rva| game_addr(rva) as u32;
     unsafe {
-        if read(a(A3D_RVA)) == 1 || read(a(SOUND_MODE_RVA)) & 0x1_0000 == 0 {
+        if AUDIO.use_a3d.get() == 1 || AUDIO.sound_mode.get() & 0x1_0000 == 0 {
             return;
         }
-        let (playing, stopping) = (list(a(PLAYING_RVA)), list(a(STOPPING_RVA)));
+        let (playing, stopping) = (list(&AUDIO.playing_voices), list(&AUDIO.stopping_voices));
         let listed: HashSet<u32> = playing.union(&stopping).copied().collect();
-        let count = read(a(VOICE_COUNT_RVA)).min(VOICES);
+        let count = AUDIO.voice_count.get().min(VOICES);
         let size = std::mem::size_of::<Voice>() as u32;
         let mut strays = Vec::new();
         for n in 0..count {
-            let at = a(VOICES_RVA) + n * size;
+            let at = AUDIO.voices[0].addr() + n * size;
             let v = voice(at);
             if v.flags & 1 == 0 || v.buffer == 0 || listed.contains(&at) {
                 continue;
@@ -78,83 +73,5 @@ pub fn check() {
             }
         }
         LOGGED.lock().unwrap().retain(|n| strays.contains(n));
-    }
-}
-
-/// The console's `voices`: both lists, each voice with what it holds and whether its buffer
-/// plays (the voices' own buffers' way), for a sound heard stuck while it is.
-pub fn dump() {
-    let a = |rva| game_addr(rva) as u32;
-    unsafe {
-        let own_buffers = read(a(A3D_RVA)) != 1 && read(a(SOUND_MODE_RVA)) & 0x1_0000 != 0;
-        let size = std::mem::size_of::<Voice>() as u32;
-        for (name, head) in [("playing", PLAYING_RVA), ("stopping", STOPPING_RVA)] {
-            let mut at = read(a(head));
-            let mut n = 0;
-            log(&format!("audio: the {name} list:"));
-            while at != 0 && n < VOICES {
-                let v = voice(at);
-                let plays = if own_buffers && v.flags & 1 != 0 && v.buffer != 0 {
-                    match crate::audio::buffer_play::is_playing(v) {
-                        Ok(s) => format!("{}", s & 1 != 0),
-                        Err(_) => "?".into(),
-                    }
-                } else {
-                    "-".into()
-                };
-                log(&format!(
-                    "  voice {} sound {:#x} kind {} state {} volume {:#x} priority {} channel {:#x} dirty {:#x} plays {plays}",
-                    at.wrapping_sub(a(VOICES_RVA)) / size,
-                    v.sound,
-                    v.kind,
-                    v.state,
-                    v.volume,
-                    v.priority,
-                    v.channel,
-                    v.dirty
-                ));
-                at = v.next;
-                n += 1;
-            }
-        }
-        // The race's side: the shared spots' voices (`sound/spot_voices.rs`) that are in use
-        // or say they play, and the clock their ends are on.
-        use crate::sound::spot_voices::{
-            FREE, SPOT_COUNT, VOICE_COUNT, VOICE_LEN, VOICES as SPOT_VOICES,
-        };
-        let g = |address: usize| read(game_addr(crate::framework::rva(address)) as u32);
-        log(&format!(
-            "audio: race sound clock {}, race sounds started {}, sounds held back {}, shared spots {}",
-            g(crate::sound::turn_parts::CLOCK),
-            g(0x5124E4),
-            g(0x506C84),
-            g(SPOT_COUNT)
-        ));
-        for n in 0..VOICE_COUNT {
-            let at = game_addr(crate::framework::rva(SPOT_VOICES)) as u32 + n * VOICE_LEN;
-            let w = |o: u32| read(at + o);
-            if w(0) == FREE && w(0x28) == 0 {
-                continue;
-            }
-            log(&format!(
-                "  spot voice {n}: id {:#x}, heard {}, sound {:#x}, kind {}, new {}, start {}, playing {}, repeats {}, delay {}, ends {}",
-                w(0),
-                w(4),
-                w(0x14),
-                w(0x18),
-                w(0x20),
-                w(0x24),
-                w(0x28),
-                w(0x2C),
-                w(0x30),
-                w(0x34)
-            ));
-        }
-        log(&format!(
-            "audio: sound mode {:#x}, channels used {} of {}",
-            read(a(SOUND_MODE_RVA)),
-            read(a(crate::audio::voices::CHANNELS_USED_RVA)),
-            read(a(crate::audio::voices::CHANNEL_COUNT_RVA))
-        ));
     }
 }

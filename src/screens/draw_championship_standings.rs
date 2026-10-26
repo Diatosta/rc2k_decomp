@@ -18,42 +18,31 @@
 //! In:  nothing
 //! Out: every register kept (`pusha` .. `popa`)
 //!
-//! In the standings screen's draw list (0x758E5E). The rows are found before anything is
-//! drawn (a position not there is the look-up's fatal error, raised then). Refuses (before
-//! anything) no history, a section the record table has not (the look-up runs on), and
-//! what the look-up refuses.
-//! Hook removed 2026-10-22 (typed tables): the menus and draw lists run its `entry`
-//! (`menu::table_calls`); the registers above are the original's, for reference.
+//! In the standings screen's draw list (0x758E5E). The rows are found before anything is drawn (a
+//! position not there is the look-up's fatal error, raised then). Refuses (before anything) no
+//! history, a section the record table has not (the look-up runs on), and what the look-up refuses.
+//! The menus and draw lists run its `entry` (`menu::table_calls`); the registers above are the
+//! original's, for reference.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{Regs, game_read, rva};
+use crate::menu::champ_store::CHAMP_VIEW;
+use crate::menu::event_flow::Fault;
 use crate::menu::ranked_lookups::find_champ_position;
 use crate::screens::best_scores::section_there;
-use crate::screens::harness::{Left, draw_entry};
 use crate::text::draw_text::Canvas;
 
-const HISTORY_RVA: usize = rva(0x7556F0); // g_champHistory
-const FIRST_ROW_RVA: usize = rva(0x7556B8); // g_champFirstRow
 // g_champRow
 // g_champRowEnd
-const EVENT_MODE_RVA: usize = rva(0x7556D0); // g_eventMode
-fn g(a: usize) -> u32 {
-    unsafe { game_read(a) }
-}
-fn get(a: u32) -> u32 {
-    unsafe { (a as *const u32).read_unaligned() }
-}
-
 /// The Rust version.
-pub unsafe fn draw_championship_standings(canvas: &mut dyn Canvas) -> Result<(), Refused> {
-    let history = g(HISTORY_RVA);
+pub fn draw_championship_standings(canvas: &mut dyn Canvas) -> Result<(), Refused> {
+    let history = CHAMP_VIEW.champ_history.get();
     if history == 0 {
         return Err(BadInput("no championship history").into());
     }
-    if !section_there() {
+    if !section_there()? {
         return Err(BadInput("a section past the record table").into());
     }
-    let first_row = g(FIRST_ROW_RVA);
+    let first_row = CHAMP_VIEW.first_row.get();
     let end = first_row.wrapping_add(10);
     let mut rows = Vec::new();
     let mut row = first_row;
@@ -66,33 +55,24 @@ pub unsafe fn draw_championship_standings(canvas: &mut dyn Canvas) -> Result<(),
     }
     // Converted: `rc2k_core::screens::results_pages::championship_standings` (the rows found here).
     use rc2k_core::screens::results_pages::{StandingRow, championship_standings};
+    let f = Fault::default();
     let rows: Vec<StandingRow<u32>> = rows
         .into_iter()
         .map(|e| StandingRow {
-            player: (get(e + 4) as i32) > 0,
-            position: get(e + 0x70),
+            player: (f.get(e + 4) as i32) > 0,
+            position: f.get(e + 0x70),
             name: e + 0x14,
-            points: std::array::from_fn(|k| get(e + 0x38 + 4 * k as u32)),
-            nation: get(e + 8),
-            car: get(e + 0xC),
+            points: std::array::from_fn(|k| f.get(e + 0x38 + 4 * k as u32)),
+            nation: f.get(e + 8),
+            car: f.get(e + 0xC),
         })
         .collect();
+    f.check()?;
     championship_standings(
         &mut crate::screens::game_screen::GameScreen::new(canvas),
         first_row,
-        g(EVENT_MODE_RVA) == 0x13,
+        CHAMP_VIEW.event_mode.get() == 0x13,
         &rows,
     )?;
     Ok(())
-}
-
-fn rust(_: &Regs, canvas: &mut dyn Canvas) -> Result<Left, Refused> {
-    unsafe { draw_championship_standings(canvas) }?;
-    Ok(Left::nothing())
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    draw_entry("screens::draw_championship_standings", r, &rust)
 }

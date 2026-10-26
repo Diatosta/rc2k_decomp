@@ -1,212 +1,55 @@
 //! The game's 3 x 3 matrix helpers at 0x46574E .. 0x46587C (IDA, 2026-10-16), used by the
-//! marks: floats, rows of 12 bytes. The three that make a turn (0x465783, 0x4657A6,
-//! 0x4657C9) take their angle in st(0) and pop it: their hooks use `angle_hook!`, whose
-//! thunk keeps the angle (80 bits) for the Rust version and loads it again for the original.
+//! marks: floats, rows of 12 bytes. The three that make a turn (0x465783, 0x4657A6, 0x4657C9)
+//! take their angle in st(0) and pop it.
+//!
+//! Plain Rust since 2026-10-24 (the x87's arithmetic in `X`, `math/x87_float.rs`); the
+//! original's instructions are `asm_reference` in the tests.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::Regs;
 use crate::math::x87;
-use crate::math::x87::x87;
-use crate::scene::vector3::{read_floats, write_floats};
-use std::cell::UnsafeCell;
+use crate::math::x87_float::{ONE, X, f80, from_f80, ld, st};
+use crate::scene::vector3::write_floats;
+use crate::scene::x87_mem::{fld80, fstp};
 
 /// `scene::identity_matrix3` (0x46574E): the matrix at esi the identity (1.0 from `fld1`).
 /// Every register kept.
-pub unsafe fn identity_matrix3(at: u32) {
-    unsafe { write_floats(at, &rc2k_core::math::vector::IDENTITY) };
+pub fn identity_matrix3(at: u32) {
+    write_floats(at, &rc2k_core::math::vector::IDENTITY);
 }
 
-/// `scene::multiply_matrices3` (0x4657EC): ebp = esi x edi, column by column, each written
-/// as made (so an ebp that is one of the two behaves as there). Leaves ecx and edx 0, edi
-/// and ebp 12 on.
-pub unsafe fn multiply_matrices3(entry: &Regs) -> Regs {
-    let mut g = *entry;
-    unsafe {
-        for column in 0..3 {
-            for row in 0..3 {
-                x87::row_times_column_3(
-                    (g.esi + 12 * row) as *const u32,
-                    (g.edi + 4 * column) as *const u32,
-                    (g.ebp + 12 * row + 4 * column) as *mut u32,
-                );
-            }
+/// `scene::multiply_matrices3` (0x4657EC): `out` = `a` x `b`, column by column, each written
+/// as made (so an `out` that is one of the two behaves as there). The registers the
+/// original leaves (ecx and edx 0, edi and ebp 12 on) are read by no caller (liveness at the
+/// five call sites, all `marks`', which are Rust).
+pub fn multiply_matrices3(a: u32, b: u32, out: u32) {
+    for column in 0..3 {
+        for row in 0..3 {
+            x87::row_times_column_3(
+                crate::pointers::host(a + 12 * row) as *const u32,
+                crate::pointers::host(b + 4 * column) as *const u32,
+                crate::pointers::host(out + 12 * row + 4 * column) as *mut u32,
+            );
         }
     }
-    g.ecx = 0;
-    g.edx = 0;
-    g.edi = g.edi.wrapping_add(12);
-    g.ebp = g.ebp.wrapping_add(12);
-    g
 }
 
-/// The converted `multiply_matrices3` (`rc2k_core::math::vector`, plain floats): the hook's.
-pub unsafe fn multiply_matrices3_plain(entry: &Regs) -> Regs {
-    use rc2k_core::math::vector::row_times_column;
-    let mut g = *entry;
-    unsafe {
-        for column in 0..3 {
-            for row in 0..3 {
-                let a: [f32; 3] = read_floats(g.esi + 12 * row);
-                let b = g.edi + 4 * column;
-                let b = [b, b + 0xC, b + 0x18].map(|at| read_floats::<1>(at)[0]);
-                write_floats(g.ebp + 12 * row + 4 * column, &[row_times_column(a, b)]);
-            }
-        }
-    }
-    g.ecx = 0;
-    g.edx = 0;
-    g.edi = g.edi.wrapping_add(12);
-    g.ebp = g.ebp.wrapping_add(12);
-    g
-}
-
-/// `scene::transform_int_points` (0x465829): ecx points of three whole numbers from esi
-/// turned by the matrix at ebp into edi (`math::x87::turn_int_point`). Leaves ecx -1 (one
-/// less than it was when negative), esi and edi past them. Refuses ecx 0x80000000 (the
-/// count would run away).
-pub unsafe fn transform_int_points(entry: &Regs) -> Result<Regs, Refused> {
-    let mut g = *entry;
-    if g.ecx == 0x8000_0000 {
+/// `scene::transform_int_points` (0x465829): `count` points of three whole numbers from
+/// `from` turned by the matrix at `matrix` into `to` (`math::x87::turn_int_point`). The
+/// registers it leaves (ecx -1, esi and edi past the points) are read by no caller. Refuses
+/// a count of 0x80000000 (the count would run away).
+pub fn transform_int_points(from: u32, to: u32, count: u32, matrix: u32) -> Result<(), Refused> {
+    if count == 0x8000_0000 {
         return Err(BadInput("a count of 0x80000000: the original runs away").into());
     }
-    unsafe {
-        for _ in 0..(g.ecx as i32).max(0) {
-            x87::turn_int_point(g.esi as *const i32, g.ebp as *const u32, g.edi as *mut i32);
-            g.esi = g.esi.wrapping_add(12);
-            g.edi = g.edi.wrapping_add(12);
-        }
+    for n in 0..(count as i32).max(0) as u32 {
+        x87::turn_int_point(
+            crate::pointers::host(from.wrapping_add(12 * n)) as *const i32,
+            crate::pointers::host(matrix) as *const u32,
+            crate::pointers::host(to.wrapping_add(12 * n)) as *mut i32,
+        );
     }
-    g.ecx = if (g.ecx as i32) < 0 {
-        g.ecx - 1
-    } else {
-        u32::MAX
-    };
-    Ok(g)
+    Ok(())
 }
-
-/// The converted `transform_int_points`: the hook's.
-pub unsafe fn transform_int_points_plain(entry: &Regs) -> Result<Regs, Refused> {
-    let mut g = *entry;
-    if g.ecx == 0x8000_0000 {
-        return Err(BadInput("a count of 0x80000000: the original runs away").into());
-    }
-    unsafe {
-        for _ in 0..(g.ecx as i32).max(0) {
-            let m: [f32; 9] = read_floats(g.ebp);
-            let p: [i32; 3] =
-                std::array::from_fn(|n| ((g.esi + 4 * n as u32) as *const i32).read_unaligned());
-            let out = rc2k_core::math::vector::turn_int_point(p, &m);
-            for (n, v) in out.into_iter().enumerate() {
-                ((g.edi + 4 * n as u32) as *mut i32).write_unaligned(v);
-            }
-            g.esi = g.esi.wrapping_add(12);
-            g.edi = g.edi.wrapping_add(12);
-        }
-    }
-    g.ecx = if (g.ecx as i32) < 0 {
-        g.ecx - 1
-    } else {
-        u32::MAX
-    };
-    Ok(g)
-}
-
-/// Floats by lot for the tests: mostly within ±4, a few large, some negative zero.
-pub fn test_floats(seed: u32, out: &mut [u32]) {
-    let mut s = seed;
-    for v in out.iter_mut() {
-        s = s.wrapping_mul(1_103_515_245).wrapping_add(12345);
-        let f = ((s >> 8) as i32 % 0x8000) as f32 / 4096.0;
-        *v = match s % 13 {
-            0 => 0x8000_0000,
-            1 => (f * 70000.0).to_bits(),
-            _ => f.to_bits(),
-        };
-    }
-}
-
-/// An angle as the game left it in st(0): the ten bytes of an 80-bit value.
-pub struct Angle(pub UnsafeCell<[u8; 10]>);
-
-unsafe impl Sync for Angle {}
-
-impl Angle {
-    pub const fn new() -> Self {
-        Self(UnsafeCell::new([0; 10]))
-    }
-
-    pub fn ptr(&self) -> *mut u8 {
-        self.0.get() as *mut u8
-    }
-
-    pub fn set(&self, bytes: [u8; 10]) {
-        unsafe { *self.0.get() = bytes };
-    }
-
-    pub fn get(&self) -> [u8; 10] {
-        unsafe { *self.0.get() }
-    }
-}
-
-impl Default for Angle {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-/// For a hook whose function takes an angle in st(0) and pops it: `$thunk` takes the
-/// angle off into `$angle` and calls `$dispatch(regs)` (gated as `hook_asm!`'s);
-/// `$with_angle(regs)` loads `$angle` into st(0) and runs `$call_original`, made here too.
-macro_rules! angle_hook {
-    ($thunk:ident, $call_original:ident, $with_angle:ident, dispatch = $dispatch:ident,
-     original = $orig:ident, angle = $angle:ident) => {
-        #[unsafe(naked)]
-        pub(crate) unsafe extern "C" fn $thunk() {
-            core::arch::naked_asm!(
-                "lea esp, [esp - 12]",
-                "fstp tbyte ptr [esp]", // the angle, popped as the original would
-                "pushfd",
-                "pushad",
-                "cld",
-                "call {enter}",
-                "push esp",             // arg: *mut Regs
-                "lea eax, [esp + 40]",
-                "push eax",
-                "call {keep}",          // the angle into $angle
-                "add esp, 4",
-                "call {dispatch}",
-                "add esp, 4",
-                "call {leave}",
-                "popad",
-                "popfd",
-                "lea esp, [esp + 12]",  // no flags touched
-                "ret",
-                enter = sym $crate::framework::hook_enter,
-                leave = sym $crate::framework::hook_leave,
-                keep = sym keep_angle,
-                dispatch = sym $dispatch,
-            )
-        }
-
-        extern "C" fn keep_angle(at: *const [u8; 10]) {
-            $angle.set(unsafe { at.read_unaligned() });
-        }
-
-        /// The original with `$angle` in st(0).
-        #[unsafe(naked)]
-        pub(crate) unsafe extern "C" fn $with_angle(_regs: *mut $crate::framework::Regs) {
-            core::arch::naked_asm!(
-                "fld tbyte ptr [{a}]",
-                "jmp {co}",
-                a = sym $angle,
-                co = sym $call_original,
-            )
-        }
-
-        $crate::framework::hook_asm!(@call_original $call_original, $orig);
-    };
-}
-pub(crate) use angle_hook;
 
 /// The axis a turn is about.
 #[derive(Clone, Copy)]
@@ -229,75 +72,237 @@ pub fn turnable(angle: &[u8; 10]) -> Result<(), Refused> {
 /// `scene::turn_matrix3_x` (0x465783), `_y` (0x4657A6), `_z` (0x4657C9): the matrix at esi
 /// a turn by the angle about that axis (the original's `fsincos` and stores, in its order).
 /// Every register kept. Refuses an angle `fsincos` cannot take.
-pub unsafe fn turn_matrix3(axis: Axis, at: u32, angle: [u8; 10]) -> Result<(), Refused> {
+pub fn turn_matrix3(axis: Axis, at: u32, angle: [u8; 10]) -> Result<(), Refused> {
     turnable(&angle)?;
     let a = angle.as_ptr();
+    let m = crate::pointers::host(at);
     match axis {
-        Axis::X => x87!(
-            "fld tbyte ptr [{a}]", "fsincos", "fld1", "fstp dword ptr [{m}]", "fldz",
-            "fst dword ptr [{m} + 4]", "fst dword ptr [{m} + 8]",
-            "fst dword ptr [{m} + 0xC]", "fstp dword ptr [{m} + 0x18]",
-            "fst dword ptr [{m} + 0x10]", "fstp dword ptr [{m} + 0x20]",
-            "fst dword ptr [{m} + 0x14]", "fchs", "fstp dword ptr [{m} + 0x1C]";
-            a = a, m = at
-        ),
-        Axis::Y => x87!(
-            "fld tbyte ptr [{a}]", "fsincos", "fld1", "fstp dword ptr [{m} + 0x10]",
-            "fldz", "fst dword ptr [{m} + 4]", "fst dword ptr [{m} + 0xC]",
-            "fst dword ptr [{m} + 0x14]", "fstp dword ptr [{m} + 0x1C]",
-            "fst dword ptr [{m}]", "fstp dword ptr [{m} + 0x20]",
-            "fst dword ptr [{m} + 8]", "fchs", "fstp dword ptr [{m} + 0x18]";
-            a = a, m = at
-        ),
-        Axis::Z => x87!(
-            "fld tbyte ptr [{a}]", "fsincos", "fld1", "fstp dword ptr [{m} + 0x20]",
-            "fldz", "fst dword ptr [{m} + 8]", "fst dword ptr [{m} + 0x14]",
-            "fst dword ptr [{m} + 0x18]", "fstp dword ptr [{m} + 0x1C]",
-            "fst dword ptr [{m}]", "fstp dword ptr [{m} + 0x10]",
-            "fst dword ptr [{m} + 4]", "fchs", "fstp dword ptr [{m} + 0xC]";
-            a = a, m = at
-        ),
+        Axis::X => turn_x(a, m),
+        Axis::Y => turn_y(a, m),
+        Axis::Z => turn_z(a, m),
     }
     Ok(())
 }
 
-/// The converted `turn_matrix3` (`rc2k_core::math::vector`, plain floats): the hooks'.
-pub unsafe fn turn_matrix3_plain(axis: Axis, at: u32, angle: [u8; 10]) -> Result<(), Refused> {
-    use rc2k_core::math::vector::{Axis as A, turn_matrix};
-    turnable(&angle)?;
-    let axis = match axis {
-        Axis::X => A::X,
-        Axis::Y => A::Y,
-        Axis::Z => A::Z,
-    };
-    let m = turn_matrix(axis, rc2k_core::math::extended::to_f64(angle));
-    unsafe { write_floats(at, &m) };
-    Ok(())
+/// `fld tbyte; fsincos; fld1; fstp ..; fldz; fst ..` for the turn about x: the identity's
+/// row and column of x, the cosine on the diagonal, the sine and minus the sine across.
+fn turn_x(a: *const u8, m: *mut u8) {
+    let t0 = fld80(a, 0x0);
+    let t1 = t0.sin();
+    let t2 = t0.cos();
+    let t3 = ONE;
+    fstp(m, 0x0, t3);
+    let t4 = X(0.0);
+    fstp(m, 0x4, t4);
+    fstp(m, 0x8, t4);
+    fstp(m, 0xC, t4);
+    fstp(m, 0x18, t4);
+    fstp(m, 0x10, t2);
+    fstp(m, 0x20, t2);
+    fstp(m, 0x14, t1);
+    let t5 = -t1;
+    fstp(m, 0x1C, t5);
+}
+
+/// The turn about y (see `turn_x`).
+fn turn_y(a: *const u8, m: *mut u8) {
+    let t0 = fld80(a, 0x0);
+    let t1 = t0.sin();
+    let t2 = t0.cos();
+    let t3 = ONE;
+    fstp(m, 0x10, t3);
+    let t4 = X(0.0);
+    fstp(m, 0x4, t4);
+    fstp(m, 0xC, t4);
+    fstp(m, 0x14, t4);
+    fstp(m, 0x1C, t4);
+    fstp(m, 0x0, t2);
+    fstp(m, 0x20, t2);
+    fstp(m, 0x8, t1);
+    let t5 = -t1;
+    fstp(m, 0x18, t5);
+}
+
+/// The turn about z (see `turn_x`).
+fn turn_z(a: *const u8, m: *mut u8) {
+    let t0 = fld80(a, 0x0);
+    let t1 = t0.sin();
+    let t2 = t0.cos();
+    let t3 = ONE;
+    fstp(m, 0x20, t3);
+    let t4 = X(0.0);
+    fstp(m, 0x8, t4);
+    fstp(m, 0x14, t4);
+    fstp(m, 0x18, t4);
+    fstp(m, 0x1C, t4);
+    fstp(m, 0x0, t2);
+    fstp(m, 0x10, t2);
+    fstp(m, 0x4, t1);
+    let t5 = -t1;
+    fstp(m, 0xC, t5);
 }
 
 /// A float made an 80-bit value (`fld dword; fstp tbyte`).
 pub fn extended(f: u32) -> [u8; 10] {
-    let mut out = [0u8; 10];
-    let o = out.as_mut_ptr();
-    x87!("fld dword ptr [{f}]", "fstp tbyte ptr [{o}]"; f = &f as *const u32, o = o);
-    out
-}
-
-/// pi times `n` over 8 as an 80-bit value, not a float (`fldpi`, `fimul`, `fidiv`).
-pub fn extended_pi(n: i32) -> [u8; 10] {
-    let mut out = [0u8; 10];
-    let o = out.as_mut_ptr();
-    let eight = 8i32;
-    x87!(
-        "fldpi", "fimul dword ptr [{n}]", "fidiv dword ptr [{e}]", "fstp tbyte ptr [{o}]";
-        n = &n as *const i32, e = &eight as *const i32, o = o
-    );
-    out
+    f80(ld(f))
 }
 
 /// An 80-bit value rounded to a float (`fld tbyte; fstp dword`).
 pub fn rounded(v: [u8; 10]) -> u32 {
-    let mut out = 0u32;
-    x87!("fld tbyte ptr [{v}]", "fstp dword ptr [{o}]"; v = v.as_ptr(), o = &mut out as *mut u32);
-    out
+    st(from_f80(v))
+}
+
+#[cfg(all(test, target_arch = "x86"))]
+mod asm_reference {
+    use super::*;
+    use crate::scene::asm_test::{Kind, differential, put_t80};
+
+    /// The original's instructions for `turn_matrix3_x`.
+    unsafe fn turn_x_ref(a: *mut u8, m: *mut u8) {
+        unsafe {
+            core::arch::asm!(
+                "fld tbyte ptr [{a}]", "fsincos", "fld1", "fstp dword ptr [{m}]", "fldz",
+                "fst dword ptr [{m} + 4]", "fst dword ptr [{m} + 8]",
+                "fst dword ptr [{m} + 0xC]", "fstp dword ptr [{m} + 0x18]",
+                "fst dword ptr [{m} + 0x10]", "fstp dword ptr [{m} + 0x20]",
+                "fst dword ptr [{m} + 0x14]", "fchs", "fstp dword ptr [{m} + 0x1C]",
+                a = in(reg) a,
+                m = in(reg) m,
+                out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
+                out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
+                options(nostack),
+            );
+        }
+    }
+
+    /// The original's instructions for `turn_matrix3_y`.
+    unsafe fn turn_y_ref(a: *mut u8, m: *mut u8) {
+        unsafe {
+            core::arch::asm!(
+                "fld tbyte ptr [{a}]", "fsincos", "fld1", "fstp dword ptr [{m} + 0x10]",
+                "fldz", "fst dword ptr [{m} + 4]", "fst dword ptr [{m} + 0xC]",
+                "fst dword ptr [{m} + 0x14]", "fstp dword ptr [{m} + 0x1C]",
+                "fst dword ptr [{m}]", "fstp dword ptr [{m} + 0x20]",
+                "fst dword ptr [{m} + 8]", "fchs", "fstp dword ptr [{m} + 0x18]",
+                a = in(reg) a,
+                m = in(reg) m,
+                out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
+                out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
+                options(nostack),
+            );
+        }
+    }
+
+    /// The original's instructions for `turn_matrix3_z`.
+    unsafe fn turn_z_ref(a: *mut u8, m: *mut u8) {
+        unsafe {
+            core::arch::asm!(
+                "fld tbyte ptr [{a}]", "fsincos", "fld1", "fstp dword ptr [{m} + 0x20]",
+                "fldz", "fst dword ptr [{m} + 8]", "fst dword ptr [{m} + 0x14]",
+                "fst dword ptr [{m} + 0x18]", "fstp dword ptr [{m} + 0x1C]",
+                "fst dword ptr [{m}]", "fstp dword ptr [{m} + 0x10]",
+                "fst dword ptr [{m} + 4]", "fchs", "fstp dword ptr [{m} + 0xC]",
+                a = in(reg) a,
+                m = in(reg) m,
+                out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
+                out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
+                options(nostack),
+            );
+        }
+    }
+
+    /// `extended`'s instructions.
+    unsafe fn extended_ref(f: *mut u8, o: *mut u8) {
+        unsafe {
+            core::arch::asm!(
+                "fld dword ptr [{f}]", "fstp tbyte ptr [{o}]",
+                f = in(reg) f,
+                o = in(reg) o,
+                out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
+                out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
+                options(nostack),
+            );
+        }
+    }
+
+    /// `rounded`'s instructions.
+    unsafe fn rounded_ref(v: *mut u8, o: *mut u8) {
+        unsafe {
+            core::arch::asm!(
+                "fld tbyte ptr [{v}]", "fstp dword ptr [{o}]",
+                v = in(reg) v,
+                o = in(reg) o,
+                out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
+                out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
+                options(nostack),
+            );
+        }
+    }
+
+    /// The angle (an 80-bit value, dwords 0 .. 3), then the nine floats at dword 4. The sine
+    /// and cosine are libm's: one float ulp apart is allowed.
+    fn turn_test(
+        name: &str,
+        seed: u64,
+        reference: unsafe fn(*mut u8, *mut u8),
+        plain: unsafe fn(*const u8, *mut u8),
+    ) {
+        differential::<13>(
+            name,
+            6000,
+            seed,
+            [Kind::Ulp1; 13],
+            |rng, m| {
+                m.fill(0xAAAA_AAAA);
+                put_t80(m, 0, rng.angle());
+                m[2] = 0;
+                m[3..].fill(0xAAAA_AAAA);
+            },
+            |base| unsafe { reference(base, base.add(12)) },
+            |base| unsafe { plain(base, base.add(12)) },
+        );
+    }
+
+    #[test]
+    fn turn_x_matches_the_assembly() {
+        turn_test("turn_matrix3_x", 7, turn_x_ref, turn_x);
+    }
+
+    #[test]
+    fn turn_y_matches_the_assembly() {
+        turn_test("turn_matrix3_y", 8, turn_y_ref, turn_y);
+    }
+
+    #[test]
+    fn turn_z_matches_the_assembly() {
+        turn_test("turn_matrix3_z", 9, turn_z_ref, turn_z);
+    }
+
+    #[test]
+    fn extended_and_rounded_matches_the_assembly() {
+        // a float, its 80-bit value, the 80-bit value rounded back
+        differential::<8>(
+            "extended and rounded",
+            8000,
+            10,
+            [Kind::Exact; 8],
+            |rng, m| {
+                m.fill(0xAAAA_AAAA);
+                m[0] = rng.fl();
+                put_t80(m, 16, rng.fl());
+            },
+            |base| unsafe {
+                extended_ref(base, base.add(4));
+                rounded_ref(base.add(16), base.add(28));
+            },
+            |base| unsafe {
+                base.add(4)
+                    .cast::<[u8; 10]>()
+                    .write_unaligned(extended(base.cast::<u32>().read()));
+                base.add(28)
+                    .cast::<u32>()
+                    .write_unaligned(rounded(base.add(16).cast::<[u8; 10]>().read_unaligned()));
+            },
+        );
+    }
 }

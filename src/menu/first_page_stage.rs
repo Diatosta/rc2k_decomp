@@ -6,42 +6,29 @@
 //! In:  nothing
 //! Out: unchanged up to ten; else eax the first stage, edx n % 10, ebp 10
 //!
-//! Callers: the event pages' code. Self-test: the original and the Rust version, counts
-//! by lot.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
-use crate::errors::Refused;
-use crate::framework::{Regs, game_read, game_write, rva};
-use crate::race::stage_prefs::left_of;
-use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
+//! Callers: the event pages' code.
+use crate::menu::champ_store::CHAMP_VIEW;
+use rc2k_core::menu::event::LastPage;
 
-const COUNT_RVA: usize = rva(0x7556B4); // dword_7556B4
-const FIRST_RVA: usize = rva(0x7556B8); // dword_7556B8
-/// The Rust version (see the header): the registers it leaves.
-pub unsafe fn first_page_stage(entry: &Regs) -> Result<Regs, Refused> {
-    let mut g = *entry;
-    let n: u32 = unsafe { game_read(COUNT_RVA) };
+/// The first stage of the last page (stored in `dword_7556B8`, 1 for a single page), and
+/// what the original leaves in the registers: for more than one page, eax that first
+/// stage, edx the stages on the last page (count % 10), ebp 10.
+pub fn first_page_stage() -> Option<LastPage> {
+    let n: u32 = { CHAMP_VIEW.count.get() };
     // Converted: `rc2k_core::menu::event::last_page` (its division cannot meet 0).
     let Some(last) = rc2k_core::menu::event::last_page(n) else {
-        unsafe { game_write(FIRST_RVA, 1u32) };
-        return Ok(g);
+        CHAMP_VIEW.first_row.set(1u32);
+        return None;
     };
-    g.edx = last.rest;
-    g.eax = last.first;
-    g.ebp = 10;
-    unsafe { game_write(FIRST_RVA, g.eax) };
-    Ok(g)
+    CHAMP_VIEW.first_row.set(last.first);
+    Some(last)
 }
 
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    Ok(left_of(&unsafe { first_page_stage(r) }?))
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
+/// The carried values as `first_page_stage` leaves them (ebp, which it also sets, is
+/// nothing a screen reads).
+pub fn carry_on(last: Option<LastPage>, c: &mut crate::menu::screen_loop::Carried) {
+    if let Some(last) = last {
+        c.clock = last.rest;
+        c.arg = last.first;
+    }
 }

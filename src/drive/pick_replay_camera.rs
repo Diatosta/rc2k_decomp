@@ -9,61 +9,49 @@
 //! Out: edx the mode; eax the last draw's product, ebx its record; the rest kept; no flags
 //!      read
 //!
-//! Caller: `drive::replay_cameras`.
-//! Refuses (before anything) a wish no mode stops (the original draws for ever).
-//! Self-test: the original and the Rust version on the game's records, the random state
-//! saved and put back, the wishes and car kinds.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Caller: `drive::replay_cameras`. Refuses (before anything) a wish no mode stops (the
+//! original draws for ever).
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{EAX, EBX, EDX, Regs};
-use crate::physics::flow::g;
-use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
+use crate::race::blocks_store::CAR_BLOCKS;
+use crate::race::view_store::RACE_VIEW;
+use crate::race::view_vars_store::VIEW_VARS;
 use rc2k_core::drive::replay_views::{MODES as MODE_COUNT, draw, fits, kept_mode, wish_kind};
 
-const MODES: usize = 0x606320; // off_606320
-const B: usize = 0x70F3EC; // g_carBlockStore
-
-fn kind_of(mode: u32) -> u32 {
-    unsafe { (g(MODES + 4 * mode as usize) as *const u32).read_unaligned() }
+fn kind_of(reading: &crate::scene::reading::Reading, mode: u32) -> u32 {
+    reading.read(
+        VIEW_VARS.view_records[mode as usize].get(), // off_606320
+        "a camera mode's record",
+    )
 }
 
 /// The Rust version.
 // Converted: `rc2k_core::drive::replay_views::{wish_kind, fits, draw, kept_mode}`.
-pub unsafe fn pick_replay_camera(entry: &Regs) -> Result<Left, Refused> {
-    let Some(kind) = wish_kind(entry.eax) else {
-        return Ok(Left::nothing());
+/// The camera wish `wish` (eax); the mode kept (edx), or `None` for a wish that draws
+/// nothing (the original leaves edx then; its one caller draws only for the wishes that
+/// draw).
+pub fn pick_replay_camera(wish: u32) -> Result<Option<u32>, Refused> {
+    let Some(kind) = wish_kind(wish) else {
+        return Ok(None);
     };
-    let fits = |mode: u32| fits(kind, kind_of(mode));
-    if !(0..MODE_COUNT).any(fits) {
+    let reading = crate::scene::reading::Reading::new();
+    let fits = |mode: u32| fits(kind, kind_of(&reading, mode));
+    let any = (0..MODE_COUNT).any(fits);
+    reading.finish()?;
+    if !any {
         return Err(BadInput("no camera mode the wish stops at").into());
     }
-    let (eax, edx) = loop {
-        let (eax, edx) = draw(unsafe { crate::math::next_random::next_random() });
+    let edx = loop {
+        let (_, edx) = draw(crate::math::next_random::next_random());
         if fits(edx) {
-            break (eax, edx);
+            break edx;
         }
     };
-    let ebx = g(MODES + 4 * edx as usize);
     let edx = kept_mode(
         edx,
-        || g(B + 0x24),
-        || g(0x63DB94) != 1,
-        || g(B + 0xFE0 + 0x24),
+        || CAR_BLOCKS.cars[0].car_kind.bits(),
+        || RACE_VIEW.players.get() != 1,
+        || CAR_BLOCKS.cars[1].car_kind.bits(),
     );
-    Ok(Left::nothing().with(EAX, eax).with(EBX, ebx).with(EDX, edx))
-}
-
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    unsafe { pick_replay_camera(r) }
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
+    Ok(Some(edx))
 }

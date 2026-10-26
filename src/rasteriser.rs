@@ -26,13 +26,193 @@
 /// colours).
 pub type Vertex = [u32; 8];
 
-/// Where it draws: rows `pitch` bytes apart, 16 (5-6-5) or 32 bits (XRGB) a pixel.
-pub struct Target {
-    pub pixels: *mut u8,
-    pub pitch: usize,
-    pub width: usize,
-    pub height: usize,
-    pub bits: u32,
+/// Where it draws: the colours, rows `pitch` bytes apart, 16 (5-6-5) or 32 bits (XRGB) a
+/// pixel, and the depths, a float a pixel. Drawn into through its tiles (`tiles`), which
+/// share no pixel: a tile reaches only its own rectangle, so tiles can be drawn at once.
+pub struct Frame {
+    pixels: *mut u8,
+    pitch: usize,
+    width: usize,
+    height: usize,
+    bits: u32,
+    depth: *mut f32,
+}
+
+// SAFETY: the frame's memory is reached only through its tiles, which `tiles` makes
+// disjoint, each a `&mut` borrow of the frame's.
+unsafe impl Sync for Frame {}
+
+impl Frame {
+    /// # Safety
+    /// `pixels` holds `height` rows of `pitch` bytes (`pitch` at least `width` pixels of
+    /// `bits`), `depth` `width` x `height` floats; both live, and touched by nothing else,
+    /// while the frame does.
+    pub unsafe fn new(
+        pixels: *mut u8,
+        pitch: usize,
+        width: usize,
+        height: usize,
+        bits: u32,
+        depth: *mut f32,
+    ) -> Self {
+        Self {
+            pixels,
+            pitch,
+            width,
+            height,
+            bits,
+            depth,
+        }
+    }
+
+    /// The frame cut into tiles of `size` pixels square (one tile when `size` is 0).
+    pub fn tiles(&mut self, size: usize) -> Vec<Tile<'_>> {
+        let (width, height) = (self.width, self.height);
+        let clips: Vec<Clip> = if size == 0 {
+            vec![Clip {
+                left: 0,
+                top: 0,
+                right: width,
+                bottom: height,
+            }]
+        } else {
+            (0..height.div_ceil(size))
+                .flat_map(|ty| {
+                    (0..width.div_ceil(size)).map(move |tx| Clip {
+                        left: tx * size,
+                        top: ty * size,
+                        right: ((tx + 1) * size).min(width),
+                        bottom: ((ty + 1) * size).min(height),
+                    })
+                })
+                .collect()
+        };
+        let frame = &*self;
+        clips
+            .into_iter()
+            .map(|clip| Tile {
+                frame,
+                clip,
+                _one_thread: std::marker::PhantomData,
+            })
+            .collect()
+    }
+}
+
+/// A rectangle of a frame no other tile has: every pixel and depth it reads or writes is
+/// checked to lie in it.
+pub struct Tile<'a> {
+    frame: &'a Frame,
+    clip: Clip,
+    /// Drawn on one thread at a time (moved between threads, never shared).
+    _one_thread: std::marker::PhantomData<std::cell::Cell<()>>,
+}
+
+impl Tile<'_> {
+    pub fn clip(&self) -> &Clip {
+        &self.clip
+    }
+
+    /// `draw_fan` within the tile only (tiles drawn at once give the same pixels as the
+    /// whole, each pixel's triangles still in their order). Returns the pixels written.
+    pub fn draw_fan(
+        &mut self,
+        vertices: &[Vertex],
+        states: &States,
+        texture: Option<&Texture>,
+    ) -> u64 {
+        draw_fan_in(vertices, self, states, texture)
+    }
+
+    /// The depths of `[left, top, right, bottom)` within the tile set to 1 (far).
+    pub fn clear_depth(&mut self, [left, top, right, bottom]: [usize; 4]) {
+        let c = self.clip;
+        for y in top.max(c.top)..bottom.min(c.bottom) {
+            for x in left.max(c.left)..right.min(c.right) {
+                self.set_depth(x, y, 1.0);
+            }
+        }
+    }
+
+    /// Whether `n` places from (x, y) on its row lie in the tile; a place outside is a slip
+    /// of the drawing code, which ends the program.
+    #[inline(always)]
+    fn check(&self, x: usize, y: usize, n: usize) {
+        let c = &self.clip;
+        assert!(
+            y >= c.top && y < c.bottom && x >= c.left && x + n <= c.right,
+            "rasteriser: a place outside its tile"
+        );
+    }
+
+    #[inline(always)]
+    fn depth(&self, x: usize, y: usize) -> f32 {
+        self.check(x, y, 1);
+        // SAFETY: inside the tile, so inside the frame's depths (`Frame::new`), and no
+        // other tile reaches it.
+        unsafe { *self.frame.depth.add(y * self.frame.width + x) }
+    }
+
+    #[inline(always)]
+    fn set_depth(&self, x: usize, y: usize, z: f32) {
+        self.check(x, y, 1);
+        // SAFETY: as `depth`.
+        unsafe { *self.frame.depth.add(y * self.frame.width + x) = z }
+    }
+
+    /// The raw pixel at (x, y): 16 or 32 bits.
+    #[inline(always)]
+    fn pixel(&self, x: usize, y: usize) -> u32 {
+        self.check(x, y, 1);
+        let f = self.frame;
+        // SAFETY: inside the tile, so inside the frame's rows (`Frame::new`), and no other
+        // tile reaches it.
+        unsafe {
+            let row = f.pixels.add(y * f.pitch);
+            if f.bits == 16 {
+                (row.add(x * 2) as *const u16).read_unaligned() as u32
+            } else {
+                (row.add(x * 4) as *const u32).read_unaligned()
+            }
+        }
+    }
+
+    /// The raw pixel at (x, y) written: 16 or 32 bits.
+    #[inline(always)]
+    fn put_pixel(&self, x: usize, y: usize, p: u32) {
+        self.check(x, y, 1);
+        let f = self.frame;
+        // SAFETY: as `pixel`.
+        unsafe {
+            let row = f.pixels.add(y * f.pitch);
+            if f.bits == 16 {
+                (row.add(x * 2) as *mut u16).write_unaligned(p as u16);
+            } else {
+                (row.add(x * 4) as *mut u32).write_unaligned(p);
+            }
+        }
+    }
+
+    fn read(&self, x: usize, y: usize) -> Colour {
+        let p = self.pixel(x, y);
+        if self.frame.bits == 16 {
+            [part(p, 0x001F), part(p, 0x07E0), part(p, 0xF800), 1.0]
+        } else {
+            let mut colour = unpack(p);
+            colour[3] = 1.0;
+            colour
+        }
+    }
+
+    fn write(&self, x: usize, y: usize, colour: &Colour) {
+        let to = |c: f32, most: f32| (c.clamp(0.0, 1.0) * most + 0.5) as i32 as u32;
+        let p = if self.frame.bits == 16 {
+            to(colour[2], 31.0) << 11 | to(colour[1], 63.0) << 5 | to(colour[0], 31.0)
+        } else {
+            to(colour[2], 255.0) << 16 | to(colour[1], 255.0) << 8 | to(colour[0], 255.0)
+        };
+        self.put_pixel(x, y, p);
+    }
 }
 
 /// A texture's first level: rows `pitch` bytes apart, `bytes` a pixel, the four masks
@@ -144,34 +324,6 @@ fn factor(blend: u32, source: &Colour, target: &Colour) -> Colour {
     }
 }
 
-unsafe fn read_target(target: &Target, x: usize, y: usize) -> Colour {
-    unsafe {
-        let row = target.pixels.add(y * target.pitch);
-        if target.bits == 16 {
-            let p = (row.add(x * 2) as *const u16).read_unaligned() as u32;
-            [part(p, 0x001F), part(p, 0x07E0), part(p, 0xF800), 1.0]
-        } else {
-            let mut colour = unpack((row.add(x * 4) as *const u32).read_unaligned());
-            colour[3] = 1.0;
-            colour
-        }
-    }
-}
-
-unsafe fn write_target(target: &Target, x: usize, y: usize, colour: &Colour) {
-    let to = |c: f32, most: f32| (c.clamp(0.0, 1.0) * most + 0.5) as i32 as u32;
-    unsafe {
-        let row = target.pixels.add(y * target.pitch);
-        if target.bits == 16 {
-            let p = to(colour[2], 31.0) << 11 | to(colour[1], 63.0) << 5 | to(colour[0], 31.0);
-            (row.add(x * 2) as *mut u16).write_unaligned(p as u16);
-        } else {
-            let p = to(colour[2], 255.0) << 16 | to(colour[1], 255.0) << 8 | to(colour[0], 255.0);
-            (row.add(x * 4) as *mut u32).write_unaligned(p);
-        }
-    }
-}
-
 #[derive(Clone, Copy, Default)]
 struct Point {
     x: f32,
@@ -209,29 +361,6 @@ fn top_left(a: &Point, b: &Point) -> bool {
     (a.y == b.y && b.x > a.x) || b.y < a.y
 }
 
-/// Draws a triangle fan (vertex 0 with each two neighbours).
-///
-/// # Safety
-/// `target.pixels` must hold `target.height` rows of `target.pitch` bytes.
-pub unsafe fn draw_fan(
-    vertices: &[Vertex],
-    target: &Target,
-    states: &States,
-    texture: Option<&Texture>,
-    depth: &mut [f32],
-) {
-    if depth.len() < target.width * target.height {
-        return;
-    }
-    let clip = Clip {
-        left: 0,
-        top: 0,
-        right: target.width,
-        bottom: target.height,
-    };
-    unsafe { draw_fan_in(vertices, target, states, texture, depth.as_mut_ptr(), &clip) };
-}
-
 /// A rectangle of the target: places from (left, top) up to (right, bottom).
 #[derive(Clone, Copy)]
 pub struct Clip {
@@ -241,20 +370,12 @@ pub struct Clip {
     pub bottom: usize,
 }
 
-/// `draw_fan` within `clip` only (a tile of the frame: tiles drawn at once give the same
-/// pixels as the whole, each pixel's triangles still in their order).
-///
-/// # Safety
-/// `target.pixels` must hold `target.height` rows of `target.pitch` bytes, `depth` a float
-/// a place of the target; no other thread may draw into `clip` meanwhile.
-/// Returns the pixels written.
-pub unsafe fn draw_fan_in(
+/// `Tile::draw_fan`.
+fn draw_fan_in(
     vertices: &[Vertex],
-    target: &Target,
+    tile: &Tile,
     states: &States,
     texture: Option<&Texture>,
-    depth: *mut f32,
-    clip: &Clip,
 ) -> u64 {
     if vertices.len() < 3 {
         return 0;
@@ -273,28 +394,23 @@ pub unsafe fn draw_fan_in(
     };
     let mut written = 0;
     for n in 1..points.len() - 1 {
-        written += unsafe {
-            draw_triangle(
-                [&points[0], &points[n], &points[n + 1]],
-                target,
-                states,
-                texture,
-                depth,
-                clip,
-            )
-        };
+        written += draw_triangle(
+            [&points[0], &points[n], &points[n + 1]],
+            tile,
+            states,
+            texture,
+        );
     }
     written
 }
 
-unsafe fn draw_triangle(
+fn draw_triangle(
     [a, b, c]: [&Point; 3],
-    target: &Target,
+    tile: &Tile,
     states: &States,
     texture: Option<&Texture>,
-    depth: *mut f32,
-    clip: &Clip,
 ) -> u64 {
+    let (clip, width, height) = (&tile.clip, tile.frame.width, tile.frame.height);
     // Positive: clockwise on the screen (y goes down).
     let area = (b.x - a.x) * (c.y - a.y) - (c.x - a.x) * (b.y - a.y);
     if area == 0.0 || !area.is_finite() {
@@ -314,11 +430,11 @@ unsafe fn draw_triangle(
         (a, b, c, area)
     };
     let left = (a.x.min(b.x).min(c.x).floor().max(0.0) as usize).max(clip.left);
-    let right = ((a.x.max(b.x).max(c.x).ceil() as i32).clamp(0, target.width as i32) as usize)
-        .min(clip.right);
+    let right =
+        ((a.x.max(b.x).max(c.x).ceil() as i32).clamp(0, width as i32) as usize).min(clip.right);
     let top = (a.y.min(b.y).min(c.y).floor().max(0.0) as usize).max(clip.top);
-    let bottom = ((a.y.max(b.y).max(c.y).ceil() as i32).clamp(0, target.height as i32) as usize)
-        .min(clip.bottom);
+    let bottom =
+        ((a.y.max(b.y).max(c.y).ceil() as i32).clamp(0, height as i32) as usize).min(clip.bottom);
     if left >= right || top >= bottom {
         return 0;
     }
@@ -348,12 +464,11 @@ unsafe fn draw_triangle(
         // or 6): which applies would be the pixel's footprint; the game sets both alike
         linear: states.get(0x11) == 2 || matches!(states.get(0x12), 2 | 5 | 6),
         texture: texture.map(|t| Texels::of(t, states.get(0x03) == 3)),
-        target,
-        depth,
+        tile,
     };
     let mut written = 0;
     for y in top..bottom {
-        written += unsafe { triangle.row(y) };
+        written += triangle.row(y);
     }
     written
 }
@@ -624,8 +739,7 @@ struct Triangle<'a> {
     fog_colour: Colour,
     mixing: u32,
     texture: Option<Texels<'a>>,
-    target: &'a Target,
-    depth: *mut f32,
+    tile: &'a Tile<'a>,
 }
 
 impl Triangle<'_> {
@@ -675,10 +789,10 @@ impl Triangle<'_> {
     /// its first and last place; between them every value the corners give is linear in x,
     /// so each is its value at the first place and its change a pixel (`at(k)`, k pixels on:
     /// no error adds up along the row).
-    unsafe fn row(&self, y: usize) -> u64 {
+    fn row(&self, y: usize) -> u64 {
         let [a, b, c] = self.points;
         let mut written = 0;
-        let target = self.target;
+        let tile = self.tile;
         let py = y as f32;
         let (from, to) = self.span(py);
         let Some((first, weights)) =
@@ -722,15 +836,14 @@ impl Triangle<'_> {
                 u,
                 v,
             };
+            // SAFETY: SSE2 is in both targets' baseline (i686 and x86_64 Windows).
             return unsafe { self.row4(y, first, last, &lines) };
         }
         for x in first..=last {
             let k = (x - first) as f32;
             let at = |(v0, d): (f32, f32)| v0 + d * k;
             let z = at(z);
-            let place = y * target.width + x;
-            let depth = unsafe { self.depth.add(place) };
-            if self.depth_test && !compare(self.depth_function, z, unsafe { *depth }) {
+            if self.depth_test && !compare(self.depth_function, z, tile.depth(x, y)) {
                 continue;
             }
             let colour: Colour = colour.map(at);
@@ -777,17 +890,17 @@ impl Triangle<'_> {
                 }
             }
             if self.blending {
-                let under = unsafe { read_target(target, x, y) };
+                let under = tile.read(x, y);
                 let (s, d) = (
                     factor(self.source_blend, &out, &under),
                     factor(self.target_blend, &out, &under),
                 );
                 out = [0, 1, 2, 3].map(|n| out[n] * s[n] + under[n] * d[n]);
             }
-            unsafe { write_target(target, x, y, &out) };
+            tile.write(x, y, &out);
             written += 1;
             if self.depth_write {
-                unsafe { *depth = z };
+                tile.set_depth(x, y, z);
             }
         }
         written
@@ -816,129 +929,153 @@ use std::arch::x86::*;
 #[cfg(target_arch = "x86_64")]
 use std::arch::x86_64::*;
 
+// A vector's lanes as an array and back: both 16 bytes, every bit pattern a value of
+// either, so the transmutes are sound.
+#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+#[inline]
+#[target_feature(enable = "sse2")]
+fn i32s(v: __m128i) -> [i32; 4] {
+    // SAFETY: see above.
+    unsafe { core::mem::transmute(v) }
+}
+
+#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+#[inline]
+#[target_feature(enable = "sse2")]
+fn from_u32s(a: [u32; 4]) -> __m128i {
+    // SAFETY: see above.
+    unsafe { core::mem::transmute(a) }
+}
+
+#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+#[inline]
+#[target_feature(enable = "sse2")]
+fn f32s(v: __m128) -> [f32; 4] {
+    // SAFETY: see above.
+    unsafe { core::mem::transmute(v) }
+}
+
+#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+#[inline]
+#[target_feature(enable = "sse2")]
+fn from_f32s(a: [f32; 4]) -> __m128 {
+    // SAFETY: see above.
+    unsafe { core::mem::transmute(a) }
+}
+
 /// `compare` on four lanes: their mask (all ones where it holds).
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-#[inline(always)]
-unsafe fn compare4(function: u32, value: __m128, reference: __m128) -> __m128 {
-    unsafe {
-        match function {
-            1 => _mm_setzero_ps(),
-            2 => _mm_cmplt_ps(value, reference),
-            3 => _mm_cmpeq_ps(value, reference),
-            4 => _mm_cmple_ps(value, reference),
-            5 => _mm_cmpgt_ps(value, reference),
-            6 => _mm_cmpneq_ps(value, reference),
-            7 => _mm_cmpge_ps(value, reference),
-            _ => _mm_castsi128_ps(_mm_set1_epi32(-1)),
-        }
+#[inline]
+#[target_feature(enable = "sse2")]
+fn compare4(function: u32, value: __m128, reference: __m128) -> __m128 {
+    match function {
+        1 => _mm_setzero_ps(),
+        2 => _mm_cmplt_ps(value, reference),
+        3 => _mm_cmpeq_ps(value, reference),
+        4 => _mm_cmple_ps(value, reference),
+        5 => _mm_cmpgt_ps(value, reference),
+        6 => _mm_cmpneq_ps(value, reference),
+        7 => _mm_cmpge_ps(value, reference),
+        _ => _mm_castsi128_ps(_mm_set1_epi32(-1)),
     }
 }
 
 /// `floor` on four lanes, as the scalar one: truncated, one less where that is above.
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-#[inline(always)]
-unsafe fn floor4(x: __m128) -> __m128i {
-    unsafe {
-        let i = _mm_cvttps_epi32(x);
-        let above = _mm_castps_si128(_mm_cmpgt_ps(_mm_cvtepi32_ps(i), x));
-        // above is -1 where the truncation is above: add it
-        _mm_add_epi32(i, above)
-    }
+#[inline]
+#[target_feature(enable = "sse2")]
+fn floor4(x: __m128) -> __m128i {
+    let i = _mm_cvttps_epi32(x);
+    let above = _mm_castps_si128(_mm_cmpgt_ps(_mm_cvtepi32_ps(i), x));
+    // above is -1 where the truncation is above: add it
+    _mm_add_epi32(i, above)
 }
 
 /// Four lanes' 0xAARRGGBB as four channels (blue, green, red, alpha) of 0 .. 1, each
 /// n x (1 / 255) as `UNIT` has it.
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-#[inline(always)]
-unsafe fn channels4(argb: __m128i) -> [__m128; 4] {
-    unsafe {
-        let byte = _mm_set1_epi32(0xFF);
-        let most = _mm_set1_ps(INV_255);
-        [
-            _mm_mul_ps(_mm_cvtepi32_ps(_mm_and_si128(argb, byte)), most),
-            _mm_mul_ps(
-                _mm_cvtepi32_ps(_mm_and_si128(_mm_srli_epi32(argb, 8), byte)),
-                most,
-            ),
-            _mm_mul_ps(
-                _mm_cvtepi32_ps(_mm_and_si128(_mm_srli_epi32(argb, 16), byte)),
-                most,
-            ),
-            _mm_mul_ps(_mm_cvtepi32_ps(_mm_srli_epi32(argb, 24)), most),
-        ]
-    }
+#[inline]
+#[target_feature(enable = "sse2")]
+fn channels4(argb: __m128i) -> [__m128; 4] {
+    let byte = _mm_set1_epi32(0xFF);
+    let most = _mm_set1_ps(INV_255);
+    [
+        _mm_mul_ps(_mm_cvtepi32_ps(_mm_and_si128(argb, byte)), most),
+        _mm_mul_ps(
+            _mm_cvtepi32_ps(_mm_and_si128(_mm_srli_epi32(argb, 8), byte)),
+            most,
+        ),
+        _mm_mul_ps(
+            _mm_cvtepi32_ps(_mm_and_si128(_mm_srli_epi32(argb, 16), byte)),
+            most,
+        ),
+        _mm_mul_ps(_mm_cvtepi32_ps(_mm_srli_epi32(argb, 24)), most),
+    ]
 }
 
 /// The scalar `lerp` of `Texels::bilinear` on four lanes: two channels at a time in 16-bit
 /// halves (each product at most 255 x 256, so the same numbers).
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-#[inline(always)]
-unsafe fn lerp4(a: __m128i, b: __m128i, w: __m128i) -> __m128i {
-    unsafe {
-        let mask = _mm_set1_epi32(0x00FF_00FF);
-        // w in both halves of each lane, and 256 - w
-        let w2 = _mm_or_si128(w, _mm_slli_epi32(w, 16));
-        let rest = _mm_sub_epi16(_mm_set1_epi16(256), w2);
-        let blend = |x: __m128i, y: __m128i| {
-            _mm_add_epi16(_mm_mullo_epi16(x, rest), _mm_mullo_epi16(y, w2))
-        };
-        let rb = _mm_and_si128(
-            _mm_srli_epi16(blend(_mm_and_si128(a, mask), _mm_and_si128(b, mask)), 8),
-            mask,
-        );
-        let ag = _mm_andnot_si128(
-            mask,
-            blend(
-                _mm_and_si128(_mm_srli_epi32(a, 8), mask),
-                _mm_and_si128(_mm_srli_epi32(b, 8), mask),
-            ),
-        );
-        _mm_or_si128(rb, ag)
-    }
+#[inline]
+#[target_feature(enable = "sse2")]
+fn lerp4(a: __m128i, b: __m128i, w: __m128i) -> __m128i {
+    let mask = _mm_set1_epi32(0x00FF_00FF);
+    // w in both halves of each lane, and 256 - w
+    let w2 = _mm_or_si128(w, _mm_slli_epi32(w, 16));
+    let rest = _mm_sub_epi16(_mm_set1_epi16(256), w2);
+    let blend =
+        |x: __m128i, y: __m128i| _mm_add_epi16(_mm_mullo_epi16(x, rest), _mm_mullo_epi16(y, w2));
+    let rb = _mm_and_si128(
+        _mm_srli_epi16(blend(_mm_and_si128(a, mask), _mm_and_si128(b, mask)), 8),
+        mask,
+    );
+    let ag = _mm_andnot_si128(
+        mask,
+        blend(
+            _mm_and_si128(_mm_srli_epi32(a, 8), mask),
+            _mm_and_si128(_mm_srli_epi32(b, 8), mask),
+        ),
+    );
+    _mm_or_si128(rb, ag)
 }
 
 /// `factor` on four lanes: each channel's factor (blue, green, red, alpha).
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-#[inline(always)]
-unsafe fn factor4(blend: u32, source: &[__m128; 4], target: &[__m128; 4]) -> [__m128; 4] {
-    unsafe {
-        let one = _mm_set1_ps(1.0);
-        let less = |x: __m128| _mm_sub_ps(one, x);
-        match blend {
-            1 => [_mm_setzero_ps(); 4],
-            3 => *source,
-            4 => source.map(less),
-            5 => [source[3]; 4],
-            6 => [less(source[3]); 4],
-            7 => [target[3]; 4],
-            8 => [less(target[3]); 4],
-            9 => *target,
-            10 => target.map(less),
-            11 => {
-                let f = _mm_min_ps(source[3], less(target[3]));
-                [f, f, f, one]
-            }
-            _ => [one; 4],
+#[inline]
+#[target_feature(enable = "sse2")]
+fn factor4(blend: u32, source: &[__m128; 4], target: &[__m128; 4]) -> [__m128; 4] {
+    let one = _mm_set1_ps(1.0);
+    let less = |x: __m128| _mm_sub_ps(one, x);
+    match blend {
+        1 => [_mm_setzero_ps(); 4],
+        3 => *source,
+        4 => source.map(less),
+        5 => [source[3]; 4],
+        6 => [less(source[3]); 4],
+        7 => [target[3]; 4],
+        8 => [less(target[3]); 4],
+        9 => *target,
+        10 => target.map(less),
+        11 => {
+            let f = _mm_min_ps(source[3], less(target[3]));
+            [f, f, f, one]
         }
+        _ => [one; 4],
     }
 }
 
-/// `read_target` on four places from x (lanes past `n` read as 0): the channels as 0 .. 1,
+/// `read` on four places from x (lanes past `n` read as 0): the channels as 0 .. 1,
 /// alpha 1, each by the same multiplication as the scalar one.
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-#[inline(always)]
-unsafe fn read_target4(target: &Target, x: usize, y: usize, n: usize) -> [__m128; 4] {
-    unsafe {
-        let row = target.pixels.add(y * target.pitch);
+impl Tile<'_> {
+    #[inline]
+    #[target_feature(enable = "sse2")]
+    fn read4(&self, x: usize, y: usize, n: usize) -> [__m128; 4] {
         let mut p = [0u32; 4];
         for (lane, p) in p.iter_mut().enumerate().take(n) {
-            *p = if target.bits == 16 {
-                (row.add((x + lane) * 2) as *const u16).read_unaligned() as u32
-            } else {
-                (row.add((x + lane) * 4) as *const u32).read_unaligned()
-            };
+            *p = self.pixel(x + lane, y);
         }
-        let p = _mm_loadu_si128(p.as_ptr() as *const __m128i);
+        let p = from_u32s(p);
         let part = |mask: i32, shift: i32, most: f32| {
             let v = _mm_and_si128(p, _mm_set1_epi32(mask));
             let v = match shift {
@@ -951,7 +1088,7 @@ unsafe fn read_target4(target: &Target, x: usize, y: usize, n: usize) -> [__m128
             _mm_mul_ps(_mm_cvtepi32_ps(v), _mm_set1_ps(1.0 / most))
         };
         let one = _mm_set1_ps(1.0);
-        if target.bits == 16 {
+        if self.frame.bits == 16 {
             [
                 part(0x1F, 0, 31.0),
                 part(0x07E0, 5, 63.0),
@@ -973,202 +1110,179 @@ unsafe fn read_target4(target: &Target, x: usize, y: usize, n: usize) -> [__m128
 impl Triangle<'_> {
     /// `row`'s places `first ..= last` four at a time with SSE2: the same
     /// numbers as the scalar loop, but the texels' reads, which stay one by one.
-    unsafe fn row4(&self, y: usize, first: usize, last: usize, l: &Lines) -> u64 {
-        unsafe {
-            let target = self.target;
-            let mut written = 0u64;
-            let lanes = _mm_set_ps(3.0, 2.0, 1.0, 0.0);
-            let mut x0 = first;
-            while x0 <= last {
-                let n = (last + 1 - x0).min(4);
-                let k = _mm_add_ps(_mm_set1_ps((x0 - first) as f32), lanes);
-                let at = |(v0, d): (f32, f32)| {
-                    _mm_add_ps(_mm_set1_ps(v0), _mm_mul_ps(_mm_set1_ps(d), k))
+    #[target_feature(enable = "sse2")]
+    fn row4(&self, y: usize, first: usize, last: usize, l: &Lines) -> u64 {
+        let tile = self.tile;
+        let mut written = 0u64;
+        let lanes = _mm_set_ps(3.0, 2.0, 1.0, 0.0);
+        let mut x0 = first;
+        while x0 <= last {
+            let n = (last + 1 - x0).min(4);
+            let k = _mm_add_ps(_mm_set1_ps((x0 - first) as f32), lanes);
+            let at =
+                |(v0, d): (f32, f32)| _mm_add_ps(_mm_set1_ps(v0), _mm_mul_ps(_mm_set1_ps(d), k));
+            let mut live: i32 = (1 << n) - 1;
+            let z = at(l.z);
+            let mut old = [1.0f32; 4];
+            for (lane, old) in old.iter_mut().enumerate().take(n) {
+                *old = tile.depth(x0 + lane, y);
+            }
+            if self.depth_test {
+                live &= _mm_movemask_ps(compare4(self.depth_function, z, from_f32s(old)));
+            }
+            if live == 0 {
+                x0 += 4;
+                continue;
+            }
+            let colour = l.colour.map(at);
+            let mut out = colour;
+            if let Some(texels) = &self.texture {
+                let texture = texels.texture;
+                let w = at(l.w);
+                let zero_w = _mm_cmpeq_ps(w, _mm_setzero_ps());
+                let over = _mm_div_ps(_mm_set1_ps(1.0), w);
+                let pick = |perspective: __m128, plain: __m128| {
+                    _mm_or_ps(
+                        _mm_and_ps(zero_w, plain),
+                        _mm_andnot_ps(zero_w, perspective),
+                    )
                 };
-                let mut live: i32 = (1 << n) - 1;
-                let z = at(l.z);
-                let depth = self.depth.add(y * target.width + x0);
-                let mut old = [1.0f32; 4];
-                std::ptr::copy_nonoverlapping(depth, old.as_mut_ptr(), n);
-                if self.depth_test {
-                    live &= _mm_movemask_ps(compare4(
-                        self.depth_function,
-                        z,
-                        _mm_loadu_ps(old.as_ptr()),
-                    ));
-                }
+                let u = pick(_mm_mul_ps(at(l.uw), over), at(l.u));
+                let v = pick(_mm_mul_ps(at(l.vw), over), at(l.v));
+                let (tw, th) = (
+                    _mm_set1_ps(texture.width as f32),
+                    _mm_set1_ps(texture.height as f32),
+                );
+                let argb = if self.linear {
+                    let half = _mm_set1_ps(0.5);
+                    let tx = _mm_sub_ps(_mm_mul_ps(u, tw), half);
+                    let ty = _mm_sub_ps(_mm_mul_ps(v, th), half);
+                    let (ix, iy) = (floor4(tx), floor4(ty));
+                    let scale = _mm_set1_ps(256.0);
+                    let wx =
+                        _mm_cvttps_epi32(_mm_mul_ps(_mm_sub_ps(tx, _mm_cvtepi32_ps(ix)), scale));
+                    let wy =
+                        _mm_cvttps_epi32(_mm_mul_ps(_mm_sub_ps(ty, _mm_cvtepi32_ps(iy)), scale));
+                    let (xs, ys) = (i32s(ix), i32s(iy));
+                    let [t00, t10, t01, t11] = match texels.quad4(ix, iy) {
+                        Some(quad) => quad,
+                        None => {
+                            let (xs1, ys1) = (xs.map(|x| x + 1), ys.map(|y| y + 1));
+                            [
+                                texels.fetch4(&xs, &ys, live),
+                                texels.fetch4(&xs1, &ys, live),
+                                texels.fetch4(&xs, &ys1, live),
+                                texels.fetch4(&xs1, &ys1, live),
+                            ]
+                        }
+                    };
+                    let load = |t: &[u32; 4]| from_u32s(*t);
+                    let top = lerp4(load(&t00), load(&t10), wx);
+                    let bottom = lerp4(load(&t01), load(&t11), wx);
+                    lerp4(top, bottom, wy)
+                } else {
+                    let (ix, iy) = (floor4(_mm_mul_ps(u, tw)), floor4(_mm_mul_ps(v, th)));
+                    let (xs, ys) = (i32s(ix), i32s(iy));
+                    let t = texels.fetch4(&xs, &ys, live);
+                    from_u32s(t)
+                };
+                let texel = channels4(argb);
+                out = match self.mixing {
+                    1 | 7 => texel,
+                    4 => [0, 1, 2, 3].map(|c| _mm_mul_ps(texel[c], colour[c])),
+                    _ => [
+                        _mm_mul_ps(texel[0], colour[0]),
+                        _mm_mul_ps(texel[1], colour[1]),
+                        _mm_mul_ps(texel[2], colour[2]),
+                        if texture.has_alpha() {
+                            texel[3]
+                        } else {
+                            colour[3]
+                        },
+                    ],
+                };
+            }
+            if self.alpha_test {
+                live &= _mm_movemask_ps(compare4(
+                    self.alpha_function,
+                    out[3],
+                    _mm_set1_ps(self.alpha_reference),
+                ));
                 if live == 0 {
                     x0 += 4;
                     continue;
                 }
-                let colour = l.colour.map(at);
-                let mut out = colour;
-                if let Some(texels) = &self.texture {
-                    let texture = texels.texture;
-                    let w = at(l.w);
-                    let zero_w = _mm_cmpeq_ps(w, _mm_setzero_ps());
-                    let over = _mm_div_ps(_mm_set1_ps(1.0), w);
-                    let pick = |perspective: __m128, plain: __m128| {
-                        _mm_or_ps(
-                            _mm_and_ps(zero_w, plain),
-                            _mm_andnot_ps(zero_w, perspective),
-                        )
-                    };
-                    let u = pick(_mm_mul_ps(at(l.uw), over), at(l.u));
-                    let v = pick(_mm_mul_ps(at(l.vw), over), at(l.v));
-                    let (tw, th) = (
-                        _mm_set1_ps(texture.width as f32),
-                        _mm_set1_ps(texture.height as f32),
-                    );
-                    let argb = if self.linear {
-                        let half = _mm_set1_ps(0.5);
-                        let tx = _mm_sub_ps(_mm_mul_ps(u, tw), half);
-                        let ty = _mm_sub_ps(_mm_mul_ps(v, th), half);
-                        let (ix, iy) = (floor4(tx), floor4(ty));
-                        let scale = _mm_set1_ps(256.0);
-                        let wx = _mm_cvttps_epi32(_mm_mul_ps(
-                            _mm_sub_ps(tx, _mm_cvtepi32_ps(ix)),
-                            scale,
-                        ));
-                        let wy = _mm_cvttps_epi32(_mm_mul_ps(
-                            _mm_sub_ps(ty, _mm_cvtepi32_ps(iy)),
-                            scale,
-                        ));
-                        let (mut xs, mut ys) = ([0i32; 4], [0i32; 4]);
-                        _mm_storeu_si128(xs.as_mut_ptr() as *mut __m128i, ix);
-                        _mm_storeu_si128(ys.as_mut_ptr() as *mut __m128i, iy);
-                        let [t00, t10, t01, t11] = match texels.quad4(ix, iy) {
-                            Some(quad) => quad,
-                            None => {
-                                let (xs1, ys1) = (xs.map(|x| x + 1), ys.map(|y| y + 1));
-                                [
-                                    texels.fetch4(&xs, &ys, live),
-                                    texels.fetch4(&xs1, &ys, live),
-                                    texels.fetch4(&xs, &ys1, live),
-                                    texels.fetch4(&xs1, &ys1, live),
-                                ]
-                            }
-                        };
-                        let load = |t: &[u32; 4]| _mm_loadu_si128(t.as_ptr() as *const __m128i);
-                        let top = lerp4(load(&t00), load(&t10), wx);
-                        let bottom = lerp4(load(&t01), load(&t11), wx);
-                        lerp4(top, bottom, wy)
-                    } else {
-                        let (ix, iy) = (floor4(_mm_mul_ps(u, tw)), floor4(_mm_mul_ps(v, th)));
-                        let (mut xs, mut ys) = ([0i32; 4], [0i32; 4]);
-                        _mm_storeu_si128(xs.as_mut_ptr() as *mut __m128i, ix);
-                        _mm_storeu_si128(ys.as_mut_ptr() as *mut __m128i, iy);
-                        let t = texels.fetch4(&xs, &ys, live);
-                        _mm_loadu_si128(t.as_ptr() as *const __m128i)
-                    };
-                    let texel = channels4(argb);
-                    out = match self.mixing {
-                        1 | 7 => texel,
-                        4 => [0, 1, 2, 3].map(|c| _mm_mul_ps(texel[c], colour[c])),
-                        _ => [
-                            _mm_mul_ps(texel[0], colour[0]),
-                            _mm_mul_ps(texel[1], colour[1]),
-                            _mm_mul_ps(texel[2], colour[2]),
-                            if texture.has_alpha() {
-                                texel[3]
-                            } else {
-                                colour[3]
-                            },
-                        ],
-                    };
-                }
-                if self.alpha_test {
-                    live &= _mm_movemask_ps(compare4(
-                        self.alpha_function,
-                        out[3],
-                        _mm_set1_ps(self.alpha_reference),
-                    ));
-                    if live == 0 {
-                        x0 += 4;
-                        continue;
-                    }
-                }
-                if self.fog {
-                    let kept =
-                        _mm_min_ps(_mm_max_ps(at(l.fog), _mm_setzero_ps()), _mm_set1_ps(1.0));
-                    let rest = _mm_sub_ps(_mm_set1_ps(1.0), kept);
-                    for (o, &f) in out.iter_mut().zip(&self.fog_colour).take(3) {
-                        *o = _mm_add_ps(_mm_mul_ps(*o, kept), _mm_mul_ps(_mm_set1_ps(f), rest));
-                    }
-                }
-                if self.blending {
-                    let under = read_target4(target, x0, y, n);
-                    let (sf, df) = (
-                        factor4(self.source_blend, &out, &under),
-                        factor4(self.target_blend, &out, &under),
-                    );
-                    out = [0, 1, 2, 3].map(|c| {
-                        _mm_add_ps(_mm_mul_ps(out[c], sf[c]), _mm_mul_ps(under[c], df[c]))
-                    });
-                }
-                // write_target's numbers: (clamped * most + 0.5) truncated
-                let to = |c: __m128, most: f32| {
-                    let c = _mm_min_ps(_mm_max_ps(c, _mm_setzero_ps()), _mm_set1_ps(1.0));
-                    _mm_cvttps_epi32(_mm_add_ps(
-                        _mm_mul_ps(c, _mm_set1_ps(most)),
-                        _mm_set1_ps(0.5),
-                    ))
-                };
-                let row = target.pixels.add(y * target.pitch);
-                let mut pixels = [0u32; 4];
-                let packed = if target.bits == 16 {
-                    _mm_or_si128(
-                        _mm_or_si128(
-                            _mm_slli_epi32(to(out[2], 31.0), 11),
-                            _mm_slli_epi32(to(out[1], 63.0), 5),
-                        ),
-                        to(out[0], 31.0),
-                    )
-                } else {
-                    _mm_or_si128(
-                        _mm_or_si128(
-                            _mm_slli_epi32(to(out[2], 255.0), 16),
-                            _mm_slli_epi32(to(out[1], 255.0), 8),
-                        ),
-                        to(out[0], 255.0),
-                    )
-                };
-                _mm_storeu_si128(pixels.as_mut_ptr() as *mut __m128i, packed);
-                let mut zs = [0.0f32; 4];
-                _mm_storeu_ps(zs.as_mut_ptr(), z);
-                for lane in 0..n {
-                    if live & (1 << lane) == 0 {
-                        continue;
-                    }
-                    let x = x0 + lane;
-                    if target.bits == 16 {
-                        (row.add(x * 2) as *mut u16).write_unaligned(pixels[lane] as u16);
-                    } else {
-                        (row.add(x * 4) as *mut u32).write_unaligned(pixels[lane]);
-                    }
-                    if self.depth_write {
-                        *depth.add(lane) = zs[lane];
-                    }
-                    written += 1;
-                }
-                x0 += 4;
             }
-            written
+            if self.fog {
+                let kept = _mm_min_ps(_mm_max_ps(at(l.fog), _mm_setzero_ps()), _mm_set1_ps(1.0));
+                let rest = _mm_sub_ps(_mm_set1_ps(1.0), kept);
+                for (o, &f) in out.iter_mut().zip(&self.fog_colour).take(3) {
+                    *o = _mm_add_ps(_mm_mul_ps(*o, kept), _mm_mul_ps(_mm_set1_ps(f), rest));
+                }
+            }
+            if self.blending {
+                let under = tile.read4(x0, y, n);
+                let (sf, df) = (
+                    factor4(self.source_blend, &out, &under),
+                    factor4(self.target_blend, &out, &under),
+                );
+                out = [0, 1, 2, 3]
+                    .map(|c| _mm_add_ps(_mm_mul_ps(out[c], sf[c]), _mm_mul_ps(under[c], df[c])));
+            }
+            // write_target's numbers: (clamped * most + 0.5) truncated
+            let to = |c: __m128, most: f32| {
+                let c = _mm_min_ps(_mm_max_ps(c, _mm_setzero_ps()), _mm_set1_ps(1.0));
+                _mm_cvttps_epi32(_mm_add_ps(
+                    _mm_mul_ps(c, _mm_set1_ps(most)),
+                    _mm_set1_ps(0.5),
+                ))
+            };
+            let packed = if tile.frame.bits == 16 {
+                _mm_or_si128(
+                    _mm_or_si128(
+                        _mm_slli_epi32(to(out[2], 31.0), 11),
+                        _mm_slli_epi32(to(out[1], 63.0), 5),
+                    ),
+                    to(out[0], 31.0),
+                )
+            } else {
+                _mm_or_si128(
+                    _mm_or_si128(
+                        _mm_slli_epi32(to(out[2], 255.0), 16),
+                        _mm_slli_epi32(to(out[1], 255.0), 8),
+                    ),
+                    to(out[0], 255.0),
+                )
+            };
+            let pixels = i32s(packed).map(|p| p as u32);
+            let zs = f32s(z);
+            for lane in 0..n {
+                if live & (1 << lane) == 0 {
+                    continue;
+                }
+                let x = x0 + lane;
+                tile.put_pixel(x, y, pixels[lane]);
+                if self.depth_write {
+                    tile.set_depth(x, y, zs[lane]);
+                }
+                written += 1;
+            }
+            x0 += 4;
         }
+        written
     }
 }
 
 /// SSE2's lane-wise `min` and `max` of signed dwords (SSE4.1 has them).
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-#[inline(always)]
-unsafe fn clamp4(v: __m128i, most: i32) -> __m128i {
-    unsafe {
-        // not below 0: zero where the sign is set
-        let v = _mm_andnot_si128(_mm_srai_epi32(v, 31), v);
-        let most = _mm_set1_epi32(most);
-        let over = _mm_cmpgt_epi32(v, most);
-        _mm_or_si128(_mm_and_si128(over, most), _mm_andnot_si128(over, v))
-    }
+#[inline]
+#[target_feature(enable = "sse2")]
+fn clamp4(v: __m128i, most: i32) -> __m128i {
+    // not below 0: zero where the sign is set
+    let v = _mm_andnot_si128(_mm_srai_epi32(v, 31), v);
+    let most = _mm_set1_epi32(most);
+    let over = _mm_cmpgt_epi32(v, most);
+    _mm_or_si128(_mm_and_si128(over, most), _mm_andnot_si128(over, v))
 }
 
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
@@ -1177,55 +1291,135 @@ impl Texels<'_> {
     /// lanes, as `argb` gives them, with the places worked out four at a time: for a whole
     /// texture of a pitch and texel of powers of two, wrapped by masks or clamped (every lane
     /// read: wrapping and clamping keep every place inside); else None.
-    #[inline(always)]
-    unsafe fn quad4(&self, x: __m128i, y: __m128i) -> Option<[[u32; 4]; 4]> {
-        unsafe {
-            let (pitch_shift, byte_shift) = self.shifts?;
-            if !self.whole || matches!(self.kind, Kind::Other) {
-                return None;
+    #[inline]
+    #[target_feature(enable = "sse2")]
+    fn quad4(&self, x: __m128i, y: __m128i) -> Option<[[u32; 4]; 4]> {
+        let (pitch_shift, byte_shift) = self.shifts?;
+        if !self.whole || matches!(self.kind, Kind::Other) {
+            return None;
+        }
+        let one = _mm_set1_epi32(1);
+        let (x1, y1) = (_mm_add_epi32(x, one), _mm_add_epi32(y, one));
+        let t = self.texture;
+        let (x0, x1, y0, y1) = if self.clamp {
+            let (w, h) = (t.width as i32 - 1, t.height as i32 - 1);
+            (clamp4(x, w), clamp4(x1, w), clamp4(y, h), clamp4(y1, h))
+        } else {
+            let (mx, my) = self.masks?;
+            let (mx, my) = (_mm_set1_epi32(mx), _mm_set1_epi32(my));
+            (
+                _mm_and_si128(x, mx),
+                _mm_and_si128(x1, mx),
+                _mm_and_si128(y, my),
+                _mm_and_si128(y1, my),
+            )
+        };
+        let shift = |v: __m128i, by: i32| _mm_sll_epi32(v, _mm_cvtsi32_si128(by));
+        let (r0, r1) = (shift(y0, pitch_shift), shift(y1, pitch_shift));
+        let (c0, c1) = (shift(x0, byte_shift), shift(x1, byte_shift));
+        let places = [
+            _mm_add_epi32(r0, c0),
+            _mm_add_epi32(r0, c1),
+            _mm_add_epi32(r1, c0),
+            _mm_add_epi32(r1, c1),
+        ];
+        let base = t.pixels.as_ptr();
+        let mut out = [[0u32; 4]; 4];
+        for (corner, p) in places.iter().enumerate() {
+            let at = i32s(*p);
+            for lane in 0..4 {
+                // SAFETY: `whole` (every place of the texture within its bytes, `of`), and
+                // the places wrapped by the masks or clamped into the texture above.
+                let at = unsafe { base.add(at[lane] as u32 as usize) };
+                out[corner][lane] = match &self.kind {
+                    // SAFETY: as above.
+                    Kind::Usual(full) => (unsafe { (at as *const u32).read_unaligned() }) | full,
+                    // SAFETY: as above.
+                    Kind::Table(table) => {
+                        table[unsafe { (at as *const u16).read_unaligned() } as usize]
+                    }
+                    Kind::Other => 0,
+                };
             }
-            let one = _mm_set1_epi32(1);
-            let (x1, y1) = (_mm_add_epi32(x, one), _mm_add_epi32(y, one));
-            let t = self.texture;
-            let (x0, x1, y0, y1) = if self.clamp {
-                let (w, h) = (t.width as i32 - 1, t.height as i32 - 1);
-                (clamp4(x, w), clamp4(x1, w), clamp4(y, h), clamp4(y1, h))
-            } else {
-                let (mx, my) = self.masks?;
-                let (mx, my) = (_mm_set1_epi32(mx), _mm_set1_epi32(my));
-                (
-                    _mm_and_si128(x, mx),
-                    _mm_and_si128(x1, mx),
-                    _mm_and_si128(y, my),
-                    _mm_and_si128(y1, my),
-                )
-            };
-            let shift = |v: __m128i, by: i32| _mm_sll_epi32(v, _mm_cvtsi32_si128(by));
-            let (r0, r1) = (shift(y0, pitch_shift), shift(y1, pitch_shift));
-            let (c0, c1) = (shift(x0, byte_shift), shift(x1, byte_shift));
-            let places = [
-                _mm_add_epi32(r0, c0),
-                _mm_add_epi32(r0, c1),
-                _mm_add_epi32(r1, c0),
-                _mm_add_epi32(r1, c1),
-            ];
-            let base = t.pixels.as_ptr();
-            let mut out = [[0u32; 4]; 4];
-            for (corner, p) in places.iter().enumerate() {
-                let mut at = [0u32; 4];
-                _mm_storeu_si128(at.as_mut_ptr() as *mut __m128i, *p);
-                for lane in 0..4 {
-                    let at = base.add(at[lane] as usize);
-                    out[corner][lane] = match &self.kind {
-                        Kind::Usual(full) => (at as *const u32).read_unaligned() | full,
-                        Kind::Table(table) => {
-                            *table.get_unchecked((at as *const u16).read_unaligned() as usize)
-                        }
-                        Kind::Other => 0,
-                    };
-                }
-            }
-            Some(out)
+        }
+        Some(out)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// A frame of `w` x `h` 32-bit pixels drawn with one fan (blending and the depth test
+    /// on), in tiles of `size` (0: one), scalar or not: its pixels and depths.
+    fn draw(size: usize, scalar: bool) -> (Vec<u32>, Vec<f32>) {
+        let (w, h) = (100, 70);
+        let mut pixels = vec![0x0010_2030u32; w * h];
+        let mut depth = vec![1.0f32; w * h];
+        let v = |x: f32, y: f32, z: f32, colour: u32| -> Vertex {
+            [
+                x.to_bits(),
+                y.to_bits(),
+                z.to_bits(),
+                1f32.to_bits(),
+                colour,
+                0xFF00_0000,
+                0,
+                0,
+            ]
+        };
+        let fan = [
+            v(3.5, 2.0, 0.5, 0x80FF_0000),
+            v(95.0, 10.0, 0.2, 0x8000_FF00),
+            v(70.0, 66.0, 0.7, 0x8000_00FF),
+            v(10.0, 50.0, 0.4, 0xFFFF_FFFF),
+        ];
+        let mut states = [0u32; 0x40];
+        states[0x07] = 1;
+        states[0x17] = 4;
+        states[0x0E] = 1;
+        states[0x1B] = 1;
+        states[0x13] = 5;
+        states[0x14] = 6;
+        states[0x16] = 1;
+        SCALAR_ONLY.store(scalar, std::sync::atomic::Ordering::SeqCst);
+        // SAFETY: both buffers are the sizes given, and live and untouched meanwhile.
+        let mut frame = unsafe {
+            Frame::new(
+                pixels.as_mut_ptr() as *mut u8,
+                w * 4,
+                w,
+                h,
+                32,
+                depth.as_mut_ptr(),
+            )
+        };
+        for tile in frame.tiles(size).iter_mut() {
+            tile.draw_fan(&fan, &States(&states), None);
+            tile.clear_depth([0, 0, 5, 5]);
+        }
+        SCALAR_ONLY.store(false, std::sync::atomic::Ordering::SeqCst);
+        (pixels, depth)
+    }
+
+    #[test]
+    fn tiles_and_lanes_draw_the_same() {
+        let whole = draw(0, true);
+        assert!(whole.0.iter().any(|&p| p != 0x0010_2030), "something drawn");
+        // The four-lane path and the scalar one: the same numbers.
+        assert!(whole == draw(0, false));
+        assert!(draw(16, false) == draw(16, true));
+        // Tiles: the same colours; a row's values start from its first place in the tile,
+        // so a depth can differ in its last bit.
+        for tiled in [draw(16, false), draw(7, true)] {
+            assert!(whole.0 == tiled.0);
+            assert!(
+                whole
+                    .1
+                    .iter()
+                    .zip(&tiled.1)
+                    .all(|(a, b)| (a - b).abs() < 1e-6)
+            );
         }
     }
 }

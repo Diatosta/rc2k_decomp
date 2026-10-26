@@ -9,185 +9,113 @@
 //! Out: eax 3, ebx 0x17, edx the car kind's index; the rest kept; no flags read (a call
 //!      follows)
 //!
-//! Caller: `race::credits_race`, which calls the Rust version directly. It begins with a
-//! call: a private copy (its two calls relocated) with a hand-made patch.
-//! Refuses nothing. Self-test: the original and the Rust version on the game's
-//! variables (put back), from twelve states of the generator.
+//! Caller: `race::credits_race`, which calls the Rust version directly. Refuses nothing.
 
 use crate::errors::Refused;
-use crate::framework::{
-    EAX, EBX, EDX, RawHook, Regs, SelfTest, game_addr, game_read, game_write, hook_asm, rva,
-};
-use crate::math::next_random::{STATE_RVA, TEST_STATES, next_random, own_random};
-use crate::screens::harness::Left;
-use crate::service::harness::{Region, capture, check_state, dispatch_state, restore, state_entry};
-use std::sync::atomic::AtomicUsize;
+use crate::math::next_random::next_random;
+use crate::race::settings_copy::Place;
+use crate::race::settings_copy::{car, car_bits, var};
+use crate::race::switches_store::FRAME_SWITCHES;
+use crate::race::vars_store::RACE_VARS;
+use crate::race::view_store::RACE_VIEW;
+use crate::race::work_store::RACE_WORK;
 
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("race::set_up_credits_race", rva(0x463711), thunk, &ORIGINAL)
-        .private_copy(0x33D)
-        .relocate_calls(&[0x0, 0x2C])
-        .manual_patch()
-        .self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
-
-const STAGES: usize = 0x71C3E4; // dword_71C3E4, `RACE_STAGES` stages
-const KINDS: usize = 0x71C474; // dword_71C474, `RACE_KINDS` car kinds
-const STAGE: usize = 0x623850; // g_stageNumber
-const CAR_KINDS: usize = 0x623858; // g_raceCarKinds
-
-/// The stores after the two draws, in order (address as IDA shows it, value).
-pub const WRITES: [(usize, u32); 74] = [
-    (0x623854, 0),
-    (0x62389C, 3),
-    (0x70FE94, 1),
-    (0x70FA70, 8),
-    (0x70F414, 2),
-    (0x70F420, 0x80),
-    (0x70F41C, 0x80),
-    (0x70F40C, 0x80),
-    (0x70F428, 0x80),
-    (0x6235FC, 3),
-    (0x623878, 1),
-    (0x623898, 0),
-    (0x63DB90, 1),
-    (0x63DB94, 1),
-    (0x6238A8, 1),
-    (0x6238AC, 1),
-    (0x6238B0, 1),
-    (0x6238B4, 0),
-    (0x6238B8, 1),
-    (0x621890, 1),
-    (0x6238CC, 0),
-    (0x6238D0, 0),
-    (0x70F6A4, 0),
-    (0x70F6A8, 0),
-    (0x70F6FC, 0),
-    (0x70F6AC, 0),
-    (0x70F6B0, 0),
-    (0x70F71C, 0),
-    (0x70F6B4, 0),
-    (0x70F6B8, 0),
-    (0x70F730, 0),
-    (0x70F750, 0),
-    (0x70F73C, 0),
-    (0x70F718, 0),
-    (0x70F6E0, 0),
-    (0x70F6F8, 0),
-    (0x70F6BC, 0),
-    (0x70F6C4, 0),
-    (0x70F6C8, 0),
-    (0x70F6CC, 0),
-    (0x70F6D0, 0),
-    (0x70F6D4, 0),
-    (0x70F6D8, 0),
-    (0x70F6DC, 0),
-    (0x70F6E4, 0),
-    (0x70F6E8, 0),
-    (0x70F6EC, 0),
-    (0x70F6F0, 0),
-    (0x70F6F4, 0),
-    (0x70F700, 0),
-    (0x70F704, 0),
-    (0x70F708, 0),
-    (0x70F70C, 0),
-    (0x70F710, 0),
-    (0x70F714, 0),
-    (0x70F720, 0),
-    (0x70F724, 0),
-    (0x70F728, 0),
-    (0x70F72C, 0),
-    (0x70F734, 0),
-    (0x70F738, 0),
-    (0x70F740, 0),
-    (0x70F744, 0),
-    (0x70F748, 0),
-    (0x70F74C, 0),
-    (0x70F450, 0),
-    (0x70F454, 0),
-    (0x70F458, 0),
-    (0x70F45C, 0),
-    (0x70F460, 0),
-    (0x70F464, 0),
-    (0x70F468, 0),
-    (0x70F46C, 0),
-    (0x70F684, 0xFFFF_FFFF),
+/// The stores after the two draws, in order (the place, the value).
+pub const WRITES: [(Place, u32); 74] = [
+    (var!(RACE_VARS.direction), 0),
+    (var!(RACE_VARS.run_kind), 3),
+    (car!(0, start_slot_value), 1),
+    (car!(0, camera_view), 8),
+    (car!(0, gear_ratio_setting), 2),
+    (car!(0, suspension_stiffness), 0x80),
+    (car!(0, ride_height), 0x80),
+    (car!(0, brake_balance), 0x80),
+    (car!(0, steering_sensitivity), 0x80),
+    (var!(RACE_VARS.car_tyres[0]), 3),
+    (var!(RACE_VARS.car_colours[0]), 1),
+    (var!(RACE_VARS.mip_setting), 0),
+    (var!(RACE_VIEW.race_cars), 1),
+    (var!(RACE_VIEW.players), 1),
+    (var!(RACE_VARS.settings_words[0]), 1),
+    (var!(RACE_VARS.settings_words[1]), 1),
+    (var!(RACE_VARS.settings_words[2]), 1),
+    (var!(RACE_VARS.settings_words[3]), 0),
+    (var!(RACE_VARS.settings_words[4]), 1),
+    (var!(FRAME_SWITCHES.view_marks_on), 1),
+    (var!(RACE_VARS.race_level), 0),
+    (var!(RACE_VARS.race_stage), 0),
+    (car_bits!(0, engine_damage), 0),
+    (car_bits!(0, exhaust_damage), 0),
+    (car_bits!(0, electrics_damage), 0),
+    (car_bits!(0, turbo_damage), 0),
+    (car_bits!(0, cooling_damage), 0),
+    (car_bits!(0, steering_damage), 0),
+    (car_bits!(0, clutch_damage), 0),
+    (car_bits!(0, differential_damage), 0),
+    (car_bits!(0, overall_suspension_damage), 0),
+    (car_bits!(0, tyre_wear), 0),
+    (car_bits!(0, brake_damage), 0),
+    (car_bits!(0, lights_damage), 0),
+    (car_bits!(0, gearbox_damage), 0),
+    (car_bits!(0, body_damage), 0),
+    (car_bits!(0, gear_wear[0]), 0),
+    (car_bits!(0, gear_wear[2]), 0),
+    (car_bits!(0, gear_wear[3]), 0),
+    (car_bits!(0, gear_wear[4]), 0),
+    (car_bits!(0, gear_wear[5]), 0),
+    (car_bits!(0, gear_wear[6]), 0),
+    (car_bits!(0, gear_wear[7]), 0),
+    (car_bits!(0, gear_wear[8]), 0),
+    (car_bits!(0, wheel_hit_damage[0]), 0),
+    (car_bits!(0, wheel_hit_damage[1]), 0),
+    (car_bits!(0, wheel_hit_damage[2]), 0),
+    (car_bits!(0, wheel_hit_damage[3]), 0),
+    (car_bits!(0, body_hit_damage), 0),
+    (car_bits!(0, light_damage[0]), 0),
+    (car_bits!(0, light_damage[1]), 0),
+    (car_bits!(0, light_damage[2]), 0),
+    (car_bits!(0, light_damage[3]), 0),
+    (car_bits!(0, light_damage[4]), 0),
+    (car_bits!(0, light_damage[5]), 0),
+    (car_bits!(0, suspension_damage[0]), 0),
+    (car_bits!(0, suspension_damage[1]), 0),
+    (car_bits!(0, suspension_damage[2]), 0),
+    (car_bits!(0, suspension_damage[3]), 0),
+    (car_bits!(0, brake_wear_a), 0),
+    (car_bits!(0, brake_wear_b), 0),
+    (car_bits!(0, part_hit_damage[0]), 0),
+    (car_bits!(0, part_hit_damage[1]), 0),
+    (car_bits!(0, part_hit_damage[2]), 0),
+    (car_bits!(0, part_hit_damage[3]), 0),
+    (car_bits!(0, impact_octant_marks[0]), 0),
+    (car_bits!(0, impact_octant_marks[1]), 0),
+    (car_bits!(0, impact_octant_marks[2]), 0),
+    (car_bits!(0, impact_octant_marks[3]), 0),
+    (car_bits!(0, impact_octant_marks[4]), 0),
+    (car_bits!(0, impact_octant_marks[5]), 0),
+    (car_bits!(0, impact_octant_marks[6]), 0),
+    (car_bits!(0, impact_octant_marks[7]), 0),
+    (car!(0, parts_present), 0xFFFF_FFFF),
 ];
 
 /// A draw (`math::next_random`) as a place among n.
 fn drawn_index(n: u32) -> u32 {
-    rc2k_core::race::credits::drawn_place(unsafe { next_random() }, n)
+    rc2k_core::race::credits::drawn_place(next_random(), n)
 }
 
-/// The Rust version.
-pub fn set_up_credits_race(_: &Regs) -> Result<Left, Refused> {
+/// The Rust version. (The original leaves eax 3, ebx 0x17 and edx the car kind drawn;
+/// nothing reads them.)
+pub fn set_up_credits_race() -> Result<(), Refused> {
     // Converted: `rc2k_core::race::credits::drawn_place`.
     use rc2k_core::race::credits::{RACE_KINDS, RACE_STAGES};
-    unsafe {
-        let stage = drawn_index(RACE_STAGES);
-        game_write(
-            rva(STAGE),
-            game_read::<u32>(rva(STAGES) + 4 * stage as usize),
-        );
-        let kind = drawn_index(RACE_KINDS);
-        game_write(
-            rva(CAR_KINDS),
-            game_read::<u32>(rva(KINDS) + 4 * kind as usize),
-        );
-        for (at, v) in WRITES {
-            game_write(rva(at), v);
-        }
-        Ok(Left::nothing().with(EAX, 3).with(EBX, 0x17).with(EDX, kind))
+    let stage = drawn_index(RACE_STAGES);
+    RACE_VARS
+        .stage_number
+        .set(RACE_WORK.credit_stages[stage as usize].get()); // g_stageNumber
+    let kind = drawn_index(RACE_KINDS);
+    RACE_VARS.race_car_kinds[0].set(RACE_WORK.credit_car_kinds[kind as usize].get()); // g_raceCarKinds
+    for (at, v) in WRITES {
+        at.set(v);
     }
-}
-
-fn regions() -> Vec<Region> {
-    let a = |x: usize| (game_addr(rva(x)) as u32, 4);
-    let mut all: Vec<Region> = WRITES.iter().map(|&(x, _)| a(x)).collect();
-    all.extend([a(STAGE), a(CAR_KINDS), (game_addr(STATE_RVA) as u32, 4)]);
-    all
-}
-
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_state(&HOOK, r, call_original, &regions(), &set_up_credits_race);
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &set_up_credits_race)
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let regions = regions();
-    let saved = capture(&regions);
-    own_random(|| {
-        for state in TEST_STATES {
-            check_state(
-                &mut t,
-                &format!("state {state:#x}"),
-                call_original,
-                Regs::SENTINEL,
-                &|| {
-                    restore(&regions, &saved);
-                    unsafe { game_write(STATE_RVA, state) };
-                },
-                &regions,
-                &set_up_credits_race,
-            );
-        }
-    });
-    restore(&regions, &saved);
-    t.finish()
+    Ok(())
 }

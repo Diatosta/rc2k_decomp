@@ -1,12 +1,8 @@
 //! What the game reads about its installation: the record `var\ral.zog`, the languages
 //! file `lang.cfg`, the edition file `files\d\gfx\sku`.
 
-use crate::framework::{game_addr, rva};
-use crate::redirect::RedirectedCopy;
-
 pub mod check_at_start;
 pub mod check_clio_disc;
-pub mod check_test;
 pub mod choose_language;
 pub mod end_text_line;
 pub mod normalise_path;
@@ -18,14 +14,9 @@ pub mod read_registry;
 pub mod read_sku;
 pub mod run_after_exit;
 pub mod runs_from_source;
-pub mod stand_ins;
 
-// The installer (`sub_412DE0` and its tree). Helpers with no hook:
-pub mod fakefs;
+// The installer (`sub_412DE0` and its tree). Helpers:
 pub mod installer;
-pub mod item_test;
-pub mod list_test;
-pub mod page_action_test;
 // The list-menu pages:
 pub mod ask_registration;
 pub mod backdrop_frame;
@@ -86,36 +77,12 @@ pub mod set_lobby_value;
 pub mod shortcuts;
 pub mod show_backdrop;
 pub mod start_edit;
+pub mod store;
 pub mod uninstall;
 pub mod unregister_lobby;
 pub mod value_by_number;
 pub mod value_down;
 pub mod value_up;
+pub mod vars;
 pub mod write_record;
 pub mod write_registry;
-
-/// byte_5189A8: base directory A (`cdrom` in the record), and byte_518AA8: what a `%` in a
-/// path stands for (the language's directory). 0x100 bytes each.
-pub const BASE_DIRECTORY_RVA: usize = rva(0x5189A8);
-pub const LOCALE_RVA: usize = rva(0x518AA8);
-pub const PATH_ROOM: usize = 0x100;
-
-/// For the self-tests of the three readers: a copy of the original that reads the file
-/// at `path` and not its own. All three start `pusha; lea eax, <path>`.
-pub unsafe fn copy_reading(
-    original: usize,
-    len: usize,
-    own_path: usize,
-    calls: &[usize],
-    path: &'static [u8],
-) -> Result<RedirectedCopy, &'static str> {
-    unsafe {
-        let named = (game_addr(own_path) as u32).to_le_bytes();
-        let entry = [
-            0x60, 0x8D, 0x05, named[0], named[1], named[2], named[3], 0xE8,
-        ];
-        let copy = RedirectedCopy::new(game_addr(original), len, &entry, calls, &|_| None)?;
-        copy.patch_u32(3, path.as_ptr() as u32);
-        Ok(copy)
-    }
-}

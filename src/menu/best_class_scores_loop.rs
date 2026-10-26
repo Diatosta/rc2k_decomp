@@ -9,55 +9,51 @@
 //! its own 3D list goes to `g_sceneList` before the first frame only.
 //! A reading from the title string of its menu, not yet a visit: "MELHORES CLASSIFICAÇÕES NO
 //! CAMPEONATO".
-//! Callers: `sub_4A8608`. Ungated thunk; shadow mode runs the original alone; each real call
-//! writes a line to hook.log. Self-test: `screen_loop::check_screen`.
-//! Manual patch with a private copy (0x2AA bytes; 9 calls and 1 jump to a fatal-error stub
-//! relocated): a call or a
-//! jump target sits in the first bytes.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Callers: `sub_4A8608`.
 
-use crate::framework::{Regs, rva};
-use crate::menu::screen_loop::{List, Screen, Step, screen_entry};
+use crate::framework::rva;
+use crate::menu::draw_lists_store::DRAW_LISTS;
+use crate::menu::flow_store::SCREEN_FLOW;
+use crate::menu::menus_store::MENUS;
+use crate::menu::screen_items_store::{SCREEN_ITEMS, slot};
+use crate::menu::screen_loop::{Callee, List, Screen, Step};
 
 // ---- Rust version: `menu::screen_loop` with this ----
 
 pub const SCREEN: Screen = Screen {
-    menu: rva(0x74E0A0),
-    saved_item: rva(0x74770C),
+    menu: || MENUS.best_class_scores.addr() as usize,
+    saved_item: || &SCREEN_ITEMS.current[slot::BEST_CLASS_SCORES],
     lists: &[
         List {
-            pointer: rva(0x7554F4), // g_unreadList
-            table: rva(0x758B72),
+            pointer: || &SCREEN_FLOW.unread_list, // g_unreadList
+            table: || DRAW_LISTS.unread_758b72.addr() as usize,
             run: false,
         },
         List {
-            pointer: rva(0x7554F8), // g_drawList
-            table: rva(0x758D3A),
+            pointer: || &SCREEN_FLOW.draw_list, // g_drawList
+            table: || DRAW_LISTS.draw_758d3a.addr() as usize,
             run: false,
         },
         List {
-            pointer: rva(0x7554FC), // g_overlayList
-            table: rva(0x759226),
+            pointer: || &SCREEN_FLOW.overlay_list, // g_overlayList
+            table: || DRAW_LISTS.overlay_759226.addr() as usize,
             run: false,
         },
     ],
     first_frame_lists: Some(&[
         List {
-            pointer: rva(0x755504), // g_sceneList
-            table: rva(0x758FB6),
+            pointer: || &SCREEN_FLOW.scene_list, // g_sceneList
+            table: || DRAW_LISTS.best_class_scores_scene.addr() as usize,
             run: false,
         },
         List {
-            pointer: rva(0x7554F8), // g_drawList
-            table: rva(0x758D3A),
+            pointer: || &SCREEN_FLOW.draw_list, // g_drawList
+            table: || DRAW_LISTS.draw_758d3a.addr() as usize,
             run: false,
         },
         List {
-            pointer: rva(0x7554FC), // g_overlayList
-            table: rva(0x759226),
+            pointer: || &SCREEN_FLOW.overlay_list, // g_overlayList
+            table: || DRAW_LISTS.overlay_759226.addr() as usize,
             run: false,
         },
     ]),
@@ -68,8 +64,12 @@ pub const SCREEN: Screen = Screen {
     prepare: &[],
     after_lists: &[],
     background: &[
-        Step::EaxAddr(rva(0x732061)),
-        Step::CallOrFatal(rva(0x47EFFF), 0x80712345),
+        Step::ArgAddr(|| {
+            (crate::menu::texts_store::MENU_TEXTS
+                .best_class_scores_picture
+                .addr()) as usize
+        }),
+        Step::CallOrFatal(Callee::LoadBackground, 0x80712345),
     ],
     after_first_frame: &[],
     confirm: Some(&[]),
@@ -98,12 +98,4 @@ pub const SCREEN: Screen = Screen {
     after_blink: &[],
     restart_action_check: false,
     always_asks: false,
-    also_reads: &[],
-    also_writes: &[],
 };
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    screen_entry("menu::best_class_scores_loop", r, &SCREEN)
-}

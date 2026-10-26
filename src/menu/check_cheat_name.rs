@@ -7,96 +7,64 @@
 //!
 //! In:  nothing
 //! Out: every register kept (`pusha` .. `popa`)
-//! Called by `menu::player4_details_loop` once the name's editing ends. The sound and
-//! `apply_cheats` go through `part` (in the game the Rust versions; `apply_cheats` logs);
-//! shadow mode runs the original alone. Refuses (before anything) a missing fourth player
-//! or name, a list without its end in 64 entries, a bit past 31 (the original's `bts`
-//! would reach past `g_cheats`), and what the coding refuses. Self-test: a copy whose two
-//! calls go to stand-ins, against the Rust version: names of the list (coded back),
-//! another, case changed.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Called by `menu::player4_details_loop` once the name's editing ends. Refuses (before anything) a
+//! missing fourth player or name, a list without its end in 64 entries, a bit past 31 (the
+//! original's `bts` would reach past `g_cheats`), and what the coding refuses.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{Regs, game_addr, game_read, game_write, rva};
-use crate::menu::parts::{Part, parted_entry};
+use crate::menu::cheats_store::CHEAT_VARS;
 use crate::menu::player::player_at;
+use crate::pointers::GamePtr;
 use crate::strings::rot13_into_text::rot13_into_text;
+use rc2k_core::strings::bytes::Bytes;
 
-const LIST_RVA: usize = rva(0x7585E0); // aNepnqrNpgvba
-const CHEATS_RVA: usize = rva(0x75870C); // g_cheats
 const HIDDEN_NAME: u32 = 0x18F;
 // sound::play_menu_sound, menu::apply_cheats
 
 /// The list's entry and the cheat's bit for the coded name in the text buffer, if it is in
 /// the list.
-unsafe fn find(coded: *const u8) -> Result<Option<(u32, u32)>, Refused> {
-    let list = game_addr(LIST_RVA) as *const u8;
-    let coded = unsafe { std::ffi::CStr::from_ptr(coded.cast()) }.to_bytes();
+fn find(coded: u32) -> Result<Option<(u32, u32)>, Refused> {
+    let list = CHEAT_VARS.cheat_names.addr();
+    let text = GamePtr::new(coded).bytes("a coded name")?;
+    let coded: Vec<u8> = (0..)
+        .map_while(|n| text.byte(n))
+        .take_while(|&b| b != 0)
+        .collect();
     // Converted: `rc2k_core::menu::cheat_names::find`.
     let found = rc2k_core::menu::cheat_names::find(
-        &unsafe { crate::bridge::Raw::new(list) },
-        coded,
+        &GamePtr::new(list).bytes("the cheat names")?,
+        &coded,
         &crate::strings::same_text::case_table(),
     )?;
-    Ok(found.map(|f| (list as u32 + f.at as u32, f.bit as u32)))
+    Ok(found.map(|f| (list + f.at as u32, f.bit as u32)))
 }
 
-/// The Rust version: the registers it leaves.
-pub unsafe fn check_cheat_name(entry: &Regs, part: Part) -> Result<Regs, Refused> {
+/// The Rust version. Every register is kept (the original's `pusha` .. `popa`); the
+/// calls get theirs as noted, of which only the sound reads one (eax 8).
+pub unsafe fn check_cheat_name() -> Result<(), Refused> {
     let player = player_at(3);
     if player == 0 {
         return Err(BadInput("no fourth player").into());
     }
-    let name = unsafe { ((player + 0x18) as *const u32).read_unaligned() };
+    let name = GamePtr::new(player + 0x18).read::<u32>("a player\'s name pointer")?;
     unsafe {
-        let coded = rot13_into_text(name as *const u8)?;
-        let Some((found, bit)) = find(coded as *const u8)? else {
-            return Ok(*entry);
+        let coded = rot13_into_text(name)?;
+        let Some((_found, bit)) = find(coded)? else {
+            return Ok(());
         };
         // Converted: `rc2k_core::menu::cheat_names::with_cheat`.
-        let cheats = rc2k_core::menu::cheat_names::with_cheat(game_read(CHEATS_RVA), bit as u8)?;
-        game_write(CHEATS_RVA, cheats);
-        // The registers at the calls: ebx the entry, ecx the bit, edi the record.
-        let mut r = Regs {
-            eax: 8,
-            ebx: found,
-            ecx: bit,
-            edi: player,
-            ..*entry
-        };
-        part(0, &mut r)?;
-        part(1, &mut r)?;
+        let cheats = rc2k_core::menu::cheat_names::with_cheat(CHEAT_VARS.cheats.get(), bit as u8)?;
+        CHEAT_VARS.cheats.set(cheats);
+        // The original's registers at the calls: eax 8, ebx the entry, ecx the bit, edi
+        // the record.
+        crate::sound::play_menu_sound::play_menu_sound_in_game(8);
+        crate::menu::apply_cheats::apply_cheats(&mut |line| {
+            crate::menu::text_entry::log_l1(line, true)
+        })?;
         let mut hidden = Vec::new();
-        crate::strings::append_string_by_id::push_string(&mut hidden, HIDDEN_NAME);
+        crate::strings::append_string_by_id::push_string(&mut hidden, HIDDEN_NAME)?;
         hidden.push(0);
-        std::ptr::copy_nonoverlapping(hidden.as_ptr(), name as *mut u8, hidden.len());
-    }
-    Ok(*entry)
-}
-
-/// In the game: the menu sound's and `apply_cheats`' Rust versions (its log lines too).
-pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
-    if place == 0 {
-        crate::sound::play_menu_sound::play_menu_sound_in_game(r);
-    } else {
-        unsafe {
-            crate::menu::apply_cheats::apply_cheats(&mut |line| {
-                crate::menu::text_entry::log_l1(line, true)
-            })
-        }?;
+        GamePtr::new(name).write_bytes(&hidden, "a player\'s name")?;
     }
     Ok(())
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    parted_entry(
-        r,
-        &|r, part| unsafe { check_cheat_name(r, part) },
-        game_part,
-    )
 }

@@ -13,158 +13,70 @@
 //! In:  esi = the device's record (`input/devices.rs`)
 //! Out: every register kept (`pusha` .. `popa`)
 //!
-//! Caller: `input::read_device`. Its DirectInput calls through `part`: 0 `Poll`, 1
-//! `GetDeviceState` (eax its result), 2 `Acquire`; in the game the device's own methods
-//! (platform, section 15).
-//! Hook removed 2026-10-22 (direct calls): Rust callers run its `entry` (`calls::call`,
-//! `routes.rs`); the registers above are the original's, for reference.
+//! Caller: `input::read_device`. Its DirectInput calls: `Poll`, `GetDeviceState`
+//! (eax its result), `Acquire` (platform).
+//!
+//! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
+//! above are the original's, for reference.
 
 use crate::errors::Refused;
 use crate::field;
-use crate::framework::{Regs, game_addr, game_read};
-use crate::input::devices::{STATE_LEN, STATE_RVA, at, com_call, put};
+use crate::input::devices::{Deferred, STATE_LEN, at, com_call, joy_state, put};
+use crate::input::store::DEVICES;
 use crate::input::types::InputDevice;
-use std::sync::Mutex;
-use std::sync::atomic::{AtomicU32, Ordering};
-
-/// A call by place (see the header): eax the device, and for 1 the result back in eax.
-pub type Part<'a> = &'a mut dyn FnMut(u32, &mut Regs) -> Result<(), Refused>;
+use crate::pointers::GamePtr;
 
 fn state(n: u32) -> u32 {
-    unsafe { game_read(STATE_RVA + 4 * n as usize) }
+    DEVICES.device_state[n as usize].get()
 }
 
-/// The Rust version (see the header): the registers it leaves (`popa`'s: the entry's).
-pub unsafe fn poll_device(entry: &Regs, part: Part) -> Result<Regs, Refused> {
-    let record = entry.esi;
-    let device = at(record, field!(InputDevice, device));
-    if at(record, field!(InputDevice, acquired)) != 1 || device == 0 {
-        return Ok(*entry);
+/// The device `record` polled (see the header).
+pub unsafe fn poll_device(record: u32) -> Result<(), Refused> {
+    let device = at(record, field!(InputDevice, device))?;
+    if at(record, field!(InputDevice, acquired))? != 1 || device == 0 {
+        return Ok(());
     }
-    let mut r = Regs {
-        eax: device,
-        ..*entry
+    unsafe {
+        com_call(device, 0x64, &[]);
+    }
+    let failed = unsafe {
+        com_call(
+            device,
+            0x24,
+            &[STATE_LEN as u32, DEVICES.device_state[0].addr()],
+        )
     };
-    part(0, &mut r)?;
-    r.eax = device;
-    part(1, &mut r)?;
     // The `rep movsd` of a failed read moves esi on by 0x50 as well: what follows reads
     // and writes the record from there (sic) until the `popa`.
     let mut record = record;
-    if r.eax != 0 {
-        r.eax = device;
-        part(2, &mut r)?;
-        unsafe {
-            std::ptr::copy(
-                record as *const u8,
-                game_addr(STATE_RVA) as *mut u8,
-                STATE_LEN,
-            );
-        }
+    if failed != 0 {
+        unsafe { com_call(device, 0x1C, &[]) };
+        GamePtr::new(record).copy_to(
+            GamePtr::new(DEVICES.device_state[0].addr()),
+            STATE_LEN,
+            "a device record read as its state",
+        )?;
         record += STATE_LEN as u32;
     }
     // Converted: `rc2k_core::input::joystick` (`poll_axes`, `poll_buttons`).
     use rc2k_core::input::joystick::{poll_axes, poll_buttons};
+    let late = Deferred::default();
     let [x, y, z] = poll_axes(
-        at(record, field!(InputDevice, kind)),
-        |place| unsafe { ((record + place) as *const u8).read() },
+        at(record, field!(InputDevice, kind))?,
+        |place| {
+            late.get(
+                GamePtr::new(record + place)
+                    .read::<u8>("a device record's byte")
+                    .map(u32::from),
+            ) as u8
+        },
         state,
     );
-    put(record, field!(InputDevice, axes), x);
-    put(record, field!(InputDevice, axes) + 4, y);
-    put(record, field!(InputDevice, axes) + 8, z);
-    let buttons = poll_buttons(&unsafe { game_read(STATE_RVA + 0x30) });
-    put(record, field!(InputDevice, buttons), buttons);
-    Ok(*entry)
-}
-
-/// In the game: the device's own methods (DirectInput).
-pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
-    unsafe {
-        match place {
-            0 => r.eax = com_call(r.eax, 0x64, &[]),
-            1 => {
-                r.eax = com_call(
-                    r.eax,
-                    0x24,
-                    &[STATE_LEN as u32, game_addr(STATE_RVA) as u32],
-                )
-            }
-            _ => r.eax = com_call(r.eax, 0x1C, &[]),
-        }
-    }
+    late.finish()?;
+    put(record, field!(InputDevice, axes), x)?;
+    put(record, field!(InputDevice, axes) + 4, y)?;
+    put(record, field!(InputDevice, axes) + 8, z)?;
+    let buttons = poll_buttons(&joy_state()[0x30..].try_into().unwrap());
+    put(record, field!(InputDevice, buttons), buttons)?;
     Ok(())
-}
-
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    let left = unsafe { poll_device(r, &mut game_part) }?;
-    *r = Regs { esp: r.esp, ..left };
-    Ok(())
-}
-
-/// What the test's device's `GetDeviceState` gives back, and the state it writes.
-static FAILS: AtomicU32 = AtomicU32::new(0);
-static TEST_STATE: Mutex<[u8; STATE_LEN]> = Mutex::new([0; STATE_LEN]);
-/// The test device's methods called, by slot.
-pub static NOTED: Mutex<Vec<u32>> = Mutex::new(Vec::new());
-
-extern "system" fn test_poll(_: u32) -> u32 {
-    NOTED.lock().unwrap().push(0x64);
-    0
-}
-
-extern "system" fn test_get_state(_: u32, len: u32, to: u32) -> u32 {
-    NOTED.lock().unwrap().push(0x24);
-    let s = TEST_STATE.lock().unwrap();
-    unsafe {
-        std::ptr::copy_nonoverlapping(s.as_ptr(), to as *mut u8, (len as usize).min(STATE_LEN))
-    };
-    FAILS.load(Ordering::SeqCst)
-}
-
-extern "system" fn test_acquire(_: u32) -> u32 {
-    NOTED.lock().unwrap().push(0x1C);
-    0
-}
-
-extern "system" fn test_release(_: u32) -> u32 {
-    NOTED.lock().unwrap().push(0x08);
-    0
-}
-
-extern "system" fn test_unacquire(_: u32) -> u32 {
-    NOTED.lock().unwrap().push(0x20);
-    0
-}
-
-/// A device object of the test's: its table's slots 0x08 (`Release`), 0x1C (`Acquire`),
-/// 0x20 (`Unacquire`), 0x24 (`GetDeviceState`) and 0x64 (`Poll`) the ones above.
-pub struct TestDevice {
-    table: Vec<u32>,
-    object: Box<u32>,
-}
-
-impl TestDevice {
-    pub fn new() -> Self {
-        let mut table = vec![0u32; 0x70 / 4];
-        table[0x08 / 4] = test_release as *const () as u32;
-        table[0x1C / 4] = test_acquire as *const () as u32;
-        table[0x20 / 4] = test_unacquire as *const () as u32;
-        table[0x24 / 4] = test_get_state as *const () as u32;
-        table[0x64 / 4] = test_poll as *const () as u32;
-        let object = Box::new(table.as_ptr() as u32);
-        Self { table, object }
-    }
-
-    pub fn address(&self) -> u32 {
-        let _ = &self.table;
-        &*self.object as *const u32 as u32
-    }
-}
-
-impl Default for TestDevice {
-    fn default() -> Self {
-        Self::new()
-    }
 }

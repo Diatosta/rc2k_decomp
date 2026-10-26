@@ -59,6 +59,33 @@ Each entry says:
 - **Seen**: no; found by reading the code.
 - **Fix**: the Rust version always asks for a stop (`audio::set_mode`).
 
+## Some cars' marks lose their depth bias
+
+*Original*: `marks::init_marks` (0x4D12F7). *Fixed*: 2026-10-23.
+
+- **What**: a stage's marks get a depth bias from a table indexed by the car's kind, but
+  the table has 0x17 entries and the kinds go to 0x21; for the cars past it the original
+  reads the variables after the table (the bias itself, a flag, the number 9), a bias of
+  about 0.
+- **In game**: with those cars, the marks' depth is off (marks drawn as if without their
+  bias).
+- **Seen**: the standalone refused this read at a stage's loading (2026-10-23); the effect
+  in the original was not looked at.
+- **Fix**: kinds past the table get 18240.0, the value of most kinds (`marks::init_marks`).
+
+## Quitting leaves the music and the stream playing
+
+*Original*: `audio::close_all` (0x409DD5, the audio thread's end). *Fixed*: 2026-10-23.
+
+- **What**: when the audio thread closes the sound, it first asks the music and the
+  sound stream to stop, but passes whatever a register happens to hold as the kind of
+  stop; at that point it is always "feed the stream", so neither is stopped (their buffers
+  and files are not released) before the sound device is closed under them.
+- **In game**: at quitting, the music's and the stream's buffers and files are left to
+  the device's release and the process's end.
+- **Seen**: no; found by reading the code.
+- **Fix**: the Rust version always asks for a stop (`audio::close_all`).
+
 ## Text lookup with a bad string id reads anywhere
 
 *Original*: `strings::expand_entry` (0x401FE1). *Fixed*: 2026-10-20.
@@ -87,3 +114,83 @@ Each entry says:
 - **Seen**: no; found by reading the code.
 - **Fix**: the Rust logger (`logfile::numeric::log_number`) logs the text only up to what
   was written: the marker's place, but never past the text's end.
+
+## Crash driving over mud (particle ring full)
+
+*Original*: `marks::emit_bursts` (0x4CD21A) and `marks::emit_bursts_2` (0x4CD747).
+*Fixed*: 2026-10-23.
+
+- **What**: wheels on soft ground (mud, gravel) throw bursts of particles into a shared
+  ring of 0x3FE entries. Each burst's loop keeps its counter and a pointer on the stack.
+  When the ring fills in the middle of a burst, the code jumps to an exit that removes
+  only the pointer, not the counter, before restoring the registers and returning. The
+  registers come back shifted by one, and the return goes to whatever value one of them
+  held: a jump into nowhere.
+- **In game**: with heavy particle use (driving through mud), the game ends with a
+  "Guru Meditation" access violation at a small address (seen: IP 0x0000D852).
+- **Seen**: yes, with the original game (the reason the owner's copy had the particles
+  cut out) and with the converted game on 2026-10-23.
+- **Fix**: the Rust version ends the bursts when the ring is full, keeping the caller's
+  registers, as the intended exit does (`src/marks/emit_bursts.rs`). (For the hooked
+  game, removed on 2026-10-23, the original's two exits were mended at start-up:
+  `lea esp, [esp+4]` became `lea esp, [esp+8]` at 0x4CD741 and 0x4CDC6E.)
+
+## Split-screen divider left in a replay
+
+*Original*: `hud::overlay_pass` (0x45A893), `hud::draw_view_strips` (0x45B7B1),
+`hud::draw_view_strip` (0x45B9AA tail).
+*Fixed*: 2026-10-23.
+
+- **What**: the race draws its views by `dword_63DB98` (1 or 2 views), the HUD by its
+  split layout `dword_6238A4` (0 one player, 1 / 2 the two splits). A replay sets the
+  views back to one (`drive::choose_shown_cars`), but outside a race it leaves the layout
+  as the split-screen race had it, so the HUD still draws the two-player layout over the
+  one view.
+- **In game**: after a split-screen race, the replay shows the black divider across the
+  middle (with the two players' HUD) until the HUD is hidden.
+- **Seen**: yes, by the owner in the converted game (2026-10-23); the Rust code was the
+  original's, read from the disassembly.
+- **Fix**: the HUD takes its layout as 0 while one view is drawn
+  (`hud::overlay_pass::shown_layout`), for the HUD, the view strips and their tail.
+
+## Escape on the "leave?" question leaves the screen anyway
+
+*Original*: the screen loops' Escape clearing (`cmp g_clearsEscapeFlag, 1` before
+`mov dword_755A3C, 0` in each loop, e.g. `menu::leave_question_loop` 0x47FAC4),
+`g_clearsEscapeFlag` (0x7558D8).
+*Fixed*: 2026-10-24.
+
+- **What**: Escape sets the Escape flag (`dword_755A3C`). A screen clears it when it
+  leaves, but only if `g_clearsEscapeFlag` is 1. Only four screens set that switch (Start
+  Rally, Options, Player 1 details, Information), and nothing ever clears it. Until one of
+  them has been seen, the flag outlives the screen it was pressed on.
+- **In game**: load a saved championship straight after starting the game, finish a
+  stage, press Escape on the review menu, and Escape again on the "leave?" question to
+  say no. The review menu takes the leftover flag as a new Escape, and the championship
+  ends back at the main menu.
+- **Seen**: yes, by the owner in the converted game (2026-10-24). The behaviour is
+  read from the original's code: the converted screens do what it does.
+- **Fix**: the Escape flags are cleared whenever a screen leaves, as the original does
+  once any of the four screens has been seen (`menu::screen_loop::clear_escape`).
+
+## The intro plays over and over after a race left by the quit question
+
+*Original*: `menu::play_films` (0x4161CD) calls the credits' race `race::credits_race`
+(0x463666) without `race::clear_player_absences` (0x449D44), which its other caller
+(`sub_443104`) calls first; `race::players_all_out` (0x445506) reads the first car
+block's +0xB0.
+*Fixed*: 2026-10-24.
+
+- **What**: leaving a race through the quit question writes the answer into the cars'
+  "out" field (+0xB0), and it stays until the next race's set-up. The film loop's
+  demonstration (the credits' race between two showings of the intro) runs with one
+  player, and the race loop ends a race as soon as every player is out: with the old
+  answer still there, the demonstration ends at its first frame and the intro starts
+  again.
+- **In game**: quit a race (Escape, then yes), then choose View Intro on the main menu,
+  or leave the main menu idle until the films start: the intro plays again and again,
+  never the credits' race, until a key.
+- **Seen**: yes, by the owner in the converted game (2026-10-24, twice); the cause read
+  from the original's code (the converted functions do what it does).
+- **Fix**: the film loop clears the players' "out" fields before the demonstration, as
+  the original's other way into it does.

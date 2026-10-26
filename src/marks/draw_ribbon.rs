@@ -9,309 +9,363 @@
 //! `scene::draw_fan` and `g_polygonVertexCount` 4.
 //!
 //! In:  eax the cell, ecx the alpha, edx the width, esi the colour (and the two places)
-//! Out: ecx the failing depth's bits when too near; else as `clip_quad` / `draw_fan`
-//!      leave them (eax the cell times 16, ebp, edi, edx the cell's first, second and
-//!      fourth places going in)
+//! Out: nothing (its caller reads no register after it)
 //!
-//! Callers: the marks' lines (0x4C5D65) and 0x4CFAA3. The x87 block is the original's
-//! instructions over the game's variables; the clip its Rust version (the copy's call
-//! goes to its hook); the draw through `part` (1 `draw_fan`), in the game its Rust
-//! version. Refuses, before anything, a cell past 0x40 and null marks settings (the
-//! clip's refusal). Shadow mode runs the original alone (it draws). Self-test: a copy
-//! whose draw goes to a stand-in, against the Rust version, places near and far.
+//! Callers: the marks' lines (0x4C5D65) and 0x4CFAA3. The x87 block is plain Rust on the x87 model (`math::x87_float`), in the original's order, over the game's variables. Refuses, before anything, a cell past 0x40 and
+//! null marks settings (the clip's refusal).
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{
-    RawHook, Regs, SelfTest, game_addr, game_read, game_write, hook_asm, rva, shadow,
-};
-use crate::marks::clip_quad::clip_quad;
-use crate::service::harness::{Region, at, capture, restore};
-use std::sync::atomic::AtomicUsize;
+use crate::marks::clip_quad::{clip_quad, draw_fan};
+use crate::marks::surface_store::SURFACE;
+use crate::scene::draw_store::DRAW;
 
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("marks::draw_ribbon", rva(0x4C5E63), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
-
-const HALF_RVA: usize = rva(0x8EB8B5); // dword_8EB8B5
-const DEPTHS_RVA: [usize; 2] = [rva(0x8EB8DD), rva(0x8EB8E9)];
-const NEAR_RVA: usize = rva(0x8EB961); // dword_8EB961
-const VERTICES_RVA: usize = rva(0x9605A0); // g_polygonVertices
-const VERTEX_COUNT_RVA: usize = rva(0x6240F8); // g_polygonVertexCount
-const CELLS_RVA: usize = rva(0x935766); // g_marksCellPlaces: 0x41 of 16 bytes
+use crate::d3d::vertices_store::VERTICES;
 const CELLS: u32 = 0x41;
 
-/// A call by place: 1 `draw_fan`.
-pub type Part<'a> = &'a mut dyn FnMut(u32, &mut Regs) -> Result<(), Refused>;
-
 /// The original's 0x4C5EF7 .. 0x4C60E9: the two projected and the ribbon's corners.
-unsafe fn ribbon(b: u32) {
-    unsafe {
-        core::arch::asm!(
-            "fld dword ptr [{b} + 0x224088]",
-            "fdiv dword ptr [{b} + 0x4EB8DD]",
+fn ribbon() {
+    ribbon_x87(
+        crate::race::store::asm_base() as usize,
+        crate::d3d::vertices_store::piece_addr() as usize,
+        &DRAW_WORK,
+        &VIEW_VARS,
+    )
+}
+
+/// The Rust version (see the header): `cell` (eax), `alpha` (ecx), `width` (edx),
+/// `colour` (esi). Its one caller reads no register after it.
+pub fn draw_ribbon(cell: u32, alpha: u32, width: u32, colour: u32) -> Result<(), Refused> {
+    if cell >= CELLS {
+        return Err(BadInput("a mark cell past g_marksCellPlaces").into());
+    }
+    {
+        if crate::marks::setup::SETTINGS.pointer.get() == 0 {
+            return Err(BadInput("no marks settings").into());
+        }
+        DRAW_WORK.half[0].set_bits(width >> 1);
+        let colour = (alpha << 24) | colour;
+        for n in 0..4 {
+            VERTICES.vertices[n].colour.set(colour);
+        }
+        let at = cell << 4;
+        let place = |n: usize| SURFACE.places.get_u32(at as usize + 4 * n);
+        let [u0, v0, u1, v1] = [place(0), place(1), place(2), place(3)];
+        for (n, (u, v)) in [(u0, v0), (u1, v0), (u1, v1), (u0, v1)]
+            .into_iter()
+            .enumerate()
+        {
+            VERTICES.vertices[n].u.set_bits(u);
+            VERTICES.vertices[n].v.set_bits(v);
+        }
+        for depth in [DRAW_WORK.turned[2].bits(), DRAW_WORK.second[2].bits()] {
+            if depth as i32 <= DRAW_WORK.near.bits() as i32 {
+                return Ok(());
+            }
+        }
+        ribbon();
+        if clip_quad(crate::d3d::vertices_store::piece_addr())? {
+            return Ok(());
+        }
+        draw_fan();
+        DRAW.polygon_vertex_count.set_bits(4u32);
+    }
+    Ok(())
+}
+
+use crate::marks::frame_state::{DRAW_WORK, DrawWork, VIEW_VARS, ViewVars};
+use crate::marks::plain::{ld, st};
+use crate::math::x87_float as bh;
+
+/// `ribbon`'s x87 block as plain Rust on the x87 model (93 instructions), same order and memory places.
+fn ribbon_x87(rc: usize, vt: usize, dw: &DrawWork, vv: &ViewVars) {
+    let t0 = ld(rc, 0x224088);
+    let t1 = t0 / bh::ld(dw.turned[2].bits());
+    let t2 = t1 * bh::ld(dw.turned[0].bits());
+    let t3 = t1 * bh::ld(dw.turned[1].bits());
+    let t4 = -t3;
+    let t5 = t4 + ld(rc, 0x2240A0);
+    dw.turned[1].set_bits(bh::st(t5));
+    let t6 = t2 + ld(rc, 0x22409C);
+    dw.turned[0].set_bits(bh::st(t6));
+    dw.ends_scale[0].set_bits(bh::st(t1));
+    let t7 = ld(rc, 0x224088);
+    let t8 = t7 / bh::ld(dw.second[2].bits());
+    let t9 = t8 * bh::ld(dw.second[0].bits());
+    let t10 = t8 * bh::ld(dw.second[1].bits());
+    let t11 = -t10;
+    let t12 = t11 + ld(rc, 0x2240A0);
+    dw.second[1].set_bits(bh::st(t12));
+    let t13 = t9 + ld(rc, 0x22409C);
+    dw.second[0].set_bits(bh::st(t13));
+    dw.ends_scale[1].set_bits(bh::st(t8));
+    let t14 = bh::ld(dw.second[0].bits());
+    let t15 = t14 - bh::ld(dw.turned[0].bits());
+    vv.ribbon_way[0].set_bits(bh::st(t15));
+    let t16 = bh::ld(dw.second[1].bits());
+    let t17 = t16 - bh::ld(dw.turned[1].bits());
+    vv.ribbon_way[1].set_bits(bh::st(t17));
+    let t18 = bh::ld(vv.ribbon_way[0].bits());
+    let t19 = t18 * t18;
+    let t20 = bh::ld(vv.ribbon_way[1].bits());
+    let t21 = t20 * t20;
+    let t22 = t19 + t21;
+    let t23 = t22.sqrt();
+    let t24 = bh::ONE;
+    let t25 = t24 / t23;
+    let t26 = bh::ld(vv.ribbon_way[0].bits());
+    let t27 = bh::ld(vv.ribbon_way[1].bits());
+    let t28 = t27 * t25;
+    vv.ribbon_way[0].set_bits(bh::st(t28));
+    let t29 = t25 * t26;
+    let t30 = -t29;
+    vv.ribbon_way[1].set_bits(bh::st(t30));
+    let t31 = bh::ld(vv.ribbon_way[0].bits());
+    let t32 = t31 * bh::int(dw.half[0].bits() as i32);
+    let t33 = t32 * bh::ld(dw.ends_scale[0].bits());
+    vv.ribbon_sides[0].set_bits(bh::st(t33));
+    let t34 = bh::ld(vv.ribbon_way[1].bits());
+    let t35 = t34 * bh::int(dw.half[0].bits() as i32);
+    let t36 = t35 * bh::ld(dw.ends_scale[0].bits());
+    vv.ribbon_sides[1].set_bits(bh::st(t36));
+    let t37 = bh::ld(vv.ribbon_way[0].bits());
+    let t38 = t37 * bh::int(dw.half[0].bits() as i32);
+    let t39 = t38 * bh::ld(dw.ends_scale[1].bits());
+    vv.ribbon_sides_2[0].set_bits(bh::st(t39));
+    let t40 = bh::ld(vv.ribbon_way[1].bits());
+    let t41 = t40 * bh::int(dw.half[0].bits() as i32);
+    let t42 = t41 * bh::ld(dw.ends_scale[1].bits());
+    vv.ribbon_sides_2[1].set_bits(bh::st(t42));
+    let t43 = bh::ld(dw.turned[0].bits());
+    let t44 = t43 - bh::ld(vv.ribbon_sides[0].bits());
+    st(vt, 0x0, t44);
+    let t45 = bh::ld(dw.turned[1].bits());
+    let t46 = t45 - bh::ld(vv.ribbon_sides[1].bits());
+    st(vt, 0x4, t46);
+    let t47 = bh::ld(dw.turned[0].bits());
+    let t48 = t47 + bh::ld(vv.ribbon_sides[0].bits());
+    st(vt, 0x20, t48);
+    let t49 = bh::ld(dw.turned[1].bits());
+    let t50 = t49 + bh::ld(vv.ribbon_sides[1].bits());
+    st(vt, 0x24, t50);
+    let t51 = bh::ld(dw.second[0].bits());
+    let t52 = t51 + bh::ld(vv.ribbon_sides_2[0].bits());
+    st(vt, 0x40, t52);
+    let t53 = bh::ld(dw.second[1].bits());
+    let t54 = t53 + bh::ld(vv.ribbon_sides_2[1].bits());
+    st(vt, 0x44, t54);
+    let t55 = bh::ld(dw.second[0].bits());
+    let t56 = t55 - bh::ld(vv.ribbon_sides_2[0].bits());
+    st(vt, 0x60, t56);
+    let t57 = bh::ld(dw.second[1].bits());
+    let t58 = t57 - bh::ld(vv.ribbon_sides_2[1].bits());
+    st(vt, 0x64, t58);
+    let t59 = bh::ld(dw.turned[2].bits());
+    let t60 = t59 * bh::ld(dw.z_k.bits());
+    st(vt, 0x8, t60);
+    st(vt, 0x28, t60);
+    let t61 = bh::ld(dw.second[2].bits());
+    let t62 = t61 * bh::ld(dw.z_k.bits());
+    st(vt, 0x48, t62);
+    st(vt, 0x68, t62);
+}
+
+#[cfg(all(test, target_arch = "x86"))]
+mod asm_reference {
+    //! The original assembly blocks, kept verbatim as the reference the plain versions are tested against.
+
+    pub(super) fn ribbon_x87(rc: usize, bf: usize, mk: usize) {
+        unsafe {
+            core::arch::asm!(
+                    "fld dword ptr [{rc} + 0x224088]",
+            "fdiv dword ptr [{mk} + 0x18699D]",
             ".byte 0xD9, 0xC0",
-            "fmul dword ptr [{b} + 0x4EB8D5]",
+            "fmul dword ptr [{mk} + 0x186995]",
             ".byte 0xD9, 0xC1",
-            "fmul dword ptr [{b} + 0x4EB8D9]",
+            "fmul dword ptr [{mk} + 0x186999]",
             ".byte 0xD9, 0xE0",
-            "fadd dword ptr [{b} + 0x2240A0]",
-            "fstp dword ptr [{b} + 0x4EB8D9]",
-            "fadd dword ptr [{b} + 0x22409C]",
-            "fstp dword ptr [{b} + 0x4EB8D5]",
-            "fstp dword ptr [{b} + 0x4EB8CD]",
-            "fld dword ptr [{b} + 0x224088]",
-            "fdiv dword ptr [{b} + 0x4EB8E9]",
+            "fadd dword ptr [{rc} + 0x2240A0]",
+            "fstp dword ptr [{mk} + 0x186999]",
+            "fadd dword ptr [{rc} + 0x22409C]",
+            "fstp dword ptr [{mk} + 0x186995]",
+            "fstp dword ptr [{mk} + 0x18698D]",
+            "fld dword ptr [{rc} + 0x224088]",
+            "fdiv dword ptr [{mk} + 0x1869A9]",
             ".byte 0xD9, 0xC0",
-            "fmul dword ptr [{b} + 0x4EB8E1]",
+            "fmul dword ptr [{mk} + 0x1869A1]",
             ".byte 0xD9, 0xC1",
-            "fmul dword ptr [{b} + 0x4EB8E5]",
+            "fmul dword ptr [{mk} + 0x1869A5]",
             ".byte 0xD9, 0xE0",
-            "fadd dword ptr [{b} + 0x2240A0]",
-            "fstp dword ptr [{b} + 0x4EB8E5]",
-            "fadd dword ptr [{b} + 0x22409C]",
-            "fstp dword ptr [{b} + 0x4EB8E1]",
-            "fstp dword ptr [{b} + 0x4EB8D1]",
-            "fld dword ptr [{b} + 0x4EB8E1]",
-            "fsub dword ptr [{b} + 0x4EB8D5]",
-            "fstp dword ptr [{b} + 0x4F3985]",
-            "fld dword ptr [{b} + 0x4EB8E5]",
-            "fsub dword ptr [{b} + 0x4EB8D9]",
-            "fstp dword ptr [{b} + 0x4F3989]",
-            "fld dword ptr [{b} + 0x4F3985]",
+            "fadd dword ptr [{rc} + 0x2240A0]",
+            "fstp dword ptr [{mk} + 0x1869A5]",
+            "fadd dword ptr [{rc} + 0x22409C]",
+            "fstp dword ptr [{mk} + 0x1869A1]",
+            "fstp dword ptr [{mk} + 0x186991]",
+            "fld dword ptr [{mk} + 0x1869A1]",
+            "fsub dword ptr [{mk} + 0x186995]",
+            "fstp dword ptr [{mk} + 0x18EA45]",
+            "fld dword ptr [{mk} + 0x1869A5]",
+            "fsub dword ptr [{mk} + 0x186999]",
+            "fstp dword ptr [{mk} + 0x18EA49]",
+            "fld dword ptr [{mk} + 0x18EA45]",
             ".byte 0xD8, 0xC8",
-            "fld dword ptr [{b} + 0x4F3989]",
+            "fld dword ptr [{mk} + 0x18EA49]",
             ".byte 0xD8, 0xC8",
             ".byte 0xDE, 0xC1",
             ".byte 0xD9, 0xFA",
             ".byte 0xD9, 0xE8",
             ".byte 0xDE, 0xF1",
-            "fld dword ptr [{b} + 0x4F3985]",
-            "fld dword ptr [{b} + 0x4F3989]",
+            "fld dword ptr [{mk} + 0x18EA45]",
+            "fld dword ptr [{mk} + 0x18EA49]",
             ".byte 0xD8, 0xCA",
-            "fstp dword ptr [{b} + 0x4F3985]",
+            "fstp dword ptr [{mk} + 0x18EA45]",
             ".byte 0xDE, 0xC9",
             ".byte 0xD9, 0xE0",
-            "fstp dword ptr [{b} + 0x4F3989]",
-            "fld dword ptr [{b} + 0x4F3985]",
-            "fimul dword ptr [{b} + 0x4EB8B5]",
-            "fmul dword ptr [{b} + 0x4EB8CD]",
-            "fstp dword ptr [{b} + 0x4F3991]",
-            "fld dword ptr [{b} + 0x4F3989]",
-            "fimul dword ptr [{b} + 0x4EB8B5]",
-            "fmul dword ptr [{b} + 0x4EB8CD]",
-            "fstp dword ptr [{b} + 0x4F3995]",
-            "fld dword ptr [{b} + 0x4F3985]",
-            "fimul dword ptr [{b} + 0x4EB8B5]",
-            "fmul dword ptr [{b} + 0x4EB8D1]",
-            "fstp dword ptr [{b} + 0x4F399D]",
-            "fld dword ptr [{b} + 0x4F3989]",
-            "fimul dword ptr [{b} + 0x4EB8B5]",
-            "fmul dword ptr [{b} + 0x4EB8D1]",
-            "fstp dword ptr [{b} + 0x4F39A1]",
-            "fld dword ptr [{b} + 0x4EB8D5]",
-            "fsub dword ptr [{b} + 0x4F3991]",
-            "fstp dword ptr [{b} + 0x5605A0]",
-            "fld dword ptr [{b} + 0x4EB8D9]",
-            "fsub dword ptr [{b} + 0x4F3995]",
-            "fstp dword ptr [{b} + 0x5605A4]",
-            "fld dword ptr [{b} + 0x4EB8D5]",
-            "fadd dword ptr [{b} + 0x4F3991]",
-            "fstp dword ptr [{b} + 0x5605C0]",
-            "fld dword ptr [{b} + 0x4EB8D9]",
-            "fadd dword ptr [{b} + 0x4F3995]",
-            "fstp dword ptr [{b} + 0x5605C4]",
-            "fld dword ptr [{b} + 0x4EB8E1]",
-            "fadd dword ptr [{b} + 0x4F399D]",
-            "fstp dword ptr [{b} + 0x5605E0]",
-            "fld dword ptr [{b} + 0x4EB8E5]",
-            "fadd dword ptr [{b} + 0x4F39A1]",
-            "fstp dword ptr [{b} + 0x5605E4]",
-            "fld dword ptr [{b} + 0x4EB8E1]",
-            "fsub dword ptr [{b} + 0x4F399D]",
-            "fstp dword ptr [{b} + 0x560600]",
-            "fld dword ptr [{b} + 0x4EB8E5]",
-            "fsub dword ptr [{b} + 0x4F39A1]",
-            "fstp dword ptr [{b} + 0x560604]",
-            "fld dword ptr [{b} + 0x4EB8DD]",
-            "fmul dword ptr [{b} + 0x4EB96D]",
-            "fst dword ptr [{b} + 0x5605A8]",
-            "fstp dword ptr [{b} + 0x5605C8]",
-            "fld dword ptr [{b} + 0x4EB8E9]",
-            "fmul dword ptr [{b} + 0x4EB96D]",
-            "fst dword ptr [{b} + 0x5605E8]",
-            "fstp dword ptr [{b} + 0x560608]",
-            b = in(reg) b,
+            "fstp dword ptr [{mk} + 0x18EA49]",
+            "fld dword ptr [{mk} + 0x18EA45]",
+            "fimul dword ptr [{mk} + 0x186975]",
+            "fmul dword ptr [{mk} + 0x18698D]",
+            "fstp dword ptr [{mk} + 0x18EA51]",
+            "fld dword ptr [{mk} + 0x18EA49]",
+            "fimul dword ptr [{mk} + 0x186975]",
+            "fmul dword ptr [{mk} + 0x18698D]",
+            "fstp dword ptr [{mk} + 0x18EA55]",
+            "fld dword ptr [{mk} + 0x18EA45]",
+            "fimul dword ptr [{mk} + 0x186975]",
+            "fmul dword ptr [{mk} + 0x186991]",
+            "fstp dword ptr [{mk} + 0x18EA5D]",
+            "fld dword ptr [{mk} + 0x18EA49]",
+            "fimul dword ptr [{mk} + 0x186975]",
+            "fmul dword ptr [{mk} + 0x186991]",
+            "fstp dword ptr [{mk} + 0x18EA61]",
+            "fld dword ptr [{mk} + 0x186995]",
+            "fsub dword ptr [{mk} + 0x18EA51]",
+            "fstp dword ptr [{bf} + 0x5605A0]",
+            "fld dword ptr [{mk} + 0x186999]",
+            "fsub dword ptr [{mk} + 0x18EA55]",
+            "fstp dword ptr [{bf} + 0x5605A4]",
+            "fld dword ptr [{mk} + 0x186995]",
+            "fadd dword ptr [{mk} + 0x18EA51]",
+            "fstp dword ptr [{bf} + 0x5605C0]",
+            "fld dword ptr [{mk} + 0x186999]",
+            "fadd dword ptr [{mk} + 0x18EA55]",
+            "fstp dword ptr [{bf} + 0x5605C4]",
+            "fld dword ptr [{mk} + 0x1869A1]",
+            "fadd dword ptr [{mk} + 0x18EA5D]",
+            "fstp dword ptr [{bf} + 0x5605E0]",
+            "fld dword ptr [{mk} + 0x1869A5]",
+            "fadd dword ptr [{mk} + 0x18EA61]",
+            "fstp dword ptr [{bf} + 0x5605E4]",
+            "fld dword ptr [{mk} + 0x1869A1]",
+            "fsub dword ptr [{mk} + 0x18EA5D]",
+            "fstp dword ptr [{bf} + 0x560600]",
+            "fld dword ptr [{mk} + 0x1869A5]",
+            "fsub dword ptr [{mk} + 0x18EA61]",
+            "fstp dword ptr [{bf} + 0x560604]",
+            "fld dword ptr [{mk} + 0x18699D]",
+            "fmul dword ptr [{mk} + 0x186A2D]",
+            "fst dword ptr [{bf} + 0x5605A8]",
+            "fstp dword ptr [{bf} + 0x5605C8]",
+            "fld dword ptr [{mk} + 0x1869A9]",
+            "fmul dword ptr [{mk} + 0x186A2D]",
+            "fst dword ptr [{bf} + 0x5605E8]",
+            "fstp dword ptr [{bf} + 0x560608]",
+            rc = in(reg) rc,
+            bf = in(reg) bf,
+            mk = in(reg) mk,
             out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
             out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
             options(nostack),
-        )
-    }
-}
-
-/// The Rust version (see the header): the registers it leaves.
-pub unsafe fn draw_ribbon(entry: &Regs, part: Part) -> Result<Regs, Refused> {
-    let mut g = *entry;
-    if g.eax >= CELLS {
-        return Err(BadInput("a mark cell past g_marksCellPlaces").into());
-    }
-    unsafe {
-        if game_read::<u32>(crate::marks::setup::SETTINGS_RVA) == 0 {
-            return Err(BadInput("no marks settings").into());
-        }
-        g.edx >>= 1;
-        game_write(HALF_RVA, g.edx);
-        g.ecx = (g.ecx << 24) | g.esi;
-        for n in 0..4 {
-            game_write(VERTICES_RVA + 0x20 * n + 0x10, g.ecx);
-        }
-        g.eax <<= 4;
-        let cell = |n: usize| game_read::<u32>(CELLS_RVA + g.eax as usize + 4 * n);
-        [g.ebp, g.edi, g.ecx, g.edx] = [cell(0), cell(1), cell(2), cell(3)];
-        let uv = [
-            (g.ebp, g.edi),
-            (g.ecx, g.edi),
-            (g.ecx, g.edx),
-            (g.ebp, g.edx),
-        ];
-        for (n, (u, v)) in uv.into_iter().enumerate() {
-            game_write(VERTICES_RVA + 0x20 * n + 0x18, u);
-            game_write(VERTICES_RVA + 0x20 * n + 0x1C, v);
-        }
-        for r in DEPTHS_RVA {
-            g.ecx = game_read(r);
-            if (g.ecx as i32) <= game_read::<i32>(NEAR_RVA) {
-                return Ok(g);
-            }
-        }
-        ribbon(game_addr(0) as u32);
-        g.ebp = game_addr(VERTICES_RVA) as u32;
-        g = clip_quad(&g)?;
-        if g.carry() {
-            return Ok(g);
-        }
-        part(1, &mut g)?;
-        game_write(VERTEX_COUNT_RVA, 4u32);
-    }
-    Ok(g)
-}
-
-/// In the game: `draw_fan`'s Rust version.
-pub fn game_part(_place: u32, r: &mut Regs) -> Result<(), Refused> {
-    unsafe { crate::scene::draw_fan::draw_fan(r, &mut crate::scene::draw_fan::game_part) };
-    Ok(())
-}
-
-extern "C" fn dispatch(r: &mut Regs) {
-    HOOK.count_call();
-    if shadow() {
-        unsafe { call_original(r) };
-        return;
-    }
-    match unsafe { draw_ribbon(r, &mut game_part) } {
-        Ok(left) => *r = Regs { esp: r.esp, ..left },
-        Err(e) => unsafe { crate::fatal::raise::refused(&HOOK, e, r, call_original) },
-    }
-}
-
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    let left = unsafe { draw_ribbon(r, &mut game_part) }?;
-    *r = Regs { esp: r.esp, ..left };
-    Ok(())
-}
-
-fn self_test() -> (usize, usize) {
-    use crate::race::level_init::take_called;
-    use crate::race::mud::{copy, test_part};
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    if unsafe { game_read::<u32>(crate::marks::setup::SETTINGS_RVA) } == 0 {
-        return t.skip("no marks settings (the clip reads them)");
-    }
-    // shr edx, 1; mov dword_8EB8B5, edx
-    let entry: &[u8] = &[0xD1, 0xEA, 0x89, 0x15, 0xB5, 0xB8, 0x8E, 0x00];
-    let copy = match copy(0x4C5E63, 0x2A3, entry, &[0x28C, 0x293], &[(0x44EA65, 1)]) {
-        Ok(c) => c,
-        Err(why) => return t.skip(why),
-    };
-    let regions: Vec<Region> = vec![
-        (game_addr(rva(0x8EB8B5)) as u32, 0x38),
-        (game_addr(rva(0x8F3985)) as u32, 0x20),
-        (game_addr(VERTICES_RVA) as u32, 0xC0),
-        at(VERTEX_COUNT_RVA),
-        (game_addr(rva(0x7687F4)) as u32, 6 * 0x20),
-        at(rva(0x93CC94)),
-    ];
-    let mut vars = regions.clone();
-    vars.extend(
-        [
-            NEAR_RVA,
-            rva(0x624088),
-            rva(0x62409C),
-            rva(0x6240A0),
-            rva(0x8EB96D),
-        ]
-        .map(at),
-    );
-    let saved = capture(&vars);
-    let put = |r: usize, v: f32| unsafe { game_write(r, v.to_bits()) };
-    let regs = |r: &Regs| [r.eax, r.ebx, r.ecx, r.edx, r.esi, r.edi, r.ebp];
-    for case in 0..5u32 {
-        let k = case as f32;
-        let before = Regs {
-            eax: 3 + case * 9,
-            ecx: 0x80 + case,
-            edx: 9 + case * 4,
-            esi: 0x0012_3456,
-            ..Regs::SENTINEL
-        };
-        let prepare = || unsafe {
-            restore(&vars, &saved);
-            put(NEAR_RVA, 1.0);
-            put(rva(0x624088), 320.0);
-            put(rva(0x62409C), 320.5);
-            put(rva(0x6240A0), 240.25);
-            put(rva(0x8EB96D), 1.0 / 3000.0);
-            put(rva(0x8EB8D5), k * 3.0 - 8.0);
-            put(rva(0x8EB8D9), 2.0 + k);
-            put(rva(0x8EB8DD), if case == 3 { 0.5 } else { 40.0 + k * 9.0 });
-            put(rva(0x8EB8E1), k * 3.0 - 6.5);
-            put(rva(0x8EB8E5), 2.5 - k);
-            put(rva(0x8EB8E9), if case == 4 { -3.0 } else { 45.0 + k * 7.0 });
-            std::ptr::write_bytes(game_addr(VERTICES_RVA) as *mut u8, 0xAA, 0xC0);
-        };
-        prepare();
-        take_called();
-        let mut ro = before;
-        unsafe { crate::framework::call_game(&mut ro, copy.addr()) };
-        let theirs = (Some(regs(&ro)), take_called(), capture(&regions));
-        prepare();
-        let mine = unsafe { draw_ribbon(&before, &mut test_part) };
-        let mine = (
-            mine.as_ref().ok().map(regs),
-            take_called(),
-            capture(&regions),
-        );
-        t.check(theirs == mine, || {
-            format!(
-                "case {case}: original {:x?} {:x?}; rust {:x?} {:x?}; state first differs at {:?}",
-                theirs.0,
-                theirs.1,
-                mine.0,
-                mine.1,
-                theirs.2.iter().zip(&mine.2).position(|(a, b)| a != b)
             )
-        });
+        }
     }
-    restore(&vars, &saved);
-    t.finish()
+}
+
+#[cfg(all(test, target_arch = "x86"))]
+mod asm_differential {
+    use super::asm_reference as reference;
+    use crate::marks::asm_test::Kind::*;
+    use crate::marks::asm_test::with_copy;
+    use crate::marks::asm_test::{Op, Spec, differential};
+    use crate::marks::frame_state::{DrawWork, ViewVars};
+
+    #[test]
+    fn ribbon_x87_matches() {
+        const SPEC: Spec = Spec {
+            operands: &[
+                Op::Base {
+                    lo: 0x224088,
+                    hi: 0x2240A4,
+                    reads: &[(0x224088, F32), (0x22409C, F32), (0x2240A0, F32)],
+                    writes: &[],
+                },
+                Op::Base {
+                    lo: 0x5605A0,
+                    hi: 0x56060C,
+                    reads: &[],
+                    writes: &[
+                        (0x5605A0, F32),
+                        (0x5605A4, F32),
+                        (0x5605A8, F32),
+                        (0x5605C0, F32),
+                        (0x5605C4, F32),
+                        (0x5605C8, F32),
+                        (0x5605E0, F32),
+                        (0x5605E4, F32),
+                        (0x5605E8, F32),
+                        (0x560600, F32),
+                        (0x560604, F32),
+                        (0x560608, F32),
+                    ],
+                },
+                Op::Base {
+                    lo: 0x186931,
+                    hi: 0x18EA8D,
+                    reads: &[
+                        (0x186975, I32),
+                        (0x18698D, F32),
+                        (0x186991, F32),
+                        (0x186995, F32),
+                        (0x186999, F32),
+                        (0x18699D, F32),
+                        (0x1869A1, F32),
+                        (0x1869A5, F32),
+                        (0x1869A9, F32),
+                        (0x186A2D, F32),
+                        (0x18EA45, F32),
+                        (0x18EA49, F32),
+                        (0x18EA51, F32),
+                        (0x18EA55, F32),
+                        (0x18EA5D, F32),
+                        (0x18EA61, F32),
+                    ],
+                    writes: &[
+                        (0x18698D, F32),
+                        (0x186991, F32),
+                        (0x186995, F32),
+                        (0x186999, F32),
+                        (0x1869A1, F32),
+                        (0x1869A5, F32),
+                        (0x18EA45, F32),
+                        (0x18EA49, F32),
+                        (0x18EA51, F32),
+                        (0x18EA55, F32),
+                        (0x18EA5D, F32),
+                        (0x18EA61, F32),
+                    ],
+                },
+            ],
+            sincos: false,
+        };
+        differential(
+            &SPEC,
+            |b| reference::ribbon_x87(b[0], b[1], b[2]),
+            |b| {
+                with_copy::<DrawWork, _>(b[2], DrawWork::START, |dw| {
+                    with_copy::<ViewVars, _>(b[2], ViewVars::START, |vv| {
+                        super::ribbon_x87(b[0], b[1].wrapping_add(0x5605A0), dw, vv)
+                    })
+                })
+            },
+        );
+    }
 }

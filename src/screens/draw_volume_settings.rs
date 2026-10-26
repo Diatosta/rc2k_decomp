@@ -8,40 +8,36 @@
 //! In:  nothing
 //! Out: every register preserved (`pusha` .. `popa`)
 //!
-//! In a menu loop's draw list (0x758C8E). A volume whose v * 100 wraps to 0 is the original's
-//! fatal 0x80701010 (`loc_4D9612`), raised from Rust where the original does. The sprites'
-//! palettes are ebx as the original leaves it. Hook removed 2026-10-22 (typed tables): the
-//! menus and draw lists run its `entry` (`menu::table_calls`); the registers above are the
-//! original's, for reference.
+//! In a menu loop's draw list (0x758C8E). A volume whose v * 100 wraps to 0 is the original's fatal
+//! 0x80701010 (`loc_4D9612`), raised from Rust where the original does. The sprites' palettes are
+//! ebx as the original leaves it. The menus and draw lists run its `entry` (`menu::table_calls`);
+//! the registers above are the original's, for reference.
 
 use crate::errors::Refused;
-use crate::framework::{Regs, game_read, rva};
-use crate::screens::harness::{Left, draw_entry};
+use crate::menu::option_work_store::OPTION_WORK;
 use crate::text::draw_text::Canvas;
 
-const VOLUMES_RVA: usize = rva(0x755684); // g_masterVolumeShown, then dword_755688 .. dword_7556A0
-const NAME_SWITCH_RVA: usize = rva(0x5180F4); // dword_5180F4
-
-pub unsafe fn draw_volume_settings(canvas: &mut dyn Canvas) -> Result<(), Refused> {
+pub fn draw_volume_settings(canvas: &mut dyn Canvas) -> Result<(), Refused> {
     // Converted: `rc2k_core::screens::settings_pages::volume`.
-    unsafe {
-        let id = game_read::<u32>(NAME_SWITCH_RVA).wrapping_add(0x56D);
-        let volumes: [u32; 8] = std::array::from_fn(|n| game_read(VOLUMES_RVA + 4 * n));
-        rc2k_core::screens::settings_pages::volume(
-            &mut crate::screens::game_screen::SettingsScreen::new(canvas),
-            id,
-            volumes,
-        )
-    }
-}
 
-fn rust(_: &Regs, canvas: &mut dyn Canvas) -> Result<Left, Refused> {
-    unsafe { draw_volume_settings(canvas) }?;
-    Ok(Left::nothing())
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    draw_entry("screens::draw_volume_settings", r, &rust)
+    let id = crate::sound::store::SOUND_OPTIONS
+        .name_switch
+        .get()
+        .wrapping_add(0x56D);
+    // g_masterVolumeShown, then dword_755688 .. dword_7556A0.
+    let volumes: [u32; 8] = [
+        OPTION_WORK.master_volume_shown.get(),
+        OPTION_WORK.music_level.get(),
+        OPTION_WORK.other_volume.get(),
+        OPTION_WORK.menu_sounds_c.get(),
+        OPTION_WORK.menu_sounds_a.get(),
+        OPTION_WORK.speech_level.get(),
+        OPTION_WORK.sounds_a.get(),
+        OPTION_WORK.sounds_b.get(),
+    ];
+    rc2k_core::screens::settings_pages::volume(
+        &mut crate::screens::game_screen::SettingsScreen::new(canvas),
+        id,
+        volumes,
+    )
 }

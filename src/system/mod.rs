@@ -1,17 +1,13 @@
 //! Operating system services other than files.
 
-pub mod api_stand_ins;
 pub mod check_developer_machine;
-pub mod exit_parts;
+pub mod checked_reads;
 pub mod find_entry;
-pub mod find_entry_by_value;
-pub mod find_entry_with_any_bit;
 pub mod find_entry_with_bits;
 pub mod find_running_game;
 pub mod keep_start_time;
 pub mod load_game_data;
 pub mod main_loop;
-pub mod next_argument;
 pub mod next_entry;
 pub mod packed_local_time;
 pub mod read_command_line;
@@ -22,9 +18,9 @@ pub mod restore_error_mode;
 pub mod restore_window;
 pub mod same_guid;
 pub mod set_error_mode;
-pub mod set_exception_filter;
 pub mod set_priority_class;
 pub mod sleep;
+pub mod start_texts;
 pub mod test_processor;
 pub mod tick_count;
 pub mod wait_or_key;

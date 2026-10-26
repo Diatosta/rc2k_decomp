@@ -14,42 +14,63 @@
 //! brighter where it lies (first byte + 0x40, second and third + 0x20, each stopping at
 //! 0xFF) and its pixels are the second palette, which the fonts at 0x51E324, 0x51E344 and
 //! 0x51E364 get with the same table.
-//! Shadow mode runs the original alone (the memory is taken once) and checks the stores
-//! and the second palette; the table is compared in `gfx::build_glyphs`' hook. Self-test:
-//! a redirected copy whose ten calls note themselves and which writes the second
-//! palette's pixels where the test says.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
 
 use crate::errors::{BadInput, FatalError, Refused};
-use crate::framework::{Regs, game_addr, game_read, game_write, rva};
-use crate::gfx::build_glyphs::{BUILDER_FLAGS_RVA, FORMAT_RVA, TABLE_RVA, TABLE_SIZE_RVA};
+use crate::gfx::build_glyphs::SHEET;
+use crate::gfx::build_glyphs::build_glyphs;
 use crate::gfx::components_to_pixel::components_to_pixel;
+use crate::gfx::decoder::DECODER;
+use crate::gfx::fonts_store::FONTS;
 use crate::gfx::glyph_builder::{RUN_LENGTHS, WITH_ALPHA};
 use crate::gfx::glyph_tables::{
-    ALLOCATE, ALPHA_PALETTE, BEGIN_TABLE, BEGIN_TABLES, BUILD_GLYPHS, END_TABLES, Game,
-    PALETTE_TO_PIXELS, Parts, REWIND_LIST, TAKE_FROM_LIST, UNIT_FACTOR_RVA,
+    alpha_palette, begin_glyph_table, begin_glyph_tables, end_glyph_tables, palette_to_pixels,
 };
-use crate::gfx::pcx::PALETTE_RVA;
 use crate::gfx::pixel_format::PixelFormat;
+use crate::memory::MemoryList;
+use crate::memory::allocate::allocate;
+use crate::memory::take_from_list::{rewind_list, take_from_list};
+use crate::pointers::GamePtr;
+use crate::session::SCREEN;
 
 // ---- game data ----
 
-const LIST_RVA: usize = rva(0x5BE898); // stru_5BE898
-const UNITS_RVA: usize = rva(0x5BE894); // dword_5BE894
-/// off_5ABACC: something whose pixel layout is 8 bytes in (the textures', a reading).
-const LAYOUT_OWNER_RVA: usize = rva(0x5ABACC);
-const SHEETS_RVA: usize = rva(0x5BE8D8); // "files\d\fnt\fnt22_00.pcx"
-const PALETTE_A_RVA: usize = rva(0x51E2D8); // dword_51E2D8: the first palette's place
-const GLYPHS_RVA: usize = rva(0x51E2DC); // dword_51E2DC: the table
-/// The five font objects, 0x20 bytes each: palette at +0x14, glyph table at +0x18.
-const FONTS_RVA: usize = rva(0x51E2E4);
-const FONT_PALETTE: usize = 0x14;
-const FONT_GLYPHS: usize = 0x18;
-/// The palette of the third font: where the second palette's place is kept.
-const PALETTE_B_RVA: usize = FONTS_RVA + 2 * 0x20 + FONT_PALETTE;
+/// IDA's address of the game fonts' memory variables.
+pub const START: usize = 0x5BE894;
+/// Their length.
+pub const LEN: usize = 0x5BE8D8 - START;
+
+/// The game fonts' memory.
+#[repr(C)]
+pub struct GameFontsMemory {
+    /// `dword_5BE894`: the memory's size in units of 0x400 bytes times `dword_4F4958`
+    /// (`gamegfxheapsize`, a `var\ral.cfg` setting).
+    pub units: crate::session::Dword,
+    /// `g_gameFontMemory` (`stru_5BE898`): the list the fonts' tables lie on (16 bytes).
+    pub memory: crate::session::Shared<MemoryList>,
+    /// `0x5BE8A8` .. `0x5BE8D8`: nothing reads or writes them (a gap).
+    pub _gap_14: [crate::session::Dword; 12],
+}
+
+/// The game fonts' memory; the first values are the image's.
+pub static GAME_FONTS: GameFontsMemory = GameFontsMemory {
+    units: crate::session::Dword::new(0x20),
+    memory: crate::session::Shared::new(MemoryList {
+        head: 0,
+        total: 0,
+        cursor: 0,
+        remaining: 0,
+    }),
+    _gap_14: [const { crate::session::Dword::new(0) }; 12],
+};
+
+/// Where the block is (`moved::MOVED`'s home for IDA 0x5BE894).
+pub fn home() -> usize {
+    crate::pointers::game_address(&GAME_FONTS as *const GameFontsMemory) as usize
+}
+
+// The first palette's place (dword_51E2D8) and the table (dword_51E2DC) are the palette and
+// glyph table of `FONTS.game_fonts[0]`; the five font objects after it (IDA 0x51E2E4) are
+// `game_fonts[1 ..]`. The second palette's place is the palette of `game_fonts[3]`.
 
 // ---- Rust version ----
 
@@ -57,83 +78,108 @@ fn fatal(code: u32) -> Refused {
     FatalError { code, message: "" }.into()
 }
 
-/// `entry` are the registers at entry; `pixels_b` is where the place of the second
-/// palette's pixels is read from when they are made.
-pub unsafe fn build_game_fonts(
-    entry: &Regs,
-    parts: &mut dyn Parts,
-    pixels_b: *const u32,
-) -> Result<(), Refused> {
+/// `pixels_b` is where the place of the second palette's pixels is read from when they
+/// are made. (The original's fatal error 0x80E48061 for a failed allocation cannot come:
+/// the allocator reports its own.)
+pub unsafe fn build_game_fonts(pixels_b: u32) -> Result<(), Refused> {
     unsafe {
-        let mut g = *entry;
-        g.eax = game_read::<u32>(UNITS_RVA)
+        let list = GAME_FONTS.memory.as_ptr();
+        let bytes = GAME_FONTS
+            .units
+            .get()
             .wrapping_mul(0x400)
-            .wrapping_mul(game_read(UNIT_FACTOR_RVA));
-        g.ebx = game_addr(LIST_RVA) as u32;
-        parts.call(ALLOCATE, &mut g)?;
-        if g.carry() {
-            return Err(fatal(0x80E4_8061));
-        }
-        parts.call(REWIND_LIST, &mut g)?;
-        parts.call(BEGIN_TABLES, &mut g)?;
-        game_write(BUILDER_FLAGS_RVA, RUN_LENGTHS | WITH_ALPHA);
-        let format = game_read::<u32>(LAYOUT_OWNER_RVA).wrapping_add(8);
-        game_write(FORMAT_RVA, format);
-        g.eax = 0x400;
-        parts.call(TAKE_FROM_LIST, &mut g)?;
-        game_write(PALETTE_A_RVA, g.eax);
-        g.eax = 0x400;
-        parts.call(TAKE_FROM_LIST, &mut g)?;
-        game_write(PALETTE_B_RVA, g.eax);
-        parts.call(BEGIN_TABLE, &mut g)?;
-        g.eax = game_addr(SHEETS_RVA) as u32;
-        parts.call(BUILD_GLYPHS, &mut g)?;
-        g.eax = game_read(TABLE_RVA);
-        game_write(GLYPHS_RVA, g.eax);
-        if game_read::<u32>(TABLE_SIZE_RVA) == 0 {
+            .wrapping_mul(SCREEN.bytes.get());
+        allocate(list, bytes)?;
+        rewind_list(list)?;
+        begin_glyph_tables()?;
+        DECODER.builder_flags.set(RUN_LENGTHS | WITH_ALPHA);
+        // The textures' 8888 kind's description (`kinds[3]`): its pixel layout is 8 bytes in.
+        let format = crate::gfx::texture_upload::TEXTURE_TABLES.kinds[3]
+            .get()
+            .wrapping_add(8);
+        DECODER.format.set(format);
+        let palette_a = take_from_list(list, 0x400)?.unwrap_or(0);
+        FONTS.game_fonts[0].update(|f| f.palette = palette_a);
+        let palette_b = take_from_list(list, 0x400)?.unwrap_or(0);
+        FONTS.game_fonts[3].update(|f| f.palette = palette_b);
+        begin_glyph_table(list)?;
+        build_glyphs(
+            crate::pointers::host(crate::gfx::texts::address(&crate::gfx::texts::FNT22))
+                as *const u8,
+            list,
+        )?;
+        let table = SHEET.table.get();
+        FONTS.game_fonts[0].update(|f| f.glyph_table = table);
+        if SHEET.table_size.get() == 0 {
             return Err(fatal(0x80E4_8062));
         }
-        parts.call(ALPHA_PALETTE, &mut g)?;
-        g.edi = game_read(PALETTE_A_RVA);
-        parts.call(PALETTE_TO_PIXELS, &mut g)?;
-        parts.call(END_TABLES, &mut g)?;
+        alpha_palette();
+        palette_to_pixels(FONTS.game_fonts[0].get().palette)?;
+        end_glyph_tables()?;
 
-        let (glyphs, palette_a): (u32, u32) = (game_read(GLYPHS_RVA), game_read(PALETTE_A_RVA));
-        for font in 0..2 {
-            game_write(FONTS_RVA + font * 0x20 + FONT_GLYPHS, glyphs);
-            game_write(FONTS_RVA + font * 0x20 + FONT_PALETTE, palette_a);
+        let (glyphs, palette_a): (u32, u32) = (
+            FONTS.game_fonts[0].get().glyph_table,
+            FONTS.game_fonts[0].get().palette,
+        );
+        for font in 1..3 {
+            FONTS.game_fonts[font].update(|f| {
+                f.glyph_table = glyphs;
+                f.palette = palette_a;
+            });
         }
 
         // The sheet's palette made brighter where it lies, and its pixels.
-        let to = pixels_b.read_unaligned() as *mut u32;
-        let layout = game_read::<u32>(FORMAT_RVA) as *const PixelFormat;
-        if to.is_null() || layout.is_null() {
+        let to: u32 = GamePtr::new(pixels_b).read("the second palette's place")?;
+        let layout = DECODER.format.get();
+        if to == 0 || layout == 0 {
             return Err(BadInput("no place for the second palette, or no pixel layout").into());
         }
-        let layout = layout.read_unaligned();
+        let layout: PixelFormat = GamePtr::new(layout).read("the palette's pixel layout")?;
+        let mut pixels = Vec::with_capacity(256 * 4);
         for n in 0..256usize {
-            let place = game_addr(PALETTE_RVA + n * 4) as *mut u32;
             // Converted: `rc2k_core::gfx::pixels::brighter`.
-            let brighter = rc2k_core::gfx::pixels::brighter(place.read_unaligned());
-            place.write_unaligned(brighter);
-            to.add(n)
-                .write_unaligned(components_to_pixel(&layout, brighter));
+            let brighter = rc2k_core::gfx::pixels::brighter(DECODER.palette[n].get());
+            DECODER.palette[n].set(brighter);
+            pixels.extend_from_slice(&components_to_pixel(&layout, brighter).to_le_bytes());
         }
+        GamePtr::new(to).write_bytes(&pixels, "the second palette's pixels")?;
 
-        let palette_b: u32 = game_read(PALETTE_B_RVA);
-        game_write(FONTS_RVA + 2 * 0x20 + FONT_GLYPHS, glyphs);
-        for font in 3..5 {
-            game_write(FONTS_RVA + font * 0x20 + FONT_GLYPHS, glyphs);
-            game_write(FONTS_RVA + font * 0x20 + FONT_PALETTE, palette_b);
+        let palette_b: u32 = FONTS.game_fonts[3].get().palette;
+        FONTS.game_fonts[3].update(|f| f.glyph_table = glyphs);
+        for font in 4..6 {
+            FONTS.game_fonts[font].update(|f| {
+                f.glyph_table = glyphs;
+                f.palette = palette_b;
+            });
         }
         Ok(())
     }
 }
 
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    let entry = *r;
-    let pixels_b = game_addr(PALETTE_B_RVA) as *const u32;
-    unsafe { build_game_fonts(&entry, &mut Game, pixels_b) }?;
-    Ok(())
+/// With the third font's palette's place, as the stage's loading calls it.
+pub unsafe fn build_game_fonts_in_game() -> Result<(), Refused> {
+    unsafe {
+        build_game_fonts(crate::pointers::game_address(
+            &raw const (*FONTS.game_fonts[3].as_ptr()).palette,
+        ))
+    }
+}
+
+#[cfg(test)]
+mod block_tests {
+    use super::*;
+
+    #[test]
+    fn first_values_are_the_games() {
+        crate::gfx::first_values_are_the_games(&GAME_FONTS, START, START + LEN);
+    }
+
+    #[test]
+    fn moved_knows_the_block() {
+        assert_eq!(crate::moved::place(START), GAME_FONTS.units.addr() as usize);
+        assert_eq!(
+            crate::moved::place(0x5BE898),
+            GAME_FONTS.memory.addr() as usize
+        );
+    }
 }

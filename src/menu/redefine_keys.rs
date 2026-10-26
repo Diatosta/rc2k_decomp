@@ -16,19 +16,14 @@
 //! The place 8 has no item on the pages (it is not drawn either).
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{Regs, SelfTest, game_addr, game_read, game_write, rva};
-use crate::input::take_key::{PENDING_KEY_RVA, pending_key, take_key};
-use crate::menu::player::{PLAYERS, Player, player_at};
-use crate::screens::harness::{CallOriginal, Left};
-use crate::service::harness::{Region, at, capture, check_state_with, restore};
-use crate::service::state::PLAYER_INDEX_RVA;
-use std::sync::atomic::Ordering;
+use crate::input::take_key::take_key;
+use crate::menu::keys_store::KEY_TABLES;
+use crate::menu::option_work_store::OPTION_WORK;
+use crate::menu::player::Player;
+use crate::pointers::GamePtr;
+use rc2k_core::strings::bytes::Bytes;
 
-pub use rc2k_core::menu::player::{KEY_ESCAPE, KEYS, Redefined};
-pub const KEYS_RVA: usize = rva(0x755595); // g_redefinedKeys
-pub const REDEFINING_RVA: usize = rva(0x7556AC); // g_redefiningKey
-pub const PLACE_RVA: usize = rva(0x7556B0); // g_redefinedKeyPlace
-pub const RESERVED_RVA: usize = rva(0x755621); // g_reservedKeys
+pub use rc2k_core::menu::player::{KEYS, Redefined};
 pub const NO_PLACE: u32 = 999;
 /// The reserved list's length is not known; the game's has 18 keys.
 const RESERVED_ROOM: usize = 0x100;
@@ -36,131 +31,46 @@ const RESERVED_ROOM: usize = 0x100;
 const KEYS_OFFSET: u32 = std::mem::offset_of!(Player, keys) as u32;
 
 /// The reserved keys, up to their NUL; `None` if there is none in `RESERVED_ROOM`.
-fn reserved() -> Option<Vec<u8>> {
-    let list =
-        unsafe { std::slice::from_raw_parts(game_addr(RESERVED_RVA) as *const u8, RESERVED_ROOM) };
-    list.iter()
-        .position(|&b| b == 0)
-        .map(|end| list[..end].to_vec())
+fn reserved() -> Result<Option<Vec<u8>>, BadInput> {
+    let list = GamePtr::new(KEY_TABLES.reserved_keys.addr()).bytes("the reserved keys")?;
+    Ok((0..RESERVED_ROOM)
+        .map_while(|n| list.byte(n))
+        .position(|b| b == 0)
+        .map(|end| (0..end).filter_map(|n| list.byte(n)).collect()))
 }
-
-pub use rc2k_core::menu::player::place_key;
 
 /// One frame of redefining a key of `player` (0: refused).
-pub unsafe fn redefine_key(player: u32) -> Result<(), Refused> {
-    unsafe {
-        if game_read::<u32>(REDEFINING_RVA) == 0 {
-            return Ok(());
-        }
-        // Everything that could be refused, before the key is taken.
-        if player == 0 {
-            return Err(BadInput("no player").into());
-        }
-        let place: u32 = game_read(PLACE_RVA);
-        if place as usize >= KEYS {
-            return Err(BadInput("a key's place of 12 or more").into());
-        }
-        let Some(reserved) = reserved() else {
-            return Err(BadInput("a reserved list without its end").into());
-        };
-        // Converted: `rc2k_core::menu::player::redefine`.
-        let work = game_addr(KEYS_RVA) as *mut [u8; KEYS];
-        let Redefined::Done { keys, placed } =
-            rc2k_core::menu::player::redefine(work.read(), place as usize, take_key(), &reserved)
-        else {
-            return Ok(());
-        };
-        work.write(keys);
-        if placed {
-            game_write(PLACE_RVA, NO_PLACE);
-        }
-        ((player + KEYS_OFFSET) as *mut [u8; KEYS]).write_unaligned(keys);
-        game_write(REDEFINING_RVA, 0u32);
+pub fn redefine_key(player: u32) -> Result<(), Refused> {
+    if OPTION_WORK.redefining_key.get() == 0 {
+        return Ok(());
     }
-    Ok(())
-}
-
-/// What a frame may write, but the pending key.
-pub fn regions(player: u32) -> Vec<Region> {
-    let mut regions = vec![
-        (game_addr(KEYS_RVA) as u32, KEYS),
-        at(REDEFINING_RVA),
-        at(PLACE_RVA),
-    ];
-    if player != 0 {
-        regions.push((player + KEYS_OFFSET, KEYS));
+    // Everything that could be refused, before the key is taken.
+    if player == 0 {
+        return Err(BadInput("no player").into());
     }
-    regions
-}
-
-pub fn rust(player: fn() -> u32) -> impl Fn(&Regs) -> Result<Left, Refused> {
-    move |_| {
-        unsafe { redefine_key(player()) }?;
-        Ok(Left::nothing())
+    let place: u32 = OPTION_WORK.redefined_key_place.get();
+    if place as usize >= KEYS {
+        return Err(BadInput("a key's place of 12 or more").into());
     }
-}
-
-/// The self-test of a key handler: for each player it can be given (`players`, the index
-/// the page leaves in `dword_75598C`), keys of the kinds there are, at three places.
-pub fn check_redefine(
-    t: &mut SelfTest,
-    call_original: CallOriginal,
-    players: &[u32],
-    player: fn() -> u32,
-) {
-    let Some(reserved) = reserved() else {
-        t.check(false, || "the reserved list has no end".into());
-        return;
+    let Some(reserved) = reserved()? else {
+        return Err(BadInput("a reserved list without its end").into());
     };
-    let reserved_key = reserved.iter().copied().find(|&k| k > 1).unwrap_or(0x3B);
-    let inputs = [at(PLAYER_INDEX_RVA), (game_addr(PENDING_KEY_RVA) as u32, 1)];
-    let saved_inputs = capture(&inputs);
-    let all: Vec<Region> = (0..PLAYERS)
-        .map(player_at)
-        .filter(|&p| p != 0)
-        .flat_map(regions)
-        .collect();
-    let saved = capture(&all);
-    let start: [u8; KEYS] = [
-        0x48, 0x50, 0x4B, 0x4D, 0x1E, 0x2C, 0x39, 0x1D, 0, 0x2E, 0x19, 0x26,
-    ];
-    for &index in players {
-        if player_at(index) == 0 {
-            continue;
-        }
-        unsafe { game_write(PLAYER_INDEX_RVA, index) };
-        let p = player();
-        if p == 0 {
-            continue;
-        }
-        let regions = regions(p);
-        for redefining in [0u32, 1] {
-            for place in [0u32, 5, 11] {
-                for key in [0u8, KEY_ESCAPE, 0x10, 0x9E, 0x2C, 0x48, reserved_key, 0xFF] {
-                    let prepare = || unsafe {
-                        (game_addr(KEYS_RVA) as *mut [u8; KEYS]).write(start);
-                        ((p + KEYS_OFFSET) as *mut [u8; KEYS]).write_unaligned([0x77; KEYS]);
-                        game_write(REDEFINING_RVA, redefining);
-                        game_write(PLACE_RVA, place);
-                        pending_key().store(key, Ordering::SeqCst);
-                    };
-                    let rust = rust(player);
-                    check_state_with(
-                        t,
-                        &format!(
-                            "player {index}, redefining {redefining}, place {place}, key {key:#x}"
-                        ),
-                        call_original,
-                        Regs::SENTINEL,
-                        &prepare,
-                        &regions,
-                        &rust,
-                        &|| vec![pending_key().load(Ordering::SeqCst)],
-                    );
-                }
-            }
-        }
+    // Converted: `rc2k_core::menu::player::redefine`.
+    let work: [u8; KEYS] = std::array::from_fn(|i| KEY_TABLES.redefined_keys.get(i));
+    let Redefined::Done { keys, placed } =
+        rc2k_core::menu::player::redefine(work, place as usize, take_key(), &reserved)
+    else {
+        return Ok(());
+    };
+    for (i, &key) in keys.iter().enumerate() {
+        KEY_TABLES.redefined_keys.set(i, key);
     }
-    restore(&all, &saved);
-    restore(&inputs, &saved_inputs);
+    if placed {
+        OPTION_WORK.redefined_key_place.set(NO_PLACE);
+    }
+    crate::pointers::GamePtr::new(player + KEYS_OFFSET)
+        .write::<[u8; KEYS]>(keys, "redefine keys: a game value")?;
+    OPTION_WORK.redefining_key.set(0u32);
+
+    Ok(())
 }

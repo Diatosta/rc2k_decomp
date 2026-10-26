@@ -3,41 +3,28 @@
 //!
 //! In:  nothing
 //! Out: every register kept (`pusha` .. `popa`; the original loads eax just before the
-//!      `popa`)
+//! `popa`)
 //!
 //! Unlike `menu::next_gearing` it does not touch the player's record. Reached from a menu table
-//! (0x74BA9C, a left/right handler of an item of the car choice). Hook removed 2026-10-22
-//! (typed tables): the menus and draw lists run its `entry` (`menu::table_calls`); the
-//! registers above are the original's, for reference.
+//! (0x74BA9C, a left/right handler of an item of the car choice). The menus and draw lists run its
+//! `entry` (`menu::table_calls`); the registers above are the original's, for reference.
 
-use crate::errors::Refused;
-use crate::framework::{Regs, game_addr, game_read, game_write};
-use crate::screens::gearing_text::{KEPT_RVA, TEXT_RVA};
-use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
+use crate::menu::flow_store::SCREEN_FLOW;
 use crate::strings::append_string_by_id::push_string;
 
 /// The Rust version (see the header).
-pub unsafe fn flip_gearing() {
-    unsafe {
-        // Converted: `rc2k_core::menu::steps` (`flip`, `gearing_switch_text`).
-        use rc2k_core::menu::steps::{flip, gearing_switch_text};
-        let kept = flip(game_read::<u32>(KEPT_RVA));
-        game_write(KEPT_RVA, kept);
-        let mut text = Vec::new();
-        push_string(&mut text, gearing_switch_text(kept));
-        text.push(0);
-        std::ptr::copy_nonoverlapping(text.as_ptr(), game_addr(TEXT_RVA) as *mut u8, text.len());
-    }
-}
-
-fn rust(_: &Regs) -> Result<Left, Refused> {
-    unsafe { flip_gearing() };
-    Ok(Left::nothing())
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
+pub fn flip_gearing() -> Result<(), crate::errors::BadInput> {
+    // Converted: `rc2k_core::menu::steps` (`flip`, `gearing_switch_text`).
+    use rc2k_core::menu::steps::{flip, gearing_switch_text};
+    let kept = flip(SCREEN_FLOW.shown_gearing.get());
+    SCREEN_FLOW.shown_gearing.set(kept);
+    let mut text = Vec::new();
+    push_string(&mut text, gearing_switch_text(kept))?;
+    text.push(0);
+    crate::pointers::GamePtr::new(
+        crate::screens::text_buffers_store::TEXT_BUFFERS
+            .title
+            .addr(),
+    )
+    .write_bytes(&text, "the title")
 }

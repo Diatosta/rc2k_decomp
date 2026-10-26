@@ -7,27 +7,35 @@
 //! and two picture functions not yet read.
 //! Refuses a count of 0 (the original counts through all 32 bits) and one above the table's
 //! room. The name is a reading.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
 
-use crate::errors::{BadInput, Refused};
-use crate::framework::{Regs, game_addr, rva};
-use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
+use crate::errors::BadInput;
+use crate::session::Dword;
 
 // ---- game data ----
 
-pub const ROW_TABLE_RVA: usize = rva(0x4F3FC4); // dword_4F3FC4
+/// IDA's address of the row table.
+pub const START: usize = 0x4F3FC4;
 pub const ROW_TABLE_ROOM: u32 = 602;
+/// The table's length.
+pub const LEN: usize = 4 * ROW_TABLE_ROOM as usize;
+
+/// `dword_4F3FC4`: the address of each row of a picture (602 of them), zero at the start.
+pub static ROW_TABLE: [Dword; ROW_TABLE_ROOM as usize] =
+    [const { Dword::new(0) }; ROW_TABLE_ROOM as usize];
+
+/// Where the table is (`moved::MOVED`'s home for IDA 0x4F3FC4).
+pub fn home() -> usize {
+    (crate::pointers::game_address(ROW_TABLE.as_ptr())) as usize
+}
 
 /// The address the table holds for a row.
-pub unsafe fn row_address(row: u32) -> u32 {
-    unsafe {
-        (game_addr(ROW_TABLE_RVA) as *const u32)
-            .add(row as usize)
-            .read_unaligned()
+pub fn row_address(row: u32) -> u32 {
+    match ROW_TABLE.get(row as usize) {
+        Some(cell) => cell.get(),
+        None => crate::fatal::raise::end(
+            "gfx::row_address",
+            BadInput("a row past the row table's 602"),
+        ),
     }
 }
 
@@ -38,7 +46,7 @@ pub unsafe fn fill_row_table(first: u32, step: u32, rows: u32) -> Result<(), Bad
         return Err(BadInput("a row count the row table has no room for"));
     }
     // Converted: `rc2k_core::gfx::pixels::row_table`.
-    let table = game_addr(ROW_TABLE_RVA) as *mut u32;
+    let table = ROW_TABLE.as_ptr() as *mut u32;
     for (row, address) in rc2k_core::gfx::pixels::row_table(first, step, rows as usize)
         .into_iter()
         .enumerate()
@@ -48,13 +56,21 @@ pub unsafe fn fill_row_table(first: u32, step: u32, rows: u32) -> Result<(), Bad
     Ok(())
 }
 
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    unsafe { fill_row_table(r.eax, r.ebx, r.ecx) }?;
-    Ok(Left::nothing())
-}
+#[cfg(test)]
+mod block_tests {
+    use super::*;
 
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
+    #[test]
+    fn first_values_are_the_games() {
+        crate::gfx::first_values_are_the_games(&ROW_TABLE, START, START + LEN);
+    }
+
+    #[test]
+    fn moved_knows_the_block() {
+        assert_eq!(crate::moved::place(START), home());
+        assert_eq!(
+            crate::moved::place(START + LEN - 4),
+            ROW_TABLE[601].addr() as usize
+        );
+    }
 }

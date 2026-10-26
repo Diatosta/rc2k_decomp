@@ -2,46 +2,38 @@
 //!
 //! In:  nothing
 //! Out: every register preserved
-//! The loop itself is `menu::screen_loop`; this file says what is this screen's own
-//! (`SCREEN`), as extracted from the disassembly: background `service.png` through
-//! `menu::load_background` (carry afterwards = fatal error 0x80712345); leaving is asked about.
-//! A reading from the title string of its menu, not yet a visit: "ÁREA DE INSPECÇÃO".
-//! Its frames after the first run with the callback `sub_46D019` instead of
-//! `menu::frame_callback`: the only screen loop with two (the first build missed it and the
-//! self-test caught it, 64 of 68 cases, 2026-10-11).
-//! Callers: `sub_48E093`, `sub_4A15E3`, `4A1EC7`, `sub_4A8556`. Ungated thunk; shadow mode runs
-//! the original alone; each real call
-//! writes a line to hook.log. Self-test: `screen_loop::check_screen`.
-//! Manual patch with a private copy (0x2AF bytes; 10 calls and 1 jump to a fatal-error stub
-//! relocated): a call or a
-//! jump target sits in the first bytes.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! The loop itself is `menu::screen_loop`; this file says what is this screen's own (`SCREEN`), as
+//! extracted from the disassembly: background `service.png` through `menu::load_background` (carry
+//! afterwards = fatal error 0x80712345); leaving is asked about. A reading from the title string of
+//! its menu, not yet a visit: "ÁREA DE INSPECÇÃO".
+//! Callers: `sub_48E093`, `sub_4A15E3`, `4A1EC7`, `sub_4A8556`.
 
-use crate::framework::{Regs, rva};
-use crate::menu::screen_loop::{List, Screen, Step, screen_entry};
+use crate::framework::rva;
+use crate::menu::draw_lists_store::DRAW_LISTS;
+use crate::menu::flow_store::SCREEN_FLOW;
+use crate::menu::menus_store::MENUS;
+use crate::menu::screen_items_store::{SCREEN_ITEMS, slot};
+use crate::menu::screen_loop::{Callee, List, Screen, Step};
 
 // ---- Rust version: `menu::screen_loop` with this ----
 
 pub const SCREEN: Screen = Screen {
-    menu: rva(0x75065C),
-    saved_item: rva(0x7477AC),
+    menu: || MENUS.inspection_area.addr() as usize,
+    saved_item: || &SCREEN_ITEMS.current[slot::INSPECTION_AREA],
     lists: &[
         List {
-            pointer: rva(0x755504), // g_sceneList
-            table: rva(0x7590BA),
+            pointer: || &SCREEN_FLOW.scene_list, // g_sceneList
+            table: || DRAW_LISTS.inspection_area_scene.addr() as usize,
             run: false,
         },
         List {
-            pointer: rva(0x7554F8), // g_drawList
-            table: rva(0x758DDE),
+            pointer: || &SCREEN_FLOW.draw_list, // g_drawList
+            table: || DRAW_LISTS.inspection_area_draw.addr() as usize,
             run: false,
         },
         List {
-            pointer: rva(0x7554FC), // g_overlayList
-            table: rva(0x75927E),
+            pointer: || &SCREEN_FLOW.overlay_list, // g_overlayList
+            table: || DRAW_LISTS.inspection_area_overlay.addr() as usize,
             run: false,
         },
     ],
@@ -53,9 +45,13 @@ pub const SCREEN: Screen = Screen {
     prepare: &[],
     after_lists: &[],
     background: &[
-        Step::EaxAddr(rva(0x7325F8)),
-        Step::Call(rva(0x411863)),
-        Step::CallOrFatal(rva(0x406126), 0x80712345),
+        Step::ArgAddr(|| {
+            (crate::menu::texts_store::MENU_TEXTS
+                .inspection_area_picture
+                .addr()) as usize
+        }),
+        Step::Call(Callee::LoadPicture),
+        Step::CallOrFatal(Callee::ConvertPicture, 0x80712345),
     ],
     after_first_frame: &[],
     confirm: Some(&[]),
@@ -84,12 +80,4 @@ pub const SCREEN: Screen = Screen {
     after_blink: &[],
     restart_action_check: false,
     always_asks: false,
-    also_reads: &[],
-    also_writes: &[],
 };
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    screen_entry("menu::inspection_area_loop", r, &SCREEN)
-}

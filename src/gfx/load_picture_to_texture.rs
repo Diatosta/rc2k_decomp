@@ -4,23 +4,14 @@
 //!      none), ebx = the system texture
 //! Out: carry clear; every register preserved
 //!
-//! With the record's +0x5C at 1 the second picture is read and kept 0x40000 bytes on
-//! the picture's start, or +0x5C made 0 if there is none or it cannot be read
-//! (`gfx/texture_upload.rs`); then the picture is read (`gfx::read_texture_picture`,
-//! 256 x 256 of -1 if it cannot be) and `gfx::upload_texture_picture` puts it in.
-//! Three call sites in `scene::load_texture_picture`, which calls the Rust version now.
-//! Refuses a texture of 0x140 or more, a record without its format, and what its parts
-//! refuse.
-//! Shadow mode runs the original alone.
-//! Self-test: a redirected copy whose upload notes what it is given, on
-//! `gfx::load_picture`'s files.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! With the record's +0x5C at 1 the second picture is read and kept 0x40000 bytes on the
+//! picture's start, or +0x5C made 0 if there is none or it cannot be read
+//! (`gfx/texture_upload.rs`); then the picture is read (`gfx::read_texture_picture`, 256 x 256
+//! of -1 if it cannot be) and `gfx::upload_texture_picture` puts it in. Three call sites in
+//! `scene::load_texture_picture`, which calls the Rust version now. Refuses a texture of 0x140
+//! or more, a record without its format, and what its parts refuse.
 
 use crate::errors::Refused;
-use crate::framework::Regs;
 use crate::gfx::read_texture_picture::read_texture_picture;
 use crate::gfx::texture_upload::{Record, keep_second_picture};
 use crate::gfx::upload_texture_picture::{GameSurfaces, upload_texture_picture};
@@ -38,7 +29,7 @@ pub unsafe fn load_picture_to_texture(
     let record = Record::of(texture)?;
     unsafe {
         keep_second_picture(&record, second)?;
-        let (pixels, width, height, _) = read_texture_picture(path as *mut u8)?;
+        let (pixels, width, height, _) = read_texture_picture(crate::pointers::host(path))?;
         upload(texture, pixels, width, height)
     }
 }
@@ -59,15 +50,6 @@ pub unsafe fn load_picture_to_texture_in_game(
             },
         )
     }
-}
-
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    match unsafe { load_picture_to_texture_in_game(r.eax, r.ecx, r.ebx) } {
-        Ok(()) => r.set_carry(false),
-        Err(e) => return Err(e),
-    }
-    Ok(())
 }
 
 // gfx::upload_texture_picture

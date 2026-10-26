@@ -1,0 +1,131 @@
+//! The championship pages' rows and the event's tables, out of RAL.EXE's image (IDA 0x7556B4 ..
+//! 0x755784; phase 7, typed): the rows shown, the key clock, the event's mode and the addresses of
+//! the best-times and standings tables. A `#[repr(C)]` struct with the image's layout, one static;
+//! `moved::MOVED` points the range at it. The tables' addresses are the game's allocations
+//! (`saves::allocate_best_times`). (Split 2026-10-25 from the front end's block `menu::store`.)
+
+use crate::session::{Bytes, Dword, with_runs};
+
+/// The rows, the key clock and the tables' addresses (IDA 0x7556B4 .. 0x755784).
+#[repr(C)]
+pub struct ChampView {
+    /// `dword_7556B4`: The rows (players or drivers) the results and standings pages show.
+    pub count: Dword,
+    /// `g_champFirstRow`: The first row shown (`menu::stage_rows`).
+    pub first_row: Dword,
+    /// `g_champRowEnd`: The end of the rows shown.
+    pub row_end: Dword,
+    /// `dword_7556C0`: The player being ranked (`screens::draw_class_ranking`).
+    pub ranked_player: Dword,
+    /// `dword_7556C4`: The clock at the last key.
+    pub last_key_time: Dword,
+    /// `dword_7556C8`: What the cursor's blink counts from.
+    pub cursor_time: Dword,
+    /// Unreferenced bytes (IDA 0x7556CC .. 0x7556D0).
+    pub _gap_7556cc: Bytes<4>,
+    /// `g_eventMode`: The event's mode: 2, 3 or 0x13.
+    pub event_mode: Dword,
+    /// `g_bestScores`: The best scores' table (five groups of ten, 0x3C each).
+    pub best_scores: Dword,
+    /// `g_stageBestTimes`: The stages' best times (0x618 an event).
+    pub stage_best_times: Dword,
+    /// `g_levelBestScores`: The arcade levels' best scores.
+    pub level_best_scores: Dword,
+    /// `g_courseBestTimes`: The courses' best times (group 1's pointer for the stage pages).
+    pub course_best_times: Dword,
+    /// `g_stageBestTimesAlt`: The other group's stage times.
+    pub stage_best_times_alt: Dword,
+    /// `g_timeTrialBestTimes`: The time trial's best times.
+    pub time_trial_best_times: Dword,
+    /// `g_rankedTimes`: The ranked times (`menu::standings`).
+    pub ranked_times: Dword,
+    /// `g_champHistory`: The championship's history table.
+    pub champ_history: Dword,
+    /// `dword_7556F4`: The standings summary (`menu::copy_standings_summary`).
+    pub summary: Dword,
+    /// `dword_7556F8`: A stage page switch (`menu::toggle_7556f8`).
+    pub switch_f8: Dword,
+    /// `dword_7556FC`: A stage page switch (`menu::toggle_7556fc`).
+    pub switch_fc: Dword,
+    /// `dword_755700`: 2 a championship's, 3 a record's (`menu::stage_choice`).
+    pub stage_mode: Dword,
+    /// Unreferenced bytes (IDA 0x755704 .. 0x755784).
+    pub _gap_755704: Bytes<128>,
+}
+
+/// First values the image's (`tests::champ_view_starts_as_the_games`).
+pub static CHAMP_VIEW: ChampView = ChampView {
+    count: Dword::new(0x0),
+    first_row: Dword::new(0x0),
+    row_end: Dword::new(0x0),
+    ranked_player: Dword::new(0x1),
+    last_key_time: Dword::new(0x0),
+    cursor_time: Dword::new(0x0),
+    _gap_7556cc: Bytes::new(with_runs::<4>(&[(0x0, &[0x01])])),
+    event_mode: Dword::new(0x2),
+    best_scores: Dword::new(0x0),
+    stage_best_times: Dword::new(0x0),
+    level_best_scores: Dword::new(0x0),
+    course_best_times: Dword::new(0x0),
+    stage_best_times_alt: Dword::new(0x0),
+    time_trial_best_times: Dword::new(0x0),
+    ranked_times: Dword::new(0x0),
+    champ_history: Dword::new(0x0),
+    summary: Dword::new(0x0),
+    switch_f8: Dword::new(0x1),
+    switch_fc: Dword::new(0x1),
+    stage_mode: Dword::new(0x1),
+    _gap_755704: Bytes::new([0; 128]),
+};
+
+/// IDA 0x7556B4, the first byte of the piece.
+pub const START: usize = 0x7556B4;
+/// IDA 0x755784, the end of the piece.
+pub const END: usize = 0x755784;
+
+/// Where IDA 0x7556B4 is now (`moved::MOVED`'s home).
+pub fn champ_view_addr() -> u32 {
+    crate::pointers::game_address(&CHAMP_VIEW as *const ChampView)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::moved::image_bytes;
+    use core::mem::{offset_of, size_of};
+
+    #[test]
+    fn champ_view_starts_as_the_games() {
+        assert!(
+            END - START <= size_of::<ChampView>()
+                && size_of::<ChampView>() <= (END - START).next_multiple_of(4)
+        );
+        let mine = unsafe {
+            std::slice::from_raw_parts(
+                crate::pointers::host(champ_view_addr()) as *const u8,
+                END - START,
+            )
+        };
+        assert_eq!(mine, &image_bytes(START, END - START)[..]);
+        let at = |field: usize, ida: usize| assert_eq!(field, ida - START, "{ida:#X}");
+        at(offset_of!(ChampView, count), 0x7556B4);
+        at(offset_of!(ChampView, first_row), 0x7556B8);
+        at(offset_of!(ChampView, row_end), 0x7556BC);
+        at(offset_of!(ChampView, ranked_player), 0x7556C0);
+        at(offset_of!(ChampView, last_key_time), 0x7556C4);
+        at(offset_of!(ChampView, cursor_time), 0x7556C8);
+        at(offset_of!(ChampView, event_mode), 0x7556D0);
+        at(offset_of!(ChampView, best_scores), 0x7556D4);
+        at(offset_of!(ChampView, stage_best_times), 0x7556D8);
+        at(offset_of!(ChampView, level_best_scores), 0x7556DC);
+        at(offset_of!(ChampView, course_best_times), 0x7556E0);
+        at(offset_of!(ChampView, stage_best_times_alt), 0x7556E4);
+        at(offset_of!(ChampView, time_trial_best_times), 0x7556E8);
+        at(offset_of!(ChampView, ranked_times), 0x7556EC);
+        at(offset_of!(ChampView, champ_history), 0x7556F0);
+        at(offset_of!(ChampView, summary), 0x7556F4);
+        at(offset_of!(ChampView, switch_f8), 0x7556F8);
+        at(offset_of!(ChampView, switch_fc), 0x7556FC);
+        at(offset_of!(ChampView, stage_mode), 0x755700);
+    }
+}

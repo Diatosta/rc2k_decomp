@@ -12,33 +12,35 @@
 //! `routes.rs`); the registers above are the original's, for reference.
 
 use crate::errors::BadInput;
-use crate::framework::{Regs, game_read, rva};
 use rc2k_core::files::log::Started;
 
-// ---- game data ----
-
-const WEEKDAY_RVA: usize = rva(0x51839F); // byte_51839F, then day, month, year (word),
-const DAY_RVA: usize = rva(0x5183A0); // hour, minute, second, hundredths
-const MONTH_RVA: usize = rva(0x5183A1);
-const YEAR_RVA: usize = rva(0x5183A2);
-const TIME_RVA: usize = rva(0x5183A4);
 // ---- Rust version ----
 
 /// The text, without what is written after it (converted: `rc2k_core::files::log::date`, on the
 /// start's moment as the game keeps it). Refuses a weekday, day or month past the tables.
-pub unsafe fn date_text() -> Result<Vec<u8>, BadInput> {
-    let started = unsafe {
-        let [hour, minute, second, hundredths]: [u8; 4] = game_read(TIME_RVA);
-        Started {
-            weekday: game_read(WEEKDAY_RVA),
-            day: game_read(DAY_RVA),
-            month: game_read(MONTH_RVA),
-            year: game_read(YEAR_RVA),
-            hour,
-            minute,
-            second,
-            hundredths,
-        }
+pub fn date_text() -> Result<Vec<u8>, BadInput> {
+    // byte_51839F the weekday, then day, month, year (word), hour, minute, second,
+    // hundredths (`system::keep_start_time`).
+    let [
+        weekday,
+        day,
+        month,
+        year_low,
+        year_high,
+        hour,
+        minute,
+        second,
+        hundredths,
+    ] = crate::system::keep_start_time::start_time();
+    let started = Started {
+        weekday,
+        day,
+        month,
+        year: u16::from_le_bytes([year_low, year_high]),
+        hour,
+        minute,
+        second,
+        hundredths,
     };
     rc2k_core::files::log::date(&started).ok_or(BadInput(
         "a start date whose weekday, day or month is past the name tables",
@@ -47,19 +49,11 @@ pub unsafe fn date_text() -> Result<Vec<u8>, BadInput> {
 
 /// For Rust callers: the text at the cursor, and after it CR, LF and two NULs. Returns the
 /// cursor after the text.
-pub unsafe fn write_date_text(cursor: *mut u8) -> Result<*mut u8, BadInput> {
-    unsafe {
-        let text = date_text()?;
-        std::ptr::copy(text.as_ptr(), cursor, text.len());
-        let end = cursor.add(text.len());
-        (end as *mut u32).write_unaligned(0x0A0D);
-        Ok(end)
-    }
-}
-
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    unsafe { date_text() }?;
-    r.ebx = unsafe { write_date_text(r.ebx as *mut u8) }.map_or(r.ebx, |end| end as u32);
-    Ok(())
+pub fn write_date_text(cursor: *mut u8) -> Result<*mut u8, BadInput> {
+    let text = date_text()?;
+    let at = crate::pointers::GamePtr::new(crate::pointers::game_address(cursor));
+    at.write_bytes(&text, "the log's date text")?;
+    at.offset(text.len() as u32)
+        .write(0x0A0Du32, "the log's date text")?;
+    Ok(cursor.wrapping_add(text.len()))
 }

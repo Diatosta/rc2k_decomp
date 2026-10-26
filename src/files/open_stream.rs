@@ -25,7 +25,7 @@ pub unsafe fn open_stream(
         Ok(rc2k_core::files::io::open_stream(
             &mut crate::files::handle::GameFiles::new(),
             crate::files::stream::core_stream(stream),
-            path,
+            crate::pointers::GamePtr::new(crate::pointers::game_address(path)),
             mode,
         )?)
     }

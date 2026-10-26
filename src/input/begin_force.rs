@@ -13,116 +13,75 @@
 //!
 //! Caller: `input::acquire_device`. The controller's number is not checked (as the
 //! original's). The effects' functions through `make_effect`'s `part`; the methods the
-//! device's own. Shadow mode runs the original alone (it calls DirectInput). Self-test: the
-//! original and the Rust version on DirectInput objects made in Rust (`input::di_harness`)
-//! and a copy of the first device's record: a controller with no force feedback, the wheel
-//! with strength 0 and 50.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! device's own.
 
-use crate::errors::Refused;
+use crate::errors::{BadInput, Refused};
 use crate::field;
-use crate::framework::{Regs, game_addr, rva};
-use crate::input::devices::{RECORD_LEN, at, put};
-use crate::input::di_harness::{
-    DWORD_PROP_RVA, EFFECT_LEN, EFFECTS_AT, a, entry_of, fatal, method, slot,
-};
+use crate::input::devices::{at, put};
+use crate::input::di_harness::{EFFECT_LEN, EFFECTS_AT, entry_of, fatal, method, slot};
+use crate::input::store::DEVICES;
 use crate::input::types::{Controller, DiPropDword, DiPropHeader, InputDevice};
 use rc2k_core::input::acquire::gain;
 use std::mem::size_of;
 
-const USING_TEXT_RVA: usize = rva(0x4DA5D8); // aInpUsingForceF
+const USING_TEXT_RVA: &std::ffi::CStr = c"INP: using force feedback"; // aInpUsingForceF
 const DIPROP_FFGAIN: u32 = 7;
 const DIPROP_AUTOCENTER: u32 = 9;
 
 /// The `DIPROPDWORD` for the whole device with `data`: its address.
-pub fn dword_property(data: u32) -> u32 {
-    let prop = a(DWORD_PROP_RVA);
+pub fn dword_property(data: u32) -> Result<u32, BadInput> {
+    let prop = DEVICES.dword_property.addr();
     put(
         prop,
         field!(DiPropDword, header.size),
         size_of::<DiPropDword>() as u32,
-    );
+    )?;
     put(
         prop,
         field!(DiPropDword, header.header_size),
         size_of::<DiPropHeader>() as u32,
-    );
-    put(prop, field!(DiPropDword, header.object), 0);
-    put(prop, field!(DiPropDword, header.how), 0);
-    put(prop, field!(DiPropDword, data), data);
-    prop
+    )?;
+    put(prop, field!(DiPropDword, header.object), 0)?;
+    put(prop, field!(DiPropDword, header.how), 0)?;
+    put(prop, field!(DiPropDword, data), data)?;
+    Ok(prop)
 }
 
 /// The Rust version (see the header).
-pub fn begin_force(record: u32, part: crate::input::make_effect::Part) -> Result<(), Refused> {
-    let entry = entry_of(record);
-    if at(entry, field!(Controller, force_feedback)) != 1 {
+pub fn begin_force(record: u32) -> Result<(), Refused> {
+    let entry = entry_of(record)?;
+    if at(entry, field!(Controller, force_feedback))? != 1 {
         return Ok(());
     }
-    unsafe {
-        crate::logfile::log_write::log_write(game_addr(USING_TEXT_RVA) as *const u8, true, 2)
-    };
-    let device = at(record, field!(InputDevice, device));
+    unsafe { crate::logfile::log_write::log_write(USING_TEXT_RVA.as_ptr() as *const u8, true, 2) };
+    let device = at(record, field!(InputDevice, device))?;
     // Converted: `rc2k_core::input::acquire::gain`.
-    let Some(gain) = gain(at(record, field!(InputDevice, strength))) else {
+    let Some(gain) = gain(at(record, field!(InputDevice, strength))?) else {
         method(
             device,
             slot::SET_PROPERTY,
-            &[DIPROP_AUTOCENTER, dword_property(1)],
+            &[DIPROP_AUTOCENTER, dword_property(1)?],
         );
         return Ok(());
     };
     if method(
         device,
         slot::SET_PROPERTY,
-        &[DIPROP_AUTOCENTER, dword_property(0)],
+        &[DIPROP_AUTOCENTER, dword_property(0)?],
     ) != 0
     {
         return Err(fatal(0x8023_8421).into());
     }
-    let gain = dword_property(gain);
+    let gain = dword_property(gain)?;
     if method(device, slot::SET_PROPERTY, &[DIPROP_FFGAIN, gain]) != 0 {
         return Err(fatal(0x8023_8422).into());
     }
-    let found = crate::input::effect_found::callback as unsafe extern "system" fn(u32, u32) -> u32
-        as usize as u32;
+    let found = crate::pointers::game_address(crate::input::effect_found::callback as *const ());
     method(device, slot::ENUM_EFFECTS, &[found, record, 0]);
     for n in 0..6 {
-        let r = Regs {
-            ecx: n,
-            esi: record,
-            edi: record.wrapping_add(EFFECTS_AT + n * EFFECT_LEN),
-            ..Regs::default()
-        };
-        crate::input::make_effect::make_effect(&r, part)?;
+        let effect = record.wrapping_add(EFFECTS_AT + n * EFFECT_LEN);
+        crate::input::make_effect::make_effect(record, effect, n)?;
     }
-    put(record, field!(InputDevice, effects_on), 1);
+    put(record, field!(InputDevice, effects_on), 1)?;
     Ok(())
-}
-
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    begin_force(r.esi, &mut crate::input::make_effect::game_part)?;
-    Ok(())
-}
-
-/// A test controller's entry (number 2 of the table) with force feedback or not, and a
-/// record of `start` for it with the device and the strength given.
-pub fn test_controller(rec: u32, start: &[u8], device: usize, force: bool, strength: u32) {
-    unsafe { std::ptr::copy_nonoverlapping(start.as_ptr(), rec as *mut u8, RECORD_LEN) };
-    put(rec, field!(InputDevice, controller), 2);
-    put(
-        entry_of(rec),
-        field!(Controller, force_feedback),
-        force as u32,
-    );
-    put(
-        rec,
-        field!(InputDevice, device),
-        crate::input::di_objects::test_device(device),
-    );
-    put(rec, field!(InputDevice, strength), strength);
 }

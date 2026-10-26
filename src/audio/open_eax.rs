@@ -6,13 +6,7 @@
 //! See `audio/property_sets.rs`: nothing with `g_ignoreEaxSetting` or the set already there
 //! (`g_eaxProperties`); "AUD: Using EAX" logged, `g_hasEax` 1. One caller,
 //! `audio::make_buffer` with bit 0x1000000, where ebx is not always the holder (the game's
-//! bug, `notes/bugs.md`: refused when no pointer). Shadow mode runs the original alone.
-//! Self-test: a redirected copy whose three variables are the test's and whose log call
-//! notes eax, 9 cases.
-//!
-//! Hook removed 2026-10-22 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! bug, `notes/bugs.md`: refused when no pointer).
 
 use crate::audio::property_sets::*;
 use crate::errors::Refused;

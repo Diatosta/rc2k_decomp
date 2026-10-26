@@ -4,141 +4,93 @@
 //! `unk_811BD3` .., its length in `dword_811BCF` (`x87::unit_and_length`).
 //!
 //! In:  nothing
-//! Out: esi the point (0x811BDF), edi the unit point (0x811BD3); the rest kept
+//! Out: nothing (no caller reads a register it leaves)
 //!
-//! Caller: `sub_4C1148`. Self-test: the angle and the point by lot, compared on the eight
-//! results and the registers; put back afterwards.
+//! Caller: `sub_4C1148`.
 //!
-//! Converted 2026-10-21: the hook's Rust version is `tilt_shape_plain`, through
-//! `rc2k_core::marks::view::tilt` (plain floats; the x87 version stays for the Rust callers
-//! in unconverted code). Shadow mode and the self-test compare within `service::floats`'
-//! tolerances (the self-test at both test precisions, exact at double).
+//! the x87 version stays for the Rust callers in unconverted code).
 
-use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, SelfTest, game_addr, game_read, game_write, hook_asm, rva};
-use crate::marks::leaf_test::test_leaf_floats;
 use crate::math::x87;
-use crate::race::stage_prefs::left_of;
-use crate::scene::matrix::float_places;
-use crate::screens::harness::Left;
-use crate::service::floats::*;
-use crate::service::harness::{Region, at};
-use std::sync::atomic::AtomicUsize;
+use crate::session::{Dword, Float, read_bits, write_bits};
 
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
+/// The Rust version (see the header).
+pub fn tilt_shape() {
+    let t = &SHAPE_TILT;
+    let (s, c) = x87::sine_and_cosine(t.tilt.bits());
+    t.cosine.set_bits(c);
+    t.sine.set_bits(s);
+    let (y, z) = x87::turn_yz(t.point[1].bits(), t.point[2].bits(), s, c);
+    t.point[1].set_bits(y);
+    t.point[2].set_bits(z);
+    let (unit, length) = x87::unit_and_length(read_bits(&t.point));
+    t.length.set_bits(length);
+    write_bits(&t.unit, unit);
+}
 
-pub static HOOK: RawHook =
-    RawHook::new("marks::tilt_shape", rva(0x4C1194), thunk, &ORIGINAL).self_test(self_test);
+/// The shape tilt and the first view point (`marks::tilt_shape`, `marks::copy_first_point`, `marks::edges`) (IDA 0x811BC3 .. 0x811BEB, the image's layout; phase 7, typed state).
+#[repr(C)]
+pub struct ShapeTilt {
+    /// 0x811BC3: `g_marksShapeTilt`: the kind's float times 0.0175.
+    pub tilt: Float,
+    /// 0x811BC7: `flt_811BC7`: the sine of the tilt.
+    pub sine: Float,
+    /// 0x811BCB: `flt_811BCB`: the cosine of the tilt.
+    pub cosine: Float,
+    /// 0x811BCF: `dword_811BCF`: the point's length.
+    pub length: Dword,
+    /// 0x811BD3: `unk_811BD3` ..: the point made of length 1.
+    pub unit: [Float; 3],
+    /// 0x811BDF: `flt_811BDF` .. `flt_811BE7`: the first kept view point (copied by `marks::copy_first_point`, turned by the tilt, then also set to 0 by `marks::hexagons_drift` and moved by the drift).
+    pub point: [Float; 3],
+}
 
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
+pub static SHAPE_TILT: ShapeTilt = ShapeTilt {
+    tilt: Float::from_bits(0x0),
+    sine: Float::from_bits(0x0),
+    cosine: Float::from_bits(0x0),
+    length: Dword::new(0x0),
+    unit: [
+        Float::from_bits(0x0),
+        Float::from_bits(0x3F800000),
+        Float::from_bits(0x0),
+    ],
+    point: [
+        Float::from_bits(0x0),
+        Float::from_bits(0x0),
+        Float::from_bits(0x3F800000),
+    ],
+};
 
-const TILT_RVA: usize = rva(0x811BC3); // g_marksShapeTilt
-const SINE_RVA: usize = rva(0x811BC7); // flt_811BC7
-const COSINE_RVA: usize = rva(0x811BCB); // flt_811BCB
-const POINT_RVA: usize = rva(0x811BDF); // flt_811BDF .. flt_811BE7
-const UNIT_RVA: usize = rva(0x811BD3); // unk_811BD3
-const LENGTH_RVA: usize = rva(0x811BCF); // dword_811BCF
-
-/// The Rust version (see the header): the registers it leaves.
-pub unsafe fn tilt_shape(entry: &Regs) -> Regs {
-    unsafe {
-        let (s, c) = x87::sine_and_cosine(game_read(TILT_RVA));
-        game_write(COSINE_RVA, c);
-        game_write(SINE_RVA, s);
-        let (y, z) = x87::turn_yz(game_read(POINT_RVA + 4), game_read(POINT_RVA + 8), s, c);
-        game_write(POINT_RVA + 4, y);
-        game_write(POINT_RVA + 8, z);
-        let (unit, length) = x87::unit_and_length(game_read(POINT_RVA));
-        game_write(LENGTH_RVA, length);
-        game_write(UNIT_RVA, unit);
-        Regs {
-            esi: game_addr(POINT_RVA) as u32,
-            edi: game_addr(UNIT_RVA) as u32,
-            ..*entry
-        }
+impl ShapeTilt {
+    pub const START: usize = 0x811BC3;
+    pub const LEN: usize = 0x28;
+    /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
+    pub fn home() -> usize {
+        crate::pointers::game_address(&SHAPE_TILT as *const ShapeTilt) as usize
     }
 }
 
-/// The converted version (plain floats): the hook's.
-// Converted: `rc2k_core::marks::view::tilt`
-pub unsafe fn tilt_shape_plain(entry: &Regs) -> Regs {
-    unsafe {
-        let point: [u32; 3] = game_read(POINT_RVA);
-        let t = rc2k_core::marks::view::tilt(
-            f32::from_bits(game_read(TILT_RVA)),
-            point.map(f32::from_bits),
+#[cfg(test)]
+mod shape_tilt_tests {
+    use super::*;
+
+    #[test]
+    fn shape_tilt_starts_as_the_games() {
+        use core::mem::offset_of;
+        assert_eq!(size_of::<ShapeTilt>(), ShapeTilt::LEN);
+        let p = &SHAPE_TILT as *const ShapeTilt as *const u8;
+        let ours: Vec<u8> = (0..size_of::<ShapeTilt>())
+            .map(|i| unsafe { p.add(i).read() })
+            .collect();
+        assert!(
+            ours == crate::moved::image_bytes(ShapeTilt::START, ShapeTilt::LEN),
+            "SHAPE_TILT starts differently from the image"
         );
-        game_write(COSINE_RVA, t.turn.cosine.to_bits());
-        game_write(SINE_RVA, t.turn.sine.to_bits());
-        game_write(POINT_RVA + 4, t.y.to_bits());
-        game_write(POINT_RVA + 8, t.z.to_bits());
-        game_write(LENGTH_RVA, t.unit.length.to_bits());
-        game_write(UNIT_RVA, t.unit.unit.map(f32::to_bits));
-        Regs {
-            esi: game_addr(POINT_RVA) as u32,
-            edi: game_addr(UNIT_RVA) as u32,
-            ..*entry
-        }
+        assert_eq!(offset_of!(ShapeTilt, tilt), 0x811BC3 - ShapeTilt::START);
+        assert_eq!(offset_of!(ShapeTilt, sine), 0x811BC7 - ShapeTilt::START);
+        assert_eq!(offset_of!(ShapeTilt, cosine), 0x811BCB - ShapeTilt::START);
+        assert_eq!(offset_of!(ShapeTilt, length), 0x811BCF - ShapeTilt::START);
+        assert_eq!(offset_of!(ShapeTilt, unit), 0x811BD3 - ShapeTilt::START);
+        assert_eq!(offset_of!(ShapeTilt, point), 0x811BDF - ShapeTilt::START);
     }
-}
-
-fn written() -> Vec<usize> {
-    let mut w = vec![
-        SINE_RVA,
-        COSINE_RVA,
-        POINT_RVA + 4,
-        POINT_RVA + 8,
-        LENGTH_RVA,
-    ];
-    w.extend((0..3).map(|k| UNIT_RVA + 4 * k));
-    w
-}
-
-/// What it writes.
-pub fn regions() -> Vec<Region> {
-    written().into_iter().map(at).collect()
-}
-
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    Ok(left_of(&unsafe { tilt_shape_plain(r) }))
-}
-
-extern "C" fn dispatch(r: &mut Regs) {
-    let regions: Vec<Region> = written().into_iter().map(at).collect();
-    let places = float_places(&regions);
-    let floats = Floats {
-        memory: &places,
-        regs: &[],
-    };
-    dispatch_state_floats(&HOOK, r, call_original, &regions, &floats, &rust);
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    floats_entry(r, &rust)
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let inputs = [TILT_RVA, POINT_RVA, POINT_RVA + 4, POINT_RVA + 8];
-    test_leaf_floats(
-        &mut t,
-        "marks::tilt_shape",
-        &inputs,
-        &written(),
-        Regs::SENTINEL,
-        &[],
-        10,
-        call_original,
-        &rust,
-    );
-    t.finish()
 }

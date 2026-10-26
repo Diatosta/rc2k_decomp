@@ -9,124 +9,74 @@
 //! In:  nothing (the pieces at `dword_51C407`)
 //! Out: every register kept (`pusha` / `popa`); no flags read
 //! No pieces would go round 2^32 times: refused. Caller `install::run_page` (the surface
-//! locked). Its calls through `part`; the appending done here. Shadow mode runs the
-//! original alone. Self-test: a copy whose draws go to stand-ins, against the Rust version,
-//! on pages laid out by `install::lay_out_pieces` from lists of the test's.
+//! locked).
 //!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Conversion phase 3 (2026-10-23): plain Rust with typed arguments; the registers above
+//! are the original's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::Regs;
 use crate::install::installer::{
-    COLOURS, DRAW_STRING, DRAW_TEXT, FONTS, LAYOUT, Part, TEXT, a, append_byte,
-    append_string_by_id, at, g, rb, rd, rw, str_append,
+    append_byte, append_string_by_id, draw_action, draw_string, draw_text, rb, rd, rw, str_append,
+    text_action,
 };
 use crate::install::lay_out_pieces::PIECE;
-use crate::race::viewer::regs_entry;
+use crate::install::vars::INSTALLER_PAGES;
+use crate::strings::text_buffer::TEXT_BUFFER;
 use rc2k_core::install::pieces::{self, Way};
 
 fn font(index: u32) -> u32 {
-    rd(a(FONTS) + 4 * index)
+    rd(crate::session::address_of(&INSTALLER_PAGES.fonts) + 4 * index)
 }
 
 fn colour(marks: u8, kind: u32) -> u32 {
-    rb(a(COLOURS) + pieces::colour_at(marks, kind)) as u32
+    rb(INSTALLER_PAGES.kind_fonts.addr() + pieces::colour_at(marks, kind)) as u32
 }
 
-pub fn draw_pieces(entry: &Regs, part: Part) -> Result<Regs, Refused> {
-    let count = g(LAYOUT);
+pub fn draw_pieces() -> Result<(), Refused> {
+    let count = INSTALLER_PAGES.layout.get_u32(0);
     if count == 0 {
         return Err(BadInput("a page of no pieces").into());
     }
-    let mut r = *entry;
-    r.esi = a(LAYOUT) + 4;
-    r.ecx = count;
-    loop {
-        let left = r.ecx;
-        let esi = r.esi;
-        let first = rb(esi);
-        let marks = (first >> 6) as u32 & 3;
+    for k in 0..count {
+        let piece = INSTALLER_PAGES.layout.addr() + 4 + PIECE * k;
+        let first = rb(piece);
+        let (x, y) = (rd(piece + 8), rd(piece + 0xC));
         // Converted: `rc2k_core::install::pieces` (`Way`, `colour_at`, `caret`).
-        match Way::of(first, rb(esi + 1)) {
+        match Way::of(first, rb(piece + 1)) {
             Way::String { font_kind } => {
-                r.ebx = rb(a(COLOURS) + pieces::colour_at(first, font_kind)) as u32;
-                r.eax = rw(esi + 2) as u32;
-                r.ecx = rd(esi + 8);
-                r.edx = rd(esi + 0xC);
-                r.ebx = font(r.ebx);
-                part(at(DRAW_STRING), &mut r)?;
+                draw_string(rw(piece + 2) as u32, font(colour(first, font_kind)), x, y)?;
             }
-            way => {
-                r.eax = r.eax & !0xFF | (first & 0xF) as u32;
-                match way {
-                    Way::Edit => {
-                        r.edi = rd(esi + 4);
-                        r.ebx = marks;
-                        r.ecx = rd(r.edi + 0xC);
-                        let record = r.ecx;
-                        r.eax = colour(first, rb(record + 4) as u32);
-                        r.ebx = rd(r.edi + 8);
-                        if pieces::caret(first, rb(record)) {
-                            let mut s = Regs {
-                                eax: r.ebx,
-                                ebx: a(TEXT),
-                                ..r
-                            };
-                            str_append(&mut s);
-                            s.eax = 4;
-                            append_string_by_id(&mut s);
-                            append_byte(&mut s, 0);
-                            r.ebx = a(TEXT);
-                            r.edx = s.edx;
-                        }
-                        r.ecx = rd(esi + 8);
-                        r.edx = rd(esi + 0xC);
-                        r.eax = font(r.eax);
-                        part(at(DRAW_TEXT), &mut r)?;
-                    }
-                    Way::Text => {
-                        r.edi = rd(esi + 4);
-                        r.eax = rw(esi + 2) as u32;
-                        r.ebx = a(TEXT);
-                        append_string_by_id(&mut r);
-                        let action = rd(r.edi + 0xC);
-                        if action != 0 {
-                            r.eax = rd(r.edi + 8);
-                            part(action, &mut r)?;
-                        }
-                        append_byte(&mut r, 0);
-                        r.eax = colour(first, rb(r.edi + 1) as u32);
-                        r.ebx = a(TEXT);
-                        r.ecx = rd(esi + 8);
-                        r.edx = rd(esi + 0xC);
-                        r.eax = font(r.eax);
-                        part(at(DRAW_TEXT), &mut r)?;
-                    }
-                    Way::Action => {
-                        r.edi = rd(esi + 4);
-                        r.ecx = rd(esi + 8);
-                        r.edx = rd(esi + 0xC);
-                        part(rd(r.edi + 0xC), &mut r)?;
-                    }
-                    _ => {}
+            Way::Edit => {
+                let item = rd(piece + 4);
+                let record = rd(item + 0xC);
+                let edit_font = font(colour(first, rb(record + 4) as u32));
+                let mut text = rd(item + 8);
+                if pieces::caret(first, rb(record)) {
+                    let cursor = str_append(text, TEXT_BUFFER.text.addr());
+                    let cursor = append_string_by_id(4, cursor);
+                    append_byte(cursor, 0);
+                    text = TEXT_BUFFER.text.addr();
                 }
+                draw_text(edit_font, text, x, y)?;
             }
-        }
-        r.ecx = left.wrapping_sub(1);
-        r.esi = esi.wrapping_add(PIECE);
-        if r.ecx == 0 {
-            break;
+            Way::Text => {
+                let item = rd(piece + 4);
+                let mut cursor = append_string_by_id(rw(piece + 2) as u32, TEXT_BUFFER.text.addr());
+                let action = rd(item + 0xC);
+                if action != 0 {
+                    cursor = text_action(action, cursor)?;
+                }
+                append_byte(cursor, 0);
+                draw_text(
+                    font(colour(first, rb(item + 1) as u32)),
+                    TEXT_BUFFER.text.addr(),
+                    x,
+                    y,
+                )?;
+            }
+            Way::Action => draw_action(rd(rd(piece + 4) + 0xC))?,
+            Way::Other => {}
         }
     }
-    Ok(*entry)
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    regs_entry(r, &|r| {
-        draw_pieces(r, &mut crate::install::installer::game_part)
-    })
+    Ok(())
 }

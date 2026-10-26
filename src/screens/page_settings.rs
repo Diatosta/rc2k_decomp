@@ -2,105 +2,94 @@
 //! A, part F1, 2026-10-18).
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{game_addr, game_read, game_write, rva};
-
-fn k(a: u32) -> u32 {
-    unsafe { game_read(rva(a as usize)) }
-}
-
-fn w(a: u32, v: u32) {
-    unsafe { game_write(rva(a as usize), v) }
-}
+use crate::menu::captions_store::CAPTIONS;
+use crate::menu::champ_store::CHAMP_VIEW;
+use crate::menu::event_store::EVENT_STATE;
+use crate::menu::keys_store::KEY_TABLES;
+use crate::menu::menus_store::MENUS;
+use crate::menu::option_work_store::OPTION_WORK;
+use crate::menu::results_store::RESULT_FIGURES;
+use crate::menu::state_store::MENU_STATE;
 
 /// `screens::pick_player_1` .. `_4` (0x46AEC5, 0x46AF21, 0x46AF58, 0x46AF8F): player `n`
 /// the current one (`dword_75598C`), its +0x2C into `dword_7558C4` and its 0x2C bytes at
 /// +0x50 into the page's copy (`unk_7555B1`). Every register kept. Refuses (before
 /// anything) a player without its record.
-pub unsafe fn pick_player(n: u32) -> Result<(), Refused> {
-    unsafe {
-        let p = crate::menu::player::player_at(n);
-        if p == 0 {
-            return Err(BadInput("a player without its record").into());
-        }
-        // Converted: `rc2k_core::screens::page_values` (`Player::picked`).
-        let (value, copy) = (p as *const rc2k_core::menu::player::Player)
-            .read_unaligned()
-            .picked();
-        w(0x75598C, n);
-        w(0x7558C4, value);
-        game_write(rva(0x7555B1), copy);
-        Ok(())
+pub fn pick_player(n: u32) -> Result<(), Refused> {
+    let p = crate::menu::player::player_at(n);
+    if p == 0 {
+        return Err(BadInput("a player without its record").into());
     }
+    // Converted: `rc2k_core::screens::page_values` (`Player::picked`).
+    let (value, copy) = crate::pointers::GamePtr::new(p)
+        .read::<rc2k_core::menu::player::Player>("page settings: a game value")?
+        .picked();
+    EVENT_STATE.current_player.set(n);
+    EVENT_STATE.dword_7558c4.set(value);
+    KEY_TABLES.controls.write(&copy);
+    Ok(())
 }
 
 /// `screens::load_audio_settings` (0x4707E6): the audio options (`g_audioOptions`: quality,
 /// channels, Dolby, A3D, EAX, DS3D) into the sound page's work variables (`dword_75566C`,
 /// `dword_755680`, `dword_75567C`, `dword_755678`, `dword_755674`, `dword_755670`). Every
 /// register kept.
-pub unsafe fn load_audio_settings() {
+pub fn load_audio_settings() {
     // Converted: `rc2k_core::screens::page_values::audio_page`.
     let options: rc2k_core::audio::modes::AudioOptions =
-        unsafe { game_read(crate::audio::choose_modes::OPTIONS_RVA) };
-    unsafe {
-        game_write(
-            rva(0x75566C),
-            rc2k_core::screens::page_values::audio_page(&options),
-        )
-    };
+        crate::audio::store::AUDIO.audio_options.get();
+    OPTION_WORK.set_audio_page(rc2k_core::screens::page_values::audio_page(&options));
 }
 
 /// `strings::append_string_by_id` into `out`.
-unsafe fn push_id(out: &mut Vec<u8>, id: u32) {
-    unsafe { crate::strings::append_string_by_id::push_string(out, id) };
+fn push_id(out: &mut Vec<u8>, id: u32) -> Result<(), BadInput> {
+    crate::strings::append_string_by_id::push_string(out, id)
 }
 
 /// The stage line string `id`, " ", the record's +0x40 as a fraction of 6
 /// (`strings::append_fraction`), ": ", the name of its track-pack entry
 /// (`records::trakpak_entry`'s first dword, a string id), and its NUL.
-pub unsafe fn stage_line_bytes(id: u32, record: u32) -> Result<Vec<u8>, Refused> {
-    Ok(unsafe { crate::screens::draw_stage_heading::heading_text(record as *const u8, id) }?)
+pub fn stage_line_bytes(id: u32, record: u32) -> Result<Vec<u8>, Refused> {
+    crate::screens::draw_stage_heading::heading_text(record, id)
 }
 
 /// The stage line both stage pages build in `byte_A8BD54`.
-unsafe fn stage_line(id: u32, record: u32) -> Result<(), Refused> {
-    unsafe {
-        let line = stage_line_bytes(id, record)?;
-        if line.len() > rc2k_core::screens::page_values::STAGE_LINE_ROOM {
-            return Err(BadInput("a stage line past its buffer").into());
-        }
-        std::ptr::copy_nonoverlapping(
-            line.as_ptr(),
-            game_addr(rva(0xA8BD54)) as *mut u8,
-            line.len(),
-        );
-        Ok(())
+fn stage_line(id: u32, record: u32) -> Result<(), Refused> {
+    let line = stage_line_bytes(id, record)?;
+    if line.len() > rc2k_core::screens::page_values::STAGE_LINE_ROOM {
+        return Err(BadInput("a stage line past its buffer").into());
     }
+    crate::pointers::GamePtr::new(
+        crate::screens::text_buffers_store::TEXT_BUFFERS
+            .stage_heading
+            .addr(),
+    )
+    .write_bytes(&line, "the stage line")?;
+    Ok(())
 }
 
 /// Menu item `n`'s value (+0x14) of the item table that starts 4 bytes into `items`.
-fn set_item(items: u32, n: u32, v: u32) {
-    unsafe { ((items + 4 + 0x5C * n + 0x14) as *mut u32).write_unaligned(v) };
+fn set_item(items: u32, n: u32, v: u32) -> Result<(), BadInput> {
+    crate::pointers::GamePtr::new(items + 4 + 0x5C * n + 0x14).write::<u32>(v, "a menu item")
 }
 
 /// The stage record `off_735512[a][b]` (its +0x38 the page's value), and the record + `c` x
 /// 0xA4 the line is about.
-unsafe fn stage_record(a: u32, b: u32, c: u32) -> (u32, u32) {
-    unsafe {
-        let table = ((game_addr(rva(0x735512)) as u32 + 4 * a) as *const u32).read_unaligned();
-        let base = ((table + 4 * b) as *const u32).read_unaligned();
-        (base, base.wrapping_add(c.wrapping_mul(0xA4)))
-    }
+fn stage_record(a: u32, b: u32, c: u32) -> Result<(u32, u32), BadInput> {
+    let table = crate::records::stages_store::STAGE_TABLES.group_list(a);
+    let base = crate::pointers::GamePtr::new(table + 4 * b).read::<u32>("a stage record table")?;
+    Ok((base, base.wrapping_add(c.wrapping_mul(0xA4))))
 }
 
 /// What both stage pages read through: refused before anything.
-unsafe fn stage_refuses(a: u32, b: u32) -> Result<(), Refused> {
-    unsafe {
-        let table = ((game_addr(rva(0x735512)) as u32 + 4 * a) as *const u32).read_unaligned();
-        if table == 0 || ((table + 4 * b) as *const u32).read_unaligned() == 0 {
-            return Err(BadInput("no stage records").into());
-        }
-        Ok(())
+fn stage_refuses(a: u32, b: u32) -> Result<(), Refused> {
+    let table = crate::records::stages_store::STAGE_TABLES.group_list(a);
+    if table == 0
+        || crate::pointers::GamePtr::new(table + 4 * b).read::<u32>("a stage record table")? == 0
+    {
+        return Err(BadInput("no stage records").into());
     }
+    Ok(())
 }
 
 /// `screens::stage_options_texts` (0x4692A9): the stage options page's items in the table at
@@ -108,29 +97,35 @@ unsafe fn stage_refuses(a: u32, b: u32) -> Result<(), Refused> {
 /// 0x19D by `dword_7556FC`, item 3 the record's +0x38), the stage line (string 0x481) and the
 /// caption string 0x4FC + `dword_75AB30`. Every register kept. Refuses (before anything) no
 /// stage records; a record of another track pack is the original's fatal error.
-pub unsafe fn stage_options_texts() -> Result<(), Refused> {
-    unsafe {
-        let (a, b) = (k(0x7556F8), k(0x75880E));
-        stage_refuses(a, b)?;
-        // Converted: `rc2k_core::screens::page_values` (the items and the caption).
-        use rc2k_core::screens::page_values::{stage_options_caption, stage_options_items};
-        let items = game_addr(rva(0x74DCE0)) as u32;
-        let (first, second) = stage_options_items(a, k(0x7556FC));
-        set_item(items, 1, first);
-        set_item(items, 2, second);
-        let (base, record) = stage_record(a, b, k(0x758812));
-        set_item(items, 3, ((base + 0x38) as *const u32).read_unaligned());
-        stage_line(0x481, record)?;
-        let mut caption = Vec::new();
-        push_id(&mut caption, stage_options_caption(k(0x75AB30)));
-        caption.push(0);
-        std::ptr::copy_nonoverlapping(
-            caption.as_ptr(),
-            game_addr(crate::screens::best_scores::CAPTION_RVA) as *mut u8,
-            caption.len(),
-        );
-        Ok(())
-    }
+pub fn stage_options_texts() -> Result<(), Refused> {
+    let (a, b) = (CHAMP_VIEW.switch_f8.get(), CAPTIONS.shown_group.get());
+    stage_refuses(a, b)?;
+    // Converted: `rc2k_core::screens::page_values` (the items and the caption).
+    use rc2k_core::screens::page_values::{stage_options_caption, stage_options_items};
+    let items = MENUS.view_best_times.addr();
+    let (first, second) = stage_options_items(a, CHAMP_VIEW.switch_fc.get());
+    set_item(items, 1, first)?;
+    set_item(items, 2, second)?;
+    let (base, record) = stage_record(a, b, CAPTIONS.shown_stage.get())?;
+    set_item(
+        items,
+        3,
+        crate::pointers::GamePtr::new(base + 0x38).read::<u32>("a stage record")?,
+    )?;
+    stage_line(0x481, record)?;
+    let mut caption = Vec::new();
+    push_id(
+        &mut caption,
+        stage_options_caption(MENU_STATE.menus.caption_choice.get()),
+    )?;
+    caption.push(0);
+    crate::pointers::GamePtr::new(
+        crate::screens::text_buffers_store::TEXT_BUFFERS
+            .caption
+            .addr(),
+    )
+    .write_bytes(&caption, "the caption")?;
+    Ok(())
 }
 
 /// `screens::stage_choice_texts` (0x469434): the stage choice page's items: item 0 of the
@@ -139,42 +134,25 @@ pub unsafe fn stage_options_texts() -> Result<(), Refused> {
 /// then the stage line (string 0x482) for record `dword_7558CC` of `off_735512[dword_7558C8]
 /// [dword_7558D0]`. Every register kept. Refuses (before anything) no stage records or no
 /// item table; another track pack is the original's fatal error.
-pub unsafe fn stage_choice_texts() -> Result<(), Refused> {
-    unsafe {
-        let (a, b) = (k(0x7558C8), k(0x7558D0));
-        stage_refuses(a, b)?;
-        let pointed = k(0x74DB68);
-        if pointed == 0 {
-            return Err(BadInput("no item table").into());
-        }
-        let items = game_addr(rva(0x74DB68)) as u32;
-        set_item(
-            items,
-            0,
-            ((game_addr(rva(0x758718)) as u32 + 4 * a) as *const u32).read_unaligned(),
-        );
-        let (base, record) = stage_record(a, b, k(0x7558CC));
-        set_item(pointed, 1, ((base + 0x38) as *const u32).read_unaligned());
-        stage_line(0x482, record)
+pub fn stage_choice_texts() -> Result<(), Refused> {
+    let (a, b) = (EVENT_STATE.stage_group.get(), EVENT_STATE.stage_sub.get());
+    stage_refuses(a, b)?;
+    let pointed = MENUS.view_courses.head.get();
+    if pointed == 0 {
+        return Err(BadInput("no item table").into());
     }
-}
-
-/// Whether `stage_options_texts` would refuse (or meet another track pack): for its test.
-pub unsafe fn stage_options_texts_refuses() -> bool {
-    unsafe { stage_texts_refuse(k(0x7556F8), k(0x75880E), k(0x758812)) }
-}
-
-/// Whether `stage_choice_texts` would refuse (or meet another track pack): for its test.
-pub unsafe fn stage_choice_texts_refuses() -> bool {
-    unsafe { k(0x74DB68) == 0 || stage_texts_refuse(k(0x7558C8), k(0x7558D0), k(0x7558CC)) }
-}
-
-unsafe fn stage_texts_refuse(a: u32, b: u32, c: u32) -> bool {
-    unsafe {
-        if stage_refuses(a, b).is_err() {
-            return true;
-        }
-        let (_, record) = stage_record(a, b, c);
-        crate::records::trakpak_entry::record_entry(record as *const u8).is_err()
-    }
+    let items = MENUS.view_courses.addr();
+    set_item(
+        items,
+        0,
+        crate::pointers::GamePtr::new(RESULT_FIGURES.group_titles[0].addr() + 4 * a)
+            .read::<u32>("a group title")?,
+    )?;
+    let (base, record) = stage_record(a, b, EVENT_STATE.stage_number.get())?;
+    set_item(
+        pointed,
+        1,
+        crate::pointers::GamePtr::new(base + 0x38).read::<u32>("a stage record")?,
+    )?;
+    stage_line(0x482, record)
 }

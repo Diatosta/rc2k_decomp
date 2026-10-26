@@ -13,21 +13,12 @@
 //! factor (0x40, or what the record's points at); state 0, dirty bits 0xF more, no
 //! channel, no list link. One caller, command 3 (`sub_40AEB9`).
 //! Refuses a shared voice for a record without voices, a chain without its end.
-//! Compared in shadow mode. Self-test: a redirected copy whose sample file and mode are the
-//! test's, records and voices of the test's, 48 cases.
-//!
-//! Hook removed 2026-10-22 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
 
-use crate::audio::samples::*;
-use crate::audio::voices::*;
+use crate::audio::samples::fill_voice;
+use crate::audio::store::AUDIO;
 use crate::errors::Refused;
-use crate::framework::{game_addr, game_read};
 
-pub unsafe fn fill_voice_in_game(at: u32, record: u32, shared: u32) -> Result<(), Refused> {
-    unsafe {
-        let file = *(game_addr(SAMPLE_FILE_RVA) as *const SampleFile);
-        fill_voice(at, record, shared, &file, game_read(SOUND_MODE_RVA))
-    }
+pub fn fill_voice_in_game(at: u32, record: u32, shared: u32) -> Result<(), Refused> {
+    let file = AUDIO.sample_file.get();
+    fill_voice(at, record, shared, &file, AUDIO.sound_mode.get())
 }

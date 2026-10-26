@@ -8,115 +8,72 @@
 //! In:  nothing
 //! Out: every register kept (`pusha` / `popa`); no flags read
 //!
-//! Caller: `race::viewer_load_stage`. Shadow mode compares. Self-test: the game's fonts and
-//! formats as they are (skipped without fonts or a texture format), against the original;
-//! what it writes put back.
+//! Caller: `race::viewer_load_stage`.
 
-use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
+use crate::errors::BadInput;
+use crate::gfx::fonts_store::FONTS;
 use crate::gfx::pixel_format::PixelFormat;
-use crate::physics::flow::a;
-use crate::race::viewer::{Saved, check_original, dispatch_regs, get, put, region, regs_entry};
-use crate::service::harness::Region;
-use std::sync::atomic::AtomicUsize;
+use crate::pointers::GamePtr;
+use crate::race::replay_file_store::REPLAY_FILE;
+use crate::scene::kind_texture_store::KIND_TEXTURES;
 
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("race::viewer_palettes", rva(0x41D8BF), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
-
-const FONT_PALETTES: usize = 0x51DEB0; // g_fontPalettes
-const COLOURS: usize = 0x960FA0; // unk_960FA0: 256 dwords
-const SURFACE_FORMAT: usize = 0x4F496C; // g_surfaceFormat
-const TEXTURE_KINDS: usize = 0x5ABACC; // off_5ABAC0 + 0xC
-/// (to, from): the textures and slots kept.
-const KEPT: [(usize, usize); 4] = [
-    (0x5BECB0, 0x5D0E38), // g_kindFirstTextures + 0x350
-    (0x5BECB4, 0x5D1E38), // g_kindFirstSlots + 0x350
-    (0x5BECB8, 0x5D0E0C), // g_kindFirstTextures + 0x324
-    (0x5BECBC, 0x5D1E0C), // g_kindFirstSlots + 0x324
-];
-/// The palette fields pointed at the colours, in the original's order.
-const PALETTES: [usize; 6] = [0x51EAF8, 0x51EB58, 0x51EB18, 0x51EB78, 0x51EAD8, 0x51EB38];
+/// The replay viewer's panel fonts, whose palettes are pointed at the colours, in the
+/// original's order.
+const PALETTES: [crate::gfx::typefaces::FontId; 6] = {
+    use crate::gfx::typefaces::fonts::*;
+    [PANEL_A, PANEL_B, PANEL_C, PANEL_D, PANEL_E, PANEL_F]
+};
 
 /// The Rust version.
-pub unsafe fn viewer_palettes() {
-    for (to, from) in KEPT {
-        put(to, get(from));
+pub fn viewer_palettes() -> Result<(), BadInput> {
+    // The textures and slots kept: (to, from).
+    for (to, from) in [
+        (
+            &REPLAY_FILE.viewer_first_texture_a,
+            &KIND_TEXTURES.kind_first_textures[212],
+        ), // g_kindFirstTextures + 0x350
+        (
+            &REPLAY_FILE.viewer_list_texture,
+            &KIND_TEXTURES.kind_first_slots[212],
+        ), // g_kindFirstSlots + 0x350
+        (
+            &REPLAY_FILE.viewer_panel_texture,
+            &KIND_TEXTURES.kind_first_textures[201],
+        ), // g_kindFirstTextures + 0x324
+        (
+            &REPLAY_FILE.viewer_device_texture,
+            &KIND_TEXTURES.kind_first_slots[201],
+        ), // g_kindFirstSlots + 0x324
+    ] {
+        to.set(from.get());
     }
-    for at in PALETTES {
-        put(at, a(COLOURS));
+    for font in PALETTES {
+        font.object()
+            .palette
+            .set(crate::race::viewer_buffers_store::VIEWER_BUFFERS.colours[0].addr());
     }
-    unsafe {
-        let screen = (a(SURFACE_FORMAT) as *const PixelFormat).read_unaligned();
-        let texture = (get(TEXTURE_KINDS).wrapping_add(8) as *const PixelFormat).read_unaligned();
+    {
+        let screen = GamePtr::new(crate::session::SCREEN.format_addr())
+            .read::<PixelFormat>("the screen's pixel format")?;
+        let texture = GamePtr::new(
+            crate::gfx::texture_upload::TEXTURE_TABLES.kinds[3]
+                .get()
+                .wrapping_add(8),
+        )
+        .read::<PixelFormat>("the texture pixel format")?;
         // Converted: `rc2k_core::race::viewer_flow::{font_colour, FONT_COLOURS}` (colour
         // by colour, as the original).
         use rc2k_core::race::viewer_flow::{FONT_COLOURS, font_colour};
-        let from = get(FONT_PALETTES) as *const u32;
-        let to = a(COLOURS) as *mut u32;
-        for n in 0..FONT_COLOURS {
+        let from = FONTS.palettes.get();
+        let to = crate::race::viewer_buffers_store::VIEWER_BUFFERS.colours[0].addr();
+        for n in 0..FONT_COLOURS as u32 {
             let colour = font_colour(
-                from.add(n).read_unaligned(),
+                GamePtr::new(from + 4 * n).read::<u32>("a font palette")?,
                 |c| crate::gfx::pixel_to_components::pixel_to_components(&screen, c),
                 |p| crate::gfx::components_to_pixel::components_to_pixel(&texture, p),
             );
-            to.add(n).write_unaligned(colour);
+            GamePtr::new(to + 4 * n).write(colour, "the viewer's colours")?;
         }
     }
-}
-
-fn regions() -> Vec<Region> {
-    let mut all: Vec<Region> = KEPT.iter().map(|&(to, _)| region(to, 4)).collect();
-    all.extend(PALETTES.iter().map(|&at| region(at, 4)));
-    all.push(region(COLOURS, 0x400));
-    all.push((
-        crate::framework::game_addr(crate::gfx::pixel_format::SCRATCH_RVA) as u32,
-        4,
-    ));
-    all
-}
-
-fn rust(r: &Regs) -> Result<Regs, Refused> {
-    unsafe { viewer_palettes() };
-    Ok(*r)
-}
-
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_regs(&HOOK, r, call_original, &regions(), 0, &rust);
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    regs_entry(r, &rust)
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    if get(FONT_PALETTES) == 0 || get(TEXTURE_KINDS) == 0 {
-        return t.skip("no fonts or no texture format");
-    }
-    let saved = Saved::new(&regions());
-    check_original(
-        &mut t,
-        "the game's fonts",
-        call_original,
-        Regs::SENTINEL,
-        &regions(),
-        0,
-        &|| crate::race::viewer::fill(COLOURS, 0x400, 11),
-        &rust,
-    );
-    drop(saved);
-    t.finish()
+    Ok(())
 }

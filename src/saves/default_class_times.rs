@@ -12,39 +12,28 @@
 //! One caller, `menu::set_up_front_end`, when `var\hst.dat` was not loaded.
 //! Refuses a missing table and a name that does not fit.
 //! Converted: `rc2k_core::saves::defaults::class_times`.
-//!
-//! Hook removed 2026-10-22 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{game_read, rva};
+use crate::menu::champ_store::CHAMP_VIEW;
+use crate::pointers::GamePtr;
 use crate::saves::default_times::{GameSource, to_nowhere};
 use rc2k_core::saves::defaults::{CLASS_TABLE_LEN, class_times, write_class_times};
 
 // ---- game data ----
 
-const TABLE_RVA: usize = rva(0x7556DC); // dword_7556DC
-
 // ---- Rust version ----
 
-pub unsafe fn default_class_times() -> Result<(), Refused> {
-    // Converted: `rc2k_core::saves::defaults::class_times`.
-    unsafe {
-        let table: u32 = game_read(TABLE_RVA);
-        if table == 0 {
-            return Err(BadInput("no table").into());
-        }
-        let entries = class_times(&mut GameSource {
-            log: &mut to_nowhere,
-        })?;
-        write_class_times(
-            std::slice::from_raw_parts_mut(table as *mut u8, CLASS_TABLE_LEN),
-            &entries,
-        );
-        Ok(())
+pub fn default_class_times() -> Result<(), Refused> {
+    let table: u32 = CHAMP_VIEW.level_best_scores.get();
+    if table == 0 {
+        return Err(BadInput("no table").into());
     }
+    let entries = class_times(&mut GameSource {
+        log: &mut to_nowhere,
+    })?;
+    let at = GamePtr::new(table);
+    let mut bytes = at.read_bytes(CLASS_TABLE_LEN, "the class times' table")?;
+    write_class_times(&mut bytes, &entries);
+    at.write_bytes(&bytes, "the class times' table")?;
+    Ok(())
 }
-
-// ---- self-test: the game's table, filled by both from the same random numbers, and put
-// back ----

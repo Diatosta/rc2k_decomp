@@ -7,64 +7,81 @@
 //! Out: every register kept (`pusha` .. `popa`)
 //! `g_netPlayers` - 1 passes (signed: none for one player or none). More than eight players
 //! would sort past the copy: refused (DirectPlay's listing keeps eight at most). Caller:
-//! `net::lobby_frame`. Shadow mode: both run, the copy compared. Self-test: a copy against
-//! the Rust version on 0, 1, 2, 5 and 8 players with times, totals and ids that tie.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! `net::lobby_frame`.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::Regs;
-use crate::net::lobby::{BLOCK, PLAYERS, Part, RECEIVED, SORTED, a, g, movsb};
+use crate::net::lobby::movsb;
+use crate::net::store::{NET, PlayerBlock};
+use crate::pointers::GamePtr;
 use rc2k_core::net::players::{self, Standing};
 
+const BLOCK: u32 = std::mem::size_of::<PlayerBlock>() as u32;
 const ALL: u32 = 8 * BLOCK;
 
-fn get(at: u32) -> u32 {
-    unsafe { (at as *const u32).read_unaligned() }
-}
-
-/// The block at `x` as the lobby's table sorts it.
-fn standing(x: u32) -> Standing {
+/// The block as the lobby's table sorts it.
+fn standing(block: &PlayerBlock) -> Standing {
     Standing {
-        total: get(x + 0x30),
-        time: get(x + 0x2C),
-        id: get(x + 0x20),
+        total: block.record.total.get(),
+        time: block.record.race_time.get(),
+        id: block.id.get(),
     }
 }
 
-/// The blocks at `x` and the next swapped, a dword at a time.
-pub fn swap_blocks(x: u32) {
+/// The two blocks swapped, a dword at a time.
+pub fn swap_blocks(one: &PlayerBlock, two: &PlayerBlock) -> Result<(), BadInput> {
+    let (one, two) = (
+        GamePtr::new(crate::pointers::game_address(one as *const PlayerBlock)),
+        GamePtr::new(crate::pointers::game_address(two as *const PlayerBlock)),
+    );
     for n in 0..BLOCK / 4 {
-        let (one, two) = (x + 4 * n, x + BLOCK + 4 * n);
-        let v = get(one);
-        unsafe {
-            (one as *mut u32).write_unaligned(get(two));
-            (two as *mut u32).write_unaligned(v);
-        }
+        let v = one.offset(4 * n).read::<u32>("a player's block")?;
+        let w = two.offset(4 * n).read::<u32>("a player's block")?;
+        one.offset(4 * n).write(w, "a player's block")?;
+        two.offset(4 * n).write(v, "a player's block")?;
     }
+    Ok(())
 }
 
-/// The Rust version: the registers it leaves (the entry's).
-pub fn sort_players(entry: &Regs, _: Part) -> Result<Regs, Refused> {
-    let players = g(PLAYERS);
+/// `players::bubble` over the blocks, `swap` refusing kept and raised after the sort.
+pub fn bubble_blocks(
+    count: u32,
+    after: impl FnMut(u32) -> bool,
+    swap: impl Fn(u32) -> Result<(), BadInput>,
+) -> Result<(), BadInput> {
+    let refused = std::cell::Cell::new(None);
+    players::bubble(count, after, |k| {
+        if refused.get().is_none()
+            && let Err(e) = swap(k)
+        {
+            refused.set(Some(e));
+        }
+    });
+    refused.take().map_or(Ok(()), Err)
+}
+
+/// The Rust version (the original keeps every register).
+pub fn sort_players() -> Result<(), Refused> {
+    let players = NET.players.get();
     if players > players::MOST {
         return Err(BadInput("more than eight players").into());
     }
-    movsb(a(SORTED), a(RECEIVED), ALL);
+    movsb(
+        crate::pointers::game_address(NET.sorted.as_ptr()),
+        crate::pointers::game_address(NET.received.as_ptr()),
+        ALL,
+    )?;
     // Converted: `rc2k_core::net::players` (`bubble`, `goes_after`).
-    let x = |k: u32| a(SORTED) + k * BLOCK;
-    players::bubble(
+    // `k + 1` is at most 7: `players` is at most eight.
+    let sorted = &NET.sorted;
+    bubble_blocks(
         players,
-        |k| players::goes_after(standing(x(k)), standing(x(k) + BLOCK)),
-        |k| swap_blocks(x(k)),
-    );
-    Ok(*entry)
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    crate::race::viewer::regs_entry(r, &|r| sort_players(r, &mut crate::net::lobby::game_part))
+        |k| {
+            players::goes_after(
+                standing(&sorted[k as usize]),
+                standing(&sorted[k as usize + 1]),
+            )
+        },
+        |k| swap_blocks(&sorted[k as usize], &sorted[k as usize + 1]),
+    )?;
+    Ok(())
 }

@@ -16,1031 +16,1508 @@
 //! to just before the cursor (or that moved on past it).
 //!
 //! In:  nothing (`g_marksSettings`)
-//! Out: the registers as the walk leaves them
+//! Out: nothing (its one caller reads no register after it)
 //!
 //! Caller: `marks::run_frame` (0x4D163B, after `run_ribbons`' set-up). The longer x87 runs
-//! are the original's instructions over the entries and the game's variables; the draws
-//! through `part` (1 `draw_cell_sprite`, 2 its twin, 3 `draw_subcell_sprite`, with their
-//! three values), in the game their Rust versions. Refuses, before anything, null
-//! settings, a null entry or link on the way, a null object where one is read, and the
-//! draws' own refusals for an entry that may be drawn. Shadow
-//! mode runs the original alone (it draws). Self-test: a copy of the whole range (its
-//! steps' return address pointed into the copy) whose draws go to stand-ins taking their
-//! values off, against the Rust version, on a ring and objects of the test's.
+//! are plain Rust on the x87 model (`math::x87_float`), in the original's order, over the entries and the game's variables. Refuses,
+//! before anything, null settings, a null entry or link on the way, a null object where one
+//! is read, and the draws' own refusals for an entry that may be drawn.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{
-    RawHook, Regs, SelfTest, game_addr, game_read, game_write, hook_asm, rva, shadow,
-};
-use crate::marks::emitters::{ENTRY_LEN, RING_COUNT_RVA, RING_CURSOR_RVA};
-use crate::marks::setup::SETTINGS_RVA;
+use crate::marks::ring_store::{RING_WORK, RingWork};
+use crate::marks::setup::{CLOCK, MarksClock};
+use crate::marks::tuning::{MARKS_FLOATS, MarksFloats};
 use crate::math::x87;
+use crate::pointers::GamePtr;
 use crate::scene::matrix3::extended;
-use crate::scene::vector3::STATUS_RVA;
-use crate::service::harness::{Region, at, capture, restore};
-use std::sync::Mutex;
-use std::sync::atomic::AtomicUsize;
+use crate::session::Float;
 
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("marks::run_ring", rva(0x4CB64D), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
-
-const TICKS_RVA: usize = rva(0x764FD0); // g_marksFrameTicks
-const SPIN_K_RVA: usize = rva(0x764FD4); // flt_764FD4
-const WHOLE_RVA: usize = rva(0x9356C0); // dword_9356C0
-const BOX_RVA: [usize; 2] = [rva(0x935680), rva(0x935684)]; // dword_935680, dword_935684
-const FACING_RVA: usize = rva(0x9356B4); // flt_9356B4
-const NEAR_RVA: usize = rva(0x9356BC); // flt_9356BC
-const PULL_LIMIT_RVA: usize = rva(0x765140); // dword_765140
-const PULL_TO_RVA: usize = rva(0x7651DC); // flt_7651DC
-const TOP_RVA: usize = rva(0x935670); // flt_935670
-const FRAME_K_RVA: usize = rva(0x76515C); // flt_76515C
-
-/// A call by place (see the header), with its three values (st(0) first).
-pub type Part<'a> = &'a mut dyn FnMut(u32, &mut Regs, &[[u8; 10]]) -> Result<(), Refused>;
-
-unsafe fn get(a: u32) -> u32 {
-    unsafe { (a as *const u32).read_unaligned() }
+fn get(a: u32) -> Result<u32, BadInput> {
+    GamePtr::new(a).read("a game field")
 }
 
-unsafe fn put(a: u32, v: u32) {
-    unsafe { (a as *mut u32).write_unaligned(v) }
+fn put(a: u32, v: u32) -> Result<(), BadInput> {
+    GamePtr::new(a).write(v, "a game field")
 }
 
-fn k(addr: usize) -> u32 {
-    unsafe { game_read(rva(addr)) }
+fn k(cell: &Float) -> u32 {
+    cell.bits()
 }
 
 /// The original's 0x4CE9AF .. 0x4CEA40 (and 0x4CEC77 ..): the place less the object's (`[p + 0x30]` ..) into `flt_935718` .., turned by the object's matrix (`m`), |x| and |z| `fistp`ed into `dword_935680` / `dword_935684`.
-unsafe fn box_(b: u32, e: u32, p: u32, m: u32) {
-    unsafe {
-        core::arch::asm!(
-            "fld dword ptr [{e} + 0x10]",
-            "fsub dword ptr [{p} + 0x30]",
-            "fstp dword ptr [{b} + 0x535718]",
-            "fld dword ptr [{e} + 0x14]",
-            "fsub dword ptr [{p} + 0x34]",
-            "fstp dword ptr [{b} + 0x53571C]",
-            "fld dword ptr [{e} + 0x18]",
-            "fsub dword ptr [{p} + 0x38]",
-            "fstp dword ptr [{b} + 0x535720]",
-            "fld dword ptr [{b} + 0x535720]",
-            "fld dword ptr [{b} + 0x53571C]",
-            "fld dword ptr [{b} + 0x535718]",
-            "fld dword ptr [{m} + 0x0]",
-            ".byte 0xD8, 0xC9",
-            "fld dword ptr [{m} + 0x10]",
-            ".byte 0xD8, 0xCB",
-            "fld dword ptr [{m} + 0x20]",
-            ".byte 0xD8, 0xCD",
-            ".byte 0xDE, 0xC1",
-            ".byte 0xDE, 0xC1",
-            ".byte 0xD9, 0xCB",
-            "fld dword ptr [{m} + 0x4]",
-            ".byte 0xD8, 0xCA",
-            "fld dword ptr [{m} + 0x14]",
-            ".byte 0xD8, 0xCC",
-            "fld dword ptr [{m} + 0x24]",
-            ".byte 0xD8, 0xCB",
-            ".byte 0xDE, 0xC1",
-            ".byte 0xDE, 0xC1",
-            ".byte 0xD9, 0xCB",
-            "fld dword ptr [{m} + 0x8]",
-            ".byte 0xDE, 0xCB",
-            "fld dword ptr [{m} + 0x18]",
-            ".byte 0xDE, 0xC9",
-            "fld dword ptr [{m} + 0x28]",
-            ".byte 0xDE, 0xCA",
-            ".byte 0xDE, 0xC1",
-            ".byte 0xDE, 0xC1",
-            ".byte 0xD9, 0xCA",
-            ".byte 0xD9, 0xE1",
-            "fistp dword ptr [{b} + 0x535680]",
-            ".byte 0xDD, 0xC0",
-            ".byte 0xD9, 0xF7",
-            ".byte 0xD9, 0xE1",
-            "fistp dword ptr [{b} + 0x535684]",
-            b = in(reg) b,
-            e = in(reg) e,
-            p = in(reg) p,
-            m = in(reg) m,
-            out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
-            out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
-            options(nostack),
-        )
-    }
+fn box_(e: u32, p: u32, m: u32) {
+    box_x87(&RING_WORK, e as usize, p as usize, m as usize)
 }
 
 /// The original's 0x4CEA5E .. 0x4CEAD4 (and 0x4CED26 ..): that way made one long (`flt_76516C` over its length), dotted with the object's +0x4C .. into `flt_9356B4`.
-unsafe fn facing(b: u32, o: u32) {
-    unsafe {
-        core::arch::asm!(
-            "fld dword ptr [{b} + 0x535718]",
-            ".byte 0xD8, 0xC8",
-            "fld dword ptr [{b} + 0x53571C]",
-            ".byte 0xD8, 0xC8",
-            "fld dword ptr [{b} + 0x535720]",
-            ".byte 0xD8, 0xC8",
-            ".byte 0xDE, 0xC1",
-            ".byte 0xDE, 0xC1",
-            ".byte 0xD9, 0xFA",
-            "fdivr dword ptr [{b} + 0x36516C]",
-            "fld dword ptr [{b} + 0x535718]",
-            ".byte 0xD8, 0xC9",
-            "fstp dword ptr [{b} + 0x535718]",
-            "fld dword ptr [{b} + 0x53571C]",
-            ".byte 0xD8, 0xC9",
-            "fstp dword ptr [{b} + 0x53571C]",
-            "fld dword ptr [{b} + 0x535720]",
-            ".byte 0xDE, 0xC9",
-            "fstp dword ptr [{b} + 0x535720]",
-            "fld dword ptr [{b} + 0x535718]",
-            "fmul dword ptr [{o} + 0x4C]",
-            "fld dword ptr [{b} + 0x53571C]",
-            "fmul dword ptr [{o} + 0x50]",
-            "fld dword ptr [{b} + 0x535720]",
-            "fmul dword ptr [{o} + 0x54]",
-            ".byte 0xDE, 0xC1",
-            ".byte 0xDE, 0xC1",
-            "fstp dword ptr [{b} + 0x5356B4]",
-            b = in(reg) b,
-            o = in(reg) o,
-            out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
-            out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
-            options(nostack),
-        )
-    }
+fn facing(o: u32) {
+    facing_x87(o as usize, &MARKS_FLOATS, &RING_WORK)
 }
 
 /// The original's 0x4CEF8A .. 0x4CEFDA: the place less the object's into `flt_935718` .., its length (kept, 80 bits, at `l`) less `flt_93A526` into `flt_9356BC`.
-unsafe fn pull_length(b: u32, e: u32, p: u32, l: u32) {
-    unsafe {
-        core::arch::asm!(
-            "fld dword ptr [{e} + 0x10]",
-            "fsub dword ptr [{p} + 0x30]",
-            "fstp dword ptr [{b} + 0x535718]",
-            "fld dword ptr [{e} + 0x14]",
-            "fsub dword ptr [{p} + 0x34]",
-            "fstp dword ptr [{b} + 0x53571C]",
-            "fld dword ptr [{e} + 0x18]",
-            "fsub dword ptr [{p} + 0x38]",
-            "fstp dword ptr [{b} + 0x535720]",
-            "fld dword ptr [{b} + 0x535718]",
-            ".byte 0xD8, 0xC8",
-            "fld dword ptr [{b} + 0x53571C]",
-            ".byte 0xD8, 0xC8",
-            "fld dword ptr [{b} + 0x535720]",
-            ".byte 0xD8, 0xC8",
-            ".byte 0xDE, 0xC1",
-            ".byte 0xDE, 0xC1",
-            ".byte 0xD9, 0xFA",
-            ".byte 0xD9, 0xC0",
-            "fsub dword ptr [{b} + 0x53A526]",
-            "fstp dword ptr [{b} + 0x5356BC]",
-            "fstp tbyte ptr [{l}]",
-            b = in(reg) b,
-            e = in(reg) e,
-            p = in(reg) p,
-            l = in(reg) l,
-            out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
-            out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
-            options(nostack),
-        )
-    }
+fn pull_length(e: u32, p: u32, l: u32) {
+    pull_length_x87(
+        e as usize,
+        p as usize,
+        l as usize,
+        &RING_WORK,
+        crate::pointers::game_address(&RING_KINDS as *const RingKinds) as usize,
+    )
 }
 
 /// The original's 0x4CEFEC .. 0x4CF07F: the way made one long by the kept length, the object's +0x4C .. over its +0x88, minus their dot into `flt_9356B4`.
-unsafe fn pull_facing(b: u32, o: u32, l: u32) {
-    unsafe {
-        core::arch::asm!(
-            "fld tbyte ptr [{l}]",
-            "fdivr dword ptr [{b} + 0x36516C]",
-            "fld dword ptr [{b} + 0x535718]",
-            ".byte 0xD8, 0xC9",
-            "fstp dword ptr [{b} + 0x535718]",
-            "fld dword ptr [{b} + 0x53571C]",
-            ".byte 0xD8, 0xC9",
-            "fstp dword ptr [{b} + 0x53571C]",
-            "fld dword ptr [{b} + 0x535720]",
-            ".byte 0xDE, 0xC9",
-            "fstp dword ptr [{b} + 0x535720]",
-            "fild dword ptr [{o} + 0x88]",
-            "fdivr dword ptr [{b} + 0x36516C]",
-            "fld dword ptr [{o} + 0x4C]",
-            ".byte 0xD8, 0xC9",
-            "fstp dword ptr [{b} + 0x535724]",
-            "fld dword ptr [{o} + 0x50]",
-            ".byte 0xD8, 0xC9",
-            "fstp dword ptr [{b} + 0x535728]",
-            "fld dword ptr [{o} + 0x54]",
-            ".byte 0xDE, 0xC9",
-            "fstp dword ptr [{b} + 0x53572C]",
-            "fld dword ptr [{b} + 0x535718]",
-            "fmul dword ptr [{b} + 0x535724]",
-            "fld dword ptr [{b} + 0x53571C]",
-            "fmul dword ptr [{b} + 0x535728]",
-            "fld dword ptr [{b} + 0x535720]",
-            "fmul dword ptr [{b} + 0x53572C]",
-            ".byte 0xDE, 0xC1",
-            ".byte 0xDE, 0xC1",
-            ".byte 0xD9, 0xE0",
-            "fstp dword ptr [{b} + 0x5356B4]",
-            b = in(reg) b,
-            o = in(reg) o,
-            l = in(reg) l,
-            out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
-            out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
-            options(nostack),
-        )
-    }
+fn pull_facing(o: u32, l: u32) {
+    pull_facing_x87(o as usize, l as usize, &MARKS_FLOATS, &RING_WORK)
 }
 
 /// The original's 0x4CF08B .. 0x4CF0D8: the entry's +0x64 pulled toward `flt_7651DC` (`fist` into `dword_9356C0`).
-unsafe fn pull_strength(b: u32, e: u32, o: u32) {
-    unsafe {
-        core::arch::asm!(
-            "fild dword ptr [{o} + 0x88]",
-            "fmul dword ptr [{b} + 0x53A52A]",
-            "fadd dword ptr [{b} + 0x36516C]",
-            "fdivr dword ptr [{b} + 0x36516C]",
-            "fsubr dword ptr [{b} + 0x36516C]",
-            "fstp dword ptr [{b} + 0x5356C0]",
-            "fld dword ptr [{b} + 0x3651DC]",
-            "fsub dword ptr [{e} + 0x64]",
-            "fld dword ptr [{b} + 0x53A52E]",
-            "fmul dword ptr [{b} + 0x5356C0]",
-            ".byte 0xDE, 0xC9",
-            "fimul dword ptr [{b} + 0x364FD0]",
-            "fadd dword ptr [{e} + 0x64]",
-            "fist dword ptr [{b} + 0x5356C0]",
-            "fstp dword ptr [{e} + 0x64]",
-            b = in(reg) b,
-            e = in(reg) e,
-            o = in(reg) o,
-            out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
-            out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
-            options(nostack),
-        )
-    }
+fn pull_strength(e: u32, o: u32) {
+    pull_strength_x87(
+        e as usize,
+        o as usize,
+        &CLOCK,
+        &MARKS_FLOATS,
+        &RING_WORK,
+        crate::pointers::game_address(&RING_KINDS as *const RingKinds) as usize,
+    )
 }
 
 /// The original's 0x4CF65C .. 0x4CF6B7 (and 0x4CF7C4 ..): the place turned by the object's matrix (`m`), |x| and |z| into `dword_935680` / `dword_935684`.
-unsafe fn box_place(b: u32, e: u32, m: u32) {
-    unsafe {
-        core::arch::asm!(
-            "fld dword ptr [{e} + 0x18]",
-            "fld dword ptr [{e} + 0x14]",
-            "fld dword ptr [{e} + 0x10]",
-            "fld dword ptr [{m} + 0x0]",
-            ".byte 0xD8, 0xC9",
-            "fld dword ptr [{m} + 0x10]",
-            ".byte 0xD8, 0xCB",
-            "fld dword ptr [{m} + 0x20]",
-            ".byte 0xD8, 0xCD",
-            ".byte 0xDE, 0xC1",
-            ".byte 0xDE, 0xC1",
-            ".byte 0xD9, 0xCB",
-            "fld dword ptr [{m} + 0x4]",
-            ".byte 0xD8, 0xCA",
-            "fld dword ptr [{m} + 0x14]",
-            ".byte 0xD8, 0xCC",
-            "fld dword ptr [{m} + 0x24]",
-            ".byte 0xD8, 0xCB",
-            ".byte 0xDE, 0xC1",
-            ".byte 0xDE, 0xC1",
-            ".byte 0xD9, 0xCB",
-            "fld dword ptr [{m} + 0x8]",
-            ".byte 0xDE, 0xCB",
-            "fld dword ptr [{m} + 0x18]",
-            ".byte 0xDE, 0xC9",
-            "fld dword ptr [{m} + 0x28]",
-            ".byte 0xDE, 0xCA",
-            ".byte 0xDE, 0xC1",
-            ".byte 0xDE, 0xC1",
-            ".byte 0xD9, 0xCA",
-            ".byte 0xD9, 0xE1",
-            "fistp dword ptr [{b} + 0x535680]",
-            ".byte 0xDD, 0xC0",
-            ".byte 0xD9, 0xF7",
-            ".byte 0xD9, 0xE1",
-            "fistp dword ptr [{b} + 0x535684]",
-            b = in(reg) b,
-            e = in(reg) e,
-            m = in(reg) m,
-            out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
-            out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
-            options(nostack),
-        )
-    }
+fn box_place(e: u32, m: u32) {
+    box_place_x87(&RING_WORK, e as usize, m as usize)
 }
 
 /// The kinds' constants: (the y gain, the three dampings, the size's rate).
 struct Kind {
-    gain: usize,
-    damp: [usize; 3],
-    pull: usize,
+    gain: Option<&'static Float>,
+    damp: [&'static Float; 3],
+    pull: Option<&'static Float>,
 }
 
-const K6: Kind = Kind {
-    gain: 0,
-    damp: [0x93A4F2, 0x93A4F6, 0x93A4FA],
-    pull: 0x93A4FE,
+impl Kind {
+    /// The size's rate (the kinds that pull the size have one; the original would read
+    /// address 0 for one that has none: refused).
+    fn pull(&self) -> Result<&'static Float, BadInput> {
+        self.pull
+            .ok_or(BadInput("a ring kind that pulls the size without a rate"))
+    }
+
+    /// The y gain (the kinds that gain have one; as `pull`).
+    fn gain(&self) -> Result<&'static Float, BadInput> {
+        self.gain
+            .ok_or(BadInput("a ring kind that gains without a gain"))
+    }
+}
+
+static K6: Kind = Kind {
+    gain: None,
+    damp: [
+        &RING_KINDS.k6_damp[0],
+        &RING_KINDS.k6_damp[1],
+        &RING_KINDS.k6_damp[2],
+    ],
+    pull: Some(&RING_KINDS.k6_pull),
 };
-const K15: Kind = Kind {
-    gain: 0,
-    damp: [0x93A502, 0x93A506, 0x93A50A],
-    pull: 0x93A50E,
+static K15: Kind = Kind {
+    gain: None,
+    damp: [
+        &RING_KINDS.k15_damp[0],
+        &RING_KINDS.k15_damp[1],
+        &RING_KINDS.k15_damp[2],
+    ],
+    pull: Some(&RING_KINDS.k15_pull),
 };
-const K1: Kind = Kind {
-    gain: 0,
-    damp: [0x93A516, 0x93A51A, 0x93A51E],
-    pull: 0x93A522,
+static K1: Kind = Kind {
+    gain: None,
+    damp: [
+        &RING_KINDS.k1_damp[0],
+        &RING_KINDS.k1_damp[1],
+        &RING_KINDS.k1_damp[2],
+    ],
+    pull: Some(&RING_KINDS.k1_pull),
 };
-const KD: Kind = Kind {
-    gain: 0x93A532,
-    damp: [0x93A536, 0x93A53A, 0x93A53E],
-    pull: 0x93A542,
+static KD: Kind = Kind {
+    gain: Some(&RING_KINDS.kd_gain),
+    damp: [
+        &RING_KINDS.kd_damp[0],
+        &RING_KINDS.kd_damp[1],
+        &RING_KINDS.kd_damp[2],
+    ],
+    pull: Some(&RING_KINDS.kd_pull),
 };
-const K13: Kind = Kind {
-    gain: 0x93A552,
-    damp: [0x93A546, 0x93A54A, 0x93A54E],
-    pull: 0,
+static K13: Kind = Kind {
+    gain: Some(&RING_KINDS.k13_gain),
+    damp: [
+        &RING_KINDS.k13_damp[0],
+        &RING_KINDS.k13_damp[1],
+        &RING_KINDS.k13_damp[2],
+    ],
+    pull: None,
 };
-const K16: Kind = Kind {
-    gain: 0x93A562,
-    damp: [0x93A556, 0x93A55A, 0x93A55E],
-    pull: 0,
+static K16: Kind = Kind {
+    gain: Some(&RING_KINDS.k16_gain),
+    damp: [
+        &RING_KINDS.k16_damp[0],
+        &RING_KINDS.k16_damp[1],
+        &RING_KINDS.k16_damp[2],
+    ],
+    pull: None,
 };
 
 /// Why it refuses, if it does: the walk's pointers checked, nothing written.
-unsafe fn refusal() -> Option<&'static str> {
-    unsafe {
-        let s: u32 = game_read(SETTINGS_RVA);
+fn refusal() -> Result<Option<&'static str>, Refused> {
+    Ok({
+        let s: u32 = crate::marks::setup::SETTINGS.pointer.get();
         if s == 0 {
-            return Some("no marks settings");
+            return Ok(Some("no marks settings"));
         }
-        let mut e: u32 = game_read(RING_CURSOR_RVA);
-        let count = game_read::<u32>(RING_COUNT_RVA) as i32;
-        if count > 0 && (e == 0 || get(e) == 0) {
-            return Some("a null ring entry");
+        let mut e: u32 = RING_WORK.cursor.get();
+        let count = RING_WORK.count.get() as i32;
+        if count > 0 && (e == 0 || get(e)? == 0) {
+            return Ok(Some("a null ring entry"));
         }
         for _ in 0..count.max(0) {
-            if e == 0 || get(e) == 0 || get(e + 4) == 0 {
-                return Some("a null ring entry or link");
+            if e == 0 || get(e)? == 0 || get(e + 4)? == 0 {
+                return Ok(Some("a null ring entry or link"));
             }
-            let kind = get(e + 0xC);
+            let kind = get(e + 0xC)?;
             if [5, 0xB, 6, 0x15, 1, 0xD, 0x13, 0x16, 0x10, 0x11].contains(&kind) {
-                let obj = get(e + 0x68);
+                let obj = get(e + 0x68)?;
                 let needs = matches!(kind, 6 | 0x15 | 1 | 0x10 | 0x11)
-                    || get(s.wrapping_add(get(e + 8)).wrapping_add(0x60)) != 0;
-                if needs && (obj == 0 || get(obj + 0x24) == 0) {
-                    return Some("a ring entry without its object");
+                    || get(s.wrapping_add(get(e + 8)?).wrapping_add(0x60))? != 0;
+                if needs && (obj == 0 || get(obj + 0x24)? == 0) {
+                    return Ok(Some("a ring entry without its object"));
                 }
                 // The draws' own refusals, for an entry that may be drawn.
-                if get(s.wrapping_add(get(e + 8)).wrapping_add(0x60)) != 0 {
+                if get(s.wrapping_add(get(e + 8)?).wrapping_add(0x60))? != 0 {
                     if crate::scene::fog_at::fog_at(0).is_err() {
-                        return Some("the fog table is not there");
+                        return Ok(Some("the fog table is not there"));
                     }
                     let bad = if matches!(kind, 0x10 | 0x11) {
-                        get(e + 0x58).wrapping_add(3) >= 0x410
+                        get(e + 0x58)?.wrapping_add(3) >= 0x410
                     } else {
-                        get(e + 0x58) > 0x40 || get(e + 0x50) >= 0x1000
+                        get(e + 0x58)? > 0x40 || get(e + 0x50)? >= 0x1000
                     };
                     if bad {
-                        return Some("a ring entry's cell or angle past its table");
+                        return Ok(Some("a ring entry's cell or angle past its table"));
                     }
                 }
             }
-            e = get(e + 4);
+            e = get(e + 4)?;
         }
         None
-    }
+    })
 }
 
-/// The life and the ground: whether the entry dies (eax -1).
-unsafe fn aged(g: &mut Regs, e: u32, ground: bool) -> bool {
-    unsafe {
-        g.eax = game_read(TICKS_RVA);
-        let life = get(e + 0x84);
-        put(e + 0x84, life.wrapping_sub(g.eax));
-        if life < g.eax {
-            g.eax = 0xFFFF_FFFF;
-            return true;
+/// The life and the ground: whether the entry dies.
+fn aged(e: u32, ground: bool) -> Result<bool, Refused> {
+    Ok({
+        let t: u32 = CLOCK.frame_ticks.get();
+        let life = get(e + 0x84)?;
+        put(e + 0x84, life.wrapping_sub(t))?;
+        if life < t {
+            return Ok(true);
         }
-        if ground {
-            g.eax = u32::from(x87::compare_status(get(e + 0x14), get(e + 0x28)));
-            if g.eax == 0x100 {
-                g.eax = 0xFFFF_FFFF;
-                return true;
-            }
-        }
-        false
-    }
+        ground && x87::compare_status(get(e + 0x14)?, get(e + 0x28)?) == 0x100
+    })
 }
 
 /// The place on the object's (unrounded sums), st(0) first.
-unsafe fn on_object(e: u32) -> [[u8; 10]; 3] {
-    unsafe {
-        let m = get(get(e + 0x68) + 0x24);
+fn on_object(e: u32) -> Result<[[u8; 10]; 3], Refused> {
+    Ok({
+        let m = get(get(e + 0x68)? + 0x24)?;
         [
-            x87::add_80(get(e + 0x10), get(m + 0x30)),
-            x87::add_80(get(e + 0x14), get(m + 0x34)),
-            x87::add_80(get(e + 0x18), get(m + 0x38)),
+            x87::add_80(get(e + 0x10)?, get(m + 0x30)?),
+            x87::add_80(get(e + 0x14)?, get(m + 0x34)?),
+            x87::add_80(get(e + 0x18)?, get(m + 0x38)?),
         ]
-    }
+    })
 }
 
-unsafe fn at_place(e: u32) -> [[u8; 10]; 3] {
-    unsafe {
+fn at_place(e: u32) -> Result<[[u8; 10]; 3], Refused> {
+    Ok({
         [
-            extended(get(e + 0x10)),
-            extended(get(e + 0x14)),
-            extended(get(e + 0x18)),
+            extended(get(e + 0x10)?),
+            extended(get(e + 0x14)?),
+            extended(get(e + 0x18)?),
         ]
-    }
+    })
 }
 
 /// The settings' flag for the entry.
-unsafe fn shown(g: &mut Regs, e: u32) -> bool {
-    unsafe {
-        g.eax = get(e + 8);
-        g.ebx = game_read(SETTINGS_RVA);
-        get(g.eax.wrapping_add(g.ebx).wrapping_add(0x60)) != 0
-    }
+fn shown(e: u32) -> Result<bool, Refused> {
+    Ok({
+        let settings: u32 = crate::marks::setup::SETTINGS.pointer.get();
+        get(get(e + 8)?.wrapping_add(settings).wrapping_add(0x60))? != 0
+    })
 }
 
-/// The alpha (top byte) and the size as whole numbers (`fistp` through `dword_9356C0`).
-unsafe fn whole_alpha(g: &mut Regs, e: u32) {
-    unsafe {
-        let a = x87::to_int(get(e + 0x74));
-        game_write(WHOLE_RVA, a);
-        g.ecx = (a as u32) << 24;
-    }
+/// The alpha (top byte) as a whole number (`fistp` through `dword_9356C0`).
+fn whole_alpha(e: u32) -> Result<u32, Refused> {
+    Ok({
+        let a = x87::to_int(get(e + 0x74)?);
+        RING_WORK.whole.set(a as u32);
+        (a as u32) << 24
+    })
 }
 
-unsafe fn whole(g: &mut Regs, v: i32) {
-    unsafe {
-        game_write(WHOLE_RVA, v);
-        g.edx = v as u32;
-    }
+/// The size as a whole number (through `dword_9356C0`).
+fn whole(v: i32) -> u32 {
+    RING_WORK.whole.set(v as u32);
+    v as u32
 }
 
 /// The angle on and the place moved.
-unsafe fn spin_and_move(g: &mut Regs, e: u32, spin: bool) {
-    unsafe {
-        let t: i32 = game_read(TICKS_RVA);
+fn spin_and_move(e: u32, spin: bool) -> Result<(), Refused> {
+    {
+        let t: i32 = CLOCK.frame_ticks.get() as i32;
         if spin {
-            g.eax = x87::int_times_to_int(get(e + 0x54) as i32, game_read(SPIN_K_RVA)) as u32;
-            put(e + 0x50, get(e + 0x50).wrapping_add(g.eax) & 0xFFF);
+            let turn =
+                x87::int_times_to_int(get(e + 0x54)? as i32, CLOCK.ticks_scaled.bits()) as u32;
+            put(e + 0x50, get(e + 0x50)?.wrapping_add(turn) & 0xFFF)?;
         }
         for o in [0x10u32, 0x14, 0x18] {
-            put(e + o, x87::plus_times_int(get(e + o), get(e + o + 0x1C), t));
+            put(
+                e + o,
+                x87::plus_times_int(get(e + o)?, get(e + o + 0x1C)?, t),
+            )?;
         }
     }
+    Ok(())
 }
 
-unsafe fn gain_y(e: u32, k_addr: usize) {
-    unsafe {
-        let t: i32 = game_read(TICKS_RVA);
-        put(e + 0x30, x87::plus_times_int(get(e + 0x30), k(k_addr), t));
+fn gain_y(e: u32, k_addr: &Float) -> Result<(), Refused> {
+    {
+        let t: i32 = CLOCK.frame_ticks.get() as i32;
+        put(e + 0x30, x87::plus_times_int(get(e + 0x30)?, k(k_addr), t))?;
     }
+    Ok(())
 }
 
 /// The three dampings (a part that changes sign stops at 0).
-unsafe fn damp3(g: &mut Regs, e: u32, ks: [usize; 3]) {
-    unsafe {
-        let t: i32 = game_read(TICKS_RVA);
+fn damp3(e: u32, ks: [&Float; 3]) -> Result<(), Refused> {
+    {
+        let t: i32 = CLOCK.frame_ticks.get() as i32;
         for (o, kk) in [0x2Cu32, 0x30, 0x34].into_iter().zip(ks) {
-            let old = get(e + o);
-            game_write(WHOLE_RVA, old);
+            let old = get(e + o)?;
+            RING_WORK.whole.set(old);
             let new = x87::damp(old, k(kk), t);
-            put(e + o, new);
-            g.eax = (old ^ new).wrapping_add(old ^ new);
+            put(e + o, new)?;
             if (old ^ new) & 0x8000_0000 != 0 {
-                put(e + o, 0);
+                put(e + o, 0)?;
             }
         }
     }
+    Ok(())
 }
 
 /// The size pulled toward +0x70.
-unsafe fn pull_size(g: &mut Regs, e: u32, k_addr: usize) {
-    unsafe {
-        let t: i32 = game_read(TICKS_RVA);
-        let (w, f) = x87::approach(get(e + 0x70) as i32, get(e + 0x60), k(k_addr), t);
-        game_write(WHOLE_RVA, w);
-        put(e + 0x60, f);
-        g.eax = w as u32;
-        if w > get(e + 0x70) as i32 {
-            put(e + 0x60, x87::int_to_float(get(e + 0x70) as i32));
+fn pull_size(e: u32, k_addr: &Float) -> Result<(), Refused> {
+    {
+        let t: i32 = CLOCK.frame_ticks.get() as i32;
+        let (w, f) = x87::approach(get(e + 0x70)? as i32, get(e + 0x60)?, k(k_addr), t);
+        RING_WORK.whole.set(w as u32);
+        put(e + 0x60, f)?;
+        if w > get(e + 0x70)? as i32 {
+            put(e + 0x60, x87::int_to_float(get(e + 0x70)? as i32))?;
         }
     }
+    Ok(())
 }
 
-unsafe fn fade(e: u32) {
-    unsafe {
-        let t: i32 = game_read(TICKS_RVA);
+fn fade(e: u32) -> Result<(), Refused> {
+    {
+        let t: i32 = CLOCK.frame_ticks.get() as i32;
         put(
             e + 0x74,
-            x87::less_times_int(get(e + 0x74), get(e + 0x78), t),
-        );
+            x87::less_times_int(get(e + 0x74)?, get(e + 0x78)?, t),
+        )?;
     }
+    Ok(())
 }
 
 /// The box test of kinds 6 and 0x15: whether the size is pulled.
-unsafe fn outside_and_away(g: &mut Regs, e: u32) -> bool {
-    unsafe {
-        let b = game_addr(0) as u32;
-        let obj = get(e + 0x68);
-        g.ebp = get(obj + 0x24);
-        g.eax = obj + 0x94;
-        box_(b, e, g.ebp, g.eax);
-        g.eax = get(e + 0x7C);
-        let mut outside = (g.eax as i32) < game_read::<i32>(BOX_RVA[0]);
+fn outside_and_away(e: u32) -> Result<bool, Refused> {
+    Ok({
+        let obj = get(e + 0x68)?;
+        box_(e, get(obj + 0x24)?, obj + 0x94);
+        let outside = (get(e + 0x7C)? as i32) < (RING_WORK.extent[0].get() as i32)
+            || (get(e + 0x80)? as i32) < (RING_WORK.extent[1].get() as i32);
         if !outside {
-            g.eax = get(e + 0x80);
-            outside = (g.eax as i32) < game_read::<i32>(BOX_RVA[1]);
+            return Ok(false);
         }
-        if !outside {
-            return false;
+        facing(obj);
+        (RING_WORK.facing.bits() as i32) <= 0
+    })
+}
+
+/// The draws: 1 `draw_cell_sprite`, 2 its twin (the same Rust version), 3
+/// `draw_subcell_sprite`; `cell` is the (sub)cell, `size` the size.
+fn draw(
+    place: u32,
+    cell: u32,
+    angle: u32,
+    alpha: u32,
+    size: u32,
+    e: u32,
+    p: [[u8; 10]; 3],
+) -> Result<(), Refused> {
+    use crate::marks::{draw_cell_sprite as c, draw_subcell_sprite as s};
+    {
+        match place {
+            3 => s::draw_subcell_sprite(cell, size, e, p),
+            _ => c::draw_cell_sprite(cell, angle, alpha, size, e, p),
         }
-        g.ebp = obj;
-        facing(b, obj);
-        game_read::<i32>(FACING_RVA) <= 0
     }
 }
 
-/// Kinds 5 and 0xB (part 1 or 2; their y gain, size and alpha gains).
-unsafe fn drift_kind(
-    g: &mut Regs,
-    e: u32,
-    part: &mut Part,
-    place: u32,
-    ks: [usize; 3],
-) -> Result<(), Refused> {
-    unsafe {
-        if aged(g, e, true) {
-            return Ok(());
+/// Kinds 5 and 0xB (draw 1 or 2; their y gain, size and alpha gains): whether it dies.
+fn drift_kind(e: u32, place: u32, ks: [&Float; 3]) -> Result<bool, Refused> {
+    {
+        if aged(e, true)? {
+            return Ok(true);
         }
-        if shown(g, e) {
-            g.eax = get(get(e + 0x68) + 0x24);
-            let p = on_object(e);
-            [g.eax, g.ebx, g.ecx, g.edx] =
-                [get(e + 0x58), get(e + 0x50), get(e + 0x74), get(e + 0x60)];
-            part(place, g, &p)?;
+        if shown(e)? {
+            let p = on_object(e)?;
+            let [cell, angle, alpha, size] = [
+                get(e + 0x58)?,
+                get(e + 0x50)?,
+                get(e + 0x74)?,
+                get(e + 0x60)?,
+            ];
+            draw(place, cell, angle, alpha, size, e, p)?;
         }
-        spin_and_move(g, e, true);
-        gain_y(e, ks[0]);
-        let t: i32 = game_read(TICKS_RVA);
+        spin_and_move(e, true)?;
+        gain_y(e, ks[0])?;
+        let t: i32 = CLOCK.frame_ticks.get() as i32;
         put(
             e + 0x60,
-            x87::times_int_plus_int_to_int(k(ks[1]), t, get(e + 0x60) as i32) as u32,
-        );
+            x87::times_int_plus_int_to_int(k(ks[1]), t, get(e + 0x60)? as i32) as u32,
+        )?;
         put(
             e + 0x74,
-            x87::int_times_int_plus_int(k(ks[2]) as i32, t, get(e + 0x74) as i32) as u32,
-        );
-        g.eax = 0;
+            x87::int_times_int_plus_int(k(ks[2]) as i32, t, get(e + 0x74)? as i32) as u32,
+        )?;
     }
-    Ok(())
+    Ok(false)
 }
 
-/// Kinds 6, 0x15, 1, 0xD, 0x13, 0x16 (drawn by part 1).
-unsafe fn fading_kind(
-    g: &mut Regs,
-    e: u32,
-    part: &mut Part,
-    kind: u32,
-    c: &Kind,
-) -> Result<(), Refused> {
-    unsafe {
-        if aged(g, e, true) {
-            return Ok(());
+/// Kinds 6, 0x15, 1, 0xD, 0x13, 0x16 (draw 1): whether it dies.
+fn fading_kind(e: u32, kind: u32, c: &Kind) -> Result<bool, Refused> {
+    {
+        if aged(e, true)? {
+            return Ok(true);
         }
-        if (get(e + 0x74) as i32) < 0 {
-            put(e + 0x74, 0);
+        if (get(e + 0x74)? as i32) < 0 {
+            put(e + 0x74, 0)?;
         }
-        if matches!(kind, 0x13 | 0x16) {
-            g.ebp = get(e + 0x68);
-        }
-        if shown(g, e) {
-            if kind == 1 {
-                g.ebp = get(e + 0x68);
-            }
+        if shown(e)? {
             let p = if kind == 0xD {
-                g.eax = get(get(e + 0x68) + 0x24);
-                on_object(e)
+                on_object(e)?
             } else {
-                at_place(e)
+                at_place(e)?
             };
-            [g.eax, g.ebx] = [get(e + 0x58), get(e + 0x50)];
-            whole_alpha(g, e);
+            let [cell, angle] = [get(e + 0x58)?, get(e + 0x50)?];
+            let alpha = whole_alpha(e)?;
             let size = if kind == 1 {
-                x87::plus_product_to_int(get(e + 0x60), get(e + 0x64), k(0x93A512))
+                x87::plus_product_to_int(get(e + 0x60)?, get(e + 0x64)?, k(&RING_KINDS.k1_size))
             } else {
-                x87::to_int(get(e + 0x60))
+                x87::to_int(get(e + 0x60)?)
             };
-            whole(g, size);
-            part(1, g, &p)?;
+            let size = whole(size);
+            draw(1, cell, angle, alpha, size, e, p)?;
         }
-        spin_and_move(g, e, true);
-        if c.gain != 0 && kind == 0xD {
-            gain_y(e, c.gain);
+        spin_and_move(e, true)?;
+        if c.gain.is_some() && kind == 0xD {
+            gain_y(e, c.gain()?)?;
         }
-        damp3(g, e, c.damp);
+        damp3(e, c.damp)?;
         match kind {
             6 | 0x15 => {
-                if outside_and_away(g, e) {
-                    pull_size(g, e, c.pull);
+                if outside_and_away(e)? {
+                    pull_size(e, c.pull()?)?;
                 }
-                fade(e);
+                fade(e)?;
             }
             1 => {
-                pull_size(g, e, c.pull);
-                fade(e);
-                pull_toward(g, e);
+                pull_size(e, c.pull()?)?;
+                fade(e)?;
+                pull_toward(e)?;
             }
             0xD => {
-                pull_size(g, e, c.pull);
-                fade(e);
+                pull_size(e, c.pull()?)?;
+                fade(e)?;
             }
             _ => {
-                fade(e);
-                let t: i32 = game_read(TICKS_RVA);
-                put(e + 0x60, x87::plus_times_int(get(e + 0x60), k(c.gain), t));
+                fade(e)?;
+                let t: i32 = CLOCK.frame_ticks.get() as i32;
+                put(
+                    e + 0x60,
+                    x87::plus_times_int(get(e + 0x60)?, k(c.gain()?), t),
+                )?;
             }
         }
-        g.eax = 0;
     }
-    Ok(())
+    Ok(false)
 }
 
 /// Kind 1's pull of its +0x64 when near and facing.
-unsafe fn pull_toward(g: &mut Regs, e: u32) {
-    unsafe {
-        let b = game_addr(0) as u32;
-        let obj = get(e + 0x68);
-        g.eax = obj;
-        g.ebp = get(obj + 0x24);
+fn pull_toward(e: u32) -> Result<(), Refused> {
+    {
+        let obj = get(e + 0x68)?;
         let mut length = [0u8; 10];
-        let l = length.as_mut_ptr() as u32;
-        pull_length(b, e, g.ebp, l);
-        if game_read::<i32>(NEAR_RVA) < 0 {
-            return;
-        }
-        g.ebp = obj;
-        pull_facing(b, obj, l);
-        if game_read::<i32>(FACING_RVA) <= 0 {
-            return;
-        }
-        pull_strength(b, e, obj);
-        g.eax = game_read(WHOLE_RVA);
-        if (g.eax as i32) > game_read::<i32>(PULL_LIMIT_RVA) {
-            put(e + 0x64, x87::loaded(game_read(PULL_TO_RVA)));
-        }
-    }
-}
-
-/// Kinds 0x10, 0x11 (part 3): boxed, no ground test of their own first.
-unsafe fn boxed_kind(
-    g: &mut Regs,
-    e: u32,
-    part: &mut Part,
-    gain: usize,
-    both: bool,
-) -> Result<(), Refused> {
-    unsafe {
-        if aged(g, e, true) {
+        let l = crate::pointers::game_address(length.as_mut_ptr());
+        pull_length(e, get(obj + 0x24)?, l);
+        if (RING_WORK.near.bits() as i32) < 0 {
             return Ok(());
         }
-        spin_and_move(g, e, false);
-        gain_y(e, gain);
-        if shown(g, e) {
-            g.eax = get(get(e + 0x68) + 0x24);
-            let p = on_object(e);
-            g.edx = get(e + 0x60);
-            let f = x87::int_times_times_to_int(
-                get(e + 0x84) as i32,
-                game_read(FRAME_K_RVA),
-                get(e + 0x5C),
-            );
-            game_write(WHOLE_RVA, f);
-            g.eax = ((f as u32) & 3).wrapping_add(get(e + 0x58));
-            part(3, g, &p)?;
+        pull_facing(obj, l);
+        if (RING_WORK.facing.bits() as i32) <= 0 {
+            return Ok(());
         }
-        let b = game_addr(0) as u32;
-        g.eax = get(e + 0x68) + 0x94;
-        box_place(b, e, g.eax);
-        g.eax = get(e + 0x7C);
-        let mut outside = (g.eax as i32) < game_read::<i32>(BOX_RVA[0]);
-        if !outside && both {
-            g.eax = get(e + 0x80);
-            outside = (g.eax as i32) < game_read::<i32>(BOX_RVA[1]);
+        pull_strength(e, obj);
+        if (RING_WORK.whole.get() as i32) > (MARKS_FLOATS.pull_limit.bits() as i32) {
+            put(e + 0x64, x87::loaded(MARKS_FLOATS.two_pow_16.bits()))?;
         }
-        if !outside {
-            g.eax = u32::from(x87::compare_status(get(e + 0x14), game_read(TOP_RVA)));
-            if g.eax == 0 {
-                g.eax = 0xFFFF_FFFF;
-                return Ok(());
-            }
-        }
-        g.eax = u32::from(x87::compare_status(get(e + 0x14), get(e + 0x28)));
-        g.eax = if g.eax == 0x100 { 0xFFFF_FFFF } else { 0 };
     }
     Ok(())
 }
 
-/// The Rust version (see the header): the registers it leaves.
-pub unsafe fn run_ring(entry: &Regs, mut part: Part) -> Result<Regs, Refused> {
-    if let Some(why) = unsafe { refusal() } {
+/// Kinds 0x10, 0x11 (draw 3): boxed, no ground test of their own first. Whether it dies.
+fn boxed_kind(e: u32, gain: &Float, both: bool) -> Result<bool, Refused> {
+    if aged(e, true)? {
+        return Ok(true);
+    }
+    spin_and_move(e, false)?;
+    gain_y(e, gain)?;
+    if shown(e)? {
+        let p = on_object(e)?;
+        let size = get(e + 0x60)?;
+        let f = x87::int_times_times_to_int(
+            get(e + 0x84)? as i32,
+            MARKS_FLOATS.twentieth.bits(),
+            get(e + 0x5C)?,
+        );
+        RING_WORK.whole.set(f as u32);
+        let subcell = ((f as u32) & 3).wrapping_add(get(e + 0x58)?);
+        draw(3, subcell, 0, 0, size, e, p)?;
+    }
+    box_place(e, get(e + 0x68)? + 0x94);
+    let mut outside = (get(e + 0x7C)? as i32) < (RING_WORK.extent[0].get() as i32);
+    if !outside && both {
+        outside = (get(e + 0x80)? as i32) < (RING_WORK.extent[1].get() as i32);
+    }
+    if !outside && x87::compare_status(get(e + 0x14)?, RING_WORK.top.bits()) == 0 {
+        return Ok(true);
+    }
+    Ok(x87::compare_status(get(e + 0x14)?, get(e + 0x28)?) == 0x100)
+}
+
+/// The Rust version (see the header).
+pub fn run_ring() -> Result<(), Refused> {
+    if let Some(why) = refusal()? {
         return Err(BadInput(why).into());
     }
-    let mut g = *entry;
-    unsafe {
-        g.esi = game_read(RING_CURSOR_RVA);
-        let mut counter = game_read::<u32>(RING_COUNT_RVA) as i32;
+    {
+        let mut e: u32 = RING_WORK.cursor.get();
+        let mut counter = RING_WORK.count.get() as i32;
         loop {
             counter = counter.wrapping_sub(1);
             if counter < 0 {
                 break;
             }
-            let e = g.esi;
-            let next = get(e + 4);
-            match get(e + 0xC) {
-                5 => drift_kind(&mut g, e, &mut part, 1, [0x93A4DA, 0x93A4DE, 0x93A4E2])?,
-                0xB => drift_kind(&mut g, e, &mut part, 2, [0x93A4E6, 0x93A4EA, 0x93A4EE])?,
-                6 => fading_kind(&mut g, e, &mut part, 6, &K6)?,
-                0x15 => fading_kind(&mut g, e, &mut part, 0x15, &K15)?,
-                1 => fading_kind(&mut g, e, &mut part, 1, &K1)?,
-                0xD => fading_kind(&mut g, e, &mut part, 0xD, &KD)?,
-                0x13 => fading_kind(&mut g, e, &mut part, 0x13, &K13)?,
-                0x16 => fading_kind(&mut g, e, &mut part, 0x16, &K16)?,
-                0x10 => boxed_kind(&mut g, e, &mut part, 0x93A566, true)?,
-                0x11 => boxed_kind(&mut g, e, &mut part, 0x93A56A, false)?,
-                _ => g.eax = 0,
-            }
-            g.esi = e;
-            if g.eax != 0 {
-                game_write(
-                    RING_COUNT_RVA,
-                    game_read::<u32>(RING_COUNT_RVA).wrapping_sub(1),
-                );
-                if e == game_read::<u32>(RING_CURSOR_RVA) {
-                    g.eax = get(e + 4);
-                    game_write(RING_CURSOR_RVA, g.eax);
+            let next = get(e + 4)?;
+            let dies = match get(e + 0xC)? {
+                5 => drift_kind(
+                    e,
+                    1,
+                    [
+                        &RING_KINDS.drift5[0],
+                        &RING_KINDS.drift5[1],
+                        &RING_KINDS.drift5[2],
+                    ],
+                )?,
+                0xB => drift_kind(
+                    e,
+                    2,
+                    [
+                        &RING_KINDS.drift_b[0],
+                        &RING_KINDS.drift_b[1],
+                        &RING_KINDS.drift_b[2],
+                    ],
+                )?,
+                6 => fading_kind(e, 6, &K6)?,
+                0x15 => fading_kind(e, 0x15, &K15)?,
+                1 => fading_kind(e, 1, &K1)?,
+                0xD => fading_kind(e, 0xD, &KD)?,
+                0x13 => fading_kind(e, 0x13, &K13)?,
+                0x16 => fading_kind(e, 0x16, &K16)?,
+                0x10 => boxed_kind(e, &RING_KINDS.k10_gain, true)?,
+                0x11 => boxed_kind(e, &RING_KINDS.k11_gain, false)?,
+                _ => false,
+            };
+            if dies {
+                RING_WORK.count.set(RING_WORK.count.get().wrapping_sub(1));
+                if e == RING_WORK.cursor.get() {
+                    RING_WORK.cursor.set(get(e + 4)?);
                 } else {
-                    g.ebx = get(e);
-                    g.ecx = get(e + 4);
-                    put(g.ebx + 4, g.ecx);
-                    put(g.ecx, g.ebx);
-                    g.ebx = game_read(RING_CURSOR_RVA);
-                    g.ecx = get(g.ebx);
-                    put(g.ebx, e);
-                    put(g.ecx + 4, e);
-                    put(e, g.ecx);
-                    put(e + 4, g.ebx);
+                    let (before, after) = (get(e)?, get(e + 4)?);
+                    put(before + 4, after)?;
+                    put(after, before)?;
+                    let cursor: u32 = RING_WORK.cursor.get();
+                    let last = get(cursor)?;
+                    put(cursor, e)?;
+                    put(last + 4, e)?;
+                    put(e, last)?;
+                    put(e + 4, cursor)?;
                 }
             }
-            g.esi = next;
+            e = next;
         }
     }
-    Ok(g)
-}
-
-/// In the game: the draws' Rust versions.
-pub fn game_part(place: u32, r: &mut Regs, v: &[[u8; 10]]) -> Result<(), Refused> {
-    use crate::marks::{draw_cell_sprite as cell, draw_subcell_sprite as sub};
-    let p = [v[0], v[1], v[2]];
-    let left = unsafe {
-        match place {
-            3 => sub::draw_subcell_sprite(r, p, &mut sub::game_part)?,
-            _ => cell::draw_cell_sprite(r, p, &mut cell::game_part)?,
-        }
-    };
-    *r = Regs { esp: r.esp, ..left };
     Ok(())
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    HOOK.count_call();
-    if shadow() {
-        unsafe { call_original(r) };
-        return;
+use crate::marks::plain::{ld, ld80, ldi, st, st80};
+use crate::math::x87_float as bh;
+
+/// `box_`'s x87 block as plain Rust on the x87 model (45 instructions), same order and memory places.
+fn box_x87(w: &RingWork, e: usize, p: usize, m: usize) {
+    let t0 = ld(e, 0x10);
+    let t1 = t0 - ld(p, 0x30);
+    w.away[0].set_bits(bh::st(t1));
+    let t2 = ld(e, 0x14);
+    let t3 = t2 - ld(p, 0x34);
+    w.away[1].set_bits(bh::st(t3));
+    let t4 = ld(e, 0x18);
+    let t5 = t4 - ld(p, 0x38);
+    w.away[2].set_bits(bh::st(t5));
+    let t6 = bh::ld(w.away[2].bits());
+    let t7 = bh::ld(w.away[1].bits());
+    let t8 = bh::ld(w.away[0].bits());
+    let t9 = ld(m, 0);
+    let t10 = t9 * t8;
+    let t11 = ld(m, 0x10);
+    let t12 = t11 * t7;
+    let t13 = ld(m, 0x20);
+    let t14 = t13 * t6;
+    let t15 = t12 + t14;
+    let t16 = t10 + t15;
+    let t17 = ld(m, 0x4);
+    let t18 = t17 * t8;
+    let t19 = ld(m, 0x14);
+    let t20 = t19 * t7;
+    let t21 = ld(m, 0x24);
+    let t22 = t21 * t6;
+    let t23 = t20 + t22;
+    let _t24 = t18 + t23;
+    let t25 = ld(m, 0x8);
+    let t26 = t8 * t25;
+    let t27 = ld(m, 0x18);
+    let t28 = t7 * t27;
+    let t29 = ld(m, 0x28);
+    let t30 = t6 * t29;
+    let t31 = t30 + t28;
+    let t32 = t26 + t31;
+    let t33 = t16.abs();
+    w.extent[0].set_bits(bh::to_int(t33) as u32);
+    let t34 = t32.abs();
+    w.extent[1].set_bits(bh::to_int(t34) as u32);
+}
+
+/// `facing`'s x87 block as plain Rust on the x87 model (28 instructions), same order and memory places.
+fn facing_x87(o: usize, f: &MarksFloats, w: &RingWork) {
+    let t0 = bh::ld(w.away[0].bits());
+    let t1 = t0 * t0;
+    let t2 = bh::ld(w.away[1].bits());
+    let t3 = t2 * t2;
+    let t4 = bh::ld(w.away[2].bits());
+    let t5 = t4 * t4;
+    let t6 = t3 + t5;
+    let t7 = t1 + t6;
+    let t8 = t7.sqrt();
+    let t9 = bh::ld(f.one.bits()) / t8;
+    let t10 = bh::ld(w.away[0].bits());
+    let t11 = t10 * t9;
+    w.away[0].set_bits(bh::st(t11));
+    let t12 = bh::ld(w.away[1].bits());
+    let t13 = t12 * t9;
+    w.away[1].set_bits(bh::st(t13));
+    let t14 = bh::ld(w.away[2].bits());
+    let t15 = t9 * t14;
+    w.away[2].set_bits(bh::st(t15));
+    let t16 = bh::ld(w.away[0].bits());
+    let t17 = t16 * ld(o, 0x4C);
+    let t18 = bh::ld(w.away[1].bits());
+    let t19 = t18 * ld(o, 0x50);
+    let t20 = bh::ld(w.away[2].bits());
+    let t21 = t20 * ld(o, 0x54);
+    let t22 = t19 + t21;
+    let t23 = t17 + t22;
+    w.facing.set_bits(bh::st(t23));
+}
+
+/// `pull_length`'s x87 block as plain Rust on the x87 model (22 instructions), same order and memory places.
+/// `rk` the ring kinds' constants (`RingKinds`).
+fn pull_length_x87(e: usize, p: usize, l: usize, w: &RingWork, rk: usize) {
+    let t0 = ld(e, 0x10);
+    let t1 = t0 - ld(p, 0x30);
+    w.away[0].set_bits(bh::st(t1));
+    let t2 = ld(e, 0x14);
+    let t3 = t2 - ld(p, 0x34);
+    w.away[1].set_bits(bh::st(t3));
+    let t4 = ld(e, 0x18);
+    let t5 = t4 - ld(p, 0x38);
+    w.away[2].set_bits(bh::st(t5));
+    let t6 = bh::ld(w.away[0].bits());
+    let t7 = t6 * t6;
+    let t8 = bh::ld(w.away[1].bits());
+    let t9 = t8 * t8;
+    let t10 = bh::ld(w.away[2].bits());
+    let t11 = t10 * t10;
+    let t12 = t9 + t11;
+    let t13 = t7 + t12;
+    let t14 = t13.sqrt();
+    let t15 = t14 - ld(rk, 0x4C);
+    w.near.set_bits(bh::st(t15));
+    st80(l, 0, t14);
+}
+
+/// `pull_facing`'s x87 block as plain Rust on the x87 model (32 instructions), same order and memory places.
+fn pull_facing_x87(o: usize, l: usize, f: &MarksFloats, w: &RingWork) {
+    let t0 = bh::from_f80(ld80(l, 0));
+    let t1 = bh::ld(f.one.bits()) / t0;
+    let t2 = bh::ld(w.away[0].bits());
+    let t3 = t2 * t1;
+    w.away[0].set_bits(bh::st(t3));
+    let t4 = bh::ld(w.away[1].bits());
+    let t5 = t4 * t1;
+    w.away[1].set_bits(bh::st(t5));
+    let t6 = bh::ld(w.away[2].bits());
+    let t7 = t1 * t6;
+    w.away[2].set_bits(bh::st(t7));
+    let t8 = ldi(o, 0x88);
+    let t9 = bh::ld(f.one.bits()) / t8;
+    let t10 = ld(o, 0x4C);
+    let t11 = t10 * t9;
+    w.turned[0].set_bits(bh::st(t11));
+    let t12 = ld(o, 0x50);
+    let t13 = t12 * t9;
+    w.turned[1].set_bits(bh::st(t13));
+    let t14 = ld(o, 0x54);
+    let t15 = t9 * t14;
+    w.turned[2].set_bits(bh::st(t15));
+    let t16 = bh::ld(w.away[0].bits());
+    let t17 = t16 * bh::ld(w.turned[0].bits());
+    let t18 = bh::ld(w.away[1].bits());
+    let t19 = t18 * bh::ld(w.turned[1].bits());
+    let t20 = bh::ld(w.away[2].bits());
+    let t21 = t20 * bh::ld(w.turned[2].bits());
+    let t22 = t19 + t21;
+    let t23 = t17 + t22;
+    let t24 = -t23;
+    w.facing.set_bits(bh::st(t24));
+}
+
+/// `pull_strength`'s x87 block as plain Rust on the x87 model (15 instructions), same order and memory places.
+/// `rk` the ring kinds' constants (`RingKinds`).
+fn pull_strength_x87(e: usize, o: usize, c: &MarksClock, f: &MarksFloats, w: &RingWork, rk: usize) {
+    let t0 = ldi(o, 0x88);
+    let t1 = t0 * ld(rk, 0x50);
+    let t2 = t1 + bh::ld(f.one.bits());
+    let t3 = bh::ld(f.one.bits()) / t2;
+    let t4 = bh::ld(f.one.bits()) - t3;
+    w.whole.set_bits(bh::st(t4));
+    let t5 = bh::ld(f.two_pow_16.bits());
+    let t6 = t5 - ld(e, 0x64);
+    let t7 = ld(rk, 0x54);
+    let t8 = t7 * bh::ld(w.whole.bits());
+    let t9 = t6 * t8;
+    let t10 = t9 * crate::math::x87_float::int(c.frame_ticks.get() as i32);
+    let t11 = t10 + ld(e, 0x64);
+    w.whole.set_bits(bh::to_int(t11) as u32);
+    st(e, 0x64, t11);
+}
+
+/// `box_place`'s x87 block as plain Rust on the x87 model (36 instructions), same order and memory places.
+fn box_place_x87(w: &RingWork, e: usize, m: usize) {
+    let t0 = ld(e, 0x18);
+    let t1 = ld(e, 0x14);
+    let t2 = ld(e, 0x10);
+    let t3 = ld(m, 0);
+    let t4 = t3 * t2;
+    let t5 = ld(m, 0x10);
+    let t6 = t5 * t1;
+    let t7 = ld(m, 0x20);
+    let t8 = t7 * t0;
+    let t9 = t6 + t8;
+    let t10 = t4 + t9;
+    let t11 = ld(m, 0x4);
+    let t12 = t11 * t2;
+    let t13 = ld(m, 0x14);
+    let t14 = t13 * t1;
+    let t15 = ld(m, 0x24);
+    let t16 = t15 * t0;
+    let t17 = t14 + t16;
+    let _t18 = t12 + t17;
+    let t19 = ld(m, 0x8);
+    let t20 = t2 * t19;
+    let t21 = ld(m, 0x18);
+    let t22 = t1 * t21;
+    let t23 = ld(m, 0x28);
+    let t24 = t0 * t23;
+    let t25 = t24 + t22;
+    let t26 = t20 + t25;
+    let t27 = t10.abs();
+    w.extent[0].set_bits(bh::to_int(t27) as u32);
+    let t28 = t26.abs();
+    w.extent[1].set_bits(bh::to_int(t28) as u32);
+}
+
+/// The ring kinds' constants (`run_ring`, and the ribbons' two) (IDA 0x93A4DA .. 0x93A576, the image's layout; phase 7, typed state).
+#[repr(C)]
+pub struct RingKinds {
+    /// 0x93A4DA: `flt_93A4DA`, `flt_93A4DE`, `dword_93A4E2`: kind 5's drift factors
+    pub drift5: [Float; 3],
+    /// 0x93A4E6: `flt_93A4E6`, `flt_93A4EA`, `dword_93A4EE`: kind 0xB's drift factors
+    pub drift_b: [Float; 3],
+    /// 0x93A4F2: `flt_93A4F2` .. `flt_93A4FA`: kind 6's three dampings
+    pub k6_damp: [Float; 3],
+    /// 0x93A4FE: `flt_93A4FE`: kind 6's size rate
+    pub k6_pull: Float,
+    /// 0x93A502: `flt_93A502` .. `flt_93A50A`: kind 0x15's three dampings
+    pub k15_damp: [Float; 3],
+    /// 0x93A50E: `flt_93A50E`: kind 0x15's size rate
+    pub k15_pull: Float,
+    /// 0x93A512: `flt_93A512`: kind 1's size factor (+0x64 times it)
+    pub k1_size: Float,
+    /// 0x93A516: `flt_93A516` .. `flt_93A51E`: kind 1's three dampings
+    pub k1_damp: [Float; 3],
+    /// 0x93A522: `flt_93A522`: kind 1's size rate
+    pub k1_pull: Float,
+    /// 0x93A526: `flt_93A526`: less this from the length to the object (`pull_length`)
+    pub near_less: Float,
+    /// 0x93A52A: `flt_93A52A`: the strength's pull scale (`pull_strength`)
+    pub near_scale: Float,
+    /// 0x93A52E: `flt_93A52E`: the strength's pull rate (`pull_strength`)
+    pub near_rate: Float,
+    /// 0x93A532: `flt_93A532`: kind 0xD's y gain
+    pub kd_gain: Float,
+    /// 0x93A536: `flt_93A536` .. `flt_93A53E`: kind 0xD's three dampings
+    pub kd_damp: [Float; 3],
+    /// 0x93A542: `flt_93A542`: kind 0xD's size rate
+    pub kd_pull: Float,
+    /// 0x93A546: `flt_93A546` .. `flt_93A54E`: kind 0x13's three dampings
+    pub k13_damp: [Float; 3],
+    /// 0x93A552: `flt_93A552`: kind 0x13's y gain
+    pub k13_gain: Float,
+    /// 0x93A556: `flt_93A556` .. `flt_93A55E`: kind 0x16's three dampings
+    pub k16_damp: [Float; 3],
+    /// 0x93A562: `flt_93A562`: kind 0x16's y gain
+    pub k16_gain: Float,
+    /// 0x93A566: `flt_93A566`: kind 0x10's y gain
+    pub k10_gain: Float,
+    /// 0x93A56A: `flt_93A56A`: kind 0x11's y gain
+    pub k11_gain: Float,
+    /// 0x93A56E: `flt_93A56E`: a ribbon's y gain (`run_ribbons::first_frame`)
+    pub ribbon_a: Float,
+    /// 0x93A572: `flt_93A572`: a ribbon's y gain per frame (`run_ribbons::move_`)
+    pub ribbon_b: Float,
+}
+
+/// RingKinds's first values.
+pub static RING_KINDS: RingKinds = RingKinds {
+    drift5: [
+        Float::from_bits(0xC0000000),
+        Float::from_bits(0x42B80000),
+        Float::from_bits(0xFF800000),
+    ],
+    drift_b: [
+        Float::from_bits(0xC0000000),
+        Float::from_bits(0x42B80000),
+        Float::from_bits(0xFF800000),
+    ],
+    k6_damp: [
+        Float::from_bits(0x3A83126F),
+        Float::from_bits(0x3A83126F),
+        Float::from_bits(0x3A83126F),
+    ],
+    k6_pull: Float::from_bits(0x3C23D70A),
+    k15_damp: [
+        Float::from_bits(0x3A83126F),
+        Float::from_bits(0x3A83126F),
+        Float::from_bits(0x3A83126F),
+    ],
+    k15_pull: Float::from_bits(0x3C23D70A),
+    k1_size: Float::from_bits(0x3F800000),
+    k1_damp: [
+        Float::from_bits(0x3B449BA6),
+        Float::from_bits(0x3B449BA6),
+        Float::from_bits(0x3B449BA6),
+    ],
+    k1_pull: Float::from_bits(0x3AC49BA6),
+    near_less: Float::from_bits(0x47D8F000),
+    near_scale: Float::from_bits(0x3951B717),
+    near_rate: Float::from_bits(0x3BA3D70A),
+    kd_gain: Float::from_bits(0x3C23D70A),
+    kd_damp: [
+        Float::from_bits(0x3B83126F),
+        Float::from_bits(0x3B83126F),
+        Float::from_bits(0x3B83126F),
+    ],
+    kd_pull: Float::from_bits(0x3C23D70A),
+    k13_damp: [
+        Float::from_bits(0x3B449BA6),
+        Float::from_bits(0x3B449BA6),
+        Float::from_bits(0x3B449BA6),
+    ],
+    k13_gain: Float::from_bits(0x41800000),
+    k16_damp: [
+        Float::from_bits(0x3B449BA6),
+        Float::from_bits(0x3B449BA6),
+        Float::from_bits(0x3B449BA6),
+    ],
+    k16_gain: Float::from_bits(0x41800000),
+    k10_gain: Float::from_bits(0xBF000000),
+    k11_gain: Float::from_bits(0xBF000000),
+    ribbon_a: Float::from_bits(0xBF000000),
+    ribbon_b: Float::from_bits(0xBF000000),
+};
+
+impl RingKinds {
+    pub const START: usize = 0x93A4DA;
+    pub const LEN: usize = 0x9C;
+    /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
+    pub fn home() -> usize {
+        crate::pointers::game_address(&RING_KINDS as *const RingKinds) as usize
     }
-    match unsafe { run_ring(r, &mut game_part) } {
-        Ok(left) => *r = Regs { esp: r.esp, ..left },
-        Err(e) => unsafe { crate::fatal::raise::refused(&HOOK, e, r, call_original) },
+}
+
+#[cfg(test)]
+mod ring_kinds_tests {
+    use super::*;
+    use core::mem::offset_of;
+
+    fn bytes<T>(v: &T) -> Vec<u8> {
+        let p = v as *const T as *const u8;
+        (0..size_of::<T>())
+            .map(|i| unsafe { p.add(i).read() })
+            .collect()
+    }
+
+    #[test]
+    fn ring_kinds_starts_as_the_games() {
+        assert_eq!(size_of::<RingKinds>(), RingKinds::LEN);
+        assert!(
+            bytes(&RING_KINDS) == crate::moved::image_bytes(RingKinds::START, RingKinds::LEN),
+            "RING_KINDS starts differently from the image"
+        );
+        assert_eq!(offset_of!(RingKinds, drift5), 0x93A4DA - RingKinds::START);
+        assert_eq!(offset_of!(RingKinds, drift_b), 0x93A4E6 - RingKinds::START);
+        assert_eq!(offset_of!(RingKinds, k6_damp), 0x93A4F2 - RingKinds::START);
+        assert_eq!(offset_of!(RingKinds, k6_pull), 0x93A4FE - RingKinds::START);
+        assert_eq!(offset_of!(RingKinds, k15_damp), 0x93A502 - RingKinds::START);
+        assert_eq!(offset_of!(RingKinds, k15_pull), 0x93A50E - RingKinds::START);
+        assert_eq!(offset_of!(RingKinds, k1_size), 0x93A512 - RingKinds::START);
+        assert_eq!(offset_of!(RingKinds, k1_damp), 0x93A516 - RingKinds::START);
+        assert_eq!(offset_of!(RingKinds, k1_pull), 0x93A522 - RingKinds::START);
+        assert_eq!(
+            offset_of!(RingKinds, near_less),
+            0x93A526 - RingKinds::START
+        );
+        assert_eq!(
+            offset_of!(RingKinds, near_scale),
+            0x93A52A - RingKinds::START
+        );
+        assert_eq!(
+            offset_of!(RingKinds, near_rate),
+            0x93A52E - RingKinds::START
+        );
+        assert_eq!(offset_of!(RingKinds, kd_gain), 0x93A532 - RingKinds::START);
+        assert_eq!(offset_of!(RingKinds, kd_damp), 0x93A536 - RingKinds::START);
+        assert_eq!(offset_of!(RingKinds, kd_pull), 0x93A542 - RingKinds::START);
+        assert_eq!(offset_of!(RingKinds, k13_damp), 0x93A546 - RingKinds::START);
+        assert_eq!(offset_of!(RingKinds, k13_gain), 0x93A552 - RingKinds::START);
+        assert_eq!(offset_of!(RingKinds, k16_damp), 0x93A556 - RingKinds::START);
+        assert_eq!(offset_of!(RingKinds, k16_gain), 0x93A562 - RingKinds::START);
+        assert_eq!(offset_of!(RingKinds, k10_gain), 0x93A566 - RingKinds::START);
+        assert_eq!(offset_of!(RingKinds, k11_gain), 0x93A56A - RingKinds::START);
+        assert_eq!(offset_of!(RingKinds, ribbon_a), 0x93A56E - RingKinds::START);
+        assert_eq!(offset_of!(RingKinds, ribbon_b), 0x93A572 - RingKinds::START);
     }
 }
 
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    let left = unsafe { run_ring(r, &mut game_part) }?;
-    *r = Regs { esp: r.esp, ..left };
-    Ok(())
-}
+#[cfg(all(test, target_arch = "x86"))]
+mod asm_reference {
+    //! The original assembly blocks, kept verbatim as the reference the plain versions are tested against.
 
-/// A draw as the test notes it: place, eax .. esi, the three values.
-type Noted = (u32, [u32; 5], Vec<[u8; 10]>);
-
-static NOTED: Mutex<Vec<Noted>> = Mutex::new(Vec::new());
-
-fn note(place: u32, r: &Regs, v: &[[u8; 10]]) {
-    NOTED
-        .lock()
-        .unwrap()
-        .push((place, [r.eax, r.ebx, r.ecx, r.edx, r.esi], v.to_vec()));
-}
-
-extern "C" fn note_three(place: u32, r: *const Regs, v: *const [u8; 10]) {
-    note(place, unsafe { &*r }, unsafe {
-        std::slice::from_raw_parts(v, 3)
-    });
-}
-
-macro_rules! stand_in {
-    ($name:ident, $place:literal) => {
-        #[unsafe(naked)]
-        unsafe extern "C" fn $name() {
-            core::arch::naked_asm!(
-                "lea esp, [esp - 30]",
-                "fstp tbyte ptr [esp]",
-                "fstp tbyte ptr [esp + 10]",
-                "fstp tbyte ptr [esp + 20]",
-                "pushfd",
-                "pushad",
-                "mov eax, esp",
-                "lea ecx, [esp + 36]",
-                "push ecx",
-                "push eax",
-                concat!("push ", $place),
-                "call {note}",
-                "add esp, 12",
-                "popad",
-                "popfd",
-                "lea esp, [esp + 30]",
-                "ret",
-                note = sym note_three,
+    pub(super) fn box_x87(mk: usize, e: usize, p: usize, m: usize) {
+        unsafe {
+            core::arch::asm!(
+                    "fld dword ptr [{e} + 0x10]",
+            "fsub dword ptr [{p} + 0x30]",
+            "fstp dword ptr [{mk} + 0x1D07D8]",
+            "fld dword ptr [{e} + 0x14]",
+            "fsub dword ptr [{p} + 0x34]",
+            "fstp dword ptr [{mk} + 0x1D07DC]",
+            "fld dword ptr [{e} + 0x18]",
+            "fsub dword ptr [{p} + 0x38]",
+            "fstp dword ptr [{mk} + 0x1D07E0]",
+            "fld dword ptr [{mk} + 0x1D07E0]",
+            "fld dword ptr [{mk} + 0x1D07DC]",
+            "fld dword ptr [{mk} + 0x1D07D8]",
+            "fld dword ptr [{m} + 0x0]",
+            ".byte 0xD8, 0xC9",
+            "fld dword ptr [{m} + 0x10]",
+            ".byte 0xD8, 0xCB",
+            "fld dword ptr [{m} + 0x20]",
+            ".byte 0xD8, 0xCD",
+            ".byte 0xDE, 0xC1",
+            ".byte 0xDE, 0xC1",
+            ".byte 0xD9, 0xCB",
+            "fld dword ptr [{m} + 0x4]",
+            ".byte 0xD8, 0xCA",
+            "fld dword ptr [{m} + 0x14]",
+            ".byte 0xD8, 0xCC",
+            "fld dword ptr [{m} + 0x24]",
+            ".byte 0xD8, 0xCB",
+            ".byte 0xDE, 0xC1",
+            ".byte 0xDE, 0xC1",
+            ".byte 0xD9, 0xCB",
+            "fld dword ptr [{m} + 0x8]",
+            ".byte 0xDE, 0xCB",
+            "fld dword ptr [{m} + 0x18]",
+            ".byte 0xDE, 0xC9",
+            "fld dword ptr [{m} + 0x28]",
+            ".byte 0xDE, 0xCA",
+            ".byte 0xDE, 0xC1",
+            ".byte 0xDE, 0xC1",
+            ".byte 0xD9, 0xCA",
+            ".byte 0xD9, 0xE1",
+            "fistp dword ptr [{mk} + 0x1D0740]",
+            ".byte 0xDD, 0xC0",
+            ".byte 0xD9, 0xF7",
+            ".byte 0xD9, 0xE1",
+            "fistp dword ptr [{mk} + 0x1D0744]",
+            mk = in(reg) mk,
+            e = in(reg) e,
+            p = in(reg) p,
+            m = in(reg) m,
+            out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
+            out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
+            options(nostack),
             )
         }
-    };
-}
-stand_in!(cell_stand_in, 1);
-stand_in!(cell2_stand_in, 2);
-stand_in!(subcell_stand_in, 3);
+    }
 
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    const LEN: usize = 0x4CF85E - 0x4CB64D;
-    let calls: Vec<usize> = [
-        0x4CE6DD, 0x4CE7C7, 0x4CE8CA, 0x4CEB92, 0x4CEE68, 0x4CF175, 0x4CF31E, 0x4CF499, 0x4CF64E,
-        0x4CF7B6,
-        // Every other call out of the copy (in functions the test never runs), moved with it.
-        0x4CB832, 0x4CBA3D, 0x4CBA44, 0x4CBAF0, 0x4CBCFB, 0x4CBD02, 0x4CBF30, 0x4CBF37, 0x4CBFE3,
-        0x4CC146, 0x4CC14D, 0x4CC2DD, 0x4CC4E0, 0x4CD181, 0x4CD35C, 0x4CD5ED, 0x4CD889, 0x4CDB1A,
-        0x4CDFE8, 0x4CE3AF, 0x4CE5AE,
-    ]
-    .iter()
-    .map(|&a| a - 0x4CB64D)
-    .collect();
-    let copy = match unsafe {
-        crate::redirect::RedirectedCopy::new(
-            game_addr(rva(0x4CB64D)),
-            LEN,
-            // mov esi, g_marksRingCursor
-            &[0x8B, 0x35, 0x60, 0x56, 0x93, 0x00],
-            &calls,
-            &|c| match c + 0x40_0000 {
-                0x4CB796 => Some(cell_stand_in as *const () as usize),
-                0x4CBA54 => Some(cell2_stand_in as *const () as usize),
-                0x4CBF47 => Some(subcell_stand_in as *const () as usize),
-                _ => None,
+    pub(super) fn facing_x87(mk: usize, o: usize) {
+        unsafe {
+            core::arch::asm!(
+                    "fld dword ptr [{mk} + 0x1D07D8]",
+            ".byte 0xD8, 0xC8",
+            "fld dword ptr [{mk} + 0x1D07DC]",
+            ".byte 0xD8, 0xC8",
+            "fld dword ptr [{mk} + 0x1D07E0]",
+            ".byte 0xD8, 0xC8",
+            ".byte 0xDE, 0xC1",
+            ".byte 0xDE, 0xC1",
+            ".byte 0xD9, 0xFA",
+            "fdivr dword ptr [{mk} + 0x22C]",
+            "fld dword ptr [{mk} + 0x1D07D8]",
+            ".byte 0xD8, 0xC9",
+            "fstp dword ptr [{mk} + 0x1D07D8]",
+            "fld dword ptr [{mk} + 0x1D07DC]",
+            ".byte 0xD8, 0xC9",
+            "fstp dword ptr [{mk} + 0x1D07DC]",
+            "fld dword ptr [{mk} + 0x1D07E0]",
+            ".byte 0xDE, 0xC9",
+            "fstp dword ptr [{mk} + 0x1D07E0]",
+            "fld dword ptr [{mk} + 0x1D07D8]",
+            "fmul dword ptr [{o} + 0x4C]",
+            "fld dword ptr [{mk} + 0x1D07DC]",
+            "fmul dword ptr [{o} + 0x50]",
+            "fld dword ptr [{mk} + 0x1D07E0]",
+            "fmul dword ptr [{o} + 0x54]",
+            ".byte 0xDE, 0xC1",
+            ".byte 0xDE, 0xC1",
+            "fstp dword ptr [{mk} + 0x1D0774]",
+            mk = in(reg) mk,
+            o = in(reg) o,
+            out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
+            out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
+            options(nostack),
+            )
+        }
+    }
+
+    pub(super) fn pull_length_x87(mk: usize, e: usize, p: usize, l: usize, rk: usize) {
+        unsafe {
+            core::arch::asm!(
+                    "fld dword ptr [{e} + 0x10]",
+            "fsub dword ptr [{p} + 0x30]",
+            "fstp dword ptr [{mk} + 0x1D07D8]",
+            "fld dword ptr [{e} + 0x14]",
+            "fsub dword ptr [{p} + 0x34]",
+            "fstp dword ptr [{mk} + 0x1D07DC]",
+            "fld dword ptr [{e} + 0x18]",
+            "fsub dword ptr [{p} + 0x38]",
+            "fstp dword ptr [{mk} + 0x1D07E0]",
+            "fld dword ptr [{mk} + 0x1D07D8]",
+            ".byte 0xD8, 0xC8",
+            "fld dword ptr [{mk} + 0x1D07DC]",
+            ".byte 0xD8, 0xC8",
+            "fld dword ptr [{mk} + 0x1D07E0]",
+            ".byte 0xD8, 0xC8",
+            ".byte 0xDE, 0xC1",
+            ".byte 0xDE, 0xC1",
+            ".byte 0xD9, 0xFA",
+            ".byte 0xD9, 0xC0",
+            "fsub dword ptr [{rk} + 0x4C]",
+            "fstp dword ptr [{mk} + 0x1D077C]",
+            "fstp tbyte ptr [{l}]",
+            mk = in(reg) mk,
+            e = in(reg) e,
+            p = in(reg) p,
+            l = in(reg) l,
+            rk = in(reg) rk,
+            out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
+            out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
+            options(nostack),
+            )
+        }
+    }
+
+    pub(super) fn pull_facing_x87(mk: usize, o: usize, l: usize) {
+        unsafe {
+            core::arch::asm!(
+                    "fld tbyte ptr [{l}]",
+            "fdivr dword ptr [{mk} + 0x22C]",
+            "fld dword ptr [{mk} + 0x1D07D8]",
+            ".byte 0xD8, 0xC9",
+            "fstp dword ptr [{mk} + 0x1D07D8]",
+            "fld dword ptr [{mk} + 0x1D07DC]",
+            ".byte 0xD8, 0xC9",
+            "fstp dword ptr [{mk} + 0x1D07DC]",
+            "fld dword ptr [{mk} + 0x1D07E0]",
+            ".byte 0xDE, 0xC9",
+            "fstp dword ptr [{mk} + 0x1D07E0]",
+            "fild dword ptr [{o} + 0x88]",
+            "fdivr dword ptr [{mk} + 0x22C]",
+            "fld dword ptr [{o} + 0x4C]",
+            ".byte 0xD8, 0xC9",
+            "fstp dword ptr [{mk} + 0x1D07E4]",
+            "fld dword ptr [{o} + 0x50]",
+            ".byte 0xD8, 0xC9",
+            "fstp dword ptr [{mk} + 0x1D07E8]",
+            "fld dword ptr [{o} + 0x54]",
+            ".byte 0xDE, 0xC9",
+            "fstp dword ptr [{mk} + 0x1D07EC]",
+            "fld dword ptr [{mk} + 0x1D07D8]",
+            "fmul dword ptr [{mk} + 0x1D07E4]",
+            "fld dword ptr [{mk} + 0x1D07DC]",
+            "fmul dword ptr [{mk} + 0x1D07E8]",
+            "fld dword ptr [{mk} + 0x1D07E0]",
+            "fmul dword ptr [{mk} + 0x1D07EC]",
+            ".byte 0xDE, 0xC1",
+            ".byte 0xDE, 0xC1",
+            ".byte 0xD9, 0xE0",
+            "fstp dword ptr [{mk} + 0x1D0774]",
+            mk = in(reg) mk,
+            o = in(reg) o,
+            l = in(reg) l,
+            out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
+            out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
+            options(nostack),
+            )
+        }
+    }
+
+    pub(super) fn pull_strength_x87(mk: usize, e: usize, o: usize, rk: usize) {
+        unsafe {
+            core::arch::asm!(
+                    "fild dword ptr [{o} + 0x88]",
+            "fmul dword ptr [{rk} + 0x50]",
+            "fadd dword ptr [{mk} + 0x22C]",
+            "fdivr dword ptr [{mk} + 0x22C]",
+            "fsubr dword ptr [{mk} + 0x22C]",
+            "fstp dword ptr [{mk} + 0x1D0780]",
+            "fld dword ptr [{mk} + 0x29C]",
+            "fsub dword ptr [{e} + 0x64]",
+            "fld dword ptr [{rk} + 0x54]",
+            "fmul dword ptr [{mk} + 0x1D0780]",
+            ".byte 0xDE, 0xC9",
+            "fimul dword ptr [{mk} + 0x90]",
+            "fadd dword ptr [{e} + 0x64]",
+            "fist dword ptr [{mk} + 0x1D0780]",
+            "fstp dword ptr [{e} + 0x64]",
+            mk = in(reg) mk,
+            e = in(reg) e,
+            o = in(reg) o,
+            rk = in(reg) rk,
+            out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
+            out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
+            options(nostack),
+            )
+        }
+    }
+
+    pub(super) fn box_place_x87(mk: usize, e: usize, m: usize) {
+        unsafe {
+            core::arch::asm!(
+                    "fld dword ptr [{e} + 0x18]",
+            "fld dword ptr [{e} + 0x14]",
+            "fld dword ptr [{e} + 0x10]",
+            "fld dword ptr [{m} + 0x0]",
+            ".byte 0xD8, 0xC9",
+            "fld dword ptr [{m} + 0x10]",
+            ".byte 0xD8, 0xCB",
+            "fld dword ptr [{m} + 0x20]",
+            ".byte 0xD8, 0xCD",
+            ".byte 0xDE, 0xC1",
+            ".byte 0xDE, 0xC1",
+            ".byte 0xD9, 0xCB",
+            "fld dword ptr [{m} + 0x4]",
+            ".byte 0xD8, 0xCA",
+            "fld dword ptr [{m} + 0x14]",
+            ".byte 0xD8, 0xCC",
+            "fld dword ptr [{m} + 0x24]",
+            ".byte 0xD8, 0xCB",
+            ".byte 0xDE, 0xC1",
+            ".byte 0xDE, 0xC1",
+            ".byte 0xD9, 0xCB",
+            "fld dword ptr [{m} + 0x8]",
+            ".byte 0xDE, 0xCB",
+            "fld dword ptr [{m} + 0x18]",
+            ".byte 0xDE, 0xC9",
+            "fld dword ptr [{m} + 0x28]",
+            ".byte 0xDE, 0xCA",
+            ".byte 0xDE, 0xC1",
+            ".byte 0xDE, 0xC1",
+            ".byte 0xD9, 0xCA",
+            ".byte 0xD9, 0xE1",
+            "fistp dword ptr [{mk} + 0x1D0740]",
+            ".byte 0xDD, 0xC0",
+            ".byte 0xD9, 0xF7",
+            ".byte 0xD9, 0xE1",
+            "fistp dword ptr [{mk} + 0x1D0744]",
+            mk = in(reg) mk,
+            e = in(reg) e,
+            m = in(reg) m,
+            out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
+            out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
+            options(nostack),
+            )
+        }
+    }
+}
+
+#[cfg(all(test, target_arch = "x86"))]
+mod asm_differential {
+    use super::asm_reference as reference;
+    use crate::marks::asm_test::Kind::*;
+    use crate::marks::asm_test::{Op, Spec, differential, with_copy};
+    use crate::marks::ring_store::RingWork;
+    use crate::marks::tuning::MarksFloats;
+
+    #[test]
+    fn box_x87_matches() {
+        const SPEC: Spec = Spec {
+            operands: &[
+                Op::Base {
+                    lo: 0x1D06E0,
+                    hi: 0x1D0826,
+                    reads: &[(0x1D07D8, F32), (0x1D07DC, F32), (0x1D07E0, F32)],
+                    writes: &[
+                        (0x1D0740, I32),
+                        (0x1D0744, I32),
+                        (0x1D07D8, F32),
+                        (0x1D07DC, F32),
+                        (0x1D07E0, F32),
+                    ],
+                },
+                Op::Base {
+                    lo: 0x10,
+                    hi: 0x1C,
+                    reads: &[(0x10, F32), (0x14, F32), (0x18, F32)],
+                    writes: &[],
+                },
+                Op::Base {
+                    lo: 0x30,
+                    hi: 0x3C,
+                    reads: &[(0x30, F32), (0x34, F32), (0x38, F32)],
+                    writes: &[],
+                },
+                Op::Base {
+                    lo: 0x0,
+                    hi: 0x2C,
+                    reads: &[
+                        (0x0, F32),
+                        (0x4, F32),
+                        (0x8, F32),
+                        (0x10, F32),
+                        (0x14, F32),
+                        (0x18, F32),
+                        (0x20, F32),
+                        (0x24, F32),
+                        (0x28, F32),
+                    ],
+                    writes: &[],
+                },
+            ],
+            sincos: false,
+        };
+        differential(
+            &SPEC,
+            |b| reference::box_x87(b[0], b[1], b[2], b[3]),
+            |b| {
+                with_copy(b[0], RingWork::START, |w| {
+                    super::box_x87(w, b[1], b[2], b[3])
+                })
             },
-        )
-    } {
-        Ok(c) => c,
-        Err(why) => return t.skip(why),
-    };
-    // The steps' return address (`push offset loc_4CB6D3`) into the copy.
-    unsafe { copy.patch_u32(0x15, (copy.addr() + 0x86) as u32) };
-    const KINDS: [u32; 12] = [5, 0xB, 6, 0x15, 1, 0xD, 0x13, 0x16, 0x10, 0x11, 3, 6];
-    let n_entries = KINDS.len() as u32;
-    let mut ring = vec![0u8; n_entries as usize * ENTRY_LEN];
-    let base = ring.as_mut_ptr() as u32;
-    let mut settings = vec![0u32; 0x40];
-    let sa = settings.as_mut_ptr() as u32;
-    // An object: its place's matrix at +0x24, its own turn at +0x94, its way at +0x4C.
-    let mut object = vec![0u32; 0x40];
-    let mut place = vec![0u32; 0x10];
-    let oa = object.as_mut_ptr() as u32;
-    let pa = place.as_mut_ptr() as u32;
-    let regions: Vec<Region> = vec![
-        at(RING_CURSOR_RVA),
-        at(RING_COUNT_RVA),
-        at(STATUS_RVA),
-        at(WHOLE_RVA),
-        (game_addr(rva(0x935680)) as u32, 8),
-        (game_addr(rva(0x9356B4)) as u32, 12),
-        (game_addr(rva(0x935718)) as u32, 0x18),
-        (base, ring.len()),
-    ];
-    let mut vars = regions.clone();
-    vars.extend([SETTINGS_RVA, TICKS_RVA, rva(0x63761C)].map(at));
-    let saved = capture(&vars);
-    let fl = |v: f32| v.to_bits();
-    let regs = |r: &Regs| [r.eax, r.ebx, r.ecx, r.edx, r.esi, r.edi, r.ebp];
-    for case in 0..4u32 {
-        let prepare = || unsafe {
-            restore(&vars, &saved);
-            game_write(SETTINGS_RVA, sa);
-            for n in 0..0x10u32 {
-                put(sa + 0x60 + 4 * n, u32::from(case != 3 && n % 2 == 0));
-            }
-            game_write(TICKS_RVA, 2 + case);
-            game_write(rva(0x63761C), 0x40u32);
-            for n in 0..0x40usize {
-                *(oa as *mut u32).add(n) = fl((n as f32 * 0.37).sin());
-            }
-            put(oa + 0x24, pa);
-            put(oa + 0x88, 3 + case);
-            for n in 0..0x10usize {
-                *(pa as *mut u32).add(n) = fl(n as f32 - 6.0 + case as f32);
-            }
-            std::ptr::write_bytes(base as *mut u8, 0, ring.len());
-            for (n, kind) in KINDS.into_iter().enumerate() {
-                let n = n as u32;
-                let e = base + n * ENTRY_LEN as u32;
-                let at = |k: u32| base + ((k + n_entries) % n_entries) * ENTRY_LEN as u32;
-                put(e, at(n + n_entries - 1));
-                put(e + 4, at(n + 1));
-                put(e + 8, (n % 4) * 4);
-                put(e + 0xC, kind);
-                for o in 0..0x18u32 {
-                    put(e + 0x10 + 4 * o, fl((n * 7 + o * 3) as f32 * 0.25 - 4.0));
-                }
-                put(e + 0x14, fl(2.0 + n as f32));
-                put(e + 0x28, if n == 4 { fl(99.0) } else { fl(-3.0) });
-                put(e + 0x50, n * 0x111);
-                put(e + 0x54, 40 + n);
-                put(e + 0x58, n % 0x20);
-                put(e + 0x5C, fl(0.75));
-                put(e + 0x68, oa);
-                put(e + 0x70, 200 + 30 * n);
-                put(e + 0x7C, [5, 900, 5, 900][(n % 4) as usize]);
-                put(e + 0x80, [5, 5, 900, 900][(n % 4) as usize]);
-                put(e + 0x84, if n == 9 { 1 } else { 500 + 25 * n });
-            }
-            game_write(RING_CURSOR_RVA, base + 2 * ENTRY_LEN as u32);
-            game_write(RING_COUNT_RVA, n_entries - 1);
-        };
-        prepare();
-        if unsafe { refusal() }.is_some() {
-            t.check(false, || format!("case {case}: the test's ring is refused"));
-            continue;
-        }
-        NOTED.lock().unwrap().clear();
-        let mut ro = Regs::SENTINEL;
-        unsafe { crate::framework::call_game(&mut ro, copy.addr()) };
-        let theirs = (
-            Some(regs(&ro)),
-            std::mem::take(&mut *NOTED.lock().unwrap()),
-            capture(&regions),
         );
-        prepare();
-        let mine = unsafe {
-            run_ring(&Regs::SENTINEL, &mut |p, r, v| {
-                note(p, r, v);
-                Ok(())
-            })
-        };
-        let mine = (
-            mine.as_ref().ok().map(regs),
-            std::mem::take(&mut *NOTED.lock().unwrap()),
-            capture(&regions),
-        );
-        t.check(theirs == mine, || {
-            format!(
-                "case {case}: original {:x?} {} draws; rust {:x?} {} draws; draws same {}; state first differs at {:?}",
-                theirs.0,
-                theirs.1.len(),
-                mine.0,
-                mine.1.len(),
-                theirs.1 == mine.1,
-                theirs.2.iter().zip(&mine.2).position(|(a, b)| a != b)
-            )
-        });
     }
-    restore(&vars, &saved);
-    drop((ring, settings, object, place));
-    t.finish()
+
+    #[test]
+    fn facing_x87_matches() {
+        const SPEC: Spec = Spec {
+            operands: &[
+                Op::Base {
+                    lo: 0x200,
+                    hi: 0x1D0826,
+                    reads: &[
+                        (0x22C, F32),
+                        (0x1D07D8, F32),
+                        (0x1D07DC, F32),
+                        (0x1D07E0, F32),
+                    ],
+                    writes: &[
+                        (0x1D0774, F32),
+                        (0x1D07D8, F32),
+                        (0x1D07DC, F32),
+                        (0x1D07E0, F32),
+                    ],
+                },
+                Op::Base {
+                    lo: 0x4C,
+                    hi: 0x58,
+                    reads: &[(0x4C, F32), (0x50, F32), (0x54, F32)],
+                    writes: &[],
+                },
+            ],
+            sincos: false,
+        };
+        differential(
+            &SPEC,
+            |b| reference::facing_x87(b[0], b[1]),
+            |b| {
+                with_copy(b[0], MarksFloats::START, |f| {
+                    with_copy(b[0], RingWork::START, |w| super::facing_x87(b[1], f, w))
+                })
+            },
+        );
+    }
+
+    #[test]
+    fn pull_length_x87_matches() {
+        const SPEC: Spec = Spec {
+            operands: &[
+                Op::Base {
+                    lo: 0x1D06E0,
+                    hi: 0x1D07E4,
+                    reads: &[(0x1D07D8, F32), (0x1D07DC, F32), (0x1D07E0, F32)],
+                    writes: &[
+                        (0x1D077C, F32),
+                        (0x1D07D8, F32),
+                        (0x1D07DC, F32),
+                        (0x1D07E0, F32),
+                    ],
+                },
+                Op::Base {
+                    lo: 0x10,
+                    hi: 0x1C,
+                    reads: &[(0x10, F32), (0x14, F32), (0x18, F32)],
+                    writes: &[],
+                },
+                Op::Base {
+                    lo: 0x30,
+                    hi: 0x3C,
+                    reads: &[(0x30, F32), (0x34, F32), (0x38, F32)],
+                    writes: &[],
+                },
+                Op::Base {
+                    lo: 0x0,
+                    hi: 0xA,
+                    reads: &[],
+                    writes: &[(0x0, F80)],
+                },
+                Op::Base {
+                    lo: 0x4C,
+                    hi: 0x50,
+                    reads: &[(0x4C, F32)],
+                    writes: &[],
+                },
+            ],
+            sincos: false,
+        };
+        differential(
+            &SPEC,
+            |b| reference::pull_length_x87(b[0], b[1], b[2], b[3], b[4]),
+            |b| {
+                with_copy(b[0], RingWork::START, |w| {
+                    super::pull_length_x87(b[1], b[2], b[3], w, b[4])
+                })
+            },
+        );
+    }
+
+    #[test]
+    fn pull_facing_x87_matches() {
+        const SPEC: Spec = Spec {
+            operands: &[
+                Op::Base {
+                    lo: 0x200,
+                    hi: 0x1D0826,
+                    reads: &[
+                        (0x22C, F32),
+                        (0x1D07D8, F32),
+                        (0x1D07DC, F32),
+                        (0x1D07E0, F32),
+                        (0x1D07E4, F32),
+                        (0x1D07E8, F32),
+                        (0x1D07EC, F32),
+                    ],
+                    writes: &[
+                        (0x1D0774, F32),
+                        (0x1D07D8, F32),
+                        (0x1D07DC, F32),
+                        (0x1D07E0, F32),
+                        (0x1D07E4, F32),
+                        (0x1D07E8, F32),
+                        (0x1D07EC, F32),
+                    ],
+                },
+                Op::Base {
+                    lo: 0x4C,
+                    hi: 0x8C,
+                    reads: &[(0x4C, F32), (0x50, F32), (0x54, F32), (0x88, I32)],
+                    writes: &[],
+                },
+                Op::Base {
+                    lo: 0x0,
+                    hi: 0xA,
+                    reads: &[(0x0, F80)],
+                    writes: &[],
+                },
+            ],
+            sincos: false,
+        };
+        differential(
+            &SPEC,
+            |b| reference::pull_facing_x87(b[0], b[1], b[2]),
+            |b| {
+                with_copy(b[0], MarksFloats::START, |f| {
+                    with_copy(b[0], RingWork::START, |w| {
+                        super::pull_facing_x87(b[1], b[2], f, w)
+                    })
+                })
+            },
+        );
+    }
+
+    #[test]
+    fn pull_strength_x87_matches() {
+        const SPEC: Spec = Spec {
+            operands: &[
+                Op::Base {
+                    lo: 0x90,
+                    hi: 0x1D0784,
+                    reads: &[(0x90, I32), (0x22C, F32), (0x29C, F32), (0x1D0780, F32)],
+                    writes: &[(0x1D0780, F32), (0x1D0780, I32)],
+                },
+                Op::Base {
+                    lo: 0x64,
+                    hi: 0x68,
+                    reads: &[(0x64, F32)],
+                    writes: &[(0x64, F32)],
+                },
+                Op::Base {
+                    lo: 0x88,
+                    hi: 0x8C,
+                    reads: &[(0x88, I32)],
+                    writes: &[],
+                },
+                Op::Base {
+                    lo: 0x50,
+                    hi: 0x58,
+                    reads: &[(0x50, F32), (0x54, F32)],
+                    writes: &[],
+                },
+            ],
+            sincos: false,
+        };
+        differential(
+            &SPEC,
+            |b| reference::pull_strength_x87(b[0], b[1], b[2], b[3]),
+            |b| {
+                with_copy(b[0], MarksFloats::START, |f| {
+                    with_copy(b[0], RingWork::START, |w| {
+                        super::pull_strength_x87(
+                            b[1],
+                            b[2],
+                            crate::marks::setup::clock_at(b[0]),
+                            f,
+                            w,
+                            b[3],
+                        )
+                    })
+                })
+            },
+        );
+    }
+
+    #[test]
+    fn box_place_x87_matches() {
+        const SPEC: Spec = Spec {
+            operands: &[
+                Op::Base {
+                    lo: 0x1D06E0,
+                    hi: 0x1D0826,
+                    reads: &[],
+                    writes: &[(0x1D0740, I32), (0x1D0744, I32)],
+                },
+                Op::Base {
+                    lo: 0x10,
+                    hi: 0x1C,
+                    reads: &[(0x10, F32), (0x14, F32), (0x18, F32)],
+                    writes: &[],
+                },
+                Op::Base {
+                    lo: 0x0,
+                    hi: 0x2C,
+                    reads: &[
+                        (0x0, F32),
+                        (0x4, F32),
+                        (0x8, F32),
+                        (0x10, F32),
+                        (0x14, F32),
+                        (0x18, F32),
+                        (0x20, F32),
+                        (0x24, F32),
+                        (0x28, F32),
+                    ],
+                    writes: &[],
+                },
+            ],
+            sincos: false,
+        };
+        differential(
+            &SPEC,
+            |b| reference::box_place_x87(b[0], b[1], b[2]),
+            |b| {
+                with_copy(b[0], RingWork::START, |w| {
+                    super::box_place_x87(w, b[1], b[2])
+                })
+            },
+        );
+    }
 }

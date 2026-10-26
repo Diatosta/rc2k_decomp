@@ -5,37 +5,18 @@
 //! In:  esi a car block, eax a checkpoint
 //! Out: CF; ebx the distance when +0x25C is not 0; the rest kept (ZF not read: `jb`)
 //!
-//! Caller: `drive::checkpoint_taken` (four cars). Shadow mode: `physics/flag_result.rs`.
-//! Self-test: a copy of the original on a test car, 40 cases.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Caller: `drive::checkpoint_taken` (four cars).
 
-use crate::errors::Refused;
-use crate::framework::Regs;
-use crate::physics::flag_result::FlagResult;
+use crate::errors::BadInput;
 use rc2k_core::physics::line_places::car_near;
 
-/// The Rust core; `r` the registers at entry.
+/// The Rust core: whether the car block at `car` is near `checkpoint` (eax; the CF).
+/// The distance it leaves in ebx is read by no caller (`checkpoint_taken` keeps ebx).
 // Converted: `rc2k_core::physics::line_places::car_near`.
-pub unsafe fn near_at(car: u32, r: &Regs) -> FlagResult {
-    let get = |o: u32| unsafe { ((car + o) as *const u32).read_unaligned() };
-    let near = car_near(get(0x25C) != 0, || get(0x98), r.eax);
-    FlagResult {
-        eax: r.eax,
-        ecx: None,
-        ebx: near.map(|n| n.0),
-        carry: near.is_some_and(|n| n.1),
-        zero: None,
-    }
-}
-
-fn rust(r: &Regs) -> Result<FlagResult, Refused> {
-    Ok(unsafe { near_at(r.esi, r) })
-}
-
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    crate::physics::flag_result::flags_entry(r, &rust)
+pub fn near_at(car: u32, checkpoint: u32) -> Result<bool, BadInput> {
+    let reading = crate::scene::reading::Reading::new();
+    let get = |o: u32| reading.read::<u32>(car.wrapping_add(o), "a car's block");
+    let near = car_near(get(0x25C) != 0, || get(0x98), checkpoint).is_some_and(|n| n.1);
+    reading.finish()?;
+    Ok(near)
 }

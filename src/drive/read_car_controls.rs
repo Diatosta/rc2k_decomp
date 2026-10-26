@@ -18,137 +18,93 @@
 //!
 //! Callers: race init's loop (`sub_4608BB`), `sub_460835`, `sub_460B2F`, `sub_43A1CA`.
 //! Refuses what `drive_computer_car` refuses (before anything).
-//! Self-test: in a race only: a copy of the original (its calls the game's) against the
-//! Rust version on the game's state, keys and switches by lot; everything written saved
-//! and put back.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
 
 use crate::drive::drive_computer_car::drive_computer_car;
 use crate::drive::next_camera_view::next_camera_view;
 use crate::drive::start_blend::start_blend;
 use crate::errors::{BadInput, Refused};
-use crate::framework::{EAX, ESI, Regs, game_addr, game_read, game_write, rva};
 use crate::math::x87;
-use crate::screens::harness::Left;
-use crate::service::harness::{Region, state_entry};
+use crate::physics::car_store::CAR;
+use crate::physics::tables_store::PHYSICS;
+use crate::race::course_lists_store::COURSE_LISTS;
+use crate::race::vars_store::RACE_VARS;
+use crate::race::view_store::RACE_VIEW;
+use crate::race::work_store::RACE_WORK;
 use rc2k_core::drive::controls::{FLIP_BIT, VIEW_BIT, computer_drives, flipped, read_keys};
-
-fn g(x: u32) -> u32 {
-    unsafe { game_read(rva(x as usize)) }
-}
-
-fn p(x: u32, v: u32) {
-    unsafe { game_write(rva(x as usize), v) }
-}
-
-fn a(x: u32) -> u32 {
-    game_addr(rva(x as usize)) as u32
-}
-
-const CURRENT: u32 = 0x71B3F8; // g_currentCar
 
 /// Does a computer drive this step?
 fn computer() -> bool {
-    computer_drives(g(0x71C3E0), || g(0x62389C), || g(0x71A234))
+    computer_drives(
+        RACE_WORK.in_credits.get(),
+        || RACE_VARS.run_kind.get(),
+        || CAR.driver_kind.get(),
+    )
 }
 
 /// The Rust version: `r` as the original leaves it.
 // Converted: `rc2k_core::drive::controls::{read_keys, computer_drives, flipped}`.
-pub unsafe fn read_car_controls(r: &mut Regs) -> Result<(), Refused> {
-    unsafe {
-        if computer() && g(0x623640) == 0 && g(0x719FEC) >= 0x320 {
-            // `drive_computer_car`'s refusal, before anything here is written.
-            let reaches = crate::math::x87_run::compare_full(g(0x71A0A0), g(0x71BF70)) & 0x100 == 0;
-            if reaches {
-                return Err(BadInput("no checkpoints for the computer's driving").into());
-            }
+pub fn read_car_controls() -> Result<(), Refused> {
+    if computer() && RACE_VARS.checkpoint_count.get() == 0 && CAR.run_ticks.get() >= 0x320 {
+        // `drive_computer_car`'s refusal, before anything here is written.
+        let reaches = crate::math::x87_run::compare_full(
+            CAR.crash_matrix[5].bits(),
+            RACE_WORK.driver_tilt_limit.bits(),
+        ) & 0x100
+            == 0;
+        if reaches {
+            return Err(BadInput("no checkpoints for the computer's driving").into());
         }
-        p(0x5C694C, g(0x71A440));
-        p(0x71A440, 0);
-        p(0x71A44C, 0);
-        for (from, to) in [
-            (0x6138C4, 0x71A43C),
-            (0x6138C8, 0x71A440),
-            (0x6138CC, 0x71A444),
-            (0x6138D0, 0x71A448),
-        ] {
-            p(to, g(from));
-        }
-        let keys = read_keys(g(0x5C694C), g(0x71A440));
-        let pressed = keys.pressed;
-        p(0x71A44C, pressed);
-        p(0x613894, g(0x71A43C));
-        p(0x613890, g(0x71A444));
-        p(0x613898, g(0x71A448));
-        p(0x61389C, keys.hand);
-        p(0x6138A0, keys.up);
-        r.eax = keys.down;
-        p(0x6138A4, r.eax);
-        let replay = g(0x52A910) != 0;
-        if !replay {
-            r.eax = g(CURRENT);
-        }
-        if replay || g(CURRENT) < g(0x63DB94) {
-            r.eax = pressed & FLIP_BIT;
-            if r.eax != 0 {
-                p(0x71A05C, flipped(g(0x71A05C)));
-            }
-            r.eax = pressed & VIEW_BIT;
-            if r.eax != 0 {
-                r.esi = a(0x719FD8);
-                next_camera_view(r.esi).apply(r);
-            }
-        }
-        if !computer() {
-            return Ok(());
-        }
-        r.eax = g(CURRENT);
-        p(0x71C0CC, r.eax);
-        r.eax = start_blend();
-        p(0x71BFA4, x87::loaded(g(0x71A658)));
-        drive_computer_car()?;
-        for (k, to) in [
-            0x613890u32,
-            0x613894,
-            0x613898,
-            0x61389C,
-            0x6138A0,
-            0x6138A4,
-        ]
-        .into_iter()
-        .enumerate()
-        {
-            p(to, g(0x71BF88 + 4 * k as u32));
-        }
-        Ok(())
     }
-}
-
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    let mut g = *r;
-    unsafe { read_car_controls(&mut g) }?;
-    Ok(Left::nothing().with(EAX, g.eax).with(ESI, g.esi))
-}
-
-/// Everything it writes.
-pub fn regions() -> Vec<Region> {
-    let mut r = crate::drive::drive_computer_car::regions();
-    r.extend([
-        (a(0x5C694C), 4),
-        (a(0x71A43C), 0x14),
-        (a(0x613890), 0x18),
-        (a(0x71A05C), 4),
-        (a(0x719FD8 + 0x684), 0x1C),
-        (a(0x71A654), 8),
-    ]);
-    r
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
+    COURSE_LISTS.input_keys_mask.set(CAR.input_keys.get());
+    CAR.input_keys.set(0);
+    CAR.keys_pressed.set(0);
+    // The four input words (recorded or replayed) into the car's inputs.
+    let words = [
+        &CAR.input_throttle,
+        &CAR.input_keys,
+        &CAR.input_steering,
+        &CAR.input_brake,
+    ];
+    for (to, from) in words.into_iter().zip(&PHYSICS.input_words) {
+        to.set(from.get());
+    }
+    let keys = read_keys(COURSE_LISTS.input_keys_mask.get(), CAR.input_keys.get());
+    let pressed = keys.pressed;
+    CAR.keys_pressed.set(pressed);
+    PHYSICS.input_throttle.set(CAR.input_throttle.get());
+    PHYSICS.input_steer.set(CAR.input_steering.get());
+    PHYSICS.input_brake.set(CAR.input_brake.get());
+    PHYSICS.input_handbrake.set(keys.hand);
+    PHYSICS.input_gear_up.set(keys.up);
+    PHYSICS.input_gear_down.set(keys.down);
+    let replay = crate::net::store::NET.session.get() != 0;
+    if replay || RACE_WORK.current_car.get() < RACE_VIEW.players.get() {
+        if pressed & FLIP_BIT != 0 {
+            CAR.lights_on.set(flipped(CAR.lights_on.get()));
+        }
+        if pressed & VIEW_BIT != 0 {
+            next_camera_view(crate::physics::car_store::car_addr())?;
+        }
+    }
+    if !computer() {
+        return Ok(());
+    }
+    RACE_WORK.driver_slot.set(RACE_WORK.current_car.get());
+    start_blend();
+    RACE_WORK
+        .driver_start_blend
+        .set_bits(x87::loaded(CAR.start_blend.bits()));
+    drive_computer_car()?;
+    let (ph, w) = (&PHYSICS, &RACE_WORK);
+    for (to, from) in [
+        (&ph.input_steer, &w.driver_steer),
+        (&ph.input_throttle, &w.driver_throttle),
+        (&ph.input_brake, &w.driver_brake),
+        (&ph.input_handbrake, &w.driver_flags[0]),
+        (&ph.input_gear_up, &w.driver_flags[1]),
+        (&ph.input_gear_down, &w.driver_flags[2]),
+    ] {
+        to.set(from.get());
+    }
+    Ok(())
 }

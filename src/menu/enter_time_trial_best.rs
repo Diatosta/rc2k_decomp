@@ -9,76 +9,47 @@
 //! In:  nothing
 //! Out: every register preserved (`pusha` .. `popa`)
 //!
-//! Callers: the time trial's events, when the player qualifies. The two callees are their
-//! Rust versions, `sealed_player_time` with the registers the original has there (eax the
-//! stage's +0x3C, ebx `dword_7558D0`, esi the player, edi the entry). Refuses (before
-//! anything) a current player past the four or missing, a stage the tables do not give,
-//! or a name pointer of 0. Self-test: the game's tables for each stage choice there, the
-//! player's time by case; the seal's state, `dword_7559EC`, `hhmm` and `g_keptPlayerName`
-//! compared too; put back.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Callers: the time trial's events, when the player qualifies. The two callees are their Rust
+//! versions, `sealed_player_time` with the registers the original has there (eax the stage's +0x3C,
+//! ebx `dword_7558D0`, esi the player, edi the entry). Refuses (before anything) a current player
+//! past the four or missing, a stage the tables do not give, or a name pointer of 0.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::Regs;
+use crate::menu::draw_work_store::DRAW_WORK;
 use crate::menu::event_flow::*;
-use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
+use crate::session::Dword;
 
-const STAGE_SLOT: usize = 0x7559EC; // dword_7559EC
+const STAGE_SLOT: &Dword = &DRAW_WORK.figure; // dword_7559EC
 // hhmm
 
-pub unsafe fn enter_time_trial_best(entry: &Regs) -> Result<(), Refused> {
+/// The Rust version (see the header).
+pub fn enter_time_trial_best() -> Result<(), Refused> {
     use rc2k_core::menu::bests;
     let record = stage_record()?;
-    let tenth = stage_times()? + crate::menu::time_trial_qualifies::TENTH;
+    stage_times()?; // a stage the tables do not give: refused
     let p = current_player()?;
-    let name = dword(p + 0x18);
+    let name = dword(p + 0x18)?;
     if name == 0 {
         return Err(BadInput("a player's name pointer of 0").into());
     }
-    let slot = dword(record + 0x3C);
+    let slot = dword(record + 0x3C)?;
     set(STAGE_SLOT, slot);
     let cheats = get(CHEATS);
-    let sealed = unsafe {
-        crate::menu::sealed_player_time::sealed_player_time(&Regs {
-            eax: slot,
-            ebx: get(STAGE_SUB),
-            esi: p,
-            edi: tenth,
-            ..*entry
-        })?
-    };
+    let sealed = crate::menu::sealed_player_time::sealed_player_time(slot)?;
     // Converted: `rc2k_core::menu::bests::enter_tenth`, then `rank_time_trial_best`.
     use crate::menu::standings::bytes;
     let best = bests::NewBest {
-        key: dword(p + 0x88),
+        key: dword(p + 0x88)?,
         player: 1,
-        nationality: dword(p + 4),
+        nationality: dword(p + 4)?,
         name_at: name,
-        car: dword(p + 8),
-        group: dword(p + 0x90),
-        name: bytes(name),
+        car: dword(p + 8)?,
+        group: dword(p + 0x90)?,
+        name: bytes(name)?,
         entered: None,
-        seal: Some(bests::Seal {
-            cheats,
-            sealed: [sealed.eax, sealed.ebx],
-        }),
-        line: Some(bytes(p + 0x20C)),
+        seal: Some(bests::Seal { cheats, sealed }),
+        line: Some(bytes(p + 0x20C)?),
     };
     bests::enter_tenth(&mut crate::menu::rank_time_trial_best::stage_list()?, &best);
     crate::menu::rank_time_trial_best::rank_time_trial_best()
-}
-
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    unsafe { enter_time_trial_best(r)? };
-    Ok(Left::nothing())
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
 }

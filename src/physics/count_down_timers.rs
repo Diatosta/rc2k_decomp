@@ -9,46 +9,21 @@
 //! Out: eax `dword_71A270` & 0x1E when that is looked at, else kept; no flags read
 //!
 //! Callers: `sub_43B635` (0x43B70A) and `sub_421848` (the car specification's run).
-//! Self-test: `physics/copy_hooks_test.rs` (a copy on test variables against the
-//! converted version), 48 cases; one compare and copy of floats: exact at any precision.
+//!
+//! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
+//! above are the original's, for reference.
 
-use crate::errors::Refused;
-use crate::framework::{EAX, RawHook, Regs, game_addr, hook_asm, rva};
-use crate::physics::copy_hooks_test::{lot, test_moves};
-use crate::screens::harness::Left;
-use crate::service::harness::{dispatch_state, state_entry};
+use crate::physics::car_store::CAR;
+use crate::race::vars_store::RACE_VARS;
 use rc2k_core::physics::motion::{StepCounters, StepFacts, count_down};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook = RawHook::new(
-    "physics::count_down_timers",
-    rva(0x43D4B5),
-    thunk,
-    &ORIGINAL,
-)
-.self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
-
-const VARIABLES: [usize; 16] = [
-    0x71AF8C, 0x71AF88, 0x719FEC, 0x71A080, 0x71A07C, 0x71A078, 0x62389C, 0x71A270, 0x71A1AC,
-    0x71A240, 0x71A244, 0x71A1CC, 0x71A1A8, 0x71AEE0, 0x71A5D4, 0x71A438,
-];
 
 /// The converted version (`rc2k_core::physics::motion`) on the variables at `v`; `r` as
-/// the original leaves it.
+/// the original leaves (eax) are read by none of its callers.
 // Converted: `rc2k_core::physics::motion::count_down`.
-pub unsafe fn count_at(v: &[u32], r: &mut Regs) {
+pub unsafe fn count_at(v: &[u32]) {
     unsafe {
-        let get = |k: usize| (v[k] as *const u32).read_unaligned();
-        let put = |k: usize, x: u32| (v[k] as *mut u32).write_unaligned(x);
+        let get = |k: usize| (crate::pointers::host(v[k]) as *const u32).read_unaligned();
+        let put = |k: usize, x: u32| (crate::pointers::host(v[k]) as *mut u32).write_unaligned(x);
         let mut c = StepCounters {
             first: [get(0), get(1)],
             standing: get(9),
@@ -64,9 +39,7 @@ pub unsafe fn count_at(v: &[u32], r: &mut Regs) {
             gear: get(8),
             figure: f32::from_bits(get(13)),
         };
-        if let Some(eax) = count_down(&mut c, &facts) {
-            r.eax = eax;
-        }
+        count_down(&mut c, &facts);
         for (k, x) in [
             (0, c.first[0]),
             (1, c.first[1]),
@@ -85,73 +58,28 @@ pub unsafe fn count_at(v: &[u32], r: &mut Regs) {
 }
 
 fn game() -> Vec<u32> {
-    VARIABLES
-        .iter()
-        .map(|&x| game_addr(rva(x)) as u32)
-        .collect()
+    vec![
+        CAR.light_hold_steps.addr(),
+        CAR.value_jump_steps.addr(),
+        CAR.run_ticks.addr(),
+        CAR.finish_flag.addr(),
+        CAR.go_stand_timer.addr(),
+        CAR.started_stand_timer.addr(),
+        RACE_VARS.run_kind.addr(),
+        CAR.parts_present.addr(),
+        CAR.gear.addr(),
+        CAR.stopped_steps.addr(),
+        CAR.tyre_change_state.addr(),
+        CAR.wall_hit_timer.addr(),
+        CAR.drive_cut_steps.addr(),
+        CAR.engine_speed_scaled.addr(),
+        CAR.top_speed.addr(),
+        CAR.hit_cooldown.addr(),
+    ]
 }
 
 /// The Rust version (one compare and copy of floats: the same at any precision); `r` as
-/// the original leaves it.
-pub unsafe fn count_down_timers(r: &mut Regs) {
-    unsafe { count_at(&game(), r) }
-}
-
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    let mut g = *r;
-    unsafe { count_at(&game(), &mut g) };
-    Ok(Left::nothing().with(EAX, g.eax))
-}
-
-extern "C" fn dispatch(r: &mut Regs) {
-    let v = game();
-    let regions: Vec<_> = [0usize, 1, 9, 10, 11, 12, 14, 15]
-        .iter()
-        .map(|&k| (v[k], 4))
-        .collect();
-    dispatch_state(&HOOK, r, call_original, &regions, &rust);
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
-}
-
-fn fill(seed: u32, out: &mut [u32]) {
-    lot(seed, out);
-    for k in [0usize, 1, 11, 12, 15] {
-        out[k] = if (seed + k as u32).is_multiple_of(3) {
-            0
-        } else {
-            out[k] % 50
-        };
-    }
-    out[2] = [500u32, 1000, 5000][(seed % 3) as usize];
-    for (k, o) in out.iter_mut().enumerate().take(6).skip(3) {
-        *o = u32::from((seed >> k).is_multiple_of(5));
-    }
-    out[6] = seed % 3;
-    out[7] = if seed.is_multiple_of(4) { 0x1E } else { out[7] };
-    out[8] = [0u32, 1, u32::MAX][(seed / 3 % 3) as usize];
-    out[10] = [0u32, u32::MAX, 1, 2, 7][(seed % 5) as usize];
-    out[13] = (seed as f32 * 1.5).to_bits();
-    out[14] = 6.0f32.to_bits();
-}
-
-fn self_test() -> (usize, usize) {
-    test_moves(
-        &HOOK,
-        0x43D4B5,
-        0xE5,
-        &[0x83, 0x3D, 0x8C, 0xAF, 0x71, 0x00, 0x00],
-        &VARIABLES,
-        27,
-        48,
-        &fill,
-        &|v, r| {
-            unsafe { count_at(v, r) };
-            Left::nothing().with(EAX, r.eax)
-        },
-    )
+/// the registers it leaves are read by none of its callers.
+pub unsafe fn count_down_timers() {
+    unsafe { count_at(&game()) }
 }

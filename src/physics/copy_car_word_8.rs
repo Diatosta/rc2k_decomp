@@ -6,76 +6,27 @@
 //! Out: eax the word; the rest kept; no flags read
 //!
 //! Caller: `sub_43C8AC`.
-//! Self-test: `physics/copy_hooks_test.rs`, 6 fillings.
 
-use crate::errors::Refused;
-use crate::framework::{EAX, RawHook, Regs, game_addr, hook_asm, rva};
-use crate::physics::copy_hooks_test::{lot, test_moves};
-use crate::screens::harness::Left;
-use crate::service::harness::{dispatch_state, state_entry};
-use std::sync::atomic::AtomicUsize;
+use crate::physics::car_store::CAR;
+use crate::physics::tables_store::PHYSICS;
 
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("physics::copy_car_word_8", rva(0x440C66), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
-
-/// The word, its copy, the cleared one (IDA addresses).
-const VARIABLES: [usize; 3] = [0x719FE0, 0x6140F0, 0x6140EC];
-
-unsafe fn core(v: &[u32]) -> Left {
+unsafe fn core(v: &[u32]) {
     unsafe {
-        let w = (v[0] as *const u32).read_unaligned();
-        (v[1] as *mut u32).write_unaligned(w);
-        (v[2] as *mut u32).write_unaligned(0);
-        Left::nothing().with(EAX, w)
+        let w = (crate::pointers::host(v[0]) as *const u32).read_unaligned();
+        (crate::pointers::host(v[1]) as *mut u32).write_unaligned(w);
+        (crate::pointers::host(v[2]) as *mut u32).write_unaligned(0);
     }
 }
 
 fn game() -> Vec<u32> {
-    VARIABLES
-        .iter()
-        .map(|&x| game_addr(rva(x)) as u32)
-        .collect()
+    vec![
+        CAR.step_clock.addr(),
+        PHYSICS.time_marks[1].addr(),
+        PHYSICS.time_marks[0].addr(),
+    ]
 }
 
 /// The Rust version.
-pub unsafe fn copy_car_word_8() -> Left {
+pub unsafe fn copy_car_word_8() {
     unsafe { core(&game()) }
-}
-
-fn rust(_: &Regs) -> Result<Left, Refused> {
-    Ok(unsafe { copy_car_word_8() })
-}
-
-extern "C" fn dispatch(r: &mut Regs) {
-    let v = game();
-    dispatch_state(&HOOK, r, call_original, &[(v[1], 4), (v[2], 4)], &rust);
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
-}
-
-fn self_test() -> (usize, usize) {
-    test_moves(
-        &HOOK,
-        0x440C66,
-        0x15,
-        &[0xA1, 0xE0, 0x9F, 0x71, 0x00],
-        &VARIABLES,
-        3,
-        6,
-        &lot,
-        &|v, _| unsafe { core(v) },
-    )
 }

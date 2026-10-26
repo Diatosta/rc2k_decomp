@@ -9,15 +9,17 @@
 //! frame; the steps that are more than a call or a store are the functions below, generated
 //! from the listing.
 //! The name is a reading from the title string of its menu, "VER ETAPA", not yet a visit.
-//! Callers: `sub_47037E`. Ungated thunk; shadow mode runs the original alone; each real call
-//! writes a line to hook.log. Self-test: `screen_loop::check_screen`.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Callers: `sub_47037E`.
 
-use crate::framework::{Regs, game_read, game_write, rva};
-use crate::menu::screen_loop::{Env, List, Screen, Step, screen_entry};
+use crate::errors::Refused;
+use crate::framework::rva;
+use crate::menu::champ_store::CHAMP_VIEW;
+use crate::menu::draw_lists_store::DRAW_LISTS;
+use crate::menu::event_store::EVENT_STATE;
+use crate::menu::flow_store::SCREEN_FLOW;
+use crate::menu::menus_store::MENUS;
+use crate::menu::screen_items_store::{SCREEN_ITEMS, slot};
+use crate::menu::screen_loop::{Callee, Carried, List, Screen, Step};
 
 // ---- Rust version: `menu::screen_loop` with this ----
 
@@ -32,53 +34,55 @@ fn take_kept() -> u32 {
     KEPT.with_borrow_mut(|stack| stack.pop().expect("a pop without its push"))
 }
 
-unsafe fn before(g: &mut Regs, _env: &mut dyn Env) {
-    unsafe {
-        KEPT.with_borrow_mut(|stack| stack.push(game_read(rva(0x75595C))));
-        KEPT.with_borrow_mut(|stack| stack.push(game_read(rva(0x755958))));
-        g.eax = game_read(rva(0x75595C));
-        game_write(rva(0x755964), g.eax);
-        g.eax = game_read(rva(0x755958));
-        game_write(rva(0x755960), g.eax);
-    }
+fn before(c: &mut Carried) -> Result<(), Refused> {
+    KEPT.with_borrow_mut(|stack| stack.push(EVENT_STATE.section.get()));
+    KEPT.with_borrow_mut(|stack| stack.push(EVENT_STATE.index.get()));
+    c.arg = EVENT_STATE.section.get();
+    EVENT_STATE.dword_755964.set(c.arg);
+    c.arg = EVENT_STATE.index.get();
+    EVENT_STATE.first_page_stage.set(c.arg);
+
+    Ok(())
 }
 
-unsafe fn after_lists(g: &mut Regs, env: &mut dyn Env) {
+unsafe fn after_lists(c: &mut Carried) -> Result<(), Refused> {
     unsafe {
-        env.call(rva(0x480032), g);
-        env.call(rva(0x470FC3), g);
-        if game_read::<u32>(rva(0x755968)) == 0x0 {
-            env.call(rva(0x470F9F), g);
+        Callee::CountStagePages.run(c)?;
+        Callee::StyleChosenStageItem.run(c)?;
+        if EVENT_STATE.stage_pages.get() == 0x0 {
+            Callee::StyleStageItem.run(c)?;
         }
-        game_write(rva(0x755700), 0x3u32);
+        CHAMP_VIEW.stage_mode.set(0x3u32);
     }
+    Ok(())
 }
 
-unsafe fn after(g: &mut Regs, env: &mut dyn Env) {
+unsafe fn after(c: &mut Carried) -> Result<(), Refused> {
     unsafe {
-        game_write(rva(0x755958), take_kept());
-        game_write(rva(0x75595C), take_kept());
-        env.call(rva(0x40F757), g);
+        EVENT_STATE.index.set(take_kept());
+        EVENT_STATE.section.set(take_kept());
+        Callee::StopStream.run(c)?;
     }
+    Ok(())
 }
 
 pub const SCREEN: Screen = Screen {
-    menu: rva(0x74DAA0),
-    saved_item: rva(0x74776C),
+    menu: || MENUS.view_stage.addr() as usize,
+    saved_item: || &SCREEN_ITEMS.current[slot::VIEW_STAGE],
     lists: &[
         List {
-            pointer: rva(0x755504), // g_sceneList
-            table: rva(0x759096),
+            pointer: || &SCREEN_FLOW.scene_list, // g_sceneList
+            table: || DRAW_LISTS.view_stage_scene.addr() as usize,
             run: false,
         },
         List {
-            pointer: rva(0x7554F8), // g_drawList
-            table: rva(0x758D86),
+            pointer: || &SCREEN_FLOW.draw_list, // g_drawList
+            table: || DRAW_LISTS.view_stage_draw.addr() as usize,
             run: false,
         },
         List {
-            pointer: rva(0x7554FC), // g_overlayList
-            table: rva(0x75925A),
+            pointer: || &SCREEN_FLOW.overlay_list, // g_overlayList
+            table: || DRAW_LISTS.view_stage_overlay.addr() as usize,
             run: false,
         },
     ],
@@ -89,15 +93,15 @@ pub const SCREEN: Screen = Screen {
     set_up_first: &[],
     prepare: &[],
     after_lists: &[Step::Do(after_lists)],
-    background: &[Step::Call(rva(0x4683CF))],
-    after_first_frame: &[Step::Call(rva(0x47F437))],
+    background: &[Step::Call(Callee::DrawStageMap)],
+    after_first_frame: &[Step::Call(Callee::PlayStageSpeech)],
     confirm: Some(&[]),
     ask_also_if: None,
     confirmed: &[],
     unasked_skips_save: false,
     after: &[Step::Do(after)],
     escape_leaves: false,
-    each_frame: &[Step::Call(rva(0x46F7AD))],
+    each_frame: &[Step::Call(Callee::StepCarStream)],
     short_action_check: false,
     leave_at_once: None,
     next_frame_repeats_first: false,
@@ -117,18 +121,4 @@ pub const SCREEN: Screen = Screen {
     after_blink: &[],
     restart_action_check: false,
     always_asks: false,
-    also_reads: &[],
-    also_writes: &[
-        rva(0x755700),
-        rva(0x755958),
-        rva(0x75595C),
-        rva(0x755960),
-        rva(0x755964),
-    ],
 };
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    screen_entry("menu::view_stage_loop", r, &SCREEN)
-}

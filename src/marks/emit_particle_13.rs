@@ -4,9 +4,9 @@
 //! In:  esi the car object
 //! Out: every register kept (`pusha` .. `popa`)
 //!
-//! The entry: its place the point (x negated; y less `flt_7651E4`; by `flt_7651D4`)
-//! turned by `g_marksCar`'s matrix (placed and the place taken off again, on the x87
-//! stack: `x87::turned_place_less`), less `flt_93A462` in y at +0x28; the strength
+//! The entry: its place the point (x negated; y less `flt_7651E4`; by `flt_7651D4`) turned
+//! by `g_marksCar`'s matrix (placed and the place taken off again, on the x87 stack:
+//! `x87::turned_place_less`), less `flt_93A462` in y at +0x28; the strength
 //! (`dword_9356C0`, a float) 1 - 1 / (the car's +8 by `flt_93A466` plus 1); its motion the
 //! matrix's third row by the strength and `flt_93A46A` ..; then its place moved by the
 //! motion times a random's low word by `flt_765214` times `g_marksFrameTicks`; a random
@@ -15,244 +15,186 @@
 //! +0x88; +0x70 `flt_93A47E` by the strength plus `flt_93A482`, rounded, and +0x60 that by
 //! `flt_93A486`. Caller: `sub_4C9AF6` (the cars' loop). Refuses (before anything) a null
 //! object, a null `g_marksCar` or matrix, and a model (+4) past the table's 34 entries,
-//! when an entry is made. Self-test: a ring and car of the test's
-//! (`marks::emit_particle_6::TestEmitter`), several models, speeds, ticks and fillings.
+//! when an entry is made.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{RawHook, Regs, SelfTest, game_read, game_write, hook_asm, rva};
-use crate::marks::emit_particle_6::{TEST_ENTRIES, TestEmitter};
 use crate::marks::emitters::*;
+use crate::marks::setup::CLOCK;
+use crate::marks::splines::SPLINE_HEAD;
+use crate::marks::tuning::MARKS_FLOATS;
 use crate::math::x87;
-use crate::screens::harness::Left;
-use crate::service::harness::{
-    Region, at as at_rva, check_state, dispatch_state, restore, state_entry,
-};
-use std::sync::atomic::AtomicUsize;
+use crate::pointers::GamePtr;
+use crate::session::{Dword, Float, read_first};
 
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("marks::emit_particle_13", rva(0x4CE05E), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
-
-const POINTS_RVA: usize = rva(0x769312); // flt_769312: 3 floats by the car's model
 const MODELS: u32 = 34;
-const SCALE_RVA: usize = rva(0x7651D4); // flt_7651D4
-const DROP_RVA: usize = rva(0x7651E4); // flt_7651E4
-const LIFT_RVA: usize = rva(0x93A462);
-const STRENGTH_RVA: usize = rva(0x9356C0); // dword_9356C0
-const STRENGTH_K_RVA: usize = rva(0x93A466);
-/// flt_93A46A, flt_93A46E, flt_93A472: the motion's factors (x, y, z).
-const MOTION_K: [usize; 3] = [rva(0x93A46A), rva(0x93A46E), rva(0x93A472)];
-const DRIFT_RANDOM_RVA: usize = rva(0x93A476);
-const DRIFT_K_RVA: usize = rva(0x765214); // flt_765214
-const TICKS_RVA: usize = rva(0x764FD0); // g_marksFrameTicks
-const SPIN_RANDOM_RVA: usize = rva(0x93A47A);
-const LIFE_SCALE_RVA: usize = rva(0x7651A4); // flt_7651A4
-const FADE_K_RVA: usize = rva(0x7651A0); // dword_7651A0
-/// flt_93A47E, flt_93A482, flt_93A486: the size's factor, base and scale.
-const SIZE_K: [usize; 3] = [rva(0x93A47E), rva(0x93A482), rva(0x93A486)];
 const LOOK: u32 = 0x3F;
 const LIFE: u32 = 0xFA;
 
 /// Why the Rust version refuses, if it does, worked out without writing.
-unsafe fn refusal(object: u32) -> Option<&'static str> {
-    unsafe {
+fn refusal(object: u32) -> Result<Option<&'static str>, Refused> {
+    Ok({
         if object == 0 {
-            return Some("a null object");
+            return Ok(Some("a null object"));
         }
         // The ring full: nothing more is read.
         next_entry()?;
-        let car: u32 = game_read(OBJECT_RVA);
-        if car == 0 || at(car + 0x24) == 0 {
-            return Some("a null g_marksCar or matrix");
+        let car: u32 = EMITTER.car.get();
+        if car == 0 || at(car + 0x24)? == 0 {
+            return Ok(Some("a null g_marksCar or matrix"));
         }
-        if at(object + 4) >= MODELS {
-            return Some("a car model past flt_769312's 34 entries");
+        if at(object + 4)? >= MODELS {
+            return Ok(Some("a car model past flt_769312's 34 entries"));
         }
         None
-    }
+    })
 }
 
 /// The Rust version (see the header).
-pub unsafe fn emit_particle_13(object: u32) -> Result<(), Refused> {
-    unsafe {
-        if let Some(why) = refusal(object) {
-            return Err(BadInput(why).into());
-        }
-        if next_entry().is_none() {
-            return Ok(());
-        }
-        let model = at(object + 4) as usize;
-        let e = take_entry(at(object + 0x1C) & 0xFF_FFFF, 0xD);
-        let put = |o: u32, v: u32| ((e + o) as *mut u32).write_unaligned(v);
-        let car: u32 = game_read(OBJECT_RVA);
-        let m = at(car + 0x24);
-        let t: [u32; 3] = game_read(POINTS_RVA + 12 * model);
-        let [x, y, y_less, z] = x87::turned_place_less(
-            t,
-            game_read(SCALE_RVA),
-            game_read(DROP_RVA),
-            game_read(LIFT_RVA),
-            m,
-        );
-        put(0x10, x);
-        put(0x14, y);
-        put(0x28, y_less);
-        put(0x18, z);
-        let one: u32 = game_read(ONE_RVA);
-        let s = x87::one_less_inverse(at(object + 8), game_read(STRENGTH_K_RVA), one);
-        game_write(STRENGTH_RVA, s);
-        let motion: [u32; 3] = std::array::from_fn(|k| {
-            x87::mul2(at(m + 0x20 + 4 * k as u32), s, game_read(MOTION_K[k]))
-        });
-        put(0x2C, motion[0]);
-        put(0x30, motion[1]);
-        put(0x34, motion[2]);
-        let r = (next_c5(DRIFT_RANDOM_RVA) & 0xFFFF) as i32;
-        let moved = x87::drifted(
-            r,
-            game_read(DRIFT_K_RVA),
-            motion,
-            game_read(TICKS_RVA),
-            [x, y, z],
-        );
-        put(0x10, moved[0]);
-        put(0x14, moved[1]);
-        put(0x18, moved[2]);
-        let r = next_c5(SPIN_RANDOM_RVA);
-        put(0x54, (r & 0x3F).wrapping_sub(0x20));
-        put(0x50, r.rotate_right(6) & 0xFFF);
-        put(0x58, LOOK);
-        put(0x84, LIFE);
-        put(
-            0x78,
-            x87::times_over_int(s, game_read(LIFE_SCALE_RVA), LIFE as i32),
-        );
-        put(0x74, x87::mul(s, game_read(FADE_K_RVA)));
-        put(0x68, car);
-        let size = x87::times_plus_to_int(game_read(SIZE_K[0]), s, game_read(SIZE_K[1]));
-        put(0x70, size as u32);
-        put(0x6C, at(car + 0x88));
-        put(0x60, x87::int_times(size, game_read(SIZE_K[2])));
+pub fn emit_particle_13(object: u32) -> Result<(), Refused> {
+    if let Some(why) = refusal(object)? {
+        return Err(BadInput(why).into());
     }
+    if next_entry()?.is_none() {
+        return Ok(());
+    }
+    let model = at(object + 4)? as usize;
+    let e = take_entry(at(object + 0x1C)? & 0xFF_FFFF, 0xD)?;
+    let put = |o: u32, v: u32| GamePtr::new(e + o).write::<u32>(v, "a mark's field");
+    let car: u32 = EMITTER.car.get();
+    let m = at(car + 0x24)?;
+    let t: [u32; 3] = read_first(&SPLINE_HEAD.points[3 * model..]);
+    let [x, y, y_less, z] = x87::turned_place_less(
+        t,
+        MARKS_FLOATS.plus_65_536.bits(),
+        MARKS_FLOATS.seven_hundred.bits(),
+        KIND13_SET.lift.bits(),
+        m,
+    );
+    put(0x10, x)?;
+    put(0x14, y)?;
+    put(0x28, y_less)?;
+    put(0x18, z)?;
+    let one: u32 = MARKS_FLOATS.one.bits();
+    let s = x87::one_less_inverse(at(object + 8)?, KIND13_SET.strength_k.bits(), one);
+    RING_WORK.whole.set(s);
+    let motion: [u32; 3] = crate::marks::try_from_fn(|k| {
+        Ok({
+            x87::mul2(
+                at(m + 0x20 + 4 * k as u32)?,
+                s,
+                KIND13_SET.motion_k[k].bits(),
+            )
+        })
+    })?;
+    put(0x2C, motion[0])?;
+    put(0x30, motion[1])?;
+    put(0x34, motion[2])?;
+    let r = (next_c5(&KIND13_SET.drift_random) & 0xFFFF) as i32;
+    let moved = x87::drifted(
+        r,
+        MARKS_FLOATS.over_65536.bits(),
+        motion,
+        CLOCK.frame_ticks.get() as i32,
+        [x, y, z],
+    );
+    put(0x10, moved[0])?;
+    put(0x14, moved[1])?;
+    put(0x18, moved[2])?;
+    let r = next_c5(&KIND13_SET.spin_random);
+    put(0x54, (r & 0x3F).wrapping_sub(0x20))?;
+    put(0x50, r.rotate_right(6) & 0xFFF)?;
+    put(0x58, LOOK)?;
+    put(0x84, LIFE)?;
+    put(
+        0x78,
+        x87::times_over_int(s, MARKS_FLOATS.two_fifty_seven.bits(), LIFE as i32),
+    )?;
+    put(0x74, x87::mul(s, MARKS_FLOATS.two_fifty_six.bits()))?;
+    put(0x68, car)?;
+    let size = x87::times_plus_to_int(KIND13_SET.size_k[0].bits(), s, KIND13_SET.size_k[1].bits());
+    put(0x70, size as u32)?;
+    put(0x6C, at(car + 0x88)?)?;
+    put(0x60, x87::int_times(size, KIND13_SET.size_k[2].bits()))?;
     Ok(())
 }
 
-/// The globals it may write.
-pub fn globals() -> Vec<Region> {
-    [
-        STRENGTH_RVA,
-        DRIFT_RANDOM_RVA,
-        SPIN_RANDOM_RVA,
-        RING_CURSOR_RVA,
-        RING_COUNT_RVA,
-    ]
-    .map(at_rva)
-    .to_vec()
+/// Kind 0xD's emitter variables (`emit_particle_13`) (IDA 0x93A462 .. 0x93A48A, the image's layout; phase 7, typed state).
+#[repr(C)]
+pub struct Kind13Set {
+    /// 0x93A462: `flt_93A462`: the place's lift
+    pub lift: Float,
+    /// 0x93A466: `flt_93A466`: the strength's factor
+    pub strength_k: Float,
+    /// 0x93A46A: `flt_93A46A` .. `flt_93A472`: the motion's factors (x, y, z)
+    pub motion_k: [Float; 3],
+    /// 0x93A476: `dword_93A476`: the drift's random
+    pub drift_random: Dword,
+    /// 0x93A47A: `dword_93A47A`: the spin's random
+    pub spin_random: Dword,
+    /// 0x93A47E: `flt_93A47E`, `flt_93A482`, `flt_93A486`: the size's factor, base and scale
+    pub size_k: [Float; 3],
 }
 
-/// What it may write: the globals and, when one is to be taken, the next entry.
-pub fn regions() -> Vec<Region> {
-    let mut r = globals();
-    if let Some(e) = unsafe { next_entry() } {
-        r.push((e, ENTRY_LEN));
+/// Kind13Set's first values.
+pub static KIND13_SET: Kind13Set = Kind13Set {
+    lift: Float::from_bits(0x47800000),
+    strength_k: Float::from_bits(0x38D1B717),
+    motion_k: [
+        Float::from_bits(0xC5000000),
+        Float::from_bits(0xC5000000),
+        Float::from_bits(0xC5000000),
+    ],
+    drift_random: Dword::new(0x0),
+    spin_random: Dword::new(0x0),
+    size_k: [
+        Float::from_bits(0x47800000),
+        Float::from_bits(0x45000000),
+        Float::from_bits(0x3E4CCCCD),
+    ],
+};
+
+impl Kind13Set {
+    pub const START: usize = 0x93A462;
+    pub const LEN: usize = 0x28;
+    /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
+    pub fn home() -> usize {
+        crate::pointers::game_address(&KIND13_SET as *const Kind13Set) as usize
     }
-    r
 }
 
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    unsafe { emit_particle_13(r.esi) }?;
-    Ok(Left::nothing())
-}
+#[cfg(test)]
+mod kind13_set_tests {
+    use super::*;
+    use core::mem::offset_of;
 
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_state(&HOOK, r, call_original, &regions(), &rust);
-}
+    fn bytes<T>(v: &T) -> Vec<u8> {
+        let p = v as *const T as *const u8;
+        (0..size_of::<T>())
+            .map(|i| unsafe { p.add(i).read() })
+            .collect()
+    }
 
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let mut test = TestEmitter::new(&[STRENGTH_RVA, DRIFT_RANDOM_RVA, SPIN_RANDOM_RVA, TICKS_RVA]);
-    let mut regions = test.regions();
-    regions.push((test.object.as_ptr() as u32, 4 * test.object.len()));
-    let mut made = 0;
-    let mut case = 0u32;
-    // (the car's model +4, its +8, the frame's ticks, taken)
-    for (model, speed, ticks, taken) in [
-        (0u32, 0.0f32, 1i32, 0u32),
-        (5, 40.0, 2, 3),
-        (33, -3.5, 0, 0),
-        (12, 1e6, 7, 1),
-        (20, 0.25, -1, MOST_TAKEN),
-        (1, f32::NAN, 3, 0),
-    ] {
-        case += 1;
-        let ptrs = (test.object.as_mut_ptr(), test.matrix.as_mut_ptr());
-        let seed = case.wrapping_mul(0x2545_F491);
-        test.prepare(taken);
-        check_state(
-            &mut t,
-            &format!("model {model}, speed {speed}, ticks {ticks}, taken {taken:#x}"),
-            call_original,
-            Regs {
-                esi: ptrs.0 as u32,
-                ..Regs::SENTINEL
-            },
-            &|| unsafe {
-                restore(&regions, &vec![0xAA; regions.iter().map(|r| r.1).sum()]);
-                let base = test.ring.as_ptr() as u32;
-                for n in 0..TEST_ENTRIES {
-                    let e = (base + n * ENTRY_LEN as u32) as *mut u32;
-                    e.write_unaligned(base + ((n + 1) % TEST_ENTRIES) * ENTRY_LEN as u32);
-                }
-                game_write(RING_CURSOR_RVA, base + 3 * ENTRY_LEN as u32);
-                game_write(RING_COUNT_RVA, taken);
-                game_write(OBJECT_RVA, ptrs.0 as u32);
-                game_write(DRIFT_RANDOM_RVA, seed);
-                game_write(SPIN_RANDOM_RVA, seed ^ 0x55);
-                game_write(TICKS_RVA, ticks);
-                let o = ptrs.0;
-                for n in 0..0x30 {
-                    *o.add(n) = (n as f32 * 1.25 + 0.5).to_bits();
-                }
-                *o.add(1) = model;
-                *o.add(2) = speed.to_bits();
-                *o.add(0x1C / 4) = 0x1234_5678;
-                *o.add(0x24 / 4) = ptrs.1 as u32;
-                *o.add(0x88 / 4) = 0x77;
-                for n in 0..0x10 {
-                    *ptrs.1.add(n) = ((n as f32 - 5.0) * 0.3).to_bits();
-                }
-            },
-            &regions,
-            &rust,
+    #[test]
+    fn kind13_set_starts_as_the_games() {
+        assert_eq!(size_of::<Kind13Set>(), Kind13Set::LEN);
+        assert!(
+            bytes(&KIND13_SET) == crate::moved::image_bytes(Kind13Set::START, Kind13Set::LEN),
+            "KIND13_SET starts differently from the image"
         );
-        if unsafe { game_read::<u32>(RING_COUNT_RVA) } != taken {
-            made += 1;
-        }
+        assert_eq!(offset_of!(Kind13Set, lift), 0x93A462 - Kind13Set::START);
+        assert_eq!(
+            offset_of!(Kind13Set, strength_k),
+            0x93A466 - Kind13Set::START
+        );
+        assert_eq!(offset_of!(Kind13Set, motion_k), 0x93A46A - Kind13Set::START);
+        assert_eq!(
+            offset_of!(Kind13Set, drift_random),
+            0x93A476 - Kind13Set::START
+        );
+        assert_eq!(
+            offset_of!(Kind13Set, spin_random),
+            0x93A47A - Kind13Set::START
+        );
+        assert_eq!(offset_of!(Kind13Set, size_k), 0x93A47E - Kind13Set::START);
     }
-    t.check(made > 0, || "no case made an entry".into());
-    // The refusal: a model past the table.
-    test.prepare(0);
-    let refused = unsafe {
-        test.object[1] = MODELS;
-        emit_particle_13(test.object.as_ptr() as u32).is_err()
-    };
-    t.check(refused, || "model 34 not refused".into());
-    drop(test);
-    t.finish()
 }

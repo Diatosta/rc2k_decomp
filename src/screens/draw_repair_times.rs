@@ -3,55 +3,37 @@
 //!
 //! In:  nothing
 //! Out: what the last `draw_text` leaves: carry, eax = 0, ebx = after the text's NUL,
-//!      ecx = 441, edx = 452; esi, edi and ebp preserved
+//! ecx = 441, edx = 452; esi, edi and ebp preserved
 //! Rows are at y = 110 .. 284 in steps of 29, and a last one at 452; columns at x = 106 and
 //! 441.
 //!
 //! Screen: seen in a screenshot of the championship's service area (2026-10-10): the time under each of the
 //! fourteen parts of the repair section (for example 10:19 under the gearbox, 1:35 under the
 //! tyres), and in the last row the 1:20 under "ride height" and "suspension stiffness".
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{Regs, game_read, rva};
-use crate::screens::harness::{Left, draw_entry};
+use crate::menu::state_store::MENU_STATE;
+use crate::session::read_all;
 use crate::text::draw_text::{Canvas, Outcome};
 
 // ---- game data ----
 
-const TIMES_RVA: usize = rva(0x75AB60); // dword_75AB60[16]
 const COUNT: usize = 16;
-fn time_rva(i: usize) -> usize {
-    TIMES_RVA + i * 4
-}
 
 // ---- Rust version ----
 
 /// Returns what the last `draw_text` returned.
-pub unsafe fn draw_repair_times(canvas: &mut dyn Canvas) -> Result<Outcome, Refused> {
+pub fn draw_repair_times(canvas: &mut dyn Canvas) -> Result<Outcome, Refused> {
     // Converted: `rc2k_core::screens::service::repair_times`.
-    let times: [u32; COUNT] = std::array::from_fn(|i| unsafe { game_read(time_rva(i)) });
+    let times: [u32; COUNT] = read_all(&MENU_STATE.driver_stats.repair_times);
     let (last, x) = rc2k_core::screens::service::repair_times(
         &mut crate::screens::game_screen::ServiceScreen::new(canvas),
         &times,
     )?;
     Ok(Outcome {
         too_wide: last.too_wide,
-        text: last.after as *const u8,
+        text: crate::pointers::host(last.after) as *const u8,
         x,
         y: last.y,
     })
-}
-
-fn rust(_: &Regs, canvas: &mut dyn Canvas) -> Result<Left, Refused> {
-    Ok(Left::of_text(&unsafe { draw_repair_times(canvas) }?))
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    draw_entry("screens::draw_repair_times", r, &rust)
 }

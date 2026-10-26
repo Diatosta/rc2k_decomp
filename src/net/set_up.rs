@@ -2,32 +2,22 @@
 //! receiving thread's event and the mutex, and whether a lobby launched the game.
 //!
 //! In:  nothing
-//! Out: every register preserved (`pusha` .. `popa`)
+//! Out: nothing (every register preserved, `pusha` .. `popa`)
 //! With `g_noticeKind` (a byte) 2, `dword_52ABD0` (signed) held to 4 at most. An event (auto reset,
 //! not signalled: `threading::create_event` with eax 0, ebx 0) to `dword_52AB68`, none:
 //! fatal error 0x80168501; a mutex (`threading::create_mutex`) to `dword_52AB6C`, none:
-//! fatal error 0x80168502. Then `sub_418E23` (through `part`): DirectPlay's lobby asked
+//! fatal error 0x80168502. Then `sub_418E23`: DirectPlay's lobby asked
 //! (`CoCreateInstance`) whether the game was launched by one ("NET: Lobby launch
-//! detected", `dword_5AB290` 1); the platform's (DirectPlay), the game's in the game,
-//! nothing in the standalone program (no lobby: `dword_5AB290` stays 0).
+//! detected", `dword_5AB290` 1); nothing in the standalone program (no lobby:
+//! `dword_5AB290` stays 0).
 //! One caller, `start` (0x4010A2).
-//! Hook removed 2026-10-22 (direct calls): Rust callers run its `entry` (`calls::call`,
-//! `routes.rs`); the registers above are the original's, for reference.
 
 use crate::errors::{FatalError, Refused};
-use crate::framework::{Regs, game_addr, rva, standalone};
+use crate::net::store::NET;
+use crate::strings::load_language::notice_kind;
 use crate::threading::create_event::{create_event, handle_flags};
 use crate::threading::create_mutex::create_mutex;
 
-// ---- game data ----
-
-const NOTICE_KIND_RVA: usize = rva(0x4E07A0); // g_noticeKind
-const PLAYERS_RVA: usize = rva(0x52ABD0); // dword_52ABD0: held to 4 with notice kind 2
-pub const EVENT_RVA: usize = rva(0x52AB68); // dword_52AB68: the receiving thread's event
-const MUTEX_RVA: usize = rva(0x52AB6C); // dword_52AB6C
-/// The calls by place: 0 `threading::create_event` (eax, ebx -> eax, carry), 1
-/// `threading::create_mutex` (-> eax, carry), 2 `sub_418E23` (the lobby).
-const CALLEES: [usize; 3] = [0x41103C, 0x41107F, 0x418E23];
 const NO_EVENT: FatalError = FatalError {
     code: 0x8016_8501,
     message: "",
@@ -37,81 +27,20 @@ const NO_MUTEX: FatalError = FatalError {
     message: "",
 };
 
-pub type Part<'a> = &'a mut dyn FnMut(u32, &mut Regs) -> Result<(), Refused>;
-
-/// Where the variables are (the game's, or a test's).
-#[derive(Clone, Copy)]
-pub struct NetVars {
-    /// g_noticeKind, a byte
-    pub notice_kind: u32,
-    pub players: u32,
-    pub event: u32,
-    pub mutex: u32,
-}
-
-impl NetVars {
-    pub fn game() -> Self {
-        let a = |r| game_addr(r) as u32;
-        Self {
-            notice_kind: a(NOTICE_KIND_RVA),
-            players: a(PLAYERS_RVA),
-            event: a(EVENT_RVA),
-            mutex: a(MUTEX_RVA),
-        }
+/// The Rust version.
+pub fn set_up() -> Result<(), Refused> {
+    if notice_kind() == 2 && NET.most_players.get() as i32 > 4 {
+        NET.most_players.set(4);
     }
-}
-
-// ---- Rust version ----
-
-unsafe fn get(at: u32) -> u32 {
-    unsafe { (at as *const u32).read_unaligned() }
-}
-
-unsafe fn set(at: u32, value: u32) {
-    unsafe { (at as *mut u32).write_unaligned(value) };
-}
-
-pub unsafe fn set_up(v: &NetVars, part: Part) -> Result<(), Refused> {
-    unsafe {
-        if (v.notice_kind as *const u8).read() == 2 && get(v.players) as i32 > 4 {
-            set(v.players, 4);
-        }
-        let mut r = Regs::default();
-        part(0, &mut r)?;
-        if r.carry() {
-            return Err(NO_EVENT.into());
-        }
-        set(v.event, r.eax);
-        part(1, &mut r)?;
-        if r.carry() {
-            return Err(NO_MUTEX.into());
-        }
-        set(v.mutex, r.eax);
-        part(2, &mut r)?;
-        Ok(())
+    let event = create_event(0, 0);
+    if handle_flags(event).0 {
+        return Err(NO_EVENT.into());
     }
-}
-
-/// In the game: the handles from the Rust versions, the lobby through the game; in the
-/// standalone program there is no lobby.
-pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
-    match place {
-        0 | 1 => {
-            r.eax = if place == 0 {
-                create_event(0, 0)
-            } else {
-                create_mutex()
-            };
-            r.set_carry(handle_flags(r.eax).0);
-        }
-        _ if standalone() => {}
-        _ => crate::calls::call(rva(CALLEES[2]), r),
+    NET.event.set(event);
+    let mutex = create_mutex();
+    if handle_flags(mutex).0 {
+        return Err(NO_MUTEX.into());
     }
-    Ok(())
-}
-
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(_: &mut Regs) -> Result<(), crate::errors::Refused> {
-    unsafe { set_up(&NetVars::game(), &mut game_part) }?;
+    NET.mutex.set(mutex);
     Ok(())
 }

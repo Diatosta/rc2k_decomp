@@ -3,62 +3,90 @@
 //!
 //! In:  nothing
 //! Out: every register preserved
-//! Only when `g_noticeKind` (the byte at 0x4E07A0, from the language's `.loc` file) is 2.
-//! The first line (`unk_52A263`, "Copyright (c) Magnetic Fields (Software Design) Ltd,
-//! 1999. All rights reserved.") becomes "(c) 2000 Actualize Ltd and Magnetic Fields
-//! (Software Design) Ltd, " and the second (`byte_52A2B1`, "Copyright (c) Actualize Ltd,
-//! 1999. ..") is emptied. It is put together in the shared text buffer from pieces of the
-//! two lines themselves: two characters from the second line's eleventh on, "2000",
-//! fourteen from its twelfth on, " and", 0x26 from the first line's twelfth on, a space
-//! and a NUL; then copied over the first line.
-//! One caller, `system::main_loop`. Calling it twice builds from the changed lines, as
-//! the original would.
-//! Hook removed 2026-10-22 (direct calls): Rust callers run its `entry` (`calls::call`,
-//! `routes.rs`); the registers above are the original's, for reference.
+//! Only when `g_noticeKind` (the byte at 0x4E07A0, from the language's `.loc` file) is 2. The first
+//! line (`unk_52A263`, "Copyright (c) Magnetic Fields (Software Design) Ltd, 1999. All rights
+//! reserved.") becomes "(c) 2000 Actualize Ltd and Magnetic Fields (Software Design) Ltd, " and the
+//! second (`byte_52A2B1`, "Copyright (c) Actualize Ltd, 1999. ..") is emptied. It is put together
+//! in the shared text buffer from pieces of the two lines themselves: two characters from the
+//! second line's eleventh on, "2000", fourteen from its twelfth on, " and", 0x26 from the first
+//! line's twelfth on, a space and a NUL; then copied over the first line. One caller,
+//! `system::main_loop`. Calling it twice builds from the changed lines, as the original would. Rust
+//! callers run its `entry` (`routes.rs`); the registers above are the original's, for reference.
 
-use crate::errors::Refused;
-use crate::framework::{Regs, game_addr, game_read, game_write, rva};
-use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
-use crate::strings::text_from_ids::text;
+use crate::strings::text_buffer::TEXT_BUFFER;
 
 // ---- game data ----
 
-const NOTICE_KIND_RVA: usize = rva(0x4E07A0); // g_noticeKind
-const FIRST_LINE_RVA: usize = rva(0x52A263); // unk_52A263
-const SECOND_LINE_RVA: usize = rva(0x52A2B1); // byte_52A2B1
 use rc2k_core::menu::notice::{
     BUILDS, BUILT_LEN, FIRST_FROM, FIRST_READ, SECOND_FROM, SECOND_READ, notice,
 };
 
 // ---- Rust version ----
 
-pub unsafe fn build_notice() {
+pub fn build_notice() {
     // Converted: `rc2k_core::menu::notice::notice`.
-    unsafe {
-        if game_read::<u8>(NOTICE_KIND_RVA) != BUILDS {
-            return;
-        }
-        let built = notice(
-            &game_read::<[u8; FIRST_READ]>(FIRST_LINE_RVA + FIRST_FROM),
-            &game_read::<[u8; SECOND_READ]>(SECOND_LINE_RVA + SECOND_FROM),
-        );
-        std::ptr::copy(built.as_ptr(), text(), BUILT_LEN);
-        std::ptr::copy(
-            built.as_ptr(),
-            game_addr(FIRST_LINE_RVA) as *mut u8,
-            BUILT_LEN,
-        );
-        game_write(SECOND_LINE_RVA, 0u8);
+    if crate::strings::load_language::notice_kind() != BUILDS {
+        return;
+    }
+    let first: [u8; FIRST_READ] = std::array::from_fn(|i| NOTICE.notice_first.get(FIRST_FROM + i));
+    let second: [u8; SECOND_READ] =
+        std::array::from_fn(|i| NOTICE.notice_second.get(SECOND_FROM + i));
+    let built = notice(&first, &second);
+    for (i, &byte) in built.iter().take(BUILT_LEN).enumerate() {
+        TEXT_BUFFER.text.set(i, byte);
+        NOTICE.notice_first.set(i, byte);
+    }
+    NOTICE.notice_second.set(0, 0);
+}
+
+// ---- the notice's lines (IDA 0x52A263 .. 0x52A30F, split from the network's block) ----
+
+use crate::session::{Bytes, with_runs};
+
+/// IDA 0x52A263 .. 0x52A30F.
+#[repr(C)]
+pub struct BuildNotice {
+    /// 0x52A263: `unk_52A263`: the build notice's first line, "Copyright ... Magnetic Fields ..." (`menu::build_notice`).
+    pub notice_first: Bytes<78>,
+    /// 0x52A2B1: `byte_52A2B1`: the build notice's second line, "Copyright ... Actualize Ltd ...", and the web address after it.
+    pub notice_second: Bytes<94>,
+}
+
+pub static NOTICE: BuildNotice = BuildNotice {
+    notice_first: Bytes::new(with_runs::<78>(&[(0, b"Copyright \xa9 Magnetic Fields (Software Design) Ltd, 1999. All rights reserved.")])),
+    notice_second: Bytes::new(with_runs::<94>(&[(0, b"Copyright \xa9 Actualize Ltd, 1999. All rights reserved.\x00http:\x01/\x01/\x01www.rallychampionship.co.uk\x01/")])),
+};
+
+impl BuildNotice {
+    pub const START: usize = 0x52A263;
+    pub const LEN: usize = 0xAC;
+    /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
+    pub fn home() -> usize {
+        crate::pointers::game_address(&NOTICE as *const BuildNotice) as usize
     }
 }
 
-fn rust(_: &Regs) -> Result<Left, Refused> {
-    unsafe { build_notice() };
-    Ok(Left::nothing())
-}
+#[cfg(test)]
+mod notice_tests {
+    use super::*;
+    use core::mem::{offset_of, size_of};
 
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
+    #[test]
+    fn notice_starts_as_the_games_image() {
+        assert_eq!(size_of::<BuildNotice>(), BuildNotice::LEN);
+        let p = &NOTICE as *const BuildNotice as *const u8;
+        let image = crate::moved::image_bytes(BuildNotice::START, BuildNotice::LEN);
+        for (i, &b) in image.iter().enumerate() {
+            assert_eq!(
+                unsafe { p.add(i).read() },
+                b,
+                "{:#x}",
+                BuildNotice::START + i
+            );
+        }
+        assert_eq!(
+            offset_of!(BuildNotice, notice_second),
+            0x52A2B1 - BuildNotice::START
+        );
+    }
 }

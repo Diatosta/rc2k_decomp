@@ -8,82 +8,63 @@
 //! In:  (stdcall) the session's description (a DPSESSIONDESC2), the time-out's address,
 //!      the flags, the context
 //! Out: eax = 1 to go on, 0 to stop; ebx, esi, edi, ebp kept; `ret 10h`
-//! Caller: DirectPlay, from `net::find_sessions`. Its thunk is a `stdcall` Rust function
-//! (`net::lobby::dispatch_callback`). Its calls through `part`. Shadow mode runs the
-//! original alone. Self-test: a copy called with test arguments, its calls to stand-ins
-//! (the records in a test table, the name copied), against the Rust version: each way out.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): DirectPlay is given `callback`, the Rust
-//! version; in the hooked DLL the game's own code passes the original. What the header
-//! says of the thunk, shadow mode and the self-test was the hook's.
+//! Caller: DirectPlay, from `net::find_sessions` (`callback`, a `stdcall` Rust function).
 
 use crate::errors::Refused;
 use crate::field;
-use crate::framework::Regs;
-use crate::net::lobby::{
-    COPY_PRINTABLE, LOG_HEX_L2, LOG_L2, LOG_NEWLINE_L2, Part, SESSIONS, a, g, log_text, movsb, p,
-};
+use crate::net::lobby::{copy_printable, log, log_hex, movsb_from_rust, session};
+use crate::net::store::NET;
 use crate::net::types::{DpSessionDesc, NetSession};
+use crate::pointers::GamePtr;
+use crate::race::viewer_screen_store::{VIEWER_PANEL, texts};
 use rc2k_core::net::lists::{self, Found};
 
-const FOUND: usize = 0x5C2E75; // "NET: Found"
-const SESSION_ENTRY: u32 = 0x418553; // net::session_entry
-
+/// A dword of the callback's argument (memory Rust owns: DirectPlay's session record).
 fn get(at: u32) -> u32 {
-    unsafe { (at as *const u32).read_unaligned() }
+    crate::pointers::read_or_end(at, "DirectPlay's session record")
 }
 
 /// The Rust version: eax.
-pub fn session_found(args: &[u32], part: Part) -> Result<u32, Refused> {
+pub fn session_found(args: &[u32]) -> Result<u32, Refused> {
     let (desc, flags) = (args[0], args[2]);
-    let r = Regs::default();
-    log_text(LOG_L2, a(FOUND), &r, part)?;
-    log_text(LOG_HEX_L2, flags, &r, part)?;
+    log(VIEWER_PANEL.text_addr(texts::NET_FOUND), false, 2);
+    log_hex(flags, false);
     if desc != 0 {
-        log_text(LOG_L2, get(desc + 0x30), &r, part)?;
+        log(get(desc + 0x30), false, 2);
     }
-    let mut n = r;
-    if desc != 0 {
-        n.eax = get(desc + 0x30);
-    }
-    part(LOG_NEWLINE_L2, &mut n)?;
+    log(crate::pointers::game_address(c"".as_ptr()), true, 2);
     // Converted: `rc2k_core::net::lists::session_found`.
-    let count = match lists::session_found(flags, desc != 0, || get(desc + 0x44), || g(SESSIONS)) {
-        Found::Stop => return Ok(0),
-        Found::Pass => return Ok(1),
-        Found::List(n) => n,
-    };
-    p(SESSIONS, count + 1);
-    let mut e = Regs { eax: count, ..r };
-    part(SESSION_ENTRY, &mut e)?;
-    let record = e.eax;
-    let mut c = Regs {
-        eax: get(desc + 0x30),
-        ebx: record,
-        ecx: 0x40,
-        ..e
-    };
-    part(COPY_PRINTABLE, &mut c)?;
-    movsb(
+    let count =
+        match lists::session_found(flags, desc != 0, || get(desc + 0x44), || NET.sessions.get()) {
+            Found::Stop => return Ok(0),
+            Found::Pass => return Ok(1),
+            Found::List(n) => n,
+        };
+    NET.sessions.set(count + 1);
+    let record = session(count)?;
+    copy_printable(get(desc + 0x30), record, 0x40)?;
+    movsb_from_rust(
         record + field!(NetSession, instance),
         desc + field!(DpSessionDesc, instance),
         0x10,
-    );
-    unsafe {
-        ((record + field!(NetSession, max_players)) as *mut u32)
-            .write_unaligned(get(desc + field!(DpSessionDesc, max_players)));
-        ((record + field!(NetSession, players)) as *mut u32)
-            .write_unaligned(get(desc + field!(DpSessionDesc, current_players)));
-    }
-    movsb(
+    )?;
+    GamePtr::new(record + field!(NetSession, max_players)).write(
+        get(desc + field!(DpSessionDesc, max_players)),
+        "a session's record",
+    )?;
+    GamePtr::new(record + field!(NetSession, players)).write(
+        get(desc + field!(DpSessionDesc, current_players)),
+        "a session's record",
+    )?;
+    movsb_from_rust(
         record + field!(NetSession, user),
         desc + field!(DpSessionDesc, user),
         0x10,
-    );
+    )?;
     Ok(1)
 }
 
-/// The callback DirectPlay is given (no hook; 2026-10-23): the Rust version.
-pub unsafe extern "system" fn callback(a: u32, b: u32, c: u32, d: u32) -> u32 {
+/// The callback DirectPlay is given: the Rust version.
+pub extern "system" fn callback(a: u32, b: u32, c: u32, d: u32) -> u32 {
     crate::net::lobby::callback_entry("net::session_found", 0x418A62, &[a, b, c, d], session_found)
 }

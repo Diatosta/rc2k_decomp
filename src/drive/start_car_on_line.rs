@@ -11,87 +11,76 @@
 //! In:  ebx the checkpoints on from the lead's
 //! Out: as `race::reset_car_motion` leaves them; no flags read (`drive::store_car` next)
 //!
-//! Caller: `drive::start_cars_behind` (0x43703E; four calls).
-//! Refuses (before anything) a start number (`dword_6051A0`) above 0x400 (not worked
-//! out), and what the two calls refuse.
-//! Self-test: a copy whose two calls go to stream A's stand-ins (`race::car_starts`),
-//! against the Rust version with the same, the calls and their registers compared, the
-//! work car and the start's variables compared (the share exact at double precision,
-//! within `FLOAT` at extended); all put back.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Caller: `drive::start_cars_behind` (0x43703E; four calls). Refuses (before anything) a
+//! start number (`dword_6051A0`) above 0x400 (not worked out), and what the two calls
+//! refuse.
 
-use crate::errors::Refused;
-use crate::framework::{Regs, game_addr, game_read, game_write, rva};
+use crate::errors::{BadInput, Refused};
 use crate::math::x87;
-use crate::race::car_starts::{Part, game_part};
+use crate::physics::car_store::CAR;
+use crate::pointers::GamePtr;
+use crate::race::blocks_store::CAR_BLOCKS;
+use crate::race::numbers_store::NUMBERS;
+use crate::race::tables_store::RACE_TABLES;
+use crate::scene::light_store::LIGHT_STATE;
 use crate::scene::matrix3::{extended, rounded};
 use crate::scene::rotate_point::rotate_point;
 use rc2k_core::drive::start_places;
 
-fn g(x: u32) -> u32 {
-    unsafe { game_read(rva(x as usize)) }
-}
-
-fn p(x: u32, v: u32) {
-    unsafe { game_write(rva(x as usize), v) }
-}
-
-/// The Rust core, the two calls through `part` (places 6 and 9).
-// Converted: `rc2k_core::drive::start_places` (the share in plain floats; the motion's
-// turn stays x87).
-pub unsafe fn start_car_on_line(entry: &Regs, part: Part) -> Result<Regs, Refused> {
-    unsafe {
-        let start = g(0x6051A0);
-        start_places::check_start(start)?;
-        let mut r = *entry;
-        p(0x71AA80, g(0x605034 + 4 * start));
-        p(0x71A234, start_places::STARTED_MODE);
-        r.eax = start_places::start_checkpoint(g(0x70F484), r.ebx);
-        for v in [0x71A070, 0x71A06C, 0x71A074, 0x6365E4, 0x6365EC] {
-            p(v, r.eax);
-        }
-        let f = |x: u32| f32::from_bits(g(x));
-        let share = start_places::start_share(
-            start as i32,
-            g(0x6051B4) as i32,
-            f(0x5C5D38),
-            f(0x6051A8),
-            f(0x6051A4),
-        )
-        .to_bits();
-        p(0x6051AC, share);
-        p(0x71A650, share);
-        part(6, &mut r)?;
-        part(9, &mut r)?;
-        p(0x71A17C, 0);
-        p(0x71A180, 0);
-        p(0x71A184, x87::loaded(g(0x6051B0)));
-        let m = game_addr(rva(0x71A08C)) as u32;
-        let out = rotate_point(
-            m,
-            [
-                extended(g(0x71A17C)),
-                extended(g(0x71A180)),
-                extended(g(0x71A184)),
-            ],
-        );
-        p(0x71A170, rounded(out[0]));
-        p(0x71A174, rounded(out[1]));
-        p(0x71A178, rounded(out[2]));
-        Ok(r)
+/// `dword_605034`[start]: each car's number. The table holds 90; a start past it (the
+/// check lets up to 0x400 through) reads on into the variables after it, as the original.
+pub fn car_number(start: usize) -> Result<u32, BadInput> {
+    match RACE_TABLES.arcade_car_numbers.get(start) {
+        Some(number) => Ok(number.get()),
+        None => GamePtr::new(RACE_TABLES.arcade_car_numbers[0].addr() + (4 * start) as u32)
+            .read("the start tables"),
     }
 }
 
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    let g = unsafe { start_car_on_line(r, &mut game_part) }?;
-    *r = Regs {
-        esp: r.esp,
-        eflags: r.eflags,
-        ..g
-    };
-    Ok(())
+/// The Rust version: `distance` (ebx) checkpoints on from the lead car. The registers it
+/// leaves are read by no caller (`drive::start_cars_behind` sets them again).
+// Converted: `rc2k_core::drive::start_places` (the share in plain floats; the motion's
+// turn stays x87).
+pub unsafe fn start_car_on_line(distance: u32) -> Result<(), Refused> {
+    unsafe {
+        let start = RACE_TABLES.start_slot.get();
+        start_places::check_start(start)?;
+        CAR.start_slot_value.set(car_number(start as usize)?);
+        CAR.driver_kind.set(start_places::STARTED_MODE);
+        let checkpoint =
+            start_places::start_checkpoint(CAR_BLOCKS.cars[0].checkpoint.get(), distance);
+        for cell in [&CAR.checkpoint, &CAR.reset_checkpoint, &CAR.last_pace_call] {
+            cell.set(checkpoint);
+        }
+        LIGHT_STATE.line_place.set(checkpoint);
+        LIGHT_STATE.line_fraction.set(checkpoint);
+        let share = start_places::start_share(
+            start as i32,
+            RACE_TABLES.arcade_cars.get() as i32,
+            NUMBERS.one.get(),
+            RACE_TABLES.arcade_b.get(),
+            RACE_TABLES.arcade_a.get(),
+        )
+        .to_bits();
+        RACE_TABLES.start_share.set_bits(share);
+        CAR.start_share.set_bits(share);
+        crate::race::start_place::place_car_on_line()?;
+        crate::race::car_starts::reset_car_motion()?;
+        CAR.local_velocity[0].set_bits(0);
+        CAR.local_velocity[1].set_bits(0);
+        CAR.local_velocity[2].set_bits(x87::loaded(RACE_TABLES.start_speed.bits()));
+        let m = CAR.crash_matrix[0].addr();
+        let out = rotate_point(
+            m,
+            [
+                extended(CAR.local_velocity[0].bits()),
+                extended(CAR.local_velocity[1].bits()),
+                extended(CAR.local_velocity[2].bits()),
+            ],
+        );
+        CAR.velocity[0].set_bits(rounded(out[0]));
+        CAR.velocity[1].set_bits(rounded(out[1]));
+        CAR.velocity[2].set_bits(rounded(out[2]));
+        Ok(())
+    }
 }

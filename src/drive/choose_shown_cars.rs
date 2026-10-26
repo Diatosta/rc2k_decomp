@@ -10,84 +10,77 @@
 //! Out: eax `dword_63DBA0` (with `dword_52A910` set) or the second view's block; the
 //!      rest kept; no flags read (callers go on with `mov`, `lea`, calls)
 //!
-//! Callers (5): race init's loop (`sub_4608BB`), `sub_460835`, `sub_460B2F`,
-//! `sub_43A649`, `sub_45429B`.
-//! Refuses (before anything) a replay car (`dword_63DBA0`) above 7 with `dword_52A910`
-//! set (it would write past `dword_641680`'s eight).
-//! Hook removed 2026-10-22 (direct calls): Rust callers run its `entry` (`calls::call`,
-//! `routes.rs`); the registers above are the original's, for reference.
+//! Callers (5): race init's loop (`sub_4608BB`), `sub_460835`, `sub_460B2F`, `sub_43A649`,
+//! `sub_45429B`. Refuses (before anything) a replay car (`dword_63DBA0`) above 7 with
+//! `dword_52A910` set (it would write past `dword_641680`'s eight).
 
 use crate::errors::Refused;
-use crate::framework::{EAX, Regs, game_addr, rva};
-use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
+use crate::race::frame_store::FRAME_WORK;
+use crate::race::numbers_store::NUMBERS;
+use crate::race::vars_store::RACE_VARS;
+use crate::race::view_store::RACE_VIEW;
+use crate::session::Dword;
 use rc2k_core::drive::shown_cars::{ShownCars, ShownSetup};
 
-/// The variables (IDA addresses), in the order the core uses them.
-const VARIABLES: [usize; 19] = [
-    0x63DBA8, 0x63DBAC, 0x63DB94, 0x63DB98, 0x5C5CE0, 0x63DB88, 0x6238A4, 0x52A910, 0x63DBA0,
-    0x63DBB0, 0x63DBB4, 0x641680, 0x641684, 0x641688, 0x64168C, 0x641690, 0x641694, 0x641698,
-    0x64169C,
-];
-const FIRST_BLOCK: usize = 0x70F3EC; // byte_70F3EC: car block 0's start (an address)
-
-unsafe fn get(v: &[u32], k: usize) -> u32 {
-    unsafe { (v[k] as *const u32).read_unaligned() }
+fn get(v: &[&Dword], k: usize) -> u32 {
+    v[k].bits()
 }
 
-unsafe fn put(v: &[u32], k: usize, x: u32) {
-    unsafe { (v[k] as *mut u32).write_unaligned(x) }
+fn put(v: &[&Dword], k: usize, x: u32) {
+    v[k].set_bits(x)
 }
 
-/// The Rust version on the variables at `v` (`VARIABLES`' order).
+/// The Rust version on the variables at `v` (`game`'s order).
 // Converted: `rc2k_core::drive::shown_cars::ShownCars::choose`.
-pub unsafe fn choose_at(v: &[u32]) -> Result<Left, Refused> {
-    unsafe {
-        let setup = ShownSetup {
-            players: get(v, 2),
-            screen_mode: get(v, 4),
-            layout: get(v, 5),
-            replay: get(v, 7),
-            replay_car: get(v, 8),
-        };
-        let split = get(v, 6);
-        let mut shown = ShownCars {
-            split,
-            ..ShownCars::default()
-        };
-        let eax = shown.choose(&setup, game_addr(rva(FIRST_BLOCK)) as u32)?;
-        put(v, 0, shown.cars[0]);
-        put(v, 1, shown.cars[1]);
-        put(v, 3, shown.views);
-        if shown.split != split {
-            put(v, 6, shown.split);
-        }
-        put(v, 9, shown.blocks[0]);
-        put(v, 10, shown.blocks[1]);
-        for (k, &x) in shown.listed.iter().enumerate() {
-            put(v, 11 + k, x);
-        }
-        Ok(Left::nothing().with(EAX, eax))
+/// The eax it leaves is read by no caller (liveness at its five call sites).
+pub fn choose_at(v: &[&Dword]) -> Result<(), Refused> {
+    let setup = ShownSetup {
+        players: get(v, 2),
+        screen_mode: get(v, 4),
+        layout: get(v, 5),
+        replay: get(v, 7),
+        replay_car: get(v, 8),
+    };
+    let split = get(v, 6);
+    let mut shown = ShownCars {
+        split,
+        ..ShownCars::default()
+    };
+    shown.choose(&setup, crate::race::blocks_store::block_addr(0))?;
+    put(v, 0, shown.cars[0]);
+    put(v, 1, shown.cars[1]);
+    put(v, 3, shown.views);
+    if shown.split != split {
+        put(v, 6, shown.split);
     }
+    put(v, 9, shown.blocks[0]);
+    put(v, 10, shown.blocks[1]);
+    for (k, &x) in shown.listed.iter().enumerate() {
+        put(v, 11 + k, x);
+    }
+    Ok(())
 }
 
-fn game() -> Vec<u32> {
-    VARIABLES
-        .iter()
-        .map(|&x| game_addr(rva(x)) as u32)
-        .collect()
+/// The variables' addresses, in the order the core uses them.
+fn game() -> Vec<&'static Dword> {
+    let mut cells: Vec<&'static Dword> = vec![
+        &RACE_VIEW.view_cars[0],
+        &RACE_VIEW.view_cars[1],
+        &RACE_VIEW.players,
+        &RACE_VIEW.views,
+        &NUMBERS.replay_mode,
+        &RACE_VIEW.view_switch,
+        &RACE_VARS.split,
+        &crate::net::store::NET.session, // dword_52A910: in the network's variables
+        &RACE_VIEW.local_car,
+        &RACE_VIEW.view_blocks[0],
+        &RACE_VIEW.view_blocks[1],
+    ];
+    cells.extend(FRAME_WORK.listed_car_sounds.iter());
+    cells
 }
 
 /// The Rust version.
-pub unsafe fn choose_shown_cars() -> Result<Left, Refused> {
-    unsafe { choose_at(&game()) }
-}
-
-fn rust(_: &Regs) -> Result<Left, Refused> {
-    unsafe { choose_shown_cars() }
-}
-
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
+pub fn choose_shown_cars() -> Result<(), Refused> {
+    choose_at(&game())
 }

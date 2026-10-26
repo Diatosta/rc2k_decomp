@@ -12,112 +12,73 @@
 //! `g_listChoice` -1.
 //!
 //! In:  nothing
-//! Out: every register kept (`pusha` .. `popa`)
-//! Its calls through `part` (the frames through the game). The whole screen runs inside it:
-//! ungated. Shadow mode runs the original alone. Self-test: a copy whose calls go to
-//! stand-ins (the keys scripted, Escape at the end), against the Rust version.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Out: nothing (the original keeps every register: `pusha` .. `popa`)
 
 use crate::errors::Refused;
-use crate::framework::Regs;
-use crate::net::lobby::{
-    CHOICE, CLOCK, EDITED, FRAME_CLOCK, KEY_CLOCK, LIST_TAKE_KEY, MAYBE_LEXICON, MODE, MOVE_CLOCK,
-    Part, QUITTING, RUN_FRAME, SCREENSHOT, SCREENSHOTS_ON, g, game, lobby_entry, p,
-};
+use crate::install::vars::INSTALLER_PAGES;
+use crate::net::lobby::{list_key, other_key, run_frame};
+use crate::net::store::NET;
+use crate::session::CLOCKS;
+use crate::session::FLAGS;
 
-const SHOW_BACKGROUND: u32 = 0x4173E7; // net::show_background
-const SETTINGS_DONE: u32 = 0x416F0B; // net::settings_done
-const SETTINGS_FRAME: u32 = 0x4169E2; // net::settings_frame
-const SETTING_KEY: u32 = 0x416C76; // net::setting_key
-const SETTINGS_LINK: u32 = 0x416EEC; // net::settings_link
-const BEGIN_SETTING_EDIT: u32 = 0x416C26; // net::begin_setting_edit
-
-/// The Rust version: the registers it leaves (the entry's).
-pub fn settings_loop(entry: &Regs, part: Part) -> Result<Regs, Refused> {
-    let mut r = *entry;
-    p(MODE, 0);
-    part(SHOW_BACKGROUND, &mut r)?;
-    part(SETTINGS_DONE, &mut r)?;
-    r.eax = g(CLOCK);
-    p(MOVE_CLOCK, r.eax);
-    p(KEY_CLOCK, r.eax);
-    p(EDITED, u32::MAX);
-    p(CHOICE, 0);
+/// The Rust version.
+pub fn settings_loop() -> Result<(), Refused> {
+    NET.mode.set(0);
+    crate::net::show_background::show_background()?;
+    crate::net::settings_done::settings_done()?;
+    let now = CLOCKS.key_ticks.get();
+    INSTALLER_PAGES.move_clock.set(now);
+    INSTALLER_PAGES.key_clock.set(now);
+    NET.edited.set(u32::MAX);
+    INSTALLER_PAGES.choice.set(0);
     loop {
-        r.eax = game(SETTINGS_FRAME);
-        part(RUN_FRAME, &mut r)?;
-        r.eax = g(CLOCK);
-        p(FRAME_CLOCK, r.eax);
-        part(LIST_TAKE_KEY, &mut r)?;
+        run_frame(crate::net::settings_frame::settings_frame)?;
+        INSTALLER_PAGES.frame_clock.set(CLOCKS.key_ticks.get());
+        let key = list_key()?;
         let mut moved = false;
-        if g(EDITED) != u32::MAX {
-            part(SETTING_KEY, &mut r)?;
+        if NET.edited.get() != u32::MAX {
+            crate::net::setting_key::setting_key(key)?;
         } else {
-            match r.eax as u8 {
+            match key {
                 0x66 => {
-                    let c = g(CHOICE).wrapping_sub(1);
-                    p(CHOICE, if (c as i32) < 0 { 0 } else { c });
+                    let c = INSTALLER_PAGES.choice.get().wrapping_sub(1);
+                    INSTALLER_PAGES
+                        .choice
+                        .set(if (c as i32) < 0 { 0 } else { c });
                     moved = true;
                 }
                 0x6B => {
-                    let c = g(CHOICE).wrapping_add(1);
-                    p(CHOICE, if (c as i32) > 4 { 4 } else { c });
+                    let c = INSTALLER_PAGES.choice.get().wrapping_add(1);
+                    INSTALLER_PAGES
+                        .choice
+                        .set(if (c as i32) > 4 { 4 } else { c });
                     moved = true;
                 }
                 0x1C => {
-                    if g(CHOICE) == 4 {
+                    if INSTALLER_PAGES.choice.get() == 4 {
                         break;
                     }
-                    if g(CHOICE) == 0 {
-                        part(SETTINGS_LINK, &mut r)?;
-                        p(CHOICE, 0);
+                    if INSTALLER_PAGES.choice.get() == 0 {
+                        crate::net::settings_link::settings_link()?;
+                        INSTALLER_PAGES.choice.set(0);
                     } else {
-                        part(BEGIN_SETTING_EDIT, &mut r)?;
+                        crate::net::begin_setting_edit::begin_setting_edit()?;
                     }
                     moved = true;
                 }
                 1 => break,
-                key => {
-                    if g(SCREENSHOTS_ON) != 0 && key == 0x52 {
-                        part(SCREENSHOT, &mut r)?;
-                    }
-                    part(MAYBE_LEXICON, &mut r)?;
-                }
+                key => other_key(key)?,
             }
         }
         if moved {
-            r.ebx = g(FRAME_CLOCK);
-            p(MOVE_CLOCK, r.ebx);
+            INSTALLER_PAGES
+                .move_clock
+                .set(INSTALLER_PAGES.frame_clock.get());
         }
-        if g(QUITTING) == 1 {
+        if FLAGS.quitting.get() == 1 {
             break;
         }
     }
-    p(CHOICE, u32::MAX);
-    Ok(Regs {
-        eflags: r.eflags,
-        ..*entry
-    })
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    lobby_entry(r, settings_loop)
-}
-
-/// The list screens' tests: a key script for `menu::list_take_key` (Escape after it).
-pub fn keys(script: Vec<u32>) -> crate::net::lobby::Answer {
-    let mut n = 0;
-    Box::new(move |place, r| {
-        if place == LIST_TAKE_KEY {
-            let key = script.get(n).copied().unwrap_or(1);
-            n += 1;
-            r.eax = key;
-            r.ebx = 0x1000 + n as u32;
-        }
-    })
+    INSTALLER_PAGES.choice.set(u32::MAX);
+    Ok(())
 }

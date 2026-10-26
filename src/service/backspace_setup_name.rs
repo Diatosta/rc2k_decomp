@@ -38,6 +38,3 @@ pub unsafe fn backspace_setup_name() -> Result<(), BadInput> {
     }
     Ok(())
 }
-
-pub const TEST_PAGE: u32 = 3;
-pub const TEST_ITEM: u32 = 10;

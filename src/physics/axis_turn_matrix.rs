@@ -9,60 +9,41 @@
 //! Out: every register kept; no flags read (callers go on with `push`, `lea`)
 //!
 //! Callers: `physics::move_slot` (0x4624D6) and `sub_43DD54` (0x43DD97).
-//! Self-test: a copy of the original on a `physics::Mirror` of its work values and
-//! inputs, angles and axes by lot, under three precisions.
 
-use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, SelfTest, call_game, hook_asm, rva};
 use crate::math::x87;
-use crate::math::x87_run::{
-    TEST_CONTROL_WORDS, abs_sqrt_times_plus, one_less, sine_cosine_of, with_control_word,
-};
-use crate::physics::mirror::{Mirror, Spec};
-use crate::screens::harness::Left;
-use crate::service::harness::{Region, capture, dispatch_state, restore, state_entry};
-use std::sync::atomic::AtomicUsize;
+use crate::math::x87_run::{abs_sqrt_times_plus, one_less, sine_cosine_of};
+use crate::race::course_lists_store::COURSE_LISTS;
 
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("physics::axis_turn_matrix", rva(0x421019), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
-
-pub const RANGES: [(u32, u32); 2] = [(0x5C7098, 0x5C70BC), (0x5C78F8, 0x5C7908)];
-pub const SPEC: Spec = (
-    0x421019,
-    0x155,
-    &[0xD9, 0x05, 0xF8, 0x78, 0x5C, 0x00],
-    &[],
-    47,
-);
-
-/// The Rust core on the variables `m` reaches; the matrix at `out`.
-pub unsafe fn axis_turn_at(m: &Mirror, out: u32) {
+/// The Rust core on the game's variables; the matrix at `out`.
+pub unsafe fn axis_turn_at(out: u32) {
     unsafe {
-        let g = |v: u32| m.get(v);
-        let (s, c) = sine_cosine_of(g(0x5C78F8));
-        m.put(0x5C709C, c);
-        m.put(0x5C7098, s);
-        let t = one_less(g(0x5C709C));
-        m.put(0x5C70A0, t);
-        let (x, y, z) = (g(0x5C78FC), g(0x5C7900), g(0x5C7904));
-        m.put(0x5C70A4, x87::mul2(t, x, z));
-        m.put(0x5C70A8, x87::mul2(t, x, y));
-        m.put(0x5C70AC, x87::mul2(t, y, z));
-        m.put(0x5C70B0, x87::mul(x, s));
-        m.put(0x5C70B4, x87::mul(y, s));
-        m.put(0x5C70B8, x87::mul(z, s));
-        let (p1, p2, p3) = (g(0x5C70A4), g(0x5C70A8), g(0x5C70AC));
-        let (q1, q2, q3) = (g(0x5C70B0), g(0x5C70B4), g(0x5C70B8));
-        let put = |o: u32, v: u32| ((out + o) as *mut u32).write_unaligned(v);
+        let (s, c) = sine_cosine_of(COURSE_LISTS.spin_angle.bits());
+        COURSE_LISTS.turn_cosine.set_bits(c);
+        COURSE_LISTS.turn_sine.set_bits(s);
+        let t = one_less(COURSE_LISTS.turn_cosine.bits());
+        COURSE_LISTS.turn_one_less_cosine.set_bits(t);
+        let (x, y, z) = (
+            COURSE_LISTS.spin_axis_x.bits(),
+            COURSE_LISTS.spin_axis_y.bits(),
+            COURSE_LISTS.spin_axis_z.bits(),
+        );
+        COURSE_LISTS.turn_product_xz.set_bits(x87::mul2(t, x, z));
+        COURSE_LISTS.turn_product_xy.set_bits(x87::mul2(t, x, y));
+        COURSE_LISTS.turn_product_yz.set_bits(x87::mul2(t, y, z));
+        COURSE_LISTS.turn_sine_x.set_bits(x87::mul(x, s));
+        COURSE_LISTS.turn_sine_y.set_bits(x87::mul(y, s));
+        COURSE_LISTS.turn_sine_z.set_bits(x87::mul(z, s));
+        let (p1, p2, p3) = (
+            COURSE_LISTS.turn_product_xz.bits(),
+            COURSE_LISTS.turn_product_xy.bits(),
+            COURSE_LISTS.turn_product_yz.bits(),
+        );
+        let (q1, q2, q3) = (
+            COURSE_LISTS.turn_sine_x.bits(),
+            COURSE_LISTS.turn_sine_y.bits(),
+            COURSE_LISTS.turn_sine_z.bits(),
+        );
+        let put = |o: u32, v: u32| (crate::pointers::host(out + o) as *mut u32).write_unaligned(v);
         put(0x00, abs_sqrt_times_plus(x, t, c));
         put(0x04, x87::add(p2, q3));
         put(0x08, x87::sub(p1, q2));
@@ -81,81 +62,5 @@ pub unsafe fn axis_turn_at(m: &Mirror, out: u32) {
 
 /// The Rust version.
 pub unsafe fn axis_turn_matrix(out: u32) {
-    unsafe { axis_turn_at(&Mirror::game(), out) }
-}
-
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    unsafe { axis_turn_matrix(r.edi) };
-    Ok(Left::nothing())
-}
-
-pub fn regions(m: &Mirror, out: u32) -> Vec<Region> {
-    vec![(m.a(0x5C7098), 0x24), (out, 0x40)]
-}
-
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_state(
-        &HOOK,
-        r,
-        call_original,
-        &regions(&Mirror::game(), r.edi),
-        &rust,
-    );
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let m = Mirror::of(&RANGES);
-    let copy = match m.copy(SPEC, &|_| None) {
-        Ok(c) => c,
-        Err(why) => return t.skip(&why),
-    };
-    let mut matrix = vec![0u32; 16];
-    let out = matrix.as_mut_ptr() as u32;
-    let mut all = m.regions();
-    all.push((out, 0x40));
-    for word in TEST_CONTROL_WORDS {
-        with_control_word(word, &mut || {
-            for seed in 1..=10u32 {
-                let mut f = [0u32; 4];
-                crate::scene::matrix3::test_floats(seed * 3 + 1, &mut f);
-                unsafe {
-                    m.put(0x5C78F8, (seed as f32 * 0.37 - 1.5).to_bits());
-                    for (k, &x) in f.iter().take(3).enumerate() {
-                        let v = f32::from_bits(x) / 8.0 - 2.0;
-                        m.put(0x5C78FC + 4 * k as u32, v.to_bits());
-                    }
-                    for k in 0..16 {
-                        (out as *mut u32).add(k).write(0xA5A5_0000 | k as u32);
-                    }
-                }
-                let input = capture(&all);
-                let before = Regs {
-                    edi: out,
-                    ..Regs::SENTINEL
-                };
-                let mut ro = before;
-                unsafe { call_game(&mut ro, copy.addr()) };
-                let theirs = capture(&all);
-                restore(&all, &input);
-                unsafe { axis_turn_at(&m, out) };
-                let mine = capture(&all);
-                let regs_ok = ro.preserved_except(&before, 0);
-                t.check(regs_ok && theirs == mine, || {
-                    let first = theirs.iter().zip(&mine).position(|(a, b)| a != b);
-                    format!("control word {word:#x}, seed {seed}: regs_ok={regs_ok}, first difference at byte {first:?}")
-                });
-            }
-        });
-    }
-    drop((copy, matrix));
-    t.finish()
+    unsafe { axis_turn_at(out) }
 }

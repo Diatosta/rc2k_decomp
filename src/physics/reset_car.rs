@@ -13,152 +13,63 @@
 //! Out: as the last call leaves them (eax the last try's checkpoint and esi the last
 //!      block when none was free); no flags read (every caller returns next)
 //!
-//! Callers: `physics::reset_when_stuck`, `sub_43A0D3`, `sub_43BDD1`.
-//! Refuses what the calls refuse. Shadow mode runs the original alone
-//! (`physics/reset_parts.rs`).
-//! Self-test: a copy whose calls go to the stand-ins (place 13's carry by a pattern),
-//! against the Rust version with the same: modes 2 and others, patterns free at once,
-//! after some tries, and never (the log line, a stand-in too); all put back.
+//! Callers: `physics::reset_when_stuck`, `sub_43A0D3`, `sub_43BDD1`. Refuses what the calls
+//! refuse.
 
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, SelfTest, game_addr, game_read, game_write, hook_asm, rva};
-use crate::physics::reset_parts::{BLOCKED, LOG, ON_LINE, both, copy_of, dispatch_reset, regions};
-use crate::race::car_starts::{Case, Part, prepare};
-use crate::service::harness::{capture, restore};
+use crate::physics::car_store::CAR;
+use crate::physics::tables_store::PHYSICS;
+use crate::race::vars_store::RACE_VARS;
+use crate::scene::light_store::LIGHT_STATE;
 use rc2k_core::physics::line_places::{RESET_TRIES, reset_offsets};
-use std::sync::atomic::AtomicUsize;
 
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
+const NOWHERE_TEXT: &std::ffi::CStr = c"cant reset car anywhere - waiting a second"; // "cant reset car anywhere - waiting a sec"
 
-pub static HOOK: RawHook =
-    RawHook::new("physics::reset_car", rva(0x43EFEF), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
-
-const LINE_PLACE: usize = rva(0x6365E4); // dword_6365E4
-const OFFSET: usize = rva(0x614C4C); // dword_614C4C
-const CANDIDATE: usize = rva(0x614C50); // dword_614C50
-const STUCK: usize = rva(0x71A1C0); // g_car + 0x1E8
-const BLOCKS: [usize; 3] = [0x7103CC, 0x7113AC, 0x71238C];
-const NOWHERE_TEXT: usize = rva(0x4DBB01); // "cant reset car anywhere - waiting a sec"
-
-fn g(a: usize) -> u32 {
-    unsafe { game_read(a) }
+/// One try: the candidate set; true when a block is in the way (CF).
+fn blocked() -> bool {
+    PHYSICS.reset_candidate.set(
+        LIGHT_STATE
+            .line_place
+            .get()
+            .wrapping_add(PHYSICS.reset_offset.get()),
+    );
+    // Blocks 1 .. 3: the other cars.
+    (1..4).any(|n| {
+        crate::physics::reset_point_blocked::reset_point_blocked(
+            crate::race::blocks_store::block_addr(n),
+        )
+    })
 }
 
-fn p(a: usize, v: u32) {
-    unsafe { game_write(a, v) }
-}
-
-/// One try: the candidate set; true when a block says CF.
-fn blocked(r: &mut Regs, part: Part) -> Result<bool, Refused> {
-    r.eax = g(LINE_PLACE).wrapping_add(g(OFFSET));
-    p(CANDIDATE, r.eax);
-    for b in BLOCKS {
-        r.esi = game_addr(rva(b)) as u32;
-        part(BLOCKED, r)?;
-        if r.carry() {
-            return Ok(true);
-        }
-    }
-    Ok(false)
-}
-
-/// The Rust version, the calls through `part` (places 13, 14, 6, 16).
+/// The Rust version. The registers it leaves are read by none of its callers.
 // Converted: `rc2k_core::physics::line_places::reset_offsets`.
-pub unsafe fn reset_car(entry: &Regs, part: Part) -> Result<Regs, Refused> {
-    let mut r = *entry;
-    r.eax = g(rva(0x71A06C));
-    p(LINE_PLACE, r.eax);
-    p(rva(0x6365EC), 0);
-    if g(rva(0x62389C)) == 2 {
+pub unsafe fn reset_car() -> Result<(), Refused> {
+    LIGHT_STATE.line_place.set(CAR.reset_checkpoint.get());
+    LIGHT_STATE.line_fraction.set(0);
+    if RACE_VARS.run_kind.get() == 2 {
         let mut free = false;
         for offset in reset_offsets() {
-            p(OFFSET, offset);
-            if !blocked(&mut r, part)? {
+            PHYSICS.reset_offset.set(offset);
+            if !blocked() {
                 free = true;
                 break;
             }
         }
         if !free {
-            p(OFFSET, RESET_TRIES);
-            let mut l = r;
-            l.eax = game_addr(NOWHERE_TEXT) as u32;
-            part(LOG, &mut l)?;
-            p(STUCK, g(STUCK).wrapping_sub(100));
-            return Ok(r);
-        }
-        r.eax = g(CANDIDATE);
-        p(LINE_PLACE, r.eax);
-    }
-    part(6, &mut r)?;
-    part(ON_LINE, &mut r)?;
-    p(rva(0x71AF84), 10);
-    Ok(r)
-}
-
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_reset(&HOOK, r, call_original, reset_car);
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let copy = match copy_of(
-        0x43EFEF,
-        0xF0,
-        &[0xA1, 0x6C, 0xA0, 0x71, 0x00],
-        &[0x41, 0x4E, 0x5B, 0x80, 0x8D, 0x9A, 0xC3, 0xDB, 0xE0],
-    ) {
-        Ok(c) => c,
-        Err(why) => return t.skip(why),
-    };
-    let all = regions();
-    let saved = capture(&all);
-    let patterns: [u64; 6] = [
-        0,
-        0b1,
-        0b1011,
-        0x5555_5555_5555_5555,
-        0xFFFF_FFFF_FFFF_FFF0,
-        u64::MAX,
-    ];
-    for mode in [2u32, 0, 3] {
-        for (n, pattern) in patterns.into_iter().enumerate() {
-            let seed = mode * 8 + n as u32;
-            let fill = || {
-                prepare(
-                    &Case {
-                        mode,
-                        no_place: 0,
-                        side: 0,
-                        cars_2: 1,
-                        current: seed % 4,
-                        cars: 4,
-                    },
-                    seed.wrapping_mul(0x2026_1017),
-                );
-                p(OFFSET, 0x5A5A_5A5A);
-                p(CANDIDATE, 0xA5A5_A5A5);
+            PHYSICS.reset_offset.set(RESET_TRIES);
+            // `log_write_l1_nl`.
+            unsafe {
+                crate::logfile::log_write::log_write(NOWHERE_TEXT.as_ptr() as *const u8, true, 1)
             };
-            both(
-                &mut t,
-                &format!("mode {mode}, pattern {pattern:#x}"),
-                &copy,
-                pattern,
-                Regs::SENTINEL,
-                &fill,
-                reset_car,
-            );
+            CAR.stuck_count.set(CAR.stuck_count.get().wrapping_sub(100));
+            return Ok(());
         }
+        LIGHT_STATE.line_place.set(PHYSICS.reset_candidate.get());
     }
-    restore(&all, &saved);
-    drop(copy);
-    t.finish()
+    unsafe {
+        crate::race::start_place::place_car_on_line()?;
+        crate::physics::reset_car_on_line::reset_car_on_line()?;
+    }
+    CAR.reset_marker.set(10);
+    Ok(())
 }

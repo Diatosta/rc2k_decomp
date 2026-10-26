@@ -1,6 +1,6 @@
 //! The standalone program's installation record in place of the registry (owner, 2026-10-19:
 //! the standalone is portable, a folder that needs nothing outside it; a decided difference
-//! from the original, which the hook DLL keeps).
+//! from the original).
 //!
 //! What the original keeps under `HKEY_LOCAL_MACHINE\SOFTWARE\Magnetic Fields\RC99`
 //! (`install::write_registry`, `install::read_registry`):
@@ -42,13 +42,18 @@ const ERROR_MORE_DATA: u32 = 234;
 const REG_SZ: u32 = 1;
 const REG_BINARY: u32 = 3;
 
-unsafe fn text(at: *const u8) -> Vec<u8> {
-    if at.is_null() {
+/// The text at a game address up to its NUL (empty for a null address); the program ends
+/// on a text outside the game's memory.
+fn text(at: u32) -> Vec<u8> {
+    if at == 0 {
         return Vec::new();
     }
-    unsafe { std::ffi::CStr::from_ptr(at as *const _) }
-        .to_bytes()
-        .to_vec()
+    crate::files::cstring(crate::pointers::GamePtr::new(at), "a registry name")
+        .unwrap_or_else(|e| crate::fatal::raise::end("install::portable", e))
+}
+
+fn put<T: Copy>(at: u32, value: T) {
+    crate::pointers::write_or_end(at, value, "a registry answer")
 }
 
 /// The status in a record's text (`status=N`), if it is there.
@@ -72,7 +77,7 @@ pub fn record_text(status: u8) -> String {
 
 /// The current directory with a `\` after it.
 fn here() -> Option<Vec<u8>> {
-    let mut d = unsafe { crate::install::normalise_path::current_directory() }.ok()??;
+    let mut d = crate::install::normalise_path::current_directory().ok()??;
     if !matches!(d.last(), Some(b'\\' | b'/')) {
         d.push(b'\\');
     }
@@ -83,27 +88,20 @@ fn here() -> Option<Vec<u8>> {
 pub struct Portable;
 
 impl Registry for Portable {
-    unsafe fn open(&mut self, name: *const u8, key: *mut u32) -> u32 {
-        if unsafe { text(name) }.eq_ignore_ascii_case(KEY) && std::path::Path::new(FILE).exists() {
-            unsafe { key.write_unaligned(KEPT) };
+    fn open(&mut self, name: u32, key: u32) -> u32 {
+        if text(name).eq_ignore_ascii_case(KEY) && std::path::Path::new(FILE).exists() {
+            put(key, KEPT);
             0
         } else {
             ERROR_FILE_NOT_FOUND
         }
     }
 
-    unsafe fn query(
-        &mut self,
-        key: u32,
-        name: *const u8,
-        kind: *mut u32,
-        data: *mut u8,
-        size: *mut u32,
-    ) -> u32 {
+    fn query(&mut self, key: u32, name: u32, kind: u32, data: u32, size: u32) -> u32 {
         if key != KEPT {
             return ERROR_FILE_NOT_FOUND;
         }
-        let (value, value_kind) = match unsafe { text(name) }.as_slice() {
+        let (value, value_kind) = match text(name).as_slice() {
             b"status" => {
                 let record = std::fs::read_to_string(FILE).unwrap_or_default();
                 match parse_status(&record) {
@@ -120,19 +118,20 @@ impl Registry for Portable {
             },
             _ => return ERROR_FILE_NOT_FOUND,
         };
-        unsafe {
-            let room = size.read_unaligned() as usize;
-            kind.write_unaligned(value_kind);
-            size.write_unaligned(value.len() as u32);
-            if room < value.len() {
-                return ERROR_MORE_DATA;
-            }
-            std::ptr::copy_nonoverlapping(value.as_ptr(), data, value.len());
+        let room = crate::pointers::read_or_end::<u32>(size, "a registry answer") as usize;
+        put(kind, value_kind);
+        put(size, value.len() as u32);
+        if room < value.len() {
+            return ERROR_MORE_DATA;
+        }
+        if let Err(e) = crate::pointers::GamePtr::new(data).write_bytes(&value, "a registry answer")
+        {
+            crate::fatal::raise::end("install::portable", e);
         }
         0
     }
 
-    unsafe fn close(&mut self, _key: u32) {}
+    fn close(&mut self, _key: u32) {}
 }
 
 /// What the kept key is given until it is closed: its status and the folder it goes to.
@@ -165,20 +164,22 @@ fn write_record(status: u8, folder: Option<Vec<u8>>) {
 /// key's removal done without effect. Each answers success, as the registry would.
 pub fn api(place: u32, x: &[u32]) -> Option<u32> {
     let mut pending = PENDING.lock().unwrap_or_else(|e| e.into_inner());
-    unsafe {
+    {
         match place {
             REG_CREATE_KEY => {
-                let kept = text(x[1] as *const u8).eq_ignore_ascii_case(KEY);
+                let kept = text(x[1]).eq_ignore_ascii_case(KEY);
                 if kept {
                     *pending = (None, None);
                 }
-                (x[2] as *mut u32).write_unaligned(if kept { KEPT } else { OTHER });
+                put(x[2], if kept { KEPT } else { OTHER });
                 Some(0)
             }
             REG_SET_VALUE => {
                 if x[0] == KEPT {
-                    let data = std::slice::from_raw_parts(x[4] as *const u8, x[5] as usize);
-                    match text(x[1] as *const u8).as_slice() {
+                    let data = crate::pointers::GamePtr::new(x[4])
+                        .read_bytes(x[5] as usize, "a registry value")
+                        .unwrap_or_else(|e| crate::fatal::raise::end("install::portable", e));
+                    match text(x[1]).as_slice() {
                         b"status" => pending.0 = data.first().copied(),
                         b"source" => {
                             let end = data.iter().position(|&b| b == 0).unwrap_or(data.len());

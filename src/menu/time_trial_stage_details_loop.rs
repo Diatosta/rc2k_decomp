@@ -7,46 +7,46 @@
 //! (`SCREEN`), as extracted from the disassembly: leaving is not asked about.
 //! A reading, not yet a visit: its draw list 0x758CFE is the one of
 //! `screens::draw_time_trial_stage_info`, a confirmed screen; it sets `dword_755700` to 1 first.
-//! Callers: `sub_47037E`. Ungated thunk; shadow mode runs the original alone; each real call
-//! writes a line to hook.log. Self-test: `screen_loop::check_screen`.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Callers: `sub_47037E`.
 
-use crate::framework::{Regs, rva};
-use crate::menu::screen_loop::{List, Screen, Step, screen_entry};
+use crate::framework::rva;
+use crate::menu::champ_store::CHAMP_VIEW;
+use crate::menu::draw_lists_store::DRAW_LISTS;
+use crate::menu::flow_store::SCREEN_FLOW;
+use crate::menu::menus_store::MENUS;
+use crate::menu::screen_items_store::{SCREEN_ITEMS, slot};
+use crate::menu::screen_loop::{Callee, List, Screen, Step};
 
 // ---- Rust version: `menu::screen_loop` with this ----
 
 pub const SCREEN: Screen = Screen {
-    menu: rva(0x754C24),
-    saved_item: rva(0x7476EC),
+    menu: || MENUS.time_trial_stage_details.addr() as usize,
+    saved_item: || &SCREEN_ITEMS.current[slot::TIME_TRIAL_STAGE_DETAILS],
     lists: &[
         List {
-            pointer: rva(0x755504), // g_sceneList
-            table: rva(0x759036),
+            pointer: || &SCREEN_FLOW.scene_list, // g_sceneList
+            table: || DRAW_LISTS.time_trial_stage_details_scene.addr() as usize,
             run: false,
         },
         List {
-            pointer: rva(0x7554F8), // g_drawList
-            table: rva(0x758CFE),
+            pointer: || &SCREEN_FLOW.draw_list, // g_drawList
+            table: || DRAW_LISTS.time_trial_stage_details_draw.addr() as usize,
             run: false,
         },
         List {
-            pointer: rva(0x7554FC), // g_overlayList
-            table: rva(0x75920A),
+            pointer: || &SCREEN_FLOW.overlay_list, // g_overlayList
+            table: || DRAW_LISTS.time_trial_stage_details_overlay.addr() as usize,
             run: false,
         },
     ],
     first_frame_lists: None,
     frame_callback: rva(0x474D4B),
     later_frame_callback: None,
-    before: &[Step::Write(rva(0x755700), 0x1)],
+    before: &[Step::Write(|| &CHAMP_VIEW.stage_mode, 0x1)],
     set_up_first: &[],
     prepare: &[],
     after_lists: &[],
-    background: &[Step::Call(rva(0x4683CF))],
+    background: &[Step::Call(Callee::DrawStageMap)],
     after_first_frame: &[],
     confirm: None,
     ask_also_if: None,
@@ -74,12 +74,4 @@ pub const SCREEN: Screen = Screen {
     after_blink: &[],
     restart_action_check: false,
     always_asks: false,
-    also_reads: &[],
-    also_writes: &[],
 };
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    screen_entry("menu::time_trial_stage_details_loop", r, &SCREEN)
-}

@@ -10,39 +10,25 @@
 //! (`menu::table_calls`); the registers above are the original's, for reference.
 
 use crate::errors::BadInput;
-use crate::errors::Refused;
-use crate::framework::{Regs, game_write};
 use crate::menu::backup_text::backup_text;
 use crate::menu::clear_text::clear_text;
-use crate::menu::text_entry::{ENTERING_RVA, set_length};
-use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
+use crate::menu::option_work_store::OPTION_WORK;
+use crate::menu::text_entry::set_length;
 use crate::service::load_setup_slot::highlighted_slot;
 use crate::service::read_setup_slot::{SLOT_COUNT, slot_name};
 
 // ---- Rust version ----
 
-pub unsafe fn begin_setup_name() -> Result<(), BadInput> {
+pub fn begin_setup_name() -> Result<(), BadInput> {
     let slot = highlighted_slot();
     if slot >= SLOT_COUNT {
         return Err(BadInput("slot past the name table"));
     }
-    unsafe {
-        backup_text(slot_name(slot));
-        clear_text(slot_name(slot));
-        game_write(ENTERING_RVA, 1u32);
+    {
+        backup_text(crate::pointers::game_address(slot_name(slot)))?;
+        clear_text(crate::pointers::game_address(slot_name(slot)))?;
+        OPTION_WORK.typing.set(1u32);
     }
     set_length(0);
     Ok(())
-}
-
-fn rust(_: &Regs) -> Result<Left, Refused> {
-    unsafe { begin_setup_name() }?;
-    Ok(Left::nothing())
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
 }

@@ -7,53 +7,60 @@
 //! a call or a store are the functions below, generated from the listing.
 //! The name is a reading from the title string of its menu, "INFORMAÇÃO DO PERCURSO", not yet a
 //! visit.
-//! Callers: none in code: it is reached through a table.
-//! Hook removed 2026-10-22 (typed tables): the menus and draw lists run its `entry`
+//! Callers: none in code: it is reached through a table. The menus and draw lists run its `entry`
 //! (`menu::table_calls`); the registers above are the original's, for reference.
 
-use crate::framework::{Regs, game_addr, rva};
-use crate::menu::screen_loop::{Env, List, Screen, Step, popa, pusha, screen_entry};
+use crate::errors::Refused;
+use crate::framework::rva;
+use crate::menu::arcade_store::ARCADE_GAME;
+use crate::menu::champ_store::CHAMP_VIEW;
+use crate::menu::draw_lists_store::DRAW_LISTS;
+use crate::menu::event_store::EVENT_STATE;
+use crate::menu::flow_store::SCREEN_FLOW;
+use crate::menu::menus_store::MENUS;
+use crate::menu::screen_items_store::{SCREEN_ITEMS, slot};
+use crate::menu::screen_loop::{Callee, Carried, List, Screen, Step, log_line, screen_entry};
 
 // ---- Rust version: `menu::screen_loop` with this ----
 
-unsafe fn set_up_first(g: &mut Regs, env: &mut dyn Env) {
-    let mut all = Vec::new();
-    pusha(g, &mut all);
-    g.eax = game_addr(rva(0x4DEAEC)) as u32;
-    env.call(rva(0x40142B), g);
-    popa(g, &mut all);
+unsafe fn set_up_first(_c: &mut Carried) -> Result<(), Refused> {
+    // Between `pusha` and `popa`: no register changes.
+    unsafe {
+        log_line(c"VCoursesScr: Start");
+    }
+    Ok(())
 }
 
-unsafe fn after(g: &mut Regs, env: &mut dyn Env) {
-    let mut all = Vec::new();
-    pusha(g, &mut all);
-    g.eax = game_addr(rva(0x4DEAFF)) as u32;
-    env.call(rva(0x40142B), g);
-    popa(g, &mut all);
+unsafe fn after(_c: &mut Carried) -> Result<(), Refused> {
+    // Between `pusha` and `popa`: no register changes.
+    unsafe {
+        log_line(c"VCoursesScr: End");
+    }
+    Ok(())
 }
 
 pub const SCREEN: Screen = Screen {
-    menu: rva(0x74DB68),
-    saved_item: rva(0x7476E8),
+    menu: || MENUS.view_courses.addr() as usize,
+    saved_item: || &SCREEN_ITEMS.current[slot::VIEW_COURSES],
     lists: &[
         List {
-            pointer: rva(0x755504), // g_sceneList
-            table: rva(0x75902E),
+            pointer: || &SCREEN_FLOW.scene_list, // g_sceneList
+            table: || DRAW_LISTS.view_courses_scene.addr() as usize,
             run: false,
         },
         List {
-            pointer: rva(0x7554F8), // g_drawList
-            table: rva(0x758CF6),
+            pointer: || &SCREEN_FLOW.draw_list, // g_drawList
+            table: || DRAW_LISTS.view_courses_draw.addr() as usize,
             run: false,
         },
         List {
-            pointer: rva(0x755500), // dword_755500
-            table: rva(0x75932E),
+            pointer: || &SCREEN_FLOW.setup_list, // dword_755500
+            table: || DRAW_LISTS.view_courses_setup.addr() as usize,
             run: true,
         },
         List {
-            pointer: rva(0x7554FC), // g_overlayList
-            table: rva(0x759206),
+            pointer: || &SCREEN_FLOW.overlay_list, // g_overlayList
+            table: || DRAW_LISTS.view_courses_overlay.addr() as usize,
             run: false,
         },
     ],
@@ -61,19 +68,19 @@ pub const SCREEN: Screen = Screen {
     frame_callback: rva(0x474D4B),
     later_frame_callback: None,
     before: &[
-        Step::Write(rva(0x755700), 0x1),
-        Step::Write(rva(0x7558C8), 0x0),
-        Step::Write(rva(0x7558CC), 0x1),
-        Step::Write(rva(0x7558D0), 0x0),
-        Step::Write(rva(0x7587EC), 0x0),
-        Step::Write(rva(0x7587F0), 0x1),
-        Step::Write(rva(0x75595C), 0x0),
-        Step::Write(rva(0x755958), 0x0),
+        Step::Write(|| &CHAMP_VIEW.stage_mode, 0x1),
+        Step::Write(|| &EVENT_STATE.stage_group, 0x0),
+        Step::Write(|| &EVENT_STATE.stage_number, 0x1),
+        Step::Write(|| &EVENT_STATE.stage_sub, 0x0),
+        Step::Write(|| &ARCADE_GAME.level, 0x0),
+        Step::Write(|| &ARCADE_GAME.stage, 0x1),
+        Step::Write(|| &EVENT_STATE.section, 0x0),
+        Step::Write(|| &EVENT_STATE.index, 0x0),
     ],
     set_up_first: &[Step::Do(set_up_first)],
     prepare: &[],
     after_lists: &[],
-    background: &[Step::Call(rva(0x4683CF))],
+    background: &[Step::Call(Callee::DrawStageMap)],
     after_first_frame: &[],
     confirm: None,
     ask_also_if: None,
@@ -101,21 +108,10 @@ pub const SCREEN: Screen = Screen {
     after_blink: &[],
     restart_action_check: false,
     always_asks: false,
-    also_reads: &[],
-    also_writes: &[
-        rva(0x755700),
-        rva(0x7558C8),
-        rva(0x7558CC),
-        rva(0x7558D0),
-        rva(0x755958),
-        rva(0x75595C),
-        rva(0x7587EC),
-        rva(0x7587F0),
-    ],
 };
 
-/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// The Rust version where the typed tables run it (a refusal is the
 /// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    screen_entry("menu::view_courses_loop", r, &SCREEN)
+pub fn run() -> Result<(), crate::errors::Refused> {
+    screen_entry("menu::view_courses_loop", &SCREEN)
 }

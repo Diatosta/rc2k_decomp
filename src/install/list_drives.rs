@@ -11,96 +11,74 @@
 //!
 //! In:  nothing
 //! Out: every register kept (`pusha` / `popa`)
-//! Caller `install::run_installer`. Its two probes through `part` (`files::drive_type`,
-//! `files::drive_free_space_kb`). Shadow mode runs the original alone (the free space can
-//! move between the two probes). Self-test: a copy whose probes go to stand-ins (the drives
-//! scripted), against the Rust version; the tables and the chosen menu are compared.
+//! Caller `install::run_installer`. Its two probes: `files::drive_type`,
+//! `files::drive_free_space_kb`.
 //!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Conversion phase 3 (2026-10-23): plain Rust with typed arguments; the registers above
+//! are the original's.
 
-use crate::errors::Refused;
-use crate::framework::Regs;
-use crate::install::installer::{
-    DRIVE_COUNT, DRIVE_LETTERS, DRIVE_TYPE, DRIVES, FIRST_DRIVE, FREE_SPACE, Part, a, at, g, p, wb,
-    wd,
-};
-use crate::race::viewer::regs_entry;
+use crate::install::installer::{game_api, wb, wd};
+use crate::install::vars::INSTALLER_PAGES;
+use crate::install::vars::INSTALLER_RUN;
 use rc2k_core::install::drives::{self, DriveMenu};
 
-const MENU_8: usize = 0x51D7F8; // off_51D7F8
-const MENU_16: usize = 0x51D8B0; // off_51D8B0
-const MENU_MORE: usize = 0x51D9E8; // off_51D9E8
-const CHOSEN_MENU: usize = 0x51D5F8; // off_51D5F8
-
-pub fn list_drives(entry: &Regs, part: Part) -> Result<Regs, Refused> {
-    let drives = a(DRIVES);
-    // Register for register: ecx the letter, eax given it at each probe, ebx the last slot.
-    let mut r = *entry;
-    r.ecx = g(FIRST_DRIVE);
+pub fn list_drives() {
+    let drives = crate::session::address_of(&INSTALLER_RUN.drives);
+    let mut letter = INSTALLER_RUN.first_drive.get();
     loop {
-        r.eax = r.ecx;
-        part(at(DRIVE_TYPE), &mut r)?;
         // Converted: `rc2k_core::install::drives` (`offered`, `LISTED`, `free`, `text`,
         // `menu`, `items`).
-        if drives::offered(r.eax) {
-            r.eax = r.ecx;
-            part(at(FREE_SPACE), &mut r)?;
-            if !r.carry() {
-                r.ebx = drives + 8 * r.ecx.wrapping_sub(b'a' as u32);
-                wd(r.ebx, g_at(r.ebx).wrapping_add(1));
-                wd(r.ebx + 4, r.eax);
-            }
+        let kind = unsafe { crate::files::drive_type::drive_type(letter as u8) };
+        if drives::offered(kind)
+            && let Some(free) =
+                crate::files::drive_free_space_kb::drive_free_space_kb(letter, &mut game_api)
+        {
+            let slot = drives + 8 * letter.wrapping_sub(b'a' as u32);
+            wd(slot, g_at(slot).wrapping_add(1));
+            wd(slot + 4, free);
         }
-        r.ecx = r.ecx.wrapping_add(1);
-        if r.ecx > b'z' as u32 {
+        letter = letter.wrapping_add(1);
+        if letter > b'z' as u32 {
             break;
         }
     }
-    p(DRIVE_COUNT, 0);
-    let mut ebx = a(DRIVE_LETTERS);
+    INSTALLER_RUN.drive_count.set(0);
+    let mut ebx = crate::install::store::DRIVE_ROWS.drive_rows.addr();
     // 'a' .. 'y': the loop's `cmp ecx, 7Ah; jb` leaves 'z' out (the game's slip, section 16)
     for letter in drives::LISTED {
         let slot = drives + 8 * (letter - b'a') as u32;
         if g_at(slot) == 0 {
             continue;
         }
-        p(DRIVE_COUNT, g(DRIVE_COUNT) + 1);
+        INSTALLER_RUN
+            .drive_count
+            .set(INSTALLER_RUN.drive_count.get() + 1);
         let row = ebx;
         wb(row, letter);
         let free = drives::free(g_at(slot + 4));
         let mut unit = Vec::new();
-        unsafe {
+        crate::menu::event_flow::refuse_here(
             crate::strings::append_string_by_id::append_string_by_id(free.unit, &mut |from, n| {
-                unit.extend_from_slice(std::slice::from_raw_parts(from, n));
-            });
-        }
+                unit.extend_from_slice(unsafe { std::slice::from_raw_parts(from, n) });
+            }),
+            "install::list_drives: a string",
+        );
         // the original writes the letter, skips a byte (`add ebx, 2`), then the rest
         for (n, &b) in drives::text(free, &unit).iter().enumerate() {
             wb(row + 2 + n as u32, b);
         }
         ebx = row + 0x10;
     }
-    let count = g(DRIVE_COUNT);
-    let menu = match drives::menu(count) {
-        DriveMenu::Eight => MENU_8,
-        DriveMenu::Sixteen => MENU_16,
-        DriveMenu::More => MENU_MORE,
-    };
-    p(CHOSEN_MENU, a(menu));
-    wb(a(menu) + 1, drives::items(count));
-    Ok(*entry)
+    let count = INSTALLER_RUN.drive_count.get();
+    let menu = (match drives::menu(count) {
+        DriveMenu::Eight => INSTALLER_PAGES.menu_8.addr(),
+        DriveMenu::Sixteen => INSTALLER_PAGES.menu_16.addr(),
+        DriveMenu::More => INSTALLER_PAGES.menu_more.addr(),
+    }) as u32;
+    INSTALLER_PAGES.chosen_menu.set_u32(0, menu);
+    wb(menu + 1, drives::items(count));
 }
 
 fn g_at(at: u32) -> u32 {
-    unsafe { (at as *const u32).read_unaligned() }
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    regs_entry(r, &|r| {
-        list_drives(r, &mut crate::install::installer::game_part)
-    })
+    crate::install::installer::rd(at)
 }

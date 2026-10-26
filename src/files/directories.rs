@@ -9,38 +9,29 @@
 //!
 //! The paths are used as they are (not through `files::resolve_path`).
 
-use windows_sys::Win32::Storage::FileSystem::{CreateDirectoryA, DeleteFileA, RemoveDirectoryA};
-use windows_sys::Win32::System::Environment::SetCurrentDirectoryA;
+// Phase 6 (2026-10-24): `std::fs` / `std::env` in place of the Win32 calls (`SetCurrentDirectoryA`,
+// `CreateDirectoryA`, `RemoveDirectoryA`, `DeleteFileA`): the same cases fail (a folder
+// already there, one not empty, a read-only file), the answer 1 or 0 as the BOOL was.
+use crate::errors::BadInput;
+use crate::files::ansi_path;
+use crate::pointers::GamePtr;
 
-pub const SET_CURRENT_DIRECTORY: usize = 0x403105;
-pub const MAKE_DIRECTORY: usize = 0x403113;
-pub const REMOVE_DIRECTORY: usize = 0x403123;
-pub const DELETE_FILE: usize = 0x402E8C;
-
-pub unsafe fn set_current_directory(path: *const u8) -> u32 {
-    unsafe { SetCurrentDirectoryA(path) as u32 }
+fn path(path: *const u8) -> Result<std::path::PathBuf, BadInput> {
+    ansi_path(GamePtr::new(crate::pointers::game_address(path)))
 }
 
-pub unsafe fn make_directory(path: *const u8) -> u32 {
-    unsafe { CreateDirectoryA(path, std::ptr::null()) as u32 }
+pub fn set_current_directory(at: *const u8) -> Result<u32, BadInput> {
+    Ok(std::env::set_current_dir(path(at)?).is_ok() as u32)
 }
 
-pub unsafe fn remove_directory(path: *const u8) -> u32 {
-    unsafe { RemoveDirectoryA(path) as u32 }
+pub fn make_directory(at: *const u8) -> Result<u32, BadInput> {
+    Ok(std::fs::create_dir(path(at)?).is_ok() as u32)
 }
 
-pub unsafe fn delete_file(path: *const u8) -> u32 {
-    unsafe { DeleteFileA(path) as u32 }
+pub fn remove_directory(at: *const u8) -> Result<u32, BadInput> {
+    Ok(std::fs::remove_dir(path(at)?).is_ok() as u32)
 }
 
-/// The one of the four at `place` (its IDA address): the BOOL it gives.
-pub unsafe fn by_place(place: usize, path: *const u8) -> u32 {
-    unsafe {
-        match place {
-            SET_CURRENT_DIRECTORY => set_current_directory(path),
-            MAKE_DIRECTORY => make_directory(path),
-            REMOVE_DIRECTORY => remove_directory(path),
-            _ => delete_file(path),
-        }
-    }
+pub fn delete_file(at: *const u8) -> Result<u32, BadInput> {
+    Ok(std::fs::remove_file(path(at)?).is_ok() as u32)
 }

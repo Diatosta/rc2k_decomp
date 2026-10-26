@@ -8,127 +8,122 @@
 //!      flags read
 //!
 //! Caller: `sub_437A53`.
-//! Self-test: `physics/camera_view.rs` (`view_test_floats`), modes and figures by lot,
-//! exact at double precision.
+//!
+//! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
+//! above are the original's, for reference.
 
-use crate::errors::Refused;
-use crate::framework::{EAX, ESI, RawHook, Regs, hook_asm, rva};
-use crate::physics::camera_view::{rd, record, record_plain, view_regions, view_test_floats};
-use crate::physics::flow::{a, base, g, hold_high, hold_low, p, x87_run};
-use crate::screens::harness::Left;
-use crate::service::floats::{Floats, ROUNDED, Tolerance, dispatch_state_floats, floats_entry};
-use rc2k_core::physics::camera_view::height_bias;
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook = RawHook::new(
-    "physics::camera_height_bias",
-    rva(0x43852D),
-    thunk,
-    &ORIGINAL,
-)
-.self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
+use crate::math::x87_float::X;
+use crate::physics::camera_view::{rd, record};
+use crate::physics::car_store::CAR;
+use crate::physics::flow::{hold_high, hold_low};
+use crate::race::numbers_store::NUMBERS;
+use crate::race::view_vars_store::VIEW_VARS;
+use crate::scene::draw_store::DRAW;
+use crate::scene::x87_mem::{fistp, fld, fstp};
 
 /// The Rust version (the exact one, for `physics::update_camera`).
-pub unsafe fn camera_height_bias(_: &Regs) -> Left {
+pub fn camera_height_bias() {
     let esi = record();
-    let left = Left::nothing().with(ESI, esi);
     if rd(esi + 0x54) == 0 {
-        return left;
+        return;
     }
-    x87_run!(
-        "fld dword ptr [{b} + 0x20631C]",
-        "fdiv dword ptr [{b} + 0x206290]",
-        "fstp dword ptr [{b} + 0x22400C]";
-        b = base()
-    );
-    hold_low(0x62400C, 0x5C5D90);
-    hold_high(0x62400C, 0x5C5D38);
+    x87_1(crate::race::store::asm_base() as usize);
+    hold_low(&DRAW.scratch, &NUMBERS.zero);
+    hold_high(&DRAW.scratch, &NUMBERS.one);
     if (rd(esi + 0x54) as i32) < 0 {
-        x87_run!(
-            ".byte 0xD9, 0xE8", // fld1
-            "fsub dword ptr [{b} + 0x22400C]",
-            "fstp dword ptr [{b} + 0x22400C]";
-            b = base()
-        );
+        x87_2(crate::race::store::asm_base() as usize);
     }
-    x87_run!(
-        "fld dword ptr [{b} + 0x22400C]",
-        "fmul dword ptr [{b} + 0x1C5D98]",
-        "fmul dword ptr [{b} + 0x20628C]",
-        "fistp dword ptr [{b} + 0x22400C]";
-        b = base()
+    x87_3(crate::race::store::asm_base() as usize);
+    let eax = DRAW.scratch.get();
+    VIEW_VARS.camera_height_bias.set(eax);
+    CAR.camera_position[1].set(
+        crate::physics::car_store::CAR.camera_position[1]
+            .get()
+            .wrapping_add(eax),
     );
-    let eax = g(0x62400C);
-    p(0x606288, eax);
-    p(0x71A680, g(0x71A680).wrapping_add(eax));
-    left.with(EAX, eax)
 }
 
-/// The converted version (`rc2k_core::physics::camera_view`, plain floats): the hook's.
-// Converted: `rc2k_core::physics::camera_view::height_bias`.
-pub unsafe fn camera_height_bias_plain(_: &Regs) -> Left {
-    let esi = record_plain();
-    let left = Left::nothing().with(ESI, esi);
-    if rd(esi + 0x54) == 0 {
-        return left;
+// ---- the arithmetic that was x87 assembly ----
+
+/// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
+/// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
+/// `[rc + 0x22400C] = [rc + 0x20631C] / [rc + 0x206290]`
+fn x87_1(rc: usize) {
+    let t0 = fld(rc, 0x20631C);
+    let t1 = fld(rc, 0x206290);
+    let t2 = t0 / t1;
+    fstp(rc, 0x22400C, t2);
+}
+
+/// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
+/// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
+/// `[rc + 0x22400C] = 1 - [rc + 0x22400C]`
+fn x87_2(rc: usize) {
+    let t0 = X(1.0);
+    let t1 = fld(rc, 0x22400C);
+    let t2 = t0 - t1;
+    fstp(rc, 0x22400C, t2);
+}
+
+/// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
+/// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
+/// `int [rc + 0x22400C] = ([rc + 0x22400C] * [rc + 0x1C5D98]) * [rc + 0x20628C]`
+fn x87_3(rc: usize) {
+    let t0 = fld(rc, 0x22400C);
+    let t1 = fld(rc, 0x1C5D98);
+    let t2 = t0 * t1;
+    let t3 = fld(rc, 0x20628C);
+    let t4 = t2 * t3;
+    fistp(rc, 0x22400C, t4);
+}
+
+#[cfg(all(test, target_arch = "x86"))]
+mod asm_reference {
+    use super::*;
+    use crate::scene::asm_test::{Block, In, Operand, Out, reference, sparse};
+
+    // The original's instructions, one function per run.
+    reference!(ref_0(rc) "fld dword ptr [{rc} + 0x20631C]", "fdiv dword ptr [{rc} + 0x206290]", "fstp dword ptr [{rc} + 0x22400C]");
+    reference!(ref_1(rc) ".byte 0xD9, 0xE8", "fsub dword ptr [{rc} + 0x22400C]", "fstp dword ptr [{rc} + 0x22400C]");
+    reference!(ref_2(rc) "fld dword ptr [{rc} + 0x22400C]", "fmul dword ptr [{rc} + 0x1C5D98]", "fmul dword ptr [{rc} + 0x20628C]", "fistp dword ptr [{rc} + 0x22400C]");
+
+    fn blocks() -> Vec<Block> {
+        vec![
+            Block {
+                name: "camera_height_bias line 24",
+                operands: vec![Operand::Buffer {
+                    reads: &[(0x206290, In::F), (0x20631C, In::F)],
+                    writes: &[(0x22400C, Out::F)],
+                }],
+                ulps: 0,
+                reference: |a| unsafe { ref_0(a[0]) },
+                plain: |a| x87_1(a[0]),
+            },
+            Block {
+                name: "camera_height_bias line 33",
+                operands: vec![Operand::Buffer {
+                    reads: &[(0x22400C, In::F)],
+                    writes: &[(0x22400C, Out::F)],
+                }],
+                ulps: 0,
+                reference: |a| unsafe { ref_1(a[0]) },
+                plain: |a| x87_2(a[0]),
+            },
+            Block {
+                name: "camera_height_bias line 40",
+                operands: vec![Operand::Buffer {
+                    reads: &[(0x1C5D98, In::F), (0x20628C, In::F), (0x22400C, In::F)],
+                    writes: &[(0x22400C, Out::I)],
+                }],
+                ulps: 0,
+                reference: |a| unsafe { ref_2(a[0]) },
+                plain: |a| x87_3(a[0]),
+            },
+        ]
     }
-    let f = |x: usize| f32::from_bits(g(x));
-    let n = height_bias(
-        f(0x60631C),
-        f(0x606290),
-        f(0x5C5D90),
-        f(0x5C5D38),
-        (rd(esi + 0x54) as i32) < 0,
-        f(0x5C5D98),
-        f(0x60628C),
-    ) as u32;
-    p(0x62400C, n);
-    p(0x606288, n);
-    p(0x71A680, g(0x71A680).wrapping_add(n));
-    left.with(EAX, n)
-}
 
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    Ok(unsafe { camera_height_bias_plain(r) })
-}
-
-/// The whole numbers made from floats, held to `ROUNDED` at extended precision.
-const FLOATS: [(usize, usize, Tolerance); 3] = [
-    (0x62400C, 4, ROUNDED),
-    (0x606288, 4, ROUNDED),
-    (0x71A680, 4, ROUNDED),
-];
-
-extern "C" fn dispatch(r: &mut Regs) {
-    let memory = FLOATS.map(|(x, len, tl)| ((a(x), len), tl));
-    let floats = Floats {
-        memory: &memory,
-        regs: &[(EAX, ROUNDED)],
-    };
-    dispatch_state_floats(&HOOK, r, call_original, &view_regions(), &floats, &rust);
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    floats_entry(r, &rust)
-}
-
-fn self_test() -> (usize, usize) {
-    view_test_floats(
-        &HOOK,
-        "physics::camera_height_bias",
-        call_original,
-        &rust,
-        &FLOATS,
-    )
+    #[test]
+    fn x87_blocks_matches_the_assembly() {
+        sparse(&blocks(), 1200, 100);
+    }
 }

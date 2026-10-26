@@ -6,44 +6,21 @@
 //!      (flags: the `and`'s; no caller reads them)
 //!
 //! See `drive/car.rs`. Callers (17): the race's frame, both halves (`sub_43703E`,
-//! `sub_460B2F` under `sub_4454D2`; `sub_454253`, `sub_454265`, `sub_454289`,
-//! `sub_446463`, `sub_4608BB` under `sub_4541BF`).
-//! Refuses a null block (the original faults).
-//! Self-test: a copy of the original whose three variables are the test's, against the
-//! Rust core on the same, every slot number's low bits and some high ones; the work copy
-//! and all eight blocks compared.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! `sub_460B2F` under `sub_4454D2`; `sub_454253`, `sub_454265`, `sub_454289`, `sub_446463`,
+//! `sub_4608BB` under `sub_4541BF`). Refuses a null block (the original faults).
 
 use crate::drive::car::*;
 use crate::errors::Refused;
-use crate::framework::Regs;
-use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
 
-/// The Rust core on the variables at `p`: what it leaves in the registers.
+/// The Rust core on the variables at `p`: the work copy and the block exchange one copy.
 // Converted: `rc2k_core::drive::work_car::{car_slot, car_block}`.
-pub unsafe fn store_car_at(p: CarPlaces) -> Result<Left, Refused> {
-    unsafe {
-        let (slot, block) = p.block()?;
-        copy_dwords(p.work, block);
-        Ok(left(slot, p.work, block))
-    }
+pub fn store_car_at(p: CarPlaces) -> Result<(), Refused> {
+    let (_, block) = p.block()?;
+    copy_dwords(p.work, block)?;
+    Ok(())
 }
 
 /// The Rust version, on the game's variables.
-pub unsafe fn store_car() -> Result<Left, Refused> {
-    unsafe { store_car_at(CarPlaces::game()) }
-}
-
-fn rust(_: &Regs) -> Result<Left, Refused> {
-    unsafe { store_car() }
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
+pub fn store_car() -> Result<(), Refused> {
+    store_car_at(CarPlaces::game())
 }

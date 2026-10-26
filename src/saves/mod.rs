@@ -1,7 +1,5 @@
-//! Saved games, options and best times: no hooks left (conversion phase 4, 2026-10-22);
-//! Rust callers call these directly.
-
 pub mod allocate_best_times;
+pub mod best_times_store;
 pub mod default_best_scores;
 pub mod default_championship_times;
 pub mod default_checkpoint_times;
@@ -17,6 +15,7 @@ pub mod list_car_numbers;
 pub mod load_best_times;
 pub mod load_options;
 pub mod load_savegame;
+pub mod preview_store;
 pub mod read_replay_slot;
 pub mod read_savegame_slot;
 pub mod rebuild_car_lists;

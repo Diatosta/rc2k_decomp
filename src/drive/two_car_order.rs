@@ -8,41 +8,29 @@
 //! Out: ebx the last figure compared; the rest kept; no flags read
 //!
 //! Caller: `drive::replay_step`.
-//! Self-test: the original and the Rust version on the two blocks' figures (saved and put
-//! back): modes, ahead, behind, level.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
 
-use crate::errors::Refused;
-use crate::framework::{EBX, Regs};
-use crate::physics::flow::{g, p};
-use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
+use crate::race::blocks_store::CAR_BLOCKS;
+use crate::race::vars_store::RACE_VARS;
+use crate::race::view_store::RACE_VIEW;
 use rc2k_core::drive::places;
-
-const B: usize = 0x70F3EC; // g_carBlockStore
-const NEXT: usize = 0xFE0;
 
 /// The Rust version.
 // Converted: `rc2k_core::drive::places::two_car_order`.
-pub fn two_car_order(entry: &Regs) -> Left {
-    let figure = |car: usize, o: u32| g(B + car * NEXT + o as usize);
-    let order = places::two_car_order(g(0x62389C), g(0x63DB94), figure, entry.ebx);
+pub fn two_car_order() -> Result<(), crate::errors::BadInput> {
+    // g_carBlockStore: the figures of car block `car`.
+    let reading = crate::scene::reading::Reading::new();
+    let figure = |car: usize, o: u32| {
+        reading.read::<u32>(
+            (crate::race::blocks_store::block_addr(car)).wrapping_add(o),
+            "a car's block",
+        )
+    };
+    // The last argument is only handed back as `last` (ebx), which no caller reads.
+    let order = places::two_car_order(RACE_VARS.run_kind.get(), RACE_VIEW.players.get(), figure, 0);
+    reading.finish()?;
     if let Some([x, y]) = order.places {
-        p(B + 0xFA4, x);
-        p(B + NEXT + 0xFA4, y);
+        CAR_BLOCKS.cars[0].unknown_fa4.set_bits(x);
+        CAR_BLOCKS.cars[1].unknown_fa4.set_bits(y);
     }
-    Left::nothing().with(EBX, order.last)
-}
-
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    Ok(two_car_order(r))
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
+    Ok(())
 }

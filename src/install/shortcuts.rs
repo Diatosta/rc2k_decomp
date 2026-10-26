@@ -13,8 +13,7 @@
 //!
 //! And the program installed: `rc2k.exe` and its DLLs copied from the running program's
 //! folder into the current one (the original copies the program named on its command line
-//! to `.\ral.exe` when run from the CD). No hook: called by `install::run_after_exit`'s
-//! standalone way.
+//! to `.\ral.exe` when run from the CD).
 
 use std::ffi::c_void;
 use std::path::{Path, PathBuf};

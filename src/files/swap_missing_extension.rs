@@ -12,31 +12,23 @@
 
 use crate::errors::BadInput;
 use crate::files::file_exists::file_exists;
-use crate::strings::text_length::text_length;
+use crate::pointers::GamePtr;
 
 // ---- Rust version ----
 
-/// Where the path's last four characters are, if it has at least five.
-unsafe fn ending(path: *mut u8) -> Result<Option<*mut [u8; 4]>, BadInput> {
-    let length = unsafe { text_length(path) }? as usize;
-    Ok((length >= 5).then(|| path.wrapping_add(length - 4).cast()))
-}
-
-pub unsafe fn swap_missing_extension(path: *mut u8) -> Result<(), BadInput> {
-    unsafe {
-        let Some(ending) = ending(path)? else {
-            return Ok(());
-        };
-        // Converted: `rc2k_core::files::paths::missing_partner`.
-        let length = text_length(path)? as usize;
-        let Some(partner) =
-            rc2k_core::files::paths::missing_partner(std::slice::from_raw_parts(path, length))
-        else {
-            return Ok(());
-        };
-        if !file_exists(path)? {
-            ending.write(*partner);
-        }
-        Ok(())
+pub fn swap_missing_extension(path: *mut u8) -> Result<(), BadInput> {
+    let at = GamePtr::new(crate::pointers::game_address(path));
+    let text = crate::files::cstring(at, "a path")?;
+    if text.len() < 5 {
+        return Ok(());
     }
+    // Converted: `rc2k_core::files::paths::missing_partner`.
+    let Some(partner) = rc2k_core::files::paths::missing_partner(&text) else {
+        return Ok(());
+    };
+    if !file_exists(path)? {
+        at.offset(text.len() as u32 - 4)
+            .write(*partner, "a path's ending")?;
+    }
+    Ok(())
 }

@@ -14,38 +14,32 @@
 //! registers above are the original's, for reference.
 
 use crate::errors::BadInput;
-use crate::files::handle::NO_HANDLE;
-use crate::framework::{EAX, EBX, game_write, rva};
-use crate::screens::harness::Left;
-
-// ---- game data ----
-
-pub const BYTES_READ_RVA: usize = rva(0x60B2CC); // dword_60B2CC
+use crate::files::state::BYTES_READ;
+use crate::pointers::GamePtr;
 
 // ---- Rust version ----
 
-/// The bytes read (0 after any failure but a failed read's own count).
-pub unsafe fn read_whole_file(
-    path: *const u8,
-    buffer: *mut u8,
-    count: u32,
-    ebx: u32,
-) -> Result<Left, BadInput> {
+/// Reads the whole file at `path` into `buffer` (`count` bytes at most). The bytes read
+/// go to `BYTES_READ` (0 after any failure but a failed read's own count).
+pub fn read_whole_file(path: *const u8, buffer: *mut u8, count: u32) -> Result<(), BadInput> {
     // Converted: `rc2k_core::files::io::read_whole_file`.
-    unsafe {
-        let into = std::slice::from_raw_parts_mut(buffer, count as usize);
+    {
+        let to = GamePtr::new(crate::pointers::game_address(buffer));
+        let mut into = to.read_bytes(count as usize, "a file's buffer")?;
         let w = rc2k_core::files::io::read_whole_file(
             &mut crate::files::handle::GameFiles::new(),
-            path,
-            into,
+            GamePtr::new(crate::pointers::game_address(path)),
+            &mut into,
         )?;
+        to.write_bytes(&into, "a file's buffer")?;
         if !w.opened {
-            game_write(BYTES_READ_RVA, 0u32);
-            return Ok(Left::carry(true).with(EAX, NO_HANDLE));
+            BYTES_READ.store(0, std::sync::atomic::Ordering::Relaxed);
+            return Ok(());
         }
-        game_write(BYTES_READ_RVA, if w.closed { w.bytes } else { 0 });
-        Ok(Left::carry(!w.closed || !w.read_ok)
-            .with(EAX, w.closed as u32)
-            .with(EBX, (ebx & !0xFF) | w.read_ok as u32))
+        BYTES_READ.store(
+            if w.closed { w.bytes } else { 0 },
+            std::sync::atomic::Ordering::Relaxed,
+        );
+        Ok(())
     }
 }

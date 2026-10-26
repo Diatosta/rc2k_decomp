@@ -8,15 +8,15 @@
 //! Hook removed 2026-10-22 (conversion phase 4): Rust callers call this directly; the
 //! registers above are the original's, for reference.
 
-use crate::bridge::{Raw, read_through};
-
 // ---- Rust version ----
 
-pub unsafe fn parse_number(text: *const u8) -> u32 {
+pub fn parse_number(text: *const u8) -> u32 {
     if text.is_null() {
         return 0;
     }
     // Converted: `rc2k_core::files::settings::number`.
-    let words = unsafe { Raw::new(text) };
-    read_through(rc2k_core::files::settings::number(&words, 0))
+    let number = crate::pointers::GamePtr::new(crate::pointers::game_address(text))
+        .bytes("a settings number")
+        .and_then(|words| Ok(rc2k_core::files::settings::number(&words, 0)?));
+    number.unwrap_or_else(|e| crate::fatal::raise::end("settings::parse_number", e))
 }

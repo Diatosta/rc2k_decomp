@@ -7,51 +7,40 @@
 //! In:  st(0) y, st(1) x (popped), edi the vertex, edx the angle, ebx passed on
 //! Out: eax the colour, ecx the turned y, ebx as the turn leaves it; edx, ebp kept
 //!
-//! Callers: `sub_4B6ECD`'s four (code at 0x4B6FFE ..). The turn is its Rust version. Thunk
-//! by `two_in_hook!`. Self-test: the original and the Rust version on a vertex of the
-//! test's, points and angles by lot, at the test precisions (`service::floats`).
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Callers: `sub_4B6ECD`'s four (code at 0x4B6FFE ..). The turn is its Rust version.
 
 use crate::errors::Refused;
-use crate::framework::{Regs, game_read, game_write, rva};
-use crate::hud::add_quad::QUAD_RVA;
+use crate::hud::store::HUD;
 use crate::math::turn_float_point_xz::turn_float_point_xz_plain;
+use crate::pointers::GamePtr;
 use rc2k_core::hud::disc;
 
-const POINT_RVA: [usize; 2] = [rva(0x75BFF0), rva(0x75BFF4)]; // dword_75BFF0, dword_75BFF4
-const UV_SHIFT_RVA: [usize; 2] = [rva(0x75C298), rva(0x75C29C)];
-const UV_SCALE_RVA: usize = rva(0x75C00C); // flt_75C00C
-const SIZE_RVA: usize = rva(0x75C2B8); // dword_75C2B8
-const CENTRE_RVA: [usize; 2] = [rva(0x75C2A0), rva(0x75C2A4)];
-
 /// The Rust version (see the header), the point as `f64`s (what the x87 holds at the
-/// game's double precision): the registers it leaves.
+/// game's double precision): the vertex at `vertex`, turned by `angle` (edx). The
+/// original hands its caller's ebx to `math::turn_float_point_xz` as y; that goes to
+/// `g_scratchY` alone, which is written before it is read everywhere: 0 here.
 // Converted: `rc2k_core::hud::disc::{turned_texture, turned_place, white_under}`
-pub unsafe fn turned_vertex(entry: &Regs, point: [f64; 2]) -> Result<Regs, Refused> {
-    let mut g = *entry;
+pub fn turned_vertex(vertex: u32, angle: u32, point: [f64; 2]) -> Result<(), Refused> {
     unsafe {
         let [y, x] = point.map(|v| v as f32);
-        game_write(POINT_RVA[1], y.to_bits());
-        game_write(POINT_RVA[0], x.to_bits());
-        let put = |o: u32, v: f32| ((g.edi + o) as *mut u32).write_unaligned(v.to_bits());
-        let f = |r: usize| f32::from_bits(game_read(r));
-        let scale = f(UV_SCALE_RVA);
-        put(0x18, disc::turned_texture(x, f(UV_SHIFT_RVA[0]), scale));
-        put(0x1C, disc::turned_texture(y, f(UV_SHIFT_RVA[1]), scale));
-        let [tx, ty, tz, _] = turn_float_point_xz_plain(x.to_bits(), g.ebx, y.to_bits(), g.edx);
-        [g.eax, g.ebx, g.ecx] = [tx, ty, tz];
-        game_write(POINT_RVA[1], tz);
-        game_write(POINT_RVA[0], tx);
-        let size = f(SIZE_RVA);
+        HUD.point[1].set(y.to_bits());
+        HUD.point[0].set(x.to_bits());
+        let put = |o: u32, v: f32| {
+            GamePtr::new(vertex + o).write::<u32>(v.to_bits(), "a hud record's field")
+        };
+        let scale = HUD.uv_scale_x.get();
+        put(0x18, disc::turned_texture(x, HUD.uv_shift[0].get(), scale))?;
+        put(0x1C, disc::turned_texture(y, HUD.uv_shift[1].get(), scale))?;
+        let [tx, _, tz, _] = turn_float_point_xz_plain(x.to_bits(), 0, y.to_bits(), angle);
+        HUD.point[1].set(tz);
+        HUD.point[0].set(tx);
+        let size = HUD.needle_size.get();
         let [tx, tz] = [tx, tz].map(f32::from_bits);
-        put(0, disc::turned_place(tx, size, f(CENTRE_RVA[0])));
-        put(4, disc::turned_place(tz, size, f(CENTRE_RVA[1])));
-        g.eax = disc::white_under(game_read::<u32>(QUAD_RVA));
-        ((g.edi + 0x10) as *mut u32).write_unaligned(g.eax);
-        ((g.edi + 0x14) as *mut u32).write_unaligned(0);
+        put(0, disc::turned_place(tx, size, HUD.needle_centre[0].get()))?;
+        put(4, disc::turned_place(tz, size, HUD.needle_centre[1].get()))?;
+        let colour = disc::white_under(HUD.quad[0].get());
+        GamePtr::new(vertex + 0x10).write::<u32>(colour, "a hud record's field")?;
+        GamePtr::new(vertex + 0x14).write::<u32>(0, "a hud record's field")?;
     }
-    Ok(g)
+    Ok(())
 }

@@ -14,67 +14,33 @@
 //! - 3: `dword_62DAD4` plus `dword_635068`, then blended (below);
 //! - anything else: eax as it came.
 //!
-//! "Plus" is byte by byte without overflow: with MMX (`g_hasMmx`) all four bytes
-//! (`paddusb`), without it the low three.
-//! The lit colour (`sub_45112D` and its twin `sub_451170`, with `sub_4511F1`): the
-//! normal's place in the view (the record 0x1000 + (number & 0xFFF) of
-//! `g_pointRecords`, its +0x10 .. +0x18) goes to `dword_62DAA8` ..; if the light's
-//! strength `dword_635090` is not 0, the light's direction `dword_6240A8` .. goes to
-//! `dword_62DAB4` .., the strength as a float to `flt_62DAC0`, and
-//! `scene::light_dot` gives a number; that plus `dword_63508C`, held to
-//! `dword_635084` .. `dword_635088`, picks a colour from the table `dword_635118`
-//! (0x100 entries), kept in `dword_62DAC4`.
-//! The blend (`sub_4511B3` for the normal, `sub_451296`): the same number without
-//! the table, held to -255 .. 255; each of the colour's three bytes moves that many
-//! 256ths of the way to `dword_6092C0`, `C4`, `C8` (red, green, blue by the byte's
-//! place) for a number of 0 or more, and by its size towards `dword_6092B4`, `B8`,
-//! `BC` for one below.
-//! One caller, `sub_450E37`.
-//! Refuses when there are no records and when the table's place is outside it.
-//! Shadow mode: the Rust version, its writes put back, the original; the variables,
-//! eax and ebp compared.
+//! "Plus" is byte by byte without overflow: with MMX (`g_hasMmx`) all four bytes (`paddusb`),
+//! without it the low three. The lit colour (`sub_45112D` and its twin `sub_451170`, with
+//! `sub_4511F1`): the normal's place in the view (the record 0x1000 + (number & 0xFFF) of
+//! `g_pointRecords`, its +0x10 .. +0x18) goes to `dword_62DAA8` ..; if the light's strength
+//! `dword_635090` is not 0, the light's direction `dword_6240A8` .. goes to `dword_62DAB4` ..,
+//! the strength as a float to `flt_62DAC0`, and `scene::light_dot` gives a number; that plus
+//! `dword_63508C`, held to `dword_635084` .. `dword_635088`, picks a colour from the table
+//! `dword_635118` (0x100 entries), kept in `dword_62DAC4`. The blend (`sub_4511B3` for the
+//! normal, `sub_451296`): the same number without the table, held to -255 .. 255; each of the
+//! colour's three bytes moves that many 256ths of the way to `dword_6092C0`, `C4`, `C8` (red,
+//! green, blue by the byte's place) for a number of 0 or more, and by its size towards
+//! `dword_6092B4`, `B8`, `BC` for one below. One caller, `sub_450E37`. Refuses when there are
+//! no records and when the table's place is outside it.
 
 use crate::errors::BadInput;
-use crate::framework::{
-    RawHook, Regs, SelfTest, game_addr, game_read, game_write, hook_asm, rva, shadow,
-};
 use crate::math::x87;
-use crate::scene::draw_polygon::CHECKED_RVA;
-use crate::scene::light_dot::{INPUTS_RVA, light_dot};
-use crate::scene::project_point::RECORDS_RVA;
-use crate::service::harness::{Region, at, capture, restore};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("scene::vertex_light", rva(0x450F17), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
+use crate::race::course_lists_store::COURSE_LISTS;
+use crate::race::prefs_store::STAGE_PREFS;
+use crate::race::switches_store::FRAME_SWITCHES;
+use crate::scene::draw_store::DRAW;
+use crate::scene::light_dot::light_dot;
+use crate::scene::light_work_store::LIGHT_WORK;
+use crate::scene::object_store::OBJECT_WORK;
+use crate::session::MACHINE;
 
 // ---- game data ----
-
-const KIND_RVA: usize = rva(0x62DAF4); // dword_62DAF4
-const LIT_A_RVA: usize = rva(0x621480); // dword_621480
-const LIT_B_RVA: usize = rva(0x60931C); // dword_60931C
-const MMX_RVA: usize = rva(0x5183A8); // g_hasMmx
-const COLOUR_RVA: usize = rva(0x62DAC4); // dword_62DAC4
-const ADDED_RVA: usize = rva(0x635068); // dword_635068
-const BASE_RVA: usize = rva(0x62DAD4); // dword_62DAD4
-const STRENGTH_RVA: usize = rva(0x635090); // dword_635090
-const DIRECTION_RVA: usize = rva(0x6240A8); // dword_6240A8, dword_6240AC, dword_6240B0
-const LEVEL_RVA: usize = rva(0x63508C); // dword_63508C
-const LOWEST_RVA: usize = rva(0x635084); // dword_635084
-const HIGHEST_RVA: usize = rva(0x635088); // dword_635088
-const TABLE_RVA: usize = rva(0x635118); // dword_635118
 const TABLE_LEN: u32 = 0x100;
-const TOWARDS_DARK_RVA: usize = rva(0x6092B4); // dword_6092B4, dword_6092B8, dword_6092BC
-const TOWARDS_LIGHT_RVA: usize = rva(0x6092C0); // dword_6092C0, dword_6092C4, dword_6092C8
 
 // ---- Rust version ----
 
@@ -99,263 +65,113 @@ fn held(value: i32, low: i32, high: i32) -> i32 {
 }
 
 /// The normal's place in the view to the light's work variables, the colour set to 0.
-unsafe fn set_normal(number: u32) -> Result<(), BadInput> {
-    unsafe {
-        let records: u32 = game_read(RECORDS_RVA);
-        if records == 0 {
-            return Err(BadInput("no records for the points"));
-        }
-        let record = records.wrapping_add(((number & 0xFFF) + 0x1000) << 5) as usize;
-        game_write(COLOUR_RVA, 0u32);
-        let place: [u32; 3] = ((record + 0x10) as *const [u32; 3]).read_unaligned();
-        game_write(INPUTS_RVA, place);
-        Ok(())
+fn set_normal(number: u32) -> Result<(), BadInput> {
+    let records: u32 = COURSE_LISTS.point_records.bits();
+    if records == 0 {
+        return Err(BadInput("no records for the points"));
     }
-}
-
-/// The start of `sub_4511F1` and of `sub_451296`: the light on the normal as a number.
-unsafe fn light() -> i32 {
-    unsafe {
-        let strength: i32 = game_read(STRENGTH_RVA);
-        if strength == 0 {
-            return 0;
-        }
-        game_write(INPUTS_RVA + 12, game_read::<[u32; 3]>(DIRECTION_RVA));
-        game_write(INPUTS_RVA + 24, x87::from_int(strength));
-        light_dot()
-    }
-}
-
-/// Where `sub_4511F1` would look in the table, checked.
-unsafe fn table_place() -> Result<usize, BadInput> {
-    unsafe {
-        let place = held(
-            light().wrapping_add(game_read(LEVEL_RVA)),
-            game_read(LOWEST_RVA),
-            game_read(HIGHEST_RVA),
-        );
-        if !(0..TABLE_LEN as i32).contains(&place) {
-            return Err(BadInput("a place outside the light table"));
-        }
-        Ok(place as usize)
-    }
-}
-
-/// `sub_45112D` / `sub_451170` with `sub_4511F1`: the lit colour, left in `dword_62DAC4`.
-unsafe fn lit(number: u32, mmx: bool) -> Result<u32, BadInput> {
-    unsafe {
-        // The checks first, on a copy of what they would write.
-        let regions = [(game_addr(INPUTS_RVA) as u32, 0x20), at(CHECKED_RVA)];
-        let before = capture(&regions);
-        let place = set_normal(number).and_then(|()| table_place());
-        let Ok(place) = place else {
-            restore(&regions, &before);
-            return place.map(|_| 0);
-        };
-        let colour = plus(game_read(TABLE_RVA + place * 4), game_read(COLOUR_RVA), mmx);
-        game_write(COLOUR_RVA, colour);
-        Ok(colour)
-    }
-}
-
-/// `sub_451296`: the colour in `dword_62DAC4` blended by the light.
-unsafe fn blend() {
-    unsafe {
-        let amount = held(light(), -255, 255);
-        let (amount, towards) = if amount < 0 {
-            (amount.wrapping_neg(), TOWARDS_DARK_RVA)
-        } else {
-            (amount, TOWARDS_LIGHT_RVA)
-        };
-        let towards: [i32; 3] = game_read(towards);
-        let mut colour: u32 = game_read(COLOUR_RVA);
-        // The third byte first, towards the first of the three.
-        for (n, to) in towards.into_iter().enumerate() {
-            let at = (2 - n) * 8;
-            let byte = (colour >> at & 0xFF) as i32;
-            let moved = (amount.wrapping_mul(to.wrapping_sub(byte)) >> 8).wrapping_add(byte);
-            colour = colour & !(0xFF << at) | (moved.clamp(0, 0xFF) as u32) << at;
-        }
-        game_write(COLOUR_RVA, colour);
-    }
-}
-
-pub unsafe fn vertex_light(number: u32) -> Result<u32, BadInput> {
-    unsafe {
-        let kind: u32 = game_read(KIND_RVA);
-        let mmx = game_read::<u32>(MMX_RVA) != 0;
-        if kind == 4 {
-            // 0 plus the lit colour.
-            return Ok(plus(0, lit(number, mmx)?, mmx));
-        }
-        let lit_at_all = game_read::<u32>(LIT_A_RVA) != 0 || game_read::<u32>(LIT_B_RVA) != 0;
-        if !lit_at_all || kind == 0 {
-            return Ok(0x00FF_FFFF);
-        }
-        let added: u32 = game_read(ADDED_RVA);
-        match kind {
-            2 | 5 => Ok(plus(plus(0, lit(number, mmx)?, mmx), added, mmx)),
-            1 => {
-                let level: u32 = game_read(LEVEL_RVA);
-                if level >= TABLE_LEN {
-                    return Err(BadInput("a place outside the light table"));
-                }
-                Ok(plus(game_read(TABLE_RVA + level as usize * 4), added, mmx))
-            }
-            3 => {
-                set_normal(number)?;
-                // The colour was just set to 0.
-                let colour = plus(plus(game_read(BASE_RVA), 0, mmx), added, mmx);
-                game_write(COLOUR_RVA, colour);
-                blend();
-                Ok(game_read(COLOUR_RVA))
-            }
-            _ => Ok(number),
-        }
-    }
-}
-
-// ---- hook ----
-
-fn regions() -> [Region; 2] {
-    [(game_addr(INPUTS_RVA) as u32, 0x20), at(CHECKED_RVA)]
-}
-
-extern "C" fn dispatch(r: &mut Regs) {
-    HOOK.count_call();
-    let number = r.eax;
-    if !shadow() {
-        match unsafe { vertex_light(number) } {
-            Ok(colour) => (r.eax, r.ebp) = (colour, number),
-            Err(e) => unsafe { crate::fatal::raise::refused(&HOOK, e, r, call_original) },
-        }
-        return;
-    }
-    let regions = regions();
-    let before = capture(&regions);
-    let mine = unsafe { vertex_light(number) }.map(|colour| (colour, capture(&regions)));
-    restore(&regions, &before);
-    unsafe { call_original(r) };
-    let Ok(mine) = mine else {
-        return;
-    };
-    let theirs = (r.eax, capture(&regions));
-    if mine != theirs || r.ebp != number {
-        HOOK.mismatch(|| {
-            format!(
-                "normal {number:#x}, kind {}: original {theirs:x?} ebp {:#x}; rust {mine:x?}",
-                unsafe { game_read::<u32>(KIND_RVA) },
-                r.ebp
-            )
-        });
-    }
-}
-
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    let number = r.eax;
-    {
-        let colour = unsafe { vertex_light(number) }?;
-        (r.eax, r.ebp) = (colour, number)
-    }
+    let place = crate::scene::reading::PointRecords::new(records)?.place(number)?;
+    LIGHT_WORK.light_colour.set_bits(0u32);
+    crate::session::write_bits(&LIGHT_WORK.light_dot_point, place);
     Ok(())
 }
 
-// ---- self-test ----
+/// The start of `sub_4511F1` and of `sub_451296`: the light on the normal as a number.
+fn light() -> i32 {
+    let strength = OBJECT_WORK.light_strength.bits() as i32;
+    if strength == 0 {
+        return 0;
+    }
+    crate::session::write_bits(
+        &LIGHT_WORK.light_dot_light,
+        crate::session::read_bits::<_, 3>(&DRAW.light_direction),
+    );
+    LIGHT_WORK
+        .light_dot_factor
+        .set_bits(x87::from_int(strength));
+    light_dot()
+}
 
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
+/// Where `sub_4511F1` would look in the table, checked.
+fn table_place() -> Result<usize, BadInput> {
+    let place = held(
+        light().wrapping_add(OBJECT_WORK.light_level.bits() as i32),
+        OBJECT_WORK.light_lowest.bits() as i32,
+        OBJECT_WORK.light_highest.bits() as i32,
+    );
+    if !(0..TABLE_LEN as i32).contains(&place) {
+        return Err(BadInput("a place outside the light table"));
+    }
+    Ok(place as usize)
+}
+
+/// `sub_45112D` / `sub_451170` with `sub_4511F1`: the lit colour, left in `dword_62DAC4`.
+fn lit(number: u32, mmx: bool) -> Result<u32, BadInput> {
+    // The checks first, on a copy of what they would write.
+    let place = set_normal(number).and_then(|()| table_place());
+    let place = place?;
+    let colour = plus(
+        crate::scene::light_tables_store::LIGHT_TABLES.light_table[place].get(),
+        LIGHT_WORK.light_colour.bits(),
+        mmx,
+    );
+    LIGHT_WORK.light_colour.set_bits(colour);
+    Ok(colour)
+}
+
+/// `sub_451296`: the colour in `dword_62DAC4` blended by the light.
+fn blend() {
+    let amount = held(light(), -255, 255);
+    let (amount, towards) = if amount < 0 {
+        (amount.wrapping_neg(), &STAGE_PREFS.dark_colour)
+    } else {
+        (amount, &STAGE_PREFS.lit_colour)
     };
-    let regions = regions();
-    let mut inputs: Vec<Region> = [
-        KIND_RVA,
-        LIT_A_RVA,
-        LIT_B_RVA,
-        MMX_RVA,
-        ADDED_RVA,
-        BASE_RVA,
-        STRENGTH_RVA,
-        LEVEL_RVA,
-        LOWEST_RVA,
-        HIGHEST_RVA,
-        RECORDS_RVA,
-    ]
-    .map(at)
-    .to_vec();
-    inputs.push((game_addr(DIRECTION_RVA) as u32, 12));
-    inputs.push((game_addr(TOWARDS_DARK_RVA) as u32, 24));
-    inputs.push((game_addr(TABLE_RVA) as u32, TABLE_LEN as usize * 4));
-    let saved = (capture(&regions), capture(&inputs));
-    let f = |value: f32| value.to_bits();
-    // The records of four normals, where an object's points have theirs.
-    let mut records = vec![[0u32; 8]; 0x2000];
-    let normals = [
-        [0.0f32, 0.0, 1.0],
-        [0.6, -0.8, 0.0],
-        [-0.577, -0.577, -0.577],
-        [0.3, 0.9, 0.3],
-    ];
-    for (n, normal) in normals.into_iter().enumerate() {
-        records[0x1000 + n][4..7].copy_from_slice(&normal.map(f));
+    let towards = crate::session::read_bits::<_, 3>(towards).map(|bits| bits as i32);
+    let mut colour: u32 = LIGHT_WORK.light_colour.bits();
+    // The third byte first, towards the first of the three.
+    for (n, to) in towards.into_iter().enumerate() {
+        let at = (2 - n) * 8;
+        let byte = (colour >> at & 0xFF) as i32;
+        let moved = (amount.wrapping_mul(to.wrapping_sub(byte)) >> 8).wrapping_add(byte);
+        colour = colour & !(0xFF << at) | (moved.clamp(0, 0xFF) as u32) << at;
     }
-    let table: Vec<u32> = (0..TABLE_LEN)
-        .map(|n| n.wrapping_mul(0x0101_0101) ^ 0x0030_0C03)
-        .collect();
-    let mut cases = 0u32;
-    for kind in 0..=6u32 {
-        for (lit_a, lit_b) in [(1u32, 0u32), (0, 1), (0, 0)] {
-            for strength in [0i32, 200, -300, 100_000] {
-                cases += 1;
-                let (mmx, normal) = (cases.is_multiple_of(2), cases % 4);
-                let before = Regs {
-                    eax: normal,
-                    ..Regs::SENTINEL
-                };
-                let run = |rust: bool| unsafe {
-                    restore(&regions, &vec![0xAA; saved.0.len()]);
-                    game_write(KIND_RVA, kind);
-                    game_write(LIT_A_RVA, lit_a);
-                    game_write(LIT_B_RVA, lit_b);
-                    game_write(MMX_RVA, mmx as u32);
-                    game_write(
-                        ADDED_RVA,
-                        [0x8010_2030u32, 0xFFC0_F0E0, 0][(cases % 3) as usize],
-                    );
-                    game_write(BASE_RVA, 0x4070_90B0u32);
-                    game_write(STRENGTH_RVA, strength);
-                    game_write(LEVEL_RVA, [0x40i32, 0, 0xF0][(cases % 3) as usize]);
-                    game_write(LOWEST_RVA, 8i32);
-                    game_write(HIGHEST_RVA, 0xF8i32);
-                    game_write(RECORDS_RVA, records.as_ptr() as u32);
-                    game_write(DIRECTION_RVA, [0.267f32, -0.534, 0.802].map(f));
-                    game_write(TOWARDS_DARK_RVA, [0x10i32, 0x20, 0x300, 0xFF, 0xE0, -0x40]);
-                    std::ptr::copy_nonoverlapping(
-                        table.as_ptr(),
-                        game_addr(TABLE_RVA) as *mut u32,
-                        table.len(),
-                    );
-                    if rust {
-                        let colour = vertex_light(normal);
-                        (colour.ok(), Some(normal), capture(&regions))
-                    } else {
-                        let mut ro = before;
-                        call_original(&mut ro);
-                        // ebx, ecx and edx are the blend's leftovers.
-                        let kept = ro.esi == before.esi && ro.edi == before.edi;
-                        (Some(ro.eax), kept.then_some(ro.ebp), capture(&regions))
-                    }
-                };
-                let (theirs, mine) = (run(false), run(true));
-                t.check(theirs == mine, || {
-                    format!(
-                        "kind {kind}, lit {lit_a} {lit_b}, strength {strength}, mmx {mmx}, normal {normal}: original {theirs:x?}; rust {mine:x?}"
-                    )
-                });
+    LIGHT_WORK.light_colour.set_bits(colour);
+}
+
+pub fn vertex_light(number: u32) -> Result<u32, BadInput> {
+    let kind: u32 = LIGHT_WORK.light_kind.bits();
+    let mmx = MACHINE.has_mmx.get() != 0;
+    if kind == 4 {
+        // 0 plus the lit colour.
+        return Ok(plus(0, lit(number, mmx)?, mmx));
+    }
+    let lit_at_all = FRAME_SWITCHES.other_way.bits() != 0 || STAGE_PREFS.lit_b.bits() != 0;
+    if !lit_at_all || kind == 0 {
+        return Ok(0x00FF_FFFF);
+    }
+    let added: u32 = OBJECT_WORK.light_added.bits();
+    match kind {
+        2 | 5 => Ok(plus(plus(0, lit(number, mmx)?, mmx), added, mmx)),
+        1 => {
+            let level: u32 = OBJECT_WORK.light_level.bits();
+            if level >= TABLE_LEN {
+                return Err(BadInput("a place outside the light table"));
             }
+            Ok(plus(
+                crate::scene::light_tables_store::LIGHT_TABLES.light_table[level as usize].get(),
+                added,
+                mmx,
+            ))
         }
+        3 => {
+            set_normal(number)?;
+            // The colour was just set to 0.
+            let colour = plus(plus(LIGHT_WORK.view_light_base.bits(), 0, mmx), added, mmx);
+            LIGHT_WORK.light_colour.set_bits(colour);
+            blend();
+            Ok(LIGHT_WORK.light_colour.bits())
+        }
+        _ => Ok(number),
     }
-    restore(&regions, &saved.0);
-    restore(&inputs, &saved.1);
-    t.finish()
 }

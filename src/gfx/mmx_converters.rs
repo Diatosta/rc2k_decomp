@@ -27,20 +27,13 @@
 //!
 //! Callers: `gfx::convert_picture` (one row of width x height pixels, ebp 0). Refuses (before
 //! anything) fewer than four pixels a row and no rows (the original's `dec` counts on through
-//! 2^32). Compared in shadow mode. Self-test: the original against the Rust version on
-//! pictures of the test's, all four formats; the 3DNow originals only where the processor has
-//! 3DNow (a modern AMD or Intel one does not: then those tests skip).
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! 2^32).
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{EBX, ECX, EDI, EDX, ESI, Regs, SelfTest, game_read, rva};
-use crate::screens::harness::Left;
-use crate::service::harness::{check_state, dispatch_state};
+use crate::gfx::converters::CONVERTERS as MASK_TABLE;
 
-/// A converter: the format it makes and where its constants are (IDA addresses).
+/// A converter: the format it makes and where its constants are (the number of the first
+/// of its five masks in `gfx::converters`).
 #[derive(Clone, Copy)]
 pub struct Converter {
     pub format: u32,
@@ -48,19 +41,28 @@ pub struct Converter {
     pub three_dnow: bool,
 }
 
-fn constant(at: usize) -> u64 {
-    unsafe { game_read(rva(at)) }
+fn constant(n: usize) -> u64 {
+    MASK_TABLE.mask(n)
 }
 
 /// The converter's five masks.
 fn masks(c: &Converter) -> [u64; 5] {
-    std::array::from_fn(|n| constant(c.constants + 8 * n))
+    std::array::from_fn(|n| constant(c.constants + n))
 }
 
-/// The Rust version: what it leaves (see the header).
-pub fn convert_rows(entry: &Regs, c: Converter) -> Result<Left, Refused> {
-    let steps = entry.ecx >> 2;
-    if steps == 0 || entry.edx == 0 {
+/// The Rust version: `rows` rows of `pixels` pixels (the original's ecx, edx) from `from`
+/// (esi) to `to` (edi), `gap` (ebp) bytes after each row made. Its one caller,
+/// `gfx::convert_picture`, reads nothing it leaves in the registers.
+pub fn convert_rows(
+    from: u32,
+    to: u32,
+    pixels: u32,
+    rows: u32,
+    gap: u32,
+    c: Converter,
+) -> Result<(), Refused> {
+    let steps = pixels >> 2;
+    if steps == 0 || rows == 0 {
         return Err(BadInput(
             "fewer than four pixels a row or no rows (the original's dec counts on)",
         )
@@ -69,112 +71,33 @@ pub fn convert_rows(entry: &Regs, c: Converter) -> Result<Left, Refused> {
     // Converted: `rc2k_core::gfx::converters` (`step`, `next_row`).
     use rc2k_core::gfx::converters::{next_row, step};
     let k = masks(&c);
-    let (mut from, mut to) = (entry.esi, entry.edi);
-    for _ in 0..entry.edx {
+    let (mut from, mut to) = (from, to);
+    // The picture and the surface, checked through a window each.
+    let (pictures, surfaces) = (
+        crate::pointers::Window::new(),
+        crate::pointers::Window::new(),
+    );
+    for _ in 0..rows {
         for _ in 0..steps {
-            unsafe {
-                let q0 = (from as *const u64).read_unaligned();
-                let q1 = ((from + 8) as *const u64).read_unaligned();
-                (to as *mut u64).write_unaligned(step(c.format, &k, q0, q1));
-            }
+            let q0: u64 = pictures.read_or_end(from, "a picture's pixels");
+            let q1: u64 = pictures.read_or_end(from + 8, "a picture's pixels");
+            surfaces.write_or_end(to, step(c.format, &k, q0, q1), "a surface's pixels");
             from = from.wrapping_add(0x10);
             to = to.wrapping_add(8);
         }
-        to = next_row(to, entry.ebp, c.format, c.three_dnow);
+        to = next_row(to, gap, c.format, c.three_dnow);
     }
-    let left = Left::nothing().with(ECX, steps).with(EDX, 0).with(EDI, to);
-    let left = if c.three_dnow {
-        left.with(EBX, from).with(ESI, steps)
-    } else {
-        left.with(EBX, steps).with(ESI, from)
-    };
-    Ok(Left {
-        zero: Some(true),
-        ..left
-    })
+    Ok(())
 }
 
-/// Whether the processor has 3DNow (CPUID 0x80000001, edx bit 31).
-fn has_3dnow() -> bool {
-    #[cfg(target_arch = "x86")]
-    {
-        use std::arch::x86::__cpuid;
-        if __cpuid(0x8000_0000).eax < 0x8000_0001 {
-            return false;
-        }
-        __cpuid(0x8000_0001).edx & (1 << 31) != 0
-    }
-    #[cfg(not(target_arch = "x86"))]
-    false
-}
-
-pub fn dispatch_converter(
-    hook: &crate::framework::RawHook,
-    r: &mut Regs,
-    call_original: crate::screens::harness::CallOriginal,
-    c: Converter,
-) {
-    // The destination: the pixels written, ecx / 4 * 8 bytes a row.
-    let rows = r.edx.min(0x1_0000) as usize;
-    let bytes = ((r.ecx >> 2) as usize * 8).saturating_mul(rows);
-    let regions = if bytes == 0 || bytes > 0x100_0000 {
-        vec![]
-    } else {
-        vec![(r.edi, bytes)]
-    };
-    dispatch_state(hook, r, call_original, &regions, &|r| convert_rows(r, c));
-}
-
-pub fn test_converter(
-    hook: &crate::framework::RawHook,
-    call_original: crate::screens::harness::CallOriginal,
-    c: Converter,
-) -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(hook) else {
-        return (0, 0);
-    };
-    if c.three_dnow && !has_3dnow() {
-        return t.skip("the processor has no 3DNow: the original cannot run here");
-    }
-    for (width, rows, ebp) in [(4u32, 1u32, 0u32), (16, 3, 0), (13, 2, 0), (8, 2, 8)] {
-        // a row's room: the steps' bytes and ebp's moves
-        let pixels: Vec<u32> = (0..width * rows)
-            .map(|n| n.wrapping_mul(0x9E37_79B9) ^ 0x1234_5678 ^ (n << 24))
-            .collect();
-        let room = (width as usize * 2 + ebp as usize * 2) * rows as usize + 64;
-        let mut out = vec![0xAAu8; room];
-        // ebp taken from edi after each row: start past the room it may go back
-        let start = out.as_mut_ptr() as u32 + (ebp * rows);
-        let o = out.as_mut_ptr() as u32;
-        check_state(
-            &mut t,
-            &format!("format {}, {width} x {rows}, ebp {ebp}", c.format),
-            call_original,
-            Regs {
-                esi: pixels.as_ptr() as u32,
-                edi: start,
-                ecx: width,
-                edx: rows,
-                ebp,
-                ..Regs::SENTINEL
-            },
-            &|| unsafe { std::ptr::write_bytes(o as *mut u8, 0xAA, room) },
-            &[(o, room)],
-            &|r| convert_rows(r, c),
-        );
-        drop((pixels, out));
-    }
-    t.finish()
-}
-
-/// The eight converters by their IDA address (hooks removed 2026-10-23: `gfx::convert_picture`
+/// The eight converters by their IDA address (`gfx::convert_picture`
 /// finds the one the game's table names here).
 pub const CONVERTERS: [(u32, Converter); 8] = [
     (
         0x4070F9,
         Converter {
             format: 1,
-            constants: 0x4F51F8,
+            constants: 1,
             three_dnow: false,
         },
     ), // gfx::rows_565_mmx
@@ -182,7 +105,7 @@ pub const CONVERTERS: [(u32, Converter); 8] = [
         0x407171,
         Converter {
             format: 2,
-            constants: 0x4F5218,
+            constants: 5,
             three_dnow: false,
         },
     ), // gfx::rows_555_mmx
@@ -190,7 +113,7 @@ pub const CONVERTERS: [(u32, Converter); 8] = [
         0x4071ED,
         Converter {
             format: 3,
-            constants: 0x4F5238,
+            constants: 9,
             three_dnow: false,
         },
     ), // gfx::rows_1555_mmx
@@ -198,7 +121,7 @@ pub const CONVERTERS: [(u32, Converter); 8] = [
         0x407276,
         Converter {
             format: 4,
-            constants: 0x4F5260,
+            constants: 14,
             three_dnow: false,
         },
     ), // gfx::rows_4444_mmx
@@ -206,7 +129,7 @@ pub const CONVERTERS: [(u32, Converter); 8] = [
         0x4072FB,
         Converter {
             format: 1,
-            constants: 0x4F51F8,
+            constants: 1,
             three_dnow: true,
         },
     ), // gfx::rows_565_3dnow
@@ -214,7 +137,7 @@ pub const CONVERTERS: [(u32, Converter); 8] = [
         0x407377,
         Converter {
             format: 2,
-            constants: 0x4F5218,
+            constants: 5,
             three_dnow: true,
         },
     ), // gfx::rows_555_3dnow
@@ -222,7 +145,7 @@ pub const CONVERTERS: [(u32, Converter); 8] = [
         0x4073F7,
         Converter {
             format: 3,
-            constants: 0x4F5238,
+            constants: 9,
             three_dnow: true,
         },
     ), // gfx::rows_1555_3dnow
@@ -230,7 +153,7 @@ pub const CONVERTERS: [(u32, Converter); 8] = [
         0x407484,
         Converter {
             format: 4,
-            constants: 0x4F5260,
+            constants: 14,
             three_dnow: true,
         },
     ), // gfx::rows_4444_3dnow

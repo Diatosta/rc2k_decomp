@@ -9,68 +9,45 @@
 //! block's palette, whether the file had one or not. The planes, the bytes of a plane's row
 //! and the file's own size, which `lay_out_pcx` sets, are left alone. One caller,
 //! `gfx::read_png`. The name is a reading.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
 
-use crate::errors::Refused;
-use crate::framework::{Regs, game_addr, game_ptr, game_read, game_write};
+use crate::errors::BadInput;
+use crate::gfx::decoder::DECODER;
 use crate::gfx::palette_to_dwords::palette_to_dwords;
-use crate::gfx::pcx::{
-    DECODED_HEIGHT_RVA, DECODED_ROW_BYTES_RVA, DECODED_ROW_DWORDS_RVA, DECODED_WIDTH_RVA,
-    PALETTE_RVA, PIXEL_BITS_RVA, PIXEL_BYTES_RVA, PIXELS_RVA, ROW_GAP_RVA, STRIDE_RVA,
-};
-use crate::gfx::picture::{FLAGS_RVA, PICTURE_RVA};
-use crate::gfx::png::{INFO_RVA, PngInfo};
-use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
+use crate::gfx::picture_store::PICTURE;
+use crate::gfx::png::{PngInfo, info};
 
 // ---- Rust version ----
 
-pub unsafe fn lay_out_png() {
+pub unsafe fn lay_out_png() -> Result<(), BadInput> {
     unsafe {
-        let info: *mut PngInfo = game_ptr(INFO_RVA);
+        let info: *mut PngInfo = info();
         // Converted: `rc2k_core::gfx::png::layout`.
         let layout = rc2k_core::gfx::png::layout(
             (&raw const (*info).width).read_unaligned(),
             (&raw const (*info).height).read_unaligned(),
-            game_read(FLAGS_RVA),
+            PICTURE.flags.get(),
         );
         for (at, value) in [
-            DECODED_WIDTH_RVA,
-            DECODED_HEIGHT_RVA,
-            PIXEL_BITS_RVA,
-            PIXEL_BYTES_RVA,
-            DECODED_ROW_BYTES_RVA,
-            DECODED_ROW_DWORDS_RVA,
-            STRIDE_RVA,
-            ROW_GAP_RVA,
+            &DECODER.width,
+            &DECODER.height,
+            &DECODER.pixel_bits,
+            &DECODER.pixel_bytes,
+            &DECODER.row_bytes,
+            &DECODER.row_dwords,
+            &DECODER.stride,
+            &DECODER.row_gap,
         ]
         .into_iter()
         .zip(layout)
         {
-            game_write(at, value);
+            at.set(value);
         }
-        game_write(PIXELS_RVA, game_read::<u32>(PICTURE_RVA));
+        DECODER.pixels.set(PICTURE.buffer.get());
         // Neither is null: both are the game's own tables.
-        let _ = palette_to_dwords(
-            (&raw const (*info).palette).cast(),
-            game_addr(PALETTE_RVA) as *mut u32,
-        );
+        palette_to_dwords(
+            crate::pointers::game_address(&raw const (*info).palette),
+            crate::pointers::game_address(DECODER.palette_ptr()),
+        )?;
+        Ok(())
     }
 }
-
-fn rust(_: &Regs) -> Result<Left, Refused> {
-    unsafe { lay_out_png() };
-    Ok(Left::nothing())
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
-}
-
-// ---- self-test: info blocks and settings of the test's own in the game's variables, which
-// are put back ----

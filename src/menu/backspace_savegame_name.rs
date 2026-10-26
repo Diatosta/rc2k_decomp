@@ -6,21 +6,14 @@
 //! Out: every register preserved
 //! Also called by the replay name editor, which is a slip in the original (see
 //! `edit_replay_name`). Refuses a name past the list and a length outside 0 .. 0x1F.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
 
-use crate::errors::{BadInput, Refused};
-use crate::framework::Regs;
+use crate::errors::BadInput;
 use crate::menu::name_lists::{NAME_LEN, savegame_name};
 use crate::menu::text_entry::{entry as text_entry, length, put_entry};
-use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
 
 // ---- Rust version ----
 
-pub unsafe fn backspace_savegame_name() -> Result<(), BadInput> {
+pub fn backspace_savegame_name() -> Result<(), BadInput> {
     // Converted: `rc2k_core::menu::text_entry::Entry::backspace`.
     if length() == 0 {
         return Ok(());
@@ -29,18 +22,8 @@ pub unsafe fn backspace_savegame_name() -> Result<(), BadInput> {
     let mut e = text_entry();
     if let Some(at) = e.backspace(NAME_LEN)? {
         put_entry(&e);
-        unsafe { name.add(at).write(0) };
+        crate::pointers::GamePtr::new(name.wrapping_add(at as u32))
+            .write::<u8>(0, "a saved game's name")?;
     }
     Ok(())
-}
-
-fn rust(_: &Regs) -> Result<Left, Refused> {
-    unsafe { backspace_savegame_name() }?;
-    Ok(Left::nothing())
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
 }

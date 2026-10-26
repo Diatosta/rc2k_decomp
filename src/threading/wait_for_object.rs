@@ -22,5 +22,5 @@ pub use rc2k_core::threading::Waited;
 
 pub fn wait_for_object(handle: u32, milliseconds: u32) -> Waited {
     // Converted: `rc2k_core::threading::Waited`.
-    Waited::of(unsafe { WaitForSingleObject(handle as _, milliseconds) })
+    Waited::of(unsafe { WaitForSingleObject(crate::pointers::handle(handle), milliseconds) })
 }

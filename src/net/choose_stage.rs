@@ -4,43 +4,29 @@
 //! direction (+5 from `dword_75ACF0`); then the background again (`net::show_background`).
 //!
 //! In:  nothing
-//! Out: every register kept (`pusha` .. `popa`)
-//! Caller: `net::lobby_loop`. Its calls through `part` (the stage screen through its hook).
-//! The screen runs inside it: ungated. Shadow mode runs the original alone. Self-test: a copy
-//! whose calls go to stand-ins, against the Rust version, left with Escape or not.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Out: nothing (the original keeps every register: `pusha` .. `popa`)
+//! Caller: `net::lobby_loop`.
 
 use crate::errors::Refused;
-use crate::framework::Regs;
+use crate::menu::screen_loop::{Carried, run_screen};
 use crate::net::choose_car::ESCAPED;
-use crate::net::fill_own_player::{DIRECTION, STAGE};
-use crate::net::lobby::{OWN, Part, SELECT_STAGE, g, lobby_entry, p, pb};
+use crate::net::store::{NET, PlayerRecord};
+use crate::race::state_store::RACE_STATE;
 
-const SHOW_BACKGROUND: u32 = 0x4173E7; // net::show_background
-
-/// The Rust version: the registers it leaves (the entry's).
-pub fn choose_stage(entry: &Regs, part: Part) -> Result<Regs, Refused> {
-    let mut r = *entry;
-    p(ESCAPED, 0);
-    part(SELECT_STAGE, &mut r)?;
-    if g(ESCAPED) != 1 {
-        r.eax = g(STAGE);
-        pb(OWN + 4, r.eax as u8);
-        r.eax = g(DIRECTION);
-        pb(OWN + 5, r.eax as u8);
+/// The Rust version. The stage screen is handed the lobby loop's leftovers in its carried
+/// registers (see `net::choose_car`): all 0 here.
+pub fn choose_stage() -> Result<(), Refused> {
+    ESCAPED.set(0);
+    unsafe { run_screen(&crate::menu::select_stage_loop::SCREEN, &Carried::default()) }?;
+    if ESCAPED.get() != 1 {
+        NET.own
+            .head
+            .set(PlayerRecord::STAGE, RACE_STATE.settings.stage.get() as u8);
+        NET.own.head.set(
+            PlayerRecord::DIRECTION,
+            RACE_STATE.settings.direction.get() as u8,
+        );
     }
-    part(SHOW_BACKGROUND, &mut r)?;
-    Ok(Regs {
-        eflags: r.eflags,
-        ..*entry
-    })
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    lobby_entry(r, choose_stage)
+    crate::net::show_background::show_background()?;
+    Ok(())
 }

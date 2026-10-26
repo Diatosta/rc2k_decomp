@@ -9,16 +9,11 @@
 //! bit takes the next bit, from the top, of the first component whose mask has it; the
 //! components are shifted out of four scratch bytes (`dword_4F3FA8`), which are left as they
 //! end up.
-//! 30 call sites, among them the per-pixel loops that scale and convert pictures. Manual patch with a private copy (0x70 bytes, nothing to relocate): a
-//! conditional jump sits in the first bytes.
-//! Refuses a null format.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! 30 call sites, among them the per-pixel loops that scale and convert pictures. Refuses a
+//! null format.
 
-use crate::framework::{Regs, game_write, rva};
-use crate::gfx::pixel_format::{PixelFormat, SCRATCH_RVA};
+use crate::gfx::formats::FORMATS;
+use crate::gfx::pixel_format::PixelFormat;
 
 // ---- Rust version ----
 
@@ -26,23 +21,13 @@ use crate::gfx::pixel_format::{PixelFormat, SCRATCH_RVA};
 /// `rc2k_core::gfx::pixels::pack`).
 pub use rc2k_core::gfx::pixels::pack as packed;
 
-pub unsafe fn components_to_pixel(format: &PixelFormat, components: u32) -> u32 {
+pub fn components_to_pixel(format: &PixelFormat, components: u32) -> u32 {
     let (pixel, scratch) = packed(format, components);
     if let Some(scratch) = scratch {
-        unsafe { game_write(SCRATCH_RVA, scratch) };
+        FORMATS.scratch.write(&scratch);
     }
     pixel
 }
 
-// Written out instead of going through `dispatch_state`: the game converts pictures one pixel
-// at a time through here (19 million calls while it loads), and that harness allocates.
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    if r.ebx == 0 {
-        unsafe { crate::framework::call_game(r, crate::framework::game_addr(rva(0x405C8A))) };
-        return Ok(());
-    }
-    let format = unsafe { (r.ebx as *const PixelFormat).read_unaligned() };
-    r.eax = unsafe { components_to_pixel(&format, r.eax) };
-    Ok(())
-}
+// Written out without allocating: the game converts pictures one pixel at a time through
+// here (19 million calls while it loads).

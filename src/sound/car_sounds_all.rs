@@ -15,117 +15,122 @@
 //! back after. One caller, `sound::race_turn`.
 //! Refuses (before anything) a count over 8 and a null object; what the callees refuse
 //! puts back what was written (sounds already sent stay sent).
-//! Shadow mode runs the original alone (it sends sounds).
-//! Self-test: a copy whose calls go to a stand-in, the tables pointing at the test's
-//! objects (put back), against the Rust version.
 //!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
+//! above are the original's, for reference.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{Regs, game_read, game_write, rva};
-use crate::physics::flow::{base, guard, x87_run};
-use crate::sound::turn_parts::{COUNT, OBJECTS, Part, turn_entry, turn_regions};
-
-const CAR_SOUNDS: u32 = 0x40D893;
-/// dword_514F80, dword_514F84: the nearest and the next of the computer's cars.
-const NEAREST: usize = 0x514F80;
-const NEXT: usize = 0x514F84;
-/// flt_514F88: the squared distance.
-const DISTANCE: usize = 0x514F88;
-
-fn g(x: usize) -> u32 {
-    unsafe { game_read(rva(x)) }
-}
-
-fn word(o: u32, at: u32) -> u32 {
-    unsafe { ((o + at) as *const u32).read_unaligned() }
-}
+use crate::math::x87_float::{ld, st};
+use crate::sound::store::{RACE_SOUNDS, SoundObject};
+use crate::sound::turn_parts::object;
 
 // ---- Rust version ----
 
-pub fn car_sounds_all_in(r: &mut Regs, part: Part) -> Result<(), Refused> {
-    let count = g(COUNT);
+/// Every car's sounds for the turn: the players' each, of the computer's the two nearest
+/// the listener (each keeping its voice).
+pub fn car_sounds_all() -> Result<(), Refused> {
+    let count = RACE_SOUNDS.count.get();
     if count == 0 {
         return Ok(());
     }
     if count > 8 {
         return Err(BadInput("a sound object count over 8").into());
     }
-    let object = |n: u32| g(OBJECTS + 4 * n as usize);
     if (0..count).any(|n| object(n) == 0) {
         return Err(BadInput("a null sound object").into());
     }
-    let all = turn_regions();
-    // Converted: `rc2k_core::sound::turn::Nearest` (the choice; eax, ebx, ecx and edx
-    // hold it as the original's do).
+    // Converted: `rc2k_core::sound::turn::Nearest` (the choice; `car_sounds` keeps the
+    // registers it is held in).
     use rc2k_core::sound::turn::{NEAREST_MARK, NEXT_MARK, Nearest};
-    let hold = |c: &mut Regs, n: &Nearest| {
-        (c.eax, c.ebx, c.ecx, c.edx) = (n.first, n.second, n.first_distance, n.second_distance)
-    };
-    guard(&all, || {
-        let mut c = *r;
-        let mut nearest = Nearest::default();
-        hold(&mut c, &nearest);
-        for n in 0..count {
-            c.ebp = n;
-            c.esi = object(n);
-            if word(c.esi, 8) != 1 {
-                continue;
-            }
-            if word(c.esi, 0) as i32 >= 0 {
-                let kept = c.eax;
-                c.eax = n;
-                part(CAR_SOUNDS, &mut c)?;
-                c.eax = kept;
-                // The choice goes on from the registers as the call left them.
-                nearest = Nearest {
-                    first: c.eax,
-                    second: c.ebx,
-                    first_distance: c.ecx,
-                    second_distance: c.edx,
-                };
-                continue;
-            }
-            x87_run!(
-                "fld dword ptr [{si} + 0x2C]",
-                "fmul dword ptr [{si} + 0x2C]",
-                "fld dword ptr [{si} + 0x30]",
-                "fmul dword ptr [{si} + 0x30]",
-                "fld dword ptr [{si} + 0x34]",
-                "fmul dword ptr [{si} + 0x34]",
-                ".byte 0xDE, 0xC1",
-                ".byte 0xDE, 0xC1",
-                "fstp dword ptr [{b} + 0x114F88]";
-                si = c.esi, b = base()
-            );
-            nearest.consider(n, g(DISTANCE));
-            hold(&mut c, &nearest);
+    let mut nearest = Nearest::default();
+    for n in 0..count {
+        let o = SoundObject::at(object(n))?;
+        if o.in_use.get() != 1 {
+            continue;
         }
-        c.ebp = count;
-        (c.eax, c.ebx) = nearest.kept(g(NEAREST), g(NEXT));
-        unsafe {
-            game_write(rva(NEAREST), c.eax);
-            game_write(rva(NEXT), c.ebx);
+        if o.sound_offset.get() as i32 >= 0 {
+            crate::sound::car_sounds::car_sounds(n)?;
+            continue;
         }
-        for (which, mark) in [(NEAREST, NEAREST_MARK), (NEXT, NEXT_MARK)] {
-            c.eax = g(which);
-            if (c.eax as i32) < 0 {
-                continue;
-            }
-            c.esi = object(c.eax);
-            let kept = word(c.esi, 0);
-            unsafe { (c.esi as *mut u32).write_unaligned(mark) };
-            part(CAR_SOUNDS, &mut c)?;
-            unsafe { (c.esi as *mut u32).write_unaligned(kept) };
+        x87_1(o, &RACE_SOUNDS);
+        nearest.consider(n, RACE_SOUNDS.nearest_distance.bits());
+    }
+    let (first, second) = nearest.kept(RACE_SOUNDS.nearest.get(), RACE_SOUNDS.next.get());
+    RACE_SOUNDS.nearest.set(first);
+    RACE_SOUNDS.next.set(second);
+    for (which, mark) in [
+        (&RACE_SOUNDS.nearest, NEAREST_MARK),
+        (&RACE_SOUNDS.next, NEXT_MARK),
+    ] {
+        let n = which.get();
+        if (n as i32) < 0 {
+            continue;
         }
-        Ok(())
-    })
+        let o = SoundObject::at(object(n))?;
+        let kept = o.sound_offset.get();
+        o.sound_offset.set(mark);
+        crate::sound::car_sounds::car_sounds(n)?;
+        o.sound_offset.set(kept);
+    }
+    Ok(())
 }
 
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    turn_entry(r, car_sounds_all_in)
+// ---- the arithmetic that was x87 assembly ----
+
+/// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
+/// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
+/// `nearest_distance = (place[0] * place[0]) + ((place[1] * place[1]) + (place[2] * place[2]))`
+fn x87_1(si: &SoundObject, df: &crate::sound::store::RaceSounds) {
+    let t0 = ld(si.place[0].bits());
+    let t1 = ld(si.place[0].bits());
+    let t2 = t0 * t1;
+    let t3 = ld(si.place[1].bits());
+    let t4 = ld(si.place[1].bits());
+    let t5 = t3 * t4;
+    let t6 = ld(si.place[2].bits());
+    let t7 = ld(si.place[2].bits());
+    let t8 = t6 * t7;
+    let t9 = t5 + t8;
+    let t10 = t2 + t9;
+    df.nearest_distance.set_bits(st(t10));
+}
+
+#[cfg(all(test, target_arch = "x86"))]
+mod asm_reference {
+    use super::*;
+    use crate::scene::asm_test::{Block, In, Operand, Out, reference, sparse};
+
+    // The original's instructions, one function per run.
+    reference!(ref_0(si, df) "fld dword ptr [{si} + 0x2C]", "fmul dword ptr [{si} + 0x2C]", "fld dword ptr [{si} + 0x30]", "fmul dword ptr [{si} + 0x30]", "fld dword ptr [{si} + 0x34]", "fmul dword ptr [{si} + 0x34]", ".byte 0xDE, 0xC1", ".byte 0xDE, 0xC1", "fstp dword ptr [{df} + 0x2578]");
+
+    fn blocks() -> Vec<Block> {
+        vec![Block {
+            name: "car_sounds_all line 70",
+            operands: vec![
+                Operand::Buffer {
+                    reads: &[(0x2C, In::F), (0x30, In::F), (0x34, In::F)],
+                    writes: &[],
+                },
+                Operand::Buffer {
+                    reads: &[],
+                    writes: &[(0x2578, Out::F)],
+                },
+            ],
+            ulps: 0,
+            reference: |a| unsafe { ref_0(a[0], a[1]) },
+            plain: |a| {
+                x87_1(
+                    unsafe { &*(crate::pointers::host_at(a[0]) as *const SoundObject) },
+                    unsafe {
+                        &*(crate::pointers::host_at(a[1]) as *const crate::sound::store::RaceSounds)
+                    },
+                )
+            },
+        }]
+    }
+
+    #[test]
+    fn x87_blocks_matches_the_assembly() {
+        sparse(&blocks(), 1200, 100);
+    }
 }

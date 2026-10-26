@@ -11,50 +11,34 @@
 
 use crate::errors::FatalError;
 use crate::errors::Refused;
-use crate::framework::Regs;
-use crate::framework::game_read;
-use crate::screens::harness::Left;
+use crate::menu::state_store::MENU_STATE;
 use crate::service::edit_brake_balance::edit_brake_balance;
 use crate::service::edit_gear_ratio::edit_gear_ratio;
 use crate::service::edit_ride_height::edit_ride_height;
 use crate::service::edit_steering_sensitivity::edit_steering_sensitivity;
 use crate::service::edit_suspension_stiffness::edit_suspension_stiffness;
 use crate::service::edit_tyre::edit_tyre;
-use crate::service::harness::state_entry;
-use crate::service::state::{EDIT_PAGE_RVA, edit_mode};
+use crate::service::state::edit_mode;
 
 // ---- Rust version ----
 
-pub unsafe fn handle_edit_keys() -> Result<(), Refused> {
+pub fn handle_edit_keys() -> Result<(), Refused> {
     if !edit_mode() {
         return Ok(());
     }
-    unsafe {
-        // Converted: `rc2k_core::service::setups::EditPage`.
-        use rc2k_core::service::setups::EditPage;
-        match EditPage::from_number(game_read::<u32>(EDIT_PAGE_RVA)) {
-            Some(EditPage::GearRatio) => edit_gear_ratio(false),
-            Some(EditPage::Tyre) => edit_tyre(false),
-            Some(EditPage::SteeringSensitivity) => edit_steering_sensitivity(),
-            Some(EditPage::BrakeBalance) => edit_brake_balance(),
-            Some(EditPage::RideHeight) => edit_ride_height(false),
-            Some(EditPage::SuspensionStiffness) => edit_suspension_stiffness(false),
-            None => Err(FatalError {
-                code: 0x8070_9A9A,
-                message: "Incorrect Locked Box",
-            }
-            .into()),
+    // Converted: `rc2k_core::service::setups::EditPage`.
+    use rc2k_core::service::setups::EditPage;
+    match EditPage::from_number(MENU_STATE.service_ui.box_page.get()) {
+        Some(EditPage::GearRatio) => edit_gear_ratio(false),
+        Some(EditPage::Tyre) => edit_tyre(false),
+        Some(EditPage::SteeringSensitivity) => edit_steering_sensitivity(),
+        Some(EditPage::BrakeBalance) => edit_brake_balance(),
+        Some(EditPage::RideHeight) => edit_ride_height(false),
+        Some(EditPage::SuspensionStiffness) => edit_suspension_stiffness(false),
+        None => Err(FatalError {
+            code: 0x8070_9A9A,
+            message: "Incorrect Locked Box",
         }
+        .into()),
     }
-}
-
-fn rust(_: &Regs) -> Result<Left, Refused> {
-    unsafe { handle_edit_keys() }?;
-    Ok(Left::nothing())
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
 }

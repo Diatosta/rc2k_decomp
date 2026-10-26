@@ -7,44 +7,38 @@
 //! In:  nothing
 //! Out: every register kept; no flags read
 //!
-//! Caller: `drive::flush_replay`.
-//! Refuses what `write_replay_block` refuses. Shadow mode runs the original alone (a file
-//! write).
-//! Self-test: the original and the Rust version with the replay not being written (its
-//! writing is `race::write_replay_block`'s test).
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Caller: `drive::flush_replay`. Refuses what `write_replay_block` refuses.
 
 use crate::errors::Refused;
-use crate::framework::Regs;
-use crate::physics::flow::{a, g, p};
+use crate::pointers::GamePtr;
+use crate::race::replay_file_store::REPLAY_FILE;
+use crate::race::replay_work_store::REPLAY_WORK;
+use crate::race::viewer_state_store::REPLAY_VIEW;
 use rc2k_core::drive::replay_frames::written_view;
 
 /// The Rust version.
 // Converted: `rc2k_core::drive::replay_frames::written_view`.
-pub unsafe fn write_replay_frames(entry: &Regs) -> Result<(), Refused> {
-    if g(0x5BEC88) != 1 {
+pub unsafe fn write_replay_frames() -> Result<(), Refused> {
+    if REPLAY_FILE.replay_open.get() != 1 {
         return Ok(());
     }
-    p(0x5BECD4, g(0x5BECD4).wrapping_add(0x64));
-    p(0x5C252C, 0x64);
-    p(0x9613A4, 0);
-    p(0x9613A8, 0);
-    if g(0x719B34) != 1 {
-        let at = a(0x9613A9) as *mut i8;
-        let v = written_view(unsafe { at.read() });
-        unsafe { at.write(v) };
+    REPLAY_FILE
+        .index_frame_count
+        .set(REPLAY_FILE.index_frame_count.get().wrapping_add(0x64));
+    REPLAY_VIEW.frames_in_block.set(0x64);
+    crate::race::viewer_buffers_store::VIEWER_BUFFERS.block[0].set(0);
+    crate::race::viewer_buffers_store::VIEWER_BUFFERS.block[1].set(0);
+    if REPLAY_WORK.header_one_player.get() != 1 {
+        let at =
+            GamePtr::new(crate::race::viewer_buffers_store::VIEWER_BUFFERS.block[1].addr() + 1);
+        let v = written_view(at.read::<i8>("the replay block's header")?);
+        at.write(v, "the replay block's header")?;
     }
-    unsafe { crate::race::replay::write_replay_block(entry, &mut crate::race::replay::game_part) }?;
-    p(0x9613A0, a(0x9613A4));
-    p(0x5C252C, 0);
-    Ok(())
-}
-
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    unsafe { write_replay_frames(r) }?;
+    // `race::write_replay_block` reads no register at entry (liveness: DF only).
+    unsafe { crate::race::replay::write_replay_block() }?;
+    crate::race::viewer_buffers_store::VIEWER_BUFFERS
+        .block_cursor
+        .set(crate::race::viewer_buffers_store::VIEWER_BUFFERS.block[0].addr());
+    REPLAY_VIEW.frames_in_block.set(0);
     Ok(())
 }

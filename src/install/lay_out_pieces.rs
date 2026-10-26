@@ -12,24 +12,18 @@
 //! Out: every register kept (`pusha` / `popa`); no flags read
 //! Any other kind is fatal error 0x80A97451. More pieces than the 0xFFC bytes hold (85) is
 //! refused (the original writes over the list variables after them). Caller
-//! `install::run_page`. Shadow mode compares. Self-test: lists of the test's against the
-//! original (the fatal kind only on the Rust version).
+//! `install::run_page`.
 //!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Conversion phase 3 (2026-10-23): plain Rust with typed arguments; the registers above
+//! are the original's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::Regs;
-use crate::install::installer::{LAYOUT, a, fatal, rb, rw, wb, wd, ww};
-use crate::race::viewer::regs_entry;
+use crate::install::installer::{fatal, rb, rw, wb, wd, ww};
+use crate::install::vars::INSTALLER_PAGES;
 use rc2k_core::install::layout;
 use rc2k_core::install::pieces::{self, LayoutError, ListMemory};
 
 pub const PIECE: u32 = layout::PIECE;
-pub const MOST_PIECES: u32 = pieces::MOST_PIECES;
-const TITLE: usize = 0x51DD78; // unk_51DD78: the title's item
-const TEXT_FONTS: usize = 0x51D52C; // byte_51D52C
 
 /// The game's lists, read where the original reads them.
 struct GameList;
@@ -45,20 +39,20 @@ impl ListMemory for GameList {
         crate::install::installer::rd(at)
     }
     fn text_font(&self, font: u8) -> u8 {
-        rb(a(TEXT_FONTS) + 8 * font as u32)
+        INSTALLER_PAGES.kind_fonts.get(4 + 8 * font as usize)
     }
 }
 
-pub fn lay_out_pieces(entry: &Regs) -> Result<Regs, Refused> {
+pub fn lay_out_pieces(list: u32) -> Result<(), Refused> {
     // Converted: `rc2k_core::install::pieces::lay_out`; the pieces written here.
-    let made = match pieces::lay_out(entry.edi, a(TITLE), &GameList) {
+    let made = match pieces::lay_out(list, INSTALLER_PAGES.title.addr(), &GameList) {
         Ok(made) => made,
         Err(LayoutError::UnknownKind) => return Err(fatal(pieces::UNKNOWN_KIND)),
         Err(LayoutError::TooMany) => {
             return Err(BadInput("more pieces than the page's table holds").into());
         }
     };
-    let base = a(LAYOUT);
+    let base = INSTALLER_PAGES.layout.addr();
     for (n, piece) in made.iter().enumerate() {
         let at = base + 4 + PIECE * n as u32;
         if let Some(text) = piece.text {
@@ -72,11 +66,5 @@ pub fn lay_out_pieces(entry: &Regs) -> Result<Regs, Refused> {
         }
     }
     wd(base, made.len() as u32);
-    Ok(*entry)
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    regs_entry(r, &lay_out_pieces)
+    Ok(())
 }

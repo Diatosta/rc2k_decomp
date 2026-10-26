@@ -17,198 +17,138 @@
 //! Out: the registers as the steps and calls leave them; no flags read (the caller goes
 //!      on)
 //!
-//! Caller: `physics::update_camera`. It begins with a call: hooked by a private copy of
-//! the whole function (0x291 bytes, one chunk) with its 19 calls relocated and a
-//! hand-made patch.
-//! Refuses what the ground checks refuse. Shadow mode runs the original alone (as the
-//! checks: `find_ground`'s probes).
-//! Self-test (in a race; skipped otherwise): the original and the Rust version on the
-//! stage (`physics/update_camera.rs`, `camera_test`), the camera where it is, moved below
-//! the car and into the ground, every mode.
+//! Caller: `physics::update_camera`. Refuses what the ground checks refuse.
+//!
+//! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
+//! above are the original's, for reference.
 
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, hook_asm, rva};
 use crate::physics::camera_clear_of_ground::camera_clear_of_ground;
-use crate::physics::camera_ground::dispatch_carry;
 use crate::physics::camera_over_ground::camera_over_ground;
+use crate::physics::camera_store::CAMERA_WORK;
 use crate::physics::camera_view::{rd, record};
-use crate::physics::flow::{g, p};
-use crate::physics::touch_face::FACES;
-use crate::race::car_starts::Part;
+use crate::physics::car_store::CAR;
+use crate::race::course_store::COURSE;
+use crate::race::tables_store::RACE_TABLES;
+use crate::scene::draw_store::DRAW;
+use crate::session::Dword;
 use rc2k_core::physics::camera_ground;
-use std::sync::atomic::AtomicUsize;
 
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook = RawHook::new(
-    "physics::camera_avoid_ground",
-    rva(0x43907F),
-    thunk,
-    &ORIGINAL,
-)
-.private_copy(0x291)
-.relocate_calls(&CALLS)
-.manual_patch()
-.self_test(self_test);
-
-/// Every call in the copy (all out of the function).
-const CALLS: [usize; 19] = [
-    0x0, 0x25, 0x55, 0xA4, 0xB1, 0xB6, 0x101, 0x10E, 0x113, 0x1A5, 0x1AA, 0x22E, 0x233, 0x24E,
-    0x25C, 0x261, 0x274, 0x282, 0x287,
-];
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
-
-const HEADING: usize = 0x71A688;
-const STEP: usize = 0x605264;
-const KEPT: usize = 0x623FD8;
-
-fn place(r: &mut Regs) {
-    unsafe { crate::physics::place_camera::place_camera(r) }.apply(r);
-}
-
-/// Placed, and whether over ground (`camera_over_ground`'s CF clear).
-fn over(r: &mut Regs, part: Part) -> Result<bool, Refused> {
-    *r = unsafe { camera_over_ground(r, part) }?;
-    Ok(!r.carry())
-}
-
-fn clear(r: &mut Regs, part: Part) -> Result<bool, Refused> {
-    *r = unsafe { camera_clear_of_ground(r, part) }?;
-    Ok(!r.carry())
+fn place() {
+    unsafe { crate::physics::place_camera::place_camera() };
 }
 
 /// Turned to face from checkpoint `back` before the car's; false when there is none.
-fn face_checkpoint(r: &mut Regs, back: u32) -> bool {
-    r.ebx = g(0x71A070).wrapping_sub(back);
-    if camera_ground::back_checkpoint(g(0x71A070), back).is_none() {
+fn face_checkpoint(back: u32) -> bool {
+    let Some(checkpoint) = camera_ground::back_checkpoint(CAR.checkpoint.get(), back) else {
         return false;
-    }
-    r.ebx = g(0x9E3738 + 4 * r.ebx as usize);
-    r.esi = (r.ebx << 6).wrapping_add(g(FACES));
-    r.ebx = rd(r.esi + 4);
-    r.esi = r
-        .ebx
+    };
+    let face = (crate::race::checkpoints_store::face(checkpoint as usize).get() << 6)
+        .wrapping_add(COURSE.course_faces.get());
+    let point = rd(face + 4)
         .wrapping_mul(12)
-        .wrapping_add(g(crate::physics::scene_point_hits_car::SCENE_POINTS));
-    r.eax = rd(r.esi);
-    r.ebx = rd(r.esi + 8);
-    r.ecx = g(0x71A10C);
-    r.edx = g(0x71A114);
-    let (first, second) = (r.ecx.wrapping_sub(r.eax), r.edx.wrapping_sub(r.ebx));
-    r.eax = unsafe { crate::scene::angle_between::angle_of(first, second) };
-    r.ecx = first;
-    r.edx = second;
-    p(HEADING, r.eax << 16);
+        .wrapping_add(COURSE.scene_points.get());
+    let first = CAR.position[0].get().wrapping_sub(rd(point));
+    let second = CAR.position[2].get().wrapping_sub(rd(point + 8));
+    let angle = { crate::scene::angle_between::angle_of(first, second) };
+    CAR.camera_heading.set(angle << 16);
     true
 }
 
+/// The five ground faces from 0x71AEC8 the loop below saves.
+fn ground_faces() -> [&'static Dword; 5] {
+    let f = &CAR.camera_ground_faces;
+    [&f[0], &f[1], &f[2], &f[3], &f[4]]
+}
+
 /// The turn back toward the kept heading (0x43919D ..).
-fn turn_back(r: &mut Regs, part: Part) -> Result<(), Refused> {
-    p(STEP, camera_ground::FIRST_TURN_STEP);
+fn turn_back() -> Result<(), Refused> {
+    RACE_TABLES
+        .camera_turn_step
+        .set(camera_ground::FIRST_TURN_STEP);
     loop {
-        p(0x623FD4, g(HEADING));
+        DRAW.camera_heading_saved.set(CAR.camera_heading.get());
         for k in 0..5 {
-            p(0x623FDC + 4 * k, g(0x71AEC8 + 4 * k));
+            DRAW.camera_saved[k].set(ground_faces()[k].get());
         }
-        r.eax = camera_ground::turn_gap(g(KEPT), g(HEADING));
         let mut stepped_back = false;
-        if let Some(step) = camera_ground::turn_step(g(KEPT), g(HEADING), g(STEP)) {
-            r.ebx = step;
-            r.eax = g(KEPT).wrapping_sub(g(HEADING));
-            p(HEADING, g(HEADING).wrapping_add(r.ebx));
-            place(r);
-            if over(r, part)? {
+        if let Some(step) = camera_ground::turn_step(
+            DRAW.camera_heading_kept.get(),
+            CAR.camera_heading.get(),
+            RACE_TABLES.camera_turn_step.get(),
+        ) {
+            CAR.camera_heading
+                .set(CAR.camera_heading.get().wrapping_add(step));
+            place();
+            if camera_over_ground()? {
                 continue;
             }
             stepped_back = true;
         }
         if stepped_back {
-            p(HEADING, g(0x623FD4));
+            CAR.camera_heading.set(DRAW.camera_heading_saved.get());
             for k in 0..5 {
-                p(0x71AEC8 + 4 * k, g(0x623FDC + 4 * k));
+                ground_faces()[k].set(DRAW.camera_saved[k].get());
             }
         }
-        let (next, last) = camera_ground::next_turn_step(g(STEP));
-        p(STEP, next);
+        let (next, last) = camera_ground::next_turn_step(RACE_TABLES.camera_turn_step.get());
+        RACE_TABLES.camera_turn_step.set(next);
         if last {
             return Ok(());
         }
     }
 }
 
-/// The steps; `r` as the original leaves it.
-// Converted: `rc2k_core::physics::camera_ground::{back_checkpoint, turn_gap, turn_step,
+/// The steps. The registers the original leaves are read by none of its callers.
+// Converted: `rc2k_core::physics::camera_ground::{back_checkpoint, turn_step,
 // next_turn_step}`.
-pub fn steps(r: &mut Regs, part: Part) -> Result<(), Refused> {
-    unsafe { crate::physics::ease_view_turn::ease_view_turn(r) }.apply(r);
-    p(0x605268, 0);
-    p(STEP, u32::MAX);
-    p(KEPT, g(HEADING));
-    place(r);
-    r.esi = record();
-    if rd(r.esi + 0x4C) == 0 {
+pub fn steps() -> Result<(), Refused> {
+    crate::physics::ease_view_turn::ease_view_turn();
+    RACE_TABLES.camera_ground_flag.set(0);
+    RACE_TABLES.camera_turn_step.set(u32::MAX);
+    DRAW.camera_heading_kept.set(CAR.camera_heading.get());
+    place();
+    if rd(record() + 0x4C) == 0 {
         return Ok(());
     }
-    if !over(r, part)? {
+    if !camera_over_ground()? {
         let mut found = false;
         for back in [1, 2] {
-            if !face_checkpoint(r, back) {
+            if !face_checkpoint(back) {
                 break;
             }
-            place(r);
-            if over(r, part)? {
+            place();
+            if camera_over_ground()? {
                 found = true;
                 break;
             }
         }
         if found {
-            turn_back(r, part)?;
+            turn_back()?;
         } else {
-            p(HEADING, g(KEPT));
+            CAR.camera_heading.set(DRAW.camera_heading_kept.get());
         }
     }
     // 0x4392A3: clear of the ground by the pitch.
-    p(0x605268, u32::MAX);
-    place(r);
-    if clear(r, part)? {
+    RACE_TABLES.camera_ground_flag.set(u32::MAX);
+    place();
+    if camera_clear_of_ground()? {
         return Ok(());
     }
-    p(0x608C20, camera_ground::PITCH_START);
+    CAMERA_WORK.pitch_ceiling.set(camera_ground::PITCH_START);
     let mut up = true;
     loop {
-        r.eax = g(0x71A690);
         if up {
-            p(0x608C1C, r.eax);
-            unsafe { crate::physics::ease_pitch_up::ease_pitch_up() }.apply(r);
+            CAMERA_WORK.pitch_floor.set(CAR.camera_pitch.get());
+            crate::physics::ease_pitch_up::ease_pitch_up();
         } else {
-            p(0x608C20, r.eax);
-            unsafe { crate::physics::ease_pitch_down::ease_pitch_down() }.apply(r);
+            CAMERA_WORK.pitch_ceiling.set(CAR.camera_pitch.get());
+            crate::physics::ease_pitch_down::ease_pitch_down();
         }
-        if g(0x608C24) == 0 {
+        if CAMERA_WORK.pitch_step.get() == 0 {
             return Ok(());
         }
-        place(r);
-        up = !clear(r, part)?;
+        place();
+        up = !camera_clear_of_ground()?;
     }
-}
-
-/// The Rust version, the probes through `part`.
-pub unsafe fn camera_avoid_ground(entry: &Regs, part: Part) -> Result<Regs, Refused> {
-    let mut r = *entry;
-    steps(&mut r, part)?;
-    Ok(r)
-}
-
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_carry(&HOOK, r, call_original, camera_avoid_ground);
-}
-
-fn self_test() -> (usize, usize) {
-    crate::physics::update_camera::camera_test(&HOOK, call_original, camera_avoid_ground)
 }

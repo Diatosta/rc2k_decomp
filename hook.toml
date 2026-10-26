@@ -1,6 +1,0 @@
-shadow = true
-default_enabled = true
-trace = false
-
-[hooks]
-"threading::find_thread_slot" = true

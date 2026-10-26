@@ -6,133 +6,48 @@
 //! Out: eax y's move; the rest kept; no flags read
 //!
 //! Callers: `sub_43B635` (0x43B827, 0x43B8A0), every physics step.
-//! Self-test: `physics/copy_hooks_test.rs` (`test_moves_floats`: a copy on test
-//! variables against the converted version), 8 fillings, exact at double precision.
 
-use crate::errors::Refused;
-use crate::framework::{EAX, RawHook, Regs, game_addr, game_read, hook_asm, rva};
 use crate::math::x87_run::mul2_to_int;
-use crate::physics::copy_hooks_test::{lot, test_moves_floats};
-use crate::screens::harness::Left;
-use crate::service::floats::{Floats, ROUNDED, dispatch_state_floats, floats_entry};
-use rc2k_core::physics::motion::move_place;
-use std::sync::atomic::AtomicUsize;
+use crate::physics::car_store::CAR;
+use crate::physics::tables_store::PHYSICS;
+use crate::race::numbers_store::NUMBERS;
+use crate::scene::draw_store::DRAW;
 
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("physics::move_car", rva(0x43CCB0), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
-
-/// The motion's three, the place's three, the scratch.
-const VARIABLES: [usize; 7] = [
-    0x71A170, 0x71A174, 0x71A178, 0x71A10C, 0x71A110, 0x71A114, 0x62400C,
-];
-
-unsafe fn get(v: &[u32], k: usize) -> u32 {
-    unsafe { (v[k] as *const u32).read_unaligned() }
+fn get(v: &[u32], k: usize) -> u32 {
+    crate::pointers::read_or_end::<u32>(v[k], "physics::move_car's operand")
 }
 
-unsafe fn put(v: &[u32], k: usize, x: u32) {
-    unsafe { (v[k] as *mut u32).write_unaligned(x) }
+fn put(v: &[u32], k: usize, x: u32) {
+    crate::pointers::write_or_end::<u32>(v[k], x, "physics::move_car's operand")
 }
 
 /// The Rust core on the variables at `v`: the last move.
-pub unsafe fn move_at(v: &[u32]) -> u32 {
-    unsafe {
-        let k65536: u32 = game_read(rva(0x5C5D98));
-        let dt: u32 = game_read(rva(0x61388C));
-        let mut last = 0;
-        for (motion, place) in [(0, 3), (2, 5), (1, 4)] {
-            last = mul2_to_int(get(v, motion), k65536, dt) as u32;
-            put(v, 6, last);
-            put(v, place, get(v, place).wrapping_add(last));
-        }
-        last
+pub fn move_at(v: &[u32]) -> u32 {
+    let k65536: u32 = NUMBERS.k65536.bits();
+    let dt: u32 = PHYSICS.step_time.bits();
+    let mut last = 0;
+    for (motion, place) in [(0, 3), (2, 5), (1, 4)] {
+        last = mul2_to_int(get(v, motion), k65536, dt) as u32;
+        put(v, 6, last);
+        put(v, place, get(v, place).wrapping_add(last));
     }
-}
-
-/// The converted version (`rc2k_core::physics::motion`, plain floats) on the variables
-/// at `v`: the last move.
-// Converted: `rc2k_core::physics::motion::move_place`.
-pub unsafe fn move_at_plain(v: &[u32]) -> u32 {
-    unsafe {
-        let k = |x: usize| f32::from_bits(game_read::<u32>(rva(x)));
-        let motion = [0, 1, 2].map(|n| f32::from_bits(get(v, n)));
-        let mut place = [get(v, 3), get(v, 4), get(v, 5)];
-        let last = move_place(motion, &mut place, k(0x5C5D98), k(0x61388C));
-        put(v, 6, last as u32);
-        for (n, p) in place.iter().enumerate() {
-            put(v, 3 + n, *p);
-        }
-        last as u32
-    }
+    last
 }
 
 fn game() -> Vec<u32> {
-    VARIABLES
-        .iter()
-        .map(|&x| game_addr(rva(x)) as u32)
-        .collect()
+    vec![
+        CAR.velocity[0].addr(),
+        CAR.velocity[1].addr(),
+        CAR.velocity[2].addr(),
+        CAR.position[0].addr(),
+        CAR.position[1].addr(),
+        CAR.position[2].addr(),
+        DRAW.scratch.addr(),
+    ]
 }
 
 /// The Rust version (the exact one, for `physics::car_physics_step` and
 /// `physics::apply_wheel_torques`).
-pub unsafe fn move_car() -> u32 {
-    unsafe { move_at(&game()) }
-}
-
-fn rust(_: &Regs) -> Result<Left, Refused> {
-    Ok(Left::nothing().with(EAX, unsafe { move_at_plain(&game()) }))
-}
-
-extern "C" fn dispatch(r: &mut Regs) {
-    let v = game();
-    let floats = Floats {
-        memory: &[((v[3], 12), ROUNDED), ((v[6], 4), ROUNDED)],
-        regs: &[(EAX, ROUNDED)],
-    };
-    dispatch_state_floats(
-        &HOOK,
-        r,
-        call_original,
-        &[(v[3], 12), (v[6], 4)],
-        &floats,
-        &rust,
-    );
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    floats_entry(r, &rust)
-}
-
-fn fill(seed: u32, out: &mut [u32]) {
-    lot(seed, out);
-    for (k, o) in out.iter_mut().take(3).enumerate() {
-        *o = (seed as f32 * 2.5 - 9.0 + k as f32).to_bits();
-    }
-}
-
-fn self_test() -> (usize, usize) {
-    test_moves_floats(
-        &HOOK,
-        0x43CCB0,
-        0x6A,
-        &[0xD9, 0x05, 0x70, 0xA1, 0x71, 0x00],
-        &VARIABLES,
-        12,
-        8,
-        &fill,
-        &|v, _| Left::nothing().with(EAX, unsafe { move_at_plain(v) }),
-        &[(3, ROUNDED), (4, ROUNDED), (5, ROUNDED), (6, ROUNDED)],
-        &[(EAX, ROUNDED)],
-    )
+pub fn move_car() -> u32 {
+    move_at(&game())
 }

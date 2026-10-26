@@ -7,25 +7,12 @@
 //! Out: ebx the last place, ecx the last sign's row (0 when the last is none), eax / esi
 //!      the last drawn sign's rectangle (as `add_sprite` keeps them)
 //!
-//! Caller: layout 0's drawer (0x4B1F27). The sprites through `part` (1), in the game
-//! `add_sprite`'s Rust version. Shadow mode runs the original alone (it draws).
-//! Self-test: a copy whose call goes to a stand-in, against the Rust version, signs by
-//! lot.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Caller: layout 0's drawer (0x4B1F27).
 
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, SelfTest, game_addr, game_read, game_write, rva};
-use crate::hud::draw_marker::RECTS_RVA;
-use crate::service::harness::{at, capture, restore};
-
-const WIDTHS_RVA: usize = rva(0x75BF80); // dword_75BF80: 8
-pub const FLAT_RVA: usize = rva(0x6D1502); // dword_6D1502
-
-/// A call by place: 1 `add_sprite`.
-pub type Part<'a> = &'a mut dyn FnMut(u32, &mut Regs) -> Result<(), Refused>;
+use crate::hud::store::HUD;
+use crate::pointers::GamePtr;
+use crate::race::panel_store::PANEL;
 
 /// The row: `y`, or 0x20 higher with `dword_6D1502` 0.
 pub fn row(y: u32) -> u32 {
@@ -34,122 +21,40 @@ pub fn row(y: u32) -> u32 {
 
 /// The row: `y`, or `lift` higher with `dword_6D1502` 0.
 pub fn row_by(y: u32, lift: u32) -> u32 {
-    rc2k_core::hud::signs::row(y, lift, unsafe { game_read(FLAT_RVA) })
+    rc2k_core::hud::signs::row(y, lift, PANEL.flat.get())
 }
 
-/// The Rust version (see the header): the registers it leaves.
+/// The Rust version (see the header).
 // Converted: `rc2k_core::hud::signs` (through `signs_with`)
-pub unsafe fn draw_signs(entry: &Regs, part: Part) -> Result<Regs, Refused> {
-    unsafe { signs_with(entry, 0xA4, 0xB4, 0, 0x36, 0x20, part) }
+pub fn draw_signs(record: u32) -> Result<(), Refused> {
+    signs_with(record, 0xA4, 0xB4, 0, 0x36, 0x20)
 }
 
 /// Four signs from the record's `first` .. on, the places from its `start` field plus
 /// `shift`, at row `y` (shared with `hud::draw_signs_1a` / `_1b`).
 // Converted: `rc2k_core::hud::signs::{sign, place, row}`
-pub unsafe fn signs_with(
-    entry: &Regs,
+pub fn signs_with(
+    record: u32,
     first: u32,
     start: u32,
     shift: u32,
     y: u32,
     lift: u32,
-    part: Part,
-) -> Result<Regs, Refused> {
+) -> Result<(), Refused> {
     use rc2k_core::hud::signs;
-    let mut g = *entry;
-    unsafe {
-        let get = |o: u32| ((g.ebp + o) as *const u32).read_unaligned();
-        let places = get(start).wrapping_add(shift);
+    {
+        let get = |o: u32| GamePtr::new(record + o).read::<u32>("a hud record's field");
+        let places = get(start)?.wrapping_add(shift);
         for n in 0..signs::SIGNS as u32 {
-            g.ebx = signs::place(places, n);
-            let v = get(first + 4 * n);
-            g.ecx = v;
-            let Some(sign) = signs::sign(places, n, v, |k| game_read(WIDTHS_RVA + 4 * k as usize))
+            let v = get(first + 4 * n)?;
+            let Some(sign) = signs::sign(places, n, v, |k| HUD.sign_widths[k as usize].get())
             else {
                 continue;
             };
-            g.eax = sign.rectangle;
-            let mut r = Regs {
-                ebx: sign.x,
-                ecx: row_by(y, lift),
-                esi: game_addr(RECTS_RVA) as u32 + g.eax,
-                ..g
-            };
-            part(1, &mut r)?;
-            g.ecx = r.ecx;
-            g.esi = r.esi;
+            let rect =
+                (crate::pointers::game_address(HUD.rects.as_ptr())).wrapping_add(sign.rectangle);
+            crate::hud::add_sprite::add_sprite(sign.x, row_by(y, lift), rect)?;
         }
     }
-    Ok(g)
-}
-
-/// The test of a signs function: a copy whose calls go to a stand-in, against `rust`.
-pub fn test_signs(
-    hook: &RawHook,
-    address: usize,
-    len: usize,
-    entry: &[u8],
-    calls: &[usize],
-    rust: &dyn Fn(&Regs, Part) -> Result<Regs, Refused>,
-) -> (usize, usize) {
-    use crate::race::level_init::{note, take_called};
-    use crate::race::mud::copy;
-    let Some(mut t) = SelfTest::begin(hook) else {
-        return (0, 0);
-    };
-    let copy = match copy(address, len, entry, calls, &[(0x4B70EE, 1)]) {
-        Ok(c) => c,
-        Err(why) => return t.skip(why),
-    };
-    let vars = vec![at(FLAT_RVA)];
-    let saved = capture(&vars);
-    let regs = |r: &Regs| [r.eax, r.ebx, r.ecx, r.edx, r.esi, r.edi, r.ebp];
-    for case in 0..4u32 {
-        let mut record = [0u32; 0x40];
-        for n in 0..9u32 {
-            record[(0xA4 / 4 + n) as usize] = if (case + n) % 3 == 0 {
-                0
-            } else {
-                n * 5 + case + 1
-            };
-        }
-        record[0xB4 / 4] = 0x100 + case;
-        record[0xC8 / 4] = 0x180 + case;
-        let before = Regs {
-            ebp: record.as_ptr() as u32,
-            ..Regs::SENTINEL
-        };
-        let prepare = || unsafe {
-            restore(&vars, &saved);
-            game_write(FLAT_RVA, case & 1);
-        };
-        prepare();
-        take_called();
-        let mut ro = before;
-        unsafe { crate::framework::call_game(&mut ro, copy.addr()) };
-        let theirs = (Some(regs(&ro)), take_called());
-        prepare();
-        let mine = rust(&before, &mut |p, r| {
-            note(p, r);
-            Ok(())
-        });
-        let mine = (mine.as_ref().ok().map(regs), take_called());
-        t.check(theirs == mine, || {
-            format!("case {case}: original {theirs:x?}; rust {mine:x?}")
-        });
-    }
-    restore(&vars, &saved);
-    t.finish()
-}
-
-/// In the game: `add_sprite`'s Rust version.
-pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
-    crate::hud::draw_marker::game_part(place, r)
-}
-
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    let left = unsafe { draw_signs(r, &mut game_part) }?;
-    *r = Regs { esp: r.esp, ..left };
     Ok(())
 }

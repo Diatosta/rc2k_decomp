@@ -5,17 +5,17 @@
 //! Hook removed 2026-10-22 (conversion phase 4): Rust callers call this directly; the
 //! registers above are the original's, for reference.
 
-use crate::errors::FatalError;
+use crate::errors::Refused;
 use crate::text::draw_text::{Canvas, draw_text};
 use crate::text::font::Font;
 
 /// Returns whether a line was too wide: the carry flag.
-pub unsafe fn draw_text_keep_regs(
+pub fn draw_text_keep_regs(
     font: &mut Font,
     text: *const u8,
     x: i32,
     y: i32,
     canvas: &mut dyn Canvas,
-) -> Result<bool, FatalError> {
-    Ok(unsafe { draw_text(font, text, x, y, canvas) }?.too_wide)
+) -> Result<bool, Refused> {
+    Ok({ draw_text(font, text, x, y, canvas) }?.too_wide)
 }

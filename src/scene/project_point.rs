@@ -22,50 +22,26 @@
 //! scene's points.
 //! One caller, `scene::project_polygon`.
 //!
-//! Converted 2026-10-21: the hook's Rust version is `project_point_plain`, through
-//! `rc2k_core::scene::projection` (plain floats; the x87 version stays for the Rust callers
-//! in unconverted code); `record_offset` is the core's for both. Shadow mode and the
-//! self-test compare the record's floats and `dword_62400C` within `service::floats`'
-//! tolerances (the self-test at both test precisions, exact at double).
+//! `record_offset` is the core's (`rc2k_core::scene::projection`); the arithmetic is the
+//! x87's, in plain Rust over `X` (`math/x87_float.rs`), as the original's instructions
+//! are kept as `asm_reference` in the tests (2026-10-24).
 
 use crate::errors::{BadInput, FatalError, Refused};
-use crate::framework::{
-    EAX, ECX, EDX, RawHook, Regs, SelfTest, game_addr, game_ptr, game_read, game_write, hook_asm,
-    rva,
-};
 use crate::math::x87;
-use crate::scene::draw_polygon::CHECKED_RVA;
+use crate::math::x87_float::ONE;
+use crate::race::course_lists_store::COURSE_LISTS;
+use crate::race::course_store::COURSE;
+use crate::race::matrices_store::MATRICES;
+use crate::race::prefs_store::STAGE_PREFS;
+use crate::scene::draw_store::DRAW;
+use crate::scene::light_store::LIGHT_STATE;
+use crate::scene::object_tables_store::OBJECT_TABLES;
 use crate::scene::polygon::{dword, put};
-use crate::screens::harness::Left;
-use crate::service::harness::{Region, at, capture, restore};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("scene::project_point", rva(0x44D004), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
+use crate::scene::x87_mem::{fild, fld, fstp};
 
 // ---- game data ----
 
-pub const RECORDS_RVA: usize = rva(0x5C6FB8); // dword_5C6FB8
 pub const RECORD_LEN: usize = 0x20;
-pub const POINTS_RVA: usize = rva(0x5CCCC0); // dword_5CCCC0
-pub const POINT_COUNT_RVA: usize = rva(0x5CCD20); // dword_5CCD20
-pub const OBJECT_POINTS_RVA: usize = rva(0x5CD680); // dword_5CD680
-pub const MATRIX_RVA: usize = rva(0x5EA2CC); // flt_5EA2CC
-pub const FLAT_RVA: usize = rva(0x60932C); // dword_60932C
-pub const FLAT_DEPTH_RVA: usize = rva(0x5CCD80); // dword_5CCD80
-pub const SCALE_RVA: usize = rva(0x624088); // flt_624088
-pub const CENTRE_X_RVA: usize = rva(0x62409C); // flt_62409C
-pub const CENTRE_Y_RVA: usize = rva(0x6240A0); // flt_6240A0
-pub const LOWERED_RVA: usize = rva(0x6365C4); // dword_6365C4
 /// `flt_5C5E18`: a point nearer than this is not put on the screen.
 pub const NEAR: f32 = 4096.0;
 /// `flt_5C5E1C`.
@@ -82,89 +58,116 @@ const TOO_HIGH: FatalError = FatalError {
 
 // ---- Rust version ----
 
-macro_rules! x87 {
-    ($($line:literal),+; $($name:ident = $value:expr),+) => {
-        unsafe {
-            core::arch::asm!(
-                $($line),+,
-                $($name = in(reg) $value),+,
-                out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
-                out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
-                options(nostack),
-            )
-        }
-    };
-}
-
 /// `sub_44D110` as `project_point` uses it: the point's three whole numbers through the
 /// matrix, into the record's +0x10, +0x14, +0x18.
-pub(crate) unsafe fn rotate(point: *const i32, matrix: *const u32, record: *mut u32) {
-    x87!(
-        "fild dword ptr [{p} + 8]", "fild dword ptr [{p} + 4]", "fild dword ptr [{p}]",
-        "fld dword ptr [{m}]", "fmul st(0), st(1)",
-        "fld dword ptr [{m} + 0x10]", "fmul st(0), st(3)",
-        "fld dword ptr [{m} + 0x20]", "fmul st(0), st(5)",
-        "faddp st(1), st(0)", "faddp st(1), st(0)",
-        "fadd dword ptr [{m} + 0x30]", "fxch st(3)",
-        "fld dword ptr [{m} + 4]", "fmul st(0), st(2)",
-        "fld dword ptr [{m} + 0x14]", "fmul st(0), st(4)",
-        "fld dword ptr [{m} + 0x24]", "fmul st(0), st(3)",
-        "faddp st(1), st(0)", "faddp st(1), st(0)",
-        "fadd dword ptr [{m} + 0x34]", "fxch st(3)",
-        "fld dword ptr [{m} + 8]", "fmulp st(3), st(0)",
-        "fld dword ptr [{m} + 0x18]", "fmulp st(1), st(0)",
-        "fld dword ptr [{m} + 0x28]", "fmulp st(2), st(0)",
-        "faddp st(1), st(0)", "faddp st(1), st(0)",
-        "fadd dword ptr [{m} + 0x38]", "fxch st(2)",
-        "fstp dword ptr [{o} + 0x10]", "fstp dword ptr [{o} + 0x14]",
-        "fstp dword ptr [{o} + 0x18]";
-        p = point, m = matrix, o = record
-    );
+pub(crate) fn rotate(point: *const i32, matrix: *const u32, record: *mut u32) {
+    rotate_at(point.cast(), matrix.cast(), record.cast())
+}
+
+/// `fild` x3, the three rows' sums of products plus the place, `fstp dword` x3.
+fn rotate_at(p: *const u8, m: *const u8, o: *mut u8) {
+    let t0 = fild(p, 0x8);
+    let t1 = fild(p, 0x4);
+    let t2 = fild(p, 0x0);
+    let t3 = fld(m, 0x0);
+    let t4 = t3 * t2;
+    let t5 = fld(m, 0x10);
+    let t6 = t5 * t1;
+    let t7 = fld(m, 0x20);
+    let t8 = t7 * t0;
+    let t9 = t6 + t8;
+    let t10 = t4 + t9;
+    let t11 = fld(m, 0x30);
+    let t12 = t10 + t11;
+    let t13 = fld(m, 0x4);
+    let t14 = t13 * t2;
+    let t15 = fld(m, 0x14);
+    let t16 = t15 * t1;
+    let t17 = fld(m, 0x24);
+    let t18 = t17 * t0;
+    let t19 = t16 + t18;
+    let t20 = t14 + t19;
+    let t21 = fld(m, 0x34);
+    let t22 = t20 + t21;
+    let t23 = fld(m, 0x8);
+    let t24 = t2 * t23;
+    let t25 = fld(m, 0x18);
+    let t26 = t1 * t25;
+    let t27 = fld(m, 0x28);
+    let t28 = t0 * t27;
+    let t29 = t28 + t26;
+    let t30 = t24 + t29;
+    let t31 = fld(m, 0x38);
+    let t32 = t30 + t31;
+    fstp(o, 0x10, t12);
+    fstp(o, 0x14, t22);
+    fstp(o, 0x18, t32);
 }
 
 /// The record's place on the screen from its place in the view. `v`: the scale, the
 /// centre's x and y, and the whole number the flat depth is made from.
-/// (`.byte 0xDE, 0xF1` is the original's `fdivrp st(1), st`.)
-pub(crate) unsafe fn to_screen(record: *mut u32, v: &[u32; 4], flat: bool, checked: *mut u32) {
+pub(crate) fn to_screen(record: *mut u32, v: &[u32; 4], flat: bool, checked: *mut u32) {
     if flat {
-        x87!(
-            "fld dword ptr [{o} + 0x10]", "fld dword ptr [{o} + 0x14]",
-            "fld dword ptr [{o} + 0x18]",
-            "fstp dword ptr [{w}]", "fild dword ptr [{v} + 12]", "fld1", "faddp st(1), st(0)",
-            "fld dword ptr [{v}]", ".byte 0xDE, 0xF1",
-            "fmul st(1), st(0)", "fmulp st(2), st(0)", "fchs",
-            "fadd dword ptr [{v} + 8]", "fxch st(1)", "fadd dword ptr [{v} + 4]",
-            "fstp dword ptr [{o} + 0xC]", "fstp dword ptr [{o} + 0x1C]";
-            o = record, v = v.as_ptr(), w = checked
-        );
+        screen_flat(record.cast(), v.as_ptr().cast(), checked.cast());
     } else {
-        x87!(
-            "fld dword ptr [{o} + 0x10]", "fld dword ptr [{o} + 0x14]",
-            "fld dword ptr [{o} + 0x18]",
-            "fld dword ptr [{v}]", ".byte 0xDE, 0xF1",
-            "fmul st(1), st(0)", "fmulp st(2), st(0)", "fchs",
-            "fadd dword ptr [{v} + 8]", "fxch st(1)", "fadd dword ptr [{v} + 4]",
-            "fstp dword ptr [{o} + 0xC]", "fstp dword ptr [{o} + 0x1C]";
-            o = record, v = v.as_ptr()
-        );
+        screen_plain(record.cast(), v.as_ptr().cast());
     }
+}
+
+/// With the flat depth: the depth goes to `checked`, and the one divided by is the whole
+/// number plus one.
+fn screen_flat(o: *mut u8, v: *const u8, w: *mut u8) {
+    let t0 = fld(o, 0x10);
+    let t1 = fld(o, 0x14);
+    let t2 = fld(o, 0x18);
+    fstp(w, 0x0, t2);
+    let t3 = fild(v, 0xC);
+    let t4 = ONE;
+    let t5 = t3 + t4;
+    let t6 = fld(v, 0x0);
+    let t7 = t6 / t5;
+    let t8 = t1 * t7;
+    let t9 = t0 * t7;
+    let t10 = -t8;
+    let t11 = fld(v, 0x8);
+    let t12 = t10 + t11;
+    let t13 = fld(v, 0x4);
+    let t14 = t9 + t13;
+    fstp(o, 0xC, t14);
+    fstp(o, 0x1C, t12);
+}
+
+/// The usual way: x = x' * (scale / depth) + centre x, y = centre y - y' * (the same).
+fn screen_plain(o: *mut u8, v: *const u8) {
+    let t0 = fld(o, 0x10);
+    let t1 = fld(o, 0x14);
+    let t2 = fld(o, 0x18);
+    let t3 = fld(v, 0x0);
+    let t4 = t3 / t2;
+    let t5 = t1 * t4;
+    let t6 = t0 * t4;
+    let t7 = -t5;
+    let t8 = fld(v, 0x8);
+    let t9 = t7 + t8;
+    let t10 = fld(v, 0x4);
+    let t11 = t6 + t10;
+    fstp(o, 0xC, t11);
+    fstp(o, 0x1C, t9);
 }
 
 /// The offset of a point's record, or the fatal error for a number too high.
 // Converted: `rc2k_core::scene::projection::record_offset`
-pub unsafe fn record_offset(point: u32) -> Result<u32, FatalError> {
+pub fn record_offset(point: u32) -> Result<u32, FatalError> {
     use rc2k_core::scene::projection::TooHigh;
-    unsafe {
-        rc2k_core::scene::projection::record_offset(
-            point,
-            game_read(OBJECT_POINTS_RVA),
-            game_read(POINT_COUNT_RVA),
-        )
-        .map_err(|e| match e {
-            TooHigh::Object => TOO_HIGH_OBJECT,
-            TooHigh::Scene => TOO_HIGH,
-        })
-    }
+    rc2k_core::scene::projection::record_offset(
+        point,
+        OBJECT_TABLES.point_count.get(),
+        COURSE.scene_point_count.bits(),
+    )
+    .map_err(|e| match e {
+        TooHigh::Object => TOO_HIGH_OBJECT,
+        TooHigh::Scene => TOO_HIGH,
+    })
 }
 
 /// What the function leaves.
@@ -180,374 +183,210 @@ pub struct Projected {
 /// A scene point's record made anew (`sub_44CF4E`, and the same code in
 /// `project_point`): the point through the view's matrix and onto the screen.
 /// Returns the point's address.
-pub(crate) unsafe fn make_scene_record(point: u32, record: u32) -> Result<u32, BadInput> {
-    unsafe {
-        let at = record as usize;
-        let points: u32 = game_read(POINTS_RVA);
-        if points == 0 {
-            return Err(BadInput("no points"));
-        }
-        let from = points.wrapping_add(point.wrapping_mul(12));
-        put(at, point);
-        rotate(from as *const i32, game_ptr(MATRIX_RVA), record as *mut u32);
-        put(at + 0xC, 0);
-        put(at + 0x1C, 0);
-        if f32::from_bits(dword(at + 0x18)) >= NEAR {
-            let v = [
-                game_read(SCALE_RVA),
-                game_read(CENTRE_X_RVA),
-                game_read(CENTRE_Y_RVA),
-                game_read(FLAT_DEPTH_RVA),
-            ];
-            let flat = game_read::<u32>(FLAT_RVA) != 0;
-            to_screen(record as *mut u32, &v, flat, game_ptr(CHECKED_RVA));
-        }
-        if game_read::<u32>(LOWERED_RVA) == 1 {
-            put(at + 0x18, x87::sub(dword(at + 0x18), LOWERED_BY.to_bits()));
-            game_write(CHECKED_RVA, LOWERED_BY.to_bits());
-        }
-        Ok(from)
+pub(crate) fn make_scene_record(point: u32, record: u32) -> Result<u32, BadInput> {
+    let at = record as usize;
+    let points: u32 = COURSE.scene_points.bits();
+    if points == 0 {
+        return Err(BadInput("no points"));
     }
-}
-
-pub unsafe fn project_point(point: u32) -> Result<Projected, Refused> {
-    unsafe {
-        let offset = record_offset(point)?;
-        let records: u32 = game_read(RECORDS_RVA);
-        if records == 0 {
-            return Err(BadInput("no records for the points").into());
-        }
-        let record = records.wrapping_add(offset);
-        if (point as i32) < 0 {
-            return Ok(Projected {
-                record,
-                eax: offset,
-                ecx: None,
-            });
-        }
-        let at = record as usize;
-        if dword(at) == point {
-            return Ok(Projected {
-                record,
-                eax: point,
-                ecx: Some(game_read::<u32>(POINT_COUNT_RVA).wrapping_add(0x40)),
-            });
-        }
-        let from = make_scene_record(point, record)?;
-        Ok(Projected {
-            record,
-            eax: point,
-            ecx: Some(from),
-        })
-    }
-}
-
-/// The view's screen from the game's variables.
-pub fn screen() -> rc2k_core::scene::projection::Screen {
-    unsafe {
-        let f = |r: usize| f32::from_bits(game_read(r));
-        rc2k_core::scene::projection::Screen {
-            scale: f(SCALE_RVA),
-            centre: [f(CENTRE_X_RVA), f(CENTRE_Y_RVA)],
-            flat: (game_read::<u32>(FLAT_RVA) != 0).then(|| game_read(FLAT_DEPTH_RVA)),
-        }
-    }
-}
-
-/// The converted `make_scene_record` (plain floats).
-// Converted: `rc2k_core::scene::projection::make_record`
-pub(crate) unsafe fn make_scene_record_plain(point: u32, record: u32) -> Result<u32, BadInput> {
-    unsafe {
-        let at = record as usize;
-        let points: u32 = game_read(POINTS_RVA);
-        if points == 0 {
-            return Err(BadInput("no points"));
-        }
-        let from = points.wrapping_add(point.wrapping_mul(12));
-        let place = (from as *const [i32; 3]).read_unaligned();
-        let matrix: [u32; 16] = game_read(MATRIX_RVA);
-        let made = rc2k_core::scene::projection::make_record(
-            place,
-            &matrix.map(f32::from_bits),
-            screen,
-            game_read::<u32>(LOWERED_RVA) == 1,
+    let from = points.wrapping_add(point.wrapping_mul(12));
+    put(at, point);
+    rotate(
+        crate::pointers::host(from) as *const i32,
+        crate::pointers::host(MATRICES.view_matrix[0].addr()) as *const u32,
+        crate::pointers::host(record) as *mut u32,
+    );
+    put(at + 0xC, 0);
+    put(at + 0x1C, 0);
+    if f32::from_bits(dword(at + 0x18)) >= NEAR {
+        let v = [
+            DRAW.view_scale.bits(),
+            DRAW.view_centre[0].bits(),
+            DRAW.view_centre[1].bits(),
+            COURSE.flat_depth.bits(),
+        ];
+        let flat = STAGE_PREFS.flat_depth.bits() != 0;
+        to_screen(
+            crate::pointers::host(record) as *mut u32,
+            &v,
+            flat,
+            DRAW.scratch.as_ptr(),
         );
-        put(at, point);
-        for (k, v) in made.view.into_iter().enumerate() {
-            put(at + 0x10 + 4 * k, v.to_bits());
-        }
-        put(at + 0xC, made.screen[0].to_bits());
-        put(at + 0x1C, made.screen[1].to_bits());
-        if let Some(checked) = made.checked {
-            game_write(CHECKED_RVA, checked.to_bits());
-        }
-        Ok(from)
     }
+    if LIGHT_STATE.draw_mode.bits() == 1 {
+        put(at + 0x18, x87::sub(dword(at + 0x18), LOWERED_BY.to_bits()));
+        DRAW.scratch.set_bits(LOWERED_BY.to_bits());
+    }
+    Ok(from)
 }
 
-/// The converted `project_point` (plain floats): the hook's, and `project_polygon_plain`'s.
-/// The x87 version above stays for the Rust callers in unconverted code.
-// Converted: `rc2k_core::scene::projection`
-pub unsafe fn project_point_plain(point: u32) -> Result<Projected, Refused> {
-    unsafe {
-        let offset = record_offset(point)?;
-        let records: u32 = game_read(RECORDS_RVA);
-        if records == 0 {
-            return Err(BadInput("no records for the points").into());
-        }
-        let record = records.wrapping_add(offset);
-        if (point as i32) < 0 {
-            return Ok(Projected {
-                record,
-                eax: offset,
-                ecx: None,
-            });
-        }
-        if dword(record as usize) == point {
-            return Ok(Projected {
-                record,
-                eax: point,
-                ecx: Some(game_read::<u32>(POINT_COUNT_RVA).wrapping_add(0x40)),
-            });
-        }
-        let from = make_scene_record_plain(point, record)?;
-        Ok(Projected {
+pub fn project_point(point: u32) -> Result<Projected, Refused> {
+    let offset = record_offset(point)?;
+    let records: u32 = COURSE_LISTS.point_records.bits();
+    if records == 0 {
+        return Err(BadInput("no records for the points").into());
+    }
+    let record = records.wrapping_add(offset);
+    if (point as i32) < 0 {
+        return Ok(Projected {
+            record,
+            eax: offset,
+            ecx: None,
+        });
+    }
+    let at = record as usize;
+    if dword(at) == point {
+        return Ok(Projected {
             record,
             eax: point,
-            ecx: Some(from),
-        })
+            ecx: Some(COURSE.scene_point_count.bits().wrapping_add(0x40)),
+        });
     }
-}
-
-/// The float places of `regions(point)`: the record's five floats and `dword_62400C`.
-pub fn float_places(point: u32) -> Vec<(Region, crate::service::floats::Tolerance)> {
-    use crate::service::floats::FLOAT;
-    let mut places = vec![(at(CHECKED_RVA), FLOAT)];
-    let records: u32 = unsafe { game_read(RECORDS_RVA) };
-    if let (Ok(offset), true) = (unsafe { record_offset(point) }, records != 0) {
-        places.push(((records.wrapping_add(offset + 0xC), 0x14), FLOAT));
-    }
-    places
-}
-
-// ---- hook ----
-
-/// What a call for `point` may write.
-pub fn regions(point: u32) -> Vec<Region> {
-    let mut regions = vec![at(CHECKED_RVA)];
-    let records: u32 = unsafe { game_read(RECORDS_RVA) };
-    if let (Ok(offset), true) = (unsafe { record_offset(point) }, records != 0) {
-        regions.push((records.wrapping_add(offset), RECORD_LEN));
-    }
-    regions
-}
-
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    let done = unsafe { project_point_plain(r.eax) }?;
-    let left = Left::nothing().with(EAX, done.eax).with(EDX, done.record);
-    Ok(match done.ecx {
-        Some(ecx) => left.with(ECX, ecx),
-        None => left,
+    let from = make_scene_record(point, record)?;
+    Ok(Projected {
+        record,
+        eax: point,
+        ecx: Some(from),
     })
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    use crate::service::floats::{Floats, dispatch_state_floats};
-    let places = float_places(r.eax);
-    let floats = Floats {
-        memory: &places,
-        regs: &[],
-    };
-    dispatch_state_floats(&HOOK, r, call_original, &regions(r.eax), &floats, &rust);
-}
+#[cfg(all(test, target_arch = "x86"))]
+mod asm_reference {
+    use super::*;
+    use crate::scene::asm_test::{Kind, differential};
 
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    crate::service::floats::floats_entry(r, &rust)
-}
-
-// ---- self-test: points, records and a view of the test's ----
-
-/// The variables a test of the projection sets, to be put back afterwards.
-pub fn inputs() -> Vec<Region> {
-    let mut inputs: Vec<Region> = [
-        RECORDS_RVA,
-        POINTS_RVA,
-        POINT_COUNT_RVA,
-        OBJECT_POINTS_RVA,
-        FLAT_RVA,
-        FLAT_DEPTH_RVA,
-        SCALE_RVA,
-        CENTRE_X_RVA,
-        CENTRE_Y_RVA,
-        LOWERED_RVA,
-        CHECKED_RVA,
-    ]
-    .map(at)
-    .to_vec();
-    inputs.push((game_addr(MATRIX_RVA) as u32, 0x40));
-    inputs
-}
-
-/// Points, records and views for a test: the game's variables are pointed at them by
-/// `set`, and `inputs()` is what to put back.
-pub struct World {
-    pub records: Vec<[u32; 8]>,
-    pub points: Vec<[i32; 3]>,
-}
-
-pub const TEST_POINTS: u32 = 8;
-pub const TEST_OBJECT_POINTS: u32 = 6;
-
-impl World {
-    pub fn new() -> Self {
-        let mut points = vec![[0i32; 3]; TEST_POINTS as usize + 0x40];
-        for (n, point) in points.iter_mut().enumerate() {
-            let n = n as i32;
-            *point = [n * 977 - 3000, 2500 - n * 613, n * 1201 - 1500];
-        }
-        // One far off, one of the largest numbers.
-        points[5] = [123_456_789, -98_765_432, 7_654_321];
-        points[6] = [i32::MAX, i32::MIN, 1];
-        Self {
-            records: vec![[0; 8]; 0x2000],
-            points,
-        }
-    }
-
-    /// The records as nobody made them, but for the objects' (which the function only
-    /// finds) and one of the scene's that is there already; the variables for view
-    /// `view` (0 .. 3), flat or not, lowered or not.
-    pub unsafe fn set(&mut self, view: usize, flat: bool, lowered: bool) {
-        let f = |value: f32| value.to_bits();
-        self.records.fill([0xAAAA_AAAA; 8]);
-        for n in 0..TEST_OBJECT_POINTS as usize {
-            let depth = [100.0f32, 5000.0, 4096.0, 70000.0, f32::NAN, 12000.5][n];
-            self.records[0x1000 + n] = [0, 0, 0, f(10.0 + n as f32), 0, 0, f(depth), f(20.0)];
-        }
-        self.records[2] = [2, 7, 7, f(1.5), f(2.5), f(3.5), f(9000.0), f(4.5)];
-        let matrices: [[f32; 16]; 4] = [
-            [
-                1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 9000.0, 0.0,
-            ],
-            [
-                0.36, 0.48, -0.8, 0.0, -0.8, 0.6, 0.0, 0.0, 0.48, 0.64, 0.6, 0.0, 12.25, -7.5,
-                20000.3, 0.0,
-            ],
-            [
-                1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 4096.0, 0.0,
-            ],
-            [
-                0.1234567, 3.3333333, -0.7171068, 0.0, 2.7282818, -0.5, 0.3333333, 0.0, -1.4242135,
-                0.0009765, 1.7320508, 0.0, -333.33334, 0.1, 6000.7, 0.0,
-            ],
-        ];
+    /// The original's instructions for `rotate`.
+    unsafe fn rotate_at_ref(p: *mut u8, m: *mut u8, o: *mut u8) {
         unsafe {
-            game_write(MATRIX_RVA, matrices[view % 4].map(f));
-            game_write(RECORDS_RVA, self.records.as_mut_ptr() as u32);
-            game_write(POINTS_RVA, self.points.as_ptr() as u32);
-            game_write(POINT_COUNT_RVA, TEST_POINTS);
-            game_write(OBJECT_POINTS_RVA, TEST_OBJECT_POINTS);
-            game_write(FLAT_RVA, flat as u32);
-            game_write(FLAT_DEPTH_RVA, 7999u32);
-            game_write(SCALE_RVA, f(640.0 + view as f32 * 0.37));
-            game_write(CENTRE_X_RVA, f(400.0));
-            game_write(CENTRE_Y_RVA, f(300.5));
-            game_write(LOWERED_RVA, lowered as u32);
-            game_write(CHECKED_RVA, 0xAAAA_AAAAu32);
+            core::arch::asm!(
+                "fild dword ptr [{p} + 8]", "fild dword ptr [{p} + 4]", "fild dword ptr [{p}]",
+                "fld dword ptr [{m}]", "fmul st(0), st(1)",
+                "fld dword ptr [{m} + 0x10]", "fmul st(0), st(3)",
+                "fld dword ptr [{m} + 0x20]", "fmul st(0), st(5)",
+                "faddp st(1), st(0)", "faddp st(1), st(0)",
+                "fadd dword ptr [{m} + 0x30]", "fxch st(3)",
+                "fld dword ptr [{m} + 4]", "fmul st(0), st(2)",
+                "fld dword ptr [{m} + 0x14]", "fmul st(0), st(4)",
+                "fld dword ptr [{m} + 0x24]", "fmul st(0), st(3)",
+                "faddp st(1), st(0)", "faddp st(1), st(0)",
+                "fadd dword ptr [{m} + 0x34]", "fxch st(3)",
+                "fld dword ptr [{m} + 8]", "fmulp st(3), st(0)",
+                "fld dword ptr [{m} + 0x18]", "fmulp st(1), st(0)",
+                "fld dword ptr [{m} + 0x28]", "fmulp st(2), st(0)",
+                "faddp st(1), st(0)", "faddp st(1), st(0)",
+                "fadd dword ptr [{m} + 0x38]", "fxch st(2)",
+                "fstp dword ptr [{o} + 0x10]", "fstp dword ptr [{o} + 0x14]",
+                "fstp dword ptr [{o} + 0x18]",
+                p = in(reg) p,
+                m = in(reg) m,
+                o = in(reg) o,
+                out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
+                out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
+                options(nostack),
+            );
         }
     }
 
-    /// Everything a projection may have written.
-    pub fn state(&self) -> (Vec<[u32; 8]>, u32) {
-        (self.records.clone(), unsafe { game_read(CHECKED_RVA) })
+    /// The original's instructions for `screen_flat`.
+    unsafe fn screen_flat_ref(o: *mut u8, v: *mut u8, w: *mut u8) {
+        unsafe {
+            core::arch::asm!(
+                "fld dword ptr [{o} + 0x10]", "fld dword ptr [{o} + 0x14]",
+                "fld dword ptr [{o} + 0x18]",
+                "fstp dword ptr [{w}]", "fild dword ptr [{v} + 12]", "fld1", "faddp st(1), st(0)",
+                "fld dword ptr [{v}]", ".byte 0xDE, 0xF1",
+                "fmul st(1), st(0)", "fmulp st(2), st(0)", "fchs",
+                "fadd dword ptr [{v} + 8]", "fxch st(1)", "fadd dword ptr [{v} + 4]",
+                "fstp dword ptr [{o} + 0xC]", "fstp dword ptr [{o} + 0x1C]",
+                o = in(reg) o,
+                v = in(reg) v,
+                w = in(reg) w,
+                out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
+                out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
+                options(nostack),
+            );
+        }
     }
-}
 
-impl Default for World {
-    fn default() -> Self {
-        Self::new()
+    /// The original's instructions for `screen_plain`.
+    unsafe fn screen_plain_ref(o: *mut u8, v: *mut u8) {
+        unsafe {
+            core::arch::asm!(
+                "fld dword ptr [{o} + 0x10]", "fld dword ptr [{o} + 0x14]",
+                "fld dword ptr [{o} + 0x18]",
+                "fld dword ptr [{v}]", ".byte 0xDE, 0xF1",
+                "fmul st(1), st(0)", "fmulp st(2), st(0)", "fchs",
+                "fadd dword ptr [{v} + 8]", "fxch st(1)", "fadd dword ptr [{v} + 4]",
+                "fstp dword ptr [{o} + 0xC]", "fstp dword ptr [{o} + 0x1C]",
+                o = in(reg) o,
+                v = in(reg) v,
+                out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
+                out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
+                options(nostack),
+            );
+        }
     }
-}
 
-/// Two states of the test's world the same, the records' floats (+0xC .. +0x1C) and the
-/// checked value within `tolerance`.
-pub fn same_world(
-    theirs: &(Vec<[u32; 8]>, u32),
-    mine: &(Vec<[u32; 8]>, u32),
-    tolerance: crate::service::floats::Tolerance,
-) -> bool {
-    use crate::service::floats::close;
-    theirs.0.len() == mine.0.len()
-        && theirs
-            .0
-            .iter()
-            .zip(&mine.0)
-            .all(|(a, b)| a[..3] == b[..3] && (3..8).all(|k| close(a[k], b[k], tolerance)))
-        && close(theirs.1, mine.1, tolerance)
-}
-
-fn self_test() -> (usize, usize) {
-    use crate::service::floats::{FLOAT, Floats, at_test_precisions};
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let inputs = inputs();
-    let saved = capture(&inputs);
-    let mut world = World::new();
-    let last = TEST_POINTS + 0x3F;
-    let places = [(at(CHECKED_RVA), FLOAT)];
-    let tolerant = Floats {
-        memory: &places,
-        regs: &[],
-    };
-    at_test_precisions(&tolerant, &mut |word, held| {
-        let tolerance = held.memory[0].1;
-        for view in 0..4 {
-            for (flat, lowered) in [(false, false), (true, false), (false, true), (true, true)] {
-                for point in [
-                    0u32,
-                    1,
-                    2,
-                    3,
-                    5,
-                    6,
-                    7,
-                    last,
-                    -1i32 as u32,
-                    -3i32 as u32,
-                    -5i32 as u32,
-                ] {
-                    let before = Regs {
-                        eax: point,
-                        ..Regs::SENTINEL
-                    };
-                    unsafe { world.set(view, flat, lowered) };
-                    let mut ro = before;
-                    unsafe { call_original(&mut ro) };
-                    let theirs = world.state();
-                    unsafe { world.set(view, flat, lowered) };
-                    let mine = rust(&before);
-                    let state = world.state();
-                    let regs_ok = mine.as_ref().is_ok_and(|left| left.matches(&before, &ro));
-                    t.check(regs_ok && same_world(&theirs, &state, tolerance), || {
-                        let n = theirs.0.iter().zip(&state.0).position(|(a, b)| a != b);
-                        format!(
-                            "control word {word:#x}, point {point:#x}, view {view}, flat {flat}, lowered {lowered}: regs_ok={regs_ok} original eax {:#x} ecx {:#x} edx {:#x}, rust {mine:x?}; checked {:#x} {:#x}; first different record {n:?}: {:x?} {:x?}",
-                            ro.eax,
-                            ro.ecx,
-                            ro.edx,
-                            theirs.1,
-                            state.1,
-                            n.map(|n| theirs.0[n]),
-                            n.map(|n| state.0[n]),
-                        )
-                    });
+    #[test]
+    fn rotate_matches_the_assembly() {
+        // dwords 0 .. 3 the point, 4 .. 19 the matrix, 20 .. 28 the record
+        differential::<28>(
+            "project_point rotate",
+            8000,
+            13,
+            [Kind::Float; 28],
+            |rng, m| {
+                m.fill(0xAAAA_AAAA);
+                for d in m.iter_mut().take(3) {
+                    *d = rng.int();
                 }
-            }
+                let moderate = rng.below(2) == 0;
+                for d in m.iter_mut().skip(4).take(15) {
+                    *d = if moderate { rng.moderate() } else { rng.fl() };
+                }
+            },
+            |base| unsafe { rotate_at_ref(base, base.add(16), base.add(80)) },
+            |base| unsafe { rotate_at(base, base.add(16), base.add(80)) },
+        );
+    }
+
+    /// dwords 0 .. 4 the scale, centre x, centre y and whole number, 4 the checked word, 8 ..
+    /// 16 the record (+0x10 .. +0x18 the place in the view).
+    fn screen_fill(rng: &mut crate::scene::asm_test::Rng, m: &mut [u32; 16]) {
+        m.fill(0xAAAA_AAAA);
+        let moderate = rng.below(2) == 0;
+        for d in m.iter_mut().take(3) {
+            *d = if moderate { rng.moderate() } else { rng.fl() };
         }
-    });
-    restore(&inputs, &saved);
-    t.finish()
+        m[3] = rng.int();
+        for d in m.iter_mut().skip(12).take(3) {
+            *d = if moderate { rng.moderate() } else { rng.fl() };
+        }
+    }
+
+    #[test]
+    fn screen_flat_matches_the_assembly() {
+        differential::<16>(
+            "project_point flat",
+            8000,
+            14,
+            [Kind::Float; 16],
+            screen_fill,
+            |base| unsafe { screen_flat_ref(base.add(32), base, base.add(16)) },
+            |base| unsafe { screen_flat(base.add(32), base, base.add(16)) },
+        );
+    }
+
+    #[test]
+    fn screen_plain_matches_the_assembly() {
+        differential::<16>(
+            "project_point not flat",
+            8000,
+            15,
+            [Kind::Float; 16],
+            screen_fill,
+            |base| unsafe { screen_plain_ref(base.add(32), base) },
+            |base| unsafe { screen_plain(base.add(32), base) },
+        );
+    }
 }

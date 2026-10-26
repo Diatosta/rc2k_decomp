@@ -8,41 +8,24 @@
 //! In:  nothing
 //! Out: every register preserved (`pusha` .. `popa`)
 //!
-//! Caller: `menu::enter_time_trial_best`. Refuses (before anything) what
-//! `event_flow::stage_times` refuses. Self-test: the game's tables for each stage choice
-//! there with test times (in order, reversed, equal, by lot), put back.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Caller: `menu::enter_time_trial_best`. Refuses (before anything) what `event_flow::stage_times`
+//! refuses.
 
 use crate::errors::Refused;
-use crate::framework::Regs;
 use crate::menu::event_flow::*;
-use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
 
-pub const KEPT_NAME: usize = 0x755884; // g_keptPlayerName
+// g_keptPlayerName
 /// The chosen stage's ten best times, for the core; refused as `event_flow::stage_times`.
 pub fn stage_list<'a>() -> Result<rc2k_core::menu::standings::Entries<'a>, Refused> {
     let times = stage_times()?;
-    Ok(unsafe { crate::menu::standings::table(times, TIME_ENTRY, 10) })
+    Ok(crate::menu::standings::table(times, TIME_ENTRY, 10)?)
 }
 
 pub fn rank_time_trial_best() -> Result<(), Refused> {
     // Converted: `rc2k_core::menu::bests::rank_time_trial`.
     let mut list = stage_list()?;
-    rc2k_core::menu::bests::rank_time_trial(&mut list, crate::menu::standings::kept_name());
+    crate::menu::standings::with_kept_name(|kept| {
+        rc2k_core::menu::bests::rank_time_trial(&mut list, kept)
+    });
     Ok(())
-}
-
-fn rust(_: &Regs) -> Result<Left, Refused> {
-    rank_time_trial_best()?;
-    Ok(Left::nothing())
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
 }

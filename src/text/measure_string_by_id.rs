@@ -9,14 +9,11 @@
 //! registers above are the original's, for reference.
 
 use crate::errors::{BadInput, Refused};
-use crate::gfx::blit_glyph::recording_works;
-use crate::strings::string_table::{blob, is_table_id};
 use crate::strings::text_from_ids::text;
 use crate::text::draw_string_by_id::string_text;
 use crate::text::draw_text::Canvas;
 use crate::text::font::Font;
 use crate::text::measure_text::{Measured, measure_text};
-use std::ptr::copy_nonoverlapping;
 
 // ---- Rust version ----
 
@@ -31,8 +28,9 @@ pub unsafe fn measure_string_by_id(
 ) -> Result<Measured, Refused> {
     unsafe {
         let bytes = string_text(id)?;
-        copy_nonoverlapping(bytes.as_ptr(), buffer, bytes.len());
-        Ok(measure_text(font, buffer, x, canvas)?)
+        crate::pointers::GamePtr::new(crate::pointers::game_address(buffer))
+            .write_bytes(&bytes, "the text buffer")?;
+        measure_text(font, buffer, x, canvas)
     }
 }
 
@@ -48,25 +46,15 @@ pub unsafe fn measure_string_by_id_at(
         return Err(BadInput("no font").into());
     }
     unsafe {
-        let mut copy = font.read_unaligned();
+        let mut copy = crate::pointers::GamePtr::new(crate::pointers::game_address(font))
+            .read::<Font>("a font")?;
         let measured = measure_string_by_id(id, &mut copy, x, text(), canvas)?;
         if canvas.keeps_font_changes() {
-            font.write_unaligned(copy);
+            crate::pointers::GamePtr::new(crate::pointers::game_address(font))
+                .write(copy, "a font")?;
         }
         Ok(measured)
     }
 }
 
-pub const MEASURING_FONT: usize = 0x51E824; // dword_51E824: the font the name editors measure with
-pub const TEST_STRINGS: [u32; 3] = [0x4E5, 0x4E6, 0x4E7];
-
-/// Why a test that measures the game's strings cannot run, or None if it can.
-pub fn measuring_unavailable() -> Option<&'static str> {
-    if !recording_works() {
-        return Some("the gfx::blit_glyph hook is off, so the original could really draw");
-    }
-    if blob().is_null() || !TEST_STRINGS.iter().all(|&id| is_table_id(id)) {
-        return Some("the strings are not loaded");
-    }
-    (!crate::screens::font_is_loaded(MEASURING_FONT)).then_some("the measuring font is not loaded")
-}
+pub const MEASURING_FONT: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fonts::MEASURE;

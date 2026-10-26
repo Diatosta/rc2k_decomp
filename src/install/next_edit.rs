@@ -6,48 +6,28 @@
 //! Out: every register kept (`pusha` / `popa`); the flags of what it did last (no caller
 //!      reads them)
 //! Callers `install::folder_page` (the folder page's action), `install::mark_page`.
-//! Shadow mode compares. Self-test: lists of the test's against the original.
 //!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Conversion phase 3 (2026-10-23): plain Rust with typed arguments; the registers above
+//! are the original's.
 
-use crate::errors::Refused;
-use crate::framework::Regs;
-use crate::install::installer::{CHOICE, cmp, g, logic, p, rb};
-use crate::race::viewer::regs_entry;
+use crate::install::installer::rb;
+use crate::install::vars::INSTALLER_PAGES;
 
-pub fn next_edit(entry: &Regs) -> Regs {
-    let mut r = *entry;
-    if entry.ebx != 0 {
-        logic(&mut r, entry.ebx);
-        return r;
+/// `state` the list action's (ebx): only the start (0) does anything.
+pub fn next_edit(state: u32, list: u32) {
+    if state != 0 {
+        return;
     }
-    let count = rb(entry.edi + 1) as u32;
-    let item = |n: u32| entry.edi + 0x18 + 0x10 * n;
+    let count = rb(list + 1) as u32;
+    let item = |n: u32| list + 0x18 + 0x10 * n;
     // Converted: `rc2k_core::install::items::next_edit` (the highlight stored once, where
     // it ends).
-    let (n, found) = rc2k_core::install::items::next_edit(g(CHOICE), count, |n| rb(item(n)));
+    let (n, found) =
+        rc2k_core::install::items::next_edit(INSTALLER_PAGES.choice.get(), count, |n| rb(item(n)));
     if found {
-        p(CHOICE, n);
-        r = crate::install::start_edit::start_edit(&Regs { esi: item(n), ..r });
+        INSTALLER_PAGES.choice.set(n);
+        crate::install::start_edit::start_edit(item(n));
     } else {
-        cmp(&mut r, count, n);
-        p(CHOICE, 0);
+        INSTALLER_PAGES.choice.set(0);
     }
-    let flags = r.eflags;
-    Regs {
-        eflags: flags,
-        ..*entry
-    }
-}
-
-fn rust(r: &Regs) -> Result<Regs, Refused> {
-    Ok(next_edit(r))
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    regs_entry(r, &rust)
 }

@@ -7,25 +7,18 @@
 //!      the picture buffer, ecx, edx = the picture's size, carry set, or clear for no
 //!      path; everything else preserved
 //!
-//! The picture's size 256 x 256 with rows that follow one another (row length
-//! 0xFFFFFFFD), its first 0x10000 dwords filled with -1, then `read_picture_file` if
-//! there is a path. Five call sites: `gfx::load_picture_to_texture` (twice) and
-//! `scene::upload_plate` (twice), the second of each pair for the picture kept for
-//! the alpha.
-//! Refuses no picture buffer, and what `read_picture_file` refuses.
-//! Shadow mode runs the original alone: the reading is compared in its own hook.
-//! Self-test: `gfx::load_picture`'s files, and no path.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! The picture's size 256 x 256 with rows that follow one another (row length 0xFFFFFFFD), its
+//! first 0x10000 dwords filled with -1, then `read_picture_file` if there is a path. Five call
+//! sites: `gfx::load_picture_to_texture` (twice) and `scene::upload_car_icon` (twice), the
+//! second of each pair for the picture kept for the alpha. Refuses no picture buffer, and what
+//! `read_picture_file` refuses.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{EBX, ECX, EDX, Regs, game_read};
-use crate::gfx::pcx::{DECODED_HEIGHT_RVA, DECODED_WIDTH_RVA, PIXELS_RVA};
-use crate::gfx::picture::{HEIGHT_RVA, WIDTH_RVA, picture};
+use crate::gfx::decoder::DECODER;
+use crate::gfx::picture::picture;
+use crate::gfx::picture_store::PICTURE;
 use crate::gfx::read_picture_file::read_picture_file;
-use crate::screens::harness::Left;
+use crate::pointers::GamePtr;
 use rc2k_core::gfx::picture_size as sizes;
 
 // ---- Rust version ----
@@ -38,39 +31,27 @@ pub unsafe fn read_texture_picture(path: *mut u8) -> Result<(u32, u32, u32, bool
         if buffer.is_null() {
             return Err(BadInput("no picture buffer").into());
         }
+        let place = GamePtr::new(crate::pointers::game_address(buffer));
         // Converted: `rc2k_core::gfx::picture_size` (`TEXTURE`, `TEXTURE_FILLED`).
         crate::gfx::picture::set_size(sizes::TEXTURE);
-        std::ptr::write_bytes(buffer, 0xFF, sizes::TEXTURE_FILLED * 4);
+        place.fill(0xFF, sizes::TEXTURE_FILLED * 4, "the picture buffer")?;
         let failed = if path.is_null() {
             false
         } else if read_picture_file(path)? {
             return Ok((
-                game_read(PIXELS_RVA),
-                game_read(DECODED_WIDTH_RVA),
-                game_read(DECODED_HEIGHT_RVA),
+                DECODER.pixels.get(),
+                DECODER.width.get(),
+                DECODER.height.get(),
                 false,
             ));
         } else {
             true
         };
         Ok((
-            buffer as u32,
-            game_read(WIDTH_RVA),
-            game_read(HEIGHT_RVA),
+            crate::pointers::game_address(buffer),
+            PICTURE.width.get(),
+            PICTURE.height.get(),
             failed,
         ))
     }
-}
-
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    match unsafe { read_texture_picture(r.eax as *mut u8) } {
-        Ok((pixels, width, height, failed)) => Left::carry(failed)
-            .with(EBX, pixels)
-            .with(ECX, width)
-            .with(EDX, height)
-            .apply(r),
-        Err(e) => return Err(e),
-    }
-    Ok(())
 }

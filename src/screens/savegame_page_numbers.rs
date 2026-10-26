@@ -4,54 +4,42 @@
 //! In:  nothing
 //! Out: every register preserved
 //!
-//! With n = the page (`dword_75523C`) times 10: the caption (`g_captionText`) is n and
-//! n + 9 with a dash between, and the ten texts of four bytes from `byte_A8C158` on
-//! are n .. n + 9; each number at least two digits (a 0 before one under 10), each
-//! text ended by a NUL. In four draw lists (the load and save screens).
-//! Refuses a page whose numbers would not fit their four bytes (100 or more).
-//! Hook removed 2026-10-22 (typed tables): the menus and draw lists run its `entry`
-//! (`menu::table_calls`); the registers above are the original's, for reference.
+//! With n = the page (`dword_75523C`) times 10: the caption (`g_captionText`) is n and n + 9 with a
+//! dash between, and the ten texts of four bytes from `byte_A8C158` on are n .. n + 9; each number
+//! at least two digits (a 0 before one under 10), each text ended by a NUL. In four draw lists (the
+//! load and save screens). Refuses a page whose numbers would not fit their four bytes (100 or
+//! more). The menus and draw lists run its `entry` (`menu::table_calls`); the registers above are
+//! the original's, for reference.
 
 use crate::errors::Refused;
-use crate::framework::{Regs, game_addr, game_read, rva};
-use crate::menu::name_lists::SAVEGAME_PAGE_RVA;
-use crate::screens::harness::Left;
-use crate::service::harness::state_entry;
+use crate::menu::pages_store::MENU_PAGES;
 
 // ---- game data ----
-
-const CAPTION_RVA: usize = rva(0xA8BE54); // g_captionText
-const NUMBERS_RVA: usize = rva(0xA8C158); // byte_A8C158: ten texts of four bytes
 
 // ---- Rust version ----
 
 /// A number with a 0 before it under 10.
 pub fn savegame_page_numbers() -> Result<(), Refused> {
     // Converted: `rc2k_core::screens::captions::savegame_numbers`.
-    let page = unsafe { game_read::<u32>(SAVEGAME_PAGE_RVA) };
+    let page = { MENU_PAGES.save_page.get() };
     let (caption, numbers) = rc2k_core::screens::captions::savegame_numbers(page)?;
-    unsafe {
-        std::ptr::copy_nonoverlapping(
-            caption.as_ptr(),
-            game_addr(CAPTION_RVA) as *mut u8,
-            caption.len(),
+    crate::pointers::GamePtr::new(
+        crate::screens::text_buffers_store::TEXT_BUFFERS
+            .caption
+            .addr(),
+    )
+    .write_bytes(&caption, "the caption")?;
+    for (n, text) in numbers.iter().enumerate() {
+        let place = crate::pointers::GamePtr::new(
+            (crate::screens::text_buffers_store::TEXT_BUFFERS
+                .page_numbers
+                .addr())
+                + 4 * n as u32,
         );
-        for (n, text) in numbers.iter().enumerate() {
-            let place = game_addr(NUMBERS_RVA) as *mut u8;
-            std::ptr::copy_nonoverlapping(text.as_ptr(), place.add(n * 4), text.len());
-            *place.add(n * 4 + text.len()) = 0;
-        }
+        place.write_bytes(text, "a page number")?;
+        place
+            .offset(text.len() as u32)
+            .write::<u8>(0, "a page number")?;
     }
     Ok(())
-}
-
-fn rust(_: &Regs) -> Result<Left, Refused> {
-    savegame_page_numbers()?;
-    Ok(Left::nothing())
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
 }

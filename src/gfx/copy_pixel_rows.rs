@@ -9,20 +9,11 @@
 //! Reached only through the converter table `dword_4F5288`: `gfx::convert_picture` calls
 //! it with esi = edi (the picture is already what the surface wants: on the owner's 32-bit
 //! screen that is every picture), `sub_41A828` with a locked texture as the destination.
-//! Manual patch with a private copy (0x10 bytes, nothing to relocate): a conditional jump
-//! sits in the first bytes.
-//! Refuses a row count of 0 when something would be copied (the original counts through
-//! all 32 bits). The name is a reading.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Refuses a row count of 0 when something would be copied (the original counts through all 32
+//! bits). The name is a reading.
 
-use crate::errors::{BadInput, Refused};
-use crate::framework::{EBX, EDI, EDX, ESI, Regs, rva};
-use crate::gfx::harness::pixels_entry;
-use crate::screens::harness::Left;
-use crate::service::harness::Region;
+use crate::errors::BadInput;
+use crate::framework::rva;
 
 pub const COPY_PIXEL_ROWS: usize = rva(0x407540);
 
@@ -47,7 +38,8 @@ pub unsafe fn copy_pixel_rows(
         // Dword by dword and forwards, as `rep movsd` goes, whatever overlaps.
         for _ in 0..row_dwords {
             unsafe {
-                (to as *mut u32).write_unaligned((from as *const u32).read_unaligned());
+                (crate::pointers::host(to) as *mut u32)
+                    .write_unaligned((crate::pointers::host(from) as *const u32).read_unaligned());
             }
             from = from.wrapping_add(4);
             to = to.wrapping_add(4);
@@ -55,39 +47,4 @@ pub unsafe fn copy_pixel_rows(
         to = to.wrapping_sub(back);
     }
     Ok(Some((from, to)))
-}
-
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    Ok(
-        match unsafe { copy_pixel_rows(r.esi, r.edi, r.ecx, r.edx, r.ebp) }? {
-            None => Left::nothing(),
-            Some((from, to)) => Left::nothing()
-                .with(EBX, r.ecx)
-                .with(EDX, 0)
-                .with(ESI, from)
-                .with(EDI, to),
-        },
-    )
-}
-
-/// The destination's rows, from the first byte written to the last, for comparing. Empty
-/// when nothing is copied or the numbers make no sense as a block of memory.
-pub fn written(r: &Regs, bytes_per_dword: u32) -> Vec<Region> {
-    if r.esi == r.edi || r.edx == 0 || r.ecx == 0 {
-        return Vec::new();
-    }
-    let row_bytes = r.ecx as i64 * bytes_per_dword as i64;
-    let step = row_bytes - r.ebp as i32 as i64;
-    let last = step * (r.edx as i64 - 1);
-    let (low, high) = (last.min(0), last.max(0) + row_bytes);
-    if high - low > 0x400_0000 {
-        return Vec::new();
-    }
-    vec![((r.edi as i64 + low) as u32, (high - low) as usize)]
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    pixels_entry(r, &rust)
 }

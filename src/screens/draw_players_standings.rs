@@ -9,70 +9,49 @@
 //! In:  nothing
 //! Out: every register preserved (`pusha` .. `popa`)
 //!
-//! In a menu loop's draw list (0x758ECE). Refuses (before anything) a row's player without
-//! its record or name, or without its points.
-//! Hook removed 2026-10-22 (typed tables): the menus and draw lists run its `entry`
+//! In a menu loop's draw list (0x758ECE). Refuses (before anything) a row's player without its
+//! record or name, or without its points. The menus and draw lists run its `entry`
 //! (`menu::table_calls`); the registers above are the original's, for reference.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{Regs, game_addr, game_read, rva};
-use crate::screens::harness::{Left, draw_entry};
+use crate::menu::captions_store::CAPTIONS;
+use crate::menu::event_store::EVENT_STATE;
+use crate::menu::players_store::PLAYER_TABLE;
 use crate::text::draw_text::Canvas;
 
-fn k(a: usize) -> u32 {
-    unsafe { game_read(rva(a)) }
-}
-
-/// The row's offset (`dword_758720` + 4 x row) into `g_players` / `off_7589A6`.
-fn offset(row: usize) -> u32 {
-    k(0x758720 + 4 * row)
-}
-
-fn table(base: usize, row: usize) -> u32 {
-    unsafe {
-        ((game_addr(rva(base)) as u32).wrapping_add(offset(row)) as *const u32).read_unaligned()
-    }
-}
-
 /// The Rust version.
-pub unsafe fn draw_players_standings(canvas: &mut dyn Canvas) -> Result<(), Refused> {
-    unsafe {
-        let rows = if k(0x755984) == 3 { 3 } else { 4 };
-        for row in 0..rows {
-            let p = table(0x75647C, row);
-            if p == 0
-                || ((p + 0x18) as *const u32).read_unaligned() == 0
-                || table(0x7589A6, row) == 0
-            {
-                return Err(BadInput("a standings row without its player, name or points").into());
-            }
+pub fn draw_players_standings(canvas: &mut dyn Canvas) -> Result<(), Refused> {
+    let rows = if EVENT_STATE.player_count.get() == 3 {
+        3
+    } else {
+        4
+    };
+    for row in 0..rows {
+        let p = PLAYER_TABLE.pointers[row].get();
+        if p == 0
+            || crate::pointers::GamePtr::new(p + 0x18)
+                .read::<u32>("draw players standings: a game value")?
+                == 0
+            || CAPTIONS.total_pointers[row].get() == 0
+        {
+            return Err(BadInput("a standings row without its player, name or points").into());
         }
-        // Converted: `rc2k_core::screens::players_results::standings`.
-        let field =
-            |row: usize, o: u32| ((table(0x75647C, row) + o) as *const u32).read_unaligned();
-        let rows: Vec<rc2k_core::screens::players_results::Standing<u32>> = (0..rows)
-            .map(|row| rc2k_core::screens::players_results::Standing {
-                name: field(row, 0x18),
-                nation: field(row, 4),
-                car: field(row, 8),
-                points: (table(0x7589A6, row) as *const u32).read_unaligned(),
-            })
-            .collect();
-        rc2k_core::screens::players_results::standings(
-            &mut crate::screens::game_screen::GameScreen::new(canvas),
-            &rows,
-        )?;
-        Ok(())
     }
-}
-
-fn rust(_: &Regs, canvas: &mut dyn Canvas) -> Result<Left, Refused> {
-    unsafe { draw_players_standings(canvas) }?;
-    Ok(Left::nothing())
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    draw_entry("screens::draw_players_standings", r, &rust)
+    // Converted: `rc2k_core::screens::players_results::standings`.
+    let fault = crate::menu::event_flow::Fault::default();
+    let field = |row: usize, o: u32| fault.get(PLAYER_TABLE.pointers[row].get() + o);
+    let rows: Vec<rc2k_core::screens::players_results::Standing<u32>> = (0..rows)
+        .map(|row| rc2k_core::screens::players_results::Standing {
+            name: field(row, 0x18),
+            nation: field(row, 4),
+            car: field(row, 8),
+            points: fault.get(CAPTIONS.total_pointers[row].get()),
+        })
+        .collect();
+    fault.check()?;
+    rc2k_core::screens::players_results::standings(
+        &mut crate::screens::game_screen::GameScreen::new(canvas),
+        &rows,
+    )?;
+    Ok(())
 }

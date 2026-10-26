@@ -7,94 +7,110 @@
 //! Out: eax the path; ebx less 100 for the game's own; ZF set for 222 (from `cmp`), else
 //!      clear (`test eax, eax` of the path); carry clear
 //!
-//! Callers: `race::open_viewed_replay` (reads ZF), `race::save_viewed_replay`. Refuses
-//! what `numbered_path` refuses. Shadow mode compares. Self-test: 222, 0, 7, 99, 100, 105
-//! and 150 against the original; the path buffer put back.
+//! Callers: `race::open_viewed_replay` (reads ZF), `race::save_viewed_replay`. Refuses what
+//! `numbered_path` refuses.
 
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
-use crate::physics::flow::a;
-use crate::race::viewer::{CF, Saved, ZF, check_original, dispatch_regs, region, regs_entry};
-use crate::service::harness::Region;
-use std::sync::atomic::AtomicUsize;
+use crate::session::{Bytes, with_runs};
 
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
+/// IDA's address of the last race's replay file's name.
+pub const LAST_RACE_START: usize = 0x5295F0;
+/// Its room.
+pub const LAST_RACE_LEN: usize = 0x5296FB - LAST_RACE_START;
 
-pub static HOOK: RawHook =
-    RawHook::new("race::replay_path", rva(0x41EF27), thunk, &ORIGINAL).self_test(self_test);
+/// `aVarTmprpl` (room for 0x10B bytes): the last race's replay file's name.
+pub static LAST_RACE: Bytes<LAST_RACE_LEN> = Bytes::new(with_runs(&[(0, b"var\\tmprpl\0")]));
 
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
+/// Where the name is (`moved::MOVED`'s home for IDA 0x5295F0).
+pub fn last_race_home() -> usize {
+    LAST_RACE.addr() as usize
+}
 
-pub const LAST_RACE_PATH: usize = 0x5295F0; // "var\tmprpl"
-const SAVED_TEMPLATE: usize = 0x52974B; // "savedata\replay\replay00"
-const OWN_TEMPLATE: usize = 0x529764; // "files\replay\replay00"
-const PATHS: usize = 0x94E8B0; // `numbered_path`'s buffer
+/// IDA's address of the replay files' names' templates.
+pub const TEMPLATES_START: usize = 0x52974B;
+/// Their length.
+pub const TEMPLATES_LEN: usize = 0x52977A - TEMPLATES_START;
 
-/// The Rust version: the registers and flags it leaves.
-pub fn replay_path(entry: &Regs) -> Result<Regs, Refused> {
-    let mut r = *entry;
+/// The replay files' names, the number's two digits last.
+#[repr(C)]
+pub struct Templates {
+    /// `aSavedataReplay`: "savedata\replay\replay00".
+    pub saved: Bytes<25>,
+    /// `aFilesReplayRep`: "files\replay\replay00".
+    pub own: Bytes<22>,
+}
+
+pub static TEMPLATES: Templates = Templates {
+    saved: Bytes::new(*b"savedata\\replay\\replay00\0"),
+    own: Bytes::new(*b"files\\replay\\replay00\0"),
+};
+
+/// Where the templates are (`moved::MOVED`'s home for IDA 0x52974B).
+pub fn templates_home() -> usize {
+    crate::pointers::game_address(&TEMPLATES as *const Templates) as usize
+}
+
+#[cfg(test)]
+mod block_tests {
+    use super::*;
+
+    #[test]
+    fn first_values_are_the_games() {
+        crate::gfx::first_values_are_the_games(
+            &LAST_RACE,
+            LAST_RACE_START,
+            LAST_RACE_START + LAST_RACE_LEN,
+        );
+        crate::gfx::first_values_are_the_games(
+            &TEMPLATES,
+            TEMPLATES_START,
+            TEMPLATES_START + TEMPLATES_LEN,
+        );
+        assert_eq!(
+            crate::moved::place(LAST_RACE_START),
+            LAST_RACE.addr() as usize
+        );
+        assert_eq!(crate::moved::place(0x529764), TEMPLATES.own.addr() as usize);
+    }
+}
+// `numbered_path`'s buffer
+
+/// What the original leaves in its registers: eax the path (0 for none), ebx the number
+/// the path was made with (for a file of the game's own), and whether it is the last
+/// race's file (the zero flag).
+#[derive(Clone, Copy, Debug)]
+pub struct ReplayPath {
+    pub path: u32,
+    pub number: u32,
+    pub last_race: bool,
+}
+
+/// The Rust version. `slot` the replay (ebx).
+pub fn replay_path(slot: u32) -> Result<ReplayPath, Refused> {
     // Converted: `rc2k_core::race::viewer::ReplayFile`.
     use rc2k_core::race::viewer::ReplayFile;
-    r.eax = a(LAST_RACE_PATH);
-    r.set_carry(false);
-    let template = match ReplayFile::of(r.ebx) {
+    let mut number = slot;
+    let template = match ReplayFile::of(slot) {
         ReplayFile::LastRace => {
-            r.set_zero(true);
-            return Ok(r);
+            return Ok(ReplayPath {
+                path: LAST_RACE.addr(),
+                number,
+                last_race: true,
+            });
         }
-        ReplayFile::Saved(_) => SAVED_TEMPLATE,
+        ReplayFile::Saved(_) => TEMPLATES.saved.addr(),
         ReplayFile::Own(n) => {
-            r.ebx = n;
-            OWN_TEMPLATE
+            number = n;
+            TEMPLATES.own.addr()
         }
     };
-    let path = unsafe {
-        crate::files::numbered_path::numbered_path_in_game(a(template) as *const u8, r.ebx)
-    }?;
-    r.eax = path as u32;
-    r.set_zero(r.eax == 0);
-    Ok(r)
-}
-
-fn regions() -> Vec<Region> {
-    vec![region(PATHS, 0x100)]
-}
-
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_regs(&HOOK, r, call_original, &regions(), CF | ZF, &replay_path);
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    regs_entry(r, &replay_path)
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let saved = Saved::new(&regions());
-    for number in [222u32, 0, 7, 99, 100, 105, 150] {
-        check_original(
-            &mut t,
-            &format!("replay {number}"),
-            call_original,
-            Regs {
-                ebx: number,
-                ..Regs::SENTINEL
-            },
-            &regions(),
-            CF | ZF,
-            &|| crate::race::viewer::fill(PATHS, 0x100, 12),
-            &replay_path,
-        );
-    }
-    drop(saved);
-    t.finish()
+    let path = crate::files::numbered_path::numbered_path_in_game(
+        crate::pointers::host_at(template as usize) as *const u8,
+        number,
+    )?;
+    Ok(ReplayPath {
+        path: crate::pointers::game_address(path),
+        number,
+        last_race: crate::pointers::game_address(path) == 0,
+    })
 }

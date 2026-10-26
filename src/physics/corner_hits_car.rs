@@ -9,77 +9,102 @@
 //! Out: outside, every register kept; inside, as `bump_cars` leaves them; no flags read
 //!      (the caller goes on)
 //!
-//! Caller: `physics::car_collisions` (eight corners a car).
-//! Refuses what `restore_saved_car` and `bump_cars` refuse (what was written put back).
-//! Self-test: `physics/car_collisions.rs` (`test_bump`): the original and the Rust version
-//! on the game's variables (saved and put back) with test car blocks, corners inside and
-//! out, under three precisions.
+//! Caller: `physics::car_collisions` (eight corners a car). Refuses what
+//! `restore_saved_car` and `bump_cars` refuse (what was written put back).
+//!
+//! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
+//! above are the original's, for reference.
 
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, hook_asm, rva};
 use crate::math::x87_run::{abs_compare, ext_times};
-use crate::physics::car_collisions::{regions, test_bump};
-use crate::physics::flow::{a, base, g, guard, p, x87_run};
+use crate::physics::contact_store::CONTACT_WORK;
+use crate::physics::flow::a;
+use crate::race::numbers_store::NUMBERS;
 use crate::scene::matrix3::extended;
 use crate::scene::rotate_point::rotate_point;
-use crate::screens::harness::Left;
-use crate::service::harness::{dispatch_state, state_entry};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("physics::corner_hits_car", rva(0x45F703), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
+use crate::scene::x87_mem::{fld, fld80, fstp};
 
 /// Whether the corner is inside (`flt_6D3BC8` .. written either way).
 pub fn corner_inside() -> bool {
-    let k = g(0x5C5D98);
-    let corner = [0x6D3BD4, 0x6D3BD8, 0x6D3BDC].map(|x| ext_times(extended(g(x)), k));
-    let turned = unsafe { rotate_point(a(0x6D3C40), corner) };
+    let k = NUMBERS.k65536.bits();
+    let corner = CONTACT_WORK
+        .corner_in
+        .each_ref()
+        .map(|x| ext_times(extended(x.bits()), k));
+    let turned = { rotate_point(CONTACT_WORK.corner_matrix[0].addr(), corner) };
     for (n, e) in turned.iter().enumerate() {
-        x87_run!(
-            "fld tbyte ptr [{e}]",
-            "fdiv dword ptr [{b} + 0x1C5D98]",
-            "fstp dword ptr [{o}]";
-            b = base(), e = e.as_ptr(), o = a(0x6D3BC8 + 4 * n)
+        x87_1(
+            (crate::pointers::game_address(e.as_ptr())) as usize,
+            crate::race::store::asm_base() as usize,
+            a(&CONTACT_WORK.corner_turned[n]) as usize,
         );
     }
-    (0..3).all(|n| abs_compare(g(0x6D3BC8 + 4 * n), g(0x6D3BBC + 4 * n)) & 0x100 != 0)
-}
-
-/// The Rust version.
-pub unsafe fn corner_hits_car(entry: &Regs) -> Result<Left, Refused> {
-    guard(&regions(), || {
-        if !corner_inside() {
-            return Ok(Left::nothing());
-        }
-        p(0x6D3BB4, 1);
-        unsafe { crate::physics::restore_saved_car::restore_saved_car() }?;
-        unsafe { crate::physics::bump_cars::bump_cars(entry.edi) }
+    (0..3).all(|n| {
+        abs_compare(
+            CONTACT_WORK.corner_turned[n].bits(),
+            CONTACT_WORK.box_size[n].bits(),
+        ) & 0x100
+            != 0
     })
 }
 
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    unsafe { corner_hits_car(r) }
+/// The Rust version: `block` the other car's block (edi). The registers it leaves are
+/// read by none of its callers.
+pub unsafe fn corner_hits_car(block: u32) -> Result<(), Refused> {
+    if !corner_inside() {
+        return Ok(());
+    }
+    CONTACT_WORK.corner_inside.set(1);
+    unsafe { crate::physics::restore_saved_car::restore_saved_car() }?;
+    { crate::physics::bump_cars::bump_cars(block) }?;
+    Ok(())
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_state(&HOOK, r, call_original, &regions(), &rust);
+// ---- the arithmetic that was x87 assembly ----
+
+/// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
+/// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
+/// `[o + 0] = ext [e + 0] / [rc + 0x1C5D98]`
+fn x87_1(e: usize, rc: usize, o: usize) {
+    let t0 = fld80(e, 0);
+    let t1 = fld(rc, 0x1C5D98);
+    let t2 = t0 / t1;
+    fstp(o, 0, t2);
 }
 
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
-}
+#[cfg(all(test, target_arch = "x86"))]
+mod asm_reference {
+    use super::*;
+    use crate::scene::asm_test::{Block, In, Operand, Out, reference, sparse};
 
-fn self_test() -> (usize, usize) {
-    test_bump(&HOOK, call_original, &rust, true)
+    // The original's instructions, one function per run.
+    reference!(ref_0(e, rc, o) "fld tbyte ptr [{e}]", "fdiv dword ptr [{rc} + 0x1C5D98]", "fstp dword ptr [{o}]");
+
+    fn blocks() -> Vec<Block> {
+        vec![Block {
+            name: "corner_hits_car line 30",
+            operands: vec![
+                Operand::Buffer {
+                    reads: &[(0, In::T)],
+                    writes: &[],
+                },
+                Operand::Buffer {
+                    reads: &[(0x1C5D98, In::F)],
+                    writes: &[],
+                },
+                Operand::Buffer {
+                    reads: &[],
+                    writes: &[(0, Out::F)],
+                },
+            ],
+            ulps: 0,
+            reference: |a| unsafe { ref_0(a[0], a[1], a[2]) },
+            plain: |a| x87_1(a[0], a[1], a[2]),
+        }]
+    }
+
+    #[test]
+    fn x87_blocks_matches_the_assembly() {
+        sparse(&blocks(), 1200, 100);
+    }
 }

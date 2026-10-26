@@ -14,7 +14,7 @@
 //! and the self-test was the hook's.
 
 use crate::errors::FatalError;
-use crate::framework::{Regs, log, shadow};
+use crate::framework::{Regs, log};
 use std::ffi::c_void;
 use windows_sys::Win32::System::Threading::CreateThread;
 
@@ -26,69 +26,62 @@ const HANDLE: usize = 8;
 const FLAG: usize = 0xC;
 // ---- Rust version ----
 
-pub unsafe fn start_slot_thread(slot: *mut u8) -> Result<(), FatalError> {
-    unsafe {
-        slot.add(FLAG).write(0);
-        let routine = (slot.add(ROUTINE) as *const usize).read_unaligned();
-        let handle = CreateThread(
+/// The thread of the slot at game address `slot` started.
+pub fn start_slot_thread(slot: u32) -> Result<(), FatalError> {
+    let what = "a thread slot";
+    crate::pointers::check_or_end(slot, 0x10, what);
+    crate::pointers::write_or_end(slot + FLAG as u32, 0u8, what);
+    // The slot holds the routine as the image did, an IDA address: the thread's
+    // parameter, `run_routine` finds its Rust version by it.
+    let routine = crate::pointers::read_or_end::<u32>(slot + ROUTINE as u32, what) as usize;
+    // SAFETY: the thread's id goes straight into the slot (checked above), as the
+    // original's `CreateThread` put it there before the thread could look for its slot.
+    let handle = unsafe {
+        CreateThread(
             std::ptr::null(),
             0,
             Some(run_routine),
-            routine as *const c_void,
+            std::ptr::without_provenance::<c_void>(routine),
             0,
-            slot.add(THREAD_ID).cast(),
-        );
-        if handle.is_null() {
-            return Err(FatalError {
-                code: 0x8010_8601,
-                message: "",
-            });
-        }
-        (slot.add(HANDLE) as *mut u32).write_unaligned(handle as u32);
+            crate::pointers::host(slot + THREAD_ID as u32).cast(),
+        )
+    };
+    if handle.is_null() {
+        return Err(FatalError {
+            code: 0x8010_8601,
+            message: "",
+        });
     }
+    crate::pointers::write_or_end(
+        slot + HANDLE as u32,
+        crate::pointers::handle_number(handle),
+        what,
+    );
     Ok(())
 }
 
-/// A slot's thread: its routine (the game's address, as the slot holds it) run by its Rust
-/// version (`crate::routes`), not through its hook; in shadow mode, or with no Rust version,
-/// the routine itself, called as `CreateThread` calls it. Not through `calls::call`: that passes the hooks' gate, and a thread would
-/// count as inside a hook for its whole life (the threads' thunks are ungated).
-unsafe extern "system" fn run_routine(routine: *mut c_void) -> u32 {
-    let routine = routine as usize;
-    let mut r = Regs::default();
-    let at = routine.wrapping_sub(crate::framework::game_addr(0));
-    let ran = if shadow() {
-        None
-    } else {
-        crate::routes::by_rva(at, &mut r)
-    };
-    match ran {
+/// A slot's thread: its routine (the IDA address the slot holds) run by its Rust version
+/// (`thread_slot::run_routine`). A routine with none, or one that refuses, ends the program.
+extern "system" fn run_routine(routine: *mut c_void) -> u32 {
+    // The parameter is the IDA address itself, no memory.
+    let routine = routine.addr() as u32;
+    match crate::threading::thread_slot::run_routine(routine) {
         Some(Ok(())) => {}
         Some(Err(crate::errors::Refused::Fatal(error))) => {
             log(&format!(
                 "threading::start_slot_thread: the routine {routine:#x} raises fatal error {:#x} {:?}",
                 error.code, error.message
             ));
-            unsafe { crate::fatal::raise::raise(error, &r) };
+            crate::fatal::raise::raise(error, &Regs::default());
         }
-        Some(Err(crate::errors::Refused::BadInput(why))) => {
-            log(&format!(
-                "threading::start_slot_thread: the routine {routine:#x} refused ({}); the game's runs",
+        Some(Err(crate::errors::Refused::BadInput(why))) => crate::standalone::finish(
+            &format!(
+                "threading::start_slot_thread: the routine {routine:#x} refused: {}",
                 why.0
-            ));
-            unsafe { as_thread(routine) };
-        }
-        None => unsafe { as_thread(routine) },
+            ),
+            1,
+        ),
+        None => crate::standalone::not_ported(routine as usize, "threading::start_slot_thread"),
     }
     0
-}
-
-/// Runs `routine` as `CreateThread` would have: a `stdcall` function of one parameter
-/// (none here). The game's four routines end in `ExitThread` and never come back.
-unsafe fn as_thread(routine: usize) {
-    unsafe {
-        let routine =
-            std::mem::transmute::<usize, unsafe extern "system" fn(*mut c_void) -> u32>(routine);
-        routine(std::ptr::null_mut());
-    }
 }

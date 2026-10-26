@@ -25,58 +25,65 @@
 //! Out: every register kept (`pusha` .. `popa`)
 //! The DirectInput calls (`sub_409AEE` the effect's Download and Start, `sub_409B1F` its
 //! SetParameters with eax the flags, `sub_409B0D` its Stop; each only with an effect at
-//! +0x30) go through `part` (0, 1, 2), in the game their Rust versions (`effect_objects`). Refuses
+//! +0x30) are the Rust versions (`effect_objects`). Refuses
 //! (before anything) for effect 1 a row past the table's 14 and a blend of 0 (the
-//! original's `idiv` traps). Shadow mode runs the original alone (DirectInput). Manual
-//! patches with private copies (a `jnz` in the first bytes). Self-test: a copy whose calls
-//! go to stand-ins, against the Rust version, each change, values of both signs.
+//! original's `idiv` traps).
+//!
+//! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
+//! above are the original's, for reference.
 
 use crate::errors::{BadInput, Refused};
 use crate::field;
-use crate::framework::{RawHook, Regs, SelfTest, game_addr, rva};
+use crate::input::store::DEVICES;
 use crate::input::types::{ForceEffect, InputDevice};
-use crate::menu::parts::{Part, copy, dispatch_parted, run_both, test_part};
+use crate::pointers::GamePtr;
 
-const START: usize = 0x409AEE; // sub_409AEE
-const SET: usize = 0x409B1F; // sub_409B1F
-const STOP: usize = 0x409B0D; // sub_409B0D
-const CALLEES: [usize; 3] = [START, SET, STOP];
-const ROWS_RVA: usize = rva(0x4F6E08); // unk_4F6E08
-use rc2k_core::input::effect_changes::ROWS;
+// sub_409AEE
+// sub_409B1F
+// sub_409B0D
 
-/// One effect's function, as IDA shows it.
-#[derive(Clone, Copy)]
-pub struct Effect {
-    pub number: u32,
-    pub address: usize,
-    pub len: usize,
-    pub entry: [u8; 6],
-    pub calls: &'static [usize],
+fn put(effect: u32, o: u32, v: u32) -> Result<(), BadInput> {
+    GamePtr::new(effect).offset(o).write(v, "an effect's dword")
+}
+fn get(a: u32) -> Result<u32, BadInput> {
+    GamePtr::new(a).read("an effect's dword")
 }
 
-fn put(effect: u32, o: u32, v: u32) {
-    unsafe { ((effect + o) as *mut u32).write_unaligned(v) }
-}
-fn get(a: u32) -> u32 {
-    unsafe { (a as *const u32).read_unaligned() }
-}
-
-/// The Rust version: the registers it leaves.
-pub unsafe fn effect_change(entry: &Regs, number: u32, part: Part) -> Result<Regs, Refused> {
+/// The change `what` (with `a`, `b`) of the effect at `effect` of the device `record`, by
+/// the effect's function `number` (`input::effect_N_change`).
+pub fn effect_change(
+    number: u32,
+    record: u32,
+    effect: u32,
+    what: u32,
+    a: u32,
+    b: u32,
+) -> Result<(), Refused> {
+    use crate::input::effect_objects::{set_effect_parameters, start_effect, stop_effect};
     use rc2k_core::input::effect_changes::{Call, Field, plan};
-    let mut r = *entry;
-    let e = entry.edi;
-    let row_at = |n: u32| game_addr(ROWS_RVA) as u32 + 16 * n;
+    let e = effect;
+    let row_at = |n: u32| DEVICES.effect_rows[0][0].addr() + 16 * n;
     // Converted: `rc2k_core::input::effect_changes::plan`.
+    let failed = std::cell::Cell::new(None);
+    let read = |at: u32| {
+        get(at).unwrap_or_else(|err| {
+            failed.set(failed.get().or(Some(err)));
+            0
+        })
+    };
     let p = plan(
         number,
-        entry.eax,
-        entry.ecx,
-        entry.edx,
-        || get(entry.esi + field!(InputDevice, sensitivity)),
-        |n| std::array::from_fn(|k| get(row_at(n) + 4 * k as u32)),
+        what,
+        a,
+        b,
+        || read(record + field!(InputDevice, sensitivity)),
+        |n| std::array::from_fn(|k| read(row_at(n) + 4 * k as u32)),
     )
-    .map_err(BadInput::from)?;
+    .map_err(BadInput::from);
+    if let Some(err) = failed.get() {
+        return Err(err.into());
+    }
+    let p = p?;
     for (f, v) in p.stores {
         let (at, v) = match f {
             Field::Duration => (field!(ForceEffect, effect.duration), v),
@@ -89,122 +96,36 @@ pub unsafe fn effect_change(entry: &Regs, number: u32, part: Part) -> Result<Reg
             Field::Specific(n) => (field!(ForceEffect, type_specific) + 4 * n, v),
             Field::Found => (field!(ForceEffect, found), v),
         };
-        put(e, at, v);
-    }
-    if let Some((divisor, remainder)) = p.division {
-        // The registers at the call: the row, the divisor and the `idiv`'s remainder.
-        r.ebx = row_at(entry.ecx);
-        r.ecx = divisor;
-        r.edx = remainder;
+        put(e, at, v)?;
     }
     match p.call {
-        Some(Call::Start) => part(0, &mut r)?,
-        Some(Call::Set(flags)) => {
-            r.eax = flags;
-            part(1, &mut r)?;
-        }
-        Some(Call::Stop) => part(2, &mut r)?,
+        Some(Call::Start) => start_effect(e)?,
+        Some(Call::Set(flags)) => set_effect_parameters(e, flags)?,
+        Some(Call::Stop) => stop_effect(e)?,
         None => {}
-    }
-    Ok(*entry)
-}
-
-/// In the game: the Rust versions of the effect's calls (`input::effect_objects`).
-pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
-    use crate::input::effect_objects::{set_effect_parameters, start_effect, stop_effect};
-    match place {
-        0 => start_effect(r.edi),
-        1 => set_effect_parameters(r.edi, r.eax),
-        _ => stop_effect(r.edi),
     }
     Ok(())
 }
 
-pub fn dispatch_effect(
-    hook: &RawHook,
-    r: &mut Regs,
-    call_original: crate::screens::harness::CallOriginal,
-    number: u32,
-) {
-    dispatch_parted(
-        hook,
-        r,
-        call_original,
-        &|r, part| unsafe { effect_change(r, number, part) },
-        game_part,
-    );
-}
+/// The six functions' addresses (`input::effect_0_change` .. `_5_`), in number order.
+const FUNCTIONS: [u32; 6] = [0x409708, 0x4097FA, 0x409754, 0x4097B4, 0x409871, 0x4098BF];
 
-/// `dispatch_effect` without its hook (a refusal is the caller's).
-pub fn effect_entry(r: &mut Regs, number: u32) -> Result<(), Refused> {
-    crate::menu::parts::parted_entry(
-        r,
-        &|r, part| unsafe { effect_change(r, number, part) },
-        game_part,
-    )
-}
-
-pub fn test_effect(hook: &RawHook, e: Effect) -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(hook) else {
-        return (0, 0);
+/// The effect's function (`ForceEffect::change`, the game's address of one of the six)
+/// with the change.
+pub fn effect_change_at(
+    function: u32,
+    record: u32,
+    effect: u32,
+    what: u32,
+    a: u32,
+    b: u32,
+) -> Result<(), Refused> {
+    // As IDA shows it.
+    let at = ((function as usize)
+        .wrapping_sub(crate::framework::game_addr(0) as usize)
+        .wrapping_add(crate::framework::IMAGE_BASE)) as u32;
+    let Some(number) = FUNCTIONS.iter().position(|&f| f == at) else {
+        return Err(BadInput("an effect's function that is none of the six").into());
     };
-    let copy = match copy(e.address, e.len, &e.entry, e.calls, &CALLEES, &[]) {
-        Ok(c) => c,
-        Err(why) => return t.skip(why),
-    };
-    let mut effect = [0u8; std::mem::size_of::<ForceEffect>()];
-    let mut record = [0u8; 0x40];
-    let (at_effect, at_record) = (effect.as_mut_ptr() as u32, record.as_mut_ptr() as u32);
-    for change in 0..=5u32 {
-        for (ecx, edx, kind) in [
-            (0u32, 0u32, 0u32),
-            (3, 0x80, 1),
-            (0xFFFF_FF80, 0x7F, 2),
-            (13, 0xFFFF_FFFF, 3),
-            (0x7FF, 0x1FF, 1),
-        ] {
-            if e.number == 1 && change == 3 {
-                // Only rows of the table, and blends that do not divide by 0.
-                let row = game_addr(ROWS_RVA) as u32 + 16 * ecx;
-                if ecx as i32 >= ROWS || ecx as i32 <= -1 {
-                    continue;
-                }
-                let (a, b) = (get(row + 4), get(row + 12));
-                if (((b.wrapping_sub(a) as i32).wrapping_mul(edx as i32)) >> 8) as u32
-                    == a.wrapping_neg()
-                {
-                    continue;
-                }
-            }
-            run_both(
-                &mut t,
-                &format!("change {change}, ecx {ecx:#x}, edx {edx:#x}, device kind {kind}"),
-                &copy,
-                &[
-                    (at_effect, std::mem::size_of::<ForceEffect>()),
-                    (at_record, 0x40),
-                ],
-                &|| unsafe {
-                    for k in 0..std::mem::size_of::<ForceEffect>() as u32 {
-                        ((at_effect + k) as *mut u8).write((k * 7 + change) as u8);
-                    }
-                    std::ptr::write_bytes(at_record as *mut u8, 0x33, 0x40);
-                    ((at_record + field!(InputDevice, sensitivity)) as *mut u32)
-                        .write_unaligned(kind);
-                },
-                Regs {
-                    eax: change,
-                    ecx,
-                    edx,
-                    esi: at_record,
-                    edi: at_effect,
-                    ..Regs::SENTINEL
-                },
-                false,
-                &|r| unsafe { effect_change(r, e.number, &mut test_part) },
-            );
-        }
-    }
-    let _ = (&mut effect, &mut record);
-    t.finish()
+    effect_change(number as u32, record, effect, what, a, b)
 }

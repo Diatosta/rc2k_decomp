@@ -8,79 +8,118 @@
 //! In:  nothing
 //! Out: the registers as `update_camera` leaves them; no flags read
 //!
-//! Callers: `sub_43B635`, `sub_459360`, `sub_46062E`.
-//! Refuses what `update_camera` refuses (everything written put back). Shadow mode runs
-//! the original alone (as its ground checks).
-//! Self-test (`update_camera::camera_test`, in a race; skipped otherwise; the carry not
-//! compared, as no caller reads it).
+//! Callers: `sub_43B635`, `sub_459360`, `sub_46062E`. Refuses what `update_camera` refuses
+//! (everything written put back).
+//!
+//! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
+//! above are the original's, for reference.
 
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, hook_asm, rva};
-use crate::physics::camera_ground::dispatch_carry;
-use crate::physics::flow::{base, g, guard, hold_high, hold_low, negate, p, x87_run};
-use crate::race::car_starts::Part;
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("physics::camera_frame", rva(0x44FF1B), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
+use crate::physics::car_store::CAR;
+use crate::physics::flow::{hold_high, hold_low, negate};
+use crate::physics::tables_store::PHYSICS;
+use crate::scene::draw_store::DRAW;
+use crate::scene::light_store::LIGHT_STATE;
+use crate::scene::x87_mem::{fild, fld, fstp};
 
 // Converted: `rc2k_core::physics::camera_view::shakes` (the x87 steps stay).
-fn steps(r: &mut Regs, part: Part) -> Result<(), Refused> {
-    for x in [0x637644, 0x637638, 0x63763C, 0x637640] {
-        p(x, 0);
-    }
-    if rc2k_core::physics::camera_view::shakes(g(0x71A65C), g(0x71A22C)) {
-        x87_run!(
-            "fld dword ptr [{b} + 0x31A8E4]",
-            "fmul dword ptr [{b} + 0x214098]",
-            "fstp dword ptr [{b} + 0x23763C]";
-            b = base()
-        );
-        hold_high(0x63763C, 0x614094);
-        negate(0x614094);
-        hold_low(0x63763C, 0x614094);
-        negate(0x614094);
-        r.eax = unsafe { crate::math::next_random::next_random() };
-        p(0x62400C, r.eax);
-        x87_run!(
-            "fild dword ptr [{b} + 0x22400C]",
-            "fdiv dword ptr [{b} + 0x1C5D98]",
-            "fdiv dword ptr [{b} + 0x1C5E28]",
-            "fmul dword ptr [{b} + 0x1C5D40]",
-            "fmul dword ptr [{b} + 0x23763C]",
-            "fstp dword ptr [{b} + 0x237644]";
-            b = base()
-        );
-        if g(0x601024) != 0 {
-            p(0x63763C, 0);
-            p(0x637644, 0);
+fn steps() -> Result<(), Refused> {
+    LIGHT_STATE.listener_camera.set_bits(0);
+    LIGHT_STATE.camera_frame_a.set(0);
+    LIGHT_STATE.camera_frame_b.set(0);
+    LIGHT_STATE.camera_frame_c.set(0);
+    if rc2k_core::physics::camera_view::shakes(CAR.camera_view.get(), CAR.all_wheels_off.get()) {
+        x87_1(crate::race::store::asm_base() as usize);
+        hold_high(&LIGHT_STATE.camera_frame_b, &PHYSICS.camera_frame_limit);
+        negate(&PHYSICS.camera_frame_limit);
+        hold_low(&LIGHT_STATE.camera_frame_b, &PHYSICS.camera_frame_limit);
+        negate(&PHYSICS.camera_frame_limit);
+        DRAW.scratch.set(crate::math::next_random::next_random());
+        x87_2(crate::race::store::asm_base() as usize);
+        if crate::physics::split_tables_store::SPLIT_TABLES.still.get() != 0 {
+            LIGHT_STATE.camera_frame_b.set(0);
+            LIGHT_STATE.listener_camera.set_bits(0);
         }
     }
-    crate::physics::update_camera::steps(r, part)
+    crate::physics::update_camera::steps()
 }
 
-/// The Rust version, the probes through `part`.
-pub unsafe fn camera_frame(entry: &Regs, part: Part) -> Result<Regs, Refused> {
-    guard(&crate::physics::update_camera::camera_regions(), || {
-        let mut r = *entry;
-        steps(&mut r, part)?;
-        Ok(r)
-    })
+/// The Rust version. The registers the original leaves are read by none of its callers
+/// (`physics::car_physics_step`, `drive::finish_run`, `race::show_replay_still`).
+pub fn camera_frame() -> Result<(), Refused> {
+    steps()
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_carry(&HOOK, r, call_original, camera_frame);
+// ---- the arithmetic that was x87 assembly ----
+
+/// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
+/// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
+/// `[rc + 0x23763C] = [rc + 0x31A8E4] * [rc + 0x214098]`
+fn x87_1(rc: usize) {
+    let t0 = fld(rc, 0x31A8E4);
+    let t1 = fld(rc, 0x214098);
+    let t2 = t0 * t1;
+    fstp(rc, 0x23763C, t2);
 }
 
-fn self_test() -> (usize, usize) {
-    crate::physics::update_camera::camera_test(&HOOK, call_original, camera_frame)
+/// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
+/// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
+/// `[rc + 0x237644] = (((int [rc + 0x22400C] / [rc + 0x1C5D98]) / [rc + 0x1C5E28]) * [rc + 0x1C5D40]) * [rc + 0x23763C]`
+fn x87_2(rc: usize) {
+    let t0 = fild(rc, 0x22400C);
+    let t1 = fld(rc, 0x1C5D98);
+    let t2 = t0 / t1;
+    let t3 = fld(rc, 0x1C5E28);
+    let t4 = t2 / t3;
+    let t5 = fld(rc, 0x1C5D40);
+    let t6 = t4 * t5;
+    let t7 = fld(rc, 0x23763C);
+    let t8 = t6 * t7;
+    fstp(rc, 0x237644, t8);
+}
+
+#[cfg(all(test, target_arch = "x86"))]
+mod asm_reference {
+    use super::*;
+    use crate::scene::asm_test::{Block, In, Operand, Out, reference, sparse};
+
+    // The original's instructions, one function per run.
+    reference!(ref_0(rc) "fld dword ptr [{rc} + 0x31A8E4]", "fmul dword ptr [{rc} + 0x214098]", "fstp dword ptr [{rc} + 0x23763C]");
+    reference!(ref_1(rc) "fild dword ptr [{rc} + 0x22400C]", "fdiv dword ptr [{rc} + 0x1C5D98]", "fdiv dword ptr [{rc} + 0x1C5E28]", "fmul dword ptr [{rc} + 0x1C5D40]", "fmul dword ptr [{rc} + 0x23763C]", "fstp dword ptr [{rc} + 0x237644]");
+
+    fn blocks() -> Vec<Block> {
+        vec![
+            Block {
+                name: "camera_frame line 26",
+                operands: vec![Operand::Buffer {
+                    reads: &[(0x214098, In::F), (0x31A8E4, In::F)],
+                    writes: &[(0x23763C, Out::F)],
+                }],
+                ulps: 0,
+                reference: |a| unsafe { ref_0(a[0]) },
+                plain: |a| x87_1(a[0]),
+            },
+            Block {
+                name: "camera_frame line 37",
+                operands: vec![Operand::Buffer {
+                    reads: &[
+                        (0x1C5D40, In::F),
+                        (0x1C5D98, In::F),
+                        (0x1C5E28, In::F),
+                        (0x22400C, In::I),
+                        (0x23763C, In::F),
+                    ],
+                    writes: &[(0x237644, Out::F)],
+                }],
+                ulps: 0,
+                reference: |a| unsafe { ref_1(a[0]) },
+                plain: |a| x87_2(a[0]),
+            },
+        ]
+    }
+
+    #[test]
+    fn x87_blocks_matches_the_assembly() {
+        sparse(&blocks(), 1200, 100);
+    }
 }

@@ -9,68 +9,75 @@
 //! about; its own 3D list goes to `g_sceneList` before the first frame only.
 //! A reading, not yet a visit: its one caller is `menu::confirm_leaving`, and it sets
 //! `g_askingYesNo` to 1 while it is up, which is what makes `handle_yes_no` listen.
-//! Callers: `menu::confirm_leaving`.
-//! Hook removed 2026-10-22 (direct calls): Rust callers run its `entry` (`calls::call`,
-//! `routes.rs`); the registers above are the original's, for reference.
+//! Callers: `menu::confirm_leaving`. Rust callers run its `entry` (`routes.rs`); the registers
+//! above are the original's, for reference.
 
-use crate::framework::{Regs, rva};
-use crate::menu::screen_loop::{List, Screen, Step, screen_entry};
+use crate::framework::rva;
+use crate::menu::draw_lists_store::DRAW_LISTS;
+use crate::menu::flow_store::SCREEN_FLOW;
+use crate::menu::menus_store::MENUS;
+use crate::menu::screen_items_store::{SCREEN_ITEMS, slot};
+use crate::menu::screen_loop::{Callee, List, Screen, Step};
 
 // ---- Rust version: `menu::screen_loop` with this ----
 
 pub const SCREEN: Screen = Screen {
-    menu: rva(0x7544D4),
-    saved_item: rva(0x7476D0),
+    menu: || MENUS.leave_question.addr() as usize,
+    saved_item: || &SCREEN_ITEMS.current[slot::LEAVE_QUESTION],
     lists: &[
         List {
-            pointer: rva(0x7554F4), // g_unreadList
-            table: rva(0x758B72),
+            pointer: || &SCREEN_FLOW.unread_list, // g_unreadList
+            table: || DRAW_LISTS.unread_758b72.addr() as usize,
             run: false,
         },
         List {
-            pointer: rva(0x7554F8), // g_drawList
-            table: rva(0x758C9E),
+            pointer: || &SCREEN_FLOW.draw_list, // g_drawList
+            table: || DRAW_LISTS.draw_758c9e.addr() as usize,
             run: false,
         },
         List {
-            pointer: rva(0x7554FC), // g_overlayList
-            table: rva(0x7591DE),
+            pointer: || &SCREEN_FLOW.overlay_list, // g_overlayList
+            table: || DRAW_LISTS.overlay_7591de.addr() as usize,
             run: false,
         },
     ],
     first_frame_lists: Some(&[
         List {
-            pointer: rva(0x755504), // g_sceneList
-            table: rva(0x759002),
+            pointer: || &SCREEN_FLOW.scene_list, // g_sceneList
+            table: || DRAW_LISTS.leave_question_scene.addr() as usize,
             run: false,
         },
         List {
-            pointer: rva(0x7554F8), // g_drawList
-            table: rva(0x758C9E),
+            pointer: || &SCREEN_FLOW.draw_list, // g_drawList
+            table: || DRAW_LISTS.draw_758c9e.addr() as usize,
             run: false,
         },
         List {
-            pointer: rva(0x7554FC), // g_overlayList
-            table: rva(0x7591DE),
+            pointer: || &SCREEN_FLOW.overlay_list, // g_overlayList
+            table: || DRAW_LISTS.overlay_7591de.addr() as usize,
             run: false,
         },
     ]),
     frame_callback: rva(0x474D4B),
     later_frame_callback: None,
     before: &[],
-    set_up_first: &[Step::Write(rva(0x7554CC), 0x1)],
+    set_up_first: &[Step::Write(|| &SCREEN_FLOW.asking, 0x1)],
     prepare: &[],
     after_lists: &[],
     background: &[
-        Step::EaxAddr(rva(0x731BE4)),
-        Step::CallOrFatal(rva(0x47EFFF), 0x80712345),
+        Step::ArgAddr(|| {
+            (crate::menu::texts_store::MENU_TEXTS
+                .leave_question_picture
+                .addr()) as usize
+        }),
+        Step::CallOrFatal(Callee::LoadBackground, 0x80712345),
     ],
     after_first_frame: &[],
     confirm: None,
     ask_also_if: None,
     confirmed: &[],
     unasked_skips_save: false,
-    after: &[Step::Write(rva(0x7554CC), 0x0)],
+    after: &[Step::Write(|| &SCREEN_FLOW.asking, 0x0)],
     escape_leaves: false,
     each_frame: &[],
     short_action_check: false,
@@ -92,11 +99,4 @@ pub const SCREEN: Screen = Screen {
     after_blink: &[],
     restart_action_check: false,
     always_asks: false,
-    also_reads: &[],
-    also_writes: &[],
 };
-
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    screen_entry("menu::leave_question_loop", r, &SCREEN)
-}

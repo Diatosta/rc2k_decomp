@@ -13,42 +13,18 @@
 //! registers above are the original's, for reference.
 
 use crate::errors::BadInput;
-use crate::framework::{CARRY_FLAG, Regs, ZERO_FLAG};
-
-/// Converted: `rc2k_core::files::paths`.
-pub use rc2k_core::files::paths::{is_separator, last_separator};
-
-/// The bytes of a NUL-terminated text, without the NUL (an unbounded scan, as the
-/// original's).
-pub unsafe fn text_of<'a>(text: *const u8) -> &'a [u8] {
-    unsafe { std::ffi::CStr::from_ptr(text.cast()).to_bytes() }
-}
+use crate::pointers::GamePtr;
 
 /// The Rust version: the cursor after, and whether a directory was found.
-pub unsafe fn append_directory(
-    path: *const u8,
-    cursor: *mut u8,
-) -> Result<(*mut u8, bool), BadInput> {
+pub fn append_directory(path: *const u8, cursor: *mut u8) -> Result<(*mut u8, bool), BadInput> {
     if path.is_null() {
         return Err(BadInput("a null path"));
     }
-    // Converted: `rc2k_core::files::paths::directory`.
-    let Some(directory) = rc2k_core::files::paths::directory(unsafe { text_of(path) }) else {
+    let text = crate::files::cstring(GamePtr::new(crate::pointers::game_address(path)), "a path")?;
+    let Some(directory) = rc2k_core::files::paths::directory(&text) else {
         return Ok((cursor, false));
     };
-    unsafe {
-        std::ptr::copy(directory.as_ptr(), cursor, directory.len());
-        Ok((cursor.add(directory.len()), true))
-    }
-}
-
-/// The registers it leaves (with the flags).
-pub unsafe fn append_directory_regs(r: &Regs) -> Result<Regs, BadInput> {
-    let (cursor, found) = unsafe { append_directory(r.edx as *const u8, r.ebx as *mut u8) }?;
-    let mut g = Regs {
-        ebx: cursor as u32,
-        ..*r
-    };
-    g.eflags = g.eflags & !(CARRY_FLAG | ZERO_FLAG) | if found { CARRY_FLAG } else { ZERO_FLAG };
-    Ok(g)
+    GamePtr::new(crate::pointers::game_address(cursor))
+        .write_bytes(directory, "a path being built")?;
+    Ok((cursor.wrapping_add(directory.len()), true))
 }

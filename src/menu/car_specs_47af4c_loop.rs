@@ -9,68 +9,71 @@
 //! listing.
 //! The name is a reading from its background and callers, not yet a visit.
 //! Callers: `sub_46FD31`, `sub_46FD31`, `sub_46FD31`, `sub_46FD31`, `sub_46FD31`, `sub_48AD73`.
-//! Ungated thunk; shadow mode runs the original alone; each real call writes a line to
-//! hook.log. Self-test: `screen_loop::check_screen`. Manual patch with a private copy (0x31C
-//! bytes, 13 calls and jumps relocated): a call or a jump target sits in the first bytes.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
 
-use crate::framework::{Regs, game_read, game_write, rva};
-use crate::menu::screen_loop::{Env, Flow, List, Screen, Step, screen_entry};
+use crate::errors::Refused;
+use crate::framework::rva;
+use crate::menu::draw_lists_store::DRAW_LISTS;
+use crate::menu::event_store::EVENT_STATE;
+use crate::menu::flow_store::SCREEN_FLOW;
+use crate::menu::loop_store::LOOP_FLAGS;
+use crate::menu::menus_store::MENUS;
+use crate::menu::screen_items_store::{SCREEN_ITEMS, slot};
+use crate::menu::screen_loop::{
+    Callee, Carried, Flow, List, Screen, Step, carousel, prepare_scene, quitting,
+};
+use crate::menu::state_store::MENU_STATE;
+use crate::scene::draw_store::DRAW;
 
 // ---- Rust version: `menu::screen_loop` with this ----
 
-unsafe fn set_up_first(g: &mut Regs, env: &mut dyn Env) {
-    unsafe {
-        game_write(rva(0x7554EC), 0x1u32);
-        game_write(rva(0x75AA74), 0xEu32);
-        env.call(rva(0x4904DD), g);
-        g.eax = game_read(rva(0x7476E0));
-        game_write(rva(0x755525), g.eax);
-        g.eax = g.eax.wrapping_add(0xFFFFFFFF);
-        game_write(rva(0x75AA7C), g.eax);
-        game_write(rva(0x7554EC), 0x0u32);
-        game_write(rva(0x75AA7C), 0x0u32);
-        game_write(rva(0x755990), 0x0u32);
-        env.call(rva(0x4708FD), g);
-        game_write(rva(0x623FB0), 0x7u32);
-        game_write(rva(0x623FB4), 0xFFFFFFCEu32);
-        game_write(rva(0x624080), 0x100u32);
-        env.call(rva(0x46F7FD), g);
-    }
+fn set_up_first(c: &mut Carried) -> Result<(), Refused> {
+    SCREEN_FLOW.turning.set(0x1u32);
+    MENU_STATE.carousel.menu.set(0xEu32);
+    carousel(c)?;
+    c.arg = SCREEN_ITEMS.current[slot::CAR_SPECS_47AF4C].get();
+    LOOP_FLAGS.item.set(c.arg);
+    c.arg = c.arg.wrapping_sub(1);
+    MENU_STATE.carousel.front.set(c.arg);
+    SCREEN_FLOW.turning.set(0x0u32);
+    MENU_STATE.carousel.front.set(0x0u32);
+    EVENT_STATE.shown_car.set(0x0u32);
+    crate::menu::car_choice::find_player_car()?;
+    DRAW.view_offset[0].set(0x7u32);
+    DRAW.view_offset[1].set(0xFFFFFFCEu32);
+    DRAW.view_zoom.set(0x100u32);
+    prepare_scene(c);
+    Ok(())
 }
 
-unsafe fn after_first_frame(_g: &mut Regs, env: &mut dyn Env) -> Flow {
-    if env.quitting() as u32 == 0x1 {
-        return Flow::Leave;
+fn after_first_frame(_c: &mut Carried) -> Result<Flow, Refused> {
+    if quitting() as u32 == 0x1 {
+        return Ok(Flow::Leave);
     }
-    Flow::On
+    Ok(Flow::On)
 }
 
 pub const SCREEN: Screen = Screen {
-    menu: rva(0x74B9D8),
-    saved_item: rva(0x7476E0),
+    menu: || MENUS.car_specs_47af4c.addr() as usize,
+    saved_item: || &SCREEN_ITEMS.current[slot::CAR_SPECS_47AF4C],
     lists: &[
         List {
-            pointer: rva(0x755504), // g_sceneList
-            table: rva(0x758F66),
+            pointer: || &SCREEN_FLOW.scene_list, // g_sceneList
+            table: || DRAW_LISTS.car_specs_47af4c_scene.addr() as usize,
             run: false,
         },
         List {
-            pointer: rva(0x7554F8), // g_drawList
-            table: rva(0x758C42),
+            pointer: || &SCREEN_FLOW.draw_list, // g_drawList
+            table: || DRAW_LISTS.car_specs_47af4c_draw.addr() as usize,
             run: false,
         },
         List {
-            pointer: rva(0x755500), // dword_755500
-            table: rva(0x75940E),
+            pointer: || &SCREEN_FLOW.setup_list, // dword_755500
+            table: || DRAW_LISTS.car_specs_47af4c_setup.addr() as usize,
             run: true,
         },
         List {
-            pointer: rva(0x7554FC), // g_overlayList
-            table: rva(0x7591AA),
+            pointer: || &SCREEN_FLOW.overlay_list, // g_overlayList
+            table: || DRAW_LISTS.car_specs_47af4c_overlay.addr() as usize,
             run: false,
         },
     ],
@@ -82,8 +85,12 @@ pub const SCREEN: Screen = Screen {
     prepare: &[],
     after_lists: &[],
     background: &[
-        Step::EaxAddr(rva(0x731F3D)),
-        Step::CallOrFatal(rva(0x47EFFF), 0x80712345),
+        Step::ArgAddr(|| {
+            (crate::menu::texts_store::MENU_TEXTS
+                .car_specs_47af4c_picture
+                .addr()) as usize
+        }),
+        Step::CallOrFatal(Callee::LoadBackground, 0x80712345),
     ],
     after_first_frame: &[Step::DoFlow(after_first_frame)],
     confirm: None,
@@ -112,20 +119,4 @@ pub const SCREEN: Screen = Screen {
     after_blink: &[],
     restart_action_check: false,
     always_asks: false,
-    also_reads: &[],
-    also_writes: &[
-        rva(0x623FB0),
-        rva(0x623FB4),
-        rva(0x624080),
-        rva(0x7554EC),
-        rva(0x755990),
-        rva(0x75AA74),
-        rva(0x75AA7C),
-    ],
 };
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    screen_entry("menu::car_specs_47af4c_loop", r, &SCREEN)
-}

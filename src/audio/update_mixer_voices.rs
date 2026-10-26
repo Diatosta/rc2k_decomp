@@ -19,90 +19,51 @@
 //! mixing rate with a frequency to set (the original divides by 0); and a voice whose
 //! volume or pan changes while its sound has ended: the original's ebx (the list's link)
 //! then holds the pan, and it writes the link through it (section 16).
-//! Shadow mode runs the original alone. Self-test: a redirected copy of the chunk whose
-//! variables are the test's and whose mix notes itself, 200 states by lot.
-//!
-//! Hook removed 2026-10-22 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
 
-use crate::audio::mixer::MIX_RATE_RVA;
-use crate::audio::voices::*;
+use crate::audio::store::AUDIO;
+use crate::audio::voices::GamePool;
 use crate::errors::Refused;
-use crate::framework::game_addr;
 use rc2k_core::audio::voices::Lists;
 
-#[derive(Clone, Copy)]
-pub struct Vars {
-    pub rate: u32,
-    pub mode: u32,
-    pub playing: u32,
-    pub stopping: u32,
-    pub used: u32,
-}
-
-impl Vars {
-    pub fn game() -> Self {
-        let a = |r| game_addr(r) as u32;
-        Self {
-            rate: a(MIX_RATE_RVA),
-            mode: a(SOUND_MODE_RVA),
-            playing: a(PLAYING_RVA),
-            stopping: a(STOPPING_RVA),
-            used: a(CHANNELS_USED_RVA),
-        }
+/// The lists as the mixer's turn reads them (no channel count).
+fn lists() -> Lists {
+    Lists {
+        playing: AUDIO.playing_voices.get(),
+        stopping: AUDIO.stopping_voices.get(),
+        channels_used: AUDIO.channels_used.get(),
+        channel_count: 0,
     }
 }
 
-unsafe fn lists(v: &Vars) -> Lists {
-    unsafe {
-        Lists {
-            playing: read(v.playing),
-            stopping: read(v.stopping),
-            channels_used: read(v.used),
-            channel_count: 0,
-        }
-    }
-}
-
-unsafe fn store(v: &Vars, l: &Lists) {
-    unsafe {
-        write(v.playing, l.playing);
-        write(v.stopping, l.stopping);
-        write(v.used, l.channels_used);
-    }
+fn store(l: &Lists) {
+    AUDIO.playing_voices.set(l.playing);
+    AUDIO.stopping_voices.set(l.stopping);
+    AUDIO.channels_used.set(l.channels_used);
 }
 
 /// `mix`: `audio::mix`.
-pub unsafe fn update_mixer_voices(
-    v: &Vars,
-    mix: &mut dyn FnMut() -> Result<(), Refused>,
-) -> Result<(), Refused> {
+pub fn update_mixer_voices(mix: &mut dyn FnMut() -> Result<(), Refused>) -> Result<(), Refused> {
     // Converted: `rc2k_core::audio::mixer_voices`; the lists stored for the mix, which
     // reads them, and read again after it.
     use rc2k_core::audio::mixer_voices::{after_mix, before_mix};
-    unsafe {
-        let rate = read(v.rate);
-        let mode = read(v.mode);
-        let mut pool = GamePool::new(&World::game());
-        let mut l = lists(v);
-        before_mix(&mut pool, &mut l, rate, mode)?;
-        store(v, &l);
-        mix()?;
-        let mut l = lists(v);
-        after_mix(&mut pool, &mut l, rate, mode)?;
-        store(v, &l);
-    }
+    let rate = AUDIO.mix_rate.get();
+    let mode = AUDIO.sound_mode.get();
+    let mut pool = GamePool;
+    let mut l = lists();
+    before_mix(&mut pool, &mut l, rate, mode)?;
+    store(&l);
+    mix()?;
+    let mut l = lists();
+    after_mix(&mut pool, &mut l, rate, mode)?;
+    store(&l);
     Ok(())
 }
 
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's): the
-/// voices' turn of the game's own mixer, the mix (`audio::mix`) in it.
-pub fn entry(_: &mut crate::framework::Regs) -> Result<(), Refused> {
+/// The voices' turn of the game's own mixer, the mix (`audio::mix`) in it.
+pub fn update_mixer_voices_in_game() -> Result<(), Refused> {
     let mut mix = || -> Result<(), Refused> {
-        let vars = crate::audio::mix::Vars::game();
-        unsafe { crate::audio::mix::mix(&vars, &mut crate::audio::mix::game_part) }?;
+        crate::audio::mix::mix()?;
         Ok(())
     };
-    unsafe { update_mixer_voices(&Vars::game(), &mut mix) }
+    update_mixer_voices(&mut mix)
 }

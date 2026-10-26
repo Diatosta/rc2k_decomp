@@ -13,6 +13,6 @@ use crate::service::pages::{TYRE, change_page};
 
 // ---- Rust version ----
 
-pub unsafe fn edit_tyre(confirm: bool) -> Result<(), Refused> {
-    unsafe { change_page(TYRE, confirm) }
+pub fn edit_tyre(confirm: bool) -> Result<(), Refused> {
+    change_page(TYRE, confirm)
 }

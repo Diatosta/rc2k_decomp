@@ -1,7 +1,4 @@
-use crate::framework::GameHook;
-
 pub mod allocate_picture_buffer;
-pub mod alpha_from_kept;
 pub mod blend_palette;
 pub mod blit_bar;
 pub mod blit_bar_marker;
@@ -12,6 +9,7 @@ pub mod build_fonts;
 pub mod build_game_fonts;
 pub mod build_glyphs;
 pub mod build_menu_sprites;
+pub mod choices_store;
 pub mod clear_front_surface;
 pub mod clear_picture;
 pub mod components_to_4444_rows;
@@ -21,27 +19,20 @@ pub mod copy_picture_to_surface;
 pub mod copy_pixel_rows;
 pub mod decode_png;
 pub mod describe_format;
-pub mod draw_hline;
-pub mod draw_vline;
 pub mod fade_colour;
-pub mod fill_rect;
 pub mod fill_row_table;
 pub mod fill_thirds_table;
 pub mod find_3d_cards;
-pub mod frame_rect;
+pub mod fonts_store;
 pub mod free_fonts;
 pub mod free_glyph_tables;
 pub mod free_picture_buffer;
 pub mod glyph_builder;
 pub mod glyph_tables;
-pub mod grade_texture;
-pub mod halve_texture;
-pub mod harness;
 pub mod install_converters;
-pub mod key_texture_colours;
+pub mod jade_store;
 pub mod lay_out_pcx;
 pub mod lay_out_png;
-pub mod least_colour;
 pub mod list_primary_modes;
 pub mod list_secondary_modes;
 pub mod load_jade;
@@ -53,7 +44,6 @@ pub mod mmx_converters;
 pub mod palette_pixels_to_dwords;
 pub mod palette_to_dwords;
 pub mod pcx;
-pub mod pcx_reader;
 pub mod picture;
 pub mod picture_as_surface;
 pub mod pixel_format;
@@ -65,7 +55,6 @@ pub mod read_pcx;
 pub mod read_pcx_24bit;
 pub mod read_pcx_8bit;
 pub mod read_picture_file;
-pub mod read_pixel;
 pub mod read_png;
 pub mod read_sheet;
 pub mod read_texture_picture;
@@ -73,6 +62,7 @@ pub mod rect;
 pub mod rescale_picture;
 pub mod rescale_to_surface;
 pub mod rgb_pixels_to_dwords;
+pub mod screen_state;
 pub mod set_clip;
 pub mod set_component_format;
 pub mod show_picture_file;
@@ -87,6 +77,54 @@ pub mod take_screenshot;
 pub mod try_screen_mode;
 pub mod write_screen_pcx;
 
+pub mod bar_store;
+pub mod blit;
+pub mod cards;
 pub mod clear_back_surface;
+pub mod converters;
+pub mod decoder;
+pub mod formats;
+pub mod front;
+pub mod hexagon_batch;
+pub mod locked;
+pub mod modes;
+pub mod pcx_planes;
+pub mod picture_store;
+pub mod png_file;
+pub mod png_header;
+pub mod reports;
+pub mod shots;
+pub mod strips;
+pub mod texts;
+pub mod typefaces;
+pub mod upload;
 
-pub static HOOKS: &[&dyn GameHook] = &[&blit_glyph::HOOK];
+/// The test of every typed block of this module: the static's bytes are the image's (phase 7).
+#[cfg(test)]
+pub(crate) fn first_values_are_the_games<T>(block: &'static T, start: usize, end: usize) {
+    let _g = crate::store::test_lock();
+    let len = end - start;
+    let size = core::mem::size_of::<T>();
+    assert!(
+        len <= size && size <= len.next_multiple_of(4),
+        "the struct's size"
+    );
+    // Read in place: a copy of a big block would not fit the test thread's stack.
+    let mine = unsafe { core::slice::from_raw_parts(block as *const T as *const u8, len) };
+    let image = crate::moved::image_bytes(start, len);
+    assert!(
+        mine == &image[..],
+        "the block's bytes differ from the image's"
+    );
+}
+
+/// An array of dwords with these first values (the blocks' tables).
+pub(crate) const fn dwords<const N: usize>(values: [u32; N]) -> [crate::session::Dword; N] {
+    let mut out = [const { crate::session::Dword::new(0) }; N];
+    let mut i = 0;
+    while i < N {
+        out[i] = crate::session::Dword::new(values[i]);
+        i += 1;
+    }
+    out
+}

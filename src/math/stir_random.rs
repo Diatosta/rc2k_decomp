@@ -11,14 +11,7 @@
 
 // ---- Rust version ----
 
-#[cfg_attr(
-    not(feature = "standalone"),
-    allow(
-        dead_code,
-        reason = "only the standalone's `start` calls it; the hooked game runs the original"
-    )
-)]
-pub unsafe fn stir_random(number: u32) {
+pub fn stir_random(number: u32) {
     crate::math::next_random::wait_for_random();
     crate::math::next_random::with_random(|r| r.stir(number));
 }

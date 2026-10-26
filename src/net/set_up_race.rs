@@ -9,128 +9,93 @@
 //! (`race::load_stage`), "LOADING NETWORK COMPLETE".
 //!
 //! In:  nothing
-//! Out: ebp = the players, esi the last player's block, eax the last value; the rest as
-//!      the calls leave them (no `pusha`: its caller `net::lets_rally` has one)
+//! Out: nothing its one caller, `net::lets_rally` (which has a `pusha`), reads
 //! The players' loop ends on `jnz` with the count: none, or more than the tables' eight,
-//! would run past them: refused. Caller: `net::lets_rally`. Its calls through `part`
-//! (`net::lobby_calls`: the Rust versions, the start states through their hook). Shadow
-//! mode runs the original alone (it loads a stage). Self-test: a copy whose calls go to
-//! stand-ins, against the Rust version, on one, two and eight players, the host first or
-//! not.
-//!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! would run past them: refused. Caller: `net::lets_rally`.
 
 use crate::errors::Refused;
-use crate::field;
-use crate::framework::Regs;
-use crate::net::lobby::{
-    ARCADE_CARS, LOAD_STAGE, LOG_INT_L1_NL, LOG_L1, LOG_L1_NL, PLAYER, PLAYERS, Part, START_STATES,
-    block, g, lobby_entry, log_text, p,
-};
-use crate::net::types::NetPlayerBlock;
+use crate::net::lobby::{log, log_int_nl};
+use crate::net::store::NET;
+use crate::race::blocks_store::CAR_BLOCKS;
+use crate::race::switches_store::FRAME_SWITCHES;
+use crate::race::vars_store::RACE_VARS;
+use crate::race::view_store::RACE_VIEW;
 use rc2k_core::net::record;
 
-const RESET_CARS: u32 = 0x463E52; // net::reset_cars
-const LOCAL: usize = 0x63DBA0; // dword_63DBA0
-const KINDS: usize = 0x623858; // g_raceCarKinds
-const COLOURS: usize = 0x623878; // dword_623878
-const NUMBERS: usize = 0x6238D4; // dword_6238D4
-const STAGE: usize = 0x623850; // g_stageNumber
-const DIRECTION: usize = 0x623854; // dword_623854
-const CLEARED: usize = 0x62389C; // dword_62389C
-const RACE_CARS: usize = 0x63DB90; // g_raceCars
-const ONE: usize = 0x63DB94; // dword_63DB94
-const CLEARED_2: usize = 0x621514; // dword_621514
-/// The stored blocks' dwords: (to, from).
-const STORED: [(usize, usize); 16] = [
-    (0x70F424, 0x623878),
-    (0x710404, 0x62387C),
-    (0x7113E4, 0x623880),
-    (0x7123C4, 0x623884),
-    (0x7133A4, 0x623888),
-    (0x714384, 0x62388C),
-    (0x715364, 0x623890),
-    (0x716344, 0x623894),
-    (0x70FE94, 0x6238D4),
-    (0x710E74, 0x6238D8),
-    (0x711E54, 0x6238DC),
-    (0x712E34, 0x6238E0),
-    (0x713E14, 0x6238E4),
-    (0x714DF4, 0x6238E8),
-    (0x715DD4, 0x6238EC),
-    (0x716DB4, 0x6238F0),
-];
-const RULE: usize = 0x4DDFD1; // "------------------------"
-const START: usize = 0x4DDFEA; // "LOADING NETWORK START   "
-const COMPLETE: usize = 0x4DE0A7; // "LOADING NETWORK COMPLETE"
-const RULE_2: usize = 0x4DE0C0;
+const RULE: &std::ffi::CStr = c"------------------------"; // "------------------------"
+const START: &std::ffi::CStr = c"LOADING NETWORK START   "; // "LOADING NETWORK START   "
+const COMPLETE: &std::ffi::CStr = c"LOADING NETWORK COMPLETE"; // "LOADING NETWORK COMPLETE"
+const RULE_2: &std::ffi::CStr = c"------------------------";
 /// The counts logged: (the label, the value's variable).
-const COUNTS: [(usize, usize); 11] = [
-    (0x4DE003, RACE_CARS), // "[shaunnumcars]"
-    (0x4DE012, ONE),       // "[shaunnumplayers]"
-    (0x4DE024, PLAYER),    // "[localnpn]"
-    (0x4DE02F, 0x623858),  // "[shauncarnum1]" ..
-    (0x4DE03E, 0x62385C),
-    (0x4DE04D, 0x623860),
-    (0x4DE05C, 0x623864),
-    (0x4DE06B, 0x623868),
-    (0x4DE07A, 0x62386C),
-    (0x4DE089, 0x623870),
-    (0x4DE098, 0x623874),
+const COUNTS: [(&std::ffi::CStr, Count); 11] = [
+    (c"[shaunnumcars]", Count::RaceCars),   // "[shaunnumcars]"
+    (c"[shaunnumplayers]", Count::Players), // "[shaunnumplayers]"
+    (c"[localnpn]", Count::LocalPlayer),    // "[localnpn]"
+    (c"[shauncarnum1]", Count::Kind(0)),    // "[shauncarnum1]" ..
+    (c"[shauncarnum2]", Count::Kind(1)),
+    (c"[shauncarnum3]", Count::Kind(2)),
+    (c"[shauncarnum4]", Count::Kind(3)),
+    (c"[shauncarnum5]", Count::Kind(4)),
+    (c"[shauncarnum6]", Count::Kind(5)),
+    (c"[shauncarnum7]", Count::Kind(6)),
+    (c"[shauncarnum8]", Count::Kind(7)),
 ];
 
-/// The Rust version: the registers it leaves.
-pub fn set_up_race(entry: &Regs, part: Part) -> Result<Regs, Refused> {
-    // Converted: `rc2k_core::net::record` (`race_players`, `seat`).
-    let players = record::race_players(g(PLAYERS))?;
-    let mut r = *entry;
-    p(LOCAL, g(PLAYER));
-    r.ebp = 0;
-    loop {
-        r.esi = block(r.ebp);
-        let at = r.esi + field!(NetPlayerBlock, record);
-        let seat = record::seat(|n| unsafe { ((at + n as u32) as *const u8).read() });
-        let slot = 4 * r.ebp as usize;
-        p(KINDS + slot, seat.car);
-        p(COLOURS + slot, seat.colours);
-        p(NUMBERS + slot, seat.race_number);
-        r.eax = unsafe { ((at + record::STAGE as u32) as *const u8).read() } as u32;
-        if let Some((stage, direction)) = seat.stage {
-            p(STAGE, stage);
-            p(DIRECTION, direction);
-            r.eax = direction;
-        }
-        r.ebp += 1;
-        if r.ebp == players {
-            break;
-        }
-    }
-    p(CLEARED, 0);
-    p(RACE_CARS, players);
-    p(ONE, 1);
-    p(CLEARED_2, 0);
-    part(RESET_CARS, &mut r)?;
-    part(ARCADE_CARS, &mut r)?;
-    part(START_STATES, &mut r)?;
-    for (to, from) in STORED {
-        p(to, g(from));
-    }
-    log_text(LOG_L1_NL, crate::net::lobby::a(RULE), &r, part)?;
-    log_text(LOG_L1_NL, crate::net::lobby::a(START), &r, part)?;
-    for (label, value) in COUNTS {
-        log_text(LOG_L1, crate::net::lobby::a(label), &r, part)?;
-        log_text(LOG_INT_L1_NL, g(value), &r, part)?;
-    }
-    part(LOAD_STAGE, &mut r)?;
-    log_text(LOG_L1_NL, crate::net::lobby::a(COMPLETE), &r, part)?;
-    log_text(LOG_L1_NL, crate::net::lobby::a(RULE_2), &r, part)?;
-    Ok(r)
+/// A count logged: `RACE_VIEW`'s car and player counts, this machine's player (`NET.player`), or
+/// a car's kind (`RACE_VARS.race_car_kinds`).
+#[derive(Clone, Copy)]
+enum Count {
+    RaceCars,
+    Players,
+    LocalPlayer,
+    Kind(usize),
 }
 
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    lobby_entry(r, set_up_race)
+/// The Rust version.
+pub fn set_up_race() -> Result<(), Refused> {
+    // Converted: `rc2k_core::net::record` (`race_players`, `seat`).
+    let players = record::race_players(NET.players.get())?;
+    RACE_VIEW.local_car.set(NET.player.get());
+    for n in 0..players {
+        let record = &NET.player_block(n).record;
+        let seat = record::seat(|n| record.head.get(n));
+        let v = &RACE_VARS;
+        v.race_car_kinds[n as usize].set(seat.car);
+        v.car_colours[n as usize].set(seat.colours);
+        v.start_numbers[n as usize].set(seat.race_number);
+        if let Some((stage, direction)) = seat.stage {
+            v.stage_number.set(stage);
+            v.direction.set(direction);
+        }
+    }
+    RACE_VARS.run_kind.set(0);
+    RACE_VIEW.race_cars.set(players);
+    RACE_VIEW.players.set(1);
+    FRAME_SWITCHES.editor_mode.set(0);
+    crate::net::reset_cars::reset_cars()?;
+    crate::race::race_cars::set_up_arcade_cars()?;
+    crate::race::race_shell::set_start_states()?;
+    // Each stored block's gearbox kind and start slot value, from the race's tables.
+    for (car, colours) in CAR_BLOCKS.cars[..8].iter().zip(&RACE_VARS.car_colours) {
+        car.gearbox_kind.set(colours.get());
+    }
+    for (car, number) in CAR_BLOCKS.cars[..8].iter().zip(&RACE_VARS.start_numbers) {
+        car.start_slot_value.set(number.get());
+    }
+    log(crate::pointers::game_address(RULE.as_ptr()), true, 1);
+    log(crate::pointers::game_address(START.as_ptr()), true, 1);
+    for (label, value) in COUNTS {
+        log(crate::pointers::game_address(label.as_ptr()), false, 1);
+        let value = match value {
+            Count::RaceCars => RACE_VIEW.race_cars.get(),
+            Count::Players => RACE_VIEW.players.get(),
+            Count::LocalPlayer => NET.player.get(),
+            Count::Kind(n) => RACE_VARS.race_car_kinds[n].get(),
+        };
+        log_int_nl(value, 1);
+    }
+    unsafe { crate::race::stage_loading::load_stage() }?;
+    log(crate::pointers::game_address(COMPLETE.as_ptr()), true, 1);
+    log(crate::pointers::game_address(RULE_2.as_ptr()), true, 1);
+    Ok(())
 }

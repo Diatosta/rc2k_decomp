@@ -13,64 +13,46 @@
 //!
 //! Refuses (before anything) a section past the six or with no table, and a line past the line
 //! buffer. In the draw list 0x758E4E of `menu::unused_section_times_loop_1` / `_2` (0x466E50,
-//! 0x467392), which nothing reaches (no code or data refers to them, 2026-10-20). Hook removed
-//! 2026-10-22 (typed tables): the menus and draw lists run its `entry` (`menu::table_calls`);
-//! the registers above are the original's, for reference.
+//! 0x467392), which nothing reaches (no code or data refers to them, 2026-10-20). The menus and
+//! draw lists run its `entry` (`menu::table_calls`); the registers above are the original's, for
+//! reference.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{Regs, game_read, rva};
-use crate::screens::harness::{Left, draw_entry};
+use crate::menu::event_store::EVENT_STATE;
 use crate::strings::append_time::show_hours;
 use crate::text::draw_text::Canvas;
 
-const TABLES_RVA: usize = rva(0x742C98); // off_742C98: six tables
 const SECTIONS: u32 = 6;
-const SECTION_RVA: usize = rva(0x75595C); // section
 // seconds
 const ENTRY_LEN: u32 = 0x9C;
-fn get(a: u32) -> u32 {
-    unsafe { (a as *const u32).read_unaligned() }
-}
-
 /// The Rust version.
-pub unsafe fn draw_section_best_times(canvas: &mut dyn Canvas) -> Result<(), Refused> {
-    unsafe {
-        let section: u32 = game_read(SECTION_RVA);
-        if section >= SECTIONS {
-            return Err(BadInput("a section past the six best-times tables").into());
-        }
-        let e: u32 = game_read(TABLES_RVA + 4 * section as usize);
-        if e == 0 {
-            return Err(BadInput("a section with no best-times table").into());
-        }
-        // Converted: `rc2k_core::screens::best_scores::section_best_times`.
-        use rc2k_core::screens::best_scores::SectionRow;
-        let rows: [SectionRow<u32>; 10] = std::array::from_fn(|n| {
-            let e = e + n as u32 * ENTRY_LEN;
-            SectionRow {
-                name: e + 0x20,
-                time: get(e + 0x18),
-                nation: get(e + 8),
-                car: get(e + 0x10),
-                player: get(e + 0x40) == 1,
-            }
-        });
-        rc2k_core::screens::best_scores::section_best_times(
-            &mut crate::screens::best_scores::ScoresScreen::new(canvas),
-            &rows,
-            show_hours(),
-        )?;
+pub fn draw_section_best_times(canvas: &mut dyn Canvas) -> Result<(), Refused> {
+    let section: u32 = EVENT_STATE.section.get();
+    if section >= SECTIONS {
+        return Err(BadInput("a section past the six best-times tables").into());
     }
+    let e = crate::saves::best_times_store::RALLY_TIMES.tables[section as usize].get();
+    if e == 0 {
+        return Err(BadInput("a section with no best-times table").into());
+    }
+    // Converted: `rc2k_core::screens::best_scores::section_best_times`.
+    use rc2k_core::screens::best_scores::SectionRow;
+    let f = crate::menu::event_flow::Fault::default();
+    let rows: [SectionRow<u32>; 10] = std::array::from_fn(|n| {
+        let e = e + n as u32 * ENTRY_LEN;
+        SectionRow {
+            name: e + 0x20,
+            time: f.get(e + 0x18),
+            nation: f.get(e + 8),
+            car: f.get(e + 0x10),
+            player: f.get(e + 0x40) == 1,
+        }
+    });
+    f.check()?;
+    rc2k_core::screens::best_scores::section_best_times(
+        &mut crate::screens::best_scores::ScoresScreen::new(canvas),
+        &rows,
+        show_hours(),
+    )?;
     Ok(())
-}
-
-fn rust(_: &Regs, canvas: &mut dyn Canvas) -> Result<Left, Refused> {
-    unsafe { draw_section_best_times(canvas) }?;
-    Ok(Left::nothing())
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    draw_entry("screens::draw_section_best_times", r, &rust)
 }

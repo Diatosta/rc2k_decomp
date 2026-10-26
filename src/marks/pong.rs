@@ -1,157 +1,325 @@
-//! The pong game over the race (a reading: cheat bit 0x8000 and `dword_641678`; run by
-//! `marks::run_pong`): its variables, the compares its hooks share, and a test stand-in
-//! for `marks::draw_pong_box`. The ball at `flt_768688` (x, y), its way `flt_768694`, its
-//! size `flt_7686A0`; the bat at `flt_7686B8`, its size `flt_7686D0`, its place before the
-//! move `dword_7686AC`; the hits `dword_7687D0`, the best `dword_7687CC`, the ball's steps
-//! a frame `g_pongSteps` (named before the game was seen), the score's place
-//! `dword_7687D4` / `dword_7687D8`, the digits' 4 x 5 patterns `unk_768704` (0x14 each).
+//! The pong game over the race (a reading: cheat bit 0x8000 and `dword_641678`. The ball at
+//! `flt_768688` (x, y), its way `flt_768694`, its size `flt_7686A0`; the bat at
+//! `flt_7686B8`, its size `flt_7686D0`, its place before the move `dword_7686AC`; the hits
+//! `dword_7687D0`, the best `dword_7687CC`, the ball's steps a frame `g_pongSteps` (named
+//! before the game was seen), the score's place `dword_7687D4` / `dword_7687D8`, the
+//! digits' 4 x 5 patterns `unk_768704` (0x14 each).
 
-use crate::framework::{Regs, game_addr, game_read, game_write, rva};
-use crate::service::harness::Region;
-use std::sync::Mutex;
+use crate::framework::rva;
+use crate::session::{Bytes, Dword, Float};
 
-pub const BALL: [usize; 2] = [rva(0x768688), rva(0x76868C)];
-pub const BALL_WAY: [usize; 2] = [rva(0x768694), rva(0x768698)];
-pub const BALL_SIZE: [usize; 2] = [rva(0x7686A0), rva(0x7686A4)];
-pub const SAVED_BAT: [usize; 2] = [rva(0x7686AC), rva(0x7686B0)];
-pub const BAT: [usize; 2] = [rva(0x7686B8), rva(0x7686BC)];
-pub const BAT_SIZE: [usize; 2] = [rva(0x7686D0), rva(0x7686D4)];
-pub const STEPS_RVA: usize = rva(0x768700); // g_pongSteps
-pub const BEST_RVA: usize = rva(0x7687CC); // dword_7687CC
-pub const HITS_RVA: usize = rva(0x7687D0); // dword_7687D0
-pub const DIGIT_AT: [usize; 2] = [rva(0x7687D4), rva(0x7687D8)];
-pub const PATTERNS_RVA: usize = rva(0x768704); // unk_768704: 10 of 0x14
-pub const CHEATS_RVA: usize = rva(0x75870C); // g_cheats
+/// The pong game over the race: the box scratch, the ball, the bat, the score (IDA 0x768658 .. 0x7687DC, the image's layout; phase 7, typed state).
+#[repr(C)]
+pub struct PongState {
+    /// 0x768658: `flt_768658` .. `flt_768684`: the box drawn last (`marks::draw_pong_box`): the offsets of its corners from the place, twice (a reading: six, then the same plus the second shift).
+    pub box_sides: [Float; 12],
+    /// 0x768688: `g_pongBall`, `flt_76868C`: the ball's place (x, y).
+    pub ball: [Float; 2],
+    /// 0x768690: Not named: 4 bytes (a gap, or unreferenced data).
+    pub _gap_768690: Bytes<4>,
+    /// 0x768694: `flt_768694`, `flt_768698`: the ball's way, added to its place at each step (starts 1, 1).
+    pub ball_way: [Float; 2],
+    /// 0x76869C: Not named: 4 bytes (a gap, or unreferenced data).
+    pub _gap_76869c: Bytes<4>,
+    /// 0x7686A0: `flt_7686A0`, `flt_7686A4`: the ball's size (width, height).
+    pub ball_size: [Float; 2],
+    /// 0x7686A8: Not named: 4 bytes (a gap, or unreferenced data).
+    pub _gap_7686a8: Bytes<4>,
+    /// 0x7686AC: `dword_7686AC`, `dword_7686B0`: the bat's place before the move (kept as bits; put back when the bat overlaps the ball).
+    pub saved_bat: [Dword; 2],
+    /// 0x7686B4: Not named: 4 bytes (a gap, or unreferenced data).
+    pub _gap_7686b4: Bytes<4>,
+    /// 0x7686B8: `g_pongBat`, `flt_7686BC`: the bat's place (x, y).
+    pub bat: [Float; 2],
+    /// 0x7686C0: Not named: 16 bytes (a gap, or unreferenced data).
+    pub _gap_7686c0: Bytes<16>,
+    /// 0x7686D0: `flt_7686D0`, `flt_7686D4`: the bat's size.
+    pub bat_size: [Float; 2],
+    /// 0x7686D8: Not named: 4 bytes (a gap, or unreferenced data).
+    pub _gap_7686d8: Bytes<4>,
+    /// 0x7686DC: `flt_7686DC`, `flt_7686E0`: the ball's centre (a reading), worked out by the court's steps.
+    pub ball_centre: [Float; 2],
+    /// 0x7686E4: Not named: 4 bytes (a gap, or unreferenced data).
+    pub _gap_7686e4: Bytes<4>,
+    /// 0x7686E8: `flt_7686E8`, `flt_7686EC`: the bat's centre (a reading).
+    pub bat_centre: [Float; 2],
+    /// 0x7686F0: Not named: 4 bytes (a gap, or unreferenced data).
+    pub _gap_7686f0: Bytes<4>,
+    /// 0x7686F4: `flt_7686F4`, `flt_7686F8`: the ball's centre less the bat's (a reading); the way after a hit.
+    pub difference: [Float; 2],
+    /// 0x7686FC: Not named: 4 bytes (a gap, or unreferenced data).
+    pub _gap_7686fc: Bytes<4>,
+    /// 0x768700: `g_pongSteps`: the ball's steps a frame (5 at the start, 4 more with each hit).
+    pub steps: Dword,
+    /// 0x768704: `g_pongDigitPatterns`: the digits' 4 x 5 patterns, 10 of 0x14 bytes (a byte a cell, 0 for empty).
+    pub digit_patterns: Bytes<200>,
+    /// 0x7687CC: `g_pongBest`: the best score (hits).
+    pub best: Dword,
+    /// 0x7687D0: `g_pongHits`: the hits of this game.
+    pub hits: Dword,
+    /// 0x7687D4: `dword_7687D4`, `dword_7687D8`: where the next score digit is drawn (x, y).
+    pub digit_at: [Dword; 2],
+}
+
+pub static PONG: PongState = PongState {
+    box_sides: [const { Float::from_bits(0x0) }; 12],
+    ball: [Float::from_bits(0x0), Float::from_bits(0x0)],
+    _gap_768690: Bytes::new([0; 4]),
+    ball_way: [Float::from_bits(0x3F800000), Float::from_bits(0x3F800000)],
+    _gap_76869c: Bytes::new([0; 4]),
+    ball_size: [Float::from_bits(0x0), Float::from_bits(0x0)],
+    _gap_7686a8: Bytes::new([0; 4]),
+    saved_bat: [Dword::new(0x0), Dword::new(0x0)],
+    _gap_7686b4: Bytes::new([0; 4]),
+    bat: [Float::from_bits(0x0), Float::from_bits(0x0)],
+    _gap_7686c0: Bytes::new([0; 16]),
+    bat_size: [Float::from_bits(0x0), Float::from_bits(0x0)],
+    _gap_7686d8: Bytes::new([0; 4]),
+    ball_centre: [Float::from_bits(0x0), Float::from_bits(0x0)],
+    _gap_7686e4: Bytes::new([0; 4]),
+    bat_centre: [Float::from_bits(0x0), Float::from_bits(0x0)],
+    _gap_7686f0: Bytes::new([0; 4]),
+    difference: [Float::from_bits(0x0), Float::from_bits(0x0)],
+    _gap_7686fc: Bytes::new([0; 4]),
+    steps: Dword::new(0x0),
+    digit_patterns: Bytes::new([
+        0x00, 0x01, 0x00, 0x00, 0x01, 0x00, 0x01, 0x00, 0x01, 0x00, 0x01, 0x00, 0x01, 0x00, 0x01,
+        0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x01, 0x01, 0x00, 0x00, 0x00, 0x01,
+        0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x01, 0x01, 0x01, 0x00, 0x01, 0x01, 0x00, 0x00, 0x00,
+        0x00, 0x01, 0x00, 0x00, 0x01, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01, 0x01, 0x01, 0x00,
+        0x01, 0x01, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x01,
+        0x00, 0x01, 0x01, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01, 0x01, 0x00, 0x00, 0x01, 0x01,
+        0x01, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x01, 0x01, 0x01, 0x00, 0x01,
+        0x00, 0x00, 0x00, 0x01, 0x01, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x01, 0x01, 0x00, 0x00,
+        0x00, 0x01, 0x01, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01, 0x01, 0x00, 0x00, 0x01, 0x00, 0x01,
+        0x00, 0x00, 0x01, 0x00, 0x00, 0x01, 0x01, 0x01, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x01,
+        0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x01,
+        0x00, 0x01, 0x00, 0x00, 0x01, 0x00, 0x00, 0x01, 0x00, 0x01, 0x00, 0x00, 0x01, 0x00, 0x00,
+        0x00, 0x01, 0x00, 0x00, 0x01, 0x00, 0x01, 0x00, 0x00, 0x01, 0x01, 0x00, 0x00, 0x00, 0x01,
+        0x00, 0x01, 0x01, 0x00, 0x00,
+    ]),
+    best: Dword::new(0x0),
+    hits: Dword::new(0x0),
+    digit_at: [Dword::new(0x0), Dword::new(0x0)],
+};
+
+impl PongState {
+    pub const START: usize = 0x768658;
+    pub const LEN: usize = 0x184;
+    /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
+    pub fn home() -> usize {
+        crate::pointers::game_address(&PONG as *const PongState) as usize
+    }
+}
+
+/// The pong game's constants (IDA 0x769182 .. 0x769232, the image's layout; phase 7, typed state).
+#[repr(C)]
+pub struct PongRules {
+    /// 0x769182: `flt_769182` .. `flt_76919E`: the court at the start of a game (`Court::reset`), as bits: four (x, y) pairs, the ball, its size, the bat, its size.
+    pub start: [Float; 8],
+    /// 0x7691A2: Not named: 4 bytes (a gap, or unreferenced data).
+    pub _gap_7691a2: Bytes<4>,
+    /// 0x7691A6: `flt_7691A6` .. `flt_7691C2`: the court's walls the ball turns at and the places it is put back at (a reading, `marks::move_pong_ball`).
+    pub walls: [Float; 8],
+    /// 0x7691C6: `flt_7691C6` .. `flt_7691D2`: a half, four times: a place plus its size times it is the centre (`Court` centres).
+    pub centre: [Float; 4],
+    /// 0x7691D6: `flt_7691D6`: 1, what a hit changes the way by.
+    pub nudge: Float,
+    /// 0x7691DA: `flt_7691DA`, `flt_7691DE`: 4, 4: the way after a hit is the difference over them (`marks::pong_ball_hits`).
+    pub way_scale: [Float; 2],
+    /// 0x7691E2: Not named: 24 bytes (a gap, or unreferenced data).
+    pub _gap_7691e2: Bytes<24>,
+    /// 0x7691FA: `flt_7691FA`, `flt_7691FE`: 16 and -16: a score cell's step across and down (`marks::pong_cell`).
+    pub cell_step: [Float; 2],
+    /// 0x769202: `flt_769202`, `flt_769206`: 16, 16: a score cell's size.
+    pub cell_size: [Float; 2],
+    /// 0x76920A: `dword_76920A` .. `dword_769216`: the texture places of a pong box (`marks::draw_pong_box`; 0.99 four times, as bits).
+    pub box_places: [Float; 4],
+    /// 0x76921A: `flt_76921A`: 16384: a box whose third corner value is under it is not drawn (a reading).
+    pub near: Float,
+    /// 0x76921E: Not named: 4 bytes (a gap, or unreferenced data).
+    pub _gap_76921e: Bytes<4>,
+    /// 0x769222: `dword_769222` .. `dword_76922E`: the texture places the pong frame's set-up uses (`marks::pong_setup`).
+    pub setup_places: [Float; 4],
+}
+
+pub static PONG_RULES: PongRules = PongRules {
+    start: [
+        Float::from_bits(0x44800000),
+        Float::from_bits(0x44000000),
+        Float::from_bits(0x42800000),
+        Float::from_bits(0x42800000),
+        Float::from_bits(0x44E00000),
+        Float::from_bits(0x43800000),
+        Float::from_bits(0x42800000),
+        Float::from_bits(0x43800000),
+    ],
+    _gap_7691a2: Bytes::new([0; 4]),
+    walls: [
+        Float::from_bits(0x43000000),
+        Float::from_bits(0x43000000),
+        Float::from_bits(0x45000000),
+        Float::from_bits(0x43000000),
+        Float::from_bits(0x43000000),
+        Float::from_bits(0x43000000),
+        Float::from_bits(0x44800000),
+        Float::from_bits(0x44800000),
+    ],
+    centre: [
+        Float::from_bits(0x3F000000),
+        Float::from_bits(0x3F000000),
+        Float::from_bits(0x3F000000),
+        Float::from_bits(0x3F000000),
+    ],
+    nudge: Float::from_bits(0x3F800000),
+    way_scale: [Float::from_bits(0x40800000), Float::from_bits(0x40800000)],
+    _gap_7691e2: Bytes::new([
+        0x00, 0x00, 0x00, 0x42, 0x00, 0x00, 0x00, 0x43, 0x00, 0x00, 0x00, 0x43, 0x00, 0x00, 0x00,
+        0x42, 0x00, 0x00, 0x80, 0x44, 0x00, 0x00, 0x80, 0x44,
+    ]),
+    cell_step: [Float::from_bits(0x41800000), Float::from_bits(0xC1800000)],
+    cell_size: [Float::from_bits(0x41800000), Float::from_bits(0x41800000)],
+    box_places: [
+        Float::from_bits(0x3F7D70A4),
+        Float::from_bits(0x3F7D70A4),
+        Float::from_bits(0x3F7D70A4),
+        Float::from_bits(0x3F7D70A4),
+    ],
+    near: Float::from_bits(0x46800000),
+    _gap_76921e: Bytes::new([0x00, 0x00, 0x80, 0x43]),
+    setup_places: [
+        Float::from_bits(0x3DE80000),
+        Float::from_bits(0x3D000000),
+        Float::from_bits(0x3E7C0000),
+        Float::from_bits(0x3E280000),
+    ],
+};
+
+impl PongRules {
+    pub const START: usize = 0x769182;
+    pub const LEN: usize = 0xB0;
+    /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
+    pub fn home() -> usize {
+        crate::pointers::game_address(&PONG_RULES as *const PongRules) as usize
+    }
+}
+
+/// A test buffer standing for the marks' block at `mk` (IDA 0x764F40): the court's state
+/// in it, as the x87 blocks' differential tests give it to the typed versions.
+#[cfg(all(test, target_arch = "x86"))]
+pub fn state_at(mk: usize) -> &'static PongState {
+    unsafe {
+        &*(crate::pointers::host_at(
+            mk.wrapping_add(PongState::START)
+                .wrapping_sub(crate::marks::store::START),
+        ) as *const PongState)
+    }
+}
+
+/// The court's constants in the same buffer, copied out (they sit 2 bytes off a four in the
+/// image's addresses, so the buffer's copy of them is not aligned for the cells).
+#[cfg(all(test, target_arch = "x86"))]
+pub fn rules_at(mk: usize) -> PongRules {
+    unsafe {
+        (crate::pointers::host_at(
+            mk.wrapping_add(PongRules::START)
+                .wrapping_sub(crate::marks::store::START),
+        ) as *const PongRules)
+            .read_unaligned()
+    }
+}
+
 pub const SHOWN_RVA: usize = rva(0x641678); // dword_641678
 
 /// `fld a; fadd b; fcomp c; fstsw ax; and eax, 700h`.
 pub fn sum_compare(a: u32, b: u32, c: u32) -> u32 {
     let (v, mut s) = ([a, b, c], 0u16);
-    unsafe {
-        core::arch::asm!(
-            "fld dword ptr [{v}]",
-            "fadd dword ptr [{v} + 4]",
-            "fcomp dword ptr [{v} + 8]",
-            "fnstsw word ptr [{s}]",
-            v = in(reg) v.as_ptr(),
-            s = in(reg) &raw mut s,
-            out("st(0)") _,
-            options(nostack),
-        )
-    };
+    sum_compare_x87(
+        (crate::pointers::game_address(v.as_ptr())) as usize,
+        crate::pointers::game_address(&raw mut s) as usize,
+    );
     u32::from(s) & 0x700
 }
 
 /// `fld x; fld k; fsub w [; fsub m]; fcompp; fstsw ax; and eax, 700h` (`m` with `Some`).
 pub fn less_compare(x: u32, k: u32, w: u32, m: Option<u32>) -> u32 {
     let (v, mut s) = ([x, k, w, m.unwrap_or(0)], 0u16);
-    unsafe {
-        if m.is_some() {
-            core::arch::asm!(
-                "fld dword ptr [{v}]",
-                "fld dword ptr [{v} + 4]",
-                "fsub dword ptr [{v} + 8]",
-                "fsub dword ptr [{v} + 12]",
-                "fcompp",
-                "fnstsw word ptr [{s}]",
-                v = in(reg) v.as_ptr(),
-                s = in(reg) &raw mut s,
-                out("st(0)") _, out("st(1)") _,
-                options(nostack),
-            )
-        } else {
-            core::arch::asm!(
-                "fld dword ptr [{v}]",
-                "fld dword ptr [{v} + 4]",
-                "fsub dword ptr [{v} + 8]",
-                "fcompp",
-                "fnstsw word ptr [{s}]",
-                v = in(reg) v.as_ptr(),
-                s = in(reg) &raw mut s,
-                out("st(0)") _, out("st(1)") _,
-                options(nostack),
-            )
-        }
+    if m.is_some() {
+        less_compare_x87_1(
+            (crate::pointers::game_address(v.as_ptr())) as usize,
+            crate::pointers::game_address(&raw mut s) as usize,
+        )
+    } else {
+        less_compare_x87_2(
+            (crate::pointers::game_address(v.as_ptr())) as usize,
+            crate::pointers::game_address(&raw mut s) as usize,
+        )
     };
     u32::from(s) & 0x700
 }
 
-fn get(r: usize) -> u32 {
-    unsafe { game_read(r) }
+fn pair(r: &[Float; 2]) -> [f32; 2] {
+    r.each_ref().map(Float::get)
 }
 
-const CENTRE_RVA: usize = rva(0x7691C6); // flt_7691C6 .. flt_7691D2
-const NUDGE_RVA: usize = rva(0x7691D6); // flt_7691D6
-const WAY_SCALE_RVA: usize = rva(0x7691DA); // flt_7691DA, flt_7691DE
-const LENGTH_RVA: usize = rva(0x76516C); // flt_76516C
-pub const WALLS_RVA: usize = rva(0x7691A6); // flt_7691A6 .. flt_7691C2
-pub const START_RVA: usize = rva(0x769182); // flt_769182 .. flt_76919E
-const BALL_CENTRE: [usize; 2] = [rva(0x7686DC), rva(0x7686E0)];
-const BAT_CENTRE: [usize; 2] = [rva(0x7686E8), rva(0x7686EC)];
-const DIFFERENCE: [usize; 2] = [rva(0x7686F4), rva(0x7686F8)];
-
-fn pair(r: [usize; 2]) -> [f32; 2] {
-    r.map(|r| f32::from_bits(get(r)))
-}
-
-unsafe fn put_pair(r: [usize; 2], v: [f32; 2]) {
-    for (r, v) in r.into_iter().zip(v) {
-        unsafe { game_write(r, v.to_bits()) };
+fn put_pair(r: &[Float; 2], v: [f32; 2]) {
+    for (r, v) in r.iter().zip(v) {
+        r.set(v);
     }
 }
 
 /// The court (`rc2k_core::marks::pong::Court`) from the game's variables.
 pub fn court() -> rc2k_core::marks::pong::Court {
+    let p = &PONG;
     rc2k_core::marks::pong::Court {
-        ball: pair(BALL),
-        way: pair(BALL_WAY),
-        ball_size: pair(BALL_SIZE),
-        saved_bat: SAVED_BAT.map(get),
-        bat: pair(BAT),
-        bat_size: pair(BAT_SIZE),
-        ball_centre: pair(BALL_CENTRE),
-        bat_centre: pair(BAT_CENTRE),
-        difference: pair(DIFFERENCE),
-        steps: get(STEPS_RVA),
-        hits: get(HITS_RVA),
+        ball: pair(&p.ball),
+        way: pair(&p.ball_way),
+        ball_size: pair(&p.ball_size),
+        saved_bat: p.saved_bat.each_ref().map(Dword::get),
+        bat: pair(&p.bat),
+        bat_size: pair(&p.bat_size),
+        ball_centre: pair(&p.ball_centre),
+        bat_centre: pair(&p.bat_centre),
+        difference: pair(&p.difference),
+        steps: p.steps.get(),
+        hits: p.hits.get(),
     }
 }
 
 /// The court back into the game's variables: what differs from `before` (the rest is left
 /// as it is, its bits untouched).
-pub unsafe fn put_court(c: &rc2k_core::marks::pong::Court, before: &rc2k_core::marks::pong::Court) {
-    unsafe {
-        for (r, v, b) in [
-            (BALL, c.ball, before.ball),
-            (BALL_WAY, c.way, before.way),
-            (BALL_SIZE, c.ball_size, before.ball_size),
-            (BAT, c.bat, before.bat),
-            (BAT_SIZE, c.bat_size, before.bat_size),
-            (BALL_CENTRE, c.ball_centre, before.ball_centre),
-            (BAT_CENTRE, c.bat_centre, before.bat_centre),
-            (DIFFERENCE, c.difference, before.difference),
-        ] {
-            if v.map(f32::to_bits) != b.map(f32::to_bits) {
-                put_pair(r, v);
-            }
+pub fn put_court(c: &rc2k_core::marks::pong::Court, before: &rc2k_core::marks::pong::Court) {
+    let p = &PONG;
+    for (r, v, b) in [
+        (&p.ball, c.ball, before.ball),
+        (&p.ball_way, c.way, before.way),
+        (&p.ball_size, c.ball_size, before.ball_size),
+        (&p.bat, c.bat, before.bat),
+        (&p.bat_size, c.bat_size, before.bat_size),
+        (&p.ball_centre, c.ball_centre, before.ball_centre),
+        (&p.bat_centre, c.bat_centre, before.bat_centre),
+        (&p.difference, c.difference, before.difference),
+    ] {
+        if v.map(f32::to_bits) != b.map(f32::to_bits) {
+            put_pair(r, v);
         }
-        game_write(SAVED_BAT[0], c.saved_bat[0]);
-        game_write(SAVED_BAT[1], c.saved_bat[1]);
-        game_write(STEPS_RVA, c.steps);
-        game_write(HITS_RVA, c.hits);
     }
+    p.saved_bat[0].set(c.saved_bat[0]);
+    p.saved_bat[1].set(c.saved_bat[1]);
+    p.steps.set(c.steps);
+    p.hits.set(c.hits);
 }
 
 /// The court's constants from the game.
 pub fn rules() -> rc2k_core::marks::pong::Rules {
-    let f = |r: usize| f32::from_bits(get(r));
+    let r = &PONG_RULES;
     rc2k_core::marks::pong::Rules {
-        centre: std::array::from_fn(|n| f(CENTRE_RVA + 4 * n)),
-        nudge: f(NUDGE_RVA),
-        way_scale: [f(WAY_SCALE_RVA), f(WAY_SCALE_RVA + 4)],
-        length: f(LENGTH_RVA),
-        walls: std::array::from_fn(|n| f(WALLS_RVA + 4 * n)),
-        start: std::array::from_fn(|n| get(START_RVA + 4 * n)),
+        centre: r.centre.each_ref().map(Float::get),
+        nudge: r.nudge.get(),
+        way_scale: pair(&r.way_scale),
+        length: f32::from_bits(MARKS_FLOATS.one.bits()),
+        walls: r.walls.each_ref().map(Float::get),
+        start: r.start.each_ref().map(Float::bits),
     }
 }
 
@@ -160,42 +328,24 @@ pub fn with_court<T>(step: impl FnOnce(&mut rc2k_core::marks::pong::Court) -> T)
     let before = court();
     let mut c = before;
     let out = step(&mut c);
-    unsafe { put_court(&c, &before) };
+    put_court(&c, &before);
     out
-}
-
-/// The float places of `regions()` (the court's floats), for the comparisons.
-pub fn float_places() -> Vec<(Region, crate::service::floats::Tolerance)> {
-    use crate::service::floats::FLOAT;
-    [
-        BALL,
-        BALL_WAY,
-        BALL_SIZE,
-        BAT,
-        BAT_SIZE,
-        BALL_CENTRE,
-        BAT_CENTRE,
-        DIFFERENCE,
-    ]
-    .into_iter()
-    .flatten()
-    .map(|r| ((game_addr(r) as u32, 4), FLOAT))
-    .collect()
 }
 
 /// The four compares of the ball against the bat (`marks::pong_ball_hits`,
 /// `marks::pong_bat_back`): whether they overlap (no compare gave C0 alone) and the
 /// last status.
 pub fn overlap() -> (bool, u32) {
+    let p = &PONG;
     let tests = [
-        (BALL[0], BALL_SIZE[0], BAT[0]),
-        (BAT[0], BAT_SIZE[0], BALL[0]),
-        (BALL[1], BALL_SIZE[1], BAT[1]),
-        (BAT[1], BAT_SIZE[1], BALL[1]),
+        (&p.ball[0], &p.ball_size[0], &p.bat[0]),
+        (&p.bat[0], &p.bat_size[0], &p.ball[0]),
+        (&p.ball[1], &p.ball_size[1], &p.bat[1]),
+        (&p.bat[1], &p.bat_size[1], &p.ball[1]),
     ];
     let mut s = 0;
     for (a, b, c) in tests {
-        s = sum_compare(get(a), get(b), get(c));
+        s = sum_compare(a.bits(), b.bits(), c.bits());
         if s == 0x100 {
             return (false, s);
         }
@@ -203,147 +353,224 @@ pub fn overlap() -> (bool, u32) {
     (true, s)
 }
 
-/// Everything the game's pong code writes but the box's work floats and the vertices.
-pub fn regions() -> Vec<Region> {
-    vec![
-        (game_addr(BALL[0]) as u32, 0x7C),
-        (game_addr(BEST_RVA) as u32, 0x10),
-    ]
+use crate::marks::plain::{ld, st16};
+use crate::marks::tuning::MARKS_FLOATS;
+use crate::math::x87_float as bh;
+
+/// `sum_compare`'s x87 block as plain Rust on the x87 model (4 instructions), same order and memory places.
+fn sum_compare_x87(v: usize, s: usize) {
+    let t0 = ld(v, 0);
+    let t1 = t0 + ld(v, 0x4);
+    st16(s, 0, bh::compare(t1, ld(v, 0x8)));
 }
 
-/// The `dispatch` of a converted court hook: the court's floats and eax / ebx (a way's bits)
-/// within `service::floats`' tolerances.
-pub fn dispatch_court(
-    hook: &'static crate::framework::RawHook,
-    r: &mut Regs,
-    call_original: crate::screens::harness::CallOriginal,
-    rust: crate::service::harness::Rust,
-) {
-    use crate::framework::{EAX, EBX};
-    use crate::service::floats::{FLOAT, Floats, dispatch_state_floats};
-    let places = float_places();
-    let floats = Floats {
-        memory: &places,
-        regs: &[(EAX, FLOAT), (EBX, FLOAT)],
-    };
-    dispatch_state_floats(hook, r, call_original, &regions(), &floats, rust);
+/// `less_compare`'s x87 block as plain Rust on the x87 model (6 instructions), same order and memory places.
+fn less_compare_x87_1(v: usize, s: usize) {
+    let t0 = ld(v, 0);
+    let t1 = ld(v, 0x4);
+    let t2 = t1 - ld(v, 0x8);
+    let t3 = t2 - ld(v, 0xC);
+    st16(s, 0, bh::compare(t3, t0));
 }
 
-/// The self-test of a converted court hook: `cases` cases, each the game's variables put
-/// back and `prepare(case)`, at both test precisions; put back afterwards.
-pub fn test_court(
-    t: &mut crate::framework::SelfTest,
-    name: &'static str,
-    call_original: crate::screens::harness::CallOriginal,
-    cases: u32,
-    prepare: &dyn Fn(u32),
-    rust: crate::service::harness::Rust,
-) {
-    use crate::framework::{EAX, EBX};
-    use crate::service::floats::{FLOAT, Floats, at_test_precisions, check_state_floats};
-    use crate::service::harness::{capture, restore};
-    let regions = regions();
-    let saved = capture(&regions);
-    let places = float_places();
-    let tolerant = Floats {
-        memory: &places,
-        regs: &[(EAX, FLOAT), (EBX, FLOAT)],
-    };
-    at_test_precisions(&tolerant, &mut |word, held| {
-        for case in 0..cases {
-            check_state_floats(
-                t,
-                name,
-                &format!("control word {word:#x}, case {case}"),
-                call_original,
-                Regs::SENTINEL,
-                &|| {
-                    restore(&regions, &saved);
-                    prepare(case);
-                },
-                &regions,
-                held,
-                rust,
-            );
+/// `less_compare`'s x87 block as plain Rust on the x87 model (5 instructions), same order and memory places.
+fn less_compare_x87_2(v: usize, s: usize) {
+    let t0 = ld(v, 0);
+    let t1 = ld(v, 0x4);
+    let t2 = t1 - ld(v, 0x8);
+    st16(s, 0, bh::compare(t2, t0));
+}
+
+#[cfg(all(test, target_arch = "x86"))]
+mod asm_reference {
+    //! The original assembly blocks, kept verbatim as the reference the plain versions are tested against.
+
+    pub(super) fn sum_compare_x87(v: usize, s: usize) {
+        unsafe {
+            core::arch::asm!(
+                    "fld dword ptr [{v}]",
+            "fadd dword ptr [{v} + 4]",
+            "fcomp dword ptr [{v} + 8]",
+            "fnstsw word ptr [{s}]",
+            v = in(reg) v,
+            s = in(reg) s,
+            out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
+            out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
+            options(nostack),
+            )
         }
-    });
-    restore(&regions, &saved);
-}
+    }
 
-/// Ball and bat by lot for the tests (the limits stay the game's).
-pub unsafe fn test_values(case: u32) {
-    let k = case as f32;
-    let put = |r: usize, v: f32| unsafe { game_write(r, v.to_bits()) };
-    put(BALL[0], 290.0 + 4.0 * k);
-    put(BALL[1], 95.0 + 13.0 * k);
-    put(BALL_WAY[0], 3.0 - k);
-    put(BALL_WAY[1], 1.5 - 0.75 * k);
-    put(BALL_SIZE[0], 6.0);
-    put(BALL_SIZE[1], 6.0);
-    put(BAT[0], 300.0);
-    put(BAT[1], 100.0);
-    put(BAT_SIZE[0], 8.0);
-    put(BAT_SIZE[1], 60.0);
-    put(SAVED_BAT[0], 299.0 - k);
-    put(SAVED_BAT[1], 98.0);
-    unsafe {
-        game_write(HITS_RVA, case * 60);
-        game_write(BEST_RVA, 100u32);
-        game_write(STEPS_RVA, 1 + case);
+    pub(super) fn less_compare_x87_1(v: usize, s: usize) {
+        unsafe {
+            core::arch::asm!(
+                    "fld dword ptr [{v}]",
+            "fld dword ptr [{v} + 4]",
+            "fsub dword ptr [{v} + 8]",
+            "fsub dword ptr [{v} + 12]",
+            "fcompp",
+            "fnstsw word ptr [{s}]",
+            v = in(reg) v,
+            s = in(reg) s,
+            out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
+            out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
+            options(nostack),
+            )
+        }
+    }
+
+    pub(super) fn less_compare_x87_2(v: usize, s: usize) {
+        unsafe {
+            core::arch::asm!(
+                    "fld dword ptr [{v}]",
+            "fld dword ptr [{v} + 4]",
+            "fsub dword ptr [{v} + 8]",
+            "fcompp",
+            "fnstsw word ptr [{s}]",
+            v = in(reg) v,
+            s = in(reg) s,
+            out("st(0)") _, out("st(1)") _, out("st(2)") _, out("st(3)") _,
+            out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
+            options(nostack),
+            )
+        }
     }
 }
 
-/// A call as the tests note it: the place, eax .. esi, the x87 values.
-pub type Noted = (u32, [u32; 5], Vec<[u8; 10]>);
+#[cfg(all(test, target_arch = "x86"))]
+mod asm_differential {
+    use super::asm_reference as reference;
+    use crate::marks::asm_test::Kind::*;
+    use crate::marks::asm_test::{Op, Spec, differential};
 
-pub static NOTED: Mutex<Vec<Noted>> = Mutex::new(Vec::new());
+    #[test]
+    fn sum_compare_x87_matches() {
+        const SPEC: Spec = Spec {
+            operands: &[
+                Op::Base {
+                    lo: 0x0,
+                    hi: 0xC,
+                    reads: &[(0x0, F32), (0x4, F32), (0x8, F32)],
+                    writes: &[],
+                },
+                Op::Base {
+                    lo: 0x0,
+                    hi: 0x2,
+                    reads: &[],
+                    writes: &[(0x0, Status)],
+                },
+            ],
+            sincos: false,
+        };
+        differential(
+            &SPEC,
+            |b| reference::sum_compare_x87(b[0], b[1]),
+            |b| super::sum_compare_x87(b[0], b[1]),
+        );
+    }
 
-pub fn note(place: u32, r: &Regs, v: &[[u8; 10]]) {
-    NOTED
-        .lock()
-        .unwrap()
-        .push((place, [r.eax, r.ebx, r.ecx, r.edx, r.esi], v.to_vec()));
+    #[test]
+    fn less_compare_x87_1_matches() {
+        const SPEC: Spec = Spec {
+            operands: &[
+                Op::Base {
+                    lo: 0x0,
+                    hi: 0x10,
+                    reads: &[(0x0, F32), (0x4, F32), (0x8, F32), (0xC, F32)],
+                    writes: &[],
+                },
+                Op::Base {
+                    lo: 0x0,
+                    hi: 0x2,
+                    reads: &[],
+                    writes: &[(0x0, Status)],
+                },
+            ],
+            sincos: false,
+        };
+        differential(
+            &SPEC,
+            |b| reference::less_compare_x87_1(b[0], b[1]),
+            |b| super::less_compare_x87_1(b[0], b[1]),
+        );
+    }
+
+    #[test]
+    fn less_compare_x87_2_matches() {
+        const SPEC: Spec = Spec {
+            operands: &[
+                Op::Base {
+                    lo: 0x0,
+                    hi: 0xC,
+                    reads: &[(0x0, F32), (0x4, F32), (0x8, F32)],
+                    writes: &[],
+                },
+                Op::Base {
+                    lo: 0x0,
+                    hi: 0x2,
+                    reads: &[],
+                    writes: &[(0x0, Status)],
+                },
+            ],
+            sincos: false,
+        };
+        differential(
+            &SPEC,
+            |b| reference::less_compare_x87_2(b[0], b[1]),
+            |b| super::less_compare_x87_2(b[0], b[1]),
+        );
+    }
 }
 
-pub fn take() -> Vec<Noted> {
-    std::mem::take(&mut *NOTED.lock().unwrap())
-}
+#[cfg(test)]
+mod state_tests {
+    use super::*;
 
-/// For `install::stand_ins::set_handler`: a plain call noted.
-pub fn note_plain(place: u32, r: &mut Regs) {
-    note(place, r, &[]);
-}
+    fn bytes<T>(v: &'static T) -> Vec<u8> {
+        let p = v as *const T as *const u8;
+        (0..core::mem::size_of::<T>())
+            .map(|i| unsafe { p.add(i).read() })
+            .collect()
+    }
 
-/// The place the box stand-in notes.
-pub const BOX_PLACE: u32 = 2;
+    #[test]
+    fn the_state_and_the_rules_start_as_the_games() {
+        assert_eq!(size_of::<PongState>(), PongState::LEN);
+        assert_eq!(size_of::<PongRules>(), PongRules::LEN);
+        let (s, r) = (PongState::START, PongRules::START);
+        assert!(
+            bytes(&PONG) == crate::moved::image_bytes(s, PongState::LEN),
+            "PONG starts differently from the image"
+        );
+        assert!(
+            bytes(&PONG_RULES) == crate::moved::image_bytes(r, PongRules::LEN),
+            "PONG_RULES starts differently from the image"
+        );
+        use core::mem::offset_of;
+        assert_eq!(offset_of!(PongState, ball), 0x768688 - s);
+        assert_eq!(offset_of!(PongState, bat), 0x7686B8 - s);
+        assert_eq!(offset_of!(PongState, difference), 0x7686F4 - s);
+        assert_eq!(offset_of!(PongState, steps), 0x768700 - s);
+        assert_eq!(offset_of!(PongState, digit_patterns), 0x768704 - s);
+        assert_eq!(offset_of!(PongState, best), 0x7687CC - s);
+        assert_eq!(offset_of!(PongState, digit_at), 0x7687D4 - s);
+        assert_eq!(offset_of!(PongRules, walls), 0x7691A6 - r);
+        assert_eq!(offset_of!(PongRules, cell_step), 0x7691FA - r);
+        assert_eq!(offset_of!(PongRules, near), 0x76921A - r);
+        assert_eq!(offset_of!(PongRules, setup_places), 0x769222 - r);
+    }
 
-extern "C" fn note_four(r: *const Regs, v: *const [u8; 10]) {
-    note(BOX_PLACE, unsafe { &*r }, unsafe {
-        std::slice::from_raw_parts(v, 4)
-    });
-}
-
-/// The tests' stand-in for `draw_pong_box`: its four values taken off and noted.
-#[unsafe(naked)]
-pub unsafe extern "C" fn box_stand_in() {
-    core::arch::naked_asm!(
-        "lea esp, [esp - 40]",
-        "fstp tbyte ptr [esp]",
-        "fstp tbyte ptr [esp + 10]",
-        "fstp tbyte ptr [esp + 20]",
-        "fstp tbyte ptr [esp + 30]",
-        "pushfd",
-        "pushad",
-        "mov eax, esp",
-        "lea ecx, [esp + 36]",
-        "push ecx",
-        "push eax",
-        "call {note}",
-        "add esp, 8",
-        "popad",
-        "popfd",
-        "lea esp, [esp + 40]",
-        "ret",
-        note = sym note_four,
-    )
+    #[test]
+    fn moved_sends_the_addresses_to_the_statics() {
+        assert_eq!(crate::moved::place(0x768688), PONG.ball[0].addr() as usize);
+        assert_eq!(
+            crate::moved::place(0x76921A),
+            PONG_RULES.near.addr() as usize
+        );
+        assert_eq!(
+            crate::moved::place(0x7687DC),
+            (crate::marks::store::STORE.addr() + (0x7687DC - crate::marks::store::START) as u32)
+                as usize
+        );
+    }
 }

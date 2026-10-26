@@ -20,650 +20,947 @@
 //! `marks::add_drift_particle`.
 //!
 //! In:  nothing (`g_marksSettings`)
-//! Out: the registers as the path leaves them
+//! Out: nothing (its caller reads no register after it)
 //!
-//! Caller: `marks::run_frame` (0x4D165E). Its calls through `part` (1 `set_quad_uvs`, 2
-//! `burst_particles`, 3 `trail_particles`, 4 `draw_particle` with three values, 5
-//! `add_drift_particle` with six); in the game their Rust versions. Refuses, before
-//! anything, null settings, a null entry or link on the way, a kind other than 0, 4, 8,
-//! 9 (the original's stack goes wrong: section 16) and a colour index out of its table;
-//! mid-way only its callees' own refusals (a broken ring).
-//! Its first instruction is a short jump: private copy of the whole range (the five
-//! functions between its chunks taken along, never run from it; its seven calls
-//! relocated), manual patch. Shadow mode runs the original alone (it draws). Self-test: a
-//! copy (its handlers' return address pointed into the copy) whose calls go to stand-ins
-//! (the x87 ones taking their values off), against the Rust version on the same, on a
-//! ring of the test's.
+//! Caller: `marks::run_frame` (0x4D165E). Refuses, before anything, null settings, a null
+//! entry or link on the way, a kind other than 0, 4, 8, 9 (the original's stack goes wrong:
+//! section 16) and a colour index out of its table; mid-way only its callees' own refusals
+//! (a broken ring). its seven calls relocated), manual patch.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{
-    RawHook, Regs, SelfTest, game_addr, game_read, game_write, hook_asm, rva, shadow,
-};
-use crate::marks::blocks::{RING_ENTRY, RING_FREE_RVA, RING_USED_RVA};
-use crate::marks::setup::{SEED_RVA, SETTINGS_RVA};
+use crate::marks::blocks::RING_POOL;
+use crate::marks::frame_state::DRAW_WORK;
+use crate::marks::setup::CLOCK;
+use crate::marks::tuning::MARKS_FRAME;
+use crate::marks::work_store::MARKS_WORK;
 use crate::math::x87;
+use crate::pointers::GamePtr;
+use crate::race::matrices_store::MATRICES;
 use crate::scene::matrix3::extended;
-use crate::scene::vector3::STATUS_RVA;
-use crate::service::harness::{Region, at, capture, restore};
-use std::sync::Mutex;
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook = RawHook::new("marks::run_particles", rva(0x4CFB49), thunk, &ORIGINAL)
-    .private_copy(LEN)
-    .relocate_calls(&CALLS)
-    .manual_patch()
-    .self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
-
-const LEN: usize = 0xA74;
-const CALLS: [usize; 10] = [
-    0x33, 0x21B, 0x221, 0x408, 0x59A, 0x7E2, 0x7F6, 0x89E, 0x975, 0xA63,
-];
-const TICKS_RVA: usize = rva(0x764FD0); // g_marksFrameTicks
-const STEPS_RVA: usize = rva(0x76513C); // dword_76513C
-const PUFF_FLAG_RVA: usize = rva(0x5165E4); // dword_5165E4
-const VIEW_RVA: usize = rva(0x5EA3CC); // flt_5EA3CC: the view's place at +0x30
-const INDEX_RVA: usize = rva(0x93A5E8); // dword_93A5E8
-const TRAIL_COLOURS_RVA: usize = rva(0x922B38); // dword_922B38: 298 dwords
+use crate::session::{Bytes, Dword, Float};
 const TRAIL_COLOURS: i32 = 298;
-const BURST_COLOURS_RVA: usize = rva(0x93A618); // dword_93A618: 0x2000 bytes
 const BURST_COLOURS_LEN: i32 = 0x2000;
-const UV_K_RVA: usize = rva(0x8EB969); // flt_8EB969
-const DUST: [usize; 3] = [rva(0x93C680), rva(0x93C684), rva(0x93C688)];
-const TRAIL: [usize; 2] = [rva(0x93C68C), rva(0x93C690)];
-/// Kind 8's and 9's: the +0x30 gain, the three dampings, the +0x3C gain.
-const BURST: [[usize; 5]; 2] = [
-    [
-        rva(0x93C694),
-        rva(0x93C698),
-        rva(0x93C69C),
-        rva(0x93C6A0),
-        rva(0x93C6A4),
-    ],
-    [
-        rva(0x93C6A8),
-        rva(0x93C6AC),
-        rva(0x93C6B0),
-        rva(0x93C6B4),
-        rva(0x93C6B8),
-    ],
-];
-/// The puff's: x wave (three factors, size), z wave (the same), y (add, factor, add),
-/// the motion's two factors.
-const PUFF_X: [usize; 4] = [rva(0x93C618), rva(0x93C61C), rva(0x93C620), 0];
-const PUFF_Z: [usize; 4] = [rva(0x93C624), rva(0x93C628), rva(0x93C62C), 0];
-const PUFF_Y: [usize; 3] = [rva(0x93C630), rva(0x93C634), rva(0x93C638)];
-const PUFF_M: [usize; 2] = [rva(0x93C63C), rva(0x93C640)];
-const PUFF_RVA: usize = rva(0x93A600); // flt_93A600 .. flt_93A614
 const BIGGER: u32 = 0x386A0;
 
-/// A call by place (see the header), with the x87 values it takes (st(0) first).
-pub type Part<'a> = &'a mut dyn FnMut(u32, &mut Regs, &[[u8; 10]]) -> Result<(), Refused>;
-
-unsafe fn get(a: u32) -> u32 {
-    unsafe { (a as *const u32).read_unaligned() }
+fn get(a: u32) -> Result<u32, BadInput> {
+    GamePtr::new(a).read("a game field")
 }
 
-unsafe fn put(a: u32, v: u32) {
-    unsafe { (a as *mut u32).write_unaligned(v) }
+fn put(a: u32, v: u32) -> Result<(), BadInput> {
+    GamePtr::new(a).write(v, "a game field")
 }
 
 /// A kind's colour index (life times +0x40, `fistp`) and whether it is in its table.
-unsafe fn colour_index(e: u32, life: u32) -> (i32, bool) {
-    unsafe {
-        let i = x87::int_times_to_int(life as i32, get(e + 0x40));
-        let ok = match get(e + 8) {
+fn colour_index(e: u32, life: u32) -> Result<(i32, bool), Refused> {
+    Ok({
+        let i = x87::int_times_to_int(life as i32, get(e + 0x40)?);
+        let ok = match get(e + 8)? {
             4 => (0..TRAIL_COLOURS).contains(&i),
             _ => {
-                let off = (get(e + 0x48) as i32).wrapping_add(i.wrapping_mul(4));
+                let off = (get(e + 0x48)? as i32).wrapping_add(i.wrapping_mul(4));
                 i >= 0 && (0..=BURST_COLOURS_LEN - 4).contains(&off)
             }
         };
         (i, ok)
-    }
+    })
 }
 
 /// Why it refuses, if it does: the walk as the original makes it, nothing written.
-unsafe fn refusal() -> Option<&'static str> {
-    unsafe {
-        let settings: u32 = game_read(SETTINGS_RVA);
+fn refusal() -> Result<Option<&'static str>, Refused> {
+    Ok({
+        let settings: u32 = crate::marks::setup::SETTINGS.pointer.get();
         if settings == 0 {
-            return Some("no marks settings");
+            return Ok(Some("no marks settings"));
         }
-        if get(settings + 4) == 0 {
-            return None;
+        if get(settings + 4)? == 0 {
+            return Ok(None);
         }
-        let ticks: u32 = game_read(TICKS_RVA);
-        let mut e: u32 = game_read(RING_FREE_RVA);
-        let used = game_read::<u32>(RING_USED_RVA) as i32;
-        if used > 0 && (e == 0 || get(e) == 0) {
-            return Some("a null particle ring entry");
+        let ticks: u32 = CLOCK.frame_ticks.get();
+        let mut e: u32 = RING_POOL.free.get();
+        let used = RING_POOL.used.get() as i32;
+        if used > 0 && (e == 0 || get(e)? == 0) {
+            return Ok(Some("a null particle ring entry"));
         }
         for _ in 0..used.max(0) {
-            if e == 0 || get(e) == 0 || get(e + 4) == 0 {
-                return Some("a null particle ring entry or link");
+            if e == 0 || get(e)? == 0 || get(e + 4)? == 0 {
+                return Ok(Some("a null particle ring entry or link"));
             }
-            let life = get(e + 0x44);
-            let kind = get(e + 8);
-            if life >= ticks && x87::compare_status(get(e + 0x10), get(e + 0x24)) != 0x100 {
+            let life = get(e + 0x44)?;
+            let kind = get(e + 8)?;
+            if life >= ticks && x87::compare_status(get(e + 0x10)?, get(e + 0x24)?) != 0x100 {
                 if ![0, 4, 8, 9].contains(&kind) {
-                    return Some("a particle of another kind (the original's stack goes wrong)");
+                    return Ok(Some(
+                        "a particle of another kind (the original's stack goes wrong)",
+                    ));
                 }
-                if kind != 0 && !colour_index(e, life - ticks).1 {
-                    return Some("a particle colour index out of its table");
+                if kind != 0 && !colour_index(e, life - ticks)?.1 {
+                    return Ok(Some("a particle colour index out of its table"));
                 }
             }
-            e = get(e + 4);
+            e = get(e + 4)?;
         }
         None
-    }
+    })
 }
 
-/// The step of the kind at e (see the header): its eax (1: the entry dies).
-unsafe fn step(g: &mut Regs, e: u32, part: &mut Part) -> Result<(), Refused> {
-    unsafe {
-        let t: i32 = game_read(TICKS_RVA);
-        let move_place = |with_up: bool| {
-            put(e + 0xC, x87::plus_times_int(get(e + 0xC), get(e + 0x28), t));
+/// The step of the kind at e (see the header): whether the entry dies.
+fn step(e: u32) -> Result<bool, Refused> {
+    use crate::marks::{burst_particles, draw_particle, trail_particles};
+    {
+        let t: i32 = CLOCK.frame_ticks.get() as i32;
+        let move_place = |with_up: bool| -> Result<_, Refused> {
+            put(
+                e + 0xC,
+                x87::plus_times_int(get(e + 0xC)?, get(e + 0x28)?, t),
+            )?;
             let y = if with_up {
-                x87::plus_sum_times_int(get(e + 0x10), get(e + 0x2C), get(e + 0x30), t)
+                x87::plus_sum_times_int(get(e + 0x10)?, get(e + 0x2C)?, get(e + 0x30)?, t)
             } else {
-                x87::plus_times_int(get(e + 0x10), get(e + 0x2C), t)
+                x87::plus_times_int(get(e + 0x10)?, get(e + 0x2C)?, t)
             };
-            put(e + 0x10, y);
+            put(e + 0x10, y)?;
             put(
                 e + 0x14,
-                x87::plus_times_int(get(e + 0x14), get(e + 0x34), t),
-            );
+                x87::plus_times_int(get(e + 0x14)?, get(e + 0x34)?, t),
+            )?;
+            Ok(())
         };
-        let gain_int = |k: usize| {
-            let v = x87::int_times_int_plus_int(game_read(k), t, get(e + 0x3C) as i32);
-            put(e + 0x3C, v as u32);
+        let gain_int = |k: &crate::session::Float| -> Result<_, Refused> {
+            let v = x87::int_times_int_plus_int(k.bits() as i32, t, get(e + 0x3C)? as i32);
+            put(e + 0x3C, v as u32)?;
+            Ok(())
         };
-        let keep_last = |g: &mut Regs| {
-            [g.eax, g.ebx, g.ecx] = [get(e + 0xC), get(e + 0x10), get(e + 0x14)];
-            put(e + 0x18, g.eax);
-            put(e + 0x1C, g.ebx);
-            put(e + 0x20, g.ecx);
+        let keep_last = || -> Result<_, Refused> {
+            put(e + 0x18, get(e + 0xC)?)?;
+            put(e + 0x1C, get(e + 0x10)?)?;
+            put(e + 0x20, get(e + 0x14)?)?;
+            Ok(())
         };
-        let place = || {
-            [
-                extended(get(e + 0xC)),
-                extended(get(e + 0x10)),
-                extended(get(e + 0x14)),
-            ]
+        let place = || -> Result<_, Refused> {
+            Ok({
+                [
+                    extended(get(e + 0xC)?),
+                    extended(get(e + 0x10)?),
+                    extended(get(e + 0x14)?),
+                ]
+            })
         };
-        match get(e + 8) {
+        match get(e + 8)? {
             0 => {
-                move_place(false);
+                move_place(false)?;
                 put(
                     e + 0x2C,
-                    x87::plus_times_int(get(e + 0x2C), game_read(DUST[0]), t),
-                );
-                gain_int(DUST[1]);
-                let s = x87::compare_status(game_read(DUST[2]), get(e + 0x2C));
-                game_write(STATUS_RVA, s as u32);
+                    x87::plus_times_int(get(e + 0x2C)?, PARTICLE_TUNING.dust[0].bits(), t),
+                )?;
+                gain_int(&PARTICLE_TUNING.dust[1])?;
+                let s = x87::compare_status(PARTICLE_TUNING.dust[2].bits(), get(e + 0x2C)?);
+                MARKS_WORK.fpu_status.set(s as u32);
                 if s != 0x100 {
-                    part(2, g, &[])?;
-                    g.eax = 1;
-                    return Ok(());
+                    burst_particles::burst_particles(e)?;
+                    return Ok(true);
                 }
-                if get(e + 0x2C) & 0x8000_0000 == 0 {
-                    part(3, g, &[])?;
+                if get(e + 0x2C)? & 0x8000_0000 == 0 {
+                    trail_particles::trail_particles(e)?;
                 }
-                keep_last(g);
-                g.eax = 0;
+                keep_last()?;
             }
             4 => {
-                move_place(false);
+                move_place(false)?;
                 put(
                     e + 0x2C,
-                    x87::plus_times_int(get(e + 0x2C), game_read(TRAIL[0]), t),
-                );
-                gain_int(TRAIL[1]);
-                let (i, _) = colour_index(e, get(e + 0x44));
-                game_write(INDEX_RVA, i);
-                g.eax = get(e + 0x3C) & 0xFF00_0000;
-                g.ecx = (game_read::<u32>(TRAIL_COLOURS_RVA + 4 * i as usize) & 0xFF_FFFF) | g.eax;
-                g.edx = get(e + 0x38);
-                part(4, g, &place())?;
-                keep_last(g);
-                g.eax = 0;
+                    x87::plus_times_int(get(e + 0x2C)?, PARTICLE_TUNING.trail[0].bits(), t),
+                )?;
+                gain_int(&PARTICLE_TUNING.trail[1])?;
+                let (i, _) = colour_index(e, get(e + 0x44)?)?;
+                RING_POOL.index.set(i as u32);
+                let alpha = get(e + 0x3C)? & 0xFF00_0000;
+                let colour = (TRAIL_PALETTE.colours[i as usize].get() & 0xFF_FFFF) | alpha;
+                draw_particle::draw_particle(place()?, colour, get(e + 0x38)?);
+                keep_last()?;
             }
             kind => {
-                let k = BURST[(kind == 9) as usize];
-                move_place(true);
+                let k = if kind == 9 {
+                    &PARTICLE_TUNING.burst9
+                } else {
+                    &PARTICLE_TUNING.burst8
+                };
+                move_place(true)?;
                 put(
                     e + 0x30,
-                    x87::plus_times_int(get(e + 0x30), game_read(k[0]), t),
-                );
-                put(
-                    e + 0x28,
-                    x87::less_own_times(get(e + 0x28), game_read(k[1])),
-                );
-                put(
-                    e + 0x2C,
-                    x87::less_own_times(get(e + 0x2C), game_read(k[2])),
-                );
-                put(
-                    e + 0x34,
-                    x87::less_own_times(get(e + 0x34), game_read(k[3])),
-                );
-                gain_int(k[4]);
-                let (i, _) = colour_index(e, get(e + 0x44));
-                game_write(INDEX_RVA, i);
-                g.ebx = get(e + 0x48);
-                g.eax = game_read::<u32>(
-                    BURST_COLOURS_RVA + (g.ebx as usize).wrapping_add(4 * i as usize),
-                );
-                g.ecx = get(e + 0x3C) & 0xFF00_0000;
-                g.eax &= 0xFF_FFFF;
-                if g.eax == 0 {
-                    g.eax = 1;
-                    return Ok(());
+                    x87::plus_times_int(get(e + 0x30)?, k[0].bits(), t),
+                )?;
+                put(e + 0x28, x87::less_own_times(get(e + 0x28)?, k[1].bits()))?;
+                put(e + 0x2C, x87::less_own_times(get(e + 0x2C)?, k[2].bits()))?;
+                put(e + 0x34, x87::less_own_times(get(e + 0x34)?, k[3].bits()))?;
+                gain_int(&k[4])?;
+                let (i, _) = colour_index(e, get(e + 0x44)?)?;
+                RING_POOL.index.set(i as u32);
+                let tint = BURST_COLOURS
+                    .table
+                    .get_u32((get(e + 0x48)? as usize).wrapping_add(4 * i as usize))
+                    & 0xFF_FFFF;
+                if tint == 0 {
+                    return Ok(true);
                 }
-                g.ecx |= g.eax;
-                g.edx = get(e + 0x38);
+                let colour = (get(e + 0x3C)? & 0xFF00_0000) | tint;
+                let mut size = get(e + 0x38)?;
                 if kind == 9 {
-                    let s = game_read::<u32>(SEED_RVA)
-                        .wrapping_mul(0x9D)
-                        .wrapping_add(0x47);
-                    game_write(SEED_RVA, s);
-                    g.ebx = s.rotate_right(16) & 0x7F;
-                    if g.ebx == 0 {
-                        g.edx = g.edx.wrapping_add(BIGGER);
+                    let s = MARKS_WORK.seed.get().wrapping_mul(0x9D).wrapping_add(0x47);
+                    MARKS_WORK.seed.set(s);
+                    if s.rotate_right(16) & 0x7F == 0 {
+                        size = size.wrapping_add(BIGGER);
                     }
                 }
-                part(4, g, &place())?;
-                g.eax = 0;
+                draw_particle::draw_particle(place()?, colour, size);
             }
         }
     }
-    Ok(())
+    Ok(false)
 }
 
-/// The Rust version (see the header): the registers it leaves.
-pub unsafe fn run_particles(entry: &Regs, mut part: Part) -> Result<Regs, Refused> {
-    if let Some(why) = unsafe { refusal() } {
+/// The Rust version (see the header).
+pub fn run_particles() -> Result<(), Refused> {
+    if let Some(why) = refusal()? {
         return Err(BadInput(why).into());
     }
-    let mut g = *entry;
-    unsafe {
-        let settings: u32 = game_read(SETTINGS_RVA);
-        g.esi = settings;
-        if get(settings + 4) == 0 {
-            return Ok(g);
+    {
+        let settings: u32 = crate::marks::setup::SETTINGS.pointer.get();
+        if get(settings + 4)? == 0 {
+            return Ok(());
         }
-        part(1, &mut g, &[])?;
-        g.esi = game_read(RING_FREE_RVA);
-        let mut counter = game_read::<u32>(RING_USED_RVA) as i32;
+        crate::marks::set_quad_uvs::set_quad_uvs();
+        let mut e: u32 = RING_POOL.free.get();
+        let mut counter = RING_POOL.used.get() as i32;
         loop {
             counter = counter.wrapping_sub(1);
             if counter < 0 {
                 break;
             }
-            let e = g.esi;
-            let next = get(e + 4);
-            g.eax = game_read(TICKS_RVA);
-            let life = get(e + 0x44);
-            put(e + 0x44, life.wrapping_sub(g.eax));
-            let mut dies = life < g.eax;
+            let next = get(e + 4)?;
+            let t: u32 = CLOCK.frame_ticks.get();
+            let life = get(e + 0x44)?;
+            put(e + 0x44, life.wrapping_sub(t))?;
+            let mut dies = life < t;
             if !dies {
-                let s = x87::compare_status(get(e + 0x10), get(e + 0x24));
-                game_write(STATUS_RVA, s as u32);
+                let s = x87::compare_status(get(e + 0x10)?, get(e + 0x24)?);
+                MARKS_WORK.fpu_status.set(s as u32);
                 dies = s == 0x100;
                 if !dies {
-                    step(&mut g, e, &mut part)?;
-                    dies = g.eax == 1;
+                    dies = step(e)?;
                 }
             }
             if dies {
-                game_write(
-                    RING_USED_RVA,
-                    game_read::<u32>(RING_USED_RVA).wrapping_sub(1),
-                );
-                if e == game_read::<u32>(RING_FREE_RVA) {
-                    g.eax = get(e + 4);
-                    game_write(RING_FREE_RVA, g.eax);
+                RING_POOL.used.set(RING_POOL.used.get().wrapping_sub(1));
+                if e == RING_POOL.free.get() {
+                    RING_POOL.free.set(get(e + 4)?);
                 } else {
-                    g.ebx = get(e);
-                    g.ecx = get(e + 4);
-                    put(g.ebx + 4, g.ecx);
-                    put(g.ecx, g.ebx);
-                    g.ebx = game_read(RING_FREE_RVA);
-                    g.ecx = get(g.ebx);
-                    put(g.ebx, e);
-                    put(g.ecx + 4, e);
-                    put(e, g.ecx);
-                    put(e + 4, g.ebx);
+                    let (before, after) = (get(e)?, get(e + 4)?);
+                    put(before + 4, after)?;
+                    put(after, before)?;
+                    let free: u32 = RING_POOL.free.get();
+                    let last = get(free)?;
+                    put(free, e)?;
+                    put(last + 4, e)?;
+                    put(e, last)?;
+                    put(e + 4, free)?;
                 }
             }
-            g.esi = next;
+            e = next;
         }
-        if game_read::<u32>(STEPS_RVA) & 7 != 0 {
-            return Ok(g);
+        if MARKS_FRAME.steps.bits() & 7 != 0 {
+            return Ok(());
         }
-        game_write(PUFF_FLAG_RVA, 1u32);
+        crate::sound::store::STAGE_SOUNDS.random[0].set(1);
         let seed = || {
-            let s = game_read::<u32>(SEED_RVA)
-                .wrapping_mul(0x9D)
-                .wrapping_add(0x47);
-            game_write(SEED_RVA, s);
+            let s = MARKS_WORK.seed.get().wrapping_mul(0x9D).wrapping_add(0x47);
+            MARKS_WORK.seed.set(s);
             s & 0xFFFF
         };
         let r = seed();
-        g.ebp = game_addr(VIEW_RVA) as u32;
-        let view = |o: u32| get(g.ebp + o);
-        let uv_k: u32 = game_read(UV_K_RVA);
-        let wave = |k: [usize; 4], add: u32, cosine: bool| {
+        let at = MATRICES.view_place[0].addr();
+        let view = |o: u32| -> Result<_, Refused> { Ok(get(at + o)?) };
+        let uv_k: u32 = DRAW_WORK.uv_k.bits();
+        let wave = |k: &[crate::session::Float; 3], add: u32, cosine: bool| {
             x87::int_times3_wave_plus(
                 r as i32,
-                [uv_k, game_read(k[0]), game_read(k[1])],
-                game_read(k[2]),
+                [uv_k, k[0].bits(), k[1].bits()],
+                k[2].bits(),
                 add,
                 cosine,
             )
         };
-        let x = wave(PUFF_X, view(0x30), false);
-        let y = x87::loaded(view(0x34));
-        let z = wave(PUFF_Z, view(0x38), true);
-        g.eax = seed();
+        let x = wave(&PARTICLE_TUNING.puff_x, view(0x30)?, false);
+        let y = x87::loaded(view(0x34)?);
+        let z = wave(&PARTICLE_TUNING.puff_z, view(0x38)?, true);
+        let lift = seed();
         let up = x87::int_times_plus_times_plus(
-            g.eax as i32,
+            lift as i32,
             uv_k,
-            game_read(PUFF_Y[0]),
-            game_read(PUFF_Y[1]),
-            game_read(PUFF_Y[2]),
+            PARTICLE_TUNING.puff_y[0].bits(),
+            PARTICLE_TUNING.puff_y[1].bits(),
+            PARTICLE_TUNING.puff_y[2].bits(),
         );
-        let mx = x87::sub_mul(view(0x30), x, game_read(PUFF_M[0]));
-        let mz = x87::sub_mul(view(0x38), z, game_read(PUFF_M[1]));
+        let mx = x87::sub_mul(view(0x30)?, x, PARTICLE_TUNING.puff_m[0].bits());
+        let mz = x87::sub_mul(view(0x38)?, z, PARTICLE_TUNING.puff_m[1].bits());
         for (n, v) in [x, y, z, mx, up, mz].into_iter().enumerate() {
-            game_write(PUFF_RVA + 4 * n, v);
+            PUFF_WORK.puff[n].set_bits(v);
         }
-        g.eax = 0;
         let six = [mz, up, mx, z, y, x].map(extended);
-        part(5, &mut g, &six)?;
-    }
-    Ok(g)
-}
-
-/// In the game: the calls' Rust versions.
-pub fn game_part(place: u32, r: &mut Regs, v: &[[u8; 10]]) -> Result<(), Refused> {
-    use crate::marks::{
-        add_drift_particle, burst_particles, draw_particle, set_quad_uvs, trail_particles,
-    };
-    unsafe {
-        let left = match place {
-            1 => set_quad_uvs::set_quad_uvs(r),
-            2 => burst_particles::burst_particles(r)?,
-            3 => trail_particles::trail_particles(r)?,
-            4 => {
-                draw_particle::draw_particle(r, [v[0], v[1], v[2]], &mut draw_particle::game_part)?
-            }
-            _ => {
-                add_drift_particle::add_drift_particle(
-                    r.eax,
-                    [v[0], v[1], v[2], v[3], v[4], v[5]],
-                )?;
-                return Ok(());
-            }
-        };
-        *r = Regs {
-            esp: r.esp,
-            eflags: r.eflags,
-            ..left
-        };
+        crate::marks::add_drift_particle::add_drift_particle(0, six)?;
     }
     Ok(())
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    HOOK.count_call();
-    if shadow() {
-        unsafe { call_original(r) };
-        return;
+/// The trail particles' colours (IDA 0x922B38 .. 0x922FE0, the image's layout; phase 7, typed state).
+#[repr(C)]
+pub struct TrailColours {
+    /// 0x922B38: `dword_922B38`: the trail particles' 298 colours (`marks::run_particles`).
+    pub colours: [Dword; 298],
+}
+
+pub static TRAIL_PALETTE: TrailColours = TrailColours {
+    colours: [
+        Dword::new(0xFF0000),
+        Dword::new(0xFF0200),
+        Dword::new(0xFF0400),
+        Dword::new(0xFF0600),
+        Dword::new(0xFF0800),
+        Dword::new(0xFF0A00),
+        Dword::new(0xFF0C00),
+        Dword::new(0xFF0E00),
+        Dword::new(0xFF1000),
+        Dword::new(0xFF1200),
+        Dword::new(0xFF1400),
+        Dword::new(0xFF1600),
+        Dword::new(0xFF1800),
+        Dword::new(0xFF1A00),
+        Dword::new(0xFF1C00),
+        Dword::new(0xFF1E00),
+        Dword::new(0xFF2000),
+        Dword::new(0xFF2200),
+        Dword::new(0xFF2400),
+        Dword::new(0xFF2600),
+        Dword::new(0xFF2800),
+        Dword::new(0xFF2A00),
+        Dword::new(0xFF2C00),
+        Dword::new(0xFF2E00),
+        Dword::new(0xFF3000),
+        Dword::new(0xFF3200),
+        Dword::new(0xFF3400),
+        Dword::new(0xFF3600),
+        Dword::new(0xFF3800),
+        Dword::new(0xFF3A00),
+        Dword::new(0xFF3C00),
+        Dword::new(0xFF3E00),
+        Dword::new(0xFF4000),
+        Dword::new(0xFF4200),
+        Dword::new(0xFF4400),
+        Dword::new(0xFF4600),
+        Dword::new(0xFF4800),
+        Dword::new(0xFF4A00),
+        Dword::new(0xFF4C00),
+        Dword::new(0xFF4E00),
+        Dword::new(0xFF5000),
+        Dword::new(0xFF5200),
+        Dword::new(0xFF5400),
+        Dword::new(0xFF5600),
+        Dword::new(0xFF5800),
+        Dword::new(0xFF5A00),
+        Dword::new(0xFF5C00),
+        Dword::new(0xFF5E00),
+        Dword::new(0xFF6000),
+        Dword::new(0xFF6200),
+        Dword::new(0xFF6400),
+        Dword::new(0xFF6600),
+        Dword::new(0xFF6800),
+        Dword::new(0xFF6A00),
+        Dword::new(0xFF6C00),
+        Dword::new(0xFF6E00),
+        Dword::new(0xFF7000),
+        Dword::new(0xFF7200),
+        Dword::new(0xFF7400),
+        Dword::new(0xFF7600),
+        Dword::new(0xFF7800),
+        Dword::new(0xFF7A00),
+        Dword::new(0xFF7C00),
+        Dword::new(0xFF7E00),
+        Dword::new(0xFF8000),
+        Dword::new(0xFF8200),
+        Dword::new(0xFF8400),
+        Dword::new(0xFF8600),
+        Dword::new(0xFF8800),
+        Dword::new(0xFF8A00),
+        Dword::new(0xFF8C00),
+        Dword::new(0xFF8E00),
+        Dword::new(0xFF9000),
+        Dword::new(0xFF9200),
+        Dword::new(0xFF9400),
+        Dword::new(0xFF9600),
+        Dword::new(0xFF9800),
+        Dword::new(0xFF9A00),
+        Dword::new(0xFF9C00),
+        Dword::new(0xFF9E00),
+        Dword::new(0xFFA000),
+        Dword::new(0xFFA200),
+        Dword::new(0xFFA400),
+        Dword::new(0xFFA600),
+        Dword::new(0xFFA800),
+        Dword::new(0xFFAA00),
+        Dword::new(0xFFAC00),
+        Dword::new(0xFFAE00),
+        Dword::new(0xFFB000),
+        Dword::new(0xFFB200),
+        Dword::new(0xFFB400),
+        Dword::new(0xFFB600),
+        Dword::new(0xFFB800),
+        Dword::new(0xFFBA00),
+        Dword::new(0xFFBC00),
+        Dword::new(0xFFBE00),
+        Dword::new(0xFFC000),
+        Dword::new(0xFFC200),
+        Dword::new(0xFFC400),
+        Dword::new(0xFFC600),
+        Dword::new(0xFFC800),
+        Dword::new(0xFFCA00),
+        Dword::new(0xFFCC00),
+        Dword::new(0xFFCE00),
+        Dword::new(0xFFD000),
+        Dword::new(0xFFD200),
+        Dword::new(0xFFD400),
+        Dword::new(0xFFD600),
+        Dword::new(0xFFD800),
+        Dword::new(0xFFDA00),
+        Dword::new(0xFFDC00),
+        Dword::new(0xFFDE00),
+        Dword::new(0xFFE000),
+        Dword::new(0xFFE200),
+        Dword::new(0xFFE400),
+        Dword::new(0xFFE600),
+        Dword::new(0xFFE800),
+        Dword::new(0xFFEA00),
+        Dword::new(0xFFEC00),
+        Dword::new(0xFFEE00),
+        Dword::new(0xFFF000),
+        Dword::new(0xFFF200),
+        Dword::new(0xFFF400),
+        Dword::new(0xFFF600),
+        Dword::new(0xFFF800),
+        Dword::new(0xFFFA00),
+        Dword::new(0xFFFC00),
+        Dword::new(0xFFFE00),
+        Dword::new(0xFFFF00),
+        Dword::new(0xFFFF02),
+        Dword::new(0xFFFF04),
+        Dword::new(0xFFFF06),
+        Dword::new(0xFFFF08),
+        Dword::new(0xFFFF0A),
+        Dword::new(0xFFFF0C),
+        Dword::new(0xFFFF0E),
+        Dword::new(0xFFFF10),
+        Dword::new(0xFFFF12),
+        Dword::new(0xFFFF14),
+        Dword::new(0xFFFF16),
+        Dword::new(0xFFFF18),
+        Dword::new(0xFFFF1A),
+        Dword::new(0xFFFF1C),
+        Dword::new(0xFFFF1E),
+        Dword::new(0xFFFF20),
+        Dword::new(0xFFFF22),
+        Dword::new(0xFFFF24),
+        Dword::new(0xFFFF26),
+        Dword::new(0xFFFF28),
+        Dword::new(0xFFFF2A),
+        Dword::new(0xFFFF2C),
+        Dword::new(0xFFFF2E),
+        Dword::new(0xFFFF30),
+        Dword::new(0xFFFF32),
+        Dword::new(0xFFFF34),
+        Dword::new(0xFFFF36),
+        Dword::new(0xFFFF38),
+        Dword::new(0xFFFF3A),
+        Dword::new(0xFFFF3C),
+        Dword::new(0xFFFF3E),
+        Dword::new(0xFFFF40),
+        Dword::new(0xFFFF42),
+        Dword::new(0xFFFF44),
+        Dword::new(0xFFFF46),
+        Dword::new(0xFFFF48),
+        Dword::new(0xFFFF4A),
+        Dword::new(0xFFFF4C),
+        Dword::new(0xFFFF4E),
+        Dword::new(0xFFFF50),
+        Dword::new(0xFFFF52),
+        Dword::new(0xFFFF54),
+        Dword::new(0xFFFF56),
+        Dword::new(0xFFFF58),
+        Dword::new(0xFFFF5A),
+        Dword::new(0xFFFF5C),
+        Dword::new(0xFFFF5E),
+        Dword::new(0xFFFF60),
+        Dword::new(0xFFFF62),
+        Dword::new(0xFFFF64),
+        Dword::new(0xFFFF66),
+        Dword::new(0xFFFF68),
+        Dword::new(0xFFFF6A),
+        Dword::new(0xFFFF6C),
+        Dword::new(0xFFFF6E),
+        Dword::new(0xFFFF70),
+        Dword::new(0xFFFF72),
+        Dword::new(0xFFFF74),
+        Dword::new(0xFFFF76),
+        Dword::new(0xFFFF78),
+        Dword::new(0xFFFF7A),
+        Dword::new(0xFFFF7C),
+        Dword::new(0xFFFF7E),
+        Dword::new(0xFFFF80),
+        Dword::new(0xFFFF82),
+        Dword::new(0xFFFF84),
+        Dword::new(0xFFFF86),
+        Dword::new(0xFFFF88),
+        Dword::new(0xFFFF8A),
+        Dword::new(0xFFFF8C),
+        Dword::new(0xFFFF8E),
+        Dword::new(0xFFFF90),
+        Dword::new(0xFFFF92),
+        Dword::new(0xFFFF94),
+        Dword::new(0xFFFF96),
+        Dword::new(0xFFFF98),
+        Dword::new(0xFFFF9A),
+        Dword::new(0xFFFF9C),
+        Dword::new(0xFFFF9E),
+        Dword::new(0xFFFFA0),
+        Dword::new(0xFFFFA2),
+        Dword::new(0xFFFFA4),
+        Dword::new(0xFFFFA6),
+        Dword::new(0xFFFFA8),
+        Dword::new(0xFFFFAA),
+        Dword::new(0xFFFFAC),
+        Dword::new(0xFFFFAE),
+        Dword::new(0xFFFFB0),
+        Dword::new(0xFFFFB2),
+        Dword::new(0xFFFFB4),
+        Dword::new(0xFFFFB6),
+        Dword::new(0xFFFFB8),
+        Dword::new(0xFFFFBA),
+        Dword::new(0xFFFFBC),
+        Dword::new(0xFFFFBE),
+        Dword::new(0xFFFFC0),
+        Dword::new(0xFFFFC2),
+        Dword::new(0xFFFFC4),
+        Dword::new(0xFFFFC6),
+        Dword::new(0xFFFFC8),
+        Dword::new(0xFFFFCA),
+        Dword::new(0xFFFFCC),
+        Dword::new(0xFFFFCE),
+        Dword::new(0xFFFFD0),
+        Dword::new(0xFFFFD2),
+        Dword::new(0xFFFFD4),
+        Dword::new(0xFFFFD6),
+        Dword::new(0xFFFFD8),
+        Dword::new(0xFFFFDA),
+        Dword::new(0xFFFFDC),
+        Dword::new(0xFFFFDE),
+        Dword::new(0xFFFFE0),
+        Dword::new(0xFFFFE2),
+        Dword::new(0xFFFFE4),
+        Dword::new(0xFFFFE6),
+        Dword::new(0xFFFFE8),
+        Dword::new(0xFFFFEA),
+        Dword::new(0xFFFFEC),
+        Dword::new(0xFFFFEE),
+        Dword::new(0xFFFFF0),
+        Dword::new(0xFFFFF2),
+        Dword::new(0xFFFFF4),
+        Dword::new(0xFFFFF6),
+        Dword::new(0xFFFFF8),
+        Dword::new(0xFFFFFA),
+        Dword::new(0xFFFFFC),
+        Dword::new(0xFFFFFE),
+        Dword::new(0xFFFFFF),
+        Dword::new(0xFFFFFF),
+        Dword::new(0xFFFFFF),
+        Dword::new(0xFFFFFF),
+        Dword::new(0xFFFFFF),
+        Dword::new(0xFFFFFF),
+        Dword::new(0xFFFFFF),
+        Dword::new(0xFFFFFF),
+        Dword::new(0xFFFFFF),
+        Dword::new(0xFFFFFF),
+        Dword::new(0xFFFFFF),
+        Dword::new(0xFFFFFF),
+        Dword::new(0xFFFFFF),
+        Dword::new(0xFFFFFF),
+        Dword::new(0xFFFFFF),
+        Dword::new(0xFFFFFF),
+        Dword::new(0xFFFFFF),
+        Dword::new(0xFFFFFF),
+        Dword::new(0xFFFFFF),
+        Dword::new(0xFFFFFF),
+        Dword::new(0xFFFFFF),
+        Dword::new(0xFFFFFF),
+        Dword::new(0xFFFFFF),
+        Dword::new(0xFFFFFF),
+        Dword::new(0xFFFFFF),
+        Dword::new(0xFFFFFF),
+        Dword::new(0xFFFFFF),
+        Dword::new(0xFFFFFF),
+        Dword::new(0xFFFFFF),
+        Dword::new(0xFFFFFF),
+        Dword::new(0xFFFFFF),
+        Dword::new(0xFFFFFF),
+        Dword::new(0xFFFFFF),
+        Dword::new(0xFFFFFF),
+        Dword::new(0xFFFFFF),
+        Dword::new(0xFFFFFF),
+        Dword::new(0xFFFFFF),
+        Dword::new(0xFFFFFF),
+        Dword::new(0xFFFFFF),
+        Dword::new(0xFFFFFF),
+        Dword::new(0xFFFFFF),
+        Dword::new(0xFFFFFF),
+    ],
+};
+
+impl TrailColours {
+    pub const START: usize = 0x922B38;
+    pub const LEN: usize = 0x4A8;
+    /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
+    pub fn home() -> usize {
+        crate::pointers::game_address(&TRAIL_PALETTE as *const TrailColours) as usize
     }
-    match unsafe { run_particles(r, &mut game_part) } {
-        Ok(left) => {
-            *r = Regs {
-                esp: r.esp,
-                eflags: r.eflags,
-                ..left
-            }
-        }
-        Err(e) => unsafe { crate::fatal::raise::refused(&HOOK, e, r, call_original) },
+}
+
+/// The puff's work values (IDA 0x93A5F0 .. 0x93A618, the image's layout; phase 7, typed state).
+#[repr(C)]
+pub struct PuffWork {
+    /// 0x93A5F0: Not named: 16 bytes (a gap, or unreferenced data)
+    pub _gap_93a5f0: Bytes<16>,
+    /// 0x93A600: `flt_93A600` .. `flt_93A614`: the puff's place, size and motion
+    pub puff: [Float; 6],
+}
+
+/// PuffWork's first values.
+pub static PUFF_WORK: PuffWork = PuffWork {
+    _gap_93a5f0: Bytes::new([
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x80, 0xC5, 0x00, 0x00, 0x00,
+        0x00,
+    ]),
+    puff: [
+        Float::from_bits(0x0),
+        Float::from_bits(0x0),
+        Float::from_bits(0x0),
+        Float::from_bits(0x0),
+        Float::from_bits(0x0),
+        Float::from_bits(0x0),
+    ],
+};
+
+impl PuffWork {
+    pub const START: usize = 0x93A5F0;
+    pub const LEN: usize = 0x28;
+    /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
+    pub fn home() -> usize {
+        crate::pointers::game_address(&PUFF_WORK as *const PuffWork) as usize
     }
 }
 
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    {
-        let left = unsafe { run_particles(r, &mut game_part) }?;
-        *r = Regs {
-            esp: r.esp,
-            eflags: r.eflags,
-            ..left
-        }
-    }
-    Ok(())
-}
+#[cfg(test)]
+mod typed_tests {
+    use super::*;
+    use core::mem::size_of;
 
-/// A call as the test notes it: place, eax .. esi, the x87 values.
-type Noted = (u32, [u32; 5], Vec<[u8; 10]>);
-
-static NOTED: Mutex<Vec<Noted>> = Mutex::new(Vec::new());
-
-fn note(place: u32, r: &Regs, v: &[[u8; 10]]) {
-    NOTED
-        .lock()
-        .unwrap()
-        .push((place, [r.eax, r.ebx, r.ecx, r.edx, r.esi], v.to_vec()));
-}
-
-fn note_regs(place: u32, r: &mut Regs) {
-    note(place, r, &[]);
-}
-
-extern "C" fn note_x87(place: u32, r: *const Regs, v: *const [u8; 10], n: u32) {
-    let vals = unsafe { std::slice::from_raw_parts(v, n as usize) };
-    note(place, unsafe { &*r }, vals);
-}
-
-/// The test's stand-in for `draw_particle`: its three values taken off and noted.
-#[unsafe(naked)]
-unsafe extern "C" fn draw_stand_in() {
-    core::arch::naked_asm!(
-        "lea esp, [esp - 30]",
-        "fstp tbyte ptr [esp]",
-        "fstp tbyte ptr [esp + 10]",
-        "fstp tbyte ptr [esp + 20]",
-        "pushfd",
-        "pushad",
-        "mov eax, esp",
-        "lea ecx, [esp + 36]",
-        "push 3",
-        "push ecx",
-        "push eax",
-        "push 4",
-        "call {note}",
-        "add esp, 16",
-        "popad",
-        "popfd",
-        "lea esp, [esp + 30]",
-        "ret",
-        note = sym note_x87,
-    )
-}
-
-/// The test's stand-in for `add_drift_particle`: its six values taken off and noted.
-#[unsafe(naked)]
-unsafe extern "C" fn drift_stand_in() {
-    core::arch::naked_asm!(
-        "lea esp, [esp - 60]",
-        "fstp tbyte ptr [esp]",
-        "fstp tbyte ptr [esp + 10]",
-        "fstp tbyte ptr [esp + 20]",
-        "fstp tbyte ptr [esp + 30]",
-        "fstp tbyte ptr [esp + 40]",
-        "fstp tbyte ptr [esp + 50]",
-        "pushfd",
-        "pushad",
-        "mov eax, esp",
-        "lea ecx, [esp + 36]",
-        "push 6",
-        "push ecx",
-        "push eax",
-        "push 5",
-        "call {note}",
-        "add esp, 16",
-        "popad",
-        "popfd",
-        "lea esp, [esp + 60]",
-        "ret",
-        note = sym note_x87,
-    )
-}
-
-fn self_test() -> (usize, usize) {
-    use crate::install::stand_ins::{set_handler, stand_in};
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    set_handler(note_regs);
-    let copy = match unsafe {
-        crate::redirect::RedirectedCopy::with_bytes(
-            game_addr(rva(0x4CFB49)),
-            LEN,
-            &[
-                // jmp short +0x21, test byte_4F6B86, 0FFh
-                (0, &[0xEB, 0x21, 0xF6, 0x05, 0x86, 0x6B, 0x4F, 0x00, 0xFF]),
-                // 0x4CFD6A, a hooked function's start: call 0x44E3D1
-                (0x221, &[0xE8, 0x62, 0xE6, 0xF7, 0xFF]),
-            ],
-            &CALLS,
-            &|c| match c + 0x40_0000 {
-                0x4CFD6A => Some(stand_in(1)),
-                0x4D0146 => Some(stand_in(2)),
-                0x4CFFE3 => Some(stand_in(3)),
-                0x4CFDD5 => Some(draw_stand_in as *const () as usize),
-                0x4CFF57 => Some(drift_stand_in as *const () as usize),
-                _ => None,
-            },
-        )
-    } {
-        Ok(c) => c,
-        Err(why) => return t.skip(why),
-    };
-    // The kinds' return address (`push offset loc_4CFC25`) into the copy.
-    unsafe { copy.patch_u32(0xB0, (copy.addr() + 0xDC) as u32) };
-    const ENTRIES: u32 = 12;
-    let mut ring = vec![0u8; (ENTRIES * RING_ENTRY) as usize];
-    let base = ring.as_mut_ptr() as u32;
-    let mut settings = vec![0u32; 4];
-    let sa = settings.as_mut_ptr() as u32;
-    let regions: Vec<Region> = [
-        RING_FREE_RVA,
-        RING_USED_RVA,
-        SEED_RVA,
-        STATUS_RVA,
-        INDEX_RVA,
-        PUFF_FLAG_RVA,
-    ]
-    .map(at)
-    .into_iter()
-    .chain([(game_addr(PUFF_RVA) as u32, 24), (base, ring.len())])
-    .collect();
-    let mut vars = regions.clone();
-    vars.extend([SETTINGS_RVA, TICKS_RVA, STEPS_RVA].map(at));
-    let saved = capture(&vars);
-    let regs = |r: &Regs| [r.eax, r.ebx, r.ecx, r.edx, r.esi, r.edi, r.ebp];
-    for case in 0..5u32 {
-        let prepare = || unsafe {
-            restore(&vars, &saved);
-            game_write(SETTINGS_RVA, sa);
-            put(sa + 4, u32::from(case != 4));
-            game_write(TICKS_RVA, 3 + case);
-            game_write(STEPS_RVA, if case % 2 == 0 { 8 } else { 3 });
-            game_write(SEED_RVA, case.wrapping_mul(0x2545_F491) | 1);
-            std::ptr::write_bytes(base as *mut u8, 0, ring.len());
-            for n in 0..ENTRIES {
-                let e = base + n * RING_ENTRY;
-                let at = |k: u32| base + ((k + ENTRIES) % ENTRIES) * RING_ENTRY;
-                put(e, at(n + ENTRIES - 1));
-                put(e + 4, at(n + 1));
-                let k = (n + case) as f32;
-                put(e + 8, [0, 4, 8, 9][((n + case) % 4) as usize]);
-                for o in 0..9u32 {
-                    put(e + 0xC + 4 * o, (k * 0.5 - o as f32 * 1.25).to_bits());
-                }
-                // y above its ground but for one; motion up and down.
-                put(e + 0x10, (5.0 + k).to_bits());
-                put(e + 0x24, if n == 5 { 99.0f32 } else { -2.0 }.to_bits());
-                put(
-                    e + 0x2C,
-                    (if n % 3 == 0 { 0.5f32 } else { -0.25 }).to_bits(),
-                );
-                put(e + 0x30, 0.125f32.to_bits());
-                put(e + 0x38, 0x4000 + n);
-                put(e + 0x3C, 0x7F00_0000 + n * 0x10_0000);
-                put(e + 0x40, (1.0f32 / 64.0).to_bits());
-                put(e + 0x44, if n == 3 { 1 } else { 400 + n * 50 });
-                put(e + 0x48, (n % 8) * 0x400);
-            }
-            game_write(RING_FREE_RVA, base + 2 * RING_ENTRY);
-            game_write(RING_USED_RVA, 8u32);
-        };
-        if unsafe {
-            prepare();
-            refusal()
-        }
-        .is_some()
-        {
-            t.check(true, String::new);
-            continue;
-        }
-        prepare();
-        NOTED.lock().unwrap().clear();
-        let mut ro = Regs::SENTINEL;
-        unsafe { crate::framework::call_game(&mut ro, copy.addr()) };
-        let theirs = (
-            Some(regs(&ro)),
-            std::mem::take(&mut *NOTED.lock().unwrap()),
-            capture(&regions),
-        );
-        prepare();
+    #[test]
+    fn trail_colours_starts_as_the_games() {
+        assert_eq!(size_of::<TrailColours>(), TrailColours::LEN);
+        let image = crate::moved::image_bytes(TrailColours::START, TrailColours::LEN);
         let mine = unsafe {
-            run_particles(&Regs::SENTINEL, &mut |p, r, v| {
-                note(p, r, v);
-                Ok(())
-            })
-        };
-        let mine = (
-            mine.as_ref().ok().map(regs),
-            std::mem::take(&mut *NOTED.lock().unwrap()),
-            capture(&regions),
-        );
-        t.check(theirs == mine, || {
-            format!(
-                "case {case}: original {:x?} {} calls; rust {:x?} {} calls; calls same {}; state first differs at {:?}",
-                theirs.0,
-                theirs.1.len(),
-                mine.0,
-                mine.1.len(),
-                theirs.1 == mine.1,
-                theirs.2.iter().zip(&mine.2).position(|(a, b)| a != b)
+            std::slice::from_raw_parts(
+                crate::pointers::host_at(TrailColours::home()) as *const u8,
+                TrailColours::LEN,
             )
-        });
+        };
+        assert!(
+            mine == &image[..],
+            "TRAIL_PALETTE starts differently from the image"
+        );
     }
-    restore(&vars, &saved);
-    drop((ring, settings));
-    t.finish()
+}
+
+#[cfg(test)]
+mod puff_work_tests {
+    use super::*;
+    use core::mem::offset_of;
+
+    fn bytes<T>(v: &T) -> Vec<u8> {
+        let p = v as *const T as *const u8;
+        (0..size_of::<T>())
+            .map(|i| unsafe { p.add(i).read() })
+            .collect()
+    }
+
+    #[test]
+    fn puff_work_starts_as_the_games() {
+        assert_eq!(size_of::<PuffWork>(), PuffWork::LEN);
+        assert!(
+            bytes(&PUFF_WORK) == crate::moved::image_bytes(PuffWork::START, PuffWork::LEN),
+            "PUFF_WORK starts differently from the image"
+        );
+        assert_eq!(offset_of!(PuffWork, puff), 0x93A600 - PuffWork::START);
+    }
+}
+
+/// The ramps' multipliers: ramp `r` holds `step * RAMPS[r]` for the steps 0 .. 255 (the burst particle colours).
+const fn burst_colours() -> [u8; 0x2000] {
+    const RAMPS: [u32; 8] = [0x10000, 0x10100, 0x100, 0x101, 1, 0x10001, 0x10101, 0x10101];
+    let mut table = [0u8; 0x2000];
+    let mut i = 0;
+    while i < 0x800 {
+        let v = ((i & 255) as u32).wrapping_mul(RAMPS[i >> 8]).to_le_bytes();
+        let mut k = 0;
+        while k < 4 {
+            table[4 * i + k] = v[k];
+            k += 1;
+        }
+        i += 1;
+    }
+    table
+}
+
+/// The burst particles' colour ramps (IDA 0x93A618 .. 0x93C618, the image's layout; phase 7, typed state).
+#[repr(C)]
+pub struct BurstColours {
+    /// 0x93A618: `dword_93A618`: 8 ramps of 256 dwords (a channel mask times the step)
+    pub table: Bytes<8192>,
+}
+
+/// BurstColours's first values.
+pub static BURST_COLOURS: BurstColours = BurstColours {
+    table: Bytes::new(burst_colours()),
+};
+
+impl BurstColours {
+    pub const START: usize = 0x93A618;
+    pub const LEN: usize = 0x2000;
+    /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
+    pub fn home() -> usize {
+        crate::pointers::game_address(&BURST_COLOURS as *const BurstColours) as usize
+    }
+}
+
+#[cfg(test)]
+mod burst_colours_tests {
+    use super::*;
+    use core::mem::offset_of;
+
+    fn bytes<T>(v: &T) -> Vec<u8> {
+        let p = v as *const T as *const u8;
+        (0..size_of::<T>())
+            .map(|i| unsafe { p.add(i).read() })
+            .collect()
+    }
+
+    #[test]
+    fn burst_colours_starts_as_the_games() {
+        assert_eq!(size_of::<BurstColours>(), BurstColours::LEN);
+        assert!(
+            bytes(&BURST_COLOURS)
+                == crate::moved::image_bytes(BurstColours::START, BurstColours::LEN),
+            "BURST_COLOURS starts differently from the image"
+        );
+        assert_eq!(
+            offset_of!(BurstColours, table),
+            0x93A618 - BurstColours::START
+        );
+    }
+}
+
+/// The particle effects' constants (`run_particles`, `trail_particles`, `burst_particles`, `add_drift_particle`) (IDA 0x93C618 .. 0x93C6C8, the image's layout; phase 7, typed state).
+#[repr(C)]
+pub struct ParticleTuning {
+    /// 0x93C618: `flt_93C618` .. `flt_93C620`: the puff's x wave (three factors)
+    pub puff_x: [Float; 3],
+    /// 0x93C624: `flt_93C624` .. `flt_93C62C`: the puff's z wave
+    pub puff_z: [Float; 3],
+    /// 0x93C630: `flt_93C630` .. `flt_93C638`: the puff's y (add, factor, add)
+    pub puff_y: [Float; 3],
+    /// 0x93C63C: `flt_93C63C`, `flt_93C640`: the puff's motion factors
+    pub puff_m: [Float; 2],
+    /// 0x93C644: `flt_93C644`: an added drift particle's last y is less this
+    pub drift_lower: Float,
+    /// 0x93C648: `flt_93C648`: the trail's random radius factor
+    pub trail_random_k: Float,
+    /// 0x93C64C: `flt_93C64C` .. `flt_93C660`: per axis (x, y, z) the trail's two motion factors
+    pub trail_axes: [Float; 6],
+    /// 0x93C664: `flt_93C664`: the trail's spread
+    pub trail_spread: Float,
+    /// 0x93C668: `flt_93C668`, `flt_93C66C`: the trail's size factor and base
+    pub trail_size_k: [Float; 2],
+    /// 0x93C670: `flt_93C670`: the trail's life factor
+    pub trail_life_k: Float,
+    /// 0x93C674: `flt_93C674`, `flt_93C678`: the burst radius' base and scale
+    pub burst_scale: [Float; 2],
+    /// 0x93C67C: `flt_93C67C`: the burst particle's life factor
+    pub burst_life: Float,
+    /// 0x93C680: `flt_93C680`, `dword_93C684`, `flt_93C688`: kind 0's gain, int gain and least
+    pub dust: [Float; 3],
+    /// 0x93C68C: `flt_93C68C`, `dword_93C690`: kind 4's gain and int gain
+    pub trail: [Float; 2],
+    /// 0x93C694: `flt_93C694` .. `dword_93C6A4`: kind 8's +0x30 gain, three dampings, +0x3C gain
+    pub burst8: [Float; 5],
+    /// 0x93C6A8: `flt_93C6A8` .. `dword_93C6B8`: kind 9's, the same
+    pub burst9: [Float; 5],
+    /// 0x93C6BC: Not named: 12 bytes (a gap, or unreferenced data)
+    pub _gap_93c6bc: Bytes<12>,
+}
+
+/// ParticleTuning's first values.
+pub static PARTICLE_TUNING: ParticleTuning = ParticleTuning {
+    puff_x: [
+        Float::from_bits(0x40490FDB),
+        Float::from_bits(0x40000000),
+        Float::from_bits(0x4A200000),
+    ],
+    puff_z: [
+        Float::from_bits(0x40490FDB),
+        Float::from_bits(0x40000000),
+        Float::from_bits(0x4A200000),
+    ],
+    puff_y: [
+        Float::from_bits(0x3F800000),
+        Float::from_bits(0x44FA0000),
+        Float::from_bits(0x43FA0000),
+    ],
+    puff_m: [Float::from_bits(0x38D1B717), Float::from_bits(0x38D1B717)],
+    drift_lower: Float::from_bits(0x447A0000),
+    trail_random_k: Float::from_bits(0xBF000000),
+    trail_axes: [
+        Float::from_bits(0x3A83126F),
+        Float::from_bits(0x3DCCCCCD),
+        Float::from_bits(0x3A83126F),
+        Float::from_bits(0x3DCCCCCD),
+        Float::from_bits(0x3A83126F),
+        Float::from_bits(0x3DCCCCCD),
+    ],
+    trail_spread: Float::from_bits(0x43800000),
+    trail_size_k: [Float::from_bits(0x41800000), Float::from_bits(0x45000000)],
+    trail_life_k: Float::from_bits(0x43800000),
+    burst_scale: [Float::from_bits(0x3F800000), Float::from_bits(0x44800000)],
+    burst_life: Float::from_bits(0x43800000),
+    dust: [
+        Float::from_bits(0xBF99999A),
+        Float::from_bits(0xFF800000),
+        Float::from_bits(0xC47A0000),
+    ],
+    trail: [Float::from_bits(0xBDCCCCCD), Float::from_bits(0xFF800000)],
+    burst8: [
+        Float::from_bits(0xBDCCCCCD),
+        Float::from_bits(0x3DCCCCCD),
+        Float::from_bits(0x3DCCCCCD),
+        Float::from_bits(0x3DCCCCCD),
+        Float::from_bits(0xFF800000),
+    ],
+    burst9: [
+        Float::from_bits(0xBDCCCCCD),
+        Float::from_bits(0x3DCCCCCD),
+        Float::from_bits(0x3DCCCCCD),
+        Float::from_bits(0x3DCCCCCD),
+        Float::from_bits(0xFF800000),
+    ],
+    _gap_93c6bc: Bytes::new([0; 12]),
+};
+
+impl ParticleTuning {
+    pub const START: usize = 0x93C618;
+    pub const LEN: usize = 0xB0;
+    /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
+    pub fn home() -> usize {
+        crate::pointers::game_address(&PARTICLE_TUNING as *const ParticleTuning) as usize
+    }
+}
+
+#[cfg(test)]
+mod particle_tuning_tests {
+    use super::*;
+    use core::mem::offset_of;
+
+    fn bytes<T>(v: &T) -> Vec<u8> {
+        let p = v as *const T as *const u8;
+        (0..size_of::<T>())
+            .map(|i| unsafe { p.add(i).read() })
+            .collect()
+    }
+
+    #[test]
+    fn particle_tuning_starts_as_the_games() {
+        assert_eq!(size_of::<ParticleTuning>(), ParticleTuning::LEN);
+        assert!(
+            bytes(&PARTICLE_TUNING)
+                == crate::moved::image_bytes(ParticleTuning::START, ParticleTuning::LEN),
+            "PARTICLE_TUNING starts differently from the image"
+        );
+        assert_eq!(
+            offset_of!(ParticleTuning, puff_x),
+            0x93C618 - ParticleTuning::START
+        );
+        assert_eq!(
+            offset_of!(ParticleTuning, puff_z),
+            0x93C624 - ParticleTuning::START
+        );
+        assert_eq!(
+            offset_of!(ParticleTuning, puff_y),
+            0x93C630 - ParticleTuning::START
+        );
+        assert_eq!(
+            offset_of!(ParticleTuning, puff_m),
+            0x93C63C - ParticleTuning::START
+        );
+        assert_eq!(
+            offset_of!(ParticleTuning, drift_lower),
+            0x93C644 - ParticleTuning::START
+        );
+        assert_eq!(
+            offset_of!(ParticleTuning, trail_random_k),
+            0x93C648 - ParticleTuning::START
+        );
+        assert_eq!(
+            offset_of!(ParticleTuning, trail_axes),
+            0x93C64C - ParticleTuning::START
+        );
+        assert_eq!(
+            offset_of!(ParticleTuning, trail_spread),
+            0x93C664 - ParticleTuning::START
+        );
+        assert_eq!(
+            offset_of!(ParticleTuning, trail_size_k),
+            0x93C668 - ParticleTuning::START
+        );
+        assert_eq!(
+            offset_of!(ParticleTuning, trail_life_k),
+            0x93C670 - ParticleTuning::START
+        );
+        assert_eq!(
+            offset_of!(ParticleTuning, burst_scale),
+            0x93C674 - ParticleTuning::START
+        );
+        assert_eq!(
+            offset_of!(ParticleTuning, burst_life),
+            0x93C67C - ParticleTuning::START
+        );
+        assert_eq!(
+            offset_of!(ParticleTuning, dust),
+            0x93C680 - ParticleTuning::START
+        );
+        assert_eq!(
+            offset_of!(ParticleTuning, trail),
+            0x93C68C - ParticleTuning::START
+        );
+        assert_eq!(
+            offset_of!(ParticleTuning, burst8),
+            0x93C694 - ParticleTuning::START
+        );
+        assert_eq!(
+            offset_of!(ParticleTuning, burst9),
+            0x93C6A8 - ParticleTuning::START
+        );
+    }
 }

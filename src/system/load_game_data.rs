@@ -29,25 +29,19 @@
 //! `routes.rs`); the registers above are the original's, for reference.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{Regs, game_addr, game_read, game_write, rva};
-use crate::menu::name_lists::{NAME_LEN, REPLAY_NAMES_RVA, SAVEGAME_NAMES_RVA};
-use crate::menu::remove_secret_cars::CHEATS_RVA;
+use crate::install::read_sku::SKU;
+use crate::menu::cheats_store::CHEAT_VARS;
+use crate::menu::name_lists::NAME_LEN;
+use crate::menu::names_store::NAME_BUFFERS;
+use crate::net::store::NET;
+use crate::race::tyre_store::TYRE_CHANGE;
+use crate::session::Bytes;
+use crate::session::Dword;
 use crate::strings::append_string_by_id::push_string;
 use crate::strings::copy_printable::copy_printable;
 use windows_sys::Win32::System::WindowsProgramming::GetUserNameA;
 
 // ---- game data ----
-
-const RUNS_RVA: usize = rva(0x518BB0); // dword_518BB0
-const ALL_SECRET_CARS_RVA: usize = rva(0x758710); // g_allSecretCars
-const PLAYER_NAMES_RVA: usize = rva(0x755784); // byte_755784, four of 0x20 bytes
-const MACHINE_NAME_RVA: usize = rva(0x52AB90); // byte_52AB90
-const MACHINE_NAME_ROOM: usize = 0x40;
-const DRIVER_NAME_RVA: usize = rva(0x5BEC08); // dword_5BEC08
-const TYRE_CHANGE_RECORD_RVA: usize = rva(0x5BEC28); // g_tyreChangeRecord (hundredths)
-const SETUP_NAMES_RVA: usize = rva(0x527880); // byte_527880
-/// More draws than a name can need.
-const MOST_DRAWS: usize = 10_000;
 
 // ---- Rust version ----
 
@@ -58,6 +52,10 @@ use rc2k_core::system::game_data::{
     SAVEGAME_NAME_ID, SETUP_NAME_ID, SLOTS, TYRE_CHANGE_RECORD, USER_NAME_ROOM, all_secret_cars,
     drawn_again, removes_secret_cars,
 };
+
+const MACHINE_NAME_ROOM: usize = 0x40;
+/// More draws than a name can need.
+const MOST_DRAWS: usize = 10_000;
 
 /// What the function calls.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -85,32 +83,32 @@ pub enum Call {
 pub type Outside<'a> = &'a mut dyn FnMut(Call) -> Result<u32, Refused>;
 
 /// The string and what follows it, with a NUL, at `to`.
-unsafe fn default_name(to: usize, room: usize, id: u32, after: &[u8]) -> Result<(), BadInput> {
-    unsafe {
-        let mut string = Vec::new();
-        push_string(&mut string, id);
-        let name = rc2k_core::system::game_data::default_name(&string, after, room)
-            .ok_or(BadInput("a default name longer than its place"))?;
-        std::ptr::copy(name.as_ptr(), game_addr(to) as *mut u8, name.len());
-        Ok(())
-    }
+fn default_name(to: *mut u8, room: usize, id: u32, after: &[u8]) -> Result<(), BadInput> {
+    let mut string = Vec::new();
+    push_string(&mut string, id)?;
+    let name = rc2k_core::system::game_data::default_name(&string, after, room)
+        .ok_or(BadInput("a default name longer than its place"))?;
+    crate::pointers::GamePtr::new(crate::pointers::game_address(to))
+        .write_bytes(&name, "a default name")?;
+    Ok(())
 }
 
 /// A list of 100 names: every empty one becomes the string and the slot's number.
-unsafe fn number_empty_names(names: usize, id: u32) -> Result<(), BadInput> {
-    unsafe {
-        for slot in 0..SLOTS {
-            let name = names + slot as usize * NAME_LEN;
-            if game_read::<u8>(name) == 0 {
-                let mut string = Vec::new();
-                push_string(&mut string, id);
-                let bytes = rc2k_core::system::game_data::slot_name(&string, slot, NAME_LEN)
-                    .ok_or(BadInput("a default name longer than its place"))?;
-                std::ptr::copy(bytes.as_ptr(), game_addr(name) as *mut u8, bytes.len());
-            }
+fn number_empty_names<const N: usize>(names: &Bytes<N>, id: u32) -> Result<(), BadInput> {
+    for slot in 0..SLOTS {
+        let name = slot as usize * NAME_LEN;
+        if names.get(name) == 0 {
+            let mut string = Vec::new();
+            push_string(&mut string, id)?;
+            let bytes = rc2k_core::system::game_data::slot_name(&string, slot, NAME_LEN)
+                .ok_or(BadInput("a default name longer than its place"))?;
+            crate::pointers::GamePtr::new(
+                (crate::pointers::game_address(names.as_ptr())).wrapping_add(name as u32),
+            )
+            .write_bytes(&bytes, "a default slot name")?;
         }
-        Ok(())
     }
+    Ok(())
 }
 
 pub unsafe fn load_game_data(outside: Outside) -> Result<(), Refused> {
@@ -119,58 +117,63 @@ pub unsafe fn load_game_data(outside: Outside) -> Result<(), Refused> {
         outside(Call::LoadBestTimes)?;
         outside(Call::ReadSettings)?;
         outside(Call::ReadSku)?;
-        game_write(RUNS_RVA, game_read::<u32>(RUNS_RVA).wrapping_add(1));
+        RUN_COUNT.runs.set(RUN_COUNT.runs.get().wrapping_add(1));
         outside(Call::ReadDriverNames)?;
         outside(Call::ApplyPatches)?;
-        if removes_secret_cars(game_read(ALL_SECRET_CARS_RVA)) {
+        if removes_secret_cars(CHEAT_VARS.all_secret_cars.get()) {
             outside(Call::RemoveSecretCars)?;
         }
-        if all_secret_cars(game_read(ALL_SECRET_CARS_RVA)) {
-            game_write(CHEATS_RVA, game_read::<u32>(CHEATS_RVA) | ALL_CARS_CHEATS);
+        if all_secret_cars(CHEAT_VARS.all_secret_cars.get()) {
+            CHEAT_VARS
+                .cheats
+                .set(CHEAT_VARS.cheats.get() | ALL_CARS_CHEATS);
             outside(Call::ApplyCheats)?;
         }
 
         for (player, id) in PLAYER_NAME_IDS.into_iter().enumerate() {
-            let name = PLAYER_NAMES_RVA + player * NAME_LEN;
-            if game_read::<u8>(name) != 0 {
+            let name = NAME_BUFFERS.player_names.addr() + (player * NAME_LEN) as u32;
+            if NAME_BUFFERS.player_names.get(player * NAME_LEN) != 0 {
                 continue;
             }
             if player == 0 {
-                let place = game_addr(name) as *mut u8;
-                outside(Call::UserName(place as u32))?;
+                let place = crate::pointers::host_at(name as usize);
+                outside(Call::UserName(crate::pointers::game_address(place)))?;
                 copy_printable(place, place, USER_NAME_ROOM)?;
-                if game_read::<u8>(name) != 0 {
+                if NAME_BUFFERS.player_names.get(player * NAME_LEN) != 0 {
                     continue;
                 }
             }
-            default_name(name, NAME_LEN, id, &[])?;
+            default_name(crate::pointers::host_at(name as usize), NAME_LEN, id, &[])?;
         }
 
-        if game_read::<u8>(MACHINE_NAME_RVA) == 0 {
-            let place = game_addr(MACHINE_NAME_RVA) as *mut u8;
-            outside(Call::ComputerName(place as u32))?;
+        if NET.machine_name.get(0) == 0 {
+            let place = NET.machine_name.as_ptr();
+            outside(Call::ComputerName(crate::pointers::game_address(place)))?;
             copy_printable(place, place, MACHINE_NAME_ROOM as u32)?;
-            if game_read::<u8>(MACHINE_NAME_RVA) == 0 {
-                default_name(MACHINE_NAME_RVA, MACHINE_NAME_ROOM, MACHINE_NAME_ID, &[])?;
+            if NET.machine_name.get(0) == 0 {
+                default_name(
+                    NET.machine_name.as_ptr(),
+                    MACHINE_NAME_ROOM,
+                    MACHINE_NAME_ID,
+                    &[],
+                )?;
             }
         }
 
-        if game_read::<u8>(DRIVER_NAME_RVA) == 0 {
+        if TYRE_CHANGE.record_name.get(0) == 0 {
             let mut draws = 0;
             let end = loop {
                 let drawn = outside(Call::RandomBelow(DRIVER_NAME_IDS.1))?;
                 let mut name = Vec::new();
-                push_string(&mut name, DRIVER_NAME_IDS.0.wrapping_add(drawn));
+                push_string(&mut name, DRIVER_NAME_IDS.0.wrapping_add(drawn))?;
                 if name.len() >= NAME_LEN {
                     return Err(BadInput("a driver's name longer than its place").into());
                 }
                 // No NUL yet: a short name leaves what was there after it.
-                std::ptr::copy(
-                    name.as_ptr(),
-                    game_addr(DRIVER_NAME_RVA) as *mut u8,
-                    name.len(),
-                );
-                if !drawn_again(game_read(DRIVER_NAME_RVA)) {
+                for (k, &b) in name.iter().enumerate() {
+                    TYRE_CHANGE.record_name.set(k, b);
+                }
+                if !drawn_again(std::array::from_fn(|k| TYRE_CHANGE.record_name.get(k))) {
                     break name.len();
                 }
                 draws += 1;
@@ -178,22 +181,28 @@ pub unsafe fn load_game_data(outside: Outside) -> Result<(), Refused> {
                     return Err(BadInput("no driver's name that can be taken").into());
                 }
             };
-            game_write(DRIVER_NAME_RVA + end, 0u8);
-            game_write(TYRE_CHANGE_RECORD_RVA, TYRE_CHANGE_RECORD);
+            TYRE_CHANGE.record_name.set(end, 0);
+            TYRE_CHANGE.record.set(TYRE_CHANGE_RECORD);
         }
 
         for slot in 0..SLOTS {
             outside(Call::ReadSavegameSlot(slot))?;
         }
-        number_empty_names(SAVEGAME_NAMES_RVA, SAVEGAME_NAME_ID)?;
+        number_empty_names(
+            &crate::saves::write_savegame_slot::SAVE_GAMES.names,
+            SAVEGAME_NAME_ID,
+        )?;
         for slot in 0..SLOTS {
             outside(Call::ReadReplaySlot(slot))?;
         }
-        number_empty_names(REPLAY_NAMES_RVA, REPLAY_NAME_ID)?;
+        number_empty_names(&crate::race::replay::REPLAYS.names, REPLAY_NAME_ID)?;
         for slot in 0..SLOTS {
             outside(Call::ReadSetupSlot(slot))?;
         }
-        number_empty_names(SETUP_NAMES_RVA, SETUP_NAME_ID)?;
+        number_empty_names(
+            &crate::service::read_setup_slot::SET_UPS.names,
+            SETUP_NAME_ID,
+        )?;
         Ok(())
     }
 }
@@ -209,11 +218,11 @@ fn in_game(call: Call) -> Result<u32, Refused> {
                 crate::saves::load_best_times::load_game_best_times()?;
             }
             Call::ReadSettings => crate::settings::read_settings::read_settings()?,
-            Call::ReadSku => crate::install::read_sku::read_sku(game_addr(
-                crate::install::read_sku::PATH_RVA,
+            Call::ReadSku => crate::install::read_sku::read_sku(crate::pointers::host_at(
+                SKU.path.addr() as usize,
             ) as *const u8)?,
             Call::ReadDriverNames => crate::settings::read_driver_names::read_driver_names(
-                game_addr(crate::settings::read_driver_names::PATH_RVA) as *const u8,
+                crate::settings::read_driver_names::path(),
             )?,
             Call::ApplyPatches => crate::physics::apply_patches::apply_patches(),
             Call::RemoveSecretCars => crate::menu::remove_secret_cars::remove_secret_cars()?,
@@ -222,10 +231,10 @@ fn in_game(call: Call) -> Result<u32, Refused> {
             })?,
             Call::UserName(to) => {
                 let mut room = USER_NAME_ROOM;
-                GetUserNameA(to as *mut u8, &mut room);
+                GetUserNameA(crate::pointers::host(to), &mut room);
             }
             Call::ComputerName(to) => {
-                crate::system::check_developer_machine::computer_name(to as *mut u8);
+                crate::system::check_developer_machine::computer_name(crate::pointers::host(to));
             }
             Call::RandomBelow(limit) => return Ok(crate::math::random_below::random_below(limit)?),
             Call::ReadSavegameSlot(slot) => {
@@ -242,8 +251,46 @@ fn in_game(call: Call) -> Result<u32, Refused> {
     Ok(0)
 }
 
-/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
-pub fn entry(_: &mut Regs) -> Result<(), crate::errors::Refused> {
-    unsafe { load_game_data(&mut in_game) }?;
-    Ok(())
+/// The Rust version on the game's own calls.
+pub fn load_in_game() -> Result<(), Refused> {
+    unsafe { load_game_data(&mut in_game) }
+}
+
+/// How many times the game was run (IDA 0x518BB0 .. 0x518BB4, the image's layout).
+#[repr(C)]
+pub struct RunCount {
+    /// 0x518BB0: `g_runCount`: the game's runs counted (`system::load_game_data`; the save file keeps it).
+    pub runs: Dword,
+}
+
+pub static RUN_COUNT: RunCount = RunCount {
+    runs: Dword::new(0x0),
+};
+
+impl RunCount {
+    pub const START: usize = 0x518BB0;
+    pub const LEN: usize = 0x4;
+    /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
+    pub fn home() -> usize {
+        crate::pointers::game_address(&RUN_COUNT as *const RunCount) as usize
+    }
+}
+
+#[cfg(test)]
+mod run_count_tests {
+    use super::*;
+
+    #[test]
+    fn runcount_starts_as_the_games() {
+        let size = size_of::<RunCount>();
+        assert!(RunCount::LEN <= size && size <= (RunCount::LEN).next_multiple_of(4));
+        let image = crate::moved::image_bytes(RunCount::START, RunCount::LEN);
+        let mine = unsafe {
+            std::slice::from_raw_parts(
+                crate::pointers::host_at(RunCount::home()) as *const u8,
+                RunCount::LEN,
+            )
+        };
+        assert_eq!(mine, &image[..]);
+    }
 }

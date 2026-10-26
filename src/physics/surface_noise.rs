@@ -11,133 +11,68 @@
 //!      `unk_A2AB04`; no flags read
 //!
 //! Caller: `sub_43B635` (0x43B714), every physics step.
-//! Self-test: the original and the Rust version on the game's variables (saved and put
-//! back): maps, places and ranges by lot.
+//!
+//! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
+//! above are the original's, for reference.
 
-use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, SelfTest, game_addr, game_read, game_write, hook_asm, rva};
 use crate::math::x87_run::{ext_div2, int_80};
+use crate::physics::car_store::CAR;
 use crate::race::frame_draw::sample_noise;
-use crate::screens::harness::Left;
-use crate::service::harness::{Region, capture, check_state, dispatch_state, restore, state_entry};
+use crate::race::numbers_store::NUMBERS;
+use crate::race::prefs_store::STAGE_PREFS;
+use crate::scene::draw_store::DRAW;
 use rc2k_core::physics::ground::{noise_level, rough_floor};
-use std::sync::atomic::AtomicUsize;
 
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("physics::surface_noise", rva(0x43BC68), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
-
-fn g(x: usize) -> u32 {
-    unsafe { game_read(rva(x)) }
+/// lo + (hi - lo) x sample >> 16, held to 0 ..= 0xFF.
+fn scaled(sample: u32, lo: u32, hi: u32) -> u32 {
+    noise_level(sample, lo, hi).0
 }
 
-fn p(x: usize, v: u32) {
-    unsafe { game_write(rva(x), v) }
-}
-
-/// lo + (hi - lo) x sample >> 16, held to 0 ..= 0xFF; ebx the range, edx the product's
-/// high half.
-fn scaled(r: &mut Regs, lo: u32, hi: u32) -> u32 {
-    let (v, range, high) = noise_level(r.eax, lo, hi);
-    r.ebx = range;
-    r.edx = high;
-    v
+/// The noise map `x`'s sample under the work car (what `race::sample_noise` leaves in eax).
+fn sample(x: usize) -> Result<u32, crate::errors::BadInput> {
+    sample_noise(x as u32)
 }
 
 /// The Rust version.
 // Converted: `rc2k_core::physics::ground::{noise_level, rough_floor}` (the share / 256
 // stays x87).
-pub unsafe fn surface_noise(entry: &Regs) -> Left {
-    let mut r = *entry;
-    let a = |x: usize| game_addr(rva(x)) as u32;
-    unsafe {
-        r.esi = a(0xA2AB34);
-        sample_noise(r.esi).apply(&mut r);
-        r.eax = scaled(&mut r, g(0x609344), g(0x609348));
-        p(0x71A8D8, r.eax);
-        p(0x71A8DC, r.eax);
-        r.esi = a(0xA2AB04);
-        sample_noise(r.esi).apply(&mut r);
-        r.eax = scaled(&mut r, g(0x60AD18), g(0x60AD1C));
-        p(0x71A8E0, r.eax);
-        let floor = rough_floor(r.eax, g(0x60AD10));
-        r.eax = floor;
-        p(0x62400C, floor);
-        p(
-            0x71A258,
-            ext_div2(int_80(floor as i32, false), g(0x5C5E2C), 0x3F80_0000),
+pub fn surface_noise() -> Result<(), crate::errors::BadInput> {
+    {
+        let first = scaled(
+            sample(
+                (crate::scene::engine_tables_store::ENGINE_TABLES
+                    .noise_bytes
+                    .addr()
+                    + 0x50) as usize,
+            )?,
+            STAGE_PREFS.blit_cleared[0].get(),
+            STAGE_PREFS.blit_cleared[1].get(),
         );
-        if g(0x60934C) != 0 {
-            p(0x71A8D8, 0);
+        CAR.surface_noise_a.set(first);
+        CAR.surface_noise_b.set(first);
+        let second = scaled(
+            sample(
+                (crate::scene::engine_tables_store::ENGINE_TABLES
+                    .noise_bytes
+                    .addr()
+                    + 0x20) as usize,
+            )?,
+            STAGE_PREFS.surface_scale[0].get(),
+            STAGE_PREFS.surface_scale[1].get(),
+        );
+        CAR.surface_noise_second.set(second);
+        let floor = rough_floor(second, STAGE_PREFS.surface_floor.get());
+        DRAW.scratch.set(floor);
+        CAR.surface_blend.set_bits(ext_div2(
+            int_80(floor as i32, false),
+            NUMBERS.k256.bits(),
+            0x3F80_0000,
+        ));
+        if STAGE_PREFS.noise_pick.get() != 0 {
+            CAR.surface_noise_a.set(0);
         } else {
-            p(0x71A8DC, 0);
+            CAR.surface_noise_b.set(0);
         }
     }
-    crate::race::stage_prefs::left_of(&r)
-}
-
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    Ok(unsafe { surface_noise(r) })
-}
-
-fn regions() -> Vec<Region> {
-    let a = |x: usize| game_addr(rva(x)) as u32;
-    vec![
-        (a(0x71A8D8), 12),
-        (a(0x62400C), 4),
-        (a(0x71A258), 4),
-        (a(0x637620), 0x18),
-    ]
-}
-
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_state(&HOOK, r, call_original, &regions(), &rust);
-}
-
-/// The Rust version where the typed tables run it (no hook; a refusal is the
-/// caller's).
-pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
-    state_entry(r, &rust)
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let a = |x: usize| game_addr(rva(x)) as u32;
-    let mut all = regions();
-    all.extend([(a(0x71A67C), 12), (a(0x609344), 12), (a(0x60AD10), 16)]);
-    // The two maps (64 x 64 bytes at 0xA2AB34 and 0xA2AB04) are the game's, read only.
-    let saved = capture(&all);
-    for seed in 0..8u32 {
-        let set = || {
-            p(0x71A67C, seed.wrapping_mul(0x1357_9BDF));
-            p(0x71A684, seed.wrapping_mul(0x2468_ACE1));
-            p(0x609344, seed * 10);
-            p(0x609348, 200 + seed * 40);
-            p(0x60934C, seed % 2);
-            p(0x60AD10, 20 + seed);
-            p(0x60AD18, if seed == 3 { 300 } else { 5 });
-            p(0x60AD1C, 150 + seed * 30);
-        };
-        check_state(
-            &mut t,
-            &format!("seed {seed}"),
-            call_original,
-            Regs::SENTINEL,
-            &set,
-            &all,
-            &rust,
-        );
-    }
-    restore(&all, &saved);
-    t.finish()
+    Ok(())
 }
