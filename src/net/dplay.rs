@@ -69,6 +69,6 @@ pub unsafe fn call(var: &crate::session::Dword, offset: u32, args: &[u32]) -> u3
 
 /// `CoCreateInstance(class, 0, CLSCTX_INPROC_SERVER, interface, out)`; in the standalone
 /// program DirectPlay's objects made in Rust (`net::dp_objects`).
-pub unsafe fn create_instance(class: u32, interface: u32, out: u32) -> i32 {
-    unsafe { crate::net::dp_objects::create(class, interface, out) }
+pub fn create_instance(class: u32, interface: u32, out: u32) -> i32 {
+    crate::net::dp_objects::create(class, interface, out)
 }

@@ -30,6 +30,7 @@ pub struct NetSession {
 
 /// DirectPlay's `DPNAME`.
 #[repr(C)]
+#[derive(Clone, Copy)]
 pub struct DpName {
     pub size: u32,
     pub flags: u32,
@@ -39,6 +40,7 @@ pub struct DpName {
 
 /// DirectPlay's `DPSESSIONDESC2` (`g_netSessionDesc`).
 #[repr(C)]
+#[derive(Clone, Copy)]
 pub struct DpSessionDesc {
     pub size: u32,
     pub flags: u32,
@@ -54,6 +56,7 @@ pub struct DpSessionDesc {
 
 /// DirectPlay's `DPCOMPOUNDADDRESSELEMENT`.
 #[repr(C)]
+#[derive(Clone, Copy)]
 pub struct DpAddressElement {
     pub data_type: Guid,
     pub data_size: u32,

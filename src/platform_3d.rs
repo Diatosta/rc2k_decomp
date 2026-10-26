@@ -201,8 +201,8 @@ fn object(number: usize) -> u32 {
     unsafe { objects().add(number) as u32 }
 }
 
-unsafe extern "system" fn lock(this: u32, _: u32, description: u32, _: u32, _: u32) -> i32 {
-    let number = unsafe { ((this + 4) as *const u32).read_unaligned() } as usize;
+extern "system" fn lock(this: u32, _: u32, description: u32, _: u32, _: u32) -> i32 {
+    let number = crate::pointers::read_or_end::<u32>(this + 4, "a texture surface") as usize;
     // The texture is to be written: the noted drawing that reads it first (only then:
     // the mud's, the map's and the HUD's textures are locked every frame).
     let pixels = LEVELS_MEMORY
@@ -216,16 +216,21 @@ unsafe extern "system" fn lock(this: u32, _: u32, description: u32, _: u32, _: u
     }
     let mut memory = LEVELS_MEMORY.lock().unwrap();
     match memory.get_mut(number).and_then(|l| l.as_mut()) {
-        Some(level) => unsafe {
-            ((description + 0x24) as *mut u32).write_unaligned(level.pixels.as_mut_ptr() as u32);
-            ((description + 0x10) as *mut u32).write_unaligned(level.pitch);
+        Some(level) => {
+            let what = "a surface description";
+            crate::pointers::write_or_end(
+                description + 0x24,
+                level.pixels.as_mut_ptr() as u32,
+                what,
+            );
+            crate::pointers::write_or_end(description + 0x10, level.pitch, what);
             0
-        },
+        }
         None => NOT_THERE,
     }
 }
 
-unsafe extern "system" fn unlock(_: u32, _: u32) -> i32 {
+extern "system" fn unlock(_: u32, _: u32) -> i32 {
     0
 }
 
@@ -728,15 +733,19 @@ pub fn copy_screen_to_system_texture(number: u32) {
 /// batches and the HUD hand it): each three indices (16 bits) one triangle of the
 /// vertices, drawn as a fan of three. An index past the vertices ends the list (Direct3D
 /// would have refused the call).
-pub unsafe fn draw_indexed_list(vertices: u32, vertex_count: u32, indices: u32, index_count: u32) {
+pub fn draw_indexed_list(vertices: u32, vertex_count: u32, indices: u32, index_count: u32) {
     use crate::d3d::VERTEX_LEN;
-    let vertex = |n: u16| unsafe {
-        ((vertices as usize + n as usize * VERTEX_LEN) as *const crate::d3d::Vertex)
-            .read_unaligned()
+    let (vertex_window, index_window) = (
+        crate::pointers::Window::new(),
+        crate::pointers::Window::new(),
+    );
+    let vertex = |n: u16| {
+        vertex_window
+            .read_or_end::<crate::d3d::Vertex>(vertices + n as u32 * VERTEX_LEN as u32, "a vertex")
     };
     for t in 0..(index_count / 3) as usize {
-        let at = |k: usize| unsafe {
-            ((indices as usize + 2 * (3 * t + k)) as *const u16).read_unaligned()
+        let at = |k: usize| {
+            index_window.read_or_end::<u16>(indices + 2 * (3 * t + k) as u32, "an index")
         };
         let corners = [at(0), at(1), at(2)];
         if corners.iter().any(|&n| u32::from(n) >= vertex_count) {
@@ -751,13 +760,8 @@ pub unsafe fn draw_indexed_list(vertices: u32, vertex_count: u32, indices: u32, 
 /// edx the index count, ecx the indices, eax the vertex count, ebx the vertices). Returns
 /// Direct3D's result: 0, drawn. Its edx leftover is read by no caller (`lq.py -s`: the
 /// three sites read eax only, as `race::flush_draw_batch` and the two batch flushes do).
-pub unsafe fn draw_indexed(
-    vertices: u32,
-    vertex_count: u32,
-    indices: u32,
-    index_count: u32,
-) -> u32 {
-    unsafe { draw_indexed_list(vertices, vertex_count, indices, index_count) };
+pub fn draw_indexed(vertices: u32, vertex_count: u32, indices: u32, index_count: u32) -> u32 {
+    draw_indexed_list(vertices, vertex_count, indices, index_count);
     0
 }
 
@@ -770,11 +774,9 @@ fn fatal(code: u32) -> FatalError {
 }
 
 /// A size by its number in `dword_5ABA98`.
-unsafe fn size_of(code: u32) -> Option<u32> {
-    unsafe {
-        let entry = find_entry(code, TEXTURE_TABLES.sizes_addr() as u32, 5).ok()??;
-        Some(((entry + 4) as *const u32).read_unaligned())
-    }
+fn size_of(code: u32) -> Option<u32> {
+    let entry = find_entry(code, TEXTURE_TABLES.sizes_addr() as u32, 5).ok()??;
+    Some(crate::pointers::read_or_end(entry + 4, "a texture size"))
 }
 
 /// One texture more in a pool: its record made and its levels' memory.
@@ -800,8 +802,7 @@ unsafe fn make_texture(
         record.height = height;
         record.format = description;
         record.levels = levels;
-        let bytes = (description as *const TextureFormat)
-            .read_unaligned()
+        let bytes = crate::pointers::read_or_end::<TextureFormat>(description, "a texture format")
             .bytes_per_pixel;
         let mut memory = LEVELS_MEMORY.lock().unwrap();
         if memory.is_empty() {

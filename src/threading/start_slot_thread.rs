@@ -53,7 +53,7 @@ pub unsafe fn start_slot_thread(slot: *mut u8) -> Result<(), FatalError> {
 
 /// A slot's thread: its routine (the IDA address the slot holds) run by its Rust version
 /// (`thread_slot::run_routine`). A routine with none, or one that refuses, ends the program.
-unsafe extern "system" fn run_routine(routine: *mut c_void) -> u32 {
+extern "system" fn run_routine(routine: *mut c_void) -> u32 {
     let routine = routine as u32;
     match crate::threading::thread_slot::run_routine(routine) {
         Some(Ok(())) => {}

@@ -151,7 +151,7 @@ pub fn zero(at: u32, length: u32) -> Result<(), Refused> {
 
 /// `CoCreateInstance` (`net::dplay::create_instance`): its result.
 pub fn co_create(class: u32, interface: u32, out: u32) -> u32 {
-    unsafe { crate::net::dplay::create_instance(class, interface, out) as u32 }
+    crate::net::dplay::create_instance(class, interface, out) as u32
 }
 
 /// `screens::run_frame` with the frame `frame` (`platform::run_frame_now`: the window's

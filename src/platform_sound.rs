@@ -198,17 +198,23 @@ fn with<R>(f: impl FnOnce(&mut State) -> R) -> R {
 }
 
 fn id_of(this: u32) -> u32 {
-    unsafe { (*(this as *const Object)).id }
+    get(this + std::mem::offset_of!(Object, id) as u32)
 }
 
-unsafe fn put(at: u32, value: u32) {
+/// A dword written where the game asked (none for a null address); an address outside the
+/// game's memory ends the program.
+fn put(at: u32, value: u32) {
+    put_as(at, value)
+}
+
+fn put_as<T: Copy>(at: u32, value: T) {
     if at != 0 {
-        unsafe { (at as *mut u32).write_unaligned(value) };
+        crate::pointers::write_or_end(at, value, "a DirectSound method's result")
     }
 }
 
-unsafe fn get(at: u32) -> u32 {
-    unsafe { (at as *const u32).read_unaligned() }
+fn get(at: u32) -> u32 {
+    crate::pointers::read_or_end(at, "a DirectSound method's argument")
 }
 
 fn new_object(s: &mut State, table: *const usize, kind: Kind) -> u32 {
@@ -250,13 +256,12 @@ fn space(s: &mut State, this: u32) -> Option<&mut Space> {
     }
 }
 
-unsafe fn read_format(at: u32) -> Format {
-    unsafe {
-        Format {
-            channels: (at as *const u16).add(1).read_unaligned() as u32,
-            rate: get(at + 4),
-            bits: ((at + 0xE) as *const u16).read_unaligned() as u32,
-        }
+fn read_format(at: u32) -> Format {
+    let word = |o: u32| crate::pointers::read_or_end::<u16>(at + o, "a wave format") as u32;
+    Format {
+        channels: word(2),
+        rate: get(at + 4),
+        bits: word(0xE),
     }
 }
 
@@ -267,7 +272,7 @@ fn primary_bytes(f: &Format) -> u32 {
 
 // ---- the methods every object has ----
 
-unsafe extern "system" fn add_ref(this: u32) -> u32 {
+extern "system" fn add_ref(this: u32) -> u32 {
     with(|s| {
         s.entries.get_mut(&id_of(this)).map_or(0, |e| {
             e.refs += 1;
@@ -276,7 +281,7 @@ unsafe extern "system" fn add_ref(this: u32) -> u32 {
     })
 }
 
-unsafe extern "system" fn release(this: u32) -> u32 {
+extern "system" fn release(this: u32) -> u32 {
     with(|s| {
         let id = id_of(this);
         let Some(e) = s.entries.get_mut(&id) else {
@@ -309,123 +314,108 @@ unsafe extern "system" fn release(this: u32) -> u32 {
     })
 }
 
-unsafe extern "system" fn no_interface(_: u32, _: u32, out: u32) -> i32 {
-    unsafe { put(out, 0) };
+extern "system" fn no_interface(_: u32, _: u32, out: u32) -> i32 {
+    put(out, 0);
     E_NOINTERFACE
 }
 
-unsafe extern "system" fn ok0(_: u32) -> i32 {
+extern "system" fn ok0(_: u32) -> i32 {
     OK
 }
-unsafe extern "system" fn ok1(_: u32, _: u32) -> i32 {
+extern "system" fn ok1(_: u32, _: u32) -> i32 {
     OK
 }
-unsafe extern "system" fn ok2(_: u32, _: u32, _: u32) -> i32 {
+extern "system" fn ok2(_: u32, _: u32, _: u32) -> i32 {
     OK
 }
-unsafe extern "system" fn ok3(_: u32, _: u32, _: u32, _: u32) -> i32 {
+extern "system" fn ok3(_: u32, _: u32, _: u32, _: u32) -> i32 {
     OK
 }
-unsafe extern "system" fn ok4(_: u32, _: u32, _: u32, _: u32, _: u32) -> i32 {
+extern "system" fn ok4(_: u32, _: u32, _: u32, _: u32, _: u32) -> i32 {
     OK
 }
 #[allow(clippy::too_many_arguments)] // IDirectSound3DListener::SetOrientation's arity
-unsafe extern "system" fn ok7(
-    _: u32,
-    _: u32,
-    _: u32,
-    _: u32,
-    _: u32,
-    _: u32,
-    _: u32,
-    _: u32,
-) -> i32 {
+extern "system" fn ok7(_: u32, _: u32, _: u32, _: u32, _: u32, _: u32, _: u32, _: u32) -> i32 {
     OK
 }
 /// A `Get..` whose answer is not looked at by the game: a 0 written.
-unsafe extern "system" fn zero1(_: u32, out: u32) -> i32 {
-    unsafe { put(out, 0) };
+extern "system" fn zero1(_: u32, out: u32) -> i32 {
+    put(out, 0);
     OK
 }
-unsafe extern "system" fn zero2(_: u32, a: u32, b: u32) -> i32 {
-    unsafe {
-        put(a, 0);
-        put(b, 0);
-    }
+extern "system" fn zero2(_: u32, a: u32, b: u32) -> i32 {
+    put(a, 0);
+    put(b, 0);
     OK
 }
 
 // ---- the device (IDirectSound) ----
 
-unsafe extern "system" fn create_buffer(_: u32, desc: u32, out: u32, _outer: u32) -> i32 {
-    unsafe {
-        if desc == 0 || out == 0 {
-            return E_INVALIDARG;
-        }
-        let flags = get(desc + 4);
-        let format_at = get(desc + 0x10);
-        let primary = flags & PRIMARY != 0;
-        let format = if format_at != 0 {
-            read_format(format_at)
-        } else {
-            Format {
-                channels: 2,
-                bits: 8,
-                rate: 22050,
-            }
-        };
-        let bytes = if primary {
-            primary_bytes(&format)
-        } else {
-            get(desc + 8)
-        };
-        // A primary buffer's memory is the largest it can be, its formats changing.
-        let room = if primary { 48000 * 4 } else { bytes as usize };
-        let at = with(|s| {
-            let at = new_object(
-                s,
-                BUFFER.start(),
-                Kind::Buffer(Buffer {
-                    data: Arc::new(SoundData::new(vec![
-                        if format.bits == 8 { 0x80 } else { 0 };
-                        room.max(4)
-                    ])),
-                    bytes,
-                    flags,
-                    format,
-                    frequency: 0,
-                    position: 0.0,
-                    playing: false,
-                    looping: false,
-                    volume: 0,
-                    pan: 0,
-                    space: None,
-                }),
-            );
-            if primary {
-                s.primary = Some(id_of(at));
-            }
-            at
-        });
-        put(out, at);
+extern "system" fn create_buffer(_: u32, desc: u32, out: u32, _outer: u32) -> i32 {
+    if desc == 0 || out == 0 {
+        return E_INVALIDARG;
     }
+    let flags = get(desc + 4);
+    let format_at = get(desc + 0x10);
+    let primary = flags & PRIMARY != 0;
+    let format = if format_at != 0 {
+        read_format(format_at)
+    } else {
+        Format {
+            channels: 2,
+            bits: 8,
+            rate: 22050,
+        }
+    };
+    let bytes = if primary {
+        primary_bytes(&format)
+    } else {
+        get(desc + 8)
+    };
+    // A primary buffer's memory is the largest it can be, its formats changing.
+    let room = if primary { 48000 * 4 } else { bytes as usize };
+    let at = with(|s| {
+        let at = new_object(
+            s,
+            BUFFER.start(),
+            Kind::Buffer(Buffer {
+                data: Arc::new(SoundData::new(vec![
+                    if format.bits == 8 { 0x80 } else { 0 };
+                    room.max(4)
+                ])),
+                bytes,
+                flags,
+                format,
+                frequency: 0,
+                position: 0.0,
+                playing: false,
+                looping: false,
+                volume: 0,
+                pan: 0,
+                space: None,
+            }),
+        );
+        if primary {
+            s.primary = Some(id_of(at));
+        }
+        at
+    });
+    put(out, at);
     OK
 }
 
-unsafe extern "system" fn device_caps(_: u32, caps: u32) -> i32 {
-    unsafe {
-        for n in 1..0x18 {
-            put(caps + n * 4, 0);
-        }
-        put(caps + 4, CAPS_FLAGS);
-        put(caps + 8, 100);
-        put(caps + 0xC, 200_000);
-        put(caps + 0x10, 1);
+extern "system" fn device_caps(_: u32, caps: u32) -> i32 {
+    for n in 1..0x18 {
+        put(caps + n * 4, 0);
     }
+    put(caps + 4, CAPS_FLAGS);
+    put(caps + 8, 100);
+    put(caps + 0xC, 200_000);
+    put(caps + 0x10, 1);
     OK
 }
 
-unsafe extern "system" fn duplicate(_: u32, source: u32, out: u32) -> i32 {
+extern "system" fn duplicate(_: u32, source: u32, out: u32) -> i32 {
     with(|s| {
         let Some(b) = buffer(s, source) else {
             return E_INVALIDARG;
@@ -438,7 +428,7 @@ unsafe extern "system" fn duplicate(_: u32, source: u32, out: u32) -> i32 {
             ..*b
         };
         let at = new_object(s, BUFFER.start(), Kind::Buffer(copy));
-        unsafe { put(out, at) };
+        put(out, at);
         OK
     })
 }
@@ -459,15 +449,15 @@ static DEVICE: Table<11> = Table([
 
 // ---- a buffer (IDirectSoundBuffer) ----
 
-unsafe extern "system" fn buffer_query(this: u32, iid: u32, out: u32) -> i32 {
-    let first = unsafe { get(iid) };
+extern "system" fn buffer_query(this: u32, iid: u32, out: u32) -> i32 {
+    let first = { get(iid) };
     with(|s| {
         let primary = buffer(s, this).is_some_and(|b| b.flags & PRIMARY != 0);
         let table = match (first, primary) {
             (IID_3D_BUFFER, false) => BUFFER_3D.start(),
             (IID_3D_LISTENER, true) => LISTENER.start(),
             _ => {
-                unsafe { put(out, 0) };
+                put(out, 0);
                 return E_NOINTERFACE;
             }
         };
@@ -485,58 +475,51 @@ unsafe extern "system" fn buffer_query(this: u32, iid: u32, out: u32) -> i32 {
             Kind::Space(id)
         };
         let at = new_object(s, table, kind);
-        unsafe { put(out, at) };
+        put(out, at);
         OK
     })
 }
 
-unsafe extern "system" fn buffer_caps(this: u32, caps: u32) -> i32 {
+extern "system" fn buffer_caps(this: u32, caps: u32) -> i32 {
     with(|s| {
         let Some(b) = buffer(s, this) else {
             return E_INVALIDARG;
         };
-        unsafe {
-            put(caps + 4, b.flags);
-            put(caps + 8, b.bytes);
-            put(caps + 0xC, 0);
-            put(caps + 0x10, 0);
-        }
+        put(caps + 4, b.flags);
+        put(caps + 8, b.bytes);
+        put(caps + 0xC, 0);
+        put(caps + 0x10, 0);
         OK
     })
 }
 
-unsafe extern "system" fn position(this: u32, play: u32, write: u32) -> i32 {
+extern "system" fn position(this: u32, play: u32, write: u32) -> i32 {
     with(|s| {
         let Some(b) = buffer(s, this) else {
             return E_INVALIDARG;
         };
         let at = (b.position as u32 * b.format.block()) % b.bytes.max(1);
-        unsafe {
-            put(play, at);
-            put(write, at);
-        }
+        put(play, at);
+        put(write, at);
         OK
     })
 }
 
-unsafe extern "system" fn get_format(this: u32, format: u32, size: u32, written: u32) -> i32 {
+extern "system" fn get_format(this: u32, format: u32, size: u32, written: u32) -> i32 {
     with(|s| {
         let Some(b) = buffer(s, this) else {
             return E_INVALIDARG;
         };
         let f = b.format;
-        unsafe {
-            if format != 0 && size >= 0x10 {
-                let w = format as *mut u16;
-                w.write_unaligned(1);
-                w.add(1).write_unaligned(f.channels as u16);
-                put(format + 4, f.rate);
-                put(format + 8, f.rate * f.block());
-                w.add(6).write_unaligned(f.block() as u16);
-                w.add(7).write_unaligned(f.bits as u16);
-            }
-            put(written, 0x10);
+        if format != 0 && size >= 0x10 {
+            put_as(format, 1u16);
+            put_as(format + 2, f.channels as u16);
+            put(format + 4, f.rate);
+            put(format + 8, f.rate * f.block());
+            put_as(format + 0xC, f.block() as u16);
+            put_as(format + 0xE, f.bits as u16);
         }
+        put(written, 0x10);
         OK
     })
 }
@@ -546,7 +529,9 @@ macro_rules! getter {
         unsafe extern "system" fn $name(this: u32, out: u32) -> i32 {
             with(|s| match buffer(s, this) {
                 Some(b) => {
-                    unsafe { put(out, b.$field as u32) };
+                    {
+                        put(out, b.$field as u32)
+                    };
                     OK
                 }
                 None => E_INVALIDARG,
@@ -558,7 +543,7 @@ getter!(get_volume, volume);
 getter!(get_pan, pan);
 getter!(get_frequency, frequency);
 
-unsafe extern "system" fn status(this: u32, out: u32) -> i32 {
+extern "system" fn status(this: u32, out: u32) -> i32 {
     with(|s| match buffer(s, this) {
         Some(b) => {
             let st = if b.playing {
@@ -566,7 +551,7 @@ unsafe extern "system" fn status(this: u32, out: u32) -> i32 {
             } else {
                 0
             };
-            unsafe { put(out, st) };
+            put(out, st);
             OK
         }
         None => E_INVALIDARG,
@@ -574,7 +559,7 @@ unsafe extern "system" fn status(this: u32, out: u32) -> i32 {
 }
 
 #[allow(clippy::too_many_arguments)] // IDirectSoundBuffer::Lock's arity
-unsafe extern "system" fn lock(
+extern "system" fn lock(
     this: u32,
     offset: u32,
     bytes: u32,
@@ -601,17 +586,15 @@ unsafe extern "system" fn lock(
         };
         let first = bytes.min(size - offset);
         let base = b.data.as_ptr() as u32;
-        unsafe {
-            put(p1, base + offset);
-            put(n1, first);
-            put(p2, if bytes > first { base } else { 0 });
-            put(n2, bytes - first);
-        }
+        put(p1, base + offset);
+        put(n1, first);
+        put(p2, if bytes > first { base } else { 0 });
+        put(n2, bytes - first);
         OK
     })
 }
 
-unsafe extern "system" fn play(this: u32, _: u32, _: u32, flags: u32) -> i32 {
+extern "system" fn play(this: u32, _: u32, _: u32, flags: u32) -> i32 {
     with(|s| match buffer(s, this) {
         Some(b) => {
             b.playing = true;
@@ -622,7 +605,7 @@ unsafe extern "system" fn play(this: u32, _: u32, _: u32, flags: u32) -> i32 {
     })
 }
 
-unsafe extern "system" fn set_position(this: u32, at: u32) -> i32 {
+extern "system" fn set_position(this: u32, at: u32) -> i32 {
     with(|s| match buffer(s, this) {
         Some(b) => {
             b.position = (at / b.format.block()) as f64;
@@ -635,7 +618,7 @@ unsafe extern "system" fn set_position(this: u32, at: u32) -> i32 {
 unsafe extern "system" fn set_format(this: u32, format: u32) -> i32 {
     with(|s| match buffer(s, this) {
         Some(b) if b.flags & PRIMARY != 0 && format != 0 => {
-            let f = unsafe { read_format(format) };
+            let f = { read_format(format) };
             if f.rate == 0
                 || f.rate > 48000
                 || !matches!(f.bits, 8 | 16)
@@ -673,7 +656,7 @@ setter!(set_volume, volume, i32);
 setter!(set_pan, pan, i32);
 setter!(set_frequency, frequency, u32);
 
-unsafe extern "system" fn stop(this: u32) -> i32 {
+extern "system" fn stop(this: u32) -> i32 {
     with(|s| match buffer(s, this) {
         Some(b) => {
             b.playing = false;
@@ -715,7 +698,7 @@ fn float(bits: u32) -> f32 {
 
 /// `SetPosition(x, y, z, apply)`: deferred or not, taken at once (the game commits each
 /// turn).
-unsafe extern "system" fn set_place(this: u32, x: u32, y: u32, z: u32, _: u32) -> i32 {
+extern "system" fn set_place(this: u32, x: u32, y: u32, z: u32, _: u32) -> i32 {
     with(|s| match space(s, this) {
         Some(p) => {
             p.place = [float(x), float(y), float(z)];
@@ -725,11 +708,11 @@ unsafe extern "system" fn set_place(this: u32, x: u32, y: u32, z: u32, _: u32) -
     })
 }
 
-unsafe extern "system" fn get_place(this: u32, out: u32) -> i32 {
+extern "system" fn get_place(this: u32, out: u32) -> i32 {
     with(|s| match space(s, this) {
         Some(p) => {
             for (n, v) in p.place.iter().enumerate() {
-                unsafe { put(out + 4 * n as u32, v.to_bits()) };
+                put(out + 4 * n as u32, v.to_bits());
             }
             OK
         }
@@ -737,7 +720,7 @@ unsafe extern "system" fn get_place(this: u32, out: u32) -> i32 {
     })
 }
 
-unsafe extern "system" fn set_least(this: u32, value: u32, _: u32) -> i32 {
+extern "system" fn set_least(this: u32, value: u32, _: u32) -> i32 {
     with(|s| match space(s, this) {
         Some(p) => {
             p.least = float(value);
@@ -747,7 +730,7 @@ unsafe extern "system" fn set_least(this: u32, value: u32, _: u32) -> i32 {
     })
 }
 
-unsafe extern "system" fn set_greatest(this: u32, value: u32, _: u32) -> i32 {
+extern "system" fn set_greatest(this: u32, value: u32, _: u32) -> i32 {
     with(|s| match space(s, this) {
         Some(p) => {
             p.greatest = float(value);
@@ -757,7 +740,7 @@ unsafe extern "system" fn set_greatest(this: u32, value: u32, _: u32) -> i32 {
     })
 }
 
-unsafe extern "system" fn set_mode(this: u32, value: u32, _: u32) -> i32 {
+extern "system" fn set_mode(this: u32, value: u32, _: u32) -> i32 {
     with(|s| match space(s, this) {
         Some(p) => {
             p.mode = value;
@@ -773,7 +756,9 @@ macro_rules! get_space {
             with(|s| match space(s, this) {
                 Some(p) => {
                     let v: u32 = $to(p.$field);
-                    unsafe { put(out, v) };
+                    {
+                        put(out, v)
+                    };
                     OK
                 }
                 None => E_INVALIDARG,
@@ -788,12 +773,12 @@ get_space!(get_mode, mode, |m: u32| m);
 
 /// `SetAllParameters(DS3DBUFFER*, apply)`: dwSize, vPosition, vVelocity, the cone's two
 /// angles, its orientation, its outside volume, flMinDistance, flMaxDistance, dwMode.
-unsafe extern "system" fn set_all(this: u32, all: u32, _: u32) -> i32 {
+extern "system" fn set_all(this: u32, all: u32, _: u32) -> i32 {
     if all == 0 {
         return E_INVALIDARG;
     }
     with(|s| match space(s, this) {
-        Some(p) => unsafe {
+        Some(p) => {
             p.place = [
                 float(get(all + 4)),
                 float(get(all + 8)),
@@ -803,7 +788,7 @@ unsafe extern "system" fn set_all(this: u32, all: u32, _: u32) -> i32 {
             p.greatest = float(get(all + 0x38));
             p.mode = get(all + 0x3C);
             OK
-        },
+        }
         None => E_INVALIDARG,
     })
 }
@@ -832,14 +817,14 @@ static BUFFER_3D: Table<21> = Table([
     ok4 as *const (), // SetVelocity
 ]);
 
-unsafe extern "system" fn set_rolloff(_: u32, value: u32, _: u32) -> i32 {
+extern "system" fn set_rolloff(_: u32, value: u32, _: u32) -> i32 {
     with(|s| s.rolloff = float(value));
     OK
 }
 
-unsafe extern "system" fn get_rolloff(_: u32, out: u32) -> i32 {
+extern "system" fn get_rolloff(_: u32, out: u32) -> i32 {
     let v = with(|s| s.rolloff);
-    unsafe { put(out, v.to_bits()) };
+    put(out, v.to_bits());
     OK
 }
 
@@ -1022,6 +1007,6 @@ pub fn direct_sound_create(out: u32) -> i32 {
         *opened = true;
     }
     let at = with(|s| new_object(s, DEVICE.start(), Kind::Device));
-    unsafe { put(out, at) };
+    put(out, at);
     OK
 }

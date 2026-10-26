@@ -16,12 +16,10 @@ use crate::hud::store::{HUD, indices, vertices};
 pub fn draw_hud_batch() {
     // The vertices and indices are the HUD block's (`hud::store`); the image's two
     // pointers to them (`off_764F2C`, `off_764F30`) are no longer read.
-    unsafe {
-        crate::platform_3d::draw_indexed_list(
-            vertices() as u32,
-            HUD.vertex_count.get(),
-            indices() as u32,
-            HUD.index_count.get(),
-        )
-    };
+    crate::platform_3d::draw_indexed_list(
+        vertices() as u32,
+        HUD.vertex_count.get(),
+        indices() as u32,
+        HUD.index_count.get(),
+    );
 }

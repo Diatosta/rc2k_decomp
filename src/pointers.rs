@@ -172,6 +172,21 @@ fn stack() -> (u32, u32) {
     (low as u32, high as u32)
 }
 
+/// Where a game address's bytes are in this process (phase 9, `notes/conversion.md`): the
+/// one place a game address becomes a host pointer. On 32 bits the two are the same number;
+/// a 64-bit build maps each region's game address to its host base here.
+#[inline]
+pub fn host(addr: u32) -> *mut u8 {
+    addr as usize as *mut u8
+}
+
+/// The game address of a host pointer handed to the game (a lent buffer, a platform
+/// object): the inverse of `host`.
+#[inline]
+pub fn game_address<T>(p: *const T) -> u32 {
+    p as usize as u32
+}
+
 /// The refusal for an address that is not where the game's memory is (logged with it).
 fn outside(addr: u32, len: usize, what: &str) -> BadInput {
     log(&format!(
@@ -214,14 +229,14 @@ impl GamePtr {
     pub fn read<T: Copy>(self, what: &str) -> Result<T, BadInput> {
         self.check(size_of::<T>(), what)?;
         // SAFETY: the whole `T` lies in a live region (a registered block or a moved store).
-        Ok(unsafe { (self.0 as usize as *const T).read_unaligned() })
+        Ok(unsafe { (host(self.0) as *const T).read_unaligned() })
     }
 
     /// The `T` written at the address, when all of it lies in one region.
     pub fn write<T: Copy>(self, value: T, what: &str) -> Result<(), BadInput> {
         self.check(size_of::<T>(), what)?;
         // SAFETY: as `read`; the regions are the game's writable memory.
-        unsafe { (self.0 as usize as *mut T).write_unaligned(value) };
+        unsafe { (host(self.0) as *mut T).write_unaligned(value) };
         Ok(())
     }
 
@@ -229,7 +244,7 @@ impl GamePtr {
     pub fn read_bytes(self, len: usize, what: &str) -> Result<Vec<u8>, BadInput> {
         self.check(len, what)?;
         // SAFETY: the `len` bytes lie in one live region.
-        Ok(unsafe { std::slice::from_raw_parts(self.0 as usize as *const u8, len) }.to_vec())
+        Ok(unsafe { std::slice::from_raw_parts(host(self.0), len) }.to_vec())
     }
 
     /// `bytes` written from the address on.
@@ -238,7 +253,7 @@ impl GamePtr {
         // SAFETY: the bytes lie in one live region; `bytes` is Rust's, apart from it or
         // copied through a temporary by the caller.
         unsafe {
-            std::ptr::copy(bytes.as_ptr(), self.0 as usize as *mut u8, bytes.len());
+            std::ptr::copy(bytes.as_ptr(), host(self.0), bytes.len());
         }
         Ok(())
     }
@@ -250,7 +265,7 @@ impl GamePtr {
         to.check(len, what)?;
         // SAFETY: both runs lie in live regions; `copy` allows overlap.
         unsafe {
-            std::ptr::copy(self.0 as usize as *const u8, to.0 as usize as *mut u8, len);
+            std::ptr::copy(host(self.0), host(to.0), len);
         }
         Ok(())
     }
@@ -259,7 +274,7 @@ impl GamePtr {
     pub fn fill(self, value: u8, len: usize, what: &str) -> Result<(), BadInput> {
         self.check(len, what)?;
         // SAFETY: the run lies in one live region.
-        unsafe { std::ptr::write_bytes(self.0 as usize as *mut u8, value, len) };
+        unsafe { std::ptr::write_bytes(host(self.0), value, len) };
         Ok(())
     }
 
@@ -273,7 +288,7 @@ impl GamePtr {
             return Err(outside(self.0, size_of::<T>(), what));
         }
         // SAFETY: inside a live region, aligned, and `T` is made of cells (`Cells`).
-        Ok(unsafe { &*(self.0 as usize as *const T) })
+        Ok(unsafe { &*(host(self.0) as *const T) })
     }
 
     /// Whether `len` bytes from the address lie in one region.
@@ -312,8 +327,7 @@ pub struct GameBytes {
 impl rc2k_core::strings::bytes::Bytes for GameBytes {
     fn byte(&self, at: usize) -> Option<u8> {
         // SAFETY: `at` is inside the region (checked against its length).
-        (at < self.len)
-            .then(|| unsafe { (self.start as usize as *const u8).add(at).read_volatile() })
+        (at < self.len).then(|| unsafe { host(self.start).add(at).read_volatile() })
     }
 }
 
@@ -372,7 +386,7 @@ impl Window {
             crate::fatal::raise::end(what, e)
         }
         // SAFETY: the bytes lie in one live region (checked above).
-        unsafe { (addr as usize as *const T).read_unaligned() }
+        unsafe { (host(addr) as *const T).read_unaligned() }
     }
 
     /// A checked write, as `read_or_end`.
@@ -381,7 +395,7 @@ impl Window {
             crate::fatal::raise::end(what, e)
         }
         // SAFETY: the bytes lie in one live region (checked above).
-        unsafe { (addr as usize as *mut T).write_unaligned(value) }
+        unsafe { (host(addr) as *mut T).write_unaligned(value) }
     }
 
     /// Checked bytes written, as `write_or_end`.
@@ -390,9 +404,7 @@ impl Window {
             crate::fatal::raise::end(what, e)
         }
         // SAFETY: the bytes lie in one live region (checked above).
-        unsafe {
-            std::ptr::copy_nonoverlapping(bytes.as_ptr(), addr as usize as *mut u8, bytes.len())
-        }
+        unsafe { std::ptr::copy_nonoverlapping(bytes.as_ptr(), host(addr), bytes.len()) }
     }
 }
 
@@ -402,7 +414,7 @@ pub struct Lent(u32);
 
 impl Lent {
     pub fn new(bytes: &[u8]) -> Self {
-        let start = bytes.as_ptr() as u32;
+        let start = game_address(bytes.as_ptr());
         register(start, bytes.len() as u32);
         Self(start)
     }

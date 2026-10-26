@@ -136,7 +136,7 @@ fn look_over(instance: u32, entry: u32) -> Result<bool, BadInput> {
 
 /// The Rust version: eax.
 /// `joystick_found` as DirectInput calls it: what Rust callers hand `EnumDevices`.
-pub unsafe extern "system" fn callback(instance: u32, context: u32) -> u32 {
+pub extern "system" fn callback(instance: u32, context: u32) -> u32 {
     match joystick_found(instance, context) {
         Ok(eax) => eax,
         Err(e) => {

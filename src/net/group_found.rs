@@ -28,6 +28,6 @@ pub fn group_found(args: &[u32]) -> Result<u32, Refused> {
 }
 
 /// The callback DirectPlay is given: the Rust version.
-pub unsafe extern "system" fn callback(a: u32, b: u32, c: u32, d: u32, e: u32) -> u32 {
+pub extern "system" fn callback(a: u32, b: u32, c: u32, d: u32, e: u32) -> u32 {
     crate::net::lobby::callback_entry("net::group_found", 0x419391, &[a, b, c, d, e], group_found)
 }

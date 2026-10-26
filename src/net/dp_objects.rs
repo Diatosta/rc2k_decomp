@@ -136,7 +136,9 @@ struct Object {
 }
 
 fn object<'a>(this: u32) -> &'a Object {
-    unsafe { &*(this as *const Object) }
+    crate::pointers::check_or_end(this, size_of::<Object>(), "a DirectPlay object");
+    // SAFETY: a live object's region (registered in `make` until its last release).
+    unsafe { &*(this as usize as *const Object) }
 }
 
 fn state(this: u32) -> std::sync::MutexGuard<'static, State> {
@@ -158,60 +160,66 @@ fn make(table: *const usize) -> u32 {
     at
 }
 
-unsafe fn read_guid(at: u32) -> Option<Guid> {
-    (at != 0).then(|| unsafe { (at as *const Guid).read_unaligned() })
+fn read_guid(at: u32) -> Option<Guid> {
+    (at != 0).then(|| crate::pointers::read_or_end(at, "a DirectPlay GUID"))
 }
 
-unsafe fn put(at: u32, v: u32) {
+fn put(at: u32, v: u32) {
     if at != 0 {
-        unsafe { (at as *mut u32).write_unaligned(v) };
+        crate::pointers::write_or_end(at, v, "a DirectPlay method's result")
     }
 }
 
-unsafe fn get(at: u32) -> u32 {
-    unsafe { (at as *const u32).read_unaligned() }
+fn get(at: u32) -> u32 {
+    crate::pointers::read_or_end(at, "a DirectPlay method's argument")
+}
+
+fn end(e: crate::errors::BadInput) -> ! {
+    crate::fatal::raise::end("net::dp_objects", e)
 }
 
 /// A NUL-ended text at `at` (none: empty).
-unsafe fn text(at: u32) -> String {
+fn text(at: u32) -> String {
     if at == 0 {
         return String::new();
     }
-    unsafe { std::ffi::CStr::from_ptr(at as *const std::ffi::c_char) }
-        .to_string_lossy()
-        .into_owned()
+    let bytes = crate::files::cstring(crate::pointers::GamePtr::new(at), "a DirectPlay text")
+        .unwrap_or_else(|e| end(e));
+    String::from_utf8_lossy(&bytes).into_owned()
 }
 
 /// A DPNAME's short name.
-unsafe fn short_name(name: u32) -> String {
+fn short_name(name: u32) -> String {
     if name == 0 {
         return String::new();
     }
-    unsafe { text((name as *const DpName).read_unaligned().short_name) }
+    text(crate::pointers::read_or_end::<DpName>(name, "a DPNAME").short_name)
 }
 
-unsafe fn bytes(at: u32, n: u32) -> Vec<u8> {
+fn bytes(at: u32, n: u32) -> Vec<u8> {
     if at == 0 || n == 0 {
         return vec![];
     }
-    unsafe { std::slice::from_raw_parts(at as *const u8, n as usize).to_vec() }
+    crate::pointers::GamePtr::new(at)
+        .read_bytes(n as usize, "DirectPlay data")
+        .unwrap_or_else(|e| end(e))
 }
 
 /// The thing's bytes copied to `at`, `size` (in: the room, out: the bytes' count) set:
 /// DPERR_BUFFERTOOSMALL when they do not fit.
-unsafe fn give(data: &[u8], at: u32, size: u32) -> u32 {
-    unsafe {
-        if size == 0 {
-            return DPERR_INVALIDPARAMS;
-        }
-        let room = get(size) as usize;
-        put(size, data.len() as u32);
-        if at == 0 || room < data.len() {
-            return DPERR_BUFFERTOOSMALL;
-        }
-        std::ptr::copy_nonoverlapping(data.as_ptr(), at as *mut u8, data.len());
-        DP_OK
+fn give(data: &[u8], at: u32, size: u32) -> u32 {
+    if size == 0 {
+        return DPERR_INVALIDPARAMS;
     }
+    let room = get(size) as usize;
+    put(size, data.len() as u32);
+    if at == 0 || room < data.len() {
+        return DPERR_BUFFERTOOSMALL;
+    }
+    crate::pointers::GamePtr::new(at)
+        .write_bytes(data, "DirectPlay data")
+        .unwrap_or_else(|e| end(e));
+    DP_OK
 }
 
 /// A player's event signalled (a Windows event's handle).
@@ -241,48 +249,44 @@ fn fresh_guid() -> Guid {
 }
 
 /// `CoCreateInstance` for DirectPlay's two classes: the object into `out`, or the error.
-pub unsafe fn create(class: u32, interface: u32, out: u32) -> i32 {
-    unsafe {
-        let (Some(class), Some(interface)) = (read_guid(class), read_guid(interface)) else {
-            return DPERR_INVALIDPARAMS as i32;
-        };
-        let made = if class == CLSID_DIRECTPLAY && interface == IID_IDIRECTPLAY4A {
-            make(play_table())
-        } else if class == CLSID_DIRECTPLAYLOBBY && interface == IID_IDIRECTPLAYLOBBY2A {
-            make(lobby_table())
-        } else {
-            put(out, 0);
-            return CLASS_NOT_REGISTERED as i32;
-        };
-        put(out, made);
-        DP_OK as i32
-    }
+pub fn create(class: u32, interface: u32, out: u32) -> i32 {
+    let (Some(class), Some(interface)) = (read_guid(class), read_guid(interface)) else {
+        return DPERR_INVALIDPARAMS as i32;
+    };
+    let made = if class == CLSID_DIRECTPLAY && interface == IID_IDIRECTPLAY4A {
+        make(play_table())
+    } else if class == CLSID_DIRECTPLAYLOBBY && interface == IID_IDIRECTPLAYLOBBY2A {
+        make(lobby_table())
+    } else {
+        put(out, 0);
+        return CLASS_NOT_REGISTERED as i32;
+    };
+    put(out, made);
+    DP_OK as i32
 }
 
 // ---- IUnknown ----
 
-unsafe extern "system" fn query_play(this: u32, iid: u32, out: u32) -> u32 {
-    unsafe { query(this, iid, out, IID_IDIRECTPLAY4A) }
+extern "system" fn query_play(this: u32, iid: u32, out: u32) -> u32 {
+    query(this, iid, out, IID_IDIRECTPLAY4A)
 }
 
-unsafe extern "system" fn query_lobby(this: u32, iid: u32, out: u32) -> u32 {
-    unsafe { query(this, iid, out, IID_IDIRECTPLAYLOBBY2A) }
+extern "system" fn query_lobby(this: u32, iid: u32, out: u32) -> u32 {
+    query(this, iid, out, IID_IDIRECTPLAYLOBBY2A)
 }
 
-unsafe fn query(this: u32, iid: u32, out: u32, own: Guid) -> u32 {
-    unsafe {
-        if read_guid(iid) == Some(own) {
-            object(this).refs.fetch_add(1, Ordering::SeqCst);
-            put(out, this);
-            DP_OK
-        } else {
-            put(out, 0);
-            E_NOINTERFACE
-        }
+fn query(this: u32, iid: u32, out: u32, own: Guid) -> u32 {
+    if read_guid(iid) == Some(own) {
+        object(this).refs.fetch_add(1, Ordering::SeqCst);
+        put(out, this);
+        DP_OK
+    } else {
+        put(out, 0);
+        E_NOINTERFACE
     }
 }
 
-unsafe extern "system" fn add_ref(this: u32) -> u32 {
+extern "system" fn add_ref(this: u32) -> u32 {
     object(this).refs.fetch_add(1, Ordering::SeqCst) + 1
 }
 
@@ -300,18 +304,18 @@ unsafe extern "system" fn release(this: u32) -> u32 {
 
 // ---- IDirectPlay4A ----
 
-unsafe extern "system" fn add_player_to_group(this: u32, group: u32, player: u32) -> u32 {
+extern "system" fn add_player_to_group(this: u32, group: u32, player: u32) -> u32 {
     session(this).map_or(DPERR_UNINITIALIZED, |s| s.add_to_group(group, player))
 }
 
-unsafe extern "system" fn close(this: u32) -> u32 {
+extern "system" fn close(this: u32) -> u32 {
     if let Some(s) = state(this).session.take() {
         s.close();
     }
     DP_OK
 }
 
-unsafe extern "system" fn create_group(
+extern "system" fn create_group(
     this: u32,
     id: u32,
     name: u32,
@@ -322,14 +326,14 @@ unsafe extern "system" fn create_group(
     let Some(s) = session(this) else {
         return DPERR_UNINITIALIZED;
     };
-    let (result, made) = unsafe { s.create_group(&short_name(name), &bytes(data, size)) };
+    let (result, made) = { s.create_group(&short_name(name), &bytes(data, size)) };
     if result == DP_OK {
-        unsafe { put(id, made) };
+        put(id, made);
     }
     result
 }
 
-unsafe extern "system" fn create_player(
+extern "system" fn create_player(
     this: u32,
     id: u32,
     name: u32,
@@ -341,18 +345,18 @@ unsafe extern "system" fn create_player(
     let Some(s) = session(this) else {
         return DPERR_UNINITIALIZED;
     };
-    let (result, made) = unsafe { s.create_player(&short_name(name), &bytes(data, size), event) };
+    let (result, made) = { s.create_player(&short_name(name), &bytes(data, size), event) };
     if result == DP_OK {
-        unsafe { put(id, made) };
+        put(id, made);
     }
     result
 }
 
-unsafe extern "system" fn delete_player_from_group(this: u32, group: u32, player: u32) -> u32 {
+extern "system" fn delete_player_from_group(this: u32, group: u32, player: u32) -> u32 {
     session(this).map_or(DPERR_UNINITIALIZED, |s| s.remove_from_group(group, player))
 }
 
-unsafe extern "system" fn destroy_player(this: u32, player: u32) -> u32 {
+extern "system" fn destroy_player(this: u32, player: u32) -> u32 {
     session(this).map_or(DPERR_UNINITIALIZED, |s| s.destroy_player(player))
 }
 
@@ -440,9 +444,9 @@ fn dp_name(name: &std::ffi::CStr) -> DpName {
 }
 
 /// A DPSESSIONDESC2 read (its instance, application, name, flags, most players, user data).
-unsafe fn read_desc(at: u32) -> Desc {
-    unsafe {
-        let d = (at as *const DpSessionDesc).read_unaligned();
+fn read_desc(at: u32) -> Desc {
+    {
+        let d: DpSessionDesc = crate::pointers::read_or_end(at, "a DPSESSIONDESC2");
         Desc {
             flags: d.flags,
             instance: d.instance,
@@ -475,7 +479,7 @@ unsafe extern "system" fn enum_sessions(
     if desc == 0 || callback == 0 {
         return DPERR_INVALIDPARAMS;
     }
-    let application = unsafe { read_desc(desc).application };
+    let application = { read_desc(desc).application };
     let callback: EnumSessionsCallback = unsafe { std::mem::transmute(callback as usize) };
     let mut time = timeout;
     let time_at = &mut time as *mut u32 as u32;
@@ -497,7 +501,7 @@ unsafe extern "system" fn enum_sessions(
     DP_OK
 }
 
-unsafe extern "system" fn get_player_data(
+extern "system" fn get_player_data(
     this: u32,
     player: u32,
     data: u32,
@@ -508,12 +512,12 @@ unsafe extern "system" fn get_player_data(
         return DPERR_UNINITIALIZED;
     };
     match s.world().players.get(&player) {
-        Some(p) => unsafe { give(&p.data, data, size) },
+        Some(p) => give(&p.data, data, size),
         None => DPERR_INVALIDPLAYER,
     }
 }
 
-unsafe extern "system" fn open(this: u32, desc: u32, flags: u32) -> u32 {
+extern "system" fn open(this: u32, desc: u32, flags: u32) -> u32 {
     if desc == 0 {
         return DPERR_INVALIDPARAMS;
     }
@@ -527,7 +531,7 @@ unsafe extern "system" fn open(this: u32, desc: u32, flags: u32) -> u32 {
         }
         s.port
     };
-    let d = unsafe { read_desc(desc) };
+    let d = { read_desc(desc) };
     let made = if flags & DPOPEN_CREATE != 0 {
         let d = Desc {
             instance: fresh_guid(),
@@ -551,7 +555,7 @@ unsafe extern "system" fn open(this: u32, desc: u32, flags: u32) -> u32 {
     }
 }
 
-unsafe extern "system" fn receive(
+extern "system" fn receive(
     this: u32,
     from: u32,
     to: u32,
@@ -565,54 +569,47 @@ unsafe extern "system" fn receive(
     if size == 0 {
         return DPERR_INVALIDPARAMS;
     }
-    let room = unsafe { if data == 0 { 0 } else { get(size) as usize } };
+    let room = { if data == 0 { 0 } else { get(size) as usize } };
     match s.receive(room) {
         None => DPERR_NOMESSAGES,
         Some(Err(n)) => {
-            unsafe { put(size, n as u32) };
+            put(size, n as u32);
             DPERR_BUFFERTOOSMALL
         }
-        Some(Ok(m)) => unsafe {
+        Some(Ok(m)) => {
             put(from, m.from);
             put(to, m.to);
             give(&m.data, data, size)
-        },
+        }
     }
 }
 
-unsafe extern "system" fn send(
-    this: u32,
-    from: u32,
-    to: u32,
-    _flags: u32,
-    data: u32,
-    size: u32,
-) -> u32 {
-    session(this).map_or(DPERR_UNINITIALIZED, |s| unsafe {
+extern "system" fn send(this: u32, from: u32, to: u32, _flags: u32, data: u32, size: u32) -> u32 {
+    session(this).map_or(DPERR_UNINITIALIZED, |s| {
         s.send(from, to, &bytes(data, size))
     })
 }
 
-unsafe extern "system" fn set_player_data(
+extern "system" fn set_player_data(
     this: u32,
     player: u32,
     data: u32,
     size: u32,
     _flags: u32,
 ) -> u32 {
-    session(this).map_or(DPERR_UNINITIALIZED, |s| unsafe {
+    session(this).map_or(DPERR_UNINITIALIZED, |s| {
         s.set_player_data(player, &bytes(data, size))
     })
 }
 
-unsafe extern "system" fn set_session_desc(this: u32, desc: u32, _flags: u32) -> u32 {
+extern "system" fn set_session_desc(this: u32, desc: u32, _flags: u32) -> u32 {
     let Some(s) = session(this) else {
         return DPERR_UNINITIALIZED;
     };
     if desc == 0 {
         return DPERR_INVALIDPARAMS;
     }
-    s.set_desc(unsafe { read_desc(desc) })
+    s.set_desc(read_desc(desc))
 }
 
 type EnumConnectionsCallback = unsafe extern "system" fn(u32, u32, u32, u32, u32, u32) -> u32;
@@ -678,7 +675,7 @@ fn compound(parts: &[(Guid, Vec<u8>)]) -> Vec<u8> {
     v
 }
 
-unsafe extern "system" fn initialize_connection(this: u32, address: u32, _flags: u32) -> u32 {
+extern "system" fn initialize_connection(this: u32, address: u32, _flags: u32) -> u32 {
     let mut s = state(this);
     if s.initialized {
         return DPERR_ALREADYINITIALIZED;
@@ -687,8 +684,8 @@ unsafe extern "system" fn initialize_connection(this: u32, address: u32, _flags:
         return DPERR_INVALIDPARAMS;
     }
     // the total size is the first element's data
-    let total = unsafe { get(address + 20) } as usize;
-    let raw = unsafe { bytes(address, total.clamp(24, 4096) as u32) };
+    let total = { get(address + 20) } as usize;
+    let raw = { bytes(address, total.clamp(24, 4096) as u32) };
     let parts = elements(&raw);
     s.host = String::new();
     s.port = DEFAULT_PORT;
@@ -714,7 +711,7 @@ unsafe extern "system" fn initialize_connection(this: u32, address: u32, _flags:
 
 // ---- IDirectPlayLobby2A ----
 
-unsafe extern "system" fn not_lobbied4(_this: u32, _a: u32, _b: u32, _c: u32) -> u32 {
+extern "system" fn not_lobbied4(_this: u32, _a: u32, _b: u32, _c: u32) -> u32 {
     DPERR_NOTLOBBIED
 }
 
@@ -737,7 +734,7 @@ unsafe extern "system" fn create_compound_address(
             (e.data_type, bytes(e.data, e.data_size))
         })
         .collect();
-    unsafe { give(&compound(&parts), address, size) }
+    give(&compound(&parts), address, size)
 }
 
 // ---- the tables ----
