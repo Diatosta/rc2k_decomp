@@ -24,7 +24,7 @@ pub unsafe fn unlock_texture(texture: u32) -> Result<Flags, Refused> {
     let (carry, zero) = match unlock(texture, surface, || get(r + 0x60)).map_err(BadInput::from)? {
         Unlock::Flags(carry, zero) => (carry, zero),
         Unlock::Unlock => {
-            if unsafe { method(surface, 0x80, &[0]) } != 0 {
+            if crate::platform_3d::unlock_surface(surface) != 0 {
                 return Err(fatal(UNLOCK_FAILED).into());
             }
             put(r + 0x60, 0);

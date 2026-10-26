@@ -9,16 +9,9 @@
 //! `net::take_messages` twice). `Send` from Rust (`net::dplay`). Refuses nothing
 //! (no check of `g_dplay`, as the original).
 
-use crate::net::dplay::{SEND, method};
 use crate::net::store::NET;
 
 /// The Rust version.
 pub fn dplay_send(to: u32, flags: u32, data: u32, size: u32) {
-    unsafe {
-        method(
-            NET.dplay.get(),
-            SEND,
-            &[NET.player_id.get(), to, flags, data, size],
-        )
-    };
+    crate::net::dp_objects::send(NET.dplay.get(), NET.player_id.get(), to, flags, data, size);
 }

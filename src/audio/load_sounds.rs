@@ -71,14 +71,13 @@ impl rc2k_core::audio::load::Loader for GameLoader {
     ) -> Result<(), Refused> {
         use crate::audio::*;
         let record = self.record_at(at.sound);
-        unsafe {
-            fill_voice::fill_voice_in_game(voice_at, record, shared)?;
-            let mode = sample_mode::sample_mode_of(AUDIO.sound_mode.get(), voice(voice_at).sound)?;
-            samples::prepare_sample(voice(voice_at), mode)?;
-            keep_sample::keep_sample(voice(voice_at), &mut |n| keep_sample::allocate_in_game(n))?;
-            make_buffer::make_buffer(voice_at, record)?;
-            fill_buffer::fill_buffer(voice(voice_at))?;
-        }
+        fill_voice::fill_voice_in_game(voice_at, record, shared)?;
+        let mode = sample_mode::sample_mode_of(AUDIO.sound_mode.get(), voice(voice_at).sound)?;
+        samples::prepare_sample(voice(voice_at), mode)?;
+        keep_sample::keep_sample(voice(voice_at), &mut |n| keep_sample::allocate_in_game(n))?;
+        make_buffer::make_buffer(voice_at, record)?;
+        fill_buffer::fill_buffer(voice(voice_at))?;
+
         Ok(())
     }
     fn mark_loaded(&mut self, voice: u32) {

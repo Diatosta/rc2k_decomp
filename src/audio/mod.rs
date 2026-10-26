@@ -7,7 +7,6 @@ pub mod buffer_settings;
 pub mod choose_modes;
 pub mod clear_channels;
 pub mod close_all;
-pub mod com;
 pub mod describe_wave_format;
 pub mod fill_buffer;
 pub mod fill_voice;

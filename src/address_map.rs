@@ -30,6 +30,12 @@ static DELTA: [AtomicUsize; GRANULES] = [const { AtomicUsize::new(0) }; GRANULES
 /// Bumped when a range is taken off: the threads' caches are then emptied.
 static GENERATION: AtomicU32 = AtomicU32::new(0);
 
+/// How many times a range was taken off: a cache of game ranges (`pointers`' stack) is
+/// stale when it changed, as a thread's stack may have been given a new range.
+pub fn generation() -> u32 {
+    GENERATION.load(Ordering::Acquire)
+}
+
 /// A host range and its game range.
 #[derive(Clone, Copy, Debug)]
 struct Range {
@@ -281,6 +287,8 @@ mod tests {
         let second = map(next_host + 32, 32);
         assert_eq!(game_of(next_host + 32), Some(second));
         assert_eq!(game_of(next_host + 31), Some(first + 31));
+        unmap(first);
+        unmap(second);
         if table() {
             assert_eq!(game as usize % GRANULE, host % GRANULE);
             unmap(game);

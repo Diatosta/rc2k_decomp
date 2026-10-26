@@ -82,36 +82,3 @@ pub fn joy_state() -> rc2k_core::input::devices::State {
     }
     state
 }
-
-/// A method of a COM object (DirectInput's device): the function in slot `slot` (a byte
-/// offset) of its table, `stdcall` with the object first; the method's result.
-pub unsafe fn com_call(object: u32, slot: u32, args: &[u32]) -> u32 {
-    unsafe {
-        let table: u32 = crate::pointers::read_or_end(object, "a DirectInput object");
-        let f: u32 = crate::pointers::read_or_end(table + slot, "a DirectInput method table");
-        let f = crate::pointers::code(f);
-        match *args {
-            [] => {
-                let f: extern "system" fn(u32) -> u32 = std::mem::transmute(f);
-                f(object)
-            }
-            [a] => {
-                let f: extern "system" fn(u32, u32) -> u32 = std::mem::transmute(f);
-                f(object, a)
-            }
-            [a, b] => {
-                let f: extern "system" fn(u32, u32, u32) -> u32 = std::mem::transmute(f);
-                f(object, a, b)
-            }
-            [a, b, c] => {
-                let f: extern "system" fn(u32, u32, u32, u32) -> u32 = std::mem::transmute(f);
-                f(object, a, b, c)
-            }
-            [a, b, c, d] => {
-                let f: extern "system" fn(u32, u32, u32, u32, u32) -> u32 = std::mem::transmute(f);
-                f(object, a, b, c, d)
-            }
-            _ => panic!("com_call: {} arguments", args.len()),
-        }
-    }
-}

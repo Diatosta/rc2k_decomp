@@ -13,7 +13,6 @@
 //! Caller: `net::find_sessions_regs`.
 
 use crate::errors::Refused;
-use crate::net::dplay::{ENUM_SESSIONS, call};
 use crate::net::lobby::{log, movsb, zero};
 use crate::net::store::NET;
 use crate::race::viewer_screen_store::{VIEWER_PANEL, texts};
@@ -29,32 +28,27 @@ pub fn zeroed_description() -> Result<(), Refused> {
 }
 
 /// `EnumSessions` as the code at 0x418A43 calls it.
-pub unsafe fn enum_sessions() -> u32 {
-    unsafe {
-        call(
-            &NET.dplay,
-            ENUM_SESSIONS,
-            &[
-                (NET.session_desc.addr()),
-                0,
-                crate::pointers::game_address(crate::net::session_found::callback as *const ()),
-                0,
-                ENUM_FLAGS,
-            ],
-        )
-    }
+pub fn enum_sessions() -> u32 {
+    crate::net::dp_objects::enum_sessions(
+        NET.dplay.get(),
+        NET.session_desc.addr(),
+        0,
+        crate::net::session_found::callback,
+        0,
+        ENUM_FLAGS,
+    )
 }
 
 /// The code at 0x418A43 as the receiving thread calls it when it is posted.
-pub extern "C" fn posted_enum_sessions() -> u32 {
-    unsafe { enum_sessions() }
+pub fn posted_enum_sessions() -> u32 {
+    enum_sessions()
 }
 
 /// The piece `code` made: posted to the receiving thread (`net::post_call`) while
 /// `g_netPosting` is 1, else called here.
-pub fn posted_or_called(code: extern "C" fn() -> u32) -> u32 {
+pub fn posted_or_called(code: fn() -> u32) -> u32 {
     if NET.posting.get() == 1 {
-        crate::net::post_call::post_call(crate::pointers::game_address(code as *const ()))
+        crate::net::post_call::post_call(code)
     } else {
         code()
     }

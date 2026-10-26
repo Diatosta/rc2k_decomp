@@ -21,7 +21,7 @@
 
 use crate::errors::Refused;
 use crate::field;
-use crate::input::devices::{Deferred, STATE_LEN, at, com_call, joy_state, put};
+use crate::input::devices::{Deferred, STATE_LEN, at, joy_state, put};
 use crate::input::store::DEVICES;
 use crate::input::types::InputDevice;
 use crate::pointers::GamePtr;
@@ -31,26 +31,24 @@ fn state(n: u32) -> u32 {
 }
 
 /// The device `record` polled (see the header).
-pub unsafe fn poll_device(record: u32) -> Result<(), Refused> {
+pub fn poll_device(record: u32) -> Result<(), Refused> {
     let device = at(record, field!(InputDevice, device))?;
     if at(record, field!(InputDevice, acquired))? != 1 || device == 0 {
         return Ok(());
     }
-    unsafe {
-        com_call(device, 0x64, &[]);
-    }
-    let failed = unsafe {
-        com_call(
+    crate::input::di_objects::poll(device);
+    let failed = {
+        crate::input::di_objects::get_device_state(
             device,
-            0x24,
-            &[STATE_LEN as u32, DEVICES.device_state[0].addr()],
-        )
+            STATE_LEN as u32,
+            DEVICES.device_state[0].addr(),
+        ) as u32
     };
     // The `rep movsd` of a failed read moves esi on by 0x50 as well: what follows reads
     // and writes the record from there (sic) until the `popa`.
     let mut record = record;
     if failed != 0 {
-        unsafe { com_call(device, 0x1C, &[]) };
+        crate::input::di_objects::acquire(device);
         GamePtr::new(record).copy_to(
             GamePtr::new(DEVICES.device_state[0].addr()),
             STATE_LEN,

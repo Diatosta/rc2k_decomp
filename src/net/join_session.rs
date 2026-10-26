@@ -20,8 +20,8 @@ use crate::net::types::NetSession;
 use crate::race::viewer_screen_store::{VIEWER_PANEL, texts};
 
 /// The code at 0x418D77 as the receiving thread calls it when it is posted.
-pub extern "C" fn posted_open_join() -> u32 {
-    unsafe { open(OPEN_JOIN) }
+pub fn posted_open_join() -> u32 {
+    open(OPEN_JOIN)
 }
 
 fn join_group() -> Result<bool, Refused> {

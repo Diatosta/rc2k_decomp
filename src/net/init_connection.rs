@@ -10,7 +10,6 @@
 
 use crate::errors::Refused;
 use crate::net::build_address::build_address;
-use crate::net::dplay::{INITIALIZE_CONNECTION, call};
 use crate::net::lobby::{log, log_hex, log_int_nl};
 use crate::net::store::NET;
 use crate::race::viewer_screen_store::{VIEWER_PANEL, texts};
@@ -26,7 +25,8 @@ pub fn init_connection(connection: u32) -> Result<bool, Refused> {
     if NET.dplay.get() == 0 || !build_address(connection)? {
         return Ok(false);
     }
-    let result = unsafe { call(&NET.dplay, INITIALIZE_CONNECTION, &[NET.address.get(), 0]) };
+    let result =
+        { crate::net::dp_objects::initialize_connection(NET.dplay.get(), NET.address.get(), 0) };
     log(VIEWER_PANEL.text_addr(texts::NET_INIT), false, 2);
     log_hex(result, true);
     Ok(result == 0)

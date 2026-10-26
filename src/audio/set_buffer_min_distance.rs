@@ -10,16 +10,13 @@
 use crate::audio::voices::Voice;
 use crate::errors::{BadInput, Refused};
 
-const SET_MIN_DISTANCE: u32 = 0x44;
-const DEFERRED: u32 = 1;
-
-pub unsafe fn set_buffer_min_distance(v: &Voice) -> Result<i32, Refused> {
+pub fn set_buffer_min_distance(v: &Voice) -> Result<i32, Refused> {
     if v.buffer_3d == 0 {
         return Err(BadInput("a voice without its 3D buffer").into());
     }
-    unsafe {
-        let f: unsafe extern "system" fn(u32, u32, u32) -> i32 =
-            std::mem::transmute(crate::audio::com::method(v.buffer_3d, SET_MIN_DISTANCE));
-        Ok(f(v.buffer_3d, v.min_distance, DEFERRED))
-    }
+    // (Deferred: the platform takes it at once.)
+    Ok(crate::platform_sound::set_min_distance(
+        v.buffer_3d,
+        f32::from_bits(v.min_distance),
+    ))
 }

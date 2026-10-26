@@ -20,9 +20,7 @@
 use crate::errors::BadInput;
 use crate::field;
 use crate::input::devices::put;
-use crate::input::di_harness::{
-    CAPS_LEN, CONTROLLER_LEN, CONTROLLERS, JOYSTICK_FORMAT_RVA, a, method, slot,
-};
+use crate::input::di_harness::{CAPS_LEN, CONTROLLER_LEN, CONTROLLERS, JOYSTICK_FORMAT_RVA, a};
 use crate::input::guids::INPUT_GUIDS;
 use crate::input::store::DEVICES;
 use crate::input::types::{Controller, DiDevCaps, DiDeviceInstance};
@@ -33,50 +31,39 @@ use crate::session::MACHINE;
 fn look_over(instance: u32, entry: u32) -> Result<bool, BadInput> {
     let input = DEVICES.direct_input.get();
     let ok = |hr: u32| hr == 0;
-    if !ok(method(
+    if !ok(crate::input::di_objects::create_device(
         input,
-        slot::CREATE_DEVICE,
-        &[
-            instance + field!(DiDeviceInstance, instance),
-            DEVICES.new_joystick.addr(),
-            0,
-        ],
-    )) {
+        instance + field!(DiDeviceInstance, instance),
+        DEVICES.new_joystick.addr(),
+        0,
+    ) as u32)
+    {
         return Ok(false);
     }
     let device = DEVICES.new_joystick.get();
-    if !ok(method(
+    if !ok(crate::input::di_objects::query_interface(
         device,
-        slot::QUERY,
-        &[INPUT_GUIDS.device2.addr(), DEVICES.new_joystick2.addr()],
-    )) {
+        INPUT_GUIDS.device2.addr(),
+        DEVICES.new_joystick2.addr(),
+    ) as u32)
+    {
         return Ok(false);
     }
     let device2 = DEVICES.new_joystick2.get();
-    if !ok(method(
-        device2,
-        slot::SET_DATA_FORMAT,
-        &[a(JOYSTICK_FORMAT_RVA)],
-    )) {
+    if !ok(crate::input::di_objects::set_data_format(device2, a(JOYSTICK_FORMAT_RVA)) as u32) {
         return Ok(false);
     }
-    if !ok(method(
-        device2,
-        slot::SET_COOPERATIVE_LEVEL,
-        &[MACHINE.window.get(), 5],
-    )) {
+    if !ok(crate::input::di_objects::set_cooperative_level(device2, MACHINE.window.get(), 5) as u32)
+    {
         return Ok(false);
     }
     DEVICES.joystick_caps.set_u32(0, CAPS_LEN as u32);
-    if !ok(method(
-        device2,
-        slot::GET_CAPABILITIES,
-        &[DEVICES.joystick_caps.addr()],
-    )) {
+    if !ok(crate::input::di_objects::get_capabilities(device2, DEVICES.joystick_caps.addr()) as u32)
+    {
         return Ok(false);
     }
-    let found = crate::pointers::game_address(crate::input::axis_found::callback as *const ());
-    method(device2, slot::ENUM_OBJECTS, &[found, entry, 0]);
+    let found = crate::input::axis_found::callback;
+    crate::input::di_objects::enum_objects(device2, found, entry, 0);
     // SAFETY: `instance` is the `DIDEVICEINSTANCEA` the emulation lists (a local of its own,
     // no allocation of the game's), alive for this call.
     let (dev_type, guid) = unsafe {
@@ -133,7 +120,7 @@ fn look_over(instance: u32, entry: u32) -> Result<bool, BadInput> {
 
 /// The Rust version: eax.
 /// `joystick_found` as DirectInput calls it: what Rust callers hand `EnumDevices`.
-pub extern "system" fn callback(instance: u32, context: u32) -> u32 {
+pub fn callback(instance: u32, context: u32) -> u32 {
     match joystick_found(instance, context) {
         Ok(eax) => eax,
         Err(e) => {
@@ -153,7 +140,7 @@ pub fn joystick_found(instance: u32, _context: u32) -> Result<u32, BadInput> {
     for cell in [&DEVICES.new_joystick2, &DEVICES.new_joystick] {
         let object = cell.get();
         if object != 0 {
-            method(object, slot::RELEASE, &[]);
+            crate::input::di_objects::release(object);
             cell.set(0);
         }
     }

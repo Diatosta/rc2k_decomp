@@ -7,17 +7,14 @@ use crate::audio::store::AUDIO;
 use crate::errors::{BadInput, Refused};
 use crate::session::{FLAGS, MACHINE};
 
-pub const GET_STATUS: u32 = 0x24;
-pub const RESTORE: u32 = 0x50;
-
 /// `restore_buffer` of the buffer `buffer`: true when it failed (the carry).
 fn restore_failed(buffer: u32) -> Result<bool, Refused> {
-    Ok(unsafe { restore_buffer(buffer) }?.carry)
+    Ok(restore_buffer(buffer)?.carry)
 }
 
 /// The voice `n`'s buffer refilled: true when it failed.
 fn refill_failed(n: usize) -> Result<bool, Refused> {
-    Ok(!unsafe { crate::audio::fill_buffer::fill_buffer(&AUDIO.voices[n].get()) }?)
+    crate::audio::fill_buffer::fill_buffer(&AUDIO.voices[n].get())
 }
 
 /// `audio::make_primary` on the game's variables: true when it failed (the carry).
@@ -36,7 +33,7 @@ pub struct Restored {
 /// `audio::restore_buffer`: the buffer `b`, if any: `GetStatus` (+0x24, into edx, which
 /// `Restore` then leaves as it likes); lost: `Restore` (+0x50, into eax), whose failure sets
 /// the lost flag and the carry. Refuses A3D (0x40CB0A).
-pub unsafe fn restore_buffer(b: u32) -> Result<Restored, Refused> {
+pub fn restore_buffer(b: u32) -> Result<Restored, Refused> {
     if crate::audio::buffer_settings::a3d() {
         return Err(BadInput("A3D (0x40CB0A)").into());
     }
@@ -45,22 +42,18 @@ pub unsafe fn restore_buffer(b: u32) -> Result<Restored, Refused> {
         eax: None,
         edx: None,
     };
-    unsafe {
+    {
         if b == 0 {
             return Ok(left);
         }
-        let mut status = 0u32;
-        crate::audio::com::call1(
-            b,
-            GET_STATUS,
-            crate::pointers::game_address(&mut status as *mut u32),
-        );
+        // A failed call leaves the status 0.
+        let status = crate::platform_sound::status(b).unwrap_or(0);
         left.edx = Some(status);
         // Converted: `rc2k_core::audio::buffers::needs_restore`.
         if !rc2k_core::audio::buffers::needs_restore(status) {
             return Ok(left);
         }
-        let r = crate::audio::com::call(b, RESTORE);
+        let r = crate::platform_sound::restore(b);
         left.eax = Some(r as u32);
         // `Restore` may change edx as it likes (as any COM call): not the status any more.
         left.edx = None;
@@ -77,15 +70,13 @@ pub unsafe fn restore_buffer(b: u32) -> Result<Restored, Refused> {
 pub fn replay_looping() -> Result<(), Refused> {
     // Converted: `rc2k_core::audio::voices::sounding_to_replay` (the list is walked before
     // any is played, so a list without its end plays none).
-    unsafe {
-        let lists = rc2k_core::audio::voices::Lists {
-            playing: AUDIO.playing_voices.get(),
-            ..Default::default()
-        };
-        let mut pool = crate::audio::voices::GamePool;
-        for v in rc2k_core::audio::voices::sounding_to_replay(&mut pool, &lists)? {
-            crate::audio::buffer_play::play_buffer_in_game(crate::audio::voices::voice(v))?;
-        }
+    let lists = rc2k_core::audio::voices::Lists {
+        playing: AUDIO.playing_voices.get(),
+        ..Default::default()
+    };
+    let mut pool = crate::audio::voices::GamePool;
+    for v in rc2k_core::audio::voices::sounding_to_replay(&mut pool, &lists)? {
+        crate::audio::buffer_play::play_buffer_in_game(crate::audio::voices::voice(v))?;
     }
     Ok(())
 }
@@ -127,11 +118,6 @@ pub fn close_primary_mixer_in_game() -> Result<bool, Refused> {
     }
     crate::audio::sound_device::release_primary()?;
     let ds = AUDIO.direct_sound.get();
-    unsafe {
-        let level: unsafe extern "system" fn(u32, u32, u32) -> i32 = std::mem::transmute(
-            crate::audio::com::method(ds, crate::audio::sound_device::SET_COOPERATIVE_LEVEL),
-        );
-        level(ds, MACHINE.window.get(), 3);
-    }
+    crate::platform_sound::set_cooperative_level(ds, MACHINE.window.get(), 3);
     make_primary_failed()
 }

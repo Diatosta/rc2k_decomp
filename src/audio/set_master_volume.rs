@@ -8,10 +8,7 @@
 //! held to 0x40 (unsigned). Callers: `sub_40A54B` (the mode's set-up) and
 //! `audio::volume_command`.
 
-use crate::audio::com::{self};
 use crate::audio::store::AUDIO;
-
-const SET_VOLUME: u32 = 0x3C;
 
 // ---- Rust version ----
 
@@ -26,5 +23,5 @@ pub fn set_master_volume_in_game(volume: u32) {
     // Converted: `rc2k_core::audio::levels::master_volume`.
     let level =
         rc2k_core::audio::levels::master_volume(volume, crate::audio::buffer_settings::volumes);
-    unsafe { com::call1(buffer, SET_VOLUME, level) };
+    crate::platform_sound::set_volume(buffer, level as i32);
 }

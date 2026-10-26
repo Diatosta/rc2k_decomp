@@ -62,3 +62,14 @@ pub fn describe_wave_format(format: u32, frequency: u32) -> Result<(), Refused> 
     AUDIO.wave_format.set(f);
     Ok(())
 }
+
+/// `g_waveFormat` as the platform's format (what `CreateSoundBuffer` and `SetFormat` read
+/// of it).
+pub fn platform_format() -> crate::platform_sound::Format {
+    let w = crate::audio::store::AUDIO.wave_format.get();
+    crate::platform_sound::Format {
+        channels: w.channels as u32,
+        bits: w.bits as u32,
+        rate: w.samples_per_second,
+    }
+}

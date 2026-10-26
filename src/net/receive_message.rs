@@ -12,7 +12,6 @@
 //! Caller: `net::take_messages`. `Receive` from Rust (`net::dplay`). Refuses
 //! nothing (no check of `g_dplay`: its caller makes it).
 
-use crate::net::dplay::{RECEIVE, method};
 use crate::net::store::NET;
 
 /// The buffer's size.
@@ -31,17 +30,14 @@ pub struct Received {
 /// The Rust version.
 pub fn receive_message() -> Received {
     NET.received_size.set(ROOM);
-    let result = unsafe {
-        method(
+    let result = {
+        crate::net::dp_objects::receive(
             NET.dplay.get(),
-            RECEIVE,
-            &[
-                NET.received_from.addr(),
-                NET.received_to.addr(),
-                RECEIVE_ALL,
-                NET.receive_data.addr(),
-                NET.received_size.addr(),
-            ],
+            NET.received_from.addr(),
+            NET.received_to.addr(),
+            RECEIVE_ALL,
+            NET.receive_data.addr(),
+            NET.received_size.addr(),
         )
     };
     if result != 0 {

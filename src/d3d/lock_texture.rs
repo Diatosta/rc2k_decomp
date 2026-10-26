@@ -27,7 +27,7 @@ pub unsafe fn lock_texture(texture: u32) -> Result<Flags, Refused> {
         Lock::Twice => return Err(fatal(LOCKED_TWICE).into()),
         Lock::Lock => {
             let d = crate::gfx::upload::UPLOAD.description.addr();
-            if unsafe { method(surface, 0x64, &[0, d, 1, 0]) } != 0 {
+            if crate::platform_3d::lock_surface(surface, d) != 0 {
                 return Err(fatal(LOCK_FAILED).into());
             }
             put(r + 0x60, 1);

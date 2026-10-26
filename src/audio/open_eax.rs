@@ -12,6 +12,6 @@ use crate::audio::property_sets::*;
 use crate::errors::Refused;
 
 /// True for the carry clear.
-pub unsafe fn open_eax(holder: u32) -> Result<bool, Refused> {
-    unsafe { open_property_set(&Opening::eax(), holder, &mut game_log) }
+pub fn open_eax(holder: u32) -> Result<bool, Refused> {
+    open_property_set(&Opening::eax(), holder)
 }

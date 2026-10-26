@@ -4,7 +4,8 @@
 //! window's messages (`system::pump_messages`) until it has answered or the game is
 //! closing; then eax = `g_netPostedResult` (also without posting).
 //!
-//! In:  `code` (eax: the code to call; here a Rust version's address, `net::lobby_calls`)
+//! In:  `code` (eax: the code to call; here a Rust function, handed over beside the cell,
+//!      which holds 1 while it waits: phase 11, 2026-10-26)
 //! Out: the posted call's result (eax). The original leaves the rest as the sleep and the
 //!      messages leave them, and the flags of its last test: its callers read eax only
 //!      (`lq -s 0x4184F8`).
@@ -16,12 +17,17 @@
 
 use crate::net::store::NET;
 use crate::session::FLAGS;
+use std::sync::Mutex;
 use std::sync::atomic::Ordering;
 
+/// The call posted, while `g_netPostedCall` is 1.
+static POSTED: Mutex<Option<fn() -> u32>> = Mutex::new(None);
+
 /// The Rust version.
-pub fn post_call(code: u32) -> u32 {
+pub fn post_call(code: fn() -> u32) -> u32 {
     if NET.posting.get() == 1 {
-        NET.posted_call.set(code);
+        *POSTED.lock().unwrap_or_else(|e| e.into_inner()) = Some(code);
+        NET.posted_call.set(1);
         loop {
             let answered = NET.posted_answered.atomic().swap(0, Ordering::SeqCst);
             if answered != 0 {
@@ -35,4 +41,12 @@ pub fn post_call(code: u32) -> u32 {
         }
     }
     NET.posted_result.get()
+}
+
+/// The call posted, taken by the receiving thread (none waiting: `None`).
+pub fn take_posted() -> Option<fn() -> u32> {
+    if NET.posted_call.atomic().swap(0, Ordering::SeqCst) == 0 {
+        return None;
+    }
+    POSTED.lock().unwrap_or_else(|e| e.into_inner()).take()
 }

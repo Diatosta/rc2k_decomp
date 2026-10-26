@@ -40,7 +40,7 @@ use crate::race::viewer_screen_store::{VIEWER_PANEL, texts};
 use crate::scene::draw_store::DRAW;
 use crate::session::SCREEN;
 use crate::system::find_entry::find_entry;
-use std::sync::{Mutex, OnceLock};
+use std::sync::Mutex;
 
 // ---- game data ----
 
@@ -156,11 +156,11 @@ fn record_at(pool: usize, number: u32) -> &'static crate::session::Shared<Textur
 }
 
 struct Level {
+    /// The pixels a region while the level lives (locked, the game's code writes them by
+    /// address: `pointers`). (Declared first: fields drop in order, and the region must go before the memory does.)
+    _lent: crate::pointers::Lent,
     pixels: Vec<u8>,
     pitch: u32,
-    /// The pixels a region while the level lives (locked, the game's code writes them by
-    /// address: `pointers`).
-    _lent: crate::pointers::Lent,
 }
 
 /// A surface's number: (pool, texture, level), the pool 0 for system, 1 for video.
@@ -171,30 +171,18 @@ fn surface_number(pool: usize, texture: u32, level: u32) -> usize {
 const SURFACES: usize = 2 * MOST as usize * LEVELS as usize;
 
 static LEVELS_MEMORY: Mutex<Vec<Option<Level>>> = Mutex::new(Vec::new());
-/// The surfaces' objects (a pointer to the table and the number each) and the table.
-static OBJECTS: OnceLock<usize> = OnceLock::new();
-
-fn objects() -> *mut [u32; 2] {
-    crate::pointers::host_at(*OBJECTS.get_or_init(|| {
-        let mut table = vec![0u32; 0x40];
-        table[0x64 / 4] = crate::pointers::game_address(lock as *const ());
-        table[0x80 / 4] = crate::pointers::game_address(unlock as *const ());
-        let table = Box::leak(table.into_boxed_slice());
-        // Both kept for the program's life, and regions: the game's code reaches a
-        // surface's methods through them (`d3d::texture_lock`).
-        let table = crate::pointers::lend(table.as_ptr(), size_of_val(table));
-        let objects: Vec<[u32; 2]> = (0..SURFACES as u32).map(|n| [table, n]).collect();
-        let objects = Box::leak(objects.into_boxed_slice());
-        crate::pointers::lend(objects.as_ptr(), size_of_val(objects)) as usize
-    })) as *mut [u32; 2]
-}
-
+/// A level's surface as the game holds it: its number and 1 (phase 11, 2026-10-26: before,
+/// an object whose first dword was a method table with `Lock` at +0x64 and `Unlock` at
+/// +0x80, which the game's code called).
 fn object(number: usize) -> u32 {
-    crate::pointers::game_address(objects().wrapping_add(number))
+    number as u32 + 1
 }
 
-extern "system" fn lock(this: u32, _: u32, description: u32, _: u32, _: u32) -> i32 {
-    let number = crate::pointers::read_or_end::<u32>(this + 4, "a texture surface") as usize;
+/// DirectDraw's `Lock` of a texture's surface (`d3d::lock_texture`,
+/// `gfx::upload_texture_picture`): the pixels' address at +0x24 and the pitch at +0x10 of
+/// the surface description at `description`; `NOT_THERE` for a surface with no memory.
+pub fn lock_surface(surface: u32, description: u32) -> i32 {
+    let number = surface.wrapping_sub(1) as usize;
     // The texture is to be written: the noted drawing that reads it first (only then:
     // the mud's, the map's and the HUD's textures are locked every frame).
     let pixels = LEVELS_MEMORY
@@ -222,7 +210,8 @@ extern "system" fn lock(this: u32, _: u32, description: u32, _: u32, _: u32) -> 
     }
 }
 
-extern "system" fn unlock(_: u32, _: u32) -> i32 {
+/// DirectDraw's `Unlock`: the pixels are the level's already.
+pub fn unlock_surface(_surface: u32) -> i32 {
     0
 }
 

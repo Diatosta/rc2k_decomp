@@ -1,46 +1,26 @@
 //! Aureal's A3D (IDA, 2026-10-15): the two attempts to use it, its close, and the two
 //! functions that keep A3D's splash settings in the registry. A3D has not existed for a
-//! long time: the Rust versions make the same attempt (`CoCreateInstance`), go the
-//! original's way when it fails, and refuse when it works.
+//! long time: the attempt (`CoCreateInstance` of A3D's classes) fails as on any machine
+//! without A3D's driver (phase 11, 2026-10-26: no COM, the class is never there), and the
+//! Rust versions go the original's way for that.
 
 use crate::audio::store::AUDIO;
 use crate::errors::{BadInput, Refused};
 use crate::session::Dword;
 
-/// `CoCreateInstance`'s class context: in process.
-const IN_PROCESS: u32 = 1;
+/// `REGDB_E_CLASSNOTREG`: what `CoCreateInstance` says of a class no driver registered.
+const CLASS_NOT_REGISTERED: i32 = 0x8004_0154u32 as i32;
 
-/// `CoCreateInstance` (class, interface) -> its result. The object never reaches the game:
-/// when there is one A3D is there, which the callers refuse, so it is released here at
-/// once (a system object's address need not fit the game's 32 bits).
-fn game_create(class: u32, interface: u32) -> i32 {
-    let mut object: *mut core::ffi::c_void = std::ptr::null_mut();
-    let r = unsafe {
-        windows_sys::Win32::System::Com::CoCreateInstance(
-            crate::pointers::host(class) as *const _,
-            std::ptr::null_mut(),
-            IN_PROCESS,
-            crate::pointers::host(interface) as *const _,
-            &mut object,
-        )
-    };
-    if r >= 0 && !object.is_null() {
-        // SAFETY: a COM object the system made: its table's third method is `Release`.
-        unsafe {
-            let table = *(object as *const *const usize);
-            let release: unsafe extern "system" fn(*mut core::ffi::c_void) -> u32 =
-                std::mem::transmute(*table.add(2));
-            release(object);
-        }
-    }
-    r
+/// `CoCreateInstance` (class, interface) -> its result: A3D's classes are never there.
+fn game_create(_class: u32, _interface: u32) -> i32 {
+    CLASS_NOT_REGISTERED
 }
 
 /// The object a cell holds released (when there is one) and forgotten.
 fn release(cell: &Dword) {
     let o = cell.get();
     if o != 0 {
-        unsafe { crate::audio::com::call(o, crate::audio::com::RELEASE) };
+        crate::platform_sound::release(o);
         cell.set(0);
     }
 }

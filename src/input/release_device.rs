@@ -17,19 +17,19 @@ use crate::errors::Refused;
 use crate::field;
 use crate::input::clear_device_readings::clear_device_readings;
 use crate::input::device_effects::controller;
-use crate::input::devices::{at, com_call, put};
+use crate::input::devices::{at, put};
 use crate::input::types::InputDevice;
 
 /// The device `record` given back.
-pub unsafe fn release_device(record: u32) -> Result<(), Refused> {
+pub fn release_device(record: u32) -> Result<(), Refused> {
     let device = at(record, field!(InputDevice, device))?;
     if device != 0 {
         let effects = controller(record, 0x1C)? == 1;
-        unsafe { com_call(device, 0x20, &[]) };
+        crate::input::di_objects::unacquire(device);
         if effects {
             crate::input::end_force::end_force(record)?;
         }
-        unsafe { com_call(device, 0x08, &[]) };
+        crate::input::di_objects::release(device);
         put(record, field!(InputDevice, device), 0)?;
     }
     put(record, field!(InputDevice, acquired), 0)?;
@@ -39,6 +39,6 @@ pub unsafe fn release_device(record: u32) -> Result<(), Refused> {
 }
 
 /// The Rust version for Rust callers.
-pub unsafe fn release_device_in_game(record: u32) -> Result<(), Refused> {
-    unsafe { release_device(record) }
+pub fn release_device_in_game(record: u32) -> Result<(), Refused> {
+    release_device(record)
 }

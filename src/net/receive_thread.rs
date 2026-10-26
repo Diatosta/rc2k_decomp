@@ -21,7 +21,6 @@ use crate::errors::Refused;
 use crate::logfile::log_write::log_write;
 use crate::net::store::NET;
 use crate::session::FLAGS;
-use std::sync::atomic::Ordering;
 
 const START_TEXT: &std::ffi::CStr = c"NETRXTDB:START"; // "NETRXTDB:START"
 const QUIT_TEXT: &std::ffi::CStr = c"NETRXTDB:QUIT"; // "NETRXTDB:QUIT"
@@ -48,16 +47,11 @@ pub fn receive_thread() -> Result<(), Refused> {
                         }
                     }
                     NET.receiving.set(0);
-                    if NET.posting.get() == 1 {
-                        let posted = NET.posted_call.atomic().swap(0, Ordering::SeqCst);
-                        if posted != 0 {
-                            // Always a Rust version's address (`net::lobby_calls`).
-                            let call = std::mem::transmute::<usize, extern "C" fn() -> u32>(
-                                crate::pointers::code(posted),
-                            );
-                            NET.posted_result.set(call());
-                            NET.posted_answered.set(1);
-                        }
+                    if NET.posting.get() == 1
+                        && let Some(call) = crate::net::post_call::take_posted()
+                    {
+                        NET.posted_result.set(call());
+                        NET.posted_answered.set(1);
                     }
                     if FLAGS.quitting.get() == 1 {
                         break;

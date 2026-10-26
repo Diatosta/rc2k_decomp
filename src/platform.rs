@@ -46,14 +46,14 @@ const DEFAULT_MODE: u32 = 0x32_2802;
 // ---- the screen ----
 
 struct Screen {
+    /// The pixels a region while the screen lives (the game's code draws on them by
+    /// address: `pointers`). (Declared first: fields drop in order, and the region must go before the memory does.)
+    _lent: crate::pointers::Lent,
     window: usize,
     width: usize,
     height: usize,
     bits: u32,
     pixels: Vec<u8>,
-    /// The pixels a region while the screen lives (the game's code draws on them by
-    /// address: `pointers`).
-    _lent: crate::pointers::Lent,
 }
 
 static SCREEN: Mutex<Option<Screen>> = Mutex::new(None);

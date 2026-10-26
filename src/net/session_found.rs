@@ -64,7 +64,7 @@ pub fn session_found(args: &[u32]) -> Result<u32, Refused> {
     Ok(1)
 }
 
-/// The callback DirectPlay is given: the Rust version.
-pub extern "system" fn callback(a: u32, b: u32, c: u32, d: u32) -> u32 {
+/// The callback DirectPlay is given (`net::dp_objects`): the Rust version.
+pub fn callback(a: u32, b: u32, c: u32, d: u32) -> u32 {
     crate::net::lobby::callback_entry("net::session_found", 0x418A62, &[a, b, c, d], session_found)
 }

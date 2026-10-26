@@ -17,7 +17,7 @@ use crate::input::types::{Controller, DiDeviceObjectInstance};
 use crate::pointers::GamePtr;
 
 /// `axis_found` as DirectInput calls it: what Rust callers hand `EnumObjects`.
-pub extern "system" fn callback(object: u32, entry: u32) -> u32 {
+pub fn callback(object: u32, entry: u32) -> u32 {
     match axis_found(object, entry) {
         Ok(eax) => eax,
         Err(e) => {

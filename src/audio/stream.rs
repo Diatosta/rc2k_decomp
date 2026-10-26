@@ -16,10 +16,6 @@ use crate::errors::{BadInput, Refused};
 use crate::pointers::GamePtr;
 
 pub const HEADER_LEN: u32 = 0xC00;
-/// `GetCurrentPosition`, `Lock`, `Unlock` of a DirectSound buffer.
-pub const GET_POSITION: u32 = 0x10;
-pub const LOCK: u32 = 0x2C;
-pub const UNLOCK: u32 = 0x4C;
 
 pub use rc2k_core::audio::streams::AudioStream;
 
@@ -68,30 +64,28 @@ pub fn fill_stream_part(s: &mut AudioStream, at: u32, bytes: u32) -> Filled {
 }
 
 /// `audio::stop_stream`: not playing; the buffer stopped and released; the file closed.
-pub unsafe fn stop_stream(s: &mut AudioStream) -> Result<(), Refused> {
+pub fn stop_stream(s: &mut AudioStream) -> Result<(), Refused> {
     not_a3d("A3D (0x40D1D0)")?;
     // Converted: `rc2k_core::audio::streams::AudioStream::stop`.
     let (buffer, file) = s.stop();
-    unsafe {
-        if let Some(b) = buffer {
-            crate::audio::com::call(b, crate::audio::buffer_play::STOP);
-            crate::audio::com::call(b, crate::audio::com::RELEASE);
-        }
-        if let Some(f) = file {
-            crate::files::handle::close(f);
-        }
+    if let Some(b) = buffer {
+        crate::platform_sound::stop(b);
+        crate::platform_sound::release(b);
+    }
+    if let Some(f) = file {
+        crate::files::handle::close(f);
     }
     Ok(())
 }
 
 /// `audio::set_stream_volume`: `SetVolume` with the player's volume.
-pub unsafe fn set_stream_volume(s: &AudioStream) -> Result<(), Refused> {
+pub fn set_stream_volume(s: &AudioStream) -> Result<(), Refused> {
     not_a3d("A3D (0x40D247)")?;
     if s.buffer == 0 {
         return Err(BadInput("a stream without its buffer").into());
     }
     let v = volume_of(s.volume)?;
-    unsafe { crate::audio::com::call1(s.buffer, crate::audio::buffer_settings::SET_VOLUME, v) };
+    crate::platform_sound::set_volume(s.buffer, v as i32);
     Ok(())
 }
 
@@ -136,24 +130,15 @@ pub unsafe fn start_stream(s: &mut AudioStream, path: *const u8) -> Result<bool,
             reserved: 0,
             format: AUDIO.wave_format.addr(),
         });
-        let create: unsafe extern "system" fn(u32, u32, u32, u32) -> i32 =
-            std::mem::transmute(crate::audio::com::method(ds, 0x0C));
-        if create(
-            ds,
-            AUDIO.buffer_description.addr(),
-            crate::pointers::game_address(&mut s.buffer as *mut u32),
-            0,
-        ) != 0
-        {
-            return failed(s);
-        }
-        crate::audio::com::call1(s.buffer, crate::audio::buffer_settings::SET_VOLUME, volume);
+        s.buffer = crate::platform_sound::create_sound_buffer(
+            0x80,
+            s.bytes,
+            Some(crate::audio::describe_wave_format::platform_format()),
+        );
+        crate::platform_sound::set_volume(s.buffer, volume as i32);
         // Converted: `rc2k_core::audio::streams::AudioStream::start_ring`.
         s.start_ring(f.format);
-        let play: unsafe extern "system" fn(u32, u32, u32, u32) -> i32 = std::mem::transmute(
-            crate::audio::com::method(s.buffer, crate::audio::buffer_play::PLAY),
-        );
-        if play(s.buffer, 0, 0, 1) != 0 {
+        if crate::platform_sound::play(s.buffer, 1) != 0 {
             return failed(s);
         }
         s.playing = 1;
@@ -163,53 +148,34 @@ pub unsafe fn start_stream(s: &mut AudioStream, path: *const u8) -> Result<bool,
 
 /// `audio::feed_stream`: the bytes the play cursor moved over refilled, through the locked
 /// parts (`g_lockedParts`). False for the carry (the player stopped).
-pub unsafe fn feed_stream(s: &mut AudioStream) -> Result<bool, Refused> {
+pub fn feed_stream(s: &mut AudioStream) -> Result<bool, Refused> {
     not_a3d("A3D (0x40D0C0)")?;
-    let parts = AUDIO.locked_parts[0].addr();
-    unsafe {
-        let failed = |s: &mut AudioStream| stop_stream(s).map(|_| false);
-        if s.buffer == 0 {
-            return failed(s);
-        }
-        let b = s.buffer;
-        // Converted: `rc2k_core::audio::streams::AudioStream::moved` and `advance`.
-        let position: unsafe extern "system" fn(u32, u32, u32) -> i32 =
-            std::mem::transmute(crate::audio::com::method(b, GET_POSITION));
-        let mut cursor = s.play_cursor;
-        let failed_position =
-            position(b, crate::pointers::game_address(&mut cursor as *mut u32), 0) != 0;
-        if failed_position {
-            // The original's call wrote nothing it did not have.
-            s.play_cursor = cursor;
-            return failed(s);
-        }
-        let Some(moved) = s.moved(cursor) else {
-            return Ok(true);
-        };
-        let lock: unsafe extern "system" fn(u32, u32, u32, u32, u32, u32, u32, u32) -> i32 =
-            std::mem::transmute(crate::audio::com::method(b, LOCK));
-        if lock(
-            b,
-            s.write_at,
-            moved,
-            parts,
-            parts + 4,
-            parts + 8,
-            parts + 12,
-            0,
-        ) != 0
-        {
-            return failed(s);
-        }
-        s.advance(moved);
-        let [p1, n1, p2, n2] = AUDIO.locked_parts.each_ref().map(|d| d.get());
-        fill_stream_part(s, p1, n1);
-        fill_stream_part(s, p2, n2);
-        let unlock: unsafe extern "system" fn(u32, u32, u32, u32, u32) -> i32 =
-            std::mem::transmute(crate::audio::com::method(b, UNLOCK));
-        if unlock(b, p1, n1, p2, n2) != 0 {
-            return failed(s);
-        }
-        Ok(true)
+    let failed = |s: &mut AudioStream| stop_stream(s).map(|_| false);
+    if s.buffer == 0 {
+        return failed(s);
     }
+    let b = s.buffer;
+    // Converted: `rc2k_core::audio::streams::AudioStream::moved` and `advance`.
+    let cursor = match crate::platform_sound::current_position(b) {
+        Ok((play, _)) => play,
+        Err(_) => return failed(s),
+    };
+    let Some(moved) = s.moved(cursor) else {
+        return Ok(true);
+    };
+    let parts = match crate::platform_sound::lock(b, s.write_at, moved, 0) {
+        Ok(parts) => parts,
+        Err(_) => return failed(s),
+    };
+    for (cell, part) in AUDIO.locked_parts.iter().zip(parts) {
+        cell.set(part);
+    }
+    s.advance(moved);
+    let [p1, n1, p2, n2] = parts;
+    fill_stream_part(s, p1, n1);
+    fill_stream_part(s, p2, n2);
+    if crate::platform_sound::unlock(b, parts) != 0 {
+        return failed(s);
+    }
+    Ok(true)
 }

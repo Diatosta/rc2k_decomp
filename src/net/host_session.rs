@@ -13,7 +13,6 @@
 //! Caller: `net::hosting`.
 
 use crate::errors::Refused;
-use crate::net::dplay::{OPEN, call};
 use crate::net::find_sessions::{posted_or_called, zeroed_description};
 use crate::net::lobby::{log, log_hex, movsb, zero};
 use crate::net::store::NET;
@@ -23,13 +22,13 @@ const OPEN_CREATE: u32 = 2; // DPOPEN_CREATE
 pub const OPEN_JOIN: u32 = 1; // DPOPEN_JOIN
 
 /// `Open(dword_5AB2AC, flags)`.
-pub unsafe fn open(flags: u32) -> u32 {
-    unsafe { call(&NET.dplay, OPEN, &[NET.session_desc.addr(), flags]) }
+pub fn open(flags: u32) -> u32 {
+    crate::net::dp_objects::open(NET.dplay.get(), NET.session_desc.addr(), flags)
 }
 
 /// The code at 0x418C5A as the receiving thread calls it when it is posted.
-pub extern "C" fn posted_open_host() -> u32 {
-    unsafe { open(OPEN_CREATE) }
+pub fn posted_open_host() -> u32 {
+    open(OPEN_CREATE)
 }
 
 /// The Rust version.
@@ -72,7 +71,7 @@ pub fn host_session() -> Result<bool, Refused> {
 /// window restored; `dword_52ACFC` 1, the player made, then `then` (the group made or
 /// joined) and `done` logged. Shared with `net::join_session`. Whether all of it worked.
 pub fn finish(
-    posted: extern "C" fn() -> u32,
+    posted: fn() -> u32,
     then: fn() -> Result<bool, Refused>,
     done: u32,
 ) -> Result<bool, Refused> {

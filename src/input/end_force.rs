@@ -13,7 +13,7 @@
 use crate::errors::BadInput;
 use crate::field;
 use crate::input::devices::{at, put};
-use crate::input::di_harness::{EFFECT_LEN, EFFECTS_AT, entry_of, method, slot};
+use crate::input::di_harness::{EFFECT_LEN, EFFECTS_AT, entry_of};
 use crate::input::types::{Controller, ForceEffect, InputDevice};
 
 /// The Rust version (see the header).
@@ -22,11 +22,7 @@ pub fn end_force(record: u32) -> Result<(), BadInput> {
         return Ok(());
     }
     let prop = crate::input::begin_force::dword_property(1)?;
-    method(
-        at(record, field!(InputDevice, device))?,
-        slot::SET_PROPERTY,
-        &[9, prop],
-    );
+    crate::input::di_objects::set_property(at(record, field!(InputDevice, device))?, 9, prop);
     for n in 0..6 {
         let e = record.wrapping_add(EFFECTS_AT + n * EFFECT_LEN);
         crate::input::effect_objects::release_effect(e)?;

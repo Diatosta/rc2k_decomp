@@ -13,6 +13,6 @@ use crate::audio::property_sets::*;
 use crate::errors::Refused;
 
 /// True for the carry clear.
-pub unsafe fn open_voice_manager(holder: u32) -> Result<bool, Refused> {
-    unsafe { open_property_set(&Opening::voice_manager(), holder, &mut game_log) }
+pub fn open_voice_manager(holder: u32) -> Result<bool, Refused> {
+    open_property_set(&Opening::voice_manager(), holder)
 }

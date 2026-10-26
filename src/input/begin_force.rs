@@ -18,7 +18,7 @@
 use crate::errors::{BadInput, Refused};
 use crate::field;
 use crate::input::devices::{at, put};
-use crate::input::di_harness::{EFFECT_LEN, EFFECTS_AT, entry_of, fatal, method, slot};
+use crate::input::di_harness::{EFFECT_LEN, EFFECTS_AT, entry_of, fatal};
 use crate::input::store::DEVICES;
 use crate::input::types::{Controller, DiPropDword, DiPropHeader, InputDevice};
 use rc2k_core::input::acquire::gain;
@@ -57,27 +57,18 @@ pub fn begin_force(record: u32) -> Result<(), Refused> {
     let device = at(record, field!(InputDevice, device))?;
     // Converted: `rc2k_core::input::acquire::gain`.
     let Some(gain) = gain(at(record, field!(InputDevice, strength))?) else {
-        method(
-            device,
-            slot::SET_PROPERTY,
-            &[DIPROP_AUTOCENTER, dword_property(1)?],
-        );
+        crate::input::di_objects::set_property(device, DIPROP_AUTOCENTER, dword_property(1)?);
         return Ok(());
     };
-    if method(
-        device,
-        slot::SET_PROPERTY,
-        &[DIPROP_AUTOCENTER, dword_property(0)?],
-    ) != 0
-    {
+    if crate::input::di_objects::set_property(device, DIPROP_AUTOCENTER, dword_property(0)?) != 0 {
         return Err(fatal(0x8023_8421).into());
     }
     let gain = dword_property(gain)?;
-    if method(device, slot::SET_PROPERTY, &[DIPROP_FFGAIN, gain]) != 0 {
+    if crate::input::di_objects::set_property(device, DIPROP_FFGAIN, gain) != 0 {
         return Err(fatal(0x8023_8422).into());
     }
-    let found = crate::pointers::game_address(crate::input::effect_found::callback as *const ());
-    method(device, slot::ENUM_EFFECTS, &[found, record, 0]);
+    let found = crate::input::effect_found::callback;
+    crate::input::di_objects::enum_effects(device, found, record, 0);
     for n in 0..6 {
         let effect = record.wrapping_add(EFFECTS_AT + n * EFFECT_LEN);
         crate::input::make_effect::make_effect(record, effect, n)?;

@@ -29,13 +29,8 @@ pub fn play_primary() {
     if crate::audio::buffer_settings::a3d() || p == 0 {
         return;
     }
-    unsafe {
-        let play: unsafe extern "system" fn(u32, u32, u32, u32) -> i32 = std::mem::transmute(
-            crate::audio::com::method(p, crate::audio::buffer_play::PLAY),
-        );
-        if play(p, 0, 0, 1) != 0 {
-            AUDIO.sound_buffer_lost.set(1);
-        }
+    if crate::platform_sound::play(p, 1) != 0 {
+        AUDIO.sound_buffer_lost.set(1);
     }
 }
 
@@ -43,7 +38,7 @@ pub fn play_primary() {
 pub fn stop_primary() {
     let p = AUDIO.primary_buffer.get();
     if !crate::audio::buffer_settings::a3d() && p != 0 {
-        unsafe { crate::audio::com::call(p, crate::audio::buffer_play::STOP) };
+        crate::platform_sound::stop(p);
     }
 }
 
@@ -51,7 +46,7 @@ pub fn stop_primary() {
 pub fn release_sound_listener() {
     let l = AUDIO.sound_listener.get();
     if l != 0 {
-        unsafe { crate::audio::com::call(l, crate::audio::com::RELEASE) };
+        crate::platform_sound::release(l);
         AUDIO.sound_listener.set(0);
     }
 }

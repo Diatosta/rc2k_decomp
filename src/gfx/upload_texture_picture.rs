@@ -50,41 +50,21 @@ pub trait Surfaces {
 /// The game's: DirectDraw's own calls, the description being the game's.
 pub struct GameSurfaces;
 
-type Lock = unsafe extern "system" fn(u32, u32, u32, u32, u32) -> i32;
-type Unlock = unsafe extern "system" fn(u32, u32) -> i32;
-
-unsafe fn method(object: u32, offset: u32) -> usize {
-    unsafe {
-        crate::pointers::code(
-            (crate::pointers::host(
-                (crate::pointers::host(object) as *const u32).read_unaligned() + offset,
-            ) as *const u32)
-                .read_unaligned(),
-        )
-    }
-}
-
 impl Surfaces for GameSurfaces {
     fn lock(&mut self, surface: u32) -> Result<(u32, u32), i32> {
-        unsafe {
-            let lock: Lock = std::mem::transmute(method(surface, 0x64));
-            match lock(surface, 0, UPLOAD.description.addr(), 1, 0) {
-                0 => Ok((
-                    UPLOAD.description.pixels.get(),
-                    UPLOAD.description.pitch.get(),
-                )),
-                e => Err(e),
-            }
+        match crate::platform_3d::lock_surface(surface, UPLOAD.description.addr()) {
+            0 => Ok((
+                UPLOAD.description.pixels.get(),
+                UPLOAD.description.pitch.get(),
+            )),
+            e => Err(e),
         }
     }
 
     fn unlock(&mut self, surface: u32) -> Result<(), i32> {
-        unsafe {
-            let unlock: Unlock = std::mem::transmute(method(surface, 0x80));
-            match unlock(surface, 0) {
-                0 => Ok(()),
-                e => Err(e),
-            }
+        match crate::platform_3d::unlock_surface(surface) {
+            0 => Ok(()),
+            e => Err(e),
         }
     }
 }

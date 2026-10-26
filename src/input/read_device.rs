@@ -31,10 +31,10 @@ use crate::input::devices::{joy_state, key_table, record_bytes};
 
 /// The device `record` read (see the header). Converted: `rc2k_core::input::devices::read_device`; the bindings are checked before the poll,
 /// the record read again after it.
-pub unsafe fn read_device(record: u32) -> Result<(), Refused> {
+pub fn read_device(record: u32) -> Result<(), Refused> {
     use rc2k_core::input::devices;
     devices::check_bindings(&record_bytes(record)?)?;
-    unsafe { crate::input::poll_device::poll_device(record) }?;
+    { crate::input::poll_device::poll_device(record) }?;
     let Some(r) = devices::read_device(&record_bytes(record)?, &key_table(), &joy_state())? else {
         return Ok(());
     };

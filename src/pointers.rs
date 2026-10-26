@@ -54,10 +54,11 @@ pub fn unregister(start: u32) {
 /// Bumped when a block is given back: the threads' caches are then emptied.
 static GENERATION: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::new(0);
 
-/// The exact regions (blocks, moved stores) a thread found last, with the generation they
-/// were found in, and the thread's stack.
+/// The exact regions (blocks, moved stores) a thread found last, with the generations
+/// (blocks given back, game ranges taken off) they were found in, and the thread's stack.
 struct Cache {
     generation: u32,
+    map_generation: u32,
     regions: [(u32, u32); 4],
     next: usize,
     stack: Option<(u32, u32)>,
@@ -65,7 +66,7 @@ struct Cache {
 
 thread_local! {
     static CACHE: std::cell::RefCell<Cache> = const {
-        std::cell::RefCell::new(Cache { generation: u32::MAX, regions: [(0, 0); 4], next: 0, stack: None })
+        std::cell::RefCell::new(Cache { generation: u32::MAX, map_generation: u32::MAX, regions: [(0, 0); 4], next: 0, stack: None })
     };
 }
 
@@ -79,9 +80,14 @@ fn inside(addr: u32, len: usize) -> bool {
     CACHE.with(|cache| {
         let mut cache = cache.borrow_mut();
         let generation = GENERATION.load(std::sync::atomic::Ordering::Acquire);
-        if cache.generation != generation {
+        let map_generation = crate::address_map::generation();
+        if cache.generation != generation || cache.map_generation != map_generation {
             cache.generation = generation;
+            cache.map_generation = map_generation;
             cache.regions = [(0, 0); 4];
+            // A range taken off may have been the stack's (a dead thread's stale range
+            // overlapping): it is looked up afresh.
+            cache.stack = None;
         }
         if cache.regions.iter().any(|&r| fits(r)) {
             return true;
@@ -219,9 +225,14 @@ fn unmapped(addr: u32) -> ! {
     )
 }
 
-/// A host range (first byte, byte past the end) as game addresses.
+/// A host range (first byte, byte past the end) as game addresses. The end is the start
+/// plus the length: the byte past the end may be the first of another range (memory right
+/// above a thread's stack), whose game address is elsewhere.
 fn to_game((start, end): (usize, usize)) -> (u32, u32) {
-    (game_of(start), game_of(end))
+    match game_of(start) {
+        0 => (0, 0),
+        first => (first, first + (end - start) as u32),
+    }
 }
 
 /// `host` for a game address held as a `usize` (an IDA-named place, `store::game_addr`).
@@ -292,13 +303,6 @@ pub fn lend_system_block(p: impl HostPointer, len: usize) -> u32 {
 pub fn forget(at: u32) {
     unregister(at);
     crate::address_map::unmap(at);
-}
-
-/// The code a game address names (a method table's entry, a callback the game passes):
-/// its host address, for a `transmute` to a function pointer.
-#[inline]
-pub fn code(addr: u32) -> usize {
-    host(addr).expose_provenance()
 }
 
 /// The game address of a host address held as a number: this module's range tables, and
@@ -570,17 +574,15 @@ impl Window {
 }
 
 /// A Rust buffer lent to code that takes the game's addresses (a file read into a `Vec`): a
-/// region while the guard lives. Take the guard before the address is handed on.
+/// region while the guard lives. Take the guard before the address is handed on, and drop
+/// it before the buffer: a struct holding both declares the guard first (fields drop in
+/// order; freed memory still a region is memory the game may reach, and memory the heap
+/// hands out again inside a stale range: 2026-10-26, a flaky test).
 pub struct Lent(u32);
 
 impl Lent {
     pub fn new(bytes: &[u8]) -> Self {
         Self(lend(bytes.as_ptr(), bytes.len()))
-    }
-
-    /// A Rust value lent whole (a platform object the game reads by address).
-    pub fn of<T>(value: &T) -> Self {
-        Self(lend(value as *const T, size_of::<T>()))
     }
 
     /// The buffer's game address.
@@ -621,6 +623,7 @@ mod tests {
         assert_eq!(bytes.byte(4), None);
         unregister(start);
         assert!(p.read::<u8>("test").is_err());
+        crate::address_map::unmap(start);
     }
 
     #[test]
@@ -660,10 +663,10 @@ mod tests {
                 .is_ok()
         );
         let heap = Box::new([0u8; 8]);
-        assert!(
-            GamePtr::new(map(heap.as_ptr(), 8))
-                .read::<u8>("test")
-                .is_err()
-        );
+        let at = map(heap.as_ptr(), 8);
+        assert!(GamePtr::new(at).read::<u8>("test").is_err());
+        // Its range given back before the memory is (tests run side by side: a stale
+        // range would hold the next block the heap hands out there).
+        crate::address_map::unmap(at);
     }
 }

@@ -9,7 +9,6 @@ use crate::session::MACHINE;
 pub const MODE_MIXER: u32 = 0x4_0000;
 /// `SetCooperativeLevel`: write the primary buffer.
 const WRITE_PRIMARY: u32 = 4;
-const GET_CAPS: u32 = 0x0C;
 
 /// `audio::set_up_primary_mixer`: nothing (true) outside the mixer's mode. Else
 /// `release_primary`, cooperative level 4, `make_primary`, the mode's format
@@ -19,54 +18,58 @@ const GET_CAPS: u32 = 0x0C;
 /// `g_primaryCaps`, whose bytes are `g_primarySize`; `clear_channels`. A failure:
 /// `close_primary_mixer` and false (the carry).
 pub fn set_up_primary_mixer() -> Result<bool, Refused> {
-    unsafe {
-        if AUDIO.sound_mode.get() & MODE_MIXER == 0 {
-            return Ok(true);
+    if AUDIO.sound_mode.get() & MODE_MIXER == 0 {
+        return Ok(true);
+    }
+    let failed = || crate::audio::restore::close_primary_mixer_in_game().map(|_| false);
+    crate::audio::sound_device::release_primary()?;
+    let ds = AUDIO.direct_sound.get();
+    if crate::platform_sound::set_cooperative_level(ds, MACHINE.window.get(), WRITE_PRIMARY) != 0
+        || crate::audio::primary::make_primary().map(|made| !made)?
+    {
+        return failed();
+    }
+    // Converted: `rc2k_core::audio::device::{mixer_formats, mixer_figures}`.
+    use rc2k_core::audio::device::{mixer_figures, mixer_formats};
+    let mut chosen = None;
+    for mode in mixer_formats(AUDIO.sound_mode.get()) {
+        if crate::audio::sound_device::set_primary_format(mode)? {
+            chosen = Some(mode);
+            break;
         }
-        let failed = || crate::audio::restore::close_primary_mixer_in_game().map(|_| false);
-        crate::audio::sound_device::release_primary()?;
-        let ds = AUDIO.direct_sound.get();
-        let level: unsafe extern "system" fn(u32, u32, u32) -> i32 = std::mem::transmute(
-            crate::audio::com::method(ds, crate::audio::sound_device::SET_COOPERATIVE_LEVEL),
-        );
-        if level(ds, MACHINE.window.get(), WRITE_PRIMARY) != 0
-            || crate::audio::primary::make_primary().map(|made| !made)?
-        {
-            return failed();
-        }
-        // Converted: `rc2k_core::audio::device::{mixer_formats, mixer_figures}`.
-        use rc2k_core::audio::device::{mixer_figures, mixer_formats};
-        let mut chosen = None;
-        for mode in mixer_formats(AUDIO.sound_mode.get()) {
-            if crate::audio::sound_device::set_primary_format(mode)? {
-                chosen = Some(mode);
-                break;
+    }
+    let Some(mode) = chosen else {
+        return failed();
+    };
+    AUDIO.sound_mode.set(mode);
+    let wave = AUDIO.wave_format.get();
+    let rate = wave.samples_per_second;
+    AUDIO.mix_rate.set(rate);
+    // The original reads the dword at +0xC (block align, bits); the figures use its low
+    // word.
+    let (most, shift) = mixer_figures(rate, wave.block_align as u32);
+    AUDIO.mix_most.set(most);
+    AUDIO.mix_shift.set(shift);
+    AUDIO.play_cursor.set(0);
+    AUDIO.write_cursor.set(most);
+    let caps = &AUDIO.primary_caps;
+    caps.set_u32(0, 0x14);
+    match crate::platform_sound::buffer_caps(AUDIO.primary_buffer.get()) {
+        Ok((flags, bytes)) => {
+            for (n, value) in [(4, flags), (8, bytes), (0xC, 0), (0x10, 0)] {
+                caps.set_u32(n, value);
             }
         }
-        let Some(mode) = chosen else {
-            return failed();
-        };
-        AUDIO.sound_mode.set(mode);
-        let wave = AUDIO.wave_format.get();
-        let rate = wave.samples_per_second;
-        AUDIO.mix_rate.set(rate);
-        // The original reads the dword at +0xC (block align, bits); the figures use its low
-        // word.
-        let (most, shift) = mixer_figures(rate, wave.block_align as u32);
-        AUDIO.mix_most.set(most);
-        AUDIO.mix_shift.set(shift);
-        AUDIO.play_cursor.set(0);
-        AUDIO.write_cursor.set(most);
-        let caps = &AUDIO.primary_caps;
-        std::ptr::write_bytes(caps.as_ptr(), 0, 0x14);
-        caps.set_u32(0, 0x14);
-        if crate::audio::com::call1(AUDIO.primary_buffer.get(), GET_CAPS, caps.addr()) != 0 {
+        Err(_) => {
+            for n in [4, 8, 0xC, 0x10] {
+                caps.set_u32(n, 0);
+            }
             return failed();
         }
-        AUDIO.primary_size.set(caps.get_u32(8));
-        crate::audio::clear_channels::clear_channels();
-        Ok(true)
     }
+    AUDIO.primary_size.set(caps.get_u32(8));
+    crate::audio::clear_channels::clear_channels();
+    Ok(true)
 }
 
 /// `audio::open_way`: the voices' own buffers: `clear_channels`; the mixer:

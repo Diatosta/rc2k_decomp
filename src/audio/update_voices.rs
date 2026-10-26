@@ -72,40 +72,39 @@ pub fn update_voices() -> Result<(), Refused> {
     // No step reads what the update changes (the room's step reads the room asked).
     let done = update_buffers::<_, Refused>(&mut pool, &mut l, mode, &mut room, |step| {
         use crate::audio::{buffer_play as play, buffer_settings as set};
-        unsafe {
-            match step {
-                Step::IsPlaying(at) => {
-                    return Ok(play::is_playing(voice(at))? & play::PLAYING != 0);
-                }
-                Step::Room => {
-                    crate::audio::set_eax_room::in_game()?;
-                }
-                Step::Commit => {
-                    play::commit_3d()?;
-                }
-                Step::Frequency(at) => {
-                    set::set_buffer_frequency(voice(at))?;
-                }
-                Step::Volume(at) => {
-                    set::set_buffer_volume(voice(at))?;
-                }
-                Step::Pan(at) => {
-                    set::set_buffer_pan(voice(at))?;
-                }
-                Step::Place(at) => {
-                    set::set_buffer_place(voice(at))?;
-                }
-                Step::Rewind(at) => {
-                    play::rewind_buffer(voice(at))?;
-                }
-                Step::Play(at) => {
-                    play::play_buffer_in_game(voice(at))?;
-                }
-                Step::Stop(at) => {
-                    play::stop_buffer(voice(at))?;
-                }
+        match step {
+            Step::IsPlaying(at) => {
+                return Ok(play::is_playing(voice(at))? & play::PLAYING != 0);
+            }
+            Step::Room => {
+                crate::audio::set_eax_room::in_game()?;
+            }
+            Step::Commit => {
+                play::commit_3d()?;
+            }
+            Step::Frequency(at) => {
+                set::set_buffer_frequency(voice(at))?;
+            }
+            Step::Volume(at) => {
+                set::set_buffer_volume(voice(at))?;
+            }
+            Step::Pan(at) => {
+                set::set_buffer_pan(voice(at))?;
+            }
+            Step::Place(at) => {
+                set::set_buffer_place(voice(at))?;
+            }
+            Step::Rewind(at) => {
+                play::rewind_buffer(voice(at))?;
+            }
+            Step::Play(at) => {
+                play::play_buffer_in_game(voice(at))?;
+            }
+            Step::Stop(at) => {
+                play::stop_buffer(voice(at))?;
             }
         }
+
         Ok(true)
     });
     store(&l, &room);

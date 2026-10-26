@@ -87,11 +87,11 @@ pub unsafe fn input_thread() -> Result<(), Refused> {
         }
     }
     for record in record_addrs() {
-        unsafe { crate::input::release_device::release_device_in_game(record) }?;
+        { crate::input::release_device::release_device_in_game(record) }?;
     }
     let input = DEVICES.direct_input.get();
     if input != 0 {
-        crate::input::di_harness::method(input, crate::input::di_harness::slot::RELEASE, &[]);
+        crate::input::di_objects::release(input);
         DEVICES.direct_input.set(0);
     }
     log(QUIT_TEXT_RVA);

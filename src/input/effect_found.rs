@@ -19,7 +19,7 @@ use crate::input::types::{DiEffectInfo, ForceEffect};
 use crate::pointers::GamePtr;
 
 /// `effect_found` as DirectInput calls it: what Rust callers hand `EnumEffects`.
-pub extern "system" fn callback(info: u32, record: u32) -> u32 {
+pub fn callback(info: u32, record: u32) -> u32 {
     match effect_found(info, record) {
         Ok(eax) => eax,
         Err(e) => {

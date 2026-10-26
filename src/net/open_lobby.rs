@@ -22,10 +22,6 @@
 //! Caller: `net::find_connections`.
 
 use crate::errors::{BadInput, Refused};
-use crate::net::dplay::{
-    CONNECT, GET_CONNECTION_SETTINGS, QUERY_INTERFACE, RELEASE, SET_CONNECTION_SETTINGS, call,
-    method,
-};
 use crate::net::lobby::{co_create, copy_printable, log, net_allocate};
 use crate::net::store::{NET, PlayerRecord};
 use crate::net::{create_group, create_player, fill_own_player, join_group, list_players};
@@ -52,69 +48,66 @@ pub fn open_lobby() -> Result<bool, Refused> {
     if NET.lobby_launched.get() != 1 {
         return Ok(true);
     }
-    unsafe {
-        NET.settings_size.set(0);
-        if call(
-            &NET.lobby,
-            GET_CONNECTION_SETTINGS,
-            &[0, 0, NET.settings_size.addr()],
-        ) != BUFFER_TOO_SMALL
-        {
-            return Ok(false);
-        }
-        NET.settings.set(net_allocate(NET.settings_size.get())?);
-        if call(
-            &NET.lobby,
-            GET_CONNECTION_SETTINGS,
-            &[0, NET.settings.get(), NET.settings_size.addr()],
-        ) != 0
-        {
-            return Ok(false);
-        }
-        GamePtr::new(get(NET.settings.get() + 8)? + 4)
-            .write(0x44u32, "the lobby's connection settings")?;
-        if call(
-            &NET.lobby,
-            SET_CONNECTION_SETTINGS,
-            &[0, 0, NET.settings.get()],
-        ) != 0
-        {
-            return Ok(false);
-        }
-        if call(&NET.lobby, CONNECT, &[0, NET.dplay_2.get(), 0]) != 0 {
-            return Ok(false);
-        }
-        if NET.dplay.get() == 0 || NET.dplay_2.get() == 0 {
-            return Err(BadInput("a lobby's connection with no DirectPlay object").into());
-        }
-        let queried = call(
-            &NET.dplay,
-            QUERY_INTERFACE,
-            &[NET.iid_dplay4a.addr(), NET.dplay.addr()],
-        );
-        method(NET.dplay_2.get(), RELEASE, &[]);
-        NET.dplay_2.set(0);
-        if queried != 0 {
-            return Ok(false);
-        }
-        let name = get(get(NET.settings.get() + 0xC)? + 8)?;
-        copy_printable(name, NET.player_name.addr(), 0x1F)?;
-        fill_own_player::fill_own_player(name)?;
-        if !create_player::create_player()? {
-            return Ok(false);
-        }
-        let joined = if get(NET.settings.get() + 4)? & 2 != 0 {
-            NET.own
-                .head
-                .set(PlayerRecord::STATE, NET.own.state() | 0x10);
-            create_group::create_group()?
-        } else {
-            join_group::join_group()
-        };
-        if !joined {
-            return Ok(false);
-        }
-        list_players::list_players()?;
-        Ok(true)
+    NET.settings_size.set(0);
+    if crate::net::dp_objects::get_connection_settings(
+        NET.lobby.get(),
+        0,
+        0,
+        NET.settings_size.addr(),
+    ) != BUFFER_TOO_SMALL
+    {
+        return Ok(false);
     }
+    NET.settings.set(net_allocate(NET.settings_size.get())?);
+    if crate::net::dp_objects::get_connection_settings(
+        NET.lobby.get(),
+        0,
+        NET.settings.get(),
+        NET.settings_size.addr(),
+    ) != 0
+    {
+        return Ok(false);
+    }
+    GamePtr::new(get(NET.settings.get() + 8)? + 4)
+        .write(0x44u32, "the lobby's connection settings")?;
+    if crate::net::dp_objects::set_connection_settings(NET.lobby.get(), 0, 0, NET.settings.get())
+        != 0
+    {
+        return Ok(false);
+    }
+    if crate::net::dp_objects::connect(NET.lobby.get(), 0, NET.dplay_2.get(), 0) != 0 {
+        return Ok(false);
+    }
+    if NET.dplay.get() == 0 || NET.dplay_2.get() == 0 {
+        return Err(BadInput("a lobby's connection with no DirectPlay object").into());
+    }
+    let queried = crate::net::dp_objects::query_interface(
+        NET.dplay.get(),
+        NET.iid_dplay4a.addr(),
+        NET.dplay.addr(),
+    );
+    crate::net::dp_objects::release(NET.dplay_2.get());
+    NET.dplay_2.set(0);
+    if queried != 0 {
+        return Ok(false);
+    }
+    let name = get(get(NET.settings.get() + 0xC)? + 8)?;
+    copy_printable(name, NET.player_name.addr(), 0x1F)?;
+    fill_own_player::fill_own_player(name)?;
+    if !create_player::create_player()? {
+        return Ok(false);
+    }
+    let joined = if get(NET.settings.get() + 4)? & 2 != 0 {
+        NET.own
+            .head
+            .set(PlayerRecord::STATE, NET.own.state() | 0x10);
+        create_group::create_group()?
+    } else {
+        join_group::join_group()
+    };
+    if !joined {
+        return Ok(false);
+    }
+    list_players::list_players()?;
+    Ok(true)
 }

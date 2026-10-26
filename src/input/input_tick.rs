@@ -30,10 +30,8 @@ pub unsafe fn input_tick() -> Result<(), Refused> {
     }
     let records = record_addrs();
     for record in records {
-        unsafe {
-            crate::input::read_device::read_device(record)?;
-            crate::input::device_effects::device_effects(record)?;
-        }
+        crate::input::read_device::read_device(record)?;
+        crate::input::device_effects::device_effects(record)?;
     }
     if DEVICES.two_devices_one_player.get() != 0 {
         // Converted: `rc2k_core::input::devices::merge_readings`.

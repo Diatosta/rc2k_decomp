@@ -63,10 +63,10 @@ pub fn start() -> Result<bool, Refused> {
                 v.length = 0x4000;
             });
             let voice = probe.addr();
-            unsafe { crate::audio::make_buffer::make_buffer(voice, MENU_MODE)? };
+            crate::audio::make_buffer::make_buffer(voice, MENU_MODE)?;
             crate::audio::release_eax::release_eax();
             crate::audio::release_voice_manager::release_voice_manager();
-            unsafe { crate::audio::release_voice::release_voice_in_game(voice) };
+            crate::audio::release_voice::release_voice_in_game(voice);
             crate::audio::mixer_set_up::close_way(AUDIO.sound_mode.get())?;
             sd::release_primary()?;
             // Converted: `rc2k_core::audio::device::probed_race_mode`.

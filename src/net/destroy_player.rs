@@ -9,14 +9,13 @@
 //! Caller: `net::destroy_connection`. `DestroyPlayer` from Rust (`net::dplay`).
 //! Refuses nothing.
 
-use crate::net::dplay::{DESTROY_PLAYER, method};
 use crate::net::store::NET;
 
 /// The Rust version.
 pub fn destroy_player() {
     let id = NET.player_id.get();
     if id == 0 {
-        unsafe { method(NET.dplay.get(), DESTROY_PLAYER, &[id]) };
+        crate::net::dp_objects::destroy_player(NET.dplay.get(), id);
         NET.player_id.set(0);
     }
 }

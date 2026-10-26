@@ -37,41 +37,39 @@ pub fn check() {
     if !TURNS.fetch_add(1, Ordering::Relaxed).is_multiple_of(EVERY) {
         return;
     }
-    unsafe {
-        if AUDIO.use_a3d.get() == 1 || AUDIO.sound_mode.get() & 0x1_0000 == 0 {
-            return;
-        }
-        let (playing, stopping) = (list(&AUDIO.playing_voices), list(&AUDIO.stopping_voices));
-        let listed: HashSet<u32> = playing.union(&stopping).copied().collect();
-        let count = AUDIO.voice_count.get().min(VOICES);
-        let size = std::mem::size_of::<Voice>() as u32;
-        let mut strays = Vec::new();
-        for n in 0..count {
-            let at = AUDIO.voices[0].addr() + n * size;
-            let v = voice(at);
-            if v.flags & 1 == 0 || v.buffer == 0 || listed.contains(&at) {
-                continue;
-            }
-            if crate::audio::buffer_play::is_playing(v).is_ok_and(|s| s & 1 != 0) {
-                strays.push(n);
-                let mut logged = LOGGED.lock().unwrap();
-                if !logged.contains(&n) {
-                    logged.push(n);
-                    log(&format!(
-                        "audio: stray voice {n} (sound {:#x}, kind {}, state {}, channel {:#x}, next {:#x}, volume {:#x}, priority {}) plays on neither list; the playing list holds {}, the stopping list {}",
-                        v.sound,
-                        v.kind,
-                        v.state,
-                        v.channel,
-                        v.next,
-                        v.volume,
-                        v.priority,
-                        playing.len(),
-                        stopping.len()
-                    ));
-                }
-            }
-        }
-        LOGGED.lock().unwrap().retain(|n| strays.contains(n));
+    if AUDIO.use_a3d.get() == 1 || AUDIO.sound_mode.get() & 0x1_0000 == 0 {
+        return;
     }
+    let (playing, stopping) = (list(&AUDIO.playing_voices), list(&AUDIO.stopping_voices));
+    let listed: HashSet<u32> = playing.union(&stopping).copied().collect();
+    let count = AUDIO.voice_count.get().min(VOICES);
+    let size = std::mem::size_of::<Voice>() as u32;
+    let mut strays = Vec::new();
+    for n in 0..count {
+        let at = AUDIO.voices[0].addr() + n * size;
+        let v = voice(at);
+        if v.flags & 1 == 0 || v.buffer == 0 || listed.contains(&at) {
+            continue;
+        }
+        if crate::audio::buffer_play::is_playing(v).is_ok_and(|s| s & 1 != 0) {
+            strays.push(n);
+            let mut logged = LOGGED.lock().unwrap();
+            if !logged.contains(&n) {
+                logged.push(n);
+                log(&format!(
+                    "audio: stray voice {n} (sound {:#x}, kind {}, state {}, channel {:#x}, next {:#x}, volume {:#x}, priority {}) plays on neither list; the playing list holds {}, the stopping list {}",
+                    v.sound,
+                    v.kind,
+                    v.state,
+                    v.channel,
+                    v.next,
+                    v.volume,
+                    v.priority,
+                    playing.len(),
+                    stopping.len()
+                ));
+            }
+        }
+    }
+    LOGGED.lock().unwrap().retain(|n| strays.contains(n));
 }

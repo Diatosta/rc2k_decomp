@@ -16,7 +16,6 @@
 
 use crate::errors::Refused;
 use crate::net::add_address_element::add_address_element;
-use crate::net::dplay::{CREATE_COMPOUND_ADDRESS, call};
 use crate::net::lobby::{connection, log, net_allocate};
 use crate::net::store::NET;
 use crate::race::viewer_screen_store::{VIEWER_PANEL, texts};
@@ -86,16 +85,13 @@ pub fn build_address(connection_number: u32) -> Result<bool, Refused> {
     if address::posts(provider) {
         NET.posting.set(1);
     }
-    let make = |at: u32| unsafe {
-        call(
-            &NET.lobby,
-            CREATE_COMPOUND_ADDRESS,
-            &[
-                NET.element_table.addr(),
-                NET.elements.get(),
-                at,
-                NET.address_size.addr(),
-            ],
+    let make = |at: u32| {
+        crate::net::dp_objects::create_compound_address(
+            NET.lobby.get(),
+            NET.element_table.addr(),
+            NET.elements.get(),
+            at,
+            NET.address_size.addr(),
         )
     };
     if make(0) != address::BUFFER_TOO_SMALL {

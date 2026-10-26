@@ -18,8 +18,8 @@ use crate::errors::{BadInput, Refused};
 
 /// The voice's buffer filled; the lost buffer's flag is `g_soundBufferLost`, the parts go
 /// to `g_lockedParts`. True for the carry clear.
-pub unsafe fn fill_buffer(v: &Voice) -> Result<bool, Refused> {
-    let parts = AUDIO.locked_parts[0].addr();
+pub fn fill_buffer(v: &Voice) -> Result<bool, Refused> {
+    use crate::platform_sound as ds;
     if a3d() {
         return Err(BadInput("A3D (the chunk at 0x40CDE8)").into());
     }
@@ -28,30 +28,20 @@ pub unsafe fn fill_buffer(v: &Voice) -> Result<bool, Refused> {
     if !fills(v) {
         return Ok(true);
     }
-    unsafe {
+    {
         let failed = |r: i32| {
             if lost_memory(r) {
                 AUDIO.sound_buffer_lost.set(1);
             }
             false
         };
-        let lock: unsafe extern "system" fn(u32, u32, u32, u32, u32, u32, u32, u32) -> i32 =
-            std::mem::transmute(crate::audio::com::method(v.buffer, 0x2C));
-        let r = lock(
-            v.buffer,
-            0,
-            v.length,
-            parts,
-            parts + 4,
-            parts + 8,
-            parts + 12,
-            0,
-        );
-        if r != 0 {
-            return Ok(failed(r));
+        let locked = match ds::lock(v.buffer, 0, v.length, 0) {
+            Ok(parts) => parts,
+            Err(r) => return Ok(failed(r)),
+        };
+        for (cell, part) in AUDIO.locked_parts.iter().zip(locked) {
+            cell.set(part);
         }
-        let locked = AUDIO.locked_parts.each_ref().map(|d| d.get());
-        let [p1, n1, p2, n2] = locked;
         let (first, second) = fill_copies(v.data, locked);
         for (from, to, bytes) in std::iter::once(first).chain(second) {
             crate::pointers::GamePtr::new(from).copy_to(
@@ -60,9 +50,7 @@ pub unsafe fn fill_buffer(v: &Voice) -> Result<bool, Refused> {
                 "a voice's sound into its buffer",
             )?;
         }
-        let unlock: unsafe extern "system" fn(u32, u32, u32, u32, u32) -> i32 =
-            std::mem::transmute(crate::audio::com::method(v.buffer, 0x4C));
-        let r = unlock(v.buffer, p1, n1, p2, n2);
+        let r = ds::unlock(v.buffer, locked);
         if r != 0 {
             return Ok(failed(r));
         }

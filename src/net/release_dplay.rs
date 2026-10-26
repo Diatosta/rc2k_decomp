@@ -9,7 +9,6 @@
 //! Refuses nothing.
 
 use crate::logfile::log_write::log_write;
-use crate::net::dplay::{RELEASE, method};
 use crate::net::store::NET;
 use crate::race::viewer_screen_store::{VIEWER_PANEL, texts};
 
@@ -24,7 +23,7 @@ pub fn release_dplay() {
                 2,
             )
         };
-        unsafe { method(NET.dplay.get(), RELEASE, &[]) };
+        crate::net::dp_objects::release(NET.dplay.get());
         NET.dplay.set(0);
     }
 }

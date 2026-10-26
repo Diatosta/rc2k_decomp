@@ -8,7 +8,6 @@
 //!      host, with no object or on a failure is read by no caller: `lq -s 0x418D8A`)
 //! Caller: `net::close_if_host`.
 
-use crate::net::dplay::{SET_SESSION_DESC, call};
 use crate::net::lobby::{log, log_hex};
 use crate::net::store::NET;
 use crate::race::viewer_screen_store::{VIEWER_PANEL, texts};
@@ -31,6 +30,7 @@ pub fn disable_new_players() {
     NET.session_desc
         .flags
         .set(NET.session_desc.flags.get() | CLOSED);
-    let result = unsafe { call(&NET.dplay, SET_SESSION_DESC, &[NET.session_desc.addr(), 0]) };
+    let result =
+        { crate::net::dp_objects::set_session_desc(NET.dplay.get(), NET.session_desc.addr(), 0) };
     log_hex(result, true);
 }

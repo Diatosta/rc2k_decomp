@@ -10,7 +10,6 @@
 //! Callers: `net::host_session`, `net::join_session`, `net::open_lobby`.
 
 use crate::errors::Refused;
-use crate::net::dplay::{CREATE_PLAYER, call};
 use crate::net::lobby::{log, zero};
 use crate::net::store::NET;
 use crate::race::viewer_screen_store::{VIEWER_PANEL, texts};
@@ -28,18 +27,15 @@ pub fn create_player() -> Result<bool, Refused> {
     log(VIEWER_PANEL.text_addr(texts::NET_CREATE_PLAYER), false, 2);
     log(NET.player_name.addr(), true, 2);
     dp_name(NET.player_name.addr())?;
-    let result = unsafe {
-        call(
-            &NET.dplay,
-            CREATE_PLAYER,
-            &[
-                NET.player_id.addr(),
-                NET.dp_name.addr(),
-                NET.event.get(),
-                NET.own.addr(),
-                0x10,
-                0,
-            ],
+    let result = {
+        crate::net::dp_objects::create_player(
+            NET.dplay.get(),
+            NET.player_id.addr(),
+            NET.dp_name.addr(),
+            NET.event.get(),
+            NET.own.addr(),
+            0x10,
+            0,
         )
     };
     Ok(result == 0)

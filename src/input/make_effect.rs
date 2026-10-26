@@ -23,7 +23,6 @@
 use crate::errors::{BadInput, Refused};
 use crate::field;
 use crate::input::devices::{at, put};
-use crate::input::di_harness::{method, slot};
 use crate::input::types::{ForceEffect as F, InputDevice};
 
 /// The effect's `DIEFFECT` and parameters, as the original writes them (in its order).
@@ -88,15 +87,12 @@ pub fn make_effect(record: u32, effect: u32, n: u32) -> Result<(), Refused> {
     // The effect's function with a change of 1, ecx the effect's number, edx 0.
     crate::input::effect_changes::effect_change_at(at(e, field!(F, change))?, record, e, 1, n, 0)?;
     if at(e, field!(F, found))? == 1 {
-        method(
+        crate::input::di_objects::create_effect(
             at(record, field!(InputDevice, device))?,
-            slot::CREATE_EFFECT,
-            &[
-                e.wrapping_add(field!(F, guid)),
-                e.wrapping_add(field!(F, effect)),
-                e.wrapping_add(field!(F, object)),
-                0,
-            ],
+            e.wrapping_add(field!(F, guid)),
+            e.wrapping_add(field!(F, effect)),
+            e.wrapping_add(field!(F, object)),
+            0,
         );
     }
     Ok(())

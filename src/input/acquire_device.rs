@@ -30,7 +30,7 @@
 use crate::errors::{BadInput, FatalError, Refused};
 use crate::field;
 use crate::input::devices::{Deferred, at, put};
-use crate::input::di_harness::{JOYSTICK_FORMAT_RVA, a, entry_of, fatal, method, slot};
+use crate::input::di_harness::{JOYSTICK_FORMAT_RVA, a, entry_of, fatal};
 use crate::input::guids::INPUT_GUIDS;
 use crate::input::store::DEVICES;
 use crate::input::types::{
@@ -147,7 +147,8 @@ fn axis(record: u32, n: u32) -> Result<u32, BadInput> {
 /// The ranges, dead zones and saturation.
 fn properties(record: u32) -> Result<(), BadInput> {
     let device = at(record, field!(D, device))?;
-    let set = |what: u32, prop: u32| method(device, slot::SET_PROPERTY, &[what, prop]);
+    let set =
+        |what: u32, prop: u32| crate::input::di_objects::set_property(device, what, prop) as u32;
     let (header, object, how) = (
         size_of::<DiPropHeader>() as u32,
         field!(R, header.object),
@@ -228,47 +229,39 @@ pub fn acquire_device(record: u32) -> Result<(), Refused> {
         Acquire::Acquire => {}
     }
     settings(record, entry)?;
-    let hr = method(
+    let hr = crate::input::di_objects::create_device(
         DEVICES.direct_input.get(),
-        slot::CREATE_DEVICE,
-        &[
-            entry + field!(C, instance),
-            record.wrapping_add(field!(D, device)),
-            0,
-        ],
-    );
+        entry + field!(C, instance),
+        record.wrapping_add(field!(D, device)),
+        0,
+    ) as u32;
     if hr != 0 {
         return Err(NO_OBJECT.into());
     }
     let device = at(record, field!(D, device))?;
-    if method(
+    if crate::input::di_objects::query_interface(
         device,
-        slot::QUERY,
-        &[INPUT_GUIDS.device2.addr(), DEVICES.new_joystick2.addr()],
+        INPUT_GUIDS.device2.addr(),
+        DEVICES.new_joystick2.addr(),
     ) != 0
     {
         return Err(fatal(0x8023_8318).into());
     }
-    method(device, slot::RELEASE, &[]);
+    crate::input::di_objects::release(device);
     put(record, field!(D, device), DEVICES.new_joystick2.get())?;
     DEVICES.new_joystick2.set(0);
     let device = at(record, field!(D, device))?;
-    if method(device, slot::SET_DATA_FORMAT, &[a(JOYSTICK_FORMAT_RVA)]) != 0 {
+    if crate::input::di_objects::set_data_format(device, a(JOYSTICK_FORMAT_RVA)) != 0 {
         return Err(fatal(0x8023_8312).into());
     }
-    if method(
-        device,
-        slot::SET_COOPERATIVE_LEVEL,
-        &[MACHINE.window.get(), 5],
-    ) != 0
-    {
+    if crate::input::di_objects::set_cooperative_level(device, MACHINE.window.get(), 5) != 0 {
         return Err(fatal(0x8023_8313).into());
     }
     properties(record)?;
     if at(entry, field!(C, force_feedback))? == 1 {
         crate::input::begin_force::begin_force(record)?;
     }
-    method(device, slot::ACQUIRE, &[]);
+    crate::input::di_objects::acquire(device);
     crate::input::clear_device_readings::clear_device_readings(record)?;
     put(record, field!(D, acquired), 1)?;
     Ok(())

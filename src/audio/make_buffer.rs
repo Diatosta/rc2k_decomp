@@ -27,7 +27,6 @@ use crate::audio::store::AUDIO;
 use crate::audio::voices::*;
 use crate::errors::{BadInput, Refused};
 
-const CREATE_FAILED_RVA: &std::ffi::CStr = c"AUD: 1-DSBCreate failed"; // "AUD: 1-DSBCreate failed"
 const QUERY_FAILED_RVA: &std::ffi::CStr = c"AUD: 1-DSBQuery3D failed"; // "AUD: 1-DSBQuery3D failed"
 pub const MODE_OWN_BUFFERS: u32 = 0x1_0000;
 use rc2k_core::audio::voices::MODE_HARDWARE_3D;
@@ -45,94 +44,79 @@ pub struct BufferDescription {
 
 /// True for the carry clear. `ebx`: the caller's, which the original leaves in ebx (or
 /// replaces, as below) when it calls the EAX parts: they read through it.
-pub unsafe fn make_buffer(at: u32, ebx: u32) -> Result<bool, Refused> {
-    unsafe {
-        if a3d() {
-            return Err(BadInput("A3D (the chunk at 0x40CC88)").into());
-        }
-        let mode = AUDIO.sound_mode.get();
-        if mode & MODE_OWN_BUFFERS == 0 {
-            return Ok(true);
-        }
-        let ds = AUDIO.direct_sound.get();
-        if ds == 0 {
-            return Ok(false);
-        }
-        let v = voice(at);
-        // What the settings would refuse, before anything is made.
-        let level = (v.volume as i32).wrapping_mul(v.volume_factor as i32) >> 6;
-        if !(0..=0x40).contains(&level) || !(-0x40..=0x40).contains(&v.pan) {
-            return Err(BadInput("a volume or pan past the volume table").into());
-        }
-        // ebx as the original has it at each call: the caller's, the frequency after the
-        // create path (`mov ebx, [esi+60h]`), the 3D buffer's place after `sub_40C6B5`'s.
-        let mut ebx = ebx;
-        let mut made = false;
-        if v.source != 0 {
-            let f: unsafe extern "system" fn(u32, u32, u32) -> i32 =
-                std::mem::transmute(crate::audio::com::method(ds, 0x14));
-            if f(
-                ds,
-                voice(v.source).buffer,
-                crate::pointers::game_address(&mut v.buffer as *mut u32),
-            ) == 0
-            {
+pub fn make_buffer(at: u32, ebx: u32) -> Result<bool, Refused> {
+    if a3d() {
+        return Err(BadInput("A3D (the chunk at 0x40CC88)").into());
+    }
+    let mode = AUDIO.sound_mode.get();
+    if mode & MODE_OWN_BUFFERS == 0 {
+        return Ok(true);
+    }
+    let ds = AUDIO.direct_sound.get();
+    if ds == 0 {
+        return Ok(false);
+    }
+    let v = voice(at);
+    // What the settings would refuse, before anything is made.
+    let level = (v.volume as i32).wrapping_mul(v.volume_factor as i32) >> 6;
+    if !(0..=0x40).contains(&level) || !(-0x40..=0x40).contains(&v.pan) {
+        return Err(BadInput("a volume or pan past the volume table").into());
+    }
+    // ebx as the original has it at each call: the caller's, the frequency after the
+    // create path (`mov ebx, [esi+60h]`), the 3D buffer's place after `sub_40C6B5`'s.
+    let mut ebx = ebx;
+    let mut made = false;
+    if v.source != 0 {
+        match crate::platform_sound::duplicate_sound_buffer(voice(v.source).buffer) {
+            Ok(b) => {
+                v.buffer = b;
                 made = true;
-            } else {
-                v.source = 0;
             }
+            Err(_) => v.source = 0,
         }
-        if !made {
-            ebx = v.frequency;
-            describe_wave_format(v.format, v.frequency)?;
-            // Converted: `rc2k_core::audio::voices::buffer_flags`.
-            let flags = rc2k_core::audio::voices::buffer_flags(mode, v.flags);
-            AUDIO.buffer_description.set(BufferDescription {
-                size: 0x14,
-                flags,
-                bytes: v.length,
-                reserved: 0,
-                format: AUDIO.wave_format.addr(),
-            });
-            let f: unsafe extern "system" fn(u32, u32, u32, u32) -> i32 =
-                std::mem::transmute(crate::audio::com::method(ds, 0x0C));
-            let r = f(
-                ds,
-                AUDIO.buffer_description.addr(),
-                crate::pointers::game_address(&mut v.buffer as *mut u32),
-                0,
-            );
-            if r != 0 {
-                return Ok(log_failure(CREATE_FAILED_RVA, r));
-            }
-        }
-        set_buffer_volume(v)?;
-        set_buffer_pan(v)?;
-        set_buffer_frequency(v)?;
-        if mode & MODE_3D != 0 {
-            let f: unsafe extern "system" fn(u32, u32, u32) -> i32 =
-                std::mem::transmute(crate::audio::com::method(v.buffer, 0));
-            let r = f(
-                v.buffer,
-                AUDIO.iid_sound_3d_buffer.addr(),
-                crate::pointers::game_address(&mut v.buffer_3d as *mut u32),
-            );
-            if r != 0 {
+    }
+    if !made {
+        ebx = v.frequency;
+        describe_wave_format(v.format, v.frequency)?;
+        // Converted: `rc2k_core::audio::voices::buffer_flags`.
+        let flags = rc2k_core::audio::voices::buffer_flags(mode, v.flags);
+        AUDIO.buffer_description.set(BufferDescription {
+            size: 0x14,
+            flags,
+            bytes: v.length,
+            reserved: 0,
+            format: AUDIO.wave_format.addr(),
+        });
+        v.buffer = crate::platform_sound::create_sound_buffer(
+            flags,
+            v.length,
+            Some(crate::audio::describe_wave_format::platform_format()),
+        );
+    }
+    set_buffer_volume(v)?;
+    set_buffer_pan(v)?;
+    set_buffer_frequency(v)?;
+    if mode & MODE_3D != 0 {
+        match crate::platform_sound::query_interface(v.buffer, AUDIO.iid_sound_3d_buffer.get_u32(0))
+        {
+            Ok(b) => v.buffer_3d = b,
+            Err(r) => {
+                v.buffer_3d = 0;
                 return Ok(log_failure(QUERY_FAILED_RVA, r));
             }
-            crate::audio::buffer_settings::set_buffer_place(v)?;
-            crate::audio::set_buffer_min_distance::set_buffer_min_distance(v)?;
-            AUDIO.commit_3d.set(1);
-            if mode & MODE_HARDWARE_3D != 0 {
-                ebx = crate::pointers::game_address(&mut v.buffer_3d as *mut u32);
-                crate::audio::open_voice_manager::open_voice_manager(ebx)?;
-            }
-            if mode & MODE_EAX != 0 && crate::audio::open_eax::open_eax(ebx)? {
-                crate::audio::set_eax_room::in_game()?;
-            }
         }
-        Ok(true)
+        crate::audio::buffer_settings::set_buffer_place(v)?;
+        crate::audio::set_buffer_min_distance::set_buffer_min_distance(v)?;
+        AUDIO.commit_3d.set(1);
+        if mode & MODE_HARDWARE_3D != 0 {
+            ebx = crate::pointers::game_address(&mut v.buffer_3d as *mut u32);
+            crate::audio::open_voice_manager::open_voice_manager(ebx)?;
+        }
+        if mode & MODE_EAX != 0 && crate::audio::open_eax::open_eax(ebx)? {
+            crate::audio::set_eax_room::in_game()?;
+        }
     }
+    Ok(true)
 }
 
 /// The failure's text and result to the game's log; false (the carry).

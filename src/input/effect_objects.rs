@@ -18,15 +18,14 @@
 use crate::errors::BadInput;
 use crate::field;
 use crate::input::devices::{at, put};
-use crate::input::di_harness::{method, slot};
 use crate::input::types::ForceEffect;
 
 /// `release_effect`'s Rust version.
 pub fn release_effect(effect: u32) -> Result<(), BadInput> {
     let object = at(effect, field!(ForceEffect, object))?;
     if object != 0 {
-        method(object, slot::STOP, &[]);
-        method(object, slot::RELEASE, &[]);
+        crate::input::di_objects::stop(object);
+        crate::input::di_objects::release(object);
         put(effect, field!(ForceEffect, object), 0)?;
     }
     Ok(())
@@ -36,8 +35,8 @@ pub fn release_effect(effect: u32) -> Result<(), BadInput> {
 pub fn start_effect(effect: u32) -> Result<(), BadInput> {
     let object = at(effect, field!(ForceEffect, object))?;
     if object != 0 {
-        method(object, slot::DOWNLOAD, &[]);
-        method(object, slot::START, &[1, 0]);
+        crate::input::di_objects::download(object);
+        crate::input::di_objects::start(object, 1, 0);
     }
     Ok(())
 }
@@ -46,10 +45,10 @@ pub fn start_effect(effect: u32) -> Result<(), BadInput> {
 pub fn set_effect_parameters(effect: u32, flags: u32) -> Result<(), BadInput> {
     let object = at(effect, field!(ForceEffect, object))?;
     if object != 0 {
-        method(
+        crate::input::di_objects::set_parameters(
             object,
-            slot::SET_PARAMETERS,
-            &[effect.wrapping_add(field!(ForceEffect, effect)), flags],
+            effect.wrapping_add(field!(ForceEffect, effect)),
+            flags,
         );
     }
     Ok(())
@@ -59,7 +58,7 @@ pub fn set_effect_parameters(effect: u32, flags: u32) -> Result<(), BadInput> {
 pub fn stop_effect(effect: u32) -> Result<(), BadInput> {
     let object = at(effect, field!(ForceEffect, object))?;
     if object != 0 {
-        method(object, slot::STOP, &[]);
+        crate::input::di_objects::stop(object);
     }
     Ok(())
 }

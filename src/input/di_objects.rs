@@ -204,31 +204,11 @@ const E_NOINTERFACE: i32 = 0x8000_4002u32 as i32;
 
 // ---- the objects ----
 
-/// An object as the game sees it: a pointer to its method table (then nothing the game
-/// reads). The objects are places in a fixed pool, the lowest free one taken, so that two
-/// runs that make the same objects get the same addresses.
-#[repr(C)]
-struct Object {
-    /// The table's game address.
-    table: u32,
-    spare: u32,
-}
-
+/// The most objects at once. An object's handle (what the game holds) is its place in the
+/// pool and 1, the lowest free place taken, so that two runs that make the same objects get
+/// the same handles (phase 11, 2026-10-26: before, a place in a pool of objects whose first
+/// dword was its method table's address).
 const POOL: usize = 64;
-
-struct Pool(std::cell::UnsafeCell<[Object; POOL]>);
-
-// Safety: a place is written only under `STATE`'s lock, when it is taken; the game reads
-// its table pointer.
-unsafe impl Sync for Pool {}
-
-static OBJECTS: Pool = Pool(std::cell::UnsafeCell::new(
-    [const { Object { table: 0, spare: 0 } }; POOL],
-));
-
-fn pool_base() -> u32 {
-    crate::pointers::game_address(OBJECTS.0.get())
-}
 
 /// An axis's range, dead zone and saturation (DirectInput's defaults: 0 .. 65535, 0, 10000).
 #[derive(Clone, Copy, Debug)]
@@ -287,15 +267,10 @@ fn with<R>(f: impl FnOnce(&mut State) -> R) -> R {
     f(s)
 }
 
-/// The object's place from its address (`u32::MAX`: not one of the pool's).
+/// The object's place from its handle (`u32::MAX`: not one of the pool's).
 fn id_of(this: u32) -> u32 {
-    let size = std::mem::size_of::<Object>() as u32;
-    let offset = this.wrapping_sub(pool_base());
-    if offset.is_multiple_of(size) && offset / size < POOL as u32 {
-        offset / size
-    } else {
-        u32::MAX
-    }
+    let place = this.wrapping_sub(1);
+    if place < POOL as u32 { place } else { u32::MAX }
 }
 
 /// A value the game passes by address (ended when the address is outside its memory).
@@ -308,19 +283,18 @@ fn put<T: Copy>(at: u32, value: T) {
     crate::pointers::write_or_end(at, value, "a DirectInput method's result")
 }
 
-/// A new object, in the lowest free place (0 when the pool is full).
-fn make(s: &mut State, table: u32, what: Kind2) -> u32 {
+/// A new object, in the lowest free place: its handle (0 when the pool is full).
+fn make(s: &mut State, what: Kind2) -> u32 {
     let Some(id) = (0..POOL as u32).find(|n| !s.entries.contains_key(n)) else {
         return 0;
     };
-    unsafe { (*OBJECTS.0.get())[id as usize].table = table };
     s.entries.insert(id, Entry { refs: 1, what });
-    pool_base() + id * std::mem::size_of::<Object>() as u32
+    id + 1
 }
 
-/// A new `IDirectInputA` (what `DirectInputCreateA` gives): its address.
+/// A new `IDirectInputA` (what `DirectInputCreateA` gives): its handle.
 pub fn create_input() -> u32 {
-    with(|s| make(s, input_table(), Kind2::Input))
+    with(|s| make(s, Kind2::Input))
 }
 
 /// The object at `this` still lives.
@@ -328,7 +302,8 @@ fn alive(s: &State, this: u32) -> bool {
     s.entries.contains_key(&id_of(this))
 }
 
-extern "system" fn query(this: u32, iid: u32, out: u32) -> i32 {
+/// `QueryInterface`: a device's `IDirectInputDevice2A` (itself, one reference more).
+pub fn query_interface(this: u32, iid: u32, out: u32) -> i32 {
     with(|s| {
         if !alive(s, this) || out == 0 {
             return DIERR_INVALIDPARAM;
@@ -346,20 +321,7 @@ extern "system" fn query(this: u32, iid: u32, out: u32) -> i32 {
     })
 }
 
-extern "system" fn add_ref(this: u32) -> u32 {
-    with(|s| {
-        let id = id_of(this);
-        match s.entries.get_mut(&id) {
-            Some(e) => {
-                e.refs += 1;
-                e.refs
-            }
-            None => 0,
-        }
-    })
-}
-
-extern "system" fn release(this: u32) -> u32 {
+pub fn release(this: u32) -> u32 {
     let gone = with(|s| {
         let id = id_of(this);
         let e = s.entries.get_mut(&id)?;
@@ -410,7 +372,7 @@ pub fn device_instance(d: &DeviceInfo) -> DiDeviceInstance {
     }
 }
 
-extern "system" fn create_device(this: u32, guid: u32, out: u32, _outer: u32) -> i32 {
+pub fn create_device(this: u32, guid: u32, out: u32, _outer: u32) -> i32 {
     if out == 0 || guid == 0 {
         return DIERR_INVALIDPARAM;
     }
@@ -426,7 +388,6 @@ extern "system" fn create_device(this: u32, guid: u32, out: u32, _outer: u32) ->
         }
         let at = make(
             s,
-            device_table(),
             Kind2::Device(Device {
                 device,
                 acquired: false,
@@ -438,12 +399,13 @@ extern "system" fn create_device(this: u32, guid: u32, out: u32, _outer: u32) ->
     })
 }
 
-type EnumDevicesCallback = unsafe extern "system" fn(u32, u32) -> u32;
+/// `EnumDevices`' callback: (its `DIDEVICEINSTANCEA`, the context) -> 0 to stop.
+pub type EnumDevicesCallback = fn(u32, u32) -> u32;
 
-extern "system" fn enum_devices(
+pub fn enum_devices(
     _this: u32,
     kind: u32,
-    callback: usize,
+    callback: EnumDevicesCallback,
     context: u32,
     _flags: u32,
 ) -> i32 {
@@ -452,28 +414,17 @@ extern "system" fn enum_devices(
         return DI_OK;
     }
     let devices = backend(|b| b.devices()).unwrap_or_default();
-    if callback == 0 {
-        return DIERR_INVALIDPARAM;
-    }
-    let callback: EnumDevicesCallback =
-        unsafe { std::mem::transmute(crate::pointers::code(callback as u32)) };
     for d in &devices {
         let instance = device_instance(d);
-        if unsafe {
-            callback(
-                crate::pointers::game_address(&instance as *const DiDeviceInstance),
-                context,
-            )
-        } == 0
+        if callback(
+            crate::pointers::game_address(&instance as *const DiDeviceInstance),
+            context,
+        ) == 0
         {
             break;
         }
     }
     DI_OK
-}
-
-extern "system" fn unsupported(_this: u32) -> i32 {
-    DIERR_UNSUPPORTED
 }
 
 // IDirectInputDevice2A: 0 QueryInterface, 1 AddRef, 2 Release, 3 GetCapabilities,
@@ -493,7 +444,7 @@ fn device_of(this: u32) -> Option<(usize, DeviceInfo)> {
     Some((device, info))
 }
 
-extern "system" fn get_capabilities(this: u32, caps: u32) -> i32 {
+pub fn get_capabilities(this: u32, caps: u32) -> i32 {
     let Some((_, d)) = device_of(this) else {
         return DIERR_INVALIDPARAM;
     };
@@ -531,17 +482,13 @@ extern "system" fn get_capabilities(this: u32, caps: u32) -> i32 {
     DI_OK
 }
 
-type EnumObjectsCallback = unsafe extern "system" fn(u32, u32) -> u32;
+/// `EnumObjects`' callback: (its `DIDEVICEOBJECTINSTANCEA`, the context) -> 0 to stop.
+pub type EnumObjectsCallback = fn(u32, u32) -> u32;
 
-extern "system" fn enum_objects(this: u32, callback: usize, context: u32, _flags: u32) -> i32 {
+pub fn enum_objects(this: u32, callback: EnumObjectsCallback, context: u32, _flags: u32) -> i32 {
     let Some((_, d)) = device_of(this) else {
         return DIERR_INVALIDPARAM;
     };
-    if callback == 0 {
-        return DIERR_INVALIDPARAM;
-    }
-    let callback: EnumObjectsCallback =
-        unsafe { std::mem::transmute(crate::pointers::code(callback as u32)) };
     for n in 0..6 {
         if d.axes & (1 << n) == 0 {
             continue;
@@ -557,21 +504,15 @@ extern "system" fn enum_objects(this: u32, callback: usize, context: u32, _flags
             name: [0; 260],
             rest: [0; 24],
         };
-        if unsafe {
-            callback(
-                crate::pointers::game_address(&object as *const DiDeviceObjectInstance),
-                context,
-            )
-        } == 0
+        if callback(
+            crate::pointers::game_address(&object as *const DiDeviceObjectInstance),
+            context,
+        ) == 0
         {
             break;
         }
     }
     DI_OK
-}
-
-extern "system" fn get_property(_this: u32, _what: u32, _header: u32) -> i32 {
-    DIERR_UNSUPPORTED
 }
 
 /// The axes a property's header names: by an offset into `DIJOYSTATE` (dwHow 1) or every one
@@ -584,7 +525,7 @@ fn axes_named(how: u32, object: u32) -> Vec<usize> {
     }
 }
 
-extern "system" fn set_property(this: u32, what: u32, header: u32) -> i32 {
+pub fn set_property(this: u32, what: u32, header: u32) -> i32 {
     if header == 0 {
         return DIERR_INVALIDPARAM;
     }
@@ -657,11 +598,11 @@ fn set_acquired(this: u32, on: bool) -> i32 {
     }
 }
 
-extern "system" fn acquire(this: u32) -> i32 {
+pub fn acquire(this: u32) -> i32 {
     set_acquired(this, true)
 }
 
-extern "system" fn unacquire(this: u32) -> i32 {
+pub fn unacquire(this: u32) -> i32 {
     set_acquired(this, false)
 }
 
@@ -686,7 +627,7 @@ fn scaled(raw: i32, a: &Axis) -> i32 {
     (centre + n.signum() * m * half).round() as i32
 }
 
-extern "system" fn get_device_state(this: u32, size: u32, out: u32) -> i32 {
+pub fn get_device_state(this: u32, size: u32, out: u32) -> i32 {
     let state = with(|s| match s.entries.get(&id_of(this)).map(|e| &e.what) {
         Some(Kind2::Device(d)) => Some((d.device, d.acquired, d.axes)),
         _ => None,
@@ -717,15 +658,17 @@ extern "system" fn get_device_state(this: u32, size: u32, out: u32) -> i32 {
     DI_OK
 }
 
-extern "system" fn taken2(_this: u32, _a: u32) -> i32 {
+/// `SetDataFormat`: the game asks for `c_dfDIJoystick`, the state `get_device_state` gives.
+pub fn set_data_format(_this: u32, _format: u32) -> i32 {
     DI_OK
 }
 
-extern "system" fn taken3(_this: u32, _a: u32, _b: u32) -> i32 {
+/// `SetCooperativeLevel`: SDL's devices are shared.
+pub fn set_cooperative_level(_this: u32, _window: u32, _flags: u32) -> i32 {
     DI_OK
 }
 
-extern "system" fn poll(this: u32) -> i32 {
+pub fn poll(this: u32) -> i32 {
     with(|s| match s.entries.get(&id_of(this)).map(|e| &e.what) {
         Some(Kind2::Device(d)) if d.acquired => DI_OK,
         Some(Kind2::Device(_)) => DIERR_NOTACQUIRED,
@@ -733,20 +676,16 @@ extern "system" fn poll(this: u32) -> i32 {
     })
 }
 
-type EnumEffectsCallback = unsafe extern "system" fn(u32, u32) -> u32;
+/// `EnumEffects`' callback: (its `DIEFFECTINFOA`, the context) -> 0 to stop.
+pub type EnumEffectsCallback = fn(u32, u32) -> u32;
 
-extern "system" fn enum_effects(this: u32, callback: usize, context: u32, kind: u32) -> i32 {
+pub fn enum_effects(this: u32, callback: EnumEffectsCallback, context: u32, kind: u32) -> i32 {
     let Some((_, d)) = device_of(this) else {
         return DIERR_INVALIDPARAM;
     };
-    if callback == 0 {
-        return DIERR_INVALIDPARAM;
-    }
     if !d.force {
         return DI_OK;
     }
-    let callback: EnumEffectsCallback =
-        unsafe { std::mem::transmute(crate::pointers::code(callback as u32)) };
     for k in KINDS {
         // DIEFT_ALL (0) or the kind asked
         if kind & 0xFF != 0 && kind & 0xFF != k.family() {
@@ -764,12 +703,10 @@ extern "system" fn enum_effects(this: u32, callback: usize, context: u32, kind: 
             dynamic_params: 0x1E5,
             name,
         };
-        if unsafe {
-            callback(
-                crate::pointers::game_address(&info as *const DiEffectInfo),
-                context,
-            )
-        } == 0
+        if callback(
+            crate::pointers::game_address(&info as *const DiEffectInfo),
+            context,
+        ) == 0
         {
             break;
         }
@@ -814,7 +751,7 @@ fn take_parameters(e: &mut Effect, at: u32, flags: u32) {
 const ALL_PARAMETERS: u32 = 0x1FF;
 const DIEP_START: u32 = 0x2000_0000;
 
-extern "system" fn create_effect(this: u32, guid: u32, effect: u32, out: u32, _outer: u32) -> i32 {
+pub fn create_effect(this: u32, guid: u32, effect: u32, out: u32, _outer: u32) -> i32 {
     {
         if guid == 0 || out == 0 {
             return DIERR_INVALIDPARAM;
@@ -842,7 +779,6 @@ extern "system" fn create_effect(this: u32, guid: u32, effect: u32, out: u32, _o
         let at = with(|s| {
             make(
                 s,
-                effect_table(),
                 Kind2::Effect(EffectObject {
                     device,
                     effect: e.clone(),
@@ -881,7 +817,7 @@ fn change_effect(this: u32, f: impl FnOnce(&mut EffectObject) -> bool) -> i32 {
     }
 }
 
-extern "system" fn set_parameters(this: u32, effect: u32, flags: u32) -> i32 {
+pub fn set_parameters(this: u32, effect: u32, flags: u32) -> i32 {
     if effect == 0 {
         return DIERR_INVALIDPARAM;
     }
@@ -895,113 +831,20 @@ extern "system" fn set_parameters(this: u32, effect: u32, flags: u32) -> i32 {
     })
 }
 
-extern "system" fn start(this: u32, _iterations: u32, _flags: u32) -> i32 {
+pub fn start(this: u32, _iterations: u32, _flags: u32) -> i32 {
     change_effect(this, |e| {
         e.playing = true;
         true
     })
 }
 
-extern "system" fn stop(this: u32) -> i32 {
+pub fn stop(this: u32) -> i32 {
     change_effect(this, |e| {
         e.playing = false;
         false
     })
 }
 
-extern "system" fn download(this: u32) -> i32 {
+pub fn download(this: u32) -> i32 {
     change_effect(this, |_| false)
-}
-
-extern "system" fn effect_none(_this: u32) -> i32 {
-    DI_OK
-}
-
-// ---- the method tables ----
-
-// Each table is filled once (function addresses are not known at compile time) and read
-// by the game.
-
-fn input_table() -> u32 {
-    static TABLE: std::sync::OnceLock<[u32; 8]> = std::sync::OnceLock::new();
-    crate::pointers::game_address(
-        TABLE
-            .get_or_init(|| {
-                [
-                    crate::pointers::game_address(query as *const ()),
-                    crate::pointers::game_address(add_ref as *const ()),
-                    crate::pointers::game_address(release as *const ()),
-                    crate::pointers::game_address(create_device as *const ()),
-                    crate::pointers::game_address(enum_devices as *const ()),
-                    crate::pointers::game_address(unsupported as *const ()),
-                    crate::pointers::game_address(unsupported as *const ()),
-                    crate::pointers::game_address(unsupported as *const ()),
-                ]
-            })
-            .as_ptr(),
-    )
-}
-
-fn device_table() -> u32 {
-    static TABLE: std::sync::OnceLock<[u32; 27]> = std::sync::OnceLock::new();
-    crate::pointers::game_address(
-        TABLE
-            .get_or_init(|| {
-                [
-                    crate::pointers::game_address(query as *const ()),
-                    crate::pointers::game_address(add_ref as *const ()),
-                    crate::pointers::game_address(release as *const ()),
-                    crate::pointers::game_address(get_capabilities as *const ()),
-                    crate::pointers::game_address(enum_objects as *const ()),
-                    crate::pointers::game_address(get_property as *const ()),
-                    crate::pointers::game_address(set_property as *const ()),
-                    crate::pointers::game_address(acquire as *const ()),
-                    crate::pointers::game_address(unacquire as *const ()),
-                    crate::pointers::game_address(get_device_state as *const ()),
-                    crate::pointers::game_address(unsupported as *const ()),
-                    crate::pointers::game_address(taken2 as *const ()),
-                    crate::pointers::game_address(taken2 as *const ()),
-                    crate::pointers::game_address(taken3 as *const ()),
-                    crate::pointers::game_address(unsupported as *const ()),
-                    crate::pointers::game_address(unsupported as *const ()),
-                    crate::pointers::game_address(unsupported as *const ()),
-                    crate::pointers::game_address(unsupported as *const ()),
-                    crate::pointers::game_address(create_effect as *const ()),
-                    crate::pointers::game_address(enum_effects as *const ()),
-                    crate::pointers::game_address(unsupported as *const ()),
-                    crate::pointers::game_address(unsupported as *const ()),
-                    crate::pointers::game_address(unsupported as *const ()),
-                    crate::pointers::game_address(unsupported as *const ()),
-                    crate::pointers::game_address(unsupported as *const ()),
-                    crate::pointers::game_address(poll as *const ()),
-                    crate::pointers::game_address(unsupported as *const ()),
-                ]
-            })
-            .as_ptr(),
-    )
-}
-
-fn effect_table() -> u32 {
-    static TABLE: std::sync::OnceLock<[u32; 13]> = std::sync::OnceLock::new();
-    crate::pointers::game_address(
-        TABLE
-            .get_or_init(|| {
-                [
-                    crate::pointers::game_address(query as *const ()),
-                    crate::pointers::game_address(add_ref as *const ()),
-                    crate::pointers::game_address(release as *const ()),
-                    crate::pointers::game_address(unsupported as *const ()),
-                    crate::pointers::game_address(unsupported as *const ()),
-                    crate::pointers::game_address(unsupported as *const ()),
-                    crate::pointers::game_address(set_parameters as *const ()),
-                    crate::pointers::game_address(start as *const ()),
-                    crate::pointers::game_address(stop as *const ()),
-                    crate::pointers::game_address(unsupported as *const ()),
-                    crate::pointers::game_address(download as *const ()),
-                    crate::pointers::game_address(effect_none as *const ()),
-                    crate::pointers::game_address(unsupported as *const ()),
-                ]
-            })
-            .as_ptr(),
-    )
 }

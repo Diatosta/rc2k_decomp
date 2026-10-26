@@ -9,21 +9,17 @@
 //! (`net::dplay`).
 
 use crate::net::create_group::join;
-use crate::net::dplay::{ENUM_GROUPS, call};
 use crate::net::store::NET;
 
 /// The Rust version.
 pub fn join_group() -> bool {
-    let result = unsafe {
-        call(
-            &NET.dplay,
-            ENUM_GROUPS,
-            &[
-                0,
-                crate::pointers::game_address(crate::net::group_found::callback as *const ()),
-                0,
-                0,
-            ],
+    let result = {
+        crate::net::dp_objects::enum_groups(
+            NET.dplay.get(),
+            0,
+            crate::net::group_found::callback,
+            0,
+            0,
         )
     };
     result == 0 && join()
