@@ -13,7 +13,9 @@
 use crate::errors::Refused;
 use crate::framework::{RawHook, Regs, SelfTest, game_read, game_write, hook_asm, rva};
 use crate::screens::harness::Left;
-use crate::service::harness::{Region, at, capture, check_state, dispatch_state, restore};
+use crate::service::harness::{
+    Region, at, capture, check_state, dispatch_state, restore, state_entry,
+};
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -38,19 +40,22 @@ const SCREEN_RVA: [usize; 2] = [rva(0x4F494C), rva(0x4F4950)];
 
 /// The Rust version (see the header): what it leaves in the registers.
 pub unsafe fn choose_view_window() -> Left {
+    // Converted: `rc2k_core::scene::view_window::choose`.
+    use rc2k_core::scene::view_window::{ViewSettings, choose};
     unsafe {
-        let (w, h, x) = if game_read::<u32>(FRAMED_RVA) == 0 {
-            (game_read(SCREEN_RVA[0]), game_read(SCREEN_RVA[1]), 0)
-        } else if game_read::<u32>(WIDE_RVA) != 0 || game_read::<u16>(MODE_RVA) == 2 {
-            (0x320, 0x258, 0)
-        } else {
-            (0x2D0, 0x21C, 0x50)
+        let settings = ViewSettings {
+            framed: game_read::<u32>(FRAMED_RVA) != 0,
+            wide: game_read::<u32>(WIDE_RVA) != 0,
+            mode: game_read(MODE_RVA),
         };
-        game_write(WINDOW_RVA[0], w);
-        game_write(WINDOW_RVA[1], h);
-        game_write(OFFSET_RVA[0], x);
-        game_write(OFFSET_RVA[1], 0u32);
-        game_write(SCALE_RVA, 0x100u32);
+        let window = choose(settings, || {
+            [game_read(SCREEN_RVA[0]), game_read(SCREEN_RVA[1])]
+        });
+        game_write(WINDOW_RVA[0], window.size[0]);
+        game_write(WINDOW_RVA[1], window.size[1]);
+        game_write(OFFSET_RVA[0], window.offset[0]);
+        game_write(OFFSET_RVA[1], window.offset[1]);
+        game_write(SCALE_RVA, window.scale);
         crate::scene::set_view_window::set_view_window()
     }
 }
@@ -76,6 +81,12 @@ fn rust(_: &Regs) -> Result<Left, Refused> {
 
 extern "C" fn dispatch(r: &mut Regs) {
     dispatch_state(&HOOK, r, call_original, &regions(), &rust);
+}
+
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    state_entry(r, &rust)
 }
 
 fn self_test() -> (usize, usize) {

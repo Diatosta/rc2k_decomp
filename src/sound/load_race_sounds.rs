@@ -16,31 +16,15 @@
 //! `unk_512070`; and `unk_5121EC` unless `dword_514F78` is `dword_514F7C`.
 //! The commands carry the loop's leftovers in the other registers, reproduced.
 //! What the two counts and "a replay" are is a reading.
-//! One caller, `sound::set_up_race_sounds`. Shadow mode runs the original alone.
-//! Self-test: a redirected copy whose variables, objects and sample records are the
-//! test's and whose commands note their registers.
-//! Refuses a car number of 8 or more, a missing object, a kind of 0x20 or more and a
-//! list of names that does not hold 95 of at most 0x100 bytes.
+//! One caller, `sound::set_up_race_sounds`. Refuses a car number of 8 or more, a missing
+//! object, a kind of 0x20 or more and a list of names that does not hold 95 of at most 0x100
+//! bytes.
+//! Hook removed 2026-10-22 (direct calls): Rust callers run its `entry` (`calls::call`,
+//! `routes.rs`); the registers above are the original's, for reference.
 
 use crate::errors::BadInput;
-use crate::framework::{RawHook, Regs, SelfTest, call_game, game_addr, hook_asm, rva, shadow};
-use crate::install::stand_ins::{set_handler, stand_in};
-use crate::redirect::RedirectedCopy;
+use crate::framework::{Regs, game_addr, rva};
 use crate::sound::queue::{Queue, START_3, send_command, sent};
-use std::sync::Mutex;
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("sound::load_race_sounds", rva(0x40EED8), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
 
 // ---- game data ----
 
@@ -152,16 +136,14 @@ pub unsafe fn load_race_sounds(
             };
             Some((kind(first)?, second))
         };
-        let voice = dword(first + 0x298);
-        let (male, female) = (game_addr(MALE_RVA), game_addr(FEMALE_RVA));
-        let (mut ebx, mut edx) = if voice == 0 {
-            (male, female)
-        } else {
-            (female, male)
+        // Converted: `rc2k_core::sound::race::voices` and `sets`.
+        use rc2k_core::sound::race::{Set, Voice, sets, voices};
+        let list = |v: Voice| match v {
+            Voice::Male => game_addr(MALE_RVA),
+            Voice::Female => game_addr(FEMALE_RVA),
         };
-        if voice == dword(second + 0x298) {
-            edx = ebx;
-        }
+        let (a, b) = voices(dword(first + 0x298), dword(second + 0x298));
+        let (mut ebx, mut edx) = (list(a), list(b));
         let (of_first, of_second) = (lengths(ebx)?, lengths(edx)?);
         // Nothing has been written or sent up to here.
         let (mut esi, mut ecx) = (0, 0);
@@ -184,36 +166,29 @@ pub unsafe fn load_race_sounds(
                 ..*entry
             })
         };
-        let set = |at: usize| game_addr(rva(at)) as u32;
-        let Some((first_kind, second_kind)) = kinds else {
-            send(game_addr(REPLAY_SET_RVA) as u32);
-            return Ok(());
-        };
-        send(dword(game_addr(KINDS_RVA) + first_kind * 8));
-        for at in FIRST_SETS {
-            send(set(at));
-        }
-        if let Some(second_kind) = second_kind {
-            send(dword(game_addr(KINDS_RVA) + 4 + second_kind * 8));
-            for at in SECOND_SETS {
-                send(set(at));
-            }
-        }
-        if count != other_count {
-            send(game_addr(LAST_SET_RVA) as u32);
+        let (first_kind, second_kind) = kinds.unwrap_or((0, None));
+        for set in sets(
+            kinds.is_none(),
+            first_kind as u32,
+            second_kind.unwrap_or(0) as u32,
+            count,
+            other_count,
+        ) {
+            send(match set {
+                Set::Replay => game_addr(REPLAY_SET_RVA) as u32,
+                Set::FirstKind(k) => dword(game_addr(KINDS_RVA) + k as usize * 8),
+                Set::First(n) => game_addr(rva(FIRST_SETS[n])) as u32,
+                Set::SecondKind(k) => dword(game_addr(KINDS_RVA) + 4 + k as usize * 8),
+                Set::Second(n) => game_addr(rva(SECOND_SETS[n])) as u32,
+                Set::Last => game_addr(LAST_SET_RVA) as u32,
+            });
         }
         Ok(())
     }
 }
 
-// ---- hook ----
-
-extern "C" fn dispatch(r: &mut Regs) {
-    HOOK.count_call();
-    if shadow() {
-        unsafe { call_original(r) };
-        return;
-    }
+/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     let entry = *r;
     let done = unsafe {
         load_race_sounds(&entry, &Places::game(), &mut |with| {
@@ -221,142 +196,7 @@ extern "C" fn dispatch(r: &mut Regs) {
         })
     };
     if let Err(e) = done {
-        unsafe { crate::fatal::raise::refused(&HOOK, e, r, call_original) };
+        return Err(e.into());
     }
-}
-
-// ---- self-test ----
-
-const LEN: usize = 0x11B;
-const ENTRY_BYTES: [u8; 8] = [0x60, 0xA1, 0x70, 0x4F, 0x51, 0x00, 0x8B, 0x34];
-/// `strings::text_length` twice, then the nine senders of command 3.
-const CALLS: [usize; 11] = [
-    0x51, 0x5C, 0x94, 0x9F, 0xAA, 0xB5, 0xD9, 0xE4, 0xEF, 0x107, 0x114,
-];
-const SEND_3_RVA: usize = rva(0x409BBF);
-/// How often the code names each of `PLACES`.
-const NAMED: [usize; 7] = [2, 2, 2, 1, 1, 4, 1];
-/// A test's sound object: its kind at +4 and its voice at +0x298.
-const OBJECT_LEN: usize = 0x2A0;
-
-static SENT: Mutex<Vec<[u32; 7]>> = Mutex::new(Vec::new());
-
-fn handler(_: u32, r: &mut Regs) {
-    SENT.lock().unwrap().push(sent(r));
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let copy = unsafe {
-        RedirectedCopy::new(
-            game_addr(rva(0x40EED8)),
-            LEN,
-            &ENTRY_BYTES,
-            &CALLS,
-            &|callee| (callee == SEND_3_RVA).then(|| stand_in(0)),
-        )
-    };
-    let copy = match copy {
-        Ok(copy) => copy,
-        Err(why) => return t.skip(why),
-    };
-    // The test's memory: five variables, a table of eight objects, the objects, and the
-    // sample records up to the last one written.
-    let mut vars = [0u32; 5];
-    let mut table = vec![0u32; OBJECTS as usize];
-    let mut objects = vec![0u8; OBJECT_LEN * 4];
-    let samples_len = (FIRST_SAMPLE + NAMES * 2 + 1) * SAMPLE_LEN;
-    let mut samples = vec![0u8; samples_len];
-    for (n, entry) in table.iter_mut().take(4).enumerate() {
-        *entry = objects.as_mut_ptr() as u32 + (n * OBJECT_LEN) as u32;
-    }
-    let mut addresses = [0usize; 7];
-    for (n, var) in vars.iter_mut().enumerate() {
-        addresses[n] = var as *mut u32 as usize;
-    }
-    addresses[5] = table.as_ptr() as usize;
-    addresses[6] = samples.as_mut_ptr() as usize;
-    let places = Places::from(addresses);
-    unsafe {
-        let code = std::slice::from_raw_parts(copy.addr() as *const u8, LEN);
-        let real = PLACES.map(|at| game_addr(rva(at)) as u32);
-        let mut patches = Vec::new();
-        let mut seen = [0usize; 7];
-        let mut at = 0;
-        while at + 4 <= LEN {
-            let named = u32::from_le_bytes(code[at..at + 4].try_into().unwrap());
-            match real.iter().position(|&address| address == named) {
-                Some(n) => {
-                    seen[n] += 1;
-                    patches.push((at, addresses[n] as u32));
-                    at += 4;
-                }
-                None => at += 1,
-            }
-        }
-        if seen != NAMED {
-            return t.skip("the function does not name its variables as the test expects");
-        }
-        for (at, value) in patches {
-            copy.patch_u32(at, value);
-        }
-    }
-    // (first, second, count, other count, replay), then each object's (kind, voice).
-    type Case = ([u32; 5], [(u32, u32); 4]);
-    let plain = [(0, 0), (1, 1), (0x1F, 0), (7, 5)];
-    let cases: [Case; 12] = [
-        ([0, 1, 2, 2, 0], plain),
-        ([0, 1, 1, 1, 0], plain),
-        ([0, 1, 1, 2, 0], plain),
-        ([1, 0, 2, 1, 0], plain),
-        ([0, 2, 2, 2, 0], plain),
-        ([1, 3, 2, 0, 0], plain),
-        ([3, 1, 4, 4, 0], plain),
-        ([2, 2, 2, 2, 0], plain),
-        ([0, 1, 2, 2, 1], plain),
-        ([1, 0, 1, 2, 0xFFFF_FFFF], plain),
-        ([0, 1, 2, 2, 0], [(3, 2), (4, 2), (0, 0), (0, 0)]),
-        ([0, 1, 0, 1, 0], [(3, 0x8000_0000), (4, 0), (0, 0), (0, 0)]),
-    ];
-    for (values, kinds) in cases {
-        let before = Regs::SENTINEL;
-        let mut run = |rust: bool| unsafe {
-            vars.copy_from_slice(&values);
-            for (n, (kind, voice)) in kinds.into_iter().enumerate() {
-                let object = objects.as_mut_ptr().add(n * OBJECT_LEN);
-                (object.add(4) as *mut u32).write_unaligned(kind);
-                (object.add(0x298) as *mut u32).write_unaligned(voice);
-            }
-            samples.fill(0xAA);
-            SENT.lock().unwrap().clear();
-            set_handler(handler);
-            let ended = if rust {
-                match load_race_sounds(&before, &places, &mut |with| {
-                    SENT.lock().unwrap().push(sent(with))
-                }) {
-                    Ok(()) => 0,
-                    Err(_) => 2,
-                }
-            } else {
-                let mut ro = before;
-                call_game(&mut ro, copy.addr());
-                !ro.preserved_except(&before, 0) as u32
-            };
-            (ended, samples.clone(), SENT.lock().unwrap().clone())
-        };
-        let (theirs, mine) = (run(false), run(true));
-        t.check(theirs == mine && theirs.0 == 0, || {
-            format!(
-                "variables {values:x?}, objects {kinds:x?}: original ended {} sent {:x?}; rust ended {} sent {:x?}; first different sample byte {:?}",
-                theirs.0,
-                theirs.2,
-                mine.0,
-                mine.2,
-                theirs.1.iter().zip(&mine.1).position(|(a, b)| a != b),
-            )
-        });
-    }
-    t.finish()
+    Ok(())
 }

@@ -6,8 +6,7 @@ use crate::framework::{EDI, RawHook, Regs, SelfTest, game_addr, game_read, game_
 use crate::screens::harness::{CallOriginal, Left};
 use crate::service::harness::{Region, at, capture, check_state, dispatch_state, restore};
 use crate::service::state::{
-    FLAG_TABLE_LEN, MENU_ITEM_RVA, REPAIR_FLAGS_RVA, current_player, flagged_item, repair_flag,
-    set_repair_flag,
+    FLAG_TABLE_LEN, MENU_ITEM_RVA, REPAIR_FLAGS_RVA, current_player, flagged_item, set_repair_flag,
 };
 
 // ---- steppers ----
@@ -48,18 +47,9 @@ pub unsafe fn step(stepper: Stepper) -> Result<Left, Refused> {
     let (addr, left) = target(stepper)?;
     let value = addr as *mut i32;
     unsafe {
-        let now = value.read_unaligned();
-        let next = if stepper.up {
-            if now < stepper.max {
-                now.wrapping_add(1)
-            } else {
-                stepper.max
-            }
-        } else if now != 0 {
-            now.wrapping_sub(1)
-        } else {
-            0
-        };
+        // Converted: `rc2k_core::service::repairs::step`.
+        let next =
+            rc2k_core::service::repairs::step(value.read_unaligned(), stepper.max, stepper.up);
         value.write_unaligned(next);
     }
     Ok(left)
@@ -133,10 +123,12 @@ pub struct Change {
 /// Flips the flag of the highlighted menu item; if it is then not 1, the chosen value goes
 /// back to the installed one.
 pub unsafe fn toggle_change(change: Change) -> Result<Left, Refused> {
+    // Converted: `rc2k_core::service::repairs::toggle_change`.
     let item = flagged_item()?;
-    let flag = repair_flag(item) ^ 1;
-    set_repair_flag(item, flag);
-    if flag != 1 {
+    let mut t = crate::service::state::flags();
+    let back = rc2k_core::service::repairs::toggle_change(&mut t, item as usize);
+    set_repair_flag(item, t[item as usize]);
+    if back {
         unsafe { game_write(change.chosen_rva, game_read::<u32>(change.installed_rva)) };
     }
     Ok(Left::nothing())

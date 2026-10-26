@@ -8,39 +8,24 @@
 //! bit 2 and bit 1 of the byte as it then is, each flipping bit 0), the whole is turned
 //! right by one, and what is mixed in is `xor`ed on. 23 callers, and
 //! `math::random_below` (73 more).
-//! Shadow mode: the Rust step, the state put back, the original's, compared. Another
-//! thread drawing a number in between would show as a mismatch that is none.
+//! Hook removed 2026-10-22 (conversion phase 4): Rust callers call this directly; the
+//! registers above are the original's, for reference.
 
-use crate::errors::Refused;
-use crate::framework::{EAX, RawHook, Regs, SelfTest, game_read, game_write, hook_asm, rva};
-use crate::screens::harness::Left;
-use crate::service::harness::{at, capture, check_state, dispatch_state, restore};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("math::next_random", rva(0x4018B4), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
+use crate::framework::rva;
 
 /// dword_4E0140: the generator's state.
 pub const STATE_RVA: usize = rva(0x4E0140);
 
 // ---- Rust version ----
 
-/// `sub_4018C8`.
-pub fn random_step(state: u32, mixed_in: u32) -> u32 {
-    let mut low = state as u8;
-    low ^= (state & 0x40_0000 != 0) as u8;
-    low ^= (low & 4 != 0) as u8;
-    low ^= (low & 2 != 0) as u8;
-    (state & !0xFF | low as u32).rotate_right(1) ^ mixed_in
+/// The bridge (`src/bridge.rs`): the generator loaded from `dword_4E0140`, `f` run on it,
+/// its state stored back.
+pub fn with_random<R>(f: impl FnOnce(&mut rc2k_core::math::random::Random) -> R) -> R {
+    static STATE: crate::bridge::Global<u32> = crate::bridge::Global::at(0x4E_0140);
+    let mut random = rc2k_core::math::random::Random { state: STATE.get() };
+    let value = f(&mut random);
+    STATE.set(random.state);
+    value
 }
 
 /// The thread that owns the generator during a self-test that draws (0: none). Another
@@ -85,28 +70,8 @@ pub static DRAWS: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::n
 pub unsafe fn next_random() -> u32 {
     wait_for_random();
     DRAWS.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
-    unsafe {
-        let next = random_step(game_read(STATE_RVA), 0);
-        game_write(STATE_RVA, next);
-        next
-    }
+    with_random(|r| r.draw())
 }
-
-// ---- hook ----
-
-fn rust(_: &Regs) -> Result<Left, Refused> {
-    Ok(Left::nothing().with(EAX, unsafe { next_random() }))
-}
-
-extern "C" fn dispatch(r: &mut Regs) {
-    wait_for_random();
-    dispatch_state(&HOOK, r, call_original, &[at(STATE_RVA)], &rust);
-    // `random_step` ends in `xor eax, ebx` (ebx 0): its caller `race::nonzero_random`
-    // (0x444C14) reads the zero flag (`jnz`).
-    r.set_zero(r.eax == 0);
-}
-
-// ---- self-test ----
 
 pub const TEST_STATES: [u32; 12] = [
     0,
@@ -122,39 +87,3 @@ pub const TEST_STATES: [u32; 12] = [
     0x1234_5678,
     0xDEAD_BEEF,
 ];
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let regions = [at(STATE_RVA)];
-    let saved = capture(&regions);
-    for state in TEST_STATES {
-        check_state(
-            &mut t,
-            &format!("state={state:#x}"),
-            call_original,
-            Regs::SENTINEL,
-            &|| unsafe { game_write(STATE_RVA, state) },
-            &regions,
-            &rust,
-        );
-    }
-    // A run of numbers from one state.
-    let mut state = 0x2026_1012u32;
-    for _ in 0..200 {
-        let now = state;
-        check_state(
-            &mut t,
-            &format!("state={now:#x}"),
-            call_original,
-            Regs::SENTINEL,
-            &|| unsafe { game_write(STATE_RVA, now) },
-            &regions,
-            &rust,
-        );
-        state = random_step(state, 0);
-    }
-    restore(&regions, &saved);
-    t.finish()
-}

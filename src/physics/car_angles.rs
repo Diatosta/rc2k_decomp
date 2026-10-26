@@ -20,7 +20,7 @@ use crate::physics::matrix_angles::{AnglePlaces, AngleTest, matrix_angles_at};
 use crate::race::stage_prefs::CRASH_MATRIX_RVA;
 use crate::redirect::RedirectedCopy;
 use crate::screens::harness::Left;
-use crate::service::harness::{Region, capture, dispatch_state};
+use crate::service::harness::{Region, capture, dispatch_state, state_entry};
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -79,6 +79,12 @@ pub fn regions() -> Vec<Region> {
 
 extern "C" fn dispatch(r: &mut Regs) {
     dispatch_state(&HOOK, r, call_original, &regions(), &rust);
+}
+
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    state_entry(r, &rust)
 }
 
 /// A copy of the original on `test` (its call to `test.entry`).

@@ -24,6 +24,9 @@
 //! Shadow mode runs the original alone and compares the names it left with the Rust
 //! version's.
 //! Self-test: a redirected copy whose loading notes the names, 336 cases.
+//!
+//! Converted 2026-10-21: the digits, the names, the folder and the gravel rule through
+//! `rc2k_core::scene::pictures`.
 
 use crate::errors::Refused;
 use crate::files::file_exists::file_exists;
@@ -73,7 +76,7 @@ const FOLDERS: [(usize, usize, usize); 6] = [
     (rva(0x60AF5F), rva(0x60AFE2), 0x0F), // files\g\frnt
     (rva(0x60AF77), rva(0x60AFFA), 0x0F), // files\s\extr
 ];
-const GRAVEL: usize = 3;
+use rc2k_core::scene::pictures::{GRAVEL, folder, names, picture_car, takes_gravel};
 const FIRST_CAR_TEXTURE_RVA: usize = KIND_TEXTURE_RVA + 0x100 * 4; // dword_5D0EE8
 const CARS_RVA: usize = rva(0x63DB90); // dword_63DB90
 const CAR_GRAVEL_RVA: usize = rva(0x6235FC); // dword_6235FC
@@ -91,67 +94,42 @@ pub enum Call {
 
 // ---- Rust version ----
 
-fn digits(number: u32) -> [u8; 4] {
-    [
-        (number / 1000) as u8,
-        (number % 1000 / 100) as u8,
-        (number % 100 / 10) as u8,
-        (number % 10) as u8,
-    ]
-    .map(|digit| digit.wrapping_add(b'0'))
-}
-
-/// The folder a picture's number picks.
-fn folder(number: u32) -> usize {
-    match number {
-        0..0x384 => 0,
-        0x384..0x386 => 1,
-        0x386..0x3E8 => 0,
-        0x3E8..0x7D0 => 2,
-        0x7D0..0xBB8 => 4,
-        _ => 5,
-    }
-}
-
 /// The numbers and the names: everything the function writes.
 unsafe fn write_names(number: u32, texture: u32) {
     unsafe {
         game_write(WORK_RVA, [number, texture]);
-        let (first, second) = (digits(number), digits(number.wrapping_add(1)));
-        for (n, &(name, second_name, at)) in FOLDERS.iter().enumerate() {
-            let mut first = first;
-            if n == 1 {
-                // The original stores the third digit where the fourth belongs.
-                first[3] = first[2];
-            }
+        for (&(name, second_name, at), (first, second)) in FOLDERS.iter().zip(names(number)) {
             (game_addr(name + at) as *mut [u8; 4]).write(first);
-            if n != 5 {
+            if let Some(second) = second {
                 (game_addr(second_name + at) as *mut [u8; 4]).write(second);
             }
         }
     }
 }
 
+// Converted: `rc2k_core::scene::pictures`
 pub unsafe fn load_texture_picture(number: u32, texture: u32, call: &mut dyn FnMut(Call) -> bool) {
     unsafe {
         write_names(number, texture);
-        let mut chosen = folder(number);
-        if (1000..2000).contains(&number) {
-            let car = texture.wrapping_sub(game_read(FIRST_CAR_TEXTURE_RVA)) >> 3;
-            if car < game_read::<u32>(CARS_RVA) {
-                call(Call::Text(c"carnum".as_ptr().cast()));
-                call(Call::Number(car));
-                call(Call::Text(c"grav".as_ptr().cast()));
-                let gravel: u32 = game_read(CAR_GRAVEL_RVA + car as usize * 4);
-                call(Call::Number(gravel));
-                // By the difference's sign, as the original has it.
-                if (gravel.wrapping_sub(3) as i32) >= 0 && call(Call::Exists(FOLDERS[GRAVEL].0)) {
-                    chosen = GRAVEL;
-                    call(Call::Text(game_ptr(FOLDERS[GRAVEL].1)));
-                }
+        let mut gravel_chosen = false;
+        let car = picture_car(
+            number,
+            texture,
+            || game_read(FIRST_CAR_TEXTURE_RVA),
+            || game_read(CARS_RVA),
+        );
+        if let Some(car) = car {
+            call(Call::Text(c"carnum".as_ptr().cast()));
+            call(Call::Number(car));
+            call(Call::Text(c"grav".as_ptr().cast()));
+            let gravel: u32 = game_read(CAR_GRAVEL_RVA + car as usize * 4);
+            call(Call::Number(gravel));
+            if takes_gravel(gravel) && call(Call::Exists(FOLDERS[GRAVEL].0)) {
+                gravel_chosen = true;
+                call(Call::Text(game_ptr(FOLDERS[GRAVEL].1)));
             }
         }
-        let (name, second, _) = FOLDERS[chosen];
+        let (name, second, _) = FOLDERS[folder(number, gravel_chosen)];
         call(Call::Load(name, second, texture));
     }
 }

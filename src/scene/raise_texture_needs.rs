@@ -12,13 +12,13 @@
 //! Self-test: 40 cases by lot on the game's tables, put back afterwards.
 
 use crate::errors::Refused;
-use crate::framework::{ECX, EDX, RawHook, Regs, SelfTest, game_read, game_write, hook_asm, rva};
+use crate::framework::{ECX, EDX, RawHook, Regs, SelfTest, hook_asm, rva};
 use crate::scene::texture_needs::{
     SYSTEM_LEVELS_RVA, TAGS_RVA, TEXTURES, VIDEO_LEVELS_RVA, levels,
 };
 use crate::scene::textures::{test_table, write_table};
 use crate::screens::harness::Left;
-use crate::service::harness::{capture, check_state, dispatch_state, restore};
+use crate::service::harness::{capture, check_state, dispatch_state, restore, state_entry};
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -42,21 +42,17 @@ hook_asm!(
 
 /// Whether any entry changed.
 pub unsafe fn raise_texture_needs(level: u32, tag: u32) -> bool {
-    let mut changed = false;
-    for n in 0..TEXTURES {
-        unsafe {
-            if game_read::<u32>(TAGS_RVA + n * 4) != tag {
-                continue;
-            }
-            for table in [SYSTEM_LEVELS_RVA, VIDEO_LEVELS_RVA] {
-                if level > game_read::<u32>(table + n * 4) {
-                    game_write(table + n * 4, level);
-                    changed = true;
-                }
-            }
+    // Converted: `rc2k_core::scene::textures::Needs::raise`.
+    use crate::scene::textures::slice;
+    let n = TEXTURES as u32;
+    unsafe {
+        rc2k_core::scene::textures::Needs {
+            tags: slice(TAGS_RVA, n),
+            system: slice(SYSTEM_LEVELS_RVA, n),
+            video: slice(VIDEO_LEVELS_RVA, n),
         }
+        .raise(level, tag)
     }
-    changed
 }
 
 // ---- hook ----
@@ -71,6 +67,12 @@ fn rust(r: &Regs) -> Result<Left, Refused> {
 extern "C" fn dispatch(r: &mut Regs) {
     let regions = [levels(SYSTEM_LEVELS_RVA), levels(VIDEO_LEVELS_RVA)];
     dispatch_state(&HOOK, r, call_original, &regions, &rust);
+}
+
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    state_entry(r, &rust)
 }
 
 // ---- self-test ----

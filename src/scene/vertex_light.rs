@@ -80,12 +80,7 @@ const TOWARDS_LIGHT_RVA: usize = rva(0x6092C0); // dword_6092C0, dword_6092C4, d
 
 /// Byte by byte without overflow: all four with MMX, the low three without.
 pub fn plus(a: u32, b: u32, mmx: bool) -> u32 {
-    let bytes = if mmx { 4 } else { 3 };
-    (0..bytes).fold(a, |out, n| {
-        let at = n * 8;
-        let sum = ((a >> at & 0xFF) + (b >> at & 0xFF)).min(0xFF);
-        out & !(0xFF << at) | sum << at
-    })
+    rc2k_core::scene::lamps::brighter(a, b, mmx)
 }
 
 /// `cmp eax, low; jns; eax = low` and `cmp eax, high; js; eax = high`, by the sign
@@ -254,6 +249,16 @@ extern "C" fn dispatch(r: &mut Regs) {
             )
         });
     }
+}
+
+/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    let number = r.eax;
+    {
+        let colour = unsafe { vertex_light(number) }?;
+        (r.eax, r.ebp) = (colour, number)
+    }
+    Ok(())
 }
 
 // ---- self-test ----

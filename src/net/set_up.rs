@@ -10,32 +10,14 @@
 //! (`CoCreateInstance`) whether the game was launched by one ("NET: Lobby launch
 //! detected", `dword_5AB290` 1); the platform's (DirectPlay), the game's in the game,
 //! nothing in the standalone program (no lobby: `dword_5AB290` stays 0).
-//! One caller, `start` (0x4010A2). Shadow mode runs the original alone (handles cannot be
-//! made twice). Self-test: a copy whose five variables are the test's, whose three calls go
-//! to stand-ins (handles of the test's, or none) and whose jumps to the fatal stubs land in
-//! the test, against the Rust version.
+//! One caller, `start` (0x4010A2).
+//! Hook removed 2026-10-22 (direct calls): Rust callers run its `entry` (`calls::call`,
+//! `routes.rs`); the registers above are the original's, for reference.
 
 use crate::errors::{FatalError, Refused};
-use crate::framework::{
-    RawHook, Regs, SelfTest, call_game, game_addr, hook_asm, rva, shadow, standalone,
-};
-use crate::install::stand_ins::{WENT_FATAL, act, fatal_landing, set_handler, stand_in};
+use crate::framework::{Regs, game_addr, rva, standalone};
 use crate::threading::create_event::{create_event, handle_flags};
 use crate::threading::create_mutex::create_mutex;
-use std::sync::Mutex;
-use std::sync::atomic::{AtomicU32, AtomicUsize, Ordering};
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("net::set_up", rva(0x41848E), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
 
 // ---- game data ----
 
@@ -123,136 +105,13 @@ pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
             r.set_carry(handle_flags(r.eax).0);
         }
         _ if standalone() => {}
-        _ => unsafe { call_game(r, game_addr(rva(CALLEES[2]))) },
+        _ => crate::calls::call(rva(CALLEES[2]), r),
     }
     Ok(())
 }
 
-// ---- hook ----
-
-extern "C" fn dispatch(r: &mut Regs) {
-    HOOK.count_call();
-    if shadow() {
-        unsafe { call_original(r) };
-        return;
-    }
-    if let Err(e) = unsafe { set_up(&NetVars::game(), &mut game_part) } {
-        unsafe { crate::fatal::raise::refused(&HOOK, e, r, call_original) };
-    }
-}
-
-// ---- self-test ----
-
-/// The calls noted: (place, eax, ebx).
-static NOTED: Mutex<Vec<(u32, u32, u32)>> = Mutex::new(Vec::new());
-/// Which call gives no handle (3: none).
-static FAILS: AtomicU32 = AtomicU32::new(3);
-
-fn note(place: u32, r: &mut Regs) {
-    NOTED.lock().unwrap().push((place, r.eax, r.ebx));
-    if place < 2 {
-        let fails = FAILS.load(Ordering::SeqCst) == place;
-        r.eax = if fails { 0 } else { 0x1234_0000 + place };
-        r.set_carry(fails);
-    }
-}
-
-fn test_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
-    act(place, r);
+/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
+pub fn entry(_: &mut Regs) -> Result<(), crate::errors::Refused> {
+    unsafe { set_up(&NetVars::game(), &mut game_part) }?;
     Ok(())
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let mut vars = vec![0u32; 4];
-    let at = vars.as_mut_ptr() as u32;
-    let v = NetVars {
-        notice_kind: at,
-        players: at + 4,
-        event: at + 8,
-        mutex: at + 12,
-    };
-    let c = match crate::audio::test_copy::make(
-        &HOOK,
-        &crate::audio::test_copy::Copy {
-            address: 0x41848E,
-            len: 0x48,
-            entry: &[0x60, 0x80, 0x3D, 0xA0, 0x07, 0x4E, 0x00, 0x02],
-            calls: &[0x21, 0x31, 0x41],
-            jumps_out: &[],
-        },
-        &|callee| {
-            CALLEES
-                .iter()
-                .position(|&c| rva(c) == callee)
-                .map(|n| stand_in(n as u32))
-        },
-        &[
-            (0x4E07A0, v.notice_kind),
-            (0x52ABD0, v.players),
-            (0x52AB68, v.event),
-            (0x52AB6C, v.mutex),
-        ],
-        5,
-    ) {
-        Ok(c) => c,
-        Err(why) => return t.skip(&why),
-    };
-    unsafe {
-        // The two `jb` to the fatal stubs (0F 82 at +0x26 and +0x36).
-        c.retarget(0x28, fatal_landing as *const () as usize);
-        c.retarget(0x38, fatal_landing as *const () as usize);
-    }
-    set_handler(note);
-    for kind in [0u32, 2, 3] {
-        for players in [0u32, 4, 5, 0xFFFF_FFFF, 8] {
-            for fails in [3u32, 0, 1] {
-                FAILS.store(fails, Ordering::SeqCst);
-                let run = |rust: bool| unsafe {
-                    let p = at as *mut u32;
-                    p.write_volatile(kind);
-                    p.add(1).write_volatile(players);
-                    p.add(2).write_volatile(0xAAAA_AAAA);
-                    p.add(3).write_volatile(0xAAAA_AAAA);
-                    NOTED.lock().unwrap().clear();
-                    WENT_FATAL.store(0, Ordering::SeqCst);
-                    let (fatal, preserved) = if rust {
-                        match set_up(&v, &mut test_part) {
-                            Ok(()) => (0, true),
-                            Err(Refused::Fatal(e)) => (e.code, true),
-                            Err(_) => (1, false),
-                        }
-                    } else {
-                        let before = Regs::SENTINEL;
-                        let mut ro = before;
-                        call_game(&mut ro, c.addr());
-                        let fatal = match (WENT_FATAL.load(Ordering::SeqCst), fails) {
-                            (0, _) => 0,
-                            (_, 0) => NO_EVENT.code,
-                            _ => NO_MUTEX.code,
-                        };
-                        (fatal, ro.preserved_except(&before, 0))
-                    };
-                    let state: Vec<u32> = (0..4).map(|n| p.add(n).read_volatile()).collect();
-                    (
-                        fatal,
-                        preserved,
-                        state,
-                        std::mem::take(&mut *NOTED.lock().unwrap()),
-                    )
-                };
-                let theirs = run(false);
-                let mine = run(true);
-                t.check(theirs == mine && theirs.1, || {
-                    format!(
-                        "kind {kind}, players {players:#x}, failing call {fails}: original {theirs:x?}; rust {mine:x?}"
-                    )
-                });
-            }
-        }
-    }
-    drop(vars);
-    t.finish()
 }

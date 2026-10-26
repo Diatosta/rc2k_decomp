@@ -9,26 +9,14 @@
 //! from Rust, `net::dplay::create_instance`: the platform). Shadow mode runs the original
 //! alone (it makes an object). Self-test: a copy whose calls go to stand-ins, against the
 //! Rust version: made, failing.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
-use crate::net::lobby::{
-    CO_CREATE, DPLAY, FLAGS, LOG_L2_NL, Part, a, com_answer, dispatch_lobby, log_text, run_both,
-    test_eax,
-};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("net::create_dplay", rva(0x41861D), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
+use crate::framework::Regs;
+use crate::net::lobby::{CO_CREATE, DPLAY, LOG_L2_NL, Part, a, lobby_entry, log_text, test_eax};
 
 const TEXT: usize = 0x5C2E3A; // "NET: Create dplay"
 pub const CLSID_DIRECTPLAY: usize = 0x5AB330; // stru_5AB330
@@ -75,37 +63,8 @@ pub fn create_dplay(entry: &Regs, part: Part) -> Result<Regs, Refused> {
     })
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_lobby(&HOOK, r, call_original, create_dplay);
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    // pusha; pusha; lea eax, aNetCreateDplay
-    let copy = match crate::net::lobby::copy(
-        0x41861D,
-        0x31,
-        &[0x60, 0x60, 0x8D, 0x05, 0x3A, 0x2E, 0x5C, 0x00],
-        &[0x8, 0x21],
-        &[LOG_L2_NL],
-    ) {
-        Ok(c) => c,
-        Err(why) => return t.skip(why),
-    };
-    for result in [0u32, 0x8004_0154] {
-        run_both(
-            &mut t,
-            &format!("CoCreateInstance gives {result:#x}"),
-            copy.addr(),
-            Regs::SENTINEL,
-            &[],
-            FLAGS,
-            &[],
-            &|| com_answer(Box::new(move |_, _| result)),
-            &create_dplay,
-        );
-    }
-    t.finish()
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    lobby_entry(r, create_dplay)
 }

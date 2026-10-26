@@ -22,13 +22,14 @@
 //! twice). Self-test: a copy whose calls go to stand-ins that note them, against the Rust
 //! version with the same, on groups of the test's in the game's tables (put back).
 
-use crate::errors::{BadInput, Refused};
+use crate::errors::Refused;
 use crate::framework::{
     RawHook, Regs, SelfTest, call_game, game_addr, game_read, hook_asm, rva, shadow,
 };
 use crate::install::stand_ins::{set_handler, stand_in};
 use crate::redirect::RedirectedCopy;
 use crate::service::harness::{Region, capture, restore};
+use rc2k_core::physics::pace_calls::{Code, code, find_group, text_place};
 use std::sync::Mutex;
 use std::sync::atomic::AtomicUsize;
 
@@ -63,8 +64,6 @@ const GROUPS: usize = 0x615E14; // dword_615E14
 const GROUP_CHECKPOINTS: usize = 0x619E18; // dword_619E18
 const GROUP_TEXTS: usize = 0x61AE18; // dword_61AE18
 const TEXT: usize = 0x61BE18; // byte_61BE18
-const TEXT_LEN: u32 = 0x4000;
-const MOST_GROUPS: u32 = 0x400;
 /// "!!! invalid pace data", "data", "ecx", "pointer".
 const WORDS: [usize; 4] = [0x4DBB70, 0x4DBB86, 0x4DBB8B, 0x4DBB8F];
 
@@ -73,50 +72,47 @@ fn g(x: usize) -> u32 {
 }
 
 /// The steps on `r`.
+// Converted: `rc2k_core::physics::pace_calls::{find_group, code, text_place}`.
 pub fn queue_pace_note_in(r: &mut Regs, part: Part) -> Result<(), Refused> {
     let groups = g(GROUPS);
+    let found = find_group(groups, r.edx, |n| g(GROUP_CHECKPOINTS + 4 * n as usize))?;
     if groups == 0 {
         return Ok(());
     }
-    if groups > MOST_GROUPS {
-        return Err(BadInput("more than 0x400 pace note groups").into());
-    }
-    r.ecx = 0;
-    while r.edx != g(GROUP_CHECKPOINTS + 4 * r.ecx as usize) {
-        r.ecx += 1;
-        if r.ecx == groups {
-            return Ok(());
-        }
-    }
+    let Some(group) = found else {
+        r.ecx = groups;
+        return Ok(());
+    };
+    r.ecx = group;
     r.esi = g(GROUP_TEXTS + 4 * r.ecx as usize);
     loop {
-        if r.esi >= TEXT_LEN {
-            return Err(BadInput("a pace note text place past byte_61BE18's 0x4000").into());
-        }
-        r.ebx = unsafe { game_read::<u8>(rva(TEXT) + r.esi as usize) } as u32;
-        if r.ebx == 0 {
-            return Ok(());
-        }
-        if r.ebx >= 0x54 {
-            let word = |n: usize| game_addr(rva(WORDS[n])) as u32;
-            for (place, eax) in [
-                (LOG_WRITE, word(0)),
-                (LOG_WRITE, word(1)),
-                (LOG_INT, r.ebx),
-                (LOG_WRITE, word(2)),
-                (LOG_INT_NL, r.ecx),
-                (LOG_WRITE, word(3)),
-                (LOG_INT_NL, r.esi),
-            ] {
-                let mut c = Regs { eax, ..*r };
-                part(place, &mut c)?;
+        let byte = unsafe { game_read::<u8>(rva(TEXT) + text_place(r.esi)? as usize) };
+        r.ebx = byte as u32;
+        match code(byte) {
+            Code::End => return Ok(()),
+            Code::Bad => {
+                let word = |n: usize| game_addr(rva(WORDS[n])) as u32;
+                for (place, eax) in [
+                    (LOG_WRITE, word(0)),
+                    (LOG_WRITE, word(1)),
+                    (LOG_INT, r.ebx),
+                    (LOG_WRITE, word(2)),
+                    (LOG_INT_NL, r.ecx),
+                    (LOG_WRITE, word(3)),
+                    (LOG_INT_NL, r.esi),
+                ] {
+                    let mut c = Regs { eax, ..*r };
+                    part(place, &mut c)?;
+                }
+                return Ok(());
             }
-            return Ok(());
+            Code::Call => {
+                let mut c = *r;
+                part(CUE, &mut c)?;
+                part(QUEUE, r)?;
+                r.esi = r.esi.wrapping_add(1);
+            }
         }
-        let mut c = *r;
-        part(CUE, &mut c)?;
-        part(QUEUE, r)?;
-        r.esi = r.esi.wrapping_add(1);
     }
 }
 

@@ -5,31 +5,20 @@
 //! In:  ebx the state, edi the list
 //! Out: eax as the original leaves it; the flags of `test ebx, ebx` last
 //! Caller `install::run_page`. Shadow mode compares.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
+use crate::framework::Regs;
 use crate::install::installer::{CHOICE, MEDIA_MODE, PATH_PROBLEM, g, gb, p};
-use crate::race::viewer::dispatch_regs;
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("install::mode_page", rva(0x41422B), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
+use crate::race::viewer::regs_entry;
 
 pub fn mode_page(entry: &Regs) -> Regs {
     let mut r = *entry;
     if r.ebx == 0 {
-        r.eax = g(MEDIA_MODE);
-        if r.eax == 0 {
-            r.eax = 2;
-        }
+        // Converted: `rc2k_core::install::pages::mode_highlight`.
+        r.eax = rc2k_core::install::pages::mode_highlight(g(MEDIA_MODE));
         p(CHOICE, r.eax);
         p(PATH_PROBLEM, 0);
     }
@@ -46,15 +35,8 @@ fn rust(r: &Regs) -> Result<Regs, Refused> {
     Ok(mode_page(r))
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    let regions = crate::install::page_action_test::globals();
-    dispatch_regs(&HOOK, r, call_original, &regions, 0, &rust);
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    crate::install::page_action_test::run(&mut t, call_original, &rust);
-    t.finish()
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    regs_entry(r, &rust)
 }

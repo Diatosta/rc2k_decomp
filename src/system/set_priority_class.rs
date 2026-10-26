@@ -8,28 +8,8 @@
 //! original and the Rust version with the switch 0 and 1, from the class there and to
 //! another, the class after each read back; the class and the switch put back.
 
-use crate::framework::{RawHook, Regs, SelfTest, game_read, game_write, hook_asm, rva, shadow};
-use std::sync::atomic::AtomicUsize;
-use windows_sys::Win32::System::Threading::{
-    ABOVE_NORMAL_PRIORITY_CLASS, GetCurrentProcess, GetPriorityClass, SetPriorityClass,
-};
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook = RawHook::new(
-    "system::set_priority_class",
-    rva(0x410B68),
-    thunk,
-    &ORIGINAL,
-)
-.self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
+use crate::framework::{Regs, game_read, rva};
+use windows_sys::Win32::System::Threading::{GetCurrentProcess, SetPriorityClass};
 
 // ---- game data ----
 
@@ -45,56 +25,8 @@ pub unsafe fn set_priority_class(class: u32) {
     }
 }
 
-// ---- hook ----
-
-extern "C" fn dispatch(r: &mut Regs) {
-    HOOK.count_call();
-    if shadow() {
-        unsafe { call_original(r) };
-        return;
-    }
+/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     unsafe { set_priority_class(r.eax) };
-}
-
-// ---- self-test ----
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    unsafe {
-        let process = GetCurrentProcess();
-        let class = GetPriorityClass(process);
-        let switch = game_read::<u32>(KEEP_PRIORITY_RVA);
-        let other = if class == ABOVE_NORMAL_PRIORITY_CLASS {
-            0x20
-        } else {
-            ABOVE_NORMAL_PRIORITY_CLASS
-        };
-        for keep in [0u32, 1] {
-            for to in [class, other] {
-                game_write(KEEP_PRIORITY_RVA, keep);
-                SetPriorityClass(process, class);
-                let before = Regs {
-                    eax: to,
-                    ..Regs::SENTINEL
-                };
-                let mut ro = before;
-                call_original(&mut ro);
-                let theirs = GetPriorityClass(process);
-                SetPriorityClass(process, class);
-                set_priority_class(to);
-                let mine = GetPriorityClass(process);
-                let preserved = ro.preserved_except(&before, 0);
-                t.check(preserved && theirs == mine, || {
-                    format!(
-                        "switch {keep}, class {class:#x} to {to:#x}: original preserved={preserved} {theirs:#x}; rust {mine:#x}"
-                    )
-                });
-            }
-        }
-        SetPriorityClass(process, class);
-        game_write(KEEP_PRIORITY_RVA, switch);
-    }
-    t.finish()
+    Ok(())
 }

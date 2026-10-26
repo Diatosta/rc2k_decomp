@@ -52,6 +52,17 @@ extern "C" fn dispatch(r: &mut Regs) {
     }
 }
 
+/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    {
+        let after = unsafe { draw_slot_object(r, &mut slot_part) }?;
+        let esp = r.esp;
+        *r = after;
+        r.esp = esp;
+    }
+    Ok(())
+}
+
 pub fn slot_regions() -> Vec<Region> {
     let g = |a: usize, len: usize| (game_addr(rva(a)) as u32, len);
     let mut v = kept_regions();

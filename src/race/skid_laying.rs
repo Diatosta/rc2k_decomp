@@ -14,25 +14,13 @@ fn w(a: u32, v: u32) {
     unsafe { game_write(rva(a as usize), v) }
 }
 
-const POINTS: u32 = 0x645B18; // g_skidPoints
+const POINTS_TABLE: u32 = 0x645B18; // g_skidPoints
 const LINKS: u32 = 0x643AE8; // g_skidLinks
 const NEXT: u32 = 0x645B10; // dword_645B10: the next point
 const PLACE: u32 = 0x643AD8; // dword_643AD8 .. dword_643AE0: the wheel's place
 const OFFSET_X: u32 = 0x645B08;
 const OFFSET_Z: u32 = 0x645B0C;
 const ANGLE: u32 = 0x645B00;
-const HALF_WIDTH: i32 = 0x1555;
-
-fn point(n: u32) -> u32 {
-    (game_addr(rva(POINTS as usize)) as u32).wrapping_add(n.wrapping_mul(0x18))
-}
-
-/// The link's word `o` (0 next, 2 previous, 4 angle, 6 the car's bit) of point `n`.
-fn link(n: u32, o: u32) -> *mut u16 {
-    (game_addr(rva(LINKS as usize)) as u32)
-        .wrapping_add(n.wrapping_mul(8))
-        .wrapping_add(o) as *mut u16
-}
 
 unsafe fn get(a: u32) -> u32 {
     unsafe { (a as *const u32).read_unaligned() }
@@ -42,44 +30,16 @@ unsafe fn put(a: u32, v: u32) {
     unsafe { (a as *mut u32).write_unaligned(v) }
 }
 
-/// A point's middle, (left - right) >> 1 + right for x, y, z.
-unsafe fn middle(p: u32) -> [u32; 3] {
+/// The edges' offset for an angle (`math::turn_point_xz` of (0x1555, y, 0) by angle << 16).
+unsafe fn offsets(angle: u32, y: u32) -> (u32, u32) {
     unsafe {
-        std::array::from_fn(|i| {
-            let (a, b) = (get(p + 4 * i as u32), get(p + 0xC + 4 * i as u32));
-            ((a.wrapping_sub(b) as i32 >> 1) as u32).wrapping_add(b)
-        })
-    }
-}
-
-/// The edges' offset for an angle (`math::turn_point_xz` of (0x1555, y, 0) by angle << 16)
-/// into `dword_645B08` / `dword_645B0C`.
-unsafe fn offsets(angle: u32, y: u32) {
-    unsafe {
-        let [x, _, z, _] =
-            crate::math::turn_point_xz::turn_point_xz(HALF_WIDTH, y as i32, 0, angle << 16);
-        w(OFFSET_X, x);
-        w(OFFSET_Z, z);
-    }
-}
-
-/// Point `p`'s edges: (centre - offset, centre + offset) in x and z, y the centre's.
-unsafe fn set_edges(p: u32, centre: [u32; 3]) -> Regs {
-    unsafe {
-        let (ox, oz) = (k(OFFSET_X), k(OFFSET_Z));
-        put(p, centre[0].wrapping_sub(ox));
-        put(p + 4, centre[1]);
-        put(p + 8, centre[2].wrapping_sub(oz));
-        let r = Regs {
-            eax: centre[0].wrapping_add(ox),
-            ebx: centre[1],
-            ecx: centre[2].wrapping_add(oz),
-            ..Regs::default()
-        };
-        put(p + 0xC, r.eax);
-        put(p + 0x10, r.ebx);
-        put(p + 0x14, r.ecx);
-        r
+        let [x, _, z, _] = crate::math::turn_point_xz::turn_point_xz(
+            rc2k_core::race::skids::HALF_WIDTH,
+            y as i32,
+            0,
+            angle << 16,
+        );
+        (x, z)
     }
 }
 
@@ -89,87 +49,63 @@ unsafe fn set_edges(p: u32, centre: [u32; 3]) -> Regs {
 /// 0 for none), the point's old links cut, linked after the last; the last point turned to
 /// the new angle (its own when it starts the strip, else halfway between its previous one
 /// and this); the ring's next moved on (0x400 points). Gives the registers it leaves.
-pub unsafe fn add_skid_point(entry: &Regs) -> Regs {
+/// Refuses (before anything) a point or a link outside the ring (the original reads and
+/// writes past its tables).
+pub unsafe fn add_skid_point(entry: &Regs) -> Result<Regs, Refused> {
+    // Converted: `rc2k_core::race::skids::add_skid_point`.
+    use rc2k_core::race::skids::{Link, POINTS, Point, Ring, add_skid_point, next_point};
     unsafe {
         let mut r = *entry;
         let slot = r.esi;
-        r.edx = k(NEXT);
-        r.ebp = get(slot);
-        put(slot, r.edx);
-        w(OFFSET_X, 0);
-        w(OFFSET_Z, 0);
-        w(ANGLE, 0);
-        let n = r.edx;
-        let last = r.ebp;
-        if last as u16 != 0xFFFF {
-            let m = middle(point(last));
+        let n = k(NEXT);
+        let last = get(slot);
+        let points = std::slice::from_raw_parts_mut(
+            game_addr(rva(POINTS_TABLE as usize)) as *mut Point,
+            POINTS as usize,
+        );
+        let links = std::slice::from_raw_parts_mut(
+            game_addr(rva(LINKS as usize)) as *mut Link,
+            POINTS as usize,
+        );
+        let place = [k(PLACE), k(PLACE + 4), k(PLACE + 8)];
+        let a = add_skid_point(
+            Ring { points, links },
+            n,
+            last,
+            place,
+            k(0x645B14) as u16,
+            |dx, dz| crate::scene::angle_between::angle_of(dx, dz),
+            |angle, y| offsets(angle, y),
+        )?;
+        put(slot, n);
+        w(ANGLE, a.angle);
+        w(OFFSET_X, a.offset.0);
+        w(OFFSET_Z, a.offset.1);
+        if let Some(m) = a.from {
             for (i, v) in m.iter().enumerate() {
                 w(0x645AF4 + 4 * i as u32, *v);
             }
-            let angle = crate::scene::angle_between::angle_of(
-                k(PLACE).wrapping_sub(m[0]),
-                k(PLACE + 8).wrapping_sub(m[2]),
-            );
-            w(ANGLE, angle);
-            offsets(angle & 0xFFFF, m[2]);
         }
-        r.esi = k(0x645B14);
-        link(n, 6).write_unaligned(r.esi as u16);
-        r.esi = point(n);
-        set_edges(r.esi, [k(PLACE), k(PLACE + 4), k(PLACE + 8)]);
-        r.ebx = k(PLACE + 4);
-        r.ecx = link(n, 2).read_unaligned() as u32;
-        if r.ecx as u16 != 0xFFFF {
-            link(r.ecx, 0).write_unaligned(0xFFFF);
-        }
-        r.ecx = link(n, 0).read_unaligned() as u32;
-        if r.ecx as u16 != 0xFFFF {
-            link(r.ecx, 2).write_unaligned(0xFFFF);
-        }
-        if last as u16 != 0xFFFF {
-            link(last, 0).write_unaligned(n as u16);
-        }
-        link(n, 2).write_unaligned(last as u16);
-        link(n, 0).write_unaligned(0xFFFF);
-        r.eax = k(ANGLE);
-        link(n, 4).write_unaligned(r.eax as u16);
-        if last != u32::MAX {
-            if link(last, 2).read_unaligned() == 0xFFFF {
-                link(last, 4).write_unaligned(k(ANGLE) as u16);
-                r.esi = point(last);
-                let p = r.esi;
-                let centre = [get(p), get(p + 4), get(p + 8)];
-                let right = [get(p + 0xC), get(p + 0x10), get(p + 0x14)];
-                let (ox, oz) = (k(OFFSET_X), k(OFFSET_Z));
-                put(p, centre[0].wrapping_sub(ox));
-                put(p + 4, centre[1]);
-                put(p + 8, centre[2].wrapping_sub(oz));
-                r.eax = right[0].wrapping_add(ox);
-                r.ebx = right[1];
-                r.ecx = right[2].wrapping_add(oz);
-                put(p + 0xC, r.eax);
-                put(p + 0x10, r.ebx);
-                put(p + 0x14, r.ecx);
-            } else {
-                let a = k(ANGLE);
-                let b = link(last, 4).read_unaligned();
-                let half = ((a as u16).wrapping_sub(b) as i16 >> 1) as u16;
-                let half = half.wrapping_add(b);
-                let between = (a & 0xFFFF_0000) | half as u32;
-                w(0x645B04, between);
-                let m = middle(point(last));
-                for (i, v) in m.iter().enumerate() {
-                    w(0x645AE8 + 4 * i as u32, *v);
-                }
-                offsets(between, m[1]);
-                r.esi = point(last);
-                let e = set_edges(r.esi, m);
-                (r.eax, r.ebx, r.ecx) = (e.eax, e.ebx, e.ecx);
+        if let Some((turned, m)) = a.turned {
+            w(0x645B04, turned);
+            for (i, v) in m.iter().enumerate() {
+                w(0x645AE8 + 4 * i as u32, *v);
             }
         }
-        let next = k(NEXT).wrapping_add(1);
-        w(NEXT, if next == 0x400 { 0 } else { next });
-        r
+        let point = |i: u32| (game_addr(rva(POINTS_TABLE as usize)) as u32).wrapping_add(i * 0x18);
+        r.edx = n;
+        r.ebp = last;
+        if a.last_moved {
+            [r.eax, r.ebx, r.ecx] = a.right;
+            r.esi = point(last);
+        } else {
+            r.eax = a.angle;
+            r.ebx = place[1];
+            r.ecx = a.next_read as u32;
+            r.esi = point(n);
+        }
+        w(NEXT, next_point(k(NEXT)));
+        Ok(r)
     }
 }
 
@@ -271,7 +207,7 @@ pub unsafe fn lay_skidmarks_if_on(
 
 /// The parts in the game.
 pub fn skid_point_part(_: u32, r: &mut Regs) -> Result<(), Refused> {
-    unsafe { add_skid_point(r) };
+    unsafe { add_skid_point(r)? };
     Ok(())
 }
 

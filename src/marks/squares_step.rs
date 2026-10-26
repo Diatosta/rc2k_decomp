@@ -16,7 +16,9 @@ use crate::marks::expire_squares::{self, expire_squares, test_items};
 use crate::marks::pick_shapes::{self, pick_shapes};
 use crate::race::stage_prefs::left_of;
 use crate::screens::harness::Left;
-use crate::service::harness::{Region, at, capture, check_state, dispatch_state, restore};
+use crate::service::harness::{
+    Region, at, capture, check_state, dispatch_state, restore, state_entry,
+};
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -53,20 +55,19 @@ pub unsafe fn squares_step(entry: &Regs) -> Result<Regs, Refused> {
     done
 }
 
+// Converted: `rc2k_core::marks::steps::{steps, next_step}`
 unsafe fn run(entry: &Regs) -> Result<Regs, Refused> {
+    use rc2k_core::marks::steps;
     let mut g = *entry;
     unsafe {
         game_write(CLEARED_RVA, 0u32);
         let clock: u32 = game_read(CLOCK_RVA);
-        g.eax = game_read::<u32>(LATEST_RVA).wrapping_sub(clock) & 0xFF;
+        g.eax = steps::steps(game_read(LATEST_RVA), clock);
         game_write(LATEST_RVA, clock);
         for _ in 0..g.eax {
             g = pick_shapes(&g)?;
             g = expire_squares(&g);
-            game_write(
-                LATEST_RVA,
-                game_read::<u32>(LATEST_RVA).wrapping_add(1) & 0xFF,
-            );
+            game_write(LATEST_RVA, steps::next_step(game_read(LATEST_RVA)));
         }
         game_write(CLOCK_RVA, game_read::<u32>(LATEST_RVA));
     }
@@ -79,6 +80,12 @@ fn rust(r: &Regs) -> Result<Left, Refused> {
 
 extern "C" fn dispatch(r: &mut Regs) {
     dispatch_state(&HOOK, r, call_original, &regions(), &rust);
+}
+
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    state_entry(r, &rust)
 }
 
 fn self_test() -> (usize, usize) {

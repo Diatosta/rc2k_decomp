@@ -32,28 +32,20 @@
 //! Self-test: a copy whose 24 calls go to stand-ins (`install::stand_ins`), against the
 //! Rust version with the same stand-ins: every call with its registers, the registers
 //! left and the cars' and starts' memory compared; all put back.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{
-    RawHook, Regs, SelfTest, call_game, game_addr, game_read, game_write, hook_asm, rva, shadow,
-};
+use crate::framework::{Regs, game_addr, game_read, game_write, rva};
 use crate::math::x87;
 use crate::race::car_starts::Part;
 use crate::service::harness::{Region, capture, restore};
-use std::sync::Mutex;
-use std::sync::atomic::{AtomicU32, AtomicUsize, Ordering};
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("drive::start_cars_behind", rva(0x43703E), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
+use rc2k_core::drive::pace_cars::{
+    ahead_of_lead, ease_jump, ease_step, first_starts, gap_start, gaps, passed, push_apart,
+    wanted_gap,
+};
 
 /// The calls by place (IDA addresses).
 pub const PLACES: [usize; 7] = [
@@ -149,18 +141,6 @@ fn put_car(
     part(STORE, r)
 }
 
-/// `cmp; jns` held below `hi`, `cmp 0; jns` above 0, as the original holds the gap.
-fn hold_signs(v: u32, lo_zero: bool, hi: u32) -> u32 {
-    let mut v = v;
-    if lo_zero && (v as i32) < 0 {
-        v = 0;
-    }
-    if (v.wrapping_sub(hi) as i32) >= 0 {
-        v = hi;
-    }
-    v
-}
-
 /// The Rust core, the calls through `part` (`PLACES`).
 pub unsafe fn start_cars_behind(entry: &Regs, part: Part) -> Result<Regs, Refused> {
     if let Some(why) = refusal() {
@@ -179,15 +159,16 @@ pub unsafe fn start_cars_behind(entry: &Regs, part: Part) -> Result<Regs, Refuse
     }
 }
 
+// Converted: `rc2k_core::drive::pace_cars` (the rules; the moves and calls stay here).
 unsafe fn run(r: &mut Regs, part: Part) -> Result<(), Refused> {
     unsafe {
         if g(0x70FA58) == 0 {
-            r.ebx = g(0x6051BC).wrapping_sub(2);
-            p(0x6051C4, r.ebx);
-            r.ebx = r.ebx.wrapping_add(1);
-            p(0x6051C8, r.ebx);
-            p(0x6051CC, 0x50);
-            p(0x6051D0, 0x28);
+            let [(a, a_dist), (b, b_dist)] = first_starts(g(0x6051BC));
+            r.ebx = b;
+            p(0x6051C4, a);
+            p(0x6051C8, b);
+            p(0x6051CC, a_dist);
+            p(0x6051D0, b_dist);
             for (start, slot, dist) in [
                 (0x6051C4, 0x70FA48, 0x6051CC),
                 (0x6051C8, 0x70FA4C, 0x6051D0),
@@ -197,19 +178,20 @@ unsafe fn run(r: &mut Regs, part: Part) -> Result<(), Refused> {
             p(0x70FA58, 1);
         }
         let count = g(COUNT);
-        r.eax = hold_signs(g(0x70FA40), true, count);
-        r.eax = hold_signs(r.eax.wrapping_sub(1), true, count);
-        r.ebx = g(0x605034 + 4 * r.eax) & 0xF;
-        p(0x6051D4, 0x2C + r.ebx);
-        p(0x6051D8, 0x28 + r.ebx);
-        r.eax = g(0x6051D8).wrapping_add(g(0x6051D4));
+        r.eax = gap_start(g(0x70FA40), count);
+        let word = g(0x605034 + 4 * r.eax);
+        r.ebx = word & 0xF;
+        let (pass, back, sum) = gaps(word);
+        p(0x6051D4, pass);
+        p(0x6051D8, back);
+        r.eax = sum;
         p(0x6051DC, r.eax);
         'moves: {
             if g(0x70FA44) != 0 {
                 r.ebx = g(0x70FA48);
                 r.esi = block(r.ebx);
                 r.eax = at(r.esi + 0x98).wrapping_sub(g(LEAD));
-                if (r.eax.wrapping_sub(g(0x6051D4)) as i32) >= 0 {
+                if passed(r.eax, g(0x6051D4)) {
                     r.eax = g(LEAD).wrapping_sub(g(0x6051D8));
                     part(TAKEN, r)?;
                     if r.carry() {
@@ -247,7 +229,7 @@ unsafe fn run(r: &mut Regs, part: Part) -> Result<(), Refused> {
             r.ebx = g(0x70FA4C);
             r.esi = block(r.ebx);
             r.eax = g(LEAD).wrapping_sub(at(r.esi + 0x98));
-            if (r.eax.wrapping_sub(g(0x6051D4)) as i32) < 0 {
+            if !passed(r.eax, g(0x6051D4)) {
                 break 'moves;
             }
             r.eax = g(LEAD).wrapping_add(g(0x6051D8));
@@ -276,10 +258,8 @@ unsafe fn run(r: &mut Regs, part: Part) -> Result<(), Refused> {
             for slot in [0x70FA4C, 0x70FA48] {
                 r.ebx = g(slot);
                 r.esi = block(r.ebx);
-                let d = r.eax.wrapping_sub(at(r.esi + 0x98));
-                let ahead = (d as i32) < 0
-                    || (d == 0 && (r.edx.wrapping_sub(at(r.esi + 0x624)) as i32) < 0);
-                if ahead {
+                let esi = r.esi;
+                if ahead_of_lead(r.eax, at(esi + 0x98), r.edx, || at(esi + 0x624)) {
                     part(AHEAD, r)?;
                 } else {
                     r.ebp = r.ebp.wrapping_sub(1);
@@ -288,13 +268,7 @@ unsafe fn run(r: &mut Regs, part: Part) -> Result<(), Refused> {
             }
             p(0x70FA40, r.ebp);
             let gap = |r: &mut Regs, other: u32| {
-                r.eax = g(0x6051DC).wrapping_sub(g(other));
-                if (r.eax.wrapping_sub(g(0x6051D8)) as i32) < 0 {
-                    r.eax = g(0x6051D8);
-                }
-                if (r.eax.wrapping_sub(g(0x6051DC)) as i32) >= 0 {
-                    r.eax = g(0x6051DC);
-                }
+                r.eax = wanted_gap(g(0x6051DC), g(other), g(0x6051D8));
                 r.eax
             };
             let mut to_ease = true;
@@ -311,18 +285,16 @@ unsafe fn run(r: &mut Regs, part: Part) -> Result<(), Refused> {
                 p(0x70FA14, v);
             }
             for (wanted, eased) in [(0x70FA18, 0x70FA20), (0x70FA14, 0x70FA1C)] {
-                r.eax = g(wanted).wrapping_mul(0x14A).wrapping_sub(g(eased));
-                if (r.eax as i32) < 0 {
-                    r.eax = r.eax.wrapping_neg();
-                }
-                if r.eax > 1000 {
-                    r.eax = g(wanted).wrapping_mul(0x14A);
-                    p(eased, r.eax);
+                let jumped;
+                (r.eax, jumped) = ease_jump(g(wanted), g(eased));
+                if let Some(v) = jumped {
+                    p(eased, v);
                 }
             }
             for (wanted, eased) in [(0x70FA18, 0x70FA20), (0x70FA14, 0x70FA1C)] {
-                r.eax = ((g(wanted).wrapping_mul(0x14A).wrapping_sub(g(eased)) as i32) >> 6) as u32;
-                p(eased, g(eased).wrapping_add(r.eax));
+                let next;
+                (r.eax, next) = ease_step(g(wanted), g(eased));
+                p(eased, next);
             }
         }
         for v in [0x70FA60, 0x710A40, 0x711A20, 0x712A00] {
@@ -334,11 +306,10 @@ unsafe fn run(r: &mut Regs, part: Part) -> Result<(), Refused> {
         r.edi = block(r.ebx);
         r.eax = at(r.esi + 0x98).wrapping_sub(at(r.edi + 0x98));
         p(0x70FA5C, r.eax);
-        if (r.eax.wrapping_sub(8) as i32) >= 0 || (r.eax.wrapping_add(8) as i32) < 0 || r.eax == 0 {
+        let Some(push) = push_apart(r.eax) else {
             return Ok(());
-        }
-        let base: u32 = if (r.eax as i32) > 0 { 8 } else { 0xFFFF_FFF8 };
-        r.eax = base.wrapping_sub(g(0x70FA5C));
+        };
+        r.eax = push;
         let put = |a: u32, v: u32| (a as *mut u32).write_unaligned(v);
         put(r.esi + 0x674, r.eax);
         r.eax = r.eax.wrapping_neg();
@@ -372,161 +343,17 @@ pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
     Ok(())
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    HOOK.count_call();
-    if shadow() {
-        unsafe { call_original(r) };
-        return;
-    }
-    match unsafe { start_cars_behind(r, &mut game_part) } {
-        Ok(g) => {
-            *r = Regs {
-                esp: r.esp,
-                eflags: r.eflags,
-                ..g
-            }
+/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    {
+        let g = unsafe { start_cars_behind(r, &mut game_part) }?;
+        *r = Regs {
+            esp: r.esp,
+            eflags: r.eflags,
+            ..g
         }
-        Err(e) => unsafe { crate::fatal::raise::refused(&HOOK, e, r, call_original) },
     }
+    Ok(())
 }
 
 // ---- the self-test's stand-ins ----
-
-static CALLED: Mutex<Vec<(u32, [u32; 7])>> = Mutex::new(Vec::new());
-static CALLS: AtomicU32 = AtomicU32::new(0);
-
-/// A stand-in: notes the call, then changes the registers (eax, edx, the carry for
-/// `checkpoint_taken`) by the call's number.
-fn note(place: u32, r: &mut Regs) {
-    let k = CALLS.fetch_add(1, Ordering::SeqCst);
-    CALLED
-        .lock()
-        .unwrap()
-        .push((place, [r.eax, r.ebx, r.ecx, r.edx, r.esi, r.edi, r.ebp]));
-    r.eax = r.eax.rotate_left(5) ^ k.wrapping_mul(0x101);
-    r.edx = r.edx.wrapping_add(k);
-    if place == TAKEN {
-        r.set_carry(k.is_multiple_of(3));
-    }
-}
-
-fn take_called() -> Vec<(u32, [u32; 7])> {
-    CALLS.store(0, Ordering::SeqCst);
-    std::mem::take(&mut *CALLED.lock().unwrap())
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    const CALL_OFFSETS: [usize; 24] = [
-        0x5A, 0x6F, 0x74, 0x9C, 0xB1, 0xB6, 0x168, 0x179, 0x17E, 0x183, 0x1C5, 0x1DE, 0x1E3, 0x24B,
-        0x258, 0x25D, 0x262, 0x2A7, 0x2BE, 0x2C3, 0x326, 0x32D, 0x352, 0x359,
-    ];
-    crate::install::stand_ins::set_handler(note);
-    let copy = match unsafe {
-        crate::redirect::RedirectedCopy::new(
-            game_addr(rva(0x43703E)),
-            // Through its second chunk (0x4373DC .. 0x4375A5, past `note_gap_ahead` /
-            // `behind`): 0x366, IDA's first chunk, left its jumps there going off the copy
-            // (the selftest crash of 2026-10-18).
-            0x567,
-            &[0x83, 0x3D, 0x58, 0xFA, 0x70, 0x00, 0x00],
-            &CALL_OFFSETS,
-            &|c| {
-                PLACES
-                    .iter()
-                    .position(|&k| rva(k) == c)
-                    .map(|n| crate::install::stand_ins::stand_in(n as u32))
-            },
-        )
-    } {
-        Ok(c) => c,
-        Err(why) => return t.skip(why),
-    };
-    let extra: Vec<Region> = [0x71B3B8u32, 0x604ECC, 0x605034]
-        .iter()
-        .map(|&x| (game_addr(rva(x as usize)) as u32, 0x170))
-        .collect();
-    let mut all = regions();
-    all.extend(extra);
-    let saved = capture(&all);
-    // Eight blocks of the test's in place of the game's pointers (the table is saved).
-    let mut blocks = vec![0u8; 8 * 0xFE0];
-    let base = blocks.as_mut_ptr() as u32;
-    let regs = |r: &Regs| [r.eax, r.ebx, r.ecx, r.edx, r.esi, r.edi, r.ebp];
-    for seed in 1..=12u32 {
-        let fill = || {
-            let mut x = seed.wrapping_mul(0x9E37_79B9) | 1;
-            let mut next = move || {
-                x = x.wrapping_mul(1_103_515_245).wrapping_add(12345);
-                x >> 8
-            };
-            for k in 0..8u32 {
-                p(0x71B3B8 + 4 * k, base + 0xFE0 * k);
-                let b = base + 0xFE0 * k;
-                unsafe {
-                    ((b + 0x98) as *mut u32).write(100 + next() % 200);
-                    ((b + 0x624) as *mut u32).write(next() % 0x1000);
-                    ((b + 0x674) as *mut u32).write(next());
-                }
-            }
-            let count = 10 + next() % 20;
-            p(COUNT, count);
-            for k in 0..0x5A {
-                p(CARS_BY_START + 4 * k, next() % 8);
-                p(0x605034 + 4 * k, next());
-            }
-            p(0x70FA58, u32::from(seed % 3 != 0));
-            p(0x6051BC, 2 + next() % (count - 2));
-            p(0x70FA40, next() % (count + 4));
-            p(0x70FA44, next() % 6);
-            p(0x6051C0, next() % 4);
-            p(0x70FA48, next() % 8);
-            p(0x70FA4C, next() % 8);
-            p(0x70FA54, next() % count);
-            p(0x70FA10, next() % 0x1000);
-            p(0x70F494, u32::from(seed % 4 == 0));
-            p(LEAD, 100 + next() % 200);
-            for v in [0x70FA14, 0x70FA18, 0x70FA1C, 0x70FA20] {
-                p(v, next() % 0x200);
-            }
-        };
-        fill();
-        take_called();
-        let mut ro = Regs::SENTINEL;
-        unsafe { call_game(&mut ro, copy.addr()) };
-        let theirs = (
-            Some(regs(&ro)),
-            take_called(),
-            capture(&all),
-            blocks.clone(),
-        );
-        fill();
-        let mine = unsafe { start_cars_behind(&Regs::SENTINEL, &mut note_part) };
-        let mine = (
-            mine.as_ref().ok().map(regs),
-            take_called(),
-            capture(&all),
-            blocks.clone(),
-        );
-        t.check(theirs == mine, || {
-            let diff = theirs.2.iter().zip(&mine.2).position(|(a, b)| a != b);
-            format!(
-                "seed {seed}: original {:x?} {} calls; rust {:x?} {} calls; memory first differs at {diff:x?}",
-                theirs.0,
-                theirs.1.len(),
-                mine.0,
-                mine.1.len()
-            )
-        });
-    }
-    restore(&all, &saved);
-    drop((copy, blocks));
-    t.finish()
-}
-
-fn note_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
-    note(place, r);
-    Ok(())
-}

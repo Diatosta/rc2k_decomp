@@ -11,25 +11,16 @@
 //! Shadow mode runs the original alone (the mutex). Self-test: a copy whose mutex variable
 //! is the test's and whose wait goes to a noting stand-in (answering each flag setting),
 //! against the Rust version.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{CARRY_FLAG, RawHook, Regs, SelfTest, ZERO_FLAG, hook_asm, rva};
+use crate::framework::{CARRY_FLAG, RawHook, Regs, SelfTest, ZERO_FLAG};
 use crate::net::lobby::{FLAGS, answer, run_both};
 use crate::net::message_vars::{MessageVars, TestVars, as_rust, get, set};
-use crate::net::{Part, WAIT_OBJECT, dispatch_net};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("net::lock_received", rva(0x418474), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
+use crate::net::{Part, WAIT_OBJECT, net_entry};
 
 /// The Rust version on the variables at `v`.
 pub fn lock_received_with(r: &mut Regs, v: &MessageVars, part: Part) -> Result<(), Refused> {
@@ -47,8 +38,10 @@ pub fn lock_received(r: &mut Regs, part: Part) -> Result<(), Refused> {
     lock_received_with(r, &MessageVars::game(), part)
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_net(&HOOK, r, call_original, lock_received);
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    net_entry(r, lock_received)
 }
 
 /// The two wrappers' test: a copy (`len` bytes, its first bytes `entry`, the call at +6
@@ -89,15 +82,4 @@ pub fn test_wrapper(
         );
     }
     t.finish()
-}
-
-fn self_test() -> (usize, usize) {
-    // pusha; mov eax, g_netMutex
-    test_wrapper(
-        &HOOK,
-        0x418474,
-        &[0x60, 0xA1, 0x6C, 0xAB, 0x52, 0x00],
-        WAIT_OBJECT,
-        lock_received_with,
-    )
 }

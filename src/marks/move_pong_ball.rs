@@ -12,6 +12,11 @@
 //! Caller: `marks::run_pong` (`g_pongSteps` times a frame). The calls are their
 //! Rust versions. Self-test: the original and the Rust version on balls and bats by lot,
 //! walls hit among them; put back.
+//!
+//! Converted 2026-10-21: the hook's Rust version is `move_pong_ball_plain`, through
+//! `rc2k_core::marks::pong::Court::move_ball` (plain floats; the x87 version stays for the Rust
+//! callers in unconverted code). Shadow mode and the self-test compare within
+//! `service::floats`' tolerances (the self-test at both test precisions, exact at double).
 
 use crate::errors::Refused;
 use crate::framework::{RawHook, Regs, SelfTest, game_read, game_write, hook_asm, rva};
@@ -20,7 +25,7 @@ use crate::marks::pong_ball_hits::pong_ball_hits;
 use crate::math::x87;
 use crate::race::stage_prefs::left_of;
 use crate::screens::harness::Left;
-use crate::service::harness::{capture, check_state, dispatch_state, restore};
+use rc2k_core::marks::pong::Hit;
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -86,56 +91,61 @@ pub unsafe fn move_pong_ball(entry: &Regs) -> Regs {
     }
 }
 
+/// The converted version (plain floats): the hook's.
+// Converted: `rc2k_core::marks::pong::Court::move_ball`
+pub unsafe fn move_pong_ball_plain(entry: &Regs) -> Regs {
+    let mut g = *entry;
+    let rules = pong::rules();
+    let (hit, status) = pong::with_court(|c| c.move_ball(&rules));
+    if let Hit::Hit([x, y]) = hit {
+        (g.eax, g.ebx) = (x, y);
+    }
+    g.eax = status;
+    g
+}
+
 fn rust(r: &Regs) -> Result<Left, Refused> {
-    Ok(left_of(&unsafe { move_pong_ball(r) }))
+    Ok(left_of(&unsafe { move_pong_ball_plain(r) }))
 }
 
 extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_state(&HOOK, r, call_original, &pong::regions(), &rust);
+    pong::dispatch_court(&HOOK, r, call_original, &rust);
 }
 
 fn self_test() -> (usize, usize) {
     let Some(mut t) = SelfTest::begin(&HOOK) else {
         return (0, 0);
     };
-    let regions = pong::regions();
-    let vars = regions.clone();
-    let saved = capture(&vars);
-    for case in 0..10u32 {
-        check_state(
-            &mut t,
-            &format!("case {case}"),
-            call_original,
-            Regs::SENTINEL,
-            &|| unsafe {
-                restore(&vars, &saved);
-                pong::test_values(case);
-                if case >= 6 {
-                    // walls: the ball put at or past the limits
-                    let k = case - 6;
-                    let at_limit = |n: usize, d: f32| f32::from_bits(limit(n)) + d;
-                    game_write(
-                        pong::BALL[0],
-                        at_limit(
-                            if k % 2 == 0 { 0 } else { 2 },
-                            if k < 2 { -1.0 } else { 40.0 },
-                        )
-                        .to_bits(),
-                    );
-                    game_write(
-                        pong::BALL[1],
-                        at_limit(
-                            if k % 2 == 0 { 4 } else { 6 },
-                            if k < 2 { -2.0 } else { 3.0 },
-                        )
-                        .to_bits(),
-                    );
-                }
-            },
-            &regions,
-            &rust,
-        );
-    }
-    restore(&vars, &saved);
+    pong::test_court(
+        &mut t,
+        "marks::move_pong_ball",
+        call_original,
+        10,
+        &|case| unsafe {
+            pong::test_values(case);
+            if case >= 6 {
+                // walls: the ball put at or past the limits
+                let k = case - 6;
+                let at_limit = |n: usize, d: f32| f32::from_bits(limit(n)) + d;
+                game_write(
+                    pong::BALL[0],
+                    at_limit(
+                        if k % 2 == 0 { 0 } else { 2 },
+                        if k < 2 { -1.0 } else { 40.0 },
+                    )
+                    .to_bits(),
+                );
+                game_write(
+                    pong::BALL[1],
+                    at_limit(
+                        if k % 2 == 0 { 4 } else { 6 },
+                        if k < 2 { -2.0 } else { 3.0 },
+                    )
+                    .to_bits(),
+                );
+            }
+        },
+        &rust,
+    );
     t.finish()
 }

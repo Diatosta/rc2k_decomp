@@ -11,29 +11,15 @@
 //! 255 - t), and the blended font is given that palette.
 //! Two callers: the menu items and `sub_4695C6`.
 //! Refuses null fonts, and null palettes when a palette is made.
+//! Hook removed 2026-10-22 (conversion phase 4): Rust callers call this directly; the
+//! registers above are the original's, for reference.
 
-use crate::errors::{BadInput, Refused};
-use crate::framework::{
-    RawHook, Regs, SelfTest, game_addr, game_ptr, game_read, game_write, hook_asm, rva,
-};
+use crate::errors::BadInput;
+use crate::framework::{game_addr, game_ptr, game_read, rva};
 use crate::gfx::blend_palette::blend_palette;
 use crate::gfx::pixel_format::{SCRATCH_RVA, surface_format};
-use crate::screens::harness::Left;
-use crate::service::harness::{Region, at, capture, check_state, dispatch_state, restore};
+use crate::service::harness::{Region, at};
 use crate::text::font::Font;
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("text::blend_font", rva(0x405E92), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
 
 // ---- game data ----
 
@@ -66,13 +52,11 @@ pub unsafe fn blend_font(
     if a.is_null() || b.is_null() {
         return Err(BadInput("a null font"));
     }
-    let (from, to) = if half_pulse & time != 0 {
-        (a, b)
-    } else {
-        (b, a)
-    };
+    let mode: u32 = unsafe { game_read(BLEND_MODE_RVA) };
+    // Converted: `rc2k_core::text::pulse`.
+    let (from_a, t) = rc2k_core::text::pulse(time, half_pulse, mode == 2);
+    let (from, to) = if from_a { (a, b) } else { (b, a) };
     unsafe {
-        let mode: u32 = game_read(BLEND_MODE_RVA);
         let blended: *mut Font = game_ptr(BLENDED_FONT_RVA);
         // The original reads the palettes after the copy, so if the second font is the
         // blended font itself, its palette is by then the first one's.
@@ -89,13 +73,6 @@ pub unsafe fn blend_font(
         if mode == 0 {
             return Ok(());
         }
-        let mut t = time & half_pulse.wrapping_sub(1);
-        if mode == 2 {
-            t = t.wrapping_mul(t) >> 8;
-            t ^= 0xFF;
-            t = t.wrapping_mul(t) >> 8;
-            t ^= 0xFF;
-        }
         let palette: *mut u32 = game_ptr(BLENDED_PALETTE_RVA);
         blend_palette(
             from_palette as *const u32,
@@ -110,70 +87,4 @@ pub unsafe fn blend_font(
         blended.write_unaligned(font);
     }
     Ok(())
-}
-
-// ---- hook ----
-
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    unsafe { blend_font(r.eax, r.ebx, r.ecx as *const Font, r.edx as *const Font) }?;
-    Ok(Left::nothing())
-}
-
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_state(&HOOK, r, call_original, &blend_regions(), &rust);
-}
-
-// ---- self-test: two fonts of its own, with each blend mode ----
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let regions = blend_regions();
-    let saved = capture(&regions);
-    let saved_mode: u32 = unsafe { game_read(BLEND_MODE_RVA) };
-
-    let palette_a: Vec<u32> = (0..15u32)
-        .map(|n| n.wrapping_mul(0x0123_4567) ^ 0x00F0_3C1E)
-        .collect();
-    let palette_b: Vec<u32> = (0..15u32)
-        .map(|n| n.wrapping_mul(0x89AB_CDEF) ^ 0xFF12_8040)
-        .collect();
-    // A font is eight dwords, the palette being the one at +0x14.
-    let font = |seed: u32, palette: &Vec<u32>| {
-        let mut words = [0u32; 8].map(|_| seed);
-        for (n, word) in words.iter_mut().enumerate() {
-            *word = seed.wrapping_add(n as u32 * 0x0101_0101);
-        }
-        words[5] = palette.as_ptr() as u32;
-        words
-    };
-    let (font_a, font_b) = (font(0x1111_0000, &palette_a), font(0x2222_0000, &palette_b));
-
-    for mode in [0u32, 1, 2] {
-        for time in [0u32, 0x40, 0xFF, 0x100, 0x180, 0x1FF, 0x1_2345, 0xFFFF_FFFF] {
-            let before = Regs {
-                eax: time,
-                ebx: 0x100,
-                ecx: font_a.as_ptr() as u32,
-                edx: font_b.as_ptr() as u32,
-                ..Regs::SENTINEL
-            };
-            check_state(
-                &mut t,
-                &format!("mode={mode} time={time:#x}"),
-                call_original,
-                before,
-                &|| {
-                    restore(&regions, &[0xAA; FONT_LEN + 15 * 4 + 4]);
-                    unsafe { game_write(BLEND_MODE_RVA, mode) };
-                },
-                &regions,
-                &rust,
-            );
-        }
-    }
-    unsafe { game_write(BLEND_MODE_RVA, saved_mode) };
-    restore(&regions, &saved);
-    t.finish()
 }

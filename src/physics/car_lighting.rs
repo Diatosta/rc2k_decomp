@@ -29,6 +29,7 @@ use crate::physics::reset_parts::{
 };
 use crate::race::car_starts::{Case, Part, prepare};
 use crate::service::harness::{Region, capture, restore};
+use rc2k_core::physics::lighting;
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -55,37 +56,19 @@ unsafe fn byte(a: u32) -> u32 {
     unsafe { (a as *const u8).read() as u32 }
 }
 
-/// lo + ((hi - lo) x s >> 16) (`imul`, `shrd`); edx the product's high half.
-fn blend(r: &mut Regs, lo: u32, hi: u32, s: u32) -> u32 {
-    let product = (hi.wrapping_sub(lo) as i32 as i64).wrapping_mul(s as i32 as i64);
-    r.edx = (product >> 32) as u32;
-    (((product as u64) >> 16) as u32).wrapping_add(lo)
-}
-
 /// The two-way blend of the four corners now in `dword_5CCC90` ..: into `5CCCA4`,
 /// `5CCCA0`, returned.
 fn corners(r: &mut Regs) -> u32 {
-    let (s, t) = (g(0x639800), g(0x639804));
-    let a = blend(r, g(0x5CCC90), g(0x5CCC94), s);
+    let c = [0, 1, 2, 3].map(|k| g(0x5CCC90 + 4 * k));
+    let ([a, b], v, edx) = lighting::corners(c, g(0x639800), g(0x639804));
     p(0x5CCCA4, a);
-    let b = blend(r, g(0x5CCC98), g(0x5CCC9C), s);
     p(0x5CCCA0, b);
-    blend(r, g(0x5CCCA4), g(0x5CCCA0), t)
-}
-
-/// The colour `c` added to +0x240 byte by byte with saturation, as the original by
-/// `g_hasMmx`.
-fn add_colour(c: u32) -> u32 {
-    let light = g(0x71A218);
-    let sat = |x: u32, y: u32, k: u32| (((x >> k) & 0xFF) + ((y >> k) & 0xFF)).min(0xFF) << k;
-    if g(0x5183A8) != 0 {
-        sat(c, light, 0) | sat(c, light, 8) | sat(c, light, 16) | sat(c, light, 24)
-    } else {
-        sat(c, light, 0) | sat(c, light, 8) | sat(c, light, 16) | (c & 0xFF00_0000)
-    }
+    r.edx = edx;
+    v
 }
 
 /// The steps on `r`.
+// Converted: `rc2k_core::physics::lighting`.
 pub fn car_lighting_in(r: &mut Regs, part: Part) -> Result<(), Refused> {
     p(0x639824, g(0x71A10C));
     p(0x63982C, g(0x71A114));
@@ -104,10 +87,10 @@ pub fn car_lighting_in(r: &mut Regs, part: Part) -> Result<(), Refused> {
         return Err(BadInput("no course faces").into());
     }
     if g(0x5CCC6C) == 1 {
-        r.eax = 0x10000u32.wrapping_sub(g(0x639800));
-        p(0x639800, r.eax);
-        r.eax = 0x10000u32.wrapping_sub(g(0x639804));
-        p(0x639804, r.eax);
+        let (s, t) = lighting::half_shares(1, g(0x639800), g(0x639804));
+        p(0x639800, s);
+        p(0x639804, t);
+        r.eax = t;
     }
     p(0x62DB08, g(0x639800));
     p(0x62DB0C, g(0x639804));
@@ -120,38 +103,26 @@ pub fn car_lighting_in(r: &mut Regs, part: Part) -> Result<(), Refused> {
         r.ebx = (game_addr(rva(0x979F30)) as u32).wrapping_add(byte(f + 0x21) << 6);
         if byte(r.ebx + 0x2C) == 1 {
             for k in 0..4u32 {
-                let v = ((byte(f + 0x22 + k) >> 1) ^ 0x7F) + 0x80;
-                let product = v as u64 * g(0x5CCC90 + 4 * k as usize) as u64;
-                r.edx = (product >> 32) as u32;
-                p(0x5CCC90 + 4 * k as usize, (product as u32) >> 8);
+                let at = 0x5CCC90 + 4 * k as usize;
+                let (v, edx) = lighting::shaded(g(at), byte(f + 0x22 + k) as u8);
+                r.edx = edx;
+                p(at, v);
             }
         }
-        let mut light = corners(r);
+        let light = corners(r);
         p(0x71A21C, light);
         if g(0x71AF8C) != 0 {
-            let old = g(0x5CCCA8);
-            if g(0x6235E8) != 0 {
-                p(0x71A21C, old);
-            } else {
-                r.eax = 10;
-                let gap = light.wrapping_sub(old);
-                r.ecx = if (gap as i32) < 0 {
-                    gap.wrapping_neg()
-                } else {
-                    gap
-                };
-                if r.ecx >= r.eax {
-                    r.ecx = gap;
-                    if (gap as i32) < 0 {
-                        r.eax = r.eax.wrapping_neg();
-                    }
-                    r.eax = r.eax.wrapping_add(old);
-                    p(0x71A21C, r.eax);
-                }
+            let held = lighting::hold_change(light, g(0x5CCCA8), g(0x6235E8) != 0);
+            p(0x71A21C, held.light);
+            if let Some(eax) = held.eax {
+                r.eax = eax;
+            }
+            if let Some(ecx) = held.ecx {
+                r.ecx = ecx;
             }
         }
-        light = g(0x71A21C);
-        if light > 0xFF {
+        let light = g(0x71A21C);
+        if light >= lighting::TABLE {
             return Err(BadInput("a light index past 0xFF").into());
         }
         r.eax = g(0x635118 + 4 * light as usize);
@@ -168,12 +139,12 @@ pub fn car_lighting_in(r: &mut Regs, part: Part) -> Result<(), Refused> {
                 p(0x5CCC90 + 4 * k as usize, byte(f + first + k));
             }
             let i = corners(r);
-            if i > 0xFF {
+            if i >= lighting::TABLE {
                 return Err(BadInput("a colour index past 0xFF").into());
             }
             r.eax = g(table + 4 * i as usize);
             p(to, r.eax);
-            r.eax = add_colour(r.eax);
+            r.eax = lighting::add_colour(r.eax, g(0x71A218), g(0x5183A8) != 0);
             p(0x71A218, r.eax);
         }
     }

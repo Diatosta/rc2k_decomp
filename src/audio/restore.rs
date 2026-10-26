@@ -118,7 +118,8 @@ pub unsafe fn restore_buffer(at: u32, lost: u32) -> Result<Restored, Refused> {
         let mut status = 0u32;
         crate::audio::com::call1(b, GET_STATUS, &mut status as *mut u32 as u32);
         left.edx = Some(status);
-        if status & BUFFER_LOST == 0 {
+        // Converted: `rc2k_core::audio::buffers::needs_restore`.
+        if !rc2k_core::audio::buffers::needs_restore(status) {
             return Ok(left);
         }
         let r = crate::audio::com::call(b, RESTORE);
@@ -136,18 +137,16 @@ pub unsafe fn restore_buffer(at: u32, lost: u32) -> Result<Restored, Refused> {
 /// `audio::replay_looping`: each playing voice (the list at `playing`, linked at +0x48)
 /// whose +0x3C is 2 and that has a buffer (+8) played again (`play_buffer`, place 4).
 pub unsafe fn replay_looping(playing: u32, part: Part) -> Result<(), Refused> {
+    // Converted: `rc2k_core::audio::voices::sounding_to_replay` (the list is walked before
+    // any is played, so a list without its end plays none).
     unsafe {
-        let mut v = read(playing);
-        let mut steps = 0;
-        while v != 0 {
-            if read(v + 0x3C) == 2 && read(v + 8) != 0 {
-                part(4, 0, v)?;
-            }
-            v = read(v + 0x48);
-            steps += 1;
-            if steps > crate::audio::voices::VOICES {
-                return Err(BadInput("a playing list without its end").into());
-            }
+        let lists = rc2k_core::audio::voices::Lists {
+            playing: read(playing),
+            ..Default::default()
+        };
+        let mut pool = crate::audio::voices::GamePool::new(&crate::audio::voices::World::game());
+        for v in rc2k_core::audio::voices::sounding_to_replay(&mut pool, &lists)? {
+            part(4, 0, v)?;
         }
     }
     Ok(())
@@ -216,7 +215,8 @@ pub unsafe fn close_primary_mixer(
 ) -> Result<bool, Refused> {
     unsafe {
         part(6, 0, 0)?;
-        if read(mode) & 0x4_0000 == 0 || read(direct_sound) == 0 {
+        // Converted: `rc2k_core::audio::buffers::remakes_primary`.
+        if !rc2k_core::audio::buffers::remakes_primary(read(mode), || read(direct_sound)) {
             return Ok(false);
         }
         part(7, 0, 0)?;

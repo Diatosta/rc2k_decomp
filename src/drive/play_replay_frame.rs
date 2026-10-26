@@ -10,35 +10,29 @@
 //! Refuses what its calls refuse.
 //! Self-test: the original and the Rust version with `read_replay_frame`'s test replay:
 //! not playing, a whole frame, a tenth.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
+use crate::framework::Regs;
 use crate::physics::flow::{a, g, p};
 use crate::screens::harness::Left;
-use crate::service::harness::{Region, capture, check_state, dispatch_state, restore};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("drive::play_replay_frame", rva(0x460049), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
+use crate::service::harness::{Region, state_entry};
 
 /// The Rust version.
+// Converted: `rc2k_core::drive::race_steps::play_frame`.
 pub unsafe fn play_replay_frame(entry: &Regs) -> Result<Left, Refused> {
-    if g(0x5C5CE0) != 2 {
-        return Ok(Left::nothing());
-    }
     let mut r = *entry;
-    p(0x6EF7E0, g(0x5C2530));
-    p(0x6EF7E4, g(0x5C2534));
-    if g(0x6EF7E4) == 0 {
+    let Some(whole) = rc2k_core::drive::race_steps::play_frame(g(0x5C5CE0), || {
+        p(0x6EF7E0, g(0x5C2530));
+        p(0x6EF7E4, g(0x5C2534));
+        g(0x6EF7E4)
+    }) else {
+        return Ok(Left::nothing());
+    };
+    if whole {
         unsafe { crate::drive::load_replay_frame::load_replay_frame() }?.apply(&mut r);
         crate::drive::load_replay_cars::load_replay_cars().apply(&mut r);
     }
@@ -64,42 +58,8 @@ pub fn regions() -> Vec<Region> {
     all
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_state(&HOOK, r, call_original, &regions(), &rust);
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let mut all = regions();
-    all.extend(crate::drive::read_replay_frame::test_regions());
-    all.extend([(a(0x5C5CE0), 4), (a(0x963BB4), 0x20), (a(0x719F14), 0x400)]);
-    let saved = capture(&all);
-    let Some(file) = crate::drive::read_replay_frame::test_replay() else {
-        restore(&all, &saved);
-        return t.skip("no test file in the temp folder");
-    };
-    let start = capture(&all);
-    for case in 0..4u32 {
-        let set = || {
-            restore(&all, &start);
-            p(0x5C5CE0, if case == 0 { 1 } else { 2 });
-            p(0x5C2530, case % 2);
-            p(0x5C2534, if case == 3 { 5 } else { 0 });
-            file.rewind();
-        };
-        check_state(
-            &mut t,
-            &format!("case {case}"),
-            call_original,
-            Regs::SENTINEL,
-            &set,
-            &all,
-            &rust,
-        );
-    }
-    drop(file);
-    restore(&all, &saved);
-    t.finish()
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    state_entry(r, &rust)
 }

@@ -9,39 +9,12 @@
 //! from the listing.
 //! The name is a reading from the title string of its menu, "PORMENORES DO JOGADOR 4", not yet
 //! a visit.
-//! Callers: none in code: it is reached through a table. Ungated thunk; shadow mode runs the
-//! original alone; each real call writes a line to hook.log. Self-test:
-//! `screen_loop::check_screen`. Manual patch with a private copy (0x2B5 bytes, 11 calls and
-//! jumps relocated): a call or a jump target sits in the first bytes.
+//! Callers: none in code: it is reached through a table.
+//! Hook removed 2026-10-22 (typed tables): the menus and draw lists run its `entry`
+//! (`menu::table_calls`); the registers above are the original's, for reference.
 
-use crate::framework::{RawHook, Regs, SelfTest, game_read, hook_asm, rva};
-use crate::menu::screen_loop::{
-    Env, Flow, List, Original, Screen, Step, check_screen, dispatch_screen,
-};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook = RawHook::new(
-    "menu::player4_details_loop",
-    rva(0x477E97),
-    thunk,
-    &ORIGINAL,
-)
-.private_copy(0x2B5)
-.relocate_calls(&[
-    0x8D, 0x92, 0x9E, 0xA3, 0xF2, 0x101, 0x149, 0x167, 0x175, 0x1C3, 0x265,
-])
-.manual_patch()
-.self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL,
-    ungated
-);
+use crate::framework::{Regs, game_read, rva};
+use crate::menu::screen_loop::{Env, Flow, List, Screen, Step, screen_entry};
 
 // ---- Rust version: `menu::screen_loop` with this ----
 
@@ -136,29 +109,8 @@ pub const SCREEN: Screen = Screen {
     also_writes: &[rva(0x75598C)],
 };
 
-// ---- hook ----
-
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_screen(&HOOK, r, call_original, &SCREEN);
-}
-
-// ---- self-test ----
-
-const THE_ORIGINAL: Original = Original {
-    function: rva(0x477E97),
-    len: 0x2B5,
-    entry_bytes: &[0x60, 0xC7, 0x05, 0x06, 0x88, 0x75, 0x00, 0x00],
-    calls: &[
-        0x8D, 0x9E, 0xA3, 0xF2, 0x101, 0x149, 0x167, 0x175, 0x1C3, 0x265,
-    ],
-};
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    if let Err(why) = check_screen(&mut t, &SCREEN, &THE_ORIGINAL) {
-        return t.skip(why);
-    }
-    t.finish()
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    screen_entry("menu::player4_details_loop", r, &SCREEN)
 }

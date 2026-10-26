@@ -8,10 +8,12 @@
 //! Music tunes: the file is `g_musicPath` with the tune's two last digits at +0xE
 //! (`strings::format_u32`, flags 0x12); tune 0xA is 10 + `g_tuneTurn` for the first turn
 //! (counted on, 0 .. 5) whose file exists. When a tune stops, `g_nextTune` is played, and it
-//! is never cleared there: the second tune repeats.
+//! is never cleared there: the second tune repeats. Fixed (2026-10-20, section 16): a turn
+//! past 5 starts from 0, and after `RETRIES` plays in a row that stop at their first feed
+//! the music stops (the original: both for ever, the audio thread hung).
 
 use crate::audio::stream::*;
-use crate::errors::{BadInput, Refused};
+use crate::errors::Refused;
 use crate::framework::{Regs, game_addr};
 
 /// The calls by the game's addresses, each with the registers it reads: 0 `start_stream`
@@ -66,7 +68,54 @@ fn playing(player: u32) -> bool {
     unsafe { stream(player).playing == 1 }
 }
 
-/// `audio::stream_command` on the player at `player`.
+/// The core's player: the game's stream player at `player`, its calls through `part`
+/// with the registers the original gives them (eax the file's path for a start).
+struct GamePlayer<'a, 'b> {
+    player: u32,
+    path: u32,
+    part: &'a mut Part<'b>,
+}
+
+impl rc2k_core::audio::streams::Player for GamePlayer<'_, '_> {
+    type Error = Refused;
+    fn playing(&mut self) -> bool {
+        playing(self.player)
+    }
+    fn keep_volume(&mut self, volume: u32) {
+        unsafe { stream(self.player).volume = volume };
+    }
+    fn start(&mut self) -> Result<bool, Refused> {
+        Ok(!call(self.part, START, self.path, self.player)?)
+    }
+    fn feed(&mut self) -> Result<(), Refused> {
+        call(self.part, FEED, 0, self.player).map(|_| ())
+    }
+    fn stop(&mut self) -> Result<(), Refused> {
+        call(self.part, STOP, 0, self.player).map(|_| ())
+    }
+    fn apply_volume(&mut self) -> Result<(), Refused> {
+        call(self.part, VOLUME, 0, self.player).map(|_| ())
+    }
+}
+
+impl rc2k_core::audio::streams::Tunes for GamePlayer<'_, '_> {
+    fn name(&mut self, n: u32) {
+        let d = crate::strings::format_u32::format_u32(n, 0x12);
+        unsafe { std::ptr::copy_nonoverlapping(d.as_ptr(), (self.path + 0xE) as *mut u8, d.len()) };
+    }
+    fn exists(&mut self) -> Result<bool, Refused> {
+        Ok(!call(self.part, EXISTS, self.path, self.player)?)
+    }
+    fn gave_up(&mut self, tune: u32) {
+        crate::framework::log(&format!(
+            "audio: tune {tune:#x}: {} plays in a row stopped at their first feed; the music stopped",
+            rc2k_core::audio::streams::RETRIES
+        ));
+    }
+}
+
+/// `audio::stream_command` on the player at `player`. Converted:
+/// `rc2k_core::audio::streams::stream_command`.
 pub fn stream_command(
     path: u32,
     volume: i32,
@@ -74,43 +123,12 @@ pub fn stream_command(
     player: u32,
     mut part: Part,
 ) -> Result<(), Refused> {
-    let part = &mut part;
-    let stop = |part: &mut Part| call(part, STOP, 0, player).map(|_| ());
-    match action {
-        0 => return stop(part),
-        1 => {
-            if !playing(player) {
-                return Ok(());
-            }
-        }
-        3 => {
-            if playing(player) {
-                unsafe { stream(player).volume = volume as u32 };
-                call(part, VOLUME, 0, player)?;
-            }
-            return Ok(());
-        }
-        _ => {
-            if playing(player) {
-                stop(part)?;
-            }
-            if volume <= 0 {
-                return Ok(());
-            }
-            if path == 0 {
-                return stop(part);
-            }
-            unsafe { stream(player).volume = volume as u32 };
-            if call(part, START, path, player)? {
-                return stop(part);
-            }
-        }
-    }
-    call(part, FEED, 0, player)?;
-    if !playing(player) {
-        stop(part)?;
-    }
-    Ok(())
+    let mut p = GamePlayer {
+        player,
+        path,
+        part: &mut part,
+    };
+    rc2k_core::audio::streams::stream_command(&mut p, path != 0, volume, action)
 }
 
 /// Where `music_command` keeps its things.
@@ -136,11 +154,9 @@ impl MusicVars {
     }
 }
 
-/// How often a tune that stops at once is played again before the Rust version gives up
-/// (the original plays it for ever: section 16).
-const RETRIES: u32 = 0x100;
-
-/// `audio::music_command`: `tune` with `next` to follow.
+/// `audio::music_command`: `tune` with `next` to follow. Converted:
+/// `rc2k_core::audio::streams::music_command` (its calls do not read the three variables,
+/// which are stored once it is done).
 pub fn music_command(
     tune: u32,
     next: u32,
@@ -149,103 +165,25 @@ pub fn music_command(
     v: &MusicVars,
     mut part: Part,
 ) -> Result<(), Refused> {
-    let part = &mut part;
     use crate::audio::voices::{read, write};
-    let player = v.player;
-    let stop = |part: &mut Part| call(part, STOP, 0, player).map(|_| ());
-    let mut tune = tune;
+    let mut m = unsafe {
+        rc2k_core::audio::streams::Music {
+            next_tune: read(v.next_tune),
+            no_music: read(v.no_music),
+            turn: read(v.turn),
+        }
+    };
+    let mut p = GamePlayer {
+        player: v.player,
+        path: v.path,
+        part: &mut part,
+    };
+    let done = rc2k_core::audio::streams::music_command(&mut p, &mut m, tune, next, volume, action);
     unsafe {
-        let stop_and_forget = |part: &mut Part| -> Result<(), Refused> {
-            stop(part)?;
-            write(v.next_tune, 0);
-            Ok(())
-        };
-        let mut feed_first = false;
-        match action {
-            0 => return stop_and_forget(part),
-            1 => {
-                if !playing(player) {
-                    return Ok(());
-                }
-                feed_first = true;
-            }
-            3 => {
-                if playing(player) {
-                    stream(player).volume = volume as u32;
-                    call(part, VOLUME, 0, player)?;
-                }
-                return Ok(());
-            }
-            _ => {
-                if playing(player) {
-                    stop(part)?;
-                }
-                if volume <= 0 || read(v.no_music) != 0 {
-                    return Ok(());
-                }
-                if tune == 0 {
-                    return stop_and_forget(part);
-                }
-                write(v.next_tune, next);
-                stream(player).volume = volume as u32;
-            }
-        }
-        let digits = |n: u32| {
-            let d = crate::strings::format_u32::format_u32(n, 0x12);
-            std::ptr::copy_nonoverlapping(d.as_ptr(), (v.path + 0xE) as *mut u8, d.len());
-        };
-        let mut plays = 0;
-        loop {
-            if !feed_first {
-                plays += 1;
-                if plays > RETRIES {
-                    return Err(BadInput("a tune that stops at once, played again for ever").into());
-                }
-                if tune == 0xA {
-                    let first = read(v.turn);
-                    let mut looks = 0;
-                    loop {
-                        let n = 0xA + read(v.turn);
-                        let mut turn = read(v.turn).wrapping_add(1);
-                        if turn >= 6 {
-                            turn = 0;
-                        }
-                        write(v.turn, turn);
-                        digits(n);
-                        if !call(part, EXISTS, v.path, player)? {
-                            break;
-                        }
-                        looks += 1;
-                        if first == read(v.turn) {
-                            write(v.next_tune, 0);
-                            return Ok(());
-                        }
-                        if looks > 6 {
-                            return Err(BadInput(
-                                "no tune file, with a tune turn past 5: the original looks for ever",
-                            )
-                            .into());
-                        }
-                    }
-                } else {
-                    digits(tune);
-                }
-                if call(part, START, v.path, player)? {
-                    return stop_and_forget(part);
-                }
-            }
-            feed_first = false;
-            call(part, FEED, 0, player)?;
-            if playing(player) {
-                return Ok(());
-            }
-            stop(part)?;
-            tune = read(v.next_tune);
-            if tune == 0 {
-                return stop_and_forget(part);
-            }
-        }
+        write(v.next_tune, m.next_tune);
+        write(v.turn, m.turn);
     }
+    done
 }
 
 // ---- for the self-tests: stand-ins for the five calls ----

@@ -8,14 +8,21 @@
 //!
 //! Caller: `sub_4C1148`. Self-test: the angle and the point by lot, compared on the eight
 //! results and the registers; put back afterwards.
+//!
+//! Converted 2026-10-21: the hook's Rust version is `tilt_shape_plain`, through
+//! `rc2k_core::marks::view::tilt` (plain floats; the x87 version stays for the Rust callers
+//! in unconverted code). Shadow mode and the self-test compare within `service::floats`'
+//! tolerances (the self-test at both test precisions, exact at double).
 
 use crate::errors::Refused;
 use crate::framework::{RawHook, Regs, SelfTest, game_addr, game_read, game_write, hook_asm, rva};
-use crate::marks::leaf_test::test_leaf;
+use crate::marks::leaf_test::test_leaf_floats;
 use crate::math::x87;
 use crate::race::stage_prefs::left_of;
+use crate::scene::matrix::float_places;
 use crate::screens::harness::Left;
-use crate::service::harness::{Region, at, dispatch_state};
+use crate::service::floats::*;
+use crate::service::harness::{Region, at};
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -57,6 +64,29 @@ pub unsafe fn tilt_shape(entry: &Regs) -> Regs {
     }
 }
 
+/// The converted version (plain floats): the hook's.
+// Converted: `rc2k_core::marks::view::tilt`
+pub unsafe fn tilt_shape_plain(entry: &Regs) -> Regs {
+    unsafe {
+        let point: [u32; 3] = game_read(POINT_RVA);
+        let t = rc2k_core::marks::view::tilt(
+            f32::from_bits(game_read(TILT_RVA)),
+            point.map(f32::from_bits),
+        );
+        game_write(COSINE_RVA, t.turn.cosine.to_bits());
+        game_write(SINE_RVA, t.turn.sine.to_bits());
+        game_write(POINT_RVA + 4, t.y.to_bits());
+        game_write(POINT_RVA + 8, t.z.to_bits());
+        game_write(LENGTH_RVA, t.unit.length.to_bits());
+        game_write(UNIT_RVA, t.unit.unit.map(f32::to_bits));
+        Regs {
+            esi: game_addr(POINT_RVA) as u32,
+            edi: game_addr(UNIT_RVA) as u32,
+            ..*entry
+        }
+    }
+}
+
 fn written() -> Vec<usize> {
     let mut w = vec![
         SINE_RVA,
@@ -75,12 +105,23 @@ pub fn regions() -> Vec<Region> {
 }
 
 fn rust(r: &Regs) -> Result<Left, Refused> {
-    Ok(left_of(&unsafe { tilt_shape(r) }))
+    Ok(left_of(&unsafe { tilt_shape_plain(r) }))
 }
 
 extern "C" fn dispatch(r: &mut Regs) {
     let regions: Vec<Region> = written().into_iter().map(at).collect();
-    dispatch_state(&HOOK, r, call_original, &regions, &rust);
+    let places = float_places(&regions);
+    let floats = Floats {
+        memory: &places,
+        regs: &[],
+    };
+    dispatch_state_floats(&HOOK, r, call_original, &regions, &floats, &rust);
+}
+
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    floats_entry(r, &rust)
 }
 
 fn self_test() -> (usize, usize) {
@@ -88,11 +129,13 @@ fn self_test() -> (usize, usize) {
         return (0, 0);
     };
     let inputs = [TILT_RVA, POINT_RVA, POINT_RVA + 4, POINT_RVA + 8];
-    test_leaf(
+    test_leaf_floats(
         &mut t,
+        "marks::tilt_shape",
         &inputs,
         &written(),
         Regs::SENTINEL,
+        &[],
         10,
         call_original,
         &rust,

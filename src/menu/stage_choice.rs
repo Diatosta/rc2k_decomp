@@ -129,7 +129,8 @@ pub type Draw<'a> = &'a mut dyn FnMut() -> Result<(), Refused>;
 /// A setting's Rust version.
 pub type SettingFn = unsafe fn(Draw) -> Result<(), Refused>;
 
-/// The choice's settings: the variable stepped, then the map drawn again (`draw`: the Rust
+/// The choice's settings (converted: `rc2k_core::menu::steps::stage_sub` and
+/// `stage_number`): the variable stepped, then the map drawn again (`draw`: the Rust
 /// version in the game). When the map refuses, the variable is put back first, so that the
 /// original, which then runs, steps it once.
 unsafe fn step(rva: usize, next: impl Fn(u32) -> u32, draw: Draw) -> Result<(), Refused> {
@@ -147,17 +148,35 @@ pub unsafe fn switch_stage_group(draw: Draw) -> Result<(), Refused> {
 
 /// `menu::next_stage_sub`: 5 or more (unsigned) to 0, else on.
 pub unsafe fn next_stage_sub(draw: Draw) -> Result<(), Refused> {
-    unsafe { step(SUB_RVA, |s| if s >= 5 { 0 } else { s + 1 }, draw) }
+    unsafe {
+        step(
+            SUB_RVA,
+            |s| rc2k_core::menu::steps::stage_sub(s, true),
+            draw,
+        )
+    }
 }
 
 /// `menu::previous_stage_sub`: below 1 (signed) to 5, else back.
 pub unsafe fn previous_stage_sub(draw: Draw) -> Result<(), Refused> {
-    unsafe { step(SUB_RVA, |s| if (s as i32) < 1 { 5 } else { s - 1 }, draw) }
+    unsafe {
+        step(
+            SUB_RVA,
+            |s| rc2k_core::menu::steps::stage_sub(s, false),
+            draw,
+        )
+    }
 }
 
 /// `menu::next_stage_number`: 6 or more (unsigned) to 1, else on.
 pub unsafe fn next_stage_number(draw: Draw) -> Result<(), Refused> {
-    unsafe { step(NUMBER_RVA, |n| if n >= 6 { 1 } else { n + 1 }, draw) }
+    unsafe {
+        step(
+            NUMBER_RVA,
+            |n| rc2k_core::menu::steps::stage_number(n, true),
+            draw,
+        )
+    }
 }
 
 /// `menu::previous_stage_number`: below 2 (signed) to 6, else back one.
@@ -165,7 +184,7 @@ pub unsafe fn previous_stage_number(draw: Draw) -> Result<(), Refused> {
     unsafe {
         step(
             NUMBER_RVA,
-            |n| if (n as i32) >= 2 { n - 1 } else { 6 },
+            |n| rc2k_core::menu::steps::stage_number(n, false),
             draw,
         )
     }

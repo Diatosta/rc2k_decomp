@@ -19,7 +19,7 @@
 use crate::errors::Refused;
 use crate::framework::{RawHook, Regs, SelfTest, call_game, game_addr, hook_asm, rva};
 use crate::physics::flag_result::{FlagResult, dispatch_flags};
-use crate::physics::gear_bit::{GEAR_BITS_RVA, gear_bit_at};
+use crate::physics::gear_bit::{GEAR_BITS_RVA, bits_at};
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -39,31 +39,17 @@ hook_asm!(
 
 pub const GEAR_COUNT_RVA: usize = rva(0x614C10); // g_gearCount: forward gears
 
-/// The Rust core on the bits at `bits` and the count `count`.
+/// The Rust version on the bits at `bits` and the count `count`.
+// Converted: `rc2k_core::physics::gearbox::GearBits::higher_free`.
 pub unsafe fn higher_free_gear_at(bits: u32, count: u32, gear: u32) -> Result<FlagResult, Refused> {
-    let mut ecx = gear.wrapping_add(1);
-    loop {
-        let g = unsafe { gear_bit_at(bits, ecx) }?;
-        if !g.carry {
-            break Ok(FlagResult {
-                eax: g.eax,
-                ecx: Some(ecx),
-                ebx: None,
-                carry: false,
-                zero: None,
-            });
-        }
-        ecx = ecx.wrapping_add(1);
-        if ecx > count {
-            break Ok(FlagResult {
-                eax: g.eax,
-                ecx: Some(ecx),
-                ebx: None,
-                carry: true,
-                zero: None,
-            });
-        }
-    }
+    let s = unsafe { bits_at(bits) }.higher_free(gear, count)?;
+    Ok(FlagResult {
+        eax: s.bit,
+        ecx: Some(s.gear),
+        ebx: None,
+        carry: !s.found,
+        zero: None,
+    })
 }
 
 /// The Rust version.

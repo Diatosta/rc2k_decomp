@@ -31,3 +31,54 @@ pub fn regions() -> Vec<Region> {
         at(POLYGON_COUNT_RVA),
     ]
 }
+
+/// `race::mud::run_both` for a converted float function: each case at the tests' control
+/// words (`service::floats::at_test_precisions`), the registers and the calls the same,
+/// `regions` the same but for the places of `floats` (exact at double precision, within
+/// their tolerances at extended).
+#[allow(clippy::too_many_arguments)] // the case, its copy, what is compared and how
+pub fn run_both_floats(
+    t: &mut crate::framework::SelfTest,
+    what: &str,
+    copy: &crate::redirect::RedirectedCopy,
+    regions: &[Region],
+    floats: &[(Region, crate::service::floats::Tolerance)],
+    prepare: &dyn Fn(),
+    before: crate::framework::Regs,
+    rust: &dyn Fn(
+        &crate::framework::Regs,
+    ) -> Result<crate::framework::Regs, crate::errors::Refused>,
+) {
+    use crate::race::level_init::take_called;
+    use crate::service::floats::{Agreement, Floats, at_test_precisions, compare_memory};
+    use crate::service::harness::capture;
+    let regs = |r: &crate::framework::Regs| [r.eax, r.ebx, r.ecx, r.edx, r.esi, r.edi, r.ebp];
+    let tolerant = Floats {
+        memory: floats,
+        regs: &[],
+    };
+    at_test_precisions(&tolerant, &mut |word, held| {
+        prepare();
+        take_called();
+        let mut ro = before;
+        unsafe { crate::framework::call_game(&mut ro, copy.addr()) };
+        let theirs = (Some(regs(&ro)), take_called(), capture(regions));
+        prepare();
+        let mine = rust(&before);
+        let mine = (
+            mine.as_ref().ok().map(regs),
+            take_called(),
+            capture(regions),
+        );
+        let memory = compare_memory(regions, &theirs.2, &mine.2, held);
+        t.check(
+            theirs.0 == mine.0 && theirs.1 == mine.1 && memory != Agreement::Differ,
+            || {
+                format!(
+                    "control word {word:#x}, {what}: original {:x?} {:x?}; rust {:x?} {:x?}; memory {memory:?}",
+                    theirs.0, theirs.1, mine.0, mine.1
+                )
+            },
+        );
+    });
+}

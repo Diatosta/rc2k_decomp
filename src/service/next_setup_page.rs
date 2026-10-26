@@ -4,40 +4,26 @@
 //! In:  nothing
 //! Out: every register preserved
 //! The comparison is signed, so a negative page just goes up by one. In two menu tables.
+//! Hook removed 2026-10-22 (typed tables): the menus and draw lists run its `entry`
+//! (`menu::table_calls`); the registers above are the original's, for reference.
 
 use crate::errors::Refused;
 use crate::framework::game_read;
-use crate::framework::{RawHook, Regs, SelfTest, game_write, hook_asm, rva};
+use crate::framework::{Regs, game_write};
 use crate::screens::harness::Left;
-use crate::service::harness::{Region, at, capture, check_state, dispatch_state, restore};
+use crate::service::harness::state_entry;
 use crate::service::load_setup_slot::SLOT_PAGE_RVA;
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("service::next_setup_page", rva(0x46F191), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
 
 // ---- Rust version ----
 
 pub fn next_setup_page() {
     unsafe {
-        let next = game_read::<i32>(SLOT_PAGE_RVA).wrapping_add(1);
-        game_write(SLOT_PAGE_RVA, if next < 3 { next } else { 0 });
+        // Converted: `rc2k_core::service::setups::next_page`.
+        game_write(
+            SLOT_PAGE_RVA,
+            rc2k_core::service::setups::next_page(game_read(SLOT_PAGE_RVA)),
+        );
     }
-}
-
-// ---- hook ----
-
-fn regions() -> [Region; 1] {
-    [at(SLOT_PAGE_RVA)]
 }
 
 fn rust(_: &Regs) -> Result<Left, Refused> {
@@ -45,28 +31,8 @@ fn rust(_: &Regs) -> Result<Left, Refused> {
     Ok(Left::nothing())
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_state(&HOOK, r, call_original, &regions(), &rust);
-}
-
-// ---- self-test ----
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let saved = capture(&regions());
-    for page in [-5i32, -1, 0, 1, 2, 3, 100, i32::MAX] {
-        check_state(
-            &mut t,
-            &format!("page={page}"),
-            call_original,
-            Regs::SENTINEL,
-            &|| unsafe { game_write(SLOT_PAGE_RVA, page) },
-            &regions(),
-            &rust,
-        );
-    }
-    restore(&regions(), &saved);
-    t.finish()
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    state_entry(r, &rust)
 }

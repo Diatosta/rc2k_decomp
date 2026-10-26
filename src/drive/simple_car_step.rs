@@ -15,33 +15,23 @@
 //! Refuses what its calls refuse.
 //! Self-test (in a race; skipped otherwise): the original and the Rust version from the
 //! same state (the first block, the inputs and the ground saved and put back).
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
+use crate::framework::Regs;
 use crate::physics::flow::{a, g, p};
 use crate::race::stage_prefs::left_of;
 use crate::screens::harness::Left;
-use crate::service::harness::{Region, check_state, dispatch_state};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook = RawHook::new("drive::simple_car_step", rva(0x43A1CA), thunk, &ORIGINAL)
-    .private_copy(0xB4)
-    .relocate_calls(&[0x0, 0x5, 0xA, 0xF, 0x14, 0x3F, 0x5E, 0x77, 0xAE])
-    .manual_patch()
-    .self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
+use crate::service::harness::state_entry;
+use rc2k_core::drive::roaming::{roam_distance, roam_turn};
 
 const B: usize = 0x70F3EC; // g_carBlockStore
 
 /// The Rust version.
+// Converted: `rc2k_core::drive::roaming::{roam_distance, roam_turn}`.
 pub unsafe fn simple_car_step(entry: &Regs) -> Result<Left, Refused> {
     let mut r = *entry;
     unsafe {
@@ -58,10 +48,11 @@ pub unsafe fn simple_car_step(entry: &Regs) -> Result<Left, Refused> {
         )?;
     }
     r.eax = 0;
-    r.ecx = g(B + 0x638).wrapping_sub(g(B + 0x63C)) << 5;
-    if unsafe { (a(0x4F6B79) as *const u8).read() } != 0 {
-        r.ecx <<= 2;
-    }
+    r.ecx = roam_distance(
+        g(B + 0x638),
+        g(B + 0x63C),
+        unsafe { (a(0x4F6B79) as *const u8).read() } != 0,
+    );
     r.edx = g(B + 0x9C0);
     let [x, _, z, edx] =
         unsafe { crate::math::turn_point_xz::turn_point_xz(0, r.ebx as i32, r.ecx as i32, r.edx) };
@@ -70,7 +61,7 @@ pub unsafe fn simple_car_step(entry: &Regs) -> Result<Left, Refused> {
     r.edx = edx;
     p(B + 0x134, g(B + 0x134).wrapping_add(x));
     p(B + 0x13C, g(B + 0x13C).wrapping_add(z));
-    r.eax = ((g(B + 0x644) as i32) >> 4) as u32;
+    r.eax = roam_turn(g(B + 0x644));
     p(B + 0x9C0, g(B + 0x9C0).wrapping_add(r.eax));
     unsafe { crate::physics::wheel_surfaces::wheel_surfaces() }?.apply(&mut r);
     r.eax = g(0x5CCDA0);
@@ -93,50 +84,8 @@ fn rust(r: &Regs) -> Result<Left, Refused> {
     unsafe { simple_car_step(r) }
 }
 
-/// What it and its calls write (the first block, the inputs, the ground's).
-fn regions() -> Vec<Region> {
-    let mut all = vec![
-        (a(B), 0xFE0),
-        (a(0x6138C4), 0x10),
-        (a(0x5CCDA0), 0x44),
-        (a(0x639824), 0x10),
-        crate::math::turn_scratch_xz::scratch(),
-    ];
-    all.extend(crate::physics::ground::Ground::game().regions());
-    all.extend(crate::physics::car_physics_step::step_regions());
-    all
-}
-
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_state(&HOOK, r, call_original, &regions(), &rust);
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    if !crate::physics::move_slot::in_race() {
-        return t.skip("not in a race (no stage)");
-    }
-    let all = regions();
-    let saved = crate::service::harness::capture(&all);
-    for case in 0..3u32 {
-        let set = || {
-            crate::service::harness::restore(&all, &saved);
-            p(B + 0x638, 0x100 + case * 0x40);
-            p(B + 0x63C, 0x80);
-            p(B + 0x644, case * 0x123);
-        };
-        check_state(
-            &mut t,
-            &format!("case {case}"),
-            call_original,
-            Regs::SENTINEL,
-            &set,
-            &all,
-            &rust,
-        );
-    }
-    crate::service::harness::restore(&all, &saved);
-    t.finish()
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    state_entry(r, &rust)
 }

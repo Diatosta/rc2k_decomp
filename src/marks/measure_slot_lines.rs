@@ -6,14 +6,18 @@
 //!
 //! See `marks/lines.rs`. One caller, `marks::measure_lines`. Self-test: the original and
 //! the Rust version on a scene of the test's (faces, points, blocks by lot), put back
-//! afterwards.
+//! afterwards; at the test precisions (the sums within one at extended).
 
 use crate::errors::Refused;
 use crate::framework::{RawHook, Regs, SelfTest, game_addr, hook_asm, rva};
 use crate::marks::lines::*;
 use crate::race::stage_prefs::left_of;
 use crate::screens::harness::Left;
-use crate::service::harness::{Region, capture, check_state, dispatch_state, restore};
+use crate::service::floats::{
+    Floats, ROUNDED, Tolerance, at_test_precisions, check_state_floats, dispatch_state_floats,
+    floats_entry,
+};
+use crate::service::harness::{Region, capture, restore};
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -36,12 +40,28 @@ fn regions(r: &Regs) -> Vec<Region> {
 }
 
 fn rust(r: &Regs) -> Result<Left, Refused> {
-    Ok(left_of(&unsafe { measure_slot_lines(r) }))
+    Ok(left_of(&unsafe { measure_slot_lines_plain(r) }))
+}
+
+/// The sums made from lengths (`fistp`): one off at a rounding edge at extended precision.
+fn sums(r: &Regs) -> [(Region, Tolerance); 1] {
+    [((r.ebp + 0xf0, 4 * 0x8), ROUNDED)]
 }
 
 extern "C" fn dispatch(r: &mut Regs) {
     let regions = regions(r);
-    dispatch_state(&HOOK, r, call_original, &regions, &rust);
+    let places = sums(r);
+    let floats = Floats {
+        memory: &places,
+        regs: &[],
+    };
+    dispatch_state_floats(&HOOK, r, call_original, &regions, &floats, &rust);
+}
+
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    floats_entry(r, &rust)
 }
 
 fn self_test() -> (usize, usize) {
@@ -59,15 +79,24 @@ fn self_test() -> (usize, usize) {
                 ebp: scene.block(seed % MOST_BLOCKS),
                 ..Regs::SENTINEL
             };
-            check_state(
-                &mut t,
-                &format!("seed {seed}, face {face:#x}"),
-                call_original,
-                r,
-                &|| scene.fill(seed, 8),
-                &regions(&r),
-                &rust,
-            );
+            let places = sums(&r);
+            let tolerant = Floats {
+                memory: &places,
+                regs: &[],
+            };
+            at_test_precisions(&tolerant, &mut |word, held| {
+                check_state_floats(
+                    &mut t,
+                    "marks::measure_slot_lines",
+                    &format!("control word {word:#x}, seed {seed}, face {face:#x}"),
+                    call_original,
+                    r,
+                    &|| scene.fill(seed, 8),
+                    &regions(&r),
+                    held,
+                    &rust,
+                );
+            });
         }
     }
     restore(&differences, &saved);

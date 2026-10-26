@@ -24,29 +24,19 @@
 //! Self-test: a copy of the original (its scratch `dword_62400C` the test's, its calls to
 //! `car_file_number` kept) on a test block, record and sound object filled by lot, the
 //! switches and the holes varied, under three precisions; the refusal.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
-use crate::errors::{BadInput, Refused};
-use crate::framework::{
-    EAX, EBX, ECX, EDX, RawHook, Regs, SelfTest, call_game, game_addr, game_read, hook_asm, rva,
-};
+use crate::errors::Refused;
+use crate::framework::{EAX, EBX, ECX, EDX, Regs, game_addr, game_read, rva};
 use crate::math::x87;
-use crate::math::x87_run::{TEST_CONTROL_WORDS, compare_full, sub_div_to_int, with_control_word};
+use crate::math::x87_run::{compare_full, sub_div_to_int};
 use crate::race::mud::car_file_number;
 use crate::screens::harness::Left;
-use crate::service::harness::{Region, capture, dispatch_state, restore};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("drive::share_car_state", rva(0x45699C), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
+use crate::service::harness::{Region, state_entry};
+use rc2k_core::drive::sharing;
 
 pub const BLOCK_LEN: usize = 0xFE0;
 pub const RECORD_LEN: usize = 0x440;
@@ -54,48 +44,6 @@ pub const SOUND_LEN: usize = 0x100;
 const SCRATCH: usize = 0x62400C; // dword_62400C
 const LEVEL_FROM_RVA: usize = rva(0x63DB5C); // flt_63DB5C
 const LEVEL_STEP_RVA: usize = rva(0x5C5D44); // flt_5C5D44
-const LIGHT_RECORDS: u32 = 0x22;
-
-/// (record offset, block offset) moves in the original's order, after the light record.
-const MOVES_A: [(u32, u32); 20] = [
-    (0xF4, 0x95C),
-    (0x13C, 0x960),
-    (0x184, 0x964),
-    (0x1CC, 0x968),
-    (0xF8, 0x984),
-    (0x140, 0x988),
-    (0x188, 0x98C),
-    (0x1D0, 0x990),
-    (0x100, 0x970),
-    (0x148, 0x974),
-    (0x190, 0x978),
-    (0x1D8, 0x97C),
-    (0x104, 0x998),
-    (0x14C, 0x99C),
-    (0x194, 0x9A0),
-    (0x1DC, 0x9A4),
-    (0x108, 0x9AC),
-    (0x150, 0x9B0),
-    (0x198, 0x9B4),
-    (0x1E0, 0x9B8),
-];
-/// The wheels' sums: (record offsets of the four, block offset of the first).
-const QUADS: [([u32; 4], u32); 2] = [
-    ([0xE0, 0xE4, 0xE8, 0xEC], 0x1B8),
-    ([0x170, 0x174, 0x178, 0x17C], 0x1BC),
-];
-/// With block +0xA34 set: (record, block) moves.
-const MOVES_B: [(u32, u32); 9] = [
-    (0x214, 0x96C),
-    (0x218, 0x994),
-    (0x220, 0x980),
-    (0x224, 0x9A8),
-    (0x228, 0x9BC),
-    (0x210, 0x930),
-    (0x21C, 0x944),
-    (0x204, 0x198),
-    (0x20C, 0x1A0),
-];
 
 unsafe fn at(a: u32) -> u32 {
     unsafe { (a as *const u32).read_unaligned() }
@@ -108,20 +56,18 @@ unsafe fn put(a: u32, v: u32) {
 /// The light record's number for the block at `s`, or the refusal.
 unsafe fn light_record(s: u32) -> Result<u32, Refused> {
     let n = car_file_number(unsafe { at(s + 0x24) });
-    if n >= LIGHT_RECORDS {
-        return Err(BadInput("a car file number above 0x21 (past g_lightRecords)").into());
-    }
+    sharing::check_light_record(n)?;
     Ok(n)
 }
 
 /// The Rust core: block `s`, record `o`, sound object `p`, the scratch at `scratch`.
+// Converted: `rc2k_core::drive::sharing` (the levels' x87 sums stay).
 pub unsafe fn share_car_state_at(s: u32, o: u32, p: u32, scratch: u32) -> Result<Left, Refused> {
     unsafe {
         let n = light_record(s)?;
-        let count = at(s + 0xFAC);
-        if count != 0 {
+        if let Some(count) = sharing::count_down(at(s + 0xFAC)) {
             put(o + 0x30, 1);
-            put(s + 0xFAC, count - 1);
+            put(s + 0xFAC, count);
         }
         put(o + 0x2C, at(p + 0xF0));
         put(p + 0xF0, 0);
@@ -132,24 +78,22 @@ pub unsafe fn share_car_state_at(s: u32, o: u32, p: u32, scratch: u32) -> Result
             if compare_full(at(s + field), from) & 0x100 == 0 {
                 let v = sub_div_to_int(at(s + field), from, step);
                 put(scratch, v as u32);
-                let v = if v < 0 { 0 } else { v };
-                let v = if (v.wrapping_sub(7)) < 0 { v } else { 7 };
-                put(o + out, v as u32);
+                put(o + out, sharing::level(v));
             }
         }
         put(o + 0x1C, at(s + 0x240));
         let light = game_addr(crate::race::stage_prefs::LIGHT_RECORDS_RVA) as u32 + 0x134 * n;
-        for (r, l) in [(0x14, 0x34), (0x18, 0x38), (0xC, 0x2C), (0x10, 0x30)] {
+        for (r, l) in sharing::LIGHT_MOVES {
             put(o + r, at(light + l));
         }
         put(o + 0x24, s + 0x8C0);
         put(o + 0x28, s + 0x740);
         put(o + 8, x87::loaded(at(s + 0x1D8)));
         put(o + 4, n);
-        for (r, b) in MOVES_A {
+        for (r, b) in sharing::MOVES_A {
             put(o + r, at(s + b));
         }
-        for (offsets, first) in QUADS {
+        for (offsets, first) in sharing::QUADS {
             let (a, bb, c) = (at(s + first), at(s + 0x1A4), at(s + 0x1AC));
             for base in [offsets[0], offsets[0] + 0x48] {
                 put(o + base, a);
@@ -158,12 +102,12 @@ pub unsafe fn share_car_state_at(s: u32, o: u32, p: u32, scratch: u32) -> Result
                 put(o + base + 0xC, c);
             }
         }
-        for (k, r) in [0xF0u32, 0x138, 0x180, 0x1C8].into_iter().enumerate() {
+        for (k, r) in sharing::WHEELS.into_iter().enumerate() {
             put(o + r, at(s + 0x920 + 4 * k as u32));
         }
-        for (k, r) in [0xF0u32, 0x138, 0x180, 0x1C8].into_iter().enumerate() {
+        for (k, r) in sharing::WHEELS.into_iter().enumerate() {
             let k = k as u32;
-            if at(s + 0x600 + 4 * k) == 0 && at(s + 0x298) >> (5 + k) & 1 != 0 {
+            if sharing::wheel_cleared(at(s + 0x600 + 4 * k), at(s + 0x298), k) {
                 put(o + r, 0);
             }
         }
@@ -175,7 +119,7 @@ pub unsafe fn share_car_state_at(s: u32, o: u32, p: u32, scratch: u32) -> Result
         }
         let switched = at(s + 0xA34) != 0;
         if switched {
-            for (r, b) in MOVES_B {
+            for (r, b) in sharing::MOVES_B {
                 put(o + r, at(s + b));
             }
             for (r, b) in [(0x230, 0xA28), (0x234, 0xA2C), (0x238, 0xA30)] {
@@ -186,30 +130,10 @@ pub unsafe fn share_car_state_at(s: u32, o: u32, p: u32, scratch: u32) -> Result
         for k in 0..8 {
             put(o + 0x2CC + 4 * k, at(s + 0x64 + 4 * k));
         }
-        for k in 0..6 {
-            put(s + 0x700 + 4 * k, at(o + 0x258 + 4 * k));
-        }
-        const HOLE: u32 = 0x8000_0000;
-        for c in 0..6u32 {
-            if at(s + 0x700 + 4 * c) != HOLE {
-                continue;
-            }
-            let mut c2 = c;
-            let mut tries = 0;
-            loop {
-                if at(s + 0x700 + 4 * c2) != HOLE {
-                    break;
-                }
-                c2 += 1;
-                if c2 == 6 {
-                    c2 = 0;
-                }
-                tries += 1;
-                if tries == 6 {
-                    break;
-                }
-            }
-            put(s + 0x700 + 4 * c, at(s + 0x700 + 4 * c2));
+        let mut kept: [u32; 6] = std::array::from_fn(|k| at(o + 0x258 + 4 * k as u32));
+        sharing::fill_holes(&mut kept);
+        for (k, v) in kept.into_iter().enumerate() {
+            put(s + 0x700 + 4 * k as u32, v);
         }
         for k in 0..8 {
             put(s + 0xA3C + 4 * k, at(o + 0x32C + 4 * k));
@@ -243,8 +167,10 @@ pub fn regions(r: &Regs) -> Vec<Region> {
     ]
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_state(&HOOK, r, call_original, &regions(r), &rust);
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    state_entry(r, &rust)
 }
 
 /// Fills a test block, record and sound object by `seed`.
@@ -281,65 +207,4 @@ pub fn fill(s: u32, o: u32, p: u32, seed: u32) {
             }
         }
     }
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let mut cells = vec![0u32; (BLOCK_LEN + RECORD_LEN + SOUND_LEN) / 4 + 1];
-    let s = cells.as_mut_ptr() as u32;
-    let (o, p) = (s + BLOCK_LEN as u32, s + (BLOCK_LEN + RECORD_LEN) as u32);
-    let scratch = p + SOUND_LEN as u32;
-    let copy = match crate::audio::test_copy::make(
-        &HOOK,
-        &crate::audio::test_copy::Copy {
-            address: 0x45699C,
-            len: 0x50B,
-            entry: &[0x8B, 0x86, 0xAC, 0x0F, 0x00, 0x00],
-            calls: &[0xD9, 0x120],
-            jumps_out: &[],
-        },
-        &|_| None,
-        &[(0x62400C, scratch)],
-        4,
-    ) {
-        Ok(copy) => copy,
-        Err(why) => return t.skip(&why),
-    };
-    let all: [Region; 1] = [(s, 4 * cells.len())];
-    for word in TEST_CONTROL_WORDS {
-        with_control_word(word, &mut || {
-            for seed in 1..=12u32 {
-                fill(s, o, p, seed);
-                let input = capture(&all);
-                let before = Regs {
-                    esi: s,
-                    edi: o,
-                    ebp: p,
-                    ..Regs::SENTINEL
-                };
-                let mut ro = before;
-                unsafe { call_game(&mut ro, copy.addr()) };
-                let theirs = capture(&all);
-                restore(&all, &input);
-                let mine = unsafe { share_car_state_at(s, o, p, scratch) };
-                let state = capture(&all);
-                let regs_ok = mine.as_ref().is_ok_and(|l| l.matches(&before, &ro));
-                t.check(regs_ok && theirs == state, || {
-                    let first = theirs.iter().zip(&state).position(|(a, b)| a != b);
-                    format!(
-                        "control word {word:#x}, seed {seed}: regs_ok={regs_ok} {mine:?}, first difference at byte {first:?}"
-                    )
-                });
-            }
-        });
-    }
-    fill(s, o, p, 3);
-    unsafe { put(s + 0x24, 0x7777) };
-    let refused = car_file_number(0x7777) < LIGHT_RECORDS
-        || unsafe { share_car_state_at(s, o, p, scratch) }.is_err();
-    t.check(refused, || "a file number above 0x21 not refused".into());
-    drop((copy, cells));
-    t.finish()
 }

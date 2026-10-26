@@ -41,7 +41,6 @@ pub const SCREENSHOT_RVA: usize = rva(0x407897); // sub_407897
 const NO_LINK: u32 = 0x6F;
 const ASK_ITEM: u32 = 0xFFFF_FC1A;
 const CAN_BE_CHOSEN: u32 = 0xFFFF_FC1B;
-const STEP_LIMIT: u32 = 256;
 
 /// What the four moves may write themselves.
 pub fn move_regions() -> [Region; 4] {
@@ -98,7 +97,7 @@ pub struct Game;
 
 fn in_game(function: usize, regs: &Regs) {
     let mut g = *regs;
-    unsafe { call_game(&mut g, function) };
+    crate::menu::table_calls::call_any(function as u32, &mut g);
 }
 
 impl Outside for Game {
@@ -106,7 +105,8 @@ impl Outside for Game {
         in_game(game_addr(CLICK_RVA), regs);
     }
     fn callback(&mut self, function: u32, regs: &Regs) {
-        in_game(function as usize, regs);
+        let mut g = *regs;
+        crate::menu::table_calls::call(function, &mut g);
     }
     fn screenshot(&mut self, regs: &Regs) {
         // `gfx::take_screenshot`'s Rust version (what it refuses through its hook).
@@ -151,42 +151,38 @@ pub unsafe fn move_highlight(
     entry: &Regs,
     out: &mut dyn Outside,
 ) -> Result<(), BadInput> {
-    let (link, callback) = direction.offsets();
+    // Converted: `rc2k_core::menu::navigation` (`turn`, `link`, `walk`), everything worked
+    // out before it is written.
+    use rc2k_core::menu::navigation::{Link, Turn, link, turn, walk};
+    let (link_at, callback) = direction.offsets();
     let sideways = matches!(direction, Direction::Left | Direction::Right);
     unsafe {
         let highlighted: u32 = game_read(MENU_ITEM_RVA);
         let item = item_at(highlighted)?;
-
-        if sideways && game_read::<u32>(TURNING_RVA) == 1 {
-            let count: i32 = game_read(TURN_COUNT_RVA);
-            let way: u32 = game_read(TURN_WAY_RVA);
-            let turn: i32 = game_read(TURN_RVA);
-            if direction == Direction::Right {
-                if count != 1 && way == 1 {
-                    let next = turn.wrapping_add(1);
-                    game_write(TURN_RVA, if next >= count { 0 } else { next });
-                }
-                game_write(TURN_WAY_RVA, 1u32);
-                game_write(TURN_STEP_RVA, 0u32);
-            } else {
-                if count != 1 && way != 1 {
-                    let next = turn.wrapping_sub(1);
-                    game_write(
-                        TURN_RVA,
-                        if next < 0 {
-                            count.wrapping_sub(1)
-                        } else {
-                            next
-                        },
-                    );
-                }
-                game_write(TURN_WAY_RVA, u32::MAX);
-                game_write(TURN_STEP_RVA, u32::MAX);
-            }
+        let turned = (sideways && game_read::<u32>(TURNING_RVA) == 1).then(|| {
+            let t = Turn {
+                count: game_read(TURN_COUNT_RVA),
+                value: game_read(TURN_RVA),
+                way: game_read(TURN_WAY_RVA),
+                step: game_read(TURN_STEP_RVA),
+            };
+            turn(t, direction == Direction::Right)
+        });
+        let next = dword(item + link_at);
+        let to = match link(next) {
+            Link::To(n) if !sideways => Some(walk(n, |n| {
+                let it = item_at(n).map_err(|e| rc2k_core::Invalid(e.0))?;
+                Ok((dword(it + link_at), dword(it + 0x48)))
+            })?),
+            Link::To(n) => Some(n),
+            _ => None,
+        };
+        if let Some(t) = turned {
+            game_write(TURN_RVA, t.value);
+            game_write(TURN_WAY_RVA, t.way);
+            game_write(TURN_STEP_RVA, t.step);
         }
-
-        let mut next = dword(item + link);
-        if next == NO_LINK {
+        if link(next) == Link::None {
             return Ok(());
         }
         // `item_at` leaves the item's number in eax.
@@ -200,24 +196,12 @@ pub unsafe fn move_highlight(
             regs.eax = 1;
             out.click(&regs);
         }
-        if next == ASK_ITEM {
-            out.callback(dword(item + callback), &regs);
-            return Ok(());
-        }
-        if sideways {
-            game_write(MENU_ITEM_RVA, next);
-            return Ok(());
-        }
-        for _ in 0..STEP_LIMIT {
-            game_write(MENU_ITEM_RVA, next);
-            let item = item_at(next)?;
-            if dword(item + 0x48) == CAN_BE_CHOSEN {
-                return Ok(());
-            }
-            next = dword(item + link);
+        match to {
+            Some(n) => game_write(MENU_ITEM_RVA, n),
+            None => out.callback(dword(item + callback), &regs),
         }
     }
-    Err(BadInput("no item that can be chosen along this link"))
+    Ok(())
 }
 
 // ---- hook machinery ----
@@ -293,6 +277,12 @@ pub fn dispatch_outside(
     let esp = r.esp;
     *r = o;
     r.esp = esp;
+}
+
+/// `dispatch_outside` without its hook (Rust callers; a refusal is the caller's).
+pub fn outside_entry(r: &mut Regs, run: Run) -> Result<(), Refused> {
+    run(r, &mut Game)?.apply(r);
+    Ok(())
 }
 
 // ---- self-test machinery: stand-ins that note how they were called ----

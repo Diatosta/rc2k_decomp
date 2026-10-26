@@ -11,23 +11,13 @@
 //! The name is a reading from the title string of its menu, "VER ETAPA", not yet a visit.
 //! Callers: `sub_47037E`. Ungated thunk; shadow mode runs the original alone; each real call
 //! writes a line to hook.log. Self-test: `screen_loop::check_screen`.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
-use crate::framework::{RawHook, Regs, SelfTest, game_read, game_write, hook_asm, rva};
-use crate::menu::screen_loop::{Env, List, Original, Screen, Step, check_screen, dispatch_screen};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("menu::view_stage_loop", rva(0x47FD37), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL,
-    ungated
-);
+use crate::framework::{Regs, game_read, game_write, rva};
+use crate::menu::screen_loop::{Env, List, Screen, Step, screen_entry};
 
 // ---- Rust version: `menu::screen_loop` with this ----
 
@@ -137,30 +127,8 @@ pub const SCREEN: Screen = Screen {
     ],
 };
 
-// ---- hook ----
-
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_screen(&HOOK, r, call_original, &SCREEN);
-}
-
-// ---- self-test ----
-
-const THE_ORIGINAL: Original = Original {
-    function: rva(0x47FD37),
-    len: 0x2FB,
-    entry_bytes: &[0x60, 0xFF, 0x35, 0x5C, 0x59, 0x75, 0x00, 0xFF],
-    calls: &[
-        0x93, 0x98, 0xA6, 0xC9, 0xD4, 0xD9, 0x128, 0x12D, 0x132, 0x17A, 0x18F, 0x1DD, 0x27F, 0x2A4,
-        0x2F4,
-    ],
-};
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    if let Err(why) = check_screen(&mut t, &SCREEN, &THE_ORIGINAL) {
-        return t.skip(why);
-    }
-    t.finish()
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    screen_entry("menu::view_stage_loop", r, &SCREEN)
 }

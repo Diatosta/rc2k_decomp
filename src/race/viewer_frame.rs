@@ -23,12 +23,12 @@
 //! the Rust version: at the end or not, a picture asked, playing or stopped, no blocks,
 //! the begin, end or showing failing.
 
-use crate::errors::{BadInput, Refused};
-use crate::framework::{RawHook, Regs, SelfTest, call_game, game_addr, hook_asm, rva};
+use crate::errors::Refused;
+use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
 use crate::physics::flow::{a, g, p};
 use crate::race::viewer::{
     AT_END, BLOCK, BLOCKS, FRAME, MARK_IN, MARK_OUT, MENU, Part, SNAPSHOT, STOPPED, Saved, answer,
-    dispatch_parts, dword, gb, region, run_both, test_part,
+    dispatch_parts, dword, gb, region, regs_entry, run_both, test_part,
 };
 use std::sync::atomic::AtomicUsize;
 
@@ -65,17 +65,6 @@ const CALLS: [usize; 28] = [
 ];
 
 const LIST_TEXTURE: usize = 0x5BECB4; // dword_5BECB4
-/// (value, state) in the original's order.
-const STATES: [(u32, u32); 8] = [
-    (2, 0x15),
-    (0, 0x1C),
-    (5, 0x13),
-    (6, 0x14),
-    (1, 0x1B),
-    (3, 3),
-    (2, 0x11),
-    (2, 0x12),
-];
 const BAR_X: usize = 0x5C29CC; // dword_5C29CC: the bar's rectangle (x, .., w at +8)
 const BAR_W: usize = 0x5C29D4; // dword_5C29D4
 const MARK_RECT: usize = 0x5C29DC; // dword_5C29DC
@@ -125,19 +114,13 @@ fn frame(entry: &Regs, part: Part) -> Result<bool, Refused> {
     Ok(r.carry())
 }
 
-/// `mark * w / blocks` as `mul` / `div`: (quotient, remainder), or None where `div`
-/// faults.
-fn along(mark: u32, w: u32, blocks: u32) -> Option<(u32, u32)> {
-    let product = mark as u64 * w as u64;
-    let q = product.checked_div(blocks as u64)?;
-    Some((u32::try_from(q).ok()?, (product % blocks as u64) as u32))
-}
-
 /// The list, the bar and the panel (stopped).
 fn stopped(r: &mut Regs, part: Part) -> Result<(), Refused> {
+    // Converted: `rc2k_core::race::viewer_flow::{LIST_STATES, bar_places, mark_x, place_x}`.
+    use rc2k_core::race::viewer_flow::{LIST_STATES, bar_places, mark_x, place_x};
     r.eax = g(LIST_TEXTURE);
     part(7, r)?;
-    for (value, state) in STATES {
+    for (value, state) in LIST_STATES {
         r.eax = value;
         r.ebx = state;
         part(8, r)?;
@@ -163,26 +146,18 @@ fn stopped(r: &mut Regs, part: Part) -> Result<(), Refused> {
     let blocks = g(BLOCKS);
     if blocks != 0 {
         let (w, x) = (g(BAR_W), g(BAR_X));
-        let first = along(g(MARK_IN), w, blocks);
-        let second = along(g(MARK_OUT), w, blocks);
-        let here = along(
-            g(BLOCK).wrapping_mul(100).wrapping_add(g(FRAME)),
-            w,
-            blocks.wrapping_mul(100),
-        );
-        let (Some(first), Some(second), Some(here)) = (first, second, here) else {
-            return Err(BadInput("a mark past the bar: the original's division faults").into());
-        };
+        let [first, second, here] =
+            bar_places((g(MARK_IN), g(MARK_OUT)), g(BLOCK), g(FRAME), w, blocks)?;
         quad(part, r, 0x5C2C3C, 0x5C29CC, 0xFF00)?;
         // edx the division's remainder at each of the next calls.
         r.edx = first.1;
-        p(MARK_RECT, first.0.wrapping_add(x).wrapping_sub(2));
+        p(MARK_RECT, mark_x(first.0, x));
         quad(part, r, 0x5C2ACC, MARK_RECT, 0xFF_FFFF)?;
         r.edx = second.1;
-        p(MARK_RECT, second.0.wrapping_add(x).wrapping_sub(2));
+        p(MARK_RECT, mark_x(second.0, x));
         quad(part, r, 0x5C2ACC, MARK_RECT, 0xFF_FFFF)?;
         r.edx = here.1;
-        p(PLACE_RECT, here.0.wrapping_add(x).wrapping_sub(12));
+        p(PLACE_RECT, place_x(here.0, x));
         quad(part, r, 0x5C2AEC, PLACE_RECT, 0xFF_FFFF)?;
         quad(part, r, 0x5C2C2C, 0x5C298C, 0xFF_FFFF)?;
         quad(part, r, 0x5C2C2C, 0x5C29AC, 0xFF_FFFF)?;
@@ -214,7 +189,7 @@ pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
                     crate::drive::tyre_quad::tyre_quad(r, &mut crate::drive::tyre_parts::game_part)?
             }
             11 => *r = draw_viewer_panel::draw_viewer_panel(r, &mut draw_viewer_panel::game_part)?,
-            _ => call_game(r, game_addr(rva(CALLEES[place as usize]))),
+            _ => crate::calls::call(rva(CALLEES[place as usize]), r),
         }
     }
     Ok(())
@@ -224,6 +199,12 @@ extern "C" fn dispatch(r: &mut Regs) {
     dispatch_parts(&HOOK, r, call_original, &|r| {
         viewer_frame(r, &mut game_part)
     });
+}
+
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    regs_entry(r, &|r| viewer_frame(r, &mut game_part))
 }
 
 fn self_test() -> (usize, usize) {

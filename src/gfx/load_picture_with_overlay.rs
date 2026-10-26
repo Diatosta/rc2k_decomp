@@ -15,43 +15,23 @@
 //! Refuses an overlay read with no width or height (the original counts through all 32
 //! bits), and what its parts refuse.
 //! Self-test: `gfx::load_picture`'s files, each over each.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{
-    RawHook, Regs, SelfTest, call_game, game_addr, game_read, game_write, hook_asm, rva, shadow,
-};
+use crate::framework::{Regs, game_addr, game_read, game_write};
 use crate::gfx::build_glyphs::WORK_MEMORY_RVA;
-use crate::gfx::load_picture::{LoaderTest, TEST_PATHS, load_picture};
+use crate::gfx::load_picture::load_picture;
 use crate::gfx::pcx::{DECODED_HEIGHT_RVA, DECODED_WIDTH_RVA, STRIDE_RVA};
 use crate::gfx::picture::{HEIGHT_RVA, PICTURE_RVA, ROW_BYTES_RVA, WIDTH_RVA};
 use crate::gfx::read_picture_file::read_picture_file;
 use crate::memory::MemoryList;
 use crate::memory::allocate::allocate;
 use crate::memory::free_list::free_list;
-use std::sync::atomic::{AtomicUsize, Ordering};
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook = RawHook::new(
-    "gfx::load_picture_with_overlay",
-    rva(0x4118D1),
-    thunk,
-    &ORIGINAL,
-)
-.private_copy(0xB0)
-.relocate_calls(&[0x01, 0x1D, 0x4B, 0xA7])
-.manual_patch()
-.self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
 
 const MEMORY: u32 = 0x1D4C00 + 0xC80;
-const MAGENTA: u32 = 0xFF_00FF;
 
 // ---- Rust version ----
 
@@ -83,24 +63,24 @@ pub unsafe fn load_picture_with_overlay(path: *mut u8, overlay: *mut u8) -> Resu
             }
         };
         if read {
+            // Converted: `rc2k_core::gfx::loading::lay_over`; both buffers 0x1D4C00 + 0xC80
+            // bytes (the picture buffer's room, `gfx::allocate_picture_buffer`).
             let (width, height): (u32, u32) =
                 (game_read(DECODED_WIDTH_RVA), game_read(DECODED_HEIGHT_RVA));
-            if width == 0 || height == 0 {
-                free_list(list)?;
-                return Err(BadInput("an overlay of no width or height").into());
-            }
             let (stride, row): (u32, u32) = (game_read(STRIDE_RVA), game_read(ROW_BYTES_RVA));
-            let mut from = memory as u32;
-            let mut to = kept[3];
-            for _ in 0..height {
-                for x in 0..width {
-                    let pixel = ((from + x * 4) as *const u32).read_unaligned();
-                    if pixel != MAGENTA {
-                        ((to + x * 4) as *mut u32).write_unaligned(pixel);
-                    }
-                }
-                from = from.wrapping_add(stride);
-                to = to.wrapping_add(row);
+            let from = std::slice::from_raw_parts(memory as *const u8, MEMORY as usize);
+            let to = std::slice::from_raw_parts_mut(kept[3] as *mut u8, MEMORY as usize);
+            let laid = rc2k_core::gfx::loading::lay_over(
+                to,
+                from,
+                width as usize,
+                height as usize,
+                stride as usize,
+                row as usize,
+            );
+            if let Err(e) = laid {
+                free_list(list)?;
+                return Err(BadInput(e.0).into());
             }
         }
         free_list(list)?;
@@ -108,66 +88,11 @@ pub unsafe fn load_picture_with_overlay(path: *mut u8, overlay: *mut u8) -> Resu
     }
 }
 
-// ---- hook ----
-
-extern "C" fn dispatch(r: &mut Regs) {
-    HOOK.count_call();
-    if shadow() {
-        unsafe { call_original(r) };
-        return;
+/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    {
+        let carry = unsafe { load_picture_with_overlay(r.eax as *mut u8, r.ebx as *mut u8) }?;
+        r.set_carry(carry)
     }
-    match unsafe { load_picture_with_overlay(r.eax as *mut u8, r.ebx as *mut u8) } {
-        Ok(carry) => r.set_carry(carry),
-        Err(e) => unsafe { crate::fatal::raise::refused(&HOOK, e, r, call_original) },
-    }
-}
-
-// ---- self-test ----
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let test = match LoaderTest::begin() {
-        Ok(test) => test,
-        Err(why) => return t.skip(why),
-    };
-    let original = ORIGINAL.load(Ordering::SeqCst);
-    for path in TEST_PATHS {
-        for overlay in TEST_PATHS {
-            let run = |rust: bool| {
-                test.prepare();
-                let mut first = [path, &[0][..]].concat();
-                let mut second = [overlay, &[0][..]].concat();
-                let carry = if rust {
-                    unsafe { load_picture_with_overlay(first.as_mut_ptr(), second.as_mut_ptr()) }
-                        .ok()
-                } else {
-                    let before = Regs {
-                        eax: first.as_mut_ptr() as u32,
-                        ebx: second.as_mut_ptr() as u32,
-                        ..Regs::SENTINEL
-                    };
-                    let mut r = before;
-                    unsafe { call_game(&mut r, original) };
-                    r.preserved_except(&before, 0).then_some(r.carry())
-                };
-                (carry, first, second, test.observed())
-            };
-            let (theirs, mine) = (run(false), run(true));
-            t.check(theirs == mine && theirs.0.is_some(), || {
-                let at = theirs.3.iter().zip(&mine.3).position(|(a, b)| a != b);
-                format!(
-                    "{:?} under {:?}: carry {:?} / {:?}; paths same {}; first different byte {at:?}",
-                    String::from_utf8_lossy(path),
-                    String::from_utf8_lossy(overlay),
-                    theirs.0,
-                    mine.0,
-                    theirs.1 == mine.1 && theirs.2 == mine.2
-                )
-            });
-        }
-    }
-    test.end();
-    t.finish()
+    Ok(())
 }

@@ -3,15 +3,18 @@
 //! change done (`unk_719FE0` - `unk_71A668` held to 0 ..= the record's +0x3C, over it,
 //! into `flt_605260`), and the tests' frame of `physics::take_view_a`, `take_view_b`,
 //! `ease_view_angles`, `ease_view_blend`, `camera_height_bias`, `ease_view_turn`,
-//! `place_camera`. What the variables are (the camera's mode, place, turns, a view's
-//! figures) is a reading.
+//! `place_camera`. The converted ones run `share_done_plain`, `record_plain` and
+//! `view_test_floats` (`rc2k_core::physics::camera_view`). What the variables are (the
+//! camera's mode, place, turns, a view's figures) is a reading.
 
 use crate::framework::{RawHook, Regs, SelfTest};
 use crate::math::x87_run::{TEST_CONTROL_WORDS, with_control_word};
 use crate::physics::flow::{a, base, g, p, x87_run};
 use crate::scene::matrix3::test_floats;
 use crate::screens::harness::CallOriginal;
+use crate::service::floats::{Floats, Tolerance, at_test_precisions, check_state_floats};
 use crate::service::harness::{Region, Rust, capture, check_state, restore};
+use rc2k_core::physics::camera_view as view;
 
 /// `off_606320`: the camera modes' records (0x34).
 pub const MODES: usize = 0x606320;
@@ -43,6 +46,21 @@ pub fn share_done(record: u32) -> u32 {
         b = base(), s = record
     );
     eax
+}
+
+/// The share done, converted (`rc2k_core::physics::camera_view::share_done`): eax as
+/// left (the time held); the time held into `dword_62400C`, the share into
+/// `flt_605260`.
+pub fn share_done_plain(record: u32) -> u32 {
+    let (held, share) = view::share_done(g(0x719FE0), g(0x71A668), rd(record + 0x3C));
+    p(0x62400C, held);
+    p(0x605260, share.to_bits());
+    held
+}
+
+/// esi as the original leaves it, through the core's `mode_index`.
+pub fn record_plain() -> u32 {
+    g(MODES + 4 * view::mode_index(g(0x71A65C)) as usize)
 }
 
 /// Everything the seven write, and what they read that the tests set.
@@ -127,6 +145,65 @@ pub fn set_view_inputs(seed: u32) {
     p(0x60628C, small(f[0x5C]));
     p(0x6EF7CC, seed % 2);
     p(0x6238A4, [2u32, 1, 0][(seed % 3) as usize]);
+}
+
+/// `view_test` for a converted one: exact at double precision, at extended the places
+/// `floats` names (IDA addresses) within their tolerances.
+pub fn view_test_floats(
+    hook: &RawHook,
+    name: &'static str,
+    call_original: CallOriginal,
+    rust: Rust,
+    floats: &[(usize, usize, Tolerance)],
+) -> (usize, usize) {
+    view_test_floats_regs(hook, name, call_original, rust, floats, &[])
+}
+
+/// `view_test_floats` with float registers too.
+pub fn view_test_floats_regs(
+    hook: &RawHook,
+    name: &'static str,
+    call_original: CallOriginal,
+    rust: Rust,
+    floats: &[(usize, usize, Tolerance)],
+    regs: &[(u8, Tolerance)],
+) -> (usize, usize) {
+    let Some(mut t) = SelfTest::begin(hook) else {
+        return (0, 0);
+    };
+    let all = view_regions();
+    let saved = capture(&all);
+    let mut view = [0u32; 0x10];
+    test_floats(3, &mut view);
+    let v = view.as_mut_ptr() as u32;
+    let memory: Vec<(Region, Tolerance)> = floats
+        .iter()
+        .map(|&(x, len, tl)| ((a(x), len), tl))
+        .collect();
+    let tolerant = Floats {
+        memory: &memory,
+        regs,
+    };
+    at_test_precisions(&tolerant, &mut |word, fl| {
+        for seed in 0..16u32 {
+            check_state_floats(
+                &mut t,
+                name,
+                &format!("control word {word:#x}, seed {seed}"),
+                call_original,
+                Regs {
+                    esi: v,
+                    ..Regs::SENTINEL
+                },
+                &|| set_view_inputs(seed),
+                &all,
+                fl,
+                rust,
+            );
+        }
+    });
+    restore(&all, &saved);
+    t.finish()
 }
 
 /// The test of one of the seven: the original and the Rust version on the game's

@@ -12,28 +12,17 @@
 //! log's and `free_messages` the Rust versions. Shadow mode runs the original alone.
 //! Self-test: a copy whose two variables are the test's and whose calls go to noting
 //! stand-ins, against the Rust version, with an object and without.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
-use crate::input::effects::compare;
+use crate::framework::Regs;
 use crate::net::{
     CLOSE_SESSION, DESTROY_PLAYER, FREE, LOG_TEXT_2_NL, ON, Part, RELEASE_DPLAY, RELEASE_LOBBY, a,
-    dispatch_net,
+    net_entry,
 };
-use crate::system::api_stand_ins::copy_with;
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("net::destroy_connection", rva(0x4187EE), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
 
 /// dword_5AB288: DirectPlay's object (IDirectPlay), 0 without one.
 pub const DPLAY: usize = 0x5AB288;
@@ -68,50 +57,8 @@ pub fn destroy_connection(r: &mut Regs, part: Part) -> Result<(), Refused> {
     destroy_connection_with(r, a(DPLAY), a(ON), part)
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_net(&HOOK, r, call_original, destroy_connection);
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let mut mem = [0u32; 2];
-    let (dplay, on) = (mem.as_mut_ptr() as u32, mem.as_mut_ptr() as u32 + 4);
-    // pusha; cmp dword_5AB288, 0
-    let entry = [0x60, 0x83, 0x3D, 0x88, 0xB2, 0x5A, 0x00, 0x00];
-    let copy = match copy_with(
-        0x4187EE,
-        0x3E,
-        &entry,
-        &[0x1B, 0x21, 0x26, 0x2B, 0x30, 0x35],
-        &[
-            LOG_TEXT_2_NL,
-            DESTROY_PLAYER,
-            CLOSE_SESSION,
-            RELEASE_DPLAY,
-            RELEASE_LOBBY,
-            FREE,
-        ],
-        &[],
-        &[(DPLAY, 4, dplay), (ON, 4, on)],
-        2,
-    ) {
-        Ok(c) => c,
-        Err(why) => return t.skip(&why),
-    };
-    for object in [0u32, 0x0BAD_0B1E] {
-        compare(
-            &mut t,
-            &format!("object {object:#x}"),
-            &copy,
-            Regs::SENTINEL,
-            &|| unsafe { (dplay as *mut [u32; 2]).write_volatile([object, 1]) },
-            &[(dplay, 8)],
-            &|r, part| destroy_connection_with(r, dplay, on, part),
-            false,
-        );
-    }
-    let _ = &mut mem;
-    t.finish()
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    net_entry(r, destroy_connection)
 }

@@ -15,7 +15,9 @@ use crate::framework::{RawHook, Regs, SelfTest, game_addr, game_write, hook_asm,
 use crate::race::frame_draw::all_regs;
 use crate::race::skid_laying::add_skid_point;
 use crate::screens::harness::Left;
-use crate::service::harness::{Region, at, capture, check_state, dispatch_state, restore};
+use crate::service::harness::{
+    Region, at, capture, check_state, dispatch_state, restore, state_entry,
+};
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -31,7 +33,8 @@ hook_asm!(
 );
 
 fn rust(r: &Regs) -> Result<Left, Refused> {
-    Ok(all_regs(&unsafe { add_skid_point(r) }))
+    // Converted: `rc2k_core::race::skids::add_skid_point`.
+    Ok(all_regs(&unsafe { add_skid_point(r)? }))
 }
 
 fn regions(slot: u32) -> Vec<Region> {
@@ -48,6 +51,12 @@ fn regions(slot: u32) -> Vec<Region> {
 
 extern "C" fn dispatch(r: &mut Regs) {
     dispatch_state(&HOOK, r, call_original, &regions(r.esi), &rust);
+}
+
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    state_entry(r, &rust)
 }
 
 fn self_test() -> (usize, usize) {

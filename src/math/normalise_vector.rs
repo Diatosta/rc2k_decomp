@@ -20,29 +20,11 @@
 //!   processors: the instructions themselves are used.
 //!
 //! Three callers. In two pieces in the image (the entry lies after the bodies).
-//! Self-test: the bodies and the entry copied as one piece, with the switch as a test
-//! variable, both ways.
+//! Hook removed 2026-10-22 (conversion phase 4): Rust callers call this directly; the
+//! registers above are the original's, for reference.
 
-use crate::errors::{BadInput, Refused};
-use crate::framework::{
-    EAX, RawHook, Regs, SelfTest, call_game, game_addr, game_read, game_write, hook_asm, rva,
-};
-use crate::redirect::RedirectedCopy;
-use crate::screens::harness::Left;
-use crate::service::harness::{Region, at, capture, dispatch_state, restore};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("math::normalise_vector", rva(0x45C3FE), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
+use crate::errors::BadInput;
+use crate::framework::{game_read, game_write, rva};
 
 // ---- game data ----
 
@@ -62,6 +44,8 @@ pub unsafe fn normalise_vector() -> Result<Option<u32>, BadInput> {
     unsafe { normalise(game_read::<u32>(SSE_RVA) != 0) }
 }
 
+/// Exactly as the original (the x87 at its precision, the SSE instructions): what the
+/// Rust callers in modules not yet converted use.
 pub unsafe fn normalise(sse: bool) -> Result<Option<u32>, BadInput> {
     unsafe {
         let v: [u32; 4] = game_read(VECTOR_RVA);
@@ -149,115 +133,4 @@ pub unsafe fn normalise(sse: bool) -> Result<Option<u32>, BadInput> {
         game_write(CHECKED_RVA, w[6]);
         Ok(Some(sum))
     }
-}
-
-// ---- hook ----
-
-fn regions() -> [Region; 4] {
-    [
-        (game_addr(VECTOR_RVA) as u32, 16),
-        (game_addr(SQUARES_RVA) as u32, 16),
-        at(LENGTH_RVA),
-        at(CHECKED_RVA),
-    ]
-}
-
-fn rust(_: &Regs) -> Result<Left, Refused> {
-    Ok(match unsafe { normalise_vector() }? {
-        Some(eax) => Left::nothing().with(EAX, eax),
-        None => Left::nothing(),
-    })
-}
-
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_state(&HOOK, r, call_original, &regions(), &rust);
-}
-
-// ---- self-test ----
-
-/// The two bodies and the entry after them, one piece from 0x45C2E3.
-const PIECE: usize = 0x45C2E3;
-const PIECE_LEN: usize = 0x12B;
-const ENTRY_AT: usize = 0x45C3FE - PIECE;
-/// `cmp dword_621A58, 0`, which the hook's jump has overwritten.
-const ENTRY_BYTES: [u8; 7] = [0x83, 0x3D, 0x58, 0x1A, 0x62, 0x00, 0x00];
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let copy =
-        unsafe { RedirectedCopy::new(game_addr(rva(PIECE)), PIECE_LEN, &[], &[], &|_| None) };
-    let copy = match copy {
-        Ok(copy) => copy,
-        Err(why) => return t.skip(why),
-    };
-    let mut switch = 0u32;
-    unsafe {
-        std::ptr::copy_nonoverlapping(
-            ENTRY_BYTES.as_ptr(),
-            (copy.addr() + ENTRY_AT) as *mut u8,
-            ENTRY_BYTES.len(),
-        );
-        copy.patch_u32(ENTRY_AT + 2, &raw mut switch as u32);
-    }
-    let regions = regions();
-    let saved = capture(&regions);
-    let vectors: [[f32; 4]; 12] = [
-        [1.0, 0.0, 0.0, 7.0],
-        [3.0, 4.0, 0.0, 1.0],
-        [-1.0, -2.0, -3.0, 0.5],
-        [0.577, 0.577, 0.577, 0.0],
-        [1e-10, 2e-10, -3e-10, 1.0],
-        [1e10, -2e10, 3e10, 1.0],
-        [0.0, -0.0, 5.0, -2.0],
-        [123.456, -0.001, 77.7, 3.0],
-        [0.33333334, 0.6666667, 0.6666667, 9.0],
-        [16777216.0, 1.0, 1.0, 1.0],
-        [-0.0, 0.25, -0.0, 0.0],
-        // No length: only the SSE way is given this one.
-        [0.0, 0.0, 0.0, 1.0],
-    ];
-    // The x87 way reads its roots from tables the game fills; without them every length
-    // is 0, which is the case the original must not be given.
-    let tables: (u32, u32) = unsafe {
-        (
-            game_read(ROOTS_RVA + 0x80 * 4),
-            game_read(EXPONENT_ROOTS_RVA + 0x7F * 4),
-        )
-    };
-    let ways: &[bool] = if tables.0 == 0 || tables.1 == 0 {
-        &[true]
-    } else {
-        &[false, true]
-    };
-    for &sse in ways {
-        for vector in vectors {
-            if !sse && vector[..3].iter().all(|&part| part == 0.0) {
-                continue;
-            }
-            let run = |rust: bool, switch: &mut u32| unsafe {
-                restore(&regions, &vec![0xAA; saved.len()]);
-                game_write(VECTOR_RVA, vector.map(f32::to_bits));
-                *switch = sse as u32;
-                // What is left in eax, or None if another register changed.
-                let done = if rust {
-                    normalise(sse)
-                        .ok()
-                        .map(|eax| eax.unwrap_or(Regs::SENTINEL.eax))
-                } else {
-                    let mut ro = Regs::SENTINEL;
-                    call_game(&mut ro, copy.addr() + ENTRY_AT);
-                    ro.preserved_except(&Regs::SENTINEL, EAX).then_some(ro.eax)
-                };
-                (done, capture(&regions))
-            };
-            let (theirs, mine) = (run(false, &mut switch), run(true, &mut switch));
-            t.check(theirs == mine && theirs.0.is_some(), || {
-                format!("sse {sse}, vector {vector:?}: original {theirs:x?}; rust {mine:x?}")
-            });
-        }
-    }
-    restore(&regions, &saved);
-    t.finish()
 }

@@ -14,9 +14,9 @@
 //!      flags read
 //!
 //! Callers: `sub_43B635` (twice), `sub_43BDD1`.
-//! Self-test: the original and the Rust version on the game's variables (saved and put
-//! back): parts within, past and at the limits, lengths past the top, under three
-//! precisions (no infinities: the original logs).
+//! Self-test: the original and the converted version on the game's variables (saved and
+//! put back): parts within, past and at the limits, lengths past the top; exact at double
+//! precision, within `FLOAT` at extended (no infinities: the original logs).
 
 use crate::errors::Refused;
 use crate::framework::{
@@ -24,12 +24,16 @@ use crate::framework::{
 };
 use crate::logfile::log_float::log_float;
 use crate::logfile::log_write::log_write;
-use crate::math::x87_run::{TEST_CONTROL_WORDS, with_control_word};
 use crate::physics::scale_vector::scale_vector;
 use crate::physics::vector_length::vector_length;
 use crate::scene::matrix3::{rounded, test_floats};
 use crate::screens::harness::Left;
-use crate::service::harness::{Region, capture, check_state, dispatch_state, restore};
+use crate::service::floats::{
+    FLOAT, Floats, Tolerance, at_test_precisions, check_state_floats, dispatch_state_floats,
+    floats_entry,
+};
+use crate::service::harness::{Region, capture, restore};
+use rc2k_core::physics::limits::Moving;
 use std::cmp::Ordering;
 use std::sync::atomic::AtomicUsize;
 
@@ -92,7 +96,57 @@ unsafe fn hold(v: u32, l: u32) {
     }
 }
 
-/// The Rust version.
+fn floats3(x: usize) -> [f32; 3] {
+    [0, 1, 2].map(|k| f32::from_bits(g(x + 4 * k)))
+}
+
+fn put3(x: usize, v: [f32; 3]) {
+    for (k, f) in v.iter().enumerate() {
+        p(x + 4 * k, f.to_bits());
+    }
+}
+
+/// The converted version (`rc2k_core::physics::limits`, plain floats): the hook's.
+// Converted: `rc2k_core::physics::limits::limit_motion`.
+pub fn limit_motion_plain() -> Left {
+    let a = |x: usize| game_addr(rva(x)) as u32;
+    let f = |x: usize| f32::from_bits(g(x));
+    let mut m = Moving {
+        spin: floats3(0x71A15C),
+        motion: floats3(0x71A170),
+        local: floats3(0x71A17C),
+        spin_limit: f(0x613E70),
+        motion_limit: f(0x613E74),
+    };
+    let log = |motion: [f32; 3]| unsafe {
+        log_write(game_addr(rva(0x4DBB2C)) as *const u8, false, 1);
+        log_write(game_addr(rva(0x4DBB39)) as *const u8, false, 1);
+        for (k, v) in motion.iter().enumerate() {
+            log_float(*v, 5, k == 2, 1);
+        }
+    };
+    let out = rc2k_core::physics::limits::limit_motion(&mut m, f(0x614100), log);
+    put3(0x71A15C, m.spin);
+    put3(0x71A170, m.motion);
+    put3(0x71A17C, m.local);
+    p(0x613E70, m.spin_limit.to_bits());
+    p(0x613E74, m.motion_limit.to_bits());
+    p(0x623FBC, out.length.to_bits());
+    let mut esi = a(0x71A170);
+    if let Some(factor) = out.factor {
+        p(0x62400C, factor.to_bits());
+        esi = a(0x71A17C);
+    }
+    Left::nothing().with(ECX, out.exponent).with(ESI, esi)
+}
+
+/// The float places it writes, held to `FLOAT` at extended precision.
+fn floats() -> Vec<(Region, Tolerance)> {
+    regions().into_iter().map(|r| (r, FLOAT)).collect()
+}
+
+/// The Rust version (the exact one, for `physics::car_physics_step` and
+/// `physics::find_clear_place`).
 pub unsafe fn limit_motion() -> Left {
     let a = |x: usize| game_addr(rva(x)) as u32;
     let mut ecx = 0;
@@ -146,7 +200,7 @@ pub unsafe fn limit_motion() -> Left {
 }
 
 fn rust(_: &Regs) -> Result<Left, Refused> {
-    Ok(unsafe { limit_motion() })
+    Ok(limit_motion_plain())
 }
 
 pub fn regions() -> Vec<Region> {
@@ -161,7 +215,18 @@ pub fn regions() -> Vec<Region> {
 }
 
 extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_state(&HOOK, r, call_original, &regions(), &rust);
+    let memory = floats();
+    let floats = Floats {
+        memory: &memory,
+        regs: &[],
+    };
+    dispatch_state_floats(&HOOK, r, call_original, &regions(), &floats, &rust);
+}
+
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    floats_entry(r, &rust)
 }
 
 fn self_test() -> (usize, usize) {
@@ -172,49 +237,54 @@ fn self_test() -> (usize, usize) {
     let mut all = regions();
     all.push((a(0x614100), 4));
     let saved = capture(&all);
-    for word in TEST_CONTROL_WORDS {
-        with_control_word(word, &mut || {
-            for seed in 0..8u32 {
-                check_state(
-                    &mut t,
-                    &format!("control word {word:#x}, seed {seed}"),
-                    call_original,
-                    Regs::SENTINEL,
-                    &|| {
-                        let mut f = [0u32; 6];
-                        test_floats(seed * 9 + 4, &mut f);
-                        for (k, v) in f.iter().enumerate() {
-                            let x = f32::from_bits(*v) % 30.0;
-                            let at = if k < 3 {
-                                0x71A15C + 4 * k
-                            } else {
-                                0x71A170 + 4 * (k - 3)
-                            };
-                            p(at, x.to_bits());
-                        }
-                        if seed == 2 {
-                            p(0x71A174, 10.0f32.to_bits());
-                        }
-                        // The car frame copy too (scaled with the motion): not the stage's.
-                        for k in 0..3usize {
-                            p(
-                                0x71A17C + 4 * k,
-                                (1.5f32 + k as f32 + seed as f32).to_bits(),
-                            );
-                        }
-                        p(0x613E70, 5.0f32.to_bits());
-                        p(0x613E74, 10.0f32.to_bits());
+    let memory = floats();
+    let tolerant = Floats {
+        memory: &memory,
+        regs: &[],
+    };
+    at_test_precisions(&tolerant, &mut |word, fl| {
+        for seed in 0..8u32 {
+            check_state_floats(
+                &mut t,
+                "physics::limit_motion",
+                &format!("control word {word:#x}, seed {seed}"),
+                call_original,
+                Regs::SENTINEL,
+                &|| {
+                    let mut f = [0u32; 6];
+                    test_floats(seed * 9 + 4, &mut f);
+                    for (k, v) in f.iter().enumerate() {
+                        let x = f32::from_bits(*v) % 30.0;
+                        let at = if k < 3 {
+                            0x71A15C + 4 * k
+                        } else {
+                            0x71A170 + 4 * (k - 3)
+                        };
+                        p(at, x.to_bits());
+                    }
+                    if seed == 2 {
+                        p(0x71A174, 10.0f32.to_bits());
+                    }
+                    // The car frame copy too (scaled with the motion): not the stage's.
+                    for k in 0..3usize {
                         p(
-                            0x614100,
-                            if seed % 2 == 0 { 12.0f32 } else { 100.0 }.to_bits(),
+                            0x71A17C + 4 * k,
+                            (1.5f32 + k as f32 + seed as f32).to_bits(),
                         );
-                    },
-                    &all,
-                    &rust,
-                );
-            }
-        });
-    }
+                    }
+                    p(0x613E70, 5.0f32.to_bits());
+                    p(0x613E74, 10.0f32.to_bits());
+                    p(
+                        0x614100,
+                        if seed % 2 == 0 { 12.0f32 } else { 100.0 }.to_bits(),
+                    );
+                },
+                &all,
+                fl,
+                &rust,
+            );
+        }
+    });
     restore(&all, &saved);
     t.finish()
 }

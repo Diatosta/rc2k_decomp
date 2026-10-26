@@ -12,27 +12,16 @@
 //! original and the Rust version on DirectInput objects made in Rust (`input::di_harness`)
 //! and a copy of the first device's record whose effects were made (`input::begin_force`):
 //! a controller with no force feedback, the wheel.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::field;
-use crate::framework::{RawHook, Regs, SelfTest, game_addr, hook_asm, rva, shadow};
-use crate::input::devices::{RECORD_LEN, RECORDS, at, put};
-use crate::input::di_harness::{
-    EFFECT_LEN, EFFECTS_AT, compare, entry_of, method, regs_text, shared_regions, slot,
-};
+use crate::framework::Regs;
+use crate::input::devices::{at, put};
+use crate::input::di_harness::{EFFECT_LEN, EFFECTS_AT, entry_of, method, slot};
 use crate::input::types::{Controller, ForceEffect, InputDevice};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("input::end_force", rva(0x4095AE), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
 
 /// The Rust version (see the header).
 pub fn end_force(record: u32) {
@@ -52,60 +41,8 @@ pub fn end_force(record: u32) {
     }
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    HOOK.count_call();
-    if shadow() {
-        unsafe { call_original(r) };
-        return;
-    }
+/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     end_force(r.esi);
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let world = crate::input::di_objects::TestWorld::begin(
-        crate::input::di_objects::test_devices(),
-        Default::default(),
-    );
-    let start =
-        unsafe { std::slice::from_raw_parts(game_addr(RECORDS[0]) as *const u8, RECORD_LEN) }
-            .to_vec();
-    let mut record = start.clone();
-    let rec = record.as_mut_ptr() as u32;
-    let mut regions = shared_regions();
-    regions.push((rec, RECORD_LEN));
-    for (device, force) in [(0usize, false), (1, true)] {
-        let entry = Regs {
-            esi: rec,
-            ..Regs::SENTINEL
-        };
-        compare(
-            &mut t,
-            &format!("device {device}, force feedback {force}"),
-            &world,
-            &regions,
-            &|| {
-                crate::input::begin_force::test_controller(rec, &start, device, force, 50);
-                let made = crate::input::begin_force::begin_force(
-                    rec,
-                    &mut crate::input::make_effect::game_part,
-                );
-                debug_assert!(made.is_ok());
-            },
-            &mut || {
-                let mut r = entry;
-                unsafe { call_original(&mut r) };
-                regs_text(&r)
-            },
-            &mut || {
-                end_force(rec);
-                regs_text(&entry)
-            },
-        );
-    }
-    drop(world);
-    drop(record);
-    t.finish()
+    Ok(())
 }

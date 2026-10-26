@@ -11,28 +11,20 @@
 //! Shadow mode runs the original alone (it draws). Self-test: a copy whose calls go to
 //! stand-ins, against the Rust version: the lock failing, lists of 0, 3 and 20 from tops 0
 //! and 4, highlighted and blinking.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
+use crate::framework::{RawHook, Regs, SelfTest};
 use crate::net::connecting::STATUS_FONT;
 use crate::net::lobby::{
     CHOICE, CHOICE_BEFORE, CONNECTIONS, COPY_PICTURE, DRAW_STRING, DRAW_TEXT, FONT, FRAME_CLOCK,
-    LOCK, MOVE_CLOCK, Part, SHOW_FRAME, Saved, UNLOCK, a, answer, dispatch_lobby, dword, g, p,
+    LOCK, MOVE_CLOCK, Part, SHOW_FRAME, Saved, UNLOCK, a, answer, dword, g, lobby_entry, p,
     run_both,
 };
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("net::connections_frame", rva(0x4175C7), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
+use rc2k_core::net::screens;
 
 const CONNECTION_ENTRY: u32 = 0x418530; // net::connection_entry
 const LIT: usize = 0x51E644; // unk_51E644
@@ -67,17 +59,18 @@ pub fn list_frame(
     r.edx = r.ebp;
     r.ebp += 0x2C;
     part(DRAW_STRING, &mut r)?;
-    for row in 0..16u32 {
-        let item = row.wrapping_add(g(CHOICE_BEFORE));
-        if item >= g(count) {
+    // Converted: `rc2k_core::net::screens` (`LIST_ROWS`, `listed`, `blink_lit`).
+    for row in 0..screens::LIST_ROWS {
+        let Some(item) = screens::listed(row, g(CHOICE_BEFORE), g(count)) else {
             continue;
-        }
+        };
         r.esi = item;
         r.eax = a(FONT);
         if item == g(CHOICE) {
             r.ebx = a(lit_ebx);
-            r.ecx = g(FRAME_CLOCK).wrapping_sub(g(MOVE_CLOCK));
-            if r.ecx & 8 == 0 {
+            let (frame, moved) = (g(FRAME_CLOCK), g(MOVE_CLOCK));
+            r.ecx = frame.wrapping_sub(moved);
+            if screens::blink_lit(frame, moved) {
                 r.eax = a(LIT);
             }
         }
@@ -92,7 +85,7 @@ pub fn list_frame(
             .wrapping_add(unsafe { ((r.eax + 8) as *const u32).read_unaligned() });
         part(DRAW_TEXT, &mut r)?;
     }
-    r.esi = 16;
+    r.esi = screens::LIST_ROWS;
     part(UNLOCK, &mut r)?;
     part(SHOW_FRAME, &mut r)?;
     done(&r)
@@ -100,11 +93,20 @@ pub fn list_frame(
 
 /// The Rust version: the registers it leaves (the entry's).
 pub fn connections_frame(entry: &Regs, part: Part) -> Result<Regs, Refused> {
-    list_frame(entry, 0x14E, CONNECTIONS, CONNECTION_ENTRY, 0x51E704, part)
+    list_frame(
+        entry,
+        screens::CONNECTIONS_TITLE,
+        CONNECTIONS,
+        CONNECTION_ENTRY,
+        0x51E704,
+        part,
+    )
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_lobby(&HOOK, r, call_original, connections_frame);
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    lobby_entry(r, connections_frame)
 }
 
 /// The test of the two list frames.
@@ -187,18 +189,4 @@ pub fn list_frame_test(
     }
     drop(saved);
     t.finish()
-}
-
-fn self_test() -> (usize, usize) {
-    // pusha; call gfx::lock_surface
-    list_frame_test(
-        &HOOK,
-        0x4175C7,
-        0x9A,
-        &[0x60, 0xE8, 0xE0, 0xE2, 0xFE, 0xFF],
-        &[0x1, 0xC, 0x2B, 0x70, 0x82, 0x8E, 0x93],
-        CONNECTIONS,
-        CONNECTION_ENTRY,
-        connections_frame,
-    )
 }

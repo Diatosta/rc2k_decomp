@@ -6,47 +6,27 @@
 //! Out: every register kept (`pusha` .. `popa`)
 //! Called by `screens::run_frame` for `net::choose_session`. Its calls through `part`.
 //! Shadow mode runs the original alone (it draws). Self-test: as `net::connections_frame`'s.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, hook_asm, rva};
-use crate::net::connections_frame::{list_frame, list_frame_test};
-use crate::net::lobby::{Part, SESSIONS, dispatch_lobby, g};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("net::sessions_frame", rva(0x41790E), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
+use crate::framework::Regs;
+use crate::net::connections_frame::list_frame;
+use crate::net::lobby::{Part, SESSIONS, g, lobby_entry};
 
 const SESSION_ENTRY: u32 = 0x418553; // net::session_entry
 
 /// The Rust version: the registers it leaves (the entry's).
 pub fn sessions_frame(entry: &Regs, part: Part) -> Result<Regs, Refused> {
-    let title = if g(SESSIONS) != 0 { 0x150 } else { 0x152 };
+    // Converted: `rc2k_core::net::screens::sessions_title`.
+    let title = rc2k_core::net::screens::sessions_title(g(SESSIONS));
     list_frame(entry, title, SESSIONS, SESSION_ENTRY, 0x51E744, part)
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_lobby(&HOOK, r, call_original, sessions_frame);
-}
-
-fn self_test() -> (usize, usize) {
-    // pusha; call gfx::lock_surface
-    list_frame_test(
-        &HOOK,
-        0x41790E,
-        0xA8,
-        &[0x60, 0xE8, 0x99, 0xDF, 0xFE, 0xFF],
-        &[0x1, 0xC, 0x39, 0x7E, 0x90, 0x9C, 0xA1],
-        SESSIONS,
-        SESSION_ENTRY,
-        sessions_frame,
-    )
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    lobby_entry(r, sessions_frame)
 }

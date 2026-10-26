@@ -11,14 +11,17 @@
 //!
 //! Callers: `physics::free_rev_in_neutral`, `physics::free_rev_clutch`.
 //! Self-test: the original and the Rust version on the game's variables (saved and put
-//! back), `physics::engine_torque`'s cases, under three precisions.
+//! back), against the converted version: `physics::engine_torque`'s cases
+//! (`test_engine_floats`), exact at double precision.
 
 use crate::errors::Refused;
 use crate::framework::{RawHook, Regs, SelfTest, game_addr, hook_asm, rva};
 use crate::math::x87;
-use crate::physics::engine_torque::{below, engine_torque, g, p, regions, test_engine};
+use crate::physics::engine_torque::{
+    below, dispatch_engine, engine_torque, engine_torque_plain, g, p, regions, test_engine_floats,
+};
 use crate::screens::harness::Left;
-use crate::service::harness::dispatch_state;
+use rc2k_core::physics::engine::{FreeRev, free_rev as free_rev_core};
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -63,7 +66,35 @@ unsafe fn run() {
     }
 }
 
-/// The Rust version.
+/// The converted version (`rc2k_core::physics::engine`, plain floats): the hook's.
+// Converted: `rc2k_core::physics::engine::free_rev`.
+pub unsafe fn free_rev_plain() -> Left {
+    let left = unsafe { engine_torque_plain() };
+    let f = |x: usize| f32::from_bits(g(x));
+    let (push, engine, drag) = free_rev_core(&FreeRev {
+        drive: f(0x614740),
+        drive_factor: f(0x5CB968),
+        ratio: f(0x6140C0),
+        k10000: f(0x5C5E34),
+        gearing: g(0x71A610) as i32,
+        k256: f(0x5C5E2C),
+        step: f(0x61388C),
+        engine: f(0x71A1B0),
+        drag_factor: f(0x613FD8),
+        drag_base: f(0x613FD4),
+    });
+    p(0x614750, push.to_bits());
+    p(0x71A1B0, engine.to_bits());
+    p(0x62400C, drag.to_bits());
+    left
+}
+
+/// The float places `free_rev` writes (IDA addresses, lengths).
+pub const FREE_REV_FLOATS: [(usize, usize); 4] =
+    [(0x62400C, 4), (0x614744, 8), (0x614750, 4), (0x71A1B0, 4)];
+
+/// The Rust version (the exact one, for `physics::free_rev_in_neutral`,
+/// `free_rev_clutch` and their callers).
 pub unsafe fn free_rev() -> Left {
     let left = unsafe { engine_torque() };
     unsafe { run() };
@@ -89,19 +120,25 @@ pub unsafe fn free_rev() -> Left {
 }
 
 fn rust(_: &Regs) -> Result<Left, Refused> {
-    Ok(unsafe { free_rev() })
+    Ok(unsafe { free_rev_plain() })
 }
 
 extern "C" fn dispatch(r: &mut Regs) {
     let mut regions = regions();
     regions.push((game_addr(rva(0x71A1B0)) as u32, 4));
-    dispatch_state(&HOOK, r, call_original, &regions, &rust);
+    dispatch_engine(&HOOK, r, call_original, &regions, &FREE_REV_FLOATS, &rust);
 }
 
 fn self_test() -> (usize, usize) {
     let Some(mut t) = SelfTest::begin(&HOOK) else {
         return (0, 0);
     };
-    test_engine(&mut t, call_original, &rust);
+    test_engine_floats(
+        &mut t,
+        "physics::free_rev",
+        call_original,
+        &rust,
+        &FREE_REV_FLOATS,
+    );
     t.finish()
 }

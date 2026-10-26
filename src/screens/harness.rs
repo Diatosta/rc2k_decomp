@@ -90,6 +90,20 @@ impl Left {
     }
 
     /// What `draw_text` leaves: carry, eax = 0, ebx, ecx and edx.
+    /// What a converted text drawer leaves (as `of_text`: the x is the one passed in).
+    pub fn of_drawn(out: rc2k_core::screens::screen::Drawn, x: i32) -> Self {
+        Self {
+            carry: Some(out.too_wide),
+            regs: vec![
+                (EAX, 0),
+                (EBX, out.after),
+                (ECX, x as u32),
+                (EDX, out.y as u32),
+            ],
+            zero: None,
+        }
+    }
+
     pub fn of_text(out: &Outcome) -> Self {
         Self {
             carry: Some(out.too_wide),
@@ -138,6 +152,12 @@ impl Left {
                 .zero
                 .is_none_or(|z| (after.eflags & crate::framework::ZERO_FLAG != 0) == z)
     }
+}
+
+/// The value of one register (`EAX` and so on).
+pub fn reg_value(r: &Regs, reg: u8) -> u32 {
+    let mut copy = *r;
+    *field(&mut copy, reg)
 }
 
 fn field(r: &mut Regs, reg: u8) -> &mut u32 {
@@ -241,6 +261,16 @@ pub fn dispatch_draw_rewound(
     let esp = r.esp;
     *r = o;
     r.esp = esp;
+}
+
+/// `dispatch_draw` / `dispatch_draw_rewound` outside shadow mode, without its hook (typed tables, 2026-10-22: the entry the menus' and draw lists' enums run, with no hook):
+/// `blank` (by the function's name), then the Rust version on the game's screen.
+pub fn draw_entry(name: &str, r: &mut Regs, rust: Draw) -> Result<(), Refused> {
+    if blanked(name) {
+        return Ok(());
+    }
+    rust(r, &mut GameCanvas)?.apply(r);
+    Ok(())
 }
 
 fn first_difference(a: &[BlitCall], b: &[BlitCall]) -> Option<usize> {

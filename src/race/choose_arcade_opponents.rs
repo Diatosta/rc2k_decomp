@@ -53,6 +53,19 @@ extern "C" fn dispatch(r: &mut Regs) {
     }
 }
 
+/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    {
+        let g = unsafe { choose_arcade_opponents(r, &mut cars_part) }?;
+        *r = Regs {
+            esp: r.esp,
+            eflags: r.eflags,
+            ..g
+        }
+    }
+    Ok(())
+}
+
 const CALLS: [usize; 28] = [
     0x12, 0x20, 0x2C, 0x39, 0x45, 0x52, 0x5B, 0x6D, 0x7B, 0x82, 0xAC, 0xB8, 0xC5, 0xCE, 0xD4, 0xE2,
     0xE9, 0x11B, 0x127, 0x134, 0x13D, 0x143, 0x151, 0x158, 0x192, 0x19E, 0x1AB, 0x1B4,

@@ -12,39 +12,22 @@
 //! as the original does (seen on the load screen's empty slots in the standalone program,
 //! 2026-10-14). Refuses, in the spaced-out way, a string of 0x100 bytes or more (it would
 //! run into the one-character text).
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
-use crate::errors::{BadInput, Refused};
-use crate::framework::{RawHook, Regs, SelfTest, game_addr, game_ptr, game_write, hook_asm, rva};
-use crate::screens::harness::{Left, check_draw, dispatch_draw, drawing_unavailable};
-use crate::screens::{LINE_BUFFER_RVA, font_at, font_is_loaded, set_line};
-use crate::service::harness::{Region, at, capture, restore};
+use crate::errors::Refused;
+use crate::framework::{Regs, game_addr, game_ptr, rva};
+use crate::screens::harness::{Left, draw_entry, drawing_unavailable};
+use crate::screens::{LINE_BUFFER_RVA, font_is_loaded};
+use crate::service::harness::{Region, at};
 use crate::strings::string_table::{blob, is_table_id};
 use crate::strings::text_from_ids::{TEXT_LEN, text};
-use crate::text::draw_string_by_id::{draw_string_by_id_at, string_text};
-use crate::text::draw_text::{Canvas, draw_text_at};
+use crate::text::draw_string_by_id::string_text;
+use crate::text::draw_text::Canvas;
 use crate::text::font::Font;
 use crate::text::measure_string_by_id::TEST_STRINGS;
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook = RawHook::new(
-    "screens::draw_menu_item_text",
-    rva(0x471E99),
-    thunk,
-    &ORIGINAL,
-)
-.private_copy(0x57)
-.relocate_calls(&[0x12, 0x17, 0x3F, 0x50])
-.manual_patch()
-.self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
 
 // ---- game data ----
 
@@ -72,42 +55,25 @@ pub unsafe fn draw_menu_item_text(
     spaced: bool,
     canvas: &mut dyn Canvas,
 ) -> Result<(), Refused> {
-    unsafe {
-        if !spaced {
-            draw_string_by_id_at(id, font, x, y, canvas)?;
-            return Ok(());
-        }
-        let line = string_text(id)?;
-        if line.len() > LINE_LEN {
-            return Err(BadInput("a string longer than the line buffer").into());
-        }
-        game_write(SPACED_FONT_RVA, font as u32);
-        set_line(&line);
-        let one: *mut u8 = game_ptr(ONE_CHARACTER_RVA);
-        let mut x = x.wrapping_sub(0x1A);
-        // One character, then on while the next byte is not a NUL: the first is drawn
-        // even when it is the NUL of an empty string, and then the loop goes on into
-        // what the line buffer held after it. It ends at the latest in the
-        // one-character text right after the buffer, which is cleared before it is read.
-        let mut place: *const u8 = game_ptr(LINE_BUFFER_RVA);
-        loop {
-            // The text is cleared before the byte is read: at the last place the byte
-            // is that text's own, so a NUL.
-            game_write(ONE_CHARACTER_RVA, 0u32);
-            let character = *place;
-            game_write(ONE_CHARACTER_RVA, character as u32);
-            draw_text_at(font, one, x, y, canvas)?;
-            x = x.wrapping_add(0x12);
-            place = place.add(1);
-            if *place == 0 {
-                break;
-            }
-        }
+    // Converted: `rc2k_core::screens::menus::item_text`; the line buffer past the string read where
+    // the original reads it.
+    use crate::screens::game_screen::{FontAt, MenuScreen};
+    if spaced {
+        // What the original refuses first: a string past the text buffer.
+        unsafe { string_text(id) }?;
     }
-    Ok(())
+    let line: *const u8 = game_ptr(LINE_BUFFER_RVA);
+    rc2k_core::screens::menus::item_text(
+        &mut MenuScreen::new(canvas),
+        id,
+        FontAt(font as u32),
+        font as u32,
+        x,
+        y,
+        spaced,
+        &|n| unsafe { *line.add(n) },
+    )
 }
-
-// ---- hook ----
 
 fn rust(r: &Regs, canvas: &mut dyn Canvas) -> Result<Left, Refused> {
     unsafe {
@@ -123,15 +89,11 @@ fn rust(r: &Regs, canvas: &mut dyn Canvas) -> Result<Left, Refused> {
     Ok(Left::nothing())
 }
 
-fn state() -> Vec<u8> {
-    capture(&item_text_regions())
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    draw_entry("screens::draw_menu_item_text", r, &rust)
 }
-
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_draw(&HOOK, r, call_original, &rust, &state);
-}
-
-// ---- self-test: the game's strings and one of its fonts ----
 
 pub const TEST_FONT: usize = 0x51E584;
 
@@ -146,69 +108,4 @@ pub fn text_unavailable() -> Option<&'static str> {
                 .any(|&id| unsafe { string_text(id) }.is_ok_and(|s| s.len() < 2)))
         .then_some("the strings or the font are not loaded")
     })
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    if let Some(why) = text_unavailable() {
-        return t.skip(why);
-    }
-    let regions = item_text_regions();
-    let saved = capture(&regions);
-    for id in TEST_STRINGS {
-        for spaced in [0u32, 1, 2] {
-            let before = Regs {
-                eax: id,
-                ebx: font_at(TEST_FONT) as u32,
-                ecx: 320,
-                edx: 140,
-                ebp: spaced,
-                ..Regs::SENTINEL
-            };
-            check_draw(
-                &mut t,
-                &format!("string={id:#x} ebp={spaced}"),
-                call_original,
-                before,
-                &|| restore(&regions, &saved),
-                &rust,
-                &state,
-            );
-        }
-    }
-    // An empty string spaced out, over three things left in the line buffer: a short
-    // text after the first byte, nothing, and bytes to the buffer's end.
-    let empty = (0..0x757u32)
-        .find(|&id| is_table_id(id) && unsafe { string_text(id) }.is_ok_and(|s| s.len() == 1));
-    if let Some(id) = empty {
-        let mut full = vec![b'w'; LINE_LEN];
-        full[0] = 0;
-        let leftovers: [&[u8]; 3] = [b"\0xyz\0", b"\0\0", &full];
-        for (n, leftover) in leftovers.iter().enumerate() {
-            let before = Regs {
-                eax: id,
-                ebx: font_at(TEST_FONT) as u32,
-                ecx: 320,
-                edx: 140,
-                ebp: 1,
-                ..Regs::SENTINEL
-            };
-            check_draw(
-                &mut t,
-                &format!("empty string={id:#x} spaced, leftover {n}"),
-                call_original,
-                before,
-                &|| {
-                    restore(&regions, &saved);
-                    unsafe { set_line(leftover) };
-                },
-                &rust,
-                &state,
-            );
-        }
-    }
-    restore(&regions, &saved);
-    t.finish()
 }

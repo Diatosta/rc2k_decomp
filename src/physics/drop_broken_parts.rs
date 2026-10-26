@@ -16,7 +16,8 @@ use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
 use crate::physics::fill_race_slot::{g, inputs, p, regions, set_slots};
 use crate::physics::fill_slot_on_bit::fill_slot_on_bit_in;
 use crate::screens::harness::Left;
-use crate::service::harness::{capture, check_state, dispatch_state, restore};
+use crate::service::harness::{capture, check_state, dispatch_state, restore, state_entry};
+use rc2k_core::physics::parts::{BROKEN_BITS, breaks, broken_checked};
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -36,24 +37,21 @@ hook_asm!(
     original = ORIGINAL
 );
 
-/// The bits by part (the damage at +0xA3C + 4k).
-const BITS: [u32; 7] = [9, 0xD, 0xE, 0x10, 0x11, 0xC, 0xF];
-
 /// The steps on `r`.
+// Converted: `rc2k_core::physics::parts::{BROKEN_BITS, broken_checked, breaks}`.
 pub fn drop_broken_parts_in(r: &mut Regs) -> Result<(), Refused> {
-    for (k, bit) in BITS.iter().enumerate() {
-        if k == 0 && g(0x62DAD0) == 0 {
+    for (k, &bit) in BROKEN_BITS.iter().enumerate() {
+        if !broken_checked(k, || g(0x62DAD0) != 0) {
             continue;
         }
-        let damage = g(0x71AA14 + 4 * k);
-        if damage == 0x8000_0000 {
+        let limit = || {
+            r.eax = g(0x71BA2C + 4 * k);
+            r.eax
+        };
+        if !breaks(g(0x71AA14 + 4 * k), limit) {
             continue;
         }
-        r.eax = g(0x71BA2C + 4 * k);
-        if damage < r.eax {
-            continue;
-        }
-        r.ecx = *bit;
+        r.ecx = bit;
         fill_slot_on_bit_in(r)?;
     }
     Ok(())
@@ -79,6 +77,12 @@ fn rust(r: &Regs) -> Result<Left, Refused> {
 
 extern "C" fn dispatch(r: &mut Regs) {
     dispatch_state(&HOOK, r, call_original, &regions(), &rust);
+}
+
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    state_entry(r, &rust)
 }
 
 fn self_test() -> (usize, usize) {

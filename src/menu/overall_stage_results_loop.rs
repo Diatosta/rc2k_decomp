@@ -15,32 +15,15 @@
 //! error 0x80712345; leaving is asked about, and a "no" sets the screen up again.
 //! One caller, `sub_4A1FE5`. Ungated thunk; shadow mode runs the original alone; each real call writes a
 //! line to hook.log. Self-test: `screen_loop::check_screen`.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
-use crate::framework::{RawHook, Regs, SelfTest, game_addr, game_read, game_write, hook_asm, rva};
+use crate::framework::{Regs, game_addr, game_read, game_write, rva};
 use crate::menu::class_stage_results_loop::LOAD_BACKGROUND;
 use crate::menu::run_draw_list::DRAW_LIST_RVA;
-use crate::menu::screen_loop::{
-    Env, FRAME_CALLBACK, List, Original, Screen, Step, check_screen, dispatch_screen,
-};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook = RawHook::new(
-    "menu::overall_stage_results_loop",
-    rva(0x46658F),
-    thunk,
-    &ORIGINAL,
-)
-.self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL,
-    ungated
-);
+use crate::menu::screen_loop::{Env, FRAME_CALLBACK, List, Screen, Step, screen_entry};
 
 // ---- game data ----
 
@@ -125,27 +108,8 @@ pub const SCREEN: Screen = Screen {
     also_writes: &[FIRST_ITEM_STRING_RVA],
 };
 
-// ---- hook ----
-
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_screen(&HOOK, r, call_original, &SCREEN);
-}
-
-// ---- self-test ----
-
-const THE_ORIGINAL: Original = Original {
-    function: rva(0x46658F),
-    len: 0x2C9,
-    entry_bytes: &[0x60, 0xB8, 0x39, 0x01, 0x00, 0x00, 0x83, 0x3D],
-    calls: &[0xAC, 0xBD, 0xC2, 0x111, 0x116, 0x15E, 0x1BC, 0x25E, 0x283],
-};
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    if let Err(why) = check_screen(&mut t, &SCREEN, &THE_ORIGINAL) {
-        return t.skip(why);
-    }
-    t.finish()
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    screen_entry("menu::overall_stage_results_loop", r, &SCREEN)
 }

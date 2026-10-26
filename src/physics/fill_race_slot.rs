@@ -25,7 +25,8 @@ use crate::math::x87_run::{
 use crate::scene::matrix3::test_floats;
 use crate::scene::rotate_point::rotate_point;
 use crate::screens::harness::Left;
-use crate::service::harness::{Region, capture, check_state, dispatch_state, restore};
+use crate::service::harness::{Region, capture, check_state, dispatch_state, restore, state_entry};
+use rc2k_core::physics::parts::{LAST_PART, choose_slot};
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -59,43 +60,23 @@ unsafe fn put(a: u32, v: u32) {
 }
 
 /// The steps on `r` (eax the part).
+// Converted: `rc2k_core::physics::parts::choose_slot` (the slot; the floats stay x87).
 pub fn fill_race_slot_in(r: &mut Regs) -> Result<(), Refused> {
     let part = r.eax;
-    if part > 0xFF {
+    if part > LAST_PART {
         return Err(BadInput("a part past 0xFF").into());
     }
     let first = game_addr(rva(SLOTS)) as u32;
     unsafe {
-        let mut found = None;
-        for c in 0..8u32 {
-            if at(first + 0x78 * c) == 0 {
-                found = Some(c);
-                break;
-            }
-        }
-        match found {
-            Some(c) => {
-                r.ecx = c;
-                r.esi = first + 0x78 * c;
-            }
-            None => {
-                let mut edx = u32::MAX;
-                let mut best = None;
-                for c in 0..8u32 {
-                    let s = first + 0x78 * c;
-                    if at(s + 0x64) < edx {
-                        edx = at(s + 0x64);
-                        best = Some(s);
-                    }
-                }
-                let Some(s) = best else {
-                    return Err(BadInput("no race slot to take (every +0x64 -1)").into());
-                };
-                r.edx = edx;
-                r.ecx = 8;
-                r.ebp = s;
-                r.esi = s;
-            }
+        let slot_at = |c: usize| first + 0x78 * c as u32;
+        let Some(choice) = choose_slot(|c| at(slot_at(c)), |c| at(slot_at(c) + 0x64)) else {
+            return Err(BadInput("no race slot to take (every +0x64 -1)").into());
+        };
+        r.ecx = choice.ecx;
+        r.esi = slot_at(choice.slot);
+        if let Some(lowest) = choice.lowest {
+            r.edx = lowest;
+            r.ebp = r.esi;
         }
         let s = r.esi;
         put(s, part);
@@ -157,6 +138,12 @@ pub fn regions() -> Vec<Region> {
 
 extern "C" fn dispatch(r: &mut Regs) {
     dispatch_state(&HOOK, r, call_original, &regions(), &rust);
+}
+
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    state_entry(r, &rust)
 }
 
 /// The inputs the slot tests set.

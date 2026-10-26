@@ -21,6 +21,7 @@ use crate::math::x87_run::{ext_div2, int_80};
 use crate::physics::reset_parts::{NEAREST_IN, both_with, copy_of, dispatch_reset, regions};
 use crate::race::car_starts::{Case, Part, prepare};
 use crate::service::harness::{Region, capture, restore};
+use rc2k_core::physics::progress;
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -52,6 +53,7 @@ const COUNT: usize = 0x623640; // g_checkpointCount
 const DISTANCE: usize = 0x614C68; // g_nearestCheckpointDistance
 
 /// The Rust version, the calls through `part` (places 17 and 8).
+// Converted: `rc2k_core::physics::progress::{near_window, search_all}`.
 pub unsafe fn find_car_checkpoint(entry: &Regs, part: Part) -> Result<Regs, Refused> {
     let mut r = *entry;
     p(0x639824, g(0x71A10C));
@@ -61,15 +63,14 @@ pub unsafe fn find_car_checkpoint(entry: &Regs, part: Part) -> Result<Regs, Refu
         r.eax = 0;
         return Ok(r);
     }
-    r.ecx = g(0x71A070).wrapping_sub(1);
-    r.edx = r.ecx.wrapping_add(2);
+    (r.ecx, r.edx) = progress::near_window(g(0x71A070));
     part(NEAREST_IN, &mut r)?;
     p(0x62400C, r.edi);
     p(
         DISTANCE,
         ext_div2(int_80(r.edi as i32, false), g(0x5C5D98), 0x3F80_0000),
     );
-    if r.edi > 0xA0000 {
+    if progress::search_all(r.edi) {
         part(8, &mut r)?;
     } else {
         r.eax = r.ebp;

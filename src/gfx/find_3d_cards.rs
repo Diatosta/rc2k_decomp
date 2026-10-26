@@ -16,25 +16,7 @@
 //! enumeration's notes its arguments), against the Rust version, the setting 0 and not.
 
 use crate::errors::Refused;
-use crate::framework::{
-    RawHook, Regs, SelfTest, call_game, game_addr, game_read, game_write, hook_asm, rva, shadow,
-    standalone,
-};
-use crate::install::stand_ins::{act, set_handler, stand_in};
-use std::sync::Mutex;
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("gfx::find_3d_cards", rva(0x404270), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
+use crate::framework::{Regs, game_addr, game_read, game_write, rva, standalone};
 
 // ---- game data ----
 
@@ -105,119 +87,14 @@ pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
                 std::mem::transmute(game_addr(ENUMERATE));
             f(game_addr(CALLBACK_RVA) as u32, 0);
         },
-        _ => unsafe { call_game(r, game_addr(rva(CALLEES[(place / 2) as usize]))) },
+        _ => crate::calls::call(rva(CALLEES[(place / 2) as usize]), r),
     }
     Ok(())
 }
 
-// ---- hook ----
-
-extern "C" fn dispatch(r: &mut Regs) {
-    HOOK.count_call();
-    if shadow() {
-        unsafe { call_original(r) };
-        return;
-    }
+/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     let entry = *r;
-    if let Err(e) = unsafe { find_3d_cards(&entry, &FindVars::game(), &mut game_part) } {
-        unsafe { crate::fatal::raise::refused(&HOOK, e, r, call_original) };
-    }
-}
-
-// ---- self-test ----
-
-/// The calls noted: (place, eax or the enumeration's callback, its context).
-static NOTED: Mutex<Vec<(u32, u32, u32)>> = Mutex::new(Vec::new());
-
-fn note(place: u32, r: &mut Regs) {
-    let eax = if place == 0 { r.eax } else { 0 };
-    NOTED.lock().unwrap().push((place, eax, 0));
-}
-
-extern "system" fn note_enumerate(callback: u32, context: u32) -> i32 {
-    NOTED.lock().unwrap().push((1, callback, context));
-    0
-}
-
-fn test_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
-    if place == 1 {
-        note_enumerate(game_addr(CALLBACK_RVA) as u32, 0);
-        return Ok(());
-    }
-    act(place, r);
+    unsafe { find_3d_cards(&entry, &FindVars::game(), &mut game_part) }?;
     Ok(())
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let mut m = vec![0u32; 3];
-    let at = m.as_mut_ptr() as u32;
-    let v = FindVars {
-        primary_3d: at,
-        secondary_3d: at + 4,
-        no_search: at + 8,
-    };
-    let c = match crate::audio::test_copy::make(
-        &HOOK,
-        &crate::audio::test_copy::Copy {
-            address: 0x404270,
-            len: 0x3E,
-            entry: &[
-                0x60, 0xC7, 0x05, 0xAC, 0xB4, 0x5A, 0x00, 0x00, 0x00, 0x00, 0x00,
-            ],
-            calls: &[0x25, 0x32, 0x37],
-            jumps_out: &[],
-        },
-        &|callee| {
-            if callee == ENUMERATE {
-                return Some(note_enumerate as *const () as usize);
-            }
-            match callee {
-                c if c == rva(CALLEES[0]) => Some(stand_in(0)),
-                c if c == rva(CALLEES[1]) => Some(stand_in(2)),
-                _ => None,
-            }
-        },
-        &[
-            (0x5AB4AC, v.primary_3d),
-            (0x5AB4B0, v.secondary_3d),
-            (0x5AB94C, v.no_search),
-        ],
-        3,
-    ) {
-        Ok(c) => c,
-        Err(why) => return t.skip(&why),
-    };
-    set_handler(note);
-    for no_search in [0u32, 1, 0x8000_0000] {
-        let run = |rust: bool| unsafe {
-            let p = at as *mut u32;
-            p.write_volatile(0xAAAA_AAAA);
-            p.add(1).write_volatile(0xAAAA_AAAA);
-            p.add(2).write_volatile(no_search);
-            NOTED.lock().unwrap().clear();
-            let before = Regs::SENTINEL;
-            let (done, preserved) = if rust {
-                (find_3d_cards(&before, &v, &mut test_part).is_ok(), true)
-            } else {
-                let mut ro = before;
-                call_game(&mut ro, c.addr());
-                (true, ro.preserved_except(&before, 0))
-            };
-            (
-                done && preserved,
-                std::mem::take(&mut *NOTED.lock().unwrap()),
-                [p.read_volatile(), p.add(1).read_volatile()],
-            )
-        };
-        let theirs = run(false);
-        let mine = run(true);
-        t.check(theirs == mine, || {
-            format!("setting {no_search:#x}: original {theirs:x?}; rust {mine:x?}")
-        });
-    }
-    drop(m);
-    t.finish()
 }

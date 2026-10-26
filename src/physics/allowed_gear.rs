@@ -18,9 +18,9 @@ use crate::errors::Refused;
 use crate::framework::{
     EAX, RawHook, Regs, SelfTest, call_game, game_addr, game_read, hook_asm, rva,
 };
-use crate::physics::gear_bit::gear_bit_at;
+use crate::physics::gear_bit::bits_at;
 use crate::screens::harness::Left;
-use crate::service::harness::dispatch_state;
+use crate::service::harness::{dispatch_state, state_entry};
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -39,16 +39,17 @@ unsafe fn at(a: u32) -> u32 {
     unsafe { (a as *const u32).read_unaligned() }
 }
 
-/// The core: the word +0x2B8, the word +0x3F4 and the gear bits at these places.
+/// The Rust version on the word +0x2B8, the word +0x3F4 and the gear bits at these places.
+// Converted: `rc2k_core::physics::gearbox::allowed_gear`.
 pub unsafe fn allowed_gear_at(locked: u32, open: u32, bits: u32, eax: u32) -> Result<u32, Refused> {
     unsafe {
-        if at(locked) == game_read::<u32>(rva(0x5C5D14)) {
-            return Ok(0);
-        }
-        if (eax.wrapping_sub(1) as i32) >= 0 && gear_bit_at(bits, eax)?.carry {
-            return Ok(0);
-        }
-        Ok(if at(open) != 0 { eax } else { 0 })
+        let locked = at(locked) == game_read::<u32>(rva(0x5C5D14));
+        Ok(rc2k_core::physics::gearbox::allowed_gear(
+            locked,
+            eax,
+            || bits_at(bits),
+            || at(open),
+        )?)
     }
 }
 
@@ -64,6 +65,12 @@ fn rust(r: &Regs) -> Result<Left, Refused> {
 
 extern "C" fn dispatch(r: &mut Regs) {
     dispatch_state(&HOOK, r, call_original, &[], &rust);
+}
+
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    state_entry(r, &rust)
 }
 
 fn self_test() -> (usize, usize) {

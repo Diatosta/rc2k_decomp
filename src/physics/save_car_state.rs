@@ -13,11 +13,12 @@
 //! Self-test: a copy of the original whose twelve references are the test's, counts 0 ..
 //! 0x40; the refusal.
 
-use crate::errors::{BadInput, Refused};
+use crate::errors::Refused;
 use crate::framework::{EAX, ECX, EDI, ESI, RawHook, Regs, SelfTest, call_game, hook_asm, rva};
 use crate::physics::restore_saved_car::SavedCar;
 use crate::screens::harness::Left;
-use crate::service::harness::{Region, capture, dispatch_state};
+use crate::service::harness::{Region, capture, dispatch_state, state_entry};
+use rc2k_core::physics::saved_car::{CarState, MOST_SAVED, save_count};
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -32,34 +33,47 @@ hook_asm!(
     original = ORIGINAL
 );
 
-/// The most the saved list holds.
-pub const MOST_SAVED: u32 = 0x40;
-
 unsafe fn at(a: u32) -> u32 {
     unsafe { (a as *const u32).read_unaligned() }
 }
 
-unsafe fn copy_dwords(from: u32, to: u32, n: u32) {
-    for k in 0..n {
-        unsafe { ((to + 4 * k) as *mut u32).write_unaligned(at(from + 4 * k)) };
+/// The pieces at these places, `n` faces.
+pub unsafe fn read_state(place: u32, matrix: u32, list: u32, n: usize) -> CarState {
+    unsafe {
+        CarState {
+            place: std::array::from_fn(|k| at(place + 4 * k as u32)),
+            matrix: std::array::from_fn(|k| at(matrix + 4 * k as u32)),
+            faces: (0..n as u32).map(|k| at(list + 4 * k)).collect(),
+        }
+    }
+}
+
+/// The pieces written at these places.
+pub unsafe fn write_state(s: &CarState, place: u32, matrix: u32, list: u32) {
+    unsafe {
+        put_dwords(place, &s.place);
+        put_dwords(matrix, &s.matrix);
+        put_dwords(list, &s.faces);
+    }
+}
+
+unsafe fn put_dwords(to: u32, v: &[u32]) {
+    for (k, x) in v.iter().enumerate() {
+        unsafe { ((to + 4 * k as u32) as *mut u32).write_unaligned(*x) };
     }
 }
 
 /// The Rust core on the variables at `p` (`restore_saved_car`'s, the other way).
+// Converted: `rc2k_core::physics::saved_car::save_count`.
 pub unsafe fn save_car_state_at(p: &SavedCar) -> Result<Left, Refused> {
     unsafe {
-        let n = at(p.count);
-        if n > MOST_SAVED {
-            return Err(
-                BadInput("a list of more than 0x40 dwords (past dword_6D2814's room)").into(),
-            );
-        }
+        let n = save_count(at(p.count))?;
         (p.counter as *mut u32).write_unaligned(0);
-        copy_dwords(p.place, p.saved_place, 3);
-        copy_dwords(p.matrix, p.saved_matrix, 0x10);
-        copy_dwords(p.list, p.saved_list, n);
+        let state = read_state(p.place, p.matrix, p.list, n);
+        write_state(&state, p.saved_place, p.saved_matrix, p.saved_list);
+        let n = n as u32;
         Ok(Left::nothing()
-            .with(EAX, at(p.place + 8))
+            .with(EAX, state.place[2])
             .with(ECX, 0)
             .with(ESI, p.list + 4 * n)
             .with(EDI, p.saved_list + 4 * n))
@@ -86,6 +100,12 @@ fn regions(p: &SavedCar) -> Vec<Region> {
 
 extern "C" fn dispatch(r: &mut Regs) {
     dispatch_state(&HOOK, r, call_original, &regions(&SavedCar::game()), &rust);
+}
+
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    state_entry(r, &rust)
 }
 
 fn self_test() -> (usize, usize) {

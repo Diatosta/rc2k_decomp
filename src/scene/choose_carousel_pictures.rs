@@ -16,7 +16,7 @@ use crate::scene::carousel_pictures::{slot_regions, update};
 use crate::scene::textures::SLOTS;
 use crate::scene::update_carousel_pictures::World;
 use crate::screens::harness::Left;
-use crate::service::harness::{at, capture, check_state, dispatch_state, restore};
+use crate::service::harness::{at, capture, check_state, dispatch_state, restore, state_entry};
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -45,25 +45,16 @@ const FRONT_RVA: usize = rva(0x75AA7C); // g_carouselFront
 // ---- Rust version ----
 
 pub unsafe fn choose_carousel_pictures() -> Result<Left, Refused> {
+    // Converted: `rc2k_core::scene::carousel::{shows_pictures, visible_entries}`.
+    use rc2k_core::scene::carousel::{shows_pictures, visible_entries};
     unsafe {
-        if !(0xB..=0xE).contains(&game_read::<u32>(MENU_RVA)) {
+        if !shows_pictures(game_read(MENU_RVA)) {
             return Ok(Left::nothing());
         }
-        let count: u32 = game_read(COUNT_RVA);
-        let mut entry: u32 = game_read(FRONT_RVA);
-        if entry == 0 {
-            entry = count;
-        }
-        entry = entry.wrapping_sub(1);
-        let mut entries = [entry; 4];
-        for next in &mut entries[1..] {
-            entry = entry.wrapping_add(1);
-            if entry == count {
-                entry = 0;
-            }
-            *next = entry;
-        }
-        Ok(update(entries)?)
+        Ok(update(visible_entries(
+            game_read(FRONT_RVA),
+            game_read(COUNT_RVA),
+        ))?)
     }
 }
 
@@ -75,6 +66,12 @@ fn rust(_: &Regs) -> Result<Left, Refused> {
 
 extern "C" fn dispatch(r: &mut Regs) {
     dispatch_state(&HOOK, r, call_original, &slot_regions(), &rust);
+}
+
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    state_entry(r, &rust)
 }
 
 // ---- self-test ----

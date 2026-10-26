@@ -9,15 +9,15 @@
 //! Out: eax `dword_71A270` & 0x1E when that is looked at, else kept; no flags read
 //!
 //! Callers: `sub_43B635` (0x43B70A) and `sub_421848` (the car specification's run).
-//! Self-test: `physics/copy_hooks_test.rs` (a copy on test variables), 48 cases.
+//! Self-test: `physics/copy_hooks_test.rs` (a copy on test variables against the
+//! converted version), 48 cases; one compare and copy of floats: exact at any precision.
 
 use crate::errors::Refused;
 use crate::framework::{EAX, RawHook, Regs, game_addr, hook_asm, rva};
-use crate::math::x87;
-use crate::math::x87_run::compare_full;
 use crate::physics::copy_hooks_test::{lot, test_moves};
 use crate::screens::harness::Left;
-use crate::service::harness::dispatch_state;
+use crate::service::harness::{dispatch_state, state_entry};
+use rc2k_core::physics::motion::{StepCounters, StepFacts, count_down};
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -42,46 +42,45 @@ const VARIABLES: [usize; 16] = [
     0x71A240, 0x71A244, 0x71A1CC, 0x71A1A8, 0x71AEE0, 0x71A5D4, 0x71A438,
 ];
 
-/// The Rust core on the variables at `v`; `r` as the original leaves it.
+/// The converted version (`rc2k_core::physics::motion`) on the variables at `v`; `r` as
+/// the original leaves it.
+// Converted: `rc2k_core::physics::motion::count_down`.
 pub unsafe fn count_at(v: &[u32], r: &mut Regs) {
     unsafe {
         let get = |k: usize| (v[k] as *const u32).read_unaligned();
         let put = |k: usize, x: u32| (v[k] as *mut u32).write_unaligned(x);
-        let down = |k: usize| {
-            if get(k) != 0 {
-                put(k, get(k).wrapping_sub(1));
-            }
+        let mut c = StepCounters {
+            first: [get(0), get(1)],
+            standing: get(9),
+            running: get(10),
+            later: [get(11), get(12), get(15)],
+            highest: f32::from_bits(get(14)),
         };
-        down(0);
-        down(1);
-        let reset = 'standing: {
-            if get(2) < 1000 || get(3) != 0 || get(4) != 0 || get(5) != 0 {
-                break 'standing Some(true);
-            }
-            if get(6) != 1 {
-                break 'standing None;
-            }
-            r.eax = get(7) & 0x1E;
-            if r.eax == 0x1E || get(8) != 0 {
-                break 'standing Some(true);
-            }
-            Some(false)
+        let facts = StepFacts {
+            steps: get(2),
+            switches: [get(3), get(4), get(5)],
+            mode: get(6),
+            bits: get(7),
+            gear: get(8),
+            figure: f32::from_bits(get(13)),
         };
-        match reset {
-            Some(true) => put(9, 0),
-            Some(false) => put(9, get(9).wrapping_add(1)),
-            None => {}
+        if let Some(eax) = count_down(&mut c, &facts) {
+            r.eax = eax;
         }
-        let s = get(10);
-        if s != 0 && s != u32::MAX && s != 1 {
-            put(10, s.wrapping_add(1));
+        for (k, x) in [
+            (0, c.first[0]),
+            (1, c.first[1]),
+            (9, c.standing),
+            (10, c.running),
+            (11, c.later[0]),
+            (12, c.later[1]),
+            (14, c.highest.to_bits()),
+            (15, c.later[2]),
+        ] {
+            if get(k) != x {
+                put(k, x);
+            }
         }
-        down(11);
-        down(12);
-        if compare_full(get(13), get(14)) & 0x100 == 0 {
-            put(14, x87::loaded(get(13)));
-        }
-        down(15);
     }
 }
 
@@ -92,14 +91,15 @@ fn game() -> Vec<u32> {
         .collect()
 }
 
-/// The Rust version; `r` as the original leaves it.
+/// The Rust version (one compare and copy of floats: the same at any precision); `r` as
+/// the original leaves it.
 pub unsafe fn count_down_timers(r: &mut Regs) {
     unsafe { count_at(&game(), r) }
 }
 
 fn rust(r: &Regs) -> Result<Left, Refused> {
     let mut g = *r;
-    unsafe { count_down_timers(&mut g) };
+    unsafe { count_at(&game(), &mut g) };
     Ok(Left::nothing().with(EAX, g.eax))
 }
 
@@ -110,6 +110,12 @@ extern "C" fn dispatch(r: &mut Regs) {
         .map(|&k| (v[k], 4))
         .collect();
     dispatch_state(&HOOK, r, call_original, &regions, &rust);
+}
+
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    state_entry(r, &rust)
 }
 
 fn fill(seed: u32, out: &mut [u32]) {

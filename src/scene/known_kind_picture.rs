@@ -11,7 +11,7 @@
 use crate::errors::Refused;
 use crate::framework::{EAX, RawHook, Regs, SelfTest, game_read, hook_asm, rva};
 use crate::screens::harness::Left;
-use crate::service::harness::{check_state, dispatch_state};
+use crate::service::harness::{check_state, dispatch_state, state_entry};
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -36,7 +36,8 @@ const TABLE_RVA: usize = rva(0x5C5708); // dword_5C5708
 // ---- Rust version ----
 
 pub unsafe fn known_kind_picture(place: u32) -> u32 {
-    let place = (place as i32).clamp(0, 0x21) as usize;
+    // Converted: `rc2k_core::scene::kinds::known_place`.
+    let place = rc2k_core::scene::kinds::known_place(place);
     unsafe { game_read(TABLE_RVA + place * 4) }
 }
 
@@ -48,6 +49,12 @@ fn rust(r: &Regs) -> Result<Left, Refused> {
 
 extern "C" fn dispatch(r: &mut Regs) {
     dispatch_state(&HOOK, r, call_original, &[], &rust);
+}
+
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    state_entry(r, &rust)
 }
 
 // ---- self-test ----

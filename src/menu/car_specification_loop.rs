@@ -8,31 +8,12 @@
 //! call or a store are the functions below, generated from the listing.
 //! The name is a reading from the title string of its menu, "ESPECIFICAÇÕES DO CARRO", not yet
 //! a visit.
-//! Callers: none in code: it is reached through a table. Ungated thunk; shadow mode runs the
-//! original alone; each real call writes a line to hook.log. Self-test:
-//! `screen_loop::check_screen`.
+//! Callers: none in code: it is reached through a table.
+//! Hook removed 2026-10-22 (typed tables): the menus and draw lists run its `entry`
+//! (`menu::table_calls`); the registers above are the original's, for reference.
 
-use crate::framework::{RawHook, Regs, SelfTest, game_read, game_write, hook_asm, rva};
-use crate::menu::screen_loop::{Env, List, Original, Screen, Step, check_screen, dispatch_screen};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook = RawHook::new(
-    "menu::car_specification_loop",
-    rva(0x47A652),
-    thunk,
-    &ORIGINAL,
-)
-.self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL,
-    ungated
-);
+use crate::framework::{Regs, game_read, game_write, rva};
+use crate::menu::screen_loop::{Env, List, Screen, Step, screen_entry};
 
 // ---- Rust version: `menu::screen_loop` with this ----
 
@@ -144,30 +125,8 @@ pub const SCREEN: Screen = Screen {
     ],
 };
 
-// ---- hook ----
-
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_screen(&HOOK, r, call_original, &SCREEN);
-}
-
-// ---- self-test ----
-
-const THE_ORIGINAL: Original = Original {
-    function: rva(0x47A652),
-    len: 0x321,
-    entry_bytes: &[0x60, 0xA1, 0xDC, 0x85, 0x75, 0x00, 0xA3, 0x90],
-    calls: &[
-        0x33, 0x4C, 0xE1, 0x10C, 0x111, 0x11C, 0x121, 0x170, 0x175, 0x1BD, 0x1D2, 0x220, 0x2C2,
-        0x31B,
-    ],
-};
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    if let Err(why) = check_screen(&mut t, &SCREEN, &THE_ORIGINAL) {
-        return t.skip(why);
-    }
-    t.finish()
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    screen_entry("menu::car_specification_loop", r, &SCREEN)
 }

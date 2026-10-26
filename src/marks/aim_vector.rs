@@ -8,14 +8,21 @@
 //!
 //! Caller: `sub_4C1270`. Self-test: the twelve inputs by lot, compared on the seven
 //! results and the registers; put back afterwards.
+//!
+//! Converted 2026-10-21: the hook's Rust version is `aim_vector_plain`, through
+//! `rc2k_core::marks::view::{aim, unit_and_length}` (plain floats; the x87 version stays
+//! for the Rust callers in unconverted code). Shadow mode and the self-test compare within
+//! `service::floats`' tolerances (the self-test at both test precisions, exact at double).
 
 use crate::errors::Refused;
 use crate::framework::{RawHook, Regs, SelfTest, game_addr, game_read, game_write, hook_asm, rva};
-use crate::marks::leaf_test::test_leaf;
+use crate::marks::leaf_test::test_leaf_floats;
 use crate::math::x87;
 use crate::race::stage_prefs::left_of;
+use crate::scene::matrix::float_places;
 use crate::screens::harness::Left;
-use crate::service::harness::{Region, at, dispatch_state};
+use crate::service::floats::*;
+use crate::service::harness::{Region, at};
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -59,6 +66,25 @@ pub unsafe fn aim_vector(entry: &Regs) -> Regs {
     }
 }
 
+/// The converted version (plain floats): the hook's.
+// Converted: `rc2k_core::marks::view::{aim, unit_and_length}`
+pub unsafe fn aim_vector_plain(entry: &Regs) -> Regs {
+    use rc2k_core::marks::view::{aim, unit_and_length};
+    unsafe {
+        let terms = TERMS.map(|t| t.map(|a| f32::from_bits(game_read(a))));
+        let v = aim(terms);
+        game_write(VECTOR_RVA, v.map(f32::to_bits));
+        let u = unit_and_length(v);
+        game_write(LENGTH_RVA, u.length.to_bits());
+        game_write(UNIT_RVA, u.unit.map(f32::to_bits));
+        Regs {
+            esi: game_addr(VECTOR_RVA) as u32,
+            edi: game_addr(UNIT_RVA) as u32,
+            ..*entry
+        }
+    }
+}
+
 fn written() -> Vec<usize> {
     let mut w: Vec<usize> = (0..3).map(|k| VECTOR_RVA + 4 * k).collect();
     w.extend((0..3).map(|k| UNIT_RVA + 4 * k));
@@ -72,12 +98,23 @@ pub fn regions() -> Vec<Region> {
 }
 
 fn rust(r: &Regs) -> Result<Left, Refused> {
-    Ok(left_of(&unsafe { aim_vector(r) }))
+    Ok(left_of(&unsafe { aim_vector_plain(r) }))
 }
 
 extern "C" fn dispatch(r: &mut Regs) {
     let regions: Vec<Region> = written().into_iter().map(at).collect();
-    dispatch_state(&HOOK, r, call_original, &regions, &rust);
+    let places = float_places(&regions);
+    let floats = Floats {
+        memory: &places,
+        regs: &[],
+    };
+    dispatch_state_floats(&HOOK, r, call_original, &regions, &floats, &rust);
+}
+
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    floats_entry(r, &rust)
 }
 
 fn self_test() -> (usize, usize) {
@@ -85,11 +122,13 @@ fn self_test() -> (usize, usize) {
         return (0, 0);
     };
     let inputs: Vec<usize> = TERMS.iter().flatten().copied().collect();
-    test_leaf(
+    test_leaf_floats(
         &mut t,
+        "marks::aim_vector",
         &inputs,
         &written(),
         Regs::SENTINEL,
+        &[],
         10,
         call_original,
         &rust,

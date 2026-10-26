@@ -5,28 +5,12 @@
 //! Out: eax the bytes written; carry set when one failed; else carry clear and ZF of
 //!      `test eax, eax` with al the last byte (ZF set for a count of 0); ebx, ecx, edx kept
 //!
-//! Callers: `gfx::write_screen_pcx`, 0x403D27, 0x403D89, 0x403D9B. Shadow mode runs the
-//! original alone (it writes a file). Self-test: as `write_stream_byte`'s, blocks of 0 ..
-//! 0x2345 bytes; a stream with no file failing part way.
+//! Callers: `gfx::write_screen_pcx`, 0x403D27, 0x403D89, 0x403D9B.
+//! Hook removed 2026-10-22 (conversion phase 4): Rust callers call this directly; the
+//! registers above are the original's, for reference.
 
-use crate::files::stream::{BUFFER_LEN, LastPath, Stream, test_content};
-use crate::files::write_stream_byte::{finish_streams, test_streams, write_stream_byte};
-use crate::framework::{
-    CARRY_FLAG, EAX, RawHook, Regs, SelfTest, ZERO_FLAG, hook_asm, rva, shadow,
-};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("files::write_stream_block", rva(0x402DC9), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
+use crate::errors::BadInput;
+use crate::files::stream::Stream;
 
 /// The Rust version: (eax, carry, ZF) as it leaves them. `eax` the register at entry.
 pub unsafe fn write_stream_block(
@@ -34,112 +18,19 @@ pub unsafe fn write_stream_block(
     bytes: *const u8,
     count: u32,
     eax: u32,
-) -> (u32, bool, bool) {
-    if count == 0 {
-        return (0, false, true);
+) -> Result<(u32, bool, bool), BadInput> {
+    // Converted: `rc2k_core::files::io::write_stream_block`.
+    unsafe {
+        Ok(rc2k_core::files::io::write_stream_block(
+            &mut crate::files::handle::GameFiles::new(),
+            crate::files::stream::core_stream(stream),
+            std::slice::from_raw_parts(bytes, count as usize),
+            eax,
+        )?)
     }
-    let mut eax = eax;
-    for n in 0..count {
-        eax = eax & !0xFF | unsafe { bytes.add(n as usize).read() } as u32;
-        if !unsafe { write_stream_byte(stream, eax) } {
-            return (n, true, false);
-        }
-    }
-    (count, false, eax == 0)
 }
 
 /// For Rust callers: whether all were written.
-pub unsafe fn write_stream_all(stream: *mut Stream, bytes: &[u8]) -> bool {
-    !unsafe { write_stream_block(stream, bytes.as_ptr(), bytes.len() as u32, 0) }.1
-}
-
-extern "C" fn dispatch(r: &mut Regs) {
-    HOOK.count_call();
-    if shadow() {
-        unsafe { call_original(r) };
-        return;
-    }
-    let (eax, carry, zero) =
-        unsafe { write_stream_block(r.esi as *mut Stream, r.ebx as *const u8, r.ecx, r.eax) };
-    r.eax = eax;
-    r.set_carry(carry);
-    if !carry {
-        r.set_zero(zero);
-    }
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let saved = LastPath::save();
-    let Some((mut theirs, mut ours)) = test_streams() else {
-        saved.restore();
-        return t.skip("cannot make the test files in the game's var folder");
-    };
-    let content = test_content();
-    let mut at = 0usize;
-    for (n, len) in [0usize, 1, 0x10, 0x2345, 0x7, 0x1FF0, 0x40]
-        .into_iter()
-        .enumerate()
-    {
-        let len = len.min(content.len() - at);
-        let eax = 0x1234_5600 | n as u32;
-        let bytes = content[at..].as_ptr();
-        let before = Regs {
-            eax,
-            ebx: bytes as u32,
-            ecx: len as u32,
-            esi: &mut *theirs as *mut Stream as u32,
-            ..Regs::SENTINEL
-        };
-        let mut ro = before;
-        unsafe { call_original(&mut ro) };
-        let mine = unsafe { write_stream_block(&mut *ours, bytes, len as u32, eax) };
-        let flags_ok = ro.carry() == mine.1 && (mine.1 || (ro.eflags & ZERO_FLAG != 0) == mine.2);
-        let same = (theirs.position, theirs.filled) == (ours.position, ours.filled)
-            && theirs.buffer == ours.buffer
-            && ro.eax == mine.0
-            && flags_ok
-            && ro.preserved_except(&before, EAX);
-        t.check(same, || {
-            format!(
-                "block {n} of {len:#x} bytes: original eax {:#x} flags {:#x}; rust {mine:?}",
-                ro.eax,
-                ro.eflags & (CARRY_FLAG | ZERO_FLAG)
-            )
-        });
-        at += len;
-    }
-    let (same, len) = finish_streams((theirs, ours));
-    t.check(same, || format!("the files differ (the first {len} bytes)"));
-    // No file, the buffer nearly full: fails part way.
-    let (mut theirs, mut ours) = (Stream::filler(), Stream::filler());
-    for stream in [&mut theirs, &mut ours] {
-        stream.mode = 1;
-        stream.file = 0;
-        stream.position = BUFFER_LEN as u32 - 3;
-        stream.filled = BUFFER_LEN as u32 - 3;
-    }
-    let before = Regs {
-        ebx: content.as_ptr() as u32,
-        ecx: 9,
-        esi: &mut *theirs as *mut Stream as u32,
-        ..Regs::SENTINEL
-    };
-    let mut ro = before;
-    unsafe { call_original(&mut ro) };
-    let mine = unsafe { write_stream_block(&mut *ours, content.as_ptr(), 9, before.eax) };
-    t.check(
-        ro.carry() && mine.1 && ro.eax == mine.0 && theirs.buffer == ours.buffer,
-        || {
-            format!(
-                "no file: original eax {:#x} carry {}; rust {mine:?}",
-                ro.eax,
-                ro.carry()
-            )
-        },
-    );
-    saved.restore();
-    t.finish()
+pub unsafe fn write_stream_all(stream: *mut Stream, bytes: &[u8]) -> Result<bool, BadInput> {
+    Ok(!unsafe { write_stream_block(stream, bytes.as_ptr(), bytes.len() as u32, 0) }?.1)
 }

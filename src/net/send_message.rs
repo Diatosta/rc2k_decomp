@@ -13,29 +13,18 @@
 //! runs the original alone. Self-test: a copy whose three variables are the test's and
 //! whose call goes to a noting stand-in, against the Rust version: counts 0, 1, 0x40,
 //! 0xFF, sequence bytes either side of the wrap.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
-use crate::errors::{BadInput, Refused};
-use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
-use crate::input::effects::compare;
-use crate::net::{Part, SEND, a, dispatch_net};
-use crate::system::api_stand_ins::copy_with;
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("net::send_message", rva(0x41736D), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
+use crate::errors::Refused;
+use crate::framework::Regs;
+use crate::net::{Part, SEND, a, net_entry};
+use rc2k_core::net::inbox;
 
 const SEQUENCE: usize = 0x52A915; // byte_52A915
 const BUFFER: usize = 0x52AA68; // byte_52AA68: 0x100 bytes
-const BUFFER_LEN: u32 = 0x100;
 const TO: usize = 0x5AB274; // dword_5AB274: whom to send to
 
 /// Where the variables are.
@@ -59,16 +48,15 @@ impl Vars {
 /// The Rust version on the variables in `v`.
 pub fn send_message_with(r: &mut Regs, v: &Vars, part: Part) -> Result<(), Refused> {
     let count = r.ecx;
-    if count >= BUFFER_LEN {
-        return Err(BadInput("a message longer than the buffer's 0x100 bytes").into());
-    }
+    // Converted: `rc2k_core::net::inbox` (`next_sequence`, `outgoing`: a message too long
+    // refused before anything is written).
     unsafe {
         let seq = v.sequence as *mut u8;
-        let byte = seq.read_volatile().wrapping_add(1) | 0x80;
+        let byte = inbox::next_sequence(seq.read_volatile());
+        let bytes = std::slice::from_raw_parts(r.ebx as *const u8, count as usize);
+        let message = inbox::outgoing(byte, bytes)?;
         seq.write_volatile(byte);
-        let out = v.buffer as *mut u8;
-        out.write_volatile(byte);
-        std::ptr::copy(r.ebx as *const u8, out.add(1), count as usize);
+        std::ptr::copy(message.as_ptr(), v.buffer as *mut u8, message.len());
         r.eax = (v.to as *const u32).read_volatile();
     }
     let (esi, edi) = (r.esi, r.edi);
@@ -89,78 +77,8 @@ pub fn send_message(r: &mut Regs, part: Part) -> Result<(), Refused> {
     send_message_with(r, &Vars::game(), part)
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_net(&HOOK, r, call_original, send_message);
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let mut mem = vec![0u8; 0x110];
-    let base = mem.as_mut_ptr() as u32;
-    let v = Vars {
-        sequence: base,
-        to: base + 4,
-        buffer: base + 0x10,
-    };
-    // push esi; push edi; mov al, byte_52A915
-    let entry = [0x56, 0x57, 0xA0, 0x15, 0xA9, 0x52, 0x00];
-    let copy = match copy_with(
-        0x41736D,
-        0x33,
-        &entry,
-        &[0x2B],
-        &[SEND],
-        &[],
-        &[
-            (SEQUENCE, 1, v.sequence),
-            (BUFFER, 0x100, v.buffer),
-            (TO, 4, v.to),
-        ],
-        4,
-    ) {
-        Ok(c) => c,
-        Err(why) => return t.skip(&why),
-    };
-    let source: Vec<u8> = (0..0x100u32).map(|n| (n * 7 + 3) as u8).collect();
-    let all = [(base, 0x110usize)];
-    for count in [0u32, 1, 0x40, 0xFF] {
-        for seq in [0u8, 0x7E, 0x7F, 0xFE, 0xFF] {
-            let fill = || unsafe {
-                let m = base as *mut u8;
-                for n in 0..0x110 {
-                    m.add(n).write_volatile(0xAA);
-                }
-                m.write_volatile(seq);
-                (v.to as *mut u32).write_volatile(0xFFFF_FFF0 + count);
-            };
-            let entry = Regs {
-                ebx: source.as_ptr() as u32,
-                ecx: count,
-                ..Regs::SENTINEL
-            };
-            compare(
-                &mut t,
-                &format!("count {count:#x}, sequence {seq:#x}"),
-                &copy,
-                entry,
-                &fill,
-                &all,
-                &|r, part| send_message_with(r, &v, part),
-                false,
-            );
-        }
-    }
-    let mut r = Regs {
-        ebx: source.as_ptr() as u32,
-        ecx: 0x100,
-        ..Regs::SENTINEL
-    };
-    t.check(
-        send_message_with(&mut r, &v, &mut crate::sound::turn_parts::test_part).is_err(),
-        || "0x100 bytes were not refused".into(),
-    );
-    let _ = &mut mem;
-    t.finish()
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    net_entry(r, send_message)
 }

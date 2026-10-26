@@ -6,14 +6,17 @@
 //!
 //! See `race/sound_tables.rs`. One caller, `race::prepare_sound_tables`. A call in its
 //! first bytes: private copy, its five calls relocated, manual patch. Shadow mode: the
-//! Rust version, the row put back, the original's, compared. Self-test: rows of whole
+//! Rust version (`sound_row_plain`), the row put back, the original's, compared (the
+//! spans within `FLOAT`). Self-test, at the test precisions: rows of whole
 //! numbers and floats, eight ways.
 
 use crate::errors::Refused;
 use crate::framework::{EAX, EBX, RawHook, Regs, SelfTest, hook_asm, rva};
-use crate::race::sound_tables::sound_row;
+use crate::race::sound_tables::sound_row_plain;
 use crate::screens::harness::Left;
-use crate::service::harness::{check_state, dispatch_state};
+use crate::service::floats::{
+    FLOAT, Floats, at_test_precisions, check_state_floats, dispatch_state_floats, floats_entry,
+};
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -32,12 +35,22 @@ hook_asm!(
 );
 
 fn rust(r: &Regs) -> Result<Left, Refused> {
-    let g = unsafe { sound_row(r) };
+    let g = unsafe { sound_row_plain(r) };
     Ok(Left::nothing().with(EAX, g.eax).with(EBX, g.ebx))
 }
 
 extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_state(&HOOK, r, call_original, &[(r.edx, 0x28)], &rust);
+    let floats = Floats {
+        memory: &[((r.edx + 0x18, 4), FLOAT), ((r.edx + 0x24, 4), FLOAT)],
+        regs: &[],
+    };
+    dispatch_state_floats(&HOOK, r, call_original, &[(r.edx, 0x28)], &floats, &rust);
+}
+
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    floats_entry(r, &rust)
 }
 
 fn self_test() -> (usize, usize) {
@@ -56,26 +69,34 @@ fn self_test() -> (usize, usize) {
         100,
         0xFF00_0000,
     ];
-    for k in 0..values.len() {
-        check_state(
-            &mut t,
-            &format!("values from {k}"),
-            call_original,
-            Regs {
-                edx: at,
-                ..Regs::SENTINEL
-            },
-            &|| {
-                for n in 0..0x28 / 4 {
-                    unsafe {
-                        ((at + 4 * n as u32) as *mut u32).write(values[(n + k) % values.len()])
-                    };
-                }
-            },
-            &[(at, 0x28)],
-            &rust,
-        );
-    }
+    let tolerant = Floats {
+        memory: &[((at + 0x18, 4), FLOAT), ((at + 0x24, 4), FLOAT)],
+        regs: &[],
+    };
+    at_test_precisions(&tolerant, &mut |word, floats| {
+        for k in 0..values.len() {
+            check_state_floats(
+                &mut t,
+                "race::sound_row",
+                &format!("control word {word:#x}, values from {k}"),
+                call_original,
+                Regs {
+                    edx: at,
+                    ..Regs::SENTINEL
+                },
+                &|| {
+                    for n in 0..0x28 / 4 {
+                        unsafe {
+                            ((at + 4 * n as u32) as *mut u32).write(values[(n + k) % values.len()])
+                        };
+                    }
+                },
+                &[(at, 0x28)],
+                floats,
+                &rust,
+            );
+        }
+    });
     drop(buffer);
     t.finish()
 }

@@ -13,10 +13,11 @@
 use crate::errors::Refused;
 use crate::framework::{RawHook, Regs, SelfTest, game_addr, hook_asm, rva};
 use crate::physics::car_sounds::test_regions;
-use crate::physics::drop_hit_parts::{Tests, g, hit_tests, p, set_hits};
+use crate::physics::drop_hit_parts::{Timers, g, hit_tests, p, set_hits};
 use crate::physics::sound_on_bit::sound_on_bit;
 use crate::screens::harness::Left;
-use crate::service::harness::{Region, capture, check_state, dispatch_state, restore};
+use crate::service::harness::{Region, capture, check_state, dispatch_state, restore, state_entry};
+use rc2k_core::physics::parts::{SOUND_TESTS, has_hit_sounds};
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -31,21 +32,16 @@ hook_asm!(
     original = ORIGINAL
 );
 
-const TESTS: Tests = [
-    (5, 0x71A32C, 1),
-    (9, 0x71A330, 2),
-    (0xE, 0x71A334, 3),
-    (0x19, 0x71A338, 4),
-];
+const TIMERS: Timers = [0x71A32C, 0x71A330, 0x71A334, 0x71A338];
 
-/// The steps on `r`; Some(carry) when it ended on the kind's test.
+/// The steps on `r`.
+// Converted: `rc2k_core::physics::parts::{has_hit_sounds, hit_tests, SOUND_TESTS}`.
 pub fn sound_hit_parts_in(r: &mut Regs) -> Result<(), Refused> {
-    let kind = g(0x719FFC);
-    if kind >= 0x22 || g(0x5C5BD0 + 4 * kind as usize) == 0 {
+    if !has_hit_sounds(g(0x719FFC), |kind| g(0x5C5BD0 + 4 * kind as usize)) {
         r.set_carry(true);
         return Ok(());
     }
-    hit_tests(r, &TESTS, &mut |r| {
+    hit_tests(r, &SOUND_TESTS, &TIMERS, &mut |r| {
         unsafe { sound_on_bit(r.ecx & 0xFF) }?.apply(r);
         Ok(())
     })
@@ -75,6 +71,12 @@ fn regions() -> Vec<Region> {
 
 extern "C" fn dispatch(r: &mut Regs) {
     dispatch_state(&HOOK, r, call_original, &regions(), &rust);
+}
+
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    state_entry(r, &rust)
 }
 
 fn self_test() -> (usize, usize) {

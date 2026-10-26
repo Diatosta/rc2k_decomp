@@ -15,7 +15,7 @@ use crate::errors::Refused;
 use crate::framework::{EAX, RawHook, Regs, SelfTest, game_read, game_write, hook_asm, rva};
 use crate::race::mud::{TestSurface, has_format, mud_pixel};
 use crate::screens::harness::Left;
-use crate::service::harness::{at, capture, check_state, dispatch_state, restore};
+use crate::service::harness::{at, capture, check_state, dispatch_state, restore, state_entry};
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -34,24 +34,8 @@ pub const HALVINGS_RVA: usize = rva(0x5CEEE0); // dword_5CEEE0
 
 /// The texel's place on the texture, or None when it is skipped (an odd place halved).
 pub fn texel_place(x: u32, y: u32) -> Option<(u32, u32)> {
-    let halvings: u32 = unsafe { game_read(HALVINGS_RVA) };
-    let (mut x, mut y) = (x, y);
-    let times = match halvings {
-        0 => 0,
-        1 => 1,
-        _ => 2,
-    };
-    for _ in 0..times {
-        if x & 1 != 0 {
-            return None;
-        }
-        x >>= 1;
-        if y & 1 != 0 {
-            return None;
-        }
-        y >>= 1;
-    }
-    Some((x, y))
+    // Converted: `rc2k_core::race::mud::texel_place`.
+    rc2k_core::race::mud::texel_place(x, y, unsafe { game_read(HALVINGS_RVA) })
 }
 
 /// The Rust version (see the header): eax as it leaves it.
@@ -68,6 +52,12 @@ fn rust(r: &Regs) -> Result<Left, Refused> {
 
 extern "C" fn dispatch(r: &mut Regs) {
     dispatch_state(&HOOK, r, call_original, &[], &rust);
+}
+
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    state_entry(r, &rust)
 }
 
 /// The places the two texel tests use: even, odd in x or y, past 64 x 48 at each halving.

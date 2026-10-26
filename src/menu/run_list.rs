@@ -11,24 +11,14 @@
 //! Refuses a list without an end in its first 256 entries.
 //! Manual patch with a private copy (0x0F bytes, nothing to relocate): its loop comes back
 //! to the second byte, inside what the patch overwrites.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::BadInput;
-use crate::framework::{RawHook, Regs, SelfTest, call_game, hook_asm, rva, shadow};
-use std::sync::atomic::{AtomicU32, AtomicUsize, Ordering};
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook = RawHook::new("menu::run_list", rva(0x468202), thunk, &ORIGINAL)
-    .private_copy(0x0F)
-    .manual_patch()
-    .self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
+use crate::framework::{Regs, SelfTest};
+use std::sync::atomic::{AtomicU32, Ordering};
 
 const END: u32 = u32::MAX;
 const LIST_LIMIT: u32 = 256;
@@ -39,40 +29,35 @@ const LIST_LIMIT: u32 = 256;
 pub type Call<'a> = &'a mut dyn FnMut(u32, &mut Regs);
 
 pub fn in_game(function: u32, regs: &mut Regs) {
-    unsafe { call_game(regs, function as usize) };
+    crate::menu::table_calls::call_any(function, regs);
 }
 
-unsafe fn entry(at: u32) -> u32 {
+unsafe fn list_entry(at: u32) -> u32 {
     unsafe { (at as *const u32).read_unaligned() }
 }
 
 /// `entry_regs` are the registers at entry.
 pub unsafe fn run_list(list: u32, entry_regs: &Regs, call: Call) -> Result<(), BadInput> {
     unsafe {
-        if !(0..LIST_LIMIT).any(|n| entry(list.wrapping_add(4 * n)) == END) {
+        if !(0..LIST_LIMIT).any(|n| list_entry(list.wrapping_add(4 * n)) == END) {
             return Err(BadInput("a function list without an end"));
         }
         let mut g = *entry_regs;
         g.esi = list;
-        while entry(g.esi) != END {
-            call(entry(g.esi), &mut g);
+        while list_entry(g.esi) != END {
+            call(list_entry(g.esi), &mut g);
             g.esi = g.esi.wrapping_add(4);
         }
     }
     Ok(())
 }
 
-// ---- hook ----
-
-extern "C" fn dispatch(r: &mut Regs) {
-    HOOK.count_call();
+/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     let entry_regs = *r;
-    if shadow() || unsafe { run_list(r.esi, &entry_regs, &mut in_game) }.is_err() {
-        unsafe { call_original(r) };
-    }
+    unsafe { run_list(r.esi, &entry_regs, &mut crate::menu::table_calls::call) }?;
+    Ok(())
 }
-
-// ---- self-test: lists of stand-ins ----
 
 static NOTED: [AtomicU32; 8] = [const { AtomicU32::new(0) }; 8];
 static NOTE_COUNT: AtomicU32 = AtomicU32::new(0);
@@ -143,24 +128,4 @@ pub fn check(
     t.check(outcome.is_ok() && theirs == mine && preserved, || {
         format!("{what}: original {theirs:x?} preserved={preserved}; rust {outcome:?} {mine:x?}")
     });
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    for (n, list) in test_lists().iter().enumerate() {
-        let before = Regs {
-            esi: list.as_ptr() as u32,
-            ..Regs::SENTINEL
-        };
-        check(
-            &mut t,
-            &format!("list {n}"),
-            before,
-            &|r| unsafe { call_original(r) },
-            &|r| unsafe { run_list(r.esi, r, &mut in_game) },
-        );
-    }
-    t.finish()
 }

@@ -58,36 +58,14 @@ pub unsafe fn update(entries: [u32; 4]) -> Result<Left, BadInput> {
         let first_texture: u32 = game_read(FIRST_TEXTURE_RVA);
         game_write(SHOWN_RVA, wanted);
 
-        let mut held: [u32; 4] = game_read(HELD_RVA);
-        for held in &mut held {
-            match wanted.iter().position(|wanted| wanted == held) {
-                Some(place) => wanted[place] = u32::MAX,
-                None => *held = u32::MAX,
-            }
-        }
-        for &wanted in &wanted {
-            if wanted != u32::MAX
-                && let Some(free) = held.iter().position(|&held| held == u32::MAX)
-            {
-                held[free] = wanted;
-            }
-        }
+        // Converted: `rc2k_core::scene::carousel::{keep_held, picture_textures}`.
+        let (wanted, held) = rc2k_core::scene::carousel::keep_held(wanted, game_read(HELD_RVA));
         game_write(WANTED_PICTURES_RVA, wanted);
         game_write(HELD_RVA, held);
-
-        let mut texture = 0;
-        for (place, &picture) in held.iter().enumerate() {
-            texture = (picture << 3).wrapping_add(first_texture);
-            for n in 0..8 {
-                game_write(
-                    WANTED_RVA + (first_slot as usize + place * 8 + n) * 4,
-                    texture,
-                );
-                texture = texture.wrapping_add(1);
-            }
-        }
+        let textures = rc2k_core::scene::carousel::picture_textures(held, first_texture);
+        game_write(WANTED_RVA + first_slot as usize * 4, textures);
         Ok(Left::nothing()
-            .with(EAX, texture)
+            .with(EAX, textures[31].wrapping_add(1))
             .with(EBX, first_slot + 32)
             .with(ECX, 0)
             .with(ESI, 24)

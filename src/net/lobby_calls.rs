@@ -59,14 +59,11 @@ pub fn call(place: u32, r: &mut Regs) -> Result<(), Refused> {
                 let same = crate::system::same_guid::same_guid(r.eax, r.ebx);
                 r.set_zero(same);
             }
-            COPY_PRINTABLE => or_in_game(at, r, |r| {
-                crate::strings::copy_printable::copy_printable(
-                    r.eax as *const u8,
-                    r.ebx as *mut u8,
-                    r.ecx,
-                )?;
-                Ok(())
-            })?,
+            COPY_PRINTABLE => crate::strings::copy_printable::copy_printable(
+                r.eax as *const u8,
+                r.ebx as *mut u8,
+                r.ecx,
+            )?,
             ZERO_MEMORY => or_in_game(at, r, |r| {
                 crate::system::zero_memory::zero_memory(r.ebx as *mut u8, r.ecx)?;
                 r.set_carry(false);
@@ -111,12 +108,11 @@ pub fn call(place: u32, r: &mut Regs) -> Result<(), Refused> {
                 let text = crate::strings::format_u32::format_u32(r.eax, r.ecx as u8);
                 emit(r, &text);
             }
-            TEXT_LENGTH => or_in_game(at, r, |r| {
+            TEXT_LENGTH => {
                 r.ecx = crate::strings::text_length::text_length(r.ebx as *const u8)?;
                 r.set_zero(true);
                 r.set_carry(false);
-                Ok(())
-            })?,
+            }
             DRAW_KEEP => or_in_game(at, r, |r| {
                 let font = r.eax as *mut Font;
                 let mut copy = font.read_unaligned();
@@ -189,14 +185,7 @@ pub fn call(place: u32, r: &mut Regs) -> Result<(), Refused> {
                 r.set_carry(false);
                 Ok(())
             })?,
-            MAYBE_LEXICON => or_in_game(at, r, |r| {
-                *r = crate::strings::maybe_compile_lexicon::maybe_compile_lexicon(r, &mut call)?;
-                Ok(())
-            })?,
-            COMPILE_LEXICON => or_in_game(at, r, |_| {
-                crate::strings::compile_lexicon::compile_lexicon()?;
-                Ok(())
-            })?,
+            MAYBE_LEXICON => crate::strings::maybe_compile_lexicon::maybe_compile_lexicon()?,
             SET_RACE_MODE => crate::race::race_shell::set_race_screen_mode(
                 &{ *r },
                 &mut crate::race::race_shell::game_screen_mode,

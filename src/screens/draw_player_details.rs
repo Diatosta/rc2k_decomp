@@ -25,47 +25,22 @@
 //!
 //! In the draw list at 0x758CBA (the four players' details screens).
 //! Refuses a player past the four, a player without its name, an index past its
-//! string table, and what its parts refuse.
-//! Self-test: the four players, with and without a controller, typing and not, both
-//! blinks, a second view of 5; a menu of the test's; nothing drawn.
+//! string table, and what its parts refuse; since the conversion (2026-10-20) before the
+//! controller's item is switched (the original switches it first).
+//! Hook removed 2026-10-22 (typed tables): the menus and draw lists run its `entry`
+//! (`menu::table_calls`); the registers above are the original's, for reference.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{RawHook, Regs, SelfTest, game_addr, game_read, game_write, hook_asm, rva};
-use crate::gfx::blit_glyph::BlitCall;
-use crate::gfx::blit_marker_pair::sprite_table;
-use crate::menu::disable_item::disable_item;
-use crate::menu::enable_item::enable_item;
+use crate::framework::{RawHook, Regs, SelfTest, game_addr, game_read, game_write, rva};
 use crate::menu::item_at::{CURRENT_MENU_RVA, ITEM_LEN};
 use crate::menu::player::{Player, player_at};
-use crate::screens::draw_menu_item_text::text_unavailable;
-use crate::screens::draw_name_cursor::{BLINK_RVA, FONT, MEASURING_FONT, draw_name_cursor};
+use crate::screens::LINE_BUFFER_RVA;
+use crate::screens::draw_name_cursor::{BLINK_RVA, MEASURING_FONT};
 use crate::screens::harness::{Left, check_draw, dispatch_draw};
-use crate::screens::{LINE_BUFFER_RVA, font_at, line_buffer};
 use crate::service::harness::{Region, at, capture, restore};
-use crate::strings::format_u32::format_u32;
 use crate::strings::text_from_ids::{TEXT_LEN, text};
-use crate::text::draw_string_by_id::draw_string_by_id_at;
-use crate::text::draw_text::{Canvas, draw_text_at};
-use crate::text::measure_string_by_id::measure_string_by_id_at;
+use crate::text::draw_text::Canvas;
 use std::cell::RefCell;
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook = RawHook::new(
-    "screens::draw_player_details",
-    rva(0x46F894),
-    thunk,
-    &ORIGINAL,
-)
-.self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
 
 // ---- game data ----
 
@@ -112,85 +87,55 @@ fn string(table: usize, index: u32, count: u32) -> Result<u32, Refused> {
 
 pub unsafe fn draw_player_page(layout: Layout, canvas: &mut dyn Canvas) -> Result<(), Refused> {
     unsafe {
-        if game_read::<u32>(CONTROLLERS_RVA) == 0 {
-            disable_item(layout.controller_item)?;
-        } else {
-            enable_item(layout.controller_item)?;
-        }
         let at = player_at(game_read(PLAYER_RVA));
         if at == 0 {
             return Err(BadInput("a player past the four").into());
         }
-        let mut player = (at as *const Player).read_unaligned();
+        let player = (at as *const Player).read_unaligned();
         if player.name == 0 {
             return Err(BadInput("a player without its name").into());
         }
-        let font = font_at(FONT);
-        let x = 0x1BB;
-        let name = draw_text_at(font, player.name as *const u8, x, 0xD4, canvas)?;
-        if game_read::<u32>(TYPING_RVA) != 0 {
-            draw_name_cursor(at, name.x as u32, canvas)?;
-        }
-        let nationality = string(NATIONALITIES_RVA, player.nationality, NATIONALITIES)?;
-        game_write(SECONDS_RVA, nationality);
-        let drawn = draw_string_by_id_at(nationality, font, x, 0xEF, canvas)?;
-        let measured =
-            measure_string_by_id_at(nationality, font_at(MEASURING_FONT), drawn.x, canvas)?;
-        canvas.blit_glyph(BlitCall::new(
-            0x1C + player.nationality,
-            measured.width.wrapping_add(0x1CA) as i32,
-            0xF3,
-            measured.lines,
-            sprite_table(),
-        ))?;
-        let view = string(VIEWS_RVA, player.view, VIEWS)?;
-        game_write(SECONDS_RVA, view);
-        draw_string_by_id_at(view, font, x, 0x10A, canvas)?;
-        // The lines below the views: one lower on a page with the second view.
-        let mut y = 0x125;
-        if layout.second_view {
+        // Converted: `rc2k_core::screens::player_details`; the strings looked up (and refused)
+        // before anything is drawn, the second view of 5 made 0 then.
+        let nationality_id = string(NATIONALITIES_RVA, player.nationality, NATIONALITIES)?;
+        let view_id = string(VIEWS_RVA, player.view, VIEWS)?;
+        let second_view_id = if layout.second_view {
+            let view = if player.second_view == 5 {
+                0
+            } else {
+                player.second_view
+            };
+            let id = string(SECOND_VIEWS_RVA, view, SECOND_VIEWS)?;
             if player.second_view == 5 {
-                player.second_view = 0;
                 let mut written = (at as *const Player).read_unaligned();
                 written.second_view = 0;
                 (at as *mut Player).write_unaligned(written);
             }
-            let second = string(SECOND_VIEWS_RVA, player.second_view, SECOND_VIEWS)?;
-            game_write(SECONDS_RVA, second);
-            draw_string_by_id_at(second, font, x, y, canvas)?;
-            y += 0x1B;
-        }
-        let mut line = format_u32(player.race_number, 0);
-        line.push(0);
-        if line.len() > LINE_LEN {
-            return Err(BadInput("a number longer than the line buffer").into());
-        }
-        std::ptr::copy_nonoverlapping(line.as_ptr(), line_buffer(), line.len());
-        draw_text_at(font, line_buffer(), x, y, canvas)?;
-        let codriver_sex = player.codriver_sex.wrapping_add(0x18A);
-        game_write(KEPT_RVA, codriver_sex);
-        let last = draw_string_by_id_at(codriver_sex, font, x, y + 0x1B, canvas)?;
-        // The blits' palette is ebx as the last text left it.
-        let palette = last.text as u32;
-        let bar = y + 0x36;
-        canvas.blit_glyph(BlitCall::new(4, 0x1BA, bar, palette, sprite_table()))?;
-        let marker = player
-            .controller_sensitivity
-            .wrapping_mul(2)
-            .wrapping_add(0x1BA);
-        game_write(KEPT_RVA, marker);
-        canvas.blit_glyph(BlitCall::new(
-            6,
-            marker as i32,
-            bar,
-            palette,
-            sprite_table(),
-        ))?;
+            Some(id)
+        } else {
+            None
+        };
+        let details = rc2k_core::screens::player_details::Details {
+            controller_item: layout.controller_item,
+            controllers: game_read::<u32>(CONTROLLERS_RVA) != 0,
+            name: player.name,
+            typing: game_read::<u32>(TYPING_RVA) != 0,
+            blink: game_read(crate::screens::draw_name_cursor::BLINK_RVA),
+            nationality: player.nationality,
+            nationality_id,
+            view_id,
+            second_view_id,
+            race_number: player.race_number,
+            codriver_sex: player.codriver_sex,
+            sensitivity: player.controller_sensitivity,
+        };
+        rc2k_core::screens::player_details::player_details(
+            &mut crate::screens::game_screen::DetailsScreen::new(canvas),
+            &details,
+        )?;
     }
     Ok(())
 }
-
-// ---- hook ----
 
 fn left_behind(layout: Layout) -> Vec<Region> {
     let menu: u32 = unsafe { game_read(CURRENT_MENU_RVA) };
@@ -235,11 +180,19 @@ pub fn dispatch_page(
     );
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_page(&HOOK, r, call_original, FULL);
+/// `dispatch_page` without its hook (typed tables).
+pub fn page_entry(name: &str, r: &mut Regs, layout: Layout) -> Result<(), Refused> {
+    crate::screens::harness::draw_entry(name, r, &|_, canvas| {
+        unsafe { draw_player_page(layout, canvas) }?;
+        Ok(Left::nothing())
+    })
 }
 
-// ---- self-test ----
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    page_entry("screens::draw_player_details", r, FULL)
+}
 
 /// A players' page hook's self-test: the four players under four settings each.
 pub fn check_page(
@@ -308,15 +261,4 @@ pub fn check_page(
     restore(&players, &saved.1);
     restore(&left_behind(layout), &saved.2);
     restore(&font, &saved.3);
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    if let Some(why) = text_unavailable() {
-        return t.skip(why);
-    }
-    check_page(&mut t, call_original, FULL);
-    t.finish()
 }

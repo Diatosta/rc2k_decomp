@@ -7,62 +7,28 @@
 //! that one blit, and put back after it.
 //! In 15 lists of screens (the setup and saved game lists, the service area set the
 //! switch). What the band covers has not been seen: the name is a reading.
+//! Hook removed 2026-10-22 (typed tables): the menus and draw lists run its `entry`
+//! (`menu::table_calls`); the registers above are the original's, for reference.
 
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, SelfTest, game_read, game_write, hook_asm, rva};
-use crate::gfx::blit_glyph::BlitCall;
-use crate::gfx::blit_marker_pair::sprite_table;
-use crate::gfx::surface::{CLIP_BOTTOM_RVA, CLIP_TOP_RVA};
-use crate::screens::harness::{Left, check_draw, dispatch_draw, drawing_unavailable};
-use crate::service::harness::{at, capture, restore};
+use crate::framework::{Regs, game_read, rva};
+use crate::screens::harness::{Left, draw_entry};
 use crate::text::draw_text::Canvas;
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook = RawHook::new(
-    "screens::draw_background_band",
-    rva(0x4698C4),
-    thunk,
-    &ORIGINAL,
-)
-.self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
 
 // ---- game data ----
 
 const SWITCH_RVA: usize = rva(0x7554E4); // dword_7554E4
-const BACKGROUND: u32 = 0xA0;
-const TOP: u32 = 0xCB;
-const BOTTOM: u32 = 0x1C6;
 
 // ---- Rust version ----
 
 pub unsafe fn draw_background_band(palette: u32, canvas: &mut dyn Canvas) -> Result<(), Refused> {
-    unsafe {
-        if game_read::<u32>(SWITCH_RVA) != 1 {
-            return Ok(());
-        }
-        let (top, bottom): (u32, u32) = (game_read(CLIP_TOP_RVA), game_read(CLIP_BOTTOM_RVA));
-        game_write(CLIP_TOP_RVA, TOP);
-        game_write(CLIP_BOTTOM_RVA, BOTTOM);
-        let drawn = canvas.blit_glyph(BlitCall::new(BACKGROUND, 0, 0, palette, sprite_table()));
-        game_write(CLIP_BOTTOM_RVA, bottom);
-        game_write(CLIP_TOP_RVA, top);
-        Ok(drawn?)
-    }
-}
-
-// ---- hook ----
-
-fn state() -> Vec<u8> {
-    capture(&[at(CLIP_TOP_RVA), at(CLIP_BOTTOM_RVA)])
+    // Converted: `rc2k_core::screens::controller_page::background_band`.
+    use rc2k_core::screens::controller_page::{Font, Work, background_band};
+    background_band(
+        &mut crate::screens::game_screen::GameScreen::<Font, Work>::new(canvas),
+        unsafe { game_read::<u32>(SWITCH_RVA) } == 1,
+        palette,
+    )
 }
 
 fn rust(r: &Regs, canvas: &mut dyn Canvas) -> Result<Left, Refused> {
@@ -70,35 +36,8 @@ fn rust(r: &Regs, canvas: &mut dyn Canvas) -> Result<Left, Refused> {
     Ok(Left::nothing())
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_draw(&HOOK, r, call_original, &rust, &state);
-}
-
-// ---- self-test ----
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    if let Some(why) = drawing_unavailable() {
-        return t.skip(why);
-    }
-    if sprite_table() == 0 {
-        return t.skip("the sprites are not built");
-    }
-    let switch = [at(SWITCH_RVA)];
-    let saved = capture(&switch);
-    for value in [0u32, 1, 2, 0xFFFF_FFFF] {
-        check_draw(
-            &mut t,
-            &format!("switch {value:#x}"),
-            call_original,
-            Regs::SENTINEL,
-            &|| unsafe { game_write(SWITCH_RVA, value) },
-            &rust,
-            &state,
-        );
-    }
-    restore(&switch, &saved);
-    t.finish()
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    draw_entry("screens::draw_background_band", r, &rust)
 }

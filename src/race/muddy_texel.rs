@@ -26,7 +26,9 @@ use crate::race::put_mud_texel::put_mud_texel;
 use crate::race::stage_prefs::left_of;
 use crate::race::tint_to_mud_colour::tint_to_mud_colour;
 use crate::screens::harness::Left;
-use crate::service::harness::{Region, at, capture, check_state, dispatch_state, restore};
+use crate::service::harness::{
+    Region, at, capture, check_state, dispatch_state, restore, state_entry,
+};
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -44,19 +46,18 @@ hook_asm!(
 pub const TEXTURE_RVA: usize = rva(0x623D5C); // dword_623D5C: the mud texture worked on
 pub const STRENGTH_RVA: usize = rva(0x62400C); // dword_62400C, a scratch
 pub const SHUFFLED_RVA: usize = rva(0xA6BB54); // g_shuffledWords, 0x10000 words
-pub const MAP_BYTES: u32 = 0x4000; // one texture's 128 x 128 map
 const FORMAT_RVA: usize = rva(0x4F49B8); // g_surface.format
 
 /// The place (x, y) of number `n` (its low 16 bits).
 pub fn shuffled_place(n: u32) -> (u32, u32) {
     let word: u16 = unsafe { game_read(SHUFFLED_RVA + 2 * (n & 0xFFFF) as usize) };
-    (u32::from(word & 0xFF), u32::from(word >> 8))
+    rc2k_core::race::mud::shuffled_place(word)
 }
 
 /// The texture worked on and the mud, or the refusal.
 pub fn texture_and_mud() -> Result<(u32, u32), Refused> {
     let n: u32 = unsafe { game_read(TEXTURE_RVA) };
-    if n > 3 {
+    if n > rc2k_core::race::mud::MOST_TEXTURE {
         return Err(BadInput("a mud texture past 3 (the map would be read past its end)").into());
     }
     let mud: u32 = unsafe { game_read(MUD_RVA) };
@@ -68,13 +69,14 @@ pub fn texture_and_mud() -> Result<(u32, u32), Refused> {
 
 /// The strength's address for texture `n` at (x, y).
 pub fn strength_at(mud: u32, n: u32, x: u32, y: u32) -> u32 {
-    mud.wrapping_add(n * MAP_BYTES)
-        .wrapping_add(x >> 1)
-        .wrapping_add((y >> 1) << 7)
+    mud.wrapping_add(rc2k_core::race::mud::strength_index(n, x, y))
 }
 
 /// The Rust version (see the header): the registers it leaves.
 pub unsafe fn muddy_texel(entry: &Regs) -> Result<Regs, Refused> {
+    // Converted: `rc2k_core::race::mud::{shuffled_place, strength_index, muddy,
+    // tint_amount}`.
+    use rc2k_core::race::mud::{MUD_TOP, muddy, strength_row, tint_amount};
     let (n, mud) = texture_and_mud()?;
     let (x, y) = shuffled_place(entry.eax);
     let mut r = *entry;
@@ -84,20 +86,20 @@ pub unsafe fn muddy_texel(entry: &Regs) -> Result<Regs, Refused> {
     unsafe { game_write(STRENGTH_RVA, strength) };
     r.ecx = x;
     r.edx = y;
-    let texel = unsafe { mud_texel((y >> 1) << 7, x, y) };
-    if texel & 0x8000_0000 == 0 {
+    let texel = unsafe { mud_texel(strength_row(y), x, y) };
+    if !muddy(texel) {
         r.eax = texel;
         r.ebx = strength;
         return Ok(r);
     }
     let tinted = tint_to_mud_colour(&Regs {
         ebx: texel,
-        ebp: (strength + 1) >> 1,
+        ebp: tint_amount(strength),
         ..r
     });
     r.ebx = tinted.ebx;
     let put = Regs {
-        eax: tinted.eax | 0xFF00_0000,
+        eax: tinted.eax | MUD_TOP,
         ..r
     };
     r.eax = match unsafe { put_mud_texel(&put) } {
@@ -132,6 +134,12 @@ pub fn regions(n: u32) -> Vec<Region> {
 extern "C" fn dispatch(r: &mut Regs) {
     let regions = regions(r.eax);
     dispatch_state(&HOOK, r, call_original, &regions, &rust);
+}
+
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    state_entry(r, &rust)
 }
 
 /// All of `g_surface`'s pixels (pitch x height; nothing without a surface): what a call

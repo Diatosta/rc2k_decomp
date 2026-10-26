@@ -12,28 +12,10 @@
 //! alone. Self-test: the filter each version leaves, read back, the one there before put
 //! back.
 
-use crate::framework::{RawHook, Regs, SelfTest, game_addr, hook_asm, rva, shadow, standalone};
-use std::sync::atomic::AtomicUsize;
+use crate::framework::{Regs, game_addr, rva, standalone};
 use windows_sys::Win32::System::Diagnostics::Debug::{
     LPTOP_LEVEL_EXCEPTION_FILTER, SetUnhandledExceptionFilter,
 };
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook = RawHook::new(
-    "system::set_exception_filter",
-    rva(0x410D4C),
-    thunk,
-    &ORIGINAL,
-)
-.self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
 
 // ---- game data ----
 
@@ -53,50 +35,8 @@ pub fn set_exception_filter() {
     unsafe { SetUnhandledExceptionFilter(game_filter()) };
 }
 
-// ---- hook ----
-
-extern "C" fn dispatch(r: &mut Regs) {
-    HOOK.count_call();
-    if shadow() {
-        unsafe { call_original(r) };
-        return;
-    }
+/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
+pub fn entry(_: &mut Regs) -> Result<(), crate::errors::Refused> {
     set_exception_filter();
-}
-
-// ---- self-test ----
-
-/// The filter set now, left as it is.
-fn current() -> usize {
-    unsafe {
-        let now = SetUnhandledExceptionFilter(None);
-        SetUnhandledExceptionFilter(now);
-        now.map_or(0, |f| f as usize)
-    }
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let before = unsafe { SetUnhandledExceptionFilter(None) };
-    let before_regs = Regs::SENTINEL;
-    let mut ro = before_regs;
-    unsafe { call_original(&mut ro) };
-    let theirs = current();
-    unsafe { SetUnhandledExceptionFilter(None) };
-    set_exception_filter();
-    let mine = current();
-    unsafe { SetUnhandledExceptionFilter(before) };
-    let preserved = ro.preserved_except(&before_regs, 0);
-    t.check(
-        theirs == mine && mine == game_addr(FILTER_RVA) && preserved,
-        || {
-            format!(
-                "original {theirs:#x} preserved={preserved}; rust {mine:#x}; the game's {:#x}",
-                game_addr(FILTER_RVA)
-            )
-        },
-    );
-    t.finish()
+    Ok(())
 }

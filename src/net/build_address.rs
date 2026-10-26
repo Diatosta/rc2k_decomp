@@ -15,31 +15,20 @@
 //! leaves edx); `CreateCompoundAddress` from Rust (`net::dplay`). Shadow mode runs the
 //! original alone. Self-test: a copy whose calls go to stand-ins and whose lobby is a test
 //! object, against the Rust version: each provider, a port or none, each failure.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::field;
-use crate::framework::{RawHook, Regs, SelfTest, ZERO_FLAG, hook_asm, rva};
+use crate::framework::{Regs, ZERO_FLAG};
 use crate::net::dplay::{CREATE_COMPOUND_ADDRESS, call};
 use crate::net::lobby::{
-    ADDRESS, ADDRESS_SIZE, ALLOCATE, ELEMENT_TABLE, ELEMENTS, FLAGS, HOST_ADDRESS, LOBBY,
-    LOBBY_METHOD, LOG_L2_NL, NET_MEMORY, PORT, POSTING, Part, SAME_GUID, Saved, TEXT_LENGTH,
-    TestObject, a, answer, cmp_flags, com_answer, dispatch_lobby, dword, g, log_text, p, region,
-    run_both, test_eax,
+    ADDRESS, ADDRESS_SIZE, ALLOCATE, ELEMENT_TABLE, ELEMENTS, HOST_ADDRESS, LOBBY, LOG_L2_NL,
+    NET_MEMORY, PORT, POSTING, Part, SAME_GUID, TEXT_LENGTH, a, cmp_flags, g, lobby_entry,
+    log_text, p, test_eax,
 };
-use crate::net::types::NetConnection;
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("net::build_address", rva(0x41882C), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
+use rc2k_core::net::address::{self, Provider};
 
 const TEXT: usize = 0x5C2EBD; // "NET: DPCA"
 const CONNECTION_ENTRY: u32 = 0x418530; // net::connection_entry
@@ -49,7 +38,6 @@ pub const TCPIP: usize = 0x5AB360; // DPSPGUID_TCPIP
 const SERVICE_PROVIDER: usize = 0x5AB3A0; // DPAID_ServiceProvider
 const INET: usize = 0x5AB3E0; // DPAID_INet
 const INET_PORT: usize = 0x5AB3F0; // DPAID_INetPort
-const BUFFER_TOO_SMALL: u32 = 0x8877_001E;
 
 /// The Rust version: the registers it leaves (the entry's, the flags).
 pub fn build_address(entry: &Regs, part: Part) -> Result<Regs, Refused> {
@@ -70,38 +58,43 @@ pub fn build_address(entry: &Regs, part: Part) -> Result<Regs, Refused> {
     p(ADDRESS_SIZE, 0);
     p(POSTING, 0);
     r.eax = r.eax.wrapping_add(0x40);
-    r.ebx = a(IPX);
-    part(SAME_GUID, &mut r)?;
+    // Converted: `rc2k_core::net::address` (`provider`, the elements' sizes, `has_port`,
+    // `posts`, `address::BUFFER_TOO_SMALL`).
     let element = |r: &mut Regs, kind: usize, size: u32, part: Part| -> Result<(), Refused> {
         r.eax = a(kind);
         r.ecx = size;
         part(ADD_ELEMENT, r)
     };
-    if r.eflags & ZERO_FLAG != 0 {
-        element(&mut r, SERVICE_PROVIDER, 0x10, part)?;
-    } else {
-        r.ebx = a(TCPIP);
+    let provider = address::provider(|which| -> Result<bool, Refused> {
+        r.ebx = a(if which == Provider::Ipx { IPX } else { TCPIP });
         part(SAME_GUID, &mut r)?;
-        if r.eflags & ZERO_FLAG != 0 {
-            element(&mut r, SERVICE_PROVIDER, 0x10, part)?;
+        Ok(r.eflags & ZERO_FLAG != 0)
+    })?;
+    match provider {
+        Provider::Ipx => element(&mut r, SERVICE_PROVIDER, address::PROVIDER_SIZE, part)?,
+        Provider::TcpIp => {
+            element(&mut r, SERVICE_PROVIDER, address::PROVIDER_SIZE, part)?;
             r.eax = a(INET);
             r.ebx = a(HOST_ADDRESS);
             part(TEXT_LENGTH, &mut r)?;
-            r.ecx = r.ecx.wrapping_add(1);
+            r.ecx = address::host_address_size(r.ecx);
             part(ADD_ELEMENT, &mut r)?;
-            if g(PORT) != 0 {
+            if address::has_port(g(PORT)) {
                 r.eax = a(INET_PORT);
                 r.ebx = a(PORT);
-                r.ecx = 2;
+                r.ecx = address::PORT_SIZE;
                 part(ADD_ELEMENT, &mut r)?;
             }
-        } else {
+        }
+        Provider::Other => {
             r.ebx = r.eax;
-            r.ecx = 0x10;
+            r.ecx = address::PROVIDER_SIZE;
             r.eax = a(SERVICE_PROVIDER);
             part(ADD_ELEMENT, &mut r)?;
-            p(POSTING, 1);
         }
+    }
+    if address::posts(provider) {
+        p(POSTING, 1);
     }
     let make = |at: u32| unsafe {
         call(
@@ -112,8 +105,8 @@ pub fn build_address(entry: &Regs, part: Part) -> Result<Regs, Refused> {
     };
     r.eax = make(0);
     let v = r.eax;
-    cmp_flags(&mut r, v, BUFFER_TOO_SMALL);
-    if r.eax != BUFFER_TOO_SMALL {
+    cmp_flags(&mut r, v, address::BUFFER_TOO_SMALL);
+    if r.eax != address::BUFFER_TOO_SMALL {
         r.set_carry(true);
         return Ok(left(&r));
     }
@@ -133,143 +126,8 @@ pub fn build_address(entry: &Regs, part: Part) -> Result<Regs, Refused> {
     Ok(left(&r))
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_lobby(&HOOK, r, call_original, build_address);
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let places = [
-        LOG_L2_NL,
-        CONNECTION_ENTRY,
-        SAME_GUID,
-        ADD_ELEMENT,
-        TEXT_LENGTH,
-        ALLOCATE,
-    ];
-    // pusha; pusha; lea eax, aNetDpca
-    let copy = match crate::net::lobby::copy(
-        0x41882C,
-        0x142,
-        &[0x60, 0x60, 0x8D, 0x05, 0xBD, 0x2E, 0x5C, 0x00],
-        &[
-            0x8, 0x1B, 0x51, 0x63, 0x70, 0x82, 0x93, 0x99, 0xB8, 0xCC, 0x10A,
-        ],
-        &places,
-    ) {
-        Ok(c) => c,
-        Err(why) => return t.skip(why),
-    };
-    let lobby = TestObject::lobby();
-    let lo = lobby.addr();
-    let mut record = vec![0u8; 0x60];
-    let rec = record.as_mut_ptr() as u32;
-    let all = [
-        dword(LOBBY),
-        region(PORT, 4),
-        region(ELEMENTS, 0xC),
-        dword(POSTING),
-    ];
-    let saved = Saved::new(&all);
-    // (what, a lobby, the provider (0 IPX, 1 TCP/IP, 2 another), the port, what the size
-    // asked gives, the memory given, what the address gives)
-    type Case = (&'static str, bool, u32, u32, u32, bool, u32);
-    let cases: [Case; 9] = [
-        ("no lobby", false, 0, 0, BUFFER_TOO_SMALL, true, 0),
-        ("IPX", true, 0, 0, BUFFER_TOO_SMALL, true, 0),
-        ("TCP/IP", true, 1, 0, BUFFER_TOO_SMALL, true, 0),
-        (
-            "TCP/IP with a port",
-            true,
-            1,
-            2300,
-            BUFFER_TOO_SMALL,
-            true,
-            0,
-        ),
-        ("a modem", true, 2, 0, BUFFER_TOO_SMALL, true, 0),
-        ("the size not asked", true, 0, 0, 0, true, 0),
-        ("no memory", true, 0, 0, BUFFER_TOO_SMALL, false, 0),
-        (
-            "the address fails",
-            true,
-            1,
-            0,
-            BUFFER_TOO_SMALL,
-            true,
-            0x8877_0005,
-        ),
-        ("the size fails", true, 2, 0, 0x8877_0005, true, 0),
-    ];
-    for (what, has_lobby, provider, port, first, given, second) in cases {
-        run_both(
-            &mut t,
-            what,
-            copy.addr(),
-            Regs {
-                eax: 4,
-                ..Regs::SENTINEL
-            },
-            &all,
-            FLAGS,
-            &[],
-            &|| unsafe {
-                p(LOBBY, if has_lobby { lo } else { 0 });
-                p(PORT, port);
-                p(ELEMENTS, 9);
-                p(ADDRESS, 9);
-                p(ADDRESS_SIZE, 9);
-                p(POSTING, 9);
-                for n in 0..0x60u32 {
-                    ((rec + n) as *mut u8).write(n as u8);
-                }
-                match provider {
-                    0 => crate::net::lobby::movsb(
-                        rec + field!(NetConnection, service_provider),
-                        a(IPX),
-                        0x10,
-                    ),
-                    1 => crate::net::lobby::movsb(
-                        rec + field!(NetConnection, service_provider),
-                        a(TCPIP),
-                        0x10,
-                    ),
-                    _ => {}
-                }
-                answer(Box::new(move |place, r| match place {
-                    CONNECTION_ENTRY => r.eax = rec,
-                    SAME_GUID => r.set_zero(crate::system::same_guid::same_guid(r.eax, r.ebx)),
-                    ADD_ELEMENT => {
-                        r.edx = 0x18 * g(ELEMENTS);
-                        p(ELEMENTS, g(ELEMENTS).wrapping_add(1));
-                    }
-                    TEXT_LENGTH => {
-                        r.ecx = 9;
-                        r.set_zero(true);
-                    }
-                    ALLOCATE => {
-                        r.eax = 0x00AD_D000;
-                        r.set_carry(!given);
-                    }
-                    _ => {}
-                }));
-                let mut asks = 0;
-                com_answer(Box::new(move |place, args| {
-                    if place == LOBBY_METHOD | CREATE_COMPOUND_ADDRESS {
-                        asks += 1;
-                        (args[4] as *mut u32).write_unaligned(0x40);
-                        if asks == 1 { first } else { second }
-                    } else {
-                        0
-                    }
-                }));
-            },
-            &build_address,
-        );
-    }
-    drop(saved);
-    let _ = (&mut record, lobby);
-    t.finish()
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    lobby_entry(r, build_address)
 }

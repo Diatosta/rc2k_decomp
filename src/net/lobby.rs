@@ -157,7 +157,6 @@ pub const DRAW_TIME: u32 = 0x402395; // text::draw_time_text
 pub const DRAW_TEXT: u32 = 0x4023D5; // text::draw_text
 pub const ALLOCATE: u32 = 0x4028A7; // memory::allocate
 pub const MAYBE_LEXICON: u32 = 0x403555; // strings::maybe_compile_lexicon
-pub const COMPILE_LEXICON: u32 = 0x40356E; // strings::compile_lexicon
 pub const SET_MENU_MODE: u32 = 0x404823; // gfx::set_menu_screen_mode
 pub const SET_RACE_MODE: u32 = 0x404830; // race::set_race_screen_mode
 pub const SHOW_FRAME: u32 = 0x4057D1; // gfx::show_frame
@@ -267,12 +266,9 @@ pub const fn fatal(code: u32) -> crate::errors::FatalError {
     crate::errors::FatalError { code, message: "" }
 }
 
-pub const NO_CONNECTION: u32 = 0x80A6_1010; // a connection's number past the list
-pub const NO_CONNECTIONS: u32 = 0x80A6_1011; // the connections' table not taken
-pub const NO_SESSION: u32 = 0x80A6_1030;
-pub const NO_SESSIONS: u32 = 0x80A6_1031;
-pub const NO_CONNECTION_MEMORY: u32 = 0x80E6_8021;
-pub const NO_SESSION_MEMORY: u32 = 0x80E6_8022;
+pub use rc2k_core::net::lists::{NO_CONNECTION, NO_CONNECTIONS, NO_SESSION, NO_SESSIONS};
+pub const NO_CONNECTION_MEMORY: u32 = rc2k_core::net::lists::NO_CONNECTION_MEMORY;
+pub const NO_SESSION_MEMORY: u32 = rc2k_core::net::lists::NO_SESSION_MEMORY;
 pub const CONNECTION_LEN: u32 = std::mem::size_of::<crate::net::types::NetConnection>() as u32;
 pub const SESSION_LEN: u32 = std::mem::size_of::<crate::net::types::NetSession>() as u32;
 
@@ -285,13 +281,9 @@ pub fn record_of(
     len: u32,
     codes: [u32; 2],
 ) -> Result<u32, Refused> {
-    if index >= g(count) {
-        return Err(fatal(codes[0]).into());
-    }
-    if g(table) == 0 {
-        return Err(fatal(codes[1]).into());
-    }
-    Ok(index.wrapping_mul(len).wrapping_add(g(table)))
+    // Converted: `rc2k_core::net::lists::record`.
+    rc2k_core::net::lists::record(index, g(count), || g(table), len, codes)
+        .map_err(|missing| fatal(missing.0).into())
 }
 
 /// A connection's record (`net::connection_entry`).
@@ -342,6 +334,16 @@ pub fn dispatch_lobby(
     }
 }
 
+/// `dispatch_lobby` without its hook (typed tables).
+pub fn lobby_entry(
+    r: &mut Regs,
+    rust: fn(&Regs, Part) -> Result<Regs, Refused>,
+) -> Result<(), Refused> {
+    let left = rust(r, &mut game_part)?;
+    *r = Regs { esp: r.esp, ..left };
+    Ok(())
+}
+
 /// The address of a function or label of the game.
 pub fn game(x: u32) -> u32 {
     game_addr(rva(x as usize)) as u32
@@ -349,7 +351,7 @@ pub fn game(x: u32) -> u32 {
 
 /// A call into the game through its address (the hook's Rust version where there is one).
 pub fn in_game(place: u32, r: &mut Regs) {
-    unsafe { call_game(r, game_addr(rva(place as usize))) }
+    crate::calls::call(rva(place as usize), r)
 }
 
 pub fn not_known(_: u32) -> Refused {
@@ -830,6 +832,44 @@ pub fn dispatch_callback(hook: &RawHook, original: usize, args: &[u32], rust: Ca
     };
     crate::framework::hook_leave();
     eax
+}
+
+/// A callback's Rust version where DirectPlay calls it (no hook; 2026-10-23): shadow mode
+/// runs the game's callback at `ral` (an IDA address); a refused input runs it too (logged
+/// once, as `menu::table_calls` does), a fatal error is raised.
+pub fn callback_entry(name: &str, ral: u32, args: &[u32], rust: Callback) -> u32 {
+    if shadow() {
+        return unsafe { call_stdcall(game(ral) as usize, args) };
+    }
+    crate::framework::hook_enter();
+    let result = rust(args, &mut game_part);
+    crate::framework::hook_leave();
+    match result {
+        Ok(eax) => eax,
+        Err(Refused::BadInput(why)) => {
+            static SEEN: std::sync::Mutex<Vec<(u32, &'static str)>> =
+                std::sync::Mutex::new(Vec::new());
+            let mut seen = SEEN.lock().unwrap();
+            if !seen.contains(&(ral, why.0)) {
+                seen.push((ral, why.0));
+                crate::framework::log(&format!(
+                    "{name}: refused (first time, the game's runs): {}",
+                    why.0
+                ));
+            }
+            drop(seen);
+            unsafe { call_stdcall(game(ral) as usize, args) }
+        }
+        Err(Refused::Fatal(error)) => {
+            crate::framework::log(&format!(
+                "{name}: the Rust version raises fatal error {:#x} {:?}",
+                error.code, error.message
+            ));
+            let r = Regs::default();
+            unsafe { crate::fatal::raise::raise(error, &r) };
+            r.eax
+        }
+    }
 }
 
 /// One case of a callback's test: `prepare`, the copy with `args`; `prepare`, the Rust

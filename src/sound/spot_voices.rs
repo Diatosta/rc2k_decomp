@@ -10,7 +10,7 @@
 //! +0x3C the volume (floats), +0x40 the distance, +0x44 its change, +0x48 and +0x4C the
 //! pitch and volume factors.
 
-use crate::framework::{game_addr, game_read, game_write, rva};
+use crate::framework::{Regs, game_addr, game_read, game_write, rva};
 use crate::service::harness::{Region, at};
 
 /// unk_5168C0.
@@ -77,4 +77,54 @@ pub fn fill_voices(seed: u32, each: &dyn Fn(u32, u32)) {
         }
         each(n, v);
     }
+}
+
+/// The voices as the core's (`rc2k_core::sound::spot_voices`).
+pub fn load_voices() -> [rc2k_core::sound::spot_voices::Voice; VOICE_COUNT as usize] {
+    let words: [[u32; 20]; VOICE_COUNT as usize] = unsafe { game_read(rva(VOICES)) };
+    words.map(rc2k_core::sound::spot_voices::Voice::from_words)
+}
+
+/// The voices stored back.
+pub fn store_voices(voices: &[rc2k_core::sound::spot_voices::Voice; VOICE_COUNT as usize]) {
+    let words = voices.map(|v| v.to_words());
+    unsafe { game_write(rva(VOICES), words) };
+}
+
+/// A voice's address, or 0 for none (the pickers' work holds addresses).
+pub fn voice_or_0(n: Option<usize>) -> u32 {
+    n.map_or(0, |n| voice(n as u32))
+}
+
+/// The pickers' work stored as the original leaves it, and the scratch dword (1000.0,
+/// then the last distance x 1000) when a distance was worked out.
+pub fn store_picks(
+    picks: &rc2k_core::sound::spot_voices::Picks,
+    trail: &rc2k_core::sound::spot_voices::Trail,
+) {
+    p(WORK, voice_or_0(picks.playing));
+    p(WORK + 4, picks.nearest_distance);
+    p(WORK + 8, voice_or_0(picks.nearest));
+    p(WORK + 12, picks.next_distance);
+    p(WORK + 16, voice_or_0(picks.next));
+    if let Some(d) = trail.last_distance {
+        p(crate::sound::turn_parts::SCRATCH, d);
+    }
+}
+
+/// The registers a pick leaves: ebp the sound; ebx / ecx the end of the voices and 0 (or
+/// where a search ended); eax the last distance (else the sound); edx the next pushed
+/// out last (else as it came).
+pub fn pick_regs(entry: &Regs, trail: &rc2k_core::sound::spot_voices::Trail) -> Regs {
+    let mut c = *entry;
+    c.ebp = entry.eax;
+    c.eax = trail.last_distance.unwrap_or(entry.eax);
+    if let Some(out) = trail.pushed_out {
+        c.edx = voice_or_0(out);
+    }
+    match trail.ended_at {
+        Some(n) => (c.ebx, c.ecx) = (voice(n as u32), VOICE_COUNT - n as u32),
+        None => (c.ebx, c.ecx) = (voice(0) + VOICE_COUNT * VOICE_LEN, 0),
+    }
+    c
 }

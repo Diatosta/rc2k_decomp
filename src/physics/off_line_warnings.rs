@@ -21,7 +21,10 @@ use crate::errors::{BadInput, Refused};
 use crate::framework::{RawHook, Regs, SelfTest, game_addr, game_read, game_write, hook_asm, rva};
 use crate::physics::sound_cues::{LISTED, Part, both, copy_of, dispatch_cue};
 use crate::service::harness::{capture, restore};
-use std::cmp::Ordering;
+use rc2k_core::physics::progress::{
+    LAST_CHECKPOINT, OFF_LINE_CUE, TURNED_CUE, Warnings, cue_due, off_line, spread,
+};
+use rc2k_core::physics::x87::below as x87_below;
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -49,52 +52,62 @@ fn p(x: usize, v: u32) {
     unsafe { game_write(rva(x), v) }
 }
 
+/// The counters (IDA addresses: off, turned, their times).
+const COUNTERS: [usize; 4] = [0x71A248, 0x71A24C, 0x71A250, 0x71A254];
+
+fn load() -> Warnings {
+    let [off, turned, off_time, turned_time] = COUNTERS.map(g);
+    Warnings {
+        off,
+        turned,
+        off_time,
+        turned_time,
+    }
+}
+
+fn store(w: &Warnings) {
+    for (x, v) in COUNTERS
+        .iter()
+        .zip([w.off, w.turned, w.off_time, w.turned_time])
+    {
+        p(*x, v);
+    }
+}
+
 /// The steps on `r`.
+// Converted: `rc2k_core::physics::progress::{Warnings, off_line, cue_due}`.
 pub fn off_line_warnings_in(r: &mut Regs, part: Part) -> Result<(), Refused> {
     if g(0x71A080) != 0 || g(0x71A07C) != 0 {
         return Ok(());
     }
     let cp = g(0x71A070);
-    if cp > 0x1418 {
+    if cp > LAST_CHECKPOINT {
         return Err(BadInput("a checkpoint past 0x1418").into());
     }
-    let near = !matches!(
-        f32::from_bits(g(0x614C68)).partial_cmp(&f32::from_bits(g(0x614C6C))),
-        Some(Ordering::Greater | Ordering::Equal)
+    let near = x87_below(
+        f32::from_bits(g(0x614C68)) as f64,
+        f32::from_bits(g(0x614C6C)) as f64,
     );
-    let mut off = true;
-    if near {
-        r.eax = cp.wrapping_sub(g(0x71A06C));
-        if (r.eax as i32) < 0 {
-            r.eax = r.eax.wrapping_neg();
-        }
-        off = (r.eax.wrapping_sub(4) as i32) >= 0;
-    }
-    if off {
-        p(0x71A248, g(0x71A248).wrapping_add(1));
-    } else {
-        p(0x71A248, 0);
-        p(0x71A250, 300);
-    }
+    let mut w = load();
+    w.count_off(off_line(near, || {
+        r.eax = spread(cp, g(0x71A06C));
+        r.eax
+    }));
     r.ecx = cp;
     r.ebx = g(0x9ED808 + 4 * cp as usize);
-    r.eax = g(0x71A998).wrapping_sub(r.ebx);
-    if (r.eax as i32) < 0 {
-        r.eax = r.eax.wrapping_neg();
-    }
-    if r.eax < g(0x614C74) {
-        p(0x71A24C, 0);
-        p(0x71A254, 300);
-    } else {
-        p(0x71A24C, g(0x71A24C).wrapping_add(1));
-    }
+    r.eax = spread(g(0x71A998), r.ebx);
+    w.count_turned(r.eax, g(0x614C74));
+    store(&w);
     if g(0x5BEC94) != 0 {
         return Ok(());
     }
-    for (count, time, cue) in [(0x71A24C, 0x71A254, 0x50), (0x71A248, 0x71A250, 0x52)] {
+    for (count, time, cue) in [
+        (0x71A24C, 0x71A254, TURNED_CUE),
+        (0x71A248, 0x71A250, OFF_LINE_CUE),
+    ] {
         r.eax = g(count);
-        if (r.eax.wrapping_sub(g(time)) as i32) >= 0 {
-            p(time, g(time).wrapping_add(3000));
+        if let Some(next) = cue_due(r.eax, g(time)) {
+            p(time, next);
             r.ebx = cue;
             part(LISTED, r)?;
         }

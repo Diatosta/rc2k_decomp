@@ -18,7 +18,7 @@ use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
 use crate::physics::flow::{a, guard};
 use crate::race::viewer::{
     BLOCKS, CAMERAS, OPEN, PLACES, Saved, TABLE_LEN, UNDO_BLOCKS, UNDO_CAMERAS, UNDO_PLACES,
-    check_original, dispatch_regs, dword, fill, get, move_dwords, put, region,
+    check_original, dispatch_regs, dword, fill, get, put, region, regs_entry, table,
 };
 use crate::service::harness::Region;
 use std::sync::atomic::AtomicUsize;
@@ -37,15 +37,22 @@ hook_asm!(
 
 /// The Rust version: the registers it leaves.
 pub fn undo_edit(entry: &Regs) -> Result<Regs, Refused> {
+    // Converted: `rc2k_core::race::viewer_flow::{undo_count, copy_tables}`.
+    use rc2k_core::race::viewer_flow::{copy_tables, undo_count};
     let mut r = *entry;
-    if get(UNDO_BLOCKS) == 0 {
+    let Some(count) = undo_count(get(UNDO_BLOCKS)) else {
         return Ok(r);
-    }
+    };
     guard(&regions(), || {
-        r.eax = get(UNDO_BLOCKS);
+        r.eax = count;
         put(BLOCKS, r.eax);
-        move_dwords(PLACES, UNDO_PLACES, TABLE_LEN / 4);
-        move_dwords(CAMERAS, UNDO_CAMERAS, TABLE_LEN / 4);
+        let n = TABLE_LEN / 4;
+        unsafe {
+            copy_tables(
+                (table(PLACES, n), table(CAMERAS, n)),
+                (table(UNDO_PLACES, n), table(UNDO_CAMERAS, n)),
+            );
+        }
         r.ecx = 0;
         r.esi = a(UNDO_CAMERAS) + TABLE_LEN as u32;
         r.edi = a(CAMERAS) + TABLE_LEN as u32;
@@ -68,6 +75,12 @@ pub fn regions() -> Vec<Region> {
 
 extern "C" fn dispatch(r: &mut Regs) {
     dispatch_regs(&HOOK, r, call_original, &regions(), 0, &undo_edit);
+}
+
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    regs_entry(r, &undo_edit)
 }
 
 fn self_test() -> (usize, usize) {

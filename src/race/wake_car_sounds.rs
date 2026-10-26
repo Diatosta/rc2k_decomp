@@ -46,6 +46,16 @@ extern "C" fn dispatch(r: &mut Regs) {
     }
 }
 
+/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    {
+        let left = unsafe { wake_car_sounds(r, &mut game_wake_part) }?;
+        r.ebx = left.ebx;
+        r.edi = left.edi;
+    }
+    Ok(())
+}
+
 static CALLED: Mutex<Vec<(u32, u32, u32)>> = Mutex::new(Vec::new());
 
 fn handler(place: u32, r: &mut Regs) {

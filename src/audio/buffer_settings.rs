@@ -17,7 +17,8 @@ pub fn a3d() -> bool {
     unsafe { game_read::<u32>(A3D_RVA) == 1 }
 }
 
-fn volumes(n: i32) -> u32 {
+/// `g_volumeTable`'s entry `n`, for the core.
+pub fn volumes(n: u32) -> u32 {
     unsafe { game_read(VOLUMES_RVA + n as usize * 4) }
 }
 
@@ -33,12 +34,10 @@ pub unsafe fn set_buffer_volume(v: &Voice) -> Result<i32, Refused> {
     if a3d() {
         return Err(BadInput("A3D (`sub_40CEFE`)").into());
     }
-    let level = (v.volume as i32).wrapping_mul(v.volume_factor as i32) >> 6;
-    if !(0..=0x40).contains(&level) {
-        return Err(BadInput("a volume past the volume table").into());
-    }
+    // Converted: `rc2k_core::audio::levels::buffer_volume`.
+    let level = rc2k_core::audio::levels::buffer_volume(v.volume, v.volume_factor, volumes)?;
     let b = buffer(v)?;
-    Ok(unsafe { com::call1(b, SET_VOLUME, volumes(level)) })
+    Ok(unsafe { com::call1(b, SET_VOLUME, level) })
 }
 
 /// `SetPan`, nothing in 3D: a pan below 0 is `g_volumeTable[pan + 0x40]`, else
@@ -50,14 +49,8 @@ pub unsafe fn set_buffer_pan(v: &Voice) -> Result<Option<i32>, Refused> {
     if a3d() {
         return Err(BadInput("A3D (`nullsub_45`)").into());
     }
-    if !(-0x40..=0x40).contains(&v.pan) {
-        return Err(BadInput("a pan past the volume table").into());
-    }
-    let value = if v.pan < 0 {
-        volumes(v.pan + 0x40)
-    } else {
-        volumes(0x40 - v.pan).wrapping_neg()
-    };
+    // Converted: `rc2k_core::audio::levels::pan`.
+    let value = rc2k_core::audio::levels::pan(v.pan, volumes)?;
     let b = buffer(v)?;
     Ok(Some(unsafe { com::call1(b, SET_PAN, value) }))
 }
@@ -68,7 +61,9 @@ pub unsafe fn set_buffer_frequency(v: &Voice) -> Result<i32, Refused> {
         return Err(BadInput("A3D (`sub_40CEC5`)").into());
     }
     let b = buffer(v)?;
-    Ok(unsafe { com::call1(b, SET_FREQUENCY, v.frequency >> (v.format & 0xF)) })
+    // Converted: `rc2k_core::audio::levels::buffer_frequency`.
+    let frequency = rc2k_core::audio::levels::buffer_frequency(v.frequency, v.format);
+    Ok(unsafe { com::call1(b, SET_FREQUENCY, frequency) })
 }
 
 /// The 3D buffer's `SetPosition` with the place, deferred (1) while the voice sounds
@@ -77,7 +72,8 @@ pub unsafe fn set_buffer_place(v: &Voice) -> Result<i32, Refused> {
     if v.buffer_3d == 0 {
         return Err(BadInput("a voice without its 3D buffer").into());
     }
-    let deferred = u32::from(v.state == 2);
+    // Converted: `rc2k_core::audio::buffers::place_deferral`.
+    let deferred = rc2k_core::audio::buffers::place_deferral(v);
     unsafe {
         let f: unsafe extern "system" fn(u32, u32, u32, u32, u32) -> i32 =
             std::mem::transmute(com::method(v.buffer_3d, SET_POSITION));

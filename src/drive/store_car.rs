@@ -12,27 +12,19 @@
 //! Self-test: a copy of the original whose three variables are the test's, against the
 //! Rust core on the same, every slot number's low bits and some high ones; the work copy
 //! and all eight blocks compared.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::drive::car::*;
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, SelfTest, call_game, hook_asm, rva};
+use crate::framework::Regs;
 use crate::screens::harness::Left;
-use crate::service::harness::{Region, capture, dispatch_state};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("drive::store_car", rva(0x460C5D), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
+use crate::service::harness::state_entry;
 
 /// The Rust core on the variables at `p`: what it leaves in the registers.
+// Converted: `rc2k_core::drive::work_car::{car_slot, car_block}`.
 pub unsafe fn store_car_at(p: CarPlaces) -> Result<Left, Refused> {
     unsafe {
         let (slot, block) = p.block()?;
@@ -50,82 +42,8 @@ fn rust(_: &Regs) -> Result<Left, Refused> {
     unsafe { store_car() }
 }
 
-/// What it writes: the current car's block (none when it is null: refused).
-fn regions() -> Vec<Region> {
-    match unsafe { CarPlaces::game().block() } {
-        Ok((_, block)) => vec![(block, CAR_LEN)],
-        Err(_) => Vec::new(),
-    }
-}
-
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_state(&HOOK, r, call_original, &regions(), &rust);
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let cars = TestCars::new();
-    let p = cars.places();
-    let copy = match crate::audio::test_copy::make(
-        &HOOK,
-        &crate::audio::test_copy::Copy {
-            address: 0x460C5D,
-            len: 0x1D,
-            entry: &[0x8D, 0x35, 0xD8, 0x9F, 0x71, 0x00],
-            calls: &[],
-            jumps_out: &[],
-        },
-        &|_| None,
-        &[
-            (0x71B3F8, p.current),
-            (0x71B3B8, p.blocks),
-            (0x719FD8, p.work),
-        ],
-        3,
-    ) {
-        Ok(copy) => copy,
-        Err(why) => return t.skip(&why),
-    };
-    let regions = cars.regions();
-    // The work copy filled with a pattern of its own (`fill` gives it 0xAA).
-    let fill = |seed: u32| {
-        cars.fill(seed);
-        let w = p.work as *mut u8;
-        for k in 0..CAR_LEN {
-            unsafe { w.add(k).write((k as u32).wrapping_mul(seed | 1) as u8) };
-        }
-    };
-    for (n, current) in [0u32, 1, 2, 3, 4, 5, 6, 7, 8, 0xF, 0x8000_0003, u32::MAX]
-        .into_iter()
-        .enumerate()
-    {
-        let seed = n as u32 * 0x51ED_270B + 3;
-        fill(seed);
-        cars.set(current, 0, None);
-        let mut ro = Regs::SENTINEL;
-        unsafe { call_game(&mut ro, copy.addr()) };
-        let theirs = capture(&regions);
-        fill(seed);
-        let mine = unsafe { store_car_at(p) };
-        let state = capture(&regions);
-        let regs_ok = mine.as_ref().is_ok_and(|l| l.matches(&Regs::SENTINEL, &ro));
-        t.check(regs_ok && theirs == state, || {
-            format!(
-                "g_currentCar {current:#x}: regs_ok={regs_ok} {mine:?}; work copy or blocks differ"
-            )
-        });
-    }
-    // A null block is refused, nothing written.
-    let nulled = TestCars::new();
-    let q = nulled.places();
-    nulled.fill(9);
-    nulled.set(0xA, 2, Some(0));
-    let before = capture(&nulled.regions());
-    let refused = unsafe { store_car_at(q) }.is_err();
-    t.check(refused && capture(&nulled.regions()) == before, || {
-        format!("a null block: refused {refused}, or something written")
-    });
-    t.finish()
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    state_entry(r, &rust)
 }

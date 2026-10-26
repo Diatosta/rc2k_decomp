@@ -16,12 +16,13 @@
 //! Self-test: a copy of the original on test tables and records, keys found, missing,
 //! kinds empty and of one or several records.
 
-use crate::errors::{BadInput, Refused};
+use crate::errors::Refused;
 use crate::framework::{
     EAX, EBP, EBX, EDX, ESI, RawHook, Regs, SelfTest, call_game, game_addr, hook_asm, rva,
 };
 use crate::screens::harness::Left;
-use crate::service::harness::dispatch_state;
+use crate::service::harness::{dispatch_state, state_entry};
+use rc2k_core::physics::course_records::{Search, find_record, kind_of};
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -70,40 +71,28 @@ unsafe fn at(a: u32) -> u32 {
 }
 
 /// The Rust core; `r` the registers at entry.
+// Converted: `rc2k_core::physics::course_records::find_record`.
 pub unsafe fn find_course_record_at(p: &RecordPlaces, r: &Regs) -> Result<Left, Refused> {
     unsafe {
         let key = r.eax;
-        let high = ((key >> 11) & 0xF) << 4;
-        let kind = (key & 0xF) + high;
+        let (kind, high) = kind_of(key);
         let first = at(p.firsts + 4 * kind);
         let last = at(p.lasts + 4 * kind);
+        let base = || at(p.records);
+        let record = |n: u32| base().wrapping_add(n << 5);
         let left = |carry: bool| {
             Left::carry(carry)
                 .with(EAX, key)
                 .with(EDX, key)
                 .with(EBP, high)
         };
-        if first == u32::MAX {
-            return Ok(left(true).with(EBX, first));
-        }
-        if last >= p.count || first > last {
-            return Err(BadInput(
-                "a kind's records past g_courseRecordCount, or ending before they begin",
-            )
-            .into());
-        }
-        let base = at(p.records);
-        let mut n = first;
-        loop {
-            let record = base.wrapping_add(n << 5);
-            if at(record) == key {
-                return Ok(left(false).with(EBX, n).with(ESI, record));
-            }
-            n += 1;
-            if n > last {
-                return Ok(left(true).with(EBX, n).with(ESI, record));
-            }
-        }
+        Ok(
+            match find_record(key, first, last, p.count, |n| at(record(n)))? {
+                Search::Empty => left(true).with(EBX, first),
+                Search::Found { number } => left(false).with(EBX, number).with(ESI, record(number)),
+                Search::Missing { next } => left(true).with(EBX, next).with(ESI, record(last)),
+            },
+        )
     }
 }
 
@@ -118,6 +107,12 @@ fn rust(r: &Regs) -> Result<Left, Refused> {
 
 extern "C" fn dispatch(r: &mut Regs) {
     dispatch_state(&HOOK, r, call_original, &[], &rust);
+}
+
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    state_entry(r, &rust)
 }
 
 fn self_test() -> (usize, usize) {

@@ -35,6 +35,16 @@ pub fn sum_times_over(a: u32, b: u32, h: u32, d: u32) -> u32 {
     out
 }
 
+/// The x87's control word now (the precision a call runs at: 0x027F double, 0x037F
+/// extended).
+pub fn control_word() -> u16 {
+    let mut word = 0u16;
+    unsafe {
+        core::arch::asm!("fnstcw word ptr [{o}]", o = in(reg) &raw mut word, options(nostack));
+    }
+    word
+}
+
 /// Runs `f` with the x87's control word set to `word`, then puts the old one back (for
 /// self-tests that try several precisions).
 pub fn with_control_word(word: u16, f: &mut dyn FnMut()) {
@@ -49,9 +59,13 @@ pub fn with_control_word(word: u16, f: &mut dyn FnMut()) {
     }
 }
 
-/// Control words for those tests: single, double and extended precision, all exceptions
-/// masked, rounding to nearest.
-pub const TEST_CONTROL_WORDS: [u16; 3] = [0x007F, 0x027F, 0x037F];
+/// Control words for those tests: double and extended precision (the game's two; it never
+/// runs at single, 2026-10-20), all exceptions masked, rounding to nearest.
+pub const TEST_CONTROL_WORDS: [u16; 2] = [DOUBLE, 0x037F];
+/// Single precision, all exceptions masked.
+pub const SINGLE: u16 = 0x007F;
+/// Double precision: what the game runs at most of the time (2026-10-20, hook.log).
+pub const DOUBLE: u16 = 0x027F;
 
 /// `fild a; fild c; fsubp; fmul f; fild b; fild c; fsubp; fmul g; fild c; faddp; faddp;
 /// fistp`: c + (a - c) f + (b - c) g as a whole number (the sums in that order).
@@ -399,18 +413,6 @@ pub fn times_fist_compare(a: u32, k: u32, z: u32) -> (i32, u16) {
         "fcomp dword ptr [{v} + 8]", "fnstsw word ptr [{s}]";
         v = v.as_ptr(), o = &raw mut out, s = &raw mut status);
     (out, status & 0x4700)
-}
-
-/// `fild n; fild m; fsub one; fsubr st(1), st; fdivp st(1), st; fld hi; fsub lo; fmulp;
-/// fadd lo; fstp`: lo + ((m - 1) - n) / (m - 1) (hi - lo).
-pub fn start_share(n: i32, m: i32, one: u32, hi: u32, lo: u32) -> u32 {
-    let (v, mut out) = ([n as u32, m as u32, one, hi, lo], 0u32);
-    x87!("fild dword ptr [{v}]", "fild dword ptr [{v} + 4]", "fsub dword ptr [{v} + 8]",
-        ".byte 0xDC, 0xE1", ".byte 0xDE, 0xF9", "fld dword ptr [{v} + 12]",
-        "fsub dword ptr [{v} + 16]", ".byte 0xDE, 0xC9", "fadd dword ptr [{v} + 16]",
-        "fstp dword ptr [{o}]";
-        v = v.as_ptr(), o = &raw mut out);
-    out
 }
 
 /// `fld a; fdiv b; fmul c; fmul d; fmul e; fistp`.

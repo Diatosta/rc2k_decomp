@@ -20,7 +20,8 @@ use crate::framework::{
 };
 use crate::physics::listed_car_flags::{CURRENT_CAR, TABLE, set_flag_at, twin_copy};
 use crate::screens::harness::Left;
-use crate::service::harness::{capture, dispatch_state};
+use crate::service::harness::{capture, dispatch_state, state_entry};
+use rc2k_core::physics::start::{CarStart, StartCount};
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -64,25 +65,33 @@ impl CountPlaces {
     }
 }
 
-/// The core.
+/// The Rust version on the variables at `p`.
+// Converted: `rc2k_core::physics::start::CarStart::count_down_start`.
 pub unsafe fn count_down_start_at(p: &CountPlaces) -> Result<Left, Refused> {
     unsafe {
-        if at(p.stop) != 0 {
-            return Ok(Left::nothing());
+        let mut c = CarStart {
+            finished: at(p.stop),
+            timer: at(p.timer),
+            countdown: at(p.count),
+            ..CarStart::default()
+        };
+        match c.count_down_start() {
+            StartCount::Stopped => Ok(Left::nothing()),
+            StartCount::Waiting(eax) => Ok(Left::nothing().with(EAX, eax)),
+            StartCount::Counted {
+                hundreds,
+                rest,
+                beep,
+            } => {
+                (p.count as *mut u32).write_unaligned(c.countdown);
+                let left = if beep {
+                    set_flag_at(p.current, p.listed, p.flag)?
+                } else {
+                    Left::nothing().with(EAX, hundreds)
+                };
+                Ok(left.with(EBX, 100).with(EDX, rest))
+            }
         }
-        let eax = at(p.timer).wrapping_sub(0x320);
-        if (eax as i32) < 0 || at(p.count) == 0 {
-            return Ok(Left::nothing().with(EAX, eax));
-        }
-        let n = at(p.count).wrapping_sub(1);
-        (p.count as *mut u32).write_unaligned(n);
-        let (q, rest) = (n / 100, n % 100);
-        let left = Left::nothing().with(EBX, 100).with(EDX, rest);
-        if q > 8 || rest != 0 {
-            return Ok(left.with(EAX, q));
-        }
-        let entry = set_flag_at(p.current, p.listed, p.flag)?;
-        Ok(entry.with(EBX, 100).with(EDX, rest))
     }
 }
 
@@ -98,6 +107,12 @@ fn rust(_: &Regs) -> Result<Left, Refused> {
 extern "C" fn dispatch(r: &mut Regs) {
     let p = CountPlaces::game();
     dispatch_state(&HOOK, r, call_original, &[(p.count, 4), (p.flag, 4)], &rust);
+}
+
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    state_entry(r, &rust)
 }
 
 fn self_test() -> (usize, usize) {

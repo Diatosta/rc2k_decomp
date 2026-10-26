@@ -5,19 +5,26 @@
 //! Out: esi = the matrix `flt_5EA20C`; everything else preserved
 //!
 //! v = the three floats at `dword_5EA428`, n = the three at `qword_5EA438`:
-//! d = v . n (the third and second products added first); v = v * d, each rounded to a
+//! d = v . n (the first and second products added first, then the third); v = v * d, each rounded to a
 //! float; `dword_62400C` = d; v = v + v - n; then v through the matrix `flt_5EA20C`
 //! (`scene::rotate_point`, inlined) and back to its place. x87, with the original's
 //! instructions; d stays in the x87's own width between its uses.
 //! One caller, `sub_45198C` (the reflection's texture coordinates).
+//!
+//! Converted 2026-10-21: the hook's Rust version is `reflect_vector_plain`, through
+//! `rc2k_core::scene::reflection::reflect` (plain floats; the x87 version stays for the
+//! Rust callers in unconverted code). Shadow mode and the self-test compare within
+//! `service::floats`' tolerances (the self-test at both test precisions, exact at double).
 
 use crate::errors::Refused;
 use crate::framework::{
     ESI, RawHook, Regs, SelfTest, game_addr, game_ptr, game_read, game_write, hook_asm, rva,
 };
 use crate::scene::draw_polygon::CHECKED_RVA;
+use crate::scene::matrix::float_places;
 use crate::screens::harness::Left;
-use crate::service::harness::{Region, at, capture, check_state, dispatch_state, restore};
+use crate::service::floats::*;
+use crate::service::harness::{Region, at, capture, restore};
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -124,6 +131,30 @@ pub unsafe fn reflect_vector() {
     }
 }
 
+/// The converted version (plain floats): the hook's.
+// Converted: `rc2k_core::scene::reflection::reflect`
+pub unsafe fn reflect_vector_plain() {
+    unsafe {
+        let (v, n): ([u32; 3], [u32; 3]) = (game_read(VECTOR_RVA), game_read(NORMAL_RVA));
+        let m = game_addr(MATRIX_RVA) as u32;
+        // The fourth float of each row is not read.
+        let matrix: [f32; 15] = std::array::from_fn(|i| {
+            if i % 4 == 3 {
+                0.0
+            } else {
+                f32::from_bits(((m + 4 * i as u32) as *const u32).read_unaligned())
+            }
+        });
+        let (r, d) = rc2k_core::scene::reflection::reflect(
+            v.map(f32::from_bits),
+            n.map(f32::from_bits),
+            &matrix,
+        );
+        game_write(VECTOR_RVA, r.map(f32::to_bits));
+        game_write(CHECKED_RVA, d.to_bits());
+    }
+}
+
 // ---- hook ----
 
 fn regions() -> [Region; 2] {
@@ -131,12 +162,23 @@ fn regions() -> [Region; 2] {
 }
 
 fn rust(_: &Regs) -> Result<Left, Refused> {
-    unsafe { reflect_vector() };
+    unsafe { reflect_vector_plain() };
     Ok(Left::nothing().with(ESI, game_addr(MATRIX_RVA) as u32))
 }
 
 extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_state(&HOOK, r, call_original, &regions(), &rust);
+    let places = float_places(&regions());
+    let floats = Floats {
+        memory: &places,
+        regs: &[],
+    };
+    dispatch_state_floats(&HOOK, r, call_original, &regions(), &floats, &rust);
+}
+
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    floats_entry(r, &rust)
 }
 
 // ---- self-test ----
@@ -173,24 +215,33 @@ fn self_test() -> (usize, usize) {
         ([-0.123, 0.456, -0.789], [0.987, -0.654, 0.321]),
         ([f32::NAN, 1.0, 1.0], [1.0, 1.0, 1.0]),
     ];
-    for (m, matrix) in matrices.into_iter().enumerate() {
-        for (v, n) in vectors {
-            check_state(
-                &mut t,
-                &format!("matrix {m}, vector {v:?}, normal {n:?}"),
-                call_original,
-                Regs::SENTINEL,
-                &|| unsafe {
-                    game_write(CHECKED_RVA, 0xAAAA_AAAAu32);
-                    game_write(VECTOR_RVA, v.map(f32::to_bits));
-                    game_write(NORMAL_RVA, n.map(f32::to_bits));
-                    game_write(MATRIX_RVA, matrix.map(f32::to_bits));
-                },
-                &regions,
-                &rust,
-            );
+    let tolerant_places = float_places(&regions);
+    let tolerant = Floats {
+        memory: &tolerant_places,
+        regs: &[],
+    };
+    at_test_precisions(&tolerant, &mut |word, held| {
+        for (m, matrix) in matrices.into_iter().enumerate() {
+            for (v, n) in vectors {
+                check_state_floats(
+                    &mut t,
+                    "scene::reflect_vector",
+                    &format!("control word {word:#x}, matrix {m}, vector {v:?}, normal {n:?}"),
+                    call_original,
+                    Regs::SENTINEL,
+                    &|| unsafe {
+                        game_write(CHECKED_RVA, 0xAAAA_AAAAu32);
+                        game_write(VECTOR_RVA, v.map(f32::to_bits));
+                        game_write(NORMAL_RVA, n.map(f32::to_bits));
+                        game_write(MATRIX_RVA, matrix.map(f32::to_bits));
+                    },
+                    &regions,
+                    held,
+                    &rust,
+                );
+            }
         }
-    }
+    });
     restore(&regions, &saved.0);
     restore(&inputs, &saved.1);
     t.finish()

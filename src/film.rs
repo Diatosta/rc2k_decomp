@@ -32,7 +32,7 @@
 //! stretched over it (nearest, as `Blt`). Anything else counts as a film that did not open,
 //! and says so in the log. A callback in ebx is refused (no caller gives one; it would be game code).
 
-use crate::framework::{Regs, call_game, game_addr, game_read, game_write, log, rva};
+use crate::framework::{Regs, game_addr, game_read, game_write, log, rva};
 use std::ffi::{CStr, c_char, c_void};
 use std::sync::atomic::AtomicUsize;
 
@@ -54,8 +54,6 @@ const REPORTS_RVA: usize = rva(0x4F52AC); // dword_4F52AC
 const SURFACE_RVA: usize = rva(0x4F4998); // g_surface
 const FORMAT_RVA: usize = rva(0x4F496C); // g_surfaceFormat
 const TAKE_KEY: usize = rva(0x407F95); // input::take_key
-const RESOLVE_PATH: usize = rva(0x403206); // files::resolve_path
-const FILE_EXISTS: usize = rva(0x402EBE); // files::file_exists
 const PUMP: usize = rva(0x410535); // system::pump_messages
 const LOCK: usize = rva(0x4058AD); // gfx::lock_surface
 const UNLOCK: usize = rva(0x405949); // gfx::unlock_surface
@@ -657,19 +655,24 @@ pub unsafe fn play_film(entry: &Regs) -> bool {
         let reports: u32 = game_read(REPORTS_RVA);
         game_write(REPORTS_RVA, 0u32);
         let mut k = r;
-        call_game(&mut k, game_addr(TAKE_KEY));
+        crate::calls::call(TAKE_KEY, &mut k);
         r.eax = entry.eax;
-        // the open: the path resolved, there
-        call_game(&mut r, game_addr(RESOLVE_PATH));
-        call_game(&mut r, game_addr(FILE_EXISTS));
-        let path = if r.carry() {
-            None
-        } else {
-            Some(
-                CStr::from_ptr(r.eax as *const c_char)
-                    .to_string_lossy()
-                    .into_owned(),
-            )
+        // the open: the path resolved (`files::resolve_path`), there (`files::file_exists`)
+        let found = crate::files::resolve_path::resolve_path_in_game(entry.eax as *const u8)
+            .and_then(|at| Ok((at, crate::files::file_exists::file_exists(at)?)));
+        let path = match found {
+            Ok((at, there)) => {
+                r.eax = at as u32;
+                there.then(|| {
+                    CStr::from_ptr(at as *const c_char)
+                        .to_string_lossy()
+                        .into_owned()
+                })
+            }
+            Err(why) => {
+                log(&format!("gfx::play_film: the path refused: {}", why.0));
+                None
+            }
         };
         let mut eax = entry.eax; // the path: the zero flag clear when it does not open
         if let Some(path) = path {
@@ -768,7 +771,7 @@ unsafe fn run(film: &mut Film, r: &mut Regs) -> u32 {
             let Some(next) = queue.pop_front() else {
                 break;
             };
-            call_game(r, game_addr(PUMP));
+            crate::calls::call(PUMP, r);
             // the frame's time, as the stream's Update waits for it
             let due = film.frame * shown;
             if let Some(wait) = due.checked_sub(start.elapsed()) {
@@ -776,16 +779,16 @@ unsafe fn run(film: &mut Film, r: &mut Regs) -> u32 {
             }
             shown += 1;
             let mut l = *r;
-            call_game(&mut l, game_addr(LOCK));
+            crate::calls::call(LOCK, &mut l);
             if !l.carry() {
                 blit(&next);
-                call_game(&mut l, game_addr(UNLOCK));
+                crate::calls::call(UNLOCK, &mut l);
             }
             last = Some(next);
             let mut s = *r;
-            call_game(&mut s, game_addr(SHOW));
+            crate::calls::call(SHOW, &mut s);
             let mut k = *r;
-            call_game(&mut k, game_addr(TAKE_KEY));
+            crate::calls::call(TAKE_KEY, &mut k);
             if k.eflags & crate::framework::ZERO_FLAG == 0 {
                 drop(sound);
                 return k.eax;

@@ -26,19 +26,22 @@
 //! Caller: `physics::rate_current_car` (0x4AB5D0), its only one.
 //! Self-test: a copy of the original on a `physics::Mirror` of the work copy and
 //! 0x75B340 .. 0x75B6AC (filled from the game's, then the figures, switches and random by
-//! lot), under three precisions.
+//! lot), against the converted version: exact at double precision, the grades within
+//! `FLOAT` at extended.
 
 use crate::errors::Refused;
 use crate::framework::{EAX, ECX, ESI, RawHook, Regs, SelfTest, call_game, hook_asm, rva};
 use crate::math::x87;
-use crate::math::x87_run::{
-    TEST_CONTROL_WORDS, compare_full, ext_times, mul3, one_less_products, ramp, square,
-    with_control_word,
-};
+use crate::math::x87_run::{compare_full, ext_times, mul3, one_less_products, ramp, square};
 use crate::physics::mirror::{Mirror, Spec};
 use crate::scene::matrix3::rounded;
 use crate::screens::harness::Left;
-use crate::service::harness::{Region, capture, dispatch_state};
+use crate::service::floats::{
+    Agreement, FLOAT, Floats, Tolerance, at_test_precisions, compare_memory, dispatch_state_floats,
+    floats_entry,
+};
+use crate::service::harness::{Region, capture};
+use rc2k_core::physics::handling::{At, Figures};
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -122,7 +125,54 @@ pub fn regions(m: &Mirror) -> Vec<Region> {
     r
 }
 
-/// The Rust core on the variables `m` reaches; what it leaves in the registers.
+/// The variables of `rc2k_core::physics::handling` where `m` has them.
+pub struct OnMirror<'a>(pub &'a Mirror);
+
+/// The IDA address of a variable.
+pub fn ida(at: At) -> u32 {
+    match at {
+        At::Car(o) => 0x719FD8 + o,
+        At::Grades(o) => 0x75B340 + o,
+        At::Handling(o) => 0x613E00 + o,
+        At::Scale => 0x5C5E2C,
+    }
+}
+
+impl Figures for OnMirror<'_> {
+    fn get(&self, at: At) -> u32 {
+        unsafe { self.0.get(ida(at)) }
+    }
+    fn put(&mut self, at: At, v: u32) {
+        unsafe { self.0.put(ida(at), v) }
+    }
+}
+
+/// The float places it writes, held to `FLOAT` at extended precision.
+pub fn floats(m: &Mirror) -> Vec<(Region, Tolerance)> {
+    [
+        (0x71A3CC, 0x18),
+        (0x75B43C, 4),
+        (0x75B404, 0x38),
+        (0x75B490, 0x10),
+    ]
+    .iter()
+    .map(|&(v, len)| ((m.a(v), len), FLOAT))
+    .collect()
+}
+
+/// The converted version (`rc2k_core::physics::handling`, plain floats) on the variables
+/// `m` reaches: the hook's.
+// Converted: `rc2k_core::physics::handling::rate_damage`.
+pub fn rate_damage_plain_at(m: &Mirror) -> Left {
+    let bits = rc2k_core::physics::handling::rate_damage(&mut OnMirror(m));
+    Left::nothing()
+        .with(EAX, bits)
+        .with(ECX, rc2k_core::physics::handling::GEARS)
+        .with(ESI, m.a(ida(rc2k_core::physics::handling::LAST_TABLE)))
+}
+
+/// The Rust core on the variables `m` reaches; what it leaves in the registers (the
+/// exact one, for `physics::grade_or_reset` and `physics::rate_current_car`).
 pub unsafe fn rate_damage_at(m: &Mirror) -> Left {
     unsafe {
         let g = |v: u32| m.get(v);
@@ -228,17 +278,29 @@ pub unsafe fn rate_damage_at(m: &Mirror) -> Left {
     }
 }
 
-/// The Rust version.
+/// The Rust version (the exact one, for `physics::rate_current_car`).
 pub unsafe fn rate_damage() -> Left {
     unsafe { rate_damage_at(&Mirror::game()) }
 }
 
 fn rust(_: &Regs) -> Result<Left, Refused> {
-    Ok(unsafe { rate_damage() })
+    Ok(rate_damage_plain_at(&Mirror::game()))
 }
 
 extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_state(&HOOK, r, call_original, &regions(&Mirror::game()), &rust);
+    let m = Mirror::game();
+    let memory = floats(&m);
+    let floats = Floats {
+        memory: &memory,
+        regs: &[],
+    };
+    dispatch_state_floats(&HOOK, r, call_original, &regions(&m), &floats, &rust);
+}
+
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    floats_entry(r, &rust)
 }
 
 /// A case's inputs in the mirror: the figures 0x71A278 .. 0x71A32C (and 0x75B440,
@@ -293,30 +355,34 @@ fn self_test() -> (usize, usize) {
         Err(why) => return t.skip(&why),
     };
     let all = m.regions();
-    for word in TEST_CONTROL_WORDS {
-        with_control_word(word, &mut || {
-            for seed in 1..=10u32 {
-                let saved = capture(&all);
-                fill(&m, seed);
-                let input = capture(&all);
-                let mut ro = Regs::SENTINEL;
-                unsafe { call_game(&mut ro, copy.addr()) };
-                let theirs = capture(&all);
-                crate::service::harness::restore(&all, &input);
-                let left = unsafe { rate_damage_at(&m) };
-                let mine = capture(&all);
-                let regs_ok = left.matches(&Regs::SENTINEL, &ro);
-                t.check(regs_ok && theirs == mine, || {
-                    let first = theirs.iter().zip(&mine).position(|(a, b)| a != b);
-                    format!(
-                        "control word {word:#x}, seed {seed}: regs_ok={regs_ok} (original eax {:#x}), first difference at byte {first:?}",
-                        ro.eax
-                    )
-                });
-                crate::service::harness::restore(&all, &saved);
-            }
-        });
-    }
+    let memory = floats(&m);
+    let tolerant = Floats {
+        memory: &memory,
+        regs: &[],
+    };
+    at_test_precisions(&tolerant, &mut |word, fl| {
+        for seed in 1..=10u32 {
+            let saved = capture(&all);
+            fill(&m, seed);
+            let input = capture(&all);
+            let mut ro = Regs::SENTINEL;
+            unsafe { call_game(&mut ro, copy.addr()) };
+            let theirs = capture(&all);
+            crate::service::harness::restore(&all, &input);
+            let left = rate_damage_plain_at(&m);
+            let mine = capture(&all);
+            let regs_ok = left.matches(&Regs::SENTINEL, &ro);
+            let agreement = compare_memory(&all, &theirs, &mine, fl);
+            t.check(regs_ok && agreement != Agreement::Differ, || {
+                let first = theirs.iter().zip(&mine).position(|(a, b)| a != b);
+                format!(
+                    "control word {word:#x}, seed {seed}: regs_ok={regs_ok} (original eax {:#x}), first difference at byte {first:?}",
+                    ro.eax
+                )
+            });
+            crate::service::harness::restore(&all, &saved);
+        }
+    });
     drop(copy);
     t.finish()
 }

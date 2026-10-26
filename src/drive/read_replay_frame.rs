@@ -15,26 +15,18 @@
 //! Self-test: the original and the Rust version with a test replay file (the temp
 //! folder; `h` and the frame tables pointed at it, saved and put back): not playing,
 //! frames plain and packed, the last frame.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::drive::read_packed::TestFile;
 use crate::errors::{FatalError, Refused};
-use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
+use crate::framework::Regs;
 use crate::physics::flow::{a, g, p};
 use crate::screens::harness::Left;
-use crate::service::harness::{Region, capture, check_state, dispatch_state, restore};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("drive::read_replay_frame", rva(0x41EBAB), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
+use crate::service::harness::{Region, state_entry};
+use rc2k_core::drive::replay_frames::{frame_fault, past_end};
 
 /// `dword_9613A4`: the frame read.
 pub const FRAME: usize = 0x9613A4;
@@ -46,21 +38,10 @@ pub unsafe fn read_replay_frame(frame: u32, tenth: u32) -> Result<bool, Refused>
     if g(0x5BEC88) != 1 {
         return Ok(true);
     }
-    if frame > 0x708 {
-        return Err(FatalError {
-            code: 0x80A6_1151,
-            message: "",
-        }
-        .into());
+    if let Some(code) = frame_fault(frame, tenth) {
+        return Err(FatalError { code, message: "" }.into());
     }
-    if tenth > 0x64 {
-        return Err(FatalError {
-            code: 0x80A6_1152,
-            message: "",
-        }
-        .into());
-    }
-    if frame >= g(0x5BECD0) {
+    if past_end(frame, g(0x5BECD0)) {
         p(0x5BEC90, 1);
         p(0x5C2530, g(0x5BECD0));
         p(0x5C2534, 0);
@@ -93,8 +74,10 @@ pub fn regions() -> Vec<Region> {
     ]
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_state(&HOOK, r, call_original, &regions(), &rust);
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    state_entry(r, &rust)
 }
 
 /// A test replay: two frames, plain and packed, at known places; `h`, the tables, the
@@ -123,44 +106,4 @@ pub fn test_regions() -> Vec<Region> {
         (a(0x5BEC88), 4),
     ]);
     all
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let all = test_regions();
-    let saved = capture(&all);
-    let Some(file) = test_replay() else {
-        restore(&all, &saved);
-        return t.skip("no test file in the temp folder");
-    };
-    for (frame, tenth, playing) in [
-        (0u32, 5u32, 0u32),
-        (0, 5, 1),
-        (1, 0x64, 1),
-        (2, 3, 1),
-        (7, 9, 1),
-    ] {
-        let set = || {
-            p(0x5BEC88, playing);
-            file.rewind();
-        };
-        check_state(
-            &mut t,
-            &format!("frame {frame}, playing {playing}"),
-            call_original,
-            Regs {
-                eax: frame,
-                ebx: tenth,
-                ..Regs::SENTINEL
-            },
-            &set,
-            &regions(),
-            &rust,
-        );
-    }
-    drop(file);
-    restore(&all, &saved);
-    t.finish()
 }

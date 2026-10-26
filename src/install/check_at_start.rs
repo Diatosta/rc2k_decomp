@@ -24,32 +24,12 @@
 //! copy's jump to the fatal stub lands back in the test.
 
 use crate::errors::{BadInput, FatalError, Refused};
-use crate::framework::{
-    RawHook, Regs, SelfTest, call_game, game_addr, game_read, game_write, hook_asm, rva,
-};
-use crate::install::check_test::{self, World};
-use crate::install::outside::{
-    DRIVE_TYPE, FILE_EXISTS, Game, LOG, Outside, READ_REGISTRY, SET_DIRECTORY, Tested,
-};
+use crate::framework::{Regs, game_addr, game_read, game_write, rva};
+use crate::install::outside::{Game, Outside};
 use crate::install::read_registry::{SOURCE_RVA, STATUS_RVA};
 use crate::install::runs_from_source::SCRATCH_PATH_RVA;
-use crate::install::stand_ins::{WENT_FATAL, fatal_landing, stand_in};
-use crate::redirect::RedirectedCopy;
 use crate::screens::harness::Left;
-use crate::service::harness::{Region, at, capture, dispatch_state, restore};
-use std::sync::atomic::{AtomicUsize, Ordering};
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("install::check_at_start", rva(0x416477), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
+use crate::service::harness::{Region, at, state_entry};
 
 // ---- game data ----
 
@@ -159,8 +139,6 @@ pub unsafe fn check_at_start(outside: &mut dyn Outside, no_audio: *mut u32) -> R
     }
 }
 
-// ---- hook ----
-
 fn regions() -> Vec<Region> {
     vec![
         at(RUNNING_FROM_CD_RVA),
@@ -176,171 +154,9 @@ fn rust(_: &Regs) -> Result<Left, Refused> {
     Ok(Left::nothing())
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
+/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     let mut regions = regions();
     regions.push(at(NO_AUDIO_RVA));
-    dispatch_state(&HOOK, r, call_original, &regions, &rust);
-}
-
-// ---- self-test ----
-
-const LEN: usize = 0x17A;
-const ENTRY_BYTES: [u8; 8] = [0x60, 0x83, 0x3D, 0xE0, 0xB9, 0x51, 0x00, 0x01];
-const CALLS: [usize; 20] = [
-    0x14, 0x2F, 0x3A, 0x65, 0x6C, 0x79, 0x7E, 0x89, 0xB3, 0xB8, 0xBD, 0xE1, 0x104, 0x109, 0x114,
-    0x127, 0x12C, 0x137, 0x148, 0x16D,
-];
-/// Where the copy names `g_noAudio`, and the operand of its jump to the fatal stub.
-const NO_AUDIO_OPERAND: usize = 0x21;
-const FATAL_JUMP_OPERAND: usize = 0x174;
-const FILE_EXISTS_RVA: usize = rva(0x402EBE);
-const DRIVE_TYPE_RVA: usize = rva(0x4031D8);
-const SET_DIRECTORY_RVA: usize = rva(0x403105);
-const READ_REGISTRY_RVA: usize = rva(0x413D14);
-/// A status that stands for a registry without the game's key, in the cases below.
-const NO_KEY: u8 = 9;
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    // The call at 0x16D is the log's; which function that is, the original says.
-    let log_rva = unsafe {
-        let at = game_addr(rva(0x416477)) + 0x16D;
-        (at + 5)
-            .wrapping_add(((at + 1) as *const i32).read_unaligned() as usize)
-            .wrapping_sub(game_addr(0))
-    };
-    let copy = unsafe {
-        RedirectedCopy::new(
-            game_addr(rva(0x416477)),
-            LEN,
-            &ENTRY_BYTES,
-            &CALLS,
-            &|callee| match callee {
-                FILE_EXISTS_RVA => Some(stand_in(FILE_EXISTS)),
-                DRIVE_TYPE_RVA => Some(stand_in(DRIVE_TYPE)),
-                SET_DIRECTORY_RVA => Some(stand_in(SET_DIRECTORY)),
-                READ_REGISTRY_RVA => Some(stand_in(READ_REGISTRY)),
-                callee if callee == log_rva => Some(stand_in(LOG)),
-                _ => None,
-            },
-        )
-    };
-    let copy = match copy {
-        Ok(copy) => copy,
-        Err(why) => return t.skip(why),
-    };
-    let mut no_audio = 0u32;
-    unsafe {
-        let named = ((copy.addr() + NO_AUDIO_OPERAND) as *const u32).read_unaligned();
-        if named != game_addr(NO_AUDIO_RVA) as u32 {
-            return t.skip("the original is not what the test was made from");
-        }
-        copy.patch_u32(NO_AUDIO_OPERAND, &mut no_audio as *mut u32 as u32);
-        copy.retarget(FATAL_JUMP_OPERAND, fatal_landing as *const () as usize);
-    }
-
-    let mut regions = regions();
-    regions.push(at(INSTALLING_RVA));
-    let saved = capture(&regions);
-    const RECORD: &[u8] = b"var\\ral.zog";
-    const DATA: &[u8] = b"files\\d\\gfx\\jade.bun";
-    let on_e: Vec<&'static [u8]> = vec![b"e:\\ral.exe", b"e:\\files\\d\\gfx\\jade.bun"];
-    let world =
-        |files: &[&'static [u8]], cd_drives: &'static [u8], directories: &[&'static [u8]]| World {
-            files: files.to_vec(),
-            cd_drives,
-            directories: directories.to_vec(),
-            record_mode: None,
-            registry: None,
-        };
-    // (installing, the registry's status and source, the world)
-    let cases: Vec<(u32, u8, &[u8], World)> = vec![
-        (1, 0, b"", world(&[], b"", &[])),
-        (0, NO_KEY, b"", world(&[], b"", &[])),
-        (0, NO_KEY, b"", world(&on_e, b"e", &[b"e:\\"])),
-        (0, 0x80, b"", world(&on_e, b"e", &[b"e:\\"])),
-        (0, 0, b"", world(&[RECORD], b"", &[])),
-        (0, 0, b"", world(&[DATA], b"", &[])),
-        (0, 0, b"", world(&[], b"", &[])),
-        (0, 0, b"", world(&[], b"dez", &[])),
-        (0, 0, b"", world(&on_e, b"de", &[b"e:\\"])),
-        (0, 0, b"", world(&on_e, b"de", &[])),
-        (0, 0, b"", world(&[b"e:\\ral.exe"], b"e", &[b"e:\\"])),
-        (0, 0, b"", world(&on_e, b"d", &[b"e:\\"])),
-        (0, 1, b"", world(&on_e, b"e", &[b"e:\\"])),
-        (0, 1, b"D:\\Install", world(&on_e, b"e", &[b"e:\\"])),
-        (
-            0,
-            1,
-            b"D:\\Install",
-            world(&[b"d:\\install\\ral.exe"], b"", &[]),
-        ),
-        (
-            0,
-            1,
-            b"D:/Install/",
-            world(
-                &[
-                    b"d:\\install\\ral.exe",
-                    b"z:\\ral.exe",
-                    b"z:\\files\\d\\gfx\\jade.bun",
-                ],
-                b"az",
-                &[b"z:\\"],
-            ),
-        ),
-        (
-            0,
-            2,
-            b"D:\\Install",
-            world(&[b"d:\\install\\ral.exe"], b"e", &[]),
-        ),
-        (0, 1, b"not a path", world(&[b"ral.exe"], b"", &[])),
-    ];
-    for (n, (installing, status, source, mut world)) in cases.into_iter().enumerate() {
-        world.registry = (status != NO_KEY).then(|| (status, source.to_vec()));
-        let before = Regs::SENTINEL;
-        let mut run = |rust: bool| unsafe {
-            restore(&regions, &vec![0xAA; saved.len()]);
-            // The scratch path holds a text, as it does in the game.
-            game_write(SCRATCH_PATH_RVA, 0u8);
-            game_write(INSTALLING_RVA, installing);
-            // What a registry without the key leaves as it was: no installation.
-            game_write(STATUS_RVA, 0u8);
-            game_write(SOURCE_RVA, 0u8);
-            no_audio = 0xAAAA_AAAA;
-            check_test::begin(&world);
-            let ended = if rust {
-                match check_at_start(&mut Tested, &mut no_audio) {
-                    Ok(()) => 0,
-                    Err(Refused::Fatal(_)) => 1,
-                    Err(Refused::BadInput(_)) => 2,
-                }
-            } else {
-                let mut ro = before;
-                call_game(&mut ro, copy.addr());
-                match (
-                    WENT_FATAL.load(Ordering::SeqCst),
-                    ro.preserved_except(&before, 0),
-                ) {
-                    (1, _) => 1,
-                    (_, true) => 0,
-                    _ => 3,
-                }
-            };
-            (ended, check_test::asked(), no_audio, capture(&regions))
-        };
-        let (theirs, mine) = (run(false), run(true));
-        t.check(theirs == mine && theirs.0 < 2, || {
-            let first = theirs.3.iter().zip(&mine.3).position(|(a, b)| a != b);
-            format!(
-                "case {n}: original ended {} no_audio={:#x} asked {:?}; rust ended {} no_audio={:#x} asked {:?}; first different byte {first:?}",
-                theirs.0, theirs.2, theirs.1, mine.0, mine.2, mine.1
-            )
-        });
-    }
-    restore(&regions, &saved);
-    t.finish()
+    state_entry(r, &rust)
 }

@@ -23,7 +23,7 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::framework::{
-    RawHook, Regs, SelfTest, call_game, game_addr, game_read, game_write, hook_asm, rva, shadow,
+    RawHook, Regs, SelfTest, game_addr, game_read, game_write, hook_asm, rva, shadow,
 };
 use crate::marks::setup::SETTINGS_RVA;
 use crate::math::x87;
@@ -300,7 +300,7 @@ pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
                 let left = hexagons_frame::hexagons_frame(r, &mut hexagons_frame::game_part)?;
                 *r = Regs { esp: r.esp, ..left };
             }
-            2 => call_game(r, game_addr(rva(0x41ADB9))),
+            2 => crate::calls::call(rva(0x41ADB9), r),
             3 => {
                 let left = hexagons_step::hexagons_step(r);
                 *r = Regs { esp: r.esp, ..left };
@@ -321,6 +321,13 @@ extern "C" fn dispatch(r: &mut Regs) {
         Ok(left) => *r = Regs { esp: r.esp, ..left },
         Err(e) => unsafe { crate::fatal::raise::refused(&HOOK, e, r, call_original) },
     }
+}
+
+/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    let left = unsafe { hexagons_top(r, &mut game_part) }?;
+    *r = Regs { esp: r.esp, ..left };
+    Ok(())
 }
 
 fn self_test() -> (usize, usize) {

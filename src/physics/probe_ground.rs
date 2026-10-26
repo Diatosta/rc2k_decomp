@@ -46,7 +46,8 @@ use crate::physics::ground_search::test_ground;
 use crate::scene::matrix3::{extended, rounded};
 use crate::scene::rotate_point::rotate_point;
 use crate::screens::harness::Left;
-use crate::service::harness::{Region, capture, dispatch_state, restore};
+use crate::service::harness::{Region, capture, dispatch_state, restore, state_entry};
+use rc2k_core::physics::ground;
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -81,14 +82,9 @@ pub fn regions(g: &Ground) -> Vec<Region> {
     r
 }
 
-/// `lerp` as the original: a + low 32 bits of ((b - a) f) >> 14 (`imul`, `shrd`); also
-/// the product's high dword (edx).
-fn lerp(a: u32, b: u32, f: u32) -> (u32, u32) {
-    let p = i64::from(b.wrapping_sub(a) as i32) * i64::from(f as i32);
-    (((p >> 14) as u32).wrapping_add(a), (p >> 32) as u32)
-}
-
 /// The Rust core; `r` as the original leaves it.
+// Converted: `rc2k_core::physics::ground::{wheel_lifted, noise_cell, bump_noise}` (the
+// turns and the bump's scaling stay x87).
 pub unsafe fn probe_ground_at(g: &Ground, r: &mut Regs) -> Result<(), Refused> {
     unsafe {
         let n = g.get(COUNT);
@@ -119,14 +115,8 @@ unsafe fn probe_points(g: &Ground, r: &mut Regs, n: u32) -> Result<(), Refused> 
             let y = g.get(at(0x71ABC8));
             let y = if b < 4 {
                 g.put(0x62400C, x87::loaded(y));
-                let bits = g.get(0x71A270);
-                r.ecx = b + 5;
-                let add = if bits >> (b + 5) & 1 == 0 {
-                    true
-                } else {
-                    r.ecx = b + 1;
-                    bits >> (b + 1) & 1 == 0
-                };
+                let add;
+                (add, r.ecx) = ground::wheel_lifted(g.get(0x71A270), b);
                 less_plus_less_product_80(
                     g.get(0x71ABE0),
                     g.get(0x614BF4),
@@ -169,37 +159,24 @@ unsafe fn probe_points(g: &Ground, r: &mut Regs, n: u32) -> Result<(), Refused> 
             }
             g.put(at(0x6D2714), 1);
             g.put(at(0x6D2114), g.get(0x639828));
-            let mut esi = (g.get(0x63982C) >> 14) & 0x3F;
-            g.put(0x6D3060, esi);
-            esi <<= 6;
-            let mut ecx = (g.get(0x639824) >> 14) & 0x3F;
-            g.put(0x6D3064, esi);
-            ecx = (ecx + esi) & 0x3F;
-            esi &= 0xFC0;
+            let cell = ground::noise_cell(g.get(0x639824), g.get(0x63982C));
+            g.put(0x6D3060, cell.row);
+            g.put(0x6D3064, cell.row_offset);
+            let esi = cell.below;
             let noise = |i: u32| {
                 u32::from(
                     (crate::framework::game_addr(rva(NOISE as usize) + i as usize) as *const u8)
                         .read(),
                 )
             };
-            let n44 = noise(esi + ecx);
-            ecx = (ecx + 1) & 0x3F;
-            let n48 = noise(esi + ecx);
-            esi = (esi + 0x40) & 0xFC0;
-            let n50 = noise(esi + ecx);
-            ecx = ecx.wrapping_sub(1) & 0x3F;
-            let n4c = noise(esi + ecx);
-            g.put(0x6D3044, n44);
-            g.put(0x6D3048, n48);
-            g.put(0x6D3050, n50);
-            g.put(0x6D304C, n4c);
-            let fx = g.get(0x639824) & 0x3FFF;
-            let (n58, _) = lerp(n4c, n50, fx);
-            g.put(0x6D3058, n58);
-            let (n54, _) = lerp(n44, n48, fx);
-            g.put(0x6D3054, n54);
+            let n = cell.corners.map(noise);
+            for (v, x) in [0x6D3044, 0x6D3048, 0x6D3050, 0x6D304C].into_iter().zip(n) {
+                g.put(v, x);
+            }
+            let (n58, n54, n5c, high) = ground::bump_noise(n, g.get(0x639824), g.get(0x63982C));
             let fz = g.get(0x63982C) & 0x3FFF;
-            let (n5c, high) = lerp(n54, n58, fz);
+            g.put(0x6D3058, n58);
+            g.put(0x6D3054, n54);
             g.put(0x6D305C, n5c);
             g.put(0x62400C, n5c);
             let bump = int_times_times_over_to_int(
@@ -260,6 +237,12 @@ fn rust(r: &Regs) -> Result<Left, Refused> {
 
 extern "C" fn dispatch(r: &mut Regs) {
     dispatch_state(&HOOK, r, call_original, &regions(&Ground::game()), &rust);
+}
+
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    state_entry(r, &rust)
 }
 
 /// The inputs of a probe test case: the test's ground cleared, `count` points, turns,

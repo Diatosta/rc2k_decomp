@@ -7,28 +7,14 @@
 //! (the surface, the 3D scene and the showing are the platform's), through an `Env`
 //! (`menu::plain_frame`). A private copy (a call at +1). Shadow mode runs the original
 //! alone (a frame cannot be shown twice). Self-test: `plain_frame::test_steps`.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
-use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva, shadow};
+use crate::framework::Regs;
 use crate::menu::plain_frame::*;
 use crate::menu::screen_loop::Real;
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook = RawHook::new("menu::picture_frame", rva(0x46F3FA), thunk, &ORIGINAL)
-    .private_copy(0x20)
-    .relocate_calls(&CALLS)
-    .manual_patch()
-    .self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
-
-const CALLS: [usize; 4] = [0x1, 0x8, 0xD, 0x12];
 
 /// The steps (see the header).
 pub const STEPS: [Step; 4] = [
@@ -38,26 +24,9 @@ pub const STEPS: [Step; 4] = [
     (SHOW_FRAME, true),
 ];
 
-extern "C" fn dispatch(r: &mut Regs) {
-    HOOK.count_call();
-    if shadow() {
-        unsafe { call_original(r) };
-        return;
-    }
+/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     let made = unsafe { run_steps(r, &STEPS, &mut Real) };
     r.set_carry(!made);
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    test_steps(
-        t,
-        0x46F3FA,
-        0x20,
-        &[0x60, 0xE8, 0xAD, 0x64, 0xF9, 0xFF],
-        &CALLS,
-        &STEPS,
-    )
+    Ok(())
 }

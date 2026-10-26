@@ -31,33 +31,26 @@
 //! device's record: each controller, one not listed and one not attached, kinds 0 .. 3,
 //! zones of the test's, the configuration's values set or not; the Rust version alone on a
 //! record with a device (the fatal error).
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::{FatalError, Refused};
 use crate::field;
-use crate::framework::{RawHook, Regs, SelfTest, game_addr, hook_asm, rva, shadow};
-use crate::input::devices::{RECORD_LEN, RECORDS, at, put};
+use crate::framework::{Regs, game_addr, rva};
+use crate::input::devices::{at, put};
 use crate::input::di_harness::{
     CONTROLLER_COUNT_RVA, DIRECT_INPUT_RVA, DWORD_PROP_RVA, HWND_RVA, IID_DEVICE2_RVA,
-    JOYSTICK_FORMAT_RVA, NEW_DEVICE2_RVA, RANGE_PROP_RVA, a, compare, entry_of, fatal, g, method,
-    p, regs_text, shared_regions, slot,
+    JOYSTICK_FORMAT_RVA, NEW_DEVICE2_RVA, RANGE_PROP_RVA, a, entry_of, fatal, g, method, p, slot,
 };
 use crate::input::types::{
     Controller as C, DiPropDword as W, DiPropHeader, DiPropRange as R, InputDevice as D,
 };
+use rc2k_core::input::acquire::{
+    Acquire, HAS_DEVICE, acquire, axis_offset, dead_zone_value, saturation, two_axes,
+};
 use std::mem::size_of;
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("input::acquire_device", rva(0x408473), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
 
 const KIND_RVA: usize = rva(0x4F68E0); // dword_4F68E0: the configuration's kind
 const CODE_RVA: usize = rva(0x4F68E4); // dword_4F68E4: its axes' code
@@ -65,7 +58,7 @@ const DEAD_RVA: usize = rva(0x4F68E8); // dword_4F68E8: its dead zone
 const END_RVA: usize = rva(0x4F68EC); // dword_4F68EC: its end zone
 const FLAG_RVA: usize = rva(0x4F68F0); // dword_4F68F0: its +0x1C
 const STRENGTH_RVA: usize = rva(0x4F68F8); // dword_4F68F8: its strength
-const CONFIG: (usize, usize) = (rva(0x4F68DC), 0x20); // dword_4F68DC .. dword_4F68F8
+// dword_4F68DC .. dword_4F68F8
 
 const JOY_RVA: usize = rva(0x4DA580); // aJoy "JOY:"
 const AXMODE_RVA: usize = rva(0x4DA585); // aAxmode "axmode="
@@ -87,36 +80,53 @@ fn log_text(rva: usize) {
 }
 
 fn log_int(v: u32, newline: bool) {
-    unsafe { crate::logfile::log_int::log_int(v as i32, newline, 2) };
+    crate::logfile::log_int::log_int(v as i32, newline, 2);
 }
 
 /// The settings from the configuration, and the log's line.
 fn settings(record: u32, entry: u32) {
+    use rc2k_core::input::acquire::{Config, Settings, settings};
+    // Converted: `rc2k_core::input::acquire::settings`.
     let kind = field!(D, kind);
-    if at(record, kind) == 0 {
-        put(record, kind, 2);
-        if at(entry, field!(C, axes)) > 3 {
-            put(record, kind, 3);
-        }
-    }
-    let configured = g(KIND_RVA) as i32;
-    if configured != 0 && (1..=3).contains(&configured) {
-        put(record, kind, configured as u32);
-    }
-    if (g(CODE_RVA) as i32) >= 0 {
-        put(record, field!(D, axis_code), g(CODE_RVA));
-    }
-    for (from, to) in [
-        (STRENGTH_RVA, field!(D, strength)),
-        (DEAD_RVA, field!(D, dead_zone)),
-        (END_RVA, field!(D, end_zone)),
-    ] {
-        if g(from) <= 100 {
-            put(record, to, g(from));
-        }
-    }
-    if (g(FLAG_RVA) as i32) >= 0 {
-        put(record, field!(D, axis_pick), g(FLAG_RVA));
+    let fields = [
+        kind,
+        field!(D, axis_code),
+        field!(D, strength),
+        field!(D, dead_zone),
+        field!(D, end_zone),
+        field!(D, axis_pick),
+    ];
+    let [k, code, strength, dead, end, pick] = fields.map(|f| at(record, f));
+    let config = Config {
+        kind: g(KIND_RVA),
+        axis_code: g(CODE_RVA),
+        dead_zone: g(DEAD_RVA),
+        end_zone: g(END_RVA),
+        axis_pick: g(FLAG_RVA),
+        strength: g(STRENGTH_RVA),
+    };
+    let s = settings(
+        Settings {
+            kind: k,
+            axis_code: code,
+            strength,
+            dead_zone: dead,
+            end_zone: end,
+            axis_pick: pick,
+        },
+        || at(entry, field!(C, axes)),
+        &config,
+    );
+    let values = [
+        s.kind,
+        s.axis_code,
+        s.strength,
+        s.dead_zone,
+        s.end_zone,
+        s.axis_pick,
+    ];
+    for (f, v) in fields.into_iter().zip(values) {
+        put(record, f, v);
     }
     log_text(JOY_RVA);
     log_int(at(record, field!(D, controller)), false);
@@ -125,7 +135,7 @@ fn settings(record: u32, entry: u32) {
     log_text(AXMODE_RVA);
     log_int(at(record, kind), false);
     log_text(AXCODE_RVA);
-    unsafe { crate::logfile::log_hex8::log_hex8(at(record, field!(D, axis_code)), false, 2) };
+    crate::logfile::log_hex8::log_hex8(at(record, field!(D, axis_code)), false, 2);
     log_text(DZ_RVA);
     log_int(at(record, field!(D, dead_zone)), false);
     log_int(at(record, field!(D, end_zone)), false);
@@ -137,8 +147,7 @@ fn settings(record: u32, entry: u32) {
 /// The axis at offset (the record's axis pick `n` & 7) x 4.
 fn axis(record: u32, n: u32) -> u32 {
     let at = record.wrapping_add(field!(D, axis_pick) + n);
-    let b = unsafe { (at as *const u8).read() } as u32;
-    (b & 7) * 4
+    axis_offset(unsafe { (at as *const u8).read() })
 }
 
 /// The ranges, dead zones and saturation.
@@ -163,7 +172,9 @@ fn properties(record: u32) {
     put(range, field!(R, min), (-256i32) as u32);
     put(range, field!(R, max), 0x100);
     set(DIPROP_RANGE, range);
-    let two_axes = at(record, field!(D, kind)) <= 2;
+    // Converted: `rc2k_core::input::acquire` (`axis_offset`, `two_axes`,
+    // `dead_zone_value`, `saturation`).
+    let two_axes = two_axes(at(record, field!(D, kind)));
     if two_axes {
         put(range, object, axis(record, 0));
         set(DIPROP_RANGE, range);
@@ -186,7 +197,7 @@ fn properties(record: u32) {
     put(
         dword,
         field!(W, data),
-        at(record, field!(D, dead_zone)).wrapping_mul(100),
+        dead_zone_value(at(record, field!(D, dead_zone))),
     );
     set(DIPROP_DEADZONE, dword);
     if two_axes {
@@ -194,27 +205,28 @@ fn properties(record: u32) {
         set(DIPROP_DEADZONE, dword);
     }
     start(None);
-    let rest = 100u32.wrapping_sub(at(record, field!(D, dead_zone)));
-    if (rest as i32) > 0 {
-        let live = rest.wrapping_sub(at(record, field!(D, end_zone)));
-        if (live as i32) > 0 {
-            put(dword, field!(W, data), live.wrapping_mul(10000) / rest);
-            set(DIPROP_SATURATION, dword);
-        }
+    if let Some(data) = saturation(
+        at(record, field!(D, dead_zone)),
+        at(record, field!(D, end_zone)),
+    ) {
+        put(dword, field!(W, data), data);
+        set(DIPROP_SATURATION, dword);
     }
 }
 
 /// The Rust version (see the header).
 pub fn acquire_device(record: u32, part: crate::input::make_effect::Part) -> Result<(), Refused> {
-    if at(record, field!(D, controller)) >= g(CONTROLLER_COUNT_RVA) {
-        return Ok(());
-    }
+    // Converted: `rc2k_core::input::acquire::acquire`.
     let entry = entry_of(record);
-    if at(entry, field!(C, attached)) != 1 {
-        return Ok(());
-    }
-    if at(record, field!(D, device)) != 0 {
-        return Err(fatal(0x8023_831D).into());
+    match acquire(
+        at(record, field!(D, controller)),
+        g(CONTROLLER_COUNT_RVA),
+        || at(entry, field!(C, attached)),
+        || at(record, field!(D, device)),
+    ) {
+        Acquire::Nothing => return Ok(()),
+        Acquire::HasDevice => return Err(fatal(HAS_DEVICE).into()),
+        Acquire::Acquire => {}
     }
     settings(record, entry);
     let hr = method(
@@ -258,132 +270,8 @@ pub fn acquire_device(record: u32, part: crate::input::make_effect::Part) -> Res
     Ok(())
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    HOOK.count_call();
-    if shadow() {
-        unsafe { call_original(r) };
-        return;
-    }
-    if let Err(e) = acquire_device(r.esi, &mut crate::input::make_effect::game_part) {
-        unsafe { crate::fatal::raise::refused(&HOOK, e, r, call_original) };
-    }
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let world = crate::input::di_objects::TestWorld::begin(
-        crate::input::di_objects::test_devices(),
-        Default::default(),
-    );
-    let start =
-        unsafe { std::slice::from_raw_parts(game_addr(RECORDS[0]) as *const u8, RECORD_LEN) }
-            .to_vec();
-    let mut record = start.clone();
-    let rec = record.as_mut_ptr() as u32;
-    let mut regions = shared_regions();
-    regions.push((rec, RECORD_LEN));
-    regions.push((game_addr(CONFIG.0) as u32, CONFIG.1));
-    regions.push((a(NEW_DEVICE2_RVA), 4));
-    let fill = |controller: u32, kind: u32, zones: (u32, u32), config: bool| {
-        let r = rec;
-        let start = &start;
-        move || {
-            p(DIRECT_INPUT_RVA, crate::input::di_objects::create_input());
-            p(CONTROLLER_COUNT_RVA, 0);
-            unsafe { std::ptr::write_bytes(game_addr(CONFIG.0) as *mut u8, 0, CONFIG.1) };
-            crate::input::list_joysticks::list_joysticks();
-            // the second entry not attached: a third "controller" that is listed
-            if controller == 2 {
-                p(CONTROLLER_COUNT_RVA, 3);
-                let third = a(crate::input::di_harness::CONTROLLERS_RVA)
-                    + 2 * crate::input::di_harness::CONTROLLER_LEN;
-                put(third, field!(C, attached), 0);
-            }
-            let values: [(usize, u32); 6] = if config {
-                [
-                    (KIND_RVA, 1),
-                    (CODE_RVA, 0x0102),
-                    (STRENGTH_RVA, 80),
-                    (DEAD_RVA, 10),
-                    (END_RVA, 5),
-                    (FLAG_RVA, 0),
-                ]
-            } else {
-                [
-                    (KIND_RVA, 0),
-                    (CODE_RVA, u32::MAX),
-                    (STRENGTH_RVA, 101),
-                    (DEAD_RVA, 200),
-                    (END_RVA, 101),
-                    (FLAG_RVA, u32::MAX),
-                ]
-            };
-            for (at, v) in values {
-                p(at, v);
-            }
-            unsafe { std::ptr::copy_nonoverlapping(start.as_ptr(), r as *mut u8, RECORD_LEN) };
-            put(r, field!(D, controller), controller);
-            put(r, field!(D, device), 0);
-            put(r, field!(D, kind), kind);
-            put(r, field!(D, strength), 50);
-            put(r, field!(D, dead_zone), zones.0);
-            put(r, field!(D, end_zone), zones.1);
-            put(r, field!(D, axis_code), 0x0103);
-            put(r, field!(D, axis_pick), 0x0204);
-        }
-    };
-    for controller in [0u32, 1, 2, 5] {
-        for kind in 0..=3u32 {
-            for (zones, config) in [
-                ((10, 20), false),
-                ((0, 0), false),
-                ((60, 50), false),
-                ((15, 5), true),
-            ] {
-                let prepare = fill(controller, kind, zones, config);
-                let entry = Regs {
-                    esi: rec,
-                    ..Regs::SENTINEL
-                };
-                compare(
-                    &mut t,
-                    &format!(
-                        "controller {controller}, kind {kind}, zones {zones:?}, configured {config}"
-                    ),
-                    &world,
-                    &regions,
-                    &prepare,
-                    &mut || {
-                        let mut r = entry;
-                        unsafe { call_original(&mut r) };
-                        regs_text(&r)
-                    },
-                    &mut || {
-                        let done = acquire_device(rec, &mut crate::input::make_effect::game_part);
-                        format!(
-                            "{}{}",
-                            regs_text(&entry),
-                            if done.is_ok() { "" } else { " refused" }
-                        )
-                    },
-                );
-            }
-        }
-    }
-    // a record that still has a device: the Rust version alone
-    let saved = crate::service::harness::capture(&regions);
-    world.side();
-    fill(0, 2, (10, 20), false)();
-    put(rec, field!(D, device), 0x1234);
-    let done = acquire_device(rec, &mut crate::input::make_effect::game_part);
-    crate::service::harness::restore(&regions, &saved);
-    world.side();
-    t.check(done == Err(fatal(0x8023_831D).into()), || {
-        format!("a record with a device: rust {done:?}, not fatal error 0x8023831D")
-    });
-    drop(world);
-    drop(record);
-    t.finish()
+/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    acquire_device(r.esi, &mut crate::input::make_effect::game_part)?;
+    Ok(())
 }

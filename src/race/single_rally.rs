@@ -323,7 +323,7 @@ pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
                     &mut crate::race::sound_tables::object_part,
                 )?
             }
-            _ => crate::framework::call_game(r, game_addr(rva(address))),
+            _ => crate::calls::call(rva(address), r),
         }
         Ok(())
     })

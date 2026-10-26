@@ -15,12 +15,13 @@
 //! Self-test: a copy of the original whose twelve references are the test's, counts 0 ..
 //! 0x7C; the refusal.
 
-use crate::errors::{BadInput, Refused};
+use crate::errors::Refused;
 use crate::framework::{
     ECX, EDI, ESI, RawHook, Regs, SelfTest, call_game, game_addr, hook_asm, rva,
 };
 use crate::screens::harness::Left;
-use crate::service::harness::{Region, capture, dispatch_state};
+use crate::service::harness::{Region, capture, dispatch_state, state_entry};
+use rc2k_core::physics::saved_car::{MOST_LISTED, restore_count, restored};
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -39,9 +40,6 @@ hook_asm!(
     dispatch = dispatch,
     original = ORIGINAL
 );
-
-/// The most dwords the list may have: from 0x71ADC8 to the copy's end.
-pub const MOST_LISTED: u32 = (0x71AFB8 - 0x71ADC8) / 4;
 
 /// The variables' addresses: the game's, or a test's.
 #[derive(Clone, Copy)]
@@ -86,29 +84,19 @@ impl SavedCar {
     }
 }
 
-unsafe fn copy_dwords(from: u32, to: u32, n: u32) {
-    for k in 0..n {
-        unsafe {
-            let v = ((from + 4 * k) as *const u32).read_unaligned();
-            ((to + 4 * k) as *mut u32).write_unaligned(v);
-        }
-    }
-}
-
 /// The Rust core on the variables at `p`.
+// Converted: `rc2k_core::physics::saved_car::{restore_count, restored}`.
 pub unsafe fn restore_saved_car_at(p: &SavedCar) -> Result<Left, Refused> {
+    use crate::physics::save_car_state::{read_state, write_state};
     unsafe {
-        let n = SavedCar::at(p.count);
-        if n > MOST_LISTED {
-            return Err(BadInput("a list of more than 0x7C dwords (past the work copy)").into());
-        }
-        let c = SavedCar::at(p.counter).wrapping_add(1);
+        let n = restore_count(SavedCar::at(p.count))?;
+        let c = restored(SavedCar::at(p.counter));
         (p.counter as *mut u32).write_unaligned(c);
-        copy_dwords(p.saved_place, p.place, 3);
-        copy_dwords(p.saved_matrix, p.matrix, 0x10);
-        copy_dwords(p.saved_list, p.list, n);
+        let state = read_state(p.saved_place, p.saved_matrix, p.saved_list, n);
+        write_state(&state, p.place, p.matrix, p.list);
+        let n = n as u32;
         Ok(Left::nothing()
-            .with(crate::framework::EAX, SavedCar::at(p.saved_place + 8))
+            .with(crate::framework::EAX, state.place[2])
             .with(ECX, 0)
             .with(ESI, p.saved_list + 4 * n)
             .with(EDI, p.list + 4 * n))
@@ -128,6 +116,12 @@ extern "C" fn dispatch(r: &mut Regs) {
     let p = SavedCar::game();
     let n = unsafe { SavedCar::at(p.count) };
     dispatch_state(&HOOK, r, call_original, &p.regions(n), &rust);
+}
+
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    state_entry(r, &rust)
 }
 
 fn self_test() -> (usize, usize) {

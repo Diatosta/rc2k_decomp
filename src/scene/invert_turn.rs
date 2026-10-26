@@ -12,13 +12,19 @@
 //! Six callers.
 //! Refuses a null matrix.
 //! Self-test: matrices by lot, the result apart and in the matrix's own place.
+//!
+//! Converted 2026-10-21: the hook's Rust version is `invert_turn_plain`, through
+//! `rc2k_core::scene::matrices::invert_turn` (plain floats; the x87 version stays for the
+//! Rust callers in unconverted code). Shadow mode and the self-test compare within
+//! `service::floats`' tolerances (the self-test at both test precisions, exact at double).
 
 use crate::errors::{BadInput, Refused};
 use crate::framework::{RawHook, Regs, SelfTest, game_addr, hook_asm, rva};
-use crate::scene::matrix::{MATRIX_LEN, test_floats};
+use crate::scene::matrix::{MATRIX_LEN, sum_places, test_floats};
 use crate::scene::view_matrix::{self, INVERTED_LEN, INVERTED_RVA, squaring_regions};
 use crate::screens::harness::Left;
-use crate::service::harness::{Region, capture, check_state, dispatch_state, restore};
+use crate::service::floats::*;
+use crate::service::harness::{Region, capture, restore};
 use std::cell::Cell;
 use std::sync::atomic::AtomicUsize;
 
@@ -40,7 +46,7 @@ fn rust(r: &Regs) -> Result<Left, Refused> {
     if r.esi == 0 || r.edi == 0 {
         return Err(BadInput("a null matrix").into());
     }
-    unsafe { view_matrix::invert_turn(r.esi as usize, r.edi as usize) };
+    unsafe { view_matrix::invert_turn_plain(r.esi as usize, r.edi as usize) };
     Ok(Left::nothing())
 }
 
@@ -56,7 +62,18 @@ extern "C" fn dispatch(r: &mut Regs) {
         regions = work_regions();
         regions.push((r.edi, MATRIX_LEN));
     }
-    dispatch_state(&HOOK, r, call_original, &regions, &rust);
+    let places = sum_places(&regions);
+    let floats = Floats {
+        memory: &places,
+        regs: &[],
+    };
+    dispatch_state_floats(&HOOK, r, call_original, &regions, &floats, &rust);
+}
+
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    floats_entry(r, &rust)
 }
 
 // ---- self-test ----
@@ -72,28 +89,40 @@ fn self_test() -> (usize, usize) {
     let mut regions = game.clone();
     regions.extend([(address(0), MATRIX_LEN), (address(1), MATRIX_LEN)]);
     let mut seed = 0x7B8C_9DAEu32;
-    for case in 0..60 {
-        let floats = [test_floats(&mut seed), test_floats(&mut seed)];
-        let out = case % 2;
-        check_state(
-            &mut t,
-            &format!("case {case}: {:x?}, the result in {out}", floats[0]),
-            call_original,
-            Regs {
-                esi: address(0),
-                edi: address(out),
-                ..Regs::SENTINEL
-            },
-            &|| {
-                restore(&game, &vec![0xAA; saved.len()]);
-                for (cell, floats) in work.iter().zip(floats) {
-                    cell.set(floats);
-                }
-            },
-            &regions,
-            &rust,
-        );
-    }
+    let tolerant_places = sum_places(&regions);
+    let tolerant = Floats {
+        memory: &tolerant_places,
+        regs: &[],
+    };
+    at_test_precisions(&tolerant, &mut |word, held| {
+        for case in 0..60 {
+            let floats = [test_floats(&mut seed), test_floats(&mut seed)];
+            let out = case % 2;
+            check_state_floats(
+                &mut t,
+                "scene::invert_turn",
+                &format!(
+                    "control word {word:#x}, case {case}: {:x?}, the result in {out}",
+                    floats[0]
+                ),
+                call_original,
+                Regs {
+                    esi: address(0),
+                    edi: address(out),
+                    ..Regs::SENTINEL
+                },
+                &|| {
+                    restore(&game, &vec![0xAA; saved.len()]);
+                    for (cell, floats) in work.iter().zip(floats) {
+                        cell.set(floats);
+                    }
+                },
+                &regions,
+                held,
+                &rust,
+            );
+        }
+    });
     restore(&game, &saved);
     t.finish()
 }

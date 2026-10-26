@@ -12,7 +12,7 @@
 //! Caller: `physics::race_timers`.
 //! Refuses (before anything) a split past 0x3F, and what the calls refuse.
 //! Self-test: `physics/splits.rs` (`test_splits`), mode 2.
-use crate::errors::{BadInput, Refused};
+use crate::errors::Refused;
 use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
 use crate::physics::keep_split_time::keep_split_time;
 use crate::physics::set_flag_51659c::set_flag_51659c;
@@ -21,7 +21,10 @@ use crate::physics::splits::{
     CHECKS, COUNT, DONE, FIGURE, SPLIT, SPLITS, g, guarded, p, test_splits, written,
 };
 use crate::screens::harness::Left;
-use crate::service::harness::dispatch_state;
+use crate::service::harness::{dispatch_state, state_entry};
+use rc2k_core::physics::progress::{
+    FINISH_NOTICE, SPLIT_NOTICE, finished_at, split_bonus, split_due,
+};
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -42,16 +45,14 @@ hook_asm!(
 );
 
 /// The steps on `r`.
+// Converted: `rc2k_core::physics::progress::{split_due, finished_at}`.
 pub fn take_split_counted_in(r: &mut Regs) -> Result<(), Refused> {
     if g(0x71B3F8) != 0 {
         return Ok(());
     }
     r.ebx = g(SPLIT);
-    if r.ebx >= g(CHECKS) {
+    if !split_due(r.ebx, g(CHECKS))? {
         return Ok(());
-    }
-    if r.ebx > 0x3F {
-        return Err(BadInput("a split past 0x3F").into());
     }
     unsafe { keep_split_time() }?;
     unsafe { set_flag_51659c() }?.apply(r);
@@ -61,19 +62,19 @@ pub fn take_split_counted_in(r: &mut Regs) -> Result<(), Refused> {
     p(SPLITS + 4 * r.ebx as usize, r.eax);
     r.eax = g(CHECKS);
     if r.eax < g(COUNT) {
-        p(0x71A6F4, 0xC9);
+        p(0x71A6F4, SPLIT_NOTICE);
         p(0x71A708, 0x32);
         p(0x71A704, 300);
         r.ebx = g(SPLIT);
-        r.eax = g(0x601434 + 4 * r.ebx as usize).wrapping_mul(100);
+        r.eax = split_bonus(g(0x601434 + 4 * r.ebx as usize));
         p(0x71A064, g(0x71A064).wrapping_add(r.eax));
     }
     p(0x71A07C, 0);
     r.eax = g(CHECKS);
     p(SPLIT, r.eax);
-    if g(SPLIT) == g(COUNT) {
+    if finished_at(g(SPLIT), g(COUNT)) {
         p(DONE, 1);
-        p(0x71A6F4, 0xC8);
+        p(0x71A6F4, FINISH_NOTICE);
         p(0x71A704, u32::MAX);
         p(0x71A708, 0);
     }
@@ -91,6 +92,12 @@ fn rust(r: &Regs) -> Result<Left, Refused> {
 
 extern "C" fn dispatch(r: &mut Regs) {
     dispatch_state(&HOOK, r, call_original, &written(), &rust);
+}
+
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    state_entry(r, &rust)
 }
 
 fn self_test() -> (usize, usize) {

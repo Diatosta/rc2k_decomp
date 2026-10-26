@@ -22,36 +22,20 @@
 //! Shadow mode runs the original alone (it sends sounds).
 //! Self-test: a copy whose calls go to stand-ins (the random numbers a sequence of the
 //! test's), against the Rust version.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, SelfTest, game_addr, game_read, game_write, hook_asm, rva};
-use crate::physics::flow::{base, guard, x87_run};
-use crate::service::harness::{Region, at, capture, restore};
+use crate::framework::{Regs, game_addr, game_read, game_write, rva};
+use crate::physics::flow::guard;
 use crate::sound::car_slot_sounds::SLOT;
 use crate::sound::sample_settings::OWN;
 use crate::sound::turn_parts::{
-    CLOCK, PLAY, Part, RANDOM, REQUEST, SCRATCH, both, common_regions, copy_of, dispatch_turn,
-    run_copy,
+    CLOCK, PLAY, Part, RANDOM, REQUEST, SCRATCH, common_regions, turn_entry,
 };
-use std::sync::atomic::AtomicUsize;
 
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("sound::stage_sounds", rva(0x40E2A9), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
-
-const LEN: usize = 0x2F5;
-const OUTS: [usize; 10] = [
-    0x46, 0x7C, 0xB2, 0x12C, 0x152, 0x176, 0x192, 0x232, 0x24E, 0x2EE,
-];
-const ENTRY: [u8; 7] = [0x60, 0x8D, 0x35, 0xBC, 0x24, 0x51, 0x00];
 /// The stage sounds' variables, `dword_51659C` .. `dword_5165E8`.
 const VARS: usize = 0x51659C;
 const VARS_LEN: usize = 0x50;
@@ -78,19 +62,6 @@ fn p(x: usize, v: u32) {
     unsafe { game_write(rva(x), v) }
 }
 
-/// `mov scratch, v; fild scratch; mov scratch, 0.01; fmul scratch; fstp scratch`.
-fn hundredth(v: u32) -> u32 {
-    p(SCRATCH, v);
-    x87_run!(
-        "fild dword ptr [{b} + 0x1183CC]",
-        "mov dword ptr [{b} + 0x1183CC], 0x3C23D70A",
-        "fmul dword ptr [{b} + 0x1183CC]",
-        "fstp dword ptr [{b} + 0x1183CC]";
-        b = base()
-    );
-    g(SCRATCH)
-}
-
 // ---- Rust version ----
 
 pub fn stage_sounds_in(r: &mut Regs, part: Part) -> Result<(), Refused> {
@@ -110,22 +81,28 @@ pub fn stage_sounds_in(r: &mut Regs, part: Part) -> Result<(), Refused> {
                 part(PLAY, &mut c)?;
             }
         }
+        // Converted: `rc2k_core::sound::stage::wait_turn`.
         let clock = g(CLOCK);
-        if g(ARM) == 1 {
-            p(ARM, 0);
-            c.eax = clock.wrapping_add(g(DELAY));
-            p(DUE, c.eax);
-            p(WAITING, 1);
+        let mut wait = rc2k_core::sound::stage::Wait {
+            arm: g(ARM),
+            delay: g(DELAY),
+            due: g(DUE),
+            waiting: g(WAITING),
+            start: g(TIMED_SLOT + 4),
+        };
+        let (armed, waited) = (wait.arm == 1, wait.arm == 1 || wait.waiting == 1);
+        let slot = rc2k_core::sound::stage::wait_turn(&mut wait, clock);
+        if armed {
+            c.eax = wait.due;
         }
-        let mut slot = true;
-        if g(WAITING) == 1 {
+        if waited {
             c.eax = clock;
-            if (clock.wrapping_sub(g(DUE)) as i32) < 0 {
-                slot = false;
-            } else {
-                p(TIMED_SLOT + 4, 1);
-                p(WAITING, 0);
-            }
+        }
+        for (at, v) in [(ARM, wait.arm), (DUE, wait.due), (WAITING, wait.waiting)] {
+            p(at, v);
+        }
+        if wait.start != g(TIMED_SLOT + 4) {
+            p(TIMED_SLOT + 4, wait.start);
         }
         if slot {
             for k in 0..3 {
@@ -152,15 +129,15 @@ pub fn stage_sounds_in(r: &mut Regs, part: Part) -> Result<(), Refused> {
             }
             p(flag, 0);
             part(RANDOM, &mut c)?;
+            // Converted: `rc2k_core::sound::stage::random`.
             let n = c.eax;
-            c.ebx = (n & 0x1F) + 0x21;
-            let mix = g(MIX_RATE);
-            c.edx = ((((n >> 5) & 0x1FF).wrapping_sub(0x100) as i32).wrapping_mul(mix as i32) >> 12)
-                as u32;
-            c.edx = c.edx.wrapping_add(mix);
-            c.ecx = hundredth(((n >> 14) & 0x1FF).wrapping_sub(0x100));
+            let r = rc2k_core::sound::stage::random(n, g(MIX_RATE));
+            (c.ebx, c.edx) = (r.volume, r.rate);
+            c.ecx = r.across.to_bits();
             c.eax = (n >> 23) & 0x1FF;
-            c.edi = hundredth(c.eax);
+            c.edi = r.ahead.to_bits();
+            // The scratch dword holds the last float.
+            p(SCRATCH, c.edi);
             (c.ebp, c.eax) = (ONE, sound);
             part(PLAY, &mut c)?;
         }
@@ -168,57 +145,8 @@ pub fn stage_sounds_in(r: &mut Regs, part: Part) -> Result<(), Refused> {
     })
 }
 
-// ---- hook ----
-
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_turn(&HOOK, r, call_original, stage_sounds_in, None);
-}
-
-// ---- self-test ----
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let copy = match copy_of(0x40E2A9, LEN, &ENTRY, &OUTS, &[PLAY, SLOT, RANDOM]) {
-        Ok(c) => c,
-        Err(why) => return t.skip(why),
-    };
-    let run = run_copy(&copy);
-    let a = |x: usize| game_addr(rva(x)) as u32;
-    let mut all: Vec<Region> = common_regions();
-    all.extend([(a(VARS), VARS_LEN), at(rva(CLOCK)), at(rva(MIX_RATE))]);
-    let saved = capture(&all);
-    for case in 0..48u32 {
-        let fill = || unsafe {
-            let v = a(VARS) as *mut u32;
-            for n in 0..VARS_LEN / 4 {
-                v.add(n).write(0x40 + n as u32 * 3);
-            }
-            for (k, (flag, _)) in ONE_OFFS.iter().enumerate() {
-                p(*flag, (case >> k) & 1);
-            }
-            p(ARM, (case >> 3) & 1);
-            p(WAITING, [0, 1, 1][(case % 3) as usize]);
-            p(DUE, [0, 5000, 0x8000_0000][(case % 3) as usize]);
-            for (k, (flag, _)) in RANDOMS.iter().enumerate() {
-                p(*flag, ((case >> 4) + k as u32) & 1);
-            }
-            p(VOLUME_A, 0xFFFF_FFF1);
-            p(CLOCK, 1000);
-            p(MIX_RATE, [22050, 44100, 11025][(case % 3) as usize]);
-        };
-        both(
-            &mut t,
-            &format!("case {case}"),
-            &run,
-            Regs::SENTINEL,
-            &fill,
-            &all,
-            stage_sounds_in,
-            false,
-        );
-    }
-    restore(&all, &saved);
-    t.finish()
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    turn_entry(r, stage_sounds_in)
 }

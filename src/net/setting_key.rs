@@ -11,26 +11,18 @@
 //! Caller: `net::settings_loop`. Its calls through `part`. Shadow mode runs the original
 //! alone. Self-test: a copy whose calls go to stand-ins (the editing ended or not, the
 //! number given), against the Rust version.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, SelfTest, ZERO_FLAG, hook_asm, rva};
+use crate::framework::{Regs, ZERO_FLAG};
 use crate::net::lobby::{
     CHOICE, EDIT_SAVED, MACHINE_NAME, MOST_PLAYERS, NOTICE_KIND, NUMBER_TEXT, PARSE_NUMBER, Part,
-    Saved, a, answer, dispatch_lobby, dword, fill, g, gb, movsb, p, pb, region, run_both,
+    a, g, gb, lobby_entry, movsb, p,
 };
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("net::setting_key", rva(0x416C76), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
+use rc2k_core::net::chat;
 
 const EDIT_KEY: u32 = 0x416E43; // net::edit_key
 
@@ -42,8 +34,9 @@ pub fn setting_key(entry: &Regs, part: Part) -> Result<Regs, Refused> {
         return Ok(r);
     }
     r.eax = g(CHOICE);
+    // Converted: `rc2k_core::net::chat` (`NAME`, `MOST_PLAYERS`, `most_players`).
     match r.eax {
-        1 => {
+        chat::NAME => {
             r.esi = a(EDIT_SAVED);
             r.edi = a(MACHINE_NAME);
             if gb(MACHINE_NAME) == 0 {
@@ -53,15 +46,10 @@ pub fn setting_key(entry: &Regs, part: Part) -> Result<Regs, Refused> {
                 r.ecx = 0;
             }
         }
-        2 => {
+        chat::MOST_PLAYERS => {
             r.eax = a(NUMBER_TEXT);
             part(PARSE_NUMBER, &mut r)?;
-            let mut n = r.eax as i32;
-            n = n.clamp(2, 8);
-            if gb(NOTICE_KIND) == 2 && n > 4 {
-                n = 4;
-            }
-            r.eax = n as u32;
+            r.eax = chat::most_players(r.eax, gb(NOTICE_KIND));
             p(MOST_PLAYERS, r.eax);
         }
         _ => {}
@@ -69,78 +57,8 @@ pub fn setting_key(entry: &Regs, part: Part) -> Result<Regs, Refused> {
     Ok(r)
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_lobby(&HOOK, r, call_original, setting_key);
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    // call sub_416E43
-    let copy = match crate::net::lobby::copy(
-        0x416C76,
-        0x6A,
-        &[0xE8, 0xC8, 0x01, 0x00, 0x00],
-        &[0x0, 0x36],
-        &[EDIT_KEY, PARSE_NUMBER],
-    ) {
-        Ok(c) => c,
-        Err(why) => return t.skip(why),
-    };
-    let all = [
-        dword(CHOICE),
-        dword(MOST_PLAYERS),
-        region(MACHINE_NAME, 0x40),
-        region(EDIT_SAVED, 0x40),
-        region(NOTICE_KIND, 1),
-    ];
-    let saved = Saved::new(&all);
-    // (still editing, the item, the name empty, the number, the notice kind)
-    let cases: [(bool, u32, bool, u32, u8); 9] = [
-        (true, 1, true, 0, 0),
-        (false, 1, true, 0, 0),
-        (false, 1, false, 0, 0),
-        (false, 2, false, 1, 0),
-        (false, 2, false, 6, 0),
-        (false, 2, false, 9, 0),
-        (false, 2, false, 6, 2),
-        (false, 2, false, 0xFFFF_FFFF, 2),
-        (false, 0, false, 0, 0),
-    ];
-    for (editing, item, empty, number, kind) in cases {
-        run_both(
-            &mut t,
-            &format!(
-                "editing {editing}, item {item}, empty {empty}, number {number:#x}, kind {kind}"
-            ),
-            copy.addr(),
-            Regs {
-                eax: 0x1E,
-                ..Regs::SENTINEL
-            },
-            &all,
-            0,
-            &[],
-            &|| {
-                p(CHOICE, item);
-                p(MOST_PLAYERS, 3);
-                fill(MACHINE_NAME, 0x40, 6);
-                fill(EDIT_SAVED, 0x40, 7);
-                if empty {
-                    pb(MACHINE_NAME, 0);
-                } else {
-                    pb(MACHINE_NAME, b'A');
-                }
-                pb(NOTICE_KIND, kind);
-                answer(Box::new(move |place, r| match place {
-                    EDIT_KEY => r.set_zero(!editing),
-                    _ => r.eax = number,
-                }));
-            },
-            &setting_key,
-        );
-    }
-    drop(saved);
-    t.finish()
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    lobby_entry(r, setting_key)
 }

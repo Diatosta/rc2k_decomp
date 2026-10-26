@@ -5,18 +5,11 @@
 //! rounds' points, below 0 none, +0x6C the total, +0x70 the position).
 
 use crate::errors::{FatalError, Refused};
-use crate::framework::{game_read, game_write, rva};
-use crate::gfx::blit_glyph::BlitCall;
-use crate::screens::{font_at, line_buffer};
-use crate::text::draw_string_by_id::draw_string_by_id_at;
-use crate::text::draw_text::{Canvas, draw_text_at};
+use crate::framework::{game_read, rva};
+use crate::text::draw_text::Canvas;
 
 fn k(a: usize) -> u32 {
     unsafe { game_read(rva(a)) }
-}
-
-fn w(a: usize, v: u32) {
-    unsafe { game_write(rva(a), v) }
 }
 
 unsafe fn get(a: u32) -> u32 {
@@ -31,22 +24,17 @@ const NOT_FOUND: FatalError = FatalError {
 /// `screens::find_history_entry` (0x4A256C): from entry edi on, the first of class ebx and
 /// position eax (the entry edi points at itself is looked at before the end test); none
 /// before an entry of -1 is fatal error 0x8070A7FA.
-pub unsafe fn find_history_entry(
-    mut entry: u32,
-    class: u32,
-    position: u32,
-) -> Result<u32, Refused> {
-    unsafe {
-        loop {
-            if get(entry + 0x10) == class && get(entry + 0x70) == position {
-                return Ok(entry);
-            }
-            entry = entry.wrapping_add(0x78);
-            if get(entry) == u32::MAX {
-                return Err(NOT_FOUND.into());
-            }
-        }
-    }
+pub unsafe fn find_history_entry(entry: u32, class: u32, position: u32) -> Result<u32, Refused> {
+    // Converted: `rc2k_core::screens::championship_table::find_history`.
+    use rc2k_core::screens::championship_table::{HISTORY_ENTRY_LEN, find_history};
+    let at = |n: u32| entry.wrapping_add(n.wrapping_mul(HISTORY_ENTRY_LEN));
+    let found = find_history(
+        |n| unsafe { get(at(n)) },
+        |n| unsafe { (get(at(n) + 0x10), get(at(n) + 0x70)) },
+        class,
+        position,
+    );
+    found.map(at).ok_or(NOT_FOUND.into())
 }
 
 /// `screens::draw_championship_table` (0x4A4E1E): the heads (strings 0x484, 0x485, 0x4F9 at
@@ -64,95 +52,33 @@ pub unsafe fn draw_championship_table(canvas: &mut dyn Canvas) -> Result<(), Ref
         if table == 0 {
             return Err(crate::errors::BadInput("no championship history").into());
         }
-        let mut palette = 0;
-        for (id, x, font) in [
-            (0x484u32, 0x73, 0x51E5A4),
-            (0x485, 0x9C, 0x51E584),
-            (0x4F9, 0x2DE, 0x51E584),
-        ] {
-            palette = draw_string_by_id_at(id, font_at(font), x, 0xDC, canvas)?.text as u32;
+        // Converted: `rc2k_core::screens::championship_table`; the ten entries looked up
+        // first (a position not in the history is the original's fatal error, raised
+        // before the rows rather than after those before it).
+        let (class, first) = (k(0x7558F4), k(0x7556B8));
+        let mut rows = Vec::with_capacity(10);
+        for n in 0..10u32 {
+            let e = find_history_entry(table, class, first.wrapping_add(n))?;
+            rows.push(rc2k_core::screens::championship_table::Row {
+                mine: (get(e + 4) as i32) > 0,
+                nation: get(e + 8),
+                car: get(e + 0xC),
+                name: e + 0x14,
+                points: std::array::from_fn(|r| get(e + 0x54 + 4 * r as u32) as i32),
+                total: get(e + 0x6C),
+                position: get(e + 0x70),
+            });
         }
-        let sprites = crate::gfx::blit_marker_pair::sprite_table();
-        let first = if k(0x7556D0) == 0x13 { 0x90 } else { 0x8A };
-        for n in 0..6u32 {
-            canvas.blit_glyph(BlitCall::new(
-                first + n,
-                0x196 + 0x36 * n as i32,
-                0x8C,
-                palette,
-                sprites,
-            ))?;
-        }
-        w(0x755579, k(0x7556B8));
-        w(0x7556BC, k(0x7556B8).wrapping_add(10));
-        let mut y = 0xF0i32;
-        loop {
-            let entry = find_history_entry(k(0x7556F0), k(0x7558F4), k(0x755579))?;
-            let mine = (get(entry + 4) as i32) > 0;
-            let (pos_font, font) = if mine {
-                (0x51E544, 0x51E524)
-            } else {
-                (0x51E5A4, 0x51E584)
-            };
-            let number = |v: u32, signed: bool| -> Vec<u8> {
-                let mut b = if signed && (v as i32) < 0 {
-                    b"-".to_vec()
-                } else {
-                    crate::strings::append_u32::append_u32(v)
-                };
-                b.push(0);
-                b
-            };
-            let text = |bytes: Vec<u8>,
-                        f: usize,
-                        x: i32,
-                        y: i32,
-                        canvas: &mut dyn Canvas|
-             -> Result<(i32, u32), Refused> {
-                std::ptr::copy_nonoverlapping(bytes.as_ptr(), line_buffer(), bytes.len());
-                let out = draw_text_at(font_at(f), line_buffer(), x, y, canvas)?;
-                Ok((out.y, out.text as u32))
-            };
-            (y, _) = text(number(get(entry + 0x70), false), pos_font, 0x73, y, canvas)?;
-            y = draw_text_at(font_at(font), (entry + 0x14) as *const u8, 0x9C, y, canvas)?.y;
-            for (n, x) in [0x19A, 0x1D0, 0x206, 0x23C, 0x272, 0x2A8]
-                .into_iter()
-                .enumerate()
-            {
-                (y, _) = text(
-                    number(get(entry + 0x54 + 4 * n as u32), true),
-                    font,
-                    x,
-                    y,
-                    canvas,
-                )?;
-            }
-            let palette;
-            (y, palette) = text(number(get(entry + 0x6C), false), font, 0x2DE, y, canvas)?;
-            canvas.blit_glyph(BlitCall::new(
-                get(entry + 8).wrapping_add(0x1C),
-                0x7E,
-                y,
-                palette,
-                sprites,
-            ))?;
-            let mut flag = get(entry + 0xC);
-            if (0x18..=0x19).contains(&flag) {
-                flag ^= 1;
-            }
-            canvas.blit_glyph(BlitCall::new(
-                flag.wrapping_add(0x44),
-                0x154,
-                y,
-                palette,
-                sprites,
-            ))?;
-            y = y.wrapping_add(0x19);
-            w(0x755579, k(0x755579).wrapping_add(1));
-            if k(0x755579) == k(0x7556BC) {
-                return Ok(());
-            }
-        }
+        let rows: [_; 10] = rows.try_into().unwrap_or_else(|_| unreachable!());
+        rc2k_core::screens::championship_table::championship_table(
+            &mut crate::screens::game_screen::GameScreen::<
+                rc2k_core::screens::championship_table::Font,
+                rc2k_core::screens::championship_table::Work,
+            >::new(canvas),
+            first,
+            k(0x7556D0) == 0x13,
+            &rows,
+        )
     }
 }
 

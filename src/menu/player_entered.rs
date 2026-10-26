@@ -6,39 +6,17 @@
 //!
 //! Caller: `sub_473126` (four times). Refuses a player past 3 or missing, before
 //! anything. Self-test: the original and the Rust version on players of the test's.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{RawHook, Regs, SelfTest, game_addr, game_write, hook_asm, rva};
+use crate::framework::Regs;
 use crate::menu::standings::*;
 use crate::race::stage_prefs::left_of;
 use crate::screens::harness::Left;
-use crate::service::harness::{Region, at, capture, check_state, dispatch_state, restore};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("menu::player_entered", rva(0x4A95EB), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
-
-const EXTRA: [usize; 0] = [];
-const CASES: u32 = 8;
-fn entry_of(case: u32) -> Regs {
-    Regs {
-        ecx: case % 4,
-        eax: 0x1234 + case,
-        ..Regs::SENTINEL
-    }
-}
-fn prepare(case: u32) {
-    put(player(case % 4) + 0xD0, case / 4);
-}
+use crate::service::harness::state_entry;
 
 /// The Rust version (see the header): the registers it leaves.
 pub unsafe fn player_entered(entry: &Regs) -> Result<Regs, Refused> {
@@ -47,60 +25,17 @@ pub unsafe fn player_entered(entry: &Regs) -> Result<Regs, Refused> {
         return Err(BadInput("a player past 3 or missing").into());
     }
     g.edi = player(g.ecx);
-    if get(g.edi + 0xD0) != 1 {
-        g.eax = 0;
-    }
+    // Converted: `rc2k_core::menu::event::if_entered`.
+    g.eax = rc2k_core::menu::event::if_entered(get(g.edi + 0xD0), g.eax);
     Ok(g)
-}
-
-fn regions() -> Vec<Region> {
-    let r: Vec<Region> = (0..4u32)
-        .map(|n| (player(n), 0x400))
-        .filter(|&(p, _)| p != 0)
-        .collect();
-    r
 }
 
 fn rust(r: &Regs) -> Result<Left, Refused> {
     Ok(left_of(&unsafe { player_entered(r) }?))
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_state(&HOOK, r, call_original, &regions(), &rust);
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let regions = regions();
-    let mut vars = regions.clone();
-    vars.extend(EXTRA.map(at));
-    vars.push((game_addr(PLAYERS_RVA) as u32, 0x10));
-    let saved = capture(&vars);
-    let mut blocks = vec![0u32; 4 * 0x100];
-    let bp = blocks.as_mut_ptr() as u32;
-    for case in 0..CASES {
-        check_state(
-            &mut t,
-            &format!("case {case}"),
-            call_original,
-            entry_of(case),
-            &|| unsafe {
-                restore(&vars, &saved);
-                for n in 0..4u32 {
-                    game_write(PLAYERS_RVA + 4 * n as usize, bp + 0x400 * n);
-                    for o in (0..0x400).step_by(4) {
-                        put(bp + 0x400 * n + o, (o * 3 + n * 11 + case * 5) & 0x1F);
-                    }
-                }
-                prepare(case);
-            },
-            &regions,
-            &rust,
-        );
-    }
-    restore(&vars, &saved);
-    drop(blocks);
-    t.finish()
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    state_entry(r, &rust)
 }

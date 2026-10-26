@@ -7,16 +7,19 @@
 //! Out: every register kept; no flags read (the caller's next is a `mov`)
 //!
 //! Caller: `sub_43DFB1` (0x43E0DD).
-//! Self-test: a copy of the original (its four variables the test's) against the core:
-//! speeds and drive speeds by lot and about the cap, under three precisions.
+//! Self-test: a copy of the original (its four variables the test's) against the converted
+//! version: speeds and drive speeds by lot and about the cap, exact at double precision.
 
 use crate::errors::Refused;
 use crate::framework::{RawHook, Regs, SelfTest, call_game, game_addr, game_read, hook_asm, rva};
 use crate::math::x87;
 use crate::math::x87_run::{TEST_CONTROL_WORDS, over_abs_plus_minus, with_control_word};
+use crate::physics::copy_hooks_test::check_floats_at;
 use crate::scene::matrix3::test_floats;
 use crate::screens::harness::Left;
-use crate::service::harness::{capture, dispatch_state};
+use crate::service::floats::{FLOAT, Floats, dispatch_state_floats, floats_entry};
+use crate::service::harness::capture;
+use rc2k_core::physics::drive_forces::cap_drive_speed as cap_drive_speed_core;
 use std::cmp::Ordering;
 use std::sync::atomic::AtomicUsize;
 
@@ -73,30 +76,63 @@ pub unsafe fn cap_drive_speed_at(v: CapPlaces) {
     }
 }
 
+/// The converted version (`rc2k_core::physics::drive_forces`, plain floats).
+// Converted: `rc2k_core::physics::drive_forces::cap_drive_speed`.
+pub unsafe fn cap_drive_speed_plain_at(v: CapPlaces) {
+    unsafe {
+        let f = |a: u32| f32::from_bits(at(a));
+        let kf = |a: usize| f32::from_bits(k(a));
+        let (allowance, cap, drive) = cap_drive_speed_core(
+            kf(0x613E48),
+            f(v[1]),
+            kf(0x613E4C),
+            kf(0x613E50),
+            kf(0x5C5D90),
+            f(v[3]),
+        );
+        put(v[0], allowance.to_bits());
+        put(v[2], cap.to_bits());
+        if at(v[3]) != drive.to_bits() {
+            put(v[3], drive.to_bits());
+        }
+    }
+}
+
 fn game() -> CapPlaces {
     let g = |a: usize| game_addr(rva(a)) as u32;
     [g(0x614168), g(0x71A184), g(0x62400C), g(0x71A190)]
 }
 
-/// The Rust version.
+/// The Rust version (the exact one, for `physics::drive_wheels_step`).
 pub unsafe fn cap_drive_speed() {
     unsafe { cap_drive_speed_at(game()) }
 }
 
 fn rust(_: &Regs) -> Result<Left, Refused> {
-    unsafe { cap_drive_speed() };
+    unsafe { cap_drive_speed_plain_at(game()) };
     Ok(Left::nothing())
 }
 
 extern "C" fn dispatch(r: &mut Regs) {
     let v = game();
-    dispatch_state(
+    let floats = Floats {
+        memory: &[((v[0], 4), FLOAT), ((v[2], 4), FLOAT), ((v[3], 4), FLOAT)],
+        regs: &[],
+    };
+    dispatch_state_floats(
         &HOOK,
         r,
         call_original,
         &[(v[0], 4), (v[2], 4), (v[3], 4)],
+        &floats,
         &rust,
     );
+}
+
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    floats_entry(r, &rust)
 }
 
 fn self_test() -> (usize, usize) {
@@ -148,12 +184,25 @@ fn self_test() -> (usize, usize) {
                 unsafe { call_game(&mut ro, copy.addr()) };
                 let theirs = capture(&all);
                 fill();
-                unsafe { cap_drive_speed_at(v) };
+                unsafe { cap_drive_speed_plain_at(v) };
                 let mine = capture(&all);
                 let regs_ok = ro.preserved_except(&Regs::SENTINEL, 0);
-                t.check(regs_ok && theirs == mine, || {
-                    format!("control word {word:#x}, seed {seed}: regs_ok={regs_ok} original {theirs:x?}; rust {mine:x?}")
-                });
+                let floats = [((base, 4), FLOAT), ((base + 8, 8), FLOAT)];
+                check_floats_at(
+                    &mut t,
+                    "physics::cap_drive_speed",
+                    word,
+                    &all,
+                    &theirs,
+                    &mine,
+                    &floats,
+                    regs_ok,
+                    || {
+                        format!(
+                            "control word {word:#x}, seed {seed}: regs_ok={regs_ok} original {theirs:x?}; rust {mine:x?}"
+                        )
+                    },
+                );
             }
         });
     }

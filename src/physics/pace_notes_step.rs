@@ -24,6 +24,7 @@ use crate::errors::Refused;
 use crate::framework::{RawHook, Regs, SelfTest, game_addr, game_read, game_write, hook_asm, rva};
 use crate::physics::queue_pace_note::{EXPIRE, PACE, Part, both, copy_of, dispatch_pace};
 use crate::service::harness::{capture, restore};
+use rc2k_core::physics::pace_calls::{call_target, calling, calls};
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -62,27 +63,19 @@ fn p(x: usize, v: u32) {
 }
 
 /// The steps on `r`.
+// Converted: `rc2k_core::physics::pace_calls::{calling, call_target, calls}`.
 pub fn pace_notes_step_in(r: &mut Regs, part: Part) -> Result<(), Refused> {
-    if ZERO.iter().any(|&v| g(v) != 0) || g(ONE) != 1 || g(TIME) < 1000 {
+    if !calling(ZERO.map(g), g(ONE), g(TIME)) {
         return Ok(());
     }
     // `fld; fmul; fdiv; fistp` (the extra division by 1.0 is exact).
     let ahead = crate::math::x87::mul_div_div_to_int(g(SPEED), g(SCALE), g(DIVISOR), ONE_F32);
     p(AHEAD, ahead as u32);
-    r.ebx = g(CHECKPOINT);
-    if ahead >= 0 {
-        r.ebx = r.ebx.wrapping_add(ahead as u32);
-    }
-    let count = g(COUNT);
-    if r.ebx == count || (r.ebx.wrapping_sub(count) as i32) >= 0 {
-        r.ebx = 0;
-    }
-    if r.ebx > g(LAST_CALLED) {
-        r.eax = r.ebx - g(LAST_CALLED); // mov eax, ebx; sub eax, g_lastPaceCheckpoint
-        if r.eax > 0x10 {
-            p(LAST_CALLED, r.ebx);
-        }
-        r.edx = g(LAST_CALLED);
+    r.ebx = call_target(g(CHECKPOINT), ahead, g(COUNT));
+    if let Some((last, gap)) = calls(r.ebx, g(LAST_CALLED)) {
+        r.eax = gap;
+        p(LAST_CALLED, last);
+        r.edx = last;
         loop {
             r.edx = r.edx.wrapping_add(1);
             let mut c = *r;

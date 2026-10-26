@@ -12,10 +12,9 @@
 //!    0x401EA5 for one, which ported code reads.) So every call to an address of the
 //!    game faults, and `on_exception` decides: a hook's address goes on in the hook's
 //!    thunk, where its jump leads, and so in the Rust version, as the callers written
-//!    with `call_game` need; any other address is a function that is not ported: it is
-//!    noted, the carry flag cleared (the game's "it worked"), the call made to return
-//!    at once, and the list written at the end: what is still the game's on the way
-//!    taken. None of the game's own code runs.
+//!    with `call_game` need; any other address is a function that is not ported: the
+//!    program ends, logging it and its caller (owner, 2026-10-23; it returned at once
+//!    as if it had worked before, which hid it). None of the game's own code runs.
 //! 3. `start` (0x401000) is gone through as the list of calls it is.
 //!
 //! `call_game` knows the hooks' thunks here (`CALL_REDIRECT`), so only a call made some
@@ -26,14 +25,14 @@
 //! Stand-ins, each to be replaced by a piece of the platform: see `stand_in` and
 //! `on_exception`.
 
+use crate::errors::Refused;
 use crate::framework::{
-    CALL_REDIRECT, GameHook, LOG_PATH, Regs, STANDALONE, call_game, game_addr, game_read,
-    game_write, log, rva,
+    CALL_REDIRECT, GameHook, LOG_PATH, Regs, STANDALONE, game_addr, game_read, game_write, log, rva,
 };
 use crate::registry::ALL;
 use std::path::Path;
+use std::sync::OnceLock;
 use std::sync::atomic::{AtomicUsize, Ordering};
-use std::sync::{Mutex, OnceLock};
 use windows_sys::Win32::Foundation::EXCEPTION_ACCESS_VIOLATION;
 use windows_sys::Win32::System::Com::{CoInitialize, CoUninitialize};
 use windows_sys::Win32::System::Diagnostics::Debug::{
@@ -252,11 +251,6 @@ fn thunk_of(hook: usize) -> Option<usize> {
 
 // ---- what the faults catch ----
 
-/// The game's functions that were called and are not ported: address as IDA shows it,
-/// how often, and where the first call came from.
-static UNPORTED: Mutex<Vec<(usize, u32, String)>> = Mutex::new(Vec::new());
-/// Calls of the game's functions that are not ported (each a fault), for the timing line.
-pub static FAULTS: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
 /// `start`'s way out (0x4010EE after the main loop, 0x401116 the short one), where
 /// `fatal::report` and the `-v` switch jump to.
 const EXITS: [usize; 2] = [0x4010EE, 0x401116];
@@ -321,22 +315,21 @@ pub fn leave_from_race() -> ! {
 
 fn finish(why: &str, code: u32) -> ! {
     log(&format!("standalone: ending: {why}"));
-    // Another thread may be in the handler with the list; not for long.
-    let unported = (0..200)
-        .find_map(|_| {
-            let list = UNPORTED.try_lock().ok().map(|list| list.clone());
-            if list.is_none() {
-                std::thread::sleep(std::time::Duration::from_millis(1));
-            }
-            list
-        })
-        .unwrap_or_default();
+    menu_watch::report();
+    // No game code runs here, so a hook's thunk is entered only by a call by address
+    // from Rust (`call_game`): these are what keeps each hook (conversion phase 4).
+    let mut reached: Vec<(&str, usize)> = ALL
+        .iter()
+        .map(|h| (h.name(), h.stats().calls.load(Ordering::Relaxed)))
+        .filter(|&(_, calls)| calls > 0)
+        .collect();
+    reached.sort();
     log(&format!(
-        "standalone: {} functions of the game were called that are not ported, in the order first met:",
-        unported.len()
+        "standalone: {} hooks were reached by address:",
+        reached.len()
     ));
-    for (address, calls, from) in unported {
-        log(&format!("  {address:#x}  {calls} calls, first from {from}"));
+    for (name, calls) in reached {
+        log(&format!("  {name}  {calls} calls"));
     }
     // Not `ExitProcess`: this may be an exception's handler, where the libraries'
     // leave-taking can hang.
@@ -372,27 +365,6 @@ const SDL_DOES: [(usize, &str); 5] = [
     (0x404CD6, "gfx::release_screens"),
     (0x40FA8B, "sound::close_cd_audio"),
     (0x410509, "system::drain_messages"),
-];
-
-/// The log's wrappers: (the wrapper, its edx, the hooked function it jumps to), as IDA
-/// shows them (`logfile::log_write_l1` .. `logfile::log_hex4_l1`).
-const LOG_WRAPPERS: [(usize, u32, usize); 16] = [
-    (0x401427, 0x000, 0x4013CB), // log_write_l1
-    (0x40142B, 0x001, 0x4013CB), // log_write_l1_nl
-    (0x401432, 0x100, 0x4013CB), // log_write_l2
-    (0x401439, 0x101, 0x4013CB), // log_write_l2_nl
-    (0x401472, 0x000, 0x401440), // log_int_l1
-    (0x401476, 0x001, 0x401440), // log_int_l1_nl
-    (0x40147D, 0x100, 0x401440), // log_int_l2
-    (0x401484, 0x101, 0x401440), // log_int_l2_nl
-    (0x4014BF, 0x000, 0x40148B), // log_int_fmt_l1
-    (0x4015CF, 0x000, 0x4014D8), // log_float_l1
-    (0x4015D6, 0x001, 0x4014D8), // log_float_l1_nl
-    (0x401622, 0x000, 0x4015F4), // log_hex8_l1
-    (0x401626, 0x001, 0x4015F4), // log_hex8_l1_nl
-    (0x40162D, 0x100, 0x4015F4), // log_hex8_l2
-    (0x401634, 0x101, 0x4015F4), // log_hex8_l2_nl
-    (0x4016B0, 0x000, 0x401682), // log_hex4_l1
 ];
 
 unsafe extern "system" fn on_exception(info: *mut EXCEPTION_POINTERS) -> i32 {
@@ -445,24 +417,6 @@ unsafe extern "system" fn on_exception(info: *mut EXCEPTION_POINTERS) -> i32 {
             context.Eip = thunk as u32;
             return CONTINUE_EXECUTION;
         }
-        // The log's few-byte wrappers (edx the newline and level, then a jump into a
-        // hooked function): edx set and on at that function's thunk.
-        if let Some(&(_, edx, target)) = LOG_WRAPPERS.iter().find(|w| w.0 == at)
-            && let Some(thunk) = thunk_of(game_addr(rva(target)))
-        {
-            context.Edx = edx;
-            context.Eip = thunk as u32;
-            return CONTINUE_EXECUTION;
-        }
-        // `logfile::log_newline_l1` (0x4013DE): an empty text with a line break, at level
-        // 1, every register kept (`pusha` .. `popa`).
-        if at == 0x4013DE {
-            crate::logfile::log_write::log_write(game_addr(rva(0x4E00B7)) as *const u8, true, 1);
-            let from = (context.Esp as *const u32).read_unaligned();
-            context.Eip = from;
-            context.Esp += 4;
-            return CONTINUE_EXECUTION;
-        }
         // The platform's own at the start and the end, which SDL does here: nothing.
         if let Some(&(_, what)) = SDL_DOES.iter().find(|w| w.0 == at) {
             log(&format!(
@@ -498,28 +452,14 @@ unsafe extern "system" fn on_exception(info: *mut EXCEPTION_POINTERS) -> i32 {
                 1,
             );
         }
+        // A function of the game with no Rust version (owner, 2026-10-23: no longer returned
+        // from as if it had worked, which hid it): the program ends, saying which.
         let from = (context.Esp as *const u32).read_unaligned() as usize;
-        FAULTS.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
-        if let Ok(mut unported) = UNPORTED.lock() {
-            match unported.iter_mut().find(|entry| entry.0 == at) {
-                Some(entry) => entry.1 += 1,
-                None => {
-                    let from = match ida(from) {
-                        Some(from) => format!("{from:#x}"),
-                        None => "Rust code".into(),
-                    };
-                    log(&format!(
-                        "standalone: not ported: {at:#x}, called from {from}"
-                    ));
-                    unported.push((at, 1, from));
-                }
-            }
-        }
-        // As if the function had returned at once, saying that it worked.
-        context.Eip = from as u32;
-        context.Esp += 4;
-        context.EFlags &= !1;
-        CONTINUE_EXECUTION
+        let from = match ida(from) {
+            Some(from) => format!("{from:#x}"),
+            None => "Rust code".into(),
+        };
+        finish(&format!("not ported: {at:#x}, called from {from}"), 1);
     }
 }
 
@@ -530,7 +470,13 @@ unsafe fn call(address: usize, r: &mut Regs) {
         "standalone: start calls {}",
         place(game_addr(rva(address)))
     ));
-    unsafe { call_game(r, game_addr(rva(address))) };
+    crate::calls::call(rva(address), r);
+}
+
+/// `start`'s call of a function whose hook is gone (conversion phase 4): its Rust version
+/// runs; every one of them keeps the registers.
+fn rust(name: &str) {
+    log(&format!("standalone: start calls {name}"));
 }
 
 unsafe fn stand_in(what: &str, address: usize, value: u32) {
@@ -546,15 +492,27 @@ unsafe fn stand_in(what: &str, address: usize, value: u32) {
 unsafe fn start() {
     unsafe {
         let mut r = Regs::default();
-        for address in [
-            0x410F29, 0x401864, 0x403131, 0x40188B, 0x410D4C, 0x410883, 0x410AA3, 0x410AC5,
-        ] {
+        call(0x410F29, &mut r);
+        rust("math::seed_random");
+        crate::math::seed_random::seed_random();
+        call(0x403131, &mut r);
+        // eax: `system::read_volume_serial`'s serial.
+        rust("math::stir_random");
+        crate::math::stir_random::stir_random(r.eax);
+        for address in [0x410D4C, 0x410883, 0x410AA3, 0x410AC5] {
             call(address, &mut r);
         }
         CoInitialize(std::ptr::null());
-        for address in [0x40298A, 0x402B7C, 0x4114A6, 0x4114BB, 0x401135] {
+        for address in [0x40298A, 0x402B7C] {
             call(address, &mut r);
         }
+        rust("settings::read_settings");
+        if let Err(why) = crate::settings::read_settings::read_settings() {
+            finish(&format!("settings::read_settings refused: {}", why.0), 1);
+        }
+        rust("settings::apply_feature_switches");
+        crate::settings::apply_feature_switches::apply_feature_switches();
+        call(0x401135, &mut r);
         // The folders the game saves into but never makes (`notes`: `sub_413A97` makes
         // them only from the installer's script): made here when missing, in the game's
         // folder, as the path templates at 0x5296FB .. 0x52974B name them; not in the
@@ -583,10 +541,20 @@ unsafe fn start() {
         if game_read::<u32>(rva(0x5183EC)) != 1 {
             finish("fatal error 0x900010FF, FPU is required", 1);
         }
-        for address in [
-            0x410684, 0x416653, 0x416477, 0x416292, 0x413908, 0x4110C9, 0x40331F, 0x411239,
-            0x4103BE,
-        ] {
+        for address in [0x410684, 0x416653, 0x416477, 0x416292, 0x413908, 0x4110C9] {
+            call(address, &mut r);
+        }
+        // `strings::load_language` (0x40331F): Rust, its hook gone (it keeps every register).
+        rust("strings::load_language");
+        let compile = &mut || crate::strings::compile_lexicon::compile_lexicon();
+        match crate::strings::load_language::load_language(compile) {
+            Ok(()) => {}
+            Err(Refused::Fatal(error)) => crate::fatal::raise::raise(error, &r),
+            Err(Refused::BadInput(why)) => {
+                finish(&format!("strings::load_language refused: {}", why.0), 1)
+            }
+        }
+        for address in [0x411239, 0x4103BE] {
             call(address, &mut r);
         }
         if r.carry() {
@@ -655,6 +623,7 @@ pub fn run(log_file: &Path, frames: u32) -> ! {
         }
     };
     let image = IMAGE.get_or_init(|| image);
+    menu_watch::snapshot(image.base);
     unsafe {
         if let Err(why) = install_and_lock(image) {
             finish(&why, 2);
@@ -668,4 +637,54 @@ pub fn run(log_file: &Path, frames: u32) -> ! {
         start();
     }
     finish("start came to its end", 0)
+}
+
+/// The menus' and draw lists' memory as the image starts and as it ends (typed tables,
+/// 2026-10-22): which of their fields the game changes in play.
+mod menu_watch {
+    use super::log;
+    use std::sync::OnceLock;
+
+    /// RAL.EXE's menus (0x7482B8 ..) and its screens' draw lists (0x758B70 ..).
+    const RANGES: [(usize, usize); 2] = [(0x7482B8, 0x755130), (0x758B70, 0x7594B0)];
+    const IMAGE_BASE: usize = 0x400000;
+
+    static START: OnceLock<(usize, Vec<Vec<u8>>)> = OnceLock::new();
+
+    fn bytes(base: usize, (from, to): (usize, usize)) -> Vec<u8> {
+        let at = base + from - IMAGE_BASE;
+        // The image is ours, mapped read-write for its whole size.
+        unsafe { std::slice::from_raw_parts(at as *const u8, to - from) }.to_vec()
+    }
+
+    pub fn snapshot(base: usize) {
+        let _ = START.set((base, RANGES.iter().map(|&r| bytes(base, r)).collect()));
+    }
+
+    pub fn report() {
+        let Some((base, start)) = START.get() else {
+            return;
+        };
+        let mut changed = Vec::new();
+        for (&range, before) in RANGES.iter().zip(start) {
+            let now = bytes(*base, range);
+            for (n, (a, b)) in before.chunks(4).zip(now.chunks(4)).enumerate() {
+                if a != b {
+                    changed.push(format!(
+                        "  {:#x}: {:02x?} -> {:02x?}",
+                        range.0 + 4 * n,
+                        a,
+                        b
+                    ));
+                }
+            }
+        }
+        log(&format!(
+            "standalone: {} dwords of the menus and draw lists changed in play:",
+            changed.len()
+        ));
+        for line in changed {
+            log(&line);
+        }
+    }
 }

@@ -7,24 +7,15 @@
 //! See `input/effects.rs`. One caller, `input::begin_effects`. Its calls through `part`.
 //! Shadow mode runs the original alone. Self-test: a copy whose calls go to the noting
 //! stand-ins, against the Rust version (`stop_effects` shares it).
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, SelfTest, game_addr, hook_asm, rva};
-use crate::input::effects::{Part, RECORD_1, RECORD_2, START_DEVICE, compare, dispatch_effects};
+use crate::framework::{RawHook, Regs, SelfTest, game_addr, rva};
+use crate::input::effects::{Part, RECORD_1, RECORD_2, START_DEVICE, compare, effects_entry};
 use crate::system::api_stand_ins::copy_with;
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("input::start_effects", rva(0x409659), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
 
 /// Both records through `place` (the two functions' body).
 pub fn both_records(r: &mut Regs, place: u32, part: Part) -> Result<(), Refused> {
@@ -41,8 +32,10 @@ pub fn start_effects(r: &mut Regs, part: Part) -> Result<(), Refused> {
     both_records(r, START_DEVICE, part)
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_effects(&HOOK, r, call_original, start_effects);
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    effects_entry(r, start_effects)
 }
 
 /// The test of both: a copy of the original at `address` (0x19 bytes, its calls at +7 and
@@ -73,8 +66,4 @@ pub fn test_both(
         false,
     );
     t.finish()
-}
-
-fn self_test() -> (usize, usize) {
-    test_both(&HOOK, 0x409659, START_DEVICE, start_effects)
 }

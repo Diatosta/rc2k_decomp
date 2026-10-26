@@ -16,26 +16,14 @@
 //! Shadow mode runs the original alone (folders are made). Self-test: a copy whose two
 //! calls go to stand-ins (their success scripted), against the Rust version, on paths of
 //! the test's; the path buffer is compared (it is put back).
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
-use crate::install::installer::{CF, MAKE_DIR, Part, SET_CD, at, both, quiet, rb, rw, wb};
-
-use std::sync::Mutex;
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("install::make_folders", rva(0x413A97), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL,
-    ungated
-);
+use crate::framework::Regs;
+use crate::install::installer::{MAKE_DIR, Part, SET_CD, at, rb, rw, wb};
 
 const LIMIT: u32 = 0x400;
 
@@ -131,102 +119,10 @@ pub fn make_folders(entry: &Regs, part: Part) -> Result<Regs, Refused> {
     Ok(out)
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    crate::race::viewer::dispatch_parts(&HOOK, r, call_original, &|r| {
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    crate::race::viewer::regs_entry(r, &|r| {
         make_folders(r, &mut crate::install::installer::game_part)
-    });
-}
-
-// ---- self-test ----
-
-static STEP: Mutex<(usize, Vec<bool>)> = Mutex::new((0, Vec::new()));
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    // pusha; mov esi, edx; mov ax, [esi]
-    let copy = match crate::install::installer::copy(
-        0x413A97,
-        0x74,
-        &[0x60, 0x8B, 0xF2, 0x66, 0x8B, 0x06],
-        &[
-            (0x13, 0x403105),
-            (0x35, 0x403105),
-            (0x4E, 0x403105),
-            (0x5B, 0x403113),
-            (0x68, 0x403105),
-        ],
-        &[0x403105, 0x403113],
-        &[],
-        &[],
-        &[],
-    ) {
-        Ok(c) => c,
-        Err(why) => return t.skip(&why),
-    };
-    quiet();
-    let mut buf = vec![0u8; 0x80];
-    let ptr = buf.as_mut_ptr() as u32;
-    let write_path = |path: &[u8]| {
-        for (k, &b) in path.iter().enumerate() {
-            wb(ptr + k as u32, b);
-        }
-        wb(ptr + path.len() as u32, 0);
-    };
-    // Normalised paths, as every caller gives (`install::normalise_path` ends them with
-    // `\\`): without one the original looks for the next `\\` past the path's end.
-    for path in [
-        &b"c:\\games\\rally\\data\\"[..],
-        b"c:\\one\\",
-        b"\\\\server\\share\\a\\b\\",
-        b"d:folder\\sub\\",
-        b"c:\\",
-        // as `install_files` gives them: no closing `\\`; a `\\` and a NUL after the NUL
-        // (where the original's scan stops)
-        b"c:\\rc\\files\0\\",
-        b"c:\\one\0\\",
-    ] {
-        for results in [
-            vec![false, false, false, false, false, false],
-            vec![false, true, false, true, false],
-            vec![true],
-            vec![false, true, true],
-        ] {
-            let regions = [(ptr, 0x80usize)];
-            let prepare = || {
-                *STEP.lock().unwrap() = (0, results.clone());
-                crate::install::installer::answer(Box::new(|place, r| {
-                    let set_cd = place == crate::install::installer::a(0x403105);
-                    let make = place == crate::install::installer::a(0x403113);
-                    if set_cd || make {
-                        let mut s = STEP.lock().unwrap();
-                        let n = s.0;
-                        s.0 += 1;
-                        r.set_carry(s.1.get(n).copied().unwrap_or(false));
-                    }
-                }));
-                write_path(path);
-            };
-            both(
-                &mut t,
-                &format!(
-                    "path {}, results {results:?}",
-                    crate::strings::utils::bytes_str(path)
-                ),
-                &copy,
-                Regs {
-                    edx: ptr,
-                    ..Regs::SENTINEL
-                },
-                &regions,
-                CF,
-                &[],
-                &prepare,
-                &|r, part, _| make_folders(r, part),
-            );
-        }
-    }
-    drop(buf);
-    t.finish()
+    })
 }

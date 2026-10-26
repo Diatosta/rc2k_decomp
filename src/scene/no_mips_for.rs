@@ -10,7 +10,7 @@
 use crate::errors::Refused;
 use crate::framework::{EBP, RawHook, Regs, SelfTest, hook_asm, rva};
 use crate::screens::harness::Left;
-use crate::service::harness::{check_state, dispatch_state};
+use crate::service::harness::{check_state, dispatch_state, state_entry};
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -29,7 +29,8 @@ hook_asm!(
 
 /// True when the size gets no mip levels.
 pub fn no_mips_for(size: u32) -> bool {
-    (0x80..0x100).contains(&size) || size >= 0x140
+    // Converted: `rc2k_core::scene::textures::no_mips_for`.
+    rc2k_core::scene::textures::no_mips_for(size)
 }
 
 // ---- hook ----
@@ -44,6 +45,12 @@ fn rust(r: &Regs) -> Result<Left, Refused> {
 
 extern "C" fn dispatch(r: &mut Regs) {
     dispatch_state(&HOOK, r, call_original, &[], &rust);
+}
+
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    state_entry(r, &rust)
 }
 
 // ---- self-test ----

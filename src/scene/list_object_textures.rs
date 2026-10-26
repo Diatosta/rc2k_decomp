@@ -19,7 +19,9 @@ use crate::errors::{BadInput, Refused};
 use crate::framework::{RawHook, Regs, SelfTest, game_addr, game_read, game_write, hook_asm, rva};
 use crate::scene::objects::{FILE_ROOM, FILE_RVA, SLOT_RVA};
 use crate::screens::harness::Left;
-use crate::service::harness::{Region, at, capture, check_state, dispatch_state, restore};
+use crate::service::harness::{
+    Region, at, capture, check_state, dispatch_state, restore, state_entry,
+};
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -42,7 +44,7 @@ hook_asm!(
 // ---- game data ----
 
 const COUNT_RVA: usize = rva(0x631B68); // dword_631B68, then the list dword_631B6C
-const MOST: usize = 0x100;
+use rc2k_core::scene::objects::MOST_TEXTURES as MOST;
 const RECORDS_RVA: usize = rva(0x5DCEBC); // unk_5DCEBC
 const RECORDS_LEN: usize = 0x40 * 0x40;
 
@@ -56,41 +58,19 @@ pub unsafe fn file_dword(offset: usize) -> Result<u32, BadInput> {
     Ok(unsafe { (game_addr(FILE_RVA + offset) as *const u32).read_unaligned() })
 }
 
+// Converted: `rc2k_core::scene::objects::{texture_list, texture_record}`
 pub unsafe fn list_object_textures() -> Result<(), BadInput> {
+    use rc2k_core::scene::objects::{texture_list, texture_record};
     unsafe {
-        let (points, faces) = (file_dword(4)?, file_dword(8)?);
-        if faces == 0 {
-            return Err(BadInput("an object's file of no faces"));
-        }
-        let mut at = (points as usize)
-            .checked_mul(12)
-            .and_then(|bytes| bytes.checked_add(0x2C))
-            .ok_or(BadInput("the object's file runs past its room"))?;
-        let mut textures: Vec<u32> = Vec::new();
-        for _ in 0..faces {
-            let vertices = file_dword(at)?;
-            let texture = file_dword(at + 4)? & 0xFFFF;
-            if !textures.contains(&texture) {
-                if textures.len() == MOST {
-                    return Err(BadInput("more textures than the list holds"));
-                }
-                textures.push(texture);
-            }
-            at = (vertices as usize)
-                .checked_mul(0x10)
-                .and_then(|bytes| bytes.checked_add(at + 0x10))
-                .ok_or(BadInput("the object's file runs past its room"))?;
-        }
+        let textures =
+            texture_list(|offset| file_dword(offset).map_err(|e| rc2k_core::Invalid(e.0)))?;
         let slot: u32 = game_read(SLOT_RVA);
-        let record = slot as usize * 0x40;
-        if slot < 0x40 && record + 4 + textures.len() * 4 > RECORDS_LEN {
-            return Err(BadInput("a texture list that leaves the slots' records"));
-        }
+        let record = texture_record(slot, textures.len())?;
         game_write(COUNT_RVA, textures.len() as u32);
         for (n, &texture) in textures.iter().enumerate() {
             game_write(COUNT_RVA + 4 + n * 4, texture);
         }
-        if slot < 0x40 {
+        if let Some(record) = record {
             game_write(RECORDS_RVA + record, textures.len() as u32);
             for (n, &texture) in textures.iter().enumerate() {
                 game_write(RECORDS_RVA + record + 4 + n * 4, texture);
@@ -116,6 +96,12 @@ fn rust(_: &Regs) -> Result<Left, Refused> {
 
 extern "C" fn dispatch(r: &mut Regs) {
     dispatch_state(&HOOK, r, call_original, &regions(), &rust);
+}
+
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    state_entry(r, &rust)
 }
 
 // ---- self-test ----

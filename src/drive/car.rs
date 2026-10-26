@@ -3,7 +3,7 @@
 //! out to it (`drive::load_car`, `drive::store_car`). Fields of the copy met so far are
 //! named in IDA by their addresses (`g_carGear` 0x71A1AC, ...; `physics/gearing.rs`).
 
-use crate::errors::{BadInput, Refused};
+use crate::errors::Refused;
 use crate::framework::{game_addr, rva};
 
 pub const CAR_RVA: usize = rva(0x719FD8); // g_car: the current car's work copy
@@ -31,12 +31,10 @@ impl CarPlaces {
     /// The current car's slot (0 .. 7) and its block, refused when the block is null
     /// (the original's `rep movsd` would fault there).
     pub unsafe fn block(&self) -> Result<(u32, u32), Refused> {
+        use rc2k_core::drive::work_car::{car_block, car_slot};
         unsafe {
-            let slot = (self.current as *const u32).read_unaligned() & 7;
-            let block = ((self.blocks + 4 * slot) as *const u32).read_unaligned();
-            if block == 0 {
-                return Err(BadInput("the current car's block is null").into());
-            }
+            let slot = car_slot((self.current as *const u32).read_unaligned());
+            let block = car_block(((self.blocks + 4 * slot) as *const u32).read_unaligned())?;
             Ok((slot, block))
         }
     }

@@ -19,7 +19,7 @@
 
 use crate::errors::Refused;
 use crate::framework::{
-    RawHook, Regs, SelfTest, call_game, game_addr, game_read, game_write, hook_asm, rva, shadow,
+    RawHook, Regs, SelfTest, call_game, game_read, game_write, hook_asm, rva, shadow,
 };
 use crate::race::mud::copy;
 use crate::service::harness::{at, capture, restore};
@@ -104,7 +104,9 @@ pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
             *r = Regs {
                 eflags: flags,
                 ..unsafe {
-                    crate::race::measure_frame_rate::measure_frame_rate(
+                    // Converted: the measuring's `_plain` version (the frame's comparison
+                    // runs the original alone).
+                    crate::race::measure_frame_rate::measure_frame_rate_plain(
                         r,
                         &mut crate::race::measure_frame_rate::rdtsc,
                     )
@@ -113,7 +115,7 @@ pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
             Ok(())
         }
         _ => {
-            unsafe { call_game(r, game_addr(rva(CALLEES[place as usize]))) };
+            crate::calls::call(rva(CALLEES[place as usize]), r);
             Ok(())
         }
     }
@@ -129,6 +131,13 @@ extern "C" fn dispatch(r: &mut Regs) {
         Ok(left) => *r = Regs { esp: r.esp, ..left },
         Err(e) => unsafe { crate::fatal::raise::refused(&HOOK, e, r, call_original) },
     }
+}
+
+/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    let left = unsafe { show_frame(r, &mut game_part) }?;
+    *r = Regs { esp: r.esp, ..left };
+    Ok(())
 }
 
 /// Which of the test's calls fail (carry), by place bit (1 the lock, 0x20 the showing).

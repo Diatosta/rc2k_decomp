@@ -14,7 +14,7 @@ use crate::framework::{EAX, RawHook, Regs, SelfTest, game_write, hook_asm, rva};
 use crate::math::next_random::{STATE_RVA, TEST_STATES};
 use crate::race::race_init::nonzero_random;
 use crate::screens::harness::Left;
-use crate::service::harness::{at, capture, check_state, dispatch_state, restore};
+use crate::service::harness::{at, capture, check_state, dispatch_state, restore, state_entry};
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -38,6 +38,12 @@ fn rust(_: &Regs) -> Result<Left, Refused> {
 
 extern "C" fn dispatch(r: &mut Regs) {
     dispatch_state(&HOOK, r, call_original, &[at(STATE_RVA)], &rust);
+}
+
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    state_entry(r, &rust)
 }
 
 fn self_test() -> (usize, usize) {

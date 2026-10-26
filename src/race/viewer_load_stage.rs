@@ -25,10 +25,10 @@
 //! open, one open with and without fonts.
 
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, SelfTest, call_game, game_addr, hook_asm, rva};
+use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
 use crate::physics::flow::a;
 use crate::race::viewer::{
-    OPEN, Part, Saved, answer, dispatch_parts, dword, gb, get, put, run_both, test_part,
+    OPEN, Part, Saved, answer, dispatch_parts, dword, gb, get, put, regs_entry, run_both, test_part,
 };
 use crate::service::harness::Region;
 use std::sync::atomic::AtomicUsize;
@@ -133,7 +133,7 @@ pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
             3 => {}
             4 => race_end::menu_part(3, r)?,
             5 => race_shell::set_race_screen_mode(r, &mut race_shell::game_screen_mode),
-            6 | 10 => call_game(r, game_addr(rva(CALLEES[place as usize]))),
+            6 | 10 => crate::calls::call(rva(CALLEES[place as usize]), r),
             7 => crate::logfile::log_write::log_write(r.eax as *const u8, false, 1),
             8 => crate::logfile::log_int::log_int(r.eax as i32, true, 1),
             9 => {
@@ -183,6 +183,12 @@ extern "C" fn dispatch(r: &mut Regs) {
     dispatch_parts(&HOOK, r, call_original, &|r| {
         viewer_load_stage(r, &mut game_part)
     });
+}
+
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    regs_entry(r, &|r| viewer_load_stage(r, &mut game_part))
 }
 
 fn regions() -> Vec<Region> {

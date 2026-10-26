@@ -53,19 +53,16 @@ pub unsafe fn draw_name_plate(entry: &Regs, part: crate::race::frame::Part) -> R
         if r.carry() {
             return Ok(());
         }
+        // Converted: `rc2k_core::race::plates::{name_rows, NAME_BOX, name_places}`.
+        use rc2k_core::race::plates::{NAME_BOX, name_places, name_rows};
         let slot = r.eax;
         let line = k(LINE);
-        clear_rows(k(PIXELS), line.wrapping_mul(3));
-        w(NAME_FONT + 0x1C, 0x168);
-        let (mut x, mut y) = (4u32, 0u32);
+        clear_rows(k(PIXELS), name_rows(line));
+        w(NAME_FONT + 0x1C, NAME_BOX);
         // The draws keep their registers: the unlock gets the last one's, eax the slot
         // again (the original's `pop eax`).
         let mut last = r;
-        for n in 0..3 {
-            if n > 0 {
-                x = x.wrapping_sub(0x78);
-                y = y.wrapping_add(line);
-            }
+        for (x, y) in name_places(line) {
             let mut t = Regs {
                 eax: ga(NAME_FONT),
                 ebx: entry.ebx,
@@ -114,24 +111,21 @@ pub unsafe fn draw_time_plate(entry: &Regs, part: crate::race::frame::Part) -> R
         if r.carry() {
             return Ok(());
         }
+        // Converted: `rc2k_core::race::plates::{time_start, time_rows, TIME_BOX,
+        // time_places}`.
+        use rc2k_core::race::plates::{TIME_BOX, time_places, time_rows, time_start};
         let slot = r.eax;
         let line = k(LINE);
-        let start = (line.wrapping_mul(3) as u64 * k(PITCH) as u64) as u32;
-        clear_rows(
-            start.wrapping_add(k(PIXELS)),
-            line.wrapping_mul(2).wrapping_add(3),
-        );
+        let start = time_start(line, k(PITCH));
+        clear_rows(start.wrapping_add(k(PIXELS)), time_rows(line));
         // As `draw_name_plate`: the unlock gets the last draw's registers, eax the slot.
         let mut last = r;
-        for (n, text) in [0x6D1838u32, 0x6D1844].into_iter().enumerate() {
-            w(TIME_FONT + 0x1C, 0x80);
-            let y = line
-                .wrapping_mul(3)
-                .wrapping_add(line.wrapping_mul(n as u32));
+        for (text, (x, y)) in [0x6D1838u32, 0x6D1844].into_iter().zip(time_places(line)) {
+            w(TIME_FONT + 0x1C, TIME_BOX);
             let mut t = Regs {
                 eax: ga(TIME_FONT),
                 ebx: ga(text),
-                ecx: 4,
+                ecx: x,
                 edx: y,
                 ..last
             };
@@ -159,12 +153,12 @@ pub unsafe fn update_name_plates(
         if blocks.contains(&0) {
             return Err(crate::errors::BadInput("a view without its car block").into());
         }
+        // Converted: `rc2k_core::race::plates::{times_changed, NameAsk}`.
+        use rc2k_core::race::plates::{NameAsk, times_changed};
         let field = |b: u32, o: u32| (b + o) as *mut u32;
-        let same = k(0x6D1838) == k(0x6D1850)
-            && k(0x6D183C) == k(0x6D1854)
-            && k(0x6D1844) == k(0x6D185C)
-            && k(0x6D1848) == k(0x6D1860);
-        if !same {
+        let now = [0x6D1838, 0x6D183C, 0x6D1844, 0x6D1848].map(k);
+        let kept = [0x6D1850, 0x6D1854, 0x6D185C, 0x6D1860].map(k);
+        if times_changed(now, kept) {
             r.eax = k(0x5D0DF8);
             part(1, r)?;
             for (from, to) in [
@@ -185,10 +179,12 @@ pub unsafe fn update_name_plates(
             r.esi = b;
             r.eax = k(slot);
             r.ebx = field(b, 0x71C).read_unaligned();
-            if r.ebx == 0 {
-                continue;
-            }
-            part(if r.ebx < 0x1_0000 { 2 } else { 3 }, r)?;
+            let place = match NameAsk::of(r.ebx) {
+                NameAsk::Nothing => continue,
+                NameAsk::Id(_) => 2,
+                NameAsk::Text(_) => 3,
+            };
+            part(place, r)?;
             r.esi = b;
             field(b, 0x724).write_unaligned(r.ebx);
             field(b, 0x71C).write_unaligned(0);

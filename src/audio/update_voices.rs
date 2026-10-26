@@ -28,28 +28,16 @@
 //! Shadow mode runs the original alone. Self-test: a redirected copy (0x40AC77 .. 0x40AEB9,
 //! with `audio::clear_channels` between) whose variables are the test's and whose eleven
 //! calls note the voice, 200 states by lot.
+//!
+//! Hook removed 2026-10-22 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::audio::voices::*;
-use crate::errors::{BadInput, Refused};
-use crate::framework::{RawHook, Regs, SelfTest, call_game, game_addr, hook_asm, rva, shadow};
-use crate::install::stand_ins::{set_handler, stand_in};
-use std::sync::Mutex;
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("audio::update_voices", rva(0x40AC77), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
+use crate::errors::Refused;
+use crate::framework::{Regs, game_addr, rva};
 
 const MODE_MIXER: u32 = 0x4_0000;
-const MODE_EAX: u32 = 0x100_0000;
 const A3D_WAY: usize = 0x40CB2A;
 const MIXER_WAY: usize = 0x40BC05;
 const ENVIRONMENT_RVA: usize = rva(0x6D1DD4); // dword_6D1DD4
@@ -92,86 +80,10 @@ impl Vars {
     }
 }
 
-/// The voices of a list, or a refusal if it does not end.
-unsafe fn list(head: u32) -> Result<Vec<u32>, Refused> {
-    let mut out = Vec::new();
-    let mut at = unsafe { read(head) };
-    while at != 0 {
-        out.push(at);
-        if out.len() > VOICES as usize {
-            return Err(BadInput("a list of voices without its end").into());
-        }
-        at = unsafe { voice(at).next };
-    }
-    Ok(out)
-}
-
-const NEXT: u32 = std::mem::offset_of!(Voice, next) as u32;
-
-unsafe fn stopping_pass(v: &Vars, part: Part) -> Result<(), Refused> {
-    unsafe {
-        let mut link = v.stopping;
-        loop {
-            let at = read(link);
-            if at == 0 {
-                return Ok(());
-            }
-            if voice(at).state == 2 {
-                part(
-                    9,
-                    &mut Regs {
-                        esi: at,
-                        ..Regs::default()
-                    },
-                )?;
-            }
-            let x = voice(at);
-            x.state = 0;
-            if x.channel != 0 {
-                write(x.channel, 0);
-                x.channel = 0;
-            }
-            write(link, 0);
-            link = at + NEXT;
-        }
-    }
-}
-
-unsafe fn apply(v: &Vars, at: u32, mode: u32, part: Part) -> Result<(), Refused> {
-    unsafe {
-        let x = *voice(at);
-        if x.buffer != 0 {
-            let r = &mut Regs {
-                esi: at,
-                ..Regs::default()
-            };
-            if x.dirty & DIRTY_FREQUENCY != 0 {
-                part(3, r)?;
-            }
-            if x.dirty & DIRTY_VOLUME != 0 {
-                part(4, r)?;
-            }
-            if x.dirty & DIRTY_PAN != 0 {
-                part(5, r)?;
-            }
-            if mode & MODE_3D != 0 && x.buffer_3d != 0 && x.dirty & DIRTY_PLACE != 0 {
-                part(6, r)?;
-                write(v.commit, 1);
-            }
-            if x.dirty & DIRTY_RESTART != 0 || x.state != 2 {
-                part(7, r)?;
-                if voice(at).state != 2 {
-                    part(8, r)?;
-                    voice(at).state = 2;
-                }
-            }
-        }
-        voice(at).dirty = 0;
-    }
-    Ok(())
-}
-
+/// Converted: the own-buffers way is `rc2k_core::audio::voices::update_buffers`, each of
+/// its steps a callee here (esi the voice); the A3D and mixer ways stay the game's chunks.
 pub unsafe fn update_voices(v: &Vars, part: Part) -> Result<(), Refused> {
+    use rc2k_core::audio::voices::{Lists, Room, Step, update_buffers};
     unsafe {
         if read(v.a3d) == 1 {
             return part(10, &mut Regs::default());
@@ -183,78 +95,52 @@ pub unsafe fn update_voices(v: &Vars, part: Part) -> Result<(), Refused> {
             }
             return Ok(());
         }
-        let playing = list(v.playing)?;
-        let stopping = list(v.stopping)?;
-        // What the callees would refuse, before anything is done.
-        for &at in &playing {
-            let x = voice(at);
-            if x.kind != 1 && (x.channel == 0 || x.buffer == 0) {
-                return Err(BadInput("a playing voice without its channel or buffer").into());
-            }
-            let level = (x.volume as i32).wrapping_mul(x.volume_factor as i32) >> 6;
-            if x.buffer != 0
-                && x.dirty != 0
-                && (!(0..=0x40).contains(&level) || !(-0x40..=0x40).contains(&x.pan))
-            {
-                return Err(BadInput("a volume or pan past the volume table").into());
-            }
-        }
-        if stopping
-            .iter()
-            .any(|&at| voice(at).state == 2 && voice(at).buffer == 0)
-        {
-            return Err(BadInput("a voice to stop without its buffer").into());
-        }
-        stopping_pass(v, part)?;
-        let mut link = v.playing;
-        loop {
-            let at = read(link);
-            if at == 0 {
-                break;
-            }
-            if voice(at).dirty != 0 {
-                apply(v, at, mode, part)?;
-            }
-            if voice(at).kind != 1 {
-                let mut r = Regs {
-                    esi: at,
-                    ..Regs::default()
-                };
-                part(0, &mut r)?;
-                if crate::audio::buffer_play::zero(&r) {
-                    let x = voice(at);
-                    write(x.channel, 0);
-                    x.channel = 0;
-                    write(link, x.next);
-                    x.next = read(v.stopping);
-                    write(v.stopping, at);
-                    write(v.used, read(v.used).wrapping_sub(1));
-                    continue;
-                }
-            }
-            link = at + NEXT;
-        }
-        stopping_pass(v, part)?;
-        if mode & MODE_3D != 0 {
-            if mode & MODE_EAX != 0 {
-                let asked = read(v.room_asked);
-                let environment = read(v.environment);
-                if asked != read(v.room_set) {
-                    write(v.room_set, asked);
-                    write(v.environment_kept, environment);
-                    part(1, &mut Regs::default())?;
-                } else if environment != read(v.environment_kept) {
-                    write(v.environment_kept, environment);
-                    part(1, &mut Regs::default())?;
-                }
-            }
-            if read(v.commit) == 1 {
-                part(2, &mut Regs::default())?;
-                write(v.commit, 0);
-            }
-        }
+        let mut l = Lists {
+            playing: read(v.playing),
+            stopping: read(v.stopping),
+            channels_used: read(v.used),
+            channel_count: 0,
+        };
+        let mut room = Room {
+            asked: read(v.room_asked),
+            set: read(v.room_set),
+            environment: read(v.environment),
+            kept: read(v.environment_kept),
+            commit: read(v.commit),
+        };
+        let store = |l: &Lists, room: &Room| {
+            write(v.playing, l.playing);
+            write(v.stopping, l.stopping);
+            write(v.used, l.channels_used);
+            write(v.room_set, room.set);
+            write(v.environment_kept, room.kept);
+            write(v.commit, room.commit);
+        };
+        let mut pool = GamePool::new(&World::game());
+        // No step reads what the update changes (the room's step reads the room asked).
+        let done = update_buffers::<_, Refused>(&mut pool, &mut l, mode, &mut room, |step| {
+            let (which, at) = match step {
+                Step::IsPlaying(at) => (0, at),
+                Step::Room => (1, 0),
+                Step::Commit => (2, 0),
+                Step::Frequency(at) => (3, at),
+                Step::Volume(at) => (4, at),
+                Step::Pan(at) => (5, at),
+                Step::Place(at) => (6, at),
+                Step::Rewind(at) => (7, at),
+                Step::Play(at) => (8, at),
+                Step::Stop(at) => (9, at),
+            };
+            let mut r = Regs {
+                esi: at,
+                ..Regs::default()
+            };
+            part(which, &mut r)?;
+            Ok(which != 0 || !crate::audio::buffer_play::zero(&r))
+        });
+        store(&l, &room);
+        done
     }
-    Ok(())
 }
 
 /// The game's callees: the Rust versions, the two other ways at the game's addresses.
@@ -292,214 +178,9 @@ pub fn game_part(which: u32, r: &mut Regs) -> Result<(), Refused> {
             9 => {
                 play::stop_buffer(v())?;
             }
-            10 => call_game(r, game_addr(rva(A3D_WAY))),
-            _ => call_game(r, game_addr(rva(MIXER_WAY))),
+            10 => crate::calls::call(rva(A3D_WAY), r),
+            _ => crate::calls::call(rva(MIXER_WAY), r),
         }
     }
     Ok(())
-}
-
-extern "C" fn dispatch(r: &mut Regs) {
-    HOOK.count_call();
-    if shadow() {
-        unsafe { call_original(r) };
-        return;
-    }
-    if let Err(e) = unsafe { update_voices(&Vars::game(), &mut game_part) } {
-        unsafe { crate::fatal::raise::refused(&HOOK, e, r, call_original) };
-    }
-}
-
-// ---- self-test ----
-
-static NOTED: Mutex<Vec<(u32, u32)>> = Mutex::new(Vec::new());
-/// Which voices' buffers still play, by their number in the test's block.
-static STILL_PLAYING: Mutex<u32> = Mutex::new(0);
-static BASE: Mutex<u32> = Mutex::new(0);
-
-fn handler(place: u32, r: &mut Regs) {
-    let esi = if place == 1 || place == 2 { 0 } else { r.esi };
-    NOTED.lock().unwrap().push((place, esi));
-    if place == 0 {
-        let n = (r.esi - *BASE.lock().unwrap()) / std::mem::size_of::<Voice>() as u32;
-        r.set_zero(*STILL_PLAYING.lock().unwrap() & (1 << n) == 0);
-    }
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    const N: usize = 10;
-    let mut voices = vec![Voice::default(); N];
-    let mut channels = vec![0u32; N];
-    let mut vars = Box::new([0u32; 10]);
-    let at = vars.as_mut_ptr() as u32;
-    let v = Vars {
-        a3d: at,
-        mode: at + 4,
-        playing: at + 8,
-        stopping: at + 12,
-        used: at + 16,
-        commit: at + 20,
-        room_asked: at + 24,
-        room_set: at + 28,
-        environment_kept: at + 32,
-        environment: at + 36,
-    };
-    let calls = [
-        0x91, 0x115, 0x12E, 0x13C, 0x1A4, 0x1AB, 0x1B2, 0x1B9, 0x1CA, 0x1D5, 0x21B,
-    ];
-    let places = [
-        (0x40B8E7, 0),
-        (0x40D26B, 1),
-        (0x40C6A9, 2),
-        (0x40B97A, 3),
-        (0x40B99D, 4),
-        (0x40B9C6, 5),
-        (0x40C676, 6),
-        (0x40B909, 7),
-        (0x40B922, 8),
-        (0x40B963, 9),
-    ];
-    let copy = match crate::audio::test_copy::make(
-        &HOOK,
-        &crate::audio::test_copy::Copy {
-            address: 0x40AC77,
-            len: 0x242,
-            entry: &[0x83, 0x3D, 0x60, 0x6D, 0x50, 0x00, 0x01],
-            calls: &calls,
-            jumps_out: &[0x7, 0x23],
-        },
-        &|callee| {
-            places
-                .iter()
-                .find(|&&(a, _)| rva(a) == callee)
-                .map(|&(_, p)| stand_in(p))
-        },
-        &[
-            (0x506D60, v.a3d),
-            (0x4F82BC, v.mode),
-            (0x4F8340, v.playing),
-            (0x4F8344, v.stopping),
-            (0x506350, v.used),
-            (0x4F82D0, v.commit),
-            (0x506C78, v.room_asked),
-            (0x506C7C, v.room_set),
-            (0x506C80, v.environment_kept),
-            (0x6D1DD4, v.environment),
-        ],
-        22,
-    ) {
-        Ok(copy) => copy,
-        Err(why) => return t.skip(&why),
-    };
-    set_handler(handler);
-    let base = voices.as_mut_ptr() as u32;
-    *BASE.lock().unwrap() = base;
-    let vat = |n: usize| base + (n * std::mem::size_of::<Voice>()) as u32;
-    let mut rng = 0xC0FF_EE01u32;
-    for case in 0..200 {
-        let seed = rng;
-        let mut next = || {
-            rng = rng.wrapping_mul(1_664_525).wrapping_add(1_013_904_223);
-            rng >> 8
-        };
-        // A state: each voice on the playing list, the stopping list or neither.
-        let mut setup: Vec<(u32, Voice)> = Vec::new();
-        for n in 0..N {
-            let list = next() % 3;
-            let x = Voice {
-                // Only voices on neither list go without a buffer: the Rust version refuses
-                // the others.
-                buffer: if list == 2 && next() % 3 == 0 {
-                    0
-                } else {
-                    0x7000 + n as u32
-                },
-                buffer_3d: if next() % 2 == 0 {
-                    0
-                } else {
-                    0x8000 + n as u32
-                },
-                kind: [0, 1, 3, 0][next() as usize % 4],
-                state: next() % 3,
-                dirty: next() % 0x40,
-                ..Voice::default()
-            };
-            setup.push((list, x));
-        }
-        let mode = [0x1_1221u32, 0x11_1220, 0x111_1220, 0, 0x1_0000][next() as usize % 5];
-        let still = next() & 0x3FF;
-        let room = [next() % 3, next() % 3, next() % 2, next() % 2];
-        let commit = next() % 2;
-        let prepare = |voices: &mut Vec<Voice>, channels: &mut Vec<u32>, vars: &mut [u32; 10]| {
-            let (mut playing, mut stopping) = (Vec::new(), Vec::new());
-            for (n, (list, x)) in setup.iter().enumerate() {
-                voices[n] = *x;
-                channels[n] = 1;
-                voices[n].channel = if *list == 0 || n % 4 == 0 {
-                    channels.as_ptr() as u32 + n as u32 * 4
-                } else {
-                    0
-                };
-                match list {
-                    0 => playing.push(n),
-                    1 => stopping.push(n),
-                    _ => {}
-                }
-            }
-            for l in [&playing, &stopping] {
-                for (i, &n) in l.iter().enumerate() {
-                    voices[n].next = l.get(i + 1).map_or(0, |&m| vat(m));
-                }
-            }
-            *vars = [
-                0,
-                mode,
-                playing.first().map_or(0, |&n| vat(n)),
-                stopping.first().map_or(0, |&n| vat(n)),
-                playing.len() as u32,
-                commit,
-                room[0],
-                room[1],
-                room[2],
-                room[3],
-            ];
-            *STILL_PLAYING.lock().unwrap() = still;
-            NOTED.lock().unwrap().clear();
-        };
-        prepare(&mut voices, &mut channels, &mut vars);
-        let mut ro = Regs::SENTINEL;
-        unsafe { call_game(&mut ro, copy.addr()) };
-        let theirs = (
-            voices.clone(),
-            channels.clone(),
-            *vars,
-            std::mem::take(&mut *NOTED.lock().unwrap()),
-        );
-        prepare(&mut voices, &mut channels, &mut vars);
-        let done = unsafe {
-            update_voices(&v, &mut |p, r| {
-                handler(p, r);
-                Ok(())
-            })
-        };
-        let mine = (
-            voices.clone(),
-            channels.clone(),
-            *vars,
-            std::mem::take(&mut *NOTED.lock().unwrap()),
-        );
-        t.check(
-            done.is_ok() && theirs == mine && ro.preserved_except(&Regs::SENTINEL, 0),
-            || {
-                format!(
-                    "case {case} (seed {seed:#x}), mode {mode:#x}: rust {done:?}; original {:x?} calls {:x?}; rust {:x?} calls {:x?}",
-                    theirs.2, theirs.3, mine.2, mine.3
-                )
-            },
-        );
-    }
-    t.finish()
 }

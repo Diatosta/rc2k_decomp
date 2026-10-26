@@ -11,9 +11,11 @@
 
 use crate::errors::Refused;
 use crate::framework::{EAX, RawHook, Regs, game_addr, hook_asm, rva};
+use crate::physics::cells::{get, put_changed};
 use crate::physics::copy_hooks_test::{lot, test_moves};
 use crate::screens::harness::Left;
-use crate::service::harness::dispatch_state;
+use crate::service::harness::{dispatch_state, state_entry};
+use rc2k_core::physics::start::CarStart;
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -40,29 +42,25 @@ fn game() -> Vec<u32> {
         .collect()
 }
 
-unsafe fn at(a: u32) -> u32 {
-    unsafe { (a as *const u32).read_unaligned() }
-}
-
-unsafe fn put(a: u32, v: u32) {
-    unsafe { (a as *mut u32).write_unaligned(v) }
-}
-
 /// The variables (IDA addresses).
 const VARIABLES: [usize; 5] = [0x71A244, 0x719FF4, 0x719FEC, 0x71A080, 0x71A060];
 
-/// The core on the variables' addresses.
+/// The Rust version on the variables' addresses.
+// Converted: `rc2k_core::physics::start::CarStart::count_start_second`.
 unsafe fn core(v: &[u32]) -> Left {
     unsafe {
-        let w = at(v[0]);
-        if (w != u32::MAX && w != 0) || at(v[1]) != 0 {
-            return Left::nothing();
-        }
-        let eax = at(v[2]).wrapping_sub(0x320);
-        if (eax as i32) >= 0 && at(v[3]) == 0 {
-            put(v[4], at(v[4]).wrapping_add(1));
-        }
-        Left::nothing().with(EAX, eax)
+        let was = CarStart {
+            state: get(v[0]),
+            count: get(v[1]),
+            timer: get(v[2]),
+            finished: get(v[3]),
+            time: get(v[4]),
+            ..CarStart::default()
+        };
+        let mut c = was;
+        let eax = c.count_start_second();
+        put_changed(v[4], was.time, c.time);
+        eax.map_or(Left::nothing(), |e| Left::nothing().with(EAX, e))
     }
 }
 
@@ -78,6 +76,12 @@ fn rust(_: &Regs) -> Result<Left, Refused> {
 extern "C" fn dispatch(r: &mut Regs) {
     let v = game();
     dispatch_state(&HOOK, r, call_original, &[(v[4], 4)], &rust);
+}
+
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    state_entry(r, &rust)
 }
 
 fn self_test() -> (usize, usize) {

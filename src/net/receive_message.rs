@@ -12,26 +12,17 @@
 //! nothing (no check of `g_dplay`: its caller makes it). Shadow mode runs the original
 //! alone (a message is taken). Self-test: a copy whose variables are the test's and whose
 //! DirectPlay is a test object writing a message, against the Rust version: taken, none.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
+use crate::framework::Regs;
 use crate::net::dplay::{RECEIVE, method};
-use crate::net::lobby::{DPLAY_METHOD, FLAGS, TestObject, com_answer, run_both, test_eax};
-use crate::net::message_vars::{MessageVars, TestVars, as_rust, get, set};
-use crate::net::{Part, dispatch_net};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("net::receive_message", rva(0x419722), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
+use crate::net::lobby::test_eax;
+use crate::net::message_vars::{MessageVars, get, set};
+use crate::net::{Part, net_entry};
 
 /// The buffer's size.
 pub const ROOM: u32 = 0x100;
@@ -64,66 +55,8 @@ pub fn receive_message(r: &mut Regs, _part: Part) -> Result<(), Refused> {
     Ok(())
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_net(&HOOK, r, call_original, receive_message);
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let tv = TestVars::new(0);
-    // push edx; mov dword_5AB280, 100h
-    let entry = [
-        0x52, 0xC7, 0x05, 0x80, 0xB2, 0x5A, 0x00, 0x00, 0x01, 0x00, 0x00,
-    ];
-    let copy = match tv.copy(0x419722, 0x4D, &entry, &[], &[], 10) {
-        Ok(c) => c,
-        Err(why) => return t.skip(why),
-    };
-    let v = tv.v;
-    let dplay = TestObject::dplay();
-    let dp = dplay.addr();
-    // (the result, the sender, the size written)
-    for (result, sender, size) in [
-        (0u32, 0x0000_7002u32, 5u32),
-        (0, 0, 0x18),
-        (0, 0x0000_7003, 0x100),
-        (0x8877_03E8, 0, 0),
-        (0x8877_001E, 0x0000_7004, 0x180),
-    ] {
-        run_both(
-            &mut t,
-            &format!("Receive gives {result:#x}, from {sender:#x}, {size:#x} bytes"),
-            copy.addr(),
-            Regs::SENTINEL,
-            &[tv.region()],
-            FLAGS,
-            &[],
-            &|| {
-                set(v.dplay, dp);
-                set(v.from, 0xAAAA_AAAA);
-                set(v.size, 0xAAAA_AAAA);
-                com_answer(Box::new(move |place, args| {
-                    if place != DPLAY_METHOD | RECEIVE {
-                        return 0;
-                    }
-                    // this, from, to, flags, data, size
-                    set(args[1], sender);
-                    set(args[2], 0x0000_7001);
-                    for k in 0..size.min(ROOM) {
-                        unsafe { ((args[4] + k) as *mut u8).write(k as u8 ^ 0x5A) };
-                    }
-                    set(args[5], size);
-                    result
-                }));
-            },
-            &as_rust(|r, _| {
-                receive_message_with(r, &v);
-                Ok(())
-            }),
-        );
-    }
-    drop(dplay);
-    t.finish()
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    net_entry(r, receive_message)
 }

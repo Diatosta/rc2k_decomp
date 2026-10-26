@@ -6,15 +6,15 @@
 //!
 //! Caller: `sub_43B635` (0x43B7B7), every physics step.
 //! Refuses (before anything) a gear outside -1 ..= 7.
-//! Self-test: `physics::engine_torque`'s (`test_engine`), with the clutch word set.
+//! Self-test: `physics::engine_torque`'s (`test_engine_floats`), the converted version,
+//! with the clutch word set.
 
 use crate::errors::{BadInput, Refused};
 use crate::framework::{RawHook, Regs, SelfTest, game_addr, hook_asm, rva};
-use crate::physics::engine_torque::{g, p, regions, test_engine};
-use crate::physics::free_rev::free_rev;
-use crate::physics::gearing::{GearPlaces, wheels_from_revs_at};
+use crate::physics::engine_torque::{dispatch_engine, g, p, regions, test_engine_floats};
+use crate::physics::free_rev::{free_rev, free_rev_plain};
+use crate::physics::gearing::{GearPlaces, wheels_from_revs_at, wheels_from_revs_plain_at};
 use crate::screens::harness::Left;
-use crate::service::harness::dispatch_state;
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -29,7 +29,7 @@ hook_asm!(
     original = ORIGINAL
 );
 
-/// The Rust version.
+/// The Rust version (the exact one, for `physics::car_physics_step`).
 pub unsafe fn free_rev_clutch(entry: &Regs) -> Result<Left, Refused> {
     let gear = g(0x71A1AC);
     if gear == 0 || g(0x71A228) == 0 {
@@ -46,15 +46,41 @@ pub unsafe fn free_rev_clutch(entry: &Regs) -> Result<Left, Refused> {
     Ok(crate::race::stage_prefs::left_of(&r))
 }
 
+/// The converted version (`physics::free_rev_plain`, `wheels_from_revs_plain_at`): the
+/// hook's.
+// Converted: `rc2k_core::physics::{engine::free_rev, gearing::wheels_from_revs}`.
+pub unsafe fn free_rev_clutch_plain(entry: &Regs) -> Result<Left, Refused> {
+    let gear = g(0x71A1AC);
+    if gear == 0 || g(0x71A228) == 0 {
+        return Ok(Left::nothing());
+    }
+    rc2k_core::physics::gearing::ratio_index(gear)?;
+    let mut r = *entry;
+    unsafe {
+        free_rev_plain().apply(&mut r);
+        wheels_from_revs_plain_at(&GearPlaces::game())?.apply(&mut r);
+    }
+    Ok(crate::race::stage_prefs::left_of(&r))
+}
+
+/// The float places it writes: `free_rev`'s and the two driven speeds.
+const FLOATS: [(usize, usize); 5] = [
+    (0x62400C, 4),
+    (0x614744, 8),
+    (0x614750, 4),
+    (0x71A1B0, 4),
+    (0x71A190, 8),
+];
+
 fn rust(r: &Regs) -> Result<Left, Refused> {
-    unsafe { free_rev_clutch(r) }
+    unsafe { free_rev_clutch_plain(r) }
 }
 
 extern "C" fn dispatch(r: &mut Regs) {
     let mut regions = regions();
     let a = |x: usize| game_addr(rva(x)) as u32;
     regions.extend([(a(0x71A1B0), 4), (a(0x71A190), 8)]);
-    dispatch_state(&HOOK, r, call_original, &regions, &rust);
+    dispatch_engine(&HOOK, r, call_original, &regions, &FLOATS, &rust);
 }
 
 fn self_test() -> (usize, usize) {
@@ -64,7 +90,13 @@ fn self_test() -> (usize, usize) {
     let a = |x: usize| game_addr(rva(x)) as u32;
     let saved = crate::service::harness::capture(&[(a(0x71A228), 4), (a(0x71A190), 8)]);
     p(0x71A228, 1);
-    test_engine(&mut t, call_original, &rust);
+    test_engine_floats(
+        &mut t,
+        "physics::free_rev_clutch",
+        call_original,
+        &rust,
+        &FLOATS,
+    );
     crate::service::harness::restore(&[(a(0x71A228), 4), (a(0x71A190), 8)], &saved);
     t.finish()
 }

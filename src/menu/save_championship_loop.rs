@@ -10,33 +10,12 @@
 //! than a call or a store are the functions below, generated from the listing.
 //! The name is a reading from the title string of its menu, "GRAVAR CAMPEONATO", not yet a
 //! visit.
-//! Callers: none in code: it is reached through a table. Ungated thunk; shadow mode runs the
-//! original alone; each real call writes a line to hook.log. Self-test:
-//! `screen_loop::check_screen`.
+//! Callers: none in code: it is reached through a table.
+//! Hook removed 2026-10-22 (typed tables): the menus and draw lists run its `entry`
+//! (`menu::table_calls`); the registers above are the original's, for reference.
 
-use crate::framework::{RawHook, Regs, SelfTest, game_read, game_write, hook_asm, rva};
-use crate::menu::screen_loop::{
-    Env, Flow, List, Original, Screen, Step, check_screen, dispatch_screen,
-};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook = RawHook::new(
-    "menu::save_championship_loop",
-    rva(0x47F034),
-    thunk,
-    &ORIGINAL,
-)
-.self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL,
-    ungated
-);
+use crate::framework::{Regs, game_read, game_write, rva};
+use crate::menu::screen_loop::{Env, Flow, List, Screen, Step, screen_entry};
 
 // ---- Rust version: `menu::screen_loop` with this ----
 
@@ -144,29 +123,8 @@ pub const SCREEN: Screen = Screen {
     also_writes: &[],
 };
 
-// ---- hook ----
-
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_screen(&HOOK, r, call_original, &SCREEN);
-}
-
-// ---- self-test ----
-
-const THE_ORIGINAL: Original = Original {
-    function: rva(0x47F034),
-    len: 0x2E0,
-    entry_bytes: &[0x60, 0xC7, 0x05, 0x3C, 0x5A, 0x75, 0x00, 0x00],
-    calls: &[
-        0x83, 0xB4, 0xC5, 0xCA, 0x119, 0x11E, 0x173, 0x191, 0x1EE, 0x290,
-    ],
-};
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    if let Err(why) = check_screen(&mut t, &SCREEN, &THE_ORIGINAL) {
-        return t.skip(why);
-    }
-    t.finish()
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    screen_entry("menu::save_championship_loop", r, &SCREEN)
 }

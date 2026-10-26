@@ -25,35 +25,11 @@ const TURN_Y: u32 = 0x5E9FCC; // g_turnYMatrix
 const TURNED: u32 = 0x5EA10C; // g_turnedMatrix
 const LIT: u32 = 0x5EA14C; // g_litMatrix
 
-/// The model's axle places (`dword_5C9098` .. of its 0x134-byte record) x 0x10000 / 1000 as
-/// `imul` / `idiv`: none where the `idiv` would fault.
-fn per_thousand(v: i64) -> Option<u32> {
-    let q = v * 0x1_0000 / 1000;
-    (i32::MIN as i64..=i32::MAX as i64)
-        .contains(&q)
-        .then_some(q as u32)
-}
-
-/// The five axle values: (front x, rear x, height, front z, rear z) as `sub_460E7C` keeps
-/// them in `dword_608C50`, `dword_608C54`, `dword_608C58`, `dword_608C5C`, `dword_608C48`.
+/// The five axle values (`rc2k_core::race::car_parts::axles`) from the model's record
+/// (`dword_5C9098` .. of its 0x134-byte record) and the lift.
 fn axles(model: u32) -> Option<[u32; 5]> {
-    let rec = |o: u32| k(0x5C9098 + model.wrapping_mul(0x134) + o) as i32 as i64;
-    let lift = k(0x613FC4);
-    Some([
-        per_thousand((rec(8) as i32).wrapping_add(0xC3) as i64)?,
-        per_thousand(rec(0xC))?.wrapping_sub(lift),
-        per_thousand(rec(0))?,
-        per_thousand((rec(4) as i32).wrapping_neg() as i64)?,
-        per_thousand(rec(0x10))?.wrapping_sub(lift),
-    ])
-}
-
-unsafe fn byte(p: u32) -> u8 {
-    unsafe { (p as *const u8).read() }
-}
-
-unsafe fn set_byte(p: u32, v: u8) {
-    unsafe { (p as *mut u8).write(v) }
+    let record = [0u32, 4, 8, 0xC, 0x10].map(|o| k(0x5C9098 + model.wrapping_mul(0x134) + o));
+    rc2k_core::race::car_parts::axles(record, k(0x613FC4))
 }
 
 /// `race::car_part_matrices` (0x460E7C): car esi's marks' switches and its parts' matrices
@@ -67,8 +43,13 @@ unsafe fn set_byte(p: u32, v: u8) {
 /// its axle with its height (+0x910 ..), into `flt_6417E0` .. `flt_6418A0`. Refuses (before
 /// anything) axle values whose scaling would fault.
 pub unsafe fn car_part_matrices(car: u32) -> Result<(), Refused> {
+    // Converted: `rc2k_core::race::car_parts::{axles, mark_switches, marks_bytes,
+    // steering}` (the size's and the speed's floats the x87's).
     use crate::math::x87::loaded;
     use crate::math::x87_load::below_or_unordered;
+    use rc2k_core::race::car_parts::{
+        FIRST_SWITCH, PartState, mark_switches, marks_bytes, steering,
+    };
     unsafe {
         let f = |o: u32| ((car + o) as *const u32).read_unaligned();
         let set = |o: u32, v: u32| ((car + o) as *mut u32).write_unaligned(v);
@@ -80,56 +61,26 @@ pub unsafe fn car_part_matrices(car: u32) -> Result<(), Refused> {
             set(0x718, loaded(k(0x6140F8)));
         }
         let on = f(0x84);
-        set(0xAB4, k(0x62DAD0) & on);
-        let b = (k(0x62DACC) & on) as u8;
-        set_byte(car + 0xAC8, b);
-        set_byte(car + 0xAC9, b);
-        for o in 0xAC0..=0xAC3 {
-            set_byte(car + o, on as u8);
-        }
-        let b = (on & k(0x62DAD0)) as u8;
-        for o in 0xACA..=0xACF {
-            set_byte(car + o, b);
-        }
-        let b = u8::from(f(0x63C) != 0);
-        for o in [0xAC4u32, 0xAC5, 0xAD0] {
-            set_byte(car + o, b);
-        }
-        set(0xAB8, u32::from(matches!(f(0x684), 2 | 3)));
-        let b = u8::from(f(0x1D4) == u32::MAX);
-        set_byte(car + 0xAC6, b);
-        set_byte(car + 0xAC7, b);
-        let cut = |o: u32, by: u32| set_byte(car + o, byte(car + o) & (f(by) ^ 1) as u8);
-        cut(0xAC0, 0x410);
-        cut(0xAC1, 0x414);
-        for _ in 0..2 {
-            for o in 0xACA..=0xACF {
-                cut(o, 0x420);
-            }
-            for o in [0xAC8u32, 0xAC2, 0xAC4, 0xAC6] {
-                cut(o, 0x418);
-            }
-            for o in [0xAC9u32, 0xAC3, 0xAC5, 0xAC7] {
-                cut(o, 0x41C);
-            }
-            cut(0xAD0, 0x424);
-        }
-        let mut count = byte(car + 0xAC0).wrapping_add(byte(car + 0xAC1));
-        count = count.wrapping_add(count);
-        count = count.wrapping_add(count);
-        if f(0x298) & (1 << 9) != 0 {
-            for o in 0xACA..=0xACF {
-                count = count.wrapping_add(byte(car + o));
-            }
-        }
-        set(0xABC, count as u32 * 0x20);
-        if !below_or_unordered(f(0x310), k(0x5C5D14)) {
-            set(0xABC, 0);
-        }
-        if on == 0 {
-            set(0xABC, 0);
-        }
-        set(0xAAC, f(0x650) >> 16);
+        let s = mark_switches(&PartState {
+            on,
+            marks_mask: k(0x62DAD0),
+            lamps_mask: k(0x62DACC),
+            inside: f(0x63C),
+            mode: f(0x684),
+            reversing: f(0x1D4),
+            broken: [0x410, 0x414, 0x418, 0x41C, 0x420, 0x424].map(f),
+            flags: f(0x298),
+        });
+        set(0xAB4, s.marks_on);
+        set(0xAB8, s.mode_on);
+        std::ptr::copy_nonoverlapping(
+            s.bytes.as_ptr(),
+            (car + FIRST_SWITCH) as *mut u8,
+            s.bytes.len(),
+        );
+        let slow = below_or_unordered(f(0x310), k(0x5C5D14));
+        set(0xABC, marks_bytes(s.count, slow, on));
+        set(0xAAC, steering(f(0x650)));
         let [front, rear_lift, height, front_z, _] = ax;
         w(0x608C50, front);
         w(0x608C4C, front.wrapping_neg());
@@ -195,18 +146,20 @@ pub unsafe fn ready_car_parts(
     part: crate::race::frame::Part,
 ) -> Result<(), Refused> {
     unsafe {
+        // Converted: `rc2k_core::race::car_parts::{check_part_cars, parts_shown,
+        // KEPT_MATRICES}`.
+        use rc2k_core::race::car_parts::{
+            BODY_AT, KEPT_AT, KEPT_MATRICES, check_part_cars, parts_shown,
+        };
         let count = k(0x63DB90);
-        if count == 0 || count > 8 || (0..count).any(|n| k(0x71B3B8 + 4 * n) == 0) {
-            // With none the original's loop (its test at the end) runs on past the eight.
-            return Err(BadInput("no race cars, more than eight, or one without its block").into());
-        }
+        check_part_cars(count, |n| k(0x71B3B8 + 4 * n))?;
         // The loop's test is at its end: no cars still looks at car 0.
         let mut c = 0u32;
         loop {
             let car = k(0x71B3B8 + 4 * c);
             r.ecx = c;
             r.esi = car;
-            if ((car + 0x25C) as *const u32).read_unaligned() != 0 {
+            if parts_shown(((car + 0x25C) as *const u32).read_unaligned()) {
                 let mut p = *r;
                 part(1, &mut p)?;
                 for (i, from) in [
@@ -218,16 +171,17 @@ pub unsafe fn ready_car_parts(
                     0x641760,
                 ]
                 .into_iter()
+                .take(KEPT_MATRICES as usize)
                 .enumerate()
                 {
                     std::ptr::copy(
                         ga(from) as *const u8,
-                        (car + 0x740 + 0x40 * i as u32) as *mut u8,
+                        (car + KEPT_AT + 0x40 * i as u32) as *mut u8,
                         0x40,
                     );
                 }
                 multiply_matrices(ga(0x5EA08C), ga(0x641760), ga(0x5EA3CC));
-                std::ptr::copy(ga(0x5EA3CC) as *const u8, (car + 0x8C0) as *mut u8, 0x40);
+                std::ptr::copy(ga(0x5EA3CC) as *const u8, (car + BODY_AT) as *mut u8, 0x40);
             }
             c += 1;
             if c == count {

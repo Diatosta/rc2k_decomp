@@ -41,6 +41,12 @@ extern "C" fn dispatch(r: &mut Regs) {
     }
 }
 
+/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    unsafe { reset_race_sounds(r, &SoundVars::game(), &mut sound_part) }?;
+    Ok(())
+}
+
 /// The sound calls by place.
 const CALLEES: [usize; 5] = [0x409C1E, 0x409B8C, 0x409B6B, 0x40F1E9, 0x409B81];
 

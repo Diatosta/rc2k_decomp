@@ -25,6 +25,7 @@ use crate::framework::{RawHook, Regs, SelfTest, game_addr, game_read, game_write
 use crate::physics::reset_parts::{BLOCKED, LOG, ON_LINE, both, copy_of, dispatch_reset, regions};
 use crate::race::car_starts::{Case, Part, prepare};
 use crate::service::harness::{capture, restore};
+use rc2k_core::physics::line_places::{RESET_TRIES, reset_offsets};
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -69,30 +70,28 @@ fn blocked(r: &mut Regs, part: Part) -> Result<bool, Refused> {
 }
 
 /// The Rust version, the calls through `part` (places 13, 14, 6, 16).
+// Converted: `rc2k_core::physics::line_places::reset_offsets`.
 pub unsafe fn reset_car(entry: &Regs, part: Part) -> Result<Regs, Refused> {
     let mut r = *entry;
     r.eax = g(rva(0x71A06C));
     p(LINE_PLACE, r.eax);
     p(rva(0x6365EC), 0);
     if g(rva(0x62389C)) == 2 {
-        p(OFFSET, 0);
-        loop {
+        let mut free = false;
+        for offset in reset_offsets() {
+            p(OFFSET, offset);
             if !blocked(&mut r, part)? {
+                free = true;
                 break;
             }
-            p(OFFSET, g(OFFSET).wrapping_neg());
-            if !blocked(&mut r, part)? {
-                break;
-            }
-            p(OFFSET, g(OFFSET).wrapping_neg());
-            p(OFFSET, g(OFFSET).wrapping_add(1));
-            if g(OFFSET) == 0x40 {
-                let mut l = r;
-                l.eax = game_addr(NOWHERE_TEXT) as u32;
-                part(LOG, &mut l)?;
-                p(STUCK, g(STUCK).wrapping_sub(100));
-                return Ok(r);
-            }
+        }
+        if !free {
+            p(OFFSET, RESET_TRIES);
+            let mut l = r;
+            l.eax = game_addr(NOWHERE_TEXT) as u32;
+            part(LOG, &mut l)?;
+            p(STUCK, g(STUCK).wrapping_sub(100));
+            return Ok(r);
         }
         r.eax = g(CANDIDATE);
         p(LINE_PLACE, r.eax);

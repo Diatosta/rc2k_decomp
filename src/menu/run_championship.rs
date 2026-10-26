@@ -49,25 +49,15 @@
 //! what its callees refuse, when they are reached (the original then runs from the start).
 //! Shadow mode runs the original alone. Self-test: `event_flow::test_flow`, record kinds
 //! and the screens' answers by script.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
-use crate::errors::{FatalError, Refused};
-use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva, shadow};
-use crate::menu::championship_welcome::addr;
+use crate::errors::Refused;
+use crate::framework::{Regs, SelfTest};
 use crate::menu::event_flow::*;
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("menu::run_championship", rva(0x4A0E60), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL,
-    ungated
-);
+use crate::menu::flow_game::Game;
 
 pub const STAGES_DONE: usize = 0x755950; // dword_755950
 pub const RESET_TIMES: usize = 0x755250; // dword_755250
@@ -122,384 +112,24 @@ pub const VARIABLES: [usize; 30] = [
     CURRENT,
 ];
 
-enum At {
-    Section,
-    Record,
-    Standings,
-    RallyResults,
-    Races,
-    Finish,
-    End,
-}
-
 /// The two championships' driver: `a8` for `menu::run_a8_championship`'s differences.
 pub unsafe fn run_event(entry: &Regs, call: Call, a8: bool) -> Result<Regs, Refused> {
-    let mut g = *entry;
-    let start_section = if a8 { START_SECTION_A8 } else { START_SECTION };
-    let c = call;
-    if get(CONTINUING) == 1 {
-        set(STAGES_DONE, 2);
-    }
-    set(RESET_TIMES, 0);
-    if get(CONTINUING) != 1 {
-        for callee in [
-            BEGIN_EVENT,
-            SHUFFLE_DRIVERS,
-            CLEAR_RESULT_SLOTS,
-            RESET_DRIVERS,
-            RESET_DRIVER_CONDITION,
-        ] {
-            c(callee, &mut g)?;
-        }
-        if a8 {
-            c(CLEAR_PLAYERS_284, &mut g)?;
-            set(SERVICES, 0);
-        } else {
-            set(SERVICES, 0);
-            c(CLEAR_PLAYERS_284, &mut g)?;
-        }
-    }
-    c(TAKE_PLAYER1_UNITS, &mut g)?;
-    c(RESET_CARS_750724, &mut g)?;
-    set(ANSWER, 0);
-    set(LEAVE_561, 0);
-    set(LEAVE, 0);
-    set(MODE, if a8 { 0x13 } else { 2 });
-    set(MODE_AB40, if a8 { 1 } else { 2 });
-    if get(start_section) == 0 {
-        c(
-            if get(MODE) == 2 {
-                CHAMPIONSHIP_WELCOME
-            } else {
-                A8_WELCOME
-            },
-            &mut g,
-        )?;
-    }
-    c(STOP_STREAM, &mut g)?;
-    let mut at = if yes() {
-        At::End
-    } else {
-        if !a8 {
-            set(CONTINUING, 0);
-        }
-        At::Section
-    };
-    loop {
-        at = match at {
-            At::Section => {
-                set(LEFT_A3C, 0);
-                set(SERVICE_TIME, 0);
-                set(SERVICE_DUE, 0);
-                set(THE_END, 0);
-                set(GOES_ON, 1);
-                set(RESET_TIMES, 0);
-                if get(start_section) != 0 {
-                    g.eax = get(start_section).wrapping_sub(1);
-                    set(SECTION, g.eax);
-                }
-                At::Record
-            }
-            At::Record => {
-                set(RALLY_DONE, 0);
-                g.edi = addr(RECORD_TABLE);
-                g.ebx = get(SECTION);
-                g.eax = get(INDEX);
-                c(FIND_RECORD, &mut g)?;
-                match dword(g.edi) {
-                    3 => {
-                        set(THE_END, 1);
-                        At::Standings
-                    }
-                    5 => {
-                        g.eax = dword(g.edi + 0x38);
-                        set(WELCOME_FIGURE, g.eax);
-                        inc(INDEX);
-                        set(WELCOMED, 1);
-                        c(if a8 { RESET_SINGLE_EVENT } else { BEGIN_EVENT }, &mut g)?;
-                        c(WELCOME_LOOP, &mut g)?;
-                        if yes() { At::End } else { At::Record }
-                    }
-                    4 => At::Standings,
-                    1 => {
-                        set(SERVICE_DUE, 1);
-                        g.eax = dword(g.edi + 0x14);
-                        set(SERVICE_TIME, g.eax);
-                        g.eax = dword(g.edi + 0xC);
-                        set(SERVICE_940, g.eax);
-                        set(SERVICE_944, 1);
-                        set(SERVICE_NEXT, 1);
-                        inc(SERVICES);
-                        inc(INDEX);
-                        g.eax = get(INDEX);
-                        At::Record
-                    }
-                    0 => 'stage: {
-                        for screen in [RALLY_STAGES_LOOP, NEXT_STAGE_LOOP, SERVICE_PASS] {
-                            c(screen, &mut g)?;
-                            if yes() {
-                                break 'stage reset(&mut g, c)?;
-                            }
-                        }
-                        if get(GOES_ON) == 1 {
-                            At::Races
-                        } else {
-                            At::RallyResults
-                        }
-                    }
-                    _ => {
-                        return Err(FatalError {
-                            code: if a8 { 0x8070_DBA9 } else { 0x8070_DBA0 },
-                            message: if a8 {
-                                "Invalid Level Type(A8)"
-                            } else {
-                                "Invalid Level Type"
-                            },
-                        }
-                        .into());
-                    }
-                }
-            }
-            At::Standings => 'standings: {
-                for callee in [
-                    STANDINGS_B_FROM_ALL,
-                    SORT_B_BY_FIGURE,
-                    AWARD_STAGE_POINTS,
-                    SORT_B_BY_FIGURE,
-                    SORT_B_BY_POINTS,
-                    CLASS_CHAMPIONSHIP_PASS,
-                ] {
-                    c(callee, &mut g)?;
-                }
-                if yes() {
-                    break 'standings At::End;
-                }
-                if get(start_section) != 0 {
-                    set(THE_END, 1);
-                    break 'standings At::Finish;
-                }
-                if !a8 {
-                    for callee in [
-                        SORT_B_BY_FIGURE,
-                        AWARD_OVERALL_POINTS,
-                        CLEAR_STANDINGS_B,
-                        SORT_B_BY_FIGURE,
-                        SORT_B_BY_SCORE,
-                        NUMBER_ALL_B,
-                        SHOW_CHAMPIONSHIP_STANDINGS,
-                    ] {
-                        c(callee, &mut g)?;
-                    }
-                    if yes() {
-                        break 'standings At::End;
-                    }
-                }
-                if get(THE_END) == 1 {
-                    break 'standings At::Finish;
-                }
-                c(SECTION_FINISH, &mut g)?;
-                if yes() {
-                    break 'standings At::End;
-                }
-                c(REVIEW_480D46, &mut g)?;
-                set(RESET_TIMES, 0);
-                set(GOES_ON, 1);
-                if yes() || get(ENDED_569) == 1 || get(LEFT_A3C) == 1 {
-                    break 'standings At::End;
-                }
-                inc(SECTION);
-                set(INDEX, 0);
-                c(if a8 { RESET_SINGLE_EVENT } else { BEGIN_EVENT }, &mut g)?;
-                At::Section
-            }
-            At::RallyResults => 'results: {
-                set(RALLY_DONE, 1);
-                set(LEAVE, 0);
-                set(LEAVE_561, 0);
-                set(CAR_LEFT, 0);
-                set(GOES_ON, 0);
-                for callee in [
-                    WALK_SECTION_RECORDS,
-                    STANDINGS_A_FROM_ALL,
-                    CLASS_RALLY_RESULTS_PASS,
-                ] {
-                    c(callee, &mut g)?;
-                }
-                if yes() {
-                    break 'results At::End;
-                }
-                if !a8 {
-                    for callee in [CLEAR_STANDINGS_A, NUMBER_ALL_A, SHOW_OVERALL_RALLY_RESULTS] {
-                        c(callee, &mut g)?;
-                    }
-                    if yes() {
-                        break 'results At::End;
-                    }
-                }
-                At::Standings
-            }
-            At::Races => 'races: {
-                if !a8 && get(RESET_TIMES) == 1 {
-                    break 'races At::RallyResults;
-                }
-                c(RUN_EVENT_RACES, &mut g)?;
-                if get(GOES_ON) == 0 {
-                    break 'races At::RallyResults;
-                }
-                for callee in [
-                    ADD_PLAYER_TIMES,
-                    STANDINGS_A_FROM_ALL,
-                    CLASS_STAGE_RESULTS_PASS,
-                ] {
-                    c(callee, &mut g)?;
-                }
-                if yes() {
-                    break 'races reset(&mut g, c)?;
-                }
-                if !a8 {
-                    for callee in [CLEAR_STANDINGS_A, NUMBER_ALL_A, SHOW_OVERALL_STAGE_RESULTS] {
-                        c(callee, &mut g)?;
-                    }
-                    if yes() {
-                        break 'races reset(&mut g, c)?;
-                    }
-                }
-                if get(STAGES_DONE) as i32 >= 1 {
-                    c(NEXT_RECORD_KIND, &mut g)?;
-                    if g.eax == 3 || g.eax == 4 {
-                        set(RALLY_DONE, 1);
-                    }
-                    for callee in [STANDINGS_A_FROM_ALL, CLASS_RALLY_RESULTS_PASS] {
-                        c(callee, &mut g)?;
-                    }
-                    if yes() {
-                        break 'races stop(&mut g, c)?;
-                    }
-                    if !a8 {
-                        for callee in [CLEAR_STANDINGS_A, NUMBER_ALL_A, SHOW_OVERALL_RALLY_RESULTS]
-                        {
-                            c(callee, &mut g)?;
-                        }
-                        if yes() {
-                            break 'races stop(&mut g, c)?;
-                        }
-                    }
-                }
-                c(KEEP_RECORD_BEST, &mut g)?;
-                c(RECORD_ENTRIES_PASS, &mut g)?;
-                if get(BEST_TIMES) == 1 {
-                    c(BEST_TIMES_LOOP, &mut g)?;
-                    if yes() {
-                        break 'races stop(&mut g, c)?;
-                    }
-                }
-                c(NEXT_RECORD_KIND, &mut g)?;
-                let reviewed = match g.eax {
-                    3 => false,
-                    4 => break 'races At::Standings,
-                    1 => {
-                        set(SERVICE_944, 1);
-                        set(SERVICE_NEXT, 1);
-                        true
-                    }
-                    _ => {
-                        set(SERVICE_NEXT, 0);
-                        c(INSPECTION_PASS, &mut g)?;
-                        if yes() {
-                            break 'races stop(&mut g, c)?;
-                        }
-                        if get(GOES_ON) == 0 {
-                            break 'races At::RallyResults;
-                        }
-                        true
-                    }
-                };
-                if reviewed {
-                    c(
-                        if get(REVIEW_KIND) != 0 || get(SERVICE_NEXT) == 1 {
-                            REVIEW_47D5A5
-                        } else {
-                            REVIEW_48108E
-                        },
-                        &mut g,
-                    )?;
-                    if yes() || get(LEFT_A3C) == 1 || get(ENDED_569) == 1 {
-                        break 'races At::End;
-                    }
-                }
-                inc(INDEX);
-                inc(STAGES_DONE);
-                if !a8 {
-                    set(SERVICES, 0);
-                }
-                At::Record
-            }
-            At::Finish => 'finish: {
-                if get(start_section) == 0 {
-                    c(CHAMPIONSHIP_FINISH, &mut g)?;
-                    if yes() {
-                        break 'finish At::End;
-                    }
-                    c(CLEAR_SCORE_MARKS, &mut g)?;
-                    c(BEST_CLASS_SCORES, &mut g)?;
-                    if yes() {
-                        break 'finish At::End;
-                    }
-                    if !a8 {
-                        c(BEST_OVERALL_SCORES, &mut g)?;
-                    }
-                }
-                c(REVIEW_481429, &mut g)?;
-                At::End
-            }
-            At::End => {
-                let mut e = *entry;
-                c(SHOW_IN_GAME_OPTIONS, &mut e)?;
-                return Ok(e);
-            }
-        };
-    }
-}
-
-/// A yes on a stage's screens: the times reset, on to the rally's results.
-fn reset(g: &mut Regs, c: Call) -> Result<At, Refused> {
-    set(RESET_TIMES, 1);
-    c(RESET_PLAYER_TIMES, g)?;
-    set(ANSWER, 0);
-    Ok(At::RallyResults)
-}
-
-/// `reset`, and the event does not go on (a yes after the stage's results).
-fn stop(g: &mut Regs, c: Call) -> Result<At, Refused> {
-    reset(g, c)?;
-    set(GOES_ON, 0);
-    Ok(At::RallyResults)
+    let mut game = Game::new(entry, call);
+    // Converted: `rc2k_core::menu::championship::run`.
+    rc2k_core::menu::championship::run(&mut game, a8)?;
+    Ok(game.left())
 }
 
 pub unsafe fn run_championship(entry: &Regs, call: Call) -> Result<Regs, Refused> {
     unsafe { run_event(entry, call, false) }
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    HOOK.count_call();
-    if shadow() {
-        unsafe { call_original(r) };
-        return;
-    }
-    match unsafe { run_championship(r, &mut game_call) } {
-        Ok(left) => *r = Regs { esp: r.esp, ..left },
-        Err(e) => unsafe { crate::fatal::raise::refused(&HOOK, e, r, call_original) },
-    }
+/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    let left = unsafe { run_championship(r, &mut game_call) }?;
+    *r = Regs { esp: r.esp, ..left };
+    Ok(())
 }
-
-const CALLS: &[usize] = &[
-    0x27, 0x2C, 0x31, 0x36, 0x3B, 0x4A, 0x4F, 0x54, 0x9D, 0xA4, 0xA9, 0x130, 0x163, 0x168, 0x185,
-    0x18A, 0x18F, 0x194, 0x199, 0x19E, 0x1C8, 0x1CD, 0x1D2, 0x1D7, 0x1DC, 0x1E1, 0x1E6, 0x205,
-    0x217, 0x267, 0x2C3, 0x2DB, 0x2EC, 0x304, 0x315, 0x32D, 0x37D, 0x382, 0x387, 0x39A, 0x39F,
-    0x3A4, 0x3C1, 0x3E7, 0x3F9, 0x3FE, 0x403, 0x41B, 0x42F, 0x434, 0x439, 0x451, 0x472, 0x497,
-    0x49C, 0x4B4, 0x4D2, 0x4D7, 0x4DC, 0x4F4, 0x512, 0x517, 0x525, 0x53D, 0x55B, 0x597, 0x5AF,
-    0x5EC, 0x5F3, 0x639, 0x647, 0x64C, 0x65A, 0x65F, 0x665,
-];
 
 /// The scripts both championships' tests run: (continuing, the section given, stages
 /// done, `dword_755920`, `dword_75AAD8`, the script).
@@ -672,20 +302,4 @@ pub fn test_event(t: SelfTest, flow: &Flow, a8: bool) -> (usize, usize) {
         })
         .collect();
     test_flow(t, flow, &[], &cases, &|r, c| unsafe { run_event(r, c, a8) })
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let flow = Flow {
-        address: 0x4A0E60,
-        len: 0x66B,
-        // pusha; cmp dword_755970, 1
-        entry: &[0x60, 0x83, 0x3D, 0x70, 0x59, 0x75, 0x00, 0x01],
-        calls: CALLS,
-        fatal_jumps: &[0x2BD],
-        writes: &VARIABLES,
-    };
-    test_event(t, &flow, false)
 }

@@ -16,7 +16,8 @@ use crate::errors::Refused;
 use crate::framework::{RawHook, Regs, SelfTest, call_game, game_addr, hook_asm, rva};
 use crate::physics::listed_car_flags::{CURRENT_CAR, TABLE, set_flag_at, twin_copy};
 use crate::screens::harness::Left;
-use crate::service::harness::{Region, capture, dispatch_state};
+use crate::service::harness::{Region, capture, dispatch_state, state_entry};
+use rc2k_core::physics::progress::{GO_NOTICE, GoFacts};
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -45,19 +46,22 @@ unsafe fn put(a: u32, v: u32) {
 }
 
 /// The core: `v` the variables' addresses, then the twin's current, listed and flag.
+// Converted: `rc2k_core::physics::progress::GoFacts::go_due`.
 pub unsafe fn start_go_notice_at(v: &[u32], twin: [u32; 3]) -> Result<Left, Refused> {
     unsafe {
-        if at(v[0]) != 1
-            || at(v[1]) != 0
-            || at(v[2]) != 0
-            || at(v[3]) != 0
-            || (at(v[4]) >> 16) & 1 != 0
-        {
+        let facts = GoFacts {
+            mode: at(v[0]),
+            countdown: at(v[1]),
+            gone: at(v[2]),
+            finished: at(v[3]),
+            cheats: at(v[4]),
+        };
+        if !facts.go_due() {
             return Ok(Left::nothing());
         }
         let left = set_flag_at(twin[0], twin[1], twin[2])?;
         put(v[2], 1);
-        put(v[5], 0xC7);
+        put(v[5], GO_NOTICE);
         put(v[6], 0x32);
         put(v[7], u32::MAX);
         Ok(left)
@@ -86,6 +90,12 @@ extern "C" fn dispatch(r: &mut Regs) {
     let (v, twin) = game();
     let regions: Vec<Region> = vec![(v[2], 4), (v[5], 4), (v[6], 4), (v[7], 4), (twin[2], 4)];
     dispatch_state(&HOOK, r, call_original, &regions, &rust);
+}
+
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    state_entry(r, &rust)
 }
 
 fn self_test() -> (usize, usize) {

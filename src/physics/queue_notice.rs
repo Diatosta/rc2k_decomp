@@ -21,10 +21,12 @@
 //! Self-test: a copy of the original whose fourteen references are the test's, against
 //! the Rust core on lists of 0 .. 0x20 entries, matching and new keys, ebx 0 and not.
 
-use crate::errors::{BadInput, Refused};
+use crate::errors::Refused;
 use crate::framework::{EDX, RawHook, Regs, SelfTest, call_game, game_addr, hook_asm, rva};
+use crate::physics::cells::{get, get_list, put, put_changed, put_list_changed};
 use crate::screens::harness::Left;
-use crate::service::harness::{Region, capture, dispatch_state};
+use crate::service::harness::{Region, capture, dispatch_state, state_entry};
+use rc2k_core::physics::notices::{NoticeQueue, QUEUE_ROOM as MOST};
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -38,8 +40,6 @@ hook_asm!(
     dispatch = dispatch,
     original = ORIGINAL
 );
-
-pub const MOST: u32 = 0x20;
 
 /// The variables' addresses: the game's, or a test's.
 #[derive(Clone, Copy)]
@@ -71,48 +71,39 @@ impl Contacts {
             (self.ebxs, 0x80),
         ]
     }
-}
 
-unsafe fn at(a: u32) -> u32 {
-    unsafe { (a as *const u32).read_unaligned() }
-}
-
-unsafe fn put(a: u32, v: u32) {
-    unsafe { (a as *mut u32).write_unaligned(v) }
-}
-
-/// The Rust core on the variables at `p`, with the registers at entry.
-pub unsafe fn queue_notice_at(p: &Contacts, r: &Regs) -> Result<Left, Refused> {
-    unsafe {
-        let n = at(p.count);
-        if at(p.flags) & 4 == 0 || n == MOST {
-            return Ok(Left::nothing());
-        }
-        if n > MOST {
-            return Err(BadInput("a contact list of more than 0x20 entries").into());
-        }
-        let (eax, ebx, esi) = (r.eax, r.ebx, r.esi);
-        let mut index = 0;
-        if n != 0 {
-            index = n;
-            if ebx != 0 {
-                for k in 0..n {
-                    let old = at(p.ebxs + 4 * k);
-                    if old != 0 && at(p.eaxs + 4 * k) == eax {
-                        if ebx > old {
-                            put(p.esis + 4 * k, esi);
-                            put(p.ebxs + 4 * k, ebx);
-                        }
-                        return Ok(Left::nothing().with(EDX, k));
-                    }
-                }
+    /// The queue at these places.
+    pub unsafe fn load(&self) -> NoticeQueue {
+        unsafe {
+            NoticeQueue {
+                count: get(self.count),
+                ids: get_list(self.esis),
+                values: get_list(self.eaxs),
+                levels: get_list(self.ebxs),
             }
         }
-        put(p.esis + 4 * index, esi);
-        put(p.eaxs + 4 * index, eax);
-        put(p.ebxs + 4 * index, ebx);
-        put(p.count, n + 1);
-        Ok(Left::nothing().with(EDX, index))
+    }
+
+    /// What changed from `was` to `now` stored back.
+    pub unsafe fn store(&self, was: &NoticeQueue, now: &NoticeQueue) {
+        unsafe {
+            put_list_changed(self.esis, &was.ids, &now.ids);
+            put_list_changed(self.eaxs, &was.values, &now.values);
+            put_list_changed(self.ebxs, &was.levels, &now.levels);
+            put_changed(self.count, was.count, now.count);
+        }
+    }
+}
+
+/// The Rust version on the variables at `p`, with the registers at entry.
+// Converted: `rc2k_core::physics::notices::NoticeQueue::queue`.
+pub unsafe fn queue_notice_at(p: &Contacts, r: &Regs) -> Result<Left, Refused> {
+    unsafe {
+        let was = p.load();
+        let mut q = was;
+        let index = q.queue(get(p.flags), r.esi, r.ebx, r.eax)?;
+        p.store(&was, &q);
+        Ok(index.map_or(Left::nothing(), |k| Left::nothing().with(EDX, k)))
     }
 }
 
@@ -127,6 +118,12 @@ fn rust(r: &Regs) -> Result<Left, Refused> {
 
 extern "C" fn dispatch(r: &mut Regs) {
     dispatch_state(&HOOK, r, call_original, &Contacts::game().regions(), &rust);
+}
+
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    state_entry(r, &rust)
 }
 
 fn self_test() -> (usize, usize) {

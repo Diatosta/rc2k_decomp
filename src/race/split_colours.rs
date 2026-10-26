@@ -17,7 +17,7 @@ use crate::errors::Refused;
 use crate::framework::{RawHook, Regs, SelfTest, game_read, game_write, hook_asm, rva};
 use crate::race::frame_draw::*;
 use crate::screens::harness::Left;
-use crate::service::harness::{Region, check_state, dispatch_state};
+use crate::service::harness::{Region, check_state, dispatch_state, state_entry};
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -44,6 +44,12 @@ extern "C" fn dispatch(r: &mut Regs) {
         &[(r.edi, 4 * MARK_BUFFER_DWORDS as usize)],
         &rust,
     );
+}
+
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    state_entry(r, &rust)
 }
 
 fn self_test() -> (usize, usize) {

@@ -10,28 +10,18 @@
 //! (`net::dplay`). Shadow mode runs the original alone. Self-test: a copy whose calls go to
 //! stand-ins and whose DirectPlay is a test object, against the Rust version: no object,
 //! no address, failing, done.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
+use crate::framework::Regs;
 use crate::net::dplay::{INITIALIZE_CONNECTION, call};
 use crate::net::lobby::{
-    ADDRESS, DPLAY, DPLAY_METHOD, FLAGS, LOG_HEX_L2_NL, LOG_INT_L2_NL, LOG_L2, Part, Saved,
-    TestObject, a, answer, cmp_flags, com_answer, dispatch_lobby, dword, g, log_text, p, run_both,
-    test_eax,
+    ADDRESS, DPLAY, LOG_HEX_L2_NL, LOG_INT_L2_NL, LOG_L2, Part, a, cmp_flags, g, lobby_entry,
+    log_text, test_eax,
 };
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("net::init_connection", rva(0x418794), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
 
 const TEXT: usize = 0x5C2E80; // "NET: Init connection index"
 const INIT: usize = 0x5C2E9B; // "NET: Init"
@@ -67,66 +57,8 @@ pub fn init_connection(entry: &Regs, part: Part) -> Result<Regs, Refused> {
     Ok(left(&r))
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_lobby(&HOOK, r, call_original, init_connection);
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    // pusha; pusha; lea eax, aNetInitConnect
-    let copy = match crate::net::lobby::copy(
-        0x418794,
-        0x5A,
-        &[0x60, 0x60, 0x8D, 0x05, 0x80, 0x2E, 0x5C, 0x00],
-        &[0x8, 0xF, 0x1E, 0x42, 0x49],
-        &[LOG_L2, LOG_INT_L2_NL, BUILD_ADDRESS, LOG_HEX_L2_NL],
-    ) {
-        Ok(c) => c,
-        Err(why) => return t.skip(why),
-    };
-    let dplay = TestObject::dplay();
-    let dp = dplay.addr();
-    let all = [dword(DPLAY), dword(ADDRESS)];
-    let saved = Saved::new(&all);
-    for (what, object, built, result) in [
-        ("no object", false, true, 0u32),
-        ("no address", true, false, 0),
-        ("failing", true, true, 0x8877_0005),
-        ("done", true, true, 0),
-    ] {
-        run_both(
-            &mut t,
-            what,
-            copy.addr(),
-            Regs {
-                eax: 3,
-                ..Regs::SENTINEL
-            },
-            &all,
-            FLAGS,
-            &[],
-            &|| {
-                p(DPLAY, if object { dp } else { 0 });
-                p(ADDRESS, 0x00AD_D000);
-                answer(Box::new(move |place, r| {
-                    if place == BUILD_ADDRESS {
-                        r.set_carry(!built);
-                    }
-                }));
-                com_answer(Box::new(move |place, _| {
-                    if place == DPLAY_METHOD | INITIALIZE_CONNECTION {
-                        result
-                    } else {
-                        0
-                    }
-                }));
-            },
-            &init_connection,
-        );
-    }
-    drop(saved);
-    drop(dplay);
-    t.finish()
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    lobby_entry(r, init_connection)
 }

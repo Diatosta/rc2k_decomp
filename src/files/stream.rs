@@ -19,6 +19,20 @@ pub struct Stream {
     pub buffer: [u8; BUFFER_LEN],
 }
 
+// The core's stream is the same block.
+const _: () = assert!(
+    size_of::<Stream>() == size_of::<rc2k_core::files::io::Stream<u32>>()
+        && BUFFER_LEN == rc2k_core::files::io::BUFFER_LEN
+);
+
+/// The game's stream block as the core's.
+///
+/// # Safety
+/// `stream` must point at a whole stream block that nothing else uses meanwhile.
+pub unsafe fn core_stream<'a>(stream: *mut Stream) -> &'a mut rc2k_core::files::io::Stream<u32> {
+    unsafe { &mut *(stream as *mut rc2k_core::files::io::Stream<u32>) }
+}
+
 impl Stream {
     /// For the self-tests: every field a recognisable filler.
     pub fn filler() -> Box<Stream> {

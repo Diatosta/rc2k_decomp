@@ -22,7 +22,9 @@ use crate::scene::objects::{
     FIRST_POINT_RVA, POINT_COUNTS_RVA, POINTS_RVA, SLOT_RVA, SLOTS, of_slot, slot_entry,
 };
 use crate::screens::harness::Left;
-use crate::service::harness::{Region, at, capture, check_state, dispatch_state, restore};
+use crate::service::harness::{
+    Region, at, capture, check_state, dispatch_state, restore, state_entry,
+};
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -42,8 +44,6 @@ hook_asm!(
 /// `dword_634B70` .. `dword_634B9C`: the middle, half the extent, the lowest, the
 /// highest, three dwords each.
 pub const MEASURES_RVA: usize = rva(0x634B70);
-const LOWEST: u32 = 0x0064_0000;
-const HIGHEST: u32 = 0xFF9C_0000;
 /// More points than this are not an object's (the test and the regions' guard).
 const MOST: u32 = 0x10_0000;
 
@@ -64,41 +64,27 @@ unsafe fn points_of(slot: u32) -> Result<(usize, u32), BadInput> {
     }
 }
 
+// Converted: `rc2k_core::scene::objects::measure`
 pub unsafe fn measure_object() -> Result<Left, BadInput> {
+    use rc2k_core::scene::objects::{HIGHEST_START, LOWEST_START, measure};
     unsafe {
         let slot: u32 = game_read(SLOT_RVA);
         let (at, count) = points_of(slot)?;
-        let (mut lowest, mut highest) = ([LOWEST; 3], [HIGHEST; 3]);
         let left = Left::nothing().with(EBX, slot).with(ECX, 0);
-        if count == 0 {
+        let points: &mut [[u32; 3]] = if count == 0 {
+            &mut []
+        } else {
+            std::slice::from_raw_parts_mut(at as *mut [u32; 3], count as usize)
+        };
+        let Some(m) = measure(points) else {
             // The half extents are not touched for an object of no points.
             game_write(MEASURES_RVA, [0u32; 3]);
-            game_write(MEASURES_RVA + 0x18, [lowest, highest]);
+            game_write(MEASURES_RVA + 0x18, [[LOWEST_START; 3], [HIGHEST_START; 3]]);
             return Ok(left.with(ESI, at as u32));
-        }
-        let points = std::slice::from_raw_parts_mut(at as *mut [u32; 3], count as usize);
-        for point in points.iter() {
-            for axis in 0..3 {
-                // Compared by the difference's sign, as the original does.
-                if (point[axis].wrapping_sub(lowest[axis]) as i32) < 0 {
-                    lowest[axis] = point[axis];
-                }
-                if (point[axis].wrapping_sub(highest[axis]) as i32) >= 0 {
-                    highest[axis] = point[axis];
-                }
-            }
-        }
-        let half: [u32; 3] =
-            std::array::from_fn(|n| ((highest[n].wrapping_sub(lowest[n]) as i32) >> 1) as u32);
-        let middle: [u32; 3] = std::array::from_fn(|n| half[n].wrapping_add(lowest[n]));
-        game_write(MEASURES_RVA, [middle, half, lowest, highest]);
-        for point in points.iter_mut() {
-            for axis in 0..3 {
-                point[axis] = point[axis].wrapping_sub(middle[axis]);
-            }
-        }
+        };
+        game_write(MEASURES_RVA, [m.middle, m.half, m.lowest, m.highest]);
         Ok(left
-            .with(EAX, middle[2])
+            .with(EAX, m.middle[2])
             .with(ESI, (at + count as usize * 12) as u32))
     }
 }
@@ -121,6 +107,12 @@ fn rust(_: &Regs) -> Result<Left, Refused> {
 
 extern "C" fn dispatch(r: &mut Regs) {
     dispatch_state(&HOOK, r, call_original, &regions(), &rust);
+}
+
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    state_entry(r, &rust)
 }
 
 // ---- self-test ----

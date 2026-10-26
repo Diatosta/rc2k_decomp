@@ -22,7 +22,7 @@ use crate::errors::Refused;
 use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
 use crate::race::viewer::{
     BLOCK, BLOCKS, FRAME, MARK_IN, MARK_OUT, PLAY_END, PLAY_FROM_HERE, Part, STOPPED, Saved,
-    dispatch_parts, dword, get, put, run_both, test_part,
+    dispatch_parts, dword, get, put, regs_entry, run_both, test_part,
 };
 use std::sync::atomic::AtomicUsize;
 
@@ -53,28 +53,26 @@ pub fn play_tail(entry: &Regs, part: Part) -> Result<Regs, Refused> {
 
 /// `play_marked`.
 pub fn play_marked(entry: &Regs, part: Part) -> Result<Regs, Refused> {
-    play_tail(
-        &Regs {
-            eax: get(MARK_IN),
-            ebx: get(MARK_OUT),
-            ecx: 0,
-            ..*entry
-        },
-        part,
-    )
+    // Converted: `rc2k_core::race::viewer_flow::marked_play`.
+    let play = rc2k_core::race::viewer_flow::marked_play(get(MARK_IN), get(MARK_OUT));
+    play_tail(&play_regs(entry, play), part)
+}
+
+/// The tail's registers for a play: eax the block, ebx the block to stop at, ecx the frame.
+fn play_regs(entry: &Regs, play: rc2k_core::race::viewer_flow::Play) -> Regs {
+    Regs {
+        eax: play.from,
+        ebx: play.end,
+        ecx: play.frame,
+        ..*entry
+    }
 }
 
 /// `play_from_here`.
 pub fn play_from_here(entry: &Regs, part: Part) -> Result<Regs, Refused> {
-    play_tail(
-        &Regs {
-            eax: get(BLOCK),
-            ebx: get(BLOCKS),
-            ecx: get(FRAME),
-            ..*entry
-        },
-        part,
-    )
+    // Converted: `rc2k_core::race::viewer_flow::play_from_here`.
+    let play = rc2k_core::race::viewer_flow::play_from_here(get(BLOCK), get(FRAME), get(BLOCKS));
+    play_tail(&play_regs(entry, play), part)
 }
 
 /// In the game: the Rust versions.
@@ -93,6 +91,12 @@ pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
 
 extern "C" fn dispatch(r: &mut Regs) {
     dispatch_parts(&HOOK, r, call_original, &|r| play_marked(r, &mut game_part));
+}
+
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    regs_entry(r, &|r| play_marked(r, &mut game_part))
 }
 
 /// The test of either: `from_here` enters the copy at the tail.

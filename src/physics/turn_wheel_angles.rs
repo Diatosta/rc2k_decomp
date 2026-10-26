@@ -13,15 +13,19 @@
 //! Caller: `sub_43B635` (0x43B91E), every physics step.
 //! Self-test: the original and the Rust version on the game's variables (saved and put
 //! back): kinds with and without a table entry and past the table, both switch settings,
-//! speeds by lot and below 0, under three precisions.
+//! speeds by lot and below 0, against the converted version, exact at double precision.
 
 use crate::errors::Refused;
 use crate::framework::{RawHook, Regs, SelfTest, game_addr, game_read, game_write, hook_asm, rva};
 use crate::math::x87;
-use crate::math::x87_run::{TEST_CONTROL_WORDS, with_control_word};
 use crate::scene::matrix3::test_floats;
 use crate::screens::harness::Left;
-use crate::service::harness::{Region, capture, check_state, dispatch_state, restore};
+use crate::service::floats::{
+    FLOAT, Floats, Tolerance, at_test_precisions, check_state_floats, dispatch_state_floats,
+    floats_entry,
+};
+use crate::service::harness::{Region, capture, restore};
+use rc2k_core::physics::wheels::{add_turn as add_turn_core, slip, turns_wheels};
 use std::cmp::Ordering;
 use std::sync::atomic::AtomicUsize;
 
@@ -83,7 +87,7 @@ fn add_turn(speed: Option<u32>, f1: usize, f2: usize, to: usize) {
     }
 }
 
-/// The Rust version.
+/// The Rust version (the exact one, for `physics::car_physics_step`).
 pub unsafe fn turn_wheel_angles() -> Left {
     let kind = g(KIND);
     if kind >= 0x22 || g(KINDS + 4 * kind as usize) == 0 {
@@ -97,8 +101,31 @@ pub unsafe fn turn_wheel_angles() -> Left {
     Left::nothing()
 }
 
+/// The converted version (`rc2k_core::physics::wheels`, plain floats): the hook's.
+// Converted: `rc2k_core::physics::wheels::{turns_wheels, add_turn, slip}`.
+pub unsafe fn turn_wheel_angles_plain() -> Left {
+    if !turns_wheels(g(KIND), |k| g(KINDS + 4 * k as usize)) {
+        return Left::carry(true);
+    }
+    let f = |x: usize| f32::from_bits(g(x));
+    let still = g(STILL) != 0;
+    let half = |speed: Option<f32>, f1: usize, f2: usize, to: usize| {
+        let mut angles = [0, 1, 2, 3].map(|k| f(to + 4 * k));
+        let step = add_turn_core(speed, f(ZERO), f(f1), f(f2), &mut angles);
+        p(SCRATCH, step.to_bits());
+        for (k, v) in angles.iter().enumerate() {
+            p(to + 4 * k, v.to_bits());
+        }
+    };
+    let drive = (!still).then(|| f(0x71A190));
+    half(drive, 0x623DA8, 0x623DB0, 0x623D60);
+    let slip = (!still).then(|| slip(f(0x71A190), f(0x71A184)));
+    half(slip, 0x623DAC, 0x623DB4, 0x623D70);
+    Left::nothing()
+}
+
 fn rust(_: &Regs) -> Result<Left, Refused> {
-    let left = unsafe { turn_wheel_angles() };
+    let left = unsafe { turn_wheel_angles_plain() };
     // Flags are only compared on the skipped path (`Left::carry`).
     Ok(left)
 }
@@ -107,8 +134,24 @@ fn regions() -> Vec<Region> {
     vec![(a(SCRATCH), 4), (a(0x623D60), 0x20)]
 }
 
+/// The float places, held to `FLOAT` at extended precision.
+fn floats() -> [(Region, Tolerance); 2] {
+    [((a(SCRATCH), 4), FLOAT), ((a(0x623D60), 0x20), FLOAT)]
+}
+
 extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_state(&HOOK, r, call_original, &regions(), &rust);
+    let memory = floats();
+    let floats = Floats {
+        memory: &memory,
+        regs: &[],
+    };
+    dispatch_state_floats(&HOOK, r, call_original, &regions(), &floats, &rust);
+}
+
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    floats_entry(r, &rust)
 }
 
 fn self_test() -> (usize, usize) {
@@ -131,42 +174,47 @@ fn self_test() -> (usize, usize) {
         .into_iter()
         .flatten()
         .collect();
-    for word in TEST_CONTROL_WORDS {
-        with_control_word(word, &mut || {
-            for &kind in &kinds {
-                for still in [0u32, 1] {
-                    for seed in 1..=4u32 {
-                        let set = || {
-                            let mut f = [0u32; 14];
-                            test_floats(seed * 19 + kind.wrapping_mul(3) + still, &mut f);
-                            p(KIND, kind);
-                            p(STILL, still);
-                            let drive = if seed == 2 { f[0] | 0x8000_0000 } else { f[0] };
-                            p(0x71A190, drive);
-                            p(0x71A184, f[1]);
-                            for k in 0..4 {
-                                p(0x623DA8 + 4 * k, f[2 + k]);
-                            }
-                            for k in 0..8 {
-                                p(0x623D60 + 4 * k, f[6 + k]);
-                            }
-                        };
-                        check_state(
-                            &mut t,
-                            &format!(
-                                "control word {word:#x}, kind {kind:#x}, still {still}, seed {seed}"
-                            ),
-                            call_original,
-                            Regs::SENTINEL,
-                            &set,
-                            &all,
-                            &rust,
-                        );
-                    }
+    let memory = floats();
+    let tolerant = Floats {
+        memory: &memory,
+        regs: &[],
+    };
+    at_test_precisions(&tolerant, &mut |word, fl| {
+        for &kind in &kinds {
+            for still in [0u32, 1] {
+                for seed in 1..=4u32 {
+                    let set = || {
+                        let mut f = [0u32; 14];
+                        test_floats(seed * 19 + kind.wrapping_mul(3) + still, &mut f);
+                        p(KIND, kind);
+                        p(STILL, still);
+                        let drive = if seed == 2 { f[0] | 0x8000_0000 } else { f[0] };
+                        p(0x71A190, drive);
+                        p(0x71A184, f[1]);
+                        for k in 0..4 {
+                            p(0x623DA8 + 4 * k, f[2 + k]);
+                        }
+                        for k in 0..8 {
+                            p(0x623D60 + 4 * k, f[6 + k]);
+                        }
+                    };
+                    check_state_floats(
+                        &mut t,
+                        "physics::turn_wheel_angles",
+                        &format!(
+                            "control word {word:#x}, kind {kind:#x}, still {still}, seed {seed}"
+                        ),
+                        call_original,
+                        Regs::SENTINEL,
+                        &set,
+                        &all,
+                        fl,
+                        &rust,
+                    );
                 }
             }
-        });
-    }
+        }
+    });
     restore(&all, &saved);
     t.finish()
 }

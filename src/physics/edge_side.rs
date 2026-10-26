@@ -17,6 +17,7 @@
 use crate::errors::Refused;
 use crate::framework::{RawHook, Regs, SelfTest, call_game, game_addr, hook_asm, rva};
 use crate::physics::flag_result::{FlagResult, dispatch_flags};
+use rc2k_core::physics::faces;
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -55,6 +56,7 @@ unsafe fn at(a: u32) -> u32 {
 }
 
 /// The Rust core; `eax` what eax held at entry is not needed (it is always set).
+// Converted: `rc2k_core::physics::faces::edge_side`.
 pub unsafe fn edge_side_at(p: &EdgePlaces, from: u32, to: u32) -> FlagResult {
     let result = |eax, carry, zero| FlagResult {
         eax,
@@ -64,14 +66,14 @@ pub unsafe fn edge_side_at(p: &EdgePlaces, from: u32, to: u32) -> FlagResult {
         zero: Some(zero),
     };
     unsafe {
-        let (x0, z0, x1, z1) = (at(from), at(from + 8), at(to), at(to + 8));
-        if (x0 ^ x1) | (z0 ^ z1) == 0 {
-            return result(1, false, false);
+        let point = (at(p.x), at(p.z));
+        match faces::edge_side(point, (at(from), at(from + 8)), (at(to), at(to + 8))) {
+            None => result(1, false, false),
+            Some((kept, negative)) => {
+                (p.product as *mut i64).write_unaligned(kept);
+                result(0, negative, true)
+            }
         }
-        let t1 = i64::from(at(p.z).wrapping_sub(z0) as i32) * i64::from(x1.wrapping_sub(x0) as i32);
-        (p.product as *mut i64).write_unaligned(t1);
-        let t2 = i64::from(at(p.x).wrapping_sub(x0) as i32) * i64::from(z1.wrapping_sub(z0) as i32);
-        result(0, t2.wrapping_sub(t1) < 0, true)
     }
 }
 

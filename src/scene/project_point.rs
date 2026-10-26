@@ -21,6 +21,12 @@
 //! Fatal errors 0x80600902 and 0x80600903 for a number past the object's or the
 //! scene's points.
 //! One caller, `scene::project_polygon`.
+//!
+//! Converted 2026-10-21: the hook's Rust version is `project_point_plain`, through
+//! `rc2k_core::scene::projection` (plain floats; the x87 version stays for the Rust callers
+//! in unconverted code); `record_offset` is the core's for both. Shadow mode and the
+//! self-test compare the record's floats and `dword_62400C` within `service::floats`'
+//! tolerances (the self-test at both test precisions, exact at double).
 
 use crate::errors::{BadInput, FatalError, Refused};
 use crate::framework::{
@@ -31,7 +37,7 @@ use crate::math::x87;
 use crate::scene::draw_polygon::CHECKED_RVA;
 use crate::scene::polygon::{dword, put};
 use crate::screens::harness::Left;
-use crate::service::harness::{Region, at, capture, dispatch_state, restore};
+use crate::service::harness::{Region, at, capture, restore};
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -145,19 +151,19 @@ pub(crate) unsafe fn to_screen(record: *mut u32, v: &[u32; 4], flat: bool, check
 }
 
 /// The offset of a point's record, or the fatal error for a number too high.
+// Converted: `rc2k_core::scene::projection::record_offset`
 pub unsafe fn record_offset(point: u32) -> Result<u32, FatalError> {
+    use rc2k_core::scene::projection::TooHigh;
     unsafe {
-        if (point as i32) < 0 {
-            let number = point.wrapping_neg();
-            if number >= game_read::<u32>(OBJECT_POINTS_RVA) {
-                return Err(TOO_HIGH_OBJECT);
-            }
-            Ok(((number & 0xFFF) + 0x1000) << 5)
-        } else if point >= game_read::<u32>(POINT_COUNT_RVA).wrapping_add(0x40) {
-            Err(TOO_HIGH)
-        } else {
-            Ok((point & 0xFFF) << 5)
-        }
+        rc2k_core::scene::projection::record_offset(
+            point,
+            game_read(OBJECT_POINTS_RVA),
+            game_read(POINT_COUNT_RVA),
+        )
+        .map_err(|e| match e {
+            TooHigh::Object => TOO_HIGH_OBJECT,
+            TooHigh::Scene => TOO_HIGH,
+        })
     }
 }
 
@@ -236,6 +242,94 @@ pub unsafe fn project_point(point: u32) -> Result<Projected, Refused> {
     }
 }
 
+/// The view's screen from the game's variables.
+pub fn screen() -> rc2k_core::scene::projection::Screen {
+    unsafe {
+        let f = |r: usize| f32::from_bits(game_read(r));
+        rc2k_core::scene::projection::Screen {
+            scale: f(SCALE_RVA),
+            centre: [f(CENTRE_X_RVA), f(CENTRE_Y_RVA)],
+            flat: (game_read::<u32>(FLAT_RVA) != 0).then(|| game_read(FLAT_DEPTH_RVA)),
+        }
+    }
+}
+
+/// The converted `make_scene_record` (plain floats).
+// Converted: `rc2k_core::scene::projection::make_record`
+pub(crate) unsafe fn make_scene_record_plain(point: u32, record: u32) -> Result<u32, BadInput> {
+    unsafe {
+        let at = record as usize;
+        let points: u32 = game_read(POINTS_RVA);
+        if points == 0 {
+            return Err(BadInput("no points"));
+        }
+        let from = points.wrapping_add(point.wrapping_mul(12));
+        let place = (from as *const [i32; 3]).read_unaligned();
+        let matrix: [u32; 16] = game_read(MATRIX_RVA);
+        let made = rc2k_core::scene::projection::make_record(
+            place,
+            &matrix.map(f32::from_bits),
+            screen,
+            game_read::<u32>(LOWERED_RVA) == 1,
+        );
+        put(at, point);
+        for (k, v) in made.view.into_iter().enumerate() {
+            put(at + 0x10 + 4 * k, v.to_bits());
+        }
+        put(at + 0xC, made.screen[0].to_bits());
+        put(at + 0x1C, made.screen[1].to_bits());
+        if let Some(checked) = made.checked {
+            game_write(CHECKED_RVA, checked.to_bits());
+        }
+        Ok(from)
+    }
+}
+
+/// The converted `project_point` (plain floats): the hook's, and `project_polygon_plain`'s.
+/// The x87 version above stays for the Rust callers in unconverted code.
+// Converted: `rc2k_core::scene::projection`
+pub unsafe fn project_point_plain(point: u32) -> Result<Projected, Refused> {
+    unsafe {
+        let offset = record_offset(point)?;
+        let records: u32 = game_read(RECORDS_RVA);
+        if records == 0 {
+            return Err(BadInput("no records for the points").into());
+        }
+        let record = records.wrapping_add(offset);
+        if (point as i32) < 0 {
+            return Ok(Projected {
+                record,
+                eax: offset,
+                ecx: None,
+            });
+        }
+        if dword(record as usize) == point {
+            return Ok(Projected {
+                record,
+                eax: point,
+                ecx: Some(game_read::<u32>(POINT_COUNT_RVA).wrapping_add(0x40)),
+            });
+        }
+        let from = make_scene_record_plain(point, record)?;
+        Ok(Projected {
+            record,
+            eax: point,
+            ecx: Some(from),
+        })
+    }
+}
+
+/// The float places of `regions(point)`: the record's five floats and `dword_62400C`.
+pub fn float_places(point: u32) -> Vec<(Region, crate::service::floats::Tolerance)> {
+    use crate::service::floats::FLOAT;
+    let mut places = vec![(at(CHECKED_RVA), FLOAT)];
+    let records: u32 = unsafe { game_read(RECORDS_RVA) };
+    if let (Ok(offset), true) = (unsafe { record_offset(point) }, records != 0) {
+        places.push(((records.wrapping_add(offset + 0xC), 0x14), FLOAT));
+    }
+    places
+}
+
 // ---- hook ----
 
 /// What a call for `point` may write.
@@ -249,7 +343,7 @@ pub fn regions(point: u32) -> Vec<Region> {
 }
 
 fn rust(r: &Regs) -> Result<Left, Refused> {
-    let done = unsafe { project_point(r.eax) }?;
+    let done = unsafe { project_point_plain(r.eax) }?;
     let left = Left::nothing().with(EAX, done.eax).with(EDX, done.record);
     Ok(match done.ecx {
         Some(ecx) => left.with(ECX, ecx),
@@ -258,7 +352,19 @@ fn rust(r: &Regs) -> Result<Left, Refused> {
 }
 
 extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_state(&HOOK, r, call_original, &regions(r.eax), &rust);
+    use crate::service::floats::{Floats, dispatch_state_floats};
+    let places = float_places(r.eax);
+    let floats = Floats {
+        memory: &places,
+        regs: &[],
+    };
+    dispatch_state_floats(&HOOK, r, call_original, &regions(r.eax), &floats, &rust);
+}
+
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    crate::service::floats::floats_entry(r, &rust)
 }
 
 // ---- self-test: points, records and a view of the test's ----
@@ -365,7 +471,25 @@ impl Default for World {
     }
 }
 
+/// Two states of the test's world the same, the records' floats (+0xC .. +0x1C) and the
+/// checked value within `tolerance`.
+pub fn same_world(
+    theirs: &(Vec<[u32; 8]>, u32),
+    mine: &(Vec<[u32; 8]>, u32),
+    tolerance: crate::service::floats::Tolerance,
+) -> bool {
+    use crate::service::floats::close;
+    theirs.0.len() == mine.0.len()
+        && theirs
+            .0
+            .iter()
+            .zip(&mine.0)
+            .all(|(a, b)| a[..3] == b[..3] && (3..8).all(|k| close(a[k], b[k], tolerance)))
+        && close(theirs.1, mine.1, tolerance)
+}
+
 fn self_test() -> (usize, usize) {
+    use crate::service::floats::{FLOAT, Floats, at_test_precisions};
     let Some(mut t) = SelfTest::begin(&HOOK) else {
         return (0, 0);
     };
@@ -373,49 +497,57 @@ fn self_test() -> (usize, usize) {
     let saved = capture(&inputs);
     let mut world = World::new();
     let last = TEST_POINTS + 0x3F;
-    for view in 0..4 {
-        for (flat, lowered) in [(false, false), (true, false), (false, true), (true, true)] {
-            for point in [
-                0u32,
-                1,
-                2,
-                3,
-                5,
-                6,
-                7,
-                last,
-                -1i32 as u32,
-                -3i32 as u32,
-                -5i32 as u32,
-            ] {
-                let before = Regs {
-                    eax: point,
-                    ..Regs::SENTINEL
-                };
-                unsafe { world.set(view, flat, lowered) };
-                let mut ro = before;
-                unsafe { call_original(&mut ro) };
-                let theirs = world.state();
-                unsafe { world.set(view, flat, lowered) };
-                let mine = rust(&before);
-                let state = world.state();
-                let regs_ok = mine.as_ref().is_ok_and(|left| left.matches(&before, &ro));
-                t.check(regs_ok && theirs == state, || {
-                    let n = theirs.0.iter().zip(&state.0).position(|(a, b)| a != b);
-                    format!(
-                        "point {point:#x}, view {view}, flat {flat}, lowered {lowered}: regs_ok={regs_ok} original eax {:#x} ecx {:#x} edx {:#x}, rust {mine:x?}; checked {:#x} {:#x}; first different record {n:?}: {:x?} {:x?}",
-                        ro.eax,
-                        ro.ecx,
-                        ro.edx,
-                        theirs.1,
-                        state.1,
-                        n.map(|n| theirs.0[n]),
-                        n.map(|n| state.0[n]),
-                    )
-                });
+    let places = [(at(CHECKED_RVA), FLOAT)];
+    let tolerant = Floats {
+        memory: &places,
+        regs: &[],
+    };
+    at_test_precisions(&tolerant, &mut |word, held| {
+        let tolerance = held.memory[0].1;
+        for view in 0..4 {
+            for (flat, lowered) in [(false, false), (true, false), (false, true), (true, true)] {
+                for point in [
+                    0u32,
+                    1,
+                    2,
+                    3,
+                    5,
+                    6,
+                    7,
+                    last,
+                    -1i32 as u32,
+                    -3i32 as u32,
+                    -5i32 as u32,
+                ] {
+                    let before = Regs {
+                        eax: point,
+                        ..Regs::SENTINEL
+                    };
+                    unsafe { world.set(view, flat, lowered) };
+                    let mut ro = before;
+                    unsafe { call_original(&mut ro) };
+                    let theirs = world.state();
+                    unsafe { world.set(view, flat, lowered) };
+                    let mine = rust(&before);
+                    let state = world.state();
+                    let regs_ok = mine.as_ref().is_ok_and(|left| left.matches(&before, &ro));
+                    t.check(regs_ok && same_world(&theirs, &state, tolerance), || {
+                        let n = theirs.0.iter().zip(&state.0).position(|(a, b)| a != b);
+                        format!(
+                            "control word {word:#x}, point {point:#x}, view {view}, flat {flat}, lowered {lowered}: regs_ok={regs_ok} original eax {:#x} ecx {:#x} edx {:#x}, rust {mine:x?}; checked {:#x} {:#x}; first different record {n:?}: {:x?} {:x?}",
+                            ro.eax,
+                            ro.ecx,
+                            ro.edx,
+                            theirs.1,
+                            state.1,
+                            n.map(|n| theirs.0[n]),
+                            n.map(|n| state.0[n]),
+                        )
+                    });
+                }
             }
         }
-    }
+    });
     restore(&inputs, &saved);
     t.finish()
 }

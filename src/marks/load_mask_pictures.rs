@@ -197,11 +197,10 @@ pub unsafe fn load_mask_pictures(entry: &Regs, part: Part) -> Result<Regs, Refus
 /// down and leaves with its stack one off), 3 `gfx::put_surface_pixel`,
 /// 5 `scene::forget_slot_texture`, 6 `memory::free_list`.
 pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
-    use crate::framework::call_game;
     unsafe {
         match place {
             0 => crate::race::level_init::game_part(0, r)?,
-            1 => call_game(r, game_addr(rva(0x41AA4B))),
+            1 => crate::calls::call(rva(0x41AA4B), r),
             2 => {
                 if !crate::gfx::read_picture_file::read_picture_file(r.eax as *mut u8)? {
                     return Err(BadInput("a mask picture was not read").into());
@@ -209,7 +208,7 @@ pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
                 r.set_carry(false);
             }
             3 => r.eax = crate::gfx::put_surface_pixel::put_surface_pixel(r)?.eax,
-            4 => call_game(r, game_addr(rva(0x41AB02))),
+            4 => crate::calls::call(rva(0x41AB02), r),
             5 => crate::scene::forget_slot_texture::forget_slot_texture(r.eax)?,
             _ => crate::memory::free_list::free_list(r.ebx as *mut crate::memory::MemoryList)?,
         }
@@ -233,6 +232,19 @@ extern "C" fn dispatch(r: &mut Regs) {
         }
         Err(e) => unsafe { crate::fatal::raise::refused(&HOOK, e, r, call_original) },
     }
+}
+
+/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    {
+        let left = unsafe { load_mask_pictures(r, &mut game_part) }?;
+        *r = Regs {
+            esp: r.esp,
+            eflags: r.eflags,
+            ..left
+        }
+    }
+    Ok(())
 }
 
 /// The test's blocks, given out in turn by the allocation stand-in.

@@ -28,7 +28,9 @@ use crate::physics::flow::{a, g, guard, p};
 use crate::scene::matrix::{multiply_matrices, set_place};
 use crate::scene::matrix3::test_floats;
 use crate::screens::harness::{CallOriginal, Left};
-use crate::service::harness::{Region, Rust, capture, check_state, dispatch_state, restore};
+use crate::service::harness::{
+    Region, Rust, capture, check_state, dispatch_state, restore, state_entry,
+};
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -146,6 +148,12 @@ pub fn regions() -> Vec<Region> {
 
 extern "C" fn dispatch(r: &mut Regs) {
     dispatch_state(&HOOK, r, call_original, &regions(), &rust);
+}
+
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    state_entry(r, &rust)
 }
 
 /// The tests of the three: `whole` the original's `call_original`, the Rust version, and

@@ -9,16 +9,17 @@
 //! Out: eax, ebx the two, esi the mode's record; the rest kept; no flags read
 //!
 //! Caller: `sub_437A53`.
-//! Self-test: `physics/camera_view.rs` (`view_test`): the original and the Rust version
-//! on the game's variables (saved and put back) and a test record, modes by lot, under
-//! three precisions.
+//! Self-test: `physics/camera_view.rs` (`view_test_floats`): the original and the
+//! converted version on the game's variables (saved and put back) and a test record,
+//! modes by lot, exact at double precision.
 
 use crate::errors::Refused;
 use crate::framework::{EAX, EBX, ESI, RawHook, Regs, hook_asm, rva};
-use crate::physics::camera_view::{rd, record, view_regions, view_test};
-use crate::physics::flow::{base, g, p, x87_run};
+use crate::physics::camera_view::{rd, record, record_plain, view_regions, view_test_floats};
+use crate::physics::flow::{a, base, g, p, x87_run};
 use crate::screens::harness::Left;
-use crate::service::harness::dispatch_state;
+use crate::service::floats::{FLOAT, Floats, dispatch_state_floats, floats_entry};
+use rc2k_core::physics::camera_view::{view_place, view_turns};
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -33,7 +34,7 @@ hook_asm!(
     original = ORIGINAL
 );
 
-/// The Rust version.
+/// The Rust version (the exact one, for `physics::update_camera`).
 pub unsafe fn take_view_a(entry: &Regs) -> Left {
     let s = entry.esi;
     x87_run!(
@@ -48,20 +49,7 @@ pub unsafe fn take_view_a(entry: &Regs) -> Left {
         "fstp dword ptr [{b} + 0x208BA0]";
         b = base(), s = s
     );
-    let to = [
-        0x608B80usize,
-        0x608B84,
-        0x608B88,
-        0x608BC8,
-        0x608BCC,
-        0x608BD0,
-        0x608BF8,
-        0x608BFC,
-        0x608C00,
-        0x608BF4,
-        0x608C04,
-    ];
-    for (k, x) in to.iter().enumerate() {
+    for (k, x) in COPIES.iter().enumerate() {
         p(*x, rd(s + 0x10 + 4 * k as u32));
     }
     p(0x608B5C, g(0x71A998));
@@ -76,14 +64,59 @@ pub unsafe fn take_view_a(entry: &Regs) -> Left {
     Left::nothing().with(EAX, eax).with(EBX, ebx).with(ESI, esi)
 }
 
+/// The converted version (`rc2k_core::physics::camera_view`, plain floats): the hook's.
+// Converted: `rc2k_core::physics::camera_view::{view_place, view_turns}`.
+pub unsafe fn take_view_a_plain(entry: &Regs) -> Left {
+    let s = entry.esi;
+    let f = |x: u32| f32::from_bits(rd(x));
+    let place = view_place(
+        [f(s + 4), f(s + 8), f(s + 0xC)],
+        [0x637638, 0x63763C, 0x637640].map(|x| f32::from_bits(g(x))),
+    );
+    for (k, v) in place.iter().enumerate() {
+        p(0x608B98 + 4 * k, v.to_bits());
+    }
+    for (k, x) in COPIES.iter().enumerate() {
+        p(*x, rd(s + 0x10 + 4 * k as u32));
+    }
+    p(0x608B5C, g(0x71A998));
+    let esi = record_plain();
+    let [eax, ebx] = view_turns([g(0x71A99C), g(0x71A9A0)], rd(esi + 0x4C) != 0);
+    p(0x608B64, eax);
+    p(0x608B60, ebx);
+    Left::nothing().with(EAX, eax).with(EBX, ebx).with(ESI, esi)
+}
+
+/// Where the record's +0x10 .. +0x38 go.
+const COPIES: [usize; 11] = [
+    0x608B80, 0x608B84, 0x608B88, 0x608BC8, 0x608BCC, 0x608BD0, 0x608BF8, 0x608BFC, 0x608C00,
+    0x608BF4, 0x608C04,
+];
+
 fn rust(r: &Regs) -> Result<Left, Refused> {
-    Ok(unsafe { take_view_a(r) })
+    Ok(unsafe { take_view_a_plain(r) })
 }
 
 extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_state(&HOOK, r, call_original, &view_regions(), &rust);
+    let floats = Floats {
+        memory: &[((a(0x608B98), 12), FLOAT)],
+        regs: &[],
+    };
+    dispatch_state_floats(&HOOK, r, call_original, &view_regions(), &floats, &rust);
+}
+
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    floats_entry(r, &rust)
 }
 
 fn self_test() -> (usize, usize) {
-    view_test(&HOOK, call_original, &rust)
+    view_test_floats(
+        &HOOK,
+        "physics::take_view_a",
+        call_original,
+        &rust,
+        &[(0x608B98, 12, FLOAT)],
+    )
 }

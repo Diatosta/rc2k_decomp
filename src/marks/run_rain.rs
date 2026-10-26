@@ -307,7 +307,7 @@ pub fn game_part(place: u32, r: &mut Regs, v: &[[u8; 10]]) -> Result<(), Refused
                 let (value, state) = (r.eax, r.ebx);
                 crate::scene::set_render_state::set_render_state(r, value, state);
             }
-            4 => call_game(r, game_addr(CLEAR_TEXTURE_RVA)),
+            4 => crate::calls::call(CLEAR_TEXTURE_RVA, r),
             5 => {
                 let left = crate::marks::drift_offsets::drift_offsets(r);
                 *r = Regs { esp: r.esp, ..left };
@@ -332,6 +332,13 @@ extern "C" fn dispatch(r: &mut Regs) {
         Ok(left) => *r = Regs { esp: r.esp, ..left },
         Err(e) => unsafe { crate::fatal::raise::refused(&HOOK, e, r, call_original) },
     }
+}
+
+/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    let left = unsafe { run_rain(r, &mut game_part) }?;
+    *r = Regs { esp: r.esp, ..left };
+    Ok(())
 }
 
 /// A call as the test notes it: place, eax .. esi, the x87 values.

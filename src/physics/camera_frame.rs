@@ -33,11 +33,12 @@ hook_asm!(
     original = ORIGINAL
 );
 
+// Converted: `rc2k_core::physics::camera_view::shakes` (the x87 steps stay).
 fn steps(r: &mut Regs, part: Part) -> Result<(), Refused> {
     for x in [0x637644, 0x637638, 0x63763C, 0x637640] {
         p(x, 0);
     }
-    if matches!(g(0x71A65C), 1..=3) && g(0x71A22C) == 0 {
+    if rc2k_core::physics::camera_view::shakes(g(0x71A65C), g(0x71A22C)) {
         x87_run!(
             "fld dword ptr [{b} + 0x31A8E4]",
             "fmul dword ptr [{b} + 0x214098]",

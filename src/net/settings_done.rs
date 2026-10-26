@@ -9,26 +9,14 @@
 //! Caller: `net::settings_loop` (on entering it). Its calls through `part`. It waits for the
 //! receiving thread: ungated. Shadow mode runs the original alone. Self-test: a copy whose
 //! calls go to stand-ins, against the Rust version: found, not found, none listed.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
-use crate::net::lobby::{
-    Part, SAVED_CONNECTION, SAVED_NAME, STOP, ZERO_MEMORY, a, answer, dispatch_lobby, run_both,
-};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("net::settings_done", rva(0x416F0B), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL,
-    ungated
-);
+use crate::framework::Regs;
+use crate::net::lobby::{Part, SAVED_CONNECTION, SAVED_NAME, STOP, ZERO_MEMORY, a, lobby_entry};
 
 const FIND_CONNECTIONS: u32 = 0x4174BD; // net::find_connections_regs
 const FIND_SAVED: u32 = 0x4185DF; // net::find_saved_connection
@@ -64,52 +52,8 @@ pub fn settings_done(entry: &Regs, part: Part) -> Result<Regs, Refused> {
     })
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_lobby(&HOOK, r, call_original, settings_done);
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    // pusha; call sub_4174BD
-    let copy = match crate::net::lobby::copy(
-        0x416F0B,
-        0x45,
-        &[0x60, 0xE8, 0xAC, 0x05, 0x00, 0x00],
-        &[0x1, 0x8, 0xF, 0x14, 0x28, 0x3C],
-        &[
-            FIND_CONNECTIONS,
-            FIND_SAVED,
-            KEEP_CONNECTION,
-            STOP,
-            ZERO_MEMORY,
-        ],
-    ) {
-        Ok(c) => c,
-        Err(why) => return t.skip(why),
-    };
-    for (none, not_found) in [(false, false), (false, true), (true, false)] {
-        run_both(
-            &mut t,
-            &format!("none listed {none}, not found {not_found}"),
-            copy.addr(),
-            Regs::SENTINEL,
-            &[],
-            0,
-            &[],
-            &|| {
-                answer(Box::new(move |place, r| match place {
-                    FIND_CONNECTIONS => r.set_carry(none),
-                    FIND_SAVED => {
-                        r.set_carry(not_found);
-                        r.eax = 1;
-                    }
-                    _ => {}
-                }))
-            },
-            &settings_done,
-        );
-    }
-    t.finish()
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    lobby_entry(r, settings_done)
 }

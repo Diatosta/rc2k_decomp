@@ -19,7 +19,7 @@
 
 use crate::errors::Refused;
 use crate::framework::{
-    RawHook, Regs, SelfTest, call_game, game_addr, game_read, game_write, hook_asm, rva, shadow,
+    RawHook, Regs, SelfTest, game_addr, game_read, game_write, hook_asm, rva, shadow,
 };
 use crate::race::mud::{copy, run_both};
 use crate::service::harness::{Region, at, capture, restore};
@@ -62,20 +62,12 @@ pub unsafe fn replay_screenshot(entry: &Regs, part: Part) -> Result<Regs, Refuse
         }
         let kept: u32 = game_read(PICTURE_NAME_RVA);
         r.eax = game_addr(NAME_RVA) as u32;
-        r.ecx = 5;
-        loop {
-            r.ebx = r.ecx.wrapping_add(r.eax).wrapping_add(4);
-            let digit = r.ebx as *mut u8;
-            *digit = (*digit).wrapping_add(1);
-            if *digit <= b'9' {
-                break;
-            }
-            *digit = b'0';
-            r.ecx = r.ecx.wrapping_sub(1);
-            if (r.ecx as i32) < 0 {
-                break;
-            }
-        }
+        // Converted: `rc2k_core::race::viewer::count_up` (the name's six digits from +4).
+        let digits = (r.eax + 4) as *mut [u8; 6];
+        let (counted, last, ecx) = rc2k_core::race::viewer::count_up(digits.read());
+        digits.write(counted);
+        r.ebx = r.eax + 4 + last as u32;
+        r.ecx = ecx;
         game_write(PICTURE_NAME_RVA, r.eax);
         let saved = (|| {
             part(1, &mut r)?;
@@ -104,7 +96,7 @@ pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
             2 => crate::gfx::write_screen_pcx::write_screen_pcx_in_game(r)?,
             p => {
                 let at = [0, 0x4058AD, 0x411E0C, 0x405949][p as usize];
-                call_game(r, game_addr(rva(at)));
+                crate::calls::call(rva(at), r);
             }
         }
     }
@@ -121,6 +113,13 @@ extern "C" fn dispatch(r: &mut Regs) {
         Ok(left) => *r = Regs { esp: r.esp, ..left },
         Err(e) => unsafe { crate::fatal::raise::refused(&HOOK, e, r, call_original) },
     }
+}
+
+/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    let left = unsafe { replay_screenshot(r, &mut game_part) }?;
+    *r = Regs { esp: r.esp, ..left };
+    Ok(())
 }
 
 /// The test's lock fails (carry) while this is set.

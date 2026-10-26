@@ -8,24 +8,15 @@
 //! Six callers, those of `net::lock_received`. The release through `part` (in the game
 //! `ReleaseMutex` from Rust, `net::game_part`). Refuses nothing. Shadow mode runs the
 //! original alone. Self-test: as `net::lock_received`'s.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, hook_asm, rva};
+use crate::framework::Regs;
 use crate::net::message_vars::{MessageVars, get};
-use crate::net::{Part, RELEASE_MUTEX, dispatch_net};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("net::unlock_received", rva(0x418481), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
+use crate::net::{Part, RELEASE_MUTEX, net_entry};
 
 /// The Rust version on the variables at `v`.
 pub fn unlock_received_with(r: &mut Regs, v: &MessageVars, part: Part) -> Result<(), Refused> {
@@ -43,17 +34,8 @@ pub fn unlock_received(r: &mut Regs, part: Part) -> Result<(), Refused> {
     unlock_received_with(r, &MessageVars::game(), part)
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_net(&HOOK, r, call_original, unlock_received);
-}
-
-fn self_test() -> (usize, usize) {
-    // pusha; mov eax, g_netMutex
-    crate::net::lock_received::test_wrapper(
-        &HOOK,
-        0x418481,
-        &[0x60, 0xA1, 0x6C, 0xAB, 0x52, 0x00],
-        RELEASE_MUTEX,
-        unlock_received_with,
-    )
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    net_entry(r, unlock_received)
 }

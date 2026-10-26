@@ -23,7 +23,7 @@
 //! sent, the mutex taken).
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{GameHook, RawHook, Regs, call_game, game_addr, rva, shadow};
+use crate::framework::{RawHook, Regs, game_addr, rva, shadow};
 
 pub mod add_address_element;
 pub mod add_chat_line;
@@ -141,117 +141,6 @@ pub mod take_messages;
 pub mod take_player_settings;
 pub mod types;
 pub mod unlock_received;
-
-pub static HOOKS: &[&dyn GameHook] = &[
-    &set_up::HOOK,
-    &receive_thread::HOOK,
-    &send_message::HOOK,
-    &send_race_message::HOOK,
-    &send_inputs::HOOK,
-    &send_position::HOOK,
-    &send_extra::HOOK,
-    &send_turn::HOOK,
-    &copy_received::HOOK,
-    &apply_message::HOOK,
-    &apply_received::HOOK,
-    &follow_remote::HOOK,
-    &race_step::HOOK,
-    &free_messages::HOOK,
-    &destroy_connection::HOOK,
-    &stop::HOOK,
-    &shut_down::HOOK,
-    &connection_entry::HOOK,
-    &session_entry::HOOK,
-    &allocate_lists::HOOK,
-    &add_address_element::HOOK,
-    &begin_edit::HOOK,
-    &edit_key::HOOK,
-    &clear_chat::HOOK,
-    &add_chat_line::HOOK,
-    &chat_line_locked::HOOK,
-    &send_chat::HOOK,
-    &send_chat_regs::HOOK,
-    &sort_players::HOOK,
-    &fill_own_player::HOOK,
-    &take_player_settings::HOOK,
-    &clear_car_state::HOOK,
-    &reset_cars::HOOK,
-    &set_up_race::HOOK,
-    &set_hud_options::HOOK,
-    &keep_hud_options::HOOK,
-    &lets_race::HOOK,
-    &car_list::HOOK,
-    &find_saved_connection::HOOK,
-    &keep_connection::HOOK,
-    &find_connections_regs::HOOK,
-    &find_sessions_regs::HOOK,
-    &list_players_regs::HOOK,
-    &close_if_host::HOOK,
-    &create_dplay::HOOK,
-    &open_lobby::HOOK,
-    &connection_found::HOOK,
-    &find_connections::HOOK,
-    &build_address::HOOK,
-    &init_connection::HOOK,
-    &post_call::HOOK,
-    &find_sessions::HOOK,
-    &session_found::HOOK,
-    &create_player::HOOK,
-    &create_group::HOOK,
-    &join_group::HOOK,
-    &group_found::HOOK,
-    &player_found::HOOK,
-    &list_players::HOOK,
-    &host_session::HOOK,
-    &join_session::HOOK,
-    &disable_new_players::HOOK,
-    &show_background::HOOK,
-    &message_frame::HOOK,
-    &show_message::HOOK,
-    &connecting::HOOK,
-    &hosting::HOOK,
-    &joining::HOOK,
-    &stopping::HOOK,
-    &draw_button::HOOK,
-    &setting_label::HOOK,
-    &draw_centred_item::HOOK,
-    &draw_setting_value::HOOK,
-    &draw_number_value::HOOK,
-    &settings_frame::HOOK,
-    &begin_setting_edit::HOOK,
-    &setting_key::HOOK,
-    &settings_link::HOOK,
-    &settings_done::HOOK,
-    &settings_loop::HOOK,
-    &connections_frame::HOOK,
-    &sessions_frame::HOOK,
-    &choose_connection::HOOK,
-    &choose_session::HOOK,
-    &lobby_button::HOOK,
-    &chat_input_line::HOOK,
-    &begin_chat::HOOK,
-    &chat_key::HOOK,
-    &lobby_frame::HOOK,
-    &choose_car::HOOK,
-    &choose_stage::HOOK,
-    &lobby_loop::HOOK,
-    &race_wait::HOOK,
-    &race_over::HOOK,
-    &lets_rally::HOOK,
-    &start_link::HOOK,
-    &lobby_launched_game::HOOK,
-    &lock_received::HOOK,
-    &unlock_received::HOOK,
-    &dplay_send::HOOK,
-    &destroy_player::HOOK,
-    &close_session::HOOK,
-    &release_dplay::HOOK,
-    &release_lobby::HOOK,
-    &store_received::HOOK,
-    &receive_message::HOOK,
-    &system_message::HOOK,
-    &take_messages::HOOK,
-];
 
 pub type Part<'a> = &'a mut dyn FnMut(u32, &mut Regs) -> Result<(), Refused>;
 
@@ -385,7 +274,7 @@ pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
             }
             SLEEP_1MS => Sleep(1),
             // The window's messages: the game's (the platform's in the standalone).
-            PUMP => call_game(r, game_addr(rva(PUMP as usize))),
+            PUMP => crate::calls::call(rva(PUMP as usize), r),
             // DirectPlay's methods from Rust (`net::dplay`).
             SEND => dplay_send::dplay_send(r, &mut game_part)?,
             DESTROY_PLAYER => destroy_player::destroy_player(r, &mut game_part)?,
@@ -417,6 +306,17 @@ pub fn dispatch_net(
         Ok(()) => *r = Regs { esp: r.esp, ..g },
         Err(e) => unsafe { crate::fatal::raise::refused(hook, e, r, call_original) },
     }
+}
+
+/// `dispatch_net` outside shadow mode, without its hook (a refusal is the caller's).
+pub fn net_entry(
+    r: &mut Regs,
+    rust: fn(&mut Regs, Part) -> Result<(), Refused>,
+) -> Result<(), Refused> {
+    let mut g = *r;
+    rust(&mut g, &mut game_part)?;
+    *r = Regs { esp: r.esp, ..g };
+    Ok(())
 }
 
 /// Logs as the send functions do: "send x", the player, the step (`log_int_l1_nl`),

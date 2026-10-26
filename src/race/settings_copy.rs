@@ -12,56 +12,7 @@ use crate::service::harness::Region;
 
 pub type Part<'a> = &'a mut dyn FnMut(u32, &mut Regs) -> Result<(), Refused>;
 
-/// How a value is logged after its word (each a `log_..._nl`).
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
-pub enum Kind {
-    Int,
-    Hex8,
-}
-
-/// One step; addresses as IDA shows them; jump targets are step numbers.
-#[derive(Clone, Copy, Debug)]
-pub enum Step {
-    /// `pusha`; eax the text; `log_write_l1` (`_nl` with true); `popa`.
-    Text(usize, bool),
-    /// `pusha`; eax the dword; `log_int_l1_nl` / `log_hex8_l1_nl`; `popa`.
-    Value(usize, Kind),
-    /// `pusha`; eax the float's bits, ecx 2; `log_float_l1_nl`; `popa`.
-    Float(usize),
-    /// `push from` / `pop to`.
-    Copy(usize, usize),
-    /// `dec` of the dword.
-    Dec(usize),
-    /// `fild from` / `fstp to`.
-    IntToFloat(usize, usize),
-    /// `fld from` / `fistp to`.
-    FloatToInt(usize, usize),
-    /// `fld from` / `fstp to`.
-    FloatCopy(usize, usize),
-    /// The dword from held: below 0 is 0, 100 or more 0x100, else x `flt_5C5E00` (2.56)
-    /// rounded (`fild` / `fmul` / `fistp`), into to.
-    Brake(usize, usize),
-    /// `mov ebx, [var]`; `cmp ebx, 0`; `jz`; `or eax, bit`.
-    BitIf(usize, u32),
-    /// eax the dword.
-    Load(usize),
-    /// eax the value.
-    LoadImm(u32),
-    /// The dword eax.
-    Store(usize),
-    /// The dword the value.
-    Put(usize, u32),
-    /// eax less the dword.
-    SubEax(usize),
-    /// `cmp eax, value` / `jnz`.
-    JumpIfEaxNot(u32, usize),
-    /// `cmp [var], value` / `jnz`.
-    JumpIfNot(usize, u32, usize),
-    Jump(usize),
-    /// A call (by address).
-    Call(usize),
-    Return,
-}
+pub use rc2k_core::race::settings_copy::{Kind, Step};
 
 use Step::*;
 
@@ -86,84 +37,81 @@ unsafe fn set(a: usize, v: u32) {
     unsafe { at(a).write_unaligned(v) };
 }
 
+/// The game as the steps' machine: its dwords at IDA addresses, the registers, the x87's
+/// conversions, and the logs and calls through `part`.
+struct Game<'a, 'p> {
+    g: Regs,
+    part: &'a mut Part<'p>,
+}
+
+impl rc2k_core::race::settings_copy::Machine<usize> for Game<'_, '_> {
+    type Error = Refused;
+    fn get(&mut self, a: usize) -> u32 {
+        unsafe { get(a) }
+    }
+    fn set(&mut self, a: usize, v: u32) {
+        unsafe { set(a, v) }
+    }
+    fn eax(&self) -> u32 {
+        self.g.eax
+    }
+    fn set_eax(&mut self, v: u32) {
+        self.g.eax = v;
+    }
+    fn set_ebx(&mut self, v: u32) {
+        self.g.ebx = v;
+    }
+    fn int_to_float(&mut self, v: u32) -> u32 {
+        x87::from_int(v as i32)
+    }
+    fn float_to_int(&mut self, v: u32) -> u32 {
+        x87::to_int(v) as u32
+    }
+    fn float_copy(&mut self, v: u32) -> u32 {
+        x87::loaded(v)
+    }
+    fn scaled_brake(&mut self, v: i32) -> u32 {
+        x87::int_times_to_int(v, unsafe { get(0x5C5E00) }) as u32
+    }
+    fn text(&mut self, text: usize, nl: bool) -> Result<(), Refused> {
+        let mut r = Regs {
+            eax: game_addr(rva(text)) as u32,
+            ..self.g
+        };
+        (self.part)(if nl { WRITE_NL } else { WRITE }, &mut r)
+    }
+    fn value(&mut self, v: u32, kind: Kind) -> Result<(), Refused> {
+        let mut r = Regs { eax: v, ..self.g };
+        (self.part)(if kind == Kind::Int { INT_NL } else { HEX8_NL }, &mut r)
+    }
+    fn float(&mut self, v: u32) -> Result<(), Refused> {
+        let mut r = Regs {
+            eax: v,
+            ecx: 2,
+            ..self.g
+        };
+        (self.part)(FLOAT_NL, &mut r)
+    }
+    fn call(&mut self, a: usize) -> Result<(), Refused> {
+        let n = CALLS
+            .iter()
+            .position(|&c| c == a)
+            .expect("a call the tables have");
+        (self.part)(6 + n as u32, &mut self.g)
+    }
+}
+
 /// The steps from the first, as the original runs them. Leaves the registers as it
 /// does (eax and ebx from the steps that set them, the rest as the calls leave them).
-pub unsafe fn run(steps: &[Step], entry: &Regs, part: Part) -> Result<Regs, Refused> {
-    let mut g = *entry;
-    let mut pc = 0;
-    unsafe {
-        loop {
-            let step = steps[pc];
-            pc += 1;
-            match step {
-                Text(text, nl) => {
-                    let mut r = Regs {
-                        eax: game_addr(rva(text)) as u32,
-                        ..g
-                    };
-                    part(if nl { WRITE_NL } else { WRITE }, &mut r)?;
-                }
-                Value(v, kind) => {
-                    let mut r = Regs { eax: get(v), ..g };
-                    part(if kind == Kind::Int { INT_NL } else { HEX8_NL }, &mut r)?;
-                }
-                Float(v) => {
-                    let mut r = Regs {
-                        eax: get(v),
-                        ecx: 2,
-                        ..g
-                    };
-                    part(FLOAT_NL, &mut r)?;
-                }
-                Copy(to, from) => set(to, get(from)),
-                Dec(a) => set(a, get(a).wrapping_sub(1)),
-                IntToFloat(to, from) => set(to, x87::from_int(get(from) as i32)),
-                FloatToInt(to, from) => set(to, x87::to_int(get(from)) as u32),
-                FloatCopy(to, from) => set(to, x87::loaded(get(from))),
-                Brake(to, from) => {
-                    let v = get(from) as i32;
-                    let held = if v < 0 {
-                        0
-                    } else if v.wrapping_sub(100) >= 0 {
-                        0x100
-                    } else {
-                        x87::int_times_to_int(v, get(0x5C5E00)) as u32
-                    };
-                    set(to, held);
-                }
-                BitIf(var, bit) => {
-                    g.ebx = get(var);
-                    if g.ebx != 0 {
-                        g.eax |= bit;
-                    }
-                }
-                Load(a) => g.eax = get(a),
-                LoadImm(v) => g.eax = v,
-                Store(a) => set(a, g.eax),
-                Put(a, v) => set(a, v),
-                SubEax(a) => g.eax = g.eax.wrapping_sub(get(a)),
-                JumpIfEaxNot(v, to) => {
-                    if g.eax != v {
-                        pc = to;
-                    }
-                }
-                JumpIfNot(var, v, to) => {
-                    if get(var) != v {
-                        pc = to;
-                    }
-                }
-                Jump(to) => pc = to,
-                Call(a) => {
-                    let n = CALLS
-                        .iter()
-                        .position(|&c| c == a)
-                        .expect("a call the tables have");
-                    part(6 + n as u32, &mut g)?;
-                }
-                Return => return Ok(g),
-            }
-        }
-    }
+pub unsafe fn run(steps: &[Step], entry: &Regs, mut part: Part) -> Result<Regs, Refused> {
+    // Converted: `rc2k_core::race::settings_copy::run` (the x87's conversions and the
+    // brake's product kept, through `Machine`).
+    let mut game = Game {
+        g: *entry,
+        part: &mut part,
+    };
+    rc2k_core::race::settings_copy::run(steps, &mut game)?;
+    Ok(game.g)
 }
 
 /// `race::copy_settings_in` (0x446EBE): `GRAHAM_TO_SHAUN`.

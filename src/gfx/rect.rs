@@ -4,8 +4,8 @@
 //! of 256 dwords). Clipped to the clip rectangle; the work in `g_blitLeftSkip`,
 //! `g_blitVisibleWidth`, `g_blitTopSkip`, `g_blitRowsLeft`.
 
-use crate::errors::{BadInput, Refused};
-use crate::framework::{game_read, game_write, rva};
+use crate::errors::Refused;
+use crate::framework::{game_write, rva};
 use crate::gfx::surface::{clip, surface};
 
 const LEFT_SKIP: usize = rva(0x4F504C); // g_blitLeftSkip
@@ -13,12 +13,49 @@ const WIDTH: usize = rva(0x4F5050); // g_blitVisibleWidth
 const TOP_SKIP: usize = rva(0x4F5054); // g_blitTopSkip
 const ROWS: usize = rva(0x4F5058); // g_blitRowsLeft
 
+// Converted: `rc2k_core::gfx::raster`; here the clip and surface are read from the game, and
+// the work variables and pixels the plan holds written back.
+
 fn set(a: usize, v: i32) {
     unsafe { game_write(a, v as u32) }
 }
 
-fn get(a: usize) -> i32 {
-    unsafe { game_read::<u32>(a) as i32 }
+fn core_clip() -> rc2k_core::gfx::raster::Clip {
+    let c = clip();
+    rc2k_core::gfx::raster::Clip {
+        left: c.left,
+        right: c.right,
+        top: c.top,
+        bottom: c.bottom,
+    }
+}
+
+fn core_surface() -> rc2k_core::gfx::raster::Surface {
+    let s = surface();
+    rc2k_core::gfx::raster::Surface {
+        bits: s.bits_per_pixel,
+        bytes_per_pixel: s.bytes_per_pixel,
+        pitch: s.pitch,
+    }
+}
+
+/// The plan's work variables, then its pixels in colour `colour`.
+unsafe fn carry_out(plan: &rc2k_core::gfx::raster::Plan, colour: u32, palette: u32) {
+    let w = plan.work;
+    for (at, value) in [
+        (LEFT_SKIP, w.left_skip),
+        (WIDTH, w.width),
+        (TOP_SKIP, w.top_skip),
+        (ROWS, w.rows),
+    ] {
+        if let Some(v) = value {
+            set(at, v);
+        }
+    }
+    let base = surface().base as i32;
+    for &offset in &plan.pixels {
+        unsafe { put(base.wrapping_add(offset) as u32, plan.bits, colour, palette) };
+    }
 }
 
 /// The pixel at `p` for colour `colour` by the surface's depth.
@@ -34,162 +71,41 @@ unsafe fn put(p: u32, bits: u32, colour: u32, palette: u32) {
     }
 }
 
+fn rect_at(rect: u32) -> [i32; 4] {
+    std::array::from_fn(|n| unsafe { ((rect + 4 * n as u32) as *const i32).read_unaligned() })
+}
+
 /// `gfx::fill_rect` (0x406869): rectangle ebx (x, y, width, height) filled, clipped. As the
 /// original: on a 16-bit surface `palette[eax]`; on a 32-bit one nothing is drawn (the 32-bit
 /// test skips the fill: `notes/bugs.md`). Refuses (before anything) other depths: on 8 bits
 /// the original fills with the byte and then once more with dwords past the rectangle's
 /// rows.
 pub unsafe fn fill_rect(rect: u32, colour: u32, palette: u32) -> Result<(), Refused> {
-    unsafe {
-        let s = surface();
-        if s.bits_per_pixel != 16 && s.bits_per_pixel != 32 {
-            return Err(BadInput("a rectangle on a surface of neither 16 nor 32 bits").into());
-        }
-        let c = clip();
-        let r = |o: u32| ((rect + o) as *const i32).read_unaligned();
-        let (x, y, w, h) = (r(0), r(4), r(8), r(0xC));
-        set(LEFT_SKIP, 0);
-        let mut width = w;
-        if x.wrapping_sub(c.left) < 0 {
-            set(LEFT_SKIP, c.left.wrapping_sub(x));
-        }
-        let over = x.wrapping_add(w).wrapping_sub(1).wrapping_sub(c.right);
-        if over > 0 {
-            width = width.wrapping_sub(over);
-        }
-        width = width.wrapping_sub(get(LEFT_SKIP));
-        if width <= 0 {
-            return Ok(());
-        }
-        set(WIDTH, width);
-        set(TOP_SKIP, 0);
-        let mut rows = h;
-        if y.wrapping_sub(c.top) < 0 {
-            set(TOP_SKIP, c.top.wrapping_sub(y));
-        }
-        let over = y.wrapping_add(h).wrapping_sub(1).wrapping_sub(c.bottom);
-        if over > 0 {
-            rows = rows.wrapping_sub(over);
-        }
-        rows = rows.wrapping_sub(get(TOP_SKIP));
-        if rows <= 0 {
-            return Ok(());
-        }
-        set(ROWS, rows);
-        if s.bits_per_pixel == 32 {
-            return Ok(());
-        }
-        let px = x
-            .wrapping_add(get(LEFT_SKIP))
-            .wrapping_mul(s.bytes_per_pixel);
-        let py = y.wrapping_add(get(TOP_SKIP)).wrapping_mul(s.pitch);
-        let mut row = (s.base as i32).wrapping_add(py).wrapping_add(px) as u32;
-        for _ in 0..rows {
-            for k in 0..width as u32 {
-                put(row + 2 * k, 16, colour, palette);
-            }
-            row = row.wrapping_add(s.pitch as u32);
-        }
-        Ok(())
-    }
+    let plan = rc2k_core::gfx::raster::fill(rect_at(rect), &core_clip(), &core_surface())?;
+    unsafe { carry_out(&plan, colour, palette) };
+    Ok(())
 }
 
 /// `gfx::draw_hline` (0x406710): `length` pixels from (x, y) rightwards, clipped (the left
 /// clip as the original: what is cut is -x, right only for a left edge of 0).
 pub unsafe fn draw_hline(x: i32, y: i32, length: i32, colour: u32, palette: u32) {
-    unsafe {
-        let c = clip();
-        if y < c.top || y > c.bottom {
-            return;
-        }
-        set(LEFT_SKIP, 0);
-        let mut width = length;
-        if x < c.left {
-            set(LEFT_SKIP, x.wrapping_neg());
-        }
-        let over = x.wrapping_add(length).wrapping_sub(1).wrapping_sub(c.right);
-        if over > 0 {
-            width = width.wrapping_sub(over);
-        }
-        width = width.wrapping_sub(get(LEFT_SKIP));
-        if width <= 0 {
-            return;
-        }
-        set(WIDTH, width);
-        let s = surface();
-        let px = x
-            .wrapping_add(get(LEFT_SKIP))
-            .wrapping_mul(s.bytes_per_pixel);
-        let start = (s.base as i32)
-            .wrapping_add(y.wrapping_mul(s.pitch))
-            .wrapping_add(px) as u32;
-        let step = match s.bits_per_pixel {
-            16 => 2,
-            32 => 4,
-            _ => 1,
-        };
-        for k in 0..width as u32 {
-            put(start + step * k, s.bits_per_pixel, colour, palette);
-        }
-    }
+    let plan = rc2k_core::gfx::raster::hline(x, y, length, &core_clip(), &core_surface());
+    unsafe { carry_out(&plan, colour, palette) };
 }
 
 /// `gfx::draw_vline` (0x4067AF): `length` pixels from (x, y) downwards, clipped (the top clip
 /// as the original: what is cut is -y).
 pub unsafe fn draw_vline(x: i32, y: i32, length: i32, colour: u32, palette: u32) {
-    unsafe {
-        let c = clip();
-        if x < c.left || x > c.right {
-            return;
-        }
-        set(TOP_SKIP, 0);
-        let mut rows = length;
-        if y < c.top {
-            set(TOP_SKIP, y.wrapping_neg());
-        }
-        let over = y
-            .wrapping_add(length)
-            .wrapping_sub(1)
-            .wrapping_sub(c.bottom);
-        if over > 0 {
-            rows = rows.wrapping_sub(over);
-        }
-        rows = rows.wrapping_sub(get(TOP_SKIP));
-        if rows <= 0 {
-            return;
-        }
-        set(ROWS, rows);
-        let s = surface();
-        let py = y.wrapping_add(get(TOP_SKIP)).wrapping_mul(s.pitch);
-        let mut p = (s.base as i32)
-            .wrapping_add(py)
-            .wrapping_add(x.wrapping_mul(s.bytes_per_pixel)) as u32;
-        for _ in 0..rows {
-            put(p, s.bits_per_pixel, colour, palette);
-            p = p.wrapping_add(s.pitch as u32);
-        }
-    }
+    let plan = rc2k_core::gfx::raster::vline(x, y, length, &core_clip(), &core_surface());
+    unsafe { carry_out(&plan, colour, palette) };
 }
 
 /// `gfx::frame_rect` (0x4066DF): rectangle ebx's outline moved by (ecx, edx): the top and
 /// bottom rows (`draw_hline`), then the left and right columns between them (`draw_vline`).
 pub unsafe fn frame_rect(rect: u32, dx: i32, dy: i32, colour: u32, palette: u32) {
-    unsafe {
-        let r = |o: u32| ((rect + o) as *const i32).read_unaligned();
-        let (x, y, w, h) = (dx.wrapping_add(r(0)), dy.wrapping_add(r(4)), r(8), r(0xC));
-        draw_hline(x, y, w, colour, palette);
-        let bottom = y.wrapping_add(h).wrapping_sub(1);
-        draw_hline(x, bottom, w, colour, palette);
-        let side = h.wrapping_sub(2);
-        let top = bottom.wrapping_sub(side);
-        draw_vline(x, top, side, colour, palette);
-        draw_vline(
-            x.wrapping_add(w).wrapping_sub(1),
-            top,
-            side,
-            colour,
-            palette,
-        );
+    for plan in rc2k_core::gfx::raster::frame(rect_at(rect), dx, dy, &core_clip(), &core_surface())
+    {
+        unsafe { carry_out(&plan, colour, palette) };
     }
 }
 

@@ -21,33 +21,23 @@
 //! ungated. Shadow mode runs the original alone. Self-test: a copy whose calls go to
 //! stand-ins, against the Rust version: Escape, a race finished, not finished, no player
 //! but the host.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
 use crate::field;
-use crate::framework::{CARRY_FLAG, RawHook, Regs, SelfTest, hook_asm, rva};
+use crate::framework::Regs;
 use crate::net::lobby::{
     APPLY_SOUND, CLEAR_FRONT, CLEAR_RACE_SOUNDS, CLOCK_A, COPY_RECEIVED, FIRST_HOST,
     FRONT_END_SCENE, LOADING_PICTURE, LOG_L2_NL, PLAYER, PLAYERS, Part, RACE_SOUNDS, RACING,
     RUN_FRAME, SET_MENU_MODE, SET_RACE_MODE, SET_UP_ENGINE, SET_UP_RACE_SOUNDS, STOP_MUSIC,
-    SYNC_CLOCK, SYNC_FIRST, Saved, TAKE_KEY, TICK, TIDY_EVERYTHING, a, answer, block,
-    dispatch_lobby, dword, g, log_text, p, region, run_both, test_eax,
+    SYNC_CLOCK, SYNC_FIRST, TAKE_KEY, TICK, TIDY_EVERYTHING, a, block, g, lobby_entry, log_text, p,
+    test_eax,
 };
-use crate::net::lobby_loop::set_players;
 use crate::net::types::NetPlayerBlock;
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("net::lets_rally", rva(0x4170E0), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL,
-    ungated
-);
+use rc2k_core::net::record;
 
 const TEXT: usize = 0x5C2E2A; // "NET: Lets rally"
 const SET_UP_RACE: u32 = 0x463A94; // net::set_up_race
@@ -72,24 +62,20 @@ pub fn lets_rally(entry: &Regs, part: Part) -> Result<Regs, Refused> {
     for (x, v) in SETTINGS {
         p(x, v);
     }
-    let byte = |at: u32| unsafe { (at as *const u8).read() } as u32;
-    r.eax = byte(r.esi + 0x25);
+    // Converted: `rc2k_core::net::record` (`CAR`, `COLOURS`, `first_not_host`).
+    let byte = |at: u32| unsafe { (at as *const u8).read() };
+    let own = r.esi + field!(NetPlayerBlock, record);
+    r.eax = byte(own + record::CAR as u32) as u32;
     p(CAR, r.eax);
-    r.eax = byte(r.esi + 0x26);
+    r.eax = byte(own + record::COLOURS as u32) as u32;
     p(COLOURS, r.eax);
-    r.ebx = block(0);
-    r.ecx = 0;
-    loop {
-        if byte(r.ebx + field!(NetPlayerBlock, record.state)) & 0x10 == 0 {
-            break;
-        }
-        r.ebx = r.ebx.wrapping_add(crate::net::lobby::BLOCK);
-        r.ecx = r.ecx.wrapping_add(1);
-        if r.ecx >= g(PLAYERS) {
-            r.set_carry(true);
-            return Ok(left(&r));
-        }
-    }
+    let state = |n: u32| byte(block(n) + field!(NetPlayerBlock, record.state));
+    let Some(first) = record::first_not_host(g(PLAYERS), state) else {
+        r.set_carry(true);
+        return Ok(left(&r));
+    };
+    r.ebx = block(first);
+    r.ecx = first;
     p(FIRST_HOST, r.ecx);
     for place in [
         STOP_MUSIC,
@@ -149,112 +135,8 @@ pub fn lets_rally(entry: &Regs, part: Part) -> Result<Regs, Refused> {
     Ok(left(&r))
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_lobby(&HOOK, r, call_original, lets_rally);
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let places = [
-        LOG_L2_NL,
-        STOP_MUSIC,
-        SET_RACE_MODE,
-        LOADING_PICTURE,
-        SET_UP_RACE_SOUNDS,
-        RACE_SOUNDS,
-        SET_UP_RACE,
-        TICK,
-        LIST_PLAYERS,
-        RUN_FRAME,
-        TAKE_KEY,
-        RACE_WAIT,
-        CLEAR_FRONT,
-        COPY_RECEIVED,
-        LETS_RACE,
-        TIDY_EVERYTHING,
-        SET_MENU_MODE,
-        CLEAR_RACE_SOUNDS,
-        APPLY_SOUND,
-        SET_UP_ENGINE,
-        FRONT_END_SCENE,
-        RACE_OVER,
-    ];
-    // pusha; pusha; lea eax, aNetLetsRally
-    let copy = match crate::net::lobby::copy(
-        0x4170E0,
-        0x11E,
-        &[0x60, 0x60, 0x8D, 0x05, 0x2A, 0x2E, 0x5C, 0x00],
-        &[
-            0x8, 0x76, 0x7B, 0x80, 0x85, 0x8A, 0x8F, 0x94, 0xAD, 0xB4, 0xBE, 0xC7, 0xD0, 0xD5,
-            0xDA, 0xE0, 0xE5, 0xEA, 0xEF, 0xF4, 0xF9, 0xFE, 0x103, 0x108, 0x112,
-        ],
-        &places,
-    ) {
-        Ok(c) => c,
-        Err(why) => return t.skip(why),
-    };
-    let all = [
-        dword(RACING),
-        dword(PLAYERS),
-        dword(PLAYER),
-        dword(FIRST_HOST),
-        dword(CLOCK_A),
-        dword(SYNC_CLOCK),
-        dword(SYNC_FIRST),
-        region(0x75ACD8, 0x14),
-        dword(COLOURS),
-        (block(0), 3 * crate::net::lobby::BLOCK as usize),
-    ];
-    let saved = Saved::new(&all);
-    // (what, the states, the turn Escape comes, the turn everyone waits, the race's ebx)
-    type Case = (&'static str, Vec<u8>, u32, u32, u32);
-    let cases: Vec<Case> = vec![
-        ("Escape", vec![0x10, 0x02], 2, 99, 0),
-        ("finished", vec![0x10, 0x02], 99, 2, 0),
-        ("not finished", vec![0x02, 0x12], 99, 0, u32::MAX),
-        ("only the host", vec![0x10], 99, 0, 0),
-    ];
-    for (what, states, escape_at, go_at, finished) in cases {
-        run_both(
-            &mut t,
-            what,
-            copy.addr(),
-            Regs::SENTINEL,
-            &all,
-            CARRY_FLAG,
-            &[],
-            &|| {
-                p(PLAYERS, states.len() as u32);
-                p(PLAYER, 1);
-                set_players(&states);
-                unsafe {
-                    ((block(1) + 0x25) as *mut u8).write(0x22);
-                    ((block(1) + 0x26) as *mut u8).write(0x33);
-                }
-                let mut turns = 0;
-                answer(Box::new(move |place, r| match place {
-                    TICK => r.eax = 0x7777,
-                    TAKE_KEY => {
-                        let key = if turns >= escape_at { 1 } else { 0 };
-                        r.eax = r.eax & !0xFF | key;
-                        r.set_zero(key == 0);
-                    }
-                    RACE_WAIT => {
-                        r.eax = (turns >= go_at) as u32;
-                        turns += 1;
-                    }
-                    LETS_RACE => {
-                        r.eax = 4321;
-                        r.ebx = finished;
-                    }
-                    _ => {}
-                }));
-            },
-            &lets_rally,
-        );
-    }
-    drop(saved);
-    t.finish()
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    lobby_entry(r, lets_rally)
 }

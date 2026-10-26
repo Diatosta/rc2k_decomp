@@ -6,6 +6,7 @@
 use crate::errors::{BadInput, Refused};
 use crate::framework::{Regs, game_addr, game_read, game_write, rva};
 use crate::math::x87;
+use crate::service::floats::{FLOAT, Floats, Tolerance, at_test_precisions, check_state_floats};
 
 pub const KIND_RVA: usize = rva(0x769232); // g_marksKind
 pub const KINDS: u32 = 0x22;
@@ -194,6 +195,82 @@ pub unsafe fn set_kind_values(entry: &Regs, k: &KindTables) -> Result<Regs, Refu
     Ok(g)
 }
 
+/// The converted version (plain floats): the hooks'. The x87 version above stays for
+/// `marks::init_marks` (unconverted).
+// Converted: `rc2k_core::marks::kind_values::values`
+pub unsafe fn set_kind_values_plain(entry: &Regs, k: &KindTables) -> Result<Regs, Refused> {
+    use rc2k_core::marks::kind_values::{Row, Triples, kind_entry, values};
+    unsafe {
+        let kind = kind_entry(game_read(KIND_RVA))?;
+        let t = |n: usize| -> u32 { game_read(k.tables[n] + 4 * kind) };
+        let f = |n: usize| f32::from_bits(t(n));
+        let row = Row {
+            count: t(0),
+            size: f(1),
+            divisor: f(2),
+            low: t(3),
+            high: t(4),
+            start: f(5),
+            middle: f(6),
+            end: f(7),
+            spread: f(8),
+            extra: f(9),
+        };
+        let triple = |n: usize| -> [u32; 3] { game_read(k.triples[n] + 12 * kind) };
+        let triples = Triples {
+            to: triple(0).map(f32::from_bits),
+            from: triple(1).map(f32::from_bits),
+            copied: triple(2),
+        };
+        let c = k.constants.map(|a| f32::from_bits(game_read(a)));
+        let v = values(&row, &triples, &c);
+        let outs = [
+            v.count,
+            v.size.to_bits(),
+            v.ratio.to_bits(),
+            v.low,
+            v.high,
+            v.start.to_bits(),
+            v.step.to_bits(),
+            v.middle.to_bits(),
+            v.slope.to_bits(),
+            v.spread.to_bits(),
+            v.extra.to_bits(),
+        ];
+        for (&to, v) in k.outs.iter().zip(outs) {
+            game_write(to, v);
+        }
+        if let Some(copy) = k.divisor_copy {
+            game_write(copy, t(2));
+        }
+        for (&to, p) in k.place.iter().zip(v.place) {
+            game_write(to, p.to_bits());
+        }
+        let [eax, ebx, ecx] = triples.copied;
+        game_write(k.copied, [eax, ebx, ecx, 0]);
+        game_write(k.copied + 16, v.differences.map(f32::to_bits));
+        Ok(Regs {
+            eax,
+            ebx,
+            ecx,
+            ebp: kind as u32 * 12,
+            ..*entry
+        })
+    }
+}
+
+/// The float places of a set's writes: all of them but the dwords copied.
+pub fn kind_floats(k: &KindTables) -> Vec<(crate::service::harness::Region, Tolerance)> {
+    use crate::service::harness::at;
+    let mut r: Vec<_> = [1, 2, 5, 6, 7, 8, 9, 10]
+        .iter()
+        .map(|&n| (at(k.outs[n]), FLOAT))
+        .collect();
+    r.extend(k.place.iter().map(|&a| (at(a), FLOAT)));
+    r.push(((game_addr(k.copied) as u32 + 16, 8), FLOAT));
+    r
+}
+
 /// What `set_kind_values` writes for a set.
 pub fn kind_regions(k: &KindTables) -> Vec<crate::service::harness::Region> {
     use crate::service::harness::at;
@@ -220,42 +297,53 @@ pub fn kind_inputs(k: &KindTables) -> Vec<crate::service::harness::Region> {
 }
 
 /// The self-test of either set: its tables filled with floats of the test's (each table's
-/// own, so no difference is 0), every kind compared, then 0x22 refused.
+/// own, so no difference is 0), every kind compared at both test precisions (exact at
+/// double), then 0x22 refused.
 pub fn test_kinds(
     t: &mut crate::framework::SelfTest,
+    name: &'static str,
     k: &KindTables,
     call_original: crate::screens::harness::CallOriginal,
     rust: crate::service::harness::Rust,
 ) {
-    use crate::service::harness::{capture, check_state, restore};
+    use crate::service::harness::{capture, restore};
     let regions = kind_regions(k);
     let inputs = kind_inputs(k);
     let (saved, saved_inputs) = (capture(&regions), capture(&inputs));
-    for kind in 0..KINDS {
-        check_state(
-            t,
-            &format!("kind {kind:#x}"),
-            call_original,
-            Regs::SENTINEL,
-            &|| unsafe {
-                for &(a, n) in &regions {
-                    std::ptr::write_bytes(a as *mut u8, 0xAA, n);
-                }
-                for (m, &(a, n)) in inputs[..inputs.len() - 1].iter().enumerate() {
-                    for i in 0..n / 4 {
-                        let v = 1.5 + m as f32 * 3.7 + i as f32 * (0.31 + m as f32 * 0.05);
-                        ((a as usize + 4 * i) as *mut f32).write_unaligned(v);
+    let places = kind_floats(k);
+    let tolerant = Floats {
+        memory: &places,
+        regs: &[],
+    };
+    at_test_precisions(&tolerant, &mut |word, held| {
+        for kind in 0..KINDS {
+            check_state_floats(
+                t,
+                name,
+                &format!("control word {word:#x}, kind {kind:#x}"),
+                call_original,
+                Regs::SENTINEL,
+                &|| unsafe {
+                    for &(a, n) in &regions {
+                        std::ptr::write_bytes(a as *mut u8, 0xAA, n);
                     }
-                }
-                game_write(KIND_RVA, kind);
-            },
-            &regions,
-            rust,
-        );
-    }
+                    for (m, &(a, n)) in inputs[..inputs.len() - 1].iter().enumerate() {
+                        for i in 0..n / 4 {
+                            let v = 1.5 + m as f32 * 3.7 + i as f32 * (0.31 + m as f32 * 0.05);
+                            ((a as usize + 4 * i) as *mut f32).write_unaligned(v);
+                        }
+                    }
+                    game_write(KIND_RVA, kind);
+                },
+                &regions,
+                held,
+                rust,
+            );
+        }
+    });
     unsafe { game_write(KIND_RVA, KINDS) };
     t.check(
-        unsafe { set_kind_values(&Regs::SENTINEL, k) }.is_err(),
+        unsafe { set_kind_values_plain(&Regs::SENTINEL, k) }.is_err(),
         || "kind 0x22: the Rust version went on".into(),
     );
     restore(&inputs, &saved_inputs);

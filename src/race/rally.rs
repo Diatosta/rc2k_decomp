@@ -71,12 +71,12 @@ pub unsafe fn copy_rally_times(entry: &Regs, part: Part) -> Result<Regs, Refused
         };
         let mut ecx = 10u32;
         loop {
-            put(edi + 0xC, get(esi + 0x14));
-            put(edi + 4, get(esi + 8));
-            put(edi + 8, get(esi + 0x10));
-            let eax = get(esi + 0xC);
-            put(edi, eax);
-            std::ptr::copy((esi + 0x5C) as *const u8, (edi + 0x10) as *mut u8, 0x40);
+            // Converted: `rc2k_core::race::results::race_time`.
+            let time = rc2k_core::race::results::race_time(|off| get(esi + off));
+            for (k, &v) in time.iter().enumerate() {
+                put(edi + 4 * k as u32, v);
+            }
+            let eax = time[0];
             // The registers inside each `pusha`: the loop's, eax as last loaded.
             // ebx `dword_7558D0` from the way in (the times' place).
             let regs = Regs {

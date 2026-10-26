@@ -4,12 +4,12 @@
 //! race frame `sub_4541BF` (stream A's, held: a call into the game until ported).
 
 use crate::errors::Refused;
-use crate::framework::{Regs, call_game, game_addr, rva};
+use crate::framework::{Regs, game_addr, rva};
 
 /// `sub_4541BF`: the race's frame (drawing and the sound tick), stream A's, through the
 /// game.
 pub fn race_frame(r: &mut Regs) {
-    unsafe { call_game(r, game_addr(rva(0x4541BF))) };
+    crate::calls::call(rva(0x4541BF), r);
 }
 
 /// `scene::restart_clock`: eax the clock.

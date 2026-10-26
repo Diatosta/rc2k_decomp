@@ -8,13 +8,15 @@
 //! compared.
 //! Self-test: the original against the Rust version for loading kinds around the bounds
 //! (the game's variable, put back).
+//!
+//! Converted 2026-10-21: `rc2k_core::scene::stage_objects::turn_point`.
 
 use crate::errors::Refused;
 use crate::framework::{
     EAX, EBX, ECX, RawHook, Regs, SelfTest, game_read, game_write, hook_asm, rva,
 };
 use crate::screens::harness::Left;
-use crate::service::harness::{at, capture, check_state, dispatch_state, restore};
+use crate::service::harness::{at, capture, check_state, dispatch_state, restore, state_entry};
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -41,15 +43,8 @@ const SHIFT_RVA: usize = rva(0x613FC4);
 // ---- Rust version ----
 
 /// (eax, ecx, ebx), or None when the kind leaves them.
-pub fn turn_stage_object_point(
-    kind: u32,
-    shift: u32,
-    p: (u32, u32, u32),
-) -> Option<(u32, u32, u32)> {
-    (0x190..0x258)
-        .contains(&kind)
-        .then(|| (p.1, p.0.wrapping_neg(), p.2.wrapping_sub(shift)))
-}
+// Converted: `rc2k_core::scene::stage_objects::turn_point`
+pub use rc2k_core::scene::stage_objects::turn_point as turn_stage_object_point;
 
 // ---- hook ----
 
@@ -65,6 +60,12 @@ fn rust(r: &Regs) -> Result<Left, Refused> {
 
 extern "C" fn dispatch(r: &mut Regs) {
     dispatch_state(&HOOK, r, call_original, &[], &rust);
+}
+
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    state_entry(r, &rust)
 }
 
 // ---- self-test ----

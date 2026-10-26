@@ -22,28 +22,12 @@
 //! `normalise_path`, `copy_file`, `sleep` the Rust versions; `text_length`,
 //! `append_directory`, `append_nul`, `append_file_name` written in. Refuses (before
 //! anything, where the way could lead there) a game folder too long for "ereg\" in its
-//! 0x100 bytes, and a command line's program of 0x100 bytes or more. Shadow mode runs the
-//! original alone (programs are started). Self-test: a copy whose eighteen references to
-//! the variables go to the test's and whose calls go to noting stand-ins, against the Rust
-//! version: each switch, from the CD or not, after a fatal error (the stand-ins leave the
-//! carry clear: the failures' ways are not reached).
+//! 0x100 bytes, and a command line's program of 0x100 bytes or more.
+//! Hook removed 2026-10-22 (direct calls): Rust callers run its `entry` (`calls::call`,
+//! `routes.rs`); the registers above are the original's, for reference.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{RawHook, Regs, SelfTest, call_game, game_addr, hook_asm, rva};
-use crate::input::effects::compare;
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("install::run_after_exit", rva(0x412FA2), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
+use crate::framework::{Regs, game_addr, rva};
 
 pub type Part<'a> = &'a mut dyn FnMut(u32, &mut Regs) -> Result<(), Refused>;
 
@@ -240,7 +224,7 @@ pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
                 let command = crate::install::shortcuts::c_path(r.eax as *const u8);
                 crate::install::shortcuts::run_program(&command);
             }
-            ADD_ITEMS | REMOVE_ITEMS | RUN => call_game(r, game_addr(rva(place as usize))),
+            ADD_ITEMS | REMOVE_ITEMS | RUN => crate::calls::call(rva(place as usize), r),
             SET_CD => {
                 r.eax = SetCurrentDirectoryA(r.edx as *const u8) as u32;
                 r.set_carry(r.eax == 0);
@@ -264,113 +248,9 @@ pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
     Ok(())
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    HOOK.count_call();
-    if crate::framework::shadow() {
-        unsafe { call_original(r) };
-        return;
-    }
+/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     let mut g = *r;
-    if let Err(e) = run_after_exit_with(&mut g, &Vars::game(), &mut game_part) {
-        unsafe { crate::fatal::raise::refused(&HOOK, e, r, call_original) };
-    }
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    // reported (4), switches (0x18), game dir and installed (0x200), other dir (4),
-    // program (0x100), source (0x100), from CD (4), command (8)
-    let mut mem = vec![0u8; 0x600];
-    let base = mem.as_mut_ptr() as u32;
-    let v = Vars {
-        reported: base,
-        switches: base + 4,
-        game_dir: base + 0x20,
-        installed: base + 0x120,
-        other_dir: base + 0x220,
-        program: base + 0x230,
-        source: base + 0x330,
-        from_cd: base + 0x430,
-        command: base + 0x434,
-    };
-    let command = b"d:\\setup\\ral.exe";
-    // pusha; cmp g_fatalReported, 1
-    let entry = [0x60, 0x80, 0x3D, 0xBC, 0x67, 0x4F, 0x00, 0x01];
-    let outs = [
-        0x17, 0x25, 0x39, 0x4A, 0x60, 0x79, 0x86, 0x8B, 0x96, 0x9B, 0xA6, 0xB8, 0xD4, 0xDB, 0x10A,
-        0x114, 0x124,
-    ];
-    let copy = match crate::system::api_stand_ins::copy_with(
-        0x412FA2,
-        0x12B,
-        &entry,
-        &outs,
-        &[
-            ADD_ITEMS,
-            REMOVE_ITEMS,
-            SET_CD,
-            RUN,
-            NORMALISE,
-            COPY_FILE,
-            SLEEP,
-        ],
-        &[],
-        &[
-            (REPORTED, 1, v.reported),
-            (SWITCHES, 0x18, v.switches),
-            (GAME_DIR, 0x200, v.game_dir),
-            (OTHER_DIR, 2, v.other_dir),
-            (PROGRAM, 0x100, v.program),
-            (SOURCE, 0x100, v.source),
-            (FROM_CD, 4, v.from_cd),
-            (COMMAND, 8, v.command),
-        ],
-        18,
-    ) {
-        Ok(c) => c,
-        Err(why) => return t.skip(&why),
-    };
-    let all = [(base, 0x600usize)];
-    for case in 0..48u32 {
-        let switches = [
-            case & 1,
-            (case >> 1) & 1,
-            (case % 5 == 2) as u32,
-            (case >> 2) & 1,
-            0,
-            (case % 7 == 3) as u32,
-        ];
-        let reported = (case % 11 == 10) as u8;
-        let from_cd = (case >> 3) & 1;
-        let fill = || unsafe {
-            let m = base as *mut u8;
-            for k in 0..0x600 {
-                m.add(k).write_volatile(0xAA);
-            }
-            m.write_volatile(reported);
-            for (n, s) in switches.iter().enumerate() {
-                ((v.switches + 4 * n as u32) as *mut u32).write_volatile(*s);
-            }
-            for (k, &b) in b"c:\\games\\rally\\\0".iter().enumerate() {
-                ((v.game_dir + k as u32) as *mut u8).write_volatile(b);
-            }
-            (v.from_cd as *mut u32).write_volatile(from_cd);
-            (v.command as *mut u32).write_volatile(command.as_ptr() as u32);
-            ((v.command + 4) as *mut u32).write_volatile(command.len() as u32);
-        };
-        compare(
-            &mut t,
-            &format!("switches {switches:?}, reported {reported}, from the CD {from_cd}"),
-            &copy,
-            Regs::SENTINEL,
-            &fill,
-            &all,
-            &|r, part| run_after_exit_with(r, &v, part),
-            false,
-        );
-    }
-    let _ = &mut mem;
-    t.finish()
+    run_after_exit_with(&mut g, &Vars::game(), &mut game_part)?;
+    Ok(())
 }

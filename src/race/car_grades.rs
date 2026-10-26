@@ -7,72 +7,26 @@ use crate::race::best_line::SCRATCH_RVA;
 use crate::race::objects::CAR_BLOCKS_RVA;
 use crate::service::harness::{Region, at};
 
-/// (the value's offset, the grade's offset, the thresholds), in the original's order.
-pub const GRADES: [(u32, u32, &[u32]); 34] = [
-    (0x2B4, 0x3C0, &[50, 75, 90, 100]),
-    (0x2AC, 0x3C4, &[75]),
-    (0x2B8, 0x368, &[50, 75, 90, 100]),
-    (0x2BC, 0x36C, &[50, 75, 90, 100]),
-    (0x2C0, 0x370, &[50, 75, 90, 100]),
-    (0x2C4, 0x374, &[50, 75, 90, 100]),
-    (0x2C8, 0x378, &[50, 75, 90, 100]),
-    (0x2CC, 0x37C, &[50, 75, 90, 100]),
-    (0x2F4, 0x380, &[50, 75, 90, 100]),
-    (0x30C, 0x384, &[50, 75, 90, 100]),
-    (0x310, 0x388, &[50, 75, 90, 100]),
-    (0x330, 0x38C, &[50, 75, 90, 100]),
-    (0x350, 0x390, &[50, 75, 90, 100]),
-    (0x344, 0x39C, &[50, 75, 90, 100]),
-    (0x32C, 0x394, &[50, 75, 90]),
-    (0x314, 0x3CC, &[100]),
-    (0x318, 0x3D0, &[100]),
-    (0x31C, 0x3D4, &[100]),
-    (0x320, 0x3D8, &[100]),
-    (0x324, 0x3DC, &[100]),
-    (0x328, 0x3E0, &[100]),
-    (0x2F8, 0x3E4, &[100]),
-    (0x2FC, 0x3E8, &[100]),
-    (0x300, 0x3EC, &[100]),
-    (0x304, 0x3F0, &[100]),
-    (0x364, 0x398, &[50, 75, 90]),
-    (0x2D0, 0x3A0, &[100]),
-    (0x2D8, 0x3A4, &[100]),
-    (0x2DC, 0x3A8, &[100]),
-    (0x2E0, 0x3AC, &[100]),
-    (0x2E4, 0x3B0, &[100]),
-    (0x2E8, 0x3B4, &[100]),
-    (0x2EC, 0x3B8, &[100]),
-    (0x2F0, 0x3BC, &[100]),
-];
+pub use rc2k_core::race::cars::GRADES;
 
 /// The grades' room in a block: +0x368 .. +0x3F4.
 pub const GRADES_FROM: u32 = 0x368;
 pub const GRADES_LEN: usize = 0x8C;
-
-/// `fild t; fcomp x` then `jnb` on C0: the threshold below the value, or the value a
-/// NaN (unordered sets C0).
-fn below(t: u32, x: f32) -> bool {
-    (t as f32) < x || x.is_nan()
-}
 
 /// `race::grade_car_values` (0x43FE24): for each of `GRADES`, the grade (+the second
 /// offset) the number of its thresholds, taken in order, that lie below the block's value
 /// (+the first; a NaN passes them all); each threshold tried goes through `dword_62400C`.
 /// Leaves eax the last grade.
 pub unsafe fn grade_car_values(entry: &Regs) -> Regs {
+    // Converted: `rc2k_core::race::cars::grade`; `dword_62400C` gets the last threshold
+    // tried (the ones before it are written over at once).
     let b = entry.esi;
     let mut g = *entry;
     unsafe {
         for &(from, to, thresholds) in &GRADES {
             let x = f32::from_bits(((b.wrapping_add(from)) as *const u32).read_unaligned());
-            let mut grade = 0u32;
-            for &t in thresholds {
-                game_write(SCRATCH_RVA, t);
-                if !below(t, x) {
-                    break;
-                }
-                grade += 1;
-            }
+            let (grade, tried) = rc2k_core::race::cars::grade(x, thresholds);
+            game_write(SCRATCH_RVA, tried);
             ((b.wrapping_add(to)) as *mut u32).write_unaligned(grade);
             g.eax = grade;
         }

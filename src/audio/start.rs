@@ -19,51 +19,15 @@
 //! `audio::close_sound`; the mode 0. One caller, the audio thread.
 //! Shadow mode runs the original alone. Self-test: a redirected copy whose calls go to
 //! stand-ins noting what each reads, 20 cases.
+//!
+//! Hook removed 2026-10-22 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
-use crate::audio::buffer_play::{Leaves, dispatch_leaf};
 use crate::audio::voices::{read, write};
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, SelfTest, call_game, game_addr, hook_asm, rva};
-use crate::install::stand_ins::{set_handler, stand_in};
-use std::sync::Mutex;
-use std::sync::atomic::AtomicUsize;
+use crate::framework::{Regs, game_addr, rva};
 
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("audio::start", rva(0x40A01D), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
-
-/// The calls by place (offsets in `CALLS`); `system::zero_memory` (0x8C) is done inline.
-const CALLEES: [usize; 17] = [
-    0x40CA17, // 0 open_a3d2 (eax)
-    0x40CAD9, // 1 close_a3d2
-    0x409E1D, // 2 open_sound (eax)
-    0x409EF8, // 3 read_caps
-    0x40A54B, // 4 make_primary
-    0x40AC3A, // 5 open_way
-    0x40B5CF, // 6 make_buffer (ebx, esi)
-    0x40D2F0, // 7 release_eax
-    0x40C74C, // 8 release_voice_manager
-    0x40B767, // 9 release_voice (esi)
-    0x40AC58, // 10 close_way
-    0x40A61F, // 11 release_primary
-    0x40A1CA, // 12 choose_modes
-    0x401432, // 13 log_write_l2 (eax)
-    0x40162D, // 14 log_hex8_l2 (eax)
-    0x401634, // 15 log_hex8_l2_nl (eax)
-    0x409EA5, // 16 close_sound
-];
-const CALLS: [usize; 18] = [
-    0x03, 0x12, 0x2E, 0x43, 0x5E, 0x78, 0x8C, 0xAF, 0xB4, 0xB9, 0xBE, 0xC3, 0xC8, 0x14D, 0x159,
-    0x165, 0x171, 0x177,
-];
 const USING_MODES_TEXT: usize = rva(0x4DA6AD); // "AUD: Using modes"
 
 #[derive(Clone, Copy)]
@@ -110,6 +74,9 @@ pub type Part<'a> = &'a mut dyn FnMut(u32, &mut Regs) -> Result<bool, Refused>;
 
 /// False for the carry (no race mode).
 pub unsafe fn start(entry: &Regs, v: &StartVars, part: Part) -> Result<bool, Refused> {
+    use rc2k_core::audio::device::{
+        A3D2_MODE, CAPS_EMULATED, Fact, MENU_MODE, modes_kept, probed_race_mode,
+    };
     unsafe {
         let mut c = *entry;
         let mut call = |place: u32, c: &Regs| -> Result<bool, Refused> {
@@ -121,13 +88,13 @@ pub unsafe fn start(entry: &Regs, v: &StartVars, part: Part) -> Result<bool, Ref
         c.eax = read(v.use_a3d);
         write(v.has_a3d2, c.eax);
         call(1, &c)?;
-        c.ebx = 0x1_1221;
+        c.ebx = MENU_MODE;
         write(v.mode, c.ebx | 0x190_0000);
         c.eax = 0;
         let mut to_log = false;
         if call(2, &c)? {
             if read(v.has_a3d2) == 1 {
-                c.ebx = 0x11_2221;
+                c.ebx = A3D2_MODE;
             } else {
                 c.eax = 0;
                 write(v.menu, 0);
@@ -138,7 +105,7 @@ pub unsafe fn start(entry: &Regs, v: &StartVars, part: Part) -> Result<bool, Ref
             c.eax = read(v.a3d_ready);
             write(v.splash_kept, c.eax);
             let flags = |v: &StartVars| read(v.caps + 4);
-            if !call(3, &c)? && flags(v) & 0x20 == 0 {
+            if !call(3, &c)? && flags(v) & CAPS_EMULATED == 0 {
                 call(4, &c)?;
                 c.eax = (read(v.mode) & 0x10_0000 != 0) as u32;
                 (v.has_3d as *mut u32).write_unaligned(c.eax);
@@ -153,25 +120,22 @@ pub unsafe fn start(entry: &Regs, v: &StartVars, part: Part) -> Result<bool, Ref
                 for place in 6..12 {
                     call(place, &c)?;
                 }
-                if flags(v) & 0x100 != 0
-                    && read(v.caps + 0x14) != 0
-                    && (v.has_3d as *const u32).read_unaligned() == 1
-                {
-                    if read(v.has_a3d2) == 1 {
-                        c.ebx = 0x11_2221;
-                    } else if read(v.voice_manager_on) == 1 && read(v.caps + 0x3C) >= 6 {
-                        c.ebx |= 0x90_0000;
-                        if read(v.has_eax) == 1 {
-                            c.ebx |= 0x100_0000;
-                        }
-                    }
-                }
+                // Converted: `rc2k_core::audio::device::probed_race_mode`.
+                c.ebx = probed_race_mode(|fact| match fact {
+                    Fact::CapsFlags => flags(v),
+                    Fact::FreeHardware => read(v.caps + 0x14),
+                    Fact::Has3d => (v.has_3d as *const u32).read_unaligned(),
+                    Fact::HasA3d2 => read(v.has_a3d2),
+                    Fact::VoiceManagerOn => read(v.voice_manager_on),
+                    Fact::Free3d => read(v.caps + 0x3C),
+                    Fact::HasEax => read(v.has_eax),
+                });
             }
         }
         if !to_log {
-            if read(v.race) == 0 || read(v.menu) == 0 {
+            if !modes_kept(read(v.race), || read(v.menu)) {
                 write(v.race, c.ebx);
-                c.ebx = 0x1_1221;
+                c.ebx = MENU_MODE;
                 write(v.menu, c.ebx);
                 write(v.race, c.ebx);
             }
@@ -275,189 +239,4 @@ pub fn game_part(place: u32, r: &mut Regs) -> Result<bool, Refused> {
             }
         })
     }
-}
-
-unsafe fn rust(r: &Regs) -> Result<Leaves, Refused> {
-    let ok = unsafe { start(r, &StartVars::game(), &mut game_part) }?;
-    Ok(Leaves {
-        eax: r.eax,
-        carry: Some(!ok),
-        zero: None,
-    })
-}
-
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_leaf(&HOOK, r, call_original, rust);
-}
-
-// ---- self-test ----
-
-/// Each call: the place and the registers it reads (eax, ebx, esi; 0 where it reads none).
-static NOTED: Mutex<Vec<[u32; 4]>> = Mutex::new(Vec::new());
-/// The carries by place.
-static CARRIES: Mutex<[bool; 17]> = Mutex::new([false; 17]);
-
-fn test_part(place: u32, r: &mut Regs) -> Result<bool, Refused> {
-    let eax = if matches!(place, 0 | 2 | 13 | 14 | 15) {
-        r.eax
-    } else {
-        0
-    };
-    let ebx = if place == 6 { r.ebx } else { 0 };
-    let esi = if matches!(place, 6 | 9) { r.esi } else { 0 };
-    NOTED.lock().unwrap().push([place, eax, ebx, esi]);
-    Ok(CARRIES.lock().unwrap()[place as usize])
-}
-
-fn handler(place: u32, r: &mut Regs) {
-    let carry = test_part(place, r).unwrap_or(false);
-    r.set_carry(carry);
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    // 0 use A3D, 1 has A3D2, 2 mode, 3 ready, 4 splash, 5 has 3D, 6 mix rate, 7 A3D RM,
-    // 8 has EAX, 9 menu, 10 race; then the caps (0x18 dwords) and a voice (0x1C).
-    let mut m = vec![0u32; 11 + 0x18 + 0x1C];
-    let at = m.as_mut_ptr() as u32;
-    let a = |n: u32| at + n * 4;
-    let v = StartVars {
-        use_a3d: a(0),
-        has_a3d2: a(1),
-        mode: a(2),
-        a3d_ready: a(3),
-        splash_kept: a(4),
-        has_3d: a(5),
-        mix_rate_setting: a(6),
-        voice_manager_on: a(7),
-        has_eax: a(8),
-        menu: a(9),
-        race: a(10),
-        caps: a(11),
-        voices: a(11 + 0x18),
-    };
-    let mut variables = vec![
-        (0x506D60usize, v.use_a3d),
-        (0x506D5C, v.has_a3d2),
-        (0x4F82BC, v.mode),
-        (0x506C64, v.a3d_ready),
-        (0x506C60, v.splash_kept),
-        (0x506B46, v.has_3d),
-        (0x4F82D4, v.mix_rate_setting),
-        (0x506C54, v.voice_manager_on),
-        (0x506C70, v.has_eax),
-        (0x4F82C4, v.menu),
-        (0x4F82C8, v.race),
-        (0x4F834C, v.voices),
-    ];
-    for off in [4u32, 0x14, 0x3C] {
-        variables.push((0x506AA8 + off as usize, v.caps + off));
-    }
-    let c = match crate::audio::test_copy::make(
-        &HOOK,
-        &crate::audio::test_copy::Copy {
-            address: 0x40A01D,
-            len: 0x1AD,
-            entry: &[0x60, 0x33, 0xC0, 0xE8, 0xF2, 0x29, 0x00, 0x00],
-            calls: &CALLS,
-            jumps_out: &[],
-        },
-        &|callee| {
-            CALLEES
-                .iter()
-                .position(|&c| rva(c) == callee)
-                .map(|n| stand_in(n as u32))
-        },
-        &variables,
-        30,
-    ) {
-        Ok(c) => c,
-        Err(why) => return t.skip(&why),
-    };
-    set_handler(handler);
-    // (open fails, caps fail, caps flags, A3D2, EAX, kept modes)
-    let mut cases = Vec::new();
-    for open_fails in [false, true] {
-        for has_a3d2 in [0u32, 1] {
-            for kept in [false, true] {
-                cases.push((open_fails, false, 0x100u32, has_a3d2, 0u32, kept));
-            }
-        }
-    }
-    for (caps_fail, flags) in [(true, 0x100u32), (false, 0x20), (false, 0), (false, 0x120)] {
-        cases.push((false, caps_fail, flags, 0, 1, false));
-    }
-    for has_eax in [0u32, 1] {
-        for kept in [false, true] {
-            for flags in [0x100u32, 0x1100] {
-                cases.push((false, false, flags, 0, has_eax, kept));
-            }
-        }
-    }
-    for (open_fails, caps_fail, flags, has_a3d2, has_eax, kept) in cases {
-        let run = |rust: bool| {
-            unsafe {
-                let p = at as *mut u32;
-                for n in 0..m.len() {
-                    p.add(n).write_volatile(0x5555_5555);
-                }
-                for (n, x) in [
-                    (0, 0),
-                    (1, 0x77),
-                    (2, 0x77),
-                    (3, 0),
-                    (4, 0x77),
-                    (5, 0x77),
-                    (6, 22050),
-                    (7, 1),
-                    (8, has_eax),
-                    (9, if kept { 0x11221 } else { 0 }),
-                    (10, if kept { 0x2441220 } else { 0 }),
-                ] {
-                    p.add(n).write_volatile(x);
-                }
-                let caps = p.add(11);
-                caps.add(1).write_volatile(flags);
-                caps.add(5).write_volatile(4);
-                caps.add(15).write_volatile(8);
-                // `use_a3d` stands for what `open_a3d2` leaves: has A3D2 follows it.
-                p.write_volatile(has_a3d2);
-            }
-            {
-                let mut c = CARRIES.lock().unwrap();
-                *c = [false; 17];
-                c[2] = open_fails;
-                c[3] = caps_fail;
-            }
-            NOTED.lock().unwrap().clear();
-            let before = Regs::SENTINEL;
-            let mut ro = before;
-            let carry = if rust {
-                unsafe { start(&before, &v, &mut test_part) }
-                    .ok()
-                    .map(|ok| !ok)
-            } else {
-                unsafe { call_game(&mut ro, c.addr()) };
-                ro.preserved_except(&before, 0).then(|| ro.carry())
-            };
-            (
-                carry,
-                std::mem::take(&mut *NOTED.lock().unwrap()),
-                unsafe { std::slice::from_raw_parts(at as *const u32, m.len()) }.to_vec(),
-            )
-        };
-        let theirs = run(false);
-        let mine = run(true);
-        t.check(theirs.0.is_some() && theirs == mine, || {
-            format!(
-                "open fails {open_fails}, caps fail {caps_fail}, flags {flags:#x}, A3D2 {has_a3d2}, EAX {has_eax}, kept {kept}: original {:?} {:x?}; rust {:?} {:x?}",
-                theirs.0, theirs.1, mine.0, mine.1
-            )
-        });
-    }
-    *CARRIES.lock().unwrap() = [false; 17];
-    drop(m);
-    t.finish()
 }

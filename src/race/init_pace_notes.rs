@@ -23,7 +23,7 @@ use crate::errors::Refused;
 use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
 use crate::race::pace_notes::{Course, Lot, Machine, TestStage, case, regions};
 use crate::screens::harness::Left;
-use crate::service::harness::dispatch_state;
+use crate::service::harness::{dispatch_state, state_entry};
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -40,6 +40,7 @@ hook_asm!(
 
 /// The Rust version on a course.
 pub fn init_pace_notes_on(r: &Regs, course: Course) -> Result<Left, Refused> {
+    // Converted: `rc2k_core::race::pace_notes::Notes::init`.
     let mut m = Machine::load(r, course);
     m.init()?;
     m.commit();
@@ -48,14 +49,22 @@ pub fn init_pace_notes_on(r: &Regs, course: Course) -> Result<Left, Refused> {
 
 /// The Rust version on the game's course: the registers it leaves.
 pub fn init_pace_notes(r: &mut Regs) -> Result<(), Refused> {
-    init_pace_notes_on(r, Course::game())?.apply(r);
+    init_pace_notes_on(r, crate::race::pace_notes::game_course())?.apply(r);
     Ok(())
 }
 
 extern "C" fn dispatch(r: &mut Regs) {
     dispatch_state(&HOOK, r, call_original, &regions(), &|r| {
-        init_pace_notes_on(r, Course::game())
+        init_pace_notes_on(r, crate::race::pace_notes::game_course())
     });
+}
+
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    state_entry(r, &|r| {
+        init_pace_notes_on(r, crate::race::pace_notes::game_course())
+    })
 }
 
 fn self_test() -> (usize, usize) {

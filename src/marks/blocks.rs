@@ -15,8 +15,8 @@ pub const RING_RVA: usize = rva(0x93A5C8); // g_marksRing
 pub const RING_FREE_RVA: usize = rva(0x93A5C0); // g_marksRingFree
 pub const RING_USED_RVA: usize = rva(0x93A5EC); // g_marksRingUsed
 pub const RING_LEN: u32 = 0x4C000;
-pub const RING_ENTRIES: u32 = 0x1000;
-pub const RING_ENTRY: u32 = 0x4C;
+pub const RING_ENTRIES: u32 = rc2k_core::marks::rings::ENTRIES;
+pub const RING_ENTRY: u32 = rc2k_core::marks::rings::RING_ENTRY;
 pub const LINKS_LIST_RVA: usize = rva(0x9206F0); // stru_9206F0
 pub const LINKS_RVA: usize = rva(0x920730); // g_marksLinks
 pub const LINKS_LEN: u32 = 0x71020;
@@ -79,14 +79,11 @@ pub unsafe fn allocate_ring(
         game_write(RING_FREE_RVA, block);
         game_write(RING_USED_RVA, 0u32);
         g.esi = block;
-        let at = |n: u32| block.wrapping_add((n & (RING_ENTRIES - 1)) * RING_ENTRY);
-        for n in 0..RING_ENTRIES {
-            g.eax = n * RING_ENTRY;
-            g.ebx = at(n.wrapping_sub(1));
-            g.ecx = at(n + 1);
-            let e = block.wrapping_add(g.eax) as *mut u32;
-            e.write_unaligned(g.ebx);
-            e.add(1).write_unaligned(g.ecx);
+        // Converted: `rc2k_core::marks::rings::ring_links`.
+        for (n, links) in rc2k_core::marks::rings::ring_links(block).enumerate() {
+            let e = block.wrapping_add(n as u32 * RING_ENTRY) as *mut [u32; 2];
+            e.write_unaligned(links);
+            [g.ebx, g.ecx] = links;
         }
         // The loop's counter, read back for its last test.
         g.eax = RING_ENTRIES;
@@ -108,13 +105,11 @@ pub unsafe fn allocate_links(
         game_write(LINKS_RVA, block);
         g.esi = block;
         ((block + 0x7100C) as *mut u32).write_unaligned(0);
-        for n in 0..0x1000u32 {
-            g.eax = n;
-            g.ebx = n.wrapping_sub(1) & 0xFFF;
-            g.ecx = (n + 1) & 0xFFF;
-            ((block + 8 + 4 * n) as *mut u32).write_unaligned(g.ebx);
-            ((block + 0x4008 + 4 * n) as *mut u32).write_unaligned(g.ecx);
-        }
+        // Converted: `rc2k_core::marks::rings::link_tables`.
+        let (before, after) = rc2k_core::marks::rings::link_tables();
+        ((block + 8) as *mut [u32; 0x1000]).write_unaligned(before);
+        ((block + 0x4008) as *mut [u32; 0x1000]).write_unaligned(after);
+        [g.ebx, g.ecx] = [before[0xFFF], after[0xFFF]];
         g.eax = 0x1000;
         part(1, &mut g)?;
     }
@@ -162,6 +157,58 @@ pub unsafe fn scale_corners(entry: &Regs) -> Regs {
         }
     }
     g
+}
+
+/// The converted `scale_corners` (plain floats): the hook's. The x87 version above stays
+/// for `game_part` (`marks::allocate_links`, unconverted).
+// Converted: `rc2k_core::marks::scales::scale_corner`
+pub unsafe fn scale_corners_plain(entry: &Regs) -> Regs {
+    let mut g = *entry;
+    unsafe {
+        let scale = f32::from_bits(game_read(CORNER_SCALE_RVA));
+        for n in (0..CORNERS).rev() {
+            let record = game_addr(CORNERS_RVA) as u32 + 0x80 * n;
+            let c = rc2k_core::marks::scales::scale_corner(
+                |o| ((record + o) as *const u16).read_unaligned(),
+                scale,
+            );
+            let values = c.values.map(f32::to_bits);
+            for k in 0..4 {
+                game_write(
+                    CORNER_WORK_RVA + 0x20 * k,
+                    [values[2 * k], values[2 * k + 1]],
+                );
+            }
+            [g.ebp, g.edi] = c.sides;
+            game_write(CORNER_SIDES_RVA, c.sides);
+            g.esi = n * 0x24;
+            game_write(SLOPES_RVA + g.esi as usize, c.slope.to_bits());
+            game_write(SLOPES_RVA + g.esi as usize + 4, values);
+            [g.eax, g.ebx] = [values[6], values[7]];
+        }
+    }
+    g
+}
+
+/// The float places of what `scale_corners` writes (the sides are whole numbers).
+pub fn corner_floats() -> Vec<(
+    crate::service::harness::Region,
+    crate::service::floats::Tolerance,
+)> {
+    let a = |r: usize| game_addr(r) as u32;
+    let mut r: Vec<_> = (0..4)
+        .map(|k| {
+            (
+                (a(CORNER_WORK_RVA + 0x20 * k), 8),
+                crate::service::floats::FLOAT,
+            )
+        })
+        .collect();
+    r.push((
+        (a(SLOPES_RVA), 0x24 * CORNERS as usize),
+        crate::service::floats::FLOAT,
+    ));
+    r
 }
 
 /// `marks::reset_settings_blocks` (0x4C9A6D), in step 3: the eight blocks of 0x4C8 at

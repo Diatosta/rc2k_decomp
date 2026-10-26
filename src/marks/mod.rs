@@ -276,7 +276,6 @@ pub static HOOKS: &[&dyn GameHook] = &[
     &hexagons_spawn::HOOK,
     &hexagons_step::HOOK,
     &hexagons_top::HOOK,
-    &init_mark_step::HOOK,
     &init_marks::HOOK,
     &jitter_point::HOOK,
     &keep_vectors::HOOK,

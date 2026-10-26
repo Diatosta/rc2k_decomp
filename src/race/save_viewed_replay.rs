@@ -32,8 +32,8 @@ use crate::physics::flow::a;
 use crate::race::replay_path::{LAST_RACE_PATH, replay_path};
 use crate::race::viewer::{
     BLOCK_DATA, BLOCKS, CAMERAS, CF, HEADER, INDEX, PLACES, Part, Saved, TABLE_LEN, UNDO_BLOCKS,
-    UNDO_PLACES, ZF, answer, dispatch_parts, dword, get, move_dwords, put, region, run_both,
-    test_part,
+    UNDO_PLACES, ZF, answer, dispatch_parts, dword, get, move_dwords, put, region, regs_entry,
+    run_both, test_part,
 };
 use crate::service::harness::Region;
 use std::sync::atomic::AtomicUsize;
@@ -67,22 +67,28 @@ pub fn save_viewed_replay(entry: &Regs, part: Part) -> Result<Regs, Refused> {
 
 /// Whether it was saved (`edx` 1).
 fn save(entry: &Regs, part: Part) -> Result<bool, Refused> {
+    // Converted: `rc2k_core::race::viewer_flow::{has_blocks, SAVED_HEADER, name_offset,
+    // next_offset}`.
+    use rc2k_core::race::viewer_flow::{
+        BLOCK_LEN, CAMERA_DWORDS, HEADER_LEN, INDEX_HEAD_LEN, NAME_LEN, SAVED_HEADER, has_blocks,
+        name_offset, next_offset,
+    };
     let mut r = Regs { edx: 0, ..*entry };
-    if get(BLOCKS) == 0 {
+    if !has_blocks(get(BLOCKS)) {
         return Ok(false);
     }
-    put(HEADER, 0x4C50_4552);
-    put(HEADER + 4, 0);
-    put(HEADER + 8, 0x50400);
+    for (k, word) in SAVED_HEADER.into_iter().enumerate() {
+        put(HEADER + 4 * k, word);
+    }
     part(1, &mut r)?;
     put(HEADER + 0xC, r.eax);
-    let name = NAMES.wrapping_add(32 * r.ebx as usize);
+    let name = NAMES.wrapping_add(name_offset(r.ebx) as usize);
     unsafe {
-        std::ptr::copy(a(name) as *const u8, a(HEADER + 0x10) as *mut u8, 0x20);
+        std::ptr::copy(a(name) as *const u8, a(HEADER + 0x10) as *mut u8, NAME_LEN);
     }
     r.ecx = 0;
-    r.esi = a(name) + 0x20;
-    r.edi = a(HEADER + 0x10) + 0x20;
+    r.esi = a(name) + NAME_LEN as u32;
+    r.edi = a(HEADER + 0x10) + NAME_LEN as u32;
     let slot = r.ebx;
     r.eax = a(LAST_RACE_PATH);
     r.ebx = 0;
@@ -111,8 +117,8 @@ fn save(entry: &Regs, part: Part) -> Result<bool, Refused> {
         part(3, r)?;
         Ok(!r.carry())
     };
-    put(OFFSET, 0x430);
-    if !write(part, &mut r, a(HEADER), 0x430)? {
+    put(OFFSET, HEADER_LEN);
+    if !write(part, &mut r, a(HEADER), HEADER_LEN)? {
         close(part, &mut r, true)?;
         return Ok(false);
     }
@@ -127,31 +133,28 @@ fn save(entry: &Regs, part: Part) -> Result<bool, Refused> {
         r.ebx = a(BLOCK_DATA);
         r.ecx = get(PLACES + 8 * block as usize + 4);
         part(5, &mut r)?;
-        move_dwords(BLOCK_DATA, CAMERAS + 8 * block as usize, 2);
+        move_dwords(BLOCK_DATA, CAMERAS + 8 * block as usize, CAMERA_DWORDS);
         r.ecx = 0;
         r.esi = a(CAMERAS) + 8 * block + 8;
         r.edi = a(BLOCK_DATA) + 8;
         put(UNDO_PLACES + 8 * block as usize, get(OFFSET));
         r.eax = get(TO);
         r.ebx = a(BLOCK_DATA);
-        r.ecx = 0x2810;
+        r.ecx = BLOCK_LEN;
         part(6, &mut r)?;
         if r.carry() {
             close(part, &mut r, true)?;
             return Ok(false);
         }
         put(UNDO_PLACES + 8 * block as usize + 4, r.eax);
-        put(
-            OFFSET,
-            get(OFFSET).wrapping_add((r.eax as i32).unsigned_abs()),
-        );
+        put(OFFSET, next_offset(get(OFFSET), r.eax));
         block += 1;
         if block == get(BLOCKS) {
             break;
         }
     }
     r.ebp = block;
-    let done = write(part, &mut r, a(INDEX), 0x10)?
+    let done = write(part, &mut r, a(INDEX), INDEX_HEAD_LEN)?
         && write(part, &mut r, a(UNDO_PLACES), TABLE_LEN as u32)?;
     if done {
         r.edx = 1;
@@ -206,6 +209,12 @@ extern "C" fn dispatch(r: &mut Regs) {
     dispatch_parts(&HOOK, r, call_original, &|r| {
         save_viewed_replay(r, &mut game_part)
     });
+}
+
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    regs_entry(r, &|r| save_viewed_replay(r, &mut game_part))
 }
 
 // ---- self-test ----

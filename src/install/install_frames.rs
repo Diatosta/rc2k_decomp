@@ -24,22 +24,22 @@
 //! `div` faults). `call $+5` at +0: private copies, manual patches. Shadow mode runs the
 //! original alone. Self-test: copies whose calls go to stand-ins (the percentage's run for
 //! real), against the Rust version: the lock failing or not, three counts.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{RawHook, Regs, SelfTest, game_addr, game_read, game_write, hook_asm, rva};
+use crate::framework::{Regs, game_addr, game_read, game_write, rva};
 use crate::install::installer::{
-    CF, COPY_PICTURE, FILL_RECT, FRAME_RECT, LOCK, Part, SHOW, UNLOCK, ZF, answer, at, both, copy,
-    quiet,
+    COPY_PICTURE, FILL_RECT, FRAME_RECT, LOCK, Part, SHOW, UNLOCK, at,
 };
-use crate::race::viewer::dispatch_parts;
-use crate::service::harness::Region;
-use std::sync::atomic::AtomicUsize;
 
 const BLIT_GLYPH_LIST: usize = 0x402628; // install::blit_glyph_list
 const DRAW_STRING_LIST: usize = 0x402370; // install::draw_string_list
 const DRAW_TEXT: usize = 0x4023D5; // text::draw_text
-const APPEND_PERCENT: u32 = 0x401ACB; // strings::append_percent
-const APPEND_NUL: u32 = 0x401F16; // strings::append_nul
+// strings::append_percent
+// strings::append_nul
 
 const BAR_RVA: usize = rva(0x51D4A3); // dword_51D4A3: the bar's x, y, width, height
 const BAR_GLYPHS_LIST_RVA: usize = rva(0x51D483); // unk_51D483
@@ -49,7 +49,6 @@ const TO_COPY_RVA: usize = rva(0x51BAEC); // g_filesToCopy
 const CLIP_RIGHT_RVA: usize = rva(0x4F5040); // g_clipRight
 const PALETTE_RVA: usize = rva(0x4F3B74); // g_blendedPalette
 const TEXT_RVA: usize = rva(0x93E430); // text
-const TEXT_LEN: usize = 0x20;
 const FONT_RVA: usize = rva(0x51E6A4); // font
 const TEXTS_RVA: usize = rva(0x51D433); // unk_51D433: the copying page's two texts
 const FRAME_RVA: usize = rva(0x51D4B3); // unk_51D4B3: its frame
@@ -149,170 +148,22 @@ pub fn copying_frame(entry: &Regs, part: Part) -> Result<Regs, Refused> {
     })
 }
 
-/// What the tests compare besides the calls: the clip and the percentage's text.
-fn regions() -> Vec<Region> {
-    vec![(a(CLIP_RIGHT_RVA), 4), (a(TEXT_RVA), TEXT_LEN)]
-}
-
-/// The stand-ins' answers: the lock failing or not; each call's own flags.
-fn prepare(fails: bool) -> impl Fn() {
-    move || {
-        answer(Box::new(move |place, r| {
-            r.set_carry(place == at(LOCK) && fails);
-            r.set_zero(place == at(SHOW));
-            r.eax = place;
-        }))
-    }
-}
-
 pub mod progress {
     use super::*;
-    static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-    pub static HOOK: RawHook =
-        RawHook::new("install::progress_frame", rva(0x413295), thunk, &ORIGINAL)
-            .private_copy(0xAB)
-            .relocate_calls(&[0x6, 0x1F, 0x5E, 0x74, 0x79, 0x9A, 0x9F, 0xA4])
-            .manual_patch()
-            .self_test(self_test);
-    hook_asm!(
-        thunk,
-        call_original,
-        dispatch = dispatch,
-        original = ORIGINAL
-    );
-    extern "C" fn dispatch(r: &mut Regs) {
-        dispatch_parts(&HOOK, r, call_original, &|r| {
+    /// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
+    pub fn entry(r: &mut Regs) -> Result<(), Refused> {
+        crate::race::viewer::regs_entry(r, &|r| {
             progress_frame(r, &mut crate::install::installer::game_part)
-        });
-    }
-    fn self_test() -> (usize, usize) {
-        let Some(mut t) = SelfTest::begin(&HOOK) else {
-            return (0, 0);
-        };
-        let calls = [
-            (0x6, LOCK as u32),
-            (0x1F, FILL_RECT as u32),
-            (0x5E, BLIT_GLYPH_LIST as u32),
-            (0x74, APPEND_PERCENT),
-            (0x79, APPEND_NUL),
-            (0x9A, DRAW_TEXT as u32),
-            (0x9F, UNLOCK as u32),
-            (0xA4, SHOW as u32),
-        ];
-        let stood = [
-            LOCK as u32,
-            FILL_RECT as u32,
-            BLIT_GLYPH_LIST as u32,
-            DRAW_TEXT as u32,
-            UNLOCK as u32,
-            SHOW as u32,
-        ];
-        let copy = match copy(
-            0x413295,
-            0xAB,
-            &[0xE8, 0, 0, 0, 0],
-            &calls,
-            &stood,
-            &[],
-            &[],
-            &[],
-        ) {
-            Ok(c) => c,
-            Err(why) => return t.skip(&why),
-        };
-        let counts = [(a(COPIED_RVA), 4), (a(TO_COPY_RVA), 4)];
-        let saved = crate::service::harness::capture(&counts);
-        for (copied, to_copy) in [(0u32, 10u32), (7, 10), (1234, 1234)] {
-            for fails in [false, true] {
-                unsafe {
-                    game_write(COPIED_RVA, copied);
-                    game_write(TO_COPY_RVA, to_copy);
-                }
-                both(
-                    &mut t,
-                    &format!("{copied} of {to_copy} copied, the lock fails {fails}"),
-                    &copy,
-                    Regs::SENTINEL,
-                    &regions(),
-                    CF | ZF,
-                    &[],
-                    &prepare(fails),
-                    &|r, part, _| progress_frame(r, part),
-                );
-            }
-        }
-        crate::service::harness::restore(&counts, &saved);
-        quiet();
-        t.finish()
+        })
     }
 }
 
 pub mod copying {
     use super::*;
-    static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-    pub static HOOK: RawHook =
-        RawHook::new("install::copying_frame", rva(0x413340), thunk, &ORIGINAL)
-            .private_copy(0x4C)
-            .relocate_calls(&[0x6, 0xD, 0x21, 0x3B, 0x40, 0x45])
-            .manual_patch()
-            .self_test(self_test);
-    hook_asm!(
-        thunk,
-        call_original,
-        dispatch = dispatch,
-        original = ORIGINAL
-    );
-    extern "C" fn dispatch(r: &mut Regs) {
-        dispatch_parts(&HOOK, r, call_original, &|r| {
+    /// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
+    pub fn entry(r: &mut Regs) -> Result<(), Refused> {
+        crate::race::viewer::regs_entry(r, &|r| {
             copying_frame(r, &mut crate::install::installer::game_part)
-        });
-    }
-    fn self_test() -> (usize, usize) {
-        let Some(mut t) = SelfTest::begin(&HOOK) else {
-            return (0, 0);
-        };
-        let targets = [
-            LOCK as u32,
-            COPY_PICTURE as u32,
-            DRAW_STRING_LIST as u32,
-            FRAME_RECT as u32,
-            UNLOCK as u32,
-            SHOW as u32,
-        ];
-        let calls: Vec<(usize, u32)> = [0x6, 0xD, 0x21, 0x3B, 0x40, 0x45]
-            .into_iter()
-            .zip(targets)
-            .collect();
-        let copy = match copy(
-            0x413340,
-            0x4C,
-            &[0xE8, 0, 0, 0, 0],
-            &calls,
-            &targets,
-            &[],
-            &[],
-            &[],
-        ) {
-            Ok(c) => c,
-            Err(why) => return t.skip(&why),
-        };
-        for fails in [false, true] {
-            both(
-                &mut t,
-                &format!("the lock fails {fails}"),
-                &copy,
-                Regs::SENTINEL,
-                &[],
-                CF | ZF,
-                &[],
-                &prepare(fails),
-                &|r, part, _| copying_frame(r, part),
-            );
-        }
-        quiet();
-        t.finish()
+        })
     }
 }
-
-/// The two, for the registry.
-pub static HOOKS: [&dyn crate::framework::GameHook; 2] = [&progress::HOOK, &copying::HOOK];

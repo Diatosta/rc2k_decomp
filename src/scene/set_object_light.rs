@@ -23,6 +23,8 @@
 //! Shadow mode: the Rust version, its writes put back, the original, compared.
 //! Self-test: a redirected copy whose three calls of the gathering note what they
 //! find and leave a colour.
+//!
+//! Converted 2026-10-21: the kind's way through `rc2k_core::scene::lamps::object_light`.
 
 use crate::errors::Refused;
 use crate::framework::{
@@ -64,33 +66,35 @@ const THIS_CAR_RVA: usize = rva(0x60627C); // dword_60627C
 // ---- Rust version ----
 
 /// `gather`: what stands for `scene::add_car_lights` and `scene::add_point_lights`.
+// Converted: `rc2k_core::scene::lamps::object_light`
 pub unsafe fn set_object_light(
     gather: &mut dyn FnMut() -> Result<(), Refused>,
 ) -> Result<(), Refused> {
     unsafe {
+        use rc2k_core::scene::lamps::{ObjectLight, WHITE, object_light};
         game_write(ADDED_RVA, 0u32);
-        let kind: u32 = game_read(KIND_RVA);
-        match kind {
-            5 => {
-                game_write(ADDED_RVA, 0x00FF_FFFFu32);
-                return Ok(());
-            }
-            1 => game_write(STRENGTH_RVA, 0u32),
-            2 => {
-                if game_read::<u8>(KEY_RVA) != 0 {
-                    game_write(STRENGTH_RVA, 0u32);
+        let (clear_strength, own_car) =
+            match object_light(game_read(KIND_RVA), || game_read::<u8>(KEY_RVA) != 0) {
+                ObjectLight::White => {
+                    game_write(ADDED_RVA, WHITE);
+                    return Ok(());
                 }
-            }
-            3 => {}
-            _ => return Ok(()),
+                ObjectLight::Gathered {
+                    clear_strength,
+                    own_car,
+                } => (clear_strength, own_car),
+                ObjectLight::Nothing => return Ok(()),
+            };
+        if clear_strength {
+            game_write(STRENGTH_RVA, 0u32);
         }
         game_write(LIT_PLACE_RVA, game_read::<[u32; 3]>(PLACE_RVA));
-        if kind == 3 {
+        if own_car {
             game_write(DRAWN_CAR_RVA, game_read::<u32>(THIS_CAR_RVA));
         }
         game_write(LIGHT_COLOUR_RVA, 0u32);
         gather()?;
-        if kind == 3 {
+        if own_car {
             game_write(DRAWN_CAR_RVA, u32::MAX);
         }
         let mmx = game_read::<u32>(MMX_RVA) != 0;
@@ -158,6 +162,12 @@ extern "C" fn dispatch(r: &mut Regs) {
             )
         });
     }
+}
+
+/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
+pub fn entry(_: &mut Regs) -> Result<(), crate::errors::Refused> {
+    unsafe { set_object_light_in_game() }?;
+    Ok(())
 }
 
 // ---- self-test ----

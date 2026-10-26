@@ -11,16 +11,17 @@
 //! Callers: `physics::reset_current_car` (esi `g_car`), and unreferenced code at
 //! 0x43FDDF that runs it over every car before `race::grade_all_cars`.
 //! Self-test: a copy of the original on a test block (its two reads of the work copy
-//! made the test's), fillings by lot under three precisions.
+//! made the test's) against the converted version, fillings by lot at the test
+//! precisions (exact at any).
 
 use crate::errors::Refused;
 use crate::framework::{
     EAX, ECX, EDI, RawHook, Regs, SelfTest, call_game, game_addr, game_read, hook_asm, rva,
 };
-use crate::math::x87;
-use crate::math::x87_run::{TEST_CONTROL_WORDS, int_over_times, with_control_word};
+use crate::math::x87_run::{TEST_CONTROL_WORDS, with_control_word};
 use crate::screens::harness::Left;
-use crate::service::harness::{capture, dispatch_state};
+use crate::service::harness::{capture, dispatch_state, state_entry};
+use rc2k_core::physics::grades::{percentage, reset_writes};
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -44,29 +45,18 @@ unsafe fn put(a: u32, v: u32) {
     unsafe { (a as *mut u32).write_unaligned(v) }
 }
 
-/// The Rust core: the block at `b`, the two settings read at `s0c`, `s08`.
+/// The Rust core: the block at `b`, the two settings read at `s0c`, `s08` (the same at
+/// any precision).
+// Converted: `rc2k_core::physics::grades::{percentage, reset_writes}`.
 pub unsafe fn reset_grades_at(b: u32, s0c: u32, s08: u32) -> Left {
     unsafe {
-        for o in (0x29C..0x368).step_by(4) {
-            put(b + o, 0);
+        let k = |a: usize| f32::from_bits(game_read(a));
+        let (k256, k100) = (k(K256_RVA), k(K100_RVA));
+        let a = percentage((s0c as *const i32).read_unaligned(), k256, k100);
+        let c = percentage((s08 as *const i32).read_unaligned(), k256, k100);
+        for (offset, v) in reset_writes(k(ONE_RVA), a, c) {
+            put(b + offset, v);
         }
-        let one = x87::loaded(game_read(ONE_RVA));
-        for o in [0x3F4, 0x3F8, 0x3FC, 0x400, 0x404] {
-            put(b + o, one);
-        }
-        let (k256, k100) = (game_read(K256_RVA), game_read(K100_RVA));
-        let a = int_over_times((s0c as *const i32).read_unaligned(), k256, k100);
-        for o in [0x458, 0x448, 0x44C, 0x450, 0x454] {
-            put(b + o, a);
-        }
-        let c = int_over_times((s08 as *const i32).read_unaligned(), k256, k100);
-        for o in [0x45C, 0x438, 0x43C, 0x440, 0x444] {
-            put(b + o, c);
-        }
-        for o in (0x408..0x438).step_by(4).chain((0x64..0x84).step_by(4)) {
-            put(b + o, 0);
-        }
-        put(b + 0x298, u32::MAX);
         Left::nothing()
             .with(EAX, 0)
             .with(ECX, 0)
@@ -91,6 +81,12 @@ fn rust(r: &Regs) -> Result<Left, Refused> {
 
 extern "C" fn dispatch(r: &mut Regs) {
     dispatch_state(&HOOK, r, call_original, &[(r.esi, BLOCK_LEN)], &rust);
+}
+
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    state_entry(r, &rust)
 }
 
 /// A copy of the original reading the two settings at `s0c`, `s08`.

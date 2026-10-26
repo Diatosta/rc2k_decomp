@@ -14,7 +14,7 @@ use crate::framework::{RawHook, Regs, SelfTest, rva};
 use crate::race::stage_prefs::left_of;
 use crate::scene::matrix3::*;
 use crate::screens::harness::Left;
-use crate::service::harness::{check_state, dispatch_state};
+use crate::service::floats::*;
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -33,13 +33,18 @@ angle_hook!(
 );
 
 fn rust(r: &Regs) -> Result<Left, Refused> {
-    unsafe { turn_matrix3(Axis::Y, r.esi, ANGLE.get()) }?;
+    unsafe { turn_matrix3_plain(Axis::Y, r.esi, ANGLE.get()) }?;
     Ok(left_of(r))
 }
 
 extern "C" fn dispatch(r: &mut Regs) {
     let regions = [(r.esi, 0x24)];
-    dispatch_state(&HOOK, r, original_with_angle, &regions, &rust);
+    let memory = [(regions[0], FLOAT)];
+    let floats = Floats {
+        memory: &memory,
+        regs: &[],
+    };
+    dispatch_state_floats(&HOOK, r, original_with_angle, &regions, &floats, &rust);
 }
 
 fn self_test() -> (usize, usize) {
@@ -68,26 +73,35 @@ fn self_test() -> (usize, usize) {
             (-9..=9)
                 .step_by(3)
                 .map(|n| (format!("pi {n} / 8"), extended_pi(n))),
-        );
-    for (what, angle) in angles {
-        check_state(
-            &mut t,
-            &format!("angle {what}"),
-            original_with_angle,
-            Regs {
-                esi: b + 2,
-                ..Regs::SENTINEL
-            },
-            &|| unsafe {
-                std::ptr::write_bytes(b as *mut u8, 0xAA, len);
-                ANGLE.set(angle);
-            },
-            &[(b, len)],
-            &rust,
-        );
-    }
+        )
+        .collect::<Vec<_>>();
+    let tolerant = Floats {
+        memory: &[((b, len), FLOAT)],
+        regs: &[],
+    };
+    at_test_precisions(&tolerant, &mut |word, floats| {
+        for (what, angle) in angles.iter().cloned() {
+            check_state_floats(
+                &mut t,
+                "scene::turn_matrix3_y",
+                &format!("control word {word:#x}, angle {what}"),
+                original_with_angle,
+                Regs {
+                    esi: b + 2,
+                    ..Regs::SENTINEL
+                },
+                &|| unsafe {
+                    std::ptr::write_bytes(b as *mut u8, 0xAA, len);
+                    ANGLE.set(angle);
+                },
+                &[(b, len)],
+                floats,
+                &rust,
+            );
+        }
+    });
     t.check(
-        unsafe { turn_matrix3(Axis::Y, b, extended(1.0e19f32.to_bits())) }.is_err(),
+        unsafe { turn_matrix3_plain(Axis::Y, b, extended(1.0e19f32.to_bits())) }.is_err(),
         || "angle 1e19: the Rust version went on".into(),
     );
     t.finish()

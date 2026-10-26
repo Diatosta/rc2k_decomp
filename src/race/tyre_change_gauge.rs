@@ -42,6 +42,7 @@ use crate::math::x87::x87;
 use crate::race::frame::Part;
 use crate::redirect::RedirectedCopy;
 use crate::service::harness::{Region, capture, restore};
+use rc2k_core::race::tyre_change::{FILL_MS, Gauge, Io, turn};
 use std::sync::Mutex;
 use std::sync::atomic::{AtomicU32, AtomicUsize, Ordering};
 
@@ -122,22 +123,75 @@ pub fn press_time(s: i32) -> i32 {
     out
 }
 
-#[derive(Clone, Copy)]
-enum At {
-    Start,
-    LetGo,
-    Stage,
-    Read,
-    Run,
-    Pressed,
-    Developer,
-    Done,
-    Time,
-    Nothing,
+/// The gauge's dealings with the game: the parts on the working registers (the device in
+/// esi), its state written into the device before each drawing.
+struct GameIo<'a> {
+    w: Regs,
+    device: u32,
+    part: Part<'a>,
+}
+
+impl GameIo<'_> {
+    fn store(&self, g: &Gauge) {
+        unsafe {
+            put(self.device + GAUGE, g.gauge);
+            put(self.device + STAGE, g.stage);
+            put(self.device + CLOCK, g.clock);
+        }
+    }
+}
+
+impl Io for GameIo<'_> {
+    type Error = Refused;
+    fn tick(&mut self) -> Result<u32, Refused> {
+        (self.part)(TICK, &mut self.w)?;
+        Ok(self.w.eax)
+    }
+    fn pressed(&mut self) -> Result<bool, Refused> {
+        (self.part)(READ, &mut self.w)?;
+        Ok(self.w.ebx & 0xFF != 0)
+    }
+    fn draw(&mut self, g: &Gauge) -> Result<(), Refused> {
+        self.store(g);
+        (self.part)(DRAW, &mut self.w)
+    }
+    fn press_time(&mut self, s: u32) -> u32 {
+        // eax the time as stored.
+        self.w.eax = press_time(s as i32) as u32;
+        self.w.eax
+    }
+    fn developer(&mut self) -> bool {
+        g(DEVELOPER) == 1
+    }
+    fn record(&mut self) -> u32 {
+        g(RECORD)
+    }
+    fn ran(&mut self, gauge: u32, rest: u32) {
+        (self.w.eax, self.w.edx, self.w.ebx) = (gauge, rest, FILL_MS);
+    }
+    fn timed_out(&mut self, elapsed: u32) {
+        self.w.eax = elapsed;
+    }
+    fn timed(&mut self, elapsed: u32, s: u32) {
+        (self.w.eax, self.w.ebx) = (elapsed, s);
+    }
+    fn beaten(&mut self, time: u32) {
+        p(RECORD, time);
+        let from = NAMES[(g(PLAYER) != 0) as usize];
+        self.w.eax = game_addr(rva(from)) as u32;
+        unsafe {
+            std::ptr::copy(
+                self.w.eax as *const u8,
+                game_addr(rva(RECORD_NAME)) as *mut u8,
+                30,
+            )
+        };
+    }
 }
 
 /// The steps on `r` (eax the result; the rest as at entry).
 pub fn tyre_change_gauge_in(r: &mut Regs, part: Part) -> Result<(), Refused> {
+    // Converted: `rc2k_core::race::tyre_change::turn`.
     let entry = *r;
     if entry.esi > 7 {
         return Err(BadInput("a tyre change player past 7").into());
@@ -147,99 +201,27 @@ pub fn tyre_change_gauge_in(r: &mut Regs, part: Part) -> Result<(), Refused> {
         return Err(BadInput("a tyre change player without a device").into());
     }
     p(PLAYER, entry.esi);
-    let mut w = Regs {
-        esi: d,
-        edi: entry.eax,
-        ..entry
+    let mut io = GameIo {
+        w: Regs {
+            esi: d,
+            edi: entry.eax,
+            ..entry
+        },
+        device: d,
+        part,
     };
-    let mut at = if entry.eax == 0 { At::Start } else { At::Stage };
-    let result = unsafe {
-        loop {
-            at = match at {
-                At::Start => {
-                    part(TICK, &mut w)?;
-                    put(d + GAUGE, 0);
-                    put(d + STAGE, u32::MAX);
-                    put(d + CLOCK, w.eax);
-                    part(DRAW, &mut w)?;
-                    At::LetGo
-                }
-                At::LetGo => {
-                    part(READ, &mut w)?;
-                    if w.ebx & 0xFF == 0 {
-                        put(d + STAGE, 0);
-                    }
-                    At::Nothing
-                }
-                At::Stage => match get(d + STAGE) {
-                    u32::MAX => At::LetGo,
-                    1 => At::Time,
-                    0 => At::Read,
-                    _ => At::Developer,
-                },
-                At::Read => {
-                    part(READ, &mut w)?;
-                    if w.ebx & 0xFF != 0 {
-                        At::Pressed
-                    } else {
-                        At::Run
-                    }
-                }
-                At::Run => {
-                    part(TICK, &mut w)?;
-                    w.eax = w.eax.wrapping_sub(get(d + CLOCK));
-                    if w.eax >= 60000 {
-                        put(d + GAUGE, 0);
-                        At::Done
-                    } else {
-                        let product = w.eax as u64 * 0x1_0000;
-                        w.eax = ((product / 500) as u32) & 0xFFFF;
-                        w.edx = (product % 500) as u32;
-                        w.ebx = 500;
-                        put(d + GAUGE, w.eax);
-                        At::Nothing
-                    }
-                }
-                At::Pressed => {
-                    if g(DEVELOPER) == 1 {
-                        put(d + STAGE, 2);
-                        At::Developer
-                    } else {
-                        At::Done
-                    }
-                }
-                At::Developer => {
-                    if get(d + GAUGE) >= 0xF618 {
-                        At::Run
-                    } else {
-                        At::Done
-                    }
-                }
-                At::Done => {
-                    part(TICK, &mut w)?;
-                    w.eax = w.eax.wrapping_sub(get(d + CLOCK));
-                    w.ebx = 0x1_0000u32.wrapping_sub(get(d + GAUGE));
-                    put(d + CLOCK, press_time(w.ebx as i32) as u32);
-                    w.eax = get(d + CLOCK);
-                    if w.eax < g(RECORD) {
-                        p(RECORD, w.eax);
-                        let from = NAMES[(g(PLAYER) != 0) as usize];
-                        w.eax = game_addr(rva(from)) as u32;
-                        std::ptr::copy(
-                            w.eax as *const u8,
-                            game_addr(rva(RECORD_NAME)) as *mut u8,
-                            30,
-                        );
-                    }
-                    put(d + STAGE, 1);
-                    part(DRAW, &mut w)?;
-                    At::Time
-                }
-                At::Time => break get(d + CLOCK),
-                At::Nothing => break 0,
-            }
+    let mut gauge = unsafe {
+        Gauge {
+            gauge: get(d + GAUGE),
+            stage: get(d + STAGE),
+            clock: get(d + CLOCK),
         }
     };
+    let before = gauge;
+    let result = turn(entry.eax == 0, &mut gauge, &mut io)?;
+    if gauge != before {
+        io.store(&gauge);
+    }
     p(SCRATCH, result);
     r.eax = result;
     Ok(())
@@ -281,6 +263,16 @@ extern "C" fn dispatch(r: &mut Regs) {
         Ok(()) => r.eax = w.eax,
         Err(e) => unsafe { crate::fatal::raise::refused(&HOOK, e, r, call_original) },
     }
+}
+
+/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    let mut w = *r;
+    match tyre_change_gauge_in(&mut w, &mut gauge_part) {
+        Ok(()) => r.eax = w.eax,
+        Err(e) => return Err(e),
+    }
+    Ok(())
 }
 
 // ---- self-test ----

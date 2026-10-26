@@ -14,7 +14,7 @@
 use crate::errors::Refused;
 use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
 use crate::race::viewer::{
-    HANDLE, OPEN, Part, Saved, dispatch_parts, dword, get, put, run_both, test_part,
+    HANDLE, OPEN, Part, Saved, dispatch_parts, dword, get, put, regs_entry, run_both, test_part,
 };
 use std::sync::atomic::AtomicUsize;
 
@@ -32,7 +32,8 @@ hook_asm!(
 
 /// The Rust version: the registers it leaves (the entry's).
 pub fn close_viewed_replay(entry: &Regs, part: Part) -> Result<Regs, Refused> {
-    if get(OPEN) == 1 {
+    // Converted: `rc2k_core::race::viewer_flow::closes`.
+    if rc2k_core::race::viewer_flow::closes(get(OPEN)) {
         let mut r = *entry;
         part(1, &mut r)?;
         r.eax = get(HANDLE);
@@ -60,6 +61,12 @@ extern "C" fn dispatch(r: &mut Regs) {
     dispatch_parts(&HOOK, r, call_original, &|r| {
         close_viewed_replay(r, &mut game_part)
     });
+}
+
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    regs_entry(r, &|r| close_viewed_replay(r, &mut game_part))
 }
 
 fn self_test() -> (usize, usize) {

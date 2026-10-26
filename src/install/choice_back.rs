@@ -9,66 +9,48 @@
 //! A chosen byte past the choices with every choice marked never ends: refused (the
 //! original goes round for ever). Callers `install::key_up`, `install::key_left`. Shadow
 //! mode compares. Self-test: items of the test's against the original.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
-use crate::errors::{BadInput, Refused};
-use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
-use crate::install::installer::{CF, ZF, rb, rd, wb};
-use crate::race::viewer::dispatch_regs;
-use std::sync::atomic::AtomicUsize;
+use crate::errors::Refused;
+use crate::framework::Regs;
+use crate::install::installer::{rb, rd, wb};
+use crate::race::viewer::regs_entry;
+use rc2k_core::install::items::{self, MARKS};
 
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
+/// An item of choices' places: the chosen byte (edx) and the table (ebx); and whether
+/// choice `cl` is free.
+pub fn choice_places(r: &mut Regs) -> impl Fn(u8) -> bool + use<> {
+    r.edx = rd(r.esi + 8);
+    r.ebx = rd(r.esi + 0xC);
+    let table = r.ebx;
+    move |cl: u8| rb(table.wrapping_add(2 * cl as u32 + 1)) & MARKS == 0
+}
 
-pub static HOOK: RawHook =
-    RawHook::new("install::choice_back", rva(0x414826), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
-
-/// Steps a choice may take before it is clear that the original goes round for ever.
-pub const ROUND: usize = 0x202;
+/// The choice reached stored (when it changed) and left in ecx; zero set, carry clear.
+pub fn store_choice(r: &mut Regs, chosen: u8, cl: u8) {
+    if cl != chosen {
+        wb(r.edx, cl);
+    }
+    r.ecx = cl as u32;
+    r.set_zero(true);
+    r.set_carry(false);
+}
 
 pub fn choice_back(entry: &Regs) -> Result<Regs, Refused> {
     let mut r = *entry;
-    r.edx = rd(r.esi + 8);
-    r.ebx = rd(r.esi + 0xC);
-    let mut cl = rb(r.edx);
-    for _ in 0..ROUND {
-        cl = cl.wrapping_sub(1);
-        if cl & 0x80 != 0 {
-            cl = rb(r.esi + 1).wrapping_sub(1);
-        }
-        let free = rb(r.ebx.wrapping_add(2 * cl as u32 + 1)) & 0xC0 == 0;
-        if cl == rb(r.edx) || free {
-            if cl != rb(r.edx) {
-                wb(r.edx, cl);
-            }
-            r.ecx = cl as u32;
-            r.set_zero(true);
-            r.set_carry(false);
-            return Ok(r);
-        }
-    }
-    Err(BadInput("every choice marked and the chosen one past them").into())
+    let free = choice_places(&mut r);
+    let chosen = rb(r.edx);
+    // Converted: `rc2k_core::install::items::choice_back`.
+    let cl = items::choice_back(chosen, || rb(entry.esi + 1), free)?;
+    store_choice(&mut r, chosen, cl);
+    Ok(r)
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    let target = (rd(r.esi + 8), 1usize);
-    dispatch_regs(&HOOK, r, call_original, &[target], CF | ZF, &choice_back);
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    crate::install::item_test::run(
-        &mut t,
-        call_original,
-        &choice_back,
-        crate::install::item_test::with_table,
-    );
-    t.finish()
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    regs_entry(r, &choice_back)
 }

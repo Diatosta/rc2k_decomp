@@ -7,34 +7,16 @@
 //! In:  nothing
 //! Out: as `test_drive_run` leaves the registers (ebx 5000); no flags read
 //!
-//! Caller: `scene::set_up_engine` (0x442AFB, the car's choice). It begins with a call:
-//! hooked by a private copy of its 0x64 bytes with the three calls relocated, and a
-//! hand-made patch.
-//! Refuses what its parts refuse (everything written put back).
-//! Self-test: `physics/test_drive_run.rs` (`drive_test`).
+//! Caller: `scene::set_up_engine` (0x442AFB, the car's choice). Refuses what its parts refuse
+//! (everything written put back). Hook removed 2026-10-22 (direct calls): Rust callers run its
+//! `entry` (`calls::call`, `routes.rs`); the registers above are the original's, for reference.
 
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, hook_asm, rva};
+use crate::framework::Regs;
 use crate::physics::flow::{g, guard, p};
-use crate::physics::test_drive_run::{drive_test, regions};
+use crate::physics::test_drive_run::regions;
 use crate::screens::harness::Left;
-use crate::service::harness::dispatch_state;
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook = RawHook::new("physics::test_drive", rva(0x4217E4), thunk, &ORIGINAL)
-    .private_copy(0x64)
-    .relocate_calls(&[0x0, 0x5, 0x3A])
-    .manual_patch()
-    .self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
+use crate::service::harness::state_entry;
 
 /// The figures kept round the run: the drive speeds, the car's speed, the gear, the
 /// engine, `unk_71A010`.
@@ -63,10 +45,7 @@ fn rust(r: &Regs) -> Result<Left, Refused> {
     unsafe { test_drive(r) }
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_state(&HOOK, r, call_original, &regions(), &rust);
-}
-
-fn self_test() -> (usize, usize) {
-    drive_test(&HOOK, call_original, &rust)
+/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    state_entry(r, &rust)
 }

@@ -443,6 +443,19 @@ extern "C" fn dispatch(r: &mut Regs) {
     }
 }
 
+/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    {
+        let left = unsafe { run_particles(r, &mut game_part) }?;
+        *r = Regs {
+            esp: r.esp,
+            eflags: r.eflags,
+            ..left
+        }
+    }
+    Ok(())
+}
+
 /// A call as the test notes it: place, eax .. esi, the x87 values.
 type Noted = (u32, [u32; 5], Vec<[u8; 10]>);
 
@@ -526,11 +539,15 @@ fn self_test() -> (usize, usize) {
     };
     set_handler(note_regs);
     let copy = match unsafe {
-        crate::redirect::RedirectedCopy::new(
+        crate::redirect::RedirectedCopy::with_bytes(
             game_addr(rva(0x4CFB49)),
             LEN,
-            // jmp short +0x21, test byte_4F6B86, 0FFh
-            &[0xEB, 0x21, 0xF6, 0x05, 0x86, 0x6B, 0x4F, 0x00, 0xFF],
+            &[
+                // jmp short +0x21, test byte_4F6B86, 0FFh
+                (0, &[0xEB, 0x21, 0xF6, 0x05, 0x86, 0x6B, 0x4F, 0x00, 0xFF]),
+                // 0x4CFD6A, a hooked function's start: call 0x44E3D1
+                (0x221, &[0xE8, 0x62, 0xE6, 0xF7, 0xFF]),
+            ],
             &CALLS,
             &|c| match c + 0x40_0000 {
                 0x4CFD6A => Some(stand_in(1)),

@@ -40,6 +40,15 @@ extern "C" fn dispatch(r: &mut Regs) {
     }
 }
 
+/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    {
+        let g = unsafe { load_game_map(r, &mut game_part) }?;
+        r.eax = g.eax
+    }
+    Ok(())
+}
+
 // ---- self-test ----
 
 /// The test's case: bit 0 the picture is "there", bit 1 the sheet read fails, bit 2 the

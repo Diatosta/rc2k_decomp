@@ -29,11 +29,12 @@
 //! the speeches and pictures; what `item_at` refuses.
 
 use crate::errors::{BadInput, FatalError, Refused};
-use crate::framework::{RawHook, Regs, SelfTest, call_game, game_addr, game_read, game_write, rva};
+use crate::framework::{RawHook, Regs, SelfTest, game_addr, game_read, game_write, rva};
 use crate::menu::parts::{Answer, Part, answers, copy, dispatch_parted, run_both, test_part};
 use crate::records::find_record::{find_record_in, has_section};
 use crate::screens::harness::{CallOriginal, Left};
 use crate::service::harness::{Region, at, capture, check_state, dispatch_state, restore};
+use rc2k_core::menu::stage_screens;
 
 const TABLE_RVA: usize = rva(0x735576); // g_recordTable
 const INDEX_RVA: usize = rva(0x755958); // index
@@ -80,26 +81,18 @@ fn stage_record() -> Result<u32, Refused> {
 }
 
 fn championship() -> bool {
-    g(MODE_RVA) == 2
+    stage_screens::championship(g(MODE_RVA))
 }
 
 fn small_section() -> Result<u32, Refused> {
-    let s = g(SECTION_RVA);
-    if s > 0x20 {
-        return Err(BadInput("a section past 0x20 (a table read unchecked)").into());
-    }
-    Ok(s)
+    Ok(stage_screens::small_section(g(SECTION_RVA))?)
 }
 
 pub fn count_stage_pages() -> Result<(), Refused> {
     let record = stage_record()?;
-    let mut n = 0u32;
-    while get(record + RECORD * (n + 1)) == 0 {
-        n += 1;
-        if n > 256 {
-            return Err(BadInput("more than 256 stage pages").into());
-        }
-    }
+    // Converted: `rc2k_core::menu::event::stage_pages`.
+    let n = rc2k_core::menu::event::stage_pages(|k| get(record + RECORD * k))
+        .ok_or(BadInput("more than 256 stage pages"))?;
     p(PAGES_RVA, n);
     Ok(())
 }
@@ -112,13 +105,8 @@ pub unsafe fn play_stage_speech(entry: &Regs, part: Part) -> Result<Regs, Refuse
     r.ebx = g(SECTION_RVA);
     r.eax = get(record + 4);
     if championship() {
-        if r.eax >= 0x40 {
-            return Err(BadInput("a stage speech past 0x40").into());
-        }
-        let at = g(STAGE_SPEECHES_RVA + 4 * r.eax as usize);
-        if at == 0 {
-            return Err(BadInput("a null stage speech").into());
-        }
+        // Converted: `rc2k_core::menu::stage_screens::stage_speech`.
+        let at = stage_screens::stage_speech(r.eax, |n| g(STAGE_SPEECHES_RVA + 4 * n as usize))?;
         p(SPEECH_ON_RVA, 1);
         p(SPEECH_AT_RVA, at);
         r.eax = get(at);
@@ -131,7 +119,8 @@ pub unsafe fn play_stage_speech(entry: &Regs, part: Part) -> Result<Regs, Refuse
 
 /// `menu::play_rally_speech`: the registers it leaves.
 pub unsafe fn play_rally_speech(entry: &Regs, part: Part) -> Result<Regs, Refused> {
-    let section = if championship() { small_section()? } else { 0 };
+    // Converted: `rc2k_core::menu::stage_screens::rally_speech`.
+    let section = stage_screens::rally_speech(g(MODE_RVA), || g(SECTION_RVA))?.unwrap_or(0);
     let mut r = *entry;
     part(1, &mut r)?;
     if championship() {
@@ -147,10 +136,10 @@ pub unsafe fn load_welcome_picture(entry: &Regs, part: Part) -> Result<Regs, Ref
     let section = small_section()?;
     let mut r = *entry;
     r.ebx = section;
-    let table = if championship() {
-        WELCOME_RVA
-    } else {
-        WELCOME_A8_RVA
+    // Converted: `rc2k_core::menu::stage_screens::welcome`.
+    let table = match stage_screens::welcome(g(MODE_RVA)) {
+        stage_screens::Welcome::Championship => WELCOME_RVA,
+        stage_screens::Welcome::Other => WELCOME_A8_RVA,
     };
     r.edi = game_addr(table) as u32 + 4 * section;
     r.eax = get(r.edi);
@@ -170,17 +159,8 @@ pub unsafe fn load_welcome_picture(entry: &Regs, part: Part) -> Result<Regs, Ref
 /// `menu::previous_stage_page` (`up` false) / `next_stage_page`: the registers it leaves.
 pub unsafe fn step_stage_page(entry: &Regs, up: bool, part: Part) -> Result<Regs, Refused> {
     let (page, pages) = (g(PAGE_RVA), g(PAGES_RVA));
-    let page = if up {
-        if (page as i32) < pages as i32 {
-            page.wrapping_add(1)
-        } else {
-            0
-        }
-    } else if page == 0 {
-        pages
-    } else {
-        page - 1
-    };
+    // Converted: `rc2k_core::menu::steps::stage_page`.
+    let page = rc2k_core::menu::steps::stage_page(page, pages, up);
     p(PAGE_RVA, page);
     let index = g(FIRST_RVA).wrapping_add(page);
     p(INDEX_RVA, index);
@@ -229,13 +209,13 @@ pub fn picture_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
     } else {
         CONVERT_PICTURE
     };
-    unsafe { call_game(r, game_addr(rva(at))) };
+    crate::calls::call(rva(at), r);
     Ok(())
 }
 
 pub fn page_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
     if place == 0 {
-        unsafe { call_game(r, game_addr(rva(DRAW_STAGE_MAP))) };
+        crate::calls::call(rva(DRAW_STAGE_MAP), r);
     } else {
         *r = unsafe { play_stage_speech(r, &mut speech_part) }?;
     }
@@ -278,6 +258,15 @@ pub fn dispatch_page(hook: &RawHook, r: &mut Regs, call_original: CallOriginal, 
     );
 }
 
+/// `dispatch_page` without its hook (typed tables).
+pub fn page_entry(r: &mut Regs, up: bool) -> Result<(), Refused> {
+    crate::menu::parts::parted_entry(
+        r,
+        &|r, part| unsafe { step_stage_page(r, up, part) },
+        page_part,
+    )
+}
+
 /// What the plain ones write: the page count, menu item 1.
 pub fn plain_regions() -> Vec<Region> {
     let mut r = vec![at(PAGES_RVA)];
@@ -294,6 +283,11 @@ pub fn dispatch_plain(
     rust: crate::service::harness::Rust,
 ) {
     dispatch_state(hook, r, call_original, &plain_regions(), rust);
+}
+
+/// `dispatch_plain` without its hook (typed tables).
+pub fn plain_entry(r: &mut Regs, rust: crate::service::harness::Rust) -> Result<(), Refused> {
+    crate::service::harness::state_entry(r, rust)
 }
 
 // ---- self-tests ----

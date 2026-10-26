@@ -11,7 +11,7 @@
 
 use crate::errors::Refused;
 use crate::framework::{RawHook, Regs, SelfTest, game_addr, hook_asm, rva};
-use crate::menu::parts::{Part, copy, dispatch_parted, run_both, test_part};
+use crate::menu::parts::{Part, copy, dispatch_parted, parted_entry, run_both, test_part};
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -53,6 +53,16 @@ extern "C" fn dispatch(r: &mut Regs) {
         &|r, part| unsafe { show_bad_polygon(r, part) },
         game_part,
     );
+}
+
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    parted_entry(
+        r,
+        &|r, part| unsafe { show_bad_polygon(r, part) },
+        game_part,
+    )
 }
 
 fn self_test() -> (usize, usize) {

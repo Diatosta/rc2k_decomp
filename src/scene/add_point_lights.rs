@@ -20,12 +20,12 @@ use crate::errors::{BadInput, Refused};
 use crate::framework::{
     EBX, RawHook, Regs, SelfTest, game_addr, game_read, game_write, hook_asm, rva,
 };
-use crate::scene::approximate_distance::approximate_distance;
 use crate::scene::draw_polygon::CHECKED_RVA;
 use crate::scene::project_point::POINTS_RVA;
-use crate::scene::vertex_light::plus;
 use crate::screens::harness::Left;
-use crate::service::harness::{Region, at, capture, check_state, dispatch_state, restore};
+use crate::service::harness::{
+    Region, at, capture, check_state, dispatch_state, restore, state_entry,
+};
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -53,7 +53,9 @@ pub const MMX_RVA: usize = rva(0x5183A8); // g_hasMmx
 
 // ---- Rust version ----
 
+// Converted: `rc2k_core::scene::lamps::add_point_lights`
 pub unsafe fn add_point_lights() -> Result<Left, Refused> {
+    use rc2k_core::scene::lamps::{self, Lamp};
     unsafe {
         let lamps: u32 = game_read(LAMPS_RVA);
         if lamps == 0 {
@@ -65,27 +67,27 @@ pub unsafe fn add_point_lights() -> Result<Left, Refused> {
         }
         let mmx = game_read::<u32>(MMX_RVA) != 0;
         let place: [u32; 3] = game_read(LIT_PLACE_RVA);
-        for n in 0..lamps as usize {
+        let list = (0..lamps as usize).map(|n| {
             let [point, strength, colour]: [u32; 3] = game_read(LAMP_LIST_RVA + n * 0x10);
-            game_write(STRENGTH_RVA, strength);
-            if strength == 0 {
-                continue;
+            Lamp {
+                point,
+                strength,
+                colour,
             }
-            game_write(LAMP_COLOUR_RVA, colour);
-            let at = points.wrapping_add(point.wrapping_mul(12)) as usize;
-            let lamp = (at as *const [u32; 3]).read_unaligned();
-            let [distance, ..] =
-                approximate_distance([0, 1, 2].map(|k| lamp[k].wrapping_sub(place[k])));
-            game_write(CHECKED_RVA, distance);
-            let near = 0x20_0000i32.wrapping_sub(distance as i32);
-            let amount = (near.wrapping_mul(strength as i32) >> 17).clamp(0, 0xFF) as u32;
-            let lit = [0, 8, 16].into_iter().fold(0, |out, shift| {
-                out | ((amount * (colour >> shift & 0xFF)) >> 8) << shift
-            });
-            game_write(
-                LIGHT_COLOUR_RVA,
-                plus(lit, game_read(LIGHT_COLOUR_RVA), mmx),
-            );
+        });
+        let at = |point: u32| {
+            (points.wrapping_add(point.wrapping_mul(12)) as *const [u32; 3]).read_unaligned()
+        };
+        let out = lamps::add_point_lights(list, place, at, game_read(LIGHT_COLOUR_RVA), mmx);
+        for (to, value) in [
+            (STRENGTH_RVA, out.strength),
+            (LAMP_COLOUR_RVA, out.colour),
+            (CHECKED_RVA, out.distance),
+            (LIGHT_COLOUR_RVA, out.light),
+        ] {
+            if let Some(v) = value {
+                game_write(to, v);
+            }
         }
         Ok(Left::nothing().with(EBX, lamps))
     }
@@ -108,6 +110,12 @@ fn rust(_: &Regs) -> Result<Left, Refused> {
 
 extern "C" fn dispatch(r: &mut Regs) {
     dispatch_state(&HOOK, r, call_original, &regions(), &rust);
+}
+
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    state_entry(r, &rust)
 }
 
 // ---- self-test ----

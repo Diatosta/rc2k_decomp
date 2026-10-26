@@ -10,15 +10,15 @@
 //! Refuses (before anything) a car number past 7, a null sound object when it is
 //! written (the object is looked up first, but only written after the band).
 //! Self-test: `physics/car_sounds.rs` (`test_sound`): the original and the Rust version on
-//! the game's variables (saved and put back) with a test object, under three precisions.
+//! the game's variables (saved and put back) with a test object, exact at double precision.
 
 use crate::errors::Refused;
 use crate::framework::{RawHook, Regs, game_addr, hook_asm, rva};
-use crate::physics::car_sounds::{g, listed, object, place, put, test_sound};
+use crate::physics::car_sounds::{cue_plain, dispatch_placed, g, listed, object, test_sound};
 use crate::physics::sound_band_3::TWIN;
-use crate::physics::sound_bands::band_value;
+use crate::physics::sound_bands::band_value_plain;
 use crate::screens::harness::Left;
-use crate::service::harness::dispatch_state;
+use rc2k_core::physics::sound_places::{FIRST, SOUND_E1};
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -39,12 +39,13 @@ hook_asm!(
 );
 
 /// The Rust version.
+// Converted: `rc2k_core::physics::sound_places`.
 pub unsafe fn place_sound_e1_other() -> Result<Left, Refused> {
     if !listed(g(0x6D3CD4))? && !listed(g(0x71B3F8))? {
         return Ok(Left::nothing());
     }
     let scratch = g(0x6D1AEC);
-    let b = unsafe { band_value(TWIN) };
+    let b = unsafe { band_value_plain(TWIN) };
     if b == 0 {
         return Ok(Left::nothing());
     }
@@ -58,10 +59,7 @@ pub unsafe fn place_sound_e1_other() -> Result<Left, Refused> {
     };
     unsafe {
         crate::framework::game_write(rva(0x6D1AD4), b);
-        put(o + 0x238, 0xE1);
-        put(o + 0x23C, b);
-        place(o, 0x240, None);
-        put(o + 0x10, 1);
+        cue_plain(o, FIRST, SOUND_E1, b, None);
     }
     Ok(Left::nothing())
 }
@@ -71,16 +69,13 @@ fn rust(_: &Regs) -> Result<Left, Refused> {
 }
 
 extern "C" fn dispatch(r: &mut Regs) {
-    let regions = match object() {
-        Ok(o) => vec![
-            (o + 0x10, 4),
-            (o + 0x238, 0x28),
-            (game_addr(rva(0x6D1AEC)) as u32, 4),
-            (game_addr(rva(0x6D1AD4)) as u32, 4),
-        ],
-        Err(_) => vec![],
-    };
-    dispatch_state(&HOOK, r, call_original, &regions, &rust);
+    dispatch_placed(
+        &HOOK,
+        r,
+        call_original,
+        &[(game_addr(rva(0x6D1AD4)) as u32, 4)],
+        &rust,
+    );
 }
 
 fn self_test() -> (usize, usize) {

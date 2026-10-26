@@ -8,32 +8,14 @@
 //! Out: every register kept (`pusha` .. `popa`)
 //!
 //! One caller, `start`'s way out. `MessageBoxA` through `api` (the same function in the
-//! standalone); the log's call through `part`. Shadow mode runs the original alone (the box
-//! is shown). Self-test: a copy whose variables are the test's and whose calls go to
-//! noting stand-ins, against the Rust version: reported or not, both kinds of code.
+//! standalone); the log's call through `part`.
+//! Hook removed 2026-10-22 (direct calls): Rust callers run its `entry` (`calls::call`,
+//! `routes.rs`); the registers above are the original's, for reference.
 
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, SelfTest, game_addr, hook_asm, rva};
-use crate::system::api_stand_ins::{Api, copy_with};
-use crate::system::exit_parts::{LOG_2_NL, MESSAGE_BOX, Part, compare_exit, dispatch_exit};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook = RawHook::new(
-    "fatal::show_report_at_exit",
-    rva(0x407855),
-    thunk,
-    &ORIGINAL,
-)
-.self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
+use crate::framework::{Regs, game_addr, rva};
+use crate::system::api_stand_ins::Api;
+use crate::system::exit_parts::{LOG_2_NL, MESSAGE_BOX, Part, exit_entry};
 
 const REPORTED: usize = 0x4F67BC; // g_fatalReported (a byte)
 const CODE: usize = 0x4F52A4; // g_fatalCode
@@ -71,8 +53,9 @@ pub fn show_report_at_exit_with(
 ) -> Result<(), Refused> {
     unsafe {
         if (v.reported as *const u8).read_volatile() == 1 {
-            if (v.code as *const u32).read_volatile() & 0x1000_0000 != 0 {
-                ((v.caption + 5) as *mut u8).write_volatile(0);
+            // Converted: `rc2k_core::fatal::caption_cut`.
+            if rc2k_core::fatal::caption_cut((v.code as *const u32).read_volatile()) {
+                ((v.caption + rc2k_core::fatal::CAPTION_CUT as u32) as *mut u8).write_volatile(0);
             }
             api(MESSAGE_BOX, &[0, v.text, v.caption, 0x2030]);
         }
@@ -88,66 +71,8 @@ fn in_game(r: &mut Regs, part: Part, api: Api) -> Result<(), Refused> {
     show_report_at_exit_with(r, &Vars::game(), part, api)
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_exit(&HOOK, r, call_original, in_game);
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let mut mem = [0u8; 0x20];
-    let base = mem.as_mut_ptr() as u32;
-    let v = Vars {
-        reported: base,
-        code: base + 4,
-        caption: base + 8,
-        text: game_addr(rva(TEXT)) as u32,
-    };
-    // pusha; cmp g_fatalReported, 1
-    let entry = [0x60, 0x80, 0x3D, 0xBC, 0x67, 0x4F, 0x00, 0x01];
-    let copy = match copy_with(
-        0x407855,
-        0x42,
-        &entry,
-        &[0x2E, 0x3B],
-        &[LOG_2_NL],
-        &[(0x2E, MESSAGE_BOX, 4)],
-        &[
-            (REPORTED, 1, v.reported),
-            (CODE, 4, v.code),
-            (CAPTION, 6, v.caption),
-        ],
-        4,
-    ) {
-        Ok(c) => c,
-        Err(why) => return t.skip(&why),
-    };
-    for (reported, code) in [
-        (0u8, 0x9000_0000u32),
-        (1, 0x8010_0001),
-        (1, 0x9020_1101),
-        (2, 0),
-    ] {
-        let fill = || unsafe {
-            let m = base as *mut u8;
-            for k in 0..0x20 {
-                m.add(k).write_volatile(b'A' + k as u8);
-            }
-            m.write_volatile(reported);
-            ((base + 4) as *mut u32).write_volatile(code);
-        };
-        compare_exit(
-            &mut t,
-            &format!("reported {reported}, code {code:#x}"),
-            &copy,
-            Regs::SENTINEL,
-            &fill,
-            &[(base, 0x20)],
-            &|r, part, api| show_report_at_exit_with(r, &v, part, api),
-            false,
-        );
-    }
-    let _ = &mut mem;
-    t.finish()
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    exit_entry(r, in_game)
 }

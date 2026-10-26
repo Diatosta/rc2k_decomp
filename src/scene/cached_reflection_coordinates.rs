@@ -23,7 +23,9 @@ use crate::scene::reflection_coordinates::{
     reflection_coordinates, regions as worked_out_regions,
 };
 use crate::screens::harness::Left;
-use crate::service::harness::{Region, at, capture, check_state, dispatch_state, restore};
+use crate::service::harness::{
+    Region, at, capture, check_state, dispatch_state, restore, state_entry,
+};
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -53,7 +55,9 @@ const TABLE_BYTES: usize = 0x1000;
 
 // ---- Rust version ----
 
+// Converted: `rc2k_core::scene::reflection::{cache_place, cached}`
 pub unsafe fn cached_reflection_coordinates() -> Result<Left, Refused> {
+    use rc2k_core::scene::reflection::{cache_place, cached};
     unsafe {
         let worked_out = || {
             reflection_coordinates().map(|left| {
@@ -67,11 +71,11 @@ pub unsafe fn cached_reflection_coordinates() -> Result<Left, Refused> {
             return Ok(worked_out()?);
         }
         let asked: [u32; 2] = [game_read(NORMAL_NUMBER_RVA), game_read(POINT_NUMBER_RVA)];
-        let place = (asked[0] & 0x3FF) as usize;
+        let place = cache_place(asked[0]);
         let slot = |table: usize| TABLES_RVA + table * TABLE_BYTES + place * 4;
-        let kept: [u32; 2] = [game_read(slot(0)), game_read(slot(1))];
-        if kept == asked {
-            let coordinates: [u32; 2] = [game_read(slot(2)), game_read(slot(3))];
+        if let Some(coordinates) = cached(asked, [game_read(slot(0)), game_read(slot(1))], || {
+            [game_read(slot(2)), game_read(slot(3))]
+        }) {
             game_write(COORDINATES_RVA, coordinates);
             return Ok(Left::nothing()
                 .with(EBX, place as u32)
@@ -93,7 +97,7 @@ pub unsafe fn cached_reflection_coordinates() -> Result<Left, Refused> {
 
 fn regions() -> Vec<Region> {
     let mut regions = worked_out_regions();
-    let place = unsafe { game_read::<u32>(NORMAL_NUMBER_RVA) & 0x3FF } as usize;
+    let place = rc2k_core::scene::reflection::cache_place(unsafe { game_read(NORMAL_NUMBER_RVA) });
     regions.extend((0..4).map(|table| {
         (
             game_addr(TABLES_RVA + table * TABLE_BYTES + place * 4) as u32,
@@ -109,6 +113,12 @@ fn rust(_: &Regs) -> Result<Left, Refused> {
 
 extern "C" fn dispatch(r: &mut Regs) {
     dispatch_state(&HOOK, r, call_original, &regions(), &rust);
+}
+
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    state_entry(r, &rust)
 }
 
 // ---- self-test ----

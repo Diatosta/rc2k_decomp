@@ -117,6 +117,19 @@ extern "C" fn dispatch(r: &mut Regs) {
     }
 }
 
+/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    {
+        let left = unsafe { begin_quads(r, &mut game_part) }?;
+        *r = Regs {
+            esp: r.esp,
+            eflags: r.eflags,
+            ..left
+        }
+    }
+    Ok(())
+}
+
 pub fn regions() -> Vec<Region> {
     let mut r = vec![(game_addr(VERTICES_RVA) as u32, 0x80)];
     r.extend([COUNT_RVA, SCALE_RVA, CLEARED_RVA].map(at));

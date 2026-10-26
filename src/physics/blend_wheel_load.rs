@@ -7,16 +7,17 @@
 //! Out: edx the slot (when reached); the rest kept; no flags read
 //!
 //! Caller: `sub_43B635` (0x43B99A), every physics step.
-//! Self-test: `physics/copy_hooks_test.rs` (a copy on test variables), 16 cases under
-//! three precisions.
+//! Self-test: `physics/copy_hooks_test.rs` (`test_moves_floats`: a copy on test
+//! variables against the converted version), 16 cases, exact at double precision.
 
 use crate::errors::Refused;
 use crate::framework::{EDX, RawHook, Regs, game_addr, game_read, hook_asm, rva};
 use crate::math::x87;
-use crate::math::x87_run::{TEST_CONTROL_WORDS, compare_full, toward_one, with_control_word};
-use crate::physics::copy_hooks_test::test_moves;
+use crate::math::x87_run::{compare_full, toward_one};
+use crate::physics::copy_hooks_test::test_moves_floats;
 use crate::screens::harness::Left;
-use crate::service::harness::dispatch_state;
+use crate::service::floats::{FLOAT, Floats, dispatch_state_floats, floats_entry};
+use rc2k_core::physics::motion::{LoadBlend, blend_load};
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -66,6 +67,37 @@ pub unsafe fn blend_at(v: &[u32], r: &mut Regs) {
     }
 }
 
+/// The converted version (`rc2k_core::physics::motion`, plain floats) on the variables
+/// at `v`; `r` as the original leaves it.
+// Converted: `rc2k_core::physics::motion::blend_load`.
+pub unsafe fn blend_at_plain(v: &[u32], r: &mut Regs) {
+    unsafe {
+        let get = |k: usize| f32::from_bits((v[k] as *const u32).read_unaligned());
+        let put = |k: usize, x: f32| (v[k] as *mut u32).write_unaligned(x.to_bits());
+        let k = |x: usize| f32::from_bits(game_read::<u32>(rva(x)));
+        let figure = get(0);
+        let threshold = k(0x614C64);
+        // The signs, the constants and the slots read only past the first compare.
+        if rc2k_core::physics::x87::below(figure as f64, threshold as f64) {
+            return;
+        }
+        let b = LoadBlend {
+            figure,
+            signs: [get(1), get(2), get(3)],
+            threshold,
+            divisor: k(0x5C5D60),
+            zero: k(0x5C5D90),
+            one: k(0x5C5D38),
+        };
+        let mut slots: [f32; 8] = std::array::from_fn(|n| get(5 + n));
+        if let Some((slot, share)) = blend_load(&b, &mut slots) {
+            r.edx = slot;
+            put(4, share);
+            put(5 + slot as usize, slots[slot as usize]);
+        }
+    }
+}
+
 fn game() -> Vec<u32> {
     VARIABLES
         .iter()
@@ -73,20 +105,38 @@ fn game() -> Vec<u32> {
         .collect()
 }
 
-/// The Rust version; `r` as the original leaves it.
+/// The Rust version (the exact one, for `physics::car_physics_step`); `r` as the
+/// original leaves it.
 pub unsafe fn blend_wheel_load(r: &mut Regs) {
     unsafe { blend_at(&game(), r) }
 }
 
 fn rust(r: &Regs) -> Result<Left, Refused> {
     let mut g = *r;
-    unsafe { blend_wheel_load(&mut g) };
+    unsafe { blend_at_plain(&game(), &mut g) };
     Ok(Left::nothing().with(EDX, g.edx))
 }
 
 extern "C" fn dispatch(r: &mut Regs) {
     let v = game();
-    dispatch_state(&HOOK, r, call_original, &[(v[4], 4), (v[5], 0x20)], &rust);
+    let floats = Floats {
+        memory: &[((v[4], 4), FLOAT), ((v[5], 0x20), FLOAT)],
+        regs: &[],
+    };
+    dispatch_state_floats(
+        &HOOK,
+        r,
+        call_original,
+        &[(v[4], 4), (v[5], 0x20)],
+        &floats,
+        &rust,
+    );
+}
+
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    floats_entry(r, &rust)
 }
 
 fn fill(seed: u32, out: &mut [u32]) {
@@ -106,26 +156,20 @@ fn fill(seed: u32, out: &mut [u32]) {
 }
 
 fn self_test() -> (usize, usize) {
-    let mut total = (0, 0);
-    for word in TEST_CONTROL_WORDS {
-        with_control_word(word, &mut || {
-            let (c, f) = test_moves(
-                &HOOK,
-                0x440F70,
-                0xD6,
-                &[0xD9, 0x05, 0x08, 0xA2, 0x71, 0x00],
-                &VARIABLES,
-                14,
-                16,
-                &fill,
-                &|v, r| {
-                    unsafe { blend_at(v, r) };
-                    Left::nothing().with(EDX, r.edx)
-                },
-            );
-            total.0 += c;
-            total.1 += f;
-        });
-    }
-    total
+    test_moves_floats(
+        &HOOK,
+        0x440F70,
+        0xD6,
+        &[0xD9, 0x05, 0x08, 0xA2, 0x71, 0x00],
+        &VARIABLES,
+        14,
+        16,
+        &fill,
+        &|v, r| {
+            unsafe { blend_at_plain(v, r) };
+            Left::nothing().with(EDX, r.edx)
+        },
+        &[4, 5, 6, 7, 8, 9, 10, 11, 12].map(|k| (k, FLOAT)),
+        &[],
+    )
 }

@@ -14,9 +14,7 @@
 //! test points at a stand-in of its own; 30 cases.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{
-    RawHook, Regs, SelfTest, call_game, game_read, game_write, hook_asm, rva, shadow,
-};
+use crate::framework::{RawHook, Regs, SelfTest, game_read, game_write, hook_asm, rva, shadow};
 use crate::install::stand_ins::{set_handler, stand_in};
 use crate::service::harness::{at, capture, restore};
 use std::sync::Mutex;
@@ -44,18 +42,16 @@ const SYSTEM_TEXTURES_RVA: usize = rva(0x5DC974); // dword_5DC974
 
 // ---- Rust version ----
 
-/// The progress, or None where it is left as it is.
+fn ends() -> rc2k_core::scene::loading::BarEnds {
+    let [low, high]: [u32; 2] = unsafe { game_read(ENDS_RVA) };
+    rc2k_core::scene::loading::BarEnds { low, high }
+}
+
+/// The progress, or None where it is left as it is. Converted:
+/// `rc2k_core::scene::loading::BarEnds::progress`.
 unsafe fn progress(done: u32) -> Option<u32> {
-    unsafe {
-        let textures: u32 = game_read(SYSTEM_TEXTURES_RVA);
-        if textures == 0 {
-            return None;
-        }
-        let [low, high]: [u32; 2] = game_read(ENDS_RVA);
-        // The product's low half, divided unsigned.
-        let span = done.wrapping_mul(high.wrapping_sub(low));
-        Some((span / textures).wrapping_add(low).wrapping_add(1))
-    }
+    let textures: u32 = unsafe { game_read(SYSTEM_TEXTURES_RVA) };
+    ends().progress(done, textures)
 }
 
 /// `show`: what stands for the function `dword_623704` names, entered with the
@@ -66,10 +62,7 @@ pub unsafe fn step_loading_bar(r: &Regs, show: &mut dyn FnMut(&mut Regs)) -> Res
             return Err(BadInput("no function to show the loading with"));
         }
         let mut inner = *r;
-        inner.ebp = {
-            let [low, high]: [u32; 2] = game_read(ENDS_RVA);
-            high.wrapping_sub(low)
-        };
+        inner.ebp = ends().span();
         if let Some(progress) = progress(r.eax) {
             game_write(PROGRESS_RVA, progress);
             inner.eax = progress.wrapping_sub(1);
@@ -99,7 +92,7 @@ extern "C" fn dispatch(r: &mut Regs) {
     let done = unsafe {
         step_loading_bar(r, &mut |inner| {
             let show = inner.esi as usize;
-            call_game(inner, show);
+            crate::menu::table_calls::call_any(show as u32, inner);
         })
     };
     if let Err(e) = done {
@@ -154,7 +147,7 @@ fn self_test() -> (usize, usize) {
                 let kept = if rust {
                     step_loading_bar(&before, &mut |inner| {
                         let show = inner.esi as usize;
-                        call_game(inner, show);
+                        crate::menu::table_calls::call_any(show as u32, inner);
                     })
                     .is_ok()
                 } else {

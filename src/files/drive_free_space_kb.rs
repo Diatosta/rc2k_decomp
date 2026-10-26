@@ -10,35 +10,12 @@
 //! low 32 bits) x free clusters, shifted down 10 bits; past 2^42 bytes it gives -1.
 //! Callers: the installer (`install::install_files`, `install::list_drives`) and
 //! `files::free_space_kb`. The Win32 call through `api` (`installer::game_api` in the
-//! game). Private copy (0x5B bytes, two calls relocated), manual patch: a call starts at
-//! +3. Shadow mode runs the original alone (the space can change between two asks).
-//! Self-test: the original and the Rust version on every letter, `0`, and two that are no
-//! drive's, the registers, flags and the 16 bytes compared (asked again up to three times
-//! where the free space moved between the two).
+//! game).
+//! Hook removed 2026-10-22 (conversion phase 4): Rust callers call this directly; the
+//! registers above are the original's, for reference.
 
-use crate::framework::{CARRY_FLAG, RawHook, Regs, SelfTest, ZERO_FLAG, hook_asm, rva, shadow};
-use crate::install::installer::{Api, GET_DISK_FREE, SCRATCH, a, game_api, rd};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook = RawHook::new(
-    "files::drive_free_space_kb",
-    rva(0x40317D),
-    thunk,
-    &ORIGINAL,
-)
-.private_copy(0x5B)
-.relocate_calls(&[0x03, 0x23])
-.manual_patch()
-.self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
+use crate::framework::Regs;
+use crate::install::installer::{Api, GET_DISK_FREE, SCRATCH, a, rd};
 
 /// The registers and flags it leaves.
 pub fn free_space_regs(entry: &Regs, api: Api) -> Regs {
@@ -53,71 +30,10 @@ pub fn free_space_regs(entry: &Regs, api: Api) -> Regs {
         r.set_zero(false);
         return r;
     }
-    let (total_bytes_low, free) = (rd(s + 0xC).wrapping_mul(rd(s + 8)), rd(s + 4));
-    let bytes = total_bytes_low as u64 * free as u64;
     r.ebx = rd(s + 8);
-    r.eax = if bytes >> 42 != 0 {
-        u32::MAX
-    } else {
-        (bytes >> 10) as u32
-    };
+    // Converted: `rc2k_core::files::log::free_kb`.
+    r.eax = rc2k_core::files::log::free_kb(rd(s + 0xC), rd(s + 8), rd(s + 4));
     r.set_carry(false);
     r.set_zero(r.eax == 0);
     r
-}
-
-extern "C" fn dispatch(r: &mut Regs) {
-    HOOK.count_call();
-    if shadow() {
-        unsafe { call_original(r) };
-        return;
-    }
-    *r = Regs {
-        esp: r.esp,
-        ..free_space_regs(r, &mut game_api)
-    };
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let scratch = (a(SCRATCH), 16usize);
-    let saved = crate::service::harness::capture(&[scratch]);
-    let flags = CARRY_FLAG | ZERO_FLAG;
-    for letter in (b'a'..=b'z').chain(*b"\0C1\xC9") {
-        let before = Regs {
-            eax: 0xAABB_CC00 | letter as u32,
-            ..Regs::SENTINEL
-        };
-        let mut result = (false, String::new());
-        for _ in 0..3 {
-            let mut o = before;
-            unsafe { call_original(&mut o) };
-            let theirs = crate::service::harness::capture(&[scratch]);
-            let m = free_space_regs(&before, &mut game_api);
-            let mine = crate::service::harness::capture(&[scratch]);
-            let regs = |r: &Regs| [r.eax, r.ebx, r.ecx, r.edx, r.esi, r.edi, r.ebp];
-            let ok = regs(&o) == regs(&m) && (o.eflags ^ m.eflags) & flags == 0 && theirs == mine;
-            result = (
-                ok,
-                format!(
-                    "letter {letter:#x}: original eax={:#x} ebx={:#x} flags={:#x} {theirs:x?}; \
-                     rust eax={:#x} ebx={:#x} flags={:#x} {mine:x?}",
-                    o.eax,
-                    o.ebx,
-                    o.eflags & flags,
-                    m.eax,
-                    m.ebx,
-                    m.eflags & flags
-                ),
-            );
-            if ok {
-                break;
-            }
-        }
-        t.check(result.0, || result.1);
-    }
-    crate::service::harness::restore(&[scratch], &saved);
-    t.finish()
 }

@@ -80,6 +80,109 @@ fn get(r: usize) -> u32 {
     unsafe { game_read(r) }
 }
 
+const CENTRE_RVA: usize = rva(0x7691C6); // flt_7691C6 .. flt_7691D2
+const NUDGE_RVA: usize = rva(0x7691D6); // flt_7691D6
+const WAY_SCALE_RVA: usize = rva(0x7691DA); // flt_7691DA, flt_7691DE
+const LENGTH_RVA: usize = rva(0x76516C); // flt_76516C
+pub const WALLS_RVA: usize = rva(0x7691A6); // flt_7691A6 .. flt_7691C2
+pub const START_RVA: usize = rva(0x769182); // flt_769182 .. flt_76919E
+const BALL_CENTRE: [usize; 2] = [rva(0x7686DC), rva(0x7686E0)];
+const BAT_CENTRE: [usize; 2] = [rva(0x7686E8), rva(0x7686EC)];
+const DIFFERENCE: [usize; 2] = [rva(0x7686F4), rva(0x7686F8)];
+
+fn pair(r: [usize; 2]) -> [f32; 2] {
+    r.map(|r| f32::from_bits(get(r)))
+}
+
+unsafe fn put_pair(r: [usize; 2], v: [f32; 2]) {
+    for (r, v) in r.into_iter().zip(v) {
+        unsafe { game_write(r, v.to_bits()) };
+    }
+}
+
+/// The court (`rc2k_core::marks::pong::Court`) from the game's variables.
+pub fn court() -> rc2k_core::marks::pong::Court {
+    rc2k_core::marks::pong::Court {
+        ball: pair(BALL),
+        way: pair(BALL_WAY),
+        ball_size: pair(BALL_SIZE),
+        saved_bat: SAVED_BAT.map(get),
+        bat: pair(BAT),
+        bat_size: pair(BAT_SIZE),
+        ball_centre: pair(BALL_CENTRE),
+        bat_centre: pair(BAT_CENTRE),
+        difference: pair(DIFFERENCE),
+        steps: get(STEPS_RVA),
+        hits: get(HITS_RVA),
+    }
+}
+
+/// The court back into the game's variables: what differs from `before` (the rest is left
+/// as it is, its bits untouched).
+pub unsafe fn put_court(c: &rc2k_core::marks::pong::Court, before: &rc2k_core::marks::pong::Court) {
+    unsafe {
+        for (r, v, b) in [
+            (BALL, c.ball, before.ball),
+            (BALL_WAY, c.way, before.way),
+            (BALL_SIZE, c.ball_size, before.ball_size),
+            (BAT, c.bat, before.bat),
+            (BAT_SIZE, c.bat_size, before.bat_size),
+            (BALL_CENTRE, c.ball_centre, before.ball_centre),
+            (BAT_CENTRE, c.bat_centre, before.bat_centre),
+            (DIFFERENCE, c.difference, before.difference),
+        ] {
+            if v.map(f32::to_bits) != b.map(f32::to_bits) {
+                put_pair(r, v);
+            }
+        }
+        game_write(SAVED_BAT[0], c.saved_bat[0]);
+        game_write(SAVED_BAT[1], c.saved_bat[1]);
+        game_write(STEPS_RVA, c.steps);
+        game_write(HITS_RVA, c.hits);
+    }
+}
+
+/// The court's constants from the game.
+pub fn rules() -> rc2k_core::marks::pong::Rules {
+    let f = |r: usize| f32::from_bits(get(r));
+    rc2k_core::marks::pong::Rules {
+        centre: std::array::from_fn(|n| f(CENTRE_RVA + 4 * n)),
+        nudge: f(NUDGE_RVA),
+        way_scale: [f(WAY_SCALE_RVA), f(WAY_SCALE_RVA + 4)],
+        length: f(LENGTH_RVA),
+        walls: std::array::from_fn(|n| f(WALLS_RVA + 4 * n)),
+        start: std::array::from_fn(|n| get(START_RVA + 4 * n)),
+    }
+}
+
+/// Runs `step` on the court loaded from the game and puts it back.
+pub fn with_court<T>(step: impl FnOnce(&mut rc2k_core::marks::pong::Court) -> T) -> T {
+    let before = court();
+    let mut c = before;
+    let out = step(&mut c);
+    unsafe { put_court(&c, &before) };
+    out
+}
+
+/// The float places of `regions()` (the court's floats), for the comparisons.
+pub fn float_places() -> Vec<(Region, crate::service::floats::Tolerance)> {
+    use crate::service::floats::FLOAT;
+    [
+        BALL,
+        BALL_WAY,
+        BALL_SIZE,
+        BAT,
+        BAT_SIZE,
+        BALL_CENTRE,
+        BAT_CENTRE,
+        DIFFERENCE,
+    ]
+    .into_iter()
+    .flatten()
+    .map(|r| ((game_addr(r) as u32, 4), FLOAT))
+    .collect()
+}
+
 /// The four compares of the ball against the bat (`marks::pong_ball_hits`,
 /// `marks::pong_bat_back`): whether they overlap (no compare gave C0 alone) and the
 /// last status.
@@ -106,6 +209,65 @@ pub fn regions() -> Vec<Region> {
         (game_addr(BALL[0]) as u32, 0x7C),
         (game_addr(BEST_RVA) as u32, 0x10),
     ]
+}
+
+/// The `dispatch` of a converted court hook: the court's floats and eax / ebx (a way's bits)
+/// within `service::floats`' tolerances.
+pub fn dispatch_court(
+    hook: &'static crate::framework::RawHook,
+    r: &mut Regs,
+    call_original: crate::screens::harness::CallOriginal,
+    rust: crate::service::harness::Rust,
+) {
+    use crate::framework::{EAX, EBX};
+    use crate::service::floats::{FLOAT, Floats, dispatch_state_floats};
+    let places = float_places();
+    let floats = Floats {
+        memory: &places,
+        regs: &[(EAX, FLOAT), (EBX, FLOAT)],
+    };
+    dispatch_state_floats(hook, r, call_original, &regions(), &floats, rust);
+}
+
+/// The self-test of a converted court hook: `cases` cases, each the game's variables put
+/// back and `prepare(case)`, at both test precisions; put back afterwards.
+pub fn test_court(
+    t: &mut crate::framework::SelfTest,
+    name: &'static str,
+    call_original: crate::screens::harness::CallOriginal,
+    cases: u32,
+    prepare: &dyn Fn(u32),
+    rust: crate::service::harness::Rust,
+) {
+    use crate::framework::{EAX, EBX};
+    use crate::service::floats::{FLOAT, Floats, at_test_precisions, check_state_floats};
+    use crate::service::harness::{capture, restore};
+    let regions = regions();
+    let saved = capture(&regions);
+    let places = float_places();
+    let tolerant = Floats {
+        memory: &places,
+        regs: &[(EAX, FLOAT), (EBX, FLOAT)],
+    };
+    at_test_precisions(&tolerant, &mut |word, held| {
+        for case in 0..cases {
+            check_state_floats(
+                t,
+                name,
+                &format!("control word {word:#x}, case {case}"),
+                call_original,
+                Regs::SENTINEL,
+                &|| {
+                    restore(&regions, &saved);
+                    prepare(case);
+                },
+                &regions,
+                held,
+                rust,
+            );
+        }
+    });
+    restore(&regions, &saved);
 }
 
 /// Ball and bat by lot for the tests (the limits stay the game's).

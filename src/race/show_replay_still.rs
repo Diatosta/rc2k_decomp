@@ -25,7 +25,7 @@ use crate::physics::flow::{a, g, p};
 use crate::race::step_replay_cars::{CARS, CURRENT};
 use crate::race::viewer::{
     BLOCK, BLOCK_DATA, FRAME, Part, Saved, answer, dispatch_parts, dword, move_dwords, region,
-    run_both, test_part,
+    regs_entry, run_both, test_part,
 };
 use std::sync::atomic::AtomicUsize;
 
@@ -163,6 +163,12 @@ extern "C" fn dispatch(r: &mut Regs) {
     dispatch_parts(&HOOK, r, call_original, &|r| {
         show_replay_still(r, &mut game_part)
     });
+}
+
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    regs_entry(r, &|r| show_replay_still(r, &mut game_part))
 }
 
 fn self_test() -> (usize, usize) {

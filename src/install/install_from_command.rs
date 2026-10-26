@@ -12,32 +12,17 @@
 //! Caller `install::run_installer`. Its calls through `part`. Ungated. Shadow mode runs the
 //! original alone. Self-test: a copy whose calls go to stand-ins (carries and the digits
 //! scripted), against the Rust version; `g_mediaMode` and the call sequence compared.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
+use crate::framework::Regs;
 use crate::install::installer::{
     BASE_B, CHOOSE_LANGUAGE, GAME_DIR, GIVEN_LANGUAGE, GIVEN_MODE, INSTALLED, LOAD_LANGUAGE,
-    MEDIA_MODE, NORMALISE, Part, RUN_SCRIPT, SET_CD, TYPED, a, at, both, g, p, quiet, region,
+    MEDIA_MODE, NORMALISE, Part, SET_CD, TYPED, a, at, g, p,
 };
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook = RawHook::new(
-    "install::install_from_command",
-    rva(0x412F34),
-    thunk,
-    &ORIGINAL,
-)
-.self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL,
-    ungated
-);
 
 const INSTALL_FILES: usize = 0x4130CD;
 
@@ -74,78 +59,10 @@ pub fn install_from_command(entry: &Regs, part: Part) -> Result<Regs, Refused> {
     Ok(Regs { ..*entry })
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    crate::race::viewer::dispatch_parts(&HOOK, r, call_original, &|r| {
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    crate::race::viewer::regs_entry(r, &|r| {
         install_from_command(r, &mut crate::install::installer::game_part)
-    });
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let _ = RUN_SCRIPT;
-    // pusha; lea edx, byte_95E6F8
-    let copy = match crate::install::installer::copy(
-        0x412F34,
-        0x6E,
-        &[0x60, 0x8D, 0x15, 0xF8, 0xE6, 0x95, 0x00],
-        &[
-            (0x7, 0x403105),
-            (0x1A, 0x4139EC),
-            (0x2D, 0x4139EC),
-            (0x5D, 0x41397A),
-            (0x62, 0x40331F),
-            (0x67, 0x4130CD),
-        ],
-        &[0x403105, 0x4139EC, 0x41397A, 0x40331F, 0x4130CD],
-        &[],
-        &[],
-        &[],
-    ) {
-        Ok(c) => c,
-        Err(why) => return t.skip(&why),
-    };
-    let regions = [
-        region(MEDIA_MODE, 4),
-        region(GIVEN_MODE, 4),
-        region(GIVEN_LANGUAGE, 4),
-    ];
-    let saved = crate::race::viewer::Saved::new(&regions);
-    for (cd_fail, norm1_fail, mode, lang) in [
-        (false, false, 2u32, 1u32),
-        (false, false, 0, 0),
-        (false, false, 5, 0),
-        (true, false, 2, 1),
-        (false, true, 2, 1),
-        (false, false, 0xFFFF_FFFF, 1),
-    ] {
-        let prepare = || {
-            crate::install::installer::answer(Box::new(move |place, r| {
-                if place == a(SET_CD) {
-                    r.set_carry(cd_fail);
-                } else if place == a(NORMALISE) {
-                    // the first normalise (esi=base B) can fail; the second never does here
-                    r.set_carry(norm1_fail && r.esi == a(BASE_B));
-                }
-            }));
-            p(MEDIA_MODE, 7);
-            p(GIVEN_MODE, mode);
-            p(GIVEN_LANGUAGE, lang);
-        };
-        both(
-            &mut t,
-            &format!("cd_fail {cd_fail}, norm1_fail {norm1_fail}, mode {mode}, lang {lang}"),
-            &copy,
-            Regs::SENTINEL,
-            &regions,
-            0,
-            &[],
-            &prepare,
-            &|r, part, _| install_from_command(r, part),
-        );
-    }
-    quiet();
-    drop(saved);
-    t.finish()
+    })
 }

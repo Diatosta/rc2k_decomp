@@ -17,33 +17,23 @@
 //! original and the Rust version on DirectInput objects made in Rust (`input::di_harness`)
 //! and a copy of the first device's record: a controller with no force feedback, the wheel
 //! with strength 0 and 50.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
 use crate::field;
-use crate::framework::{RawHook, Regs, SelfTest, game_addr, hook_asm, rva, shadow};
-use crate::input::devices::{RECORD_LEN, RECORDS, at, put};
+use crate::framework::{Regs, game_addr, rva};
+use crate::input::devices::{RECORD_LEN, at, put};
 use crate::input::di_harness::{
-    DWORD_PROP_RVA, EFFECT_LEN, EFFECTS_AT, a, compare, entry_of, fatal, method, regs_text,
-    shared_regions, slot,
+    DWORD_PROP_RVA, EFFECT_LEN, EFFECTS_AT, a, entry_of, fatal, method, slot,
 };
 use crate::input::types::{Controller, DiPropDword, DiPropHeader, InputDevice};
+use rc2k_core::input::acquire::gain;
 use std::mem::size_of;
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("input::begin_force", rva(0x40945D), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
 
 const USING_TEXT_RVA: usize = rva(0x4DA5D8); // aInpUsingForceF
-const EFFECT_FOUND: usize = 0x40953B; // input::effect_found
 const DIPROP_FFGAIN: u32 = 7;
 const DIPROP_AUTOCENTER: u32 = 9;
 
@@ -76,14 +66,15 @@ pub fn begin_force(record: u32, part: crate::input::make_effect::Part) -> Result
         crate::logfile::log_write::log_write(game_addr(USING_TEXT_RVA) as *const u8, true, 2)
     };
     let device = at(record, field!(InputDevice, device));
-    if at(record, field!(InputDevice, strength)) == 0 {
+    // Converted: `rc2k_core::input::acquire::gain`.
+    let Some(gain) = gain(at(record, field!(InputDevice, strength))) else {
         method(
             device,
             slot::SET_PROPERTY,
             &[DIPROP_AUTOCENTER, dword_property(1)],
         );
         return Ok(());
-    }
+    };
     if method(
         device,
         slot::SET_PROPERTY,
@@ -92,11 +83,12 @@ pub fn begin_force(record: u32, part: crate::input::make_effect::Part) -> Result
     {
         return Err(fatal(0x8023_8421).into());
     }
-    let gain = dword_property(at(record, field!(InputDevice, strength)).wrapping_mul(100));
+    let gain = dword_property(gain);
     if method(device, slot::SET_PROPERTY, &[DIPROP_FFGAIN, gain]) != 0 {
         return Err(fatal(0x8023_8422).into());
     }
-    let found = game_addr(rva(EFFECT_FOUND)) as u32;
+    let found = crate::input::effect_found::callback as unsafe extern "system" fn(u32, u32) -> u32
+        as usize as u32;
     method(device, slot::ENUM_EFFECTS, &[found, record, 0]);
     for n in 0..6 {
         let r = Regs {
@@ -111,15 +103,10 @@ pub fn begin_force(record: u32, part: crate::input::make_effect::Part) -> Result
     Ok(())
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    HOOK.count_call();
-    if shadow() {
-        unsafe { call_original(r) };
-        return;
-    }
-    if let Err(e) = begin_force(r.esi, &mut crate::input::make_effect::game_part) {
-        unsafe { crate::fatal::raise::refused(&HOOK, e, r, call_original) };
-    }
+/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    begin_force(r.esi, &mut crate::input::make_effect::game_part)?;
+    Ok(())
 }
 
 /// A test controller's entry (number 2 of the table) with force feedback or not, and a
@@ -138,50 +125,4 @@ pub fn test_controller(rec: u32, start: &[u8], device: usize, force: bool, stren
         crate::input::di_objects::test_device(device),
     );
     put(rec, field!(InputDevice, strength), strength);
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let world = crate::input::di_objects::TestWorld::begin(
-        crate::input::di_objects::test_devices(),
-        Default::default(),
-    );
-    let start =
-        unsafe { std::slice::from_raw_parts(game_addr(RECORDS[0]) as *const u8, RECORD_LEN) }
-            .to_vec();
-    let mut record = start.clone();
-    let rec = record.as_mut_ptr() as u32;
-    let mut regions = shared_regions();
-    regions.push((rec, RECORD_LEN));
-    for (device, force, strength) in [(0usize, false, 50u32), (1, true, 0), (1, true, 50)] {
-        let entry = Regs {
-            esi: rec,
-            ..Regs::SENTINEL
-        };
-        compare(
-            &mut t,
-            &format!("device {device}, force feedback {force}, strength {strength}"),
-            &world,
-            &regions,
-            &|| test_controller(rec, &start, device, force, strength),
-            &mut || {
-                let mut r = entry;
-                unsafe { call_original(&mut r) };
-                regs_text(&r)
-            },
-            &mut || {
-                let done = begin_force(rec, &mut crate::input::make_effect::game_part);
-                format!(
-                    "{}{}",
-                    regs_text(&entry),
-                    if done.is_ok() { "" } else { " refused" }
-                )
-            },
-        );
-    }
-    drop(world);
-    drop(record);
-    t.finish()
 }

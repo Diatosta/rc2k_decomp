@@ -9,14 +9,16 @@
 //! more) and `sub_43B635` three times (the physics, stream B's). Shadow mode: the Rust
 //! version, the matrices and `invert_turn`'s work put back, the original's, compared.
 //! Self-test: the game's car matrix set to matrices by lot, both versions, put back
-//! afterwards.
+//! afterwards; every place is a float, held bit for bit but for a NaN's bits
+//! (`Tolerance::Exact`: with shadow off the original's `invert_turn` is the converted one).
 
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, SelfTest, game_addr, hook_asm, rva};
+use crate::framework::{GameHook, RawHook, Regs, SelfTest, game_addr, hook_asm, rva};
 use crate::race::start_place::*;
 use crate::scene::matrix::{MATRIX_LEN, test_floats};
 use crate::screens::harness::Left;
-use crate::service::harness::{capture, check_state, dispatch_state, restore};
+use crate::service::floats::{Floats, Tolerance, check_state_floats};
+use crate::service::harness::{capture, dispatch_state, restore, state_entry};
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -40,6 +42,12 @@ extern "C" fn dispatch(r: &mut Regs) {
     dispatch_state(&HOOK, r, call_original, &invert_regions(), &rust);
 }
 
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    state_entry(r, &rust)
+}
+
 fn self_test() -> (usize, usize) {
     let Some(mut t) = SelfTest::begin(&HOOK) else {
         return (0, 0);
@@ -49,11 +57,13 @@ fn self_test() -> (usize, usize) {
     let mut kept = regions.clone();
     kept.push(matrix);
     let saved = capture(&kept);
+    let exact: Vec<_> = regions.iter().map(|&r| (r, Tolerance::Exact)).collect();
     let mut seed = 0x2026_1017u32;
     for case in 0..20 {
         let floats = test_floats(&mut seed);
-        check_state(
+        check_state_floats(
             &mut t,
+            HOOK.name(),
             &format!("case {case}: {floats:x?}"),
             call_original,
             Regs::SENTINEL,
@@ -68,6 +78,10 @@ fn self_test() -> (usize, usize) {
                 );
             },
             &regions,
+            &Floats {
+                memory: &exact,
+                regs: &[],
+            },
             &rust,
         );
     }

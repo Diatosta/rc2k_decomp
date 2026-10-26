@@ -13,10 +13,10 @@
 //! table, before anything is written. Shadow mode compares. Self-test: a table of the
 //! test's, runs of the old value of every length, the count reached or not.
 
-use crate::errors::{BadInput, Refused};
+use crate::errors::Refused;
 use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
 use crate::race::viewer::{
-    BLOCK, BLOCKS, MOST_BLOCKS, Saved, check_original, dispatch_regs, dword, get, put,
+    BLOCK, BLOCKS, MOST_BLOCKS, Saved, check_original, dispatch_regs, dword, get, put, regs_entry,
 };
 use std::sync::atomic::AtomicUsize;
 
@@ -39,27 +39,13 @@ pub unsafe fn spread_camera(entry: &Regs) -> Result<Regs, Refused> {
     let dl = unsafe { (r.ebx as *const u8).read() };
     let old = (r.edx >> 8) as u8;
     let count = get(BLOCKS).wrapping_sub(get(BLOCK));
-    // How far it goes, first: (eax, ecx) at the end and the bytes written.
-    let (mut eax, mut ecx, mut writes) = (0u32, count, 0u32);
-    loop {
-        eax = eax.wrapping_add(1);
-        ecx = ecx.wrapping_sub(1);
-        if ecx == 0 {
-            break;
-        }
-        if eax > MOST_BLOCKS {
-            return Err(BadInput("the camera's run goes past the replay's table").into());
-        }
-        if unsafe { at(eax).read() } != old {
-            break;
-        }
-        writes = eax;
-    }
-    for n in 1..=writes {
+    // Converted: `rc2k_core::race::viewer::spread` (how far it goes, first).
+    let s = rc2k_core::race::viewer::spread(count, old, |n| unsafe { at(n).read() })?;
+    for n in 1..=s.taken {
         unsafe { at(n).write(dl) };
     }
-    r.eax = eax;
-    r.ecx = ecx;
+    r.eax = s.gone;
+    r.ecx = s.left;
     r.edx = r.edx & !0xFF | dl as u32;
     Ok(r)
 }
@@ -72,6 +58,12 @@ extern "C" fn dispatch(r: &mut Regs) {
     // The bytes it may write: the 0x708 blocks' from ebx.
     let regions = [(r.ebx, 8 * MOST_BLOCKS as usize + 1)];
     dispatch_regs(&HOOK, r, call_original, &regions, 0, &rust);
+}
+
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    regs_entry(r, &rust)
 }
 
 fn self_test() -> (usize, usize) {

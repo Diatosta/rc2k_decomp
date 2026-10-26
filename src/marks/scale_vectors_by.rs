@@ -7,13 +7,20 @@
 //!
 //! Caller: `sub_4D14B4`. Self-test: the eight inputs by lot, the original and the Rust
 //! version compared on the six results; put back afterwards.
+//!
+//! Converted 2026-10-21: the hook's Rust version is `scale_triples_plain`, through
+//! `rc2k_core::marks::view::scaled` (plain floats; the x87 version stays for the Rust
+//! callers in unconverted code). Shadow mode and the self-test compare within
+//! `service::floats`' tolerances (the self-test at both test precisions, exact at double).
 
 use crate::errors::Refused;
 use crate::framework::{RawHook, Regs, SelfTest, game_read, game_write, hook_asm, rva};
-use crate::marks::leaf_test::test_leaf;
+use crate::marks::leaf_test::test_leaf_floats;
 use crate::math::x87;
+use crate::scene::matrix::float_places;
 use crate::screens::harness::Left;
-use crate::service::harness::{Region, at, dispatch_state};
+use crate::service::floats::*;
+use crate::service::harness::{Region, at};
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -51,6 +58,19 @@ pub unsafe fn scale_triples(pairs: &[(usize, usize, usize)]) {
     }
 }
 
+/// The converted `scale_triples` (plain floats): the two hooks'.
+// Converted: `rc2k_core::marks::view::scaled`
+pub unsafe fn scale_triples_plain(pairs: &[(usize, usize, usize)]) {
+    unsafe {
+        for &(factor, from, to) in pairs {
+            let k = f32::from_bits(game_read(factor));
+            let v: [u32; 3] = game_read(from);
+            let made = rc2k_core::marks::view::scaled(v.map(f32::from_bits), k);
+            game_write(to, made.map(f32::to_bits));
+        }
+    }
+}
+
 /// The results' dwords.
 pub fn results_of(pairs: &[(usize, usize, usize)]) -> Vec<usize> {
     pairs
@@ -72,12 +92,23 @@ pub fn regions() -> Vec<Region> {
 }
 
 fn rust(_: &Regs) -> Result<Left, Refused> {
-    unsafe { scale_vectors_by() };
+    unsafe { scale_triples_plain(&PAIRS) };
     Ok(Left::nothing())
 }
 
 extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_state(&HOOK, r, call_original, &regions(), &rust);
+    let places = float_places(&regions());
+    let floats = Floats {
+        memory: &places,
+        regs: &[],
+    };
+    dispatch_state_floats(&HOOK, r, call_original, &regions(), &floats, &rust);
+}
+
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    floats_entry(r, &rust)
 }
 
 fn self_test() -> (usize, usize) {
@@ -85,11 +116,13 @@ fn self_test() -> (usize, usize) {
         return (0, 0);
     };
     let (inputs, written) = (inputs_of(&PAIRS), results_of(&PAIRS));
-    test_leaf(
+    test_leaf_floats(
         &mut t,
+        "marks::scale_vectors_by",
         &inputs,
         &written,
         Regs::SENTINEL,
+        &[],
         8,
         call_original,
         &rust,

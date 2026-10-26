@@ -6,24 +6,15 @@
 //!      (carry: it failed)
 //! Caller: `net::start_link`. Its calls through `part` (the frames through the game).
 //! Shadow mode runs the original alone. Self-test: as `net::connecting`'s.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, hook_asm, rva};
-use crate::net::connecting::{status, status_test};
-use crate::net::lobby::{Part, dispatch_lobby};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("net::joining", rva(0x4179B6), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
+use crate::framework::Regs;
+use crate::net::connecting::status;
+use crate::net::lobby::{Part, lobby_entry};
 
 const JOIN_SESSION: u32 = 0x418C6D; // net::join_session
 
@@ -40,19 +31,8 @@ pub fn joining(entry: &Regs, part: Part) -> Result<Regs, Refused> {
     })
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_lobby(&HOOK, r, call_original, joining);
-}
-
-fn self_test() -> (usize, usize) {
-    // pusha; mov esi, eax; xor eax, eax
-    status_test(
-        &HOOK,
-        0x4179B6,
-        0x4D,
-        &[0x60, 0x8B, 0xF0, 0x33, 0xC0],
-        &[0x5, 0xA, 0x11, 0x2B, 0x30, 0x35, 0x3F, 0x46],
-        JOIN_SESSION,
-        joining,
-    )
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    lobby_entry(r, joining)
 }

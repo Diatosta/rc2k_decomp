@@ -17,7 +17,6 @@ pub const VOICE_MANAGER_ON_RVA: usize = rva(0x506C54); // g_voiceManagerOn
 pub const HAS_EAX_RVA: usize = rva(0x506C70); // g_hasEax
 const USING_DSV_TEXT: usize = rva(0x4DA73E); // "AUD: Using DSV"
 const USING_EAX_TEXT: usize = rva(0x4DA7AA); // "AUD: Using EAX"
-const ROOMS: u32 = 10;
 /// `IKsPropertySet`'s `Set` and `QuerySupport`.
 const SET: u32 = 0x10;
 const QUERY_SUPPORT: u32 = 0x14;
@@ -132,10 +131,8 @@ unsafe fn set_property(p: u32, set: u32, data: u32, bytes: u32) -> i32 {
 /// `audio::set_eax_room`: the room's reverb (`g_eaxRooms`) set when EAX is open; eax the
 /// room's entry. Refuses a room past the table (the original reads past it).
 pub unsafe fn set_eax_room(room: u32, properties: u32) -> Result<u32, Refused> {
-    if room >= ROOMS {
-        return Err(BadInput("an EAX room past the table").into());
-    }
-    let at = game_addr(EAX_ROOMS_RVA) as u32 + room * 0x10;
+    // Converted: `rc2k_core::audio::levels::eax_room_offset`.
+    let at = game_addr(EAX_ROOMS_RVA) as u32 + rc2k_core::audio::levels::eax_room_offset(room)?;
     unsafe {
         let p = read(properties);
         if p != 0 {

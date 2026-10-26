@@ -13,27 +13,21 @@
 //! `add_triangle`'s Rust version. Shadow mode runs the original alone (it draws).
 //! Self-test: a copy whose triangle call goes to a stand-in (the vertex calls to their
 //! hook), against the Rust version, angles by lot.
+//!
+//! Converted 2026-10-21: the ring's angles and the triangles' entries through
+//! `rc2k_core::hud::disc` (whole numbers; the sines are copied); the texture's turn stays
+//! the x87's (its rounding follows the control word), worked out once (the original works
+//! the same value out sixteen times into `dword_75C060`).
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{
-    RawHook, Regs, SelfTest, game_addr, game_read, game_write, hook_asm, rva, shadow,
-};
-use crate::hud::disc_vertex::{disc_vertex, tables, test_tables};
+use crate::framework::{Regs, game_addr, game_read, game_write, rva};
+use crate::hud::disc_vertex::disc_vertex;
 use crate::math::x87;
-use crate::service::harness::{Region, at, capture, restore};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("hud::draw_disc", rva(0x4B6C4E), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
+use rc2k_core::hud::disc::SEGMENTS;
 
 const RING_RVA: [usize; 2] = [rva(0x75C188), rva(0x75C1CC)]; // flt_75C188, flt_75C1CC
 const TEXTURE_RING_RVA: [usize; 2] = [rva(0x75C210), rva(0x75C254)];
@@ -42,7 +36,6 @@ const COSINES_RVA: usize = rva(0xA24AE4); // g_cosines
 const TURN_RVA: [usize; 3] = [rva(0x75C05C), rva(0x75C028), rva(0x75C024)];
 const SCRATCH_RVA: usize = rva(0x75C060); // dword_75C060
 const VERTICES_RVA: usize = rva(0x9605A0); // g_polygonVertices
-const SEGMENTS: u32 = 0x10;
 
 /// A call by place: 1 `add_triangle`.
 pub type Part<'a> = &'a mut dyn FnMut(u32, &mut Regs) -> Result<(), Refused>;
@@ -58,48 +51,34 @@ fn negated_times_times_to_int(a: u32, b: u32, c: u32) -> u32 {
 }
 
 /// The Rust version (see the header): the registers it leaves.
+// Converted: `rc2k_core::hud::disc::{ring_angles, disc_triangle}`
 pub unsafe fn draw_disc(entry: &Regs, part: Part) -> Result<Regs, Refused> {
     let mut g = *entry;
     unsafe {
-        for k in 0..SEGMENTS {
-            let a = k << 8;
-            let n = 4 * (k as usize + 1);
-            game_write(
-                RING_RVA[0] + n,
-                x87::loaded(game_read(SINES_RVA + 4 * a as usize)),
-            );
-            game_write(
-                RING_RVA[1] + n,
-                x87::loaded(game_read(COSINES_RVA + 4 * a as usize)),
-            );
-            let t = negated_times_times_to_int(
-                game_read(TURN_RVA[0]),
-                game_read(TURN_RVA[1]),
-                game_read(TURN_RVA[2]),
-            );
-            game_write(SCRATCH_RVA, t);
-            g.eax = a.wrapping_add(t) & 0xFFF;
-            game_write(
-                TEXTURE_RING_RVA[0] + n,
-                x87::loaded(game_read(SINES_RVA + 4 * g.eax as usize)),
-            );
-            game_write(
-                TEXTURE_RING_RVA[1] + n,
-                x87::loaded(game_read(COSINES_RVA + 4 * g.eax as usize)),
-            );
+        use rc2k_core::hud::disc::{disc_triangle, ring_angles};
+        // The texture's turn follows the x87's control word: the x87's.
+        let t = negated_times_times_to_int(
+            game_read(TURN_RVA[0]),
+            game_read(TURN_RVA[1]),
+            game_read(TURN_RVA[2]),
+        );
+        let table = |r: usize, a: u32| x87::loaded(game_read(r + 4 * a as usize));
+        for (k, [a, b]) in ring_angles(t).into_iter().enumerate() {
+            let n = 4 * (k + 1);
+            game_write(RING_RVA[0] + n, table(SINES_RVA, a));
+            game_write(RING_RVA[1] + n, table(COSINES_RVA, a));
+            game_write(TEXTURE_RING_RVA[0] + n, table(SINES_RVA, b));
+            game_write(TEXTURE_RING_RVA[1] + n, table(COSINES_RVA, b));
+            g.eax = b;
         }
+        game_write(SCRATCH_RVA, t);
         // as the first loop leaves them (`div ebx`, then `mov edx, 0`)
         [g.ebx, g.ecx, g.edx] = [SEGMENTS, SEGMENTS, 0];
         let base = game_addr(VERTICES_RVA) as u32;
         for k in 0..SEGMENTS {
-            let third = if k + 2 > SEGMENTS {
-                k + 2 - SEGMENTS
-            } else {
-                k + 2
-            };
             let mut r = g;
             r.edx = k;
-            for (n, e) in [0, k + 1, third].into_iter().enumerate() {
+            for (n, e) in disc_triangle(k).into_iter().enumerate() {
                 r.edi = base + 0x20 * n as u32;
                 r.ecx = e;
                 r = disc_vertex(&r)?;
@@ -111,61 +90,9 @@ pub unsafe fn draw_disc(entry: &Regs, part: Part) -> Result<Regs, Refused> {
     Ok(g)
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    HOOK.count_call();
-    if shadow() {
-        unsafe { call_original(r) };
-        return;
-    }
-    match unsafe { draw_disc(r, &mut crate::hud::add_triangle::game_part_triangle) } {
-        Ok(left) => *r = Regs { esp: r.esp, ..left },
-        Err(e) => unsafe { crate::fatal::raise::refused(&HOOK, e, r, call_original) },
-    }
-}
-
-fn self_test() -> (usize, usize) {
-    use crate::race::mud::{copy, run_both, test_part};
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    // mov ecx, 0
-    let entry: &[u8] = &[0xB9, 0x00, 0x00, 0x00, 0x00];
-    let copy = match copy(
-        0x4B6C4E,
-        0xC2,
-        entry,
-        &[0x8A, 0x98, 0xB0, 0xB5],
-        &[(0x4B6DA7, 1)],
-    ) {
-        Ok(c) => c,
-        Err(why) => return t.skip(why),
-    };
-    let regions: Vec<Region> = vec![
-        (game_addr(RING_RVA[0]) as u32, 0x44 * 4),
-        (game_addr(VERTICES_RVA) as u32, 0x60),
-        at(SCRATCH_RVA),
-    ];
-    let mut vars = regions.clone();
-    vars.extend(tables());
-    vars.extend(TURN_RVA.map(at));
-    let saved = capture(&vars);
-    for case in 0..4u32 {
-        run_both(
-            &mut t,
-            &format!("case {case}"),
-            &copy,
-            &regions,
-            &|| unsafe {
-                restore(&vars, &saved);
-                test_tables(case);
-                game_write(TURN_RVA[0], (case as f32 * 0.7 - 1.0).to_bits());
-                game_write(TURN_RVA[1], 651.9f32.to_bits());
-                game_write(TURN_RVA[2], 1.0f32.to_bits());
-                std::ptr::write_bytes(game_addr(VERTICES_RVA) as *mut u8, 0xAA, 0x60);
-            },
-            &|r| unsafe { draw_disc(r, &mut test_part) },
-        );
-    }
-    restore(&vars, &saved);
-    t.finish()
+/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    let left = unsafe { draw_disc(r, &mut crate::hud::add_triangle::game_part_triangle) }?;
+    *r = Regs { esp: r.esp, ..left };
+    Ok(())
 }

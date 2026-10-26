@@ -12,10 +12,9 @@
 
 use crate::errors::Refused;
 use crate::framework::{RawHook, Regs, SelfTest, game_read, game_write, hook_asm, rva};
-use crate::gfx::fade_colour::fade_bytes;
 use crate::race::stage_prefs::left_of;
 use crate::screens::harness::Left;
-use crate::service::harness::{Region, capture, check_state, dispatch_state, restore};
+use crate::service::harness::{Region, capture, check_state, dispatch_state, restore, state_entry};
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -39,8 +38,15 @@ pub fn mud_colour() -> [u32; 3] {
 
 /// The Rust version (see the header): the registers it leaves.
 pub fn tint_to_mud_colour(entry: &Regs) -> Regs {
-    let [red, green, blue] = mud_colour();
-    fade_bytes(entry, entry.ebx, [blue, green, red], entry.ebp)
+    // Converted: `rc2k_core::race::mud::tint`.
+    let t = rc2k_core::race::mud::tint(entry.ebx, mud_colour(), entry.ebp);
+    Regs {
+        ebx: t.colour,
+        eax: t.colour,
+        esi: entry.ebx >> 16 & 0xFF,
+        edx: t.high,
+        ..*entry
+    }
 }
 
 fn rust(r: &Regs) -> Result<Left, Refused> {
@@ -49,6 +55,12 @@ fn rust(r: &Regs) -> Result<Left, Refused> {
 
 extern "C" fn dispatch(r: &mut Regs) {
     dispatch_state(&HOOK, r, call_original, &[], &rust);
+}
+
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    state_entry(r, &rust)
 }
 
 fn self_test() -> (usize, usize) {

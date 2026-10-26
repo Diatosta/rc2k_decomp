@@ -9,27 +9,15 @@
 //! Caller: `net::settings_frame` (its last item). Its call through `part`. Shadow mode runs
 //! the original alone (it draws). Self-test: a copy whose call goes to a stand-in, against
 //! the Rust version: highlighted or not, edited, blinking.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
+use crate::framework::Regs;
 use crate::net::draw_button::item_font;
-use crate::net::lobby::{
-    CHOICE, DRAW_STRING, EDITED, FRAME_CLOCK, MOVE_CLOCK, Part, Saved, dispatch_lobby, dword, p,
-    run_both,
-};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("net::draw_centred_item", rva(0x416B53), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
+use crate::net::lobby::{DRAW_STRING, Part, lobby_entry};
 
 const PLAIN: usize = 0x51E744; // unk_51E744
 const LIT: usize = 0x51E684; // stru_51E684
@@ -37,6 +25,7 @@ const LIT: usize = 0x51E684; // stru_51E684
 /// The Rust version: the registers it leaves.
 pub fn draw_centred_item(entry: &Regs, part: Part) -> Result<Regs, Refused> {
     let mut r = *entry;
+    // Converted: `rc2k_core::net::screens::item_lit` (in `item_font`).
     r.ebx = item_font(r.esi, PLAIN, LIT);
     r.edx = r.ebp;
     r.ebp = r
@@ -46,61 +35,8 @@ pub fn draw_centred_item(entry: &Regs, part: Part) -> Result<Regs, Refused> {
     Ok(r)
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_lobby(&HOOK, r, call_original, draw_centred_item);
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    // lea ebx, unk_51E744
-    let copy = match crate::net::lobby::copy(
-        0x416B53,
-        0x3B,
-        &[0x8D, 0x1D, 0x44, 0xE7, 0x51, 0x00],
-        &[0x35],
-        &[DRAW_STRING],
-    ) {
-        Ok(c) => c,
-        Err(why) => return t.skip(why),
-    };
-    let all = [
-        dword(CHOICE),
-        dword(EDITED),
-        dword(FRAME_CLOCK),
-        dword(MOVE_CLOCK),
-    ];
-    let saved = Saved::new(&all);
-    for (choice, edited, clock) in [
-        (4u32, u32::MAX, 0u32),
-        (4, u32::MAX, 8),
-        (4, 4, 8),
-        (1, 4, 0),
-    ] {
-        run_both(
-            &mut t,
-            &format!("highlighted {choice}, edited {edited:#x}, clock {clock}"),
-            copy.addr(),
-            Regs {
-                eax: 0x16F,
-                ecx: 0x2A0,
-                esi: 4,
-                ebp: 0x21D,
-                ..Regs::SENTINEL
-            },
-            &all,
-            0,
-            &[],
-            &|| {
-                p(CHOICE, choice);
-                p(EDITED, edited);
-                p(FRAME_CLOCK, 0x2000 + clock);
-                p(MOVE_CLOCK, 0x2000);
-            },
-            &draw_centred_item,
-        );
-    }
-    drop(saved);
-    t.finish()
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    lobby_entry(r, draw_centred_item)
 }

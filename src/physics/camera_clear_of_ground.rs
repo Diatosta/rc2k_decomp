@@ -19,6 +19,7 @@ use crate::physics::flow::{g, p};
 use crate::physics::reset_parts::copy_of;
 use crate::race::car_starts::Part;
 use crate::service::harness::{capture, restore};
+use rc2k_core::physics::camera_ground::{is_clear, over};
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -39,6 +40,7 @@ hook_asm!(
 );
 
 /// The Rust version, the probe through `part`; CF in the registers left.
+// Converted: `rc2k_core::physics::camera_ground::{over, is_clear}`.
 pub unsafe fn camera_clear_of_ground(entry: &Regs, part: Part) -> Result<Regs, Refused> {
     let mut r = *entry;
     r.eax = g(0x71A67C);
@@ -47,8 +49,8 @@ pub unsafe fn camera_clear_of_ground(entry: &Regs, part: Part) -> Result<Regs, R
     let z = r.eax;
     let mut clear = probe_at(&mut r, part, x, z, 0x71AEC8)?;
     if clear {
-        r.eax = g(0x71A680).wrapping_sub(g(0x639828));
-        clear = (r.eax.wrapping_sub(0x10000) as i32) >= 0;
+        r.eax = over(g(0x71A680), g(0x639828));
+        clear = is_clear(r.eax);
     }
     r.set_carry(!clear);
     Ok(r)

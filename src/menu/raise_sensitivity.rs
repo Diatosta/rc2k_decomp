@@ -3,29 +3,17 @@
 //! In:  nothing
 //! Out: every register preserved
 //!
-//! `controller_sensitivity` + 1, held at 100 (signed). An action of the four players' details pages (menu tables 0x74EC00 ..).
-//! Compared in shadow mode.
-//! Self-test: `menu::player_settings::check_setting`, 7 values for each player.
+//! `controller_sensitivity` + 1, held at 100 (signed). An action of the four players' details
+//! pages (menu tables 0x74EC00 ..). Hook removed 2026-10-22 (typed tables): the menus and draw
+//! lists run its `entry` (`menu::table_calls`); the registers above are the original's, for
+//! reference.
 
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
+use crate::framework::Regs;
 use crate::menu::player::Player;
 use crate::menu::player_settings::*;
 use crate::screens::harness::Left;
-use crate::service::harness::dispatch_state;
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("menu::raise_sensitivity", rva(0x470F05), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
+use crate::service::harness::state_entry;
 
 fn field(player: &mut Player) -> &mut u32 {
     &mut player.controller_sensitivity
@@ -34,38 +22,19 @@ fn field(player: &mut Player) -> &mut u32 {
 // ---- Rust version ----
 
 pub fn raise_sensitivity() -> Result<(), Refused> {
+    // Converted: `rc2k_core::menu::player::stepped`.
     change(field, |value| {
-        let next = value.wrapping_add(1);
-        if next as i32 > 100 { 100 } else { next }
+        rc2k_core::menu::player::stepped(rc2k_core::menu::player::Setting::Sensitivity, value, true)
     })
 }
-
-// ---- hook ----
 
 fn rust(_: &Regs) -> Result<Left, Refused> {
     raise_sensitivity()?;
     Ok(Left::nothing())
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    let regions = current().map_or(Vec::new(), |player| {
-        vec![(player as u32, std::mem::size_of::<Player>())]
-    });
-    dispatch_state(&HOOK, r, call_original, &regions, &rust);
-}
-
-// ---- self-test ----
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    check_setting(
-        &mut t,
-        call_original,
-        field,
-        &[0, 1, 99, 100, 101, 0x7FFF_FFFF, 0xFFFF_FFFF],
-        &rust,
-    );
-    t.finish()
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    state_entry(r, &rust)
 }

@@ -11,18 +11,23 @@
 //!
 //! Caller: `physics::apply_forces` (in a loop over records).
 //! Self-test: a copy of the original (its scratch the test's, its three calls kept) on a
-//! test record and car block, under three precisions.
+//! test record and car block, against the converted version: exact at double precision,
+//! within `SUM` at extended.
 
 use crate::errors::Refused;
 use crate::framework::{RawHook, Regs, SelfTest, call_game, game_addr, game_read, hook_asm, rva};
 use crate::math::x87;
-use crate::math::x87_run::{TEST_CONTROL_WORDS, with_control_word};
 use crate::physics::scale_vector::scale_vector;
 use crate::physics::turn_by_car_matrix::turn_by_car_matrix;
 use crate::scene::matrix3::{extended, rounded};
 use crate::scene::rotate_point::rotate_point;
+use crate::scene::vector3::{read_floats, write_floats};
 use crate::screens::harness::Left;
-use crate::service::harness::{capture, dispatch_state};
+use crate::service::floats::{
+    Agreement, Floats, SUM, Tolerance, at_test_precisions, compare_memory, dispatch_state_floats,
+    floats_entry,
+};
+use crate::service::harness::{Region, capture};
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -74,7 +79,37 @@ pub unsafe fn apply_at(rec: u32, car: u32, work: u32, scratch: u32) {
     }
 }
 
-/// The Rust version.
+/// The converted version (`rc2k_core::physics::pushes`, plain floats): the record at
+/// `rec`, the car at `car`, the work vector at `work`, the scratch at `scratch`.
+// Converted: `rc2k_core::physics::pushes::apply_force`.
+pub unsafe fn apply_at_plain(rec: u32, car: u32, work: u32, scratch: u32) {
+    unsafe {
+        let crash = game_addr(rva(0x71A08C)) as u32; // g_crashMatrix
+        let push = rc2k_core::physics::pushes::apply_force(
+            read_floats(rec),
+            f32::from_bits(game_read(rva(0x61388C))),
+            &read_floats(crash),
+            read_floats(car + 0x198),
+            &read_floats(car + 0x9CC),
+        );
+        write_floats(work, &push.work);
+        write_floats(scratch, &[push.step]);
+        write_floats(car + 0x198, &push.motion);
+        write_floats(car + 0x1A4, &push.local);
+    }
+}
+
+/// The float places it writes on the car at `car`, the work vector at `work`, the scratch
+/// at `scratch`.
+fn floats(car: u32, work: u32, scratch: u32) -> [(Region, Tolerance); 3] {
+    [
+        ((work, 12), SUM),
+        ((scratch, 4), SUM),
+        ((car + 0x198, 0x18), SUM),
+    ]
+}
+
+/// The Rust version (the exact one, for `physics::apply_forces`).
 pub unsafe fn apply_force(rec: u32, car: u32) {
     unsafe {
         apply_at(
@@ -87,17 +122,35 @@ pub unsafe fn apply_force(rec: u32, car: u32) {
 }
 
 fn rust(r: &Regs) -> Result<Left, Refused> {
-    unsafe { apply_force(r.esi, r.edi) };
+    unsafe {
+        apply_at_plain(
+            r.esi,
+            r.edi,
+            game_addr(rva(0x614B30)) as u32,
+            game_addr(rva(0x62400C)) as u32,
+        )
+    };
     Ok(Left::nothing())
 }
 
 extern "C" fn dispatch(r: &mut Regs) {
-    let regions = [
-        (game_addr(rva(0x614B30)) as u32, 12),
-        (game_addr(rva(0x62400C)) as u32, 4),
-        (r.edi + 0x198, 0x18),
-    ];
-    dispatch_state(&HOOK, r, call_original, &regions, &rust);
+    let (work, scratch) = (
+        game_addr(rva(0x614B30)) as u32,
+        game_addr(rva(0x62400C)) as u32,
+    );
+    let regions = [(work, 12), (scratch, 4), (r.edi + 0x198, 0x18)];
+    let memory = floats(r.edi, work, scratch);
+    let floats = Floats {
+        memory: &memory,
+        regs: &[],
+    };
+    dispatch_state_floats(&HOOK, r, call_original, &regions, &floats, &rust);
+}
+
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    floats_entry(r, &rust)
 }
 
 /// A copy of the original whose work vector and scratch are at `work`, `scratch`.
@@ -179,29 +232,33 @@ fn self_test() -> (usize, usize) {
         Err(why) => return t.skip(&why),
     };
     let all = [(car, 4 * cells.len())];
-    for word in TEST_CONTROL_WORDS {
-        with_control_word(word, &mut || {
-            for seed in 1..=6u32 {
-                fill(rec, car, seed);
-                let before = Regs {
-                    esi: rec,
-                    edi: car,
-                    ..Regs::SENTINEL
-                };
-                let mut ro = before;
-                unsafe { call_game(&mut ro, copy.addr()) };
-                let theirs = capture(&all);
-                fill(rec, car, seed);
-                unsafe { apply_at(rec, car, work, scratch) };
-                let mine = capture(&all);
-                let regs_ok = ro.preserved_except(&before, 0);
-                t.check(regs_ok && theirs == mine, || {
-                    let first = theirs.iter().zip(&mine).position(|(a, b)| a != b);
-                    format!("control word {word:#x}, seed {seed}: regs_ok={regs_ok}, first difference at byte {first:?}")
-                });
-            }
-        });
-    }
+    let memory = floats(car, work, scratch);
+    let tolerant = Floats {
+        memory: &memory,
+        regs: &[],
+    };
+    at_test_precisions(&tolerant, &mut |word, fl| {
+        for seed in 1..=6u32 {
+            fill(rec, car, seed);
+            let before = Regs {
+                esi: rec,
+                edi: car,
+                ..Regs::SENTINEL
+            };
+            let mut ro = before;
+            unsafe { call_game(&mut ro, copy.addr()) };
+            let theirs = capture(&all);
+            fill(rec, car, seed);
+            unsafe { apply_at_plain(rec, car, work, scratch) };
+            let mine = capture(&all);
+            let regs_ok = ro.preserved_except(&before, 0);
+            let agreement = compare_memory(&all, &theirs, &mine, fl);
+            t.check(regs_ok && agreement != Agreement::Differ, || {
+                let first = theirs.iter().zip(&mine).position(|(a, b)| a != b);
+                format!("control word {word:#x}, seed {seed}: regs_ok={regs_ok}, first difference at byte {first:?}")
+            });
+        }
+    });
     drop((copy, cells));
     t.finish()
 }

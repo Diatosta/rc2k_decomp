@@ -9,15 +9,17 @@
 //!
 //! Callers (2): `sub_442006` (the face under a point, the ground's search) and
 //! `sub_457B86`.
-//! Self-test: a copy of the original on test variables, against the Rust core, values by
-//! lot (some large) under three precisions.
+//! Self-test: a copy of the original on test variables, against the converted version,
+//! values by lot (some large), exact at double precision.
 
 use crate::errors::Refused;
 use crate::framework::{RawHook, Regs, SelfTest, call_game, game_addr, hook_asm, rva};
 use crate::math::x87_run::{TEST_CONTROL_WORDS, with_control_word};
+use crate::physics::copy_hooks_test::check_floats_at;
 use crate::scene::matrix3::test_floats;
 use crate::screens::harness::Left;
-use crate::service::harness::dispatch_state;
+use crate::service::floats::{Floats, ROUNDED, dispatch_state_floats, floats_entry};
+use rc2k_core::physics::ground::plane_height as plane_height_core;
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -75,18 +77,46 @@ pub unsafe fn plane_height_at(p: &Plane) {
     }
 }
 
-/// The Rust version.
+/// The converted version (`rc2k_core::physics::ground`, plain floats) on the variables
+/// at `p`: the hook's.
+// Converted: `rc2k_core::physics::ground::plane_height`.
+pub unsafe fn plane_height_plain_at(p: &Plane) {
+    unsafe {
+        let h = plane_height_core(
+            at(p.a) as i32,
+            at(p.b) as i32,
+            at(p.c) as i32,
+            f32::from_bits(at(p.f)),
+            f32::from_bits(at(p.g)),
+        );
+        (p.out as *mut i32).write_unaligned(h);
+    }
+}
+
+/// The Rust version (the exact one, for `physics::ground`, `face_under_point` and the
+/// race's shadows).
 pub unsafe fn plane_height() {
     unsafe { plane_height_at(&Plane::game()) }
 }
 
 fn rust(_: &Regs) -> Result<Left, Refused> {
-    unsafe { plane_height() };
+    unsafe { plane_height_plain_at(&Plane::game()) };
     Ok(Left::nothing())
 }
 
 extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_state(&HOOK, r, call_original, &[(Plane::game().out, 4)], &rust);
+    let out = Plane::game().out;
+    let floats = Floats {
+        memory: &[((out, 4), ROUNDED)],
+        regs: &[],
+    };
+    dispatch_state_floats(&HOOK, r, call_original, &[(out, 4)], &floats, &rust);
+}
+
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    floats_entry(r, &rust)
 }
 
 fn self_test() -> (usize, usize) {
@@ -157,14 +187,26 @@ fn self_test() -> (usize, usize) {
                 unsafe { call_game(&mut ro, copy.addr()) };
                 let theirs = unsafe { (base as *const [u32; 6]).read() };
                 fill(seed);
-                unsafe { plane_height_at(&p) };
+                unsafe { plane_height_plain_at(&p) };
                 let mine = unsafe { (base as *const [u32; 6]).read() };
                 let regs_ok = ro.preserved_except(&Regs::SENTINEL, 0);
-                t.check(regs_ok && theirs == mine, || {
-                    format!(
-                        "control word {word:#x}, seed {seed}: regs_ok={regs_ok} original {theirs:x?}; rust {mine:x?}"
-                    )
-                });
+                let bytes =
+                    |w: [u32; 6]| w.iter().flat_map(|d| d.to_le_bytes()).collect::<Vec<u8>>();
+                check_floats_at(
+                    &mut t,
+                    "physics::plane_height",
+                    word,
+                    &[(base, 24)],
+                    &bytes(theirs),
+                    &bytes(mine),
+                    &[((p.out, 4), ROUNDED)],
+                    regs_ok,
+                    || {
+                        format!(
+                            "control word {word:#x}, seed {seed}: regs_ok={regs_ok} original {theirs:x?}; rust {mine:x?}"
+                        )
+                    },
+                );
             }
         });
     }

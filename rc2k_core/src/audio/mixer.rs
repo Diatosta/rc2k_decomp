@@ -1,0 +1,216 @@
+//! The game's own software mixer (converted 2026-10-20 from `audio::mix_channels` 0x40BECC
+//! and `audio::write_mix` 0x40C03A): the playing channels mixed into a work buffer of left
+//! and right `i32`s, then clipped into the sound buffer's format. The standalone mixes
+//! this way.
+
+use crate::Invalid;
+
+/// A sample format bit: eight bits a value (unsigned, 0x80 the middle), else sixteen.
+pub const EIGHT_BITS: u32 = 0x10;
+/// A sample format bit: one value a frame, else left and right.
+pub const MONO: u32 = 0x100;
+/// A channel's kind that goes back to its start at its end.
+pub const LOOPING: u32 = 1;
+
+/// What the mixer reads and changes of a channel.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct Channel {
+    /// 1 while it plays.
+    pub used: u32,
+    pub format: u32,
+    /// Its length in frames.
+    pub length: u32,
+    pub kind: u32,
+    /// The frame it is at, 32.32.
+    pub position: u32,
+    pub fraction: u32,
+    /// What a frame of the mix moves it, 32.32.
+    pub step: u32,
+    pub step_fraction: u32,
+    /// The volumes the sample is multiplied by.
+    pub left: i32,
+    pub right: i32,
+}
+
+/// The frame at `position` of a channel's data, (left, right) before the volumes (a mono
+/// sample is both); `byte` reads the data at an offset (the original's offsets wrap).
+fn sample(format: u32, position: u32, byte: &dyn Fn(u32) -> u8) -> (i32, i32) {
+    let b = |at: u32| byte(at) as i32 - 0x80;
+    let w = |at: u32| i16::from_le_bytes([byte(at), byte(at.wrapping_add(1))]) as i32;
+    match (format & EIGHT_BITS != 0, format & MONO != 0) {
+        (true, true) => {
+            let s = b(position);
+            (s, s)
+        }
+        (true, false) => {
+            let at = position.wrapping_mul(2);
+            (b(at), b(at.wrapping_add(1)))
+        }
+        (false, true) => {
+            let s = w(position.wrapping_mul(2));
+            (s, s)
+        }
+        (false, false) => {
+            let at = position.wrapping_mul(4);
+            (w(at), w(at.wrapping_add(2)))
+        }
+    }
+}
+
+/// `frames` frames of every playing channel added into `mix` (zeroed first, left and right
+/// a frame); `data(n, offset)` is a byte of channel `n`'s sample data. After each frame a
+/// channel's position steps; at its length a looping channel goes back to 0 (the fraction
+/// kept), any other stops playing. Refused (before anything): no channels or no frames
+/// with one playing (the original's counts then run 2^32 times), more frames than `mix`
+/// holds.
+pub fn mix_channels(
+    frames: u32,
+    channels: &mut [Channel],
+    data: &dyn Fn(usize, u32) -> u8,
+    mix: &mut [i32],
+) -> Result<(), Invalid> {
+    if channels.is_empty() {
+        return Err(Invalid(
+            "no channels (the original's count runs 2^32 times)",
+        ));
+    }
+    if frames as usize * 2 > mix.len() {
+        return Err(Invalid("more frames than the mix buffer holds"));
+    }
+    if frames == 0 && channels.iter().any(|c| c.used == 1) {
+        return Err(Invalid(
+            "no frames to mix (the original's count runs 2^32 times)",
+        ));
+    }
+    let mix = &mut mix[..frames as usize * 2];
+    mix.fill(0);
+    for (n, c) in channels.iter_mut().enumerate() {
+        if c.used != 1 {
+            continue;
+        }
+        let byte = |at: u32| data(n, at);
+        for out in mix.as_chunks_mut::<2>().0 {
+            let (l, r) = sample(c.format, c.position, &byte);
+            out[0] = out[0].wrapping_add(l.wrapping_mul(c.left));
+            out[1] = out[1].wrapping_add(r.wrapping_mul(c.right));
+            let (fraction, carry) = c.fraction.overflowing_add(c.step_fraction);
+            c.fraction = fraction;
+            c.position = c.position.wrapping_add(c.step).wrapping_add(carry as u32);
+            if c.position >= c.length {
+                if c.kind == LOOPING {
+                    c.position = 0;
+                } else {
+                    c.used = 0;
+                    break;
+                }
+            }
+        }
+    }
+    Ok(())
+}
+
+/// The bytes a frame of the sound buffer's format (`mode`'s `EIGHT_BITS` and `MONO`):
+/// 1, 2 or 4 (sixteen bits are always stereo here).
+pub fn frame_bytes(mode: u32) -> usize {
+    match (mode & EIGHT_BITS != 0, mode & MONO != 0) {
+        (false, _) => 4,
+        (true, true) => 1,
+        (true, false) => 2,
+    }
+}
+
+/// The mix clipped into the sound buffer's parts (each as many whole frames as fit), in
+/// its format: eight bits mono (left + right `>> 15`), eight bits stereo (each `>> 14`),
+/// held to -0x80 ..= 0x7F and moved up by 0x80; else sixteen bits stereo (each `>> 14`,
+/// held to -0x8000 ..= 0x7FFF). Refused (before anything): more frames than `mix` holds;
+/// sixteen bits with a right sample that clips (the original loops for ever there: its
+/// clamp goes back to the left sample's store).
+pub fn write_mix(mode: u32, mix: &[i32], parts: &mut [&mut [u8]]) -> Result<(), Invalid> {
+    let size = frame_bytes(mode);
+    let total: usize = parts.iter().map(|p| p.len() / size).sum();
+    if total * 2 > mix.len() {
+        return Err(Invalid("more frames than the mix buffer holds"));
+    }
+    if size == 4
+        && mix[..total * 2]
+            .as_chunks::<2>()
+            .0
+            .iter()
+            .any(|f| !(-0x8000..=0x7FFF).contains(&(f[1] >> 14)))
+    {
+        return Err(Invalid(
+            "a sixteen-bit right sample that clips (the original loops for ever)",
+        ));
+    }
+    let byte = |v: i32| (v.clamp(-0x80, 0x7F) as u8).wrapping_add(0x80);
+    let mut frames = mix.as_chunks::<2>().0.iter();
+    for part in parts.iter_mut() {
+        for out in part.chunks_exact_mut(size) {
+            let f = frames.next().expect("counted above");
+            let (l, r) = (f[0], f[1]);
+            match size {
+                4 => {
+                    out[..2]
+                        .copy_from_slice(&((l >> 14).clamp(-0x8000, 0x7FFF) as i16).to_le_bytes());
+                    out[2..].copy_from_slice(&((r >> 14) as i16).to_le_bytes());
+                }
+                1 => out[0] = byte(l.wrapping_add(r) >> 15),
+                _ => {
+                    out[0] = byte(l >> 14);
+                    out[1] = byte(r >> 14);
+                }
+            }
+        }
+    }
+    Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn mixes_and_writes() {
+        // Two channels: a looping eight-bit mono one of 3 frames, a sixteen-bit stereo one
+        // that ends after 2.
+        let data: [Vec<u8>; 2] = [vec![0x90, 0x70, 0x80], vec![1, 0, 2, 0, 3, 0, 4, 0]];
+        let mut channels = [
+            Channel {
+                used: 1,
+                format: EIGHT_BITS | MONO,
+                length: 3,
+                kind: LOOPING,
+                step: 1,
+                left: 2,
+                right: 3,
+                ..Channel::default()
+            },
+            Channel {
+                used: 1,
+                length: 2,
+                step: 1,
+                left: 1,
+                right: 1,
+                ..Channel::default()
+            },
+        ];
+        let mut mix = [7i32; 10];
+        mix_channels(4, &mut channels, &|n, at| data[n][at as usize], &mut mix).unwrap();
+        assert_eq!(
+            &mix[..8],
+            &[0x20 + 1, 0x30 + 2, -0x20 + 3, -0x30 + 4, 0, 0, 0x20, 0x30]
+        );
+        assert_eq!(mix[8], 7);
+        assert_eq!((channels[0].position, channels[0].used), (1, 1));
+        assert_eq!((channels[1].position, channels[1].used), (2, 0));
+        // Eight bits stereo, split over two parts.
+        let mix = [0x4000 * 3, -0x4000 * 200, 0, 0x4000];
+        let (mut a, mut b) = ([0u8; 2], [0u8; 2]);
+        write_mix(EIGHT_BITS, &mix, &mut [&mut a, &mut b]).unwrap();
+        assert_eq!((a, b), ([0x83, 0x00], [0x80, 0x81]));
+        // Sixteen bits: a right sample that clips is refused.
+        let mut c = [0u8; 4];
+        assert!(write_mix(0, &[0, 0x4000 * 0x9000], &mut [&mut c]).is_err());
+        assert!(mix_channels(1, &mut [], &|_, _| 0, &mut [0; 2]).is_err());
+    }
+}

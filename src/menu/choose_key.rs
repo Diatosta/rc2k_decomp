@@ -10,9 +10,11 @@ use crate::screens::harness::{CallOriginal, Left};
 use crate::service::harness::{at, capture, check_state, dispatch_state, restore};
 
 pub fn choose_key(place: u32) {
+    // Converted: `rc2k_core::menu::player::Redefining`.
+    let r = rc2k_core::menu::player::Redefining::start(place);
     unsafe {
-        game_write(REDEFINING_RVA, 1u32);
-        game_write(PLACE_RVA, place);
+        game_write(REDEFINING_RVA, r.on);
+        game_write(PLACE_RVA, r.place);
     }
 }
 
@@ -28,6 +30,14 @@ pub fn dispatch_choose(hook: &RawHook, r: &mut Regs, call_original: CallOriginal
         &[at(REDEFINING_RVA), at(PLACE_RVA)],
         &rust,
     );
+}
+
+/// `dispatch_choose` without its hook (typed tables).
+pub fn choose_entry(r: &mut Regs, place: u32) -> Result<(), Refused> {
+    crate::service::harness::state_entry(r, &move |_: &Regs| -> Result<Left, Refused> {
+        choose_key(place);
+        Ok(Left::nothing())
+    })
 }
 
 pub fn check_choose(t: &mut SelfTest, call_original: CallOriginal, place: u32) {

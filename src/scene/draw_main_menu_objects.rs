@@ -10,14 +10,11 @@
 //! `scene::draw_main_menu_carousel`. Each is entered with the registers the one
 //! before left.
 //! Reached through the menus' scene lists.
-//! Shadow mode runs the original alone. Manual patch with a private copy: a call in
-//! the first bytes.
-//! Self-test: a redirected copy whose seven calls note themselves.
+//! Hook removed 2026-10-22 (typed tables): the menus and draw lists run its `entry`
+//! (`menu::table_calls`); the registers above are the original's, for reference.
 
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, SelfTest, call_game, game_addr, hook_asm, rva, shadow};
-use crate::install::stand_ins::{act, set_handler, stand_in};
-use crate::redirect::RedirectedCopy;
+use crate::framework::{Regs, rva};
 use crate::scene::assign_kind_textures::assign_kind_textures;
 use crate::scene::assign_menu_textures::assign_menu_textures;
 use crate::scene::choose_carousel_pictures::choose_carousel_pictures;
@@ -27,28 +24,6 @@ use crate::scene::draw_main_menu_carousel::draw_main_menu_carousel;
 use crate::scene::load_slot_texture::load_slot_texture_in_game;
 use crate::scene::load_slot_textures::load_slot_textures;
 use crate::scene::map_texture_places::map_texture_places;
-use std::sync::Mutex;
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook = RawHook::new(
-    "scene::draw_main_menu_objects",
-    rva(0x490106),
-    thunk,
-    &ORIGINAL,
-)
-.private_copy(LEN)
-.relocate_calls(&CALLS)
-.manual_patch()
-.self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
 
 const STEPS: [usize; 7] = [
     rva(0x44E967),
@@ -74,14 +49,9 @@ pub unsafe fn draw_main_menu_objects(
     Ok(())
 }
 
-// ---- hook ----
-
-extern "C" fn dispatch(r: &mut Regs) {
-    HOOK.count_call();
-    if shadow() {
-        unsafe { call_original(r) };
-        return;
-    }
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     let done = unsafe {
         draw_main_menu_objects(r, &mut |n, r| {
             match n {
@@ -100,73 +70,6 @@ extern "C" fn dispatch(r: &mut Regs) {
             Ok(())
         })
     };
-    if let Err(e) = done {
-        unsafe { crate::fatal::raise::refused(&HOOK, e, r, call_original) }
-    }
-}
-
-// ---- self-test ----
-
-const LEN: usize = 0x26;
-const ENTRY_BYTES: [u8; 6] = [0x60, 0xE8, 0x5B, 0xE8, 0xFB, 0xFF];
-const CALLS: [usize; 7] = [0x01, 0x06, 0x0B, 0x10, 0x15, 0x1A, 0x1F];
-
-/// Each call: its place and eax, ecx as it was entered with.
-static CALLED: Mutex<Vec<[u32; 3]>> = Mutex::new(Vec::new());
-
-fn handler(place: u32, r: &mut Regs) {
-    CALLED.lock().unwrap().push([place, r.eax, r.ecx]);
-    r.eax = r.eax.wrapping_mul(7).wrapping_add(place);
-    r.ecx ^= 1 << place;
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let copy = unsafe {
-        RedirectedCopy::new(
-            game_addr(rva(0x490106)),
-            LEN,
-            &ENTRY_BYTES,
-            &CALLS,
-            &|callee| {
-                STEPS
-                    .iter()
-                    .position(|&step| step == callee)
-                    .map(|place| stand_in(place as u32))
-            },
-        )
-    };
-    let copy = match copy {
-        Ok(copy) => copy,
-        Err(why) => return t.skip(why),
-    };
-    for ecx in [0u32, 0xFFFF_FFFF, 0x1234_5678] {
-        let run = |rust: bool| unsafe {
-            CALLED.lock().unwrap().clear();
-            set_handler(handler);
-            let before = Regs {
-                ecx,
-                ..Regs::SENTINEL
-            };
-            let kept = if rust {
-                draw_main_menu_objects(&before, &mut |n, r| {
-                    act(n as u32, r);
-                    Ok(())
-                })
-                .is_ok()
-            } else {
-                let mut r = before;
-                call_game(&mut r, copy.addr());
-                r.preserved_except(&before, 0)
-            };
-            (kept, CALLED.lock().unwrap().clone())
-        };
-        let (theirs, mine) = (run(false), run(true));
-        t.check(theirs == mine && theirs.0 && theirs.1.len() == 7, || {
-            format!("ecx {ecx:#x}: original {theirs:x?}; rust {mine:x?}")
-        });
-    }
-    t.finish()
+    done?;
+    Ok(())
 }

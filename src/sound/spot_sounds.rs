@@ -10,27 +10,15 @@
 //! What the callees refuse puts back what was written (sounds already sent stay sent).
 //! Shadow mode runs the original alone (it sends sounds).
 //! Self-test: a copy whose eight calls go to stand-ins, against the Rust version.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, SelfTest, game_addr, hook_asm, rva};
-use crate::sound::turn_parts::{Part, REQUEST, both, copy_of, dispatch_turn, run_copy};
-use std::sync::atomic::AtomicUsize;
+use crate::framework::{Regs, game_addr, rva};
+use crate::sound::turn_parts::{Part, REQUEST, turn_entry};
 
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("sound::spot_sounds", rva(0x40E611), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
-
-const LEN: usize = 0x31;
-const OUTS: [usize; 8] = [0x07, 0x0C, 0x11, 0x16, 0x1B, 0x20, 0x25, 0x2A];
-const ENTRY: [u8; 7] = [0x60, 0x8D, 0x35, 0xBC, 0x24, 0x51, 0x00];
 const STEPS: [u32; 8] = [
     0x40E642, 0x40E6F4, 0x40E733, 0x40E7CA, 0x40E97D, 0x40EAF3, 0x40EB44, 0x40EB9E,
 ];
@@ -48,31 +36,8 @@ pub fn spot_sounds_in(r: &mut Regs, part: Part) -> Result<(), Refused> {
     Ok(())
 }
 
-// ---- hook ----
-
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_turn(&HOOK, r, call_original, spot_sounds_in, None);
-}
-
-// ---- self-test ----
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let copy = match copy_of(0x40E611, LEN, &ENTRY, &OUTS, &STEPS) {
-        Ok(c) => c,
-        Err(why) => return t.skip(why),
-    };
-    both(
-        &mut t,
-        "the calls",
-        &run_copy(&copy),
-        Regs::SENTINEL,
-        &|| {},
-        &[],
-        spot_sounds_in,
-        false,
-    );
-    t.finish()
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    turn_entry(r, spot_sounds_in)
 }

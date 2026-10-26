@@ -13,80 +13,40 @@
 //! its 200 entries, a name past the entry, a player count of 0 or past 4, a player missing
 //! or without a name, before anything. Self-test: the original and the Rust version on the
 //! game's tables, the players' groups by lot; put back.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 use crate::errors::{BadInput, Refused};
-use crate::framework::{RawHook, Regs, SelfTest, game_addr, game_read, game_write, hook_asm, rva};
+use crate::framework::{Regs, game_addr, game_read, rva};
 use crate::menu::standings::*;
 use crate::race::stage_prefs::left_of;
 use crate::screens::harness::Left;
-use crate::service::harness::{Region, at, capture, check_state, dispatch_state, restore};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook = RawHook::new(
-    "menu::standings_b_from_all",
-    rva(0x4A44A0),
-    thunk,
-    &ORIGINAL,
-)
-.private_copy(0x1A4)
-.relocate_calls(&CALLS)
-.manual_patch()
-.self_test(self_test);
-
-/// Its calls (the first in the patched bytes).
-const CALLS: [usize; 7] = [0x1, 0xA9, 0xAE, 0xEC, 0x123, 0x15A, 0x191];
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
+use crate::service::harness::state_entry;
 
 const NAMES_RVA: usize = rva(0x741E88); // g_driverNames
-const EXTRA: [usize; 1] = [PLAYER_COUNT_RVA];
-const CASES: u32 = 4;
-
 /// Each group's (0 .. 3) players, in order, into the table's entries from the group's slot
 /// down (`player_to_standing_b`, ebx the player's index).
 unsafe fn players_by_group(
     entry: &Regs,
     first: u32,
     size: u32,
-    slots: [u32; 4],
+    firsts: [usize; 4],
 ) -> Result<(), Refused> {
     let players = counted_players()?;
-    for (group, slot) in slots.into_iter().enumerate() {
-        let mut edi = first + slot;
-        for (n, &p) in players.iter().enumerate() {
-            if get(p + 0x90) == group as u32 {
-                unsafe {
-                    crate::menu::player_to_standing_b::player_to_standing_b(&Regs {
-                        edi,
-                        esi: p,
-                        ebx: n as u32,
-                        ..*entry
-                    })
-                }?;
-                edi -= size;
-            }
-        }
+    let groups: Vec<u32> = players.iter().map(|&p| get(p + 0x90)).collect();
+    // Converted: `rc2k_core::menu::standings::by_group`.
+    for (n, e) in rc2k_core::menu::standings::by_group(&groups, firsts) {
+        unsafe {
+            crate::menu::player_to_standing_b::player_to_standing_b(&Regs {
+                edi: first + size * e as u32,
+                esi: players[n],
+                ebx: n as u32,
+                ..*entry
+            })
+        }?;
     }
     Ok(())
-}
-
-fn test_entry(_case: u32) -> Regs {
-    Regs::SENTINEL
-}
-
-fn prepare(case: u32) {
-    unsafe { game_write(PLAYER_COUNT_RVA, 1 + case) };
-    for n in 0..4u32 {
-        if player(n) != 0 {
-            put(player(n) + 0x90, (n * 3 + case) % 4);
-        }
-    }
 }
 
 /// The Rust version (see the header): the registers it leaves.
@@ -112,67 +72,24 @@ pub unsafe fn standings_b_from_all(entry: &Regs) -> Result<Regs, Refused> {
         texts.push(text);
     }
     unsafe { crate::menu::init_standings_b::init_standings_b(entry) }?;
-    for (n, (&d, text)) in drivers.iter().zip(texts).enumerate() {
-        let e = first + B_ENTRY * n as u32;
-        put(e + 4, 0);
-        put(e + 0x10, get(d + 8));
-        put(e + 8, get(d + 0x14));
-        put(e + 0xC, get(d + 0x18));
-        put(e, get(d));
-        put(e + 0x34, get(d + 0x10));
-        for k in 0..14 {
-            put(e + 0x38 + 4 * k, get(d + 0x5C + 4 * k));
-        }
-        unsafe { std::ptr::copy_nonoverlapping(text.as_ptr(), (e + 0x14) as *mut u8, text.len()) };
+    // Converted: `rc2k_core::menu::standings::fill_b_from_driver`.
+    let count = drivers.len() as u32;
+    let all = unsafe { table(drivers[0], DRIVER, count) };
+    let mut t = unsafe { table(first, B_ENTRY, count) };
+    for (n, text) in texts.into_iter().enumerate() {
+        rc2k_core::menu::standings::fill_b_from_driver(&mut t, n, &all, n, &text);
     }
-    unsafe { players_by_group(entry, first, B_ENTRY, [0x29B8, 0x37C8, 0x4F38, 0x53E8]) }?;
+    use rc2k_core::menu::standings::B_GROUP_FIRSTS;
+    unsafe { players_by_group(entry, first, B_ENTRY, B_GROUP_FIRSTS) }?;
     Ok(*entry)
-}
-
-fn regions() -> Vec<Region> {
-    vec![(unsafe { game_read(TABLE_B_RVA) }, (200 * B_ENTRY) as usize)]
 }
 
 fn rust(r: &Regs) -> Result<Left, Refused> {
     Ok(left_of(&unsafe { standings_b_from_all(r) }?))
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    let regions = regions();
-    dispatch_state(&HOOK, r, call_original, &regions, &rust);
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let regions = regions();
-    if regions.iter().any(|&(p, _)| p == 0) {
-        return t.skip("the game's tables are not there");
-    }
-    let mut vars = regions.clone();
-    vars.extend(EXTRA.map(at));
-    let saved = capture(&vars);
-    // The probe runs on the saved tables: it writes what the tests write.
-    let refused = unsafe { standings_b_from_all(&test_entry(0)) }.is_err();
-    restore(&vars, &saved);
-    if refused {
-        return t.skip("the Rust version refuses the game's tables");
-    }
-    for case in 0..CASES {
-        check_state(
-            &mut t,
-            &format!("case {case}"),
-            call_original,
-            test_entry(case),
-            &|| {
-                restore(&vars, &saved);
-                prepare(case);
-            },
-            &regions,
-            &rust,
-        );
-    }
-    restore(&vars, &saved);
-    t.finish()
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    state_entry(r, &rust)
 }

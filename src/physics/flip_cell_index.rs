@@ -13,7 +13,7 @@
 use crate::errors::Refused;
 use crate::framework::{EAX, EBX, EDX, RawHook, Regs, SelfTest, call_game, hook_asm, rva};
 use crate::screens::harness::Left;
-use crate::service::harness::dispatch_state;
+use crate::service::harness::{dispatch_state, state_entry};
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -28,25 +28,9 @@ hook_asm!(
     original = ORIGINAL
 );
 
-/// The core: (eax, ebx, edx) out.
-pub fn flip_cell_index(way: u32, ebx: u32, edx: u32) -> (u32, u32, u32) {
-    let way = way & 7;
-    let (mut b, mut d) = (ebx, edx);
-    if way >= 4 {
-        std::mem::swap(&mut b, &mut d);
-    }
-    match way {
-        1 | 7 => b ^= 1,
-        2 | 4 => d ^= 1,
-        3 | 5 => {
-            b ^= 1;
-            d ^= 1;
-        }
-        _ => {}
-    }
-    let d = d.wrapping_add(d).wrapping_add(b);
-    (way, b, d)
-}
+/// The Rust version: (eax, ebx, edx) out.
+// Converted: `rc2k_core::physics::ground::flip_cell_index`.
+pub use rc2k_core::physics::ground::flip_cell_index;
 
 fn rust(r: &Regs) -> Result<Left, Refused> {
     let (a, b, d) = flip_cell_index(r.eax, r.ebx, r.edx);
@@ -55,6 +39,12 @@ fn rust(r: &Regs) -> Result<Left, Refused> {
 
 extern "C" fn dispatch(r: &mut Regs) {
     dispatch_state(&HOOK, r, call_original, &[], &rust);
+}
+
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    state_entry(r, &rust)
 }
 
 fn self_test() -> (usize, usize) {

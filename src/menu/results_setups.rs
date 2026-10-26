@@ -82,16 +82,9 @@ pub fn rank(by_totals: bool) -> Result<(), Refused> {
     } else {
         players(4)?.iter().map(|&r| get(r + 0x88)).collect()
     };
-    let mut pairs: Vec<(u32, u32)> = (0..4u32).map(|k| (4 * k, values[k as usize])).collect();
-    for i in 0..3 {
-        for j in i + 1..4 {
-            let (vi, vj) = (pairs[i].1 as i32, pairs[j].1 as i32);
-            let exchange = if by_totals { vj >= vi } else { vj <= vi };
-            if exchange {
-                pairs.swap(i, j);
-            }
-        }
-    }
+    // Converted: `rc2k_core::menu::results::rank`.
+    let pairs =
+        rc2k_core::menu::results::rank([values[0], values[1], values[2], values[3]], by_totals);
     let targets: Vec<u32> = pairs
         .iter()
         .map(|&(o, _)| place_pointer(o))
@@ -131,25 +124,13 @@ fn points(position: u32) -> Result<u32, Refused> {
     Ok(g(POINTS_TABLE_RVA + 4 * position as usize))
 }
 
-fn bonus(time: u32, target: u32) -> u32 {
-    if time as i32 > target as i32 {
-        0
-    } else {
-        target.wrapping_sub(time)
-    }
-}
-
 /// `menu::score_four_players` (`n` 4) or `score_two_players` (`n` 2).
 pub fn score(n: usize) -> Result<(), Refused> {
     let records = players(n as u32)?;
     let target = stage_time()?;
     let times: Vec<u32> = records.iter().map(|&r| get(r + 0x88)).collect();
     let positions: Vec<u32> = if n == 2 {
-        if (times[1] as i32) < times[0] as i32 {
-            vec![2, 1]
-        } else {
-            vec![1, 2]
-        }
+        rc2k_core::menu::results::two_places([times[0], times[1]]).to_vec()
     } else {
         (0..n).map(|k| g(POSITIONS_RVA + 4 * k)).collect()
     };
@@ -165,15 +146,20 @@ pub fn score(n: usize) -> Result<(), Refused> {
         p(POSITIONS_RVA, positions[0]);
         p(POSITIONS_RVA + 4, positions[1]);
     }
+    // Converted: `rc2k_core::menu::results::score`.
     for k in 0..n {
-        p(POINTS_RVA + 4 * k, earned[k]);
-        p(BONUS_RVA + 4 * k, bonus(times[k], target));
-        p(EXTRA_RVA + 4 * k, get(records[k] + 0x94));
-        let sum = g(POINTS_RVA + 4 * k)
-            .wrapping_add(g(BONUS_RVA + 4 * k))
-            .wrapping_add(g(EXTRA_RVA + 4 * k));
-        p(SUM_RVA + 4 * k, sum);
-        p(TOTALS_RVA + 4 * k, g(BEFORE_RVA + 4 * k).wrapping_add(sum));
+        let sc = rc2k_core::menu::results::score(
+            g(BEFORE_RVA + 4 * k),
+            earned[k],
+            times[k],
+            target,
+            get(records[k] + 0x94),
+        );
+        p(POINTS_RVA + 4 * k, sc.points);
+        p(BONUS_RVA + 4 * k, sc.bonus);
+        p(EXTRA_RVA + 4 * k, sc.extra);
+        p(SUM_RVA + 4 * k, sc.sum);
+        p(TOTALS_RVA + 4 * k, sc.total);
     }
     Ok(())
 }

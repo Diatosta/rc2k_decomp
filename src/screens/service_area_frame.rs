@@ -16,33 +16,13 @@
 //! versions (the lock, unlock, show and the scene's layer the platform's). Shadow mode runs
 //! the original alone (it draws). Self-test: a copy whose calls go to stand-ins setting
 //! carry by the case, against the Rust version, every way out.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, SelfTest, call_game, game_addr, hook_asm, rva, shadow};
-use std::sync::atomic::{AtomicU32, AtomicUsize, Ordering};
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook = RawHook::new(
-    "screens::service_area_frame",
-    rva(0x46CFD7),
-    thunk,
-    &ORIGINAL,
-)
-.private_copy(0x42)
-.relocate_calls(&CALLS)
-.manual_patch()
-.self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
-
-/// The calls' offsets (the first inside the patched bytes: hence the private copy).
-const CALLS: [usize; 10] = [0x1, 0x8, 0xD, 0x12, 0x19, 0x1E, 0x23, 0x2A, 0x2F, 0x34];
+use crate::framework::{Regs, rva};
 
 /// A call by place (see the header).
 pub type Part<'a> = &'a mut dyn FnMut(u32, &mut Regs) -> Result<(), Refused>;
@@ -77,13 +57,13 @@ pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
     use crate::screens::{draw_service_area, draw_service_boxes};
     unsafe {
         match place {
-            1 => call_game(r, game_addr(rva(0x4058AD))),
+            1 => crate::calls::call(rva(0x4058AD), r),
             2 => crate::gfx::copy_picture_to_surface::copy_picture_to_surface(
                 &mut crate::gfx::copy_picture_to_surface::GameSurface,
             )?,
-            3 => call_game(r, game_addr(rva(0x405949))),
+            3 => crate::calls::call(rva(0x405949), r),
             4 => crate::scene::begin_scene::begin_scene(r, &mut |r| {
-                call_game(r, game_addr(rva(0x41ABC7)))
+                crate::calls::call(rva(0x41ABC7), r)
             }),
             5 => {
                 *r = draw_service_boxes::draw_service_boxes(r, &mut draw_service_boxes::game_part)?
@@ -93,90 +73,21 @@ pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
                     draw_service_area::draw_service_area(&mut crate::text::draw_text::GameCanvas)?;
                 r.set_carry(carry);
             }
-            9 => call_game(r, game_addr(rva(0x4057D1))),
-            _ => crate::scene::end_scene::end_scene(r, &mut |r| {
-                call_game(r, game_addr(rva(0x41AB8A)))
-            }),
+            9 => crate::calls::call(rva(0x4057D1), r),
+            _ => {
+                crate::scene::end_scene::end_scene(r, &mut |r| crate::calls::call(rva(0x41AB8A), r))
+            }
         }
     }
     Ok(())
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    HOOK.count_call();
+/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     if crate::screens::blanked("screens::service_area_frame") {
-        return;
+        return Ok(());
     }
-    if shadow() {
-        unsafe { call_original(r) };
-        return;
-    }
-    match unsafe { service_area_frame(r, &mut game_part) } {
-        Ok(left) => *r = Regs { esp: r.esp, ..left },
-        Err(e) => unsafe { crate::fatal::raise::refused(&HOOK, e, r, call_original) },
-    }
-}
-
-/// The places whose stand-ins set carry in this case (a bit each).
-static CARRY: AtomicU32 = AtomicU32::new(0);
-
-fn note(place: u32, r: &mut Regs) {
-    crate::race::level_init::note(place, r);
-    r.set_carry(CARRY.load(Ordering::SeqCst) & (1 << place) != 0);
-    r.eax = place;
-}
-
-fn self_test() -> (usize, usize) {
-    use crate::race::level_init::take_called;
-    use crate::race::mud::copy;
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    // pusha; call gfx::lock_surface
-    let entry: &[u8] = &[0x60, 0xE8, 0xD0, 0x88, 0xF9, 0xFF];
-    let copy = match copy(
-        0x46CFD7,
-        0x42,
-        entry,
-        &CALLS,
-        &[
-            (0x4058AD, 1),
-            (0x4060E3, 2),
-            (0x405949, 3),
-            (0x44E8A1, 4),
-            (0x4940BC, 5),
-            (0x44E952, 10),
-            (0x4A5FA2, 7),
-            (0x4057D1, 9),
-        ],
-    ) {
-        Ok(c) => c,
-        Err(why) => return t.skip(why),
-    };
-    crate::install::stand_ins::set_handler(note);
-    let regs = |r: &Regs| {
-        (
-            [r.eax, r.ebx, r.ecx, r.edx, r.esi, r.edi, r.ebp],
-            r.carry(),
-            r.eflags & 0x40 != 0,
-        )
-    };
-    for carry in [0u32, 1 << 1, 1 << 4, 1 << 9, 0x200 | 0x10] {
-        CARRY.store(carry, Ordering::SeqCst);
-        take_called();
-        let mut ro = Regs::SENTINEL;
-        unsafe { call_game(&mut ro, copy.addr()) };
-        let theirs = (Some(regs(&ro)), take_called());
-        let mine = unsafe {
-            service_area_frame(&Regs::SENTINEL, &mut |p, r| {
-                note(p, r);
-                Ok(())
-            })
-        };
-        let mine = (mine.as_ref().ok().map(regs), take_called());
-        t.check(theirs == mine, || {
-            format!("carry {carry:#x}: original {theirs:x?}; rust {mine:x?}")
-        });
-    }
-    t.finish()
+    let left = unsafe { service_area_frame(r, &mut game_part) }?;
+    *r = Regs { esp: r.esp, ..left };
+    Ok(())
 }

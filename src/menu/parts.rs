@@ -41,6 +41,18 @@ pub fn dispatch_parted(
     }
 }
 
+/// `dispatch_parted` outside shadow mode, without its hook (typed tables, 2026-10-22: the entry the menus' and draw lists' enums run, with no hook).
+pub fn parted_entry(
+    r: &mut Regs,
+    rust: Parted,
+    game_part: fn(u32, &mut Regs) -> Result<(), Refused>,
+) -> Result<(), Refused> {
+    let mut part = game_part;
+    let left = rust(r, &mut part)?;
+    *r = Regs { esp: r.esp, ..left };
+    Ok(())
+}
+
 /// What a stand-in does after noting the call.
 #[derive(Clone, Copy, Debug, Default)]
 pub struct Answer {

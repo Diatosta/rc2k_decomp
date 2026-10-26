@@ -16,32 +16,16 @@
 //! Shadow mode runs the original alone (it sends a sound).
 //! Self-test: a copy whose jumps out go to stand-ins, against the Rust version
 //! (`turn_parts::test_car_sound`).
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
+use crate::framework::Regs;
 use crate::physics::flow::{base, x87_run};
-use crate::sound::turn_parts::{PLACED, Part, STOP, dispatch_turn, test_car_sound};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook = RawHook::new("sound::speed_sound", rva(0x40DE09), thunk, &ORIGINAL)
-    .private_copy(LEN)
-    .relocate_calls(&OUTS)
-    .manual_patch()
-    .self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
-
-const LEN: usize = 0x92;
-/// The jumps to `sound::stop_sound` and the one to `sound::play_placed_sound`.
-const OUTS: [usize; 6] = [0x19, 0x26, 0x30, 0x3D, 0x4A, 0x8C];
-const ENTRY: [u8; 10] = [0x8B, 0x03, 0x85, 0xC0, 0x0F, 0x88, 0x87, 0x00, 0x00, 0x00];
+use crate::sound::turn_parts::{PLACED, Part, STOP, turn_entry};
+use rc2k_core::sound::engine::{computers, speed_stopped};
 
 // ---- Rust version ----
 
@@ -52,8 +36,9 @@ pub fn speed_sound_in(c: &mut Regs, part: Part) -> Result<(), Refused> {
     let o = c.ebx;
     let w = |at: u32| unsafe { ((o + at) as *const u32).read_unaligned() };
     let q = c.esi as *mut u32;
+    // Converted: `rc2k_core::sound::engine` (`computers`, `speed_stopped`).
     c.eax = w(0);
-    if (c.eax as i32) < 0 {
+    if computers(c.eax) {
         return Ok(());
     }
     if c.edi == 0 {
@@ -64,7 +49,7 @@ pub fn speed_sound_in(c: &mut Regs, part: Part) -> Result<(), Refused> {
         .eax
         .wrapping_add(unsafe { (c.ebp as *const u32).read_unaligned() });
     unsafe { q.write_unaligned(c.eax) };
-    if w(0x10C) == 0 || w(0x10C) == 1 || w(0x24) == 1 || w(0xF4) != 0 || w(0xAC) != 0 {
+    if speed_stopped(w(0x10C), || w(0x24), || w(0xF4), || w(0xAC)) {
         return part(STOP, c);
     }
     x87_run!(
@@ -100,26 +85,8 @@ pub fn speed_sound_in(c: &mut Regs, part: Part) -> Result<(), Refused> {
     part(PLACED, c)
 }
 
-// ---- hook ----
-
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_turn(&HOOK, r, call_original, speed_sound_in, None);
-}
-
-// ---- self-test ----
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    test_car_sound(
-        &mut t,
-        0x40DE09,
-        LEN,
-        &ENTRY,
-        &OUTS,
-        speed_sound_in,
-        &[(0x24, &[0, 1]), (0xF4, &[0, 2]), (0xAC, &[0, 1])],
-    );
-    t.finish()
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    turn_entry(r, speed_sound_in)
 }

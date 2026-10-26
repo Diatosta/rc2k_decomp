@@ -48,6 +48,19 @@ extern "C" fn dispatch(r: &mut Regs) {
     }
 }
 
+/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    {
+        let g = unsafe { locate_current_course(r, &mut locate_part) }?;
+        *r = Regs {
+            esp: r.esp,
+            eflags: r.eflags,
+            ..g
+        }
+    }
+    Ok(())
+}
+
 fn self_test() -> (usize, usize) {
     use crate::race::mud::{copy, run_both, test_part};
     use crate::service::harness::{capture, restore};

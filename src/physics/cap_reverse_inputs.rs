@@ -7,15 +7,15 @@
 //! Out: every register kept; no flags read (the caller's next is a call)
 //!
 //! Caller: `sub_43DFB1` (0x43E519).
-//! Self-test: a copy of the original (its four variables the test's) against the core:
+//! Self-test: a copy of the original (its four variables the test's) against the converted
+//! version (compares and copies of floats only: exact at any precision):
 //! gears, speeds about 0 and NaN, values about the cap.
 
 use crate::errors::Refused;
 use crate::framework::{RawHook, Regs, SelfTest, call_game, game_addr, game_read, hook_asm, rva};
-use crate::math::x87;
 use crate::screens::harness::Left;
-use crate::service::harness::{capture, dispatch_state};
-use std::cmp::Ordering;
+use crate::service::harness::{capture, dispatch_state, state_entry};
+use rc2k_core::physics::drive_forces::cap_reverse;
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -38,31 +38,28 @@ hook_asm!(
 const CAP_RVA: usize = rva(0x5C5D3C); // flt_5C5D3C, 2.0
 const ZERO_RVA: usize = rva(0x5C5D90); // flt_5C5D90, 0.0
 
-/// C0 of comparing `a` with `b`: below, or unordered.
-fn below(a: u32, b: u32) -> bool {
-    !matches!(
-        f32::from_bits(a).partial_cmp(&f32::from_bits(b)),
-        Some(Ordering::Greater | Ordering::Equal)
-    )
-}
-
 unsafe fn at(a: u32) -> u32 {
     unsafe { (a as *const u32).read_unaligned() }
 }
 
-/// The core: the gear, the speed and the two values at these places.
+/// The converted version (`rc2k_core::physics::drive_forces`) on the gear, the speed and
+/// the two values at these places.
+// Converted: `rc2k_core::physics::drive_forces::cap_reverse`.
 pub unsafe fn cap_reverse_inputs_at(gear: u32, speed: u32, values: [u32; 2]) {
     unsafe {
         if at(gear) != u32::MAX {
-            return;
+            return; // the speed and the values not read, as the original
         }
-        if below(at(speed), game_read(ZERO_RVA)) {
+        let f = |a: u32| f32::from_bits(at(a));
+        let zero = f32::from_bits(game_read(ZERO_RVA));
+        let cap = f32::from_bits(game_read(CAP_RVA));
+        let Some(held) = cap_reverse(at(gear), f(speed), zero, [f(values[0]), f(values[1])], cap)
+        else {
             return;
-        }
-        let cap: u32 = game_read(CAP_RVA);
-        for v in values {
-            if !below(at(v), cap) {
-                (v as *mut u32).write_unaligned(x87::loaded(cap));
+        };
+        for (v, h) in values.iter().zip(held) {
+            if at(*v) != h.to_bits() {
+                (*v as *mut u32).write_unaligned(h.to_bits());
             }
         }
     }
@@ -73,20 +70,27 @@ fn game() -> (u32, u32, [u32; 2]) {
     (g(0x71A1AC), g(0x71A184), [g(0x614234), g(0x614238)])
 }
 
-/// The Rust version.
+/// The Rust version (compares and copies of floats only: the same at any precision).
 pub unsafe fn cap_reverse_inputs() {
     let (gear, speed, values) = game();
     unsafe { cap_reverse_inputs_at(gear, speed, values) }
 }
 
 fn rust(_: &Regs) -> Result<Left, Refused> {
-    unsafe { cap_reverse_inputs() };
+    let (gear, speed, values) = game();
+    unsafe { cap_reverse_inputs_at(gear, speed, values) };
     Ok(Left::nothing())
 }
 
 extern "C" fn dispatch(r: &mut Regs) {
     let (_, _, values) = game();
     dispatch_state(&HOOK, r, call_original, &[(values[0], 8)], &rust);
+}
+
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    state_entry(r, &rust)
 }
 
 fn self_test() -> (usize, usize) {

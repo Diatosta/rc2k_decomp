@@ -1,0 +1,9 @@
+[package]
+name = "rc2k_core"
+version = "0.1.0"
+edition = "2024"
+
+# The game's logic as plain Rust: no platform, no hooks; builds and tests on Linux and
+# Windows (`notes/conversion.md`).
+[dependencies]
+miniz_oxide = "0.8"

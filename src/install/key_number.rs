@@ -7,53 +7,27 @@
 //!      flags of `cmp bl, 3`
 //! Caller `install::page_key`, reading zero. Shadow mode compares. Self-test: items of the
 //! test's against the original, keys 2, 5, 0xA.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
-use crate::install::installer::{CF, ZF, cmp, rb, rd};
-use crate::race::viewer::dispatch_regs;
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("install::key_number", rva(0x4147DC), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
+use crate::framework::Regs;
+use crate::install::key_up::item_key;
+use crate::race::viewer::regs_entry;
+use rc2k_core::install::items::ItemKey;
 
 pub fn key_number(entry: &Regs) -> Result<Regs, Refused> {
-    let mut r = *entry;
-    r.ecx = (r.eax as u8 as u32).wrapping_sub(2);
-    let kind = rb(r.esi) & 0x0F;
-    r.ebx = r.ebx & !0xFF | kind as u32;
-    if kind == 0x2 {
-        return crate::install::choice_by_number::choice_by_number(&r);
-    }
-    if kind == 0x3 {
-        return crate::install::value_by_number::value_by_number(&r);
-    }
-    cmp(&mut r, kind as u32, 0x3);
-    Ok(r)
-}
-
-extern "C" fn dispatch(r: &mut Regs) {
-    let target = (rd(r.esi + 8), 1usize);
-    dispatch_regs(&HOOK, r, call_original, &[target], CF | ZF, &key_number);
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
+    // Converted: `rc2k_core::install::items` (`number_of_key`, `ItemKey::helper`).
+    let r = Regs {
+        ecx: rc2k_core::install::items::number_of_key(entry.eax as u8),
+        ..*entry
     };
-    crate::install::item_test::run(
-        &mut t,
-        call_original,
-        &key_number,
-        crate::install::item_test::any,
-    );
-    t.finish()
+    item_key(&r, ItemKey::Number)
+}
+
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    regs_entry(r, &key_number)
 }

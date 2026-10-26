@@ -41,3 +41,14 @@ extern "C" fn dispatch(r: &mut Regs) {
     }
     unsafe { call_original(r) };
 }
+
+/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    if standalone() {
+        #[cfg(feature = "standalone")]
+        crate::platform_3d::hold_texture("d3d::copy_to_device_texture", r.eax, r.ebx);
+        return Ok(());
+    }
+    unsafe { crate::framework::call_game(r, crate::framework::game_addr(rva(0x41A8F9))) };
+    Ok(())
+}

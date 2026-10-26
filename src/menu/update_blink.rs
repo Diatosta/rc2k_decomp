@@ -16,26 +16,13 @@
 //! arithmetic on the clock value it used.
 //! Manual patch with a private copy (0x95 bytes, one call relocated): a call sits in the
 //! first bytes.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
-use crate::framework::{RawHook, Regs, SelfTest, game_read, game_write, hook_asm, rva, shadow};
+use crate::framework::{Regs, game_read, game_write, rva};
 use crate::menu::update_frame_clock::{CLOCK_RVA, update_frame_clock};
-use crate::service::harness::{at, capture, restore};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook = RawHook::new("menu::update_blink", rva(0x47E826), thunk, &ORIGINAL)
-    .private_copy(0x95)
-    .relocate_calls(&[1])
-    .manual_patch()
-    .self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
 
 // ---- game data ----
 
@@ -45,23 +32,11 @@ pub const BLINK_OFF_RVA: usize = rva(0x7556AC); // dword_7556AC: 1 = the highlig
 const BLINK_RVA: usize = rva(0x7559A4); // dword_7559A4
 const CURSOR_ON_RVA: usize = rva(0x7559A8); // dword_7559A8
 const IDLE_RVA: usize = rva(0x755551); // dword_755551
-const IDLE_AFTER_MS: i32 = 300_000;
 
 // ---- Rust version ----
 
-/// (highlight blink, cursor on, idle) for a clock value.
-pub fn blink_states(
-    clock: u32,
-    last_key: u32,
-    cursor_time: u32,
-    blink_off: u32,
-) -> (u32, u32, u32) {
-    let since_key = clock.wrapping_sub(last_key);
-    let blink = (blink_off != 1 && since_key & 0x100 == 0) as u32;
-    let cursor_on = (clock.wrapping_sub(cursor_time) & 0x200 == 0) as u32;
-    let idle = (since_key as i32 >= IDLE_AFTER_MS) as u32;
-    (blink, cursor_on, idle)
-}
+// Converted: `rc2k_core::menu::blink::blink_states`.
+pub use rc2k_core::menu::blink::blink_states;
 
 /// What the three variables should be for the clock the game holds now.
 unsafe fn states_now() -> (u32, u32, u32) {
@@ -71,16 +46,6 @@ unsafe fn states_now() -> (u32, u32, u32) {
             game_read(LAST_KEY_TIME_RVA),
             game_read(CURSOR_TIME_RVA),
             game_read(BLINK_OFF_RVA),
-        )
-    }
-}
-
-unsafe fn stored() -> (u32, u32, u32) {
-    unsafe {
-        (
-            game_read(BLINK_RVA),
-            game_read(CURSOR_ON_RVA),
-            game_read(IDLE_RVA),
         )
     }
 }
@@ -95,79 +60,8 @@ pub fn update_blink() {
     }
 }
 
-// ---- hook ----
-
-extern "C" fn dispatch(r: &mut Regs) {
-    HOOK.count_call();
-    if !shadow() {
-        update_blink();
-        return;
-    }
-    let mut o = *r;
-    unsafe { call_original(&mut o) };
-    let (theirs, mine) = unsafe { (stored(), states_now()) };
-    if theirs != mine || !o.preserved_except(r, 0) {
-        HOOK.mismatch(|| {
-            format!(
-                "clock={} last_key={} cursor_time={}: original {theirs:?} rust {mine:?}",
-                unsafe { game_read::<u32>(CLOCK_RVA) },
-                unsafe { game_read::<u32>(LAST_KEY_TIME_RVA) },
-                unsafe { game_read::<u32>(CURSOR_TIME_RVA) }
-            )
-        });
-    }
-}
-
-// ---- self-test: times since the last key on both sides of every boundary ----
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let regions = [
-        at(CLOCK_RVA),
-        at(LAST_KEY_TIME_RVA),
-        at(CURSOR_TIME_RVA),
-        at(BLINK_OFF_RVA),
-        at(BLINK_RVA),
-        at(CURSOR_ON_RVA),
-        at(IDLE_RVA),
-    ];
-    let saved = capture(&regions);
-    // The real clock is read by both versions, so each is checked against the arithmetic on
-    // the clock value it stored. Distances are kept well inside their half-periods, so a few
-    // milliseconds between the runs do not move them across a boundary... except by intent.
-    for since_key in [50u32, 300, 600, 299_000, 300_500, 1_000_000] {
-        for since_cursor in [100u32, 700, 1100] {
-            for blink_off in [0u32, 1, 2] {
-                let run = |f: &dyn Fn()| unsafe {
-                    let now = crate::system::tick_count::tick_count();
-                    game_write(LAST_KEY_TIME_RVA, now.wrapping_sub(since_key));
-                    game_write(CURSOR_TIME_RVA, now.wrapping_sub(since_cursor));
-                    game_write(BLINK_OFF_RVA, blink_off);
-                    for rva in [BLINK_RVA, CURSOR_ON_RVA, IDLE_RVA] {
-                        game_write(rva, 0x5EEDu32);
-                    }
-                    f();
-                    (stored(), states_now())
-                };
-                let before = Regs::SENTINEL;
-                let preserved = std::cell::Cell::new(true);
-                let (stored_o, wanted_o) = run(&|| {
-                    let mut ro = before;
-                    unsafe { call_original(&mut ro) };
-                    preserved.set(ro.preserved_except(&before, 0));
-                });
-                let (stored_r, wanted_r) = run(&update_blink);
-                t.check(stored_o == wanted_o && stored_r == wanted_r && preserved.get(), || {
-                    format!(
-                        "since_key={since_key} since_cursor={since_cursor} blink_off={blink_off}: original {stored_o:?} (arithmetic says {wanted_o:?}) preserved={}; rust {stored_r:?} ({wanted_r:?})",
-                        preserved.get()
-                    )
-                });
-            }
-        }
-    }
-    restore(&regions, &saved);
-    t.finish()
+/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
+pub fn entry(_: &mut Regs) -> Result<(), crate::errors::Refused> {
+    update_blink();
+    Ok(())
 }

@@ -10,8 +10,9 @@
 //!      or load floats next)
 //!
 //! Callers: `sub_421848`, `sub_43CAAB`, `sub_43CB14`.
-//! Self-test: a copy of the original (its variables the test's) against the core: both
-//! drive kinds, speeds about the limit, words by lot, under three precisions.
+//! Self-test: a copy of the original (its variables the test's) against the converted
+//! version: both drive kinds, speeds about the limit, words by lot, exact at double
+//! precision.
 
 use crate::errors::Refused;
 use crate::framework::{RawHook, Regs, SelfTest, call_game, game_addr, game_read, hook_asm, rva};
@@ -19,9 +20,12 @@ use crate::math::x87;
 use crate::math::x87_run::{
     TEST_CONTROL_WORDS, abs_fidiv, int_fidiv, one_less_times_plus, with_control_word,
 };
+use crate::physics::copy_hooks_test::check_floats_at;
 use crate::scene::matrix3::test_floats;
 use crate::screens::harness::Left;
-use crate::service::harness::{capture, dispatch_state};
+use crate::service::floats::{FLOAT, Floats, dispatch_state_floats, floats_entry};
+use crate::service::harness::capture;
+use rc2k_core::physics::drive_forces::torque_share;
 use std::cmp::Ordering;
 use std::sync::atomic::AtomicUsize;
 
@@ -87,6 +91,34 @@ pub unsafe fn drive_torque_share_at(v: &[u32]) -> u32 {
     }
 }
 
+/// The converted version (`rc2k_core::physics::drive_forces`, plain floats) on the
+/// variables' addresses: eax as the original leaves it.
+// Converted: `rc2k_core::physics::drive_forces::torque_share`.
+pub unsafe fn drive_torque_share_plain_at(v: &[u32]) -> u32 {
+    unsafe {
+        let s = torque_share(
+            at(v[1]),
+            [k(0x613EEC), k(0x613EF0)],
+            f32::from_bits(at(v[2])),
+            k(0x613EF4) as i32,
+            f32::from_bits(k(0x5C5D38)),
+            at(v[5]),
+            f32::from_bits(at(v[7])),
+        );
+        put(v[0], s.n);
+        put(v[3], s.speed_share.to_bits());
+        put(v[4], s.drive_share.to_bits());
+        put(v[6], s.share.to_bits());
+        put(v[7], s.drive.to_bits());
+        s.less
+    }
+}
+
+/// The variables' addresses in the game (for `physics::drive_force`'s converted version).
+pub fn drive_torque_share_places() -> Vec<u32> {
+    game()
+}
+
 fn game() -> Vec<u32> {
     VARIABLES
         .iter()
@@ -94,25 +126,37 @@ fn game() -> Vec<u32> {
         .collect()
 }
 
-/// The Rust version: eax as the original leaves it.
+/// The Rust version (the exact one, for `physics::drive_force` and
+/// `physics::test_drive_run`): eax as the original leaves it.
 pub unsafe fn drive_torque_share() -> u32 {
     unsafe { drive_torque_share_at(&game()) }
 }
 
 fn rust(_: &Regs) -> Result<Left, Refused> {
-    let eax = unsafe { drive_torque_share() };
+    let eax = unsafe { drive_torque_share_plain_at(&game()) };
     Ok(Left::nothing().with(crate::framework::EAX, eax))
 }
 
 extern "C" fn dispatch(r: &mut Regs) {
     let v = game();
-    dispatch_state(
+    let floats = Floats {
+        memory: &[((v[3], 8), FLOAT), ((v[6], 4), FLOAT), ((v[7], 4), FLOAT)],
+        regs: &[],
+    };
+    dispatch_state_floats(
         &HOOK,
         r,
         call_original,
         &[(v[0], 4), (v[3], 8), (v[6], 4), (v[7], 4)],
+        &floats,
         &rust,
     );
+}
+
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    floats_entry(r, &rust)
 }
 
 fn self_test() -> (usize, usize) {
@@ -168,13 +212,26 @@ fn self_test() -> (usize, usize) {
                 unsafe { call_game(&mut ro, copy.addr()) };
                 let theirs = capture(&all);
                 fill();
-                let eax = unsafe { drive_torque_share_at(&v) };
+                let eax = unsafe { drive_torque_share_plain_at(&v) };
                 let mine = capture(&all);
                 let regs_ok =
                     ro.preserved_except(&Regs::SENTINEL, crate::framework::EAX) && ro.eax == eax;
-                t.check(regs_ok && theirs == mine, || {
-                    format!("control word {word:#x}, seed {seed}: regs_ok={regs_ok} original {theirs:x?}; rust {mine:x?}")
-                });
+                let floats = [((v[3], 8), FLOAT), ((v[6], 8), FLOAT)];
+                check_floats_at(
+                    &mut t,
+                    "physics::drive_torque_share",
+                    word,
+                    &all,
+                    &theirs,
+                    &mine,
+                    &floats,
+                    regs_ok,
+                    || {
+                        format!(
+                            "control word {word:#x}, seed {seed}: regs_ok={regs_ok} original {theirs:x?}; rust {mine:x?}"
+                        )
+                    },
+                );
             }
         });
     }

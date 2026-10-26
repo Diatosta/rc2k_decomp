@@ -14,48 +14,18 @@
 //! end entry, a section past 5, a player past 4 or missing, before anything; a driver not
 //! found is the search's fatal error, before anything. Self-test: the original and the
 //! Rust version on the game's tables, groups and sections by lot; put back.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 use crate::errors::{BadInput, Refused};
-use crate::framework::{RawHook, Regs, SelfTest, game_addr, game_read, game_write, hook_asm, rva};
+use crate::framework::{Regs, game_read, game_write, rva};
 use crate::menu::standings::*;
 use crate::race::stage_prefs::left_of;
 use crate::screens::harness::Left;
-use crate::service::harness::{Region, at, capture, check_state, dispatch_state, restore};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook = RawHook::new(
-    "menu::award_overall_points",
-    rva(0x4A4933),
-    thunk,
-    &ORIGINAL,
-)
-.self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
+use crate::service::harness::state_entry;
 
 const POINTS_RVA: usize = rva(0x7559AC); // seconds
-const EXTRA: [usize; 1] = [SECTION_RVA];
-const CASES: u32 = 4;
-
-fn test_entry(_case: u32) -> Regs {
-    Regs::SENTINEL
-}
-
-fn prepare(case: u32) {
-    unsafe { game_write(SECTION_RVA, [0u32, 2, 5, 3][case as usize]) };
-    if let Ok(all) = entries(unsafe { game_read(TABLE_B_RVA) }, B_ENTRY) {
-        for (k, &e) in all.iter().enumerate() {
-            put(e + 0x10, (k as u32 + case) % 3);
-        }
-    }
-}
-
 /// An entry's driver (with its number) or player (with its index).
 unsafe fn owner(entry: &Regs, e: u32) -> Result<(u32, u32, bool), Refused> {
     match get(e + 4) {
@@ -88,24 +58,22 @@ pub unsafe fn award_overall_points(entry: &Regs) -> Result<Regs, Refused> {
         for &e in &all {
             owners.push(owner(entry, e)?);
         }
+        // Converted: `rc2k_core::menu::points` (`Points`, `total`).
+        use rc2k_core::menu::points::{Points, total};
         let at = 4 * section;
-        game_write(POINTS_RVA, 0x14u32);
+        let mut points = Points::default();
+        game_write(POINTS_RVA, points.0);
         for (&e, &(o, _, cpu)) in all.iter().zip(&owners) {
             if get(e + 0x10) == 0 {
                 continue;
             }
-            let points: u32 = game_read(POINTS_RVA);
-            put(e + 0x38 + at, points);
-            if (points as i32) > 0 {
-                game_write(POINTS_RVA, points - 1);
-            }
-            put(o + if cpu { 0x5C } else { 0xB4 } + at, get(e + 0x38 + at));
+            let given = points.take();
+            game_write(POINTS_RVA, points.0);
+            put(e + 0x38 + at, given);
+            put(o + if cpu { 0x5C } else { 0xB4 } + at, given);
         }
         for (&e, &(o, number, cpu)) in all.iter().zip(&owners) {
-            let total = (0..6)
-                .map(|k| get(e + 0x38 + 4 * k) as i32)
-                .filter(|&v| v >= 0)
-                .fold(0u32, |s, v| s.wrapping_add(v as u32));
+            let total = total(std::array::from_fn(|k| get(e + 0x38 + 4 * k as u32)));
             put(e + 0x50, total);
             put(o + if cpu { 0x74 } else { 0xCC }, total);
             g.eax = number;
@@ -118,66 +86,12 @@ pub unsafe fn award_overall_points(entry: &Regs) -> Result<Regs, Refused> {
     Ok(g)
 }
 
-fn regions() -> Vec<Region> {
-    let table: u32 = unsafe { game_read(TABLE_B_RVA) };
-    let Ok(all) = entries(table, B_ENTRY) else {
-        return vec![(0, 0)];
-    };
-    let first = game_addr(DRIVERS_RVA) as u32;
-    let drivers = entries(first, DRIVER).map(|d| d.len()).unwrap_or(0);
-    let mut v = vec![
-        (table, all.len() * B_ENTRY as usize),
-        (first, drivers * DRIVER as usize),
-        at(POINTS_RVA),
-    ];
-    v.extend(
-        (0..4u32)
-            .map(|n| (player(n), 0x100))
-            .filter(|&(p, _)| p != 0),
-    );
-    v
-}
-
 fn rust(r: &Regs) -> Result<Left, Refused> {
     Ok(left_of(&unsafe { award_overall_points(r) }?))
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    let regions = regions();
-    dispatch_state(&HOOK, r, call_original, &regions, &rust);
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let regions = regions();
-    if regions.iter().any(|&(p, _)| p == 0) {
-        return t.skip("the game's tables are not there");
-    }
-    let mut vars = regions.clone();
-    vars.extend(EXTRA.map(at));
-    let saved = capture(&vars);
-    // The probe runs on the saved tables: it writes what the tests write.
-    let refused = unsafe { award_overall_points(&test_entry(0)) }.is_err();
-    restore(&vars, &saved);
-    if refused {
-        return t.skip("the Rust version refuses the game's tables");
-    }
-    for case in 0..CASES {
-        check_state(
-            &mut t,
-            &format!("case {case}"),
-            call_original,
-            test_entry(case),
-            &|| {
-                restore(&vars, &saved);
-                prepare(case);
-            },
-            &regions,
-            &rust,
-        );
-    }
-    restore(&vars, &saved);
-    t.finish()
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    state_entry(r, &rust)
 }

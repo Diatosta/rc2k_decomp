@@ -22,13 +22,13 @@ pub unsafe fn pick_player(n: u32) -> Result<(), Refused> {
         if p == 0 {
             return Err(BadInput("a player without its record").into());
         }
+        // Converted: `rc2k_core::screens::page_values` (`Player::picked`).
+        let (value, copy) = (p as *const rc2k_core::menu::player::Player)
+            .read_unaligned()
+            .picked();
         w(0x75598C, n);
-        w(0x7558C4, ((p + 0x2C) as *const u32).read_unaligned());
-        std::ptr::copy(
-            (p + 0x50) as *const u8,
-            game_addr(rva(0x7555B1)) as *mut u8,
-            0x2C,
-        );
+        w(0x7558C4, value);
+        game_write(rva(0x7555B1), copy);
         Ok(())
     }
 }
@@ -38,16 +38,15 @@ pub unsafe fn pick_player(n: u32) -> Result<(), Refused> {
 /// `dword_755680`, `dword_75567C`, `dword_755678`, `dword_755674`, `dword_755670`). Every
 /// register kept.
 pub unsafe fn load_audio_settings() {
-    for (from, to) in [
-        (0x506CA4u32, 0x75566Cu32),
-        (0x506CA8, 0x755680),
-        (0x506CB8, 0x75567C),
-        (0x506CB4, 0x755678),
-        (0x506CB0, 0x755674),
-        (0x506CAC, 0x755670),
-    ] {
-        w(to, k(from));
-    }
+    // Converted: `rc2k_core::screens::page_values::audio_page`.
+    let options: rc2k_core::audio::modes::AudioOptions =
+        unsafe { game_read(crate::audio::choose_modes::OPTIONS_RVA) };
+    unsafe {
+        game_write(
+            rva(0x75566C),
+            rc2k_core::screens::page_values::audio_page(&options),
+        )
+    };
 }
 
 /// `strings::append_string_by_id` into `out`.
@@ -59,27 +58,14 @@ unsafe fn push_id(out: &mut Vec<u8>, id: u32) {
 /// (`strings::append_fraction`), ": ", the name of its track-pack entry
 /// (`records::trakpak_entry`'s first dword, a string id), and its NUL.
 pub unsafe fn stage_line_bytes(id: u32, record: u32) -> Result<Vec<u8>, Refused> {
-    unsafe {
-        let mut line = Vec::new();
-        push_id(&mut line, id);
-        line.push(b' ');
-        line.extend(crate::strings::append_fraction::append_fraction(
-            ((record + 0x40) as *const u32).read_unaligned(),
-            6,
-        ));
-        line.extend(b": ");
-        let entry = crate::records::trakpak_entry::record_entry(record as *const u8)?;
-        push_id(&mut line, (entry as *const u32).read_unaligned());
-        line.push(0);
-        Ok(line)
-    }
+    Ok(unsafe { crate::screens::draw_stage_heading::heading_text(record as *const u8, id) }?)
 }
 
 /// The stage line both stage pages build in `byte_A8BD54`.
 unsafe fn stage_line(id: u32, record: u32) -> Result<(), Refused> {
     unsafe {
         let line = stage_line_bytes(id, record)?;
-        if line.len() > 0x100 {
+        if line.len() > rc2k_core::screens::page_values::STAGE_LINE_ROOM {
             return Err(BadInput("a stage line past its buffer").into());
         }
         std::ptr::copy_nonoverlapping(
@@ -126,14 +112,17 @@ pub unsafe fn stage_options_texts() -> Result<(), Refused> {
     unsafe {
         let (a, b) = (k(0x7556F8), k(0x75880E));
         stage_refuses(a, b)?;
+        // Converted: `rc2k_core::screens::page_values` (the items and the caption).
+        use rc2k_core::screens::page_values::{stage_options_caption, stage_options_items};
         let items = game_addr(rva(0x74DCE0)) as u32;
-        set_item(items, 1, if a == 1 { 0x19C } else { 0x19B });
-        set_item(items, 2, if k(0x7556FC) == 1 { 0x19E } else { 0x19D });
+        let (first, second) = stage_options_items(a, k(0x7556FC));
+        set_item(items, 1, first);
+        set_item(items, 2, second);
         let (base, record) = stage_record(a, b, k(0x758812));
         set_item(items, 3, ((base + 0x38) as *const u32).read_unaligned());
         stage_line(0x481, record)?;
         let mut caption = Vec::new();
-        push_id(&mut caption, 0x4FC + k(0x75AB30));
+        push_id(&mut caption, stage_options_caption(k(0x75AB30)));
         caption.push(0);
         std::ptr::copy_nonoverlapping(
             caption.as_ptr(),

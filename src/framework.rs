@@ -204,6 +204,26 @@ impl GameHook for RawHook {
     unsafe fn install(&self, addr: usize) -> Result<(), detour::Error> {
         unsafe {
             if self.private_copy_len > 0 {
+                // A rel32 call or jump out of the copy that is not relocated would go to
+                // whatever lies at the same distance from the copy (2026-10-20:
+                // `arcade_event`'s last call, a crash leaving the arcade): leave the hook
+                // unpatched, the original runs. One into this DLL is the patch of a hooked
+                // function inside the copy: relocated with the listed ones.
+                let code = std::slice::from_raw_parts(addr as *const u8, self.private_copy_len);
+                let dll = dll_range();
+                let mut patches = Vec::new();
+                for (off, target) in unlisted_branches_out(code, addr, self.relocs) {
+                    if dll.contains(&target) {
+                        patches.push(off);
+                        continue;
+                    }
+                    log(&format!(
+                        "{}: its private copy has a call or jump out at +{off:#x} that \
+                         `relocate_calls` does not list: not hooked",
+                        self.name
+                    ));
+                    return Err(detour::Error::UnsupportedInstruction);
+                }
                 // Copy the untouched function before patching it
                 let mem = VirtualAlloc(
                     null(),
@@ -215,7 +235,7 @@ impl GameHook for RawHook {
                 assert!(!mem.is_null(), "VirtualAlloc failed");
                 copy_nonoverlapping(addr as *const u8, mem, self.private_copy_len);
 
-                for &off in self.relocs {
+                for &off in self.relocs.iter().chain(&patches) {
                     // 'off' is the offset of an E8 (call) or E9 (jmp) instruction, or of a
                     // conditional near jump (0F 8x) out of the function, as the screen
                     // loops have to their fatal-error stubs.
@@ -311,29 +331,20 @@ impl HookStats {
 // as long as a test is running.
 // Every test pauses the game, those whose originals log included (2026-10-18: before, those
 // ran with the game going on, and a menu screen drawing in the meantime wrote what they
-// compared). A thread inside the log writer (the `log_lock` thunks, entered holding or about to
-// take `g_logLock`) never waits: a test that logs would wait for it. A thread that would wait
-// while `g_logLock` is taken and no `log_lock` thunk has finished for `LOG_LOCK_WAIT_MS` (a log
-// original running without its hook, holding the lock at a gate) is let through, logged. Only
-// the lock being taken is not enough: a test whose original logs line after line holds it most
-// of the time (`build_glyphs`, 2026-10-18, let the menu's drawing in).
+// compared). The log's lock (`g_logLock`) needs no exception (2026-10-22): no hooked
+// function is reached from the game's log code any more, so no thread waits at a gate
+// holding it (the escape that let a waiting thread through after 500 ms of a taken lock,
+// with the log's `log_lock` thunks, went with the `logfile` hooks).
 
 /// Thread running a self-test that pauses the game; 0 when there is none.
 static TEST_THREAD: AtomicU32 = AtomicU32::new(0);
 /// Threads that are inside a hook right now.
 static THREADS_IN_HOOKS: AtomicUsize = AtomicUsize::new(0);
 static PAUSE_TIMEOUTS: AtomicUsize = AtomicUsize::new(0);
-static LOG_LOCK_ESCAPES: AtomicUsize = AtomicUsize::new(0);
-const LOG_LOCK_RVA: usize = rva(0x4E009C); // g_logLock
-const LOG_LOCK_WAIT_MS: u32 = 500;
-/// `log_lock` thunks finished, by any thread: the log writer is making progress.
-static LOG_CALLS_DONE: AtomicUsize = AtomicUsize::new(0);
 
 thread_local! {
     /// How many hooks this thread is inside: hooked functions call hooked functions.
     static HOOK_DEPTH: Cell<u32> = const { Cell::new(0) };
-    /// How many `log_lock` thunks this thread is inside.
-    static LOG_DEPTH: Cell<u32> = const { Cell::new(0) };
 }
 
 fn other_thread_is_testing() -> bool {
@@ -348,30 +359,8 @@ pub extern "C" fn hook_enter() {
     if depth > 0 {
         return; // already inside a hook: never wait half way through one
     }
-    if LOG_DEPTH.get() > 0 {
-        THREADS_IN_HOOKS.fetch_add(1, Ordering::SeqCst);
-        return; // inside the log writer: a test that logs would wait for this thread
-    }
     loop {
-        let mut locked_ms = 0;
-        let mut done = LOG_CALLS_DONE.load(Ordering::SeqCst);
         while other_thread_is_testing() {
-            let now = LOG_CALLS_DONE.load(Ordering::SeqCst);
-            locked_ms = match unsafe { game_read::<u32>(LOG_LOCK_RVA) } {
-                0 => 0,
-                _ if now != done => 0,
-                _ => locked_ms + 1,
-            };
-            done = now;
-            if locked_ms >= LOG_LOCK_WAIT_MS {
-                if LOG_LOCK_ESCAPES.fetch_add(1, Ordering::SeqCst) < 5 {
-                    log(
-                        "GATE: a thread waited while g_logLock stayed taken and the log writer stood still; let through",
-                    );
-                }
-                THREADS_IN_HOOKS.fetch_add(1, Ordering::SeqCst);
-                return;
-            }
             unsafe { Sleep(1) };
         }
         THREADS_IN_HOOKS.fetch_add(1, Ordering::SeqCst);
@@ -390,17 +379,6 @@ pub extern "C" fn hook_leave() {
     if depth == 0 {
         THREADS_IN_HOOKS.fetch_sub(1, Ordering::SeqCst);
     }
-}
-
-/// Called by the `log_lock` thunks before `dispatch`.
-pub extern "C" fn log_enter() {
-    LOG_DEPTH.set(LOG_DEPTH.get() + 1);
-}
-
-/// Called by the `log_lock` thunks after `dispatch`.
-pub extern "C" fn log_leave() {
-    LOG_DEPTH.set(LOG_DEPTH.get() - 1);
-    LOG_CALLS_DONE.fetch_add(1, Ordering::SeqCst);
 }
 
 /// The self-test running now, for a crash report.
@@ -710,34 +688,6 @@ macro_rules! hook_asm {
         $crate::framework::hook_asm!(@call_original $call_original, $orig);
     };
 
-    // For the log writer, which the game enters holding `g_logLock` or about to take it: the
-    // thunk does not wait for self-tests, and neither do the hooks it reaches.
-    ($thunk:ident, $call_original:ident, dispatch = $dispatch:ident, original = $orig:ident, log_lock) => {
-        /// Detour target: the game calls this believing it is the original function.
-        #[unsafe(naked)]
-        pub(crate) unsafe extern "C" fn $thunk() {
-            core::arch::naked_asm!(
-                "pushfd",              // Regs.eflags
-                "pushad",
-                "cld",                 // Rust code expects the direction flag clear
-                "call {enter}",
-                "mov eax, esp",
-                "push eax",            // arg: *mut Regs
-                "call {dispatch}",
-                "add esp, 4",
-                "call {leave}",
-                "popad",
-                "popfd",               // the caller's flags, or what dispatch set
-                "ret",
-                dispatch = sym $dispatch,
-                enter = sym $crate::framework::log_enter,
-                leave = sym $crate::framework::log_leave,
-            )
-        }
-
-        $crate::framework::hook_asm!(@call_original $call_original, $orig);
-    };
-
     ($thunk:ident, $call_original:ident, dispatch = $dispatch:ident, original = $orig:ident
      $(, epilogue = $epilogue:literal)?) => {
         /// Detour target: the game calls this believing it is the original function.
@@ -812,3 +762,42 @@ macro_rules! hook_asm {
 }
 
 pub(crate) use hook_asm;
+
+/// The `call`, `jmp` and `jcc` with a 32-bit displacement in `code` (`original`'s bytes)
+/// whose target is outside it and which `listed` lacks, with their targets: what a private
+/// copy must relocate.
+fn unlisted_branches_out(code: &[u8], original: usize, listed: &[usize]) -> Vec<(usize, usize)> {
+    use iced_x86::{Decoder, DecoderOptions, OpKind};
+    let end = original + code.len();
+    let mut found = Vec::new();
+    let mut decoder = Decoder::with_ip(32, code, original as u64, DecoderOptions::NONE);
+    while decoder.can_decode() {
+        let insn = decoder.decode();
+        let offset = insn.ip() as usize - original;
+        let rel32 = matches!(code.get(offset), Some(0xE8 | 0xE9))
+            || (code.get(offset) == Some(&0x0F)
+                && code
+                    .get(offset + 1)
+                    .is_some_and(|b| (0x80..=0x8F).contains(b)));
+        if rel32 && insn.op0_kind() == OpKind::NearBranch32 {
+            let target = insn.near_branch_target() as usize;
+            if !(original..end).contains(&target) && !listed.contains(&offset) {
+                found.push((offset, target));
+            }
+        }
+    }
+    found
+}
+
+/// This DLL's image (its base and `SizeOfImage`).
+fn dll_range() -> std::ops::Range<usize> {
+    let base = dll_base();
+    if base == 0 {
+        return 0..0;
+    }
+    unsafe {
+        let pe = base + (base as *const u8).add(0x3C).cast::<u32>().read_unaligned() as usize;
+        let size = ((pe + 0x50) as *const u32).read_unaligned() as usize;
+        base..base + size
+    }
+}

@@ -9,15 +9,19 @@
 //! Callers (2): `sub_43B635` (0x43B644, 0x43B94D), the car's physics step under
 //! `sub_4454D2`.
 //! Self-test: a copy of the original on test variables (its call to the
-//! `vector_length` hook kept), vectors by lot under three precisions.
+//! `vector_length` hook kept) against the converted version, vectors by lot, exact at
+//! double precision.
 
 use crate::errors::Refused;
 use crate::framework::{RawHook, Regs, SelfTest, call_game, game_addr, hook_asm, rva};
 use crate::math::x87_run::{TEST_CONTROL_WORDS, with_control_word};
+use crate::physics::copy_hooks_test::check_floats_at;
 use crate::physics::vector_length::vector_length;
 use crate::scene::matrix3::{rounded, test_floats};
+use crate::scene::vector3::read_floats;
 use crate::screens::harness::Left;
-use crate::service::harness::dispatch_state;
+use crate::service::floats::{FLOAT, Floats, dispatch_state_floats, floats_entry};
+use rc2k_core::physics::motion::motion_length;
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -45,19 +49,37 @@ pub unsafe fn store_length(v: u32, out: u32) {
     unsafe { (out as *mut u32).write_unaligned(rounded(vector_length(v))) }
 }
 
-/// The Rust version.
+/// The converted version (`rc2k_core::physics::motion`, plain floats) on the vector at
+/// `v` and the length at `out`.
+// Converted: `rc2k_core::physics::motion::motion_length`.
+pub unsafe fn store_length_plain(v: u32, out: u32) {
+    unsafe { (out as *mut u32).write_unaligned(motion_length(read_floats(v)).to_bits()) }
+}
+
+/// The Rust version (the exact one, for `physics::car_physics_step` and
+/// `physics::keep_motion_vectors`).
 pub unsafe fn store_motion_length() {
     unsafe { store_length(game_addr(MOTION_RVA) as u32, game_addr(LENGTH_RVA) as u32) }
 }
 
 fn rust(_: &Regs) -> Result<Left, Refused> {
-    unsafe { store_motion_length() };
+    unsafe { store_length_plain(game_addr(MOTION_RVA) as u32, game_addr(LENGTH_RVA) as u32) };
     Ok(Left::nothing())
 }
 
 extern "C" fn dispatch(r: &mut Regs) {
     let out = (game_addr(LENGTH_RVA) as u32, 4);
-    dispatch_state(&HOOK, r, call_original, &[out], &rust);
+    let floats = Floats {
+        memory: &[(out, FLOAT)],
+        regs: &[],
+    };
+    dispatch_state_floats(&HOOK, r, call_original, &[out], &floats, &rust);
+}
+
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    floats_entry(r, &rust)
 }
 
 fn self_test() -> (usize, usize) {
@@ -99,14 +121,27 @@ fn self_test() -> (usize, usize) {
                 unsafe { call_game(&mut ro, copy.addr()) };
                 let theirs = unsafe { (v as *const [u32; 4]).read() };
                 fill(seed);
-                unsafe { store_length(v as u32, out as u32) };
+                unsafe { store_length_plain(v as u32, out as u32) };
                 let mine = unsafe { (v as *const [u32; 4]).read() };
                 let regs_ok = ro.preserved_except(&Regs::SENTINEL, 0);
-                t.check(regs_ok && theirs == mine, || {
-                    format!(
-                        "control word {word:#x}, seed {seed}: regs_ok={regs_ok} original {theirs:x?}; rust {mine:x?}"
-                    )
-                });
+                let bytes =
+                    |w: [u32; 4]| w.iter().flat_map(|d| d.to_le_bytes()).collect::<Vec<u8>>();
+                let floats = [((out as u32, 4), FLOAT)];
+                check_floats_at(
+                    &mut t,
+                    "physics::store_motion_length",
+                    word,
+                    &[(v as u32, 16)],
+                    &bytes(theirs),
+                    &bytes(mine),
+                    &floats,
+                    regs_ok,
+                    || {
+                        format!(
+                            "control word {word:#x}, seed {seed}: regs_ok={regs_ok} original {theirs:x?}; rust {mine:x?}"
+                        )
+                    },
+                );
             }
         });
     }

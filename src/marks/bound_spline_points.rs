@@ -8,13 +8,16 @@
 //! Self-test: the original and the Rust version on a record of the test's (0 .. 0x80
 //! points) with the two vectors by lot, the refusal; the game's vectors put back
 //! afterwards.
+//!
+//! Converted 2026-10-21: the box through `rc2k_core::marks::splines::bounds`; the sizes
+//! made floats and the angle stay the x87's. Compared exactly as before.
 
 use crate::errors::Refused;
 use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
 use crate::marks::splines::*;
 use crate::race::stage_prefs::left_of;
 use crate::screens::harness::Left;
-use crate::service::harness::{Region, capture, check_state, dispatch_state, restore};
+use crate::service::harness::{Region, capture, check_state, dispatch_state, restore, state_entry};
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -47,6 +50,12 @@ fn rust(r: &Regs) -> Result<Left, Refused> {
 extern "C" fn dispatch(r: &mut Regs) {
     let regions = regions(r.ebp);
     dispatch_state(&HOOK, r, call_original, &regions, &rust);
+}
+
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    state_entry(r, &rust)
 }
 
 fn self_test() -> (usize, usize) {

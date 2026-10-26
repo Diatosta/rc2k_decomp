@@ -10,38 +10,24 @@
 //! callers (the player details screens).
 //! Refuses no player or no name.
 //! Self-test: the four players' names, both blinks, nothing drawn.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{RawHook, Regs, SelfTest, game_read, game_write, hook_asm, rva};
-use crate::menu::player::{Player, player_at};
-use crate::screens::draw_menu_item_text::text_unavailable;
-use crate::screens::font_at;
-use crate::screens::harness::{Left, check_draw, dispatch_draw};
-use crate::service::harness::{Region, at, capture, restore};
+use crate::framework::{Regs, game_read, rva};
+use crate::menu::player::Player;
+use crate::screens::harness::{Left, draw_entry};
+use crate::service::harness::capture;
 use crate::strings::text_from_ids::{TEXT_LEN, text};
-use crate::text::draw_string_by_id::draw_string_by_id_at;
 use crate::text::draw_text::Canvas;
-use crate::text::measure_text::measure_text_at;
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("screens::draw_name_cursor", rva(0x467D6C), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
 
 // ---- game data ----
 
 pub const BLINK_RVA: usize = rva(0x7559A8); // dword_7559A8
 pub const MEASURING_FONT: usize = 0x51E824;
 pub const FONT: usize = 0x51E8C4;
-const CURSOR: u32 = 4;
 
 // ---- Rust version ----
 
@@ -59,20 +45,15 @@ pub unsafe fn draw_name_cursor(
         if name == 0 {
             return Err(BadInput("a player without its name").into());
         }
-        let measured =
-            measure_text_at(font_at(MEASURING_FONT), name as *const u8, x as i32, canvas)?;
-        let blink: u32 = game_read(BLINK_RVA);
-        if blink == 1 {
-            let at = measured.width.wrapping_add(0x1BB) as i32;
-            Ok(draw_string_by_id_at(CURSOR, font_at(FONT), at, 0xD4, canvas)?.too_wide)
-        } else {
-            // Not drawn: the carry of its `cmp dword_7559A8, 1`.
-            Ok(blink < 1)
-        }
+        // Converted: `rc2k_core::screens::player_details::name_cursor`.
+        rc2k_core::screens::player_details::name_cursor(
+            &mut crate::screens::game_screen::DetailsScreen::new(canvas),
+            name,
+            x as i32,
+            game_read(BLINK_RVA),
+        )
     }
 }
-
-// ---- hook ----
 
 fn rust(r: &Regs, canvas: &mut dyn Canvas) -> Result<Left, Refused> {
     Ok(Left::carry(unsafe {
@@ -87,50 +68,8 @@ pub fn state() -> Vec<u8> {
     capture(&[(text() as u32, TEXT_LEN)])
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_draw(&HOOK, r, call_original, &rust, &state);
-}
-
-// ---- self-test ----
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    if let Some(why) = text_unavailable() {
-        return t.skip(why);
-    }
-    // The blink, the measuring font (written) and the text buffer.
-    let regions: [Region; 3] = [
-        at(BLINK_RVA),
-        (
-            crate::framework::game_addr(rva(MEASURING_FONT)) as u32,
-            0x20,
-        ),
-        (text() as u32, TEXT_LEN),
-    ];
-    let saved = capture(&regions);
-    for index in 0..4u32 {
-        let player = player_at(index);
-        if player == 0 || unsafe { (player as *const Player).read_unaligned() }.name == 0 {
-            continue;
-        }
-        for blink in [0u32, 1] {
-            check_draw(
-                &mut t,
-                &format!("player {index}, blink {blink}"),
-                call_original,
-                Regs {
-                    edi: player,
-                    ecx: 0x1BB,
-                    ..Regs::SENTINEL
-                },
-                &|| unsafe { game_write(BLINK_RVA, blink) },
-                &rust,
-                &state,
-            );
-        }
-    }
-    restore(&regions, &saved);
-    t.finish()
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    draw_entry("screens::draw_name_cursor", r, &rust)
 }

@@ -14,18 +14,18 @@ use crate::text::draw_text::{Canvas, draw_text_at};
 /// in the font at 0x51DE90 as "fps: n" (its size; built in the text buffer). Gives what
 /// `draw_text` leaves, or nothing.
 pub unsafe fn draw_frame_rate(canvas: &mut dyn Canvas) -> Result<Left, Refused> {
+    // Converted: `rc2k_core::race::frame_rate::{shown_rate, fps_text}`.
+    use rc2k_core::race::frame_rate::{fps_text, shown_rate};
     unsafe {
         game_write(rva(0x5C6604), 2u32);
-        let rate = crate::math::x87::to_int(game_read(rva(0x6214F0))) as u32;
-        game_write(rva(0x62400C), rate);
+        let rate = shown_rate(f32::from_bits(game_read(rva(0x6214F0))));
+        game_write(rva(0x62400C), rate as u32);
         if rate == 0 || game_read::<u32>(rva(0x5EB100)) == 0 {
             return Ok(Left::nothing());
         }
         let t = text();
-        std::ptr::copy_nonoverlapping(b"fps:    ".as_ptr(), t, 8);
-        let digits = crate::strings::format_u32::format_u32((rate as i32).wrapping_abs() as u32, 0);
-        std::ptr::copy_nonoverlapping(digits.as_ptr(), t.add(5), digits.len());
-        *t.add(5 + digits.len()) = 0;
+        let bytes = fps_text(rate);
+        std::ptr::copy_nonoverlapping(bytes.as_ptr(), t, bytes.len());
         let out = draw_text_at(font_at(0x51DE90), t, 0x190, 4, canvas)?;
         Ok(Left::of_text(&out))
     }
@@ -41,8 +41,9 @@ unsafe fn credit_line(
     y: i32,
     canvas: &mut dyn Canvas,
 ) -> Result<Left, Refused> {
+    // Converted: `rc2k_core::race::credits::shown`.
     unsafe {
-        if y <= -0x1B || y >= game_read::<u32>(rva(0x4F4950)) as i32 {
+        if !rc2k_core::race::credits::shown(y, game_read(rva(0x4F4950))) {
             return Ok(Left::nothing());
         }
         let out = draw_string_by_id_at(id, font as *mut crate::text::font::Font, x, y, canvas)?;
@@ -71,105 +72,56 @@ pub unsafe fn roll_credits(
     sound: &mut dyn FnMut(&Regs),
     entry: &Regs,
 ) -> Result<Rolled, Refused> {
+    // Converted: `rc2k_core::race::credits::{start_top, lay_out, catch_up, rolled_off}`.
     use crate::system::tick_count::tick_count;
+    use rc2k_core::race::credits::{Font, catch_up, lay_out, rolled_off, start_top};
     unsafe {
         let width = game_read::<u32>(rva(0x4F494C)) as i32;
         let height: u32 = game_read(rva(0x4F4950));
         if eax == 0 {
             game_write(rva(0x529850), tick_count());
-            game_write(rva(0x52984C), height.wrapping_add(0x15E));
+            let top = start_top(height);
+            game_write(rva(0x52984C), top);
             game_write(rva(0x529854), 0u32);
             // eax holds the top when the tune is sent, and is tested on the way out.
-            let top = height.wrapping_add(0x15E);
             sound(&Regs { eax: top, ..*entry });
             return Ok(Rolled {
                 carry: false,
                 zero: top == 0,
             });
         }
-        let mut at = crate::framework::game_addr(rva(0x529858)) as u32;
-        let mut y = game_read::<u32>(rva(0x52984C)) as i32;
-        let word = |at: &mut u32| -> u32 {
-            let v = (*at as *const u16).read_unaligned() as u32;
-            *at += 2;
-            v
-        };
-        let line_height = |font: u32| {
-            ((crate::framework::game_addr(rva(font as usize)) as u32 + 8) as *const i32)
-                .read_unaligned()
-        };
-        loop {
-            let op = word(&mut at);
-            let font = match op {
-                1 => Some((0x51E8A4u32, width >> 1, true)),
-                2 => Some((0x51E6A4, width >> 1, true)),
-                7 => Some((0x51E564, width >> 1, true)),
-                8 => Some((0x51E584, width >> 4, true)),
-                3 => Some((0x51E6E4, (width >> 1) - 0xF, false)),
-                4 => Some((0x51E6C4, (width >> 1) + 0xF, true)),
-                _ => None,
+        let font_of = |f: Font| {
+            let at = match f.0 {
+                1 => 0x51E8A4,
+                2 => 0x51E6A4,
+                3 => 0x51E6E4,
+                4 => 0x51E6C4,
+                7 => 0x51E564,
+                _ => 0x51E584,
             };
-            if let Some((f, x, moves)) = font {
-                let id = word(&mut at);
-                let line_y = y;
-                if moves {
-                    y = y.wrapping_add(line_height(f));
-                }
-                credit_line(
-                    id,
-                    crate::framework::game_addr(rva(f as usize)) as u32,
-                    x,
-                    line_y,
-                    canvas,
-                )?;
-                continue;
-            }
-            match op {
-                5 => {
-                    let w = width as u32;
-                    let edge = width >> 4;
-                    let column = (w.wrapping_sub(edge as u32).wrapping_sub(edge as u32) / 3) as i32;
-                    let f = crate::framework::game_addr(rva(0x51E6C4)) as u32;
-                    for k in 0..3 {
-                        let id = word(&mut at);
-                        let line_y = y;
-                        if k == 2 {
-                            y = y.wrapping_add(line_height(0x51E6C4));
-                        }
-                        credit_line(
-                            id,
-                            f,
-                            column.wrapping_mul(k).wrapping_add(edge),
-                            line_y,
-                            canvas,
-                        )?;
-                    }
-                }
-                6 => {
-                    let step = (at as *const i16).read_unaligned() as i32;
-                    at += 2;
-                    y = y.wrapping_add(step);
-                }
-                9 => {}
-                _ => break,
-            }
+            crate::framework::game_addr(rva(at)) as u32
+        };
+        let mut at = crate::framework::game_addr(rva(0x529858)) as u32;
+        let (lines, below) = lay_out(
+            || {
+                let v = (at as *const u16).read_unaligned();
+                at += 2;
+                v
+            },
+            width,
+            game_read::<u32>(rva(0x52984C)) as i32,
+            |f| ((font_of(f) + 8) as *const i32).read_unaligned(),
+        );
+        for line in lines {
+            credit_line(line.id, font_of(line.font), line.x, line.y, canvas)?;
         }
-        let mut elapsed;
-        loop {
-            elapsed = tick_count().wrapping_sub(game_read(rva(0x529850)));
-            if (elapsed.wrapping_sub(0x12) as i32) < 0 {
-                break;
-            }
-            game_write(
-                rva(0x52984C),
-                game_read::<u32>(rva(0x52984C)).wrapping_sub(1),
-            );
-            game_write(
-                rva(0x529850),
-                game_read::<u32>(rva(0x529850)).wrapping_add(0x12),
-            );
-        }
-        if y > -0xAF || game_read::<u32>(rva(0x506990)) == 1 {
+        let (top, clock, elapsed) =
+            catch_up(game_read(rva(0x52984C)), game_read(rva(0x529850)), || {
+                tick_count()
+            });
+        game_write(rva(0x52984C), top);
+        game_write(rva(0x529850), clock);
+        if !rolled_off(below, game_read(rva(0x506990))) {
             return Ok(Rolled {
                 carry: false,
                 zero: elapsed == 0,

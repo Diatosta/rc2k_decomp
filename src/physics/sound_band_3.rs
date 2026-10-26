@@ -9,9 +9,9 @@
 
 use crate::errors::Refused;
 use crate::framework::{RawHook, Regs, game_addr, hook_asm, rva};
-use crate::physics::sound_bands::{SCRATCH, Twin, band, test_twin};
+use crate::physics::sound_bands::{SCRATCH, Twin, band_plain, test_twin};
 use crate::screens::harness::Left;
-use crate::service::harness::dispatch_state;
+use crate::service::harness::{dispatch_state, state_entry};
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -28,13 +28,14 @@ hook_asm!(
 
 pub const TWIN: Twin = (0x45D0F1, 0x6D3CD0, 0x6D1AE8, 10);
 
-/// The Rust version.
-pub unsafe fn sound_band_3() -> Left {
-    unsafe { band(TWIN) }
+/// The converted version (plain floats).
+// Converted: `rc2k_core::physics::sound_bands::sound_band`.
+pub unsafe fn sound_band_3_plain() -> Left {
+    unsafe { band_plain(TWIN) }
 }
 
 fn rust(_: &Regs) -> Result<Left, Refused> {
-    Ok(unsafe { sound_band_3() })
+    Ok(unsafe { sound_band_3_plain() })
 }
 
 extern "C" fn dispatch(r: &mut Regs) {
@@ -45,6 +46,12 @@ extern "C" fn dispatch(r: &mut Regs) {
         &[(game_addr(rva(SCRATCH)) as u32, 4)],
         &rust,
     );
+}
+
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    state_entry(r, &rust)
 }
 
 fn self_test() -> (usize, usize) {

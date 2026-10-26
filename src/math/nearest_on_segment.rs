@@ -7,43 +7,28 @@
 //! With x and z only (A - O, B - O and A - B into `flt_71C3B8` .. `flt_71C3D4`): t =
 //! (A - O).(A - B) over |A - B|^2, 0 when that is equal to `flt_71C3C8` (0.0); held to
 //! `flt_5C5D90` (0) .. `flt_5C5D38` (1) into `flt_71C3B4`; the point = A + (B - A) t in
-//! all three. The x87 code is the original's; its two stack values at the compare are
-//! kept as 80-bit numbers between the runs.
+//! all three. Converted 2026-10-20: `rc2k_core::math::geometry::nearest_on_segment`, plain `f32`.
 //! Callers: `sound::merge_spot_voices` (and unreached code at 0x463349).
-//! Shadow mode: both, the variables compared.
-//! Self-test: the original against the Rust version on points of the test's.
+//! Hook removed 2026-10-22 (conversion phase 4): Rust callers call this directly; the
+//! registers above are the original's, for reference.
 
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, SelfTest, game_addr, game_write, hook_asm, rva};
+use crate::framework::Regs;
 use crate::math::x87_run::compare_80;
 use crate::physics::flow::{base, hold_high, hold_low, p, x87_run};
-use crate::service::harness::{Region, capture, restore};
-use crate::sound::turn_parts::{Part, both, dispatch_turn, f};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("math::nearest_on_segment", rva(0x4633DE), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
+use crate::sound::turn_parts::Part;
 
 /// dword_71C384 .. flt_71C3D4: the ends, the point, the result and the work.
 pub const VARS: usize = 0x71C384;
 pub const VARS_LEN: usize = 0x54;
+// flt_5C5D90: 0
+// flt_5C5D38: 1
 const T: usize = 0x71C3B4;
-
-fn regions(_: &Regs) -> Vec<Region> {
-    vec![(game_addr(rva(VARS)) as u32, VARS_LEN)]
-}
 
 // ---- Rust version ----
 
+/// Exactly as the original (the x87 at its precision): the sound code's calls by place,
+/// whose own comparisons stay exact until `sound` is converted.
 pub fn nearest_on_segment_in(_: &mut Regs, _: Part) -> Result<(), Refused> {
     let b = base();
     let (mut top, mut below) = ([0u8; 10], [0u8; 10]);
@@ -114,57 +99,4 @@ pub fn nearest_on_segment_in(_: &mut Regs, _: Part) -> Result<(), Refused> {
         b = b
     );
     Ok(())
-}
-
-// ---- hook ----
-
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_turn(
-        &HOOK,
-        r,
-        call_original,
-        nearest_on_segment_in,
-        Some(&regions),
-    );
-}
-
-// ---- self-test ----
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let all = regions(&Regs::SENTINEL);
-    let saved = capture(&all);
-    let points: [[f32; 9]; 6] = [
-        [0.0, 1.0, 0.0, 10.0, 2.0, 0.0, 5.0, 0.0, 3.0],
-        [0.0, 0.0, 0.0, 10.0, 0.0, 10.0, -5.0, 0.0, -5.0],
-        [0.0, 0.0, 0.0, 10.0, 0.0, 10.0, 20.0, 0.0, 20.0],
-        [3.0, 0.0, 4.0, 3.0, 9.0, 4.0, 0.0, 0.0, 0.0],
-        [1.5, -2.0, 7.25, -8.0, 0.5, 3.0, 0.1, 0.2, 0.3],
-        [1e20, 0.0, -1e20, -1e20, 0.0, 1e20, 0.0, 0.0, 0.0],
-    ];
-    for (k, pts) in points.iter().enumerate() {
-        let fill = || unsafe {
-            for n in 0..VARS_LEN / 4 {
-                game_write(rva(VARS + 4 * n), 0x5555_5555u32);
-            }
-            for (n, &v) in pts.iter().enumerate() {
-                game_write(rva(VARS + 4 * n), f(v));
-            }
-            game_write(rva(0x71C3C8), 0u32);
-        };
-        both(
-            &mut t,
-            &format!("points {k}"),
-            &|r| unsafe { call_original(r) },
-            Regs::SENTINEL,
-            &fill,
-            &all,
-            nearest_on_segment_in,
-            false,
-        );
-    }
-    restore(&all, &saved);
-    t.finish()
 }

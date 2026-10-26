@@ -9,41 +9,35 @@
 //! Caller: `net::settings_loop`. Its calls through `part` (`strings::append_nul` inline).
 //! Shadow mode runs the original alone. Self-test: a copy whose calls go to stand-ins,
 //! against the Rust version, on items 0 .. 4.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
+use crate::framework::Regs;
 use crate::net::lobby::{
-    CHOICE, FORMAT_U32, HOST_ADDRESS, MACHINE_NAME, MOST_PLAYERS, NUMBER_TEXT, PALETTE, Part,
-    Saved, a, answer, dispatch_lobby, dword, g, p, region, run_both,
+    CHOICE, FORMAT_U32, HOST_ADDRESS, MACHINE_NAME, MOST_PLAYERS, NUMBER_TEXT, PALETTE, Part, a, g,
+    lobby_entry,
 };
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("net::begin_setting_edit", rva(0x416C26), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
+use rc2k_core::net::editing::{self, Setting};
 
 const BEGIN_EDIT: u32 = 0x416E1A; // net::begin_edit
 
 /// The Rust version: the registers it leaves.
 pub fn begin_setting_edit(entry: &Regs, part: Part) -> Result<Regs, Refused> {
     let mut r = *entry;
+    // Converted: `rc2k_core::net::editing` (`Setting`, `WIDTH`).
     r.eax = g(CHOICE);
-    r.ebx = match r.eax {
-        1 => a(MACHINE_NAME),
-        3 => a(HOST_ADDRESS),
+    let setting = Setting::of(r.eax);
+    r.ebx = match setting {
+        Setting::Name => a(MACHINE_NAME),
+        Setting::HostAddress => a(HOST_ADDRESS),
         _ => g(MOST_PLAYERS),
     };
-    match r.eax {
-        1 | 3 => {}
-        2 => {
+    match setting {
+        Setting::Name | Setting::HostAddress => {}
+        Setting::MostPlayers => {
             let item = r.eax;
             r.eax = r.ebx;
             r.ebx = a(NUMBER_TEXT);
@@ -53,57 +47,16 @@ pub fn begin_setting_edit(entry: &Regs, part: Part) -> Result<Regs, Refused> {
             r.ebx = a(NUMBER_TEXT);
             r.eax = item;
         }
-        _ => return Ok(r),
+        Setting::None => return Ok(r),
     }
-    r.ecx = 0x30C;
+    r.ecx = editing::WIDTH;
     r.edx = a(PALETTE);
     part(BEGIN_EDIT, &mut r)?;
     Ok(r)
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_lobby(&HOOK, r, call_original, begin_setting_edit);
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    // mov eax, g_listChoice
-    let copy = match crate::net::lobby::copy(
-        0x416C26,
-        0x50,
-        &[0xA1, 0x07, 0xD4, 0x51, 0x00],
-        &[0x33, 0x38, 0x4A],
-        &[FORMAT_U32, BEGIN_EDIT],
-    ) {
-        Ok(c) => c,
-        Err(why) => return t.skip(why),
-    };
-    let all = [
-        dword(CHOICE),
-        dword(MOST_PLAYERS),
-        region(NUMBER_TEXT, 0x10),
-    ];
-    let saved = Saved::new(&all);
-    for item in 0..5u32 {
-        run_both(
-            &mut t,
-            &format!("item {item}"),
-            copy.addr(),
-            Regs::SENTINEL,
-            &all,
-            0,
-            &[],
-            &|| {
-                p(CHOICE, item);
-                p(MOST_PLAYERS, 6);
-                crate::net::lobby::fill(NUMBER_TEXT, 0x10, 5);
-                answer(crate::net::draw_setting_value::string_answers());
-            },
-            &begin_setting_edit,
-        );
-    }
-    drop(saved);
-    t.finish()
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    lobby_entry(r, begin_setting_edit)
 }

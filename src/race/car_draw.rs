@@ -79,59 +79,41 @@ pub unsafe fn clear_car_marks() -> Left {
 /// below `flt_5C5D14` its 17 bytes +0xAC0 .. into the places `dword_6416F8[]` names. Gives
 /// the registers it leaves.
 pub unsafe fn car_number_textures(entry: &Regs) -> Regs {
-    use crate::math::x87_load::{abs_below_or_unordered, below_or_unordered};
+    // Converted: `rc2k_core::race::car_marks` (the rounding of +0x718 the x87's, under the
+    // game's control word).
+    use rc2k_core::race::car_marks::{
+        decals_shown, lamp_side, letter_number, letter_place, number_digits, stage_plate,
+    };
+    let float = |a: u32| f32::from_bits(unsafe { get(a) });
     unsafe {
         let mut r = *entry;
         let car = r.esi;
-        let limit: u32 = game_read(rva(0x641740));
-        r.ebx = u32::from(!abs_below_or_unordered(get(car + 0x1B8), limit));
+        let limit = f32::from_bits(game_read(rva(0x641740)));
+        r.ebx = lamp_side(float(car + 0x1B8), limit);
         game_write(rva(0x5CD68C), r.ebx);
         game_write(rva(0x5CD698), r.ebx);
-        r.ebx = u32::from(!abs_below_or_unordered(get(car + 0x1BC), limit));
+        r.ebx = lamp_side(float(car + 0x1BC), limit);
         game_write(rva(0x5CD690), r.ebx);
         game_write(rva(0x5CD694), r.ebx);
         r.ebp = (ga(0x71B408) as u32).wrapping_add(get(car + 0x24).wrapping_mul(0x30));
-        let n = crate::math::x87::to_int(get(car + 0x718)) as u32;
+        let n = crate::math::x87::to_int(get(car + 0x718));
         game_write(rva(0x62400C), n);
-        let mut eax = n;
-        if (eax as i32) < 0 {
-            eax = 0;
-        }
-        if (eax.wrapping_sub(0x2EDF) as i32) >= 0 {
-            eax = 0x2EDF;
-        }
-        r.edx = eax % 250;
+        let (place, rest) = letter_place(n);
+        r.edx = rest;
         r.ebx = 250;
-        let mut al = ((r.ebp + eax / 250) as *const u8).read().wrapping_sub(0x30);
-        if al >= 10 {
-            al = al.wrapping_sub(0x27);
-        }
-        r.eax = al as u32;
+        r.eax = letter_number(((r.ebp + place) as *const u8).read()) as u32;
         game_write(rva(0x5CD69C), r.eax);
         game_write(rva(0x5CDA88), r.eax);
-        let number = get(car + 0xAA8);
-        let (tens, units) = (number / 10, number % 10);
-        if tens != 0 {
-            game_write(rva(0x5CD6A0), tens);
-            game_write(rva(0x5CD6A4), units);
-            game_write(rva(0x5CD6AC), 999u32);
-        } else {
-            game_write(rva(0x5CD6AC), units);
-            game_write(rva(0x5CD6A0), 999u32);
-            game_write(rva(0x5CD6A4), 999u32);
-        }
-        let mut stage = game_read::<u32>(rva(0x623850)).wrapping_sub(0xB);
-        if (stage as i32) < 0 {
-            stage = 0;
-        }
-        if (stage.wrapping_sub(0x45) as i32) >= 0 {
-            stage = 0x45;
-        }
+        let d = number_digits(get(car + 0xAA8));
+        game_write(rva(0x5CD6A0), d.tens);
+        game_write(rva(0x5CD6A4), d.units);
+        game_write(rva(0x5CD6AC), d.alone);
+        let (tens, units) = stage_plate(game_read(rva(0x623850)));
         r.ebx = 10;
-        r.edx = stage % 10;
-        r.eax = game_read(rva(0x71BA10) + 4 * (stage / 10) as usize);
+        r.edx = units;
+        r.eax = game_read(rva(0x71BA10) + 4 * tens as usize);
         game_write(rva(0x5CD6A8), r.eax);
-        if below_or_unordered(get(car + 0x310), game_read(rva(0x5C5D14))) {
+        if decals_shown(float(car + 0x310), f32::from_bits(game_read(rva(0x5C5D14)))) {
             for k in 0..0x11u32 {
                 r.eax = ((car + 0xAC0 + k) as *const u8).read() as u32;
                 r.ebx = game_read(rva(0x6416F8) + 4 * k as usize);

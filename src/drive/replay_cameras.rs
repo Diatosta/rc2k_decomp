@@ -16,25 +16,17 @@
 //! Refuses what `pick_replay_camera` refuses (everything written put back).
 //! Self-test: the original and the Rust version on the game's variables (saved and put
 //! back): wishes, frames and last frames by lot, the random state.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{EAX, ESI, RawHook, Regs, SelfTest, hook_asm, rva};
+use crate::framework::{EAX, ESI, Regs};
 use crate::physics::flow::{a, g, guard, p};
 use crate::screens::harness::Left;
-use crate::service::harness::{Region, capture, check_state, dispatch_state, restore};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("drive::replay_cameras", rva(0x460949), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
+use crate::service::harness::{Region, state_entry};
+use rc2k_core::drive::replay_views::{WishStep, wish_step};
 
 const B: usize = 0x70F3EC; // g_carBlockStore
 const NEXT: usize = 0xFE0;
@@ -43,6 +35,7 @@ fn byte(x: usize) -> u32 {
     unsafe { (a(x) as *const u8).read() as u32 }
 }
 
+// Converted: `rc2k_core::drive::replay_views::wish_step`.
 fn steps(entry: &Regs) -> Result<Left, Refused> {
     let mut r = *entry;
     p(0x6EF7D0, g(B));
@@ -51,9 +44,9 @@ fn steps(entry: &Regs) -> Result<Left, Refused> {
         let block = B + NEXT * c;
         let wish = g(0x719F14 + 4 * byte(B + c) as usize);
         r.eax = wish;
-        if matches!(wish, 0x23..=0x25) {
-            r.ebx = g(0x5C2530).wrapping_sub(g(0x719FD0 + 4 * c));
-            if r.ebx >= 3 {
+        match wish_step(wish, g(0x5C2530), g(0x719FD0 + 4 * c), || g(block + 0x684)) {
+            WishStep::Draw(since) => {
+                r.ebx = since;
                 p(0x719FD0 + 4 * c, g(0x5C2530));
                 unsafe { crate::drive::pick_replay_camera::pick_replay_camera(&r) }?.apply(&mut r);
                 p(block + 0x684, r.edx);
@@ -61,13 +54,19 @@ fn steps(entry: &Regs) -> Result<Left, Refused> {
                 r.eax = g(block + 8);
                 p(block + 0x690, r.eax);
             }
-        } else if wish != g(block + 0x684) {
-            p(block + 0x688, wish);
-            p(block + 0x684, wish);
-            p(block + 0x694, 0);
-            r.eax = g(block + 8);
-            p(block + 0x690, r.eax);
-            p(0x719FD0 + 4 * c, 0);
+            WishStep::Nothing(since) => {
+                if let Some(since) = since {
+                    r.ebx = since;
+                }
+            }
+            WishStep::Set => {
+                p(block + 0x688, wish);
+                p(block + 0x684, wish);
+                p(block + 0x694, 0);
+                r.eax = g(block + 8);
+                p(block + 0x690, r.eax);
+                p(0x719FD0 + 4 * c, 0);
+            }
         }
     }
     p(B + 0x220, g(0x63DB7C));
@@ -113,59 +112,8 @@ fn rust(r: &Regs) -> Result<Left, Refused> {
     unsafe { replay_cameras(r) }
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_state(&HOOK, r, call_original, &regions(), &rust);
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let mut all = regions();
-    all.extend([
-        (a(B), 8),
-        (a(B + 8), 4),
-        (a(B + NEXT + 8), 4),
-        (a(0x719F14), 0x400),
-        (a(0x5C2530), 4),
-        (a(0x63DB7C), 8),
-        (a(0x63DB94), 4),
-    ]);
-    let saved = capture(&all);
-    for case in 0..16u32 {
-        let set = || {
-            p(B, 0x0504_0100 | ((case % 4) << 8) | (case % 3));
-            p(B + 4, 0x0706);
-            for k in 0..4usize {
-                p(
-                    0x719F14 + 4 * k,
-                    [0x23u32, 0x24, 7, 0x25][(k + case as usize) % 4],
-                );
-            }
-            p(0x5C2530, 10 + case);
-            p(0x719FD0, [0u32, 9, 12][(case % 3) as usize]);
-            p(0x719FD4, [11u32, 0][(case % 2) as usize]);
-            p(B + 0x684, [7u32, 3][(case % 2) as usize]);
-            p(B + NEXT + 0x684, 7);
-            p(B + 8, 0x1234);
-            p(B + NEXT + 8, 0x5678);
-            unsafe {
-                crate::framework::game_write(
-                    crate::math::next_random::STATE_RVA,
-                    case.wrapping_mul(0x2545_F491) | 1,
-                )
-            };
-        };
-        check_state(
-            &mut t,
-            &format!("case {case}"),
-            call_original,
-            Regs::SENTINEL,
-            &set,
-            &regions(),
-            &rust,
-        );
-    }
-    restore(&all, &saved);
-    t.finish()
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    state_entry(r, &rust)
 }

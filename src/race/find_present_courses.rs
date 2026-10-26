@@ -23,7 +23,7 @@ use crate::framework::{
 use crate::race::course_data::{CDAT_DIGITS, set_cdat_number};
 use crate::race::level_init::{NUMBER_PLACES, set_course_number};
 use crate::screens::harness::Left;
-use crate::service::harness::{Region, capture, check_state, dispatch_state, restore};
+use crate::service::harness::{Region, capture, check_state, dispatch_state, restore, state_entry};
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -47,7 +47,7 @@ const FLAGS_RVA: usize = rva(0x621518); // dword_621518, 100 flags
 const BUFFER_RVA: usize = rva(0x623FB8); // dword_623FB8
 /// `srclvls\level01\cdat00c`, `files\levels\level01\cdat00c.sq`.
 const PATHS_RVA: [usize; 2] = [rva(0x60B02B), rva(0x60B07A)];
-const COURSES: u32 = 100;
+use rc2k_core::race::stage_objects::COURSES;
 
 fn regions() -> Vec<Region> {
     let a = |x: usize, len: usize| (game_addr(x) as u32, len);
@@ -62,6 +62,8 @@ fn regions() -> Vec<Region> {
 }
 
 unsafe fn steps(entry: &Regs) -> Result<Regs, Refused> {
+    // Converted: `rc2k_core::race::stage_objects::{COURSES, course_present, PROBE_BYTES}`.
+    use rc2k_core::race::stage_objects::{PROBE_BYTES, course_present};
     let mut g = *entry;
     g.edi = game_addr(FLAGS_RVA) as u32;
     for n in 0..COURSES {
@@ -72,14 +74,15 @@ unsafe fn steps(entry: &Regs) -> Result<Regs, Refused> {
             g.eax = 0;
             g = set_cdat_number(&g);
             game_write(FLAGS_RVA + 4 * n as usize, 0u32);
-            for path in PATHS_RVA {
+            let present = course_present(PATHS_RVA.len() as u32, |file| {
                 game_write(BYTES_READ_RVA, 0u32);
                 g.esi = game_addr(BUFFER_RVA) as u32;
-                read_whole_file(game_addr(path) as *const u8, g.esi as *mut u8, 4, g.esi)?;
-                if game_read::<u32>(BYTES_READ_RVA) == 4 {
-                    game_write(FLAGS_RVA + 4 * n as usize, 1u32);
-                    break;
-                }
+                let path = game_addr(PATHS_RVA[file as usize]) as *const u8;
+                read_whole_file(path, g.esi as *mut u8, PROBE_BYTES, g.esi)?;
+                Ok::<u32, Refused>(game_read(BYTES_READ_RVA))
+            })?;
+            if present {
+                game_write(FLAGS_RVA + 4 * n as usize, 1u32);
             }
         }
     }
@@ -108,6 +111,12 @@ pub fn find_present_courses(entry: &Regs) -> Result<Left, Refused> {
 
 extern "C" fn dispatch(r: &mut Regs) {
     dispatch_state(&HOOK, r, call_original, &regions(), &find_present_courses);
+}
+
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    state_entry(r, &find_present_courses)
 }
 
 fn self_test() -> (usize, usize) {

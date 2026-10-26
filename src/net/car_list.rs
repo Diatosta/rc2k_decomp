@@ -10,29 +10,19 @@
 //! Lists without their end in 0x100 entries are refused. Caller: `net::choose_car`.
 //! Shadow mode: both run, esi compared. Self-test: a copy whose two lists are the test's,
 //! against the Rust version: no car won, one in the list, none of them in it.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
-use crate::errors::{BadInput, Refused};
-use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
-use crate::net::lobby::{Part, a, run_both};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("net::car_list", rva(0x4AAAF7), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
+use crate::errors::Refused;
+use crate::framework::Regs;
+use crate::net::lobby::{Part, a};
 
 const SECRET: usize = 0x75A042; // off_75A042: the secret cars
 const WON: usize = 0x759F4A; // g_secretCars: the cars won
 const WITH: usize = 0x759E52; // off_759E52
 const WITHOUT: usize = 0x759DCA; // off_759DCA
-const MOST: u32 = 0x100;
 
 fn get(at: u32) -> u32 {
     unsafe { (at as *const u32).read_unaligned() }
@@ -40,30 +30,9 @@ fn get(at: u32) -> u32 {
 
 /// Whether one of the cars at `won` is in the list at `secret`.
 pub fn any_won(secret: u32, won: u32) -> Result<bool, Refused> {
-    let mut esi = won;
-    for _ in 0..MOST {
-        let car = get(esi);
-        let mut edi = secret;
-        let mut ended = false;
-        for _ in 0..MOST {
-            if get(edi) == car {
-                return Ok(true);
-            }
-            edi += 4;
-            if get(edi) == u32::MAX {
-                ended = true;
-                break;
-            }
-        }
-        if !ended {
-            return Err(BadInput("a secret cars' list with no end").into());
-        }
-        esi += 4;
-        if get(esi) == u32::MAX {
-            return Ok(false);
-        }
-    }
-    Err(BadInput("a won cars' list with no end").into())
+    // Converted: `rc2k_core::net::cars::any_won`, the lists' dwords by index.
+    let at = |list: u32| move |n: u32| get(list.wrapping_add(4 * n));
+    Ok(rc2k_core::net::cars::any_won(at(secret), at(won))?)
 }
 
 /// The Rust version on the lists at `secret` and `won`.
@@ -80,54 +49,8 @@ pub fn car_list(entry: &Regs, _: Part) -> Result<Regs, Refused> {
     car_list_with(entry, a(SECRET), a(WON))
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    crate::race::viewer::dispatch_regs(&HOOK, r, call_original, &[], 0, &|r| {
-        car_list(r, &mut crate::net::lobby::game_part)
-    });
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let mut lists = vec![u32::MAX; 16];
-    let at = lists.as_mut_ptr() as u32;
-    // pusha; lea edi, off_75A042
-    let copy = match crate::net::lobby::copy_vars(
-        0x4AAAF7,
-        0x3B,
-        &[0x60, 0x8D, 0x3D, 0x42, 0xA0, 0x75, 0x00],
-        &[],
-        &[],
-        &[(SECRET, 4, at), (WON, 4, at + 32)],
-        3,
-    ) {
-        Ok(c) => c,
-        Err(why) => return t.skip(why),
-    };
-    let secret = [0x10u32, 0x20, 0x30, u32::MAX];
-    let cases: [(&str, [u32; 4]); 4] = [
-        ("no car won", [u32::MAX; 4]),
-        ("the second won", [0x55, 0x20, u32::MAX, u32::MAX]),
-        ("none in the list", [0x55, 0x66, u32::MAX, u32::MAX]),
-        ("the first won", [0x10, u32::MAX, u32::MAX, u32::MAX]),
-    ];
-    for (what, won) in cases {
-        run_both(
-            &mut t,
-            what,
-            copy.addr(),
-            Regs::SENTINEL,
-            &[(at, 64)],
-            0,
-            &[],
-            &|| unsafe {
-                (at as *mut [u32; 4]).write(secret);
-                ((at + 32) as *mut [u32; 4]).write(won);
-            },
-            &|r, _| car_list_with(r, at, at + 32),
-        );
-    }
-    let _ = &mut lists;
-    t.finish()
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    crate::race::viewer::regs_entry(r, &|r| car_list(r, &mut crate::net::lobby::game_part))
 }

@@ -18,6 +18,7 @@ use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
 use crate::physics::flow::guard;
 use crate::race::viewer::{
     BLOCK, BLOCKS, MARK_IN, MARK_OUT, OPEN, Saved, check_original, dispatch_regs, dword, get, put,
+    regs_entry,
 };
 use crate::service::harness::Region;
 use std::sync::atomic::AtomicUsize;
@@ -37,13 +38,12 @@ hook_asm!(
 /// The Rust version.
 pub fn reset_marks() -> Result<(), Refused> {
     guard(&regions(), || {
-        let mut block = get(BLOCK);
-        if (block as i32) > (get(BLOCKS) as i32) {
-            block = get(BLOCKS);
-        }
+        // Converted: `rc2k_core::race::viewer::reset_marks`.
+        let (block, mark_in, mark_out) =
+            rc2k_core::race::viewer::reset_marks(get(BLOCK), get(BLOCKS));
         put(BLOCK, block);
-        put(MARK_IN, 0);
-        put(MARK_OUT, get(BLOCKS));
+        put(MARK_IN, mark_in);
+        put(MARK_OUT, mark_out);
         unsafe { crate::drive::read_replay_frame_0::read_replay_frame_0(get(BLOCK)) }?;
         Ok(())
     })
@@ -62,6 +62,12 @@ fn rust(r: &Regs) -> Result<Regs, Refused> {
 
 extern "C" fn dispatch(r: &mut Regs) {
     dispatch_regs(&HOOK, r, call_original, &regions(), 0, &rust);
+}
+
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    regs_entry(r, &rust)
 }
 
 fn self_test() -> (usize, usize) {

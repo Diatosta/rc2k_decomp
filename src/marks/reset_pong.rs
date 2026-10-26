@@ -8,13 +8,16 @@
 //! See `marks/splines.rs`. Callers: `sub_4B7F4F` and `sub_4BF529`. Self-test:
 //! the original and the Rust version with the eight floats by lot (a signalling NaN among
 //! them, which `fld` makes quiet), put back afterwards.
+//!
+//! Converted 2026-10-21: through `rc2k_core::marks::pong::Court::reset` (exact at every
+//! precision); compared exactly as before.
 
 use crate::errors::Refused;
 use crate::framework::{RawHook, Regs, SelfTest, game_write, hook_asm, rva};
 use crate::marks::splines::*;
 use crate::race::stage_prefs::left_of;
 use crate::screens::harness::Left;
-use crate::service::harness::{Region, capture, check_state, dispatch_state, restore};
+use crate::service::harness::{Region, capture, check_state, dispatch_state, restore, state_entry};
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -38,6 +41,12 @@ fn rust(r: &Regs) -> Result<Left, Refused> {
 
 extern "C" fn dispatch(r: &mut Regs) {
     dispatch_state(&HOOK, r, call_original, &outline_regions(), &rust);
+}
+
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    state_entry(r, &rust)
 }
 
 fn self_test() -> (usize, usize) {

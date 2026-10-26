@@ -47,34 +47,20 @@ pub unsafe fn axis_moved(eax: u32) -> Moved {
             std::ptr::copy(now, rest, 6);
             return Moved { carry: true, eax };
         }
+        // Converted: `rc2k_core::input::devices::axis_moved`.
         let device = k(0x4F6EF0).wrapping_mul(0x50);
         let axes = ((game_addr(rva(0x4F78E4)) as u32).wrapping_add(device) + 0x14) as *const u32;
-        let mut last = eax;
-        for n in 0..6 {
-            let d = now
-                .add(n)
-                .read_unaligned()
-                .wrapping_sub(rest.add(n).read_unaligned()) as i32;
-            last = d as u32;
-            if axes.read_unaligned() & (1 << n) == 0 {
-                continue;
-            }
-            if d < -0x80 {
-                return Moved {
-                    carry: false,
-                    eax: n as u32,
-                };
-            }
-            if d > 0x80 {
-                return Moved {
-                    carry: false,
-                    eax: n as u32 | 0x10,
-                };
-            }
-        }
-        Moved {
-            carry: true,
-            eax: last,
+        let now = (now as *const [u32; 6]).read_unaligned();
+        let rest = (rest as *const [u32; 6]).read_unaligned();
+        match rc2k_core::input::devices::axis_moved(&now, &rest, axes.read_unaligned()) {
+            Ok(axis) => Moved {
+                carry: false,
+                eax: axis,
+            },
+            Err(last) => Moved {
+                carry: true,
+                eax: last,
+            },
         }
     }
 }

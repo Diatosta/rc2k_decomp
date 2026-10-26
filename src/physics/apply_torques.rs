@@ -14,7 +14,7 @@ use crate::framework::{RawHook, Regs, SelfTest, call_game, game_addr, hook_asm, 
 use crate::physics::apply_force::BLOCK_LEN;
 use crate::physics::apply_torque::{apply_torque, apply_torque_at, fill};
 use crate::screens::harness::Left;
-use crate::service::harness::{Region, capture, dispatch_state};
+use crate::service::harness::{Region, capture, dispatch_state, state_entry};
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -32,8 +32,11 @@ hook_asm!(
 const CAR_RVA: usize = rva(0x719FD8); // g_car
 
 /// Refused before anything?
+// Converted: `rc2k_core::physics::pushes::record_count`.
 pub fn refusal(count: u32) -> Option<&'static str> {
-    (count == 0 || count > 0x100).then_some("a torque record count of 0 or above 0x100")
+    rc2k_core::physics::pushes::record_count(count, "a torque record count of 0 or above 0x100")
+        .err()
+        .map(|e| e.0)
 }
 
 /// The Rust version: `count` records from `first` on the work car.
@@ -60,6 +63,12 @@ pub fn regions() -> Vec<Region> {
 
 extern "C" fn dispatch(r: &mut Regs) {
     dispatch_state(&HOOK, r, call_original, &regions(), &rust);
+}
+
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    state_entry(r, &rust)
 }
 
 /// Copies for a test: this one (its `g_car` at `car`, its call to a copy of

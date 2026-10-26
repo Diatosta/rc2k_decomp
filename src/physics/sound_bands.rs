@@ -13,7 +13,8 @@
 //! Out: ebx the band; the rest kept; no flags read (the callers compare ebx next)
 //!
 //! Self-test: a copy of each original (its value, factor and `dword_6D1AEC` the test's)
-//! against the core: values by lot about the band's ends, under three precisions.
+//! against the converted version (exact: the product of two floats fits an `f64`): values
+//! by lot about the band's ends, at the test control words (0x027F, 0x037F).
 
 use crate::framework::{EBX, RawHook, Regs, SelfTest, call_game};
 use crate::math::x87;
@@ -21,6 +22,7 @@ use crate::math::x87_run::{TEST_CONTROL_WORDS, with_control_word};
 use crate::scene::matrix3::test_floats;
 use crate::screens::harness::Left;
 use crate::service::harness::capture;
+use rc2k_core::physics::sound_bands::sound_band;
 
 pub const SCRATCH: usize = 0x6D1AEC; // dword_6D1AEC
 
@@ -31,7 +33,8 @@ unsafe fn at(a: u32) -> u32 {
     unsafe { (a as *const u32).read_unaligned() }
 }
 
-/// The core: the value, the factor and the scratch at these places.
+/// The exact x87 version on the value, the factor and the scratch at these places (for
+/// `physics::place_sound_e1`'s exact version).
 pub unsafe fn band_at(value: u32, factor: u32, scratch: u32, step: u32) -> u32 {
     unsafe {
         let n = x87::mul_to_int(at(value), at(factor)) as u32;
@@ -47,17 +50,32 @@ pub unsafe fn band_at(value: u32, factor: u32, scratch: u32, step: u32) -> u32 {
     }
 }
 
-/// The band on the game's variables.
+/// The band on the game's variables (the exact x87 version).
 pub unsafe fn band_value(twin: Twin) -> u32 {
     let g = |a: usize| crate::framework::game_addr(crate::framework::rva(a)) as u32;
     unsafe { band_at(g(twin.1), g(twin.2), g(SCRATCH), twin.3) }
 }
 
-/// On the game's variables.
-pub unsafe fn band(twin: Twin) -> Left {
+/// The converted version (`rc2k_core::physics::sound_bands`, plain floats) on the
+/// value, the factor and the scratch at these places.
+// Converted: `rc2k_core::physics::sound_bands::sound_band`.
+pub unsafe fn band_at_plain(value: u32, factor: u32, scratch: u32, step: u32) -> u32 {
+    unsafe {
+        let (n, b) = sound_band(f32::from_bits(at(value)), f32::from_bits(at(factor)), step);
+        (scratch as *mut u32).write_unaligned(n as u32);
+        b
+    }
+}
+
+/// The converted band on the game's variables.
+pub unsafe fn band_value_plain(twin: Twin) -> u32 {
     let g = |a: usize| crate::framework::game_addr(crate::framework::rva(a)) as u32;
-    let b = unsafe { band_at(g(twin.1), g(twin.2), g(SCRATCH), twin.3) };
-    Left::nothing().with(EBX, b)
+    unsafe { band_at_plain(g(twin.1), g(twin.2), g(SCRATCH), twin.3) }
+}
+
+/// The converted version on the game's variables: the hooks'.
+pub unsafe fn band_plain(twin: Twin) -> Left {
+    Left::nothing().with(EBX, unsafe { band_value_plain(twin) })
 }
 
 /// The test of one twin.
@@ -104,7 +122,7 @@ pub fn test_twin(hook: &RawHook, twin: Twin, entry: &[u8]) -> (usize, usize) {
                 unsafe { call_game(&mut ro, copy.addr()) };
                 let theirs = capture(&all);
                 fill();
-                let b = unsafe { band_at(value, factor, scratch, twin.3) };
+                let b = unsafe { band_at_plain(value, factor, scratch, twin.3) };
                 let mine = capture(&all);
                 let regs_ok = Left::nothing().with(EBX, b).matches(&Regs::SENTINEL, &ro);
                 t.check(regs_ok && theirs == mine, || {

@@ -11,12 +11,11 @@
 
 use crate::errors::Refused;
 use crate::framework::{RawHook, Regs, SelfTest, rva};
-use crate::math::x87_run::{TEST_CONTROL_WORDS, with_control_word};
 use crate::race::stage_prefs::left_of;
 use crate::scene::matrix3::test_floats;
 use crate::scene::vector3::*;
 use crate::screens::harness::Left;
-use crate::service::harness::{check_state, dispatch_state};
+use crate::service::floats::*;
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -40,12 +39,23 @@ pub unsafe fn dot_product(a: u32, b: u32) -> [u8; 10] {
 }
 
 fn rust(r: &Regs) -> Result<Left, Refused> {
-    RESULT.set(unsafe { dot_product(r.esi, r.edi) });
+    RESULT.set(unsafe { dot_product3_plain(r.esi, r.edi) });
     Ok(left_of(r))
 }
 
 extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_state(&HOOK, r, original_keeping_result, &[RESULT.region()], &rust);
+    let floats = Floats {
+        memory: &[(RESULT.region(), EXTENDED)],
+        regs: &[],
+    };
+    dispatch_state_floats(
+        &HOOK,
+        r,
+        original_keeping_result,
+        &[RESULT.region()],
+        &floats,
+        &rust,
+    );
 }
 
 fn self_test() -> (usize, usize) {
@@ -54,35 +64,39 @@ fn self_test() -> (usize, usize) {
     };
     let mut v = [0u32; 6];
     let p = v.as_mut_ptr() as u32;
-    for word in TEST_CONTROL_WORDS {
-        with_control_word(word, &mut || {
-            for seed in 1..=12u32 {
-                check_state(
-                    &mut t,
-                    &format!("control word {word:#x}, seed {seed}"),
-                    original_keeping_result,
-                    Regs {
-                        esi: p,
-                        edi: p + 12,
-                        ..Regs::SENTINEL
-                    },
-                    &|| {
-                        let mut x = [0u32; 6];
-                        test_floats(seed * 5 + 1, &mut x);
-                        // Signs mixed, so that the sums cancel now and then.
-                        for (n, f) in x.iter_mut().enumerate() {
-                            if (seed >> (n % 3)) & 1 != 0 {
-                                *f ^= 0x8000_0000;
-                            }
+    let tolerant = Floats {
+        memory: &[(RESULT.region(), EXTENDED)],
+        regs: &[],
+    };
+    at_test_precisions(&tolerant, &mut |word, floats| {
+        for seed in 1..=12u32 {
+            check_state_floats(
+                &mut t,
+                "physics::dot_product",
+                &format!("control word {word:#x}, seed {seed}"),
+                original_keeping_result,
+                Regs {
+                    esi: p,
+                    edi: p + 12,
+                    ..Regs::SENTINEL
+                },
+                &|| {
+                    let mut x = [0u32; 6];
+                    test_floats(seed * 5 + 1, &mut x);
+                    // Signs mixed, so that the sums cancel now and then.
+                    for (n, f) in x.iter_mut().enumerate() {
+                        if (seed >> (n % 3)) & 1 != 0 {
+                            *f ^= 0x8000_0000;
                         }
-                        unsafe { (p as *mut [u32; 6]).write(x) };
-                        RESULT.set([0xAA; 10]);
-                    },
-                    &[RESULT.region(), (p, 24)],
-                    &rust,
-                );
-            }
-        });
-    }
+                    }
+                    unsafe { (p as *mut [u32; 6]).write(x) };
+                    RESULT.set([0xAA; 10]);
+                },
+                &[RESULT.region(), (p, 24)],
+                floats,
+                &rust,
+            );
+        }
+    });
     t.finish()
 }

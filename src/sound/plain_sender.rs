@@ -48,6 +48,17 @@ pub fn dispatch_plain(
     });
 }
 
+/// `dispatch_plain` without its hook (no shadow mode; nothing refused).
+pub fn plain_entry(r: &mut Regs, rust: Sender) -> Result<(), crate::errors::Refused> {
+    rust(r, &mut |callee, command, regs| match callee {
+        SEND => send_in_game(command, regs),
+        0x409BE0 => crate::sound::send_end_of_turn::send_end_of_turn_in_game(regs),
+        // sound::channels_in_use: flags only, which no one reads here.
+        _ => {}
+    });
+    Ok(())
+}
+
 static CALLED: Mutex<(Vec<usize>, Calls)> = Mutex::new((Vec::new(), Vec::new()));
 
 fn handler(n: u32, r: &mut Regs) {

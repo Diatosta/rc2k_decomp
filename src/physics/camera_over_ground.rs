@@ -20,6 +20,7 @@ use crate::physics::camera_ground::{FOUND, both_carry, dispatch_carry, probe_at,
 use crate::physics::flow::{g, p};
 use crate::race::car_starts::Part;
 use crate::service::harness::{capture, restore};
+use rc2k_core::physics::camera_ground::SIDES;
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -39,6 +40,7 @@ hook_asm!(
     original = ORIGINAL
 );
 
+// Converted: `rc2k_core::physics::camera_ground::SIDES`.
 fn steps(r: &mut Regs, part: Part) -> Result<bool, Refused> {
     r.eax = g(0x71A67C);
     let x = r.eax;
@@ -47,7 +49,7 @@ fn steps(r: &mut Regs, part: Part) -> Result<bool, Refused> {
     if !probe_at(r, part, x, z, 0x71AEC8)? {
         return Ok(false);
     }
-    for (side, slot) in [(0xFFFF_8000u32, 0x71AECC), (0x8000, 0x71AED0)] {
+    for (side, slot) in SIDES.into_iter().zip([0x71AECC, 0x71AED0]) {
         p(0x5CCC78, g(slot));
         let [x, _, z, edx] = unsafe { turn_point_xz(side as i32, r.ebx as i32, 0, g(0x71A688)) };
         r.eax = x.wrapping_add(g(0x71A67C));

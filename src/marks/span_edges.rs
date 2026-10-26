@@ -15,7 +15,7 @@ use crate::marks::spans::*;
 use crate::math::x87;
 use crate::race::stage_prefs::left_of;
 use crate::screens::harness::Left;
-use crate::service::harness::{check_state, dispatch_state};
+use crate::service::harness::{check_state, dispatch_state, state_entry};
 use std::sync::atomic::{AtomicUsize, Ordering};
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -43,6 +43,12 @@ extern "C" fn dispatch(r: &mut Regs) {
     let mut regions = vec![(r.edi, 8 * rows as usize)];
     regions.extend(edge_regions());
     dispatch_state(&HOOK, r, call_original, &regions, &rust);
+}
+
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    state_entry(r, &rust)
 }
 
 unsafe extern "C" fn original_with_word(r: *mut Regs) {

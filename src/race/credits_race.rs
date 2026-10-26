@@ -21,7 +21,7 @@
 
 use crate::errors::Refused;
 use crate::framework::{
-    RawHook, Regs, SelfTest, call_game, game_addr, game_read, game_write, hook_asm, rva, shadow,
+    RawHook, Regs, SelfTest, game_addr, game_read, game_write, hook_asm, rva, shadow,
 };
 use crate::race::noted_calls::{Part, both, copy};
 use crate::service::harness::{Region, capture, restore};
@@ -117,7 +117,7 @@ pub fn credits_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
             SET_UP => crate::race::set_up_credits_race::set_up_credits_race(r)?.apply(r),
             LOG_WRITE => log_write(r.eax as *const u8, false, 1),
             LOG_INT | LOG_INT_NL => log_int(r.eax as i32, place == LOG_INT_NL, 1),
-            _ => call_game(r, game_addr(rva(CALLEES[place as usize]))),
+            _ => crate::calls::call(rva(CALLEES[place as usize]), r),
         }
     }
     Ok(())
@@ -140,6 +140,22 @@ extern "C" fn dispatch(r: &mut Regs) {
         }
         Err(e) => unsafe { crate::fatal::raise::refused(&HOOK, e, r, call_original) },
     }
+}
+
+/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    let mut g = *r;
+    match credits_race_in(&mut g, &mut credits_part) {
+        Ok(()) => {
+            *r = Regs {
+                esp: r.esp,
+                eflags: r.eflags,
+                ..g
+            }
+        }
+        Err(e) => return Err(e),
+    }
+    Ok(())
 }
 
 fn self_test() -> (usize, usize) {

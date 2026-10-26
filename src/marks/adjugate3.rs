@@ -7,12 +7,18 @@
 //!
 //! Caller: `sub_4BCB1D` (0x4BCD63). The original's instructions. Refuses a null pointer.
 //! Self-test: the original and the Rust version on matrices by lot, apart and in place.
+//!
+//! Converted 2026-10-21: the hook's Rust version is `adjugate3_plain`, through
+//! `rc2k_core::marks::turns::adjugate` (plain floats; the x87 version stays for the Rust
+//! callers in unconverted code). Shadow mode and the self-test compare within
+//! `service::floats`' tolerances (the self-test at both test precisions, exact at double).
 
 use crate::errors::{BadInput, Refused};
 use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
 use crate::race::stage_prefs::left_of;
+use crate::scene::matrix::float_places;
 use crate::screens::harness::Left;
-use crate::service::harness::{check_state, dispatch_state};
+use crate::service::floats::*;
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -98,13 +104,35 @@ pub unsafe fn adjugate3(s: u32, d: u32) -> Result<(), Refused> {
     Ok(())
 }
 
+/// The converted version (plain floats): the hook's.
+// Converted: `rc2k_core::marks::turns::adjugate`
+pub unsafe fn adjugate3_plain(s: u32, d: u32) -> Result<(), Refused> {
+    if s == 0 || d == 0 {
+        return Err(BadInput("a null matrix").into());
+    }
+    let p = &mut unsafe { crate::scene::matrix::GamePlaces::new() };
+    rc2k_core::marks::turns::adjugate(p, s, d);
+    Ok(())
+}
+
 fn rust(r: &Regs) -> Result<Left, Refused> {
-    unsafe { adjugate3(r.esi, r.edi) }?;
+    unsafe { adjugate3_plain(r.esi, r.edi) }?;
     Ok(left_of(r))
 }
 
 extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_state(&HOOK, r, call_original, &[(r.edi, 36)], &rust);
+    let places = float_places(&[(r.edi, 36)]);
+    let floats = Floats {
+        memory: &places,
+        regs: &[],
+    };
+    dispatch_state_floats(&HOOK, r, call_original, &[(r.edi, 36)], &floats, &rust);
+}
+
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    floats_entry(r, &rust)
 }
 
 fn self_test() -> (usize, usize) {
@@ -113,28 +141,37 @@ fn self_test() -> (usize, usize) {
     };
     let mut m = [0u32; 18];
     let base = m.as_mut_ptr() as u32;
-    for case in 0..8u32 {
-        let out = if case % 2 == 0 { base + 36 } else { base };
-        check_state(
-            &mut t,
-            &format!("case {case}"),
-            call_original,
-            Regs {
-                esi: base,
-                edi: out,
-                ..Regs::SENTINEL
-            },
-            &|| unsafe {
-                for n in 0..18u32 {
-                    let x = (n.wrapping_mul(0x9E37_79B9) ^ case.wrapping_mul(0x27D4_EB2F)) as i32
-                        as f32
-                        / 5e8;
-                    ((base + 4 * n) as *mut u32).write(x.to_bits());
-                }
-            },
-            &[(base, 72)],
-            &rust,
-        );
-    }
+    let tolerant_places = float_places(&[(base, 72)]);
+    let tolerant = Floats {
+        memory: &tolerant_places,
+        regs: &[],
+    };
+    at_test_precisions(&tolerant, &mut |word, held| {
+        for case in 0..8u32 {
+            let out = if case % 2 == 0 { base + 36 } else { base };
+            check_state_floats(
+                &mut t,
+                "marks::adjugate3",
+                &format!("control word {word:#x}, case {case}"),
+                call_original,
+                Regs {
+                    esi: base,
+                    edi: out,
+                    ..Regs::SENTINEL
+                },
+                &|| unsafe {
+                    for n in 0..18u32 {
+                        let x = (n.wrapping_mul(0x9E37_79B9) ^ case.wrapping_mul(0x27D4_EB2F))
+                            as i32 as f32
+                            / 5e8;
+                        ((base + 4 * n) as *mut u32).write(x.to_bits());
+                    }
+                },
+                &[(base, 72)],
+                held,
+                &rust,
+            );
+        }
+    });
     t.finish()
 }

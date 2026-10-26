@@ -7,28 +7,20 @@
 //! volume" is a reading of its three callers (the options' volume steps and
 //! `sub_43A649`).
 //! Shadow mode runs the original alone.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
-use crate::framework::{RawHook, Regs, hook_asm, rva};
+use crate::framework::Regs;
 use crate::sound::senders::*;
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("sound::set_music_volume", rva(0x40F83E), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
 
 // ---- Rust version ----
 
 /// The registers the command is sent with, or None if the volume is the one in use.
 pub fn set_music_volume(entry: &Regs) -> Option<Regs> {
-    (entry.eax != variable(0x506994)).then_some(Regs {
+    // Converted: `rc2k_core::sound::senders::new_music_volume`.
+    rc2k_core::sound::senders::new_music_volume(entry.eax, variable(0x506994)).then_some(Regs {
         eax: 0,
         ebx: 0,
         ecx: entry.eax,
@@ -47,14 +39,8 @@ pub const SENDER: Sender = Sender {
     reads: &[(0x506994, &[0, 0x40, 0x1234_5678])],
 };
 
-// ---- hook ----
-
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_sender(&HOOK, r, call_original, &SENDER);
-}
-
-// ---- self-test: a redirected copy whose command and wait note the registers ----
-
-fn self_test() -> (usize, usize) {
-    check_sender(&HOOK, &SENDER)
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    send_entry(r, &SENDER)
 }

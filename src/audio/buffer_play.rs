@@ -19,11 +19,8 @@ pub fn zero(r: &Regs) -> bool {
     r.eflags & 0x40 != 0
 }
 
-const BUFFER_LOST: i32 = 0x8878_0096u32 as i32;
 /// `GetStatus`: the buffer plays.
 pub const PLAYING: u32 = 1;
-/// `Play`'s flag: over and over.
-pub const LOOPING: u32 = 1;
 
 fn buffer(v: &Voice, a3d_name: &'static str) -> Result<u32, Refused> {
     if a3d() {
@@ -53,17 +50,18 @@ pub unsafe fn rewind_buffer(v: &Voice) -> Result<i32, Refused> {
     Ok(unsafe { crate::audio::com::call1(b, SET_CURRENT_POSITION, 0) })
 }
 
-/// `Play` (+0x30) with 0, 0 and `LOOPING` for a looping voice (kind 1). Failing: the
+/// `Play` (+0x30) with 0, 0 and the looping flag for a looping voice (kind 1). Failing: the
 /// carry, and `DSERR_BUFFERLOST` sets the flag at `lost`. Returns eax and the carry.
 pub unsafe fn play_buffer(v: &Voice, lost: u32) -> Result<(i32, bool), Refused> {
     let b = buffer(v, "A3D (`sub_40CEA0`)")?;
-    let flags = if v.kind == 1 { LOOPING } else { 0 };
+    // Converted: `rc2k_core::audio::buffers::{play_flags, lost}`.
+    let flags = rc2k_core::audio::buffers::play_flags(v);
     let r = unsafe {
         let f: unsafe extern "system" fn(u32, u32, u32, u32) -> i32 =
             std::mem::transmute(crate::audio::com::method(b, PLAY));
         f(b, 0, 0, flags)
     };
-    if r != 0 && r == BUFFER_LOST {
+    if r != 0 && rc2k_core::audio::buffers::lost(r) {
         unsafe { write(lost, 1) };
     }
     Ok((r, r != 0))
@@ -121,6 +119,22 @@ pub fn dispatch_leaf(
         }
         Err(e) => unsafe { crate::fatal::raise::refused(hook, e, r, call_original) },
     }
+}
+
+/// `dispatch_leaf` outside shadow mode, without its hook (a refusal is the caller's).
+pub fn leaf_entry(
+    r: &mut Regs,
+    rust: unsafe fn(&Regs) -> Result<Leaves, Refused>,
+) -> Result<(), Refused> {
+    let left = unsafe { rust(r) }?;
+    r.eax = left.eax;
+    if let Some(c) = left.carry {
+        r.set_carry(c);
+    }
+    if let Some(z) = left.zero {
+        r.set_zero(z);
+    }
+    Ok(())
 }
 
 /// The self-test of a leaf on a voice: the original and the Rust version on voices of the

@@ -12,29 +12,16 @@
 //! effects (esi); in the game their Rust versions. Shadow mode runs the original alone (it
 //! polls the devices). Self-test: a copy whose calls go to stand-ins, against the Rust
 //! version, a command or none, one device or two.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
 use crate::field;
-use crate::framework::{
-    RawHook, Regs, SelfTest, game_addr, game_read, game_write, hook_asm, rva, shadow,
-};
+use crate::framework::{Regs, game_addr, game_read, rva};
 use crate::input::devices::{RECORDS, at, put};
 use crate::input::types::InputDevice;
-use crate::race::mud::{copy, run_both, test_part};
-use crate::service::harness::{Region, at as at_rva, capture, restore};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("input::input_tick", rva(0x408A56), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
 
 pub const COMMAND_RVA: usize = rva(0x4F7DE4); // g_inputCommand
 const TWO_DEVICES_RVA: usize = rva(0x4F68FC); // dword_4F68FC
@@ -61,19 +48,14 @@ pub unsafe fn input_tick(entry: &Regs, part: Part) -> Result<Regs, Refused> {
         part(2, &mut r)?;
     }
     if unsafe { game_read::<u32>(TWO_DEVICES_RVA) } != 0 {
+        // Converted: `rc2k_core::input::devices::merge_readings`.
         let [first, second] = records;
-        for offset in [0x4DC, 0x4E0, 0x4E4] {
-            put(
-                first,
-                offset,
-                at(first, offset).wrapping_add(at(second, offset)),
-            );
+        let mut a = [0x4DC, 0x4E0, 0x4E4, field!(InputDevice, bits)].map(|o| at(first, o));
+        let b = [0x4DC, 0x4E0, 0x4E4, field!(InputDevice, bits)].map(|o| at(second, o));
+        rc2k_core::input::devices::merge_readings(&mut a, &b);
+        for (o, v) in [0x4DC, 0x4E0, 0x4E4, 0x4E8].into_iter().zip(a) {
+            put(first, o, v);
         }
-        put(
-            first,
-            0x4E8,
-            (at(second, field!(InputDevice, bits)) & 0x70FF) | at(first, field!(InputDevice, bits)),
-        );
     }
     Ok(*entry)
 }
@@ -110,62 +92,9 @@ pub unsafe fn input_tick_in_game() -> Result<(), Refused> {
     unsafe { input_tick(&Regs::default(), &mut game_part) }.map(|_| ())
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    HOOK.count_call();
-    if shadow() {
-        unsafe { call_original(r) };
-        return;
-    }
-    match unsafe { input_tick(r, &mut game_part) } {
-        Ok(left) => *r = Regs { esp: r.esp, ..left },
-        Err(e) => unsafe { crate::fatal::raise::refused(&HOOK, e, r, call_original) },
-    }
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    // pusha; mov eax, 0
-    let copy = match copy(
-        0x408A56,
-        0x8F,
-        &[0x60, 0xB8, 0x00, 0x00, 0x00, 0x00],
-        &[0x17, 0x1C, 0x27, 0x2C, 0x88],
-        &[(0x408E38, 1), (0x4096B4, 2), (0x408AE5, 0)],
-    ) {
-        Ok(c) => c,
-        Err(why) => return t.skip(why),
-    };
-    let readings = |rva: usize| (game_addr(rva) as u32 + 0x4DC, 0x10);
-    let regions: Vec<Region> = vec![
-        at_rva(COMMAND_RVA),
-        at_rva(TWO_DEVICES_RVA),
-        readings(RECORDS[0]),
-        readings(RECORDS[1]),
-    ];
-    let saved = capture(&regions);
-    for (command, two) in [(0u32, 0u32), (0, 1), (3, 0), (2, 1), (0xFFFF_FFFF, 0)] {
-        run_both(
-            &mut t,
-            &format!("command {command:#x}, two devices {two}"),
-            &copy,
-            &regions,
-            &|| unsafe {
-                game_write(COMMAND_RVA, command);
-                game_write(TWO_DEVICES_RVA, two);
-                for (k, rva) in RECORDS.into_iter().enumerate() {
-                    for (j, offset) in [0x4DCusize, 0x4E0, 0x4E4, 0x4E8].into_iter().enumerate() {
-                        game_write(
-                            rva + offset,
-                            (0x1234_0000 * (k as u32 + 1)) ^ (0x9_7531 * (j as u32 + 1)),
-                        );
-                    }
-                }
-            },
-            &|r| unsafe { input_tick(r, &mut test_part) },
-        );
-    }
-    restore(&regions, &saved);
-    t.finish()
+/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    let left = unsafe { input_tick(r, &mut game_part) }?;
+    *r = Regs { esp: r.esp, ..left };
+    Ok(())
 }

@@ -11,8 +11,10 @@
 
 use crate::errors::Refused;
 use crate::framework::{EAX, RawHook, Regs, SelfTest, call_game, game_addr, hook_asm, rva};
+use crate::physics::cells::{get, put_changed};
 use crate::screens::harness::Left;
-use crate::service::harness::{Region, capture, dispatch_state};
+use crate::service::harness::{Region, capture, dispatch_state, state_entry};
+use rc2k_core::physics::notices::Notice;
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -32,22 +34,21 @@ hook_asm!(
     original = ORIGINAL
 );
 
-/// The Rust core on (shown, time) at `v`; `r` as the original leaves it.
+/// The Rust version on (shown, time) at `v`; `r` as the original leaves it.
+// Converted: `rc2k_core::physics::notices::Notice::count_down`.
 pub unsafe fn count_down_at(v: [u32; 2], r: &mut Regs) {
     unsafe {
-        let (shown, time) = (v[0] as *mut u32, v[1] as *mut u32);
-        if shown.read_unaligned() == 0 {
-            return;
+        let was = Notice {
+            shown: get(v[0]),
+            time: get(v[1]),
+            ..Notice::default()
+        };
+        let mut n = was;
+        if let Some(eax) = n.count_down() {
+            r.eax = eax;
         }
-        r.eax = time.read_unaligned();
-        if r.eax == 0 {
-            return;
-        }
-        let left = r.eax - 1;
-        time.write_unaligned(left);
-        if left == 0 {
-            shown.write_unaligned(0);
-        }
+        put_changed(v[1], was.time, n.time);
+        put_changed(v[0], was.shown, n.shown);
     }
 }
 
@@ -69,6 +70,12 @@ fn rust(r: &Regs) -> Result<Left, Refused> {
 extern "C" fn dispatch(r: &mut Regs) {
     let v = game();
     dispatch_state(&HOOK, r, call_original, &[(v[0], 4), (v[1], 4)], &rust);
+}
+
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    state_entry(r, &rust)
 }
 
 fn self_test() -> (usize, usize) {

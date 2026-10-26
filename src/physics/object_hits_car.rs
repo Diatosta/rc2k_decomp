@@ -18,7 +18,7 @@
 //! back): test points (`g_objectPoints` pointed at them for the test), the object's turn
 //! and the car's figures by lot, counts 0 .. 5, under three precisions.
 
-use crate::errors::{BadInput, Refused};
+use crate::errors::Refused;
 use crate::framework::{EAX, EBX, ECX, EDX, RawHook, Regs, SelfTest, hook_asm, rva};
 use crate::math::x87_run::{TEST_CONTROL_WORDS, ext_to_int, int_80, with_control_word};
 use crate::physics::flow::{a, g, p};
@@ -27,7 +27,8 @@ use crate::physics::point_hits_car::{self, point_hits_car};
 use crate::scene::matrix3::test_floats;
 use crate::scene::rotate_point::rotate_point;
 use crate::screens::harness::Left;
-use crate::service::harness::{Region, capture, check_state, dispatch_state, restore};
+use crate::service::harness::{Region, capture, check_state, dispatch_state, restore, state_entry};
+use rc2k_core::physics::contacts;
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -49,42 +50,37 @@ const POINTS: usize = 0x5C6FA4; // g_objectPoints (a pointer)
 const TURN: usize = 0x5EA444; // flt_5EA444
 
 /// The Rust version.
+// Converted: `rc2k_core::physics::contacts::{check_object, walk_points}` (the turns stay
+// x87).
 pub unsafe fn object_hits_car(entry: &Regs) -> Result<Left, Refused> {
     let object = g(OBJECT);
-    if object > 0xFF {
-        return Err(BadInput("an object past 0xFF (the tables' room)").into());
-    }
+    contacts::check_object(object)?;
     unsafe { object_turn_matrix(entry) }?;
     p(0x61410C, g(0x61410C).wrapping_add(1));
-    let mut eax = g(FIRST + 4 * object as usize);
-    let mut ecx = g(COUNT + 4 * object as usize);
-    // With no points the original skips to `clc` before it sets edx (0x45E779).
-    let mut edx = if ecx == 0 {
-        entry.edx
-    } else {
-        eax.wrapping_mul(12).wrapping_add(g(POINTS))
-    };
-    let left = |inside: bool, eax: u32, ecx: u32, edx: u32| {
-        Left::carry(inside)
-            .with(EAX, eax)
-            .with(EBX, object)
-            .with(ECX, ecx)
-            .with(EDX, edx)
-    };
-    while ecx != 0 {
-        let at = |k: u32| unsafe { int_80(((edx + 4 * k) as *const i32).read_unaligned(), false) };
-        let turned = unsafe { rotate_point(a(TURN), [at(0), at(1), at(2)]) };
-        for (k, e) in turned.iter().enumerate() {
-            p(0x6D3B40 + 4 * k, ext_to_int(*e) as u32);
-        }
-        if unsafe { point_hits_car(entry.esi, entry.ebp) } {
-            return Ok(left(true, eax, ecx, edx));
-        }
-        edx = edx.wrapping_add(12);
-        eax = eax.wrapping_add(1);
-        ecx -= 1;
-    }
-    Ok(left(false, eax, ecx, edx))
+    let count = g(COUNT + 4 * object as usize);
+    // With no points the original skips to `clc` before it sets edx (0x45E779); the
+    // points' table is read only when there are some.
+    let points = if count == 0 { 0 } else { g(POINTS) };
+    let walk = contacts::walk_points(
+        g(FIRST + 4 * object as usize),
+        count,
+        points,
+        entry.edx,
+        |edx| {
+            let at =
+                |k: u32| unsafe { int_80(((edx + 4 * k) as *const i32).read_unaligned(), false) };
+            let turned = unsafe { rotate_point(a(TURN), [at(0), at(1), at(2)]) };
+            for (k, e) in turned.iter().enumerate() {
+                p(0x6D3B40 + 4 * k, ext_to_int(*e) as u32);
+            }
+            unsafe { point_hits_car(entry.esi, entry.ebp) }
+        },
+    );
+    Ok(Left::carry(walk.inside)
+        .with(EAX, walk.number)
+        .with(EBX, object)
+        .with(ECX, walk.left)
+        .with(EDX, walk.address))
 }
 
 fn rust(r: &Regs) -> Result<Left, Refused> {
@@ -100,6 +96,12 @@ pub fn regions() -> Vec<Region> {
 
 extern "C" fn dispatch(r: &mut Regs) {
     dispatch_state(&HOOK, r, call_original, &regions(), &rust);
+}
+
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    state_entry(r, &rust)
 }
 
 fn self_test() -> (usize, usize) {

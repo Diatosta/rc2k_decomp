@@ -7,27 +7,16 @@
 //! reports fatal error 0x80701010. The blitter is given the fill's end x as its palette,
 //! which only works because these sprites do not use one; it is reproduced as is.
 //! Also leaves the fill's end x in `seconds` (0x7559AC), a work variable.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::FatalError;
-use crate::framework::{RawHook, Regs, SelfTest, game_read, game_write, hook_asm, rva, shadow};
-use crate::gfx::blit_glyph::{
-    BlitCall, blit_glyph_on_surface, glyph_record, record_calls, recording_works,
-};
+use crate::framework::{Regs, game_read, game_write, rva};
+use crate::gfx::blit_glyph::{BlitCall, blit_glyph_on_surface, glyph_record};
 use crate::gfx::blit_marker_pair::sprite_table;
 use crate::gfx::surface::{CLIP_RIGHT_RVA, clip, surface};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("gfx::blit_bar", rva(0x46B574), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
 
 // ---- game data ----
 
@@ -116,39 +105,49 @@ pub fn on_surface(call: BlitCall) -> Result<(), FatalError> {
     .map(|_| ())
 }
 
-/// The bar described by the bar globals.
-pub unsafe fn blit_bar(blit: Blit) -> Result<(), FatalError> {
-    let bar = Bar::read();
-    if bar.percent == 0 {
-        return Ok(());
+/// The game's side of a bar: the blits through `blit`, the clip and the bar's globals.
+pub struct GameBar<'a>(pub Blit<'a>);
+
+impl rc2k_core::gfx::bars::BarCanvas for GameBar<'_> {
+    type Error = FatalError;
+    fn sprite(&mut self, glyph: u32, x: i32, y: i32, palette: u32) -> Result<(), FatalError> {
+        (self.0)(BlitCall::new(glyph, x, y, palette, sprite_table()))
     }
-    let end = bar.x.wrapping_add(bar.length()?);
-    let sprites = sprite_table();
-    unsafe {
-        // The fill is cut off at `end` by the clip rectangle, which is put back afterwards.
-        let saved = clip().right;
-        game_write(CLIP_RIGHT_RVA, end);
-        game_write(FILL_END_RVA, end);
-        let fill = blit(BlitCall::new(
-            bar.fill_glyph,
-            bar.x,
-            bar.y,
-            end as u32,
-            sprites,
-        ));
-        game_write(CLIP_RIGHT_RVA, saved);
-        fill?;
+    fn clip_right(&mut self) -> i32 {
+        clip().right
     }
-    blit(BlitCall::new(
-        bar.end_glyph,
-        end,
-        bar.y,
-        end as u32,
-        sprites,
-    ))
+    fn set_clip_right(&mut self, x: i32) {
+        unsafe { game_write(CLIP_RIGHT_RVA, x) };
+    }
+    fn keep_fill_end(&mut self, x: i32) {
+        unsafe { game_write(FILL_END_RVA, x) };
+    }
+    fn set_bar_x(&mut self, x: i32) {
+        set_bar_x(x);
+    }
+    fn no_length(&mut self) -> FatalError {
+        BAR_HAS_NO_LENGTH
+    }
 }
 
-// ---- hook ----
+impl Bar {
+    /// As the core's.
+    pub fn core(&self) -> rc2k_core::gfx::bars::Bar {
+        rc2k_core::gfx::bars::Bar {
+            x: self.x,
+            y: self.y,
+            width: self.width,
+            fill_glyph: self.fill_glyph,
+            end_glyph: self.end_glyph,
+            percent: self.percent,
+        }
+    }
+}
+
+/// The bar described by the bar globals. Converted: `rc2k_core::gfx::bars::bar`.
+pub unsafe fn blit_bar(blit: Blit) -> Result<(), FatalError> {
+    rc2k_core::gfx::bars::bar(&mut GameBar(blit), &Bar::read().core())
+}
 
 /// A `Blit` that lists the calls and makes the blitter's own checks, without drawing.
 pub fn checked_list(
@@ -161,110 +160,11 @@ pub fn checked_list(
     }
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    HOOK.count_call();
-
-    if !shadow() {
-        // A fatal error: the original, run from the start, meets the same one.
-        if let Err(e) = unsafe { blit_bar(&mut on_surface) } {
-            unsafe { crate::fatal::raise::refused(&HOOK, e, r, call_original) };
-        }
-        return;
+/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
+pub fn entry(_: &mut Regs) -> Result<(), crate::errors::Refused> {
+    // A fatal error: the original, run from the start, meets the same one.
+    if let Err(e) = unsafe { blit_bar(&mut on_surface) } {
+        return Err(e.into());
     }
-
-    let mut mine = Vec::new();
-    if let Err(e) = unsafe { blit_bar(&mut checked_list(&mut mine)) } {
-        unsafe { crate::fatal::raise::refused(&HOOK, e, r, call_original) };
-        return;
-    }
-    let (bar, clip_before) = (Bar::read(), clip().right);
-    let end_r: i32 = unsafe { game_read(FILL_END_RVA) };
-
-    let mut o = *r;
-    let calls = record_calls(false, || unsafe { call_original(&mut o) });
-    let end_o: i32 = unsafe { game_read(FILL_END_RVA) };
-
-    let ok = o.preserved_except(r, 0)
-        && (bar.percent == 0 || end_o == end_r)
-        && clip().right == clip_before
-        && (!recording_works() || calls == mine);
-    if !ok {
-        HOOK.mismatch(|| {
-            format!(
-                "{bar:?}: original calls={calls:?} end={end_o}; rust calls={mine:?} end={end_r}"
-            )
-        });
-    }
-}
-
-// ---- self-test: the blitter's hook swallows the calls, so nothing is drawn ----
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    if !recording_works() {
-        return t.skip("the gfx::blit_glyph hook is off, so the original would really draw");
-    }
-    let saved = (Bar::read(), unsafe { game_read::<i32>(FILL_END_RVA) });
-    let clip_before = clip().right;
-
-    // Never a non-zero percent with a product of 0: that is the fatal error.
-    for (width, percent) in [
-        (120, 0),
-        (120, 1),
-        (120, 50),
-        (120, 99),
-        (120, 100),
-        (120, 150),
-        (7, 33),
-        (1, 1),
-        (120, -10),
-        (-120, 25),
-    ] {
-        let bar = Bar {
-            x: 200,
-            y: 150,
-            width,
-            fill_glyph: 0x40,
-            end_glyph: 0x41,
-            percent,
-        };
-        bar.write();
-        unsafe { game_write(FILL_END_RVA, 0x5EED_0001i32) };
-        let before = Regs::SENTINEL;
-        let mut ro = before;
-        let calls_o = record_calls(true, || unsafe { call_original(&mut ro) });
-        let end_o: i32 = unsafe { game_read(FILL_END_RVA) };
-        let clip_o = clip().right;
-
-        bar.write();
-        unsafe { game_write(FILL_END_RVA, 0x5EED_0001i32) };
-        let mut calls_r = Vec::new();
-        let mine = unsafe {
-            blit_bar(&mut |call| {
-                calls_r.push(call);
-                Ok(())
-            })
-        };
-
-        let end_r: i32 = unsafe { game_read(FILL_END_RVA) };
-        let preserved = ro.preserved_except(&before, 0);
-        let ok = mine.is_ok()
-            && calls_o == calls_r
-            && end_o == end_r
-            && clip_o == clip_before
-            && clip().right == clip_before
-            && Bar::read() == bar
-            && preserved;
-        t.check(ok, || {
-            format!(
-                "width={width} percent={percent}: original calls={calls_o:?} end={end_o} clip_right={clip_o} preserved={preserved}; rust {mine:?} calls={calls_r:?} end={end_r}"
-            )
-        });
-    }
-
-    saved.0.write();
-    unsafe { game_write(FILL_END_RVA, saved.1) };
-    t.finish()
+    Ok(())
 }

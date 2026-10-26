@@ -32,10 +32,8 @@ impl SampleBufferVars {
 /// `audio::take_sample_buffer`: the setting's KB (0: one) taken on its list.
 pub unsafe fn take_sample_buffer(v: &SampleBufferVars) -> Result<(), Refused> {
     unsafe {
-        let mut size = read(v.kb).wrapping_mul(0x400);
-        if size == 0 {
-            size = 0x400;
-        }
+        // Converted: `rc2k_core::audio::levels::sample_buffer_size`.
+        let size = rc2k_core::audio::levels::sample_buffer_size(read(v.kb));
         write(v.size, size);
         let b = crate::memory::allocate::allocate(v.list as *mut crate::memory::MemoryList, size)?;
         write(v.buffer, b as u32);

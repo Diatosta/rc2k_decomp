@@ -22,31 +22,18 @@
 //! Ungated. Shadow mode runs the original alone. Self-test: a copy whose sixteen calls and
 //! the list's actions go to stand-ins (keys, moves and answers scripted), against the Rust
 //! version. The quitting way is not tested (it would set the game's `g_quitting`).
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
+use crate::framework::Regs;
 use crate::install::installer::{
     CHOICE, CHOICE_BEFORE, CLOCK, COPY_PICTURE, FRAME_CLOCK, KEY_CLOCK, LIST_ANSWER, LIST_LEAVE,
-    LOCK, MOVE_CLOCK, Part, QUITTING, RUN_FRAME, SHOW, UNLOCK, ZF, a, answer, at, both, copy, g,
-    gb, p, pb, quiet, rb, rd, region, stand_in, wd,
+    LOCK, MOVE_CLOCK, Part, QUITTING, RUN_FRAME, SHOW, UNLOCK, ZF, at, g, gb, p, pb, rb, rd, wd,
 };
-use crate::install::list_test::TestList;
-use crate::race::viewer::{Saved, dispatch_parts};
-use std::sync::Mutex;
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("install::run_page", rva(0x4144CF), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL,
-    ungated
-);
+use crate::race::viewer::regs_entry;
 
 const CLEAR_MARKS: usize = 0x414AC9; // menu::list_clear_marks
 const MARK_PAGE: usize = 0x414B53; // install::mark_page
@@ -257,182 +244,10 @@ pub fn run_page(entry: &Regs, part: Part) -> Result<Regs, Refused> {
     })
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_parts(&HOOK, r, call_original, &|r| {
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    regs_entry(r, &|r| {
         run_page(r, &mut crate::install::installer::game_part)
-    });
-}
-
-// ---- self-test ----
-
-const CALLEES: [u32; 16] = [
-    0x414AC9, 0x414B53, 0x414C1B, 0x41525D, 0x414C7E, 0x414DF5, 0x414ED1, 0x405A71, 0x4058AD,
-    0x4060E3, 0x415058, 0x405949, 0x4057D1, 0x41469A, 0x4146E4, 0x414A55,
-];
-const CALLS: [(usize, u32); 22] = [
-    (0x2E, 0x414AC9),
-    (0x49, 0x414B53),
-    (0x57, 0x414C1B),
-    (0x79, 0x41525D),
-    (0x7E, 0x414C7E),
-    (0x83, 0x414DF5),
-    (0x88, 0x414ED1),
-    (0x90, 0x405A71),
-    (0x96, 0x4058AD),
-    (0x9D, 0x4060E3),
-    (0xA2, 0x415058),
-    (0xA7, 0x405949),
-    (0xAC, 0x4057D1),
-    (0xC5, 0x41469A),
-    (0xE6, 0x4146E4),
-    (0xFB, 0x414A55),
-    (0x10E, 0x414AC9),
-    (0x121, 0x414B53),
-    (0x126, 0x414C1B),
-    (0x185, 0x414C1B),
-    (0x19A, 0x41525D),
-    (0x1B3, 0x414AC9),
-];
-
-/// A case's script: the keys, which items cannot be chosen, what the item takes, what the
-/// list's key action takes, what the step moves, whether the lock fails.
-#[derive(Clone)]
-struct Script {
-    keys: Vec<u8>,
-    unusable: u32,
-    item_takes: bool,
-    list_takes: bool,
-    step_moves: bool,
-    lock_fails: bool,
-}
-
-static STATE: Mutex<(usize, u32)> = Mutex::new((0, 0));
-
-fn scripted(s: Script) -> crate::install::installer::Answer {
-    *STATE.lock().unwrap() = (0, 0);
-    Box::new(move |place, r| {
-        let mut state = STATE.lock().unwrap();
-        let callee = |x: u32| place == crate::install::installer::a(x as usize);
-        if callee(0x41469A) {
-            let n = state.0;
-            state.0 += 1;
-            let key = s.keys.get(n).copied().unwrap_or(1);
-            r.eax = r.eax & !0xFF | key as u32;
-            if n + 1 >= s.keys.len() {
-                pb(LIST_LEAVE, 1);
-            }
-        } else if callee(0x414C1B) {
-            r.set_carry(s.unusable >> (g(CHOICE) & 31) & 1 != 0);
-        } else if callee(0x4146E4) {
-            r.set_zero(s.item_takes);
-        } else if callee(0x414A55) {
-            r.set_zero(s.step_moves);
-            if s.step_moves {
-                p(CHOICE, (g(CHOICE) + 1) % 6);
-            }
-        } else if callee(0x4058AD) {
-            r.set_carry(s.lock_fails);
-        } else if place == 0xC0DE_0014 {
-            r.set_zero(s.list_takes);
-        } else if place == 0xC0DE_0008 {
-            state.1 += 1;
-            r.eax = 0x5555;
-        }
     })
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    // push esi; push edi; push ebp; mov byte_51D415, 1
-    let copy = match copy(
-        0x4144CF,
-        0x1CB,
-        &[0x56, 0x57, 0x55, 0xC6, 0x05, 0x15, 0xD4, 0x51, 0x00, 0x01],
-        &CALLS,
-        &CALLEES,
-        &[],
-        &[],
-        &[0xC0DE_0008, 0xC0DE_0014],
-    ) {
-        Ok(c) => c,
-        Err(why) => return t.skip(&why),
-    };
-    let list = TestList::new();
-    let regions = [list.region(), region(CHOICE, 0x20), region(CLOCK, 4)];
-    let saved = Saved::new(&regions);
-    let base = Script {
-        keys: vec![0x66, 0, 0x1C],
-        unusable: 0,
-        item_takes: true,
-        list_takes: false,
-        step_moves: false,
-        lock_fails: false,
-    };
-    let mut scripts = vec![base.clone()];
-    for (keys, unusable) in [
-        (vec![0x66u8, 0x6B, 0x68, 0x69, 0x30, 0x90], 0b000100u32),
-        (vec![0x66, 0x66, 0x6B], 0b101001),
-        (vec![0x68, 0x69, 0x1C], 0b010110),
-        (vec![0x6B], 0b011111),
-    ] {
-        for (item_takes, list_takes, step_moves) in [
-            (true, false, false),
-            (false, true, false),
-            (false, false, true),
-            (false, false, false),
-        ] {
-            scripts.push(Script {
-                keys: keys.clone(),
-                unusable,
-                item_takes,
-                list_takes,
-                step_moves,
-                lock_fails: unusable & 1 != 0,
-            });
-        }
-    }
-    for flags in [0u8, 0x40, 0x80] {
-        for actions in [false, true] {
-            for s in &scripts {
-                if flags != 0 && s.keys != base.keys {
-                    continue;
-                }
-                let prepare = || {
-                    list.set(flags, &[1, 2, 3, 4, 5, 6], 2, 0, 0, 0, 100, b"");
-                    if actions {
-                        wd(list.base() + 8, stand_in(16));
-                        wd(list.base() + 0x14, stand_in(17));
-                    }
-                    wd(list.base() + 4, 2);
-                    p(CLOCK, 0x4321);
-                    answer(scripted(s.clone()));
-                };
-                let before = Regs {
-                    edi: list.base(),
-                    ..Regs::SENTINEL
-                };
-                both(
-                    &mut t,
-                    &format!(
-                        "flags {flags:#x}, actions {actions}, keys {:x?}, unusable {:#b}, item {} \
-                         list {} step {} lock fails {}",
-                        s.keys, s.unusable, s.item_takes, s.list_takes, s.step_moves, s.lock_fails
-                    ),
-                    &copy,
-                    before,
-                    &regions,
-                    0,
-                    &[],
-                    &prepare,
-                    &|r, part, _| run_page(r, part),
-                );
-            }
-        }
-    }
-    quiet();
-    let _ = (a, QUITTING);
-    drop(saved);
-    t.finish()
 }

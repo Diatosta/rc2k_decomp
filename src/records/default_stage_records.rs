@@ -11,32 +11,13 @@
 //! One caller, `menu::set_up_front_end`, on each of thirteen record tables when
 //! `var\ral.dat` was not loaded.
 //! Refuses a null table, a table without its end, and a name that does not fit.
+//! Hook removed 2026-10-22 (conversion phase 4): Rust callers call this directly; the
+//! registers above are the original's, for reference.
 
+use crate::bridge::Raw;
 use crate::errors::{BadInput, Refused};
-use crate::framework::{RawHook, Regs, SelfTest, game_write, hook_asm, rva};
-use crate::math::next_random::STATE_RVA;
 use crate::math::random_below::random_below;
 use crate::saves::drivers::{Driver, put, put_bytes};
-use crate::screens::harness::Left;
-use crate::service::harness::{at, capture, check_state, dispatch_state, restore};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook = RawHook::new(
-    "records::default_stage_records",
-    rva(0x47C7E0),
-    thunk,
-    &ORIGINAL,
-)
-.self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
 
 // ---- game data ----
 
@@ -49,11 +30,12 @@ const MOST_RECORDS: usize = 0x1000;
 /// How many records the table has before its -1 (the first is not looked at for the
 /// end, as in the original).
 unsafe fn records(table: u32) -> Result<usize, BadInput> {
-    (1..=MOST_RECORDS)
-        .find(|&n| unsafe {
-            ((table as usize + n * RECORD_LEN) as *const u32).read_unaligned() == u32::MAX
-        })
-        .ok_or(BadInput("a record table without its end"))
+    // Converted: `rc2k_core::files::records::record_count`.
+    let records = unsafe { Raw::new(table as usize as *const u8) };
+    Ok(rc2k_core::files::records::record_count(
+        &records,
+        MOST_RECORDS,
+    )?)
 }
 
 pub unsafe fn default_stage_records(table: u32) -> Result<(), Refused> {
@@ -99,75 +81,4 @@ pub unsafe fn default_stage_records(table: u32) -> Result<(), Refused> {
         }
         Ok(())
     }
-}
-
-// ---- hook ----
-
-fn rust(r: &Regs) -> Result<Left, Refused> {
-    unsafe { default_stage_records(r.edi) }?;
-    Ok(Left::nothing())
-}
-
-extern "C" fn dispatch(r: &mut Regs) {
-    let Ok(count) = (unsafe { records(r.edi) }) else {
-        HOOK.count_call();
-        let e = BadInput("a record table without its end");
-        unsafe { crate::fatal::raise::refused(&HOOK, e, r, call_original) };
-        return;
-    };
-    let regions = [(r.edi, count * RECORD_LEN), at(STATE_RVA)];
-    dispatch_state(&HOOK, r, call_original, &regions, &rust);
-}
-
-// ---- self-test: record tables of the test's, filled by both from the same random
-// numbers ----
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let seeds = [at(STATE_RVA)];
-    let saved = capture(&seeds);
-    let cases: [(&str, &[u32], u8); 5] = [
-        ("a rally", &[5, 1, 0, 0, 1, 0, 4, 1, 0], 0),
-        ("only stages", &[0, 0, 0], 0),
-        ("no stage", &[5, 1, 3], 0),
-        ("named already", &[0, 0, 0], b'x'),
-        ("a stage first", &[0, 4, 0], 0),
-    ];
-    for (what, tags, named) in cases {
-        let mut table = vec![0xAAu8; tags.len() * RECORD_LEN + 4];
-        let fresh = |table: &mut Vec<u8>| {
-            table.fill(0xAA);
-            for (n, tag) in tags.iter().enumerate() {
-                table[n * RECORD_LEN..][..4].copy_from_slice(&tag.to_le_bytes());
-            }
-            let end = tags.len() * RECORD_LEN;
-            table[end..].copy_from_slice(&u32::MAX.to_le_bytes());
-            table[0x54] = named;
-        };
-        fresh(&mut table);
-        let address = table.as_mut_ptr();
-        let template = table.clone();
-        let regions = [(address as u32, table.len()), at(STATE_RVA)];
-        for seed in [7u32, 0xCAFE_F00D] {
-            check_state(
-                &mut t,
-                &format!("{what}, seed {seed:#x}"),
-                call_original,
-                Regs {
-                    edi: address as u32,
-                    ..Regs::SENTINEL
-                },
-                &|| unsafe {
-                    std::ptr::copy(template.as_ptr(), address, template.len());
-                    game_write(STATE_RVA, seed);
-                },
-                &regions,
-                &rust,
-            );
-        }
-    }
-    restore(&seeds, &saved);
-    t.finish()
 }

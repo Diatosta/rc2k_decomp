@@ -8,7 +8,7 @@
 //! through its own hook (`or_in_game`), so the function itself refuses nothing.
 
 use crate::errors::Refused;
-use crate::framework::{Regs, call_game, game_addr, game_read, game_write, rva};
+use crate::framework::{Regs, game_addr, game_read, game_write, rva};
 use crate::service::harness::{Region, at};
 
 /// A step's calls by callee (`CALLEES`' index; 28 the log, 29 the loading bar).
@@ -323,7 +323,7 @@ pub fn or_in_game(
     match rust(r) {
         Err(Refused::BadInput(_)) => {
             *r = entry;
-            unsafe { call_game(r, game_addr(rva(address))) };
+            crate::calls::call(rva(address), r);
             Ok(())
         }
         other => other,
@@ -382,7 +382,7 @@ fn step_part(callee: u32, r: &mut Regs) -> Result<(), Refused> {
                     r,
                     &mut |_| build_texture_catalogue_in_game(),
                     &mut |r| {
-                        call_game(r, game_addr(rva(0x4051ED))); // gfx::allocate_textures
+                        crate::calls::call(rva(0x4051ED), r); // gfx::allocate_textures
                         !r.carry()
                     },
                 )?;
@@ -419,7 +419,7 @@ fn step_part(callee: u32, r: &mut Regs) -> Result<(), Refused> {
                     pixels_b,
                 )?;
             }
-            15 => call_game(r, game_addr(rva(CALLEES[callee as usize]))),
+            15 => crate::calls::call(rva(CALLEES[callee as usize]), r),
             25 => crate::race::init_pace_notes::init_pace_notes(r)?,
             16 => crate::race::level_init::reset_refresh(&Vars::game()),
             17 => *r = crate::race::stage_prefs::init_skidmarks(r),
@@ -448,7 +448,7 @@ fn step_part(callee: u32, r: &mut Regs) -> Result<(), Refused> {
             LOG => crate::logfile::log_write::log_write(r.eax as *const u8, true, 1),
             // The loading bar's callback; `nullsub_8` (after the loading) does nothing.
             _ if r.esi == game_addr(BAR_DONE_RVA) as u32 => {}
-            _ => call_game(r, r.esi as usize),
+            _ => crate::menu::table_calls::call_any(r.esi, r),
         }
     }
     Ok(())

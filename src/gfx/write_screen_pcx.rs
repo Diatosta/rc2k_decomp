@@ -23,25 +23,16 @@
 //! Self-test: a surface of the test's (16 and 32 bits, 64 x 48), the file a name of the
 //! test's in `var` (removed after), against the original: the files' bytes, the header,
 //! the stream and the planes compared.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::files::stream::{BUFFER_LEN, Stream};
-use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
+use crate::files::stream::Stream;
+use crate::framework::Regs;
 use crate::gfx::pixel_format::PixelFormat;
-use crate::physics::flow::{a, g, p};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("gfx::write_screen_pcx", rva(0x411E0C), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
+use crate::physics::flow::{a, g};
 
 const HEADER: usize = 0x51B5F4; // g_pcxHeader
 const STREAM: usize = 0x5195E4; // g_pictureStream
@@ -56,29 +47,27 @@ const PITCH: usize = 0x4F49BC; // g_surface.pitch
 const PIXELS: usize = 0x4F49C0; // g_surface.pixels
 
 /// `files::write_stream_byte` with the byte.
-unsafe fn write_stream_byte(stream: *mut Stream, byte: u8) -> bool {
-    unsafe { crate::files::write_stream_byte::write_stream_byte(stream, byte as u32) }
+unsafe fn write_stream_byte(stream: *mut Stream, byte: u8) -> Result<bool, Refused> {
+    unsafe {
+        Ok(crate::files::write_stream_byte::write_stream_byte(
+            stream,
+            byte as u32,
+        )?)
+    }
 }
 
 /// `files::write_stream_block`.
-unsafe fn write_stream_block(stream: *mut Stream, bytes: &[u8]) -> bool {
-    unsafe { crate::files::write_stream_block::write_stream_all(stream, bytes) }
+unsafe fn write_stream_block(stream: *mut Stream, bytes: &[u8]) -> Result<bool, Refused> {
+    unsafe {
+        Ok(crate::files::write_stream_block::write_stream_all(
+            stream, bytes,
+        )?)
+    }
 }
 
-/// The header's first 0x80 bytes for a surface `width` x `height`.
-pub fn header(width: u32, height: u32) -> [u8; 0x80] {
-    let mut h = [0u8; 0x80];
-    h[..4].copy_from_slice(&0x0801_050Au32.to_le_bytes());
-    h[8..10].copy_from_slice(&(width.wrapping_sub(1) as u16).to_le_bytes());
-    h[0xA..0xC].copy_from_slice(&(height.wrapping_sub(1) as u16).to_le_bytes());
-    h[0xC..0x10].copy_from_slice(&0x012C_012Cu32.to_le_bytes());
-    for n in 0..16 {
-        h[0x10 + 3 * n..0x13 + 3 * n].fill(n as u8);
-    }
-    h[0x41] = 3;
-    h[0x42..0x44].copy_from_slice(&(width as u16).to_le_bytes());
-    h
-}
+/// The header's first 0x80 bytes for a surface `width` x `height` (converted:
+/// `rc2k_core::gfx::pcx::screen_header`).
+pub use rc2k_core::gfx::pcx::screen_header as header;
 
 /// The Rust version: whether it worked (carry clear).
 pub unsafe fn write_screen_pcx() -> Result<bool, Refused> {
@@ -102,17 +91,17 @@ pub unsafe fn write_screen_pcx() -> Result<bool, Refused> {
         if !crate::files::open_stream::open_stream(stream, path as *const u8, 1)? {
             return Ok(false);
         }
-        let mut ok = write_stream_block(stream, &header_bytes) && rows(stream);
-        let closed = crate::files::close_stream::close_stream(stream);
+        let mut ok = write_stream_block(stream, &header_bytes)? && rows(stream)?;
+        let closed = crate::files::close_stream::close_stream(stream)?;
         ok = ok && closed;
         Ok(ok)
     }
 }
 
-/// The rows; false when a write failed.
-unsafe fn rows(stream: *mut Stream) -> bool {
+/// The rows; false when a write failed. Converted: `rc2k_core::gfx::pcx::screen_planes` and
+/// `encode_line`; the planes are left in the game's buffer, as the original leaves them.
+unsafe fn rows(stream: *mut Stream) -> Result<bool, Refused> {
     unsafe {
-        let planes = a(PLANES) as *mut u8;
         let mut row = g(PIXELS);
         // eax as the original has it: the block's byte count after the header (0x80).
         let mut eax: u32 = 0x80;
@@ -120,77 +109,31 @@ unsafe fn rows(stream: *mut Stream) -> bool {
         let mut y = 0u32;
         loop {
             let format = (g(FORMAT) as *const PixelFormat).read_unaligned();
-            for x in 0..width {
-                let bits = g(BITS);
-                if bits == 0x10 {
-                    let pixel = ((row + 2 * x) as *const u16).read_unaligned();
-                    eax = crate::gfx::pixel_to_components::pixel_to_components(
+            let planes =
+                rc2k_core::gfx::pcx::screen_planes(width, &mut eax, &mut |x, eax| match g(BITS) {
+                    0x10 => crate::gfx::pixel_to_components::pixel_to_components(
                         &format,
-                        eax & 0xFFFF_0000 | pixel as u32,
-                    );
-                } else if bits == 0x20 {
-                    eax = crate::gfx::pixel_to_components::pixel_to_components(
+                        eax & 0xFFFF_0000 | ((row + 2 * x) as *const u16).read_unaligned() as u32,
+                    ),
+                    0x20 => crate::gfx::pixel_to_components::pixel_to_components(
                         &format,
                         ((row + 4 * x) as *const u32).read_unaligned(),
-                    );
+                    ),
+                    _ => eax,
+                });
+            std::ptr::copy_nonoverlapping(planes.as_ptr(), a(PLANES) as *mut u8, planes.len());
+            for byte in rc2k_core::gfx::pcx::encode_line(&planes, &mut eax) {
+                if !write_stream_byte(stream, byte)? {
+                    return Ok(false);
                 }
-                planes.add((x + 2 * width) as usize).write(eax as u8);
-                eax >>= 8;
-                planes.add((width + x) as usize).write(eax as u8);
-                planes.add(x as usize).write((eax >> 8) as u8);
             }
-            // The line run coded.
-            let line = 3 * width;
-            let mut al = planes.read();
-            let mut count = 1u32;
-            let put = |stream: *mut Stream, count: u32, al: u8| -> bool {
-                if count < 1 {
-                    return true;
-                }
-                if (count > 1 || al >= 0xC0) && !write_stream_byte(stream, (count + 0xC0) as u8) {
-                    return false;
-                }
-                write_stream_byte(stream, al)
-            };
-            let mut at = 1u32;
-            while at < line {
-                let ah = planes.add(at as usize).read();
-                if al == ah {
-                    count += 1;
-                    if count >= 0x3F {
-                        if !write_stream_byte(stream, (count + 0xC0) as u8)
-                            || !write_stream_byte(stream, al)
-                        {
-                            return false;
-                        }
-                        count = 0;
-                    }
-                } else {
-                    if !put(stream, count, al) {
-                        return false;
-                    }
-                    al = ah;
-                    count = 1;
-                }
-                at += 1;
-            }
-            if !put(stream, count, al) {
-                return false;
-            }
-            // eax's low half as the coding left it: al the last byte, ah the line's last.
-            let ah = if line > 1 {
-                planes.add(line as usize - 1).read()
-            } else {
-                (eax >> 8) as u8
-            };
-            eax = eax & 0xFFFF_0000 | (ah as u32) << 8 | al as u32;
             row = row.wrapping_add(g(PITCH));
             y += 1;
             if y == g(HEIGHT) {
                 break;
             }
         }
-        true
+        Ok(true)
     }
 }
 
@@ -201,78 +144,12 @@ pub unsafe fn write_screen_pcx_in_game(r: &mut Regs) -> Result<(), Refused> {
     Ok(())
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    HOOK.count_call();
-    if crate::framework::shadow() {
-        unsafe { call_original(r) };
-        return;
-    }
+/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     let mut left = *r;
     match unsafe { write_screen_pcx_in_game(&mut left) } {
         Ok(()) => r.eflags = left.eflags,
-        Err(e) => unsafe { crate::fatal::raise::refused(&HOOK, e, r, call_original) },
+        Err(e) => return Err(e),
     }
-}
-
-// ---- self-test ----
-
-const FILE_A: &str = "var\\rc2k_hook_pcx_a.pcx";
-const FILE_B: &str = "var\\rc2k_hook_pcx_b.pcx";
-
-fn self_test() -> (usize, usize) {
-    use crate::race::mud::{TestSurface, has_format};
-    use crate::service::harness::{capture, diff_summary};
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    if !has_format() {
-        return t.skip("no pixel format");
-    }
-    let regions = [
-        (a(HEADER), 0x80),
-        (a(STREAM), 0x10 + BUFFER_LEN),
-        (a(PLANES), 3 * 64),
-        (a(PICTURE_NAME), 4),
-        (a(SCREENSHOT_NAME), 8),
-    ];
-    let saved = crate::race::viewer::Saved::new(&regions);
-    let last = crate::files::stream::LastPath::save();
-    for bits in [16u32, 32] {
-        let surface = TestSurface::new(bits);
-        let (a_path, b_path) = (b"var\\rc2k_hook_pcx_a.pcx\0", b"var\\rc2k_hook_pcx_b.pcx\0");
-        p(PICTURE_NAME, a_path.as_ptr() as u32);
-        let mut ro = Regs::SENTINEL;
-        unsafe { call_original(&mut ro) };
-        let theirs = (
-            ro.carry(),
-            std::fs::read(FILE_A).ok(),
-            capture(&regions[..3]),
-        );
-        p(PICTURE_NAME, b_path.as_ptr() as u32);
-        let mine = unsafe { write_screen_pcx() };
-        let state = (
-            !mine.as_ref().is_ok_and(|&ok| ok),
-            std::fs::read(FILE_B).ok(),
-            capture(&regions[..3]),
-        );
-        let regs_ok = ro.preserved_except(&Regs::SENTINEL, 0);
-        t.check(regs_ok && theirs == state, || {
-            format!(
-                "{bits} bits: regs_ok={regs_ok} carry {} {}; files the same {} ({:?} {:?} bytes); \
-                 memory {}",
-                theirs.0,
-                state.0,
-                theirs.1 == state.1,
-                theirs.1.as_ref().map(|f| f.len()),
-                state.1.as_ref().map(|f| f.len()),
-                diff_summary(&theirs.2, &state.2)
-            )
-        });
-        drop(surface);
-    }
-    let _ = std::fs::remove_file(FILE_A);
-    let _ = std::fs::remove_file(FILE_B);
-    last.restore();
-    drop(saved);
-    t.finish()
+    Ok(())
 }

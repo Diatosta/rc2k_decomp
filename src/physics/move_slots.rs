@@ -18,7 +18,7 @@ use crate::physics::move_slot::{
     SLOT_LEN, fill_slots, in_race, move_slot_at, regions, slot_refusal,
 };
 use crate::screens::harness::Left;
-use crate::service::harness::{capture, dispatch_state, restore};
+use crate::service::harness::{capture, dispatch_state, restore, state_entry};
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -79,6 +79,12 @@ extern "C" fn dispatch(r: &mut Regs) {
     let mut regions = regions();
     regions.push((game_addr(SLOTS_RVA) as u32, 8 * SLOT_LEN as usize + 8));
     dispatch_state(&HOOK, r, call_original, &regions, &rust);
+}
+
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    state_entry(r, &rust)
 }
 
 fn self_test() -> (usize, usize) {

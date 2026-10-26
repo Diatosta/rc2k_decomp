@@ -36,6 +36,7 @@ pub mod car_physics_step;
 pub mod car_sound_state;
 pub mod car_sounds;
 pub mod cell_face_contacts;
+pub mod cells;
 pub mod change_gear;
 pub mod checkpoint_offset;
 pub mod clamped_asin;
@@ -461,7 +462,6 @@ pub static HOOKS: &[&dyn GameHook] = &[
     &damage_step::HOOK,
     &car_physics_step::HOOK,
     &test_drive_run::HOOK,
-    &test_drive::HOOK,
     &cue_car_sound_last::HOOK,
     &cue_listed_car_sound_last::HOOK,
     &queue_pace_note::HOOK,

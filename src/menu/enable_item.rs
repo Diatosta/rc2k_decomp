@@ -7,50 +7,31 @@
 //! `menu::disable_item`, which has the details. Eight callers.
 //! Refuses item 0.
 //! Self-test: items of a menu of the test's.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
-use crate::menu::disable_item::{CHOOSABLE, PLAIN_FONT, check_item_setter, item_region, set_item};
+use crate::framework::Regs;
+use crate::menu::disable_item::set_item;
 use crate::screens::harness::Left;
-use crate::service::harness::dispatch_state;
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("menu::enable_item", rva(0x46B50F), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
+use crate::service::harness::state_entry;
 
 // ---- Rust version ----
 
 pub fn enable_item(number: u32) -> Result<(), Refused> {
-    set_item(number, CHOOSABLE, PLAIN_FONT)
+    // Converted: `rc2k_core::menu::items::choosable`.
+    set_item(number, true)
 }
-
-// ---- hook ----
 
 fn rust(r: &Regs) -> Result<Left, Refused> {
     enable_item(r.ebx)?;
     Ok(Left::nothing())
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    let regions = item_region(r.ebx);
-    dispatch_state(&HOOK, r, call_original, &regions, &rust);
-}
-
-// ---- self-test ----
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    check_item_setter(&mut t, call_original, &rust);
-    t.finish()
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    state_entry(r, &rust)
 }

@@ -8,13 +8,21 @@
 //!
 //! Caller: `sub_4C1270`. Self-test: the twelve inputs by lot, compared on the nine
 //! results; put back afterwards.
+//!
+//! Converted 2026-10-21: the hook's Rust version is
+//! `scale_vectors_by::scale_triples_plain`, through `rc2k_core::marks::view::scaled` (plain
+//! floats; the x87 version stays for the Rust callers in unconverted code). Shadow mode and
+//! the self-test compare within `service::floats`' tolerances (the self-test at both test
+//! precisions, exact at double).
 
 use crate::errors::Refused;
 use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
-use crate::marks::leaf_test::test_leaf;
-use crate::marks::scale_vectors_by::{inputs_of, results_of, scale_triples};
+use crate::marks::leaf_test::test_leaf_floats;
+use crate::marks::scale_vectors_by::{inputs_of, results_of, scale_triples, scale_triples_plain};
+use crate::scene::matrix::float_places;
 use crate::screens::harness::Left;
-use crate::service::harness::{at, dispatch_state};
+use crate::service::floats::*;
+use crate::service::harness::at;
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -42,7 +50,7 @@ pub unsafe fn scale_kept_vectors() {
 }
 
 fn rust(_: &Regs) -> Result<Left, Refused> {
-    unsafe { scale_kept_vectors() };
+    unsafe { scale_triples_plain(&PAIRS) };
     Ok(Left::nothing())
 }
 
@@ -52,7 +60,18 @@ pub fn regions() -> Vec<crate::service::harness::Region> {
 }
 
 extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_state(&HOOK, r, call_original, &regions(), &rust);
+    let places = float_places(&regions());
+    let floats = Floats {
+        memory: &places,
+        regs: &[],
+    };
+    dispatch_state_floats(&HOOK, r, call_original, &regions(), &floats, &rust);
+}
+
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    floats_entry(r, &rust)
 }
 
 fn self_test() -> (usize, usize) {
@@ -60,11 +79,13 @@ fn self_test() -> (usize, usize) {
         return (0, 0);
     };
     let (inputs, written) = (inputs_of(&PAIRS), results_of(&PAIRS));
-    test_leaf(
+    test_leaf_floats(
         &mut t,
+        "marks::scale_kept_vectors",
         &inputs,
         &written,
         Regs::SENTINEL,
+        &[],
         8,
         call_original,
         &rust,

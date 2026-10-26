@@ -16,12 +16,12 @@
 
 use crate::errors::Refused;
 use crate::framework::{RawHook, Regs, SelfTest, rva};
-use crate::math::x87_run::{TEST_CONTROL_WORDS, scale_by_80, with_control_word};
+use crate::math::x87_run::scale_by_80;
 use crate::race::stage_prefs::left_of;
 use crate::scene::matrix3::{extended, test_floats};
 use crate::scene::vector3::Result80;
 use crate::screens::harness::Left;
-use crate::service::harness::{check_state, dispatch_state};
+use crate::service::floats::*;
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -98,19 +98,31 @@ pub unsafe fn scale_vector(v: u32, factor: [u8; 10]) {
     unsafe { scale_by_80(v as *mut u32, factor) }
 }
 
+/// The converted version (`rc2k_core::math::vector`, plain floats): the hook's.
+pub unsafe fn scale_vector_plain(v: u32, factor: [u8; 10]) {
+    use crate::scene::vector3::{read_floats, write_floats};
+    let factor = rc2k_core::math::extended::to_f64(factor);
+    unsafe { write_floats(v, &rc2k_core::math::vector::scale(read_floats(v), factor)) };
+}
+
 fn rust(r: &Regs) -> Result<Left, Refused> {
     let factor = unsafe { *FACTOR.0.get() };
-    unsafe { scale_vector(r.esi, factor) };
+    unsafe { scale_vector_plain(r.esi, factor) };
     KEPT.set(factor);
     Ok(left_of(r))
 }
 
 extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_state(
+    let floats = Floats {
+        memory: &[((r.esi, 12), FLOAT)],
+        regs: &[],
+    };
+    dispatch_state_floats(
         &HOOK,
         r,
         original_with_factor,
         &[KEPT.region(), (r.esi, 12)],
+        &floats,
         &rust,
     );
 }
@@ -122,33 +134,38 @@ fn self_test() -> (usize, usize) {
     let saved = unsafe { *FACTOR.0.get() };
     let mut v = [0u32; 4];
     let p = v.as_mut_ptr() as u32;
-    for word in TEST_CONTROL_WORDS {
-        with_control_word(word, &mut || {
-            for seed in 1..=12u32 {
-                check_state(
-                    &mut t,
-                    &format!("control word {word:#x}, seed {seed}"),
-                    original_with_factor,
-                    Regs {
-                        esi: p,
-                        ..Regs::SENTINEL
-                    },
-                    &|| {
-                        let mut x = [0u32; 4];
-                        test_floats(seed, &mut x);
-                        unsafe { (p as *mut [u32; 3]).write([x[0], x[1], x[2]]) };
-                        // An 80-bit factor that is not a float: a float times 1 + 2^-40.
-                        let mut f = extended(x[3]);
-                        f[0] ^= (seed as u8) | 1;
-                        FACTOR.set(f);
-                        KEPT.set([0xAA; 10]);
-                    },
-                    &[KEPT.region(), (p, 12)],
-                    &rust,
-                );
-            }
-        });
-    }
+    let tolerant = Floats {
+        memory: &[((p, 12), FLOAT)],
+        regs: &[],
+    };
+    at_test_precisions(&tolerant, &mut |word, floats| {
+        for seed in 1..=12u32 {
+            check_state_floats(
+                &mut t,
+                "physics::scale_vector",
+                &format!("control word {word:#x}, seed {seed}"),
+                original_with_factor,
+                Regs {
+                    esi: p,
+                    ..Regs::SENTINEL
+                },
+                &|| {
+                    let mut x = [0u32; 4];
+                    test_floats(seed, &mut x);
+                    unsafe { (p as *mut [u32; 3]).write([x[0], x[1], x[2]]) };
+                    // A factor that is not a float, as the game's double precision
+                    // makes them (53 bits): a float times about 1 + 2^-47.
+                    let mut f = extended(x[3]);
+                    f[2] ^= (seed as u8) | 1;
+                    FACTOR.set(f);
+                    KEPT.set([0xAA; 10]);
+                },
+                &[KEPT.region(), (p, 12)],
+                floats,
+                &rust,
+            );
+        }
+    });
     FACTOR.set(saved);
     t.finish()
 }

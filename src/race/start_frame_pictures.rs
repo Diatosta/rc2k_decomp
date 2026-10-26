@@ -18,7 +18,7 @@ use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
 use crate::physics::flow::a;
 use crate::race::viewer::{
     PICTURE_RATE, PICTURE_TIME, PICTURES_STARTED, PICTURES_STARTED_2, Part, RECORDING, Saved,
-    dispatch_parts, dword, get, put, run_both, test_part,
+    dispatch_parts, dword, get, put, regs_entry, run_both, test_part,
 };
 use std::sync::atomic::AtomicUsize;
 
@@ -43,14 +43,14 @@ const FOLDER: usize = 0x5C2CD8; // "rpl"
 
 /// The Rust version.
 pub fn start_frame_pictures(entry: &Regs, part: Part) -> Result<Regs, Refused> {
-    let rate = (get(PICTURE_RATE) as i32).clamp(1, 100) as u32;
-    if get(PICTURE_RATE) as i32 != rate as i32 {
+    // Converted: `rc2k_core::race::viewer::{picture_rate, picture_time}`.
+    use rc2k_core::race::viewer::{picture_rate, picture_time};
+    let rate = picture_rate(get(PICTURE_RATE));
+    if get(PICTURE_RATE) != rate {
         put(PICTURE_RATE, rate);
     }
     let mut r = *entry;
-    if r.eax == 0 {
-        r.eax = 1000 / rate;
-    }
+    r.eax = picture_time(r.eax, rate);
     put(PICTURE_TIME, r.eax);
     r.edx = a(FOLDER);
     part(1, &mut r)?;
@@ -75,6 +75,12 @@ extern "C" fn dispatch(r: &mut Regs) {
     dispatch_parts(&HOOK, r, call_original, &|r| {
         start_frame_pictures(r, &mut game_part)
     });
+}
+
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    regs_entry(r, &|r| start_frame_pictures(r, &mut game_part))
 }
 
 fn self_test() -> (usize, usize) {

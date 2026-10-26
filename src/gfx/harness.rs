@@ -69,6 +69,12 @@ pub fn dispatch_pixels(
     r.esp = esp;
 }
 
+/// `dispatch_pixels` outside shadow mode, without its hook (a refusal is the caller's).
+pub fn pixels_entry(r: &mut Regs, rust: Rust) -> Result<(), crate::errors::Refused> {
+    rust(r)?.apply(r);
+    Ok(())
+}
+
 /// One self-test case for such a function: `prepare` puts the inputs in place, the code at
 /// `original` (the hook's original, or a copy of it) runs, `prepare` runs again, the Rust
 /// version runs, and what the two left in `regions` and the registers is compared.

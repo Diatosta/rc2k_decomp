@@ -9,25 +9,15 @@
 //! Refuses what `write_replay_frames` refuses. Shadow mode runs the original alone (a
 //! file write).
 //! Self-test: the original and the Rust version with the replay not being written.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{ECX, EDI, ESI, RawHook, Regs, SelfTest, hook_asm, rva, shadow};
-use crate::physics::flow::{a, p};
+use crate::framework::{ECX, EDI, ESI, Regs};
+use crate::physics::flow::a;
 use crate::screens::harness::Left;
-use crate::service::harness::{capture, check_state, restore};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("drive::flush_replay", rva(0x46022D), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
 
 const DWORDS: usize = 0xA04;
 
@@ -48,43 +38,9 @@ fn rust(r: &Regs) -> Result<Left, Refused> {
     unsafe { flush_replay(r) }
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    HOOK.count_call();
-    if shadow() {
-        unsafe { call_original(r) };
-        return;
-    }
-    match rust(r) {
-        Ok(left) => left.apply(r),
-        Err(e) => unsafe { crate::fatal::raise::refused(&HOOK, e, r, call_original) },
-    }
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let all = [
-        (a(0x9613A4), 4 * DWORDS),
-        (a(0x5BEC88), 4),
-        (a(0x7172EC), 4 * DWORDS),
-    ];
-    let saved = capture(&all);
-    let set = || {
-        p(0x5BEC88, 0);
-        for k in 0..DWORDS {
-            p(0x7172EC + 4 * k, k as u32 * 3);
-        }
-    };
-    check_state(
-        &mut t,
-        "not writing",
-        call_original,
-        Regs::SENTINEL,
-        &set,
-        &all[..1],
-        &rust,
-    );
-    restore(&all, &saved);
-    t.finish()
+/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    let left = rust(r)?;
+    left.apply(r);
+    Ok(())
 }

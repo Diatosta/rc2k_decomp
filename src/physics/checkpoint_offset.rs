@@ -23,7 +23,8 @@ use crate::framework::{
 use crate::math::turn_point_xz::turn_point_xz;
 use crate::math::turn_scratch_xz::scratch;
 use crate::screens::harness::Left;
-use crate::service::harness::{Region, capture, check_state, dispatch_state, restore};
+use crate::service::harness::{Region, capture, check_state, dispatch_state, restore, state_entry};
+use rc2k_core::physics::progress::checkpoint_ahead;
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -64,16 +65,14 @@ unsafe fn at(a: u32) -> u32 {
 }
 
 /// The Rust version.
+// Converted: `rc2k_core::physics::progress::checkpoint_ahead` (the turn stays
+// `math::turn_point_xz`'s).
 pub unsafe fn checkpoint_offset() -> Result<Left, Refused> {
     let c = g(CHECKPOINT);
-    let next = c.wrapping_add(1);
-    if (next.wrapping_sub(g(COUNT)) as i32) >= 0 {
+    if checkpoint_ahead(c, g(COUNT))?.is_none() {
         p(OFFSET, 0);
         p(OFFSET + 4, 0);
-        return Ok(Left::nothing().with(EAX, next));
-    }
-    if c > 0x1418 {
-        return Err(BadInput("a checkpoint below 0 or past 0x1418").into());
+        return Ok(Left::nothing().with(EAX, c.wrapping_add(1)));
     }
     if g(FACES) == 0 || g(POINTS) == 0 {
         return Err(BadInput("no course faces or points").into());
@@ -109,6 +108,12 @@ fn regions() -> Vec<Region> {
 
 extern "C" fn dispatch(r: &mut Regs) {
     dispatch_state(&HOOK, r, call_original, &regions(), &rust);
+}
+
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    state_entry(r, &rust)
 }
 
 fn self_test() -> (usize, usize) {

@@ -13,29 +13,18 @@
 //! through `part`; the path strings built directly. Ungated. Shadow mode runs the original
 //! alone. Self-test: a copy whose disk/graphics/script calls go to stand-ins, the lists
 //! pre-filled, against the Rust version, with Escape pressed or not and a make failure.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
+use crate::framework::Regs;
 use crate::install::installer::{
     COPY_COUNTED, DIR_COUNT, DIRS, FILE_COUNT, FILES, GAME_DIR, INSTALLED, INSTALLING,
     MAKE_FOLDERS, NORMALISE, PATH_A, PATH_B, Part, RUN_SCRIPT, SET_CD, SLEEP, TAKE_KEY, a,
-    append_byte, at, both, g, p, quiet, region, str_append, str_append_indexed,
+    append_byte, at, g, p, str_append, str_append_indexed,
 };
-use std::sync::Mutex;
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("install::install_clio", rva(0x41675B), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL,
-    ungated
-);
 
 const LOCK: usize = 0x4058AD;
 const UNLOCK: usize = 0x405949;
@@ -154,131 +143,10 @@ pub fn install_clio(entry: &Regs, part: Part) -> Result<Regs, Refused> {
     Ok(*entry)
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    crate::race::viewer::dispatch_parts(&HOOK, r, call_original, &|r| {
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    crate::race::viewer::regs_entry(r, &|r| {
         install_clio(r, &mut crate::install::installer::game_part)
-    });
-}
-
-static KEY_N: Mutex<u32> = Mutex::new(0);
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    // pusha; call lock_surface
-    let copy = match crate::install::installer::copy(
-        0x41675B,
-        0x174,
-        &[0x60, 0xE8, 0x4C, 0xF1, 0xFE, 0xFF],
-        &[
-            (0x1, 0x4058AD),
-            (0x8, 0x4060E3),
-            (0x22, 0x40234A),
-            (0x27, 0x405949),
-            (0x2C, 0x4057D1),
-            (0x36, 0x41100C),
-            (0x47, 0x4139EC),
-            (0x5E, 0x4139EC),
-            (0x6F, 0x403105),
-            (0x80, 0x41365D),
-            (0x9E, 0x401F7D),
-            (0xAA, 0x401F8E),
-            (0xAF, 0x401F16),
-            (0xB4, 0x413A97),
-            (0xCE, 0x403105),
-            (0xEC, 0x401F7D),
-            (0xF8, 0x401F8E),
-            (0xFD, 0x401F16),
-            (0x110, 0x401F7D),
-            (0x11C, 0x401F8E),
-            (0x121, 0x401F16),
-            (0x126, 0x4139DA),
-            (0x12D, 0x407F95),
-            (0x145, 0x403105),
-            (0x16D, 0x41100C),
-        ],
-        &[
-            0x4058AD, 0x4060E3, 0x40234A, 0x405949, 0x4057D1, 0x41100C, 0x4139EC, 0x403105,
-            0x41365D, 0x413A97, 0x4139DA, 0x407F95,
-        ],
-        &[],
-        &[],
-        &[],
-    ) {
-        Ok(c) => c,
-        Err(why) => return t.skip(&why),
-    };
-    crate::install::installer::set_text_of(Some(crate::install::installer::path_text));
-    let mut files_tbl = b"a.ro3\0b.ro3\0c.ro3\0".to_vec();
-    let mut dirs_tbl = b"files\0files\\b\0".to_vec();
-    let fptr = files_tbl.as_mut_ptr() as u32;
-    let dptr = dirs_tbl.as_mut_ptr() as u32;
-    let regions = [
-        region(INSTALLING, 4),
-        region(UPDATING, 4),
-        region(FROM_COMMAND, 4),
-        region(PATH_A, 0x100),
-        region(PATH_B, 0x100),
-        region(GAME_DIR, 0x100),
-        region(INSTALLED, 0x100),
-        region(FILES, 4),
-        region(FILE_COUNT, 4),
-        region(DIRS, 4),
-        region(DIR_COUNT, 4),
-    ];
-    let saved = crate::race::viewer::Saved::new(&regions);
-    for (lock_fail, make_fail, escape_at) in [
-        (false, false, 99u32),
-        (true, false, 99),
-        (false, true, 99),
-        (false, false, 1),
-    ] {
-        let prepare = || {
-            crate::install::installer::answer(Box::new(move |place, r| {
-                if place == a(0x4058AD) {
-                    r.set_carry(lock_fail);
-                } else if place == a(0x4139EC) || place == a(0x403105) {
-                    r.set_carry(false);
-                } else if place == a(0x413A97) {
-                    r.set_carry(make_fail);
-                } else if place == a(0x4139DA) {
-                    r.set_carry(false);
-                } else if place == a(0x407F95) {
-                    let mut n = KEY_N.lock().unwrap();
-                    let k = *n;
-                    *n += 1;
-                    r.eax = u32::from(k == escape_at);
-                }
-            }));
-            *KEY_N.lock().unwrap() = 0;
-            for base in [PATH_A, PATH_B] {
-                for (k, &b) in b"d:\\clio\\\0".iter().enumerate() {
-                    crate::install::installer::wb(a(base) + k as u32, b);
-                }
-            }
-            crate::install::installer::fill(a(GAME_DIR), 0x100, 0);
-            crate::install::installer::fill(a(INSTALLED), 0x100, 0);
-            p(FILES, fptr);
-            p(FILE_COUNT, 3);
-            p(DIRS, dptr);
-            p(DIR_COUNT, 2);
-        };
-        both(
-            &mut t,
-            &format!("lock_fail {lock_fail}, make_fail {make_fail}, escape_at {escape_at}"),
-            &copy,
-            Regs::SENTINEL,
-            &regions,
-            0,
-            &[],
-            &prepare,
-            &|r, part, _| install_clio(r, part),
-        );
-    }
-    crate::install::installer::set_text_of(None);
-    quiet();
-    drop(saved);
-    drop((files_tbl, dirs_tbl));
-    t.finish()
+    })
 }

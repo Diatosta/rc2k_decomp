@@ -72,18 +72,8 @@ fn callee(then: Then) -> &'static [usize] {
 pub unsafe fn volume_step(entry: &Regs, v: Volume, part: Part) -> Result<Regs, Refused> {
     let mut r = *entry;
     unsafe {
-        let mut value = game_read::<i32>(v.value_rva);
-        if v.up {
-            value = value.wrapping_add(1);
-            if value > 0x40 {
-                value = 0x40;
-            }
-        } else {
-            value = value.wrapping_sub(1);
-            if value < 0 {
-                value = 0;
-            }
-        }
+        // Converted: `rc2k_core::menu::steps::volume`.
+        let value = rc2k_core::menu::steps::volume(game_read::<i32>(v.value_rva), v.up);
         game_write(v.value_rva, value);
         match v.then {
             Then::Music => {
@@ -135,6 +125,15 @@ pub fn dispatch_volume(hook: &RawHook, r: &mut Regs, call_original: CallOriginal
     );
 }
 
+/// `dispatch_volume` without its hook (typed tables).
+pub fn volume_entry(r: &mut Regs, v: Volume) -> Result<(), Refused> {
+    crate::menu::parts::parted_entry(
+        r,
+        &|r, part| unsafe { volume_step(r, v, part) },
+        volume_part(v.then),
+    )
+}
+
 /// Self-test: a copy whose call goes to a stand-in, against the Rust version, values around
 /// both ends.
 pub fn test_volume(hook: &RawHook, v: Volume) -> (usize, usize) {
@@ -178,11 +177,9 @@ const TEXTURE_COPY_RVA: usize = rva(0x75AD14); // dword_75AD14
 /// `menu::next_screen_mode`: what it leaves.
 pub fn next_screen_mode() -> Left {
     unsafe {
+        // Converted: `rc2k_core::menu::steps::next_mode`.
         let last = game_read::<u32>(MODES_RVA).wrapping_sub(1);
-        let mut mode = game_read::<u32>(MODE_RVA).wrapping_add(1);
-        if mode as i32 > last as i32 {
-            mode = 0;
-        }
+        let mode = rc2k_core::menu::steps::next_mode(game_read(MODE_RVA), game_read(MODES_RVA));
         game_write(MODE_RVA, mode);
         let changed = game_read::<u32>(MODE_CHANGED_RVA) ^ 1;
         game_write(MODE_CHANGED_RVA, changed);
@@ -193,13 +190,8 @@ pub fn next_screen_mode() -> Left {
 /// `menu::previous_texture_setting` / `next_texture_setting`: what it leaves.
 pub fn step_texture_setting(up: bool) -> Left {
     unsafe {
-        let v = game_read::<u32>(TEXTURE_RVA);
-        let v = match (up, v) {
-            (false, 0) => 2,
-            (false, v) => v.wrapping_sub(1),
-            (true, 2) => 0,
-            (true, v) => v.wrapping_add(1),
-        };
+        // Converted: `rc2k_core::menu::steps::texture`.
+        let v = rc2k_core::menu::steps::texture(game_read(TEXTURE_RVA), up);
         game_write(TEXTURE_RVA, v);
         game_write(TEXTURE_COPY_RVA, v);
         Left::nothing().with(EAX, v)
@@ -228,14 +220,8 @@ pub const COLOUR_B: Colour = Colour {
 /// `menu::next_colour_a` and the three others.
 pub fn step_colour(c: Colour, up: bool) {
     unsafe {
-        let n = game_read::<i32>(c.number_rva);
-        let n = if up {
-            let n = n.wrapping_add(1);
-            if n < 7 { n } else { 0 }
-        } else {
-            let n = n.wrapping_sub(1);
-            if n >= 0 { n } else { 6 }
-        };
+        // Converted: `rc2k_core::menu::steps::colour`.
+        let n = rc2k_core::menu::steps::colour(game_read(c.number_rva), up);
         game_write(c.number_rva, n);
         let pick = game_read::<u32>(c.table_rva + 4 * n as usize);
         game_write(c.pick_rva, pick);
@@ -264,6 +250,11 @@ pub fn dispatch_plain(
     rust: crate::service::harness::Rust,
 ) {
     dispatch_state(hook, r, call_original, &plain_regions(), rust);
+}
+
+/// `dispatch_plain` without its hook (typed tables).
+pub fn plain_entry(r: &mut Regs, rust: crate::service::harness::Rust) -> Result<(), Refused> {
+    crate::service::harness::state_entry(r, rust)
 }
 
 /// The plain steps' self-test: each variable at values around its ends (the colour

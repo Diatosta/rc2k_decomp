@@ -12,9 +12,9 @@
 //! of every word, below and past 40 tens, places in the text.
 
 use crate::framework::{EDI, RawHook, Regs, SelfTest, hook_asm, rva};
-use crate::race::pace_notes::{Course, Machine, TestStage, case, regions};
+use crate::race::pace_notes::{Machine, TestStage, case, regions};
 use crate::screens::harness::Left;
-use crate::service::harness::dispatch_state;
+use crate::service::harness::{dispatch_state, state_entry};
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -31,7 +31,7 @@ hook_asm!(
 
 /// The Rust version.
 pub fn pace_distance_word(r: &Regs) -> Result<Left, crate::errors::Refused> {
-    let mut m = Machine::load(r, Course::game());
+    let mut m = Machine::load(r, crate::race::pace_notes::game_course());
     m.distance_word()?;
     m.commit();
     Ok(Left::nothing().with(EDI, m.r.edi))
@@ -39,6 +39,12 @@ pub fn pace_distance_word(r: &Regs) -> Result<Left, crate::errors::Refused> {
 
 extern "C" fn dispatch(r: &mut Regs) {
     dispatch_state(&HOOK, r, call_original, &regions(), &pace_distance_word);
+}
+
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    state_entry(r, &pace_distance_word)
 }
 
 fn self_test() -> (usize, usize) {

@@ -18,35 +18,12 @@
 //! `sub_4A27B5`, `sub_4A28B4`, `sub_4A28B4`, `sub_4A28B4`, `sub_4A29F4`, `sub_4A29F4`,
 //! `sub_4A29F4`, `sub_4A29F4`, `sub_4A9C9B`, `sub_4A9D5C`, `sub_4A9D5C`, `sub_4A9E3D`,
 //! `sub_4A9E3D`, `sub_4A9F1E`, `sub_4A9F1E`, `sub_4A9F1E`, `sub_4AA040`, `sub_4AA040`,
-//! `sub_4AA040`, `sub_4AA040`. Ungated thunk; shadow mode runs the original alone; each real
-//! call writes a line to hook.log. Self-test: `screen_loop::check_screen`. Manual patch with a
-//! private copy (0x340 bytes, 14 calls and jumps relocated): a call or a jump target sits in
-//! the first bytes.
+//! `sub_4AA040`, `sub_4AA040`.
+//! Hook removed 2026-10-22 (direct calls): Rust callers run its `entry` (`calls::call`,
+//! `routes.rs`); the registers above are the original's, for reference.
 
-use crate::framework::{RawHook, Regs, SelfTest, game_addr, game_read, game_write, hook_asm, rva};
-use crate::menu::screen_loop::{
-    Env, Flow, List, Original, Screen, Step, check_screen, dispatch_screen, read_at,
-};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook = RawHook::new("menu::select_car_loop", rva(0x47AC0C), thunk, &ORIGINAL)
-    .private_copy(0x340)
-    .relocate_calls(&[
-        0x2B, 0x5E, 0x81, 0xF2, 0x123, 0x128, 0x134, 0x139, 0x188, 0x19A, 0x1E2, 0x240, 0x2E2,
-        0x307,
-    ])
-    .manual_patch()
-    .self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL,
-    ungated
-);
+use crate::framework::{Regs, game_addr, game_read, game_write, rva};
+use crate::menu::screen_loop::{Env, Flow, List, Screen, Step, read_at, screen_entry};
 
 // ---- Rust version: `menu::screen_loop` with this ----
 
@@ -168,33 +145,8 @@ pub const SCREEN: Screen = Screen {
     ],
 };
 
-// ---- hook ----
-
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_screen(&HOOK, r, call_original, &SCREEN);
-}
-
-// ---- self-test ----
-
-const THE_ORIGINAL: Original = Original {
-    function: rva(0x47AC0C),
-    len: 0x340,
-    entry_bytes: &[0x60, 0x50, 0xA1, 0x8C, 0x59, 0x75, 0x00, 0x8B],
-    calls: &[
-        0x2B, 0x5E, 0x81, 0xF2, 0x123, 0x134, 0x139, 0x188, 0x19A, 0x1E2, 0x240, 0x2E2, 0x307,
-    ],
-};
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    // The screen reads through this table's entries: without them the original would trap.
-    if (0..4).any(|n| unsafe { game_read::<u32>(rva(0x75647C) + n * 4) } == 0) {
-        return t.skip("a player is missing");
-    }
-    if let Err(why) = check_screen(&mut t, &SCREEN, &THE_ORIGINAL) {
-        return t.skip(why);
-    }
-    t.finish()
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    screen_entry("menu::select_car_loop", r, &SCREEN)
 }

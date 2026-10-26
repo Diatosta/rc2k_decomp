@@ -28,15 +28,17 @@ pub type Part<'a> = &'a mut dyn FnMut(u32, &mut Regs) -> Result<(), Refused>;
 
 /// A fade: `out` the way. Every register kept (`pusha` .. `popa`).
 pub unsafe fn fade(entry: &Regs, out: bool, part: Part) -> Result<Regs, Refused> {
+    // Converted: `rc2k_core::menu::fades` (`too_short`, `first_see`, `step`, `over`).
+    use rc2k_core::menu::fades::{self, Stop};
     let length: u32 = unsafe { game_read(LENGTH_RVA) };
-    if (1..100).contains(&length) {
+    if fades::too_short(length) {
         return Err(BadInput("a fade shorter than 100 ms: the original divides by 0").into());
     }
     let mut g = *entry;
     unsafe {
         part(1, &mut g)?;
         game_write(START_RVA, g.eax);
-        game_write(SEE_RVA, if out { game_read(FULL_RVA) } else { 0u32 });
+        game_write(SEE_RVA, fades::first_see(out, game_read(FULL_RVA)));
         g.eax = game_addr(FADE_FRAME) as u32;
         part(2, &mut g)?;
         loop {
@@ -44,49 +46,29 @@ pub unsafe fn fade(entry: &Regs, out: bool, part: Part) -> Result<Regs, Refused>
             let gone = g.eax.wrapping_sub(game_read(START_RVA));
             g.eax = gone;
             game_write(GONE_RVA, gone);
-            if gone != 0 || out {
-                let length: u32 = game_read(LENGTH_RVA);
-                if length == 0 {
-                    return Err(DIVIDE_BY_ZERO.into());
-                }
-                if gone == 0 {
-                    // the way out takes the time gone of 0 to the division's check
-                    return Err(DIVIDE_BY_ZERO.into());
-                }
-                g.edx = 0;
-                g.ebp = length / 100;
-                g.ebx = g.ebp;
-                let share = gone / g.ebp;
-                g.edx = gone % g.ebp;
-                let full: u32 = game_read(FULL_RVA);
-                if out {
-                    g.eax = share.wrapping_mul(full);
-                    g.ebx = full;
-                    if g.eax == 0 {
-                        g.ebx = 1;
-                    } else {
-                        g.edx = g.eax % 100;
-                        g.ebp = 100;
-                        g.eax /= 100;
-                        g.ebx = full.wrapping_sub(g.eax);
+            // The length and the full see-through read only where the original reads them.
+            let made = if gone != 0 || out {
+                fades::step(gone, game_read(LENGTH_RVA), || game_read(FULL_RVA), out)
+            } else {
+                Ok(None)
+            };
+            match made {
+                Ok(Some(s)) => {
+                    (g.eax, g.ebx, g.edx, g.ebp) = (s.eax, s.ebx, s.edx, s.ebp);
+                    if let Some(see) = s.see {
+                        game_write(SEE_RVA, see);
                     }
-                    game_write(SEE_RVA, g.ebx);
-                } else {
-                    g.eax = share;
-                    g.ebx = full.wrapping_mul(share);
-                    if g.ebx != 0 {
-                        g.eax = g.ebx;
-                        g.edx = g.eax % 100;
-                        g.ebp = 100;
-                        g.eax /= 100;
-                        game_write(SEE_RVA, g.eax);
-                    }
+                }
+                Ok(None) => {}
+                Err(Stop::DivideByZero) => return Err(DIVIDE_BY_ZERO.into()),
+                Err(Stop::ShortStep) => {
+                    return Err(BadInput("a fade's step of 0 ms: the original divides by 0").into());
                 }
             }
             g.eax = game_addr(FADE_FRAME) as u32;
             part(2, &mut g)?;
             g.eax = game_read(GONE_RVA);
-            if (g.eax as i32) >= game_read::<i32>(LENGTH_RVA) {
+            if fades::over(g.eax, game_read(LENGTH_RVA)) {
                 break;
             }
         }
@@ -98,7 +80,7 @@ pub unsafe fn fade(entry: &Regs, out: bool, part: Part) -> Result<Regs, Refused>
 pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
     match place {
         1 => r.eax = crate::system::tick_count::tick_count(),
-        _ => unsafe { call_game(r, game_addr(RUN_FRAME)) },
+        _ => crate::calls::call(RUN_FRAME, r),
     }
     Ok(())
 }
@@ -139,8 +121,18 @@ pub fn test_fade(
     out: bool,
 ) -> (usize, usize) {
     use crate::install::stand_ins::{set_handler, stand_in as place};
+    // `calls` holds the calls and the `jcc rel32` to the fatal-error stubs; the copy moves
+    // the calls, the jumps are pointed back at their targets.
+    let original = game_addr(rva(address));
+    // The copy's bytes: the entry over the original (whose first bytes are the patch).
+    let byte = |o: usize| match entry.get(o) {
+        Some(&b) => b,
+        None => unsafe { *((original + o) as *const u8) },
+    };
+    let (only_calls, jumps): (Vec<usize>, Vec<usize>) =
+        calls.iter().partition(|&&o| byte(o) == 0xE8);
     let copy = match unsafe {
-        RedirectedCopy::new(game_addr(rva(address)), len, entry, calls, &|c| match c {
+        RedirectedCopy::new(original, len, entry, &only_calls, &|c| match c {
             TICK_COUNT => Some(place(1)),
             RUN_FRAME => Some(place(2)),
             _ => None,
@@ -149,6 +141,11 @@ pub fn test_fade(
         Ok(c) => c,
         Err(why) => return t.skip(why),
     };
+    for o in jumps {
+        let rel = unsafe { ((original + o + 2) as *const i32).read_unaligned() };
+        let target = (original + o + 6).wrapping_add(rel as usize);
+        unsafe { copy.retarget(o + 2, target) };
+    }
     set_handler(stand_in);
     let regions: Vec<Region> = [START_RVA, GONE_RVA, SEE_RVA].map(at).to_vec();
     let mut vars = regions.clone();

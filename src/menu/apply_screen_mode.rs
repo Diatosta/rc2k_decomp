@@ -11,27 +11,13 @@
 //! Out: every register kept (`pusha` .. `popa`)
 //! An item action of the graphics page (0x7548D4). Its calls through `part`: the screen mode
 //! at the game's address (section 15), the glyph tables, the scene and the sound in Rust,
-//! the rest at the game's addresses (their hooks choose). Shadow mode runs the original
-//! alone. Self-test: a copy whose calls go to stand-ins, against the Rust version, the mode
-//! taken and refused.
+//! the rest at the game's addresses (their hooks choose).
+//! Hook removed 2026-10-22 (typed tables): the menus and draw lists run its `entry`
+//! (`menu::table_calls`); the registers above are the original's, for reference.
 
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, SelfTest, call_game, game_addr, game_write, hook_asm, rva};
-use crate::menu::parts::{Answer, Part, answers, copy, dispatch_parted, run_both, test_part};
-use crate::service::harness::{Region, at, capture, restore};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("menu::apply_screen_mode", rva(0x4703C2), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
+use crate::framework::{Regs, game_write, rva};
+use crate::menu::parts::{Part, parted_entry};
 
 const CALLEES: [usize; 12] = [
     0x4045D6, // 0 the screen mode (sub_4045D6)
@@ -52,27 +38,29 @@ const AFTER_RVA: usize = rva(0x74771C); // dword_74771C
 
 /// The Rust version: the registers it leaves.
 pub unsafe fn apply_screen_mode(entry: &Regs, part: Part) -> Result<Regs, Refused> {
+    // Converted: `rc2k_core::menu::steps::applied_mode`.
+    use rc2k_core::menu::steps::{BACK_TO_MODE, TRY_CHOSEN_MODE, applied_mode};
     let mut r = *entry;
-    r.eax = 1;
+    r.eax = TRY_CHOSEN_MODE;
     part(0, &mut r)?;
-    let (taken, sound) = if r.carry() {
-        r.eax = 0;
-        part(0, &mut r)?;
-        (3u32, 8u32)
-    } else {
+    let taken = !r.carry();
+    if taken {
         for place in [1, 2, 3, 4] {
             part(place, &mut r)?;
         }
-        (1, 2)
-    };
+    } else {
+        r.eax = BACK_TO_MODE;
+        part(0, &mut r)?;
+    }
     for place in [5, 6, 7, 8, 9, 10] {
         part(place, &mut r)?;
     }
+    let applied = applied_mode(taken);
     unsafe {
-        game_write(ITEM_RVA, taken);
-        game_write(AFTER_RVA, taken);
+        game_write(ITEM_RVA, applied.item);
+        game_write(AFTER_RVA, applied.item);
     }
-    r.eax = sound;
+    r.eax = applied.sound;
     part(11, &mut r)?;
     Ok(*entry)
 }
@@ -88,60 +76,18 @@ pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
             }
             9 => crate::scene::set_up_front_end_scene::set_up_front_end_scene_in_game(r)?,
             11 => crate::sound::play_menu_sound::play_menu_sound_in_game(r),
-            _ => call_game(r, game_addr(rva(CALLEES[place as usize]))),
+            _ => crate::calls::call(rva(CALLEES[place as usize]), r),
         }
     }
     Ok(())
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_parted(
-        &HOOK,
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    parted_entry(
         r,
-        call_original,
         &|r, part| unsafe { apply_screen_mode(r, part) },
         game_part,
-    );
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let calls = [
-        0x6, 0xD, 0x12, 0x17, 0x1C, 0x21, 0x26, 0x2B, 0x30, 0x35, 0x3A, 0x58, 0x61, 0x66, 0x6B,
-        0x70, 0x75, 0x7A, 0x7F, 0x9D,
-    ];
-    let copy = match copy(
-        0x4703C2,
-        0xA4,
-        &[0x60, 0xB8, 0x01, 0x00, 0x00, 0x00],
-        &calls,
-        &CALLEES,
-        &[],
-    ) {
-        Ok(c) => c,
-        Err(why) => return t.skip(why),
-    };
-    let regions: [Region; 2] = [at(ITEM_RVA), at(AFTER_RVA)];
-    let saved = capture(&regions);
-    for refused in [false, true] {
-        answers(&[(0, &[Answer::carry(refused), Answer::carry(false)])]);
-        run_both(
-            &mut t,
-            &format!("mode refused {refused}"),
-            &copy,
-            &regions,
-            &|| unsafe {
-                game_write(ITEM_RVA, 0xAAAA_AAAAu32);
-                game_write(AFTER_RVA, 0xBBBB_BBBBu32);
-            },
-            Regs::SENTINEL,
-            false,
-            &|r| unsafe { apply_screen_mode(r, &mut test_part) },
-        );
-    }
-    answers(&[]);
-    restore(&regions, &saved);
-    t.finish()
+    )
 }

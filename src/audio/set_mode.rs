@@ -1,7 +1,7 @@
 //! `audio::set_mode` (0x40A426): command 5, the sound mode changed (menus <-> a race).
 //!
-//! In:  eax = the new mode; ebx, ecx, edx = handed to `audio::stop_streams` (edx its action:
-//!      section 16)
+//! In:  eax = the new mode; ebx, ecx = handed to `audio::stop_streams`, with action 0 (the
+//!      original hands on edx: section 16, fixed 2026-10-20)
 //! Out: carry = failed ("SAM: FAIL"); every register preserved
 //!
 //! "SAM:" and the mode logged; `audio::stop_streams`, `audio::free_voices`,
@@ -13,49 +13,14 @@
 //! `system::sleep`, `audio::play_primary`; `g_openedSoundMode` the mode, "SAM: OK". Either
 //! way `system::restore_window` last (its flags kept around it). Callers: the audio thread's
 //! start (the menus' mode), `audio::take_commands` (command 5).
-//! Shadow mode runs the original alone. Self-test: a redirected copy whose calls go to
-//! stand-ins noting what each reads (no wait, no window), 45 cases.
+//! Hook removed 2026-10-22 (direct calls): Rust callers run its `entry` (`calls::call`,
+//! `routes.rs`); the registers above are the original's, for reference.
 
-use crate::audio::buffer_play::{Leaves, dispatch_leaf};
+use crate::audio::buffer_play::{Leaves, leaf_entry};
 use crate::audio::voices::{read, write};
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, SelfTest, call_game, game_addr, hook_asm, rva};
-use crate::install::stand_ins::{set_handler, stand_in};
-use std::sync::Mutex;
-use std::sync::atomic::AtomicUsize;
+use crate::framework::{Regs, game_addr, rva};
 
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("audio::set_mode", rva(0x40A426), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
-
-/// The calls by place; `nullsub_44` (0x40AC76) is left as it is.
-const CALLEES: [usize; 13] = [
-    0x401432, // 0 log_write_l2 (eax)
-    0x401634, // 1 log_hex8_l2_nl (eax)
-    0x40C5E8, // 2 stop_streams (eax .. edx)
-    0x40AF4B, // 3 free_voices
-    0x40AC58, // 4 close_way
-    0x40A61F, // 5 release_primary
-    0x40A52A, // 6 reopen_sound (carry)
-    0x40A54B, // 7 make_primary (carry)
-    0x40AC3A, // 8 open_way
-    0x41100C, // 9 system::sleep (eax)
-    0x40A775, // 10 play_primary
-    0x401439, // 11 log_write_l2_nl (eax)
-    0x405A33, // 12 system::restore_window
-];
-/// Every call of the copy, `nullsub_44`'s (0xC3) too: it runs, so it must be relocated.
-const CALLS: [usize; 15] = [
-    0x08, 0x0F, 0x16, 0x1B, 0x20, 0x25, 0xA1, 0xA8, 0xAF, 0xB9, 0xBE, 0xC3, 0xD9, 0xE2, 0xFB,
-];
 const SAM_TEXT: usize = rva(0x4DA6CD); // "SAM:"
 const OK_TEXT: usize = rva(0x4DA6D2); // "SAM: OK"
 const FAIL_TEXT: usize = rva(0x4DA6DA); // "SAM: FAIL"
@@ -101,33 +66,23 @@ pub fn set_mode(entry: &Regs, v: &ModeVars, part: Part) -> Result<bool, Refused>
             },
         )?;
         call(1, &c)?;
-        for place in 2..6 {
+        // Fixed (section 16, 2026-10-20): the streams stopped with action 0; the original
+        // hands on whatever edx holds (normally the thread's 1, a feed), so the music
+        // outlived the DirectSound it played on.
+        call(2, &Regs { edx: 0, ..c })?;
+        for place in 3..6 {
             call(place, &c)?;
         }
         c.edx = mode;
         write(v.mode, mode);
-        let mut channels: i32 = if mode & 0x40_0000 != 0 { 0x10 } else { 8 };
-        let (all, other) = if mode & 0x10_0000 == 0 {
-            (0x24, 0x28)
-        } else {
-            (0x3C, 0x40)
-        };
-        c.ebx = read(v.caps + all);
-        let mut held = mode & 0x1_0000 != 0;
-        if !held {
-            c.ebx = read(v.caps + other);
-            held = mode & 0x2_0000 != 0;
-        }
-        let most = c.ebx as i32;
-        if held && most != 0 {
-            if channels > most {
-                channels = most;
-            }
-            if channels < 6 {
-                channels = 6;
-            }
-        }
-        c.eax = channels as u32;
+        // Converted: `rc2k_core::audio::modes::channels`.
+        let (channels, looked) = rc2k_core::audio::modes::channels(
+            mode,
+            [read(v.caps + 0x24), read(v.caps + 0x28)],
+            [read(v.caps + 0x3C), read(v.caps + 0x40)],
+        );
+        c.ebx = looked;
+        c.eax = channels;
         write(v.channel_count, c.eax);
         let ok = !call(6, &c)? && !call(7, &c)?;
         if ok {
@@ -233,131 +188,8 @@ unsafe fn rust(r: &Regs) -> Result<Leaves, Refused> {
     })
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_leaf(&HOOK, r, call_original, rust);
-}
-
-// ---- self-test ----
-
-static NOTED: Mutex<Vec<[u32; 5]>> = Mutex::new(Vec::new());
-static CARRIES: Mutex<[bool; 13]> = Mutex::new([false; 13]);
-
-fn test_part(place: u32, r: &mut Regs) -> Result<bool, Refused> {
-    let eax = if matches!(place, 0 | 1 | 2 | 9 | 11) {
-        r.eax
-    } else {
-        0
-    };
-    let (ebx, ecx, edx) = if place == 2 {
-        (r.ebx, r.ecx, r.edx)
-    } else {
-        (0, 0, 0)
-    };
-    NOTED.lock().unwrap().push([place, eax, ebx, ecx, edx]);
-    Ok(CARRIES.lock().unwrap()[place as usize])
-}
-
-fn handler(place: u32, r: &mut Regs) {
-    let carry = test_part(place, r).unwrap_or(false);
-    r.set_carry(carry);
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    // 0 mode, 1 channels, 2 opened; then the caps (0x18 dwords).
-    let mut m = vec![0u32; 3 + 0x18];
-    let at = m.as_mut_ptr() as u32;
-    let v = ModeVars {
-        mode: at,
-        channel_count: at + 4,
-        opened: at + 8,
-        caps: at + 12,
-    };
-    let c = match crate::audio::test_copy::make(
-        &HOOK,
-        &crate::audio::test_copy::Copy {
-            address: 0x40A426,
-            len: 0x104,
-            entry: &[0x60, 0x60, 0x8D, 0x05, 0xCD, 0xA6, 0x4D, 0x00],
-            calls: &CALLS,
-            jumps_out: &[],
-        },
-        &|callee| {
-            CALLEES
-                .iter()
-                .position(|&c| rva(c) == callee)
-                .map(|n| stand_in(n as u32))
-        },
-        &[
-            (0x4F82BC, v.mode),
-            (0x50634C, v.channel_count),
-            (0x4F82C0, v.opened),
-            (0x506ACC, v.caps + 0x24),
-            (0x506AD0, v.caps + 0x28),
-            (0x506AE4, v.caps + 0x3C),
-            (0x506AE8, v.caps + 0x40),
-        ],
-        9,
-    ) {
-        Ok(c) => c,
-        Err(why) => return t.skip(&why),
-    };
-    set_handler(handler);
-    for mode in [0x11221u32, 0x2441220, 0x511220, 0x1511220, 0x121221] {
-        for hardware in [0u32, 4, 20] {
-            for failing in [None, Some(6usize), Some(7)] {
-                let run = |rust: bool| {
-                    unsafe {
-                        let p = at as *mut u32;
-                        for n in 0..m.len() {
-                            p.add(n).write_volatile(0x5555_5555);
-                        }
-                        let caps = p.add(3);
-                        for (n, x) in [
-                            (9, hardware),
-                            (10, hardware / 2),
-                            (15, hardware + 1),
-                            (16, hardware / 4),
-                        ] {
-                            caps.add(n).write_volatile(x);
-                        }
-                    }
-                    {
-                        let mut c = CARRIES.lock().unwrap();
-                        *c = [false; 13];
-                        if let Some(p) = failing {
-                            c[p] = true;
-                        }
-                    }
-                    NOTED.lock().unwrap().clear();
-                    let before = Regs {
-                        eax: mode,
-                        ..Regs::SENTINEL
-                    };
-                    let mut ro = before;
-                    let carry = if rust {
-                        set_mode(&before, &v, &mut test_part).ok().map(|ok| !ok)
-                    } else {
-                        unsafe { call_game(&mut ro, c.addr()) };
-                        ro.preserved_except(&before, 0).then(|| ro.carry())
-                    };
-                    (
-                        carry,
-                        std::mem::take(&mut *NOTED.lock().unwrap()),
-                        unsafe { std::slice::from_raw_parts(at as *const u32, m.len()) }.to_vec(),
-                    )
-                };
-                let theirs = run(false);
-                let mine = run(true);
-                t.check(theirs.0.is_some() && theirs == mine, || {
-                    format!("mode {mode:#x}, hardware {hardware}, failing {failing:?}: original {:?} {:x?} {:x?}; rust {:?} {:x?} {:x?}", theirs.0, theirs.1, &theirs.2[..3], mine.0, mine.1, &mine.2[..3])
-                });
-            }
-        }
-    }
-    *CARRIES.lock().unwrap() = [false; 13];
-    drop(m);
-    t.finish()
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    leaf_entry(r, rust)
 }

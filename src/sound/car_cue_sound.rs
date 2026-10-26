@@ -13,114 +13,73 @@
 //! Shadow mode runs the original alone (it sends a sound).
 //! Self-test: a copy whose calls go to stand-ins (the one of `sample_settings` left),
 //! against the Rust version, on an object of the test's, real samples.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{RawHook, Regs, SelfTest, game_addr, hook_asm, rva};
-use crate::math::x87::from_int;
-use crate::service::harness::{Region, capture, restore};
-use crate::sound::sample_settings::{OWN, record, sample_settings};
-use crate::sound::turn_parts::{
-    OBJECT_LEN, PLACED, Part, REQUEST, STOP, both, common_regions, copy_of, dispatch_turn,
-    run_copy, test_object,
-};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("sound::car_cue_sound", rva(0x40E1E5), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
-
-const LEN: usize = 0x6A;
-const OUTS: [usize; 3] = [0x23, 0x5C, 0x63];
-const ENTRY: [u8; 7] = [0x60, 0x8B, 0x83, 0x4C, 0x02, 0x00, 0x00];
-const NONE: u32 = 0xFFFF_FFFE;
+use crate::framework::Regs;
+use crate::sound::sample_settings::{record, sample_settings};
+use crate::sound::turn_parts::{PLACED, Part, turn_entry};
 
 // ---- Rust version ----
 
+/// Converted: `rc2k_core::sound::cars::one_off`.
 pub fn car_cue_sound_in(r: &mut Regs, part: Part) -> Result<(), Refused> {
+    use rc2k_core::sound::cars::{OneOff, from_int, one_off};
     if r.ebx == 0 || r.esi == 0 {
         return Err(BadInput("no object or no request").into());
     }
     let o = r.ebx;
     let w = |at: u32| unsafe { ((o + at) as *const u32).read_unaligned() };
     let q = r.esi as *mut u32;
-    let mut c = *r;
-    c.eax = w(0x24C);
-    if c.eax == NONE {
+    let mut waiting = w(WAITING);
+    let taken = one_off(
+        &mut waiting,
+        w(WAITING + 4),
+        LEAST,
+        STOP_QUIET,
+        |sound| record(sound).map(|_| ()),
+        sample_settings,
+    )?;
+    let (sound, turn) = taken;
+    if turn == OneOff::Nothing {
         return Ok(());
     }
-    record(c.eax)?;
     unsafe {
-        ((o + 0x24C) as *mut u32).write_unaligned(NONE);
-        q.write_unaligned(c.eax);
+        ((o + WAITING) as *mut u32).write_unaligned(waiting);
+        q.write_unaligned(sound);
     }
-    (c.ecx, c.edx) = sample_settings(c.eax, w(0x250), OWN)?;
-    if c.ecx < 1 {
-        return part(STOP, &mut c);
-    }
-    unsafe {
-        q.add(2).write_unaligned(from_int(c.ecx as i32));
-        q.add(1).write_unaligned(from_int(c.edx as i32));
-        for k in 0..3 {
-            c.eax = w(0x254 + 4 * k);
-            q.add(3 + k as usize).write_unaligned(c.eax);
+    let mut c = Regs { eax: sound, ..*r };
+    match turn {
+        OneOff::Nothing | OneOff::Quiet { .. } => Ok(()),
+        OneOff::Stop { volume, rate } => {
+            (c.ecx, c.edx) = (volume, rate);
+            part(crate::sound::turn_parts::STOP, &mut c)
+        }
+        OneOff::Play { volume, rate } => {
+            (c.ecx, c.edx) = (volume, rate);
+            unsafe {
+                q.add(2).write_unaligned(from_int(volume as i32));
+                q.add(1).write_unaligned(from_int(rate as i32));
+                for k in 0..3 {
+                    c.eax = w(WAITING + 8 + 4 * k);
+                    q.add(3 + k as usize).write_unaligned(c.eax);
+                }
+            }
+            part(PLACED, &mut c)
         }
     }
-    part(PLACED, &mut c)
 }
 
-// ---- hook ----
+/// The sound object's waiting sound (its volume after it, its place after that).
+const WAITING: u32 = 0x24C;
+const LEAST: u32 = 1;
+const STOP_QUIET: bool = true;
 
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_turn(&HOOK, r, call_original, car_cue_sound_in, None);
-}
-
-// ---- self-test ----
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let copy = match copy_of(0x40E1E5, LEN, &ENTRY, &OUTS, &[STOP, PLACED]) {
-        Ok(c) => c,
-        Err(why) => return t.skip(why),
-    };
-    let run = run_copy(&copy);
-    let mut object = test_object(0x24C, &[]);
-    let o = object.as_mut_ptr() as u32;
-    let mut all: Vec<Region> = vec![(o, OBJECT_LEN)];
-    all.extend(common_regions());
-    let saved = capture(&all);
-    for sound in [NONE, 0, 0xE1, 0xE5, 0x13F, 0x1CC, 0x1CD] {
-        for volume in [OWN, 0, 1, 3, 4, 0x40, 0x41, 0xFFFF_FFFF] {
-            let fill = || unsafe {
-                let p = o as *mut u32;
-                p.add(0x24C / 4).write(sound);
-                p.add(0x250 / 4).write(volume);
-            };
-            both(
-                &mut t,
-                &format!("sound {sound:#x}, volume {volume:#x}"),
-                &run,
-                Regs {
-                    ebx: o,
-                    esi: game_addr(rva(REQUEST)) as u32,
-                    ..Regs::SENTINEL
-                },
-                &fill,
-                &all,
-                car_cue_sound_in,
-                sound != NONE && sound >= 0x1CD,
-            );
-        }
-    }
-    restore(&all, &saved);
-    t.finish()
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    turn_entry(r, car_cue_sound_in)
 }

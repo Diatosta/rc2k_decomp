@@ -23,36 +23,19 @@
 //!
 //! The record rows come from one of two best-time tables and are skipped while a table is
 //! missing (see `stage_panel::draw_records_for_group`).
+//! Hook removed 2026-10-22 (typed tables): the menus and draw lists run its `entry`
+//! (`menu::table_calls`); the registers above are the original's, for reference.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{RawHook, Regs, SelfTest, game_write, hook_asm, rva};
+use crate::framework::{Regs, game_write, rva};
 use crate::screens::draw_selected_stage_menu::menu_titles;
 use crate::screens::draw_stage_records::selection;
 use crate::screens::draw_stage_records::{TIME_TRIAL_ROWS, draw_records_rows};
-use crate::screens::draw_time_trial_stage_info::selected_stage_unusable;
 use crate::screens::stage_panel::{
-    BEST_TIME_ENTRY_SIZE, GROUP_COPY_RVA, body_unavailable, build_second_heading, check_panel,
-    dispatch_panel, draw_stage_body, dword, menu_item_id,
+    BEST_TIME_ENTRY_SIZE, GROUP_COPY_RVA, build_second_heading, draw_stage_body, dword,
+    menu_item_id, panel_entry,
 };
 use crate::text::draw_text::Canvas;
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook = RawHook::new(
-    "screens::draw_time_trial_stage_select",
-    rva(0x48C2A0),
-    thunk,
-    &ORIGINAL,
-)
-.self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
 
 // ---- Rust version ----
 
@@ -97,40 +80,17 @@ pub unsafe fn draw_time_trial_stage_select(canvas: &mut dyn Canvas) -> Result<bo
     }
 }
 
-// ---- hook ----
-
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_panel(&HOOK, r, call_original, &|canvas| unsafe {
-        draw_time_trial_stage_select(canvas)
-    });
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    panel_entry(
+        "screens::draw_time_trial_stage_select",
+        r,
+        &|canvas| unsafe { draw_time_trial_stage_select(canvas) },
+    )
 }
 
-// ---- self-test: one case, the selected stage ----
 //
 // The original writes two string ids into whatever menu is current. The test therefore only
 // runs where those items already hold exactly these ids, which is on the screen this function
 // draws: there the writes change nothing.
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    if let Some(why) = body_unavailable().or_else(|| unsafe { selected_stage_unusable() }) {
-        return t.skip(why);
-    }
-    let on_its_screen = unsafe {
-        match (menu_titles(), menu_item_id(0), menu_item_id(1)) {
-            (Some((a, b)), Some(item_0), Some(item_1)) => dword(item_0) == a && dword(item_1) == b,
-            _ => false,
-        }
-    };
-    if !on_its_screen {
-        return t.skip(
-            "the current menu is not this function's (its items 0 and 1 hold other strings)",
-        );
-    }
-    check_panel(&mut t, call_original, &|canvas| unsafe {
-        draw_time_trial_stage_select(canvas)
-    });
-    t.finish()
-}

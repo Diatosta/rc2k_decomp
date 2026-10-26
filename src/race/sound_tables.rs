@@ -4,7 +4,6 @@
 
 use crate::errors::Refused;
 use crate::framework::{Regs, game_addr, rva};
-use crate::math::{x87, x87_load};
 use crate::service::harness::Region;
 
 pub type Part<'a> = &'a mut dyn FnMut(u32, &mut Regs) -> Result<(), Refused>;
@@ -21,32 +20,41 @@ unsafe fn put(at: u32, v: u32) {
 /// when it looks like a whole number (its top byte 0 or 0xFF). Leaves eax its top byte's
 /// mask (`and 0xFF000000`).
 pub unsafe fn whole_to_float(at: u32) -> u32 {
+    // Converted: `rc2k_core::race::sound_tables::whole_to_float` (one rounding: the same
+    // at every precision, so no exact twin).
     unsafe {
-        let top = get(at) & 0xFF00_0000;
-        if top == 0 || top == 0xFF00_0000 {
-            put(at, x87::from_int(get(at) as i32));
+        let (top, float) = rc2k_core::race::sound_tables::whole_to_float(get(at));
+        if let Some(f) = float {
+            put(at, f);
         }
         top
     }
 }
 
-/// `race::sound_span` (0x40D71B): two dwords from ebx made floats, the third their
-/// difference (`fld` / `fsub` / `fstp`). Leaves eax as the second `whole_to_float`, ebx
-/// at the second.
-pub unsafe fn sound_span(entry: &Regs) -> Regs {
+fn span_plain(second: u32, first: u32) -> u32 {
+    rc2k_core::race::sound_tables::span(f32::from_bits(first), f32::from_bits(second)).to_bits()
+}
+
+/// `race::sound_span` (0x40D71B), converted (the hook's and `prepare_sound_tables`'; the
+/// exact x87 versions went once `race::set_up_race_sound_objects` took the converted
+/// tables): two dwords from ebx made floats, the third their difference (`fld` / `fsub` /
+/// `fstp`). Leaves eax as the second `whole_to_float`, ebx at the second.
+// Converted: `rc2k_core::race::sound_tables::span`.
+pub unsafe fn sound_span_plain(entry: &Regs) -> Regs {
     let mut g = *entry;
     unsafe {
         whole_to_float(g.ebx);
         g.ebx += 4;
         g.eax = whole_to_float(g.ebx);
-        put(g.ebx + 4, x87::sub(get(g.ebx), get(g.ebx - 4)));
+        put(g.ebx + 4, span_plain(get(g.ebx), get(g.ebx - 4)));
     }
     g
 }
 
-/// `race::sound_row` (0x40D731): a row at edx: +4, +8, +0xC made floats, spans at +0x10
-/// and +0x1C. Leaves ebx at edx + 0x20, eax as the last.
-pub unsafe fn sound_row(entry: &Regs) -> Regs {
+/// `race::sound_row` (0x40D731), converted: a row at edx: +4, +8, +0xC made floats, spans
+/// at +0x10 and +0x1C. Leaves ebx at edx + 0x20, eax as the last.
+// Converted: `rc2k_core::race::sound_tables::{whole_to_float, span}`.
+pub unsafe fn sound_row_plain(entry: &Regs) -> Regs {
     let mut g = *entry;
     unsafe {
         for off in [4, 8, 0xC] {
@@ -54,9 +62,9 @@ pub unsafe fn sound_row(entry: &Regs) -> Regs {
             g.eax = whole_to_float(g.ebx);
         }
         g.ebx = g.edx + 0x10;
-        g = sound_span(&g);
+        g = sound_span_plain(&g);
         g.ebx = g.edx + 0x1C;
-        g = sound_span(&g);
+        g = sound_span_plain(&g);
     }
     g
 }
@@ -89,12 +97,15 @@ pub const RECORDS: u32 = 0x22;
 pub const RECORD_LEN: usize = 0x88;
 pub const SINES: u32 = 0x40;
 
-/// `race::prepare_sound_tables` (0x40D636): once (`dword_516358`): each of the 0x22
-/// records (`off_514F90`) its span at +4 (`sound_span`), +0xC made its reciprocal
-/// (`fld1` / `fdiv`), its three rows (`sound_row`, 0x28 apart from +0x10); then the 0x40
-/// floats at 0x516258 1 + 0.05 sin(x) for x from 0 by pi / 32 (each step rounded to a
-/// float through `dword_5183CC`, left the last). Every register kept.
-pub unsafe fn prepare_sound_tables(v: &TableVars) {
+/// `race::prepare_sound_tables` (0x40D636), converted (the hook's and
+/// `set_up_race_sound_objects`'): once (`dword_516358`): each of the 0x22 records
+/// (`off_514F90`) its span at +4 (`sound_span`), +0xC made its reciprocal (`fld1` /
+/// `fdiv`), its three rows (`sound_row`, 0x28 apart from +0x10); then the 0x40 floats at
+/// 0x516258 1 + 0.05 sin(x) for x from 0 by pi / 32 (the scratch `dword_5183CC` left the
+/// last x). Every register kept.
+// Converted: `rc2k_core::race::sound_tables::{reciprocal, sines}`.
+pub unsafe fn prepare_sound_tables_plain(v: &TableVars) {
+    use rc2k_core::race::sound_tables::{reciprocal, sines};
     unsafe {
         if get(v.done) == 1 {
             return;
@@ -102,34 +113,52 @@ pub unsafe fn prepare_sound_tables(v: &TableVars) {
         put(v.done, 1);
         for n in 0..RECORDS {
             let record = get(v.records + 4 * n);
-            sound_span(&Regs {
+            sound_span_plain(&Regs {
                 ebx: record + 4,
                 ..Regs::default()
             });
-            put(record + 0xC, x87::reciprocal(get(record + 0xC)));
+            put(
+                record + 0xC,
+                reciprocal(f32::from_bits(get(record + 0xC))).to_bits(),
+            );
             for k in 0..3 {
-                sound_row(&Regs {
+                sound_row_plain(&Regs {
                     edx: record + 0x10 + 0x28 * k,
                     ..Regs::default()
                 });
             }
         }
-        put(v.scratch, 0x20);
-        let step = x87::pi_over(0x20);
-        put(v.scratch, step);
-        let mut x = 0u32;
-        for k in 0..SINES {
-            put(
-                v.sines + 4 * k,
-                x87_load::sine_times_plus(x, 0x3D4C_CCCD, 0x3F80_0000),
-            );
-            x = x87::add(x, step);
-            put(v.scratch, x);
+        let (table, last) = sines();
+        for (k, f) in table.iter().enumerate() {
+            put(v.sines + 4 * k as u32, f.to_bits());
         }
+        // The scratch: 0x20, the step, then each x: the last left.
+        put(v.scratch, last.to_bits());
     }
 }
 
 /// What `prepare_sound_tables` writes.
+/// The float places `prepare_sound_tables` writes: each record's span and reciprocal
+/// (+0xC) and its rows' spans; the sines and the scratch.
+pub fn table_floats(v: &TableVars) -> Vec<(Region, crate::service::floats::Tolerance)> {
+    use crate::service::floats::FLOAT;
+    let mut f = Vec::new();
+    for n in 0..RECORDS {
+        let record = unsafe { get(v.records + 4 * n) };
+        f.push(((record + 0xC, 4), FLOAT));
+        for k in 0..3 {
+            for o in [0x28, 0x34] {
+                f.push(((record + o + 0x28 * k, 4), FLOAT));
+            }
+        }
+    }
+    f.extend([
+        ((v.sines, 4 * SINES as usize), FLOAT),
+        ((v.scratch, 4), FLOAT),
+    ]);
+    f
+}
+
 pub fn table_regions(v: &TableVars) -> Vec<Region> {
     let mut r: Vec<Region> = (0..RECORDS)
         .map(|n| (unsafe { get(v.records + 4 * n) }, RECORD_LEN))
@@ -280,14 +309,16 @@ pub unsafe fn set_up_race_sound_objects(
         if objects.contains(&0) {
             return Err(crate::errors::BadInput("a race sound object missing").into());
         }
+        // Converted: `rc2k_core::race::sound_objects::{sound_players, sound_objects,
+        // object_mark}`; the tables through `prepare_sound_tables_plain`.
+        use rc2k_core::race::sound_objects::{object_mark, sound_objects, sound_players};
         let mut r = g;
         part(PREPARE, &mut r)?;
-        let players = if rd(0x75ACE0) == 1 { 1 } else { 2 };
+        let players = sound_players(rd(0x75ACE0));
         wr(0x514F78, players);
-        let mut count = players;
-        if rd(0x75ACD8) == 2 {
+        let (count, arcade) = sound_objects(players, rd(0x75ACD8));
+        if arcade {
             wr(0x514F8C, 1);
-            count = 4;
         }
         wr(0x514F7C, count);
         wr(0x514F70, 0);
@@ -297,7 +328,7 @@ pub unsafe fn set_up_race_sound_objects(
             wr(0x514F7C, rd(0x52AD98));
         }
         for (n, &o) in v.objects.iter().enumerate() {
-            put(o, (-(n as i32) - 1) as u32);
+            put(o, object_mark(n as u32));
         }
         let first = objects[rd(0x514F70) as usize];
         put(first, 0);
@@ -348,7 +379,7 @@ pub unsafe fn clear_race_sound_objects(entry: &Regs, part: Part) -> Result<Regs,
 pub fn object_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
     unsafe {
         match place {
-            PREPARE => prepare_sound_tables(&TableVars::game()),
+            PREPARE => prepare_sound_tables_plain(&TableVars::game()),
             RESTART => *r = restart_race_sounds(r, &mut sound_part)?,
             SILENCE => *r = silence_race_sounds(r, &mut sound_part)?,
             _ => sound_part(place, r)?,

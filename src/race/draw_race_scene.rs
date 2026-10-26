@@ -40,7 +40,7 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::framework::{
-    RawHook, Regs, SelfTest, call_game, game_addr, game_read, game_write, hook_asm, rva, shadow,
+    RawHook, Regs, SelfTest, game_addr, game_read, game_write, hook_asm, rva, shadow,
 };
 use crate::race::mud::copy;
 use crate::service::harness::{Region, at, capture, restore};
@@ -359,7 +359,7 @@ pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
                     &mut crate::race::draw_mirror_view::game_part,
                 )?
             }
-            _ => call_game(r, game_addr(rva(CALLEES[place as usize]))),
+            _ => crate::calls::call(rva(CALLEES[place as usize]), r),
         }
     }
     Ok(())
@@ -375,6 +375,13 @@ extern "C" fn dispatch(r: &mut Regs) {
         Ok(left) => *r = Regs { esp: r.esp, ..left },
         Err(e) => unsafe { crate::fatal::raise::refused(&HOOK, e, r, call_original) },
     }
+}
+
+/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    let left = unsafe { draw_race_scene(r, &mut game_part) }?;
+    *r = Regs { esp: r.esp, ..left };
+    Ok(())
 }
 
 fn test_part(place: u32, r: &mut Regs) -> Result<(), Refused> {

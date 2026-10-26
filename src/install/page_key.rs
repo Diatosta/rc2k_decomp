@@ -11,32 +11,18 @@
 //! Caller `install::run_page`, reading zero. Its calls through `part`. Ungated (Enter can
 //! run an action). Shadow mode runs the original alone. Self-test: a copy whose eight calls
 //! go to stand-ins (answering zero set or clear), against the Rust version, every key's way.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
+use crate::framework::Regs;
 use crate::install::installer::{
-    CF, KEY_TAKEN, LIST_ANSWER, LIST_LEAVE, Part, ZF, answer, at, both, cmp, copy, gb, logic, pb,
-    quiet, rb, rd, region,
+    KEY_TAKEN, LIST_ANSWER, LIST_LEAVE, Part, ZF, at, cmp, gb, logic, pb, rb, rd,
 };
-use crate::install::list_test::TestList;
-use crate::race::viewer::{Saved, dispatch_parts};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook = RawHook::new("install::page_key", rva(0x4146E4), thunk, &ORIGINAL)
-    .private_copy(0xA0)
-    .relocate_calls(&[0x1A, 0x25, 0x30, 0x3B, 0x46, 0x55, 0x60, 0x8E])
-    .manual_patch()
-    .self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL,
-    ungated
-);
+use crate::race::viewer::regs_entry;
+use rc2k_core::install::items::{self, ItemKey, PageKey};
 
 const SCREENSHOTS_ON: usize = 0x4F52B4; // g_screenshotsOn
 const CALLEES: [u32; 8] = [
@@ -58,30 +44,30 @@ pub fn page_key(entry: &Regs, part: Part) -> Result<Regs, Refused> {
     let mut r = *entry;
     let key = r.eax as u8;
     logic(&mut r, key as u32);
-    if key == 0 || key & 0x80 != 0 {
+    // Converted: `rc2k_core::install::items` (`page_key`, `takes_every_key`, `STAYS`,
+    // `SCREENSHOT_KEY`).
+    let Some(way) = items::page_key(key) else {
         return Ok(r);
-    }
+    };
     let kind = rb(r.esi) & 0xF;
     r.ebx = r.ebx & !0xFF | kind as u32;
-    let mut edited = false;
     cmp(&mut r, kind as u32, 4);
-    if kind == 4 {
+    let edited = items::takes_every_key(kind, || {
         r.ebx = rd(r.esi + 0xC);
         let editing = rb(r.ebx) & 1 != 0;
         logic(&mut r, editing as u32);
-        if editing {
-            part(at(CALLEES[0] as usize), &mut r)?;
-            edited = true;
-        }
-    }
-    if !edited {
-        let callee = match key {
-            0x66 => Some(1),
-            0x6B => Some(2),
-            0x68 => Some(3),
-            0x69 => Some(4),
-            2..=0xA => Some(5),
-            0x1C => Some(6),
+        editing
+    });
+    if edited {
+        part(at(CALLEES[0] as usize), &mut r)?;
+    } else {
+        let callee = match way {
+            PageKey::Item(ItemKey::Up) => Some(1),
+            PageKey::Item(ItemKey::Down) => Some(2),
+            PageKey::Item(ItemKey::Left) => Some(3),
+            PageKey::Item(ItemKey::Right) => Some(4),
+            PageKey::Item(ItemKey::Number) => Some(5),
+            PageKey::Enter => Some(6),
             _ => None,
         };
         if let Some(n) = callee {
@@ -91,8 +77,8 @@ pub fn page_key(entry: &Regs, part: Part) -> Result<Regs, Refused> {
             part(at(CALLEES[n] as usize), &mut r)?;
             return Ok(took(r));
         }
-        if key == 1 {
-            let flags = rb(r.edi) & 0x10;
+        if way == PageKey::Escape {
+            let flags = rb(r.edi) & items::STAYS;
             logic(&mut r, flags as u32);
             if flags == 0 {
                 pb(LIST_ANSWER, 0);
@@ -103,7 +89,7 @@ pub fn page_key(entry: &Regs, part: Part) -> Result<Regs, Refused> {
         cmp(&mut r, key as u32, 1);
     }
     let flags = r.eflags;
-    if gb(SCREENSHOTS_ON) != 0 && (r.eax as u8) == 0x52 {
+    if gb(SCREENSHOTS_ON) != 0 && (r.eax as u8) == items::SCREENSHOT_KEY {
         part(at(CALLEES[7] as usize), &mut r)?;
     }
     r.eflags = flags;
@@ -120,89 +106,10 @@ fn took(mut r: Regs) -> Regs {
     r
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_parts(&HOOK, r, call_original, &|r| {
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    regs_entry(r, &|r| {
         page_key(r, &mut crate::install::installer::game_part)
-    });
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let calls: Vec<(usize, u32)> = [0x1A, 0x25, 0x30, 0x3B, 0x46, 0x55, 0x60, 0x8E]
-        .iter()
-        .zip(CALLEES)
-        .map(|(&o, c)| (o, c))
-        .collect();
-    // test al, al; jle near
-    let copy = match copy(
-        0x4146E4,
-        0xA0,
-        &[0x84, 0xC0, 0x0F, 0x8E, 0x97, 0x00, 0x00, 0x00],
-        &calls,
-        &CALLEES,
-        &[],
-        &[],
-        &[],
-    ) {
-        Ok(c) => c,
-        Err(why) => return t.skip(&why),
-    };
-    let list = TestList::new();
-    let regions = [
-        list.region(),
-        region(KEY_TAKEN, 3),
-        region(SCREENSHOTS_ON, 1),
-    ];
-    let saved = Saved::new(&regions);
-    for kind in [1u8, 2, 4] {
-        for editing in [false, true] {
-            for flags in [0u8, 0x10] {
-                for shots in [0u8, 1] {
-                    for did in [false, true] {
-                        for key in [
-                            0u32, 0x80, 0x66, 0x6B, 0x68, 0x69, 2, 0xA, 0xB, 0x1C, 1, 0x52, 0x30,
-                        ] {
-                            if editing && kind != 4 {
-                                continue;
-                            }
-                            let prepare = || {
-                                list.set(flags, &[kind, kind], 1, 0, 0, editing as u8, 100, b"x");
-                                pb(KEY_TAKEN, 0);
-                                pb(LIST_ANSWER, 9);
-                                pb(LIST_LEAVE, 0);
-                                pb(SCREENSHOTS_ON, shots);
-                                answer(Box::new(move |_, r| r.set_zero(did)));
-                            };
-                            let before = Regs {
-                                eax: 0x5500 | key,
-                                esi: list.item(1),
-                                edi: list.base(),
-                                ..Regs::SENTINEL
-                            };
-                            both(
-                                &mut t,
-                                &format!(
-                                    "kind {kind}, editing {editing}, flags {flags:#x}, \
-                                     screenshots {shots}, callee's zero {did}, key {key:#x}"
-                                ),
-                                &copy,
-                                before,
-                                &regions,
-                                ZF,
-                                &[],
-                                &prepare,
-                                &|r, part, _| page_key(r, part),
-                            );
-                        }
-                    }
-                }
-            }
-        }
-    }
-    quiet();
-    let _ = CF;
-    drop(saved);
-    t.finish()
+    })
 }

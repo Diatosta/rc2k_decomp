@@ -135,6 +135,19 @@ extern "C" fn dispatch(r: &mut Regs) {
     }
 }
 
+/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    {
+        let left = unsafe { tidy_marks(r) }?;
+        *r = Regs {
+            esp: r.esp,
+            eflags: r.eflags,
+            ..left
+        }
+    }
+    Ok(())
+}
+
 /// What the self-test compares: the lists, the counters, the cars' +0x328.
 unsafe fn compared(settings: u32) -> Vec<Region> {
     unsafe {

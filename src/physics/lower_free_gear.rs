@@ -18,7 +18,7 @@
 use crate::errors::Refused;
 use crate::framework::{RawHook, Regs, SelfTest, call_game, game_addr, hook_asm, rva};
 use crate::physics::flag_result::{FlagResult, dispatch_flags};
-use crate::physics::gear_bit::{GEAR_BITS_RVA, gear_bit_at};
+use crate::physics::gear_bit::{GEAR_BITS_RVA, bits_at};
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -36,33 +36,17 @@ hook_asm!(
     original = ORIGINAL
 );
 
-/// The Rust core on the bits at `bits`; `eax` what eax held at entry.
+/// The Rust version on the bits at `bits`; `eax` what eax held at entry.
+// Converted: `rc2k_core::physics::gearbox::GearBits::lower_free`.
 pub unsafe fn lower_free_gear_at(bits: u32, gear: u32, eax: u32) -> Result<FlagResult, Refused> {
-    let mut ecx = gear;
-    let mut eax = eax;
-    loop {
-        ecx = ecx.wrapping_sub(1);
-        if ecx == 0 {
-            break Ok(FlagResult {
-                eax,
-                ecx: Some(0),
-                ebx: None,
-                carry: true,
-                zero: None,
-            });
-        }
-        let g = unsafe { gear_bit_at(bits, ecx) }?;
-        eax = g.eax;
-        if !g.carry {
-            break Ok(FlagResult {
-                eax,
-                ecx: Some(ecx),
-                ebx: None,
-                carry: false,
-                zero: None,
-            });
-        }
-    }
+    let s = unsafe { bits_at(bits) }.lower_free(gear, eax)?;
+    Ok(FlagResult {
+        eax: s.bit,
+        ecx: Some(s.gear),
+        ebx: None,
+        carry: !s.found,
+        zero: None,
+    })
 }
 
 /// The Rust version.

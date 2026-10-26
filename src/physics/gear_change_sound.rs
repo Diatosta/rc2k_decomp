@@ -15,7 +15,8 @@
 use crate::errors::{BadInput, Refused};
 use crate::framework::{EDI, RawHook, Regs, SelfTest, call_game, game_addr, hook_asm, rva};
 use crate::screens::harness::Left;
-use crate::service::harness::{Region, capture, dispatch_state};
+use crate::service::harness::{Region, capture, dispatch_state, state_entry};
+use rc2k_core::physics::gearbox::{GearChange, gear_change};
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -43,21 +44,20 @@ unsafe fn put(a: u32, v: u32) {
     unsafe { (a as *mut u32).write_unaligned(v) }
 }
 
-/// The core: the car number, the object table and the word at these places.
+/// The Rust version on the car number, the object table and the word at these places.
+// Converted: `rc2k_core::physics::gearbox::gear_change`.
 pub unsafe fn gear_change_sound_at(current: u32, table: u32, word: u32) -> Result<Left, Refused> {
     unsafe {
         let object = at(table + 4 * (at(current) & 7));
-        let w = at(word);
-        let place = match w {
-            1 => Some(0x180),
-            u32::MAX => Some(0x198),
-            _ => None,
-        };
-        if let Some(o) = place {
+        if let Some(change) = gear_change(at(word)) {
             if object == 0 {
                 return Err(BadInput("a null sound object").into());
             }
-            put(object + o, 1);
+            let flag = match change {
+                GearChange::Up => 0x180,
+                GearChange::Down => 0x198,
+            };
+            put(object + flag, 1);
             put(object + 0x10, 1);
         }
         Ok(Left::nothing().with(EDI, object))
@@ -85,6 +85,12 @@ extern "C" fn dispatch(r: &mut Regs) {
         }
     };
     dispatch_state(&HOOK, r, call_original, &regions, &rust);
+}
+
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    state_entry(r, &rust)
 }
 
 fn self_test() -> (usize, usize) {

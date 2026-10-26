@@ -59,8 +59,6 @@ pub const NUMBER_PLACES: [usize; 9] = [
     0x60B01F, 0x60B038, 0x60B08C, 0x60B0A7, 0x60B050, 0x60B06E, 0x60AE0F, 0x60AE1D, 0x60AE2F,
 ];
 const TEXTURES: u32 = 0x100;
-const MOST_CHECKPOINTS: u32 = 0x201;
-
 /// A call: 0 `memory::allocate` (eax the bytes, ebx the list: eax the memory), 1
 /// `files::read_whole_file` (eax the path, ebx the buffer, ecx the count; `pusha` around
 /// it in every caller), 2 `scene::allocate_point_records`.
@@ -163,8 +161,8 @@ pub unsafe fn load_texture_info(entry: &Regs, v: &Vars, part: Part) -> Result<Re
 /// `race::set_course_number` (0x43944F): al's two digits (tens, units, as `div 10` of the
 /// low byte) into the nine path strings (the stage's files) that hold the course's number.
 pub unsafe fn set_course_number(eax: u32) {
-    let n = eax & 0xFF;
-    let (tens, units) = ((n / 10) as u8 + b'0', (n % 10) as u8 + b'0');
+    // Converted: `rc2k_core::race::stage::two_digits`.
+    let [tens, units] = rc2k_core::race::stage::two_digits(eax as u8);
     for place in NUMBER_PLACES {
         let at = game_addr(rva(place)) as *mut u8;
         unsafe {
@@ -204,28 +202,32 @@ pub unsafe fn build_texture_infos(entry: &Regs, v: &Vars) -> Result<Regs, Refuse
                 return Err(BadInput("a texture kind past the course info").into());
             }
         }
+        // Converted: `rc2k_core::race::stage::texture_info`.
         for n in 0..TEXTURES {
             let out = v.texture_infos + n * 0x40;
             let kind = get(v.texture_kinds + 4 * n);
-            put(out + 0x24, kind & 0xF);
-            put(out + 0x20, kind >> 4);
             let rec = info + kind * 0x80;
-            put(out + 0x10, get(rec + 0x20));
-            put(out + 0x14, get(rec + 0x10));
-            put(out + 0x18, get(rec + 0x14));
-            let byte = |at: u32| *(at as *const u8);
-            *((out + 0x1C) as *mut u8) = byte(rec + 0x18);
-            for k in 0..3 {
-                *((out + 0x2C + k) as *mut u8) = byte(rec + 0x24 + k);
+            let t = rc2k_core::race::stage::texture_info(
+                kind,
+                |o| get(rec + o),
+                |o| *((rec + o) as *const u8),
+            );
+            put(out + 0x24, t.row);
+            put(out + 0x20, t.group);
+            for (k, &value) in t.values.iter().enumerate() {
+                put(out + 0x10 + 4 * k as u32, value);
             }
-            for k in 0..4 {
-                put(out + 4 * k, get(rec + 4 * k));
+            *((out + 0x1C) as *mut u8) = t.byte;
+            for (k, &b) in t.bytes.iter().enumerate() {
+                *((out + 0x2C + k as u32) as *mut u8) = b;
             }
-            let marked = (kind >> 4) | 0x8000_0000;
-            put(out + 0x28, marked);
+            for (k, &value) in t.first.iter().enumerate() {
+                put(out + 4 * k as u32, value);
+            }
+            put(out + 0x28, t.marked);
             g.esi = out;
             g.edi = rec;
-            g.eax = marked;
+            g.eax = t.marked;
         }
         g.ecx = TEXTURES;
     }
@@ -248,6 +250,7 @@ pub unsafe fn reset_refresh(v: &Vars) {
 /// more found than the list's 0x201 (a real stage's end is past 0x201: refused wrongly on
 /// 2026-10-16, when the end was checked).
 pub unsafe fn init_checkpoints(entry: &Regs, v: &Vars) -> Result<Regs, Refused> {
+    // Converted: `rc2k_core::race::checkpoints::listed_checkpoints`.
     let mut g = *entry;
     unsafe {
         let kinds = get(v.checkpoint_kinds);
@@ -256,32 +259,20 @@ pub unsafe fn init_checkpoints(entry: &Regs, v: &Vars) -> Result<Regs, Refused> 
             return Ok(g);
         }
         let end = get(v.checkpoint_count);
-        if end < 2 {
-            return Err(BadInput("a checkpoint end below 2: the original counts round").into());
-        }
         let records = get(v.checkpoint_records);
-        // What fits is the checkpoints found, not the end: counted first, nothing written.
-        let flagged = |n: u32| {
-            let entry = get(v.checkpoint_table + 4 * n);
-            *(((entry << 6).wrapping_add(records) + 0x26) as *const u8) != 0
-        };
-        if (1..end).filter(|&n| flagged(n)).count() as u32 > MOST_CHECKPOINTS {
-            return Err(BadInput("more checkpoints found than the list holds").into());
-        }
-        put(v.checkpoints_found, 0);
-        let mut found = 0u32;
-        for n in 1..end {
+        let listed = rc2k_core::race::checkpoints::listed_checkpoints(end, |n| {
             g.ebx = get(v.checkpoint_table + 4 * n);
             g.esi = (g.ebx << 6).wrapping_add(records);
             let byte = *((g.esi + 0x26) as *const u8);
             g.eax = g.eax & !0xFF | byte as u32;
-            if byte != 0 {
-                put(v.checkpoints + 4 * found, n);
-                found += 1;
-            }
+            byte != 0
+        })?;
+        put(v.checkpoints_found, 0);
+        for (k, &n) in listed.iter().enumerate() {
+            put(v.checkpoints + 4 * k as u32, n);
         }
         g.edx = end;
-        g.ebp = found.wrapping_sub(1);
+        g.ebp = (listed.len() as u32).wrapping_sub(1);
         put(v.checkpoints_found, g.ebp);
     }
     Ok(g)

@@ -8,14 +8,20 @@
 //!
 //! See `marks/place_view.rs`; no variable shared with it. One caller, `sub_4C25F6`.
 //! Self-test: as `place_view`'s, the two blocks also watched.
+//!
+//! Converted 2026-10-21: the hook's Rust version is `place_view_2_plain`, on
+//! `marks::place_view`'s converted body (the x87 version stays for the Rust callers in
+//! unconverted code); compared as `place_view`.
 
 use crate::errors::Refused;
 use crate::framework::{RawHook, Regs, SelfTest, game_addr, game_read, game_write, hook_asm, rva};
-use crate::marks::place_view::{ViewPlace, WRITTEN_LEN, place_view_with, test_with};
+use crate::marks::place_view::{
+    ViewPlace, WRITTEN_LEN, float_places, place_view_with, place_view_with_plain, test_with,
+};
 use crate::math::x87;
 use crate::race::stage_prefs::left_of;
 use crate::screens::harness::Left;
-use crate::service::harness::{Region, dispatch_state};
+use crate::service::harness::Region;
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -54,18 +60,50 @@ pub unsafe fn place_view_2(entry: &Regs) -> Result<Regs, Refused> {
     }
 }
 
+/// The converted version (plain floats): the hook's.
+// Converted: `rc2k_core::marks::view::view_place`
+pub unsafe fn place_view_2_plain(entry: &Regs) -> Result<Regs, Refused> {
+    unsafe {
+        let mut g = place_view_with_plain(entry, &SECOND)?;
+        g.eax = 0;
+        game_write(CLEARED_RVA, [0u32; 8]);
+        // The point is (0, 0, 0x80000) again: the float exact at any rounding.
+        let z = x87::from_int(game_read(SECOND.point + 8));
+        game_write(FILLED_RVA, [z; 4]);
+        Ok(g)
+    }
+}
+
 fn extra() -> [Region; 1] {
     [(game_addr(CLEARED_RVA) as u32, 0x30)]
 }
 
 fn rust(r: &Regs) -> Result<Left, Refused> {
-    Ok(left_of(&unsafe { place_view_2(r) }?))
+    Ok(left_of(&unsafe { place_view_2_plain(r) }?))
 }
 
 extern "C" fn dispatch(r: &mut Regs) {
     let mut regions = vec![(game_addr(SECOND.point) as u32, WRITTEN_LEN)];
     regions.extend(extra());
-    dispatch_state(&HOOK, r, call_original, &regions, &rust);
+    let places = float_places(&SECOND);
+    let floats = crate::service::floats::Floats {
+        memory: &places,
+        regs: &[],
+    };
+    crate::service::floats::dispatch_state_floats(
+        &HOOK,
+        r,
+        call_original,
+        &regions,
+        &floats,
+        &rust,
+    );
+}
+
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    crate::service::floats::floats_entry(r, &rust)
 }
 
 fn self_test() -> (usize, usize) {

@@ -23,6 +23,20 @@ impl RedirectedCopy {
         call_offsets: &[usize],
         redirect: &dyn Fn(usize) -> Option<usize>,
     ) -> Result<Self, &'static str> {
+        unsafe { Self::with_bytes(original, len, &[(0, entry_bytes)], call_offsets, redirect) }
+    }
+
+    /// `new` with the original bytes put back at several places: the entry, and the first
+    /// bytes of a function inside the copy that is hooked itself (its patch is in memory;
+    /// 2026-10-20: `run_particles`, whose 0x221 starts a hooked function). `call_offsets`
+    /// may name `E8` calls and `E9` tail jumps.
+    pub unsafe fn with_bytes(
+        original: usize,
+        len: usize,
+        bytes: &[(usize, &[u8])],
+        call_offsets: &[usize],
+        redirect: &dyn Fn(usize) -> Option<usize>,
+    ) -> Result<Self, &'static str> {
         unsafe {
             let copy = VirtualAlloc(
                 std::ptr::null(),
@@ -35,7 +49,12 @@ impl RedirectedCopy {
             }
             let this = Self(copy);
             std::ptr::copy_nonoverlapping(original as *const u8, copy, len);
-            std::ptr::copy_nonoverlapping(entry_bytes.as_ptr(), copy, entry_bytes.len());
+            for &(offset, b) in bytes {
+                if offset + b.len() > len {
+                    return Err("bytes to put back past the copy");
+                }
+                std::ptr::copy_nonoverlapping(b.as_ptr(), copy.add(offset), b.len());
+            }
             if let Some(offset) = unlisted_call(
                 std::slice::from_raw_parts(copy, len),
                 original,
@@ -50,7 +69,7 @@ impl RedirectedCopy {
             }
             for &offset in call_offsets {
                 let at = copy.add(offset);
-                if offset + 5 > len || at.read() != 0xE8 {
+                if offset + 5 > len || !matches!(at.read(), 0xE8 | 0xE9) {
                     return Err("the function is not what the call list was made from");
                 }
                 let rel = (at.add(1) as *const i32).read_unaligned();

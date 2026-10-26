@@ -15,8 +15,8 @@
 //! copy whose calls go to stand-ins, against the Rust version.
 
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, SelfTest, call_game, game_addr, game_read, hook_asm, rva};
-use crate::menu::parts::{Part, copy, dispatch_parted, run_both, test_part};
+use crate::framework::{RawHook, Regs, SelfTest, game_addr, game_read, hook_asm, rva};
+use crate::menu::parts::{Part, copy, dispatch_parted, parted_entry, run_both, test_part};
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -81,7 +81,7 @@ pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
     use crate::logfile::{log_hex8::log_hex8, log_write::log_write};
     unsafe {
         match place {
-            0 => call_game(r, game_addr(rva(CALLEES[0]))),
+            0 => crate::calls::call(rva(CALLEES[0]), r),
             1 => log_write(r.eax as *const u8, true, 1),
             2 => log_write(r.eax as *const u8, false, 1),
             _ => log_hex8(r.eax, true, 1),
@@ -98,6 +98,16 @@ extern "C" fn dispatch(r: &mut Regs) {
         &|r, part| unsafe { load_front_end_objects_logged(r, part) },
         game_part,
     );
+}
+
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    parted_entry(
+        r,
+        &|r, part| unsafe { load_front_end_objects_logged(r, part) },
+        game_part,
+    )
 }
 
 fn self_test() -> (usize, usize) {

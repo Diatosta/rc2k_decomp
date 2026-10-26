@@ -10,12 +10,16 @@
 //! Its other floats stay as they are.
 //! 12 callers.
 //! Self-test: 41 angles on the game's matrix, put back afterwards.
+//!
+//! Converted 2026-10-21: the hook's Rust version is `set_turn_x_plain`, through
+//! `rc2k_core::scene::matrices::set_table_turn`; compared exactly as before (the earlier
+//! version stays for the Rust callers in unconverted code).
 
 use crate::errors::Refused;
 use crate::framework::{RawHook, Regs, SelfTest, game_addr, hook_asm, rva};
 use crate::scene::matrix::{self, matrix, test_floats};
 use crate::screens::harness::Left;
-use crate::service::harness::{Region, capture, check_state, dispatch_state, restore};
+use crate::service::harness::{Region, capture, check_state, dispatch_state, restore, state_entry};
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -40,11 +44,17 @@ fn regions() -> [Region; 2] {
 }
 
 fn rust(r: &Regs) -> Result<Left, Refused> {
-    Ok(unsafe { matrix::set_turn_x(r.edx) })
+    Ok(unsafe { matrix::set_turn_x_plain(r.edx) })
 }
 
 extern "C" fn dispatch(r: &mut Regs) {
     dispatch_state(&HOOK, r, call_original, &regions(), &rust);
+}
+
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    state_entry(r, &rust)
 }
 
 // ---- self-test ----

@@ -9,6 +9,10 @@
 //! values), in the game its Rust version. Hooked through a private copy (a `jz` in the
 //! first bytes). Shadow mode runs the original alone (it draws). Self-test: a copy whose
 //! box goes to a stand-in taking the values off, against the Rust version.
+//!
+//! Converted 2026-10-21: the box's place through `rc2k_core::marks::pong::cell_place` (a
+//! whole number times a float plus a whole number: exact in `f64`, as the x87's at double
+//! precision; at extended too while the product fits 53 bits, as the score's cells do).
 
 use crate::errors::Refused;
 use crate::framework::{
@@ -17,6 +21,7 @@ use crate::framework::{
 use crate::marks::pong;
 use crate::scene::matrix3::extended;
 use crate::service::harness::{at, capture, restore};
+use rc2k_core::math::extended::from_f64;
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -40,34 +45,20 @@ const SIZE_RVA: [usize; 2] = [rva(0x769202), rva(0x769206)]; // flt_769202, flt_
 /// A call by place: 1 `draw_pong_box`, with its four values (st(0) first).
 pub type Part<'a> = &'a mut dyn FnMut(u32, &mut Regs, &[[u8; 10]]) -> Result<(), Refused>;
 
-/// `fild i; fmul k; fiadd j`, kept extended.
-fn int_times_plus_int(i: u32, k: u32, j: u32) -> [u8; 10] {
-    let (v, mut out) = ([i, k, j], [0u8; 10]);
-    unsafe {
-        core::arch::asm!(
-            "fild dword ptr [{v}]",
-            "fmul dword ptr [{v} + 4]",
-            "fiadd dword ptr [{v} + 8]",
-            "fstp tbyte ptr [{o}]",
-            v = in(reg) v.as_ptr(),
-            o = in(reg) out.as_mut_ptr(),
-            out("st(0)") _,
-            options(nostack),
-        )
-    };
-    out
-}
-
 /// The Rust version (see the header): the registers it leaves.
+// Converted: `rc2k_core::marks::pong::cell_place`
 pub unsafe fn pong_cell(entry: &Regs, part: Part) -> Result<Regs, Refused> {
     let mut g = *entry;
     unsafe {
         if (g.eax as *const u8).read() != 0 {
+            let step = STEP_RVA.map(|r| f32::from_bits(game_read(r)));
+            let at = pong::DIGIT_AT.map(|r| game_read::<i32>(r));
+            let [x, y] = rc2k_core::marks::pong::cell_place(g.ebx as i32, g.ecx as i32, step, at);
             let values = [
                 extended(game_read(SIZE_RVA[1])),
                 extended(game_read(SIZE_RVA[0])),
-                int_times_plus_int(g.ecx, game_read(STEP_RVA[1]), game_read(pong::DIGIT_AT[1])),
-                int_times_plus_int(g.ebx, game_read(STEP_RVA[0]), game_read(pong::DIGIT_AT[0])),
+                from_f64(y),
+                from_f64(x),
             ];
             let mut r = g;
             part(1, &mut r, &values)?;
@@ -94,6 +85,13 @@ extern "C" fn dispatch(r: &mut Regs) {
         Ok(left) => *r = Regs { esp: r.esp, ..left },
         Err(e) => unsafe { crate::fatal::raise::refused(&HOOK, e, r, call_original) },
     }
+}
+
+/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    let left = unsafe { pong_cell(r, &mut game_part) }?;
+    *r = Regs { esp: r.esp, ..left };
+    Ok(())
 }
 
 fn self_test() -> (usize, usize) {

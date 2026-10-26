@@ -7,13 +7,18 @@
 //! See `marks/kind_values.rs`. One caller, `marks::init_marks`. Refuses a kind past the
 //! tables (0x22). Self-test: the original and the Rust version on the game's tables
 //! filled with values of the test's, kinds 0 .. 0x21; the refusal; put back afterwards.
+//!
+//! Converted 2026-10-21: the hook's Rust version is `set_kind_values_plain`, through
+//! `rc2k_core::marks::kind_values::values` (plain floats; the x87 version stays for
+//! `marks::init_marks`). Shadow mode and the self-test compare within `service::floats`'
+//! tolerances (the self-test at both test precisions, exact at double).
 
 use crate::errors::Refused;
 use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
 use crate::marks::kind_values::*;
 use crate::race::stage_prefs::left_of;
 use crate::screens::harness::Left;
-use crate::service::harness::dispatch_state;
+use crate::service::floats::{Floats, dispatch_state_floats, floats_entry};
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -29,17 +34,41 @@ hook_asm!(
 );
 
 fn rust(r: &Regs) -> Result<Left, Refused> {
-    Ok(left_of(&unsafe { set_kind_values(r, &SECOND) }?))
+    Ok(left_of(&unsafe { set_kind_values_plain(r, &SECOND) }?))
 }
 
 extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_state(&HOOK, r, call_original, &kind_regions(&SECOND), &rust);
+    let places = kind_floats(&SECOND);
+    let floats = Floats {
+        memory: &places,
+        regs: &[],
+    };
+    dispatch_state_floats(
+        &HOOK,
+        r,
+        call_original,
+        &kind_regions(&SECOND),
+        &floats,
+        &rust,
+    );
+}
+
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    floats_entry(r, &rust)
 }
 
 fn self_test() -> (usize, usize) {
     let Some(mut t) = SelfTest::begin(&HOOK) else {
         return (0, 0);
     };
-    crate::marks::kind_values::test_kinds(&mut t, &SECOND, call_original, &rust);
+    crate::marks::kind_values::test_kinds(
+        &mut t,
+        "marks::set_kind_values_2",
+        &SECOND,
+        call_original,
+        &rust,
+    );
     t.finish()
 }

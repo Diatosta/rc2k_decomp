@@ -8,26 +8,14 @@
 //! Caller: `net::lobby_loop`. Its calls through `part`. Shadow mode runs the original alone
 //! (it sends). Self-test: a copy whose calls go to stand-ins, against the Rust version:
 //! editing on, ended with a message, ended empty.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, SelfTest, ZERO_FLAG, hook_asm, rva};
-use crate::net::lobby::{
-    CHAT_INPUT, PLAYER, Part, Saved, a, answer, dispatch_lobby, dword, g, gb, p, pb, region,
-    run_both,
-};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("net::chat_key", rva(0x4180E4), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
+use crate::framework::{Regs, ZERO_FLAG};
+use crate::net::lobby::{CHAT_INPUT, PLAYER, Part, a, g, gb, lobby_entry, pb};
 
 const EDIT_KEY: u32 = 0x416E43; // net::edit_key
 const SEND_CHAT: u32 = 0x41819B; // net::send_chat_regs
@@ -48,51 +36,8 @@ pub fn chat_key(entry: &Regs, part: Part) -> Result<Regs, Refused> {
     Ok(r)
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_lobby(&HOOK, r, call_original, chat_key);
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    // call sub_416E43
-    let copy = match crate::net::lobby::copy(
-        0x4180E4,
-        0x24,
-        &[0xE8, 0x5A, 0xED, 0xFF, 0xFF],
-        &[0x0, 0x17],
-        &[EDIT_KEY, SEND_CHAT],
-    ) {
-        Ok(c) => c,
-        Err(why) => return t.skip(why),
-    };
-    let all = [dword(PLAYER), region(CHAT_INPUT, 4)];
-    let saved = Saved::new(&all);
-    for (editing, first) in [(true, b'h'), (false, b'h'), (false, 0)] {
-        run_both(
-            &mut t,
-            &format!("editing {editing}, the input's first byte {first:#x}"),
-            copy.addr(),
-            Regs {
-                eax: 0x1C,
-                ..Regs::SENTINEL
-            },
-            &all,
-            0,
-            &[],
-            &|| {
-                p(PLAYER, 2);
-                pb(CHAT_INPUT, first);
-                answer(Box::new(move |place, r| {
-                    if place == EDIT_KEY {
-                        r.set_zero(!editing);
-                    }
-                }));
-            },
-            &chat_key,
-        );
-    }
-    drop(saved);
-    t.finish()
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    lobby_entry(r, chat_key)
 }

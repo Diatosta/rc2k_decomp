@@ -175,7 +175,7 @@ pub unsafe fn build_texture_catalogue_in_game() -> Result<(), Refused> {
                     raise_texture_needs(level, tag);
                 }
                 Call::Try => return Ok(try_allocate_textures_in_game()?),
-                Call::Release => call_game(&mut Regs::default(), game_addr(RELEASE_RVA)),
+                Call::Release => crate::calls::call(RELEASE_RVA, &mut Regs::default()),
                 Call::CountNeeds => {
                     count_texture_needs_in_game()?;
                 }
@@ -197,6 +197,15 @@ extern "C" fn dispatch(r: &mut Regs) {
         Ok(()) => r.set_carry(false),
         Err(e) => unsafe { crate::fatal::raise::refused(&HOOK, e, r, call_original) },
     }
+}
+
+/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    match unsafe { build_texture_catalogue_in_game() } {
+        Ok(()) => r.set_carry(false),
+        Err(e) => return Err(e),
+    }
+    Ok(())
 }
 
 // ---- self-test ----

@@ -13,30 +13,15 @@
 //! 0x100), before anything; what the steps refuse. Self-test: a copy whose page wrapper
 //! call goes to a stand-in, against the Rust version on the same, on the game's tables;
 //! put back.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
-use crate::errors::{BadInput, Refused};
-use crate::framework::{RawHook, Regs, SelfTest, game_read, game_write, hook_asm, rva, shadow};
+use crate::errors::Refused;
+use crate::framework::{Regs, game_read, game_write, rva};
 use crate::menu::standings::*;
-use crate::service::harness::{Region, at, capture, restore};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook = RawHook::new(
-    "menu::class_championship_pass",
-    rva(0x4A4A1C),
-    thunk,
-    &ORIGINAL,
-)
-.self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL,
-    ungated
-);
+use rc2k_core::menu::class_pages;
 
 const FLAG_RVA: usize = rva(0x755565); // dword_755565
 const COUNT_RVA: usize = rva(0x75597C); // dword_75597C
@@ -52,11 +37,7 @@ pub type Part<'a> = &'a mut dyn FnMut(u32, &mut Regs) -> Result<(), Refused>;
 /// The first class (see the header).
 fn first_class() -> u32 {
     unsafe {
-        if game_read::<u32>(MODE_RVA) != 2 && game_read::<u32>(EVENT_MODE_RVA) == 0x13 {
-            0
-        } else {
-            1
-        }
+        class_pages::first_championship_class(game_read(MODE_RVA), || game_read(EVENT_MODE_RVA))
     }
 }
 
@@ -64,15 +45,18 @@ fn first_class() -> u32 {
 pub unsafe fn class_championship_pass(entry: &Regs, part: Part) -> Result<Regs, Refused> {
     unsafe {
         let first = first_class();
-        let classes: u32 = game_read(CLASSES_RVA);
-        if classes <= first || classes > 0x100 {
-            return Err(BadInput("a class count the loop would run past").into());
-        }
+        // Converted: `rc2k_core::menu::class_pages` (`classes`, `has_player`).
+        let classes = class_pages::classes(first, game_read(CLASSES_RVA))?;
         let table: u32 = game_read(TABLE_B_RVA);
         let all = entries(table, B_ENTRY)?;
-        for class in first..classes {
+        for class in classes {
             game_write(FLAG_RVA, 0u32);
-            if !group_has_player(&all, 0x10, class) {
+            if !class_pages::has_player(
+                all.len(),
+                |n| get(all[n] + 0x10),
+                |n| get(all[n] + 4),
+                class,
+            ) {
                 continue;
             }
             game_write(FLAG_RVA, 1u32);
@@ -99,76 +83,9 @@ pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
     Ok(())
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    HOOK.count_call();
-    if shadow() {
-        unsafe { call_original(r) };
-        return;
-    }
-    match unsafe { class_championship_pass(r, &mut game_part) } {
-        Ok(left) => *r = Regs { esp: r.esp, ..left },
-        Err(e) => unsafe { crate::fatal::raise::refused(&HOOK, e, r, call_original) },
-    }
-}
-
-fn self_test() -> (usize, usize) {
-    use crate::race::mud::{copy, run_both, test_part};
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let copy = match copy(
-        0x4A4A1C,
-        0x81,
-        &[0x60, 0xBB, 0x01, 0x00, 0x00, 0x00],
-        &[0x5D, 0x68],
-        &[(0x4A4AD5, 2)],
-    ) {
-        Ok(c) => c,
-        Err(why) => return t.skip(why),
-    };
-    let table: u32 = unsafe { game_read(TABLE_B_RVA) };
-    let Ok(all) = entries(table, B_ENTRY) else {
-        return t.skip("the game's table is not there");
-    };
-    let mut regions: Vec<Region> = vec![
-        (table, all.len() * B_ENTRY as usize),
-        at(FLAG_RVA),
-        at(COUNT_RVA),
-    ];
-    regions.extend(
-        (0..4u32)
-            .map(|n| (player(n), 0x400))
-            .filter(|&(p, _)| p != 0),
-    );
-    let mut vars = regions.clone();
-    vars.extend([CLASSES_RVA, ANSWER_RVA, MODE_RVA, EVENT_MODE_RVA].map(at));
-    let saved = capture(&vars);
-    for case in 0..3u32 {
-        run_both(
-            &mut t,
-            &format!("case {case}"),
-            &copy,
-            &regions,
-            &|| unsafe {
-                restore(&vars, &saved);
-                game_write(CLASSES_RVA, 4u32);
-                game_write(MODE_RVA, if case == 1 { 2u32 } else { 0 });
-                game_write(EVENT_MODE_RVA, if case == 2 { 0x13u32 } else { 0 });
-                for (k, &e) in all.iter().enumerate().take(12) {
-                    put(e + 0x10, k as u32 % 4);
-                    put(
-                        e + 4,
-                        if k % 3 == 0 {
-                            1 + (k as u32 / 3) % 4
-                        } else {
-                            0
-                        },
-                    );
-                }
-            },
-            &|r| unsafe { class_championship_pass(r, &mut test_part) },
-        );
-    }
-    restore(&vars, &saved);
-    t.finish()
+/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    let left = unsafe { class_championship_pass(r, &mut game_part) }?;
+    *r = Regs { esp: r.esp, ..left };
+    Ok(())
 }

@@ -2,7 +2,7 @@
 //! components, before it is converted to the surface's format and drawn. The background of
 //! every menu screen goes through it.
 
-use crate::framework::{game_read, rva};
+use crate::framework::{game_read, game_write, rva};
 use crate::service::harness::Region;
 
 /// dword_4F49DC: the pointer to the buffer.
@@ -34,4 +34,9 @@ pub fn picture() -> *mut u8 {
 /// The first `bytes` of the buffer, for capturing and comparing.
 pub fn picture_region(bytes: usize) -> Region {
     (picture() as u32, bytes)
+}
+
+/// The picture's width, height and row length set (`rc2k_core::gfx::picture_size`).
+pub unsafe fn set_size(size: rc2k_core::gfx::picture_size::PictureSize) {
+    unsafe { game_write(WIDTH_RVA, size.dwords()) };
 }

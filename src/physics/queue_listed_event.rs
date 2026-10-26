@@ -17,6 +17,7 @@ use crate::framework::{EBX, RawHook, Regs, SelfTest, call_game, game_addr, hook_
 use crate::physics::queue_car_event::{QueuePlaces, queue_car_event_at};
 use crate::screens::harness::Left;
 use crate::service::harness::{capture, dispatch_state};
+use rc2k_core::physics::car_events::listed_event;
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -39,16 +40,17 @@ hook_asm!(
 const TABLE_RVA: usize = rva(0x614C7C); // dword_614C7C, 0x20 entries
 
 /// The core: the table at `table`, the queue at `q`.
+// Converted: `rc2k_core::physics::car_events::listed_event`.
 pub unsafe fn queue_listed_event_at(
     table: u32,
     q: &QueuePlaces,
     ebx: u32,
 ) -> Result<Left, Refused> {
-    if ebx >= 0x20 {
+    let entry = |n: u32| unsafe { ((table + 4 * n) as *const u32).read_unaligned() };
+    let Some((event, queued)) = listed_event(ebx, entry) else {
         return Ok(Left::nothing());
-    }
-    let event = unsafe { ((table + 4 * ebx) as *const u32).read_unaligned() };
-    if event != u32::MAX {
+    };
+    if queued {
         unsafe { queue_car_event_at(q, 0, event) }?;
     }
     Ok(Left::nothing().with(EBX, event))

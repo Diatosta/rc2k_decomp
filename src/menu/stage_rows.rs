@@ -29,20 +29,14 @@ pub fn step_rows(entry: &Regs, of_90: bool, on: bool) -> Result<Left, Refused> {
         };
         let last = count.wrapping_sub(9);
         let row: u32 = game_read(FIRST_RVA);
-        let mut left = Left::nothing();
-        let row = if on {
-            left = left.with(EAX, last);
-            if row as i32 >= last as i32 {
-                1
-            } else {
-                row.wrapping_add(10)
-            }
-        } else if row as i32 <= 10 {
-            left = left.with(EAX, last);
-            last
+        // Converted: `rc2k_core::menu::steps::rows`; eax is left `last` on and at the wrap
+        // back.
+        let left = if on || row as i32 <= 10 {
+            Left::nothing().with(EAX, last)
         } else {
-            row - 10
+            Left::nothing()
         };
+        let row = rc2k_core::menu::steps::rows(row, count, on);
         game_write(FIRST_RVA, row);
         crate::menu::stage_range_caption::stage_range_caption(entry)?;
         Ok(left)
@@ -63,6 +57,11 @@ pub fn dispatch_rows(
     dispatch_state(hook, r, call_original, &regions(), &|r| {
         step_rows(r, of_90, on)
     });
+}
+
+/// `dispatch_rows` without its hook (typed tables).
+pub fn rows_entry(r: &mut Regs, of_90: bool, on: bool) -> Result<(), Refused> {
+    crate::service::harness::state_entry(r, &|r| step_rows(r, of_90, on))
 }
 
 pub fn test_rows(

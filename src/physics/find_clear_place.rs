@@ -37,6 +37,7 @@ use crate::race::stage_prefs::left_of;
 use crate::scene::matrix3::{extended, rounded};
 use crate::screens::harness::Left;
 use crate::service::harness::{Region, capture, check_state, restore};
+use rc2k_core::physics::clear_place;
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -66,8 +67,9 @@ fn try_place(r: &mut Regs, touched: &mut Touched) -> Result<(), Refused> {
 }
 
 /// The steps, not guarded.
+// Converted: `rc2k_core::physics::clear_place` (the tries' contacts are the hooks').
 pub fn steps(r: &mut Regs, touched: &mut Touched) -> Result<(), Refused> {
-    p(0x614C28, 0x5A);
+    p(0x614C28, clear_place::TRY_MARK);
     let factor = extended(g(0x613FDC));
     unsafe { crate::physics::scale_vector::scale_vector(a(0x71A170), factor) };
     p(0x62400C, rounded(factor));
@@ -75,41 +77,33 @@ pub fn steps(r: &mut Regs, touched: &mut Touched) -> Result<(), Refused> {
     unsafe { crate::physics::lowest_body_point::lowest_body_point(r) }?;
     r.eax = g(0x6D3068);
     p(0x614118, r.eax);
-    r.ebp = (g(0x719FE0) & 0xF) + 0x70;
-    loop {
-        let ebp = r.ebp;
+    let found = clear_place::tries(clear_place::first_try(g(0x719FE0)), |n| {
+        r.ebp = n;
         p(0x614738, 0);
-        r.ebx = ebp & 0xF;
-        r.ecx = (ebp >> 4) + 1;
-        let step = 1u32 << (r.ecx & 0x1F);
+        let m = clear_place::try_move(n);
+        r.ebx = m.entry;
+        r.ecx = m.shift;
         for (table, place) in [(0x614014, 0x71A10C), (0x614054, 0x71A114)] {
-            let product = i64::from(step as i32) * i64::from(g(table + 4 * r.ebx as usize) as i32);
-            r.eax = product as u32;
-            r.edx = (product >> 32) as u32;
+            (r.eax, r.edx) = clear_place::move_part(m.step, g(table + 4 * r.ebx as usize));
             p(place, g(place).wrapping_add(r.eax));
         }
-        r.eax = step;
+        r.eax = m.step;
         try_place(r, touched)?;
-        r.ebp = ebp;
-        if g(0x614738) == 0 {
-            break;
-        }
-        r.ebp += 1;
-        if r.ebp == 0x100 {
-            *r = unsafe {
-                crate::physics::reset_car::reset_car(r, &mut crate::physics::reset_parts::game_part)
-            }?;
-            return Ok(());
-        }
+        r.ebp = n;
+        Ok::<_, Refused>(g(0x614738) == 0)
+    })?;
+    if found.is_none() {
+        r.ebp = clear_place::TRIES_END;
+        *r = unsafe {
+            crate::physics::reset_car::reset_car(r, &mut crate::physics::reset_parts::game_part)
+        }?;
+        return Ok(());
     }
     unsafe { crate::physics::lowest_body_point::lowest_body_point(r) }?;
     let depth = g(0x6D3068);
-    if (depth as i32) < 0 {
+    if let Some(height) = clear_place::lifted(g(0x71A110), depth) {
         r.eax = depth;
-        p(
-            0x71A110,
-            g(0x71A110).wrapping_sub(depth).wrapping_add(0x800),
-        );
+        p(0x71A110, height);
     }
     unsafe {
         crate::logfile::log_write::log_write(a(PORKY) as *const u8, false, 1);

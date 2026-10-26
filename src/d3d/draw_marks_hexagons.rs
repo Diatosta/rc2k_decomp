@@ -53,3 +53,23 @@ extern "C" fn dispatch(r: &mut Regs) {
     }
     unsafe { call_original(r) };
 }
+
+/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    if standalone() {
+        #[cfg(feature = "standalone")]
+        unsafe {
+            use crate::framework::{game_addr, game_read};
+            crate::platform_3d::draw_indexed_list(
+                game_addr(VERTICES_RVA) as u32,
+                game_read(VERTEX_COUNT_RVA),
+                game_addr(INDICES_RVA) as u32,
+                game_read(INDEX_COUNT_RVA),
+            )
+        };
+        r.eax = 0;
+        return Ok(());
+    }
+    unsafe { crate::framework::call_game(r, crate::framework::game_addr(rva(0x41ADB9))) };
+    Ok(())
+}

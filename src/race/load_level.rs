@@ -46,6 +46,19 @@ extern "C" fn dispatch(r: &mut Regs) {
     }
 }
 
+/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    {
+        let g = unsafe { load_level(r, &mut load_part) }?;
+        *r = Regs {
+            esp: r.esp,
+            eflags: r.eflags,
+            ..g
+        }
+    }
+    Ok(())
+}
+
 /// Whether the test's read fails.
 static FAILS: AtomicBool = AtomicBool::new(false);
 const GIVES: u32 = 0x1_2340;

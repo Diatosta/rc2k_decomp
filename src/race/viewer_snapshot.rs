@@ -18,7 +18,7 @@ use crate::gfx::write_screen_pcx::PICTURE_NAME;
 use crate::physics::flow::a;
 use crate::race::find_snapshot_number::{SNAPSHOT_DIGITS, SNAPSHOT_PATH};
 use crate::race::viewer::{
-    Part, Saved, answer, dispatch_parts, dword, get, put, region, run_both, test_part,
+    Part, Saved, answer, dispatch_parts, dword, get, put, region, regs_entry, run_both, test_part,
 };
 use std::sync::atomic::AtomicUsize;
 
@@ -42,18 +42,13 @@ pub fn viewer_snapshot(entry: &Regs, part: Part) -> Result<Regs, Refused> {
         eax: a(SNAPSHOT_PATH),
         ..*entry
     };
-    for n in (0..3).rev() {
-        unsafe {
-            let d = digits.add(n);
-            d.write(d.read().wrapping_add(1));
-            r.ebx = d as u32;
-            r.ecx = n as u32;
-            if d.read() <= b'9' {
-                break;
-            }
-            d.write(b'0');
-            r.ecx = (n as u32).wrapping_sub(1);
-        }
+    // Converted: `rc2k_core::race::viewer::next_snapshot`.
+    unsafe {
+        let (next, last, ecx) =
+            rc2k_core::race::viewer::next_snapshot(digits.cast::<[u8; 3]>().read());
+        digits.cast::<[u8; 3]>().write(next);
+        r.ebx = digits.add(last) as u32;
+        r.ecx = ecx;
     }
     put(PICTURE_NAME, r.eax);
     part(1, &mut r)?;
@@ -74,6 +69,12 @@ extern "C" fn dispatch(r: &mut Regs) {
     dispatch_parts(&HOOK, r, call_original, &|r| {
         viewer_snapshot(r, &mut game_part)
     });
+}
+
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    regs_entry(r, &|r| viewer_snapshot(r, &mut game_part))
 }
 
 fn self_test() -> (usize, usize) {

@@ -14,7 +14,7 @@
 use crate::errors::Refused;
 use crate::framework::{RawHook, Regs, hook_asm, rva};
 use crate::race::edit_camera::{camera_regions, step_camera, test_step};
-use crate::race::viewer::dispatch_regs;
+use crate::race::viewer::{dispatch_regs, regs_entry};
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -35,6 +35,12 @@ fn rust(r: &Regs) -> Result<Regs, Refused> {
 
 extern "C" fn dispatch(r: &mut Regs) {
     dispatch_regs(&HOOK, r, call_original, &camera_regions(), 0, &rust);
+}
+
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    regs_entry(r, &rust)
 }
 
 fn self_test() -> (usize, usize) {

@@ -36,3 +36,15 @@ impl From<BadInput> for Refused {
         Refused::BadInput(e)
     }
 }
+
+impl From<rc2k_core::Invalid> for BadInput {
+    fn from(e: rc2k_core::Invalid) -> Self {
+        BadInput(e.0)
+    }
+}
+
+impl From<rc2k_core::Invalid> for Refused {
+    fn from(e: rc2k_core::Invalid) -> Self {
+        Refused::BadInput(e.into())
+    }
+}

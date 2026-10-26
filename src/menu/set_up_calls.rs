@@ -58,6 +58,20 @@ pub unsafe fn call(function: usize, r: &mut Regs) -> bool {
                     &mut crate::menu::check_cheat_name::game_part,
                 ),
             ),
+            f if f == rva(0x470F55) => regs(
+                r,
+                crate::service::load_background::load_background(
+                    &entry,
+                    &mut crate::service::load_background::game_part,
+                ),
+            ),
+            f if f == rva(0x46F1A9) => crate::service::edit_setup_name::edit_setup_name(
+                &mut crate::text::draw_text::GameCanvas,
+            )
+            .is_ok(),
+            f if f == rva(0x40234A) => {
+                crate::text::draw_string_by_id::draw_string_by_id_regs(r).is_ok()
+            }
             _ => false,
         }
     }

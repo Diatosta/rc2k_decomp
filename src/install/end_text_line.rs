@@ -9,25 +9,16 @@
 //! Its first instruction is a call: a private copy of the whole 0xB bytes, both calls
 //! relocated. Compared in shadow mode by state. Self-test: the original against the Rust
 //! version at two places in a buffer of the test's.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{EBX, RawHook, Regs, SelfTest, hook_asm, rva};
+use crate::framework::{EBX, Regs};
 use crate::screens::harness::Left;
-use crate::service::harness::{check_state, dispatch_state};
-use std::sync::atomic::AtomicUsize;
+use crate::service::harness::state_entry;
 
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-pub static HOOK: RawHook = RawHook::new("install::end_text_line", rva(0x415304), thunk, &ORIGINAL)
-    .private_copy(0xB)
-    .relocate_calls(&[0, 5])
-    .manual_patch()
-    .self_test(self_test);
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
 /// The Rust version: the cursor after the two bytes.
 pub unsafe fn end_text_line(cursor: u32) -> u32 {
     unsafe {
@@ -40,29 +31,8 @@ pub unsafe fn end_text_line(cursor: u32) -> u32 {
 fn rust(r: &Regs) -> Result<Left, Refused> {
     Ok(Left::nothing().with(EBX, unsafe { end_text_line(r.ebx) }))
 }
-extern "C" fn dispatch(r: &mut Regs) {
-    let regions = [(r.ebx, 2)];
-    dispatch_state(&HOOK, r, call_original, &regions, &rust);
-}
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let mut buffer = [0xAAu8; 8]; // lives to the end of the test
-    let b = buffer.as_mut_ptr() as u32;
-    for at in [0u32, 3] {
-        check_state(
-            &mut t,
-            &format!("at {at}"),
-            call_original,
-            Regs {
-                ebx: b + at,
-                ..Regs::SENTINEL
-            },
-            &|| unsafe { std::ptr::write_bytes(b as *mut u8, 0xAA, 8) },
-            &[(b, 8)],
-            &rust,
-        );
-    }
-    t.finish()
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    state_entry(r, &rust)
 }

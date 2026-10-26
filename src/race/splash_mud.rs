@@ -33,7 +33,9 @@ use crate::race::muddy_texel::{
 use crate::race::put_mud_texel::put_mud_texel;
 use crate::race::stage_prefs::left_of;
 use crate::screens::harness::Left;
-use crate::service::harness::{Region, at, capture, check_state, dispatch_state, restore};
+use crate::service::harness::{
+    Region, at, capture, check_state, dispatch_state, restore, state_entry,
+};
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -52,7 +54,6 @@ pub const SPLASHED_RVA: usize = rva(0x623D90); // dword_623D90: each texture's c
 pub const LAST_SPLASHED: u32 = 0x1000;
 const COLUMN_RVA: usize = rva(0x623D38); // dword_623D38
 const ROW_RVA: usize = rva(0x623D3C); // dword_623D3C
-const WEAKEST: u32 = 0x20;
 
 /// What a splash writes besides the texels and the format's scratch.
 pub fn splash_regions() -> Vec<Region> {
@@ -65,33 +66,35 @@ pub fn splash_regions() -> Vec<Region> {
 
 /// The Rust version (see the header): the registers it leaves.
 pub unsafe fn splash_mud(entry: &Regs) -> Result<Regs, Refused> {
+    // Converted: `rc2k_core::race::mud::{splash_place, splash_lands, splash_pattern}`.
+    use rc2k_core::race::mud::{
+        MUD_TOP, SPLASH_SIDE, muddy, splash_lands, splash_pattern, splash_place, strength_row,
+    };
     let (n, mud) = texture_and_mud()?;
     guard(&splash_regions(), || unsafe {
         let mut r = Regs { ebx: n, ..*entry };
         let count_at = SPLASHED_RVA + 4 * n as usize;
         game_write(count_at, game_read::<u32>(count_at).wrapping_add(1));
-        r.eax = next_random() & 0xFFFF;
-        r.ecx = r.eax & 0xFF;
-        r.edx = (r.eax >> 8) & 0xFF;
+        (r.ecx, r.edx) = splash_place(next_random());
         r.esi = strength_at(mud, n, r.ecx, r.edx);
         r.ebx = u32::from(*(r.esi as *const u8));
         // The address's making leaves eax its last part, (y / 2) x 128.
-        r.eax = (r.edx >> 1) << 7;
-        if r.ebx < WEAKEST {
+        r.eax = strength_row(r.edx);
+        let lands = splash_lands(r.ebx, || {
+            r.eax = next_random() & 0xFF;
+            r.eax
+        });
+        if !lands {
             return Ok(r);
         }
-        r.eax = next_random() & 0xFF;
-        if r.eax > r.ebx {
-            return Ok(r);
-        }
-        r.eax = (next_random() & 0xF) << 6;
+        r.eax = splash_pattern(next_random());
         r.esi = (game_addr(COLOURS_RVA) as u32).wrapping_add(r.eax);
         game_write(ROW_RVA, 0u32);
-        for row in 0..4u32 {
+        for row in 0..SPLASH_SIDE {
             game_write(COLUMN_RVA, 0u32);
-            for column in 0..4u32 {
+            for column in 0..SPLASH_SIDE {
                 r.eax = mud_texel(r.eax, r.ecx, r.edx);
-                if r.eax & 0x8000_0000 != 0 {
+                if muddy(r.eax) {
                     let colour = (r.esi as *const u32).read_unaligned();
                     let faded = fade_colour(&Regs {
                         ebx: r.eax,
@@ -101,7 +104,7 @@ pub unsafe fn splash_mud(entry: &Regs) -> Result<Regs, Refused> {
                     });
                     r.ebx = faded.ebx;
                     r.eax = put_mud_texel(&Regs {
-                        eax: faded.eax | 0xFF00_0000,
+                        eax: faded.eax | MUD_TOP,
                         ..r
                     })?;
                 }
@@ -132,6 +135,12 @@ fn regions() -> Vec<Region> {
 extern "C" fn dispatch(r: &mut Regs) {
     let regions = regions();
     dispatch_state(&HOOK, r, call_original, &regions, &rust);
+}
+
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    state_entry(r, &rust)
 }
 
 /// 256 colours of the test's in `g_mudColours` (the 16 patterns), until put back.

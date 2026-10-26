@@ -18,33 +18,16 @@
 //! Shadow mode runs the original alone (it sends sounds).
 //! Self-test: a copy whose calls go to a stand-in, the tables pointing at the test's
 //! objects (put back), against the Rust version.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{RawHook, Regs, SelfTest, game_addr, game_read, game_write, hook_asm, rva};
+use crate::framework::{Regs, game_read, game_write, rva};
 use crate::physics::flow::{base, guard, x87_run};
-use crate::service::harness::{Region, at, capture, restore};
-use crate::sound::turn_parts::{
-    COUNT, OBJECT_LEN, OBJECTS, Part, both, copy_of, dispatch_turn, f, run_copy, test_object,
-    turn_regions,
-};
-use std::sync::atomic::AtomicUsize;
+use crate::sound::turn_parts::{COUNT, OBJECTS, Part, turn_entry, turn_regions};
 
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("sound::car_sounds_all", rva(0x40D7AB), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
-
-const LEN: usize = 0xE8;
-/// The three calls of `sound::car_sounds`.
-const OUTS: [usize; 3] = [0x39, 0xC0, 0xDF];
-const ENTRY: [u8; 8] = [0x60, 0x83, 0x3D, 0x7C, 0x4F, 0x51, 0x00, 0x00];
 const CAR_SOUNDS: u32 = 0x40D893;
 /// dword_514F80, dword_514F84: the nearest and the next of the computer's cars.
 const NEAREST: usize = 0x514F80;
@@ -75,9 +58,16 @@ pub fn car_sounds_all_in(r: &mut Regs, part: Part) -> Result<(), Refused> {
         return Err(BadInput("a null sound object").into());
     }
     let all = turn_regions();
+    // Converted: `rc2k_core::sound::turn::Nearest` (the choice; eax, ebx, ecx and edx
+    // hold it as the original's do).
+    use rc2k_core::sound::turn::{NEAREST_MARK, NEXT_MARK, Nearest};
+    let hold = |c: &mut Regs, n: &Nearest| {
+        (c.eax, c.ebx, c.ecx, c.edx) = (n.first, n.second, n.first_distance, n.second_distance)
+    };
     guard(&all, || {
         let mut c = *r;
-        (c.eax, c.ebx, c.ecx, c.edx) = (u32::MAX, u32::MAX, 0x7F80_0000, 0x7F80_0000);
+        let mut nearest = Nearest::default();
+        hold(&mut c, &nearest);
         for n in 0..count {
             c.ebp = n;
             c.esi = object(n);
@@ -89,6 +79,13 @@ pub fn car_sounds_all_in(r: &mut Regs, part: Part) -> Result<(), Refused> {
                 c.eax = n;
                 part(CAR_SOUNDS, &mut c)?;
                 c.eax = kept;
+                // The choice goes on from the registers as the call left them.
+                nearest = Nearest {
+                    first: c.eax,
+                    second: c.ebx,
+                    first_distance: c.ecx,
+                    second_distance: c.edx,
+                };
                 continue;
             }
             x87_run!(
@@ -103,22 +100,16 @@ pub fn car_sounds_all_in(r: &mut Regs, part: Part) -> Result<(), Refused> {
                 "fstp dword ptr [{b} + 0x114F88]";
                 si = c.esi, b = base()
             );
-            let d = g(DISTANCE);
-            if c.ecx as i32 > d as i32 {
-                (c.edx, c.ebx, c.ecx, c.eax) = (c.ecx, c.eax, d, n);
-            } else if c.edx as i32 > d as i32 {
-                (c.edx, c.ebx) = (d, n);
-            }
+            nearest.consider(n, g(DISTANCE));
+            hold(&mut c, &nearest);
         }
         c.ebp = count;
-        if c.eax == g(NEXT) || c.ebx == g(NEAREST) {
-            (c.eax, c.ebx) = (c.ebx, c.eax);
-        }
+        (c.eax, c.ebx) = nearest.kept(g(NEAREST), g(NEXT));
         unsafe {
             game_write(rva(NEAREST), c.eax);
             game_write(rva(NEXT), c.ebx);
         }
-        for (which, mark) in [(NEAREST, 0xFFFF_FFFEu32), (NEXT, 0xFFFF_FFFF)] {
+        for (which, mark) in [(NEAREST, NEAREST_MARK), (NEXT, NEXT_MARK)] {
             c.eax = g(which);
             if (c.eax as i32) < 0 {
                 continue;
@@ -133,84 +124,8 @@ pub fn car_sounds_all_in(r: &mut Regs, part: Part) -> Result<(), Refused> {
     })
 }
 
-// ---- hook ----
-
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_turn(&HOOK, r, call_original, car_sounds_all_in, None);
-}
-
-// ---- self-test ----
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let copy = match copy_of(0x40D7AB, LEN, &ENTRY, &OUTS, &[CAR_SOUNDS]) {
-        Ok(c) => c,
-        Err(why) => return t.skip(why),
-    };
-    let run = run_copy(&copy);
-    let mut objects: Vec<Vec<u32>> = (0..8).map(|k| test_object(k, &[])).collect();
-    let o: Vec<u32> = objects.iter_mut().map(|v| v.as_mut_ptr() as u32).collect();
-    let a = |x: usize| game_addr(rva(x)) as u32;
-    let mut all: Vec<Region> = o.iter().map(|&p| (p, OBJECT_LEN)).collect();
-    all.extend([(a(OBJECTS), 0x20), at(rva(COUNT)), (a(NEAREST), 12)]);
-    let saved = capture(&all);
-    // Each car: (+0, +8, distance along x).
-    let layouts: [[(u32, u32, f32); 8]; 4] = [
-        [
-            (0, 1, 5.0),
-            (!1, 1, 3.0),
-            (!2, 1, 1.0),
-            (!3, 1, 2.0),
-            (4, 0, 0.0),
-            (!5, 0, 0.5),
-            (!6, 1, 9.0),
-            (7, 1, 1.0),
-        ],
-        [
-            (!0, 1, 1.0),
-            (!1, 1, 1.0),
-            (!2, 1, 1.0),
-            (3, 1, 0.0),
-            (!4, 1, 0.25),
-            (!5, 1, -7.0),
-            (!6, 1, 1e30),
-            (!7, 1, 2.0),
-        ],
-        [(0, 1, 1.0); 8],
-        [(!0, 1, f32::INFINITY); 8],
-    ];
-    for (k, layout) in layouts.iter().enumerate() {
-        for count in [8u32, 3, 1, 0, 9] {
-            for (nearest, next) in [(u32::MAX, u32::MAX), (2, 1), (1, 2), (3, 0)] {
-                let fill = || unsafe {
-                    for (n, &(id, on, x)) in layout.iter().enumerate() {
-                        game_write(rva(OBJECTS + 4 * n), o[n]);
-                        let p = o[n] as *mut u32;
-                        p.write(id);
-                        p.add(2).write(on);
-                        p.add(11).write(f(x));
-                        p.add(12).write(f(0.5));
-                        p.add(13).write(f(-x));
-                    }
-                    game_write(rva(COUNT), count);
-                    game_write(rva(NEAREST), nearest);
-                    game_write(rva(NEXT), next);
-                };
-                both(
-                    &mut t,
-                    &format!("layout {k}, count {count}, last {nearest:#x} {next:#x}"),
-                    &run,
-                    Regs::SENTINEL,
-                    &fill,
-                    &all,
-                    car_sounds_all_in,
-                    count > 8,
-                );
-            }
-        }
-    }
-    restore(&all, &saved);
-    t.finish()
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    turn_entry(r, car_sounds_all_in)
 }

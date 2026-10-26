@@ -11,26 +11,15 @@
 //! `add_sprite`'s Rust version. Shadow mode runs the original alone (it draws).
 //! Self-test: a copy whose call goes to a stand-in, against the Rust version, signs by
 //! lot.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{
-    RawHook, Regs, SelfTest, game_addr, game_read, game_write, hook_asm, rva, shadow,
-};
+use crate::framework::{RawHook, Regs, SelfTest, game_addr, game_read, game_write, rva};
 use crate::hud::draw_marker::RECTS_RVA;
 use crate::service::harness::{at, capture, restore};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("hud::draw_signs", rva(0x4B4F2B), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
 
 const WIDTHS_RVA: usize = rva(0x75BF80); // dword_75BF80: 8
 pub const FLAT_RVA: usize = rva(0x6D1502); // dword_6D1502
@@ -45,20 +34,18 @@ pub fn row(y: u32) -> u32 {
 
 /// The row: `y`, or `lift` higher with `dword_6D1502` 0.
 pub fn row_by(y: u32, lift: u32) -> u32 {
-    if unsafe { game_read::<u32>(FLAT_RVA) } == 0 {
-        y.wrapping_sub(lift)
-    } else {
-        y
-    }
+    rc2k_core::hud::signs::row(y, lift, unsafe { game_read(FLAT_RVA) })
 }
 
 /// The Rust version (see the header): the registers it leaves.
+// Converted: `rc2k_core::hud::signs` (through `signs_with`)
 pub unsafe fn draw_signs(entry: &Regs, part: Part) -> Result<Regs, Refused> {
     unsafe { signs_with(entry, 0xA4, 0xB4, 0, 0x36, 0x20, part) }
 }
 
 /// Four signs from the record's `first` .. on, the places from its `start` field plus
 /// `shift`, at row `y` (shared with `hud::draw_signs_1a` / `_1b`).
+// Converted: `rc2k_core::hud::signs::{sign, place, row}`
 pub unsafe fn signs_with(
     entry: &Regs,
     first: u32,
@@ -68,25 +55,22 @@ pub unsafe fn signs_with(
     lift: u32,
     part: Part,
 ) -> Result<Regs, Refused> {
+    use rc2k_core::hud::signs;
     let mut g = *entry;
     unsafe {
         let get = |o: u32| ((g.ebp + o) as *const u32).read_unaligned();
-        g.ebx = get(start).wrapping_add(shift);
-        for n in 0..4u32 {
-            if n > 0 {
-                g.ebx = g.ebx.wrapping_add(0x40);
-            }
+        let places = get(start).wrapping_add(shift);
+        for n in 0..signs::SIGNS as u32 {
+            g.ebx = signs::place(places, n);
             let v = get(first + 4 * n);
             g.ecx = v;
-            if v == 0 {
+            let Some(sign) = signs::sign(places, n, v, |k| game_read(WIDTHS_RVA + 4 * k as usize))
+            else {
                 continue;
-            }
-            let w: u32 = game_read(WIDTHS_RVA + 4 * (v.wrapping_sub(1) & 7) as usize);
-            let x = ((0x40u32.wrapping_sub(w) as i32) >> 1) as u32;
-            let x = x.wrapping_add(g.ebx);
-            g.eax = ((v.wrapping_sub(1) & 0xF) + 0x4C) * 0x10;
+            };
+            g.eax = sign.rectangle;
             let mut r = Regs {
-                ebx: x,
+                ebx: sign.x,
                 ecx: row_by(y, lift),
                 esi: game_addr(RECTS_RVA) as u32 + g.eax,
                 ..g
@@ -163,27 +147,9 @@ pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
     crate::hud::draw_marker::game_part(place, r)
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    HOOK.count_call();
-    if shadow() {
-        unsafe { call_original(r) };
-        return;
-    }
-    match unsafe { draw_signs(r, &mut game_part) } {
-        Ok(left) => *r = Regs { esp: r.esp, ..left },
-        Err(e) => unsafe { crate::fatal::raise::refused(&HOOK, e, r, call_original) },
-    }
-}
-
-fn self_test() -> (usize, usize) {
-    // mov ebx, [ebp+0B4h]
-    let entry: &[u8] = &[0x8B, 0x9D, 0xB4, 0x00, 0x00, 0x00];
-    test_signs(
-        &HOOK,
-        0x4B4F2B,
-        0x154,
-        entry,
-        &[0x51, 0xA5, 0xF9, 0x14D],
-        &|r, p| unsafe { draw_signs(r, p) },
-    )
+/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    let left = unsafe { draw_signs(r, &mut game_part) }?;
+    *r = Regs { esp: r.esp, ..left };
+    Ok(())
 }

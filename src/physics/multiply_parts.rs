@@ -14,7 +14,7 @@ use crate::math::x87;
 use crate::math::x87_run::{TEST_CONTROL_WORDS, with_control_word};
 use crate::scene::matrix3::test_floats;
 use crate::screens::harness::Left;
-use crate::service::harness::{check_state, dispatch_state};
+use crate::service::harness::{check_state, dispatch_state, state_entry};
 use std::cell::Cell;
 use std::sync::atomic::AtomicUsize;
 
@@ -41,13 +41,29 @@ pub unsafe fn multiply_parts(a: u32, b: u32, out: u32) {
     }
 }
 
+/// The converted version (`rc2k_core::math::vector`, plain floats): the hook's. A product of
+/// two floats rounded once to a float: the same bits at every precision.
+pub unsafe fn multiply_parts_plain(a: u32, b: u32, out: u32) {
+    use crate::scene::vector3::{read_floats, write_floats};
+    unsafe {
+        let product = rc2k_core::math::vector::multiply_parts(read_floats(a), read_floats(b));
+        write_floats(out, &product);
+    }
+}
+
 fn rust(r: &Regs) -> Result<Left, Refused> {
-    unsafe { multiply_parts(r.ebx, r.ecx, r.edx) };
+    unsafe { multiply_parts_plain(r.ebx, r.ecx, r.edx) };
     Ok(Left::nothing())
 }
 
 extern "C" fn dispatch(r: &mut Regs) {
     dispatch_state(&HOOK, r, call_original, &[(r.edx, 12)], &rust);
+}
+
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    state_entry(r, &rust)
 }
 
 fn self_test() -> (usize, usize) {

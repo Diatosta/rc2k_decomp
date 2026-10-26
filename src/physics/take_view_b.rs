@@ -9,14 +9,15 @@
 //! Out: eax, ebx the two; the rest kept; no flags read
 //!
 //! Caller: `sub_437A53`.
-//! Self-test: `physics/camera_view.rs` (`view_test`), as `take_view_a`'s.
+//! Self-test: `physics/camera_view.rs` (`view_test_floats`), as `take_view_a`'s.
 
 use crate::errors::Refused;
 use crate::framework::{EAX, EBX, RawHook, Regs, hook_asm, rva};
-use crate::physics::camera_view::{rd, view_regions, view_test};
-use crate::physics::flow::{base, g, p, x87_run};
+use crate::physics::camera_view::{rd, view_regions, view_test_floats};
+use crate::physics::flow::{a, base, g, p, x87_run};
 use crate::screens::harness::Left;
-use crate::service::harness::dispatch_state;
+use crate::service::floats::{FLOAT, Floats, dispatch_state_floats, floats_entry};
+use rc2k_core::physics::camera_view::{view_place, view_turns};
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -31,7 +32,7 @@ hook_asm!(
     original = ORIGINAL
 );
 
-/// The Rust version.
+/// The Rust version (the exact one, for `physics::update_camera`).
 pub unsafe fn take_view_b(entry: &Regs) -> Left {
     let s = entry.esi;
     x87_run!(
@@ -46,20 +47,7 @@ pub unsafe fn take_view_b(entry: &Regs) -> Left {
         "fstp dword ptr [{b} + 0x208BB8]";
         b = base(), s = s
     );
-    let to = [
-        0x608B8Cusize,
-        0x608B90,
-        0x608B94,
-        0x608BD4,
-        0x608BD8,
-        0x608BDC,
-        0x608C0C,
-        0x608C10,
-        0x608C14,
-        0x608C08,
-        0x608C18,
-    ];
-    for (k, x) in to.iter().enumerate() {
+    for (k, x) in COPIES.iter().enumerate() {
         p(*x, rd(s + 0x10 + 4 * k as u32));
     }
     p(0x608B68, g(0x71A998));
@@ -73,14 +61,59 @@ pub unsafe fn take_view_b(entry: &Regs) -> Left {
     Left::nothing().with(EAX, eax).with(EBX, ebx)
 }
 
+/// The converted version (`rc2k_core::physics::camera_view`, plain floats): the hook's.
+// Converted: `rc2k_core::physics::camera_view::{view_place, view_turns}`.
+pub unsafe fn take_view_b_plain(entry: &Regs) -> Left {
+    let s = entry.esi;
+    let f = |x: u32| f32::from_bits(rd(x));
+    let place = view_place(
+        [f(s + 4), f(s + 8), f(s + 0xC)],
+        [0x637638, 0x63763C, 0x637640].map(|x| f32::from_bits(g(x))),
+    );
+    for (k, v) in place.iter().enumerate() {
+        p(0x608BB0 + 4 * k, v.to_bits());
+    }
+    for (k, x) in COPIES.iter().enumerate() {
+        p(*x, rd(s + 0x10 + 4 * k as u32));
+    }
+    p(0x608B68, g(0x71A998));
+    let halve = !matches!(g(0x71A660), 1..=3);
+    let [eax, ebx] = view_turns([g(0x71A99C), g(0x71A9A0)], halve);
+    p(0x608B70, eax);
+    p(0x608B6C, ebx);
+    Left::nothing().with(EAX, eax).with(EBX, ebx)
+}
+
+/// Where the record's +0x10 .. +0x38 go.
+const COPIES: [usize; 11] = [
+    0x608B8C, 0x608B90, 0x608B94, 0x608BD4, 0x608BD8, 0x608BDC, 0x608C0C, 0x608C10, 0x608C14,
+    0x608C08, 0x608C18,
+];
+
 fn rust(r: &Regs) -> Result<Left, Refused> {
-    Ok(unsafe { take_view_b(r) })
+    Ok(unsafe { take_view_b_plain(r) })
 }
 
 extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_state(&HOOK, r, call_original, &view_regions(), &rust);
+    let floats = Floats {
+        memory: &[((a(0x608BB0), 12), FLOAT)],
+        regs: &[],
+    };
+    dispatch_state_floats(&HOOK, r, call_original, &view_regions(), &floats, &rust);
+}
+
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    floats_entry(r, &rust)
 }
 
 fn self_test() -> (usize, usize) {
-    view_test(&HOOK, call_original, &rust)
+    view_test_floats(
+        &HOOK,
+        "physics::take_view_b",
+        call_original,
+        &rust,
+        &[(0x608BB0, 12, FLOAT)],
+    )
 }

@@ -11,33 +11,19 @@
 //! `menu::apply_controller`. Refuses (before anything) no first record (null pointer).
 //! Self-test: the original and the Rust version on a record of the test's in the pointer's
 //! place, ebx 0 and not, put back.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::BadInput;
 use crate::field;
-use crate::framework::{RawHook, Regs, SelfTest, game_read, game_write, hook_asm, rva};
+use crate::framework::{Regs, game_read, game_write, rva};
 use crate::input::devices::put;
 use crate::input::input_tick::COMMAND_RVA;
 use crate::input::types::InputDevice;
 use crate::screens::harness::Left;
-use crate::service::harness::{Region, at, capture, check_state, dispatch_state, restore};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook = RawHook::new(
-    "input::request_device_setup",
-    rva(0x409351),
-    thunk,
-    &ORIGINAL,
-)
-.self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
+use crate::service::harness::{Region, at, state_entry};
 
 pub const DEVICES_RVA: usize = rva(0x4F6EE8); // g_inputDevices
 /// The bytes of the record this writes.
@@ -65,17 +51,15 @@ pub unsafe fn request_device_setup(
     if record == 0 {
         return Err(BadInput("no first input device record"));
     }
-    put(record, field!(InputDevice, controller), controller);
-    put(record, field!(InputDevice, sensitivity), sensitivity);
-    put(
-        record,
-        field!(InputDevice, kind),
-        if sensitivity == 0 { 2 } else { sensitivity },
-    );
-    put(record, field!(InputDevice, axis_code), mode);
-    put(record, field!(InputDevice, strength), 0);
-    put(record, field!(InputDevice, dead_zone), edx);
-    put(record, field!(InputDevice, end_zone), ebp);
+    // Converted: `rc2k_core::input::joystick::device_setup`.
+    let s = rc2k_core::input::joystick::device_setup(controller, sensitivity, mode, edx, ebp);
+    put(record, field!(InputDevice, controller), s.controller);
+    put(record, field!(InputDevice, sensitivity), s.sensitivity);
+    put(record, field!(InputDevice, kind), s.kind);
+    put(record, field!(InputDevice, axis_code), s.axis_code);
+    put(record, field!(InputDevice, strength), s.strength);
+    put(record, field!(InputDevice, dead_zone), s.dead_zone);
+    put(record, field!(InputDevice, end_zone), s.end_zone);
     unsafe { game_write(COMMAND_RVA, 1u32) };
     Ok(())
 }
@@ -85,46 +69,8 @@ fn rust(r: &Regs) -> Result<Left, crate::errors::Refused> {
     Ok(Left::nothing())
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_state(&HOOK, r, call_original, &regions(), &rust);
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let inputs = [at(DEVICES_RVA), at(COMMAND_RVA)];
-    let saved = capture(&inputs);
-    let mut record = vec![0xAAu8; WRITTEN + 8];
-    let pointer = record.as_mut_ptr() as u32;
-    unsafe { game_write(DEVICES_RVA, pointer) };
-    for (n, ebx) in [0u32, 1, 3, 0xFFFF_FFFF].into_iter().enumerate() {
-        let before = Regs {
-            eax: 2 + n as u32,
-            ebx,
-            ecx: 0x10 + n as u32,
-            edx: 0x5555,
-            ebp: 0x3333,
-            ..Regs::SENTINEL
-        };
-        check_state(
-            &mut t,
-            &format!("ebx {ebx:#x}"),
-            call_original,
-            before,
-            &|| unsafe {
-                std::ptr::write_bytes(pointer as *mut u8, 0xAA, WRITTEN + 8);
-                // No DirectInput device and not acquired, should the input thread act on the
-                // request before it is put back.
-                put(pointer, field!(InputDevice, device), 0);
-                put(pointer, field!(InputDevice, acquired), 0);
-                game_write(COMMAND_RVA, 0u32);
-            },
-            &[at(COMMAND_RVA), (pointer, WRITTEN + 8)],
-            &rust,
-        );
-    }
-    restore(&inputs, &saved);
-    drop(record);
-    t.finish()
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    state_entry(r, &rust)
 }

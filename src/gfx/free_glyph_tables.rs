@@ -8,23 +8,14 @@
 //! The freeing through `part` (in the game `free_list`'s Rust version). Shadow mode runs
 //! the original alone (memory is given back). Self-test: a copy whose call goes to a
 //! stand-in, against the Rust version.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, SelfTest, game_addr, hook_asm, rva};
-use crate::menu::parts::{Part, copy, dispatch_parted, run_both, test_part};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("gfx::free_glyph_tables", rva(0x474D12), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
+use crate::framework::{Regs, game_addr, rva};
+use crate::menu::parts::{Part, parted_entry};
 
 const LIST_RVA: usize = rva(0x51B984); // g_glyphTablesMemory
 
@@ -43,40 +34,12 @@ pub fn game_part(_: u32, r: &mut Regs) -> Result<(), Refused> {
     Ok(())
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_parted(
-        &HOOK,
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    parted_entry(
         r,
-        call_original,
         &|r, part| unsafe { free_glyph_tables(r, part) },
         game_part,
-    );
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let copy = match copy(
-        0x474D12,
-        0xC,
-        &[0x8D, 0x1D, 0x84, 0xB9, 0x51, 0x00],
-        &[0x6],
-        &[0x4028F5],
-        &[],
-    ) {
-        Ok(c) => c,
-        Err(why) => return t.skip(why),
-    };
-    run_both(
-        &mut t,
-        "once",
-        &copy,
-        &[],
-        &|| {},
-        Regs::SENTINEL,
-        false,
-        &|r| unsafe { free_glyph_tables(r, &mut test_part) },
-    );
-    t.finish()
+    )
 }

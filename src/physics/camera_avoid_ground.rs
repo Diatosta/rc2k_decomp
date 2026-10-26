@@ -35,6 +35,7 @@ use crate::physics::camera_view::{rd, record};
 use crate::physics::flow::{g, p};
 use crate::physics::touch_face::FACES;
 use crate::race::car_starts::Part;
+use rc2k_core::physics::camera_ground;
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -85,7 +86,7 @@ fn clear(r: &mut Regs, part: Part) -> Result<bool, Refused> {
 /// Turned to face from checkpoint `back` before the car's; false when there is none.
 fn face_checkpoint(r: &mut Regs, back: u32) -> bool {
     r.ebx = g(0x71A070).wrapping_sub(back);
-    if (r.ebx as i32) < 0 {
+    if camera_ground::back_checkpoint(g(0x71A070), back).is_none() {
         return false;
     }
     r.ebx = g(0x9E3738 + 4 * r.ebx as usize);
@@ -109,23 +110,17 @@ fn face_checkpoint(r: &mut Regs, back: u32) -> bool {
 
 /// The turn back toward the kept heading (0x43919D ..).
 fn turn_back(r: &mut Regs, part: Part) -> Result<(), Refused> {
-    p(STEP, 0x400_0000);
+    p(STEP, camera_ground::FIRST_TURN_STEP);
     loop {
         p(0x623FD4, g(HEADING));
         for k in 0..5 {
             p(0x623FDC + 4 * k, g(0x71AEC8 + 4 * k));
         }
-        r.eax = g(KEPT).wrapping_sub(g(HEADING));
-        if (r.eax as i32) < 0 {
-            r.eax = r.eax.wrapping_neg();
-        }
+        r.eax = camera_ground::turn_gap(g(KEPT), g(HEADING));
         let mut stepped_back = false;
-        if r.eax >= g(STEP) {
-            r.ebx = g(STEP);
+        if let Some(step) = camera_ground::turn_step(g(KEPT), g(HEADING), g(STEP)) {
+            r.ebx = step;
             r.eax = g(KEPT).wrapping_sub(g(HEADING));
-            if (r.eax as i32) < 0 {
-                r.ebx = r.ebx.wrapping_neg();
-            }
             p(HEADING, g(HEADING).wrapping_add(r.ebx));
             place(r);
             if over(r, part)? {
@@ -139,14 +134,17 @@ fn turn_back(r: &mut Regs, part: Part) -> Result<(), Refused> {
                 p(0x71AEC8 + 4 * k, g(0x623FDC + 4 * k));
             }
         }
-        p(STEP, g(STEP) >> 3);
-        if g(STEP) <= 0x1000 {
+        let (next, last) = camera_ground::next_turn_step(g(STEP));
+        p(STEP, next);
+        if last {
             return Ok(());
         }
     }
 }
 
 /// The steps; `r` as the original leaves it.
+// Converted: `rc2k_core::physics::camera_ground::{back_checkpoint, turn_gap, turn_step,
+// next_turn_step}`.
 pub fn steps(r: &mut Regs, part: Part) -> Result<(), Refused> {
     unsafe { crate::physics::ease_view_turn::ease_view_turn(r) }.apply(r);
     p(0x605268, 0);
@@ -181,7 +179,7 @@ pub fn steps(r: &mut Regs, part: Part) -> Result<(), Refused> {
     if clear(r, part)? {
         return Ok(());
     }
-    p(0x608C20, 0x4000_0000);
+    p(0x608C20, camera_ground::PITCH_START);
     let mut up = true;
     loop {
         r.eax = g(0x71A690);

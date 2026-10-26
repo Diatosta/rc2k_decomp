@@ -18,28 +18,17 @@
 //! alone. Self-test: a copy whose calls go to stand-ins, the branch globals scripted, against
 //! the Rust version; the given-paths path, the normal path, an already-installed build, an
 //! update, installing-from-CD, and the normalise fatal.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
+use crate::framework::Regs;
 use crate::install::installer::{
     BASE_B, FIRST_DRIVE, FROM_COMMAND, GAME_DIR, INSTALLING, Part, SAME_VERSION, SOURCE_SIZE,
-    TYPED, a, append_byte, append_string_by_id, at, both, fatal, g, gb, p, pb, quiet, rb, region,
-    wb,
+    TYPED, a, append_byte, append_string_by_id, at, fatal, g, gb, p, pb, rb, wb,
 };
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("install::run_installer", rva(0x412DE0), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL,
-    ungated
-);
 
 const BASE_A: usize = 0x5189A8; // g_baseDirectory
 const READ_LANGUAGES: usize = 0x413908;
@@ -153,105 +142,10 @@ fn GAME_DIR_INSTALLED() -> usize {
     0x95E7F8
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    crate::race::viewer::dispatch_parts(&HOOK, r, call_original, &|r| {
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    crate::race::viewer::regs_entry(r, &|r| {
         run_installer(r, &mut crate::install::installer::game_part)
-    });
+    })
 }
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let copy = match crate::install::installer::copy(
-        0x412DE0,
-        0x154,
-        &[0x60, 0xC6, 0x05, 0xA8, 0x89, 0x51, 0x00, 0x00],
-        &CALLS,
-        &STOOD,
-        &[],
-        &[(0x3B, 0x80AF_8101)],
-        &[],
-    ) {
-        Ok(c) => c,
-        Err(why) => return t.skip(&why),
-    };
-    crate::install::installer::set_text_of(Some(crate::install::installer::path_text));
-    let regions = [
-        region(BASE_A, 4),
-        region(TYPED, 0x100),
-        region(RECORD_FLAG, 4),
-    ];
-    let saved = crate::race::viewer::Saved::new(&regions);
-    // what `prepare` writes besides the compared regions: put back at the end
-    let _kept = crate::race::viewer::Saved::new(&[
-        crate::install::installer::region(0x518404, 4),
-        crate::install::installer::region(0x51B9C8, 4),
-        crate::install::installer::region(0x51BB8D, 0xFF),
-        crate::install::installer::region(0x51BC90, 4),
-    ]);
-    for (what, from_command, norm_fail, source, same, updating, installing, from_cd, kbd) in [
-        ("given paths", 1u32, false, 0u8, 0u32, 0u32, 0u32, 0u32, 0u8),
-        ("normal", 0, false, 0, 0, 0, 0, 0, 0),
-        ("already this build", 0, false, b's', 1, 0, 0, 0, 0),
-        ("update pages", 0, false, b's', 0, 1, 0, 0, 2),
-        ("installing from cd", 0, false, 0, 0, 0, 1, 1, 0),
-        ("normalise fatal", 0, true, 0, 0, 0, 0, 0, 0),
-    ] {
-        let prepare = || {
-            crate::install::installer::answer(Box::new(move |place, r| {
-                if place == a(NORMALISE) {
-                    r.set_carry(norm_fail);
-                } else if place == a(LOCK) {
-                    r.set_carry(false);
-                }
-            }));
-            p(FROM_COMMAND, from_command);
-            p(SAME_VERSION, same);
-            p(UPDATING, updating);
-            p(INSTALLING, installing);
-            p(FROM_CD, from_cd);
-            pb(KEYBOARD_TYPE, kbd);
-            wb(a(SOURCE_VAR), source);
-            p(SOURCE_SIZE, if source == 0 { 0 } else { 4 });
-            for (k, &b) in b"src\0".iter().enumerate() {
-                wb(
-                    a(SOURCE_VAR) + k as u32,
-                    if source == 0 && k == 0 { 0 } else { b },
-                );
-            }
-            p(FIRST_DRIVE, b'c' as u32);
-            p(RECORD_FLAG, 9);
-            crate::install::installer::fill(a(TYPED), 0x100, 0xAA);
-        };
-        both(
-            &mut t,
-            what,
-            &copy,
-            Regs::SENTINEL,
-            &regions,
-            0,
-            &[],
-            &prepare,
-            &|r, part, _| run_installer(r, part),
-        );
-    }
-    crate::install::installer::set_text_of(None);
-    quiet();
-    drop(saved);
-    t.finish()
-}
-
-#[rustfmt::skip]
-const CALLS: [(usize, u32); 25] = [
-    (0x8,0x413908),(0xD,0x415563),(0x12,0x414363),(0x20,0x412F34),(0x36,0x4139EC),(0x41,0x413C27),
-    (0x51,0x401FA3),(0x5B,0x401FA3),(0x60,0x401F16),(0x78,0x413D14),(0x9C,0x413B0B),(0xBA,0x403105),
-    (0xBF,0x4110C9),(0xD1,0x403105),(0xD6,0x40331F),(0xEA,0x4144AA),(0xF7,0x4144AA),(0x10E,0x4058AD),
-    (0x115,0x4060E3),(0x12F,0x40234A),(0x134,0x405949),(0x139,0x4057D1),(0x143,0x41100C),
-    (0x148,0x414490),(0x14D,0x415C55),
-];
-#[rustfmt::skip]
-const STOOD: [u32; 20] = [
-    0x413908,0x415563,0x414363,0x412F34,0x4139EC,0x413C27,0x413D14,0x413B0B,0x403105,0x4110C9,
-    0x40331F,0x4144AA,0x4058AD,0x4060E3,0x40234A,0x405949,0x4057D1,0x41100C,0x414490,0x415C55,
-];

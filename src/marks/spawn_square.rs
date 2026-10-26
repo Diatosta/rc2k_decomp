@@ -10,6 +10,10 @@
 //!
 //! Caller: `marks::pick_square`. Self-test: the original and the Rust version on the
 //! game's items, cursors and fillings by lot, a full window among them; put back.
+//!
+//! Converted 2026-10-21: the hook's Rust version is `spawn_square_plain`, through
+//! `rc2k_core::marks::items::{find_free, new_square}`; compared exactly as before (the
+//! earlier version stays for the Rust callers in unconverted code).
 
 use crate::errors::Refused;
 use crate::framework::{RawHook, Regs, SelfTest, game_addr, game_read, game_write, hook_asm, rva};
@@ -17,7 +21,9 @@ use crate::marks::expire_squares::{ITEM_LEN, ITEMS, ITEMS_RVA};
 use crate::math::x87;
 use crate::race::stage_prefs::left_of;
 use crate::screens::harness::Left;
-use crate::service::harness::{Region, at, capture, check_state, dispatch_state, restore};
+use crate::service::harness::{
+    Region, at, capture, check_state, dispatch_state, restore, state_entry,
+};
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -78,6 +84,38 @@ pub unsafe fn spawn_square(x: u32, z: u32, kind: u32) -> u32 {
     }
 }
 
+/// The converted version: the hook's (and `pick_square`'s).
+// Converted: `rc2k_core::marks::items::{find_free, new_square}`
+pub unsafe fn spawn_square_plain(x: u32, z: u32, kind: u32) -> u32 {
+    use rc2k_core::marks::items::{SQUARE_LEN, find_free, new_square};
+    unsafe {
+        let base = game_addr(ITEMS_RVA) as u32;
+        let found = find_free(game_read(CURSOR_RVA), SQUARE_LEN, |at| {
+            (base.wrapping_add(at) as *const u32).read_unaligned() == 0
+        });
+        let mut ecx = kind;
+        if let Some(at) = found.at {
+            let e = base.wrapping_add(at);
+            let size = [game_read::<u32>(SIZE_K[0]), game_read(SIZE_K[1])].map(f32::from_bits);
+            let s = new_square(x, z, kind, size);
+            let put = |o: u32, v: u32| ((e + o) as *mut u32).write_unaligned(v);
+            put(0, 1);
+            put(0x20, s.x.to_bits());
+            put(0x24, s.z.to_bits());
+            put(0xC, s.size.to_bits());
+            put(0x10, rc2k_core::scene::places::loaded(game_read(SIZE_K[2])));
+            for o in [0x28, 0x2C, 0x38, 0x14, 0x18, 0x1C, 0x30, 0x34] {
+                put(o, 0);
+            }
+            put(4, game_read(CLOCK_RVA));
+            put(8, 0);
+            ecx = s.kind;
+        }
+        game_write(CURSOR_RVA, found.cursor);
+        ecx
+    }
+}
+
 pub fn regions() -> Vec<Region> {
     vec![
         (game_addr(ITEMS_RVA) as u32, (ITEMS * ITEM_LEN) as usize),
@@ -86,12 +124,18 @@ pub fn regions() -> Vec<Region> {
 }
 
 fn rust(r: &Regs) -> Result<Left, Refused> {
-    let ecx = unsafe { spawn_square(r.eax, r.ebx, r.ecx) };
+    let ecx = unsafe { spawn_square_plain(r.eax, r.ebx, r.ecx) };
     Ok(left_of(&Regs { ecx, ..*r }))
 }
 
 extern "C" fn dispatch(r: &mut Regs) {
     dispatch_state(&HOOK, r, call_original, &regions(), &rust);
+}
+
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    state_entry(r, &rust)
 }
 
 fn self_test() -> (usize, usize) {

@@ -10,10 +10,11 @@
 //! Self-test: a copy whose call goes to a stand-in, against the Rust version: cars 0 ..
 //! 7 listed and not.
 
-use crate::errors::{BadInput, Refused};
+use crate::errors::Refused;
 use crate::framework::{RawHook, Regs, SelfTest, game_addr, game_read, game_write, hook_asm, rva};
 use crate::physics::sound_cues::{CUE, Part, both, copy_of, dispatch_cue};
 use crate::service::harness::{capture, restore};
+use rc2k_core::physics::listed_cars::listed_entry;
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -38,13 +39,11 @@ fn g(x: usize) -> u32 {
 }
 
 /// The steps on `r`.
+// Converted: `rc2k_core::physics::listed_cars::listed_entry`.
 pub fn cue_listed_car_sound_in(r: &mut Regs, part: Part) -> Result<(), Refused> {
-    let car = g(0x71B3F8);
-    if car > 7 {
-        return Err(BadInput("a current car past 7").into());
-    }
-    r.eax = g(0x641680 + 4 * car as usize);
-    if r.eax != u32::MAX {
+    let (entry, listed) = listed_entry(g(0x71B3F8), |car| g(0x641680 + 4 * car as usize))?;
+    r.eax = entry;
+    if listed {
         part(CUE, r)?;
     }
     Ok(())

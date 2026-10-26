@@ -30,7 +30,7 @@
 
 use crate::errors::Refused;
 use crate::framework::{
-    RawHook, Regs, SelfTest, call_game, game_addr, game_read, game_write, hook_asm, rva, shadow,
+    RawHook, Regs, SelfTest, game_addr, game_read, game_write, hook_asm, rva, shadow,
 };
 use crate::gfx::pixel_format::SCRATCH_RVA;
 use crate::math::next_random::{STATE_RVA as RANDOM_RVA, own_random};
@@ -191,8 +191,8 @@ pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
     unsafe {
         match place {
             0 => crate::scene::forget_slot_texture::forget_slot_texture(r.eax)?,
-            1 => call_game(r, game_addr(LOCK_RVA)),
-            _ => call_game(r, game_addr(UNLOCK_RVA)),
+            1 => crate::calls::call(LOCK_RVA, r),
+            _ => crate::calls::call(UNLOCK_RVA, r),
         }
     }
     Ok(())
@@ -208,6 +208,13 @@ extern "C" fn dispatch(r: &mut Regs) {
         Ok(left) => *r = Regs { esp: r.esp, ..left },
         Err(e) => unsafe { crate::fatal::raise::refused(&HOOK, e, r, call_original) },
     }
+}
+
+/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    let left = unsafe { update_mud_texture(r, &mut game_part) }?;
+    *r = Regs { esp: r.esp, ..left };
+    Ok(())
 }
 
 // ---- self-test ----

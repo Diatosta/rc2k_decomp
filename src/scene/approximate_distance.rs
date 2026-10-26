@@ -12,7 +12,7 @@
 use crate::errors::Refused;
 use crate::framework::{EAX, EBX, ECX, RawHook, Regs, SelfTest, hook_asm, rva};
 use crate::screens::harness::Left;
-use crate::service::harness::{check_state, dispatch_state};
+use crate::service::harness::{check_state, dispatch_state, state_entry};
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -34,22 +34,11 @@ hook_asm!(
 
 // ---- Rust version ----
 
-/// Returns the length and what is left in ebx and ecx.
+/// Returns the length and what is left in ebx and ecx. Converted:
+/// `rc2k_core::scene::distance::approximate`.
 pub fn approximate_distance(differences: [u32; 3]) -> [u32; 3] {
-    // `neg` of the one number that has no opposite leaves it as it is.
-    let [mut a, mut b, mut c] = differences.map(|d| ((d as i32) >> 8).wrapping_abs() as u32);
-    // The original's three compares, unsigned, each changing places unless "above".
-    if a <= b {
-        std::mem::swap(&mut a, &mut b);
-    }
-    if b <= c {
-        std::mem::swap(&mut b, &mut c);
-    }
-    if a <= b {
-        std::mem::swap(&mut a, &mut b);
-    }
-    let (b, c) = (b.wrapping_mul(0x60), c.wrapping_mul(0x4B));
-    [a.wrapping_mul(0xF2).wrapping_add(b).wrapping_add(c), b, c]
+    let d = rc2k_core::scene::distance::approximate(differences.map(|d| d as i32));
+    [d.length, d.middle, d.least]
 }
 
 // ---- hook ----
@@ -64,6 +53,12 @@ fn rust(r: &Regs) -> Result<Left, Refused> {
 
 extern "C" fn dispatch(r: &mut Regs) {
     dispatch_state(&HOOK, r, call_original, &[], &rust);
+}
+
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    state_entry(r, &rust)
 }
 
 // ---- self-test ----

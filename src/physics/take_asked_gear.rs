@@ -16,7 +16,7 @@ use crate::framework::{RawHook, Regs, SelfTest, game_addr, game_read, game_write
 use crate::physics::allowed_gear::allowed_gear;
 use crate::physics::change_gear::change_gear;
 use crate::screens::harness::Left;
-use crate::service::harness::{Region, capture, check_state, dispatch_state, restore};
+use crate::service::harness::{Region, capture, check_state, dispatch_state, restore, state_entry};
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -38,6 +38,7 @@ fn regions() -> Vec<Region> {
 }
 
 /// The Rust version.
+// Converted: `rc2k_core::physics::gearbox::asked_gear`.
 pub unsafe fn take_asked_gear() -> Result<Left, Refused> {
     let all = regions();
     let saved = capture(&all);
@@ -45,7 +46,7 @@ pub unsafe fn take_asked_gear() -> Result<Left, Refused> {
         unsafe {
             game_write(rva(0x71A210), 0u32);
             let word: u32 = game_read(rva(0x71A440));
-            let asked = (((word & 0xF00) << 20) as i32 >> 28) as u32;
+            let asked = rc2k_core::physics::gearbox::asked_gear(word);
             let gear = allowed_gear(asked)?;
             game_write(rva(0x614C40), gear);
             change_gear()
@@ -64,6 +65,12 @@ fn rust(_: &Regs) -> Result<Left, Refused> {
 
 extern "C" fn dispatch(r: &mut Regs) {
     dispatch_state(&HOOK, r, call_original, &regions(), &rust);
+}
+
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    state_entry(r, &rust)
 }
 
 fn self_test() -> (usize, usize) {

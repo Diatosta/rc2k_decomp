@@ -7,64 +7,32 @@
 //! `g_decodedPalette`. One caller, `gfx::read_png`, for a file with a palette (none of the
 //! game's has one, so the self-test is all it gets).
 //! Refuses what `pixels_to_dwords::pixel_count` refuses. The name is a reading.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::BadInput;
-use crate::framework::{RawHook, Regs, SelfTest, game_addr, hook_asm, rva};
+use crate::framework::{Regs, game_read};
 use crate::gfx::pcx::PALETTE_RVA;
 use crate::gfx::picture::picture;
-use crate::gfx::pixels_to_dwords::{check_spread, dispatch_spread, pixel_count};
-use std::sync::atomic::{AtomicUsize, Ordering};
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook = RawHook::new(
-    "gfx::palette_pixels_to_dwords",
-    rva(0x41CCCB),
-    thunk,
-    &ORIGINAL,
-)
-.self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
+use crate::gfx::pixels_to_dwords::{pixel_count, spread_entry};
 
 // ---- Rust version ----
 
 pub unsafe fn palette_pixels_to_dwords() -> Result<(), BadInput> {
     unsafe {
         let count = pixel_count()?;
-        let (buffer, palette) = (picture(), game_addr(PALETTE_RVA) as *const u32);
-        for n in (0..count).rev() {
-            let entry = palette.add(buffer.add(n).read() as usize).read_unaligned();
-            (buffer.add(n * 4) as *mut u32).write_unaligned(entry);
-        }
-        Ok(())
+        // Converted: `rc2k_core::gfx::pixels::palette_to_dwords`.
+        let buffer = std::slice::from_raw_parts_mut(picture(), count * 4);
+        let palette: [u32; 256] = game_read(PALETTE_RVA);
+        rc2k_core::gfx::pixels::palette_to_dwords(buffer, count, &palette)
+            .ok_or(BadInput("a picture buffer shorter than its dwords"))
     }
 }
 
-// ---- hook ----
-
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_spread(&HOOK, r, call_original, palette_pixels_to_dwords);
-}
-
-// ---- self-test ----
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    if picture().is_null() {
-        return t.skip("the picture buffer is not allocated");
-    }
-    check_spread(
-        &mut t,
-        ORIGINAL.load(Ordering::SeqCst),
-        palette_pixels_to_dwords,
-    );
-    t.finish()
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    spread_entry(r, palette_pixels_to_dwords)
 }

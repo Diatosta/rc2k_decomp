@@ -15,7 +15,7 @@
 //! `scene::list_object_face`'s hook).
 //! Self-test: a redirected copy whose call notes the face and its number.
 
-use crate::errors::{BadInput, Refused};
+use crate::errors::Refused;
 use crate::framework::{
     EAX, EBP, ECX, RawHook, Regs, SelfTest, call_game, game_addr, game_read, game_write, hook_asm,
     rva, shadow,
@@ -48,32 +48,19 @@ const FACE_NUMBER_RVA: usize = rva(0x623620); // dword_623620
 const FIRST_FACE_RVA: usize = rva(0x6350BC); // dword_6350BC
 const FACE_COUNT_RVA: usize = rva(0x6350C0); // dword_6350C0
 const FACES_RVA: usize = rva(0x9A3730); // g_faces
-const FACES: u32 = 0xC000;
-const LIST_ROOM: u32 = 0x1000;
 
 // ---- Rust version ----
 
+// Converted: `rc2k_core::scene::objects::object_faces`
 pub unsafe fn list_object_faces(
     list: &mut dyn FnMut(usize) -> Result<(), Refused>,
 ) -> Result<Left, Refused> {
     unsafe {
         let (first, count): (u32, u32) = (game_read(FIRST_FACE_RVA), game_read(FACE_COUNT_RVA));
-        if count == 0 || count > LIST_ROOM {
-            return Err(BadInput("an object of no faces, or of more than the list holds").into());
-        }
         // Every face is looked up before anything is written.
-        let mut faces = Vec::with_capacity(count as usize);
-        for n in 0..count {
-            let number = n.wrapping_add(first);
-            if number >= FACES {
-                return Err(BadInput("a face's number past the table").into());
-            }
-            let face: u32 = game_read(FACES_RVA + number as usize * 4);
-            if face == 0 {
-                return Err(BadInput("a face that is not there").into());
-            }
-            faces.push(face);
-        }
+        let faces = rc2k_core::scene::objects::object_faces(first, count, |number| {
+            game_read(FACES_RVA + number as usize * 4)
+        })?;
         game_write(LISTED_RVA, 0u32);
         game_write(MARK_RVA, u32::MAX);
         for (n, &face) in faces.iter().enumerate() {
@@ -99,6 +86,13 @@ extern "C" fn dispatch(r: &mut Regs) {
         Ok(left) => left.apply(r),
         Err(e) => unsafe { crate::fatal::raise::refused(&HOOK, e, r, call_original) },
     }
+}
+
+/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    let left = unsafe { list_object_faces(&mut |face| list_object_face(face)) }?;
+    left.apply(r);
+    Ok(())
 }
 
 // ---- self-test ----

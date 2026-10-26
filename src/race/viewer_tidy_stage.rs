@@ -19,9 +19,9 @@
 //! built.
 
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, SelfTest, call_game, game_addr, hook_asm, rva};
+use crate::framework::{RawHook, Regs, SelfTest, game_addr, hook_asm, rva};
 use crate::race::viewer::{
-    Part, Saved, answer, dispatch_parts, dword, get, put, run_both, test_part,
+    Part, Saved, answer, dispatch_parts, dword, get, put, regs_entry, run_both, test_part,
 };
 use crate::race::viewer_load_stage::{FONTS_BUILT, take_key};
 use std::sync::atomic::AtomicUsize;
@@ -55,20 +55,34 @@ const LOADED: usize = 0x5BECC0; // dword_5BECC0
 
 /// The Rust version: the registers it leaves (the entry's).
 pub fn viewer_tidy_stage(entry: &Regs, part: Part) -> Result<Regs, Refused> {
+    // Converted: `rc2k_core::race::viewer_flow::{tidies, TIDY_FIRST, frees_fonts,
+    // TIDY_AFTER}` (the fonts' switch read after the first steps, as the original).
+    use rc2k_core::race::viewer_flow::{TIDY_AFTER, TIDY_FIRST, TidyStep, frees_fonts, tidies};
+    let place = |step| match step {
+        TidyStep::TidyEverything => 1,
+        TidyStep::MenuScreenMode => 2,
+        TidyStep::LoadingPicture => 3,
+        TidyStep::ClearRaceSounds => 4,
+        TidyStep::SoundSettings => 5,
+        TidyStep::FreeFonts => 6,
+        TidyStep::SetUpEngine => 7,
+        TidyStep::SetUpFrontEnd => 8,
+        TidyStep::TakeKey => 9,
+    };
     let mut r = *entry;
-    if get(LOADED) == 1 {
+    if tidies(get(LOADED)) {
         put(LOADED, 0);
-        for place in 1..=5 {
-            part(place, &mut r)?;
+        for step in TIDY_FIRST {
+            part(place(step), &mut r)?;
         }
-        if get(FONTS_BUILT) == 1 {
-            part(6, &mut r)?;
+        if frees_fonts(get(FONTS_BUILT)) {
+            part(place(TidyStep::FreeFonts), &mut r)?;
         }
-        for place in [7, 8, 7] {
-            part(place, &mut r)?;
+        for step in TIDY_AFTER {
+            part(place(step), &mut r)?;
         }
     }
-    part(9, &mut r)?;
+    part(place(TidyStep::TakeKey), &mut r)?;
     Ok(*entry)
 }
 
@@ -79,7 +93,7 @@ pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
     unsafe {
         match place {
             1 => *r = race_end::tidy_everything(r, &LoadVars::game(), &mut race_end::tidy_part)?,
-            2 | 3 | 5 => call_game(r, game_addr(rva(CALLEES[place as usize]))),
+            2 | 3 | 5 => crate::calls::call(rva(CALLEES[place as usize]), r),
             4 => {
                 sound_tables::clear_race_sound_objects(r, &mut sound_tables::object_part)?;
             }
@@ -99,6 +113,12 @@ extern "C" fn dispatch(r: &mut Regs) {
     dispatch_parts(&HOOK, r, call_original, &|r| {
         viewer_tidy_stage(r, &mut game_part)
     });
+}
+
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    regs_entry(r, &|r| viewer_tidy_stage(r, &mut game_part))
 }
 
 fn self_test() -> (usize, usize) {

@@ -18,10 +18,10 @@ use crate::framework::{RawHook, Regs, SelfTest, game_addr, game_read, game_write
 use crate::math::x87;
 use crate::physics::fill_race_slot::{inputs, regions, set_slots};
 use crate::physics::fill_slot_on_bit::fill_slot_on_bit_in;
-use crate::physics::test_car_word::test_car_word;
+use crate::physics::test_car_word::test_word;
 use crate::screens::harness::Left;
-use crate::service::harness::{Region, capture, check_state, dispatch_state, restore};
-use std::cmp::Ordering;
+use crate::service::harness::{Region, capture, check_state, dispatch_state, restore, state_entry};
+use rc2k_core::physics::parts::{self, DROP_TESTS, Hit, HitTest};
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -44,54 +44,44 @@ pub fn p(x: usize, v: u32) {
     unsafe { game_write(rva(x), v) }
 }
 
-/// The four tests: (the word's rotation, the timer, the bit of +0x298).
-pub type Tests = [(u8, usize, u32); 4];
+/// The four tests' timers (IDA addresses).
+pub type Timers = [usize; 4];
 
-/// The shared steps: `act` the bit's step (with ecx the bit).
+/// The shared steps (`rc2k_core::physics::parts::hit_tests`): `act` the bit's step (with
+/// ecx the bit).
 pub fn hit_tests(
     r: &mut Regs,
-    tests: &Tests,
+    tests: &[HitTest; 4],
+    timers: &Timers,
     act: &mut dyn FnMut(&mut Regs) -> Result<(), Refused>,
 ) -> Result<(), Refused> {
-    for &(rotation, timer, bit) in tests {
-        r.ecx = rotation as u32;
-        let f = test_car_word(rotation);
-        f.apply(r);
-        if !f.carry {
-            continue;
-        }
-        let hundred = g(0x5C5D14);
-        let below = !matches!(
-            f32::from_bits(g(timer)).partial_cmp(&f32::from_bits(hundred)),
-            Some(Ordering::Greater | Ordering::Equal)
-        );
-        if below {
-            continue;
-        }
-        if g(0x71A270) >> bit & 1 == 0 {
-            return Ok(());
-        }
-        r.ecx = bit;
+    let word = g(0x719FE4);
+    let (last, hit) = parts::hit_tests(
+        tests,
+        word,
+        |k| f32::from_bits(g(timers[k])),
+        || f32::from_bits(g(0x5C5D14)),
+        || g(0x71A270),
+    );
+    r.ecx = tests[last].0 as u32;
+    test_word(word, tests[last].0).apply(r);
+    if let Hit::Act(k) = hit {
+        r.ecx = tests[k].1;
         act(r)?;
-        p(timer, x87::loaded(g(0x5C5E2C)));
-        return Ok(());
+        p(timers[k], x87::loaded(g(0x5C5E2C)));
     }
     Ok(())
 }
 
-const TESTS: Tests = [
-    (5, 0x71A2D0, 5),
-    (9, 0x71A2D4, 6),
-    (0xE, 0x71A2D8, 7),
-    (0x19, 0x71A2DC, 8),
-];
+const TIMERS: Timers = [0x71A2D0, 0x71A2D4, 0x71A2D8, 0x71A2DC];
 
 /// The steps on `r`.
+// Converted: `rc2k_core::physics::parts::{hit_tests, DROP_TESTS}`.
 pub fn drop_hit_parts_in(r: &mut Regs) -> Result<(), Refused> {
     if g(0x719FFC) >= 0x17 {
         return Ok(());
     }
-    hit_tests(r, &TESTS, &mut |r| fill_slot_on_bit_in(r))
+    hit_tests(r, &DROP_TESTS, &TIMERS, &mut |r| fill_slot_on_bit_in(r))
 }
 
 /// The Rust version.
@@ -120,6 +110,12 @@ fn all_regions() -> Vec<Region> {
 
 extern "C" fn dispatch(r: &mut Regs) {
     dispatch_state(&HOOK, r, call_original, &all_regions(), &rust);
+}
+
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    state_entry(r, &rust)
 }
 
 /// The hit tests' inputs: the kind, the word, the timers, the bits.

@@ -148,6 +148,24 @@ pub fn dispatch_turn(
     rust: Rust,
     regions: Option<Regions>,
 ) {
+    dispatch_turn_floats(hook, r, call_original, rust, regions, &|_| Vec::new());
+}
+
+/// The float places of a turn's regions, with their tolerances (`service::floats`).
+pub type FloatPlaces<'a> = &'a dyn Fn(&Regs) -> Vec<(Region, crate::service::floats::Tolerance)>;
+
+/// `dispatch_turn` for a converted function with floats: the places `floats` names may
+/// drift within their tolerances (noted as "DRIFT"), the rest compared exactly.
+pub fn dispatch_turn_floats(
+    hook: &RawHook,
+    r: &mut Regs,
+    call_original: unsafe extern "C" fn(*mut Regs),
+    rust: Rust,
+    regions: Option<Regions>,
+    floats: FloatPlaces,
+) {
+    use crate::framework::GameHook;
+    use crate::service::floats::{Agreement, Floats, compare_memory, note_drift};
     hook.count_call();
     if shadow() {
         let Some(regions) = regions else {
@@ -167,7 +185,24 @@ pub fn dispatch_turn(
         unsafe { call_original(r) };
         if let Ok(mine) = mine {
             let theirs = (regs7(r), capture(&all));
-            if theirs != mine {
+            let places = floats(&entry);
+            let agreement = if theirs.0 == mine.0 {
+                compare_memory(
+                    &all,
+                    &theirs.1,
+                    &mine.1,
+                    &Floats {
+                        memory: &places,
+                        regs: &[],
+                    },
+                )
+            } else {
+                Agreement::Differ
+            };
+            if let Agreement::Drift(n) = agreement {
+                note_drift(hook.name(), || format!("{n} places"));
+            }
+            if agreement == Agreement::Differ {
                 let diff = theirs.1.iter().zip(&mine.1).position(|(a, b)| a != b);
                 hook.mismatch(|| {
                     format!(
@@ -192,6 +227,20 @@ pub fn dispatch_turn(
         }
         Err(e) => unsafe { crate::fatal::raise::refused(hook, e, r, call_original) },
     }
+}
+
+/// `dispatch_turn` / `dispatch_turn_floats` without the hook (no shadow mode; a refusal is
+/// the caller's): the Rust version with the game's parts, its registers but esp and the
+/// flags given back.
+pub fn turn_entry(r: &mut Regs, rust: Rust) -> Result<(), Refused> {
+    let mut g = *r;
+    rust(&mut g, &mut game_part)?;
+    *r = Regs {
+        esp: r.esp,
+        eflags: r.eflags,
+        ..g
+    };
+    Ok(())
 }
 
 // ---- the tests' side ----
@@ -318,6 +367,33 @@ pub fn both(
     rust: Rust,
     refuses: bool,
 ) {
+    both_floats(
+        t,
+        what,
+        run,
+        entry,
+        fill,
+        all,
+        rust,
+        refuses,
+        &crate::service::floats::Floats::EXACT,
+    );
+}
+
+/// `both` with float places that may drift within their tolerances.
+#[allow(clippy::too_many_arguments)]
+pub fn both_floats(
+    t: &mut SelfTest,
+    what: &str,
+    run: &dyn Fn(&mut Regs),
+    entry: Regs,
+    fill: &dyn Fn(),
+    all: &[Region],
+    rust: Rust,
+    refuses: bool,
+    floats: &crate::service::floats::Floats,
+) {
+    use crate::service::floats::{Agreement, compare_memory};
     // Both sides start from the same state: what the first wrote in `all` is put back.
     let start = capture(all);
     fill();
@@ -336,7 +412,10 @@ pub fn both(
     let mut ro = entry;
     run(&mut ro);
     let theirs = (regs7(&ro), take_called(), capture(all));
-    t.check(!refuses && theirs == mine, || {
+    let same = theirs.0 == mine.0
+        && theirs.1 == mine.1
+        && compare_memory(all, &theirs.2, &mine.2, floats) != Agreement::Differ;
+    t.check(!refuses && same, || {
         let diff = theirs.2.iter().zip(&mine.2).position(|(a, b)| a != b);
         format!(
             "{what}: original {:x?} {:x?}; rust {:x?} {:x?}; memory first differs at {diff:x?}",

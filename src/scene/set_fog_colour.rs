@@ -11,9 +11,7 @@
 //! the colour kept compared.
 
 use crate::d3d::recorder::record;
-use crate::framework::{
-    RawHook, Regs, SelfTest, call_game, game_addr, game_read, game_write, hook_asm, rva,
-};
+use crate::framework::{RawHook, Regs, SelfTest, game_read, game_write, hook_asm, rva};
 use crate::service::harness::{at, capture, restore};
 use std::sync::atomic::AtomicUsize;
 
@@ -31,24 +29,31 @@ hook_asm!(
 
 const KEPT_RVA: usize = rva(0x5AB964); // dword_5AB964
 const LAYER_RVA: usize = rva(0x41AB5B); // d3d::set_render_state
-const FOG_COLOUR: u32 = 0x22;
 
 /// The Rust version (see the header).
+// Converted: `rc2k_core::scene::render_states::fog_colour`
 pub unsafe fn set_fog_colour(colour: u32) {
     unsafe {
         game_write(KEPT_RVA, colour);
+        let s = rc2k_core::scene::render_states::fog_colour(colour);
         let mut r = Regs {
-            eax: colour | 0xFF00_0000,
-            ebx: FOG_COLOUR,
+            eax: s.value,
+            ebx: s.state,
             ..Regs::default()
         };
-        call_game(&mut r, game_addr(LAYER_RVA));
+        crate::calls::call(LAYER_RVA, &mut r);
     }
 }
 
 extern "C" fn dispatch(r: &mut Regs) {
     HOOK.count_call();
     unsafe { set_fog_colour(r.eax) };
+}
+
+/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    unsafe { set_fog_colour(r.eax) };
+    Ok(())
 }
 
 fn self_test() -> (usize, usize) {

@@ -30,7 +30,8 @@ const BITS_RVA: usize = rva(0x4F49A8); // g_surface.bits_per_pixel
 /// `race::car_file_number` (0x41F4FD): eax held to 0 .. 0x21 (signed), its entry of
 /// `dword_5C5928`.
 pub fn car_file_number(car: u32) -> u32 {
-    let n = (car as i32).clamp(0, 0x21) as usize;
+    // Converted: `rc2k_core::race::cars::table_entry`.
+    let n = rc2k_core::race::cars::table_entry(car);
     unsafe { game_read(FILE_NUMBERS_RVA + 4 * n) }
 }
 
@@ -72,7 +73,8 @@ pub unsafe fn raw_pixel(x: u32, y: u32) -> (u32, u32) {
 /// `race::mud_pixel` (0x44A58A): `read_pixel` inside the surface (unsigned), else 0.
 pub unsafe fn mud_pixel(x: u32, y: u32) -> u32 {
     unsafe {
-        if x >= game_read::<u32>(WIDTH_RVA) || y >= game_read::<u32>(HEIGHT_RVA) {
+        // Converted: `rc2k_core::race::mud::inside`.
+        if !rc2k_core::race::mud::inside(x, y, game_read(WIDTH_RVA), game_read(HEIGHT_RVA)) {
             return 0;
         }
         read_pixel(x, y)
@@ -91,10 +93,8 @@ pub type Part<'a> = &'a mut dyn FnMut(u32, &mut Regs) -> Result<(), Refused>;
 pub unsafe fn load_mud(entry: &Regs, part: Part) -> Result<Regs, Refused> {
     let mut g = *entry;
     unsafe {
-        let n = car_file_number(game_read(CAR_RVA));
-        let (q, r) = (n / 10, n % 10);
-        g.eax = q & !0xFF | (q as u8).wrapping_add(b'0') as u32;
-        g.edx = r & !0xFF | (r as u8).wrapping_add(b'0') as u32;
+        // Converted: `rc2k_core::race::mud::file_digits`.
+        (g.eax, g.edx) = rc2k_core::race::mud::file_digits(car_file_number(game_read(CAR_RVA)));
         g.ebx = 10;
         let digits = game_addr(MUD_PATH_DIGITS_RVA) as *mut u8;
         *digits = g.eax as u8;
@@ -131,9 +131,9 @@ pub unsafe fn sample_mud_colours(entry: &Regs, part: Part) -> Result<Regs, Refus
         g.eax = game_read(PICTURE_RVA);
         part(2, &mut g)?;
         g.edi = game_addr(COLOURS_RVA) as u32;
-        for n in 0..0x100u32 {
-            g.ecx = 0x89 + (n & 3) + (n >> 5) * 4;
-            g.edx = 0x68 + ((n & 0x1C) >> 2);
+        // Converted: `rc2k_core::race::mud::sample_place`.
+        for n in 0..rc2k_core::race::mud::SAMPLES {
+            (g.ecx, g.edx) = rc2k_core::race::mud::sample_place(n);
             g.eax = mud_pixel(g.ecx, g.edx);
             (g.edi as *mut u32).write_unaligned(g.eax);
             g.edi += 4;
@@ -168,12 +168,11 @@ pub unsafe fn init_mud(entry: &Regs, part: Part) -> Result<Regs, Refused> {
 /// The game's calls: the Rust versions, and the surface's lock and unlock at the game's
 /// addresses (DirectDraw, the platform).
 pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
-    use crate::framework::call_game;
     unsafe {
         match place {
             0 | 1 => crate::race::level_init::game_part(place, r)?,
-            2 => call_game(r, game_addr(rva(0x41AA4B))),
-            3 => call_game(r, game_addr(rva(0x41AB02))),
+            2 => crate::calls::call(rva(0x41AA4B), r),
+            3 => crate::calls::call(rva(0x41AB02), r),
             4 => *r = load_mud(r, &mut game_part)?,
             5 => clear_mud_state(),
             _ => *r = sample_mud_colours(r, &mut game_part)?,

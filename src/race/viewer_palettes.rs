@@ -16,7 +16,7 @@ use crate::errors::Refused;
 use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
 use crate::gfx::pixel_format::PixelFormat;
 use crate::physics::flow::a;
-use crate::race::viewer::{Saved, check_original, dispatch_regs, get, put, region};
+use crate::race::viewer::{Saved, check_original, dispatch_regs, get, put, region, regs_entry};
 use crate::service::harness::Region;
 use std::sync::atomic::AtomicUsize;
 
@@ -57,17 +57,18 @@ pub unsafe fn viewer_palettes() {
     unsafe {
         let screen = (a(SURFACE_FORMAT) as *const PixelFormat).read_unaligned();
         let texture = (get(TEXTURE_KINDS).wrapping_add(8) as *const PixelFormat).read_unaligned();
+        // Converted: `rc2k_core::race::viewer_flow::{font_colour, FONT_COLOURS}` (colour
+        // by colour, as the original).
+        use rc2k_core::race::viewer_flow::{FONT_COLOURS, font_colour};
         let from = get(FONT_PALETTES) as *const u32;
         let to = a(COLOURS) as *mut u32;
-        for n in 0..0x100 {
-            let parts = crate::gfx::pixel_to_components::pixel_to_components(
-                &screen,
+        for n in 0..FONT_COLOURS {
+            let colour = font_colour(
                 from.add(n).read_unaligned(),
-            ) | 0xFF00_0000;
-            to.add(n)
-                .write_unaligned(crate::gfx::components_to_pixel::components_to_pixel(
-                    &texture, parts,
-                ));
+                |c| crate::gfx::pixel_to_components::pixel_to_components(&screen, c),
+                |p| crate::gfx::components_to_pixel::components_to_pixel(&texture, p),
+            );
+            to.add(n).write_unaligned(colour);
         }
     }
 }
@@ -90,6 +91,12 @@ fn rust(r: &Regs) -> Result<Regs, Refused> {
 
 extern "C" fn dispatch(r: &mut Regs) {
     dispatch_regs(&HOOK, r, call_original, &regions(), 0, &rust);
+}
+
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    regs_entry(r, &rust)
 }
 
 fn self_test() -> (usize, usize) {

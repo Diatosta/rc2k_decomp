@@ -21,63 +21,27 @@
 //! In the standings screen's draw list (0x758E5E). The rows are found before anything is
 //! drawn (a position not there is the look-up's fatal error, raised then). Refuses (before
 //! anything) no history, a section the record table has not (the look-up runs on), and
-//! what the look-up refuses. Compared in shadow mode (`dispatch_draw`). Self-test: a history
-//! of the test's (players, points below 0), from rows 1 and 2, event modes 0x13 and 0,
-//! nothing drawn (skipped without the fonts or the record table's section).
+//! what the look-up refuses.
+//! Hook removed 2026-10-22 (typed tables): the menus and draw lists run its `entry`
+//! (`menu::table_calls`); the registers above are the original's, for reference.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{RawHook, Regs, SelfTest, game_addr, game_read, game_write, hook_asm, rva};
-use crate::gfx::blit_glyph::BlitCall;
-use crate::menu::ranked_lookups::{CHAMP_ENTRY_LEN, find_champ_position};
+use crate::framework::{Regs, game_read, rva};
+use crate::menu::ranked_lookups::find_champ_position;
 use crate::screens::best_scores::section_there;
-use crate::screens::draw_menu_item_text::text_unavailable;
-use crate::screens::harness::{Left, check_draw, dispatch_draw};
-use crate::screens::{LINE_BUFFER_RVA, font_at, line_buffer};
-use crate::service::harness::{Region, at, capture, restore};
-use crate::text::draw_string_by_id::draw_string_by_id_at;
-use crate::text::draw_text::{Canvas, draw_text_at};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook = RawHook::new(
-    "screens::draw_championship_standings",
-    rva(0x4A5410),
-    thunk,
-    &ORIGINAL,
-)
-.self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
+use crate::screens::harness::{Left, draw_entry};
+use crate::text::draw_text::Canvas;
 
 const HISTORY_RVA: usize = rva(0x7556F0); // g_champHistory
 const FIRST_ROW_RVA: usize = rva(0x7556B8); // g_champFirstRow
-const ROW_RVA: usize = rva(0x755579); // g_champRow
-const ROW_END_RVA: usize = rva(0x7556BC); // g_champRowEnd
+// g_champRow
+// g_champRowEnd
 const EVENT_MODE_RVA: usize = rva(0x7556D0); // g_eventMode
-const LINE_LEN: usize = 0x100;
-
 fn g(a: usize) -> u32 {
     unsafe { game_read(a) }
 }
 fn get(a: u32) -> u32 {
     unsafe { (a as *const u32).read_unaligned() }
-}
-
-unsafe fn line(bytes: &[u8]) -> Result<*mut u8, Refused> {
-    if bytes.len() + 1 > LINE_LEN {
-        return Err(BadInput("a line past the line buffer").into());
-    }
-    unsafe {
-        std::ptr::copy_nonoverlapping(bytes.as_ptr(), line_buffer(), bytes.len());
-        line_buffer().add(bytes.len()).write(0);
-    }
-    Ok(line_buffer())
 }
 
 /// The Rust version.
@@ -100,86 +64,25 @@ pub unsafe fn draw_championship_standings(canvas: &mut dyn Canvas) -> Result<(),
             break;
         }
     }
-    unsafe {
-        draw_string_by_id_at(0x484, font_at(0x51E5A4), 0x73, 0xDC, canvas)?;
-        draw_string_by_id_at(0x485, font_at(0x51E584), 0x9C, 0xDC, canvas)?;
-        let o = draw_string_by_id_at(0x4F9, font_at(0x51E584), 0x2DE, 0xDC, canvas)?;
-        let sprites = crate::gfx::blit_marker_pair::sprite_table();
-        let first_round = if g(EVENT_MODE_RVA) == 0x13 {
-            0x90
-        } else {
-            0x8A
-        };
-        for n in 0..6u32 {
-            canvas.blit_glyph(BlitCall::new(
-                first_round + n,
-                0x196 + 0x36 * n as i32,
-                0x8C,
-                o.text as u32,
-                sprites,
-            ))?;
-        }
-        game_write(ROW_RVA, first_row);
-        game_write(ROW_END_RVA, end);
-        let mut y = 0xF0i32;
-        for e in rows {
-            let player = (get(e + 4) as i32) > 0;
-            let (place_font, font) = if player {
-                (0x51E544, 0x51E524)
-            } else {
-                (0x51E5A4, 0x51E584)
-            };
-            let o = draw_text_at(
-                font_at(place_font),
-                line(&crate::strings::append_u32::append_u32(get(e + 0x70)))?,
-                0x73,
-                y,
-                canvas,
-            )?;
-            y = o.y;
-            let mut o = draw_text_at(font_at(font), (e + 0x14) as *const u8, 0x9C, y, canvas)?;
-            y = o.y;
-            for k in 0..7u32 {
-                let v = get(e + 0x38 + 4 * k);
-                let text = if (v as i32) < 0 {
-                    b"-".to_vec()
-                } else {
-                    crate::strings::append_u32::append_u32(v)
-                };
-                o = draw_text_at(
-                    font_at(font),
-                    line(&text)?,
-                    0x19A + 0x36 * k as i32,
-                    y,
-                    canvas,
-                )?;
-                y = o.y;
-            }
-            let palette = o.text as u32;
-            canvas.blit_glyph(BlitCall::new(
-                get(e + 8).wrapping_add(0x1C),
-                0x7E,
-                y,
-                palette,
-                sprites,
-            ))?;
-            let flag = get(e + 0xC);
-            let flag = if (0x18..=0x19).contains(&flag) {
-                flag ^ 1
-            } else {
-                flag
-            };
-            canvas.blit_glyph(BlitCall::new(
-                flag.wrapping_add(0x44),
-                0x154,
-                y,
-                palette,
-                sprites,
-            ))?;
-            y = y.wrapping_add(0x19);
-            game_write(ROW_RVA, g(ROW_RVA).wrapping_add(1));
-        }
-    }
+    // Converted: `rc2k_core::screens::results_pages::championship_standings` (the rows found here).
+    use rc2k_core::screens::results_pages::{StandingRow, championship_standings};
+    let rows: Vec<StandingRow<u32>> = rows
+        .into_iter()
+        .map(|e| StandingRow {
+            player: (get(e + 4) as i32) > 0,
+            position: get(e + 0x70),
+            name: e + 0x14,
+            points: std::array::from_fn(|k| get(e + 0x38 + 4 * k as u32)),
+            nation: get(e + 8),
+            car: get(e + 0xC),
+        })
+        .collect();
+    championship_standings(
+        &mut crate::screens::game_screen::GameScreen::new(canvas),
+        first_row,
+        g(EVENT_MODE_RVA) == 0x13,
+        &rows,
+    )?;
     Ok(())
 }
 
@@ -188,81 +91,8 @@ fn rust(_: &Regs, canvas: &mut dyn Canvas) -> Result<Left, Refused> {
     Ok(Left::nothing())
 }
 
-fn written() -> Vec<Region> {
-    vec![
-        (game_addr(LINE_BUFFER_RVA) as u32, LINE_LEN),
-        at(ROW_RVA),
-        at(ROW_END_RVA),
-    ]
-}
-
-fn state() -> Vec<u8> {
-    capture(&written())
-}
-
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_draw(&HOOK, r, call_original, &rust, &state);
-}
-
-/// A history of the test's: 12 entries, positions 1 .. 12, some players, points below 0.
-fn history() -> Vec<u32> {
-    let words = CHAMP_ENTRY_LEN as usize / 4;
-    let mut list = vec![0u32; 13 * words];
-    for n in 0..12usize {
-        let w = &mut list[n * words..(n + 1) * words];
-        w[0] = n as u32;
-        w[1] = if n % 5 == 2 { 1 } else { 0 };
-        w[2] = n as u32 % 9;
-        w[3] = [0x18u32, 0x19, 3, 0x20][n % 4];
-        let name = format!("Driver {n}");
-        for (k, b) in name.bytes().enumerate() {
-            let at = 0x14 + k;
-            w[at / 4] |= (b as u32) << (8 * (at % 4));
-        }
-        for k in 0..7usize {
-            w[0x38 / 4 + k] = if (n + k) % 6 == 0 {
-                u32::MAX
-            } else {
-                (n * 7 + k * 3) as u32
-            };
-        }
-        w[0x70 / 4] = [3u32, 1, 2, 6, 4, 5, 9, 7, 8, 12, 10, 11][n];
-    }
-    list[12 * words] = u32::MAX;
-    list
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    if let Some(why) = text_unavailable() {
-        return t.skip(why);
-    }
-    if !section_there() {
-        return t.skip("the record table has not the section (no stage chosen yet)");
-    }
-    let inputs: Vec<Region> = vec![at(HISTORY_RVA), at(FIRST_ROW_RVA), at(EVENT_MODE_RVA)];
-    let saved = (capture(&inputs), state());
-    let list = history();
-    let base = list.as_ptr() as u32;
-    for (first, mode) in [(1u32, 0x13u32), (2, 0), (3, 1)] {
-        check_draw(
-            &mut t,
-            &format!("from row {first}, event mode {mode:#x}"),
-            call_original,
-            Regs::SENTINEL,
-            &|| unsafe {
-                game_write(HISTORY_RVA, base);
-                game_write(FIRST_ROW_RVA, first);
-                game_write(EVENT_MODE_RVA, mode);
-            },
-            &rust,
-            &state,
-        );
-    }
-    restore(&inputs, &saved.0);
-    restore(&written(), &saved.1);
-    drop(list);
-    t.finish()
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    draw_entry("screens::draw_championship_standings", r, &rust)
 }

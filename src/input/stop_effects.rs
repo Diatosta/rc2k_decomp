@@ -7,34 +7,23 @@
 //! See `input/effects.rs` and `start_effects`. One caller, `input::end_effects`. Its calls
 //! through `part`. Shadow mode runs the original alone. Self-test: a copy whose calls go
 //! to the noting stand-ins, against the Rust version.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, hook_asm, rva};
-use crate::input::effects::{Part, STOP_DEVICE, dispatch_effects};
-use crate::input::start_effects::{both_records, test_both};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("input::stop_effects", rva(0x409685), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
+use crate::framework::Regs;
+use crate::input::effects::{Part, STOP_DEVICE, effects_entry};
+use crate::input::start_effects::both_records;
 
 /// The Rust version.
 pub fn stop_effects(r: &mut Regs, part: Part) -> Result<(), Refused> {
     both_records(r, STOP_DEVICE, part)
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_effects(&HOOK, r, call_original, stop_effects);
-}
-
-fn self_test() -> (usize, usize) {
-    test_both(&HOOK, 0x409685, STOP_DEVICE, stop_effects)
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    effects_entry(r, stop_effects)
 }

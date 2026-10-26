@@ -14,26 +14,16 @@
 //! whose calls go to stand-ins (`str_append` done, the width one character's 0x50 times
 //! their number), against the Rust version: an empty message, a short one, one of three
 //! lines.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
+use crate::framework::Regs;
 use crate::net::lobby::{
-    CHAT, CHAT_LINE, CHAT_TEXT, MEASURE_TEXT, Part, STR_APPEND, Saved, a, answer, block,
-    dispatch_lobby, fill, put_text, region, run_both,
+    CHAT, CHAT_LINE, CHAT_TEXT, MEASURE_TEXT, Part, STR_APPEND, a, block, lobby_entry, put_text,
 };
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("net::add_chat_line", rva(0x419428), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
 
 const CHAT_FONT: usize = 0x51E424; // dword_51E424
 const LINE_WIDTH: u32 = 0x30C;
@@ -137,8 +127,10 @@ pub fn add_chat_line(entry: &Regs, part: Part) -> Result<Regs, Refused> {
     })
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_lobby(&HOOK, r, call_original, add_chat_line);
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    lobby_entry(r, add_chat_line)
 }
 
 /// The test's answers: `str_append` done; a line's width 0x50 a character.
@@ -166,54 +158,4 @@ pub fn chat_answers() -> crate::net::lobby::Answer {
 /// The chat as a test starts it: "a\nb\nc\nd\ne\nf\ng\nh".
 pub fn test_chat() {
     put_text(CHAT, b"a\nb\nc\nd\ne\nf\ng\nh");
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    // pusha; cmp byte ptr [ebx], 0; jz loc_4194CA
-    let copy = match crate::net::lobby::copy(
-        0x419428,
-        0xA4,
-        &[0x60, 0x80, 0x3B, 0x00, 0x0F, 0x84, 0x98, 0x00, 0x00, 0x00],
-        &[0x1E, 0x2D, 0x32, 0x5D],
-        &[STR_APPEND, MEASURE_TEXT],
-    ) {
-        Ok(c) => c,
-        Err(why) => return t.skip(why),
-    };
-    let all = [
-        region(CHAT, CHAT_LEN as usize),
-        region(CHAT_LINE, 0x80),
-        region(CHAT_TEXT, 0x80),
-        region(0x52AD9C, 0x20),
-    ];
-    let saved = Saved::new(&all);
-    for message in [&b"\0"[..], b"hi\0", b"a message of twenty-five\0"] {
-        run_both(
-            &mut t,
-            &format!("{:?}", String::from_utf8_lossy(message)),
-            copy.addr(),
-            Regs {
-                eax: 0,
-                ebx: message.as_ptr() as u32,
-                ..Regs::SENTINEL
-            },
-            &all,
-            0,
-            &[],
-            &|| {
-                fill(CHAT, CHAT_LEN as usize, 7);
-                fill(CHAT_LINE, 0x80, 8);
-                fill(CHAT_TEXT, 0x80, 9);
-                test_chat();
-                put_text(0x52AD9C, b"Ann");
-                answer(chat_answers());
-            },
-            &add_chat_line,
-        );
-    }
-    drop(saved);
-    t.finish()
 }

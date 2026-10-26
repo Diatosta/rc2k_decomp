@@ -13,17 +13,23 @@
 //!
 //! Caller: `physics::apply_torques` (in a loop over records).
 //! Self-test: a copy of the original (its two scratch vectors the test's, its three calls
-//! kept) on a test record and car block, under three precisions.
+//! kept) on a test record and car block, against the converted version: exact at double
+//! precision, within `SUM` at extended.
 
 use crate::errors::Refused;
 use crate::framework::{RawHook, Regs, SelfTest, call_game, game_addr, game_read, hook_asm, rva};
-use crate::math::x87_run::{TEST_CONTROL_WORDS, neg_product2_plus, with_control_word};
+use crate::math::x87_run::neg_product2_plus;
 use crate::physics::apply_force::BLOCK_LEN;
 use crate::physics::turn_by_inverse_at::turn_by_inverse_at;
 use crate::physics::turn_by_matrix_at::turn_by_matrix_at;
+use crate::scene::vector3::{read_floats, write_floats};
 use crate::scene::view_matrix::cross_product;
 use crate::screens::harness::Left;
-use crate::service::harness::{Region, capture, dispatch_state};
+use crate::service::floats::{
+    Agreement, Floats, SUM, Tolerance, at_test_precisions, compare_memory, dispatch_state_floats,
+    floats_entry,
+};
+use crate::service::harness::{Region, capture};
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -78,7 +84,36 @@ pub unsafe fn apply_torque_at(rec: u32, car: u32, work: u32, cross: u32) {
     }
 }
 
-/// The Rust version.
+/// The converted version (`rc2k_core::physics::pushes`, plain floats): the record at
+/// `rec`, the car at `car`, the work vector at `work`, the cross product at `cross`.
+// Converted: `rc2k_core::physics::pushes::apply_torque`.
+pub unsafe fn apply_torque_at_plain(rec: u32, car: u32, work: u32, cross: u32) {
+    unsafe {
+        let twist = rc2k_core::physics::pushes::apply_torque(
+            read_floats(rec),
+            read_floats(car + SPIN_OFFSET),
+            f32::from_bits(game_read(STEP_RVA)),
+            game_read::<[f32; 3]>(INERTIA_RVA),
+            &read_floats(car + crate::physics::turn_by_inverse_at::INVERSE_OFFSET),
+            &read_floats(car + crate::physics::turn_by_matrix_at::MATRIX_OFFSET),
+        );
+        write_floats(cross, &twist.cross);
+        write_floats(work, &twist.spin);
+        write_floats(car + SPIN_OFFSET, &twist.spin);
+    }
+}
+
+/// The float places it writes on the car at `car`, the work vector at `work`, the cross
+/// product at `cross`.
+fn floats(car: u32, work: u32, cross: u32) -> [(Region, Tolerance); 3] {
+    [
+        ((work, 12), SUM),
+        ((cross, 12), SUM),
+        ((car + SPIN_OFFSET, 12), SUM),
+    ]
+}
+
+/// The Rust version (the exact one, for `physics::apply_torques`).
 pub unsafe fn apply_torque(rec: u32, car: u32) {
     unsafe {
         apply_torque_at(
@@ -91,7 +126,14 @@ pub unsafe fn apply_torque(rec: u32, car: u32) {
 }
 
 fn rust(r: &Regs) -> Result<Left, Refused> {
-    unsafe { apply_torque(r.esi, r.edi) };
+    unsafe {
+        apply_torque_at_plain(
+            r.esi,
+            r.edi,
+            game_addr(WORK_RVA) as u32,
+            game_addr(CROSS_RVA) as u32,
+        )
+    };
     Ok(Left::nothing())
 }
 
@@ -105,7 +147,22 @@ pub fn regions(car: u32) -> Vec<Region> {
 }
 
 extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_state(&HOOK, r, call_original, &regions(r.edi), &rust);
+    let memory = floats(
+        r.edi,
+        game_addr(WORK_RVA) as u32,
+        game_addr(CROSS_RVA) as u32,
+    );
+    let floats = Floats {
+        memory: &memory,
+        regs: &[],
+    };
+    dispatch_state_floats(&HOOK, r, call_original, &regions(r.edi), &floats, &rust);
+}
+
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    floats_entry(r, &rust)
 }
 
 /// A copy of the original whose work vector and cross product are at `work`, `cross`.
@@ -179,29 +236,33 @@ fn self_test() -> (usize, usize) {
         Err(why) => return t.skip(&why),
     };
     let all = [(car, 4 * cells.len())];
-    for word in TEST_CONTROL_WORDS {
-        with_control_word(word, &mut || {
-            for seed in 1..=6u32 {
-                fill(rec, car, seed);
-                let before = Regs {
-                    esi: rec,
-                    edi: car,
-                    ..Regs::SENTINEL
-                };
-                let mut ro = before;
-                unsafe { call_game(&mut ro, copy.addr()) };
-                let theirs = capture(&all);
-                fill(rec, car, seed);
-                unsafe { apply_torque_at(rec, car, work, cross) };
-                let mine = capture(&all);
-                let regs_ok = ro.preserved_except(&before, 0);
-                t.check(regs_ok && theirs == mine, || {
-                    let first = theirs.iter().zip(&mine).position(|(a, b)| a != b);
-                    format!("control word {word:#x}, seed {seed}: regs_ok={regs_ok}, first difference at byte {first:?}")
-                });
-            }
-        });
-    }
+    let memory = floats(car, work, cross);
+    let tolerant = Floats {
+        memory: &memory,
+        regs: &[],
+    };
+    at_test_precisions(&tolerant, &mut |word, fl| {
+        for seed in 1..=6u32 {
+            fill(rec, car, seed);
+            let before = Regs {
+                esi: rec,
+                edi: car,
+                ..Regs::SENTINEL
+            };
+            let mut ro = before;
+            unsafe { call_game(&mut ro, copy.addr()) };
+            let theirs = capture(&all);
+            fill(rec, car, seed);
+            unsafe { apply_torque_at_plain(rec, car, work, cross) };
+            let mine = capture(&all);
+            let regs_ok = ro.preserved_except(&before, 0);
+            let agreement = compare_memory(&all, &theirs, &mine, fl);
+            t.check(regs_ok && agreement != Agreement::Differ, || {
+                let first = theirs.iter().zip(&mine).position(|(a, b)| a != b);
+                format!("control word {word:#x}, seed {seed}: regs_ok={regs_ok}, first difference at byte {first:?}")
+            });
+        }
+    });
     drop((copy, cells));
     t.finish()
 }

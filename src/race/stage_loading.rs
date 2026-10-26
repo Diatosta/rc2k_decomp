@@ -4,7 +4,7 @@
 //! clock restarted and the race's starting values; each step logged and indented.
 
 use crate::errors::Refused;
-use crate::framework::{Regs, call_game, game_addr, game_read, game_write, rva};
+use crate::framework::{Regs, game_addr, game_read, game_write, rva};
 use crate::race::loadlevel::or_in_game;
 use crate::service::harness::{Region, at};
 
@@ -182,7 +182,7 @@ fn step_part(callee: u32, r: &mut Regs) -> Result<(), Refused> {
                 // As `menu::show_loading_picture`'s dispatch.
                 r.eax = game_addr(LOADING_PICTURE_RVA) as u32;
                 crate::gfx::show_picture_file::show_picture_file(r, &mut |at, regs| {
-                    call_game(regs, game_addr(rva(at)))
+                    crate::gfx::show_picture_file::game_call(at, regs)
                 });
             }
             3 => {
@@ -203,7 +203,7 @@ fn step_part(callee: u32, r: &mut Regs) -> Result<(), Refused> {
             5 => crate::race::music::game_music(r, &mut crate::race::music::game_tune)?,
             6 => crate::race::music::game_music_8(r, &mut crate::race::music::game_tune)?,
             7 => crate::race::create_controls::create_controls(),
-            8 => call_game(r, game_addr(rva(CALLEES[8]))),
+            8 => crate::calls::call(rva(CALLEES[8]), r),
             _ => {
                 r.eax = crate::scene::restart_clock::restart_clock(
                     crate::system::tick_count::tick_count(),

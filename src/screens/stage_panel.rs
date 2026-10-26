@@ -11,23 +11,16 @@ use crate::gfx::blit_glyph::{BlitCall, record_calls, recording_works};
 use crate::gfx::blit_marker_pair::{
     marker_calls, marker_position, set_marker_position, sprite_table,
 };
-use crate::math::hhmm_to_minutes::hhmm_to_minutes;
 use crate::records::trakpak_entry::record_entry;
 use crate::screens::draw_stage_heading::heading_text;
 use crate::screens::draw_stage_records::draw_stage_records;
+use crate::screens::game_screen::GameScreen;
 use crate::screens::{blanked, font_at, font_is_loaded, line_buffer, set_line};
-use crate::strings::append_clock::append_clock;
-use crate::strings::append_distance_2dp::append_distance_2dp;
-use crate::strings::append_percent::append_percent;
-use crate::strings::append_speed::append_speed;
-use crate::strings::append_string_by_id::push_string;
-use crate::strings::append_temperature::append_temperature;
-use crate::strings::append_u32::append_u32;
 use crate::strings::string_table::{blob, is_table_id};
-use crate::strings::text_from_ids::{TEXT_LEN, text, text_from_ids};
-use crate::strings::units::{is_metric, units};
+use crate::strings::text_from_ids::{TEXT_LEN, text};
+use crate::strings::units::units;
 use crate::text::draw_string_by_id::draw_string_by_id_at;
-use crate::text::draw_text::{Canvas, GameCanvas, RecordingCanvas, draw_text_at};
+use crate::text::draw_text::{Canvas, GameCanvas, RecordingCanvas};
 use crate::text::glyph_kerning::state_ptr;
 use std::ptr::copy_nonoverlapping;
 use std::slice::from_raw_parts;
@@ -62,13 +55,6 @@ const FONTS: [usize; 6] = [
     NUMBER_FONT,
 ];
 
-// Columns: a label ends at LABEL_x, its value starts at VALUE_x.
-const LEFT_LABEL_X: i32 = 0x211;
-const LEFT_VALUE_X: i32 = 0x215;
-const RIGHT_LABEL_X: i32 = 0x2B8;
-const RIGHT_VALUE_X: i32 = 0x2BC;
-const CENTRE_X: i32 = 0x266;
-
 const START_LABEL: u32 = 0x34D;
 const FINISH_LABEL: u32 = 0x34E;
 const TOTAL_LABEL: u32 = 0x356;
@@ -76,7 +62,6 @@ const LENGTH_LABEL: u32 = 0x34F;
 const LENGTH_UNIT_IMPERIAL: u32 = 0x56F;
 const LENGTH_UNIT_METRIC: u32 = 0x570;
 const SURFACE_HEADING: u32 = 0x345;
-const SURFACE_LABELS: [u32; 4] = [0x346, 0x347, 0x348, 0x349];
 const WEATHER_HEADING: u32 = 0x354;
 const TEMPERATURE_LABEL: u32 = 0x355;
 const WIND_LABEL: u32 = 0x352;
@@ -112,11 +97,6 @@ pub unsafe fn table_dword(table_rva: usize, index: u32) -> u32 {
 }
 
 // ---- the shared parts ----
-
-/// A time given as hours * 100 + minutes, as "H:MM".
-fn time_of_day(hhmm: u32) -> Vec<u8> {
-    append_clock(hhmm_to_minutes(hhmm))
-}
 
 /// Draws a string id with one of the game's font objects.
 pub unsafe fn label(
@@ -172,120 +152,50 @@ pub unsafe fn draw_stage_body_in(
     heading_font: usize,
     canvas: &mut dyn Canvas,
 ) -> Result<(), Refused> {
+    // Converted: `rc2k_core::screens::stage_panel::body`.
+    use rc2k_core::screens::stage_panel::{Entry, Font};
     unsafe {
-        // A line built in the line buffer and drawn with the value font.
-        let value = |canvas: &mut dyn Canvas, mut bytes: Vec<u8>, x: i32, y: i32| {
-            bytes.push(0);
-            set_line(&bytes);
-            draw_text_at(font_at(VALUE_FONT), line_buffer(), x, y, canvas).map(|_| ())
-        };
-
         // The two markers on the map.
         for call in marker_calls(record as *const u8, marker_palette, sprite_table()) {
             set_marker_position(&call);
             canvas.blit_glyph(call)?;
         }
-
-        // Start, finish and total time.
-        let start = dword(record.wrapping_add(0x10));
-        label(canvas, START_LABEL, LABEL_FONT, LEFT_LABEL_X, 0xD1)?;
-        value(canvas, time_of_day(start), LEFT_VALUE_X, 0xD1)?;
-        game_write(SCRATCH_RVA, start);
-
-        let entry = record_entry(record as *const u8)?;
-        let duration = table_dword(DURATIONS_RVA, dword(entry.wrapping_add(8)));
-        let finish = duration.wrapping_add(start);
-        game_write(FINISH_RVA, finish);
-        value(canvas, time_of_day(finish), RIGHT_VALUE_X, 0xD1)?;
-        label(canvas, FINISH_LABEL, LABEL_FONT, RIGHT_LABEL_X, 0xD1)?;
-
-        game_write(SCRATCH_RVA, duration);
-        value(canvas, time_of_day(duration), LEFT_VALUE_X, 0xE8)?;
-        label(canvas, TOTAL_LABEL, LABEL_FONT, LEFT_LABEL_X, 0xE8)?;
-        if keep_entry_34 {
-            game_write(ENTRY_34_RVA, dword(entry.wrapping_add(0x34)));
-        }
-
-        // Length, with its unit. A length of 0 leaves the line empty.
-        let length = dword(entry.wrapping_add(0x0C));
-        let mut line = Vec::new();
-        if length == 0 {
-            line.push(0); // the original writes two NULs here
-        } else {
-            line = append_distance_2dp(length, is_metric())?;
-            let unit = if units() != 0 {
-                LENGTH_UNIT_METRIC
-            } else {
-                LENGTH_UNIT_IMPERIAL
-            };
-            push_string(&mut line, unit);
-        }
-        value(canvas, line, RIGHT_VALUE_X, 0xE8)?;
-        label(canvas, LENGTH_LABEL, LABEL_FONT, RIGHT_LABEL_X, 0xE8)?;
-
-        // Road surface: four percentages, then their labels.
-        label(canvas, SURFACE_HEADING, heading_font, CENTRE_X, 0x107)?;
-        for (field, x, y) in [
-            (0x24, LEFT_VALUE_X, 0x120),
-            (0x2C, RIGHT_VALUE_X, 0x120),
-            (0x28, LEFT_VALUE_X, 0x137),
-            (0x30, RIGHT_VALUE_X, 0x137),
-        ] {
-            value(
-                canvas,
-                append_percent(dword(entry.wrapping_add(field))),
-                x,
-                y,
-            )?;
-        }
-        for (id, x, y) in [
-            (SURFACE_LABELS[0], LEFT_LABEL_X, 0x120),
-            (SURFACE_LABELS[1], RIGHT_LABEL_X, 0x120),
-            (SURFACE_LABELS[2], LEFT_LABEL_X, 0x137),
-            (SURFACE_LABELS[3], RIGHT_LABEL_X, 0x137),
-        ] {
-            label(canvas, id, LABEL_FONT, x, y)?;
-        }
-
-        // Weather: temperature and wind, then the weather line.
-        label(canvas, WEATHER_HEADING, heading_font, CENTRE_X, 0x156)?;
-        let (temperature, _) = append_temperature(dword(entry.wrapping_add(0x1C)) as i32);
-        value(canvas, temperature, LEFT_VALUE_X, 0x16F)?;
-        label(canvas, TEMPERATURE_LABEL, LABEL_FONT, LEFT_LABEL_X, 0x16F)?;
-        let wind = append_speed(dword(entry.wrapping_add(0x20)), true, units())?;
-        value(canvas, wind, RIGHT_VALUE_X, 0x16F)?;
-        label(canvas, WIND_LABEL, LABEL_FONT, RIGHT_LABEL_X, 0x16F)?;
-        label(
-            canvas,
-            dword(entry.wrapping_add(0x14)),
-            VALUE_FONT,
-            0x198,
-            0x186,
-        )?;
-
-        // Description: three consecutive strings, built in the text buffer.
-        let description = text_from_ids(dword(entry.wrapping_add(0x10)), 3)?;
-        copy_nonoverlapping(description.as_ptr(), text(), description.len());
-        draw_text_at(font_at(DESCRIPTION_FONT), text(), 0x198, 0x1BD, canvas)?;
-
-        // The numbered line at the bottom left.
-        let number = dword(entry.wrapping_add(0x38));
-        game_write(SCRATCH_RVA, number);
-        let id = if dword(entry.wrapping_add(0x3C)) == 1 {
-            NUMBER_LABEL_IF_ONE
-        } else {
-            NUMBER_LABEL_OTHERWISE
+        let entry = || -> Result<Entry, Refused> {
+            let entry = record_entry(record as *const u8)?;
+            let f = |o: u32| dword(entry.wrapping_add(o));
+            Ok(Entry {
+                duration: table_dword(DURATIONS_RVA, f(8)),
+                length: f(0x0C),
+                description: f(0x10),
+                weather: f(0x14),
+                temperature: f(0x1C) as i32,
+                wind: f(0x20),
+                surfaces: [f(0x24), f(0x28), f(0x2C), f(0x30)],
+                entry_34: f(0x34),
+                number: f(0x38),
+                number_label_one: f(0x3C) == 1,
+            })
         };
-        let mut line = Vec::new();
-        push_string(&mut line, id);
-        line.push(b' ');
-        line.extend(append_u32(number));
-        line.push(0);
-        set_line(&line);
-        draw_text_at(font_at(NUMBER_FONT), line_buffer(), 0xC0, 0x206, canvas)?;
-        Ok(())
+        let heading = if heading_font == HEADING_FONT {
+            Font::Heading
+        } else {
+            Font::RallyHeading
+        };
+        let mut screen = PanelScreen::new(canvas);
+        rc2k_core::screens::stage_panel::body(
+            &mut screen,
+            dword(record.wrapping_add(0x10)),
+            &entry,
+            units(),
+            heading,
+            keep_entry_34,
+        )
     }
 }
+
+/// The panel's screen for `rc2k_core::screens::stage_panel`.
+pub type PanelScreen<'a> =
+    GameScreen<'a, rc2k_core::screens::stage_panel::Font, rc2k_core::screens::stage_panel::Work>;
 
 /// The record rows, with the stage's best-time entry taken from the table at `table`.
 /// Returns the carry flag.
@@ -476,6 +386,21 @@ pub fn dispatch_panel(
         });
     }
     r.eflags = o.eflags;
+}
+
+/// `dispatch_panel` outside shadow mode, without its hook (typed tables, 2026-10-22: the entry the menus' and draw lists' enums run, with no hook).
+pub fn panel_entry(
+    name: &str,
+    r: &mut Regs,
+    rust: &dyn Fn(&mut dyn Canvas) -> Result<bool, Refused>,
+) -> Result<(), Refused> {
+    if blanked(name) {
+        return Ok(());
+    }
+    let too_wide = rust(&mut GameCanvas)?;
+    r.set_carry(too_wide);
+    r.set_zero(!too_wide);
+    Ok(())
 }
 
 /// Why the panel body cannot be tested right now, or None if it can: the hook that swallows

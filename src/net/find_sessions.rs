@@ -13,32 +13,21 @@
 //! (`net::dplay`; posted, `posted_enum_sessions`). Shadow mode runs the original alone.
 //! Self-test: a copy whose calls go to stand-ins and whose DirectPlay is a test object,
 //! against the Rust version: no object, posting, each result.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
+use crate::framework::Regs;
 use crate::net::dplay::{ENUM_SESSIONS, call};
 use crate::net::lobby::{
-    APP_GUID, DPLAY, DPLAY_METHOD, FLAGS, LOG_L2_NL, POST_CALL, POSTING, Part, RESTORE_WINDOW,
-    SESSION_DESC, SESSIONS, Saved, TestObject, ZERO_MEMORY, a, answer, cmp_flags, com_answer,
-    dispatch_lobby, dword, fill, g, game, log_text, movsb, p, region, run_both, test_eax,
+    APP_GUID, DPLAY, LOG_L2_NL, POST_CALL, POSTING, Part, RESTORE_WINDOW, SESSION_DESC, SESSIONS,
+    ZERO_MEMORY, a, cmp_flags, g, game, lobby_entry, log_text, movsb, p, test_eax,
 };
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("net::find_sessions", rva(0x418999), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
 
 const TEXT: usize = 0x5C2EC7; // "NET: Find sessions"
 pub const POSTED_CODE: u32 = 0x418A43; // the piece posted: `EnumSessions`
-const SESSION_FOUND: u32 = 0x418A62; // net::session_found
 const ENUM_FLAGS: u32 = 0x91;
 pub const USER_CANCEL: u32 = 0x8877_0118; // DPERR_USERCANCEL
 const CONNECTING: u32 = 0x8877_015E; // DPERR_CONNECTING
@@ -61,7 +50,13 @@ pub unsafe fn enum_sessions() -> u32 {
         call(
             DPLAY,
             ENUM_SESSIONS,
-            &[a(SESSION_DESC), 0, game(SESSION_FOUND), 0, ENUM_FLAGS],
+            &[
+                a(SESSION_DESC),
+                0,
+                crate::net::session_found::callback as *const () as usize as u32,
+                0,
+                ENUM_FLAGS,
+            ],
         )
     }
 }
@@ -109,73 +104,8 @@ pub fn find_sessions(entry: &Regs, part: Part) -> Result<Regs, Refused> {
     Ok(left(&r))
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_lobby(&HOOK, r, call_original, find_sessions);
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    // pusha; pusha; lea eax, aNetFindSession
-    let copy = match crate::net::lobby::copy(
-        0x418999,
-        0xAA,
-        &[0x60, 0x60, 0x8D, 0x05, 0xC7, 0x2E, 0x5C, 0x00],
-        &[0x8, 0x32, 0x67, 0x8C],
-        &[LOG_L2_NL, ZERO_MEMORY, POST_CALL, RESTORE_WINDOW],
-    ) {
-        Ok(c) => c,
-        Err(why) => return t.skip(why),
-    };
-    let dplay = TestObject::dplay();
-    let dp = dplay.addr();
-    let all = [
-        dword(DPLAY),
-        dword(SESSIONS),
-        dword(POSTING),
-        region(SESSION_DESC, 0x50),
-    ];
-    let saved = Saved::new(&all);
-    for (what, object, posting, result) in [
-        ("no object", false, 0u32, 0u32),
-        ("listed", true, 0, 0),
-        ("posted", true, 1, 0),
-        ("posted, cancelled", true, 1, USER_CANCEL),
-        ("cancelled", true, 0, USER_CANCEL),
-        ("connecting", true, 0, CONNECTING),
-        ("failing", true, 0, 0x8877_0005),
-    ] {
-        run_both(
-            &mut t,
-            what,
-            copy.addr(),
-            Regs::SENTINEL,
-            &all,
-            FLAGS,
-            &[],
-            &|| {
-                p(DPLAY, if object { dp } else { 0 });
-                p(SESSIONS, 5);
-                p(POSTING, posting);
-                fill(SESSION_DESC, 0x50, 81);
-                answer(Box::new(move |place, r| {
-                    if place == POST_CALL {
-                        r.eax = result;
-                    }
-                }));
-                com_answer(Box::new(move |place, _| {
-                    if place == DPLAY_METHOD | ENUM_SESSIONS {
-                        result
-                    } else {
-                        0
-                    }
-                }));
-            },
-            &find_sessions,
-        );
-    }
-    drop(saved);
-    drop(dplay);
-    t.finish()
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    lobby_entry(r, find_sessions)
 }

@@ -20,42 +20,21 @@
 //! DirectInput objects made in Rust (`input::di_harness`): the joystick and the wheel, a
 //! device that is not there (`CreateDevice` fails), 0, 5, 15 and 16 controllers before,
 //! the force-feedback switch both ways.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::field;
-use crate::framework::{RawHook, SelfTest, game_addr, rva};
+use crate::framework::rva;
 use crate::input::devices::{at, put};
 use crate::input::di_harness::{
     CAPS_LEN, CAPS_RVA, CONTROLLER_COUNT_RVA, CONTROLLER_LEN, CONTROLLERS, CONTROLLERS_RVA,
     DIRECT_INPUT_RVA, HWND_RVA, IID_DEVICE2_RVA, JOYSTICK_FORMAT_RVA, NEW_DEVICE_RVA,
-    NEW_DEVICE2_RVA, a, call_stdcall2, compare, dispatch_callback, g, method, p, shared_regions,
-    slot,
+    NEW_DEVICE2_RVA, a, g, method, p, slot,
 };
 use crate::input::types::{Controller, DiDevCaps, DiDeviceInstance};
-use std::sync::atomic::{AtomicUsize, Ordering};
 
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-unsafe extern "system" fn thunk(instance: u32, context: u32) -> u32 {
-    dispatch_callback(
-        &HOOK,
-        ORIGINAL.load(Ordering::SeqCst),
-        instance,
-        context,
-        joystick_found,
-    )
-}
-
-type Thunk = unsafe extern "system" fn(u32, u32) -> u32;
-
-pub static HOOK: RawHook = RawHook::new(
-    "input::joystick_found",
-    rva(0x408238),
-    unsafe { std::mem::transmute::<Thunk, unsafe extern "C" fn()>(thunk) },
-    &ORIGINAL,
-)
-.self_test(self_test);
-
-const AXIS_FOUND: usize = 0x4083F4; // input::axis_found
 pub const NO_FORCE_RVA: usize = rva(0x4F68F4); // dword_4F68F4: force feedback turned off
 pub const KEEP_CASE_RVA: usize = rva(0x4E0144); // dword_4E0144
 
@@ -101,7 +80,8 @@ fn look_over(instance: u32, entry: u32) -> bool {
     if !ok(method(device2, slot::GET_CAPABILITIES, &[a(CAPS_RVA)])) {
         return false;
     }
-    let found = game_addr(rva(AXIS_FOUND)) as u32;
+    let found = crate::input::axis_found::callback as unsafe extern "system" fn(u32, u32) -> u32
+        as usize as u32;
     method(device2, slot::ENUM_OBJECTS, &[found, entry, 0]);
     put(
         entry,
@@ -111,12 +91,10 @@ fn look_over(instance: u32, entry: u32) -> bool {
     let guid = instance + field!(DiDeviceInstance, instance);
     let to = entry + field!(Controller, instance);
     unsafe { std::ptr::copy(guid as *const u8, to as *mut u8, 16) };
+    // Converted: `rc2k_core::input::joystick::{name_prefix, found}`.
+    use rc2k_core::input::joystick::{NAME_ROOM, name_prefix};
     let count = g(CONTROLLER_COUNT_RVA);
-    let mut name = vec![b'('];
-    name.extend(crate::strings::append_u32::append_u32(
-        count.wrapping_add(1),
-    ));
-    name.extend(b") ");
+    let name = name_prefix(count);
     let at_name = entry + field!(Controller, name);
     unsafe { std::ptr::copy(name.as_ptr(), at_name as *mut u8, name.len()) };
     let kept = g(KEEP_CASE_RVA);
@@ -127,41 +105,36 @@ fn look_over(instance: u32, entry: u32) -> bool {
         crate::strings::copy_printable::copy_printable(
             (instance + field!(DiDeviceInstance, instance_name)) as *const u8,
             to as *mut u8,
-            0x19,
+            NAME_ROOM,
         )
     };
     p(KEEP_CASE_RVA, kept);
     let caps = |offset: u32| g(CAPS_RVA + offset as usize);
-    let flags = caps(field!(DiDevCaps, flags));
-    put(entry, field!(Controller, caps_flags), flags);
-    put(
-        entry,
-        field!(Controller, axes),
+    let f = rc2k_core::input::joystick::found(
+        caps(field!(DiDevCaps, flags)),
         caps(field!(DiDevCaps, axes)),
-    );
-    put(
-        entry,
-        field!(Controller, buttons),
         caps(field!(DiDevCaps, buttons)),
-    );
-    put(
-        entry,
-        field!(Controller, hats),
         caps(field!(DiDevCaps, hats)),
+        g(NO_FORCE_RVA),
     );
-    put(entry, field!(Controller, attached), (flags & 1 != 0) as u32);
-    if g(NO_FORCE_RVA) == 0 {
-        put(
-            entry,
-            field!(Controller, force_feedback),
-            (flags & 0x100 != 0) as u32,
-        );
+    put(entry, field!(Controller, caps_flags), f.caps_flags);
+    put(entry, field!(Controller, axes), f.axes);
+    put(entry, field!(Controller, buttons), f.buttons);
+    put(entry, field!(Controller, hats), f.hats);
+    put(entry, field!(Controller, attached), f.attached);
+    if let Some(force) = f.force_feedback {
+        put(entry, field!(Controller, force_feedback), force);
     }
     p(CONTROLLER_COUNT_RVA, count.wrapping_add(1));
     true
 }
 
 /// The Rust version: eax.
+/// `joystick_found` as DirectInput calls it: what Rust callers hand `EnumDevices` (no hook).
+pub unsafe extern "system" fn callback(instance: u32, context: u32) -> u32 {
+    joystick_found(instance, context)
+}
+
 pub fn joystick_found(instance: u32, _context: u32) -> u32 {
     let count = g(CONTROLLER_COUNT_RVA);
     if count >= CONTROLLERS {
@@ -177,56 +150,4 @@ pub fn joystick_found(instance: u32, _context: u32) -> u32 {
         }
     }
     1
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let devices = crate::input::di_objects::test_devices();
-    let world = crate::input::di_objects::TestWorld::begin(devices.clone(), Default::default());
-    let original = ORIGINAL.load(Ordering::SeqCst);
-    let mut regions = shared_regions();
-    regions.push((a(NO_FORCE_RVA), 4));
-    regions.push((a(KEEP_CASE_RVA), 4));
-    let mut missing = devices[0].clone();
-    missing.instance[0] ^= 0xFF;
-    let instances: Vec<crate::input::types::DiDeviceInstance> = devices
-        .iter()
-        .chain([&missing])
-        .map(crate::input::di_objects::device_instance)
-        .collect();
-    for (n, instance) in instances.iter().enumerate() {
-        for count in [0u32, 5, 15, 16] {
-            for no_force in [0u32, 1] {
-                let i = instance as *const crate::input::types::DiDeviceInstance as u32;
-                compare(
-                    &mut t,
-                    &format!("device {n}, {count} before, force feedback off {no_force}"),
-                    &world,
-                    &regions,
-                    &|| {
-                        p(DIRECT_INPUT_RVA, crate::input::di_objects::create_input());
-                        p(NEW_DEVICE_RVA, 0);
-                        p(NEW_DEVICE2_RVA, 0);
-                        p(CONTROLLER_COUNT_RVA, count);
-                        p(NO_FORCE_RVA, no_force);
-                        p(KEEP_CASE_RVA, 1);
-                        let table = a(CONTROLLERS_RVA) as *mut u8;
-                        unsafe {
-                            std::ptr::write_bytes(
-                                table,
-                                0xAA,
-                                (CONTROLLERS * CONTROLLER_LEN) as usize,
-                            )
-                        };
-                    },
-                    &mut || format!("{}", unsafe { call_stdcall2(original, i, 0x1234) }),
-                    &mut || format!("{}", joystick_found(i, 0x1234)),
-                );
-            }
-        }
-    }
-    drop(world);
-    t.finish()
 }

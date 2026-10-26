@@ -8,16 +8,20 @@
 //!
 //! Caller: `sub_43B635` (0x43B728), every physics step.
 //! Self-test: a copy of the original on test variables (the two constants the game's),
-//! speeds and offsets by lot, the switch on and off, under three precisions.
+//! against the converted version, speeds and offsets by lot, the switch on and off,
+//! exact at double precision.
 
 use crate::errors::Refused;
 use crate::framework::{RawHook, Regs, SelfTest, call_game, game_addr, game_read, hook_asm, rva};
 use crate::math::x87_run::{
     TEST_CONTROL_WORDS, minus_one, square_times_plus_times, with_control_word,
 };
+use crate::physics::copy_hooks_test::check_floats_at;
 use crate::scene::matrix3::test_floats;
 use crate::screens::harness::Left;
-use crate::service::harness::{Region, capture, dispatch_state};
+use crate::service::floats::{FLOAT, Floats, dispatch_state_floats, floats_entry};
+use crate::service::harness::{Region, capture};
+use rc2k_core::physics::drive_forces::downforce;
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -64,29 +68,61 @@ pub unsafe fn set_downforce_at(v: &[u32; 6]) {
     }
 }
 
+/// The converted version (`rc2k_core::physics::drive_forces`, plain floats) on the
+/// variables at `v`.
+// Converted: `rc2k_core::physics::drive_forces::downforce`.
+pub unsafe fn set_downforce_plain_at(v: &[u32; 6]) {
+    unsafe {
+        if at(v[0]) != 0 {
+            return;
+        }
+        let k = |a: usize| f32::from_bits(game_read(a));
+        let (load, negative) = downforce(
+            f32::from_bits(at(v[1])),
+            k(FACTOR_RVA),
+            f32::from_bits(at(v[2])),
+            k(GRAVITY_RVA),
+        );
+        put(v[3], load.to_bits());
+        put(v[4], negative.to_bits());
+        put(v[5], (-1.0f32).to_bits());
+    }
+}
+
 fn game() -> [u32; 6] {
     VARIABLES.map(|x| game_addr(rva(x)) as u32)
 }
 
-/// The Rust version.
+/// The Rust version (the exact one, for `physics::car_physics_step`).
 pub unsafe fn set_downforce() {
     unsafe { set_downforce_at(&game()) }
 }
 
 fn rust(_: &Regs) -> Result<Left, Refused> {
-    unsafe { set_downforce() };
+    unsafe { set_downforce_plain_at(&game()) };
     Ok(Left::nothing())
 }
 
 extern "C" fn dispatch(r: &mut Regs) {
     let v = game();
-    dispatch_state(
+    let floats = Floats {
+        memory: &[((v[3], 8), FLOAT)],
+        regs: &[],
+    };
+    dispatch_state_floats(
         &HOOK,
         r,
         call_original,
         &[(v[3], 4), (v[4], 4), (v[5], 4)],
+        &floats,
         &rust,
     );
+}
+
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    floats_entry(r, &rust)
 }
 
 fn self_test() -> (usize, usize) {
@@ -131,14 +167,25 @@ fn self_test() -> (usize, usize) {
                     unsafe { call_game(&mut ro, copy.addr()) };
                     let theirs = capture(&all);
                     fill();
-                    unsafe { set_downforce_at(&v) };
+                    unsafe { set_downforce_plain_at(&v) };
                     let mine = capture(&all);
                     let regs_ok = ro.preserved_except(&Regs::SENTINEL, 0);
-                    t.check(regs_ok && theirs == mine, || {
-                        format!(
-                            "control word {word:#x}, seed {seed}, switch {switch}: regs_ok={regs_ok} original {theirs:x?}; rust {mine:x?}"
-                        )
-                    });
+                    let floats = [((v[3], 8), FLOAT)];
+                    check_floats_at(
+                        &mut t,
+                        "physics::set_downforce",
+                        word,
+                        &all,
+                        &theirs,
+                        &mine,
+                        &floats,
+                        regs_ok,
+                        || {
+                            format!(
+                                "control word {word:#x}, seed {seed}, switch {switch}: regs_ok={regs_ok} original {theirs:x?}; rust {mine:x?}"
+                            )
+                        },
+                    );
                 }
             }
         });

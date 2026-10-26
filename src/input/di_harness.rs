@@ -7,7 +7,7 @@
 //! compared: the game's memory, the objects, the backend's notes and a result.
 
 use crate::errors::{FatalError, Refused};
-use crate::framework::{Regs, SelfTest, call_game, game_addr, rva};
+use crate::framework::{Regs, SelfTest, game_addr, rva};
 use crate::input::devices::com_call;
 use crate::input::di_objects::{TestWorld, describe, take_test_notes};
 use crate::service::harness::{Region, capture, diff_summary, restore};
@@ -22,7 +22,7 @@ pub const RANGE_PROP_RVA: usize = rva(0x4F6AB8); // dword_4F6AB8: a DIPROPRANGE 
 pub const CONTROLLER_COUNT_RVA: usize = rva(0x4F78E0); // g_controllerCount
 pub const CONTROLLERS_RVA: usize = rva(0x4F78E4); // g_controllers: 16 of 0x50 bytes
 pub const CONTROLLER_LEN: u32 = std::mem::size_of::<crate::input::types::Controller>() as u32;
-pub const CONTROLLERS: u32 = 16;
+pub const CONTROLLERS: u32 = rc2k_core::input::joystick::CONTROLLERS;
 pub const HWND_RVA: usize = rva(0x5184A4); // hWnd
 pub const IID_DEVICE2_RVA: usize = rva(0x4F7E18); // IID_IDirectInputDevice2A
 pub const JOYSTICK_FORMAT_RVA: usize = rva(0x4D7220); // c_dfDIJoystick
@@ -94,7 +94,7 @@ pub const fn fatal(code: u32) -> FatalError {
 /// what comes back (the function keeps them all).
 pub fn call_pusha(at: usize, r: &Regs) -> Result<(), Refused> {
     let mut r = *r;
-    unsafe { call_game(&mut r, game_addr(rva(at))) };
+    crate::calls::call(rva(at), &mut r);
     Ok(())
 }
 

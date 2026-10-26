@@ -20,19 +20,14 @@ use crate::errors::{BadInput, Refused};
 use crate::framework::{Regs, SelfTest, game_addr, game_read, game_write, rva};
 use crate::input::take_key::{PENDING_KEY_RVA, pending_key, take_key};
 use crate::screens::harness::CallOriginal;
-use crate::service::choose_repair::choose_repair;
-use crate::service::choose_repair_marked::choose_repair_marked;
-use crate::service::clear_repair_marks::clear_repair_marks;
 use crate::service::harness::{
     Region, RepairTest, Rust, at, capture, check_state_with, repair_regions, restore, set_flags,
 };
-use crate::service::setup_values::{Change, Stepper, step, toggle_change};
+use crate::service::setup_values::{Change, Stepper, step};
 use crate::service::state::{
     EDIT_MODE_RVA, EDIT_PAGE_RVA, MENU_ITEM_RVA, STATUS_RVA, TIME_BUDGET_RVA, chosen_repairs_time,
-    current_player, flagged_item, has_repair_time, leave_edit_mode, marks_ended, repair_flag,
-    set_repair_flag,
+    current_player, flagged_item, has_repair_time, leave_edit_mode, marks_ended, set_repair_flag,
 };
-use crate::service::try_toggle_repair::try_toggle_repair;
 use crate::service::update_repair_total::update_repair_total;
 use crate::service::{
     step_brake_balance_down, step_brake_balance_up, step_gear_ratio_down, step_gear_ratio_up,
@@ -124,17 +119,23 @@ fn player() -> Result<u32, BadInput> {
 
 /// The key, with the clock noted and the value stepped if it was an arrow. 0 = no key.
 unsafe fn key_and_step(down: Stepper, up: Stepper) -> Result<u8, Refused> {
+    // Converted: `rc2k_core::service::setups::page_key`.
+    use rc2k_core::service::setups::{PageKey, page_key};
     let key = take_key();
-    if key == 0 {
+    let action = page_key(key);
+    if action == PageKey::None {
         return Ok(0);
     }
     unsafe {
         game_write(LAST_KEY_TIME_RVA, game_read::<u32>(CLOCK_RVA));
-        if key == KEY_DOWN {
-            step(down)?;
-        }
-        if key == KEY_UP {
-            step(up)?;
+        match action {
+            PageKey::Down => {
+                step(down)?;
+            }
+            PageKey::Up => {
+                step(up)?;
+            }
+            _ => {}
         }
     }
     Ok(key)
@@ -172,40 +173,33 @@ pub unsafe fn change_page(page: ChangePage, confirm: bool) -> Result<(), Refused
             return update_repair_total();
         }
 
-        let chosen: u32 = game_read(page.change.chosen_rva);
-        if installed_in_car.is_some_and(|value| value.read_unaligned() == chosen) {
-            set_repair_flag(item, 0);
-            leave_edit_mode();
-            return update_repair_total();
+        // Converted: `rc2k_core::service::repairs::confirm_change`.
+        use crate::service::state::{flags, marks, store_flags, store_marks, time_of};
+        let (mut f, mut m) = (flags(), marks());
+        let v = rc2k_core::service::repairs::Value {
+            chosen: game_read(page.change.chosen_rva),
+            installed: game_read(page.change.installed_rva),
+            entry: game_read(page.entry_rva),
+            in_car: installed_in_car.map(|value| value.read_unaligned()),
+        };
+        let c = rc2k_core::service::repairs::confirm_change(
+            &mut f,
+            &mut m,
+            item as usize,
+            game_read(TIME_BUDGET_RVA),
+            v,
+            time_of,
+        )
+        .map_err(|e| BadInput(e.0))?;
+        store_flags(&f);
+        store_marks(&m);
+        game_write(page.change.chosen_rva, c.chosen);
+        if let Some(status) = c.status {
+            game_write(STATUS_RVA, status);
         }
-        if game_read::<u32>(page.entry_rva) == chosen {
-            leave_edit_mode();
-            toggle_change(page.change)?;
-            if repair_flag(item) != 1 {
-                return update_repair_total();
-            }
-        }
-        set_repair_flag(item, 0);
-        try_toggle_repair()?;
-        match game_read::<u32>(STATUS_RVA) {
-            2 => {
-                game_write(
-                    page.change.chosen_rva,
-                    game_read::<u32>(page.change.installed_rva),
-                );
-                leave_edit_mode();
-            }
-            1 => {
-                choose_repair_marked()?;
-                leave_edit_mode();
-            }
-            _ => {
-                leave_edit_mode();
-                clear_repair_marks()?;
-                choose_repair()?;
-            }
-        }
-        update_repair_total()
+        game_write(crate::service::state::REPAIR_TOTAL_RVA, c.total);
+        leave_edit_mode();
+        Ok(())
     }
 }
 

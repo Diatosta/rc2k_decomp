@@ -14,10 +14,11 @@
 
 use crate::errors::Refused;
 use crate::framework::{RawHook, Regs, SelfTest, game_addr, game_read, game_write, hook_asm, rva};
-use crate::math::x87;
 use crate::race::stage_prefs::left_of;
 use crate::screens::harness::Left;
-use crate::service::harness::{Region, at, capture, check_state, dispatch_state, restore};
+use crate::service::harness::{
+    Region, at, capture, check_state, dispatch_state, restore, state_entry,
+};
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -45,7 +46,9 @@ const VALUES_RVA: usize = rva(0x844A10); // dword_844A10: 0x100
 const MASKS_RVA: [usize; 2] = [rva(0x833DC2), rva(0x83BDC2)]; // g_marksMaskA / B
 
 /// The Rust version (see the header): the registers it leaves.
+// Converted: `rc2k_core::marks::expiry::{cell, hexagon_draw, hexagon_hit}`
 pub unsafe fn expire_hexagons(entry: &Regs) -> Regs {
+    use rc2k_core::marks::expiry;
     let mut g = *entry;
     unsafe {
         g.eax = game_read(SHAPES_RVA[0]);
@@ -58,30 +61,30 @@ pub unsafe fn expire_hexagons(entry: &Regs) -> Regs {
             if (e as *const u32).read_unaligned() != 1 {
                 continue;
             }
-            let z = x87::to_int(((e + 0x18) as *const u32).read_unaligned());
-            let x = x87::to_int(((e + 0x14) as *const u32).read_unaligned());
-            game_write(PLACE_RVA[1], z);
-            game_write(PLACE_RVA[0], x);
-            g.edx = ((((z as u32) >> 3) & 0x7F) << 8) + (((x as u32) >> 3) & 0xFF);
-            let r = game_read::<u32>(RANDOM_RVA)
-                .wrapping_mul(0xC5)
-                .wrapping_add(0x5D);
+            let f = |o: u32| f32::from_bits(((e + o) as *const u32).read_unaligned());
+            let c = expiry::cell(f(0x14), f(0x18));
+            game_write(PLACE_RVA[1], c.z);
+            game_write(PLACE_RVA[0], c.x);
+            g.edx = c.at;
+            let (r, draw) = expiry::hexagon_draw(game_read(RANDOM_RVA));
             game_write(RANDOM_RVA, r);
-            g.ecx = r.rotate_right(16) & 0x7FF;
+            g.ecx = draw;
             if g.ecx == 0 {
                 (e as *mut u32).write_unaligned(0);
             }
-            let steps = game_read::<u32>(STEPS_RVA) as i32;
-            for k in (0..steps.max(0) as u32).rev() {
-                g.eax = game_read::<u32>(LATEST_RVA).wrapping_add(k) & 0xFF;
-                g.eax = game_read(VALUES_RVA + 4 * g.eax as usize);
-                let al = g.eax as u8;
-                let hit = game_read::<u8>(MASKS_RVA[0] + g.edx as usize) == al
-                    || game_read::<u8>(MASKS_RVA[1] + g.edx as usize) == al;
-                if hit {
-                    (e as *mut u32).write_unaligned(0);
-                    break;
-                }
+            let (hit, last) = expiry::hexagon_hit(
+                game_read(STEPS_RVA),
+                |k| {
+                    let at = game_read::<u32>(LATEST_RVA).wrapping_add(k) & 0xFF;
+                    game_read(VALUES_RVA + 4 * at as usize)
+                },
+                |n| game_read(MASKS_RVA[n] + c.at as usize),
+            );
+            if let Some(v) = last {
+                g.eax = v;
+            }
+            if hit {
+                (e as *mut u32).write_unaligned(0);
             }
         }
         g.ebp = base + ITEMS * ITEM_LEN;
@@ -104,6 +107,12 @@ fn rust(r: &Regs) -> Result<Left, Refused> {
 
 extern "C" fn dispatch(r: &mut Regs) {
     dispatch_state(&HOOK, r, call_original, &regions(), &rust);
+}
+
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    state_entry(r, &rust)
 }
 
 /// The game's items with a few made live (seeded), for this test and `hexagons_step`'s.

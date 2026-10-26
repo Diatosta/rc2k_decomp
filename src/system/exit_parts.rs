@@ -47,7 +47,7 @@ pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
             LOG_2_NL => log_write(r.eax as *const u8, true, 2),
             HEX8_2_NL => log_hex8(r.eax, true, 2),
             WAIT_FOR_THREADS => {
-                crate::threading::wait_for_threads::wait_for_threads(r, &mut game_api)?
+                r.eax = crate::threading::wait_for_threads::wait_for_threads(&mut game_api)
             }
             _ => return Err(BadInput("a call of the way out with no version").into()),
         }
@@ -142,4 +142,12 @@ pub fn dispatch_exit(
         Ok(()) => *r = Regs { esp: r.esp, ..g },
         Err(e) => unsafe { crate::fatal::raise::refused(hook, e, r, call_original) },
     }
+}
+
+/// `dispatch_exit` outside shadow mode, without its hook (a refusal is the caller's).
+pub fn exit_entry(r: &mut Regs, rust: Rust) -> Result<(), Refused> {
+    let mut g = *r;
+    rust(&mut g, &mut game_part, &mut game_api)?;
+    *r = Regs { esp: r.esp, ..g };
+    Ok(())
 }

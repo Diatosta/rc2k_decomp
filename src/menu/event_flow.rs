@@ -505,11 +505,11 @@ pub fn game_call(callee: usize, r: &mut Regs) -> Result<(), Refused> {
             TIME_TRIAL_RESULTS_LOOP => run_screen(&m::time_trial_results_loop::SCREEN, r),
             INSPECTION_AREA_LOOP => run_screen(&m::inspection_area_loop::SCREEN, r),
             SERVICE_AREA_LOOP => run_screen(&crate::service::service_area_loop::SCREEN, r),
-            // Through their hooks: the race and the front end's set-up after it, the
-            // repairs (their clock), the sound commands (the audio thread's queue), the
-            // frame (the platform's).
-            RACE | RELOAD_FRONT_END | APPLY_REPAIRS | STOP_STREAM | START_STREAM
-            | WAIT_FOR_COMMANDS | RUN_FRAME => call_game(r, game_addr(rva(callee))),
+            APPLY_REPAIRS => crate::service::apply_repairs::apply_repairs_in_game(r),
+            // Through their hooks: the race and the front end's set-up after it, the sound
+            // commands (the audio thread's queue), the frame (the platform's).
+            RACE | RELOAD_FRONT_END | STOP_STREAM | START_STREAM | WAIT_FOR_COMMANDS
+            | RUN_FRAME => crate::calls::call(rva(callee), r),
             _ => return Err(BadInput("a callee the event flows do not know").into()),
         }
     }
@@ -974,44 +974,12 @@ pub fn car_choices(n: usize, left: usize) -> Vec<Answer> {
 /// its self-test.
 macro_rules! flow_hook {
     ($name:literal, $address:literal, $rust:path, $test:path $(, copy($len:expr, $calls:expr))?) => {
-        static ORIGINAL: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
-
-        pub static HOOK: $crate::framework::RawHook = {
-            let hook = $crate::framework::RawHook::new(
-                $name,
-                $crate::framework::rva($address),
-                thunk,
-                &ORIGINAL,
-            );
-            $(let hook = $crate::menu::event_flow::copied(hook, $len, $calls);)?
-            hook.self_test(self_test)
-        };
-
-        $crate::framework::hook_asm!(
-            thunk,
-            call_original,
-            dispatch = dispatch,
-            original = ORIGINAL,
-            ungated
-        );
-
-        extern "C" fn dispatch(r: &mut $crate::framework::Regs) {
-            HOOK.count_call();
-            if $crate::framework::shadow() {
-                unsafe { call_original(r) };
-                return;
-            }
-            match unsafe { $rust(r, &mut $crate::menu::event_flow::game_call) } {
-                Ok(left) => *r = $crate::framework::Regs { esp: r.esp, ..left },
-                Err(e) => unsafe { $crate::fatal::raise::refused(&HOOK, e, r, call_original) },
-            }
-        }
-
-        fn self_test() -> (usize, usize) {
-            let Some(t) = $crate::framework::SelfTest::begin(&HOOK) else {
-                return (0, 0);
-            };
-            $test(t)
+        /// The Rust version where the typed tables run it (`menu::table_calls`; hook removed
+        /// 2026-10-22).
+        pub fn entry(r: &mut $crate::framework::Regs) -> Result<(), $crate::errors::Refused> {
+            let left = unsafe { $rust(r, &mut $crate::menu::event_flow::game_call) }?;
+            *r = $crate::framework::Regs { esp: r.esp, ..left };
+            Ok(())
         }
     };
 }

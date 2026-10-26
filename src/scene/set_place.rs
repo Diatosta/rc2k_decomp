@@ -8,13 +8,19 @@
 //! work variable `dword_62400C` is left holding z.
 //! 20 callers.
 //! Self-test: 24 places on the game's matrix, put back afterwards.
+//!
+//! Converted 2026-10-21: the hook's Rust version is `set_place_plain`, through
+//! `rc2k_core::scene::matrices::set_place`; compared exactly as before (the earlier version
+//! stays for the Rust callers in unconverted code).
 
 use crate::errors::Refused;
 use crate::framework::{RawHook, Regs, SelfTest, game_addr, hook_asm, rva};
 use crate::scene::draw_polygon::CHECKED_RVA;
 use crate::scene::matrix::{self, PLACED_RVA, matrix};
 use crate::screens::harness::Left;
-use crate::service::harness::{Region, at, capture, check_state, dispatch_state, restore};
+use crate::service::harness::{
+    Region, at, capture, check_state, dispatch_state, restore, state_entry,
+};
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -32,13 +38,19 @@ hook_asm!(
 // ---- hook ----
 
 fn rust(r: &Regs) -> Result<Left, Refused> {
-    unsafe { matrix::set_place([r.eax, r.ebx, r.ecx]) };
+    unsafe { matrix::set_place_plain([r.eax, r.ebx, r.ecx]) };
     Ok(Left::nothing())
 }
 
 extern "C" fn dispatch(r: &mut Regs) {
     let regions: [Region; 2] = [(game_addr(PLACED_RVA + 0x30) as u32, 12), at(CHECKED_RVA)];
     dispatch_state(&HOOK, r, call_original, &regions, &rust);
+}
+
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    state_entry(r, &rust)
 }
 
 // ---- self-test ----

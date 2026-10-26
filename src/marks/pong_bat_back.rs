@@ -8,13 +8,18 @@
 //!
 //! Caller: `marks::move_pong_bat`. Self-test: the original and the Rust version on balls
 //! and bats by lot; put back.
+//!
+//! Converted 2026-10-21: the hook's Rust version is `pong_bat_back_plain`, through
+//! `rc2k_core::marks::pong::Court::bat_back` (plain floats; the x87 version stays for the Rust
+//! callers in unconverted code). Shadow mode and the self-test compare within
+//! `service::floats`' tolerances (the self-test at both test precisions, exact at double).
 
 use crate::errors::Refused;
 use crate::framework::{RawHook, Regs, SelfTest, game_read, game_write, hook_asm, rva};
 use crate::marks::pong;
 use crate::race::stage_prefs::left_of;
 use crate::screens::harness::Left;
-use crate::service::harness::{at, capture, check_state, dispatch_state, restore};
+use rc2k_core::marks::pong::Back;
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -45,36 +50,36 @@ pub unsafe fn pong_bat_back(entry: &Regs) -> Regs {
     g
 }
 
+/// The converted version (plain floats): the hook's.
+// Converted: `rc2k_core::marks::pong::Court::bat_back`
+pub unsafe fn pong_bat_back_plain(entry: &Regs) -> Regs {
+    let mut g = *entry;
+    match pong::with_court(|c| c.bat_back()) {
+        Back::Kept(status) => g.eax = status,
+        Back::PutBack([x, y]) => (g.eax, g.ebx) = (x, y),
+    }
+    g
+}
+
 fn rust(r: &Regs) -> Result<Left, Refused> {
-    Ok(left_of(&unsafe { pong_bat_back(r) }))
+    Ok(left_of(&unsafe { pong_bat_back_plain(r) }))
 }
 
 extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_state(&HOOK, r, call_original, &pong::regions(), &rust);
+    pong::dispatch_court(&HOOK, r, call_original, &rust);
 }
 
 fn self_test() -> (usize, usize) {
     let Some(mut t) = SelfTest::begin(&HOOK) else {
         return (0, 0);
     };
-    let regions = pong::regions();
-    let mut vars = regions.clone();
-    vars.extend([pong::STEPS_RVA].map(at));
-    let saved = capture(&vars);
-    for case in 0..8u32 {
-        check_state(
-            &mut t,
-            &format!("case {case}"),
-            call_original,
-            Regs::SENTINEL,
-            &|| unsafe {
-                restore(&vars, &saved);
-                pong::test_values(case);
-            },
-            &regions,
-            &rust,
-        );
-    }
-    restore(&vars, &saved);
+    pong::test_court(
+        &mut t,
+        "marks::pong_bat_back",
+        call_original,
+        8,
+        &|case| unsafe { pong::test_values(case) },
+        &rust,
+    );
     t.finish()
 }

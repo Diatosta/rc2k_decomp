@@ -23,7 +23,9 @@ use crate::scene::light_tables::{
     fill_light_ramp, fill_light_scale, table, test_colours,
 };
 use crate::screens::harness::Left;
-use crate::service::harness::{Region, at, capture, check_state, dispatch_state, restore};
+use crate::service::harness::{
+    Region, at, capture, check_state, dispatch_state, restore, state_entry,
+};
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -54,9 +56,12 @@ const LAMPS: [(usize, usize); 4] = [
 
 // ---- Rust version ----
 
+// Converted: `rc2k_core::scene::lamps::plain_light`
 pub unsafe fn fill_light_tables() -> Left {
     unsafe {
-        let plain = game_read::<u32>(OTHER_WAY_RVA) == 0 && game_read::<u32>(OTHER_WAY_B_RVA) == 0;
+        let plain = rc2k_core::scene::lamps::plain_light(game_read(OTHER_WAY_RVA), || {
+            game_read(OTHER_WAY_B_RVA)
+        });
         let ramp = if plain { PLAIN_RVA } else { SCENE_RVA };
         fill_light_ramp(game_ptr(ramp), game_ptr(LIGHT_TABLE_RVA));
         let mut left = Left::nothing();
@@ -84,6 +89,12 @@ fn rust(_: &Regs) -> Result<Left, Refused> {
 
 extern "C" fn dispatch(r: &mut Regs) {
     dispatch_state(&HOOK, r, call_original, &regions(), &rust);
+}
+
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    state_entry(r, &rust)
 }
 
 // ---- self-test ----

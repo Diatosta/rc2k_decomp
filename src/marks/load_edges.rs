@@ -49,6 +49,20 @@ extern "C" fn dispatch(r: &mut Regs) {
     }
 }
 
+/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    let resume = game_addr(RESUME_RVA) as u32;
+    {
+        let left = unsafe { load_edges(r, resume, &mut game_part) }?;
+        *r = Regs {
+            esp: r.esp,
+            eflags: r.eflags,
+            ..left
+        }
+    }
+    Ok(())
+}
+
 const LEN: usize = 0x205;
 /// Where the copy goes on once done (`loc_4C0FFD` in it).
 const RESUME_AT: u32 = 0xCF;

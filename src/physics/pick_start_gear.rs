@@ -22,7 +22,8 @@ use crate::math::x87_run::sub_mul_add;
 use crate::physics::copy_car_word_8::copy_car_word_8;
 use crate::physics::gearbox::*;
 use crate::screens::harness::Left;
-use crate::service::harness::dispatch_state;
+use crate::service::harness::{dispatch_state, state_entry};
+use rc2k_core::physics::gear_shifts as shifts;
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -38,6 +39,8 @@ hook_asm!(
 );
 
 /// The steps on `r`.
+// Converted: `rc2k_core::physics::gear_shifts::pick_start` (the engine's sums and compares
+// stay x87).
 pub fn pick_start_gear_in(r: &mut Regs) -> Result<(), Refused> {
     unsafe { copy_car_word_8() }.apply(r);
     p(0x614144, g(ENGINE));
@@ -45,20 +48,21 @@ pub fn pick_start_gear_in(r: &mut Regs) -> Result<(), Refused> {
     r.ebx = 1;
     p(0x614140, 0);
     p(0x61413C, x87::loaded(g(0x5C5D14)));
-    loop {
-        if !bit(r, r.ebx)? {
-            p(GEAR, r.ebx);
-            revs_speed(r)?;
-            p(ENGINE, over_top());
-            if below(g(ENGINE), g(0x5CB958)) {
-                break;
-            }
+    let taken = shifts::pick_start(|gear| {
+        r.ebx = gear;
+        if bit(r, gear)? {
+            return Ok::<_, Refused>(false);
         }
-        r.ebx = r.ebx.wrapping_add(1);
-        if r.ebx == 7 {
-            return Ok(());
-        }
-    }
+        p(GEAR, gear);
+        revs_speed(r)?;
+        p(ENGINE, over_top());
+        Ok(below(g(ENGINE), g(0x5CB958)))
+    })?;
+    let Some(gear) = taken else {
+        r.ebx = 7;
+        return Ok(());
+    };
+    r.ebx = gear;
     p(GEAR, r.ebx);
     revs_speed(r)?;
     p(
@@ -81,6 +85,12 @@ fn rust(r: &Regs) -> Result<Left, Refused> {
 
 extern "C" fn dispatch(r: &mut Regs) {
     dispatch_state(&HOOK, r, call_original, &regions(), &rust);
+}
+
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    state_entry(r, &rust)
 }
 
 fn self_test() -> (usize, usize) {

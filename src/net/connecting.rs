@@ -9,26 +9,17 @@
 //! Caller: `net::start_link`. Its calls through `part` (the frames through the game).
 //! Shadow mode runs the original alone. Self-test: a copy whose calls go to stand-ins,
 //! against the Rust version, the lock and the connection failing or not.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{CARRY_FLAG, RawHook, Regs, SelfTest, hook_asm, rva};
+use crate::framework::{CARRY_FLAG, RawHook, Regs, SelfTest};
 use crate::net::lobby::{
     COPY_PICTURE, DRAW_STRING, LOCK, Part, RUN_FRAME, SHOW_FRAME, SLEEP, UNLOCK, answer,
-    dispatch_lobby, run_both,
+    lobby_entry, run_both,
 };
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("net::connecting", rva(0x417688), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
 
 pub const STATUS_FONT: usize = 0x51E9A4; // stru_51E9A4
 const INIT_CONNECTION: u32 = 0x418794; // net::init_connection
@@ -60,8 +51,10 @@ pub fn connecting(entry: &Regs, part: Part) -> Result<Regs, Refused> {
     })
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_lobby(&HOOK, r, call_original, connecting);
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    lobby_entry(r, connecting)
 }
 
 /// The test of the three status screens: a copy of `address` (`len` bytes, its first
@@ -114,17 +107,4 @@ pub fn status_test(
         );
     }
     t.finish()
-}
-
-fn self_test() -> (usize, usize) {
-    // pusha; mov esi, eax; xor eax, eax
-    status_test(
-        &HOOK,
-        0x417688,
-        0x4D,
-        &[0x60, 0x8B, 0xF0, 0x33, 0xC0],
-        &[0x5, 0xA, 0x11, 0x2B, 0x30, 0x35, 0x3F, 0x46],
-        INIT_CONNECTION,
-        connecting,
-    )
 }

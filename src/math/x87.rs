@@ -2216,21 +2216,3 @@ pub fn sum3_times(a: u32, b: u32, c: u32, k: u32) -> u32 {
         x = x.as_ptr(), o = &raw mut out);
     out
 }
-
-/// `fild a; fdiv b; fimul n; fistp`: a whole number over a float, times a whole number, as
-/// a whole number (the inspection's part values and penalties).
-pub fn int_over_times_int_to_int(a: i32, b: u32, n: i32) -> i32 {
-    let (v, mut out) = ([a as u32, b, n as u32], 0i32);
-    x87!("fild dword ptr [{v}]", "fdiv dword ptr [{v} + 4]", "fimul dword ptr [{v} + 8]", "fistp dword ptr [{o}]";
-        v = v.as_ptr(), o = &raw mut out);
-    out
-}
-
-/// `fild a; fidiv b; fmul k; fistp`: a whole number over a whole number, times a float, as
-/// a whole number (the inspection's weights).
-pub fn int_over_int_times_to_int(a: i32, b: i32, k: u32) -> i32 {
-    let (v, mut out) = ([a as u32, b as u32, k], 0i32);
-    x87!("fild dword ptr [{v}]", "fidiv dword ptr [{v} + 4]", "fmul dword ptr [{v} + 8]", "fistp dword ptr [{o}]";
-        v = v.as_ptr(), o = &raw mut out);
-    out
-}

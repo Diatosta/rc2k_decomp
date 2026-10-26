@@ -65,6 +65,14 @@ pub fn dispatch_reader(hook: &RawHook, r: &mut Regs, call_original: CallOriginal
     r.eflags = o.eflags;
 }
 
+/// `dispatch_reader` without its hook (a refusal is the caller's).
+pub fn reader_entry(r: &mut Regs, rust: Reader) -> Result<(), crate::errors::Refused> {
+    let worked = unsafe { rust(r.eax as *const u8) }?;
+    r.set_carry(!worked);
+    r.set_zero(worked);
+    Ok(())
+}
+
 /// The game's variables a reader's self-test changes, to be put back afterwards.
 pub struct ReaderTest {
     regions: Vec<Region>,

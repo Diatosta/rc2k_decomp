@@ -16,9 +16,10 @@
 //! Self-test: a copy whose `play_sound` goes to a stand-in, against the Rust version on a
 //! test queue: counts 0, 3, 15, 16, both ends, two cues.
 
-use crate::errors::{BadInput, Refused};
+use crate::errors::Refused;
 use crate::framework::{RawHook, Regs, SelfTest, game_read, hook_asm, rva};
 use crate::physics::sound_cues::{PLAY, Part, both, copy_of, dispatch_cue};
+use rc2k_core::physics::sound_queue::{ENTRY_DWORDS, Place, check_cue, place, sounds};
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -42,22 +43,22 @@ unsafe fn put(a: u32, v: u32) {
 }
 
 /// The steps on `r`.
+// Converted: `rc2k_core::physics::sound_queue::{check_cue, place, sounds}`.
 pub fn queue_sound_cue_in(r: &mut Regs, part: Part) -> Result<(), Refused> {
-    if r.ebx > 0x5F {
-        return Err(BadInput("a sound cue past 0x5F").into());
-    }
+    check_cue(r.ebx)?;
     let q = r.edi;
     unsafe {
-        r.ecx = at(q + 0xC);
+        let count = at(q + 0xC);
+        let placed = place(count, r.eax == 0);
+        r.ecx = count;
         r.edx = q + 0x10;
-        if r.ecx == 0x10 {
-            return Ok(());
-        }
-        if r.ecx != 0 {
-            if r.eax != 0 {
-                r.ecx = r.ecx.wrapping_mul(8);
+        match placed {
+            Place::Full => return Ok(()),
+            Place::At(n) => {
+                r.ecx = n.wrapping_mul(ENTRY_DWORDS);
                 r.edx = r.edx.wrapping_add(r.ecx.wrapping_mul(4));
-            } else {
+            }
+            Place::First { count } => {
                 let cue = r.ebx;
                 r.eax = at(q + 4);
                 r.eax = at(q.wrapping_add(r.eax.wrapping_mul(4)).wrapping_add(0x18));
@@ -65,7 +66,7 @@ pub fn queue_sound_cue_in(r: &mut Regs, part: Part) -> Result<(), Refused> {
                 part(PLAY, r)?;
                 put(q + 4, u32::MAX);
                 r.ebx = cue;
-                r.ecx = r.ecx.wrapping_mul(8);
+                r.ecx = count.wrapping_mul(ENTRY_DWORDS);
                 let src = r.edx + r.ecx * 4 - 4;
                 let dst = r.edx + r.ecx * 4 + 0x1C;
                 for k in 0..r.ecx {
@@ -77,21 +78,13 @@ pub fn queue_sound_cue_in(r: &mut Regs, part: Part) -> Result<(), Refused> {
         put(q + 0xC, at(q + 0xC).wrapping_add(1));
         put(r.edx, r.ebx);
         r.ebx = game_read(rva(0x512508 + 4 * r.ebx as usize));
-        r.ecx = 0;
-        loop {
-            r.eax = at(r.ebx + 4 * r.ecx);
-            if (r.eax as i32) >= 0 {
-                r.eax = r.eax.wrapping_add(at(r.esi));
-            }
-            put(r.edx + 4 * r.ecx + 8, r.eax);
-            if r.eax == u32::MAX {
-                break;
-            }
-            r.ecx += 1;
-            if r.ecx == 6 {
-                break;
-            }
+        let list = r.ebx;
+        let (written, n) = sounds(|k| at(list + 4 * k), at(r.esi));
+        for (k, &v) in written.iter().enumerate() {
+            put(r.edx + 4 * k as u32 + 8, v);
         }
+        r.eax = *written.last().unwrap_or(&r.eax);
+        r.ecx = n;
         put(r.edx + 4, r.ecx);
     }
     Ok(())

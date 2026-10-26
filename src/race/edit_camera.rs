@@ -10,7 +10,7 @@
 //!   (`dword_719B34` 1) with a first car outside 0x17 .. 0x20; then the change spread on
 //!   (`race::spread_camera`, dh the old value).
 
-use crate::errors::{BadInput, Refused};
+use crate::errors::Refused;
 use crate::framework::Regs;
 use crate::physics::flow::a;
 use crate::race::viewer::{
@@ -21,10 +21,11 @@ use crate::service::harness::Region;
 
 /// `edit_camera_1` / `_2`: eax the block shown.
 pub fn edit_camera(entry: &Regs, camera: u32) -> Regs {
+    // Converted: `rc2k_core::race::viewer_flow::edits_camera`.
     let mut r = *entry;
     crate::race::keep_undo::keep_undo();
     r.eax = get(BLOCK);
-    if r.eax != get(BLOCKS) {
+    if rc2k_core::race::viewer_flow::edits_camera(r.eax, get(BLOCKS)) {
         put(CAMERA_EDIT, camera);
     }
     r
@@ -46,27 +47,12 @@ pub unsafe fn step_camera(entry: &Regs, step: i8) -> Result<Regs, Refused> {
         .wrapping_add(r.eax.wrapping_mul(8));
     let at = r.ebx as *mut u8;
     let old = unsafe { at.read() };
-    // Every camera for one player's replay unless the first car is 0x17 .. 0x20.
-    let any = get(ONE_PLAYER) == 1 && !(0x17..0x21).contains(&get(FIRST_CAR));
-    if !any && (0..=0x2E).all(|n| matches!(name_of(n), 0x1C1 | 0x1C2)) {
-        return Err(BadInput("every camera is skipped: the original goes round for ever").into());
-    }
-    let mut dl = old;
-    loop {
-        dl = if step > 0 {
-            let n = dl.wrapping_add(1);
-            if (n as i8) > 0x2E { 0 } else { n }
-        } else {
-            let n = dl.wrapping_sub(1);
-            if (n as i8) >= 0 { n } else { 0x2E }
-        };
-        if any {
-            break;
-        }
+    // Converted: `rc2k_core::race::viewer::{every_camera, step_camera}`.
+    use rc2k_core::race::viewer::{camera_skipped, every_camera, step_camera};
+    let every = every_camera(get(ONE_PLAYER) == 1, get(FIRST_CAR));
+    let dl = step_camera(old, step > 0, every, |n| camera_skipped(name_of(n)))?;
+    if !every {
         r.eax = dl as u32;
-        if !matches!(name_of(dl), 0x1C1 | 0x1C2) {
-            break;
-        }
     }
     unsafe { at.write(dl) };
     r.edx = r.edx & !0xFFFF | (old as u32) << 8 | dl as u32;

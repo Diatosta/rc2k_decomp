@@ -27,9 +27,9 @@
 //!      with a copy: the value); what a callee leaves after it; no flags read
 //!
 //! Which item each is: the page tables' readings (the owner named the sound page's four
-//! volumes: general, race music, race effects, menu effects). Their callees through `part`:
-//! in the game their Rust versions. Shadow mode runs the original alone (sounds). Self-test:
-//! a copy whose call goes to a stand-in, against the Rust version, values around the ends.
+//! volumes: general, race music, race effects, menu effects). Their callees through `part`: in
+//! the game their Rust versions.
+//! Hooks removed 2026-10-22 (typed tables): the menus run their `entry` (`menu::table_calls`).
 
 use crate::errors::Refused;
 use crate::framework::{Regs, SelfTest, game_read, game_write, rva};
@@ -40,7 +40,6 @@ const SEND_COMMAND_8: usize = 0x409BB4; // sound::send_command_8
 const PLAY_MENU_SOUND: usize = 0x40F059; // sound::play_menu_sound
 const SCREEN_MODE_CHOICES: usize = 0x4045D6; // gfx::screen_mode_choices
 const APPLY_AUDIO: usize = 0x470766; // menu::apply_audio_choices
-const VOLUME_MOST: i32 = 0x40;
 
 /// After a volume step.
 #[derive(Clone, Copy)]
@@ -155,48 +154,38 @@ impl Item {
 
 /// The Rust version: the registers it leaves.
 pub fn option_item(entry: &Regs, item: Item, part: Part) -> Result<Regs, Refused> {
+    // Converted: `rc2k_core::menu::steps` (`flip`, `quality`, `volume`, `counter`,
+    // `previous_mode`).
+    use rc2k_core::menu::steps;
     let mut r = *entry;
     let v = item.var;
     match item.kind {
-        Kind::Switch => set(v, get(v) ^ 1),
+        Kind::Switch => set(v, steps::flip(get(v) as u32) as i32),
         Kind::SwitchCopy { other, flip } => {
-            set(v, get(v) ^ 1);
+            set(v, steps::flip(get(v) as u32) as i32);
             r.eax = get(v) as u32;
             if flip {
-                set(other, get(other) ^ 1);
+                set(other, steps::flip(get(other) as u32) as i32);
             } else {
                 set(other, r.eax as i32);
             }
         }
         Kind::SwitchModes { other } => {
-            set(v, get(v) ^ 1);
-            set(other, get(other) ^ 1);
+            set(v, steps::flip(get(v) as u32) as i32);
+            set(other, steps::flip(get(other) as u32) as i32);
             r.eax = 0;
             part(0, &mut r)?;
         }
         Kind::SwitchAudio => {
-            set(v, get(v) ^ 1);
+            set(v, steps::flip(get(v) as u32) as i32);
             part(0, &mut r)?;
         }
         Kind::Quality { up } => {
-            let q = get(v);
-            set(
-                v,
-                match (up, q) {
-                    (true, 3) => 0,
-                    (true, q) => q.wrapping_add(1),
-                    (false, 0) => 3,
-                    (false, q) => q.wrapping_sub(1),
-                },
-            );
+            set(v, steps::quality(get(v) as u32, up) as i32);
             part(0, &mut r)?;
         }
         Kind::Volume { up, then } => {
-            let value = if up {
-                get(v).wrapping_add(1).min(VOLUME_MOST)
-            } else {
-                get(v).wrapping_sub(1).max(0)
-            };
+            let value = steps::volume(get(v), up);
             set(v, value);
             match then {
                 Then::Send => {
@@ -214,20 +203,10 @@ pub fn option_item(entry: &Regs, item: Item, part: Part) -> Result<Regs, Refused
             }
         }
         Kind::Counter { up, low, high } => {
-            let n = if up {
-                let n = get(v).wrapping_add(1);
-                if n > high { low } else { n }
-            } else {
-                let n = get(v).wrapping_sub(1);
-                if n < low { high } else { n }
-            };
-            set(v, n);
+            set(v, steps::counter(get(v), up, low, high));
         }
         Kind::PreviousMode { other } => {
-            let mut n = get(v).wrapping_sub(1);
-            if n < 0 {
-                n = get(other).wrapping_sub(1);
-            }
+            let n = steps::previous_mode(get(v), get(other));
             r.eax = n as u32;
             set(v, n);
         }
@@ -273,6 +252,15 @@ pub fn dispatch_item(
         &|r, part| option_item(r, item, part),
         game,
     );
+}
+
+/// `dispatch_item` without its hook (typed tables).
+pub fn item_entry(
+    r: &mut Regs,
+    item: Item,
+    game: fn(u32, &mut Regs) -> Result<(), Refused>,
+) -> Result<(), Refused> {
+    crate::menu::parts::parted_entry(r, &|r, part| option_item(r, item, part), game)
 }
 
 /// Self-test: a copy whose call goes to a stand-in, against the Rust version, values around
@@ -343,34 +331,16 @@ macro_rules! option_item {
     ($module:ident, $name:literal, $item:expr) => {
         pub mod $module {
             use super::*;
-            use crate::framework::{RawHook, hook_asm};
-            use std::sync::atomic::AtomicUsize;
 
             const ITEM: Item = $item;
 
-            static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-            pub static HOOK: RawHook =
-                RawHook::new($name, rva(ITEM.address), thunk, &ORIGINAL).self_test(self_test);
-
-            hook_asm!(
-                thunk,
-                call_original,
-                dispatch = dispatch,
-                original = ORIGINAL
-            );
-
-            extern "C" fn dispatch(r: &mut Regs) {
-                dispatch_item(&HOOK, r, call_original, ITEM, |_, r| {
-                    match ITEM.callee().first() {
-                        Some(&callee) => game_part(callee, r),
-                        None => Ok(()),
-                    }
-                });
-            }
-
-            fn self_test() -> (usize, usize) {
-                test_item(&HOOK, ITEM)
+            /// The Rust version where the typed tables run it (`menu::table_calls`; hook removed
+            /// 2026-10-22).
+            pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+                item_entry(r, ITEM, |_, r| match ITEM.callee().first() {
+                    Some(&callee) => game_part(callee, r),
+                    None => Ok(()),
+                })
             }
         }
     };
@@ -752,37 +722,3 @@ switch!(
     0x755680,
     Kind::SwitchAudio
 );
-
-/// The thirty, for `menu/mod.rs`.
-pub static HOOKS: [&dyn crate::framework::GameHook; 30] = [
-    &toggle_5180f4::HOOK,
-    &master_volume_down::HOOK,
-    &master_volume_up::HOOK,
-    &race_music_volume_down::HOOK,
-    &race_music_volume_up::HOOK,
-    &race_sounds_volume_down::HOOK,
-    &race_sounds_volume_up::HOOK,
-    &menu_sounds_volume_down::HOOK,
-    &menu_sounds_volume_up::HOOK,
-    &toggle_7556f8::HOOK,
-    &toggle_7556fc::HOOK,
-    &previous_75880e::HOOK,
-    &next_75880e::HOOK,
-    &previous_758812::HOOK,
-    &next_758812::HOOK,
-    &toggle_755640::HOOK,
-    &toggle_755644::HOOK,
-    &previous_screen_mode::HOOK,
-    &toggle_75564c::HOOK,
-    &toggle_755650::HOOK,
-    &toggle_75565c::HOOK,
-    &toggle_755660::HOOK,
-    &toggle_755668::HOOK,
-    &next_audio_quality::HOOK,
-    &previous_audio_quality::HOOK,
-    &toggle_ds3d::HOOK,
-    &toggle_eax::HOOK,
-    &toggle_a3d::HOOK,
-    &toggle_dolby::HOOK,
-    &toggle_channels::HOOK,
-];

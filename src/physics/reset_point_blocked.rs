@@ -18,6 +18,7 @@
 use crate::errors::Refused;
 use crate::framework::{RawHook, Regs, SelfTest, call_game, game_addr, hook_asm, rva};
 use crate::physics::flag_result::{FlagResult, dispatch_flags};
+use rc2k_core::physics::line_places::{self, Blocked};
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -46,29 +47,28 @@ unsafe fn at(a: u32) -> u32 {
 
 /// The Rust core: the candidate and count read at `candidate`, `count`; `r` the registers
 /// at entry.
+// Converted: `rc2k_core::physics::line_places::reset_point_blocked`.
 pub unsafe fn reset_point_blocked_at(candidate: u32, count: u32, r: &Regs) -> FlagResult {
-    let result = |eax: u32, ebx: Option<u32>, carry: bool| FlagResult {
+    let b = unsafe {
+        line_places::reset_point_blocked(
+            at(r.esi + 0x25C),
+            at(candidate),
+            || at(count),
+            || at(r.esi + 0x94),
+        )
+    };
+    let (eax, ebx) = match b {
+        Blocked::Away => (r.eax, None),
+        Blocked::Start => (unsafe { at(candidate) }, None),
+        Blocked::End { end } => (unsafe { at(candidate) }, Some(end)),
+        Blocked::Gap { end, gap, .. } => (gap, Some(end)),
+    };
+    FlagResult {
         eax,
         ecx: None,
         ebx,
-        carry,
+        carry: b.carry(),
         zero: None,
-    };
-    unsafe {
-        if at(r.esi + 0x25C) != 2 {
-            return result(r.eax, None, false);
-        }
-        let c = at(candidate);
-        if (c.wrapping_sub(8) as i32) < 0 {
-            return result(c, None, true);
-        }
-        let end = at(count).wrapping_sub(8);
-        if (c.wrapping_sub(end) as i32) >= 0 {
-            return result(c, Some(end), true);
-        }
-        let d = at(candidate).wrapping_sub(at(r.esi + 0x94));
-        let blocked = (d.wrapping_sub(8) as i32) < 0 && (d.wrapping_add(8) as i32) >= 0;
-        result(d, Some(end), blocked)
     }
 }
 

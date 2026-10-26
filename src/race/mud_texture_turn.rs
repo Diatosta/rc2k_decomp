@@ -46,7 +46,8 @@ pub unsafe fn mud_texture_turn(entry: &Regs, part: Part) -> Result<Regs, Refused
     texture_and_mud()?;
     let mut r = *entry;
     let [red, green, blue] = mud_colour();
-    r.eax = (red << 16) & 0xFFFF_0000 | (green & 0xFF) << 8 | (blue & 0xFF);
+    // Converted: `rc2k_core::race::mud::packed_colour`.
+    r.eax = rc2k_core::race::mud::packed_colour([red, green, blue]);
     r.ebx = green;
     r.ecx = blue;
     unsafe {
@@ -77,6 +78,13 @@ extern "C" fn dispatch(r: &mut Regs) {
         Ok(left) => *r = Regs { esp: r.esp, ..left },
         Err(e) => unsafe { crate::fatal::raise::refused(&HOOK, e, r, call_original) },
     }
+}
+
+/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    let left = unsafe { mud_texture_turn(r, &mut game_part) }?;
+    *r = Regs { esp: r.esp, ..left };
+    Ok(())
 }
 
 fn regions() -> Vec<Region> {

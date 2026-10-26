@@ -10,11 +10,13 @@
 //! the entry and the flags by lot (negative entries and 0x80000000 among them), compared
 //! on the four results and the registers; put back afterwards.
 
-use crate::errors::{BadInput, Refused};
+use crate::errors::Refused;
 use crate::framework::{RawHook, Regs, SelfTest, game_addr, game_read, game_write, hook_asm, rva};
 use crate::race::stage_prefs::left_of;
 use crate::screens::harness::Left;
-use crate::service::harness::{Region, at, capture, check_state, dispatch_state, restore};
+use crate::service::harness::{
+    Region, at, capture, check_state, dispatch_state, restore, state_entry,
+};
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -31,7 +33,7 @@ hook_asm!(
 
 const INDEX_RVA: usize = rva(0x84460C); // dword_84460C
 const TABLE_RVA: usize = rva(0x844610); // dword_844610: 256 entries
-const ENTRIES: u32 = 0x100;
+use rc2k_core::marks::steps::SHAPE_ENTRIES as ENTRIES;
 /// (the flag, the shape): `dword_844604` / `g_marksShapesA`, `dword_844608` /
 /// `g_marksShapesB`.
 const PAIRS: [(usize, usize); 2] = [
@@ -40,22 +42,17 @@ const PAIRS: [(usize, usize); 2] = [
 ];
 
 /// The Rust version (see the header): the registers it leaves.
+// Converted: `rc2k_core::marks::steps::{shape_entry, pick_shapes}`
 pub unsafe fn pick_shapes(entry: &Regs) -> Result<Regs, Refused> {
+    use rc2k_core::marks::steps;
     let mut g = *entry;
     unsafe {
-        let index: u32 = game_read(INDEX_RVA);
-        if index >= ENTRIES {
-            return Err(BadInput("a shape index past dword_844610's 256 entries").into());
-        }
+        let index = steps::shape_entry(game_read(INDEX_RVA))?;
         for (flag, shape) in PAIRS {
-            game_write(flag, 2u32);
-            let mut v: i32 = game_read(TABLE_RVA + 4 * index as usize);
-            if v < 0 {
-                game_write(flag, 0u32);
-                v = v.wrapping_neg();
-            }
-            game_write(shape, v);
-            g.eax = v as u32;
+            let picked = steps::pick_shapes(game_read(TABLE_RVA + 4 * index));
+            game_write(flag, picked.flag);
+            game_write(shape, picked.shapes);
+            g.eax = picked.shapes;
             g.ebp = game_addr(shape) as u32;
         }
     }
@@ -72,6 +69,12 @@ fn rust(r: &Regs) -> Result<Left, Refused> {
 
 extern "C" fn dispatch(r: &mut Regs) {
     dispatch_state(&HOOK, r, call_original, &regions(), &rust);
+}
+
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    state_entry(r, &rust)
 }
 
 fn self_test() -> (usize, usize) {

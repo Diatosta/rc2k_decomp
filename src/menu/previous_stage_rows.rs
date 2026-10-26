@@ -2,28 +2,14 @@
 //!
 //! In:  nothing
 //! Out: eax as `stage_rows` says; the rest kept
-//! Compared in shadow mode. Self-test: `stage_rows::test_rows`.
+//! Hook removed 2026-10-22 (typed tables): the menus and draw lists run its `entry`
+//! (`menu::table_calls`); the registers above are the original's, for reference.
 
-use crate::framework::{RawHook, Regs, hook_asm, rva};
-use crate::menu::stage_rows::{dispatch_rows, test_rows};
-use std::sync::atomic::AtomicUsize;
+use crate::framework::Regs;
+use crate::menu::stage_rows::rows_entry;
 
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("menu::previous_stage_rows", rva(0x4A3736), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
-
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_rows(&HOOK, r, call_original, false, false);
-}
-
-fn self_test() -> (usize, usize) {
-    test_rows(&HOOK, call_original, false, false)
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    rows_entry(r, false, false)
 }

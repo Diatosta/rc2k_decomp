@@ -125,6 +125,8 @@ pub unsafe fn glyph_record(
 }
 
 // ---- Rust version ----
+// Converted: `rc2k_core::gfx::blit`. Here the record is read as raw game memory and the core's
+// offsets from the surface's start are made addresses again.
 
 /// The four registers the original does not preserve, as it leaves them.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -145,122 +147,6 @@ pub struct Area {
     pub row_bytes: u32,
 }
 
-#[derive(Clone, Copy, PartialEq, Eq)]
-enum Format {
-    /// Byte runs copied raw, one byte per pixel.
-    Raw8,
-    /// Byte runs, each pixel the low word of its palette entry.
-    Palette16,
-    /// Byte runs, each pixel its palette entry.
-    Palette32,
-    /// Word runs copied raw.
-    Direct16,
-    /// Dword runs copied raw.
-    Direct32,
-}
-
-impl Format {
-    /// Size in bytes of a count, a gap and a source pixel.
-    fn src_unit(self) -> u32 {
-        match self {
-            Format::Raw8 | Format::Palette16 | Format::Palette32 => 1,
-            Format::Direct16 => 2,
-            Format::Direct32 => 4,
-        }
-    }
-    /// Size in bytes of a pixel as it is written.
-    fn dst_unit(self) -> u32 {
-        match self {
-            Format::Raw8 => 1,
-            Format::Palette16 | Format::Direct16 => 2,
-            Format::Palette32 | Format::Direct32 => 4,
-        }
-    }
-    fn is_direct(self) -> bool {
-        matches!(self, Format::Direct16 | Format::Direct32)
-    }
-}
-
-/// Reader over a record's run data.
-struct Runs<'a> {
-    format: Format,
-    src: *const u8,
-    palette: *const u32,
-    put: &'a mut dyn FnMut(u32, &[u8]),
-}
-
-impl Runs<'_> {
-    /// Reads a count or a gap and steps past it.
-    unsafe fn field(&mut self) -> u32 {
-        let unit = self.format.src_unit();
-        let v = unsafe {
-            match unit {
-                1 => *self.src as u32,
-                2 => self.src.cast::<u16>().read_unaligned() as u32,
-                _ => self.src.cast::<u32>().read_unaligned(),
-            }
-        };
-        self.src = self.src.wrapping_add(unit as usize);
-        v
-    }
-
-    /// Steps over `pixels` source pixels (backwards if negative).
-    fn skip_pixels(&mut self, pixels: i32) {
-        let bytes = (pixels as isize).wrapping_mul(self.format.src_unit() as isize);
-        self.src = self.src.wrapping_offset(bytes);
-    }
-
-    /// Writes the next `count` source pixels at address `dst` and steps past them.
-    unsafe fn draw(&mut self, count: u32, dst: u32) {
-        if count == 0 {
-            return;
-        }
-        let n = count as usize;
-        unsafe {
-            match self.format {
-                Format::Raw8 | Format::Direct16 | Format::Direct32 => {
-                    let bytes = n * self.format.src_unit() as usize;
-                    (self.put)(dst, from_raw_parts(self.src, bytes));
-                    self.src = self.src.wrapping_add(bytes);
-                }
-                Format::Palette16 | Format::Palette32 => {
-                    let d = self.format.dst_unit() as usize;
-                    let mut out = vec![0u8; n * d];
-                    for i in 0..n {
-                        let colour = self.palette.add(*self.src.add(i) as usize).read_unaligned();
-                        out[i * d..(i + 1) * d].copy_from_slice(&colour.to_le_bytes()[..d]);
-                    }
-                    (self.put)(dst, &out);
-                    self.src = self.src.wrapping_add(n);
-                }
-            }
-        }
-    }
-}
-
-/// `a - b` and whether a `jle` after that `sub` is taken.
-fn sub_le(a: i32, b: i32) -> (i32, bool) {
-    (a.wrapping_sub(b), a <= b)
-}
-
-/// `a + b` and whether a `jle` after that `add` is taken.
-fn add_le(a: i32, b: i32) -> (i32, bool) {
-    (a.wrapping_add(b), a as i64 + b as i64 <= 0)
-}
-
-/// Where the walk over a clipped row stands. The original jumps between these points with
-/// the flags of its last subtraction or addition still set; `bool` carries that `jle`.
-enum Step {
-    /// Still left of the clip edge, `left` pixels to go.
-    Skip,
-    /// Inside the clip rectangle with `left` pixels of room.
-    Next,
-    AfterGap(bool),
-    AfterCount(bool),
-    /// Past the right clip edge: only stepping over the rest of the row.
-    Rest,
-}
-
 /// Draws the glyph `record` at (`x`, `y`). `put(address, bytes)` receives every write.
 /// Returns the registers the original leaves and, unless the glyph is clipped away, the part
 /// of the surface it may have touched.
@@ -275,250 +161,56 @@ pub unsafe fn blit_glyph(
     scratch: &mut Scratch,
     put: &mut dyn FnMut(u32, &[u8]),
 ) -> (Exit, Option<Area>) {
-    unsafe {
-        let marker = record.cast::<u32>().read_unaligned();
-        let word = |at: usize| record.add(at).cast::<u16>().read_unaligned() as i32;
-        let (x_offset, y_offset, width, height, data, format) = if marker < 0xFFFF_FFFC {
-            let format = match surface.bits_per_pixel {
-                16 => Format::Palette16,
-                32 => Format::Palette32,
-                _ => Format::Raw8,
-            };
-            (
-                *record as i32,
-                *record.add(1) as i32,
-                *record.add(2) as i32,
-                *record.add(3) as i32,
-                record.add(4),
-                format,
-            )
-        } else {
-            let format = if marker == 0xFFFF_FFFE {
-                Format::Direct16
-            } else {
-                Format::Direct32
-            };
-            (word(4), word(6), word(8), word(10), record.add(12), format)
-        };
-        let x = x.wrapping_add(x_offset);
-        let y = y.wrapping_add(y_offset);
-        let clipped_away = |eax: i32, ebx: i32| {
-            let exit = Exit {
-                eax: eax as u32,
-                ebx: ebx as u32,
-                ecx: x as u32,
-                edx: y as u32,
-            };
-            (exit, None)
-        };
-
-        // Horizontal clip.
-        scratch.left_skip = 0;
-        if x < clip.left {
-            scratch.left_skip = clip.left.wrapping_sub(x);
-        }
-        let last = x.wrapping_add(width).wrapping_sub(1);
-        let over = last.wrapping_sub(clip.right);
-        let mut visible = width;
-        if last > clip.right {
-            visible = visible.wrapping_sub(over);
-        }
-        if visible <= scratch.left_skip {
-            return clipped_away(visible.wrapping_sub(scratch.left_skip), over);
-        }
-        visible = visible.wrapping_sub(scratch.left_skip);
-        scratch.visible_w = visible;
-
-        // Vertical clip.
-        scratch.top_skip = 0;
-        if y < clip.top {
-            scratch.top_skip = clip.top.wrapping_sub(y);
-        }
-        let last = y.wrapping_add(height).wrapping_sub(1);
-        let over = last.wrapping_sub(clip.bottom);
-        let mut rows = height;
-        if last > clip.bottom {
-            rows = rows.wrapping_sub(over);
-        }
-        if rows <= scratch.top_skip {
-            return clipped_away(rows.wrapping_sub(scratch.top_skip), over);
-        }
-        rows = rows.wrapping_sub(scratch.top_skip);
-        scratch.rows_left = rows;
-
-        // Address of the glyph's column 0 in the first visible row. The x term uses the
-        // surface's bytes per pixel, while the runs below advance by the format's own unit.
-        let d = format.dst_unit();
-        let pitch = surface.pitch;
-        let mut row = (y
-            .wrapping_add(scratch.top_skip)
-            .wrapping_mul(pitch)
-            .wrapping_add(x.wrapping_mul(surface.bytes_per_pixel)) as u32)
-            .wrapping_add(surface.base);
-        let area = Area {
-            first: row.wrapping_add((scratch.left_skip as u32).wrapping_mul(d)),
-            pitch,
-            rows: rows as u32,
-            row_bytes: (visible as u32).wrapping_mul(d),
-        };
-        let done = |eax: u32, ebx: u32, edx: u32| {
-            let exit = Exit {
-                eax,
-                ebx,
-                ecx: 0,
-                edx,
-            };
-            (exit, Some(area))
-        };
-
-        let mut runs = Runs {
-            format,
-            src: data,
-            palette,
-            put,
-        };
-
-        // Step over the rows clipped off at the top.
-        let mut skip = scratch.top_skip;
-        if skip != 0 {
-            loop {
-                let count = runs.field();
-                if count == 0 {
-                    skip -= 1;
-                    if skip == 0 {
-                        break;
-                    }
-                } else {
-                    runs.field();
-                    runs.skip_pixels(count as i32);
-                }
-            }
-        }
-
-        // The gap of the last run read: what the original leaves in eax.
-        let mut gap = 0u32;
-
-        if visible == width {
-            // Nothing clipped horizontally: every run is drawn whole.
-            let mut rows_left = rows;
-            let mut dst = row;
-            loop {
-                let count = runs.field();
-                if count == 0 {
-                    rows_left -= 1;
-                    if rows_left == 0 {
-                        return done(gap, row, 0);
-                    }
-                    row = row.wrapping_add(pitch as u32);
-                    dst = row;
-                    continue;
-                }
-                gap = runs.field();
-                dst = dst.wrapping_add(gap.wrapping_mul(d));
-                runs.draw(count, dst);
-                dst = dst.wrapping_add(count.wrapping_mul(d));
-            }
-        }
-
-        loop {
-            // One clipped row. `left` is the original's edx: pixels still to skip while left
-            // of the clip edge, then pixels of room inside it.
-            let mut dst = row;
-            let mut left = scratch.left_skip;
-            let mut count = 0u32;
-            let mut step = if left != 0 {
-                Step::Skip
-            } else {
-                left = scratch.visible_w;
-                Step::Next
-            };
-            loop {
-                match step {
-                    Step::Skip => {
-                        count = runs.field();
-                        if count == 0 {
-                            break;
-                        }
-                        gap = runs.field();
-                        dst = dst.wrapping_add(gap.wrapping_mul(d));
-                        let (rest, le) = sub_le(left, gap as i32);
-                        left = rest;
-                        if le {
-                            // The gap reached the clip edge.
-                            let (room, le) = add_le(left, scratch.visible_w);
-                            left = room;
-                            step = Step::AfterGap(le);
-                            continue;
-                        }
-                        runs.skip_pixels(count as i32);
-                        dst = dst.wrapping_add(count.wrapping_mul(d));
-                        let (rest, le) = sub_le(left, count as i32);
-                        left = rest;
-                        if !le {
-                            continue; // the whole run is left of the clip edge
-                        }
-                        // The run crosses the clip edge: go back to its first visible pixel.
-                        count = left.wrapping_neg() as u32;
-                        runs.skip_pixels(left);
-                        dst = dst.wrapping_add((left as u32).wrapping_mul(d));
-                        let (room, le) = add_le(left, scratch.visible_w);
-                        left = room;
-                        step = Step::AfterCount(le);
-                    }
-                    Step::Next => {
-                        count = runs.field();
-                        if count == 0 {
-                            break;
-                        }
-                        gap = runs.field();
-                        dst = dst.wrapping_add(gap.wrapping_mul(d));
-                        let (room, le) = sub_le(left, gap as i32);
-                        left = room;
-                        step = Step::AfterGap(le);
-                    }
-                    Step::AfterGap(no_room) => {
-                        if no_room {
-                            runs.skip_pixels(count as i32);
-                            step = Step::Rest;
-                        } else {
-                            let (room, le) = sub_le(left, count as i32);
-                            left = room;
-                            step = Step::AfterCount(le);
-                        }
-                    }
-                    Step::AfterCount(last_run) => {
-                        if last_run {
-                            // Only the part up to the right clip edge.
-                            count = count.wrapping_add(left as u32);
-                            runs.draw(count, dst);
-                            runs.skip_pixels(left.wrapping_neg());
-                            if format.is_direct() {
-                                left = left.wrapping_neg(); // these two paths `neg edx`
-                            }
-                            step = Step::Rest;
-                        } else {
-                            runs.draw(count, dst);
-                            dst = dst.wrapping_add(count.wrapping_mul(d));
-                            step = Step::Next;
-                        }
-                    }
-                    Step::Rest => {
-                        count = runs.field();
-                        if count == 0 {
-                            break;
-                        }
-                        runs.field();
-                        runs.skip_pixels(count as i32);
-                    }
-                }
-            }
-            scratch.rows_left = scratch.rows_left.wrapping_sub(1);
-            if scratch.rows_left == 0 {
-                return done(gap, row, left as u32);
-            }
-            row = row.wrapping_add(pitch as u32);
-        }
-    }
+    use rc2k_core::gfx::blit as core;
+    let base = surface.base;
+    let mut work = core::Scratch {
+        left_skip: scratch.left_skip,
+        visible_w: scratch.visible_w,
+        top_skip: scratch.top_skip,
+        rows_left: scratch.rows_left,
+    };
+    let colour = |n: u8| unsafe { palette.add(n as usize).read_unaligned() };
+    let (exit, area) = crate::bridge::read_through(core::blit_glyph(
+        &unsafe { crate::bridge::Raw::new(record) },
+        x,
+        y,
+        &colour,
+        &rc2k_core::gfx::raster::Surface {
+            bits: surface.bits_per_pixel,
+            bytes_per_pixel: surface.bytes_per_pixel,
+            pitch: surface.pitch,
+        },
+        &rc2k_core::gfx::raster::Clip {
+            left: clip.left,
+            right: clip.right,
+            top: clip.top,
+            bottom: clip.bottom,
+        },
+        &mut work,
+        &mut |offset, bytes| put(base.wrapping_add(offset), bytes),
+    ));
+    *scratch = Scratch {
+        left_skip: work.left_skip,
+        visible_w: work.visible_w,
+        top_skip: work.top_skip,
+        rows_left: work.rows_left,
+    };
+    let exit = Exit {
+        eax: exit.eax,
+        ebx: match exit.ebx {
+            core::Ebx::Value(v) => v,
+            core::Ebx::Row(offset) => base.wrapping_add(offset),
+        },
+        ecx: exit.ecx,
+        edx: exit.edx,
+    };
+    let area = area.map(|a| Area {
+        first: base.wrapping_add(a.first),
+        pitch: a.pitch,
+        rows: a.rows,
+        row_bytes: a.row_bytes,
+    });
+    (exit, area)
 }
 
 /// Draws glyph `glyph` of `table` on the game's surface with the game's clip rectangle, and
@@ -773,6 +465,49 @@ extern "C" fn dispatch(r: &mut Regs) {
         });
     }
     (r.eax, r.ebx, r.ecx, r.edx) = (o.eax, o.ebx, o.ecx, o.edx);
+}
+
+/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    let surface = surface();
+    let (glyph, table) = (r.eax, r.esi as *const u8);
+
+    let swallowed = note_call(BlitCall::new(
+        glyph,
+        r.ecx as i32,
+        r.edx as i32,
+        r.ebx,
+        r.esi,
+    ));
+    if swallowed {
+        return Ok(());
+    }
+
+    let record = match unsafe { glyph_record(&surface, table, glyph) } {
+        Ok(value) => value,
+        Err(e) => {
+            return Err(e.into());
+        }
+    };
+    let (x, y, palette) = (r.ecx as i32, r.edx as i32, r.ebx as *const u32);
+    let clip = clip();
+    let mut scratch = read_scratch();
+
+    let (exit, _) = unsafe {
+        blit_glyph(
+            record,
+            x,
+            y,
+            palette,
+            &surface,
+            &clip,
+            &mut scratch,
+            &mut |addr, bytes| copy_nonoverlapping(bytes.as_ptr(), addr as *mut u8, bytes.len()),
+        )
+    };
+    write_scratch(&scratch);
+    (r.eax, r.ebx, r.ecx, r.edx) = (exit.eax, exit.ebx, exit.ecx, exit.edx);
+    Ok(())
 }
 
 // ---- self-test ----

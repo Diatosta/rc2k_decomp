@@ -43,13 +43,13 @@
 //! editing keys, Escape twice, the leave switch.
 
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, SelfTest, ZERO_FLAG, call_game, game_addr, hook_asm, rva};
+use crate::framework::{RawHook, Regs, SelfTest, ZERO_FLAG, hook_asm, rva};
 use crate::physics::flow::a;
 use crate::race::viewer::{
     CAMERA_EDIT, CHOICE, CHOICE_BEFORE, CLOCK, DEVELOPER_KEYS, EDITING, ESCAPES, FRAME_CLOCK,
     HOLD_REVS, KEY_CLOCK, KEYS_IGNORED, LAST_RACE, LAST_RACE_VIEWED, LIST_LEAVE, LIST_SHOWN, MENU,
     MODE, MOVE_CLOCK, ONLY_SHOWN, Part, SLOT, SOUND, STOPPED, Saved, WAIT_RELEASE, answer,
-    dispatch_parts, dword, gb, get, pb, put, region, run_both, test_part,
+    dispatch_parts, dword, gb, get, pb, put, region, regs_entry, run_both, test_part,
 };
 use crate::service::harness::Region;
 use std::sync::atomic::AtomicUsize;
@@ -443,7 +443,7 @@ pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
             6 => viewer_load_stage::take_key(r),
             7 => mark_viewer_items::mark_viewer_items(r.edi),
             8 => *r = viewer_action::viewer_action(r, &mut viewer_action::game_part)?,
-            9 => call_game(r, game_addr(rva(CALLEES[9]))),
+            9 => crate::calls::call(rva(CALLEES[9]), r),
             10 => {
                 *r = crate::menu::list_take_key::list_take_key(
                     r,
@@ -479,6 +479,12 @@ extern "C" fn dispatch(r: &mut Regs) {
     dispatch_parts(&HOOK, r, call_original, &|r| {
         replay_viewer(r, &mut game_part, true)
     });
+}
+
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    regs_entry(r, &|r| replay_viewer(r, &mut game_part, true))
 }
 
 // ---- self-test ----

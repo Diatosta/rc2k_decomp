@@ -8,24 +8,27 @@ use crate::service::harness::{Region, at};
 
 pub type Part<'a> = &'a mut dyn FnMut(u32, &mut Regs) -> Result<(), Refused>;
 
-/// `race::record_replay_header`'s (to, from) and its log words, in order.
-const REPLAY_FIELDS: [(usize, usize); 13] = [
-    (0x719B48, 0x60519C),
-    (0x719B40, 0x6051BC),
-    (0x719B44, 0x6051B4),
-    (0x719B14, 0x623850),
-    (0x719B18, 0x62389C),
-    (0x719B1C, 0x63DB94),
-    (0x719B20, 0x63DB90),
-    (0x719B24, 0x70F410),
-    (0x719B28, 0x7103F0),
-    (0x719B2C, 0x7113D0),
-    (0x719B30, 0x7123B0),
-    (0x719B4C, 0x70F49C),
-    (0x719B50, 0x71047C),
-];
+/// The replay's car header (`dword_719B14` ..).
+pub const HEADER: usize = 0x719B14;
+
+/// Where a header setting lives in the race's variables (its first place).
+pub fn setting_place(s: rc2k_core::race::replay::Setting) -> usize {
+    use rc2k_core::race::replay::Setting::*;
+    match s {
+        Seed => 0x60519C,
+        StartPlace => 0x6051BC,
+        ArcadeCars => 0x6051B4,
+        Stage => 0x623850,
+        Mode => 0x62389C,
+        Players => 0x63DB94,
+        Cars => 0x63DB90,
+        Kind(n) => 0x70F410 + 0xFE0 * n as usize,
+        GameOver(n) => 0x70F49C + 0xFE0 * n as usize,
+    }
+}
+
 /// "[replayheader.arcrandom]" .. "[replayheader.gameoverflag2]", logged in the order of
-/// `REPLAY_FIELDS`.
+/// `HEADER_SETTINGS`.
 const REPLAY_WORDS: [usize; 13] = [
     0x4DDCBC, 0x4DDCD5, 0x4DDCF0, 0x4DDD0A, 0x4DDD1F, 0x4DDD34, 0x4DDD49, 0x4DDD60, 0x4DDD74,
     0x4DDD88, 0x4DDD9C, 0x4DDDB0, 0x4DDDCD,
@@ -39,19 +42,22 @@ pub const LOG_INT_NL: u32 = 2;
 /// two players' absences) into the car header (`dword_719B14` ..), each logged as
 /// "[replayheader.x]" and its value. Every register kept (the logs inside `pusha`).
 pub unsafe fn record_replay_header(entry: &Regs, part: Part) -> Result<Regs, Refused> {
+    // Converted: `rc2k_core::race::replay::{HEADER_SETTINGS, Setting::offset}`.
+    use rc2k_core::race::replay::HEADER_SETTINGS;
     let g = *entry;
+    let to = |s: rc2k_core::race::replay::Setting| rva(HEADER) + s.offset() as usize;
     unsafe {
-        for (to, from) in REPLAY_FIELDS {
-            game_write(rva(to), game_read::<u32>(rva(from)));
+        for s in HEADER_SETTINGS {
+            game_write(to(s), game_read::<u32>(rva(setting_place(s))));
         }
-        for (n, (to, _)) in REPLAY_FIELDS.iter().enumerate() {
+        for (n, &s) in HEADER_SETTINGS.iter().enumerate() {
             let mut r = Regs {
                 eax: game_addr(rva(REPLAY_WORDS[n])) as u32,
                 ..g
             };
             part(LOG_WRITE, &mut r)?;
             let mut r = Regs {
-                eax: game_read(rva(*to)),
+                eax: game_read(to(s)),
                 ..g
             };
             part(LOG_INT_NL, &mut r)?;
@@ -61,7 +67,10 @@ pub unsafe fn record_replay_header(entry: &Regs, part: Part) -> Result<Regs, Ref
 }
 
 pub fn replay_header_regions() -> Vec<Region> {
-    REPLAY_FIELDS.iter().map(|&(to, _)| at(rva(to))).collect()
+    rc2k_core::race::replay::HEADER_SETTINGS
+        .iter()
+        .map(|s| at(rva(HEADER) + s.offset() as usize))
+        .collect()
 }
 
 /// The sound parts of `reset_race_sounds`, by place.
@@ -478,7 +487,7 @@ pub fn race_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
             Ok(())
         }
         8 => {
-            unsafe { crate::framework::call_game(r, game_addr(rva(RACE_CALLEES[8]))) };
+            crate::calls::call(rva(RACE_CALLEES[8]), r);
             Ok(())
         }
         _ => or_in_game(RACE_CALLEES[place as usize], r, |r| race_step(place, r)),

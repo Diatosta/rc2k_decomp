@@ -14,27 +14,14 @@
 //! `sub_43A649`, `sub_45429B`.
 //! Refuses (before anything) a replay car (`dword_63DBA0`) above 7 with `dword_52A910`
 //! set (it would write past `dword_641680`'s eight).
-//! Self-test: `physics/copy_hooks_test.rs` (a copy on test variables), 40 cases over the
-//! switches; the refusal.
+//! Hook removed 2026-10-22 (direct calls): Rust callers run its `entry` (`calls::call`,
+//! `routes.rs`); the registers above are the original's, for reference.
 
-use crate::errors::{BadInput, Refused};
-use crate::framework::{EAX, RawHook, Regs, SelfTest, game_addr, hook_asm, rva};
-use crate::physics::copy_hooks_test::{lot, test_moves};
+use crate::errors::Refused;
+use crate::framework::{EAX, Regs, game_addr, rva};
 use crate::screens::harness::Left;
-use crate::service::harness::dispatch_state;
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("drive::choose_shown_cars", rva(0x4560EA), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
+use crate::service::harness::state_entry;
+use rc2k_core::drive::shown_cars::{ShownCars, ShownSetup};
 
 /// The variables (IDA addresses), in the order the core uses them.
 const VARIABLES: [usize; 19] = [
@@ -52,65 +39,34 @@ unsafe fn put(v: &[u32], k: usize, x: u32) {
     unsafe { (v[k] as *mut u32).write_unaligned(x) }
 }
 
-/// Refused before anything?
-unsafe fn refusal(v: &[u32]) -> Option<&'static str> {
-    unsafe {
-        if get(v, 7) != 0 && get(v, 8) > 7 {
-            return Some("a replay car above 7 (past dword_641680's eight)");
-        }
-        None
-    }
-}
-
-/// The Rust core on the variables at `v` (`VARIABLES`' order).
+/// The Rust version on the variables at `v` (`VARIABLES`' order).
+// Converted: `rc2k_core::drive::shown_cars::ShownCars::choose`.
 pub unsafe fn choose_at(v: &[u32]) -> Result<Left, Refused> {
     unsafe {
-        if let Some(why) = refusal(v) {
-            return Err(BadInput(why).into());
-        }
-        put(v, 0, 0);
-        put(v, 1, 0);
-        put(v, 3, get(v, 2));
-        if get(v, 3) != 1 {
-            put(v, 1, 1);
-        }
-        if get(v, 4) == 2 {
-            let (views, first, second, split) = match get(v, 5) {
-                1 => (1, 1, None, 0),
-                2 => (2, 0, Some(1), 1),
-                3 => (2, 0, Some(1), 2),
-                _ => (1, 0, None, 0),
-            };
-            put(v, 3, views);
-            put(v, 0, first);
-            if let Some(s) = second {
-                put(v, 1, s);
-            }
-            put(v, 6, split);
-        }
-        let replay = get(v, 7) != 0;
-        if replay {
-            put(v, 0, get(v, 8));
-            put(v, 1, 0);
-        }
-        let base = game_addr(rva(FIRST_BLOCK)) as u32;
-        put(v, 9, base.wrapping_add(get(v, 0).wrapping_mul(0xFE0)));
-        let second = base.wrapping_add(get(v, 1).wrapping_mul(0xFE0));
-        put(v, 10, second);
-        for k in 11..19 {
-            put(v, k, u32::MAX);
-        }
-        let eax = if replay {
-            let n = get(v, 8);
-            put(v, 11 + n as usize, 0);
-            n
-        } else {
-            put(v, 11, 0);
-            if get(v, 2) != 1 {
-                put(v, 12, 1);
-            }
-            second
+        let setup = ShownSetup {
+            players: get(v, 2),
+            screen_mode: get(v, 4),
+            layout: get(v, 5),
+            replay: get(v, 7),
+            replay_car: get(v, 8),
         };
+        let split = get(v, 6);
+        let mut shown = ShownCars {
+            split,
+            ..ShownCars::default()
+        };
+        let eax = shown.choose(&setup, game_addr(rva(FIRST_BLOCK)) as u32)?;
+        put(v, 0, shown.cars[0]);
+        put(v, 1, shown.cars[1]);
+        put(v, 3, shown.views);
+        if shown.split != split {
+            put(v, 6, shown.split);
+        }
+        put(v, 9, shown.blocks[0]);
+        put(v, 10, shown.blocks[1]);
+        for (k, &x) in shown.listed.iter().enumerate() {
+            put(v, 11 + k, x);
+        }
         Ok(Left::nothing().with(EAX, eax))
     }
 }
@@ -131,49 +87,7 @@ fn rust(_: &Regs) -> Result<Left, Refused> {
     unsafe { choose_shown_cars() }
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    let v = game();
-    let regions: Vec<_> = [0usize, 1, 3, 6, 9, 10]
-        .iter()
-        .map(|&k| (v[k], 4))
-        .chain([(v[11], 0x20)])
-        .collect();
-    dispatch_state(&HOOK, r, call_original, &regions, &rust);
-}
-
-fn fill(seed: u32, out: &mut [u32]) {
-    lot(seed, out);
-    out[2] = [1, 2, 0, 3][(seed % 4) as usize];
-    out[4] = if seed % 5 < 3 { 2 } else { seed };
-    out[5] = seed / 5 % 5;
-    out[7] = u32::from(seed.is_multiple_of(3));
-    out[8] = seed % 8;
-}
-
-fn self_test() -> (usize, usize) {
-    let mut result = test_moves(
-        &HOOK,
-        0x4560EA,
-        0x1C8,
-        &[0xC7, 0x05, 0xA8, 0xDB, 0x63, 0x00, 0x00, 0x00, 0x00, 0x00],
-        &VARIABLES,
-        47,
-        40,
-        &fill,
-        &|v, _| unsafe { choose_at(v) }.unwrap_or_else(|_| Left::nothing()),
-    );
-    // The refusal, on cells of the test's.
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return result;
-    };
-    let mut cells = [0u32; 19];
-    cells[7] = 1;
-    cells[8] = 8;
-    let at: Vec<u32> = (0..19).map(|k| &cells[k] as *const u32 as u32).collect();
-    let refused = unsafe { choose_at(&at) }.is_err();
-    t.check(refused, || "replay car 8 not refused".into());
-    let (c, f) = t.finish();
-    result.0 += c;
-    result.1 += f;
-    result
+/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    state_entry(r, &rust)
 }

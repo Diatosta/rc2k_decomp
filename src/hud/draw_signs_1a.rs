@@ -7,49 +7,24 @@
 //! Caller: layout 1's drawer. The sprites through `part` (1), in the game `add_sprite`'s
 //! Rust version. Shadow mode runs the original alone (it draws). Self-test:
 //! `draw_signs::test_signs`.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, hook_asm, rva, shadow};
-use crate::hud::draw_signs::{Part, game_part, signs_with, test_signs};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("hud::draw_signs_1a", rva(0x4B52F7), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
+use crate::framework::Regs;
+use crate::hud::draw_signs::{Part, game_part, signs_with};
 
 /// The Rust version (see the header): the registers it leaves.
+// Converted: `rc2k_core::hud::signs` (through `signs_with`)
 pub unsafe fn draw_signs_1a(entry: &Regs, part: Part) -> Result<Regs, Refused> {
     unsafe { signs_with(entry, 0xA4, 0xB4, 0xFFFFFF38, 0x70, 0x20, part) }
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    HOOK.count_call();
-    if shadow() {
-        unsafe { call_original(r) };
-        return;
-    }
-    match unsafe { draw_signs_1a(r, &mut game_part) } {
-        Ok(left) => *r = Regs { esp: r.esp, ..left },
-        Err(e) => unsafe { crate::fatal::raise::refused(&HOOK, e, r, call_original) },
-    }
-}
-
-fn self_test() -> (usize, usize) {
-    let entry: &[u8] = &[0x8B, 0x9D, 0xB4, 0x00, 0x00, 0x00];
-    test_signs(
-        &HOOK,
-        0x4B52F7,
-        0x15A,
-        entry,
-        &[0x57, 0xAB, 0xFF, 0x153],
-        &|r, p| unsafe { draw_signs_1a(r, p) },
-    )
+/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    let left = unsafe { draw_signs_1a(r, &mut game_part) }?;
+    *r = Regs { esp: r.esp, ..left };
+    Ok(())
 }

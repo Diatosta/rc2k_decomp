@@ -2,25 +2,13 @@
 //!
 //! In:  eax = the value, dl = 1 for a line break after it, dh = level - 1
 //! Out: see `numeric.rs`
+//! Hook removed 2026-10-22 (direct calls): Rust callers run its `entry` (`calls::call`,
+//! `routes.rs`); the registers above are the original's, for reference.
 
 use crate::errors::BadInput;
-use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
-use crate::logfile::numeric::{Body, NumberText, check_number, dispatch_number, log_number};
+use crate::framework::{Regs, rva};
+use crate::logfile::numeric::{Body, NumberText, log_number};
 use crate::strings::hex_append::hex_append;
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("logfile::log_hex2", rva(0x40163B), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL,
-    log_lock
-);
 
 // ---- Rust version ----
 
@@ -29,8 +17,8 @@ fn text(r: &Regs) -> Result<NumberText, BadInput> {
 }
 
 /// For Rust callers.
-pub unsafe fn log_hex2(value: u32, newline: bool, level: u8) {
-    unsafe { log_number(&BODY, value, 0, newline, level) };
+pub fn log_hex2(value: u32, newline: bool, level: u8) {
+    log_number(&BODY, value, 0, newline, level);
 }
 
 pub const BODY: Body = Body {
@@ -38,30 +26,7 @@ pub const BODY: Body = Body {
     text,
 };
 
-// ---- hook ----
-
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_number(&HOOK, r, call_original, &BODY);
-}
-
-// ---- self-test ----
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    check_number(
-        &mut t,
-        call_original,
-        &BODY,
-        &[
-            (0, 0),
-            (1, 0),
-            (0xDEAD_BEEF, 0),
-            (0xFFFF_FFFF, 0),
-            (0x1234_5678, 0),
-            (0xAB, 0),
-        ],
-    );
-    t.finish()
+/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    crate::logfile::numeric::number_entry(r, &BODY)
 }

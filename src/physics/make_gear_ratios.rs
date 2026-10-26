@@ -13,19 +13,19 @@
 //!
 //! Callers: `sub_43B635` (0x43B63F) and `sub_4217E4` (the car specification's).
 //! Refuses (before anything) a gear count above 7 (past `g_gearRatios`).
-//! Self-test: `physics/copy_hooks_test.rs` (a copy on test variables), counts 4 .. 7 and
-//! setups by lot under three precisions; the refusal.
+//! Self-test: `physics/copy_hooks_test.rs` (`test_moves_floats`: a copy on test
+//! variables against the converted version), counts 4 .. 7 and setups by lot, exact at
+//! double precision; the refusal.
 
 use crate::errors::{BadInput, Refused};
 use crate::framework::{EBX, RawHook, Regs, SelfTest, game_addr, game_read, hook_asm, rva};
 use crate::math::x87;
-use crate::math::x87_run::{
-    TEST_CONTROL_WORDS, ext_add, gear_step_80, lerp_int_over2, with_control_word,
-};
-use crate::physics::copy_hooks_test::test_moves;
+use crate::math::x87_run::{ext_add, gear_step_80, lerp_int_over2};
+use crate::physics::copy_hooks_test::test_moves_floats;
 use crate::scene::matrix3::{extended, rounded};
 use crate::screens::harness::Left;
-use crate::service::harness::dispatch_state;
+use crate::service::floats::{FLOAT, Floats, dispatch_state_floats, floats_entry};
+use rc2k_core::physics::gearing::{GearSetup, RATIOS, make_ratios};
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -89,6 +89,36 @@ pub unsafe fn ratios_at(v: &[u32]) -> Result<u32, Refused> {
     }
 }
 
+/// The converted version (`rc2k_core::physics::gearing`, plain floats) on the variables
+/// at `v`: the gear count.
+// Converted: `rc2k_core::physics::gearing::make_ratios`.
+pub unsafe fn ratios_at_plain(v: &[u32]) -> Result<u32, Refused> {
+    unsafe {
+        let get = |k: usize| (v[k] as *const u32).read_unaligned();
+        let f = |k: usize| f32::from_bits(get(k));
+        let k = |x: usize| f32::from_bits(game_read::<u32>(rva(x)));
+        let count = get(0);
+        let setup = GearSetup {
+            count,
+            top: [f(1), f(2)],
+            first: [f(3), f(4)],
+            gearing: get(5) as i32,
+            factor: k(0x5C5DA4),
+            divisor: k(0x5C5D00),
+            divisor_2: f(6),
+            one: k(0x5C5D38),
+            neutral: f(17),
+        };
+        let mut ratios = [0.0f32; RATIOS];
+        let step = make_ratios(&setup, &mut ratios)?;
+        for (n, r) in ratios.iter().enumerate() {
+            (v[7 + n] as *mut u32).write_unaligned(r.to_bits());
+        }
+        (v[16] as *mut u32).write_unaligned(step.to_bits());
+        Ok(count)
+    }
+}
+
 fn game() -> Vec<u32> {
     VARIABLES
         .iter()
@@ -96,18 +126,30 @@ fn game() -> Vec<u32> {
         .collect()
 }
 
-/// The Rust version: the gear count.
+/// The Rust version (the exact one, for `physics::car_physics_step` and
+/// `physics::test_drive`): the gear count.
 pub unsafe fn make_gear_ratios() -> Result<u32, Refused> {
     unsafe { ratios_at(&game()) }
 }
 
 fn rust(_: &Regs) -> Result<Left, Refused> {
-    Ok(Left::nothing().with(EBX, unsafe { make_gear_ratios() }?))
+    Ok(Left::nothing().with(EBX, unsafe { ratios_at_plain(&game()) }?))
 }
 
 extern "C" fn dispatch(r: &mut Regs) {
     let v = game();
-    dispatch_state(&HOOK, r, call_original, &[(v[7], 0x24), (v[16], 4)], &rust);
+    let regions = [(v[7], 0x24), (v[16], 4)];
+    let floats = Floats {
+        memory: &[((v[7], 0x24), FLOAT), ((v[16], 4), FLOAT)],
+        regs: &[],
+    };
+    dispatch_state_floats(&HOOK, r, call_original, &regions, &floats, &rust);
+}
+
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    floats_entry(r, &rust)
 }
 
 fn fill(seed: u32, out: &mut [u32]) {
@@ -126,29 +168,24 @@ fn fill(seed: u32, out: &mut [u32]) {
 }
 
 fn self_test() -> (usize, usize) {
-    let mut total = (0, 0);
-    for word in TEST_CONTROL_WORDS {
-        with_control_word(word, &mut || {
-            let (c, f) = test_moves(
-                &HOOK,
-                0x4219E6,
-                0xEB,
-                &[0x8B, 0x1D, 0x10, 0x4C, 0x61, 0x00],
-                &VARIABLES,
-                30,
-                8,
-                &fill,
-                &|v, _| Left::nothing().with(EBX, unsafe { ratios_at(v) }.unwrap_or(0)),
-            );
-            total.0 += c;
-            total.1 += f;
-        });
-    }
+    let mut total = test_moves_floats(
+        &HOOK,
+        0x4219E6,
+        0xEB,
+        &[0x8B, 0x1D, 0x10, 0x4C, 0x61, 0x00],
+        &VARIABLES,
+        30,
+        8,
+        &fill,
+        &|v, _| Left::nothing().with(EBX, unsafe { ratios_at_plain(v) }.unwrap_or(0)),
+        &(7..=16).map(|k| (k, FLOAT)).collect::<Vec<_>>(),
+        &[],
+    );
     if let Some(mut t) = SelfTest::begin(&HOOK) {
         let mut cells = [0u32; 18];
         cells[0] = 8;
         let at: Vec<u32> = cells.iter().map(|c| c as *const u32 as u32).collect();
-        let refused = unsafe { ratios_at(&at) }.is_err();
+        let refused = unsafe { ratios_at_plain(&at) }.is_err();
         t.check(refused, || "a gear count of 8 not refused".into());
         let (c, f) = t.finish();
         total.0 += c;

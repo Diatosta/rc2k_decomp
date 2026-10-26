@@ -9,9 +9,11 @@
 
 use crate::errors::Refused;
 use crate::framework::{RawHook, Regs, game_addr, hook_asm, rva};
+use crate::physics::cells::{get, put};
 use crate::physics::copy_hooks_test::test_moves;
 use crate::screens::harness::Left;
-use crate::service::harness::dispatch_state;
+use crate::service::harness::{dispatch_state, state_entry};
+use rc2k_core::physics::ground::surface_flag;
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -33,12 +35,10 @@ hook_asm!(
 
 const VARIABLES: [usize; 2] = [0x71A65C, 0x71A6C8];
 
-/// The Rust core on the variables at `v`.
+/// The Rust version on the variables at `v`.
+// Converted: `rc2k_core::physics::ground::surface_flag`.
 pub unsafe fn note_at(v: &[u32]) {
-    unsafe {
-        let mode = (v[0] as *const u32).read_unaligned();
-        (v[1] as *mut u32).write_unaligned(u32::from(mode == 2 || mode == 3));
-    }
+    unsafe { put(v[1], surface_flag(get(v[0]))) }
 }
 
 fn game() -> Vec<u32> {
@@ -60,6 +60,12 @@ fn rust(_: &Regs) -> Result<Left, Refused> {
 
 extern "C" fn dispatch(r: &mut Regs) {
     dispatch_state(&HOOK, r, call_original, &[(game()[1], 4)], &rust);
+}
+
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    state_entry(r, &rust)
 }
 
 fn self_test() -> (usize, usize) {

@@ -11,9 +11,8 @@
 
 use crate::errors::Refused;
 use crate::framework::{RawHook, Regs, game_addr, hook_asm, rva};
-use crate::physics::turn_by_car_matrix::{test_turn, turn_point_by};
+use crate::physics::turn_by_car_matrix::{test_turn, turn_point_by, turn_point_by_plain};
 use crate::screens::harness::Left;
-use crate::service::harness::dispatch_state;
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -35,13 +34,37 @@ pub unsafe fn turn_by_inverse(v: u32) {
     unsafe { turn_point_by(game_addr(INVERSE_RVA) as u32, v) }
 }
 
+/// The converted version (`turn_point_by_plain`): the hook's.
+pub unsafe fn turn_by_inverse_plain(v: u32) {
+    unsafe { turn_point_by_plain(game_addr(INVERSE_RVA) as u32, v) }
+}
+
 fn rust(r: &Regs) -> Result<Left, Refused> {
-    unsafe { turn_by_inverse(r.esi) };
+    unsafe { turn_by_inverse_plain(r.esi) };
     Ok(Left::nothing())
 }
 
 extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_state(&HOOK, r, call_original, &[(r.esi, 12)], &rust);
+    // The point compared as floats: at the game's extended stretches (0x037F) the last bit
+    // may differ (a drift, as `scale_vector`'s).
+    let floats = crate::service::floats::Floats {
+        memory: &[((r.esi, 12), crate::service::floats::FLOAT)],
+        regs: &[],
+    };
+    crate::service::floats::dispatch_state_floats(
+        &HOOK,
+        r,
+        call_original,
+        &[(r.esi, 12)],
+        &floats,
+        &rust,
+    );
+}
+
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    crate::service::floats::floats_entry(r, &rust)
 }
 
 fn self_test() -> (usize, usize) {

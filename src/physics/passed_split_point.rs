@@ -25,7 +25,8 @@ use crate::framework::{
     EAX, EBX, ECX, ESI, RawHook, Regs, SelfTest, game_addr, game_read, game_write, hook_asm, rva,
 };
 use crate::screens::harness::Left;
-use crate::service::harness::{Region, capture, check_state, dispatch_state, restore};
+use crate::service::harness::{Region, capture, check_state, dispatch_state, restore, state_entry};
+use rc2k_core::physics::progress;
 use std::cmp::Ordering;
 use std::sync::atomic::AtomicUsize;
 
@@ -118,17 +119,11 @@ unsafe fn angle(point: u32) {
 /// as said.
 fn point() -> Result<(u32, u32, u32), Refused> {
     let split = g(0x71A068);
-    if split > 0x40 {
-        return Err(BadInput("a split past 0x40").into());
-    }
-    let cp = g(0x601030 + 4 * split as usize);
-    if cp > 0x1418 {
-        return Err(BadInput("a checkpoint past 0x1418").into());
-    }
+    let cp = progress::check_split_point(split, || g(0x601030 + 4 * split as usize))?;
     let face = g(0x9E3738 + 4 * cp as usize);
-    if face >= g(0x5CCD1C) {
+    if !progress::face_known(face, g(0x5CCD1C)) {
         return Err(FatalError {
-            code: 0x8060_1843,
+            code: progress::SEGMENT_FATAL,
             message: "\u{1}",
         }
         .into());
@@ -142,6 +137,8 @@ fn point() -> Result<(u32, u32, u32), Refused> {
 }
 
 /// The Rust version.
+// Converted: `rc2k_core::physics::progress::{check_split_point, face_known, passed_point}`
+// (the distance and the angle stay x87).
 pub unsafe fn passed_split_point(entry: &Regs) -> Result<Left, Refused> {
     let _ = entry;
     if g(0x64BB18) != 0 {
@@ -168,8 +165,7 @@ pub unsafe fn passed_split_point(entry: &Regs) -> Result<Left, Refused> {
     p(0x614CFC, eax);
     let heading = g(0x9ED808 + 4 * cp as usize);
     p(0x614D00, heading);
-    let ebx = heading.wrapping_sub(0x4000_0000);
-    let carry = (eax.wrapping_sub(ebx) as i32) >= 0;
+    let (carry, ebx) = progress::passed_point(eax, heading);
     Ok(Left::carry(carry)
         .with(EAX, eax)
         .with(EBX, ebx)
@@ -188,6 +184,12 @@ pub fn regions() -> Vec<Region> {
 
 extern "C" fn dispatch(r: &mut Regs) {
     dispatch_state(&HOOK, r, call_original, &regions(), &rust);
+}
+
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    state_entry(r, &rust)
 }
 
 fn self_test() -> (usize, usize) {

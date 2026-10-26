@@ -13,7 +13,8 @@ use crate::framework::{
     EAX, RawHook, Regs, SelfTest, game_addr, game_read, game_write, hook_asm, rva,
 };
 use crate::screens::harness::Left;
-use crate::service::harness::{Region, capture, check_state, dispatch_state, restore};
+use crate::service::harness::{Region, capture, check_state, dispatch_state, restore, state_entry};
+use rc2k_core::scene::kinds::OBJECTS;
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -34,13 +35,11 @@ hook_asm!(
 );
 
 const KINDS_RVA: usize = rva(0x5CD27C); // g_objectKinds
-const OBJECTS: u32 = 0x100;
 
 /// `scene::find_object_of_kind` (see the header).
 pub unsafe fn find_object_of_kind(kind: u32) -> u32 {
-    (1..OBJECTS)
-        .find(|&n| unsafe { game_read::<u32>(KINDS_RVA + n as usize * 4) } == kind)
-        .unwrap_or(0)
+    // Converted: `rc2k_core::scene::kinds::first_of_kind`.
+    rc2k_core::scene::kinds::first_of_kind(|n| unsafe { game_read(KINDS_RVA + n * 4) }, kind)
 }
 
 fn rust(r: &Regs) -> Result<Left, Refused> {
@@ -49,6 +48,12 @@ fn rust(r: &Regs) -> Result<Left, Refused> {
 
 extern "C" fn dispatch(r: &mut Regs) {
     dispatch_state(&HOOK, r, call_original, &[], &rust);
+}
+
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    state_entry(r, &rust)
 }
 
 fn self_test() -> (usize, usize) {

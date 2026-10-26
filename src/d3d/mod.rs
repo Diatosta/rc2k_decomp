@@ -34,17 +34,13 @@ pub const VERTEX_LEN: usize = 0x20;
 pub const NO_TEXTURE: u32 = 0xFFFF_FC43;
 
 pub static HOOKS: &[&dyn GameHook] = &[
-    &set_render_state::HOOK,
-    &set_texture::HOOK,
-    &draw_fan_unclipped::HOOK,
     &draw_fan::HOOK,
+    &draw_fan_unclipped::HOOK,
     &draw_indexed::HOOK,
-    &draw_hud_batch::HOOK,
-    &copy_screen_to_texture::HOOK,
     &copy_to_device_texture::HOOK,
     &draw_vertex_strip::HOOK,
     &draw_marks_hexagons::HOOK,
+    &set_render_state::HOOK,
+    &set_texture::HOOK,
     &texture_surface_info::HOOK,
-    &lock_texture::HOOK,
-    &unlock_texture::HOOK,
 ];

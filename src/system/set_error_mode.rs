@@ -11,25 +11,8 @@
 //! original and the Rust version from the same mode, both variables compared; the mode and
 //! the variables put back.
 
-use crate::framework::{RawHook, Regs, SelfTest, game_addr, hook_asm, rva, shadow};
-use crate::service::harness::{Region, capture, restore};
-use std::sync::atomic::AtomicUsize;
+use crate::framework::{Regs, rva};
 use windows_sys::Win32::System::Diagnostics::Debug::{SEM_FAILCRITICALERRORS, SetErrorMode};
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook = RawHook::new("system::set_error_mode", rva(0x402B7C), thunk, &ORIGINAL)
-    .private_copy(0x19)
-    .relocate_calls(&[0x03])
-    .manual_patch()
-    .self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
 
 // ---- game data ----
 
@@ -46,51 +29,8 @@ pub unsafe fn set_error_mode() {
     }
 }
 
-// ---- hook ----
-
-extern "C" fn dispatch(r: &mut Regs) {
-    HOOK.count_call();
-    if shadow() {
-        unsafe { call_original(r) };
-        return;
-    }
+/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
+pub fn entry(_: &mut Regs) -> Result<(), crate::errors::Refused> {
     unsafe { set_error_mode() };
-}
-
-// ---- self-test ----
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let regions: [Region; 2] = [
-        (game_addr(KEPT_MODE_RVA) as u32, 4),
-        (game_addr(MODE_SET_RVA) as u32, 4),
-    ];
-    let saved = capture(&regions);
-    unsafe {
-        let mode = SetErrorMode(0);
-        SetErrorMode(mode);
-        // From the mode as it is, and from 0 (so that the kept one differs from 1).
-        for from in [mode, 0] {
-            SetErrorMode(from);
-            restore(&regions, &[0xAA; 8]);
-            let before = Regs::SENTINEL;
-            let mut ro = before;
-            call_original(&mut ro);
-            let theirs = (capture(&regions), SetErrorMode(from));
-            restore(&regions, &[0xAA; 8]);
-            set_error_mode();
-            let mine = (capture(&regions), SetErrorMode(from));
-            let preserved = ro.preserved_except(&before, 0);
-            t.check(preserved && theirs == mine, || {
-                format!(
-                    "from {from:#x}: original preserved={preserved} {theirs:x?}; rust {mine:x?}"
-                )
-            });
-        }
-        SetErrorMode(mode);
-    }
-    restore(&regions, &saved);
-    t.finish()
+    Ok(())
 }

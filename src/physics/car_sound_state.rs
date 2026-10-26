@@ -9,23 +9,33 @@
 //! 1/65536 into +0x2C ..; the car's +0xD4 .. turned into +0x38 ... All in `pusha` /
 //! `popa`.
 //!
-//! The x87 runs over the object are the original's instructions (from IDA).
+//! The hook runs the converted version (`car_sound_state_plain`); the exact x87 one
+//! (the runs over the object the original's instructions, from IDA) stays for
+//! `physics::engine_sound`.
 //!
 //! In:  nothing
 //! Out: every register kept; no flags read
 //!
 //! Caller: `physics::engine_sound`.
 //! Refuses (before anything) a null sound object, or a null view block when it is read.
-//! Self-test: the original and the Rust version on the game's variables (saved and put
-//! back) with a test object, under three precisions.
+//! Self-test: the original and the converted version on the game's variables (saved and
+//! put back) with a test object: exact at double precision; at extended the shares and
+//! voices within `FLOAT`, the place and the turned motion within `SUM`.
 
 use crate::errors::{BadInput, Refused};
 use crate::framework::{RawHook, Regs, SelfTest, game_addr, game_read, game_write, hook_asm, rva};
-use crate::math::x87_run::{TEST_CONTROL_WORDS, ext_times, ints_diff_80, with_control_word};
+use crate::math::x87_run::{ext_times, ints_diff_80};
 use crate::scene::matrix3::{extended, rounded, test_floats};
 use crate::scene::rotate_point::rotate_point;
+use crate::scene::vector3::{read_floats, write_floats};
 use crate::screens::harness::Left;
-use crate::service::harness::{Region, capture, check_state, dispatch_state, restore};
+use crate::service::floats::{
+    FLOAT, Floats, SUM, Tolerance, at_test_precisions, check_state_floats, dispatch_state_floats,
+    floats_entry,
+};
+use crate::service::harness::{Region, capture, restore};
+use rc2k_core::physics::sound_places as places;
+use rc2k_core::physics::x87::loaded;
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -116,7 +126,7 @@ fn listener() -> u32 {
     }
 }
 
-/// The Rust version.
+/// The exact x87 version (for `physics::engine_sound`).
 pub unsafe fn car_sound_state() -> Result<Left, Refused> {
     let o = object();
     if o == 0 {
@@ -163,8 +173,73 @@ pub unsafe fn car_sound_state() -> Result<Left, Refused> {
     Ok(Left::nothing())
 }
 
+/// The converted version (`rc2k_core::physics::sound_places`, plain floats): the hook's.
+// Converted: `rc2k_core::physics::sound_places::{voices, pitch, volume, place,
+// turned_motion}`.
+pub unsafe fn car_sound_state_plain() -> Result<Left, Refused> {
+    let o = object();
+    if o == 0 {
+        return Err(BadInput("a null sound object").into());
+    }
+    let l = listener();
+    if l == 0 {
+        return Err(BadInput("a null view block").into());
+    }
+    let f = |x: usize| f32::from_bits(g(x));
+    unsafe {
+        put(o + 0x10, 1);
+        put(o + 0x14, g(0x71A1BC));
+        let w = g(0x71A908);
+        for at in [0x54, 0x68, 0x7C, 0x90] {
+            put(o + at, w);
+        }
+        let all_off = g(0x71A22C) != 0;
+        let v = places::voices(f(0x71A260), f(0x613EE0), f(0x71A26C), all_off);
+        p(0x71A264, v.share.to_bits());
+        p(0x71A268, v.full.to_bits());
+        if all_off {
+            p(0x71A26C, 0);
+        }
+        let pitch = places::pitch(f(0x71A264), f(0x5C5E2C));
+        let motion = loaded(f(0x71A26C));
+        for k in 0..4u32 {
+            put(o + 0x4C + 0x14 * k, loaded(f(0x71A268)).to_bits());
+            put(o + 0x50 + 0x14 * k, pitch.to_bits());
+            put(o + 0x44 + 0x14 * k, motion.to_bits());
+        }
+        put(o + 0x18, places::volume(g(0x71A610)));
+        put(o + 0xE8, g(0x71A1AC));
+        put(o + 0x1C, g(0x71A198));
+        put(o + 0xAC, g(0x71A220) & g(0x71A224));
+        put(o + 0x0C, g(0x71A6C8) ^ 1);
+        let whole = |a: u32| [0, 4, 8].map(|k| get(a + k) as i32);
+        let view: [f32; 15] = read_floats(game_addr(rva(0x5EA24C)) as u32);
+        let place = places::place(
+            whole(game_addr(rva(0x71A10C)) as u32),
+            whole(l + 0x6A4),
+            None,
+            &view,
+            f(0x5C5DA0),
+        );
+        write_floats(o + 0x2C, &place);
+        let turned = places::turned_motion(&view, [f(0x71A0AC), f(0x71A0B0), f(0x71A0B4)]);
+        write_floats(o + 0x38, &turned);
+    }
+    Ok(Left::nothing())
+}
+
 fn rust(_: &Regs) -> Result<Left, Refused> {
-    unsafe { car_sound_state() }
+    unsafe { car_sound_state_plain() }
+}
+
+/// The float places: the shares kept, the voices' figures, the place and the motion.
+fn floats_of(o: u32) -> Vec<(Region, Tolerance)> {
+    let a = |x: usize| game_addr(rva(x)) as u32;
+    vec![
+        ((a(0x71A264), 4), FLOAT),
+        ((o + 0x2C, 0x18), SUM),
+        ((o + 0x44, 0x50), FLOAT),
+    ]
 }
 
 fn regions() -> Vec<Region> {
@@ -178,7 +253,19 @@ fn regions() -> Vec<Region> {
 }
 
 extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_state(&HOOK, r, call_original, &regions(), &rust);
+    let o = object();
+    let memory = if o == 0 { vec![] } else { floats_of(o) };
+    let floats = Floats {
+        memory: &memory,
+        regs: &[],
+    };
+    dispatch_state_floats(&HOOK, r, call_original, &regions(), &floats, &rust);
+}
+
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    floats_entry(r, &rust)
 }
 
 /// What a sound test sets (`o` the test object).
@@ -250,21 +337,26 @@ fn self_test() -> (usize, usize) {
     let o = object.as_mut_ptr() as u32;
     let all = test_regions(o);
     let saved = capture(&all);
-    for word in TEST_CONTROL_WORDS {
-        with_control_word(word, &mut || {
-            for seed in 0..6u32 {
-                check_state(
-                    &mut t,
-                    &format!("control word {word:#x}, seed {seed}"),
-                    call_original,
-                    Regs::SENTINEL,
-                    &|| set_sound(o, seed),
-                    &all,
-                    &rust,
-                );
-            }
-        });
-    }
+    let memory = floats_of(o);
+    let tolerant = Floats {
+        memory: &memory,
+        regs: &[],
+    };
+    at_test_precisions(&tolerant, &mut |word, floats| {
+        for seed in 0..6u32 {
+            check_state_floats(
+                &mut t,
+                "physics::car_sound_state",
+                &format!("control word {word:#x}, seed {seed}"),
+                call_original,
+                Regs::SENTINEL,
+                &|| set_sound(o, seed),
+                &all,
+                floats,
+                &rust,
+            );
+        }
+    });
     restore(&all, &saved);
     drop(object);
     t.finish()

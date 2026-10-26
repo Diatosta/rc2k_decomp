@@ -15,9 +15,7 @@
 //! calls, their registers and `dword_621900` compared.
 
 use crate::errors::Refused;
-use crate::framework::{
-    RawHook, Regs, SelfTest, call_game, game_addr, game_read, game_write, hook_asm, rva, shadow,
-};
+use crate::framework::{RawHook, Regs, SelfTest, game_read, game_write, hook_asm, rva, shadow};
 use crate::race::mud::{copy, run_both, test_part};
 use crate::service::harness::{at, capture, restore};
 use std::sync::atomic::AtomicUsize;
@@ -93,7 +91,7 @@ pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
         ),
         9 => unsafe { crate::race::flush_draw_batch::flush_draw_batch_in_game(r) },
         _ => {
-            unsafe { call_game(r, game_addr(rva(CALLEES[place as usize]))) };
+            crate::calls::call(rva(CALLEES[place as usize]), r);
             Ok(())
         }
     }
@@ -109,6 +107,13 @@ extern "C" fn dispatch(r: &mut Regs) {
         Ok(left) => *r = Regs { esp: r.esp, ..left },
         Err(e) => unsafe { crate::fatal::raise::refused(&HOOK, e, r, call_original) },
     }
+}
+
+/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    let left = unsafe { draw_view_overlays(r, &mut game_part) }?;
+    *r = Regs { esp: r.esp, ..left };
+    Ok(())
 }
 
 const CALLS: [usize; 12] = [

@@ -5,34 +5,16 @@
 //! In:  nothing
 //! Out: the registers as `race_loop` leaves them; no flags read
 //!
-//! Callers: `race::run_race`, `sub_443F96`, 0x44402F, `race::credits_race`, `sub_4640AA`. It
-//! begins with a call: hooked by a private copy of its 0x58 bytes (seven calls relocated)
-//! and a hand-made patch; ungated (it holds the race's step loop).
-//! Refuses what `race_loop` refuses. Shadow mode runs the original alone.
-//! Self-test: skipped (it plays a race).
+//! Callers: `race::run_race`, `sub_443F96`, 0x44402F, `race::credits_race`, `sub_4640AA`.
+//! Refuses what `race_loop` refuses. Hook removed 2026-10-22 (direct calls): Rust callers run
+//! its `entry` (`calls::call`, `routes.rs`); the registers above are the original's, for
+//! reference.
 
 use crate::drive::race_parts::log_line;
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva, shadow};
+use crate::framework::Regs;
 use crate::physics::flow::p;
 use crate::screens::harness::Left;
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook = RawHook::new("drive::play_race", rva(0x444CEE), thunk, &ORIGINAL)
-    .private_copy(0x58)
-    .relocate_calls(&[0x0, 0xC, 0x19, 0x29, 0x3F, 0x4C, 0x52])
-    .manual_patch()
-    .self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL,
-    ungated
-);
 
 const EMPTY: usize = 0x4E00B7; // what `log_newline_l1` writes
 
@@ -50,21 +32,9 @@ pub unsafe fn play_race(entry: &Regs) -> Result<Left, Refused> {
     Ok(left)
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    HOOK.count_call();
-    if shadow() {
-        unsafe { call_original(r) };
-        return;
-    }
-    match unsafe { play_race(r) } {
-        Ok(left) => left.apply(r),
-        Err(e) => unsafe { crate::fatal::raise::refused(&HOOK, e, r, call_original) },
-    }
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    t.skip("it plays a race")
+/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    let left = unsafe { play_race(r) }?;
+    left.apply(r);
+    Ok(())
 }

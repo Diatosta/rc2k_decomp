@@ -15,7 +15,6 @@
 
 use crate::errors::Refused;
 use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
-use crate::physics::cell_face_contacts::AROUND;
 use crate::physics::face_contact::{
     self, Touched, faces_region, guarded, in_race_test, move_car_onto, object_faces,
 };
@@ -42,17 +41,20 @@ hook_asm!(
 );
 
 /// The steps, not guarded.
+// Converted: `rc2k_core::physics::ground_search::cells_around`.
 pub fn steps(r: &mut Regs, touched: &mut Touched) -> Result<(), Refused> {
     r.eax = g(0x71A10C);
     r.ecx = g(0x71A114);
     p(0x639824, r.eax);
     p(0x63982C, r.ecx);
-    for (dx, dz) in AROUND {
-        r.eax = g(0x639824).wrapping_add(dx);
-        r.ecx = g(0x63982C).wrapping_add(dz);
-        crate::physics::cell_face_contacts::steps(r, touched)?;
-    }
-    Ok(())
+    rc2k_core::physics::ground_search::cells_around(
+        || (g(0x639824), g(0x63982C)),
+        |x, z| {
+            r.eax = x;
+            r.ecx = z;
+            crate::physics::cell_face_contacts::steps(r, touched)
+        },
+    )
 }
 
 /// The Rust version.

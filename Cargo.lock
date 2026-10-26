@@ -164,6 +164,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "rc2k_core"
+version = "0.1.0"
+dependencies = [
+ "miniz_oxide",
+]
+
+[[package]]
 name = "rc2k_hook"
 version = "0.1.0"
 dependencies = [
@@ -171,6 +178,7 @@ dependencies = [
  "iced-x86",
  "miniz_oxide",
  "rayon",
+ "rc2k_core",
  "sdl3-sys",
  "serde",
  "toml",

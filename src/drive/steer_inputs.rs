@@ -17,27 +17,18 @@
 //! Callers: `drive::car_controls`, `sub_460835`, `sub_460B2F`.
 //! Self-test: the original and the Rust version on the game's variables (saved and put
 //! back) by lot: both kinds of steering, words left, right and 0, values about their
-//! ends, under three precisions.
+//! ends, against the converted version, exact at double precision.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{EAX, EBX, EDX, RawHook, Regs, SelfTest, hook_asm, rva};
-use crate::math::x87_run::{TEST_CONTROL_WORDS, with_control_word};
-use crate::physics::flow::{a, base, c0, g, p, x87_run};
+use crate::framework::{EAX, EBX, EDX, Regs};
+use crate::physics::flow::{base, c0, g, p, x87_run};
 use crate::screens::harness::Left;
-use crate::service::harness::{capture, check_state, dispatch_state, restore};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("drive::steer_inputs", rva(0x439DB1), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
+use crate::service::floats::floats_entry;
+use rc2k_core::drive::steering::{SteerInputs, steer as steer_core};
 
 const WORD: usize = 0x613890;
 const LEFT: u32 = 0xE000_0000;
@@ -93,7 +84,8 @@ fn steer(value: usize, step: u32) {
     }
 }
 
-/// The Rust version.
+/// The Rust version (the exact one, for `drive::simple_car_step`, `drive::replay_step`
+/// and `race::step_replay_cars`).
 pub unsafe fn steer_inputs(entry: &Regs) -> Left {
     let mut r = *entry;
     let mut keys = g(WORD) == 0;
@@ -150,71 +142,42 @@ pub unsafe fn steer_inputs(entry: &Regs) -> Left {
         .with(EDX, r.edx)
 }
 
+/// The converted version (`rc2k_core::drive::steering`, plain floats): the hook's.
+// Converted: `rc2k_core::drive::steering::steer`.
+pub unsafe fn steer_inputs_plain(entry: &Regs) -> Left {
+    let f = |x: usize| f32::from_bits(g(x));
+    let s = steer_core(
+        &SteerInputs {
+            word: g(WORD),
+            mode: g(0x71A234),
+            keys: g(0x71A440),
+            device_factor: f(0x614C08),
+            key_factor: f(0x614C0C),
+            trim: f(0x71A3E0),
+            flags: g(0x719FE8),
+            figure: f(0x71A308),
+            limit: f(0x5C5D14),
+        },
+        [g(0x71A61C), g(0x71A620)],
+    );
+    p(0x71A61C, s.values[0]);
+    p(0x71A620, s.values[1]);
+    p(0x62400C, s.scratch);
+    p(0x71A1E0, s.trim);
+    p(0x71A624, s.trimmed[0]);
+    p(0x71A628, s.trimmed[1]);
+    Left::nothing()
+        .with(EAX, s.eax)
+        .with(EBX, s.ebx.unwrap_or(entry.ebx))
+        .with(EDX, s.edx.unwrap_or(entry.edx))
+}
+
 fn rust(r: &Regs) -> Result<Left, Refused> {
-    Ok(unsafe { steer_inputs(r) })
+    Ok(unsafe { steer_inputs_plain(r) })
 }
 
-fn regions() -> [crate::service::harness::Region; 3] {
-    [(a(0x71A61C), 0x10), (a(0x71A1E0), 4), (a(0x62400C), 4)]
-}
-
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_state(&HOOK, r, call_original, &regions(), &rust);
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let all = [
-        (a(0x71A61C), 0x10),
-        (a(0x71A1E0), 4),
-        (a(0x62400C), 4),
-        (a(WORD), 4),
-        (a(0x71A234), 4),
-        (a(0x71A440), 4),
-        (a(0x614C08), 8),
-        (a(0x71A3E0), 4),
-        (a(0x719FE8), 4),
-        (a(0x71A308), 4),
-    ];
-    let saved = capture(&all);
-    for word in TEST_CONTROL_WORDS {
-        with_control_word(word, &mut || {
-            for case in 0..40u32 {
-                let set = || {
-                    p(
-                        WORD,
-                        [0u32, 0x80, 0xFFFF_FF80, 0x100, 0xFFFF_FF00][(case % 5) as usize],
-                    );
-                    p(0x71A234, if case % 3 == 0 { 2 } else { 1 });
-                    p(0x71A440, if case % 4 < 2 { 0x1000 } else { 0 });
-                    p(0x614C08, 0.7f32.to_bits());
-                    p(0x614C0C, [0.5f32, 3.0, 40.0][(case % 3) as usize].to_bits());
-                    for (k, x) in [0x71A61C, 0x71A620].iter().enumerate() {
-                        p(
-                            *x,
-                            [0u32, 0x1F00_0000, 0xE100_0000, 0x0010_0000, 0xFFF0_0000]
-                                [((case + k as u32) % 5) as usize],
-                        );
-                    }
-                    p(0x71A3E0, (0.01f32 * (case % 7) as f32 - 0.03).to_bits());
-                    p(0x719FE8, case % 2 * 0x10);
-                    p(0x71A308, [1.0f32, 50.0][(case / 5 % 2) as usize].to_bits());
-                    p(0x5C5D14, g(0x5C5D14));
-                };
-                check_state(
-                    &mut t,
-                    &format!("control word {word:#x}, case {case}"),
-                    call_original,
-                    Regs::SENTINEL,
-                    &set,
-                    &regions(),
-                    &rust,
-                );
-            }
-        });
-    }
-    restore(&all, &saved);
-    t.finish()
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    floats_entry(r, &rust)
 }

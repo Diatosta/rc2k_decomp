@@ -1,0 +1,89 @@
+//! The service area's inspection status (converted 2026-10-20 from
+//! `screens::draw_inspection_status` 0x4A6B54): 100 less the weights of the damaged parts
+//! not chosen for repair, as a bar between "fail" and "pass" with a sprite at its left.
+
+use crate::screens::screen::{Bar, Drawn, Screen};
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Font {
+    /// `stru_51E3C4`.
+    Labels,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Work {
+    /// `dword_7559EC`: the weights lost.
+    Lost,
+    /// `dword_75AC80`: the status.
+    Status,
+}
+
+/// A part: the car's damage (+0xCC + 4 x item), its threshold (`dword_75ABD0[item]`), its
+/// weight (`dword_75AC40[item]`) and whether it is chosen for repair (its flag not 0).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct Part {
+    pub damage: i32,
+    pub threshold: i32,
+    pub weight: i32,
+    pub repairing: bool,
+}
+
+/// The menu items whose parts count (the repair section's fourteen without the turbo, 6).
+pub const PARTS: [u32; 13] = [2, 3, 4, 5, 7, 8, 9, 10, 11, 12, 13, 14, 15];
+
+/// The status and the index (into `PARTS`) of the last damaged part looked at.
+pub fn status(parts: &[Part; 13]) -> (i32, Option<usize>) {
+    let mut lost = 0i32;
+    let mut last = None;
+    for (n, p) in parts.iter().enumerate() {
+        if p.damage < p.threshold {
+            continue;
+        }
+        last = Some(n);
+        if !p.repairing {
+            lost = lost.wrapping_add(p.weight);
+        }
+    }
+    (100i32.wrapping_sub(lost), last)
+}
+
+/// The status drawn; `icon_palette` the caller's ebx. What the last text left.
+pub fn inspection_status<S: Screen<Font = Font, Work = Work>>(
+    s: &mut S,
+    status: i32,
+    icon_palette: u32,
+) -> Result<Drawn, S::Error> {
+    s.keep(Work::Lost, 100i32.wrapping_sub(status) as u32);
+    s.keep(Work::Status, status as u32);
+    s.bar(Bar {
+        x: 0x19D,
+        y: 0x229,
+        width: 0xD0,
+        fill_glyph: 0x89,
+        end_glyph: 0x87,
+        percent: status,
+    })?;
+    s.sprite(0x88, 0x161, 0x228, icon_palette)?;
+    s.string(Font::Labels, 0x4AE, 0x17F, 0x22C)?;
+    s.string(Font::Labels, 0x4AF, 0x28C, 0x22C)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn weights() {
+        let part = |damage, repairing| Part {
+            damage,
+            threshold: 5,
+            weight: 10,
+            repairing,
+        };
+        let mut parts = [part(0, false); 13];
+        assert_eq!(status(&parts), (100, None));
+        parts[2] = part(5, false);
+        parts[7] = part(9, true);
+        assert_eq!(status(&parts), (90, Some(7)));
+    }
+}

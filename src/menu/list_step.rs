@@ -13,79 +13,49 @@
 //! +4 (the patch would cut `jz`): private copy, manual patch. Shadow mode compares.
 //! Self-test: the original against the Rust version, every key with and without a table,
 //! items first, inside and last, table entries negative or not.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
-use crate::race::viewer::{CF, CHOICE, ZF, check_original, dispatch_regs, dword, get, put};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook = RawHook::new("menu::list_step", rva(0x414A55), thunk, &ORIGINAL)
-    .private_copy(0x74)
-    .manual_patch()
-    .self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
+use crate::framework::Regs;
+use crate::race::viewer::{CHOICE, get, put, regs_entry};
+use rc2k_core::menu::list_menu::{MOVES, Step, step};
 
 /// The Rust version: the registers and flags it leaves.
 pub unsafe fn list_step(entry: &Regs) -> Regs {
+    // Converted: `rc2k_core::menu::list_menu::step`.
     let mut r = *entry;
     let key = r.eax as u8;
     let table = r.ebx;
     let count = unsafe { ((r.edi + 1) as *const u8).read() };
-    let entry_of = |ecx: u32, k: u32| unsafe {
-        (table.wrapping_add(ecx.wrapping_mul(4)).wrapping_add(k) as *const u8).read()
+    if MOVES.contains(&key) {
+        r.ecx = get(CHOICE);
+    }
+    let ecx = r.ecx;
+    let entry_of = |k: usize| unsafe {
+        (table
+            .wrapping_add(ecx.wrapping_mul(4))
+            .wrapping_add(k as u32) as *const u8)
+            .read()
     };
-    let with_cl = |ecx: u32, cl: u8| ecx & !0xFF | cl as u32;
-    let cl = match key {
-        0x66 | 0x6B | 0x68 | 0x69 => {
-            r.ecx = get(CHOICE);
-            if (key == 0x68 || key == 0x69) && table < 1 {
-                r.set_carry(true);
-                r.set_zero(false);
-                return r;
-            }
-            if table != 0 {
-                let k = [0x66, 0x6B, 0x68, 0x69]
-                    .iter()
-                    .position(|&x| x == key)
-                    .unwrap();
-                let cl = entry_of(r.ecx, k as u32);
-                if (cl as i8) < 0 {
-                    r.ecx = with_cl(r.ecx, cl);
-                    r.set_carry(false);
-                    r.set_zero(false);
-                    return r;
-                }
-                cl
-            } else if key == 0x66 {
-                let cl = (r.ecx as u8).wrapping_sub(1);
-                if (cl as i8) < 0 {
-                    count.wrapping_sub(1)
-                } else {
-                    cl
-                }
-            } else {
-                let cl = (r.ecx as u8).wrapping_add(1);
-                if cl < count { cl } else { 0 }
-            }
+    let with_cl = |cl: u8| ecx & !0xFF | cl as u32;
+    let (carry, zero) = match step(key, ecx as u8, count, table != 0, entry_of) {
+        Step::Moved(cl) => {
+            r.ecx = with_cl(cl);
+            put(CHOICE, r.ecx);
+            (false, true)
         }
-        _ => {
-            r.set_carry(key < 0x69);
-            r.set_zero(false);
-            return r;
+        Step::Blocked(cl) => {
+            r.ecx = with_cl(cl);
+            (false, false)
         }
+        Step::NoTable => (true, false),
+        Step::Other { below } => (below, false),
     };
-    r.ecx = with_cl(r.ecx, cl);
-    put(CHOICE, r.ecx);
-    r.set_carry(false);
-    r.set_zero(true);
+    r.set_carry(carry);
+    r.set_zero(zero);
     r
 }
 
@@ -93,47 +63,8 @@ fn rust(r: &Regs) -> Result<Regs, Refused> {
     Ok(unsafe { list_step(r) })
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_regs(&HOOK, r, call_original, &[dword(CHOICE)], CF | ZF, &rust);
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let regions = [dword(CHOICE)];
-    let saved = crate::race::viewer::Saved::new(&regions);
-    let mut list = [0xAAu8; 0x20];
-    list[1] = 5;
-    // Five items' neighbours, some negative.
-    let table: [u8; 20] = [
-        4, 1, 0xFF, 2, 0, 2, 3, 0xFE, 1, 3, 0x80, 4, 2, 4, 0, 1, 3, 0, 1, 0xFF,
-    ];
-    for key in [0x66u32, 0x6B, 0x68, 0x69, 0x10, 0x70, 0x6A] {
-        for with_table in [false, true] {
-            for choice in [0u32, 2, 4, 0x1_0003] {
-                if with_table && choice > 4 {
-                    continue; // the table has five items
-                }
-                let before = Regs {
-                    eax: 0xAB00 | key,
-                    ebx: if with_table { table.as_ptr() as u32 } else { 0 },
-                    edi: list.as_mut_ptr() as u32,
-                    ..Regs::SENTINEL
-                };
-                check_original(
-                    &mut t,
-                    &format!("key {key:#x}, table {with_table}, item {choice:#x}"),
-                    call_original,
-                    before,
-                    &regions,
-                    CF | ZF,
-                    &|| put(CHOICE, choice),
-                    &rust,
-                );
-            }
-        }
-    }
-    drop(saved);
-    t.finish()
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    regs_entry(r, &rust)
 }

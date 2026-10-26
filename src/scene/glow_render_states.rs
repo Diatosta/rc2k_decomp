@@ -24,18 +24,23 @@ hook_asm!(
     original = ORIGINAL
 );
 
-const STATES: [(u32, u32); 3] = [(1, 7), (1, 0xE), (8, 0x17)];
-
 /// The Rust version (see the header): the registers it leaves on `r`.
+// Converted: `rc2k_core::scene::render_states::GLOW`
 pub unsafe fn glow_render_states(r: &mut Regs) {
-    for (value, state) in STATES {
-        unsafe { crate::scene::set_render_state::set_render_state(r, value, state) };
+    for s in rc2k_core::scene::render_states::GLOW {
+        unsafe { crate::scene::set_render_state::set_render_state(r, s.value, s.state) };
     }
 }
 
 extern "C" fn dispatch(r: &mut Regs) {
     HOOK.count_call();
     unsafe { glow_render_states(r) };
+}
+
+/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    unsafe { glow_render_states(r) };
+    Ok(())
 }
 
 fn self_test() -> (usize, usize) {

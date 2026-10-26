@@ -23,27 +23,14 @@
 //! player's car without its table, before anything. Shadow mode runs the original alone.
 //! Self-test: a copy whose screen, sleep, fade, key, page
 //! and repair calls go to stand-ins, against the Rust version, by lot.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{
-    RawHook, Regs, SelfTest, call_game, game_addr, game_read, game_write, hook_asm, rva, shadow,
-};
+use crate::framework::{Regs, game_read, game_write, rva};
 use crate::menu::standings::*;
-use crate::service::harness::{Region, at, capture, restore};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("menu::service_pass", rva(0x4A15E3), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL,
-    ungated
-);
 
 const MONEY_RVA: usize = rva(0x75ACC0); // dword_75ACC0
 const TIME_RVA: usize = rva(0x75593C); // dword_75593C
@@ -53,14 +40,7 @@ const DUE_RVA: usize = rva(0x755938); // dword_755938
 const CLEARED_RVA: [usize; 2] = [rva(0x75AC8C), rva(0x75AB38)]; // dword_75AC8C, dword_75AB38
 const OUT_RVA: usize = rva(0x755978); // dword_755978
 const ANSWER_RVA: usize = rva(0x75524C); // g_yesNoAnswer
-const APPLY_REPAIRS: usize = rva(0x46C14D); // service::apply_repairs, through its hook
-const SERVICE_LOOP: usize = 0x47284A; // service::service_area_loop
-
-/// Its calls (the test's copy).
-const CALLS: [usize; 18] = [
-    0x5B, 0x65, 0x6A, 0x74, 0x83, 0x92, 0x97, 0x9C, 0xA1, 0xA6, 0xAB, 0xB0, 0xB5, 0xBA, 0xC8, 0xCD,
-    0xE9, 0xEE,
-];
+// service::service_area_loop
 
 /// A call by place: 1 `system::sleep` (eax), 2 `menu::inspection_area_loop`, 3
 /// `menu::fade_in`, 5 `menu::inspection_screen`, 6 `service::service_area_loop`, 7
@@ -69,17 +49,20 @@ pub type Part<'a> = &'a mut dyn FnMut(u32, &mut Regs) -> Result<(), Refused>;
 
 /// The Rust version (see the header): the registers it leaves.
 pub unsafe fn service_pass(entry: &Regs, part: Part) -> Result<Regs, Refused> {
+    // Converted: `rc2k_core::menu::passes` (who is serviced, the minutes, the money, the
+    // pauses, `goes_on`).
+    use rc2k_core::menu::passes;
     let players = counted_players()?;
     let due = unsafe { game_read::<u32>(DUE_RVA) } == 1;
     for &p in &players {
-        if due && get(p + 0xD0) == 1 {
+        if due && passes::takes_part(get(p + 0xD0)) {
             crate::menu::driver_stats::car_table(p)?;
         }
     }
     let mut g = *entry;
     unsafe {
         game_write(MONEY_RVA, 0u32);
-        game_write(TIME_RVA, game_read::<u32>(TIME_RVA).wrapping_add(0x384));
+        game_write(TIME_RVA, passes::more_minutes(game_read(TIME_RVA)));
         game_write(GOES_ON_RVA, 1u32);
         g.ebx = 0;
         'all: {
@@ -89,21 +72,21 @@ pub unsafe fn service_pass(entry: &Regs, part: Part) -> Result<Regs, Refused> {
                 g.edi = p;
                 g.eax = get(p + 0xD0);
                 g.ebx = g.ebx.wrapping_add(g.eax);
-                if g.eax != 1 || game_read::<u32>(DUE_RVA) != 1 {
+                if !passes::serviced(g.eax, || game_read(DUE_RVA)) {
                     continue;
                 }
                 part(5, &mut g)?;
-                g.eax = 1000;
+                g.eax = passes::SCREEN_PAUSE;
                 part(1, &mut g)?;
                 part(3, &mut g)?;
-                g.eax = 0xFA;
+                g.eax = passes::FADE_PAUSE;
                 part(1, &mut g)?;
                 game_write(CLEARED_RVA[0], 0u32);
                 crate::menu::driver_stats::driver_stats(&g)?;
                 game_write(CLEARED_RVA[1], 0u32);
                 crate::menu::reset_driver_condition::reset_driver_condition(&g)?;
                 crate::service::clear_repair_flags::clear_repair_flags()?;
-                for _ in 0..6 {
+                for _ in 0..passes::DROPPED_KEYS {
                     part(8, &mut g)?;
                 }
                 part(6, &mut g)?;
@@ -113,7 +96,7 @@ pub unsafe fn service_pass(entry: &Regs, part: Part) -> Result<Regs, Refused> {
                 part(7, &mut g)?;
                 g = crate::menu::set_player_entry_kind::set_player_entry_kind(&g)?;
                 g.edi = p;
-                if get(p + 0xD0) == 2 {
+                if passes::is_out(get(p + 0xD0)) {
                     crate::menu::inspection_faults::inspection_faults(&g)?;
                     part(2, &mut g)?;
                     if game_read::<u32>(ANSWER_RVA) == 1 {
@@ -122,10 +105,10 @@ pub unsafe fn service_pass(entry: &Regs, part: Part) -> Result<Regs, Refused> {
                     game_write(OUT_RVA, game_read::<u32>(OUT_RVA).wrapping_add(1));
                 }
                 g.edi = p;
-                g.eax = game_read::<u32>(MONEY_RVA).wrapping_mul(100);
+                g.eax = passes::spent(game_read(MONEY_RVA));
                 put(p + 0x288, g.eax);
             }
-            if game_read::<u32>(OUT_RVA) == game_read::<u32>(PLAYER_COUNT_RVA) {
+            if !passes::goes_on(game_read(OUT_RVA), game_read(PLAYER_COUNT_RVA)) {
                 game_write(GOES_ON_RVA, 0u32);
             }
         }
@@ -141,7 +124,7 @@ pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
             6 => {
                 crate::menu::screen_loop::run_screen(&crate::service::service_area_loop::SCREEN, r)
             }
-            7 => call_game(r, game_addr(APPLY_REPAIRS)),
+            7 => crate::service::apply_repairs::apply_repairs_in_game(r),
             8 => {
                 let key = crate::input::take_key::take_key();
                 r.eax = (r.eax & !0xFF) | u32::from(key);
@@ -153,109 +136,9 @@ pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
     Ok(())
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    HOOK.count_call();
-    if shadow() {
-        unsafe { call_original(r) };
-        return;
-    }
-    match unsafe { service_pass(r, &mut game_part) } {
-        Ok(left) => *r = Regs { esp: r.esp, ..left },
-        Err(e) => unsafe { crate::fatal::raise::refused(&HOOK, e, r, call_original) },
-    }
-}
-
-fn self_test() -> (usize, usize) {
-    use crate::race::mud::{copy, run_both, test_part};
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    // Unpaused: frames drawn meanwhile may see the tables this test changes.
-    let _disturbing = crate::screens::harness::Disturbing::begin();
-    let copy = match copy(
-        0x4A15E3,
-        0x150,
-        // pusha; mov dword_75ACC0, 0
-        &[
-            0x60, 0xC7, 0x05, 0xC0, 0xAC, 0x75, 0x00, 0x00, 0x00, 0x00, 0x00,
-        ],
-        &CALLS,
-        &[
-            (0x41100C, 1),
-            (0x47DBF3, 2),
-            (0x4A1CFA, 3),
-            (0x4A1BBF, 5),
-            (SERVICE_LOOP, 6),
-            (0x46C14D, 7),
-            (0x407F95, 8),
-        ],
-    ) {
-        Ok(c) => c,
-        Err(why) => return t.skip(why),
-    };
-    if (0..4).any(|n| player(n) == 0) {
-        return t.skip("the game's players are not there");
-    }
-    // The copy runs the original `driver_stats`, which reads each car's table unchecked.
-    if (0..4).any(|n| crate::menu::driver_stats::car_table(player(n)).is_err()) {
-        return t.skip("a player's car has no table (the original would read through 0)");
-    }
-    let mut regions: Vec<Region> = vec![
-        (game_addr(rva(0x75AB60)) as u32, 0x75AC88 - 0x75AB60),
-        (game_addr(rva(0x759C76)) as u32, 13 * 4),
-        (game_addr(rva(0x75ACA8)) as u32, 0x14),
-    ];
-    let first = game_addr(DRIVERS_RVA) as u32;
-    if let Ok(d) = entries(first, DRIVER) {
-        regions.push((first, d.len() * DRIVER as usize));
-    }
-    regions.extend((0..4u32).map(|n| (player(n), 0x400)));
-    regions.extend(
-        [
-            MONEY_RVA,
-            TIME_RVA,
-            GOES_ON_RVA,
-            CURRENT_RVA,
-            DUE_RVA,
-            CLEARED_RVA[0],
-            CLEARED_RVA[1],
-            OUT_RVA,
-            rva(0x7559EC),
-            rva(0x7559F0),
-        ]
-        .map(at),
-    );
-    regions.extend(crate::service::harness::repair_regions());
-    let mut vars = regions.clone();
-    vars.extend([PLAYER_COUNT_RVA, ANSWER_RVA].map(at));
-    let saved = capture(&vars);
-    // (player count, the players taking part, due, the leaving answered yes)
-    for (count, taking, due, yes) in [
-        (1u32, 0b0001u32, 1u32, 0u32),
-        (2, 0b0011, 1, 0),
-        (4, 0b1101, 1, 0),
-        (2, 0b0011, 1, 1),
-        (3, 0b0111, 0, 0),
-    ] {
-        run_both(
-            &mut t,
-            &format!("players {count}, taking part {taking:#06b}, due {due}, yes {yes}"),
-            &copy,
-            &regions,
-            &|| unsafe {
-                restore(&vars, &saved);
-                game_write(PLAYER_COUNT_RVA, count);
-                game_write(ANSWER_RVA, yes);
-                game_write(DUE_RVA, due);
-                game_write(OUT_RVA, 0u32);
-                game_write(MONEY_RVA, 7u32);
-                for n in 0..4u32 {
-                    put(player(n) + 0xD0, u32::from(taking & (1 << n) != 0));
-                }
-            },
-            &|r| unsafe { service_pass(r, &mut test_part) },
-        );
-    }
-    restore(&vars, &saved);
-    t.finish()
+/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    let left = unsafe { service_pass(r, &mut game_part) }?;
+    *r = Regs { esp: r.esp, ..left };
+    Ok(())
 }

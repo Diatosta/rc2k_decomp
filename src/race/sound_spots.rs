@@ -21,14 +21,11 @@ unsafe fn get(a: u32) -> u32 {
     unsafe { (a as *const u32).read_unaligned() }
 }
 
-/// The 25 cells' numbers, in the original's order.
-fn cells() -> [u32; 25] {
-    let first = unsafe { game_read::<u32>(REACH) }
-        .wrapping_sub(2)
-        .wrapping_mul(0x21);
-    // Five across, then on by 0x1C after the fifth: rows 0x20 apart (the start is on the
-    // diagonal: row and column both reach - 2).
-    std::array::from_fn(|k| first.wrapping_add((k / 5) as u32 * 0x20 + (k % 5) as u32))
+/// The 25 cells' numbers, in the original's order (five across, then on by 0x1C after
+/// the fifth: rows 0x20 apart, from reach - 2 on the diagonal).
+fn cells() -> Vec<u32> {
+    // Converted: `rc2k_core::race::view::cells_from`.
+    rc2k_core::race::view::cells_from(unsafe { game_read::<u32>(REACH) }.wrapping_sub(2), 5)
 }
 
 /// What the original would read through a null or past the grid: refused before anything.
@@ -83,20 +80,24 @@ pub unsafe fn face_sound_spot(entry: &Regs) -> Regs {
         let mut r = *entry;
         let face = game_read::<u32>(FACES).wrapping_add(r.ebx << 6);
         r.esi = face;
-        let byte = |o: u32| ((face + o) as *const u8).read() as u32;
-        if byte(0) != 0xFF || byte(1) != 0x3F {
+        // Converted: `rc2k_core::race::view::{sound_object, takes_spot, spot_place}`
+        // (the turn and scale stay the x87's: the callers compare exactly).
+        use rc2k_core::race::view::{MOST_SPOTS, sound_object, spot_place, takes_spot};
+        let byte = |o: u32| ((face + o) as *const u8).read();
+        let kind = byte(0);
+        if kind != 0xFF || !sound_object(kind, byte(1)) {
             return r;
         }
         let count: u32 = game_read(COUNT);
         r.eax = count;
-        if count == 0x24 {
+        if count == MOST_SPOTS {
             return r;
         }
         let spot = game_addr(SPOTS) as u32 + count * 0x14;
         r.edi = spot;
-        let sound = byte(8);
+        let sound = byte(8) as u32;
         r.eax = sound;
-        if sound == 0 || sound > 0x15 {
+        if !takes_spot(count, sound) {
             return r;
         }
         let put = |o: u32, v: u32| ((spot + o) as *mut u32).write_unaligned(v);
@@ -104,11 +105,10 @@ pub unsafe fn face_sound_spot(entry: &Regs) -> Regs {
         let point = get(face + 4);
         put(0, point);
         let p = point.wrapping_mul(12).wrapping_add(game_read(POINTS));
-        let place = [
-            get(p).wrapping_add(get(face + 0x30)),
-            get(p + 4).wrapping_add(get(face + 0x34)),
-            get(p + 8).wrapping_add(get(face + 0x38)),
-        ];
+        let place = spot_place(
+            [get(p), get(p + 4), get(p + 8)],
+            [get(face + 0x30), get(face + 0x34), get(face + 0x38)],
+        );
         game_write(rva(0x63501C), place);
         (r.eax, r.ebx, r.ecx) = (place[0], place[1], place[2]);
         r.esi = game_addr(rva(0x5EA2CC)) as u32;
@@ -128,14 +128,14 @@ pub unsafe fn face_sound_spot(entry: &Regs) -> Regs {
 pub unsafe fn cell_sound_spots(entry: &Regs) -> Regs {
     unsafe {
         let mut r = *entry;
+        // Converted: `rc2k_core::race::view::record_faces`.
         r.ebx = game_read(GRID + 4 * r.ecx as usize);
-        if r.ebx >= 0x0FFF_FFFF {
+        if r.ebx >= rc2k_core::race::view::NO_RECORD {
             return r;
         }
         r.esi = game_read::<u32>(RECORDS).wrapping_add(r.ebx << 5);
         r.ebx = get(r.esi + 8);
-        let last = get(r.esi + 0xC);
-        if r.ebx == u32::MAX || r.ebx > last {
+        if rc2k_core::race::view::record_faces(r.ebx, get(r.esi + 0xC)).is_none() {
             return r;
         }
         loop {

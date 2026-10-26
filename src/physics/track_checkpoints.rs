@@ -16,13 +16,14 @@
 //! Self-test: a copy whose four calls go to stand-ins (the split's CF by a pattern),
 //! against the Rust version with the same, on the game's variables (saved and put back).
 
-use crate::errors::{BadInput, Refused};
+use crate::errors::Refused;
 use crate::framework::{
     RawHook, Regs, SelfTest, call_game, game_addr, game_read, game_write, hook_asm, rva, shadow,
 };
 use crate::install::stand_ins::{set_handler, stand_in};
 use crate::redirect::RedirectedCopy;
 use crate::service::harness::{capture, restore};
+use rc2k_core::physics::splits::{at_split_end, check_tracked, split_ahead};
 use std::sync::Mutex;
 use std::sync::atomic::{AtomicU32, AtomicUsize, Ordering};
 
@@ -81,26 +82,22 @@ pub fn game_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
 }
 
 /// The steps on `r`.
+// Converted: `rc2k_core::physics::splits::{check_tracked, at_split_end, split_ahead}`.
 pub fn track_checkpoints_in(r: &mut Regs, part: Part) -> Result<(), Refused> {
     part(0, r)?;
-    if r.eax > 0x1418 {
-        return Err(BadInput("a checkpoint past 0x1418").into());
-    }
-    if g(0x71A068) > 0x40 {
-        return Err(BadInput("a split past 0x40").into());
-    }
+    check_tracked(r.eax, g(0x71A068))?;
     p(0x71A070, r.eax);
     p(0x6365E4, r.eax);
     part(1, r)?;
     part(2, r)?;
     r.ebx = g(0x71A070);
     r.eax = g(0x9E87A0 + 4 * r.ebx as usize).wrapping_sub(1);
-    if r.eax == g(0x71A068) {
+    if at_split_end(r.eax.wrapping_add(1), g(0x71A068)) {
         r.eax = g(0x71A070);
         p(0x71A06C, r.eax);
     }
     r.ecx = g(0x71A068);
-    if r.ecx >= g(0x601830) {
+    if !split_ahead(r.ecx, g(0x601830)) {
         return Ok(());
     }
     part(3, r)?;
@@ -132,6 +129,22 @@ extern "C" fn dispatch(r: &mut Regs) {
         }
         Err(e) => unsafe { crate::fatal::raise::refused(&HOOK, e, r, call_original) },
     }
+}
+
+/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    let mut g = *r;
+    match track_checkpoints_in(&mut g, &mut game_part) {
+        Ok(()) => {
+            *r = Regs {
+                esp: r.esp,
+                eflags: r.eflags,
+                ..g
+            }
+        }
+        Err(e) => return Err(e),
+    }
+    Ok(())
 }
 
 // ---- for the self-test ----

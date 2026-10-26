@@ -44,6 +44,11 @@ pub fn dispatch_page(hook: &RawHook, r: &mut Regs, call_original: CallOriginal, 
     });
 }
 
+/// `dispatch_page` without its hook (typed tables).
+pub fn page_entry(name: &str, r: &mut Regs, page: u32) -> Result<(), Refused> {
+    crate::screens::harness::draw_entry(name, r, &|r, c| rust(r, page, c))
+}
+
 pub fn test_page(hook: &RawHook, call_original: CallOriginal, page: u32) -> (usize, usize) {
     let Some(mut t) = SelfTest::begin(hook) else {
         return (0, 0);

@@ -13,8 +13,7 @@
 
 use crate::framework::{game_addr, rva};
 
-pub const SAMPLES: u32 = 0x1CD;
-pub const VOICES: u32 = 0x200;
+pub use rc2k_core::audio::voices::{SAMPLES, VOICES};
 
 pub const SAMPLES_RVA: usize = rva(0x50A7A4); // g_sampleRecords
 pub const VOICES_RVA: usize = rva(0x4F834C); // g_voices
@@ -36,116 +35,11 @@ pub const EAX_ROOM_SET_RVA: usize = rva(0x506C7C); // g_eaxRoomSet: the room set
 pub const BUFFER_LOST_RVA: usize = rva(0x4F82CC); // g_soundBufferLost
 pub const COMMIT_RVA: usize = rva(0x4F82D0); // g_commit3d: 3D settings to commit
 pub const SAMPLE_MEMORY_RVA: usize = rva(0x4F8300); // g_sampleMemory (a MemoryList)
-/// The mixer channels that are cleared (`audio::clear_channels`).
-pub const CHANNELS_CLEARED: u32 = 0x10;
-
-/// "As the sample record says" in a command.
-pub const DEFAULT: u32 = 0xFFFF_FF91;
-/// "The voice's own frequency".
-pub const OWN_FREQUENCY: u32 = 0xFFFF_FF90;
-/// "As the sample record says", for a place's float.
-pub const DEFAULT_PLACE: u32 = 0xFF80_0000;
-/// `g_soundMode`: places in 3D.
-pub const MODE_3D: u32 = 0x10_0000;
-
-pub const DIRTY_VOLUME: u32 = 1;
-pub const DIRTY_PAN: u32 = 2;
-pub const DIRTY_FREQUENCY: u32 = 4;
-pub const DIRTY_PLACE: u32 = 8;
-pub const DIRTY_PLAY: u32 = 0x10;
-pub const DIRTY_RESTART: u32 = 0x20;
-/// `Voice::flags`: the voice's sample is loaded.
-pub const LOADED: u32 = 0x10;
-
-#[repr(C)]
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-pub struct SampleRecord {
-    pub number: u32,
-    pub group: u32,
-    /// The first voice (0: not loaded).
-    pub first_voice: u32,
-    pub data_key: u32,
-    pub priority: u32,
-    pub voice_kind: u32,
-    /// How many voices to make for it.
-    pub copies: i32,
-    /// The sample's volume scale out of 0x40 (`audio::prepare_sample`).
-    pub scale: u32,
-    /// Points at a volume factor (0: 0x40).
-    pub volume_factor: u32,
-    /// Its voices' 3D minimum distance (an f32).
-    pub min_distance: u32,
-    pub volume: u32,
-    pub pan: u32,
-    pub frequency: u32,
-    pub place: [u32; 3],
-}
-
-#[repr(C)]
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-pub struct Voice {
-    /// 1 a buffer of its own, 2 the software mixer's; `LOADED`.
-    pub flags: u32,
-    /// Its sample record's number.
-    pub sound: u32,
-    pub buffer: u32,
-    pub buffer_3d: u32,
-    pub data_key: u32,
-    /// The voice whose sample data this one shares.
-    pub source: u32,
-    pub next_copy: u32,
-    pub data: u32,
-    pub length: u32,
-    pub own_frequency: u32,
-    /// Low four bits: the sample's shift.
-    pub format: u32,
-    /// The sample's frames.
-    pub frames: u32,
-    /// The record's `scale`.
-    pub scale: u32,
-    pub priority: i32,
-    /// 0 once, 1 looping, 3 restarted each time.
-    pub kind: u32,
-    /// 0 free, 1 started, 2 sounding.
-    pub state: u32,
-    pub dirty: u32,
-    /// Its mixer channel (0: none).
-    pub channel: u32,
-    /// The playing or stopping list's link.
-    pub next: u32,
-    pub volume_factor: u32,
-    /// The 3D buffer's minimum distance (an f32).
-    pub min_distance: u32,
-    pub volume: u32,
-    pub pan: i32,
-    pub pan_sign: i32,
-    pub frequency: u32,
-    pub place: [u32; 3],
-}
-
-#[repr(C)]
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-pub struct MixerChannel {
-    pub used: u32,
-    pub gap_4: [u32; 2],
-    pub voice: u32,
-    pub format: u32,
-    pub data: u32,
-    pub length: u32,
-    pub kind: u32,
-    pub gap_20: [u32; 3],
-    pub position: u32,
-    pub position_fraction: u32,
-    pub step: u32,
-    pub step_fraction: u32,
-    pub left: i32,
-    pub right: i32,
-    pub gap_44: [u32; 5],
-}
-
-const _: () = assert!(std::mem::size_of::<SampleRecord>() == 0x40);
-const _: () = assert!(std::mem::size_of::<Voice>() == 0x70);
-const _: () = assert!(std::mem::size_of::<MixerChannel>() == 0x58);
+// The records, voices and channels and their constants: `rc2k_core::audio::voices`.
+pub use rc2k_core::audio::voices::{
+    CHANNELS_CLEARED, DEFAULT, DEFAULT_PLACE, DIRTY_FREQUENCY, DIRTY_PAN, DIRTY_PLACE, DIRTY_PLAY,
+    DIRTY_RESTART, DIRTY_VOLUME, LOADED, MODE_3D, MixerChannel, OWN_FREQUENCY, SampleRecord, Voice,
+};
 
 /// Where the audio thread's tables and lists are: the game's, or a test's.
 #[derive(Clone, Copy, Debug)]
@@ -207,4 +101,57 @@ pub unsafe fn sample<'a>(w: &World, number: u32) -> &'a mut SampleRecord {
 
 pub unsafe fn channel<'a>(at: u32) -> &'a mut MixerChannel {
     unsafe { &mut *(at as *mut MixerChannel) }
+}
+
+/// The core's `Pool` over a world's memory: voices and channels by their addresses.
+pub struct GamePool {
+    samples: u32,
+    channels: u32,
+}
+
+impl GamePool {
+    /// `w`'s tables; every handle the core is given must be a voice or channel of the
+    /// world (the lists and records hold nothing else).
+    pub unsafe fn new(w: &World) -> Self {
+        GamePool {
+            samples: w.samples,
+            channels: w.channels,
+        }
+    }
+}
+
+impl rc2k_core::audio::voices::Pool for GamePool {
+    fn voice(&mut self, at: u32) -> &mut Voice {
+        unsafe { voice(at) }
+    }
+    fn channel(&mut self, at: u32) -> &mut MixerChannel {
+        unsafe { channel(at) }
+    }
+    fn channel_at(&self, n: u32) -> u32 {
+        self.channels + n * std::mem::size_of::<MixerChannel>() as u32
+    }
+    fn record(&mut self, n: u32) -> &mut SampleRecord {
+        unsafe { &mut *((self.samples as *mut SampleRecord).add(n as usize)) }
+    }
+}
+
+/// A world's lists, read.
+pub unsafe fn lists(w: &World) -> rc2k_core::audio::voices::Lists {
+    unsafe {
+        rc2k_core::audio::voices::Lists {
+            playing: read(w.playing),
+            stopping: read(w.stopping),
+            channels_used: read(w.channels_used),
+            channel_count: read(w.channel_count),
+        }
+    }
+}
+
+/// A world's lists stored back (the channel count is not written).
+pub unsafe fn store_lists(w: &World, l: &rc2k_core::audio::voices::Lists) {
+    unsafe {
+        write(w.playing, l.playing);
+        write(w.stopping, l.stopping);
+        write(w.channels_used, l.channels_used);
+    }
 }

@@ -25,37 +25,15 @@
 //! the `jb` out to the fatal-error stub relocated), because the set-up label is inside the
 //! bytes a patch overwrites. Ungated thunk; shadow mode runs the original alone; each real
 //! call writes a line to hook.log. Self-test: `screen_loop::check_screen`.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
-use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
+use crate::framework::{Regs, rva};
 use crate::menu::class_stage_results_loop::LOAD_BACKGROUND;
 use crate::menu::run_draw_list::DRAW_LIST_RVA;
-use crate::menu::screen_loop::{
-    FRAME_CALLBACK, List, Original, Screen, Step, check_screen, dispatch_screen,
-};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook = RawHook::new(
-    "menu::championship_standings_loop",
-    rva(0x4670DF),
-    thunk,
-    &ORIGINAL,
-)
-.private_copy(0x2B3)
-.relocate_calls(&[
-    0x8D, 0x92, 0x9E, 0xA3, 0xF2, 0xF7, 0x13F, 0x19D, 0x23F, 0x26D,
-])
-.manual_patch()
-.self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL,
-    ungated
-);
+use crate::menu::screen_loop::{FRAME_CALLBACK, List, Screen, Step, screen_entry};
 
 // ---- game data ----
 
@@ -142,27 +120,8 @@ pub const SCREEN: Screen = Screen {
     also_writes: &[],
 };
 
-// ---- hook ----
-
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_screen(&HOOK, r, call_original, &SCREEN);
-}
-
-// ---- self-test ----
-
-const THE_ORIGINAL: Original = Original {
-    function: rva(0x4670DF),
-    len: 0x2B3,
-    entry_bytes: &[0x60, 0xC7, 0x05, 0x06, 0x88, 0x75, 0x00, 0x00],
-    calls: &[0x8D, 0x9E, 0xA3, 0xF2, 0xF7, 0x13F, 0x19D, 0x23F, 0x26D],
-};
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    if let Err(why) = check_screen(&mut t, &SCREEN, &THE_ORIGINAL) {
-        return t.skip(why);
-    }
-    t.finish()
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    screen_entry("menu::championship_standings_loop", r, &SCREEN)
 }

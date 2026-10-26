@@ -23,54 +23,13 @@ const FOUND: usize = 0x7559EC; // dword_7559EC
 /// (`dword_7551E4` ..: a 1 for "under 0x80"); a direction held over 0x1D of the last 32 polls
 /// while the others were not (its history empty) gives 0x400 / 0x800 / 0x100 / 0x200 with the
 /// button, else 0; into `dword_7559EC`. Every register kept.
-pub unsafe fn classify_controller(eax: u32, mut ebx: u32, mut ecx: u32, edx: u32) {
-    let mut found = 0u32;
-    if ebx != 0 {
-        loop {
-            found += 1;
-            let out = ebx & 1;
-            ebx >>= 1;
-            if out != 0 {
-                break;
-            }
-        }
-        if ebx != 0 {
-            found = 0;
-        }
+pub unsafe fn classify_controller(eax: u32, ebx: u32, ecx: u32, edx: u32) {
+    // Converted: `rc2k_core::input::devices::classify`.
+    let (history, found) = rc2k_core::input::devices::classify(ebx, ecx, edx, eax, HISTORY.map(k));
+    for (var, v) in HISTORY.into_iter().zip(history) {
+        w(var, v);
     }
-    let mut left = ecx;
-    if (left as i32) > 0 {
-        left = 0;
-    }
-    if (left as i32) < 0 {
-        left = left.wrapping_neg();
-    }
-    if (ecx as i32) < 0 {
-        ecx = 0;
-    }
-    for (var, v) in HISTORY.into_iter().zip([left, ecx, edx, eax]) {
-        w(var, (k(var) << 1) | u32::from(v < 0x80));
-    }
-    let [l, r, y, z] = HISTORY.map(|v| k(v).count_ones());
-    let min = |a: u32, b: u32, c: u32| a.min(b).min(c);
-    let bit = if l == 0 {
-        (min(z, r, y) >= 0x1D).then_some(0x400)
-    } else if r == 0 {
-        (min(z, l, y) >= 0x1D).then_some(0x800)
-    } else if y == 0 {
-        (min(z, l, r) >= 0x1D).then_some(0x100)
-    } else if z == 0 {
-        (min(l, r, y) >= 0x1D).then_some(0x200)
-    } else {
-        Some(0)
-    };
-    w(
-        FOUND,
-        match bit {
-            Some(b) => found | b,
-            None => 0,
-        },
-    );
+    w(FOUND, found);
 }
 
 /// `screens::learn_axis` (0x46B131): see the header. With 3 s gone the learning stops
@@ -94,9 +53,12 @@ pub unsafe fn learn_axis(entry: &Regs, part: crate::race::frame::Part) -> Result
         let mut r = *entry;
         w(FOUND, 0);
         part(1, &mut r)?;
+        // Converted: `rc2k_core::screens::learning` (`timed_out`, `by_axis`, `pedal`,
+        // `CANCEL_KEY`, `binding`).
+        use rc2k_core::screens::learning as l;
         r.eax = r.eax.wrapping_sub(k(0x7551F8));
-        if (r.eax.wrapping_sub(0xBB8) as i32) >= 0 {
-            w(0x7551FC, u32::MAX);
+        if l::timed_out(r.eax) {
+            w(0x7551FC, l::TIMED_OUT);
             w(0x7551F4, 0);
             return Ok(());
         }
@@ -117,15 +79,14 @@ pub unsafe fn learn_axis(entry: &Regs, part: crate::race::frame::Part) -> Result
         let field = |o: u32| (player + o) as *mut u8;
         let mut take = true;
         let control = k(0x7551FC);
-        let learning =
-            ((player + 0x34) as *const u32).read_unaligned() == 3 && (control == 1 || control == 2);
-        if learning {
+        if l::by_axis(((player + 0x34) as *const u32).read_unaligned(), control) {
             r.eax = 1;
             part(3, &mut r)?;
             if !r.carry() {
-                field(if control == 1 { 0x3B } else { 0x3A }).write(r.eax as u8);
+                let (byte, found) = l::pedal(control);
+                field(byte).write(r.eax as u8);
                 w(0x4F6F08, ((player + 0x38) as *const u32).read_unaligned());
-                w(FOUND, if control == 1 { 0x200 } else { 0x100 });
+                w(FOUND, found);
                 w(0x7551F4, 0);
                 take = false;
             }
@@ -135,16 +96,14 @@ pub unsafe fn learn_axis(entry: &Regs, part: crate::race::frame::Part) -> Result
         }
         if take {
             part(5, &mut r)?;
-            if r.eax as u8 == 0x39 {
+            if r.eax as u8 == l::CANCEL_KEY {
                 w(FOUND, 0);
                 w(0x7551F4, 0);
             } else if k(FOUND) == 0 {
                 return Ok(());
             }
         }
-        let slot = (player + 0x50)
-            .wrapping_add(k(0x7551FC).wrapping_mul(4))
-            .wrapping_sub(4);
+        let slot = player.wrapping_add(l::binding(k(0x7551FC)));
         (slot as *mut u32).write_unaligned(k(FOUND));
         Ok(())
     }
@@ -184,16 +143,9 @@ pub fn learn_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
 /// 0x51E8C4. Gives the registers `draw_string_by_id` leaves.
 pub unsafe fn draw_no_controller(
     canvas: &mut dyn crate::text::draw_text::Canvas,
-) -> Result<crate::text::draw_text::Outcome, Refused> {
-    unsafe {
-        crate::text::draw_string_by_id::draw_string_by_id_at(
-            0x56D,
-            crate::framework::game_addr(rva(0x51E8C4)) as *mut crate::text::font::Font,
-            0x1BC,
-            0xD5,
-            canvas,
-        )
-    }
+) -> Result<crate::screens::harness::Left, Refused> {
+    // Converted: `rc2k_core::screens::notes::NO_CONTROLLER`.
+    crate::screens::game_screen::draw_note(canvas, &rc2k_core::screens::notes::NO_CONTROLLER)
 }
 
 /// What the controller page reads: refused before anything.
@@ -225,102 +177,31 @@ pub unsafe fn controller_page_refuses() -> Result<u32, Refused> {
 pub unsafe fn draw_controller_page(
     canvas: &mut dyn crate::text::draw_text::Canvas,
 ) -> Result<(), Refused> {
-    use crate::gfx::blit_glyph::BlitCall;
-    use crate::gfx::surface::{CLIP_LEFT_RVA, CLIP_RIGHT_RVA};
-    use crate::menu::disable_item::disable_item;
-    use crate::menu::enable_item::enable_item;
-    use crate::text::draw_string_by_id::draw_string_by_id_at;
-    use crate::text::draw_text::draw_text_at;
+    // Converted: `rc2k_core::screens::controller_page::controller_page`.
+    use rc2k_core::screens::controller_page::{Controller, Font, Work, controller_page};
     unsafe {
         let player = controller_page_refuses()?;
         let f = |o: u32| ((player + o) as *const u32).read_unaligned();
-        let font = crate::screens::font_at(0x51E8C4);
         let device = f(0x2C);
+        let mut screen = crate::screens::game_screen::GameScreen::<Font, Work>::new(canvas);
         if device == 0 {
-            for n in 3..=8 {
-                disable_item(n)?;
-            }
-            draw_no_controller(canvas)?;
-            return Ok(());
-        }
-        for n in 3..=8 {
-            enable_item(n)?;
+            return controller_page(&mut screen, None);
         }
         let record = crate::framework::game_addr(rva(0x4F78E4)) as u32
             + device.wrapping_sub(1).wrapping_mul(0x50);
-        w(0x755A0C, record);
-        draw_text_at(font, (record + 0x30) as *const u8, 0x1BC, 0xD5, canvas)?;
-        w(0x7559AC, f(0x3C).wrapping_add(0x56D));
-        draw_string_by_id_at(k(0x7559AC), font, 0x1BC, 0xF0, canvas)?;
-        let has = ((record + 0x1C) as *const u32).read_unaligned() == 1;
-        if has {
-            enable_item(4)?;
-        } else {
-            disable_item(4)?;
-        }
-        if !has || (f(0x48) as i32) <= 0 {
-            draw_string_by_id_at(0x56D, font, 0x1BC, 0x10B, canvas)?;
-        } else {
-            let mut line = crate::strings::append_percent::append_percent(f(0x48));
-            line.push(0);
-            std::ptr::copy_nonoverlapping(line.as_ptr(), crate::screens::line_buffer(), line.len());
-            draw_text_at(font, crate::screens::line_buffer(), 0x1BC, 0x10B, canvas)?;
-        }
-        w(0x7559AC, f(0x34).wrapping_add(0x3A1));
-        let out = draw_string_by_id_at(k(0x7559AC), font, 0x1BC, 0x126, canvas)?;
-        let sprites = crate::gfx::blit_marker_pair::sprite_table();
-        canvas.blit_glyph(BlitCall::new(5, 0x1B8, 0x14C, out.text as u32, sprites))?;
-        let (right, left) = (k(0x4F5040), k(0x4F503C));
-        let a = f(0x40);
-        game_write(CLIP_RIGHT_RVA, 0x281u32.wrapping_sub(a).wrapping_sub(1));
-        w(0x7559E0, 0x281u32.wrapping_sub(a));
-        game_write(CLIP_LEFT_RVA, 0x1C0u32.wrapping_add(a));
-        w(0x7559DC, 0x1C0u32.wrapping_add(a).wrapping_sub(4));
-        let done = (|| -> Result<(), Refused> {
-            canvas.blit_glyph(BlitCall::new(3, 0x1BC, 0x14C, k(0x7559DC), sprites))?;
-            let t = 100u32.wrapping_sub(f(0x44));
-            game_write(CLIP_RIGHT_RVA, 0x285u32.wrapping_sub(t).wrapping_sub(1));
-            w(0x7559E8, 0x285u32.wrapping_sub(t));
-            game_write(CLIP_LEFT_RVA, 0x1BCu32.wrapping_add(t));
-            w(0x7559E4, 0x1BCu32.wrapping_add(t).wrapping_sub(4));
-            canvas.blit_glyph(BlitCall::new(4, 0x1BC, 0x14C, k(0x7559E4), sprites))?;
-            Ok(())
-        })();
-        game_write(CLIP_LEFT_RVA, left);
-        game_write(CLIP_RIGHT_RVA, right);
-        done?;
-        let palette = k(0x7559E4);
-        for (glyph, x) in [
-            (7u32, 0x7559DCusize),
-            (7, 0x7559E0),
-            (6, 0x7559E4),
-            (6, 0x7559E8),
-        ] {
-            canvas.blit_glyph(BlitCall::new(glyph, k(x) as i32, 0x14C, palette, sprites))?;
-        }
-        let [x, _, _, buttons] = crate::input::axes::first_device_state();
-        w(0x7559F0, buttons);
-        let place = if x == 0 {
-            0x21A
-        } else if (x as i32) > 0 {
-            let v = x.wrapping_mul(100);
-            if v == 0 {
-                return Err(crate::gfx::blit_bar::BAR_HAS_NO_LENGTH.into());
-            }
-            (v / 0x100).wrapping_add(0x21A)
-        } else {
-            let v = x.wrapping_neg().wrapping_mul(100);
-            if v == 0 {
-                return Err(crate::gfx::blit_bar::BAR_HAS_NO_LENGTH.into());
-            }
-            (v / 0x100)
-                .wrapping_neg()
-                .wrapping_add(1)
-                .wrapping_add(0x21A)
+        let [stick_x, _, _, buttons] = crate::input::axes::first_device_state();
+        let c = Controller {
+            record,
+            name: record + 0x30,
+            has_strength: ((record + 0x1C) as *const u32).read_unaligned() == 1,
+            mode: f(0x3C),
+            strength: f(0x48),
+            sensitivity: f(0x34),
+            first: f(0x40),
+            second: f(0x44),
+            stick_x,
+            buttons,
         };
-        w(0x7559EC, place);
-        let glyph = if buttons != 0 { 9 } else { 8 };
-        canvas.blit_glyph(BlitCall::new(glyph, place as i32, 0x156, buttons, sprites))?;
-        Ok(())
+        controller_page(&mut screen, Some(&c))
     }
 }

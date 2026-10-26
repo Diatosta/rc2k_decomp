@@ -21,7 +21,7 @@ pub struct PngInfo {
     pub palette: [u8; 0x300],
 }
 
-pub const SIGNATURE: [u8; 8] = [0x89, b'P', b'N', b'G', 0x0D, 0x0A, 0x1A, 0x0A];
+pub use rc2k_core::gfx::png::SIGNATURE;
 
 // ---- for the self-tests ----
 

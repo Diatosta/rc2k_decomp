@@ -31,8 +31,7 @@
 
 use crate::errors::FatalError;
 use crate::framework::{
-    GameHook, RawHook, Regs, call_game, game_addr, game_ptr, game_read, game_write, hook_asm, log,
-    rva,
+    GameHook, RawHook, Regs, game_addr, game_ptr, game_read, game_write, hook_asm, log, rva,
 };
 use crate::gfx::describe_format::describe_format;
 use crate::gfx::texture_upload::{TextureFormat, TextureRecord};
@@ -1018,12 +1017,12 @@ extern "C" fn begin(r: &mut Regs) {
         {
             work.eax = value;
             work.ebx = state;
-            call_game(&mut work, game_addr(SET_STATE_RVA));
+            crate::calls::call(SET_STATE_RVA, &mut work);
         }
         // `sub_41ACDE`: no texture is the current one, then none is set.
         game_write(CURRENT_TEXTURE_RVA, 0xFFFF_FC44u32);
         work.eax = NO_TEXTURE;
-        call_game(&mut work, game_addr(SET_TEXTURE_RVA));
+        crate::calls::call(SET_TEXTURE_RVA, &mut work);
         r.eax = 0;
     }
     r.set_carry(false);

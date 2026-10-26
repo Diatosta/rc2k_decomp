@@ -6,40 +6,26 @@
 //!
 //! The comparison is signed. In two menu tables (0x7518D0, 0x751D28): the load and
 //! save screens' page buttons. The twin of `service::next_setup_page`.
-//! Self-test: eight pages.
+//! Hook removed 2026-10-22 (typed tables): the menus and draw lists run its `entry`
+//! (`menu::table_calls`); the registers above are the original's, for reference.
 
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, SelfTest, game_read, game_write, hook_asm, rva};
+use crate::framework::{Regs, game_read, game_write};
 use crate::menu::name_lists::SAVEGAME_PAGE_RVA;
 use crate::screens::harness::Left;
-use crate::service::harness::{Region, at, capture, check_state, dispatch_state, restore};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("menu::next_savegame_page", rva(0x46D407), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
+use crate::service::harness::state_entry;
 
 // ---- Rust version ----
 
 pub fn next_savegame_page() {
     unsafe {
-        let next = game_read::<i32>(SAVEGAME_PAGE_RVA).wrapping_add(1);
-        game_write(SAVEGAME_PAGE_RVA, if next > 9 { 0 } else { next });
+        // Converted: `rc2k_core::menu::steps::savegame_page`.
+        let page = game_read::<u32>(SAVEGAME_PAGE_RVA);
+        game_write(
+            SAVEGAME_PAGE_RVA,
+            rc2k_core::menu::steps::savegame_page(page, true),
+        );
     }
-}
-
-// ---- hook ----
-
-fn regions() -> [Region; 1] {
-    [at(SAVEGAME_PAGE_RVA)]
 }
 
 fn rust(_: &Regs) -> Result<Left, Refused> {
@@ -47,28 +33,8 @@ fn rust(_: &Regs) -> Result<Left, Refused> {
     Ok(Left::nothing())
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_state(&HOOK, r, call_original, &regions(), &rust);
-}
-
-// ---- self-test ----
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let saved = capture(&regions());
-    for page in [-5i32, -1, 0, 1, 8, 9, 10, i32::MAX] {
-        check_state(
-            &mut t,
-            &format!("page={page}"),
-            call_original,
-            Regs::SENTINEL,
-            &|| unsafe { game_write(SAVEGAME_PAGE_RVA, page) },
-            &regions(),
-            &rust,
-        );
-    }
-    restore(&regions(), &saved);
-    t.finish()
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    state_entry(r, &rust)
 }

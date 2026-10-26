@@ -13,10 +13,12 @@
 //! Self-test: a copy of the original (the clock and the car's fields the test's) against
 //! the core, counts 0 .. 7, and the refusal.
 
-use crate::errors::{BadInput, Refused};
+use crate::errors::Refused;
 use crate::framework::{EAX, ECX, RawHook, Regs, SelfTest, call_game, game_addr, hook_asm, rva};
+use crate::physics::cells::{get, get_list, put, put_changed, put_list_changed};
 use crate::screens::harness::Left;
 use crate::service::harness::{capture, dispatch_state};
+use rc2k_core::physics::car_events::CarEvents;
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -56,36 +58,41 @@ impl QueuePlaces {
     }
 }
 
-unsafe fn at(a: u32) -> u32 {
-    unsafe { (a as *const u32).read_unaligned() }
+impl QueuePlaces {
+    /// The queue at these places.
+    pub unsafe fn load(&self) -> CarEvents {
+        unsafe {
+            CarEvents {
+                times: get_list(self.times),
+                events: get_list(self.events),
+                count: get(self.count),
+                level: get(self.f9c),
+                shown: get(self.fa0),
+            }
+        }
+    }
+
+    /// What changed from `was` to `now` stored back.
+    pub unsafe fn store(&self, was: &CarEvents, now: &CarEvents) {
+        unsafe {
+            put_list_changed(self.times, &was.times, &now.times);
+            put_list_changed(self.events, &was.events, &now.events);
+            put_changed(self.count, was.count, now.count);
+            put_changed(self.f9c, was.level, now.level);
+            put_changed(self.fa0, was.shown, now.shown);
+        }
+    }
 }
 
-unsafe fn put(a: u32, v: u32) {
-    unsafe { (a as *mut u32).write_unaligned(v) }
-}
-
-/// The core.
+/// The Rust version on the variables at `p`.
+// Converted: `rc2k_core::physics::car_events::CarEvents::queue`.
 pub unsafe fn queue_car_event_at(p: &QueuePlaces, esi: u32, ebx: u32) -> Result<Left, Refused> {
     unsafe {
-        let count = at(p.count);
-        if count > 7 {
-            return Err(BadInput("a car event count above 7").into());
-        }
-        let time = at(p.clock).wrapping_add(esi);
-        let left = Left::nothing().with(EAX, time).with(ECX, count);
-        if count == 7 {
-            return Ok(left);
-        }
-        put(p.times + 4 * count, time);
-        put(p.events + 4 * count, ebx);
-        put(p.count, count + 1);
-        if count + 1 == 1 {
-            put(p.f9c, 0);
-            put(p.fa0, 0);
-        } else {
-            put(p.f9c, at(p.f9c).wrapping_sub(0x20));
-        }
-        Ok(left)
+        let was = p.load();
+        let mut q = was;
+        let time = q.queue(get(p.clock), esi, ebx)?;
+        p.store(&was, &q);
+        Ok(Left::nothing().with(EAX, time).with(ECX, was.count))
     }
 }
 

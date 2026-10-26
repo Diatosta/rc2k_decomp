@@ -41,6 +41,12 @@ extern "C" fn dispatch(r: &mut Regs) {
     }
 }
 
+/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    unsafe { silence_race_sounds(r, &mut sound_part) }?;
+    Ok(())
+}
+
 /// The calls by place, as IDA shows them.
 const CALLEES: [(usize, u32); 5] = [
     (0x409C1E, WAIT),

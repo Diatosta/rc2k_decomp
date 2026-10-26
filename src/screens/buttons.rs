@@ -135,151 +135,6 @@ pub unsafe fn dword(at: u32) -> u32 {
 
 // ---- Rust version of the three button functions ----
 
-struct Pen<'a> {
-    x: i32,
-    y: i32,
-    palette: u32,
-    table: u32,
-    canvas: &'a mut dyn Canvas,
-}
-
-impl Pen<'_> {
-    unsafe fn blit(&mut self, glyph: u32) -> Result<(), FatalError> {
-        unsafe { self.blit_at(glyph, self.x, self.y) }
-    }
-
-    unsafe fn blit_at(&mut self, glyph: u32, x: i32, y: i32) -> Result<(), FatalError> {
-        let call = BlitCall::new(glyph, x, y, self.palette, self.table);
-        unsafe { self.canvas.blit_glyph(call) }
-    }
-
-    fn step(&mut self, by: i32) {
-        self.x = self.x.wrapping_add(by);
-    }
-
-    /// Whole middle pieces going right, a last one placed so that it ends where the width
-    /// does, and the right end.
-    unsafe fn rightwards(
-        &mut self,
-        wholes: u32,
-        rest: u32,
-        middle: u32,
-        right: u32,
-    ) -> Result<(), FatalError> {
-        unsafe {
-            for _ in 0..wholes {
-                self.blit(middle)?;
-                self.step(32);
-            }
-            if rest != 0 {
-                self.step(rest as i32 - 32);
-                self.blit(middle)?;
-                self.step(32);
-            }
-            self.blit(right)
-        }
-    }
-
-    /// A button whose left end goes at the pen.
-    unsafe fn left_to_right(
-        &mut self,
-        width: u32,
-        [left, right, middle]: [u32; 3],
-    ) -> Result<(), FatalError> {
-        unsafe {
-            self.blit(left)?;
-            self.step(0x22);
-            if width == 0 {
-                return Err(BAR_HAS_NO_LENGTH);
-            }
-            self.rightwards(width / 32, width % 32, middle, right)
-        }
-    }
-
-    /// `left_to_right` as `draw_button_alt` does it when left-aligned (`Kind::borrows`).
-    unsafe fn left_to_right_borrowing(
-        &mut self,
-        width: u32,
-        [left, right, middle]: [u32; 3],
-    ) -> Result<(), FatalError> {
-        unsafe {
-            self.blit(left)?;
-            self.step(0x22);
-            if width == 0 {
-                return Err(BAR_HAS_NO_LENGTH);
-            }
-            for _ in 0..width / 32 {
-                self.blit_at(middle, self.x, game_read(PLAIN.y_rva))?;
-                self.step(32);
-            }
-            let rest = width % 32;
-            if rest != 0 {
-                self.step(rest as i32 - 32);
-                self.blit_at(middle, game_read(PLAIN.x_rva), self.y)?;
-                self.step(32);
-            }
-            self.blit(right)
-        }
-    }
-
-    unsafe fn button(
-        &mut self,
-        kind: &Kind,
-        width: u32,
-        align: u32,
-        sprites: [u32; 3],
-    ) -> Result<(), FatalError> {
-        let [left, right, middle] = sprites;
-        let to_centre = ((width >> 1).wrapping_add(0x22) as i32).wrapping_neg();
-        unsafe {
-            match align {
-                ALIGN_LEFT if kind.borrows => self.left_to_right_borrowing(width, sprites),
-                ALIGN_LEFT => self.left_to_right(width, sprites),
-                ALIGN_CENTRE => {
-                    self.step(to_centre);
-                    self.left_to_right(width, sprites)
-                }
-                ALIGN_RIGHT => {
-                    self.blit(right)?;
-                    self.step(-32);
-                    if width == 0 {
-                        return Err(BAR_HAS_NO_LENGTH);
-                    }
-                    let (wholes, rest) = (width / 32, width % 32);
-                    if wholes != 0 {
-                        self.blit(middle)?;
-                        self.step(-32);
-                        if kind.slips {
-                            if wholes > 1 {
-                                return self.rightwards(wholes - 1, rest, middle, right);
-                            }
-                        } else {
-                            for _ in 1..wholes {
-                                self.blit(middle)?;
-                                self.step(-32);
-                            }
-                        }
-                    }
-                    if rest != 0 {
-                        self.step(32 - rest as i32);
-                        self.blit(middle)?;
-                        self.step(-0x22);
-                        return self.blit(left);
-                    }
-                    self.step(-2);
-                    self.blit(left)?;
-                    if kind.slips {
-                        self.step(to_centre);
-                        return self.left_to_right(width, sprites);
-                    }
-                    Ok(())
-                }
-                _ => Err(kind.bad_align),
-            }
-        }
-    }
-}
-
 /// What the three functions do: `item` is only read for its sprites.
 pub unsafe fn draw_button(
     kind: &Kind,
@@ -306,16 +161,36 @@ pub unsafe fn draw_button(
         game_write(kind.left_rva, sprites[0]);
         game_write(kind.right_rva, sprites[1]);
         game_write(MIDDLE_RVA, sprites[2]);
-        let mut pen = Pen {
+        // Converted: `rc2k_core::screens::buttons::draw`; the pieces blitted from the sprite table.
+        use rc2k_core::screens::buttons::{Borrowed, Error};
+        let table = sprite_table();
+        let borrowed = Borrowed {
+            y: game_read(PLAIN.y_rva),
+            x: game_read(PLAIN.x_rva),
+        };
+        let core = rc2k_core::screens::buttons::Kind {
+            slips: kind.slips,
+            borrows: kind.borrows,
+        };
+        let (end, drawn) = rc2k_core::screens::buttons::draw(
+            core,
+            width,
             x,
             y,
-            palette: x as u32,
-            table: sprite_table(),
-            canvas,
-        };
-        let drawn = pen.button(kind, width, align, sprites);
-        game_write(kind.x_rva, pen.x);
-        Ok(drawn?)
+            align,
+            sprites,
+            borrowed,
+            &mut |glyph, x, y, palette| {
+                canvas.blit_glyph(BlitCall::new(glyph, x, y, palette, table))
+            },
+        );
+        game_write(kind.x_rva, end);
+        match drawn {
+            Ok(()) => Ok(()),
+            Err(Error::NoLength) => Err(BAR_HAS_NO_LENGTH.into()),
+            Err(Error::BadAlign) => Err(kind.bad_align.into()),
+            Err(Error::Draw(e)) => Err(e.into()),
+        }
     }
 }
 
@@ -358,7 +233,7 @@ pub unsafe fn draw_text_button(
         let measured = measure_string_by_id_at(dword(item + ITEM_STRING), font, measure_x, canvas)?;
         draw_button(
             kind,
-            measured.width.wrapping_add(0xC),
+            rc2k_core::screens::buttons::text_width(measured.width),
             dword(item + ITEM_X) as i32,
             dword(item + ITEM_Y) as i32,
             align,

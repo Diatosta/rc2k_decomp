@@ -10,28 +10,17 @@
 //! `gfx::alpha_from_kept`'s.
 //! Refuses no pixels (the original counts through all 32 bits) and a null pointer.
 //! Self-test: 16 pictures by lot under eight settings.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 use crate::errors::{BadInput, Refused};
-use crate::framework::{RawHook, Regs, SelfTest, game_addr, game_read, game_write, hook_asm, rva};
-use crate::gfx::harness::{check_pixels, dispatch_pixels};
+use crate::framework::{Regs, game_read, game_write};
+use crate::gfx::harness::pixels_entry;
 use crate::gfx::texture_pixels::{
-    self, GRADES_RVA, READING_RVA, SATURATION_RVA, SCALE_RVA, grading, test_pixels,
+    self, GRADES_RVA, READING_RVA, SATURATION_RVA, SCALE_RVA, grading,
 };
 use crate::screens::harness::Left;
-use crate::service::harness::{Region, at, capture, restore};
-use std::cell::RefCell;
-use std::sync::atomic::{AtomicUsize, Ordering};
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("gfx::grade_texture", rva(0x4055A2), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
 
 fn count(r: &Regs) -> u32 {
     r.ecx.wrapping_mul(r.edx)
@@ -46,8 +35,6 @@ fn settings() -> [u32; 3] {
         ]
     }
 }
-
-// ---- hook ----
 
 fn rust(r: &Regs) -> Result<Left, Refused> {
     let [reading, scale, saturation] = settings();
@@ -72,80 +59,8 @@ fn rust(r: &Regs) -> Result<Left, Refused> {
     Ok(Left::nothing())
 }
 
-fn regions(r: &Regs) -> Vec<Region> {
-    let [reading, scale, saturation] = settings();
-    if !grading(reading, scale, saturation) || r.ebx == 0 || count(r) == 0 {
-        Vec::new()
-    } else {
-        vec![
-            (r.ebx, count(r) as usize * 4),
-            (game_addr(GRADES_RVA) as u32, 0x100),
-        ]
-    }
-}
-
-extern "C" fn dispatch(r: &mut Regs) {
-    let regions = regions(r);
-    dispatch_pixels(&HOOK, r, call_original, &regions, &rust);
-}
-
-// ---- self-test ----
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let original = ORIGINAL.load(Ordering::SeqCst);
-    let inputs: [Region; 4] = [
-        at(READING_RVA),
-        at(SCALE_RVA),
-        at(SATURATION_RVA),
-        (game_addr(GRADES_RVA) as u32, 0x100),
-    ];
-    let saved = capture(&inputs);
-    let settings = [
-        (1u32, 0x100u32, 0x100u32),
-        (0, 0x80, 0x80),
-        (1, 0x80, 0x100),
-        (1, 0x100, 0x180),
-        (1, 0x140, 0x40),
-        (1, 0x200, 0),
-        (1, 0x10, 0x300),
-        (1, 0xFFFF_FFF0, 0xFFFF_FF00),
-    ];
-    let mut seed = 0x4055_A200u32;
-    for case in 0..16usize {
-        let (reading, scale, saturation) = settings[case % settings.len()];
-        let (width, height) = [(1u32, 1u32), (8, 8), (16, 4), (3, 5)][case % 4];
-        let n = (width * height) as usize;
-        let first = test_pixels(&mut seed, n);
-        let key = test_pixels(&mut seed, 1)[0];
-        let buffer = RefCell::new(vec![0xAAAA_AAAAu32; n]);
-        let at = buffer.borrow_mut().as_mut_ptr() as u32;
-        check_pixels(
-            &mut t,
-            &format!(
-                "case {case}: {width} x {height}, key {key:#x}, settings {reading} {scale:#x} {saturation:#x}"
-            ),
-            original,
-            Regs {
-                eax: key,
-                ebx: at,
-                ecx: width,
-                edx: height,
-                ..Regs::SENTINEL
-            },
-            &|| unsafe {
-                buffer.borrow_mut().copy_from_slice(&first);
-                game_write(READING_RVA, reading);
-                game_write(SCALE_RVA, scale);
-                game_write(SATURATION_RVA, saturation);
-                game_write(GRADES_RVA, [0xAAu8; 0x100]);
-            },
-            &[(at, n * 4), (game_addr(GRADES_RVA) as u32, 0x100)],
-            &rust,
-        );
-    }
-    restore(&inputs, &saved);
-    t.finish()
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    pixels_entry(r, &rust)
 }

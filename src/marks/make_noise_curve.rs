@@ -7,13 +7,17 @@
 //! See `marks/setup.rs`. One caller, `marks::init_marks`. Refuses a remainder's divisor of
 //! 0, 1 or -1 (the original's `idiv` traps). Self-test: the original and the Rust version
 //! on the game's tables with running sums of the test's, put back afterwards.
+//!
+//! Converted 2026-10-21: the walk, the smoothing, the random tables and the records through
+//! `rc2k_core::marks::noise`; the roundings (`fistp`, the spread's floats, the ramp) stay
+//! the x87's, as its control word says. Compared exactly as before.
 
 use crate::errors::Refused;
 use crate::framework::{RawHook, Regs, SelfTest, game_write, hook_asm, rva};
 use crate::marks::setup::*;
 use crate::race::stage_prefs::left_of;
 use crate::screens::harness::Left;
-use crate::service::harness::{capture, check_state, dispatch_state, restore};
+use crate::service::harness::{capture, check_state, dispatch_state, restore, state_entry};
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -34,6 +38,12 @@ fn rust(r: &Regs) -> Result<Left, Refused> {
 
 extern "C" fn dispatch(r: &mut Regs) {
     dispatch_state(&HOOK, r, call_original, &noise_curve_regions(), &rust);
+}
+
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    state_entry(r, &rust)
 }
 
 fn self_test() -> (usize, usize) {

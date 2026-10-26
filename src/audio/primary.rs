@@ -20,12 +20,9 @@ const MODE_3D: u32 = crate::audio::voices::MODE_3D;
 /// `audio::volume_index`: the first index of `g_volumeTable` whose volume is at least
 /// `volume` (signed), or 0x40.
 pub fn volume_index(volume: i32) -> u32 {
-    (0..0x40u32)
-        .find(|&n| {
-            volume
-                <= unsafe { game_read::<i32>(crate::audio::voices::VOLUMES_RVA + n as usize * 4) }
-        })
-        .unwrap_or(0x40)
+    // Converted: `rc2k_core::audio::samples::volume_index`.
+    let table: [i32; 0x40] = unsafe { game_read(crate::audio::voices::VOLUMES_RVA) };
+    rc2k_core::audio::samples::volume_index(volume, &table)
 }
 
 /// `audio::set_primary_format`: `describe_wave_format` (the mode, `rate`), `SetFormat`
@@ -55,20 +52,21 @@ pub unsafe fn open_listener(
 ) -> Result<bool, Refused> {
     unsafe {
         part(1, game_addr(OPEN_TEXT) as u32)?;
-        let mut code = 0xFFFF_FF91u32;
-        if read(setting) == 1 {
-            code = 0xFFFF_FF90;
-            if read(no_listener) != 1 {
-                let p = read(primary);
-                let query: unsafe extern "system" fn(u32, u32, u32) -> i32 =
-                    std::mem::transmute(crate::audio::com::method(p, 0));
-                let r = query(p, game_addr(IID_LISTENER_RVA) as u32, listener);
-                if r == 0 {
-                    return Ok(true);
+        // Converted: `rc2k_core::audio::device::listener_refused`.
+        let code =
+            match rc2k_core::audio::device::listener_refused(read(setting), || read(no_listener)) {
+                Some(code) => code,
+                None => {
+                    let p = read(primary);
+                    let query: unsafe extern "system" fn(u32, u32, u32) -> i32 =
+                        std::mem::transmute(crate::audio::com::method(p, 0));
+                    let r = query(p, game_addr(IID_LISTENER_RVA) as u32, listener);
+                    if r == 0 {
+                        return Ok(true);
+                    }
+                    r as u32
                 }
-                code = r as u32;
-            }
-        }
+            };
         part(0, game_addr(FAILED_TEXT) as u32)?;
         part(3, code)?;
         part(8, 0)?;
@@ -122,14 +120,13 @@ pub unsafe fn make_primary(
         if ds == 0 {
             return Ok(false);
         }
+        // Converted: `rc2k_core::audio::device` (`primary_flags`, `master_volume`,
+        // `without_3d`).
+        use rc2k_core::audio::device::{master_volume, primary_flags, without_3d};
         let description = game_addr(DESCRIPTION_RVA) as *mut BufferDescription;
-        let mut flags = 0x81;
-        if read(v.mode) & MODE_3D != 0 {
-            flags |= 0x10;
-        }
         description.write_unaligned(BufferDescription {
             size: 0x14,
-            flags,
+            flags: primary_flags(read(v.mode)),
             ..BufferDescription::default()
         });
         let create: unsafe extern "system" fn(u32, u32, u32, u32) -> i32 =
@@ -139,15 +136,14 @@ pub unsafe fn make_primary(
         }
         crate::audio::com::call1(read(v.primary), GET_VOLUME, v.kept);
         part(10, read(v.mode))?;
-        let mut volume = read(v.master);
-        if volume > 0x40 {
-            volume = volume_index(read(v.kept) as i32);
+        let (volume, stored) = master_volume(read(v.master), || volume_index(read(v.kept) as i32));
+        if stored {
             write(v.master, volume);
         }
         write(v.shown, volume);
         part(12, volume)?;
         if read(v.mode) & MODE_3D != 0 && part(13, 0)? {
-            write(v.mode, read(v.mode) & !MODE_3D);
+            write(v.mode, without_3d(read(v.mode)));
         }
         Ok(true)
     }

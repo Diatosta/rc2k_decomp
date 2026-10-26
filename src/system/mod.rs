@@ -1,7 +1,5 @@
 //! Operating system services other than files.
 
-use crate::framework::GameHook;
-
 pub mod api_stand_ins;
 pub mod check_developer_machine;
 pub mod exit_parts;
@@ -31,32 +29,3 @@ pub mod test_processor;
 pub mod tick_count;
 pub mod wait_or_key;
 pub mod zero_memory;
-
-pub static HOOKS: &[&dyn GameHook] = &[
-    &keep_start_time::HOOK,
-    &packed_local_time::HOOK,
-    &tick_count::HOOK,
-    &sleep::HOOK,
-    &zero_memory::HOOK,
-    &find_entry::HOOK,
-    &next_argument::HOOK,
-    &read_command_line::HOOK,
-    &check_developer_machine::HOOK,
-    &load_game_data::HOOK,
-    &main_loop::HOOK,
-    &wait_or_key::HOOK,
-    &find_entry_by_value::HOOK,
-    &find_entry_with_bits::HOOK,
-    &find_entry_with_any_bit::HOOK,
-    &next_entry::HOOK,
-    &read_volume_serial::HOOK,
-    &set_exception_filter::HOOK,
-    &test_processor::HOOK,
-    &read_keyboard_type::HOOK,
-    &read_windows_version::HOOK,
-    &set_error_mode::HOOK,
-    &find_running_game::HOOK,
-    &set_priority_class::HOOK,
-    &restore_error_mode::HOOK,
-    &same_guid::HOOK,
-];

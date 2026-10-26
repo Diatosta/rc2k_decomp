@@ -12,25 +12,14 @@
 //! Refuses more than 0x200 voices in use.
 //! Shadow mode runs the original alone. Self-test: a redirected copy whose variables are
 //! the test's and whose five calls note themselves, 8 cases.
+//!
+//! Hook removed 2026-10-22 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::audio::voices::*;
 use crate::errors::{BadInput, Refused};
-use crate::framework::{RawHook, Regs, SelfTest, call_game, game_addr, hook_asm, rva, shadow};
-use crate::install::stand_ins::{set_handler, stand_in};
-use std::sync::Mutex;
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("audio::free_voices", rva(0x40AF4B), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
+use crate::framework::game_addr;
 
 // ---- Rust version ----
 
@@ -96,122 +85,4 @@ pub fn game_part(which: u32, at: u32) -> Result<(), Refused> {
         }
     }
     Ok(())
-}
-
-// ---- hook ----
-
-extern "C" fn dispatch(r: &mut Regs) {
-    HOOK.count_call();
-    if shadow() {
-        unsafe { call_original(r) };
-        return;
-    }
-    if let Err(e) = unsafe { free_voices(&World::game(), &game_vars(), &mut game_part) } {
-        unsafe { crate::fatal::raise::refused(&HOOK, e, r, call_original) };
-    }
-}
-
-// ---- self-test ----
-
-static NOTED: Mutex<Vec<(u32, u32)>> = Mutex::new(Vec::new());
-
-fn handler(place: u32, r: &mut Regs) {
-    NOTED
-        .lock()
-        .unwrap()
-        .push((place, if place == 2 { r.esi } else { 0 }));
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    // The records, six voices, the nine variables.
-    let records = SAMPLES as usize * 0x10;
-    let words = records + 6 * 0x1C + 9;
-    let mut block = vec![0u32; words];
-    let base = block.as_mut_ptr() as u32;
-    let voices = base + records as u32 * 4;
-    let vars = voices + 6 * 0x70;
-    let w = World {
-        samples: base,
-        playing: vars,
-        stopping: vars + 4,
-        channels_used: vars + 8,
-        channel_count: vars + 12,
-        channels: vars + 16,
-        sound_mode: vars + 20,
-    };
-    let v = Vars {
-        voice_count: vars + 24,
-        voices,
-        lost: vars + 28,
-        commit: vars + 32,
-    };
-    let calls = [0xA, 0xF, 0x20, 0x4D, 0x84];
-    let targets = [0x40D2F0, 0x40C74C, 0x40B767, 0x40ACA1, 0x409E0F];
-    let copy = match crate::audio::test_copy::make(
-        &HOOK,
-        &crate::audio::test_copy::Copy {
-            address: 0x40AF4B,
-            len: 0x8B,
-            entry: &[0x60, 0x83, 0x3D, 0x48, 0x83, 0x4F, 0x00, 0x00],
-            calls: &calls,
-            jumps_out: &[],
-        },
-        &|callee| {
-            targets
-                .iter()
-                .position(|&t| rva(t) == callee)
-                .map(|n| stand_in(n as u32))
-        },
-        &[
-            (0x4F8340, w.playing),
-            (0x4F8344, w.stopping),
-            (0x506350, w.channels_used),
-            (0x4F8348, v.voice_count),
-            (0x4F834C, v.voices),
-            (0x50A7A4, w.samples),
-            (0x4F82CC, v.lost),
-            (0x4F82D0, v.commit),
-        ],
-        10,
-    ) {
-        Ok(copy) => copy,
-        Err(why) => return t.skip(&why),
-    };
-    set_handler(handler);
-    for count in [0u32, 1, 2, 6, 0, 3, 5, 4] {
-        let fill = |b: &mut Vec<u32>| {
-            for (i, x) in b.iter_mut().enumerate() {
-                *x = 0xC000_0000 ^ (i as u32).wrapping_mul(count + 7);
-            }
-            unsafe { write(v.voice_count, count) };
-        };
-        fill(&mut block);
-        NOTED.lock().unwrap().clear();
-        let mut ro = Regs::SENTINEL;
-        unsafe { call_game(&mut ro, copy.addr()) };
-        let theirs = (block.clone(), std::mem::take(&mut *NOTED.lock().unwrap()));
-        fill(&mut block);
-        let done = unsafe {
-            free_voices(&w, &v, &mut |which, at| {
-                NOTED.lock().unwrap().push((which, at));
-                Ok(())
-            })
-        };
-        let mine = (block.clone(), std::mem::take(&mut *NOTED.lock().unwrap()));
-        let differ = (0..words).find(|&i| theirs.0[i] != mine.0[i]);
-        t.check(
-            done.is_ok() && differ.is_none() && theirs.1 == mine.1
-                && ro.preserved_except(&Regs::SENTINEL, 0),
-            || {
-                format!(
-                    "{count} voices: first difference at word {differ:x?}; calls original {:x?}, rust {:x?} {done:?}",
-                    theirs.1, mine.1
-                )
-            },
-        );
-    }
-    t.finish()
 }

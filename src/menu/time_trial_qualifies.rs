@@ -11,30 +11,16 @@
 //! to the stage's records or times (`event_flow::stage_times`). Self-test: the game's
 //! tables for each stage choice there, the player's time below, equal to and above the
 //! tenth.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
+use crate::framework::Regs;
 use crate::menu::event_flow::*;
 use crate::screens::harness::Left;
-use crate::service::harness::{Region, at, capture, check_state, dispatch_state, restore};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook = RawHook::new(
-    "menu::time_trial_qualifies",
-    rva(0x48C7CE),
-    thunk,
-    &ORIGINAL,
-)
-.self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
+use crate::service::harness::state_entry;
 
 pub const QUALIFIES: usize = 0x755918; // dword_755918
 pub const TIME: usize = 0x755914; // dword_755914
@@ -48,18 +34,12 @@ pub fn time_trial_qualifies() -> Result<(), Refused> {
     set(QUALIFIES, 0);
     let time = dword(p + 0x88);
     set(TIME, time);
-    if time as i32 <= dword(tenth + 0x14) as i32 {
+    // Converted: `rc2k_core::menu::bests::makes_time`.
+    if rc2k_core::menu::bests::makes_time(time, dword(tenth + 0x14)) {
         set(QUALIFIES, 1);
         set(ANY_QUALIFIED, 1);
     }
     Ok(())
-}
-
-fn regions() -> Vec<Region> {
-    [QUALIFIES, TIME, ANY_QUALIFIED]
-        .iter()
-        .map(|&v| at(rva(v)))
-        .collect()
 }
 
 fn rust(_: &Regs) -> Result<Left, Refused> {
@@ -67,53 +47,8 @@ fn rust(_: &Regs) -> Result<Left, Refused> {
     Ok(Left::nothing())
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_state(&HOOK, r, call_original, &regions(), &rust);
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let Ok(p) = current_player() else {
-        return t.skip("no current player");
-    };
-    let regions = regions();
-    let mut vars = regions.clone();
-    vars.extend([STAGE_KIND, STAGE_SUB, STAGE_NUMBER].map(|v| at(rva(v))));
-    vars.push((p + 0x88, 4));
-    let saved = capture(&vars);
-    let choices = stage_choices();
-    if choices.is_empty() {
-        return t.skip("no stage tables");
-    }
-    for c in choices {
-        choose_stage(c);
-        let Ok(times) = stage_times() else { continue };
-        let tenth = dword(times + TENTH + 0x14);
-        for time in [
-            tenth.wrapping_sub(1),
-            tenth,
-            tenth.wrapping_add(1),
-            0x8000_0000,
-        ] {
-            check_state(
-                &mut t,
-                &format!("stage {c:x?}, tenth {tenth:#x}, time {time:#x}"),
-                call_original,
-                Regs::SENTINEL,
-                &|| {
-                    choose_stage(c);
-                    put(p + 0x88, time);
-                    for v in [QUALIFIES, TIME, ANY_QUALIFIED] {
-                        set(v, 0xAAAA_AAAA);
-                    }
-                },
-                &regions,
-                &rust,
-            );
-        }
-    }
-    restore(&vars, &saved);
-    t.finish()
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    state_entry(r, &rust)
 }

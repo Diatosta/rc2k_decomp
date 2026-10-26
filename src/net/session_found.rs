@@ -12,37 +12,19 @@
 //! (`net::lobby::dispatch_callback`). Its calls through `part`. Shadow mode runs the
 //! original alone. Self-test: a copy called with test arguments, its calls to stand-ins
 //! (the records in a test table, the name copied), against the Rust version: each way out.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): DirectPlay is given `callback`, the Rust
+//! version; in the hooked DLL the game's own code passes the original. What the header
+//! says of the thunk, shadow mode and the self-test was the hook's.
 
 use crate::errors::Refused;
 use crate::field;
-use crate::framework::{RawHook, Regs, SelfTest, rva};
+use crate::framework::Regs;
 use crate::net::lobby::{
-    COPY_PRINTABLE, LOG_HEX_L2, LOG_L2, LOG_NEWLINE_L2, Part, SESSIONS, Saved, a, answer,
-    dispatch_callback, dword, g, log_text, movsb, p, run_callback,
+    COPY_PRINTABLE, LOG_HEX_L2, LOG_L2, LOG_NEWLINE_L2, Part, SESSIONS, a, g, log_text, movsb, p,
 };
 use crate::net::types::{DpSessionDesc, NetSession};
-use std::sync::atomic::{AtomicUsize, Ordering};
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-unsafe extern "system" fn thunk(a: u32, b: u32, c: u32, d: u32) -> u32 {
-    dispatch_callback(
-        &HOOK,
-        ORIGINAL.load(Ordering::SeqCst),
-        &[a, b, c, d],
-        session_found,
-    )
-}
-
-type Thunk = unsafe extern "system" fn(u32, u32, u32, u32) -> u32;
-
-pub static HOOK: RawHook = RawHook::new(
-    "net::session_found",
-    rva(0x418A62),
-    unsafe { std::mem::transmute::<Thunk, unsafe extern "C" fn()>(thunk) },
-    &ORIGINAL,
-)
-.self_test(self_test);
+use rc2k_core::net::lists::{self, Found};
 
 const FOUND: usize = 0x5C2E75; // "NET: Found"
 const SESSION_ENTRY: u32 = 0x418553; // net::session_entry
@@ -65,16 +47,12 @@ pub fn session_found(args: &[u32], part: Part) -> Result<u32, Refused> {
         n.eax = get(desc + 0x30);
     }
     part(LOG_NEWLINE_L2, &mut n)?;
-    if flags & 1 != 0 || desc == 0 {
-        return Ok(0);
-    }
-    if get(desc + 0x44) & 1 == 0 {
-        return Ok(1);
-    }
-    let count = g(SESSIONS);
-    if count >= 0x100 {
-        return Ok(0);
-    }
+    // Converted: `rc2k_core::net::lists::session_found`.
+    let count = match lists::session_found(flags, desc != 0, || get(desc + 0x44), || g(SESSIONS)) {
+        Found::Stop => return Ok(0),
+        Found::Pass => return Ok(1),
+        Found::List(n) => n,
+    };
     p(SESSIONS, count + 1);
     let mut e = Regs { eax: count, ..r };
     part(SESSION_ENTRY, &mut e)?;
@@ -105,77 +83,7 @@ pub fn session_found(args: &[u32], part: Part) -> Result<u32, Refused> {
     Ok(1)
 }
 
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let places = [
-        LOG_L2,
-        LOG_HEX_L2,
-        LOG_NEWLINE_L2,
-        SESSION_ENTRY,
-        COPY_PRINTABLE,
-    ];
-    // push ebp; mov ebp, esp; push ebx; push esi
-    let copy = match crate::net::lobby::copy(
-        0x418A62,
-        0xB1,
-        &[0x55, 0x8B, 0xEC, 0x53, 0x56],
-        &[0xD, 0x17, 0x28, 0x2E, 0x5F, 0x73],
-        &places,
-    ) {
-        Ok(c) => c,
-        Err(why) => return t.skip(why),
-    };
-    let mut memory = vec![0u8; 0x400];
-    let m = memory.as_mut_ptr() as u32;
-    // +0 the description (0x50), +0x60 the name, +0x100 the table
-    let all = [dword(SESSIONS), (m, 0x400)];
-    let saved = Saved::new(&all);
-    // (what, a description, the flags, dwUser2, the count)
-    let cases: [(&str, bool, u32, u32, u32); 6] = [
-        ("listed", true, 0, 1, 1),
-        ("timed out", true, 1, 1, 0),
-        ("no description", false, 0, 1, 0),
-        ("passed over", true, 0, 2, 0),
-        ("a full list", true, 0, 3, 0x100),
-        ("listed, flags 4", true, 4, 0xFFFF_FFFF, 0),
-    ];
-    for (what, with, flags, user2, count) in cases {
-        run_callback(
-            &mut t,
-            what,
-            copy.addr(),
-            &[if with { m } else { 0 }, 0, flags, 0],
-            &all,
-            &|| unsafe {
-                for n in 0..0x400u32 {
-                    ((m + n) as *mut u8).write((n * 7) as u8);
-                }
-                ((m + 0x30) as *mut u32).write(m + 0x60);
-                ((m + 0x44) as *mut u32).write(user2);
-                std::ptr::copy_nonoverlapping(
-                    c"Rally".as_ptr() as *const u8,
-                    (m + 0x60) as *mut u8,
-                    6,
-                );
-                p(SESSIONS, count);
-                answer(Box::new(move |place, r| match place {
-                    SESSION_ENTRY => r.eax = m + 0x100 + 0x68 * (r.eax & 3),
-                    COPY_PRINTABLE => {
-                        let _ = crate::strings::copy_printable::copy_printable(
-                            r.eax as *const u8,
-                            r.ebx as *mut u8,
-                            r.ecx,
-                        );
-                    }
-                    _ => {}
-                }));
-            },
-            session_found,
-        );
-    }
-    drop(saved);
-    let _ = &mut memory;
-    t.finish()
+/// The callback DirectPlay is given (no hook; 2026-10-23): the Rust version.
+pub unsafe extern "system" fn callback(a: u32, b: u32, c: u32, d: u32) -> u32 {
+    crate::net::lobby::callback_entry("net::session_found", 0x418A62, &[a, b, c, d], session_found)
 }

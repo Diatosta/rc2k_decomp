@@ -10,42 +10,29 @@
 //! empty one is "compared" through whatever was there.
 //! Two callers: `yes_no_for_key` and `sub_445069`.
 //! Refuses a missing keyboard layout (before the key is taken) and what `key_to_char` does.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{
-    EAX, RawHook, Regs, SelfTest, game_addr, game_ptr, game_read, game_write, hook_asm, rva,
-};
+use crate::framework::{EAX, Regs, SelfTest, game_addr, game_ptr, game_read, game_write, rva};
 use crate::input::key_to_char::{
     LAYOUT_A_RVA, LAYOUT_MODE_RVA, LAYOUT_RVA, has_layout, key_to_char,
 };
 use crate::input::take_key::take_key;
 use crate::screens::harness::{CallOriginal, Left};
-use crate::service::harness::{
-    Region, Rust, at, capture, check_state, dispatch_keyed_state, restore,
-};
+use crate::service::harness::{Region, Rust, at, capture, check_state, restore, state_entry};
 use crate::strings::append_string_by_id::push_string;
 use crate::strings::string_table::{blob, is_table_id};
 use crate::strings::text_from_ids::{TEXT_LEN, text};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("input::yes_no_key", rva(0x407D71), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
 
 // ---- game data ----
 
 pub const KEY_GIVEN_RVA: usize = rva(0x4F7FD8); // dword_4F7FD8: 1 = the key comes in eax
 const LOWER_CASE_RVA: usize = rva(0x4F0BC8); // byte_4F0BC8: 256 characters
 /// (string id, answer)
-const ANSWERS: [(u32, u32); 3] = [(0xC3, 1), (0xC4, u32::MAX), (0xC5, 2)];
+use rc2k_core::input::keyboard::ANSWERS;
 pub const YES: u32 = 1;
 pub const NO: u32 = u32::MAX;
 
@@ -78,19 +65,22 @@ pub unsafe fn answer_for_key(eax: u32) -> Result<u32, BadInput> {
             game_write(LAYOUT_RVA, layout);
         }
         let lower = *game_ptr::<u8>(LOWER_CASE_RVA).add(character? as u8 as usize);
-        for (id, answer) in ANSWERS {
+        // Converted: `rc2k_core::input::keyboard::answer`; each string built at the text
+        // buffer's start without a NUL, as the original does (their lengths checked first).
+        let strings = ANSWERS.map(|(id, _)| {
             let mut string = Vec::new();
             push_string(&mut string, id);
-            if string.len() > TEXT_LEN {
-                return Err(BadInput("a string longer than the text buffer"));
-            }
-            std::ptr::copy_nonoverlapping(string.as_ptr(), text(), string.len());
-            if lower == *text() {
-                return Ok(answer);
-            }
+            string
+        });
+        if strings.iter().any(|s| s.len() > TEXT_LEN) {
+            return Err(BadInput("a string longer than the text buffer"));
         }
+        Ok(rc2k_core::input::keyboard::answer(lower, |id| {
+            let n = ANSWERS.iter().position(|&(i, _)| i == id).unwrap_or(0);
+            std::ptr::copy_nonoverlapping(strings[n].as_ptr(), text(), strings[n].len());
+            *text()
+        }))
     }
-    Ok(0)
 }
 
 pub unsafe fn yes_no_key(given: u32) -> Result<u32, BadInput> {
@@ -107,17 +97,15 @@ pub unsafe fn yes_no_key(given: u32) -> Result<u32, BadInput> {
     }
 }
 
-// ---- hook ----
-
 fn rust(r: &Regs) -> Result<Left, Refused> {
     Ok(Left::nothing().with(EAX, unsafe { yes_no_key(r.eax) }?))
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_keyed_state(&HOOK, r, call_original, &yes_no_regions(), &rust);
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    state_entry(r, &rust)
 }
-
-// ---- self-test: every key, given in eax ----
 
 /// Why the yes/no functions cannot be tested, or None if they can.
 pub fn yes_no_unavailable() -> Option<&'static str> {
@@ -150,19 +138,4 @@ pub fn check_keys(t: &mut SelfTest, call_original: CallOriginal, rust: Rust) {
         }
     }
     restore(&regions, &saved);
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    if let Some(why) = yes_no_unavailable() {
-        return t.skip(why);
-    }
-    // With the switch at 1, so that no pending key is taken from the player.
-    let saved: u32 = unsafe { game_read(KEY_GIVEN_RVA) };
-    unsafe { game_write(KEY_GIVEN_RVA, 1u32) };
-    check_keys(&mut t, call_original, &rust);
-    unsafe { game_write(KEY_GIVEN_RVA, saved) };
-    t.finish()
 }

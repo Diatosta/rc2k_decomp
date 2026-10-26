@@ -14,7 +14,9 @@ use crate::framework::{RawHook, Regs, SelfTest, game_addr, game_write, hook_asm,
 use crate::race::car_shadow::*;
 use crate::race::frame_draw::all_regs;
 use crate::screens::harness::Left;
-use crate::service::harness::{Region, at, capture, check_state, dispatch_state, restore};
+use crate::service::harness::{
+    Region, at, capture, check_state, dispatch_state, restore, state_entry,
+};
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -55,6 +57,12 @@ extern "C" fn dispatch(r: &mut Regs) {
     let mut regions = clip_regions();
     regions.push(shadow_points_region());
     dispatch_state(&HOOK, r, call_original, &regions, &rust);
+}
+
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    state_entry(r, &rust)
 }
 
 /// The scene points the cutting may add (from `dword_641990`).

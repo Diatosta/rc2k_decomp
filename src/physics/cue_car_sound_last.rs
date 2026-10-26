@@ -13,10 +13,11 @@
 //! Self-test: a copy whose call goes to a stand-in, against the Rust version: which 0, 1,
 //! 2, objects ready or not.
 
-use crate::errors::{BadInput, Refused};
+use crate::errors::Refused;
 use crate::framework::{RawHook, Regs, SelfTest, game_addr, game_read, game_write, hook_asm, rva};
 use crate::physics::sound_cues::{Part, QUEUE, both, copy_of, dispatch_cue};
 use crate::service::harness::{capture, restore};
+use rc2k_core::physics::listed_cars::{CuePlace, QUEUE_OFFSET, cue_object};
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -44,25 +45,21 @@ fn g(x: usize) -> u32 {
 }
 
 /// The steps on `r` (its registers kept).
+// Converted: `rc2k_core::physics::listed_cars::cue_object`.
 pub fn cue_car_sound_last_in(r: &mut Regs, part: Part) -> Result<(), Refused> {
-    if r.eax > 1 {
+    let Some(o) = cue_object(
+        r.eax,
+        |which| g(0x514F70 + 4 * which as usize),
+        |car| g(0x512A10 + 4 * car as usize),
+        |o| unsafe { ((o + 8) as *const u32).read_unaligned() },
+    )?
+    else {
         return Ok(());
-    }
-    let car = g(0x514F70 + 4 * r.eax as usize);
-    if car > 7 {
-        return Err(BadInput("a car past 7").into());
-    }
-    let o = g(0x512A10 + 4 * car as usize);
-    if o == 0 {
-        return Err(BadInput("a null sound object").into());
-    }
-    if unsafe { ((o + 8) as *const u32).read_unaligned() } != 1 {
-        return Ok(());
-    }
+    };
     let mut c = *r;
-    c.eax = 1;
+    c.eax = CuePlace::Last as u32;
     c.esi = o;
-    c.edi = o + 0x298;
+    c.edi = o + QUEUE_OFFSET;
     part(QUEUE, &mut c)
 }
 

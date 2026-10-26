@@ -18,31 +18,21 @@
 //! `draw_markers_1`, 8 / 9 the signs, 10 / 11 the needles, 12 `add_scaled_sprite` with its
 //! two scales), in the game their Rust versions. Shadow mode runs the original alone (it
 //! draws). Self-test: a copy whose draws go to stand-ins (the scaled sprites' reading
-//! their scales), against the Rust version, flags and times by lot.
+//! their scales), against the Rust version, flags and times by lot, at both test control words.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{
-    RawHook, Regs, SelfTest, game_addr, game_read, game_write, hook_asm, rva, shadow,
-};
+use crate::framework::{RawHook, Regs, SelfTest, game_addr, game_read, game_write, rva};
 use crate::hud::add_quad::QUAD_RVA;
 use crate::hud::batch::TEXTURE_RVA;
-use crate::hud::draw_markers_1::int_over_80;
+use crate::hud::draw_markers_1::{int_over_80, taken_off};
 use crate::hud::draw_signs::row;
 use crate::hud::layout_0::*;
+use crate::math::x87_run::{TEST_CONTROL_WORDS, with_control_word};
 use crate::service::harness::{at, capture, restore};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("hud::layout_1", rva(0x4B2743), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
 
 const SCRATCH_RVA: usize = rva(0x75C060); // dword_75C060
 const UV_SCALE_RVA: usize = rva(0x75C00C); // flt_75C00C
@@ -64,24 +54,19 @@ pub fn scaled(g: &mut Regs, rect: u32, x: u32, y: u32, part: &mut Part) -> Resul
     set(SCRATCH_RVA, 0xC0);
     let v = int_over_80(0xC0, k);
     part(SCALED, g, &[v, v])?;
-    set(SCRATCH_RVA, crate::scene::matrix3::rounded(v));
+    set(SCRATCH_RVA, taken_off(v));
     Ok(())
 }
 
 /// The sign of the needle by the record's `field` (`dword_75C040`, `dword_75BFAC`, the
 /// texture).
 pub fn pick(field: u32) -> u32 {
-    set(PICK_RVA, 0x5E);
-    set(TEXTURE_RVA, 0xC0);
-    set(NEEDLE_KIND_RVA, field);
-    if field != 0 {
-        set(PICK_RVA, 0x60);
-        set(TEXTURE_RVA, 0xC2);
-    }
-    unsafe { game_read(PICK_RVA) }
+    needle_sign(field)
 }
 
 /// The Rust version (see the header): the registers it leaves.
+// Converted: `rc2k_core::hud::panels` (through `layout_0`'s panels and `needle_sign`),
+// `rc2k_core::hud::quads::int_over` (the sprites' scales)
 pub unsafe fn layout_1(entry: &Regs, part: Part) -> Result<Regs, Refused> {
     let mut part = part;
     let mut g = *entry;
@@ -264,16 +249,11 @@ pub fn game_part(place: u32, r: &mut Regs, v: &[[u8; 10]]) -> Result<(), Refused
     Ok(())
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    HOOK.count_call();
-    if shadow() {
-        unsafe { call_original(r) };
-        return;
-    }
-    match unsafe { layout_1(r, &mut game_part) } {
-        Ok(left) => *r = Regs { esp: r.esp, ..left },
-        Err(e) => unsafe { crate::fatal::raise::refused(&HOOK, e, r, call_original) },
-    }
+/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    let left = unsafe { layout_1(r, &mut game_part) }?;
+    *r = Regs { esp: r.esp, ..left };
+    Ok(())
 }
 
 fn note_plain(place: u32, r: &mut Regs) {
@@ -335,7 +315,10 @@ pub fn test_layout(
     vars.extend([LAP_2_RVA, UV_SCALE_RVA, crate::hud::draw_signs::FLAT_RVA].map(at));
     let saved = capture(&vars);
     let regs = |r: &Regs| [r.eax, r.ebx, r.ecx, r.edx, r.esi, r.edi, r.ebp];
-    for case in 0..6u32 {
+    for (word, case) in TEST_CONTROL_WORDS
+        .into_iter()
+        .flat_map(|w| (0..6u32).map(move |c| (w, c)))
+    {
         let mut record = [0u32; 0x48];
         record[0xF8 / 4] = [0xFFu32, 0, 0x55, 0xAA, 0x62, 0x3D][case as usize];
         record[0xFC / 4] = [0xFFu32, 0x5A, 0, 0xA5, 0x3D, 0x62][case as usize];
@@ -373,7 +356,9 @@ pub fn test_layout(
         prepare();
         take();
         let mut ro = before;
-        unsafe { crate::framework::call_game(&mut ro, copy.addr()) };
+        with_control_word(word, &mut || unsafe {
+            crate::framework::call_game(&mut ro, copy.addr())
+        });
         let theirs = (Some(regs(&ro)), take(), capture(&regions));
         prepare();
         let mine = rust(&before, &mut |p, r, v| {
@@ -383,41 +368,9 @@ pub fn test_layout(
         let mine = (mine.as_ref().ok().map(regs), take(), capture(&regions));
         t.check(theirs == mine, || {
             let first = theirs.1.iter().zip(&mine.1).position(|(a, b)| a != b);
-            format!("case {case}: original {:x?} {} calls; rust {:x?} {} calls; first differing call {:?}; same state {}", theirs.0, theirs.1.len(), mine.0, mine.1.len(), first, theirs.2 == mine.2)
+            format!("control word {word:#x}, case {case}: original {:x?} {} calls; rust {:x?} {} calls; first differing call {:?}; same state {}", theirs.0, theirs.1.len(), mine.0, mine.1.len(), first, theirs.2 == mine.2)
         });
     }
     restore(&vars, &saved);
     t.finish()
-}
-
-fn self_test() -> (usize, usize) {
-    const CALLS: [usize; 82] = [
-        0x20, 0x3B, 0x9E, 0xB1, 0xD6, 0xE7, 0xF6, 0x16D, 0x1C5, 0x22A, 0x282, 0x320, 0x38B, 0x429,
-        0x494, 0x4B1, 0x4CC, 0x4DD, 0x4F8, 0x509, 0x5E3, 0x618, 0x63F, 0x719, 0x74E, 0x775, 0x846,
-        0x863, 0x880, 0x89D, 0x8BA, 0x8D7, 0x8F4, 0x911, 0x9C8, 0x9E5, 0xA02, 0xA1F, 0xA3C, 0xA59,
-        0xA76, 0xA93, 0xB64, 0xB81, 0xB9E, 0xBBB, 0xBD8, 0xBF5, 0xC12, 0xC2F, 0xCE6, 0xD03, 0xD20,
-        0xD3D, 0xD5A, 0xD77, 0xD94, 0xDB1, 0xE89, 0xEB2, 0xEDB, 0xF04, 0xFC7, 0xFF0, 0x1019,
-        0x1042, 0x106B, 0x1094, 0x10BD, 0x10E6, 0x11BE, 0x11E7, 0x1210, 0x1239, 0x12FC, 0x1325,
-        0x134E, 0x1377, 0x13A0, 0x13C9, 0x13F2, 0x141B,
-    ];
-    test_layout(
-        &HOOK,
-        0x4B2743,
-        0x1421,
-        &CALLS,
-        &[
-            (0x4B70EE, 1),
-            (0x4B6B5B, 2),
-            (0x4B6BAC, 3),
-            (0x4B7216, 4),
-            (0x4B5E29, 5),
-            (0x4B5839, 6),
-            (0x4B56E3, 7),
-            (0x4B52F7, 8),
-            (0x4B5451, 9),
-            (0x4B6E67, 10),
-            (0x4B6E9A, 11),
-        ],
-        &|r, p| unsafe { layout_1(r, p) },
-    )
 }

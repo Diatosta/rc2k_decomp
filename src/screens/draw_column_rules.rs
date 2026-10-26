@@ -7,28 +7,14 @@
 //!
 //! Caller: `screens::draw_two_column_panel`. Shadow mode runs the original alone (it draws).
 //! Self-test: `service_boxes::test_boxes` (4 cases).
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, hook_asm, rva, shadow};
-use crate::screens::service_boxes::{Inputs, Part, quad, quad_part, rd, test_boxes};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook = RawHook::new(
-    "screens::draw_column_rules",
-    rva(0x49FFC5),
-    thunk,
-    &ORIGINAL,
-)
-.self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
+use crate::framework::Regs;
+use crate::screens::service_boxes::{Inputs, Part, quad, quad_part, rd};
 
 pub static INPUTS: Inputs = Inputs {
     tested: &[],
@@ -37,18 +23,19 @@ pub static INPUTS: Inputs = Inputs {
 
 /// The Rust version: the registers it leaves.
 pub unsafe fn draw_column_rules(entry: &Regs, part: Part) -> Result<Regs, Refused> {
+    // Converted: `rc2k_core::screens::panels::column_rules`; ecx counts a column's rows
+    // down and edx is the row's y (`push ecx; push edx` .. `pop edx; pop ecx` round each
+    // quad), then -1 and the y past the last.
+    use rc2k_core::screens::panels::{ROW_STEP, ROWS, column_rules};
     let mut part = part;
     let mut g = *entry;
-    for x in [0x43u32, 0x192] {
-        let mut y = 0x5Fu32;
-        for n in (0..0x10u32).rev() {
-            // `push ecx; push edx` .. `pop edx; pop ecx` round the quad.
-            (g.ecx, g.edx) = (n, y);
-            quad(&mut g, x, y, 0x14C, 3, 0x11166A, rd(0x75AA94), &mut part)?;
-            y += 0x1D;
+    for column in column_rules(rd(0x75AA94)).chunks(ROWS as usize) {
+        for (n, a) in column.iter().enumerate() {
+            (g.ecx, g.edx) = (ROWS - 1 - n as u32, a.y);
+            quad(&mut g, a.x, a.y, a.w, a.h, a.colour, a.see, &mut part)?;
         }
         g.ecx = u32::MAX;
-        g.edx = y;
+        g.edx = column[column.len() - 1].y + ROW_STEP;
     }
     Ok(g)
 }
@@ -57,31 +44,12 @@ pub fn game_part(_place: u32, r: &mut Regs) -> Result<(), Refused> {
     quad_part(r)
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    HOOK.count_call();
+/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     if crate::screens::blanked("screens::draw_column_rules") {
-        return;
+        return Ok(());
     }
-    if shadow() {
-        unsafe { call_original(r) };
-        return;
-    }
-    match unsafe { draw_column_rules(r, &mut game_part) } {
-        Ok(left) => *r = Regs { esp: r.esp, ..left },
-        Err(e) => unsafe { crate::fatal::raise::refused(&HOOK, e, r, call_original) },
-    }
-}
-
-fn self_test() -> (usize, usize) {
-    test_boxes(
-        &HOOK,
-        0x49FFC5,
-        0xB3,
-        &[0xB9, 0x0F, 0x00, 0x00, 0x00, 0xBA, 0x5F, 0x00],
-        &[0x4C, 0xA5],
-        &[(0x44B538, 1)],
-        &INPUTS,
-        4,
-        &|r, p| unsafe { draw_column_rules(r, p) },
-    )
+    let left = unsafe { draw_column_rules(r, &mut game_part) }?;
+    *r = Regs { esp: r.esp, ..left };
+    Ok(())
 }

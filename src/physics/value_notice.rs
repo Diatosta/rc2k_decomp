@@ -13,9 +13,11 @@
 
 use crate::errors::Refused;
 use crate::framework::{RawHook, Regs, game_addr, hook_asm, rva};
+use crate::physics::cells::{get, put_changed};
 use crate::physics::copy_hooks_test::{lot, test_moves};
 use crate::screens::harness::Left;
-use crate::service::harness::dispatch_state;
+use crate::service::harness::{dispatch_state, state_entry};
+use rc2k_core::physics::notices::{Notice, VALUE_NOTICE as NOTICE};
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -32,21 +34,22 @@ hook_asm!(
 
 /// The figure, shown, last, id, time (IDA addresses).
 const VARIABLES: [usize; 5] = [0x71A24C, 0x71A700, 0x71A6FC, 0x71A6F4, 0x71A704];
-const NOTICE: u32 = 0xCE;
-
+// Converted: `rc2k_core::physics::notices::Notice::value_notice`.
 unsafe fn core(v: &[u32]) {
     unsafe {
-        let get = |k: usize| (v[k] as *const u32).read_unaligned();
-        let put = |k: usize, x: u32| (v[k] as *mut u32).write_unaligned(x);
-        if (get(0).wrapping_sub(300) as i32) >= 0 {
-            if get(1) == 0 && get(2) != NOTICE {
-                put(3, NOTICE);
-                put(4, 0);
-            }
-        } else if get(2) == NOTICE {
-            put(1, 0);
-            put(2, 0);
-        }
+        let was = Notice {
+            shown: get(v[1]),
+            last: get(v[2]),
+            id: get(v[3]),
+            time: get(v[4]),
+            ..Notice::default()
+        };
+        let mut n = was;
+        n.value_notice(get(v[0]));
+        put_changed(v[3], was.id, n.id);
+        put_changed(v[4], was.time, n.time);
+        put_changed(v[1], was.shown, n.shown);
+        put_changed(v[2], was.last, n.last);
     }
 }
 
@@ -71,6 +74,12 @@ extern "C" fn dispatch(r: &mut Regs) {
     let v = game();
     let regions: Vec<_> = v[1..].iter().map(|&a| (a, 4)).collect();
     dispatch_state(&HOOK, r, call_original, &regions, &rust);
+}
+
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    state_entry(r, &rust)
 }
 
 fn self_test() -> (usize, usize) {

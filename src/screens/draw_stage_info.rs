@@ -14,31 +14,20 @@
 //! Screen: confirmed by the owner on 2026-10-10 with a `blank on` test: the stage details
 //! screen shown before each stage starts during a championship. The stage selection screen in
 //! the menu has the same layout but is drawn by another function.
+//! Hook removed 2026-10-22 (typed tables): the menus and draw lists run its `entry`
+//! (`menu::table_calls`); the registers above are the original's, for reference.
 
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, SelfTest, game_addr, game_read, hook_asm, rva};
+use crate::framework::{Regs, game_addr, game_read, rva};
 use crate::records::find_record::{find_record_in, has_section};
 use crate::screens::draw_stage_heading::draw_stage_heading;
 use crate::screens::draw_stage_records::has_selected_record;
 use crate::screens::stage_panel::{
-    BEST_TIMES_PTR_RVA, TITLE_FONT, body_unavailable, check_panel, dispatch_panel,
-    draw_records_from, draw_stage_body, dword, label, stage_unusable, table_dword,
+    BEST_TIMES_PTR_RVA, TITLE_FONT, draw_records_from, draw_stage_body, dword, label, panel_entry,
+    stage_unusable, table_dword,
 };
 use crate::strings::string_table::is_table_id;
 use crate::text::draw_text::Canvas;
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("screens::draw_stage_info", rva(0x473DE4), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
 
 // ---- game data ----
 
@@ -91,15 +80,14 @@ pub unsafe fn draw_stage_info(canvas: &mut dyn Canvas) -> Result<bool, Refused> 
     }
 }
 
-// ---- hook ----
-
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_panel(&HOOK, r, call_original, &|canvas| unsafe {
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    panel_entry("screens::draw_stage_info", r, &|canvas| unsafe {
         draw_stage_info(canvas)
-    });
+    })
 }
 
-// ---- self-test ----
 //
 // One case: the event's current stage, with the game's own fonts, strings and records. It
 // only runs when all of that is there and looks sane, because the original scans the record
@@ -128,17 +116,4 @@ pub unsafe fn event_stage_unusable() -> Option<&'static str> {
         }
         None
     }
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    if let Some(why) = body_unavailable().or_else(|| unsafe { event_stage_unusable() }) {
-        return t.skip(why);
-    }
-    check_panel(&mut t, call_original, &|canvas| unsafe {
-        draw_stage_info(canvas)
-    });
-    t.finish()
 }

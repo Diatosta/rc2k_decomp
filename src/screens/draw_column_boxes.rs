@@ -10,28 +10,14 @@
 //!
 //! Caller: `screens::draw_two_column_panel`. Shadow mode runs the original alone (it draws).
 //! Self-test: `service_boxes::test_boxes` (16 cases).
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, hook_asm, rva, shadow};
-use crate::screens::service_boxes::{Inputs, Part, quad, quad_part, rd, set, test_boxes};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook = RawHook::new(
-    "screens::draw_column_boxes",
-    rva(0x4A0078),
-    thunk,
-    &ORIGINAL,
-)
-.self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
+use crate::framework::Regs;
+use crate::screens::service_boxes::{Inputs, Part, quad, quad_part, rd, set};
 
 const ROWS: [u32; 32] = {
     let mut v = [0u32; 32];
@@ -51,57 +37,25 @@ pub static INPUTS: Inputs = Inputs {
 const ROW: usize = 0x7559EC; // dword_7559EC
 const MARKER_X: usize = 0x755A18; // g_markerX
 const MARKER_Y: usize = 0x755A1C; // g_markerY
-const YELLOW: u32 = 0xFF_FF00;
-
-/// The black border: (dx, dy, w, h) from the row's place.
-const BORDER: [(i32, i32, u32, u32); 4] = [
-    (0, 0, 0x14C, 1),
-    (0, 0, 1, 0x1A),
-    (0x14C, 0, 1, 0x1B),
-    (0, 0x1A, 0x14C, 1),
-];
-/// The chosen row's outer border.
-const OUTER: [(i32, i32, u32, u32); 4] = [
-    (-1, -1, 0x14E, 1),
-    (-1, -1, 1, 0x1C),
-    (0x14D, -1, 1, 0x1D),
-    (-1, 0x1B, 0x14E, 1),
-];
 
 /// The Rust version: every register kept.
 pub unsafe fn draw_column_boxes(entry: &Regs, part: Part) -> Result<Regs, Refused> {
+    // Converted: `rc2k_core::screens::panels::row_box`; the row and marker variables
+    // are left as the original leaves them.
+    use rc2k_core::screens::panels::{BOXES_Y, COLUMNS, ROW_STEP, ROWS, row_box};
     let mut part = part;
     let mut g = *entry;
     set(ROW, 1);
-    for (x, last) in [(0x43u32, 0x11u32), (0x192, 0x21)] {
+    for x in COLUMNS {
         set(MARKER_X, x);
-        set(MARKER_Y, 0x45);
-        loop {
-            let (mx, my) = (rd(MARKER_X), rd(MARKER_Y));
-            let at = |d: i32, m: u32| m.wrapping_add(d as u32);
-            quad(&mut g, mx, my, 0x14D, 0x1B, 0x4FCF, rd(0x75AA90), &mut part)?;
-            for (dx, dy, w, h) in BORDER {
-                quad(&mut g, at(dx, mx), at(dy, my), w, h, 0, 0xFF, &mut part)?;
+        set(MARKER_Y, BOXES_Y);
+        for _ in 0..ROWS {
+            let chosen = rd(0x755525) == rd(ROW) && rd(0x7559A4) == 1;
+            for a in row_box(rd(MARKER_X), rd(MARKER_Y), rd(0x75AA90), chosen) {
+                quad(&mut g, a.x, a.y, a.w, a.h, a.colour, a.see, &mut part)?;
             }
-            if rd(0x755525) == rd(ROW) && rd(0x7559A4) == 1 {
-                for (dx, dy, w, h) in BORDER.into_iter().chain(OUTER) {
-                    quad(
-                        &mut g,
-                        at(dx, mx),
-                        at(dy, my),
-                        w,
-                        h,
-                        YELLOW,
-                        0xFF,
-                        &mut part,
-                    )?;
-                }
-            }
-            set(MARKER_Y, rd(MARKER_Y).wrapping_add(0x1D));
+            set(MARKER_Y, rd(MARKER_Y).wrapping_add(ROW_STEP));
             set(ROW, rd(ROW).wrapping_add(1));
-            if rd(ROW) == last {
-                break;
-            }
         }
     }
     Ok(*entry)
@@ -111,35 +65,12 @@ pub fn game_part(_place: u32, r: &mut Regs) -> Result<(), Refused> {
     quad_part(r)
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    HOOK.count_call();
+/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     if crate::screens::blanked("screens::draw_column_boxes") {
-        return;
+        return Ok(());
     }
-    if shadow() {
-        unsafe { call_original(r) };
-        return;
-    }
-    match unsafe { draw_column_boxes(r, &mut game_part) } {
-        Ok(left) => *r = Regs { esp: r.esp, ..left },
-        Err(e) => unsafe { crate::fatal::raise::refused(&HOOK, e, r, call_original) },
-    }
-}
-
-fn self_test() -> (usize, usize) {
-    test_boxes(
-        &HOOK,
-        0x4A0078,
-        0x833,
-        &[0x60, 0xC7, 0x05, 0xEC, 0x59, 0x75, 0x00, 0x01],
-        &[
-            0x63, 0xAC, 0xF3, 0x13F, 0x18B, 0x1F2, 0x239, 0x285, 0x2D1, 0x31C, 0x365, 0x3B2, 0x3FF,
-            0x476, 0x4BF, 0x506, 0x552, 0x59E, 0x605, 0x64C, 0x698, 0x6E4, 0x72F, 0x778, 0x7C5,
-            0x812,
-        ],
-        &[(0x44B538, 1)],
-        &INPUTS,
-        16,
-        &|r, p| unsafe { draw_column_boxes(r, p) },
-    )
+    let left = unsafe { draw_column_boxes(r, &mut game_part) }?;
+    *r = Regs { esp: r.esp, ..left };
+    Ok(())
 }

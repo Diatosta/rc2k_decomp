@@ -8,31 +8,16 @@
 //! Caller: `drive::share_all_cars` (0x456484), first.
 //! Self-test: `physics/copy_hooks_test.rs` (a copy on test variables; the game's never
 //! written), 8 fillings.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::drive::lead_car_values::{PAIRS, move_pairs};
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, game_addr, hook_asm, rva};
-use crate::physics::copy_hooks_test::{lot, test_moves};
+use crate::framework::{Regs, game_addr, rva};
 use crate::screens::harness::Left;
-use crate::service::harness::dispatch_state;
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook = RawHook::new(
-    "drive::keep_lead_car_values",
-    rva(0x4564F5),
-    thunk,
-    &ORIGINAL,
-)
-.self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
+use crate::service::harness::state_entry;
 
 fn game() -> Vec<(u32, u32)> {
     let a = |x: usize| game_addr(rva(x)) as u32;
@@ -49,30 +34,8 @@ fn rust(_: &Regs) -> Result<Left, Refused> {
     Ok(Left::nothing())
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    let regions: Vec<_> = game().iter().map(|&(_, t)| (t, 4)).collect();
-    dispatch_state(&HOOK, r, call_original, &regions, &rust);
-}
-
-fn self_test() -> (usize, usize) {
-    let vars: Vec<usize> = PAIRS
-        .iter()
-        .map(|p| p.0)
-        .chain(PAIRS.iter().map(|p| p.1))
-        .collect();
-    test_moves(
-        &HOOK,
-        0x4564F5,
-        0x61,
-        &[0xFF, 0x35, 0x70, 0xFA, 0x70, 0x00],
-        &vars,
-        16,
-        8,
-        &lot,
-        &|v, _| {
-            let pairs: Vec<(u32, u32)> = (0..8).map(|k| (v[k], v[k + 8])).collect();
-            unsafe { move_pairs(&pairs) };
-            Left::nothing()
-        },
-    )
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    state_entry(r, &rust)
 }

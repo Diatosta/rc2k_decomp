@@ -11,51 +11,29 @@
 //! (step 2 of 32). Its calls through `part`. Shadow mode runs the original alone. Self-test: a
 //! copy whose car block and message are the test's and whose calls go to noting
 //! stand-ins, against the Rust version.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, hook_asm, rva};
-use crate::net::send_inputs::{Message, send_fields, test_send};
-use crate::net::{Part, dispatch_net};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("net::send_position", rva(0x464201), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
+use crate::framework::Regs;
+use crate::net::send_inputs::{Message, send_fields};
+use crate::net::{Part, net_entry};
 
 pub const POSITION: Message = Message {
     text: 0x4DE0E0, // "send p"
-    tag: 0x4D53_4750,
-    fields: &[
-        0x134, 0x138, 0x13C, 0xB4, 0xB8, 0xBC, 0xC0, 0xC4, 0xC8, 0xCC, 0xD0, 0xD4, 0xD8, 0xDC,
-        0xE0, 0x198, 0x19C, 0x1A0, 0x1A4, 0x1A8, 0x1AC, 0x184, 0x188, 0x18C, 0x98, 0x94, 0x1D4,
-        0x1D8, 0x1B8, 0x1BC, 0x600, 0x604, 0x608, 0x60C, 0x638, 0x63C, 0x640, 0x644, 0x648, 0x1EC,
-    ],
+    kind: rc2k_core::net::race::Kind::Position,
 };
 
 /// The Rust version.
 pub fn send_position(r: &mut Regs, part: Part) -> Result<(), Refused> {
+    // Converted: `rc2k_core::net::race::Kind::pack` (in `send_fields`).
     send_fields(r, &POSITION, part)
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_net(&HOOK, r, call_original, send_position);
-}
-
-fn self_test() -> (usize, usize) {
-    test_send(
-        &HOOK,
-        0x464201,
-        0x1F9,
-        &[0x60, 0x8D, 0x05, 0xE0, 0xE0, 0x4D, 0x00],
-        0x1F3,
-        &POSITION,
-    )
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    net_entry(r, send_position)
 }

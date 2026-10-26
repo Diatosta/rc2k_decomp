@@ -15,9 +15,11 @@
 //! Self-test: `physics/splits.rs` (`test_splits`), mode 3.
 use crate::errors::{BadInput, Refused};
 use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
+use crate::physics::cells::get_list;
 use crate::physics::splits::{FIGURE, SPLIT, TIME, g, guarded, p, test_splits, written};
 use crate::screens::harness::Left;
-use crate::service::harness::dispatch_state;
+use crate::service::harness::{dispatch_state, state_entry};
+use rc2k_core::physics::splits::{LAST_COMPARED_SPLIT, compare_split};
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -38,43 +40,32 @@ hook_asm!(
 );
 
 /// The steps on `r`.
+// Converted: `rc2k_core::physics::splits::compare_split`.
 pub fn compare_split_times_in(r: &mut Regs) -> Result<(), Refused> {
-    if g(SPLIT) > 27 {
+    if g(SPLIT) > LAST_COMPARED_SPLIT {
         return Err(BadInput("a split past 27").into());
     }
-    p(FIGURE, 11);
-    p(FIGURE + 8, 0xFFF0_BDC1);
-    p(FIGURE + 4, 0x000F_423F);
-    p(FIGURE + 0x10, u32::MAX);
-    p(FIGURE + 0xC, u32::MAX);
-    r.eax = g(TIME);
-    p(0x6043F8, r.eax);
+    let time = g(TIME);
+    p(0x6043F8, time);
     r.ebx = g(SPLIT).wrapping_mul(0x28);
     r.esi = (crate::framework::game_addr(rva(0x604134)) as u32).wrapping_add(r.ebx);
-    for c in 0..10u32 {
-        r.ecx = c;
-        let kept = unsafe { ((r.esi + 4 * c) as *const u32).read_unaligned() };
-        r.eax = g(TIME);
-        let ahead = (r.eax.wrapping_sub(kept) as i32) < 0;
-        r.eax = g(TIME).wrapping_sub(kept).wrapping_mul(10);
-        if ahead {
-            p(FIGURE, g(FIGURE).wrapping_sub(1));
-            if (r.eax.wrapping_sub(g(FIGURE + 8)) as i32) >= 0 {
-                p(FIGURE + 8, r.eax);
-                r.eax = g(0x60410C + 4 * c as usize);
-                p(FIGURE + 0x10, r.eax);
-            }
-        } else if (r.eax.wrapping_sub(g(FIGURE + 4)) as i32) < 0 {
-            p(FIGURE + 4, r.eax);
-            r.eax = g(0x60410C + 4 * c as usize);
-            p(FIGURE + 0xC, r.eax);
-        }
+    let kept: [u32; 10] = unsafe { get_list(r.esi) };
+    let c = compare_split(time, &kept, |c| g(0x60410C + 4 * c));
+    let f = c.figures;
+    for (k, v) in [
+        f.place,
+        f.gap_ahead,
+        f.gap_behind,
+        f.name_ahead,
+        f.name_behind,
+    ]
+    .into_iter()
+    .enumerate()
+    {
+        p(FIGURE + 4 * k, v);
     }
+    r.eax = c.last;
     r.ecx = 10;
-    if g(FIGURE) >= 11 {
-        p(FIGURE, u32::MAX);
-    }
-    p(FIGURE + 4, g(FIGURE + 4).wrapping_neg());
     let a = |x: usize| crate::framework::game_addr(rva(x)) as u32;
     r.edi = a(0x75B02C);
     let car = g(0x71B3F8);
@@ -85,7 +76,7 @@ pub fn compare_split_times_in(r: &mut Regs) -> Result<(), Refused> {
         }
     }
     r.ecx = g(SPLIT);
-    r.eax = g(TIME);
+    r.eax = time;
     unsafe { ((r.edi + 4 * r.ecx) as *mut u32).write_unaligned(r.eax) };
     Ok(())
 }
@@ -101,6 +92,12 @@ fn rust(r: &Regs) -> Result<Left, Refused> {
 
 extern "C" fn dispatch(r: &mut Regs) {
     dispatch_state(&HOOK, r, call_original, &written(), &rust);
+}
+
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    state_entry(r, &rust)
 }
 
 fn self_test() -> (usize, usize) {

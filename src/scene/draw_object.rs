@@ -107,9 +107,9 @@ pub unsafe fn draw_object(
 unsafe fn place_object_points_any(r: &mut Regs) -> Result<(), Refused> {
     unsafe {
         if game_read::<u32>(USE_3DNOW_RVA) != 0 {
-            call_game(r, game_addr(PLACE_3DNOW_RVA));
+            crate::calls::call(PLACE_3DNOW_RVA, r);
         } else if game_read::<u32>(USE_SSE_RVA) != 0 {
-            call_game(r, game_addr(PLACE_SSE_RVA));
+            crate::calls::call(PLACE_SSE_RVA, r);
         } else {
             place_object_points(r)?.apply(r);
         }
@@ -152,6 +152,17 @@ extern "C" fn dispatch(r: &mut Regs) {
         *r = entry;
         unsafe { crate::fatal::raise::refused(&HOOK, e, r, call_original) }
     }
+}
+
+/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    ENTERED.fetch_add(1, Ordering::Relaxed);
+    let entry = *r;
+    if let Err(e) = unsafe { draw_object_in_game(r) } {
+        *r = entry;
+        return Err(e);
+    }
+    Ok(())
 }
 
 // ---- self-test ----

@@ -11,16 +11,21 @@
 //! Caller: `sub_43B635` (0x43B7AD, before `sub_43EA54`), every physics step.
 //! Refuses (before anything) a gear outside -1 ..= 7 (`revs_from_wheels`' table).
 //! Self-test: a copy of the original (its variables the test's, its call to a copy of
-//! `revs_from_wheels` on the same) against the Rust core: gears, the three switches,
-//! speeds by lot and near the step, under three precisions.
+//! `revs_from_wheels` on the same) against the converted version: gears, the three
+//! switches, speeds by lot and near the step, exact at double precision.
 
 use crate::errors::{BadInput, Refused};
 use crate::framework::{RawHook, Regs, SelfTest, call_game, game_addr, game_read, hook_asm, rva};
 use crate::math::x87;
 use crate::math::x87_run::{TEST_CONTROL_WORDS, with_control_word};
-use crate::physics::gearing::{GearPlaces, TEST_GEARS, TestGearing, revs_from_wheels_at};
+use crate::physics::gearing::{
+    GearPlaces, TEST_GEARS, TestGearing, revs_from_wheels_at, revs_from_wheels_plain_at,
+    speeds_agree,
+};
 use crate::screens::harness::Left;
-use crate::service::harness::{Region, capture, dispatch_state};
+use crate::service::floats::{FLOAT, Floats, dispatch_state_floats, floats_entry};
+use crate::service::harness::{Region, capture};
+use rc2k_core::physics::gearing::settle_speed;
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -129,19 +134,68 @@ pub unsafe fn settle_drive_speeds_at(g: &GearPlaces, s: &SettlePlaces) -> Result
     }
 }
 
-/// The Rust version.
+/// The converted version (`rc2k_core::physics::gearing`, plain floats): the hook's.
+// Converted: `rc2k_core::physics::gearing::{settle_speed, revs_from_wheels}`.
+pub unsafe fn settle_drive_speeds_plain_at(
+    g: &GearPlaces,
+    s: &SettlePlaces,
+) -> Result<Left, Refused> {
+    unsafe {
+        let gear = at(g.gear);
+        // The gear checked before anything is written, as before.
+        if gear != 0 {
+            rc2k_core::physics::gearing::ratio_index(gear)?;
+        }
+        let step = || {
+            game_read::<u32>(if at(s.fast) != 0 {
+                FAST_STEP_RVA
+            } else {
+                SLOW_STEP_RVA
+            })
+        };
+        let settle = |v: u32, step: u32| {
+            put(s.scratch, step);
+            if let Some(y) = settle_speed(f32::from_bits(at(v)), f32::from_bits(step)) {
+                put(v, y.to_bits());
+            }
+        };
+        if at(s.first) != 0 && gear == 0 {
+            settle(g.drive_speed, step());
+        }
+        if at(s.second) != 0 {
+            settle(g.drive_speed_2, step());
+        }
+        if gear != 0 {
+            return revs_from_wheels_plain_at(g);
+        }
+        Ok(Left::nothing())
+    }
+}
+
+/// The Rust version (the exact one, for `physics::car_physics_step`).
 pub unsafe fn settle_drive_speeds() -> Result<Left, Refused> {
     unsafe { settle_drive_speeds_at(&GearPlaces::game(), &SettlePlaces::game()) }
 }
 
 fn rust(_: &Regs) -> Result<Left, Refused> {
-    unsafe { settle_drive_speeds() }
+    unsafe { settle_drive_speeds_plain_at(&GearPlaces::game(), &SettlePlaces::game()) }
 }
 
 extern "C" fn dispatch(r: &mut Regs) {
     let mut regions: Vec<Region> = GearPlaces::game().regions();
     regions.push((SettlePlaces::game().scratch, 4));
-    dispatch_state(&HOOK, r, call_original, &regions, &rust);
+    let memory: Vec<_> = regions.iter().take(3).map(|&g| (g, FLOAT)).collect();
+    let floats = Floats {
+        memory: &memory,
+        regs: &[],
+    };
+    dispatch_state_floats(&HOOK, r, call_original, &regions, &floats, &rust);
+}
+
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    floats_entry(r, &rust)
 }
 
 /// Speeds the test puts in now and then: about the slow step, about 0, NaN.
@@ -236,10 +290,10 @@ fn self_test() -> (usize, usize) {
                         unsafe { call_game(&mut ro, copy.addr()) };
                         let theirs = capture(&regions);
                         fill();
-                        let mine = unsafe { settle_drive_speeds_at(&p, &s) };
+                        let mine = unsafe { settle_drive_speeds_plain_at(&p, &s) };
                         let state = capture(&regions);
                         let regs_ok = mine.as_ref().is_ok_and(|l| l.matches(&Regs::SENTINEL, &ro));
-                        t.check(regs_ok && theirs == state, || {
+                        t.check(regs_ok && speeds_agree(&regions, &theirs, &state, word), || {
                             format!(
                                 "control word {word:#x}, gear {gear:#x}, switches {switches}, seed {seed}: \
                                  regs_ok={regs_ok} original {theirs:x?}; rust {state:x?}"
@@ -251,7 +305,7 @@ fn self_test() -> (usize, usize) {
         });
     }
     unsafe { put(p.gear, 9) };
-    let refused = unsafe { settle_drive_speeds_at(&p, &s) }.is_err();
+    let refused = unsafe { settle_drive_speeds_plain_at(&p, &s) }.is_err();
     t.check(refused, || "gear 9 not refused".into());
     drop((copy, revs, test, cells));
     t.finish()

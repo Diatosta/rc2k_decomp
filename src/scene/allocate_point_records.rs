@@ -83,6 +83,13 @@ extern "C" fn dispatch(r: &mut Regs) {
     }
 }
 
+/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    let left = unsafe { allocate_point_records_in_game() }?;
+    left.apply(r);
+    Ok(())
+}
+
 // ---- self-test ----
 
 const LEN: usize = 0x1C;

@@ -117,6 +117,29 @@ pub unsafe fn dot_product3(a: u32, b: u32) -> [u8; 10] {
     out
 }
 
+/// `n` floats at `at` (the game's memory, unaligned).
+pub unsafe fn read_floats<const N: usize>(at: u32) -> [f32; N] {
+    std::array::from_fn(|n| unsafe { ((at + 4 * n as u32) as *const f32).read_unaligned() })
+}
+
+/// The floats written at `at`.
+pub unsafe fn write_floats(at: u32, v: &[f32]) {
+    for (n, x) in v.iter().enumerate() {
+        unsafe { ((at + 4 * n as u32) as *mut f32).write_unaligned(*x) };
+    }
+}
+
+/// The converted `normalise_vector3` (`rc2k_core::math::vector`, plain floats): the hook's.
+pub unsafe fn normalise_vector3_plain(v: u32) {
+    unsafe { write_floats(v, &rc2k_core::math::vector::normalise(read_floats(v))) };
+}
+
+/// The converted `dot_product3`: the hook's.
+pub unsafe fn dot_product3_plain(a: u32, b: u32) -> [u8; 10] {
+    let dot = unsafe { rc2k_core::math::vector::dot(read_floats(a), read_floats(b)) };
+    rc2k_core::math::extended::from_f64(dot)
+}
+
 const START_RVA: usize = rva(0x71CA36); // flt_71CA36, pi / 2
 const STEP_RVA: usize = rva(0x71CA3A); // flt_71CA3A, pi / 4
 const HALF_RVA: usize = rva(0x71CA3E); // flt_71CA3E, 0.5
@@ -156,6 +179,26 @@ pub unsafe fn angle_between_vectors(a: u32, b: u32) -> [u8; 10] {
             step = crate::math::x87::mul(step, half);
         }
         crate::scene::matrix3::extended(angle)
+    }
+}
+
+/// The converted `angle_between_vectors`: the hook's. The vectors normalised through
+/// memory in the original's order (so that overlapping ones behave as there).
+pub unsafe fn angle_between_vectors_plain(a: u32, b: u32) -> [u8; 10] {
+    use rc2k_core::math::vector::{Search, dot, search_angle};
+    unsafe {
+        normalise_vector3_plain(b);
+        normalise_vector3_plain(a);
+        let cosine = dot(read_floats(a), read_floats(b)) as f32;
+        let float = |r: usize| f32::from_bits(game_read(r));
+        let search = Search {
+            start: float(START_RVA),
+            step: float(STEP_RVA),
+            half: float(HALF_RVA),
+        };
+        let (angle, status) = search_angle(cosine, search);
+        game_write(STATUS_RVA, status);
+        rc2k_core::math::extended::from_f64(angle as f64)
     }
 }
 
@@ -1054,66 +1097,3 @@ pub unsafe extern "C" fn call_with_two_kept(
         o_ebp = const core::mem::offset_of!(crate::framework::Regs, ebp),
     )
 }
-
-/// For a hook whose function reads st(0) and st(1) and leaves them: `$thunk` takes the two
-/// off into `$pair.inputs`, calls `$dispatch(regs)` (gated as `hook_asm!`'s) and puts
-/// them back; `$with_two(regs)` loads them, runs `$call_original` and takes them off.
-macro_rules! two_kept_hook {
-    ($thunk:ident, $call_original:ident, $with_two:ident, dispatch = $dispatch:ident,
-     original = $orig:ident, pair = $pair:ident) => {
-        #[unsafe(naked)]
-        pub(crate) unsafe extern "C" fn $thunk() {
-            core::arch::naked_asm!(
-                "lea esp, [esp - 20]",
-                "fstp tbyte ptr [esp]",
-                "fstp tbyte ptr [esp + 10]",
-                "pushfd",
-                "pushad",
-                "cld",
-                "call {enter}",
-                "push esp",             // arg: *mut Regs
-                "lea eax, [esp + 40]",
-                "push eax",
-                "call {keep}",
-                "add esp, 4",
-                "call {dispatch}",
-                "add esp, 4",
-                "call {leave}",
-                "popad",
-                "popfd",
-                "fld tbyte ptr [esp + 10]", // no flags touched from here
-                "fld tbyte ptr [esp]",
-                "lea esp, [esp + 20]",
-                "ret",
-                enter = sym $crate::framework::hook_enter,
-                leave = sym $crate::framework::hook_leave,
-                keep = sym keep_two,
-                dispatch = sym $dispatch,
-            )
-        }
-
-        extern "C" fn keep_two(at: *const [[u8; 10]; 2]) {
-            $pair.set_inputs(unsafe { at.read_unaligned() });
-        }
-
-        /// The original with the inputs in st(0) and st(1), taken off after.
-        #[unsafe(naked)]
-        pub(crate) unsafe extern "C" fn $with_two(_regs: *mut $crate::framework::Regs) {
-            core::arch::naked_asm!(
-                "push dword ptr [esp + 4]",
-                "fld tbyte ptr [{p} + 10]",
-                "fld tbyte ptr [{p}]",
-                "call {co}",
-                "fstp st(0)",
-                "fstp st(0)",
-                "add esp, 4",
-                "ret",
-                co = sym $call_original,
-                p = sym $pair,
-            )
-        }
-
-        $crate::framework::hook_asm!(@call_original $call_original, $orig);
-    };
-}
-pub(crate) use two_kept_hook;

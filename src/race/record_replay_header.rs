@@ -59,6 +59,12 @@ extern "C" fn dispatch(r: &mut Regs) {
     }
 }
 
+/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    unsafe { record_replay_header(r, &mut log_part) }?;
+    Ok(())
+}
+
 fn self_test() -> (usize, usize) {
     use crate::race::mud::{copy, run_both, test_part};
     let Some(mut t) = SelfTest::begin(&HOOK) else {

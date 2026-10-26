@@ -8,38 +8,20 @@
 //! `sub_47D4DE` (where the key goes) is inlined.
 //! Refuses, before the key is taken: no current player, a place of 12 or more, a reserved
 //! list without its end.
-//! Compared in shadow mode (the key replayed). Self-test: the four players, 48 settings.
+//! Hook removed 2026-10-22 (typed tables): the menus and draw lists run its `entry`
+//! (`menu::table_calls`); the registers above are the original's, for reference.
 
-use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
-use crate::menu::redefine_keys::{check_redefine, regions, rust};
-use crate::service::harness::dispatch_keyed_state;
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("menu::redefine_key", rva(0x47D472), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
+use crate::framework::Regs;
+use crate::menu::redefine_keys::rust;
+use crate::service::harness::state_entry;
 
 /// The current player.
 fn player() -> u32 {
     crate::menu::player_settings::current().map_or(0, |p| p as u32)
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_keyed_state(&HOOK, r, call_original, &regions(player()), &rust(player));
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    check_redefine(&mut t, call_original, &[0, 1, 2, 3], player);
-    t.finish()
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    state_entry(r, &rust(player))
 }

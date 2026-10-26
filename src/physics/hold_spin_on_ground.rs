@@ -8,15 +8,16 @@
 //! Out: ecx the wheels down, ebx 4; the rest kept; no flags read
 //!
 //! Caller: `sub_43B635` (0x43B986), every physics step.
-//! Self-test: `physics/copy_hooks_test.rs` (a copy on test variables), 24 cases.
+//! Self-test: `physics/copy_hooks_test.rs` (a copy on test variables against the
+//! converted version), 24 cases; compares and copies of floats only: exact at any
+//! precision.
 
 use crate::errors::Refused;
 use crate::framework::{EBX, ECX, RawHook, Regs, game_addr, hook_asm, rva};
-use crate::math::x87;
-use crate::math::x87_run::{abs_compare, compare_full};
 use crate::physics::copy_hooks_test::{lot, test_moves};
 use crate::screens::harness::Left;
-use crate::service::harness::dispatch_state;
+use crate::service::harness::{dispatch_state, state_entry};
+use rc2k_core::physics::motion::hold_spin;
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -41,31 +42,25 @@ const VARIABLES: [usize; 8] = [
     0x71A5D8, 0x71A5DC, 0x71A5E0, 0x71A5E4, 0x613EA0, 0x71A15C, 0x71A164, 0x614C24,
 ];
 
-/// The Rust core on the variables at `v`; `r` as the original leaves it.
+/// The converted version (`rc2k_core::physics::motion`) on the variables at `v`; `r` as
+/// the original leaves it.
+// Converted: `rc2k_core::physics::motion::hold_spin`.
 pub unsafe fn hold_at(v: &[u32], r: &mut Regs) {
     unsafe {
         let get = |k: usize| (v[k] as *const u32).read_unaligned();
         let put = |k: usize, x: u32| (v[k] as *mut u32).write_unaligned(x);
-        let less = |a: u32, b: u32| compare_full(a, b) & 0x100 != 0;
         r.ecx = (0..4).filter(|&k| get(k) != 0).count() as u32;
         r.ebx = 4;
         if r.ecx != 4 {
             return;
         }
-        for s in [5, 6] {
-            if !less(get(s), get(4)) {
-                put(s, x87::loaded(get(4)));
-            }
-            put(4, x87::negated(get(4)));
-            if less(get(s), get(4)) {
-                put(s, x87::loaded(get(4)));
-            }
-            put(4, x87::negated(get(4)));
-        }
-        put(7, 0);
-        if abs_compare(get(5), get(4)) & 0x4000 != 0 || abs_compare(get(6), get(4)) & 0x4000 != 0 {
-            put(7, 1);
-        }
+        let f = |k: usize| f32::from_bits(get(k));
+        let (mut limit, mut x, mut z) = (f(4), f(5), f(6));
+        let flag = hold_spin(&mut limit, &mut x, &mut z);
+        put(4, limit.to_bits());
+        put(5, x.to_bits());
+        put(6, z.to_bits());
+        put(7, flag);
     }
 }
 
@@ -76,14 +71,15 @@ fn game() -> Vec<u32> {
         .collect()
 }
 
-/// The Rust version; `r` as the original leaves it.
+/// The Rust version (compares and copies of floats only: the same at any precision); `r`
+/// as the original leaves it.
 pub unsafe fn hold_spin_on_ground(r: &mut Regs) {
     unsafe { hold_at(&game(), r) }
 }
 
 fn rust(r: &Regs) -> Result<Left, Refused> {
     let mut g = *r;
-    unsafe { hold_spin_on_ground(&mut g) };
+    unsafe { hold_at(&game(), &mut g) };
     Ok(Left::nothing().with(ECX, g.ecx).with(EBX, g.ebx))
 }
 
@@ -91,6 +87,12 @@ extern "C" fn dispatch(r: &mut Regs) {
     let v = game();
     let regions: Vec<_> = [4usize, 5, 6, 7].iter().map(|&k| (v[k], 4)).collect();
     dispatch_state(&HOOK, r, call_original, &regions, &rust);
+}
+
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    state_entry(r, &rust)
 }
 
 fn fill(seed: u32, out: &mut [u32]) {

@@ -50,6 +50,17 @@ extern "C" fn dispatch(r: &mut Regs) {
     }
 }
 
+/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    {
+        let after = unsafe { draw_skidmarks(r, &mut skid_part) }?;
+        let esp = r.esp;
+        *r = after;
+        r.esp = esp;
+    }
+    Ok(())
+}
+
 /// What a skidmark test watches and puts back.
 pub fn skid_regions() -> Vec<Region> {
     let g = |a: usize, len: usize| (game_addr(rva(a)) as u32, len);

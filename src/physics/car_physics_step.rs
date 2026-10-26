@@ -343,6 +343,13 @@ extern "C" fn dispatch(r: &mut Regs) {
     }
 }
 
+/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    let left = unsafe { car_physics_step(r) }?;
+    left.apply(r);
+    Ok(())
+}
+
 /// Everything the step and its calls write, for the tests.
 pub fn test_regions() -> Vec<Region> {
     let mut all = step_regions();

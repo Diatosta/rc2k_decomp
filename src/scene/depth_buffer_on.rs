@@ -5,25 +5,12 @@
 //! Out: eax 4, ebx 0x17; the rest as `scene::set_render_state` leaves them (kept)
 //!
 //! Three calls of `scene::set_render_state`. 22 callers (the marks, the race's drawing).
-//! Self-test: the original and the Rust version recorded on the layer, nothing drawn;
-//! `check` shared with the other render-state hooks.
+//! Hook removed 2026-10-22 (direct calls): Rust callers run its `entry` (`calls::call`,
+//! `routes.rs`); the registers above are the original's, for reference.
 
 use crate::d3d::recorder::record;
-use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
+use crate::framework::{Regs, SelfTest};
 use crate::scene::set_render_state::set_render_state;
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("scene::depth_buffer_on", rva(0x44E41F), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
 
 /// `scene::depth_buffer_on` (`on`) or `scene::depth_buffer_off`: states 7 and 14 1 or 0,
 /// then 23 4.
@@ -35,9 +22,10 @@ pub unsafe fn depth_buffer(r: &mut Regs, on: bool) {
     }
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    HOOK.count_call();
+/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     unsafe { depth_buffer(r, true) };
+    Ok(())
 }
 
 /// One case: the original and `rust` recorded, nothing drawn; the registers and the
@@ -68,12 +56,4 @@ pub fn check(
             )
         },
     );
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    check(&mut t, call_original, &|r| unsafe { depth_buffer(r, true) });
-    t.finish()
 }

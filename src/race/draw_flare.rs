@@ -43,6 +43,12 @@ extern "C" fn dispatch(r: &mut Regs) {
     }
 }
 
+/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    unsafe { draw_flare(r, &mut entry_part) }?;
+    Ok(())
+}
+
 /// A copy of `address` whose drawing call (at `call`) goes to stand-in 6.
 pub fn copy_with_draw(
     hook: &RawHook,

@@ -54,7 +54,7 @@ fn count() -> u32 {
 
 /// Whether the set-up would ask for the device; refused without a record to ask with.
 fn would_apply(controller: u32) -> Result<bool, Refused> {
-    let applies = controller.wrapping_sub(1) < count();
+    let applies = rc2k_core::menu::steps::listed(controller, count());
     if applies && unsafe { game_read::<u32>(DEVICES_RVA) } == 0 {
         return Err(BadInput("no first input device record").into());
     }
@@ -92,7 +92,7 @@ unsafe fn choose(p: u32, c: u32) -> Result<(), Refused> {
 pub unsafe fn next_controller() -> Result<(), Refused> {
     let p = player()?;
     let c = f(p, 0x2C);
-    let c = if c == count() { 0 } else { c.wrapping_add(1) };
+    let c = rc2k_core::menu::steps::next_controller(c, count());
     unsafe { choose(p, c) }
 }
 
@@ -100,7 +100,7 @@ pub unsafe fn next_controller() -> Result<(), Refused> {
 pub unsafe fn previous_controller() -> Result<(), Refused> {
     let p = player()?;
     let c = f(p, 0x2C);
-    let c = if c as i32 <= 0 { count() } else { c - 1 };
+    let c = rc2k_core::menu::steps::previous_controller(c, count());
     unsafe { choose(p, c) }
 }
 
@@ -117,10 +117,10 @@ unsafe fn set_sensitivity(p: u32, value: u32) -> Result<(), Refused> {
 
 /// `menu::lower_controller_sensitivity`.
 pub unsafe fn lower_controller_sensitivity() -> Result<(), Refused> {
+    // Converted: `rc2k_core::menu::steps::lower_sensitivity`.
     let p = player()?;
-    let s = f(p, 0x34);
-    if f(p, 0x2C) != 0 && s as i32 > 0 {
-        unsafe { set_sensitivity(p, s - 1) }?;
+    if let Some(s) = rc2k_core::menu::steps::lower_sensitivity(f(p, 0x2C), f(p, 0x34)) {
+        unsafe { set_sensitivity(p, s) }?;
     }
     Ok(())
 }
@@ -133,10 +133,10 @@ pub unsafe fn raise_controller_sensitivity(edi: u32) -> Result<(), Refused> {
     if f(edi, 0x2C) == 0 {
         return Ok(());
     }
+    // Converted: `rc2k_core::menu::steps::raise_sensitivity`.
     let p = player()?;
-    let s = f(p, 0x34);
-    if (s as i32) < 3 {
-        unsafe { set_sensitivity(p, s.wrapping_add(1)) }?;
+    if let Some(s) = rc2k_core::menu::steps::raise_sensitivity(f(p, 0x34)) {
+        unsafe { set_sensitivity(p, s) }?;
     }
     Ok(())
 }
@@ -146,8 +146,8 @@ pub unsafe fn raise_controller_sensitivity(edi: u32) -> Result<(), Refused> {
 pub fn raise_dead_zone(offset: u32) -> Result<(u32, u32, u32), Refused> {
     let p = player()?;
     let mut value = f(p, offset);
-    let room = 100u32.wrapping_sub(f(p, 0x40)).wrapping_sub(f(p, 0x44));
-    if room as i32 > 10 {
+    let (room, grows) = rc2k_core::menu::steps::dead_zone_room(f(p, 0x40), f(p, 0x44));
+    if grows {
         value = value.wrapping_add(1);
         w(p, offset, value);
     }
@@ -172,6 +172,11 @@ pub fn dispatch_item(
     rust: crate::service::harness::Rust,
 ) {
     dispatch_state(hook, r, call_original, &regions(), rust);
+}
+
+/// `dispatch_item` without its hook (typed tables).
+pub fn item_entry(r: &mut Regs, rust: crate::service::harness::Rust) -> Result<(), Refused> {
+    crate::service::harness::state_entry(r, rust)
 }
 
 /// What `raise_dead_zone_a` leaves.

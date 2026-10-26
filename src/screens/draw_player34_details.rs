@@ -4,42 +4,16 @@
 //! In:  nothing
 //! Out: every register preserved
 //!
-//! See `screens::draw_player_details`, whose code this is (`Layout::SHORT`). In the draw lists at 0x758CCA and 0x758CD2.
-//! Compared in shadow mode. Self-test: the four players under four settings each.
+//! See `screens::draw_player_details`, whose code this is (`Layout::SHORT`). In the draw lists
+//! at 0x758CCA and 0x758CD2. Hook removed 2026-10-22 (typed tables): the menus and draw lists
+//! run its `entry` (`menu::table_calls`); the registers above are the original's, for
+//! reference.
 
-use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
-use crate::screens::draw_menu_item_text::text_unavailable;
-use crate::screens::draw_player_details::{SHORT, check_page, dispatch_page};
-use std::sync::atomic::AtomicUsize;
+use crate::framework::Regs;
+use crate::screens::draw_player_details::{SHORT, page_entry};
 
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook = RawHook::new(
-    "screens::draw_player34_details",
-    rva(0x467975),
-    thunk,
-    &ORIGINAL,
-)
-.self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
-
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_page(&HOOK, r, call_original, SHORT);
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    if let Some(why) = text_unavailable() {
-        return t.skip(why);
-    }
-    check_page(&mut t, call_original, SHORT);
-    t.finish()
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    page_entry("screens::draw_player34_details", r, SHORT)
 }

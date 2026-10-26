@@ -23,8 +23,9 @@ use crate::physics::splits::{
     COUNT, FIGURE, SPLIT, TEXT, TIME, g, guarded, p, test_splits, written,
 };
 use crate::screens::harness::Left;
-use crate::service::harness::dispatch_state;
+use crate::service::harness::{dispatch_state, state_entry};
 use crate::strings::append_string_by_id::append_string_by_id;
+use rc2k_core::physics::splits::{RIVALS, gap, rank, scaled_time, split_scale};
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -38,14 +39,6 @@ hook_asm!(
     dispatch = dispatch,
     original = ORIGINAL
 );
-
-/// `edx:eax / d` as `div` leaves it; refused where it would fault.
-fn div(value: u64, d: u32) -> Result<(u32, u32), Refused> {
-    if d == 0 || value / d as u64 > u32::MAX as u64 {
-        return Err(BadInput("a division the original's div would fault on").into());
-    }
-    Ok(((value / d as u64) as u32, (value % d as u64) as u32))
-}
 
 /// A name into `text` (eight blanks first), its first eight bytes into `to`.
 fn name(r: &mut Regs, id: u32, to: usize) {
@@ -65,6 +58,7 @@ fn name(r: &mut Regs, id: u32, to: usize) {
 }
 
 /// The steps on `r`.
+// Converted: `rc2k_core::physics::splits::{split_scale, scaled_time, rank, gap}`.
 pub fn rank_split_time_in(r: &mut Regs) -> Result<(), Refused> {
     let (split, count) = (g(SPLIT), g(COUNT));
     if split > 0x40 || count > 0x40 {
@@ -79,13 +73,13 @@ pub fn rank_split_time_in(r: &mut Regs) -> Result<(), Refused> {
     }
     let base = g(0x601030 + 4 * split as usize);
     let d = g(0x60102C + 4 * count as usize);
-    let (scale, rest) = div(base as u64 * 1000, d)?;
+    let (scale, rest) = split_scale(base, d)?;
     r.eax = scale;
     r.edx = rest;
     r.ebx = scale;
-    for c in 0..0x5Ausize {
+    for c in 0..RIVALS {
         r.ecx = c as u32;
-        let (q, rest) = div(g(0x601ED0 + 4 * c) as u64 * scale as u64, 1000)?;
+        let (q, rest) = scaled_time(g(0x601ED0 + 4 * c), scale)?;
         r.eax = q;
         r.edx = rest;
         p(0x6021A0 + 4 * c, q);
@@ -96,41 +90,30 @@ pub fn rank_split_time_in(r: &mut Regs) -> Result<(), Refused> {
     r.edx = 0x58 % 10;
     r.ebx = 10;
     let time = g(TIME);
-    let mut c = 0u32;
-    loop {
-        r.eax = g(0x6021A0 + 4 * c as usize);
-        if (r.eax.wrapping_sub(time) as i32) >= 0 {
-            break;
-        }
-        c += 1;
-        if c == 0x59 {
-            break;
-        }
-    }
-    c += 1;
+    let (c, last) = rank(time, |c| g(0x6021A0 + 4 * c));
+    r.eax = last;
     r.ecx = c;
     p(FIGURE, c);
     r.eax = time;
     p(0x602308, time);
+    let c = c as usize;
     if c != 1 {
-        r.eax = time
-            .wrapping_sub(g(0x602198 + 4 * c as usize))
-            .wrapping_mul(10);
+        // The one ahead: rival c - 2 (its scaled time, car and name).
+        r.eax = gap(g(0x6021A0 + 4 * (c - 2)), time);
         p(FIGURE + 4, r.eax);
-        r.eax = g(0x602030 + 4 * c as usize);
+        r.eax = g(0x602038 + 4 * (c - 2));
         p(FIGURE + 0xC, r.eax);
-        r.eax = g(0x601D60 + 4 * c as usize);
+        r.eax = g(0x601D68 + 4 * (c - 2));
         p(FIGURE + 0x14, r.eax);
         name(r, r.eax, 0x6D1844);
     }
-    if c != 0x5A {
-        r.eax = g(0x60219C + 4 * c as usize)
-            .wrapping_sub(time)
-            .wrapping_mul(10);
+    if c != RIVALS {
+        // The one behind: rival c - 1.
+        r.eax = gap(time, g(0x6021A0 + 4 * (c - 1)));
         p(FIGURE + 8, r.eax);
-        r.eax = g(0x602034 + 4 * c as usize);
+        r.eax = g(0x602038 + 4 * (c - 1));
         p(FIGURE + 0x10, r.eax);
-        r.eax = g(0x601D64 + 4 * c as usize);
+        r.eax = g(0x601D68 + 4 * (c - 1));
         p(FIGURE + 0x18, r.eax);
         name(r, r.eax, 0x6D1838);
     }
@@ -148,6 +131,12 @@ fn rust(r: &Regs) -> Result<Left, Refused> {
 
 extern "C" fn dispatch(r: &mut Regs) {
     dispatch_state(&HOOK, r, call_original, &written(), &rust);
+}
+
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    state_entry(r, &rust)
 }
 
 fn self_test() -> (usize, usize) {

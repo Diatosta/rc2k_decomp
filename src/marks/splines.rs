@@ -18,10 +18,6 @@ const SECONDS: u32 = 0x254;
 const COORDS: u32 = 0x654;
 const CENTRE: u32 = 0xC54;
 const GRADES: u32 = 0xC90;
-/// `sub_4BA316`'s two heights (its reading of +0x18 and +0x1C is overwritten: section 16).
-const LOW: i32 = 0x3830;
-const HIGH: i32 = 0x6720;
-const PONG_FROM_RVA: usize = rva(0x769182); // flt_769182 .. flt_76919E
 /// Where `reset_pong` puts the eight floats: four (x, y) pairs 0x18 apart.
 const PONG_TO: [usize; 8] = [
     0x768688, 0x76868C, 0x7686A0, 0x7686A4, 0x7686B8, 0x7686BC, 0x7686D0, 0x7686D4,
@@ -64,29 +60,46 @@ unsafe fn put(at: u32, v: u32) {
 
 /// The record's point count, refused past `MOST_POINTS` (the loops would run past it).
 unsafe fn count(spline: u32) -> Result<u32, Refused> {
-    let n = unsafe { get(spline + COUNT) };
-    if n as i32 > MOST_POINTS as i32 {
-        return Err(BadInput("a spline of more than 0x80 points").into());
+    Ok(rc2k_core::marks::splines::points(unsafe { get(spline + COUNT) })? as u32)
+}
+
+/// `n` dwords at `at` (unaligned: the records are).
+unsafe fn words(at: u32, n: u32) -> Vec<u32> {
+    (0..n).map(|k| unsafe { get(at + 4 * k) }).collect()
+}
+
+unsafe fn put_words(at: u32, words: &[u32]) {
+    for (k, &w) in words.iter().enumerate() {
+        unsafe { put(at + 4 * k as u32, w) };
     }
-    Ok((n as i32).max(0) as u32)
+}
+
+/// `n` points (three dwords each) at `at`.
+unsafe fn triples(at: u32, n: u32) -> Vec<[u32; 3]> {
+    (0..n)
+        .map(|k| std::array::from_fn(|c| unsafe { get(at + 12 * k + 4 * c as u32) }))
+        .collect()
+}
+
+unsafe fn put_triples(at: u32, points: &[[u32; 3]]) {
+    unsafe { put_words(at, points.as_flattened()) };
 }
 
 /// `marks::centre_spline_points` (0x4B9F95): each point (+0x654, 12 bytes, the last first)
 /// less the centre (+0xC54). Leaves eax, ebx, ecx the first point, edi 0 (as they were with
-/// none). Refuses more than 0x80 points.
+/// none). Refuses more than 0x80 points. Converted:
+/// `rc2k_core::marks::splines::centre`.
 pub unsafe fn centre_spline_points(entry: &Regs) -> Result<Regs, Refused> {
     let mut g = *entry;
     unsafe {
         let s = g.ebp;
-        for k in (0..count(s)?).rev() {
-            g.edi = k * 12;
-            let p = s + COORDS + g.edi;
-            g.eax = get(p).wrapping_sub(get(s + CENTRE));
-            g.ebx = get(p + 4).wrapping_sub(get(s + CENTRE + 4));
-            g.ecx = get(p + 8).wrapping_sub(get(s + CENTRE + 8));
-            put(p, g.eax);
-            put(p + 4, g.ebx);
-            put(p + 8, g.ecx);
+        let n = count(s)?;
+        let mut points = triples(s + COORDS, n);
+        rc2k_core::marks::splines::centre(&mut points, triples(s + CENTRE, 1)[0]);
+        put_triples(s + COORDS, &points);
+        if let Some(&first) = points.first() {
+            [g.eax, g.ebx, g.ecx] = first;
+            g.edi = 0;
         }
     }
     Ok(g)
@@ -95,25 +108,23 @@ pub unsafe fn centre_spline_points(entry: &Regs) -> Result<Regs, Refused> {
 /// `marks::grade_spline_points` (0x4BA316): each point's grade (+0xC90, the last first) by
 /// its height (+0x658): 0 below 0x3830, 1 below 0x6720, else 2. Leaves eax the first
 /// point's height, esi and edi 0 (eax 0x6720 with none). Refuses more than 0x80 points.
+/// Converted: `rc2k_core::marks::splines::grade`.
 pub unsafe fn grade_spline_points(entry: &Regs) -> Result<Regs, Refused> {
     let mut g = *entry;
     unsafe {
         let s = g.ebp;
         let n = count(s)?;
-        g.eax = HIGH as u32;
-        for k in (0..n).rev() {
-            g.edi = k;
-            g.esi = k * 12;
-            g.eax = get(s + COORDS + 4 + g.esi);
-            let h = g.eax as i32;
-            let grade = if h < LOW {
-                0
-            } else if h < HIGH {
-                1
-            } else {
-                2
-            };
-            put(s + GRADES + 4 * k, grade);
+        g.eax = rc2k_core::marks::splines::HIGH as u32;
+        let heights: Vec<u32> = triples(s + COORDS, n).iter().map(|p| p[1]).collect();
+        let grades: Vec<u32> = heights
+            .iter()
+            .map(|&h| rc2k_core::marks::splines::grade(h as i32))
+            .collect();
+        put_words(s + GRADES, &grades);
+        if let Some(&first) = heights.first() {
+            g.eax = first;
+            g.esi = 0;
+            g.edi = 0;
         }
     }
     Ok(g)
@@ -124,39 +135,24 @@ pub unsafe fn grade_spline_points(entry: &Regs) -> Result<Regs, Refused> {
 /// +0x34. The value is read at +0x65C + 0x30 a point, not 12 (section 16): read as the
 /// original does. Leaves eax the second count, ecx the second found, edx its value, edi
 /// the last point read times 12. Refuses a negative start or count, or points past 0x80.
+/// Converted: `rc2k_core::marks::splines::find_end`.
 pub unsafe fn find_spline_ends(entry: &Regs) -> Result<Regs, Refused> {
+    use rc2k_core::marks::splines::{find_end, run_fits};
     let mut g = *entry;
     unsafe {
         let s = g.ebp;
         for (start, n) in [(0u32, 0xCu32), (4, 0x10)] {
-            let (a, c) = (get(s + start) as i32, get(s + n) as i32);
-            if a < 0 || c < 0 || a + c > MOST_POINTS as i32 {
-                return Err(BadInput("a spline's grade past its points").into());
-            }
+            run_fits(get(s + start), get(s + n))?;
         }
-        for (start, n, to, first, highest) in [
-            (0u32, 0xCu32, 0x30u32, 0x8000_0001u32, true),
-            (4, 0x10, 0x34, 0x7FFF_FFFF, false),
-        ] {
-            g.ecx = 0;
-            g.edx = first;
-            let from = get(s + start);
-            let c = get(s + n);
-            for k in 0..c {
-                g.edi = (k + from) * 12;
-                let v = get(s + 4 * g.edi + 0x65C);
-                let take = if highest {
-                    g.edx as i32 <= v as i32
-                } else {
-                    g.edx as i32 >= v as i32
-                };
-                if take {
-                    g.ecx = k;
-                    g.edx = v;
-                }
+        for (start, n, to, highest) in [(0u32, 0xCu32, 0x30u32, true), (4, 0x10, 0x34, false)] {
+            let (from, c) = (get(s + start), get(s + n));
+            let end = find_end(from, c, highest, |p| get(s + 0x30 * p + 0x65C));
+            if let Some(last) = end.last {
+                g.edi = last * 12;
             }
             g.eax = c;
-            g.ecx = g.ecx.wrapping_add(from);
+            g.ecx = end.at;
+            g.edx = end.value;
             put(s + to, g.ecx);
         }
     }
@@ -167,34 +163,38 @@ pub unsafe fn find_spline_ends(entry: &Regs) -> Result<Regs, Refused> {
 /// bytes each: the point and two values) added to the record's (+0x50 the count, ids
 /// +0x454, values +0x54 and +0x254) unless there already, up to 0x80. Leaves eax the
 /// count, ecx where the last search stopped, edx the last point read. Refuses a record of
-/// more than 0x80 points.
+/// more than 0x80 points. Converted: `rc2k_core::marks::splines::FacePoints::add_face`.
 pub unsafe fn add_face_points(entry: &Regs) -> Result<Regs, Refused> {
     let mut g = *entry;
     unsafe {
         let s = g.ebp;
-        if get(s + COUNT) > MOST_POINTS {
-            return Err(BadInput("a spline of more than 0x80 points").into());
+        let most = MOST_POINTS as usize;
+        let before = get(s + COUNT);
+        // The ids the searches read; the rest are only written.
+        let mut ids = words(s + IDS, before.min(MOST_POINTS));
+        ids.resize(most, 0);
+        let (mut firsts, mut seconds) = (vec![0; most], vec![0; most]);
+        let mut points = rc2k_core::marks::splines::FacePoints {
+            count: before,
+            ids: &mut ids,
+            firsts: &mut firsts,
+            seconds: &mut seconds,
+        };
+        let face_points = get(g.edi);
+        let at = |k: u32| g.edi + 0x10 + 0x10 * k;
+        let c = points.add_face(
+            face_points,
+            |k| get(at(k)),
+            |k| [get(at(k) + 4), get(at(k) + 8)],
+        )?;
+        let after = points.count;
+        let added = before as usize..after as usize;
+        for (table, values) in [(IDS, &ids), (FIRSTS, &firsts), (SECONDS, &seconds)] {
+            put_words(s + table + 4 * before, &values[added.clone()]);
         }
-        let mut at = g.edi + 0x10;
-        g.eax = get(s + COUNT);
-        g.ecx = get(g.edi);
-        for _ in 0..(g.ecx as i32).max(0) {
-            if g.eax == MOST_POINTS {
-                continue;
-            }
-            g.edx = get(at);
-            g.ecx = 0;
-            while g.ecx != g.eax && get(s + IDS + 4 * g.ecx) != g.edx {
-                g.ecx += 1;
-            }
-            if g.ecx == g.eax {
-                put(s + IDS + 4 * g.eax, g.edx);
-                put(s + FIRSTS + 4 * g.eax, get(at + 4));
-                put(s + SECONDS + 4 * g.eax, get(at + 8));
-                g.eax += 1;
-            }
-            at += 0x10;
-        }
+        g.eax = after;
+        g.ecx = c.stopped.unwrap_or(face_points);
+        g.edx = c.last_point.unwrap_or(g.edx);
         put(s + COUNT, g.eax);
     }
     Ok(g)
@@ -209,14 +209,11 @@ pub fn find_farthest_points(entry: &Regs) -> Regs {
 
 /// `marks::reset_pong` (0x4B7E64): the eight floats from `flt_769182` to four (x, y)
 /// pairs from `flt_768688`, `dword_768700` 5, `dword_7687D0` 0. Every register kept.
+/// Converted: `rc2k_core::marks::pong::Court::reset` (exact at every precision: `fld;
+/// fstp` of a float only makes a signalling NaN quiet).
 pub unsafe fn reset_pong() {
-    unsafe {
-        for (n, to) in PONG_TO.into_iter().enumerate() {
-            game_write(rva(to), x87::loaded(game_read(PONG_FROM_RVA + 4 * n)));
-        }
-        game_write(OUTLINE_COUNT_RVA, 5u32);
-        game_write(OUTLINE_MARK_RVA, 0u32);
-    }
+    let rules = crate::marks::pong::rules();
+    crate::marks::pong::with_court(|c| c.reset(&rules));
 }
 
 /// What `reset_pong` writes.
@@ -456,11 +453,11 @@ pub unsafe fn write_point(entry: &Regs, s: u32, k: u32, pointer: u32) -> Regs {
 /// `marks::order_spline_points` (0x4BA388): record ebp's ids and points put in grade order
 /// (each grade's the last first) through `g_marksOrderedIds` and `g_marksOrderedCoords`;
 /// +0 .. +8 each grade's start, +0xC .. +0x14 its count; then the count's ids and points
-/// moved back (`memory::move_bytes`, as many as the count, whatever their grade). Leaves
-/// eax +0x654, ebx `g_marksOrderedCoords`, ecx the count times 12, esi the last taken
-/// times 12, edi 0. Refuses more than 0x80 points or a negative count.
+/// moved back (as `memory::move_bytes` would, as many as the count, whatever their
+/// grade). Leaves eax +0x654, ebx `g_marksOrderedCoords`, ecx the count times 12, esi
+/// the last taken times 12, edi 0. Refuses more than 0x80 points or a negative count.
+/// Converted: `rc2k_core::marks::splines::order`.
 pub unsafe fn order_spline_points(entry: &Regs) -> Result<Regs, Refused> {
-    use crate::memory::move_bytes::move_bytes;
     let mut g = *entry;
     unsafe {
         let s = g.ebp;
@@ -468,44 +465,37 @@ pub unsafe fn order_spline_points(entry: &Regs) -> Result<Regs, Refused> {
         if (get(s + COUNT) as i32) < 0 {
             return Err(BadInput("a spline of a negative count: the moves would run away").into());
         }
-        let (ids, coords) = (
+        let (ids_at, coords_at) = (
             game_addr(ORDERED_IDS_RVA) as u32,
             game_addr(ORDERED_COORDS_RVA) as u32,
         );
-        g.eax = 0;
-        g.ebx = 0;
-        put(s, 0);
-        for grade in 0..3u32 {
-            for k in (0..n).rev() {
-                g.edi = k;
-                if get(s + GRADES + 4 * k) != grade {
-                    continue;
-                }
-                g.esi = k * 12;
-                put(ids + 4 * g.eax, get(s + IDS + 4 * k));
-                for c in 0..3 {
-                    put(coords + g.ebx + 4 * c, get(s + COORDS + g.esi + 4 * c));
-                }
-                g.eax += 1;
-                g.ebx += 12;
-            }
-            g.ecx = g.eax.wrapping_sub(get(s + 4 * grade));
-            put(s + 0xC + 4 * grade, g.ecx);
-            if grade < 2 {
-                put(s + 4 + 4 * grade, g.eax);
-            }
+        // What the moves back read: the ordered tables' first `n`, those not placed as
+        // they were.
+        let mut ordered_ids = words(ids_at, n);
+        let mut ordered_coords = triples(coords_at, n);
+        let o = rc2k_core::marks::splines::order(
+            &words(s + GRADES, n),
+            &words(s + IDS, n),
+            &triples(s + COORDS, n),
+            &mut ordered_ids,
+            &mut ordered_coords,
+        );
+        let placed = o.placed as usize;
+        put_words(ids_at, &ordered_ids[..placed]);
+        put_triples(coords_at, &ordered_coords[..placed]);
+        put_words(s, &o.starts);
+        put_words(s + 0xC, &o.counts);
+        put_words(s + IDS, &ordered_ids);
+        put_triples(s + COORDS, &ordered_coords);
+        if n > 0 {
+            g.edi = 0;
         }
-        for (to, from, size) in [(s + IDS, ids, 4), (s + COORDS, coords, 12)] {
-            g.eax = to;
-            g.ebx = from;
-            g.ecx = get(s + COUNT).wrapping_mul(size);
-            move_bytes(&Regs {
-                eax: g.ecx,
-                esi: g.ebx,
-                edi: g.eax,
-                ..g
-            });
+        if let Some(k) = o.last_taken {
+            g.esi = k * 12;
         }
+        g.eax = s + COORDS;
+        g.ebx = coords_at;
+        g.ecx = n * 12;
     }
     Ok(g)
 }
@@ -516,31 +506,20 @@ pub unsafe fn order_spline_points(entry: &Regs) -> Result<Regs, Refused> {
 /// into the centre (+0xC54); the angle between `g_marksSplineUp` and the size
 /// (`scene::angle_between_vectors`, both normalised) into +0x20. Leaves eax, ebx, ecx the
 /// middle, esi `g_marksSplineUp`, edi `g_marksSplineSize`. Refuses more than 0x80 points.
+/// Converted: `rc2k_core::marks::splines::bounds` (the floats, the sizes made floats and the
+/// angle, stay the x87's: the first round as its control word says).
 pub unsafe fn bound_spline_points(entry: &Regs) -> Result<Regs, Refused> {
     let mut g = *entry;
     unsafe {
         let s = g.ebp;
         let n = count(s)?;
-        let mut low = [i32::MAX; 3];
-        let mut high = [0x8000_0001u32 as i32; 3];
-        for k in (0..n).rev() {
-            g.edi = k * 12;
-            for c in 0..3 {
-                let v = get(s + COORDS + g.edi + 4 * c as u32) as i32;
-                if v < low[c] {
-                    low[c] = v;
-                }
-                if v > high[c] {
-                    high[c] = v;
-                }
-            }
-        }
-        let size: [i32; 3] = std::array::from_fn(|c| high[c].wrapping_sub(low[c]));
+        let b = rc2k_core::marks::splines::bounds(&triples(s + COORDS, n));
+        let size = b.size;
         g.esi = game_addr(UP_RVA) as u32;
         g.edi = game_addr(SIZE_RVA) as u32;
         put(g.edi + 4, x87::from_int(size[1]));
         put(g.edi + 8, x87::from_int(size[2]));
-        let middle: [u32; 3] = std::array::from_fn(|c| (size[c] >> 1).wrapping_add(low[c]) as u32);
+        let middle = b.middle.map(|m| m as u32);
         for (c, &m) in middle.iter().enumerate() {
             put(s + CENTRE + 4 * c as u32, m);
         }

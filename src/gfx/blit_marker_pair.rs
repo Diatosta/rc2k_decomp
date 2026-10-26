@@ -5,26 +5,14 @@
 //! Out: every register preserved
 //! Each point is also stored in the globals `g_markerX`/`g_markerY`, which are left holding
 //! the second one. What the object and the two glyphs are is not known yet.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::FatalError;
-use crate::framework::{RawHook, Regs, SelfTest, game_read, game_write, hook_asm, rva, shadow};
-use crate::gfx::blit_glyph::{
-    BlitCall, blit_glyph_on_surface, glyph_record, record_calls, recording_works,
-};
-use crate::gfx::surface::surface;
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("gfx::blit_marker_pair", rva(0x46D098), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
+use crate::framework::{Regs, game_read, game_write, rva};
+use crate::gfx::blit_glyph::{BlitCall, blit_glyph_on_surface};
 
 // ---- game data ----
 
@@ -81,93 +69,13 @@ pub unsafe fn blit_marker_pair(object: *const u8, palette: u32) -> Result<(), Fa
     Ok(())
 }
 
-// ---- hook ----
-
-extern "C" fn dispatch(r: &mut Regs) {
-    HOOK.count_call();
+/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
     let (object, palette) = (r.edi as *const u8, r.ebx);
 
-    if !shadow() {
-        // A fatal error in the blitter: the original, run from the start, meets the same one.
-        if let Err(e) = unsafe { blit_marker_pair(object, palette) } {
-            unsafe { crate::fatal::raise::refused(&HOOK, e, r, call_original) };
-        }
-        return;
+    // A fatal error in the blitter: the original, run from the start, meets the same one.
+    if let Err(e) = unsafe { blit_marker_pair(object, palette) } {
+        return Err(e.into());
     }
-
-    let table = sprite_table();
-    let mine = unsafe { marker_calls(object, palette, table) };
-    let surface = surface();
-    if let Some(e) = mine
-        .iter()
-        .find_map(|c| unsafe { glyph_record(&surface, c.table as *const u8, c.glyph) }.err())
-    {
-        unsafe { crate::fatal::raise::refused(&HOOK, e, r, call_original) };
-        return;
-    }
-
-    let mut o = *r;
-    let calls = record_calls(false, || unsafe { call_original(&mut o) });
-    let (x, y): (i32, i32) = unsafe { (game_read(MARKER_X_RVA), game_read(MARKER_Y_RVA)) };
-    let ok = o.preserved_except(r, 0)
-        && (x, y) == (mine[1].x, mine[1].y)
-        && (!recording_works() || calls == mine);
-    if !ok {
-        HOOK.mismatch(|| {
-            format!(
-                "object={:#x}: original calls={calls:?} x={x} y={y} rust calls={mine:?}",
-                r.edi
-            )
-        });
-    }
-}
-
-// ---- self-test: the blitter's hook swallows the calls, so nothing is drawn ----
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    if !recording_works() {
-        return t.skip("the gfx::blit_glyph hook is off, so the original would really draw");
-    }
-    let saved: (i32, i32) = unsafe { (game_read(MARKER_X_RVA), game_read(MARKER_Y_RVA)) };
-    let table = sprite_table();
-    let points = [
-        [0i32, 0, 0, 0],
-        [10, 20, 30, 40],
-        [-5, -6, 700, 500],
-        [i32::MAX, i32::MIN, -1, 1],
-    ];
-
-    for p in points {
-        let mut object = [0xAAu8; 0x54];
-        for (i, v) in p.iter().enumerate() {
-            object[0x44 + i * 4..0x48 + i * 4].copy_from_slice(&v.to_le_bytes());
-        }
-        let before = Regs {
-            edi: object.as_ptr() as u32,
-            ..Regs::SENTINEL
-        };
-        let mut ro = before;
-        let calls = record_calls(true, || unsafe { call_original(&mut ro) });
-        let (x, y): (i32, i32) = unsafe { (game_read(MARKER_X_RVA), game_read(MARKER_Y_RVA)) };
-
-        let mine = unsafe { marker_calls(object.as_ptr(), before.ebx, table) };
-        let preserved = ro.preserved_except(&before, 0);
-        t.check(
-            calls == mine && (x, y) == (p[2], p[3]) && preserved,
-            || {
-                format!(
-                    "points={p:?}: original calls={calls:?} x={x} y={y} preserved={preserved}; rust calls={mine:?}"
-                )
-            },
-        );
-    }
-
-    unsafe {
-        game_write(MARKER_X_RVA, saved.0);
-        game_write(MARKER_Y_RVA, saved.1);
-    }
-    t.finish()
+    Ok(())
 }

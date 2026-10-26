@@ -9,14 +9,14 @@
 //! Out: every register kept; no flags read (the callers go on with calls)
 //!
 //! Caller: `sub_436790` (four calls).
-//! Self-test: a copy of the original (its five variables the test's) against the core:
+//! Self-test: a copy of the original (its five variables the test's) against the converted version:
 //! counters 0, 1, 299, 300, speeds below and above.
 
 use crate::errors::Refused;
 use crate::framework::{RawHook, Regs, SelfTest, call_game, game_addr, game_read, hook_asm, rva};
 use crate::screens::harness::Left;
-use crate::service::harness::{capture, dispatch_state};
-use std::cmp::Ordering;
+use crate::service::harness::{capture, dispatch_state, state_entry};
+use rc2k_core::physics::motion::stop_timers;
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -47,31 +47,21 @@ unsafe fn put(a: u32, v: u32) {
     unsafe { (a as *mut u32).write_unaligned(v) }
 }
 
-/// The core on the variables' addresses.
+/// The core on the variables' addresses (a compare of floats only: the same at any
+/// precision).
+// Converted: `rc2k_core::physics::motion::stop_timers`.
 pub unsafe fn count_stop_timers_at(v: &[u32]) {
     unsafe {
-        let one: u32 = game_read(rva(0x5C5D38));
-        let slow = !matches!(
-            f32::from_bits(at(v[3])).partial_cmp(&f32::from_bits(one)),
-            Some(Ordering::Greater | Ordering::Equal)
-        );
-        for (k, result) in [(0, u32::MAX), (1, u32::MAX), (2, 2)] {
-            let c = at(v[k]);
-            if c == 0 {
-                continue;
+        let one = f32::from_bits(game_read(rva(0x5C5D38)));
+        let mut counters = [at(v[0]), at(v[1]), at(v[2])];
+        let result = stop_timers(&mut counters, f32::from_bits(at(v[3])), one);
+        for (k, c) in counters.iter().enumerate() {
+            if *c != at(v[k]) {
+                put(v[k], *c);
             }
-            if c == 300 {
-                put(v[4], result);
-                return;
-            }
-            if !slow {
-                continue;
-            }
-            put(v[k], c.wrapping_add(1));
-            if c.wrapping_add(1) >= 300 {
-                put(v[4], result);
-                return;
-            }
+        }
+        if let Some(result) = result {
+            put(v[4], result);
         }
     }
 }
@@ -96,6 +86,12 @@ fn rust(_: &Regs) -> Result<Left, Refused> {
 extern "C" fn dispatch(r: &mut Regs) {
     let v = game();
     dispatch_state(&HOOK, r, call_original, &[(v[0], 12), (v[4], 4)], &rust);
+}
+
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    state_entry(r, &rust)
 }
 
 fn self_test() -> (usize, usize) {

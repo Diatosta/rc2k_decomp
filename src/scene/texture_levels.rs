@@ -5,7 +5,7 @@
 //! `dword_5CDADC` set every level is another (it is set to 0 here first, and nothing sets
 //! it otherwise).
 
-use crate::errors::{BadInput, Refused};
+use crate::errors::Refused;
 use crate::framework::{Regs, game_addr, game_read, game_write, rva};
 use crate::scene::texture_needs::{SYSTEM_LEVELS_RVA, TAGS_RVA, VIDEO_LEVELS_RVA};
 
@@ -16,7 +16,6 @@ const SECOND_CAR_RVA: usize = rva(0x63DB94); // dword_63DB94
 const EXTRA_RVA: usize = rva(0x621514); // dword_621514
 const WANTED_RVA: usize = rva(0x5D8968); // g_textureWantedPictures
 pub const SLOTS: u32 = 0x400;
-const FIXED_TAG: u32 = 0x63;
 
 /// A kind's block: its first-texture variable (only its place in `g_textureWantedPictures`
 /// is worked out, and not used: section 16), its prefs entries, the first slot, how many,
@@ -52,36 +51,6 @@ const BLOCKS: [Block; 26] = [
     (0x5D0CE8, 0x60A77C, 0x80, 7, 0x3D, 0, 1, 4),
 ];
 
-/// A run of `set_texture_levels`: count, first slot, level, other level, tag.
-type Run = (u32, u32, u32, u32, u32);
-const AFTER_BLOCKS: [Run; 15] = [
-    (1, 0x87, 0, 0, FIXED_TAG),
-    (2, 0xC0, 0, 0, FIXED_TAG),
-    (1, 0xC2, 0, 1, FIXED_TAG),
-    (1, 0x257, 0, 0, FIXED_TAG),
-    (1, 0xCA, 0, 0, FIXED_TAG),
-    (1, 0xC8, 3, 3, FIXED_TAG),
-    (1, 0xD3, 0, 0, FIXED_TAG),
-    (1, 0xD4, 0, 0, FIXED_TAG),
-    (1, 0xC3, 0, 0, FIXED_TAG),
-    (1, 0xD2, 0, 0, FIXED_TAG),
-    (1, 0xC6, 1, 1, FIXED_TAG),
-    (1, 0xC7, 1, 1, FIXED_TAG),
-    (1, 0xC4, 1, 1, FIXED_TAG),
-    (1, 0xC5, 1, 1, FIXED_TAG),
-    (1, 0xC9, 1, 1, FIXED_TAG),
-];
-const LAST: Run = (2, 0x21C, 0, 0, FIXED_TAG);
-const EXTRA: [Run; 3] = [
-    (0x10, 0x200, 2, 2, FIXED_TAG),
-    (1, 0x218, 0, 0, FIXED_TAG),
-    (8, 0x210, 0, 0, FIXED_TAG),
-];
-
-unsafe fn put(table: usize, slot: u32, value: u32) {
-    unsafe { game_write(table + 4 * slot as usize, value) };
-}
-
 fn other() -> bool {
     unsafe { game_read::<u32>(OTHER_LEVELS_RVA) != 0 }
 }
@@ -90,31 +59,21 @@ fn other() -> bool {
 /// `dword_5CDADC` set) in both tables, tag ebp. Leaves ebx past them, ecx 0. Refuses no
 /// slots (the original counts round) or slots past 0x400.
 pub unsafe fn set_texture_levels(entry: &Regs) -> Result<Regs, Refused> {
+    // Converted: `rc2k_core::scene::textures::LevelTables::set_run`.
+    use crate::scene::textures::slice;
     let mut g = *entry;
-    if g.ecx == 0 || g.ebx >= SLOTS || g.ecx > SLOTS - g.ebx {
-        return Err(BadInput("no texture slots, or past 0x400").into());
-    }
     let level = if other() { g.edx } else { g.eax };
     unsafe {
-        while g.ecx != 0 {
-            put(SYSTEM_LEVELS_RVA, g.ebx, level);
-            put(VIDEO_LEVELS_RVA, g.ebx, level);
-            put(TAGS_RVA, g.ebx, g.ebp);
-            g.ebx += 1;
-            g.ecx -= 1;
+        rc2k_core::scene::textures::LevelTables {
+            tags: slice(TAGS_RVA, SLOTS),
+            system: slice(SYSTEM_LEVELS_RVA, SLOTS),
+            video: slice(VIDEO_LEVELS_RVA, SLOTS),
         }
+        .set_run(g.ebx, g.ecx, level, g.ebp)?;
     }
+    g.ebx += g.ecx;
+    g.ecx = 0;
     Ok(g)
-}
-
-fn run(g: &mut Regs, (count, first, level, other_level, tag): Run) -> Result<(), Refused> {
-    g.ecx = count;
-    g.ebx = first;
-    g.eax = level;
-    g.edx = other_level;
-    g.ebp = tag;
-    *g = unsafe { set_texture_levels(g) }?;
-    Ok(())
 }
 
 /// `init_texture_levels`' calls by place: 0 `scene::reset_texture_tables`, 1 and 2 the
@@ -132,15 +91,12 @@ const COUNT_TEXT_RVA: usize = rva(0x4DB7B9); // "NUM DIFFERENT CARS/OBJECTS/TEXT
 /// the video level of two), and with `dword_621514` three more. Leaves ebx past the last
 /// run, eax, ecx, edx 0, ebp 0x63, esi past the prefs, edi the last kind's wanted picture.
 pub unsafe fn init_texture_levels(entry: &Regs, part: Part) -> Result<Regs, Refused> {
+    // Converted: `rc2k_core::scene::texture_levels::{held_cars, set_levels}`.
+    use crate::scene::textures::slice;
+    use rc2k_core::scene::texture_levels::{KindSlots, held_cars, set_levels};
     let mut g = *entry;
     unsafe {
-        let mut cars: u32 = game_read(CARS_RVA);
-        if (cars.wrapping_sub(1) as i32) < 0 {
-            cars = 1;
-        }
-        if (cars.wrapping_sub(8) as i32) >= 0 {
-            cars = 8;
-        }
+        let cars = held_cars(game_read(CARS_RVA));
         game_write(CARS_RVA, cars);
         part(0, &mut g)?;
         let mut r = Regs {
@@ -152,63 +108,50 @@ pub unsafe fn init_texture_levels(entry: &Regs, part: Part) -> Result<Regs, Refu
         part(2, &mut r)?;
         game_write(OTHER_LEVELS_RVA, 0u32);
         part(3, &mut g)?;
-        run(&mut g, (4, 0x100, 0, 1, 0x29))?;
-        let second = if game_read::<u32>(SECOND_CAR_RVA) == 1 {
-            0
-        } else {
-            1
-        };
-        run(&mut g, (4, 0x104, second, 1, 0x29))?;
-        for car in 2..=8u32 {
-            if cars == car - 1 {
-                break;
-            }
-            let first = 0x108 + 8 * (car - 2);
-            run(&mut g, (4, first, 0, 2, 0x28 + car))?;
-            run(&mut g, (4, first + 4, 1, 2, 0x28 + car))?;
-        }
-        for (first_var, prefs, slot, count, tag, level, other_level, step) in BLOCKS {
-            let kind_first: u32 = game_read(rva(first_var));
-            g.edi = (game_addr(WANTED_RVA) as u32).wrapping_add(kind_first.wrapping_mul(4));
-            g.esi = game_addr(rva(prefs)) as u32;
-            g.edx = slot;
-            g.ecx = count;
-            while g.ecx != 0 {
-                g.eax = (g.esi as *const u32).read_unaligned();
-                if g.eax != 0 && g.eax != u32::MAX {
-                    game_write(
-                        KIND_SLOTS_RVA,
-                        game_read::<u32>(KIND_SLOTS_RVA).wrapping_add(step),
-                    );
-                    put(TAGS_RVA, g.edx, tag);
-                    let l = if other() { other_level } else { level };
-                    put(SYSTEM_LEVELS_RVA, g.edx, l);
-                    put(VIDEO_LEVELS_RVA, g.edx, l);
-                }
-                g.esi += 4;
-                g.edx += 1;
-                g.ecx -= 1;
-            }
-        }
-        for r in AFTER_BLOCKS {
-            run(&mut g, r)?;
-        }
-        for (count, table) in [(6u32, SYSTEM_LEVELS_RVA), (2, VIDEO_LEVELS_RVA)] {
-            g.ecx = count;
-            g.ebx = 0xDC;
-            while g.ecx != 0 {
-                put(table, g.ebx, 1);
-                put(TAGS_RVA, g.ebx, FIXED_TAG);
-                g.ebx += 1;
-                g.ecx -= 1;
-            }
-        }
-        run(&mut g, LAST)?;
-        if game_read::<u32>(EXTRA_RVA) != 0 {
-            for r in EXTRA {
-                run(&mut g, r)?;
-            }
-        }
+        let kinds: Vec<(KindSlots, Vec<u32>)> = BLOCKS
+            .iter()
+            .map(|&(_, prefs, first, count, tag, level, other_level, step)| {
+                let k = KindSlots {
+                    first,
+                    tag,
+                    level,
+                    other_level,
+                    step,
+                };
+                let at = game_addr(rva(prefs)) as *const u32;
+                (
+                    k,
+                    (0..count as usize)
+                        .map(|n| at.add(n).read_unaligned())
+                        .collect(),
+                )
+            })
+            .collect();
+        let set = set_levels(
+            &mut rc2k_core::scene::textures::LevelTables {
+                tags: slice(TAGS_RVA, SLOTS),
+                system: slice(SYSTEM_LEVELS_RVA, SLOTS),
+                video: slice(VIDEO_LEVELS_RVA, SLOTS),
+            },
+            cars,
+            game_read::<u32>(SECOND_CAR_RVA) == 1,
+            &kinds,
+            game_read::<u32>(EXTRA_RVA) != 0,
+            other(),
+        )?;
+        game_write(
+            KIND_SLOTS_RVA,
+            game_read::<u32>(KIND_SLOTS_RVA).wrapping_add(set.kind_slots_added),
+        );
+        let (first_var, prefs, _, count, ..) = BLOCKS[BLOCKS.len() - 1];
+        let kind_first: u32 = game_read(rva(first_var));
+        g.edi = (game_addr(WANTED_RVA) as u32).wrapping_add(kind_first.wrapping_mul(4));
+        g.esi = game_addr(rva(prefs)) as u32 + 4 * count;
+        g.ebx = set.last.first + set.last.count;
+        g.ecx = 0;
+        g.eax = set.last.level;
+        g.edx = set.last.other_level;
+        g.ebp = set.last.tag;
     }
     Ok(g)
 }

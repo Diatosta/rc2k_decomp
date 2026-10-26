@@ -10,34 +10,14 @@
 //! from the listing.
 //! The name is a reading from the title string of its menu, "REDEFINIR TECLADO", not yet a
 //! visit.
-//! Callers: none in code: it is reached through a table. Ungated thunk; shadow mode runs the
-//! original alone; each real call writes a line to hook.log. Self-test:
-//! `screen_loop::check_screen`.
+//! Callers: none in code: it is reached through a table.
+//! Hook removed 2026-10-22 (typed tables): the menus and draw lists run its `entry`
+//! (`menu::table_calls`); the registers above are the original's, for reference.
 
-use crate::framework::{RawHook, Regs, SelfTest, game_addr, game_read, game_write, hook_asm, rva};
+use crate::framework::{Regs, game_addr, game_read, game_write, rva};
 use crate::menu::screen_loop::{
-    Env, Flow, List, Original, Screen, Step, check_screen, copy_bytes, dispatch_screen, popa,
-    pusha, read_at,
+    Env, Flow, List, Screen, Step, copy_bytes, popa, pusha, read_at, screen_entry,
 };
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook = RawHook::new(
-    "menu::redefine_keys_player1_loop",
-    rva(0x4796C4),
-    thunk,
-    &ORIGINAL,
-)
-.self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL,
-    ungated
-);
 
 // ---- Rust version: `menu::screen_loop` with this ----
 
@@ -154,31 +134,8 @@ pub const SCREEN: Screen = Screen {
     also_writes: &[rva(0x755595), rva(0x755599), rva(0x75559D), rva(0x75598C)],
 };
 
-// ---- hook ----
-
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_screen(&HOOK, r, call_original, &SCREEN);
-}
-
-// ---- self-test ----
-
-const THE_ORIGINAL: Original = Original {
-    function: rva(0x4796C4),
-    len: 0x2DA,
-    entry_bytes: &[0x60, 0x50, 0xB8, 0x00, 0x00, 0x00, 0x00, 0x8B],
-    calls: &[0xB9, 0xCA, 0xCF, 0x11E, 0x130, 0x178, 0x1E8, 0x28A],
-};
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    // The screen reads through this table's entries: without them the original would trap.
-    if (0..4).any(|n| unsafe { game_read::<u32>(rva(0x75647C) + n * 4) } == 0) {
-        return t.skip("a player is missing");
-    }
-    if let Err(why) = check_screen(&mut t, &SCREEN, &THE_ORIGINAL) {
-        return t.skip(why);
-    }
-    t.finish()
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    screen_entry("menu::redefine_keys_player1_loop", r, &SCREEN)
 }

@@ -1,0 +1,32 @@
+//! What the menu screens draw.
+
+pub mod best_scores;
+pub mod buttons;
+pub mod captions;
+pub mod car_pages;
+pub mod championship_table;
+pub mod controller_page;
+pub mod controls;
+pub mod duel_result;
+pub mod highlighted_caption;
+pub mod inspection;
+pub mod itinerary;
+pub mod learning;
+pub mod locked;
+pub mod menus;
+pub mod message_box;
+pub mod notes;
+pub mod page_values;
+pub mod panels;
+pub mod player_details;
+pub mod player_result;
+pub mod players_results;
+pub mod results_pages;
+pub mod savegame_preview;
+pub mod screen;
+pub mod service;
+pub mod settings_pages;
+pub mod setup_markers;
+pub mod slot_lists;
+pub mod stage_panel;
+pub mod stage_results;

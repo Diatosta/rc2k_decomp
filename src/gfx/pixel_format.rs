@@ -7,22 +7,8 @@ pub const SURFACE_FORMAT_RVA: usize = rva(0x4F496C); // dword_4F496C
 /// dword_4F3FA8: four bytes `components_to_pixel` shifts the components out of.
 pub const SCRATCH_RVA: usize = rva(0x4F3FA8);
 
-#[repr(C)]
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct PixelFormat {
-    /// With the sign bit set: four rotation counts, one byte per component, lowest first.
-    /// Otherwise the number of the pixel's top bit, and the conversions go bit by bit.
-    pub layout: u32,
-    /// The bits of the pixel each of the four components occupies.
-    pub masks: [u32; 4],
-}
-
-impl PixelFormat {
-    /// The four rotation counts, if this is the kind of layout that has them.
-    pub fn rotations(&self) -> Option<[u32; 4]> {
-        ((self.layout as i32) < 0).then(|| self.layout.to_le_bytes().map(|b| b as u32 & 31))
-    }
-}
+/// Converted: `rc2k_core::gfx::pixels::PixelFormat`.
+pub use rc2k_core::gfx::pixels::PixelFormat;
 
 pub fn surface_format() -> PixelFormat {
     unsafe { game_ptr::<PixelFormat>(SURFACE_FORMAT_RVA).read_unaligned() }

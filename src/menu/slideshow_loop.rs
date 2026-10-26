@@ -6,32 +6,12 @@
 //! as extracted from the disassembly: leaving is not asked about; it has a step of its own once
 //! a frame.
 //! The name is a reading from the title string of its menu, "SLIDESHOW", not yet a visit.
-//! Callers: none in code: it is reached through a table. Ungated thunk; shadow mode runs the
-//! original alone; each real call writes a line to hook.log. Self-test:
-//! `screen_loop::check_screen`. Manual patch with a private copy (0x299 bytes, 10 calls and
-//! jumps relocated): a call or a jump target sits in the first bytes.
+//! Callers: none in code: it is reached through a table.
+//! Hook removed 2026-10-22 (typed tables): the menus and draw lists run its `entry`
+//! (`menu::table_calls`); the registers above are the original's, for reference.
 
-use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
-use crate::menu::screen_loop::{List, Original, Screen, Step, check_screen, dispatch_screen};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook = RawHook::new("menu::slideshow_loop", rva(0x47A973), thunk, &ORIGINAL)
-    .private_copy(0x299)
-    .relocate_calls(&[
-        0x6D, 0x98, 0xA3, 0xA8, 0xF7, 0xFC, 0x144, 0x159, 0x1A7, 0x249,
-    ])
-    .manual_patch()
-    .self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL,
-    ungated
-);
+use crate::framework::{Regs, rva};
+use crate::menu::screen_loop::{List, Screen, Step, screen_entry};
 
 // ---- Rust version: `menu::screen_loop` with this ----
 
@@ -99,29 +79,8 @@ pub const SCREEN: Screen = Screen {
     also_writes: &[],
 };
 
-// ---- hook ----
-
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_screen(&HOOK, r, call_original, &SCREEN);
-}
-
-// ---- self-test ----
-
-const THE_ORIGINAL: Original = Original {
-    function: rva(0x47A973),
-    len: 0x299,
-    entry_bytes: &[0x60, 0xC7, 0x05, 0x06, 0x88, 0x75, 0x00, 0x00],
-    calls: &[
-        0x6D, 0x98, 0xA3, 0xA8, 0xF7, 0xFC, 0x144, 0x159, 0x1A7, 0x249,
-    ],
-};
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    if let Err(why) = check_screen(&mut t, &SCREEN, &THE_ORIGINAL) {
-        return t.skip(why);
-    }
-    t.finish()
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    screen_entry("menu::slideshow_loop", r, &SCREEN)
 }

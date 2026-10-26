@@ -13,31 +13,15 @@
 //! Shadow mode runs the original alone (the clock moves, the effects are sent).
 //! Self-test: a copy whose two calls go to stand-ins (the test's clock), against the
 //! Rust version.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{RawHook, Regs, SelfTest, game_addr, game_read, game_write, hook_asm, rva};
-use crate::math::x87::from_int;
-use crate::service::harness::{Region, capture, restore};
-use crate::sound::turn_parts::{
-    EFFECTS, Part, TEST_TICK, TICK, both, copy_of, dispatch_turn, run_copy,
-};
-use std::sync::atomic::{AtomicUsize, Ordering};
+use crate::framework::{Regs, game_read, game_write, rva};
+use crate::sound::turn_parts::{EFFECTS, Part, TICK, turn_entry};
 
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("input::step_effects_clock", rva(0x40F257), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
-
-const LEN: usize = 0x46;
-const OUTS: [usize; 2] = [0x07, 0x3D];
-const ENTRY: [u8; 7] = [0x60, 0x8B, 0x1D, 0x84, 0x80, 0x51, 0x00];
 /// dword_518084 the last time, dword_518088 the rate, dword_51808C the steps counted.
 const LAST: usize = 0x518084;
 const RATE: usize = 0x518088;
@@ -68,57 +52,14 @@ pub fn step_effects_clock_in(r: &mut Regs, part: Part) -> Result<(), Refused> {
     }
     p(LAST, c.ebx);
     (c.eax, c.edx, c.ebx) = (1000 / divisor, 1000 % divisor, divisor);
-    p(RATE, from_int(c.eax as i32));
+    // `fild` / `fstp`: `as f32` at every precision.
+    p(RATE, (c.eax as i32 as f32).to_bits());
     p(STEPS, g(STEPS).wrapping_add(1));
     part(EFFECTS, &mut c)
 }
 
-// ---- hook ----
-
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_turn(&HOOK, r, call_original, step_effects_clock_in, None);
-}
-
-// ---- self-test ----
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let copy = match copy_of(0x40F257, LEN, &ENTRY, &OUTS, &[TICK, EFFECTS]) {
-        Ok(c) => c,
-        Err(why) => return t.skip(why),
-    };
-    let run = run_copy(&copy);
-    let all: [Region; 1] = [(game_addr(rva(LAST)) as u32, 12)];
-    let saved = capture(&all);
-    for (last, now) in [
-        (0u32, 39u32),
-        (0, 40),
-        (100, 500),
-        (5000, 5039),
-        (5000, 9000),
-        (0xFFFF_FFF0, 0x30),
-        (0x10, 0),
-        (0xFFFF_FFC0, 0),
-    ] {
-        let fill = || {
-            p(LAST, last);
-            p(RATE, 0x1234);
-            p(STEPS, 7);
-            TEST_TICK.store(now, Ordering::SeqCst);
-        };
-        both(
-            &mut t,
-            &format!("last {last:#x}, now {now:#x}"),
-            &run,
-            Regs::SENTINEL,
-            &fill,
-            &all,
-            step_effects_clock_in,
-            now == 0 && (now.wrapping_sub(last).wrapping_sub(0x28) as i32) >= 0,
-        );
-    }
-    restore(&all, &saved);
-    t.finish()
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    turn_entry(r, step_effects_clock_in)
 }

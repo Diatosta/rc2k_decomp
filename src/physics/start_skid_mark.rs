@@ -12,9 +12,11 @@
 
 use crate::errors::Refused;
 use crate::framework::{EAX, RawHook, Regs, game_addr, hook_asm, rva};
+use crate::physics::cells::{get, put_changed};
 use crate::physics::copy_hooks_test::{lot, test_moves};
 use crate::screens::harness::Left;
-use crate::service::harness::dispatch_state;
+use crate::service::harness::{dispatch_state, state_entry};
+use rc2k_core::physics::ground::SkidStart;
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -34,30 +36,33 @@ const VARIABLES: [usize; 11] = [
     0x719FE0, 0x71A668,
 ];
 
-unsafe fn get(v: &[u32], k: usize) -> u32 {
-    unsafe { (v[k] as *const u32).read_unaligned() }
-}
-
-unsafe fn put(v: &[u32], k: usize, x: u32) {
-    unsafe { (v[k] as *mut u32).write_unaligned(x) }
-}
-
-/// The Rust core on the variables at `v`; `r` as the original leaves it.
+/// The Rust version on the variables at `v`; `r` as the original leaves it.
+// Converted: `rc2k_core::physics::ground::SkidStart::start`.
 pub unsafe fn start_at(v: &[u32], r: &mut Regs) {
     unsafe {
-        if (0..4).all(|k| get(v, k) == 0) {
-            return;
+        let wheels = [get(v[0]), get(v[1]), get(v[2]), get(v[3])];
+        let was = SkidStart {
+            pending: get(v[4]),
+            from: get(v[5]),
+            on: get(v[6]),
+            w674: get(v[7]),
+            w670: get(v[8]),
+            step: get(v[10]),
+        };
+        let mut s = was;
+        if let Some(eax) = s.start(wheels, || get(v[9])) {
+            r.eax = eax;
         }
-        r.eax = get(v, 4);
-        if r.eax != 0 {
-            put(v, 5, r.eax - 1);
-            put(v, 6, 1);
-            put(v, 7, 0);
-            put(v, 8, 10);
-            r.eax = get(v, 9);
-            put(v, 10, r.eax);
+        for (k, before, now) in [
+            (5, was.from, s.from),
+            (6, was.on, s.on),
+            (7, was.w674, s.w674),
+            (8, was.w670, s.w670),
+            (10, was.step, s.step),
+            (4, was.pending, s.pending),
+        ] {
+            put_changed(v[k], before, now);
         }
-        put(v, 4, 0);
     }
 }
 
@@ -86,6 +91,12 @@ extern "C" fn dispatch(r: &mut Regs) {
         .map(|&k| (v[k], 4))
         .collect();
     dispatch_state(&HOOK, r, call_original, &regions, &rust);
+}
+
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    state_entry(r, &rust)
 }
 
 fn fill(seed: u32, out: &mut [u32]) {

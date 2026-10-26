@@ -12,16 +12,23 @@
 //! Caller: `sub_4C3EEE`. Shadow mode and the self-test set edi and ebp back to the
 //! caller's on both sides (the original's are addresses on its stack). Self-test: view
 //! matrices, last places and ticks by lot; compared on the seven results.
+//!
+//! Converted 2026-10-21: the hook's Rust version is `view_motion_plain`, through
+//! `rc2k_core::marks::view::view_motion` (plain floats; the x87 version stays for the Rust
+//! callers in unconverted code). Shadow mode and the self-test compare within
+//! `service::floats`' tolerances (the self-test at both test precisions, exact at double).
 
 use crate::errors::Refused;
 use crate::framework::{RawHook, Regs, SelfTest, game_addr, game_read, game_write, hook_asm, rva};
 use crate::math::x87;
 use crate::race::stage_prefs::left_of;
+use crate::scene::matrix::float_places;
 use crate::scene::matrix3::{extended, rounded};
 use crate::scene::rotate_point::rotate_point;
 use crate::scene::vector3::{dot_product3, normalise_vector3};
 use crate::screens::harness::Left;
-use crate::service::harness::{Region, at, capture, check_state, dispatch_state, restore};
+use crate::service::floats::*;
+use crate::service::harness::{Region, at, capture, restore};
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -76,6 +83,30 @@ pub unsafe fn view_motion(entry: &Regs) -> Regs {
     g
 }
 
+/// The converted version (plain floats): the hook's.
+// Converted: `rc2k_core::marks::view::view_motion`
+pub unsafe fn view_motion_plain(entry: &Regs) -> Regs {
+    unsafe {
+        let m = game_addr(VIEW_RVA) as u32;
+        // The fourth float of each row is not read.
+        let matrix: [f32; 15] = std::array::from_fn(|n| {
+            if n % 4 == 3 {
+                0.0
+            } else {
+                f32::from_bits(((m + 4 * n as u32) as *const u32).read_unaligned())
+            }
+        });
+        let last: [u32; 3] = game_read(LAST_RVA);
+        let ticks: i32 = game_read(TICKS_RVA);
+        let v = rc2k_core::marks::view::view_motion(&matrix, last.map(f32::from_bits), ticks);
+        game_write(STEP_RVA, v.step.map(f32::to_bits));
+        game_write(FACING_RVA, v.facing.to_bits());
+        game_write(LAST_RVA, v.last.map(f32::to_bits));
+        game_write(STEP_RVA, v.per_tick.map(f32::to_bits));
+        Regs { esi: m, ..*entry }
+    }
+}
+
 pub fn regions() -> Vec<Region> {
     vec![
         (game_addr(STEP_RVA) as u32, 12),
@@ -85,7 +116,7 @@ pub fn regions() -> Vec<Region> {
 }
 
 fn rust(r: &Regs) -> Result<Left, Refused> {
-    Ok(left_of(&unsafe { view_motion(r) }))
+    Ok(left_of(&unsafe { view_motion_plain(r) }))
 }
 
 /// The original, its edi and ebp (stack addresses) made the caller's again.
@@ -99,7 +130,13 @@ unsafe extern "C" fn original_without_scratch(r: *mut Regs) {
 }
 
 extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_state(&HOOK, r, original_without_scratch, &regions(), &rust);
+    let regions = regions();
+    let places = float_places(&regions);
+    let floats = Floats {
+        memory: &places,
+        regs: &[],
+    };
+    dispatch_state_floats(&HOOK, r, original_without_scratch, &regions, &floats, &rust);
 }
 
 fn self_test() -> (usize, usize) {
@@ -111,28 +148,37 @@ fn self_test() -> (usize, usize) {
     vars.push((game_addr(VIEW_RVA) as u32, 0x40));
     vars.push(at(TICKS_RVA));
     let saved = capture(&vars);
-    for case in 0..8u32 {
-        check_state(
-            &mut t,
-            &format!("case {case}"),
-            original_without_scratch,
-            Regs::SENTINEL,
-            &|| unsafe {
-                restore(&vars, &saved);
-                for k in 0..0x10 {
-                    let v = ((k as f32 - 6.0) * 0.31 + case as f32 * 1.7)
-                        * if k >= 12 { 40.0 } else { 1.0 };
-                    game_write(VIEW_RVA + 4 * k, v.to_bits());
-                }
-                for k in 0..3 {
-                    game_write(LAST_RVA + 4 * k, (k as f32 * 3.0 - case as f32).to_bits());
-                }
-                game_write(TICKS_RVA, case as i32 % 4);
-            },
-            &regions,
-            &rust,
-        );
-    }
+    let tolerant_places = float_places(&regions);
+    let tolerant = Floats {
+        memory: &tolerant_places,
+        regs: &[],
+    };
+    at_test_precisions(&tolerant, &mut |word, held| {
+        for case in 0..8u32 {
+            check_state_floats(
+                &mut t,
+                "marks::view_motion",
+                &format!("control word {word:#x}, case {case}"),
+                original_without_scratch,
+                Regs::SENTINEL,
+                &|| unsafe {
+                    restore(&vars, &saved);
+                    for k in 0..0x10 {
+                        let v = ((k as f32 - 6.0) * 0.31 + case as f32 * 1.7)
+                            * if k >= 12 { 40.0 } else { 1.0 };
+                        game_write(VIEW_RVA + 4 * k, v.to_bits());
+                    }
+                    for k in 0..3 {
+                        game_write(LAST_RVA + 4 * k, (k as f32 * 3.0 - case as f32).to_bits());
+                    }
+                    game_write(TICKS_RVA, case as i32 % 4);
+                },
+                &regions,
+                held,
+                &rust,
+            );
+        }
+    });
     restore(&vars, &saved);
     t.finish()
 }

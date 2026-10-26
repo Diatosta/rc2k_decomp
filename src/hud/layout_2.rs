@@ -16,27 +16,18 @@
 //! 5 the bars, 6 the icons, 7 the markers, 8 / 9 the signs, 10 / 11 the needles of
 //! layout 2). Shadow mode runs the original alone (it draws). Self-test:
 //! `layout_1::test_layout`.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::Refused;
-use crate::framework::{RawHook, Regs, game_addr, game_read, hook_asm, rva, shadow};
+use crate::framework::{Regs, game_addr, game_read};
 use crate::hud::add_quad::QUAD_RVA;
 use crate::hud::batch::TEXTURE_RVA;
 use crate::hud::draw_signs::row_by;
 use crate::hud::layout_0::*;
-use crate::hud::layout_1::{CLOCKS_RVA, LAP_2_RVA, Part, pick, scaled, test_layout};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("hud::layout_2", rva(0x4B3B64), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
+use crate::hud::layout_1::{CLOCKS_RVA, LAP_2_RVA, Part, pick, scaled};
 
 /// The upper half's rows: 0x10 down with `dword_6D1502` 0.
 fn upper(y: u32) -> u32 {
@@ -49,6 +40,8 @@ fn lower(y: u32) -> u32 {
 }
 
 /// The Rust version (see the header): the registers it leaves.
+// Converted: `rc2k_core::hud::panels` (through `layout_0`'s panels and `needle_sign`),
+// `rc2k_core::hud::quads::int_over` (the sprites' scales)
 pub unsafe fn layout_2(entry: &Regs, part: Part) -> Result<Regs, Refused> {
     let mut part = part;
     let mut g = *entry;
@@ -226,46 +219,9 @@ pub fn game_part(place: u32, r: &mut Regs, v: &[[u8; 10]]) -> Result<(), Refused
     Ok(())
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    HOOK.count_call();
-    if shadow() {
-        unsafe { call_original(r) };
-        return;
-    }
-    match unsafe { layout_2(r, &mut game_part) } {
-        Ok(left) => *r = Regs { esp: r.esp, ..left },
-        Err(e) => unsafe { crate::fatal::raise::refused(&HOOK, e, r, call_original) },
-    }
-}
-
-fn self_test() -> (usize, usize) {
-    const CALLS: [usize; 82] = [
-        0x20, 0x3B, 0x94, 0xA7, 0xCC, 0xDD, 0xEC, 0x16F, 0x1D3, 0x238, 0x290, 0x33A, 0x3B1, 0x44F,
-        0x4BA, 0x4D7, 0x4F2, 0x503, 0x51E, 0x52F, 0x5FB, 0x618, 0x635, 0x652, 0x709, 0x726, 0x743,
-        0x760, 0x77D, 0x79A, 0x7B7, 0x7D4, 0x8AC, 0x8D5, 0x8FE, 0x927, 0x9EA, 0xA13, 0xA3C, 0xA65,
-        0xA8E, 0xAB7, 0xAE0, 0xB09, 0xBEF, 0xC30, 0xC63, 0xD3D, 0xD72, 0xD99, 0xE60, 0xE7D, 0xE9A,
-        0xEB7, 0xED4, 0xEF1, 0xF0E, 0xF2B, 0xFE2, 0xFFF, 0x101C, 0x1039, 0x1056, 0x1073, 0x1090,
-        0x10AD, 0x1174, 0x1191, 0x11AE, 0x11CB, 0x11E8, 0x1205, 0x1222, 0x123F, 0x12F6, 0x1313,
-        0x1330, 0x134D, 0x136A, 0x1387, 0x13A4, 0x13C1,
-    ];
-    test_layout(
-        &HOOK,
-        0x4B3B64,
-        0x13C7,
-        &CALLS,
-        &[
-            (0x4B70EE, 1),
-            (0x4B6AA4, 2),
-            (0x4B6B0A, 3),
-            (0x4B7216, 4),
-            (0x4B63C2, 5),
-            (0x4B57FE, 6),
-            (0x4B55EE, 7),
-            (0x4B507F, 8),
-            (0x4B51A3, 9),
-            (0x4B6DEC, 10),
-            (0x4B6E34, 11),
-        ],
-        &|r, p| unsafe { layout_2(r, p) },
-    )
+/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    let left = unsafe { layout_2(r, &mut game_part) }?;
+    *r = Regs { esp: r.esp, ..left };
+    Ok(())
 }

@@ -130,7 +130,7 @@ pub struct Game<'a>(pub &'a Regs);
 impl Game<'_> {
     fn call(&self, address: usize, eax: u32) -> u32 {
         let mut r = Regs { eax, ..*self.0 };
-        unsafe { call_game(&mut r, game_addr(rva(address))) };
+        crate::calls::call(rva(address), &mut r);
         r.eax
     }
 }
@@ -207,6 +207,13 @@ extern "C" fn dispatch(r: &mut Regs) {
             )
         });
     }
+}
+
+/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    let entry = *r;
+    unsafe { submit_polygon(&mut Game(&entry)) };
+    Ok(())
 }
 
 // ---- self-test ----

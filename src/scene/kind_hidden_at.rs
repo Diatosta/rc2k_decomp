@@ -12,7 +12,7 @@ use crate::errors::Refused;
 use crate::framework::{RawHook, Regs, SelfTest, game_addr, game_write, hook_asm, rva};
 use crate::scene::kind_is_hidden::kind_is_hidden;
 use crate::screens::harness::Left;
-use crate::service::harness::{Region, capture, check_state, dispatch_state, restore};
+use crate::service::harness::{Region, capture, check_state, dispatch_state, restore, state_entry};
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -29,6 +29,7 @@ hook_asm!(
 
 /// The Rust version: whether the record's object is hidden by its kind.
 pub unsafe fn kind_hidden_at(record: u32) -> bool {
+    // Converted: `rc2k_core::scene::kinds::kind_is_hidden` (through `kind_is_hidden`).
     let object = unsafe { ((record + 1) as *const u8).read() } as u32;
     // A byte: never past the table.
     unsafe { kind_is_hidden(object) }.is_ok_and(|(hidden, _)| hidden)
@@ -40,6 +41,12 @@ fn rust(r: &Regs) -> Result<Left, Refused> {
 
 extern "C" fn dispatch(r: &mut Regs) {
     dispatch_state(&HOOK, r, call_original, &[], &rust);
+}
+
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    state_entry(r, &rust)
 }
 
 fn self_test() -> (usize, usize) {

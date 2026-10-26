@@ -39,8 +39,6 @@ use crate::framework::{
 use crate::menu::text_entry::log_l1;
 use crate::redirect::RedirectedCopy;
 use crate::service::harness::{Region, capture, restore};
-use crate::strings::bin_append::bin_append;
-use crate::strings::hex_append::hex_append;
 use crate::strings::utils::bytes_str;
 use crate::threading::find_thread_slot::find_thread_slot;
 use crate::threading::request_quit::request_quit;
@@ -93,107 +91,19 @@ const EXTRA_RVA: usize = rva(0x4F67BD); // `cursor` in IDA: a string added to ev
 const W32_RVA: usize = rva(0x4E0598); // dword_4E0598
 const TEMPLATE_RVA: usize = rva(0x4F673A); // aEaxXxxxxxxxEbx
 const TEXT_RVA: usize = rva(0x9526F8); // Text
-const TEXT_LEN: usize = 0x400;
 const LOG_ENABLED_RVA: usize = rva(0x4E0094); // g_logEnabled
 const GURU_RVA: usize = rva(0x4F6704); // aGuruMeditation + 1: "Guru Meditation"
 const QUIT_RVA: usize = rva(0x410BF9); // threading::request_quit: asks the game to quit, once
 const EXIT_PATH_RVA: usize = rva(0x4010EE); // loc_4010EE in `start`
 
-const FATAL: u32 = 0x8000_0000;
-const TEXT_ONLY: u32 = 0x1000_0000;
-
-const TEMPLATE: &[u8] = b"EAX=XXXXXXXX\tEBX=XXXXXXXX\tECX=XXXXXXXX\tEDX=XXXXXXXX\r\nESI=XXXXXXXX\tEDI=XXXXXXXX\tESP=XXXXXXXX\tEBP=XXXXXXXX\r\nC=X  Z=X  S=X  V=X  P=X";
-/// Where the eight register values go in the template, and where ESP's does.
-const HEX_AT: [usize; 8] = [4, 17, 30, 43, 57, 70, 83, 96];
+/// Where ESP's value goes in the register lines' template.
 const ESP_AT: usize = 83;
-/// Where the five flags go, with their bits: carry, zero, sign, overflow, parity.
-const FLAG_AT: [(usize, u32); 5] = [(108, 1), (113, 0x40), (118, 0x80), (123, 0x800), (128, 4)];
 
 // ---- Rust version ----
 
-/// The registers and flags at the place that failed.
-#[derive(Clone, Copy, Debug, Default)]
-pub struct Context {
-    pub eax: u32,
-    pub ebx: u32,
-    pub ecx: u32,
-    pub edx: u32,
-    pub esi: u32,
-    pub edi: u32,
-    pub esp: u32,
-    pub ebp: u32,
-    pub flags: u32,
-}
-
-/// The register and flag lines.
-pub fn register_dump(c: &Context) -> Vec<u8> {
-    let mut dump = TEMPLATE.to_vec();
-    let values = [c.eax, c.ebx, c.ecx, c.edx, c.esi, c.edi, c.esp, c.ebp];
-    for (at, value) in HEX_AT.into_iter().zip(values) {
-        // Eight digits are always accepted.
-        if let Ok(hex) = hex_append(value, 8) {
-            dump[at..at + 8].copy_from_slice(&hex);
-        }
-    }
-    for (at, bit) in FLAG_AT {
-        if let Ok(digit) = bin_append((c.flags & bit != 0) as u32, 1) {
-            dump[at] = digit[0];
-        }
-    }
-    dump
-}
-
-/// The report, without its NUL. `message` and `last_file` exclude their NUL; an empty
-/// message is as good as none.
-pub fn report_text(
-    code: u32,
-    message: Option<&[u8]>,
-    extra: &[u8],
-    last_file: Option<&[u8]>,
-    w32: u32,
-    context: &Context,
-) -> Vec<u8> {
-    let mut text = Vec::new();
-    let full = code & TEXT_ONLY == 0;
-    if full {
-        text.extend_from_slice(if code & FATAL != 0 {
-            b"Error code"
-        } else {
-            b"Breakpoint"
-        });
-        text.extend_from_slice(b" [");
-        text.extend(hex_append(code, 8).unwrap_or_default());
-        text.extend_from_slice(b"]\r\n");
-    }
-    if let Some(message) = message.filter(|m| !m.is_empty()) {
-        let mut rest = message;
-        while let [c, tail @ ..] = rest {
-            if *c == b'\\' && tail.first() == Some(&b'n') {
-                text.extend_from_slice(b"\r\n");
-                rest = &tail[1..];
-            } else {
-                text.push(*c);
-                rest = tail;
-            }
-        }
-        text.extend_from_slice(b"\r\n");
-    }
-    text.extend_from_slice(extra);
-    if full {
-        if let Some(path) = last_file {
-            text.extend_from_slice(b"Last file: `");
-            text.extend_from_slice(path);
-            text.extend_from_slice(b"'\r\n");
-        }
-        if w32 != 0 {
-            text.extend_from_slice(b"W32=");
-            text.extend(hex_append(w32, 8).unwrap_or_default());
-            text.extend_from_slice(b"\r\n");
-        }
-        text.extend(register_dump(context));
-    }
-    text
-}
+pub use rc2k_core::fatal::{
+    Context, FATAL, Leave, TEMPLATE, TEXT_LEN, TEXT_ONLY, register_dump, report_text,
+};
 
 unsafe fn cstr<'a>(ptr: *const u8) -> &'a [u8] {
     unsafe { CStr::from_ptr(ptr as *const c_char) }.to_bytes()
@@ -215,17 +125,6 @@ unsafe fn text_from_game(context: &Context) -> Vec<u8> {
     }
 }
 
-/// How the reporter leaves.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum Leave {
-    /// Back to the game: the code was not fatal.
-    Return,
-    /// To the exit path in `start`, with esi = 0: a fatal code on a thread without a slot.
-    Exit,
-    /// To the start routine of the current thread's slot, with esi = the slot.
-    Routine { slot: u32, routine: u32 },
-}
-
 /// What the reporter needs from code that is not ported, or from a test.
 pub struct Outside<'a> {
     /// Logs a NUL-terminated text at level 1 with a line break.
@@ -240,7 +139,8 @@ pub unsafe fn report(context: &Context, outside: &mut Outside) -> Result<Leave, 
     unsafe {
         let code: u32 = game_read(CODE_RVA);
         let text = text_from_game(context);
-        if text.len() + 1 > TEXT_LEN {
+        // Converted: `rc2k_core::fatal` (`report_text`, `fits`, `leave`).
+        if !rc2k_core::fatal::fits(text.len()) {
             return Err(BadInput("the report does not fit its buffer"));
         }
         let reported = AtomicU8::from_ptr(game_ptr(REPORTED_RVA));
@@ -257,18 +157,12 @@ pub unsafe fn report(context: &Context, outside: &mut Outside) -> Result<Leave, 
             (outside.log)(game_ptr(GURU_RVA));
             (outside.log)(buffer);
         }
-        if code & FATAL == 0 {
-            return Ok(Leave::Return);
-        }
-        (outside.quit)();
-        let slot = (outside.thread_slot)();
-        if slot == 0 {
-            return Ok(Leave::Exit);
-        }
-        Ok(Leave::Routine {
-            slot,
-            routine: (slot as *const u32).read_unaligned(),
-        })
+        Ok(rc2k_core::fatal::leave(
+            code,
+            outside.quit,
+            outside.thread_slot,
+            &|slot| (slot as *const u32).read_unaligned(),
+        ))
     }
 }
 

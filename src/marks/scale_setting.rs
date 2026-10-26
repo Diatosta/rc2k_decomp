@@ -7,14 +7,21 @@
 //! Caller: `sub_4C1148`. Refuses null settings (the original reads through 0). Self-test:
 //! settings of the test's with several numbers, the original and the Rust version
 //! compared on the result and esi; put back afterwards.
+//!
+//! Converted 2026-10-21: the hook's Rust version is `scale_setting_plain`, through
+//! `rc2k_core::marks::scales::scaled_setting` (plain floats; the x87 version stays for the
+//! Rust callers in unconverted code). Shadow mode and the self-test compare within
+//! `service::floats`' tolerances (the self-test at both test precisions, exact at double).
 
 use crate::errors::{BadInput, Refused};
 use crate::framework::{RawHook, Regs, SelfTest, game_read, game_write, hook_asm, rva};
 use crate::marks::lines::SETTINGS_RVA;
 use crate::math::x87;
 use crate::race::stage_prefs::left_of;
+use crate::scene::matrix::float_places;
 use crate::screens::harness::Left;
-use crate::service::harness::{at, capture, check_state, dispatch_state, restore};
+use crate::service::floats::*;
+use crate::service::harness::{at, capture, restore};
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -47,17 +54,45 @@ pub unsafe fn scale_setting(entry: &Regs) -> Result<Regs, Refused> {
     Ok(g)
 }
 
+/// The converted version (plain floats): the hook's.
+// Converted: `rc2k_core::marks::scales::scaled_setting`
+pub unsafe fn scale_setting_plain(entry: &Regs) -> Result<Regs, Refused> {
+    let mut g = *entry;
+    unsafe {
+        g.esi = game_read(SETTINGS_RVA);
+        if g.esi == 0 {
+            return Err(BadInput("no marks settings").into());
+        }
+        let n = ((g.esi + NUMBER_AT) as *const i32).read_unaligned();
+        let factor = f32::from_bits(game_read(FACTOR_RVA));
+        let scaled = rc2k_core::marks::scales::scaled_setting(n, factor);
+        game_write(RESULT_RVA, scaled.to_bits());
+    }
+    Ok(g)
+}
+
 /// What it writes.
 pub fn regions() -> Vec<crate::service::harness::Region> {
     vec![at(RESULT_RVA)]
 }
 
 fn rust(r: &Regs) -> Result<Left, Refused> {
-    Ok(left_of(&unsafe { scale_setting(r) }?))
+    Ok(left_of(&unsafe { scale_setting_plain(r) }?))
 }
 
 extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_state(&HOOK, r, call_original, &[at(RESULT_RVA)], &rust);
+    let places = float_places(&[at(RESULT_RVA)]);
+    let floats = Floats {
+        memory: &places,
+        regs: &[],
+    };
+    dispatch_state_floats(&HOOK, r, call_original, &[at(RESULT_RVA)], &floats, &rust);
+}
+
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    floats_entry(r, &rust)
 }
 
 fn self_test() -> (usize, usize) {
@@ -68,29 +103,38 @@ fn self_test() -> (usize, usize) {
     let saved = capture(&vars);
     let mut settings = vec![0u32; (NUMBER_AT as usize + 4) / 4];
     let s = settings.as_mut_ptr();
-    for (n, factor) in [
-        (0i32, 1.0f32),
-        (1, 0.5),
-        (-7, 3.25),
-        (0x7FFF_FFFF, 1e-3),
-        (i32::MIN, -2.0),
-        (12345, 1.0 / 3.0),
-    ] {
-        check_state(
-            &mut t,
-            &format!("number {n}, factor {factor}"),
-            call_original,
-            Regs::SENTINEL,
-            &|| unsafe {
-                game_write(SETTINGS_RVA, s as u32);
-                *s.add(NUMBER_AT as usize / 4) = n as u32;
-                game_write(FACTOR_RVA, factor.to_bits());
-                game_write(RESULT_RVA, 0xAAAA_AAAAu32);
-            },
-            &[at(RESULT_RVA)],
-            &rust,
-        );
-    }
+    let places = float_places(&[at(RESULT_RVA)]);
+    let tolerant = Floats {
+        memory: &places,
+        regs: &[],
+    };
+    at_test_precisions(&tolerant, &mut |word, held| {
+        for (n, factor) in [
+            (0i32, 1.0f32),
+            (1, 0.5),
+            (-7, 3.25),
+            (0x7FFF_FFFF, 1e-3),
+            (i32::MIN, -2.0),
+            (12345, 1.0 / 3.0),
+        ] {
+            check_state_floats(
+                &mut t,
+                "marks::scale_setting",
+                &format!("control word {word:#x}, number {n}, factor {factor}"),
+                call_original,
+                Regs::SENTINEL,
+                &|| unsafe {
+                    game_write(SETTINGS_RVA, s as u32);
+                    *s.add(NUMBER_AT as usize / 4) = n as u32;
+                    game_write(FACTOR_RVA, factor.to_bits());
+                    game_write(RESULT_RVA, 0xAAAA_AAAAu32);
+                },
+                &[at(RESULT_RVA)],
+                held,
+                &rust,
+            );
+        }
+    });
     restore(&vars, &saved);
     drop(settings);
     t.finish()

@@ -15,33 +15,16 @@
 //! nothing; both versions add a head to the log, and what each added is compared but for
 //! the two lines about memory, whose numbers move.
 
-use crate::framework::{
-    RawHook, Regs, SelfTest, call_game, game_addr, game_read, game_write, hook_asm, rva, shadow,
-};
+use crate::errors::BadInput;
+use crate::framework::{Regs, game_addr, game_read, game_write, rva};
 use crate::logfile::date_text::write_date_text;
 use crate::logfile::log_hex8::log_hex8;
 use crate::logfile::log_int::log_int;
 use crate::logfile::log_write::log_write;
 use crate::logfile::write_line::LOG_LEVEL_RVA;
-use crate::menu::frame_test;
-use crate::redirect::RedirectedCopy;
-use crate::service::harness::{capture, restore};
 use crate::settings::TEXT_RVA;
-use std::sync::atomic::AtomicUsize;
 use windows_sys::Win32::Storage::FileSystem::{DeleteFileA, GetDiskFreeSpaceA};
 use windows_sys::Win32::System::SystemInformation::{GlobalMemoryStatus, MEMORYSTATUS};
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("logfile::start_log", rva(0x401135), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
 
 // ---- game data ----
 
@@ -63,7 +46,7 @@ const KEYBOARD_TYPE_RVA: usize = rva(0x518404); // g_keyboardType
 const VERSION_INFO_RVA: usize = rva(0x518408);
 const MEMORY_RVA: usize = rva(0x4E0558); // Buffer, a `MEMORYSTATUS`
 const FREE_SPACE_RVA: usize = rva(0x4E073A); // dword_4E073A
-const DELETE_FILE: usize = rva(0x402E8C); // sub_402E8C
+// sub_402E8C
 
 // ---- Rust version ----
 
@@ -79,15 +62,12 @@ pub unsafe fn free_space_kb() -> u32 {
             return u32::MAX;
         }
         // The cluster's bytes as 32 bits, times the free clusters as 64.
-        let cluster_bytes = cluster_sectors
-            .read_unaligned()
-            .wrapping_mul(sector_bytes.read_unaligned());
-        let bytes = cluster_bytes as u64 * free.read_unaligned() as u64;
-        if bytes >> 42 != 0 {
-            u32::MAX
-        } else {
-            (bytes >> 10) as u32
-        }
+        // Converted: `rc2k_core::files::log::free_kb`.
+        rc2k_core::files::log::free_kb(
+            cluster_sectors.read_unaligned(),
+            sector_bytes.read_unaligned(),
+            free.read_unaligned(),
+        )
     }
 }
 
@@ -96,184 +76,83 @@ unsafe fn text(text: &[u8], newline: bool) {
     unsafe { log_write(text.as_ptr(), newline, 1) };
 }
 
-/// `delete` stands for the deleting of the log's file.
-pub unsafe fn start_log(delete: &mut dyn FnMut()) {
+/// `delete` stands for the deleting of the log's file. Refuses, before doing anything, a
+/// start date the date's text refuses.
+pub unsafe fn start_log(delete: &mut dyn FnMut()) -> Result<(), BadInput> {
     unsafe {
         if game_read::<u32>(LOG_LEVEL_RVA) == 0 {
-            return;
+            return Ok(());
         }
+        crate::logfile::date_text::date_text()?;
         delete();
-        text(b"Log started\0", false);
-        let scratch = game_addr(SCRATCH_RVA) as *mut u8;
-        write_date_text(scratch);
-        log_write(scratch, true, 1);
-        log_write(game_addr(VERSION_RVA) as *const u8, true, 1);
-        if game_read::<u8>(SECOND_TEXT_RVA) != 0 {
-            log_write(game_addr(SECOND_TEXT_RVA) as *const u8, true, 1);
-        }
-        text(b"\0", true);
-
-        let number = |name: &[u8], at: usize| {
-            text(name, false);
-            log_int(game_read(at), true, 1);
+        // Converted: `rc2k_core::files::log::head`; the values gathered (the date text,
+        // the memory and the drive's numbers left in game memory as the original leaves
+        // them), then each message logged as the original's call.
+        use rc2k_core::files::log::{Machine, Message, head};
+        let c_text = |p: *const u8| {
+            std::ffi::CStr::from_ptr(p as *const std::ffi::c_char)
+                .to_bytes()
+                .to_vec()
         };
-        text(b"cpu=\0", false);
-        log_int(game_read(CPU_FAMILY_RVA), false, 1);
-        log_hex8(game_read(CPU_FLAGS_RVA), false, 1);
-        log_write(game_addr(CPU_NAME_RVA) as *const u8, true, 1);
-        number(b"clk=\0", CLOCK_RVA);
-        number(b"fpu=\0", FPU_RVA);
-        number(b"mmx=\0", MMX_RVA);
-        number(b"amdk3d=\0", AMD_3D_RVA);
-        number(b"katmai=\0", KATMAI_RVA);
-        number(b"machinetype=\0", KEYBOARD_TYPE_RVA);
-        text(b"platform=\0", false);
-        log_int(game_read(VERSION_INFO_RVA + 0x10), false, 1);
-        log_int(game_read(VERSION_INFO_RVA + 4), false, 1);
-        log_int(game_read(VERSION_INFO_RVA + 8), false, 1);
-        log_int(game_read::<u16>(VERSION_INFO_RVA + 0xC) as i32, false, 1);
-        log_write(game_addr(VERSION_INFO_RVA + 0x14) as *const u8, true, 1);
-
+        let scratch = game_addr(SCRATCH_RVA) as *mut u8;
+        write_date_text(scratch)?;
         let memory = game_addr(MEMORY_RVA) as *mut MEMORYSTATUS;
         (*memory).dwLength = 0x20;
         GlobalMemoryStatus(memory);
-        let kb = |bytes: usize| log_int((bytes as u32 >> 10) as i32, false, 1);
-        text(b"ram avail/total:\0", false);
-        kb((*memory).dwAvailPhys);
-        kb((*memory).dwTotalPhys);
-        text(b"Kb\0", true);
-        text(b"swp avail/total:\0", false);
-        kb((*memory).dwAvailPageFile);
-        kb((*memory).dwTotalPageFile);
-        text(b"Kb\0", true);
-        text(b"free space on partition=\0", false);
         let free = free_space_kb();
         game_write(FREE_SPACE_RVA, free);
-        log_int(free as i32, false, 1);
-        text(b"Kb\0", true);
-        text(b"\0", true);
-        text(b"\0", true);
+        let m = Machine {
+            date: c_text(scratch),
+            version: c_text(game_addr(VERSION_RVA) as *const u8),
+            second: (game_read::<u8>(SECOND_TEXT_RVA) != 0)
+                .then(|| c_text(game_addr(SECOND_TEXT_RVA) as *const u8)),
+            cpu_family: game_read(CPU_FAMILY_RVA),
+            cpu_flags: game_read(CPU_FLAGS_RVA),
+            cpu_name: c_text(game_addr(CPU_NAME_RVA) as *const u8),
+            clock: game_read(CLOCK_RVA),
+            fpu: game_read(FPU_RVA),
+            mmx: game_read(MMX_RVA),
+            amd_3d: game_read(AMD_3D_RVA),
+            katmai: game_read(KATMAI_RVA),
+            machine_type: game_read(KEYBOARD_TYPE_RVA),
+            platform: [
+                game_read(VERSION_INFO_RVA + 0x10),
+                game_read(VERSION_INFO_RVA + 4),
+                game_read(VERSION_INFO_RVA + 8),
+                game_read::<u16>(VERSION_INFO_RVA + 0xC) as i32,
+            ],
+            platform_text: c_text(game_addr(VERSION_INFO_RVA + 0x14) as *const u8),
+            memory: [
+                (*memory).dwAvailPhys as u32,
+                (*memory).dwTotalPhys as u32,
+                (*memory).dwAvailPageFile as u32,
+                (*memory).dwTotalPageFile as u32,
+            ],
+            free_kb: free,
+        };
+        for (message, newline) in head(&m) {
+            match message {
+                Message::Text(mut t) => {
+                    t.push(0);
+                    text(&t, newline);
+                }
+                Message::Int(v) => log_int(v, newline, 1),
+                Message::Hex8(v) => log_hex8(v, newline, 1),
+            }
+        }
+        Ok(())
     }
 }
 
-// ---- hook ----
-
-extern "C" fn dispatch(r: &mut Regs) {
-    HOOK.count_call();
-    if shadow() {
-        unsafe { call_original(r) };
-        return;
-    }
-    unsafe {
+/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
+pub fn entry(_: &mut Regs) -> Result<(), crate::errors::Refused> {
+    let done = unsafe {
         start_log(&mut || {
             DeleteFileA(game_addr(LOG_PATH_RVA) as *const u8);
         })
     };
-}
-
-// ---- self-test ----
-
-const LEN: usize = 0x1D5;
-const ENTRY_BYTES: [u8; 8] = [0x60, 0x83, 0x3D, 0x98, 0x00, 0x4E, 0x00, 0x00];
-const CALLS: [usize; 44] = [
-    0x14, 0x1F, 0x2C, 0x31, 0x3C, 0x4C, 0x51, 0x5C, 0x66, 0x70, 0x7B, 0x86, 0x90, 0x9B, 0xA5, 0xB0,
-    0xBA, 0xC5, 0xCF, 0xDA, 0xE4, 0xEF, 0xF9, 0x104, 0x10E, 0x118, 0x122, 0x12F, 0x13A, 0x13F,
-    0x14A, 0x157, 0x164, 0x16F, 0x17A, 0x187, 0x194, 0x19F, 0x1AA, 0x1AF, 0x1B9, 0x1C4, 0x1C9,
-    0x1CE,
-];
-const LOG_FILE: &str = "var\\logfile.txt";
-
-/// What a run added to the log, without the numbers of the two lines about memory.
-fn added(from: usize) -> Option<Vec<String>> {
-    let log = std::fs::read(LOG_FILE).ok()?;
-    let lines = String::from_utf8_lossy(log.get(from..)?)
-        .lines()
-        .map(|line| match line.find("avail/total:") {
-            Some(at) => line[..at].to_string(),
-            None => line.to_string(),
-        })
-        .collect();
-    Some(lines)
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    if unsafe { game_read::<u32>(LOG_LEVEL_RVA) } == 0 {
-        return t.skip("the game's log is off");
+    if let Err(e) = done {
+        return Err(e.into());
     }
-    // Inside a race the game turns `g_logEnabled` off round its steps: then neither
-    // version writes the head (both runs add nothing), which says nothing about either.
-    if unsafe { game_read::<i32>(rva(0x4E0094)) } <= 0 {
-        return t.skip("the game's log is held off (g_logEnabled)");
-    }
-    let copy = unsafe {
-        RedirectedCopy::new(
-            game_addr(rva(0x401135)),
-            LEN,
-            &ENTRY_BYTES,
-            &CALLS,
-            &|callee| (callee == DELETE_FILE).then(|| frame_test::stand_in(0)),
-        )
-    };
-    let copy = match copy {
-        Ok(copy) => copy,
-        Err(why) => return t.skip(why),
-    };
-    let written = [
-        (game_addr(MEMORY_RVA) as u32, 0x20),
-        (game_addr(FREE_SPACE_RVA) as u32, 4),
-        (game_addr(TEXT_RVA) as u32, 0x10),
-    ];
-    let saved = capture(&written);
-    let before = Regs::SENTINEL;
-    let run = |rust: bool| unsafe {
-        let from = std::fs::metadata(LOG_FILE)
-            .map(|file| file.len() as usize)
-            .ok()?;
-        game_write(FREE_SPACE_RVA, 0xAAAA_AAAAu32);
-        frame_test::begin(u32::MAX, 0);
-        let mut deletes = 0usize;
-        let done = if rust {
-            start_log(&mut || deletes += 1);
-            true
-        } else {
-            let mut ro = before;
-            call_game(&mut ro, copy.addr());
-            deletes = frame_test::notes().len();
-            ro.preserved_except(&before, 0)
-        };
-        Some((
-            done,
-            deletes,
-            game_read::<u32>(FREE_SPACE_RVA),
-            added(from)?,
-        ))
-    };
-    let (theirs, mine) = (run(false), run(true));
-    // Free space is the disk's, which other programs (and the game's threads) change between
-    // the two runs: equal within 64 MB, and its line equal but for the number.
-    let free_line = |line: &String| line.starts_with("free space on partition=");
-    let same = match (&theirs, &mine) {
-        (Some(o), Some(r)) => {
-            o.0 == r.0
-                && o.1 == r.1
-                && o.2.abs_diff(r.2) < 0x1_0000
-                && o.3.len() == r.3.len()
-                && o.3
-                    .iter()
-                    .zip(&r.3)
-                    .all(|(a, b)| a == b || (free_line(a) && free_line(b)))
-        }
-        _ => false,
-    };
-    t.check(
-        same && theirs
-            .as_ref()
-            .is_some_and(|run| run.0 && run.1 == 1 && run.3.len() > 10),
-        || format!("the log's head: original {theirs:?}; rust {mine:?}"),
-    );
-    restore(&written, &saved);
-    t.finish()
+    Ok(())
 }

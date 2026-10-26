@@ -3,38 +3,22 @@
 //! In:  eax = the number, dl = 1 for a line break after it, dh = level - 1
 //! Out: see `numeric.rs`
 //! A minus sign and the magnitude through `format_u32` with flags 0.
+//! Hook removed 2026-10-22 (direct calls): Rust callers run its `entry` (`calls::call`,
+//! `routes.rs`); the registers above are the original's, for reference.
 
 use crate::errors::BadInput;
-use crate::framework::{RawHook, Regs, SelfTest, hook_asm, rva};
-use crate::logfile::numeric::{Body, NumberText, check_number, dispatch_number, log_number};
-use crate::strings::format_u32::format_u32;
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook =
-    RawHook::new("logfile::log_int", rva(0x401440), thunk, &ORIGINAL).self_test(self_test);
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL,
-    log_lock
-);
+use crate::framework::{Regs, rva};
+use crate::logfile::numeric::{Body, NumberText, log_number};
 
 // ---- Rust version ----
 
 /// The text of a signed number, with `flags` for `format_u32`.
 pub fn signed_text(value: u32, flags: u8) -> Vec<u8> {
-    let mut text = Vec::new();
-    let mut magnitude = value;
-    if (value as i32) < 0 {
-        text.push(b'-');
-        magnitude = value.wrapping_neg();
-    }
-    text.extend(format_u32(magnitude, flags));
-    text
+    // Converted: `rc2k_core::files::log::signed`.
+    rc2k_core::files::log::signed(
+        value as i32,
+        rc2k_core::strings::format::Pad::from_flags(flags),
+    )
 }
 
 fn text(r: &Regs) -> Result<NumberText, BadInput> {
@@ -42,8 +26,8 @@ fn text(r: &Regs) -> Result<NumberText, BadInput> {
 }
 
 /// For Rust callers.
-pub unsafe fn log_int(value: i32, newline: bool, level: u8) {
-    unsafe { log_number(&BODY, value as u32, 0, newline, level) };
+pub fn log_int(value: i32, newline: bool, level: u8) {
+    log_number(&BODY, value as u32, 0, newline, level);
 }
 
 pub const BODY: Body = Body {
@@ -51,31 +35,7 @@ pub const BODY: Body = Body {
     text,
 };
 
-// ---- hook ----
-
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_number(&HOOK, r, call_original, &BODY);
-}
-
-// ---- self-test ----
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    check_number(
-        &mut t,
-        call_original,
-        &BODY,
-        &[
-            (0, 0),
-            (1, 0),
-            (42, 0),
-            (0xFFFF_FFFF, 0),
-            (0x8000_0000, 0),
-            (0x7FFF_FFFF, 0),
-            (123_456_789, 0),
-        ],
-    );
-    t.finish()
+/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    crate::logfile::numeric::number_entry(r, &BODY)
 }

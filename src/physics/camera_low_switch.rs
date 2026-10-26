@@ -22,6 +22,7 @@ use crate::physics::flow::{c0, g, p};
 use crate::physics::reset_parts::copy_of;
 use crate::race::car_starts::Part;
 use crate::service::harness::{capture, restore};
+use rc2k_core::physics::camera_ground::{is_low, low_switch, low_switch_looks, over};
 use std::sync::atomic::AtomicUsize;
 
 static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
@@ -42,9 +43,10 @@ hook_asm!(
 );
 
 /// The Rust version, the probe through `part`.
+// Converted: `rc2k_core::physics::camera_ground::{low_switch_looks, is_low, low_switch}`.
 pub unsafe fn camera_low_switch(entry: &Regs, part: Part) -> Result<Regs, Refused> {
     let mut r = *entry;
-    if !c0(g(0x71A0A0), g(0x5C5D90)) || g(0x71A66C) != 0 || !matches!(g(0x71A65C), 0 | 1) {
+    if !low_switch_looks(c0(g(0x71A0A0), g(0x5C5D90)), g(0x71A66C), g(0x71A65C)) {
         return Ok(r);
     }
     r.eax = g(0x71A67C);
@@ -54,18 +56,18 @@ pub unsafe fn camera_low_switch(entry: &Regs, part: Part) -> Result<Regs, Refuse
     if !probe_at(&mut r, part, x, z, 0x71AEC8)? {
         return Ok(r);
     }
-    r.eax = g(0x71A680).wrapping_sub(g(0x639828));
-    if (r.eax.wrapping_sub(0x800) as i32) >= 0 {
+    r.eax = over(g(0x71A680), g(0x639828));
+    if !is_low(r.eax) {
         return Ok(r);
     }
-    r.eax = g(0x71A660).wrapping_add(1);
-    p(0x71A664, r.eax);
-    p(0x71A660, 4);
-    p(0x71A66C, 1);
-    p(0x71A674, 0);
-    p(0x71A670, 10);
-    r.eax = g(0x719FE0);
-    p(0x71A668, r.eax);
+    let s = low_switch(g(0x71A660), g(0x719FE0));
+    p(0x71A664, s.before);
+    p(0x71A660, s.mode);
+    p(0x71A66C, s.switching);
+    p(0x71A674, s.w674);
+    p(0x71A670, s.w670);
+    p(0x71A668, s.clock);
+    r.eax = s.clock;
     Ok(r)
 }
 

@@ -5,37 +5,17 @@
 //!
 //! Caller: `sub_473126`. `strings::append_string_by_id`'s Rust version. Refuses no table, more drivers than its 200 entries, a name past the entry, before anything. Self-test: the original and the Rust version on the game's
 //! tables; put back.
+//!
+//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
+//! hooked DLL the game's own code runs the original. What the header says of shadow mode
+//! and the self-test was the hook's.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{RawHook, Regs, SelfTest, game_addr, game_read, hook_asm, rva};
+use crate::framework::{Regs, game_addr, game_read, rva};
 use crate::menu::standings::*;
 use crate::race::stage_prefs::left_of;
 use crate::screens::harness::Left;
-use crate::service::harness::{Region, at, capture, check_state, dispatch_state, restore};
-use std::sync::atomic::AtomicUsize;
-
-static ORIGINAL: AtomicUsize = AtomicUsize::new(0);
-
-pub static HOOK: RawHook = RawHook::new(
-    "menu::standings_from_drivers",
-    rva(0x4A9605),
-    thunk,
-    &ORIGINAL,
-)
-.private_copy(0x73)
-.relocate_calls(&CALLS)
-.manual_patch()
-.self_test(self_test);
-
-/// Its calls (the first in the patched bytes).
-const CALLS: [usize; 3] = [0x1, 0x55, 0x5A];
-
-hook_asm!(
-    thunk,
-    call_original,
-    dispatch = dispatch,
-    original = ORIGINAL
-);
+use crate::service::harness::state_entry;
 
 const NAMES_RVA: usize = rva(0x741E88); // g_driverNames
 
@@ -58,65 +38,22 @@ pub unsafe fn standings_from_drivers(entry: &Regs) -> Result<Regs, Refused> {
         texts.push((id, text));
     }
     unsafe { crate::menu::init_standings_a::init_standings_a(entry) }?;
-    for (n, (&d, (id, text))) in drivers.iter().zip(texts).enumerate() {
-        let e = first + A_ENTRY * n as u32;
-        put(e + 0x14, get(d + 0xC));
-        put(e + 4, 0);
-        put(e + 0x1C, get(d + 8));
-        put(e + 0x18, get(d + 0x10));
-        put(e + 8, get(d + 0x14));
-        put(e + 0x10, get(d + 0x18));
-        put(e, get(d));
-        put(e + 0x4C, get(d + 0x24));
-        put(e + 0xC, id);
-        unsafe { std::ptr::copy_nonoverlapping(text.as_ptr(), (e + 0x20) as *mut u8, text.len()) };
+    // Converted: `rc2k_core::menu::standings::fill_a_from_driver`.
+    let count = drivers.len() as u32;
+    let all = unsafe { table(drivers[0], DRIVER, count) };
+    let mut t = unsafe { table(first, A_ENTRY, count) };
+    for (n, (id, text)) in texts.into_iter().enumerate() {
+        rc2k_core::menu::standings::fill_a_from_driver(&mut t, n, &all, n, id, &text);
     }
     Ok(*entry)
-}
-
-fn regions() -> Vec<Region> {
-    vec![(unsafe { game_read(TABLE_A_RVA) }, (200 * A_ENTRY) as usize)]
 }
 
 fn rust(r: &Regs) -> Result<Left, Refused> {
     Ok(left_of(&unsafe { standings_from_drivers(r) }?))
 }
 
-extern "C" fn dispatch(r: &mut Regs) {
-    dispatch_state(&HOOK, r, call_original, &regions(), &rust);
-}
-
-fn self_test() -> (usize, usize) {
-    let Some(mut t) = SelfTest::begin(&HOOK) else {
-        return (0, 0);
-    };
-    let regions = regions();
-    if regions.iter().any(|&(p, _)| p == 0) {
-        return t.skip("the game's tables are not there");
-    }
-    let mut vars = regions.clone();
-    vars.push(at(rva(0x75598C)));
-    let saved = capture(&vars);
-    // The probe runs on the saved tables: it writes what the tests write.
-    let refused = unsafe { standings_from_drivers(&Regs::SENTINEL) }.is_err();
-    restore(&vars, &saved);
-    if refused {
-        return t.skip("the Rust version refuses the game's tables");
-    }
-    for case in 0..3u32 {
-        check_state(
-            &mut t,
-            &format!("case {case}"),
-            call_original,
-            Regs::SENTINEL,
-            &|| {
-                restore(&vars, &saved);
-                let _ = case;
-            },
-            &regions,
-            &rust,
-        );
-    }
-    restore(&vars, &saved);
-    t.finish()
+/// The Rust version where the typed tables run it (no hook; a refusal is the
+/// caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    state_entry(r, &rust)
 }

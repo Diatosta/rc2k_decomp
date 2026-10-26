@@ -7,7 +7,7 @@
 //! - The stage prefs' (`localdat`) picture lists copied to `g_kindPictures` (0x5D7968), 0x32C14
 //!   bytes below: 0x60A57C .. 0x60A64C, 0x60A67C .. 0x60A73C, 0x60A77C .. 0x60A79C (the
 //!   original in 4-dword `rep movsd` pieces; esi, edi and ecx left as its last).
-//! - 23 kinds' pictures fixed (`FIXED`).
+//! - 23 kinds' pictures fixed (`FIXED_PICTURES`).
 //! - With cars, each car's eight from 0x5D7D68: its kind's picture
 //!   (`scene::known_kind_picture` of `dword_623858`[car]) and the seven after it. Leaves edi
 //!   past them, ecx the cars, eax the last + 1, ebx 0.
@@ -18,7 +18,7 @@
 //! redirected copy whose two reloads note themselves, the pictures and cars of the
 //! test's, the game's put back.
 
-use crate::errors::{BadInput, Refused};
+use crate::errors::Refused;
 use crate::framework::{
     RawHook, Regs, SelfTest, game_addr, game_read, game_write, hook_asm, rva, shadow,
 };
@@ -37,78 +37,54 @@ hook_asm!(
 );
 
 const PICTURES_RVA: usize = rva(0x5D7968); // g_kindPictures
-const PICTURES_LEN: usize = 0x5D82C8 - 0x5D7968;
-const BELOW: usize = 0x32C14;
-/// The pieces copied: their start in the prefs and their dwords.
-const PIECES: [(usize, u32); 3] = [(0x60A57C, 0x34), (0x60A67C, 0x30), (0x60A77C, 8)];
+const PICTURES_LEN: usize = 4 * rc2k_core::race::stage_objects::PICTURE_KINDS;
+/// The prefs' picture lists (`PREF_PIECES`' kinds) start here, 0x32C14 bytes above the
+/// pictures.
+const PREF_LISTS: usize = 0x60A57C;
 const PREFS_PART: (usize, usize) = (0x60A57C, 0x60A79C - 0x60A57C);
-const FIXED: [(usize, u32); 23] = [
-    (0x5D7C74, 0x7A8),
-    (0x5D7C88, 0x7CF),
-    (0x5D7CB4, 0x708),
-    (0x5D7CB8, 0x71A),
-    (0x5D7C90, 0x384),
-    (0x5D7C78, 0x6FE),
-    (0x5D7C7C, 0x6FF),
-    (0x5D7C8C, 0x700),
-    (0x5D7CB0, 0x722),
-    (0x5D7CD8, 0x70C),
-    (0x5D7CDC, 0x70E),
-    (0x5D7CE0, 0x710),
-    (0x5D7CE4, 0x712),
-    (0x5D7CE8, 0x714),
-    (0x5D7CEC, 0x716),
-    (0x5D81D8, 0x71E),
-    (0x5D81DC, 0x720),
-    (0x5D7C68, 0x708),
-    (0x5D7C6C, 0x70A),
-    (0x5D7C70, 0x706),
-    (0x5D82C4, 0x71C),
-    (0x5D7C80, 0x73A),
-    (0x5D7C84, 0x73C),
-];
 const CARS_RVA: usize = rva(0x63DB90); // g_raceCars
 const CAR_KINDS_RVA: usize = rva(0x623858); // g_raceCarKinds
-const CAR_PICTURES: u32 = 0x5D7D68;
-const MOST_CARS: u32 = 8;
+const MOST_CARS: u32 = rc2k_core::race::stage_objects::CAR_BLOCKS;
 
 pub type Part<'a> = &'a mut dyn FnMut(u32, &mut Regs) -> Result<(), Refused>;
 
 /// `race::set_all_plates` (see the header); part 0 the system textures' reload, 1 the
 /// slots'.
 pub unsafe fn set_all_plates(entry: &Regs, part: Part) -> Result<Regs, Refused> {
+    // Converted: `rc2k_core::race::stage_objects::{check_picture_cars, PREF_PIECES,
+    // FIXED_PICTURES, car_pictures}`.
+    use rc2k_core::race::stage_objects::{
+        CAR_PICTURE_KINDS, FIXED_PICTURES, PICTURES_A_CAR, PREF_PIECES, car_pictures,
+        check_picture_cars,
+    };
     let mut g = *entry;
     unsafe {
         let cars: u32 = game_read(CARS_RVA);
-        if cars > MOST_CARS {
-            return Err(BadInput("more than 8 cars").into());
-        }
-        for (from, dwords) in PIECES {
-            let from = game_addr(rva(from));
-            std::ptr::copy(
-                from as *const u32,
-                (from - BELOW) as *mut u32,
-                dwords as usize,
-            );
-            g.esi = (from + 4 * dwords as usize) as u32;
-            g.edi = g.esi - BELOW as u32;
+        check_picture_cars(cars)?;
+        let pictures = game_addr(PICTURES_RVA);
+        for (kind, dwords) in PREF_PIECES {
+            let from = game_addr(rva(PREF_LISTS)) + 4 * kind;
+            let to = pictures + 4 * kind;
+            std::ptr::copy(from as *const u32, to as *mut u32, dwords);
+            g.esi = (from + 4 * dwords) as u32;
+            g.edi = (to + 4 * dwords) as u32;
         }
         g.ecx = 0;
-        for (at, value) in FIXED {
-            game_write(rva(at), value);
+        for (kind, picture) in FIXED_PICTURES {
+            game_write(PICTURES_RVA + 4 * kind, picture);
         }
         if cars != 0 {
-            g.edi = game_addr(rva(CAR_PICTURES as usize)) as u32;
+            g.edi = (pictures + 4 * CAR_PICTURE_KINDS) as u32;
             for car in 0..cars {
                 g.ecx = car;
-                g.eax = crate::scene::known_kind_picture::known_kind_picture(game_read(
+                let first = crate::scene::known_kind_picture::known_kind_picture(game_read(
                     CAR_KINDS_RVA + 4 * car as usize,
                 ));
-                for _ in 0..8 {
-                    (g.edi as *mut u32).write_unaligned(g.eax);
+                for picture in car_pictures(first) {
+                    (g.edi as *mut u32).write_unaligned(picture);
                     g.edi += 4;
-                    g.eax = g.eax.wrapping_add(1);
                 }
+                g.eax = first.wrapping_add(PICTURES_A_CAR as u32);
                 g.ebx = 0;
             }
             g.ecx = cars;
@@ -146,6 +122,19 @@ extern "C" fn dispatch(r: &mut Regs) {
         }
         Err(e) => unsafe { crate::fatal::raise::refused(&HOOK, e, r, call_original) },
     }
+}
+
+/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    {
+        let g = unsafe { set_all_plates(r, &mut game_part) }?;
+        *r = Regs {
+            esp: r.esp,
+            eflags: r.eflags,
+            ..g
+        }
+    }
+    Ok(())
 }
 
 fn self_test() -> (usize, usize) {

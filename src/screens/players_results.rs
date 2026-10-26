@@ -7,49 +7,10 @@
 //! row's time at 0x1B2.
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{game_addr, game_read, game_write, rva};
-use crate::gfx::blit_glyph::BlitCall;
-use crate::screens::{font_at, line_buffer};
-use crate::text::draw_string_by_id::draw_string_by_id_at;
-use crate::text::draw_text::{Canvas, draw_text_at};
+use crate::framework::{game_addr, game_read, rva};
+use crate::text::draw_text::Canvas;
 
-pub const NO_TIME: u32 = 0x36EE80;
-const GAP_RVA: usize = rva(0x7559B8); // dword_7559B8: the gap, the points, the spaced length
-const FIRST_TIME_RVA: usize = rva(0x7559BC); // dword_7559BC
-
-/// What differs between the two pages.
-pub struct Layout {
-    /// Added to every column's x but the stage's and the "no time" string's.
-    pub dx: i32,
-    /// Two players give two rows (`sub_48D32E`) or four (`sub_4836CF`).
-    pub two_rows_for_two: bool,
-    /// The first row's "no time" test: signed `>= NO_TIME` (`jl`) or `== NO_TIME`.
-    pub first_time_signed: bool,
-    /// The third row's time's x (0x1B2 on `sub_4836CF`, the column's 0x1E4 + dx on the other).
-    pub third_time_x: i32,
-    /// The head string 0x21A at 0x2BB and the points column (`off_758992`).
-    pub points: bool,
-    /// After the third row's flag, sprite `dword_7559B4` there too (`sub_48D32E`).
-    pub third_row_extra: bool,
-}
-
-pub const WITH_POINTS: Layout = Layout {
-    dx: 0,
-    two_rows_for_two: false,
-    first_time_signed: true,
-    third_time_x: 0x1B2,
-    points: true,
-    third_row_extra: false,
-};
-
-pub const WITHOUT_POINTS: Layout = Layout {
-    dx: 0x1E,
-    two_rows_for_two: true,
-    first_time_signed: false,
-    third_time_x: 0x202,
-    points: false,
-    third_row_extra: true,
-};
+pub use rc2k_core::screens::players_results::{Layout, NO_TIME, WITH_POINTS, WITHOUT_POINTS};
 
 fn k(a: usize) -> u32 {
     unsafe { game_read(rva(a)) }
@@ -60,11 +21,7 @@ unsafe fn get(a: u32) -> u32 {
 }
 
 fn rows(layout: &Layout) -> usize {
-    match k(0x755984) {
-        3 => 3,
-        2 if layout.two_rows_for_two => 2,
-        _ => 4,
-    }
+    rc2k_core::screens::players_results::rows(layout, k(0x755984))
 }
 
 fn offset(row: usize) -> u32 {
@@ -104,25 +61,6 @@ fn records() -> (u32, u32) {
         let base = get(table + 4 * k(0x7558D0));
         (base, base.wrapping_add(k(0x7558CC).wrapping_mul(0xA4)))
     }
-}
-
-fn nul(mut v: Vec<u8>) -> Vec<u8> {
-    v.push(0);
-    v
-}
-
-unsafe fn line(bytes: &[u8]) -> *mut u8 {
-    unsafe { std::ptr::copy_nonoverlapping(bytes.as_ptr(), line_buffer(), bytes.len()) };
-    line_buffer()
-}
-
-fn flag_glyph(flag: u32) -> u32 {
-    (if (0x18..=0x19).contains(&flag) {
-        flag ^ 1
-    } else {
-        flag
-    })
-    .wrapping_add(0x44)
 }
 
 /// The rows' players, the section's first record, the stage line and the speeds.
@@ -175,13 +113,13 @@ pub unsafe fn refuses(layout: &Layout) -> bool {
     unsafe { prepare(layout) }.is_err()
 }
 
-/// The page.
+/// The page. Converted: `rc2k_core::screens::players_results` (what it needs read and checked
+/// first, before anything is drawn).
 pub unsafe fn draw_players_results(
     layout: &Layout,
     canvas: &mut dyn Canvas,
 ) -> Result<(), Refused> {
-    use crate::strings::append_time::{append_time, show_hours};
-    use crate::text::draw_time_fixed_pitch::draw_time_fixed_pitch_at;
+    use rc2k_core::screens::players_results::{Page, Row, players_results};
     unsafe {
         let Prepared {
             players,
@@ -189,132 +127,33 @@ pub unsafe fn draw_players_results(
             stage,
             speeds,
         } = prepare(layout)?;
-        let dx = layout.dx;
-        let (font, small, stage_font) = (font_at(0x51E584), font_at(0x51E564), font_at(0x51E9A4));
-        let y = |row: usize| 0xFE + 0x17 * row as i32;
-        let units_head = if crate::strings::units::units() != 0 {
-            0x574
-        } else {
-            0x573
-        };
-        let mut heads = vec![
-            (0x218, 0x55 + dx),
-            (0x219, 0x9C + dx),
-            (0x21C, 0x176 + dx),
-            (units_head, 0x25A + dx),
-        ];
-        if layout.points {
-            heads.push((0x21A, 0x2BB));
-        }
-        for (id, x) in heads {
-            draw_string_by_id_at(id, font, x, 0xE7, canvas)?;
-        }
-        draw_string_by_id_at(get(base + 0x38), stage_font, 0x2EB, 0x77, canvas)?;
-        draw_text_at(stage_font, line(&stage), 0x2EB, 0x91, canvas)?;
-        for (row, p) in players.iter().enumerate() {
-            draw_text_at(font, get(p + 0x18) as *const u8, 0x9C + dx, y(row), canvas)?;
-        }
-        for (row, speed) in speeds.iter().enumerate() {
-            let text = line(&nul(speed.clone()));
-            crate::screens::draw_spaced_number::draw_spaced_number(
-                small,
-                text,
-                text.add(speed.len()),
-                0x25A + dx,
-                y(row),
-                canvas,
-            )?;
-        }
-        // Every sprite's palette is ebx as the original leaves it: g_lineBuffer after the
-        // spaced numbers, then after the times.
-        let sprites = crate::gfx::blit_marker_pair::sprite_table();
-        let mut palette = line_buffer() as u32;
-        for (row, p) in players.iter().enumerate() {
-            canvas.blit_glyph(BlitCall::new(
-                get(p + 4).wrapping_add(0x1C),
-                0x7F + dx,
-                y(row),
-                palette,
-                sprites,
-            ))?;
-        }
-        for (row, p) in players.iter().enumerate() {
-            let time = get(p + 0x88);
-            let none = if row == 0 && layout.first_time_signed {
-                time as i32 >= NO_TIME as i32
-            } else {
-                time == NO_TIME
-            };
-            if none {
-                palette = draw_string_by_id_at(0x4FA, small, 0x1B8, y(row), canvas)?.text as u32;
-            } else {
-                let x = if row == 2 {
-                    layout.third_time_x
+        let mut rows = Vec::new();
+        for (row, (p, speed)) in players.iter().zip(speeds).enumerate() {
+            rows.push(Row {
+                name: get(p + 0x18),
+                nation: get(p + 4),
+                car: get(p + 8),
+                time: get(p + 0x88),
+                speed,
+                points: if layout.points {
+                    get(points_at(row)?)
                 } else {
-                    0x1E4 + dx
-                };
-                draw_time_fixed_pitch_at(
-                    small,
-                    line(&nul(append_time(time, show_hours()))),
-                    x,
-                    y(row),
-                    canvas,
-                )?;
-                palette = line_buffer() as u32;
-            }
+                    0
+                },
+            });
         }
-        for (row, p) in players.iter().enumerate() {
-            canvas.blit_glyph(BlitCall::new(
-                flag_glyph(get(p + 8)),
-                0x141 + dx,
-                y(row),
-                palette,
-                sprites,
-            ))?;
-            if row == 2 && layout.third_row_extra {
-                canvas.blit_glyph(BlitCall::new(
-                    k(0x7559B4),
-                    0x141 + dx,
-                    y(row),
-                    palette,
-                    sprites,
-                ))?;
-            }
-        }
-        let first = get(players[0] + 0x88);
-        game_write(FIRST_TIME_RVA, first);
-        for (row, p) in players.iter().enumerate().skip(1) {
-            let time = get(p + 0x88);
-            if time == NO_TIME {
-                continue;
-            }
-            let gap = time.wrapping_sub(first);
-            game_write(GAP_RVA, gap);
-            draw_string_by_id_at(0x579, font, 0x1DF + dx, y(row), canvas)?;
-            draw_time_fixed_pitch_at(
-                small,
-                line(&nul(append_time(gap, show_hours()))),
-                0x257 + dx,
-                y(row),
-                canvas,
-            )?;
-        }
-        for row in 0..players.len() {
-            draw_string_by_id_at(0x4FE + row as u32, font, 0x55 + dx, y(row), canvas)?;
-        }
-        if layout.points {
-            for row in 0..players.len() {
-                let points = get(points_at(row)?);
-                game_write(GAP_RVA, points);
-                draw_text_at(
-                    font,
-                    line(&nul(crate::strings::append_u32::append_u32(points))),
-                    0x2BB,
-                    y(row),
-                    canvas,
-                )?;
-            }
-        }
-        Ok(())
+        let page = Page {
+            section: get(base + 0x38),
+            stage,
+            units_set: crate::strings::units::units() != 0,
+            show_hours: crate::strings::append_time::show_hours(),
+            extra_glyph: k(0x7559B4),
+        };
+        players_results(
+            &mut crate::screens::game_screen::GameScreen::new(canvas),
+            layout,
+            &page,
+            &rows,
+        )
     }
 }

@@ -13,8 +13,9 @@ pub type Part<'a> = &'a mut dyn FnMut(u32, &mut Regs) -> Result<(), Refused>;
 
 /// One start: the registers it leaves.
 pub unsafe fn replay_mode(entry: &Regs, mode: u32, part: Part) -> Result<Regs, Refused> {
+    // Converted: `rc2k_core::race::viewer_flow::views_replay`.
     let mut r = *entry;
-    if unsafe { game_read::<u32>(REPLAY_RVA) } != 0 {
+    if rc2k_core::race::viewer_flow::views_replay(unsafe { game_read::<u32>(REPLAY_RVA) }) {
         r.eax = mode;
         part(0, &mut r)?;
     }

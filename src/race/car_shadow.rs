@@ -28,91 +28,6 @@ unsafe fn put(a: u32, v: u32) {
     unsafe { (a as *mut u32).write_unaligned(v) }
 }
 
-/// The game's quicksort of 0x20-byte records by +0xC, low to high (`sub_4582AC`), from
-/// esi to edi (the last record), on the registers as it runs; the recursion kept as a list
-/// of returns, in the original's order.
-pub unsafe fn sort_records(r: &mut Regs) {
-    enum Back {
-        First(u32),
-        Second,
-    }
-    enum Step {
-        Enter,
-        AfterFirst(u32),
-        Return,
-    }
-    let mut calls: Vec<Back> = Vec::new();
-    let mut step = Step::Enter;
-    unsafe {
-        loop {
-            step = match step {
-                Step::Enter => {
-                    if r.esi >= r.edi {
-                        Step::Return
-                    } else {
-                        r.ecx = r.esi;
-                        r.edx = r.edi;
-                        r.eax = get(
-                            ((r.edx.wrapping_sub(r.ecx)) >> 1 & !0x1F).wrapping_add(r.ecx) + 0xC,
-                        );
-                        loop {
-                            r.ebx = get(r.ecx + 0xC);
-                            r.ecx = r.ecx.wrapping_add(0x20);
-                            if r.eax <= r.ebx {
-                                r.ecx = r.ecx.wrapping_sub(0x20);
-                            }
-                            loop {
-                                r.ebx = get(r.edx + 0xC);
-                                r.edx = r.edx.wrapping_sub(0x20);
-                                if r.eax >= r.ebx {
-                                    break;
-                                }
-                            }
-                            r.edx = r.edx.wrapping_add(0x20);
-                            if r.ecx == r.edx {
-                                break;
-                            }
-                            for k in 0..8 {
-                                r.ebp = get(r.ecx + 4 * k);
-                                r.ebx = get(r.edx + 4 * k);
-                                put(r.edx + 4 * k, r.ebp);
-                                put(r.ecx + 4 * k, r.ebx);
-                            }
-                            r.ebx = get(r.ecx + 0xC);
-                            if r.ebx == get(r.edx + 0xC) {
-                                r.ecx = r.ecx.wrapping_add(0x20);
-                            }
-                        }
-                        let outer = r.edi;
-                        r.edi = r.ecx.wrapping_sub(0x20);
-                        if r.esi < r.edi {
-                            calls.push(Back::First(outer));
-                            Step::Enter
-                        } else {
-                            Step::AfterFirst(outer)
-                        }
-                    }
-                }
-                Step::AfterFirst(outer) => {
-                    r.esi = r.edi.wrapping_add(0x40);
-                    r.edi = outer;
-                    if r.esi < r.edi {
-                        calls.push(Back::Second);
-                        Step::Enter
-                    } else {
-                        Step::Return
-                    }
-                }
-                Step::Return => match calls.pop() {
-                    None => return,
-                    Some(Back::First(outer)) => Step::AfterFirst(outer),
-                    Some(Back::Second) => Step::Return,
-                },
-            };
-        }
-    }
-}
-
 /// `fldpi; fadd st, st; fadd v; fstp`: 2 pi plus a float.
 fn two_pi_plus(v: u32) -> u32 {
     let (x, mut out) = ([v], 0u32);
@@ -135,7 +50,7 @@ fn two_pi_plus(v: u32) -> u32 {
 /// `race::shadow_angles` (0x4581F3): the farthest point (`dword_643ABC`) swapped into the
 /// first record; each record's angle made relative to the first's (`flt_643AC0`; below 0
 /// plus 2 pi), times 65536 as a whole number, +0x14 0; with two records or more sorted by
-/// angle (`sort_records`). Gives the registers it leaves. Refuses (before anything) no
+/// angle (`sub_4582AC`, `sorting::sort_records`). Gives the registers it leaves. Refuses (before anything) no
 /// points (its loop tests at its end) or more than 0x40.
 pub unsafe fn shadow_angles(entry: &Regs) -> Result<Regs, Refused> {
     use crate::math::x87::{mul_to_int, sub};
@@ -175,7 +90,12 @@ pub unsafe fn shadow_angles(entry: &Regs) -> Result<Regs, Refused> {
             r.esi = g(0x641AA4);
             r.eax = count.wrapping_mul(0x20);
             r.edi = r.eax + r.esi - 0x20;
-            sort_records(&mut r);
+            // Converted: `rc2k_core::race::quick_sort::quick_sort` (`sub_4582AC`).
+            crate::race::sorting::sort_records::<8>(
+                &mut r,
+                3,
+                rc2k_core::race::quick_sort::Order::Up,
+            )?;
         }
         Ok(r)
     }
@@ -188,55 +108,47 @@ pub unsafe fn shadow_angles(entry: &Regs) -> Result<Regs, Refused> {
 /// `dword_643ACC` the points left. Gives the registers it leaves. Refuses (before
 /// anything) fewer than two points or more than 0x40.
 pub unsafe fn shadow_hull(entry: &Regs) -> Result<Regs, Refused> {
+    // Converted: `rc2k_core::race::shadow::hull`.
+    use rc2k_core::race::shadow::{Record, hull, hull_records};
     unsafe {
         let count: u32 = game_read(COUNT_RVA);
         if !(2..=0x40).contains(&count) {
             return Err(BadInput("fewer than two shadow points or more than 0x40").into());
         }
-        let mut r = *entry;
         let base = g(0x641AA4);
-        std::ptr::copy(base as *const u8, (base + 0x20 * count) as *mut u8, 0x20);
-        r.ebp = count - 1;
-        r.ebx = 0;
-        'restart: loop {
-            r.ebx = 0;
-            loop {
-                r.eax = r.ebx.wrapping_mul(0x20);
-                r.ecx = 0x20;
-                r.edi = base + r.eax;
-                let p = |n: u32| base + 0x20 * n;
-                let (b0, b1, b2) = (p(r.ebx), p(r.ebx + 1), p(r.ebx + 2));
-                let first = (get(b1 + 8).wrapping_sub(get(b0 + 8)) as i32 as i64)
-                    * (get(b2).wrapping_sub(get(b0)) as i32 as i64);
-                game_write(PRODUCT_RVA, first as u64);
-                let second = (get(b1).wrapping_sub(get(b0)) as i32 as i64)
-                    * (get(b2 + 8).wrapping_sub(get(b0 + 8)) as i32 as i64);
-                let d = second.wrapping_sub(first);
-                r.eax = d as u32;
-                r.edx = (d >> 32) as u32;
-                if (r.edx as i32) >= 0 {
-                    r.eax = r.ebx + 1;
-                    r.edi = b1;
-                    r.esi = b2;
-                    let dwords = (r.ebp.wrapping_sub(r.ebx) + 2) * 8;
-                    std::ptr::copy(r.esi as *const u8, r.edi as *mut u8, 4 * dwords as usize);
-                    r.edi += 4 * dwords;
-                    r.esi += 4 * dwords;
-                    r.ecx = 0;
-                    r.ebp -= 1;
-                    if r.ebp != 0 {
-                        continue 'restart;
-                    }
-                    break 'restart;
-                }
-                r.ebx += 1;
-                if (r.ebx.wrapping_sub(r.ebp) as i32) >= 0 {
-                    break 'restart;
-                }
+        let at = |n: usize| (base as usize + 0x20 * n) as *mut Record;
+        let mut records: Vec<Record> = (0..hull_records(count))
+            .map(|n| at(n).read_unaligned())
+            .collect();
+        let before = records.clone();
+        let h = hull(&mut records, count)?;
+        for (n, (now, was)) in records.iter().zip(&before).enumerate() {
+            if now != was {
+                at(n).write_unaligned(*now);
             }
         }
-        r.ebp += 1;
-        game_write(HULL_COUNT_RVA, r.ebp);
+        game_write(PRODUCT_RVA, h.product as u64);
+        game_write(HULL_COUNT_RVA, h.count);
+        let place = |n: u32| base.wrapping_add(n.wrapping_mul(0x20));
+        let mut r = *entry;
+        r.ebx = h.at;
+        r.ebp = h.count;
+        r.edx = (h.difference >> 32) as u32;
+        if let Some(c) = h.cut {
+            r.esi = place(c.at + 1 + c.moved);
+        }
+        match h.cut {
+            Some(c) if h.ended_on_cut => {
+                r.eax = c.at;
+                r.edi = place(c.at + c.moved);
+                r.ecx = 0;
+            }
+            _ => {
+                r.eax = h.difference as u32;
+                r.edi = place(h.tested);
+                r.ecx = 0x20;
+            }
+        }
         Ok(r)
     }
 }
@@ -512,32 +424,39 @@ unsafe fn clip_to_edge(r: &mut Regs) {
         r.ecx = 0;
         r.eax = get(list);
         put(r.edi, r.eax);
-        r.ebx = 0;
-        for k in 0..count {
-            r.ecx = k;
-            r.esi = work_entry(get(old + 4 * k));
-            r.eax = get(old + 4 * k + 4).wrapping_mul(0x44);
-            r.ebp = g(0x975510).wrapping_add(r.eax);
-            r.edx = get(r.esi);
-            let a_in = inside_edge(r.edx);
-            r.edx = get(r.ebp);
-            let b_in = inside_edge(r.edx);
-            let mut add = |v: u32| {
-                put(list + 4 * r.ebx, v);
-                r.ebx += 1;
-            };
-            if a_in {
-                r.eax = get(old + 4 * k);
-                add(r.eax);
-            }
-            if a_in != b_in {
+        // Converted: `rc2k_core::race::shadow::clip_by_edge`.
+        let mut added = 0u32;
+        let mut ends = (0u32, 0u32);
+        let last = rc2k_core::race::shadow::clip_by_edge(
+            count,
+            |k| {
+                let e = get(old + 4 * k);
+                if k == count {
+                    ends.1 = e;
+                } else if k + 1 == count {
+                    ends.0 = e;
+                }
+                e
+            },
+            |e| inside_edge(get(work_entry(e))),
+            |a, b| {
                 let next: u32 = game_read(NEXT_ENTRY_RVA);
-                edge_crossing(r.esi, r.ebp, work_entry(next));
-                r.eax = game_read(NEXT_ENTRY_RVA);
-                add(r.eax);
-                game_write(NEXT_ENTRY_RVA, r.eax.wrapping_add(1));
-            }
-        }
+                edge_crossing(work_entry(a), work_entry(b), work_entry(next));
+                game_write(NEXT_ENTRY_RVA, next.wrapping_add(1));
+                next
+            },
+            |e| {
+                put(list + 4 * added, e);
+                added += 1;
+            },
+        );
+        // As the last side leaves them: esi and ebp its two work entries, edx the second's
+        // point, eax what it added last, else the second's offset.
+        r.esi = work_entry(ends.0);
+        r.ebp = work_entry(ends.1);
+        r.edx = get(r.ebp);
+        r.eax = last.unwrap_or(ends.1.wrapping_mul(0x44));
+        r.ebx = added;
         r.ecx = count;
         game_write(VERTEX_COUNT_RVA, r.ebx);
     }
@@ -557,22 +476,17 @@ pub unsafe fn clip_shadow_to_face(entry: &Regs) -> Regs {
             game_read(rva(0x64193C)),
             game_read(rva(0x641940)),
         ];
+        // Converted: `rc2k_core::race::shadow::face_near`; ebx, esi and eax the last
+        // corner asked about, its point and the last distance.
         let car = g(0x719FD8);
-        let (cx, cz) = (get(car + 0x134), get(car + 0x13C));
-        let mut near = false;
-        for &c in &corners {
-            r.ebx = c;
-            r.esi = scene_point(c);
-            r.eax = (get(r.esi).wrapping_sub(cx) as i32).wrapping_abs() as u32;
-            if r.eax > 0x10_0000 {
-                break;
-            }
-            r.eax = (get(r.esi + 8).wrapping_sub(cz) as i32).wrapping_abs() as u32;
-            if r.eax < 0x10_0000 {
-                near = true;
-                break;
-            }
-        }
+        let found = rc2k_core::race::shadow::face_near((get(car + 0x134), get(car + 0x13C)), |n| {
+            let p = scene_point(corners[n]);
+            (get(p), get(p + 8))
+        });
+        r.ebx = corners[found.corner];
+        r.esi = scene_point(r.ebx);
+        r.eax = found.distance;
+        let near = found.near;
         if !near {
             game_write(VERTEX_COUNT_RVA, 0u32);
             return r;
@@ -722,29 +636,29 @@ unsafe fn shadow_on_record(
     entry: &Regs,
     each: &mut dyn FnMut(&Regs) -> Result<(), Refused>,
 ) -> Result<(), Refused> {
+    // Converted: `rc2k_core::race::shadow::{takes_shadow, SHADOW_TRIANGLES}`,
+    // `rc2k_core::race::view::record_faces`.
+    use rc2k_core::race::shadow::{SHADOW_TRIANGLES, takes_shadow};
     unsafe {
-        let (first, last) = (get(record + 8), get(record + 0xC));
-        if first == u32::MAX || first > last {
+        let Some((first, last)) =
+            rc2k_core::race::view::record_faces(get(record + 8), get(record + 0xC))
+        else {
             return Ok(());
-        }
-        let mut face = first;
-        loop {
+        };
+        for face in first..=last {
             game_write(rva(0x5CCCD0), face);
             let at = (face << 6).wrapping_add(game_read(rva(0x5CCCBC)));
             let kind = (at as *const u8).read();
-            if kind < 0x10 && ((at + 2) as *const u16).read_unaligned() & 0x80 == 0 {
-                for corners in [[4u32, 8, 0xC], [0x10, 0xC, 8]] {
+            if takes_shadow(kind, || ((at + 2) as *const u16).read_unaligned()) {
+                for corners in SHADOW_TRIANGLES {
                     for (k, &o) in corners.iter().enumerate() {
                         game_write(rva(0x641938 + 4 * k), get(at + o));
                     }
                     each(entry)?;
                 }
             }
-            face = face.wrapping_add(1);
-            if face > last {
-                return Ok(());
-            }
         }
+        Ok(())
     }
 }
 
@@ -768,25 +682,17 @@ pub unsafe fn shadow_faces(
         if count == 0 {
             return Ok(r);
         }
+        // Converted: `rc2k_core::race::shadow::{record_cell, cell_near_car}`.
+        use rc2k_core::race::shadow::{cell_near_car, record_cell};
         let car = g(0x719FD8);
         for n in 0..count {
             let at = (n << 5).wrapping_add(records);
-            let cell = get(at);
-            if cell == u32::MAX {
+            let Some((x, z)) = record_cell(get(at)) else {
                 continue;
-            }
-            let (x, z) = (cell & 0x7FF, cell >> 11 & 0x7FF);
+            };
             game_write(rva(0x5CCBF0), x);
             game_write(rva(0x5CCBF4), z);
-            let dx = ((get(car + 0x134)
-                .wrapping_add(0x10_0000)
-                .wrapping_sub(x << 21)) as i32
-                >> 21) as u32;
-            let dz = ((get(car + 0x13C)
-                .wrapping_add(0x10_0000)
-                .wrapping_sub(z << 21)) as i32
-                >> 21) as u32;
-            if dx.wrapping_add(1) < 3 && dz.wrapping_add(1) < 3 {
+            if cell_near_car((get(car + 0x134), get(car + 0x13C)), (x, z)) {
                 shadow_on_record(at, entry, &mut *each)?;
             }
         }
@@ -965,28 +871,31 @@ pub unsafe fn cast_car_shadow(
     entry: &Regs,
     faces: &mut dyn FnMut(&Regs) -> Result<Regs, Refused>,
 ) -> Result<Regs, Refused> {
+    // Converted: `rc2k_core::race::shadow::{casts, hull_drawn, hull_list,
+    // SHADOW_TEXTURE}`.
+    use rc2k_core::race::shadow::{SHADOW_TEXTURE, casts, hull_drawn, hull_list};
     unsafe {
         let mut r = *entry;
         r.ebp = game_read(COUNT_RVA);
-        if (r.ebp.wrapping_sub(3) as i32) < 0 {
+        if !casts(r.ebp) {
             return Ok(r);
         }
         shadow_points()?;
         crate::race::shadow_points::left().apply(&mut r);
         r = shadow_angles(&r)?;
         r = shadow_hull(&r)?;
-        if game_read::<u32>(HULL_COUNT_RVA) < 3 {
+        if !hull_drawn(game_read(HULL_COUNT_RVA)) {
             return Ok(r);
         }
         r = shadow_polygon(&r)?;
         let n: u32 = game_read(HULL_COUNT_RVA);
         r.eax = n;
         game_write(rva(0x641A9C), n);
-        for k in 0..n {
+        for k in hull_list(n) {
             put(g(0x64199C) + 4 * k, k);
         }
         r.ecx = n;
-        game_write(rva(0x641930), 0xC3u32);
+        game_write(rva(0x641930), SHADOW_TEXTURE);
         faces(&r)
     }
 }
@@ -1002,33 +911,33 @@ pub unsafe fn cast_car_shadows(
     part: crate::race::frame::Part,
     shadow: &mut dyn FnMut(&Regs) -> Result<(), Refused>,
 ) -> Result<Regs, Refused> {
+    // Converted: `rc2k_core::race::shadow::{check_shadow_cars, casts_shadow, first_pass,
+    // SHADOW_STRENGTH, SUN_PASS}`.
+    use rc2k_core::race::shadow::{
+        SHADOW_STRENGTH, SUN_PASS, casts_shadow, check_shadow_cars, first_pass,
+    };
     unsafe {
         let cars: u32 = game_read(rva(0x63DB90));
-        if cars == 0 || cars > 8 {
-            return Err(BadInput("no race cars or more than eight").into());
-        }
         let block = |n: u32| game_read::<u32>(rva(0x71B3B8 + 4 * n as usize));
-        if (0..cars).any(|n| block(n) == 0) {
-            return Err(BadInput("a null car block").into());
-        }
+        check_shadow_cars(cars, block)?;
         let mut r = *entry;
         part(1, &mut r)?;
-        game_write(rva(0x641928), 0x1999u32);
+        game_write(rva(0x641928), SHADOW_STRENGTH);
         for n in 0..cars {
             r.ecx = n;
             r.esi = block(n);
-            if get(r.esi + 0x6FC) == 0 {
+            if !casts_shadow(get(r.esi + 0x6FC)) {
                 continue;
             }
             let inner = r;
             game_write(rva(0x71B3F8), n);
             crate::drive::load_car::load_car()?;
             game_write(COUNT_RVA, get(g(0x719FD8) + 0x260));
-            if game_read::<u32>(rva(0x6238B0)) != 0 {
+            if first_pass(game_read(rva(0x6238B0))) {
                 shadow(&inner)?;
             }
             let sun: u32 = game_read(rva(0x60933C));
-            game_write(rva(0x60933C), 0x40u32);
+            game_write(rva(0x60933C), SUN_PASS);
             shadow(&inner)?;
             game_write(rva(0x60933C), sun);
         }

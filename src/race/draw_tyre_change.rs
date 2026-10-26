@@ -244,7 +244,7 @@ pub fn draw_part(place: u32, r: &mut Regs) -> Result<(), Refused> {
             _ => {
                 // The platform's (Direct3D): called in the game.
                 let mut c = *r;
-                call_game(&mut c, game_addr(COPY_RVA));
+                crate::calls::call(COPY_RVA, &mut c);
                 r.eflags = c.eflags;
             }
         }
@@ -266,6 +266,19 @@ extern "C" fn dispatch(r: &mut Regs) {
         }
         Err(e) => unsafe { crate::fatal::raise::refused(&HOOK, e, r, call_original) },
     }
+}
+
+/// The Rust version where Rust callers run it (no hook; a refusal is the caller's).
+pub fn entry(r: &mut Regs) -> Result<(), crate::errors::Refused> {
+    let mut w = *r;
+    match unsafe { draw_tyre_change_in(&mut w, &mut draw_part) } {
+        Ok(()) => {
+            r.ebp = w.ebp;
+            r.eflags = w.eflags;
+        }
+        Err(e) => return Err(e),
+    }
+    Ok(())
 }
 
 // ---- self-test ----
