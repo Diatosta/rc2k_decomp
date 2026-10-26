@@ -17,7 +17,7 @@ use crate::menu::state_store::MENU_STATE;
 
 /// The Rust version (see the header): the registers it leaves.
 pub fn inspection_verdict() -> Result<(), Refused> {
-    let n: u32 = { EVENT_STATE.current_player.get() };
+    let n: u32 = EVENT_STATE.current_player.get();
     if n >= 4 || player(n) == 0 {
         return Err(BadInput("a current player past 3 or missing").into());
     }

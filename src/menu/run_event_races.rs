@@ -196,7 +196,7 @@ pub fn run_event_races(f: &mut Flow) -> Result<(), Refused> {
     if few_running {
         return Err(BadInput("fewer than 0xB2 drivers, or fewer than four still running").into());
     }
-    let mode: u32 = { EVENT_STATE.event_kind.get() };
+    let mode: u32 = EVENT_STATE.event_kind.get();
     if let Some((n, _)) = races::players_of(mode)
         && (0..n).any(|i| player(i) == 0)
     {

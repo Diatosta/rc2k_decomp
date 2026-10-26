@@ -100,9 +100,8 @@ pub unsafe fn input_thread() -> Result<(), Refused> {
     Ok(())
 }
 
-/// The thread's routine as its slot starts it (by address: `routes.rs`): the work, then
-/// `ExitThread`.
+/// The thread's routine as its slot starts it (by address: `routes.rs`): the work; its end
+/// ends the thread (the original's `ExitThread`).
 pub fn thread_routine() -> Result<(), Refused> {
-    unsafe { input_thread() }?;
-    unsafe { windows_sys::Win32::System::Threading::ExitThread(0) }
+    unsafe { input_thread() }
 }

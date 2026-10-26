@@ -12,18 +12,18 @@
 //! the variables put back.
 
 use crate::session::Dword;
-use windows_sys::Win32::System::Diagnostics::Debug::{SEM_FAILCRITICALERRORS, SetErrorMode};
 
 // ---- game data ----
 
 // ---- Rust version ----
 
-pub unsafe fn set_error_mode() {
-    unsafe {
-        let was = SetErrorMode(SEM_FAILCRITICALERRORS);
-        ERROR_MODE.mode.set(was);
-        ERROR_MODE.changed.set(1);
-    }
+/// SEM_FAILCRITICALERRORS.
+const FAIL_CRITICAL_ERRORS: u32 = 1;
+
+pub fn set_error_mode() {
+    let was = crate::os::set_error_mode(FAIL_CRITICAL_ERRORS);
+    ERROR_MODE.mode.set(was);
+    ERROR_MODE.changed.set(1);
 }
 
 /// The error mode kept and whether it was set (IDA 0x4E059C .. 0x4E05A4, the image's layout).

@@ -14,7 +14,7 @@ const ENTRIES: u32 = 50;
 
 /// The Rust version (see the header): the registers it leaves.
 pub fn clear_score_marks() -> Result<(), Refused> {
-    let first: u32 = { CHAMP_VIEW.best_scores.get() };
+    let first: u32 = CHAMP_VIEW.best_scores.get();
     if first == 0 {
         return Err(BadInput("no best-score table").into());
     }

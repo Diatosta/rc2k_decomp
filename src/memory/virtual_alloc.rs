@@ -15,7 +15,6 @@
 //! and the self-test was the hook's.
 
 use crate::errors::{FatalError, Refused};
-use windows_sys::Win32::System::Memory::{MEM_COMMIT, MEM_RESERVE, PAGE_READWRITE, VirtualAlloc};
 
 pub const NO_MEMORY: FatalError = FatalError {
     code: 0x8010_8571,
@@ -25,20 +24,9 @@ pub const NO_MEMORY: FatalError = FatalError {
 // ---- Rust version ----
 
 /// The memory, 0 for 0 bytes.
-pub unsafe fn virtual_alloc(bytes: u32) -> Result<u32, Refused> {
+pub fn virtual_alloc(bytes: u32) -> Result<u32, Refused> {
     if bytes == 0 {
         return Ok(0);
     }
-    let block = unsafe {
-        VirtualAlloc(
-            std::ptr::null(),
-            bytes as usize,
-            MEM_COMMIT | MEM_RESERVE,
-            PAGE_READWRITE,
-        )
-    };
-    if block.is_null() {
-        return Err(NO_MEMORY.into());
-    }
-    Ok(crate::pointers::lend_system_block(block, bytes as usize))
+    crate::memory::pages::take(bytes as usize).ok_or_else(|| NO_MEMORY.into())
 }

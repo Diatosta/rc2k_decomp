@@ -12,19 +12,16 @@
 //! and the self-test was the hook's.
 
 use crate::race::viewer_screen_store::VIEWER_PANEL;
-use windows_sys::Win32::System::SystemInformation::GetTickCount;
 
 // ---- game data ----
 
 // ---- Rust version ----
 
 pub fn tick_count() -> u32 {
-    unsafe {
-        // The original asks Windows first in both cases.
-        let now = GetTickCount();
-        // Converted: `rc2k_core::system::time::clock`.
-        rc2k_core::system::time::clock(now, VIEWER_PANEL.pictures_started.bits(), || {
-            VIEWER_PANEL.picture_clock.bits()
-        })
-    }
+    // The original asks Windows first in both cases.
+    let now = crate::os::ticks();
+    // Converted: `rc2k_core::system::time::clock`.
+    rc2k_core::system::time::clock(now, VIEWER_PANEL.pictures_started.bits(), || {
+        VIEWER_PANEL.picture_clock.bits()
+    })
 }

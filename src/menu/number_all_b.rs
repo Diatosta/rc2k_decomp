@@ -15,7 +15,7 @@ use crate::menu::state_store::MENU_STATE;
 pub fn number_all_b() -> Result<Numbered, Refused> {
     let mut last_number = 0;
     let mut last_player = None;
-    let first: u32 = { TABLE_B_RVA.get() };
+    let first: u32 = TABLE_B_RVA.get();
     let grouped = MENU_STATE.menus.class_mode.get() == 2;
     let all = entries(first, B_ENTRY)?;
     // Converted: `rc2k_core::menu::standings::{Numbering, number}`.

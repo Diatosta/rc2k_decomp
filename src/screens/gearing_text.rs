@@ -22,7 +22,7 @@ const FIRST_STRING: u32 = 0x21F;
 const _: () = assert!(std::mem::offset_of!(Player, gearing) == 0x30);
 
 pub fn current() -> Result<u32, Refused> {
-    let n: u32 = { EVENT_STATE.current_player.get() };
+    let n: u32 = EVENT_STATE.current_player.get();
     let p = player_at(n);
     if n >= 4 || p == 0 {
         return Err(BadInput("a current player past the four").into());

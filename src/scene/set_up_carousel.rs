@@ -171,7 +171,7 @@ fn cars(out: &mut Left, list: u32, size: u32) -> Result<(), BadInput> {
             // `car_kinds` has 35 entries; the original allows numbers up to 0x400 and reads
             // on past the table, into what the image has after it (other statics now:
             // `MOVED` resolves each address to its home).
-            let kind = { crate::store::game_read::<u32>(rva(CAR_KINDS_IDA + 4 * first as usize)) };
+            let kind = crate::store::game_read::<u32>(rva(CAR_KINDS_IDA + 4 * first as usize));
             out.ebx = Some(kind);
             MENU_STATE.carousel.kinds[n].set(kind);
             n += 1;

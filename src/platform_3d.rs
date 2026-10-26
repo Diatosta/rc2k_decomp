@@ -1037,7 +1037,7 @@ pub static DEPTH: Mutex<Option<Depth>> = Mutex::new(None);
 
 /// The depth buffer at the screen's size, made or made again.
 pub fn with_depth<R>(f: impl FnOnce(&mut Depth) -> R) -> R {
-    let (width, height) = { (SCREEN.width.get() as usize, SCREEN.height.get() as usize) };
+    let (width, height) = (SCREEN.width.get() as usize, SCREEN.height.get() as usize);
     let mut depth = DEPTH.lock().unwrap();
     if depth
         .as_ref()

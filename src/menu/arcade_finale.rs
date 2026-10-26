@@ -29,7 +29,7 @@ pub unsafe fn arcade_finale() -> Result<(), Refused> {
     RACE_STATE.results.finish_kind.set(f(8)?);
     RACE_STATE.settings.car_kind_current.set(f(8)?);
     RACE_STATE.settings.kept.set(0);
-    let level = { ARCADE_GAME.level.get() };
+    let level = ARCADE_GAME.level.get();
     // Converted: `rc2k_core::menu::arcade::levels_left`.
     RACE_STATE
         .results

@@ -244,13 +244,11 @@ fn give(data: &[u8], at: u32, size: u32) -> u32 {
     DP_OK
 }
 
-/// A player's event signalled (a Windows event's handle).
+/// A player's event signalled (`sync`'s handle).
 fn signal() -> Signal {
     Arc::new(|event: u32| {
         if event != 0 {
-            unsafe {
-                windows_sys::Win32::System::Threading::SetEvent(crate::pointers::handle(event))
-            };
+            crate::sync::set_event(event);
         }
     })
 }
@@ -340,7 +338,7 @@ pub fn create_group(this: u32, id: u32, name: u32, data: u32, size: u32, _flags:
     let Some(s) = session(this) else {
         return DPERR_UNINITIALIZED;
     };
-    let (result, made) = { s.create_group(&short_name(name), &bytes(data, size)) };
+    let (result, made) = s.create_group(&short_name(name), &bytes(data, size));
     if result == DP_OK {
         put(id, made);
     }
@@ -359,7 +357,7 @@ pub fn create_player(
     let Some(s) = session(this) else {
         return DPERR_UNINITIALIZED;
     };
-    let (result, made) = { s.create_player(&short_name(name), &bytes(data, size), event) };
+    let (result, made) = s.create_player(&short_name(name), &bytes(data, size), event);
     if result == DP_OK {
         put(id, made);
     }
@@ -497,7 +495,7 @@ pub fn enum_sessions(
     if desc == 0 {
         return DPERR_INVALIDPARAMS;
     }
-    let application = { read_desc(desc).application };
+    let application = read_desc(desc).application;
     let mut time = timeout;
     let time_at = crate::pointers::game_address(&mut time as *mut u32);
     for (d, _) in find_sessions(&host, port, application) {
@@ -550,7 +548,7 @@ pub fn open(this: u32, desc: u32, flags: u32) -> u32 {
         Ok(port) => port,
         Err(e) => return e,
     };
-    let d = { read_desc(desc) };
+    let d = read_desc(desc);
     let made = if flags & DPOPEN_CREATE != 0 {
         let d = Desc {
             instance: fresh_guid(),
@@ -686,7 +684,7 @@ pub fn initialize_connection(this: u32, address: u32, _flags: u32) -> u32 {
     }
     // the total size is the first element's data
     let total = { get(address + 20) } as usize;
-    let raw = { bytes(address, total.clamp(24, 4096) as u32) };
+    let raw = bytes(address, total.clamp(24, 4096) as u32);
     let parts = elements(&raw);
     with_state(this, |s| initialize(s, parts))
 }

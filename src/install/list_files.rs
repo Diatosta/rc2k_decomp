@@ -19,11 +19,9 @@ use crate::install::installer::{
 use crate::install::vars::INSTALLER_RUN;
 use rc2k_core::install::script;
 
-/// FindFileData.cFileName (the search record: `files::state`).
+/// FindFileData.cFileName (the search record: `files::search`).
 fn find_name() -> u32 {
-    unsafe {
-        crate::pointers::game_address(&raw const (*crate::files::state::find_data()).cFileName)
-    }
+    crate::files::search::found_name_place()
 }
 
 /// The files of `pattern` (eax) added to the files' table.

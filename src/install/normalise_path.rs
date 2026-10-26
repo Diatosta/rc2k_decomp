@@ -12,19 +12,18 @@
 
 use crate::errors::BadInput;
 use crate::strings::same_text::case_table;
-use windows_sys::Win32::System::Environment::GetCurrentDirectoryA;
 
 // ---- Rust version ----
 
 /// `sub_4030D1`'s asking: the current directory, or None if it cannot be had.
 pub fn current_directory() -> Result<Option<Vec<u8>>, BadInput> {
-    let mut place = [0u8; 0x100];
-    // SAFETY: the place is 0x100 bytes, 0xFF asked for.
-    let len = unsafe { GetCurrentDirectoryA(0xFF, place.as_mut_ptr()) } as usize;
-    match len {
-        0 => Ok(None),
-        0xFF.. => Err(BadInput("a current directory longer than the place for it")),
-        _ => Ok(Some(place[..len].to_vec())),
+    // The game's place for it is 0x100 bytes, 0xFF asked for.
+    match crate::os::current_folder() {
+        None => Ok(None),
+        Some(folder) if folder.len() >= 0xFF => {
+            Err(BadInput("a current directory longer than the place for it"))
+        }
+        Some(folder) => Ok(Some(folder)),
     }
 }
 

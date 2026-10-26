@@ -19,7 +19,7 @@ use crate::text::draw_text::Canvas;
 
 pub fn draw_load_setup_list(canvas: &mut dyn Canvas) -> Result<(), Refused> {
     // Converted: `rc2k_core::screens::slot_lists::setup_page`.
-    let page: u32 = { MENU_PAGES.setup_slot_page.get() };
+    let page: u32 = MENU_PAGES.setup_slot_page.get();
     rc2k_core::screens::slot_lists::setup_page(
         &mut crate::screens::game_screen::SlotScreen::new(canvas),
         rc2k_core::screens::slot_lists::LOAD_SETUP_TITLE,

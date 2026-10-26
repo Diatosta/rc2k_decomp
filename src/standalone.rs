@@ -29,12 +29,9 @@ use std::path::Path;
 use std::sync::OnceLock;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use windows_sys::Win32::Foundation::EXCEPTION_ACCESS_VIOLATION;
-use windows_sys::Win32::System::Com::{CoInitialize, CoUninitialize};
 use windows_sys::Win32::System::Diagnostics::Debug::{
     AddVectoredExceptionHandler, EXCEPTION_POINTERS,
 };
-use windows_sys::Win32::System::Memory::{MEM_RESERVE, PAGE_NOACCESS, VirtualAlloc};
-use windows_sys::Win32::System::Threading::{ExitProcess, GetCurrentProcess, TerminateProcess};
 
 const IMAGE_BASE: usize = 0x400000;
 
@@ -61,12 +58,9 @@ pub(crate) const CODE: [(usize, usize); 2] = [(0x1000, 0xD6CD4), (0xD8000, 0x1F8
 /// and a read of it an address with no home: the fault handler names either. The game's
 /// pointers in the moved blocks are pointed at their targets (`moved::point_into_homes`).
 fn build_image() -> Result<Image, String> {
-    // SAFETY: a reservation only (no access), kept for the program's life.
-    let reserved =
-        unsafe { VirtualAlloc(std::ptr::null(), IMAGE_SIZE, MEM_RESERVE, PAGE_NOACCESS) };
-    let base = match reserved.is_null() {
-        true => 0,
-        false => crate::pointers::map(reserved, IMAGE_SIZE),
+    let base = match crate::os::reserve(IMAGE_SIZE) {
+        None => 0,
+        Some(reserved) => crate::address_map::map(reserved, IMAGE_SIZE),
     };
     if base == 0 {
         return Err("no address range for the game's image".into());
@@ -256,13 +250,9 @@ pub fn finish(why: &str, code: u32) -> ! {
     for (name, calls) in reached {
         log(&format!("  {name}  {calls} calls"));
     }
-    // Not `ExitProcess`: this may be an exception's handler, where the libraries'
+    // Not `std::process::exit`: this may be an exception's handler, where the libraries'
     // leave-taking can hang.
-    // SAFETY: the process's own pseudo-handle; neither call returns.
-    unsafe {
-        TerminateProcess(GetCurrentProcess(), code);
-        ExitProcess(code)
-    }
+    crate::os::terminate(code)
 }
 
 fn place(address: usize) -> String {
@@ -440,7 +430,7 @@ unsafe fn start() {
         crate::system::read_keyboard_type::read_keyboard_type();
         rust("system::read_windows_version");
         crate::system::read_windows_version::read_windows_version();
-        CoInitialize(std::ptr::null());
+        // `CoInitialize` (no COM is used on this thread since phase 11).
         rust("memory::open_own_heap");
         if let Err(e) = crate::memory::open_own_heap::open_own_heap() {
             refused("memory::open_own_heap", e, &r);
@@ -611,7 +601,7 @@ unsafe fn start() {
         crate::system::restore_error_mode::restore_error_mode();
         rust("memory::free_own_heap");
         crate::memory::free_own_heap::free_own_heap();
-        CoUninitialize();
+        // `CoUninitialize` (see `CoInitialize`).
         rust("fatal::show_report_at_exit");
         crate::fatal::show_report_at_exit::show_report_at_exit();
     }
@@ -637,8 +627,7 @@ pub fn run(log_file: &Path, frames: u32) -> ! {
         Ok(image) => image,
         Err(why) => {
             log(&format!("standalone: {why}"));
-            // SAFETY: no arguments but the code; it does not return.
-            unsafe { ExitProcess(2) }
+            crate::os::terminate(2)
         }
     };
     let image = IMAGE.get_or_init(|| image);

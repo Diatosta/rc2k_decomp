@@ -53,7 +53,6 @@ use crate::strings::string_table::{LEXICON_ROOM, lexicon, use_lexicon};
 use crate::strings::text_from_ids::text;
 use rc2k_core::strings::case::CaseTable;
 use rc2k_core::strings::language::Locale;
-use windows_sys::Win32::Globalization::GetSystemDefaultLCID;
 
 // ---- game data ----
 
@@ -220,7 +219,7 @@ pub unsafe fn load_language(
 
         // `sub_403495`
         let kind = file.notice_kind;
-        if GetSystemDefaultLCID() & 0x3FF == 0x11 && kind != 7 {
+        if crate::os::language_id() & 0x3FF == 0x11 && kind != 7 {
             return Err(fatal(
                 0x9000_6044,
                 "You cannot run this version of RC in Japan\t",

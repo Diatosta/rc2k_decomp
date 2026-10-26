@@ -58,14 +58,14 @@ fn any_in_class(drivers: &[u32], c: u32) -> Result<bool, BadInput> {
 pub fn record() -> Result<u32, BadInput> {
     current_event()?;
     let table = crate::records::stages_store::STAGE_TABLES.championship();
-    let (section, index): (u32, u32) = { (SECTION_RVA.get(), INDEX_RVA.get()) };
+    let (section, index): (u32, u32) = (SECTION_RVA.get(), INDEX_RVA.get());
     crate::records::find_record::find_record_in(table, index as i32, section)
 }
 
 /// What the Rust version refuses for the record `rec` (or its fatal error), before
 /// anything: the class count, the drivers and the pack entry's length.
 pub fn check(rec: u32) -> Result<(u32, Vec<u32>, u32), Refused> {
-    let classes: u32 = { EVENT_STATE.classes.get() };
+    let classes: u32 = EVENT_STATE.classes.get();
     if classes == 0 || classes > 0x100 {
         return Err(BadInput("a class count of 0 or past 0x100").into());
     }

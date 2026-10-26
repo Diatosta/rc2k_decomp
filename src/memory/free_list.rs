@@ -19,7 +19,6 @@
 use crate::errors::BadInput;
 use crate::memory::{MemoryList, own_heap, with_figures};
 use crate::pointers::GamePtr;
-use windows_sys::Win32::System::Memory::{MEM_RELEASE, VirtualFree};
 
 // ---- Rust version ----
 
@@ -42,10 +41,8 @@ pub fn free_list(list: *mut MemoryList) -> Result<(), BadInput> {
     at.write(l, "a memory list")?;
     while block != 0 {
         let before = GamePtr::new(block).read::<u32>("a block's header")?;
-        let host = crate::pointers::host(block);
-        crate::pointers::forget(block);
-        // SAFETY: the block is the system's, taken by `allocate`/`virtual_alloc`.
-        unsafe { VirtualFree(host as _, 0, MEM_RELEASE) };
+        // The block is the system's, taken by `allocate`.
+        crate::memory::pages::give_back(block)?;
         block = before;
     }
     Ok(())

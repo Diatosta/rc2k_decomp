@@ -20,14 +20,14 @@ use crate::menu::standings::*;
 /// The Rust version (see the header).
 pub fn enter_record_entry() -> Result<(), Refused> {
     let event = current_event()?;
-    let n: u32 = { EVENT_STATE.current_player.get() };
+    let n: u32 = EVENT_STATE.current_player.get();
     if n >= 4 || player(n) == 0 || get(player(n) + 0x18)? == 0 {
         return Err(BadInput("a current player past 3, missing or without a name").into());
     }
     let p = player(n);
     let slot = (event - { EVENTS_RVA.get() }) / 0x618;
     DRAW_WORK.figure.set(slot);
-    let cheats = { CHEAT_VARS.cheats.get() };
+    let cheats = CHEAT_VARS.cheats.get();
     let sealed = crate::menu::sealed_player_time::sealed_player_time(slot)?;
     // Converted: `rc2k_core::menu::bests::enter_tenth`, then `rank_entries`.
     use rc2k_core::menu::bests;

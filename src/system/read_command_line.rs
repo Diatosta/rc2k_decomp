@@ -31,8 +31,6 @@ use crate::install::vars::INSTALLER_RUN;
 use crate::pointers::GamePtr;
 use crate::session::Dword;
 use crate::system::start_texts::START_TEXTS;
-use windows_sys::Win32::System::Environment::GetCommandLineA;
-use windows_sys::Win32::UI::WindowsAndMessaging::MessageBoxA;
 
 // ---- game data ----
 
@@ -65,20 +63,16 @@ pub fn show_version_and_leave() -> ! {
         START_TEXTS.second_text.addr() as usize,
         "the second text",
     ));
-    text.push(0);
+    let mut kept = text.clone();
+    kept.push(0);
     let place = crate::pointers::game_address(crate::fatal::state::TEXT.ptr()); // Text
     GamePtr::new(place)
-        .write_bytes(&text, "the version's text")
+        .write_bytes(&kept, "the version's text")
         .unwrap_or_else(|e| leave(e));
-    // SAFETY: both texts end in their NULs, written above.
-    unsafe {
-        MessageBoxA(
-            std::ptr::null_mut(),
-            crate::pointers::host(place) as *const u8,
-            crate::pointers::host(caption) as *const u8,
-            0x2040,
-        )
-    };
+    // MB_ICONINFORMATION | MB_TASKMODAL.
+    let caption =
+        crate::files::cstring(GamePtr::new(caption), "the caption").unwrap_or_else(|e| leave(e));
+    crate::os::message_box(crate::os::Icon::Information, &caption, &text);
     // The exit path (0x401116) ends in `ExitProcess`; so does the standalone, here.
     crate::standalone::finish(&format!("the game's way out {EXIT_PATH:#x} was reached"), 0)
 }
@@ -133,12 +127,13 @@ pub fn read_command_line(line: &'static [u8]) -> Result<Asked, BadInput> {
     })
 }
 
-/// The Rust version on the program's own command line (`GetCommandLineA`, copied and kept
-/// as a region); `-v` shows the version and leaves through `start`'s exit path.
+/// The Rust version on the program's own command line (`os::command_line`, for
+/// `GetCommandLineA`; kept as a region); `-v` shows the version and leaves through
+/// `start`'s exit path.
 pub fn read_own_command_line() -> Result<(), BadInput> {
-    // SAFETY: `GetCommandLineA` gives the process's NUL-ended command line.
-    let own = unsafe { std::ffi::CStr::from_ptr(GetCommandLineA() as *const _) };
-    let line: &'static [u8] = Box::leak(own.to_bytes_with_nul().to_vec().into_boxed_slice());
+    let mut own = crate::os::command_line();
+    own.push(0);
+    let line: &'static [u8] = Box::leak(own.into_boxed_slice());
     crate::pointers::lend(line.as_ptr(), line.len());
     if read_command_line(line)? == Asked::Version {
         show_version_and_leave();

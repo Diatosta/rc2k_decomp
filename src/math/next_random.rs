@@ -35,7 +35,7 @@ pub fn with_random<R>(f: impl FnOnce(&mut rc2k_core::math::random::Random) -> R)
 static OWNER: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::new(0);
 
 fn this_thread() -> u32 {
-    unsafe { windows_sys::Win32::System::Threading::GetCurrentThreadId() }
+    crate::sync::thread_id()
 }
 
 /// Waits while another thread owns the generator (`own_random`).

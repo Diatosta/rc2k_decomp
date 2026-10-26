@@ -13,20 +13,11 @@
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
 
-use windows_sys::Win32::System::Threading::CreateEventA;
-
 // ---- Rust version ----
 
 /// The handle, 0 for none.
 pub fn create_event(manual_reset: u32, signalled: u32) -> u32 {
-    unsafe {
-        crate::pointers::handle_number(CreateEventA(
-            std::ptr::null(),
-            manual_reset as i32,
-            signalled as i32,
-            std::ptr::null(),
-        ))
-    }
+    crate::sync::create_event(manual_reset != 0, signalled != 0)
 }
 
 /// `cmp eax, 1` on a handle: (carry, zero).

@@ -15,8 +15,6 @@
 
 use crate::errors::FatalError;
 use crate::framework::{Regs, log};
-use std::ffi::c_void;
-use windows_sys::Win32::System::Threading::CreateThread;
 
 // ---- slot layout ----
 
@@ -34,37 +32,25 @@ pub fn start_slot_thread(slot: u32) -> Result<(), FatalError> {
     // The slot holds the routine as the image did, an IDA address: the thread's
     // parameter, `run_routine` finds its Rust version by it.
     let routine = crate::pointers::read_or_end::<u32>(slot + ROUTINE as u32, what) as usize;
-    // SAFETY: the thread's id goes straight into the slot (checked above), as the
-    // original's `CreateThread` put it there before the thread could look for its slot.
-    let handle = unsafe {
-        CreateThread(
-            std::ptr::null(),
-            0,
-            Some(run_routine),
-            std::ptr::without_provenance::<c_void>(routine),
-            0,
-            crate::pointers::host(slot + THREAD_ID as u32).cast(),
-        )
-    };
-    if handle.is_null() {
+    // The thread's id goes into the slot before the thread can look for its slot, as
+    // the original's `CreateThread` put it there.
+    let id = crate::sync::new_thread_id();
+    crate::pointers::write_or_end(slot + THREAD_ID as u32, id, what);
+    let Some(handle) = crate::sync::spawn(&format!("slot {routine:#x}"), id, move || {
+        run_routine(routine as u32)
+    }) else {
         return Err(FatalError {
             code: 0x8010_8601,
             message: "",
         });
-    }
-    crate::pointers::write_or_end(
-        slot + HANDLE as u32,
-        crate::pointers::handle_number(handle),
-        what,
-    );
+    };
+    crate::pointers::write_or_end(slot + HANDLE as u32, handle, what);
     Ok(())
 }
 
 /// A slot's thread: its routine (the IDA address the slot holds) run by its Rust version
 /// (`thread_slot::run_routine`). A routine with none, or one that refuses, ends the program.
-extern "system" fn run_routine(routine: *mut c_void) -> u32 {
-    // The parameter is the IDA address itself, no memory.
-    let routine = routine.addr() as u32;
+fn run_routine(routine: u32) {
     match crate::threading::thread_slot::run_routine(routine) {
         Some(Ok(())) => {}
         Some(Err(crate::errors::Refused::Fatal(error))) => {
@@ -83,5 +69,4 @@ extern "system" fn run_routine(routine: *mut c_void) -> u32 {
         ),
         None => crate::standalone::not_ported(routine as usize, "threading::start_slot_thread"),
     }
-    0
 }

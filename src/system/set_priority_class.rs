@@ -9,16 +9,13 @@
 //! another, the class after each read back; the class and the switch put back.
 
 use crate::session::FLAGS;
-use windows_sys::Win32::System::Threading::{GetCurrentProcess, SetPriorityClass};
 
 // ---- game data ----
 
 // ---- Rust version ----
 
-pub unsafe fn set_priority_class(class: u32) {
-    unsafe {
-        if FLAGS.keep_priority.get() == 0 {
-            SetPriorityClass(GetCurrentProcess(), class);
-        }
+pub fn set_priority_class(class: u32) {
+    if FLAGS.keep_priority.get() == 0 {
+        crate::os::set_priority_class(class);
     }
 }

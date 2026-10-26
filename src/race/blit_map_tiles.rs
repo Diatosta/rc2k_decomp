@@ -27,7 +27,7 @@ pub unsafe fn blit_map_tiles(texture: u32, first_x: u32, first_y: u32) -> Result
     use rc2k_core::race::map::{
         BLITTED, any_inside, check_tiles, pixel_width, row_gap, tile_index, tile_offset,
     };
-    if unsafe { lock_texture(texture) }?.carry {
+    if { lock_texture(texture) }?.carry {
         return Ok(());
     }
     let (bytes, pitch, pixels) = (
@@ -37,7 +37,7 @@ pub unsafe fn blit_map_tiles(texture: u32, first_x: u32, first_y: u32) -> Result
     );
     let tiles = MAP.tiles.get();
     if let Err(e) = check_tiles(pixels, tiles, any_inside(first_x, first_y)) {
-        unsafe { unlock_texture(texture) }?;
+        { unlock_texture(texture) }?;
         return Err(e.into());
     }
     let gap = row_gap(pitch, bytes);
@@ -53,7 +53,7 @@ pub unsafe fn blit_map_tiles(texture: u32, first_x: u32, first_y: u32) -> Result
                 {
                     Ok(t) => t,
                     Err(e) => {
-                        unsafe { unlock_texture(texture) }?;
+                        { unlock_texture(texture) }?;
                         return Err(e.into());
                     }
                 },
@@ -68,7 +68,7 @@ pub unsafe fn blit_map_tiles(texture: u32, first_x: u32, first_y: u32) -> Result
                 ) {
                     Ok(v) => v,
                     Err(e) => {
-                        unsafe { unlock_texture(texture) }?;
+                        { unlock_texture(texture) }?;
                         return Err(e.into());
                     }
                 }
@@ -109,6 +109,6 @@ pub unsafe fn blit_map_tiles(texture: u32, first_x: u32, first_y: u32) -> Result
         }
     }
     // eax at the unlock: the texture, as the lock left it.
-    unsafe { unlock_texture(texture) }?;
+    { unlock_texture(texture) }?;
     Ok(())
 }

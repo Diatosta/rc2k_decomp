@@ -12,10 +12,5 @@ use crate::net::store::NET;
 
 /// The Rust version.
 pub fn lock_received() {
-    unsafe {
-        windows_sys::Win32::System::Threading::WaitForSingleObject(
-            crate::pointers::handle(NET.mutex.get()),
-            u32::MAX,
-        )
-    };
+    crate::sync::wait(NET.mutex.get(), crate::sync::INFINITE);
 }

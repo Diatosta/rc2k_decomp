@@ -19,11 +19,11 @@ const _: () = assert!(std::mem::offset_of!(Player, car_number) == 8);
 const _: () = assert!(std::mem::offset_of!(Player, no_turbo) == 0x90);
 
 pub fn take_shown_car(list: u32) -> Result<(), Refused> {
-    let current: u32 = { EVENT_STATE.current_player.get() };
+    let current: u32 = EVENT_STATE.current_player.get();
     if current >= PLAYERS {
         return Err(BadInput("a current player past the four").into());
     }
-    let shown: u32 = { EVENT_STATE.shown_car.get() };
+    let shown: u32 = EVENT_STATE.shown_car.get();
     // Converted: `rc2k_core::menu::player::Player::take_car`.
     {
         let entry = crate::pointers::GamePtr::new(list.wrapping_add(shown.wrapping_mul(4)))

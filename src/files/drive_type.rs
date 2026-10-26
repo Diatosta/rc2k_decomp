@@ -9,8 +9,6 @@
 //! Hook removed 2026-10-22 (conversion phase 4): Rust callers call this directly; the
 //! registers above are the original's, for reference.
 
-use windows_sys::Win32::Storage::FileSystem::GetDriveTypeA;
-
 // ---- Rust version ----
 
 /// The root that is asked about: `x:\`, or none for the current drive.
@@ -19,11 +17,6 @@ pub fn drive_root(letter: u8) -> Option<[u8; 4]> {
     rc2k_core::files::paths::drive_root(letter, crate::strings::same_text::lower)
 }
 
-pub unsafe fn drive_type(letter: u8) -> u32 {
-    unsafe {
-        match drive_root(letter) {
-            Some(root) => GetDriveTypeA(root.as_ptr()),
-            None => GetDriveTypeA(std::ptr::null()),
-        }
-    }
+pub fn drive_type(letter: u8) -> u32 {
+    crate::os::drive_type(drive_root(letter))
 }

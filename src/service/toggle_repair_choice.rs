@@ -26,7 +26,7 @@ pub fn toggle_repair_choice() -> Result<(), Refused> {
     // refuses).
     let item = flagged_item()?;
     let (mut f, mut m) = (flags(), marks());
-    let budget = { EVENT_STATE.service_minutes.get() as i32 };
+    let budget = EVENT_STATE.service_minutes.get() as i32;
     let (total, status) =
         rc2k_core::service::repairs::toggle_choice(&mut f, &mut m, item as usize, budget, time_of)
             .map_err(|e| BadInput(e.0))?;

@@ -32,7 +32,6 @@ use crate::files::scratch::SCRATCH;
 use crate::pointers::GamePtr;
 use crate::session::MACHINE;
 use rc2k_core::system::processor::{Var, test};
-use windows_sys::Win32::System::SystemInformation::GetTickCount;
 
 // ---- game data ----
 
@@ -110,7 +109,7 @@ impl Processor for Real {
         fpu_words()
     }
     fn ticks(&self) -> u32 {
-        unsafe { GetTickCount() }
+        crate::os::ticks()
     }
     fn cycles(&self) -> u64 {
         unsafe { _rdtsc() }

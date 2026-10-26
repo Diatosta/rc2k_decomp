@@ -1447,7 +1447,7 @@ fn comparisons_with_nan() {
         let mut p = r;
         let z = n;
         let one = unsafe { normalise_in_place(r.as_mut_ptr(), z) };
-        let two = { plain::normalise_in_place(p.as_mut_ptr(), z) };
+        let two = plain::normalise_in_place(p.as_mut_ptr(), z);
         compare(
             "normalise_in_place (nan zero)",
             EXACT,
@@ -1557,7 +1557,7 @@ fn pointer_functions() {
         }
         let (mut r, mut p) = (v, v);
         let one = unsafe { normalise_in_place(r.as_mut_ptr(), zero) };
-        let two = { plain::normalise_in_place(p.as_mut_ptr(), zero) };
+        let two = plain::normalise_in_place(p.as_mut_ptr(), zero);
         compare(
             "normalise_in_place",
             EXACT,

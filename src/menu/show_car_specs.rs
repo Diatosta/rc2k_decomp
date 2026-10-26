@@ -21,7 +21,7 @@ pub unsafe fn show_car_specs(c: &Carried) -> Result<(), Refused> {
     // Converted: `rc2k_core::menu::cars::specs_list`.
     use rc2k_core::menu::cars::{SpecsList, specs_list};
     let mut r = *c;
-    let kind: u32 = { EVENT_STATE.event_type.get() };
+    let kind: u32 = EVENT_STATE.event_type.get();
     let Some((list, choice)) = specs_list(kind) else {
         return Err(FatalError {
             code: 0x8071_3214,

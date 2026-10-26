@@ -1282,12 +1282,12 @@ mod asm_reference {
                     continue;
                 }
                 unsafe { sun_slant_asm(sun, turn) };
-                let want = { [0x62400C, 0x643AC4, 0x643AC8].map(|a| game_read::<u32>(rva(a))) };
+                let want = [0x62400C, 0x643AC4, 0x643AC8].map(|a| game_read::<u32>(rva(a)));
                 for a in [0x62400C, 0x643AC4, 0x643AC8] {
                     game_write(rva(a), 0xAAAA_AAAAu32);
                 }
                 sun_slant(sun, turn);
-                let got = { [0x62400C, 0x643AC4, 0x643AC8].map(|a| game_read::<u32>(rva(a))) };
+                let got = [0x62400C, 0x643AC4, 0x643AC8].map(|a| game_read::<u32>(rva(a)));
                 assert_eq!(want[0], got[0]);
                 for k in 1..3 {
                     assert!(

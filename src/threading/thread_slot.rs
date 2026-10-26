@@ -67,7 +67,7 @@ pub static SLOTS: Place<[ThreadSlot; SLOT_COUNT]> = Place::new([
 pub fn run_routine(routine: u32) -> Option<Result<(), Refused>> {
     match routine {
         0x4078DA => Some(crate::input::input_thread::thread_routine()),
-        0x409CCE => Some(unsafe { crate::audio::thread::audio_thread((slot(AUDIO)) as u32) }),
+        0x409CCE => Some(crate::audio::thread::audio_thread(slot(AUDIO) as u32)),
         0x4183C3 => Some(crate::net::receive_thread::receive_thread()),
         0x410C17 => Some(crate::threading::shutdown_thread::shutdown_thread()),
         _ => None,

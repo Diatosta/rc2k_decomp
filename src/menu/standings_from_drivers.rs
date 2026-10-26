@@ -11,7 +11,7 @@ use crate::menu::standings::*;
 
 /// The Rust version (see the header): the registers it leaves.
 pub fn standings_from_drivers() -> Result<(), Refused> {
-    let first: u32 = { TABLE_A_RVA.get() };
+    let first: u32 = TABLE_A_RVA.get();
     let drivers = entries(crate::menu::drivers_store::DRIVERS.first(), DRIVER)?;
     if first == 0 || drivers.len() > 200 {
         return Err(BadInput("no standings table, or more drivers than it holds").into());

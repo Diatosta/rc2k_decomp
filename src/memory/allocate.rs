@@ -19,7 +19,6 @@ use crate::errors::{BadInput, FatalError, Refused};
 use crate::memory::{HEADER_LEN, MemoryList, own_heap, with_figures};
 use crate::pointers::GamePtr;
 use rc2k_core::memory::block_size;
-use windows_sys::Win32::System::Memory::{MEM_COMMIT, MEM_RESERVE, PAGE_READWRITE, VirtualAlloc};
 
 // ---- Rust version ----
 
@@ -34,32 +33,21 @@ pub fn allocate(list: *mut MemoryList, bytes: u32) -> Result<*mut u8, Refused> {
         let (false, Some(whole)) = (list.is_null(), whole) else {
             return Err(BadInput("no list, or a size that wraps").into());
         };
-        // SAFETY: a plain reservation, nothing passed in.
-        let block = unsafe {
-            VirtualAlloc(
-                std::ptr::null(),
-                whole as usize,
-                MEM_COMMIT | MEM_RESERVE,
-                PAGE_READWRITE,
-            )
-        } as *mut u32;
-        if block.is_null() {
+        let Some(block) = crate::memory::pages::take(whole as usize) else {
             return Err(FatalError {
                 code: 0x8010_8571,
                 message: "Need more virtual memory!",
             }
             .into());
-        }
-        crate::pointers::lend_system_block(block, whole as usize);
+        };
         let at = GamePtr::new(crate::pointers::game_address(list));
         let mut l = at.read::<MemoryList>("a memory list")?;
-        let header = l.add(crate::pointers::game_address(block), bytes);
+        let header = l.add(block, bytes);
         at.write(l, "a memory list")?;
-        GamePtr::new(crate::pointers::game_address(block)).write(header[0], "a block's header")?;
-        GamePtr::new(crate::pointers::game_address(block) + 4)
-            .write(header[1], "a block's header")?;
+        GamePtr::new(block).write(header[0], "a block's header")?;
+        GamePtr::new(block + 4).write(header[1], "a block's header")?;
         with_figures(|f| f.taken(bytes));
-        Ok((block as *mut u8).wrapping_add(HEADER_LEN as usize))
+        Ok(crate::pointers::host(block + HEADER_LEN))
     }
 }
 

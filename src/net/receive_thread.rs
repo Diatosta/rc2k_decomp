@@ -62,6 +62,7 @@ pub fn receive_thread() -> Result<(), Refused> {
         NET.receive_done.set(1);
         log_write(QUIT_TEXT.as_ptr().cast(), true, 2);
         running.set(0);
-        windows_sys::Win32::System::Threading::ExitThread(0)
+        // The routine's end ends its thread (the original's `ExitThread`).
+        Ok(())
     }
 }

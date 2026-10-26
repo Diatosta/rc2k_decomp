@@ -24,8 +24,6 @@ use crate::logfile::numeric::scratch;
 use crate::logfile::write_line::{LOG_PATH, level};
 use crate::session::MACHINE as M;
 use std::sync::atomic::{AtomicU32, Ordering};
-use windows_sys::Win32::Storage::FileSystem::GetDiskFreeSpaceA;
-use windows_sys::Win32::System::SystemInformation::{GlobalMemoryStatus, MEMORYSTATUS};
 
 // ---- game data ----
 
@@ -43,20 +41,10 @@ pub static FREE_SPACE_KB: AtomicU32 = AtomicU32::new(0);
 /// it cannot be asked or is 2^42 bytes or more. The original asks for the four numbers in
 /// the scratch block at 0x93E8B0 (`g_pngInfo`, written before read by each of its users):
 /// here locals.
-pub unsafe fn free_space_kb() -> u32 {
-    let (mut total, mut free, mut sector_bytes, mut cluster_sectors) = (0u32, 0u32, 0u32, 0u32);
-    if unsafe {
-        GetDiskFreeSpaceA(
-            std::ptr::null(),
-            &mut cluster_sectors,
-            &mut sector_bytes,
-            &mut free,
-            &mut total,
-        )
-    } == 0
-    {
+pub fn free_space_kb() -> u32 {
+    let Some([cluster_sectors, sector_bytes, free, _]) = crate::os::disk_free(None) else {
         return u32::MAX;
-    }
+    };
     // The cluster's bytes as 32 bits, times the free clusters as 64.
     // Converted: `rc2k_core::files::log::free_kb`.
     rc2k_core::files::log::free_kb(cluster_sectors, sector_bytes, free)
@@ -91,10 +79,7 @@ pub unsafe fn start_log() -> Result<(), BadInput> {
         let scratch = scratch();
         write_date_text(scratch)?;
         // `Buffer` (0x4E0558), written and read here only: a local.
-        let mut memory: MEMORYSTATUS = std::mem::zeroed();
-        memory.dwLength = 0x20;
-        GlobalMemoryStatus(&mut memory);
-        let memory = &memory;
+        let memory = crate::os::memory();
         let free = free_space_kb();
         FREE_SPACE_KB.store(free, Ordering::Relaxed);
         let m = Machine {
@@ -119,12 +104,7 @@ pub unsafe fn start_log() -> Result<(), BadInput> {
             platform_text: c_text(
                 crate::pointers::host_at((M.version_addr() + 0x14) as usize) as *const u8
             )?,
-            memory: [
-                memory.dwAvailPhys as u32,
-                memory.dwTotalPhys as u32,
-                memory.dwAvailPageFile as u32,
-                memory.dwTotalPageFile as u32,
-            ],
+            memory,
             free_kb: free,
         };
         for (message, newline) in head(&m) {

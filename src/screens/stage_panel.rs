@@ -178,6 +178,6 @@ pub fn draw_records_for_group(
 
 /// Address of the string id of item `n` of the current menu, or None without a menu.
 pub fn menu_item_id(n: u32) -> Option<u32> {
-    let menu: u32 = { LOOP_FLAGS.menu.get() };
+    let menu: u32 = LOOP_FLAGS.menu.get();
     (menu != 0).then(|| menu.wrapping_add(4 + n * 0x5C + 0x14))
 }

@@ -10,28 +10,12 @@
 //! game is found as in the game: its window is not of that class).
 //! `start` calls it directly (2026-10-23); the registers above are the original's, for
 //! reference.
+//! Since phase 11 (no Win32): no window of that class is ever made (SDL makes the game's,
+//! of its own class), so the original's search found none in the standalone and this says
+//! so outright; `hInstance` was read by nothing and is no longer written. A second copy
+//! runs, as it did.
 
-use crate::session::MACHINE;
-use crate::system::start_texts::START_TEXTS;
-use windows_sys::Win32::System::LibraryLoader::GetModuleHandleA;
-use windows_sys::Win32::UI::WindowsAndMessaging::FindWindowA;
-
-// ---- game data ----
-
-// ---- Rust version ----
-
-/// True if the game runs already.
-pub unsafe fn find_running_game() -> bool {
-    unsafe {
-        MACHINE
-            .instance
-            .set(crate::pointers::game_address(GetModuleHandleA(
-                std::ptr::null(),
-            )));
-        !FindWindowA(
-            crate::pointers::host(START_TEXTS.class_name.addr()) as *const u8,
-            std::ptr::null(),
-        )
-        .is_null()
-    }
+/// True if the game runs already: never (see the header).
+pub fn find_running_game() -> bool {
+    false
 }

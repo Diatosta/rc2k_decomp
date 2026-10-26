@@ -65,7 +65,7 @@ impl finish::Finish for Game {
     }
 
     fn find_leader(&mut self, group_b: bool) -> Result<Option<u32>, Refused> {
-        let table = { CHAMP_VIEW.champ_history.get() };
+        let table = CHAMP_VIEW.champ_history.get();
         let found = if group_b {
             crate::menu::first_player_b::first_player_b(table, 0)?
         } else {

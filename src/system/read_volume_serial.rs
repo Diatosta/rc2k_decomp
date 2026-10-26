@@ -14,7 +14,6 @@
 //! reference.
 
 use crate::files::scratch::SCRATCH;
-use windows_sys::Win32::Storage::FileSystem::GetVolumeInformationA;
 
 // ---- game data ----
 
@@ -23,23 +22,17 @@ use windows_sys::Win32::Storage::FileSystem::GetVolumeInformationA;
 /// The serial and name written (see the header). Its one caller, `start`, reads eax
 /// after it (register liveness, 2026-10-23: eax only), which is `start`'s own esi at
 /// entry, not anything of this function's: so it returns nothing.
-pub unsafe fn read_volume_serial() {
-    let at = crate::pointers::host(SCRATCH.buffer.addr());
-    unsafe {
-        let worked = GetVolumeInformationA(
-            std::ptr::null(),
-            at.add(4),
-            12,
-            at as *mut u32,
-            std::ptr::null_mut(),
-            std::ptr::null_mut(),
-            std::ptr::null_mut(),
-            0,
-        ) != 0;
-        if worked {
-            // Converted: `rc2k_core::system::machine::volume_registers` (only its
-            // writing of +0xF matters here).
-            rc2k_core::system::machine::volume_registers(&mut *(at as *mut [u8; 16]));
-        }
-    }
+pub fn read_volume_serial() {
+    let Some((serial, name)) = crate::os::volume() else {
+        return;
+    };
+    let mut info = [0u8; 16];
+    info[..4].copy_from_slice(&serial.to_le_bytes());
+    info[4..].copy_from_slice(&name);
+    // Converted: `rc2k_core::system::machine::volume_registers` (only its writing of +0xF
+    // matters here).
+    rc2k_core::system::machine::volume_registers(&mut info);
+    crate::pointers::GamePtr::new(SCRATCH.buffer.addr())
+        .write_bytes(&info, "the scratch buffer")
+        .unwrap_or_else(|e| crate::fatal::raise::end("system::read_volume_serial", e));
 }

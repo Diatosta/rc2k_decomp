@@ -15,7 +15,7 @@ use crate::menu::state_store::MENU_STATE;
 
 /// The Rust version (see the header): the registers it leaves.
 pub fn copy_standings_summary() -> Result<(), Refused> {
-    let (summary, first): (u32, u32) = { (CHAMP_VIEW.summary.get(), TABLE_A_RVA.get()) };
+    let (summary, first): (u32, u32) = (CHAMP_VIEW.summary.get(), TABLE_A_RVA.get());
     if summary == 0 || first == 0 {
         return Err(BadInput("no standings tables").into());
     }

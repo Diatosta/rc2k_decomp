@@ -1855,12 +1855,12 @@ mod tests {
             },
             |&(v, flat)| {
                 let mut scratch = 0xAAAA_AAAAu32;
-                let o = { load::sun_on_screen(&v, flat, &raw mut scratch) };
+                let o = load::sun_on_screen(&v, flat, &raw mut scratch);
                 (o, scratch)
             },
             |&(v, flat)| {
                 let mut scratch = 0xAAAA_AAAAu32;
-                let o = { x87_load::sun_on_screen(&v, flat, &raw mut scratch) };
+                let o = x87_load::sun_on_screen(&v, flat, &raw mut scratch);
                 (o, scratch)
             },
             |a, b| {

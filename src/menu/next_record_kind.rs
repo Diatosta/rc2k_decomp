@@ -16,8 +16,8 @@ use crate::menu::event_store::EVENT_STATE;
 /// The Rust version (see the header): the kind (eax in the original), also kept in
 /// `dword_7559EC`.
 pub fn next_record_kind() -> Result<u32, Refused> {
-    let section: u32 = { EVENT_STATE.section.get() };
-    let index: u32 = { EVENT_STATE.index.get() };
+    let section: u32 = EVENT_STATE.section.get();
+    let index: u32 = EVENT_STATE.index.get();
     let table =
         crate::pointers::GamePtr::new(crate::records::stages_store::STAGE_TABLES.championship())
             .bytes("the championship's stage table")?;

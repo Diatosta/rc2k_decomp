@@ -48,7 +48,7 @@ impl Outside for Game {
         file_exists(path)
     }
     unsafe fn drive_type(&mut self, letter: u8) -> u32 {
-        unsafe { drive_type(letter) }
+        drive_type(letter)
     }
     unsafe fn set_directory(&mut self, path: *const u8) -> bool {
         crate::menu::event_flow::refuse_here(

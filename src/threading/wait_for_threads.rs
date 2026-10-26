@@ -17,13 +17,12 @@
 use crate::threading::thread_slot::{ThreadSlot, slot_ref};
 
 /// `threading::resume_slot_thread` (0x410D1D): the slot's thread resumed if it was
-/// suspended (+0xC 0xFF, made 1).
+/// suspended (+0xC 0xFF, made 1). No thread is ever suspended (nothing sets 0xFF; the
+/// `ResumeThread` it called did nothing), so only the flag is kept.
 fn resume_slot_thread(slot: &ThreadSlot) {
-    use windows_sys::Win32::System::Threading::ResumeThread;
     // Converted: `rc2k_core::threading::resumes`.
     if rc2k_core::threading::resumes(slot.flag.get()) {
         slot.flag.set(rc2k_core::threading::RESUMED);
-        unsafe { ResumeThread(crate::pointers::handle(slot.handle.get())) };
     }
 }
 
@@ -32,8 +31,6 @@ fn resume_slot_thread(slot: &ThreadSlot) {
 pub fn wait_for_threads() -> Result<u32, crate::errors::BadInput> {
     // Converted: `rc2k_core::threading::{wait_order, WAIT_MS}`.
     use rc2k_core::threading::{WAIT_MS, WAITED, wait_order};
-    use windows_sys::Win32::Foundation::CloseHandle;
-    use windows_sys::Win32::System::Threading::WaitForMultipleObjects;
     let mut handles = [0u32; WAITED];
     for (k, handle) in handles.iter_mut().enumerate() {
         let slot = slot_ref(k)?;
@@ -41,10 +38,10 @@ pub fn wait_for_threads() -> Result<u32, crate::errors::BadInput> {
         resume_slot_thread(slot);
     }
     // The stack: the last pushed first.
-    let array = wait_order(handles).map(crate::pointers::handle);
-    let rc = unsafe { WaitForMultipleObjects(WAITED as u32, array.as_ptr(), 1, WAIT_MS) };
+    let array = wait_order(handles);
+    let rc = crate::sync::wait_all_threads(&array, WAIT_MS);
     for handle in array {
-        unsafe { CloseHandle(handle) };
+        crate::sync::close(handle);
     }
     Ok(rc)
 }

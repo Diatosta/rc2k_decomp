@@ -15,17 +15,19 @@ use std::sync::atomic::Ordering::Relaxed;
 
 /// The Rust version (see the header).
 pub fn free_own_heap() {
-    use windows_sys::Win32::System::Memory::{MEM_RELEASE, VirtualFree};
-    unsafe {
-        // Converted: `rc2k_core::memory::own_heap_on`.
-        if !rc2k_core::memory::own_heap_on(crate::memory::own_heap()) {
-            return;
-        }
-        let heap = HEAP_BASE.load(Relaxed);
-        if heap != 0 {
-            VirtualFree(crate::pointers::host(heap) as _, 0, MEM_RELEASE);
-        }
-        HEAP_BASE.store(0, Relaxed);
-        HEAP_CURSOR.store(0, Relaxed);
+    // Converted: `rc2k_core::memory::own_heap_on`.
+    if !rc2k_core::memory::own_heap_on(crate::memory::own_heap()) {
+        return;
     }
+    let heap = HEAP_BASE.load(Relaxed);
+    // The heap is `virtual_alloc`'s (`open_own_heap`); its region and range go with it
+    // (they were left behind before phase 11).
+    if heap != 0 && crate::memory::pages::give_back(heap).is_err() {
+        crate::fatal::raise::end(
+            "memory::free_own_heap",
+            crate::errors::BadInput("the own heap was not taken from the system"),
+        );
+    }
+    HEAP_BASE.store(0, Relaxed);
+    HEAP_CURSOR.store(0, Relaxed);
 }

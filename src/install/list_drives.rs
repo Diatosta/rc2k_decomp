@@ -28,7 +28,7 @@ pub fn list_drives() {
     loop {
         // Converted: `rc2k_core::install::drives` (`offered`, `LISTED`, `free`, `text`,
         // `menu`, `items`).
-        let kind = unsafe { crate::files::drive_type::drive_type(letter as u8) };
+        let kind = crate::files::drive_type::drive_type(letter as u8);
         if drives::offered(kind)
             && let Some(free) =
                 crate::files::drive_free_space_kb::drive_free_space_kb(letter, &mut game_api)

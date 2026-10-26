@@ -14,7 +14,7 @@ use crate::menu::standings::*;
 pub fn number_standings_a(class: u32) -> Result<Numbered, Refused> {
     let mut last_number = 0;
     let mut last_player = None;
-    let first: u32 = { TABLE_A_RVA.get() };
+    let first: u32 = TABLE_A_RVA.get();
     let all = entries(first, A_ENTRY)?;
     // Converted: `rc2k_core::menu::standings::{Numbering, number}`.
     use rc2k_core::menu::standings::{Numbering, number};

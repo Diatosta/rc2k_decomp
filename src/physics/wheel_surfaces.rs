@@ -84,8 +84,8 @@ fn steps() -> Result<(), Refused> {
         let cc = c as usize;
         let f = (CAR.probe_point_face[cc].get() << 6).wrapping_add(COURSE.course_faces.get());
         let t1 = infos + (byte(f + 1)? << 6);
-        let mut edx = { share_bit(0x2D2B14, c) };
-        let mut ebx = { share_bit(0x2D2A14, c) };
+        let mut edx = share_bit(0x2D2B14, c);
+        let mut ebx = share_bit(0x2D2A14, c);
         edx = (edx >> 15) & 1;
         ebx = (ebx >> 15) & 1;
         if CONTACT_WORK.probe_face_flip[cc].get() == 1 {

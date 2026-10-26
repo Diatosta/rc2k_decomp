@@ -102,8 +102,38 @@ fn next_event() -> Option<Event> {
     }
 }
 
+/// Set by `restore_window` (any thread): the window is restored at the next pump, on the
+/// thread that made it.
+static RESTORE: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+
+/// The game's window restored if it is minimised (`IsIconic` / `ShowWindow(SW_RESTORE)`),
+/// at the next pump of SDL's events.
+pub fn restore_window() {
+    RESTORE.store(true, std::sync::atomic::Ordering::Relaxed);
+}
+
+/// The window restored if asked and minimised (on the window's thread).
+fn restore_if_asked() {
+    if !RESTORE.swap(false, std::sync::atomic::Ordering::Relaxed) {
+        return;
+    }
+    let Ok(screen) = SCREEN.lock() else {
+        return;
+    };
+    if let Some(screen) = screen.as_ref() {
+        let window = std::ptr::with_exposed_provenance_mut::<SDL_Window>(screen.window);
+        // SAFETY: the window SDL made, alive while `SCREEN` holds it (locked here).
+        unsafe {
+            if SDL_GetWindowFlags(window).0 & SDL_WINDOW_MINIMIZED.0 != 0 {
+                SDL_RestoreWindow(window);
+            }
+        }
+    }
+}
+
 /// SDL's events: the window's closing, and the keys the menus take.
 fn pump() {
+    restore_if_asked();
     while let Some(event) = next_event() {
         match event {
             Event::Quit => {
@@ -371,7 +401,7 @@ pub fn set_menu_mode_now() -> bool {
     // The 3D drawing noted so far, before the screen is shown, written or changed.
     crate::platform_3d::flush();
     MENU_MODE.count_call();
-    let mode = { SCREEN_MODE.menu_mode.get() };
+    let mode = SCREEN_MODE.menu_mode.get();
     let done = set_screen_mode(mode);
     if let Err(why) = &done {
         log(&format!("platform: screen mode {mode:#x}: {why}"));

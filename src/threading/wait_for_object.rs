@@ -14,13 +14,11 @@
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
 
-use windows_sys::Win32::System::Threading::WaitForSingleObject;
-
 // ---- Rust version ----
 
 pub use rc2k_core::threading::Waited;
 
 pub fn wait_for_object(handle: u32, milliseconds: u32) -> Waited {
     // Converted: `rc2k_core::threading::Waited`.
-    Waited::of(unsafe { WaitForSingleObject(crate::pointers::handle(handle), milliseconds) })
+    Waited::of(crate::sync::wait(handle, milliseconds))
 }

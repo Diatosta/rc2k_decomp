@@ -13,11 +13,9 @@
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
 
-use windows_sys::Win32::System::Threading::CreateMutexA;
-
 // ---- Rust version ----
 
 /// The handle, 0 for none.
 pub fn create_mutex() -> u32 {
-    unsafe { crate::pointers::handle_number(CreateMutexA(std::ptr::null(), 0, std::ptr::null())) }
+    crate::sync::create_mutex()
 }

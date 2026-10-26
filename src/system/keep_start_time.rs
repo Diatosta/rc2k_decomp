@@ -11,8 +11,6 @@
 //! reference.
 
 use crate::moved::Place;
-use windows_sys::Win32::Foundation::SYSTEMTIME;
-use windows_sys::Win32::System::SystemInformation::GetLocalTime;
 
 // ---- game data ----
 
@@ -31,25 +29,14 @@ pub fn start_time() -> [u8; KEPT_LEN] {
 
 /// The nine bytes kept: weekday, day, month, year (two), hour, minute, second,
 /// hundredths.
-pub fn kept(t: &SYSTEMTIME) -> [u8; KEPT_LEN] {
+pub fn kept(t: &rc2k_core::system::time::LocalTime) -> [u8; KEPT_LEN] {
     // Converted: `rc2k_core::system::time::start_time`.
-    rc2k_core::system::time::start_time(&rc2k_core::system::time::LocalTime {
-        year: t.wYear,
-        month: t.wMonth,
-        weekday: t.wDayOfWeek,
-        day: t.wDay,
-        hour: t.wHour,
-        minute: t.wMinute,
-        second: t.wSecond,
-        milliseconds: t.wMilliseconds,
-    })
+    rc2k_core::system::time::start_time(t)
 }
 
 pub unsafe fn keep_start_time() {
-    unsafe {
-        // The game's `SystemTime` (0x518988), a local here: nothing else read it.
-        let mut time: SYSTEMTIME = std::mem::zeroed();
-        GetLocalTime(&mut time);
-        KEPT.ptr().write(kept(&time));
-    }
+    // The game's `SystemTime` (0x518988), a local here: nothing else read it.
+    let time = crate::os::local_time();
+    // SAFETY: written once, before any reader, on the main thread.
+    unsafe { KEPT.ptr().write(kept(&time)) };
 }

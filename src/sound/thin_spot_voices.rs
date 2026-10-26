@@ -34,7 +34,7 @@ pub fn thin_spot_voices(sound: u32) -> Result<(), Refused> {
     let (Some(_), Some(_)) = (picks.nearest, picks.next) else {
         return Ok(());
     };
-    let random = { crate::math::next_random::next_random() };
+    let random = crate::math::next_random::next_random();
     core::thin_choose(&mut voices, &picks, random);
     store_voices(&voices);
     Ok(())

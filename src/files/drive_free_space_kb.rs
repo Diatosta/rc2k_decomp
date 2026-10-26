@@ -21,7 +21,7 @@ use crate::install::installer::{Api, GET_DISK_FREE, rd};
 /// (the original's carry; eax -1 then). The bytes a sector the original leaves in ebx are
 /// read by no caller.
 pub fn drive_free_space_kb(letter: u32, api: Api) -> Option<u32> {
-    let root = { crate::files::drive_type::drive_root(letter as u8) };
+    let root = crate::files::drive_type::drive_root(letter as u8);
     let root_ptr = root
         .as_ref()
         .map_or(0, |b| crate::pointers::game_address(b.as_ptr()));

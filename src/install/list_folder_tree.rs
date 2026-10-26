@@ -20,15 +20,13 @@ use crate::install::installer::{
 };
 use crate::install::vars::INSTALLER_RUN;
 
-/// FindFileData.cFileName (the search record: `files::state`).
+/// FindFileData.cFileName (the search record: `files::search`).
 fn find_name() -> u32 {
-    unsafe {
-        crate::pointers::game_address(&raw const (*crate::files::state::find_data()).cFileName)
-    }
+    crate::files::search::found_name_place()
 }
 /// FindFileData.dwFileAttributes.
 fn find_attributes() -> u32 {
-    unsafe { (*crate::files::state::find_data()).dwFileAttributes }
+    crate::files::search::found_attributes()
 }
 const DIRS_ROOM: u32 = 0x10000;
 const FILES_ROOM: u32 = 0x40000;

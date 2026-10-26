@@ -35,7 +35,7 @@ pub fn camera_over_ground() -> Result<bool, Refused> {
         COURSE.ground_face_last.set(slot.get());
         // The y (the original's ebx, a leftover) only goes through the scratch point,
         // which nothing reads after: 0 here.
-        let [x, _, z, _] = { turn_point_xz(side as i32, 0, 0, CAR.camera_heading.get()) };
+        let [x, _, z, _] = turn_point_xz(side as i32, 0, 0, CAR.camera_heading.get());
         if !probe_at(
             x.wrapping_add(CAR.camera_position[0].get()),
             z.wrapping_add(CAR.camera_position[2].get()),

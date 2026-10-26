@@ -13,21 +13,13 @@
 //! hooked DLL the game's own code runs the original. What the header says of shadow mode
 //! and the self-test was the hook's.
 
-use windows_sys::Win32::Foundation::SYSTEMTIME;
-use windows_sys::Win32::System::SystemInformation::GetLocalTime;
-
 // ---- Rust version ----
 
-pub fn pack(t: &SYSTEMTIME) -> u32 {
+pub fn pack(t: &rc2k_core::system::time::LocalTime) -> u32 {
     // Converted: `rc2k_core::system::time::pack`.
-    rc2k_core::system::time::pack(t.wYear, t.wMonth, t.wDay, t.wHour, t.wMinute)
+    rc2k_core::system::time::pack(t.year, t.month, t.day, t.hour, t.minute)
 }
 
 pub fn packed_local_time() -> u32 {
-    // SAFETY: `GetLocalTime` fills the zeroed record.
-    unsafe {
-        let mut time: SYSTEMTIME = std::mem::zeroed();
-        GetLocalTime(&mut time);
-        pack(&time)
-    }
+    pack(&crate::os::local_time())
 }

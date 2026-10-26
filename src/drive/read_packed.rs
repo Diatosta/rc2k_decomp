@@ -24,10 +24,10 @@ pub fn read_packed(
     count: u32,
 ) -> Result<(u32, bool, Option<bool>), Refused> {
     let Some(packed) = rc2k_core::drive::race_steps::packed_bytes(count) else {
-        let (n, ok) = { read(file, crate::pointers::host(buffer), count) };
+        let (n, ok) = read(file, crate::pointers::host(buffer), count);
         return Ok((n, !ok, None));
     };
-    let (n, ok) = { read(file, crate::pointers::host(SCRATCH.buffer.addr()), packed) };
+    let (n, ok) = read(file, crate::pointers::host(SCRATCH.buffer.addr()), packed);
     if !ok {
         return Ok((n, true, None));
     }

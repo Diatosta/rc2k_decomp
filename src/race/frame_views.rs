@@ -171,54 +171,52 @@ pub fn load_first_car() -> Result<(), Refused> {
 /// and unlocked by `d3d::lock_texture` / `d3d::unlock_texture` (carry: the lock failed).
 /// The registers it leaves are read by no caller. Refuses (before the copy) a null
 /// destination format.
-pub unsafe fn copy_mirror_picture() -> Result<(), Refused> {
+pub fn copy_mirror_picture() -> Result<(), Refused> {
     // Converted: `rc2k_core::race::view_steps::{copy_picture, copied_any}` (eax carried
     // from pixel to pixel as the original's; the formats' conversions the gfx module's).
     use crate::d3d::{lock_texture::lock_texture, unlock_texture::unlock_texture};
     use crate::gfx::pixel_format::PixelFormat;
     use rc2k_core::race::view_steps::{PictureCopy, copy_picture};
-    unsafe {
-        let (from, to) = (
-            DRAW.mirror_picture.get(),
-            KIND_TEXTURES.kind_first_textures[200].get(),
-        );
-        if lock_texture(from)?.carry {
-            return Ok(());
-        }
-        let esi = DRAW_SURFACE.pixels.get();
-        FRAME_WORK.view_kept[0].set(esi);
-        let ebp = DRAW_SURFACE.pitch.get();
-        if !lock_texture(to)?.carry {
-            let edi = DRAW_SURFACE.pixels.get();
-            FRAME_WORK.view_kept[1].set(edi);
-            let format = DRAW_SURFACE.format.get();
-            if format == 0 {
-                return Err(BadInput("a surface without its format").into());
-            }
-            let format = GamePtr::new(format).read::<PixelFormat>("a surface's pixel format")?;
-            let format = &format;
-            let screen = crate::gfx::pixel_format::surface_format()?;
-            let copy = PictureCopy {
-                width: DRAW_SURFACE.width.get(),
-                height: DRAW_SURFACE.height.get(),
-                from_pitch: ebp,
-                to_pitch: DRAW_SURFACE.pitch.get(),
-                from_16: SCREEN.bits.get() == 0x10,
-                to_16: DRAW_SURFACE.bits_per_pixel.get() == 0x10,
-            };
-            let mut surfaces = GameSurfaces {
-                screen: &screen,
-                format,
-                reads: crate::pointers::Window::new(),
-                writes: crate::pointers::Window::new(),
-            };
-            // eax at the copy: the destination's slot, as the lock was given it.
-            copy_picture(&copy, esi, edi, to, &mut surfaces);
-            unlock_texture(to)?;
-        }
-        unlock_texture(from)?;
-        Ok(())
+    let (from, to) = (
+        DRAW.mirror_picture.get(),
+        KIND_TEXTURES.kind_first_textures[200].get(),
+    );
+    if lock_texture(from)?.carry {
+        return Ok(());
     }
+    let esi = DRAW_SURFACE.pixels.get();
+    FRAME_WORK.view_kept[0].set(esi);
+    let ebp = DRAW_SURFACE.pitch.get();
+    if !lock_texture(to)?.carry {
+        let edi = DRAW_SURFACE.pixels.get();
+        FRAME_WORK.view_kept[1].set(edi);
+        let format = DRAW_SURFACE.format.get();
+        if format == 0 {
+            return Err(BadInput("a surface without its format").into());
+        }
+        let format = GamePtr::new(format).read::<PixelFormat>("a surface's pixel format")?;
+        let format = &format;
+        let screen = crate::gfx::pixel_format::surface_format()?;
+        let copy = PictureCopy {
+            width: DRAW_SURFACE.width.get(),
+            height: DRAW_SURFACE.height.get(),
+            from_pitch: ebp,
+            to_pitch: DRAW_SURFACE.pitch.get(),
+            from_16: SCREEN.bits.get() == 0x10,
+            to_16: DRAW_SURFACE.bits_per_pixel.get() == 0x10,
+        };
+        let mut surfaces = GameSurfaces {
+            screen: &screen,
+            format,
+            reads: crate::pointers::Window::new(),
+            writes: crate::pointers::Window::new(),
+        };
+        // eax at the copy: the destination's slot, as the lock was given it.
+        copy_picture(&copy, esi, edi, to, &mut surfaces);
+        unlock_texture(to)?;
+    }
+    unlock_texture(from)?;
+    Ok(())
 }
 
 /// The locked surfaces in game memory, with the screen's and the destination's formats.

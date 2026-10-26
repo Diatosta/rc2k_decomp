@@ -136,7 +136,7 @@ pub fn install_files() -> Result<(), Refused> {
     }
     // Its answer is not read: the standalone installs from the download folder as well
     // (owner, 2026-10-20).
-    unsafe { crate::files::is_cd_drive::is_cd_drive(rb(INSTALLER_PATHS.game_dir.addr())) };
+    crate::files::is_cd_drive::is_cd_drive(rb(INSTALLER_PATHS.game_dir.addr()));
     run_frame(Some(copying_frame))?;
     // the folders
     if INSTALLER_RUN.dir_count.get() != 0 {

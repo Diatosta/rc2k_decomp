@@ -141,12 +141,8 @@ fn own_section(addr: u32) -> Option<(u32, u32)> {
 /// The program's whole image (headers and sections): first byte and byte past the end
 /// (host addresses), for `address_map`.
 pub(crate) fn own_image() -> (usize, usize) {
-    let sections = own_sections();
-    // SAFETY: a documented call with no arguments that point anywhere.
-    let base =
-        unsafe { windows_sys::Win32::System::LibraryLoader::GetModuleHandleW(std::ptr::null()) }
-            .expose_provenance();
-    let end = sections.iter().map(|&(_, t)| t).max().unwrap_or(base);
+    let base = image().0;
+    let end = own_sections().iter().map(|&(_, t)| t).max().unwrap_or(base);
     (base, end.next_multiple_of(0x1000))
 }
 
@@ -155,49 +151,21 @@ pub(crate) fn thread_stack() -> (usize, usize) {
     stack()
 }
 
+/// The program's image: base and sections, read once (`os::image`).
+fn image() -> &'static (usize, Vec<(usize, usize)>) {
+    static IMAGE: std::sync::OnceLock<(usize, Vec<(usize, usize)>)> = std::sync::OnceLock::new();
+    IMAGE.get_or_init(crate::os::image)
+}
+
 /// The program's own image sections (statics, constants): first byte and byte past the end
 /// (host addresses).
 fn own_sections() -> &'static [(usize, usize)] {
-    static SECTIONS: std::sync::OnceLock<Vec<(usize, usize)>> = std::sync::OnceLock::new();
-    SECTIONS.get_or_init(|| {
-        // SAFETY: the running module's PE headers are mapped and read-only; the offsets are
-        // the PE format's (e_lfanew at 0x3C; the file header after the 4-byte signature; the
-        // 40-byte section headers after the optional header).
-        unsafe {
-            use windows_sys::Win32::System::LibraryLoader::GetModuleHandleW;
-            let base = host_number(GetModuleHandleW(std::ptr::null()));
-            if base == 0 {
-                return Vec::new();
-            }
-            let read16 = |at: usize| {
-                (std::ptr::with_exposed_provenance::<u16>(at)).read_unaligned() as usize
-            };
-            let read32 = |at: usize| {
-                (std::ptr::with_exposed_provenance::<u32>(at)).read_unaligned() as usize
-            };
-            let nt = base + read32(base + 0x3C);
-            let count = read16(nt + 4 + 2);
-            let optional = read16(nt + 4 + 16);
-            let first = nt + 4 + 20 + optional;
-            (0..count)
-                .map(|n| {
-                    let header = first + 40 * n;
-                    let start = base + read32(header + 12);
-                    (start, start + read32(header + 8))
-                })
-                .collect()
-        }
-    })
+    &image().1
 }
 
 /// The running thread's stack: its lowest byte and the byte past its top (host addresses).
 fn stack() -> (usize, usize) {
-    let (mut low, mut high) = (0usize, 0usize);
-    // SAFETY: two out-parameters of the documented call.
-    unsafe {
-        windows_sys::Win32::System::Threading::GetCurrentThreadStackLimits(&mut low, &mut high)
-    };
-    (low, high)
+    crate::os::thread_stack()
 }
 
 /// Where a game address's bytes are in this process (phase 9, `notes/conversion.md`): the
@@ -266,18 +234,6 @@ pub fn game_address(p: impl HostPointer) -> u32 {
     }
 }
 
-/// A system handle (an event, a mutex, a thread, a file, a search) as the game keeps it:
-/// 32 bits. Not memory, so no game range: Windows keeps a handle's value within 32 bits
-/// on 64 bits too (sign-extended back, `INVALID_HANDLE_VALUE` included).
-pub fn handle_number(h: impl HostPointer) -> u32 {
-    h.exposed() as u32
-}
-
-/// The handle the game keeps as `n` (`handle_number`'s inverse).
-pub fn handle(n: u32) -> *mut core::ffi::c_void {
-    std::ptr::with_exposed_provenance_mut(n as i32 as isize as usize)
-}
-
 /// A game range for `len` bytes of host memory at `p` (no region: the memory is reached
 /// by address only, as the game's reserved image): its game address.
 pub fn map(p: impl HostPointer, len: usize) -> u32 {
@@ -315,13 +271,7 @@ pub fn game_of(addr: usize) -> u32 {
     crate::address_map::game_of(addr).unwrap_or(0)
 }
 
-/// A host pointer as a number (this module's range tables, `code`).
-#[inline]
-fn host_number(p: impl HostPointer) -> usize {
-    p.exposed()
-}
-
-/// A raw pointer of either kind, as `game_address` and `host_number` take it.
+/// A raw pointer of either kind, as `game_address` takes it.
 pub trait HostPointer {
     fn exposed(self) -> usize;
 }

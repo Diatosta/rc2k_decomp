@@ -16,24 +16,27 @@ use std::sync::atomic::Ordering::Relaxed;
 
 /// The Rust version (see the header).
 pub fn show_report_at_exit() {
-    use windows_sys::Win32::UI::WindowsAndMessaging::MessageBoxA;
-    unsafe {
-        if REPORTED.load(Relaxed) == 1 {
-            // Converted: `rc2k_core::fatal::caption_cut`.
-            if rc2k_core::fatal::caption_cut(CODE.load(Relaxed)) {
+    if REPORTED.load(Relaxed) == 1 {
+        // Converted: `rc2k_core::fatal::caption_cut`.
+        if rc2k_core::fatal::caption_cut(CODE.load(Relaxed)) {
+            // SAFETY: the caption's place is longer than the cut.
+            unsafe {
                 CAPTION
                     .ptr()
                     .cast::<u8>()
                     .add(rc2k_core::fatal::CAPTION_CUT)
-                    .write(0);
-            }
-            MessageBoxA(
-                std::ptr::null_mut(),
-                TEXT.ptr().cast(),
-                CAPTION.ptr().cast(),
-                0x2030,
-            );
+                    .write(0)
+            };
         }
+        // MB_ICONEXCLAMATION | MB_TASKMODAL.
+        // SAFETY: the report's two places, written before `REPORTED`.
+        let (caption, text) = unsafe { (CAPTION.ptr().read(), TEXT.ptr().read()) };
+        let until_nul = |b: &[u8]| b.split(|&c| c == 0).next().unwrap_or_default().to_vec();
+        crate::os::message_box(
+            crate::os::Icon::Warning,
+            &until_nul(&caption),
+            &until_nul(&text),
+        );
     }
     log_text(b"END PROCESS", true, 2);
 }

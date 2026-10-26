@@ -39,7 +39,6 @@ use crate::session::Bytes;
 use crate::session::Dword;
 use crate::strings::append_string_by_id::push_string;
 use crate::strings::copy_printable::copy_printable;
-use windows_sys::Win32::System::WindowsProgramming::GetUserNameA;
 
 // ---- game data ----
 
@@ -230,11 +229,13 @@ fn in_game(call: Call) -> Result<u32, Refused> {
                 crate::menu::text_entry::log_l1(line, true)
             })?,
             Call::UserName(to) => {
-                let mut room = USER_NAME_ROOM;
-                GetUserNameA(crate::pointers::host(to), &mut room);
+                if let Some(mut name) = crate::os::user_name(USER_NAME_ROOM) {
+                    name.push(0);
+                    crate::pointers::GamePtr::new(to).write_bytes(&name, "the user's name")?;
+                }
             }
             Call::ComputerName(to) => {
-                crate::system::check_developer_machine::computer_name(crate::pointers::host(to));
+                crate::system::check_developer_machine::computer_name(to);
             }
             Call::RandomBelow(limit) => return Ok(crate::math::random_below::random_below(limit)?),
             Call::ReadSavegameSlot(slot) => {

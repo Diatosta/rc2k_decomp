@@ -91,7 +91,7 @@ pub unsafe fn race_loop() -> Result<(), Refused> {
                     crate::framework::log("drive::race_loop: the credits race ends: rolled off");
                     return Ok(());
                 }
-                let (or, _) = { crate::drive::any_key_down::any_key_down() };
+                let (or, _) = crate::drive::any_key_down::any_key_down();
                 if or != 0 {
                     // Which keys (`g_keysPressed`, by scan code), and the window's own state
                     // of them (`g_keysDown`), for the credits race that ends at once after

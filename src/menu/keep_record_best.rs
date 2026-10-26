@@ -16,8 +16,8 @@ use crate::menu::standings::*;
 /// The current record (`g_recordTable`, `section`, `index`), refused past the table.
 fn current_record() -> Result<u32, BadInput> {
     let table = crate::records::stages_store::STAGE_TABLES.championship();
-    let section: u32 = { SECTION_RVA.get() };
-    let index: u32 = { INDEX_RVA.get() };
+    let section: u32 = SECTION_RVA.get();
+    let index: u32 = INDEX_RVA.get();
     if section >= 64
         || index >= 64
         || !crate::records::find_record::has_section(table, section, 600)?

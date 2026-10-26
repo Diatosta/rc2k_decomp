@@ -1563,15 +1563,15 @@ mod diff {
             let m = matrix(&mut t.rng);
             let mp = crate::pointers::game_address(m.as_ptr());
             let (p, k, d, lift) = (t.rng.a3(), t.rng.fl(), t.rng.fl(), t.rng.fl());
-            let want = { super::turned_place_less(p, k, d, lift, mp) };
-            let got = { plain::turned_place_less(p, k, d, lift, mp) };
+            let want = super::turned_place_less(p, k, d, lift, mp);
+            let got = plain::turned_place_less(p, k, d, lift, mp);
             let ok = want.same(&got, 0);
             t.record("turned_place_less", ok, || {
                 format!("{p:x?} {k:x} {d:x} {lift:x} {m:x?} want {want:x?} got {got:x?}")
             });
 
-            let want = { super::turned_place(p, lift, mp) };
-            let got = { plain::turned_place(p, lift, mp) };
+            let want = super::turned_place(p, lift, mp);
+            let got = plain::turned_place(p, lift, mp);
             let ok = want.same(&got, 0);
             t.record("turned_place", ok, || {
                 format!("{p:x?} {lift:x} {m:x?} want {want:x?} got {got:x?}")
@@ -1579,8 +1579,8 @@ mod diff {
 
             let w = t.rng.a3();
             let wp = crate::pointers::game_address(w.as_ptr());
-            let want = { super::crossed_turned(p, wp, mp) };
-            let got = { plain::crossed_turned(p, wp, mp) };
+            let want = super::crossed_turned(p, wp, mp);
+            let got = plain::crossed_turned(p, wp, mp);
             let ok = want.same(&got, 0);
             t.record("crossed_turned", ok, || {
                 format!("{p:x?} {w:x?} {m:x?} want {want:x?} got {got:x?}")

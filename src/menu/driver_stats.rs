@@ -55,7 +55,7 @@ const EQUALS_RVA: [&std::ffi::CStr; 13] = [
 const PARTS: u32 = 14;
 /// The current player and its car's table.
 pub fn player_and_table() -> Result<(u32, u32), BadInput> {
-    let n: u32 = { EVENT_STATE.current_player.get() };
+    let n: u32 = EVENT_STATE.current_player.get();
     if n >= 4 || player(n) == 0 {
         return Err(BadInput("a current player past 3 or missing"));
     }

@@ -25,9 +25,7 @@ pub unsafe fn replay_screenshot() -> Result<(), Refused> {
         }
         if VIEWER_PANEL.pictures_started.bits() != 1 {
             VIEWER_PANEL.pictures_started.set_bits(1u32);
-            VIEWER_PANEL
-                .picture_clock
-                .set(windows_sys::Win32::System::SystemInformation::GetTickCount());
+            VIEWER_PANEL.picture_clock.set(crate::os::ticks());
         }
         let kept: u32 = PICTURE.name.get();
         let name = VIEWER_PANEL.picture_name[0].addr();

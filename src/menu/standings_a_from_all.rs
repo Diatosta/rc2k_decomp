@@ -40,7 +40,7 @@ pub fn standings_a_from_all() -> Result<(), Refused> {
         return Err(BadInput("a player without a name").into());
     }
     crate::menu::standings_from_drivers::standings_from_drivers()?;
-    let first: u32 = { TABLE_A_RVA.get() };
+    let first: u32 = TABLE_A_RVA.get();
     use rc2k_core::menu::standings::A_GROUP_FIRSTS;
     players_by_group(first, A_ENTRY, A_GROUP_FIRSTS)?;
     Ok(())

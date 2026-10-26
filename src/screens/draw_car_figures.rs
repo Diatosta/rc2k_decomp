@@ -45,7 +45,7 @@ const PAGES: u32 = 4;
 
 /// Returns the carry of the last text drawn.
 pub fn draw_car_figures(canvas: &mut dyn Canvas) -> Result<bool, Refused> {
-    let page: u32 = { EVENT_STATE.car_page.get() };
+    let page: u32 = EVENT_STATE.car_page.get();
     if page >= PAGES {
         return Err(BadInput("a page past the four").into());
     }

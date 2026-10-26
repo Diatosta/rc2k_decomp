@@ -168,7 +168,7 @@ pub const EVENTS_RVA: &Dword = &CHAMP_VIEW.stage_best_times; // dword_7556D8: 0x
 /// The players `0 .. dword_755984` (the original's `do .. while`): refused at 0, past 4 or
 /// with one missing.
 pub fn counted_players() -> Result<Vec<u32>, BadInput> {
-    let n: u32 = { EVENT_STATE.player_count.get() };
+    let n: u32 = EVENT_STATE.player_count.get();
     if n == 0 || n > 4 || (0..n).any(|k| player(k) == 0) {
         return Err(BadInput(
             "a player count of 0 or past 4, or a player missing",
@@ -181,8 +181,8 @@ pub fn counted_players() -> Result<Vec<u32>, BadInput> {
 /// `dword_7556D8`'s table, refused past the table's sections.
 pub fn current_event() -> Result<u32, BadInput> {
     let table = crate::records::stages_store::STAGE_TABLES.championship();
-    let section: u32 = { EVENT_STATE.section.get() };
-    let index: u32 = { EVENT_STATE.index.get() };
+    let section: u32 = EVENT_STATE.section.get();
+    let index: u32 = EVENT_STATE.index.get();
     if section >= 64
         || index >= 64
         || !crate::records::find_record::has_section(table, section, 600)?
@@ -190,7 +190,7 @@ pub fn current_event() -> Result<u32, BadInput> {
         return Err(BadInput("a record past the table"));
     }
     let record = crate::records::find_record::find_record_in(table, index as i32, section)?;
-    let events: u32 = { CHAMP_VIEW.stage_best_times.get() };
+    let events: u32 = CHAMP_VIEW.stage_best_times.get();
     if events == 0 {
         return Err(BadInput("no events table"));
     }
@@ -204,7 +204,7 @@ const SORTED: u32 = standings::SORTED as u32;
 /// original's exchange sort: an entry later or equal moves up; `dword_7559B4` /
 /// `dword_7559B8` its counters). Refused without a table.
 pub fn sort_table_a(key: u32) -> Result<(), BadInput> {
-    let first: u32 = { CHAMP_VIEW.ranked_times.get() };
+    let first: u32 = CHAMP_VIEW.ranked_times.get();
     if first == 0 {
         return Err(BadInput("no standings table"));
     }
@@ -236,13 +236,13 @@ pub fn sort_table_a(key: u32) -> Result<(), BadInput> {
 /// +0x18 the name's 0x1F bytes; then moved up its group. Refused for a current player past
 /// 3 or missing, no name, no table or a group past 4.
 pub fn enter_best(group: Option<u32>, score_at: u32) -> Result<(), BadInput> {
-    let n: u32 = { EVENT_STATE.current_player.get() };
+    let n: u32 = EVENT_STATE.current_player.get();
     if n >= 4 || player(n) == 0 {
         return Err(BadInput("a current player past 3 or missing"));
     }
     let p = player(n);
     let group = group.unwrap_or(get(p + 0x90)?);
-    let table: u32 = { CHAMP_VIEW.best_scores.get() };
+    let table: u32 = CHAMP_VIEW.best_scores.get();
     if table == 0 || group >= 5 || get(p + 0x18)? == 0 {
         return Err(BadInput("no best-score table, a group past 4 or no name"));
     }
@@ -269,7 +269,7 @@ pub fn enter_best(group: Option<u32>, score_at: u32) -> Result<(), BadInput> {
 /// `sort_table_a`: going up (a later entry not above an earlier one moves up) or, with
 /// `down`, going down (a later entry not below one moves up). Refused without a table.
 pub fn sort_table_b(key: u32, down: bool) -> Result<(), BadInput> {
-    let first: u32 = { CHAMP_VIEW.champ_history.get() };
+    let first: u32 = CHAMP_VIEW.champ_history.get();
     if first == 0 {
         return Err(BadInput("no standings table"));
     }

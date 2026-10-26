@@ -17,7 +17,7 @@ use crate::framework::Flags;
 
 /// The Rust version (see the header): texture `texture` locked; the flags it leaves
 /// (every register is kept).
-pub unsafe fn lock_texture(texture: u32) -> Result<Flags, Refused> {
+pub fn lock_texture(texture: u32) -> Result<Flags, Refused> {
     use rc2k_core::d3d::textures::{LOCK_FAILED, LOCKED_TWICE, Lock, lock};
     // Converted: `rc2k_core::d3d::textures::lock`.
     let r = record(texture);

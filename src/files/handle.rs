@@ -3,22 +3,34 @@
 //! `files::handle_size` (0x402EA9), `files::close` (0x402E23), and `sub_402F1C` /
 //! `sub_402F4D` (a file's time read and set, for `files::copy_file`). Each was a few
 //! instructions around one Win32 call; since phase 6 (2026-10-24) they go through
-//! `std::fs::File` on the game's handle (`with_file`), all but `close`, which keeps
-//! `CloseHandle` because the callers read whether it closed (std's drop says nothing).
+//! `std::fs::File` on the game's handle (`with_file`). Since phase 11 a handle is a key in
+//! a table of `File`s (no Win32 handle): `close` takes the file out (whether it was there).
 //! `read_file` and `write_file` have them written out inline; the buffered streams use these.
 
 use crate::errors::BadInput;
 use crate::files::resolve_path::resolve_path_at;
 use crate::files::state::LAST_FILE_PATH;
 use crate::pointers::GamePtr;
+use std::collections::HashMap;
 use std::io::{Read, Seek, SeekFrom, Write};
-use std::os::windows::fs::OpenOptionsExt;
-use std::os::windows::io::{FromRawHandle, IntoRawHandle};
+use std::sync::{Arc, Mutex};
 use std::time::{SystemTime, UNIX_EPOCH};
-use windows_sys::Win32::Foundation::CloseHandle;
-use windows_sys::Win32::Storage::FileSystem::{
-    CREATE_ALWAYS, CREATE_NEW, FILE_ATTRIBUTE_NORMAL, OPEN_ALWAYS,
-};
+
+/// `CreateFileA`'s access bits and dispositions, as the mode table holds them.
+const GENERIC_READ: u32 = 0x8000_0000;
+const GENERIC_WRITE: u32 = 0x4000_0000;
+const CREATE_NEW: u32 = 1;
+const CREATE_ALWAYS: u32 = 2;
+const OPEN_ALWAYS: u32 = 4;
+
+/// The open files by the game's handle: 0x6000_0000 up in fours (never 0 or
+/// `NO_HANDLE`). Each under its own lock, so threads' files do not wait on each other.
+static FILES: Mutex<Option<HashMap<u32, Arc<Mutex<std::fs::File>>>>> = Mutex::new(None);
+static NEXT_HANDLE: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::new(0x6000_0000);
+
+fn files() -> std::sync::MutexGuard<'static, Option<HashMap<u32, Arc<Mutex<std::fs::File>>>>> {
+    FILES.lock().unwrap_or_else(|e| e.into_inner())
+}
 
 /// The file mode table (0x4E06EA in the image, 16 bytes per mode: +0 access, +4 disposition,
 /// +8 share, +12 0): `tests::modes_are_the_games`.
@@ -40,9 +52,10 @@ pub const NO_HANDLE: u32 = u32::MAX;
 /// Refuses what `resolve_path` refuses and a mode the table does not have.
 /// Opened through `std::fs::OpenOptions` with the table's access, sharing and disposition
 /// (the path's bytes read as Windows-1252, `files::ansi_path`); the handle is the file's
-/// Win32 handle, kept by the game until `close`. One difference: std makes "create or
-/// replace" an open-or-create and a truncation, so a hidden or system file is replaced
-/// where `CREATE_ALWAYS` with normal attributes would fail.
+/// key in `FILES`, kept by the game until `close`. The sharing (others kept out while it is
+/// open) is Windows' own and kept there. One difference: std makes "create or replace" an
+/// open-or-create and a truncation, so a hidden or system file is replaced where
+/// `CREATE_ALWAYS` with normal attributes would fail.
 pub fn open_by_mode(path: *const u8, mode: u32) -> Result<Option<u32>, BadInput> {
     open_by_mode_at(GamePtr::new(crate::pointers::game_address(path)), mode)
 }
@@ -56,29 +69,43 @@ pub fn open_by_mode_at(path: GamePtr, mode: u32) -> Result<Option<u32>, BadInput
     LAST_FILE_PATH.store(resolved.addr(), std::sync::atomic::Ordering::Relaxed);
     let [access, disposition, share, _] = MODES[mode as usize];
     let mut options = std::fs::OpenOptions::new();
-    // `write` only lets std accept a creating disposition; the access is the table's.
     options
-        .access_mode(access)
-        .share_mode(share)
-        .attributes(FILE_ATTRIBUTE_NORMAL)
-        .write(true);
+        .read(access & GENERIC_READ != 0)
+        .write(access & GENERIC_WRITE != 0);
+    #[cfg(windows)]
+    {
+        use std::os::windows::fs::OpenOptionsExt;
+        const FILE_ATTRIBUTE_NORMAL: u32 = 0x80;
+        options.share_mode(share).attributes(FILE_ATTRIBUTE_NORMAL);
+    }
+    #[cfg(not(windows))]
+    let _ = share;
     match disposition {
         CREATE_NEW => options.create_new(true),
         CREATE_ALWAYS => options.create(true).truncate(true),
         OPEN_ALWAYS => options.create(true),
         _ => &mut options, // OPEN_EXISTING
     };
-    let file = options.open(crate::files::ansi_path(resolved)?);
-    Ok(file
-        .ok()
-        .map(|f| crate::pointers::handle_number(f.into_raw_handle())))
+    let Ok(file) = options.open(crate::files::ansi_path(resolved)?) else {
+        return Ok(None);
+    };
+    let handle = NEXT_HANDLE.fetch_add(4, std::sync::atomic::Ordering::Relaxed);
+    files()
+        .get_or_insert_default()
+        .insert(handle, Arc::new(Mutex::new(file)));
+    Ok(Some(handle))
 }
 
-/// The game's handle as a `File` for one call, not closed after it.
-fn with_file<R>(file: u32, f: impl FnOnce(&mut std::fs::File) -> R) -> R {
-    let mut file = std::mem::ManuallyDrop::new(unsafe {
-        std::fs::File::from_raw_handle(crate::pointers::handle(file))
-    });
+/// The game's handle as its `File` for one call; a handle that is none fails the call.
+fn with_file<R>(
+    file: u32,
+    f: impl FnOnce(&mut std::fs::File) -> std::io::Result<R>,
+) -> std::io::Result<R> {
+    let open = files().get_or_insert_default().get(&file).cloned();
+    let Some(open) = open else {
+        return Err(std::io::ErrorKind::NotFound.into());
+    };
+    let mut file = open.lock().unwrap_or_else(|e| e.into_inner());
     f(&mut file)
 }
 
@@ -211,12 +238,11 @@ fn time_of(ticks: u64) -> Option<SystemTime> {
 /// Whether the handle was closed. `g_lastFilePath` is 0 afterwards.
 pub fn close(file: u32) -> bool {
     LAST_FILE_PATH.store(0, std::sync::atomic::Ordering::Relaxed);
-    // SAFETY: closing a handle the game owns; a bad handle only makes it answer false.
-    unsafe { CloseHandle(crate::pointers::handle(file)) != 0 }
+    files().get_or_insert_default().remove(&file).is_some()
 }
 
 /// The game's file primitives as the core's file system: paths are the game's (a path's
-/// resolving refuses, `g_lastFilePath` set as the original sets it), handles Win32's.
+/// resolving refuses, `g_lastFilePath` set as the original sets it), handles `FILES`'.
 pub struct GameFiles(());
 
 impl GameFiles {

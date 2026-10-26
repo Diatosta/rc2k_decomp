@@ -12,7 +12,7 @@ use crate::menu::champ_store::CHAMP_VIEW;
 
 /// The Rust version (see the header): the registers it leaves.
 pub fn stage_range_caption() -> Result<(), crate::errors::BadInput> {
-    let first: u32 = { CHAMP_VIEW.first_row.get() };
+    let first: u32 = CHAMP_VIEW.first_row.get();
     // Converted: `rc2k_core::menu::event::stage_range`.
     let mut text = rc2k_core::menu::event::stage_range(first);
     text.push(0);

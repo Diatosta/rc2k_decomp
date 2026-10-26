@@ -345,39 +345,35 @@ fn mark(r: &mut Flow, key: u8) -> Result<(), Refused> {
 /// platform).
 fn step(place: u32, r: &mut Flow) -> Result<(), Refused> {
     use crate::race::*;
-    unsafe {
-        match place {
-            1 => r.c.arg = crate::menu::replay_slot_loop::replay_slot_loop(&r.c)?,
-            2 => save_last_replay::save_last_replay(r.c.arg)?,
-            3 => r.c.carry = open_viewed_replay::open_viewed_replay(r.c.palette)?,
-            4 => find_snapshot_number::find_snapshot_number()?,
-            5 => viewer_load_stage::viewer_load_stage()?,
-            6 => {
-                // `input::take_key` into al and the zero flag.
-                let key = crate::input::take_key::take_key();
-                r.c.arg = r.c.arg & !0xFF | u32::from(key);
-                r.zero = key == 0;
-                r.c.carry = false;
-            }
-            7 => mark_viewer_items::mark_viewer_items(r.record)?,
-            8 => r.zero = viewer_action::viewer_action(r.c.palette, &r.c)?,
-            // `screens::run_frame` with `race::viewer_frame` (0x41D5FB).
-            9 => {
-                if let Some(lost) = crate::platform::run_frame_now(viewer_frame::viewer_frame) {
-                    lost?;
-                }
-            }
-            10 => crate::menu::list_take_key::list_take_key().carry_on(r),
-            11 => r.c.carry = step_viewed_replay::step_viewed_replay()?,
-            12 => crate::gfx::take_screenshot::take_screenshot()?,
-            13 => {
-                crate::menu::list_step::list_step(r.c.arg as u8, r.c.palette, r.record)?.carry_on(r)
-            }
-            14 => r.c.carry = crate::menu::list_item_unusable::list_item_unusable(r.record)?,
-            15 => crate::sound::play_menu_sound::play_menu_sound_in_game(r.c.arg),
-            16 => close_viewed_replay::close_viewed_replay()?,
-            _ => viewer_tidy_stage::viewer_tidy_stage()?,
+    match place {
+        1 => r.c.arg = crate::menu::replay_slot_loop::replay_slot_loop(&r.c)?,
+        2 => save_last_replay::save_last_replay(r.c.arg)?,
+        3 => r.c.carry = open_viewed_replay::open_viewed_replay(r.c.palette)?,
+        4 => find_snapshot_number::find_snapshot_number()?,
+        5 => viewer_load_stage::viewer_load_stage()?,
+        6 => {
+            // `input::take_key` into al and the zero flag.
+            let key = crate::input::take_key::take_key();
+            r.c.arg = r.c.arg & !0xFF | u32::from(key);
+            r.zero = key == 0;
+            r.c.carry = false;
         }
+        7 => mark_viewer_items::mark_viewer_items(r.record)?,
+        8 => r.zero = viewer_action::viewer_action(r.c.palette, &r.c)?,
+        // `screens::run_frame` with `race::viewer_frame` (0x41D5FB).
+        9 => {
+            if let Some(lost) = crate::platform::run_frame_now(viewer_frame::viewer_frame) {
+                lost?;
+            }
+        }
+        10 => crate::menu::list_take_key::list_take_key().carry_on(r),
+        11 => r.c.carry = step_viewed_replay::step_viewed_replay()?,
+        12 => crate::gfx::take_screenshot::take_screenshot()?,
+        13 => crate::menu::list_step::list_step(r.c.arg as u8, r.c.palette, r.record)?.carry_on(r),
+        14 => r.c.carry = crate::menu::list_item_unusable::list_item_unusable(r.record)?,
+        15 => crate::sound::play_menu_sound::play_menu_sound_in_game(r.c.arg),
+        16 => close_viewed_replay::close_viewed_replay()?,
+        _ => viewer_tidy_stage::viewer_tidy_stage()?,
     }
     Ok(())
 }

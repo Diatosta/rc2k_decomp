@@ -14,7 +14,7 @@ use rc2k_core::menu::event::LastPage;
 /// what the original leaves in the registers: for more than one page, eax that first
 /// stage, edx the stages on the last page (count % 10), ebp 10.
 pub fn first_page_stage() -> Option<LastPage> {
-    let n: u32 = { CHAMP_VIEW.count.get() };
+    let n: u32 = CHAMP_VIEW.count.get();
     // Converted: `rc2k_core::menu::event::last_page` (its division cannot meet 0).
     let Some(last) = rc2k_core::menu::event::last_page(n) else {
         CHAMP_VIEW.first_row.set(1u32);

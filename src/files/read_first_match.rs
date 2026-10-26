@@ -19,77 +19,58 @@ use crate::errors::BadInput;
 use crate::files::read_file::{ReadResult, read_file};
 use crate::files::resolve_path::resolve_path_in_game;
 use crate::files::scratch::SCRATCH;
-use crate::files::state::{FIND_HANDLE, LAST_FILE_PATH, SKIPPED_ATTRIBUTES, find_data};
+use crate::files::state::{LAST_FILE_PATH, SKIPPED_ATTRIBUTES};
 use crate::pointers::GamePtr;
 use std::sync::atomic::Ordering::Relaxed;
-use windows_sys::Win32::Storage::FileSystem::{FindClose, FindFirstFileA, FindNextFileA};
 
 // ---- game data ----
-
-const NO_SEARCH: u32 = u32::MAX;
 
 // ---- Rust version ----
 
 /// None if nothing matched, else what the reading of the file found came to.
 /// Refuses what `resolve_path` and `read_file` refuse, and a null path.
-pub unsafe fn first_match_read(
+pub fn first_match_read(
     pattern: *const u8,
     buffer: *mut u8,
     count: u32,
     offset: u32,
 ) -> Result<Option<ReadResult>, BadInput> {
-    unsafe {
-        if pattern.is_null() {
-            return Err(BadInput("no path to match"));
-        }
-        let resolved = resolve_path_in_game(pattern)?;
-        LAST_FILE_PATH.store(crate::pointers::game_address(resolved), Relaxed);
-        let record = find_data();
-        let search = FindFirstFileA(resolved, record);
-        FIND_HANDLE.store(crate::pointers::handle_number(search), Relaxed);
-        let skipped = || (*record).dwFileAttributes & SKIPPED_ATTRIBUTES.load(Relaxed) != 0;
-        let mut found = crate::pointers::handle_number(search) != NO_SEARCH;
-        if found && skipped() {
-            loop {
-                if FindNextFileA(search, record) == 0 {
-                    found = false;
-                    break;
-                }
-                if !skipped() {
-                    break;
-                }
-            }
-        }
-        let read = if found {
-            // Converted: `rc2k_core::files::io::match_path`.
-            let pattern = crate::files::cstring(
-                GamePtr::new(crate::pointers::game_address(pattern)),
-                "a search pattern",
-            )?;
-            let name = std::ffi::CStr::from_ptr((&raw const (*record).cFileName).cast()).to_bytes();
-            let joined = rc2k_core::files::io::match_path(&pattern, name);
-            let path = crate::pointers::host(SCRATCH.buffer.addr());
-            GamePtr::new(crate::pointers::game_address(path))
-                .write_bytes(&joined, "the scratch buffer")?;
-            Some(read_file(path, buffer, count, offset))
-        } else {
-            None
-        };
-        if FIND_HANDLE.load(Relaxed) != NO_SEARCH {
-            FindClose(crate::pointers::handle(FIND_HANDLE.load(Relaxed)));
-            FIND_HANDLE.store(NO_SEARCH, Relaxed);
-        }
-        read.transpose()
+    if pattern.is_null() {
+        return Err(BadInput("no path to match"));
     }
+    let resolved = resolve_path_in_game(pattern)?;
+    LAST_FILE_PATH.store(crate::pointers::game_address(resolved), Relaxed);
+    let resolved_text = crate::files::cstring(
+        GamePtr::new(crate::pointers::game_address(resolved)),
+        "a resolved path",
+    )?;
+    let found = crate::files::search::first(&resolved_text, SKIPPED_ATTRIBUTES.load(Relaxed));
+    let read = if found {
+        // Converted: `rc2k_core::files::io::match_path`.
+        let pattern = crate::files::cstring(
+            GamePtr::new(crate::pointers::game_address(pattern)),
+            "a search pattern",
+        )?;
+        let name = crate::files::search::found_name();
+        let joined = rc2k_core::files::io::match_path(&pattern, &name);
+        let path = crate::pointers::host(SCRATCH.buffer.addr());
+        GamePtr::new(crate::pointers::game_address(path))
+            .write_bytes(&joined, "the scratch buffer")?;
+        Some(read_file(path, buffer, count, offset))
+    } else {
+        None
+    };
+    crate::files::search::close();
+    read.transpose()
 }
 
 /// For Rust callers: the bytes read, or None if nothing matched or the reading failed.
-pub unsafe fn read_first_match(
+pub fn read_first_match(
     pattern: *const u8,
     buffer: *mut u8,
     count: u32,
     offset: u32,
 ) -> Result<Option<u32>, BadInput> {
-    let read = unsafe { first_match_read(pattern, buffer, count, offset) }?;
+    let read = { first_match_read(pattern, buffer, count, offset) }?;
     Ok(read.filter(|read| read.ok).and_then(|read| read.bytes_read))
 }

@@ -86,12 +86,10 @@ pub fn put_pixel(components: u32, x: u32, y: u32) -> Result<(), Refused> {
 /// `d3d::lock_texture` (`lock`) or `d3d::unlock_texture` of the texture slot `slot` (their
 /// flags unread).
 pub fn lock(slot: u32, lock: bool) -> Result<(), Refused> {
-    unsafe {
-        if lock {
-            crate::d3d::lock_texture::lock_texture(slot)?;
-        } else {
-            crate::d3d::unlock_texture::unlock_texture(slot)?;
-        }
+    if lock {
+        crate::d3d::lock_texture::lock_texture(slot)?;
+    } else {
+        crate::d3d::unlock_texture::unlock_texture(slot)?;
     }
     Ok(())
 }

@@ -10,7 +10,6 @@
 //! reference.
 
 use crate::session::MACHINE;
-use windows_sys::Win32::UI::Input::KeyboardAndMouse::GetKeyboardType;
 
 // ---- game data ----
 
@@ -22,8 +21,8 @@ pub fn keyboard_type(subtype: u32) -> Option<u32> {
     rc2k_core::system::machine::keyboard_type(subtype)
 }
 
-pub unsafe fn read_keyboard_type() {
-    let subtype = unsafe { GetKeyboardType(1) } as u32;
+pub fn read_keyboard_type() {
+    let subtype = crate::os::keyboard_subtype();
     if let Some(kind) = keyboard_type(subtype) {
         MACHINE.keyboard_type.set(kind);
     }

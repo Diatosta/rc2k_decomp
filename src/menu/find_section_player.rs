@@ -27,7 +27,7 @@ pub fn find_section_player() -> Result<SectionPlayer, Refused> {
         return Err(BadInput("a missing player").into());
     }
     // Converted: `rc2k_core::menu::points::section_player`.
-    let section: u32 = { EVENT_STATE.section.get() };
+    let section: u32 = EVENT_STATE.section.get();
     let fault = crate::menu::event_flow::Fault::default();
     let done: [u32; 4] = std::array::from_fn(|n| {
         fault.get(

@@ -127,9 +127,10 @@ pub fn report_now(r: &Regs) {
         ebp: r.ebp,
         flags: r.eflags,
     };
-    log(&format!("fatal::report: thread {}", unsafe {
-        windows_sys::Win32::System::Threading::GetCurrentThreadId()
-    }));
+    log(&format!(
+        "fatal::report: thread {}",
+        crate::sync::thread_id()
+    ));
     let mut outside = Outside {
         log: &mut |text| unsafe { log_l1(text, true) },
         // If no shutdown thread can be created there is nothing more to report: a report
@@ -151,7 +152,7 @@ pub fn report_now(r: &Regs) {
                 "fatal::report: fatal error {code:#x} on the thread of slot {slot:#x}: its routine {routine:#x} again"
             ));
             match crate::threading::thread_slot::run_routine(routine) {
-                Some(_) => unsafe { windows_sys::Win32::System::Threading::ExitThread(0) },
+                Some(_) => crate::sync::exit_thread(),
                 None => crate::standalone::finish(
                     &format!("not ported: the thread routine {routine:#x} (fatal error {code:#x})"),
                     1,

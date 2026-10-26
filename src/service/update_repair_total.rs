@@ -18,7 +18,7 @@ use crate::service::state::{flags, marks, store_marks, time_of};
 pub fn update_repair_total() -> Result<(), Refused> {
     // Converted: `rc2k_core::service::repairs::update_total`.
     let mut m = marks();
-    let budget = { EVENT_STATE.service_minutes.get() as i32 };
+    let budget = EVENT_STATE.service_minutes.get() as i32;
     let total = rc2k_core::service::repairs::update_total(&flags(), &mut m, budget, time_of)
         .map_err(|e| crate::errors::BadInput(e.0))?;
     store_marks(&m);

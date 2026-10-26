@@ -9,7 +9,6 @@
 //! and the self-test was the hook's.
 
 use crate::threading::thread_slot::{SLOTS, ThreadSlot};
-use windows_sys::Win32::System::Threading::GetCurrentThreadId;
 
 const _: () = assert!(size_of::<ThreadSlot>() == 0x110);
 const _: () = assert!(std::mem::offset_of!(ThreadSlot, thread_id) == 4);
@@ -19,7 +18,7 @@ const _: () = assert!(std::mem::offset_of!(ThreadSlot, thread_id) == 4);
 /// The current thread's slot, None if it has none.
 pub fn current_slot() -> Result<Option<&'static ThreadSlot>, crate::errors::BadInput> {
     // Converted: `rc2k_core::threading::slot_of`.
-    let tid = unsafe { GetCurrentThreadId() };
+    let tid = crate::sync::thread_id();
     let failed = std::cell::Cell::new(None);
     let found = rc2k_core::threading::slot_of(
         |n| match crate::threading::thread_slot::slot_ref(n) {
@@ -43,7 +42,7 @@ pub fn current_slot() -> Result<Option<&'static ThreadSlot>, crate::errors::BadI
 pub unsafe fn find_thread_slot() -> *const ThreadSlot {
     // Converted: `rc2k_core::threading::slot_of`.
     let slots = SLOTS.ptr().cast::<ThreadSlot>().cast_const();
-    let tid = unsafe { GetCurrentThreadId() };
+    let tid = crate::sync::thread_id();
     let id_of = |n: usize| unsafe { (*slots.add(n)).thread_id.get() };
     match rc2k_core::threading::slot_of(id_of, tid) {
         Some(n) => unsafe { slots.add(n) },

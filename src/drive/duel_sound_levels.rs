@@ -21,7 +21,7 @@ pub fn duel_sound_levels() {
         .loop_volume_a
         .set(first_level(CAR_BLOCKS.cars[0].surface_noise_a.bits()));
     if stage.loop_volume_a.get() >= RARE_FROM {
-        let r = { crate::math::next_random::next_random() };
+        let r = crate::math::next_random::next_random();
         if rare_draw(r) {
             stage.timed_arm.set(1);
         }

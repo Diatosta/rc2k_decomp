@@ -12,12 +12,9 @@ use crate::system::set_error_mode::ERROR_MODE;
 
 /// The Rust version (see the header).
 pub fn restore_error_mode() {
-    use windows_sys::Win32::System::Diagnostics::Debug::{SetErrorMode, THREAD_ERROR_MODE};
-    unsafe {
-        if ERROR_MODE.changed.get() != 1 {
-            return;
-        }
-        ERROR_MODE.changed.set(0);
-        SetErrorMode(ERROR_MODE.mode.get() as THREAD_ERROR_MODE);
+    if ERROR_MODE.changed.get() != 1 {
+        return;
     }
+    ERROR_MODE.changed.set(0);
+    crate::os::set_error_mode(ERROR_MODE.mode.get());
 }

@@ -20,6 +20,7 @@ pub mod read_stream_byte;
 pub mod read_whole_file;
 pub mod resolve_path;
 pub mod scratch;
+pub mod search;
 pub mod stream;
 pub mod swap_missing_extension;
 pub mod write_file;
@@ -41,6 +42,20 @@ pub fn ansi_text(bytes: &[u8]) -> String {
         .map(|&b| match b {
             0x80..=0x9F => CP1252_HIGH[(b - 0x80) as usize],
             _ => b as char,
+        })
+        .collect()
+}
+
+/// Text as the game's bytes (Windows-1252, `ansi_text`'s inverse); a character the code
+/// page lacks becomes `?`, as Windows' conversion writes it.
+pub fn ansi_bytes(text: &str) -> Vec<u8> {
+    text.chars()
+        .map(|c| match c as u32 {
+            0..=0x7F | 0xA0..=0xFF => c as u8,
+            _ => CP1252_HIGH
+                .iter()
+                .position(|&h| h == c)
+                .map_or(b'?', |n| 0x80 + n as u8),
         })
         .collect()
 }
@@ -68,11 +83,17 @@ pub fn cstring(
     unreachable!()
 }
 
+/// A path in the game's bytes (no NUL) as a `PathBuf`: the one place a game path becomes
+/// the system's.
+pub fn host_path(path: &[u8]) -> std::path::PathBuf {
+    std::path::PathBuf::from(ansi_text(path))
+}
+
 /// The NUL-terminated path at `at` (the game's ANSI bytes) as a `PathBuf`.
 pub fn ansi_path(
     at: crate::pointers::GamePtr,
 ) -> Result<std::path::PathBuf, crate::errors::BadInput> {
-    Ok(std::path::PathBuf::from(ansi_text(&cstring(at, "a path")?)))
+    Ok(host_path(&cstring(at, "a path")?))
 }
 
 #[cfg(test)]
@@ -84,6 +105,8 @@ mod ansi_tests {
             "files\\b\\tx1822.pcx"
         );
         assert_eq!(super::ansi_text(&[0x80, 0xE7, 0xE3, 0x9C]), "€çãœ");
+        assert_eq!(super::ansi_bytes("€çãœ"), [0x80, 0xE7, 0xE3, 0x9C]);
+        assert_eq!(super::ansi_bytes("a\u{3B1}"), b"a?");
     }
 }
 
@@ -92,15 +115,15 @@ mod ansi_tests {
 pub mod state {
     use crate::moved::Place;
     use std::sync::atomic::AtomicU32;
-    use windows_sys::Win32::Storage::FileSystem::WIN32_FIND_DATAA;
 
     /// g_lastFilePath (0x4F52B0): the path of the last file opened or searched for, or 0
     /// (the fatal-error report names it).
     pub static LAST_FILE_PATH: AtomicU32 = AtomicU32::new(0);
-    /// hFindFile (0x4E05A4): the search handle, `u32::MAX` for none.
+    /// hFindFile (0x4E05A4): 1 while a search is open (`files::search`), `u32::MAX` for
+    /// none.
     pub static FIND_HANDLE: AtomicU32 = AtomicU32::new(u32::MAX);
     /// FindFileData (0x4E05A8, `WIN32_FIND_DATAA`, 0x13E bytes; 0x140 here): the search's
-    /// record.
+    /// record (`files::search` fills its attributes and name).
     pub static FIND_DATA: Place<[u32; 80]> = Place::new([0; 80]);
     /// The attributes a search passes over (0x4E06E6, the dword after the record): the
     /// directory bit; the installer clears it for its walk of folders.
@@ -130,11 +153,6 @@ pub mod state {
     /// g_localeDirectory.
     pub fn locale_directory() -> *mut u8 {
         unsafe { DIRECTORIES.ptr().cast::<u8>().add(0x100) }
-    }
-
-    /// The search record.
-    pub fn find_data() -> *mut WIN32_FIND_DATAA {
-        FIND_DATA.ptr().cast()
     }
 }
 

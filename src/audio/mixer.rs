@@ -31,7 +31,7 @@ pub fn mix_channels(
     // where the channels point.
     let mut loaded: Vec<(Channel, u32)> = (0..count)
         .map(|n| {
-            let c = { channel(at(n)) };
+            let c = channel(at(n));
             let core = Channel {
                 used: c.used,
                 format: c.format,
@@ -83,7 +83,7 @@ pub fn mix_channels(
     GamePtr::new(mix).write_bytes(&out, "the mix buffer")?;
     for (n, core) in cores.iter().enumerate() {
         // Only the channels that played: the original stores no others.
-        let c = { channel(at(n as u32)) };
+        let c = channel(at(n as u32));
         if c.used == 1 {
             c.used = core.used;
             c.position = core.position;

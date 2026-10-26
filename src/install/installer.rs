@@ -233,17 +233,17 @@ pub fn resolve_path(path: u32) -> Result<u32, Refused> {
 
 /// `files::find_first` (0x402FC2): whether a file was found.
 pub fn find_first(pattern: u32) -> bool {
-    unsafe { crate::race::find_snapshot_number::find_first(pattern) }
+    crate::race::find_snapshot_number::find_first(pattern)
 }
 
 /// `files::find_next_wanted` (0x402FF6): whether a file was found.
 pub fn find_next() -> bool {
-    unsafe { crate::race::find_snapshot_number::find_next_wanted() }
+    crate::race::find_snapshot_number::find_next_wanted()
 }
 
 /// `files::close_search` (0x40301F).
 pub fn close_search() {
-    unsafe { crate::race::find_snapshot_number::close_search() }
+    crate::files::search::close()
 }
 
 /// `system::sleep` (0x41100C).
@@ -486,44 +486,33 @@ pub const REG_CLOSE_KEY: u32 = 0x4D7CB0; // RegCloseKey (1)
 pub const REG_DELETE_KEY: u32 = 0x4D7C98; // RegDeleteKeyA (2)
 pub const GET_DISK_FREE: u32 = 0x4D5D2E; // GetDiskFreeSpaceA (5)
 
-/// The installer's Win32 calls in the game: the platform's, made from Rust. The DirectPlay
-/// registry key, the disk-free query and the registration-record registry values; the DDE
-/// to the Program Manager and `CreateProcess` stay the game's (`install::run_after_exit`).
+/// The installer's Win32 calls in the game. The registry's are `install::portable`'s
+/// (the standalone keeps no registry); the disk-free query is the system's
+/// (`os::disk_free`: its root, or 0 for the current drive, then the four answers' places).
+/// The DDE to the Program Manager and `CreateProcess` stay the game's
+/// (`install::run_after_exit`).
 pub fn game_api(place: u32, x: &[u32]) -> u32 {
-    use windows_sys::Win32::System::Registry as reg;
-    // The standalone is portable: no registry (`install::portable`).
     if let Some(answer) = crate::install::portable::api(place, x) {
         return answer;
     }
-    unsafe {
-        match place {
-            REG_CREATE_KEY => reg::RegCreateKeyA(
-                crate::pointers::host(x[0]) as _,
-                crate::pointers::host(x[1]) as _,
-                crate::pointers::host(x[2]) as _,
-            ) as u32,
-            REG_SET_VALUE => reg::RegSetValueExA(
-                crate::pointers::host(x[0]) as _,
-                crate::pointers::host(x[1]) as _,
-                x[2],
-                x[3],
-                crate::pointers::host(x[4]) as _,
-                x[5],
-            ) as u32,
-            REG_CLOSE_KEY => reg::RegCloseKey(crate::pointers::host(x[0]) as _) as u32,
-            REG_DELETE_KEY => reg::RegDeleteKeyA(
-                crate::pointers::host(x[0]) as _,
-                crate::pointers::host(x[1]) as _,
-            ) as u32,
-            GET_DISK_FREE => windows_sys::Win32::Storage::FileSystem::GetDiskFreeSpaceA(
-                crate::pointers::host(x[0]) as _,
-                crate::pointers::host(x[1]) as _,
-                crate::pointers::host(x[2]) as _,
-                crate::pointers::host(x[3]) as _,
-                crate::pointers::host(x[4]) as _,
-            ) as u32,
-            _ => 0,
+    match place {
+        GET_DISK_FREE => {
+            let end = |e| -> ! { crate::fatal::raise::end("install::game_api", e) };
+            let root = (x[0] != 0).then(|| {
+                crate::files::cstring(crate::pointers::GamePtr::new(x[0]), "a drive's root")
+                    .unwrap_or_else(|e| end(e))
+            });
+            let Some(answers) = crate::os::disk_free(root.as_deref()) else {
+                return 0;
+            };
+            for (&at, answer) in x[1..5].iter().zip(answers) {
+                crate::pointers::GamePtr::new(at)
+                    .write(answer, "a disk-free answer")
+                    .unwrap_or_else(|e| end(e));
+            }
+            1
         }
+        _ => 0,
     }
 }
 

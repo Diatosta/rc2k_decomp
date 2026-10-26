@@ -32,23 +32,21 @@ fn clear_rows(mut edi: u32, rows: u32) -> u32 {
 /// (`d3d::lock_texture`, nothing when it fails): three lines' height cleared, text `text`
 /// (ebx) drawn three times in the name font (box 0x168 wide) at x 4, -0x74, -0xEC and y 0, a
 /// line, two lines (a long name wrapped over the plate's three rows). Every register kept.
-pub unsafe fn draw_name_plate(slot: u32, text: u32) -> Result<(), Refused> {
+pub fn draw_name_plate(slot: u32, text: u32) -> Result<(), Refused> {
     use crate::d3d::{lock_texture::lock_texture, unlock_texture::unlock_texture};
-    unsafe {
-        if lock_texture(slot)?.carry {
-            return Ok(());
-        }
-        // Converted: `rc2k_core::race::plates::{name_rows, NAME_BOX, name_places}`.
-        use rc2k_core::race::plates::{NAME_BOX, name_places, name_rows};
-        let line = FONTS.game_fonts[0].get().line_height as u32; // a line's height
-        clear_rows(DRAW_SURFACE.pixels.get(), name_rows(line));
-        FONTS.game_fonts[2].update(|f| f.box_width = NAME_BOX);
-        for (x, y) in name_places(line) {
-            draw_text_in_game(FONTS.game_fonts[2].addr(), text, x, y)?;
-        }
-        unlock_texture(slot)?;
-        Ok(())
+    if lock_texture(slot)?.carry {
+        return Ok(());
     }
+    // Converted: `rc2k_core::race::plates::{name_rows, NAME_BOX, name_places}`.
+    use rc2k_core::race::plates::{NAME_BOX, name_places, name_rows};
+    let line = FONTS.game_fonts[0].get().line_height as u32; // a line's height
+    clear_rows(DRAW_SURFACE.pixels.get(), name_rows(line));
+    FONTS.game_fonts[2].update(|f| f.box_width = NAME_BOX);
+    for (x, y) in name_places(line) {
+        draw_text_in_game(FONTS.game_fonts[2].addr(), text, x, y)?;
+    }
+    unlock_texture(slot)?;
+    Ok(())
 }
 
 /// `race::draw_plate_by_id` (0x41B2D4): string id `id` (ebx) into the text buffer (`text`,
@@ -72,31 +70,29 @@ pub unsafe fn draw_plate_by_id(slot: u32, id: u32) -> Result<(), Refused> {
 /// `draw_name_plate`'s, below the name's three lines: two
 /// lines and three rows cleared, the texts at `dword_6D1838` and `dword_6D1844` in the time
 /// font (box 0x80 wide) at x 4, y three and four lines. Every register kept.
-pub unsafe fn draw_time_plate(slot: u32) -> Result<(), Refused> {
+pub fn draw_time_plate(slot: u32) -> Result<(), Refused> {
     use crate::d3d::{lock_texture::lock_texture, unlock_texture::unlock_texture};
-    unsafe {
-        if lock_texture(slot)?.carry {
-            return Ok(());
-        }
-        // Converted: `rc2k_core::race::plates::{time_start, time_rows, TIME_BOX,
-        // time_places}`.
-        use rc2k_core::race::plates::{TIME_BOX, time_places, time_rows, time_start};
-        let line = FONTS.game_fonts[0].get().line_height as u32;
-        let start = time_start(line, DRAW_SURFACE.pitch.get());
-        clear_rows(
-            start.wrapping_add(DRAW_SURFACE.pixels.get()),
-            time_rows(line),
-        );
-        for (text, (x, y)) in [&OVERLAY.label_behind[0], &OVERLAY.label_ahead[0]]
-            .into_iter()
-            .zip(time_places(line))
-        {
-            FONTS.game_fonts[3].update(|f| f.box_width = TIME_BOX);
-            draw_text_in_game(FONTS.game_fonts[3].addr(), text.addr(), x, y)?;
-        }
-        unlock_texture(slot)?;
-        Ok(())
+    if lock_texture(slot)?.carry {
+        return Ok(());
     }
+    // Converted: `rc2k_core::race::plates::{time_start, time_rows, TIME_BOX,
+    // time_places}`.
+    use rc2k_core::race::plates::{TIME_BOX, time_places, time_rows, time_start};
+    let line = FONTS.game_fonts[0].get().line_height as u32;
+    let start = time_start(line, DRAW_SURFACE.pitch.get());
+    clear_rows(
+        start.wrapping_add(DRAW_SURFACE.pixels.get()),
+        time_rows(line),
+    );
+    for (text, (x, y)) in [&OVERLAY.label_behind[0], &OVERLAY.label_ahead[0]]
+        .into_iter()
+        .zip(time_places(line))
+    {
+        FONTS.game_fonts[3].update(|f| f.box_width = TIME_BOX);
+        draw_text_in_game(FONTS.game_fonts[3].addr(), text.addr(), x, y)?;
+    }
+    unlock_texture(slot)?;
+    Ok(())
 }
 
 /// `race::update_name_plates` (0x45B3B9): when the two time texts (8 bytes each at

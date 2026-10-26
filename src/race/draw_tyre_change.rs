@@ -104,7 +104,7 @@ fn three_times(x: u32, y: u32) -> Result<(), Refused> {
 pub unsafe fn draw_tyre_change(device: u32) -> Result<(), Refused> {
     let clips = (clip(&BLIT.clip.left), clip(&BLIT.clip.right));
     let done = (|| -> Result<(), Refused> {
-        let failed = unsafe { crate::d3d::lock_texture::lock_texture(TYRE.texture.get()) }?.carry;
+        let failed = { crate::d3d::lock_texture::lock_texture(TYRE.texture.get()) }?.carry;
         if !failed && TYRE.drawn.get() != 1 {
             let mut y = 0u32;
             for (n, (id, font, x)) in [
@@ -161,7 +161,7 @@ pub unsafe fn draw_tyre_change(device: u32) -> Result<(), Refused> {
             { build_text(0x12C, None) }?;
         }
         three_times(x.wrapping_add(4), 0xB2)?;
-        unsafe { crate::d3d::unlock_texture::unlock_texture(TYRE.texture.get()) }?;
+        { crate::d3d::unlock_texture::unlock_texture(TYRE.texture.get()) }?;
         // The platform's (Direct3D).
         crate::d3d::copy_to_device_texture::copy_to_device_texture(
             TYRE.texture.get(),
