@@ -17,7 +17,6 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::physics::ground_store::GROUND_WORK;
-use crate::pointers::GamePtr;
 use crate::race::sound_spots_store::RACE_SOUND_SPOTS;
 use crate::race::vars_store::RACE_VARS;
 use crate::scene::draw_store::DRAW;
@@ -60,7 +59,7 @@ pub fn draw_object_faces(
             .object_see_through
             .set_bits(dword((entry + 0xC) as usize));
         RACE_VARS.face_number.set_bits(dword(entry as usize));
-        let head = GamePtr::new(face as u32).read_bytes(0xC, "an object's face")?;
+        let head = crate::scene::object_faces::bytes(face as u32, 0xC)?;
         let texture = u16::from_le_bytes([head[4], head[5]]) as u32;
         DRAW.polygon_textures[0]
             .set_bits(texture.wrapping_add(GROUND_WORK.object_texture_set.bits()) | 0x8000_0000);

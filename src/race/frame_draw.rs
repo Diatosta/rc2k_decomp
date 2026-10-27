@@ -52,10 +52,6 @@ fn byte1(a: u32) -> Result<u8, BadInput> {
     GamePtr::new(a).read("a face or record byte")
 }
 
-fn word_at(a: u32) -> Result<u16, BadInput> {
-    GamePtr::new(a).read("a face or record word")
-}
-
 /// `race::car_label` (0x45B1B7): at edi seven bytes, " CAR nn" with nn eax's two digits
 /// (eax / 10 and eax % 10, each + '0' as a byte), or seven spaces when ecx is -1. Every
 /// register kept.
@@ -243,7 +239,9 @@ pub fn object_bytes_at(t: &[u32]) -> Result<(), BadInput> {
             let record_kind = kind(get(record)?)?;
             let face_kind = if get(t[2] + 4 * n)? != 0 {
                 let face = get(t[4].wrapping_add(get(t[3] + 4 * n)?.wrapping_mul(4)))?;
-                let word = word_at(face.wrapping_add(4))?;
+                // The face is a place of `scene::object_faces` (phase 13).
+                let word = crate::scene::object_faces::bytes(face.wrapping_add(4), 2)?;
+                let word = u16::from_le_bytes([word[0], word[1]]);
                 Some(kind(word as u32)?)
             } else {
                 None

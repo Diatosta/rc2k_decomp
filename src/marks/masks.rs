@@ -52,9 +52,11 @@ pub fn collect_points(list: &PointList, face: u32) -> Result<(), Refused> {
             faces: std::slice::from_raw_parts_mut(list.faces.as_ptr() as *mut u32, most),
         };
         points.check()?;
-        let face_points = get(face)?;
+        let face_points = crate::scene::object_faces::word(face)?;
         let bad = crate::marks::Sticky::default();
-        let added = points.add_face(face, face_points, |k| bad.take(get(face + 0x10 + 0x10 * k)));
+        let added = points.add_face(face, face_points, |k| {
+            bad.take(crate::scene::object_faces::word(face + 0x10 + 0x10 * k))
+        });
         bad.done()?;
         added?;
         list.count.set(points.count);

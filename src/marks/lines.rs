@@ -23,10 +23,6 @@ fn put(at: u32, v: u32) -> Result<(), BadInput> {
     GamePtr::new(at).write(v, "a game field")
 }
 
-fn byte(at: u32) -> Result<u8, BadInput> {
-    GamePtr::new(at).read::<u8>("a game field")
-}
-
 /// The lines of two faces (`from`, `to`): for each of `from`'s points (+0x10, 0x10 apart)
 /// the length to `to`'s, added to the whole number at `sum`.
 fn lines(from: u32, to: u32, sum: u32) -> Result<(), Refused> {
@@ -47,11 +43,14 @@ fn lines_with(
     length: fn([i32; 3], i32) -> i32,
 ) -> Result<(), Refused> {
     {
-        let count = get(from)?;
+        let count = crate::scene::object_faces::word(from)?;
         let points: u32 = COURSE_LISTS.object_points.bits();
         let mut n = 0u32;
         while n != count {
-            let (a, b) = (get(from + 0x10 + 0x10 * n)?, get(to + 0x10 + 0x10 * n)?);
+            let (a, b) = (
+                crate::scene::object_faces::word(from + 0x10 + 0x10 * n)?,
+                crate::scene::object_faces::word(to + 0x10 + 0x10 * n)?,
+            );
             let p = points.wrapping_add(a.wrapping_mul(12));
             let q = points.wrapping_add(b.wrapping_mul(12));
             let d = core::difference(
@@ -74,7 +73,10 @@ fn lines_with(
 pub fn measure_slot_lines(from: u32, to: u32, block: u32) -> Result<(), Refused> {
     {
         for k in 0..core::SLOTS {
-            if core::slot_takes(get(block + 0xD0 + 4 * k)?, byte(from + 7)?) {
+            if core::slot_takes(
+                get(block + 0xD0 + 4 * k)?,
+                crate::scene::object_faces::byte(from + 7)?,
+            ) {
                 lines_with(from, to, block + 0xF0 + 4 * k, x87_length)?;
             }
         }
@@ -91,11 +93,14 @@ pub fn measure_kind_lines(from: u32, to: u32, block: u32) -> Result<(), Refused>
         for k in 0..core::KINDS {
             if core::kind_takes(
                 get(block + 0x130 + 4 * k)?,
-                byte(from + 6)?,
-                byte(from + 0xB)?,
+                crate::scene::object_faces::byte(from + 6)?,
+                crate::scene::object_faces::byte(from + 0xB)?,
             ) {
                 let count = block + 0x240 + 4 * k;
-                put(count, get(count)?.wrapping_add(get(from)?))?;
+                put(
+                    count,
+                    get(count)?.wrapping_add(crate::scene::object_faces::word(from)?),
+                )?;
                 lines_with(from, to, block + 0x1B8 + 4 * k, x87_length)?;
             }
         }
@@ -187,8 +192,8 @@ pub fn measure_lines() -> Result<(), Refused> {
             for n in 0..(faces as i32).max(0) as u32 {
                 let from: u32 = crate::scene::objects::face_cell((first_a + n) as usize).get();
                 let to: u32 = crate::scene::objects::face_cell((first_b + n) as usize).get();
-                if byte(from + 6)? == 0x1C {
-                    let kind = byte(from + 0xB)? as u32;
+                if crate::scene::object_faces::byte(from + 6)? == 0x1C {
+                    let kind = crate::scene::object_faces::byte(from + 0xB)? as u32;
                     if (1..=6).contains(&kind) {
                         lines(from, to, block + 0x18 + 4 * kind)?;
                     }

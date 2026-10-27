@@ -19,7 +19,6 @@
 use crate::errors::{BadInput, FatalError, Refused};
 use crate::math::x87_float::{X, compare};
 use crate::physics::ground_store::GROUND_WORK;
-use crate::pointers::GamePtr;
 use crate::race::scratch_store::FRAME_SCRATCH;
 use crate::scene::draw_store::DRAW;
 use crate::scene::x87_mem::{fld, fnstsw, fstp};
@@ -109,7 +108,7 @@ pub fn face_faces_away(face: usize) -> Result<bool, Refused> {
     if face == 0 || !crate::scene::point_records::held() {
         return Err(BadInput("no face or no records").into());
     }
-    let count: u32 = GamePtr::new(face as u32).read("a face")?;
+    let count: u32 = crate::scene::object_faces::word(face as u32)?;
     DRAW.polygon_vertex_count.set_bits(count);
     if count < 3 {
         return Ok(true);
@@ -118,7 +117,7 @@ pub fn face_faces_away(face: usize) -> Result<bool, Refused> {
         .checked_mul(0x10)
         .and_then(|n| n.checked_add(0x10))
         .ok_or(BadInput("a face of too many vertices"))?;
-    let words = GamePtr::new(face as u32).read_bytes(len, "a face")?;
+    let words = crate::scene::object_faces::bytes(face as u32, len)?;
     let point = |n: u32| {
         let at = 0x10 + n as usize * 0x10;
         u32::from_le_bytes(words[at..at + 4].try_into().unwrap())

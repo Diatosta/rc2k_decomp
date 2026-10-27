@@ -332,7 +332,7 @@ pub fn add_object_shape(file: usize) -> Result<(), BadInput> {
             push(word(from + 8));
             push(normal(word(from + 0xC)));
         }
-        GamePtr::new(out as u32).write_bytes(&made, "a face of the objects' memory")?;
+        crate::scene::object_faces::write(out as u32, &made)?;
         out += 0x10 + face.vertices * 0x10;
         face_number += 1;
     }

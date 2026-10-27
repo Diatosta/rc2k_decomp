@@ -141,13 +141,18 @@ pub fn add_face_points(s: u32, face: u32) -> Result<(), Refused> {
             firsts: &mut firsts,
             seconds: &mut seconds,
         };
-        let face_points = get(face)?;
+        let face_points = crate::scene::object_faces::word(face)?;
         let at = |k: u32| face + 0x10 + 0x10 * k;
         let bad = crate::marks::Sticky::default();
         points.add_face(
             face_points,
-            |k| bad.take(get(at(k))),
-            |k| [bad.take(get(at(k) + 4)), bad.take(get(at(k) + 8))],
+            |k| bad.take(crate::scene::object_faces::word(at(k))),
+            |k| {
+                [
+                    bad.take(crate::scene::object_faces::word(at(k) + 4)),
+                    bad.take(crate::scene::object_faces::word(at(k) + 8)),
+                ]
+            },
         )?;
         bad.done()?;
         let after = points.count;
@@ -193,7 +198,7 @@ pub fn gather_spline_points(s: u32, object: u32, kind: u32) -> Result<(), Refuse
         SPLINE_HEAD.found.set_bits(0u32);
         for f in first..first + faces {
             let face: u32 = crate::scene::objects::face_cell(f as usize).get();
-            if (GamePtr::new(face + 7).read::<u8>("a face kind")? & 0x1F) as u32 == kind {
+            if (crate::scene::object_faces::byte(face + 7)? & 0x1F) as u32 == kind {
                 SPLINE_HEAD
                     .found
                     .set(SPLINE_HEAD.found.get().wrapping_add(1));

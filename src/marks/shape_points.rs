@@ -325,7 +325,7 @@ pub fn make_shape_set(object: u32) -> Result<(), Refused> {
     let kinds: [u32; 2] = read_bits(&SHAPE_SET_TUNING.face_kinds);
     for f in first..first + faces {
         let face: u32 = crate::scene::objects::face_cell(f as usize).get();
-        let kind = GamePtr::new(face + 7).read::<u8>("a face kind")?;
+        let kind = crate::scene::object_faces::byte(face + 7)?;
         if kind == kinds[0] as u8 {
             collect_points(&POINTS_A, face)?;
         } else if kind == kinds[1] as u8 {

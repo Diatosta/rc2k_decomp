@@ -16,7 +16,6 @@ use crate::errors::{BadInput, Refused};
 use crate::math::x87;
 use crate::race::course_lists_store::COURSE_LISTS;
 use crate::scene::draw_store::DRAW;
-use crate::scene::polygon::dword;
 
 // ---- game data ----
 
@@ -36,7 +35,9 @@ pub fn face_sort_key(face: usize, count: u32) -> Result<(), Refused> {
     }
     let mut sum = 0f32.to_bits();
     for n in 0..count as usize {
-        let record = crate::scene::point_records::of_object_point(dword(face + 0x10 + n * 0x10));
+        let record = crate::scene::point_records::of_object_point(
+            crate::scene::object_faces::word((face + 0x10 + n * 0x10) as u32)?,
+        );
         sum = x87::add(crate::scene::point_records::field(record, 0x18)?, sum);
     }
     let factor = COURSE_LISTS.face_key_factors[vertices as usize].bits();

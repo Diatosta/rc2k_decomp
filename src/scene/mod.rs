@@ -102,6 +102,7 @@ pub mod matrix;
 pub mod matrix3;
 pub mod measure_object;
 pub mod next_noise;
+pub mod object_faces;
 pub mod object_slots_store;
 pub mod object_store;
 pub mod object_tables_store;

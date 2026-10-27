@@ -22,34 +22,22 @@ use rc2k_core::scene::objects::object_rooms as rooms;
 
 // ---- Rust version ----
 
-/// `take`: what stands for `memory::allocate`, given the bytes and the list.
+/// The points' part from `memory::allocate`; the faces' Rust's (`scene::object_faces`,
+/// phase 13), counted on the same list.
 // Converted: `rc2k_core::scene::objects::object_rooms`
-pub fn allocate_object_memory(
-    take: &mut dyn FnMut(u32, u32) -> Result<u32, Refused>,
-) -> Result<(), Refused> {
+pub fn allocate_object_memory_in_game() -> Result<(), Refused> {
     let (points, faces) = rooms(NUMBERS.in_race.bits() != 0);
-    let list = COURSE_LISTS.object_points_list[0].addr();
+    let list = COURSE_LISTS.object_points_list[0].as_ptr() as *mut _;
     COURSE_LISTS.course_bytes_total.set_bits(
         COURSE_LISTS
             .course_bytes_total
             .bits()
             .wrapping_add(points + faces),
     );
-    let block = take(points + faces, list)?;
+    let block = crate::pointers::game_address(allocate(list, points)?);
+    crate::scene::object_faces::take(list, faces)?;
     COURSE_LISTS.object_points.set_bits(block);
-    COURSE_LISTS
-        .face_memory
-        .set_bits(block.wrapping_add(points));
     COURSE_LISTS.object_points_room.set_bits(points);
     COURSE_LISTS.face_memory_room.set_bits(faces);
     Ok(())
-}
-
-pub fn allocate_object_memory_in_game() -> Result<(), Refused> {
-    allocate_object_memory(&mut |bytes, _| {
-        Ok(crate::pointers::game_address(allocate(
-            crate::pointers::host(COURSE_LISTS.object_points_list[0].addr()) as *mut _,
-            bytes,
-        )?))
-    })
 }

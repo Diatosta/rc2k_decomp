@@ -34,7 +34,6 @@
 use crate::errors::{BadInput, Refused};
 use crate::physics::camera_store::CAMERA_WORK;
 use crate::physics::ground_store::GROUND_WORK;
-use crate::pointers::GamePtr;
 use crate::race::course_store::COURSE;
 use crate::race::sound_spots_store::RACE_SOUND_SPOTS;
 use crate::race::switches_store::FRAME_SWITCHES;
@@ -78,12 +77,11 @@ pub unsafe fn draw_object_face(
         if face == 0 {
             return Err(BadInput("no face").into());
         }
-        let count: u32 = GamePtr::new(face as u32).read("an object's face")?;
+        let count: u32 = crate::scene::object_faces::word(face as u32)?;
         if count == 0 || count > MOST || !crate::scene::point_records::held() {
             return Err(BadInput("a face of no vertices or more than 64, or no records").into());
         }
-        let words = GamePtr::new(face as u32)
-            .read_bytes(0x10 + count as usize * 0x10, "an object's face")?;
+        let words = crate::scene::object_faces::bytes(face as u32, 0x10 + count as usize * 0x10)?;
         let fw = |at: usize| u32::from_le_bytes(words[at..at + 4].try_into().unwrap());
         let entries = crate::scene::polygon::entries_addr();
         let vertices =

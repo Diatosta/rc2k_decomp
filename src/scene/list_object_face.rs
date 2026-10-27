@@ -159,7 +159,7 @@ impl FaceWorld for GameFace {
 
 /// The face's bytes the tests read.
 fn face_bytes(face: usize) -> Result<Face, BadInput> {
-    let b = GamePtr::new(face as u32).read_bytes(0xC, "an object's face")?;
+    let b = crate::scene::object_faces::bytes(face as u32, 0xC)?;
     Ok(Face {
         kind: b[6],
         group: b[7],
@@ -190,7 +190,7 @@ pub fn list_object_face(face: usize) -> Result<(), Refused> {
     if face_faces_away(face)? {
         return Ok(());
     }
-    let count: u32 = GamePtr::new(face as u32).read("an object's face")?;
+    let count: u32 = crate::scene::object_faces::word(face as u32)?;
     if count as i32 <= 0 {
         return Ok(());
     }
