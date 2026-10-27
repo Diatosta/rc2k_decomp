@@ -65,7 +65,7 @@ pub fn take_contact(n: usize) -> Result<(), Refused> {
     let face = (CAR.probe_point_face[n].get() << 6).wrapping_add(COURSE.course_faces.get());
     let parts = contacts::normal_offsets(CONTACT_WORK.probe_face_flip[n].get());
     for (k, o) in parts.iter().enumerate() {
-        let v = crate::pointers::GamePtr::new(face + o).read::<u32>("a face's normal")?;
+        let v = crate::race::course_places::read::<u32>(face + o, "a face's normal")?;
         CONTACT_WORK.contact_normal[k].set_bits(loaded(v));
     }
     copy3(&CONTACT_WORK.contact_turn_speed, &CAR.spin);

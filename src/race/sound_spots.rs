@@ -28,7 +28,7 @@ fn grid_cell(c: u32) -> Result<u32, BadInput> {
 }
 
 fn get(a: u32) -> Result<u32, BadInput> {
-    GamePtr::new(a).read("a sound spot face or point")
+    crate::race::course_places::read(a, "a sound spot face or point")
 }
 
 /// The 25 cells' numbers, in the original's order (five across, then on by 0x1C after
@@ -75,7 +75,7 @@ pub fn face_sound_spot(face_number: u32) -> Result<(), BadInput> {
         // Converted: `rc2k_core::race::view::{sound_object, takes_spot, spot_place}`
         // (the turn and scale stay the x87's: the callers compare exactly).
         use rc2k_core::race::view::{MOST_SPOTS, sound_object, spot_place, takes_spot};
-        let byte = |o: u32| GamePtr::new(face + o).read::<u8>("a course face byte");
+        let byte = |o: u32| crate::race::course_places::read::<u8>(face + o, "a course face byte");
         let kind = byte(0)?;
         if kind != 0xFF || !sound_object(kind, byte(1)?) {
             return Ok(());

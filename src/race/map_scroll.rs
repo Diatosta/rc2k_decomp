@@ -7,7 +7,6 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::physics::car_store::CAR;
-use crate::pointers::GamePtr;
 use crate::race::course_store::COURSE;
 use crate::race::vars_store::RACE_VARS;
 use crate::race::view_store::RACE_VIEW;
@@ -87,7 +86,8 @@ pub unsafe fn scroll_map() -> Result<(), Refused> {
             .course_faces
             .get()
             .wrapping_add(crate::race::checkpoints_store::face(n as usize).get() << 6);
-        let point = GamePtr::new(face + 4).read::<u32>("a checkpoint face's first point")?;
+        let point =
+            crate::race::course_places::read::<u32>(face + 4, "a checkpoint face's first point")?;
         let p = point
             .wrapping_mul(12)
             .wrapping_add(COURSE.scene_points.get());

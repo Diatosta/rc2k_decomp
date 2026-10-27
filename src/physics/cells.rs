@@ -54,7 +54,7 @@ impl Trap {
 
     /// The dword at `a`.
     pub fn dword(&self, a: u32, what: &str) -> u32 {
-        self.keep(crate::pointers::GamePtr::new(a).read::<u32>(what))
+        self.keep(crate::race::course_places::read::<u32>(a, what))
     }
 
     /// The byte at `a`.
@@ -64,7 +64,7 @@ impl Trap {
 
     /// The word at `a`.
     pub fn word(&self, a: u32, what: &str) -> u16 {
-        self.keep(crate::pointers::GamePtr::new(a).read::<u16>(what))
+        self.keep(crate::race::course_places::read::<u16>(a, what))
     }
 
     /// Whether a refusal has been kept.

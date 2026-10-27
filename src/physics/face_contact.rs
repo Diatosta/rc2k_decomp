@@ -38,7 +38,6 @@ use crate::physics::flow::{copy_cells, fill_cells, negate};
 use crate::physics::tables_store::PHYSICS;
 use crate::physics::touch_face::touch_face;
 use crate::physics::vector_length::vector_length;
-use crate::pointers::GamePtr;
 use crate::race::course_store::COURSE;
 use crate::race::norms::normalise_work_vector;
 use crate::race::numbers_store::NUMBERS;
@@ -51,11 +50,17 @@ use crate::scene::x87_mem::{fild, fistp, fld, fstp};
 use rc2k_core::physics::face_contacts::{self as contacts, FaceObject, Inside};
 
 fn byte(x: u32) -> Result<u32, Refused> {
-    Ok(u32::from(GamePtr::new(x).read::<u8>("a face's byte")?))
+    Ok(u32::from(crate::race::course_places::read::<u8>(
+        x,
+        "a face's byte",
+    )?))
 }
 
 fn rd(x: u32) -> Result<u32, Refused> {
-    Ok(GamePtr::new(x).read::<u32>("a face's or scene point's dword")?)
+    Ok(crate::race::course_places::read::<u32>(
+        x,
+        "a face's or scene point's dword",
+    )?)
 }
 
 fn touch() -> Result<(), Refused> {

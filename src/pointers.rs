@@ -172,14 +172,32 @@ fn stack() -> (usize, usize) {
 /// one place a game address becomes a host pointer (`address_map`: the same number on 32
 /// bits, a table's range on 64). An address no range covers ends the program.
 #[inline]
+#[track_caller]
 pub fn host(addr: u32) -> *mut u8 {
     if addr == 0 {
         return std::ptr::null_mut();
+    }
+    if crate::race::course_places::is_place(addr) {
+        course_place(addr);
     }
     match crate::address_map::host(addr) {
         Some(at) => std::ptr::with_exposed_provenance_mut(at),
         None => unmapped(addr),
     }
+}
+
+/// A course place (`race::course_places`) taken for an address: the reader not converted,
+/// named.
+#[cold]
+#[track_caller]
+fn course_place(addr: u32) -> ! {
+    let at = std::panic::Location::caller();
+    crate::fatal::raise::end(
+        "a course place read as an address",
+        BadInput(Box::leak(
+            format!("{addr:#x} from {}:{}", at.file(), at.line()).into_boxed_str(),
+        )),
+    )
 }
 
 #[cold]

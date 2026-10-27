@@ -28,11 +28,10 @@ use crate::race::numbers_store::NUMBERS;
 use crate::math::next_random::next_random;
 use crate::physics::flow::{a, c0, g, p};
 use crate::physics::place_sound_object::place_sound_object;
-use crate::pointers::GamePtr;
 use rc2k_core::drive::lit_faces::{LIST_ROOM, Touch, fall_mark, lucky, touch};
 
 fn put(at: u32, v: u32) -> Result<(), BadInput> {
-    GamePtr::new(at).write(v as u8, "a face's mark byte")
+    crate::race::course_places::write(at, v as u8, "a face's mark byte")
 }
 
 /// The usual marks: +9 = 0, +0x11 = `mark`, +0x13 = 0, +0x12 `dword_6D3B70`'s low byte.
@@ -51,7 +50,7 @@ fn mark(face: u32, mark: u32, clear_9: bool) -> Result<(), BadInput> {
 pub fn touch_face() -> Result<(), Refused> {
     let number = CONTACT_WORK.face_number.get();
     let face = (number << 6).wrapping_add(g(&COURSE.course_faces));
-    if GamePtr::new(face + 0x11).read::<u8>("a face's mark")? != 0 {
+    if crate::race::course_places::read::<u8>(face + 0x11, "a face's mark")? != 0 {
         return Ok(());
     }
     let count = CONTACT_WORK.lit_face_count.get();

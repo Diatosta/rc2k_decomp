@@ -19,7 +19,7 @@ pub fn record() -> u32 {
 }
 
 pub fn rd(x: u32) -> u32 {
-    crate::pointers::read_or_end(x, "a car block's field")
+    crate::race::course_places::read_or_end(x, "a car block's field")
 }
 
 /// The share done (0x438498 .. 0x4384BD): eax as left (the time held).

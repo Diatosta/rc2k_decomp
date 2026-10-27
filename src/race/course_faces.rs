@@ -23,11 +23,11 @@ use crate::scene::light_work_store::LIGHT_WORK;
 use crate::session::{Dword, Float};
 
 fn get(a: u32) -> Result<u32, BadInput> {
-    GamePtr::new(a).read("a course face, point or entry word")
+    crate::race::course_places::read(a, "a course face, point or entry word")
 }
 
 fn byte_at(a: u32) -> Result<u8, BadInput> {
-    GamePtr::new(a).read("a course face or entry byte")
+    crate::race::course_places::read(a, "a course face or entry byte")
 }
 
 fn put(a: u32, v: u32) -> Result<(), BadInput> {
@@ -799,7 +799,9 @@ pub unsafe fn face_colours(face: u32) -> Result<(), Refused> {
                 .get();
             RACE_VIEW.corner_colours[k as usize].set(c);
             let lit =
-                GamePtr::new(face + 2).read::<u16>("a course face's switches")? & EXTRA_LIGHTS != 0;
+                crate::race::course_places::read::<u16>(face + 2, "a course face's switches")?
+                    & EXTRA_LIGHTS
+                    != 0;
             if lit {
                 let trap = Trap::new();
                 let extra = || {
@@ -940,7 +942,9 @@ pub unsafe fn draw_course_face(face: u32) -> Result<(), Refused> {
     unsafe {
         crate::race::frame_draw::points_there()?;
         face_corners(face)?;
-        if GamePtr::new(face + 2).read::<u16>("a course face's switches")? & 0x200 != 0 {
+        if crate::race::course_places::read::<u16>(face + 2, "a course face's switches")? & 0x200
+            != 0
+        {
             face_corners_to_new_points()?;
         }
         if face_out_of_view()? {

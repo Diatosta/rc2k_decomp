@@ -41,7 +41,7 @@ use crate::session::SCREEN;
 use crate::store::game_read;
 
 fn get(a: u32) -> Result<u32, BadInput> {
-    GamePtr::new(a).read("a frame, face or point word")
+    crate::race::course_places::read(a, "a frame, face or point word")
 }
 
 fn put(a: u32, v: u32) -> Result<(), BadInput> {
@@ -49,7 +49,7 @@ fn put(a: u32, v: u32) -> Result<(), BadInput> {
 }
 
 fn byte1(a: u32) -> Result<u8, BadInput> {
-    GamePtr::new(a).read("a face or record byte")
+    crate::race::course_places::read(a, "a face or record byte")
 }
 
 /// `race::car_label` (0x45B1B7): at edi seven bytes, " CAR nn" with nn eax's two digits
@@ -712,7 +712,7 @@ pub fn checkpoint_colours() -> Result<(), BadInput> {
         )
         .get();
         let esi = (face << 6).wrapping_add(COURSE.course_faces.bits());
-        let byte = GamePtr::new(esi + 0x10).read::<u8>("a face, record or matrix")?;
+        let byte = crate::race::course_places::read::<u8>(esi + 0x10, "a face, record or matrix")?;
         let along = crate::race::checkpoints_store::nth(
             &crate::race::checkpoints_store::CHECKPOINTS.angles[2],
             n as usize,
@@ -772,7 +772,7 @@ pub fn face_hidden(esi: u32, eax: u32) -> Result<(u32, bool), Refused> {
     };
     let trap = Trap::new();
     let (bits, hidden) = hidden_by_switches(shows, hiding, || {
-        trap.read::<u16>(esi + 2, "a course face's switches") as u32
+        trap.course::<u16>(esi + 2, "a course face's switches") as u32
             & FRAME_WORK.face_hide_mask.bits()
     });
     trap.finish()?;
@@ -812,10 +812,10 @@ pub fn face_depth(ebx: u32) -> Result<(), Refused> {
     // Converted: `rc2k_core::race::faces::{depth_by, deeper, average_key, depth_key}`;
     // the roundings and the sum the x87's.
     use rc2k_core::race::faces::{DepthBy, average_key, deeper, depth_by};
-    let kind = GamePtr::new(face).read::<u8>("a face, record or matrix")?;
+    let kind = crate::race::course_places::read::<u8>(face, "a face, record or matrix")?;
     let trap = Trap::new();
     let by = depth_by(kind, || {
-        let object = trap.read::<u8>(face + 1, "a course face's object") as u32;
+        let object = trap.course::<u8>(face + 1, "a course face's object") as u32;
         trap.read::<u8>(
             crate::scene::polygon_store::POLYGON_WORK.texture_infos[0].words[0].addr()
                 + 0x2E
@@ -1001,7 +1001,7 @@ pub fn gather_record_faces(record: u32) -> Result<(), Refused> {
                 let first_object = byte(1)?;
                 let trap = Trap::new();
                 let object = face_object(how, first_object, || {
-                    trap.read::<u8>(at + 0x21, "a course face's second object")
+                    trap.course::<u8>(at + 0x21, "a course face's second object")
                 });
                 trap.finish()?;
                 let tables = face_tables();
@@ -1050,7 +1050,7 @@ pub unsafe fn face_hide_mask() -> Result<(), Refused> {
         }
         let face = (ground << 6).wrapping_add(COURSE.course_faces.bits());
         // Converted: `rc2k_core::race::faces::hide_mask`.
-        let word = GamePtr::new(face + 2).read::<u16>("a face, record or matrix")?;
+        let word = crate::race::course_places::read::<u16>(face + 2, "a face, record or matrix")?;
         FRAME_WORK
             .face_hide_mask
             .set_bits(rc2k_core::race::faces::hide_mask(word));
@@ -1271,7 +1271,8 @@ pub fn gather_lamps() -> Result<(), Refused> {
         let face = (CONTACT_WORK.lit_faces[k as usize].bits() << 6)
             .wrapping_add(COURSE.course_faces.bits());
         // Converted: `rc2k_core::race::faces::takes_lamp`.
-        let object = GamePtr::new(face + 1).read::<u8>("a face, record or matrix")? as u32;
+        let object =
+            crate::race::course_places::read::<u8>(face + 1, "a face, record or matrix")? as u32;
         if object != rc2k_core::race::faces::LAMP_OBJECT {
             continue;
         }
@@ -2840,7 +2841,8 @@ pub unsafe fn draw_list_entry(at: u32, ebx: u32) -> Result<(), Refused> {
             0 => {
                 COURSE.current_course_face.set_bits(word);
                 let face = (word << 6).wrapping_add(COURSE.course_faces.bits());
-                let kind = GamePtr::new(face).read::<u8>("a face, record or matrix")?;
+                let kind =
+                    crate::race::course_places::read::<u8>(face, "a face, record or matrix")?;
                 if kind == 0xFF || kind < 0x10 {
                     LEVEL_GRID.smooth.set_bits(1);
                     LEVEL_GRID.plain_first.set_bits(1);

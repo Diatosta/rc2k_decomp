@@ -21,7 +21,7 @@ use crate::race::vars_store::RACE_VARS;
 use rc2k_core::physics::progress::checkpoint_ahead;
 
 fn at(a: u32) -> Result<u32, crate::errors::BadInput> {
-    crate::pointers::GamePtr::new(a).read::<u32>("a checkpoint face or scene point")
+    crate::race::course_places::read::<u32>(a, "a checkpoint face or scene point")
 }
 
 /// The Rust version.

@@ -44,7 +44,7 @@ use rc2k_core::drive::lit_faces::{
 const MOST: u32 = 0x100;
 
 fn at(p: u32) -> Result<u32, BadInput> {
-    GamePtr::new(p).read("a face of the course")
+    crate::race::course_places::read(p, "a face of the course")
 }
 
 fn put(p: u32, v: u32) -> Result<(), BadInput> {
@@ -52,11 +52,11 @@ fn put(p: u32, v: u32) -> Result<(), BadInput> {
 }
 
 fn byte(p: u32) -> Result<u8, BadInput> {
-    GamePtr::new(p).read("a face of the course")
+    crate::race::course_places::read(p, "a face of the course")
 }
 
 fn set_byte(p: u32, v: u8) -> Result<(), BadInput> {
-    GamePtr::new(p).write(v, "a face of the course")
+    crate::race::course_places::write(p, v, "a face of the course")
 }
 
 /// The face's animated bytes.

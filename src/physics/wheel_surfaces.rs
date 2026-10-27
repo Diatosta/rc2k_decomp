@@ -45,9 +45,10 @@ use crate::scene::x87_mem::{fild, fistp, fld, fstp};
 use std::cmp::Ordering;
 
 fn byte(a: u32) -> Result<u32, Refused> {
-    Ok(u32::from(
-        GamePtr::new(a).read::<u8>("a face's or texture record's byte")?,
-    ))
+    Ok(u32::from(crate::race::course_places::read::<u8>(
+        a,
+        "a face's or texture record's byte",
+    )?))
 }
 
 /// `fld v[c] x 65536; fistp` through `dword_62400C` (`v` the table's offset from the base).
@@ -128,7 +129,7 @@ fn steps() -> Result<(), Refused> {
                 DRAW.surface_point[2].set(z.wrapping_sub(x));
                 x87_2(crate::race::store::asm_base() as usize, c as usize);
             }
-            if GamePtr::new(f + 2).read::<u16>("a face's flags")? & 0x1000 != 0 {
+            if crate::race::course_places::read::<u16>(f + 2, "a face's flags")? & 0x1000 != 0 {
                 CAR.wheel_surface_a[cc].set(5);
                 CAR.wheel_surface_b[cc].set(5);
                 CAR.wheel_cell_a_byte18[cc].set(0x3C);

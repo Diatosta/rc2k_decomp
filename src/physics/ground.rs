@@ -16,7 +16,6 @@ use crate::physics::edge_side::{EdgePlaces, edge_side_at};
 use crate::physics::find_course_record::{RecordPlaces, find_course_record_at};
 use crate::physics::ground_store::GROUND_WORK;
 use crate::physics::plane_height::{Plane, plane_height_at};
-use crate::pointers::GamePtr;
 use crate::race::course_store::COURSE;
 use crate::race::kind_records_store::KIND_RECORDS;
 use crate::race::numbers_store::NUMBERS;
@@ -69,7 +68,7 @@ impl Ground {
 }
 
 fn at(a: u32) -> Result<u32, BadInput> {
-    GamePtr::new(a).read::<u32>("a course face, record or scene point")
+    crate::race::course_places::read::<u32>(a, "a course face, record or scene point")
 }
 
 /// `physics::face_shares` (0x442323): the three corners named by `dword_639890` ..
@@ -169,7 +168,7 @@ pub unsafe fn face_under_point_at(g: &Ground, number: u32) -> Result<bool, Refus
         }
         COURSE.ground_number.set(number);
         let face = (number << 6).wrapping_add(COURSE.course_faces.get());
-        let kind = GamePtr::new(face).read::<u8>("a course face's kind")?;
+        let kind = crate::race::course_places::read::<u8>(face, "a course face's kind")?;
         let trap = Trap::new();
         // One edge.
         let side = |from: u32, to: u32| -> Option<bool> {

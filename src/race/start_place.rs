@@ -9,7 +9,6 @@ use crate::math::x87;
 use crate::physics::car_store::CAR;
 use crate::physics::ground_store::GROUND_WORK;
 use crate::physics::tables_store::PHYSICS;
-use crate::pointers::GamePtr;
 use crate::race::best_line::MOST_CHECKS;
 use crate::race::course_store::COURSE;
 use crate::race::numbers_store::NUMBERS;
@@ -29,7 +28,8 @@ fn count() -> Result<u32, Refused> {
 fn check_point(n: u32) -> Result<(u32, u32, u32, u32), BadInput> {
     let face: u32 = crate::race::checkpoints_store::face(n as usize).get();
     let address = (face << 6).wrapping_add(COURSE.course_faces.bits());
-    let point: u32 = GamePtr::new(address + 4).read("a checkpoint face's first point")?;
+    let point: u32 =
+        crate::race::course_places::read(address + 4, "a checkpoint face's first point")?;
     let place = (point.wrapping_mul(3) << 2).wrapping_add(COURSE.scene_points.bits());
     Ok((face, address, point, place))
 }

@@ -4,8 +4,8 @@
 //! course info (where the game puts new points past the count: the face corners' copies,
 //! the shadow's), and `race::free_course_memory` gives them back.
 //!
-//! `COURSE.scene_points` is `BASE` while they are held (0 otherwise), so a point is named by
-//! `BASE` + 12 n where the original held its address: the original's arithmetic is kept,
+//! `COURSE.scene_points` is `base()` while they are held (0 otherwise; a place in the range
+//! `race::course_places` reserves), so a point is named by `base()` + 12 n where the original held its address: the original's arithmetic is kept,
 //! and a place is read here.
 
 use crate::errors::BadInput;
@@ -13,7 +13,9 @@ use crate::memory::owned::Owned;
 use crate::race::course_store::COURSE;
 
 /// `COURSE.scene_points` while the points are held: point 0's place.
-pub const BASE: u32 = 1;
+pub fn base() -> u32 {
+    crate::race::course_places::points_base()
+}
 
 pub static POINTS: Owned<Vec<u8>> = Owned::new("no scene points");
 
@@ -24,6 +26,10 @@ pub fn held() -> bool {
 
 /// The points moved out of the course memory: `len` bytes at game address `from`.
 pub fn take_from(from: u32, len: u32) -> Result<(), BadInput> {
+    crate::race::course_places::reserve()?;
+    if len > crate::race::course_places::room() {
+        return Err(BadInput("more scene points than their places hold"));
+    }
     let bytes = crate::pointers::GamePtr::new(from).read_bytes(len as usize, "the scene points")?;
     POINTS.set(bytes);
     Ok(())
@@ -35,7 +41,7 @@ pub fn give_back() {
 }
 
 fn range(at: u32, len: usize) -> Option<std::ops::Range<usize>> {
-    let start = at.checked_sub(BASE)? as usize;
+    let start = at.checked_sub(base())? as usize;
     Some(start..start.checked_add(len)?)
 }
 
@@ -86,15 +92,16 @@ pub fn put(at: u32, v: u32) -> Result<(), BadInput> {
     write(at, &v.to_le_bytes())
 }
 
-/// `f` with the scene points `words` held (`COURSE.scene_points` at `BASE`), the points and
+/// `f` with the scene points `words` held (`COURSE.scene_points` at `base()`), the points and
 /// `COURSE.scene_points` as they were afterwards (the differential tests: the reference
 /// reads the same words at their address).
 #[cfg(all(test, target_arch = "x86"))]
 pub fn with_test_points<R>(words: &[u32], f: impl FnOnce() -> R) -> R {
     let kept = POINTS.with(std::mem::take).ok();
     let kept_at = COURSE.scene_points.get();
+    crate::race::course_places::reserve().expect("the course's places");
     POINTS.set(words.iter().flat_map(|w| w.to_le_bytes()).collect());
-    COURSE.scene_points.set(BASE);
+    COURSE.scene_points.set(base());
     let out = f();
     match kept {
         Some(p) => POINTS.set(p),

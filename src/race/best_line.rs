@@ -21,11 +21,11 @@ use crate::session::Dword;
 pub const MOST_CHECKS: u32 = rc2k_core::race::checkpoints::MOST_CHECKS;
 
 fn get(at: u32) -> Result<u32, BadInput> {
-    GamePtr::new(at).read("a course point or face word")
+    crate::race::course_places::read(at, "a course point or face word")
 }
 
 fn byte(at: u32) -> Result<u8, BadInput> {
-    GamePtr::new(at).read("a course face byte")
+    crate::race::course_places::read(at, "a course face byte")
 }
 
 /// Checkpoint n's face.
@@ -81,7 +81,7 @@ pub fn next_map_anchor(from: u32) -> Result<Option<u32>, Refused> {
     let n = count()?;
     let trap = Trap::new();
     let anchor = rc2k_core::race::checkpoints::next_map_anchor(from, n, |c| {
-        trap.read::<u32>(check_face(c) + 0x2C, "a checkpoint face's map word") != 0
+        trap.course::<u32>(check_face(c) + 0x2C, "a checkpoint face's map word") != 0
     });
     trap.finish()?;
     if anchor.is_some() {
@@ -103,7 +103,7 @@ pub fn count_checks() -> Result<(), Refused> {
     }
     let trap = Trap::new();
     let counts = rc2k_core::race::checkpoints::check_counts(n, |k| {
-        trap.read::<u8>(check_face(k) + 0x26, "a checkpoint face's check byte")
+        trap.course::<u8>(check_face(k) + 0x26, "a checkpoint face's check byte")
     });
     trap.finish()?;
     for (k, &c) in counts.iter().enumerate() {
@@ -227,8 +227,8 @@ pub fn sort_checkpoints() -> Result<(), Refused> {
         let trap = Trap::new();
         let c = chain(
             &mut list,
-            |f| trap.read::<u8>(face(f) + 0x26, "a checkpoint face's check byte") == 1,
-            |f| trap.read::<u32>(face(f) + 0xC, "a checkpoint face's next link"),
+            |f| trap.course::<u8>(face(f) + 0x26, "a checkpoint face's check byte") == 1,
+            |f| trap.course::<u32>(face(f) + 0xC, "a checkpoint face's next link"),
         );
         trap.finish()?;
         for (k, &f) in list.iter().enumerate() {
@@ -373,8 +373,8 @@ pub fn replay_cameras(set: &Cameras) -> Result<(), Refused> {
         // Converted: `rc2k_core::race::best_line::{camera_faces, nearest_camera}`.
         let (cameras, _) = rc2k_core::race::best_line::camera_faces(faces, |b| {
             let f = face(b);
-            trap.read::<u8>(f, "a course face's kind") == 0xFF
-                && trap.read::<u8>(f + 1, "a course face's object") == set.kind
+            trap.course::<u8>(f, "a course face's kind") == 0xFF
+                && trap.course::<u8>(f + 1, "a course face's object") == set.kind
         });
         trap.finish()?;
         for (e, &f) in cameras.iter().enumerate() {
@@ -438,7 +438,7 @@ pub fn surface_shares() -> Result<(), Refused> {
         let faces: u32 = COURSE.course_face_count.bits();
         let infos = crate::scene::polygon::texture_infos_addr();
         let byte = |at: u32| -> Result<u32, BadInput> {
-            Ok(GamePtr::new(at).read::<u8>("a texture info or face byte")? as u32)
+            Ok(crate::race::course_places::read::<u8>(at, "a texture info or face byte")? as u32)
         };
         let four = |info: u32| -> Result<(), BadInput> {
             for k in 0..4 {
@@ -506,8 +506,12 @@ pub fn map_segment() -> Result<(), Refused> {
         let anchor = |n: u32| {
             let f = check_face(n);
             let place = [
-                (GamePtr::new(f + 0x2C).read::<u16>("a checkpoint face's map x")? as u32) << 14,
-                ((GamePtr::new(f + 0x2E).read::<u16>("a checkpoint face's map y")? as u32) << 14)
+                (crate::race::course_places::read::<u16>(f + 0x2C, "a checkpoint face's map x")?
+                    as u32)
+                    << 14,
+                ((crate::race::course_places::read::<u16>(f + 0x2E, "a checkpoint face's map y")?
+                    as u32)
+                    << 14)
                     .wrapping_neg(),
             ];
             let (_, p) = point_of(f)?;

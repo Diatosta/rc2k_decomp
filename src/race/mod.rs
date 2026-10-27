@@ -17,6 +17,7 @@ pub mod clock_ticks_store;
 pub mod course_data;
 pub mod course_faces;
 pub mod course_lists_store;
+pub mod course_places;
 pub mod course_store;
 pub mod create_controls;
 pub mod credits_race;

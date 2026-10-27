@@ -6,7 +6,6 @@ use crate::errors::BadInput;
 use crate::errors::Refused;
 use crate::math::x87;
 use crate::physics::ground_store::GROUND_WORK;
-use crate::pointers::GamePtr;
 use crate::race::course_lists_store::COURSE_LISTS;
 use crate::race::course_store::COURSE;
 use crate::race::numbers_store::NUMBERS;
@@ -85,8 +84,12 @@ pub fn store_face_normal(
         };
         let faces: u32 = COURSE.course_faces.bits();
         let face = faces.wrapping_add(face_number << 6);
-        let dword = |o: u32| GamePtr::new(face + o).read::<u32>("a course face word");
-        if !takes_normals(GamePtr::new(face).read::<u8>("a course face kind")?) {
+        let dword =
+            |o: u32| crate::race::course_places::read::<u32>(face + o, "a course face word");
+        if !takes_normals(crate::race::course_places::read::<u8>(
+            face,
+            "a course face kind",
+        )?) {
             return Ok(());
         }
         let corners = [dword(4)?, dword(8)?, dword(0xC)?, dword(0x10)?];
@@ -94,11 +97,9 @@ pub fn store_face_normal(
             corners,
             || RACE_VIEW.corners[3].bits() != u32::MAX, /* dword_63D9F8: -1 for faces of three points */
         );
-        let flags = GamePtr::new(face + 2);
-        flags.write(
-            with_repeated(flags.read("a course face switches")?, repeated),
-            "a course face switches",
-        )?;
+        let what = "a course face switches";
+        let flags = crate::race::course_places::read(face + 2, what)?;
+        crate::race::course_places::write::<u16>(face + 2, with_repeated(flags, repeated), what)?;
         let count: u32 = COURSE.scene_point_count.bits();
         for (points, places) in NORMAL_TRIANGLES {
             let [a, b, c] = points.map(|k| corners[k]);
@@ -107,7 +108,7 @@ pub fn store_face_normal(
             }
             let work: [u32; 3] = crate::session::read_first(&FRAME_SCRATCH.work_vector);
             for (place, value) in places.into_iter().zip(work) {
-                GamePtr::new(face + place).write(value, "a course face normal")?;
+                crate::race::course_places::write(face + place, value, "a course face normal")?;
             }
         }
     }
@@ -129,13 +130,20 @@ pub fn lay_out_course() {
         );
         let [records, faces, points, after, after_offset] = layout.dwords();
         let c = &COURSE;
-        c.course_records.set(records);
-        c.course_faces.set(faces);
+        // The faces and records are Rust's too (`race::course_places`).
+        if crate::race::course_places::held() {
+            c.course_records
+                .set(crate::race::course_places::records_base());
+            c.course_faces.set(crate::race::course_places::faces_base());
+        } else {
+            c.course_records.set(records);
+            c.course_faces.set(faces);
+        }
         // The points are Rust's (`race::scene_points`, moved out by `load_level`): their
         // place, not the address the layout gives.
         let _ = points;
         c.scene_points.set(if crate::race::scene_points::held() {
-            crate::race::scene_points::BASE
+            crate::race::scene_points::base()
         } else {
             0
         });

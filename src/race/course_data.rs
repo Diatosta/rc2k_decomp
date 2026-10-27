@@ -58,7 +58,8 @@ pub fn reset_face_lights() -> Result<(), Refused> {
         // faces the original walks; written back only when changed).
         let faces: u32 = COURSE.course_faces.bits();
         const FACE: usize = rc2k_core::race::faces::FACE_BYTES;
-        let all = GamePtr::new(faces).read_bytes(count as usize * FACE, "the course faces")?;
+        let all =
+            crate::race::course_places::bytes(faces, count as usize * FACE, "the course faces")?;
         for (n, bytes) in all.as_chunks::<FACE>().0.iter().enumerate() {
             let mut face = *bytes;
             let kept = face;
@@ -86,7 +87,8 @@ pub fn group_records_by_kind() -> Result<(), Refused> {
             return Err(BadInput("more records than the course memory holds").into());
         }
         let records: u32 = COURSE.course_records.bits();
-        let bytes = GamePtr::new(records).read_bytes(count as usize * 32, "the course records")?;
+        let bytes =
+            crate::race::course_places::bytes(records, count as usize * 32, "the course records")?;
         let mut list: Vec<[u32; 8]> = bytes
             .as_chunks::<32>()
             .0
@@ -102,7 +104,7 @@ pub fn group_records_by_kind() -> Result<(), Refused> {
             .iter()
             .flat_map(|r| r.iter().flat_map(|v| v.to_le_bytes()))
             .collect();
-        GamePtr::new(records).write_bytes(&out, "the course records")?;
+        crate::race::course_places::write_bytes(records, &out, "the course records")?;
         for kind in 0..KINDS as usize {
             KIND_RECORDS.first_records[kind].set(grouped.first[kind]);
             KIND_RECORDS.last_records[kind].set(grouped.last[kind]);
@@ -136,7 +138,13 @@ fn take_scene_points() -> Result<(), BadInput> {
     if end <= layout.points {
         return Err(BadInput("scene points past the course info"));
     }
-    crate::race::scene_points::take_from(layout.points, end - layout.points)
+    crate::race::scene_points::take_from(layout.points, end - layout.points)?;
+    crate::race::course_places::take_from(
+        layout.faces,
+        layout.points - layout.faces,
+        layout.records,
+        layout.faces - layout.records,
+    )
 }
 
 /// `race::load_level` (0x4455FC): the course data (cdat 0) read into the course memory's

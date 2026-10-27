@@ -29,7 +29,6 @@ use crate::physics::contact_store::CONTACT_WORK;
 use crate::physics::flow::p;
 use crate::physics::tables_store::PHYSICS;
 use crate::physics::wall_edge_contact::edge_normal;
-use crate::pointers::GamePtr;
 use crate::race::course_store::COURSE;
 use crate::race::numbers_store::NUMBERS;
 use crate::session::Float;
@@ -43,7 +42,10 @@ fn copy3(to: &[Float], from: &[Float]) {
 }
 
 fn rd(x: u32) -> Result<u32, Refused> {
-    Ok(GamePtr::new(x).read::<u32>("a face's or scene point's dword")?)
+    Ok(crate::race::course_places::read::<u32>(
+        x,
+        "a face's or scene point's dword",
+    )?)
 }
 
 /// Which side of the probe's path the point (x, z) lies: true for not left of it (the

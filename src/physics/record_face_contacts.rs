@@ -15,12 +15,14 @@
 
 use crate::errors::Refused;
 use crate::physics::face_contact;
-use crate::pointers::GamePtr;
 use crate::race::course_store::COURSE;
 use rc2k_core::physics::ground_search;
 
 fn rd(x: u32) -> Result<u32, Refused> {
-    Ok(GamePtr::new(x).read::<u32>("a course record's face number")?)
+    Ok(crate::race::course_places::read::<u32>(
+        x,
+        "a course record's face number",
+    )?)
 }
 
 /// The record's (first, last) faces.

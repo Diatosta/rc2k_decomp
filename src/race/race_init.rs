@@ -111,7 +111,7 @@ pub fn first_check_checkpoint() -> Result<u32, Refused> {
     let look = rc2k_core::race::checkpoints::first_check_checkpoint(count, last, |n| {
         let face: u32 = crate::race::checkpoints_store::face(n as usize).get();
         let address = (face << 6).wrapping_add(COURSE.course_faces.bits());
-        trap.read::<u8>(address + 0x26, "a checkpoint face's check byte")
+        trap.course::<u8>(address + 0x26, "a checkpoint face's check byte")
     })?;
     trap.finish()?;
     Ok(look.and_then(|l| l.found).unwrap_or(0))

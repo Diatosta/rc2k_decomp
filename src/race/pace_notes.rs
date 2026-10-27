@@ -54,6 +54,10 @@ pub fn game_course() -> Course {
             faces,
             window: if test != 0 && faces >= lo && faces < hi {
                 (lo, hi)
+            } else if crate::race::course_places::held() {
+                // The faces are Rust's (`race::course_places`): their places.
+                let base = crate::race::course_places::faces_base();
+                (base, base + crate::race::course_places::room())
             } else if memory == 0 {
                 (0, 0)
             } else {
@@ -91,7 +95,7 @@ impl Stage for GameStage {
     fn face_byte(&self, at: u32) -> u8 {
         // The core asks only inside the course's window; a refusal here is kept for
         // `Machine::init` (the core's trait answers a byte).
-        match GamePtr::new(at).read::<u8>("a checkpoint face's byte") {
+        match crate::race::course_places::read::<u8>(at, "a checkpoint face's byte") {
             Ok(b) => b,
             Err(e) => {
                 if let Ok(mut held) = REFUSED.lock() {

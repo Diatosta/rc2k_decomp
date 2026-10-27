@@ -13,7 +13,7 @@ use crate::race::course_store::COURSE;
 use crate::race::frame_store::FRAME_WORK;
 use crate::race::numbers_store::NUMBERS;
 use crate::race::prefs_store::STAGE_PREFS;
-use crate::race::trap::{Trap, dword_at};
+use crate::race::trap::Trap;
 use crate::race::vars_store::RACE_VARS;
 use crate::race::view_store::RACE_VIEW;
 use crate::race::work_store::RACE_WORK;
@@ -22,7 +22,7 @@ use crate::scene::draw_store::DRAW;
 // unk_641AA4: the points, 0x20 bytes each
 
 fn get(a: u32) -> Result<u32, BadInput> {
-    GamePtr::new(a).read("a shadow point or entry")
+    crate::race::course_places::read(a, "a shadow point or entry")
 }
 
 fn put(a: u32, v: u32) -> Result<(), BadInput> {
@@ -550,9 +550,11 @@ unsafe fn shadow_on_record(record: u32) -> Result<(), Refused> {
         for face in first..=last {
             COURSE.current_course_face.set(face);
             let at = (face << 6).wrapping_add(COURSE.course_faces.bits());
-            let kind = GamePtr::new(at).read::<u8>("a course face kind")?;
+            let kind = crate::race::course_places::read::<u8>(at, "a course face kind")?;
             let trap = Trap::new();
-            let takes = takes_shadow(kind, || trap.read::<u16>(at + 2, "a course face switches"));
+            let takes = takes_shadow(kind, || {
+                trap.course::<u16>(at + 2, "a course face switches")
+            });
             trap.finish()?;
             if takes {
                 for corners in SHADOW_TRIANGLES {
@@ -582,10 +584,20 @@ pub unsafe fn shadow_faces() -> Result<(), Refused> {
         // Converted: `rc2k_core::race::shadow::{record_cell, cell_near_car}`.
         use rc2k_core::race::shadow::{cell_near_car, record_cell};
         // Every record of the course is looked at each frame: the run is resolved once.
-        let all = GamePtr::new(records).bytes("the course records")?;
+        let all = crate::race::course_places::bytes(
+            records,
+            (count as usize) << 5,
+            "the course records",
+        )?;
         for n in 0..count {
             let at = (n << 5).wrapping_add(records);
-            let Some((x, z)) = record_cell(dword_at(&all, (n as usize) << 5)?) else {
+            let o = (n as usize) << 5;
+            let Some((x, z)) = record_cell(u32::from_le_bytes([
+                all[o],
+                all[o + 1],
+                all[o + 2],
+                all[o + 3],
+            ])) else {
                 continue;
             };
             COURSE.record_place[0].set(x);
@@ -1267,7 +1279,7 @@ mod asm_reference {
                 DRAW.scratch.set_bits(0xAAAA_AAAAu32);
                 let both = [pa, pb].concat();
                 crate::race::scene_points::with_test_points(&both, || {
-                    let base = crate::race::scene_points::BASE;
+                    let base = crate::race::scene_points::base();
                     crossing_block(base, base + 12, args.2, args.3)
                 })
                 .expect("the test's memory is registered");

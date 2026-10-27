@@ -248,7 +248,7 @@ pub fn init_checkpoints(v: &Vars) -> Result<(), Refused> {
         let listed = rc2k_core::race::checkpoints::listed_checkpoints(end, |n| {
             let face = trap.read::<u32>(v.checkpoint_table + 4 * n, "the checkpoint table");
             let record = (face << 6).wrapping_add(records);
-            trap.read::<u8>(record + 0x26, "a checkpoint face") != 0
+            trap.course::<u8>(record + 0x26, "a checkpoint face") != 0
         })?;
         trap.finish()?;
         put(v.checkpoints_found, 0)?;

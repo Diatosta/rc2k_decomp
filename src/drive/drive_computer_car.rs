@@ -46,7 +46,7 @@ use crate::scene::view_matrix::cross_product;
 use rc2k_core::drive::computer_driver as driver;
 
 fn at(addr: u32) -> Result<u32, BadInput> {
-    GamePtr::new(addr).read("the computer driver's data")
+    crate::race::course_places::read(addr, "the computer driver's data")
 }
 
 fn put(addr: u32, v: u32) -> Result<(), BadInput> {
@@ -144,8 +144,14 @@ pub fn drive_computer_car() -> Result<(), Refused> {
         .get()
         .wrapping_add(held(crate::race::checkpoints_store::face, n, 2) << 6);
     let (b1, b2) = (
-        u32::from(GamePtr::new(f.wrapping_add(0xA)).read::<u8>("a face of the course")?),
-        u32::from(GamePtr::new(f.wrapping_add(0xB)).read::<u8>("a face of the course")?),
+        u32::from(crate::race::course_places::read::<u8>(
+            f.wrapping_add(0xA),
+            "a face of the course",
+        )?),
+        u32::from(crate::race::course_places::read::<u8>(
+            f.wrapping_add(0xB),
+            "a face of the course",
+        )?),
     );
     RACE_WORK.driver_bend_a.set(b1);
     RACE_WORK.driver_bend_b.set(b2);

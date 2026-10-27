@@ -48,7 +48,7 @@ fn check_object(object: u32) -> Result<(), Refused> {
 /// placing reads no register, and the drawing only esi, which it is given.
 pub unsafe fn draw_described_object(d: u32) -> Result<(), Refused> {
     unsafe {
-        let head = GamePtr::new(d).read_bytes(8, "a described object")?;
+        let head = crate::race::course_places::bytes(d, 8, "a described object")?;
         let object = head[1] as u32;
         let place = u32::from_le_bytes([head[4], head[5], head[6], head[7]]);
         let shown = object <= 0x64
@@ -76,7 +76,7 @@ pub unsafe fn draw_described_object(d: u32) -> Result<(), Refused> {
             return Ok(());
         }
         // Everything the description gives from here on lies in its first 0x3C bytes.
-        let desc = GamePtr::new(d).read_bytes(0x3C, "a described object")?;
+        let desc = crate::race::course_places::bytes(d, 0x3C, "a described object")?;
         let byte = |o: u32| desc[o as usize] as u32;
         let get = |o: usize| u32::from_le_bytes(desc[o..o + 4].try_into().unwrap());
         let p = place
