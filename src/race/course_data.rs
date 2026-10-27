@@ -123,6 +123,22 @@ fn load_log(n: usize) {
     unsafe { crate::logfile::log_write::log_write(LOAD_LOG[n].as_ptr().cast(), false, 1) };
 }
 
+/// The scene points moved out of the course memory (`race::scene_points`): from where the
+/// layout puts them up to the course info, the room the game writes new points into.
+fn take_scene_points() -> Result<(), BadInput> {
+    let layout = rc2k_core::race::faces::CourseLayout::of(
+        COURSE_LISTS.course_memory.bits(),
+        COURSE.course_record_count.bits(),
+        COURSE.course_face_count.bits(),
+        COURSE.scene_point_count.bits(),
+    );
+    let end: u32 = COURSE_LISTS.course_info.bits();
+    if end <= layout.points {
+        return Err(BadInput("scene points past the course info"));
+    }
+    crate::race::scene_points::take_from(layout.points, end - layout.points)
+}
+
 /// `race::load_level` (0x4455FC): the course data (cdat 0) read into the course memory's
 /// first part (`files::read_level_file`, the bytes in `dword_60B2CC`; a failed read is
 /// fatal error 0x80650210, without a message), its header copied, laid out, the faces'
@@ -146,6 +162,7 @@ pub fn load_level() -> Result<(), Refused> {
     load_log(1);
     load_log(2);
     copy_course_header()?;
+    take_scene_points()?;
     load_log(3);
     crate::race::norms::lay_out_course();
     load_log(4);

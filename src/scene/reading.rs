@@ -31,6 +31,18 @@ impl Reading {
         })
     }
 
+    /// `value`'s result kept as a read's: its default after a refusal (this one or one
+    /// before).
+    pub fn keep<T: Default>(&self, value: Result<T, BadInput>) -> T {
+        if self.failed.get().is_some() {
+            return T::default();
+        }
+        value.unwrap_or_else(|e| {
+            self.failed.set(Some(e));
+            T::default()
+        })
+    }
+
     /// The first refusal, if any read had one.
     pub fn finish(&self) -> Result<(), BadInput> {
         match self.failed.take() {

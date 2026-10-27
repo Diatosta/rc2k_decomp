@@ -28,10 +28,11 @@ use crate::scene::matrix3::rounded;
 use crate::scene::x87_mem::{fild, fistp, fld, fstp};
 use rc2k_core::physics::contacts;
 
-/// The Rust version: whether the point at `point` of the object at `object` is inside.
+/// The Rust version: whether the point `point` (its three whole numbers, read by the
+/// caller) of the object at `object` is inside.
 // Converted: `rc2k_core::physics::contacts::{point_part, inside_box, kind_hits}` (the x87
 // steps stay).
-pub unsafe fn point_hits_car(point: u32, object: u32) -> Result<bool, Refused> {
+pub unsafe fn point_hits_car(point: [u32; 3], object: u32) -> Result<bool, Refused> {
     let rd = |x: u32, what: &str| GamePtr::new(x).read::<u32>(what);
     PHYSICS.point_hits.set(
         crate::physics::tables_store::PHYSICS
@@ -42,7 +43,7 @@ pub unsafe fn point_hits_car(point: u32, object: u32) -> Result<bool, Refused> {
     let mut y = 0;
     for k in 0..3u32 {
         let v = contacts::point_part(
-            rd(point + 4 * k, "a scene point's coordinate")?,
+            point[k as usize],
             rd(object + 0x30 + 4 * k, "an object's place")?,
             CONTACT_WORK.object_offset[k as usize].get(),
             CAR.position[k as usize].get(),

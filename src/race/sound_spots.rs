@@ -97,7 +97,7 @@ pub fn face_sound_spot(face_number: u32) -> Result<(), BadInput> {
             .wrapping_mul(12)
             .wrapping_add(COURSE.scene_points.bits());
         let place = spot_place(
-            [get(p)?, get(p + 4)?, get(p + 8)?],
+            crate::race::scene_points::point(p)?,
             [get(face + 0x30)?, get(face + 0x34)?, get(face + 0x38)?],
         );
         crate::session::write_bits(&OBJECT_WORK.place, place);

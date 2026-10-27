@@ -67,7 +67,10 @@ fn face_point(face: u32) -> Result<(u32, u32), BadInput> {
         .scene_points
         .get()
         .wrapping_add(at(f + 4)?.wrapping_mul(12));
-    Ok((at(pt)?, at(pt + 8)?))
+    Ok((
+        crate::race::scene_points::word(pt)?,
+        crate::race::scene_points::word(pt + 8)?,
+    ))
 }
 
 /// `sub_463296` then `sub_4632AE`: (to - from) in x and z, y 0, as floats, at `out`.

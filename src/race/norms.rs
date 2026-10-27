@@ -34,9 +34,11 @@ pub fn normalise_work_vector() {
 /// normalised. Its caller (`store_face_normal`) keeps every register round it.
 pub fn face_normal(a: u32, b: u32, c: u32) -> Result<(), BadInput> {
     {
-        let points: u32 = COURSE.scene_points.bits();
         let point = |n: u32| -> Result<[i32; 3], BadInput> {
-            GamePtr::new(points.wrapping_add(n.wrapping_mul(12))).read("a scene point")
+            Ok(
+                crate::race::scene_points::point(crate::race::scene_points::place(n))?
+                    .map(|v| v as i32),
+            )
         };
         let (a, b, c) = (point(a)?, point(b)?, point(c)?);
         let d = [
@@ -129,7 +131,14 @@ pub fn lay_out_course() {
         let c = &COURSE;
         c.course_records.set(records);
         c.course_faces.set(faces);
-        c.scene_points.set(points);
+        // The points are Rust's (`race::scene_points`, moved out by `load_level`): their
+        // place, not the address the layout gives.
+        let _ = points;
+        c.scene_points.set(if crate::race::scene_points::held() {
+            crate::race::scene_points::BASE
+        } else {
+            0
+        });
         c.course_tail[0].set(after);
         c.course_tail[1].set(after_offset);
     }

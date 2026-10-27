@@ -1227,7 +1227,7 @@ fn add_lamp_entry(lamp: u32) -> Result<(), BadInput> {
     let esi = point
         .wrapping_mul(12)
         .wrapping_add(COURSE.scene_points.bits());
-    let place = [get(esi)?, get(esi + 4)?, get(esi + 8)?];
+    let place = crate::race::scene_points::point(esi)?;
     let turned = OBJECT_WORK.place[0].addr();
     for (k, &v) in place.iter().enumerate() {
         put(turned + 4 * k as u32, v)?;
@@ -1327,11 +1327,12 @@ fn point_from_car(point: u32) -> Result<(u32, u32, u32), BadInput> {
         let p = point
             .wrapping_mul(12)
             .wrapping_add(COURSE.scene_points.bits());
-        let x = get(p)?.wrapping_sub(CAR_BLOCKS.cars[0].position[0].bits());
-        let z = get(p + 8)?.wrapping_sub(CAR_BLOCKS.cars[0].position[2].bits());
+        let [px, py, pz] = crate::race::scene_points::point(p)?;
+        let x = px.wrapping_sub(CAR_BLOCKS.cars[0].position[0].bits());
+        let z = pz.wrapping_sub(CAR_BLOCKS.cars[0].position[2].bits());
         CONTACT_WORK.eax_point_x.set(x);
         CONTACT_WORK.eax_point_z.set(z);
-        Ok((x, get(p + 4)?, z))
+        Ok((x, py, z))
     }
 }
 
@@ -1553,9 +1554,9 @@ fn lamp_lights_on_point() -> Result<(), BadInput> {
                 .wrapping_mul(12)
                 .wrapping_add(COURSE.scene_points.bits());
             let d = [
-                get(point)?.wrapping_sub(get(place)?),
-                get(point + 4)?.wrapping_sub(get(place + 4)?),
-                get(point + 8)?.wrapping_sub(get(place + 8)?),
+                crate::race::scene_points::word(point)?.wrapping_sub(get(place)?),
+                crate::race::scene_points::word(point + 4)?.wrapping_sub(get(place + 4)?),
+                crate::race::scene_points::word(point + 8)?.wrapping_sub(get(place + 8)?),
             ];
             let [distance, _, _] = crate::scene::approximate_distance::approximate_distance(d);
             DRAW.scratch.set_bits(distance);
@@ -2799,9 +2800,10 @@ pub unsafe fn draw_lamp_flare(lamp: u32) -> Result<(), Refused> {
         let p = get(edi)?
             .wrapping_mul(12)
             .wrapping_add(COURSE.scene_points.bits());
-        OBJECT_WORK.place[0].set(get(p)?);
-        OBJECT_WORK.place[1].set(get(p + 4)?);
-        OBJECT_WORK.place[2].set(get(p + 8)?);
+        let [x, y, z] = crate::race::scene_points::point(p)?;
+        OBJECT_WORK.place[0].set(x);
+        OBJECT_WORK.place[1].set(y);
+        OBJECT_WORK.place[2].set(z);
         OBJECT_WORK.size.set(get(edi + 4)? << 3);
         OBJECT_WORK.other_light.set(get(edi + 8)?);
         FRAME_SWITCHES

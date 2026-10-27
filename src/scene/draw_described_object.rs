@@ -82,7 +82,7 @@ pub unsafe fn draw_described_object(d: u32) -> Result<(), Refused> {
         let p = place
             .wrapping_mul(12)
             .wrapping_add(COURSE.scene_points.bits());
-        let at: [u32; 3] = GamePtr::new(p).read("a point of the scene")?;
+        let at: [u32; 3] = crate::race::scene_points::point(p)?;
         OBJECT_WORK.place[0].set(at[0].wrapping_add(get(0x30)));
         OBJECT_WORK.place[1].set(at[1].wrapping_add(get(0x34)));
         OBJECT_WORK.place[2].set(at[2].wrapping_add(get(0x38)));

@@ -81,7 +81,7 @@ pub fn face_shares_at(g: &Ground) -> Result<(), Refused> {
     let mut corner = [[0u32; 3]; 3];
     for (k, c) in corner.iter_mut().enumerate() {
         let p = g.point(GROUND_WORK.face_corner_numbers[k].get());
-        *c = [at(p)?, at(p + 4)?, at(p + 8)?];
+        *c = crate::race::scene_points::point(p)?;
         for (n, &v) in c.iter().enumerate() {
             GROUND_WORK.face_corners[3 * k + n].set(v);
         }

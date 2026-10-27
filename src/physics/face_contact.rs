@@ -111,10 +111,11 @@ pub fn steps(number: u32) -> Result<(), Refused> {
         if !contacts::tries_points(CONTACT_WORK.contact_kind.get()) {
             return Ok(());
         }
-        let dx = rd(point)?
+        // `point` is a place of `race::scene_points` (phase 13).
+        let dx = crate::race::scene_points::word(point)?
             .wrapping_add(rd(face + 0x30)?)
             .wrapping_sub(CAR.position[0].get());
-        let dz = rd(point + 8)?
+        let dz = crate::race::scene_points::word(point + 8)?
             .wrapping_add(rd(face + 0x38)?)
             .wrapping_sub(CAR.position[2].get());
         let distance = int_hypot(dx as i32, dz as i32) as u32;

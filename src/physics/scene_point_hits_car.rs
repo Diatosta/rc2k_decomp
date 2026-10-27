@@ -28,5 +28,6 @@ pub unsafe fn scene_point_hits_car(record: u32, object: u32) -> Result<(bool, u3
             .wrapping_add(1),
     );
     fill_cells(&CONTACT_WORK.object_offset, 0);
-    Ok((unsafe { point_hits_car(point, object) }?, number, point))
+    let place = crate::race::scene_points::point(point)?;
+    Ok((unsafe { point_hits_car(place, object) }?, number, point))
 }

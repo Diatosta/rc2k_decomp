@@ -11,7 +11,6 @@
 //! Callers (8): `sub_442006`, the face under a point (each edge of a triangle or a quad).
 
 use crate::physics::flag_result::FlagResult;
-use crate::pointers::GamePtr;
 use rc2k_core::physics::faces;
 
 /// The point's and the scratch value's addresses: the game's, or a test's.
@@ -46,8 +45,8 @@ pub unsafe fn edge_side_at(
         let point = (at(p.x), at(p.z));
         let scene = |a: u32| -> Result<(u32, u32), crate::errors::BadInput> {
             Ok((
-                GamePtr::new(a).read::<u32>("a scene point's x")?,
-                GamePtr::new(a).offset(8).read::<u32>("a scene point's z")?,
+                crate::race::scene_points::word(a)?,
+                crate::race::scene_points::word(a + 8)?,
             ))
         };
         Ok(match faces::edge_side(point, scene(from)?, scene(to)?) {

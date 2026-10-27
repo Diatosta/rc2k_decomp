@@ -34,8 +34,9 @@ fn check_point(n: u32) -> Result<(u32, u32, u32, u32), BadInput> {
     Ok((face, address, point, place))
 }
 
+/// A scene point's dword (`race::scene_points`).
 fn get(at: u32) -> Result<u32, BadInput> {
-    GamePtr::new(at).read("a course point")
+    crate::race::scene_points::word(at)
 }
 
 /// `race::place_car_on_line` (0x44666F): checkpoint `dword_6365E4` (held below
@@ -90,8 +91,10 @@ pub fn distance_to_checkpoint(c: u32) -> Result<(), Refused> {
     }
     {
         let (_, _, _, place) = check_point(c)?;
-        let dx = get(place)?.wrapping_sub(GROUND_WORK.ground_x.bits()) as i32;
-        let dz = get(place + 8)?.wrapping_sub(GROUND_WORK.ground_z.bits()) as i32;
+        let dx = crate::race::scene_points::word(place)?.wrapping_sub(GROUND_WORK.ground_x.bits())
+            as i32;
+        let dz = crate::race::scene_points::word(place + 8)?
+            .wrapping_sub(GROUND_WORK.ground_z.bits()) as i32;
         DRAW.scratch.set_bits(x87::int_hypot(dx, dz) as u32);
     }
     Ok(())

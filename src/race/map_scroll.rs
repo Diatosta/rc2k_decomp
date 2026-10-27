@@ -91,8 +91,8 @@ pub unsafe fn scroll_map() -> Result<(), Refused> {
         let p = point
             .wrapping_mul(12)
             .wrapping_add(COURSE.scene_points.get());
-        let px = GamePtr::new(p).read::<u32>("a course point")?;
-        let pz = GamePtr::new(p + 8).read::<u32>("a course point")?;
+        let px = crate::race::scene_points::word(p)?;
+        let pz = crate::race::scene_points::word(p + 8)?;
         map_x.set(
             map_x
                 .get()

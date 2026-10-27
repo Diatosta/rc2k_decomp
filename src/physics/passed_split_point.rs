@@ -35,8 +35,9 @@ use rc2k_core::physics::progress;
 use std::cmp::Ordering;
 
 /// 0x4416EC .. 0x441727: the distance to the point at `point`.
-fn distance(point: u32) {
-    distance_at(crate::race::store::asm_base() as usize, point as usize);
+fn distance(point: [u32; 3]) {
+    let at = crate::pointers::game_address(point.as_ptr());
+    distance_at(crate::race::store::asm_base() as usize, at as usize);
 }
 
 /// The distance over the race core at `rc` and the point at `s`: the whole-number gaps
@@ -65,8 +66,9 @@ fn distance_at(rc: usize, s: usize) {
 
 /// 0x441770 .. 0x4417AD: the angle from the point at `point` to the car, into
 /// `dword_62400C` (`fistp`, then the low 16 bits).
-fn angle(point: u32) {
-    angle_at(crate::race::store::asm_base() as usize, point as usize);
+fn angle(point: [u32; 3]) {
+    let at = crate::pointers::game_address(point.as_ptr());
+    angle_at(crate::race::store::asm_base() as usize, at as usize);
 }
 
 /// The angle over the race core at `rc` and the point at `s`: the gaps (the car's x and z less
@@ -132,6 +134,8 @@ pub fn passed_split_point() -> Result<bool, Refused> {
         return Ok(false);
     }
     let (cp, _, pt) = point()?;
+    // The point read from `race::scene_points` (phase 13); the x87 runs read a copy.
+    let pt = crate::race::scene_points::point(pt)?;
     GROUND_WORK.ground_x.set(CAR.position[0].get());
     GROUND_WORK.ground_z.set(CAR.position[2].get());
     distance(pt);

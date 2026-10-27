@@ -90,8 +90,8 @@ impl<T> Owned<T> {
         *self.lock() = None;
     }
 
-    /// The value set without counting it (tests of code that reads it).
-    #[cfg(all(test, target_arch = "x86"))]
+    /// The value set without counting it: tests of code that reads it, or a part moved out
+    /// of a block that stays counted (`race::scene_points`).
     pub fn set(&self, value: T) {
         *self.lock() = Some(Box::new(value));
     }

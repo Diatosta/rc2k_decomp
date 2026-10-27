@@ -265,7 +265,13 @@ pub fn checkpoint_angles() -> Result<(), Refused> {
                 let Ok((_, q)) = point_of(check_face(b)).inspect_err(|e| trap.keep(*e)) else {
                     return 0;
                 };
-                let w = |a: u32| trap.read::<u32>(a, "a course point");
+                let w = |a: u32| match crate::race::scene_points::word(a) {
+                    Ok(v) => v,
+                    Err(e) => {
+                        trap.keep(e);
+                        0
+                    }
+                };
                 let dx = w(q).wrapping_sub(w(p)) as i32;
                 let dz = w(q + 8).wrapping_sub(w(p + 8)) as i32;
                 DRAW.scratch.set_bits(dz as u32);
@@ -319,7 +325,13 @@ pub fn checkpoint_distances() -> Result<(), Refused> {
                     return 0;
                 }
             };
-            let w = |a: u32| trap.read::<u32>(a, "a course point");
+            let w = |a: u32| match crate::race::scene_points::word(a) {
+                Ok(v) => v,
+                Err(e) => {
+                    trap.keep(e);
+                    0
+                }
+            };
             let d = [w(a).wrapping_sub(w(b)), w(a + 8).wrapping_sub(w(b + 8))];
             crate::session::write_bits(&RACE_VARS.line_from, d);
             let length = x87::int_hypot(d[0] as i32, d[1] as i32) as u32;
@@ -375,7 +387,10 @@ pub fn replay_cameras(set: &Cameras) -> Result<(), Refused> {
         }
         for c in 0..n {
             let (_, p) = point_of(check_face(c))?;
-            let from = [get(p)?, get(p + 8)?];
+            let from = [
+                crate::race::scene_points::word(p)?,
+                crate::race::scene_points::word(p + 8)?,
+            ];
             crate::session::write_bits(&RACE_VARS.line_from, from);
             let nearest = rc2k_core::race::best_line::nearest_camera(m, |e| {
                 let q = match point_of(face(read_n((set.list)(), e))) {
@@ -385,7 +400,13 @@ pub fn replay_cameras(set: &Cameras) -> Result<(), Refused> {
                         return 0;
                     }
                 };
-                let w = |a: u32| trap.read::<u32>(a, "a course point");
+                let w = |a: u32| match crate::race::scene_points::word(a) {
+                    Ok(v) => v,
+                    Err(e) => {
+                        trap.keep(e);
+                        0
+                    }
+                };
                 let dz = w(q + 8).wrapping_sub(from[1]);
                 let d = x87::int_hypot(w(q).wrapping_sub(from[0]) as i32, dz as i32) as u32;
                 DRAW.scratch.set_bits(d);
@@ -490,7 +511,13 @@ pub fn map_segment() -> Result<(), Refused> {
                     .wrapping_neg(),
             ];
             let (_, p) = point_of(f)?;
-            Ok::<_, BadInput>((place, [get(p)?, get(p + 8)?]))
+            Ok::<_, BadInput>((
+                place,
+                [
+                    crate::race::scene_points::word(p)?,
+                    crate::race::scene_points::word(p + 8)?,
+                ],
+            ))
         };
         let (place_a, point_a) = anchor(a)?;
         work(0xEC).set(place_a[0]);
@@ -528,7 +555,10 @@ pub fn map_segment() -> Result<(), Refused> {
         loop {
             // The point's number rides along as `turn_point_xz`'s y (ebx in the original).
             let (number, at) = point_of(check_face(e))?;
-            let p = [get(at)?, get(at + 8)?];
+            let p = [
+                crate::race::scene_points::word(at)?,
+                crate::race::scene_points::word(at + 8)?,
+            ];
             work(0xCC).set(p[0]);
             work(0xD0).set(p[1]);
             let [x, _, z, _] = {

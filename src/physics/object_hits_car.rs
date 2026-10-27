@@ -78,7 +78,15 @@ pub unsafe fn object_hits_car(point: u32, object: u32) -> Result<bool, Refused> 
             for (k, e) in turned.iter().enumerate() {
                 CONTACT_WORK.object_offset[k].set(ext_to_int(*e) as u32);
             }
-            match unsafe { point_hits_car(point, object) } {
+            // `point` is the scene point's place (`race::scene_points`, from `face_contact`).
+            let place = match crate::race::scene_points::point(point) {
+                Ok(p) => p,
+                Err(e) => {
+                    refused.set(Some(e.into()));
+                    return false;
+                }
+            };
+            match unsafe { point_hits_car(place, object) } {
                 Ok(inside) => inside,
                 Err(e) => {
                     refused.set(Some(e));

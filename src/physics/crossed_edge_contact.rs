@@ -83,8 +83,9 @@ pub fn steps() -> Result<(), Refused> {
         let point = rd(face + 4 + 4 * j)?
             .wrapping_mul(12)
             .wrapping_add(COURSE.scene_points.get());
-        CONTACT_WORK.crossed_corners[2 * j as usize].set(rd(point)?);
-        CONTACT_WORK.crossed_corners[2 * j as usize + 1].set(rd(point + 8)?);
+        CONTACT_WORK.crossed_corners[2 * j as usize].set(crate::race::scene_points::word(point)?);
+        CONTACT_WORK.crossed_corners[2 * j as usize + 1]
+            .set(crate::race::scene_points::word(point + 8)?);
     }
     let corner = |j: usize| {
         (

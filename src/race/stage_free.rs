@@ -28,7 +28,7 @@ pub const COURSE: Freeing = Freeing {
         || COURSE_LISTS.course_memory.as_ptr(),
         || COURSE_LISTS.course_info.as_ptr(),
     ],
-    given_back: || {},
+    given_back: crate::race::scene_points::give_back,
 };
 /// `race::free_course_list_2` (0x41F94D).
 pub const COURSE_2: Freeing = Freeing {

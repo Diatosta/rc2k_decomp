@@ -71,7 +71,7 @@ fn fixed_camera(second: bool) {
         .wrapping_mul(12)
         .wrapping_add(COURSE.scene_points.get());
     for k in 0..3 {
-        CAR.camera_position[k as usize].set(rd(point + 4 * k));
+        CAR.camera_position[k as usize].set(crate::race::scene_points::word_or_end(point + 4 * k));
     }
     crate::physics::camera_height_bias::camera_height_bias();
     let d = |k: usize| {

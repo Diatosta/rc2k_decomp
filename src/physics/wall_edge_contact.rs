@@ -47,6 +47,7 @@ fn rd(x: u32) -> Result<u32, Refused> {
 /// `qword_6D3078` ... Returns what that leaves in eax, ebx, ecx, edx.
 pub fn edge_normal(first: u32, second: u32) -> Result<[u32; 4], Refused> {
     let point = |k: u32| k.wrapping_mul(12).wrapping_add(COURSE.scene_points.get());
+    let rd = crate::race::scene_points::word;
     PHYSICS.edge_points[0].set(rd(point(first))?);
     PHYSICS.edge_points[1].set(rd(point(first) + 8)?);
     PHYSICS.edge_points[2].set(rd(point(second))?);

@@ -44,8 +44,12 @@ pub fn checkpoint_offset() -> Result<(), Refused> {
     let pt = point
         .wrapping_mul(12)
         .wrapping_add(COURSE.scene_points.get());
-    let x = CAR.position[0].get().wrapping_sub(at(pt)?);
-    let z = CAR.position[2].get().wrapping_sub(at(pt + 8)?);
+    let x = CAR.position[0]
+        .get()
+        .wrapping_sub(crate::race::scene_points::word(pt)?);
+    let z = CAR.position[2]
+        .get()
+        .wrapping_sub(crate::race::scene_points::word(pt + 8)?);
     let [x2, _, z2, _] = turn_point_xz(x as i32, point as i32, z as i32, angle.wrapping_neg());
     CAR.checkpoint_offset[0].set(x2);
     CAR.checkpoint_offset[1].set(z2);

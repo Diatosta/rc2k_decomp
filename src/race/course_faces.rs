@@ -96,7 +96,10 @@ fn face_turned_to_view(face: u32, half: u32) -> Result<u32, BadInput> {
             .wrapping_mul(12)
             .wrapping_add(COURSE.scene_points.bits());
         let along = |at: u32, view_at: &Float, normal: u32| -> Result<_, BadInput> {
-            Ok((int(get(at)? as i32) - ld(view_at.bits())) * ld(get(normal)?))
+            Ok(
+                (int(crate::race::scene_points::word(at)? as i32) - ld(view_at.bits()))
+                    * ld(get(normal)?),
+            )
         };
         let place = &VIEW_VARS.view_place_f;
         let (x, y, z) = (
@@ -210,9 +213,10 @@ fn point_light(n: u32) -> Result<u32, Refused> {
         return Ok(0);
     }
     let p = n.wrapping_mul(12).wrapping_add(COURSE.scene_points.bits());
-    LIGHT_STATE.lit_place[0].set(get(p)?);
-    LIGHT_STATE.lit_place[1].set(get(p + 4)?);
-    LIGHT_STATE.lit_place[2].set(get(p + 8)?);
+    let [x, y, z] = crate::race::scene_points::point(p)?;
+    LIGHT_STATE.lit_place[0].set(x);
+    LIGHT_STATE.lit_place[1].set(y);
+    LIGHT_STATE.lit_place[2].set(z);
     crate::race::frame_draw::light_colour_at()?;
     let light: u32 = LIGHT_WORK.light_colour.get();
     DRAW.scratch.set(light);
@@ -385,10 +389,14 @@ pub fn face_texture_coordinates(set: &TextureSet) -> Result<(), BadInput> {
             let points: u32 = COURSE.scene_points.get();
             let n: u32 = RACE_VIEW.corners[k].get();
             let p = n.wrapping_mul(12).wrapping_add(points);
-            (
-                trap.read::<u32>(p, "a scene point"),
-                trap.read::<u32>(p + 8, "a scene point"),
-            )
+            let w = |a: u32| match crate::race::scene_points::word(a) {
+                Ok(v) => v,
+                Err(e) => {
+                    trap.keep(e);
+                    0
+                }
+            };
+            (w(p), w(p + 8))
         });
         trap.finish()?;
         set.size.set(c.size);
@@ -421,9 +429,10 @@ pub fn face_corners_to_new_points() -> Result<(), Refused> {
         for (k, (from, to)) in copies.into_iter().enumerate() {
             let to_at = to.wrapping_mul(12).wrapping_add(points);
             let from_at = from.wrapping_mul(12).wrapping_add(points);
-            for w in 0..3 {
-                put(to_at + 4 * w, get(from_at + 4 * w)?)?;
-            }
+            crate::race::scene_points::write(
+                to_at,
+                &crate::race::scene_points::bytes(from_at, 12)?,
+            )?;
             RACE_VIEW.corners[k].set(to);
         }
         Ok(())
@@ -732,7 +741,10 @@ pub unsafe fn draw_lit_triangle() -> Result<(), Refused> {
             let pb = get(entry(second))?.wrapping_mul(12).wrapping_add(points);
             for (n, lit) in LIGHT_STATE.lit_place.iter().enumerate() {
                 let o = 4 * n as u32;
-                let (a, b) = (get(pa + o)?, get(pb + o)?);
+                let (a, b) = (
+                    crate::race::scene_points::word(pa + o)?,
+                    crate::race::scene_points::word(pb + o)?,
+                );
                 let m = ((b.wrapping_sub(a) as i32) >> 1) as u32;
                 let m = m.wrapping_add(a);
                 put(v + o, m)?;
@@ -1190,12 +1202,10 @@ mod asm_reference {
                     crate::race::trap::test_region(&face),
                     crate::race::trap::test_region(&points),
                 );
-                let (want, got) = unsafe {
-                    (
-                        face_turned_to_view_asm(at, half as u32),
-                        face_turned_to_view(at, half as u32).unwrap(),
-                    )
-                };
+                let want = unsafe { face_turned_to_view_asm(at, half as u32) };
+                let got = crate::race::scene_points::with_test_points(&points, || {
+                    face_turned_to_view(at, half as u32).unwrap()
+                });
                 assert_eq!(want, got, "{face:x?} {points:x?}");
             }
         });

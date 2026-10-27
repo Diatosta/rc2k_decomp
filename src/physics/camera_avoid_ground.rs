@@ -48,8 +48,12 @@ fn face_checkpoint(back: u32) -> bool {
     let point = rd(face + 4)
         .wrapping_mul(12)
         .wrapping_add(COURSE.scene_points.get());
-    let first = CAR.position[0].get().wrapping_sub(rd(point));
-    let second = CAR.position[2].get().wrapping_sub(rd(point + 8));
+    let first = CAR.position[0]
+        .get()
+        .wrapping_sub(crate::race::scene_points::word_or_end(point));
+    let second = CAR.position[2]
+        .get()
+        .wrapping_sub(crate::race::scene_points::word_or_end(point + 8));
     let angle = crate::scene::angle_between::angle_of(first, second);
     CAR.camera_heading.set(angle << 16);
     true

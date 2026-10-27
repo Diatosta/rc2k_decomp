@@ -185,9 +185,9 @@ pub fn shadow_polygon() -> Result<(), Refused> {
             .addr();
         for k in 0..n {
             let (record, point) = (records + 0x20 * k, points.wrapping_add(0xC * k));
-            put(point, get(record)?)?;
-            put(point + 8, get(record + 8)?)?;
-            put(point + 4, FRAME_WORK.shadow_ground.bits())?;
+            crate::race::scene_points::put(point, get(record)?)?;
+            crate::race::scene_points::put(point + 8, get(record + 8)?)?;
+            crate::race::scene_points::put(point + 4, FRAME_WORK.shadow_ground.bits())?;
             let e = entries + 0x44 * k;
             put(e, scene.wrapping_add(0x10).wrapping_add(k))?;
             put(e + 0x18, 0x00FF_FFFF)?;
@@ -225,8 +225,12 @@ fn work_entry(n: u32) -> u32 {
 fn inside_edge(n: u32) -> Result<bool, BadInput> {
     {
         let p = scene_point(n);
-        GROUND_WORK.ground_x.set(get(p)?);
-        GROUND_WORK.ground_z.set(get(p + 8)?);
+        GROUND_WORK
+            .ground_x
+            .set(crate::race::scene_points::word(p)?);
+        GROUND_WORK
+            .ground_z
+            .set(crate::race::scene_points::word(p + 8)?);
         use crate::math::x87_float::{X, compare, int};
         let word = |d: &crate::session::Dword| int(d.bits() as i32);
         let (x, z) = (&GROUND_WORK.ground_x, &GROUND_WORK.ground_z);
@@ -257,7 +261,10 @@ fn crossing_block(pa: u32, pb: u32, ea: u32, eb: u32) -> Result<(), BadInput> {
         // a + (b - a) x share
         let whole = |a: u32, b: u32| -> Result<i32, BadInput> {
             Ok(to_int(
-                int(get(a)? as i32) + (int(get(b)? as i32) - int(get(a)? as i32)) * share,
+                int(crate::race::scene_points::word(a)? as i32)
+                    + (int(crate::race::scene_points::word(b)? as i32)
+                        - int(crate::race::scene_points::word(a)? as i32))
+                        * share,
             ))
         };
         DRAW.clip_work[2].set_bits(whole(pa, pb)? as u32);
@@ -293,10 +300,10 @@ fn edge_crossing(ea: u32, eb: u32, ed: u32) -> Result<(), BadInput> {
         let c = &FRAME_WORK.shadow_corners;
         let w = &FRAME_WORK.shadow_work;
         let rd = |d: &crate::session::Dword| d.bits();
-        w[1].set(get(pb)?);
-        w[5].set(get(pb + 8)?);
-        w[0].set(get(pa)?);
-        w[4].set(get(pa + 8)?);
+        w[1].set(crate::race::scene_points::word(pb)?);
+        w[5].set(crate::race::scene_points::word(pb + 8)?);
+        w[0].set(crate::race::scene_points::word(pa)?);
+        w[4].set(crate::race::scene_points::word(pa + 8)?);
         w[2].set(rd(&c[0]));
         w[3].set(rd(&c[2]));
         w[6].set(rd(&c[1]));
@@ -310,9 +317,9 @@ fn edge_crossing(ea: u32, eb: u32, ed: u32) -> Result<(), BadInput> {
         crossing_block(pa, pb, ea, eb)?;
         let n = rd(&FRAME_WORK.shadow_scene);
         let p = scene_point(n);
-        put(p, DRAW.clip_work[2].bits())?;
-        put(p + 4, 0)?;
-        put(p + 8, DRAW.clip_work[4].bits())?;
+        crate::race::scene_points::put(p, DRAW.clip_work[2].bits())?;
+        crate::race::scene_points::put(p + 4, 0)?;
+        crate::race::scene_points::put(p + 8, DRAW.clip_work[4].bits())?;
         put(ed, n)?;
         FRAME_WORK.shadow_scene.set(n.wrapping_add(1));
         put(ed + 0x10, DRAW.clip_work[10].bits())?;
@@ -333,10 +340,10 @@ fn clip_to_edge(from: u32, to: u32) -> Result<(), BadInput> {
             return Ok(());
         }
         let (a, b) = (scene_point(from), scene_point(to));
-        FRAME_WORK.shadow_corners[2].set(get(b)?);
-        FRAME_WORK.shadow_corners[3].set(get(b + 8)?);
-        FRAME_WORK.shadow_corners[0].set(get(a)?);
-        FRAME_WORK.shadow_corners[1].set(get(a + 8)?);
+        FRAME_WORK.shadow_corners[2].set(crate::race::scene_points::word(b)?);
+        FRAME_WORK.shadow_corners[3].set(crate::race::scene_points::word(b + 8)?);
+        FRAME_WORK.shadow_corners[0].set(crate::race::scene_points::word(a)?);
+        FRAME_WORK.shadow_corners[1].set(crate::race::scene_points::word(a + 8)?);
         let (list, old) = (
             crate::scene::polygon_store::POLYGON_WORK.list[0].addr(),
             crate::scene::polygon_store::POLYGON_WORK.old_list[0].addr(),
@@ -396,10 +403,14 @@ pub fn clip_shadow_to_face() -> Result<(), BadInput> {
             (CAR.position[0].bits(), CAR.position[2].bits()),
             |n| {
                 let p = scene_point(corners[n]);
-                (
-                    trap.read::<u32>(p, "a scene point"),
-                    trap.read::<u32>(p + 8, "a scene point"),
-                )
+                let w = |a: u32| match crate::race::scene_points::word(a) {
+                    Ok(v) => v,
+                    Err(e) => {
+                        trap.keep(e);
+                        0
+                    }
+                };
+                (w(p), w(p + 8))
             },
         );
         trap.finish()?;
@@ -428,11 +439,15 @@ fn raise_onto_face(index: u32) -> Result<(), Refused> {
         for k in 0..3 {
             GROUND_WORK.face_corner_numbers[k].set_bits(FRAME_WORK.shadow_light[k].bits());
         }
-        GROUND_WORK.ground_x.set(get(p)?);
-        GROUND_WORK.ground_z.set(get(p + 8)?);
+        GROUND_WORK
+            .ground_x
+            .set(crate::race::scene_points::word(p)?);
+        GROUND_WORK
+            .ground_z
+            .set(crate::race::scene_points::word(p + 8)?);
         face_shares_at(&Ground::game())?;
         crate::physics::plane_height::plane_height();
-        put(
+        crate::race::scene_points::put(
             p + 4,
             GROUND_WORK
                 .ground_height
@@ -1181,7 +1196,8 @@ mod asm_reference {
                     GROUND_WORK.ground_x.set(0xAAAA_AAAAu32);
                     GROUND_WORK.ground_z.set(0xAAAA_AAAAu32);
                 }
-                let got = inside_edge(n).expect("the test's memory is registered");
+                let got = crate::race::scene_points::with_test_points(&points, || inside_edge(n))
+                    .expect("the test's memory is registered");
                 assert_eq!(want, got, "{points:x?} {n}");
                 assert_eq!(
                     seen,
@@ -1249,8 +1265,12 @@ mod asm_reference {
                     game_write(rva(*a), 0xAAAA_AAAAu32);
                 }
                 DRAW.scratch.set_bits(0xAAAA_AAAAu32);
-                crossing_block(args.0, args.1, args.2, args.3)
-                    .expect("the test's memory is registered");
+                let both = [pa, pb].concat();
+                crate::race::scene_points::with_test_points(&both, || {
+                    let base = crate::race::scene_points::BASE;
+                    crossing_block(base, base + 12, args.2, args.3)
+                })
+                .expect("the test's memory is registered");
                 let got = read();
                 for k in 0..places.len() {
                     assert!(

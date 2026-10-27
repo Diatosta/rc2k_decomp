@@ -128,9 +128,11 @@ unsafe fn animate_faces() -> Result<(), Refused> {
                 }
                 let point_number = at(f + 4)?;
                 let p = point(point_number);
-                let dx = at(p)?.wrapping_sub(CAR_BLOCKS.cars[0].position[0].bits());
+                let dx = crate::race::scene_points::word(p)?
+                    .wrapping_sub(CAR_BLOCKS.cars[0].position[0].bits());
                 DRAW.scratch.set(dx);
-                let dz = at(p + 8)?.wrapping_sub(CAR_BLOCKS.cars[0].position[2].bits());
+                let dz = crate::race::scene_points::word(p + 8)?
+                    .wrapping_sub(CAR_BLOCKS.cars[0].position[2].bits());
                 DRAW.scratch.set(dz);
                 let d = crate::math::x87::int_hypot(dx as i32, dz as i32) as u32;
                 CONTACT_WORK.lit_face_distance.set(d);
@@ -168,17 +170,22 @@ unsafe fn animate_faces() -> Result<(), Refused> {
                         put(f + 0x30, at(f + 0x30)?.wrapping_add(x))?;
                         put(f + 0x38, at(f + 0x38)?.wrapping_add(z))?;
                         let p = point(at(f + 4)?);
-                        GROUND_WORK.ground_x.set(at(p)?.wrapping_add(at(f + 0x30)?));
                         GROUND_WORK
-                            .ground_z
-                            .set(at(p + 8)?.wrapping_add(at(f + 0x38)?));
+                            .ground_x
+                            .set(crate::race::scene_points::word(p)?.wrapping_add(at(f + 0x30)?));
+                        GROUND_WORK.ground_z.set(
+                            crate::race::scene_points::word(p + 8)?.wrapping_add(at(f + 0x38)?),
+                        );
                         COURSE
                             .ground_face_last
                             .set(CAR_BLOCKS.cars[0].probe_point_face[4].bits());
                         crate::physics::find_ground::find_ground()?;
                         put(
                             f + 0x34,
-                            GROUND_WORK.ground_height.get().wrapping_sub(at(p + 4)?),
+                            GROUND_WORK
+                                .ground_height
+                                .get()
+                                .wrapping_sub(crate::race::scene_points::word(p + 4)?),
                         )?;
                         if COURSE.ground_slot.get() == u32::MAX {
                             put(f + 0x30, CONTACT_WORK.lit_face_saved_30.bits())?;
