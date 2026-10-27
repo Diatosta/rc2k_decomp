@@ -218,7 +218,13 @@ pub fn current_event() -> Result<At, BadInput> {
     Ok(events.add(get(record + 0x3C)?.wrapping_mul(0x618)))
 }
 
-pub const BEST_SCORES_RVA: &BlockVar = &CHAMP_VIEW.best_scores; // dword_7556D4: five groups of ten, 0x3C each
+/// Group `group`'s tenth best score (`saves::best_times::SCORES`); refused with no table or
+/// a group past the five.
+pub fn tenth_best_score(group: u32) -> Result<u32, BadInput> {
+    crate::saves::best_times::SCORES
+        .with(|t| t.groups.get(group as usize).map(|g| g[9].score))?
+        .ok_or(BadInput("a group past the best scores' five"))
+}
 const SORTED: u32 = standings::SORTED as u32;
 
 /// Standings table A's first 0xB4 entries sorted by the signed dword at `key` (the
@@ -247,9 +253,9 @@ pub fn sort_table_a(key: u32) -> Result<(), BadInput> {
 }
 
 /// The current player's (`dword_75598C`) best score entered at the bottom of `group`'s ten
-/// (`dword_7556D4`, entry 9): +0x38 its score (the record's `score_at`), +4 the player and
-/// 1, +0x14 1, +8 / +0xC its +4 / +8, +0x10 its group (+0x90), +0 its name pointer and
-/// +0x18 the name's 0x1F bytes; then moved up its group. Refused for a current player past
+/// (`saves::best_times::SCORES`, entry 9): its score (the record's `score_at`), its number
+/// plus 1, `new` 1, the nationality and car (its +4 / +8), its group (+0x90), its name pointer
+/// and the name's 0x1F bytes; then moved up its group. Refused for a current player past
 /// 3 or missing, no name, no table or a group past 4.
 pub fn enter_best(group: Option<u32>, score_at: u32) -> Result<(), BadInput> {
     let n: u32 = EVENT_STATE.current_player.get();
@@ -258,23 +264,24 @@ pub fn enter_best(group: Option<u32>, score_at: u32) -> Result<(), BadInput> {
     }
     let p = player(n);
     let group = group.unwrap_or(get(p + 0x90)?);
-    let table = CHAMP_VIEW.best_scores.get();
-    let (Some(table), true, false) = (table, group < 5, get(p + 0x18)? == 0) else {
+    let scores = &crate::saves::best_times::SCORES;
+    let (true, true, false) = (scores.is_taken(), group < 5, get(p + 0x18)? == 0) else {
         return Err(BadInput("no best-score table, a group past 4 or no name"));
     };
-    // Converted: `rc2k_core::menu::standings::enter_best`.
-    let name_at = get(p + 0x18)?;
-    let best = standings::Best {
+    // Converted: `rc2k_core::saves::scores::enter_best`.
+    use rc2k_core::saves::scores as s;
+    let name_ref = get(p + 0x18)?;
+    let best = s::Best {
         player: n + 1,
         score: get(p + score_at)?,
-        car: get(p + 4)?,
-        field_8: get(p + 8)?,
+        nation: get(p + 4)?,
+        car: get(p + 8)?,
         group: get(p + 0x90)?,
-        name_at,
-        name: bytes(name_at)?,
+        name_ref,
+        name: bytes(name_ref)?,
     };
-    with_table(Place::Owned(table.add(group * 0x258)), 0x3C, 10, |ten| {
-        with_kept_name(|kept| standings::enter_best(ten, &best, kept))
+    scores.with(|t| {
+        with_kept_name(|kept| s::enter_best(&mut t.groups[group as usize], &best, kept))
     })?;
     Ok(())
 }

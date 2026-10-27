@@ -7,6 +7,7 @@ pub mod blocks;
 pub mod free_list;
 pub mod free_own_heap;
 pub mod open_own_heap;
+pub mod owned;
 pub mod pages;
 pub mod take_from_list;
 pub mod virtual_alloc;

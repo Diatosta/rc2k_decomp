@@ -24,9 +24,6 @@ pub const STAGE_ROOM: u32 = 36;
 /// A class times entry's length, and the table's (seven groups of ten).
 pub const CLASS_ENTRY_LEN: usize = 0x50;
 pub const CLASS_TABLE_LEN: usize = 70 * CLASS_ENTRY_LEN;
-/// A best score entry's length, and the table's (five groups of ten).
-pub const SCORE_ENTRY_LEN: usize = 0x3C;
-pub const SCORE_TABLE_LEN: usize = 50 * SCORE_ENTRY_LEN;
 /// A rally's table: twenty time entries.
 pub const RALLY_ENTRIES: usize = 20;
 pub const RALLY_TABLE_LEN: usize = RALLY_ENTRIES * ENTRY_LEN;
@@ -418,18 +415,6 @@ pub fn best_scores(
     Ok(entries)
 }
 
-/// Writes `best_scores`' entries into the table.
-pub fn write_best_scores(table: &mut [u8], entries: &[(u32, Driver)]) {
-    for (n, (score, d)) in entries.iter().enumerate() {
-        let e = &mut table[n * SCORE_ENTRY_LEN..(n + 1) * SCORE_ENTRY_LEN];
-        put(e, 0x38, *score);
-        put(e, 0x10, d.fields[0]);
-        put(e, 8, d.fields[1]);
-        put(e, 0xC, d.fields[2]);
-        e[0x18..0x18 + d.name.len()].copy_from_slice(&d.name);
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -613,8 +598,8 @@ mod tests {
         assert_eq!(s[0].1.fields[0], 11);
         assert_eq!(s[40].0, 0x32);
         assert!(best_scores(&mut test(), [5, 0, 5, 5], [0; 4]).is_err());
-        let mut table = vec![0xAA; SCORE_TABLE_LEN];
-        write_best_scores(&mut table, &s);
-        assert_eq!(table[0x38], 0x32);
+        let mut table = crate::saves::scores::BestScores::default();
+        crate::saves::scores::fill_made_up(&mut table, &s);
+        assert_eq!(table.groups[0][0].score, 0x32);
     }
 }

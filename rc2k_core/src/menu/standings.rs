@@ -137,23 +137,6 @@ pub fn exchange_sort(
     }
 }
 
-/// The best score's fields a rank moves, and its name.
-pub const BEST_FIELDS: [usize; 6] = [0x38, 0x14, 4, 8, 0x10, 0xC];
-pub const BEST_NAME: usize = 0x18;
-
-/// A group's ten best scores: the last moved up (nine compares from the bottom: a lower
-/// entry not below the one above it moves up).
-pub fn rank_in_group(ten: &mut Entries, kept: &mut [u8; NAME_LEN]) {
-    bubble_up(
-        ten,
-        0x38,
-        &BEST_FIELDS,
-        BEST_NAME,
-        |lower, upper| lower >= upper,
-        kept,
-    );
-}
-
 /// Ten entries' last moved up: nine steps from the bottom, each pair (upper, lower)
 /// exchanged when `exchange(lower's key, upper's key)` (signed); the pair one up is next
 /// either way.
@@ -216,33 +199,6 @@ pub fn arcade_points(places: u32, position: u32) -> u32 {
 /// A list's entries after `shown` moved down one, up to and with the end mark at `end`.
 pub fn remove_at(list: &mut [u32], shown: usize, end: usize) {
     list.copy_within(shown + 1..=end, shown);
-}
-
-/// A best score to enter: the player's number (1 .. 4), score, +4 and +8, group (+0x90),
-/// name pointer and name.
-pub struct Best {
-    pub player: u32,
-    pub score: u32,
-    pub car: u32,
-    pub field_8: u32,
-    pub group: u32,
-    pub name_at: u32,
-    pub name: [u8; NAME_LEN],
-}
-
-/// A best score entered at the bottom of its group's ten (entry 9: +0x38 the score, +4 the
-/// player, +0x14 1, +8 / +0xC / +0x10, +0 the name pointer and +0x18 the name), then moved
-/// up.
-pub fn enter_best(ten: &mut Entries, best: &Best, kept: &mut [u8; NAME_LEN]) {
-    ten.set(9, 0x38, best.score);
-    ten.set(9, 4, best.player);
-    ten.set(9, 0x14, 1);
-    ten.set(9, 8, best.car);
-    ten.set(9, 0xC, best.field_8);
-    ten.set(9, 0x10, best.group);
-    ten.set(9, 0, best.name_at);
-    ten.set_name(9, BEST_NAME, &best.name);
-    rank_in_group(ten, kept);
 }
 
 /// What a first-player search finds: the entry, the computer drivers of the group before
@@ -357,10 +313,6 @@ pub fn number(groups: &[u32], which: Numbering) -> Vec<Option<u32>> {
 /// `_b`.
 pub const A_FIGURE: usize = 0x44;
 pub const B_FIGURE: usize = 0x70;
-
-/// What `menu::clear_score_marks` stores in each of the 50 best scores: the mark (+0x14)
-/// and the player (+4) 0.
-pub const BEST_MARKS: [Store; 2] = [(0x14, 0), (4, 0)];
 
 /// `menu::find_cpu_team`: the first driver whose number (+0) is `number` (none: the game's
 /// fatal error 0x8070A098).
@@ -534,20 +486,6 @@ mod tests {
 
     #[test]
     fn standings() {
-        let mut bytes = vec![0u8; 10 * 0x3C];
-        let mut t = Entries {
-            bytes: &mut bytes,
-            size: 0x3C,
-        };
-        for n in 0..10 {
-            t.set(n, 0x38, 50 - n as u32);
-            t.bytes[n * 0x3C + BEST_NAME] = b'a' + n as u8;
-        }
-        t.set(9, 0x38, 48);
-        let mut kept = [0; NAME_LEN];
-        rank_in_group(&mut t, &mut kept);
-        assert_eq!((t.get(2, 0x38), t.bytes[2 * 0x3C + BEST_NAME]), (48, b'j'));
-        assert_eq!((t.get(3, 0x38), t.bytes[3 * 0x3C + BEST_NAME]), (48, b'c'));
         let mut bytes = vec![0u8; 4 * 0x20];
         let mut t = Entries {
             bytes: &mut bytes,

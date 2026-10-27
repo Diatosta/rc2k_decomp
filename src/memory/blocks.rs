@@ -50,6 +50,19 @@ fn block_bytes(bytes: u32) -> usize {
 /// Refuses what `allocate` refuses: the game's own heap, no list, a size that with the
 /// header wraps.
 pub fn take(list: *mut MemoryList, bytes: u32) -> Result<u32, Refused> {
+    count_on(list, bytes)?;
+    let mut all = blocks();
+    all.push(Some(Block {
+        list: list as usize,
+        bytes: Arc::new(Mutex::new(vec![0; block_bytes(bytes)])),
+    }));
+    Ok(all.len() as u32)
+}
+
+/// `bytes` counted on `list` as `memory::allocate` counts a block (the list's total, the
+/// memory figures). Refuses what `allocate` refuses: the game's own heap, no list, a size
+/// that with the header wraps.
+pub fn count_on(list: *mut MemoryList, bytes: u32) -> Result<(), Refused> {
     if own_heap() == 1 {
         return Err(BadInput("the game's own heap is in use (altmemenable)").into());
     }
@@ -61,12 +74,7 @@ pub fn take(list: *mut MemoryList, bytes: u32) -> Result<u32, Refused> {
     l.total = l.total.wrapping_add(bytes);
     at.write(l, "a memory list")?;
     with_figures(|f| f.taken(bytes));
-    let mut all = blocks();
-    all.push(Some(Block {
-        list: list as usize,
-        bytes: Arc::new(Mutex::new(vec![0; block_bytes(bytes)])),
-    }));
-    Ok(all.len() as u32)
+    Ok(())
 }
 
 /// Every block on `list` given back (`memory::free_list`, which counts the figures down).

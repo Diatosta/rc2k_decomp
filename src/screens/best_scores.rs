@@ -21,10 +21,29 @@ use crate::text::draw_text::Canvas;
 use rc2k_core::screens::best_scores::{Row, Rows};
 
 const PAGE: &Dword = &MENU_PAGES.scores_page; // dword_755240
+/// Where a table is.
+pub enum Source {
+    /// The best scores (`saves::best_times::SCORES`): the layout's offsets are its fields'
+    /// (+0x18 the name, +0x38 the score, +0xC the car, +0x14 the highlight: `new`).
+    Scores,
+    /// A block (`memory::blocks`), at the layout's offsets.
+    Block(&'static BlockVar),
+}
+
+impl Source {
+    fn need(&self, what: &'static str) -> Result<(), BadInput> {
+        let there = match self {
+            Source::Scores => crate::saves::best_times::SCORES.is_taken(),
+            Source::Block(v) => v.get().is_some(),
+        };
+        if there { Ok(()) } else { Err(BadInput(what)) }
+    }
+}
+
 /// A table's layout: where it is, its group and entry sizes, and the entry's name, value
 /// and car offsets (the nationality is +8).
 pub struct Table {
-    pub at: &'static BlockVar,
+    pub at: Source,
     pub group: u32,
     pub entry: u32,
     pub name: u32,
@@ -44,7 +63,7 @@ pub struct Table {
 }
 
 pub const BEST_SCORES: Table = Table {
-    at: &CHAMP_VIEW.best_scores,
+    at: Source::Scores,
     group: 0x258,
     entry: 0x3C,
     name: 0x18,
@@ -57,7 +76,7 @@ pub const BEST_SCORES: Table = Table {
     sprite_dy: 0,
 };
 pub const CLASS_TIMES: Table = Table {
-    at: &CHAMP_VIEW.level_best_scores,
+    at: Source::Block(&CHAMP_VIEW.level_best_scores),
     group: 0x320,
     entry: 0x50,
     name: 0x20,
@@ -72,7 +91,7 @@ pub const CLASS_TIMES: Table = Table {
 /// `screens::draw_class_times_marked`'s (0x48AB87): the class `dword_7587EC`, the player's
 /// own times (+0x40 1) in the highlight fonts, the sprites 4 lower.
 pub const MARKED_CLASS_TIMES: Table = Table {
-    at: &CHAMP_VIEW.level_best_scores,
+    at: Source::Block(&CHAMP_VIEW.level_best_scores),
     group: 0x320,
     entry: 0x50,
     name: 0x20,
@@ -130,7 +149,7 @@ fn ends_of(fault: &Fault, first: Place, size: u32) -> impl Fn(u32) -> bool + '_ 
 pub fn draw_scores(t: &Table, canvas: &mut dyn Canvas) -> Result<(), Refused> {
     // Converted: `rc2k_core::screens::best_scores::scores`.
     {
-        let base = t.at.need("no best scores table")?;
+        t.at.need("no best scores table")?;
         let group = match (t.group_fixed, t.group_at) {
             (Some(g), _) => g,
             (None, Some(a)) => a.get(),
@@ -138,6 +157,10 @@ pub fn draw_scores(t: &Table, canvas: &mut dyn Canvas) -> Result<(), Refused> {
                 crate::pointers::GamePtr::new(MENU_LISTS.page_titles_b[0].addr() + 4 * PAGE.get())
                     .read::<u32>("best scores: a game value")?
             }
+        };
+        let base = match t.at {
+            Source::Scores => return draw_score_group(t, group, canvas),
+            Source::Block(v) => v.need("no best scores table")?,
         };
         let first = Place::Owned(base.add(group.wrapping_mul(t.group)));
         let fault = Fault::default();
@@ -158,6 +181,40 @@ pub fn draw_scores(t: &Table, canvas: &mut dyn Canvas) -> Result<(), Refused> {
         fault.check()?;
         drawn
     }
+}
+
+/// `draw_scores` on the best scores' group `group` (`t`'s highlight: `new`).
+fn draw_score_group(t: &Table, group: u32, canvas: &mut dyn Canvas) -> Result<(), Refused> {
+    use crate::screens::game_screen::{Held, HeldText};
+    let ten = crate::saves::best_times::SCORES
+        .with(|s| s.groups.get(group as usize).copied())?
+        .ok_or(BadInput("a group past the best scores' five"))?;
+    let fault = Fault::default();
+    let row = |n: u32| {
+        let e = ten[n as usize];
+        // A name without its end is refused after the drawing (drawn empty meanwhile).
+        let name = fault.ok(e
+            .name_text()
+            .and_then(|t| Held::new(&t))
+            .map(Some)
+            .ok_or(BadInput("a best score's name without its end")));
+        Row {
+            name: HeldText::Held(name.unwrap_or(Held::EMPTY)),
+            figure: e.score,
+            nation: e.nation,
+            car: e.car,
+            marked: t.highlight.is_some() && e.new == 1,
+        }
+    };
+    let ends = |n: u32| ten[n as usize].name_ref == u32::MAX;
+    let rows = Rows {
+        row: &row,
+        ends_at: &ends,
+    };
+    let mut screen = GameScreen::<_, _, HeldText>::new(canvas);
+    let drawn = rc2k_core::screens::best_scores::scores(&mut screen, &rows, t.keeps_y, t.sprite_dy);
+    fault.check()?;
+    drawn
 }
 
 /// `screens::draw_best_scores_page` (0x46D149): the best scores for pages up to 4, else

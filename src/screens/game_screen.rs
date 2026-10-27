@@ -142,6 +142,88 @@ impl GameText for crate::memory::blocks::Place {
     }
 }
 
+/// A text held by value (a typed table's name, copied out of it): at most `ROOM` bytes,
+/// without its NUL.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct Held {
+    bytes: [u8; Held::ROOM],
+    len: usize,
+}
+
+impl Held {
+    pub const ROOM: usize = 0x40;
+    pub const EMPTY: Self = Self {
+        bytes: [0; Self::ROOM],
+        len: 0,
+    };
+
+    /// None for a text longer than `ROOM`.
+    pub fn new(text: &[u8]) -> Option<Self> {
+        let mut bytes = [0; Self::ROOM];
+        bytes.get_mut(..text.len())?.copy_from_slice(text);
+        Some(Self {
+            bytes,
+            len: text.len(),
+        })
+    }
+
+    /// The text and its NUL.
+    fn with_nul(&self) -> Vec<u8> {
+        let mut t = self.bytes[..self.len].to_vec();
+        t.push(0);
+        t
+    }
+}
+
+/// The texts of a screen whose names are held by value: those, or the game's own buffers.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum HeldText {
+    Game(u32),
+    Held(Held),
+}
+
+impl GameText for HeldText {
+    fn draw(
+        self,
+        font: *mut Font,
+        x: i32,
+        y: i32,
+        canvas: &mut dyn Canvas,
+    ) -> Result<Drawn, Refused> {
+        match self {
+            HeldText::Game(at) => at.draw(font, x, y, canvas),
+            HeldText::Held(h) => {
+                let out = crate::text::draw_text::draw_bytes_at(font, &h.with_nul(), x, y, canvas)?;
+                Ok(Drawn {
+                    y: out.y,
+                    // Where the text after it starts, in the text (no caller of a held
+                    // text reads it: the names' draws keep only the y).
+                    after: out.next as u32,
+                    too_wide: out.too_wide,
+                })
+            }
+        }
+    }
+
+    fn of_buffer(at: u32) -> Self {
+        HeldText::Game(at)
+    }
+
+    fn measure(
+        self,
+        font: *mut Font,
+        x: i32,
+        canvas: &mut dyn Canvas,
+    ) -> Result<(u32, u32), Refused> {
+        match self {
+            HeldText::Game(at) => at.measure(font, x, canvas),
+            HeldText::Held(h) => {
+                crate::text::measure_text::measure_bytes_at(font, &h.with_nul(), x, canvas)
+            }
+        }
+    }
+}
+
 pub struct GameScreen<'a, F, W, T = u32> {
     pub canvas: &'a mut dyn Canvas,
     /// The menu's first item (the menus' screen: `rc2k_core::screens::menus::MenuScreen`).

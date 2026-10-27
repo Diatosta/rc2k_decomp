@@ -3,7 +3,8 @@
 //! In:  nothing
 //! Out: every register preserved
 //! `memory::free_list` on `g_bestTimesMemory` (0x7475D0), and `g_bestTimesAllocated` (0x747610) =
-//! 0. The tables' addresses stay in their variables. One caller, the main loop, after
+//! 0. The tables' addresses stay in their variables (the typed tables, `saves::best_times`,
+//! go with the list). One caller, the main loop, after
 //! `saves::save_game_data`. Refuses what `free_list` refuses. Rust callers run its `entry`
 //! (`routes.rs`); the registers above are the original's, for reference.
 
@@ -18,6 +19,7 @@ use crate::saves::best_times_store::BEST_TIMES;
 
 pub fn free_best_times(list: *mut MemoryList) -> Result<(), BadInput> {
     free_list(list)?;
+    crate::saves::best_times::SCORES.give_back();
     BEST_TIMES.allocated.set(0);
     Ok(())
 }

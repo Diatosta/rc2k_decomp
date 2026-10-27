@@ -1,4 +1,5 @@
 pub mod allocate_best_times;
+pub mod best_times;
 pub mod best_times_store;
 pub mod default_best_scores;
 pub mod default_championship_times;

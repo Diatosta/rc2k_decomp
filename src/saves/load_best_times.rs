@@ -69,6 +69,20 @@ pub fn load_game_best_times() -> Result<bool, Refused> {
         return Ok(false);
     }
     for table in READ {
+        if table == crate::saves::allocate_best_times::SCORES_TABLE {
+            // Read over the table's bytes (a short read leaves the rest as it was).
+            use crate::saves::best_times::SCORES;
+            use rc2k_core::saves::scores::{BestScores, TABLE_LEN};
+            let mut bytes = SCORES.with(|t| t.write())?;
+            let (got, ok) = crate::files::handle::read_slice(file, &mut bytes);
+            let bytes: &[u8; TABLE_LEN] = bytes[..].try_into().expect("the table's bytes");
+            SCORES.with(|t| *t = BestScores::read(bytes))?;
+            if !ok || got != TABLE_LEN as u32 {
+                close(file);
+                return Ok(false);
+            }
+            continue;
+        }
         let place = &BEST_TIMES.tables[table];
         // Read as the original reads: exactly the table's size, or the file closed.
         let table = place.block.need("a table of best times not taken")?;

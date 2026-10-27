@@ -23,6 +23,9 @@ use rc2k_core::saves::tables::{MARKED, TABLES};
 
 // ---- game data ----
 
+/// The best scores' table (`saves::best_times::SCORES`).
+pub const SCORES_TABLE: usize = 1;
+
 // g_recordTable
 const RECORD_LEN: usize = 0xA4;
 
@@ -44,7 +47,8 @@ pub fn sizes(stages: u32) -> [u32; TABLES] {
 
 /// `saves::allocate_best_times` (0x47C4D8): once, the nine tables taken from `list`
 /// (`BEST_TIMES.tables`, a block and a size each: `memory::blocks`, Rust's own since phase
-/// 12), the marked ones ending in -1.
+/// 12; the typed ones, `saves::best_times`, keep only the size), the marked ones ending in
+/// -1.
 pub fn allocate_best_times(list: *mut MemoryList, records: u32) -> Result<(), Refused> {
     if BEST_TIMES.allocated.get() == 1 {
         return Ok(());
@@ -54,6 +58,10 @@ pub fn allocate_best_times(list: *mut MemoryList, records: u32) -> Result<(), Re
     for (n, size) in sizes.into_iter().enumerate() {
         let place = &BEST_TIMES.tables[n];
         place.size.set(size);
+        if n == SCORES_TABLE {
+            crate::saves::best_times::SCORES.take(list, size, Default::default())?;
+            continue;
+        }
         let block = crate::memory::blocks::take(list, size)?;
         place.block.set(block);
         if MARKED.contains(&n) {

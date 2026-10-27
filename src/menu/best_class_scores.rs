@@ -18,8 +18,10 @@ pub unsafe fn best_class_scores(c: &Carried) -> Result<(), Refused> {
     unsafe {
         let players = counted_players()?;
         let classes: u32 = EVENT_STATE.classes.get();
-        let table = BEST_SCORES_RVA.get();
-        let (true, Some(table)) = (classes != 0 && classes <= 5, table) else {
+        let (true, true) = (
+            classes != 0 && classes <= 5,
+            crate::saves::best_times::SCORES.is_taken(),
+        ) else {
             return Err(BadInput("no classes, more than five, or no best-score table").into());
         };
         let mut g = *c;
@@ -32,11 +34,10 @@ pub unsafe fn best_class_scores(c: &Carried) -> Result<(), Refused> {
                 g.palette = get(p + 0x90)?;
                 if g.palette == class {
                     g.palette = class * 0x258 + 0x21C;
-                    // The group's tenth entry (the original leaves it in esi, which the
-                    // screen's lists set before anything reads it).
-                    let tenth = table.add(g.palette);
+                    // The group's tenth entry's offset (the original leaves its address in
+                    // esi, which the screen's lists set before anything reads it).
                     // Converted: `rc2k_core::menu::bests::makes_score`.
-                    let score = tenth.add(0x38).read::<u32>("a best score")?;
+                    let score = tenth_best_score(class)?;
                     if rc2k_core::menu::bests::makes_score(g.arg, score) {
                         enter_best(None, 0xB0)?;
                         EVENT_STATE.any_time_qualified.set(1u32);

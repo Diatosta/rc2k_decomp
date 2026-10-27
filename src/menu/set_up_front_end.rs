@@ -32,17 +32,18 @@ use crate::sound::store::SOUND_OPTIONS;
 // ---- game data ----
 
 /// Where each of the nine tables of `saves::allocate_best_times` (`BEST_TIMES.tables`:
-/// `dword_747618`, `dword_747620` .. `dword_747658`, in order) is copied to.
-const COPIES: [fn() -> &'static BlockVar; 9] = [
-    || &CHAMP_VIEW.summary,
-    || &CHAMP_VIEW.best_scores,
-    || &CHAMP_VIEW.stage_best_times,
-    || &CHAMP_VIEW.level_best_scores,
-    || &CHAMP_VIEW.course_best_times,
-    || &CHAMP_VIEW.ranked_times,
-    || &CHAMP_VIEW.champ_history,
-    || &CHAMP_VIEW.stage_best_times_alt,
-    || &CHAMP_VIEW.time_trial_best_times,
+/// `dword_747618`, `dword_747620` .. `dword_747658`, in order) is copied to; none for a
+/// typed table (`saves::best_times`), which is reached by name.
+const COPIES: [Option<fn() -> &'static BlockVar>; 9] = [
+    Some(|| &CHAMP_VIEW.summary),
+    None, // g_bestScores
+    Some(|| &CHAMP_VIEW.stage_best_times),
+    Some(|| &CHAMP_VIEW.level_best_scores),
+    Some(|| &CHAMP_VIEW.course_best_times),
+    Some(|| &CHAMP_VIEW.ranked_times),
+    Some(|| &CHAMP_VIEW.champ_history),
+    Some(|| &CHAMP_VIEW.stage_best_times_alt),
+    Some(|| &CHAMP_VIEW.time_trial_best_times),
 ];
 
 /// The record tables that get made-up records: the championship's and the twelve events'
@@ -92,7 +93,9 @@ pub unsafe fn set_up_front_end(stage: u32, x: u32) -> Result<(), Refused> {
             crate::records::stages_store::STAGE_TABLES.championship(),
         )?;
         for (table, to) in BEST_TIMES.tables.iter().zip(COPIES) {
-            to().set(table.block.id());
+            if let Some(to) = to {
+                to().set(table.block.id());
+            }
         }
         if BEST_TIMES.loaded.get() != 1 {
             DRAW_WORK.work_0c.set(0u32);

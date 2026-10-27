@@ -13,20 +13,22 @@
 //! One caller, `menu::set_up_front_end`, when `var\hst.dat` was not loaded.
 //! Refuses a missing table, a group without drivers (the original divides by 0), a
 //! driver past the 180, and a name that does not fit.
-//! Converted: `rc2k_core::saves::defaults::best_scores`.
+//! Converted: `rc2k_core::saves::defaults::best_scores`, `rc2k_core::saves::scores::fill_made_up`.
 
 use crate::errors::Refused;
-use crate::menu::champ_store::CHAMP_VIEW;
 use crate::menu::state_store::MENU_STATE;
+use crate::saves::best_times::SCORES;
 use crate::saves::default_times::{GameSource, to_nowhere};
-use rc2k_core::saves::defaults::{SCORE_TABLE_LEN, best_scores, write_best_scores};
+use rc2k_core::saves::defaults::best_scores;
 
 // ---- game data ----
 
 // ---- Rust version ----
 
 pub fn default_best_scores() -> Result<(), Refused> {
-    let table = CHAMP_VIEW.best_scores.need("no table of best scores")?;
+    if !SCORES.is_taken() {
+        return Err(crate::errors::BadInput("no table of best scores").into());
+    }
     let counts = std::array::from_fn(|g| MENU_STATE.menus.class_counts[g].get());
     let firsts = std::array::from_fn(|g| MENU_STATE.menus.firsts[g].get());
     let entries = best_scores(
@@ -36,8 +38,6 @@ pub fn default_best_scores() -> Result<(), Refused> {
         counts,
         firsts,
     )?;
-    table.with_bytes(SCORE_TABLE_LEN, "the best scores' table", |bytes| {
-        write_best_scores(bytes, &entries)
-    })?;
+    SCORES.with(|t| rc2k_core::saves::scores::fill_made_up(t, &entries))?;
     Ok(())
 }
