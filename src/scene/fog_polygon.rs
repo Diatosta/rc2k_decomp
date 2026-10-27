@@ -43,9 +43,7 @@ pub unsafe fn fog_polygon() -> Result<(), Refused> {
         let fixed = (LIGHT_STATE.view_kind.bits() == 4).then(|| LIGHT_STATE.fog_next.bits());
         for &entry in &entries {
             let record = dword(entry + 4);
-            let depth = x87::to_int(
-                GamePtr::new(record.wrapping_add(0x18)).read::<u32>("a polygon's point record")?,
-            );
+            let depth = x87::to_int(crate::scene::point_records::vertex(record, 0x18));
             DRAW.scratch.set_bits(depth as u32);
             // A place past the length is the last one; with no length (the menus)
             // that is the byte before the table, as in the original.

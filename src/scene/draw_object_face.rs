@@ -35,7 +35,6 @@ use crate::errors::{BadInput, Refused};
 use crate::physics::camera_store::CAMERA_WORK;
 use crate::physics::ground_store::GROUND_WORK;
 use crate::pointers::GamePtr;
-use crate::race::course_lists_store::COURSE_LISTS;
 use crate::race::course_store::COURSE;
 use crate::race::sound_spots_store::RACE_SOUND_SPOTS;
 use crate::race::switches_store::FRAME_SWITCHES;
@@ -80,8 +79,7 @@ pub unsafe fn draw_object_face(
             return Err(BadInput("no face").into());
         }
         let count: u32 = GamePtr::new(face as u32).read("an object's face")?;
-        let records: u32 = COURSE_LISTS.point_records.bits();
-        if count == 0 || count > MOST || records == 0 {
+        if count == 0 || count > MOST || !crate::scene::point_records::held() {
             return Err(BadInput("a face of no vertices or more than 64, or no records").into());
         }
         let words = GamePtr::new(face as u32)
@@ -129,7 +127,7 @@ pub unsafe fn draw_object_face(
         );
         let lit = view_kind != 4
             && (face_kind == 0x1C || (face_kind != 5 && (face_kind < 0xA || face_unlit == 0)));
-        let table = crate::scene::reading::PointRecords::new(records)?;
+        let table = crate::scene::reading::PointRecords::new()?;
         for (entry, vertex) in vertices.clone() {
             let point = fw(vertex);
             put(entry as usize, point.wrapping_neg());

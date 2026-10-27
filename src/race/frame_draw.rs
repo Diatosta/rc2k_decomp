@@ -200,36 +200,19 @@ pub fn share_sound_spots() -> Result<(), Refused> {
 /// 0x1000 point records of 0x20 bytes at `g_pointRecords`: each first dword -1, or with
 /// `g_useSse` set each first 16 bytes `xmmword_62DAE0` (`movntps`). (It leaves ecx 0 and
 /// edi past the records: its one caller, `race::draw_view_scene`, reads neither.)
-pub fn clear_point_records_at(
-    count: u32,
-    sse: u32,
-    records: u32,
-    fill: u32,
-) -> Result<(), BadInput> {
-    {
-        put(count, 0)?;
-        let start = get(records)?;
-        let pattern = GamePtr::new(fill).read::<[u8; 16]>("the point record fill")?;
-        let sse = get(sse)? != 0;
-        for k in 0..0x1000u32 {
-            let at = start.wrapping_add(0x20 * k);
+pub fn clear_point_records() -> Result<(), BadInput> {
+    COURSE_LISTS.clear_count.set(0u32);
+    let pattern: [u32; 4] = crate::session::read_bits(&LIGHT_WORK.sse_fill);
+    let sse = DRAW_SWITCHES.use_sse.get() != 0;
+    crate::scene::point_records::with_all(|records| {
+        for record in &mut records[..0x1000] {
             if sse {
-                GamePtr::new(at).write(pattern, "a point record")?;
+                record[..4].copy_from_slice(&pattern);
             } else {
-                put(at, u32::MAX)?;
+                record[0] = u32::MAX;
             }
         }
-    }
-    Ok(())
-}
-
-pub fn clear_point_records() -> Result<(), BadInput> {
-    clear_point_records_at(
-        COURSE_LISTS.clear_count.addr(),
-        DRAW_SWITCHES.use_sse.addr(),
-        COURSE_LISTS.point_records.addr(),
-        LIGHT_WORK.sse_fill[0].addr(),
-    )
+    })
 }
 
 /// `race::object_bytes`' tables (IDA addresses), in the order the core uses them: the
@@ -750,8 +733,8 @@ pub fn checkpoint_colours() -> Result<(), BadInput> {
 /// `g_pointRecords` + (point & 0xFFF) x 0x20, made anew (`scene::make_scene_record`) when
 /// its +0 is not the point. Gives the record and, when made, ecx (the point's address).
 pub fn point_record(point: u32) -> Result<(u32, Option<u32>), Refused> {
-    let record = ((point & 0xFFF) << 5).wrapping_add(COURSE_LISTS.point_records.bits());
-    if get(record)? == point {
+    let record = crate::scene::point_records::of_scene_point(point);
+    if crate::scene::point_records::field(record, 0)? == point {
         return Ok((record, None));
     }
     let from = crate::scene::project_point::make_scene_record(point, record)?;
@@ -761,7 +744,7 @@ pub fn point_record(point: u32) -> Result<(u32, Option<u32>), Refused> {
 /// What `point_record` needs to make a record: the records and the points.
 pub fn points_there() -> Result<(), Refused> {
     {
-        if COURSE_LISTS.point_records.bits() == 0 || COURSE.scene_points.bits() == 0 {
+        if !crate::scene::point_records::held() || COURSE.scene_points.bits() == 0 {
             return Err(BadInput("no point records or no points").into());
         }
         Ok(())
@@ -803,10 +786,12 @@ pub fn face_hidden(esi: u32, eax: u32) -> Result<(u32, bool), Refused> {
     }
     points_there()?;
     let (record, _) = point_record(get(esi + 4)?)?;
-    let x = crate::math::x87_load::abs_to_int(get(record + 0x10)?);
+    let x = crate::math::x87_load::abs_to_int(crate::scene::point_records::field(record, 0x10)?);
     OBJECT_WORK.object_position[0].set_bits(x as u32);
-    let depth =
-        crate::math::x87_load::add_to_int(get(record + 0x18)?, LEVEL_GRID.depth_shift.bits());
+    let depth = crate::math::x87_load::add_to_int(
+        crate::scene::point_records::field(record, 0x18)?,
+        LEVEL_GRID.depth_shift.bits(),
+    );
     OBJECT_WORK.face_depth.set_bits(depth as u32);
     Ok((eax, hidden_by_depth(depth as u32, x as u32)))
 }
@@ -824,7 +809,7 @@ pub fn face_depth(ebx: u32) -> Result<(), Refused> {
     let face = (ebx << 6).wrapping_add(COURSE.course_faces.bits());
     let depth = |k: u32| -> Result<u32, Refused> {
         let (record, _) = point_record(get(face + 4 + 4 * k)?)?;
-        Ok(get(record + 0x18)?)
+        Ok(crate::scene::point_records::field(record, 0x18)?)
     };
     // Converted: `rc2k_core::race::faces::{depth_by, deeper, average_key, depth_key}`;
     // the roundings and the sum the x87's.
@@ -844,11 +829,11 @@ pub fn face_depth(ebx: u32) -> Result<(), Refused> {
     let key = match by {
         DepthBy::First => {
             let (record, _) = point_record(get(face + 4)?)?;
-            let key = to_int(get(record + 0x18)?) as u32;
+            let key = to_int(crate::scene::point_records::field(record, 0x18)?) as u32;
             RACE_VIEW.face_depth_key.set_bits(key);
             RACE_VIEW
                 .face_side
-                .set_bits(to_int(get(record + 0x10)?) as u32);
+                .set_bits(to_int(crate::scene::point_records::field(record, 0x10)?) as u32);
             key
         }
         DepthBy::Deepest => {

@@ -2,7 +2,7 @@
 //! worked out once and kept.
 //!
 //! In:  eax = the point's number
-//! Out: edx = its record; a point of the scene: eax unchanged, ecx = the point's address
+//! Out: edx = its record (Rust: `scene::point_records`' number, phase 13); a point of the scene: eax unchanged, ecx = the point's address
 //!      (or the number of points + 0x40 if the record was already made); a point of an
 //!      object (a negative number): eax = the record's offset; everything else preserved
 //!
@@ -29,14 +29,13 @@
 use crate::errors::{BadInput, FatalError, Refused};
 use crate::math::x87;
 use crate::math::x87_float::ONE;
-use crate::race::course_lists_store::COURSE_LISTS;
 use crate::race::course_store::COURSE;
 use crate::race::matrices_store::MATRICES;
 use crate::race::prefs_store::STAGE_PREFS;
 use crate::scene::draw_store::DRAW;
 use crate::scene::light_store::LIGHT_STATE;
 use crate::scene::object_tables_store::OBJECT_TABLES;
-use crate::scene::polygon::{dword, put};
+use crate::scene::point_records;
 use crate::scene::x87_mem::{fild, fld, fstp};
 
 // ---- game data ----
@@ -173,7 +172,7 @@ pub fn record_offset(point: u32) -> Result<u32, FatalError> {
 /// What the function leaves.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Projected {
-    /// The record's address.
+    /// The record (`scene::point_records`: its number + 1).
     pub record: u32,
     pub eax: u32,
     /// None: unchanged.
@@ -184,21 +183,22 @@ pub struct Projected {
 /// `project_point`): the point through the view's matrix and onto the screen.
 /// Returns the point's address.
 pub(crate) fn make_scene_record(point: u32, record: u32) -> Result<u32, BadInput> {
-    let at = record as usize;
     let points: u32 = COURSE.scene_points.bits();
     if points == 0 {
         return Err(BadInput("no points"));
     }
     let from = points.wrapping_add(point.wrapping_mul(12));
-    put(at, point);
+    // Made on a copy of the record (`scene::point_records`), then stored.
+    let mut r = point_records::get(record)?;
+    r[0] = point;
     rotate(
         crate::pointers::host(from) as *const i32,
         crate::pointers::host(MATRICES.view_matrix[0].addr()) as *const u32,
-        crate::pointers::host(record) as *mut u32,
+        r.as_mut_ptr(),
     );
-    put(at + 0xC, 0);
-    put(at + 0x1C, 0);
-    if f32::from_bits(dword(at + 0x18)) >= NEAR {
+    r[3] = 0;
+    r[7] = 0;
+    if f32::from_bits(r[6]) >= NEAR {
         let v = [
             DRAW.view_scale.bits(),
             DRAW.view_centre[0].bits(),
@@ -206,27 +206,22 @@ pub(crate) fn make_scene_record(point: u32, record: u32) -> Result<u32, BadInput
             COURSE.flat_depth.bits(),
         ];
         let flat = STAGE_PREFS.flat_depth.bits() != 0;
-        to_screen(
-            crate::pointers::host(record) as *mut u32,
-            &v,
-            flat,
-            DRAW.scratch.as_ptr(),
-        );
+        to_screen(r.as_mut_ptr(), &v, flat, DRAW.scratch.as_ptr());
     }
     if LIGHT_STATE.draw_mode.bits() == 1 {
-        put(at + 0x18, x87::sub(dword(at + 0x18), LOWERED_BY.to_bits()));
+        r[6] = x87::sub(r[6], LOWERED_BY.to_bits());
         DRAW.scratch.set_bits(LOWERED_BY.to_bits());
     }
+    point_records::set(record, r)?;
     Ok(from)
 }
 
 pub fn project_point(point: u32) -> Result<Projected, Refused> {
     let offset = record_offset(point)?;
-    let records: u32 = COURSE_LISTS.point_records.bits();
-    if records == 0 {
+    if !point_records::held() {
         return Err(BadInput("no records for the points").into());
     }
-    let record = records.wrapping_add(offset);
+    let record = point_records::at_offset(offset);
     if (point as i32) < 0 {
         return Ok(Projected {
             record,
@@ -234,8 +229,7 @@ pub fn project_point(point: u32) -> Result<Projected, Refused> {
             ecx: None,
         });
     }
-    let at = record as usize;
-    if dword(at) == point {
+    if point_records::field(record, 0)? == point {
         return Ok(Projected {
             record,
             eax: point,

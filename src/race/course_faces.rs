@@ -291,11 +291,11 @@ pub fn face_out_of_view() -> Result<bool, Refused> {
             break;
         }
         let (record, _) = crate::race::frame_draw::point_record(n)?;
-        let depth = get(record + 0x18)?;
+        let depth = crate::scene::point_records::field(record, 0x18)?;
         if depth & 0x8000_0000 != 0 {
             continue;
         }
-        let x = get(record + 0x10)?;
+        let x = crate::scene::point_records::field(record, 0x10)?;
         match corner_in_sight(depth, x, near, slope) {
             Some(InSight::Near) => {
                 DRAW.scratch.set(x & 0x7FFF_FFFF);
@@ -408,11 +408,14 @@ pub fn face_corners_to_new_points() -> Result<(), Refused> {
     {
         crate::race::frame_draw::points_there()?;
         let count: u32 = COURSE.scene_point_count.get();
-        let records: u32 = COURSE_LISTS.point_records.get();
         let corners: [u32; 4] = crate::session::read_bits(&RACE_VIEW.corners);
         let (marked, copies) = rc2k_core::race::faces::new_points(count, corners);
         for n in marked {
-            put(records + (n << 5), u32::MAX)?;
+            crate::scene::point_records::put_field(
+                crate::scene::point_records::at_offset(n << 5),
+                0,
+                u32::MAX,
+            )?;
         }
         let points: u32 = COURSE.scene_points.get();
         for (k, (from, to)) in copies.into_iter().enumerate() {
@@ -520,7 +523,9 @@ pub unsafe fn draw_whole_quad() -> Result<bool, Refused> {
         };
         for slot in 0..4 {
             let v = get(entry(slot) + 4)?;
-            if !inside(get(v + 0xC)?, left, right) || !inside(get(v + 0x1C)?, top, bottom) {
+            if !inside(crate::scene::point_records::vertex(v, 0xC), left, right)
+                || !inside(crate::scene::point_records::vertex(v, 0x1C), top, bottom)
+            {
                 return Ok(true);
             }
         }
@@ -643,7 +648,11 @@ fn halfway_vertex(a: u32, b: u32, v: u32) -> Result<(), BadInput> {
     {
         let half = ld(NUMBERS.half.bits());
         for o in [0x10, 0x14, 0x18] {
-            let (from, to) = (ld(get(a + o)?), ld(get(b + o)?));
+            // `a` and `b` are point records or the clipper's (`scene::point_records::vertex`).
+            let (from, to) = (
+                ld(crate::scene::point_records::vertex(a, o)),
+                ld(crate::scene::point_records::vertex(b, o)),
+            );
             put(v + o, st((to - from) * half + from))?;
         }
         put(v + 0xC, 0)?;

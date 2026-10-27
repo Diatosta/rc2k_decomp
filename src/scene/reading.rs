@@ -40,35 +40,24 @@ impl Reading {
     }
 }
 
-/// The scene's point records (32 bytes each, from `records + 0x20000`; a point or normal
-/// number `n` is record `n & 0xFFF`; +0x10 its place, three words): the run is resolved
-/// once, then indexed (a face's vertices are many).
-pub struct PointRecords {
-    bytes: crate::pointers::GameBytes,
-}
+/// The objects' point records (`scene::point_records`, 0x1000 + (n & 0xFFF) for a point or
+/// normal number `n`; +0x10 its place, three words).
+pub struct PointRecords;
 
 impl PointRecords {
-    /// The records of the block `records` (`COURSE_LISTS.point_records`).
-    pub fn new(records: u32) -> Result<Self, BadInput> {
-        let bytes = GamePtr::new(records.wrapping_add(0x20000)).bytes("the point records")?;
-        Ok(Self { bytes })
+    /// Refused when the records are not taken.
+    pub fn new() -> Result<Self, BadInput> {
+        if !crate::scene::point_records::held() {
+            return Err(BadInput("no records for the points"));
+        }
+        Ok(Self)
     }
 
     /// The place of point or normal `number`.
     pub fn place(&self, number: u32) -> Result<[u32; 3], BadInput> {
-        use rc2k_core::strings::bytes::Bytes;
-        let at = ((number & 0xFFF) as usize) * 32 + 0x10;
-        let mut out = [0u32; 3];
-        for (n, word) in out.iter_mut().enumerate() {
-            let mut le = [0u8; 4];
-            for (k, byte) in le.iter_mut().enumerate() {
-                *byte = self.bytes.byte(at + n * 4 + k).ok_or(BadInput(
-                    "a point record past the end of its block (rc2k.log names none)",
-                ))?;
-            }
-            *word = u32::from_le_bytes(le);
-        }
-        Ok(out)
+        use crate::scene::point_records::{get, of_object_point};
+        let r = get(of_object_point(number))?;
+        Ok([r[4], r[5], r[6]])
     }
 }
 

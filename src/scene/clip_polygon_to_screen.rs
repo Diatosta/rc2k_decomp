@@ -36,9 +36,9 @@ fn outside_mask() -> Result<u32, BadInput> {
     );
     let mut mask = 0;
     for &entry in &entries {
-        let record = dword(entry + 4) as usize;
-        let x = f32::from_bits(dword(record + 0xC)) as f64;
-        let y = f32::from_bits(dword(record + 0x1C)) as f64;
+        let record = dword(entry + 4);
+        let x = f32::from_bits(crate::scene::point_records::vertex(record, 0xC)) as f64;
+        let y = f32::from_bits(crate::scene::point_records::vertex(record, 0x1C)) as f64;
         if !below(x, right) {
             mask |= 2;
         } else if below(x, left) {

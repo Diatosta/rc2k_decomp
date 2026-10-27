@@ -20,6 +20,7 @@
 
 use crate::errors::Refused;
 use crate::gfx::blit_glyph::{BlitCall, blit_glyph_on_surface};
+use crate::gfx::glyph_store::{self, Glyphs};
 use crate::pointers::{GameBytes, GamePtr};
 use crate::text::font::Font;
 use crate::text::glyph_kerning::{State, state_ptr};
@@ -46,14 +47,7 @@ impl Canvas for GameCanvas {
         unsafe { &mut *state_ptr() }
     }
     unsafe fn blit_glyph(&mut self, c: BlitCall) -> Result<(), Refused> {
-        blit_glyph_on_surface(
-            c.glyph,
-            GamePtr::new(c.table),
-            c.x,
-            c.y,
-            GamePtr::new(c.palette),
-        )
-        .map(|_| ())
+        blit_glyph_on_surface(c.glyph, c.table, c.x, c.y, c.palette).map(|_| ())
     }
 }
 
@@ -103,9 +97,9 @@ pub fn run_core<T>(
     font: &Font,
     text: *const u8,
     canvas: &mut dyn Canvas,
-    f: impl FnOnce(&GameBytes, &GameBytes, &mut Adapt) -> Result<T, AdaptError>,
+    f: impl FnOnce(&GameBytes, &Glyphs, &mut Adapt) -> Result<T, AdaptError>,
 ) -> Result<T, Refused> {
-    let glyphs = GamePtr::new(font.glyph_table).bytes("a font's glyph table")?;
+    let glyphs = glyph_store::bytes(font.glyph_table, "a font's glyph table")?;
     let words = GamePtr::new(crate::pointers::game_address(text)).bytes("a text")?;
     match f(&words, &glyphs, &mut Adapt(canvas)) {
         Ok(value) => Ok(value),
@@ -157,7 +151,7 @@ pub fn draw_bytes_at(
     let at = GamePtr::new(crate::pointers::game_address(font));
     let before = at.read::<Font>("a font")?;
     let mut copy = before;
-    let glyphs = GamePtr::new(copy.glyph_table).bytes("a font's glyph table")?;
+    let glyphs = glyph_store::bytes(copy.glyph_table, "a font's glyph table")?;
     let out = match rc2k_core::text::draw(&mut copy, text, &glyphs, x, y, &mut Adapt(canvas)) {
         Ok(out) => out,
         Err(AdaptError::Refused(e)) => return Err(e),

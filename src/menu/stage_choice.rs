@@ -75,13 +75,7 @@ pub unsafe fn draw_stage_map() -> Result<(), Refused> {
         PICTURE.flags.set(SCREEN_MODE.mode_flags.get() & 0xFFF);
         picture_as_surface()?;
         // The overlay's pointer is the blit's palette too (ebx all the way).
-        blit_glyph_on_surface(
-            MAP_SPRITE,
-            crate::pointers::GamePtr::new(LOOP_FLAGS.sprite_table.get()),
-            0,
-            0,
-            crate::pointers::GamePtr::new(overlay),
-        )?;
+        blit_glyph_on_surface(MAP_SPRITE, LOOP_FLAGS.sprite_table.get(), 0, 0, overlay)?;
     }
     Ok(())
 }

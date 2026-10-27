@@ -28,6 +28,7 @@ pub mod free_fonts;
 pub mod free_glyph_tables;
 pub mod free_picture_buffer;
 pub mod glyph_builder;
+pub mod glyph_store;
 pub mod glyph_tables;
 pub mod install_converters;
 pub mod jade_store;

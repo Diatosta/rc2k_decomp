@@ -228,10 +228,10 @@ fn hit_test(entries: &[usize]) {
     }
     for n in 0..entries.len() {
         let corner = |entry: usize| {
-            let vertex = dword(entry + 4) as usize;
+            let vertex = dword(entry + 4);
             [
-                x87::to_int(dword(vertex + 0x0C)),
-                x87::to_int(dword(vertex + 0x1C)),
+                x87::to_int(crate::scene::point_records::vertex(vertex, 0x0C)),
+                x87::to_int(crate::scene::point_records::vertex(vertex, 0x1C)),
             ]
         };
         let (from, to) = (corner(entries[n]), corner(entries[(n + 1) % entries.len()]));
@@ -259,16 +259,25 @@ fn place(entries: &[usize], mirrored: bool) {
     let sse = DRAW_SWITCHES.use_sse.bits() != 0;
     let mirror_at: u32 = DRAW.view_centre[0].bits();
     for (n, &entry) in entries.iter().enumerate() {
-        let vertex = dword(entry + 4) as usize;
+        let vertex = dword(entry + 4);
         let out = crate::d3d::vertices_store::piece_addr() + (n * VERTEX_LEN) as u32;
-        let mut x = x87::add(dword(vertex + 0x0C), x_offset);
-        let depth = x87::mul(dword(vertex + 0x18), depth_factor);
-        put((out + 4) as usize, x87::add(dword(vertex + 0x1C), y_offset));
+        let mut x = x87::add(crate::scene::point_records::vertex(vertex, 0x0C), x_offset);
+        let depth = x87::mul(
+            crate::scene::point_records::vertex(vertex, 0x18),
+            depth_factor,
+        );
+        put(
+            (out + 4) as usize,
+            x87::add(crate::scene::point_records::vertex(vertex, 0x1C), y_offset),
+        );
         put((out + 8) as usize, depth);
         put(
             (out + 0x0C) as usize,
             if sse {
-                x87::rcpss_times(dword(vertex + 0x18), NUMBERS.k65536.bits())
+                x87::rcpss_times(
+                    crate::scene::point_records::vertex(vertex, 0x18),
+                    NUMBERS.k65536.bits(),
+                )
             } else {
                 x87::reciprocal_times(depth, RACE_OVERLAY.w_factor.bits())
             },

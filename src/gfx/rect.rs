@@ -62,8 +62,12 @@ unsafe fn carry_out(plan: &rc2k_core::gfx::raster::Plan, colour: u32, palette: u
 /// The pixel for colour `colour` by the surface's depth: `palette[colour]` as a word or a
 /// dword, else the byte itself.
 fn pixel(bits: u32, colour: u32, palette: u32) -> Vec<u8> {
+    // The palette is a place of `gfx::glyph_store` (the fonts') or a game address.
     let entry =
-        || crate::pointers::read_or_end::<u32>(palette.wrapping_add(4 * colour), "a palette entry");
+        || match crate::gfx::glyph_store::read_bytes(palette, 4 * colour, 4, "a palette entry") {
+            Ok(b) => u32::from_le_bytes([b[0], b[1], b[2], b[3]]),
+            Err(e) => crate::fatal::raise::end("a palette entry", e),
+        };
     match bits {
         16 => (entry() as u16).to_le_bytes().to_vec(),
         32 => entry().to_le_bytes().to_vec(),

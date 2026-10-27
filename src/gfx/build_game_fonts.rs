@@ -27,8 +27,7 @@ use crate::gfx::glyph_tables::{
 };
 use crate::gfx::pixel_format::PixelFormat;
 use crate::memory::MemoryList;
-use crate::memory::allocate::allocate;
-use crate::memory::take_from_list::{rewind_list, take_from_list};
+use crate::memory::take_from_list::rewind_list;
 use crate::pointers::GamePtr;
 use crate::session::SCREEN;
 
@@ -89,7 +88,7 @@ pub unsafe fn build_game_fonts(pixels_b: u32) -> Result<(), Refused> {
             .get()
             .wrapping_mul(0x400)
             .wrapping_mul(SCREEN.bytes.get());
-        allocate(list, bytes)?;
+        crate::memory::owned::count_on(list, bytes)?;
         rewind_list(list)?;
         begin_glyph_tables()?;
         DECODER.builder_flags.set(RUN_LENGTHS | WITH_ALPHA);
@@ -98,9 +97,9 @@ pub unsafe fn build_game_fonts(pixels_b: u32) -> Result<(), Refused> {
             .get()
             .wrapping_add(8);
         DECODER.format.set(format);
-        let palette_a = take_from_list(list, 0x400)?.unwrap_or(0);
+        let palette_a = crate::gfx::build_fonts::palette_place(list)?;
         FONTS.game_fonts[0].update(|f| f.palette = palette_a);
-        let palette_b = take_from_list(list, 0x400)?.unwrap_or(0);
+        let palette_b = crate::gfx::build_fonts::palette_place(list)?;
         FONTS.game_fonts[3].update(|f| f.palette = palette_b);
         begin_glyph_table(list)?;
         build_glyphs(
@@ -142,7 +141,7 @@ pub unsafe fn build_game_fonts(pixels_b: u32) -> Result<(), Refused> {
             DECODER.palette[n].set(brighter);
             pixels.extend_from_slice(&components_to_pixel(&layout, brighter).to_le_bytes());
         }
-        GamePtr::new(to).write_bytes(&pixels, "the second palette's pixels")?;
+        crate::gfx::glyph_store::write_bytes(to, 0, &pixels, "the second palette's pixels")?;
 
         let palette_b: u32 = FONTS.game_fonts[3].get().palette;
         FONTS.game_fonts[3].update(|f| f.glyph_table = glyphs);

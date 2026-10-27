@@ -9,7 +9,6 @@ use crate::physics::car_store::CAR;
 use crate::physics::ground_store::GROUND_WORK;
 use crate::physics::tables_store::PHYSICS;
 use crate::pointers::GamePtr;
-use crate::race::course_lists_store::COURSE_LISTS;
 use crate::race::course_store::COURSE;
 use crate::race::frame_store::FRAME_WORK;
 use crate::race::numbers_store::NUMBERS;
@@ -474,10 +473,13 @@ pub unsafe fn shadow_on_face() -> Result<(), Refused> {
         FRAME_WORK.shadow_scene.set(scene.wrapping_add(0x30));
         DRAW.polygon_sides[0].set(0u32);
         DRAW.polygon_sides[1].set(1u32);
-        let records: u32 = COURSE_LISTS.point_records.get();
         let mut at = (scene & 0xFFF) * 0x20;
         for _ in 0..0x40 {
-            put(records.wrapping_add(at), u32::MAX)?;
+            crate::scene::point_records::put_field(
+                crate::scene::point_records::at_offset(at),
+                0,
+                u32::MAX,
+            )?;
             at = (at + 0x20) & 0x1FFE0;
         }
         clip_shadow_to_face()?;

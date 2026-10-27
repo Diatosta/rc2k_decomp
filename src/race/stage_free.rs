@@ -49,7 +49,7 @@ pub const POINT_RECORDS: Freeing = Freeing {
     counted: true,
     // g_pointRecords
     cleared: &[|| COURSE_LISTS.point_records.as_ptr()],
-    given_back: || {},
+    given_back: crate::scene::point_records::give_back,
 };
 /// `race::free_object_points` (0x41F89B).
 pub const OBJECT_POINTS: Freeing = Freeing {

@@ -68,7 +68,11 @@ pub fn viewer_palettes() -> Result<(), BadInput> {
         let to = crate::race::viewer_buffers_store::VIEWER_BUFFERS.colours[0].addr();
         for n in 0..FONT_COLOURS as u32 {
             let colour = font_colour(
-                GamePtr::new(from + 4 * n).read::<u32>("a font palette")?,
+                u32::from_le_bytes(
+                    crate::gfx::glyph_store::read_bytes(from, 4 * n, 4, "a font palette")?
+                        .try_into()
+                        .map_err(|_| BadInput("a font palette"))?,
+                ),
                 |c| crate::gfx::pixel_to_components::pixel_to_components(&screen, c),
                 |p| crate::gfx::components_to_pixel::components_to_pixel(&texture, p),
             );

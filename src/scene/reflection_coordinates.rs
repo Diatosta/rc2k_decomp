@@ -22,7 +22,6 @@ use crate::errors::BadInput;
 use crate::math::normalise_vector::normalise_vector;
 use crate::math::x87;
 use crate::physics::ground_store::GROUND_WORK;
-use crate::race::course_lists_store::COURSE_LISTS;
 use crate::race::matrices_store::MATRICES;
 use crate::race::numbers_store::NUMBERS;
 use crate::race::scratch_store::FRAME_SCRATCH;
@@ -66,11 +65,10 @@ fn negated_at(a: *const u8, o: *mut u8) {
 
 pub unsafe fn reflection_coordinates() -> Result<(), BadInput> {
     unsafe {
-        let records: u32 = COURSE_LISTS.point_records.bits();
-        if records == 0 {
+        if !crate::scene::point_records::held() {
             return Err(BadInput("no records for the points"));
         }
-        let table = crate::scene::reading::PointRecords::new(records)?;
+        let table = crate::scene::reading::PointRecords::new()?;
         let normal = table.place(GROUND_WORK.reflection_normal_number.bits())?;
         let point = table.place(GROUND_WORK.reflection_point_number.bits().wrapping_neg())?;
         crate::session::write_bits(&MATRICES.reflect_vector, normal);

@@ -39,6 +39,7 @@ use crate::gfx::glyph_builder::{
     DIRECT_COLOUR, Glyph, ONE_FILE, RUN_LENGTHS, RowTable, Sheet, WIDE_HEAD, WITH_ALPHA, append,
     backdrop_of, direct_pixel_size, table_of, transparent_of,
 };
+use crate::gfx::glyph_store;
 use crate::gfx::pcx::PCX;
 use crate::gfx::picture::{read_bytes, with_buffer, with_picture, write_bytes};
 use crate::gfx::picture_store::PICTURE;
@@ -198,7 +199,8 @@ unsafe fn log_glyph(glyph: &Glyph, number: u32, flags: u32, pixel_size: u32) {
 
 /// `sub_412C92` on the table being built: the sheet's table of `size` bytes at `sheet`
 /// becomes part of it.
-unsafe fn append_to_table(sheet: u32, size: u32) -> Result<(), Refused> {
+unsafe fn append_to_table(sheet: u32, more: &[u8]) -> Result<(), Refused> {
+    let size = more.len() as u32;
     unsafe {
         let (table, held): (u32, u32) = (SHEET.table.get(), SHEET.table_size.get());
         if level() as i32 >= 3 {
@@ -215,10 +217,9 @@ unsafe fn append_to_table(sheet: u32, size: u32) -> Result<(), Refused> {
         if table == 0 {
             return Err(fatal(0x80E4_8077, ""));
         }
-        let more = GamePtr::new(sheet).read_bytes(size as usize, "a sheet's glyph table")?;
-        let mut joined = GamePtr::new(table).read_bytes(held as usize, "the glyph table")?;
-        append(&mut joined, &more)?;
-        GamePtr::new(table).write_bytes(&joined, "the glyph table")?;
+        let mut joined = glyph_store::read_bytes(table, 0, held as usize, "the glyph table")?;
+        append(&mut joined, more)?;
+        glyph_store::write_bytes(table, 0, &joined, "the glyph table")?;
         SHEET.table_size.set(joined.len() as u32);
         Ok(())
     }
@@ -423,12 +424,14 @@ pub unsafe fn build_glyphs(template: *const u8, list: *mut MemoryList) -> Result
                 return Err(fatal(0x80E4_8011, ""));
             };
             SHEET.sheet_table_size.set(size);
+            // The sheet's table is counted off the work memory where the original put it
+            // (`place` is that list's cursor, logged as the original logs its address), and
+            // appended from Rust's bytes (`gfx::glyph_store`).
             SHEET.sheet_table.set(place);
-            GamePtr::new(place).write_bytes(&table, "a sheet's glyph table")?;
             if take_from_list(list, size)?.is_none() {
                 return Err(fatal(0x80E4_8012, ""));
             }
-            append_to_table(place, size)?;
+            append_to_table(place, &table)?;
 
             if flags & ONE_FILE != 0 {
                 return Ok(());

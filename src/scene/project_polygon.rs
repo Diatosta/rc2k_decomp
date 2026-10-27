@@ -6,8 +6,8 @@
 //!      `scene::project_point`, ecx = the number of vertices, esi = the last entry);
 //!      everything else preserved
 //!
-//! For each entry of the polygon: its point (+0) through `scene::project_point`, the record's
-//! address to its +4; `dword_6240F4`, 0 at the start, counts the points whose depth is under
+//! For each entry of the polygon: its point (+0) through `scene::project_point`, the record
+//! (`scene::point_records`' number since phase 13; the original's address) to its +4; `dword_6240F4`, 0 at the start, counts the points whose depth is under
 //! 4096 (or is no number) or is `flt_6241C8` or more. The callers compare the count with the
 //! number of vertices (all outside: nothing to draw) and with 0 (none: no clipping by depth).
 //! Eight callers. A polygon of no vertices is refused (the original goes through 2^32).
@@ -17,7 +17,6 @@
 //! version stays for the Rust callers in unconverted code).
 
 use crate::errors::{BadInput, Refused};
-use crate::race::course_lists_store::COURSE_LISTS;
 use crate::race::course_store::COURSE;
 use crate::scene::draw_store::DRAW;
 use crate::scene::polygon::{dword, listed, put};
@@ -36,7 +35,7 @@ pub fn project_polygon() -> Result<(), Refused> {
     // The scene's points are only needed for a scene's point: the menus have none,
     // and their objects' points (negative) only need the records.
     let scene_point = entries.iter().any(|&entry| dword(entry) as i32 >= 0);
-    if COURSE_LISTS.point_records.bits() == 0 || (scene_point && COURSE.scene_points.bits() == 0) {
+    if !crate::scene::point_records::held() || (scene_point && COURSE.scene_points.bits() == 0) {
         return Err(BadInput("no points or no records for them").into());
     }
     for &entry in &entries {
@@ -47,7 +46,7 @@ pub fn project_polygon() -> Result<(), Refused> {
     for &entry in &entries {
         let point = project_point(dword(entry))?;
         put(entry + 4, point.record);
-        let depth = f32::from_bits(dword(point.record as usize + 0x18));
+        let depth = f32::from_bits(crate::scene::point_records::field(point.record, 0x18)?);
         // Two compares, each taking "no number" for "below".
         let near = depth.partial_cmp(&NEAR).is_none_or(|order| order.is_lt());
         let in_reach = depth.partial_cmp(&far).is_none_or(|order| order.is_lt());

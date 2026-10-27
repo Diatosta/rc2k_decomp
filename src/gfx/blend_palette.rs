@@ -20,8 +20,8 @@ use crate::pointers::GamePtr;
 // ---- Rust version ----
 
 pub fn blend_palette(
-    first: GamePtr,
-    second: GamePtr,
+    first: u32,
+    second: u32,
     out: GamePtr,
     count: u32,
     towards_second: u32,
@@ -32,17 +32,22 @@ pub fn blend_palette(
             "no entries: the original goes through all 32 bits",
         ));
     }
-    if first.addr() == 0 || second.addr() == 0 || out.addr() == 0 {
+    if first == 0 || second == 0 || out.addr() == 0 {
         return Err(BadInput("a null palette"));
     }
+    // The two palettes are places of `gfx::glyph_store` or game addresses.
+    let entry_of = |palette: u32, n: u32| -> Result<u32, BadInput> {
+        let b = crate::gfx::glyph_store::read_bytes(palette, 4 * n, 4, "a palette")?;
+        Ok(u32::from_le_bytes([b[0], b[1], b[2], b[3]]))
+    };
     for n in 0..count {
         // Converted: `rc2k_core::gfx::pixels::blend_entry`; the scratch bytes as
         // `components_to_pixel` leaves them.
         let entry = out.offset(4 * n);
         let (pixel, scratch) = rc2k_core::gfx::pixels::blend_entry(
             format,
-            first.offset(4 * n).read::<u32>("a palette")?,
-            second.offset(4 * n).read::<u32>("a palette")?,
+            entry_of(first, n)?,
+            entry_of(second, n)?,
             entry.read::<u32>("a palette")?,
             towards_second,
         );

@@ -17,8 +17,9 @@
 
 use crate::errors::{BadInput, FatalError, Refused};
 use crate::gfx::blit::BLIT;
+use crate::gfx::glyph_store::{self, Glyphs};
 use crate::gfx::surface::{Clip, Surface, Target, clip, surface};
-use crate::pointers::{GameBytes, GamePtr};
+use rc2k_core::strings::bytes::Bytes as _;
 
 // ---- game data ----
 
@@ -68,20 +69,25 @@ pub const GLYPH_OUT_OF_RANGE: FatalError = FatalError {
 
 /// Record number `glyph` of a glyph table (`add esi, [esi+eax*4]`), after the three checks
 /// the original makes first.
-pub fn glyph_record(surface: &Surface, table: GamePtr, glyph: u32) -> Result<GameBytes, Refused> {
+pub fn glyph_record(surface: &Surface, table: u32, glyph: u32) -> Result<Glyphs, Refused> {
     if surface.target.is_none() {
         return Err(NO_SURFACE.into());
     }
-    if table.addr() == 0 {
+    if table == 0 {
         return Err(NO_GLYPH_TABLE.into());
     }
-    if glyph >= table.read::<u32>("a glyph table")? >> 2 {
+    let records = glyph_store::bytes(table, "a glyph table")?;
+    let count = records.u32_le(0).ok_or(BadInput("a glyph table"))?;
+    if glyph >= count >> 2 {
         return Err(GLYPH_OUT_OF_RANGE.into());
     }
-    let offset = table
-        .offset(glyph.wrapping_mul(4))
-        .read::<u32>("a glyph table's offset")?;
-    Ok(table.offset(offset).bytes("a glyph")?)
+    let offset = records
+        .u32_le(glyph.wrapping_mul(4) as usize)
+        .ok_or(BadInput("a glyph table's offset"))?;
+    Ok(match records {
+        Glyphs::Held(b, from) => Glyphs::Held(b, from.wrapping_add(offset as usize)),
+        Glyphs::Game(_) => glyph_store::bytes(table.wrapping_add(offset), "a glyph")?,
+    })
 }
 
 // ---- Rust version ----
@@ -108,17 +114,16 @@ pub struct Area {}
 /// of the surface it may have touched.
 #[allow(clippy::too_many_arguments)] // the original's five inputs, the surface, the clip and the sink
 pub fn blit_glyph(
-    record: &GameBytes,
+    record: &Glyphs,
     x: i32,
     y: i32,
-    palette: GamePtr,
+    palette: u32,
     surface: &Surface,
     clip: &Clip,
     scratch: &mut Scratch,
     put: &mut dyn FnMut(u32, &[u8]),
 ) -> Result<(Exit, Option<Area>), Refused> {
     use rc2k_core::gfx::blit as core;
-    use rc2k_core::strings::bytes::Bytes as _;
     let mut work = core::Scratch {
         left_skip: scratch.left_skip,
         visible_w: scratch.visible_w,
@@ -133,7 +138,7 @@ pub fn blit_glyph(
     let past_palette = std::cell::Cell::new(false);
     let colour = |n: u8| {
         let at = 4 * n as usize;
-        let Ok(colours) = colours.get_or_init(|| palette.bytes("a palette")) else {
+        let Ok(colours) = colours.get_or_init(|| glyph_store::bytes(palette, "a palette")) else {
             past_palette.set(true);
             return 0;
         };
@@ -201,10 +206,10 @@ pub fn blit_glyph(
 /// updates the blitter's work globals: what a call of the original does.
 pub fn blit_glyph_on_surface(
     glyph: u32,
-    table: GamePtr,
+    table: u32,
     x: i32,
     y: i32,
-    palette: GamePtr,
+    palette: u32,
 ) -> Result<Exit, Refused> {
     let surface = surface();
     let record = glyph_record(&surface, table, glyph)?;

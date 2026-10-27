@@ -107,6 +107,7 @@ pub mod object_store;
 pub mod object_tables_store;
 pub mod objects;
 pub mod place_object_points;
+pub mod point_records;
 pub mod polygon;
 pub mod polygon_store;
 pub mod prepare_menu_scene;

@@ -26,17 +26,6 @@ const FONT_94: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fonts::HEA
 const FONT_1000: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fonts::NOTICE;
 const FONT_1002: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fonts::LABEL;
 
-/// `memory::allocate` (0x4028A7) on the installer's list (it never fails with the
-/// original's carry: the fatal error `_code` is the original's for that).
-fn alloc(bytes: u32, _code: u32) -> Result<u32, Refused> {
-    Ok(crate::pointers::game_address({
-        crate::memory::allocate::allocate(
-            crate::pointers::host(INSTALLER_RUN.buffers.addr()) as *mut _,
-            bytes,
-        )
-    }?))
-}
-
 /// `files::read_file` (0x402BB6): `count` bytes of `path` into `buffer`; failing is fatal
 /// error `code`.
 fn read(path: usize, buffer: u32, count: u32, code: u32) -> Result<(), Refused> {
@@ -64,14 +53,16 @@ pub fn open_installer() -> Result<(), Refused> {
     INSTALLER_RUN.file_cursor.set(0);
     INSTALLER_RUN.dir_count.set(0);
     INSTALLER_RUN.file_count.set(0);
-    let glyphs = alloc(0x3000, 0x80AF_7022)?;
+    // The progress glyphs: a glyph table of Rust's (`gfx::glyph_store`), counted on the
+    // list as the game's block was (its fatal error 0x80AF7022 for none cannot come).
+    let mut bytes = crate::memory::owned::counted(list, 0x3000)?;
+    let glyphs = crate::gfx::glyph_store::new_table(list)?;
     INSTALLER_RUN.bar_glyphs.set(glyphs);
-    read(
-        INSTALLER_NAMES.installer_data.addr() as usize,
-        glyphs,
-        0x3000,
-        0x80AF_7444,
-    )?;
+    let path = crate::pointers::GamePtr::new(INSTALLER_NAMES.installer_data.addr());
+    if !crate::files::read_file::read_file_into(path, &mut bytes[..0x3000], 0)?.ok {
+        return Err(fatal(0x80AF_7444));
+    }
+    crate::gfx::glyph_store::write_bytes(glyphs, 0, &bytes, "the progress glyphs")?;
     read(
         INSTALLER_NAMES.install_pal.addr() as usize,
         INSTALLER_PALETTE.palette.addr(),

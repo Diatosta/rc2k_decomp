@@ -30,7 +30,6 @@ use crate::gfx::glyph_tables::{
     TABLES, begin_glyph_table, begin_glyph_tables, end_glyph_tables, palette_to_pixels,
 };
 use crate::gfx::typefaces::FONTS;
-use crate::memory::allocate::allocate;
 use crate::memory::take_from_list::{rewind_list, take_from_list};
 use crate::pointers::GamePtr;
 use crate::session::{Dword, SCREEN};
@@ -228,14 +227,11 @@ unsafe fn tables(palettes: u32) -> Result<(), Refused> {
             .get()
             .wrapping_mul(0x400)
             .wrapping_mul(SCREEN.bytes.get());
-        allocate(list, bytes)?;
+        crate::memory::owned::count_on(list, bytes)?;
         rewind_list(list)?;
         begin_glyph_tables()?;
         DECODER.builder_flags.set(RUN_LENGTHS);
-        GamePtr::new(palettes).write(
-            take_from_list(list, 0x400)?.unwrap_or(0),
-            "the fonts' palettes' place",
-        )?;
+        GamePtr::new(palettes).write(palette_place(list)?, "the fonts' palettes' place")?;
         begin_glyph_table(list)?;
         build_glyphs(
             crate::pointers::host(crate::gfx::texts::address(&crate::gfx::texts::PAL_00))
@@ -257,6 +253,15 @@ unsafe fn tables(palettes: u32) -> Result<(), Refused> {
         end_glyph_tables()?;
         Ok(())
     }
+}
+
+/// 0x400 bytes carved off `list` for a palette: its place in `gfx::glyph_store`, or 0
+/// when the list has no room (the original's cursor would have been none).
+pub fn palette_place(list: *mut crate::memory::MemoryList) -> Result<u32, Refused> {
+    Ok(match take_from_list(list, 0x400)? {
+        Some(_) => crate::gfx::glyph_store::new_palette(list)?,
+        None => 0,
+    })
 }
 
 /// What a store of `HUNG` stores.

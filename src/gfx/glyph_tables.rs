@@ -11,7 +11,6 @@ use crate::gfx::glyph_builder::DIRECT_COLOUR;
 use crate::gfx::picture_store::PICTURE;
 use crate::gfx::pixel_format::{PixelFormat, surface_format_addr};
 use crate::memory::MemoryList;
-use crate::memory::allocate::allocate;
 use crate::memory::free_list::free_list;
 use crate::memory::take_from_list::take_from_list;
 use crate::pointers::GamePtr;
@@ -67,8 +66,9 @@ pub fn begin_glyph_tables() -> Result<(), Refused> {
         .wrapping_mul(0x400)
         .wrapping_mul(SCREEN.bytes.get());
     // (The original's fatal error 0x80E48021 for no memory cannot come: the allocator
-    // reports its own.)
-    allocate(LEXICON.memory.as_ptr(), bytes)?;
+    // reports its own.) Only counted: the work memory holds nothing Rust reads back
+    // (`build_glyphs` keeps the sheet's table in its own bytes).
+    crate::memory::owned::count_on(LEXICON.memory.as_ptr(), bytes)?;
     SHEET.table.set(0u32);
     SHEET.table_size.set(0u32);
     Ok(())
@@ -79,7 +79,8 @@ pub fn begin_glyph_tables() -> Result<(), Refused> {
 pub fn begin_glyph_table(list: *mut MemoryList) -> Result<(), BadInput> {
     let padding = SHEET.table_size.get().wrapping_neg() & 3;
     take_from_list(list, padding)?;
-    SHEET.table.set(take_from_list(list, 0)?.unwrap_or(0));
+    take_from_list(list, 0)?;
+    SHEET.table.set(crate::gfx::glyph_store::new_table(list)?);
     SHEET.table_size.set(0u32);
     Ok(())
 }
@@ -104,7 +105,7 @@ pub fn palette_to_pixels(to: u32) -> Result<(), BadInput> {
         let components: u32 = DECODER.palette[entry].get();
         pixels.extend_from_slice(&components_to_pixel(&format, components).to_le_bytes());
     }
-    GamePtr::new(to).write_bytes(&pixels, "a palette's pixels")
+    crate::gfx::glyph_store::write_bytes(to, 0, &pixels, "a palette's pixels")
 }
 
 /// The last sheet's palette for pixels that are a colour in the low four bits and an alpha

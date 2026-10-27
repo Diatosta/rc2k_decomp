@@ -63,8 +63,8 @@ pub fn blend_font(time: u32, half_pulse: u32, a: GamePtr, b: GamePtr) -> Result<
     }
     let palette = GamePtr::new(BLENDED_PALETTE.addr());
     blend_palette(
-        GamePtr::new(from_palette),
-        GamePtr::new(to_palette),
+        from_palette,
+        to_palette,
         palette,
         PALETTE_ENTRIES,
         t,

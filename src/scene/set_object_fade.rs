@@ -22,11 +22,11 @@ use crate::errors::BadInput;
 use crate::math::x87;
 use crate::physics::ground_store::GROUND_WORK;
 use crate::pointers::GamePtr;
-use crate::race::course_lists_store::COURSE_LISTS;
 use crate::race::course_store::COURSE;
 use crate::race::switches_store::FRAME_SWITCHES;
 use crate::scene::object_store::OBJECT_WORK;
 use crate::scene::object_tables_store::OBJECT_TABLES;
+use crate::scene::point_records::field;
 use crate::scene::project_point::make_scene_record;
 use crate::scene::set_object_material::MATERIAL_LEN;
 
@@ -37,11 +37,9 @@ const OBJECTS: u32 = 0x100;
 
 fn record_at() -> Option<u32> {
     {
-        let (place, records): (u32, u32) = (
-            OBJECT_WORK.object_place.bits(),
-            COURSE_LISTS.point_records.bits(),
-        );
-        (records != 0).then(|| records.wrapping_add((place & 0xFFF) << 5))
+        let place: u32 = OBJECT_WORK.object_place.bits();
+        crate::scene::point_records::held()
+            .then(|| crate::scene::point_records::of_scene_point(place))
     }
 }
 
@@ -77,9 +75,7 @@ pub fn set_object_fade() -> Result<(), BadInput> {
         (false, _) => 0,
         (true, None) => return Err(BadInput("no records for the points")),
         (true, Some(record)) => {
-            if GamePtr::new(record).read::<u32>("a scene record")? != place
-                && COURSE.scene_points.bits() == 0
-            {
+            if field(record, 0)? != place && COURSE.scene_points.bits() == 0 {
                 return Err(BadInput("no points"));
             }
             record
@@ -93,13 +89,11 @@ pub fn set_object_fade() -> Result<(), BadInput> {
     if !needs_record {
         return Ok(());
     }
-    let at = GamePtr::new(record);
-    if at.read::<u32>("a scene record")? != place {
+    if field(record, 0)? != place {
         make_scene_record(place, record)?;
     }
-    OBJECT_WORK.object_position[0]
-        .set_bits(x87::to_int(at.offset(0x10).read("a scene record")?) as u32);
-    let depth = x87::to_int(at.offset(0x18).read("a scene record")?);
+    OBJECT_WORK.object_position[0].set_bits(x87::to_int(field(record, 0x10)?) as u32);
+    let depth = x87::to_int(field(record, 0x18)?);
     OBJECT_WORK.object_position[2].set_bits(depth as u32);
     let near = ((distance << 16) as i32).wrapping_sub(depth);
     if near >= 0 {

@@ -20,7 +20,6 @@ use crate::errors::{BadInput, FatalError, Refused};
 use crate::math::x87_float::{X, compare};
 use crate::physics::ground_store::GROUND_WORK;
 use crate::pointers::GamePtr;
-use crate::race::course_lists_store::COURSE_LISTS;
 use crate::race::scratch_store::FRAME_SCRATCH;
 use crate::scene::draw_store::DRAW;
 use crate::scene::x87_mem::{fld, fnstsw, fstp};
@@ -107,8 +106,7 @@ fn triangle(w: &mut [u32; 19]) {
 }
 
 pub fn face_faces_away(face: usize) -> Result<bool, Refused> {
-    let records: u32 = COURSE_LISTS.point_records.bits();
-    if face == 0 || records == 0 {
+    if face == 0 || !crate::scene::point_records::held() {
         return Err(BadInput("no face or no records").into());
     }
     let count: u32 = GamePtr::new(face as u32).read("a face")?;
@@ -125,7 +123,7 @@ pub fn face_faces_away(face: usize) -> Result<bool, Refused> {
         let at = 0x10 + n as usize * 0x10;
         u32::from_le_bytes(words[at..at + 4].try_into().unwrap())
     };
-    let table = crate::scene::reading::PointRecords::new(records)?;
+    let table = crate::scene::reading::PointRecords::new()?;
     for n in 2..count {
         // The original looks at each triangle's numbers as it comes to it.
         if [0, n - 1, n].into_iter().any(|k| (point(k) as i32) < 0) {

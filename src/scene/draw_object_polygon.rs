@@ -47,12 +47,11 @@ fn needs_clipping(count: u32) -> Result<bool, BadInput> {
     };
     rc2k_core::scene::polygons::needs_clipping(count, &edges, |n| {
         let record =
-            dword((crate::scene::polygon::entries_addr() + (n * ENTRY_LEN) as u32 + 4) as usize)
-                as usize;
+            dword((crate::scene::polygon::entries_addr() + (n * ENTRY_LEN) as u32 + 4) as usize);
         if record == 0 {
             return Err(BadInput("an entry without its record"));
         }
-        let value = |at: usize| f32::from_bits(dword(record + at));
+        let value = |at: u32| f32::from_bits(crate::scene::point_records::vertex(record, at));
         Ok(Vertex {
             x: value(0xC),
             y: value(0x1C),

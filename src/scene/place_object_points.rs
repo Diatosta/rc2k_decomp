@@ -37,7 +37,7 @@ use crate::race::prefs_store::STAGE_PREFS;
 use crate::race::switches_store::FRAME_SWITCHES;
 use crate::race::vars_store::RACE_VARS;
 use crate::scene::draw_store::DRAW;
-use crate::scene::polygon::{dword, put};
+use crate::scene::point_records;
 use crate::scene::project_point::{NEAR, rotate, to_screen};
 use crate::scene::x87_mem::{fild, fistp, fld, fstp};
 
@@ -146,7 +146,6 @@ struct Object {
     points: i32,
     normals: i32,
     table: u32,
-    records: u32,
     matrix: u32,
 }
 
@@ -162,20 +161,15 @@ fn object() -> Result<Object, BadInput> {
         normals: crate::scene::object_slots_store::OBJECT_SLOTS.normal_counts[number as usize].get()
             as i32,
         table: COURSE_LISTS.object_points.bits(),
-        records: COURSE_LISTS.point_records.bits(),
         matrix: MATRICES.object_matrix_ptr.bits(),
     };
     if object.points <= 0 && object.normals > 0 {
         return Err(BadInput("an object of normals and no points"));
     }
-    if object.points > 0 && (object.table == 0 || object.records == 0 || object.matrix == 0) {
+    if object.points > 0 && (object.table == 0 || !point_records::held() || object.matrix == 0) {
         return Err(BadInput("no points' table, no records or no matrix"));
     }
     Ok(object)
-}
-
-fn record_of(records: u32, number: u32) -> u32 {
-    records.wrapping_add(((number & 0xFFF) + 0x1000) << 5)
 }
 
 /// The object's points placed and projected, its normals turned. What the original
@@ -190,8 +184,10 @@ pub fn place_object_points() -> Result<(), Refused> {
     let mut number = object.first;
     let mut from = object.table.wrapping_add(object.first.wrapping_mul(12));
     for _ in 0..object.points {
-        let record = record_of(object.records, number) as usize;
-        put(record, number);
+        // Made on a copy of the record (`scene::point_records`), then stored.
+        let record = point_records::of_object_point(number);
+        let mut r = point_records::get(record)?;
+        r[0] = number;
         let point = if move_by != 0 {
             moved(from as usize, move_by)?;
             // x, y, z read on into `group_masks[0]`, `[1]`, as stored.
@@ -202,11 +198,11 @@ pub fn place_object_points() -> Result<(), Refused> {
         rotate(
             crate::pointers::host_at(point as usize) as *const i32,
             matrix,
-            crate::pointers::host_at(record) as *mut u32,
+            r.as_mut_ptr(),
         );
-        put(record + 0xC, 0);
-        put(record + 0x1C, 0);
-        if f32::from_bits(dword(record + 0x18)) >= NEAR {
+        r[3] = 0;
+        r[7] = 0;
+        if f32::from_bits(r[6]) >= NEAR {
             let v = [
                 DRAW.view_scale.bits(),
                 DRAW.view_centre[0].bits(),
@@ -214,24 +210,22 @@ pub fn place_object_points() -> Result<(), Refused> {
                 COURSE.flat_depth.bits(),
             ];
             let flat = STAGE_PREFS.flat_depth.bits() != 0;
-            to_screen(
-                crate::pointers::host_at(record) as *mut u32,
-                &v,
-                flat,
-                DRAW.scratch.as_ptr(),
-            );
+            to_screen(r.as_mut_ptr(), &v, flat, DRAW.scratch.as_ptr());
         }
+        point_records::set(record, r)?;
         from = from.wrapping_add(12);
         number = number.wrapping_add(1);
     }
     for _ in 0..object.normals.max(0) {
-        let record = record_of(object.records, number) as usize;
-        put(record, number);
+        let record = point_records::of_object_point(number);
+        let mut r = point_records::get(record)?;
+        r[0] = number;
         turn(
             crate::pointers::host(from) as *const u32,
             matrix,
-            crate::pointers::host_at(record) as *mut u32,
+            r.as_mut_ptr(),
         );
+        point_records::set(record, r)?;
         from = from.wrapping_add(12);
         number = number.wrapping_add(1);
     }

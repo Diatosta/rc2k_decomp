@@ -29,6 +29,8 @@ pub fn free_list(list: *mut MemoryList) -> Result<(), BadInput> {
     // Rust's own tables counted on it (`memory::owned`) are given back by their owners
     // (`saves::free_best_times`); its total counts them like the others.
     let at = GamePtr::new(crate::pointers::game_address(list));
+    // The palettes and glyph tables carved off it (`gfx::glyph_store`) go with it.
+    crate::gfx::glyph_store::give_back(at.addr());
     let mut l = at.read::<MemoryList>("a memory list")?;
     let block = l.head;
     if block != 0 && own_heap() == 1 {

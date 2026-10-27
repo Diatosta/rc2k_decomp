@@ -98,10 +98,10 @@ pub fn blit(glyph: u32, x: u32, y: u32, palette: u32) -> Result<u32, Refused> {
     let exit = {
         crate::gfx::blit_glyph::blit_glyph_on_surface(
             glyph,
-            crate::pointers::GamePtr::new(SPRITES.get()),
+            SPRITES.get(),
             x as i32,
             y as i32,
-            crate::pointers::GamePtr::new(palette),
+            palette,
         )
     }?;
     Ok(exit.ebx)

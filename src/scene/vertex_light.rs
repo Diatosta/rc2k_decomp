@@ -30,7 +30,6 @@
 
 use crate::errors::BadInput;
 use crate::math::x87;
-use crate::race::course_lists_store::COURSE_LISTS;
 use crate::race::prefs_store::STAGE_PREFS;
 use crate::race::switches_store::FRAME_SWITCHES;
 use crate::scene::draw_store::DRAW;
@@ -66,11 +65,10 @@ fn held(value: i32, low: i32, high: i32) -> i32 {
 
 /// The normal's place in the view to the light's work variables, the colour set to 0.
 fn set_normal(number: u32) -> Result<(), BadInput> {
-    let records: u32 = COURSE_LISTS.point_records.bits();
-    if records == 0 {
+    if !crate::scene::point_records::held() {
         return Err(BadInput("no records for the points"));
     }
-    let place = crate::scene::reading::PointRecords::new(records)?.place(number)?;
+    let place = crate::scene::reading::PointRecords::new()?.place(number)?;
     LIGHT_WORK.light_colour.set_bits(0u32);
     crate::session::write_bits(&LIGHT_WORK.light_dot_point, place);
     Ok(())

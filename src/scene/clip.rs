@@ -84,8 +84,7 @@ unsafe fn cut(edge: Edge, a: usize, b: usize, mask: u32) -> Result<u32, BadInput
             (a, RECORD_A, ENTRY_A, BYTES_A),
             (b, RECORD_B, ENTRY_B, BYTES_B),
         ] {
-            let from = GamePtr::new(dword(entry + 4))
-                .read_bytes(RECORD_LEN, "a polygon's point record")?;
+            let from = crate::scene::point_records::vertex_bytes(dword(entry + 4))?;
             std::ptr::copy_nonoverlapping(from.as_ptr(), base.add(record_at), RECORD_LEN);
             let whole = GamePtr::new(entry as u32).read_bytes(ENTRY_LEN, "a polygon's entry")?;
             std::ptr::copy_nonoverlapping(whole.as_ptr(), base.add(entry_at), ENTRY_LEN);
@@ -178,7 +177,10 @@ pub unsafe fn clip_pass(edge: Edge, inside_past: bool, mask: u32) -> Result<(), 
             Edge::Depth(at) => (at as f64, 0x18),
         };
         let inside = |entry: usize| {
-            let value = f32::from_bits(dword(dword(entry + 4) as usize + coordinate));
+            let value = f32::from_bits(crate::scene::point_records::vertex(
+                dword(entry + 4),
+                coordinate,
+            ));
             below(bound, value as f64) == inside_past
         };
         let mut out = 0;
