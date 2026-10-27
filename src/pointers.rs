@@ -373,9 +373,18 @@ fn watched(addr: u32, len: usize, what: &str) {
     }
 }
 
+#[track_caller]
 fn outside(addr: u32, len: usize, what: &str) -> BadInput {
+    let at = std::panic::Location::caller();
+    let place = if crate::race::course_places::is_place(addr) {
+        " (a course place read as an address)"
+    } else {
+        ""
+    };
     log(&format!(
-        "pointers: {what} at {addr:#010x} ({len} bytes) is outside every allocation"
+        "pointers: {what} at {addr:#010x} ({len} bytes) is outside every allocation{place}, from {}:{}",
+        at.file(),
+        at.line()
     ));
     BadInput("a game pointer outside every allocation (rc2k.log names it)")
 }

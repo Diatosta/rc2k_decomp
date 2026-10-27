@@ -48,7 +48,7 @@ impl RecordPlaces {
 /// A dword of the kind tables, the record list or a record (the tables are the game's
 /// stores; the records its allocation).
 fn at(a: u32) -> Result<u32, crate::errors::BadInput> {
-    crate::pointers::GamePtr::new(a).read::<u32>("a course record's field or a record table")
+    crate::race::course_places::read::<u32>(a, "a course record's field or a record table")
 }
 
 /// The Rust core: the record of cell `key` (eax at entry), None when the cell has none

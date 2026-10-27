@@ -806,10 +806,10 @@ pub unsafe fn face_colours(face: u32) -> Result<(), Refused> {
                 let trap = Trap::new();
                 let extra = || {
                     let a = crate::scene::light_tables_store::LIGHT_TABLES.lamp_table_a
-                        [trap.read::<u8>(face + 0x28 + k, "a course face byte") as usize]
+                        [trap.course::<u8>(face + 0x28 + k, "a course face byte") as usize]
                         .get();
                     let b = crate::scene::light_tables_store::LIGHT_TABLES.lamp_table_b
-                        [trap.read::<u8>(face + 0x2C + k, "a course face byte") as usize]
+                        [trap.course::<u8>(face + 0x2C + k, "a course face byte") as usize]
                         .get();
                     (a, b)
                 };

@@ -65,7 +65,11 @@ pub fn reset_face_lights() -> Result<(), Refused> {
             let kept = face;
             rc2k_core::race::faces::reset_lights(&mut face);
             if face != kept {
-                GamePtr::new(faces.wrapping_add((n as u32) << 6)).write(face, "a course face")?;
+                crate::race::course_places::write(
+                    faces.wrapping_add((n as u32) << 6),
+                    face,
+                    "a course face",
+                )?;
             }
         }
         clear_lit_faces();

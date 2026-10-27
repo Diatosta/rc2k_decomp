@@ -26,7 +26,7 @@ fn get(a: u32) -> Result<u32, BadInput> {
 }
 
 fn put(a: u32, v: u32) -> Result<(), BadInput> {
-    GamePtr::new(a).write(v, "a shadow point or entry")
+    crate::race::course_places::write(a, v, "a shadow point or entry")
 }
 
 fn put8(a: u32, v: u8) -> Result<(), BadInput> {

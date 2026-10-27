@@ -2,7 +2,6 @@
 //! hooks left (conversion phase 4, 2026-10-22): Rust callers call these directly; the
 //! game's own code (hooked DLL) runs the originals, on the same lists.
 
-pub mod allocate;
 pub mod free_list;
 pub mod free_own_heap;
 pub mod open_own_heap;

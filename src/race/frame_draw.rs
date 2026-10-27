@@ -45,7 +45,7 @@ fn get(a: u32) -> Result<u32, BadInput> {
 }
 
 fn put(a: u32, v: u32) -> Result<(), BadInput> {
-    GamePtr::new(a).write(v, "a frame, face or point word")
+    crate::race::course_places::write(a, v, "a frame, face or point word")
 }
 
 fn byte1(a: u32) -> Result<u8, BadInput> {
@@ -1284,7 +1284,7 @@ pub fn gather_lamps() -> Result<(), Refused> {
         put(at, get(face + 4)?)?;
         put(
             at + 4,
-            GamePtr::new(face + 0x11).read::<u8>("a face, record or matrix")? as u32,
+            crate::race::course_places::read::<u8>(face + 0x11, "a course face's byte")? as u32,
         )?;
         put(at + 8, rc2k_core::race::faces::LAMP_COLOUR)?;
         add_lamp_entry(lamp)?;

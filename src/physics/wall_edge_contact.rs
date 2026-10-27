@@ -28,7 +28,6 @@ use crate::physics::contact_force::contact_force;
 use crate::physics::contact_store::CONTACT_WORK;
 use crate::physics::flow::{a, copy_cells};
 use crate::physics::tables_store::PHYSICS;
-use crate::pointers::GamePtr;
 use crate::race::course_store::COURSE;
 use crate::race::numbers_store::NUMBERS;
 use crate::scene::draw_store::DRAW;
@@ -36,7 +35,10 @@ use crate::scene::x87_mem::{fild, fistp, fld};
 use rc2k_core::physics::walls;
 
 fn rd(x: u32) -> Result<u32, Refused> {
-    Ok(GamePtr::new(x).read::<u32>("a face's or scene point's dword")?)
+    Ok(crate::race::course_places::read::<u32>(
+        x,
+        "a face's or scene point's dword",
+    )?)
 }
 
 /// The normal across the edge from scene point `first` to `second` (0x45DAAA ..

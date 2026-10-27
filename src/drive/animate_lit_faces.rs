@@ -48,7 +48,7 @@ fn at(p: u32) -> Result<u32, BadInput> {
 }
 
 fn put(p: u32, v: u32) -> Result<(), BadInput> {
-    GamePtr::new(p).write(v, "a face of the course")
+    crate::race::course_places::write(p, v, "a face of the course")
 }
 
 fn byte(p: u32) -> Result<u8, BadInput> {

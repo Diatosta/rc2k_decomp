@@ -102,18 +102,43 @@ pub fn allocate_course_memory(v: &Vars, list: u32) -> Result<(), Refused> {
         v.list_total,
         get(v.list_total)?.wrapping_add(FIRST_PART + INFO_PART),
     )?;
-    let memory = {
-        crate::memory::allocate::allocate(
-            crate::pointers::host(list) as *mut _,
-            FIRST_PART + INFO_PART,
-        )
-    }?;
-    put(v.course_memory, crate::pointers::game_address(memory))?;
-    put(
-        v.course_info,
-        crate::pointers::game_address(memory).wrapping_add(FIRST_PART),
-    )?;
+    let memory = take_course_memory(list, FIRST_PART + INFO_PART)?;
+    put(v.course_memory, memory)?;
+    put(v.course_info, memory.wrapping_add(FIRST_PART))?;
     Ok(())
+}
+
+/// The course memory (`memory::allocate` on the course's list in the original): Rust's
+/// bytes since phase 13 (2026-10-27), counted on the list as the game's block was and lent
+/// (the stage's files are read into it and parsed in place; its faces, records and scene
+/// points then move out, `race::course_places`); given back with the list
+/// (`stage_free::COURSE`).
+struct CourseMemory {
+    // Declared first: the region goes before the bytes (`pointers::Lent`).
+    _lent: crate::pointers::Lent,
+    _bytes: Vec<u8>,
+}
+
+static COURSE_MEMORY: std::sync::Mutex<Option<CourseMemory>> = std::sync::Mutex::new(None);
+
+/// `bytes` of course memory taken on `list`: their game address.
+fn take_course_memory(list: u32, bytes: u32) -> Result<u32, Refused> {
+    let memory = crate::memory::owned::counted(
+        crate::pointers::host(list) as *mut crate::memory::MemoryList,
+        bytes,
+    )?;
+    let lent = crate::pointers::Lent::new(&memory);
+    let at = lent.addr();
+    *COURSE_MEMORY.lock().unwrap_or_else(|e| e.into_inner()) = Some(CourseMemory {
+        _lent: lent,
+        _bytes: memory,
+    });
+    Ok(at)
+}
+
+/// The course memory given back (the list's `free_list` counts it down).
+pub fn give_back_course_memory() {
+    *COURSE_MEMORY.lock().unwrap_or_else(|e| e.into_inner()) = None;
 }
 
 /// `race::copy_texture_info_tail` (0x439AE5): 0x800 bytes of the course info from
