@@ -22,7 +22,6 @@ use crate::errors::{BadInput, Refused};
 use crate::marks::emitters::*;
 use crate::marks::jitter_point::jitter_point;
 use crate::math::x87;
-use crate::pointers::GamePtr;
 use crate::scene::matrix3::{extended, rounded};
 use crate::session::{Dword, Float};
 
@@ -114,7 +113,7 @@ pub fn emit_particle_5_with(set: &JitterSet, wheel: u32, object: u32) -> Result<
             return Ok(());
         }
         let e = take_entry(at(object + 0x1C)? & 0xFF_FFFF, set.kind)?;
-        let put = |o: u32, v: u32| GamePtr::new(e + o).write::<u32>(v, "a mark's field");
+        let put = |o: u32, v: u32| crate::marks::ring_entries::put(e, o, v);
         let (sign, strength) = if EMITTER.record.get() & 1 == 0 {
             (-1i32, x87::sub(strength, at(wheel + 0x10)?))
         } else {

@@ -15,26 +15,26 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::gfx::decoder::DECODER;
-use crate::gfx::picture::picture;
 use crate::gfx::picture_store::PICTURE;
 use crate::gfx::read_picture_file::read_picture_file;
-use crate::pointers::GamePtr;
 use rc2k_core::gfx::picture_size as sizes;
 
 // ---- Rust version ----
 
-/// The registers it leaves: the pixels, their width and height, and whether the
-/// reading failed.
+/// The registers it leaves: the pixels (a picture buffer's number, `gfx::picture`), their
+/// width and height, and whether the reading failed.
 pub unsafe fn read_texture_picture(path: *mut u8) -> Result<(u32, u32, u32, bool), Refused> {
     unsafe {
-        let buffer = picture();
-        if buffer.is_null() {
+        let buffer = PICTURE.buffer.get();
+        // Converted: `rc2k_core::gfx::picture_size` (`TEXTURE`, `TEXTURE_FILLED`).
+        if !crate::gfx::picture::has_picture() {
             return Err(BadInput("no picture buffer").into());
         }
-        let place = GamePtr::new(crate::pointers::game_address(buffer));
-        // Converted: `rc2k_core::gfx::picture_size` (`TEXTURE`, `TEXTURE_FILLED`).
         crate::gfx::picture::set_size(sizes::TEXTURE);
-        place.fill(0xFF, sizes::TEXTURE_FILLED * 4, "the picture buffer")?;
+        crate::gfx::picture::with_picture(|b| {
+            b.get_mut(..sizes::TEXTURE_FILLED * 4).map(|p| p.fill(0xFF))
+        })?
+        .ok_or(BadInput("a picture buffer shorter than a texture"))?;
         let failed = if path.is_null() {
             false
         } else if read_picture_file(path)? {
@@ -47,11 +47,6 @@ pub unsafe fn read_texture_picture(path: *mut u8) -> Result<(u32, u32, u32, bool
         } else {
             true
         };
-        Ok((
-            crate::pointers::game_address(buffer),
-            PICTURE.width.get(),
-            PICTURE.height.get(),
-            failed,
-        ))
+        Ok((buffer, PICTURE.width.get(), PICTURE.height.get(), failed))
     }
 }

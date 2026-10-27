@@ -11,7 +11,8 @@
 //! gets 0 or 1 in its first byte, the width and the height, and with a palette 0x300 bytes
 //! from the PLTE chunk. Check sums are not looked at, nor is what the inflating returns.
 //! For the first row the "row above" of filters 2, 3 and 4 is the memory before the pixel
-//! area, not zeros as the PNG standard has it; the Rust version reads the same bytes.
+//! area, not zeros as the PNG standard has it; fixed in phase 12 (2026-10-27): zeros
+//! (`notes/bugs.md`, `wiki/Fixed-bugs.md`).
 //! The Rust version inflates with the `miniz_oxide` crate and does the rest as the original
 //! does. What it does not do: use the info block and what follows it as zlib's work area
 //! (the original's zlib takes its memory from there), so that memory is left alone; and
@@ -34,9 +35,10 @@ use crate::pointers::GamePtr;
 
 // ---- Rust version ----
 // Converted: `rc2k_core::gfx::png`. Here the game's variables for the header, the pixel area
-// (with the row before it, which the first row's filters read) and the info block.
+// and the info block.
 
-/// Returns what the original returns in eax.
+/// Returns what the original returns in eax. `pixels` names a picture buffer
+/// (`gfx::picture`, 0 none).
 pub fn decode_png(file: &[u8], pixels: u32, info: u32) -> Result<u32, BadInput> {
     use rc2k_core::gfx::png;
     if pixels == 0 || info == 0 {
@@ -61,7 +63,6 @@ pub fn decode_png(file: &[u8], pixels: u32, info: u32) -> Result<u32, BadInput> 
         Some(_) => png::area_for(&header, PICTURE_DWORDS * 4)?,
         None => 0,
     };
-    let place = GamePtr::new(pixels);
     let info_at = GamePtr::new(info);
     if let Some(h) = found.header {
         HEADER.width.set(h.width);
@@ -72,26 +73,13 @@ pub fn decode_png(file: &[u8], pixels: u32, info: u32) -> Result<u32, BadInput> 
     if let Some((start, length)) = found.data {
         let (row_bytes, step) = png::row_layout(&header);
         // The area as it is now, worked on as a copy and put back.
-        let mut buffer = place.read_bytes(area, "the picture buffer")?;
+        let mut buffer = crate::gfx::picture::read_bytes(pixels, 0, area)?;
         png::inflate(&file[start..start + length], &mut buffer)?;
-        // The row above the first is the memory before the area, read only where the
-        // original reads it.
-        let before = GamePtr::new(pixels.wrapping_sub(row_bytes as u32));
-        let failed = std::cell::Cell::new(None);
-        let unfiltered = png::unfilter(&mut buffer, row_bytes, header.height, step, &|i| {
-            before
-                .offset(i as u32)
-                .read::<u8>("the row above the picture")
-                .unwrap_or_else(|e| {
-                    failed.set(Some(e));
-                    0
-                })
-        });
-        if let Some(e) = failed.take() {
-            return Err(e);
-        }
-        unfiltered?;
-        place.write_bytes(&buffer, "the picture buffer")?;
+        // The row above the first is zeros, as PNG has it. Our fix (phase 12): the original
+        // reads the memory before the picture buffer there (its heap block's header and the
+        // page before), which a first row filtered Up, Average or Paeth adds in.
+        png::unfilter(&mut buffer, row_bytes, header.height, step, &|_| 0)?;
+        crate::gfx::picture::write_bytes(pixels, 0, &buffer)?;
     }
     let what = "the PNG info block";
     info_at.write(0u8, what)?;

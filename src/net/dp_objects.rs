@@ -675,17 +675,19 @@ fn compound(parts: &[(Guid, Vec<u8>)]) -> Vec<u8> {
     v
 }
 
-pub fn initialize_connection(this: u32, address: u32, _flags: u32) -> u32 {
+/// DirectPlay's `InitializeConnection` on an address Rust holds (`None`: a null one).
+pub fn initialize_connection_with(this: u32, address: Option<&[u8]>) -> u32 {
     if with_state(this, |s| s.initialized) {
         return DPERR_ALREADYINITIALIZED;
     }
-    if address == 0 {
+    let Some(raw) = address else {
         return DPERR_INVALIDPARAMS;
-    }
-    // the total size is the first element's data
-    let total = { get(address + 20) } as usize;
-    let raw = bytes(address, total.clamp(24, 4096) as u32);
-    let parts = elements(&raw);
+    };
+    let total = raw
+        .get(20..24)
+        .map_or(0, |b| u32::from_le_bytes([b[0], b[1], b[2], b[3]]) as usize);
+    let raw = &raw[..total.clamp(24, 4096).min(raw.len())];
+    let parts = elements(raw);
     with_state(this, |s| initialize(s, parts))
 }
 
@@ -747,6 +749,23 @@ pub fn create_compound_address(_this: u32, list: u32, count: u32, address: u32, 
     give(&compound(&parts), address, size)
 }
 
+/// `create_compound_address` into Rust's memory: the address's bytes, or the error.
+pub fn compound_address(list: u32, count: u32) -> Result<Vec<u8>, u32> {
+    if list == 0 && count != 0 {
+        return Err(DPERR_INVALIDPARAMS);
+    }
+    let parts: Vec<(Guid, Vec<u8>)> = (0..count)
+        .map(|n| {
+            let e: DpAddressElement = crate::pointers::read_or_end(
+                list + n * size_of::<DpAddressElement>() as u32,
+                "a DPCOMPOUNDADDRESSELEMENT",
+            );
+            (e.data_type, bytes(e.data, e.data_size))
+        })
+        .collect();
+    Ok(compound(&parts))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -784,7 +803,7 @@ mod tests {
             (DPAID_INET, b"127.0.0.1\0".to_vec()),
             (DPAID_INETPORT, port.to_le_bytes().to_vec()),
         ]);
-        assert_eq!(initialize_connection(this, kept_bytes(&address), 0), DP_OK);
+        assert_eq!(initialize_connection_with(this, Some(&address)), DP_OK);
         this
     }
 

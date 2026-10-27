@@ -57,7 +57,12 @@ pub fn surface_of(flags: u32, pixels: u32) -> Result<[u32; SURFACE_DWORDS - 2], 
 }
 
 pub fn picture_as_surface() -> Result<(), Refused> {
-    let block = surface_of(PICTURE.flags.get(), PICTURE.buffer.get())?;
+    // The drawing layer takes an address: the buffer's, lent (`gfx::picture::address`).
+    let pixels = match PICTURE.buffer.get() {
+        0 => 0,
+        n => crate::gfx::picture::address(n)?,
+    };
+    let block = surface_of(PICTURE.flags.get(), pixels)?;
     let s = &DRAW_SURFACE;
     s.width.set(block[0]);
     s.height.set(block[1]);

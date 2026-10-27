@@ -25,8 +25,13 @@ pub fn init_connection(connection: u32) -> Result<bool, Refused> {
     if NET.dplay.get() == 0 || !build_address(connection)? {
         return Ok(false);
     }
-    let result =
-        { crate::net::dp_objects::initialize_connection(NET.dplay.get(), NET.address.get(), 0) };
+    let result = {
+        let address = crate::net::tables::NET_TABLES.with(|t| t.address.clone())?;
+        crate::net::dp_objects::initialize_connection_with(
+            NET.dplay.get(),
+            (!address.is_empty()).then_some(&address[..]),
+        )
+    };
     log(VIEWER_PANEL.text_addr(texts::NET_INIT), false, 2);
     log_hex(result, true);
     Ok(result == 0)

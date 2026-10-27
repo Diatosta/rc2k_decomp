@@ -21,8 +21,9 @@
 use crate::errors::Refused;
 use crate::install::installer::{
     append_byte, game_api, lock, normalise, pump, rb, run_frame, rw, set_cd, show, sleep,
-    str_append, str_append_indexed, take_key, unlock, wb, wd,
+    str_append, take_key, unlock, wb, wd,
 };
+use crate::install::name_tables::{FILES, FOLDERS};
 use crate::install::vars::INSTALLER_NAMES;
 use crate::install::vars::INSTALLER_PAGES;
 use crate::install::vars::INSTALLER_PATHS;
@@ -46,10 +47,16 @@ fn path_b() -> u32 {
 }
 
 /// `to` = `base` + name `index` of `table`, NUL-ended (`loc_4131A3`, `loc_4131F5`).
-fn build(base: u32, to: u32, table: u32, index: u32) {
+fn build(
+    base: u32,
+    to: u32,
+    table: &crate::memory::owned::Owned<crate::install::name_tables::NameTable>,
+    index: u32,
+) -> Result<(), Refused> {
     let cursor = str_append(base, to);
-    let cursor = str_append_indexed(table, index, cursor);
+    let cursor = crate::install::name_tables::append_name(table, index, cursor)?;
     append_byte(cursor, 0);
+    Ok(())
 }
 
 /// The error (count 2, `unk_51D453`, y 0) or cancel (count 1, `unk_51D463`, y -0x32)
@@ -141,7 +148,7 @@ pub fn install_files() -> Result<(), Refused> {
     // the folders
     if INSTALLER_RUN.dir_count.get() != 0 {
         for n in 0..INSTALLER_RUN.dir_count.get() {
-            build(installed(), path_b(), INSTALLER_RUN.dirs.get(), n);
+            build(installed(), path_b(), &FOLDERS, n)?;
             if !i::make_folders::make_folders(INSTALLER_PATHS.path_b.addr())? {
                 return message(2, INSTALLER_PAGES.msg_error.addr(), 0);
             }
@@ -152,8 +159,8 @@ pub fn install_files() -> Result<(), Refused> {
     if INSTALLER_RUN.file_count.get() != 0 {
         let mut n = 0;
         loop {
-            build(game_dir(), path_a(), INSTALLER_RUN.files.get(), n);
-            build(installed(), path_b(), INSTALLER_RUN.files.get(), n);
+            build(game_dir(), path_a(), &FILES, n)?;
+            build(installed(), path_b(), &FILES, n)?;
             // 0x413242: a failed copy is the error message.
             if !i::copy_counted::copy_counted(
                 INSTALLER_PATHS.path_a.addr(),

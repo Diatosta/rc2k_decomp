@@ -19,7 +19,7 @@
 
 use crate::errors::BadInput;
 use crate::gfx::locked::LOCKED;
-use crate::gfx::picture::picture;
+use crate::gfx::picture::{has_picture, with_picture};
 use crate::gfx::screen_state::DRAW_SURFACE;
 
 // ---- game data ----
@@ -35,8 +35,6 @@ pub trait PictureSurface {
     /// Returns whether the surface is now locked.
     fn lock(&mut self) -> bool;
     fn unlock(&mut self);
-    /// What the copy reads, valid once the surface is locked.
-    fn picture(&self) -> *const u8;
     fn pixels(&self) -> *mut u8;
     fn rows(&self) -> u32;
     fn row_dwords(&self) -> u32;
@@ -57,9 +55,6 @@ impl PictureSurface for GameSurface {
     fn unlock(&mut self) {
         crate::platform::unlock_surface();
     }
-    fn picture(&self) -> *const u8 {
-        picture()
-    }
     fn pixels(&self) -> *mut u8 {
         crate::pointers::host(DRAW_SURFACE.pixels.get())
     }
@@ -79,9 +74,9 @@ pub fn copy_picture_to_surface(surface: &mut dyn PictureSurface) -> Result<(), B
     if !was_locked && !surface.lock() {
         return Ok(());
     }
-    let (mut from, mut to) = (surface.picture(), surface.pixels());
+    let to = surface.pixels();
     let (rows, row_bytes) = (surface.rows(), surface.row_dwords() as usize * 4);
-    let refused = if from.is_null() || to.is_null() {
+    let refused = if !has_picture() || to.is_null() {
         Some(BadInput("no picture buffer or no surface"))
     } else if rows == 0 {
         Some(BadInput("a surface without rows"))
@@ -96,20 +91,26 @@ pub fn copy_picture_to_surface(surface: &mut dyn PictureSurface) -> Result<(), B
         return Err(why);
     }
     let gap = surface.row_gap() as usize;
-    for _ in 0..rows {
-        let copied = crate::pointers::GamePtr::new(crate::pointers::game_address(from)).copy_to(
-            crate::pointers::GamePtr::new(crate::pointers::game_address(to)),
-            row_bytes,
-            "a picture's row onto the surface",
-        );
-        if let Err(why) = copied {
-            if !was_locked {
-                surface.unlock();
-            }
-            return Err(why);
+    // The picture's rows from its buffer (`gfx::picture`), onto the surface by address.
+    let copied = with_picture(|from| -> Result<(), BadInput> {
+        let (mut at, mut to) = (0usize, to);
+        for _ in 0..rows {
+            let row = from
+                .get(at..at + row_bytes)
+                .ok_or(BadInput("a picture's row past its buffer"))?;
+            crate::pointers::GamePtr::new(crate::pointers::game_address(to))
+                .write_bytes(row, "a picture's row onto the surface")?;
+            at += row_bytes;
+            to = to.wrapping_add(row_bytes).wrapping_add(gap);
         }
-        from = from.wrapping_add(row_bytes);
-        to = to.wrapping_add(row_bytes).wrapping_add(gap);
+        Ok(())
+    })
+    .and_then(|r| r);
+    if let Err(why) = copied {
+        if !was_locked {
+            surface.unlock();
+        }
+        return Err(why);
     }
     if !was_locked {
         surface.unlock();

@@ -22,16 +22,21 @@ use crate::pointers::GamePtr;
 /// Reads the whole file at `path` into `buffer` (`count` bytes at most). The bytes read
 /// go to `BYTES_READ` (0 after any failure but a failed read's own count).
 pub fn read_whole_file(path: *const u8, buffer: *mut u8, count: u32) -> Result<(), BadInput> {
+    let to = GamePtr::new(crate::pointers::game_address(buffer));
+    let mut into = to.read_bytes(count as usize, "a file's buffer")?;
+    read_whole_file_into(path, &mut into)?;
+    to.write_bytes(&into, "a file's buffer")
+}
+
+/// `read_whole_file` into Rust's memory (`into.len()` bytes at most).
+pub fn read_whole_file_into(path: *const u8, into: &mut [u8]) -> Result<(), BadInput> {
     // Converted: `rc2k_core::files::io::read_whole_file`.
     {
-        let to = GamePtr::new(crate::pointers::game_address(buffer));
-        let mut into = to.read_bytes(count as usize, "a file's buffer")?;
         let w = rc2k_core::files::io::read_whole_file(
             &mut crate::files::handle::GameFiles::new(),
             GamePtr::new(crate::pointers::game_address(path)),
-            &mut into,
+            into,
         )?;
-        to.write_bytes(&into, "a file's buffer")?;
         if !w.opened {
             BYTES_READ.store(0, std::sync::atomic::Ordering::Relaxed);
             return Ok(());

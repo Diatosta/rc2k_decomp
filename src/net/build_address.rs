@@ -16,7 +16,7 @@
 
 use crate::errors::Refused;
 use crate::net::add_address_element::add_address_element;
-use crate::net::lobby::{connection, log, net_allocate};
+use crate::net::lobby::log;
 use crate::net::store::NET;
 use crate::race::viewer_screen_store::{VIEWER_PANEL, texts};
 use crate::system::same_guid::same_guid;
@@ -28,7 +28,10 @@ pub fn build_address(connection_number: u32) -> Result<bool, Refused> {
     if NET.lobby.get() == 0 {
         return Ok(false);
     }
-    let guid = connection(connection_number)?.wrapping_add(0x40);
+    // The connection's provider, lent at an address while the elements name it.
+    let provider = crate::net::tables::with_connection(connection_number, |c| c.provider)?.to_vec();
+    let lent = crate::pointers::Lent::new(&provider);
+    let guid = lent.addr();
     NET.elements.set(0);
     NET.address.set(0);
     NET.address_size.set(0);
@@ -97,6 +100,13 @@ pub fn build_address(connection_number: u32) -> Result<bool, Refused> {
     if make(0) != address::BUFFER_TOO_SMALL {
         return Ok(false);
     }
-    NET.address.set(net_allocate(NET.address_size.get())?);
-    Ok(make(NET.address.get()) == 0)
+    // The address is Rust's (phase 12), counted on the list as the game's block was.
+    crate::net::tables::count(NET.address_size.get())?;
+    let made =
+        crate::net::dp_objects::compound_address(NET.element_table.addr(), NET.elements.get());
+    drop(lent);
+    crate::net::tables::NET_TABLES.with(|t| {
+        t.address = made.as_ref().map_or(Vec::new(), |a| a.clone());
+    })?;
+    Ok(made.is_ok_and(|a| a.len() as u32 <= NET.address_size.get()))
 }

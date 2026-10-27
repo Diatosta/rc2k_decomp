@@ -14,19 +14,19 @@
 use crate::errors::Refused;
 use crate::install::vars::INSTALLER_PAGES;
 use crate::net::connecting::STATUS_FONT;
-use crate::net::lobby::{FONT, connection, copy_picture, draw_string, draw_text, lock_surface};
+use crate::net::lobby::{FONT, copy_picture, draw_string, lock_surface};
 use crate::net::store::NET;
 use rc2k_core::net::screens;
 
 const LIT: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fonts::BUTTON_LIT;
 
 /// A list screen's frame: the title, then up to sixteen names from the list's top, each the
-/// record (`record`) of an item below the count, the highlighted one blinking. Shared with
+/// name (`name`) of an item below the count, the highlighted one blinking. Shared with
 /// `net::sessions_frame`.
 pub fn list_frame(
     title: u32,
     count: &crate::session::Dword,
-    record: fn(u32) -> Result<u32, Refused>,
+    name: fn(u32) -> Result<[u8; 0x40], Refused>,
 ) -> Result<(), Refused> {
     if !lock_surface() {
         return Ok(());
@@ -49,10 +49,17 @@ pub fn list_frame(
         } else {
             FONT
         };
-        let name = record(item)?;
+        let mut text = crate::net::tables::name_text(&name(item)?)?;
+        text.push(0);
         let at = y;
         y = y.wrapping_add(font.object().line_height.get());
-        draw_text(font.addr(), name, 0x190, at)?;
+        crate::text::draw_text::draw_bytes_at(
+            font.as_ptr(),
+            &text,
+            0x190,
+            at as i32,
+            &mut crate::text::draw_text::GameCanvas,
+        )?;
     }
     crate::platform::unlock_surface();
     crate::platform::show_frame_now();
@@ -61,5 +68,7 @@ pub fn list_frame(
 
 /// The Rust version.
 pub fn connections_frame() -> Result<(), Refused> {
-    list_frame(screens::CONNECTIONS_TITLE, &NET.connections, connection)
+    list_frame(screens::CONNECTIONS_TITLE, &NET.connections, |n| {
+        crate::net::tables::with_connection(n, |c| c.name)
+    })
 }

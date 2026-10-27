@@ -42,22 +42,18 @@ pub fn edge_rows(edge: &[u32; 6]) -> Option<u32> {
     }
 }
 
-/// Refuses rows that would run past the work block (or away), from `cursor`.
+/// Refuses rows that would run past the work block (or away), from `cursor` (a byte
+/// offset in `marks::masks::MASK_WORK`).
 fn room(cursor: u32, rows: Option<u32>) -> Result<(), Refused> {
-    let work: u32 = MASKS.work.get();
     match rows {
-        Some(n)
-            if cursor >= work && cursor as u64 + 8 * n as u64 <= work as u64 + WORK_LEN as u64 =>
-        {
-            Ok(())
-        }
+        Some(n) if cursor as u64 + 8 * n as u64 <= WORK_LEN as u64 => Ok(()),
         Some(_) => Err(BadInput("mask spans past the work block").into()),
         None => Err(BadInput("mask spans that run away (more than 0x1000 rows)").into()),
     }
 }
 
 /// `marks::span_edges` (0x4BE315): from the edge pair (`dword_82FD16` ..), a row of spans
-/// at edi (8 bytes: x, length) for each whole row from y0 rounded up to y1: both x's at
+/// at `to` (a byte offset in the work; 8 bytes: x, length) for each whole row from y0 rounded up to y1: both x's at
 /// the row's middle by the slopes, the two put in order (swapped also when equal), the left
 /// rounded and the length the right less it. The x87's rounding as it is set (the triangle
 /// sets toward zero). Gives where the next row would go (the original's edi). Refuses
@@ -99,8 +95,8 @@ pub fn span_edges(to: u32) -> Result<u32, Refused> {
                 (a, b) = (b, a);
             }
             let left = x87::to_int(a);
-            put(to, left as u32)?;
-            put(to + 4, x87::float_less_int_to_int(b, left) as u32)?;
+            crate::marks::masks::work_put(to, left as u32)?;
+            crate::marks::masks::work_put(to + 4, x87::float_less_int_to_int(b, left) as u32)?;
             to += 8;
         }
         MASKS.row.set_bits(row);

@@ -26,7 +26,8 @@ pub struct MaskVars {
     pub spans_total: Dword,
     /// 0x82E346: `g_marksMaskList`: the work block's memory list
     pub list: Bytes<64>,
-    /// 0x82E386: `g_marksMaskWork`: the 0x80000-byte work block
+    /// 0x82E386: `g_marksMaskWork`: the 0x80000-byte work block (the game's address; since
+    /// phase 12 the block is Rust's, `marks::masks::MASK_WORK`, and this stays 0)
     pub work: Dword,
     /// 0x82E38A: `dword_82E38A`: the running count `run_shapes` moves the shape index by
     pub count: Dword,
@@ -76,7 +77,8 @@ pub struct MaskVars {
     pub xs: [Float; 2],
     /// 0x82FD0A: `flt_82FD0A`
     pub split: Float,
-    /// 0x82FD0E: `g_marksMaskCursor`
+    /// 0x82FD0E: `g_marksMaskCursor` (since phase 12 a byte offset in `MASK_WORK`, as are
+    /// the runs' span places)
     pub cursor: Dword,
     /// 0x82FD12: `g_marksMaskRuns`: where the next run goes
     pub runs: Dword,

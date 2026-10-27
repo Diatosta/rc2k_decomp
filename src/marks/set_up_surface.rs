@@ -13,7 +13,6 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::gfx::picture_store::PICTURE;
-use crate::marks::blocks::{Address, take};
 use crate::marks::load_mask_pictures::{lock, put_pixel};
 use crate::marks::ring_store::{PICTURE_NAMES, RING_WORK};
 use crate::marks::surface_store::SURFACE;
@@ -26,9 +25,6 @@ use crate::session::{Bytes, Dword};
 const MASK_BYTES: u32 = 0x4_0000;
 const PIXELS: u32 = 0x1_0000;
 const SIDE: u32 = 0x100;
-const RING_BYTES: u32 = 0x2_5000;
-const RING: u32 = 0x400;
-const RECORD: u32 = 0x94;
 const CELLS: u32 = 0x40;
 /// `gfx::read_picture_file` at 256 x 256 (the picture's sizes kept round it): whether it
 /// was read.
@@ -61,8 +57,10 @@ fn unlock_refusing(why: &'static str) -> Result<(), Refused> {
 /// `scene::forget_slot_texture`, `memory::free_list`, `nullsub_33` (nothing).
 pub fn set_up_surface() -> Result<(), Refused> {
     unsafe {
-        let block = take(
-            Address((crate::pointers::game_address(MASK_LIST.list[0].as_ptr())) as usize),
+        // The mask's copy is Rust's memory (phase 12), counted on the list as the game's
+        // block was.
+        let mut mask = crate::memory::owned::counted(
+            MASK_LIST.list[0].as_ptr() as *mut crate::memory::MemoryList,
             MASK_BYTES,
         )?;
         lock(KIND_TEXTURES.kind_first_textures[211].bits(), true)?;
@@ -74,18 +72,20 @@ pub fn set_up_surface() -> Result<(), Refused> {
         if !read(&PICTURE_NAMES.surfmask)? {
             return unlock_refusing("surfmask.pcx was not read");
         }
-        GamePtr::new(PICTURE.buffer.get()).copy_to(
-            GamePtr::new(block),
+        mask[..4 * PIXELS as usize].copy_from_slice(&crate::gfx::picture::read_bytes(
+            PICTURE.buffer.get(),
+            0,
             4 * PIXELS as usize,
-            "the surface mask picture",
-        )?;
+        )?);
         if !read(&PICTURE_NAMES.surfdata)? {
             return unlock_refusing("surfdata.pcx was not read");
         }
-        let picture: u32 = PICTURE.buffer.get();
+        let picture =
+            crate::gfx::picture::read_bytes(PICTURE.buffer.get(), 0, 4 * PIXELS as usize)?;
         for n in 0..PIXELS {
-            let data = GamePtr::new(picture + 4 * n).read::<u32>("a mark's field")?;
-            let mask = GamePtr::new(block + 4 * n).read::<u32>("a mark's field")?;
+            let at = 4 * n as usize;
+            let data = u32::from_le_bytes(picture[at..at + 4].try_into().expect("four bytes"));
+            let mask = u32::from_le_bytes(mask[at..at + 4].try_into().expect("four bytes"));
             let alpha = ((mask << 8) & 0xFF00_0000) ^ 0xFF00_0000;
             put_pixel((data & 0xFF_FFFF) | alpha, n & 0xFF, n >> 8)?;
         }
@@ -97,16 +97,10 @@ pub fn set_up_surface() -> Result<(), Refused> {
             MASK_LIST.list[0].as_ptr() as *mut crate::memory::MemoryList
         )?;
 
-        let ring = take(Address(RING_WORK.list.addr() as usize), RING_BYTES)?;
-        RING_WORK.block.set(ring);
-        RING_WORK.cursor.set(ring);
+        crate::marks::ring_entries::take(RING_WORK.list.as_ptr() as *mut crate::memory::MemoryList)?;
+        RING_WORK.block.set(1);
+        RING_WORK.cursor.set(1);
         RING_WORK.count.set(0);
-        for i in 0..RING {
-            let before = (i.wrapping_sub(1) & (RING - 1)) * RECORD + ring;
-            let after = ((i + 1) & (RING - 1)) * RECORD + ring;
-            GamePtr::new(i * RECORD + ring).write::<u32>(before, "a mark's field")?;
-            GamePtr::new(i * RECORD + ring + 4).write::<u32>(after, "a mark's field")?;
-        }
 
         let [eighth, edge, pixel, step]: [u32; 4] = [
             MARKS_FLOATS.eighth.bits(),

@@ -18,16 +18,16 @@ fn get(a: u32) -> Result<u32, BadInput> {
 }
 
 /// The Rust version (see the header): `block` the block (the original's ebp), `to` where
-/// the point goes (esi), `from` the point blended (edi), `base` the base point (edx).
-pub fn blend_corner(block: u32, to: u32, from: u32, base: u32) -> Result<(), Refused> {
+/// the point goes (esi), `from` the point blended (edi), `base` the base point (edx's).
+pub fn blend_corner(block: u32, to: u32, from: u32, base: [u32; 3]) -> Result<(), Refused> {
     {
         let src = [get(from)?, get(from + 4)?, get(from + 8)?];
         let signs = src.iter().fold(0, |b, &v| (b << 1) | (v >> 31));
         let f = x87::loaded(get(block + 0x90 + 4 * signs)?);
         BLEND_WORK.factor.set_bits(f);
         for (c, &s) in src.iter().enumerate() {
+            let v = x87::int_lerp_to_int(s as i32, base[c] as i32, f);
             let c = 4 * c as u32;
-            let v = x87::int_lerp_to_int(s as i32, get(base + c)? as i32, f);
             GamePtr::new(to + c).write::<i32>(v, "a mark's field")?;
         }
     }

@@ -14,7 +14,7 @@
 use crate::errors::Refused;
 use crate::gfx::clear_picture::clear_picture;
 use crate::gfx::decoder::DECODER;
-use crate::gfx::picture::picture;
+use crate::gfx::picture::has_picture;
 use crate::gfx::picture::set_size;
 use crate::gfx::read_picture_file::read_picture_file;
 use crate::gfx::rescale_picture::rescale_picture;
@@ -29,7 +29,7 @@ use rc2k_core::gfx::picture_size as sizes;
 pub unsafe fn load_picture(path: *mut u8) -> Result<bool, Refused> {
     unsafe {
         // Refused before anything is written, if there is no buffer.
-        if picture().is_null() {
+        if !has_picture() {
             clear_picture()?;
         }
         // Converted: `rc2k_core::gfx::picture_size` (`READ`, `screen`, `rescaled`).

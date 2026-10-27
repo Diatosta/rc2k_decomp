@@ -18,6 +18,7 @@ use crate::errors::Refused;
 use crate::install::installer::{
     append_byte, close_search, fatal, find_first, find_next, rb, resolve_path, str_append,
 };
+use crate::install::name_tables::{FILES, FOLDERS, made_name, text_at};
 use crate::install::vars::INSTALLER_RUN;
 
 /// FindFileData.cFileName (the search record: `files::search`).
@@ -41,24 +42,27 @@ fn same_name(a1: u32, a2: u32) -> bool {
     )
 }
 
-/// The found file's path (the searched folder's) and name appended at `cursor`.
-fn found_path(search: u32, cursor: u32) -> Result<u32, Refused> {
-    let (cursor, _) = crate::files::append_directory::append_directory(
-        crate::pointers::host(search) as *const u8,
-        crate::pointers::host(cursor),
-    )?;
-    Ok(append_byte(
-        str_append(find_name(), crate::pointers::game_address(cursor)),
-        0,
-    ))
+/// The found file's path (the searched folder's) and name.
+fn found_path(search: u32) -> Result<Vec<u8>, Refused> {
+    made_name(|at| {
+        let (cursor, _) = crate::files::append_directory::append_directory(
+            crate::pointers::host(search) as *const u8,
+            crate::pointers::host(at),
+        )?;
+        Ok(append_byte(
+            str_append(find_name(), crate::pointers::game_address(cursor)),
+            0,
+        ))
+    })
 }
 
 fn walk(folder: u32) -> Result<(), Refused> {
-    let mut folder = resolve_path(folder)?;
-    if rb(folder) != 0 {
-        let cursor = append_byte(str_append(folder, INSTALLER_RUN.dir_cursor.get()), 0);
-        INSTALLER_RUN.dir_cursor.set(cursor);
-        INSTALLER_RUN.dir_scan.set(cursor);
+    let folder = resolve_path(folder)?;
+    let mut folder = text_at(folder)?;
+    if !folder.is_empty() {
+        let (used, scan) = FOLDERS.with(|t| (t.push(folder.clone()), t.names.len() as u32))?;
+        INSTALLER_RUN.dir_cursor.set(used);
+        INSTALLER_RUN.dir_scan.set(scan);
         INSTALLER_RUN
             .dir_count
             .set(INSTALLER_RUN.dir_count.get().wrapping_add(1));
@@ -66,7 +70,8 @@ fn walk(folder: u32) -> Result<(), Refused> {
     loop {
         // list the folder
         let base = crate::pointers::game_address(crate::files::numbered_path::buffer()); // byte_94E8B0
-        let mut cursor = str_append(folder, base);
+        crate::pointers::GamePtr::new(base).write_bytes(&folder, "the search path")?;
+        let mut cursor = base.wrapping_add(folder.len() as u32);
         if rb(cursor.wrapping_sub(1)) != b'\\' {
             cursor = append_byte(cursor, b'\\');
         }
@@ -86,24 +91,26 @@ fn walk(folder: u32) -> Result<(), Refused> {
                         find_name(),
                     );
                     if real {
-                        let cursor = found_path(base, INSTALLER_RUN.dir_cursor.get())?;
-                        INSTALLER_RUN.dir_cursor.set(cursor);
+                        let name = found_path(base)?;
+                        let used = FOLDERS.with(|t| t.push(name))?;
+                        INSTALLER_RUN.dir_cursor.set(used);
                         INSTALLER_RUN
                             .dir_count
                             .set(INSTALLER_RUN.dir_count.get().wrapping_add(1));
                         // `sub ebx, g_dirNames`
-                        if cursor.wrapping_sub(INSTALLER_RUN.dirs.get()) >= DIRS_ROOM {
+                        if used >= DIRS_ROOM {
                             return Err(fatal(0x80AF_2201));
                         }
                     }
                 } else {
-                    let cursor = found_path(base, INSTALLER_RUN.file_cursor.get())?;
-                    INSTALLER_RUN.file_cursor.set(cursor);
+                    let name = found_path(base)?;
+                    let used = FILES.with(|t| t.push(name))?;
+                    INSTALLER_RUN.file_cursor.set(used);
                     INSTALLER_RUN
                         .file_count
                         .set(INSTALLER_RUN.file_count.get().wrapping_add(1));
                     // `sub ebx, g_fileNames`
-                    if cursor.wrapping_sub(INSTALLER_RUN.files.get()) >= FILES_ROOM {
+                    if used >= FILES_ROOM {
                         return Err(fatal(0x80AF_2202));
                     }
                 }
@@ -113,19 +120,16 @@ fn walk(folder: u32) -> Result<(), Refused> {
             }
         }
         close_search();
-        // the next folder from the scan pointer
-        folder = INSTALLER_RUN.dir_scan.get();
-        if folder >= INSTALLER_RUN.dir_cursor.get() {
+        // the next folder from the scan (its number in the folders' table)
+        let scan = INSTALLER_RUN.dir_scan.get();
+        let Some(next) = FOLDERS.with(|t| t.names.get(scan as usize).cloned())? else {
+            break;
+        };
+        if next.is_empty() {
             break;
         }
-        let length =
-            crate::strings::text_length::text_length(crate::pointers::host(folder) as *const u8)?;
-        if length == 0 {
-            break;
-        }
-        INSTALLER_RUN
-            .dir_scan
-            .set(folder.wrapping_add(length).wrapping_add(1));
+        folder = next;
+        INSTALLER_RUN.dir_scan.set(scan.wrapping_add(1));
     }
     Ok(())
 }
@@ -139,4 +143,93 @@ pub fn list_folder_tree(folder: u32) -> Result<(), Refused> {
     let result = walk(folder);
     SKIPPED_ATTRIBUTES.store(saved_skip, std::sync::atomic::Ordering::Relaxed);
     result
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::install::name_tables::{FILES, FOLDERS, NameTable};
+    use crate::install::vars::INSTALLER_RUN;
+    use crate::memory::MemoryList;
+
+    #[test]
+    fn a_tree_is_listed_into_the_tables() {
+        let _lock = crate::store::test_lock();
+        let figures = crate::memory::figures();
+        let kept: Vec<u32> = [
+            &INSTALLER_RUN.dir_count,
+            &INSTALLER_RUN.file_count,
+            &INSTALLER_RUN.dir_scan,
+            &INSTALLER_RUN.dir_cursor,
+            &INSTALLER_RUN.file_cursor,
+        ]
+        .iter()
+        .map(|d| d.get())
+        .collect();
+        let dir = std::env::temp_dir().join(format!("rc2k_tree_{}", std::process::id()));
+        std::fs::create_dir_all(dir.join("a").join("b")).unwrap();
+        for f in ["z.txt", "a/x.txt", "a/b/y.txt"] {
+            std::fs::write(dir.join(f), b"x").unwrap();
+        }
+        let root = crate::files::ansi_bytes(&dir.to_string_lossy());
+        let mut path = root.clone();
+        path.push(0);
+        let memory = vec![0u8; size_of::<MemoryList>()];
+        let list_region = crate::pointers::Lent::new(&memory);
+        let list = memory.as_ptr() as *mut MemoryList;
+        FOLDERS.take(list, 0x10100, NameTable::default()).unwrap();
+        FILES.take(list, 0x40100, NameTable::default()).unwrap();
+        for d in [
+            &INSTALLER_RUN.dir_count,
+            &INSTALLER_RUN.file_count,
+            &INSTALLER_RUN.dir_scan,
+            &INSTALLER_RUN.dir_cursor,
+            &INSTALLER_RUN.file_cursor,
+        ] {
+            d.set(0);
+        }
+        let path_region = crate::pointers::Lent::new(&path);
+        super::list_folder_tree(path_region.addr()).unwrap();
+        drop(path_region);
+        let joined = |parts: &[&str]| {
+            let mut p = root.clone();
+            for part in parts {
+                p.push(b'\\');
+                p.extend(part.as_bytes());
+            }
+            p
+        };
+        let (folders, folder_bytes) = FOLDERS.with(|t| (t.names.clone(), t.bytes)).unwrap();
+        let (mut files, file_bytes) = FILES.with(|t| (t.names.clone(), t.bytes)).unwrap();
+        files.sort();
+        assert_eq!(folders, [root.clone(), joined(&["a"]), joined(&["a", "b"])]);
+        let mut want = vec![
+            joined(&["z.txt"]),
+            joined(&["a", "x.txt"]),
+            joined(&["a", "b", "y.txt"]),
+        ];
+        want.sort();
+        assert_eq!(files, want);
+        let bytes = |names: &[Vec<u8>]| names.iter().map(|n| n.len() as u32 + 1).sum::<u32>();
+        assert_eq!((folder_bytes, file_bytes), (bytes(&folders), bytes(&files)));
+        assert_eq!(INSTALLER_RUN.dir_count.get(), 3);
+        assert_eq!(INSTALLER_RUN.file_count.get(), 3);
+        assert_eq!(INSTALLER_RUN.dir_cursor.get(), folder_bytes);
+        FOLDERS.give_back();
+        FILES.give_back();
+        drop(list_region);
+        crate::memory::with_figures(|f| *f = figures);
+        for (d, v) in [
+            &INSTALLER_RUN.dir_count,
+            &INSTALLER_RUN.file_count,
+            &INSTALLER_RUN.dir_scan,
+            &INSTALLER_RUN.dir_cursor,
+            &INSTALLER_RUN.file_cursor,
+        ]
+        .iter()
+        .zip(kept)
+        {
+            d.set(v);
+        }
+        std::fs::remove_dir_all(dir).unwrap();
+    }
 }

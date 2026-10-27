@@ -60,6 +60,7 @@ pub mod mark_main_page;
 pub mod mark_page;
 pub mod measure_pieces;
 pub mod mode_page;
+pub mod name_tables;
 pub mod next_edit;
 pub mod open_installed;
 pub mod open_installer;

@@ -65,19 +65,21 @@ pub struct InstallerRun {
     pub buffers: Bytes<64>,
     /// 0x51BB3C: `g_installBarGlyphs`: the progress bar's glyph table.
     pub bar_glyphs: Dword,
-    /// 0x51BB40: `g_dirNames`: the folders' names (a 0x10000-byte buffer).
+    /// 0x51BB40: `g_dirNames`: the folders' names (a 0x10000-byte buffer; 0 since phase 12:
+    /// `install::name_tables::FOLDERS`).
     pub dirs: Dword,
-    /// 0x51BB44: `g_fileNames`: the files' names (a 0x40000-byte buffer).
+    /// 0x51BB44: `g_fileNames`: the files' names (a 0x40000-byte buffer; 0 since phase 12:
+    /// `install::name_tables::FILES`).
     pub files: Dword,
     /// 0x51BB48: `g_dirCount`: the folders listed.
     pub dir_count: Dword,
     /// 0x51BB4C: `g_fileCount`: the files listed.
     pub file_count: Dword,
-    /// 0x51BB50: `g_dirScan`: the next folder to search.
+    /// 0x51BB50: `g_dirScan`: the next folder to search (since phase 12 its number).
     pub dir_scan: Dword,
-    /// 0x51BB54: `g_dirCursor`: the folder being copied.
+    /// 0x51BB54: `g_dirCursor`: the folders' table's end (since phase 12 its bytes).
     pub dir_cursor: Dword,
-    /// 0x51BB58: `g_fileCursor`: the file being copied.
+    /// 0x51BB58: `g_fileCursor`: the files' table's end (since phase 12 its bytes).
     pub file_cursor: Dword,
     /// 0x51BB5C: `phkResult`: the open registry key.
     pub reg_key: Dword,

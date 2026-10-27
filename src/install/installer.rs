@@ -151,18 +151,6 @@ pub fn str_append(text: u32, cursor: u32) -> u32 {
     ))
 }
 
-/// `strings::str_append_indexed`: text `index` of `table` appended at `cursor`.
-pub fn str_append_indexed(table: u32, index: u32, cursor: u32) -> u32 {
-    crate::pointers::game_address(crate::menu::event_flow::refuse_here(
-        crate::strings::str_append_indexed::str_append_indexed(
-            crate::pointers::host(table) as *const u8,
-            index as i32,
-            crate::pointers::host(cursor),
-        ),
-        "install::installer: a string list",
-    ))
-}
-
 /// `strings::append_nul` and the other one-byte cursor helpers.
 pub fn append_byte(cursor: u32, b: u8) -> u32 {
     wb(cursor, b);

@@ -137,8 +137,8 @@ fn rows_fit(entries: u32, index: u32) -> Result<(), Refused> {
         }
         for i in 0..count.max(0) as u32 {
             let (x, len) = (
-                get(spans.wrapping_add(8 * i))? as i32,
-                get(spans.wrapping_add(8 * i + 4))? as i32,
+                crate::marks::masks::work_get(spans.wrapping_add(8 * i))? as i32,
+                crate::marks::masks::work_get(spans.wrapping_add(8 * i + 4))? as i32,
             );
             if len > 0 && (x < 0 || x + len > 0x100) {
                 return Err(BadInput("pixel spans outside the table").into());
@@ -163,8 +163,8 @@ pub fn map_shape_rows(entries: u32, index: u32) -> Result<(), Refused> {
         let mut at = row.wrapping_mul(0x400).wrapping_add(table);
         for i in 0..(count as i32).max(0) as u32 {
             let (x, len) = (
-                get(spans.wrapping_add(8 * i))?,
-                get(spans.wrapping_add(8 * i + 4))?,
+                crate::marks::masks::work_get(spans.wrapping_add(8 * i))?,
+                crate::marks::masks::work_get(spans.wrapping_add(8 * i + 4))?,
             );
             let y: u32 = MASKS.pixel[1].get();
             MASKS.row_distance.set_bits(x87::int_plus_less_squared(

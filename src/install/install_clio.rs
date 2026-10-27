@@ -17,7 +17,7 @@
 use crate::errors::Refused;
 use crate::install::installer::{
     append_byte, copy_picture, draw_string, lock, normalise, set_cd, show, sleep, str_append,
-    str_append_indexed, take_key, unlock,
+    take_key, unlock,
 };
 use crate::install::vars::INSTALLER_PATHS;
 use crate::install::vars::INSTALLER_RUN;
@@ -25,10 +25,16 @@ use crate::install::vars::INSTALLER_RUN;
 const FONT_BE: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fonts::BOX_TEXT;
 
 /// `to` = `base` + name `index` of `table`, NUL-ended.
-fn append_both(base: u32, to: u32, table: u32, index: u32) {
+fn append_both(
+    base: u32,
+    to: u32,
+    table: &crate::memory::owned::Owned<crate::install::name_tables::NameTable>,
+    index: u32,
+) -> Result<(), Refused> {
     let cursor = str_append(base, to);
-    let cursor = str_append_indexed(table, index, cursor);
+    let cursor = crate::install::name_tables::append_name(table, index, cursor)?;
     append_byte(cursor, 0);
+    Ok(())
 }
 
 /// Where the work stops: `loc_41689A` (the current directory set back first) or
@@ -57,9 +63,9 @@ fn work() -> Result<Stop, Refused> {
             append_both(
                 INSTALLER_PATHS.installed.addr(),
                 INSTALLER_PATHS.path_b.addr(),
-                INSTALLER_RUN.dirs.get(),
+                &crate::install::name_tables::FOLDERS,
                 n,
-            );
+            )?;
             if !i::make_folders::make_folders(INSTALLER_PATHS.path_b.addr())? {
                 return Ok(Stop::SetBack);
             }
@@ -76,15 +82,15 @@ fn work() -> Result<Stop, Refused> {
             append_both(
                 INSTALLER_PATHS.game_dir.addr(),
                 INSTALLER_PATHS.path_a.addr(),
-                INSTALLER_RUN.files.get(),
+                &crate::install::name_tables::FILES,
                 n,
-            );
+            )?;
             append_both(
                 INSTALLER_PATHS.installed.addr(),
                 INSTALLER_PATHS.path_b.addr(),
-                INSTALLER_RUN.files.get(),
+                &crate::install::name_tables::FILES,
                 n,
-            );
+            )?;
             // 0x416886: a failed copy stops the install as Escape does.
             if !i::copy_counted::copy_counted(
                 INSTALLER_PATHS.path_a.addr(),

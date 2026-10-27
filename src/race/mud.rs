@@ -10,7 +10,6 @@ use crate::gfx::screen_state::DRAW_SURFACE;
 use crate::pointers::GamePtr;
 use crate::race::course_lists_store::COURSE_LISTS;
 use crate::race::kind_store::KIND_TABLES;
-use crate::race::trap::read_whole_file_into;
 use crate::race::vars_store::RACE_VARS;
 use crate::scene::kind_texture_store::KIND_TEXTURES;
 
@@ -81,8 +80,9 @@ pub fn load_mud() -> Result<(), Refused> {
     ));
     RACE_VARS.mud_path.set(0x11, tens as u8);
     RACE_VARS.mud_path.set(0x12, units as u8);
-    let mud: u32 = RACE_VARS.mud.get();
-    read_whole_file_into(RACE_VARS.mud_path.as_ptr(), mud, MUD_LEN, "the mud")?;
+    MUD.with(|mud| {
+        crate::files::read_whole_file::read_whole_file_into(RACE_VARS.mud_path.as_ptr(), mud)
+    })??;
     Ok(())
 }
 
@@ -119,19 +119,22 @@ pub unsafe fn sample_mud_colours() -> Result<(), Refused> {
     Ok(())
 }
 
-/// `race::init_mud` (0x449DD6): the list's total + 0x10000, the mud taken
-/// (`memory::allocate`) into `dword_623D50`, then `load_mud`, `clear_mud_state`,
-/// `sample_mud_colours`.
+/// The mud file's strengths (`g_mud`, the game's 0x10000-byte block), Rust's since phase
+/// 12: taken by `init_mud` counted on `stru_5C6F50`, given back by `race::free_mud`.
+pub static MUD: crate::memory::owned::Owned<Vec<u8>> = crate::memory::owned::Owned::new("no mud");
+
+/// `race::init_mud` (0x449DD6): the list's total + 0x10000, the mud taken (`MUD`, the
+/// game's `dword_623D50`), then `load_mud`, `clear_mud_state`, `sample_mud_colours`.
 pub unsafe fn init_mud() -> Result<(), Refused> {
     unsafe {
         COURSE_LISTS
             .course_bytes_total
             .set(COURSE_LISTS.course_bytes_total.bits().wrapping_add(MUD_LEN));
-        let mud = crate::memory::allocate::allocate(
-            crate::pointers::host(COURSE_LISTS.mud_list[0].addr()) as *mut _,
+        MUD.take(
+            COURSE_LISTS.mud_list[0].as_ptr() as *mut crate::memory::MemoryList,
             MUD_LEN,
+            vec![0; MUD_LEN as usize],
         )?;
-        RACE_VARS.mud.set(crate::pointers::game_address(mud));
         load_mud()?;
         clear_mud_state();
         sample_mud_colours()

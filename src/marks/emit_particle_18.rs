@@ -21,7 +21,6 @@ use crate::marks::jitter_point::jitter_point;
 use crate::marks::surface_store::SURFACE;
 use crate::marks::tuning::MARKS_FLOATS;
 use crate::math::x87;
-use crate::pointers::GamePtr;
 use crate::scene::matrix3::{extended, rounded};
 
 const LIFE: u32 = 0x12C;
@@ -70,15 +69,20 @@ pub fn emit_particle_18(record: u32, object: u32) -> Result<(), Refused> {
         RING_WORK.whole.set(n as u32);
         RING_WORK.whole.set(count as u32);
         let mut left = count;
-        let mut tag_from = object;
+        // The first entry's tag is the object's, each next one's the entry before's.
+        let mut before: Option<u32> = None;
         loop {
             left = left.wrapping_sub(1);
             if left < 0 || next_entry()?.is_none() {
                 break;
             }
-            let e = take_entry(at(tag_from + 0x1C)? & 0xFF_FFFF, 0x12)?;
-            tag_from = e;
-            let put = |o: u32, v: u32| GamePtr::new(e + o).write::<u32>(v, "a mark's field");
+            let tag = match before {
+                None => at(object + 0x1C)?,
+                Some(b) => crate::marks::ring_entries::get(b, 0x1C)?,
+            };
+            let e = take_entry(tag & 0xFF_FFFF, 0x12)?;
+            before = Some(e);
+            let put = |o: u32, v: u32| crate::marks::ring_entries::put(e, o, v);
             let m = EMITTER.motion.each_ref().map(|r| extended(r.bits()));
             let (moved, _) = jitter_point([
                 extended(MARKS_FLOATS.hundred_twenty_eight.bits()),

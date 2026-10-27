@@ -79,8 +79,8 @@ pub fn load_edges(resume: u32) -> Result<(), Refused> {
         if !read? {
             return Err(BadInput("the edge picture was not read").into());
         }
-        let picture: u32 = PICTURE.buffer.get();
-        let pixels = GamePtr::new(picture).read_bytes(4 * EDGE_LEN as usize, "the edge picture")?;
+        let pixels =
+            crate::gfx::picture::read_bytes(PICTURE.buffer.get(), 0, 4 * EDGE_LEN as usize)?;
         for (k, p) in pixels.as_chunks::<4>().0.iter().enumerate() {
             EDGE_MASK.mask.set(k, !(p[0] | p[1] | p[2] | p[3]));
         }

@@ -12,11 +12,10 @@
 //! Caller: `net::joining`.
 
 use crate::errors::Refused;
-use crate::field;
 use crate::net::host_session::{OPEN_JOIN, finish, open};
-use crate::net::lobby::{log, log_int_nl, movsb, session, zero};
+use crate::net::lobby::{log, log_int_nl, movsb, zero};
 use crate::net::store::NET;
-use crate::net::types::NetSession;
+use crate::pointers::GamePtr;
 use crate::race::viewer_screen_store::{VIEWER_PANEL, texts};
 
 /// The code at 0x418D77 as the receiving thread calls it when it is posted.
@@ -35,20 +34,11 @@ pub fn join_session(number: u32) -> Result<bool, Refused> {
     if NET.dplay.get() == 0 {
         return Ok(false);
     }
-    let record = session(number)?;
-    movsb(
-        NET.joined.addr(),
-        record + field!(NetSession, instance),
-        0x10,
-    )?;
-    movsb(NET.joined_name.addr(), record, 0x40)?;
-    NET.joined_most
-        .set(crate::pointers::GamePtr::new(record + 0x50).read::<u32>("a session's record")?);
-    movsb(
-        NET.joined_password.addr(),
-        record + field!(NetSession, user),
-        0x10,
-    )?;
+    let s = crate::net::tables::with_session(number, |s| *s)?;
+    GamePtr::new(NET.joined.addr()).write_bytes(&s.instance, "the joined session")?;
+    GamePtr::new(NET.joined_name.addr()).write_bytes(&s.name, "the joined session")?;
+    NET.joined_most.set(s.max_players);
+    GamePtr::new(NET.joined_password.addr()).write_bytes(&s.user, "the joined session")?;
     zero(NET.session_desc.addr(), 0x50)?;
     NET.session_desc.size.set(0x50);
     movsb(

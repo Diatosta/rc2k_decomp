@@ -127,6 +127,7 @@ pub mod stopping;
 pub mod store;
 pub mod store_received;
 pub mod system_message;
+pub mod tables;
 pub mod take_messages;
 pub mod take_player_settings;
 pub mod types;

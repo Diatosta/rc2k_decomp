@@ -119,7 +119,8 @@ pub struct RaceVars {
     pub mud_row: Dword,
     /// +0x758 (0x623D40): not named.
     pub unknown_758: [Dword; 4],
-    /// +0x768 (0x623D50): `g_mud`: the mud file's memory.
+    /// +0x768 (0x623D50): `g_mud`: the mud file's memory (the game's address; unused
+    /// since the mud is Rust's, `race::mud::MUD`).
     pub mud: Dword,
     /// +0x76c (0x623D54): the texture locked (`race::update_mud_texture`).
     pub mud_locked: Dword,

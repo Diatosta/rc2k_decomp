@@ -24,6 +24,7 @@ use crate::gfx::decoder::DECODER;
 use crate::gfx::lay_out_pcx::lay_out_pcx;
 use crate::gfx::pcx::PCX;
 use crate::gfx::pcx::{HEADER_LEN, stream};
+use crate::gfx::picture::{put_or_end, with_buffer};
 use crate::gfx::picture_store::PICTURE;
 
 // ---- Rust version ----
@@ -39,12 +40,13 @@ unsafe fn read_rows() -> Result<bool, BadInput> {
         PICTURE.flags.set(0x800u32);
         let layout = lay_out_pcx()?;
         // Converted: `rc2k_core::gfx::pcx::decode_planes`.
-        let pixels: u32 = DECODER.pixels.get();
-        rc2k_core::gfx::pcx::decode_planes(
-            &layout,
-            |eax| read_stream_byte(stream, eax).map(|r| r.eax),
-            |to, byte| crate::pointers::host(pixels.wrapping_add(to)).write(byte),
-        )?
+        with_buffer(DECODER.pixels.get(), |pixels| {
+            rc2k_core::gfx::pcx::decode_planes(
+                &layout,
+                |eax| read_stream_byte(stream, eax).map(|r| r.eax),
+                |to, byte| put_or_end(pixels, to as usize, &[byte]),
+            )
+        })??
         .ok_or(BadInput("a PCX picture without rows or columns"))?;
         Ok(true)
     }

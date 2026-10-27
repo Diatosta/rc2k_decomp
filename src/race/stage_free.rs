@@ -14,6 +14,8 @@ pub struct Freeing {
     pub list: fn() -> *mut MemoryList,
     pub counted: bool,
     pub cleared: &'static [fn() -> *mut u32],
+    /// What Rust owns on the list, given back with it.
+    pub given_back: fn(),
 }
 
 /// `race::free_course_memory` (0x41F924).
@@ -26,6 +28,7 @@ pub const COURSE: Freeing = Freeing {
         || COURSE_LISTS.course_memory.as_ptr(),
         || COURSE_LISTS.course_info.as_ptr(),
     ],
+    given_back: || {},
 };
 /// `race::free_course_list_2` (0x41F94D).
 pub const COURSE_2: Freeing = Freeing {
@@ -37,6 +40,7 @@ pub const COURSE_2: Freeing = Freeing {
         || COURSE_LISTS.course_list_2_a.as_ptr(),
         || COURSE_LISTS.course_list_2_b.as_ptr(),
     ],
+    given_back: || {},
 };
 /// `race::free_point_records` (0x41F992).
 pub const POINT_RECORDS: Freeing = Freeing {
@@ -45,6 +49,7 @@ pub const POINT_RECORDS: Freeing = Freeing {
     counted: true,
     // g_pointRecords
     cleared: &[|| COURSE_LISTS.point_records.as_ptr()],
+    given_back: || {},
 };
 /// `race::free_object_points` (0x41F89B).
 pub const OBJECT_POINTS: Freeing = Freeing {
@@ -56,6 +61,7 @@ pub const OBJECT_POINTS: Freeing = Freeing {
         || COURSE_LISTS.object_points.as_ptr(),
         || COURSE_LISTS.face_memory.as_ptr(),
     ],
+    given_back: || {},
 };
 /// `race::free_mud` (0x449ECA).
 pub const MUD: Freeing = Freeing {
@@ -64,6 +70,7 @@ pub const MUD: Freeing = Freeing {
     counted: true,
     // g_mud
     cleared: &[|| RACE_VARS.mud.as_ptr()],
+    given_back: || crate::race::mud::MUD.give_back(),
 };
 /// `race::free_game_fonts` (0x41B2BC; `pusha` / `popa`, not counted).
 pub const FONTS: Freeing = Freeing {
@@ -74,6 +81,7 @@ pub const FONTS: Freeing = Freeing {
     cleared: &[|| unsafe {
         &raw mut (*crate::gfx::fonts_store::FONTS.game_fonts[0].as_ptr()).glyph_table
     }],
+    given_back: || {},
 };
 
 /// The freeing: the count down by the list's total (`counted`), `free_list`, the
@@ -98,6 +106,7 @@ pub unsafe fn free(f: &Freeing) -> Result<(), Refused> {
         for at in f.cleared {
             at().write(0);
         }
+        (f.given_back)();
     }
     Ok(())
 }

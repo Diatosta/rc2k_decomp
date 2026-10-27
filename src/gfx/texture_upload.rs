@@ -285,12 +285,12 @@ pub unsafe fn keep_second_picture(record: &Record, path: u32) -> Result<(), Refu
     };
     match kept {
         Some((pixels, width, height, _)) => {
-            // `rep movsd`: one dword after another, forwards.
-            GamePtr::new(pixels).copy_to(
-                GamePtr::new(pixels).offset(KEPT as u32),
-                width.wrapping_mul(height) as usize * 4,
-                "a second texture picture",
-            )?;
+            // `rep movsd`; the texture size keeps the two apart (`KEPT` is 256 x 256 dwords).
+            let len = width.wrapping_mul(height) as usize * 4;
+            crate::gfx::picture::with_buffer(pixels, |b| {
+                (KEPT.checked_add(len)? <= b.len()).then(|| b.copy_within(..len, KEPT))
+            })?
+            .ok_or(BadInput("a second texture picture past the picture buffer"))?;
         }
         None => record.set_keeps_alpha(0),
     }

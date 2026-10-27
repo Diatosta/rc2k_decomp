@@ -103,6 +103,7 @@ pub mod pong_score;
 pub mod pong_setup;
 pub mod profiles;
 pub mod rain;
+pub mod ring_entries;
 pub mod ring_frame;
 pub mod ring_store;
 pub mod rings;

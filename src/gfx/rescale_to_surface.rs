@@ -48,8 +48,8 @@ pub unsafe fn rescale_to_surface(surface: *const u32) -> Result<(), Refused> {
         if from_height > ROW_TABLE_ROOM || from == 0 || field(PIXELS) == 0 || field(FORMAT) == 0 {
             return Err(BadInput("a decoded picture or a surface the rescaler cannot take").into());
         }
-        // The count was checked above.
-        let _ = fill_row_table(from, DECODER.stride.get(), from_height);
+        // The count was checked above. The rows as offsets in the decoded buffer.
+        let _ = fill_row_table(0, DECODER.stride.get(), from_height);
         // Converted: `rc2k_core::gfx::picture::rescale`; each pixel's parts through the
         // components variable, the last left there with its fourth byte as it was.
         let format = (crate::pointers::host(field(FORMAT)) as *const PixelFormat).read_unaligned();
@@ -57,37 +57,42 @@ pub unsafe fn rescale_to_surface(surface: *const u32) -> Result<(), Refused> {
         let mut out = crate::pointers::host(field(PIXELS));
         let (width_pixels, gap) = (width, field(ROW_GAP) as usize);
         let mut column = 0u32;
-        let window = crate::pointers::Window::new();
-        let work = rc2k_core::gfx::picture::rescale(
-            &rc2k_core::gfx::picture::Sizes {
-                from_width,
-                from_height,
-                width,
-                height,
-            },
-            &|row, byte| {
-                window.read_or_end(row_address(row).wrapping_add(byte), "a picture's pixel")
-            },
-            &mut |parts| {
-                for (part, &byte) in parts.iter().enumerate() {
-                    RESCALE.components.set(part, byte);
-                }
-                let pixel = components_to_pixel(&format, RESCALE.components.get_u32(0));
-                if words {
-                    (out as *mut u16).write_unaligned(pixel as u16);
-                    out = out.add(2);
-                } else {
-                    (out as *mut u32).write_unaligned(pixel);
-                    out = out.add(4);
-                }
-                column += 1;
-                if column == width_pixels {
-                    column = 0;
-                    out = out.wrapping_add(gap);
-                }
-            },
-        )
-        .expect("the sizes were checked");
+        let work = crate::gfx::picture::with_buffer(from, |pixels| {
+            rc2k_core::gfx::picture::rescale(
+                &rc2k_core::gfx::picture::Sizes {
+                    from_width,
+                    from_height,
+                    width,
+                    height,
+                },
+                &|row, byte| match pixels.get(row_address(row).wrapping_add(byte) as usize) {
+                    Some(&b) => b,
+                    None => crate::fatal::raise::end(
+                        "gfx::rescale_to_surface",
+                        BadInput("a pixel read past the decoded picture"),
+                    ),
+                },
+                &mut |parts| {
+                    for (part, &byte) in parts.iter().enumerate() {
+                        RESCALE.components.set(part, byte);
+                    }
+                    let pixel = components_to_pixel(&format, RESCALE.components.get_u32(0));
+                    if words {
+                        (out as *mut u16).write_unaligned(pixel as u16);
+                        out = out.add(2);
+                    } else {
+                        (out as *mut u32).write_unaligned(pixel);
+                        out = out.add(4);
+                    }
+                    column += 1;
+                    if column == width_pixels {
+                        column = 0;
+                        out = out.wrapping_add(gap);
+                    }
+                },
+            )
+            .expect("the sizes were checked")
+        })?;
         RESCALE.step_x.set(work.step_x);
         RESCALE.step_x_fraction.set(work.step_x_fraction);
         RESCALE.step_y.set(work.step_y);

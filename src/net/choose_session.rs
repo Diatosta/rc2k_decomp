@@ -14,15 +14,14 @@
 //! Caller: `net::start_link`.
 
 use crate::errors::Refused;
-use crate::field;
 use crate::install::vars::INSTALLER_PAGES;
 use crate::net::choose_connection::list_move;
-use crate::net::lobby::{list_key, movsb, other_key, run_frame, session};
+use crate::net::lobby::{list_key, other_key, run_frame};
 use crate::net::store::NET;
-use crate::net::types::NetSession;
+use crate::net::tables::with_session;
+use crate::pointers::GamePtr;
 use crate::session::CLOCKS;
 use crate::session::FLAGS;
-use crate::system::same_guid::same_guid;
 use rc2k_core::net::screens::{self, ListKey};
 
 /// The sessions listed again (not posted), the highlight kept on the same one; false for
@@ -30,11 +29,8 @@ use rc2k_core::net::screens::{self, ListKey};
 fn refresh() -> Result<bool, Refused> {
     let listed = NET.sessions.get();
     if listed != 0 {
-        movsb(
-            NET.joined.addr(),
-            session(INSTALLER_PAGES.choice.get())? + field!(NetSession, instance),
-            0x10,
-        )?;
+        let instance = with_session(INSTALLER_PAGES.choice.get(), |s| s.instance)?;
+        GamePtr::new(NET.joined.addr()).write_bytes(&instance, "the joined session")?;
     }
     let posting = NET.posting.get();
     NET.posting.set(0);
@@ -47,7 +43,9 @@ fn refresh() -> Result<bool, Refused> {
     if listed != 0 && NET.sessions.get() != 0 {
         let mut n = 0;
         loop {
-            if same_guid(session(n)?.wrapping_add(0x40), NET.joined.addr()) {
+            let joined = GamePtr::new(NET.joined.addr()).read::<[u8; 16]>("the joined session")?;
+            // `system::same_guid`: the four dwords alike.
+            if with_session(n, |s| s.instance)? == joined {
                 // Converted: `rc2k_core::net::screens` (`keeps_top`, `moved_top`).
                 choice = n;
                 top = if screens::keeps_top(NET.sessions.get()) {

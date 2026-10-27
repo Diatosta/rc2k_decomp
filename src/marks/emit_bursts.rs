@@ -23,7 +23,6 @@ use crate::marks::emitters::*;
 use crate::marks::surface_store::SURFACE;
 use crate::marks::tuning::{MARKS_FLOATS, MARKS_FRAME};
 use crate::math::x87;
-use crate::pointers::GamePtr;
 use crate::scene::matrix3::{extended, rounded};
 use crate::session::{Dword, Float, read_bits, write_bits};
 
@@ -185,7 +184,7 @@ pub fn emit_bursts_with(set: &BurstSet, wheel: u32, object: u32) -> Result<(), R
                     return Ok(());
                 }
                 let e = take_entry(at(object + 0x1C)? & 0xFF_FFFF, h.kind)?;
-                let put = |o: u32, v: u32| GamePtr::new(e + o).write::<u32>(v, "a mark's field");
+                let put = |o: u32, v: u32| crate::marks::ring_entries::put(e, o, v);
                 let d = read_bits(&RING_WORK.direction);
                 let (out, _) = crate::marks::spread_point::spread_point([
                     extended(MARKS_FLOATS.half.bits()),

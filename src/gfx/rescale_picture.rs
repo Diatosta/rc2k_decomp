@@ -23,11 +23,10 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::gfx::decoder::DECODER;
-use crate::gfx::fill_row_table::{ROW_TABLE_ROOM, fill_row_table, row_address};
-use crate::gfx::picture::picture;
+use crate::gfx::fill_row_table::ROW_TABLE_ROOM;
+use crate::gfx::picture::{has_picture, read_bytes, with_picture};
 use crate::gfx::picture_store::PICTURE;
 use crate::memory::MemoryList;
-use crate::memory::allocate::allocate;
 use crate::memory::free_list::free_list;
 use crate::session::{Bytes, Dword, Shared};
 
@@ -95,41 +94,39 @@ pub fn home() -> usize {
 // Converted: `rc2k_core::gfx::picture` (the arithmetic); here the copy, the row table and the
 // work variables.
 
-pub unsafe fn rescale_picture() -> Result<(), Refused> {
-    unsafe {
-        let (from_width, from_height): (u32, u32) = (DECODER.width.get(), DECODER.height.get());
-        let (width, height): (u32, u32) = (PICTURE.width.get(), PICTURE.height.get());
-        let (from, to) = (DECODER.pixels.get(), picture());
-        if from_width == 0 || from_height == 0 || width == 0 || height == 0 {
-            return Err(BadInput("a picture without width or height to rescale").into());
-        }
-        if from_height > ROW_TABLE_ROOM || from == 0 || to.is_null() {
-            return Err(BadInput("a decoded picture the rescaler cannot take").into());
-        }
-        // The original calls a failed allocation fatal error 0x80A01112, but the allocator
-        // never comes back failed: it raises its own.
-        let list = RESCALE.copy_memory.as_ptr();
-        let copy = crate::pointers::game_address(allocate(
-            list,
-            from_width.wrapping_mul(from_height) << 2,
-        )?);
-        let gap: u32 = DECODER.row_gap.get();
-        let (mut source, mut target) = (from, copy);
-        for _ in 0..from_height {
-            for _ in 0..from_width {
-                (crate::pointers::host(target) as *mut u32).write_unaligned(
-                    (crate::pointers::host(source) as *const u32).read_unaligned(),
-                );
-                source = source.wrapping_add(4);
-                target = target.wrapping_add(4);
-            }
-            source = source.wrapping_add(gap);
-        }
-        // The count was checked above.
-        let _ = fill_row_table(copy, from_width << 2, from_height);
-        let mut out = to;
-        let window = crate::pointers::Window::new();
-        let work = rc2k_core::gfx::picture::rescale(
+pub fn rescale_picture() -> Result<(), Refused> {
+    let (from_width, from_height): (u32, u32) = (DECODER.width.get(), DECODER.height.get());
+    let (width, height): (u32, u32) = (PICTURE.width.get(), PICTURE.height.get());
+    let from = DECODER.pixels.get();
+    if from_width == 0 || from_height == 0 || width == 0 || height == 0 {
+        return Err(BadInput("a picture without width or height to rescale").into());
+    }
+    if from_height > ROW_TABLE_ROOM || from == 0 || !has_picture() {
+        return Err(BadInput("a decoded picture the rescaler cannot take").into());
+    }
+    // The original calls a failed allocation fatal error 0x80A01112, but the allocator
+    // never comes back failed: it raises its own.
+    // The copy is Rust's memory (phase 12), counted on the list as the game's block
+    // was; its rows are read in it, not through the row table (which the original
+    // fills with the copy's rows and nothing reads before it is filled again).
+    let list = RESCALE.copy_memory.as_ptr();
+    let row_bytes = from_width.wrapping_mul(4);
+    let mut copy = crate::memory::owned::counted(list, from_width.wrapping_mul(from_height) << 2)?;
+    let gap: u32 = DECODER.row_gap.get();
+    let mut source = 0usize;
+    for row in copy
+        .chunks_exact_mut(row_bytes as usize)
+        .take(from_height as usize)
+    {
+        row.copy_from_slice(&read_bytes(from, source, row_bytes as usize)?);
+        source = source
+            .wrapping_add(row_bytes as usize)
+            .wrapping_add(gap as usize);
+    }
+    // The picture's pixels made in its buffer, four bytes apart, three of each written.
+    let work = with_picture(|to| {
+        let mut out = 0usize;
+        rc2k_core::gfx::picture::rescale(
             &rc2k_core::gfx::picture::Sizes {
                 from_width,
                 from_height,
@@ -137,25 +134,32 @@ pub unsafe fn rescale_picture() -> Result<(), Refused> {
                 height,
             },
             &|row, byte| {
-                window.read_or_end(row_address(row).wrapping_add(byte), "a picture's pixel")
+                let at = (row as usize * row_bytes as usize).wrapping_add(byte as usize);
+                match copy.get(at) {
+                    Some(&b) => b,
+                    None => crate::fatal::raise::end(
+                        "gfx::rescale_picture",
+                        BadInput("a pixel read past the picture's copy"),
+                    ),
+                }
             },
             &mut |parts| {
-                std::ptr::copy_nonoverlapping(parts.as_ptr(), out, 3);
-                out = out.add(4);
+                crate::gfx::picture::put_or_end(to, out, &parts[..3]);
+                out += 4;
             },
         )
-        .expect("the sizes were checked");
-        RESCALE.step_x.set(work.step_x);
-        RESCALE.step_x_fraction.set(work.step_x_fraction);
-        RESCALE.step_y.set(work.step_y);
-        RESCALE.step_y_fraction.set(work.step_y_fraction);
-        RESCALE.weight_x.set(work.weight_x);
-        RESCALE.weight_y.set(work.weight_y);
-        RESCALE.columns_left.set(0);
-        RESCALE.rows_left.set(0);
-        free_list(list)?;
-        Ok(())
-    }
+        .expect("the sizes were checked")
+    })?;
+    RESCALE.step_x.set(work.step_x);
+    RESCALE.step_x_fraction.set(work.step_x_fraction);
+    RESCALE.step_y.set(work.step_y);
+    RESCALE.step_y_fraction.set(work.step_y_fraction);
+    RESCALE.weight_x.set(work.weight_x);
+    RESCALE.weight_y.set(work.weight_y);
+    RESCALE.columns_left.set(0);
+    RESCALE.rows_left.set(0);
+    free_list(list)?;
+    Ok(())
 }
 
 #[cfg(test)]

@@ -23,7 +23,6 @@ use crate::logfile::log_int::log_int;
 use crate::logfile::log_write::log_write;
 use crate::logfile::write_line::level;
 use crate::memory::MemoryList;
-use crate::memory::allocate::allocate;
 use crate::memory::free_list::free_list;
 use crate::moved::Place;
 use crate::session::{Dword, Shared};
@@ -187,11 +186,10 @@ pub unsafe fn compile_lexicon() -> Result<(), Refused> {
         let compiled = compiled()?;
         let work = &mut *WORK.ptr();
         work.fill(0);
-        // The original's memory, for the game's memory figures: taken and given back.
+        // The original's memory, for the game's memory figures: counted and given back
+        // (nothing is put in it: the lexicon is built in Rust's memory).
         let list = LEXICON.memory.as_ptr();
-        let memory = allocate(list, LEXICON.kilobytes.get().wrapping_mul(0x400))?;
-        (*list).cursor = crate::pointers::game_address(memory);
-        (*list).remaining = (*list).total;
+        crate::memory::owned::count_on(list, LEXICON.kilobytes.get().wrapping_mul(0x400))?;
 
         for (offset, value) in counts(&compiled) {
             work[offset / 4] = value;

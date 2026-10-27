@@ -11,25 +11,21 @@
 //! are the original's.
 
 use crate::errors::Refused;
-use crate::install::installer::{append_byte, fatal, resolve_path, str_append};
+use crate::install::installer::{fatal, resolve_path};
+use crate::install::name_tables::{FOLDERS, text_at};
 use crate::install::vars::INSTALLER_RUN;
 use rc2k_core::install::script;
 
 /// The folder `path` (eax) added to the folders' table.
 pub fn list_folder(path: u32) -> Result<(), Refused> {
-    let path = resolve_path(path)?;
-    let cursor = append_byte(str_append(path, INSTALLER_RUN.dir_cursor.get()), 0);
-    INSTALLER_RUN.dir_cursor.set(cursor);
-    INSTALLER_RUN.dir_scan.set(cursor);
+    let path = text_at(resolve_path(path)?)?;
+    let (used, scan) = FOLDERS.with(|t| (t.push(path), t.names.len() as u32))?;
+    INSTALLER_RUN.dir_cursor.set(used);
+    INSTALLER_RUN.dir_scan.set(scan);
     INSTALLER_RUN
         .dir_count
         .set(INSTALLER_RUN.dir_count.get().wrapping_add(1));
     // Converted: `rc2k_core::install::script::room_left`.
-    script::room_left(
-        cursor.wrapping_sub(INSTALLER_RUN.dirs.get()),
-        script::FOLDERS_ROOM,
-        script::FOLDERS_FULL,
-    )
-    .map_err(fatal)?;
+    script::room_left(used, script::FOLDERS_ROOM, script::FOLDERS_FULL).map_err(fatal)?;
     Ok(())
 }

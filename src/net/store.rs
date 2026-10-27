@@ -252,11 +252,13 @@ pub struct NetVars {
     pub show_gaps: Dword,
     /// 0x52AC34: `g_netConnections`: the connections listed.
     pub connections: Dword,
-    /// 0x52AC38: `g_netConnectionTable`: the connection records (0x54 bytes each; an address).
+    /// 0x52AC38: `g_netConnectionTable`: the connection records (0x54 bytes each; an address,
+    /// 0 since phase 12: `net::tables::NET_TABLES`).
     pub connection_table: Dword,
     /// 0x52AC3C: `dword_52AC3C`: the address elements added.
     pub elements: Dword,
-    /// 0x52AC40: `dword_52AC40`: the compound address (memory of the network's list).
+    /// 0x52AC40: `dword_52AC40`: the compound address (memory of the network's list; 0 since
+    /// phase 12: `net::tables::NET_TABLES`).
     pub address: Dword,
     /// 0x52AC44: `bytes`: the compound address's size.
     pub address_size: Dword,
@@ -276,7 +278,8 @@ pub struct NetVars {
     pub posted_answered: Dword,
     /// 0x52ACF4: `g_netSessions`: the sessions listed.
     pub sessions: Dword,
-    /// 0x52ACF8: `g_netSessionTable`: the session records (0x68 bytes each; an address).
+    /// 0x52ACF8: `g_netSessionTable`: the session records (0x68 bytes each; an address, 0
+    /// since phase 12: `net::tables::NET_TABLES`).
     pub session_table: Dword,
     /// 0x52ACFC: `g_netSessionOpen`.
     pub session_open: Dword,

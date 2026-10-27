@@ -15,12 +15,11 @@
 //! is to be taken), before anything.
 
 use crate::errors::{BadInput, Refused};
-use crate::marks::blocks::RING_POOL;
+use crate::marks::blocks::{RING_POOL, particle, set_particle};
 use crate::marks::frame_state::DRAW_WORK;
 use crate::marks::run_particles::PARTICLE_TUNING;
 use crate::marks::work_store::MARKS_WORK;
 use crate::math::x87;
-use crate::pointers::GamePtr;
 
 const ENTRIES: u32 = 0x100;
 const FULL: u32 = 0xFFF;
@@ -48,7 +47,7 @@ fn entries_taken() -> Result<Vec<u32>, Refused> {
             if e == 0 {
                 break;
             }
-            e = GamePtr::new(e).read::<u32>("a mark's field")?;
+            e = particle(e, 0)?;
             out.push(e);
         }
         out
@@ -82,17 +81,14 @@ pub fn burst_particles(record: u32) -> Result<(), Refused> {
             if used == FULL {
                 continue;
             }
-            let e: u32 = GamePtr::new(RING_POOL.free.get()).read::<u32>("a mark's field")?;
+            let e: u32 = particle(RING_POOL.free.get(), 0)?;
             RING_POOL.free.set(e);
             RING_POOL.used.set(used.wrapping_add(1));
-            let put = |o: u32, v: u32| GamePtr::new(e + o).write::<u32>(v, "a mark's field");
+            let put = |o: u32, v: u32| set_particle(e, o, v);
             put(8, RING_POOL.nine.get())?;
             put(0x48, RING_POOL.kind.get())?;
             for o in [0xC, 0x10, 0x14] {
-                put(
-                    o,
-                    x87::loaded(GamePtr::new(record + o).read::<u32>("a mark's field")?),
-                )?;
+                put(o, x87::loaded(particle(record, o)?))?;
             }
             let s = next_seed();
             let a = s.rotate_right(16) & 0xFFF;

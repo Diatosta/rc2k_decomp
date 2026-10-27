@@ -21,7 +21,6 @@ use crate::errors::{BadInput, Refused};
 use crate::marks::clip_quad::{clip_quad, draw_fan};
 use crate::marks::ring_store::{RING_WORK, RingWork};
 use crate::marks::surface_store::SURFACE;
-use crate::pointers::GamePtr;
 use crate::scene::draw_store::DRAW;
 use crate::scene::fog_at::fog_at;
 
@@ -88,8 +87,7 @@ pub fn draw_cell_sprite(
         return Ok(());
     }
     let fog = fog_at(RING_WORK.whole.get())?;
-    let colour =
-        (alpha & 0xFF00_0000) | GamePtr::new(entry + 0x90).read::<u32>("a mark's field")?;
+    let colour = (alpha & 0xFF00_0000) | crate::marks::ring_entries::get(entry, 0x90)?;
     for n in 0..4 {
         VERTICES.vertices[n].specular.set(fog);
         VERTICES.vertices[n].colour.set(colour);

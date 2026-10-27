@@ -28,7 +28,7 @@
 //! (a broken ring). its seven calls relocated), manual patch.
 
 use crate::errors::{BadInput, Refused};
-use crate::marks::blocks::RING_POOL;
+use crate::marks::blocks::{RING_POOL, particle, set_particle};
 use crate::marks::frame_state::DRAW_WORK;
 use crate::marks::setup::CLOCK;
 use crate::marks::tuning::MARKS_FRAME;
@@ -46,18 +46,14 @@ fn get(a: u32) -> Result<u32, BadInput> {
     GamePtr::new(a).read("a game field")
 }
 
-fn put(a: u32, v: u32) -> Result<(), BadInput> {
-    GamePtr::new(a).write(v, "a game field")
-}
-
 /// A kind's colour index (life times +0x40, `fistp`) and whether it is in its table.
 fn colour_index(e: u32, life: u32) -> Result<(i32, bool), Refused> {
     Ok({
-        let i = x87::int_times_to_int(life as i32, get(e + 0x40)?);
-        let ok = match get(e + 8)? {
+        let i = x87::int_times_to_int(life as i32, particle(e, 0x40)?);
+        let ok = match particle(e, 8)? {
             4 => (0..TRAIL_COLOURS).contains(&i),
             _ => {
-                let off = (get(e + 0x48)? as i32).wrapping_add(i.wrapping_mul(4));
+                let off = (particle(e, 0x48)? as i32).wrapping_add(i.wrapping_mul(4));
                 i >= 0 && (0..=BURST_COLOURS_LEN - 4).contains(&off)
             }
         };
@@ -78,16 +74,17 @@ fn refusal() -> Result<Option<&'static str>, Refused> {
         let ticks: u32 = CLOCK.frame_ticks.get();
         let mut e: u32 = RING_POOL.free.get();
         let used = RING_POOL.used.get() as i32;
-        if used > 0 && (e == 0 || get(e)? == 0) {
+        if used > 0 && (e == 0 || particle(e, 0)? == 0) {
             return Ok(Some("a null particle ring entry"));
         }
         for _ in 0..used.max(0) {
-            if e == 0 || get(e)? == 0 || get(e + 4)? == 0 {
+            if e == 0 || particle(e, 0)? == 0 || particle(e, 4)? == 0 {
                 return Ok(Some("a null particle ring entry or link"));
             }
-            let life = get(e + 0x44)?;
-            let kind = get(e + 8)?;
-            if life >= ticks && x87::compare_status(get(e + 0x10)?, get(e + 0x24)?) != 0x100 {
+            let life = particle(e, 0x44)?;
+            let kind = particle(e, 8)?;
+            if life >= ticks && x87::compare_status(particle(e, 0x10)?, particle(e, 0x24)?) != 0x100
+            {
                 if ![0, 4, 8, 9].contains(&kind) {
                     return Ok(Some(
                         "a particle of another kind (the original's stack goes wrong)",
@@ -97,7 +94,7 @@ fn refusal() -> Result<Option<&'static str>, Refused> {
                     return Ok(Some("a particle colour index out of its table"));
                 }
             }
-            e = get(e + 4)?;
+            e = particle(e, 4)?;
         }
         None
     })
@@ -109,73 +106,82 @@ fn step(e: u32) -> Result<bool, Refused> {
     {
         let t: i32 = CLOCK.frame_ticks.get() as i32;
         let move_place = |with_up: bool| -> Result<_, Refused> {
-            put(
-                e + 0xC,
-                x87::plus_times_int(get(e + 0xC)?, get(e + 0x28)?, t),
+            set_particle(
+                e,
+                0xC,
+                x87::plus_times_int(particle(e, 0xC)?, particle(e, 0x28)?, t),
             )?;
             let y = if with_up {
-                x87::plus_sum_times_int(get(e + 0x10)?, get(e + 0x2C)?, get(e + 0x30)?, t)
+                x87::plus_sum_times_int(
+                    particle(e, 0x10)?,
+                    particle(e, 0x2C)?,
+                    particle(e, 0x30)?,
+                    t,
+                )
             } else {
-                x87::plus_times_int(get(e + 0x10)?, get(e + 0x2C)?, t)
+                x87::plus_times_int(particle(e, 0x10)?, particle(e, 0x2C)?, t)
             };
-            put(e + 0x10, y)?;
-            put(
-                e + 0x14,
-                x87::plus_times_int(get(e + 0x14)?, get(e + 0x34)?, t),
+            set_particle(e, 0x10, y)?;
+            set_particle(
+                e,
+                0x14,
+                x87::plus_times_int(particle(e, 0x14)?, particle(e, 0x34)?, t),
             )?;
             Ok(())
         };
         let gain_int = |k: &crate::session::Float| -> Result<_, Refused> {
-            let v = x87::int_times_int_plus_int(k.bits() as i32, t, get(e + 0x3C)? as i32);
-            put(e + 0x3C, v as u32)?;
+            let v = x87::int_times_int_plus_int(k.bits() as i32, t, particle(e, 0x3C)? as i32);
+            set_particle(e, 0x3C, v as u32)?;
             Ok(())
         };
         let keep_last = || -> Result<_, Refused> {
-            put(e + 0x18, get(e + 0xC)?)?;
-            put(e + 0x1C, get(e + 0x10)?)?;
-            put(e + 0x20, get(e + 0x14)?)?;
+            set_particle(e, 0x18, particle(e, 0xC)?)?;
+            set_particle(e, 0x1C, particle(e, 0x10)?)?;
+            set_particle(e, 0x20, particle(e, 0x14)?)?;
             Ok(())
         };
         let place = || -> Result<_, Refused> {
             Ok({
                 [
-                    extended(get(e + 0xC)?),
-                    extended(get(e + 0x10)?),
-                    extended(get(e + 0x14)?),
+                    extended(particle(e, 0xC)?),
+                    extended(particle(e, 0x10)?),
+                    extended(particle(e, 0x14)?),
                 ]
             })
         };
-        match get(e + 8)? {
+        match particle(e, 8)? {
             0 => {
                 move_place(false)?;
-                put(
-                    e + 0x2C,
-                    x87::plus_times_int(get(e + 0x2C)?, PARTICLE_TUNING.dust[0].bits(), t),
+                set_particle(
+                    e,
+                    0x2C,
+                    x87::plus_times_int(particle(e, 0x2C)?, PARTICLE_TUNING.dust[0].bits(), t),
                 )?;
                 gain_int(&PARTICLE_TUNING.dust[1])?;
-                let s = x87::compare_status(PARTICLE_TUNING.dust[2].bits(), get(e + 0x2C)?);
+                let s = x87::compare_status(PARTICLE_TUNING.dust[2].bits(), particle(e, 0x2C)?);
                 MARKS_WORK.fpu_status.set(s as u32);
                 if s != 0x100 {
                     burst_particles::burst_particles(e)?;
                     return Ok(true);
                 }
-                if get(e + 0x2C)? & 0x8000_0000 == 0 {
+                if particle(e, 0x2C)? & 0x8000_0000 == 0 {
                     trail_particles::trail_particles(e)?;
                 }
                 keep_last()?;
             }
             4 => {
                 move_place(false)?;
-                put(
-                    e + 0x2C,
-                    x87::plus_times_int(get(e + 0x2C)?, PARTICLE_TUNING.trail[0].bits(), t),
+                set_particle(
+                    e,
+                    0x2C,
+                    x87::plus_times_int(particle(e, 0x2C)?, PARTICLE_TUNING.trail[0].bits(), t),
                 )?;
                 gain_int(&PARTICLE_TUNING.trail[1])?;
-                let (i, _) = colour_index(e, get(e + 0x44)?)?;
+                let (i, _) = colour_index(e, particle(e, 0x44)?)?;
                 RING_POOL.index.set(i as u32);
-                let alpha = get(e + 0x3C)? & 0xFF00_0000;
+                let alpha = particle(e, 0x3C)? & 0xFF00_0000;
                 let colour = (TRAIL_PALETTE.colours[i as usize].get() & 0xFF_FFFF) | alpha;
-                draw_particle::draw_particle(place()?, colour, get(e + 0x38)?);
+                draw_particle::draw_particle(place()?, colour, particle(e, 0x38)?);
                 keep_last()?;
             }
             kind => {
@@ -185,25 +191,38 @@ fn step(e: u32) -> Result<bool, Refused> {
                     &PARTICLE_TUNING.burst8
                 };
                 move_place(true)?;
-                put(
-                    e + 0x30,
-                    x87::plus_times_int(get(e + 0x30)?, k[0].bits(), t),
+                set_particle(
+                    e,
+                    0x30,
+                    x87::plus_times_int(particle(e, 0x30)?, k[0].bits(), t),
                 )?;
-                put(e + 0x28, x87::less_own_times(get(e + 0x28)?, k[1].bits()))?;
-                put(e + 0x2C, x87::less_own_times(get(e + 0x2C)?, k[2].bits()))?;
-                put(e + 0x34, x87::less_own_times(get(e + 0x34)?, k[3].bits()))?;
+                set_particle(
+                    e,
+                    0x28,
+                    x87::less_own_times(particle(e, 0x28)?, k[1].bits()),
+                )?;
+                set_particle(
+                    e,
+                    0x2C,
+                    x87::less_own_times(particle(e, 0x2C)?, k[2].bits()),
+                )?;
+                set_particle(
+                    e,
+                    0x34,
+                    x87::less_own_times(particle(e, 0x34)?, k[3].bits()),
+                )?;
                 gain_int(&k[4])?;
-                let (i, _) = colour_index(e, get(e + 0x44)?)?;
+                let (i, _) = colour_index(e, particle(e, 0x44)?)?;
                 RING_POOL.index.set(i as u32);
                 let tint = BURST_COLOURS
                     .table
-                    .get_u32((get(e + 0x48)? as usize).wrapping_add(4 * i as usize))
+                    .get_u32((particle(e, 0x48)? as usize).wrapping_add(4 * i as usize))
                     & 0xFF_FFFF;
                 if tint == 0 {
                     return Ok(true);
                 }
-                let colour = (get(e + 0x3C)? & 0xFF00_0000) | tint;
-                let mut size = get(e + 0x38)?;
+                let colour = (particle(e, 0x3C)? & 0xFF00_0000) | tint;
+                let mut size = particle(e, 0x38)?;
                 if kind == 9 {
                     let s = MARKS_WORK.seed.get().wrapping_mul(0x9D).wrapping_add(0x47);
                     MARKS_WORK.seed.set(s);
@@ -236,13 +255,13 @@ pub fn run_particles() -> Result<(), Refused> {
             if counter < 0 {
                 break;
             }
-            let next = get(e + 4)?;
+            let next = particle(e, 4)?;
             let t: u32 = CLOCK.frame_ticks.get();
-            let life = get(e + 0x44)?;
-            put(e + 0x44, life.wrapping_sub(t))?;
+            let life = particle(e, 0x44)?;
+            set_particle(e, 0x44, life.wrapping_sub(t))?;
             let mut dies = life < t;
             if !dies {
-                let s = x87::compare_status(get(e + 0x10)?, get(e + 0x24)?);
+                let s = x87::compare_status(particle(e, 0x10)?, particle(e, 0x24)?);
                 MARKS_WORK.fpu_status.set(s as u32);
                 dies = s == 0x100;
                 if !dies {
@@ -252,17 +271,17 @@ pub fn run_particles() -> Result<(), Refused> {
             if dies {
                 RING_POOL.used.set(RING_POOL.used.get().wrapping_sub(1));
                 if e == RING_POOL.free.get() {
-                    RING_POOL.free.set(get(e + 4)?);
+                    RING_POOL.free.set(particle(e, 4)?);
                 } else {
-                    let (before, after) = (get(e)?, get(e + 4)?);
-                    put(before + 4, after)?;
-                    put(after, before)?;
+                    let (before, after) = (particle(e, 0)?, particle(e, 4)?);
+                    set_particle(before, 4, after)?;
+                    set_particle(after, 0, before)?;
                     let free: u32 = RING_POOL.free.get();
-                    let last = get(free)?;
-                    put(free, e)?;
-                    put(last + 4, e)?;
-                    put(e, last)?;
-                    put(e + 4, free)?;
+                    let last = particle(free, 0)?;
+                    set_particle(free, 0, e)?;
+                    set_particle(last, 4, e)?;
+                    set_particle(e, 0, last)?;
+                    set_particle(e, 4, free)?;
                 }
             }
             e = next;

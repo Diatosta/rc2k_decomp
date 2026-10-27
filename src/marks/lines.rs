@@ -7,6 +7,7 @@ use crate::errors::{BadInput, Refused};
 use crate::marks::morph_object_points::MORPH_WORK;
 use crate::marks::tuning::MARKS_FLOATS;
 use crate::math::x87;
+use crate::memory::owned::Owned;
 use crate::pointers::GamePtr;
 use crate::race::course_lists_store::COURSE_LISTS;
 use crate::scene::object_slots_store::{OBJECT_SLOTS, ObjectTables};
@@ -258,26 +259,47 @@ pub fn measure_starting_sums() -> Result<(), Refused> {
     Ok(())
 }
 
+/// The settings blocks' base points (each block's +0x8C; `g_marksTaken` the last taken):
+/// 12 bytes a point of the block's object, blocks of the game's heap on the block's +0x4C
+/// until phase 12 (2026-10-27), Rust's since, counted on that list as they were. A block's
+/// +0x8C (and `MORPH_WORK.taken`) holds its table's number + 1; `marks::tidy_marks` gives
+/// them back with the lists.
+pub static BLOCK_POINTS: [Owned<Vec<[u32; 3]>>; 8] = [const { Owned::new("no block points") }; 8];
+
+/// The table `+0x8C` names (its number + 1).
+fn block_points(handle: u32) -> Result<&'static Owned<Vec<[u32; 3]>>, BadInput> {
+    (handle as usize)
+        .checked_sub(1)
+        .and_then(|n| BLOCK_POINTS.get(n))
+        .ok_or(BadInput("a settings block's points past the table"))
+}
+
+/// Base point `n` of the table `handle` names (`marks::morph_object_points`).
+pub fn block_point(handle: u32, n: u32) -> Result<[u32; 3], BadInput> {
+    block_points(handle)?
+        .with(|t| t.get(n as usize).copied())?
+        .ok_or(BadInput("a base point past its table"))
+}
+
 /// `marks::copy_block_points` (0x4D0A82): the points of block `block`'s object (+0):
 /// `g_objectPointCount2` of 12 bytes from `g_objectFirstPoint` in `g_objectPoints`, to the
-/// block's +0x8C. Refuses an object past 0xFF.
+/// table the block's +0x8C names. Refuses an object past 0xFF.
 // Converted: `rc2k_core::marks::lines::check_object`
 pub fn copy_block_points(block: u32) -> Result<(), Refused> {
     {
         let object = get(block)?;
         core::check_object(object)?;
-        let mut to = get(block + 0x8C)?;
+        let to = block_points(get(block + 0x8C)?)?;
         let count = OBJECT_SLOTS.point_counts[object as usize].get() as i32;
         let first: u32 = OBJECT_SLOTS.first_point[object as usize].get();
         let mut from = first
             .wrapping_mul(12)
             .wrapping_add(COURSE_LISTS.object_points.bits());
-        for _ in 0..count.max(0) {
-            for k in 0..3 {
-                put(to + 4 * k, get(from + 4 * k)?)?;
-            }
+        for n in 0..count.max(0) as usize {
+            let point = [get(from)?, get(from + 4)?, get(from + 8)?];
+            to.with(|t| t.get_mut(n).map(|p| *p = point))?
+                .ok_or(BadInput("a block's points past their table"))?;
             from = from.wrapping_add(12);
-            to = to.wrapping_add(12);
         }
     }
     Ok(())
@@ -285,7 +307,7 @@ pub fn copy_block_points(block: u32) -> Result<(), Refused> {
 
 /// `marks::set_up_blocks` (0x4D05BD), step 14: `measure_starting_sums`; then for each
 /// block (the last first) +0x90 .. +0xCC -1, a block of 12 bytes a point of its object
-/// taken on its +0x4C (`memory::allocate`) into `g_marksTaken` and +0x8C,
+/// taken on its +0x4C (`BLOCK_POINTS`, its number + 1 into `g_marksTaken` and +0x8C),
 /// `copy_block_points`, and +0x90 .. +0xAC the eight floats of `g_marksBlockStart`. Refuses
 /// as `measure_starting_sums`, before anything is taken.
 // Converted: `rc2k_core::marks::lines::{measured, block_at}`
@@ -301,10 +323,18 @@ pub fn set_up_blocks() -> Result<(), Refused> {
         }
         let points: u32 =
             ObjectTables::slot_value(&OBJECT_SLOTS.point_counts, get(block)? as usize);
-        let taken = crate::pointers::game_address(crate::memory::allocate::allocate(
+        let bytes = points
+            .checked_mul(12)
+            .ok_or(BadInput("a block's point count that wraps"))?;
+        let table = BLOCK_POINTS
+            .get(k as usize)
+            .ok_or(BadInput("more than 8 settings blocks"))?;
+        table.take(
             crate::pointers::host(block + 0x4C) as *mut crate::memory::MemoryList,
-            points.wrapping_mul(12),
-        )?);
+            bytes,
+            vec![[0; 3]; points as usize],
+        )?;
+        let taken = k + 1;
         MORPH_WORK.taken.set(taken);
         put(block + 0x8C, taken)?;
         copy_block_points(block)?;
@@ -400,6 +430,26 @@ mod lines_work_tests {
         (0..size_of::<T>())
             .map(|i| unsafe { p.add(i).read() })
             .collect()
+    }
+
+    #[test]
+    fn a_blocks_points_are_named_by_number() {
+        let _lock = crate::store::test_lock();
+        let figures = crate::memory::figures();
+        let mut memory = vec![0u8; size_of::<crate::memory::MemoryList>()];
+        let _region = crate::pointers::Lent::new(&memory);
+        let list = memory.as_mut_ptr() as *mut crate::memory::MemoryList;
+        BLOCK_POINTS[2]
+            .take(list, 24, vec![[1, 2, 3], [4, 5, 6]])
+            .unwrap();
+        assert_eq!(u32::from_le_bytes(memory[4..8].try_into().unwrap()), 24);
+        assert_eq!(block_point(3, 1).unwrap(), [4, 5, 6]);
+        assert!(block_point(3, 2).is_err());
+        assert!(block_point(0, 0).is_err());
+        assert!(block_point(9, 0).is_err());
+        assert!(block_point(1, 0).is_err(), "a table not taken");
+        BLOCK_POINTS[2].give_back();
+        crate::memory::with_figures(|f| *f = figures);
     }
 
     #[test]

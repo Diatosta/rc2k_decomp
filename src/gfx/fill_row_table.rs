@@ -7,6 +7,8 @@
 //! and two picture functions not yet read.
 //! Refuses a count of 0 (the original counts through all 32 bits) and one above the table's
 //! room. The name is a reading.
+//! Since phase 12 (2026-10-27) the decoded picture is a Rust buffer (`gfx::picture`) and the
+//! table holds each row's offset in it: its callers give 0 for the first row.
 
 use crate::errors::BadInput;
 use crate::session::Dword;
@@ -19,7 +21,8 @@ pub const ROW_TABLE_ROOM: u32 = 602;
 /// The table's length.
 pub const LEN: usize = 4 * ROW_TABLE_ROOM as usize;
 
-/// `dword_4F3FC4`: the address of each row of a picture (602 of them), zero at the start.
+/// `dword_4F3FC4`: each row of a picture (602 of them), zero at the start: its offset in the
+/// decoded buffer since phase 12 (the original's addresses).
 pub static ROW_TABLE: [Dword; ROW_TABLE_ROOM as usize] =
     [const { Dword::new(0) }; ROW_TABLE_ROOM as usize];
 

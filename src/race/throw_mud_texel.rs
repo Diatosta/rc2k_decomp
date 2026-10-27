@@ -21,7 +21,7 @@ pub use rc2k_core::race::mud::LAST_THROWN;
 /// The Rust version (see the header).
 pub unsafe fn throw_mud_texel() -> Result<(), Refused> {
     // Converted: `rc2k_core::race::mud::{LAST_THROWN, extra_throw}`.
-    let (n, _) = texture_and_mud()?;
+    let n = texture_and_mud()?;
     unsafe {
         // dword_623D80: each texture's count (the texture is 0 .. 3).
         let count_cell = &RACE_VARS.mud_thrown_counts[n as usize];

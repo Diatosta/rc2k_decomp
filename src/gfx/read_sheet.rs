@@ -16,6 +16,7 @@ use crate::gfx::decoder::DECODER;
 use crate::gfx::lay_out_pcx::lay_out_pcx;
 use crate::gfx::pcx::PCX;
 use crate::gfx::pcx::{FILE_PALETTE_LEN, HEADER_LEN, HEADER_PLANES, stream};
+use crate::gfx::picture::{put_or_end, with_buffer};
 use crate::gfx::picture_store::PICTURE;
 use crate::gfx::read_pcx_24bit::read_pcx_24bit;
 use crate::system::zero_memory::zero_memory;
@@ -61,33 +62,37 @@ unsafe fn read_rows() -> Result<bool, BadInput> {
             return Err(BadInput("a PCX picture without rows"));
         }
         let gap: u32 = DECODER.row_gap.get();
-        let mut to: u32 = DECODER.pixels.get();
+        // The byte offset in the decoded buffer.
+        let mut to = 0usize;
         // eax as the original keeps it (al is the byte a run repeats), and what is left of
         // the run.
         let (mut eax, mut run) = (0u32, 0u32);
-        for _ in 0..height {
-            let mut column = 0u32;
-            loop {
-                if run == 0 {
-                    eax = read_stream_byte(stream, eax)?.eax;
-                    run = 1;
-                    if eax as u8 >= 0xC0 {
-                        run = eax as u8 as u32 - 0xC0;
+        with_buffer(DECODER.pixels.get(), |pixels| -> Result<(), BadInput> {
+            for _ in 0..height {
+                let mut column = 0u32;
+                loop {
+                    if run == 0 {
                         eax = read_stream_byte(stream, eax)?.eax;
+                        run = 1;
+                        if eax as u8 >= 0xC0 {
+                            run = eax as u8 as u32 - 0xC0;
+                            eax = read_stream_byte(stream, eax)?.eax;
+                        }
+                    }
+                    if column < width {
+                        put_or_end(pixels, to, &[eax as u8]);
+                        to = to.wrapping_add(1);
+                    }
+                    run = run.wrapping_sub(1);
+                    column = column.wrapping_add(1);
+                    if column >= line_bytes {
+                        break;
                     }
                 }
-                if column < width {
-                    crate::pointers::host(to).write(eax as u8);
-                    to = to.wrapping_add(1);
-                }
-                run = run.wrapping_sub(1);
-                column = column.wrapping_add(1);
-                if column >= line_bytes {
-                    break;
-                }
+                to = to.wrapping_add(gap as usize);
             }
-            to = to.wrapping_add(gap);
-        }
+            Ok(())
+        })??;
         Ok(true)
     }
 }

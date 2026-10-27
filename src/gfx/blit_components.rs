@@ -41,8 +41,8 @@ pub fn game_target() -> Target {
 }
 
 /// What the original gets in its registers: ebx the piece's rectangle (x, y, width,
-/// height), ecx, edx where it goes on the surface, esi the picture's pixels, eax the
-/// picture's row bytes.
+/// height), ecx, edx where it goes on the surface, esi the picture's pixels (a picture
+/// buffer's number since phase 12, `gfx::picture`), eax the picture's row bytes.
 #[derive(Clone, Copy, Debug)]
 pub struct Piece {
     pub rectangle: u32,
@@ -91,29 +91,24 @@ pub unsafe fn blit_components(p: &Piece, to: &Target) -> Result<(), Refused> {
             p.y.wrapping_mul(to.pitch)
                 .wrapping_add(p.x.wrapping_mul(to.bytes_per_pixel))
                 .wrapping_add(to.pixels);
-        let mut source = p
-            .pixels
-            .wrapping_add(y.wrapping_mul(p.row_bytes))
-            .wrapping_add(x.wrapping_mul(4));
+        // The picture's bytes from its buffer (`gfx::picture`; `pixels` names it).
+        let mut source = (y.wrapping_mul(p.row_bytes) as usize).wrapping_add(x as usize * 4);
         // Converted: `rc2k_core::gfx::pixels::pack_row`, a row at a time.
         let words = to.bytes_per_pixel == 2;
         let size = if words { 2 } else { 4 };
         for _ in 0..height {
-            let row = std::slice::from_raw_parts(
-                crate::pointers::host(source) as *const u8,
-                width as usize * 4,
-            );
+            let row = crate::gfx::picture::read_bytes(p.pixels, source, width as usize * 4)?;
             let out = std::slice::from_raw_parts_mut(
                 crate::pointers::host(target),
                 width as usize * size,
             );
             let scratch =
-                rc2k_core::gfx::pixels::pack_row(row, out, width as usize, &format, words)?;
+                rc2k_core::gfx::pixels::pack_row(&row, out, width as usize, &format, words)?;
             if let Some(scratch) = scratch {
                 crate::gfx::formats::FORMATS.scratch.write(&scratch);
             }
             target = target.wrapping_add(to.pitch);
-            source = source.wrapping_add(p.row_bytes);
+            source = source.wrapping_add(p.row_bytes as usize);
         }
     }
     Ok(())

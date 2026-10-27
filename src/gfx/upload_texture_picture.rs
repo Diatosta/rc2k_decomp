@@ -33,7 +33,6 @@ use crate::gfx::reports::REPORTS;
 use crate::gfx::texture_pixels::{halvable, halve_texture};
 use crate::gfx::texture_upload::{Record, fatal, halvings_apart, ready_picture};
 use crate::gfx::upload::UPLOAD;
-use crate::pointers::GamePtr;
 use rc2k_core::gfx::uploads::{self};
 
 // ---- game data ----
@@ -121,8 +120,8 @@ pub unsafe fn upload_texture_picture(
                 .lock(surface)
                 .map_err(|_| direct_draw_failed(0x8021_8772))?;
             // The level's pixels read once; the surface is the platform's.
-            let picture = GamePtr::new(pixels)
-                .read_bytes(width as usize * height as usize * 4, "a texture's pixels")?;
+            let picture =
+                crate::gfx::picture::read_bytes(pixels, 0, width as usize * height as usize * 4)?;
             let mut source = picture
                 .as_chunks::<4>()
                 .0

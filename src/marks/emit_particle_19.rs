@@ -24,7 +24,6 @@ use crate::marks::setup::CLOCK;
 use crate::marks::surface_store::SURFACE;
 use crate::marks::tuning::MARKS_FLOATS;
 use crate::math::x87;
-use crate::pointers::GamePtr;
 use crate::scene::matrix3::{extended, rounded};
 use crate::session::{Bytes, Dword, Float};
 
@@ -105,7 +104,7 @@ pub fn emit_twin(set: &TwinSet, object: u32) -> Result<(), Refused> {
         return Ok(());
     }
     let e = take_entry(at(object + 0x1C)? & 0xFF_FFFF, set.kind)?;
-    let put = |o: u32, v: u32| GamePtr::new(e + o).write::<u32>(v, "a mark's field");
+    let put = |o: u32, v: u32| crate::marks::ring_entries::put(e, o, v);
     let car: u32 = EMITTER.car.get();
     let m = at(car + 0x24)?;
     let [x, y, y_less, z] = x87::turned_place(

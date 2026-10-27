@@ -30,6 +30,22 @@ pub fn count_on(list: *mut MemoryList, bytes: u32) -> Result<(), Refused> {
     Ok(())
 }
 
+/// `bytes` of Rust's memory, zeroed, counted on `list` as `memory::allocate` counts a
+/// block (the list's `free_list` counts it down): a block of the game's heap that lives
+/// only while one function runs. Sized as the game's block was (whole pages less its
+/// header), so a read just past `bytes` gives zeros as it did. Refuses what `count_on`
+/// refuses.
+pub fn counted(list: *mut MemoryList, bytes: u32) -> Result<Vec<u8>, Refused> {
+    count_on(list, bytes)?;
+    Ok(vec![0; block_len(bytes)])
+}
+
+/// The bytes a block of the game's heap asked for `bytes` held: whole pages less its header.
+pub fn block_len(bytes: u32) -> usize {
+    let header = crate::memory::HEADER_LEN as usize;
+    (bytes as usize + header).next_multiple_of(0x1000) - header
+}
+
 pub struct Owned<T> {
     value: Mutex<Option<Box<T>>>,
     /// What it is, for the refusals.
@@ -72,6 +88,12 @@ impl<T> Owned<T> {
     /// Given back (its list's total is counted down by `memory::free_list`).
     pub fn give_back(&self) {
         *self.lock() = None;
+    }
+
+    /// The value set without counting it (tests of code that reads it).
+    #[cfg(all(test, target_arch = "x86"))]
+    pub fn set(&self, value: T) {
+        *self.lock() = Some(Box::new(value));
     }
 
     pub fn is_taken(&self) -> bool {

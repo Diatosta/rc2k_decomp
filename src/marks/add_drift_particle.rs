@@ -12,10 +12,9 @@
 //! ring (an entry to take), before anything.
 
 use crate::errors::{BadInput, Refused};
-use crate::marks::blocks::RING_POOL;
+use crate::marks::blocks::{RING_POOL, particle, set_particle};
 use crate::marks::run_particles::PARTICLE_TUNING;
 use crate::math::x87;
-use crate::pointers::GamePtr;
 use crate::race::matrices_store::MATRICES;
 use crate::scene::matrix3::rounded;
 
@@ -30,13 +29,13 @@ pub fn add_drift_particle(kind: u32, v: [[u8; 10]; 6]) -> Result<(), Refused> {
             return Ok(());
         }
         let free: u32 = RING_POOL.free.get();
-        if free == 0 || GamePtr::new(free).read::<u32>("a mark's field")? == 0 {
+        if free == 0 || particle(free, 0)? == 0 {
             return Err(BadInput("a null particle ring entry").into());
         }
-        let e = GamePtr::new(free).read::<u32>("a mark's field")?;
+        let e = particle(free, 0)?;
         RING_POOL.free.set(e);
         RING_POOL.used.set(used.wrapping_add(1));
-        let put = |o: u32, x: u32| GamePtr::new(e + o).write::<u32>(x, "a mark's field");
+        let put = |o: u32, x: u32| set_particle(e, o, x);
         put(8, kind)?;
         put(0x34, rounded(v[0]))?;
         put(0x2C, rounded(v[1]))?;

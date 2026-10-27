@@ -20,5 +20,7 @@ pub fn close_installer() -> Result<(), Refused> {
     }?;
     INSTALLER_RUN.dirs.set(0);
     INSTALLER_RUN.files.set(0);
+    crate::install::name_tables::FOLDERS.give_back();
+    crate::install::name_tables::FILES.give_back();
     Ok(())
 }

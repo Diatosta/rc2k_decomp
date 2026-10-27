@@ -26,6 +26,7 @@ use crate::gfx::decoder::DECODER;
 use crate::gfx::lay_out_pcx::lay_out_pcx;
 use crate::gfx::pcx::PCX;
 use crate::gfx::pcx::{FILE_PALETTE_LEN, HEADER_LEN, stream};
+use crate::gfx::picture::{put_or_end, with_buffer};
 use crate::gfx::picture_store::PICTURE;
 
 // ---- Rust version ----
@@ -53,15 +54,14 @@ unsafe fn read_rows() -> Result<bool, BadInput> {
         let layout = lay_out_pcx()?;
         // Converted: `rc2k_core::gfx::pcx::decode_8bit`.
         let palette: [u32; 256] = DECODER.palette();
-        let pixels: u32 = DECODER.pixels.get();
-        rc2k_core::gfx::pcx::decode_8bit(
-            &layout,
-            &palette,
-            |eax| read_stream_byte(stream, eax).map(|r| r.eax),
-            |to, pixel| {
-                (crate::pointers::host(pixels.wrapping_add(to)) as *mut u32).write_unaligned(pixel)
-            },
-        )?
+        with_buffer(DECODER.pixels.get(), |pixels| {
+            rc2k_core::gfx::pcx::decode_8bit(
+                &layout,
+                &palette,
+                |eax| read_stream_byte(stream, eax).map(|r| r.eax),
+                |to, pixel| put_or_end(pixels, to as usize, &pixel.to_le_bytes()),
+            )
+        })??
         .ok_or(BadInput("a PCX picture without rows"))?;
         Ok(true)
     }

@@ -19,7 +19,7 @@
 use crate::errors::Refused;
 use crate::install::installer::{
     append_byte, copy_picture, delete_file, game_api, lock, normalise, remove_dir, run_frame,
-    set_cd, show, sleep, str_append, str_append_indexed, unlock, wb,
+    set_cd, show, sleep, str_append, unlock, wb,
 };
 use crate::install::vars::INSTALLER_NAMES;
 use crate::install::vars::INSTALLER_PAGES;
@@ -27,14 +27,17 @@ use crate::install::vars::INSTALLER_PATHS;
 use crate::install::vars::INSTALLER_RUN;
 
 /// byte_95E9F8 = byte_95E7F8 + name #index of `table`, NUL-ended.
-fn build_path(table: u32, index: u32) -> u32 {
+fn build_path(
+    table: &crate::memory::owned::Owned<crate::install::name_tables::NameTable>,
+    index: u32,
+) -> Result<u32, Refused> {
     let cursor = str_append(
         INSTALLER_PATHS.installed.addr(),
         INSTALLER_PATHS.path_b.addr(),
     );
-    let cursor = str_append_indexed(table, index, cursor);
+    let cursor = crate::install::name_tables::append_name(table, index, cursor)?;
     append_byte(cursor, 0);
-    INSTALLER_PATHS.path_b.addr()
+    Ok(INSTALLER_PATHS.path_b.addr())
 }
 
 pub fn uninstall() -> Result<(), Refused> {
@@ -61,7 +64,7 @@ pub fn uninstall() -> Result<(), Refused> {
     if INSTALLER_RUN.file_count.get() != 0 {
         let mut n = 0;
         loop {
-            delete_file(build_path(INSTALLER_RUN.files.get(), n));
+            delete_file(build_path(&crate::install::name_tables::FILES, n)?);
             n = n.wrapping_add(1);
             if n == INSTALLER_RUN.file_count.get() {
                 break;
@@ -71,7 +74,7 @@ pub fn uninstall() -> Result<(), Refused> {
     if INSTALLER_RUN.dir_count.get() != 0 {
         let mut n = INSTALLER_RUN.dir_count.get().wrapping_sub(1);
         loop {
-            remove_dir(build_path(INSTALLER_RUN.dirs.get(), n));
+            remove_dir(build_path(&crate::install::name_tables::FOLDERS, n)?);
             n = n.wrapping_sub(1);
             if (n as i32) < 0 {
                 break;

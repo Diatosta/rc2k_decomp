@@ -69,7 +69,7 @@ fn take_units(at: &Float, units: &Dword) {
 
 /// The Rust version (see the header).
 pub unsafe fn update_mud_texture() -> Result<(), Refused> {
-    let (n, _) = texture_and_mud()?;
+    let n = texture_and_mud()?;
     let k = n as usize;
     unsafe {
         crate::scene::forget_slot_texture::forget_slot_texture(

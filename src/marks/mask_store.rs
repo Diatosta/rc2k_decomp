@@ -52,19 +52,22 @@ impl GroundNames {
 pub struct MaskBlocks {
     /// +0x0: `dword_934D6E`: the last mask switch seen by `swap_mask` (-1 once the masks are loaded)
     pub seen: Dword,
-    /// +0x4: `dword_934D72`: the block `swap_mask` last drew from
+    /// +0x4: `dword_934D72`: the block `swap_mask` last drew from (the game's address;
+    /// since phase 12 `Mask::Plain` 1 or `Mask::Bordered` 2, 0 none yet)
     pub chosen: Dword,
     /// +0x8: `stru_934D76`: the list the first mask block is taken on
     pub list_a: Shared<MemoryList>,
     /// +0x18: Not named: 48 bytes (a gap, or unreferenced data).
     pub _gap_18: Bytes<48>,
-    /// +0x48: `g_marksMaskBlock`: the first mask block (0x20000 bytes)
+    /// +0x48: `g_marksMaskBlock`: the first mask block (0x20000 bytes; the game's
+    /// address, unused since the masks are Rust's, `MASK`)
     pub mask: Dword,
     /// +0x4C: `g_marksBMaskList`: the list the second mask block is taken on
     pub list_b: Shared<MemoryList>,
     /// +0x5C: Not named: 48 bytes (a gap, or unreferenced data).
     pub _gap_5c: Bytes<48>,
-    /// +0x8C: `g_marksBMaskBlock`: the second mask block (0x20000 bytes)
+    /// +0x8C: `g_marksBMaskBlock`: the second mask block (0x20000 bytes; the game's
+    /// address, unused since the masks are Rust's, `BMASK`)
     pub bmask: Dword,
     /// +0x90: `aRseRseRseRseRs`: "rse " repeated, then a NUL (unreferenced; the next list's head starts inside it)
     pub junk: Bytes<43>,
@@ -97,6 +100,34 @@ pub static MASK_BLOCKS: MaskBlocks = MaskBlocks {
     ]),
 };
 
+/// A mask's pixels (the game's 0x20000-byte block: 256 x 128 dwords), Rust's since phase
+/// 12; taken counted on its list (`load_mask_pictures`), given back by `tidy_marks`.
+pub type MaskPixels = Vec<u32>;
+/// The dwords of a mask block.
+pub const MASK_PIXELS: usize = 0x8000;
+/// `g_marksMaskBlock`'s pixels, on `MASK_BLOCKS.list_a`.
+pub static MASK: crate::memory::owned::Owned<MaskPixels> =
+    crate::memory::owned::Owned::new("no marks mask");
+/// `g_marksBMaskBlock`'s pixels, on `MASK_BLOCKS.list_b`.
+pub static BMASK: crate::memory::owned::Owned<MaskPixels> =
+    crate::memory::owned::Owned::new("no marks bordered mask");
+
+/// Which mask `swap_mask` draws from (`MASK_BLOCKS.chosen`).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Mask {
+    Plain = 1,
+    Bordered = 2,
+}
+
+impl Mask {
+    pub fn pixels(self) -> &'static crate::memory::owned::Owned<MaskPixels> {
+        match self {
+            Mask::Plain => &MASK,
+            Mask::Bordered => &BMASK,
+        }
+    }
+}
+
 impl MaskBlocks {
     pub const START: usize = 0x934D6E;
     pub const LEN: usize = 0xBB;
@@ -113,7 +144,8 @@ pub struct PictureCopy {
     pub list: Shared<MemoryList>,
     /// +0x10: Not named: 48 bytes (a gap, or unreferenced data).
     pub _gap_10: Bytes<48>,
-    /// +0x40: `g_marksPictureCopy`: the picture copy block (0x80000 bytes)
+    /// +0x40: `g_marksPictureCopy`: the picture copy block (0x80000 bytes; the game's
+    /// address, unused since the copy is Rust's, phase 12)
     pub copy: Dword,
     /// +0x44: `files\m\mask00.pcx` at +0, `files\m\bmask00.pcx` at +0x13, `files\m\bdata00.pcx` at +0x25 (`byte_934E79` .. the digits: +0xC, +0x20, +0x34)
     pub paths: Bytes<59>,

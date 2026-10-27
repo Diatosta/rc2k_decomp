@@ -10,7 +10,8 @@
 //! Out: nothing (no caller reads a register it leaves)
 //!
 //! Caller: `sub_4D14B4`. Refuses (before anything) null settings, more than 8 cars, and for
-//! a car whose factors changed: an object past 0xFF, a null base list, points past the
+//! a car whose factors changed: an object past 0xFF, a null base list or one (`lines::
+//! BLOCK_POINTS`, Rust's since phase 12) shorter than the points, points past the
 //! object points' room, a point count below 0 (the loop runs on); and `measure_lines`'
 //! refusals (all it may write is put back first).
 
@@ -97,6 +98,9 @@ fn refusal(settings: u32) -> Result<Option<&'static str>, Refused> {
             if n < 0 {
                 return Ok(Some("a negative point count: the loop runs on"));
             }
+            if n > 0 && crate::marks::lines::block_point(get(b + 0x8C)?, n as u32 - 1).is_err() {
+                return Ok(Some("a base point list shorter than the object's points"));
+            }
             let end = base.wrapping_add(room);
             for p in [a, c] {
                 if p < base || p.wrapping_add(12 * n as u32) > end {
@@ -129,10 +133,11 @@ pub fn morph_object_points() -> Result<(), Refused> {
                 MORPH_WORK.kept[k as usize].set(v);
             }
             let (a, c, n) = points(b)?;
-            let base = get(b + 0x8C)?;
+            let points = get(b + 0x8C)?;
             for k in 0..n.max(0) as u32 {
-                let (to, from, base) = (a + 12 * k, c + 12 * k, base + 12 * k);
-                if crate::marks::try_any(0..3, |i| Ok(get(base + 4 * i)? != get(from + 4 * i)?))? {
+                let (to, from) = (a + 12 * k, c + 12 * k);
+                let base = crate::marks::lines::block_point(points, k)?;
+                if crate::marks::try_any(0..3, |i| Ok(base[i as usize] != get(from + 4 * i)?))? {
                     blend_corner(b, to, from, base)?;
                 }
             }

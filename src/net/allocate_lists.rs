@@ -8,20 +8,13 @@
 //! for the second. Caller: `net::find_connections`.
 
 use crate::errors::Refused;
-use crate::net::lobby::net_allocate;
 use crate::net::store::NET;
-use rc2k_core::net::lists;
 
 /// The Rust version (`memory::allocate` refuses rather than come back with the carry, so
 /// the fatal errors 0x80E68021 / 0x80E68022 are not reached).
 pub fn allocate_lists() -> Result<(), Refused> {
-    // Converted: `rc2k_core::net::lists::TABLES`.
-    for ((bytes, _code), table) in lists::TABLES
-        .into_iter()
-        .zip([&NET.connection_table, &NET.session_table])
-    {
-        table.set(net_allocate(bytes)?);
-    }
+    // Converted: `rc2k_core::net::lists::TABLES` (the tables Rust's, `net::tables`).
+    crate::net::tables::take()?;
     NET.connections.set(0);
     NET.sessions.set(0);
     Ok(())

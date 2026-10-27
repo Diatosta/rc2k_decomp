@@ -1,10 +1,9 @@
 //! More of `marks::init_marks`' steps (IDA, 2026-10-16): the three blocks it takes
-//! (`memory::allocate`), the corner table
+//! (Rust's since phase 12, counted on their lists), the corner table
 //! scaled, and the eight settings blocks reset.
 
-use crate::errors::Refused;
+use crate::errors::{BadInput, Refused};
 use crate::marks::frame_state::DRAW_WORK;
-use crate::marks::store::game_addr;
 use crate::math::x87;
 use crate::memory::MemoryList;
 use crate::pointers::GamePtr;
@@ -20,80 +19,90 @@ pub const CORNERS: u32 = 0x100;
 pub const SETTINGS_BLOCKS: u32 = 8;
 pub const SETTINGS_BLOCK: u32 = 0x4C8;
 
-/// A memory list at a plain address (one of a typed variable block).
-#[derive(Clone, Copy)]
-pub struct Address(pub usize);
-
-impl crate::marks::store::Where for Address {
-    fn address(self) -> usize {
-        self.0
-    }
-}
-
-/// `bytes` bytes on the list at `list` (`memory::allocate`).
-pub fn take(list: impl crate::marks::store::Where, bytes: u32) -> Result<u32, Refused> {
-    take_from(
-        crate::pointers::host(game_addr(list)) as *mut MemoryList,
-        bytes,
-    )
-}
-
-/// `bytes` bytes on `list` (`memory::allocate`).
-pub fn take_from(list: *mut MemoryList, bytes: u32) -> Result<u32, Refused> {
-    Ok(crate::pointers::game_address({
-        crate::memory::allocate::allocate(list, bytes)
-    }?))
-}
-
 /// `marks::allocate_places` (0x4C38B1), step 6: 0x7024 bytes on `stru_8DB570` into
-/// `g_marksPlaces`, its first three floats `flt_8DB5B4` ...
+/// `g_marksPlaces`, its first three floats `flt_8DB5B4` ... Only code no reference
+/// reaches reads the block (0x4C3908, 0x4C396A, `sub_4C39D5`: `notes/reference.md`), so
+/// since phase 12 it is only counted on its list (the memory figures) and not kept.
 pub fn allocate_places() -> Result<(), Refused> {
-    {
-        let block = take_from(PLACES_BLOCK.list.as_ptr(), PLACES_LEN)?;
-        PLACES_BLOCK.places.set(block);
-        for n in 0..3 {
-            let v = x87::loaded(PLACES_BLOCK.start[n].bits());
-            GamePtr::new(block + 4 * n as u32).write(v, "the places block")?;
-        }
-    }
-    Ok(())
+    crate::memory::owned::count_on(PLACES_BLOCK.list.as_ptr(), PLACES_LEN)
+}
+
+/// A particle of the ring (`g_marksRing`'s 0x4C-byte entries), its dwords by their
+/// offsets: +0 the one before, +4 the one after (each a particle's number + 1, since phase
+/// 12; the original's addresses), +8 the kind, +0xC .. +0x14 the place, +0x18 .. +0x20 the
+/// last place, +0x24 the ground, +0x28 .. +0x34 the motion (+0x30 the lift), +0x38 the
+/// size, +0x3C the colour, +0x40 the colour's step, +0x44 the life, +0x48 the colours'
+/// place.
+pub type Particle = [u32; (RING_ENTRY / 4) as usize];
+
+/// The particles (`g_marksRing`, the game's 0x4C000-byte block on `stru_93A580`), Rust's
+/// since phase 12: taken by `allocate_ring`, given back by `marks::tidy_marks`. A
+/// particle is named by its number + 1 (0 none), in the links and in `RING_POOL.ring` /
+/// `free`.
+pub static PARTICLES: crate::memory::owned::Owned<Vec<Particle>> =
+    crate::memory::owned::Owned::new("no particle ring");
+
+/// The dword at `offset` of particle `p` (its number + 1); refused for none, a number past
+/// the ring or an offset past the entry.
+pub fn particle(p: u32, offset: u32) -> Result<u32, BadInput> {
+    PARTICLES
+        .with(|r| {
+            let e = r.get((p as usize).checked_sub(1)?)?;
+            offset
+                .is_multiple_of(4)
+                .then(|| e.get(offset as usize / 4).copied())?
+        })?
+        .ok_or(BadInput("a particle past the ring"))
+}
+
+/// The dword at `offset` of particle `p` set to `v`; refused as `particle`.
+pub fn set_particle(p: u32, offset: u32, v: u32) -> Result<(), BadInput> {
+    PARTICLES
+        .with(|r| {
+            let e = r.get_mut((p as usize).checked_sub(1)?)?;
+            let d = offset
+                .is_multiple_of(4)
+                .then(|| e.get_mut(offset as usize / 4))??;
+            *d = v;
+            Some(())
+        })?
+        .ok_or(BadInput("a particle past the ring"))
 }
 
 /// `marks::allocate_ring` (0x4CFAC5), step 13: 0x4C000 bytes on `stru_93A580` into
 /// `g_marksRing` and `g_marksRingFree`, `g_marksRingUsed` 0, and the 0x1000 entries of
-/// 0x4C made a ring (+0 the one before, +4 the one after).
+/// 0x4C made a ring (+0 the one before, +4 the one after). The particles are Rust's
+/// (`PARTICLES`), counted on the list as the game's block was.
 pub fn allocate_ring() -> Result<(), Refused> {
-    {
-        let block = take(
-            Address((crate::pointers::game_address(RING_POOL.list[0].as_ptr())) as usize),
-            RING_LEN,
-        )?;
-        RING_POOL.ring.set(block);
-        RING_POOL.free.set(block);
-        RING_POOL.used.set(0u32);
-        // Converted: `rc2k_core::marks::rings::ring_links`.
-        for (n, links) in rc2k_core::marks::rings::ring_links(block).enumerate() {
-            GamePtr::new(block.wrapping_add(n as u32 * RING_ENTRY))
-                .write(links, "the ring block")?;
-        }
-    }
+    // Converted: `rc2k_core::marks::rings::neighbours`.
+    let ring: Vec<Particle> = (0..rc2k_core::marks::rings::ENTRIES)
+        .map(|n| {
+            let mut p = [0; (RING_ENTRY / 4) as usize];
+            let [before, after] = rc2k_core::marks::rings::neighbours(n);
+            p[0] = before + 1;
+            p[1] = after + 1;
+            p
+        })
+        .collect();
+    PARTICLES.take(
+        RING_POOL.list[0].as_ptr() as *mut MemoryList,
+        RING_LEN,
+        ring,
+    )?;
+    RING_POOL.ring.set(1);
+    RING_POOL.free.set(1);
+    RING_POOL.used.set(0u32);
     Ok(())
 }
 
 /// `marks::allocate_links` (0x4C5398), in step 3: 0x71020 bytes on `stru_9206F0` into
 /// `g_marksLinks`, its +0x7100C 0, at +8 and +0x4008 the 0x1000 entries' before and after
-/// (round), then `marks::scale_corners`.
+/// (round), then `marks::scale_corners`. Only code no reference reaches reads the block
+/// (0x4C5446 .. 0x4C5DEA, `sub_4C6242`: `notes/reference.md`), so since phase 12 it is
+/// only counted on its list (the memory figures) and not kept.
 pub fn allocate_links() -> Result<(), Refused> {
-    {
-        let block = take_from(MARK_LINKS.list.as_ptr(), LINKS_LEN)?;
-        MARK_LINKS.links.set(block);
-        GamePtr::new(block + 0x7100C).write(0u32, "the links block")?;
-        // Converted: `rc2k_core::marks::rings::link_tables`.
-        let (before, after) = rc2k_core::marks::rings::link_tables();
-        GamePtr::new(block + 8).write(before, "the links block")?;
-        GamePtr::new(block + 0x4008).write(after, "the links block")?;
-        scale_corners();
-    }
+    crate::memory::owned::count_on(MARK_LINKS.list.as_ptr(), LINKS_LEN)?;
+    scale_corners();
     Ok(())
 }
 
@@ -174,7 +183,8 @@ pub struct PlacesBlock {
     pub list: Shared<MemoryList>,
     /// 0x8DB580: Not named: 48 bytes (a gap, or unreferenced data).
     pub _gap_8db580: Bytes<48>,
-    /// 0x8DB5B0: `g_marksPlaces`: the places' block (0x7024 bytes), once taken.
+    /// 0x8DB5B0: `g_marksPlaces`: the places' block (0x7024 bytes; 0 since phase 12: only
+    /// counted, `allocate_places`).
     pub places: Dword,
     /// 0x8DB5B4: `flt_8DB5B4` .. `flt_8DB5BC`: the places' block's first three floats (`marks::allocate_places`).
     pub start: [Float; 3],
@@ -212,7 +222,8 @@ pub struct MarkLinks {
     pub list: Shared<MemoryList>,
     /// 0x920700: Not named: 48 bytes (a gap, or unreferenced data).
     pub _gap_920700: Bytes<48>,
-    /// 0x920730: `g_marksLinks`: the links' block (0x71020 bytes), once taken.
+    /// 0x920730: `g_marksLinks`: the links' block (0x71020 bytes; 0 since phase 12: only
+    /// counted, `allocate_links`).
     pub links: Dword,
 }
 

@@ -65,7 +65,8 @@ pub fn collect_points(list: &PointList, face: u32) -> Result<(), Refused> {
 /// from 0x831D2E, `g_marksMaskRunCount` 0. Every register kept. Converted:
 /// `rc2k_core::marks::masks::MaskCursor::reset`.
 pub fn reset_mask_cursor() {
-    let c = rc2k_core::marks::masks::MaskCursor::reset(MASKS.work.get(), MASKS.run_table.addr());
+    // The work's first byte: offset 0 (phase 12).
+    let c = rc2k_core::marks::masks::MaskCursor::reset(0, MASKS.run_table.addr());
     MASKS.cursor.set(c.cursor);
     MASKS.runs.set(c.runs);
     MASKS.run_count.set(c.run_count);
@@ -82,8 +83,8 @@ fn shape_rows(entries: u32, index: u32) -> Result<ShapeRows, Refused> {
             spans: (0..(count as i32).max(0) as u32)
                 .map(|i| {
                     Ok(Span {
-                        x: get(spans.wrapping_add(8 * i))?,
-                        len: get(spans.wrapping_add(8 * i + 4))?,
+                        x: work_get(spans.wrapping_add(8 * i))?,
+                        len: work_get(spans.wrapping_add(8 * i + 4))?,
                     })
                 })
                 .collect::<Result<_, BadInput>>()?,
@@ -125,7 +126,34 @@ pub fn draw_mask(at: u32, shapes: u32) -> Result<(), Refused> {
     Ok(())
 }
 
-const WORK_LEN: u32 = 0x8_0000;
+pub const WORK_LEN: u32 = 0x8_0000;
+
+/// The masks' work (`g_marksMaskWork`, the game's 0x80000-byte block), Rust's since phase
+/// 12: the rows of spans `span_triangle` makes, reached by byte offsets (the cursor, the
+/// runs' +0). Taken by `make_masks` counted on its list, given back with it.
+pub static MASK_WORK: crate::memory::owned::Owned<Vec<u32>> =
+    crate::memory::owned::Owned::new("no mask work");
+
+/// The work's dword at byte offset `at`.
+pub fn work_get(at: u32) -> Result<u32, BadInput> {
+    MASK_WORK
+        .with(|w| w.get(at as usize / 4).copied())?
+        .filter(|_| at.is_multiple_of(4))
+        .ok_or(BadInput("a mask span past the work block"))
+}
+
+/// The work's dword at byte offset `at` set to `v`.
+pub fn work_put(at: u32, v: u32) -> Result<(), BadInput> {
+    MASK_WORK
+        .with(|w| match w.get_mut(at as usize / 4) {
+            Some(d) if at.is_multiple_of(4) => {
+                *d = v;
+                Some(())
+            }
+            _ => None,
+        })?
+        .ok_or(BadInput("a mask span past the work block"))
+}
 
 /// `marks::make_masks` (0x4BDE9A), in `sub_4C0F2E`: the 0x80000-byte work block taken on
 /// its list (`memory::allocate`); `make_shape_sets`, `make_corners`, `reset_mask_cursor`;
@@ -144,8 +172,7 @@ pub fn make_masks() -> Result<(), Refused> {
     let masks = [MASKS.mask_a.addr(), MASKS.mask_b.addr()];
     let pixel_tables = [PICKS.pixel_table_a.addr(), PICKS.pixel_table_b.addr()];
     let list = crate::pointers::host(MASKS.list.addr()) as *mut crate::memory::MemoryList;
-    let work = crate::pointers::game_address(crate::memory::allocate::allocate(list, WORK_LEN)?);
-    MASKS.work.set(work);
+    MASK_WORK.take(list, WORK_LEN, vec![0; WORK_LEN as usize / 4])?;
     crate::marks::shape_points::make_shape_sets()?;
     crate::marks::corners::make_corners()?;
     reset_mask_cursor();
@@ -160,5 +187,6 @@ pub fn make_masks() -> Result<(), Refused> {
         crate::marks::pixels::map_shapes(shapes[n], pixel_tables[n], corners[n])?;
     }
     crate::memory::free_list::free_list(list)?;
+    MASK_WORK.give_back();
     Ok(())
 }

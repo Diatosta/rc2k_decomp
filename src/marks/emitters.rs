@@ -43,17 +43,17 @@ pub fn next_entry() -> Result<Option<u32>, Refused> {
         if RING_WORK.count.get() == MOST_TAKEN {
             return Ok(None);
         }
-        Some(GamePtr::new(RING_WORK.cursor.get()).read::<u32>("a mark's field")?)
+        Some(crate::marks::ring_entries::get(RING_WORK.cursor.get(), 0)?)
     })
 }
 
-/// The next entry taken (its +8 `dword_93547E`, +0x90 `tag`, +0xC `kind`).
+/// The next entry taken (its number + 1; its +8 `dword_93547E`, +0x90 `tag`, +0xC `kind`).
 pub fn take_entry(tag: u32, kind: u32) -> Result<u32, Refused> {
     Ok({
-        let e = GamePtr::new(RING_WORK.cursor.get()).read::<u32>("a mark's field")?;
+        let e = crate::marks::ring_entries::get(RING_WORK.cursor.get(), 0)?;
         RING_WORK.cursor.set(e);
         RING_WORK.count.set(RING_WORK.count.get().wrapping_add(1));
-        let put = |o: u32, v: u32| GamePtr::new(e + o).write::<u32>(v, "a mark's field");
+        let put = |o: u32, v: u32| crate::marks::ring_entries::put(e, o, v);
         put(8, EMITTER.tag.get())?;
         put(0x90, tag)?;
         put(0xC, kind)?;

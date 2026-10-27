@@ -8,19 +8,14 @@
 //! `net::lobby::connection` refuses (its fatal errors).
 
 use crate::errors::Refused;
-use crate::field;
-use crate::net::lobby::{connection, movsb};
 use crate::net::store::NET;
-use crate::net::types::NetConnection;
+use crate::net::tables::with_connection;
+use crate::pointers::GamePtr;
 
 /// The Rust version.
 pub fn keep_connection(number: u32) -> Result<(), Refused> {
-    let record = connection(number)?;
-    movsb(
-        NET.saved_connection.addr(),
-        record + field!(NetConnection, service_provider),
-        0x10,
-    )?;
-    movsb(NET.saved_name.addr(), record, 0x40)?;
+    let (provider, name) = with_connection(number, |c| (c.provider, c.name))?;
+    GamePtr::new(NET.saved_connection.addr()).write_bytes(&provider, "the saved connection")?;
+    GamePtr::new(NET.saved_name.addr()).write_bytes(&name, "the saved connection")?;
     Ok(())
 }

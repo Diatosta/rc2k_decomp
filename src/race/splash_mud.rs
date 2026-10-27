@@ -31,14 +31,13 @@ pub unsafe fn splash_mud() -> Result<(), Refused> {
     use rc2k_core::race::mud::{
         MUD_TOP, SPLASH_SIDE, muddy, splash_lands, splash_pattern, splash_place,
     };
-    let (n, mud) = texture_and_mud()?;
+    let n = texture_and_mud()?;
     unsafe {
         // dword_623D90: each texture's count (the texture is 0 .. 3).
         let count_cell = &RACE_VARS.mud_splash_counts[n as usize];
         count_cell.set(count_cell.get().wrapping_add(1));
         let (mut x, mut y) = splash_place(next_random());
-        let strength =
-            u32::from(GamePtr::new(strength_at(mud, n, x, y)).read::<u8>("the mud strengths")?);
+        let strength = strength_at(n, x, y)?;
         if !splash_lands(strength, || next_random() & 0xFF) {
             return Ok(());
         }

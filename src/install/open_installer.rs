@@ -53,13 +53,15 @@ fn read(path: usize, buffer: u32, count: u32, code: u32) -> Result<(), Refused> 
 }
 
 pub fn open_installer() -> Result<(), Refused> {
-    let dirs = alloc(0x10100, 0x80AF_7121)?;
-    INSTALLER_RUN.dirs.set(dirs);
-    INSTALLER_RUN.dir_scan.set(dirs);
-    INSTALLER_RUN.dir_cursor.set(dirs);
-    let files = alloc(0x40100, 0x80AF_7122)?;
-    INSTALLER_RUN.files.set(files);
-    INSTALLER_RUN.file_cursor.set(files);
+    // The names' tables are Rust's (phase 12), counted on the list as the game's blocks
+    // were; the scan and cursors count names and bytes from 0.
+    use crate::install::name_tables::{FILES, FOLDERS, NameTable};
+    let list = crate::pointers::host(INSTALLER_RUN.buffers.addr()) as *mut _;
+    FOLDERS.take(list, 0x10100, NameTable::default())?;
+    INSTALLER_RUN.dir_scan.set(0);
+    INSTALLER_RUN.dir_cursor.set(0);
+    FILES.take(list, 0x40100, NameTable::default())?;
+    INSTALLER_RUN.file_cursor.set(0);
     INSTALLER_RUN.dir_count.set(0);
     INSTALLER_RUN.file_count.set(0);
     let glyphs = alloc(0x3000, 0x80AF_7022)?;

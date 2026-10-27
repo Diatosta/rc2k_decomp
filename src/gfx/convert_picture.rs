@@ -22,11 +22,11 @@
 //! `routes.rs`.
 
 use crate::errors::BadInput;
-use crate::gfx::components_to_4444_rows::{COMPONENTS_TO_4444_ROWS, components_to_4444_rows};
+use crate::gfx::components_to_4444_rows::{COMPONENTS_TO_4444_ROWS, components_to_4444_in_place};
 use crate::gfx::converters::CONVERTERS;
-use crate::gfx::copy_pixel_rows::{COPY_PIXEL_ROWS, copy_pixel_rows};
+use crate::gfx::copy_pixel_rows::COPY_PIXEL_ROWS;
 use crate::gfx::formats::FORMATS;
-use crate::gfx::picture::picture;
+use crate::gfx::picture::{has_picture, with_picture};
 use crate::gfx::picture_store::PICTURE;
 use crate::gfx::pixel_format::{PixelFormat, surface_format_addr};
 use crate::session::SCREEN;
@@ -52,77 +52,53 @@ fn converter() -> u32 {
 pub type CarryLeft = bool;
 
 /// `screen_bits` is `dword_4F4954`; `converter` the table's entry for the surface's format.
-pub unsafe fn convert_picture(screen_bits: u32, converter: u32) -> Result<CarryLeft, BadInput> {
-    unsafe {
-        let buffer = picture();
-        let (width, height): (u32, u32) = (PICTURE.width.get(), PICTURE.height.get());
-        if buffer.is_null() {
-            return Err(BadInput("no picture buffer"));
+pub fn convert_picture(screen_bits: u32, converter: u32) -> Result<CarryLeft, BadInput> {
+    let (width, height): (u32, u32) = (PICTURE.width.get(), PICTURE.height.get());
+    if !has_picture() {
+        return Err(BadInput("no picture buffer"));
+    }
+    if converter == 0 && (width == 0 || height == 0) {
+        return Err(BadInput("a picture without a width or a height"));
+    }
+    let pixels = width.wrapping_mul(height);
+    if converter as usize == game_addr(COPY_PIXEL_ROWS) as usize {
+        // The picture is already what the surface wants: from and to the same place,
+        // `copy_pixel_rows` does nothing.
+        if screen_bits != 16 {
+            return Ok(screen_bits < 16);
         }
-        if converter == 0 && (width == 0 || height == 0) {
+    } else if converter as usize == game_addr(COMPONENTS_TO_4444_ROWS) as usize {
+        if pixels == 0 {
             return Err(BadInput("a picture without a width or a height"));
         }
-        if converter as usize == game_addr(COPY_PIXEL_ROWS) as usize {
-            // The picture is already what the surface wants: from and to the same place,
-            // `copy_pixel_rows` does nothing.
-            copy_pixel_rows(
-                crate::pointers::game_address(buffer),
-                crate::pointers::game_address(buffer),
-                width.wrapping_mul(height),
-                1,
-                0,
-            )?;
-            if screen_bits != 16 {
-                return Ok(screen_bits < 16);
-            }
-        } else if converter as usize == game_addr(COMPONENTS_TO_4444_ROWS) as usize {
-            if width.wrapping_mul(height) == 0 {
-                return Err(BadInput("a picture without a width or a height"));
-            }
-            components_to_4444_rows(
-                crate::pointers::game_address(buffer),
-                crate::pointers::game_address(buffer),
-                width.wrapping_mul(height),
-                1,
-                0,
-            )?;
-            if screen_bits != 16 {
-                return Ok(screen_bits < 16);
-            }
-        } else if converter != 0 {
-            // The table's converter: an MMX / 3DNow one by its Rust version (the table
-            // holds no other: `gfx::install_converters`).
-            let at = (converter as usize)
-                .wrapping_sub(game_addr(0) as usize)
-                .wrapping_add(crate::framework::IMAGE_BASE) as u32;
-            let Some(c) = crate::gfx::mmx_converters::converter_at(at) else {
-                return Err(BadInput("a converter with no Rust version in the table"));
-            };
-            let buffer = crate::pointers::game_address(buffer);
-            match crate::gfx::mmx_converters::convert_rows(
-                buffer,
-                buffer,
-                width.wrapping_mul(height),
-                1,
-                0,
-                c,
-            ) {
-                Ok(()) => {}
-                Err(crate::errors::Refused::BadInput(why)) => return Err(why),
-                Err(crate::errors::Refused::Fatal(_)) => {
-                    return Err(BadInput("a converter's fatal error"));
-                }
-            }
-            if screen_bits != 16 {
-                return Ok(screen_bits < 16);
-            }
-        } else {
-            // Converted: `rc2k_core::gfx::pixels::convert_in_place`.
-            let format: PixelFormat = (crate::pointers::host(surface_format_addr())
-                as *const PixelFormat)
-                .read_unaligned();
-            let pixels = width as usize * height as usize;
-            let bytes = std::slice::from_raw_parts_mut(buffer, pixels * 4);
+        with_picture(|b| components_to_4444_in_place(b, pixels as usize))??;
+        if screen_bits != 16 {
+            return Ok(screen_bits < 16);
+        }
+    } else if converter != 0 {
+        // The table's converter: an MMX / 3DNow one by its Rust version (the table
+        // holds no other: `gfx::install_converters`).
+        let at = (converter as usize)
+            .wrapping_sub(game_addr(0) as usize)
+            .wrapping_add(crate::framework::IMAGE_BASE) as u32;
+        let Some(c) = crate::gfx::mmx_converters::converter_at(at) else {
+            return Err(BadInput("a converter with no Rust version in the table"));
+        };
+        with_picture(|b| crate::gfx::mmx_converters::convert_in_place(b, pixels, c))??;
+        if screen_bits != 16 {
+            return Ok(screen_bits < 16);
+        }
+    } else {
+        // Converted: `rc2k_core::gfx::pixels::convert_in_place`.
+        // SAFETY: the surface's format record is the game's own variable.
+        let format: PixelFormat = unsafe {
+            (crate::pointers::host(surface_format_addr()) as *const PixelFormat).read_unaligned()
+        };
+        let pixels = width as usize * height as usize;
+        let converted = with_picture(|buffer| -> Result<_, BadInput> {
+            let bytes = buffer
+                .get_mut(..pixels * 4)
+                .ok_or(BadInput("a picture shorter than its pixels"))?;
             // `components_to_pixel`'s carry for the last pixel: clear for 0 and for a format
             // of rotations (+0 negative), set after its loop over the masks (`shr ecx, 1`
             // shifting out the last bit).
@@ -134,25 +110,27 @@ pub unsafe fn convert_picture(screen_bits: u32, converter: u32) -> Result<CarryL
                 &format,
                 screen_bits == 16,
             )?;
-            if let Some(scratch) = scratch {
-                FORMATS.scratch.write(&scratch);
-            }
-            if screen_bits != 16 {
-                return Ok(carry);
-            }
+            Ok((carry, scratch))
+        })??;
+        let (carry, scratch) = converted;
+        if let Some(scratch) = scratch {
+            FORMATS.scratch.write(&scratch);
         }
-        PICTURE.flags.set(PICTURE.flags.get() & 0xFFFF_F0FF | 0x200);
-        let row_bytes = PICTURE.row_bytes.get();
-        PICTURE.row_bytes.set(row_bytes >> 1);
-        // `shr`: the bit shifted out.
-        Ok(row_bytes & 1 != 0)
+        if screen_bits != 16 {
+            return Ok(carry);
+        }
     }
+    PICTURE.flags.set(PICTURE.flags.get() & 0xFFFF_F0FF | 0x200);
+    let row_bytes = PICTURE.row_bytes.get();
+    PICTURE.row_bytes.set(row_bytes >> 1);
+    // `shr`: the bit shifted out.
+    Ok(row_bytes & 1 != 0)
 }
 
 /// With the screen's bits and the surface format's converter as they are now.
-pub unsafe fn convert_picture_now() -> Result<CarryLeft, BadInput> {
-    if picture().is_null() {
+pub fn convert_picture_now() -> Result<CarryLeft, BadInput> {
+    if !has_picture() {
         return Err(BadInput("no picture buffer"));
     }
-    unsafe { convert_picture(SCREEN.bits.get(), converter()) }
+    convert_picture(SCREEN.bits.get(), converter())
 }

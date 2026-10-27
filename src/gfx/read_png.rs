@@ -24,11 +24,9 @@ use crate::gfx::decode_png::decode_png;
 use crate::gfx::decoder::DECODER;
 use crate::gfx::lay_out_png::lay_out_png;
 use crate::gfx::palette_pixels_to_dwords::palette_pixels_to_dwords;
-use crate::gfx::picture::picture;
 use crate::gfx::picture_store::PICTURE;
 use crate::gfx::png_file::PNG_FILE;
 use crate::gfx::rgb_pixels_to_dwords::rgb_pixels_to_dwords;
-use crate::memory::allocate::allocate;
 use crate::memory::free_list::free_list;
 use crate::pointers::GamePtr;
 
@@ -56,16 +54,20 @@ fn head_is_taken(path: *const u8) -> Result<bool, Refused> {
 /// The part with the file's memory held: whether it worked.
 unsafe fn read_held(path: *const u8, size: u32) -> Result<bool, Refused> {
     unsafe {
-        let file = allocate(PNG_FILE.memory.as_ptr(), size)?;
-        PNG_FILE.file.set(crate::pointers::game_address(file));
-        let read = read_file(path, file, size, 0)?;
+        // The file's memory Rust's (phase 12), counted on the list as the game's block was.
+        let mut file = crate::memory::owned::counted(PNG_FILE.memory.as_ptr(), size)?;
+        let file = &mut file[..size as usize];
+        let read = crate::files::read_file::read_file_into(
+            GamePtr::new(crate::pointers::game_address(path)),
+            file,
+            0,
+        )?;
         if !read.ok || read.bytes_read != Some(size) {
             return Ok(false);
         }
         decode_png(
-            &GamePtr::new(crate::pointers::game_address(file))
-                .read_bytes(size as usize, "a PNG file")?,
-            crate::pointers::game_address(picture()),
+            file,
+            PICTURE.buffer.get(),
             crate::pointers::game_address(crate::gfx::png::info()),
         )?;
         PICTURE.flags.set(0x802u32);

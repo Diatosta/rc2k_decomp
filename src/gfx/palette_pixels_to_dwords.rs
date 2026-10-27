@@ -10,7 +10,8 @@
 
 use crate::errors::BadInput;
 use crate::gfx::decoder::DECODER;
-use crate::gfx::picture::picture_ptr;
+use crate::gfx::picture::{read_bytes, write_bytes};
+use crate::gfx::picture_store::PICTURE;
 use crate::gfx::pixels_to_dwords::pixel_count;
 
 // ---- Rust version ----
@@ -18,9 +19,9 @@ use crate::gfx::pixels_to_dwords::pixel_count;
 pub fn palette_pixels_to_dwords() -> Result<(), BadInput> {
     let count = pixel_count()?;
     // Converted: `rc2k_core::gfx::pixels::palette_to_dwords`, on a copy of the pixels' bytes.
-    let mut buffer = picture_ptr().read_bytes(count * 4, "the picture buffer")?;
+    let mut buffer = read_bytes(PICTURE.buffer.get(), 0, count * 4)?;
     let palette: [u32; 256] = DECODER.palette();
     rc2k_core::gfx::pixels::palette_to_dwords(&mut buffer, count, &palette)
         .ok_or(BadInput("a picture buffer shorter than its dwords"))?;
-    picture_ptr().write_bytes(&buffer, "the picture buffer")
+    write_bytes(PICTURE.buffer.get(), 0, &buffer)
 }

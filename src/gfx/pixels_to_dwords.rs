@@ -3,7 +3,7 @@
 //! other, out to a dword a pixel, in place, from the last pixel down.
 
 use crate::errors::BadInput;
-use crate::gfx::picture::picture_ptr;
+use crate::gfx::picture::has_picture;
 use crate::gfx::picture_store::PICTURE;
 
 /// The number of pixels, `g_pictureWidth` * `g_pictureHeight`.
@@ -11,7 +11,7 @@ use crate::gfx::picture_store::PICTURE;
 /// holds (it then does one pixel and stops), and a null buffer.
 pub fn pixel_count() -> Result<usize, BadInput> {
     let count = PICTURE.width.get().wrapping_mul(PICTURE.height.get());
-    if picture_ptr().addr() == 0 {
+    if !has_picture() {
         return Err(BadInput("no picture buffer"));
     }
     if count == 0 || count > i32::MAX as u32 {

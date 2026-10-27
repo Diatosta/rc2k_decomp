@@ -29,7 +29,7 @@
 //! anything) fewer than four pixels a row and no rows (the original's `dec` counts on through
 //! 2^32).
 
-use crate::errors::{BadInput, Refused};
+use crate::errors::BadInput;
 use crate::gfx::converters::CONVERTERS as MASK_TABLE;
 
 /// A converter: the format it makes and where its constants are (the number of the first
@@ -38,6 +38,9 @@ use crate::gfx::converters::CONVERTERS as MASK_TABLE;
 pub struct Converter {
     pub format: u32,
     pub constants: usize,
+    // The original's next-row step differs for the 3DNow ones; its one call (one row) never
+    // takes it since phase 12.
+    #[allow(dead_code)]
     pub three_dnow: bool,
 }
 
@@ -50,42 +53,28 @@ fn masks(c: &Converter) -> [u64; 5] {
     std::array::from_fn(|n| constant(c.constants + n))
 }
 
-/// The Rust version: `rows` rows of `pixels` pixels (the original's ecx, edx) from `from`
-/// (esi) to `to` (edi), `gap` (ebp) bytes after each row made. Its one caller,
-/// `gfx::convert_picture`, reads nothing it leaves in the registers.
-pub fn convert_rows(
-    from: u32,
-    to: u32,
-    pixels: u32,
-    rows: u32,
-    gap: u32,
-    c: Converter,
-) -> Result<(), Refused> {
-    let steps = pixels >> 2;
-    if steps == 0 || rows == 0 {
+/// The Rust version, in place on the picture's bytes: its one caller, `gfx::convert_picture`,
+/// gives esi = edi = the buffer, one row (edx 1) of `pixels` pixels (ecx), ebp 0, and reads
+/// nothing it leaves in the registers. Each step's 16 bytes are read before its 8 are
+/// written, behind them.
+pub fn convert_in_place(bytes: &mut [u8], pixels: u32, c: Converter) -> Result<(), BadInput> {
+    let steps = (pixels >> 2) as usize;
+    if steps == 0 {
         return Err(BadInput(
-            "fewer than four pixels a row or no rows (the original's dec counts on)",
-        )
-        .into());
+            "fewer than four pixels a row (the original's dec counts on)",
+        ));
     }
-    // Converted: `rc2k_core::gfx::converters` (`step`, `next_row`).
-    use rc2k_core::gfx::converters::{next_row, step};
+    if bytes.len() < steps * 16 {
+        return Err(BadInput("a picture shorter than its pixels"));
+    }
+    // Converted: `rc2k_core::gfx::converters` (`step`).
+    use rc2k_core::gfx::converters::step;
     let k = masks(&c);
-    let (mut from, mut to) = (from, to);
-    // The picture and the surface, checked through a window each.
-    let (pictures, surfaces) = (
-        crate::pointers::Window::new(),
-        crate::pointers::Window::new(),
-    );
-    for _ in 0..rows {
-        for _ in 0..steps {
-            let q0: u64 = pictures.read_or_end(from, "a picture's pixels");
-            let q1: u64 = pictures.read_or_end(from + 8, "a picture's pixels");
-            surfaces.write_or_end(to, step(c.format, &k, q0, q1), "a surface's pixels");
-            from = from.wrapping_add(0x10);
-            to = to.wrapping_add(8);
-        }
-        to = next_row(to, gap, c.format, c.three_dnow);
+    let quad =
+        |b: &[u8], at: usize| u64::from_le_bytes(b[at..at + 8].try_into().expect("eight bytes"));
+    for n in 0..steps {
+        let (q0, q1) = (quad(bytes, 16 * n), quad(bytes, 16 * n + 8));
+        bytes[8 * n..8 * n + 8].copy_from_slice(&step(c.format, &k, q0, q1).to_le_bytes());
     }
     Ok(())
 }

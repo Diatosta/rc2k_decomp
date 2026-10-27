@@ -221,3 +221,22 @@ block's +0xB0.
   game's mixer blends each frame with the next by the position's fraction, as DirectSound
   resamples (`rc2k_core::audio::mixer`). The harsh edge heard by the owner in the
   original game too (2026-10-26), and gone with the blending.
+
+---
+
+## A PNG picture's first row read against stray memory
+
+*Original*: `gfx::decode_png` (0x4D3040).
+*Fixed*: 2026-10-27.
+
+- **What**: PNG rows are stored filtered: each row may be coded as its difference from
+  the row above it. For the first row the standard says the row above is all zeros. The
+  game instead reads the memory just before its picture buffer there: the bookkeeping of
+  its memory allocator, and for wide pictures part of the page before.
+- **In game**: a PNG whose first row is coded against the row above (filters Up,
+  Average or Paeth) would show wrong colours in its first pixels, top left.
+- **Seen**: no; read from the code. The game's PNG files may not use those filters on
+  their first row.
+- **Fix**: the first row is unfiltered against zeros, as the standard has it. The
+  picture buffer is Rust's own memory since the conversion's memory phase, so the bytes
+  before it are no longer there to read.

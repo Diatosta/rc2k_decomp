@@ -13,10 +13,9 @@
 //! Caller: DirectPlay, from `net::find_connections` (`callback`, a `stdcall` Rust function).
 
 use crate::errors::Refused;
-use crate::field;
-use crate::net::lobby::{connection, copy_printable, log, movsb_from_rust, net_allocate};
+use crate::net::lobby::log;
 use crate::net::store::NET;
-use crate::net::types::NetConnection;
+use crate::net::tables::{copy_printable_into, with_connection};
 use crate::pointers::GamePtr;
 use crate::race::viewer_screen_store::{VIEWER_PANEL, texts};
 use crate::system::same_guid::same_guid;
@@ -41,16 +40,21 @@ pub fn connection_found(args: &[u32]) -> Result<u32, Refused> {
     {
         return Ok(1);
     }
-    let memory = net_allocate(size)?;
+    // The data's block (counted as the original's, taken also when not listed).
+    crate::net::tables::count(size)?;
     let Some(count) = lists::connection_listed(NET.connections.get()) else {
         return Ok(0);
     };
     NET.connections.set(count + 1);
-    let record = connection(count)?;
-    GamePtr::new(record + field!(NetConnection, data)).write(memory, "a connection's record")?;
-    movsb_from_rust(memory, data, size)?;
-    movsb_from_rust(record + field!(NetConnection, service_provider), guid, 0x10)?;
-    copy_printable(short, record, 0x40)?;
+    let copied = GamePtr::new(data).read_bytes(size as usize, "a network callback's bytes")?;
+    let provider = GamePtr::new(guid).read::<[u8; 16]>("a network callback's bytes")?;
+    let mut name = with_connection(count, |c| c.name)?;
+    copy_printable_into(short, &mut name, 0x40)?;
+    with_connection(count, |c| {
+        c.data = copied;
+        c.provider = provider;
+        c.name = name;
+    })?;
     Ok(1)
 }
 

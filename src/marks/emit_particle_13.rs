@@ -23,7 +23,6 @@ use crate::marks::setup::CLOCK;
 use crate::marks::splines::SPLINE_HEAD;
 use crate::marks::tuning::MARKS_FLOATS;
 use crate::math::x87;
-use crate::pointers::GamePtr;
 use crate::session::{Dword, Float, read_first};
 
 const MODELS: u32 = 34;
@@ -59,7 +58,7 @@ pub fn emit_particle_13(object: u32) -> Result<(), Refused> {
     }
     let model = at(object + 4)? as usize;
     let e = take_entry(at(object + 0x1C)? & 0xFF_FFFF, 0xD)?;
-    let put = |o: u32, v: u32| GamePtr::new(e + o).write::<u32>(v, "a mark's field");
+    let put = |o: u32, v: u32| crate::marks::ring_entries::put(e, o, v);
     let car: u32 = EMITTER.car.get();
     let m = at(car + 0x24)?;
     let t: [u32; 3] = read_first(&SPLINE_HEAD.points[3 * model..]);

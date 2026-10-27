@@ -133,7 +133,7 @@ pub unsafe fn load_welcome_picture() -> Result<(), Refused> {
         }
         .into());
     }
-    unsafe { crate::gfx::convert_picture::convert_picture_now() }?;
+    crate::gfx::convert_picture::convert_picture_now()?;
     Ok(())
 }
 

@@ -12,7 +12,8 @@
 //! puts it when the processor has no MMX; with MMX `sub_407276` stands there instead (not
 //! ported). So on a machine of today it is never called.
 //! Refuses a row or a row count of 0 (the original counts through all 32 bits). The name
-//! is a reading.
+//! is a reading. Since phase 12 the Rust version works in place on the picture's bytes,
+//! its only call (from = to, one row, ebp 0).
 
 use crate::errors::BadInput;
 use crate::framework::rva;
@@ -21,32 +22,37 @@ pub const COMPONENTS_TO_4444_ROWS: usize = rva(0x40750D);
 
 // ---- Rust version ----
 
-/// Where the two sides end up and what the last pixel leaves in ax: (esi, edi, ax).
-pub unsafe fn components_to_4444_rows(
-    from: u32,
-    to: u32,
-    row_pixels: u32,
-    rows: u32,
-    back: u32,
-) -> Result<(u32, u32, u16), BadInput> {
-    if row_pixels == 0 || rows == 0 {
+/// In place on the picture's bytes (`gfx::convert_picture`'s call: one row of `pixels`, from
+/// and to the buffer's start; each pixel's two bytes written after its four are read).
+/// Refuses no pixels and a buffer shorter than them.
+pub fn components_to_4444_in_place(bytes: &mut [u8], pixels: usize) -> Result<(), BadInput> {
+    if pixels == 0 {
         return Err(BadInput("no pixels to convert"));
     }
-    let (mut from, mut to, mut ax) = (from, to, 0u16);
-    for _ in 0..rows {
-        for _ in 0..row_pixels {
-            unsafe {
-                // Converted: `rc2k_core::gfx::pixels::to_4444`.
-                let components = (crate::pointers::host(from) as *const [u8; 4]).read_unaligned();
-                let [low, high] = rc2k_core::gfx::pixels::to_4444(components);
-                crate::pointers::host(to).write(low);
-                crate::pointers::host(to.wrapping_add(1)).write(high);
-                ax = u16::from_le_bytes([high, components[3] & 0xF0]);
-            }
-            from = from.wrapping_add(4);
-            to = to.wrapping_add(2);
-        }
-        to = to.wrapping_sub(back);
+    if bytes.len() < pixels * 4 {
+        return Err(BadInput("a picture shorter than its pixels"));
     }
-    Ok((from, to, ax))
+    for n in 0..pixels {
+        // Converted: `rc2k_core::gfx::pixels::to_4444`.
+        let components: [u8; 4] = bytes[4 * n..4 * n + 4].try_into().expect("four bytes");
+        let [low, high] = rc2k_core::gfx::pixels::to_4444(components);
+        bytes[2 * n] = low;
+        bytes[2 * n + 1] = high;
+    }
+    Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn pixels_are_packed_in_place() {
+        let mut bytes = vec![0x12, 0x34, 0x56, 0x78, 0xF0, 0xE0, 0xD0, 0xC0];
+        components_to_4444_in_place(&mut bytes, 2).unwrap();
+        let first = rc2k_core::gfx::pixels::to_4444([0x12, 0x34, 0x56, 0x78]);
+        let second = rc2k_core::gfx::pixels::to_4444([0xF0, 0xE0, 0xD0, 0xC0]);
+        assert_eq!(bytes[..4], [first[0], first[1], second[0], second[1]]);
+        assert!(components_to_4444_in_place(&mut bytes, 3).is_err());
+    }
 }

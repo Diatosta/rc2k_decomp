@@ -1,6 +1,7 @@
 //! `gfx::free_picture_buffer` (0x4060B7): the picture buffer given back at the game's end:
 //! `g_pictureFlags` and `g_pictureBuffer` 0, its list (`stru_4F49E4`) freed
-//! (`memory::free_list`). The other half of `gfx::allocate_picture_buffer`.
+//! (`memory::free_list`; the buffer, Rust's, given back). The other half of
+//! `gfx::allocate_picture_buffer`.
 //!
 //! In:  nothing
 //! Out: every register kept (`pusha` .. `popa`)
@@ -20,5 +21,6 @@ pub fn free_picture_buffer() -> Result<(), BadInput> {
     }
     PICTURE.flags.set(0u32);
     PICTURE.buffer.set(0u32);
+    crate::gfx::picture::give_back(crate::gfx::picture::Buffer::Main);
     crate::memory::free_list::free_list(PICTURE.list.as_ptr())
 }

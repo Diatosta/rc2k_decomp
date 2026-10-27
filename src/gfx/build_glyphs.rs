@@ -40,7 +40,7 @@ use crate::gfx::glyph_builder::{
     backdrop_of, direct_pixel_size, table_of, transparent_of,
 };
 use crate::gfx::pcx::PCX;
-use crate::gfx::picture::picture_ptr;
+use crate::gfx::picture::{read_bytes, with_buffer, with_picture, write_bytes};
 use crate::gfx::picture_store::PICTURE;
 use crate::gfx::pixel_format::PixelFormat;
 use crate::gfx::read_sheet::read_sheet;
@@ -246,27 +246,25 @@ unsafe fn read_alpha_sheet(template: *const u8) -> Result<(), Refused> {
             let flags = flags & !(DIRECT_COLOUR | WIDE_HEAD);
             SHEET.pixel_size.set(1u32);
             DECODER.builder_flags.set(flags);
-            fill_row_table(
-                DECODER.pixels.get(),
-                DECODER.stride.get(),
-                DECODER.height.get(),
-            )?;
+            fill_row_table(0, DECODER.stride.get(), DECODER.height.get())?;
             let mut convert = |components: u32| components;
-            let sheet = Sheet {
-                flags,
-                pixel_size: 1,
-                width: DECODER.width.get(),
-                height: DECODER.height.get(),
-                backdrop: 0,
-                transparent: 0,
-                convert: &mut convert,
-                pixels: &mut RowTable::new(),
-                soften: false,
-            };
-            if sheet.width == 0 {
-                return Err(BadInput("a sheet without columns").into());
-            }
-            let backdrop = backdrop_of(&sheet);
+            let backdrop = with_buffer(DECODER.pixels.get(), |pixels| {
+                let sheet = Sheet {
+                    flags,
+                    pixel_size: 1,
+                    width: DECODER.width.get(),
+                    height: DECODER.height.get(),
+                    backdrop: 0,
+                    transparent: 0,
+                    convert: &mut convert,
+                    pixels: &mut RowTable::new(pixels),
+                    soften: false,
+                };
+                if sheet.width == 0 {
+                    return Err(BadInput("a sheet without columns"));
+                }
+                Ok(backdrop_of(&sheet))
+            })??;
             DECODER.backdrop.set(backdrop);
             let transparent = transparent_of(flags, backdrop, &DECODER.palette);
             DECODER.transparent.set(transparent);
@@ -275,15 +273,9 @@ unsafe fn read_alpha_sheet(template: *const u8) -> Result<(), Refused> {
                 log_sheet(path, false, backdrop, transparent);
             }
             SHEET.alpha_loaded.set(1u32);
-            let pixels = picture_ptr();
-            if pixels.addr() == 0 {
-                return Err(BadInput("no picture buffer").into());
-            }
-            pixels.copy_to(
-                pixels.offset(4 * HALF_PICTURE_DWORDS as u32),
-                4 * HALF_PICTURE_DWORDS,
-                "the picture buffer",
-            )?;
+            let half = 4 * HALF_PICTURE_DWORDS;
+            with_picture(|b| (b.len() >= 2 * half).then(|| b.copy_within(..half, half)))?
+                .ok_or(BadInput("a picture buffer shorter than two halves"))?;
         }
         DECODER.number.set(number.wrapping_add(1));
         Ok(())
@@ -334,34 +326,34 @@ pub unsafe fn build_glyphs(template: *const u8, list: *mut MemoryList) -> Result
             }
             DECODER.builder_flags.set(flags);
             SHEET.pixel_size.set(pixel_size);
-            fill_row_table(
-                DECODER.pixels.get(),
-                DECODER.stride.get(),
-                DECODER.height.get(),
-            )?;
+            fill_row_table(0, DECODER.stride.get(), DECODER.height.get())?;
 
             let mut convert = |components: u32| match &format {
                 Some(format) => components_to_pixel(format, components),
                 None => components,
             };
-            let mut sheet = Sheet {
-                flags,
-                pixel_size,
-                width: DECODER.width.get(),
-                height: DECODER.height.get(),
-                backdrop: 0,
-                transparent: 0,
-                convert: &mut convert,
-                pixels: &mut RowTable::new(),
-                soften: flags & WITH_ALPHA != 0 && SHEET.alpha_loaded.get() != 1,
-            };
-            if sheet.width == 0 {
+            let (width, height) = (DECODER.width.get(), DECODER.height.get());
+            if width == 0 {
                 return Err(BadInput("a sheet without columns").into());
             }
-            sheet.backdrop = backdrop_of(&sheet);
-            DECODER.backdrop.set(sheet.backdrop);
-            sheet.transparent = transparent_of(flags, sheet.backdrop, &DECODER.palette);
-            DECODER.transparent.set(sheet.transparent);
+            let soften = flags & WITH_ALPHA != 0 && SHEET.alpha_loaded.get() != 1;
+            // The sheet, its pixels the decoded buffer's bytes, lent for one step at a time.
+            let backdrop = with_buffer(DECODER.pixels.get(), |pixels| {
+                backdrop_of(&Sheet {
+                    flags,
+                    pixel_size,
+                    width,
+                    height,
+                    backdrop: 0,
+                    transparent: 0,
+                    convert: &mut convert,
+                    pixels: &mut RowTable::new(pixels),
+                    soften,
+                })
+            })?;
+            DECODER.backdrop.set(backdrop);
+            let transparent = transparent_of(flags, backdrop, &DECODER.palette);
+            DECODER.transparent.set(transparent);
             let logging = level() as i32 >= 3;
             if logging {
                 // The original makes the path anew for the line.
@@ -369,7 +361,7 @@ pub unsafe fn build_glyphs(template: *const u8, list: *mut MemoryList) -> Result
                     0 => numbered_path_in_game(template, DECODER.number.get())?,
                     _ => template,
                 };
-                log_sheet(path, true, sheet.backdrop, sheet.transparent);
+                log_sheet(path, true, backdrop, transparent);
             }
             if flags & WITH_ALPHA != 0 && SHEET.alpha_loaded.get() == 1 {
                 // `sub_4124E9`: the kept sheet's low four bits become the top four here.
@@ -379,15 +371,10 @@ pub unsafe fn build_glyphs(template: *const u8, list: *mut MemoryList) -> Result
                         "Component colour/alpha files must be 8bit",
                     ));
                 }
-                let pixels = picture_ptr();
-                if pixels.addr() == 0 {
-                    return Err(BadInput("no picture buffer").into());
-                }
                 let half = 4 * HALF_PICTURE_DWORDS;
-                let alphas = pixels
-                    .offset(half as u32)
-                    .read_bytes(half, "the picture buffer")?;
-                let mut kept = pixels.read_bytes(half, "the picture buffer")?;
+                let buffer = PICTURE.buffer.get();
+                let alphas = read_bytes(buffer, half, half)?;
+                let mut kept = read_bytes(buffer, 0, half)?;
                 for (pixel, alpha) in kept
                     .as_chunks_mut::<4>()
                     .0
@@ -398,11 +385,24 @@ pub unsafe fn build_glyphs(template: *const u8, list: *mut MemoryList) -> Result
                     *pixel =
                         (u32::from_le_bytes(*pixel) | (alpha & 0x0F0F_0F0F) << 4).to_le_bytes();
                 }
-                pixels.write_bytes(&kept, "the picture buffer")?;
+                write_bytes(buffer, 0, &kept)?;
             }
 
             rewind_list(work)?;
-            let glyphs = sheet.glyphs()?;
+            let glyphs = with_buffer(DECODER.pixels.get(), |pixels| {
+                Sheet {
+                    flags,
+                    pixel_size,
+                    width,
+                    height,
+                    backdrop,
+                    transparent,
+                    convert: &mut convert,
+                    pixels: &mut RowTable::new(pixels),
+                    soften,
+                }
+                .glyphs()
+            })??;
             let mut bytes = 0u32;
             for (number, glyph) in glyphs.iter().enumerate() {
                 let record = glyph.data.len() as u32;

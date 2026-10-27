@@ -99,18 +99,6 @@ pub fn dword_at(b: &crate::pointers::GameBytes, at: usize) -> Result<u32, BadInp
     Ok(u32::from_le_bytes(v))
 }
 
-/// `files::read_whole_file` into game memory: the buffer's span checked first.
-pub fn read_whole_file_into(
-    path: *const u8,
-    buffer: u32,
-    count: u32,
-    what: &str,
-) -> Result<(), BadInput> {
-    span(buffer, count as usize, what)?;
-    // SAFETY: the span lies in one live region (checked above); `path` is the caller's own.
-    crate::files::read_whole_file::read_whole_file(path, crate::pointers::host(buffer), count)
-}
-
 /// The car block at `addr` (a `g_carBlocks` entry, a view's block, `g_car`), checked to lie
 /// in one region.
 pub fn car_at(addr: u32) -> Result<&'static crate::physics::car_store::Car, BadInput> {

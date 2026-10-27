@@ -17,7 +17,6 @@ pub mod maybe_compile_lexicon;
 pub mod rot13_into_text;
 pub mod same_text;
 pub mod str_append;
-pub mod str_append_indexed;
 pub mod string_table;
 pub mod text_buffer;
 pub mod text_from_ids;

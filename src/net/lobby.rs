@@ -44,14 +44,6 @@ pub fn movsb(to: u32, from: u32, n: u32) -> Result<(), Refused> {
     Ok(())
 }
 
-/// `rep movsb` from what DirectPlay's callbacks hand over (a GUID, a connection's data:
-/// Rust's statics or buffers lent for the callback) to the game's memory; both checked.
-pub fn movsb_from_rust(to: u32, from: u32, n: u32) -> Result<(), Refused> {
-    let bytes = GamePtr::new(from).read_bytes(n as usize, "a network callback's bytes")?;
-    GamePtr::new(to).write_bytes(&bytes, "a network record's bytes")?;
-    Ok(())
-}
-
 /// A cursor into a text buffer: what the original's `ebx` is while it builds a line with
 /// `strings::str_append`, `append_string_by_id`, `format_u32`, `append_time` and
 /// `append_nul`.
@@ -219,63 +211,9 @@ pub fn draw_string(
     Ok(())
 }
 
-/// `text::draw_text` with the font at the address `font`.
-pub fn draw_text(font: u32, text: u32, x: u32, y: u32) -> Result<(), Refused> {
-    {
-        crate::text::draw_text::draw_text_at(
-            crate::pointers::host(font) as *mut _,
-            crate::pointers::host(text) as *const u8,
-            x as i32,
-            y as i32,
-            &mut crate::text::draw_text::GameCanvas,
-        )
-    }?;
-    Ok(())
-}
-
 /// A fatal error with no message.
 pub const fn fatal(code: u32) -> crate::errors::FatalError {
     crate::errors::FatalError { code, message: "" }
-}
-
-pub use rc2k_core::net::lists::{NO_CONNECTION, NO_CONNECTIONS, NO_SESSION, NO_SESSIONS};
-pub const CONNECTION_LEN: u32 = std::mem::size_of::<crate::net::types::NetConnection>() as u32;
-pub const SESSION_LEN: u32 = std::mem::size_of::<crate::net::types::NetSession>() as u32;
-
-/// Record `index` (unsigned) of a table of `len`-byte records at `table` holding `count`:
-/// `jnb` the first fatal error, a null table the second.
-pub fn record_of(
-    index: u32,
-    count: &Dword,
-    table: &Dword,
-    len: u32,
-    codes: [u32; 2],
-) -> Result<u32, Refused> {
-    // Converted: `rc2k_core::net::lists::record`.
-    rc2k_core::net::lists::record(index, count.get(), || table.get(), len, codes)
-        .map_err(|missing| fatal(missing.0).into())
-}
-
-/// A connection's record (`net::connection_entry`).
-pub fn connection(index: u32) -> Result<u32, Refused> {
-    record_of(
-        index,
-        &NET.connections,
-        &NET.connection_table,
-        CONNECTION_LEN,
-        [NO_CONNECTION, NO_CONNECTIONS],
-    )
-}
-
-/// A session's record (`net::session_entry`).
-pub fn session(index: u32) -> Result<u32, Refused> {
-    record_of(
-        index,
-        &NET.sessions,
-        &NET.session_table,
-        SESSION_LEN,
-        [NO_SESSION, NO_SESSIONS],
-    )
 }
 
 // ---- DirectPlay's callbacks (`stdcall`, their arguments on the stack) ----

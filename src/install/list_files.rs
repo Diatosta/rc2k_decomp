@@ -16,6 +16,7 @@ use crate::errors::Refused;
 use crate::install::installer::{
     append_byte, close_search, fatal, find_first, find_next, resolve_path, str_append,
 };
+use crate::install::name_tables::{FILES, made_name};
 use crate::install::vars::INSTALLER_RUN;
 use rc2k_core::install::script;
 
@@ -30,25 +31,23 @@ pub fn list_files(pattern: u32) -> Result<(), Refused> {
     if find_first(pattern) {
         loop {
             // append_directory (edx the pattern's path, ebx the cursor)
-            let (cursor, _) = crate::files::append_directory::append_directory(
-                crate::pointers::host(pattern) as *const u8,
-                crate::pointers::host(INSTALLER_RUN.file_cursor.get()),
-            )?;
-            let cursor = append_byte(
-                str_append(find_name(), crate::pointers::game_address(cursor)),
-                0,
-            );
-            INSTALLER_RUN.file_cursor.set(cursor);
+            let name = made_name(|at| {
+                let (cursor, _) = crate::files::append_directory::append_directory(
+                    crate::pointers::host(pattern) as *const u8,
+                    crate::pointers::host(at),
+                )?;
+                Ok(append_byte(
+                    str_append(find_name(), crate::pointers::game_address(cursor)),
+                    0,
+                ))
+            })?;
+            let used = FILES.with(|t| t.push(name))?;
+            INSTALLER_RUN.file_cursor.set(used);
             INSTALLER_RUN
                 .file_count
                 .set(INSTALLER_RUN.file_count.get().wrapping_add(1));
             // Converted: `rc2k_core::install::script::room_left` (`sub ebx, [table]`).
-            script::room_left(
-                cursor.wrapping_sub(INSTALLER_RUN.files.get()),
-                script::FILES_ROOM,
-                script::FILES_FULL,
-            )
-            .map_err(fatal)?;
+            script::room_left(used, script::FILES_ROOM, script::FILES_FULL).map_err(fatal)?;
             if !find_next() {
                 break;
             }

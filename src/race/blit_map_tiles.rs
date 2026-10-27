@@ -13,10 +13,10 @@
 //! lock, unlocking first) a null surface, and a null tile table with a tile inside the 0x80 x
 //! 0x80.
 
+use crate::errors::BadInput;
 use crate::errors::Refused;
 use crate::gfx::screen_state::DRAW_SURFACE;
-use crate::pointers::GamePtr;
-use crate::race::game_map::MAP;
+use crate::race::game_map::{GAME_MAP, MAP, Tile};
 use rc2k_core::race::map::TILE;
 
 /// The Rust version (see the header).
@@ -35,7 +35,7 @@ pub unsafe fn blit_map_tiles(texture: u32, first_x: u32, first_y: u32) -> Result
         DRAW_SURFACE.pitch.get(),
         DRAW_SURFACE.pixels.get(),
     );
-    let tiles = MAP.tiles.get();
+    let tiles = u32::from(GAME_MAP.is_taken());
     if let Err(e) = check_tiles(pixels, tiles, any_inside(first_x, first_y)) {
         { unlock_texture(texture) }?;
         return Err(e.into());
@@ -47,34 +47,33 @@ pub unsafe fn blit_map_tiles(texture: u32, first_x: u32, first_y: u32) -> Result
         for col in 0..BLITTED {
             let (x, y) = (first_x.wrapping_add(col), first_y.wrapping_add(row));
             let mut to = pixels.wrapping_add(tile_offset(col, row, bytes, pitch));
-            let tile = match tile_index(x, y) {
-                Some(n) => match GamePtr::new(tiles.wrapping_add(4 * n))
-                    .read::<u32>("a map tile's pointer")
-                {
-                    Ok(t) => t,
-                    Err(e) => {
-                        { unlock_texture(texture) }?;
-                        return Err(e.into());
-                    }
-                },
-                None => 0,
-            };
             let wide = pixel_width(bytes);
-            // The tile's pixels, read whole once (16 x 16 of them, contiguous).
-            let source = if tile != 0 {
-                match GamePtr::new(tile).read_bytes(
-                    (TILE * TILE) as usize * wide as usize,
-                    "a map tile's pixels",
-                ) {
-                    Ok(v) => v,
-                    Err(e) => {
-                        { unlock_texture(texture) }?;
-                        return Err(e.into());
-                    }
-                }
-            } else {
-                Vec::new()
+            // The tile's pixels, copied out whole once (16 x 16 of them, contiguous); none
+            // drawn black. A tile marked but never filled holds 1 in the original's table:
+            // read there, refused.
+            let len = (TILE * TILE) as usize * wide as usize;
+            let source = match tile_index(x, y) {
+                Some(n) => GAME_MAP.with(|m| match m.tiles.get(n as usize) {
+                    Some(Tile::None) => Ok(None),
+                    Some(Tile::At(at)) => m
+                        .pixels
+                        .get(*at..*at + len)
+                        .map(|p| Some(p.to_vec()))
+                        .ok_or(BadInput("a map tile's pixels past their block")),
+                    Some(Tile::Marked) => Err(BadInput("a map tile marked but never filled")),
+                    None => Err(BadInput("a map tile past the table")),
+                }),
+                None => Ok(Ok(None)),
             };
+            let source = match source.and_then(|s| s) {
+                Ok(s) => s,
+                Err(e) => {
+                    { unlock_texture(texture) }?;
+                    return Err(e.into());
+                }
+            };
+            let tile = u32::from(source.is_some());
+            let source = source.unwrap_or_default();
             let mut at = 0usize;
             for _ in 0..TILE {
                 for _ in 0..TILE {

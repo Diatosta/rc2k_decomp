@@ -94,7 +94,7 @@ pub fn emit_particle_6(wheel: u32, object: u32) -> Result<(), Refused> {
             return Ok(());
         }
         let e = take_entry(at(object + 0x1C)? & 0xFF_FFFF, 6)?;
-        let put = |o: u32, v: u32| GamePtr::new(e + o).write::<u32>(v, "a mark's field");
+        let put = |o: u32, v: u32| crate::marks::ring_entries::put(e, o, v);
         let car: u32 = EMITTER.car.get();
         let m = at(car + 0x24)?;
         let r = next_c5(&KIND6_SET.side_random);
