@@ -61,7 +61,10 @@ pub const OBJECT_POINTS: Freeing = Freeing {
         || COURSE_LISTS.object_points.as_ptr(),
         || COURSE_LISTS.face_memory.as_ptr(),
     ],
-    given_back: crate::scene::object_faces::give_back,
+    given_back: || {
+        crate::scene::object_points::give_back();
+        crate::scene::object_faces::give_back();
+    },
 };
 /// `race::free_mud` (0x449ECA).
 pub const MUD: Freeing = Freeing {

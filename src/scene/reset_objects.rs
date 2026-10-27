@@ -11,7 +11,6 @@
 //! memory.
 
 use crate::errors::BadInput;
-use crate::pointers::GamePtr;
 use crate::race::course_lists_store::COURSE_LISTS;
 use crate::scene::object_slots_store::OBJECT_SLOTS;
 use crate::scene::object_store::OBJECT_WORK;
@@ -29,7 +28,7 @@ pub fn reset_objects() -> Result<(), BadInput> {
             return Err(BadInput("room for the objects' points without memory"));
         }
         if room >> 2 != 0 {
-            GamePtr::new(memory).fill(0, (room >> 2) as usize * 4, "the objects' points memory")?;
+            crate::scene::object_points::clear((room >> 2) as usize * 4)?;
         }
         for table in [
             &OBJECT_SLOTS.first_point,

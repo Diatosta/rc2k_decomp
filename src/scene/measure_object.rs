@@ -47,7 +47,9 @@ pub fn measure_object() -> Result<(), BadInput> {
         let mut points: Vec<[u32; 3]> = if count == 0 {
             Vec::new()
         } else {
-            crate::scene::reading::read_records(at as u32, count as usize, "an object's points")?
+            (0..count)
+                .map(|n| crate::scene::object_points::point(at as u32 + 12 * n))
+                .collect::<Result<_, _>>()?
         };
         let Some(m) = measure(&mut points) else {
             // The half extents are not touched for an object of no points.
@@ -58,7 +60,9 @@ pub fn measure_object() -> Result<(), BadInput> {
             );
             return Ok(());
         };
-        crate::scene::reading::write_records(at as u32, &points, "an object's points")?;
+        for (n, p) in points.iter().enumerate() {
+            crate::scene::object_points::set_point(at as u32 + 12 * n as u32, *p)?;
+        }
         crate::session::write_first(
             &OBJECT_SLOTS.measures,
             &[m.middle, m.half, m.lowest, m.highest].concat(),

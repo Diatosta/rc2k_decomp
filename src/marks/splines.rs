@@ -216,7 +216,10 @@ pub fn gather_spline_points(s: u32, object: u32, kind: u32) -> Result<(), Refuse
         for k in (0..n).rev() {
             let from = get(s + IDS + 4 * k)?;
             for c in 0..3 {
-                put(s + COORDS + k * 12 + 4 * c, get(from + 4 * c)?)?;
+                put(
+                    s + COORDS + k * 12 + 4 * c,
+                    crate::scene::object_points::word(from + 4 * c)?,
+                )?;
             }
         }
     }
@@ -363,10 +366,9 @@ pub fn write_point(s: u32, k: u32, pointer: u32) -> Result<(), Refused> {
         let to = get(s + IDS + 4 * pointer)?;
         let from = SPLINE_WORK.ordered_coords[0].addr() + 12 * k;
         for c in 0..3 {
-            put(
-                to + 4 * c,
-                get(from + 4 * c)?.wrapping_add(get(s + CENTRE + 4 * c)?),
-            )?;
+            // `to` is a place of `scene::object_points` (phase 13).
+            let v = get(from + 4 * c)?.wrapping_add(get(s + CENTRE + 4 * c)?);
+            crate::scene::object_points::write(to + 4 * c, &v.to_le_bytes())?;
         }
     }
     Ok(())

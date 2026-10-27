@@ -29,7 +29,6 @@
 //! instructions are `asm_reference` in the tests (2026-10-24).
 
 use crate::errors::{BadInput, Refused};
-use crate::pointers::GamePtr;
 use crate::race::course_lists_store::COURSE_LISTS;
 use crate::race::course_store::COURSE;
 use crate::race::matrices_store::MATRICES;
@@ -50,7 +49,7 @@ const OBJECTS: u32 = 0x100;
 /// `unk_5CCE18`.
 fn moved(from: usize, by: u32) -> Result<(), BadInput> {
     let other = from.wrapping_add(by as usize);
-    let read = |at: usize| GamePtr::new(at as u32).read::<[u32; 3]>("an object's point");
+    let read = |at: usize| crate::scene::object_points::point(at as u32);
     let (a, b) = (read(from)?, read(other)?);
     // The fraction, the two points, the result, the fraction as it is stored.
     let mut w = [
@@ -191,15 +190,15 @@ pub fn place_object_points() -> Result<(), Refused> {
         let point = if move_by != 0 {
             moved(from as usize, move_by)?;
             // x, y, z read on into `group_masks[0]`, `[1]`, as stored.
-            COURSE.point_moved.addr()
+            [
+                COURSE.point_moved.get(),
+                COURSE.group_masks[0].get(),
+                COURSE.group_masks[1].get(),
+            ]
         } else {
-            from
+            crate::scene::object_points::point(from)?
         };
-        rotate(
-            crate::pointers::host_at(point as usize) as *const i32,
-            matrix,
-            r.as_mut_ptr(),
-        );
+        rotate(point.as_ptr() as *const i32, matrix, r.as_mut_ptr());
         r[3] = 0;
         r[7] = 0;
         if f32::from_bits(r[6]) >= NEAR {
@@ -220,11 +219,8 @@ pub fn place_object_points() -> Result<(), Refused> {
         let record = point_records::of_object_point(number);
         let mut r = point_records::get(record)?;
         r[0] = number;
-        turn(
-            crate::pointers::host(from) as *const u32,
-            matrix,
-            r.as_mut_ptr(),
-        );
+        let normal = crate::scene::object_points::point(from)?;
+        turn(normal.as_ptr(), matrix, r.as_mut_ptr());
         point_records::set(record, r)?;
         from = from.wrapping_add(12);
         number = number.wrapping_add(1);

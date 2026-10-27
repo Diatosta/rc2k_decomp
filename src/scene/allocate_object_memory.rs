@@ -12,7 +12,6 @@
 //! `scene::set_up_object_memory`.
 
 use crate::errors::Refused;
-use crate::memory::allocate::allocate;
 use crate::race::course_lists_store::COURSE_LISTS;
 use crate::race::numbers_store::NUMBERS;
 
@@ -22,8 +21,8 @@ use rc2k_core::scene::objects::object_rooms as rooms;
 
 // ---- Rust version ----
 
-/// The points' part from `memory::allocate`; the faces' Rust's (`scene::object_faces`,
-/// phase 13), counted on the same list.
+/// The points and the faces Rust's (`scene::object_points`, `scene::object_faces`, phase
+/// 13), counted on the list as the game's block was.
 // Converted: `rc2k_core::scene::objects::object_rooms`
 pub fn allocate_object_memory_in_game() -> Result<(), Refused> {
     let (points, faces) = rooms(NUMBERS.in_race.bits() != 0);
@@ -34,9 +33,8 @@ pub fn allocate_object_memory_in_game() -> Result<(), Refused> {
             .bits()
             .wrapping_add(points + faces),
     );
-    let block = crate::pointers::game_address(allocate(list, points)?);
+    crate::scene::object_points::take(list, points)?;
     crate::scene::object_faces::take(list, faces)?;
-    COURSE_LISTS.object_points.set_bits(block);
     COURSE_LISTS.object_points_room.set_bits(points);
     COURSE_LISTS.face_memory_room.set_bits(faces);
     Ok(())

@@ -64,10 +64,26 @@ pub const BY_X_DOWN: Sort = Sort { key: 0, down: true };
 /// points from `first` to `last` (both included), step by step as the original. Refuses
 /// (before anything) what `sorting::sort_records` refuses.
 pub fn sort_points(s: Sort, first: u32, last: u32) -> Result<(), Refused> {
-    // Converted: `rc2k_core::race::quick_sort::quick_sort` (through `sort_records`).
-    use rc2k_core::race::quick_sort::Order;
+    // Converted: `rc2k_core::race::quick_sort::quick_sort`, on the points' places
+    // (`scene::object_points`).
+    use rc2k_core::race::quick_sort::{Order, quick_sort};
     let order = if s.down { Order::Down } else { Order::Up };
-    crate::race::sorting::sort_records::<3>(first, last, (s.key / 4) as usize, order)
+    if first >= last {
+        return Ok(());
+    }
+    if !(last - first).is_multiple_of(12) {
+        return Err(BadInput("a sort's last point not whole points from its first").into());
+    }
+    let count = ((last - first) / 12 + 1) as usize;
+    let at = |n: usize| first.wrapping_add(12 * n as u32);
+    let mut list = (0..count)
+        .map(|n| crate::scene::object_points::point(at(n)))
+        .collect::<Result<Vec<_>, _>>()?;
+    quick_sort(&mut list, (s.key / 4) as usize, order)?;
+    for (n, p) in list.into_iter().enumerate() {
+        crate::scene::object_points::set_point(at(n), p)?;
+    }
+    Ok(())
 }
 
 /// A text to the log.
@@ -128,7 +144,8 @@ pub fn set_up_car_points(slot: u32, block: u32, v: &CarPointVars) -> Result<(), 
             put(v.car_points, held)?;
             for n in 0..held {
                 let y = points + n * 12 + 4;
-                put(y, get(y)?.wrapping_add(LIFT))?;
+                let lifted = crate::scene::object_points::word(y)?.wrapping_add(LIFT);
+                crate::scene::object_points::write(y, &lifted.to_le_bytes())?;
             }
             for (sort, start, n) in [
                 (BY_Y, 0u32, held),
@@ -145,7 +162,8 @@ pub fn set_up_car_points(slot: u32, block: u32, v: &CarPointVars) -> Result<(), 
             put(v.car_points, held)?;
             for n in 0..held {
                 let y = points + n * 12 + 4;
-                put(y, get(y)?.wrapping_sub(LIFT))?;
+                let lifted = crate::scene::object_points::word(y)?.wrapping_sub(LIFT);
+                crate::scene::object_points::write(y, &lifted.to_le_bytes())?;
             }
             // Converted: `rc2k_core::race::cars::{point_float, open_two_points}`.
             let scale = f32::from_bits(NUMBERS.k65536.bits());
@@ -153,10 +171,11 @@ pub fn set_up_car_points(slot: u32, block: u32, v: &CarPointVars) -> Result<(), 
                 let p = points + n * 12;
                 for (k, list) in [XS, YS, ZS].into_iter().enumerate() {
                     // The original goes through `dword_62400C` for each `fild`.
-                    put(v.scratch, get(p + 4 * k as u32)?)?;
+                    let c = crate::scene::object_points::word(p + 4 * k as u32)?;
+                    put(v.scratch, c)?;
                     put(
                         block + list + 4 * n,
-                        rc2k_core::race::cars::point_float(get(p + 4 * k as u32)?, scale),
+                        rc2k_core::race::cars::point_float(c, scale),
                     )?;
                 }
             }

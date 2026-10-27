@@ -262,7 +262,7 @@ pub fn add_object_shape(file: usize) -> Result<(), BadInput> {
     let drop: u32 = PHYSICS.ground_drop.bits();
     let mut radius = 0u32;
     let mut count = first_point;
-    let mut to = GamePtr::new(room.points.wrapping_add(count.wrapping_mul(12)));
+    let mut to = room.points.wrapping_add(count.wrapping_mul(12));
     for n in 0..shape.points {
         if shape.point_marks[n] == u32::MAX {
             continue;
@@ -276,14 +276,14 @@ pub fn add_object_shape(file: usize) -> Result<(), BadInput> {
                 point[0].wrapping_neg(),
             ];
         }
-        to.write(point, "an object's point")?;
+        crate::scene::object_points::set_point(to, point)?;
         let reach = x87::int_hypot(point[0] as i32, point[2] as i32) as u32;
         DRAW.scratch.set_bits(reach);
         if (reach.wrapping_sub(radius) as i32) >= 0 {
             radius = reach;
         }
         count += 1;
-        to = to.offset(12);
+        to = to.wrapping_add(12);
     }
     COURSE.shape_radius.set_bits(radius);
     OBJECT_SLOTS.radii[slot].set(radius);
@@ -352,12 +352,9 @@ pub fn add_object_shape(file: usize) -> Result<(), BadInput> {
             continue;
         }
         let at = shape.normals_at + n * 12;
-        to.write(
-            [read(at)?, read(at + 4)?, read(at + 8)?],
-            "an object's normal",
-        )?;
+        crate::scene::object_points::set_point(to, [read(at)?, read(at + 4)?, read(at + 8)?])?;
         count += 1;
-        to = to.offset(12);
+        to = to.wrapping_add(12);
     }
     OBJECT_TABLES.point_count.set(count);
     OBJECT_SLOTS.normal_counts[slot].set(count - first_normal);

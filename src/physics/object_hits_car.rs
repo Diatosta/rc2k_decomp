@@ -23,7 +23,6 @@ use crate::physics::contact_store::CONTACT_WORK;
 use crate::physics::object_turn_matrix::object_turn_matrix;
 use crate::physics::point_hits_car::point_hits_car;
 use crate::physics::tables_store::PHYSICS;
-use crate::pointers::GamePtr;
 use crate::race::course_lists_store::COURSE_LISTS;
 use crate::race::matrices_store::MATRICES;
 use crate::scene::rotate_point::rotate_point;
@@ -64,9 +63,8 @@ pub unsafe fn object_hits_car(point: u32, object: u32) -> Result<bool, Refused> 
                 return false;
             }
             let at = |k: u32| {
-                GamePtr::new(edx + 4 * k)
-                    .read::<i32>("an object point's coordinate")
-                    .map(|v| int_80(v, false))
+                crate::scene::object_points::word(edx + 4 * k)
+                    .map(|v| int_80(v as i32, false))
                     .map_err(Refused::from)
             };
             let (x, y, z) = match (at(0), at(1), at(2)) {

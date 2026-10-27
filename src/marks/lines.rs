@@ -54,8 +54,8 @@ fn lines_with(
             let p = points.wrapping_add(a.wrapping_mul(12));
             let q = points.wrapping_add(b.wrapping_mul(12));
             let d = core::difference(
-                [get(p)?, get(p + 4)?, get(p + 8)?],
-                [get(q)?, get(q + 4)?, get(q + 8)?],
+                crate::scene::object_points::point(p)?,
+                crate::scene::object_points::point(q)?,
             );
             for (cell, v) in LINES_WORK.difference.iter().zip(d) {
                 cell.set(v);
@@ -301,7 +301,7 @@ pub fn copy_block_points(block: u32) -> Result<(), Refused> {
             .wrapping_mul(12)
             .wrapping_add(COURSE_LISTS.object_points.bits());
         for n in 0..count.max(0) as usize {
-            let point = [get(from)?, get(from + 4)?, get(from + 8)?];
+            let point = crate::scene::object_points::point(from)?;
             to.with(|t| t.get_mut(n).map(|p| *p = point))?
                 .ok_or(BadInput("a block's points past their table"))?;
             from = from.wrapping_add(12);

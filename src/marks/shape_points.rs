@@ -169,7 +169,8 @@ pub fn turn_shape_points(a: u32, b: u32) -> Result<(), Refused> {
                     get(point + 4 * c)? as i32,
                     set.low(n)[c as usize].get() as i32,
                 );
-                put(target + 4 * c, v as u32)?;
+                // `target` is a place of `scene::object_points` (phase 13).
+                crate::scene::object_points::write(target + 4 * c, &(v as u32).to_le_bytes())?;
             }
         }
     }
@@ -349,7 +350,10 @@ pub fn make_shape_set(object: u32) -> Result<(), Refused> {
         for k in (0..list.count.get()).rev() {
             let from = get(ids + 4 * k)?;
             for c in 0..3 {
-                put(turned + k * 12 + 4 * c, get(from + 4 * c)?)?;
+                put(
+                    turned + k * 12 + 4 * c,
+                    crate::scene::object_points::word(from + 4 * c)?,
+                )?;
             }
         }
     }

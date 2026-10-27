@@ -137,7 +137,9 @@ pub fn morph_object_points() -> Result<(), Refused> {
             for k in 0..n.max(0) as u32 {
                 let (to, from) = (a + 12 * k, c + 12 * k);
                 let base = crate::marks::lines::block_point(points, k)?;
-                if crate::marks::try_any(0..3, |i| Ok(base[i as usize] != get(from + 4 * i)?))? {
+                if crate::marks::try_any(0..3, |i| {
+                    Ok(base[i as usize] != crate::scene::object_points::word(from + 4 * i)?)
+                })? {
                     blend_corner(b, to, from, base)?;
                 }
             }
