@@ -289,6 +289,72 @@ impl<T: ?Sized> HostPointer for *mut T {
 }
 
 /// The refusal for an address that is not where the game's memory is (logged with it).
+/// Ranges of game memory watched while a store moves out of them (phase 13): each access
+/// through the checked paths (`GamePtr`, `check_or_end`, `read_or_end`, `Window`) that
+/// touches one is logged once per source line of its first caller outside this file (with
+/// `#[track_caller]` up to there) and then goes on as before, so one run lists every
+/// reader by address. Up to four: (start, end, name).
+static WATCHED: [std::sync::atomic::AtomicU64; 4] =
+    [const { std::sync::atomic::AtomicU64::new(0) }; 4];
+static WATCH_NAMES: std::sync::Mutex<[&'static str; 4]> = std::sync::Mutex::new([""; 4]);
+/// The (file, line, range) already logged.
+type Seen = std::collections::HashSet<(&'static str, u32, &'static str)>;
+static SEEN: std::sync::Mutex<Option<Seen>> = std::sync::Mutex::new(None);
+
+/// `start .. end` watched under `name` (replacing a range of the same name; an empty range
+/// ends the watch). At most four at once: a fifth is not watched.
+pub fn watch(name: &'static str, start: u32, end: u32) {
+    use std::sync::atomic::Ordering::Release;
+    let mut names = WATCH_NAMES.lock().unwrap_or_else(|e| e.into_inner());
+    let slot = names
+        .iter()
+        .position(|n| *n == name)
+        .or_else(|| names.iter().position(|n| n.is_empty()));
+    let Some(k) = slot else { return };
+    if start < end {
+        names[k] = name;
+        WATCHED[k].store(start as u64 | (end as u64) << 32, Release);
+    } else {
+        names[k] = "";
+        WATCHED[k].store(0, Release);
+    }
+}
+
+/// The watched range `name` no longer watched.
+pub fn unwatch(name: &'static str) {
+    watch(name, 0, 0);
+}
+
+#[track_caller]
+fn watched(addr: u32, len: usize, what: &str) {
+    let end = addr.saturating_add(len as u32);
+    for (k, w) in WATCHED.iter().enumerate() {
+        let w = w.load(std::sync::atomic::Ordering::Relaxed);
+        let (start, top) = (w as u32, (w >> 32) as u32);
+        if w == 0 || addr >= top || end <= start {
+            continue;
+        }
+        let name = WATCH_NAMES.lock().map(|n| n[k]).unwrap_or("");
+        let at = std::panic::Location::caller();
+        let first = SEEN
+            .lock()
+            .map(|mut s| {
+                s.get_or_insert_default()
+                    .insert((at.file(), at.line(), name))
+            })
+            .unwrap_or(false);
+        if first {
+            log(&format!(
+                "watch: {name} +{:#x} ({len} bytes, {what}) by address from {}:{}",
+                addr - start,
+                at.file(),
+                at.line()
+            ));
+        }
+        return;
+    }
+}
+
 fn outside(addr: u32, len: usize, what: &str) -> BadInput {
     log(&format!(
         "pointers: {what} at {addr:#010x} ({len} bytes) is outside every allocation"
@@ -317,7 +383,9 @@ impl GamePtr {
     /// The bytes from here to the end of the region, for a reader of an extent nobody knows
     /// beforehand (a text up to its NUL, a glyph table): a read past the region's end
     /// answers nothing, which the core refuses.
+    #[track_caller]
     pub fn bytes(self, what: &str) -> Result<GameBytes, BadInput> {
+        watched(self.0, 1, what);
         let (_, end) = region_of(self.0).ok_or_else(|| outside(self.0, 1, what))?;
         Ok(GameBytes {
             start: self.0,
@@ -330,6 +398,7 @@ impl GamePtr {
     ///
     /// # Safety
     /// Nothing may write the bytes while the slice lives (the game's memory is shared).
+    #[track_caller]
     pub unsafe fn slice<'a>(self, len: usize, what: &str) -> &'a [u8] {
         if let Err(e) = self.check(len, what) {
             crate::fatal::raise::end(what, e)
@@ -341,6 +410,7 @@ impl GamePtr {
 
     /// The `T` at the address (unaligned, as the game's data may be), when all of it lies in
     /// one region.
+    #[track_caller]
     pub fn read<T: Copy>(self, what: &str) -> Result<T, BadInput> {
         self.check(size_of::<T>(), what)?;
         // SAFETY: the whole `T` lies in a live region (a registered block or a moved store).
@@ -348,6 +418,7 @@ impl GamePtr {
     }
 
     /// The `T` written at the address, when all of it lies in one region.
+    #[track_caller]
     pub fn write<T: Copy>(self, value: T, what: &str) -> Result<(), BadInput> {
         self.check(size_of::<T>(), what)?;
         // SAFETY: as `read`; the regions are the game's writable memory.
@@ -356,6 +427,7 @@ impl GamePtr {
     }
 
     /// `len` bytes from the address, copied out.
+    #[track_caller]
     pub fn read_bytes(self, len: usize, what: &str) -> Result<Vec<u8>, BadInput> {
         self.check(len, what)?;
         // SAFETY: the `len` bytes lie in one live region.
@@ -363,6 +435,7 @@ impl GamePtr {
     }
 
     /// `bytes` written from the address on.
+    #[track_caller]
     pub fn write_bytes(self, bytes: &[u8], what: &str) -> Result<(), BadInput> {
         self.check(bytes.len(), what)?;
         // SAFETY: the bytes lie in one live region; `bytes` is Rust's, apart from it or
@@ -375,6 +448,7 @@ impl GamePtr {
 
     /// `len` bytes copied from here to `to` (overlapping as `memmove`), each side inside one
     /// region.
+    #[track_caller]
     pub fn copy_to(self, to: GamePtr, len: usize, what: &str) -> Result<(), BadInput> {
         self.check(len, what)?;
         to.check(len, what)?;
@@ -386,6 +460,7 @@ impl GamePtr {
     }
 
     /// `len` bytes set to `value` from the address on.
+    #[track_caller]
     pub fn fill(self, value: u8, len: usize, what: &str) -> Result<(), BadInput> {
         self.check(len, what)?;
         // SAFETY: the run lies in one live region.
@@ -397,6 +472,7 @@ impl GamePtr {
     /// reference to memory the game also writes is sound), when all of it lies in one region
     /// and the address has the record's alignment. Keep it no longer than the step that
     /// reads it: a block can be given back later.
+    #[track_caller]
     pub fn record<T: Cells>(self, what: &str) -> Result<&'static T, BadInput> {
         self.check(size_of::<T>(), what)?;
         if !(self.0 as usize).is_multiple_of(align_of::<T>()) {
@@ -407,7 +483,9 @@ impl GamePtr {
     }
 
     /// Whether `len` bytes from the address lie in one region.
+    #[track_caller]
     fn check(self, len: usize, what: &str) -> Result<(), BadInput> {
+        watched(self.0, len, what);
         if inside(self.0, len) {
             Ok(())
         } else {
@@ -448,7 +526,9 @@ impl rc2k_core::strings::bytes::Bytes for GameBytes {
 
 /// `len` bytes from `addr` checked to lie in one region; outside, the program ends naming
 /// them (`fatal::raise::end`). For hot paths (the x87 runs' operands).
+#[track_caller]
 pub fn check_or_end(addr: u32, len: usize, what: &str) {
+    watched(addr, len, what);
     if !inside(addr, len) {
         crate::fatal::raise::end(what, outside(addr, len, what))
     }
@@ -456,6 +536,7 @@ pub fn check_or_end(addr: u32, len: usize, what: &str) {
 
 /// A checked read where the caller has no way to carry a refusal (generated step code, a
 /// core's closure): outside its region the program ends naming it (`fatal::raise::end`).
+#[track_caller]
 pub fn read_or_end<T: Copy>(addr: u32, what: &str) -> T {
     GamePtr::new(addr)
         .read(what)
@@ -463,6 +544,7 @@ pub fn read_or_end<T: Copy>(addr: u32, what: &str) -> T {
 }
 
 /// A checked write, as `read_or_end`.
+#[track_caller]
 pub fn write_or_end<T: Copy>(addr: u32, value: T, what: &str) {
     if let Err(e) = GamePtr::new(addr).write(value, what) {
         crate::fatal::raise::end(what, e)
@@ -480,7 +562,9 @@ impl Window {
         Self::default()
     }
 
+    #[track_caller]
     fn check(&self, addr: u32, len: usize, what: &str) -> Result<(), BadInput> {
+        watched(addr, len, what);
         let end = addr.checked_add(len as u32);
         let (start, top) = self.0.get();
         if addr >= start && end.is_some_and(|end| end <= top) {
@@ -514,6 +598,7 @@ impl Window {
     }
 
     /// Checked bytes written, as `write_or_end`.
+    #[track_caller]
     pub fn write_bytes_or_end(&self, addr: u32, bytes: &[u8], what: &str) {
         if let Err(e) = self.check(addr, bytes.len(), what) {
             crate::fatal::raise::end(what, e)

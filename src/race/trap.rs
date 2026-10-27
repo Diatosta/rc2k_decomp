@@ -18,6 +18,7 @@ impl Trap {
     }
 
     /// The `T` at `at`, or its zero when the read is refused (kept for `finish`).
+    #[track_caller]
     pub fn read<T: Copy + Default>(&self, at: u32, what: &str) -> T {
         match GamePtr::new(at).read::<T>(what) {
             Ok(v) => v,

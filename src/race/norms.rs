@@ -139,6 +139,8 @@ pub fn lay_out_course() {
         } else {
             0
         });
+        // The census of phase 13 (`pointers::watch` on the records, faces, info and the
+        // points' old home) ran 2026-10-27: `notes/course_census.md`. Off since.
         c.course_tail[0].set(after);
         c.course_tail[1].set(after_offset);
     }

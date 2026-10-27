@@ -21,6 +21,7 @@ impl Reading {
     }
 
     /// The `T` at `addr`; its default after a refusal.
+    #[track_caller]
     pub fn read<T: Copy + Default>(&self, addr: u32, what: &str) -> T {
         if self.failed.get().is_some() {
             return T::default();

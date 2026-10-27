@@ -23,7 +23,6 @@
 use crate::errors::Refused;
 use crate::framework::Regs;
 use crate::menu::loop_store::LOOP_FLAGS;
-use crate::net::store::NET;
 use crate::pointers::GamePtr;
 use crate::session::Dword;
 use crate::strings::text_buffer::TEXT_BUFFER;
@@ -122,14 +121,35 @@ pub fn log_int_nl(value: u32, level: u8) {
     crate::logfile::log_int::log_int(value as i32, true, level);
 }
 
-/// `memory::allocate` on the network's list (`g_netMemory`): the memory's address.
-pub fn net_allocate(bytes: u32) -> Result<u32, Refused> {
-    Ok(crate::pointers::game_address({
-        crate::memory::allocate::allocate(
-            crate::pointers::host(crate::pointers::game_address(NET.memory.as_ptr())) as *mut _,
-            bytes,
-        )
-    }?))
+/// The lobby's connection settings (`dword_5AB294`, `memory::allocate` on the network's
+/// list in the original): Rust's bytes since phase 13 (2026-10-27), counted on the list as
+/// the game's block was and lent to the platform, which fills them with DirectPlay's
+/// structure and its own addresses inside; given back with the list (`free_messages`).
+/// Only a lobby's launch reaches it, which the platform never reports
+/// (`dp_objects::get_connection_settings`).
+struct LobbySettings {
+    // Declared first: the region goes before the bytes (`pointers::Lent`).
+    _lent: crate::pointers::Lent,
+    _bytes: Vec<u8>,
+}
+
+static LOBBY_SETTINGS: std::sync::Mutex<Option<LobbySettings>> = std::sync::Mutex::new(None);
+
+/// `bytes` of settings taken: their game address.
+pub fn take_lobby_settings(bytes: u32) -> Result<u32, Refused> {
+    let memory = crate::memory::owned::counted(crate::net::tables::list(), bytes)?;
+    let lent = crate::pointers::Lent::new(&memory);
+    let at = lent.addr();
+    *LOBBY_SETTINGS.lock().unwrap_or_else(|e| e.into_inner()) = Some(LobbySettings {
+        _lent: lent,
+        _bytes: memory,
+    });
+    Ok(at)
+}
+
+/// The settings given back (the list's `free_list` counts them down).
+pub fn give_back_lobby_settings() {
+    *LOBBY_SETTINGS.lock().unwrap_or_else(|e| e.into_inner()) = None;
 }
 
 /// `strings::copy_printable` (addresses).

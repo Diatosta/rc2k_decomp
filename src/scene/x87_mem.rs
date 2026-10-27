@@ -31,6 +31,7 @@ impl Base for *mut u8 {
 
 /// The operand's address, its `len` bytes checked to lie in one region (the program ends
 /// otherwise, `pointers::check_or_end`).
+#[track_caller]
 fn operand(base: impl Base, off: usize, len: usize) -> *mut u8 {
     // A game address (the race core's base and an RVA, a record's address).
     let at = base.address().wrapping_add(off) as u32;
@@ -39,24 +40,28 @@ fn operand(base: impl Base, off: usize, len: usize) -> *mut u8 {
 }
 
 /// `fld dword ptr [base + off]`.
+#[track_caller]
 pub(crate) fn fld(base: impl Base, off: usize) -> X {
     // SAFETY: checked in one live region.
     ld(unsafe { operand(base, off, 4).cast::<u32>().read_unaligned() })
 }
 
 /// `fild dword ptr [base + off]`.
+#[track_caller]
 pub(crate) fn fild(base: impl Base, off: usize) -> X {
     // SAFETY: checked in one live region.
     int(unsafe { operand(base, off, 4).cast::<i32>().read_unaligned() })
 }
 
 /// `fld tbyte ptr [base + off]`.
+#[track_caller]
 pub(crate) fn fld80(base: impl Base, off: usize) -> X {
     // SAFETY: checked in one live region.
     from_f80(unsafe { operand(base, off, 10).cast::<[u8; 10]>().read_unaligned() })
 }
 
 /// `fstp dword ptr [base + off]`: the value rounded to a float as the control word says.
+#[track_caller]
 pub(crate) fn fstp(base: impl Base, off: usize, x: X) {
     // SAFETY: checked in one live region.
     unsafe { operand(base, off, 4).cast::<u32>().write_unaligned(st(x)) }
@@ -64,6 +69,7 @@ pub(crate) fn fstp(base: impl Base, off: usize, x: X) {
 
 /// `fistp dword ptr [base + off]`: the value rounded to a whole number as the control word
 /// says.
+#[track_caller]
 pub(crate) fn fistp(base: impl Base, off: usize, x: X) {
     // SAFETY: checked in one live region.
     unsafe {
@@ -74,6 +80,7 @@ pub(crate) fn fistp(base: impl Base, off: usize, x: X) {
 }
 
 /// `fstp tbyte ptr [base + off]`.
+#[track_caller]
 pub(crate) fn fstp80(base: impl Base, off: usize, x: X) {
     // SAFETY: checked in one live region.
     unsafe {
@@ -84,12 +91,14 @@ pub(crate) fn fstp80(base: impl Base, off: usize, x: X) {
 }
 
 /// `fnstsw word ptr [base + off]`.
+#[track_caller]
 pub(crate) fn fnstsw(base: impl Base, off: usize, status: u16) {
     // SAFETY: checked in one live region.
     unsafe { operand(base, off, 2).cast::<u16>().write_unaligned(status) }
 }
 
 /// `mov dword ptr [base + off], value`.
+#[track_caller]
 pub(crate) fn mov(base: impl Base, off: usize, value: u32) {
     // SAFETY: checked in one live region.
     unsafe { operand(base, off, 4).cast::<u32>().write_unaligned(value) }

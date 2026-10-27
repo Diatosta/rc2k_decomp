@@ -19,6 +19,10 @@
 //!
 //! Caller: `physics::update_camera`. Refuses what the ground checks refuse.
 //!
+//! Seen in play (owner, 2026-10-27): the camera checks serve the hood camera; when the car
+//! flips over, the view changes to chase 1 for a while so the camera does not clip into
+//! the ground. (Which mode's record holds +0x4C, and where the switch is made, not read.)
+//!
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
 //! above are the original's, for reference.
 

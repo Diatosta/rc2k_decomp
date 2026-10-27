@@ -22,7 +22,7 @@
 //! Caller: `net::find_connections`.
 
 use crate::errors::{BadInput, Refused};
-use crate::net::lobby::{co_create, copy_printable, log, net_allocate};
+use crate::net::lobby::{co_create, copy_printable, log};
 use crate::net::store::{NET, PlayerRecord};
 use crate::net::{create_group, create_player, fill_own_player, join_group, list_players};
 use crate::pointers::GamePtr;
@@ -58,7 +58,9 @@ pub fn open_lobby() -> Result<bool, Refused> {
     {
         return Ok(false);
     }
-    NET.settings.set(net_allocate(NET.settings_size.get())?);
+    NET.settings.set(crate::net::lobby::take_lobby_settings(
+        NET.settings_size.get(),
+    )?);
     if crate::net::dp_objects::get_connection_settings(
         NET.lobby.get(),
         0,
