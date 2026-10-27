@@ -8,18 +8,17 @@
 //!
 //! Caller: `sub_4A44A0` (three times). Refuses a null entry, record or name, before anything.
 use crate::errors::{BadInput, Refused};
-use crate::memory::blocks::Place;
 use crate::menu::event_flow::Fault;
 use crate::menu::standings::*;
 
-/// `e` the entry (edi in the original), `p` the player's record (esi), `index` the
-/// player's index (ebx).
-pub fn player_to_standing_b(e: Place, p: u32, index: u32) -> Result<(), Refused> {
+/// `e` the entry of table B (edi in the original), `p` the player's record (esi), `index`
+/// the player's index (ebx).
+pub fn player_to_standing_b(e: usize, p: u32, index: u32) -> Result<(), Refused> {
     if p == 0 || get(p + 0x18)? == 0 {
         return Err(BadInput("a null record or name").into());
     }
-    // Converted: `rc2k_core::menu::standings::fill_b`.
-    use rc2k_core::menu::standings::{PlayerB, fill_b};
+    // Converted: `rc2k_core::saves::rankings::fill_b`.
+    use rc2k_core::menu::standings::PlayerB;
     let fault = Fault::default();
     let source = PlayerB {
         index,
@@ -32,7 +31,6 @@ pub fn player_to_standing_b(e: Place, p: u32, index: u32) -> Result<(), Refused>
         slots: std::array::from_fn(|k| fault.get(p + 0x98 + 4 * k as u32)),
     };
     fault.check()?;
-    // The entry's bytes as far as it is written (to +0x70).
-    with_table(e, 0x70, 1, |t| fill_b(t, 0, &source))?;
+    with_b(|t| rc2k_core::saves::rankings::fill_b(&mut t.entries[e], &source))?;
     Ok(())
 }

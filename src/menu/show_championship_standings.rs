@@ -26,9 +26,7 @@ pub unsafe fn show_championship_standings(c: &Carried) -> Result<(), Refused> {
             palette: ANY_GROUP,
             ..*c
         };
-        let found = crate::menu::first_player_unplaced::first_player_unplaced(
-            crate::memory::blocks::Place::Owned(TABLE_B_RVA.need("no standings table")?),
-        )?;
+        let found = crate::menu::first_player_unplaced::first_player_unplaced()?;
         found.carry_on(&mut c);
         // Converted: `rc2k_core::menu::results_pages::held_figure`.
         let count = held_figure(Page::ChampionshipStandings, found.figure);

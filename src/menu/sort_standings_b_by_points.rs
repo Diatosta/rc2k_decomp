@@ -12,6 +12,6 @@ use crate::menu::standings::*;
 
 /// The Rust version (see the header): the registers it leaves.
 pub fn sort_standings_b_by_points() -> Result<(), Refused> {
-    sort_table_b(0x6C, true)?;
+    sort_table_b(rc2k_core::saves::rankings::BKey::StageTotal, true)?;
     Ok(())
 }

@@ -59,6 +59,8 @@ fn put(b: &mut [u8], at: usize, v: u32) {
 /// two entries (each list moves some and leaves the others where they are).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Field {
+    /// +0 (table A's sorts move it).
+    First,
     Player,
     Nation,
     NameId,
@@ -114,6 +116,25 @@ impl Entry {
         put(b, 0x4C, self.entered);
     }
 
+    /// Head field `f`'s value (a sort's key).
+    pub fn value(&self, f: Field) -> u32 {
+        match f {
+            Field::First => self.first,
+            Field::Player => self.player,
+            Field::Nation => self.nation,
+            Field::NameId => self.name_id,
+            Field::Car => self.car,
+            Field::Key => self.key,
+            Field::RallyTime => self.rally_time,
+            Field::Group => self.group,
+            Field::Mark => self.mark,
+            Field::Entered => self.entered,
+            Field::Cheats | Field::Sealed0 | Field::Sealed1 | Field::Checkpoints => {
+                unreachable!("a best time's field asked of a head")
+            }
+        }
+    }
+
     /// The text the game draws for the name: from +0x20 to the first NUL, which may come
     /// after the name's room (the original reads on into the mark). None: no NUL before
     /// the head's end.
@@ -164,6 +185,7 @@ impl Ranked for Entry {
 
     fn exchange_field(a: &mut Self, b: &mut Self, f: Field) {
         let (x, y) = match f {
+            Field::First => (&mut a.first, &mut b.first),
             Field::Player => (&mut a.player, &mut b.player),
             Field::Nation => (&mut a.nation, &mut b.nation),
             Field::NameId => (&mut a.name_id, &mut b.name_id),
@@ -187,7 +209,7 @@ pub type List = [Entry; PER_LIST];
 /// Entries `a` and `b`'s `fields` and names exchanged as the original does it (the name's
 /// last byte stays); the name through `kept`, which ends with `a`'s.
 pub fn exchange<T: Ranked>(
-    list: &mut [T; PER_LIST],
+    list: &mut [T],
     a: usize,
     b: usize,
     fields: &[Field],

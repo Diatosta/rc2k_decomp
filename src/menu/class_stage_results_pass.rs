@@ -12,8 +12,6 @@
 //! anything; what the steps refuse.
 
 use crate::errors::Refused;
-use crate::memory::blocks::Place;
-use crate::menu::event_flow::Fault;
 use crate::menu::event_store::EVENT_STATE;
 use crate::menu::loop_store::LOOP_FLAGS;
 use crate::menu::pages_store::MENU_PAGES;
@@ -36,18 +34,13 @@ pub unsafe fn class_stage_results_pass(c: &Carried) -> Result<(), Refused> {
         let first = first_class();
         // Converted: `rc2k_core::menu::class_pages` (`classes`, `has_player`).
         let classes = class_pages::classes(first, EVENT_STATE.classes.get())?;
-        let table = Place::Owned(TABLE_A_RVA.need("no standings table")?);
-        let all = entries(table, A_ENTRY)?;
+        let all: Vec<(u32, u32)> = walked_entries_a()?
+            .iter()
+            .map(|e| (e.head.group, e.head.player))
+            .collect();
         for class in classes {
             LOOP_FLAGS.ended_b.set(0u32);
-            let fault = Fault::default();
-            let has_player = class_pages::has_player(
-                all.len(),
-                |n| fault.get_at(all[n].add(0x1C)),
-                |n| fault.get_at(all[n].add(4)),
-                class,
-            );
-            fault.check()?;
+            let has_player = class_pages::has_player(all.len(), |n| all[n].0, |n| all[n].1, class);
             if !has_player {
                 continue;
             }

@@ -10,14 +10,12 @@ use crate::menu::standings::*;
 
 /// The Rust version (see the header): the registers it leaves.
 pub fn init_standings_a() -> Result<(), Refused> {
-    let first = TABLE_A_RVA.need("no standings table")?;
-    // Converted: `rc2k_core::menu::standings::EMPTY_A`.
-    use rc2k_core::menu::standings::{EMPTY_A, ROOM};
-    for n in 0..ROOM {
-        let e = first.add(A_ENTRY * n);
-        for (k, v) in EMPTY_A.into_iter().enumerate() {
-            e.add(4 * k as u32).write(v, "a standings entry")?;
-        }
-    }
+    // Converted: `rc2k_core::saves::rankings::empty_a` on the first `ROOM` entries.
+    use rc2k_core::menu::standings::ROOM;
+    with_a(|t| {
+        t.entries[..ROOM as usize]
+            .iter_mut()
+            .for_each(rc2k_core::saves::rankings::empty_a)
+    })?;
     Ok(())
 }

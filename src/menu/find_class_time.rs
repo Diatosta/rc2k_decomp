@@ -9,40 +9,47 @@
 //! end in 0x400 entries.
 
 use crate::errors::BadInput;
-use crate::memory::blocks::Place;
+use crate::menu::standings::with_a;
+use rc2k_core::saves::entries::BestTime;
 
-pub const ENTRY_LEN: u32 = 0x9C;
 const LIMIT: u32 = 0x400;
 
-fn get(a: Place) -> Result<u32, crate::errors::BadInput> {
-    a.read("a ranked entry's value")
-}
-
-/// The entry the original stops at.
-pub fn class_entry(list: Place, class: u32) -> Result<Place, BadInput> {
+/// The entry of table A the original stops at (a copy).
+pub fn class_entry(class: u32) -> Result<BestTime, BadInput> {
     // Converted: `rc2k_core::menu::standings::search` (the end mark's entry when none).
     use rc2k_core::menu::standings::{Found, search};
-    let at = |n: u32| list.add(n.wrapping_mul(ENTRY_LEN));
-    let mut last = 0;
-    let fault = crate::menu::event_flow::Fault::default();
-    let found = search(
-        |n| {
-            last = n;
-            fault.get_at(at(n))
-        },
-        |n| fault.get_at(at(n).add(0x1C)) == class,
-        LIMIT,
-    );
-    fault.check()?;
-    match found {
-        Found::At(n) => Ok(at(n)),
-        Found::End => Ok(at(last)),
-        Found::NoEnd => Err(BadInput("a list without its end in 0x400 entries")),
-    }
+    with_a(|t| {
+        let mut last = 0;
+        let found = search(
+            |n| {
+                last = n;
+                t.first_at(n as usize).unwrap_or(u32::MAX)
+            },
+            |n| {
+                t.entries
+                    .get(n as usize)
+                    .is_some_and(|e| e.head.group == class)
+            },
+            LIMIT,
+        );
+        match found {
+            Found::At(n) => Ok(t.entries[n as usize]),
+            Found::End => t
+                .entries
+                .get(last as usize)
+                .copied()
+                .ok_or(BadInput("table A's end mark past its entries")),
+            Found::NoEnd => Err(BadInput("a list without its end in 0x400 entries")),
+        }
+    })?
 }
 
-/// The Rust version (see the header).
-pub fn find_class_time(list: Place, class: u32, second: bool) -> Result<u32, BadInput> {
-    let e = class_entry(list, class)?;
-    get(e.add(if second { 0x18 } else { 0x14 }))
+/// The Rust version (see the header): table A's.
+pub fn find_class_time(class: u32, second: bool) -> Result<u32, BadInput> {
+    let e = class_entry(class)?;
+    Ok(if second {
+        e.head.rally_time
+    } else {
+        e.head.key
+    })
 }

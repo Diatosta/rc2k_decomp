@@ -2,26 +2,26 @@
 //! 0x742C98 .. 0x7475D0, `RallyTimes`), then the memory the nine other tables are taken
 //! on, the two switches and where each table is (0x7475D0 .. 0x747660, `BestTimes`:
 //! `saves::allocate_best_times`, `load_best_times`, `free_best_times`). Since phase 12 the
-//! nine tables are Rust's own blocks (`memory::blocks`): each pair holds a block's id, not
-//! an address, as do their copies in `menu::champ_store::CHAMP_VIEW`.
+//! nine tables are typed and Rust's own (`saves::best_times`): each pair keeps only the
+//! size.
 //! `#[repr(C)]`, the image's layout (all zero in it); `moved::MOVED` points the range at it.
 //! `allocate_best_times` walks the switches and the pairs as one run of dwords from
 //! `allocated` (`vars()`).
 
 use crate::session::{Bytes, Dword};
 
-/// Where one table is: its block (`memory::blocks`; the game held its address) and its
-/// size in bytes.
+/// Where one table is: its address (the game's; 0 since the tables are typed, phase 12)
+/// and its size in bytes.
 #[repr(C)]
 pub struct TablePlace {
-    pub block: crate::memory::blocks::BlockVar,
+    pub address: Dword,
     pub size: Dword,
 }
 
 impl TablePlace {
     const fn new() -> Self {
         Self {
-            block: crate::memory::blocks::BlockVar::new(),
+            address: Dword::new(0),
             size: Dword::new(0),
         }
     }

@@ -113,8 +113,8 @@ pub struct RaceResult {
 pub struct RaceSettings {
     /// `g_newSimulationUnlocked`: 1 in the A8 game (`menu::apply_cheats`).
     pub a8_game: Dword,
-    /// `dword_75ACD0`: a copy of the standings summary (`dword_7556F4`), 10 records of 0x50:
-    /// its block's id (`memory::blocks`, `BlockVar::of`; the game held its address), or 0.
+    /// `dword_75ACD0`: a copy of the standings summary (`dword_7556F4`, the game held its
+    /// address): 1 while the summary (`saves::best_times::SUMMARY`) is taken, or 0.
     pub rivals: Dword,
     /// `dword_75ACD4`: the stage chosen.
     pub stage: Dword,

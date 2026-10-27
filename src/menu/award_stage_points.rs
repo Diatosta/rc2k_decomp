@@ -16,9 +16,7 @@
 //! 0x100, a section past 5, a player past 4 or missing, before anything; a driver not found is the
 //! search's fatal error, before anything.
 use crate::errors::{BadInput, Refused};
-use crate::memory::blocks::Place;
 use crate::menu::draw_work_store::DRAW_WORK;
-use crate::menu::event_flow::Fault;
 use crate::menu::event_store::EVENT_STATE;
 use crate::menu::standings::*;
 
@@ -30,10 +28,10 @@ enum Owner {
     Player(u32),
 }
 
-fn owner(e: Place) -> Result<Owner, Refused> {
-    match get_at(e.add(4))? {
+fn owner(e: &rc2k_core::saves::rankings::HistoryEntry) -> Result<Owner, Refused> {
+    match e.player {
         0 => {
-            let driver = crate::menu::find_cpu_team::find_cpu_team(get_at(e)?)?;
+            let driver = crate::menu::find_cpu_team::find_cpu_team(e.first)?;
             Ok(Owner::Driver(driver))
         }
         n if n <= 4 && player(n - 1) != 0 => Ok(Owner::Player(player(n - 1))),
@@ -46,17 +44,12 @@ pub unsafe fn award_stage_points() -> Result<(), Refused> {
     unsafe {
         let classes: u32 = EVENT_STATE.classes.get();
         let section: u32 = SECTION_RVA.get();
-        let table = TABLE_B_RVA.get();
-        let (Some(table), true) = (table, classes != 0 && classes <= 0x100 && section <= 5) else {
-            return Err(BadInput(
-                "no table, a class count of 0 or past 0x100, or a section past 5",
-            )
-            .into());
-        };
-        let table = Place::Owned(table);
-        let all = entries(table, B_ENTRY)?;
+        if classes == 0 || classes > 0x100 || section > 5 {
+            return Err(BadInput("a class count of 0 or past 0x100, or a section past 5").into());
+        }
+        let mut all = walked_entries_b()?;
         let mut owners = Vec::with_capacity(all.len());
-        for &e in &all {
+        for e in &all {
             owners.push(owner(e)?);
         }
         // Converted: `rc2k_core::menu::points` (`Points`, `kept`, `total`).
@@ -65,9 +58,9 @@ pub unsafe fn award_stage_points() -> Result<(), Refused> {
         for class in 0..classes {
             let mut points = Points::default();
             DRAW_WORK.seconds.set(points.0);
-            for (&e, o) in all.iter().zip(&owners) {
+            for (e, o) in all.iter_mut().zip(&owners) {
                 EVENT_STATE.class.set(class);
-                if get_at(e.add(0x10))? != class {
+                if e.group != class {
                     continue;
                 }
                 crate::logfile::log_write::log_write(
@@ -75,30 +68,26 @@ pub unsafe fn award_stage_points() -> Result<(), Refused> {
                     false,
                     1,
                 );
-                crate::logfile::log_int::log_int(get_at(e.add(0x74))? as i32, true, 1);
+                crate::logfile::log_int::log_int(e.status as i32, true, 1);
                 let given = points.take();
                 DRAW_WORK.seconds.set(points.0);
                 let (keeps, field) = match *o {
                     Owner::Driver(d) => (get(d + 0x24)? == 1, d + 0x78 + at),
                     Owner::Player(p) => (get(p + 0xD0)? == 1, p + 0x98 + at),
                 };
-                e.add(0x54 + at)
-                    .write(kept(given, keeps), "a standings entry")?;
+                e.stage[section as usize] = kept(given, keeps);
                 put(field, kept(given, keeps))?;
             }
         }
-        for (&e, o) in all.iter().zip(&owners) {
-            let fault = Fault::default();
-            let total = total(std::array::from_fn(|k| {
-                fault.get_at(e.add(0x54 + 4 * k as u32))
-            }));
-            fault.check()?;
-            e.add(0x6C).write(total, "a standings entry")?;
+        for (e, o) in all.iter_mut().zip(&owners) {
+            let total = total(std::array::from_fn(|k| e.stage[k]));
+            e.stage[6] = total;
             match *o {
                 Owner::Driver(d) => put(d + 0x90, total)?,
                 Owner::Player(p) => put(p + 0xB0, total)?,
             }
         }
+        with_b(|t| t.entries[..all.len()].copy_from_slice(&all))?;
     }
     Ok(())
 }

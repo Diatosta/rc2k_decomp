@@ -105,11 +105,15 @@ impl Entries<'_> {
 }
 
 /// Table A's fields a sort moves, and its name.
+#[cfg(test)]
 pub const A_FIELDS: [usize; 9] = [0xC, 0x14, 4, 0, 8, 0x1C, 0x10, 0x18, 0x4C];
+#[cfg(test)]
 pub const A_NAME: usize = 0x20;
 /// Table B's name; its fields are `b_fields()`.
+#[cfg(test)]
 pub const B_NAME: usize = 0x14;
 
+#[cfg(test)]
 pub fn b_fields() -> Vec<usize> {
     let mut f = vec![0x34, 4, 0, 8, 0x10, 0xC];
     f.extend((0x38..=0x6C).step_by(4));
@@ -119,6 +123,7 @@ pub fn b_fields() -> Vec<usize> {
 /// The first `SORTED` entries sorted by the signed dword at `key` with the original's
 /// exchange sort: for each i < j, entry j and i swapped (j first) when j's key is at most
 /// i's (`down` false) or at least i's (`down`).
+#[cfg(test)]
 pub fn exchange_sort(
     t: &mut Entries,
     key: usize,
@@ -152,6 +157,7 @@ pub fn remove_at(list: &mut [u32], shown: usize, end: usize) {
 
 /// What a first-player search finds: the entry, the computer drivers of the group before
 /// it, its figure.
+#[cfg(test)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct First {
     pub entry: usize,
@@ -162,6 +168,7 @@ pub struct First {
 /// The original's search for the first player (`find1stplayer`): the entries of `group`
 /// (`ANY_GROUP`: any whose group is not 0) whose player (+4) is not 0. None: the game's
 /// fatal error.
+#[cfg(test)]
 pub fn first_player(t: &Entries, group: u32, group_at: usize, figure_at: usize) -> Option<First> {
     let mut computers = 0;
     for n in 0..t.len() {
@@ -221,8 +228,18 @@ pub const ROOM: u32 = 200;
 /// A time beyond any (an emptied table A entry's two times).
 pub const NO_TIME: u32 = 0x36_F272;
 /// Table A's emptied entry: its first eight dwords.
+#[cfg(test)]
 pub const EMPTY_A: [u32; 8] = [u32::MAX, u32::MAX, 0, 0, 0, NO_TIME, NO_TIME, 0];
+/// `EMPTY_A` stored in an entry's bytes (the typed version's test).
+#[cfg(test)]
+pub fn empty_bytes_a(b: &mut [u8]) {
+    for (k, v) in EMPTY_A.into_iter().enumerate() {
+        b[4 * k..4 * k + 4].copy_from_slice(&v.to_le_bytes());
+    }
+}
+
 /// Table B's emptied entry: its first five dwords.
+#[cfg(test)]
 pub const EMPTY_B: [u32; 5] = [u32::MAX; 5];
 
 /// Which entries a numbering counts.
@@ -260,7 +277,9 @@ pub fn number(groups: &[u32], which: Numbering) -> Vec<Option<u32>> {
 
 /// Table A's figure and table B's, each entry's emptied (0) by `menu::clear_standings_a` /
 /// `_b`.
+#[cfg(test)]
 pub const A_FIGURE: usize = 0x44;
+#[cfg(test)]
 pub const B_FIGURE: usize = 0x70;
 
 /// `menu::find_cpu_team`: the first driver whose number (+0) is `number` (none: the game's
@@ -289,6 +308,7 @@ pub struct PlayerA {
 /// A table A entry filled from a player: +4 the index + 1, +0x14 the time, +0x1C the
 /// group, +0x18 the total, +0xC the name's pointer and +0x20 the name, +8 the nationality,
 /// +0x10 the car, +0x4C the taking part.
+#[cfg(test)]
 pub fn fill_a(t: &mut Entries, n: usize, p: &PlayerA) {
     t.store(
         n,
@@ -323,6 +343,7 @@ pub struct PlayerB {
 /// A table B entry filled from a player: +4 the index + 1, +0x14 the name, +8 / +0xC /
 /// +0x10 the nationality, car and group, +0x34 the total, +0x38 .. +0x50 its +0xB4 ..,
 /// +0x54 .. +0x6C its +0x98 ...
+#[cfg(test)]
 pub fn fill_b(t: &mut Entries, n: usize, p: &PlayerB) {
     t.set(n, 4, p.index.wrapping_add(1));
     t.set_bytes(n, 0x14, &p.name);
@@ -344,6 +365,7 @@ pub fn fill_b(t: &mut Entries, n: usize, p: &PlayerB) {
 /// Table A's entry `n` filled from driver `d` of `drivers` (`menu::standings_from_drivers`):
 /// +0x14 / +0x1C / +0x18 / +8 / +0x10 / +0 / +0x4C its +0xC / +8 / +0x10 / +0x14 / +0x18 /
 /// +0 / +0x24, +4 0, +0xC its name's string number and +0x20 the text (with its NUL).
+#[cfg(test)]
 pub fn fill_a_from_driver(
     t: &mut Entries,
     n: usize,
@@ -373,6 +395,7 @@ pub fn fill_a_from_driver(
 /// Table B's entry `n` filled from driver `d` (`menu::standings_b_from_all`): +4 0, +0x10 /
 /// +8 / +0xC / +0 / +0x34 its +8 / +0x14 / +0x18 / +0 / +0x10, +0x38 .. +0x6C its +0x5C ..
 /// +0x90, +0x14 the text of its name (with its NUL).
+#[cfg(test)]
 pub fn fill_b_from_driver(t: &mut Entries, n: usize, drivers: &Entries, d: usize, text: &[u8]) {
     let f = |at| drivers.get(d, at);
     t.store(
@@ -415,11 +438,13 @@ pub const A_GROUP_FIRSTS: [usize; 4] = [89, 139, 169, 179];
 pub const B_GROUP_FIRSTS: [usize; 4] = [89, 119, 169, 179];
 
 /// The summary's rows (`menu::copy_standings_summary`).
+#[cfg(test)]
 pub const SUMMARY_ROWS: usize = 0x5A;
 
 /// The summary's rows (+0, +4, +8, +0xC of each: the entry's +0xC, +8, +0x10, +0x14) from
 /// table A's first `SUMMARY_ROWS` entries with a group (+0x1C not 0; `grouped`) or
 /// without. None when the table runs out first (the original walks on past its end).
+#[cfg(test)]
 pub fn summary_rows(t: &Entries, grouped: bool) -> Option<Vec<[u32; 4]>> {
     let rows: Vec<[u32; 4]> = (0..t.len())
         .filter(|&n| (t.get(n, 0x1C) != 0) == grouped)

@@ -10,17 +10,13 @@
 //! fatal error as the original.
 
 use crate::errors::Refused;
-use crate::memory::blocks::Place;
 use crate::menu::standings::*;
 
-/// The first player of `group` (ebx) in the table from `from` (edi).
-pub fn first_player_a(from: Place, group: u32) -> Result<Found, Refused> {
+/// The first player of `group` (ebx) in table A (the original's edi, its start).
+pub fn first_player_a(group: u32) -> Result<Found, Refused> {
     first_player(
-        from,
+        Which::A,
         group,
-        A_ENTRY,
-        0x1C,
-        0x44,
         0x8070A0A0,
         "Unable to locate player (find1stplayer)",
     )

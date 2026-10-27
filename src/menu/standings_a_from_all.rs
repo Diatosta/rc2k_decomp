@@ -10,12 +10,11 @@
 //! count of 0 or past 4, a player missing or without a name, and what the drivers' fill refuses,
 //! before anything.
 use crate::errors::{BadInput, Refused};
-use crate::memory::blocks::Place;
 use crate::menu::standings::*;
 
 /// Each group's (0 .. 3) players, in order, into the table's entries from the group's slot
 /// down (`copy_standing_entry`, ebx the player's index).
-fn players_by_group(first: Place, size: u32, firsts: [usize; 4]) -> Result<(), Refused> {
+fn players_by_group(firsts: [usize; 4]) -> Result<(), Refused> {
     let players = counted_players()?;
     let groups: Vec<u32> = players
         .iter()
@@ -23,13 +22,7 @@ fn players_by_group(first: Place, size: u32, firsts: [usize; 4]) -> Result<(), R
         .collect::<Result<_, _>>()?;
     // Converted: `rc2k_core::menu::standings::by_group`.
     for (n, e) in rc2k_core::menu::standings::by_group(&groups, firsts) {
-        {
-            crate::menu::copy_standing_entry::copy_standing_entry(
-                first.add(size * e as u32),
-                players[n],
-                n as u32,
-            )
-        }?;
+        { crate::menu::copy_standing_entry::copy_standing_entry(e, players[n], n as u32) }?;
     }
     Ok(())
 }
@@ -41,8 +34,7 @@ pub fn standings_a_from_all() -> Result<(), Refused> {
         return Err(BadInput("a player without a name").into());
     }
     crate::menu::standings_from_drivers::standings_from_drivers()?;
-    let first = Place::Owned(TABLE_A_RVA.need("no standings table")?);
     use rc2k_core::menu::standings::A_GROUP_FIRSTS;
-    players_by_group(first, A_ENTRY, A_GROUP_FIRSTS)?;
+    players_by_group(A_GROUP_FIRSTS)?;
     Ok(())
 }

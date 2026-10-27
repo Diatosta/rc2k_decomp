@@ -26,8 +26,8 @@ pub fn free_list(list: *mut MemoryList) -> Result<(), BadInput> {
     if list.is_null() {
         return Ok(());
     }
-    // Rust's own blocks on it (`memory::blocks`), counted in its total like the others.
-    crate::memory::blocks::free_on(list);
+    // Rust's own tables counted on it (`memory::owned`) are given back by their owners
+    // (`saves::free_best_times`); its total counts them like the others.
     let at = GamePtr::new(crate::pointers::game_address(list));
     let mut l = at.read::<MemoryList>("a memory list")?;
     let block = l.head;

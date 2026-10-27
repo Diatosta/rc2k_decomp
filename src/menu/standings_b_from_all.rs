@@ -13,12 +13,11 @@
 //! entries, a name past the entry, a player count of 0 or past 4, a player missing or without a
 //! name, before anything.
 use crate::errors::{BadInput, Refused};
-use crate::memory::blocks::Place;
 use crate::menu::standings::*;
 
 /// Each group's (0 .. 3) players, in order, into the table's entries from the group's slot
 /// down (`player_to_standing_b`, ebx the player's index).
-fn players_by_group(first: Place, size: u32, firsts: [usize; 4]) -> Result<(), Refused> {
+fn players_by_group(firsts: [usize; 4]) -> Result<(), Refused> {
     let players = counted_players()?;
     let groups: Vec<u32> = players
         .iter()
@@ -26,50 +25,41 @@ fn players_by_group(first: Place, size: u32, firsts: [usize; 4]) -> Result<(), R
         .collect::<Result<_, _>>()?;
     // Converted: `rc2k_core::menu::standings::by_group`.
     for (n, e) in rc2k_core::menu::standings::by_group(&groups, firsts) {
-        {
-            crate::menu::player_to_standing_b::player_to_standing_b(
-                first.add(size * e as u32),
-                players[n],
-                n as u32,
-            )
-        }?;
+        { crate::menu::player_to_standing_b::player_to_standing_b(e, players[n], n as u32) }?;
     }
     Ok(())
 }
 
 /// The Rust version (see the header): the registers it leaves.
 pub fn standings_b_from_all() -> Result<(), Refused> {
-    let first = TABLE_B_RVA.get();
-    let drivers = game_entries(crate::menu::drivers_store::DRIVERS.first(), DRIVER)?;
-    let (Some(first), true) = (first, drivers.len() <= 200) else {
-        return Err(BadInput("no standings table, or more drivers than it holds").into());
-    };
-    let first = Place::Owned(first);
+    let drivers = walked_drivers()?;
+    if drivers.len() > 200 {
+        return Err(BadInput("more drivers than the standings table holds").into());
+    }
     let players = counted_players()?;
     if any_unnamed(&players)? {
         return Err(BadInput("a player without a name").into());
     }
     let mut texts = Vec::new();
-    for &d in &drivers {
-        let id: u32 = crate::menu::drivers_store::name_string(get(d)?);
+    for d in &drivers {
+        let id: u32 = crate::menu::drivers_store::name_string(d.number);
         let mut text = Vec::new();
         crate::strings::append_string_by_id::push_string(&mut text, id)?;
         text.push(0);
-        if text.len() > (B_ENTRY - 0x14) as usize {
+        if text.len() > rc2k_core::saves::rankings::HISTORY_LEN - 0x14 {
             return Err(BadInput("a driver's name past its entry").into());
         }
         texts.push(text);
     }
     crate::menu::init_standings_b::init_standings_b()?;
-    // Converted: `rc2k_core::menu::standings::fill_b_from_driver`.
-    let count = drivers.len() as u32;
-    let all = table(drivers[0], DRIVER, count)?;
-    with_table(first, B_ENTRY, count, |t| {
-        for (n, text) in texts.into_iter().enumerate() {
-            rc2k_core::menu::standings::fill_b_from_driver(t, n, &all, n, &text);
+    // Converted: `rc2k_core::saves::rankings::fill_b_from_driver`.
+    with_b(|t| {
+        for ((d, text), e) in drivers.iter().zip(&texts).zip(&mut t.entries) {
+            rc2k_core::saves::rankings::fill_b_from_driver(e, d, text)
+                .expect("the name's length checked");
         }
     })?;
     use rc2k_core::menu::standings::B_GROUP_FIRSTS;
-    players_by_group(first, B_ENTRY, B_GROUP_FIRSTS)?;
+    players_by_group(B_GROUP_FIRSTS)?;
     Ok(())
 }

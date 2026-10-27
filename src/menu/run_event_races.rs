@@ -106,8 +106,9 @@ impl races::EventRaces for Game<'_> {
                 }
                 Step::RaceInfo => {
                     let (rec, pack) = (self.rec, self.pack);
-                    // The summary's block id (the race reads it: `RACE_STATE.settings.rivals`).
-                    g.c.arg = CHAMP_VIEW.summary.id();
+                    // The summary's variable: 1 while it is there (the race reads it:
+                    // `RACE_STATE.settings.rivals`).
+                    g.c.arg = CHAMP_VIEW.summary.get();
                     RACE_STATE.settings.rivals.set(g.c.arg);
                     g.c.arg = INDEX_RVA.get();
                     g.c.palette = SECTION_RVA.get();

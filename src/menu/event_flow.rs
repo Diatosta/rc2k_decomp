@@ -66,15 +66,6 @@ impl Fault {
         self.ok(put(p, v));
     }
 
-    /// The dword at a place (a table's, or the game's).
-    pub fn get_at(&self, p: crate::memory::blocks::Place) -> u32 {
-        self.ok(p.read("a table's value"))
-    }
-
-    pub fn put_at(&self, p: crate::memory::blocks::Place, v: u32) {
-        self.ok(p.write(v, "a table's value"));
-    }
-
     pub fn check(&self) -> Result<(), BadInput> {
         self.0.take().map_or(Ok(()), Err)
     }

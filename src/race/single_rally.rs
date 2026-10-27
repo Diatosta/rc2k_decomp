@@ -39,9 +39,9 @@ type Record = u32;
 // next entry would start.
 /// g_players (0x75647C): the players' records, 4 bytes each.
 const PLAYERS: &Dword = &PLAYER_TABLE.pointers[0];
-/// dword_7556F4: the standings summary (its block, `memory::blocks`), copied to
-/// `RACE_INFO`.
-const SUMMARY: &crate::memory::blocks::BlockVar = &CHAMP_VIEW.summary;
+/// dword_7556F4: whether the standings summary is taken (1, `saves::best_times::SUMMARY`),
+/// copied to `RACE_INFO`.
+const SUMMARY: &Dword = &CHAMP_VIEW.summary;
 /// dword_7558DC, copied to dword_5C2FD0 after the loading picture.
 const AFTER_LOADING: &Dword = &EVENT_STATE.sparks_mode;
 /// dword_7554C8: kept over the race (`RACE_KEPT`).
@@ -634,7 +634,7 @@ unsafe fn single_rally(
         if kind == 3 {
             step(1)?; // race::copy_rally_times
         }
-        RACE_INFO.set(SUMMARY.id());
+        RACE_INFO.set(SUMMARY.get());
         set_var(SWITCH, start);
         RACE_KIND.set(kind);
         RESULT.set(0);

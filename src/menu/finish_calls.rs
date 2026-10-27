@@ -1,5 +1,4 @@
 use crate::errors::{BadInput, Refused};
-use crate::memory::blocks::Place;
 use crate::menu::champ_store::CHAMP_VIEW;
 use crate::menu::event_flow::Fault;
 use crate::race::state_store::RACE_STATE;
@@ -10,7 +9,7 @@ use rc2k_core::menu::finish::{self, Racer, Step, Var};
 /// Rust versions, the steps their Rust versions. `racer` is the record (the original's
 /// edi) the racer fields are read and written through: a player's, or a standings entry.
 pub struct Game {
-    pub racer: Place,
+    pub racer: RacerAt,
     /// A refused read or write of the core's variables (checked at each step and at the end).
     fault: Fault,
 }
@@ -19,12 +18,46 @@ impl Game {
     /// Runs a flow on a new game; a refused read or write of its variables ends it.
     pub fn run(flow: impl FnOnce(&mut Game) -> Result<(), Refused>) -> Result<(), Refused> {
         let mut game = Game {
-            racer: Place::Game(0),
+            racer: RacerAt::Game(0),
             fault: Fault::default(),
         };
         let done = flow(&mut game);
         game.fault.check()?;
         done
+    }
+}
+
+/// Where the racer's fields are: a record of the game's memory (a player's) or an entry of
+/// the championship history (table B).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum RacerAt {
+    Game(u32),
+    History(usize),
+}
+
+const PAST_ENTRY: crate::errors::BadInput = BadInput("a racer's field past its entry");
+
+impl Game {
+    fn racer_get(&self, offset: u32) -> u32 {
+        match self.racer {
+            RacerAt::Game(p) => self.fault.get(p.wrapping_add(offset)),
+            RacerAt::History(n) => {
+                self.fault.ok(
+                    crate::menu::standings::with_b(|t| t.entries[n].dword_at(offset))
+                        .and_then(|v| v.ok_or(PAST_ENTRY)),
+                )
+            }
+        }
+    }
+
+    fn racer_set(&self, offset: u32, value: u32) {
+        match self.racer {
+            RacerAt::Game(p) => self.fault.put(p.wrapping_add(offset), value),
+            RacerAt::History(n) => self.fault.ok(crate::menu::standings::with_b(|t| {
+                t.entries[n].set_dword_at(offset, value)
+            })
+            .and_then(|v| v.ok_or(PAST_ENTRY))),
+        }
     }
 }
 
@@ -49,7 +82,7 @@ impl finish::Finish for Game {
 
     fn get(&mut self, v: Var) -> u32 {
         match v {
-            Var::Racer(offset) => self.fault.get_at(self.racer.add(offset)),
+            Var::Racer(offset) => self.racer_get(offset),
             _ => match cell(v) {
                 Some(cell) => cell.get(),
                 None => unreachable!("the racer's fields are not at an address"),
@@ -59,7 +92,7 @@ impl finish::Finish for Game {
 
     fn set(&mut self, v: Var, value: u32) {
         match v {
-            Var::Racer(offset) => self.fault.put_at(self.racer.add(offset), value),
+            Var::Racer(offset) => self.racer_set(offset, value),
             _ => match cell(v) {
                 Some(cell) => cell.set(value),
                 None => unreachable!("the racer's fields are not at an address"),
@@ -68,19 +101,18 @@ impl finish::Finish for Game {
     }
 
     fn find_leader(&mut self, group_b: bool) -> Result<Option<u32>, Refused> {
-        let table = Place::Owned(CHAMP_VIEW.champ_history.need("no championship history")?);
         let found = if group_b {
-            crate::menu::first_player_b::first_player_b(table, 0)?
+            crate::menu::first_player_b::first_player_b(0)?
         } else {
-            crate::menu::first_player_unplaced::first_player_unplaced(table)?
+            crate::menu::first_player_unplaced::first_player_unplaced()?
         };
-        self.racer = found.entry;
+        self.racer = RacerAt::History(found.entry);
         Ok((found.figure == 1).then_some(found.computers))
     }
 
     fn find_done(&mut self) -> Result<Option<u32>, Refused> {
         let found = crate::menu::find_section_player::find_section_player()?;
-        self.racer = Place::Game(found.record);
+        self.racer = RacerAt::Game(found.record);
         Ok((found.index != u32::MAX).then_some(found.index))
     }
 
@@ -91,9 +123,9 @@ impl finish::Finish for Game {
                 if player(n) == 0 {
                     return Err(BadInput("the leader's ecx past the players").into());
                 }
-                self.racer = Place::Game(player(n));
+                self.racer = RacerAt::Game(player(n));
             }
-            Racer::Done(n) => self.racer = Place::Game(player(n)),
+            Racer::Done(n) => self.racer = RacerAt::Game(player(n)),
         }
         Ok(())
     }

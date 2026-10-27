@@ -7,8 +7,9 @@
 //!   picture (`sub_47CEA8`, not ported); `gfx::build_menu_sprites`;
 //!   `menu::fit_player_names` (with the ecx the loading picture left);
 //! - `dword_5180FC` = `dword_755688` and `dword_518100` = `dword_75568C`;
-//! - `saves::allocate_best_times`, and the nine tables' addresses copied to the variables
-//!   the screens read them from (`COPIES`);
+//! - `saves::allocate_best_times` (the original then copies the nine tables' addresses to
+//!   the variables the screens read; the tables are typed now, `saves::best_times`, and
+//!   only the summary's variable is set: 1 while it is there, for the race's rivals);
 //! - unless the best times were loaded (`g_bestTimesLoaded`): the six fillers of made-up
 //!   times, `dword_755A0C` (the checkpoints' switch) set before each (1 only for
 //!   `default_checkpoint_times`), then `g_bestTimesLoaded` = 1;
@@ -20,7 +21,6 @@
 //! original's, for reference.
 
 use crate::errors::Refused;
-use crate::memory::blocks::BlockVar;
 use crate::menu::champ_store::CHAMP_VIEW;
 use crate::menu::draw_work_store::DRAW_WORK;
 use crate::menu::loop_store::LOOP_FLAGS;
@@ -30,21 +30,6 @@ use crate::saves::default_times::to_the_log;
 use crate::sound::store::SOUND_OPTIONS;
 
 // ---- game data ----
-
-/// Where each of the nine tables of `saves::allocate_best_times` (`BEST_TIMES.tables`:
-/// `dword_747618`, `dword_747620` .. `dword_747658`, in order) is copied to; none for a
-/// typed table (`saves::best_times`), which is reached by name.
-const COPIES: [Option<fn() -> &'static BlockVar>; 9] = [
-    Some(|| &CHAMP_VIEW.summary),
-    None, // g_bestScores
-    None, // g_stageBestTimes
-    None, // g_levelBestScores
-    None, // g_courseBestTimes
-    Some(|| &CHAMP_VIEW.ranked_times),
-    Some(|| &CHAMP_VIEW.champ_history),
-    None, // g_stageBestTimesAlt
-    None, // dword_7556E8
-];
 
 /// The record tables that get made-up records: the championship's and the twelve events'
 /// (IDA 0x739642, 0x7391C2, 0x738D42, 0x7388C2, 0x738442, 0x737FC2, then 0x739AC2 ..
@@ -92,11 +77,11 @@ pub unsafe fn set_up_front_end(stage: u32, x: u32) -> Result<(), Refused> {
             BEST_TIMES.list(),
             crate::records::stages_store::STAGE_TABLES.championship(),
         )?;
-        for (table, to) in BEST_TIMES.tables.iter().zip(COPIES) {
-            if let Some(to) = to {
-                to().set(table.block.id());
-            }
-        }
+        // Every table is typed now (`saves::best_times`): none is copied; the summary's
+        // variable says it is there, for the race's rivals.
+        CHAMP_VIEW
+            .summary
+            .set(u32::from(crate::saves::best_times::SUMMARY.is_taken()));
         if BEST_TIMES.loaded.get() != 1 {
             DRAW_WORK.work_0c.set(0u32);
             default_best_scores::default_best_scores()?;

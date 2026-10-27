@@ -144,7 +144,7 @@ pub fn draw_text(
     Ok(outcome(text, out))
 }
 
-/// `draw_text_at` on a text of Rust's own (an owned block's, `memory::blocks`; ended by a
+/// `draw_text_at` on a text of Rust's own (a typed table's name held by value; ended by a
 /// NUL in it, or by its end, which the core refuses as a text that does not end). Gives
 /// the core's outcome: `next` is where the text after it starts, in `text`.
 pub fn draw_bytes_at(

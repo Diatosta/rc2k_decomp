@@ -26,68 +26,64 @@
 //! (`menu::table_calls`); the registers above are the original's, for reference.
 
 use crate::errors::{BadInput, Refused};
-use crate::memory::blocks::Place;
 use crate::menu::champ_store::CHAMP_VIEW;
-use crate::menu::event_flow::Fault;
 use crate::menu::event_store::EVENT_STATE;
-use crate::menu::find_class_time::{ENTRY_LEN, find_class_time};
+use crate::menu::find_class_time::find_class_time;
 use crate::text::draw_text::Canvas;
+use rc2k_core::saves::entries::BestTime;
 
 // g_firstPlayerTime
 // seconds
 // glyph
 // dword_7559B0
 /// Each row's entry and place, and the place left after the last.
-type Rows = (Vec<(Place, u32)>, Option<u32>);
+type Rows = (Vec<(BestTime, u32)>, Option<u32>);
 
 /// The rows to draw, worked out before anything is drawn.
 fn rows() -> Result<Rows, Refused> {
     // Converted: `rc2k_core::screens::results_pages::class_rows`.
-    let list = Place::Owned(CHAMP_VIEW.ranked_times.need("no ranked list")?);
-    let at = |n: u32| list.add(n.wrapping_mul(ENTRY_LEN));
-    let f = Fault::default();
-    let found = rc2k_core::screens::results_pages::class_rows(
-        |n| f.get_at(at(n).add(0x1C)),
-        |n| f.get_at(at(n)) == u32::MAX,
-        EVENT_STATE.class.get(),
-        CHAMP_VIEW.count.get(),
-    );
-    f.check()?;
-    let (rows, after) = found.map_err(BadInput::from)?;
-    Ok((
-        rows.into_iter().map(|(n, place)| (at(n), place)).collect(),
-        after,
-    ))
+    crate::menu::standings::with_a(|t| {
+        let found = rc2k_core::screens::results_pages::class_rows(
+            |n| t.entries.get(n as usize).map_or(0, |e| e.head.group),
+            |n| t.first_at(n as usize).is_none_or(|v| v == u32::MAX),
+            EVENT_STATE.class.get(),
+            CHAMP_VIEW.count.get(),
+        );
+        let (rows, after) = found.map_err(BadInput::from)?;
+        Ok((
+            rows.into_iter()
+                .map(|(n, place)| (t.entries[n as usize], place))
+                .collect(),
+            after,
+        ))
+    })?
 }
 
 /// The Rust version.
 pub fn draw_class_ranking(canvas: &mut dyn Canvas) -> Result<(), Refused> {
     let (rows, last_place) = rows()?;
-    let list = Place::Owned(CHAMP_VIEW.ranked_times.need("no ranked list")?);
-    let first_time = find_class_time(list, EVENT_STATE.class.get(), true)?;
+    let first_time = find_class_time(EVENT_STATE.class.get(), true)?;
     // Converted: `rc2k_core::screens::results_pages::class_ranking` (the rows found here).
     use rc2k_core::screens::results_pages::{Name, RankedRow, class_ranking};
     let player = CHAMP_VIEW.ranked_player.get();
-    let f = Fault::default();
     let rows: Vec<RankedRow<u32>> = rows
         .iter()
         .map(|&(e, place)| {
-            let kind = f.get_at(e.add(4));
+            let kind = e.head.player;
             RankedRow {
                 place,
                 mine: kind != 0 && kind == player,
                 name: if kind == 0 {
-                    Name::String(f.get_at(e.add(0xC)))
+                    Name::String(e.head.name_id)
                 } else {
-                    Name::Text(f.get_at(e.add(0xC)))
+                    Name::Text(e.head.name_id)
                 },
-                time: f.get_at(e.add(0x18)),
-                nation: f.get_at(e.add(8)),
-                car: f.get_at(e.add(0x10)),
+                time: e.head.rally_time,
+                nation: e.head.nation,
+                car: e.head.car,
             }
         })
         .collect();
-    f.check()?;
     class_ranking(
         &mut crate::screens::game_screen::GameScreen::new(canvas),
         first_time,

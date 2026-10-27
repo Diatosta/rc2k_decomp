@@ -94,22 +94,24 @@ pub fn copy_league_table() -> Result<(), BadInput> {
     // Converted: `rc2k_core::race::results::league`.
     use rc2k_core::race::results::league;
     {
-        // The standings summary's block (`settings.rivals` holds its id).
-        let Some(source) = crate::memory::blocks::BlockVar::of(&RACE_STATE.settings.rivals) else {
+        // The standings summary (`settings.rivals` 1 while it is there).
+        if RACE_STATE.settings.rivals.get() == 0 {
             return Ok(());
-        };
-        let failed = std::cell::Cell::new(None);
+        }
+        let rows = crate::saves::best_times::SUMMARY.with(|t| t.rows.map(|r| r.dwords()))?;
+        // The core reads a row's dwords by offset (0x50 a row).
+        let failed = std::cell::Cell::new(false);
         let l = league(|n, off| {
-            source
-                .add(0x50 * n as u32 + off)
-                .read::<u32>("the league records")
-                .unwrap_or_else(|e| {
-                    failed.set(failed.get().or(Some(e)));
+            rows.get(n)
+                .and_then(|r| r.get(off as usize / 4))
+                .copied()
+                .unwrap_or_else(|| {
+                    failed.set(true);
                     0
                 })
         });
-        if let Some(e) = failed.get() {
-            return Err(e);
+        if failed.get() {
+            return Err(BadInput("a league record past the summary"));
         }
         crate::session::write_bits(&crate::race::league_store::LEAGUE.names, l.firsts);
         for (k, row) in l.rows.iter().enumerate() {

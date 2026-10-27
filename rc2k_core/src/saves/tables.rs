@@ -11,8 +11,6 @@ use crate::Invalid;
 pub const TABLES: usize = 9;
 /// A stage's entry in the two tables of stages.
 pub const STAGE_ENTRY_LEN: u32 = 0x618;
-/// The tables that end with -1 in their last dword.
-pub const MARKED: [usize; 2] = [5, 6];
 /// More records than any table has.
 pub const MOST_RECORDS: u32 = 0x1000;
 

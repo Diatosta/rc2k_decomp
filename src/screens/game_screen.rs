@@ -36,8 +36,8 @@ pub trait GameWork: Copy {
     fn cell(self) -> &'static Dword;
 }
 
-/// A text a screen draws: where the game keeps it (an address, `u32`), or a place that may
-/// be in an owned block (`Place`: the best times' names, phase 12).
+/// A text a screen draws: where the game keeps it (an address, `u32`), or one held by
+/// value (`HeldText`: the typed tables' names, phase 12).
 pub trait GameText: Copy {
     /// Drawn in `font` at x, y.
     fn draw(
@@ -94,54 +94,6 @@ impl GameText for u32 {
     }
 }
 
-impl GameText for crate::memory::blocks::Place {
-    fn draw(
-        self,
-        font: *mut Font,
-        x: i32,
-        y: i32,
-        canvas: &mut dyn Canvas,
-    ) -> Result<Drawn, Refused> {
-        use crate::memory::blocks::Place;
-        match self {
-            Place::Game(at) => at.draw(font, x, y, canvas),
-            Place::Owned(at) => {
-                let mut text = at.cstring("a text to draw")?;
-                text.push(0);
-                let out = crate::text::draw_text::draw_bytes_at(font, &text, x, y, canvas)?;
-                Ok(Drawn {
-                    y: out.y,
-                    // Where the text after it starts, in its block (no caller of a block's
-                    // text reads it: the names' draws keep only the y).
-                    after: at.add(out.next as u32).offset,
-                    too_wide: out.too_wide,
-                })
-            }
-        }
-    }
-
-    fn of_buffer(at: u32) -> Self {
-        crate::memory::blocks::Place::Game(at)
-    }
-
-    fn measure(
-        self,
-        font: *mut Font,
-        x: i32,
-        canvas: &mut dyn Canvas,
-    ) -> Result<(u32, u32), Refused> {
-        use crate::memory::blocks::Place;
-        match self {
-            Place::Game(at) => at.measure(font, x, canvas),
-            Place::Owned(at) => {
-                let mut text = at.cstring("a text to measure")?;
-                text.push(0);
-                crate::text::measure_text::measure_bytes_at(font, &text, x, canvas)
-            }
-        }
-    }
-}
-
 /// A text held by value (a typed table's name, copied out of it): at most `ROOM` bytes,
 /// without its NUL.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -173,6 +125,14 @@ impl Held {
         t.push(0);
         t
     }
+}
+
+/// A typed entry's name (its text up to the NUL, None without one in the entry) held for
+/// drawing; refused without its NUL or past the held room.
+pub fn held_name(text: Option<Vec<u8>>) -> Result<HeldText, crate::errors::BadInput> {
+    text.and_then(|t| Held::new(&t))
+        .map(HeldText::Held)
+        .ok_or(crate::errors::BadInput("a name past its entry"))
 }
 
 /// The texts of a screen whose names are held by value: those, or the game's own buffers.

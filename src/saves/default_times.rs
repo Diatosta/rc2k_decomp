@@ -131,11 +131,12 @@ pub fn apply(filled: &Filled, tables: &[Target]) -> Result<(), BadInput> {
                     }
                     Ok::<_, BadInput>(())
                 })??,
-                Target::Game(at, len) => crate::memory::blocks::Place::Game(at).with_bytes(
-                    len,
-                    "a table of times",
-                    |bytes| block.write(bytes),
-                )?,
+                Target::Game(at, len) => {
+                    let at = crate::pointers::GamePtr::new(at);
+                    let mut bytes = at.read_bytes(len, "a table of times")?;
+                    block.write(&mut bytes);
+                    at.write_bytes(&bytes, "a table of times")?;
+                }
             }
         }
         DRAW_WORK.seconds.set(filled.seconds);

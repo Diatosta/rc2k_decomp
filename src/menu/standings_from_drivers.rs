@@ -7,34 +7,31 @@
 //! drivers than its 200 entries, a name past the entry, before anything.
 
 use crate::errors::{BadInput, Refused};
-use crate::memory::blocks::Place;
 use crate::menu::standings::*;
 
 /// The Rust version (see the header): the registers it leaves.
 pub fn standings_from_drivers() -> Result<(), Refused> {
-    let first = TABLE_A_RVA.get();
-    let drivers = game_entries(crate::menu::drivers_store::DRIVERS.first(), DRIVER)?;
-    let (Some(first), true) = (first, drivers.len() <= 200) else {
-        return Err(BadInput("no standings table, or more drivers than it holds").into());
-    };
+    let drivers = walked_drivers()?;
+    if drivers.len() > 200 {
+        return Err(BadInput("more drivers than the standings table holds").into());
+    }
     let mut texts = Vec::new();
-    for &d in &drivers {
-        let id: u32 = crate::menu::drivers_store::name_string(get(d)?);
+    for d in &drivers {
+        let id: u32 = crate::menu::drivers_store::name_string(d.number);
         let mut text = Vec::new();
         crate::strings::append_string_by_id::push_string(&mut text, id)?;
         text.push(0);
-        if text.len() > (A_ENTRY - 0x20) as usize {
+        if text.len() > rc2k_core::saves::entries::TIME_LEN - 0x20 {
             return Err(BadInput("a driver's name past its entry").into());
         }
         texts.push((id, text));
     }
     crate::menu::init_standings_a::init_standings_a()?;
-    // Converted: `rc2k_core::menu::standings::fill_a_from_driver`.
-    let count = drivers.len() as u32;
-    let all = table(drivers[0], DRIVER, count)?;
-    with_table(Place::Owned(first), A_ENTRY, count, |t| {
-        for (n, (id, text)) in texts.into_iter().enumerate() {
-            rc2k_core::menu::standings::fill_a_from_driver(t, n, &all, n, id, &text);
+    // Converted: `rc2k_core::saves::rankings::fill_a_from_driver`.
+    with_a(|t| {
+        for ((d, (id, text)), e) in drivers.iter().zip(&texts).zip(&mut t.entries) {
+            rc2k_core::saves::rankings::fill_a_from_driver(e, d, *id, text)
+                .expect("the name's length checked");
         }
     })?;
     Ok(())

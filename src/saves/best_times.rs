@@ -1,5 +1,5 @@
 //! The best times' tables Rust owns as typed values (phase 12; they were blocks of the
-//! game's heap, then `memory::blocks`): taken by `saves::allocate_best_times` on the best
+//! game's heap): taken by `saves::allocate_best_times` on the best
 //! times' list, read from and written to `var\hst.dat` in the original's bytes
 //! (`saves::load_best_times`, `saves::save_best_times`), given back with the list
 //! (`saves::free_best_times`).
@@ -8,6 +8,7 @@ use crate::errors::{BadInput, Refused};
 use crate::memory::MemoryList;
 use crate::memory::owned::Owned;
 use rc2k_core::saves::entries::{LevelScores, StageTimes};
+use rc2k_core::saves::rankings::{ChampHistory, RankedTimes, Summary};
 use rc2k_core::saves::scores::BestScores;
 use rc2k_core::saves::tables::FileTable;
 
@@ -24,6 +25,13 @@ pub static COURSE_TIMES: Owned<StageTimes> = Owned::new("no course best times ta
 pub static STAGE_TIMES_ALT: Owned<StageTimes> = Owned::new("no other stage times table");
 /// The time trial's best times (table 8, `dword_7556E8`).
 pub static TIME_TRIAL_TIMES: Owned<StageTimes> = Owned::new("no time trial times table");
+
+/// The summary the race takes its rivals from (table 0, `dword_7556F4`).
+pub static SUMMARY: Owned<Summary> = Owned::new("no standings summary");
+/// The ranked times (table 5, `g_rankedTimes`, standings table A).
+pub static RANKED_TIMES: Owned<RankedTimes> = Owned::new("no standings table");
+/// The championship's history (table 6, `g_champHistory`, standings table B).
+pub static CHAMP_HISTORY: Owned<ChampHistory> = Owned::new("no championship history");
 
 /// What allocating, loading, saving and freeing do with a typed table.
 pub trait Typed: Sync {
@@ -57,24 +65,25 @@ impl<T: FileTable + Send> Typed for Owned<T> {
     }
 }
 
-/// Table `n` of `allocate_best_times`' nine when it is typed.
-pub fn typed(n: usize) -> Option<&'static dyn Typed> {
-    match n {
-        1 => Some(&SCORES),
-        2 => Some(&STAGE_TIMES),
-        3 => Some(&LEVEL_SCORES),
-        4 => Some(&COURSE_TIMES),
-        7 => Some(&STAGE_TIMES_ALT),
-        8 => Some(&TIME_TRIAL_TIMES),
-        _ => None,
-    }
+/// `allocate_best_times`' nine tables, in its order.
+static TYPED: [&dyn Typed; rc2k_core::saves::tables::TABLES] = [
+    &SUMMARY,
+    &SCORES,
+    &STAGE_TIMES,
+    &LEVEL_SCORES,
+    &COURSE_TIMES,
+    &RANKED_TIMES,
+    &CHAMP_HISTORY,
+    &STAGE_TIMES_ALT,
+    &TIME_TRIAL_TIMES,
+];
+
+/// Table `n` (below `TABLES`) of `allocate_best_times`' nine.
+pub fn typed(n: usize) -> &'static dyn Typed {
+    TYPED[n]
 }
 
-/// Every typed table given back.
+/// Every table given back.
 pub fn give_back_all() {
-    for n in 0..rc2k_core::saves::tables::TABLES {
-        if let Some(t) = typed(n) {
-            t.give_back();
-        }
-    }
+    TYPED.iter().for_each(|t| t.give_back());
 }

@@ -12,6 +12,6 @@ use crate::menu::standings::*;
 
 /// The Rust version (see the header): the registers it leaves.
 pub fn sort_standings_by_total() -> Result<(), Refused> {
-    sort_table_a(0x18)?;
+    sort_table_a(rc2k_core::saves::entries::Field::RallyTime)?;
     Ok(())
 }

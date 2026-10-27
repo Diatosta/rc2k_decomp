@@ -25,16 +25,15 @@ pub fn fill_rival_table() -> Result<(), Refused> {
         SPLIT_TABLES.rival_cars[c as usize].set(car);
         SPLIT_TABLES.rival_names[c as usize].set(name);
     }
-    // The standings summary's block (`g_rivals` holds its id: `RACE_STATE.settings.rivals`).
-    let Some(mut rival) = crate::memory::blocks::BlockVar::of(&RACE_VARS.rivals) else {
+    // The standings summary (`g_rivals` 1 while it is there: `RACE_STATE.settings.rivals`).
+    if RACE_VARS.rivals.get() == 0 {
         return Ok(());
-    };
-    for c in 0..RIVALS {
-        let at = |o: u32| rival.add(o).read::<u32>("a rival record");
-        SPLIT_TABLES.rival_names[c].set(at(0)?);
-        SPLIT_TABLES.rival_cars[c].set(at(8)?);
-        SPLIT_TABLES.rival_times[c].set(at(12)?);
-        rival = rival.add(0x50);
+    }
+    let rows = crate::saves::best_times::SUMMARY.with(|t| t.rows)?;
+    for (c, r) in rows.iter().take(RIVALS).enumerate() {
+        SPLIT_TABLES.rival_names[c].set(r.name_id);
+        SPLIT_TABLES.rival_cars[c].set(r.car);
+        SPLIT_TABLES.rival_times[c].set(r.time);
     }
     Ok(())
 }

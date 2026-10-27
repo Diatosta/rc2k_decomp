@@ -1,5 +1,5 @@
-//! A typed value Rust owns in place of a block of the game's heap (phase 12, the step after
-//! `memory::blocks`): the table is a struct with named fields, not bytes at offsets. It is
+//! A typed value Rust owns in place of a block of the game's heap (phase 12): the table is
+//! a struct with named fields, not bytes at offsets. It is
 //! taken as `memory::allocate` took the block (counted on the same list, so the game's
 //! "MEM:" lines are unchanged) and given back with that list.
 //!
@@ -8,9 +8,27 @@
 //! for itself). Another thread's step is waited for.
 
 use crate::errors::{BadInput, Refused};
-use crate::memory::MemoryList;
+use crate::memory::{MemoryList, own_heap, with_figures};
 use std::cell::RefCell;
 use std::sync::Mutex;
+
+/// `bytes` counted on `list` as `memory::allocate` counts a block (the list's total, the
+/// memory figures). Refuses what `allocate` refuses: the game's own heap, no list, a size
+/// that with the header wraps.
+pub fn count_on(list: *mut MemoryList, bytes: u32) -> Result<(), Refused> {
+    if own_heap() == 1 {
+        return Err(BadInput("the game's own heap is in use (altmemenable)").into());
+    }
+    if list.is_null() || rc2k_core::memory::block_size(bytes).is_none() {
+        return Err(BadInput("no list, or a size that wraps").into());
+    }
+    let at = crate::pointers::GamePtr::new(crate::pointers::game_address(list));
+    let mut l = at.read::<MemoryList>("a memory list")?;
+    l.total = l.total.wrapping_add(bytes);
+    at.write(l, "a memory list")?;
+    with_figures(|f| f.taken(bytes));
+    Ok(())
+}
 
 pub struct Owned<T> {
     value: Mutex<Option<Box<T>>>,
@@ -46,7 +64,7 @@ impl<T> Owned<T> {
 
     /// `value` taken, `bytes` (the game's block size) counted on `list`.
     pub fn take(&self, list: *mut MemoryList, bytes: u32, value: T) -> Result<(), Refused> {
-        crate::memory::blocks::count_on(list, bytes)?;
+        count_on(list, bytes)?;
         *self.lock() = Some(Box::new(value));
         Ok(())
     }

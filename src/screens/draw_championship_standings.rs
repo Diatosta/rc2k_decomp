@@ -25,18 +25,16 @@
 //! original's, for reference.
 
 use crate::errors::{BadInput, Refused};
-use crate::memory::blocks::Place;
 use crate::menu::champ_store::CHAMP_VIEW;
-use crate::menu::event_flow::Fault;
 use crate::menu::ranked_lookups::find_champ_position;
 use crate::screens::best_scores::section_there;
+use crate::screens::game_screen::{HeldText, held_name};
 use crate::text::draw_text::Canvas;
 
 // g_champRow
 // g_champRowEnd
 /// The Rust version.
 pub fn draw_championship_standings(canvas: &mut dyn Canvas) -> Result<(), Refused> {
-    let history = Place::Owned(CHAMP_VIEW.champ_history.need("no championship history")?);
     if !section_there()? {
         return Err(BadInput("a section past the record table").into());
     }
@@ -45,7 +43,7 @@ pub fn draw_championship_standings(canvas: &mut dyn Canvas) -> Result<(), Refuse
     let mut rows = Vec::new();
     let mut row = first_row;
     loop {
-        rows.push(find_champ_position(history, row)?);
+        rows.push(find_champ_position(row)?);
         row = row.wrapping_add(1);
         if row == end || rows.len() > 0x400 {
             break;
@@ -53,21 +51,21 @@ pub fn draw_championship_standings(canvas: &mut dyn Canvas) -> Result<(), Refuse
     }
     // Converted: `rc2k_core::screens::results_pages::championship_standings` (the rows found here).
     use rc2k_core::screens::results_pages::{StandingRow, championship_standings};
-    let f = Fault::default();
-    let rows: Vec<StandingRow<Place>> = rows
+    let rows: Vec<StandingRow<HeldText>> = rows
         .into_iter()
-        .map(|e| StandingRow {
-            player: (f.get_at(e.add(4)) as i32) > 0,
-            position: f.get_at(e.add(0x70)),
-            name: e.add(0x14),
-            points: std::array::from_fn(|k| f.get_at(e.add(0x38 + 4 * k as u32))),
-            nation: f.get_at(e.add(8)),
-            car: f.get_at(e.add(0xC)),
+        .map(|e| {
+            Ok(StandingRow {
+                player: (e.player as i32) > 0,
+                position: e.position,
+                name: held_name(e.name_text())?,
+                points: e.overall,
+                nation: e.nation,
+                car: e.car,
+            })
         })
-        .collect();
-    f.check()?;
+        .collect::<Result<_, BadInput>>()?;
     championship_standings(
-        &mut crate::screens::game_screen::GameScreen::<_, _, Place>::new(canvas),
+        &mut crate::screens::game_screen::GameScreen::<_, _, HeldText>::new(canvas),
         first_row,
         CHAMP_VIEW.event_mode.get() == 0x13,
         &rows,

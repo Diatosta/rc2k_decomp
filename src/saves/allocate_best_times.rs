@@ -19,7 +19,7 @@ use crate::errors::{BadInput, Refused};
 use crate::memory::MemoryList;
 use crate::saves::best_times_store::BEST_TIMES;
 use crate::system::checked_reads::CheckedReads;
-use rc2k_core::saves::tables::{MARKED, TABLES};
+use rc2k_core::saves::tables::TABLES;
 
 // ---- game data ----
 
@@ -43,9 +43,8 @@ pub fn sizes(stages: u32) -> [u32; TABLES] {
 }
 
 /// `saves::allocate_best_times` (0x47C4D8): once, the nine tables taken from `list`
-/// (`BEST_TIMES.tables`, a block and a size each: `memory::blocks`, Rust's own since phase
-/// 12; the typed ones, `saves::best_times`, keep only the size), the marked ones ending in
-/// -1.
+/// (typed, `saves::best_times`, counted on it; `BEST_TIMES.tables` keeps each one's size),
+/// the marked ones ending in -1 (each typed table's own end).
 pub fn allocate_best_times(list: *mut MemoryList, records: u32) -> Result<(), Refused> {
     if BEST_TIMES.allocated.get() == 1 {
         return Ok(());
@@ -55,17 +54,7 @@ pub fn allocate_best_times(list: *mut MemoryList, records: u32) -> Result<(), Re
     for (n, size) in sizes.into_iter().enumerate() {
         let place = &BEST_TIMES.tables[n];
         place.size.set(size);
-        if let Some(typed) = crate::saves::best_times::typed(n) {
-            typed.take(list, size)?;
-            continue;
-        }
-        let block = crate::memory::blocks::take(list, size)?;
-        place.block.set(block);
-        if MARKED.contains(&n) {
-            crate::memory::blocks::At::start(block)
-                .add(size.wrapping_sub(4))
-                .write(u32::MAX, "a table of best times")?;
-        }
+        crate::saves::best_times::typed(n).take(list, size)?;
     }
     Ok(())
 }

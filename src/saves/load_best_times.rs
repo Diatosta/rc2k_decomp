@@ -69,25 +69,12 @@ pub fn load_game_best_times() -> Result<bool, Refused> {
         return Ok(false);
     }
     for table in READ {
-        if let Some(typed) = crate::saves::best_times::typed(table) {
-            // Read over the table's bytes (a short read leaves the rest as it was).
-            let mut bytes = typed.bytes()?;
-            let (got, ok) = crate::files::handle::read_slice(file, &mut bytes);
-            typed.set_bytes(&bytes)?;
-            if !ok || got as usize != bytes.len() {
-                close(file);
-                return Ok(false);
-            }
-            continue;
-        }
-        let place = &BEST_TIMES.tables[table];
-        // Read as the original reads: exactly the table's size, or the file closed.
-        let table = place.block.need("a table of best times not taken")?;
-        let size = place.size.get();
-        let (got, ok) = table.with_bytes(size as usize, "a table of best times", |b| {
-            crate::files::handle::read_slice(file, b)
-        })?;
-        if !ok || got != size {
+        let typed = crate::saves::best_times::typed(table);
+        // Read over the table's bytes (a short read leaves the rest as it was).
+        let mut bytes = typed.bytes()?;
+        let (got, ok) = crate::files::handle::read_slice(file, &mut bytes);
+        typed.set_bytes(&bytes)?;
+        if !ok || got as usize != bytes.len() {
             close(file);
             return Ok(false);
         }

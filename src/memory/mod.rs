@@ -3,7 +3,6 @@
 //! game's own code (hooked DLL) runs the originals, on the same lists.
 
 pub mod allocate;
-pub mod blocks;
 pub mod free_list;
 pub mod free_own_heap;
 pub mod open_own_heap;
