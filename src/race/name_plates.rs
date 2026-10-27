@@ -40,7 +40,7 @@ pub fn draw_name_plate(slot: u32, text: u32) -> Result<(), Refused> {
     // Converted: `rc2k_core::race::plates::{name_rows, NAME_BOX, name_places}`.
     use rc2k_core::race::plates::{NAME_BOX, name_places, name_rows};
     let line = FONTS.game_fonts[0].get().line_height as u32; // a line's height
-    clear_rows(DRAW_SURFACE.pixels.get(), name_rows(line));
+    clear_rows(crate::gfx::surface::address()?, name_rows(line));
     FONTS.game_fonts[2].update(|f| f.box_width = NAME_BOX);
     for (x, y) in name_places(line) {
         draw_text_in_game(FONTS.game_fonts[2].addr(), text, x, y)?;
@@ -81,7 +81,7 @@ pub fn draw_time_plate(slot: u32) -> Result<(), Refused> {
     let line = FONTS.game_fonts[0].get().line_height as u32;
     let start = time_start(line, DRAW_SURFACE.pitch.get());
     clear_rows(
-        start.wrapping_add(DRAW_SURFACE.pixels.get()),
+        start.wrapping_add(crate::gfx::surface::address()?),
         time_rows(line),
     );
     for (text, (x, y)) in [&OVERLAY.label_behind[0], &OVERLAY.label_ahead[0]]

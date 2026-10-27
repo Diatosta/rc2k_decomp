@@ -87,7 +87,7 @@ pub unsafe fn write_screen_pcx() -> Result<bool, Refused> {
 /// `encode_line`; the planes are left in the game's buffer, as the original leaves them.
 unsafe fn rows(stream: *mut Stream) -> Result<bool, Refused> {
     unsafe {
-        let mut row = DRAW_SURFACE.pixels.get();
+        let mut row = crate::gfx::surface::address()?;
         // eax as the original has it: the block's byte count after the header (0x80).
         let mut eax: u32 = 0x80;
         let width = DRAW_SURFACE.width.get();

@@ -33,7 +33,7 @@ pub unsafe fn blit_map_tiles(texture: u32, first_x: u32, first_y: u32) -> Result
     let (bytes, pitch, pixels) = (
         DRAW_SURFACE.bytes_per_pixel.get(),
         DRAW_SURFACE.pitch.get(),
-        DRAW_SURFACE.pixels.get(),
+        crate::gfx::surface::address()?,
     );
     let tiles = u32::from(GAME_MAP.is_taken());
     if let Err(e) = check_tiles(pixels, tiles, any_inside(first_x, first_y)) {

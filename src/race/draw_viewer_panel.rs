@@ -41,7 +41,7 @@ pub fn draw_viewer_panel() -> Result<(), Refused> {
         }
         // The surface cleared (as `rep stosd` row by row; a height of 0 goes round 2^32
         // times in the original as here: the texture has rows).
-        let mut at = DRAW_SURFACE.pixels.get();
+        let mut at = crate::gfx::surface::address()?;
         let mut rows = DRAW_SURFACE.height.get();
         loop {
             let dwords = DRAW_SURFACE.row_dwords.get();

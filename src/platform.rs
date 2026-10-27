@@ -437,6 +437,7 @@ pub fn lock_surface() -> u32 {
         s.format.set(GAME_SCREEN.format_addr());
         s.pitch.set(pitch);
         s.pixels.set(DRAW_SURFACE.present_pixels.get());
+        crate::gfx::surface::on_address();
         s.row_gap.set(pitch.wrapping_sub(row_bytes));
         set_clip([s.x.get(), s.y.get(), s.width.get(), s.height.get()]);
     }

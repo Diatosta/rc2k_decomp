@@ -48,24 +48,26 @@ unsafe fn carry_out(plan: &rc2k_core::gfx::raster::Plan, colour: u32, palette: u
             set(at, v);
         }
     }
-    let base = surface().base as i32;
+    let Some(target) = surface().target else {
+        crate::fatal::raise::end("gfx::rect", crate::errors::BadInput("no surface"))
+    };
     for &offset in &plan.pixels {
-        unsafe { put(base.wrapping_add(offset) as u32, plan.bits, colour, palette) };
+        let bytes = pixel(plan.bits, colour, palette);
+        if let Err(e) = crate::gfx::surface::write(target, offset as u32, &bytes) {
+            crate::fatal::raise::end("gfx::rect", e)
+        }
     }
 }
 
-/// The pixel at `p` for colour `colour` by the surface's depth.
-unsafe fn put(p: u32, bits: u32, colour: u32, palette: u32) {
-    unsafe {
-        match bits {
-            16 => (crate::pointers::host(p) as *mut u16).write_unaligned(
-                (crate::pointers::host(palette + 4 * colour) as *const u32).read_unaligned() as u16,
-            ),
-            32 => (crate::pointers::host(p) as *mut u32).write_unaligned(
-                (crate::pointers::host(palette + 4 * colour) as *const u32).read_unaligned(),
-            ),
-            _ => crate::pointers::host(p).write(colour as u8),
-        }
+/// The pixel for colour `colour` by the surface's depth: `palette[colour]` as a word or a
+/// dword, else the byte itself.
+fn pixel(bits: u32, colour: u32, palette: u32) -> Vec<u8> {
+    let entry =
+        || crate::pointers::read_or_end::<u32>(palette.wrapping_add(4 * colour), "a palette entry");
+    match bits {
+        16 => (entry() as u16).to_le_bytes().to_vec(),
+        32 => entry().to_le_bytes().to_vec(),
+        _ => vec![colour as u8],
     }
 }
 

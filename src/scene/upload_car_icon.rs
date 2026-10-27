@@ -133,7 +133,7 @@ pub unsafe fn upload_car_icon(icon: &CarIcon) -> Result<(), Refused> {
                 pixels,
                 row_bytes: height.wrapping_mul(4),
             };
-            let blitted = blit_components(&piece, &game_target());
+            let blitted = blit_components(&piece, &game_target()?);
             crate::d3d::unlock_texture::unlock_texture(texture)?;
             blitted?;
         }

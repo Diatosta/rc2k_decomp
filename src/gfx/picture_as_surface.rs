@@ -57,12 +57,9 @@ pub fn surface_of(flags: u32, pixels: u32) -> Result<[u32; SURFACE_DWORDS - 2], 
 }
 
 pub fn picture_as_surface() -> Result<(), Refused> {
-    // The drawing layer takes an address: the buffer's, lent (`gfx::picture::address`).
-    let pixels = match PICTURE.buffer.get() {
-        0 => 0,
-        n => crate::gfx::picture::address(n)?,
-    };
-    let block = surface_of(PICTURE.flags.get(), pixels)?;
+    // The surface is the picture buffer by its number (`gfx::surface::Target::Picture`),
+    // `g_surface.pixels` 0 (no address).
+    let block = surface_of(PICTURE.flags.get(), 0)?;
     let s = &DRAW_SURFACE;
     s.width.set(block[0]);
     s.height.set(block[1]);
@@ -73,6 +70,8 @@ pub fn picture_as_surface() -> Result<(), Refused> {
     s.format.set(block[6]);
     s.pitch.set(block[7]);
     s.pixels.set(block[8]);
+    crate::gfx::surface::ON_PICTURE
+        .store(PICTURE.buffer.get(), std::sync::atomic::Ordering::Relaxed);
     s.row_gap.set(block[9]);
     set_clip([s.x.get(), s.y.get(), s.width.get(), s.height.get()]);
     Ok(())

@@ -14,15 +14,15 @@ use crate::gfx::pixel_format::PixelFormat;
 use crate::gfx::screen_state::DRAW_SURFACE;
 
 /// Where the pixel goes and how wide it is.
-pub fn place(x: u32, y: u32) -> (u32, u32) {
+pub fn place(x: u32, y: u32) -> Result<(u32, u32), BadInput> {
     // Converted: `rc2k_core::gfx::picture_size::pixel_place`.
-    rc2k_core::gfx::picture_size::pixel_place(
-        DRAW_SURFACE.pixels.get(),
+    Ok(rc2k_core::gfx::picture_size::pixel_place(
+        crate::gfx::surface::address()?,
         DRAW_SURFACE.pitch.get(),
         DRAW_SURFACE.bits_per_pixel.get(),
         x,
         y,
-    )
+    ))
 }
 
 /// The Rust version (see the header): `components` made a pixel and put at (`x`, `y`);
@@ -34,7 +34,7 @@ pub unsafe fn put_surface_pixel(components: u32, x: u32, y: u32) -> Result<u32, 
         if components != 0 && format == 0 {
             return Err(BadInput("no surface format").into());
         }
-        if DRAW_SURFACE.pixels.get() == 0 {
+        if crate::gfx::surface::address()? == 0 {
             return Err(BadInput("no surface").into());
         }
         let pixel = if components == 0 {
@@ -45,7 +45,7 @@ pub unsafe fn put_surface_pixel(components: u32, x: u32, y: u32) -> Result<u32, 
                 components,
             )
         };
-        let (at, wide) = place(x, y);
+        let (at, wide) = place(x, y)?;
         if wide == 2 {
             (crate::pointers::host(at) as *mut u16).write_unaligned(pixel as u16);
         } else {

@@ -184,11 +184,11 @@ pub fn copy_mirror_picture() -> Result<(), Refused> {
     if lock_texture(from)?.carry {
         return Ok(());
     }
-    let esi = DRAW_SURFACE.pixels.get();
+    let esi = crate::gfx::surface::address()?;
     FRAME_WORK.view_kept[0].set(esi);
     let ebp = DRAW_SURFACE.pitch.get();
     if !lock_texture(to)?.carry {
-        let edi = DRAW_SURFACE.pixels.get();
+        let edi = crate::gfx::surface::address()?;
         FRAME_WORK.view_kept[1].set(edi);
         let format = DRAW_SURFACE.format.get();
         if format == 0 {

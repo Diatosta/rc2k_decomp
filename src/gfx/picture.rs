@@ -6,9 +6,8 @@
 //! `load_picture_with_overlay`, the map key sheet's), counted on their lists as the game's
 //! blocks were and given back with them. `PICTURE.buffer` and `DECODER.pixels` hold a
 //! buffer's number (0 none), and its users work on its bytes (`with_buffer`, `read_bytes`,
-//! `write_bytes`). The drawing layer still takes an address (`DRAW_SURFACE.pixels`, set
-//! by `picture_as_surface`): a held buffer is lent as a region (`address`) until it is
-//! given back.
+//! `write_bytes`). The drawing layer reaches the picture as `gfx::surface::Target::Picture`
+//! (no address).
 
 use crate::errors::{BadInput, Refused};
 use crate::gfx::picture_store::PICTURE;
@@ -37,21 +36,9 @@ pub enum Buffer {
     Key = 3,
 }
 
-/// A buffer's bytes and the game address they are lent at.
-struct Held {
-    bytes: Vec<u8>,
-    at: u32,
-}
+static BUFFERS: [Owned<Vec<u8>>; 3] = [const { Owned::new("no picture buffer") }; 3];
 
-impl Drop for Held {
-    fn drop(&mut self) {
-        crate::pointers::forget(self.at);
-    }
-}
-
-static BUFFERS: [Owned<Held>; 3] = [const { Owned::new("no picture buffer") }; 3];
-
-fn owned(handle: u32) -> Result<&'static Owned<Held>, BadInput> {
+fn owned(handle: u32) -> Result<&'static Owned<Vec<u8>>, BadInput> {
     (handle as usize)
         .checked_sub(1)
         .and_then(|n| BUFFERS.get(n))
@@ -61,9 +48,8 @@ fn owned(handle: u32) -> Result<&'static Owned<Held>, BadInput> {
 /// Buffer `which` taken, zeroed, `bytes` counted on `list` (sized as the game's block was:
 /// whole pages less its header). Its number.
 pub fn take(which: Buffer, list: *mut MemoryList, bytes: u32) -> Result<u32, Refused> {
-    let mut memory = vec![0u8; crate::memory::owned::block_len(bytes)];
-    let at = crate::pointers::lend(memory.as_mut_ptr(), memory.len());
-    BUFFERS[which as usize - 1].take(list, bytes, Held { bytes: memory, at })?;
+    let memory = vec![0u8; crate::memory::owned::block_len(bytes)];
+    BUFFERS[which as usize - 1].take(list, bytes, memory)?;
     Ok(which as u32)
 }
 
@@ -74,7 +60,7 @@ pub fn give_back(which: Buffer) {
 
 /// `f` on the bytes of the buffer `handle` names; refused for none or one not held.
 pub fn with_buffer<R>(handle: u32, f: impl FnOnce(&mut [u8]) -> R) -> Result<R, BadInput> {
-    owned(handle)?.with(|h| f(&mut h.bytes))
+    owned(handle)?.with(|b| f(b))
 }
 
 /// `f` on the picture buffer's bytes (`PICTURE.buffer`).
@@ -119,17 +105,12 @@ pub fn put_or_end(buffer: &mut [u8], at: usize, bytes: &[u8]) {
     }
 }
 
-/// The game address buffer `handle` is lent at (the drawing layer's surface).
-pub fn address(handle: u32) -> Result<u32, BadInput> {
-    owned(handle)?.with(|h| h.at)
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
 
     #[test]
-    fn a_buffer_is_taken_lent_read_and_given_back() {
+    fn a_buffer_is_taken_read_and_given_back() {
         let _lock = crate::store::test_lock();
         let figures = crate::memory::figures();
         let mut memory = vec![0u8; size_of::<MemoryList>()];
@@ -140,23 +121,11 @@ mod tests {
         assert_eq!(u32::from_le_bytes(memory[4..8].try_into().unwrap()), 0x100);
         write_bytes(n, 4, &[1, 2, 3]).unwrap();
         assert_eq!(read_bytes(n, 3, 5).unwrap(), [0, 1, 2, 3, 0]);
-        let at = address(n).unwrap();
-        assert_eq!(
-            crate::pointers::GamePtr::new(at + 4)
-                .read::<u8>("test")
-                .unwrap(),
-            1
-        );
         let len = 0x1000 - crate::memory::HEADER_LEN as usize;
         assert!(read_bytes(n, len - 1, 2).is_err());
         assert!(read_bytes(0, 0, 1).is_err());
         give_back(Buffer::Key);
         assert!(read_bytes(n, 0, 1).is_err());
-        assert!(
-            crate::pointers::GamePtr::new(at)
-                .read::<u8>("test")
-                .is_err()
-        );
         crate::memory::with_figures(|f| *f = figures);
     }
 

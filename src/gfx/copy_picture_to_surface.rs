@@ -56,7 +56,10 @@ impl PictureSurface for GameSurface {
         crate::platform::unlock_surface();
     }
     fn pixels(&self) -> *mut u8 {
-        crate::pointers::host(DRAW_SURFACE.pixels.get())
+        crate::pointers::host(
+            crate::gfx::surface::address()
+                .unwrap_or_else(|e| crate::fatal::raise::end("gfx::copy_picture_to_surface", e)),
+        )
     }
     fn rows(&self) -> u32 {
         DRAW_SURFACE.height.get()

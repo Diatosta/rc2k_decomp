@@ -17,7 +17,7 @@
 
 use crate::errors::{BadInput, FatalError, Refused};
 use crate::gfx::blit::BLIT;
-use crate::gfx::surface::{Clip, Surface, clip, surface};
+use crate::gfx::surface::{Clip, Surface, Target, clip, surface};
 use crate::pointers::{GameBytes, GamePtr};
 
 // ---- game data ----
@@ -69,7 +69,7 @@ pub const GLYPH_OUT_OF_RANGE: FatalError = FatalError {
 /// Record number `glyph` of a glyph table (`add esi, [esi+eax*4]`), after the three checks
 /// the original makes first.
 pub fn glyph_record(surface: &Surface, table: GamePtr, glyph: u32) -> Result<GameBytes, Refused> {
-    if surface.base == 0 {
+    if surface.target.is_none() {
         return Err(NO_SURFACE.into());
     }
     if table.addr() == 0 {
@@ -85,8 +85,8 @@ pub fn glyph_record(surface: &Surface, table: GamePtr, glyph: u32) -> Result<Gam
 }
 
 // ---- Rust version ----
-// Converted: `rc2k_core::gfx::blit`. Here the record is read as raw game memory and the core's
-// offsets from the surface's start are made addresses again.
+// Converted: `rc2k_core::gfx::blit`. Here the record is read as raw game memory; the core's
+// offsets from the surface's start go to its target (`gfx::surface::Target`).
 
 /// The four registers the original does not preserve, as it leaves them.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -102,7 +102,8 @@ pub struct Exit {
 #[derive(Clone, Copy, Debug)]
 pub struct Area {}
 
-/// Draws the glyph `record` at (`x`, `y`). `put(address, bytes)` receives every write.
+/// Draws the glyph `record` at (`x`, `y`). `put(offset, bytes)` receives every write, the
+/// offset from the surface's start.
 /// Returns the registers the original leaves and, unless the glyph is clipped away, the part
 /// of the surface it may have touched.
 #[allow(clippy::too_many_arguments)] // the original's five inputs, the surface, the clip and the sink
@@ -118,7 +119,6 @@ pub fn blit_glyph(
 ) -> Result<(Exit, Option<Area>), Refused> {
     use rc2k_core::gfx::blit as core;
     use rc2k_core::strings::bytes::Bytes as _;
-    let base = surface.base;
     let mut work = core::Scratch {
         left_skip: scratch.left_skip,
         visible_w: scratch.visible_w,
@@ -165,7 +165,7 @@ pub fn blit_glyph(
             bottom: clip.bottom,
         },
         &mut work,
-        &mut |offset, bytes| put(base.wrapping_add(offset), bytes),
+        &mut |offset, bytes| put(offset, bytes),
     );
     let Ok((exit, area)) = blitted else {
         return Err(BadInput("a read past a glyph's record").into());
@@ -183,7 +183,12 @@ pub fn blit_glyph(
         eax: exit.eax,
         ebx: match exit.ebx {
             core::Ebx::Value(v) => v,
-            core::Ebx::Row(offset) => base.wrapping_add(offset),
+            // The row's address on the screen or a texture; on the picture buffer (no
+            // address since phase 12) its offset: only the lobby reads it, on the screen.
+            core::Ebx::Row(offset) => match surface.target {
+                Some(Target::Address(a)) => a.wrapping_add(offset),
+                _ => offset,
+            },
         },
         ecx: exit.ecx,
         edx: exit.edx,
@@ -204,6 +209,7 @@ pub fn blit_glyph_on_surface(
     let surface = surface();
     let record = glyph_record(&surface, table, glyph)?;
     let mut scratch = read_scratch();
+    let target = surface.target.ok_or(NO_SURFACE)?;
     let surface_window = crate::pointers::Window::new();
     let (exit, _) = {
         blit_glyph(
@@ -214,7 +220,16 @@ pub fn blit_glyph_on_surface(
             &surface,
             &clip(),
             &mut scratch,
-            &mut |addr, bytes| surface_window.write_bytes_or_end(addr, bytes, "the surface"),
+            &mut |offset, bytes| match target {
+                Target::Address(a) => {
+                    surface_window.write_bytes_or_end(a.wrapping_add(offset), bytes, "the surface")
+                }
+                Target::Picture(n) => {
+                    if let Err(e) = crate::gfx::picture::write_bytes(n, offset as usize, bytes) {
+                        crate::fatal::raise::end("the surface", e)
+                    }
+                }
+            },
         )
     }?;
     write_scratch(&scratch);

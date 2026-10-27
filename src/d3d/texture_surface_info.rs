@@ -41,5 +41,6 @@ pub fn texture_surface_info(record: u32) -> Result<(), crate::errors::BadInput> 
     ] {
         put(s + at, v);
     }
+    crate::gfx::surface::on_address();
     crate::gfx::set_clip::set_clip_at(s)
 }

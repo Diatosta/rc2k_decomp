@@ -30,14 +30,15 @@ pub struct Target {
     pub format: u32,
 }
 
-pub fn game_target() -> Target {
-    Target {
-        pixels: DRAW_SURFACE.pixels.get(),
+/// The surface (a texture: refused while it is the picture buffer).
+pub fn game_target() -> Result<Target, BadInput> {
+    Ok(Target {
+        pixels: crate::gfx::surface::address()?,
         pitch: DRAW_SURFACE.pitch.get(),
         bytes_per_pixel: DRAW_SURFACE.bytes_per_pixel.get(),
         // `g_surface.format`: the address of the surface's `PixelFormat`.
         format: DRAW_SURFACE.format.get(),
-    }
+    })
 }
 
 /// What the original gets in its registers: ebx the piece's rectangle (x, y, width,
