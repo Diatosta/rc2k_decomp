@@ -55,11 +55,11 @@ pub fn draw_frame() -> Result<(), Refused> {
             VIEW_VARS.turned_points[n][k].set_bits(rounded(*v));
         }
     }
-    GamePtr::new(info + CORNERS_FROM).copy_to(
-        GamePtr::new(crate::pointers::game_address(MARK_CORNERS.corners.as_ptr())),
-        CORNERS_LEN as usize,
-        "a stage record's corners",
-    )?;
+    let what = "a stage record's corners";
+    let corners =
+        crate::race::course_places::bytes(info + CORNERS_FROM, CORNERS_LEN as usize, what)?;
+    GamePtr::new(crate::pointers::game_address(MARK_CORNERS.corners.as_ptr()))
+        .write_bytes(&corners, what)?;
     let source: u32 = DRAW_SWITCHES.marks_source.bits();
     if source != DRAW_FRAME.last_source.get() {
         VIEW_VARS.step.set(VIEW_VARS.step.get().wrapping_add(1) & 7);

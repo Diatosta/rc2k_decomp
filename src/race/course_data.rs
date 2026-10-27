@@ -130,7 +130,8 @@ fn load_log(n: usize) {
 }
 
 /// The scene points moved out of the course memory (`race::scene_points`): from where the
-/// layout puts them up to the course info, the room the game writes new points into.
+/// layout puts them up to the first part's end (where the course info was), the room the
+/// game writes new points into.
 fn take_scene_points() -> Result<(), BadInput> {
     let layout = rc2k_core::race::faces::CourseLayout::of(
         COURSE_LISTS.course_memory.bits(),
@@ -138,7 +139,12 @@ fn take_scene_points() -> Result<(), BadInput> {
         COURSE.course_face_count.bits(),
         COURSE.scene_point_count.bits(),
     );
-    let end: u32 = COURSE_LISTS.course_info.bits();
+    // The course info followed the first part in the original's block; it is a store of
+    // its own now (`race::course_places::INFO`): the first part's end.
+    let end: u32 = COURSE_LISTS
+        .course_memory
+        .bits()
+        .wrapping_add(COURSE_LISTS.first_part.bits());
     if end <= layout.points {
         return Err(BadInput("scene points past the course info"));
     }

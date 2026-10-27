@@ -102,9 +102,14 @@ pub fn allocate_course_memory(v: &Vars, list: u32) -> Result<(), Refused> {
         v.list_total,
         get(v.list_total)?.wrapping_add(FIRST_PART + INFO_PART),
     )?;
-    let memory = take_course_memory(list, FIRST_PART + INFO_PART)?;
+    // Counted whole, as the original's one block; the info part is Rust's own store
+    // (`race::course_places::INFO`), named by its place.
+    let memory = take_course_memory(list, FIRST_PART + INFO_PART, FIRST_PART)?;
     put(v.course_memory, memory)?;
-    put(v.course_info, memory.wrapping_add(FIRST_PART))?;
+    put(
+        v.course_info,
+        crate::race::course_places::take_info(INFO_PART)?,
+    )?;
     Ok(())
 }
 
@@ -121,12 +126,15 @@ struct CourseMemory {
 
 static COURSE_MEMORY: std::sync::Mutex<Option<CourseMemory>> = std::sync::Mutex::new(None);
 
-/// `bytes` of course memory taken on `list`: their game address.
-fn take_course_memory(list: u32, bytes: u32) -> Result<u32, Refused> {
-    let memory = crate::memory::owned::counted(
+/// `bytes` of course memory counted on `list`, the first `kept` of them held: their game
+/// address.
+fn take_course_memory(list: u32, bytes: u32, kept: u32) -> Result<u32, Refused> {
+    let mut memory = crate::memory::owned::counted(
         crate::pointers::host(list) as *mut crate::memory::MemoryList,
         bytes,
     )?;
+    memory.truncate(kept as usize);
+    memory.shrink_to_fit();
     let lent = crate::pointers::Lent::new(&memory);
     let at = lent.addr();
     *COURSE_MEMORY.lock().unwrap_or_else(|e| e.into_inner()) = Some(CourseMemory {
@@ -145,11 +153,9 @@ pub fn give_back_course_memory() {
 /// +0x17E800 to +0x17F000.
 pub fn copy_texture_info_tail(v: &Vars) -> Result<(), BadInput> {
     let info = get(v.course_info)?;
-    GamePtr::new(info.wrapping_add(0x17_E800)).copy_to(
-        GamePtr::new(info.wrapping_add(0x17_F000)),
-        0x800,
-        "the course info's texture tail",
-    )
+    let what = "the course info's texture tail";
+    let tail = crate::race::course_places::bytes(info.wrapping_add(0x17_E800), 0x800, what)?;
+    crate::race::course_places::write_bytes(info.wrapping_add(0x17_F000), &tail, what)
 }
 
 /// `race::load_texture_info` (0x4398FA): `files\a\textinfo` (0x1F4000 bytes at most) into
@@ -161,6 +167,7 @@ pub fn load_texture_info(v: &Vars) -> Result<(), Refused> {
     if info == 0 {
         return Err(BadInput("no course memory: the original reads into 0").into());
     }
+    let read = crate::race::course_places::read_file_into_info;
     read(
         FILE_NUMBERS.text_addr(texts::TEXTURE_INFO_A),
         info,
@@ -176,7 +183,11 @@ pub fn load_texture_info(v: &Vars) -> Result<(), Refused> {
         info + 0x1F_4000,
         0x1F_4000,
     )?;
-    GamePtr::new(info + 0x5_BD21).fill(0x0A, 3, "the course info's line feeds")?;
+    crate::race::course_places::write_bytes(
+        info + 0x5_BD21,
+        &[0x0A; 3],
+        "the course info's line feeds",
+    )?;
     copy_texture_info_tail(v)?;
     Ok(())
 }
@@ -227,8 +238,8 @@ pub fn build_texture_infos(v: &Vars) -> Result<(), Refused> {
             let trap = Trap::new();
             let t = rc2k_core::race::stage::texture_info(
                 kind,
-                |o| trap.read::<u32>(rec + o, "a course info record"),
-                |o| trap.read::<u8>(rec + o, "a course info record"),
+                |o| trap.course::<u32>(rec + o, "a course info record"),
+                |o| trap.course::<u8>(rec + o, "a course info record"),
             );
             trap.finish()?;
             put(out + 0x24, t.row)?;

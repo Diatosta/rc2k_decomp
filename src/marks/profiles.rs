@@ -140,7 +140,8 @@ pub fn make_profiles(resume: u32) -> Result<(), Refused> {
         }
         let from = COURSE_LISTS.course_info.bits().wrapping_add(COURSE_CORNERS);
         let to = crate::pointers::game_address(MARK_CORNERS.corners.as_ptr());
-        GamePtr::new(from).copy_to(GamePtr::new(to), CORNERS_LEN, "the course corners")?;
+        let corners = crate::race::course_places::bytes(from, CORNERS_LEN, "the course corners")?;
+        GamePtr::new(to).write_bytes(&corners, "the course corners")?;
         crate::marks::blocks::allocate_links()?;
         crate::marks::blocks::reset_settings_blocks()?;
     }

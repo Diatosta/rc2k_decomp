@@ -19,9 +19,11 @@ use std::sync::atomic::{AtomicU32, Ordering};
 
 /// Each part's room: the course memory's first part (`level_init::FIRST_PART`) holds both.
 const ROOM: u32 = 0x100_0000;
+/// Faces, records, scene points, course info.
+const PARTS: u32 = 4;
 
 /// The reserved range's game address (faces from it, records `ROOM` on, the scene points
-/// `2 ROOM` on, `race::scene_points`); 0 until taken.
+/// `2 ROOM` on, `race::scene_points`, the course info `3 ROOM` on); 0 until taken.
 static WINDOW: AtomicU32 = AtomicU32::new(0);
 
 /// The reserved range, taken the first time.
@@ -30,7 +32,7 @@ pub fn reserve() -> Result<u32, BadInput> {
     if at != 0 {
         return Ok(at);
     }
-    let len = 3 * ROOM as usize;
+    let len = PARTS as usize * ROOM as usize;
     let reserved =
         crate::os::reserve(len).ok_or(BadInput("no addresses for the course's places"))?;
     let at = crate::address_map::map(reserved, len);
@@ -53,6 +55,11 @@ pub fn points_base() -> u32 {
     faces_base() + 2 * ROOM
 }
 
+/// The course info's place (`COURSE_LISTS.course_info` while held).
+pub fn info_base() -> u32 {
+    faces_base() + 3 * ROOM
+}
+
 /// The most bytes of each part.
 pub const fn room() -> u32 {
     ROOM
@@ -60,6 +67,35 @@ pub const fn room() -> u32 {
 
 pub static FACES: Owned<Vec<u8>> = Owned::new("no course faces");
 pub static RECORDS: Owned<Vec<u8>> = Owned::new("no course records");
+/// The course info (`g_courseInfo`, 0x400000 bytes: the texture infos `files\a\textinfo`
+/// and `files\b\textinfo`, the mark corners `files\m\markinfo` at +0x1C2000): taken with
+/// the course memory (`level_init::allocate_course_memory`), filled by
+/// `level_init::load_texture_info`.
+pub static INFO: Owned<Vec<u8>> = Owned::new("no course info");
+
+/// The course info taken (`len` bytes, zeroed): its place.
+pub fn take_info(len: u32) -> Result<u32, BadInput> {
+    if len > ROOM {
+        return Err(BadInput("a course info larger than its places"));
+    }
+    reserve()?;
+    INFO.set(vec![0; len as usize]);
+    Ok(info_base())
+}
+
+/// The file at game address `path` read whole into the course info from `at` (`count`
+/// bytes at most).
+pub fn read_file_into_info(path: u32, at: u32, count: u32) -> Result<(), BadInput> {
+    let path = crate::pointers::host(path) as *const u8;
+    INFO.with(|b| {
+        let start = at.checked_sub(info_base())? as usize;
+        let into = b.get_mut(start..start.checked_add(count as usize)?)?;
+        Some(crate::files::read_whole_file::read_whole_file_into(
+            path, into,
+        ))
+    })?
+    .ok_or(BadInput("a file read outside the course info"))?
+}
 
 /// Whether the faces and records are held.
 pub fn held() -> bool {
@@ -86,13 +122,14 @@ pub fn take_from(faces_at: u32, faces: u32, records_at: u32, records: u32) -> Re
 pub fn give_back() {
     FACES.give_back();
     RECORDS.give_back();
+    INFO.give_back();
 }
 
 /// Whether `at` is one of the course's places (faces, records, scene points).
 #[inline]
 pub fn is_place(at: u32) -> bool {
     let w = faces_base();
-    w != 0 && at.wrapping_sub(w) < 3 * ROOM
+    w != 0 && at.wrapping_sub(w) < PARTS * ROOM
 }
 
 /// The store and offset of place `at`, if it is one of the faces' or records'.
@@ -104,6 +141,7 @@ fn store(at: u32) -> Option<(&'static Owned<Vec<u8>>, usize)> {
     match at.wrapping_sub(w) {
         off if off < ROOM => Some((&FACES, off as usize)),
         off if off < 2 * ROOM => Some((&RECORDS, (off - ROOM) as usize)),
+        off if (3 * ROOM..4 * ROOM).contains(&off) => Some((&INFO, (off - 3 * ROOM) as usize)),
         _ => None,
     }
 }
