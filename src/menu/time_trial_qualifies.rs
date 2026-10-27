@@ -18,17 +18,15 @@ use crate::session::Dword;
 pub const QUALIFIES: &Dword = &EVENT_STATE.time_qualifies; // dword_755918
 pub const TIME: &Dword = &EVENT_STATE.player_time; // dword_755914
 pub const ANY_QUALIFIED: &Dword = &EVENT_STATE.any_time_qualified; // dword_755920
-/// The tenth entry of the best times.
-pub const TENTH: u32 = 9 * TIME_ENTRY;
 
 pub fn time_trial_qualifies() -> Result<(), Refused> {
-    let tenth = stage_times()?.add(TENTH);
+    stage_times()?;
     let p = current_player()?;
     set(QUALIFIES, 0);
     let time = dword(p + 0x88)?;
     set(TIME, time);
     // Converted: `rc2k_core::menu::bests::makes_time`.
-    let best = tenth.add(0x14).read::<u32>("a best time")?;
+    let best = with_stage_times(|ten| ten[9].head.key)?;
     if rc2k_core::menu::bests::makes_time(time, best) {
         set(QUALIFIES, 1);
         set(ANY_QUALIFIED, 1);

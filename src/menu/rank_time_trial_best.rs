@@ -15,24 +15,11 @@ use crate::errors::Refused;
 use crate::menu::event_flow::*;
 
 // g_keptPlayerName
-/// The chosen stage's ten best times, for the core; refused as `event_flow::stage_times`.
-pub fn with_stage_list<R>(
-    f: impl FnOnce(&mut rc2k_core::menu::standings::Entries) -> R,
-) -> Result<R, Refused> {
-    let times = stage_times()?;
-    Ok(crate::menu::standings::with_table(
-        crate::memory::blocks::Place::Owned(times),
-        TIME_ENTRY,
-        10,
-        f,
-    )?)
-}
-
 pub fn rank_time_trial_best() -> Result<(), Refused> {
-    // Converted: `rc2k_core::menu::bests::rank_time_trial`.
-    with_stage_list(|list| {
+    // Converted: `rc2k_core::saves::entries::rank_time_trial`.
+    Ok(with_stage_times(|list| {
         crate::menu::standings::with_kept_name(|kept| {
-            rc2k_core::menu::bests::rank_time_trial(list, kept)
+            rc2k_core::saves::entries::rank_time_trial(list, kept)
         })
-    })
+    })?)
 }

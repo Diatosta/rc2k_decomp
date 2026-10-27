@@ -26,16 +26,12 @@
 //! (`menu::table_calls`); the registers above are the original's, for reference.
 
 use crate::errors::{BadInput, Refused};
-use crate::memory::blocks::{BlockVar, Place};
-use crate::menu::champ_store::CHAMP_VIEW;
 use crate::pointers::GamePtr;
 use crate::race::state_store::RACE_STATE;
 use crate::screens::draw_selected_stage_menu::menu_titles;
 use crate::screens::draw_stage_records::selection;
 use crate::screens::draw_stage_records::{TIME_TRIAL_ROWS, draw_records_rows};
-use crate::screens::stage_panel::{
-    BEST_TIME_ENTRY_SIZE, build_second_heading, draw_stage_body, dword, menu_item_id,
-};
+use crate::screens::stage_panel::{build_second_heading, draw_stage_body, dword, menu_item_id};
 use crate::text::draw_text::Canvas;
 
 // ---- Rust version ----
@@ -43,8 +39,9 @@ use crate::text::draw_text::Canvas;
 /// What is left in ebx when the markers are drawn: 1 * 0x5C, from addressing menu item 1.
 const MARKER_PALETTE: u32 = 0x5C;
 
-const GROUP_1_TIMES: &BlockVar = &CHAMP_VIEW.stage_best_times_alt; // g_stageBestTimesAlt
-const TIMES: &BlockVar = &CHAMP_VIEW.time_trial_best_times; // dword_7556E8
+use crate::menu::event_flow::StageTable;
+const GROUP_1_TIMES: &StageTable = &crate::saves::best_times::STAGE_TIMES_ALT; // g_stageBestTimesAlt
+const TIMES: &StageTable = &crate::saves::best_times::TIME_TRIAL_TIMES; // dword_7556E8
 
 /// Returns the carry flag. Refuses a missing selection or menu: the original reads or writes
 /// through null.
@@ -64,12 +61,17 @@ pub unsafe fn draw_time_trial_stage_select(canvas: &mut dyn Canvas) -> Result<bo
         RACE_STATE.settings.direction.set(sel.group);
         GamePtr::new(item_1).write(table_title, "a menu item's string")?;
 
-        let table = (if sel.group == 1 { GROUP_1_TIMES } else { TIMES })
-            .need("no time trial best-times table: the original reads near 0")?;
+        let table = if sel.group == 1 { GROUP_1_TIMES } else { TIMES };
+        if !table.is_taken() {
+            return Err(
+                BadInput("no time trial best-times table: the original reads near 0").into(),
+            );
+        }
         build_second_heading(sel.record)?;
         draw_stage_body(sel.record, MARKER_PALETTE, true, canvas)?;
-        let entry = dword(sel.record.wrapping_add(0x3C))?.wrapping_mul(BEST_TIME_ENTRY_SIZE);
-        draw_records_rows(Place::Owned(table.add(entry)), &TIME_TRIAL_ROWS, canvas)
+        let best =
+            crate::screens::stage_panel::best_of(table, dword(sel.record.wrapping_add(0x3C))?)?;
+        draw_records_rows(&best, &TIME_TRIAL_ROWS, canvas)
     }
 }
 

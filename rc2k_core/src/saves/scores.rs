@@ -93,7 +93,9 @@ pub struct BestScores {
 }
 
 impl crate::saves::tables::FileTable for BestScores {
-    const LEN: usize = TABLE_LEN;
+    fn zeroed(bytes: usize) -> Option<Self> {
+        (bytes == TABLE_LEN).then(Self::default)
+    }
 
     fn read(b: &[u8]) -> Self {
         let mut t = Self::default();

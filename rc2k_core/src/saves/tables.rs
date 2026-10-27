@@ -16,12 +16,14 @@ pub const MARKED: [usize; 2] = [5, 6];
 /// More records than any table has.
 pub const MOST_RECORDS: u32 = 0x1000;
 
-/// A typed table as `var\hst.dat` holds it: exactly `LEN` bytes, in the original's layout.
-pub trait FileTable: Default {
-    const LEN: usize;
-    /// From its bytes (`b` at least `LEN` long).
+/// A typed table as `var\hst.dat` holds it, in the original's layout.
+pub trait FileTable: Sized {
+    /// A new one (zeros) of the size `allocate_best_times` asks; None for a size it cannot
+    /// be.
+    fn zeroed(bytes: usize) -> Option<Self>;
+    /// From its bytes (as many as `write` gives).
     fn read(b: &[u8]) -> Self;
-    /// Into its `LEN` bytes.
+    /// Into its bytes.
     fn write(&self) -> Vec<u8>;
 }
 

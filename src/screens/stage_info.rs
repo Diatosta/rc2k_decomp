@@ -4,9 +4,8 @@
 //! shares, the weather, the description, the stage's number, and the best and fastest.
 
 use crate::errors::{BadInput, Refused};
-use crate::memory::blocks::{At, Place};
 use crate::menu::arcade_store::ARCADE_GAME;
-use crate::menu::champ_store::CHAMP_VIEW;
+use crate::screens::game_screen::{Held, HeldText};
 use crate::text::draw_text::Canvas;
 
 fn get(a: u32) -> Result<u32, crate::errors::BadInput> {
@@ -28,7 +27,10 @@ pub fn stage_record() -> u32 {
 /// The fastest's flag sprite gets `dword_7587EC` as its palette (ebx as the original loads
 /// it). The speed is formatted before anything is drawn (its refusals first). Every
 /// register kept.
-pub fn draw_stage_best_and_fastest(times: At, canvas: &mut dyn Canvas) -> Result<(), Refused> {
+pub fn draw_stage_best_and_fastest(
+    times: &rc2k_core::saves::entries::BestTime,
+    canvas: &mut dyn Canvas,
+) -> Result<(), Refused> {
     use rc2k_core::screens::stage_panel::{CarRow, Holder};
     {
         let record = stage_record();
@@ -37,16 +39,19 @@ pub fn draw_stage_best_and_fastest(times: At, canvas: &mut dyn Canvas) -> Result
         }
         let units = crate::strings::units::units();
         crate::strings::append_speed::append_speed(get(record + 0x30)?, true, units)?;
-        let times_value = |o: u32| times.add(o).read::<u32>("a best time");
+        let name = times
+            .name_text()
+            .and_then(|t| Held::new(&t))
+            .ok_or(BadInput("a best time's name without its end"))?;
         let best = Holder {
-            nation: times_value(8)?,
-            name: Place::Owned(times.add(0x20)),
-            car: times_value(0x10)?,
-            figure: times_value(0x14)?,
+            nation: times.head.nation,
+            name: HeldText::Held(name),
+            car: times.head.car,
+            figure: times.head.key,
         };
         let top = Holder {
             nation: get(record + 0x74)?,
-            name: Place::Game(record + 0x54),
+            name: HeldText::Game(record + 0x54),
             car: get(record + 0x78)?,
             figure: get(record + 0x30)?,
         };
@@ -68,13 +73,14 @@ pub fn draw_stage_best_and_fastest(times: At, canvas: &mut dyn Canvas) -> Result
 /// (`stage_panel::draw_stage_body`: the map's markers with `dword_7587EC` as their palette,
 /// times, length, surface, weather, description and number; entry +0x34 kept in
 /// `dword_75ACD0`'s second dword), then `draw_stage_best_and_fastest` on its times
-/// (`dword_7556E0` + 0x618 x record +0x3C). Every register kept. Refuses (before anything) no
+/// (`g_courseBestTimes`, the stage the record's +0x3C). Every register kept. Refuses (before anything) no
 /// stage record or times table.
 pub unsafe fn draw_rally_stage_info(canvas: &mut dyn Canvas) -> Result<(), Refused> {
     use crate::screens::best_scores::{RALLY_STAGE_TIMES, draw_times_heading};
     unsafe {
         let record = stage_record();
-        let (false, Some(course_times)) = (record == 0, CHAMP_VIEW.course_best_times.get()) else {
+        let course_times = &crate::saves::best_times::COURSE_TIMES;
+        let (false, true) = (record == 0, course_times.is_taken()) else {
             return Err(BadInput("no stage record or times table").into());
         };
         draw_times_heading(&RALLY_STAGE_TIMES, canvas)?;
@@ -86,7 +92,7 @@ pub unsafe fn draw_rally_stage_info(canvas: &mut dyn Canvas) -> Result<(), Refus
             crate::gfx::typefaces::fonts::TIME,
             canvas,
         )?;
-        let times = course_times.add(get(record + 0x3C)?.wrapping_mul(0x618));
-        draw_stage_best_and_fastest(times, canvas)
+        let times = crate::screens::stage_panel::best_of(course_times, get(record + 0x3C)?)?;
+        draw_stage_best_and_fastest(&times, canvas)
     }
 }

@@ -37,13 +37,13 @@ use crate::sound::store::SOUND_OPTIONS;
 const COPIES: [Option<fn() -> &'static BlockVar>; 9] = [
     Some(|| &CHAMP_VIEW.summary),
     None, // g_bestScores
-    Some(|| &CHAMP_VIEW.stage_best_times),
+    None, // g_stageBestTimes
     None, // g_levelBestScores
-    Some(|| &CHAMP_VIEW.course_best_times),
+    None, // g_courseBestTimes
     Some(|| &CHAMP_VIEW.ranked_times),
     Some(|| &CHAMP_VIEW.champ_history),
-    Some(|| &CHAMP_VIEW.stage_best_times_alt),
-    Some(|| &CHAMP_VIEW.time_trial_best_times),
+    None, // g_stageBestTimesAlt
+    None, // dword_7556E8
 ];
 
 /// The record tables that get made-up records: the championship's and the twelve events'

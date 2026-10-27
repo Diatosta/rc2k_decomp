@@ -14,8 +14,6 @@
 //! `rc2k_core::saves::defaults::championship_times` (a refusal now leaves nothing written).
 
 use crate::errors::{BadInput, Refused};
-use crate::memory::blocks::Place;
-use crate::menu::champ_store::CHAMP_VIEW;
 use crate::saves::allocate_best_times::count_stages;
 use crate::saves::default_times::*;
 use rc2k_core::saves::defaults::{Championship, RALLIES, championship_times};
@@ -31,14 +29,14 @@ pub fn default_checkpoint_times(_ebp: u32, log: Log) -> Result<(), Refused> {
         let records_at = crate::records::stages_store::STAGE_TABLES.championship();
         let stages = count_stages(records_at)?;
         let count = records(records_at)?;
-        let table = CHAMP_VIEW.time_trial_best_times.get();
-        let (true, Some(table)) = (stages != 0, table) else {
+        let table = &crate::saves::best_times::TIME_TRIAL_TIMES;
+        let (true, true) = (stages != 0, table.is_taken()) else {
             return Err(BadInput("no stages, or no table for their times").into());
         };
         let records: Vec<_> = (0..count as u32)
             .map(|n| read_record(records_at + n * RECORD_LEN))
             .collect::<Result<_, _>>()?;
-        let tables = [(Place::Owned(table), (stages * STAGE_LEN) as usize)];
+        let tables = [Target::Stages(table)];
         let filled = championship_times(
             &mut GameSource { log },
             &records,

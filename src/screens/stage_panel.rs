@@ -5,7 +5,6 @@
 
 use crate::errors::Refused;
 use crate::gfx::blit_marker_pair::{marker_calls, set_marker_position, sprite_table};
-use crate::menu::champ_store::CHAMP_VIEW;
 use crate::menu::loop_store::LOOP_FLAGS;
 use crate::pointers::GamePtr;
 use crate::records::trakpak_entry::record_entry;
@@ -21,7 +20,6 @@ use crate::text::draw_text::Canvas;
 // dword_7559EC: a work variable used all over the game
 // mmss: receives the finish time
 // dword_75ACD0[1]: copy of entry +0x34
-pub const BEST_TIME_ENTRY_SIZE: u32 = 0x618;
 const SECOND_HEADING_STRING: u32 = 0x482;
 
 pub const TITLE_FONT: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fonts::STAGE_TITLE;
@@ -138,29 +136,38 @@ pub unsafe fn draw_stage_body_in(
     }
 }
 
-/// The panel's screen for `rc2k_core::screens::stage_panel`.
-/// Its texts are places: the best times' names are in the tables' blocks.
+/// The panel's screen for `rc2k_core::screens::stage_panel`: the best times' names copied
+/// out of their tables (`HeldText::Held`), the game's texts drawn where they are.
 pub type PanelScreen<'a> = GameScreen<
     'a,
     rc2k_core::screens::stage_panel::Font,
     rc2k_core::screens::stage_panel::Work,
-    crate::memory::blocks::Place,
+    crate::screens::game_screen::HeldText,
 >;
 
-/// The record rows, with the stage's best-time entry taken from the table at `table`.
-/// Returns the carry flag.
+/// Stage `stage`'s best time (its first) in `table`, copied out. Refuses no table (the
+/// original reads near 0) and a stage past it.
+pub fn best_of(
+    table: &crate::menu::event_flow::StageTable,
+    stage: u32,
+) -> Result<rc2k_core::saves::entries::BestTime, crate::errors::BadInput> {
+    if !table.is_taken() {
+        return Err(crate::errors::BadInput("no best times table"));
+    }
+    table
+        .with(|t| t.stages.get(stage as usize).map(|s| s[0]))?
+        .ok_or(crate::errors::BadInput("a stage past its best times table"))
+}
+
+/// The record rows, with the stage's best time (the record's +0x3C its stage) from
+/// `table`. Returns the carry flag.
 pub fn draw_records_from(
-    table: Option<crate::memory::blocks::At>,
+    table: &crate::menu::event_flow::StageTable,
     record: u32,
     canvas: &mut dyn Canvas,
 ) -> Result<bool, Refused> {
-    // The original reads near 0 without a table.
-    let table = table.ok_or(crate::errors::BadInput("no best times table"))?;
-    let entry = dword(record.wrapping_add(0x3C))?.wrapping_mul(BEST_TIME_ENTRY_SIZE);
-    draw_stage_records(
-        crate::memory::blocks::Place::Owned(table.add(entry)),
-        canvas,
-    )
+    let best = best_of(table, dword(record.wrapping_add(0x3C))?)?;
+    draw_stage_records(&best, canvas)
 }
 
 /// The record rows as the two "selected stage" panels draw them: from the group 1 table when
@@ -171,15 +178,16 @@ pub fn draw_records_for_group(
     record: u32,
     canvas: &mut dyn Canvas,
 ) -> Result<bool, Refused> {
-    if CHAMP_VIEW.course_best_times.get().is_none() {
+    use crate::saves::best_times::{COURSE_TIMES, STAGE_TIMES};
+    if !COURSE_TIMES.is_taken() {
         return Ok(false);
     }
     let table = if group != 1 {
-        CHAMP_VIEW.stage_best_times.get()
+        &STAGE_TIMES
     } else {
-        CHAMP_VIEW.course_best_times.get()
+        &COURSE_TIMES
     };
-    if table.is_none() {
+    if !table.is_taken() {
         return Ok(false);
     }
     draw_records_from(table, record, canvas)

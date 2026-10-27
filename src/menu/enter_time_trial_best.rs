@@ -36,7 +36,7 @@ pub fn enter_time_trial_best() -> Result<(), Refused> {
     set(STAGE_SLOT, slot);
     let cheats = get(CHEATS);
     let sealed = crate::menu::sealed_player_time::sealed_player_time(slot)?;
-    // Converted: `rc2k_core::menu::bests::enter_tenth`, then `rank_time_trial_best`.
+    // Converted: `rc2k_core::saves::entries::BestTime::enter`, then `rank_time_trial_best`.
     use crate::menu::standings::bytes;
     let best = bests::NewBest {
         key: dword(p + 0x88)?,
@@ -50,6 +50,6 @@ pub fn enter_time_trial_best() -> Result<(), Refused> {
         seal: Some(bests::Seal { cheats, sealed }),
         line: Some(bytes(p + 0x20C)?),
     };
-    crate::menu::rank_time_trial_best::with_stage_list(|list| bests::enter_tenth(list, &best))?;
+    with_stage_times(|list| list[9].enter(&best))?;
     crate::menu::rank_time_trial_best::rank_time_trial_best()
 }

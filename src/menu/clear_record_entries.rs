@@ -11,10 +11,8 @@ use crate::menu::standings::*;
 
 /// The Rust version (see the header).
 pub fn clear_record_entries() -> Result<(), Refused> {
-    // Converted: `rc2k_core::menu::bests::clear_marks`.
+    // Converted: `rc2k_core::saves::entries::clear_marks`.
     let event = current_event()?;
-    crate::menu::rank_record_entry::with_event_list(event, |list| {
-        rc2k_core::menu::bests::clear_marks(list)
-    })?;
+    with_event(event, rc2k_core::saves::entries::clear_marks)?;
     Ok(())
 }

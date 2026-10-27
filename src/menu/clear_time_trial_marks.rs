@@ -10,6 +10,8 @@
 use crate::errors::Refused;
 
 pub fn clear_time_trial_marks() -> Result<(), Refused> {
-    // Converted: `rc2k_core::menu::bests::clear_marks`.
-    crate::menu::rank_time_trial_best::with_stage_list(rc2k_core::menu::bests::clear_marks)
+    // Converted: `rc2k_core::saves::entries::clear_marks`.
+    Ok(crate::menu::event_flow::with_stage_times(
+        rc2k_core::saves::entries::clear_marks,
+    )?)
 }

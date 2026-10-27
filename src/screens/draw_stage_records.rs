@@ -16,8 +16,8 @@
 //! index. That only works because those sprites do not use a palette; it is reproduced as is.
 
 use crate::errors::{BadInput, Refused};
-use crate::memory::blocks::Place;
 use crate::menu::event_store::EVENT_STATE;
+use crate::screens::game_screen::{Held, HeldText};
 use crate::screens::stage_panel::PanelScreen;
 use crate::strings::append_time::show_hours;
 use crate::strings::units::units;
@@ -104,14 +104,17 @@ pub const TIME_TRIAL_ROWS: Rows = Rows {
 
 /// Returns the carry flag of the last `draw_text`. Refuses a missing record table and what
 /// the speed formatter refuses; the fatal errors are the blitter's.
-pub fn draw_stage_records(entry: Place, canvas: &mut dyn Canvas) -> Result<bool, Refused> {
+pub fn draw_stage_records(
+    entry: &rc2k_core::saves::entries::BestTime,
+    canvas: &mut dyn Canvas,
+) -> Result<bool, Refused> {
     draw_records_rows(entry, &STAGE_ROWS, canvas)
 }
 
 /// `draw_stage_records` with the top-speed row's places given. Converted:
 /// `rc2k_core::screens::stage_panel::records`.
 pub fn draw_records_rows(
-    entry: Place,
+    entry: &rc2k_core::saves::entries::BestTime,
     rows: &Rows,
     canvas: &mut dyn Canvas,
 ) -> Result<bool, Refused> {
@@ -124,21 +127,24 @@ pub fn draw_records_rows(
             );
         };
         let f = crate::menu::event_flow::Fault::default();
-        let at = |base: Place, o: u32| f.get_at(base.add(o));
+        let name = entry
+            .name_text()
+            .and_then(|t| Held::new(&t))
+            .ok_or(BadInput("a best time's name without its end"))?;
         let best = Holder {
-            nation: at(entry, 8),
-            name: entry.add(0x20),
-            car: at(entry, 0x10),
-            figure: at(entry, 0x14),
+            nation: entry.head.nation,
+            name: HeldText::Held(name),
+            car: entry.head.car,
+            figure: entry.head.key,
         };
         // The stage record is the game's.
-        let record = Place::Game(record);
         let top = Holder {
-            nation: at(record, rows.nationality),
-            name: record.add(rows.name),
-            car: at(record, rows.car),
-            figure: at(record, rows.speed),
+            nation: f.get(record + rows.nationality),
+            name: HeldText::Game(record + rows.name),
+            car: f.get(record + rows.car),
+            figure: f.get(record + rows.speed),
         };
+        f.check()?;
         let car_row = if rows.car_y == ROW_1_Y {
             CarRow::First
         } else {

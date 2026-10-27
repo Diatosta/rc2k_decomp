@@ -39,10 +39,10 @@ pub fn draw_section_best_times(canvas: &mut dyn Canvas) -> Result<(), Refused> {
     use rc2k_core::screens::best_scores::SectionRow;
     let f = crate::menu::event_flow::Fault::default();
     // The rallies' tables are the game's (`RALLY_TIMES`), not blocks.
-    let rows: [SectionRow<crate::memory::blocks::Place>; 10] = std::array::from_fn(|n| {
+    let rows: [SectionRow<crate::screens::game_screen::HeldText>; 10] = std::array::from_fn(|n| {
         let e = e + n as u32 * ENTRY_LEN;
         SectionRow {
-            name: crate::memory::blocks::Place::Game(e + 0x20),
+            name: crate::screens::game_screen::HeldText::Game(e + 0x20),
             time: f.get(e + 0x18),
             nation: f.get(e + 8),
             car: f.get(e + 0x10),

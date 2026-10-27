@@ -29,17 +29,21 @@ pub struct ChampView {
     /// `g_bestScores`: held the best scores' table; the table is typed now
     /// (`saves::best_times::SCORES`) and this stays 0.
     pub best_scores: Dword,
-    /// `g_stageBestTimes`: The stages' best times (0x618 an event).
-    pub stage_best_times: BlockVar,
+    /// `g_stageBestTimes`: held the stages' best times; typed now
+    /// (`saves::best_times::STAGE_TIMES`), this stays 0 (`off_7354FE` names it).
+    pub stage_best_times: Dword,
     /// `g_levelBestScores`: held the arcade levels' best scores; the table is typed now
     /// (`saves::best_times::LEVEL_SCORES`) and this stays 0.
     pub level_best_scores: Dword,
-    /// `g_courseBestTimes`: The courses' best times (group 1's pointer for the stage pages).
-    pub course_best_times: BlockVar,
-    /// `g_stageBestTimesAlt`: The other group's stage times.
-    pub stage_best_times_alt: BlockVar,
-    /// `g_timeTrialBestTimes`: The time trial's best times.
-    pub time_trial_best_times: BlockVar,
+    /// `g_courseBestTimes`: held the courses' best times; typed now
+    /// (`saves::best_times::COURSE_TIMES`), this stays 0 (`off_7354FE` names it).
+    pub course_best_times: Dword,
+    /// `g_stageBestTimesAlt`: held the other group's stage times; typed now
+    /// (`saves::best_times::STAGE_TIMES_ALT`), this stays 0 (`off_7354FE` names it).
+    pub stage_best_times_alt: Dword,
+    /// `g_timeTrialBestTimes`: held the time trial's best times; typed now
+    /// (`saves::best_times::TIME_TRIAL_TIMES`), this stays 0 (`off_7354FE` names it).
+    pub time_trial_best_times: Dword,
     /// `g_rankedTimes`: The ranked times (`menu::standings`).
     pub ranked_times: BlockVar,
     /// `g_champHistory`: The championship's history table.
@@ -67,11 +71,11 @@ pub static CHAMP_VIEW: ChampView = ChampView {
     _gap_7556cc: Bytes::new(with_runs::<4>(&[(0x0, &[0x01])])),
     event_mode: Dword::new(0x2),
     best_scores: Dword::new(0),
-    stage_best_times: BlockVar::new(),
+    stage_best_times: Dword::new(0),
     level_best_scores: Dword::new(0),
-    course_best_times: BlockVar::new(),
-    stage_best_times_alt: BlockVar::new(),
-    time_trial_best_times: BlockVar::new(),
+    course_best_times: Dword::new(0),
+    stage_best_times_alt: Dword::new(0),
+    time_trial_best_times: Dword::new(0),
     ranked_times: BlockVar::new(),
     champ_history: BlockVar::new(),
     summary: BlockVar::new(),

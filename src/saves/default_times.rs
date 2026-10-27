@@ -21,8 +21,6 @@ use crate::saves::drivers::Driver;
 use rc2k_core::Invalid;
 use rc2k_core::saves::defaults::{Filled, Record};
 
-/// Ten entries.
-pub const STAGE_LEN: u32 = 0x618;
 pub const RECORD_LEN: u32 = 0xA4;
 
 /// A piece written to the game's log: a text of the game's (its address) or a number,
@@ -109,16 +107,36 @@ pub fn read_record(at: u32) -> Result<Record, BadInput> {
     })
 }
 
+/// Where a function of the time tables writes: a typed stage table, or the game's memory
+/// (the rallies' tables, `RALLY_TIMES`: place and length).
+#[derive(Clone, Copy)]
+pub enum Target {
+    Stages(&'static crate::memory::owned::Owned<rc2k_core::saves::entries::StageTimes>),
+    Game(u32, usize),
+}
+
 /// Writes what a function of the time tables worked out: its blocks into `tables` (the
-/// function's own, then the rallies'; place and length), and the work variables.
-pub fn apply(
-    filled: &Filled,
-    tables: &[(crate::memory::blocks::Place, usize)],
-) -> Result<(), BadInput> {
+/// function's own, then the rallies'), and the work variables. Refuses a block past its
+/// table.
+pub fn apply(filled: &Filled, tables: &[Target]) -> Result<(), BadInput> {
     {
         for block in &filled.blocks {
-            let (at, len) = tables[block.table];
-            at.with_bytes(len, "a table of times", |bytes| block.write(bytes))?;
+            match tables[block.table] {
+                Target::Stages(t) => t.with(|t| {
+                    let all = t.stages.as_flattened_mut();
+                    for (n, e) in block.entries.iter().enumerate() {
+                        all.get_mut(block.first + n)
+                            .ok_or(BadInput("a made-up time past its table"))?
+                            .fill_made_up(e, block.time_at == 0x18);
+                    }
+                    Ok::<_, BadInput>(())
+                })??,
+                Target::Game(at, len) => crate::memory::blocks::Place::Game(at).with_bytes(
+                    len,
+                    "a table of times",
+                    |bytes| block.write(bytes),
+                )?,
+            }
         }
         DRAW_WORK.seconds.set(filled.seconds);
         if let Some(sum) = filled.sum {

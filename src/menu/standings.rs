@@ -6,7 +6,7 @@
 //! (`g_players`, four pointers).
 
 use crate::errors::{BadInput, FatalError, Refused};
-use crate::memory::blocks::{At, BlockVar, Place};
+use crate::memory::blocks::{BlockVar, Place};
 use crate::menu::champ_store::CHAMP_VIEW;
 use crate::menu::draw_work_store::DRAW_WORK;
 use crate::menu::event_store::EVENT_STATE;
@@ -201,9 +201,10 @@ pub fn counted_players() -> Result<Vec<u32>, BadInput> {
     Ok((0..n).map(player).collect())
 }
 
-/// The current record's event (`g_recordTable`, `section`, `index`; its +0x3C) in
-/// `dword_7556D8`'s table, refused past the table's sections.
-pub fn current_event() -> Result<At, BadInput> {
+/// The current record's event (`g_recordTable`, `section`, `index`; its +0x3C): its place
+/// in the stages' best times (`saves::best_times::STAGE_TIMES`); refused past the table's
+/// sections, with no table, or past it.
+pub fn current_event() -> Result<usize, BadInput> {
     let table = crate::records::stages_store::STAGE_TABLES.championship();
     let section: u32 = EVENT_STATE.section.get();
     let index: u32 = EVENT_STATE.index.get();
@@ -214,8 +215,21 @@ pub fn current_event() -> Result<At, BadInput> {
         return Err(BadInput("a record past the table"));
     }
     let record = crate::records::find_record::find_record_in(table, index as i32, section)?;
-    let events = CHAMP_VIEW.stage_best_times.need("no events table")?;
-    Ok(events.add(get(record + 0x3C)?.wrapping_mul(0x618)))
+    let event = get(record + 0x3C)? as usize;
+    if !crate::saves::best_times::STAGE_TIMES.with(|t| event < t.stages.len())? {
+        return Err(BadInput("an event past the stages' best times"));
+    }
+    Ok(event)
+}
+
+/// `f` on event `event`'s ten record entries (`current_event`'s place).
+pub fn with_event<R>(
+    event: usize,
+    f: impl FnOnce(&mut rc2k_core::saves::entries::Times) -> R,
+) -> Result<R, BadInput> {
+    crate::saves::best_times::STAGE_TIMES
+        .with(|t| t.stages.get_mut(event).map(f))?
+        .ok_or(BadInput("an event past the stages' best times"))
 }
 
 /// Group `group`'s tenth best score (`saves::best_times::SCORES`); refused with no table or

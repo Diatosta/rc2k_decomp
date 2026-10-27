@@ -1,12 +1,14 @@
 //! The time trial stage results page (`sub_48E740`; stream A, part F1, 2026-10-18).
 
 use crate::errors::{BadInput, Refused};
-use crate::memory::blocks::{At, BlockVar, Place};
 use crate::menu::captions_store::CAPTIONS;
 use crate::menu::champ_store::CHAMP_VIEW;
+use crate::menu::event_flow::StageTable;
 use crate::menu::loop_store::LOOP_FLAGS;
 use crate::menu::state_store::MENU_STATE;
 use crate::pointers::GamePtr;
+use crate::screens::game_screen::{Held, HeldText};
+use crate::session::Dword;
 use crate::text::draw_text::Canvas;
 
 fn get(a: u32) -> Result<u32, crate::errors::BadInput> {
@@ -29,9 +31,9 @@ fn records() -> Result<(u32, u32), BadInput> {
 
 /// The times table: `off_7354FE[dword_7556F8 (+ 2 when dword_7556FC is 1)]` names the
 /// variable that holds it (the list's four: `g_stageBestTimes`, `g_courseBestTimes`,
-/// `dword_7556E8`, `g_stageBestTimesAlt`); its block, or None. Refuses a list entry that
-/// names none of them.
-fn times_table() -> Result<Option<At>, BadInput> {
+/// `dword_7556E8`, `g_stageBestTimesAlt`; their tables are typed now,
+/// `saves::best_times`), or None. Refuses a list entry that names none of them.
+fn times_table() -> Result<Option<&'static StageTable>, BadInput> {
     let mut at = crate::records::stages_store::STAGE_TABLES.result_tables_addr()
         + 4 * CHAMP_VIEW.switch_f8.get();
     if CHAMP_VIEW.switch_fc.get() == 1 {
@@ -41,29 +43,37 @@ fn times_table() -> Result<Option<At>, BadInput> {
     if p == 0 {
         return Ok(None);
     }
+    use crate::saves::best_times as b;
     let v = &CHAMP_VIEW;
-    let held = [
-        &v.stage_best_times,
-        &v.course_best_times,
-        &v.time_trial_best_times,
-        &v.stage_best_times_alt,
+    let (_, table) = [
+        (&v.stage_best_times, &b::STAGE_TIMES),
+        (&v.course_best_times, &b::COURSE_TIMES),
+        (&v.time_trial_best_times, &b::TIME_TRIAL_TIMES),
+        (&v.stage_best_times_alt, &b::STAGE_TIMES_ALT),
     ]
     .into_iter()
-    .find(|b| crate::pointers::game_address(*b as *const BlockVar) == p)
+    .find(|(var, _)| crate::pointers::game_address(*var as *const Dword) == p)
     .ok_or(BadInput(
         "a times table list entry that names no best times variable",
     ))?;
-    Ok(held.get())
+    Ok(table.is_taken().then_some(table))
 }
 
-/// Whether the end mark comes within the ten rows (n = 1 .. 10 entries on).
-fn ends_within_ten(first: At) -> Result<bool, BadInput> {
-    for n in 1..=10u32 {
-        if first.add(0x9C * n).read::<u32>("a best time")? == u32::MAX {
-            return Ok(true);
+/// Whether the end mark comes within the ten rows (n = 1 .. 10 entries on: the tenth is
+/// the next stage's first, or the block's zeros past the table). Refuses one past the
+/// block.
+fn ends_within_ten(table: &StageTable, stage: usize) -> Result<bool, BadInput> {
+    table.with(|t| {
+        for n in 1..=10 {
+            let first = t.first_at(stage * 10 + n).ok_or(BadInput(
+                "an entry after the ten past the best times' block",
+            ))?;
+            if first == u32::MAX {
+                return Ok(true);
+            }
         }
-    }
-    Ok(false)
+        Ok(false)
+    })?
 }
 
 /// `screens::draw_stage_results` (0x48E740): the time trial stage's results: the current
@@ -109,8 +119,16 @@ pub fn draw_stage_results(canvas: &mut dyn Canvas) -> Result<(), Refused> {
     if stage.len() > 0x100 {
         return Err(BadInput("a stage line past its buffer").into());
     }
-    let first = table.add(get(record + 0x3C)?.wrapping_mul(0x618));
-    if ends_within_ten(first)? {
+    let slot = get(record + 0x3C)? as usize;
+    let ten = table
+        .with(|t| t.stages.get(slot).copied())?
+        .ok_or(BadInput("a stage past its best times table"))?;
+    let names = ten
+        .iter()
+        .map(|e| e.name_text().and_then(|t| Held::new(&t)))
+        .collect::<Option<Vec<_>>>()
+        .ok_or(BadInput("a best time's name without its end"))?;
+    if ends_within_ten(table, slot)? {
         return Err(BadInput(
             "a times table ending within the ten rows: the original returns through a wrong stack",
         )
@@ -147,19 +165,16 @@ pub fn draw_stage_results(canvas: &mut dyn Canvas) -> Result<(), Refused> {
     .write_bytes(&stage, "the stage line")?;
     // Converted: `rc2k_core::screens::stage_results`.
     use rc2k_core::screens::stage_results::{Entry, Fastest, stage_results};
-    let fault = crate::menu::event_flow::Fault::default();
     let rows = std::array::from_fn(|n| {
-        let entry = Place::Owned(first.add(0x9C * n as u32));
-        let f = |o: u32| fault.get_at(entry.add(o));
+        let e = &ten[n];
         Entry {
-            name: entry.add(0x20),
-            nation: f(8),
-            car: f(0x10),
-            time: f(0x14),
-            seal: (f(0x54), f(0x58)),
+            name: HeldText::Held(names[n]),
+            nation: e.head.nation,
+            car: e.head.car,
+            time: e.head.key,
+            seal: (e.sealed[0], e.sealed[1]),
         }
     });
-    fault.check()?;
     let (nation, name, car) = if second {
         (0x9C, 0x7C, 0xA0)
     } else {
@@ -168,7 +183,7 @@ pub fn draw_stage_results(canvas: &mut dyn Canvas) -> Result<(), Refused> {
     speed.pop();
     let fastest = Fastest {
         nation: get(fastest + nation)?,
-        name: Place::Game(fastest + name),
+        name: HeldText::Game(fastest + name),
         car: get(fastest + car)?,
         palette: if both_off == 1 {
             CAPTIONS.shown_group.get()
@@ -190,7 +205,7 @@ pub fn draw_stage_results(canvas: &mut dyn Canvas) -> Result<(), Refused> {
         }))
     };
     let drawn = stage_results(
-        &mut crate::screens::game_screen::GameScreen::<_, _, Place>::new(canvas),
+        &mut crate::screens::game_screen::GameScreen::<_, _, HeldText>::new(canvas),
         MENU_STATE.menus.caption_choice.get() == 1,
         crate::strings::append_time::show_hours(),
         &rows,

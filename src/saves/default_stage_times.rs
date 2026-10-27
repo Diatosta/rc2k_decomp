@@ -11,25 +11,22 @@
 //! Converted: `rc2k_core::saves::defaults::stage_times` (a refusal now leaves nothing written).
 
 use crate::errors::{BadInput, Refused};
-use crate::memory::blocks::Place;
-use crate::menu::champ_store::CHAMP_VIEW;
 use crate::saves::default_times::*;
 use rc2k_core::saves::defaults::stage_times;
 
 // ---- game data ----
 
 const TABLES: usize = 6;
-/// The stages the table has room for.
-const ROOM: u32 = 36;
 
 // ---- Rust version ----
 
 pub fn default_stage_times(ebp: u32, log: Log) -> Result<(), Refused> {
     // Converted: `rc2k_core::saves::defaults::stage_times`.
     {
-        let table = CHAMP_VIEW
-            .course_best_times
-            .need("no table for the times")?;
+        let table = &crate::saves::best_times::COURSE_TIMES;
+        if !table.is_taken() {
+            return Err(BadInput("no table for the times").into());
+        }
         let mut tables = Vec::new();
         for n in 0..TABLES {
             let records = crate::records::stages_store::STAGE_TABLES.level_table(n as u32);
@@ -50,10 +47,7 @@ pub fn default_stage_times(ebp: u32, log: Log) -> Result<(), Refused> {
             Some(ebp),
             with_checkpoints(),
         )?;
-        apply(
-            &filled,
-            &[(Place::Owned(table), (ROOM * STAGE_LEN) as usize)],
-        )?;
+        apply(&filled, &[Target::Stages(table)])?;
         Ok(())
     }
 }

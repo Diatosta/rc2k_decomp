@@ -39,6 +39,6 @@ pub unsafe fn draw_service_stage_info(canvas: &mut dyn Canvas) -> Result<bool, R
         build_second_heading(record)?;
         // ebx, the markers' palette, still holds the section here.
         draw_stage_body(record, section, false, canvas)?;
-        draw_records_from(CHAMP_VIEW.stage_best_times.get(), record, canvas)
+        draw_records_from(&crate::saves::best_times::STAGE_TIMES, record, canvas)
     }
 }

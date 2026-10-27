@@ -19,7 +19,7 @@ pub fn beat_target_time() -> Result<(), Refused> {
         return Err(BadInput("a current player past 3 or missing").into());
     }
     // Converted: `rc2k_core::menu::bests::makes_time`.
-    let target = event.add(0x57C + 0x14).read::<u32>("a target time")?;
+    let target = with_event(event, |ten| ten[9].head.key)?;
     let beaten = rc2k_core::menu::bests::makes_time(get(player(n) + 0x88)?, target);
     EVENT_STATE.time_qualifies.set(u32::from(beaten));
     Ok(())

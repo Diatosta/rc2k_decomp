@@ -6,7 +6,6 @@
 //! registers the originals hand from call to call in a `Flow`.
 
 use crate::errors::BadInput;
-use crate::memory::blocks::{At, BlockVar};
 use crate::menu::captions_store::CAPTIONS;
 use crate::menu::champ_store::CHAMP_VIEW;
 use crate::menu::cheats_store::CHEAT_VARS;
@@ -174,12 +173,11 @@ pub const STAGE_SUB: &Dword = &EVENT_STATE.stage_sub; // dword_7558D0
 pub const STAGE_NUMBER: &Dword = &EVENT_STATE.stage_number; // dword_7558CC
 const KINDS: u32 = 4;
 pub const STAGE_RECORD: u32 = 0xA4;
-/// The stages' best times: `dword_7556E4` (kind 1) or `dword_7556E8`, 0x618 a stage (its
-/// +0x3C), ten entries of 0x9C each.
-pub const TIMES_ONE: &BlockVar = &CHAMP_VIEW.stage_best_times_alt; // dword_7556E4
-pub const TIMES_OTHER: &BlockVar = &CHAMP_VIEW.time_trial_best_times; // dword_7556E8
-pub const TIMES_LEN: u32 = 0x618;
-pub const TIME_ENTRY: u32 = 0x9C;
+/// The stages' best times: `g_stageBestTimesAlt` (kind 1) or `dword_7556E8`, ten for each
+/// stage (the record's +0x3C).
+pub type StageTable = crate::memory::owned::Owned<rc2k_core::saves::entries::StageTimes>;
+pub const TIMES_ONE: &StageTable = &crate::saves::best_times::STAGE_TIMES_ALT; // dword_7556E4
+pub const TIMES_OTHER: &StageTable = &crate::saves::best_times::TIME_TRIAL_TIMES; // dword_7556E8
 
 /// The chosen stage's record; refused for a kind past the table's four or a null pointer
 /// on the way (the original reads through it).
@@ -200,17 +198,28 @@ pub fn stage_record() -> Result<u32, BadInput> {
     Ok(stages.wrapping_add(get(STAGE_NUMBER).wrapping_mul(STAGE_RECORD)))
 }
 
-/// The chosen stage's best times (ten entries); refused as `stage_record`, or with no
-/// table.
-pub fn stage_times() -> Result<At, BadInput> {
+/// The chosen stage's best times: its table and its place there; refused as
+/// `stage_record`, or with no table or a stage past it.
+pub fn stage_times() -> Result<(&'static StageTable, usize), BadInput> {
     let record = stage_record()?;
-    let base = if get(STAGE_KIND) == 1 {
+    let table = if get(STAGE_KIND) == 1 {
         TIMES_ONE
     } else {
         TIMES_OTHER
+    };
+    let stage = dword(record + 0x3C)? as usize;
+    if !table.with(|t| stage < t.stages.len())? {
+        return Err(BadInput("a stage past its best times table"));
     }
-    .need("no best times table")?;
-    Ok(base.add(dword(record + 0x3C)?.wrapping_mul(TIMES_LEN)))
+    Ok((table, stage))
+}
+
+/// `f` on the chosen stage's ten best times; refused as `stage_times`.
+pub fn with_stage_times<R>(
+    f: impl FnOnce(&mut rc2k_core::saves::entries::Times) -> R,
+) -> Result<R, BadInput> {
+    let (table, stage) = stage_times()?;
+    table.with(|t| f(&mut t.stages[stage]))
 }
 
 // ---- the registers the flows carry ----

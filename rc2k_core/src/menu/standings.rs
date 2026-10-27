@@ -137,57 +137,6 @@ pub fn exchange_sort(
     }
 }
 
-/// Ten entries' last moved up: nine steps from the bottom, each pair (upper, lower)
-/// exchanged when `exchange(lower's key, upper's key)` (signed); the pair one up is next
-/// either way.
-pub fn bubble_up(
-    ten: &mut Entries,
-    key: usize,
-    fields: &[usize],
-    name: usize,
-    exchange: fn(i32, i32) -> bool,
-    kept: &mut [u8; NAME_LEN],
-) {
-    for lower in (1..10).rev() {
-        let upper = lower - 1;
-        if exchange(ten.get(lower, key) as i32, ten.get(upper, key) as i32) {
-            ten.swap(upper, lower, fields, name, kept);
-        }
-    }
-}
-
-/// The arcade's best times' fields an exchange moves (their key +0x14), and the scores'
-/// (the first eight); the names at +0x20.
-pub const ARCADE_TIME_FIELDS: [usize; 27] = [
-    0xC, 0x14, 4, 8, 0x1C, 0x10, 0x18, 0x40, 0x50, 0x54, 0x58, 0x5C, 0x60, 0x64, 0x68, 0x6C, 0x70,
-    0x74, 0x78, 0x7C, 0x80, 0x84, 0x88, 0x8C, 0x90, 0x94, 0x98,
-];
-pub const ARCADE_NAME: usize = 0x20;
-
-/// The arcade course's ten best times sorted (a lower time at most the upper's moves up).
-pub fn sort_arcade_times(ten: &mut Entries, kept: &mut [u8; NAME_LEN]) {
-    bubble_up(
-        ten,
-        0x14,
-        &ARCADE_TIME_FIELDS,
-        ARCADE_NAME,
-        |l, u| l <= u,
-        kept,
-    );
-}
-
-/// The arcade level's ten best scores sorted (a lower score at least the upper's moves up).
-pub fn sort_arcade_scores(ten: &mut Entries, kept: &mut [u8; NAME_LEN]) {
-    bubble_up(
-        ten,
-        0x14,
-        &ARCADE_TIME_FIELDS[..8],
-        ARCADE_NAME,
-        |l, u| l >= u,
-        kept,
-    );
-}
-
 /// The arcade stage's points for a place: (the places less it, plus 1) x 1000.
 pub fn arcade_points(places: u32, position: u32) -> u32 {
     places
