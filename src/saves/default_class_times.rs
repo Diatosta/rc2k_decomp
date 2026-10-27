@@ -1,5 +1,5 @@
-//! `saves::default_class_times` (0x47C8E3): fills the table at `dword_7556DC` with made-up
-//! entries.
+//! `saves::default_class_times` (0x47C8E3): fills the levels' best scores
+//! (`saves::best_times::LEVEL_SCORES`, the original's `dword_7556DC`) with made-up entries.
 //!
 //! In:  nothing
 //! Out: every register preserved
@@ -11,24 +11,24 @@
 //! What the table is has not been worked out; "class times" is a guess.
 //! One caller, `menu::set_up_front_end`, when `var\hst.dat` was not loaded.
 //! Refuses a missing table and a name that does not fit.
-//! Converted: `rc2k_core::saves::defaults::class_times`.
+//! Converted: `rc2k_core::saves::defaults::class_times`, `rc2k_core::saves::entries::fill_made_up`.
 
 use crate::errors::Refused;
-use crate::menu::champ_store::CHAMP_VIEW;
+use crate::saves::best_times::LEVEL_SCORES;
 use crate::saves::default_times::{GameSource, to_nowhere};
-use rc2k_core::saves::defaults::{CLASS_TABLE_LEN, class_times, write_class_times};
+use rc2k_core::saves::defaults::class_times;
 
 // ---- game data ----
 
 // ---- Rust version ----
 
 pub fn default_class_times() -> Result<(), Refused> {
-    let table = CHAMP_VIEW.level_best_scores.need("no table")?;
+    if !LEVEL_SCORES.is_taken() {
+        return Err(crate::errors::BadInput("no table").into());
+    }
     let entries = class_times(&mut GameSource {
         log: &mut to_nowhere,
     })?;
-    table.with_bytes(CLASS_TABLE_LEN, "the class times' table", |bytes| {
-        write_class_times(bytes, &entries)
-    })?;
+    LEVEL_SCORES.with(|t| rc2k_core::saves::entries::fill_made_up(t, &entries))?;
     Ok(())
 }

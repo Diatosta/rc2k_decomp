@@ -46,8 +46,8 @@ pub fn in_game() -> Result<bool, Refused> {
     let scratch = GamePtr::new(crate::files::scratch::SCRATCH.buffer.addr());
     write_from(file, scratch, HEAD_LEN, "the best times file's head")?;
     for table in WRITTEN {
-        if table == crate::saves::allocate_best_times::SCORES_TABLE {
-            let bytes = crate::saves::best_times::SCORES.with(|t| t.write())?;
+        if let Some(typed) = crate::saves::best_times::typed(table) {
+            let bytes = typed.bytes()?;
             crate::files::handle::write_slice(file, &bytes);
             continue;
         }

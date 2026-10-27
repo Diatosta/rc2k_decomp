@@ -38,7 +38,7 @@ const COPIES: [Option<fn() -> &'static BlockVar>; 9] = [
     Some(|| &CHAMP_VIEW.summary),
     None, // g_bestScores
     Some(|| &CHAMP_VIEW.stage_best_times),
-    Some(|| &CHAMP_VIEW.level_best_scores),
+    None, // g_levelBestScores
     Some(|| &CHAMP_VIEW.course_best_times),
     Some(|| &CHAMP_VIEW.ranked_times),
     Some(|| &CHAMP_VIEW.champ_history),

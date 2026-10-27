@@ -92,9 +92,10 @@ pub struct BestScores {
     pub groups: [Group; GROUPS],
 }
 
-impl BestScores {
-    /// From the table's bytes (`var\hst.dat`'s).
-    pub fn read(b: &[u8; TABLE_LEN]) -> Self {
+impl crate::saves::tables::FileTable for BestScores {
+    const LEN: usize = TABLE_LEN;
+
+    fn read(b: &[u8]) -> Self {
         let mut t = Self::default();
         for (n, e) in t.groups.as_flattened_mut().iter_mut().enumerate() {
             let at = n * ENTRY_LEN;
@@ -103,8 +104,7 @@ impl BestScores {
         t
     }
 
-    /// Into the table's bytes.
-    pub fn write(&self) -> Vec<u8> {
+    fn write(&self) -> Vec<u8> {
         let mut b = vec![0; TABLE_LEN];
         for (n, e) in self.groups.as_flattened().iter().enumerate() {
             let at = n * ENTRY_LEN;
@@ -192,6 +192,7 @@ pub fn fill_made_up(t: &mut BestScores, entries: &[(u32, crate::saves::defaults:
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::saves::tables::FileTable;
 
     #[test]
     fn bytes_round_trip_at_the_originals_offsets() {

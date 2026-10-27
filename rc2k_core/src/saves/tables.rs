@@ -16,6 +16,15 @@ pub const MARKED: [usize; 2] = [5, 6];
 /// More records than any table has.
 pub const MOST_RECORDS: u32 = 0x1000;
 
+/// A typed table as `var\hst.dat` holds it: exactly `LEN` bytes, in the original's layout.
+pub trait FileTable: Default {
+    const LEN: usize;
+    /// From its bytes (`b` at least `LEN` long).
+    fn read(b: &[u8]) -> Self;
+    /// Into its `LEN` bytes.
+    fn write(&self) -> Vec<u8>;
+}
+
 /// `saves::count_stages`: the records with tag 0, up to the table's -1 (`tag` record n's
 /// first dword; the first record is not looked at for the end). Refused: no end within
 /// `MOST_RECORDS`.

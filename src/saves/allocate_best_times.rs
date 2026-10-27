@@ -23,9 +23,6 @@ use rc2k_core::saves::tables::{MARKED, TABLES};
 
 // ---- game data ----
 
-/// The best scores' table (`saves::best_times::SCORES`).
-pub const SCORES_TABLE: usize = 1;
-
 // g_recordTable
 const RECORD_LEN: usize = 0xA4;
 
@@ -58,8 +55,8 @@ pub fn allocate_best_times(list: *mut MemoryList, records: u32) -> Result<(), Re
     for (n, size) in sizes.into_iter().enumerate() {
         let place = &BEST_TIMES.tables[n];
         place.size.set(size);
-        if n == SCORES_TABLE {
-            crate::saves::best_times::SCORES.take(list, size, Default::default())?;
+        if let Some(typed) = crate::saves::best_times::typed(n) {
+            typed.take(list, size)?;
             continue;
         }
         let block = crate::memory::blocks::take(list, size)?;

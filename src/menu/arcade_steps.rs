@@ -71,7 +71,6 @@ const SCORE_1: &Dword = &RESULT_FIGURES.totals[1]; // dword_7587BC
 const CARS_LEN: u32 = 0x28;
 const SHOWN_LIST_LEN: u32 = 0x30;
 const TIME_LEN: u32 = 0x9C;
-const SCORE_LEN: u32 = 0x50;
 const STAGE_RECORD_LEN: u32 = 0xA4;
 
 fn get(a: u32) -> Result<u32, crate::errors::BadInput> {
@@ -101,16 +100,19 @@ fn course_times() -> Result<At, Refused> {
         .add(course * 0x618))
 }
 
-/// The level's ten best scores (the first).
-fn level_scores() -> Result<At, Refused> {
+/// `f` on the level's ten best scores (`saves::best_times::LEVEL_SCORES`).
+fn with_level_scores<R>(
+    f: impl FnOnce(&mut rc2k_core::saves::entries::List) -> R,
+) -> Result<R, Refused> {
     let level = ARCADE_GAME.level.get();
     if level > 5 {
         return Err(BadInput("an arcade level past 5").into());
     }
-    Ok(CHAMP_VIEW
-        .level_best_scores
-        .need("no best scores")?
-        .add(level * 0x320))
+    let scores = &crate::saves::best_times::LEVEL_SCORES;
+    if !scores.is_taken() {
+        return Err(BadInput("no best scores").into());
+    }
+    Ok(scores.with(|t| f(&mut t.levels[level as usize]))?)
 }
 
 fn current() -> Result<(u32, u32), Refused> {
@@ -147,9 +149,8 @@ pub fn keep_arcade_stage_best(record: u32) -> Result<(), Refused> {
 }
 
 pub fn check_arcade_level_score() -> Result<(), Refused> {
-    let tenth = level_scores()?.add(0x2D0);
     // Converted: `rc2k_core::menu::bests::makes_score`.
-    let best = tenth.add(0x14).read::<u32>("a best score")?;
+    let best = with_level_scores(|ten| ten[9].key)?;
     if bests::makes_score(RESULT_FIGURES.totals[0].get(), best) {
         EVENT_STATE.time_qualifies.set(1);
     }
@@ -228,18 +229,17 @@ pub fn enter_arcade_stage_time() -> Result<(), Refused> {
 }
 
 pub fn enter_arcade_level_score() -> Result<(), Refused> {
-    let first = level_scores()?;
+    with_level_scores(|_| ())?;
     let (n, player) = current()?;
     if get(player + 0x18)? == 0 {
         return Err(BadInput("a null name").into());
     }
-    // Converted: `rc2k_core::menu::bests::enter_tenth`, then
-    // `rc2k_core::menu::standings::sort_arcade_scores`.
+    // Converted: `rc2k_core::saves::entries` (`Entry::enter`, `sort_level_scores`).
     let score = (if n == 1 { SCORE_1 } else { SCORE }).get();
     let best = new_best(player, score, None, None)?;
-    with_ten(first, SCORE_LEN, |ten| {
-        bests::enter_tenth(ten, &best);
-        with_kept_name(|kept| standings::sort_arcade_scores(ten, kept));
+    with_level_scores(|ten| {
+        ten[9].enter(&best);
+        with_kept_name(|kept| rc2k_core::saves::entries::sort_level_scores(ten, kept));
     })?;
     Ok(())
 }
@@ -264,9 +264,8 @@ pub fn score_arcade_stage() -> Result<(), Refused> {
 }
 
 pub fn clear_arcade_score_marks() -> Result<(), Refused> {
-    // Converted: `rc2k_core::menu::bests::clear_marks`.
-    let first = level_scores()?;
-    with_ten(first, SCORE_LEN, bests::clear_marks)?;
+    // Converted: `rc2k_core::saves::entries::clear_marks`.
+    with_level_scores(rc2k_core::saves::entries::clear_marks)?;
     Ok(())
 }
 

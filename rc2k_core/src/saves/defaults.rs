@@ -21,9 +21,6 @@ pub const ENTRY_LEN: usize = 0x9C;
 pub const STAGE_LEN: usize = 10 * ENTRY_LEN;
 /// The stages a stage table has room for.
 pub const STAGE_ROOM: u32 = 36;
-/// A class times entry's length, and the table's (seven groups of ten).
-pub const CLASS_ENTRY_LEN: usize = 0x50;
-pub const CLASS_TABLE_LEN: usize = 70 * CLASS_ENTRY_LEN;
 /// A rally's table: twenty time entries.
 pub const RALLY_ENTRIES: usize = 20;
 pub const RALLY_TABLE_LEN: usize = RALLY_ENTRIES * ENTRY_LEN;
@@ -377,19 +374,6 @@ pub fn class_times(src: &mut dyn Source) -> Result<Vec<(u32, Driver)>, Invalid> 
     Ok(entries)
 }
 
-/// Writes `class_times`' entries into the table.
-pub fn write_class_times(table: &mut [u8], entries: &[(u32, Driver)]) {
-    for (n, (value, d)) in entries.iter().enumerate() {
-        let e = &mut table[n * CLASS_ENTRY_LEN..(n + 1) * CLASS_ENTRY_LEN];
-        put(e, 0x14, *value);
-        put(e, 0x1C, d.fields[0]);
-        put(e, 8, d.fields[1]);
-        put(e, 0x10, d.fields[2]);
-        put(e, 0xC, d.name_id);
-        e[0x20..0x20 + d.name.len()].copy_from_slice(&d.name);
-    }
-}
-
 /// `default_best_scores`: five groups of ten, scores 50 down to 41. Each entry draws a
 /// number under 0xB3; in groups 0 .. 3 it is thrown away and the driver is one of the
 /// group's `counts[group]` from `firsts[group]` on (`sub_47CDA7`). Refuses (before any
@@ -586,12 +570,9 @@ mod tests {
         let c = class_times(&mut test()).unwrap();
         assert_eq!(c.len(), 70);
         assert_eq!(c[9].0, 100_000 - 9 * 0xAB3);
-        let mut table = vec![0xAA; CLASS_TABLE_LEN];
-        write_class_times(&mut table, &c);
-        assert_eq!(
-            table[CLASS_ENTRY_LEN + 0x14..CLASS_ENTRY_LEN + 0x18],
-            (100_000 - 0xAB3u32).to_le_bytes()
-        );
+        let mut table = crate::saves::entries::LevelScores::default();
+        crate::saves::entries::fill_made_up(&mut table, &c);
+        assert_eq!(table.levels[0][1].key, 100_000 - 0xAB3);
         let s = best_scores(&mut test(), [5, 5, 5, 5], [10, 20, 30, 40]).unwrap();
         assert_eq!(s.len(), 50);
         // Entry 0: draws 0 (thrown), then 1 % 5 + 10.

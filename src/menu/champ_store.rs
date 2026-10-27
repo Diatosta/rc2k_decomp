@@ -31,8 +31,9 @@ pub struct ChampView {
     pub best_scores: Dword,
     /// `g_stageBestTimes`: The stages' best times (0x618 an event).
     pub stage_best_times: BlockVar,
-    /// `g_levelBestScores`: The arcade levels' best scores.
-    pub level_best_scores: BlockVar,
+    /// `g_levelBestScores`: held the arcade levels' best scores; the table is typed now
+    /// (`saves::best_times::LEVEL_SCORES`) and this stays 0.
+    pub level_best_scores: Dword,
     /// `g_courseBestTimes`: The courses' best times (group 1's pointer for the stage pages).
     pub course_best_times: BlockVar,
     /// `g_stageBestTimesAlt`: The other group's stage times.
@@ -67,7 +68,7 @@ pub static CHAMP_VIEW: ChampView = ChampView {
     event_mode: Dword::new(0x2),
     best_scores: Dword::new(0),
     stage_best_times: BlockVar::new(),
-    level_best_scores: BlockVar::new(),
+    level_best_scores: Dword::new(0),
     course_best_times: BlockVar::new(),
     stage_best_times_alt: BlockVar::new(),
     time_trial_best_times: BlockVar::new(),
