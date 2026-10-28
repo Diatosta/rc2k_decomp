@@ -23,6 +23,7 @@
 use crate::errors::Refused;
 use crate::input::store::KEYBOARD_FILE;
 use crate::install::installer::{append_string_by_id, measure_text, rb, rd, rw, wb};
+use crate::install::place::Place;
 use crate::install::vars::INSTALLER_PAGES;
 use crate::install::vars::INSTALLER_PATHS;
 use rc2k_core::install::edits::{self, EDITING, EditKey};
@@ -69,9 +70,9 @@ pub fn edit_key(key: u32, item: u32) -> Result<(u32, bool), Refused> {
         match EditKey::of(key as u8) {
             EditKey::Escape => {
                 wb(record, rb(record) & !EDITING);
-                let backup = INSTALLER_PATHS.script_path.addr();
+                let backup = &INSTALLER_PATHS.script_path;
                 for n in 0..most + 2 {
-                    wb(text + n, rb(backup + n));
+                    wb(text + n, rb(Place::from(backup).add(n)));
                 }
                 return Ok(with_bit_3);
             }

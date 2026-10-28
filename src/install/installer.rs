@@ -17,7 +17,7 @@
 
 use crate::errors::{BadInput, FatalError, Refused};
 use crate::framework::game_addr;
-use crate::pointers::GamePtr;
+use crate::install::place::Place;
 use crate::session::FLAGS;
 
 /// A Win32 call by the address of its import the arguments in, eax out.
@@ -91,39 +91,43 @@ pub fn refuse(e: crate::errors::BadInput) -> ! {
     crate::fatal::raise::end("install", e)
 }
 
-pub fn rb(at: u32) -> u8 {
-    GamePtr::new(at)
-        .read::<u8>("an installer byte")
+pub fn rb(at: impl Into<Place>) -> u8 {
+    at.into()
+        .read(1, "an installer byte")
+        .unwrap_or_else(|e| refuse(e))[0]
+}
+
+pub fn wb(at: impl Into<Place>, v: u8) {
+    at.into()
+        .write(&[v], "an installer byte")
         .unwrap_or_else(|e| refuse(e))
 }
 
-pub fn wb(at: u32, v: u8) {
-    GamePtr::new(at)
-        .write(v, "an installer byte")
+pub fn rw(at: impl Into<Place>) -> u16 {
+    let b = at
+        .into()
+        .read(2, "an installer word")
+        .unwrap_or_else(|e| refuse(e));
+    u16::from_le_bytes([b[0], b[1]])
+}
+
+pub fn ww(at: impl Into<Place>, v: u16) {
+    at.into()
+        .write(&v.to_le_bytes(), "an installer word")
         .unwrap_or_else(|e| refuse(e))
 }
 
-pub fn rw(at: u32) -> u16 {
-    GamePtr::new(at)
-        .read::<u16>("an installer word")
-        .unwrap_or_else(|e| refuse(e))
+pub fn rd(at: impl Into<Place>) -> u32 {
+    let b = at
+        .into()
+        .read(4, "an installer dword")
+        .unwrap_or_else(|e| refuse(e));
+    u32::from_le_bytes([b[0], b[1], b[2], b[3]])
 }
 
-pub fn ww(at: u32, v: u16) {
-    GamePtr::new(at)
-        .write(v, "an installer word")
-        .unwrap_or_else(|e| refuse(e))
-}
-
-pub fn rd(at: u32) -> u32 {
-    GamePtr::new(at)
-        .read::<u32>("an installer dword")
-        .unwrap_or_else(|e| refuse(e))
-}
-
-pub fn wd(at: u32, v: u32) {
-    GamePtr::new(at)
-        .write(v, "an installer dword")
+pub fn wd(at: impl Into<Place>, v: u32) {
+    at.into()
+        .write(&v.to_le_bytes(), "an installer dword")
         .unwrap_or_else(|e| refuse(e))
 }
 
@@ -141,87 +145,84 @@ pub fn ida_of(place: u32) -> usize {
 // ---- pure text work ----
 
 /// `strings::str_append`: `text` appended at `cursor`; the cursor past it.
-pub fn str_append(text: u32, cursor: u32) -> u32 {
-    crate::pointers::game_address(crate::menu::event_flow::refuse_here(
-        crate::strings::str_append::str_append(
-            crate::pointers::host(text) as *const u8,
-            crate::pointers::host(cursor),
-        ),
-        "install::installer: a text",
-    ))
+pub fn str_append(text: impl Into<Place>, cursor: impl Into<Place>) -> Place {
+    let (text, cursor) = (text.into(), cursor.into());
+    let bytes = text.text("an installer text").unwrap_or_else(|e| refuse(e));
+    let len = bytes.len() as u32;
+    cursor
+        .write(&bytes, "an installer text")
+        .unwrap_or_else(|e| refuse(e));
+    cursor.add(len)
 }
 
 /// `strings::append_nul` and the other one-byte cursor helpers.
-pub fn append_byte(cursor: u32, b: u8) -> u32 {
+pub fn append_byte(cursor: impl Into<Place>, b: u8) -> Place {
+    let cursor = cursor.into();
     wb(cursor, b);
-    cursor.wrapping_add(1)
+    cursor.add(1)
 }
 
 /// `strings::append_string_by_id`: string `id` appended at `cursor`; the cursor past it.
-pub fn append_string_by_id(id: u32, cursor: u32) -> u32 {
+pub fn append_string_by_id(id: u32, cursor: impl Into<Place>) -> Place {
+    let cursor = cursor.into();
     let mut text = Vec::new();
     let written = crate::strings::append_string_by_id::push_string(&mut text, id)
-        .and_then(|()| crate::pointers::GamePtr::new(cursor).write_bytes(&text, "a text"));
+        .and_then(|()| cursor.write(&text, "a text"));
     crate::menu::event_flow::refuse_here(written, "install::installer: a string");
-    cursor.wrapping_add(text.len() as u32)
+    cursor.add(text.len() as u32)
 }
 
 // ---- the game's other functions the installer calls ----
 
 /// `files::set_current_directory` (0x403105): whether it worked.
-pub fn set_cd(path: u32) -> bool {
-    crate::files::directories::set_current_directory(crate::pointers::host(path) as *const u8)
+pub fn set_cd(path: impl Into<Place>) -> bool {
+    crate::files::directories::set_current_directory(path.into().ptr())
         .unwrap_or_else(|e| refuse(e))
         != 0
 }
 
 /// `files::make_directory` (0x403113): whether it worked.
-pub fn make_dir(path: u32) -> bool {
-    crate::files::directories::make_directory(crate::pointers::host(path) as *const u8)
-        .unwrap_or_else(|e| refuse(e))
-        != 0
+pub fn make_dir(path: impl Into<Place>) -> bool {
+    crate::files::directories::make_directory(path.into().ptr()).unwrap_or_else(|e| refuse(e)) != 0
 }
 
 /// `sub_403123` (remove a directory): whether it worked.
-pub fn remove_dir(path: u32) -> bool {
-    crate::files::directories::remove_directory(crate::pointers::host(path) as *const u8)
-        .unwrap_or_else(|e| refuse(e))
+pub fn remove_dir(path: impl Into<Place>) -> bool {
+    crate::files::directories::remove_directory(path.into().ptr()).unwrap_or_else(|e| refuse(e))
         != 0
 }
 
 /// `files::delete_file` (0x402E8C): whether it worked.
-pub fn delete_file(path: u32) -> bool {
-    crate::files::directories::delete_file(crate::pointers::host(path) as *const u8)
-        .unwrap_or_else(|e| refuse(e))
-        != 0
+pub fn delete_file(path: impl Into<Place>) -> bool {
+    crate::files::directories::delete_file(path.into().ptr()).unwrap_or_else(|e| refuse(e)) != 0
 }
 
 /// `install::normalise_path` (0x4139EC): `path` written at `to`; whether it was.
-pub fn normalise(path: u32, to: u32) -> Result<bool, Refused> {
+pub fn normalise(path: impl Into<Place>, to: impl Into<Place>) -> Result<bool, Refused> {
     Ok(crate::install::normalise_path::normalise_path(
-        crate::pointers::host(path) as *const u8,
-        crate::pointers::host(to),
+        path.into().ptr(),
+        to.into().ptr(),
     )?)
 }
 
 /// `files::copy_file` (0x402C28): whether it worked.
-pub fn copy_file(from: u32, to: u32) -> Result<bool, Refused> {
+pub fn copy_file(from: impl Into<Place>, to: impl Into<Place>) -> Result<bool, Refused> {
     Ok(crate::files::copy_file::copy_file(
-        crate::pointers::host(from) as *const u8,
-        crate::pointers::host(to) as *const u8,
+        from.into().ptr(),
+        to.into().ptr(),
     )?)
 }
 
 /// `files::resolve_path` (0x403206): the path the game opens.
-pub fn resolve_path(path: u32) -> Result<u32, Refused> {
+pub fn resolve_path(path: impl Into<Place>) -> Result<u32, Refused> {
     Ok(crate::pointers::game_address(
-        crate::files::resolve_path::resolve_path_in_game(crate::pointers::host(path) as *const u8)?,
+        crate::files::resolve_path::resolve_path_in_game(path.into().ptr())?,
     ))
 }
 
 /// `files::find_first` (0x402FC2): whether a file was found.
-pub fn find_first(pattern: u32) -> bool {
-    crate::race::find_snapshot_number::find_first(pattern)
+pub fn find_first(pattern: impl Into<Place>) -> bool {
+    crate::race::find_snapshot_number::find_first(pattern.into().game())
 }
 
 /// `files::find_next_wanted` (0x402FF6): whether a file was found.
@@ -306,7 +307,13 @@ pub fn draw_string(id: u32, font: u32, x: u32, y: u32) -> Result<(), Refused> {
 
 /// `text::draw_text` (0x4023D5): `text` in `font` at (x, y); the font object written back
 /// when the drawing changed it.
-pub fn draw_text(font: u32, text: u32, x: u32, y: u32) -> Result<(), Refused> {
+pub fn draw_text(
+    font: u32,
+    text: impl Into<crate::install::place::Place>,
+    x: u32,
+    y: u32,
+) -> Result<(), Refused> {
+    let text: u32 = text.into().game();
     use crate::text::draw_text::GameCanvas;
     use crate::text::font::Font;
     let at = crate::pointers::GamePtr::new(font);
@@ -325,7 +332,12 @@ pub fn draw_text(font: u32, text: u32, x: u32, y: u32) -> Result<(), Refused> {
 }
 
 /// `text::measure_text` (0x40230B), ecx `x`: (the widest line, the last line's y).
-pub fn measure_text(font: u32, text: u32, x: u32) -> Result<(u32, u32), Refused> {
+pub fn measure_text(
+    font: u32,
+    text: impl Into<crate::install::place::Place>,
+    x: u32,
+) -> Result<(u32, u32), Refused> {
+    let text: u32 = text.into().game();
     use crate::text::draw_text::GameCanvas;
     let m = {
         crate::text::measure_text::measure_text_at(
@@ -454,9 +466,11 @@ pub fn item_action_at(place: u32) -> Result<bool, Refused> {
 
 /// A text item's action (+0xC), eax its +8: more text at `cursor`; the cursor after. The
 /// game's items hold only `install::end_text_line`.
-pub fn text_action(place: u32, cursor: u32) -> Result<u32, Refused> {
+pub fn text_action(place: u32, cursor: impl Into<Place>) -> Result<Place, Refused> {
     match ida_of(place) {
-        0x415304 => Ok(crate::install::end_text_line::end_text_line(cursor)),
+        0x415304 => Ok(Place::At(crate::install::end_text_line::end_text_line(
+            cursor.into().game(),
+        ))),
         _ => Err(BadInput("a text action that is not one of the installer's").into()),
     }
 }

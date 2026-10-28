@@ -794,6 +794,13 @@ pub unsafe fn confirm_leaving(c: &Carried) -> Result<u32, Refused> {
     let mut asked = Ok(());
     let answer = unsafe {
         crate::menu::confirm_leaving::confirm_leaving(&mut || {
+            if quitting() {
+                // The window was closed: leaving is the answer. (The original asked; the
+                // question left at once on the switch with no answer, and the screen asked
+                // again forever, 0x474B43 / 0x47FB9A. Fixed bug.)
+                MENU_PAGES.yes_no_answer.set(1u32);
+                return;
+            }
             asked = run_screen(&crate::menu::leave_question_loop::SCREEN, c).map(|_| ());
         })
     };

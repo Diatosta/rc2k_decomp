@@ -31,10 +31,7 @@ fn build_path(
     table: &crate::memory::owned::Owned<crate::install::name_tables::NameTable>,
     index: u32,
 ) -> Result<u32, Refused> {
-    let cursor = str_append(
-        INSTALLER_PATHS.installed.addr(),
-        INSTALLER_PATHS.path_b.addr(),
-    );
+    let cursor = str_append(&INSTALLER_PATHS.installed, &INSTALLER_PATHS.path_b);
     let cursor = crate::install::name_tables::append_name(table, index, cursor)?;
     append_byte(cursor, 0);
     Ok(INSTALLER_PATHS.path_b.addr())
@@ -51,16 +48,13 @@ pub fn uninstall() -> Result<(), Refused> {
     run_frame(None)?;
     if lock() {
         copy_picture()?;
-        i::draw_string_list::draw_string_list(1, INSTALLER_PAGES.remove_strings.addr(), 0, 0)?;
+        i::draw_string_list::draw_string_list(1, &INSTALLER_PAGES.remove_strings, 0, 0)?;
         unlock();
         show();
     }
-    normalise(
-        INSTALLER_NAMES.source.addr(),
-        INSTALLER_PATHS.installed.addr(),
-    )?;
-    set_cd(INSTALLER_PATHS.installed.addr());
-    i::run_script::run_script(INSTALLER_NAMES.script.addr())?;
+    normalise(&INSTALLER_NAMES.source, &INSTALLER_PATHS.installed)?;
+    set_cd(&INSTALLER_PATHS.installed);
+    i::run_script::run_script(&INSTALLER_NAMES.script)?;
     if INSTALLER_RUN.file_count.get() != 0 {
         let mut n = 0;
         loop {
@@ -81,11 +75,11 @@ pub fn uninstall() -> Result<(), Refused> {
             }
         }
     }
-    set_cd(crate::install::installer::INSTALL_TEXTS.dotdot.addr());
-    remove_dir(INSTALLER_PATHS.installed.addr());
+    set_cd(&crate::install::installer::INSTALL_TEXTS.dotdot);
+    remove_dir(&INSTALLER_PATHS.installed);
     sleep(1000);
     INSTALLER_NAMES.status.set(0);
-    wb(INSTALLER_NAMES.source.addr(), 0);
+    wb(&INSTALLER_NAMES.source, 0);
     i::write_registry::write_registry(&mut game_api)?;
     i::unregister_lobby::unregister_lobby(&mut game_api);
     INSTALLER_RUN.remove_items.set(1);

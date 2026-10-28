@@ -15,7 +15,13 @@ use crate::install::installer::{draw_string, rd};
 use rc2k_core::install::layout;
 
 /// `count` records of `table` drawn at (x, y) on.
-pub fn draw_string_list(count: u32, table: u32, x: u32, y: u32) -> Result<(), Refused> {
+pub fn draw_string_list(
+    count: u32,
+    table: impl Into<crate::install::place::Place>,
+    x: u32,
+    y: u32,
+) -> Result<(), Refused> {
+    let table: u32 = table.into().game();
     // Converted: `rc2k_core::install::layout` (`list_records`, `list_place`).
     for (offset, _) in layout::list_records(count)? {
         let record = table.wrapping_add(offset);

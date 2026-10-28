@@ -7,6 +7,7 @@ pub mod choose_language;
 pub mod end_text_line;
 pub mod normalise_path;
 pub mod outside;
+pub mod place;
 pub mod portable;
 pub mod read_languages;
 pub mod read_record;

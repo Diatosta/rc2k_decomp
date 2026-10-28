@@ -61,7 +61,7 @@ pub fn measure_pieces() -> Result<(), Refused> {
             }
             Way::Text => {
                 let item = rd(piece + 4);
-                let mut cursor = append_string_by_id(rw(piece + 2) as u32, TEXT_BUFFER.text.addr());
+                let mut cursor = append_string_by_id(rw(piece + 2) as u32, &TEXT_BUFFER.text);
                 let action = rd(item + 0xC);
                 if action != 0 {
                     cursor = text_action(action, cursor)?;
@@ -70,7 +70,7 @@ pub fn measure_pieces() -> Result<(), Refused> {
                 let kind = rb(item + 1) as u32;
                 let font =
                     rb(INSTALLER_PAGES.kind_fonts.addr() + pieces::measure_colour_at(kind)) as u32;
-                measure_text(font_of(font), TEXT_BUFFER.text.addr(), left)?
+                measure_text(font_of(font), &TEXT_BUFFER.text, left)?
             }
             Way::Action => {
                 let the_box = rd(rd(piece + 4) + 4);

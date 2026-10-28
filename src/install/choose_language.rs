@@ -14,6 +14,7 @@
 //! are the original's.
 
 use crate::errors::BadInput;
+use crate::install::place::Place;
 use crate::install::vars::INSTALLER_NAMES;
 use rc2k_core::install::config;
 
@@ -31,10 +32,9 @@ pub fn choose_language(number: u32) -> Result<(), BadInput> {
         else {
             return Ok(());
         };
-        let slot = crate::pointers::GamePtr::new(
-            INSTALLER_NAMES.languages.addr() + (slot * LANGUAGE_SLOT) as u32,
-        )
-        .read_bytes(LANGUAGE_SLOT, "a language's slot")?;
+        let slot = Place::from(&INSTALLER_NAMES.languages)
+            .add((slot * LANGUAGE_SLOT) as u32)
+            .read(LANGUAGE_SLOT, "a language's slot")?;
         let directory = config::language_directory(&slot)?;
         let to = crate::pointers::GamePtr::new(crate::pointers::game_address(
             crate::files::state::locale_directory(),

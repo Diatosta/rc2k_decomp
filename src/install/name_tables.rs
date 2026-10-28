@@ -36,12 +36,17 @@ pub fn text_at(at: u32) -> Result<Vec<u8>, BadInput> {
 
 /// Name `index` of `table` written at `cursor` (the game's memory) without a NUL, as
 /// `strings::str_append_indexed` appends it; the cursor past it. Refused past the table.
-pub fn append_name(table: &Owned<NameTable>, index: u32, cursor: u32) -> Result<u32, Refused> {
+pub fn append_name(
+    table: &Owned<NameTable>,
+    index: u32,
+    cursor: impl Into<crate::install::place::Place>,
+) -> Result<crate::install::place::Place, Refused> {
+    let cursor = cursor.into();
     let name = table
         .with(|t| t.names.get(index as usize).cloned())?
         .ok_or(BadInput("an installer name past its table"))?;
-    crate::pointers::GamePtr::new(cursor).write_bytes(&name, "an installer path")?;
-    Ok(cursor.wrapping_add(name.len() as u32))
+    cursor.write(&name, "an installer path")?;
+    Ok(cursor.add(name.len() as u32))
 }
 
 /// A name made by the game's text helpers (which write at an address) in a lent buffer:

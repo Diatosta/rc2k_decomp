@@ -16,10 +16,8 @@ use crate::install::vars::INSTALLER_PATHS;
 use crate::install::vars::INSTALLER_RUN;
 
 pub fn open_installed() -> Result<(), Refused> {
-    if normalise(
-        INSTALLER_NAMES.source.addr(),
-        INSTALLER_PATHS.installed.addr(),
-    )? && set_cd(INSTALLER_PATHS.installed.addr())
+    if normalise(&INSTALLER_NAMES.source, &INSTALLER_PATHS.installed)?
+        && set_cd(&INSTALLER_PATHS.installed)
     {
         INSTALLER_RUN.installing.set(1);
     }

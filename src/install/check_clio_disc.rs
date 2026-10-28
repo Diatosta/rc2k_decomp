@@ -50,19 +50,16 @@ pub unsafe fn check_clio_disc(outside: &mut dyn Outside) -> Result<(), Refused> 
             || runs_from_source(outside)?
             || INSTALLER_NAMES.status.get() != 1
             || INSTALLER_NAMES.source.get(0) == 0
-            || outside.file_exists(
-                crate::pointers::host(INSTALLER_NAMES.installer_data.addr()) as *const u8
-            )?
+            || outside.file_exists(INSTALLER_NAMES.installer_data.as_ptr() as *const u8)?
         {
             return Ok(());
         }
-        let base_b = crate::pointers::host(crate::install::installer::INSTALL_TEXTS.base_b.addr())
-            as *const u8;
-        if !outside.normalise_path(base_b, crate::pointers::host(INSTALLER_PATHS.path_a.addr()))? {
+        let base_b = crate::install::installer::INSTALL_TEXTS.base_b.as_ptr() as *const u8;
+        if !outside.normalise_path(base_b, INSTALLER_PATHS.path_a.as_ptr())? {
             return Ok(());
         }
-        outside.set_directory(crate::pointers::host(INSTALLER_NAMES.source.addr()) as *const u8);
-        if !outside.normalise_path(base_b, crate::pointers::host(INSTALLER_PATHS.path_b.addr()))? {
+        outside.set_directory(INSTALLER_NAMES.source.as_ptr() as *const u8);
+        if !outside.normalise_path(base_b, INSTALLER_PATHS.path_b.as_ptr())? {
             return Ok(());
         }
         outside.read_record()?;

@@ -240,3 +240,31 @@ block's +0xB0.
 - **Fix**: the first row is unfiltered against zeros, as the standard has it. The
   picture buffer is Rust's own memory since the conversion's memory phase, so the bytes
   before it are no longer there to read.
+
+## Closing the window leaves the game running
+
+*Original*: `system::window_procedure` (0x41057A), `system::pump_messages` (0x410535).
+*Fixed*: 2026-10-28.
+
+- **What**: closing the window shuts the screens down and asks Windows to quit, but the
+  game's message pump swallows that request without telling anything to stop.
+- **In game**: closed during a film or a menu, the game goes on running with no window
+  and takes no input; it has to be ended from the task manager.
+- **Seen**: yes, in the conversion before the fix (the intro); read in the original's code.
+- **Fix**: closing the window sets the game's quit switch, which the menus and races
+  already obey; films now stop on it too, and if anything is still running 5 seconds
+  later the program ends. The installer is left to finish its copy, so an install is
+  never left half done.
+
+## The "leave?" question loops once the game is quitting
+
+*Original*: `menu::main_menu_loop` (0x474B43), `menu::leave_question_loop` (0x47FB9A).
+*Fixed*: 2026-10-28.
+
+- **What**: screens that ask before leaving treat the game's quit switch as a request to
+  leave and put the question; the question's screen closes at once when the switch is
+  set, with no answer, so the screen asks again, round and round.
+- **In game**: once quitting, the menus never got out; with the window closed (the
+  previous fix) the program waited for its 5-second safety net.
+- **Seen**: yes, in the conversion (closing the window in the main menu).
+- **Fix**: while the game is quitting, the question is not put and the answer is yes.

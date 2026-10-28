@@ -17,6 +17,7 @@
 use crate::errors::Refused;
 use crate::files::scratch::SCRATCH;
 use crate::install::installer::{rb, set_cd, wb};
+use crate::install::place::Place;
 use crate::install::vars::INSTALLER_NAMES;
 use crate::install::vars::INSTALLER_PATHS;
 use crate::install::vars::INSTALLER_RUN;
@@ -35,18 +36,13 @@ pub fn check_installed_version() -> Result<(), Refused> {
     }
     // normalise the source into byte_95E7F8, cd there
     let written = crate::install::normalise_path::normalise_path(
-        crate::pointers::host(INSTALLER_NAMES.source.addr()) as *const u8,
-        crate::pointers::host(INSTALLER_PATHS.installed.addr()),
+        INSTALLER_NAMES.source.as_ptr() as *const u8,
+        INSTALLER_PATHS.installed.as_ptr(),
     )?;
-    if !written || !set_cd(INSTALLER_PATHS.installed.addr()) {
+    if !written || !set_cd(&INSTALLER_PATHS.installed) {
         return Ok(());
     }
-    {
-        crate::system::zero_memory::zero_memory(
-            crate::pointers::host(SCRATCH.buffer.addr()),
-            0x10000,
-        )
-    }?;
+    { crate::system::zero_memory::zero_memory(SCRATCH.buffer.as_ptr(), 0x10000) }?;
     // The standalone checks its own program (the same version text is in its built-in
     // image). files::open_by_mode, mode 0.
     let program = crate::install::run_after_exit::RC2K.as_ptr();
@@ -55,8 +51,8 @@ pub fn check_installed_version() -> Result<(), Refused> {
             // the previous tail carried to the front (`rep movsd`, 0x40 dwords)
             for n in 0..0x100u32 {
                 wb(
-                    SCRATCH.buffer.addr() + n,
-                    rb(SCRATCH.buffer.addr() + TAIL as u32 + n),
+                    Place::from(&SCRATCH.buffer).add(n),
+                    rb(Place::from(&SCRATCH.buffer).add(TAIL as u32 + n)),
                 );
             }
             let (read, ok) = crate::files::handle::read_to(
@@ -81,6 +77,6 @@ pub fn check_installed_version() -> Result<(), Refused> {
         }
         crate::files::handle::close(file);
     }
-    set_cd(INSTALLER_PATHS.game_dir.addr());
+    set_cd(&INSTALLER_PATHS.game_dir);
     Ok(())
 }

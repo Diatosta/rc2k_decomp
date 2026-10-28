@@ -32,7 +32,12 @@ fn find_attributes() -> u32 {
 const DIRS_ROOM: u32 = 0x10000;
 const FILES_ROOM: u32 = 0x40000;
 
-fn same_name(a1: u32, a2: u32) -> bool {
+fn same_name(
+    a1: impl Into<crate::install::place::Place>,
+    a2: impl Into<crate::install::place::Place>,
+) -> bool {
+    let a1: u32 = a1.into().game();
+    let a2: u32 = a2.into().game();
     crate::menu::event_flow::refuse_here(
         crate::strings::same_text::same_text(
             crate::pointers::host(a1) as *const u8,
@@ -52,7 +57,8 @@ fn found_path(search: u32) -> Result<Vec<u8>, Refused> {
         Ok(append_byte(
             str_append(find_name(), crate::pointers::game_address(cursor)),
             0,
-        ))
+        )
+        .game())
     })
 }
 
@@ -73,23 +79,22 @@ fn walk(folder: u32) -> Result<(), Refused> {
         crate::pointers::GamePtr::new(base).write_bytes(&folder, "the search path")?;
         let mut cursor = base.wrapping_add(folder.len() as u32);
         if rb(cursor.wrapping_sub(1)) != b'\\' {
-            cursor = append_byte(cursor, b'\\');
+            cursor = append_byte(cursor, b'\\').game();
         }
         append_byte(
-            str_append(crate::install::installer::INSTALL_TEXTS.star.addr(), cursor),
+            str_append(&crate::install::installer::INSTALL_TEXTS.star, cursor),
             0,
         );
         if find_first(base) {
             loop {
                 if find_attributes() & 0x10 != 0 {
                     // "." and ".." passed over
-                    let real = !same_name(
-                        crate::install::installer::INSTALL_TEXTS.dot.addr(),
-                        find_name(),
-                    ) && !same_name(
-                        crate::install::installer::INSTALL_TEXTS.dotdot.addr(),
-                        find_name(),
-                    );
+                    let real =
+                        !same_name(&crate::install::installer::INSTALL_TEXTS.dot, find_name())
+                            && !same_name(
+                                &crate::install::installer::INSTALL_TEXTS.dotdot,
+                                find_name(),
+                            );
                     if real {
                         let name = found_path(base)?;
                         let used = FOLDERS.with(|t| t.push(name))?;
@@ -136,7 +141,8 @@ fn walk(folder: u32) -> Result<(), Refused> {
 
 /// `folder` (eax) and every folder under it added to the folders' table, their files to
 /// the files'.
-pub fn list_folder_tree(folder: u32) -> Result<(), Refused> {
+pub fn list_folder_tree(folder: impl Into<crate::install::place::Place>) -> Result<(), Refused> {
+    let folder: u32 = folder.into().game();
     use crate::files::state::SKIPPED_ATTRIBUTES;
     let saved_skip = SKIPPED_ATTRIBUTES.load(std::sync::atomic::Ordering::Relaxed);
     SKIPPED_ATTRIBUTES.store(0, std::sync::atomic::Ordering::Relaxed);

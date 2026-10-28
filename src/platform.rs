@@ -131,14 +131,75 @@ fn restore_if_asked() {
     }
 }
 
+/// How long the game has to leave after its window is closed.
+const LEAVING_GRACE: std::time::Duration = std::time::Duration::from_secs(5);
+
+/// Set while the installer runs: its copy goes on to its end after a close (a half-copied
+/// install would be worse), so the watch below stays off.
+static NO_CLOSE_WATCH: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+
+/// The installer's: no ending `LEAVING_GRACE` after a close.
+pub fn keep_running_after_close() {
+    NO_CLOSE_WATCH.store(true, std::sync::atomic::Ordering::Relaxed);
+}
+
+/// Set while the installer copies: a close then waits for the copy's end (`QUIT_ASKED`),
+/// so its progress is still drawn and shown.
+static HOLD_QUIT: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+static QUIT_ASKED: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+
+/// The installer's copy begins (`true`) or ends: a close during it sets the quit switch at
+/// its end.
+pub fn hold_quit(on: bool) {
+    use std::sync::atomic::Ordering::Relaxed;
+    HOLD_QUIT.store(on, Relaxed);
+    if !on && QUIT_ASKED.swap(false, Relaxed) {
+        log("platform: the copy has ended: the quit switch is set");
+        FLAGS.quitting.set(1);
+        end_if_not_left();
+    }
+}
+
+/// After the window's closing: the menus, races and films look at the quit switch and leave
+/// (the original's window procedure only shut the screens down and posted `WM_QUIT`, which
+/// `system::pump_messages` swallowed: nothing stopped, IDA 2026-10-28). A safety net for a
+/// loop that still does not: if the program is running `LEAVING_GRACE` after the first
+/// close, it ends (the game's own way out with the switch set saves nothing either:
+/// `system::main_loop` leaves before `save_game_data`).
+fn end_if_not_left() {
+    static WATCHING: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+    if NO_CLOSE_WATCH.load(std::sync::atomic::Ordering::Relaxed)
+        || WATCHING.swap(true, std::sync::atomic::Ordering::Relaxed)
+    {
+        return;
+    }
+    let started = std::thread::Builder::new()
+        .name("window closed".into())
+        .spawn(|| {
+            std::thread::sleep(LEAVING_GRACE);
+            crate::standalone::finish(
+                "the window was closed and the game had not left 5 s later",
+                0,
+            )
+        });
+    if started.is_err() {
+        log("platform: the window-closed watch did not start");
+    }
+}
+
 /// SDL's events: the window's closing, and the keys the menus take.
 fn pump() {
     restore_if_asked();
     while let Some(event) = next_event() {
         match event {
+            Event::Quit if HOLD_QUIT.load(std::sync::atomic::Ordering::Relaxed) => {
+                log("platform: the window was closed during the copy: quitting at its end");
+                QUIT_ASKED.store(true, std::sync::atomic::Ordering::Relaxed);
+            }
             Event::Quit => {
                 log("platform: the window was closed: the quit switch is set");
                 FLAGS.quitting.set(1);
+                end_if_not_left();
             }
             // As the window's procedure on `WM_ACTIVATE`: the input thread reads the devices
             // (and does not sleep a second a tick) while it is 1.

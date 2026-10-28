@@ -27,7 +27,8 @@ const PAST_END: BadInput =
 
 /// The folders of `path` (edx) gone into, made where missing; whether it worked (the
 /// original's carry clear).
-pub fn make_folders(path: u32) -> Result<bool, Refused> {
+pub fn make_folders(path: impl Into<crate::install::place::Place>) -> Result<bool, Refused> {
+    let path: u32 = path.into().game();
     use crate::install::folders::{Folders, Native};
     <Native as Folders>::make(path)
 }

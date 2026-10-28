@@ -57,9 +57,9 @@ fn program() -> Result<Vec<u8>, BadInput> {
 /// `no_audio` is where the sound's switch is.
 pub unsafe fn check_at_start(outside: &mut dyn Outside, no_audio: *mut u32) -> Result<(), Refused> {
     unsafe {
-        let record =
-            crate::pointers::host(crate::install::installer::INSTALL_TEXTS.record_path.addr())
-                as *const u8;
+        let record = crate::install::installer::INSTALL_TEXTS
+            .record_path
+            .as_ptr() as *const u8;
         if INSTALLER_RUN.installing.get() == 1 || outside.file_exists(record)? {
             return Ok(());
         }
@@ -86,10 +86,7 @@ pub unsafe fn check_at_start(outside: &mut dyn Outside, no_audio: *mut u32) -> R
         if INSTALLER_NAMES.status.get() == 1 && INSTALLER_NAMES.source.get(0) != 0 {
             // Whether the source could be put there is not asked: the program's name
             // goes after whatever text the place holds.
-            outside.normalise_path(
-                crate::pointers::host(INSTALLER_NAMES.source.addr()) as *const u8,
-                path,
-            )?;
+            outside.normalise_path(INSTALLER_NAMES.source.as_ptr() as *const u8, path)?;
             let held = GamePtr::new(crate::pointers::game_address(path))
                 .read_bytes(PATH_ROOM, "the scratch path")?;
             let Some(len) = held

@@ -67,7 +67,7 @@ pub fn progress_frame() -> Result<bool, Refused> {
         BLIT.clip.right.set(width.wrapping_add(x).wrapping_add(1));
         crate::install::blit_glyph_list::blit_glyph_list(
             2,
-            INSTALLER_PAGES.bar_glyphs_list.addr(),
+            &INSTALLER_PAGES.bar_glyphs_list,
             0,
             0,
             INSTALLER_RUN.bar_glyphs.get(),
@@ -79,7 +79,7 @@ pub fn progress_frame() -> Result<bool, Refused> {
             .write_bytes(&text, "the text buffer")?;
         draw_text(
             FONT.addr(),
-            TEXT_BUFFER.text.addr(),
+            &TEXT_BUFFER.text,
             x.wrapping_add(0xC8),
             INSTALLER_PAGES.bar.get_u32(4).wrapping_add(2),
         )?;
@@ -98,7 +98,7 @@ pub fn copying_frame() -> Result<bool, Refused> {
             continue;
         }
         copy_picture()?;
-        crate::install::draw_string_list::draw_string_list(2, INSTALLER_PAGES.texts.addr(), 0, 0)?;
+        crate::install::draw_string_list::draw_string_list(2, &INSTALLER_PAGES.texts, 0, 0)?;
         // gfx::frame_rect: colour 0x2A
         unsafe {
             crate::gfx::rect::frame_rect(

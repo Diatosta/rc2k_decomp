@@ -45,7 +45,7 @@ pub fn open_installer() -> Result<(), Refused> {
     // The names' tables are Rust's (phase 12), counted on the list as the game's blocks
     // were; the scan and cursors count names and bytes from 0.
     use crate::install::name_tables::{FILES, FOLDERS, NameTable};
-    let list = crate::pointers::host(INSTALLER_RUN.buffers.addr()) as *mut _;
+    let list = INSTALLER_RUN.buffers.as_ptr() as *mut _;
     FOLDERS.take(list, 0x10100, NameTable::default())?;
     INSTALLER_RUN.dir_scan.set(0);
     INSTALLER_RUN.dir_cursor.set(0);
@@ -77,9 +77,7 @@ pub fn open_installer() -> Result<(), Refused> {
         let blended = crate::text::blend_font::BLENDED_PALETTE.addr();
         components_to_pixels(blended, blended, crate::session::SCREEN.format_addr());
         // gfx::load_picture: its carry is not read.
-        crate::gfx::load_picture::load_picture(crate::pointers::host(
-            INSTALLER_NAMES.backdrop.addr(),
-        ))?;
+        crate::gfx::load_picture::load_picture(INSTALLER_NAMES.backdrop.as_ptr())?;
         crate::gfx::convert_picture::convert_picture_now()?;
     }
     PICTURE.flags.set(SCREEN_MODE.mode_flags.get() & 0xFFF);

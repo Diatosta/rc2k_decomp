@@ -20,18 +20,15 @@ use crate::install::vars::INSTALLER_PATHS;
 use crate::install::vars::INSTALLER_RUN;
 
 pub fn install_from_command() -> Result<(), Refused> {
-    if !set_cd(INSTALLER_PATHS.game_dir.addr())
+    if !set_cd(&INSTALLER_PATHS.game_dir)
         || !normalise(
-            crate::install::installer::INSTALL_TEXTS.base_b.addr(),
-            INSTALLER_PATHS.game_dir.addr(),
+            &crate::install::installer::INSTALL_TEXTS.base_b,
+            &INSTALLER_PATHS.game_dir,
         )?
     {
         return Ok(());
     }
-    normalise(
-        INSTALLER_PATHS.installed.addr(),
-        INSTALLER_PATHS.typed.addr(),
-    )?;
+    normalise(&INSTALLER_PATHS.installed, &INSTALLER_PATHS.typed)?;
     // A given media mode (above 0) is taken, held to 3, and only then a given language
     // (above 0): a mode of 0 or less goes straight to the install.
     let mode = INSTALLER_RUN.given_mode.get();

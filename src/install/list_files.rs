@@ -26,7 +26,8 @@ fn find_name() -> u32 {
 }
 
 /// The files of `pattern` (eax) added to the files' table.
-pub fn list_files(pattern: u32) -> Result<(), Refused> {
+pub fn list_files(pattern: impl Into<crate::install::place::Place>) -> Result<(), Refused> {
+    let pattern: u32 = pattern.into().game();
     let pattern = resolve_path(pattern)?;
     if find_first(pattern) {
         loop {
@@ -39,7 +40,8 @@ pub fn list_files(pattern: u32) -> Result<(), Refused> {
                 Ok(append_byte(
                     str_append(find_name(), crate::pointers::game_address(cursor)),
                     0,
-                ))
+                )
+                .game())
             })?;
             let used = FILES.with(|t| t.push(name))?;
             INSTALLER_RUN.file_cursor.set(used);
