@@ -11,7 +11,11 @@
 use crate::d3d::vertices_store::VERTICES;
 use crate::errors::Refused;
 
+use crate::math::x87_float::ld;
+use crate::race::viewer_screen_store::VIEWER_PANEL;
 use crate::scene::x87_mem::{fild, fld, fstp};
+use crate::session::MACHINE;
+use crate::session::SCREEN;
 
 /// `g_polygonVertices`: the four vertices (0x20 bytes each) a quad draws.
 pub fn verts() -> usize {
@@ -48,41 +52,47 @@ pub fn quad_tail(uv: u32) {
     quad_tail_math(
         uv as usize,
         verts(),
-        crate::session::SCREEN.width.addr() as usize,
-        crate::session::MACHINE.scratch.addr() as usize,
-        crate::race::store::asm_base() as usize,
+        SCREEN.width.addr() as usize,
+        MACHINE.scratch.addr() as usize,
     );
 }
 
 /// The tail's arithmetic over the memory at the operands' addresses: `s` the texture
 /// rectangle (whole numbers), `v` the vertices, `sc` the screen size (whole numbers), `t` a
-/// scratch float, `rc` the race block (the scale floats at their RVA offsets).
-fn quad_tail_math(s: usize, v: usize, sc: usize, t: usize, rc: usize) {
-    let (s, v, sc, t, rc) = (
+/// scratch float (the scale `VIEWER_PANEL.texel_scale`).
+fn quad_tail_math(s: usize, v: usize, sc: usize, t: usize) {
+    let (s, v, sc, t) = (
         crate::pointers::host_at(s),
         crate::pointers::host_at(v),
         crate::pointers::host_at(sc),
         crate::pointers::host_at(t),
-        crate::pointers::host_at(rc),
     );
-    let k = fld(rc, 0x1C2C64);
+    let k = ld(VIEWER_PANEL.texel_scale.bits());
     let left = fild(s, 0) * k;
     fstp(v, 0x18, left);
     fstp(v, 0x58, left);
-    let right = (fild(s, 0) + fild(s, 8)) * fld(rc, 0x1C2C64);
+    let right = (fild(s, 0) + fild(s, 8)) * ld(VIEWER_PANEL.texel_scale.bits());
     fstp(v, 0x38, right);
     fstp(v, 0x78, right);
-    let top = fild(s, 4) * fld(rc, 0x1C2C64);
+    let top = fild(s, 4) * ld(VIEWER_PANEL.texel_scale.bits());
     fstp(v, 0x1C, top);
     fstp(v, 0x3C, top);
-    let bottom = (fild(s, 4) + fild(s, 0xC)) * fld(rc, 0x1C2C64);
+    let bottom = (fild(s, 4) + fild(s, 0xC)) * ld(VIEWER_PANEL.texel_scale.bits());
     fstp(v, 0x5C, bottom);
     fstp(v, 0x7C, bottom);
-    fstp(t, 0, fild(sc, 0) * fld(rc, 0x1C2C68));
+    fstp(
+        t,
+        0,
+        fild(sc, 0) * ld(VIEWER_PANEL.texel_scale_small.bits()),
+    );
     for off in [0, 0x20, 0x40, 0x60] {
         fstp(v, off, fld(v, off) * fld(t, 0));
     }
-    fstp(t, 0, fild(sc, 4) * fld(rc, 0x1C2C6C));
+    fstp(
+        t,
+        0,
+        fild(sc, 4) * ld(VIEWER_PANEL.texel_scale_smaller.bits()),
+    );
     for off in [4, 0x24, 0x44, 0x64] {
         fstp(v, off, fld(v, off) * fld(t, 0));
     }
@@ -199,14 +209,14 @@ mod asm_reference {
                     reads: &[],
                     writes: &[(0, Out::F)],
                 },
-                Operand::Buffer {
+                Operand::RaceBlock {
                     reads: &[(0x1C2C64, In::F), (0x1C2C68, In::F), (0x1C2C6C, In::F)],
                     writes: &[],
                 },
             ],
             ulps: 0,
             reference: |a| unsafe { ref_tail(a[0], a[1], a[2], a[3], a[4]) },
-            plain: |a| quad_tail_math(a[0], a[1], a[2], a[3], a[4]),
+            plain: |a| quad_tail_math(a[0], a[1], a[2], a[3]),
         }];
         sparse(&blocks, 4000, 205);
     }

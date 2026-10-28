@@ -459,6 +459,8 @@ mod tests {
 
     #[test]
     fn installerrun_starts_as_the_games() {
+        // `list_folder_tree`'s test writes these (under the lock).
+        let _lock = crate::store::test_lock();
         let size = size_of::<InstallerRun>();
         assert!(
             8 + InstallerRun::LEN <= size && size <= (8 + InstallerRun::LEN).next_multiple_of(16)
@@ -475,6 +477,8 @@ mod tests {
 
     #[test]
     fn installernames_starts_as_the_games() {
+        // `list_folder_tree`'s test writes these (under the lock).
+        let _lock = crate::store::test_lock();
         let size = size_of::<InstallerNames>();
         assert!(InstallerNames::LEN <= size && size <= (InstallerNames::LEN).next_multiple_of(16));
         let image = crate::moved::image_bytes(InstallerNames::START, InstallerNames::LEN);

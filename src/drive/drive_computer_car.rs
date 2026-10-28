@@ -40,6 +40,7 @@ use crate::race::course_store::COURSE;
 use crate::race::norms::normalise_work_vector;
 use crate::race::numbers_store::NUMBERS;
 use crate::race::scratch_store::FRAME_SCRATCH;
+use crate::race::tables_store::RACE_TABLES;
 use crate::race::vars_store::RACE_VARS;
 use crate::race::work_store::RACE_WORK;
 use crate::scene::view_matrix::cross_product;
@@ -143,16 +144,8 @@ pub fn drive_computer_car() -> Result<(), Refused> {
         .course_faces
         .get()
         .wrapping_add(held(crate::race::checkpoints_store::face, n, 2) << 6);
-    let (b1, b2) = (
-        u32::from(crate::race::course_places::read::<u8>(
-            f.wrapping_add(0xA),
-            "a face of the course",
-        )?),
-        u32::from(crate::race::course_places::read::<u8>(
-            f.wrapping_add(0xB),
-            "a face of the course",
-        )?),
-    );
+    let (b1, b2) = crate::race::course_places::face(f, "a checkpoint face")?.bends();
+    let (b1, b2) = (u32::from(b1), u32::from(b2));
     RACE_WORK.driver_bend_a.set(b1);
     RACE_WORK.driver_bend_b.set(b2);
     if driver::narrow(b1, b2) {
@@ -218,7 +211,7 @@ pub fn drive_computer_car() -> Result<(), Refused> {
     if driver::eased(want) {
         RACE_WORK.driver_wanted_speed.set(int_toward_to_int(
             want as i32,
-            crate::race::tables_store::RACE_TABLES.unknown_88c.get(),
+            RACE_TABLES.unknown_88c.get(),
             RACE_WORK.driver_start_blend.bits(),
         ) as u32);
     }
@@ -265,25 +258,21 @@ pub fn drive_computer_car() -> Result<(), Refused> {
         RACE_WORK.driver_ahead[0].addr(),
     )?;
     let (k1, k2) = (RACE_WORK.driver_speed_scale.bits(), NUMBERS.k65536.bits());
-    RACE_WORK.driver_step_x.set(mul2_to_int(
-        crate::race::work_store::RACE_WORK.driver_ahead[0].bits(),
-        k1,
-        k2,
-    ) as u32);
-    RACE_WORK.driver_step_z.set(mul2_to_int(
-        crate::race::work_store::RACE_WORK.driver_ahead[2].bits(),
-        k1,
-        k2,
-    ) as u32);
+    RACE_WORK
+        .driver_step_x
+        .set(mul2_to_int(RACE_WORK.driver_ahead[0].bits(), k1, k2) as u32);
+    RACE_WORK
+        .driver_step_z
+        .set(mul2_to_int(RACE_WORK.driver_ahead[2].bits(), k1, k2) as u32);
     RACE_WORK.driver_to[0].set(
-        crate::race::work_store::RACE_WORK.driver_to[0]
+        RACE_WORK.driver_to[0]
             .get()
-            .wrapping_add(crate::race::work_store::RACE_WORK.driver_step_x.get()),
+            .wrapping_add(RACE_WORK.driver_step_x.get()),
     );
     RACE_WORK.driver_to[2].set(
-        crate::race::work_store::RACE_WORK.driver_to[2]
+        RACE_WORK.driver_to[2]
             .get()
-            .wrapping_add(crate::race::work_store::RACE_WORK.driver_step_z.get()),
+            .wrapping_add(RACE_WORK.driver_step_z.get()),
     );
     let here = RACE_WORK.driver_point_now.get();
     put(here, CAR.position[0].get())?;

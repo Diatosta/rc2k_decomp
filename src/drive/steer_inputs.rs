@@ -106,26 +106,12 @@ pub fn steer_inputs() {
     DRAW.scratch.set(RIGHT);
     scale(base(), 0x22400C, 0x31A3E0, 0x31A1E0);
     if CAR.car_flags.get() & 0x10 != 0 {
-        CAR.steer_trim.set(
-            crate::physics::car_store::CAR
-                .steer_trim
-                .get()
-                .wrapping_neg(),
-        );
+        CAR.steer_trim.set(CAR.steer_trim.get().wrapping_neg());
     }
     let trim = CAR.steer_trim.get();
-    CAR.steer_angle.set(
-        crate::physics::car_store::CAR
-            .steering
-            .get()
-            .wrapping_add(trim),
-    );
-    CAR.steer_angle_visual.set(
-        crate::physics::car_store::CAR
-            .steering_raw
-            .get()
-            .wrapping_add(trim.wrapping_mul(4)),
-    );
+    CAR.steer_angle.set(CAR.steering.get().wrapping_add(trim));
+    CAR.steer_angle_visual
+        .set(CAR.steering_raw.get().wrapping_add(trim.wrapping_mul(4)));
     if !c0(CAR.steering_damage.bits(), NUMBERS.hundred.bits()) {
         CAR.steer_angle.set(0);
         CAR.steer_angle_visual.set(0);
@@ -155,7 +141,7 @@ mod asm_reference {
         vec![
             Block {
                 name: "steer_inputs key step",
-                operands: vec![Operand::Buffer {
+                operands: vec![Operand::RaceBlock {
                     reads: &[(0x22400C, In::I), (0x214C0C, In::F)],
                     writes: &[(0x22400C, Out::I)],
                 }],
@@ -165,7 +151,7 @@ mod asm_reference {
             },
             Block {
                 name: "steer_inputs device",
-                operands: vec![Operand::Buffer {
+                operands: vec![Operand::RaceBlock {
                     reads: &[(0x22400C, In::I), (0x214C08, In::F)],
                     writes: &[(0x22400C, Out::I)],
                 }],
@@ -175,7 +161,7 @@ mod asm_reference {
             },
             Block {
                 name: "steer_inputs trim",
-                operands: vec![Operand::Buffer {
+                operands: vec![Operand::RaceBlock {
                     reads: &[(0x22400C, In::I), (0x31A3E0, In::F)],
                     writes: &[(0x31A1E0, Out::I)],
                 }],

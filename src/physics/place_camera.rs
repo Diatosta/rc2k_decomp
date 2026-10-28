@@ -16,15 +16,17 @@
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
 //! above are the original's, for reference.
 
+use crate::math::x87_float::ld;
 use crate::physics::camera_store::CAMERA_WORK;
 use crate::physics::camera_view::rd;
 use crate::physics::car_store::CAR;
 use crate::race::frame_store::FRAME_WORK;
+use crate::race::lights_store::LIGHTS_DATA;
 use crate::race::numbers_store::NUMBERS;
 use crate::race::vars_store::RACE_VARS;
 use crate::race::view_vars_store::VIEW_VARS;
 use crate::scene::draw_store::DRAW;
-use crate::scene::x87_mem::{fild, fld, fstp80};
+use crate::scene::x87_mem::{fild, fstp80};
 use rc2k_core::physics::camera_place::{SECOND_RECORD_MODE, add_offset};
 
 /// The turns: `math::turn_point_xz_ebx`, `_ecx` and `turn_point_xz`, exact or plain.
@@ -37,9 +39,9 @@ type Turns = (
 /// The steps both versions share; `second` the second offset turned with the car.
 unsafe fn place_with(turns: Turns, second: &dyn Fn() -> [i32; 3]) {
     let esi = if RACE_VARS.split.get() == SECOND_RECORD_MODE {
-        crate::race::lights_store::LIGHTS_DATA.place_second[0].addr()
+        LIGHTS_DATA.place_second[0].addr()
     } else {
-        crate::race::lights_store::LIGHTS_DATA.place_usual[0].addr()
+        LIGHTS_DATA.place_usual[0].addr()
     };
     let places = [
         &VIEW_VARS.place_a,
@@ -124,7 +126,6 @@ pub unsafe fn place_camera() {
         for (k, x) in turns.iter().enumerate() {
             x87_1(
                 x.addr() as usize,
-                crate::race::store::asm_base() as usize,
                 (crate::pointers::game_address(parts[k].as_mut_ptr())) as usize,
             );
         }
@@ -150,9 +151,9 @@ pub unsafe fn place_camera() {
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `ext [o + 0] = int [v + 0] / [rc + 0x1C5D98]`
-fn x87_1(v: usize, rc: usize, o: usize) {
+fn x87_1(v: usize, o: usize) {
     let t0 = fild(v, 0);
-    let t1 = fld(rc, 0x1C5D98);
+    let t1 = ld(NUMBERS.k65536.bits());
     let t2 = t0 / t1;
     fstp80(o, 0, t2);
 }
@@ -173,7 +174,7 @@ mod asm_reference {
                     reads: &[(0, In::I)],
                     writes: &[],
                 },
-                Operand::Buffer {
+                Operand::RaceBlock {
                     reads: &[(0x1C5D98, In::F)],
                     writes: &[],
                 },
@@ -184,7 +185,7 @@ mod asm_reference {
             ],
             ulps: 0,
             reference: |a| unsafe { ref_0(a[0], a[1], a[2]) },
-            plain: |a| x87_1(a[0], a[1], a[2]),
+            plain: |a| x87_1(a[0], a[2]),
         }]
     }
 

@@ -30,19 +30,12 @@ use crate::physics::flow::{a, c0, g, p};
 use crate::physics::place_sound_object::place_sound_object;
 use rc2k_core::drive::lit_faces::{LIST_ROOM, Touch, fall_mark, lucky, touch};
 
-fn put(at: u32, v: u32) -> Result<(), BadInput> {
-    crate::race::course_places::write(at, v as u8, "a face's mark byte")
-}
-
 /// The usual marks: +9 = 0, +0x11 = `mark`, +0x13 = 0, +0x12 `dword_6D3B70`'s low byte.
 fn mark(face: u32, mark: u32, clear_9: bool) -> Result<(), BadInput> {
-    if clear_9 {
-        put(face + 9, 0)?;
-    }
-    put(face + 0x11, mark)?;
-    put(face + 0x13, 0)?;
-    let low = CONTACT_WORK.face_angle.get();
-    put(face + 0x12, low)
+    let angle = CONTACT_WORK.face_angle.get() as u8;
+    crate::race::course_places::update_face(face, "a touched face", |f| {
+        f.touch(mark as u8, angle, clear_9)
+    })
 }
 
 /// The Rust version.
@@ -50,7 +43,7 @@ fn mark(face: u32, mark: u32, clear_9: bool) -> Result<(), BadInput> {
 pub fn touch_face() -> Result<(), Refused> {
     let number = CONTACT_WORK.face_number.get();
     let face = (number << 6).wrapping_add(g(&COURSE.course_faces));
-    if crate::race::course_places::read::<u8>(face + 0x11, "a face's mark")? != 0 {
+    if crate::race::course_places::face(face, "a touched face")?.mark() != 0 {
         return Ok(());
     }
     let count = CONTACT_WORK.lit_face_count.get();
@@ -80,7 +73,9 @@ pub fn touch_face() -> Result<(), Refused> {
             Touch::Chance => {
                 let (_, lucky) = lucky(next_random());
                 if lucky {
-                    put(face + 0x11, 0xF)?;
+                    crate::race::course_places::update_face(face, "a touched face", |f| {
+                        f.set_mark(0xF)
+                    })?;
                     CONTACT_WORK.lit_face_count.set(count + 1);
                 }
                 return Ok(());

@@ -29,6 +29,9 @@ use crate::scene::draw_store::DRAW;
 use crate::scene::x87_mem::{fild, fld, fstp};
 
 use crate::math::x87::loaded;
+use crate::math::x87_float::int;
+use crate::math::x87_float::ld;
+use crate::math::x87_float::st;
 use crate::physics::flow::a;
 use crate::physics::scale_vector::scale_vector;
 use crate::physics::tables_store::PHYSICS;
@@ -78,19 +81,19 @@ fn steps(edi: u32) -> Result<(), Refused> {
     CAR.contact_flag.set(1);
     crate::race::trap::car_at(edi)?;
     crate::pointers::write_or_end(edi + 0x234, 1u32, "a car block's contact flag");
-    x87_1(crate::race::store::asm_base() as usize, edi as usize);
+    x87_1(edi as usize);
     CONTACT_WORK.bump_speed_length.set_bits(rounded({
         vector_length(a(&CONTACT_WORK.bump_relative_speed[0]))
     }));
     let esi = CONTACT_WORK.other_car_block.get();
-    x87_2(crate::race::store::asm_base() as usize, esi as usize);
+    x87_2(esi as usize);
     // 0x45F98C: pushed apart by the places' difference.
     let other = CONTACT_WORK.other_car_block.get();
-    x87_3(crate::race::store::asm_base() as usize, other as usize);
+    x87_3(other as usize);
     let factor = extended(NUMBERS.three.bits());
     scale_vector(CONTACT_WORK.bump_push[0].addr(), factor);
     DRAW.scratch.set(rounded(factor));
-    x87_4(crate::race::store::asm_base() as usize, other as usize);
+    x87_4(other as usize);
     turn_speed(esi);
     turn_speed(crate::physics::car_store::car_addr());
     { crate::physics::place_sound_e1_other::place_sound_e1_other() }?;
@@ -112,19 +115,19 @@ pub fn bump_cars(edi: u32) -> Result<(), Refused> {
 /// `[rc + 0x2D3CD8] = [rc + 0x31A170] - [d + 0x198]`
 /// `[rc + 0x2D3CDC] = [rc + 0x31A174] - [d + 0x19C]`
 /// `[rc + 0x2D3CE0] = [rc + 0x31A178] - [d + 0x1A0]`
-fn x87_1(rc: usize, d: usize) {
-    let t0 = fld(rc, 0x31A170);
+fn x87_1(d: usize) {
+    let t0 = ld(CAR.velocity[0].bits());
     let t1 = fld(d, 0x198);
     let t2 = t0 - t1;
-    fstp(rc, 0x2D3CD8, t2);
-    let t3 = fld(rc, 0x31A174);
+    CONTACT_WORK.bump_relative_speed[0].set_bits(st(t2));
+    let t3 = ld(CAR.velocity[1].bits());
     let t4 = fld(d, 0x19C);
     let t5 = t3 - t4;
-    fstp(rc, 0x2D3CDC, t5);
-    let t6 = fld(rc, 0x31A178);
+    CONTACT_WORK.bump_relative_speed[1].set_bits(st(t5));
+    let t6 = ld(CAR.velocity[2].bits());
     let t7 = fld(d, 0x1A0);
     let t8 = t6 - t7;
-    fstp(rc, 0x2D3CE0, t8);
+    CONTACT_WORK.bump_relative_speed[2].set_bits(st(t8));
 }
 
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
@@ -135,54 +138,54 @@ fn x87_1(rc: usize, d: usize) {
 /// `[s + 0x19C] = ([rc + 0x31A174] * [rc + 0x2D3BB0]) + ([s + 0x19C] * [rc + 0x2D3BAC])`
 /// `[rc + 0x31A178] = ([rc + 0x31A178] * [rc + 0x2D3BAC]) + ([s + 0x1A0] * [rc + 0x2D3BB0])`
 /// `[s + 0x1A0] = ([rc + 0x31A178] * [rc + 0x2D3BB0]) + ([s + 0x1A0] * [rc + 0x2D3BAC])`
-fn x87_2(rc: usize, s: usize) {
-    let t0 = fld(rc, 0x31A170);
-    let t1 = fld(rc, 0x2D3BB0);
+fn x87_2(s: usize) {
+    let t0 = ld(CAR.velocity[0].bits());
+    let t1 = ld(CONTACT_WORK.bump_share_b.bits());
     let t2 = t0 * t1;
     let t3 = fld(s, 0x198);
-    let t4 = fld(rc, 0x2D3BAC);
+    let t4 = ld(CONTACT_WORK.bump_share_a.bits());
     let t5 = t3 * t4;
     let t6 = t2 + t5;
-    let t7 = fld(rc, 0x31A170);
-    let t8 = fld(rc, 0x2D3BAC);
+    let t7 = ld(CAR.velocity[0].bits());
+    let t8 = ld(CONTACT_WORK.bump_share_a.bits());
     let t9 = t7 * t8;
     let t10 = fld(s, 0x198);
-    let t11 = fld(rc, 0x2D3BB0);
+    let t11 = ld(CONTACT_WORK.bump_share_b.bits());
     let t12 = t10 * t11;
     let t13 = t9 + t12;
-    fstp(rc, 0x31A170, t13);
+    CAR.velocity[0].set_bits(st(t13));
     fstp(s, 0x198, t6);
-    let t14 = fld(rc, 0x31A174);
-    let t15 = fld(rc, 0x2D3BB0);
+    let t14 = ld(CAR.velocity[1].bits());
+    let t15 = ld(CONTACT_WORK.bump_share_b.bits());
     let t16 = t14 * t15;
     let t17 = fld(s, 0x19C);
-    let t18 = fld(rc, 0x2D3BAC);
+    let t18 = ld(CONTACT_WORK.bump_share_a.bits());
     let t19 = t17 * t18;
     let t20 = t16 + t19;
-    let t21 = fld(rc, 0x31A174);
-    let t22 = fld(rc, 0x2D3BAC);
+    let t21 = ld(CAR.velocity[1].bits());
+    let t22 = ld(CONTACT_WORK.bump_share_a.bits());
     let t23 = t21 * t22;
     let t24 = fld(s, 0x19C);
-    let t25 = fld(rc, 0x2D3BB0);
+    let t25 = ld(CONTACT_WORK.bump_share_b.bits());
     let t26 = t24 * t25;
     let t27 = t23 + t26;
-    fstp(rc, 0x31A174, t27);
+    CAR.velocity[1].set_bits(st(t27));
     fstp(s, 0x19C, t20);
-    let t28 = fld(rc, 0x31A178);
-    let t29 = fld(rc, 0x2D3BB0);
+    let t28 = ld(CAR.velocity[2].bits());
+    let t29 = ld(CONTACT_WORK.bump_share_b.bits());
     let t30 = t28 * t29;
     let t31 = fld(s, 0x1A0);
-    let t32 = fld(rc, 0x2D3BAC);
+    let t32 = ld(CONTACT_WORK.bump_share_a.bits());
     let t33 = t31 * t32;
     let t34 = t30 + t33;
-    let t35 = fld(rc, 0x31A178);
-    let t36 = fld(rc, 0x2D3BAC);
+    let t35 = ld(CAR.velocity[2].bits());
+    let t36 = ld(CONTACT_WORK.bump_share_a.bits());
     let t37 = t35 * t36;
     let t38 = fld(s, 0x1A0);
-    let t39 = fld(rc, 0x2D3BB0);
+    let t39 = ld(CONTACT_WORK.bump_share_b.bits());
     let t40 = t38 * t39;
     let t41 = t37 + t40;
-    fstp(rc, 0x31A178, t41);
+    CAR.velocity[2].set_bits(st(t41));
     fstp(s, 0x1A0, t34);
 }
 
@@ -191,31 +194,31 @@ fn x87_2(rc: usize, s: usize) {
 /// `[rc + 0x2D3B9C] = ((int [rc + 0x31A10C] - int [d + 0x134]) / [rc + 0x1C5D98]) * [rc + 0x2D3B88]`
 /// `[rc + 0x2D3BA0] = ((int [rc + 0x31A110] - int [d + 0x138]) / [rc + 0x1C5D98]) * [rc + 0x2D3B88]`
 /// `[rc + 0x2D3BA4] = ((int [rc + 0x31A114] - int [d + 0x13C]) / [rc + 0x1C5D98]) * [rc + 0x2D3B88]`
-fn x87_3(rc: usize, d: usize) {
-    let t0 = fild(rc, 0x31A10C);
+fn x87_3(d: usize) {
+    let t0 = int(CAR.position[0].bits() as i32);
     let t1 = fild(d, 0x134);
     let t2 = t0 - t1;
-    let t3 = fld(rc, 0x1C5D98);
+    let t3 = ld(NUMBERS.k65536.bits());
     let t4 = t2 / t3;
-    let t5 = fld(rc, 0x2D3B88);
+    let t5 = ld(CONTACT_WORK.bump_push_scale.bits());
     let t6 = t4 * t5;
-    fstp(rc, 0x2D3B9C, t6);
-    let t7 = fild(rc, 0x31A110);
+    CONTACT_WORK.bump_push[0].set_bits(st(t6));
+    let t7 = int(CAR.position[1].bits() as i32);
     let t8 = fild(d, 0x138);
     let t9 = t7 - t8;
-    let t10 = fld(rc, 0x1C5D98);
+    let t10 = ld(NUMBERS.k65536.bits());
     let t11 = t9 / t10;
-    let t12 = fld(rc, 0x2D3B88);
+    let t12 = ld(CONTACT_WORK.bump_push_scale.bits());
     let t13 = t11 * t12;
-    fstp(rc, 0x2D3BA0, t13);
-    let t14 = fild(rc, 0x31A114);
+    CONTACT_WORK.bump_push[1].set_bits(st(t13));
+    let t14 = int(CAR.position[2].bits() as i32);
     let t15 = fild(d, 0x13C);
     let t16 = t14 - t15;
-    let t17 = fld(rc, 0x1C5D98);
+    let t17 = ld(NUMBERS.k65536.bits());
     let t18 = t16 / t17;
-    let t19 = fld(rc, 0x2D3B88);
+    let t19 = ld(CONTACT_WORK.bump_push_scale.bits());
     let t20 = t18 * t19;
-    fstp(rc, 0x2D3BA4, t20);
+    CONTACT_WORK.bump_push[2].set_bits(st(t20));
 }
 
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
@@ -226,29 +229,29 @@ fn x87_3(rc: usize, d: usize) {
 /// `[d + 0x198] = [d + 0x198] - [rc + 0x2D3B9C]`
 /// `[d + 0x19C] = [d + 0x19C] - [rc + 0x2D3BA0]`
 /// `[d + 0x1A0] = [d + 0x1A0] - [rc + 0x2D3BA4]`
-fn x87_4(rc: usize, d: usize) {
-    let t0 = fld(rc, 0x31A170);
-    let t1 = fld(rc, 0x2D3B9C);
+fn x87_4(d: usize) {
+    let t0 = ld(CAR.velocity[0].bits());
+    let t1 = ld(CONTACT_WORK.bump_push[0].bits());
     let t2 = t0 + t1;
-    fstp(rc, 0x31A170, t2);
-    let t3 = fld(rc, 0x31A174);
-    let t4 = fld(rc, 0x2D3BA0);
+    CAR.velocity[0].set_bits(st(t2));
+    let t3 = ld(CAR.velocity[1].bits());
+    let t4 = ld(CONTACT_WORK.bump_push[1].bits());
     let t5 = t3 + t4;
-    fstp(rc, 0x31A174, t5);
-    let t6 = fld(rc, 0x31A178);
-    let t7 = fld(rc, 0x2D3BA4);
+    CAR.velocity[1].set_bits(st(t5));
+    let t6 = ld(CAR.velocity[2].bits());
+    let t7 = ld(CONTACT_WORK.bump_push[2].bits());
     let t8 = t6 + t7;
-    fstp(rc, 0x31A178, t8);
+    CAR.velocity[2].set_bits(st(t8));
     let t9 = fld(d, 0x198);
-    let t10 = fld(rc, 0x2D3B9C);
+    let t10 = ld(CONTACT_WORK.bump_push[0].bits());
     let t11 = t9 - t10;
     fstp(d, 0x198, t11);
     let t12 = fld(d, 0x19C);
-    let t13 = fld(rc, 0x2D3BA0);
+    let t13 = ld(CONTACT_WORK.bump_push[1].bits());
     let t14 = t12 - t13;
     fstp(d, 0x19C, t14);
     let t15 = fld(d, 0x1A0);
-    let t16 = fld(rc, 0x2D3BA4);
+    let t16 = ld(CONTACT_WORK.bump_push[2].bits());
     let t17 = t15 - t16;
     fstp(d, 0x1A0, t17);
 }
@@ -269,7 +272,7 @@ mod asm_reference {
             Block {
                 name: "bump_cars line 66",
                 operands: vec![
-                    Operand::Buffer {
+                    Operand::RaceBlock {
                         reads: &[(0x31A170, In::F), (0x31A174, In::F), (0x31A178, In::F)],
                         writes: &[(0x2D3CD8, Out::F), (0x2D3CDC, Out::F), (0x2D3CE0, Out::F)],
                     },
@@ -280,12 +283,12 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_0(a[0], a[1]) },
-                plain: |a| x87_1(a[0], a[1]),
+                plain: |a| x87_1(a[1]),
             },
             Block {
                 name: "bump_cars line 80",
                 operands: vec![
-                    Operand::Buffer {
+                    Operand::RaceBlock {
                         reads: &[
                             (0x2D3BAC, In::F),
                             (0x2D3BB0, In::F),
@@ -302,12 +305,12 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_1(a[0], a[1]) },
-                plain: |a| x87_2(a[0], a[1]),
+                plain: |a| x87_2(a[1]),
             },
             Block {
                 name: "bump_cars line 121",
                 operands: vec![
-                    Operand::Buffer {
+                    Operand::RaceBlock {
                         reads: &[
                             (0x1C5D98, In::F),
                             (0x2D3B88, In::F),
@@ -324,12 +327,12 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_2(a[0], a[1]) },
-                plain: |a| x87_3(a[0], a[1]),
+                plain: |a| x87_3(a[1]),
             },
             Block {
                 name: "bump_cars line 142",
                 operands: vec![
-                    Operand::Buffer {
+                    Operand::RaceBlock {
                         reads: &[
                             (0x2D3B9C, In::F),
                             (0x2D3BA0, In::F),
@@ -347,7 +350,7 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_3(a[0], a[1]) },
-                plain: |a| x87_4(a[0], a[1]),
+                plain: |a| x87_4(a[1]),
             },
         ]
     }

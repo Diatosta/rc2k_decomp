@@ -19,17 +19,19 @@
 //! null view block when it is read.
 
 use crate::errors::{BadInput, Refused};
+use crate::math::x87_float::ld;
 use crate::math::x87_float::{X, st};
 use crate::math::x87_run::{ext_times, ints_diff_80};
 use crate::physics::car_store::CAR;
+use crate::physics::tables_store::PHYSICS;
 use crate::race::matrices_store::MATRICES;
 use crate::race::numbers_store::NUMBERS;
 use crate::race::view_store::RACE_VIEW;
 use crate::race::work_store::RACE_WORK;
 use crate::scene::matrix3::{extended, rounded};
 use crate::scene::rotate_point::rotate_point;
-use crate::scene::x87_mem::{fld, fstp};
 use crate::session::Dword;
+use crate::sound::store::RACE_SOUNDS;
 
 fn get(a: u32) -> u32 {
     crate::pointers::read_or_end::<u32>(a, "physics::car_sound_state's operand")
@@ -37,17 +39,17 @@ fn get(a: u32) -> u32 {
 
 /// 0x45CB02 .. 0x45CB88 (the shares into the voices), the integer steps between in Rust.
 fn shares(so: &crate::sound::store::SoundObject) {
-    x87_1(crate::race::store::asm_base() as usize);
+    x87_1();
     if CAR.all_wheels_off.get() != 0 {
         CAR.sound_slip_share.set_bits(0);
         CAR.sound_level.set_bits(0);
         CAR.sound_speed.set_bits(0);
     }
-    x87_2(crate::race::store::asm_base() as usize, so);
+    x87_2(so);
 }
 
 fn object() -> u32 {
-    crate::sound::store::RACE_SOUNDS.table[(RACE_WORK.current_car.get() & 7) as usize].get()
+    RACE_SOUNDS.table[(RACE_WORK.current_car.get() & 7) as usize].get()
 }
 
 fn listener() -> u32 {
@@ -115,13 +117,13 @@ pub fn car_sound_state() -> Result<(), Refused> {
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `[rc + 0x31A264] = [rc + 0x31A260] / [rc + 0x213EE0]`
 /// `[rc + 0x31A268] = 1`
-fn x87_1(rc: usize) {
-    let t0 = fld(rc, 0x31A260);
-    let t1 = fld(rc, 0x213EE0);
+fn x87_1() {
+    let t0 = ld(CAR.slip_speed.bits());
+    let t1 = ld(PHYSICS.sound_speed_scale.bits());
     let t2 = t0 / t1;
-    fstp(rc, 0x31A264, t2);
+    CAR.sound_slip_share.set_bits(st(t2));
     let t3 = X(1.0);
-    fstp(rc, 0x31A268, t3);
+    CAR.sound_level.set_bits(st(t3));
 }
 
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
@@ -138,20 +140,20 @@ fn x87_1(rc: usize) {
 /// `[o + 0x58] = [rc + 0x31A26C]`
 /// `[o + 0x6C] = [rc + 0x31A26C]`
 /// `[o + 0x80] = [rc + 0x31A26C]`
-fn x87_2(rc: usize, o: &crate::sound::store::SoundObject) {
-    let t0 = fld(rc, 0x31A268);
+fn x87_2(o: &crate::sound::store::SoundObject) {
+    let t0 = ld(CAR.sound_level.bits());
     o.voices[0].share_b.set_bits(st(t0));
     o.voices[1].share_b.set_bits(st(t0));
     o.voices[2].share_b.set_bits(st(t0));
     o.voices[3].share_b.set_bits(st(t0));
-    let t1 = fld(rc, 0x31A264);
-    let t2 = fld(rc, 0x1C5E2C);
+    let t1 = ld(CAR.sound_slip_share.bits());
+    let t2 = ld(NUMBERS.k256.bits());
     let t3 = t1 * t2;
     o.voices[0].share_c.set_bits(st(t3));
     o.voices[1].share_c.set_bits(st(t3));
     o.voices[2].share_c.set_bits(st(t3));
     o.voices[3].share_c.set_bits(st(t3));
-    let t4 = fld(rc, 0x31A26C);
+    let t4 = ld(CAR.sound_speed.bits());
     o.voices[0].share_a.set_bits(st(t4));
     o.voices[1].share_a.set_bits(st(t4));
     o.voices[2].share_a.set_bits(st(t4));
@@ -171,18 +173,18 @@ mod asm_reference {
         vec![
             Block {
                 name: "car_sound_state line 46",
-                operands: vec![Operand::Buffer {
+                operands: vec![Operand::RaceBlock {
                     reads: &[(0x213EE0, In::F), (0x31A260, In::F)],
                     writes: &[(0x31A264, Out::F), (0x31A268, Out::F)],
                 }],
                 ulps: 0,
                 reference: |a| unsafe { ref_0(a[0]) },
-                plain: |a| x87_1(a[0]),
+                plain: |_| x87_1(),
             },
             Block {
                 name: "car_sound_state line 64",
                 operands: vec![
-                    Operand::Buffer {
+                    Operand::RaceBlock {
                         reads: &[
                             (0x1C5E2C, In::F),
                             (0x31A264, In::F),
@@ -212,7 +214,7 @@ mod asm_reference {
                 ulps: 0,
                 reference: |a| unsafe { ref_1(a[0], a[1]) },
                 plain: |a| {
-                    x87_2(a[0], unsafe {
+                    x87_2(unsafe {
                         &*(crate::pointers::host_at(a[1])
                             as *const crate::sound::store::SoundObject)
                     })

@@ -18,13 +18,17 @@
 
 use crate::errors::Refused;
 use crate::math::x87_float::X;
+use crate::math::x87_float::int;
+use crate::math::x87_float::ld;
+use crate::math::x87_float::st;
+use crate::math::x87_float::to_int;
 use crate::physics::car_store::CAR;
 use crate::physics::contact_store::CONTACT_WORK;
 use crate::physics::tables_store::PHYSICS;
 use crate::physics::turn_by_heading::turn_by_heading;
 use crate::physics::vector_length::vector_length;
+use crate::race::numbers_store::NUMBERS;
 use crate::scene::matrix3::rounded;
-use crate::scene::x87_mem::{fild, fistp, fld, fstp};
 use rc2k_core::physics::contacts;
 
 /// The Rust version: whether the point `point` (its three whole numbers, read by the
@@ -33,12 +37,9 @@ use rc2k_core::physics::contacts;
 // steps stay).
 pub unsafe fn point_hits_car(point: [u32; 3], object: u32) -> Result<bool, Refused> {
     let rd = |x: u32, what: &str| crate::race::course_places::read::<u32>(x, what);
-    PHYSICS.point_hits.set(
-        crate::physics::tables_store::PHYSICS
-            .point_hits
-            .get()
-            .wrapping_add(1),
-    );
+    PHYSICS
+        .point_hits
+        .set(PHYSICS.point_hits.get().wrapping_add(1));
     let mut y = 0;
     for k in 0..3u32 {
         let v = contacts::point_part(
@@ -52,12 +53,12 @@ pub unsafe fn point_hits_car(point: [u32; 3], object: u32) -> Result<bool, Refus
             y = v;
         }
     }
-    x87_1(crate::race::store::asm_base() as usize);
+    x87_1();
     for k in 0..3 {
         CONTACT_WORK.object_point_turned[k].set_bits(CONTACT_WORK.object_point_scaled[k].bits());
     }
     unsafe { turn_by_heading(CONTACT_WORK.object_point_turned[0].addr(), y) };
-    x87_2(crate::race::store::asm_base() as usize);
+    x87_2();
     let (x, z) = (
         CONTACT_WORK.contact_point[0].bits(),
         CONTACT_WORK.contact_point[2].bits(),
@@ -72,7 +73,7 @@ pub unsafe fn point_hits_car(point: [u32; 3], object: u32) -> Result<bool, Refus
         return Ok(false);
     }
     if contacts::kind_hits(CONTACT_WORK.contact_kind.get()) {
-        x87_3(crate::race::store::asm_base() as usize);
+        x87_3();
         CONTACT_WORK
             .contact_speed_length
             .set_bits(rounded(vector_length(CAR.velocity[0].addr())));
@@ -95,19 +96,19 @@ pub unsafe fn point_hits_car(point: [u32; 3], object: u32) -> Result<bool, Refus
 /// `[rc + 0x2D3B78] = int [rc + 0x2D3B4C] / [rc + 0x1C5D98]`
 /// `[rc + 0x2D3B7C] = int [rc + 0x2D3B50] / [rc + 0x1C5D98]`
 /// `[rc + 0x2D3B80] = int [rc + 0x2D3B54] / [rc + 0x1C5D98]`
-fn x87_1(rc: usize) {
-    let t0 = fild(rc, 0x2D3B4C);
-    let t1 = fld(rc, 0x1C5D98);
+fn x87_1() {
+    let t0 = int(CONTACT_WORK.object_point_offset[0].bits() as i32);
+    let t1 = ld(NUMBERS.k65536.bits());
     let t2 = t0 / t1;
-    fstp(rc, 0x2D3B78, t2);
-    let t3 = fild(rc, 0x2D3B50);
-    let t4 = fld(rc, 0x1C5D98);
+    CONTACT_WORK.object_point_scaled[0].set_bits(st(t2));
+    let t3 = int(CONTACT_WORK.object_point_offset[1].bits() as i32);
+    let t4 = ld(NUMBERS.k65536.bits());
     let t5 = t3 / t4;
-    fstp(rc, 0x2D3B7C, t5);
-    let t6 = fild(rc, 0x2D3B54);
-    let t7 = fld(rc, 0x1C5D98);
+    CONTACT_WORK.object_point_scaled[1].set_bits(st(t5));
+    let t6 = int(CONTACT_WORK.object_point_offset[2].bits() as i32);
+    let t7 = ld(NUMBERS.k65536.bits());
     let t8 = t6 / t7;
-    fstp(rc, 0x2D3B80, t8);
+    CONTACT_WORK.object_point_scaled[2].set_bits(st(t8));
 }
 
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
@@ -115,19 +116,19 @@ fn x87_1(rc: usize) {
 /// `int [rc + 0x2D3090] = [rc + 0x2D3B58] * [rc + 0x1C5D98]`
 /// `int [rc + 0x2D3094] = [rc + 0x2D3B5C] * [rc + 0x1C5D98]`
 /// `int [rc + 0x2D3098] = [rc + 0x2D3B60] * [rc + 0x1C5D98]`
-fn x87_2(rc: usize) {
-    let t0 = fld(rc, 0x2D3B58);
-    let t1 = fld(rc, 0x1C5D98);
+fn x87_2() {
+    let t0 = ld(CONTACT_WORK.object_point_turned[0].bits());
+    let t1 = ld(NUMBERS.k65536.bits());
     let t2 = t0 * t1;
-    fistp(rc, 0x2D3090, t2);
-    let t3 = fld(rc, 0x2D3B5C);
-    let t4 = fld(rc, 0x1C5D98);
+    CONTACT_WORK.contact_point[0].set_bits(to_int(t2) as u32);
+    let t3 = ld(CONTACT_WORK.object_point_turned[1].bits());
+    let t4 = ld(NUMBERS.k65536.bits());
     let t5 = t3 * t4;
-    fistp(rc, 0x2D3094, t5);
-    let t6 = fld(rc, 0x2D3B60);
-    let t7 = fld(rc, 0x1C5D98);
+    CONTACT_WORK.contact_point[1].set_bits(to_int(t5) as u32);
+    let t6 = ld(CONTACT_WORK.object_point_turned[2].bits());
+    let t7 = ld(NUMBERS.k65536.bits());
     let t8 = t6 * t7;
-    fistp(rc, 0x2D3098, t8);
+    CONTACT_WORK.contact_point[2].set_bits(to_int(t8) as u32);
 }
 
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
@@ -135,17 +136,17 @@ fn x87_2(rc: usize) {
 /// `[rc + 0x31A1FC] = int [rc + 0x2D3090] / [rc + 0x1C5D98]`
 /// `[rc + 0x31A200] = 0`
 /// `[rc + 0x31A204] = int [rc + 0x2D3098] / [rc + 0x1C5D98]`
-fn x87_3(rc: usize) {
-    let t0 = fild(rc, 0x2D3090);
-    let t1 = fld(rc, 0x1C5D98);
+fn x87_3() {
+    let t0 = int(CONTACT_WORK.contact_point[0].bits() as i32);
+    let t1 = ld(NUMBERS.k65536.bits());
     let t2 = t0 / t1;
-    fstp(rc, 0x31A1FC, t2);
+    CAR.contact_point[0].set_bits(st(t2));
     let t3 = X(0.0);
-    fstp(rc, 0x31A200, t3);
-    let t4 = fild(rc, 0x2D3098);
-    let t5 = fld(rc, 0x1C5D98);
+    CAR.contact_point[1].set_bits(st(t3));
+    let t4 = int(CONTACT_WORK.contact_point[2].bits() as i32);
+    let t5 = ld(NUMBERS.k65536.bits());
     let t6 = t4 / t5;
-    fstp(rc, 0x31A204, t6);
+    CAR.contact_point[2].set_bits(st(t6));
 }
 
 #[cfg(all(test, target_arch = "x86"))]
@@ -162,7 +163,7 @@ mod asm_reference {
         vec![
             Block {
                 name: "point_hits_car line 47",
-                operands: vec![Operand::Buffer {
+                operands: vec![Operand::RaceBlock {
                     reads: &[
                         (0x1C5D98, In::F),
                         (0x2D3B4C, In::I),
@@ -173,11 +174,11 @@ mod asm_reference {
                 }],
                 ulps: 0,
                 reference: |a| unsafe { ref_0(a[0]) },
-                plain: |a| x87_1(a[0]),
+                plain: |_| x87_1(),
             },
             Block {
                 name: "point_hits_car line 63",
-                operands: vec![Operand::Buffer {
+                operands: vec![Operand::RaceBlock {
                     reads: &[
                         (0x1C5D98, In::F),
                         (0x2D3B58, In::F),
@@ -188,17 +189,17 @@ mod asm_reference {
                 }],
                 ulps: 0,
                 reference: |a| unsafe { ref_1(a[0]) },
-                plain: |a| x87_2(a[0]),
+                plain: |_| x87_2(),
             },
             Block {
                 name: "point_hits_car line 80",
-                operands: vec![Operand::Buffer {
+                operands: vec![Operand::RaceBlock {
                     reads: &[(0x1C5D98, In::F), (0x2D3090, In::I), (0x2D3098, In::I)],
                     writes: &[(0x31A1FC, Out::F), (0x31A200, Out::F), (0x31A204, Out::F)],
                 }],
                 ulps: 0,
                 reference: |a| unsafe { ref_2(a[0]) },
-                plain: |a| x87_3(a[0]),
+                plain: |_| x87_3(),
             },
         ]
     }

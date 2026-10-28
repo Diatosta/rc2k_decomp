@@ -23,14 +23,19 @@
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
 //! above are the original's, for reference.
 
+use crate::drive::finish_store::FINISH;
 use crate::errors::{BadInput, FatalError, Refused};
+use crate::math::x87_float::int;
+use crate::math::x87_float::ld;
+use crate::math::x87_float::to_int;
 use crate::physics::car_store::CAR;
 use crate::physics::ground_store::GROUND_WORK;
 use crate::physics::split_tables_store::SPLIT_TABLES;
 use crate::physics::tables_store::PHYSICS;
 use crate::race::course_store::COURSE;
+use crate::race::numbers_store::NUMBERS;
 use crate::scene::draw_store::DRAW;
-use crate::scene::x87_mem::{fild, fistp, fld, fstp, mov};
+use crate::scene::x87_mem::fstp;
 use rc2k_core::physics::progress;
 use std::cmp::Ordering;
 
@@ -51,15 +56,15 @@ fn distance_at(rc: usize, s: usize) {
         );
         let word = |p: *const u8| p.cast::<i32>().read_unaligned();
         let dx = word(s).wrapping_sub(word(rc.add(0x239824)));
-        mov(rc, 0x22400C, dx as u32);
-        let first = fild(rc, 0x22400C);
+        DRAW.scratch.set_bits(dx as u32);
+        let first = int(DRAW.scratch.bits() as i32);
         let dz = word(s.add(8)).wrapping_sub(word(rc.add(0x23982C)));
-        mov(rc, 0x22400C, dz as u32);
-        let second = fild(rc, 0x22400C);
+        DRAW.scratch.set_bits(dz as u32);
+        let second = int(DRAW.scratch.bits() as i32);
         fstp(
             rc,
             0x214D04,
-            (first * first + second * second).sqrt() * fld(rc, 0x1C5DA0),
+            (first * first + second * second).sqrt() * ld(NUMBERS.one_over_65536.bits()),
         );
     }
 }
@@ -82,13 +87,13 @@ fn angle_at(rc: usize, s: usize) {
         );
         let word = |p: *const u8| p.cast::<i32>().read_unaligned();
         let dx = word(rc.add(0x239824)).wrapping_sub(word(s));
-        mov(rc, 0x22400C, dx as u32);
-        let y = fild(rc, 0x22400C);
+        DRAW.scratch.set_bits(dx as u32);
+        let y = int(DRAW.scratch.bits() as i32);
         let dz = word(rc.add(0x23982C)).wrapping_sub(word(s.add(8)));
-        mov(rc, 0x22400C, dz as u32);
-        let x = fild(rc, 0x22400C);
-        let turns = y.atan2_over_pi(x) * fld(rc, 0x1C5E40) * fld(rc, 0x1C5D98);
-        fistp(rc, 0x22400C, turns);
+        DRAW.scratch.set_bits(dz as u32);
+        let x = int(DRAW.scratch.bits() as i32);
+        let turns = y.atan2_over_pi(x) * ld(NUMBERS.half.bits()) * ld(NUMBERS.k65536.bits());
+        DRAW.scratch.set_bits(to_int(turns) as u32);
         let low = rc.add(0x22400C).cast::<u32>();
         low.write_unaligned(low.read_unaligned() & 0xFFFF);
     }
@@ -130,7 +135,7 @@ fn point() -> Result<(u32, u32, u32), Refused> {
 // Converted: `rc2k_core::physics::progress::{check_split_point, face_known, passed_point}`
 // (the distance and the angle stay x87).
 pub fn passed_split_point() -> Result<bool, Refused> {
-    if crate::drive::finish_store::FINISH.no_place.get() != 0 {
+    if FINISH.no_place.get() != 0 {
         return Ok(false);
     }
     let (cp, _, pt) = point()?;
@@ -202,7 +207,7 @@ mod asm_reference {
             Block {
                 name: "passed_split_point distance",
                 operands: vec![
-                    Operand::Buffer {
+                    Operand::RaceBlock {
                         reads: &[(0x239824, In::I), (0x23982C, In::I), (0x1C5DA0, In::F)],
                         writes: &[(0x22400C, Out::I), (0x214D04, Out::F)],
                     },
@@ -218,7 +223,7 @@ mod asm_reference {
             Block {
                 name: "passed_split_point angle",
                 operands: vec![
-                    Operand::Buffer {
+                    Operand::RaceBlock {
                         reads: &[
                             (0x239824, In::I),
                             (0x23982C, In::I),

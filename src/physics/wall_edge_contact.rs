@@ -23,6 +23,8 @@
 use crate::errors::Refused;
 use crate::math::turn_float_point_xz::turn_float_point_xz;
 use crate::math::x87::mul;
+use crate::math::x87_float::ld;
+use crate::math::x87_float::to_int;
 use crate::physics::car_store::CAR;
 use crate::physics::contact_force::contact_force;
 use crate::physics::contact_store::CONTACT_WORK;
@@ -31,7 +33,7 @@ use crate::physics::tables_store::PHYSICS;
 use crate::race::course_store::COURSE;
 use crate::race::numbers_store::NUMBERS;
 use crate::scene::draw_store::DRAW;
-use crate::scene::x87_mem::{fild, fistp, fld};
+use crate::scene::x87_mem::fild;
 use rc2k_core::physics::walls;
 
 fn rd(x: u32) -> Result<u32, Refused> {
@@ -61,10 +63,7 @@ pub fn edge_normal(first: u32, second: u32) -> Result<[u32; 4], Refused> {
         .get()
         .wrapping_sub(PHYSICS.edge_points[1].get());
     let d = [dx, dz];
-    x87_1(
-        (crate::pointers::game_address(d.as_ptr())) as usize,
-        crate::race::store::asm_base() as usize,
-    );
+    x87_1((crate::pointers::game_address(d.as_ptr())) as usize);
     DRAW.scratch.set(DRAW.scratch.get() & 0xFFFF);
     let heading = (DRAW.scratch.get() << 16).wrapping_add(0x4000_0000);
     PHYSICS.wall_heading.set(heading);
@@ -132,15 +131,15 @@ pub fn steps() -> Result<(), Refused> {
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `int [rc + 0x22400C] = (atan2(int [d + 0], int [d + 4]) * [rc + 0x1C5DD4]) * [rc + 0x1C5D98]`
-fn x87_1(d: usize, rc: usize) {
+fn x87_1(d: usize) {
     let t0 = fild(d, 0);
     let t1 = fild(d, 4);
     let t2 = t0.atan2(t1);
-    let t3 = fld(rc, 0x1C5DD4);
+    let t3 = ld(NUMBERS.one_over_two_pi.bits());
     let t4 = t2 * t3;
-    let t5 = fld(rc, 0x1C5D98);
+    let t5 = ld(NUMBERS.k65536.bits());
     let t6 = t4 * t5;
-    fistp(rc, 0x22400C, t6);
+    DRAW.scratch.set_bits(to_int(t6) as u32);
 }
 
 #[cfg(all(test, target_arch = "x86"))]
@@ -159,14 +158,14 @@ mod asm_reference {
                     reads: &[(0, In::I), (4, In::I)],
                     writes: &[],
                 },
-                Operand::Buffer {
+                Operand::RaceBlock {
                     reads: &[(0x1C5D98, In::F), (0x1C5DD4, In::F)],
                     writes: &[(0x22400C, Out::I)],
                 },
             ],
             ulps: 0,
             reference: |a| unsafe { ref_0(a[0], a[1]) },
-            plain: |a| x87_1(a[0], a[1]),
+            plain: |a| x87_1(a[0]),
         }]
     }
 

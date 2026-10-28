@@ -40,6 +40,8 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::math::x87::loaded;
+use crate::math::x87_float::ld;
+use crate::math::x87_float::st;
 use crate::physics as ph;
 use crate::physics::camera_store::CAMERA_WORK;
 use crate::physics::car_store::CAR;
@@ -47,10 +49,10 @@ use crate::physics::contact_store::CONTACT_WORK;
 use crate::physics::flow::{hold_high, hold_low, negate};
 use crate::physics::tables_store::PHYSICS;
 use crate::race::frame_store::FRAME_WORK;
+use crate::race::numbers_store::NUMBERS;
 use crate::race::sound_spots_store::RACE_SOUND_SPOTS;
 use crate::race::work_store::RACE_WORK;
 use crate::scene::matrix3::rounded;
-use crate::scene::x87_mem::{fld, fstp};
 
 /// The motion: moved, spun, levered, the inverse matrix, the angles.
 fn motion() {
@@ -176,23 +178,17 @@ pub fn steps() -> Result<(), Refused> {
         }
         motion();
         PHYSICS.clear_place_count.set(0);
-        PHYSICS.contact_step.set(
-            crate::physics::tables_store::PHYSICS
-                .contact_step
-                .get()
-                .wrapping_add(1),
-        );
+        PHYSICS
+            .contact_step
+            .set(PHYSICS.contact_step.get().wrapping_add(1));
         if PHYSICS.contact_step.get() >= PHYSICS.contact_steps.get() {
             unsafe {
                 ph::limit_motion::limit_motion();
                 ph::find_clear_place::find_clear_place()?;
             }
-            PHYSICS.step_count.set(
-                crate::physics::tables_store::PHYSICS
-                    .step_count
-                    .get()
-                    .wrapping_add(1),
-            );
+            PHYSICS
+                .step_count
+                .set(PHYSICS.step_count.get().wrapping_add(1));
             break;
         }
     }
@@ -212,7 +208,7 @@ pub fn steps() -> Result<(), Refused> {
     ph::pace_notes_step::pace_notes_step()?;
     ph::count_down_notice::count_down_notice();
     ph::turn_wheel_angles::turn_wheel_angles();
-    x87_1(crate::race::store::asm_base() as usize);
+    x87_1();
     ph::store_motion_length::store_motion_length();
     ph::damage_step::damage_step();
     ph::hit_part_checks::hit_part_checks()?;
@@ -262,17 +258,17 @@ pub fn car_physics_step() -> Result<(), Refused> {
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `[rc + 0x31A198] = ([rc + 0x31A190] + [rc + 0x31A194]) * [rc + 0x1C5E40]`
 /// `[rc + 0x31A8E4] = [rc + 0x31A174] - [rc + 0x214138]`
-fn x87_1(rc: usize) {
-    let t0 = fld(rc, 0x31A190);
-    let t1 = fld(rc, 0x31A194);
+fn x87_1() {
+    let t0 = ld(CAR.drive_speed_a.bits());
+    let t1 = ld(CAR.drive_speed_b.bits());
     let t2 = t0 + t1;
-    let t3 = fld(rc, 0x1C5E40);
+    let t3 = ld(NUMBERS.half.bits());
     let t4 = t2 * t3;
-    fstp(rc, 0x31A198, t4);
-    let t5 = fld(rc, 0x31A174);
-    let t6 = fld(rc, 0x214138);
+    CAR.mean_drive_speed.set_bits(st(t4));
+    let t5 = ld(CAR.velocity[1].bits());
+    let t6 = ld(PHYSICS.vertical_speed.bits());
     let t7 = t5 - t6;
-    fstp(rc, 0x31A8E4, t7);
+    CAR.unknown_90c.set_bits(st(t7));
 }
 
 #[cfg(all(test, target_arch = "x86"))]
@@ -286,7 +282,7 @@ mod asm_reference {
     fn blocks() -> Vec<Block> {
         vec![Block {
             name: "car_physics_step line 183",
-            operands: vec![Operand::Buffer {
+            operands: vec![Operand::RaceBlock {
                 reads: &[
                     (0x1C5E40, In::F),
                     (0x214138, In::F),
@@ -298,7 +294,7 @@ mod asm_reference {
             }],
             ulps: 0,
             reference: |a| unsafe { ref_0(a[0]) },
-            plain: |a| x87_1(a[0]),
+            plain: |_| x87_1(),
         }]
     }
 

@@ -6,7 +6,9 @@
 //! the picture.
 
 use crate::errors::{BadInput, Refused};
+use crate::net::store::NET;
 use crate::physics::car_store::CAR;
+use crate::race::checkpoints_store::CHECKPOINTS;
 use crate::race::course_store::COURSE;
 use crate::race::vars_store::RACE_VARS;
 use crate::race::view_store::RACE_VIEW;
@@ -19,7 +21,7 @@ use crate::scene::kind_texture_store::KIND_TEXTURES;
 pub unsafe fn map_tiles() -> Result<(), Refused> {
     // Converted: `rc2k_core::race::map::{first_tile, picture_slot}`.
     use rc2k_core::race::map::{first_tile, picture_slot};
-    let one_view = crate::net::store::NET.session.get() != 0;
+    let one_view = NET.session.get() != 0;
     // The car is read only for both views.
     let slot = picture_slot(
         KIND_TEXTURES.kind_first_textures[198].get(),
@@ -68,26 +70,13 @@ pub unsafe fn scroll_map() -> Result<(), Refused> {
         let [corner_x, corner_y] = &CAR.map_corner;
         let [map_x, map_y] = &CAR.map_place;
         let n = CAR.checkpoint.get();
-        map_x.set(
-            crate::race::checkpoints_store::nth(
-                &crate::race::checkpoints_store::CHECKPOINTS.map_x[0],
-                n as usize,
-            )
-            .get(),
-        );
-        map_y.set(
-            crate::race::checkpoints_store::nth(
-                &crate::race::checkpoints_store::CHECKPOINTS.map_y[0],
-                n as usize,
-            )
-            .get(),
-        );
+        map_x.set(crate::race::checkpoints_store::nth(&CHECKPOINTS.map_x[0], n as usize).get());
+        map_y.set(crate::race::checkpoints_store::nth(&CHECKPOINTS.map_y[0], n as usize).get());
         let face = COURSE
             .course_faces
             .get()
             .wrapping_add(crate::race::checkpoints_store::face(n as usize).get() << 6);
-        let point =
-            crate::race::course_places::read::<u32>(face + 4, "a checkpoint face's first point")?;
+        let point = crate::race::course_places::face(face, "a checkpoint face")?.point(0);
         let p = point
             .wrapping_mul(12)
             .wrapping_add(COURSE.scene_points.get());
@@ -127,7 +116,7 @@ pub unsafe fn scroll_maps() -> Result<(), Refused> {
     // Converted: `rc2k_core::race::map::scrolled_views`.
     use crate::race::frame::{load_view_car, store_view_car, view_car};
     unsafe {
-        let third_only = crate::net::store::NET.session.get() != 0;
+        let third_only = NET.session.get() != 0;
         // The player count is read only without the third view.
         let views = rc2k_core::race::map::scrolled_views(
             third_only,

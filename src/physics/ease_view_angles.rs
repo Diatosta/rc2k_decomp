@@ -12,10 +12,14 @@
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
 //! above are the original's, for reference.
 
+use crate::math::x87_float::ld;
+use crate::math::x87_float::to_int;
 use crate::physics::camera_view::{rd, record, share_done};
 use crate::physics::car_store::CAR;
+use crate::race::numbers_store::NUMBERS;
+use crate::race::tables_store::RACE_TABLES;
 use crate::scene::draw_store::DRAW;
-use crate::scene::x87_mem::{fistp, fld};
+use crate::scene::x87_mem::fld;
 
 /// The Rust version (the exact one, for `physics::update_camera`).
 pub fn ease_view_angles() {
@@ -25,10 +29,7 @@ pub fn ease_view_angles() {
     }
     share_done(esi);
     for (k, to) in CAR.camera_offset_turns.iter().enumerate() {
-        x87_1(
-            (esi + 0x40 + 4 * k as u32) as usize,
-            crate::race::store::asm_base() as usize,
-        );
+        x87_1((esi + 0x40 + 4 * k as u32) as usize);
         to.set(to.get().wrapping_add(DRAW.scratch.get() << 16));
     }
 }
@@ -38,13 +39,13 @@ pub fn ease_view_angles() {
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `int [rc + 0x22400C] = ([s + 0] * [rc + 0x205260]) * [rc + 0x1C5D98]`
-fn x87_1(s: usize, rc: usize) {
+fn x87_1(s: usize) {
     let t0 = fld(s, 0);
-    let t1 = fld(rc, 0x205260);
+    let t1 = ld(RACE_TABLES.view_share.bits());
     let t2 = t0 * t1;
-    let t3 = fld(rc, 0x1C5D98);
+    let t3 = ld(NUMBERS.k65536.bits());
     let t4 = t2 * t3;
-    fistp(rc, 0x22400C, t4);
+    DRAW.scratch.set_bits(to_int(t4) as u32);
 }
 
 #[cfg(all(test, target_arch = "x86"))]
@@ -63,14 +64,14 @@ mod asm_reference {
                     reads: &[(0, In::F)],
                     writes: &[],
                 },
-                Operand::Buffer {
+                Operand::RaceBlock {
                     reads: &[(0x1C5D98, In::F), (0x205260, In::F)],
                     writes: &[(0x22400C, Out::I)],
                 },
             ],
             ulps: 0,
             reference: |a| unsafe { ref_0(a[0], a[1]) },
-            plain: |a| x87_1(a[0], a[1]),
+            plain: |a| x87_1(a[0]),
         }]
     }
 

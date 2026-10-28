@@ -13,58 +13,64 @@
 
 use crate::drive::finish_store::FINISH;
 use crate::math::x87::loaded;
+use crate::math::x87_float::int;
+use crate::math::x87_float::ld;
+use crate::math::x87_float::st;
 use crate::physics::flow::c0;
+use crate::race::numbers_store::NUMBERS;
 use crate::race::state_store::RACE_STATE;
 use crate::race::viewer_screen_store::VIEWER_PANEL;
 use crate::scene::draw_store::DRAW;
-use crate::scene::x87_mem::{fild, fld, fstp};
 
-/// `flt_64BB64` = the clock less the start (`dword_62400C`) over `flt_5C5D18`, over the race
-/// block at `rc`.
-fn time(rc: usize) {
-    fstp(rc, 0x24BB64, fild(rc, 0x22400C) / fld(rc, 0x1C5D18))
+/// `flt_64BB64` = the clock less the start (`dword_62400C`) over `flt_5C5D18`.
+fn time() {
+    FINISH.time.set_bits(st(
+        int(DRAW.scratch.bits() as i32) / ld(NUMBERS.thousand.bits())
+    ))
 }
 
 /// The eased time between the two limits: t less ((t - a) / (b - a))^2 x ((b - a) x half).
-fn eased_middle(rc: usize) {
-    let q = (fld(rc, 0x24BB64) - fld(rc, 0x24BB44)) / (fld(rc, 0x24BB48) - fld(rc, 0x24BB44));
+fn eased_middle() {
+    let q = (ld(FINISH.time.bits()) - ld(FINISH.limit_a.bits()))
+        / (ld(FINISH.limit_b.bits()) - ld(FINISH.limit_a.bits()));
     let square = q * q;
-    let span = (fld(rc, 0x24BB48) - fld(rc, 0x24BB44)) * fld(rc, 0x1C5E40);
+    let span = (ld(FINISH.limit_b.bits()) - ld(FINISH.limit_a.bits())) * ld(NUMBERS.half.bits());
     let product = square * span;
-    fstp(rc, 0x24BB68, -product + fld(rc, 0x24BB64));
+    FINISH.eased.set_bits(st(-product + ld(FINISH.time.bits())));
 }
 
 /// The eased time past the second limit: a + (b - a) x half.
-fn eased_end(rc: usize) {
-    let span = (fld(rc, 0x24BB48) - fld(rc, 0x24BB44)) * fld(rc, 0x1C5E40);
-    fstp(rc, 0x24BB68, span + fld(rc, 0x24BB44));
+fn eased_end() {
+    let span = (ld(FINISH.limit_b.bits()) - ld(FINISH.limit_a.bits())) * ld(NUMBERS.half.bits());
+    FINISH.eased.set_bits(st(span + ld(FINISH.limit_a.bits())));
 }
 
 /// The share between the last two limits: (t - c) / (d - c).
-fn share(rc: usize) {
-    let q = (fld(rc, 0x24BB64) - fld(rc, 0x24BB70)) / (fld(rc, 0x24BB74) - fld(rc, 0x24BB70));
-    fstp(rc, 0x24BB6C, q);
+fn share() {
+    let q = (ld(FINISH.time.bits()) - ld(FINISH.limit_c.bits()))
+        / (ld(FINISH.limit_d.bits()) - ld(FINISH.limit_c.bits()));
+    FINISH.share.set_bits(st(q));
 }
 
 /// The core from the clock's reading `now` (already in `g_sceneClock`).
 pub fn timing_from(now: u32) {
-    let rc = crate::race::store::asm_base() as usize;
+    let _rc = crate::race::store::asm_base() as usize;
     let since = now.wrapping_sub(FINISH.start_clock.get());
     DRAW.scratch.set(since);
-    time(rc);
+    time();
     if c0(FINISH.time.bits(), FINISH.limit_a.bits()) {
         FINISH.eased.set_bits(loaded(FINISH.time.bits()));
     } else if c0(FINISH.time.bits(), FINISH.limit_b.bits()) {
-        eased_middle(rc);
+        eased_middle();
     } else {
-        eased_end(rc);
+        eased_end();
     }
     FINISH.share.set_bits(0);
     let late = !c0(FINISH.time.bits(), FINISH.limit_c.bits());
     if RACE_STATE.results.finished.get() != 0 && late {
         FINISH.share.set_bits(0x3F80_0000);
         if c0(FINISH.time.bits(), FINISH.limit_d.bits()) {
-            share(rc);
+            share();
         }
     }
     if late && RACE_STATE.results.finished.get() != 0 {
@@ -120,17 +126,17 @@ mod asm_reference {
         vec![
             Block {
                 name: "finish_timing time",
-                operands: vec![Operand::Buffer {
+                operands: vec![Operand::RaceBlock {
                     reads: &[(0x22400C, In::I), (0x1C5D18, In::F)],
                     writes: &[(0x24BB64, Out::F)],
                 }],
                 ulps: 0,
                 reference: |a| unsafe { ref_time(a[0]) },
-                plain: |a| time(a[0]),
+                plain: |_| time(),
             },
             Block {
                 name: "finish_timing middle",
-                operands: vec![Operand::Buffer {
+                operands: vec![Operand::RaceBlock {
                     reads: &[
                         (0x24BB64, In::F),
                         (0x24BB44, In::F),
@@ -141,27 +147,27 @@ mod asm_reference {
                 }],
                 ulps: 0,
                 reference: |a| unsafe { ref_middle(a[0]) },
-                plain: |a| eased_middle(a[0]),
+                plain: |_| eased_middle(),
             },
             Block {
                 name: "finish_timing end",
-                operands: vec![Operand::Buffer {
+                operands: vec![Operand::RaceBlock {
                     reads: &[(0x24BB48, In::F), (0x24BB44, In::F), (0x1C5E40, In::F)],
                     writes: &[(0x24BB68, Out::F)],
                 }],
                 ulps: 0,
                 reference: |a| unsafe { ref_end(a[0]) },
-                plain: |a| eased_end(a[0]),
+                plain: |_| eased_end(),
             },
             Block {
                 name: "finish_timing share",
-                operands: vec![Operand::Buffer {
+                operands: vec![Operand::RaceBlock {
                     reads: &[(0x24BB64, In::F), (0x24BB70, In::F), (0x24BB74, In::F)],
                     writes: &[(0x24BB6C, Out::F)],
                 }],
                 ulps: 0,
                 reference: |a| unsafe { ref_share(a[0]) },
-                plain: |a| share(a[0]),
+                plain: |_| share(),
             },
         ]
     }

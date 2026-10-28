@@ -21,12 +21,16 @@
 //! above are the original's, for reference.
 
 use crate::errors::{BadInput, Refused};
+use crate::math::x87_float::int;
+use crate::math::x87_float::ld;
+use crate::math::x87_float::st;
 use crate::physics::car_store::CAR;
 use crate::physics::flow::c0;
 use crate::physics::gear_store::GEAR;
 use crate::physics::tables_store::PHYSICS;
 use crate::race::numbers_store::NUMBERS;
-use crate::scene::x87_mem::{fild, fld, fstp};
+use crate::scene::draw_store::DRAW;
+use crate::scene::x87_mem::fld;
 
 pub const STEPS: u32 = 0x1388;
 
@@ -42,12 +46,9 @@ fn step() -> Result<(), Refused> {
     if !(-1..=7).contains(&(gear as i32)) {
         return Err(BadInput("a gear outside g_gearRatios (-1 ..= 7)").into());
     }
-    x87_1(
-        crate::race::store::asm_base() as usize,
-        ((PHYSICS.gear_ratios[1].addr()).wrapping_add(gear.wrapping_mul(4))) as usize,
-    );
+    x87_1(((PHYSICS.gear_ratios[1].addr()).wrapping_add(gear.wrapping_mul(4))) as usize);
     crate::physics::drive_torque_share::drive_torque_share();
-    x87_2(crate::race::store::asm_base() as usize);
+    x87_2();
     { crate::physics::revs_from_wheels::revs_from_wheels() }?;
     Ok(())
 }
@@ -82,7 +83,7 @@ fn steps() -> Result<(), Refused> {
             GEAR.test_gears[slot].set(CAR.gear.get());
         }
     }
-    x87_3(crate::race::store::asm_base() as usize);
+    x87_3();
     Ok(())
 }
 
@@ -96,15 +97,15 @@ pub fn test_drive_run() -> Result<(), Refused> {
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `[rc + 0x214750] = (([rc + 0x214748] * [rc + 0x1CB968]) / [r + 0]) / [rc + 0x1C5E34]`
-fn x87_1(rc: usize, r: usize) {
-    let t0 = fld(rc, 0x214748);
-    let t1 = fld(rc, 0x1CB968);
+fn x87_1(r: usize) {
+    let t0 = ld(PHYSICS.engine_force.bits());
+    let t1 = ld(GEAR.drive_torque_figure.bits());
     let t2 = t0 * t1;
     let t3 = fld(r, 0);
     let t4 = t2 / t3;
-    let t5 = fld(rc, 0x1C5E34);
+    let t5 = ld(NUMBERS.k10000.bits());
     let t6 = t4 / t5;
-    fstp(rc, 0x214750, t6);
+    PHYSICS.drive_torque.set_bits(st(t6));
 }
 
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
@@ -112,25 +113,25 @@ fn x87_1(rc: usize, r: usize) {
 /// `[rc + 0x22400C] = -(((([rc + 0x31A190] * [rc + 0x31A190]) * [rc + 0x213FCC]) / [rc + 0x1C5E34]) + [rc + 0x213FD0])`
 /// (a long formula: see the instructions in the tests' `asm_reference`)
 /// (a long formula: see the instructions in the tests' `asm_reference`)
-fn x87_2(rc: usize) {
-    let t0 = fld(rc, 0x31A190);
+fn x87_2() {
+    let t0 = ld(CAR.drive_speed_a.bits());
     let t1 = t0 * t0;
-    let t2 = fld(rc, 0x213FCC);
+    let t2 = ld(PHYSICS.air_drag.bits());
     let t3 = t1 * t2;
-    let t4 = fld(rc, 0x1C5E34);
+    let t4 = ld(NUMBERS.k10000.bits());
     let t5 = t3 / t4;
-    let t6 = fld(rc, 0x213FD0);
+    let t6 = ld(PHYSICS.rolling_drag.bits());
     let t7 = t5 + t6;
     let t8 = -t7;
-    fstp(rc, 0x22400C, t8);
-    let t9 = fld(rc, 0x214750);
+    DRAW.scratch.set_bits(st(t8));
+    let t9 = ld(PHYSICS.drive_torque.bits());
     let t10 = t8 + t9;
-    let t11 = fld(rc, 0x21388C);
+    let t11 = ld(PHYSICS.step_time.bits());
     let t12 = t10 * t11;
-    let t13 = fld(rc, 0x31A190);
+    let t13 = ld(CAR.drive_speed_a.bits());
     let t14 = t12 + t13;
-    fstp(rc, 0x31A190, t14);
-    fstp(rc, 0x31A194, t14);
+    CAR.drive_speed_a.set_bits(st(t14));
+    CAR.drive_speed_b.set_bits(st(t14));
 }
 
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
@@ -138,19 +139,19 @@ fn x87_2(rc: usize) {
 /// `[rc + 0x1CB984] = [rc + 0x31A190] * [rc + 0x1C5D00]`
 /// `[rc + 0x1CB97C] = int [rc + 0x1CB97C] / [rc + 0x1C5D14]`
 /// `[rc + 0x1CB980] = int [rc + 0x1CB980] / [rc + 0x1C5D14]`
-fn x87_3(rc: usize) {
-    let t0 = fld(rc, 0x31A190);
-    let t1 = fld(rc, 0x1C5D00);
+fn x87_3() {
+    let t0 = ld(CAR.drive_speed_a.bits());
+    let t1 = ld(NUMBERS.two_and_a_quarter.bits());
     let t2 = t0 * t1;
-    fstp(rc, 0x1CB984, t2);
-    let t3 = fild(rc, 0x1CB97C);
-    let t4 = fld(rc, 0x1C5D14);
+    GEAR.test_marks[2].set_bits(st(t2));
+    let t3 = int(GEAR.test_marks[0].bits() as i32);
+    let t4 = ld(NUMBERS.hundred.bits());
     let t5 = t3 / t4;
-    fstp(rc, 0x1CB97C, t5);
-    let t6 = fild(rc, 0x1CB980);
-    let t7 = fld(rc, 0x1C5D14);
+    GEAR.test_marks[0].set_bits(st(t5));
+    let t6 = int(GEAR.test_marks[1].bits() as i32);
+    let t7 = ld(NUMBERS.hundred.bits());
     let t8 = t6 / t7;
-    fstp(rc, 0x1CB980, t8);
+    GEAR.test_marks[1].set_bits(st(t8));
 }
 
 #[cfg(all(test, target_arch = "x86"))]
@@ -168,7 +169,7 @@ mod asm_reference {
             Block {
                 name: "test_drive_run line 42",
                 operands: vec![
-                    Operand::Buffer {
+                    Operand::RaceBlock {
                         reads: &[(0x1C5E34, In::F), (0x1CB968, In::F), (0x214748, In::F)],
                         writes: &[(0x214750, Out::F)],
                     },
@@ -179,11 +180,11 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_0(a[0], a[1]) },
-                plain: |a| x87_1(a[0], a[1]),
+                plain: |a| x87_1(a[1]),
             },
             Block {
                 name: "test_drive_run line 51",
-                operands: vec![Operand::Buffer {
+                operands: vec![Operand::RaceBlock {
                     reads: &[
                         (0x1C5E34, In::F),
                         (0x21388C, In::F),
@@ -196,11 +197,11 @@ mod asm_reference {
                 }],
                 ulps: 0,
                 reference: |a| unsafe { ref_1(a[0]) },
-                plain: |a| x87_2(a[0]),
+                plain: |_| x87_2(),
             },
             Block {
                 name: "test_drive_run line 93",
-                operands: vec![Operand::Buffer {
+                operands: vec![Operand::RaceBlock {
                     reads: &[
                         (0x1C5D00, In::F),
                         (0x1C5D14, In::F),
@@ -212,7 +213,7 @@ mod asm_reference {
                 }],
                 ulps: 0,
                 reference: |a| unsafe { ref_2(a[0]) },
-                plain: |a| x87_3(a[0]),
+                plain: |_| x87_3(),
             },
         ]
     }

@@ -15,12 +15,16 @@
 //! above are the original's, for reference.
 
 use crate::errors::Refused;
+use crate::math::x87_float::int;
+use crate::math::x87_float::ld;
+use crate::math::x87_float::st;
 use crate::physics::car_store::CAR;
 use crate::physics::flow::{hold_high, hold_low, negate};
+use crate::physics::split_tables_store::SPLIT_TABLES;
 use crate::physics::tables_store::PHYSICS;
+use crate::race::numbers_store::NUMBERS;
 use crate::scene::draw_store::DRAW;
 use crate::scene::light_store::LIGHT_STATE;
-use crate::scene::x87_mem::{fild, fld, fstp};
 
 // Converted: `rc2k_core::physics::camera_view::shakes` (the x87 steps stay).
 fn steps() -> Result<(), Refused> {
@@ -29,14 +33,14 @@ fn steps() -> Result<(), Refused> {
     LIGHT_STATE.camera_frame_b.set(0);
     LIGHT_STATE.camera_frame_c.set(0);
     if rc2k_core::physics::camera_view::shakes(CAR.camera_view.get(), CAR.all_wheels_off.get()) {
-        x87_1(crate::race::store::asm_base() as usize);
+        x87_1();
         hold_high(&LIGHT_STATE.camera_frame_b, &PHYSICS.camera_frame_limit);
         negate(&PHYSICS.camera_frame_limit);
         hold_low(&LIGHT_STATE.camera_frame_b, &PHYSICS.camera_frame_limit);
         negate(&PHYSICS.camera_frame_limit);
         DRAW.scratch.set(crate::math::next_random::next_random());
-        x87_2(crate::race::store::asm_base() as usize);
-        if crate::physics::split_tables_store::SPLIT_TABLES.still.get() != 0 {
+        x87_2();
+        if SPLIT_TABLES.still.get() != 0 {
             LIGHT_STATE.camera_frame_b.set(0);
             LIGHT_STATE.listener_camera.set_bits(0);
         }
@@ -55,27 +59,27 @@ pub fn camera_frame() -> Result<(), Refused> {
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `[rc + 0x23763C] = [rc + 0x31A8E4] * [rc + 0x214098]`
-fn x87_1(rc: usize) {
-    let t0 = fld(rc, 0x31A8E4);
-    let t1 = fld(rc, 0x214098);
+fn x87_1() {
+    let t0 = ld(CAR.unknown_90c.bits());
+    let t1 = ld(PHYSICS.camera_frame_scale.bits());
     let t2 = t0 * t1;
-    fstp(rc, 0x23763C, t2);
+    LIGHT_STATE.camera_frame_b.set_bits(st(t2));
 }
 
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `[rc + 0x237644] = (((int [rc + 0x22400C] / [rc + 0x1C5D98]) / [rc + 0x1C5E28]) * [rc + 0x1C5D40]) * [rc + 0x23763C]`
-fn x87_2(rc: usize) {
-    let t0 = fild(rc, 0x22400C);
-    let t1 = fld(rc, 0x1C5D98);
+fn x87_2() {
+    let t0 = int(DRAW.scratch.bits() as i32);
+    let t1 = ld(NUMBERS.k65536.bits());
     let t2 = t0 / t1;
-    let t3 = fld(rc, 0x1C5E28);
+    let t3 = ld(NUMBERS.k4096.bits());
     let t4 = t2 / t3;
-    let t5 = fld(rc, 0x1C5D40);
+    let t5 = ld(NUMBERS.three.bits());
     let t6 = t4 * t5;
-    let t7 = fld(rc, 0x23763C);
+    let t7 = ld(LIGHT_STATE.camera_frame_b.bits());
     let t8 = t6 * t7;
-    fstp(rc, 0x237644, t8);
+    LIGHT_STATE.listener_camera.set_bits(st(t8));
 }
 
 #[cfg(all(test, target_arch = "x86"))]
@@ -91,17 +95,17 @@ mod asm_reference {
         vec![
             Block {
                 name: "camera_frame line 26",
-                operands: vec![Operand::Buffer {
+                operands: vec![Operand::RaceBlock {
                     reads: &[(0x214098, In::F), (0x31A8E4, In::F)],
                     writes: &[(0x23763C, Out::F)],
                 }],
                 ulps: 0,
                 reference: |a| unsafe { ref_0(a[0]) },
-                plain: |a| x87_1(a[0]),
+                plain: |_| x87_1(),
             },
             Block {
                 name: "camera_frame line 37",
-                operands: vec![Operand::Buffer {
+                operands: vec![Operand::RaceBlock {
                     reads: &[
                         (0x1C5D40, In::F),
                         (0x1C5D98, In::F),
@@ -113,7 +117,7 @@ mod asm_reference {
                 }],
                 ulps: 0,
                 reference: |a| unsafe { ref_1(a[0]) },
-                plain: |a| x87_2(a[0]),
+                plain: |_| x87_2(),
             },
         ]
     }

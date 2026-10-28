@@ -7,6 +7,7 @@
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
 use crate::pointers::GamePtr;
+use crate::race::checkpoints_store::CHECKPOINTS;
 use crate::race::course_store::COURSE;
 use crate::race::numbers_store::NUMBERS;
 use crate::race::trap::Trap;
@@ -81,7 +82,7 @@ pub fn next_map_anchor(from: u32) -> Result<Option<u32>, Refused> {
     let n = count()?;
     let trap = Trap::new();
     let anchor = rc2k_core::race::checkpoints::next_map_anchor(from, n, |c| {
-        trap.course::<u32>(check_face(c) + 0x2C, "a checkpoint face's map word") != 0
+        trap.face(check_face(c), "a checkpoint face").map_place() != (0, 0)
     });
     trap.finish()?;
     if anchor.is_some() {
@@ -103,15 +104,11 @@ pub fn count_checks() -> Result<(), Refused> {
     }
     let trap = Trap::new();
     let counts = rc2k_core::race::checkpoints::check_counts(n, |k| {
-        trap.course::<u8>(check_face(k) + 0x26, "a checkpoint face's check byte")
+        trap.face(check_face(k), "a checkpoint face").check()
     });
     trap.finish()?;
     for (k, &c) in counts.iter().enumerate() {
-        crate::race::checkpoints_store::nth(
-            &crate::race::checkpoints_store::CHECKPOINTS.check_counts[0],
-            k,
-        )
-        .set(c);
+        crate::race::checkpoints_store::nth(&CHECKPOINTS.check_counts[0], k).set(c);
     }
     Ok(())
 }
@@ -133,15 +130,15 @@ pub fn cameras() -> [Cameras; 2] {
     [
         Cameras {
             kind: 0x3C,
-            list: || &crate::race::checkpoints_store::CHECKPOINTS.replay_cameras_1[0],
+            list: || &CHECKPOINTS.replay_cameras_1[0],
             count: || &RACE_VARS.replay_camera_counts[0],
-            nearest: || &crate::race::checkpoints_store::CHECKPOINTS.nearest_camera_1[0],
+            nearest: || &CHECKPOINTS.nearest_camera_1[0],
         },
         Cameras {
             kind: 0x38,
-            list: || &crate::race::checkpoints_store::CHECKPOINTS.replay_cameras_2[0],
+            list: || &CHECKPOINTS.replay_cameras_2[0],
             count: || &RACE_VARS.replay_camera_counts[1],
-            nearest: || &crate::race::checkpoints_store::CHECKPOINTS.nearest_camera_2[0],
+            nearest: || &CHECKPOINTS.nearest_camera_2[0],
         },
     ]
 }
@@ -211,11 +208,7 @@ pub fn sort_checkpoints() -> Result<(), Refused> {
         let mut list = Vec::new();
         for b in 0..n {
             if of_kind(b, RACE_VARS.line_face_kind.bits() as u8)? {
-                write_n(
-                    &crate::race::checkpoints_store::CHECKPOINTS.checkpoint_faces[0],
-                    list.len() as u32,
-                    b,
-                );
+                write_n(&CHECKPOINTS.checkpoint_faces[0], list.len() as u32, b);
                 list.push(b);
             }
         }
@@ -227,16 +220,12 @@ pub fn sort_checkpoints() -> Result<(), Refused> {
         let trap = Trap::new();
         let c = chain(
             &mut list,
-            |f| trap.course::<u8>(face(f) + 0x26, "a checkpoint face's check byte") == 1,
-            |f| trap.course::<u32>(face(f) + 0xC, "a checkpoint face's next link"),
+            |f| trap.face(face(f), "a checkpoint face").check() == 1,
+            |f| trap.face(face(f), "a checkpoint face").next_link(),
         );
         trap.finish()?;
         for (k, &f) in list.iter().enumerate() {
-            write_n(
-                &crate::race::checkpoints_store::CHECKPOINTS.checkpoint_faces[0],
-                k as u32,
-                f,
-            );
+            write_n(&CHECKPOINTS.checkpoint_faces[0], k as u32, f);
         }
         RACE_VARS.checkpoint_count.set_bits(c.length);
         RACE_VARS.line_face_total.set_bits(c.length);
@@ -277,14 +266,10 @@ pub fn checkpoint_angles() -> Result<(), Refused> {
                 DRAW.scratch.set_bits(dz as u32);
                 x87::angle_scaled3_to_int(dx, dz, half, scale, scale) as u32
             },
-            || read_n(&crate::race::checkpoints_store::CHECKPOINTS.angles[0], 2),
+            || read_n(&CHECKPOINTS.angles[0], 2),
         );
         for (k, angle) in writes {
-            write_n(
-                &crate::race::checkpoints_store::CHECKPOINTS.angles[0],
-                k,
-                angle,
-            );
+            write_n(&CHECKPOINTS.angles[0], k, angle);
         }
     }
     trap.finish()?;
@@ -339,20 +324,10 @@ pub fn checkpoint_distances() -> Result<(), Refused> {
             length
         });
         for (k, &sum) in sums[..last as usize].iter().enumerate() {
-            write_n(
-                &crate::race::checkpoints_store::CHECKPOINTS.distances[0],
-                k as u32,
-                sum,
-            );
+            write_n(&CHECKPOINTS.distances[0], k as u32, sum);
         }
-        write_n(
-            &crate::race::checkpoints_store::CHECKPOINTS.distances[0],
-            last,
-            sums[last as usize],
-        );
-        crate::race::checkpoints_store::CHECKPOINTS
-            .line_length
-            .set(sums[last as usize]);
+        write_n(&CHECKPOINTS.distances[0], last, sums[last as usize]);
+        CHECKPOINTS.line_length.set(sums[last as usize]);
     }
     trap.finish()?;
     Ok(())
@@ -372,9 +347,8 @@ pub fn replay_cameras(set: &Cameras) -> Result<(), Refused> {
     {
         // Converted: `rc2k_core::race::best_line::{camera_faces, nearest_camera}`.
         let (cameras, _) = rc2k_core::race::best_line::camera_faces(faces, |b| {
-            let f = face(b);
-            trap.course::<u8>(f, "a course face's kind") == 0xFF
-                && trap.course::<u8>(f + 1, "a course face's object") == set.kind
+            let f = trap.face(face(b), "a camera face");
+            f.kind() == rc2k_core::race::faces::LIT_KIND && f.object() == set.kind
         });
         trap.finish()?;
         for (e, &f) in cameras.iter().enumerate() {
@@ -505,15 +479,8 @@ pub fn map_segment() -> Result<(), Refused> {
         }
         let anchor = |n: u32| {
             let f = check_face(n);
-            let place = [
-                (crate::race::course_places::read::<u16>(f + 0x2C, "a checkpoint face's map x")?
-                    as u32)
-                    << 14,
-                ((crate::race::course_places::read::<u16>(f + 0x2E, "a checkpoint face's map y")?
-                    as u32)
-                    << 14)
-                    .wrapping_neg(),
-            ];
+            let (x, y) = crate::race::course_places::face(f, "a checkpoint face")?.map_place();
+            let place = [(x as u32) << 14, ((y as u32) << 14).wrapping_neg()];
             let (_, p) = point_of(f)?;
             Ok::<_, BadInput>((
                 place,
@@ -577,13 +544,9 @@ pub fn map_segment() -> Result<(), Refused> {
             let z = x87::int_times_to_int(z as i32, scale);
             DRAW.scratch.set_bits(z as u32);
             let [x, _, z, _] = turn_point_xz(x, number as i32, z, map_angle);
+            write_n(&CHECKPOINTS.map_x[0], e, x.wrapping_add(place_a[0]));
             write_n(
-                &crate::race::checkpoints_store::CHECKPOINTS.map_x[0],
-                e,
-                x.wrapping_add(place_a[0]),
-            );
-            write_n(
-                &crate::race::checkpoints_store::CHECKPOINTS.map_y[0],
+                &CHECKPOINTS.map_y[0],
                 e,
                 z.wrapping_add(place_a[1]).wrapping_neg(),
             );

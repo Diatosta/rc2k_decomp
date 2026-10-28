@@ -84,22 +84,19 @@ pub fn store_face_normal(
         };
         let faces: u32 = COURSE.course_faces.bits();
         let face = faces.wrapping_add(face_number << 6);
-        let dword =
-            |o: u32| crate::race::course_places::read::<u32>(face + o, "a course face word");
-        if !takes_normals(crate::race::course_places::read::<u8>(
-            face,
-            "a course face kind",
-        )?) {
+        let what = "a course face";
+        let f = crate::race::course_places::face(face, what)?;
+        if !takes_normals(f.kind()) {
             return Ok(());
         }
-        let corners = [dword(4)?, dword(8)?, dword(0xC)?, dword(0x10)?];
+        let corners = [0, 1, 2, 3].map(|n| f.point(n));
         let repeated = repeated_points(
             corners,
             || RACE_VIEW.corners[3].bits() != u32::MAX, /* dword_63D9F8: -1 for faces of three points */
         );
-        let what = "a course face switches";
-        let flags = crate::race::course_places::read(face + 2, what)?;
-        crate::race::course_places::write::<u16>(face + 2, with_repeated(flags, repeated), what)?;
+        crate::race::course_places::update_face(face, what, |f| {
+            f.set_switches(with_repeated(f.switches(), repeated))
+        })?;
         let count: u32 = COURSE.scene_point_count.bits();
         for (points, places) in NORMAL_TRIANGLES {
             let [a, b, c] = points.map(|k| corners[k]);

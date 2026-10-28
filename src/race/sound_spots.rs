@@ -75,9 +75,9 @@ pub fn face_sound_spot(face_number: u32) -> Result<(), BadInput> {
         // Converted: `rc2k_core::race::view::{sound_object, takes_spot, spot_place}`
         // (the turn and scale stay the x87's: the callers compare exactly).
         use rc2k_core::race::view::{MOST_SPOTS, sound_object, spot_place, takes_spot};
-        let byte = |o: u32| crate::race::course_places::read::<u8>(face + o, "a course face byte");
-        let kind = byte(0)?;
-        if kind != 0xFF || !sound_object(kind, byte(1)?) {
+        let f = crate::race::course_places::face(face, "a sound spot face")?;
+        let kind = f.kind();
+        if kind != 0xFF || !sound_object(kind, f.object()) {
             return Ok(());
         }
         let count: u32 = RACE_SOUND_SPOTS.sound_spot_count.bits();
@@ -85,7 +85,7 @@ pub fn face_sound_spot(face_number: u32) -> Result<(), BadInput> {
             return Ok(());
         }
         let spot = RACE_SOUND_SPOTS.sound_spots[0].addr() + count * 0x14;
-        let sound = byte(8)? as u32;
+        let sound = f.sound() as u32;
         if !takes_spot(count, sound) {
             return Ok(());
         }

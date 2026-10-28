@@ -17,7 +17,7 @@ use crate::race::work_store::RACE_WORK;
 pub const BLOCKS: u32 = 8;
 /// Car block n (`g_carBlocks`[n]).
 pub fn block(n: u32) -> u32 {
-    crate::race::work_store::RACE_WORK.car_block(n as usize)
+    RACE_WORK.car_block(n as usize)
 }
 
 fn put(at: u32, value: u32) -> Result<(), BadInput> {
@@ -111,7 +111,7 @@ pub fn first_check_checkpoint() -> Result<u32, Refused> {
     let look = rc2k_core::race::checkpoints::first_check_checkpoint(count, last, |n| {
         let face: u32 = crate::race::checkpoints_store::face(n as usize).get();
         let address = (face << 6).wrapping_add(COURSE.course_faces.bits());
-        trap.course::<u8>(address + 0x26, "a checkpoint face's check byte")
+        trap.face(address, "a checkpoint face").check()
     })?;
     trap.finish()?;
     Ok(look.and_then(|l| l.found).unwrap_or(0))

@@ -298,6 +298,59 @@ pub enum Operand {
         writes: &'static [(usize, Out)],
     },
     Value(usize),
+    /// The race block itself (`race::store::asm_base()`): the places are RVAs, read and
+    /// written where the typed stores see them; put back after the block's cases.
+    RaceBlock {
+        reads: &'static [(usize, In)],
+        writes: &'static [(usize, Out)],
+    },
+}
+
+/// An operand's places read and written.
+type Places = (&'static [(usize, In)], &'static [(usize, Out)]);
+
+impl Operand {
+    fn places(&self) -> Option<Places> {
+        match *self {
+            Operand::Buffer { reads, writes } | Operand::RaceBlock { reads, writes } => {
+                Some((reads, writes))
+            }
+            Operand::Value(_) => None,
+        }
+    }
+}
+
+/// An operand's memory: a buffer of the test's, or the race block at its RVAs.
+enum Mem {
+    Buffer(Vec<u8>),
+    Block,
+    None,
+}
+
+impl Mem {
+    fn get(&self, off: usize, len: usize) -> Vec<u8> {
+        match self {
+            Mem::Buffer(v) => v[off..off + len].to_vec(),
+            Mem::Block => crate::pointers::GamePtr::new(block_at(off))
+                .read_bytes(len, "a race block place")
+                .unwrap(),
+            Mem::None => Vec::new(),
+        }
+    }
+
+    fn put(&mut self, off: usize, bytes: &[u8]) {
+        match self {
+            Mem::Buffer(v) => v[off..off + bytes.len()].copy_from_slice(bytes),
+            Mem::Block => crate::pointers::GamePtr::new(block_at(off))
+                .write_bytes(bytes, "a race block place")
+                .unwrap(),
+            Mem::None => {}
+        }
+    }
+}
+
+fn block_at(off: usize) -> u32 {
+    crate::race::store::asm_base().wrapping_add(off as u32)
 }
 
 pub struct Block {
@@ -324,6 +377,17 @@ fn width_out(k: Out) -> usize {
     }
 }
 
+/// The race block's places put back (also when a comparison fails).
+struct PutBack(Vec<(usize, Vec<u8>)>);
+
+impl Drop for PutBack {
+    fn drop(&mut self) {
+        for (off, bytes) in self.0.iter().rev() {
+            Mem::Block.put(*off, bytes);
+        }
+    }
+}
+
 /// Runs each block `cases` times through the reference and the plain version at every control
 /// word, on seeded random inputs at the places the block reads; compares every place it
 /// writes (floats equal or both NaN, whole numbers and 80-bit values bit for bit, the status
@@ -336,8 +400,10 @@ pub fn sparse(blocks: &[Block], cases: u32, seed: u64) {
     for &cw in &CONTROL_WORDS {
         set_control_word(cw);
         for block in blocks {
-            let mut buffers: Vec<Vec<u8>> = Vec::new();
+            let mut buffers: Vec<Mem> = Vec::new();
             let mut args: Vec<usize> = Vec::new();
+            // the race block's places as they were, put back after the cases
+            let mut saved: Vec<(usize, Vec<u8>)> = Vec::new();
             for o in &block.operands {
                 match o {
                     Operand::Buffer { reads, writes } => {
@@ -349,24 +415,36 @@ pub fn sparse(blocks: &[Block], cases: u32, seed: u64) {
                             .unwrap_or(0);
                         let mut v = vec![0u8; end + 16];
                         args.push((crate::pointers::game_address(v.as_mut_ptr())) as usize);
-                        buffers.push(v);
+                        buffers.push(Mem::Buffer(v));
+                    }
+                    Operand::RaceBlock { reads, writes } => {
+                        args.push(crate::race::store::asm_base() as usize);
+                        let places = reads
+                            .iter()
+                            .map(|&(off, k)| (off, width_in(k)))
+                            .chain(writes.iter().map(|&(off, k)| (off, width_out(k))));
+                        saved.extend(places.map(|(off, len)| (off, Mem::Block.get(off, len))));
+                        buffers.push(Mem::Block);
                     }
                     Operand::Value(x) => {
                         args.push(*x);
-                        buffers.push(Vec::new());
+                        buffers.push(Mem::None);
                     }
                 }
             }
             // The buffers lent while the block runs: its operands are checked as game memory.
             let _lent: Vec<crate::pointers::Lent> = buffers
                 .iter()
-                .filter(|b| !b.is_empty())
-                .map(|b| crate::pointers::Lent::new(b))
+                .filter_map(|b| match b {
+                    Mem::Buffer(v) => Some(crate::pointers::Lent::new(v)),
+                    _ => None,
+                })
                 .collect();
+            let _put_back = PutBack(saved);
             // the places written, as (operand, offset, kind)
             let mut places: Vec<(usize, usize, Out)> = Vec::new();
             for (n, o) in block.operands.iter().enumerate() {
-                if let Operand::Buffer { writes, .. } = o {
+                if let Some((_, writes)) = o.places() {
                     places.extend(writes.iter().map(|&(off, k)| (n, off, k)));
                 }
             }
@@ -375,11 +453,11 @@ pub fn sparse(blocks: &[Block], cases: u32, seed: u64) {
                 let moderate = rng.below(2) == 0;
                 let simple = rng.below(8) == 0;
                 for (o, buf) in block.operands.iter().zip(buffers.iter_mut()) {
-                    let Operand::Buffer { reads, writes } = o else {
+                    let Some((reads, writes)) = o.places() else {
                         continue;
                     };
                     for &(off, k) in writes.iter() {
-                        buf[off..off + width_out(k)].fill(0xAA);
+                        buf.put(off, &[0xAA; 10][..width_out(k)]);
                     }
                     for &(off, k) in reads.iter() {
                         match k {
@@ -391,7 +469,7 @@ pub fn sparse(blocks: &[Block], cases: u32, seed: u64) {
                                 } else {
                                     rng.fl()
                                 };
-                                buf[off..off + 4].copy_from_slice(&bits.to_le_bytes());
+                                buf.put(off, &bits.to_le_bytes());
                             }
                             In::I => {
                                 let v = if simple {
@@ -399,14 +477,14 @@ pub fn sparse(blocks: &[Block], cases: u32, seed: u64) {
                                 } else {
                                     rng.int()
                                 };
-                                buf[off..off + 4].copy_from_slice(&v.to_le_bytes());
+                                buf.put(off, &v.to_le_bytes());
                             }
                             In::T => {
                                 let bits = if moderate { rng.moderate() } else { rng.fl() };
                                 let mut m = [0u32; 3];
                                 put_t80(&mut m, 0, bits);
                                 let bytes: [u8; 12] = unsafe { core::mem::transmute(m) };
-                                buf[off..off + 10].copy_from_slice(&bytes[..10]);
+                                buf.put(off, &bytes[..10]);
                             }
                         }
                     }
@@ -414,25 +492,25 @@ pub fn sparse(blocks: &[Block], cases: u32, seed: u64) {
                 // the inputs: every place the block reads or writes, kept to run it twice
                 let mut touched: Vec<(usize, usize, Vec<u8>)> = Vec::new();
                 for (n, o) in block.operands.iter().enumerate() {
-                    if let Operand::Buffer { reads, writes } = o {
+                    if let Some((reads, writes)) = o.places() {
                         for &(off, k) in reads.iter() {
-                            touched.push((n, off, buffers[n][off..off + width_in(k)].to_vec()));
+                            touched.push((n, off, buffers[n].get(off, width_in(k))));
                         }
                         for &(off, k) in writes.iter() {
-                            touched.push((n, off, buffers[n][off..off + width_out(k)].to_vec()));
+                            touched.push((n, off, buffers[n].get(off, width_out(k))));
                         }
                     }
                 }
-                let read_out = |buffers: &Vec<Vec<u8>>| -> Vec<Vec<u8>> {
+                let read_out = |buffers: &Vec<Mem>| -> Vec<Vec<u8>> {
                     places
                         .iter()
-                        .map(|&(n, off, k)| buffers[n][off..off + width_out(k)].to_vec())
+                        .map(|&(n, off, k)| buffers[n].get(off, width_out(k)))
                         .collect()
                 };
                 (block.reference)(&args);
                 let from_reference = read_out(&buffers);
                 for (n, off, bytes) in &touched {
-                    buffers[*n][*off..*off + bytes.len()].copy_from_slice(bytes);
+                    buffers[*n].put(*off, bytes);
                 }
                 (block.plain)(&args);
                 let from_plain = read_out(&buffers);

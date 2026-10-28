@@ -31,7 +31,7 @@ use crate::physics::damage_model::ONE;
 #[allow(unused_imports)]
 use crate::physics::flow::{a, g, hold_high, hold_low, p, table_lerp};
 use crate::physics::store::{DAMAGE, DamageModel};
-use crate::scene::x87_mem::{fild, fld, fnstsw, fstp};
+use crate::scene::x87_mem::{fld, fnstsw, fstp};
 use crate::session::Cell32;
 
 #[allow(dead_code)]
@@ -42,7 +42,7 @@ fn rd(x: u32) -> u32 {
 /// The steps (generated from the disassembly by idiom; the flagged places by hand).
 pub fn steps() {
     let _ = X(1.0);
-    x87_1(crate::race::store::asm_base() as usize, &DAMAGE);
+    x87_1(&DAMAGE);
     table_lerp(
         &CAR.suspension_damage[0],
         &DAMAGE.lerp_tables[2],
@@ -135,13 +135,13 @@ pub fn steps() {
             0x31A41C,
         );
     }
-    x87_5(crate::race::store::asm_base() as usize, &DAMAGE);
+    x87_5(&DAMAGE);
     hold_high(&DAMAGE.scratch, &CAR.engine_speed_limit);
-    x87_6(&DAMAGE, crate::race::store::asm_base() as usize);
+    x87_6(&DAMAGE);
     hold_high(&DAMAGE.scratch, &DAMAGE.flt_75b378);
-    x87_7(&DAMAGE, crate::race::store::asm_base() as usize);
+    x87_7(&DAMAGE);
     hold_high(&DAMAGE.scratch, &DAMAGE.flt_75b378);
-    x87_8(&DAMAGE, crate::race::store::asm_base() as usize);
+    x87_8(&DAMAGE);
     hold_high(&DAMAGE.scratch, &DAMAGE.flt_75b378);
     x87_9(
         &DAMAGE,
@@ -167,13 +167,12 @@ pub fn steps() {
     if abs_compare(CAR.local_velocity[2].bits(), DAMAGE.grade_high.bits()) & 0x100 == 0
         && (CAR.brake.get().wrapping_sub(0x10) as i32) >= 0
     {
-        x87_13(crate::race::store::asm_base() as usize, &DAMAGE);
+        x87_13(&DAMAGE);
     }
     // 0x4ABCAA: 1 when the engine's speed is above the limit times `flt_75B37C`.
     DAMAGE.flt_75b3c0.set_bits(0);
     let mut status = 0u16;
     x87_14(
-        crate::race::store::asm_base() as usize,
         &DAMAGE,
         crate::pointers::game_address(&raw mut status) as usize,
     );
@@ -201,7 +200,7 @@ pub fn steps() {
         }
     }
     DAMAGE.dword_75b3c4.set_bits(hit);
-    x87_15(crate::race::store::asm_base() as usize, &DAMAGE);
+    x87_15(&DAMAGE);
     hold_low(&DAMAGE.scratch, &DAMAGE.gauge_low);
     hold_high(&DAMAGE.scratch, &DAMAGE.flt_75b354);
     x87_16(&DAMAGE);
@@ -226,16 +225,16 @@ pub fn steps() {
 /// `[m + 0x35B3F8] = int [rc + 0x31A008] / [m + 0x35B35C]`
 /// `[m + 0x35B3FC] = int [rc + 0x31A00C] / [m + 0x35B35C]`
 /// `[m + 0x35B400] = int [rc + 0x319FF8] / [m + 0x35B35C]`
-fn x87_1(rc: usize, m: &DamageModel) {
-    let t0 = fild(rc, 0x31A008);
+fn x87_1(m: &DamageModel) {
+    let t0 = int(CAR.ride_height.bits() as i32);
     let t1 = ld(m.flt_75b35c.bits());
     let t2 = t0 / t1;
     m.flt_75b3f8.set_bits(st(t2));
-    let t3 = fild(rc, 0x31A00C);
+    let t3 = int(CAR.suspension_stiffness.bits() as i32);
     let t4 = ld(m.flt_75b35c.bits());
     let t5 = t3 / t4;
     m.flt_75b3fc.set_bits(st(t5));
-    let t6 = fild(rc, 0x319FF8);
+    let t6 = int(CAR.brake_balance.bits() as i32);
     let t7 = ld(m.flt_75b35c.bits());
     let t8 = t6 / t7;
     m.flt_75b400.set_bits(st(t8));
@@ -280,30 +279,30 @@ fn x87_4(m: &DamageModel, rc: usize, o1: usize, o3: usize) {
 /// `[rc + 0x31A430] = ((([rc + 0x31A420] + [rc + 0x31A424]) + [rc + 0x31A428]) + [rc + 0x31A42C]) * [m + 0x35B364]`
 /// `[m + 0x35B3E4] = [rc + 0x31A018]`
 /// `[m + 0x35B36C] = |[rc + 0x31A1B0]|`
-fn x87_5(rc: usize, m: &DamageModel) {
-    let t0 = fld(rc, 0x31A410);
-    let t1 = fld(rc, 0x31A414);
+fn x87_5(m: &DamageModel) {
+    let t0 = ld(CAR.wheel_ride_height[0].bits());
+    let t1 = ld(CAR.wheel_ride_height[1].bits());
     let t2 = t0 + t1;
-    let t3 = fld(rc, 0x31A418);
+    let t3 = ld(CAR.wheel_ride_height[2].bits());
     let t4 = t2 + t3;
-    let t5 = fld(rc, 0x31A41C);
+    let t5 = ld(CAR.wheel_ride_height[3].bits());
     let t6 = t4 + t5;
     let t7 = ld(m.flt_75b364.bits());
     let t8 = t6 * t7;
-    fstp(rc, 0x31A434, t8);
-    let t9 = fld(rc, 0x31A420);
-    let t10 = fld(rc, 0x31A424);
+    CAR.ride_height_mean.set_bits(st(t8));
+    let t9 = ld(CAR.wheel_stiffness[0].bits());
+    let t10 = ld(CAR.wheel_stiffness[1].bits());
     let t11 = t9 + t10;
-    let t12 = fld(rc, 0x31A428);
+    let t12 = ld(CAR.wheel_stiffness[2].bits());
     let t13 = t11 + t12;
-    let t14 = fld(rc, 0x31A42C);
+    let t14 = ld(CAR.wheel_stiffness[3].bits());
     let t15 = t13 + t14;
     let t16 = ld(m.flt_75b364.bits());
     let t17 = t15 * t16;
-    fstp(rc, 0x31A430, t17);
-    let t18 = fld(rc, 0x31A018);
+    CAR.stiffness_mean.set_bits(st(t17));
+    let t18 = ld(CAR.drive_kind.bits());
     m.flt_75b3e4.set_bits(st(t18));
-    let t19 = fld(rc, 0x31A1B0);
+    let t19 = ld(CAR.engine_speed.bits());
     let t20 = t19.abs();
     m.scratch.set_bits(st(t20));
 }
@@ -312,14 +311,14 @@ fn x87_5(rc: usize, m: &DamageModel) {
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `[m + 0x35B398] = ([m + 0x35B36C] / [rc + 0x31A1B4]) * [m + 0x35B34C]`
 /// `[m + 0x35B36C] = |[rc + 0x31A184]|`
-fn x87_6(m: &DamageModel, rc: usize) {
+fn x87_6(m: &DamageModel) {
     let t0 = ld(m.scratch.bits());
-    let t1 = fld(rc, 0x31A1B4);
+    let t1 = ld(CAR.engine_speed_limit.bits());
     let t2 = t0 / t1;
     let t3 = ld(m.gauge_top.bits());
     let t4 = t2 * t3;
     m.flt_75b398.set_bits(st(t4));
-    let t5 = fld(rc, 0x31A184);
+    let t5 = ld(CAR.local_velocity[2].bits());
     let t6 = t5.abs();
     m.scratch.set_bits(st(t6));
 }
@@ -329,17 +328,17 @@ fn x87_6(m: &DamageModel, rc: usize) {
 /// `[m + 0x35B39C] = ([m + 0x35B36C] / [m + 0x35B378]) * [m + 0x35B34C]`
 /// `[m + 0x35B3E0] = [rc + 0x31A930]`
 /// `[m + 0x35B36C] = |([rc + 0x31A184] - [rc + 0x31A190])|`
-fn x87_7(m: &DamageModel, rc: usize) {
+fn x87_7(m: &DamageModel) {
     let t0 = ld(m.scratch.bits());
     let t1 = ld(m.flt_75b378.bits());
     let t2 = t0 / t1;
     let t3 = ld(m.gauge_top.bits());
     let t4 = t2 * t3;
     m.flt_75b39c.set_bits(st(t4));
-    let t5 = fld(rc, 0x31A930);
+    let t5 = ld(CAR.unknown_948[4].bits());
     m.flt_75b3e0.set_bits(st(t5));
-    let t6 = fld(rc, 0x31A184);
-    let t7 = fld(rc, 0x31A190);
+    let t6 = ld(CAR.local_velocity[2].bits());
+    let t7 = ld(CAR.drive_speed_a.bits());
     let t8 = t6 - t7;
     let t9 = t8.abs();
     m.scratch.set_bits(st(t9));
@@ -349,13 +348,13 @@ fn x87_7(m: &DamageModel, rc: usize) {
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `[m + 0x35B3A0] = [m + 0x35B36C] / [m + 0x35B378]`
 /// `[m + 0x35B36C] = |([rc + 0x31A184] - [rc + 0x31A194])|`
-fn x87_8(m: &DamageModel, rc: usize) {
+fn x87_8(m: &DamageModel) {
     let t0 = ld(m.scratch.bits());
     let t1 = ld(m.flt_75b378.bits());
     let t2 = t0 / t1;
     m.flt_75b3a0.set_bits(st(t2));
-    let t3 = fld(rc, 0x31A184);
-    let t4 = fld(rc, 0x31A194);
+    let t3 = ld(CAR.local_velocity[2].bits());
+    let t4 = ld(CAR.drive_speed_b.bits());
     let t5 = t3 - t4;
     let t6 = t5.abs();
     m.scratch.set_bits(st(t6));
@@ -371,7 +370,7 @@ fn x87_9(m: &DamageModel, rc: usize, o2: &impl Cell32, o3: usize, o6: usize) {
     let t2 = t0 / t1;
     o2.set_bits(st(t2));
     let t3 = fld(rc, o3);
-    let t4 = fld(rc, 0x31A184);
+    let t4 = ld(CAR.local_velocity[2].bits());
     let t5 = t3 - t4;
     let t6 = ld(m.figures[31].bits());
     let t7 = t5 * t6;
@@ -413,8 +412,8 @@ fn x87_12(o0: &impl Cell32) {
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `[m + 0x35B3B0] = int [rc + 0x31A614] / [m + 0x35B35C]`
-fn x87_13(rc: usize, m: &DamageModel) {
-    let t0 = fild(rc, 0x31A614);
+fn x87_13(m: &DamageModel) {
+    let t0 = int(CAR.brake.bits() as i32);
     let t1 = ld(m.flt_75b35c.bits());
     let t2 = t0 / t1;
     m.flt_75b3b0.set_bits(st(t2));
@@ -423,11 +422,11 @@ fn x87_13(rc: usize, m: &DamageModel) {
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `status [s + 0] = status`
-fn x87_14(rc: usize, m: &DamageModel, s: usize) {
-    let t0 = fld(rc, 0x31A1B4);
+fn x87_14(m: &DamageModel, s: usize) {
+    let t0 = ld(CAR.engine_speed_limit.bits());
     let t1 = ld(m.flt_75b37c.bits());
     let t2 = t0 * t1;
-    let t3 = fld(rc, 0x31A1B0);
+    let t3 = ld(CAR.engine_speed.bits());
     let t4 = compare(t2, t3);
     fnstsw(s, 0, t4);
 }
@@ -436,16 +435,16 @@ fn x87_14(rc: usize, m: &DamageModel, s: usize) {
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `[m + 0x35B3C8] = (([rc + 0x31A208] * [rc + 0x31A208]) / [m + 0x35B394]) / [m + 0x35B378]`
 /// `[m + 0x35B36C] = -[rc + 0x31A180] - [m + 0x35B624]`
-fn x87_15(rc: usize, m: &DamageModel) {
-    let t0 = fld(rc, 0x31A208);
-    let t1 = fld(rc, 0x31A208);
+fn x87_15(m: &DamageModel) {
+    let t0 = ld(CAR.contact_depth.bits());
+    let t1 = ld(CAR.contact_depth.bits());
     let t2 = t0 * t1;
     let t3 = ld(m.flt_75b394.bits());
     let t4 = t2 / t3;
     let t5 = ld(m.flt_75b378.bits());
     let t6 = t4 / t5;
     m.flt_75b3c8.set_bits(st(t6));
-    let t7 = fld(rc, 0x31A180);
+    let t7 = ld(CAR.local_velocity[1].bits());
     let t8 = -t7;
     let t9 = ld(m.gauge_rates[21].bits());
     let t10 = t8 - t9;
@@ -558,7 +557,7 @@ mod asm_reference {
             Block {
                 name: "damage_factors line 39",
                 operands: vec![
-                    Operand::Buffer {
+                    Operand::RaceBlock {
                         reads: &[(0x319FF8, In::I), (0x31A008, In::I), (0x31A00C, In::I)],
                         writes: &[],
                     },
@@ -569,7 +568,7 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_0(a[0], a[1]) },
-                plain: |a| x87_1(a[0], dm(a[1])),
+                plain: |a| x87_1(dm(a[1])),
             },
             Block {
                 name: "damage_factors line 53",
@@ -578,7 +577,7 @@ mod asm_reference {
                         reads: &[(0x35B34C, In::F), (0x35B3FC, In::F), (0x35B474, In::F)],
                         writes: &[],
                     },
-                    Operand::Buffer {
+                    Operand::RaceBlock {
                         reads: &[],
                         writes: &[(0x31A420, Out::F)],
                     },
@@ -594,7 +593,7 @@ mod asm_reference {
                         reads: &[(0x35B34C, In::F), (0x35B3F8, In::F)],
                         writes: &[],
                     },
-                    Operand::Buffer {
+                    Operand::RaceBlock {
                         reads: &[],
                         writes: &[(0x31A410, Out::F)],
                     },
@@ -610,7 +609,7 @@ mod asm_reference {
                         reads: &[(0x35B34C, In::F), (0x35B350, In::F)],
                         writes: &[],
                     },
-                    Operand::Buffer {
+                    Operand::RaceBlock {
                         reads: &[],
                         writes: &[(0x31A410, Out::F), (0x31A420, Out::F)],
                     },
@@ -626,7 +625,7 @@ mod asm_reference {
                         reads: &[(0x35B34C, In::F), (0x35B3FC, In::F), (0x35B478, In::F)],
                         writes: &[],
                     },
-                    Operand::Buffer {
+                    Operand::RaceBlock {
                         reads: &[],
                         writes: &[(0x31A424, Out::F)],
                     },
@@ -642,7 +641,7 @@ mod asm_reference {
                         reads: &[(0x35B34C, In::F), (0x35B3F8, In::F)],
                         writes: &[],
                     },
-                    Operand::Buffer {
+                    Operand::RaceBlock {
                         reads: &[],
                         writes: &[(0x31A414, Out::F)],
                     },
@@ -658,7 +657,7 @@ mod asm_reference {
                         reads: &[(0x35B34C, In::F), (0x35B350, In::F)],
                         writes: &[],
                     },
-                    Operand::Buffer {
+                    Operand::RaceBlock {
                         reads: &[],
                         writes: &[(0x31A414, Out::F), (0x31A424, Out::F)],
                     },
@@ -674,7 +673,7 @@ mod asm_reference {
                         reads: &[(0x35B34C, In::F), (0x35B3FC, In::F), (0x35B47C, In::F)],
                         writes: &[],
                     },
-                    Operand::Buffer {
+                    Operand::RaceBlock {
                         reads: &[],
                         writes: &[(0x31A428, Out::F)],
                     },
@@ -690,7 +689,7 @@ mod asm_reference {
                         reads: &[(0x35B34C, In::F), (0x35B3F8, In::F)],
                         writes: &[],
                     },
-                    Operand::Buffer {
+                    Operand::RaceBlock {
                         reads: &[],
                         writes: &[(0x31A418, Out::F)],
                     },
@@ -706,7 +705,7 @@ mod asm_reference {
                         reads: &[(0x35B34C, In::F), (0x35B350, In::F)],
                         writes: &[],
                     },
-                    Operand::Buffer {
+                    Operand::RaceBlock {
                         reads: &[],
                         writes: &[(0x31A418, Out::F), (0x31A428, Out::F)],
                     },
@@ -722,7 +721,7 @@ mod asm_reference {
                         reads: &[(0x35B34C, In::F), (0x35B3FC, In::F), (0x35B480, In::F)],
                         writes: &[],
                     },
-                    Operand::Buffer {
+                    Operand::RaceBlock {
                         reads: &[],
                         writes: &[(0x31A42C, Out::F)],
                     },
@@ -738,7 +737,7 @@ mod asm_reference {
                         reads: &[(0x35B34C, In::F), (0x35B3F8, In::F)],
                         writes: &[],
                     },
-                    Operand::Buffer {
+                    Operand::RaceBlock {
                         reads: &[],
                         writes: &[(0x31A41C, Out::F)],
                     },
@@ -754,7 +753,7 @@ mod asm_reference {
                         reads: &[(0x35B34C, In::F), (0x35B350, In::F)],
                         writes: &[],
                     },
-                    Operand::Buffer {
+                    Operand::RaceBlock {
                         reads: &[],
                         writes: &[(0x31A41C, Out::F), (0x31A42C, Out::F)],
                     },
@@ -766,7 +765,7 @@ mod asm_reference {
             Block {
                 name: "damage_factors line 164",
                 operands: vec![
-                    Operand::Buffer {
+                    Operand::RaceBlock {
                         reads: &[
                             (0x31A018, In::F),
                             (0x31A1B0, In::F),
@@ -788,7 +787,7 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_13(a[0], a[1]) },
-                plain: |a| x87_5(a[0], dm(a[1])),
+                plain: |a| x87_5(dm(a[1])),
             },
             Block {
                 name: "damage_factors line 186",
@@ -797,14 +796,14 @@ mod asm_reference {
                         reads: &[(0x35B34C, In::F), (0x35B36C, In::F)],
                         writes: &[(0x35B36C, Out::F), (0x35B398, Out::F)],
                     },
-                    Operand::Buffer {
+                    Operand::RaceBlock {
                         reads: &[(0x31A184, In::F), (0x31A1B4, In::F)],
                         writes: &[],
                     },
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_14(a[0], a[1]) },
-                plain: |a| x87_6(dm(a[0]), a[1]),
+                plain: |a| x87_6(dm(a[0])),
             },
             Block {
                 name: "damage_factors line 198",
@@ -813,14 +812,14 @@ mod asm_reference {
                         reads: &[(0x35B34C, In::F), (0x35B36C, In::F), (0x35B378, In::F)],
                         writes: &[(0x35B36C, Out::F), (0x35B39C, Out::F), (0x35B3E0, Out::F)],
                     },
-                    Operand::Buffer {
+                    Operand::RaceBlock {
                         reads: &[(0x31A184, In::F), (0x31A190, In::F), (0x31A930, In::F)],
                         writes: &[],
                     },
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_15(a[0], a[1]) },
-                plain: |a| x87_7(dm(a[0]), a[1]),
+                plain: |a| x87_7(dm(a[0])),
             },
             Block {
                 name: "damage_factors line 213",
@@ -829,14 +828,14 @@ mod asm_reference {
                         reads: &[(0x35B36C, In::F), (0x35B378, In::F)],
                         writes: &[(0x35B36C, Out::F), (0x35B3A0, Out::F)],
                     },
-                    Operand::Buffer {
+                    Operand::RaceBlock {
                         reads: &[(0x31A184, In::F), (0x31A194, In::F)],
                         writes: &[],
                     },
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_16(a[0], a[1]) },
-                plain: |a| x87_8(dm(a[0]), a[1]),
+                plain: |a| x87_8(dm(a[0])),
             },
             Block {
                 name: "damage_factors line 225",
@@ -845,7 +844,7 @@ mod asm_reference {
                         reads: &[(0x35B36C, In::F), (0x35B378, In::F), (0x35B6F4, In::F)],
                         writes: &[(0x35B36C, Out::F), (0x35B3A4, Out::F)],
                     },
-                    Operand::Buffer {
+                    Operand::RaceBlock {
                         reads: &[(0x31A184, In::F), (0x31A190, In::F)],
                         writes: &[],
                     },
@@ -861,7 +860,7 @@ mod asm_reference {
                         reads: &[(0x35B36C, In::F), (0x35B378, In::F), (0x35B6F4, In::F)],
                         writes: &[(0x35B36C, Out::F), (0x35B3A8, Out::F)],
                     },
-                    Operand::Buffer {
+                    Operand::RaceBlock {
                         reads: &[(0x31A184, In::F), (0x31A194, In::F)],
                         writes: &[],
                     },
@@ -903,7 +902,7 @@ mod asm_reference {
             Block {
                 name: "damage_factors line 276",
                 operands: vec![
-                    Operand::Buffer {
+                    Operand::RaceBlock {
                         reads: &[(0x31A614, In::I)],
                         writes: &[],
                     },
@@ -914,12 +913,12 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_22(a[0], a[1]) },
-                plain: |a| x87_13(a[0], dm(a[1])),
+                plain: |a| x87_13(dm(a[1])),
             },
             Block {
                 name: "damage_factors line 287",
                 operands: vec![
-                    Operand::Buffer {
+                    Operand::RaceBlock {
                         reads: &[(0x31A1B0, In::F), (0x31A1B4, In::F)],
                         writes: &[],
                     },
@@ -934,7 +933,7 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_23(a[0], a[1], a[2]) },
-                plain: |a| x87_14(a[0], dm(a[1]), a[2]),
+                plain: |a| x87_14(dm(a[1]), a[2]),
             },
             Block {
                 name: "damage_factors line 302",
@@ -949,7 +948,7 @@ mod asm_reference {
             Block {
                 name: "damage_factors line 322",
                 operands: vec![
-                    Operand::Buffer {
+                    Operand::RaceBlock {
                         reads: &[(0x31A180, In::F), (0x31A208, In::F)],
                         writes: &[],
                     },
@@ -960,7 +959,7 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_25(a[0], a[1]) },
-                plain: |a| x87_15(a[0], dm(a[1])),
+                plain: |a| x87_15(dm(a[1])),
             },
             Block {
                 name: "damage_factors line 337",

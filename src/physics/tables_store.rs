@@ -228,7 +228,8 @@ pub struct PhysicsTables {
     pub inertia: [Float; 3],
     /// +0x78c (0x613FB4): 0.0001 (`physics::set_downforce`).
     pub downforce_factor: Float,
-    /// +0x790 (0x613FB8): 3000.0 then one more, by spec (`physics::load_car_specs`).
+    /// +0x790 (0x613FB8): 3000.0 then one more, by spec (`physics::load_car_specs`, by
+    /// drive kind 0 .. 2: kind 2 reads the next field, `camera_drop`; `notes/bugs.md`).
     pub rev_limits: [Float; 2],
     /// +0x798 (0x613FC0): 0.7 (`physics::update_camera`, the car's shadow).
     pub camera_drop: Float,
@@ -376,10 +377,9 @@ pub struct PhysicsTables {
     pub torque_cross: [Float; 3],
     /// +0xa58 (0x614280): not named.
     pub unknown_a58: Dword,
-    /// +0xa5c (0x614284): the four wheels' loads (`physics::wheel_surfaces`).
-    pub wheel_loads: [Float; 4],
-    /// +0xa6c (0x614294): (`physics::crash_contact`).
-    pub crash_figure: Float,
+    /// +0xa5c (0x614284): the five points' loads (`physics::wheel_surfaces` writes all
+    /// five; `physics::crash_contact` reads the fifth).
+    pub wheel_loads: [Float; 5],
     /// +0xa70 (0x614298): the five points' grips.
     pub wheel_grips: [Float; 5],
     /// +0xa84 (0x6142AC): the five points' second figures.

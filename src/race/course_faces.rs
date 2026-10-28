@@ -19,7 +19,9 @@ use crate::race::view_store::RACE_VIEW;
 use crate::race::view_vars_store::VIEW_VARS;
 use crate::scene::draw_store::DRAW;
 use crate::scene::light_store::LIGHT_STATE;
+use crate::scene::light_tables_store::LIGHT_TABLES;
 use crate::scene::light_work_store::LIGHT_WORK;
+use crate::scene::polygon_store::POLYGON_WORK;
 use crate::session::{Dword, Float};
 
 fn get(a: u32) -> Result<u32, BadInput> {
@@ -367,7 +369,7 @@ pub fn face_texture_coordinates(set: &TextureSet) -> Result<(), BadInput> {
     use rc2k_core::race::faces::{TextureInfo, texture_coordinates};
     {
         let texture: u32 = set.texture.get();
-        let info = crate::scene::polygon_store::POLYGON_WORK.texture_infos[0].words[0]
+        let info = POLYGON_WORK.texture_infos[0].words[0]
             .addr()
             .wrapping_add(texture << 6);
         let texture_info = TextureInfo {
@@ -442,10 +444,7 @@ pub fn face_corners_to_new_points() -> Result<(), Refused> {
 const ENTRY_SIZE: u32 = 0x44;
 
 fn entry(slot: u32) -> u32 {
-    (crate::scene::polygon_store::POLYGON_WORK.entries[0]
-        .point
-        .addr())
-    .wrapping_add(ENTRY_SIZE * slot)
+    (POLYGON_WORK.entries[0].point.addr()).wrapping_add(ENTRY_SIZE * slot)
 }
 
 /// One polygon entry filled from one of the face's corners: +0 its point, +8 / +0xC the
@@ -479,17 +478,9 @@ fn plain_list(count: u32, next: u32) {
     {
         DRAW.polygon_vertex_count.set(count);
         for k in 0..count {
-            crate::race::checkpoints_store::nth(
-                &crate::scene::polygon_store::POLYGON_WORK.list[0],
-                k as usize,
-            )
-            .set(k);
+            crate::race::checkpoints_store::nth(&POLYGON_WORK.list[0], k as usize).set(k);
         }
-        crate::race::checkpoints_store::nth(
-            &crate::scene::polygon_store::POLYGON_WORK.list[0],
-            count as usize,
-        )
-        .set(0);
+        crate::race::checkpoints_store::nth(&POLYGON_WORK.list[0], count as usize).set(0);
         DRAW.polygon_next_entry.set(next);
     }
 }
@@ -609,7 +600,7 @@ pub unsafe fn draw_face() -> Result<(), Refused> {
         let second: u32 = RACE_VIEW.texture_b.get();
         let trap = Trap::new();
         let picked = || {
-            let record = crate::scene::polygon_store::POLYGON_WORK.texture_infos[0].words[0]
+            let record = POLYGON_WORK.texture_infos[0].words[0]
                 .addr()
                 .wrapping_add(second << 6);
             let pick = trap.read::<u8>(record + 0x2C, "a texture info's kind") as usize;
@@ -720,7 +711,7 @@ pub unsafe fn draw_lit_triangle() -> Result<(), Refused> {
         crate::race::frame_draw::check_light_colour()?;
         DRAW.polygon_drawn.set(0u32);
         DRAW.polygon_next_record
-            .set(crate::scene::polygon_store::POLYGON_WORK.record_pool[0].addr());
+            .set(POLYGON_WORK.record_pool[0].addr());
         plain_list(DRAW.polygon_vertex_count.bits(), 6);
         crate::scene::project_polygon::project_polygon()?;
         if DRAW.polygon_outside_count.get() == DRAW.polygon_vertex_count.get() {
@@ -769,13 +760,9 @@ pub unsafe fn draw_lit_triangle() -> Result<(), Refused> {
         }
         for list in [[0u32, 3, 5], [1, 4, 3], [2, 5, 4], [3, 4, 5]] {
             for (k, n) in list.iter().enumerate() {
-                crate::race::checkpoints_store::nth(
-                    &crate::scene::polygon_store::POLYGON_WORK.list[0],
-                    k,
-                )
-                .set(*n);
+                crate::race::checkpoints_store::nth(&POLYGON_WORK.list[0], k).set(*n);
             }
-            crate::scene::polygon_store::POLYGON_WORK.list[3].set(list[0]);
+            POLYGON_WORK.list[3].set(list[0]);
             DRAW.polygon_vertex_count.set(3u32);
             DRAW.polygon_next_entry.set(6u32);
             clip_and_draw_face()?;
@@ -794,23 +781,17 @@ pub unsafe fn face_colours(face: u32) -> Result<(), Refused> {
     unsafe {
         let byte = |o: u32| -> Result<u32, BadInput> { Ok(byte_at(face + o)? as u32) };
         for k in 0..4 {
-            let c = crate::scene::light_tables_store::LIGHT_TABLES.light_table
-                [byte(0x14 + k)? as usize]
-                .get();
+            let c = LIGHT_TABLES.light_table[byte(0x14 + k)? as usize].get();
             RACE_VIEW.corner_colours[k as usize].set(c);
-            let lit =
-                crate::race::course_places::read::<u16>(face + 2, "a course face's switches")?
-                    & EXTRA_LIGHTS
-                    != 0;
+            let lit = crate::race::course_places::face(face, "a course face")?.switches()
+                & EXTRA_LIGHTS
+                != 0;
             if lit {
                 let trap = Trap::new();
                 let extra = || {
-                    let a = crate::scene::light_tables_store::LIGHT_TABLES.lamp_table_a
-                        [trap.course::<u8>(face + 0x28 + k, "a course face byte") as usize]
-                        .get();
-                    let b = crate::scene::light_tables_store::LIGHT_TABLES.lamp_table_b
-                        [trap.course::<u8>(face + 0x2C + k, "a course face byte") as usize]
-                        .get();
+                    let (a, b) = trap.face(face, "a course face").lamps(k as usize);
+                    let a = LIGHT_TABLES.lamp_table_a[a as usize].get();
+                    let b = LIGHT_TABLES.lamp_table_b[b as usize].get();
                     (a, b)
                 };
                 let c = corner_colour(c, lit, extra, crate::race::frame_draw::has_mmx());
@@ -868,11 +849,8 @@ pub unsafe fn draw_back_face(face: u32) -> Result<(), Refused> {
         let byte = |o: u32| -> Result<u32, BadInput> { Ok(byte_at(face + o)? as u32) };
         turn_over()?;
         for k in 0..4 {
-            RACE_VIEW.corner_colours[k as usize].set(
-                crate::scene::light_tables_store::LIGHT_TABLES.light_table
-                    [byte(0x28 + k)? as usize]
-                    .get(),
-            );
+            RACE_VIEW.corner_colours[k as usize]
+                .set(LIGHT_TABLES.light_table[byte(0x28 + k)? as usize].get());
         }
         for k in 0..4 {
             RACE_VIEW.corner_alphas[k as usize].set(byte(0x2C + k)?);
@@ -942,7 +920,8 @@ pub unsafe fn draw_course_face(face: u32) -> Result<(), Refused> {
     unsafe {
         crate::race::frame_draw::points_there()?;
         face_corners(face)?;
-        if crate::race::course_places::read::<u16>(face + 2, "a course face's switches")? & 0x200
+        if crate::race::course_places::face(face, "a course face")?.switches()
+            & rc2k_core::race::faces::REPEATED
             != 0
         {
             face_corners_to_new_points()?;

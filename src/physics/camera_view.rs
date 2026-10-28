@@ -7,10 +7,13 @@
 //! `view_test_floats` (`rc2k_core::physics::camera_view`). What the variables are (the
 //! camera's mode, place, turns, a view's figures) is a reading.
 
+use crate::math::x87_float::int;
+use crate::math::x87_float::st;
 use crate::physics::car_store::CAR;
+use crate::race::tables_store::RACE_TABLES;
 use crate::race::view_vars_store::VIEW_VARS;
 use crate::scene::draw_store::DRAW;
-use crate::scene::x87_mem::{fild, fstp};
+use crate::scene::x87_mem::fild;
 
 /// esi as the original leaves it: the mode's record.
 pub fn record() -> u32 {
@@ -35,7 +38,7 @@ pub fn share_done(record: u32) -> u32 {
         eax = rd(record + 0x3C);
     }
     DRAW.scratch.set(eax);
-    x87_1(crate::race::store::asm_base() as usize, record as usize);
+    x87_1(record as usize);
     eax
 }
 
@@ -44,11 +47,11 @@ pub fn share_done(record: u32) -> u32 {
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `[rc + 0x205260] = int [rc + 0x22400C] / int [s + 0x3C]`
-fn x87_1(rc: usize, s: usize) {
-    let t0 = fild(rc, 0x22400C);
+fn x87_1(s: usize) {
+    let t0 = int(DRAW.scratch.bits() as i32);
     let t1 = fild(s, 0x3C);
     let t2 = t0 / t1;
-    fstp(rc, 0x205260, t2);
+    RACE_TABLES.view_share.set_bits(st(t2));
 }
 
 #[cfg(all(test, target_arch = "x86"))]
@@ -63,7 +66,7 @@ mod asm_reference {
         vec![Block {
             name: "camera_view line 35",
             operands: vec![
-                Operand::Buffer {
+                Operand::RaceBlock {
                     reads: &[(0x22400C, In::I)],
                     writes: &[(0x205260, Out::F)],
                 },
@@ -74,7 +77,7 @@ mod asm_reference {
             ],
             ulps: 0,
             reference: |a| unsafe { ref_0(a[0], a[1]) },
-            plain: |a| x87_1(a[0], a[1]),
+            plain: |a| x87_1(a[1]),
         }]
     }
 

@@ -836,6 +836,8 @@ mod tests {
 
     #[test]
     fn a_session_is_hosted_found_joined_and_talked_to() {
+        // Its buffers are lent for good: no other test's lent region may come and go meanwhile.
+        let _lock = crate::store::test_lock();
         let port = 47_700 + (std::process::id() % 200) as u16;
         let host = play_object(port);
         assert_eq!(open(host, desc([0; 16]), DPOPEN_CREATE), DP_OK);
@@ -843,7 +845,8 @@ mod tests {
 
         let guest = play_object(port);
         let mut found = None;
-        for _ in 0..100 {
+        // Up to 10 s (it stops when found): a full parallel test run under Wine is slow.
+        for _ in 0..500 {
             assert_eq!(
                 enum_sessions(guest, desc([0; 16]), 0, session_found, 0, 0),
                 DP_OK
@@ -864,7 +867,7 @@ mod tests {
         );
         let (from, to, data, size) = (kept(0u32), kept(0u32), kept([0u8; 64]), kept(0u32));
         let mut got = None;
-        for _ in 0..200 {
+        for _ in 0..1000 {
             crate::pointers::write_or_end(size, 64u32, "the room");
             if receive(host, from, to, 0, data, size) == DP_OK {
                 let sender: u32 = crate::pointers::read_or_end(from, "from");

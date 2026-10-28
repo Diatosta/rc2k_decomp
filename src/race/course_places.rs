@@ -15,6 +15,7 @@
 use crate::errors::BadInput;
 use crate::memory::owned::Owned;
 use crate::pointers::GamePtr;
+use rc2k_core::race::faces::{Face, Record};
 use std::sync::atomic::{AtomicU32, Ordering};
 
 /// Each part's room: the course memory's first part (`level_init::FIRST_PART`) holds both.
@@ -197,4 +198,36 @@ pub fn write<T: Copy>(at: u32, v: T, what: &str) -> Result<(), BadInput> {
     // SAFETY: `v` is a whole number: its bytes are all initialised.
     let b = unsafe { std::slice::from_raw_parts((&raw const v).cast::<u8>(), size_of::<T>()) };
     write_bytes(at, b, what)
+}
+
+/// The `N` bytes at `at` (as `bytes` names it), a store's without a heap copy.
+fn array<const N: usize>(at: u32, what: &str) -> Result<[u8; N], BadInput> {
+    let mut a = [0; N];
+    if let Some((s, off)) = store(at) {
+        s.with(|b| {
+            b.get(off..off.checked_add(N)?)
+                .map(|from| a.copy_from_slice(from))
+        })?
+        .ok_or(BadInput("a read outside the course faces or records"))?;
+        return Ok(a);
+    }
+    a.copy_from_slice(&bytes(at, N, what)?);
+    Ok(a)
+}
+
+/// The face at `at`.
+pub fn face(at: u32, what: &str) -> Result<Face, BadInput> {
+    array(at, what).map(Face)
+}
+
+/// The face at `at` changed by `change`.
+pub fn update_face(at: u32, what: &str, change: impl FnOnce(&mut Face)) -> Result<(), BadInput> {
+    let mut f = face(at, what)?;
+    change(&mut f);
+    write_bytes(at, &f.0, what)
+}
+
+/// The record at `at`.
+pub fn record(at: u32, what: &str) -> Result<Record, BadInput> {
+    array(at, what).map(Record)
 }

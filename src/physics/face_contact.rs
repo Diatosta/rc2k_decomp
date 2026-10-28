@@ -30,6 +30,10 @@
 
 use crate::errors::Refused;
 use crate::math::x87::int_hypot;
+use crate::math::x87_float::int;
+use crate::math::x87_float::ld;
+use crate::math::x87_float::st;
+use crate::math::x87_float::to_int;
 use crate::math::x87_run::compare_80;
 use crate::physics::car_store::CAR;
 use crate::physics::contact_force::contact_force;
@@ -44,9 +48,9 @@ use crate::race::numbers_store::NUMBERS;
 use crate::race::scratch_store::FRAME_SCRATCH;
 use crate::race::work_store::RACE_WORK;
 use crate::scene::draw_store::DRAW;
+use crate::scene::object_slots_store::OBJECT_SLOTS;
 use crate::scene::object_store::OBJECT_WORK;
 use crate::scene::object_tables_store::OBJECT_TABLES;
-use crate::scene::x87_mem::{fild, fistp, fld, fstp};
 use rc2k_core::physics::face_contacts::{self as contacts, FaceObject, Inside};
 
 fn byte(x: u32) -> Result<u32, Refused> {
@@ -126,9 +130,7 @@ pub fn steps(number: u32) -> Result<(), Refused> {
         let distance = int_hypot(dx as i32, dz as i32) as u32;
         DRAW.scratch.set(distance);
         let (reach, _) = contacts::reach(
-            crate::scene::object_slots_store::OBJECT_SLOTS.radii
-                [CONTACT_WORK.face_object.get() as usize]
-                .get(),
+            OBJECT_SLOTS.radii[CONTACT_WORK.face_object.get() as usize].get(),
             OBJECT_WORK.size.get(),
         );
         if contacts::out_of_reach(reach, distance) {
@@ -140,11 +142,11 @@ pub fn steps(number: u32) -> Result<(), Refused> {
         }
     }
     // 0x45E523: inside.
-    x87_1(crate::race::store::asm_base() as usize);
+    x87_1();
     CONTACT_WORK
         .face_angle
         .set(CONTACT_WORK.face_angle.get().wrapping_add(0x80) & 0xFF);
-    x87_2(crate::race::store::asm_base() as usize);
+    x87_2();
     match contacts::inside(CONTACT_WORK.contact_kind.get()) {
         Inside::PushBack => {}
         Inside::Touch => return touch(),
@@ -189,15 +191,15 @@ pub fn steps(number: u32) -> Result<(), Refused> {
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `int [rc + 0x2D3B70] = (atan2(int [rc + 0x2D3B4C], int [rc + 0x2D3B54]) * [rc + 0x1C5E2C]) * [rc + 0x1C5DD4]`
-fn x87_1(rc: usize) {
-    let t0 = fild(rc, 0x2D3B4C);
-    let t1 = fild(rc, 0x2D3B54);
+fn x87_1() {
+    let t0 = int(CONTACT_WORK.object_point_offset[0].bits() as i32);
+    let t1 = int(CONTACT_WORK.object_point_offset[2].bits() as i32);
     let t2 = t0.atan2(t1);
-    let t3 = fld(rc, 0x1C5E2C);
+    let t3 = ld(NUMBERS.k256.bits());
     let t4 = t2 * t3;
-    let t5 = fld(rc, 0x1C5DD4);
+    let t5 = ld(NUMBERS.one_over_two_pi.bits());
     let t6 = t4 * t5;
-    fistp(rc, 0x2D3B70, t6);
+    CONTACT_WORK.face_angle.set_bits(to_int(t6) as u32);
 }
 
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
@@ -206,31 +208,31 @@ fn x87_1(rc: usize) {
 /// `[rc + 0x2D3B58] = int [rc + 0x2D3090] / [rc + 0x1C5D98]`
 /// `[rc + 0x2D3B5C] = int [rc + 0x2D3094] / [rc + 0x1C5D98]`
 /// `[rc + 0x2D3B60] = int [rc + 0x2D3098] / [rc + 0x1C5D98]`
-fn x87_2(rc: usize) {
-    let t0 = fld(rc, 0x31A170);
+fn x87_2() {
+    let t0 = ld(CAR.velocity[0].bits());
     let t1 = t0 * t0;
-    let t2 = fld(rc, 0x31A178);
+    let t2 = ld(CAR.velocity[2].bits());
     let t3 = t2 * t2;
-    let t4 = fld(rc, 0x31A174);
+    let t4 = ld(CAR.velocity[1].bits());
     let t5 = t4 * t4;
     let t6 = t3 + t5;
     let t7 = t1 + t6;
     let t8 = t7.sqrt();
-    let t9 = fld(rc, 0x1C5D98);
+    let t9 = ld(NUMBERS.k65536.bits());
     let t10 = t8 * t9;
-    fistp(rc, 0x2D3B74, t10);
-    let t11 = fild(rc, 0x2D3090);
-    let t12 = fld(rc, 0x1C5D98);
+    CONTACT_WORK.face_speed.set_bits(to_int(t10) as u32);
+    let t11 = int(CONTACT_WORK.contact_point[0].bits() as i32);
+    let t12 = ld(NUMBERS.k65536.bits());
     let t13 = t11 / t12;
-    fstp(rc, 0x2D3B58, t13);
-    let t14 = fild(rc, 0x2D3094);
-    let t15 = fld(rc, 0x1C5D98);
+    CONTACT_WORK.object_point_turned[0].set_bits(st(t13));
+    let t14 = int(CONTACT_WORK.contact_point[1].bits() as i32);
+    let t15 = ld(NUMBERS.k65536.bits());
     let t16 = t14 / t15;
-    fstp(rc, 0x2D3B5C, t16);
-    let t17 = fild(rc, 0x2D3098);
-    let t18 = fld(rc, 0x1C5D98);
+    CONTACT_WORK.object_point_turned[1].set_bits(st(t16));
+    let t17 = int(CONTACT_WORK.contact_point[2].bits() as i32);
+    let t18 = ld(NUMBERS.k65536.bits());
     let t19 = t17 / t18;
-    fstp(rc, 0x2D3B60, t19);
+    CONTACT_WORK.object_point_turned[2].set_bits(st(t19));
 }
 
 #[cfg(all(test, target_arch = "x86"))]
@@ -246,7 +248,7 @@ mod asm_reference {
         vec![
             Block {
                 name: "face_contact line 111",
-                operands: vec![Operand::Buffer {
+                operands: vec![Operand::RaceBlock {
                     reads: &[
                         (0x1C5DD4, In::F),
                         (0x1C5E2C, In::F),
@@ -257,11 +259,11 @@ mod asm_reference {
                 }],
                 ulps: 0,
                 reference: |a| unsafe { ref_0(a[0]) },
-                plain: |a| x87_1(a[0]),
+                plain: |_| x87_1(),
             },
             Block {
                 name: "face_contact line 121",
-                operands: vec![Operand::Buffer {
+                operands: vec![Operand::RaceBlock {
                     reads: &[
                         (0x1C5D98, In::F),
                         (0x2D3090, In::I),
@@ -280,7 +282,7 @@ mod asm_reference {
                 }],
                 ulps: 0,
                 reference: |a| unsafe { ref_1(a[0]) },
-                plain: |a| x87_2(a[0]),
+                plain: |_| x87_2(),
             },
         ]
     }

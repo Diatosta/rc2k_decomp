@@ -16,13 +16,14 @@
 //! above are the original's, for reference.
 
 use crate::errors::Refused;
+use crate::math::x87_float::ld;
 use crate::math::x87_run::{abs_compare, ext_times};
 use crate::physics::contact_store::CONTACT_WORK;
 use crate::physics::flow::a;
 use crate::race::numbers_store::NUMBERS;
 use crate::scene::matrix3::extended;
 use crate::scene::rotate_point::rotate_point;
-use crate::scene::x87_mem::{fld, fld80, fstp};
+use crate::scene::x87_mem::{fld80, fstp};
 
 /// Whether the corner is inside (`flt_6D3BC8` .. written either way).
 pub fn corner_inside() -> bool {
@@ -35,7 +36,6 @@ pub fn corner_inside() -> bool {
     for (n, e) in turned.iter().enumerate() {
         x87_1(
             (crate::pointers::game_address(e.as_ptr())) as usize,
-            crate::race::store::asm_base() as usize,
             a(&CONTACT_WORK.corner_turned[n]) as usize,
         );
     }
@@ -65,9 +65,9 @@ pub unsafe fn corner_hits_car(block: u32) -> Result<(), Refused> {
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `[o + 0] = ext [e + 0] / [rc + 0x1C5D98]`
-fn x87_1(e: usize, rc: usize, o: usize) {
+fn x87_1(e: usize, o: usize) {
     let t0 = fld80(e, 0);
-    let t1 = fld(rc, 0x1C5D98);
+    let t1 = ld(NUMBERS.k65536.bits());
     let t2 = t0 / t1;
     fstp(o, 0, t2);
 }
@@ -88,7 +88,7 @@ mod asm_reference {
                     reads: &[(0, In::T)],
                     writes: &[],
                 },
-                Operand::Buffer {
+                Operand::RaceBlock {
                     reads: &[(0x1C5D98, In::F)],
                     writes: &[],
                 },
@@ -99,7 +99,7 @@ mod asm_reference {
             ],
             ulps: 0,
             reference: |a| unsafe { ref_0(a[0], a[1], a[2]) },
-            plain: |a| x87_1(a[0], a[1], a[2]),
+            plain: |a| x87_1(a[0], a[2]),
         }]
     }
 

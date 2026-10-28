@@ -12,10 +12,12 @@
 //! above are the original's, for reference.
 
 use crate::drive::replay_frames_store::REPLAY_FRAMES;
+use crate::math::x87_float::int;
+use crate::math::x87_float::to_int;
 use crate::physics::camera_store::CAMERA_WORK;
 use crate::physics::car_store::CAR;
 use crate::scene::draw_store::DRAW;
-use crate::scene::x87_mem::{fild, fistp, fld};
+use crate::scene::x87_mem::fld;
 
 /// The Rust version (the exact one, for `physics::camera_avoid_ground`).
 pub fn ease_view_turn() {
@@ -46,10 +48,7 @@ pub fn ease_view_turn() {
         ),
     ] {
         DRAW.scratch.set(target.get().wrapping_sub(turn.get()));
-        x87_1(
-            crate::race::store::asm_base() as usize,
-            share.addr() as usize,
-        );
+        x87_1(share.addr() as usize);
         turn.set(turn.get().wrapping_add(DRAW.scratch.get()));
     }
 }
@@ -59,11 +58,11 @@ pub fn ease_view_turn() {
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `int [rc + 0x22400C] = int [rc + 0x22400C] * [s + 0]`
-fn x87_1(rc: usize, s: usize) {
-    let t0 = fild(rc, 0x22400C);
+fn x87_1(s: usize) {
+    let t0 = int(DRAW.scratch.bits() as i32);
     let t1 = fld(s, 0);
     let t2 = t0 * t1;
-    fistp(rc, 0x22400C, t2);
+    DRAW.scratch.set_bits(to_int(t2) as u32);
 }
 
 #[cfg(all(test, target_arch = "x86"))]
@@ -78,7 +77,7 @@ mod asm_reference {
         vec![Block {
             name: "ease_view_turn line 29",
             operands: vec![
-                Operand::Buffer {
+                Operand::RaceBlock {
                     reads: &[(0x22400C, In::I)],
                     writes: &[(0x22400C, Out::I)],
                 },
@@ -89,7 +88,7 @@ mod asm_reference {
             ],
             ulps: 0,
             reference: |a| unsafe { ref_0(a[0], a[1]) },
-            plain: |a| x87_1(a[0], a[1]),
+            plain: |a| x87_1(a[1]),
         }]
     }
 

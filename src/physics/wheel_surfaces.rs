@@ -33,15 +33,21 @@
 //! above are the original's, for reference.
 
 use crate::errors::{BadInput, Refused};
+use crate::math::x87_float::int;
+use crate::math::x87_float::ld;
+use crate::math::x87_float::st;
+use crate::math::x87_float::to_int;
 use crate::physics::car_store::CAR;
 use crate::physics::contact_store::CONTACT_WORK;
 use crate::physics::flip_cell_index::flip_cell_index;
 use crate::physics::tables_store::PHYSICS;
 use crate::pointers::GamePtr;
 use crate::race::course_store::COURSE;
+use crate::race::numbers_store::NUMBERS;
+use crate::race::vars_store::RACE_VARS;
 use crate::race::view_store::RACE_VIEW;
 use crate::scene::draw_store::DRAW;
-use crate::scene::x87_mem::{fild, fistp, fld, fstp};
+use crate::scene::x87_mem::{fild, fld};
 use std::cmp::Ordering;
 
 fn byte(a: u32) -> Result<u32, Refused> {
@@ -55,11 +61,7 @@ fn byte(a: u32) -> Result<u32, Refused> {
 fn share_bit(v: u32, c: u32) -> u32 {
     // The tables (0x6D2A14, 0x6D2B14) are the race core's (`race::store`).
     let b = crate::race::store::asm_base();
-    x87_1(
-        (b + v) as usize,
-        c as usize,
-        crate::race::store::asm_base() as usize,
-    );
+    x87_1((b + v) as usize, c as usize);
     DRAW.scratch.get()
 }
 
@@ -127,9 +129,9 @@ fn steps() -> Result<(), Refused> {
                 DRAW.surface_point[0].set(x);
                 DRAW.surface_point[1].set(y.wrapping_sub(x));
                 DRAW.surface_point[2].set(z.wrapping_sub(x));
-                x87_2(crate::race::store::asm_base() as usize, c as usize);
+                x87_2(c as usize);
             }
-            if crate::race::course_places::read::<u16>(f + 2, "a face's flags")? & 0x1000 != 0 {
+            if crate::race::course_places::face(f, "a wheel's face")?.switches() & 0x1000 != 0 {
                 CAR.wheel_surface_a[cc].set(5);
                 CAR.wheel_surface_b[cc].set(5);
                 CAR.wheel_cell_a_byte18[cc].set(0x3C);
@@ -143,32 +145,17 @@ fn steps() -> Result<(), Refused> {
             }
             let esi = surfaces + s1 * 0x30;
             let edi = surfaces + s2 * 0x30;
-            x87_3(
-                esi as usize,
-                edi as usize,
-                crate::race::store::asm_base() as usize,
-                c as usize,
-            );
+            x87_3(esi as usize, edi as usize, c as usize);
             let (ps, pd) = (
                 GamePtr::new(esi).read::<u32>("a surface record")?,
                 GamePtr::new(edi).read::<u32>("a surface record")?,
             );
             let k = CAR.tyre_kind.get();
-            x87_4(
-                ps as usize,
-                crate::race::store::asm_base() as usize,
-                pd as usize,
-                k as usize,
-            );
-            x87_5(
-                esi as usize,
-                crate::race::store::asm_base() as usize,
-                edi as usize,
-                c as usize,
-            );
+            x87_4(ps as usize, pd as usize, k as usize);
+            x87_5(esi as usize, edi as usize, c as usize);
         }
     }
-    x87_6(crate::race::store::asm_base() as usize);
+    x87_6();
     for c in 0..5usize {
         let hard = |s: u32| matches!(s, 1 | 2 | 3 | 0xC);
         let on = hard(CAR.wheel_surface_a[c].get()) || hard(CAR.wheel_surface_b[c].get());
@@ -202,7 +189,7 @@ fn steps() -> Result<(), Refused> {
         CAR.ground_bump_scale
             .set_bits(crate::math::x87::loaded(least));
     }
-    x87_7(crate::race::store::asm_base() as usize);
+    x87_7();
     Ok(())
 }
 
@@ -216,75 +203,75 @@ pub fn wheel_surfaces() -> Result<(), Refused> {
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `int [rc + 0x22400C] = [t + c * 4] * [rc + 0x1C5D98]`
-fn x87_1(t: usize, c: usize, rc: usize) {
+fn x87_1(t: usize, c: usize) {
     let t0 = fld(t, c * 4);
-    let t1 = fld(rc, 0x1C5D98);
+    let t1 = ld(NUMBERS.k65536.bits());
     let t2 = t0 * t1;
-    fistp(rc, 0x22400C, t2);
+    DRAW.scratch.set_bits(to_int(t2) as u32);
 }
 
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// (a long formula: see the instructions in the tests' `asm_reference`)
-fn x87_2(rc: usize, c: usize) {
-    let t0 = fild(rc, 0x224044);
-    let t1 = fld(rc, c * 4 + 0x2D2A14);
+fn x87_2(c: usize) {
+    let t0 = int(DRAW.surface_point[1].bits() as i32);
+    let t1 = ld(CONTACT_WORK.probe_share_u[c].bits());
     let t2 = t0 * t1;
-    let t3 = fild(rc, 0x224048);
-    let t4 = fld(rc, c * 4 + 0x2D2B14);
+    let t3 = int(DRAW.surface_point[2].bits() as i32);
+    let t4 = ld(CONTACT_WORK.probe_share_v[c].bits());
     let t5 = t3 * t4;
-    let t6 = fild(rc, 0x224040);
+    let t6 = int(DRAW.surface_point[0].bits() as i32);
     let t7 = t5 + t6;
     let t8 = t2 + t7;
-    let t9 = fld(rc, 0x1C5E2C);
+    let t9 = ld(NUMBERS.k256.bits());
     let t10 = t8 / t9;
-    fstp(rc, c * 4 + 0x31A984, t10);
+    CAR.wheel_surface_blend[c].set_bits(st(t10));
 }
 
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `[rc + c * 4 + 0x2142C0] = [s + 0x28] + (([d + 0x28] - [s + 0x28]) * [rc + c * 4 + 0x31A984])`
 /// `[rc + c * 4 + 0x31A920] = [s + 0x2C] + (([d + 0x2C] - [s + 0x2C]) * [rc + c * 4 + 0x31A984])`
-fn x87_3(s: usize, d: usize, rc: usize, c: usize) {
+fn x87_3(s: usize, d: usize, c: usize) {
     let t0 = fld(s, 0x28);
     let t1 = fld(d, 0x28);
     let t2 = t1 - t0;
-    let t3 = fld(rc, c * 4 + 0x31A984);
+    let t3 = ld(CAR.wheel_surface_blend[c].bits());
     let t4 = t2 * t3;
     let t5 = t0 + t4;
-    fstp(rc, c * 4 + 0x2142C0, t5);
+    PHYSICS.point_grips[c].set_bits(st(t5));
     let t6 = fld(s, 0x2C);
     let t7 = fld(d, 0x2C);
     let t8 = t7 - t6;
-    let t9 = fld(rc, c * 4 + 0x31A984);
+    let t9 = ld(CAR.wheel_surface_blend[c].bits());
     let t10 = t8 * t9;
     let t11 = t6 + t10;
-    fstp(rc, c * 4 + 0x31A920, t11);
+    CAR.unknown_948[c].set_bits(st(t11));
 }
 
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `[rc + 0x21411C] = (int [s + k * 4 + 4] + ((int [s + k * 4 + 0x1C] - int [s + k * 4 + 4]) * [rc + 0x31A258])) * [rc + 0x1C5CFC]`
 /// `[rc + 0x214120] = (int [d + k * 4 + 4] + ((int [d + k * 4 + 0x1C] - int [d + k * 4 + 4]) * [rc + 0x31A258])) * [rc + 0x1C5CFC]`
-fn x87_4(s: usize, rc: usize, d: usize, k: usize) {
+fn x87_4(s: usize, d: usize, k: usize) {
     let t6 = fild(s, k * 4 + 4);
     let t7 = fild(s, k * 4 + 0x1C);
     let t8 = t7 - t6;
-    let t9 = fld(rc, 0x31A258);
+    let t9 = ld(CAR.surface_blend.bits());
     let t10 = t8 * t9;
     let t11 = t6 + t10;
-    let t12 = fld(rc, 0x1C5CFC);
+    let t12 = ld(NUMBERS.hundredth_a.bits());
     let t13 = t11 * t12;
-    fstp(rc, 0x21411C, t13);
+    PHYSICS.surface_scales[0].set_bits(st(t13));
     let t14 = fild(d, k * 4 + 4);
     let t15 = fild(d, k * 4 + 0x1C);
     let t16 = t15 - t14;
-    let t17 = fld(rc, 0x31A258);
+    let t17 = ld(CAR.surface_blend.bits());
     let t18 = t16 * t17;
     let t19 = t14 + t18;
-    let t20 = fld(rc, 0x1C5CFC);
+    let t20 = ld(NUMBERS.hundredth_a.bits());
     let t21 = t19 * t20;
-    fstp(rc, 0x214120, t21);
+    PHYSICS.surface_scales[1].set_bits(st(t21));
 }
 
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
@@ -296,90 +283,90 @@ fn x87_4(s: usize, rc: usize, d: usize, k: usize) {
 /// `[rc + c * 4 + 0x2146D4] = [s + 0x24] + (([d + 0x24] - [s + 0x24]) * [rc + c * 4 + 0x31A984])`
 /// `[rc + c * 4 + 0x2146E8] = [s + 0x14] + (([d + 0x14] - [s + 0x14]) * [rc + c * 4 + 0x31A984])`
 /// `[rc + c * 4 + 0x2146FC] = [s + 0x10] + (([d + 0x10] - [s + 0x10]) * [rc + c * 4 + 0x31A984])`
-fn x87_5(s: usize, rc: usize, d: usize, c: usize) {
+fn x87_5(s: usize, d: usize, c: usize) {
     let t0 = fld(s, 4);
-    let t1 = fld(rc, 0x21411C);
+    let t1 = ld(PHYSICS.surface_scales[0].bits());
     let t2 = t0 * t1;
     let t3 = fld(d, 4);
-    let t4 = fld(rc, 0x214120);
+    let t4 = ld(PHYSICS.surface_scales[1].bits());
     let t5 = t3 * t4;
     let t6 = t5 - t2;
-    let t7 = fld(rc, c * 4 + 0x31A984);
+    let t7 = ld(CAR.wheel_surface_blend[c].bits());
     let t8 = t6 * t7;
     let t9 = t2 + t8;
-    let t10 = fld(rc, 0x214BBC);
+    let t10 = ld(PHYSICS.spec_surface[2].bits());
     let t11 = t9 * t10;
-    fstp(rc, c * 4 + 0x214284, t11);
+    PHYSICS.wheel_loads[c].set_bits(st(t11));
     let t12 = fld(s, 8);
-    let t13 = fld(rc, 0x21411C);
+    let t13 = ld(PHYSICS.surface_scales[0].bits());
     let t14 = t12 * t13;
     let t15 = fld(d, 8);
-    let t16 = fld(rc, 0x214120);
+    let t16 = ld(PHYSICS.surface_scales[1].bits());
     let t17 = t15 * t16;
     let t18 = t17 - t14;
-    let t19 = fld(rc, c * 4 + 0x31A984);
+    let t19 = ld(CAR.wheel_surface_blend[c].bits());
     let t20 = t18 * t19;
     let t21 = t14 + t20;
-    let t22 = fld(rc, 0x214BB4);
+    let t22 = ld(PHYSICS.spec_surface[0].bits());
     let t23 = t21 * t22;
-    fstp(rc, c * 4 + 0x214298, t23);
+    PHYSICS.wheel_grips[c].set_bits(st(t23));
     let t24 = fld(s, 0xC);
-    let t25 = fld(rc, 0x21411C);
+    let t25 = ld(PHYSICS.surface_scales[0].bits());
     let t26 = t24 * t25;
     let t27 = fld(d, 0xC);
-    let t28 = fld(rc, 0x214120);
+    let t28 = ld(PHYSICS.surface_scales[1].bits());
     let t29 = t27 * t28;
     let t30 = t29 - t26;
-    let t31 = fld(rc, c * 4 + 0x31A984);
+    let t31 = ld(CAR.wheel_surface_blend[c].bits());
     let t32 = t30 * t31;
     let t33 = t26 + t32;
-    let t34 = fld(rc, 0x214BB8);
+    let t34 = ld(PHYSICS.spec_surface[1].bits());
     let t35 = t33 * t34;
-    fstp(rc, c * 4 + 0x2142AC, t35);
+    PHYSICS.wheel_grips_b[c].set_bits(st(t35));
     let t36 = fld(s, 0x20);
     let t37 = fld(d, 0x20);
     let t38 = t37 - t36;
-    let t39 = fld(rc, c * 4 + 0x31A984);
+    let t39 = ld(CAR.wheel_surface_blend[c].bits());
     let t40 = t38 * t39;
     let t41 = t36 + t40;
-    fstp(rc, c * 4 + 0x2146C0, t41);
+    PHYSICS.surface_blends[c].set_bits(st(t41));
     let t42 = fld(s, 0x24);
     let t43 = fld(d, 0x24);
     let t44 = t43 - t42;
-    let t45 = fld(rc, c * 4 + 0x31A984);
+    let t45 = ld(CAR.wheel_surface_blend[c].bits());
     let t46 = t44 * t45;
     let t47 = t42 + t46;
-    fstp(rc, c * 4 + 0x2146D4, t47);
+    PHYSICS.surface_blends[5 + c].set_bits(st(t47));
     let t48 = fld(s, 0x14);
     let t49 = fld(d, 0x14);
     let t50 = t49 - t48;
-    let t51 = fld(rc, c * 4 + 0x31A984);
+    let t51 = ld(CAR.wheel_surface_blend[c].bits());
     let t52 = t50 * t51;
     let t53 = t48 + t52;
-    fstp(rc, c * 4 + 0x2146E8, t53);
+    PHYSICS.surface_blends[10 + c].set_bits(st(t53));
     let t54 = fld(s, 0x10);
     let t55 = fld(d, 0x10);
     let t56 = t55 - t54;
-    let t57 = fld(rc, c * 4 + 0x31A984);
+    let t57 = ld(CAR.wheel_surface_blend[c].bits());
     let t58 = t56 * t57;
     let t59 = t54 + t58;
-    fstp(rc, c * 4 + 0x2146FC, t59);
+    PHYSICS.surface_blends[15 + c].set_bits(st(t59));
 }
 
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `[rc + 0x214268] = ((([rc + 0x214284] + [rc + 0x214288]) + [rc + 0x21428C]) + [rc + 0x214290]) * [rc + 0x213FEC]`
-fn x87_6(rc: usize) {
-    let t0 = fld(rc, 0x214284);
-    let t1 = fld(rc, 0x214288);
+fn x87_6() {
+    let t0 = ld(PHYSICS.wheel_loads[0].bits());
+    let t1 = ld(PHYSICS.wheel_loads[1].bits());
     let t2 = t0 + t1;
-    let t3 = fld(rc, 0x21428C);
+    let t3 = ld(PHYSICS.wheel_loads[2].bits());
     let t4 = t2 + t3;
-    let t5 = fld(rc, 0x214290);
+    let t5 = ld(PHYSICS.wheel_loads[3].bits());
     let t6 = t4 + t5;
-    let t7 = fld(rc, 0x213FEC);
+    let t7 = ld(PHYSICS.wheel_load_scale.bits());
     let t8 = t6 * t7;
-    fstp(rc, 0x214268, t8);
+    PHYSICS.wheel_load.set_bits(st(t8));
 }
 
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
@@ -392,45 +379,45 @@ fn x87_6(rc: usize) {
 /// `[rc + 0x214764] = [rc + 0x2146E4]`
 /// `[rc + 0x223DA8] = [rc + 0x2146F8]`
 /// `[rc + 0x223DAC] = [rc + 0x21470C]`
-fn x87_7(rc: usize) {
-    let t0 = fld(rc, 0x31A038);
-    let t1 = fld(rc, 0x214C04);
+fn x87_7() {
+    let t0 = ld(CAR.ground_bump_scale.bits());
+    let t1 = ld(PHYSICS.handling[6].bits());
     let t2 = t0 * t1;
-    fstp(rc, 0x31A038, t2);
-    let t3 = fld(rc, 0x213F5C);
-    let t4 = fld(rc, 0x213F64);
+    CAR.ground_bump_scale.set_bits(st(t2));
+    let t3 = ld(PHYSICS.surface_blend[0].bits());
+    let t4 = ld(PHYSICS.surface_blend[2].bits());
     let t5 = t3 - t4;
-    let t6 = fld(rc, 0x31A258);
+    let t6 = ld(CAR.surface_blend.bits());
     let t7 = t5 * t6;
-    let t8 = fld(rc, 0x213F64);
+    let t8 = ld(PHYSICS.surface_blend[2].bits());
     let t9 = t7 + t8;
-    fstp(rc, 0x224040, t9);
-    let t10 = fld(rc, 0x213F60);
-    let t11 = fld(rc, 0x213F68);
+    DRAW.surface_point[0].set_bits(st(t9));
+    let t10 = ld(PHYSICS.surface_blend[1].bits());
+    let t11 = ld(PHYSICS.surface_blend[3].bits());
     let t12 = t10 - t11;
-    let t13 = fld(rc, 0x31A258);
+    let t13 = ld(CAR.surface_blend.bits());
     let t14 = t12 * t13;
-    let t15 = fld(rc, 0x213F68);
+    let t15 = ld(PHYSICS.surface_blend[3].bits());
     let t16 = t14 + t15;
-    fstp(rc, 0x224044, t16);
-    let t17 = fld(rc, 0x224044);
-    let t18 = fld(rc, 0x224040);
+    DRAW.surface_point[1].set_bits(st(t16));
+    let t17 = ld(DRAW.surface_point[1].bits());
+    let t18 = ld(DRAW.surface_point[0].bits());
     let t19 = t17 - t18;
-    let t20 = fild(rc, 0x31A00C);
-    let t21 = fld(rc, 0x1C5E2C);
+    let t20 = int(CAR.suspension_stiffness.bits() as i32);
+    let t21 = ld(NUMBERS.k256.bits());
     let t22 = t20 / t21;
     let t23 = t19 * t22;
-    let t24 = fld(rc, 0x224040);
+    let t24 = ld(DRAW.surface_point[0].bits());
     let t25 = t23 + t24;
-    fstp(rc, 0x214230, t25);
-    let t26 = fld(rc, 0x2146D0);
-    fstp(rc, 0x214760, t26);
-    let t27 = fld(rc, 0x2146E4);
-    fstp(rc, 0x214764, t27);
-    let t28 = fld(rc, 0x2146F8);
-    fstp(rc, 0x223DA8, t28);
-    let t29 = fld(rc, 0x21470C);
-    fstp(rc, 0x223DAC, t29);
+    PHYSICS.surface_softness.set_bits(st(t25));
+    let t26 = ld(PHYSICS.surface_blends[4].bits());
+    PHYSICS.wheel_drag[0].set_bits(st(t26));
+    let t27 = ld(PHYSICS.surface_blends[9].bits());
+    PHYSICS.wheel_drag[1].set_bits(st(t27));
+    let t28 = ld(PHYSICS.surface_blends[14].bits());
+    RACE_VARS.wheel_turn_a[0].set_bits(st(t28));
+    let t29 = ld(PHYSICS.surface_blends[19].bits());
+    RACE_VARS.wheel_turn_a[1].set_bits(st(t29));
 }
 
 #[cfg(all(test, target_arch = "x86"))]
@@ -457,14 +444,14 @@ mod asm_reference {
                         writes: &[],
                     },
                     Operand::Value(0),
-                    Operand::Buffer {
+                    Operand::RaceBlock {
                         reads: &[(0x1C5D98, In::F)],
                         writes: &[(0x22400C, Out::I)],
                     },
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_0(a[0], a[1], a[2]) },
-                plain: |a| x87_1(a[0], a[1], a[2]),
+                plain: |a| x87_1(a[0], a[1]),
             },
             Block {
                 name: "wheel_surfaces line 68 idx c=1",
@@ -474,14 +461,14 @@ mod asm_reference {
                         writes: &[],
                     },
                     Operand::Value(1),
-                    Operand::Buffer {
+                    Operand::RaceBlock {
                         reads: &[(0x1C5D98, In::F)],
                         writes: &[(0x22400C, Out::I)],
                     },
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_0(a[0], a[1], a[2]) },
-                plain: |a| x87_1(a[0], a[1], a[2]),
+                plain: |a| x87_1(a[0], a[1]),
             },
             Block {
                 name: "wheel_surfaces line 68 idx c=4",
@@ -491,19 +478,19 @@ mod asm_reference {
                         writes: &[],
                     },
                     Operand::Value(4),
-                    Operand::Buffer {
+                    Operand::RaceBlock {
                         reads: &[(0x1C5D98, In::F)],
                         writes: &[(0x22400C, Out::I)],
                     },
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_0(a[0], a[1], a[2]) },
-                plain: |a| x87_1(a[0], a[1], a[2]),
+                plain: |a| x87_1(a[0], a[1]),
             },
             Block {
                 name: "wheel_surfaces line 134 idx c=0",
                 operands: vec![
-                    Operand::Buffer {
+                    Operand::RaceBlock {
                         reads: &[
                             (0x1C5E2C, In::F),
                             (0x224040, In::I),
@@ -518,12 +505,12 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_1(a[0], a[1]) },
-                plain: |a| x87_2(a[0], a[1]),
+                plain: |a| x87_2(a[1]),
             },
             Block {
                 name: "wheel_surfaces line 134 idx c=1",
                 operands: vec![
-                    Operand::Buffer {
+                    Operand::RaceBlock {
                         reads: &[
                             (0x1C5E2C, In::F),
                             (0x224040, In::I),
@@ -538,12 +525,12 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_1(a[0], a[1]) },
-                plain: |a| x87_2(a[0], a[1]),
+                plain: |a| x87_2(a[1]),
             },
             Block {
                 name: "wheel_surfaces line 134 idx c=4",
                 operands: vec![
-                    Operand::Buffer {
+                    Operand::RaceBlock {
                         reads: &[
                             (0x1C5E2C, In::F),
                             (0x224040, In::I),
@@ -558,7 +545,7 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_1(a[0], a[1]) },
-                plain: |a| x87_2(a[0], a[1]),
+                plain: |a| x87_2(a[1]),
             },
             Block {
                 name: "wheel_surfaces line 161 idx c=0",
@@ -571,7 +558,7 @@ mod asm_reference {
                         reads: &[(0x28, In::F), (0x2C, In::F)],
                         writes: &[],
                     },
-                    Operand::Buffer {
+                    Operand::RaceBlock {
                         reads: &[(0x31A984, In::F)],
                         writes: &[(0x2142C0, Out::F), (0x31A920, Out::F)],
                     },
@@ -579,7 +566,7 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_2(a[0], a[1], a[2], a[3]) },
-                plain: |a| x87_3(a[0], a[1], a[2], a[3]),
+                plain: |a| x87_3(a[0], a[1], a[3]),
             },
             Block {
                 name: "wheel_surfaces line 161 idx c=1",
@@ -592,7 +579,7 @@ mod asm_reference {
                         reads: &[(0x28, In::F), (0x2C, In::F)],
                         writes: &[],
                     },
-                    Operand::Buffer {
+                    Operand::RaceBlock {
                         reads: &[(0x31A988, In::F)],
                         writes: &[(0x2142C4, Out::F), (0x31A924, Out::F)],
                     },
@@ -600,7 +587,7 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_2(a[0], a[1], a[2], a[3]) },
-                plain: |a| x87_3(a[0], a[1], a[2], a[3]),
+                plain: |a| x87_3(a[0], a[1], a[3]),
             },
             Block {
                 name: "wheel_surfaces line 161 idx c=4",
@@ -613,7 +600,7 @@ mod asm_reference {
                         reads: &[(0x28, In::F), (0x2C, In::F)],
                         writes: &[],
                     },
-                    Operand::Buffer {
+                    Operand::RaceBlock {
                         reads: &[(0x31A994, In::F)],
                         writes: &[(0x2142D0, Out::F), (0x31A930, Out::F)],
                     },
@@ -621,7 +608,7 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_2(a[0], a[1], a[2], a[3]) },
-                plain: |a| x87_3(a[0], a[1], a[2], a[3]),
+                plain: |a| x87_3(a[0], a[1], a[3]),
             },
             Block {
                 name: "wheel_surfaces line 178 idx k=0",
@@ -630,7 +617,7 @@ mod asm_reference {
                         reads: &[(0, In::I), (4, In::I), (0x1C, In::I)],
                         writes: &[],
                     },
-                    Operand::Buffer {
+                    Operand::RaceBlock {
                         reads: &[(0x1C5CFC, In::F), (0x31A258, In::F)],
                         writes: &[(0x21411C, Out::F), (0x214120, Out::F)],
                     },
@@ -642,7 +629,7 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_3(a[0], a[1], a[2], a[3]) },
-                plain: |a| x87_4(a[0], a[1], a[2], a[3]),
+                plain: |a| x87_4(a[0], a[2], a[3]),
             },
             Block {
                 name: "wheel_surfaces line 178 idx k=1",
@@ -651,7 +638,7 @@ mod asm_reference {
                         reads: &[(0, In::I), (8, In::I), (0x20, In::I)],
                         writes: &[],
                     },
-                    Operand::Buffer {
+                    Operand::RaceBlock {
                         reads: &[(0x1C5CFC, In::F), (0x31A258, In::F)],
                         writes: &[(0x21411C, Out::F), (0x214120, Out::F)],
                     },
@@ -663,7 +650,7 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_3(a[0], a[1], a[2], a[3]) },
-                plain: |a| x87_4(a[0], a[1], a[2], a[3]),
+                plain: |a| x87_4(a[0], a[2], a[3]),
             },
             Block {
                 name: "wheel_surfaces line 178 idx k=4",
@@ -672,7 +659,7 @@ mod asm_reference {
                         reads: &[(0, In::I), (0x14, In::I), (0x2C, In::I)],
                         writes: &[],
                     },
-                    Operand::Buffer {
+                    Operand::RaceBlock {
                         reads: &[(0x1C5CFC, In::F), (0x31A258, In::F)],
                         writes: &[(0x21411C, Out::F), (0x214120, Out::F)],
                     },
@@ -684,7 +671,7 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_3(a[0], a[1], a[2], a[3]) },
-                plain: |a| x87_4(a[0], a[1], a[2], a[3]),
+                plain: |a| x87_4(a[0], a[2], a[3]),
             },
             Block {
                 name: "wheel_surfaces line 201 idx c=0",
@@ -701,7 +688,7 @@ mod asm_reference {
                         ],
                         writes: &[],
                     },
-                    Operand::Buffer {
+                    Operand::RaceBlock {
                         reads: &[
                             (0x21411C, In::F),
                             (0x214120, In::F),
@@ -736,7 +723,7 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_4(a[0], a[1], a[2], a[3]) },
-                plain: |a| x87_5(a[0], a[1], a[2], a[3]),
+                plain: |a| x87_5(a[0], a[2], a[3]),
             },
             Block {
                 name: "wheel_surfaces line 201 idx c=1",
@@ -753,7 +740,7 @@ mod asm_reference {
                         ],
                         writes: &[],
                     },
-                    Operand::Buffer {
+                    Operand::RaceBlock {
                         reads: &[
                             (0x21411C, In::F),
                             (0x214120, In::F),
@@ -788,7 +775,7 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_4(a[0], a[1], a[2], a[3]) },
-                plain: |a| x87_5(a[0], a[1], a[2], a[3]),
+                plain: |a| x87_5(a[0], a[2], a[3]),
             },
             Block {
                 name: "wheel_surfaces line 201 idx c=4",
@@ -805,7 +792,7 @@ mod asm_reference {
                         ],
                         writes: &[],
                     },
-                    Operand::Buffer {
+                    Operand::RaceBlock {
                         reads: &[
                             (0x21411C, In::F),
                             (0x214120, In::F),
@@ -840,11 +827,11 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_4(a[0], a[1], a[2], a[3]) },
-                plain: |a| x87_5(a[0], a[1], a[2], a[3]),
+                plain: |a| x87_5(a[0], a[2], a[3]),
             },
             Block {
                 name: "wheel_surfaces line 258",
-                operands: vec![Operand::Buffer {
+                operands: vec![Operand::RaceBlock {
                     reads: &[
                         (0x213FEC, In::F),
                         (0x214284, In::F),
@@ -856,11 +843,11 @@ mod asm_reference {
                 }],
                 ulps: 0,
                 reference: |a| unsafe { ref_5(a[0]) },
-                plain: |a| x87_6(a[0]),
+                plain: |_| x87_6(),
             },
             Block {
                 name: "wheel_surfaces line 299",
-                operands: vec![Operand::Buffer {
+                operands: vec![Operand::RaceBlock {
                     reads: &[
                         (0x1C5E2C, In::F),
                         (0x213F5C, In::F),
@@ -891,7 +878,7 @@ mod asm_reference {
                 }],
                 ulps: 0,
                 reference: |a| unsafe { ref_6(a[0]) },
-                plain: |a| x87_7(a[0]),
+                plain: |_| x87_7(),
             },
         ]
     }

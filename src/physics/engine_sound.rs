@@ -18,16 +18,20 @@
 
 use crate::errors::Refused;
 use crate::math::x87;
+use crate::math::x87_float::ld;
+use crate::math::x87_float::st;
+use crate::math::x87_float::to_int;
 use crate::math::x87_run::ext_to_int;
 use crate::physics::car_sound_state::car_sound_state;
 use crate::physics::car_store::CAR;
 use crate::physics::gear_change_sound::gear_change_sound;
 use crate::physics::tables_store::PHYSICS;
+use crate::race::numbers_store::NUMBERS;
 use crate::race::view_store::RACE_VIEW;
 use crate::race::work_store::RACE_WORK;
 use crate::scene::draw_store::DRAW;
 use crate::scene::matrix3::extended;
-use crate::scene::x87_mem::{fistp, fld, fstp};
+use crate::sound::store::RACE_SOUNDS;
 use rc2k_core::physics::engine::ease_revs;
 use rc2k_core::physics::x87::hold_low;
 
@@ -41,26 +45,32 @@ fn run() {
 /// +0x31A1F8) as a whole number; +0x31A26C the length of the motion (+0x31A170 ..) x
 /// `flt_5C5D00`, the squares added as the original adds them (z, then x and y).
 fn run_at(rc: usize) {
-    fstp(rc, 0x31AEE0, fld(rc, 0x31A184) * fld(rc, 0x1C5D00));
-    let speed = fld(rc, 0x31AEE0);
+    CAR.engine_speed_scaled.set_bits(st(
+        ld(CAR.local_velocity[2].bits()) * ld(NUMBERS.two_and_a_quarter.bits())
+    ));
+    let speed = ld(CAR.engine_speed_scaled.bits());
     let flags: u32 = crate::pointers::read_or_end(rc as u32 + 0x31A1F8, "the car's flags");
     let scaled = if flags & 0x100 != 0 {
-        speed * fld(rc, 0x1C5E08)
+        speed * ld(NUMBERS.kilometres_in_mile.bits())
     } else {
         speed
     };
-    fistp(rc, 0x31AA88, scaled);
-    let (z, x, y) = (fld(rc, 0x31A178), fld(rc, 0x31A170), fld(rc, 0x31A174));
+    CAR.engine_sound_speed_int.set_bits(to_int(scaled) as u32);
+    let (z, x, y) = (
+        ld(CAR.velocity[2].bits()),
+        ld(CAR.velocity[0].bits()),
+        ld(CAR.velocity[1].bits()),
+    );
     let sum = z * z + (x * x + y * y);
-    fstp(rc, 0x31A26C, sum.sqrt() * fld(rc, 0x1C5D00));
+    CAR.sound_speed
+        .set_bits(st(sum.sqrt() * ld(NUMBERS.two_and_a_quarter.bits())));
 }
 
 /// The Rust version.
 // Converted: `rc2k_core::physics::engine::ease_revs` and `x87::hold_low` (the speed figures
 // and the rounding stay x87).
 pub fn engine_sound() -> Result<(), Refused> {
-    let o =
-        crate::sound::store::RACE_SOUNDS.table[(RACE_WORK.current_car.get() & 7) as usize].get();
+    let o = RACE_SOUNDS.table[(RACE_WORK.current_car.get() & 7) as usize].get();
     if o == 0 {
         return Err(crate::errors::BadInput("a null sound object").into());
     }
@@ -112,7 +122,7 @@ mod asm_reference {
     fn run_matches_the_assembly() {
         let blocks = vec![Block {
             name: "engine_sound run",
-            operands: vec![Operand::Buffer {
+            operands: vec![Operand::RaceBlock {
                 reads: &[
                     (0x31A184, In::F),
                     (0x1C5D00, In::F),

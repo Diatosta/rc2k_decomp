@@ -388,7 +388,7 @@ mod asm_reference {
                         reads: &[(0x35B390, In::F), (0x35B3B0, In::F), (0x35B584, In::F)],
                         writes: &[],
                     },
-                    Operand::Buffer {
+                    Operand::RaceBlock {
                         reads: &[(0x31A284, In::F)],
                         writes: &[(0x31A284, Out::F)],
                     },
@@ -413,7 +413,7 @@ mod asm_reference {
                         reads: &[(0x35B390, In::F), (0x35B3B0, In::F), (0x35B584, In::F)],
                         writes: &[],
                     },
-                    Operand::Buffer {
+                    Operand::RaceBlock {
                         reads: &[(0x31A288, In::F)],
                         writes: &[(0x31A288, Out::F)],
                     },
@@ -438,7 +438,7 @@ mod asm_reference {
                         reads: &[(0x35B390, In::F), (0x35B588, In::F)],
                         writes: &[],
                     },
-                    Operand::Buffer {
+                    Operand::RaceBlock {
                         reads: &[(0x31A284, In::F)],
                         writes: &[(0x31A284, Out::F)],
                     },
@@ -454,7 +454,7 @@ mod asm_reference {
                         reads: &[(0x35B390, In::F), (0x35B588, In::F)],
                         writes: &[],
                     },
-                    Operand::Buffer {
+                    Operand::RaceBlock {
                         reads: &[(0x31A288, In::F)],
                         writes: &[(0x31A288, Out::F)],
                     },
@@ -470,7 +470,7 @@ mod asm_reference {
                         reads: &[(0x35B390, In::F), (0x35B3A8, In::F), (0x35B58C, In::F)],
                         writes: &[],
                     },
-                    Operand::Buffer {
+                    Operand::RaceBlock {
                         reads: &[(0x31A27C, In::F)],
                         writes: &[(0x31A27C, Out::F)],
                     },
@@ -495,7 +495,7 @@ mod asm_reference {
                         reads: &[(0x35B390, In::F), (0x35B3AC, In::F), (0x35B58C, In::F)],
                         writes: &[],
                     },
-                    Operand::Buffer {
+                    Operand::RaceBlock {
                         reads: &[(0x31A280, In::F)],
                         writes: &[(0x31A280, Out::F)],
                     },
@@ -520,7 +520,7 @@ mod asm_reference {
                         reads: &[(0x35B390, In::F), (0x35B590, In::F)],
                         writes: &[],
                     },
-                    Operand::Buffer {
+                    Operand::RaceBlock {
                         reads: &[(0x31A27C, In::F)],
                         writes: &[(0x31A27C, Out::F)],
                     },
@@ -536,7 +536,7 @@ mod asm_reference {
                         reads: &[(0x35B390, In::F), (0x35B590, In::F)],
                         writes: &[],
                     },
-                    Operand::Buffer {
+                    Operand::RaceBlock {
                         reads: &[(0x31A280, In::F)],
                         writes: &[(0x31A280, Out::F)],
                     },
@@ -552,7 +552,7 @@ mod asm_reference {
                         reads: &[(0x35B390, In::F), (0x35B3B4, In::F), (0x35B594, In::F)],
                         writes: &[],
                     },
-                    Operand::Buffer {
+                    Operand::RaceBlock {
                         reads: &[(0x31A278, In::F)],
                         writes: &[(0x31A278, Out::F)],
                     },
@@ -577,7 +577,7 @@ mod asm_reference {
                         reads: &[(0x35B390, In::F), (0x35B598, In::F)],
                         writes: &[],
                     },
-                    Operand::Buffer {
+                    Operand::RaceBlock {
                         reads: &[(0x31A278, In::F)],
                         writes: &[(0x31A278, Out::F)],
                     },
@@ -593,7 +593,7 @@ mod asm_reference {
                         reads: &[(0x35B390, In::F), (0x35B3B0, In::F), (0x35B59C, In::F)],
                         writes: &[],
                     },
-                    Operand::Buffer {
+                    Operand::RaceBlock {
                         reads: &[(0x31A278, In::F)],
                         writes: &[(0x31A278, Out::F)],
                     },
@@ -628,7 +628,7 @@ mod asm_reference {
                         reads: &[(0x35B390, In::F), (0x35B464, In::F), (0x35B578, In::F)],
                         writes: &[],
                     },
-                    Operand::Buffer {
+                    Operand::RaceBlock {
                         reads: &[(0x31A28C, In::F)],
                         writes: &[(0x31A28C, Out::F)],
                     },
@@ -653,7 +653,7 @@ mod asm_reference {
                         reads: &[(0x35B390, In::F), (0x35B57C, In::F)],
                         writes: &[],
                     },
-                    Operand::Buffer {
+                    Operand::RaceBlock {
                         reads: &[(0x31A28C, In::F)],
                         writes: &[(0x31A28C, Out::F)],
                     },
@@ -669,7 +669,7 @@ mod asm_reference {
                         reads: &[(0x35B390, In::F), (0x35B39C, In::F), (0x35B580, In::F)],
                         writes: &[],
                     },
-                    Operand::Buffer {
+                    Operand::RaceBlock {
                         reads: &[(0x31A28C, In::F)],
                         writes: &[(0x31A28C, Out::F)],
                     },

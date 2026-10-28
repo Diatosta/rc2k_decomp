@@ -13,16 +13,19 @@
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
 //! above are the original's, for reference.
 
+use crate::math::x87_float::ld;
+use crate::math::x87_float::st;
 use crate::physics::camera_store::CAMERA_WORK;
 use crate::physics::camera_view::rd;
 use crate::physics::car_store::CAR;
-use crate::scene::x87_mem::{fld, fstp};
+use crate::scene::light_store::LIGHT_STATE;
+use crate::scene::x87_mem::fld;
 use crate::session::Cell32;
 
 /// The Rust version (the exact one, for `physics::update_camera`): `s` the view's record
 /// (esi). The eax and ebx it leaves are read by none of its callers.
 pub fn take_view_b(s: u32) {
-    x87_1(s as usize, crate::race::store::asm_base() as usize);
+    x87_1(s as usize);
     for (k, x) in copies().iter().enumerate() {
         x.set_bits(rd(s + 0x10 + 4 * k as u32));
     }
@@ -61,19 +64,19 @@ fn copies() -> [&'static dyn Cell32; 11] {
 /// `[rc + 0x208BB0] = [s + 4] + [rc + 0x237638]`
 /// `[rc + 0x208BB4] = [s + 8] + [rc + 0x23763C]`
 /// `[rc + 0x208BB8] = [s + 0xC] + [rc + 0x237640]`
-fn x87_1(s: usize, rc: usize) {
+fn x87_1(s: usize) {
     let t0 = fld(s, 4);
-    let t1 = fld(rc, 0x237638);
+    let t1 = ld(LIGHT_STATE.camera_frame_a.bits());
     let t2 = t0 + t1;
-    fstp(rc, 0x208BB0, t2);
+    CAMERA_WORK.view_b_offset[0].set_bits(st(t2));
     let t3 = fld(s, 8);
-    let t4 = fld(rc, 0x23763C);
+    let t4 = ld(LIGHT_STATE.camera_frame_b.bits());
     let t5 = t3 + t4;
-    fstp(rc, 0x208BB4, t5);
+    CAMERA_WORK.view_b_offset[1].set_bits(st(t5));
     let t6 = fld(s, 0xC);
-    let t7 = fld(rc, 0x237640);
+    let t7 = ld(LIGHT_STATE.camera_frame_c.bits());
     let t8 = t6 + t7;
-    fstp(rc, 0x208BB8, t8);
+    CAMERA_WORK.view_b_offset[2].set_bits(st(t8));
 }
 
 #[cfg(all(test, target_arch = "x86"))]
@@ -92,14 +95,14 @@ mod asm_reference {
                     reads: &[(4, In::F), (8, In::F), (0xC, In::F)],
                     writes: &[],
                 },
-                Operand::Buffer {
+                Operand::RaceBlock {
                     reads: &[(0x237638, In::F), (0x23763C, In::F), (0x237640, In::F)],
                     writes: &[(0x208BB0, Out::F), (0x208BB4, Out::F), (0x208BB8, Out::F)],
                 },
             ],
             ulps: 0,
             reference: |a| unsafe { ref_0(a[0], a[1]) },
-            plain: |a| x87_1(a[0], a[1]),
+            plain: |a| x87_1(a[0]),
         }]
     }
 

@@ -14,15 +14,21 @@
 //! Caller: `drive::finish_race`. Refuses a length index past 1 (the table's two), and what
 //! its calls refuse.
 
+use crate::drive::finish_store::FINISH;
 use crate::drive::race_parts::{input_update, race_frame, restart_clock};
 use crate::errors::{BadInput, Refused};
+use crate::input::store::DEVICES;
+use crate::math::x87_float::int;
+use crate::math::x87_float::ld;
 use crate::physics::flow::c0;
 use crate::physics::tables_store::PHYSICS;
 use crate::race::blocks_store::CAR_BLOCKS;
 use crate::race::clock_ticks_store::CLOCK_TICKS;
+use crate::race::numbers_store::NUMBERS;
 use crate::race::state_store::RACE_STATE;
 use crate::race::viewer_state_store::REPLAY_VIEW;
-use crate::scene::x87_mem::{fild, fistp, fld};
+use crate::scene::x87_mem::fistp;
+use crate::sound::store::RACE_SOUNDS;
 
 /// The car's lift: `dword_70F524` += `flt_64BB38` x `flt_5C5D98` (`fiadd`, `fistp`), over the
 /// race block at `rc`.
@@ -30,7 +36,8 @@ fn lift_car(rc: usize) {
     fistp(
         rc,
         0x30F524,
-        fld(rc, 0x24BB38) * fld(rc, 0x1C5D98) + fild(rc, 0x30F524),
+        ld(FINISH.unknown_20.bits()) * ld(NUMBERS.k65536.bits())
+            + int(CAR_BLOCKS.cars[0].position[1].bits() as i32),
     )
 }
 
@@ -46,24 +53,19 @@ pub fn finish_run() -> Result<(), Refused> {
     }
     REPLAY_VIEW.play_end.set(u32::MAX);
     restart_clock();
-    crate::drive::finish_store::FINISH
-        .start_clock
-        .set(PHYSICS.scene_clock.get());
+    FINISH.start_clock.set(PHYSICS.scene_clock.get());
     loop {
-        crate::sound::store::RACE_SOUNDS.objects[0].revs.set(0);
+        RACE_SOUNDS.objects[0].revs.set(0);
         input_update();
         crate::drive::finish_timing::finish_timing();
         let n = RACE_STATE.results.finished.get();
         if n > 1 {
             return Err(BadInput("a finish length past the table's two").into());
         }
-        if !c0(
-            crate::drive::finish_store::FINISH.time.bits(),
-            crate::drive::finish_store::FINISH.finish_lengths[n as usize].bits(),
-        ) {
+        if !c0(FINISH.time.bits(), FINISH.finish_lengths[n as usize].bits()) {
             break;
         }
-        let pressed = |key: usize| crate::input::store::DEVICES.keys_pressed.get(key) != 0;
+        let pressed = |key: usize| DEVICES.keys_pressed.get(key) != 0;
         if pressed(1) || pressed(0x1C) {
             break;
         }
@@ -93,7 +95,7 @@ mod asm_reference {
     fn finish_run_matches_the_assembly() {
         let blocks = vec![Block {
             name: "finish_run lift",
-            operands: vec![Operand::Buffer {
+            operands: vec![Operand::RaceBlock {
                 reads: &[(0x24BB38, In::F), (0x1C5D98, In::F), (0x30F524, In::I)],
                 writes: &[(0x30F524, Out::I)],
             }],

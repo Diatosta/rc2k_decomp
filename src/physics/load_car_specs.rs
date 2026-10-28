@@ -22,13 +22,17 @@
 
 use crate::errors::Refused;
 use crate::math::x87;
+use crate::math::x87_float::int;
+use crate::math::x87_float::ld;
+use crate::math::x87_float::st;
+use crate::math::x87_float::to_int;
 use crate::physics::car_store::CAR;
 use crate::physics::gear_store::GEAR;
 use crate::physics::tables_store::PHYSICS;
 use crate::race::car_specs_store::{CAR_SPECS, CarSpec};
 use crate::race::numbers_store::NUMBERS;
 use crate::scene::draw_store::DRAW;
-use crate::scene::x87_mem::{fild, fistp, fld, fstp};
+use crate::scene::x87_mem::{fild, fld};
 use crate::session::{Cell32, Dword};
 use rc2k_core::physics::car_specs::{OWN_FIGURES_FROM, check_drive, gear_count, record_of};
 use std::cmp::Ordering;
@@ -76,7 +80,7 @@ pub fn load_car_specs() -> Result<(), Refused> {
     let drive = check_drive(spec.drive_kind.get())?;
     CAR.drive_kind.set(drive);
     // 0x4214A7 .. 0x421543
-    x87_1(s as usize, crate::race::store::asm_base() as usize);
+    x87_1(s as usize);
     if below(CAR.engine_speed_limit.bits(), NUMBERS.thousand.bits()) {
         CAR.engine_speed_limit
             .set_bits(x87::loaded(NUMBERS.thousand.bits()));
@@ -88,22 +92,16 @@ pub fn load_car_specs() -> Result<(), Refused> {
     }
     words(spec);
     // 0x4216C5 .. 0x421704
-    x87_2(s as usize, crate::race::store::asm_base() as usize);
+    x87_2(s as usize);
     if kind < OWN_FIGURES_FROM {
         // 0x42170D .. 0x421755
-        x87_3(crate::race::store::asm_base() as usize);
+        x87_3();
     }
-    PHYSICS
-        .spec_grip
-        .set_bits(crate::physics::tables_store::PHYSICS.spec_default_ba0.get());
-    PHYSICS
-        .spec_grip_b
-        .set_bits(crate::physics::tables_store::PHYSICS.spec_default_ba4.get());
-    PHYSICS
-        .spec_wheel
-        .set_bits(crate::physics::tables_store::PHYSICS.spec_default_ba8.get());
+    PHYSICS.spec_grip.set_bits(PHYSICS.spec_default_ba0.get());
+    PHYSICS.spec_grip_b.set_bits(PHYSICS.spec_default_ba4.get());
+    PHYSICS.spec_wheel.set_bits(PHYSICS.spec_default_ba8.get());
     // 0x421794 .. 0x4217B2
-    x87_4(s as usize, crate::race::store::asm_base() as usize);
+    x87_4(s as usize);
     DRAW.scratch.set(spec.scratch_value.get());
     PHYSICS.downforce_spec.set(spec.downforce.get());
     // 0x4217CA .. 0x4217E3
@@ -127,42 +125,42 @@ pub fn load_car_specs() -> Result<(), Refused> {
 /// `[rc + 0x1CB960] = [s + 0xAC] + [rc + 0x1C5DDC]`
 /// `[rc + 0x1CB968] = (int [s + 0x78] * [rc + 0x213EB8]) / [rc + 0x31A1B4]`
 /// `[rc + 0x214104] = [rc + 0x31A1B4] * [rc + 0x213FE4]`
-fn x87_1(s: usize, rc: usize) {
+fn x87_1(s: usize) {
     let t0 = fild(s, 0x64);
-    fstp(rc, 0x1CB96C, t0);
+    GEAR.figures[0].set_bits(st(t0));
     let t1 = fild(s, 0x68);
-    fstp(rc, 0x1CB970, t1);
+    GEAR.figures[1].set_bits(st(t1));
     let t2 = fild(s, 0x6C);
-    fstp(rc, 0x1CB974, t2);
+    GEAR.figures[2].set_bits(st(t2));
     let t3 = fild(s, 0x70);
-    fstp(rc, 0x1CB978, t3);
+    GEAR.figures[3].set_bits(st(t3));
     let t4 = fild(s, 0x74);
-    fstp(rc, 0x31A1B4, t4);
-    let t5 = fld(rc, 0x213F10);
-    fstp(rc, 0x31A1B8, t5);
+    CAR.engine_speed_limit.set_bits(st(t4));
+    let t5 = ld(PHYSICS.spec_scale_1b8.bits());
+    CAR.unknown_1e0.set_bits(st(t5));
     let t6 = fld(s, 0xA4);
-    fstp(rc, 0x1CB958, t6);
-    let t7 = fld(rc, 0x213E88);
+    GEAR.shift_up_point.set_bits(st(t6));
+    let t7 = ld(PHYSICS.spec_scale_a4.bits());
     let t8 = t6 * t7;
-    fstp(rc, 0x1CB964, t8);
+    GEAR.shift_ratio_figure.set_bits(st(t8));
     let t9 = fld(s, 0xA8);
-    let t10 = fld(rc, 0x1C5DDC);
+    let t10 = ld(NUMBERS.tenths[0].bits());
     let t11 = t9 + t10;
-    fstp(rc, 0x1CB95C, t11);
+    GEAR.shift_down_point.set_bits(st(t11));
     let t12 = fld(s, 0xAC);
-    let t13 = fld(rc, 0x1C5DDC);
+    let t13 = ld(NUMBERS.tenths[0].bits());
     let t14 = t12 + t13;
-    fstp(rc, 0x1CB960, t14);
+    GEAR.shift_down_clutch_point.set_bits(st(t14));
     let t15 = fild(s, 0x78);
-    let t16 = fld(rc, 0x213EB8);
+    let t16 = ld(PHYSICS.rev_limit_scale.bits());
     let t17 = t15 * t16;
-    let t18 = fld(rc, 0x31A1B4);
+    let t18 = ld(CAR.engine_speed_limit.bits());
     let t19 = t17 / t18;
-    fstp(rc, 0x1CB968, t19);
-    let t20 = fld(rc, 0x31A1B4);
-    let t21 = fld(rc, 0x213FE4);
+    GEAR.drive_torque_figure.set_bits(st(t19));
+    let t20 = ld(CAR.engine_speed_limit.bits());
+    let t21 = ld(PHYSICS.rev_top_scale.bits());
     let t22 = t20 * t21;
-    fstp(rc, 0x214104, t22);
+    PHYSICS.rev_limit.set_bits(st(t22));
 }
 
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
@@ -170,25 +168,25 @@ fn x87_1(s: usize, rc: usize) {
 /// `int [rc + 0x214BC0] = (int [s + 0x40] * [rc + 0x1C5D98]) / [rc + 0x1C5D18]`
 /// `int [rc + 0x214BC4] = (int [s + 0x44] * [rc + 0x1C5D98]) / [rc + 0x1C5D18]`
 /// `int [rc + 0x214BC8] = (int [s + 0x48] * [rc + 0x1C5D98]) / [rc + 0x1C5D18]`
-fn x87_2(s: usize, rc: usize) {
+fn x87_2(s: usize) {
     let t0 = fild(s, 0x40);
-    let t1 = fld(rc, 0x1C5D98);
+    let t1 = ld(NUMBERS.k65536.bits());
     let t2 = t0 * t1;
-    let t3 = fld(rc, 0x1C5D18);
+    let t3 = ld(NUMBERS.thousand.bits());
     let t4 = t2 / t3;
-    fistp(rc, 0x214BC0, t4);
+    PHYSICS.spec_ints[0].set_bits(to_int(t4) as u32);
     let t5 = fild(s, 0x44);
-    let t6 = fld(rc, 0x1C5D98);
+    let t6 = ld(NUMBERS.k65536.bits());
     let t7 = t5 * t6;
-    let t8 = fld(rc, 0x1C5D18);
+    let t8 = ld(NUMBERS.thousand.bits());
     let t9 = t7 / t8;
-    fistp(rc, 0x214BC4, t9);
+    PHYSICS.spec_ints[1].set_bits(to_int(t9) as u32);
     let t10 = fild(s, 0x48);
-    let t11 = fld(rc, 0x1C5D98);
+    let t11 = ld(NUMBERS.k65536.bits());
     let t12 = t10 * t11;
-    let t13 = fld(rc, 0x1C5D18);
+    let t13 = ld(NUMBERS.thousand.bits());
     let t14 = t12 / t13;
-    fistp(rc, 0x214BC8, t14);
+    PHYSICS.spec_ints[2].set_bits(to_int(t14) as u32);
 }
 
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
@@ -196,40 +194,40 @@ fn x87_2(s: usize, rc: usize) {
 /// `int [rc + 0x214BC0] = (int [rc + 0x213F04] * [rc + 0x1C5D98]) / [rc + 0x1C5D18]`
 /// `int [rc + 0x214BC4] = (int [rc + 0x213F08] * [rc + 0x1C5D98]) / [rc + 0x1C5D18]`
 /// `int [rc + 0x214BC8] = (int [rc + 0x213F0C] * [rc + 0x1C5D98]) / [rc + 0x1C5D18]`
-fn x87_3(rc: usize) {
-    let t0 = fild(rc, 0x213F04);
-    let t1 = fld(rc, 0x1C5D98);
+fn x87_3() {
+    let t0 = int(PHYSICS.spec_default_bc0[0].bits() as i32);
+    let t1 = ld(NUMBERS.k65536.bits());
     let t2 = t0 * t1;
-    let t3 = fld(rc, 0x1C5D18);
+    let t3 = ld(NUMBERS.thousand.bits());
     let t4 = t2 / t3;
-    fistp(rc, 0x214BC0, t4);
-    let t5 = fild(rc, 0x213F08);
-    let t6 = fld(rc, 0x1C5D98);
+    PHYSICS.spec_ints[0].set_bits(to_int(t4) as u32);
+    let t5 = int(PHYSICS.spec_default_bc0[1].bits() as i32);
+    let t6 = ld(NUMBERS.k65536.bits());
     let t7 = t5 * t6;
-    let t8 = fld(rc, 0x1C5D18);
+    let t8 = ld(NUMBERS.thousand.bits());
     let t9 = t7 / t8;
-    fistp(rc, 0x214BC4, t9);
-    let t10 = fild(rc, 0x213F0C);
-    let t11 = fld(rc, 0x1C5D98);
+    PHYSICS.spec_ints[1].set_bits(to_int(t9) as u32);
+    let t10 = int(PHYSICS.spec_default_bc0[2].bits() as i32);
+    let t11 = ld(NUMBERS.k65536.bits());
     let t12 = t10 * t11;
-    let t13 = fld(rc, 0x1C5D18);
+    let t13 = ld(NUMBERS.thousand.bits());
     let t14 = t12 / t13;
-    fistp(rc, 0x214BC8, t14);
+    PHYSICS.spec_ints[2].set_bits(to_int(t14) as u32);
 }
 
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `[rc + 0x214BAC] = [s + 0x38] * [rc + 0x213FC8]`
 /// `[rc + 0x214BB0] = [s + 0x3C] * [rc + 0x213FC8]`
-fn x87_4(s: usize, rc: usize) {
+fn x87_4(s: usize) {
     let t0 = fld(s, 0x38);
-    let t1 = fld(rc, 0x213FC8);
+    let t1 = ld(PHYSICS.gravity.bits());
     let t2 = t0 * t1;
-    fstp(rc, 0x214BAC, t2);
+    PHYSICS.spec_drive[0].set_bits(st(t2));
     let t3 = fld(s, 0x3C);
-    let t4 = fld(rc, 0x213FC8);
+    let t4 = ld(PHYSICS.gravity.bits());
     let t5 = t3 * t4;
-    fstp(rc, 0x214BB0, t5);
+    PHYSICS.spec_drive[1].set_bits(st(t5));
 }
 
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
@@ -238,10 +236,10 @@ fn x87_4(s: usize, rc: usize) {
 /// `[rc + 0x2140FC] = [rc + k * 4 + 0x213FB8] + [rc + 0x1C5D14]`
 fn x87_5(rc: usize, k: usize) {
     let t0 = fld(rc, k * 4 + 0x213FB8);
-    fstp(rc, 0x2140F8, t0);
-    let t1 = fld(rc, 0x1C5D14);
+    PHYSICS.idle_engine_speed.set_bits(st(t0));
+    let t1 = ld(NUMBERS.hundred.bits());
     let t2 = t0 + t1;
-    fstp(rc, 0x2140FC, t2);
+    PHYSICS.stall_engine_speed.set_bits(st(t2));
 }
 
 #[cfg(all(test, target_arch = "x86"))]
@@ -275,7 +273,7 @@ mod asm_reference {
                         ],
                         writes: &[],
                     },
-                    Operand::Buffer {
+                    Operand::RaceBlock {
                         reads: &[
                             (0x1C5DDC, In::F),
                             (0x213E88, In::F),
@@ -302,7 +300,7 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_0(a[0], a[1]) },
-                plain: |a| x87_1(a[0], a[1]),
+                plain: |a| x87_1(a[0]),
             },
             Block {
                 name: "load_car_specs line 145",
@@ -311,18 +309,18 @@ mod asm_reference {
                         reads: &[(0x40, In::I), (0x44, In::I), (0x48, In::I)],
                         writes: &[],
                     },
-                    Operand::Buffer {
+                    Operand::RaceBlock {
                         reads: &[(0x1C5D18, In::F), (0x1C5D98, In::F)],
                         writes: &[(0x214BC0, Out::I), (0x214BC4, Out::I), (0x214BC8, Out::I)],
                     },
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_1(a[0], a[1]) },
-                plain: |a| x87_2(a[0], a[1]),
+                plain: |a| x87_2(a[0]),
             },
             Block {
                 name: "load_car_specs line 162",
-                operands: vec![Operand::Buffer {
+                operands: vec![Operand::RaceBlock {
                     reads: &[
                         (0x1C5D18, In::F),
                         (0x1C5D98, In::F),
@@ -334,7 +332,7 @@ mod asm_reference {
                 }],
                 ulps: 0,
                 reference: |a| unsafe { ref_2(a[0]) },
-                plain: |a| x87_3(a[0]),
+                plain: |_| x87_3(),
             },
             Block {
                 name: "load_car_specs line 182",
@@ -343,19 +341,19 @@ mod asm_reference {
                         reads: &[(0x38, In::F), (0x3C, In::F)],
                         writes: &[],
                     },
-                    Operand::Buffer {
+                    Operand::RaceBlock {
                         reads: &[(0x213FC8, In::F)],
                         writes: &[(0x214BAC, Out::F), (0x214BB0, Out::F)],
                     },
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_3(a[0], a[1]) },
-                plain: |a| x87_4(a[0], a[1]),
+                plain: |a| x87_4(a[0]),
             },
             Block {
                 name: "load_car_specs line 194 idx k=0",
                 operands: vec![
-                    Operand::Buffer {
+                    Operand::RaceBlock {
                         reads: &[(0x1C5D14, In::F), (0x213FB8, In::F)],
                         writes: &[(0x2140F8, Out::F), (0x2140FC, Out::F)],
                     },
@@ -368,7 +366,7 @@ mod asm_reference {
             Block {
                 name: "load_car_specs line 194 idx k=1",
                 operands: vec![
-                    Operand::Buffer {
+                    Operand::RaceBlock {
                         reads: &[(0x1C5D14, In::F), (0x213FBC, In::F)],
                         writes: &[(0x2140F8, Out::F), (0x2140FC, Out::F)],
                     },
@@ -381,7 +379,7 @@ mod asm_reference {
             Block {
                 name: "load_car_specs line 194 idx k=4",
                 operands: vec![
-                    Operand::Buffer {
+                    Operand::RaceBlock {
                         reads: &[(0x1C5D14, In::F), (0x213FC8, In::F)],
                         writes: &[(0x2140F8, Out::F), (0x2140FC, Out::F)],
                     },

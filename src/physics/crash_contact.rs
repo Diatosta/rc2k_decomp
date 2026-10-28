@@ -24,6 +24,8 @@
 
 use crate::errors::Refused;
 use crate::math::x87::{loaded, mul};
+use crate::math::x87_float::ld;
+use crate::math::x87_float::st;
 use crate::math::x87_run::neg_rounded;
 use crate::physics::car_store::CAR;
 use crate::physics::contact_force::contact_force;
@@ -38,7 +40,6 @@ use crate::race::course_store::COURSE;
 use crate::race::numbers_store::NUMBERS;
 use crate::scene::matrix3::{extended, rounded};
 use crate::scene::rotate_point::rotate_point;
-use crate::scene::x87_mem::{fld, fstp};
 use crate::session::Float;
 use rc2k_core::physics::contacts;
 
@@ -118,7 +119,7 @@ fn steps() -> Result<(), Refused> {
             CONTACT_WORK.contact_normal[0].addr(),
         )
     }));
-    x87_1(crate::race::store::asm_base() as usize);
+    x87_1();
     p(&PHYSICS.contact_record, PHYSICS.forces[21].force[0].addr());
     unsafe { contact_force() };
     { place_sound_e5() }?;
@@ -128,11 +129,11 @@ fn steps() -> Result<(), Refused> {
     for cell in &PHYSICS.forces[21].point {
         cell.set_bits(0);
     }
-    x87_2(crate::race::store::asm_base() as usize);
+    x87_2();
     hold_high(&CONTACT_WORK.crash_ground_scale, &NUMBERS.one);
     CAR.spin[1].set_bits(mul(
         CONTACT_WORK.crash_ground_scale.bits(),
-        crate::physics::car_store::CAR.spin[1].bits(),
+        CAR.spin[1].bits(),
     ));
     CAR.contact_value.set(CONTACT_WORK.contact_value.bits());
     Ok(())
@@ -148,35 +149,35 @@ pub fn crash_contact() -> Result<(), Refused> {
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// (a long formula: see the instructions in the tests' `asm_reference`)
-fn x87_1(rc: usize) {
-    let t0 = fld(rc, 0x2D31D0);
-    let t1 = fld(rc, 0x1C5D38);
+fn x87_1() {
+    let t0 = ld(CONTACT_WORK.crash_up_dot.bits());
+    let t1 = ld(NUMBERS.one.bits());
     let t2 = t0 + t1;
-    let t3 = fld(rc, 0x1C5D3C);
+    let t3 = ld(NUMBERS.two.bits());
     let t4 = t2 / t3;
-    let t5 = fld(rc, 0x1C5D3C);
+    let t5 = ld(NUMBERS.two.bits());
     let t6 = t4 + t5;
-    let t7 = fld(rc, 0x213FC8);
+    let t7 = ld(PHYSICS.gravity.bits());
     let t8 = t6 * t7;
-    let t9 = fld(rc, 0x21388C);
+    let t9 = ld(PHYSICS.step_time.bits());
     let t10 = t8 * t9;
-    let t11 = fld(rc, 0x214294);
+    let t11 = ld(PHYSICS.wheel_loads[4].bits());
     let t12 = t10 * t11;
-    let t13 = fld(rc, 0x214170);
+    let t13 = ld(PHYSICS.weight.bits());
     let t14 = t12 * t13;
-    fstp(rc, 0x2D3100, t14);
+    CONTACT_WORK.contact_slide_limit.set_bits(st(t14));
 }
 
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `[rc + 0x2D3014] = ([rc + 0x31A0A0] + [rc + 0x1C5D60]) / [rc + 0x1C5D60]`
-fn x87_2(rc: usize) {
-    let t0 = fld(rc, 0x31A0A0);
-    let t1 = fld(rc, 0x1C5D60);
+fn x87_2() {
+    let t0 = ld(CAR.crash_matrix[5].bits());
+    let t1 = ld(NUMBERS.sixty_four.bits());
     let t2 = t0 + t1;
-    let t3 = fld(rc, 0x1C5D60);
+    let t3 = ld(NUMBERS.sixty_four.bits());
     let t4 = t2 / t3;
-    fstp(rc, 0x2D3014, t4);
+    CONTACT_WORK.crash_ground_scale.set_bits(st(t4));
 }
 
 #[cfg(all(test, target_arch = "x86"))]
@@ -192,7 +193,7 @@ mod asm_reference {
         vec![
             Block {
                 name: "crash_contact line 103",
-                operands: vec![Operand::Buffer {
+                operands: vec![Operand::RaceBlock {
                     reads: &[
                         (0x1C5D38, In::F),
                         (0x1C5D3C, In::F),
@@ -206,17 +207,17 @@ mod asm_reference {
                 }],
                 ulps: 0,
                 reference: |a| unsafe { ref_0(a[0]) },
-                plain: |a| x87_1(a[0]),
+                plain: |_| x87_1(),
             },
             Block {
                 name: "crash_contact line 120",
-                operands: vec![Operand::Buffer {
+                operands: vec![Operand::RaceBlock {
                     reads: &[(0x1C5D60, In::F), (0x31A0A0, In::F)],
                     writes: &[(0x2D3014, Out::F)],
                 }],
                 ulps: 0,
                 reference: |a| unsafe { ref_1(a[0]) },
-                plain: |a| x87_2(a[0]),
+                plain: |_| x87_2(),
             },
         ]
     }
