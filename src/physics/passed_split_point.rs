@@ -42,23 +42,20 @@ use std::cmp::Ordering;
 /// 0x4416EC .. 0x441727: the distance to the point at `point`.
 fn distance(point: [u32; 3]) {
     let at = crate::pointers::game_address(point.as_ptr());
-    distance_at(crate::race::store::asm_base() as usize, at as usize);
+    distance_at(at as usize);
 }
 
-/// The distance over the race core at `rc` and the point at `s`: the whole-number gaps
-/// (+0x239824 and +0x23982C less the point's x and z; the last one is left in the scratch
+/// The distance from the point at `s`: the whole-number gaps (`GROUND_WORK.ground_x` and
+/// `ground_z` less the point's x and z; the last one is left in the scratch
 /// dword +0x22400C), their squares added, `fsqrt`, x `flt_5C5DA0`, into +0x214D04.
-fn distance_at(rc: usize, s: usize) {
+fn distance_at(s: usize) {
     unsafe {
-        let (rc, s) = (
-            crate::pointers::host_at(rc),
-            crate::pointers::host_at(s) as *const u8,
-        );
+        let s = crate::pointers::host_at(s) as *const u8;
         let word = |p: *const u8| p.cast::<i32>().read_unaligned();
-        let dx = word(s).wrapping_sub(word(rc.add(0x239824)));
+        let dx = word(s).wrapping_sub(GROUND_WORK.ground_x.get() as i32);
         DRAW.scratch.set_bits(dx as u32);
         let first = int(DRAW.scratch.bits() as i32);
-        let dz = word(s.add(8)).wrapping_sub(word(rc.add(0x23982C)));
+        let dz = word(s.add(8)).wrapping_sub(GROUND_WORK.ground_z.get() as i32);
         DRAW.scratch.set_bits(dz as u32);
         let second = int(DRAW.scratch.bits() as i32);
         PHYSICS.split_point_distance.set_bits(st(
@@ -71,29 +68,25 @@ fn distance_at(rc: usize, s: usize) {
 /// `dword_62400C` (`fistp`, then the low 16 bits).
 fn angle(point: [u32; 3]) {
     let at = crate::pointers::game_address(point.as_ptr());
-    angle_at(crate::race::store::asm_base() as usize, at as usize);
+    angle_at(at as usize);
 }
 
-/// The angle over the race core at `rc` and the point at `s`: the gaps (the car's x and z less
+/// The angle from the point at `s`: the gaps (the car's x and z less
 /// the point's, through the scratch dword +0x22400C), `fpatan`, over pi, x `flt_5C5E40` x
 /// `flt_5C5D98`, `fistp` into the scratch, its low 16 bits.
-fn angle_at(rc: usize, s: usize) {
+fn angle_at(s: usize) {
     unsafe {
-        let (rc, s) = (
-            crate::pointers::host_at(rc),
-            crate::pointers::host_at(s) as *const u8,
-        );
+        let s = crate::pointers::host_at(s) as *const u8;
         let word = |p: *const u8| p.cast::<i32>().read_unaligned();
-        let dx = word(rc.add(0x239824)).wrapping_sub(word(s));
+        let dx = (GROUND_WORK.ground_x.get() as i32).wrapping_sub(word(s));
         DRAW.scratch.set_bits(dx as u32);
         let y = int(DRAW.scratch.bits() as i32);
-        let dz = word(rc.add(0x23982C)).wrapping_sub(word(s.add(8)));
+        let dz = (GROUND_WORK.ground_z.get() as i32).wrapping_sub(word(s.add(8)));
         DRAW.scratch.set_bits(dz as u32);
         let x = int(DRAW.scratch.bits() as i32);
         let turns = y.atan2_over_pi(x) * ld(NUMBERS.half.bits()) * ld(NUMBERS.k65536.bits());
         DRAW.scratch.set_bits(to_int(turns) as u32);
-        let low = rc.add(0x22400C).cast::<u32>();
-        low.write_unaligned(low.read_unaligned() & 0xFFFF);
+        DRAW.scratch.set_bits(DRAW.scratch.bits() & 0xFFFF);
     }
 }
 
@@ -216,7 +209,7 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { distance_ref(a[0], a[1]) },
-                plain: |a| distance_at(a[0], a[1]),
+                plain: |a| distance_at(a[1]),
             },
             Block {
                 name: "passed_split_point angle",
@@ -237,7 +230,7 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { angle_ref(a[0], a[1]) },
-                plain: |a| angle_at(a[0], a[1]),
+                plain: |a| angle_at(a[1]),
             },
         ];
         sparse(&blocks, 6000, 202);

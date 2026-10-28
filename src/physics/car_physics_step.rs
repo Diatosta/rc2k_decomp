@@ -149,9 +149,9 @@ pub fn steps() -> Result<(), Refused> {
         ph::apply_wheel_torques::apply_wheel_torques()?;
     }
     motion();
-    PHYSICS.top_speed.set_bits(rounded({
-        ph::vector_length::vector_length(CAR.velocity[0].addr())
-    }));
+    PHYSICS
+        .top_speed
+        .set_bits(rounded(ph::vector_length::vector_length(&CAR.velocity)));
     // 0x43B851: the contacts' rounds.
     PHYSICS.contact_step.set(0);
     loop {

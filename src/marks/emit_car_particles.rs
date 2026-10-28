@@ -22,6 +22,7 @@ use crate::marks::emit_body_particles::emit_body_particles;
 use crate::marks::emit_wheel_particles::emit_wheel_particles;
 use crate::marks::emitters::*;
 use crate::marks::tuning::MARKS_FLOATS;
+use crate::math::cells::At;
 use crate::math::x87;
 use crate::pointers::GamePtr;
 use crate::scene::matrix3::{extended, rounded};
@@ -65,7 +66,7 @@ pub fn emit_car_particles(o: u32) -> Result<(), Refused> {
     let m = at(o + 0x24)?;
     for p in [0x110, 0x158, 0x1A0, 0x1E8] {
         let turned = rotate_point(
-            m,
+            &At(m),
             [
                 extended(at(o + p)?),
                 extended(at(o + p + 4)?),

@@ -7,9 +7,14 @@
 //! `sub_43F7AC`, `sub_45F17E`, `sub_45F7B1`, `sub_45FAE1`, two in unowned code at 0x43F5A0,
 //! 0x43F647).
 
+use crate::math::cells::{Cells, load};
 use crate::math::x87_run::scale_by_80;
 
 /// The Rust version: the vector at `v` times the 80-bit `factor`.
-pub fn scale_vector(v: u32, factor: [u8; 10]) {
-    scale_by_80(crate::pointers::host(v) as *mut u32, factor)
+pub fn scale_vector(v: &(impl Cells + ?Sized), factor: [u8; 10]) {
+    let mut cells: [u32; 3] = load(v);
+    scale_by_80(cells.as_mut_ptr(), factor);
+    for (n, bits) in cells.into_iter().enumerate() {
+        v.set_bits(n, bits);
+    }
 }

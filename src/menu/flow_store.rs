@@ -2,9 +2,10 @@
 //! sections an event starts at, the yes / no screens' switches, the lists a screen puts in place
 //! (`g_unreadList`, `g_drawList`, `g_overlayList`, `g_sceneList`) and a few switches of the item
 //! keys. A `#[repr(C)]` struct with the image's layout, one static; `moved::MOVED` points the range
-//! at it. The list pointers hold the lists' real addresses (`menu::draw_lists_store`). (Split 2026-10-25
+//! at it. The list pointers hold the lists by handle (`menu::fn_list`, 2026-10-28). (Split 2026-10-25
 //! from the front end's block `menu::store`.)
 
+use crate::menu::fn_list::ListCell;
 use crate::session::{Bytes, Dword, with_runs};
 
 /// The screens' flow variables (IDA 0x7554C0 .. 0x755525).
@@ -34,16 +35,16 @@ pub struct ScreenFlow {
     pub turning: Dword,
     /// `g_shownGearing`: The gearing shown (`screens::gearing_text`).
     pub shown_gearing: Dword,
-    /// `g_unreadList`: The screen's first list: the address of the list `menu::run_list` runs.
-    pub unread_list: Dword,
+    /// `g_unreadList`: The screen's first list (`menu::fn_list`: by handle, not the list's address).
+    pub unread_list: ListCell,
     /// `g_drawList`: The screen's draw list.
-    pub draw_list: Dword,
+    pub draw_list: ListCell,
     /// `g_overlayList`: The screen's overlay list.
-    pub overlay_list: Dword,
+    pub overlay_list: ListCell,
     /// `dword_755500`: The screen's set-up list: run once at set-up (`menu::run_list`) and not put in place again.
-    pub setup_list: Dword,
+    pub setup_list: ListCell,
     /// `g_sceneList`: The screen's 3D list.
-    pub scene_list: Dword,
+    pub scene_list: ListCell,
     /// Unreferenced bytes (IDA 0x755508 .. 0x755525).
     pub _gap_755508: Bytes<29>,
 }
@@ -62,11 +63,11 @@ pub static SCREEN_FLOW: ScreenFlow = ScreenFlow {
     menu_sounds_volume: Dword::new(0x0),
     turning: Dword::new(0x1),
     shown_gearing: Dword::new(0x1),
-    unread_list: Dword::new(0x0),
-    draw_list: Dword::new(0x0),
-    overlay_list: Dword::new(0x0),
-    setup_list: Dword::new(0x0),
-    scene_list: Dword::new(0x0),
+    unread_list: ListCell::new(),
+    draw_list: ListCell::new(),
+    overlay_list: ListCell::new(),
+    setup_list: ListCell::new(),
+    scene_list: ListCell::new(),
     _gap_755508: Bytes::new(with_runs::<29>(&[(0x0, &[0xff, 0xff, 0xff, 0xff])])),
 };
 

@@ -4,7 +4,9 @@
 //! cosine out (`fsincos`), where `scene::set_turn_x` and `_y` look sixteen bits up in
 //! tables; the first two write the same matrices as those.
 
+use crate::math::cells::{Cells, Off};
 use crate::math::x87;
+use crate::math::x87_float as bh;
 use crate::race::course_lists_store::COURSE_LISTS;
 use crate::race::matrices_store::MATRICES;
 use crate::race::numbers_store::NUMBERS;
@@ -44,75 +46,87 @@ pub fn set_fine_turn(axis: Axis, angle: u32) {
     }
 }
 
-fn float(at: usize) -> u32 {
-    crate::pointers::read_or_end::<u32>((at) as u32, "scene::view_matrix's operand")
-}
-
-fn put(at: usize, value: u32) {
-    crate::pointers::write_or_end::<u32>((at) as u32, value, "scene::view_matrix's operand")
-}
-
 /// `scene::unit_vector` (0x420EF8): three floats made one long, into `out`; all 0 when
 /// their length compares equal to `flt_5C5D90` (0, or no number). Minus zero made zero.
 /// The length is left in `dword_62400C`.
-pub fn unit_vector(from: usize, out: usize) {
-    let length = x87::length(crate::pointers::host_at(from) as *const u32);
+pub fn unit_vector(from: &(impl Cells + ?Sized), out: &(impl Cells + ?Sized)) {
+    // `x87::length`: sqrt(x x + (y y + z z)).
+    let (x, y, z) = (
+        bh::ld(from.bits(0)),
+        bh::ld(from.bits(1)),
+        bh::ld(from.bits(2)),
+    );
+    let length = bh::st((x * x + (y * y + z * z)).sqrt());
     DRAW.scratch.set_bits(length);
     if x87::equal_or_unordered(length, NUMBERS.zero.bits()) {
         for n in 0..3 {
-            put(out + n * 4, 0);
+            out.set_bits(n, 0);
         }
         return;
     }
     for n in 0..3 {
-        put(out + n * 4, x87::div(float(from + n * 4), length));
+        out.set_bits(n, x87::div(from.bits(n), length));
     }
     for n in 0..3 {
-        if float(out + n * 4) == 0x8000_0000 {
-            put(out + n * 4, 0);
+        if out.bits(n) == 0x8000_0000 {
+            out.set_bits(n, 0);
         }
     }
 }
 
 /// `scene::cross_product` (0x420F8D): ebx = `b`, ecx = `c`, edx = `out`, written part
 /// by part.
-pub fn cross_product(b: usize, c: usize, out: usize) {
-    let part = |x: usize, y: usize| {
-        x87::product_difference(
-            float(c + x * 4),
-            float(b + y * 4),
-            float(b + x * 4),
-            float(c + y * 4),
-        )
-    };
-    put(out, part(2, 1));
-    put(out + 4, part(0, 2));
-    put(out + 8, part(1, 0));
+pub fn cross_product(
+    b: &(impl Cells + ?Sized),
+    c: &(impl Cells + ?Sized),
+    out: &(impl Cells + ?Sized),
+) {
+    let part =
+        |x: usize, y: usize| x87::product_difference(c.bits(x), b.bits(y), b.bits(x), c.bits(y));
+    out.set_bits(0, part(2, 1));
+    out.set_bits(1, part(0, 2));
+    out.set_bits(2, part(1, 0));
+}
+
+/// The squared rows' work (`flt_5C6FA4` ..: 16 floats over three fields, as one run).
+struct Squared;
+
+impl Cells for Squared {
+    fn bits(&self, n: usize) -> u32 {
+        match n {
+            0..4 => COURSE_LISTS.squared_row_0[n].bits(),
+            4..8 => COURSE_LISTS.squared_row_1[n - 4].bits(),
+            _ => COURSE_LISTS.squared_row_2_and_after[n - 8].bits(),
+        }
+    }
+    fn set_bits(&self, n: usize, bits: u32) {
+        match n {
+            0..4 => COURSE_LISTS.squared_row_0[n].set_bits(bits),
+            4..8 => COURSE_LISTS.squared_row_1[n - 4].set_bits(bits),
+            _ => COURSE_LISTS.squared_row_2_and_after[n - 8].set_bits(bits),
+        }
+    }
 }
 
 /// `scene::square_matrix` (0x420E94): a turning's three rows made one long and at right
 /// angles again, from its third row and its second.
-pub fn square_matrix(at: usize) {
-    let (first, second, third) = (
-        COURSE_LISTS.squared_row_0[0].addr(),
-        COURSE_LISTS.squared_row_0[0].addr() + 0x10,
-        COURSE_LISTS.squared_row_0[0].addr() + 0x20,
-    );
-    unit_vector(at + 0x20, third as usize);
-    cross_product(at + 0x10, third as usize, first as usize);
-    unit_vector(first as usize, first as usize);
-    cross_product(third as usize, first as usize, second as usize);
+pub fn square_matrix(at: &(impl Cells + ?Sized)) {
+    let (first, second, third) = (Off(&Squared, 0), Off(&Squared, 4), Off(&Squared, 8));
+    unit_vector(&Off(at, 8), &third);
+    cross_product(&Off(at, 4), &third, &first);
+    unit_vector(&first, &first);
+    cross_product(&third, &first, &second);
     for n in 0..0x10 {
-        put(at + n * 4, float((first + (n * 4) as u32) as usize));
+        at.set_bits(n, Squared.bits(n));
     }
 }
 
 /// `scene::invert_turn` (0x420CC2): the turning at `from` undone, into `out`: its nine
 /// floats' cofactors laid out the other way round, then squared.
-pub fn invert_turn(from: usize, out: usize) {
+pub fn invert_turn(from: &(impl Cells + ?Sized), out: &(impl Cells + ?Sized)) {
     let mut m = [0u32; 9];
     for (n, value) in m.iter_mut().enumerate() {
-        *value = x87::loaded(float(from + (n / 3) * 0x10 + (n % 3) * 4));
+        *value = x87::loaded(from.bits((n / 3) * 4 + n % 3));
     }
     crate::session::write_bits(&COURSE_LISTS.invert_copy, m);
     let [a, b, c, d, e, f, g, h, i] = m;
@@ -131,7 +145,7 @@ pub fn invert_turn(from: usize, out: usize) {
     ];
     crate::session::write_bits(&COURSE_LISTS.invert_made, made);
     for (n, value) in made.into_iter().enumerate() {
-        put(out + (n / 3) * 0x10 + (n % 3) * 4, x87::loaded(value));
+        out.set_bits((n / 3) * 4 + n % 3, x87::loaded(value));
     }
     square_matrix(out);
 }
@@ -147,14 +161,14 @@ pub fn set_view_matrices() {
     set_fine_turn(Axis::X, angles[1].wrapping_neg());
     set_fine_turn(Axis::Z, angles[2].wrapping_neg());
     matrix::multiply_matrices(
-        MATRICES.turn_y_matrix[0].addr() as usize,
-        MATRICES.turn_x_matrix[0].addr() as usize,
-        MATRICES.lit_matrix[0].addr() as usize,
+        &MATRICES.turn_y_matrix,
+        &MATRICES.turn_x_matrix,
+        &MATRICES.lit_matrix,
     );
     matrix::multiply_matrices(
-        MATRICES.lit_matrix[0].addr() as usize,
-        MATRICES.turn_z_matrix[0].addr() as usize,
-        MATRICES.view_turn_matrix[0].addr() as usize,
+        &MATRICES.lit_matrix,
+        &MATRICES.turn_z_matrix,
+        &MATRICES.view_turn_matrix,
     );
     let place = crate::session::read_bits::<_, 3>(&VIEW_VARS.view_place).map(u32::wrapping_neg);
     matrix::set_place(place);
@@ -163,14 +177,11 @@ pub fn set_view_matrices() {
         crate::session::read_bits(&MATRICES.placed_matrix),
     );
     matrix::multiply_matrices(
-        MATRICES.placed_matrix[0].addr() as usize,
-        MATRICES.view_turn_matrix[0].addr() as usize,
-        MATRICES.view_matrix[0].addr() as usize,
+        &MATRICES.placed_matrix,
+        &MATRICES.view_turn_matrix,
+        &MATRICES.view_matrix,
     );
-    invert_turn(
-        MATRICES.view_turn_matrix[0].addr() as usize,
-        MATRICES.view_back_matrix[0].addr() as usize,
-    );
+    invert_turn(&MATRICES.view_turn_matrix, &MATRICES.view_back_matrix);
 }
 
 // ---- the converted versions (`rc2k_core::scene::matrices`) ----

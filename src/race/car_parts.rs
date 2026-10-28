@@ -106,7 +106,7 @@ pub fn car_part_matrices(car: u32) -> Result<(), Refused> {
     )?;
     // (x, z, the x turn, the height, the matrix): the four wheels.
     let (c, o) = (&CAMERA_WORK, &OBJECT_WORK);
-    let parts = |n: usize| FRAME_WORK.part_matrices[n].addr();
+    let parts = |n: usize| &FRAME_WORK.part_matrices[n..n + 16];
     for (n, (x, z, spin, lift, out)) in [
         (
             &c.axle_front_neg,
@@ -149,22 +149,14 @@ pub fn car_part_matrices(car: u32) -> Result<(), Refused> {
             z.get().wrapping_neg(),
         ]);
         set_turn_x(spin.get());
-        let placed = MATRICES.placed_matrix[0].addr();
-        let turned = MATRICES.turned_matrix[0].addr();
-        let lit = MATRICES.lit_matrix[0].addr();
-        multiply_matrices(
-            placed as usize,
-            MATRICES.turn_x_matrix[0].addr() as usize,
-            turned as usize,
-        );
+        let placed = &MATRICES.placed_matrix;
+        let turned = &MATRICES.turned_matrix;
+        let lit = &MATRICES.lit_matrix;
+        multiply_matrices(placed, &MATRICES.turn_x_matrix, turned);
         set_turn_y(OBJECT_WORK.part_values[2].get());
-        multiply_matrices(
-            turned as usize,
-            MATRICES.turn_y_matrix[0].addr() as usize,
-            lit as usize,
-        );
+        multiply_matrices(turned, &MATRICES.turn_y_matrix, lit);
         set_place([x.get(), lift.get(), z.get()]);
-        multiply_matrices(lit as usize, placed as usize, out as usize);
+        multiply_matrices(lit, placed, out);
     }
     Ok(())
 }
@@ -207,9 +199,9 @@ pub fn ready_car_parts() -> Result<(), Refused> {
                 )?;
             }
             multiply_matrices(
-                MATRICES.body_turn_matrix[0].addr() as usize,
-                FRAME_WORK.placed_matrices[0].addr() as usize,
-                MATRICES.view_place[0].addr() as usize,
+                &MATRICES.body_turn_matrix,
+                &FRAME_WORK.placed_matrices,
+                &MATRICES.view_place,
             );
             GamePtr::new(MATRICES.view_place[0].addr()).copy_to(
                 GamePtr::new(car + BODY_AT),

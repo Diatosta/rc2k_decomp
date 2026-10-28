@@ -27,12 +27,8 @@ pub fn set_item(number: u32, on: bool) -> Result<(), Refused> {
         Font::Plain => PLAIN_FONT,
         Font::Grey => GREY_FONT,
     };
-    {
-        crate::pointers::GamePtr::new(item + 0x48)
-            .write::<u32>(state, "disable item: a game value")?;
-        crate::pointers::GamePtr::new(item + 0x18)
-            .write::<u32>(font.addr(), "disable item: a game value")?;
-    }
+    item.skip_mark.set(state);
+    item.font.set(font.addr());
     Ok(())
 }
 

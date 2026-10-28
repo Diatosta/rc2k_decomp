@@ -4,6 +4,7 @@
 //! (`g_skidLinks`, 8 bytes: +0 the next, +2 the previous, +4 the angle, +6 the car's bit).
 
 use crate::errors::{BadInput, Refused};
+use crate::math::cells::At;
 use crate::pointers::GamePtr;
 use crate::race::frame_store::FRAME_WORK;
 use crate::race::trap::car_at;
@@ -169,7 +170,7 @@ pub unsafe fn lay_skidmarks() -> Result<(), Refused> {
                 };
                 DRAW.scratch.set(side);
                 let t = crate::scene::rotate_point::rotate_point(
-                    car + 0xB4,
+                    &At(car + 0xB4),
                     [int_80(side), zero, zero],
                 );
                 for (i, v) in t.into_iter().enumerate() {

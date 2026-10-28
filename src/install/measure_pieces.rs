@@ -52,10 +52,12 @@ pub fn measure_pieces() -> Result<(), Refused> {
                 measure_string(rw(piece + 2) as u32, font_of(font), left)?
             }
             Way::Edit => {
-                let record = rd(rd(piece + 4) + 0xC);
+                let item = rd(piece + 4);
+                let record = rd(item + 0xC);
                 let font_height =
                     rb(INSTALLER_PAGES.kind_fonts.addr() + 7 + 8 * rb(record + 4) as u32) as u32;
-                (rw(record + 6) as u32, font_height)
+                let width = crate::install::folders::field_width(rd(item + 8), rw(record + 6));
+                (width as u32, font_height)
             }
             Way::Text => {
                 let item = rd(piece + 4);

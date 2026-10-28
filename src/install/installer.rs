@@ -132,7 +132,7 @@ pub fn fatal(code: u32) -> Refused {
 }
 
 /// The IDA address of a game address (for the dispatchers).
-fn ida_of(place: u32) -> usize {
+pub fn ida_of(place: u32) -> usize {
     (place as usize)
         .wrapping_sub(game_addr(0) as usize)
         .wrapping_add(0x40_0000)

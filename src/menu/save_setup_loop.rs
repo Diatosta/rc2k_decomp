@@ -53,22 +53,22 @@ unsafe fn each_frame(c: &mut Carried) -> Result<Flow, Refused> {
 }
 
 pub const SCREEN: Screen = Screen {
-    menu: || MENUS.save_setup.addr() as usize,
+    menu: || MENUS.save_setup.id(),
     saved_item: || &SCREEN_ITEMS.current[slot::SAVE_SETUP],
     lists: &[
         List {
             pointer: || &SCREEN_FLOW.scene_list, // g_sceneList
-            table: || DRAW_LISTS.save_setup_scene.addr() as usize,
+            table: || DRAW_LISTS.save_setup_scene.id(),
             run: false,
         },
         List {
             pointer: || &SCREEN_FLOW.draw_list, // g_drawList
-            table: || DRAW_LISTS.save_setup_draw.addr() as usize,
+            table: || DRAW_LISTS.save_setup_draw.id(),
             run: false,
         },
         List {
             pointer: || &SCREEN_FLOW.overlay_list, // g_overlayList
-            table: || DRAW_LISTS.save_setup_overlay.addr() as usize,
+            table: || DRAW_LISTS.save_setup_overlay.id(),
             run: false,
         },
     ],

@@ -8,9 +8,10 @@
 //! Callers (5): the cars' physics under `sub_4454D2` (`sub_440B9D`, `sub_45EDB5`,
 //! `sub_45F17E` three times).
 
+use crate::math::cells::{Cells, load};
 use crate::scene::vector3::*;
 
 /// The Rust version: the product as it is left in st(0).
-pub fn dot_product(a: u32, b: u32) -> [u8; 10] {
-    dot_product3(a, b)
+pub fn dot_product(a: &(impl Cells + ?Sized), b: &(impl Cells + ?Sized)) -> [u8; 10] {
+    dot_product3(load(a), load(b))
 }

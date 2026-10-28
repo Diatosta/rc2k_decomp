@@ -19,10 +19,6 @@ use crate::menu::state_store::MENU_STATE;
 
 // ---- game data ----
 
-fn dword(at: u32) -> Result<u32, crate::errors::BadInput> {
-    crate::pointers::GamePtr::new(at).read::<u32>("a game value")
-}
-
 /// The four moves. Which is up and which is down is a reading: the keys are 0x66 and 0x6B.
 /// Left and right are keys 0x68 and 0x69, the ones that step a value down and up in the
 /// service area.
@@ -36,12 +32,13 @@ pub enum Direction {
 
 impl Direction {
     /// (the link's place in an item, the callback's)
-    fn offsets(self) -> (u32, u32) {
+    /// The item's link (+0x24 ..) and key function (+0x34 ..) this move reads.
+    fn slot(self) -> usize {
         match self {
-            Self::Up => (0x24, 0x34),
-            Self::Down => (0x28, 0x38),
-            Self::Left => (0x2C, 0x3C),
-            Self::Right => (0x30, 0x40),
+            Self::Up => 0,
+            Self::Down => 1,
+            Self::Left => 2,
+            Self::Right => 3,
         }
     }
 }
@@ -54,7 +51,7 @@ pub fn move_highlight(direction: Direction) -> Result<(), Refused> {
     // Converted: `rc2k_core::menu::navigation` (`turn`, `link`, `walk`), everything worked
     // out before it is written.
     use rc2k_core::menu::navigation::{Link, Turn, link, turn, walk};
-    let (link_at, callback) = direction.offsets();
+    let way = direction.slot();
     let sideways = matches!(direction, Direction::Left | Direction::Right);
     {
         let highlighted: u32 = LOOP_FLAGS.item.get();
@@ -68,12 +65,11 @@ pub fn move_highlight(direction: Direction) -> Result<(), Refused> {
             };
             turn(t, direction == Direction::Right)
         });
-        let next = dword(item + link_at)?;
+        let next = item.links[way].get();
         let to = match link(next) {
             Link::To(n) if !sideways => Some(walk(n, |n| {
                 let it = item_at(n).map_err(|e| rc2k_core::Invalid(e.0))?;
-                let read = |at| dword(at).map_err(|e| rc2k_core::Invalid(e.0));
-                Ok((read(it + link_at)?, read(it + 0x48)?))
+                Ok((it.links[way].get(), it.skip_mark.get()))
             })?),
             Link::To(n) => Some(n),
             _ => None,
@@ -91,7 +87,7 @@ pub fn move_highlight(direction: Direction) -> Result<(), Refused> {
         }
         match to {
             Some(n) => LOOP_FLAGS.item.set(n),
-            None => crate::menu::table_calls::call_key(dword(item + callback)?, item)?,
+            None => crate::menu::table_calls::call_key(item.on_key[way].get(), item)?,
         }
     }
     Ok(())

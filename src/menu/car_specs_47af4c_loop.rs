@@ -53,27 +53,27 @@ fn after_first_frame(_c: &mut Carried) -> Result<Flow, Refused> {
 }
 
 pub const SCREEN: Screen = Screen {
-    menu: || MENUS.car_specs_47af4c.addr() as usize,
+    menu: || MENUS.car_specs_47af4c.id(),
     saved_item: || &SCREEN_ITEMS.current[slot::CAR_SPECS_47AF4C],
     lists: &[
         List {
             pointer: || &SCREEN_FLOW.scene_list, // g_sceneList
-            table: || DRAW_LISTS.car_specs_47af4c_scene.addr() as usize,
+            table: || DRAW_LISTS.car_specs_47af4c_scene.id(),
             run: false,
         },
         List {
             pointer: || &SCREEN_FLOW.draw_list, // g_drawList
-            table: || DRAW_LISTS.car_specs_47af4c_draw.addr() as usize,
+            table: || DRAW_LISTS.car_specs_47af4c_draw.id(),
             run: false,
         },
         List {
             pointer: || &SCREEN_FLOW.setup_list, // dword_755500
-            table: || DRAW_LISTS.car_specs_47af4c_setup.addr() as usize,
+            table: || DRAW_LISTS.car_specs_47af4c_setup.id(),
             run: true,
         },
         List {
             pointer: || &SCREEN_FLOW.overlay_list, // g_overlayList
-            table: || DRAW_LISTS.car_specs_47af4c_overlay.addr() as usize,
+            table: || DRAW_LISTS.car_specs_47af4c_overlay.id(),
             run: false,
         },
     ],

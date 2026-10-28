@@ -114,6 +114,7 @@ pub mod flip_gearing;
 pub mod flip_yes_no;
 pub mod flow_game;
 pub mod flow_store;
+pub mod fn_list;
 pub mod frame_callback;
 pub mod go_back;
 pub mod handle_keys;

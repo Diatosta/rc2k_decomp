@@ -38,7 +38,7 @@ pub fn place_car_sound() -> Result<(), Refused> {
         d(&CAR.position[1], &CAR.camera_position[1]),
         d(&CAR.position[2], &CAR.camera_position[2]),
     ];
-    let out = rotate_point(MATRICES.view_turn_matrix[0].addr(), p);
+    let out = rotate_point(&MATRICES.view_turn_matrix, p);
     let k = NUMBERS.one_over_65536.bits();
     for (n, e) in out.iter().enumerate() {
         so.place_b[n].set_bits(rounded(ext_times(*e, k)));

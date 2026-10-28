@@ -33,44 +33,44 @@ fn before(c: &mut Carried) -> Result<(), Refused> {
 }
 
 pub const SCREEN: Screen = Screen {
-    menu: || MENUS.load_championship.addr() as usize,
+    menu: || MENUS.load_championship.id(),
     saved_item: || &SCREEN_ITEMS.current[slot::LOAD_CHAMPIONSHIP],
     lists: &[
         List {
             pointer: || &SCREEN_FLOW.unread_list, // g_unreadList
-            table: || DRAW_LISTS.unread_758b72.addr() as usize,
+            table: || DRAW_LISTS.unread_758b72.id(),
             run: false,
         },
         List {
             pointer: || &SCREEN_FLOW.draw_list, // g_drawList
-            table: || DRAW_LISTS.draw_758ba6.addr() as usize,
+            table: || DRAW_LISTS.draw_758ba6.id(),
             run: false,
         },
         List {
             pointer: || &SCREEN_FLOW.setup_list, // dword_755500
-            table: || DRAW_LISTS.load_championship_setup.addr() as usize,
+            table: || DRAW_LISTS.load_championship_setup.id(),
             run: true,
         },
         List {
             pointer: || &SCREEN_FLOW.overlay_list, // g_overlayList
-            table: || DRAW_LISTS.overlay_759146.addr() as usize,
+            table: || DRAW_LISTS.overlay_759146.id(),
             run: false,
         },
     ],
     first_frame_lists: Some(&[
         List {
             pointer: || &SCREEN_FLOW.scene_list, // g_sceneList
-            table: || DRAW_LISTS.load_championship_scene.addr() as usize,
+            table: || DRAW_LISTS.load_championship_scene.id(),
             run: false,
         },
         List {
             pointer: || &SCREEN_FLOW.draw_list, // g_drawList
-            table: || DRAW_LISTS.draw_758ba6.addr() as usize,
+            table: || DRAW_LISTS.draw_758ba6.id(),
             run: false,
         },
         List {
             pointer: || &SCREEN_FLOW.overlay_list, // g_overlayList
-            table: || DRAW_LISTS.overlay_759146.addr() as usize,
+            table: || DRAW_LISTS.overlay_759146.id(),
             run: false,
         },
     ]),

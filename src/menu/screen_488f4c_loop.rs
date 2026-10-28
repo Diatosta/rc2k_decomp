@@ -21,22 +21,22 @@ use crate::menu::screen_loop::{Callee, List, Screen, Step};
 // ---- Rust version: `menu::screen_loop` with this ----
 
 pub const SCREEN: Screen = Screen {
-    menu: || MENUS.screen_488f4c.addr() as usize,
+    menu: || MENUS.screen_488f4c.id(),
     saved_item: || &SCREEN_ITEMS.current[slot::SCREEN_488F4C],
     lists: &[
         List {
             pointer: || &SCREEN_FLOW.scene_list, // g_sceneList
-            table: || DRAW_LISTS.screen_488f4c_scene.addr() as usize,
+            table: || DRAW_LISTS.screen_488f4c_scene.id(),
             run: false,
         },
         List {
             pointer: || &SCREEN_FLOW.draw_list, // g_drawList
-            table: || DRAW_LISTS.screen_488f4c_draw.addr() as usize,
+            table: || DRAW_LISTS.screen_488f4c_draw.id(),
             run: false,
         },
         List {
             pointer: || &SCREEN_FLOW.overlay_list, // g_overlayList
-            table: || DRAW_LISTS.screen_488f4c_overlay.addr() as usize,
+            table: || DRAW_LISTS.screen_488f4c_overlay.id(),
             run: false,
         },
     ],

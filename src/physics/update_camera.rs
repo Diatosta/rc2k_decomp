@@ -95,7 +95,7 @@ fn fixed_camera(second: bool) {
     x87_2((crate::pointers::game_address(w.as_ptr())) as usize);
     DRAW.scratch.set(dz);
     VIEW_VARS.camera_distance.set_bits(rounded({
-        crate::physics::vector_length::vector_length(VIEW_VARS.camera_vector[0].addr())
+        crate::physics::vector_length::vector_length(&VIEW_VARS.camera_vector)
     }));
     CAR.camera_zoom
         .set_bits(CAMERA_WORK.camera_zoom_kept.bits());

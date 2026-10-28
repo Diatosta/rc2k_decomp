@@ -15,6 +15,7 @@
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
 //! above are the original's, for reference.
 
+use crate::math::cells::At;
 use crate::math::x87_run::{abs_compare, compare_full, ext_div2};
 use crate::physics::car_store::CAR;
 use crate::physics::dot_product::dot_product;
@@ -29,10 +30,13 @@ pub unsafe fn stall_at(v: &[u32]) {
     unsafe {
         let get = |k: usize| (crate::pointers::host(v[k]) as *const u32).read_unaligned();
         let put = |k: usize, x: u32| (crate::pointers::host(v[k]) as *mut u32).write_unaligned(x);
-        put(3, rounded(vector_length(v[0])));
+        put(3, rounded(vector_length(&At(v[0]))));
         let zero: u32 = NUMBERS.zero.bits();
         if compare_full(get(3), zero) & 0x4000 == 0 {
-            put(7, ext_div2(dot_product(v[4], v[0]), get(3), get(3)));
+            put(
+                7,
+                ext_div2(dot_product(&At(v[4]), &At(v[0])), get(3), get(3)),
+            );
         }
         if abs_compare(get(3), PHYSICS.stall_speed.bits()) & 0x100 != 0 {
             return;

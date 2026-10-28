@@ -33,14 +33,14 @@ pub unsafe fn lever_push() {
         }
         turn_by_inverse(PHYSICS.lever_push_place[0].addr());
         cross_product(
-            (PHYSICS.lever_push_vector[0].addr()) as usize,
-            (PHYSICS.lever_push_place[0].addr()) as usize,
-            (PHYSICS.lever_push_turned[0].addr()) as usize,
+            &PHYSICS.lever_push_vector,
+            &PHYSICS.lever_push_place,
+            &PHYSICS.lever_push_turned,
         );
         turn_by_car_matrix(PHYSICS.lever_push_turned[0].addr());
         for factor in [&PHYSICS.lever_share_left, &PHYSICS.lever_share] {
             let f = extended(factor.bits());
-            scale_vector(PHYSICS.lever_push_turned[0].addr(), f);
+            scale_vector(&PHYSICS.lever_push_turned, f);
             DRAW.scratch.set(rounded(f));
         }
         for (from, int, place) in [

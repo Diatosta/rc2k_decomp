@@ -50,44 +50,44 @@ fn result() -> u32 {
 }
 
 pub const SCREEN: Screen = Screen {
-    menu: || MENUS.load_replay.addr() as usize,
+    menu: || MENUS.load_replay.id(),
     saved_item: || &SCREEN_ITEMS.current[slot::LOAD_REPLAY],
     lists: &[
         List {
             pointer: || &SCREEN_FLOW.unread_list, // g_unreadList
-            table: || DRAW_LISTS.unread_758b72.addr() as usize,
+            table: || DRAW_LISTS.unread_758b72.id(),
             run: false,
         },
         List {
             pointer: || &SCREEN_FLOW.draw_list, // g_drawList
-            table: || DRAW_LISTS.draw_758bd6.addr() as usize,
+            table: || DRAW_LISTS.draw_758bd6.id(),
             run: false,
         },
         List {
             pointer: || &SCREEN_FLOW.setup_list, // dword_755500
-            table: || DRAW_LISTS.load_replay_setup.addr() as usize,
+            table: || DRAW_LISTS.load_replay_setup.id(),
             run: true,
         },
         List {
             pointer: || &SCREEN_FLOW.overlay_list, // g_overlayList
-            table: || DRAW_LISTS.overlay_759152.addr() as usize,
+            table: || DRAW_LISTS.overlay_759152.id(),
             run: false,
         },
     ],
     first_frame_lists: Some(&[
         List {
             pointer: || &SCREEN_FLOW.scene_list, // g_sceneList
-            table: || DRAW_LISTS.load_replay_scene.addr() as usize,
+            table: || DRAW_LISTS.load_replay_scene.id(),
             run: false,
         },
         List {
             pointer: || &SCREEN_FLOW.draw_list, // g_drawList
-            table: || DRAW_LISTS.draw_758bd6.addr() as usize,
+            table: || DRAW_LISTS.draw_758bd6.id(),
             run: false,
         },
         List {
             pointer: || &SCREEN_FLOW.overlay_list, // g_overlayList
-            table: || DRAW_LISTS.overlay_759152.addr() as usize,
+            table: || DRAW_LISTS.overlay_759152.id(),
             run: false,
         },
     ]),

@@ -48,7 +48,7 @@ fn box_moved(i: usize) {
 
 /// The original's 0x4C1965 .. 0x4C1996: the move's length into `flt_8BDD5D`, compared with `flt_8C5FA1` (`fstsw` into `g_fpuStatus`).
 fn move_length() {
-    move_length_x87(crate::race::store::asm_base() as usize, &RAIN, &RAIN_RULES)
+    move_length_x87(&RAIN, &RAIN_RULES)
 }
 
 /// The original's 0x4C19AC .. 0x4C19F2: the move scaled to `flt_8C5FA5` over its length, times its three factors.
@@ -159,7 +159,6 @@ pub fn run_rain() -> Result<(), Refused> {
     Ok(())
 }
 
-use crate::marks::plain::st16;
 use crate::math::x87_float as bh;
 
 /// `box_moved`'s x87 block as plain Rust on the x87 model (13 instructions), same order and memory places.
@@ -182,7 +181,7 @@ fn box_moved_x87(i: usize, r: &RainState, k: &RainRules) {
 }
 
 /// `move_length`'s x87 block as plain Rust on the x87 model (12 instructions), same order and memory places.
-fn move_length_x87(rc: usize, r: &RainState, k: &RainRules) {
+fn move_length_x87(r: &RainState, k: &RainRules) {
     let t0 = bh::ld(r.motion[0].bits());
     let t1 = t0 * t0;
     let t2 = bh::ld(r.motion[1].bits());
@@ -193,7 +192,7 @@ fn move_length_x87(rc: usize, r: &RainState, k: &RainRules) {
     let t7 = t1 + t6;
     let t8 = t7.sqrt();
     r.depth.set_bits(bh::st(t8));
-    st16(rc, 0x31C814, bh::compare(t8, bh::ld(k.move_limit.bits())));
+    crate::marks::plain::set_status(bh::compare(t8, bh::ld(k.move_limit.bits())));
 }
 
 /// `move_held`'s x87 block as plain Rust on the x87 model (13 instructions), same order and memory places.
@@ -385,9 +384,7 @@ mod asm_differential {
     fn move_length_x87_matches() {
         const SPEC: Spec = Spec {
             operands: &[
-                Op::Base {
-                    lo: 0x31C814,
-                    hi: 0x31C816,
+                Op::RaceBlock {
                     reads: &[],
                     writes: &[(0x31C814, Status)],
                 },
@@ -408,7 +405,7 @@ mod asm_differential {
         differential(
             &SPEC,
             |b| reference::move_length_x87(b[0], b[1]),
-            |b| with_state_at(b[1], |r, k| super::move_length_x87(b[0], r, k)),
+            |b| with_state_at(b[1], super::move_length_x87),
         );
     }
 

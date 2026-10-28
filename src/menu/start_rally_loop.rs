@@ -61,22 +61,22 @@ unsafe fn leaving(c: &mut Carried) -> Result<(), Refused> {
 }
 
 pub const SCREEN: Screen = Screen {
-    menu: || MENUS.start_rally.addr() as usize,
+    menu: || MENUS.start_rally.id(),
     saved_item: || &SCREEN_ITEMS.current[slot::START_RALLY],
     lists: &[
         List {
             pointer: || &SCREEN_FLOW.scene_list, // g_sceneList
-            table: || DRAW_LISTS.start_rally_scene.addr() as usize,
+            table: || DRAW_LISTS.start_rally_scene.id(),
             run: false,
         },
         List {
             pointer: || &SCREEN_FLOW.draw_list, // g_drawList
-            table: || DRAW_LISTS.start_rally_draw.addr() as usize,
+            table: || DRAW_LISTS.start_rally_draw.id(),
             run: false,
         },
         List {
             pointer: || &SCREEN_FLOW.overlay_list, // g_overlayList
-            table: || DRAW_LISTS.start_rally_overlay.addr() as usize,
+            table: || DRAW_LISTS.start_rally_overlay.id(),
             run: false,
         },
     ],

@@ -16,13 +16,17 @@ cd "$(dirname "$0")"
 DEST="${STANDALONE_DIR:-$GAME_DIR/..}"
 
 if [ "${1:-}" = linux ]; then
-    # The native Linux build (phase 11), on the system's SDL3 and FFmpeg, into a linux
-    # folder in the game's folder. Started from the game's folder: `linux/rc2k`.
+    # The native Linux build (phase 11) into a linux folder in the game's folder, started
+    # from the game's folder: `linux/rc2k`. SDL and FFmpeg's decoders are linked in
+    # (build.rs): it needs only the C library, at least the glibc it prints.
+    tools/build_ffmpeg.sh linux
     CARGO_TARGET_DIR=target/linux cargo build --release --target x86_64-unknown-linux-gnu \
         --bin rc2k
     mkdir -p "$DEST/linux"
     cp --remove-destination target/linux/x86_64-unknown-linux-gnu/release/rc2k "$DEST/linux/"
-    echo "deployed the Linux rc2k to $DEST/linux"
+    echo "deployed the Linux rc2k to $DEST/linux (needs glibc $(objdump -T \
+        target/linux/x86_64-unknown-linux-gnu/release/rc2k | grep -v ' w ' \
+        | grep -oE 'GLIBC_[0-9.]+' | sort -uV | tail -1 | cut -d_ -f2) or newer)"
     exit 0
 fi
 

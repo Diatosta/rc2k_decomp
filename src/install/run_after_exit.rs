@@ -34,8 +34,11 @@ const ROOM: u32 = 0x100;
 
 // The variables.
 
-/// The standalone's program in place of `.\ral.exe` (`install/shortcuts.rs`).
-pub static RC2K: [u8; 11] = *b".\\rc2k.exe\0";
+/// The standalone's program in place of `.\ral.exe` (`install::shortcuts::PROGRAM`).
+#[cfg(windows)]
+pub static RC2K: &[u8] = b".\\rc2k.exe\0";
+#[cfg(not(windows))]
+pub static RC2K: &[u8] = b".\\rc2k\0";
 
 /// Where the variables are.
 #[derive(Clone, Copy)]

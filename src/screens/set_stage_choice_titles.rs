@@ -14,19 +14,24 @@
 //! its `entry` (`menu::table_calls`); the registers above are the original's, for reference.
 
 use crate::errors::{BadInput, Refused};
-use crate::menu::item_at::{ITEM_LEN, MENU_HEAD_LEN};
 use crate::menu::menus_store::MENUS;
 use crate::pointers::GamePtr;
 use crate::screens::draw_stage_records::selection;
 use crate::screens::draw_time_trial_stage_info::GROUP_TITLES_RVA;
 use crate::screens::stage_panel::{build_second_heading, dword, table_dword_at};
+use rc2k_core::menu::items::{ITEM_LEN, MENU_HEAD_LEN};
 
 /// Where item 0's string goes, and where the original puts "item 1"'s.
 fn places() -> Result<(u32, u32), BadInput> {
-    let menu = MENUS.select_stage.addr();
+    // Item 1's place is worked out from the menu's labels' address, as if it were the
+    // menu's (the original's slip, `notes/bugs.md`): it lands in the memory after them.
     Ok((
-        menu + MENU_HEAD_LEN + 0x14,
-        dword(menu)?.wrapping_add(MENU_HEAD_LEN + ITEM_LEN + 0x14),
+        MENUS.select_stage.items[0].string.addr(),
+        MENUS
+            .select_stage
+            .head
+            .get()
+            .wrapping_add(MENU_HEAD_LEN + ITEM_LEN + 0x14),
     ))
 }
 

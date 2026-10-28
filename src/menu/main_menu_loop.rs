@@ -106,27 +106,27 @@ fn idle(c: &mut Carried) -> Result<Flow, Refused> {
 }
 
 pub const SCREEN: Screen = Screen {
-    menu: || MENUS.main_menu.addr() as usize,
+    menu: || MENUS.main_menu.id(),
     saved_item: || &SCREEN_ITEMS.current[slot::MAIN_MENU],
     lists: &[
         List {
             pointer: || &SCREEN_FLOW.scene_list, // g_sceneList
-            table: || DRAW_LISTS.main_menu_scene.addr() as usize,
+            table: || DRAW_LISTS.main_menu_scene.id(),
             run: false,
         },
         List {
             pointer: || &SCREEN_FLOW.draw_list, // g_drawList
-            table: || DRAW_LISTS.main_menu_draw.addr() as usize,
+            table: || DRAW_LISTS.main_menu_draw.id(),
             run: false,
         },
         List {
             pointer: || &SCREEN_FLOW.setup_list, // dword_755500
-            table: || DRAW_LISTS.main_menu_setup.addr() as usize,
+            table: || DRAW_LISTS.main_menu_setup.id(),
             run: true,
         },
         List {
             pointer: || &SCREEN_FLOW.overlay_list, // g_overlayList
-            table: || DRAW_LISTS.main_menu_overlay.addr() as usize,
+            table: || DRAW_LISTS.main_menu_overlay.id(),
             run: false,
         },
     ],

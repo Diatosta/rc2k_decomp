@@ -37,19 +37,19 @@ use rc2k_core::physics::x87::hold_low;
 
 /// 0x43DC72 .. 0x43DCC6: the speed figures (the original's `test` / `jz` is the `if`).
 fn run() {
-    run_at(crate::race::store::asm_base() as usize);
+    run_at();
 }
 
-/// The run over the race core's variables at `rc` (the dwords at their offsets from the base):
+/// The run over the work car's figures:
 /// +0x31AEE0 the speed x `flt_5C5D00`; +0x31AA88 that (x `flt_5C5E08` with bit 8 of
 /// +0x31A1F8) as a whole number; +0x31A26C the length of the motion (+0x31A170 ..) x
 /// `flt_5C5D00`, the squares added as the original adds them (z, then x and y).
-fn run_at(rc: usize) {
+fn run_at() {
     CAR.engine_speed_scaled.set_bits(st(
         ld(CAR.local_velocity[2].bits()) * ld(NUMBERS.two_and_a_quarter.bits())
     ));
     let speed = ld(CAR.engine_speed_scaled.bits());
-    let flags: u32 = crate::pointers::read_or_end(rc as u32 + 0x31A1F8, "the car's flags");
+    let flags = CAR.option_bits.get();
     let scaled = if flags & 0x100 != 0 {
         speed * ld(NUMBERS.kilometres_in_mile.bits())
     } else {
@@ -136,7 +136,7 @@ mod asm_reference {
             }],
             ulps: 0,
             reference: |a| unsafe { ref_0(a[0]) },
-            plain: |a| run_at(a[0]),
+            plain: |_| run_at(),
         }];
         sparse(&blocks, 4000, 200);
     }

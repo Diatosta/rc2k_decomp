@@ -81,7 +81,18 @@ pub fn edit_key(key: u32, item: u32) -> Result<(u32, bool), Refused> {
                 let (blank, _) = edits::blank(&words)?;
                 if blank {
                     clear(text, most);
-                    append_string_by_id(rw(record + 2) as u32, text);
+                    // The folder's default by the system's rules (`install::folders`).
+                    use crate::install::folders::{Folders, Native};
+                    match <Native as Folders>::first_folder() {
+                        Some(first)
+                            if text == crate::install::vars::INSTALLER_PATHS.typed.addr() =>
+                        {
+                            crate::install::run_installer::put_typed(&first);
+                        }
+                        _ => {
+                            append_string_by_id(rw(record + 2) as u32, text);
+                        }
+                    }
                 }
                 return Ok(with_bit_3);
             }
@@ -126,7 +137,7 @@ pub fn edit_key(key: u32, item: u32) -> Result<(u32, bool), Refused> {
         text,
         most.wrapping_add(text).wrapping_add(1),
     )?;
-    let widest = rw(record + 6);
+    let widest = crate::install::folders::field_width(text, rw(record + 6));
     if edits::too_wide(width, widest) {
         backspace();
     }

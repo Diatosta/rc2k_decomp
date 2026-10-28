@@ -249,9 +249,9 @@ pub fn drive_computer_car() -> Result<(), Refused> {
         RACE_WORK.driver_flat_unit[0].addr(),
     )?;
     cross_product(
-        (RACE_WORK.driver_flat_unit[0].addr()) as usize,
-        (RACE_WORK.driver_vector[0].addr()) as usize,
-        (RACE_WORK.driver_ahead[0].addr()) as usize,
+        &RACE_WORK.driver_flat_unit,
+        &RACE_WORK.driver_vector,
+        &RACE_WORK.driver_ahead,
     );
     normalised(
         RACE_WORK.driver_ahead[0].addr(),
@@ -292,9 +292,9 @@ pub fn drive_computer_car() -> Result<(), Refused> {
     RACE_WORK.driver_side[0].set_bits(x87::negated(at(m + 8)?));
     RACE_WORK.driver_side[1].set_bits(0);
     cross_product(
-        (RACE_WORK.driver_side[0].addr()) as usize,
-        (RACE_WORK.driver_way_unit[0].addr()) as usize,
-        (RACE_WORK.driver_work[0].addr()) as usize,
+        &RACE_WORK.driver_side,
+        &RACE_WORK.driver_way_unit,
+        &RACE_WORK.driver_work,
     );
     let (i, status) = times_fist_compare(
         RACE_WORK.driver_work[1].get(),

@@ -53,22 +53,22 @@ fn after_first_frame(_c: &mut Carried) -> Result<Flow, Refused> {
 }
 
 pub const SCREEN: Screen = Screen {
-    menu: || MENUS.arcade_select_level.addr() as usize,
+    menu: || MENUS.arcade_select_level.id(),
     saved_item: || &SCREEN_ITEMS.current[slot::ARCADE_SELECT_LEVEL],
     lists: &[
         List {
             pointer: || &SCREEN_FLOW.scene_list, // g_sceneList
-            table: || DRAW_LISTS.arcade_select_level_scene.addr() as usize,
+            table: || DRAW_LISTS.arcade_select_level_scene.id(),
             run: false,
         },
         List {
             pointer: || &SCREEN_FLOW.draw_list, // g_drawList
-            table: || DRAW_LISTS.arcade_select_level_draw.addr() as usize,
+            table: || DRAW_LISTS.arcade_select_level_draw.id(),
             run: false,
         },
         List {
             pointer: || &SCREEN_FLOW.overlay_list, // g_overlayList
-            table: || DRAW_LISTS.arcade_select_level_overlay.addr() as usize,
+            table: || DRAW_LISTS.arcade_select_level_overlay.id(),
             run: false,
         },
     ],

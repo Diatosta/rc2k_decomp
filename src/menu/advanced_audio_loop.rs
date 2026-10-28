@@ -20,27 +20,27 @@ use crate::menu::screen_loop::{Callee, List, Screen, Step, screen_entry};
 // ---- Rust version: `menu::screen_loop` with this ----
 
 pub const SCREEN: Screen = Screen {
-    menu: || MENUS.advanced_audio.addr() as usize,
+    menu: || MENUS.advanced_audio.id(),
     saved_item: || &SCREEN_ITEMS.current[slot::ADVANCED_AUDIO],
     lists: &[
         List {
             pointer: || &SCREEN_FLOW.scene_list, // g_sceneList
-            table: || DRAW_LISTS.advanced_audio_scene.addr() as usize,
+            table: || DRAW_LISTS.advanced_audio_scene.id(),
             run: false,
         },
         List {
             pointer: || &SCREEN_FLOW.draw_list, // g_drawList
-            table: || DRAW_LISTS.advanced_audio_draw.addr() as usize,
+            table: || DRAW_LISTS.advanced_audio_draw.id(),
             run: false,
         },
         List {
             pointer: || &SCREEN_FLOW.setup_list, // dword_755500
-            table: || DRAW_LISTS.advanced_audio_setup.addr() as usize,
+            table: || DRAW_LISTS.advanced_audio_setup.id(),
             run: true,
         },
         List {
             pointer: || &SCREEN_FLOW.overlay_list, // g_overlayList
-            table: || DRAW_LISTS.advanced_audio_overlay.addr() as usize,
+            table: || DRAW_LISTS.advanced_audio_overlay.id(),
             run: false,
         },
     ],

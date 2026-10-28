@@ -17,7 +17,7 @@ use crate::text::draw_text::Canvas;
 /// `menu` (edi in the original); `ebx` and `ecx` are those registers at entry, used as
 /// they come (`screens::draw_menu_items`: the original's reads of what its caller left).
 pub unsafe fn draw_menu(
-    menu: u32,
+    menu: crate::menu::menus_store::MenuId,
     ebx: u32,
     ecx: u32,
     canvas: &mut dyn Canvas,

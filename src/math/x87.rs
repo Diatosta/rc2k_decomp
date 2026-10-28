@@ -106,6 +106,7 @@ pub fn rcpss_times(a: u32, b: u32) -> u32 {
 
 /// A row of one matrix times a column of another: `a[0] b[0] + (a[1] b[4] + a[2] b[8])`,
 /// the last two products added first, stored to `out`.
+#[cfg(all(test, target_arch = "x86"))] // checked against the assembly; the helpers work on cells now
 pub fn row_times_column(a: *const u32, b: *const u32, out: *mut u32) {
     span(a, 12);
     span(b, 36);
@@ -118,6 +119,7 @@ pub fn row_times_column(a: *const u32, b: *const u32, out: *mut u32) {
 }
 
 /// `out = a + out`.
+#[cfg(all(test, target_arch = "x86"))] // checked against the assembly; the helpers work on cells now
 pub fn add_into(a: *const u32, out: *mut u32) {
     span(a, 4);
     span(out, 4);
@@ -154,6 +156,7 @@ pub fn negated_product_difference(a: u32, b: u32, c: u32, d: u32) -> u32 {
 }
 
 /// The length of three floats: `sqrt(v0 v0 + (v1 v1 + v2 v2))`.
+#[cfg(all(test, target_arch = "x86"))] // checked against the assembly; the helpers work on cells now
 pub fn length(v: *const u32) -> u32 {
     span(v, 12);
 

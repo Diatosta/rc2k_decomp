@@ -11,7 +11,7 @@
 //! 0xFF bytes asked with.
 
 use crate::errors::BadInput;
-use crate::strings::same_text::case_table;
+use crate::install::folders::{Folders, Native};
 
 // ---- Rust version ----
 
@@ -37,8 +37,8 @@ pub fn normalised(
         crate::pointers::GamePtr::new(crate::pointers::game_address(path)),
         "a path",
     )?;
-    // Converted: `rc2k_core::install::paths::normalise`.
-    rc2k_core::install::paths::normalise(&path, &case_table(), current)
+    // The system's rules (`install::folders`; Windows: `rc2k_core::install::paths::normalise`).
+    <Native as Folders>::normalised(&path, current)
 }
 
 /// For Rust callers: writes the path at `to`. Returns whether it was written.

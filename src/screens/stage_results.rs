@@ -91,10 +91,10 @@ fn ends_within_ten(table: &StageTable, stage: usize) -> Result<bool, BadInput> {
 /// (the original's early exit leaves two dwords on the stack and returns through a `pusha`
 /// slot), and what the strings refuse.
 pub fn draw_stage_results(canvas: &mut dyn Canvas) -> Result<(), Refused> {
-    let menu = LOOP_FLAGS.menu.get();
+    let menu = LOOP_FLAGS.menu.get().ok();
     let (base, record) = records()?;
     let table = times_table()?;
-    let Some(table) = table.filter(|_| menu != 0 && base != 0) else {
+    let (Some(table), Some(menu)) = (table.filter(|_| base != 0), menu) else {
         return Err(BadInput("no current menu, stage records or times table").into());
     };
     let both_off = (CHAMP_VIEW.switch_f8.get() ^ 1) & (CHAMP_VIEW.switch_fc.get() ^ 1);
@@ -134,8 +134,13 @@ pub fn draw_stage_results(canvas: &mut dyn Canvas) -> Result<(), Refused> {
         )
         .into());
     }
-    let set_item = |n: u32, v: u32| {
-        crate::pointers::GamePtr::new(menu + 4 + 0x5C * n + 0x14).write::<u32>(v, "a menu item")
+    let set_item = |n: u32, v: u32| -> Result<(), BadInput> {
+        menu.items()
+            .get(n as usize)
+            .ok_or(BadInput("an item past its menu's end"))?
+            .string
+            .set(v);
+        Ok(())
     };
     set_item(
         1,

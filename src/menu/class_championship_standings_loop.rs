@@ -21,22 +21,22 @@ use crate::menu::state_store::MENU_STATE;
 // ---- Rust version: `menu::screen_loop` with this ----
 
 pub const SCREEN: Screen = Screen {
-    menu: || MENUS.class_championship_standings.addr() as usize,
+    menu: || MENUS.class_championship_standings.id(),
     saved_item: || &SCREEN_ITEMS.current[slot::CLASS_CHAMPIONSHIP_STANDINGS],
     lists: &[
         List {
             pointer: || &SCREEN_FLOW.scene_list, // g_sceneList
-            table: || DRAW_LISTS.class_championship_standings_scene.addr() as usize,
+            table: || DRAW_LISTS.class_championship_standings_scene.id(),
             run: false,
         },
         List {
             pointer: || &SCREEN_FLOW.draw_list, // g_drawList
-            table: || DRAW_LISTS.class_championship_standings_draw.addr() as usize,
+            table: || DRAW_LISTS.class_championship_standings_draw.id(),
             run: false,
         },
         List {
             pointer: || &SCREEN_FLOW.overlay_list, // g_overlayList
-            table: || DRAW_LISTS.class_championship_standings_overlay.addr() as usize,
+            table: || DRAW_LISTS.class_championship_standings_overlay.id(),
             run: false,
         },
     ],

@@ -28,6 +28,7 @@
 //! above are the original's, for reference.
 
 use crate::errors::Refused;
+use crate::math::cells::At;
 use crate::math::x87;
 use crate::math::x87_run::{abs_compare, abs_of, mul2_to_int, neg_mul, neg_product_plus};
 use crate::physics::axis_turn_matrix::axis_turn_matrix;
@@ -91,20 +92,17 @@ pub unsafe fn move_slot_at(s: u32) -> Result<(), Refused> {
         RACE_WORK.slot_place[2].set(at(s + 0xC));
         put(
             s + 0x74,
-            rounded(crate::physics::vector_length::vector_length(s + 0x68)),
+            rounded(crate::physics::vector_length::vector_length(&At(s + 0x68))),
         );
         if at(s + 0x74) != 0 {
-            unit_vector(
-                (s + 0x74) as usize,
-                (COURSE_LISTS.spin_axis_x.addr()) as usize,
-            );
+            unit_vector(&At(s + 0x74), &COURSE_LISTS.spin_axis);
             COURSE_LISTS.spin_angle.set_bits(x87::mul(at(s + 0x74), dt));
             axis_turn_matrix(COURSE_LISTS.turn_matrix[0].addr());
-            square_matrix((COURSE_LISTS.turn_matrix[0].addr()) as usize);
+            square_matrix(&COURSE_LISTS.turn_matrix);
             multiply_matrices(
-                (s + 0x10) as usize,
-                (COURSE_LISTS.turn_matrix[0].addr()) as usize,
-                (MATRICES.turned_matrix[0].addr()) as usize,
+                &At(s + 0x10),
+                &COURSE_LISTS.turn_matrix,
+                &MATRICES.turned_matrix,
             );
             copy(MATRICES.turned_matrix[0].addr(), s + 0x10, 16);
         }

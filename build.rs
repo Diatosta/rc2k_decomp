@@ -3,10 +3,25 @@
 // `third_party/ffmpeg` (neither in git). Their DLLs are copied next to what is built (the
 // program and the test binaries in `deps`): Windows, and Wine running the tests, look for
 // a program's DLLs in its own folder, not on the build's search path.
-// On Unix the system's SDL3 and FFmpeg are linked (`libSDL3`, `libavcodec`,
-// `libavutil`): nothing to fetch or copy.
+// On Linux both are linked into the program: SDL built from its source (`sdl3-sys`'s
+// `build-from-source-static`), FFmpeg's decoders from `tools/build_ffmpeg.sh linux`
+// (`third_party/ffmpeg-linux/lib`, static): one program runs on any distribution with
+// nothing else installed.
 fn main() {
     println!("cargo:rerun-if-changed=build.rs");
+    if std::env::var("CARGO_CFG_TARGET_OS").as_deref() == Ok("linux") {
+        let dir = std::env::var("CARGO_MANIFEST_DIR").unwrap();
+        let lib = format!("{dir}/third_party/ffmpeg-linux/lib");
+        if !std::path::Path::new(&format!("{lib}/libavcodec.a")).exists() {
+            panic!("no static FFmpeg in {lib}: run tools/build_ffmpeg.sh linux");
+        }
+        println!("cargo:rerun-if-changed={lib}");
+        println!("cargo:rustc-link-search=native={lib}");
+        println!("cargo:rustc-link-lib=static=avcodec");
+        println!("cargo:rustc-link-lib=static=avutil");
+        println!("cargo:rustc-link-lib=dylib=m");
+        return;
+    }
     if std::env::var("CARGO_CFG_TARGET_OS").as_deref() != Ok("windows") {
         return;
     }

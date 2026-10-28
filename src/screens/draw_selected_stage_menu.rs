@@ -19,7 +19,6 @@
 //! (`menu::table_calls`); the registers above are the original's, for reference.
 
 use crate::errors::{BadInput, Refused};
-use crate::pointers::GamePtr;
 use crate::race::state_store::RACE_STATE;
 use crate::screens::draw_stage_records::selection;
 use crate::screens::draw_time_trial_stage_info::GROUP_TITLES_RVA;
@@ -59,9 +58,9 @@ pub unsafe fn draw_selected_stage_menu(canvas: &mut dyn Canvas) -> Result<bool, 
                 BadInput("there is no current menu: the original writes through null").into(),
             );
         };
-        GamePtr::new(item_0).write(group_title, "a menu item's string")?;
+        item_0.set(group_title);
         RACE_STATE.settings.direction.set(sel.group);
-        GamePtr::new(item_1).write(table_title, "a menu item's string")?;
+        item_1.set(table_title);
 
         build_second_heading(sel.record)?;
         draw_stage_body(sel.record, MARKER_PALETTE, true, canvas)?;

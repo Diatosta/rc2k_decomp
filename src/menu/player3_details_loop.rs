@@ -37,39 +37,39 @@ unsafe fn each_frame(c: &mut Carried) -> Result<Flow, Refused> {
 }
 
 pub const SCREEN: Screen = Screen {
-    menu: || MENUS.player3_details.addr() as usize,
+    menu: || MENUS.player3_details.id(),
     saved_item: || &SCREEN_ITEMS.current[slot::PLAYER3_DETAILS],
     lists: &[
         List {
             pointer: || &SCREEN_FLOW.unread_list, // g_unreadList
-            table: || DRAW_LISTS.unread_758b72.addr() as usize,
+            table: || DRAW_LISTS.unread_758b72.id(),
             run: false,
         },
         List {
             pointer: || &SCREEN_FLOW.draw_list, // g_drawList
-            table: || DRAW_LISTS.draw_758cca.addr() as usize,
+            table: || DRAW_LISTS.draw_758cca.id(),
             run: false,
         },
         List {
             pointer: || &SCREEN_FLOW.overlay_list, // g_overlayList
-            table: || DRAW_LISTS.overlay_7591f2.addr() as usize,
+            table: || DRAW_LISTS.overlay_7591f2.id(),
             run: false,
         },
     ],
     first_frame_lists: Some(&[
         List {
             pointer: || &SCREEN_FLOW.scene_list, // g_sceneList
-            table: || DRAW_LISTS.player3_details_scene.addr() as usize,
+            table: || DRAW_LISTS.player3_details_scene.id(),
             run: false,
         },
         List {
             pointer: || &SCREEN_FLOW.draw_list, // g_drawList
-            table: || DRAW_LISTS.draw_758cca.addr() as usize,
+            table: || DRAW_LISTS.draw_758cca.id(),
             run: false,
         },
         List {
             pointer: || &SCREEN_FLOW.overlay_list, // g_overlayList
-            table: || DRAW_LISTS.overlay_7591f2.addr() as usize,
+            table: || DRAW_LISTS.overlay_7591f2.id(),
             run: false,
         },
     ]),

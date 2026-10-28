@@ -23,22 +23,22 @@ use crate::menu::screen_loop::{Callee, FRAME_CALLBACK, List, Screen, Step};
 // ---- Rust version: `menu::screen_loop` with this ----
 
 pub const SCREEN: Screen = Screen {
-    menu: || MENUS.rally_stages.addr() as usize,
+    menu: || MENUS.rally_stages.id(),
     saved_item: || &SCREEN_ITEMS.current[slot::RALLY_STAGES], // dword_747770
     lists: &[
         List {
             pointer: || &SCREEN_FLOW.scene_list,
-            table: || DRAW_LISTS.rally_stages_scene.addr() as usize,
+            table: || DRAW_LISTS.rally_stages_scene.id(),
             run: false,
         },
         List {
             pointer: || &SCREEN_FLOW.draw_list,
-            table: || DRAW_LISTS.list_758d56.addr() as usize,
+            table: || DRAW_LISTS.list_758d56.id(),
             run: false,
         },
         List {
             pointer: || &SCREEN_FLOW.overlay_list,
-            table: || DRAW_LISTS.rally_stages_overlay.addr() as usize,
+            table: || DRAW_LISTS.rally_stages_overlay.id(),
             run: false,
         },
     ],

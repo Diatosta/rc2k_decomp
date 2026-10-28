@@ -161,7 +161,7 @@ pub fn steps(number: u32) -> Result<(), Refused> {
     negate(&FRAME_SCRATCH.work_vector[1]);
     negate(&FRAME_SCRATCH.work_vector[2]);
     if compare_80(
-        vector_length(FRAME_SCRATCH.work_vector[0].addr()),
+        vector_length(&FRAME_SCRATCH.work_vector),
         NUMBERS.zero.bits(),
     ) & 0x4000
         != 0

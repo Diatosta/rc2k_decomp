@@ -34,7 +34,7 @@ pub fn steps() -> Result<(), Refused> {
     negate(&work[0]);
     negate(&work[1]);
     negate(&work[2]);
-    if compare_80(vector_length(work[0].addr()), NUMBERS.zero.bits()) & 0x4000 != 0 {
+    if compare_80(vector_length(&work), NUMBERS.zero.bits()) & 0x4000 != 0 {
         fill_cells(work, 0);
     }
     normalise_work_vector();

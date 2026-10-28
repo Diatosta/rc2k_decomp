@@ -195,8 +195,9 @@ pub fn draw_records_for_group(
 
 // ---- support ----
 
-/// Address of the string id of item `n` of the current menu, or None without a menu.
-pub fn menu_item_id(n: u32) -> Option<u32> {
-    let menu: u32 = LOOP_FLAGS.menu.get();
-    (menu != 0).then(|| menu.wrapping_add(4 + n * 0x5C + 0x14))
+/// The string id (+0x14) of item `n` (from 0) of the current menu, or None without a menu
+/// (or past its end).
+pub fn menu_item_id(n: u32) -> Option<&'static crate::session::Dword> {
+    let menu = LOOP_FLAGS.menu.get().ok()?;
+    menu.items().get(n as usize).map(|i| &i.string)
 }

@@ -13,6 +13,7 @@
 //!
 //! Caller: `physics::apply_torques` (in a loop over records).
 
+use crate::math::cells::At;
 use crate::math::x87_run::neg_product2_plus;
 use crate::physics::contact_store::CONTACT_WORK;
 use crate::physics::tables_store::PHYSICS;
@@ -38,7 +39,7 @@ pub unsafe fn apply_torque_at(rec: u32, car: u32, work: u32, cross: u32) {
             put(work + 4 * k, at(car + SPIN_OFFSET + 4 * k));
         }
         turn_by_inverse_at(work, car);
-        cross_product(rec as usize, rec as usize + 0xC, cross as usize);
+        cross_product(&At(rec), &At(rec + 0xC), &At(cross));
         let step = PHYSICS.step_time.bits();
         for k in 0..3 {
             let inertia = PHYSICS.inertia[k as usize].bits();

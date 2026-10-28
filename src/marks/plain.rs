@@ -55,6 +55,13 @@ pub(crate) fn st80(base: usize, off: usize, x: X) {
 
 /// `fstsw word ptr [base + off]`: the compare bits C0, C2 and C3 (the other bits of the
 /// status word are the stack's top and the sticky exceptions, which no reader looks at).
+/// `fstsw word ptr [g_fpuStatus]`: the status's compare bits into the low half of
+/// `MARKS_WORK.fpu_status` (its high half kept).
+pub(crate) fn set_status(status: u16) {
+    let s = &crate::marks::work_store::MARKS_WORK.fpu_status;
+    s.set_bits((s.bits() & 0xFFFF_0000) | u32::from(status));
+}
+
 pub(crate) fn st16(base: usize, off: usize, status: u16) {
     crate::pointers::write_or_end::<u16>(
         (base.wrapping_add(off)) as u32,

@@ -57,17 +57,12 @@ pub unsafe fn learn_axis() -> Result<(), Refused> {
             return Ok(());
         }
         if DRAW_WORK.blink.get() == 1 {
-            let items = LOOP_FLAGS
-                .menu
-                .get()
-                .wrapping_add(4)
-                .wrapping_add(LOOP_FLAGS.item.get().wrapping_sub(1).wrapping_mul(0x5C));
+            let item = LOOP_FLAGS.menu.get()?.item(LOOP_FLAGS.item.get())?;
             crate::text::draw_string_by_id::draw_string_by_id_at(
                 0x3BE,
                 crate::gfx::typefaces::fonts::LIST.as_ptr(),
                 0x1B8,
-                crate::pointers::GamePtr::new(items + 0xC)
-                    .read::<u32>("controller: a game value")? as i32,
+                item.text_y.get() as i32,
                 &mut crate::text::draw_text::GameCanvas,
             )?;
         }

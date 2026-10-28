@@ -38,22 +38,22 @@ fn set_first_item(c: &mut Carried) -> Result<(), Refused> {
 }
 
 pub const SCREEN: Screen = Screen {
-    menu: || MENUS.overall_rally_results.addr() as usize,
+    menu: || MENUS.overall_rally_results.id(),
     saved_item: || &SCREEN_ITEMS.current[slot::OVERALL_RALLY_RESULTS], // dword_74778C
     lists: &[
         List {
             pointer: || &SCREEN_FLOW.scene_list,
-            table: || DRAW_LISTS.overall_rally_results_scene.addr() as usize,
+            table: || DRAW_LISTS.overall_rally_results_scene.id(),
             run: false,
         },
         List {
             pointer: || &SCREEN_FLOW.draw_list,
-            table: || DRAW_LISTS.list_758e36.addr() as usize,
+            table: || DRAW_LISTS.list_758e36.id(),
             run: false,
         },
         List {
             pointer: || &SCREEN_FLOW.overlay_list,
-            table: || DRAW_LISTS.overall_rally_results_overlay.addr() as usize,
+            table: || DRAW_LISTS.overall_rally_results_overlay.id(),
             run: false,
         },
     ],

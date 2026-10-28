@@ -106,7 +106,7 @@ fn steps() -> Result<(), Refused> {
     take_contact(n)?;
     let up = {
         rotate_point(
-            CAR.crash_matrix[0].addr(),
+            &CAR.crash_matrix,
             [extended(0), extended(0x3F80_0000), extended(0)],
         )
     };
@@ -114,10 +114,7 @@ fn steps() -> Result<(), Refused> {
         CONTACT_WORK.crash_car_up[k].set_bits(rounded(*e));
     }
     CONTACT_WORK.crash_up_dot.set_bits(neg_rounded({
-        dot_product(
-            CONTACT_WORK.crash_car_up[0].addr(),
-            CONTACT_WORK.contact_normal[0].addr(),
-        )
+        dot_product(&CONTACT_WORK.crash_car_up, &CONTACT_WORK.contact_normal)
     }));
     x87_1();
     p(&PHYSICS.contact_record, PHYSICS.forces[21].force[0].addr());

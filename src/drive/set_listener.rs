@@ -96,19 +96,19 @@ pub fn set_listener() -> Result<(), Refused> {
         MATRICES.turned_matrix[k].set_bits(car.unknown_734[67 + k].bits());
     }
     multiply_matrices(
-        MATRICES.turned_matrix[0].addr() as usize,
-        car.unknown_734[83].addr() as usize,
-        MATRICES.lit_matrix[0].addr() as usize,
+        &MATRICES.turned_matrix,
+        &car.unknown_734[83..],
+        &MATRICES.lit_matrix,
     );
     multiply_matrices(
-        MATRICES.lit_matrix[0].addr() as usize,
-        MATRICES.view_matrix[0].addr() as usize,
-        MATRICES.made_object_matrix[0].addr() as usize,
+        &MATRICES.lit_matrix,
+        &MATRICES.view_matrix,
+        &MATRICES.made_object_matrix,
     );
     for k in 0..16 {
         MATRICES.listener_matrix[k].set_bits(MATRICES.made_object_matrix[k].bits());
     }
-    let made = MATRICES.made_object_matrix[0].addr();
+    let made = &MATRICES.made_object_matrix;
     for (first, out, negate) in [
         (0, &KIND_TABLES.listener_point_a_negated, true),
         (0, &KIND_TABLES.listener_point_a, false),

@@ -20,39 +20,39 @@ use crate::menu::screen_loop::{Callee, List, Screen, Step};
 // ---- Rust version: `menu::screen_loop` with this ----
 
 pub const SCREEN: Screen = Screen {
-    menu: || MENUS.time_trial_best_times.addr() as usize,
+    menu: || MENUS.time_trial_best_times.id(),
     saved_item: || &SCREEN_ITEMS.current[slot::TIME_TRIAL_BEST_TIMES],
     lists: &[
         List {
             pointer: || &SCREEN_FLOW.unread_list, // g_unreadList
-            table: || DRAW_LISTS.unread_758b72.addr() as usize,
+            table: || DRAW_LISTS.unread_758b72.id(),
             run: false,
         },
         List {
             pointer: || &SCREEN_FLOW.draw_list, // g_drawList
-            table: || DRAW_LISTS.draw_758d2a.addr() as usize,
+            table: || DRAW_LISTS.draw_758d2a.id(),
             run: false,
         },
         List {
             pointer: || &SCREEN_FLOW.overlay_list, // g_overlayList
-            table: || DRAW_LISTS.overlay_75921e.addr() as usize,
+            table: || DRAW_LISTS.overlay_75921e.id(),
             run: false,
         },
     ],
     first_frame_lists: Some(&[
         List {
             pointer: || &SCREEN_FLOW.scene_list, // g_sceneList
-            table: || DRAW_LISTS.time_trial_best_times_scene.addr() as usize,
+            table: || DRAW_LISTS.time_trial_best_times_scene.id(),
             run: false,
         },
         List {
             pointer: || &SCREEN_FLOW.draw_list, // g_drawList
-            table: || DRAW_LISTS.draw_758d2a.addr() as usize,
+            table: || DRAW_LISTS.draw_758d2a.id(),
             run: false,
         },
         List {
             pointer: || &SCREEN_FLOW.overlay_list, // g_overlayList
-            table: || DRAW_LISTS.overlay_75921e.addr() as usize,
+            table: || DRAW_LISTS.overlay_75921e.id(),
             run: false,
         },
     ]),

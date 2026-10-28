@@ -23,11 +23,7 @@ const MOST: i32 = 0x80;
 
 /// The original's 0x4BC60E .. 0x4BC66B: the rate, compared (`fstsw` into `g_fpuStatus`).
 fn rate() {
-    rate_x87(
-        crate::race::store::asm_base() as usize,
-        crate::marks::hexagon_vars::HexagonVars::base(),
-        &KEPT,
-    )
+    rate_x87(crate::marks::hexagon_vars::HexagonVars::base(), &KEPT)
 }
 
 /// The Rust version (see the header).
@@ -58,12 +54,12 @@ pub fn hexagons_spawn() -> Result<(), Refused> {
     Ok(())
 }
 
-use crate::marks::plain::{ld, st16};
+use crate::marks::plain::ld;
 use crate::marks::view_vectors::{KEPT, KeptView};
 use crate::math::x87_float as bh;
 
 /// `rate`'s x87 block as plain Rust on the x87 model (18 instructions), same order and memory places.
-fn rate_x87(rc: usize, hx: usize, kv: &KeptView) {
+fn rate_x87(hx: usize, kv: &KeptView) {
     let t0 = bh::ld(kv.first_angle.bits());
     let t1 = t0 + bh::ld(SHAPE_TILT.tilt.bits());
     let t2 = t1.sin();
@@ -80,7 +76,7 @@ fn rate_x87(rc: usize, hx: usize, kv: &KeptView) {
     let t12 = t11 + bh::ld(HEXAGON_STATE.spawn_rate.bits());
     HEXAGON_STATE.spawn_rate.set_bits(bh::st(t12));
     let t13 = bh::ld(HEXAGON_STATE.spawn_rate.bits());
-    st16(rc, 0x31C814, bh::compare(t13, ld(hx, 0xC936E)));
+    crate::marks::plain::set_status(bh::compare(t13, ld(hx, 0xC936E)));
 }
 
 #[cfg(all(test, target_arch = "x86"))]
@@ -133,9 +129,7 @@ mod asm_differential {
     fn rate_x87_matches() {
         const SPEC: Spec = Spec {
             operands: &[
-                Op::Base {
-                    lo: 0x31C814,
-                    hi: 0x31C816,
+                Op::RaceBlock {
                     reads: &[],
                     writes: &[(0x31C814, Status)],
                 },
@@ -167,7 +161,7 @@ mod asm_differential {
                             overlay(&SHAPE_TILT, ShapeTilt::START),
                             overlay(&HEXAGON_STATE, HexagonState::START),
                         ],
-                        || super::rate_x87(b[0], b[1], kv),
+                        || super::rate_x87(b[1], kv),
                     )
                 })
             },

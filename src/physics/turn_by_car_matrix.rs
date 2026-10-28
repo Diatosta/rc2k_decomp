@@ -12,6 +12,7 @@
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
 //! above are the original's, for reference.
 
+use crate::math::cells::At;
 use crate::physics::car_store::CAR;
 use crate::scene::matrix3::{extended, rounded};
 use crate::scene::rotate_point::rotate_point;
@@ -28,7 +29,7 @@ pub unsafe fn turn_point_by(m: u32, v: u32) {
             extended(p.add(1).read_unaligned()),
             extended(p.add(2).read_unaligned()),
         ];
-        let out = rotate_point(m, point);
+        let out = rotate_point(&At(m), point);
         p.write_unaligned(rounded(out[0]));
         p.add(1).write_unaligned(rounded(out[1]));
         p.add(2).write_unaligned(rounded(out[2]));

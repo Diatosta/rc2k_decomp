@@ -56,7 +56,7 @@ pub fn fill_race_slot(part: u32) -> Result<(), Refused> {
             false,
         )
     };
-    let out = rotate_point(CAR.crash_matrix[0].addr(), [i(0), i(1), i(2)]);
+    let out = rotate_point(&CAR.crash_matrix, [i(0), i(1), i(2)]);
     for (k, e) in out.iter().enumerate() {
         let n = ext_to_int(*e) as u32;
         OBJECT_WORK.object_position[k].set_bits(n);

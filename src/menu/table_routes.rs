@@ -4,7 +4,7 @@
 //! function gets an `ItemCall` (its value, item, menu and the carried values), a screen
 //! function nothing.
 
-use crate::errors::Refused;
+use crate::errors::{BadInput, Refused};
 use rc2k_core::menu::tables::{ItemFn, ScreenFn};
 
 /// Runs item function `f` with what the item hands it (`c`).
@@ -241,7 +241,13 @@ pub fn item_fn(f: ItemFn, c: &crate::menu::table_calls::ItemCall) -> Result<(), 
             Ok(())
         }
         ItemFn::RaiseControllerSensitivity => {
-            crate::menu::controller_items::raise_controller_sensitivity(c.menu)
+            crate::menu::controller_items::raise_controller_sensitivity(
+                c.menu
+                    .ok_or(BadInput("no menu (the original reads +0x2C of edi)"))?
+                    .items()[0]
+                    .links[1]
+                    .get(),
+            )
         }
         ItemFn::RaisePlayer48 => crate::menu::player_actions::raise_player_48_hook::run(),
         ItemFn::LowerPlayer48 => crate::menu::player_actions::lower_player_48_hook::run(),

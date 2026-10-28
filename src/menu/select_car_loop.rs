@@ -80,27 +80,27 @@ unsafe fn leaving(c: &mut Carried) -> Result<(), Refused> {
 }
 
 pub const SCREEN: Screen = Screen {
-    menu: || MENUS.select_car.addr() as usize,
+    menu: || MENUS.select_car.id(),
     saved_item: || &SCREEN_ITEMS.current[slot::SELECT_CAR],
     lists: &[
         List {
             pointer: || &SCREEN_FLOW.scene_list, // g_sceneList
-            table: || DRAW_LISTS.select_car_scene.addr() as usize,
+            table: || DRAW_LISTS.select_car_scene.id(),
             run: false,
         },
         List {
             pointer: || &SCREEN_FLOW.draw_list, // g_drawList
-            table: || DRAW_LISTS.select_car_draw.addr() as usize,
+            table: || DRAW_LISTS.select_car_draw.id(),
             run: false,
         },
         List {
             pointer: || &SCREEN_FLOW.setup_list, // dword_755500
-            table: || DRAW_LISTS.select_car_setup.addr() as usize,
+            table: || DRAW_LISTS.select_car_setup.id(),
             run: true,
         },
         List {
             pointer: || &SCREEN_FLOW.overlay_list, // g_overlayList
-            table: || DRAW_LISTS.select_car_overlay.addr() as usize,
+            table: || DRAW_LISTS.select_car_overlay.id(),
             run: false,
         },
     ],

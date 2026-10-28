@@ -32,7 +32,7 @@ pub fn corner_inside() -> bool {
         .corner_in
         .each_ref()
         .map(|x| ext_times(extended(x.bits()), k));
-    let turned = rotate_point(CONTACT_WORK.corner_matrix[0].addr(), corner);
+    let turned = rotate_point(&CONTACT_WORK.corner_matrix, corner);
     for (n, e) in turned.iter().enumerate() {
         x87_1(
             (crate::pointers::game_address(e.as_ptr())) as usize,

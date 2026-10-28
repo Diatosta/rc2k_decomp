@@ -9,6 +9,7 @@
 //! Callers (2): `sub_43B635` (0x43B644, 0x43B94D), the car's physics step under
 //! `sub_4454D2`.
 
+use crate::math::cells::At;
 use crate::physics::car_store::CAR;
 use crate::physics::vector_length::vector_length;
 use crate::scene::matrix3::rounded;
@@ -17,7 +18,7 @@ use crate::scene::matrix3::rounded;
 pub fn store_length(v: u32, out: u32) {
     crate::pointers::write_or_end::<u32>(
         out,
-        rounded(vector_length(v)),
+        rounded(vector_length(&At(v))),
         "physics::store_motion_length's operand",
     )
 }

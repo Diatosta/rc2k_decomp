@@ -54,7 +54,6 @@ fn share() {
 
 /// The core from the clock's reading `now` (already in `g_sceneClock`).
 pub fn timing_from(now: u32) {
-    let _rc = crate::race::store::asm_base() as usize;
     let since = now.wrapping_sub(FINISH.start_clock.get());
     DRAW.scratch.set(since);
     time();

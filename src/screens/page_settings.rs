@@ -68,9 +68,14 @@ fn stage_line(id: u32, record: u32) -> Result<(), Refused> {
     Ok(())
 }
 
-/// Menu item `n`'s value (+0x14) of the item table that starts 4 bytes into `items`.
-fn set_item(items: u32, n: u32, v: u32) -> Result<(), BadInput> {
-    crate::pointers::GamePtr::new(items + 4 + 0x5C * n + 0x14).write::<u32>(v, "a menu item")
+/// Menu item `n`'s value (+0x14).
+fn set_item(items: &[crate::menu::menus_store::MenuItem], n: u32, v: u32) -> Result<(), BadInput> {
+    items
+        .get(n as usize)
+        .ok_or(BadInput("an item past its menu's end"))?
+        .string
+        .set(v);
+    Ok(())
 }
 
 /// The stage record `off_735512[a][b]` (its +0x38 the page's value), and the record + `c` x
@@ -102,7 +107,7 @@ pub fn stage_options_texts() -> Result<(), Refused> {
     stage_refuses(a, b)?;
     // Converted: `rc2k_core::screens::page_values` (the items and the caption).
     use rc2k_core::screens::page_values::{stage_options_caption, stage_options_items};
-    let items = MENUS.view_best_times.addr();
+    let items = &MENUS.view_best_times.items;
     let (first, second) = stage_options_items(a, CHAMP_VIEW.switch_fc.get());
     set_item(items, 1, first)?;
     set_item(items, 2, second)?;
@@ -141,7 +146,7 @@ pub fn stage_choice_texts() -> Result<(), Refused> {
     if pointed == 0 {
         return Err(BadInput("no item table").into());
     }
-    let items = MENUS.view_courses.addr();
+    let items = &MENUS.view_courses.items;
     set_item(
         items,
         0,
@@ -149,10 +154,10 @@ pub fn stage_choice_texts() -> Result<(), Refused> {
             .read::<u32>("a group title")?,
     )?;
     let (base, record) = stage_record(a, b, EVENT_STATE.stage_number.get())?;
-    set_item(
-        pointed,
-        1,
+    // Item 1 of the "menu" the head points to (the labels: the slip in `notes/bugs.md`).
+    crate::pointers::GamePtr::new(pointed + 4 + 0x5C + 0x14).write::<u32>(
         crate::pointers::GamePtr::new(base + 0x38).read::<u32>("a stage record")?,
+        "a menu item",
     )?;
     stage_line(0x482, record)
 }

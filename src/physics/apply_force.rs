@@ -11,6 +11,7 @@
 //!
 //! Caller: `physics::apply_forces` (in a loop over records).
 
+use crate::math::cells::At;
 use crate::math::x87;
 use crate::physics::car_store::Car;
 use crate::physics::scale_vector::scale_vector;
@@ -36,7 +37,7 @@ pub unsafe fn apply_at(rec: u32, car: u32, work: u32, scratch: u32) {
             put(work + 4 * k, at(rec + 4 * k));
         }
         let dt = extended(PHYSICS.step_time.bits());
-        scale_vector(work, dt);
+        scale_vector(&At(work), dt);
         put(scratch, rounded(dt));
         turn_by_car_matrix(work);
         for k in 0..3 {
@@ -48,7 +49,7 @@ pub unsafe fn apply_at(rec: u32, car: u32, work: u32, scratch: u32) {
             extended(Car::at(car).velocity[1].bits()),
             extended(Car::at(car).velocity[2].bits()),
         ];
-        let out = rotate_point(car + 0x9CC, p);
+        let out = rotate_point(&At(car + 0x9CC), p);
         for (k, e) in out.iter().enumerate() {
             put(car + 0x1A4 + 4 * k as u32, rounded(*e));
         }

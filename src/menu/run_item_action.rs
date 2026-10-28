@@ -10,20 +10,11 @@
 //! mark. Refuses a menu without an end in its first 256 items.
 
 use crate::menu::draw_work_store::DRAW_WORK;
-use crate::menu::event_flow::Fault;
-use crate::menu::item_at::{ITEM_LEN, MENU_HEAD_LEN};
 use crate::menu::loop_store::LOOP_FLAGS;
+use crate::menu::menus_store::{MenuId, MenuItem};
 use crate::menu::screen_loop::Carried;
 
 // ---- game data ----
-
-const TYPE_OFFSET: u32 = rc2k_core::menu::items::ITEM_TYPE;
-const ACTION_OFFSET: u32 = 0x44;
-const VALUE_OFFSET: u32 = 0x54;
-
-fn dword(at: u32) -> Result<u32, crate::errors::BadInput> {
-    crate::pointers::GamePtr::new(at).read::<u32>("a game value")
-}
 
 // ---- Rust version ----
 
@@ -31,33 +22,22 @@ fn dword(at: u32) -> Result<u32, crate::errors::BadInput> {
 /// original's every register but eax = the value, ebp = the item, edi = the menu: the
 /// flows started from items hand them on to their screens); what the action leaves is
 /// nobody's (the original keeps every register).
-pub fn run_item_action(menu: u32, carried: &Carried) -> Result<(), crate::errors::Refused> {
-    let first = menu.wrapping_add(MENU_HEAD_LEN);
-    let item_at = |n: u32| first.wrapping_add(n.wrapping_mul(ITEM_LEN));
-    {
-        let highlighted: u32 = LOOP_FLAGS.item.get();
-        // Converted: `rc2k_core::menu::items::highlighted_item`.
-        let fault = Fault::default();
-        let found = rc2k_core::menu::items::highlighted_item(
-            highlighted,
-            |n| fault.get(item_at(n) + TYPE_OFFSET),
-            |n| fault.get(item_at(n)),
-        );
-        fault.check()?;
-        let found = found?;
-        if let Some(n) = found {
-            let item = item_at(n);
-            let value = dword(item + VALUE_OFFSET)?;
-            DRAW_WORK.action_value.set(value);
-            crate::menu::table_calls::call_action(
-                dword(item + ACTION_OFFSET)?,
-                value,
-                item,
-                menu,
-                carried,
-            );
-            LOOP_FLAGS.item.set(dword(item + TYPE_OFFSET)?);
-        }
+pub fn run_item_action(menu: MenuId, carried: &Carried) -> Result<(), crate::errors::Refused> {
+    let items = menu.items();
+    let highlighted: u32 = LOOP_FLAGS.item.get();
+    // Converted: `rc2k_core::menu::items::highlighted_item`. It asks for item n's type only
+    // while item n is there, and for the x of one past the last: the end mark after it.
+    let found = rc2k_core::menu::items::highlighted_item(
+        highlighted,
+        |n| items.get(n as usize).map_or(MenuItem::END, |i| i.id.get()),
+        |n| items.get(n as usize).map_or(MenuItem::END, |i| i.x.get()),
+    )?;
+    if let Some(n) = found {
+        let item = &items[n as usize];
+        let value = item.action_value.get();
+        DRAW_WORK.action_value.set(value);
+        crate::menu::table_calls::call_action(item.action.get(), value, item, menu, carried);
+        LOOP_FLAGS.item.set(item.id.get());
     }
     Ok(())
 }

@@ -74,7 +74,7 @@ pub unsafe fn object_hits_car(point: u32, object: u32) -> Result<bool, Refused> 
                     return false;
                 }
             };
-            let turned = rotate_point(MATRICES.object_turn_matrix[0].addr(), [x, y, z]);
+            let turned = rotate_point(&MATRICES.object_turn_matrix, [x, y, z]);
             for (k, e) in turned.iter().enumerate() {
                 CONTACT_WORK.object_offset[k].set(ext_to_int(*e) as u32);
             }

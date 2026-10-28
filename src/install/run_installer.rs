@@ -73,6 +73,7 @@ pub fn run_installer() -> Result<(), Refused> {
                 );
             }
         }
+        show_folder();
         i::check_installed_version::check_installed_version()?;
         // The version-match branch changes into the installed folder.
         if INSTALLER_RUN.same_version.get() == 1 {
@@ -108,4 +109,30 @@ pub fn run_installer() -> Result<(), Refused> {
     i::close_installer::close_installer()?;
     crate::gfx::free_fonts::free_fonts_in_game()?;
     Ok(())
+}
+
+/// The folder page's text by the system's rules (`install::folders`): a recorded folder as
+/// shown, else the system's first folder (on Windows both the original's, unchanged).
+fn show_folder() {
+    use crate::install::folders::{Folders, Native};
+    let typed = &INSTALLER_PATHS.typed;
+    let len = (0..256).position(|k| typed.get(k) == 0).unwrap_or(0);
+    let now: Vec<u8> = (0..len).map(|k| typed.get(k)).collect();
+    let recorded = INSTALLER_NAMES.source.get(0) != 0;
+    let text = match (recorded, <Native as Folders>::first_folder()) {
+        (true, _) => <Native as Folders>::shown(&now),
+        (false, Some(first)) => first,
+        (false, None) => return,
+    };
+    put_typed(&text);
+}
+
+/// `text` as the folder page's text (cut to its place, NUL-ended).
+pub fn put_typed(text: &[u8]) {
+    let typed = &INSTALLER_PATHS.typed;
+    let n = text.len().min(255);
+    for (k, &b) in text[..n].iter().enumerate() {
+        typed.set(k, b);
+    }
+    typed.set(n, 0);
 }

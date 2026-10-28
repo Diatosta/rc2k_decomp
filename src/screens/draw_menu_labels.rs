@@ -30,8 +30,11 @@ fn has_end(labels: u32) -> Result<bool, BadInput> {
     Ok(false)
 }
 
-pub fn draw_menu_labels(menu: u32, canvas: &mut dyn Canvas) -> Result<(), Refused> {
-    let labels = dword(menu)?;
+pub fn draw_menu_labels(
+    menu: crate::menu::menus_store::MenuId,
+    canvas: &mut dyn Canvas,
+) -> Result<(), Refused> {
+    let labels = menu.labels().get();
     if labels == 0 {
         return Err(BadInput("a menu without a label list").into());
     }

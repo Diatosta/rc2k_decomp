@@ -58,39 +58,39 @@ fn each_frame(_c: &mut Carried) -> Result<Flow, Refused> {
 }
 
 pub const SCREEN: Screen = Screen {
-    menu: || MENUS.redefine_keys_player1.addr() as usize,
+    menu: || MENUS.redefine_keys_player1.id(),
     saved_item: || &SCREEN_ITEMS.current[slot::REDEFINE_KEYS_PLAYER1],
     lists: &[
         List {
             pointer: || &SCREEN_FLOW.unread_list, // g_unreadList
-            table: || DRAW_LISTS.unread_758b72.addr() as usize,
+            table: || DRAW_LISTS.unread_758b72.id(),
             run: false,
         },
         List {
             pointer: || &SCREEN_FLOW.draw_list, // g_drawList
-            table: || DRAW_LISTS.draw_758de2.addr() as usize,
+            table: || DRAW_LISTS.draw_758de2.id(),
             run: false,
         },
         List {
             pointer: || &SCREEN_FLOW.overlay_list, // g_overlayList
-            table: || DRAW_LISTS.overlay_759286.addr() as usize,
+            table: || DRAW_LISTS.overlay_759286.id(),
             run: false,
         },
     ],
     first_frame_lists: Some(&[
         List {
             pointer: || &SCREEN_FLOW.scene_list, // g_sceneList
-            table: || DRAW_LISTS.redefine_keys_player1_scene.addr() as usize,
+            table: || DRAW_LISTS.redefine_keys_player1_scene.id(),
             run: false,
         },
         List {
             pointer: || &SCREEN_FLOW.draw_list, // g_drawList
-            table: || DRAW_LISTS.draw_758de2.addr() as usize,
+            table: || DRAW_LISTS.draw_758de2.id(),
             run: false,
         },
         List {
             pointer: || &SCREEN_FLOW.overlay_list, // g_overlayList
-            table: || DRAW_LISTS.overlay_759286.addr() as usize,
+            table: || DRAW_LISTS.overlay_759286.id(),
             run: false,
         },
     ]),

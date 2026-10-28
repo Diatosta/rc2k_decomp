@@ -28,6 +28,13 @@ const PAST_END: BadInput =
 /// The folders of `path` (edx) gone into, made where missing; whether it worked (the
 /// original's carry clear).
 pub fn make_folders(path: u32) -> Result<bool, Refused> {
+    use crate::install::folders::{Folders, Native};
+    <Native as Folders>::make(path)
+}
+
+/// The original's walk (`install::folders`' Windows rules).
+#[cfg_attr(not(windows), allow(dead_code))] // reason: the Windows rules' and the tests'
+pub fn walk(path: u32) -> Result<bool, Refused> {
     let mut at = path;
     let start = rw(at);
     if (start >> 8) as u8 == b':' {

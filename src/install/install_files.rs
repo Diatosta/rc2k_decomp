@@ -20,8 +20,8 @@
 
 use crate::errors::Refused;
 use crate::install::installer::{
-    append_byte, game_api, lock, normalise, pump, rb, run_frame, rw, set_cd, show, sleep,
-    str_append, take_key, unlock, wb, wd,
+    append_byte, game_api, lock, normalise, pump, rb, run_frame, set_cd, show, sleep, str_append,
+    take_key, unlock, wb, wd,
 };
 use crate::install::name_tables::{FILES, FOLDERS};
 use crate::install::vars::INSTALLER_NAMES;
@@ -125,18 +125,22 @@ pub fn install_files() -> Result<(), Refused> {
     if i::check_folder_name::check_folder_name(INSTALLER_PATHS.installed.addr()) {
         return bad_path();
     }
-    if rw(INSTALLER_PATHS.typed.addr()) != 0x5C5C {
-        let Some(free) = crate::files::drive_free_space_kb::drive_free_space_kb(
-            rb(INSTALLER_PATHS.installed.addr()) as u32,
-            &mut game_api,
-        ) else {
-            return bad_path();
-        };
-        if free < INSTALLER_RUN.room_needed.get() && INSTALLER_RUN.ignore_room.get() != 1 {
+    // The room where it goes, by the system's rules (`install::folders`; the original
+    // reads the drive's, not a network path's).
+    let folder = crate::files::cstring(
+        crate::pointers::GamePtr::new(INSTALLER_PATHS.installed.addr()),
+        "the install folder",
+    )?;
+    match <i::folders::Native as i::folders::Folders>::room(&folder) {
+        i::folders::Room::Unreadable => return bad_path(),
+        i::folders::Room::Kb(free)
+            if free < INSTALLER_RUN.room_needed.get() && INSTALLER_RUN.ignore_room.get() != 1 =>
+        {
             INSTALLER_RUN.path_problem.set(2);
             INSTALLER_PAGES.list_answer.set(3);
             return Ok(());
         }
+        _ => {}
     }
     if !i::make_folders::make_folders(INSTALLER_PATHS.installed.addr())? {
         return bad_path();

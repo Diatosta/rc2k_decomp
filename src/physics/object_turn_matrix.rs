@@ -42,23 +42,11 @@ pub fn object_turn_matrix() -> Result<(), Refused> {
     }
     if OBJECT_WORK.angles[1].get() != 0 {
         set_turn_y(OBJECT_WORK.angles[2].get().wrapping_neg());
-        multiply_matrices(
-            out[0].addr() as usize,
-            turn_y[0].addr() as usize,
-            lit[0].addr() as usize,
-        );
+        multiply_matrices(&out, &turn_y, &lit);
         set_turn_x(OBJECT_WORK.angles[1].get().wrapping_neg());
-        multiply_matrices(
-            lit[0].addr() as usize,
-            turn_x[0].addr() as usize,
-            turned[0].addr() as usize,
-        );
+        multiply_matrices(&lit, &turn_x, &turned);
         set_turn_y(OBJECT_WORK.angles[2].get());
-        multiply_matrices(
-            turned[0].addr() as usize,
-            turn_y[0].addr() as usize,
-            out[0].addr() as usize,
-        );
+        multiply_matrices(&turned, &turn_y, &out);
     }
     let figure = OBJECT_WORK.size.get();
     DRAW.scratch.set(figure);

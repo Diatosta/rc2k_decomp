@@ -9,9 +9,10 @@
 //! `sub_45E800`, `sub_45F17E`, `sub_45F7B1`, `sub_462485`, and three in unowned code at
 //! 0x43AD63 ..).
 
+use crate::math::cells::{Cells, load};
 use crate::math::x87_run::length_80;
 
 /// The Rust version: the length as it is left in st(0).
-pub fn vector_length(v: u32) -> [u8; 10] {
-    length_80(crate::pointers::host(v) as *const u32)
+pub fn vector_length(v: &(impl Cells + ?Sized)) -> [u8; 10] {
+    length_80(load::<3>(v).as_ptr())
 }

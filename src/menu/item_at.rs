@@ -1,4 +1,5 @@
-//! `menu::item_at` (0x471CEF): the address of item number ebx of the current menu.
+//! `menu::item_at` (0x471CEF): item number ebx of the current menu (by handle since
+//! 2026-10-28: `menus_store::MenuId::item`).
 //!
 //! In:  ebx = item number, from 1
 //! Out: edi = the item, eax = ebx; everything else preserved
@@ -9,16 +10,11 @@
 
 use crate::errors::BadInput;
 use crate::menu::loop_store::LOOP_FLAGS;
-
-// ---- game data ----
-
-pub use rc2k_core::menu::items::{ITEM_LEN, MENU_HEAD_LEN};
+use crate::menu::menus_store::MenuItem;
 
 // ---- Rust version ----
 
-pub fn item_at(number: u32) -> Result<u32, BadInput> {
-    // Converted: `rc2k_core::menu::items::item_at`.
-    Ok(rc2k_core::menu::items::item_at(number, || {
-        LOOP_FLAGS.menu.get()
-    })?)
+/// Item `number` (from 1) of the current menu.
+pub fn item_at(number: u32) -> Result<&'static MenuItem, BadInput> {
+    LOOP_FLAGS.menu.get()?.item(number)
 }

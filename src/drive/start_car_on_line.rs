@@ -69,7 +69,7 @@ pub unsafe fn start_car_on_line(distance: u32) -> Result<(), Refused> {
         CAR.local_velocity[0].set_bits(0);
         CAR.local_velocity[1].set_bits(0);
         CAR.local_velocity[2].set_bits(x87::loaded(RACE_TABLES.start_speed.bits()));
-        let m = CAR.crash_matrix[0].addr();
+        let m = &CAR.crash_matrix;
         let out = rotate_point(
             m,
             [

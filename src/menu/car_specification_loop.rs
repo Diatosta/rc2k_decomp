@@ -62,27 +62,27 @@ fn after(c: &mut Carried) -> Result<(), Refused> {
 }
 
 pub const SCREEN: Screen = Screen {
-    menu: || MENUS.car_specification.addr() as usize,
+    menu: || MENUS.car_specification.id(),
     saved_item: || &SCREEN_ITEMS.current[slot::CAR_SPECIFICATION],
     lists: &[
         List {
             pointer: || &SCREEN_FLOW.scene_list, // g_sceneList
-            table: || DRAW_LISTS.car_specification_scene.addr() as usize,
+            table: || DRAW_LISTS.car_specification_scene.id(),
             run: false,
         },
         List {
             pointer: || &SCREEN_FLOW.draw_list, // g_drawList
-            table: || DRAW_LISTS.car_specification_draw.addr() as usize,
+            table: || DRAW_LISTS.car_specification_draw.id(),
             run: false,
         },
         List {
             pointer: || &SCREEN_FLOW.setup_list, // dword_755500
-            table: || DRAW_LISTS.car_specification_setup.addr() as usize,
+            table: || DRAW_LISTS.car_specification_setup.id(),
             run: true,
         },
         List {
             pointer: || &SCREEN_FLOW.overlay_list, // g_overlayList
-            table: || DRAW_LISTS.car_specification_overlay.addr() as usize,
+            table: || DRAW_LISTS.car_specification_overlay.id(),
             run: false,
         },
     ],

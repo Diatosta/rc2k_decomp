@@ -26,9 +26,15 @@ impl<const N: usize> DrawList<N> {
         Self { entries }
     }
 
-    /// The list's address.
-    pub fn addr(&self) -> u32 {
-        crate::pointers::game_address(self as *const Self)
+    /// The list from its entry `k` on (lists share tails: a screen's may start inside
+    /// another).
+    pub fn from(&'static self, k: usize) -> crate::menu::fn_list::FnList {
+        crate::menu::fn_list::FnList::starting_at(&self.entries[k])
+    }
+
+    /// The list.
+    pub fn id(&'static self) -> crate::menu::fn_list::FnList {
+        self.from(0)
     }
 }
 

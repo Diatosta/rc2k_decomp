@@ -59,10 +59,7 @@ pub fn place(o: u32, at: u32, offset: Option<[u32; 3]>) {
             None => car_part(car, listener),
         }
     };
-    let out = rotate_point(
-        MATRICES.view_turn_matrix[0].addr(),
-        [part(0), part(1), part(2)],
-    );
+    let out = rotate_point(&MATRICES.view_turn_matrix, [part(0), part(1), part(2)]);
     let k = NUMBERS.one_over_65536.bits();
     for (n, e) in out.iter().enumerate() {
         put(o + at + 4 * n as u32, rounded(ext_times(*e, k)));

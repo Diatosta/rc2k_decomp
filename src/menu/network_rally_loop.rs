@@ -40,22 +40,22 @@ fn set_up_first(c: &mut Carried) -> Result<(), Refused> {
 }
 
 pub const SCREEN: Screen = Screen {
-    menu: || MENUS.network_rally.addr() as usize,
+    menu: || MENUS.network_rally.id(),
     saved_item: || &SCREEN_ITEMS.current[slot::NETWORK_RALLY],
     lists: &[
         List {
             pointer: || &SCREEN_FLOW.scene_list, // g_sceneList
-            table: || DRAW_LISTS.network_rally_scene.addr() as usize,
+            table: || DRAW_LISTS.network_rally_scene.id(),
             run: false,
         },
         List {
             pointer: || &SCREEN_FLOW.draw_list, // g_drawList
-            table: || DRAW_LISTS.network_rally_draw.addr() as usize,
+            table: || DRAW_LISTS.network_rally_draw.id(),
             run: false,
         },
         List {
             pointer: || &SCREEN_FLOW.overlay_list, // g_overlayList
-            table: || DRAW_LISTS.network_rally_overlay.addr() as usize,
+            table: || DRAW_LISTS.network_rally_overlay.id(),
             run: false,
         },
     ],

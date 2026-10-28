@@ -29,39 +29,39 @@ use crate::menu::state_store::MENU_STATE;
 // ---- Rust version: `menu::screen_loop` with this ----
 
 pub const SCREEN: Screen = Screen {
-    menu: || MENUS.championship_standings.addr() as usize,
+    menu: || MENUS.championship_standings.id(),
     saved_item: || &SCREEN_ITEMS.current[slot::CHAMPIONSHIP_STANDINGS], // dword_7477BC
     lists: &[
         List {
             pointer: || &SCREEN_FLOW.unread_list, // dword_7554F4
-            table: || DRAW_LISTS.unread_758b72.addr() as usize,
+            table: || DRAW_LISTS.unread_758b72.id(),
             run: false,
         },
         List {
             pointer: || &SCREEN_FLOW.draw_list,
-            table: || DRAW_LISTS.list_758e5e.addr() as usize,
+            table: || DRAW_LISTS.list_758e5e.id(),
             run: false,
         },
         List {
             pointer: || &SCREEN_FLOW.overlay_list,
-            table: || DRAW_LISTS.overlay_7592b6.addr() as usize,
+            table: || DRAW_LISTS.overlay_7592b6.id(),
             run: false,
         },
     ],
     first_frame_lists: Some(&[
         List {
             pointer: || &SCREEN_FLOW.scene_list, // g_sceneList
-            table: || DRAW_LISTS.championship_standings_scene.addr() as usize, // unk_7590F6: empty
+            table: || DRAW_LISTS.championship_standings_scene.id(), // unk_7590F6: empty
             run: false,
         },
         List {
             pointer: || &SCREEN_FLOW.draw_list,
-            table: || DRAW_LISTS.list_758e5e.addr() as usize,
+            table: || DRAW_LISTS.list_758e5e.id(),
             run: false,
         },
         List {
             pointer: || &SCREEN_FLOW.overlay_list,
-            table: || DRAW_LISTS.overlay_7592b6.addr() as usize,
+            table: || DRAW_LISTS.overlay_7592b6.id(),
             run: false,
         },
     ]),

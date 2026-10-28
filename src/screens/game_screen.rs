@@ -187,7 +187,7 @@ impl GameText for HeldText {
 pub struct GameScreen<'a, F, W, T = u32> {
     pub canvas: &'a mut dyn Canvas,
     /// The menu's first item (the menus' screen: `rc2k_core::screens::menus::MenuScreen`).
-    pub menu_items: u32,
+    pub menu_items: &'static [crate::menu::menus_store::MenuItem],
     sprites: u32,
     family: PhantomData<(F, W, T)>,
 }
@@ -196,7 +196,7 @@ impl<'a, F, W, T> GameScreen<'a, F, W, T> {
     pub fn new(canvas: &'a mut dyn Canvas) -> Self {
         Self {
             canvas,
-            menu_items: 0,
+            menu_items: &[],
             sprites: crate::gfx::blit_marker_pair::sprite_table(),
             family: PhantomData,
         }
@@ -795,7 +795,7 @@ impl GameWork for rc2k_core::screens::menus::Work {
 
 impl rc2k_core::screens::menus::MenuScreen for MenuScreen<'_> {
     fn own_button(&mut self, n: usize) -> Result<(), Refused> {
-        unsafe { crate::screens::buttons::draw_item_button(self.item_address(n), self.canvas) }
+        unsafe { crate::screens::buttons::draw_item_button(self.menu_item(n)?, self.canvas) }
     }
     fn text_button(
         &mut self,
@@ -815,7 +815,7 @@ impl rc2k_core::screens::menus::MenuScreen for MenuScreen<'_> {
             crate::screens::buttons::draw_text_button(
                 kind,
                 align,
-                self.item_address(n),
+                self.menu_item(n)?,
                 x as i32,
                 self.canvas,
             )
@@ -837,10 +837,11 @@ impl rc2k_core::screens::menus::MenuScreen for MenuScreen<'_> {
 }
 
 impl MenuScreen<'_> {
-    /// Item `n`'s address.
-    fn item_address(&self, n: usize) -> u32 {
+    /// Item `n` (from 0) of the menu drawn.
+    fn menu_item(&self, n: usize) -> Result<&'static crate::menu::menus_store::MenuItem, Refused> {
         self.menu_items
-            .wrapping_add(n as u32 * crate::menu::item_at::ITEM_LEN)
+            .get(n)
+            .ok_or_else(|| crate::errors::BadInput("an item past its menu's end").into())
     }
 }
 

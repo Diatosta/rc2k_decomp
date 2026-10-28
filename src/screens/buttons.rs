@@ -94,14 +94,6 @@ pub const ALT: Kind = Kind {
 };
 
 // Menu item fields the button functions read.
-const ITEM_X: u32 = 0;
-const ITEM_Y: u32 = 4;
-const ITEM_WIDTH: u32 = 8;
-const ITEM_ALIGN: u32 = 0xC;
-const ITEM_TYPE: u32 = 0x10;
-const ITEM_STRING: u32 = 0x14;
-const ITEM_SPRITES: u32 = 0x20;
-const ITEM_MEASURING_FONT: u32 = 0x4C;
 
 pub const ALIGN_CENTRE: u32 = 1;
 pub const ALIGN_RIGHT: u32 = 3;
@@ -112,19 +104,18 @@ pub fn dword(at: u32) -> Result<u32, crate::errors::BadInput> {
 
 // ---- Rust version of the three button functions ----
 
-/// What the three functions do: `item` is only read for its sprites.
+/// What the three functions do: the item is only read for its sprites (`set`, its +0x20).
 pub unsafe fn draw_button(
     kind: &Kind,
     width: u32,
     x: i32,
     y: i32,
     align: u32,
-    item: u32,
+    set: u32,
     canvas: &mut dyn Canvas,
 ) -> Result<(), Refused> {
     unsafe {
-        let set = dword(item.wrapping_add(ITEM_SPRITES))?;
-        if item == 0 || set == 0 {
+        if set == 0 {
             return Err(BadInput("a button without sprites").into());
         }
         let sprites = [
@@ -175,19 +166,19 @@ pub unsafe fn draw_button(
 
 /// `screens::draw_item_button` (0x469283): the button an item describes itself (width at
 /// +8, alignment at +0xC), highlighted if the item is.
-pub unsafe fn draw_item_button(item: u32, canvas: &mut dyn Canvas) -> Result<(), Refused> {
-    if item == 0 {
-        return Err(BadInput("no menu item").into());
-    }
+pub unsafe fn draw_item_button(
+    item: &crate::menu::menus_store::MenuItem,
+    canvas: &mut dyn Canvas,
+) -> Result<(), Refused> {
     unsafe {
-        let highlighted = LOOP_FLAGS.item.get() == dword(item + ITEM_TYPE)?;
+        let highlighted = LOOP_FLAGS.item.get() == item.id.get();
         draw_button(
             if highlighted { &HIGHLIGHTED } else { &PLAIN },
-            dword(item + ITEM_WIDTH)?,
-            dword(item + ITEM_X)? as i32,
-            dword(item + ITEM_Y)? as i32,
-            dword(item + ITEM_ALIGN)?,
-            item,
+            item.text_x.get(),
+            item.x.get() as i32,
+            item.y.get() as i32,
+            item.text_y.get(),
+            item.sprites.get(),
             canvas,
         )
     }
@@ -198,27 +189,23 @@ pub unsafe fn draw_item_button(item: u32, canvas: &mut dyn Canvas) -> Result<(),
 pub unsafe fn draw_text_button(
     kind: &Kind,
     align: u32,
-    item: u32,
+    item: &crate::menu::menus_store::MenuItem,
     measure_x: i32,
     canvas: &mut dyn Canvas,
 ) -> Result<(), Refused> {
-    if item == 0 {
-        return Err(BadInput("no menu item").into());
-    }
     unsafe {
-        let font = dword(item + ITEM_MEASURING_FONT)?;
+        let font = item.measuring_font.get();
         // The font object must lie in the game's memory before it is used.
         crate::pointers::GamePtr::new(font).read::<Font>("an item's measuring font")?;
         let font = crate::pointers::host(font) as *mut Font;
-        let measured =
-            measure_string_by_id_at(dword(item + ITEM_STRING)?, font, measure_x, canvas)?;
+        let measured = measure_string_by_id_at(item.string.get(), font, measure_x, canvas)?;
         draw_button(
             kind,
             rc2k_core::screens::buttons::text_width(measured.width),
-            dword(item + ITEM_X)? as i32,
-            dword(item + ITEM_Y)? as i32,
+            item.x.get() as i32,
+            item.y.get() as i32,
             align,
-            item,
+            item.sprites.get(),
             canvas,
         )
     }

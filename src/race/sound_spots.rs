@@ -101,12 +101,8 @@ pub fn face_sound_spot(face_number: u32) -> Result<(), BadInput> {
             [get(face + 0x30)?, get(face + 0x34)?, get(face + 0x38)?],
         );
         crate::session::write_bits(&OBJECT_WORK.place, place);
-        let t = {
-            crate::scene::rotate_point::rotate_point(
-                MATRICES.view_matrix[0].addr(),
-                place.map(int_80),
-            )
-        };
+        let t =
+            { crate::scene::rotate_point::rotate_point(&MATRICES.view_matrix, place.map(int_80)) };
         let k: u32 = NUMBERS.one_over_65536.bits();
         for (i, v) in t.into_iter().enumerate() {
             put(4 + 4 * i as u32, scaled(v, k))?;

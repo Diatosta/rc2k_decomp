@@ -55,27 +55,27 @@ use crate::scene::draw_store::DRAW;
 // ---- Rust version: `menu::screen_loop` with this ----
 
 pub const SCREEN: Screen = Screen {
-    menu: || MENUS.service_area.addr() as usize, // off_74D24C
+    menu: || MENUS.service_area.id(), // off_74D24C
     saved_item: || &SCREEN_ITEMS.current[slot::SERVICE_AREA], // g_serviceSavedItem
     lists: &[
         List {
-            pointer: || &SCREEN_FLOW.scene_list, // dword_755504
-            table: || DRAW_LISTS.service_area_scene.addr() as usize, // off_759082: the scene
+            pointer: || &SCREEN_FLOW.scene_list,          // dword_755504
+            table: || DRAW_LISTS.service_area_scene.id(), // off_759082: the scene
             run: false,
         },
         List {
             pointer: || &SCREEN_FLOW.draw_list,
-            table: || DRAW_LISTS.service_area_draw.addr() as usize, // off_758D6E: `handle_edit_keys`
+            table: || DRAW_LISTS.service_area_draw.id(), // off_758D6E: `handle_edit_keys`
             run: false,
         },
         List {
-            pointer: || &SCREEN_FLOW.setup_list, // dword_755500
-            table: || DRAW_LISTS.service_area_setup.addr() as usize, // off_759436: `load_setup_values`
+            pointer: || &SCREEN_FLOW.setup_list,          // dword_755500
+            table: || DRAW_LISTS.service_area_setup.id(), // off_759436: `load_setup_values`
             run: true,
         },
         List {
-            pointer: || &SCREEN_FLOW.overlay_list, // dword_7554FC
-            table: || DRAW_LISTS.service_area_overlay.addr() as usize, // off_75924A: `draw_service_area`
+            pointer: || &SCREEN_FLOW.overlay_list,          // dword_7554FC
+            table: || DRAW_LISTS.service_area_overlay.id(), // off_75924A: `draw_service_area`
             run: false,
         },
     ],

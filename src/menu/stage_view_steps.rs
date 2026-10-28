@@ -169,13 +169,8 @@ pub fn style_stage_item(b: bool) -> Result<(), Refused> {
             crate::gfx::typefaces::fonts::STAGE_TITLE.addr(),
         )
     };
-    {
-        crate::pointers::GamePtr::new(item + 0x1C)
-            .write::<u32>(a, "stage view steps: a game value")?;
-        crate::pointers::GamePtr::new(item + 0x20)
-            .write::<u32>(c, "stage view steps: a game value")?;
-        crate::pointers::GamePtr::new(item + 0x50)
-            .write::<u32>(font, "stage view steps: a game value")?;
-    }
+    item.behind.set(a);
+    item.sprites.set(c);
+    item.highlight_font.set(font);
     Ok(())
 }

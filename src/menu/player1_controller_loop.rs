@@ -21,44 +21,44 @@ use crate::menu::screen_loop::{Callee, List, Screen, Step, screen_entry};
 // ---- Rust version: `menu::screen_loop` with this ----
 
 pub const SCREEN: Screen = Screen {
-    menu: || MENUS.player1_controller.addr() as usize,
+    menu: || MENUS.player1_controller.id(),
     saved_item: || &SCREEN_ITEMS.current[slot::PLAYER1_CONTROLLER],
     lists: &[
         List {
             pointer: || &SCREEN_FLOW.unread_list, // g_unreadList
-            table: || DRAW_LISTS.unread_758b72.addr() as usize,
+            table: || DRAW_LISTS.unread_758b72.id(),
             run: false,
         },
         List {
             pointer: || &SCREEN_FLOW.draw_list, // g_drawList
-            table: || DRAW_LISTS.draw_758d8e.addr() as usize,
+            table: || DRAW_LISTS.draw_758d8e.id(),
             run: false,
         },
         List {
             pointer: || &SCREEN_FLOW.setup_list, // dword_755500
-            table: || DRAW_LISTS.player1_controller_setup.addr() as usize,
+            table: || DRAW_LISTS.player1_controller_setup.id(),
             run: true,
         },
         List {
             pointer: || &SCREEN_FLOW.overlay_list, // g_overlayList
-            table: || DRAW_LISTS.overlay_75925e.addr() as usize,
+            table: || DRAW_LISTS.overlay_75925e.id(),
             run: false,
         },
     ],
     first_frame_lists: Some(&[
         List {
             pointer: || &SCREEN_FLOW.scene_list, // g_sceneList
-            table: || DRAW_LISTS.player1_controller_scene.addr() as usize,
+            table: || DRAW_LISTS.player1_controller_scene.id(),
             run: false,
         },
         List {
             pointer: || &SCREEN_FLOW.draw_list, // g_drawList
-            table: || DRAW_LISTS.draw_758d8e.addr() as usize,
+            table: || DRAW_LISTS.draw_758d8e.id(),
             run: false,
         },
         List {
             pointer: || &SCREEN_FLOW.overlay_list, // g_overlayList
-            table: || DRAW_LISTS.overlay_75925e.addr() as usize,
+            table: || DRAW_LISTS.overlay_75925e.id(),
             run: false,
         },
     ]),

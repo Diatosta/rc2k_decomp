@@ -16,6 +16,7 @@
 use crate::errors::Refused;
 use crate::marks::frame_state::{DRAW_FRAME, DRAW_WORK, VIEW_VARS};
 use crate::marks::setup::CLOCK;
+use crate::math::cells::{At, load};
 use crate::math::x87;
 use crate::pointers::GamePtr;
 use crate::race::matrices_store::MATRICES;
@@ -32,7 +33,7 @@ pub fn view_motion() -> Result<(), Refused> {
         *v = x87::loaded(get(m + 0x20 + 4 * k as u32)?);
     }
     let zero = [extended(0); 3];
-    let place = rotate_point(m, zero);
+    let place = rotate_point(&At(m), zero);
     for k in 0..3 {
         let step = x87::ext_less(place[k], DRAW_FRAME.last[k].bits());
         DRAW_WORK.step[k].set_bits(step);
@@ -42,8 +43,8 @@ pub fn view_motion() -> Result<(), Refused> {
     normalise_vector3(at + 12);
     VIEW_VARS
         .facing
-        .set_bits(rounded(dot_product3(at, at + 12)));
-    let place = rotate_point(m, zero);
+        .set_bits(rounded(dot_product3(load(&At(at)), load(&At(at + 12)))));
+    let place = rotate_point(&At(m), zero);
     for (k, p) in place.iter().enumerate() {
         DRAW_FRAME.last[k].set_bits(rounded(*p));
     }

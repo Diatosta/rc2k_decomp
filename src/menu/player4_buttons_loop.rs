@@ -14,7 +14,6 @@
 use crate::framework::rva;
 use crate::menu::draw_lists_store::DRAW_LISTS;
 use crate::menu::flow_store::SCREEN_FLOW;
-use crate::menu::lists_store::MENU_LISTS;
 use crate::menu::menus_store::MENUS;
 use crate::menu::screen_items_store::{SCREEN_ITEMS, slot};
 use crate::menu::screen_loop::{Callee, List, Screen, Step, screen_entry};
@@ -22,44 +21,44 @@ use crate::menu::screen_loop::{Callee, List, Screen, Step, screen_entry};
 // ---- Rust version: `menu::screen_loop` with this ----
 
 pub const SCREEN: Screen = Screen {
-    menu: || MENUS.player4_buttons.addr() as usize,
+    menu: || MENUS.player4_buttons.id(),
     saved_item: || &SCREEN_ITEMS.current[slot::PLAYER4_BUTTONS],
     lists: &[
         List {
             pointer: || &SCREEN_FLOW.unread_list, // g_unreadList
-            table: || DRAW_LISTS.unread_758b72.addr() as usize,
+            table: || DRAW_LISTS.unread_758b72.id(),
             run: false,
         },
         List {
             pointer: || &SCREEN_FLOW.draw_list, // g_drawList
-            table: || DRAW_LISTS.draw_758dd2.addr() as usize,
+            table: || DRAW_LISTS.draw_758dd2.id(),
             run: false,
         },
         List {
             pointer: || &SCREEN_FLOW.setup_list, // dword_755500
-            table: || MENU_LISTS.draw_list[0].addr() as usize,
+            table: || crate::menu::fn_list::FnList::Menus,
             run: true,
         },
         List {
             pointer: || &SCREEN_FLOW.overlay_list, // g_overlayList
-            table: || DRAW_LISTS.overlay_75927a.addr() as usize,
+            table: || DRAW_LISTS.overlay_75927a.id(),
             run: false,
         },
     ],
     first_frame_lists: Some(&[
         List {
             pointer: || &SCREEN_FLOW.scene_list, // g_sceneList
-            table: || DRAW_LISTS.player4_buttons_scene.addr() as usize,
+            table: || DRAW_LISTS.player4_buttons_scene.id(),
             run: false,
         },
         List {
             pointer: || &SCREEN_FLOW.draw_list, // g_drawList
-            table: || DRAW_LISTS.draw_758dd2.addr() as usize,
+            table: || DRAW_LISTS.draw_758dd2.id(),
             run: false,
         },
         List {
             pointer: || &SCREEN_FLOW.overlay_list, // g_overlayList
-            table: || DRAW_LISTS.overlay_75927a.addr() as usize,
+            table: || DRAW_LISTS.overlay_75927a.id(),
             run: false,
         },
     ]),

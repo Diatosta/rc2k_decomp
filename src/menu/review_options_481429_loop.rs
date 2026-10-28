@@ -49,22 +49,22 @@ unsafe fn set_up_first(c: &mut Carried) -> Result<(), Refused> {
 }
 
 pub const SCREEN: Screen = Screen {
-    menu: || MENUS.review_options_481429.addr() as usize,
+    menu: || MENUS.review_options_481429.id(),
     saved_item: || &SCREEN_ITEMS.current[slot::REVIEW_OPTIONS_481429],
     lists: &[
         List {
             pointer: || &SCREEN_FLOW.scene_list, // g_sceneList
-            table: || DRAW_LISTS.review_options_481429_scene.addr() as usize,
+            table: || DRAW_LISTS.review_options_481429_scene.id(),
             run: false,
         },
         List {
             pointer: || &SCREEN_FLOW.draw_list, // g_drawList
-            table: || DRAW_LISTS.review_options_481429_draw.addr() as usize,
+            table: || DRAW_LISTS.review_options_481429_draw.id(),
             run: false,
         },
         List {
             pointer: || &SCREEN_FLOW.overlay_list, // g_overlayList
-            table: || DRAW_LISTS.review_options_481429_overlay.addr() as usize,
+            table: || DRAW_LISTS.review_options_481429_overlay.id(),
             run: false,
         },
     ],
@@ -98,7 +98,7 @@ pub const SCREEN: Screen = Screen {
     leave_at_once: None,
     next_frame_repeats_first: false,
     action_saved_item: Some(|| &SCREEN_ITEMS.current[slot::REVIEW_OPTIONS_48108E]),
-    action_menu: Some(|| MENUS.review_options_48108e.addr() as usize),
+    action_menu: Some(|| MENUS.review_options_48108e.id()),
     no_quit_check: false,
     before_asking: &[],
     ask_unless: None,

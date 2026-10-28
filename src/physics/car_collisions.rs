@@ -19,6 +19,7 @@
 //! above are the original's, for reference.
 
 use crate::errors::{BadInput, Refused};
+use crate::math::cells::At;
 use crate::physics::car_store::CAR;
 use crate::physics::car_store::Car;
 use crate::physics::contact_store::CONTACT_WORK;
@@ -70,14 +71,14 @@ pub unsafe fn car_collisions() -> Result<(), Refused> {
                     .wrapping_sub(rd(block + 0x134 + 4 * k as u32))
             }));
             multiply_matrices(
-                CAR.crash_matrix[0].addr() as usize,
-                (MATRICES.placed_matrix[0].addr()) as usize,
-                (MATRICES.turned_matrix[0].addr()) as usize,
+                &CAR.crash_matrix,
+                &MATRICES.placed_matrix,
+                &MATRICES.turned_matrix,
             );
             multiply_matrices(
-                (MATRICES.turned_matrix[0].addr()) as usize,
-                (block + 0x9CC) as usize,
-                (CONTACT_WORK.corner_matrix[0].addr()) as usize,
+                &MATRICES.turned_matrix,
+                &At(block + 0x9CC),
+                &CONTACT_WORK.corner_matrix,
             );
             for k in 0..8 {
                 CONTACT_WORK.corner_in[0].set_bits(CONTACT_WORK.corner_x[k].bits());

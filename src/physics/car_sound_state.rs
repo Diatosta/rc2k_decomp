@@ -91,7 +91,7 @@ pub fn car_sound_state() -> Result<(), Refused> {
         d(&CAR.position[1], 0x6A8),
         d(&CAR.position[2], 0x6AC),
     ];
-    let m = MATRICES.view_turn_matrix[0].addr();
+    let m = &MATRICES.view_turn_matrix;
     let out = rotate_point(m, place);
     let k = NUMBERS.one_over_65536.bits();
     for (i, e) in out.iter().enumerate() {

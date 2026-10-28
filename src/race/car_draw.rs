@@ -26,33 +26,33 @@ use crate::scene::light_work_store::LIGHT_WORK;
 use crate::scene::matrix::multiply_matrices;
 use crate::scene::object_store::OBJECT_WORK;
 use crate::scene::object_tables_store::OBJECT_TABLES;
+use crate::session::Float;
 
 fn get(a: u32) -> Result<u32, BadInput> {
     GamePtr::new(a).read("a car block or model word")
 }
 
-// The matrices are handed to code that walks memory by pointer: absolute addresses.
-fn view_matrix() -> usize {
-    MATRICES.view_matrix[0].addr() as usize // g_viewMatrix
+fn view_matrix() -> &'static [Float] {
+    &MATRICES.view_matrix // g_viewMatrix
 }
-fn turned() -> usize {
-    MATRICES.turned_matrix[0].addr() as usize // g_turnedMatrix
+fn turned() -> &'static [Float] {
+    &MATRICES.turned_matrix // g_turnedMatrix
 }
-fn lit() -> usize {
-    MATRICES.lit_matrix[0].addr() as usize // g_litMatrix
+fn lit() -> &'static [Float] {
+    &MATRICES.lit_matrix // g_litMatrix
 }
-fn made() -> usize {
-    MATRICES.made_object_matrix[0].addr() as usize // g_madeObjectMatrix
+fn made() -> &'static [Float] {
+    &MATRICES.made_object_matrix // g_madeObjectMatrix
 }
-fn body_turn() -> usize {
-    MATRICES.body_turn_matrix[0].addr() as usize // flt_5EA08C: the car's +0x840
+fn body_turn() -> &'static [Float] {
+    &MATRICES.body_turn_matrix // flt_5EA08C: the car's +0x840
 }
-fn car_turn() -> usize {
-    FRAME_WORK.placed_matrices[0].addr() as usize // flt_641760: the car's +0x880
+fn car_turn() -> &'static [Float] {
+    &FRAME_WORK.placed_matrices[..16] // flt_641760: the car's +0x880
 }
 /// The four parts' matrices (`flt_6417E0` .., the car's +0x740 ..).
-pub fn part_matrices() -> [usize; 4] {
-    [0, 16, 32, 48].map(|k| FRAME_WORK.part_matrices[k].addr() as usize)
+pub fn part_matrices() -> [&'static [Float]; 4] {
+    [0, 16, 32, 48].map(|k| &FRAME_WORK.part_matrices[k..k + 16])
 }
 
 /// `race::car_part_matrix_1` .. `_4` (0x461F12, 0x461F58, 0x461F9E, 0x461FE4): matrix `a`
@@ -60,7 +60,7 @@ pub fn part_matrices() -> [usize; 4] {
 /// (`flt_641760`) into `g_litMatrix`, times `g_viewMatrix` into `g_madeObjectMatrix`. The
 /// original leaves esi `g_litMatrix` (which `draw_car`'s drawing takes, see there), edi
 /// and ebp the last product's other two.
-pub fn car_part_matrix(a: usize) {
+pub fn car_part_matrix(a: &[Float]) {
     multiply_matrices(a, body_turn(), turned());
     multiply_matrices(turned(), car_turn(), lit());
     multiply_matrices(lit(), view_matrix(), made());
@@ -72,11 +72,7 @@ pub fn car_body_matrix() {
     use crate::scene::view_matrix::{Axis, set_fine_turn};
     set_fine_turn(Axis::X, 0);
     set_fine_turn(Axis::Z, 0);
-    multiply_matrices(
-        MATRICES.turn_x_matrix[0].addr() as usize,
-        MATRICES.turn_z_matrix[0].addr() as usize,
-        lit(),
-    );
+    multiply_matrices(&MATRICES.turn_x_matrix, &MATRICES.turn_z_matrix, lit());
     car_part_matrix(lit());
 }
 
@@ -190,7 +186,7 @@ pub unsafe fn draw_car(car: u32) -> Result<(), Refused> {
             .enumerate()
         {
             GamePtr::new(car + 0x740 + 0x40 * k as u32).copy_to(
-                GamePtr::new(to as u32),
+                GamePtr::new(to[0].addr()),
                 0x40,
                 "a car block's kept matrix",
             )?;
@@ -353,7 +349,7 @@ pub unsafe fn draw_car(car: u32) -> Result<(), Refused> {
         );
         car_body_matrix();
         crate::race::frame_draw::start_kept_reflections()?;
-        crate::scene::draw_scene_object::draw_scene_object_in_game(lit() as u32)?;
+        crate::scene::draw_scene_object::draw_scene_object_in_game(lit()[0].addr())?;
         crate::race::frame_draw::end_kept_reflections();
         LIGHT_WORK.light_kind_extra.set(1);
         if below(FRAME_WORK.car_depth.bits(), 0x3C_0000) {
@@ -366,7 +362,7 @@ pub unsafe fn draw_car(car: u32) -> Result<(), Refused> {
                     .set(FRAME_SWITCHES.object_number.bits().wrapping_add(1));
                 if OBJECT_WORK.car_switches.bits() & bit != 0 {
                     car_part_matrix(matrix);
-                    crate::scene::draw_scene_object::draw_scene_object_in_game(lit() as u32)?;
+                    crate::scene::draw_scene_object::draw_scene_object_in_game(lit()[0].addr())?;
                 }
             }
         }
@@ -458,7 +454,7 @@ pub unsafe fn draw_car_entry(entry: u32) -> Result<(), Refused> {
             .view_light_base
             .set(car_at(car)?.light_colour.bits());
         let t = crate::scene::rotate_point::rotate_point(
-            view_matrix() as u32,
+            view_matrix(),
             [
                 int_80(car_at(car)?.position[0].bits()),
                 int_80(car_at(car)?.position[1].bits()),

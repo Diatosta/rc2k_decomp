@@ -36,22 +36,22 @@ fn set_first_item(c: &mut Carried) -> Result<(), Refused> {
 }
 
 pub const SCREEN: Screen = Screen {
-    menu: || MENUS.class_stage_results.addr() as usize,
+    menu: || MENUS.class_stage_results.id(),
     saved_item: || &SCREEN_ITEMS.current[slot::CLASS_STAGE_RESULTS], // dword_747780
     lists: &[
         List {
             pointer: || &SCREEN_FLOW.scene_list, // dword_755504
-            table: || DRAW_LISTS.class_stage_results_scene.addr() as usize, // unk_7590D2
+            table: || DRAW_LISTS.class_stage_results_scene.id(), // unk_7590D2
             run: false,
         },
         List {
             pointer: || &SCREEN_FLOW.draw_list,
-            table: || DRAW_LISTS.list_758e12.addr() as usize, // off_758E12
+            table: || DRAW_LISTS.list_758e12.id(), // off_758E12
             run: false,
         },
         List {
             pointer: || &SCREEN_FLOW.overlay_list, // dword_7554FC
-            table: || DRAW_LISTS.class_stage_results_overlay.addr() as usize, // dword_759296
+            table: || DRAW_LISTS.class_stage_results_overlay.id(), // dword_759296
             run: false,
         },
     ],

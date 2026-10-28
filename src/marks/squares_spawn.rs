@@ -23,12 +23,7 @@ const MOST: i32 = 0x80;
 
 /// The original's 0x4C053C .. 0x4C059D: the rate, compared (`fstsw` into `g_fpuStatus`).
 fn rate() {
-    rate_x87(
-        crate::race::store::asm_base() as usize,
-        &KEPT,
-        &SQUARE_TIMING,
-        &SQUARE_STATE,
-    )
+    rate_x87(&KEPT, &SQUARE_TIMING, &SQUARE_STATE)
 }
 
 /// The Rust version (see the header).
@@ -63,13 +58,12 @@ pub fn squares_spawn() -> Result<(), Refused> {
     Ok(())
 }
 
-use crate::marks::plain::st16;
 use crate::marks::squares_store::{SQUARE_STATE, SQUARE_TIMING, SquareState, SquareTiming};
 use crate::marks::view_vectors::{KEPT, KeptView};
 use crate::math::x87_float as bh;
 
 /// `rate`'s x87 block as plain Rust on the x87 model (20 instructions), same order and memory places.
-fn rate_x87(rc: usize, kv: &KeptView, sti: &SquareTiming, ss: &SquareState) {
+fn rate_x87(kv: &KeptView, sti: &SquareTiming, ss: &SquareState) {
     let t0 = bh::ld(kv.first_angle.bits());
     let t1 = t0 + bh::ld(SHAPE_TILT.tilt.bits());
     let t2 = t1.sin();
@@ -86,11 +80,7 @@ fn rate_x87(rc: usize, kv: &KeptView, sti: &SquareTiming, ss: &SquareState) {
     let t12 = t11 + bh::ld(sti.spawn_rate.bits());
     sti.spawn_rate.set_bits(bh::st(t12));
     let t13 = bh::ld(sti.spawn_rate.bits());
-    st16(
-        rc,
-        0x31C814,
-        bh::compare(t13, bh::ld(ss.rate_constants[1].bits())),
-    );
+    crate::marks::plain::set_status(bh::compare(t13, bh::ld(ss.rate_constants[1].bits())));
 }
 
 #[cfg(all(test, target_arch = "x86"))]
@@ -146,9 +136,7 @@ mod asm_differential {
     fn rate_x87_matches() {
         const SPEC: Spec = Spec {
             operands: &[
-                Op::Base {
-                    lo: 0x31C814,
-                    hi: 0x31C816,
+                Op::RaceBlock {
                     reads: &[],
                     writes: &[(0x31C814, Status)],
                 },
@@ -177,7 +165,7 @@ mod asm_differential {
                     with_copy::<SquareTiming, _>(b[1], SquareTiming::START, |sti| {
                         with_copy::<SquareState, _>(b[1], SquareState::START, |ss| {
                             with_overlays(b[1], &[overlay(&SHAPE_TILT, ShapeTilt::START)], || {
-                                super::rate_x87(b[0], kv, sti, ss)
+                                super::rate_x87(kv, sti, ss)
                             })
                         })
                     })

@@ -166,13 +166,13 @@ pub fn get_mat_crash() {
     matrix::set_turn_y(turns[1]);
     matrix::set_turn_z_16(turns[2]);
     matrix::multiply_matrices(
-        MATRICES.turn_z_matrix[0].addr() as usize,
-        MATRICES.turn_x_matrix[0].addr() as usize,
-        MATRICES.lit_matrix[0].addr() as usize,
+        &MATRICES.turn_z_matrix,
+        &MATRICES.turn_x_matrix,
+        &MATRICES.lit_matrix,
     );
     matrix::multiply_matrices(
-        MATRICES.lit_matrix[0].addr() as usize,
-        MATRICES.turn_y_matrix[0].addr() as usize,
-        CAR.crash_matrix[0].addr() as usize,
+        &MATRICES.lit_matrix,
+        &MATRICES.turn_y_matrix,
+        &CAR.crash_matrix,
     );
 }

@@ -53,7 +53,9 @@ pub fn home(ida: usize) -> usize {
 }
 
 /// What an RVA of the block is added to in inline asm (`[{m} + RVA]`): the block's address
-/// less its first byte's RVA.
+/// less its first byte's RVA. Only the tests' kept assembly uses it now (2026-10-28: the
+/// game's code reaches the block through the typed stores).
+#[cfg(test)]
 pub fn asm_base() -> u32 {
     (vars::base() as u32).wrapping_sub(crate::framework::rva(vars::START) as u32)
 }

@@ -2,22 +2,21 @@
 //! hidden and shown by `menu::hide_in_game_options` and `menu::show_in_game_options`
 //! (IDA, 2026-10-15).
 
-use crate::menu::item_at::{ITEM_LEN, MENU_HEAD_LEN};
 use crate::menu::menus_store::MENUS;
 use rc2k_core::menu::items::{
     HIDDEN, IN_GAME_OPTIONS, Look, hidden_in_game_options, shown_in_game_option,
 };
 
-pub fn item(n: u32) -> u32 {
-    MENUS.in_game_options.addr() + MENU_HEAD_LEN + n * ITEM_LEN
-}
-
 /// Item `n` given its look: +0x14, +0x48, +0x1C, in the original's order.
 pub fn set(n: u32, look: Look) -> Result<(), crate::errors::BadInput> {
-    let at = crate::pointers::GamePtr::new(item(n));
-    at.offset(0x14).write::<u32>(look.string, "a menu item")?;
-    at.offset(0x48).write::<u32>(look.state, "a menu item")?;
-    at.offset(0x1C).write::<u32>(look.behind, "a menu item")?;
+    let item = MENUS
+        .in_game_options
+        .items
+        .get(n as usize)
+        .ok_or(crate::errors::BadInput("an item past the in-game options"))?;
+    item.string.set(look.string);
+    item.skip_mark.set(look.state);
+    item.behind.set(look.behind);
     Ok(())
 }
 

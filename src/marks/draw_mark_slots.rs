@@ -29,6 +29,7 @@ use crate::marks::frame_state::DRAW_WORK;
 use crate::marks::mark_slots::{SLOTS, TUNING};
 use crate::marks::setup::CLOCK;
 use crate::marks::splines::SPLINE_HEAD;
+use crate::math::cells::At;
 use crate::math::x87;
 use crate::pointers::GamePtr;
 use crate::race::matrices_store::MATRICES;
@@ -85,8 +86,8 @@ pub fn draw_mark_slots() -> Result<(), Refused> {
         let z = x87::mul(c, k4[0]);
         let y = crate::math::x87_run::sub_mul(b, k4[1], k4[2]);
         let x = x87::mul(a, k4[3]);
-        let once = rotate_point(s.matrix.get(), [extended(z), extended(y), extended(x)]);
-        let twice = rotate_point(MATRICES.view_matrix[0].addr(), once);
+        let once = rotate_point(&At(s.matrix.get()), [extended(z), extended(y), extended(x)]);
+        let twice = rotate_point(&MATRICES.view_matrix, once);
         let [z, y, x] = twice.map(rounded);
         for (n, v) in [z, y, x].into_iter().enumerate() {
             SLOTS.work[n].set(v);

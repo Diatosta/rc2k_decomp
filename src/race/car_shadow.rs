@@ -5,6 +5,7 @@
 //! `dword_64192C`, the hull's `dword_643ACC`.
 
 use crate::errors::{BadInput, Refused};
+use crate::math::cells::At;
 use crate::physics::car_store::CAR;
 use crate::physics::ground_probe_store::GROUND_PROBE;
 use crate::physics::ground_store::GROUND_WORK;
@@ -664,7 +665,7 @@ pub unsafe fn shadow_points() -> Result<(), Refused> {
                 to_tbyte(get(car + 0xBF0 + 4 * k)?),
                 to_tbyte(get(car + 0xCF0 + 4 * k)?),
             ];
-            let t = crate::scene::rotate_point::rotate_point(matrix, p);
+            let t = crate::scene::rotate_point::rotate_point(&At(matrix), p);
             let [x, y, z] = t.map(tbyte_to_float);
             put(at + 4, y)?;
             let x = lifted(y, lift, sx, x);

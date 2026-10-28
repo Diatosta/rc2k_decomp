@@ -17,18 +17,18 @@
 use crate::errors::Refused;
 use crate::menu::cheats_store::CHEAT_VARS;
 use crate::menu::flow_store::SCREEN_FLOW;
+use crate::menu::fn_list::ListCell;
 use crate::menu::table_calls::call_listed;
 use crate::platform::{lock_surface, show_frame_now, unlock_surface};
 use crate::scene::light_store::LIGHT_STATE;
-use crate::session::Dword;
 use crate::text::draw_text::GameCanvas;
 use rc2k_core::menu::notice;
 
 // ---- game data ----
 
-const DRAW_LIST: &Dword = &SCREEN_FLOW.draw_list; // g_drawList
-const SCENE_LIST: &Dword = &SCREEN_FLOW.scene_list; // g_sceneList
-const OVERLAY_LIST: &Dword = &SCREEN_FLOW.overlay_list; // g_overlayList
+const DRAW_LIST: &ListCell = &SCREEN_FLOW.draw_list; // g_drawList
+const SCENE_LIST: &ListCell = &SCREEN_FLOW.scene_list; // g_sceneList
+const OVERLAY_LIST: &ListCell = &SCREEN_FLOW.overlay_list; // g_overlayList
 const NOTICE_FONT: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fonts::NOTICE;
 const END: u32 = u32::MAX;
 
@@ -36,15 +36,16 @@ const END: u32 = u32::MAX;
 
 /// Runs the functions of the list `list` points at (the original keeps the registers
 /// around each of the scene list's; its functions take none either way).
-pub fn run_listed(list: &Dword) -> Result<(), Refused> {
-    let mut at: u32 = list.get();
-    while crate::pointers::GamePtr::new(at).read::<u32>("frame callback: a game value")? != END {
-        call_listed(
-            crate::pointers::GamePtr::new(at).read::<u32>("frame callback: a game value")?,
-        )?;
-        at = at.wrapping_add(4);
+pub fn run_listed(list: &ListCell) -> Result<(), Refused> {
+    let entries = list.get()?.entries();
+    let Some(end) = entries.iter().position(|e| e.get() == END) else {
+        return Err(
+            crate::errors::BadInput("frame callback: a function list without an end").into(),
+        );
+    };
+    for e in &entries[..end] {
+        call_listed(e.get())?;
     }
-
     Ok(())
 }
 
@@ -64,13 +65,21 @@ pub fn copy_picture() -> Result<(), Refused> {
 }
 
 /// `menu::draw_menu` (0x4746B7) with `palette` and `measure_x` as ebx and ecx.
-pub unsafe fn draw_menu(menu: u32, palette: u32, measure_x: u32) -> Result<(), Refused> {
+pub unsafe fn draw_menu(
+    menu: crate::menu::menus_store::MenuId,
+    palette: u32,
+    measure_x: u32,
+) -> Result<(), Refused> {
     unsafe { crate::menu::draw_menu::draw_menu(menu, palette, measure_x, &mut GameCanvas) }
 }
 
 /// `menu`, `palette` and `measure_x` are edi, ebx and ecx at entry. Returns whether the
 /// frame was made (the original's clear carry).
-pub unsafe fn frame_callback(menu: u32, palette: u32, measure_x: u32) -> Result<bool, Refused> {
+pub unsafe fn frame_callback(
+    menu: crate::menu::menus_store::MenuId,
+    palette: u32,
+    measure_x: u32,
+) -> Result<bool, Refused> {
     unsafe {
         if lock_failed() {
             return Ok(false);

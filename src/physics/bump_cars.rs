@@ -21,6 +21,7 @@
 //! and what `place_sound_e1_other` refuses (what was written put back).
 
 use crate::errors::{BadInput, Refused};
+use crate::math::cells::At;
 use crate::physics::car_store::CAR;
 use crate::physics::contact_store::CONTACT_WORK;
 use crate::race::numbers_store::NUMBERS;
@@ -47,7 +48,7 @@ fn turn_speed(block: u32) {
             "a car block's speed",
         ))
     };
-    let turned = rotate_point(block + 0x9CC, [rd(0x198), rd(0x19C), rd(0x1A0)]);
+    let turned = rotate_point(&At(block + 0x9CC), [rd(0x198), rd(0x19C), rd(0x1A0)]);
     for (k, e) in turned.iter().enumerate() {
         crate::pointers::write_or_end(
             block + 0x1A4 + 4 * k as u32,
@@ -83,7 +84,7 @@ fn steps(edi: u32) -> Result<(), Refused> {
     crate::pointers::write_or_end(edi + 0x234, 1u32, "a car block's contact flag");
     x87_1(edi as usize);
     CONTACT_WORK.bump_speed_length.set_bits(rounded({
-        vector_length(a(&CONTACT_WORK.bump_relative_speed[0]))
+        vector_length(&At(a(&CONTACT_WORK.bump_relative_speed[0])))
     }));
     let esi = CONTACT_WORK.other_car_block.get();
     x87_2(esi as usize);
@@ -91,7 +92,7 @@ fn steps(edi: u32) -> Result<(), Refused> {
     let other = CONTACT_WORK.other_car_block.get();
     x87_3(other as usize);
     let factor = extended(NUMBERS.three.bits());
-    scale_vector(CONTACT_WORK.bump_push[0].addr(), factor);
+    scale_vector(&CONTACT_WORK.bump_push, factor);
     DRAW.scratch.set(rounded(factor));
     x87_4(other as usize);
     turn_speed(esi);

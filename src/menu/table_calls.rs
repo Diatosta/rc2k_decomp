@@ -13,6 +13,7 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::framework::{IMAGE_BASE, Regs, game_addr, log};
+use crate::menu::menus_store::{MenuId, MenuItem};
 use crate::menu::screen_loop::Carried;
 use crate::menu::table_routes::{item_fn, screen_fn};
 use rc2k_core::menu::tables::{ItemFn, ScreenFn};
@@ -39,10 +40,11 @@ pub fn call_listed(function: u32) -> Result<(), Refused> {
 /// typed tables. Of those the tables name as key callbacks only
 /// `RaiseControllerSensitivity` reads a register: edi, which is the item here; the rest
 /// get none (2026-10-24, `tables_data.rs`' `on_key` against `item_fn`'s reads).
-pub fn call_key(function: u32, item: u32) -> Result<(), Refused> {
+pub fn call_key(function: u32, item: &MenuItem) -> Result<(), Refused> {
     match ItemFn::from_ral(ral(function)) {
+        // edi the item: its +0x2C, the left link.
         Some(ItemFn::RaiseControllerSensitivity) => {
-            crate::menu::controller_items::raise_controller_sensitivity(item)
+            crate::menu::controller_items::raise_controller_sensitivity(item.links[2].get())
         }
         Some(f) => item_fn(f, &ItemCall::default()),
         None => Err(BadInput("a key callback that is none of the items' functions").into()),
@@ -55,8 +57,9 @@ pub fn call_key(function: u32, item: u32) -> Result<(), Refused> {
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct ItemCall {
     pub value: u32,
+    /// The item's game address (the original's ebp; for a refusal's report).
     pub item: u32,
-    pub menu: u32,
+    pub menu: Option<MenuId>,
     pub carried: Carried,
 }
 
@@ -79,7 +82,7 @@ impl ItemCall {
             ecx: self.carried.measure_x,
             edx: self.carried.clock,
             esi: self.carried.cars,
-            edi: self.menu,
+            edi: self.menu.map_or(0, MenuId::code),
             ebp: self.item,
             ..Regs::default()
         }
@@ -89,11 +92,11 @@ impl ItemCall {
 /// A menu item's action (`menu::run_item_action`): the item's function with the value,
 /// the item, the menu and the screen loop's carried values. A refusal ends the program
 /// here, as `call`'s.
-pub fn call_action(function: u32, value: u32, item: u32, menu: u32, carried: &Carried) {
+pub fn call_action(function: u32, value: u32, item: &MenuItem, menu: MenuId, carried: &Carried) {
     let given = ItemCall {
         value,
-        item,
-        menu,
+        item: item.addr(),
+        menu: Some(menu),
         carried: *carried,
     };
     let ral = ral(function);

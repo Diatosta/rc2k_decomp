@@ -119,11 +119,10 @@ pub fn lower_controller_sensitivity() -> Result<(), Refused> {
 }
 
 /// `menu::raise_controller_sensitivity`; `edi` is the caller's.
-pub fn raise_controller_sensitivity(edi: u32) -> Result<(), Refused> {
-    if edi < 0x10000 {
-        return Err(BadInput("an edi that points nowhere (the original reads +0x2C of it)").into());
-    }
-    if f(edi, 0x2C)? == 0 {
+/// `gate` is the dword at +0x2C of what edi points at: a key's item (its left link) or an
+/// action's menu (its first item's down link).
+pub fn raise_controller_sensitivity(gate: u32) -> Result<(), Refused> {
+    if gate == 0 {
         return Ok(());
     }
     // Converted: `rc2k_core::menu::steps::raise_sensitivity`.

@@ -5,6 +5,7 @@
 //! original's instructions are `asm_reference` in the tests.
 
 use crate::marks::work_store::MARKS_WORK;
+use crate::math::cells::{At, load};
 use crate::math::x87_float::{ONE, compare};
 use crate::scene::x87_mem::{fld, fnstsw, fstp, fstp80};
 
@@ -40,13 +41,9 @@ fn normalise(v: *mut u8) {
 
 /// `scene::dot_product3` (0x46553C): esi . edi, x x' + (y y' + z z'), unrounded. Every
 /// register kept.
-pub fn dot_product3(a: u32, b: u32) -> [u8; 10] {
+pub fn dot_product3(a: [u32; 3], b: [u32; 3]) -> [u8; 10] {
     let mut out = [0u8; 10];
-    dot(
-        crate::pointers::host(a) as *const u8,
-        crate::pointers::host(b) as *const u8,
-        out.as_mut_ptr(),
-    );
+    dot(a.as_ptr().cast(), b.as_ptr().cast(), out.as_mut_ptr());
     out
 }
 
@@ -108,7 +105,7 @@ pub fn angle_between_vectors(a: u32, b: u32) -> [u8; 10] {
     let mut step = crate::math::x87::loaded(MARKS_WORK.cosine_step.get());
     normalise_vector3(b);
     normalise_vector3(a);
-    let dot = crate::scene::matrix3::rounded(dot_product3(a, b));
+    let dot = crate::scene::matrix3::rounded(dot_product3(load(&At(a)), load(&At(b))));
     let half: u32 = MARKS_WORK.cosine_half.get();
     for _ in 0..16 {
         let status = cosine_against(angle, dot);

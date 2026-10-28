@@ -8,6 +8,7 @@
 //!
 //! Caller: `sub_43BD8B` (its tail).
 
+use crate::math::cells::At;
 use crate::scene::matrix3::{extended, rounded};
 use crate::scene::rotate_point::rotate_point;
 
@@ -20,7 +21,7 @@ pub unsafe fn car_frame_motion_at(from: u32, m: u32, to: u32) {
             extended(p.add(1).read_unaligned()),
             extended(p.add(2).read_unaligned()),
         ];
-        let out = rotate_point(m, point);
+        let out = rotate_point(&At(m), point);
         let q = crate::pointers::host(to) as *mut u32;
         for (k, e) in out.iter().enumerate() {
             q.add(k).write_unaligned(rounded(*e));

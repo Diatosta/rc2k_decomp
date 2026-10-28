@@ -135,9 +135,9 @@ impl<const N: usize> Menu<N> {
         }
     }
 
-    /// The menu's address (its head).
-    pub fn addr(&self) -> u32 {
-        crate::pointers::game_address(self as *const Self)
+    /// The menu (`MenuId`).
+    pub fn id(&'static self) -> MenuId {
+        MenuId::of(&self.head)
     }
 }
 
@@ -743,11 +743,341 @@ pub fn menus_addr() -> u32 {
     crate::pointers::game_address(&MENUS as *const MenuTables)
 }
 
+/// A menu by handle (phase 13, 2026-10-28): its number among `MENUS`' menus, in the image's
+/// order. The current menu (`LOOP_FLAGS.menu`), the keys menu and the item calls hold
+/// one in place of the menu's address.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct MenuId(u16);
+
+/// The number of menus.
+pub const MENU_COUNT: u16 = 96;
+
+impl MenuId {
+    /// The menu's head (the address of its labels) and its items.
+    fn parts(self) -> (&'static Dword, &'static [MenuItem]) {
+        match self.0 {
+            0 => (
+                &MENUS.visual_preferences.head,
+                &MENUS.visual_preferences.items,
+            ),
+            1 => (&MENUS.select_stage.head, &MENUS.select_stage.items),
+            2 => (
+                &MENUS.time_trial_select_stage.head,
+                &MENUS.time_trial_select_stage.items,
+            ),
+            3 => (
+                &MENUS.time_trial_select_players.head,
+                &MENUS.time_trial_select_players.items,
+            ),
+            4 => (
+                &MENUS.simple_select_players.head,
+                &MENUS.simple_select_players.items,
+            ),
+            5 => (&MENUS.main_menu.head, &MENUS.main_menu.items),
+            6 => (
+                &MENUS.arcade_select_level.head,
+                &MENUS.arcade_select_level.items,
+            ),
+            7 => (&MENUS.network_rally.head, &MENUS.network_rally.items),
+            8 => (&MENUS.menu_749290.head, &MENUS.menu_749290.items),
+            9 => (&MENUS.menu_7493ac.head, &MENUS.menu_7493ac.items),
+            10 => (
+                &MENUS.championship_new_simulation.head,
+                &MENUS.championship_new_simulation.items,
+            ),
+            11 => (&MENUS.new_simulation.head, &MENUS.new_simulation.items),
+            12 => (
+                &MENUS.player1_controller.head,
+                &MENUS.player1_controller.items,
+            ),
+            13 => (&MENUS.player1_buttons.head, &MENUS.player1_buttons.items),
+            14 => (
+                &MENUS.player2_controller.head,
+                &MENUS.player2_controller.items,
+            ),
+            15 => (&MENUS.player2_buttons.head, &MENUS.player2_buttons.items),
+            16 => (
+                &MENUS.player3_controller.head,
+                &MENUS.player3_controller.items,
+            ),
+            17 => (&MENUS.player3_buttons.head, &MENUS.player3_buttons.items),
+            18 => (
+                &MENUS.player4_controller.head,
+                &MENUS.player4_controller.items,
+            ),
+            19 => (&MENUS.player4_buttons.head, &MENUS.player4_buttons.items),
+            20 => (
+                &MENUS.car_specification.head,
+                &MENUS.car_specification.items,
+            ),
+            21 => (&MENUS.slideshow.head, &MENUS.slideshow.items),
+            22 => (&MENUS.select_car.head, &MENUS.select_car.items),
+            23 => (&MENUS.car_specs_47af4c.head, &MENUS.car_specs_47af4c.items),
+            24 => (&MENUS.menu_74ba3c.head, &MENUS.menu_74ba3c.items),
+            25 => (&MENUS.menu_74bafc.head, &MENUS.menu_74bafc.items),
+            26 => (
+                &MENUS.redefine_keys_player1.head,
+                &MENUS.redefine_keys_player1.items,
+            ),
+            27 => (
+                &MENUS.redefine_keys_player2.head,
+                &MENUS.redefine_keys_player2.items,
+            ),
+            28 => (
+                &MENUS.redefine_keys_player3.head,
+                &MENUS.redefine_keys_player3.items,
+            ),
+            29 => (
+                &MENUS.redefine_keys_player4.head,
+                &MENUS.redefine_keys_player4.items,
+            ),
+            30 => (&MENUS.audio_setup.head, &MENUS.audio_setup.items),
+            31 => (
+                &MENUS.arcade_next_stage.head,
+                &MENUS.arcade_next_stage.items,
+            ),
+            32 => (&MENUS.screen_488f4c.head, &MENUS.screen_488f4c.items),
+            33 => (&MENUS.arcade_results.head, &MENUS.arcade_results.items),
+            34 => (&MENUS.menu_74d1e8.head, &MENUS.menu_74d1e8.items),
+            35 => (&MENUS.service_area.head, &MENUS.service_area.items),
+            36 => (&MENUS.next_stage.head, &MENUS.next_stage.items),
+            37 => (&MENUS.view_stage.head, &MENUS.view_stage.items),
+            38 => (&MENUS.rally_stages.head, &MENUS.rally_stages.items),
+            39 => (&MENUS.view_courses.head, &MENUS.view_courses.items),
+            40 => (&MENUS.view_best_times.head, &MENUS.view_best_times.items),
+            41 => (&MENUS.best_times.head, &MENUS.best_times.items),
+            42 => (
+                &MENUS.arcade_best_times.head,
+                &MENUS.arcade_best_times.items,
+            ),
+            43 => (
+                &MENUS.time_trial_best_times.head,
+                &MENUS.time_trial_best_times.items,
+            ),
+            44 => (
+                &MENUS.best_scores_48a69e.head,
+                &MENUS.best_scores_48a69e.items,
+            ),
+            45 => (
+                &MENUS.best_class_scores.head,
+                &MENUS.best_class_scores.items,
+            ),
+            46 => (
+                &MENUS.best_overall_scores.head,
+                &MENUS.best_overall_scores.items,
+            ),
+            47 => (&MENUS.menu_74e168.head, &MENUS.menu_74e168.items),
+            48 => (&MENUS.start_rally.head, &MENUS.start_rally.items),
+            49 => (&MENUS.options.head, &MENUS.options.items),
+            50 => (&MENUS.menu_74e79c.head, &MENUS.menu_74e79c.items),
+            51 => (&MENUS.player_details.head, &MENUS.player_details.items),
+            52 => (&MENUS.player1_details.head, &MENUS.player1_details.items),
+            53 => (&MENUS.player2_details.head, &MENUS.player2_details.items),
+            54 => (&MENUS.player3_details.head, &MENUS.player3_details.items),
+            55 => (&MENUS.player4_details.head, &MENUS.player4_details.items),
+            56 => (&MENUS.information.head, &MENUS.information.items),
+            57 => (
+                &MENUS.class_stage_results.head,
+                &MENUS.class_stage_results.items,
+            ),
+            58 => (
+                &MENUS.overall_stage_results.head,
+                &MENUS.overall_stage_results.items,
+            ),
+            59 => (
+                &MENUS.class_rally_results.head,
+                &MENUS.class_rally_results.items,
+            ),
+            60 => (
+                &MENUS.overall_rally_results.head,
+                &MENUS.overall_rally_results.items,
+            ),
+            61 => (&MENUS.menu_74fde0.head, &MENUS.menu_74fde0.items),
+            62 => (&MENUS.menu_74fe44.head, &MENUS.menu_74fe44.items),
+            63 => (&MENUS.menu_74fea8.head, &MENUS.menu_74fea8.items),
+            64 => (
+                &MENUS.class_championship_standings.head,
+                &MENUS.class_championship_standings.items,
+            ),
+            65 => (
+                &MENUS.championship_standings.head,
+                &MENUS.championship_standings.items,
+            ),
+            66 => (
+                &MENUS.review_options_47d5a5.head,
+                &MENUS.review_options_47d5a5.items,
+            ),
+            67 => (
+                &MENUS.review_options_480d46.head,
+                &MENUS.review_options_480d46.items,
+            ),
+            68 => (&MENUS.inspection_area.head, &MENUS.inspection_area.items),
+            69 => (&MENUS.welcome.head, &MENUS.welcome.items),
+            70 => (&MENUS.in_game_options.head, &MENUS.in_game_options.items),
+            71 => (&MENUS.menu_7509b0.head, &MENUS.menu_7509b0.items),
+            72 => (&MENUS.stage_result.head, &MENUS.stage_result.items),
+            73 => (&MENUS.results_48584b.head, &MENUS.results_48584b.items),
+            74 => (&MENUS.menu_750b94.head, &MENUS.menu_750b94.items),
+            75 => (&MENUS.results_482e9b.head, &MENUS.results_482e9b.items),
+            76 => (
+                &MENUS.time_trial_results.head,
+                &MENUS.time_trial_results.items,
+            ),
+            77 => (&MENUS.screen_483163.head, &MENUS.screen_483163.items),
+            78 => (
+                &MENUS.review_options_485f5e.head,
+                &MENUS.review_options_485f5e.items,
+            ),
+            79 => (
+                &MENUS.arcade_review_options.head,
+                &MENUS.arcade_review_options.items,
+            ),
+            80 => (
+                &MENUS.review_options_4882e2.head,
+                &MENUS.review_options_4882e2.items,
+            ),
+            81 => (
+                &MENUS.review_options_48861d.head,
+                &MENUS.review_options_48861d.items,
+            ),
+            82 => (&MENUS.view_best_scores.head, &MENUS.view_best_scores.items),
+            83 => (
+                &MENUS.load_championship.head,
+                &MENUS.load_championship.items,
+            ),
+            84 => (
+                &MENUS.save_championship.head,
+                &MENUS.save_championship.items,
+            ),
+            85 => (
+                &MENUS.load_championship_46e899.head,
+                &MENUS.load_championship_46e899.items,
+            ),
+            86 => (&MENUS.save_setup.head, &MENUS.save_setup.items),
+            87 => (&MENUS.save_replay.head, &MENUS.save_replay.items),
+            88 => (&MENUS.load_replay.head, &MENUS.load_replay.items),
+            89 => (&MENUS.leave_question.head, &MENUS.leave_question.items),
+            90 => (&MENUS.visual_options.head, &MENUS.visual_options.items),
+            91 => (&MENUS.advanced_audio.head, &MENUS.advanced_audio.items),
+            92 => (&MENUS.menu_754bc0.head, &MENUS.menu_754bc0.items),
+            93 => (
+                &MENUS.time_trial_stage_details.head,
+                &MENUS.time_trial_stage_details.items,
+            ),
+            94 => (
+                &MENUS.review_options_48108e.head,
+                &MENUS.review_options_48108e.items,
+            ),
+            95 => (
+                &MENUS.review_options_481429.head,
+                &MENUS.review_options_481429.items,
+            ),
+            _ => unreachable!("a menu handle is made only from a menu"),
+        }
+    }
+
+    /// The address of the menu's labels (+0).
+    pub fn labels(self) -> &'static Dword {
+        self.parts().0
+    }
+
+    /// The menu's items (the -1 after them is `MenuItem::END`'s place: not among them).
+    pub fn items(self) -> &'static [MenuItem] {
+        self.parts().1
+    }
+
+    /// Item `number` (from 1). Refused: item 0, for which the original counts through all
+    /// 32 bits, and one past the menu's end (the original reads on into what follows).
+    pub fn item(self, number: u32) -> Result<&'static MenuItem, crate::errors::BadInput> {
+        if number == 0 {
+            return Err(crate::errors::BadInput(
+                "item number 0: the original counts through all 32 bits",
+            ));
+        }
+        self.items()
+            .get(number as usize - 1)
+            .ok_or(crate::errors::BadInput("an item past its menu's end"))
+    }
+
+    /// What a cell holds for it (0 is none).
+    pub fn code(self) -> u32 {
+        self.0 as u32 + 1
+    }
+
+    /// The menu a cell's `code` names.
+    pub fn from_code(code: u32) -> Result<MenuId, crate::errors::BadInput> {
+        match code {
+            1..=0xFFFF if code - 1 < MENU_COUNT as u32 => Ok(MenuId((code - 1) as u16)),
+            _ => Err(crate::errors::BadInput("no current menu")),
+        }
+    }
+
+    fn of(head: &Dword) -> MenuId {
+        (0..MENU_COUNT)
+            .map(MenuId)
+            .find(|m| std::ptr::eq(m.labels(), head))
+            .expect("a menu of MENUS'")
+    }
+}
+
+/// A menu pointer: none (0, as the image starts) or a menu.
+#[repr(transparent)]
+pub struct MenuCell(Dword);
+
+impl MenuCell {
+    pub const fn new() -> Self {
+        MenuCell(Dword::new(0))
+    }
+
+    pub fn get(&self) -> Result<MenuId, crate::errors::BadInput> {
+        MenuId::from_code(self.0.get())
+    }
+
+    pub fn set(&self, menu: MenuId) {
+        self.0.set(menu.code())
+    }
+}
+
+impl Default for MenuCell {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl MenuItem {
+    /// The dword after a menu's last item, and an item's `x` that ends the walk.
+    pub const END: u32 = 0xFFFF_FFFF;
+
+    /// The item's game address (for the callers still handed one).
+    pub fn addr(&self) -> u32 {
+        crate::pointers::game_address(self as *const Self)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::moved::image_bytes;
     use core::mem::{offset_of, size_of};
+
+    #[test]
+    fn menus_by_handle() {
+        for n in 0..MENU_COUNT {
+            let m = MenuId(n);
+            assert_eq!(MenuId::from_code(m.code()).unwrap(), m);
+            assert_eq!(MenuId::of(m.labels()), m);
+            // The -1 after the items is the dword right after the last.
+            let last = m.items().last().unwrap() as *const MenuItem;
+            assert_eq!(unsafe { (*last.add(1).cast::<Dword>()).get() }, MenuItem::END);
+        }
+        assert_eq!(MENUS.stage_result.id().items().len(), MENUS.stage_result.items.len());
+        assert!(MenuId::from_code(0).is_err());
+        assert!(MENUS.select_stage.id().item(0).is_err());
+        let c = MenuCell::new();
+        assert!(c.get().is_err());
+        c.set(MENUS.service_area.id());
+        assert_eq!(c.get().unwrap(), MENUS.service_area.id());
+    }
 
     #[test]
     fn menus_start_as_the_games() {

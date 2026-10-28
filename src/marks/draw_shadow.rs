@@ -154,7 +154,7 @@ pub fn draw_shadow_with(sh: &Shadow, depth: bool) -> Result<(), Refused> {
     corners_x87(sh);
     normalise_vector3(q.way[0].addr());
     corners_in_x87(sh);
-    let view = MATRICES.listener_matrix[0].addr();
+    let view = &MATRICES.listener_matrix;
     for n in 0..4 {
         let p: [u32; 3] = std::array::from_fn(|k| q.corners[n][k].bits());
         let turned = rotate_point(view, p.map(extended));

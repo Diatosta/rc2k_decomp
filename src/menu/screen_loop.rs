@@ -61,6 +61,7 @@ use crate::menu::draw_work_store::DRAW_WORK;
 use crate::menu::event_store::EVENT_STATE;
 use crate::menu::handle_keys::handle_keys;
 use crate::menu::loop_store::LOOP_FLAGS;
+use crate::menu::menus_store::MenuId;
 use crate::menu::option_work_store::OPTION_WORK;
 use crate::menu::pages_store::MENU_PAGES;
 use crate::menu::run_item_action::run_item_action;
@@ -127,8 +128,8 @@ pub enum Flow {
 /// One of the screen's function lists: the table, and the variable that points at it.
 #[derive(Clone, Copy, Debug)]
 pub struct List {
-    pub pointer: Cell,
-    pub table: Place,
+    pub pointer: fn() -> &'static crate::menu::fn_list::ListCell,
+    pub table: fn() -> crate::menu::fn_list::FnList,
     /// Run with `menu::run_list` at set-up, before its pointer is stored. Such a list is not
     /// put in place again before each frame; the others are.
     pub run: bool,
@@ -136,7 +137,7 @@ pub struct List {
 
 pub struct Screen {
     /// off_...: the screen's menu.
-    pub menu: Place,
+    pub menu: fn() -> MenuId,
     /// The variable the highlight is kept in between visits.
     pub saved_item: Cell,
     pub lists: &'static [List],
@@ -187,7 +188,7 @@ pub struct Screen {
     pub action_saved_item: Option<Cell>,
     /// The menu whose item's action is run, where it is not `menu`: three loops name a
     /// neighbouring screen's menu there (the original's slip, reproduced).
-    pub action_menu: Option<Place>,
+    pub action_menu: Option<fn() -> MenuId>,
     /// The quit switch is not looked at; `dword_7556A4` = 0x6F is stored once a frame in
     /// that place.
     pub no_quit_check: bool,
@@ -202,7 +203,7 @@ pub struct Screen {
     /// The variable the highlight is saved in on leaving, where it is not `saved_item`.
     pub leave_saved_item: Option<Cell>,
     /// The menu stored in `dword_731BBB` before `menu::handle_keys`, where it is not `menu`.
-    pub keys_menu: Option<Place>,
+    pub keys_menu: Option<fn() -> MenuId>,
     /// What runs last of all, with the carried values back as they were at entry.
     pub after_restored: &'static [Step],
     /// What the loop returns (in eax), where it returns something: read from the game's
@@ -530,13 +531,12 @@ unsafe fn run(steps: &[Step], c: &mut Carried) -> Result<Flow, Refused> {
     Ok(Flow::On)
 }
 
-/// Puts the menu and the lists in place, as the original does before a frame (esi left
-/// at the last list's table).
-fn set_lists(screen: &Screen, lists: &[List], c: &mut Carried) {
-    LOOP_FLAGS.menu.set(((screen.menu)()) as u32);
+/// Puts the menu and the lists in place, as the original does before a frame (the esi it
+/// leaves at the last list's table is read by no one: `cars` is set before its reader).
+fn set_lists(screen: &Screen, lists: &[List]) {
+    LOOP_FLAGS.menu.set((screen.menu)());
     for list in lists.iter().filter(|list| !list.run) {
-        c.cars = ((list.table)()) as u32;
-        (list.pointer)().set(c.cars);
+        (list.pointer)().set((list.table)());
     }
 }
 
@@ -544,7 +544,7 @@ fn set_lists(screen: &Screen, lists: &[List], c: &mut Carried) {
 /// (unless quitting) the frame, with the menu and the carried palette and x. Neither
 /// changes a carried value (the callbacks keep every register; the carry they leave is
 /// read by nothing).
-unsafe fn run_frame(callback: usize, menu: u32, c: &Carried) -> Result<(), Refused> {
+unsafe fn run_frame(callback: usize, menu: MenuId, c: &Carried) -> Result<(), Refused> {
     let frame = || unsafe {
         match callback {
             FRAME_CALLBACK => {
@@ -565,16 +565,16 @@ unsafe fn run_frame(callback: usize, menu: u32, c: &Carried) -> Result<(), Refus
 /// `entry` are the carried values at entry.
 /// Returns why the screen was left, for the log.
 pub unsafe fn screen_loop(screen: &Screen, entry: &Carried) -> Result<String, Refused> {
-    let menu = ((screen.menu)()) as u32;
+    let menu = (screen.menu)();
     let callback = screen.frame_callback;
     let later_callback = screen.later_frame_callback.unwrap_or(screen.frame_callback);
-    let keys_menu = screen.keys_menu.map_or(menu, |other| other() as u32);
+    let keys_menu = screen.keys_menu.map_or(menu, |other| other());
     let mut c = *entry;
     let (mut frames, mut actions, mut why) = (0u32, 0u32, String::new());
     unsafe {
         run(screen.before, &mut c)?;
 
-        let action_menu = screen.action_menu.map_or(menu, |other| other() as u32);
+        let action_menu = screen.action_menu.map_or(menu, |other| other());
         let next_frame = if screen.next_frame_repeats_first {
             Next::FrameTop
         } else {
@@ -595,11 +595,11 @@ pub unsafe fn screen_loop(screen: &Screen, entry: &Carried) -> Result<String, Re
 
                     LOOP_FLAGS.menu.set(menu);
                     for list in screen.lists {
-                        c.cars = ((list.table)()) as u32;
+                        let table = (list.table)();
                         if list.run {
-                            run_list(c.cars)?;
+                            run_list(table)?;
                         }
-                        (list.pointer)().set(c.cars);
+                        (list.pointer)().set(table);
                     }
                     run(screen.after_lists, &mut c)?;
                     if !screen.late_highlight {
@@ -614,11 +614,7 @@ pub unsafe fn screen_loop(screen: &Screen, entry: &Carried) -> Result<String, Re
                     PHYSICS.scene_clock.set(0u32);
                     run(screen.before_first_frame, &mut c)?;
                     c.arg = game_addr(callback);
-                    set_lists(
-                        screen,
-                        screen.first_frame_lists.unwrap_or(screen.lists),
-                        &mut c,
-                    );
+                    set_lists(screen, screen.first_frame_lists.unwrap_or(screen.lists));
                     run_frame(callback, menu, &c)?;
                     if screen.late_highlight {
                         CAPTIONS.screen_left.set(0);
@@ -657,7 +653,7 @@ pub unsafe fn screen_loop(screen: &Screen, entry: &Carried) -> Result<String, Re
                         }
                         run(screen.before_frame, &mut c)?;
                         c.arg = game_addr(later_callback);
-                        set_lists(screen, screen.lists, &mut c);
+                        set_lists(screen, screen.lists);
                         run_frame(later_callback, menu, &c)?;
                         c.arg = CLOCKS.frame.get().wrapping_sub(CLOCKS.setup_time.get());
                         PHYSICS.scene_clock.set(c.arg);
@@ -675,7 +671,7 @@ pub unsafe fn screen_loop(screen: &Screen, entry: &Carried) -> Result<String, Re
                 Next::ActionCheck if OPTION_WORK.menu_sound.get() != ENTER_SOUND => {
                     crate::menu::texts_store::MENU_TEXTS
                         .keys_menu
-                        .set(keys_menu);
+                        .set(keys_menu.code());
                     let keys = handle_keys(c.arg)?;
                     c.arg = keys.result;
                     if let Some(clock) = keys.clock {

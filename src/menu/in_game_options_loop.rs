@@ -44,22 +44,22 @@ fn set_up_first(c: &mut Carried) -> Result<(), Refused> {
 }
 
 pub const SCREEN: Screen = Screen {
-    menu: || MENUS.in_game_options.addr() as usize,
+    menu: || MENUS.in_game_options.id(),
     saved_item: || &SCREEN_ITEMS.current[slot::IN_GAME_OPTIONS],
     lists: &[
         List {
             pointer: || &SCREEN_FLOW.scene_list, // g_sceneList
-            table: || DRAW_LISTS.in_game_options_scene.addr() as usize,
+            table: || DRAW_LISTS.in_game_options_scene.id(),
             run: false,
         },
         List {
             pointer: || &SCREEN_FLOW.draw_list, // g_drawList
-            table: || DRAW_LISTS.list_758eae.entries[2].addr() as usize,
+            table: || DRAW_LISTS.list_758eae.from(2),
             run: false,
         },
         List {
             pointer: || &SCREEN_FLOW.overlay_list, // g_overlayList
-            table: || DRAW_LISTS.in_game_options_overlay.addr() as usize,
+            table: || DRAW_LISTS.in_game_options_overlay.id(),
             run: false,
         },
     ],

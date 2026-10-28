@@ -23,9 +23,9 @@ pub unsafe fn axis_turn_at(out: u32) {
         let t = one_less(COURSE_LISTS.turn_cosine.bits());
         COURSE_LISTS.turn_one_less_cosine.set_bits(t);
         let (x, y, z) = (
-            COURSE_LISTS.spin_axis_x.bits(),
-            COURSE_LISTS.spin_axis_y.bits(),
-            COURSE_LISTS.spin_axis_z.bits(),
+            COURSE_LISTS.spin_axis[0].bits(),
+            COURSE_LISTS.spin_axis[1].bits(),
+            COURSE_LISTS.spin_axis[2].bits(),
         );
         COURSE_LISTS.turn_product_xz.set_bits(x87::mul2(t, x, z));
         COURSE_LISTS.turn_product_xy.set_bits(x87::mul2(t, x, y));

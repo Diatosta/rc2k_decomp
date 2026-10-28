@@ -8,14 +8,16 @@
 //! and the result as 80-bit values (exact for what `X` holds). The original's instructions
 //! are `asm_reference` in the tests. Refuses a null matrix.
 
+use crate::math::cells::{Cells, load};
 use crate::scene::x87_mem::{fld, fld80, fstp80};
 
 /// The Rust version: `p` as st(0) .. st(2), the result the same way.
-pub fn rotate_point(m: u32, p: [[u8; 10]; 3]) -> [[u8; 10]; 3] {
+pub fn rotate_point(m: &(impl Cells + ?Sized), p: [[u8; 10]; 3]) -> [[u8; 10]; 3] {
     let mut out = [[0u8; 10]; 3];
+    let m: [u32; 15] = load(m);
     rotate(
         p.as_ptr().cast(),
-        crate::pointers::host(m) as *const u8,
+        m.as_ptr().cast(),
         out.as_mut_ptr().cast(),
     );
     out

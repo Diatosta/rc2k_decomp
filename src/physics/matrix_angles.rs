@@ -10,6 +10,7 @@
 //!
 //! Callers: `physics::car_angles` (`g_crashMatrix`).
 
+use crate::math::cells::At;
 use crate::math::x87_run::{neg_rounded, over_cos_80, patan};
 use crate::physics::clamped_asin::clamped_asin_at;
 use crate::race::course_lists_store::COURSE_LISTS;
@@ -50,7 +51,7 @@ fn put(a: u32, v: u32) {
 
 /// `rotate_point` of the unit vector `unit` by `m`, stored as floats at `p.turned`.
 fn turn_unit(m: u32, p: &AnglePlaces, unit: [u32; 3]) {
-    let out = rotate_point(m, unit.map(extended));
+    let out = rotate_point(&At(m), unit.map(extended));
     for (k, e) in out.iter().enumerate() {
         put(p.turned + 4 * k as u32, rounded(*e));
     }

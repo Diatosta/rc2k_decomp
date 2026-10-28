@@ -48,6 +48,7 @@ use crate::race::vars_store::RACE_VARS;
 use crate::race::view_store::RACE_VIEW;
 use crate::scene::draw_store::DRAW;
 use crate::scene::x87_mem::{fild, fld};
+use crate::session::Dword;
 use std::cmp::Ordering;
 
 fn byte(a: u32) -> Result<u32, Refused> {
@@ -57,11 +58,9 @@ fn byte(a: u32) -> Result<u32, Refused> {
     )?))
 }
 
-/// `fld v[c] x 65536; fistp` through `dword_62400C` (`v` the table's offset from the base).
-fn share_bit(v: u32, c: u32) -> u32 {
-    // The tables (0x6D2A14, 0x6D2B14) are the race core's (`race::store`).
-    let b = crate::race::store::asm_base();
-    x87_1((b + v) as usize, c as usize);
+/// `fld v[c] x 65536; fistp` through `dword_62400C` (`v` one of the probe shares).
+fn share_bit(v: &[Dword; 64], c: u32) -> u32 {
+    x87_1(v[0].addr() as usize, c as usize);
     DRAW.scratch.get()
 }
 
@@ -87,8 +86,8 @@ fn steps() -> Result<(), Refused> {
         let cc = c as usize;
         let f = (CAR.probe_point_face[cc].get() << 6).wrapping_add(COURSE.course_faces.get());
         let t1 = infos + (byte(f + 1)? << 6);
-        let mut edx = share_bit(0x2D2B14, c);
-        let mut ebx = share_bit(0x2D2A14, c);
+        let mut edx = share_bit(&CONTACT_WORK.probe_share_v, c);
+        let mut ebx = share_bit(&CONTACT_WORK.probe_share_u, c);
         edx = (edx >> 15) & 1;
         ebx = (ebx >> 15) & 1;
         if CONTACT_WORK.probe_face_flip[cc].get() == 1 {

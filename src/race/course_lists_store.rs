@@ -126,12 +126,8 @@ pub struct CourseLists {
     pub exponent_root_table: [Float; 256],
     /// +0xfac (0x5C78F8): `flt_5C78F8`: the angle of the turn (`physics::axis_turn_matrix`, `physics::spin_matrix`, `physics::move_slot`).
     pub spin_angle: Float,
-    /// +0xfb0 (0x5C78FC): `flt_5C78FC`: the axis' x.
-    pub spin_axis_x: Float,
-    /// +0xfb4 (0x5C7900): `flt_5C7900`: its y.
-    pub spin_axis_y: Float,
-    /// +0xfb8 (0x5C7904): `flt_5C7904`: its z.
-    pub spin_axis_z: Float,
+    /// +0xfb0 (0x5C78FC): `flt_5C78FC` ..: the axis' x, y, z.
+    pub spin_axis: [Float; 3],
 }
 
 /// The piece: the race block's bytes at IDA 0x5C694C seen as `CourseLists`. They stay there

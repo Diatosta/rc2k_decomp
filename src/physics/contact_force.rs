@@ -48,15 +48,6 @@ use crate::scene::view_matrix::cross_product;
 use crate::scene::x87_mem::{fnstsw, fstp, fstp80};
 use crate::session::Float;
 
-/// `scene::cross_product` with the original's ebx, ecx, edx.
-fn cross(ebx: &Float, ecx: &Float, edx: &Float) {
-    cross_product(
-        ebx.addr() as usize,
-        ecx.addr() as usize,
-        edx.addr() as usize,
-    );
-}
-
 /// Three floats copied as bits, in order.
 fn copy3(to: &[Float], from: &[Float]) {
     for k in 0..3 {
@@ -73,10 +64,10 @@ fn fill3(to: &[Float], v: u32) {
 
 /// The Rust version.
 pub unsafe fn contact_force() {
-    cross(
-        &CONTACT_WORK.contact_turn_speed[0],
-        &CONTACT_WORK.contact_point[0],
-        &CONTACT_WORK.contact_turn_cross[0],
+    cross_product(
+        &CONTACT_WORK.contact_turn_speed,
+        &CONTACT_WORK.contact_point,
+        &CONTACT_WORK.contact_turn_cross,
     );
     x87_1(
         &CONTACT_WORK.contact_turn_cross,
@@ -87,18 +78,18 @@ pub unsafe fn contact_force() {
         &CONTACT_WORK.contact_depth,
         neg_rounded({
             dot_product(
-                CONTACT_WORK.contact_point_speed[0].addr(),
-                CONTACT_WORK.contact_normal[0].addr(),
+                &CONTACT_WORK.contact_point_speed,
+                &CONTACT_WORK.contact_normal,
             )
         }),
     );
     x87_2();
     hold_low(&CONTACT_WORK.contact_depth, &DRAW.scratch);
     // 0x45F222: the push the turn would give.
-    cross(
-        &CONTACT_WORK.contact_point[0],
-        &CONTACT_WORK.contact_normal[0],
-        &CONTACT_WORK.contact_scratch_a[0],
+    cross_product(
+        &CONTACT_WORK.contact_point,
+        &CONTACT_WORK.contact_normal,
+        &CONTACT_WORK.contact_scratch_a,
     );
     unsafe { turn_by_inverse(CONTACT_WORK.contact_scratch_a[0].addr()) };
     unsafe {
@@ -109,17 +100,17 @@ pub unsafe fn contact_force() {
         )
     };
     unsafe { turn_by_car_matrix(CONTACT_WORK.contact_scratch_b[0].addr()) };
-    cross(
-        &CONTACT_WORK.contact_point[0],
-        &CONTACT_WORK.contact_scratch_b[0],
-        &CONTACT_WORK.contact_scratch_a[0],
+    cross_product(
+        &CONTACT_WORK.contact_point,
+        &CONTACT_WORK.contact_scratch_b,
+        &CONTACT_WORK.contact_scratch_a,
     );
     p(
         &CONTACT_WORK.contact_turn_push,
         neg_rounded({
             dot_product(
-                CONTACT_WORK.contact_scratch_a[0].addr(),
-                CONTACT_WORK.contact_normal[0].addr(),
+                &CONTACT_WORK.contact_scratch_a,
+                &CONTACT_WORK.contact_normal,
             )
         }),
     );
@@ -130,19 +121,19 @@ pub unsafe fn contact_force() {
         &CONTACT_WORK.contact_normal,
     );
     let factor = extended(CONTACT_WORK.contact_factor.bits());
-    scale_vector(CONTACT_WORK.contact_normal_push[0].addr(), factor);
+    scale_vector(&CONTACT_WORK.contact_normal_push, factor);
     DRAW.scratch.set(rounded(factor));
     let along = {
         dot_product(
-            CONTACT_WORK.contact_point_speed[0].addr(),
-            CONTACT_WORK.contact_normal[0].addr(),
+            &CONTACT_WORK.contact_point_speed,
+            &CONTACT_WORK.contact_normal,
         )
     };
     copy3(
         &CONTACT_WORK.contact_normal_speed,
         &CONTACT_WORK.contact_normal,
     );
-    scale_vector(CONTACT_WORK.contact_normal_speed[0].addr(), along);
+    scale_vector(&CONTACT_WORK.contact_normal_speed, along);
     DRAW.scratch.set(rounded(along));
     copy3(
         &CONTACT_WORK.contact_side_speed,
@@ -150,18 +141,18 @@ pub unsafe fn contact_force() {
     );
     x87_4();
     CONTACT_WORK.contact_speed_length.set_bits(rounded({
-        vector_length(CONTACT_WORK.contact_normal_speed[0].addr())
+        vector_length(&CONTACT_WORK.contact_normal_speed)
     }));
-    CONTACT_WORK.contact_value.set_bits(rounded({
-        vector_length(CONTACT_WORK.contact_side_speed[0].addr())
-    }));
+    CONTACT_WORK
+        .contact_value
+        .set_bits(rounded(vector_length(&CONTACT_WORK.contact_side_speed)));
     fill3(&CONTACT_WORK.contact_extra, 0);
     if PHYSICS.contact_step.get() != 0 {
         fill3(&CONTACT_WORK.contact_normal_push, 0);
         copy3(&CONTACT_WORK.contact_extra, &CONTACT_WORK.contact_normal);
         let mut part = [0u8; 10];
         x87_5((crate::pointers::game_address(part.as_mut_ptr())) as usize);
-        scale_vector(CONTACT_WORK.contact_extra[0].addr(), part);
+        scale_vector(&CONTACT_WORK.contact_extra, part);
         DRAW.scratch.set(rounded(part));
     }
     x87_1(
@@ -187,7 +178,7 @@ pub unsafe fn contact_force() {
     negate(&CONTACT_WORK.contact_slide[1]);
     negate(&CONTACT_WORK.contact_slide[2]);
     if compare_80(
-        vector_length(CONTACT_WORK.contact_slide[0].addr()),
+        vector_length(&CONTACT_WORK.contact_slide),
         NUMBERS.zero.bits(),
     ) & 0x4000
         != 0

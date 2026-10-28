@@ -1788,36 +1788,34 @@ pub fn place_view() -> Result<(), BadInput> {
 /// (`dword_635038`, through `dword_62400C`), times `g_viewTurnMatrix`.
 pub unsafe fn sky_matrix() -> Result<(), BadInput> {
     use crate::scene::matrix;
-    unsafe {
-        let angle = (STAGE_PREFS.sky_turn.get() << 8).wrapping_neg();
-        matrix::set_turn_y(angle);
-        let height = STAGE_PREFS.sky_height.get() << 8;
-        OBJECT_WORK.place[0].set(0u32);
-        OBJECT_WORK.place[2].set(0u32);
-        OBJECT_WORK.place[1].set(height);
-        matrix::set_place([0, height, 0]);
-        matrix::copy_matrix_with_place(
-            MATRICES.turn_y_matrix[0].addr() as usize,
-            MATRICES.placed_matrix[0].addr() as usize,
-            MATRICES.turned_matrix[0].addr() as usize,
-        );
-        let size = DRAW.farthest_scaled.get() << 4;
-        OBJECT_WORK.size.set(size);
-        let scale = crate::math::x87::int_over_16(size as i32);
-        DRAW.scratch.set_bits(scale);
-        let turned = MATRICES.turned_matrix[0].addr();
-        for k in 0..16 {
-            put(
-                turned + 4 * k,
-                crate::math::x87::mul(get(turned + 4 * k)?, scale),
-            )?;
-        }
-        matrix::multiply_matrices(
-            MATRICES.turned_matrix[0].addr() as usize,
-            MATRICES.view_turn_matrix[0].addr() as usize,
-            MATRICES.made_object_matrix[0].addr() as usize,
-        );
+    let angle = (STAGE_PREFS.sky_turn.get() << 8).wrapping_neg();
+    matrix::set_turn_y(angle);
+    let height = STAGE_PREFS.sky_height.get() << 8;
+    OBJECT_WORK.place[0].set(0u32);
+    OBJECT_WORK.place[2].set(0u32);
+    OBJECT_WORK.place[1].set(height);
+    matrix::set_place([0, height, 0]);
+    matrix::copy_matrix_with_place(
+        &MATRICES.turn_y_matrix,
+        &MATRICES.placed_matrix,
+        &MATRICES.turned_matrix,
+    );
+    let size = DRAW.farthest_scaled.get() << 4;
+    OBJECT_WORK.size.set(size);
+    let scale = crate::math::x87::int_over_16(size as i32);
+    DRAW.scratch.set_bits(scale);
+    let turned = MATRICES.turned_matrix[0].addr();
+    for k in 0..16 {
+        put(
+            turned + 4 * k,
+            crate::math::x87::mul(get(turned + 4 * k)?, scale),
+        )?;
     }
+    matrix::multiply_matrices(
+        &MATRICES.turned_matrix,
+        &MATRICES.view_turn_matrix,
+        &MATRICES.made_object_matrix,
+    );
     Ok(())
 }
 
@@ -1835,14 +1833,11 @@ fn view_place_tail() -> Result<(), BadInput> {
         "a face, record or matrix",
     )?;
     matrix::multiply_matrices(
-        MATRICES.placed_matrix[0].addr() as usize,
-        MATRICES.view_turn_matrix[0].addr() as usize,
-        MATRICES.view_matrix[0].addr() as usize,
+        &MATRICES.placed_matrix,
+        &MATRICES.view_turn_matrix,
+        &MATRICES.view_matrix,
     );
-    view_matrix::invert_turn(
-        MATRICES.view_turn_matrix[0].addr() as usize,
-        MATRICES.view_back_matrix[0].addr() as usize,
-    );
+    view_matrix::invert_turn(&MATRICES.view_turn_matrix, &MATRICES.view_back_matrix);
     Ok(())
 }
 
@@ -1858,18 +1853,15 @@ pub fn view_matrices() -> Result<(), BadInput> {
     use crate::scene::matrix::multiply_matrices;
     use crate::scene::view_matrix::{Axis, invert_turn, set_fine_turn};
     let (view_turn, turn_y, turn_x, turn_z) = (
-        MATRICES.view_turn_matrix[0].addr(),
-        MATRICES.turn_y_matrix[0].addr(),
-        MATRICES.turn_x_matrix[0].addr(),
-        MATRICES.turn_z_matrix[0].addr(),
+        &MATRICES.view_turn_matrix,
+        &MATRICES.turn_y_matrix,
+        &MATRICES.turn_x_matrix,
+        &MATRICES.turn_z_matrix,
     );
-    let (turned, lit) = (
-        MATRICES.turned_matrix[0].addr(),
-        MATRICES.lit_matrix[0].addr(),
-    );
+    let (turned, lit) = (&MATRICES.turned_matrix, &MATRICES.lit_matrix);
     if GROUND_WORK.view_mirrored.get() != 0 {
         GamePtr::new(MATRICES.view_turn_copy[0].addr()).copy_to(
-            GamePtr::new(view_turn),
+            GamePtr::new(view_turn[0].addr()),
             0x40,
             "a face, record or matrix",
         )?;
@@ -1878,10 +1870,10 @@ pub fn view_matrices() -> Result<(), BadInput> {
     }
     let view: u32 = CAR.camera_view.get();
     if view <= 3 {
-        invert_turn(CAR.crash_matrix[0].addr() as usize, view_turn as usize);
+        invert_turn(&CAR.crash_matrix, view_turn);
     } else {
         GamePtr::new(MATRICES.identity_matrix[0].addr()).copy_to(
-            GamePtr::new(view_turn),
+            GamePtr::new(view_turn[0].addr()),
             0x40,
             "a face, record or matrix",
         )?;
@@ -1898,9 +1890,9 @@ pub fn view_matrices() -> Result<(), BadInput> {
                 Axis::Z,
                 VIEW_VARS.view_angles[angles[2]].bits().wrapping_neg(),
             );
-            multiply_matrices(view_turn as usize, turn_y as usize, turned as usize);
-            multiply_matrices(turned as usize, turn_x as usize, lit as usize);
-            multiply_matrices(lit as usize, turn_z as usize, view_turn as usize);
+            multiply_matrices(view_turn, turn_y, turned);
+            multiply_matrices(turned, turn_x, lit);
+            multiply_matrices(lit, turn_z, view_turn);
         }
     }
     if view == 1 || view == 2 {
@@ -1932,8 +1924,12 @@ pub fn view_matrices() -> Result<(), BadInput> {
         ) << 4;
         DRAW.scratch.set_bits(angle);
         set_fine_turn(Axis::Z, angle);
-        multiply_matrices(view_turn as usize, turn_z as usize, turned as usize);
-        GamePtr::new(turned).copy_to(GamePtr::new(view_turn), 0x40, "a face, record or matrix")?;
+        multiply_matrices(view_turn, turn_z, turned);
+        GamePtr::new(turned[0].addr()).copy_to(
+            GamePtr::new(view_turn[0].addr()),
+            0x40,
+            "a face, record or matrix",
+        )?;
     }
     view_place_tail()?;
     Ok(())
@@ -1973,14 +1969,11 @@ pub fn camera_view() -> Result<(), BadInput> {
         [car(0x6A4)?, car(0x6A8)?, car(0x6AC)?]
     } else {
         crate::scene::matrix::multiply_matrices(
-            MATRICES.view_work[0].addr() as usize,
-            CAR.crash_matrix[0].addr() as usize,
-            MATRICES.turned_matrix[0].addr() as usize,
+            &MATRICES.view_work,
+            &CAR.crash_matrix,
+            &MATRICES.turned_matrix,
         );
-        crate::scene::view_matrix::invert_turn(
-            MATRICES.turned_matrix[0].addr() as usize,
-            MATRICES.view_turn_copy[0].addr() as usize,
-        );
+        crate::scene::view_matrix::invert_turn(&MATRICES.turned_matrix, &MATRICES.view_turn_copy);
         let base = crate::physics::car_store::car_addr();
         put(base + 0x6CC, car(0x134)?)?;
         put(base + 0x6D0, car(0x138)?.wrapping_add(0x8000))?;
@@ -2077,7 +2070,7 @@ pub unsafe fn draw_sky() -> Result<(), Refused> {
             FRAME_WORK.sun_floats[n].set_bits(d);
         }
         let turned = crate::scene::rotate_point::rotate_point(
-            MATRICES.made_object_matrix[0].addr(),
+            &MATRICES.made_object_matrix,
             [to_tbyte(dir[0]), to_tbyte(dir[1]), to_tbyte(dir[2])],
         );
         let place = turned.map(tbyte_to_int);
@@ -2197,19 +2190,19 @@ pub unsafe fn draw_slot_object(slot: u32) -> Result<(), Refused> {
         }
         matrix::set_place(place);
         matrix::copy_matrix_with_place(
-            MATRICES.placed_matrix[0].addr() as usize,
-            MATRICES.view_place_matrix[0].addr() as usize,
-            MATRICES.matrix_scratch[0].addr() as usize,
+            &MATRICES.placed_matrix,
+            &MATRICES.view_place_matrix,
+            &MATRICES.matrix_scratch,
         );
         matrix::copy_matrix_with_place(
-            MATRICES.object_turn_matrix[0].addr() as usize,
-            MATRICES.matrix_scratch[0].addr() as usize,
-            MATRICES.turned_matrix[0].addr() as usize,
+            &MATRICES.object_turn_matrix,
+            &MATRICES.matrix_scratch,
+            &MATRICES.turned_matrix,
         );
         matrix::multiply_matrices(
-            MATRICES.turned_matrix[0].addr() as usize,
-            MATRICES.view_turn_matrix[0].addr() as usize,
-            MATRICES.made_object_matrix[0].addr() as usize,
+            &MATRICES.turned_matrix,
+            &MATRICES.view_turn_matrix,
+            &MATRICES.made_object_matrix,
         );
         start_kept_reflections()?;
         // esi `g_turnedMatrix`, as the matrices' calls leave it.
@@ -2583,29 +2576,27 @@ pub fn car_lights() -> Result<(), Refused> {
 /// (`g_turnedMatrix`), times the view's turn into `g_madeObjectMatrix`.
 unsafe fn placed_object_tail() {
     use crate::scene::matrix;
-    unsafe {
-        let place = [
-            OBJECT_WORK.place[0].get(),
-            OBJECT_WORK.place[1].bits(),
-            OBJECT_WORK.place[2].bits(),
-        ];
-        matrix::set_place(place);
-        matrix::copy_matrix_with_place(
-            MATRICES.placed_matrix[0].addr() as usize,
-            MATRICES.view_place_matrix[0].addr() as usize,
-            MATRICES.matrix_scratch[0].addr() as usize,
-        );
-        matrix::copy_matrix_with_place(
-            MATRICES.object_turn_matrix[0].addr() as usize,
-            MATRICES.matrix_scratch[0].addr() as usize,
-            MATRICES.turned_matrix[0].addr() as usize,
-        );
-        matrix::multiply_matrices(
-            MATRICES.turned_matrix[0].addr() as usize,
-            MATRICES.view_turn_matrix[0].addr() as usize,
-            MATRICES.made_object_matrix[0].addr() as usize,
-        );
-    }
+    let place = [
+        OBJECT_WORK.place[0].get(),
+        OBJECT_WORK.place[1].bits(),
+        OBJECT_WORK.place[2].bits(),
+    ];
+    matrix::set_place(place);
+    matrix::copy_matrix_with_place(
+        &MATRICES.placed_matrix,
+        &MATRICES.view_place_matrix,
+        &MATRICES.matrix_scratch,
+    );
+    matrix::copy_matrix_with_place(
+        &MATRICES.object_turn_matrix,
+        &MATRICES.matrix_scratch,
+        &MATRICES.turned_matrix,
+    );
+    matrix::multiply_matrices(
+        &MATRICES.turned_matrix,
+        &MATRICES.view_turn_matrix,
+        &MATRICES.made_object_matrix,
+    );
 }
 
 /// `flt_5EA444`'s sixteen floats times `dword_635038` / 16 (through `dword_62400C`).
@@ -2638,22 +2629,22 @@ pub unsafe fn place_object_matrix() -> Result<(), BadInput> {
     use crate::scene::view_matrix::{Axis, set_fine_turn};
     unsafe {
         let (turn_y, turn_x, turn_z) = (
-            MATRICES.turn_y_matrix[0].addr(),
-            MATRICES.turn_x_matrix[0].addr(),
-            MATRICES.turn_z_matrix[0].addr(),
+            &MATRICES.turn_y_matrix,
+            &MATRICES.turn_x_matrix,
+            &MATRICES.turn_z_matrix,
         );
         let (turned, lit, object) = (
-            MATRICES.turned_matrix[0].addr(),
-            MATRICES.lit_matrix[0].addr(),
-            MATRICES.object_turn_matrix[0].addr(),
+            &MATRICES.turned_matrix,
+            &MATRICES.lit_matrix,
+            &MATRICES.object_turn_matrix,
         );
         set_light_direction();
         if LIGHT_STATE.light_turn_off.get() == 0 {
             set_turn_y(OBJECT_WORK.angles[1].bits().wrapping_neg());
             set_turn_x(OBJECT_WORK.angles[0].bits().wrapping_neg());
-            multiply_matrices(turn_y as usize, turn_x as usize, turned as usize);
+            multiply_matrices(turn_y, turn_x, turned);
             set_turn_z_16(OBJECT_WORK.angles[2].bits().wrapping_neg());
-            multiply_matrices(turned as usize, turn_z as usize, object as usize);
+            multiply_matrices(turned, turn_z, object);
             placed_object_tail();
             return Ok(());
         }
@@ -2668,48 +2659,48 @@ pub unsafe fn place_object_matrix() -> Result<(), BadInput> {
         match material {
             1 | 2 => {
                 GamePtr::new(MATRICES.view_back_matrix[0].addr()).copy_to(
-                    GamePtr::new(object),
+                    GamePtr::new(object[0].addr()),
                     0x40,
                     "a face, record or matrix",
                 )?;
             }
             5 => {
                 GamePtr::new(MATRICES.identity_matrix[0].addr()).copy_to(
-                    GamePtr::new(object),
+                    GamePtr::new(object[0].addr()),
                     0x40,
                     "a face, record or matrix",
                 )?;
                 set_fine_turn(Axis::Y, VIEW_VARS.view_angles[3].get());
-                multiply_matrices(object as usize, turn_y as usize, turned as usize);
+                multiply_matrices(object, turn_y, turned);
                 set_fine_turn(Axis::Y, VIEW_VARS.view_angles[0].get());
-                multiply_matrices(turned as usize, turn_y as usize, object as usize);
+                multiply_matrices(turned, turn_y, object);
             }
             _ => {
                 set_turn_y(OBJECT_WORK.angles[0].bits().wrapping_neg());
-                GamePtr::new(turn_y).copy_to(
-                    GamePtr::new(object),
+                GamePtr::new(turn_y[0].addr()).copy_to(
+                    GamePtr::new(object[0].addr()),
                     0x40,
                     "a face, record or matrix",
                 )?;
                 if OBJECT_WORK.angles[1].get() != 0 {
                     set_turn_y(OBJECT_WORK.angles[2].bits().wrapping_neg());
-                    multiply_matrices(object as usize, turn_y as usize, lit as usize);
+                    multiply_matrices(object, turn_y, lit);
                     set_turn_x(OBJECT_WORK.angles[1].bits().wrapping_neg());
-                    multiply_matrices(lit as usize, turn_x as usize, turned as usize);
+                    multiply_matrices(lit, turn_x, turned);
                     set_turn_y(OBJECT_WORK.angles[2].get());
-                    multiply_matrices(turned as usize, turn_y as usize, object as usize);
+                    multiply_matrices(turned, turn_y, object);
                 }
                 if OBJECT_WORK.described_cleared[2].get() != 0
                     || OBJECT_WORK.described_cleared[1].get() != 0
                 {
                     set_turn_y(OBJECT_WORK.described_cleared[2].bits().wrapping_neg());
-                    multiply_matrices(object as usize, turn_y as usize, lit as usize);
+                    multiply_matrices(object, turn_y, lit);
                     set_turn_y(OBJECT_WORK.described_cleared[0].bits().wrapping_neg());
-                    multiply_matrices(lit as usize, turn_y as usize, turned as usize);
+                    multiply_matrices(lit, turn_y, turned);
                     set_turn_x(OBJECT_WORK.described_cleared[1].bits().wrapping_neg());
-                    multiply_matrices(turned as usize, turn_x as usize, lit as usize);
+                    multiply_matrices(turned, turn_x, lit);
                     set_turn_y(OBJECT_WORK.described_cleared[0].get());
-                    multiply_matrices(lit as usize, turn_y as usize, object as usize);
+                    multiply_matrices(lit, turn_y, object);
                 }
             }
         }

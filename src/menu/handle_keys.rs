@@ -45,7 +45,7 @@ pub struct Keys {
     /// The frame clock, after Enter and after any key not named first (edx).
     pub clock: Option<u32>,
     /// `dword_731BBB`, after one of the four moves (edi).
-    pub menu: Option<u32>,
+    pub menu: Option<crate::menu::menus_store::MenuId>,
 }
 
 /// `eax` is the caller's eax, whose bits 8 .. 15 are read on Enter (the screen loops: the
@@ -130,7 +130,9 @@ pub unsafe fn handle_keys(eax: u32) -> Result<Keys, Refused> {
             }
             _ => return Ok(nothing),
         };
-        let menu: u32 = crate::menu::texts_store::MENU_TEXTS.keys_menu.get();
+        let menu = crate::menu::menus_store::MenuId::from_code(
+            crate::menu::texts_store::MENU_TEXTS.keys_menu.get(),
+        )?;
         move_highlight(direction)?;
         Ok(Keys {
             menu: Some(menu),

@@ -83,7 +83,7 @@ pub unsafe fn limit_motion() {
     for k in [0usize, 2, 1] {
         hold(CAR.velocity[k].addr(), PHYSICS.velocity_limit.addr());
     }
-    let length = rounded(vector_length(CAR.velocity[0].addr()));
+    let length = rounded(vector_length(&CAR.velocity));
     DRAW.motion_length.set_bits(length);
     let top = PHYSICS.top_speed.bits();
     let past = matches!(
@@ -93,8 +93,8 @@ pub unsafe fn limit_motion() {
         || f32::from_bits(length).is_nan();
     if past {
         let factor = crate::math::x87_run::div_80(top, length);
-        scale_vector(CAR.velocity[0].addr(), factor);
-        scale_vector(CAR.local_velocity[0].addr(), factor);
+        scale_vector(&CAR.velocity, factor);
+        scale_vector(&CAR.local_velocity, factor);
         DRAW.scratch.set(rounded(factor));
     }
 }

@@ -36,6 +36,7 @@ pub mod edit_key;
 pub mod finish_page;
 pub mod folder_key;
 pub mod folder_page;
+pub mod folders;
 pub mod ignore_room;
 pub mod install_clio;
 pub mod install_files;
