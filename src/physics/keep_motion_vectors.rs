@@ -10,38 +10,36 @@
 
 use crate::physics::car_store::CAR;
 use crate::physics::tables_store::PHYSICS;
+use crate::session::Cell32;
 
-unsafe fn core(v: &[u32]) {
-    unsafe {
-        if (crate::pointers::host(v[0]) as *const u32).read_unaligned() != 0 {
-            return;
-        }
-        for k in 0..6 {
-            (crate::pointers::host(v[k + 7]) as *mut u32)
-                .write_unaligned((crate::pointers::host(v[k + 1]) as *const u32).read_unaligned());
-        }
+fn core(v: &[&dyn Cell32]) {
+    if v[0].bits() != 0 {
+        return;
+    }
+    for k in 0..6 {
+        v[k + 7].set_bits(v[k + 1].bits());
     }
 }
 
-fn game() -> Vec<u32> {
+fn game() -> Vec<&'static dyn Cell32> {
     vec![
-        PHYSICS.contact_step.addr(),
-        CAR.velocity[0].addr(),
-        CAR.velocity[1].addr(),
-        CAR.velocity[2].addr(),
-        CAR.spin[0].addr(),
-        CAR.spin[1].addr(),
-        CAR.spin[2].addr(),
-        PHYSICS.kept_vectors[0].addr(),
-        PHYSICS.kept_vectors[1].addr(),
-        PHYSICS.kept_vectors[2].addr(),
-        PHYSICS.kept_vectors[4].addr(),
-        PHYSICS.kept_vectors[5].addr(),
-        PHYSICS.kept_vectors[6].addr(),
+        &PHYSICS.contact_step as &dyn Cell32,
+        &CAR.velocity[0],
+        &CAR.velocity[1],
+        &CAR.velocity[2],
+        &CAR.spin[0],
+        &CAR.spin[1],
+        &CAR.spin[2],
+        &PHYSICS.kept_vectors[0],
+        &PHYSICS.kept_vectors[1],
+        &PHYSICS.kept_vectors[2],
+        &PHYSICS.kept_vectors[4],
+        &PHYSICS.kept_vectors[5],
+        &PHYSICS.kept_vectors[6],
     ]
 }
 
 /// The Rust version.
-pub unsafe fn keep_motion_vectors() {
-    unsafe { core(&game()) }
+pub fn keep_motion_vectors() {
+    core(&game())
 }

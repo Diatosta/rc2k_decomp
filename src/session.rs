@@ -141,6 +141,16 @@ pub trait Cell32 {
     fn set_bits(&self, bits: u32);
 }
 
+/// A cell by reference (a list of `&dyn Cell32` is a run of cells: `math::cells`).
+impl<T: Cell32 + ?Sized> Cell32 for &T {
+    fn bits(&self) -> u32 {
+        (**self).bits()
+    }
+    fn set_bits(&self, bits: u32) {
+        (**self).set_bits(bits)
+    }
+}
+
 impl Cell32 for Dword {
     fn bits(&self) -> u32 {
         self.get()

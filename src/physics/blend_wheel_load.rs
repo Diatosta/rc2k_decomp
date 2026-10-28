@@ -17,56 +17,55 @@ use crate::physics::car_store::CAR;
 use crate::physics::tables_store::PHYSICS;
 use crate::race::numbers_store::NUMBERS;
 use crate::scene::draw_store::DRAW;
+use crate::session::Cell32;
 
-/// The Rust core on the variables at `v`. The registers the original leaves are read by none of its callers (edx the slot).
-pub unsafe fn blend_at(v: &[u32]) {
-    unsafe {
-        let get = |k: usize| (crate::pointers::host(v[k]) as *const u32).read_unaligned();
-        let put = |k: usize, x: u32| (crate::pointers::host(v[k]) as *mut u32).write_unaligned(x);
-        let less = |a: u32, b: u32| compare_full(a, b) & 0x100 != 0;
-        if less(get(0), PHYSICS.wheel_load_limit.bits()) {
-            return;
-        }
-        let zero: u32 = NUMBERS.zero.bits();
-        let one: u32 = NUMBERS.one.bits();
-        let mut slot = 0;
-        for (k, add) in [(1, 4), (2, 2), (3, 1)] {
-            if less(get(k), zero) {
-                slot += add;
-            }
-        }
-        put(4, x87::div(get(0), NUMBERS.sixty_four.bits()));
-        if less(get(4), zero) {
-            put(4, x87::loaded(zero));
-        }
-        if !less(get(4), one) {
-            put(4, x87::loaded(one));
-        }
-        let slot = 5 + slot;
-        put(slot, toward_one(get(slot), get(4)));
+/// The Rust core on the variables' cells `v`. The registers the original leaves are read by none of its callers (edx the slot).
+pub fn blend_at(v: &[&dyn Cell32]) {
+    let get = |k: usize| v[k].bits();
+    let put = |k: usize, x: u32| v[k].set_bits(x);
+    let less = |a: u32, b: u32| compare_full(a, b) & 0x100 != 0;
+    if less(get(0), PHYSICS.wheel_load_limit.bits()) {
+        return;
     }
+    let zero: u32 = NUMBERS.zero.bits();
+    let one: u32 = NUMBERS.one.bits();
+    let mut slot = 0;
+    for (k, add) in [(1, 4), (2, 2), (3, 1)] {
+        if less(get(k), zero) {
+            slot += add;
+        }
+    }
+    put(4, x87::div(get(0), NUMBERS.sixty_four.bits()));
+    if less(get(4), zero) {
+        put(4, x87::loaded(zero));
+    }
+    if !less(get(4), one) {
+        put(4, x87::loaded(one));
+    }
+    let slot = 5 + slot;
+    put(slot, toward_one(get(slot), get(4)));
 }
 
-fn game() -> Vec<u32> {
+fn game() -> Vec<&'static dyn Cell32> {
     vec![
-        CAR.contact_depth.addr(),
-        CAR.contact_point[0].addr(),
-        CAR.contact_point[1].addr(),
-        CAR.contact_point[2].addr(),
-        DRAW.scratch.addr(),
-        CAR.impact_octant_marks[0].addr(),
-        CAR.impact_octant_marks[1].addr(),
-        CAR.impact_octant_marks[2].addr(),
-        CAR.impact_octant_marks[3].addr(),
-        CAR.impact_octant_marks[4].addr(),
-        CAR.impact_octant_marks[5].addr(),
-        CAR.impact_octant_marks[6].addr(),
-        CAR.impact_octant_marks[7].addr(),
+        &CAR.contact_depth as &dyn Cell32,
+        &CAR.contact_point[0],
+        &CAR.contact_point[1],
+        &CAR.contact_point[2],
+        &DRAW.scratch,
+        &CAR.impact_octant_marks[0],
+        &CAR.impact_octant_marks[1],
+        &CAR.impact_octant_marks[2],
+        &CAR.impact_octant_marks[3],
+        &CAR.impact_octant_marks[4],
+        &CAR.impact_octant_marks[5],
+        &CAR.impact_octant_marks[6],
+        &CAR.impact_octant_marks[7],
     ]
 }
 
 /// The Rust version (the exact one, for `physics::car_physics_step`); `r` as the
 /// original leaves are read by none of its callers.
-pub unsafe fn blend_wheel_load() {
-    unsafe { blend_at(&game()) }
+pub fn blend_wheel_load() {
+    blend_at(&game())
 }

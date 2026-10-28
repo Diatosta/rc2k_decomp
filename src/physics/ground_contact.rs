@@ -37,7 +37,7 @@ use crate::physics::tables_store::PHYSICS;
 // Converted: `rc2k_core::physics::contacts::touches` and `walls::raised_hit` (the x87 steps stay).
 fn steps() -> Result<(), Refused> {
     CONTACT_WORK.ground_contact_started.set(0);
-    unsafe { lowest_body_point() }?;
+    { lowest_body_point() }?;
     let depth = CONTACT_WORK.lowest_depth.get();
     let limit = rc2k_core::physics::contacts::GROUND_LIMIT;
     if !rc2k_core::physics::contacts::touches(depth, limit, CAR.all_wheels_off.get() != 0) {

@@ -37,11 +37,9 @@ pub const STEPS: u32 = 0x1388;
 /// One step (0x42189D .., in `pusha` / `popa`).
 fn step() -> Result<(), Refused> {
     CAR.local_velocity[2].set_bits(crate::math::x87::loaded(CAR.drive_speed_a.bits()));
-    unsafe {
-        crate::physics::count_down_timers::count_down_timers();
-        crate::physics::gearbox_step::gearbox_step()?;
-        crate::physics::engine_torque::engine_torque();
-    }
+    crate::physics::count_down_timers::count_down_timers();
+    crate::physics::gearbox_step::gearbox_step()?;
+    crate::physics::engine_torque::engine_torque();
     let gear = CAR.gear.get();
     if !(-1..=7).contains(&(gear as i32)) {
         return Err(BadInput("a gear outside g_gearRatios (-1 ..= 7)").into());

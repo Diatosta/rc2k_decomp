@@ -15,71 +15,70 @@
 
 use crate::physics::car_store::CAR;
 use crate::race::vars_store::RACE_VARS;
+use crate::session::Cell32;
 use rc2k_core::physics::motion::{StepCounters, StepFacts, count_down};
 
-/// The converted version (`rc2k_core::physics::motion`) on the variables at `v`; `r` as
+/// The converted version (`rc2k_core::physics::motion`) on the variables' cells `v`; `r` as
 /// the original leaves (eax) are read by none of its callers.
 // Converted: `rc2k_core::physics::motion::count_down`.
-pub unsafe fn count_at(v: &[u32]) {
-    unsafe {
-        let get = |k: usize| (crate::pointers::host(v[k]) as *const u32).read_unaligned();
-        let put = |k: usize, x: u32| (crate::pointers::host(v[k]) as *mut u32).write_unaligned(x);
-        let mut c = StepCounters {
-            first: [get(0), get(1)],
-            standing: get(9),
-            running: get(10),
-            later: [get(11), get(12), get(15)],
-            highest: f32::from_bits(get(14)),
-        };
-        let facts = StepFacts {
-            steps: get(2),
-            switches: [get(3), get(4), get(5)],
-            mode: get(6),
-            bits: get(7),
-            gear: get(8),
-            figure: f32::from_bits(get(13)),
-        };
-        count_down(&mut c, &facts);
-        for (k, x) in [
-            (0, c.first[0]),
-            (1, c.first[1]),
-            (9, c.standing),
-            (10, c.running),
-            (11, c.later[0]),
-            (12, c.later[1]),
-            (14, c.highest.to_bits()),
-            (15, c.later[2]),
-        ] {
-            if get(k) != x {
-                put(k, x);
-            }
+pub fn count_at(v: &[&dyn Cell32]) {
+    let get = |k: usize| v[k].bits();
+    let put = |k: usize, x: u32| v[k].set_bits(x);
+    let mut c = StepCounters {
+        first: [get(0), get(1)],
+        standing: get(9),
+        running: get(10),
+        later: [get(11), get(12), get(15)],
+        highest: f32::from_bits(get(14)),
+    };
+    let facts = StepFacts {
+        steps: get(2),
+        switches: [get(3), get(4), get(5)],
+        mode: get(6),
+        bits: get(7),
+        gear: get(8),
+        figure: f32::from_bits(get(13)),
+    };
+    count_down(&mut c, &facts);
+    for (k, x) in [
+        (0, c.first[0]),
+        (1, c.first[1]),
+        (9, c.standing),
+        (10, c.running),
+        (11, c.later[0]),
+        (12, c.later[1]),
+        (14, c.highest.to_bits()),
+        (15, c.later[2]),
+    ] {
+        if get(k) != x {
+            put(k, x);
         }
     }
 }
 
-fn game() -> Vec<u32> {
+fn game() -> Vec<&'static dyn Cell32> {
     vec![
-        CAR.light_hold_steps.addr(),
-        CAR.value_jump_steps.addr(),
-        CAR.run_ticks.addr(),
-        CAR.finish_flag.addr(),
-        CAR.go_stand_timer.addr(),
-        CAR.started_stand_timer.addr(),
-        RACE_VARS.run_kind.addr(),
-        CAR.parts_present.addr(),
-        CAR.gear.addr(),
-        CAR.stopped_steps.addr(),
-        CAR.tyre_change_state.addr(),
-        CAR.wall_hit_timer.addr(),
-        CAR.drive_cut_steps.addr(),
-        CAR.engine_speed_scaled.addr(),
-        CAR.top_speed.addr(),
-        CAR.hit_cooldown.addr(),
+        &CAR.light_hold_steps as &dyn Cell32,
+        &CAR.value_jump_steps,
+        &CAR.run_ticks,
+        &CAR.finish_flag,
+        &CAR.go_stand_timer,
+        &CAR.started_stand_timer,
+        &RACE_VARS.run_kind,
+        &CAR.parts_present,
+        &CAR.gear,
+        &CAR.stopped_steps,
+        &CAR.tyre_change_state,
+        &CAR.wall_hit_timer,
+        &CAR.drive_cut_steps,
+        &CAR.engine_speed_scaled,
+        &CAR.top_speed,
+        &CAR.hit_cooldown,
     ]
 }
 
 /// The Rust version (one compare and copy of floats: the same at any precision); `r` as
 /// the registers it leaves are read by none of its callers.
-pub unsafe fn count_down_timers() {
-    unsafe { count_at(&game()) }
+pub fn count_down_timers() {
+    count_at(&game())
 }

@@ -9,24 +9,23 @@
 
 use crate::physics::car_store::CAR;
 use crate::physics::tables_store::PHYSICS;
+use crate::session::Cell32;
 
-unsafe fn core(v: &[u32]) {
-    unsafe {
-        let w = (crate::pointers::host(v[0]) as *const u32).read_unaligned();
-        (crate::pointers::host(v[1]) as *mut u32).write_unaligned(w);
-        (crate::pointers::host(v[2]) as *mut u32).write_unaligned(0);
-    }
+fn core(v: &[&dyn Cell32]) {
+    let w = v[0].bits();
+    v[1].set_bits(w);
+    v[2].set_bits(0);
 }
 
-fn game() -> Vec<u32> {
+fn game() -> Vec<&'static dyn Cell32> {
     vec![
-        CAR.step_clock.addr(),
-        PHYSICS.time_marks[1].addr(),
-        PHYSICS.time_marks[0].addr(),
+        &CAR.step_clock as &dyn Cell32,
+        &PHYSICS.time_marks[1],
+        &PHYSICS.time_marks[0],
     ]
 }
 
 /// The Rust version.
-pub unsafe fn copy_car_word_8() {
-    unsafe { core(&game()) }
+pub fn copy_car_word_8() {
+    core(&game())
 }

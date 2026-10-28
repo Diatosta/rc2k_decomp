@@ -14,44 +14,41 @@ use crate::math::x87_run::mul2_plus;
 use crate::physics::car_store::CAR;
 use crate::physics::tables_store::PHYSICS;
 use crate::scene::draw_store::DRAW;
+use crate::session::Cell32;
 
-fn at(a: u32) -> u32 {
-    crate::pointers::read_or_end::<u32>(a, "physics::add_drive_forces's operand")
+fn put(a: &dyn Cell32, v: u32) {
+    a.set_bits(v)
 }
 
-fn put(a: u32, v: u32) {
-    crate::pointers::write_or_end::<u32>(a, v, "physics::add_drive_forces's operand")
-}
-
-/// The core on the variables' addresses.
-pub fn add_drive_forces_at(v: &[u32]) {
+/// The core on the variables' cells.
+pub fn add_drive_forces_at(v: &[&dyn Cell32]) {
     let mut factor = PHYSICS.drive_force_factor[0].bits();
-    if at(v[1]) != 0 {
-        put(v[0], x87::loaded(factor));
+    if v[1].bits() != 0 {
+        v[0].set_bits(x87::loaded(factor));
         factor = PHYSICS.drive_force_factor[1].bits();
     }
     put(
         v[6],
-        x87::sum4_times(at(v[2]), at(v[3]), at(v[4]), at(v[5]), factor),
+        x87::sum4_times(v[2].bits(), v[3].bits(), v[4].bits(), v[5].bits(), factor),
     );
     let scale = PHYSICS.drive_shares[2].bits();
-    put(v[9], mul2_plus(at(v[7]), at(v[6]), scale, at(v[9])));
-    put(v[10], mul2_plus(at(v[8]), at(v[6]), scale, at(v[10])));
+    v[9].set_bits(mul2_plus(v[7].bits(), v[6].bits(), scale, v[9].bits()));
+    v[10].set_bits(mul2_plus(v[8].bits(), v[6].bits(), scale, v[10].bits()));
 }
 
-fn game() -> Vec<u32> {
+fn game() -> Vec<&'static dyn Cell32> {
     vec![
-        DRAW.scratch.addr(),
-        CAR.drive_kind.addr(),
-        PHYSICS.wheel_loads[0].addr(),
-        PHYSICS.wheel_loads[1].addr(),
-        PHYSICS.wheel_loads[2].addr(),
-        PHYSICS.wheel_loads[3].addr(),
-        PHYSICS.drive_force_scale.addr(),
-        PHYSICS.wheel_slips[0].addr(),
-        PHYSICS.wheel_slips[1].addr(),
-        PHYSICS.drive_forces[0].addr(),
-        PHYSICS.drive_forces[1].addr(),
+        &DRAW.scratch as &dyn Cell32,
+        &CAR.drive_kind,
+        &PHYSICS.wheel_loads[0],
+        &PHYSICS.wheel_loads[1],
+        &PHYSICS.wheel_loads[2],
+        &PHYSICS.wheel_loads[3],
+        &PHYSICS.drive_force_scale,
+        &PHYSICS.wheel_slips[0],
+        &PHYSICS.wheel_slips[1],
+        &PHYSICS.drive_forces[0],
+        &PHYSICS.drive_forces[1],
     ]
 }
 

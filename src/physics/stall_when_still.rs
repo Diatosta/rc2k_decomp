@@ -15,7 +15,6 @@
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
 //! above are the original's, for reference.
 
-use crate::math::cells::At;
 use crate::math::x87_run::{abs_compare, compare_full, ext_div2};
 use crate::physics::car_store::CAR;
 use crate::physics::dot_product::dot_product;
@@ -24,53 +23,49 @@ use crate::physics::vector_length::vector_length;
 use crate::race::numbers_store::NUMBERS;
 use crate::scene::draw_store::DRAW;
 use crate::scene::matrix3::rounded;
+use crate::session::Cell32;
 
-/// The Rust core on the variables at `v`. The registers the original leaves are read by none of its callers (esi, edi).
-pub unsafe fn stall_at(v: &[u32]) {
-    unsafe {
-        let get = |k: usize| (crate::pointers::host(v[k]) as *const u32).read_unaligned();
-        let put = |k: usize, x: u32| (crate::pointers::host(v[k]) as *mut u32).write_unaligned(x);
-        put(3, rounded(vector_length(&At(v[0]))));
-        let zero: u32 = NUMBERS.zero.bits();
-        if compare_full(get(3), zero) & 0x4000 == 0 {
-            put(
-                7,
-                ext_div2(dot_product(&At(v[4]), &At(v[0])), get(3), get(3)),
-            );
-        }
-        if abs_compare(get(3), PHYSICS.stall_speed.bits()) & 0x100 != 0 {
-            return;
-        }
-        if compare_full(get(7), PHYSICS.stall_share.bits()) & 0x100 == 0 {
-            return;
-        }
-        if get(8) != 0 {
-            return;
-        }
-        put(9, 0);
-        put(10, 0);
-        put(11, 0);
+/// The Rust core on the variables' cells `v`. The registers the original leaves are read by none of its callers (esi, edi).
+pub fn stall_at(v: &[&dyn Cell32]) {
+    let get = |k: usize| v[k].bits();
+    let put = |k: usize, x: u32| v[k].set_bits(x);
+    put(3, rounded(vector_length(&v[0..3])));
+    let zero: u32 = NUMBERS.zero.bits();
+    if compare_full(get(3), zero) & 0x4000 == 0 {
+        put(7, ext_div2(dot_product(&v[4..7], &v[0..3]), get(3), get(3)));
     }
+    if abs_compare(get(3), PHYSICS.stall_speed.bits()) & 0x100 != 0 {
+        return;
+    }
+    if compare_full(get(7), PHYSICS.stall_share.bits()) & 0x100 == 0 {
+        return;
+    }
+    if get(8) != 0 {
+        return;
+    }
+    put(9, 0);
+    put(10, 0);
+    put(11, 0);
 }
 
-fn game() -> Vec<u32> {
+fn game() -> Vec<&'static dyn Cell32> {
     vec![
-        PHYSICS.kept_motion[0].addr(),
-        PHYSICS.kept_motion[1].addr(),
-        PHYSICS.kept_motion[2].addr(),
-        DRAW.scratch.addr(),
-        CAR.local_velocity[0].addr(),
-        CAR.local_velocity[1].addr(),
-        CAR.local_velocity[2].addr(),
-        PHYSICS.stall_figure.addr(),
-        PHYSICS.no_auto_neutral.addr(),
-        CAR.gear.addr(),
-        CAR.drive_speed_a.addr(),
-        CAR.drive_speed_b.addr(),
+        &PHYSICS.kept_motion[0] as &dyn Cell32,
+        &PHYSICS.kept_motion[1],
+        &PHYSICS.kept_motion[2],
+        &DRAW.scratch,
+        &CAR.local_velocity[0],
+        &CAR.local_velocity[1],
+        &CAR.local_velocity[2],
+        &PHYSICS.stall_figure,
+        &PHYSICS.no_auto_neutral,
+        &CAR.gear,
+        &CAR.drive_speed_a,
+        &CAR.drive_speed_b,
     ]
 }
 
 /// The Rust version.
-pub unsafe fn stall_when_still() {
-    unsafe { stall_at(&game()) }
+pub fn stall_when_still() {
+    stall_at(&game())
 }

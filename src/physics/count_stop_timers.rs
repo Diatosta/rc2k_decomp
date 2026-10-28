@@ -12,40 +12,33 @@
 
 use crate::physics::car_store::CAR;
 use crate::race::numbers_store::NUMBERS;
+use crate::session::Cell32;
 use rc2k_core::physics::motion::stop_timers;
 
-fn at(a: u32) -> u32 {
-    crate::pointers::read_or_end::<u32>(a, "physics::count_stop_timers's operand")
-}
-
-fn put(a: u32, v: u32) {
-    crate::pointers::write_or_end::<u32>(a, v, "physics::count_stop_timers's operand")
-}
-
-/// The core on the variables' addresses (a compare of floats only: the same at any
+/// The core on the variables' cells (a compare of floats only: the same at any
 /// precision).
 // Converted: `rc2k_core::physics::motion::stop_timers`.
-pub fn count_stop_timers_at(v: &[u32]) {
+pub fn count_stop_timers_at(v: &[&dyn Cell32]) {
     let one = f32::from_bits(NUMBERS.one.bits());
-    let mut counters = [at(v[0]), at(v[1]), at(v[2])];
-    let result = stop_timers(&mut counters, f32::from_bits(at(v[3])), one);
+    let mut counters = [v[0].bits(), v[1].bits(), v[2].bits()];
+    let result = stop_timers(&mut counters, f32::from_bits(v[3].bits()), one);
     for (k, c) in counters.iter().enumerate() {
-        if *c != at(v[k]) {
-            put(v[k], *c);
+        if *c != v[k].bits() {
+            v[k].set_bits(*c);
         }
     }
     if let Some(result) = result {
-        put(v[4], result);
+        v[4].set_bits(result);
     }
 }
 
-fn game() -> Vec<u32> {
+fn game() -> Vec<&'static dyn Cell32> {
     vec![
-        CAR.started_stand_timer.addr(),
-        CAR.go_stand_timer.addr(),
-        CAR.finish_flag.addr(),
-        CAR.speed.addr(),
-        CAR.stop_state.addr(),
+        &CAR.started_stand_timer as &dyn Cell32,
+        &CAR.go_stand_timer,
+        &CAR.finish_flag,
+        &CAR.speed,
+        &CAR.stop_state,
     ]
 }
 

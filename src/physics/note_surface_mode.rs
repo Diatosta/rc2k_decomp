@@ -10,17 +10,17 @@
 //! above are the original's, for reference.
 
 use crate::physics::car_store::CAR;
-use crate::physics::cells::{get, put};
+use crate::session::Cell32;
 use rc2k_core::physics::ground::surface_flag;
 
-/// The Rust version on the variables at `v`.
+/// The Rust version on the variables' cells `v`.
 // Converted: `rc2k_core::physics::ground::surface_flag`.
-pub fn note_at(v: &[u32]) {
-    put(v[1], surface_flag(get(v[0])))
+pub fn note_at(v: &[&dyn Cell32]) {
+    v[1].set_bits(surface_flag(v[0].bits()))
 }
 
-fn game() -> Vec<u32> {
-    vec![CAR.camera_view.addr(), CAR.camera_mode_is_2_or_3.addr()]
+fn game() -> Vec<&'static dyn Cell32> {
+    vec![&CAR.camera_view as &dyn Cell32, &CAR.camera_mode_is_2_or_3]
 }
 
 /// The Rust version.

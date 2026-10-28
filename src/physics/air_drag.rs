@@ -13,38 +13,37 @@ use crate::math::x87_run::{abs_of, compare_full, square_times_over};
 use crate::physics::car_store::CAR;
 use crate::physics::tables_store::PHYSICS;
 use crate::race::numbers_store::NUMBERS;
+use crate::session::Cell32;
 
-/// The Rust core on the variables at `v`.
-pub unsafe fn drag_at(v: &[u32]) {
-    unsafe {
-        let get = |k: usize| (crate::pointers::host(v[k]) as *const u32).read_unaligned();
-        let put = |k: usize, x: u32| (crate::pointers::host(v[k]) as *mut u32).write_unaligned(x);
-        let (k, d, zero) = (
-            PHYSICS.air_drag.bits(),
-            NUMBERS.k10000.bits(),
-            NUMBERS.zero.bits(),
-        );
-        for i in 0..3 {
-            put(3 + i, square_times_over(get(i), k, d));
-            let a = abs_of(get(3 + i));
-            let below = compare_full(get(i), zero) & 0x100 != 0;
-            put(3 + i, if below { a } else { x87::negated(a) });
-        }
+/// The Rust core on the variables' cells `v`.
+pub fn drag_at(v: &[&dyn Cell32]) {
+    let get = |k: usize| v[k].bits();
+    let put = |k: usize, x: u32| v[k].set_bits(x);
+    let (k, d, zero) = (
+        PHYSICS.air_drag.bits(),
+        NUMBERS.k10000.bits(),
+        NUMBERS.zero.bits(),
+    );
+    for i in 0..3 {
+        put(3 + i, square_times_over(get(i), k, d));
+        let a = abs_of(get(3 + i));
+        let below = compare_full(get(i), zero) & 0x100 != 0;
+        put(3 + i, if below { a } else { x87::negated(a) });
     }
 }
 
-fn game() -> Vec<u32> {
+fn game() -> Vec<&'static dyn Cell32> {
     vec![
-        CAR.local_velocity[0].addr(),
-        CAR.local_velocity[1].addr(),
-        CAR.local_velocity[2].addr(),
-        PHYSICS.forces[5].force[0].addr(),
-        PHYSICS.forces[5].force[1].addr(),
-        PHYSICS.forces[5].force[2].addr(),
+        &CAR.local_velocity[0] as &dyn Cell32,
+        &CAR.local_velocity[1],
+        &CAR.local_velocity[2],
+        &PHYSICS.forces[5].force[0],
+        &PHYSICS.forces[5].force[1],
+        &PHYSICS.forces[5].force[2],
     ]
 }
 
 /// The Rust version (the exact one, for `physics::car_physics_step`).
-pub unsafe fn air_drag() {
-    unsafe { drag_at(&game()) }
+pub fn air_drag() {
+    drag_at(&game())
 }

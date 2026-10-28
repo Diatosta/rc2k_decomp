@@ -17,55 +17,52 @@ use crate::physics::car_store::CAR;
 use crate::physics::tables_store::PHYSICS;
 use crate::race::numbers_store::NUMBERS;
 use crate::scene::draw_store::DRAW;
+use crate::session::Cell32;
 use std::cmp::Ordering;
 
-fn at(a: u32) -> u32 {
-    crate::pointers::read_or_end::<u32>(a, "physics::drive_torque_share's operand")
+fn put(a: &dyn Cell32, v: u32) {
+    a.set_bits(v)
 }
 
-fn put(a: u32, v: u32) {
-    crate::pointers::write_or_end::<u32>(a, v, "physics::drive_torque_share's operand")
-}
-
-/// The core on the variables' addresses: eax as the original leaves it (n less the
+/// The core on the variables' cells: eax as the original leaves it (n less the
 /// word, its `sub eax, unk_71A000`).
-pub fn drive_torque_share_at(v: &[u32]) -> u32 {
-    let n = if at(v[1]) == 1 {
+pub fn drive_torque_share_at(v: &[&dyn Cell32]) -> u32 {
+    let n = if v[1].bits() == 1 {
         PHYSICS.torque_share_a.get()
     } else {
         PHYSICS.torque_share_b.get()
     };
-    put(v[0], n);
+    v[0].set_bits(n);
     put(
         v[3],
-        abs_fidiv(at(v[2]), PHYSICS.torque_share_c.get() as i32),
+        abs_fidiv(v[2].bits(), PHYSICS.torque_share_c.get() as i32),
     );
     let one = NUMBERS.one.bits();
     let below = !matches!(
-        f32::from_bits(at(v[3])).partial_cmp(&f32::from_bits(one)),
+        f32::from_bits(v[3].bits()).partial_cmp(&f32::from_bits(one)),
         Some(Ordering::Greater | Ordering::Equal)
     );
     if !below {
-        put(v[3], x87::loaded(one));
+        v[3].set_bits(x87::loaded(one));
     }
-    let eax = at(v[0]).wrapping_sub(at(v[5]));
-    put(v[4], eax);
-    put(v[4], int_fidiv(at(v[4]) as i32, at(v[0]) as i32));
-    put(v[6], one_less_times_plus(at(v[4]), at(v[3])));
-    put(v[7], x87::mul(at(v[7]), at(v[6])));
+    let eax = v[0].bits().wrapping_sub(v[5].bits());
+    v[4].set_bits(eax);
+    v[4].set_bits(int_fidiv(v[4].bits() as i32, v[0].bits() as i32));
+    v[6].set_bits(one_less_times_plus(v[4].bits(), v[3].bits()));
+    v[7].set_bits(x87::mul(v[7].bits(), v[6].bits()));
     eax
 }
 
-fn game() -> Vec<u32> {
+fn game() -> Vec<&'static dyn Cell32> {
     vec![
-        DRAW.scratch.addr(),
-        CAR.drive_kind.addr(),
-        CAR.local_velocity[2].addr(),
-        DRAW.work_float_a.addr(),
-        DRAW.work_float_b.addr(),
-        CAR.gear_ratio_setting.addr(),
-        PHYSICS.torque_share.addr(),
-        PHYSICS.drive_torque.addr(),
+        &DRAW.scratch as &dyn Cell32,
+        &CAR.drive_kind,
+        &CAR.local_velocity[2],
+        &DRAW.work_float_a,
+        &DRAW.work_float_b,
+        &CAR.gear_ratio_setting,
+        &PHYSICS.torque_share,
+        &PHYSICS.drive_torque,
     ]
 }
 

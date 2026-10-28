@@ -138,11 +138,9 @@ pub fn steps() -> Result<(), Refused> {
         hold_low(&CAR.engine_speed, &PHYSICS.idle_engine_speed);
     }
     hold_high(&CAR.engine_speed, &PHYSICS.rev_limit);
-    unsafe {
-        ph::wheels_from_revs::wheels_from_revs()?;
-        ph::air_drag::air_drag();
-        ph::wheel_springs::wheel_springs();
-    }
+    ph::wheels_from_revs::wheels_from_revs()?;
+    ph::air_drag::air_drag();
+    ph::wheel_springs::wheel_springs();
     ph::crash_contact::crash_contact()?;
     unsafe {
         ph::apply_wheel_forces::apply_wheel_forces()?;
@@ -172,10 +170,9 @@ pub fn steps() -> Result<(), Refused> {
         if PHYSICS.clear_place_count.get() == 0 {
             break;
         }
-        unsafe {
-            ph::stall_when_still::stall_when_still();
-            ph::keep_motion_vectors::keep_motion_vectors();
-        }
+        ph::stall_when_still::stall_when_still();
+        ph::keep_motion_vectors::keep_motion_vectors();
+
         motion();
         PHYSICS.clear_place_count.set(0);
         PHYSICS
@@ -230,7 +227,7 @@ pub fn steps() -> Result<(), Refused> {
     if listed != u32::MAX {
         ph::camera_frame::camera_frame()?;
     }
-    unsafe { ph::hold_spin_on_ground::hold_spin_on_ground() };
+    ph::hold_spin_on_ground::hold_spin_on_ground();
     ph::drop_broken_parts::drop_broken_parts()?;
     ph::car_lighting::car_lighting()?;
     unsafe {

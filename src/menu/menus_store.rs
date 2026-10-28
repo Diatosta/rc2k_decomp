@@ -1068,9 +1068,15 @@ mod tests {
             assert_eq!(MenuId::of(m.labels()), m);
             // The -1 after the items is the dword right after the last.
             let last = m.items().last().unwrap() as *const MenuItem;
-            assert_eq!(unsafe { (*last.add(1).cast::<Dword>()).get() }, MenuItem::END);
+            assert_eq!(
+                unsafe { (*last.add(1).cast::<Dword>()).get() },
+                MenuItem::END
+            );
         }
-        assert_eq!(MENUS.stage_result.id().items().len(), MENUS.stage_result.items.len());
+        assert_eq!(
+            MENUS.stage_result.id().items().len(),
+            MENUS.stage_result.items.len()
+        );
         assert!(MenuId::from_code(0).is_err());
         assert!(MENUS.select_stage.id().item(0).is_err());
         let c = MenuCell::new();

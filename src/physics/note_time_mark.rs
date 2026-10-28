@@ -15,38 +15,37 @@
 use crate::physics::car_store::CAR;
 use crate::physics::tables_store::PHYSICS;
 use crate::race::numbers_store::NUMBERS;
+use crate::session::Cell32;
 use rc2k_core::physics::motion::time_mark;
 
-fn game() -> Vec<u32> {
+fn game() -> Vec<&'static dyn Cell32> {
     vec![
-        CAR.engine_speed_scaled.addr(),
-        PHYSICS.time_marks[0].addr(),
-        CAR.step_clock.addr(),
-        PHYSICS.time_marks[1].addr(),
+        &CAR.engine_speed_scaled as &dyn Cell32,
+        &PHYSICS.time_marks[0],
+        &CAR.step_clock,
+        &PHYSICS.time_marks[1],
     ]
 }
 
-/// The converted version (`rc2k_core::physics::motion`) on the variables at `v`. The eax
+/// The converted version (`rc2k_core::physics::motion`) on the variables' cells `v`. The eax
 /// it leaves (the mark) is read by none of its callers.
 // Converted: `rc2k_core::physics::motion::time_mark`.
-unsafe fn core(v: &[u32]) {
-    unsafe {
-        let get = |k: usize| (crate::pointers::host(v[k]) as *const u32).read_unaligned();
-        let limit = f32::from_bits(NUMBERS.sixty.bits());
-        // The mark, count and start read only where the original reads them.
-        if let Some(mark) = time_mark(
-            f32::from_bits(get(0)),
-            limit,
-            || get(1),
-            || (get(2), get(3)),
-        ) {
-            (crate::pointers::host(v[1]) as *mut u32).write_unaligned(mark);
-        }
+fn core(v: &[&dyn Cell32]) {
+    let get = |k: usize| v[k].bits();
+    let limit = f32::from_bits(NUMBERS.sixty.bits());
+    // The mark, count and start read only where the original reads them.
+    if let Some(mark) = time_mark(
+        f32::from_bits(get(0)),
+        limit,
+        || get(1),
+        || (get(2), get(3)),
+    ) {
+        v[1].set_bits(mark);
     }
 }
 
 /// The Rust version (a compare of floats only: the same at any precision); `r` as the
 /// original leaves are read by none of its callers.
-pub unsafe fn note_time_mark() {
-    unsafe { core(&game()) }
+pub fn note_time_mark() {
+    core(&game())
 }

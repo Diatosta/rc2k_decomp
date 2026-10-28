@@ -13,23 +13,23 @@
 //! above are the original's, for reference.
 
 use crate::physics::car_store::CAR;
-use crate::physics::cells::{get, put_changed};
+use crate::session::Cell32;
 use rc2k_core::physics::ground::SkidStart;
 
-/// The Rust version on the variables at `v`. The registers the original leaves are read by none of its callers (eax).
+/// The Rust version on the variables' cells `v`. The registers the original leaves are read by none of its callers (eax).
 // Converted: `rc2k_core::physics::ground::SkidStart::start`.
-pub fn start_at(v: &[u32]) {
-    let wheels = [get(v[0]), get(v[1]), get(v[2]), get(v[3])];
+pub fn start_at(v: &[&dyn Cell32]) {
+    let wheels = [v[0].bits(), v[1].bits(), v[2].bits(), v[3].bits()];
     let was = SkidStart {
-        pending: get(v[4]),
-        from: get(v[5]),
-        on: get(v[6]),
-        w674: get(v[7]),
-        w670: get(v[8]),
-        step: get(v[10]),
+        pending: v[4].bits(),
+        from: v[5].bits(),
+        on: v[6].bits(),
+        w674: v[7].bits(),
+        w670: v[8].bits(),
+        step: v[10].bits(),
     };
     let mut s = was;
-    s.start(wheels, || get(v[9]));
+    s.start(wheels, || v[9].bits());
     for (k, before, now) in [
         (5, was.from, s.from),
         (6, was.on, s.on),
@@ -38,23 +38,23 @@ pub fn start_at(v: &[u32]) {
         (10, was.step, s.step),
         (4, was.pending, s.pending),
     ] {
-        put_changed(v[k], before, now);
+        crate::physics::cells::set_changed(v[k], before, now);
     }
 }
 
-fn game() -> Vec<u32> {
+fn game() -> Vec<&'static dyn Cell32> {
     vec![
-        CAR.wheel_squeeze[0].addr(),
-        CAR.wheel_squeeze[1].addr(),
-        CAR.wheel_squeeze[2].addr(),
-        CAR.wheel_squeeze[3].addr(),
-        CAR.camera_view_return.addr(),
-        CAR.camera_blend_view.addr(),
-        CAR.camera_switch_active.addr(),
-        CAR.camera_switch_share.addr(),
-        CAR.camera_switch_length.addr(),
-        CAR.step_clock.addr(),
-        CAR.camera_switch_clock.addr(),
+        &CAR.wheel_squeeze[0] as &dyn Cell32,
+        &CAR.wheel_squeeze[1],
+        &CAR.wheel_squeeze[2],
+        &CAR.wheel_squeeze[3],
+        &CAR.camera_view_return,
+        &CAR.camera_blend_view,
+        &CAR.camera_switch_active,
+        &CAR.camera_switch_share,
+        &CAR.camera_switch_length,
+        &CAR.step_clock,
+        &CAR.camera_switch_clock,
     ]
 }
 

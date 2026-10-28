@@ -8,25 +8,22 @@
 
 use crate::physics::car_store::CAR;
 use crate::physics::tables_store::PHYSICS;
+use crate::session::Cell32;
 
-fn core(v: &[u32]) {
+fn core(v: &[&dyn Cell32]) {
     for k in 0..3 {
-        crate::pointers::write_or_end::<u32>(
-            v[k + 3],
-            crate::pointers::read_or_end::<u32>(v[k], "physics::keep_motion's operand"),
-            "physics::keep_motion's operand",
-        );
+        v[k + 3].set_bits(v[k].bits());
     }
 }
 
-fn game() -> Vec<u32> {
+fn game() -> Vec<&'static dyn Cell32> {
     vec![
-        CAR.local_velocity[0].addr(),
-        CAR.local_velocity[1].addr(),
-        CAR.local_velocity[2].addr(),
-        PHYSICS.kept_motion[0].addr(),
-        PHYSICS.kept_motion[1].addr(),
-        PHYSICS.kept_motion[2].addr(),
+        &CAR.local_velocity[0] as &dyn Cell32,
+        &CAR.local_velocity[1],
+        &CAR.local_velocity[2],
+        &PHYSICS.kept_motion[0],
+        &PHYSICS.kept_motion[1],
+        &PHYSICS.kept_motion[2],
     ]
 }
 

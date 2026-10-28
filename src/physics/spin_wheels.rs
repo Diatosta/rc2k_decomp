@@ -14,17 +14,18 @@ use crate::physics::car_store::CAR;
 use crate::physics::tables_store::PHYSICS;
 use crate::race::numbers_store::NUMBERS;
 use crate::scene::draw_store::DRAW;
+use crate::session::Cell32;
 
-fn get(v: &[u32], k: usize) -> u32 {
-    crate::pointers::read_or_end::<u32>(v[k], "physics::spin_wheels's operand")
+fn get(v: &[&dyn Cell32], k: usize) -> u32 {
+    v[k].bits()
 }
 
-fn put(v: &[u32], k: usize, x: u32) {
-    crate::pointers::write_or_end::<u32>(v[k], x, "physics::spin_wheels's operand")
+fn put(v: &[&dyn Cell32], k: usize, x: u32) {
+    v[k].set_bits(x)
 }
 
-/// The Rust core on the variables at `v`: the last turn added.
-pub fn spin_at(v: &[u32]) -> u32 {
+/// The Rust core on the variables' cells `v`: the last turn added.
+pub fn spin_at(v: &[&dyn Cell32]) -> u32 {
     let _k = |x: usize| game_read::<u32>(rva(x));
     let (wheel, dt, k65536, scale) = (
         PHYSICS.wheel_spin_share.bits(),
@@ -41,13 +42,13 @@ pub fn spin_at(v: &[u32]) -> u32 {
     last
 }
 
-fn game() -> Vec<u32> {
+fn game() -> Vec<&'static dyn Cell32> {
     vec![
-        CAR.drive_speed_a.addr(),
-        CAR.drive_speed_b.addr(),
-        CAR.driven_wheel_turns[0].addr(),
-        CAR.driven_wheel_turns[1].addr(),
-        DRAW.scratch.addr(),
+        &CAR.drive_speed_a as &dyn Cell32,
+        &CAR.drive_speed_b,
+        &CAR.driven_wheel_turns[0],
+        &CAR.driven_wheel_turns[1],
+        &DRAW.scratch,
     ]
 }
 

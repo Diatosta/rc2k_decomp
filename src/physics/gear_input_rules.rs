@@ -20,20 +20,21 @@
 use crate::physics::car_store::CAR;
 use crate::physics::tables_store::PHYSICS;
 use crate::race::vars_store::RACE_VARS;
+use crate::session::Cell32;
 use rc2k_core::physics::gearbox::{GearCar, GearInputs};
 
-fn get(v: &[u32], k: usize) -> u32 {
-    crate::pointers::read_or_end::<u32>(v[k], "physics::gear_input_rules's operand")
+fn get(v: &[&dyn Cell32], k: usize) -> u32 {
+    v[k].bits()
 }
 
-fn put(v: &[u32], k: usize, x: u32) {
-    crate::pointers::write_or_end::<u32>(v[k], x, "physics::gear_input_rules's operand")
+fn put(v: &[&dyn Cell32], k: usize, x: u32) {
+    v[k].set_bits(x)
 }
 
-/// The Rust version on the variables at `v`; what the rules change is written back. The
+/// The Rust version on the variables' cells `v`; what the rules change is written back. The
 /// eax it leaves (the joined input) is read by none of its callers.
 // Converted: `rc2k_core::physics::gearbox::GearInputs::apply_rules`.
-pub fn rules_at(v: &[u32]) {
+pub fn rules_at(v: &[&dyn Cell32]) {
     let car = GearCar {
         state: get(v, 0),
         box_mode: get(v, 7),
@@ -69,23 +70,23 @@ pub fn rules_at(v: &[u32]) {
     }
 }
 
-fn game() -> Vec<u32> {
+fn game() -> Vec<&'static dyn Cell32> {
     vec![
-        CAR.tyre_change_state.addr(),
-        PHYSICS.input_gear_down.addr(),
-        PHYSICS.input_gear_up.addr(),
-        PHYSICS.input_throttle.addr(),
-        PHYSICS.input_brake.addr(),
-        PHYSICS.input_handbrake.addr(),
-        CAR.gear.addr(),
-        CAR.gearbox_kind.addr(),
-        PHYSICS.input_gear_wanted.addr(),
-        CAR.run_ticks.addr(),
-        RACE_VARS.run_kind.addr(),
-        PHYSICS.input_steer.addr(),
-        CAR.go_stand_timer.addr(),
-        CAR.started_stand_timer.addr(),
-        CAR.finish_flag.addr(),
+        &CAR.tyre_change_state as &dyn Cell32,
+        &PHYSICS.input_gear_down,
+        &PHYSICS.input_gear_up,
+        &PHYSICS.input_throttle,
+        &PHYSICS.input_brake,
+        &PHYSICS.input_handbrake,
+        &CAR.gear,
+        &CAR.gearbox_kind,
+        &PHYSICS.input_gear_wanted,
+        &CAR.run_ticks,
+        &RACE_VARS.run_kind,
+        &PHYSICS.input_steer,
+        &CAR.go_stand_timer,
+        &CAR.started_stand_timer,
+        &CAR.finish_flag,
     ]
 }
 

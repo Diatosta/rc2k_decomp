@@ -12,17 +12,18 @@ use crate::physics::car_store::CAR;
 use crate::physics::tables_store::PHYSICS;
 use crate::race::numbers_store::NUMBERS;
 use crate::scene::draw_store::DRAW;
+use crate::session::Cell32;
 
-fn get(v: &[u32], k: usize) -> u32 {
-    crate::pointers::read_or_end::<u32>(v[k], "physics::move_car's operand")
+fn get(v: &[&dyn Cell32], k: usize) -> u32 {
+    v[k].bits()
 }
 
-fn put(v: &[u32], k: usize, x: u32) {
-    crate::pointers::write_or_end::<u32>(v[k], x, "physics::move_car's operand")
+fn put(v: &[&dyn Cell32], k: usize, x: u32) {
+    v[k].set_bits(x)
 }
 
-/// The Rust core on the variables at `v`: the last move.
-pub fn move_at(v: &[u32]) -> u32 {
+/// The Rust core on the variables' cells `v`: the last move.
+pub fn move_at(v: &[&dyn Cell32]) -> u32 {
     let k65536: u32 = NUMBERS.k65536.bits();
     let dt: u32 = PHYSICS.step_time.bits();
     let mut last = 0;
@@ -34,15 +35,15 @@ pub fn move_at(v: &[u32]) -> u32 {
     last
 }
 
-fn game() -> Vec<u32> {
+fn game() -> Vec<&'static dyn Cell32> {
     vec![
-        CAR.velocity[0].addr(),
-        CAR.velocity[1].addr(),
-        CAR.velocity[2].addr(),
-        CAR.position[0].addr(),
-        CAR.position[1].addr(),
-        CAR.position[2].addr(),
-        DRAW.scratch.addr(),
+        &CAR.velocity[0] as &dyn Cell32,
+        &CAR.velocity[1],
+        &CAR.velocity[2],
+        &CAR.position[0],
+        &CAR.position[1],
+        &CAR.position[2],
+        &DRAW.scratch,
     ]
 }
 

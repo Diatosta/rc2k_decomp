@@ -11,49 +11,48 @@
 
 use crate::math::x87_run::sum_over;
 use crate::physics::tables_store::PHYSICS;
+use crate::session::Cell32;
 
-/// The Rust core on the variables at `v`.
-pub unsafe fn sum_at(v: &[u32]) {
-    unsafe {
-        let get = |k: usize| (crate::pointers::host(v[k]) as *const u32).read_unaligned();
-        let put = |k: usize, x: u32| (crate::pointers::host(v[k]) as *mut u32).write_unaligned(x);
-        let g: u32 = PHYSICS.gravity.bits();
-        let dt: u32 = PHYSICS.step_time.bits();
-        put(13, sum_over(&[get(0)], &[g, dt]));
-        put(14, sum_over(&[get(1)], &[g, dt]));
-        put(15, sum_over(&[get(2), get(3)], &[g, dt]));
-        put(16, sum_over(&[get(4), get(5), get(6), get(7)], &[g]));
-        put(
-            17,
-            sum_over(&[get(8), get(9), get(10), get(11), get(12)], &[g]),
-        );
-    }
+/// The Rust core on the variables' cells `v`.
+pub fn sum_at(v: &[&dyn Cell32]) {
+    let get = |k: usize| v[k].bits();
+    let put = |k: usize, x: u32| v[k].set_bits(x);
+    let g: u32 = PHYSICS.gravity.bits();
+    let dt: u32 = PHYSICS.step_time.bits();
+    put(13, sum_over(&[get(0)], &[g, dt]));
+    put(14, sum_over(&[get(1)], &[g, dt]));
+    put(15, sum_over(&[get(2), get(3)], &[g, dt]));
+    put(16, sum_over(&[get(4), get(5), get(6), get(7)], &[g]));
+    put(
+        17,
+        sum_over(&[get(8), get(9), get(10), get(11), get(12)], &[g]),
+    );
 }
 
-fn game() -> Vec<u32> {
+fn game() -> Vec<&'static dyn Cell32> {
     vec![
-        PHYSICS.drive_slip[0].addr(),
-        PHYSICS.drive_slip[1].addr(),
-        PHYSICS.axle_slips[0].addr(),
-        PHYSICS.axle_slips[1].addr(),
-        PHYSICS.forces[6].force[1].addr(),
-        PHYSICS.forces[7].force[1].addr(),
-        PHYSICS.forces[8].force[1].addr(),
-        PHYSICS.forces[9].force[1].addr(),
-        PHYSICS.forces[0].force[1].addr(),
-        PHYSICS.forces[1].force[1].addr(),
-        PHYSICS.forces[2].force[1].addr(),
-        PHYSICS.forces[3].force[1].addr(),
-        PHYSICS.forces[4].force[1].addr(),
-        PHYSICS.force_sums[0].addr(),
-        PHYSICS.force_sums[1].addr(),
-        PHYSICS.force_sums[2].addr(),
-        PHYSICS.force_sums[3].addr(),
-        PHYSICS.force_sums[4].addr(),
+        &PHYSICS.drive_slip[0] as &dyn Cell32,
+        &PHYSICS.drive_slip[1],
+        &PHYSICS.axle_slips[0],
+        &PHYSICS.axle_slips[1],
+        &PHYSICS.forces[6].force[1],
+        &PHYSICS.forces[7].force[1],
+        &PHYSICS.forces[8].force[1],
+        &PHYSICS.forces[9].force[1],
+        &PHYSICS.forces[0].force[1],
+        &PHYSICS.forces[1].force[1],
+        &PHYSICS.forces[2].force[1],
+        &PHYSICS.forces[3].force[1],
+        &PHYSICS.forces[4].force[1],
+        &PHYSICS.force_sums[0],
+        &PHYSICS.force_sums[1],
+        &PHYSICS.force_sums[2],
+        &PHYSICS.force_sums[3],
+        &PHYSICS.force_sums[4],
     ]
 }
 
 /// The Rust version (the exact x87 one, for `physics::car_physics_step`).
-pub unsafe fn sum_forces() {
-    unsafe { sum_at(&game()) }
+pub fn sum_forces() {
+    sum_at(&game())
 }

@@ -32,7 +32,7 @@ use rc2k_core::physics::gear_shifts as shifts;
 // Converted: `rc2k_core::physics::gear_shifts::pick_start` (the engine's sums and compares
 // stay x87).
 pub fn pick_start_gear() -> Result<(), Refused> {
-    unsafe { copy_car_word_8() };
+    copy_car_word_8();
     PHYSICS.start_gear_figures[2].set(CAR.engine_speed.bits());
     revs_speed()?;
     PHYSICS.start_gear_figures[1].set(0);

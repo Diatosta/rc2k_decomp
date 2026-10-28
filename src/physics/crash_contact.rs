@@ -87,7 +87,7 @@ pub fn point_number() -> Result<usize, Refused> {
 // (the x87 steps stay).
 fn steps() -> Result<(), Refused> {
     CAR.contact_found.set(0);
-    unsafe { lowest_body_point() }?;
+    { lowest_body_point() }?;
     let depth = CONTACT_WORK.lowest_depth.get();
     if !contacts::touches(
         depth,

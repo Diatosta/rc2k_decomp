@@ -23,72 +23,71 @@ use crate::physics::tables_store::PHYSICS;
 use crate::race::numbers_store::NUMBERS;
 use crate::scene::draw_store::DRAW;
 use crate::scene::matrix3::{extended, rounded};
+use crate::session::Cell32;
 
 const RATIO: usize = 8; // index of gear 0 in `game()`'s list
 
-/// The Rust core on the variables at `v`: the gear count.
-pub unsafe fn ratios_at(v: &[u32]) -> Result<u32, Refused> {
-    unsafe {
-        let get = |k: usize| (crate::pointers::host(v[k]) as *const u32).read_unaligned();
-        let put = |k: usize, x: u32| (crate::pointers::host(v[k]) as *mut u32).write_unaligned(x);
-        let n = get(0);
-        if n > 7 {
-            return Err(BadInput("a gear count above 7 (past g_gearRatios)").into());
-        }
-        let (k, d) = (NUMBERS.quarter.bits(), NUMBERS.two_and_a_quarter.bits());
-        let one: u32 = NUMBERS.one.bits();
-        let i = get(5) as i32;
-        put(
-            RATIO + n as usize,
-            lerp_int_over2(get(1), get(2), k, i, d, get(6)),
-        );
-        put(RATIO + 1, lerp_int_over2(get(3), get(4), k, i, d, get(6)));
-        let step = gear_step_80(get(RATIO + n as usize), get(RATIO + 1), n as i32, one);
-        let mut acc = extended(get(RATIO + 1));
-        for gear in 2..=5 {
-            acc = ext_add(acc, step);
-            put(RATIO + gear, rounded(acc));
-        }
-        if n > 5 {
-            acc = ext_add(acc, step);
-        }
-        put(RATIO + 6, rounded(acc));
-        if n > 6 {
-            acc = ext_add(acc, step);
-        }
-        put(RATIO + 7, rounded(acc));
-        put(16, rounded(step));
-        put(7, x87::negated(get(RATIO + 1)));
-        put(RATIO, x87::loaded(get(17)));
-        Ok(n)
+/// The Rust core on the variables' cells `v`: the gear count.
+pub fn ratios_at(v: &[&dyn Cell32]) -> Result<u32, Refused> {
+    let get = |k: usize| v[k].bits();
+    let put = |k: usize, x: u32| v[k].set_bits(x);
+    let n = get(0);
+    if n > 7 {
+        return Err(BadInput("a gear count above 7 (past g_gearRatios)").into());
     }
+    let (k, d) = (NUMBERS.quarter.bits(), NUMBERS.two_and_a_quarter.bits());
+    let one: u32 = NUMBERS.one.bits();
+    let i = get(5) as i32;
+    put(
+        RATIO + n as usize,
+        lerp_int_over2(get(1), get(2), k, i, d, get(6)),
+    );
+    put(RATIO + 1, lerp_int_over2(get(3), get(4), k, i, d, get(6)));
+    let step = gear_step_80(get(RATIO + n as usize), get(RATIO + 1), n as i32, one);
+    let mut acc = extended(get(RATIO + 1));
+    for gear in 2..=5 {
+        acc = ext_add(acc, step);
+        put(RATIO + gear, rounded(acc));
+    }
+    if n > 5 {
+        acc = ext_add(acc, step);
+    }
+    put(RATIO + 6, rounded(acc));
+    if n > 6 {
+        acc = ext_add(acc, step);
+    }
+    put(RATIO + 7, rounded(acc));
+    put(16, rounded(step));
+    put(7, x87::negated(get(RATIO + 1)));
+    put(RATIO, x87::loaded(get(17)));
+    Ok(n)
 }
 
-fn game() -> Vec<u32> {
+fn game() -> Vec<&'static dyn Cell32> {
     vec![
-        PHYSICS.gear_count.addr(),
-        GEAR.figures[3].addr(),
-        GEAR.figures[1].addr(),
-        GEAR.figures[2].addr(),
-        GEAR.figures[0].addr(),
-        CAR.gear_ratio_setting.addr(),
-        CAR.engine_speed_limit.addr(),
-        PHYSICS.gear_ratios[0].addr(),
-        PHYSICS.gear_ratios[1].addr(),
-        PHYSICS.gear_ratios[2].addr(),
-        PHYSICS.gear_ratios[3].addr(),
-        PHYSICS.gear_ratios[4].addr(),
-        PHYSICS.gear_ratios[5].addr(),
-        PHYSICS.gear_ratios[6].addr(),
-        PHYSICS.gear_ratios[7].addr(),
-        PHYSICS.gear_ratios[8].addr(),
-        DRAW.scratch.addr(),
-        PHYSICS.gear_ratio_step.addr(),
+        &PHYSICS.gear_count as &dyn Cell32,
+        &GEAR.figures[3],
+        &GEAR.figures[1],
+        &GEAR.figures[2],
+        &GEAR.figures[0],
+        &CAR.gear_ratio_setting,
+        &CAR.engine_speed_limit,
+        &PHYSICS.gear_ratios[0],
+        &PHYSICS.gear_ratios[1],
+        &PHYSICS.gear_ratios[2],
+        &PHYSICS.gear_ratios[3],
+        &PHYSICS.gear_ratios[4],
+        &PHYSICS.gear_ratios[5],
+        &PHYSICS.gear_ratios[6],
+        &PHYSICS.gear_ratios[7],
+        &PHYSICS.gear_ratios[8],
+        &DRAW.scratch,
+        &PHYSICS.gear_ratio_step,
     ]
 }
 
 /// The Rust version (the exact one, for `physics::car_physics_step` and
 /// `physics::test_drive`): the gear count.
-pub unsafe fn make_gear_ratios() -> Result<u32, Refused> {
-    unsafe { ratios_at(&game()) }
+pub fn make_gear_ratios() -> Result<u32, Refused> {
+    ratios_at(&game())
 }

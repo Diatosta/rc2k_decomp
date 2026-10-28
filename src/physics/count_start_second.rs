@@ -9,33 +9,33 @@
 //! Caller: `sub_436790` (four calls).
 
 use crate::physics::car_store::CAR;
-use crate::physics::cells::{get, put_changed};
+use crate::session::Cell32;
 use rc2k_core::physics::start::CarStart;
 
-fn game() -> Vec<u32> {
+fn game() -> Vec<&'static dyn Cell32> {
     vec![
-        CAR.tyre_change_state.addr(),
-        CAR.false_start_count.addr(),
-        CAR.run_ticks.addr(),
-        CAR.finish_flag.addr(),
-        CAR.stage_time.addr(),
+        &CAR.tyre_change_state as &dyn Cell32,
+        &CAR.false_start_count,
+        &CAR.run_ticks,
+        &CAR.finish_flag,
+        &CAR.stage_time,
     ]
 }
 
-/// The Rust version on the variables' addresses.
+/// The Rust version on the variables' cells.
 // Converted: `rc2k_core::physics::start::CarStart::count_start_second`.
-fn core(v: &[u32]) {
+fn core(v: &[&dyn Cell32]) {
     let was = CarStart {
-        state: get(v[0]),
-        count: get(v[1]),
-        timer: get(v[2]),
-        finished: get(v[3]),
-        time: get(v[4]),
+        state: v[0].bits(),
+        count: v[1].bits(),
+        timer: v[2].bits(),
+        finished: v[3].bits(),
+        time: v[4].bits(),
         ..CarStart::default()
     };
     let mut c = was;
     c.count_start_second();
-    put_changed(v[4], was.time, c.time);
+    crate::physics::cells::set_changed(v[4], was.time, c.time);
 }
 
 /// The Rust version.

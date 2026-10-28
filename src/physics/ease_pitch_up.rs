@@ -9,24 +9,24 @@
 
 use crate::physics::camera_store::CAMERA_WORK;
 use crate::physics::car_store::CAR;
-use crate::physics::cells::{get, put};
+use crate::session::Cell32;
 use rc2k_core::physics::easing::ease_up;
 
-fn game() -> Vec<u32> {
+fn game() -> Vec<&'static dyn Cell32> {
     vec![
-        CAMERA_WORK.pitch_ceiling.addr(),
-        CAR.camera_pitch.addr(),
-        CAMERA_WORK.pitch_step.addr(),
+        &CAMERA_WORK.pitch_ceiling as &dyn Cell32,
+        &CAR.camera_pitch,
+        &CAMERA_WORK.pitch_step,
     ]
 }
 
-/// The Rust version on the variables' addresses.
+/// The Rust version on the variables' cells.
 // Converted: `rc2k_core::physics::easing::ease_up`.
-fn core(v: &[u32]) {
-    let mut value = get(v[1]);
-    let step = ease_up(&mut value, get(v[0]));
-    put(v[2], step);
-    put(v[1], value);
+fn core(v: &[&dyn Cell32]) {
+    let mut value = v[1].bits();
+    let step = ease_up(&mut value, v[0].bits());
+    v[2].set_bits(step);
+    v[1].set_bits(value);
 }
 
 /// The Rust version.

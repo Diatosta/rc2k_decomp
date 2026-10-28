@@ -7,24 +7,24 @@
 //! Caller: `sub_436790` (four calls).
 
 use crate::physics::car_store::CAR;
-use crate::physics::cells::{get, put_changed};
+use crate::session::Cell32;
 use rc2k_core::physics::start::CarStart;
 
-fn game() -> Vec<u32> {
-    vec![CAR.started_stand_timer.addr(), CAR.damage_failed.addr()]
+fn game() -> Vec<&'static dyn Cell32> {
+    vec![&CAR.started_stand_timer as &dyn Cell32, &CAR.damage_failed]
 }
 
-/// The Rust version on the variables' addresses.
+/// The Rust version on the variables' cells.
 // Converted: `rc2k_core::physics::start::CarStart::mark_started`.
-fn core(v: &[u32]) {
+fn core(v: &[&dyn Cell32]) {
     let was = CarStart {
-        started: get(v[0]),
-        moving: get(v[1]),
+        started: v[0].bits(),
+        moving: v[1].bits(),
         ..CarStart::default()
     };
     let mut c = was;
     c.mark_started();
-    put_changed(v[0], was.started, c.started);
+    crate::physics::cells::set_changed(v[0], was.started, c.started);
 }
 
 /// The Rust version.

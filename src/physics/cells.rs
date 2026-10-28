@@ -15,6 +15,13 @@ pub fn put_changed(a: u32, was: u32, now: u32) {
     }
 }
 
+/// `now` into the cell when it is not `was` (what was read from it).
+pub fn set_changed(c: &dyn crate::session::Cell32, was: u32, now: u32) {
+    if now != was {
+        c.set_bits(now)
+    }
+}
+
 /// `N` dwords from `a` on.
 pub fn get_list<const N: usize>(a: u32) -> [u32; N] {
     std::array::from_fn(|k| get(a + 4 * k as u32))

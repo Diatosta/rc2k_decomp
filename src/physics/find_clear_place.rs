@@ -51,7 +51,7 @@ pub fn steps() -> Result<(), Refused> {
     crate::physics::scale_vector::scale_vector(&CAR.velocity, factor);
     DRAW.scratch.set(rounded(factor));
     unsafe { crate::physics::restore_saved_car::restore_saved_car() }?;
-    unsafe { crate::physics::lowest_body_point::lowest_body_point() }?;
+    { crate::physics::lowest_body_point::lowest_body_point() }?;
     PHYSICS
         .clear_place_face
         .set(CONTACT_WORK.lowest_depth.get());
@@ -71,7 +71,7 @@ pub fn steps() -> Result<(), Refused> {
     let Some(n) = found else {
         return unsafe { crate::physics::reset_car::reset_car() };
     };
-    unsafe { crate::physics::lowest_body_point::lowest_body_point() }?;
+    { crate::physics::lowest_body_point::lowest_body_point() }?;
     let depth = CONTACT_WORK.lowest_depth.get();
     if let Some(height) = clear_place::lifted(CAR.position[1].get(), depth) {
         CAR.position[1].set(height);
