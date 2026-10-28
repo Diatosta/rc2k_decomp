@@ -28,6 +28,32 @@ pub fn read_whole_file(path: *const u8, buffer: *mut u8, count: u32) -> Result<(
     to.write_bytes(&into, "a file's buffer")
 }
 
+/// `read_whole_file` into `cells` (a typed store's dwords, their bytes in order: `4 *
+/// cells.len()` bytes at most; what the file does not reach is kept).
+pub fn read_whole_file_cells(
+    path: *const u8,
+    cells: &[crate::session::Dword],
+) -> Result<(), BadInput> {
+    let mut into: Vec<u8> = cells.iter().flat_map(|c| c.get().to_le_bytes()).collect();
+    read_whole_file_into(path, &mut into)?;
+    for (c, b) in cells.iter().zip(into.as_chunks::<4>().0) {
+        c.set(u32::from_le_bytes(*b));
+    }
+    Ok(())
+}
+
+/// `read_whole_file` into `bytes` (all of them at most; what the file does not reach is
+/// kept).
+pub fn read_whole_file_bytes<const N: usize>(
+    path: *const u8,
+    bytes: &crate::session::Bytes<N>,
+) -> Result<(), BadInput> {
+    let mut into = bytes.read();
+    read_whole_file_into(path, &mut into)?;
+    bytes.write(&into);
+    Ok(())
+}
+
 /// `read_whole_file` into Rust's memory (`into.len()` bytes at most).
 pub fn read_whole_file_into(path: *const u8, into: &mut [u8]) -> Result<(), BadInput> {
     // Converted: `rc2k_core::files::io::read_whole_file`.

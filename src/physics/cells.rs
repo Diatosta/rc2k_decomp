@@ -3,18 +3,6 @@ pub fn get(a: u32) -> u32 {
     crate::pointers::read_or_end::<u32>(a, "physics::cells's operand")
 }
 
-/// `v` into the dword at `a`.
-pub fn put(a: u32, v: u32) {
-    crate::pointers::write_or_end::<u32>(a, v, "physics::cells's operand")
-}
-
-/// `now` into the dword at `a` when it is not `was` (what was loaded from there).
-pub fn put_changed(a: u32, was: u32, now: u32) {
-    if now != was {
-        put(a, now)
-    }
-}
-
 /// `now` into the cell when it is not `was` (what was read from it).
 pub fn set_changed(c: &dyn crate::session::Cell32, was: u32, now: u32) {
     if now != was {
@@ -23,15 +11,20 @@ pub fn set_changed(c: &dyn crate::session::Cell32, was: u32, now: u32) {
 }
 
 /// `N` dwords from `a` on.
-pub fn get_list<const N: usize>(a: u32) -> [u32; N] {
-    std::array::from_fn(|k| get(a + 4 * k as u32))
+/// The values of `cells`.
+pub fn values<const N: usize>(cells: &[crate::session::Dword; N]) -> [u32; N] {
+    std::array::from_fn(|k| cells[k].get())
 }
 
-/// The dwords of `now` that are not `was`'s into their places from `a` on.
-pub fn put_list_changed(a: u32, was: &[u32], now: &[u32]) {
-    for (k, (&w, &n)) in was.iter().zip(now).enumerate() {
-        put_changed(a + 4 * k as u32, w, n)
+/// What changed from `was` to `now` stored into `cells`.
+pub fn set_values_changed(cells: &[crate::session::Dword], was: &[u32], now: &[u32]) {
+    for ((c, &w), &n) in cells.iter().zip(was).zip(now) {
+        set_changed(c, w, n)
     }
+}
+
+pub fn get_list<const N: usize>(a: u32) -> [u32; N] {
+    std::array::from_fn(|k| get(a + 4 * k as u32))
 }
 
 /// Reads of the game's memory made inside a closure the core calls (which can answer a

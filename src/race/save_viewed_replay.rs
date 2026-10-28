@@ -25,7 +25,7 @@ use crate::pointers::GamePtr;
 use crate::race::replay_file_store::REPLAY_FILE;
 use crate::race::replay_path::{LAST_RACE, replay_path};
 use crate::race::trap::file_write;
-use crate::race::viewer::{TABLE_LEN, move_dwords};
+use crate::race::viewer::{TABLE_LEN, move_cells};
 use crate::race::viewer_state_store::REPLAY_VIEW;
 
 /// The Rust version: whether it was saved (the original leaves the carry clear and the
@@ -115,7 +115,14 @@ fn save(slot: u32) -> Result<bool, Refused> {
         .1)
     };
     REPLAY_VIEW.file_offset.set(HEADER_LEN); // the new file's length so far
-    if !write(crate::race::replay::REPLAYS.header.addr(), HEADER_LEN)? {
+    if !handle::write_slice(
+        crate::race::viewer_buffers_store::VIEWER_BUFFERS
+            .to_file
+            .get(),
+        &crate::race::replay::REPLAYS.header.read(),
+    )
+    .1
+    {
         close();
         return Ok(false);
     }
@@ -135,12 +142,11 @@ fn save(slot: u32) -> Result<bool, Refused> {
             crate::race::viewer_buffers_store::VIEWER_BUFFERS.block[0].addr(),
             crate::race::replay::block_place(2 * block as usize + 1)?,
         )?;
-        move_dwords(
-            crate::race::viewer_buffers_store::VIEWER_BUFFERS.block[0].addr() as usize,
-            (crate::race::viewer_buffers_store::VIEWER_BUFFERS
-                .block_cameras
-                .addr()
-                + (8 * block as usize) as u32) as usize,
+        move_cells(
+            &crate::race::viewer_buffers_store::VIEWER_BUFFERS.block,
+            0,
+            &crate::race::viewer_buffers_store::VIEWER_BUFFERS.block_cameras,
+            2 * block as usize,
             CAMERA_DWORDS,
         )?;
         crate::race::checkpoints_store::nth(
@@ -172,11 +178,16 @@ fn save(slot: u32) -> Result<bool, Refused> {
             break;
         }
     }
-    let done = write(REPLAY_FILE.index_magic.addr(), INDEX_HEAD_LEN)?
-        && write(
-            crate::race::viewer_buffers_store::VIEWER_BUFFERS.undo_places[0].addr(),
-            TABLE_LEN as u32,
-        )?;
+    let done = handle::write_cells(
+        crate::race::viewer_buffers_store::VIEWER_BUFFERS
+            .to_file
+            .get(),
+        &REPLAY_FILE.index()[..INDEX_HEAD_LEN as usize / 4],
+    )
+    .1 && write(
+        crate::race::viewer_buffers_store::VIEWER_BUFFERS.undo_places[0].addr(),
+        TABLE_LEN as u32,
+    )?;
     close();
     Ok(done)
 }

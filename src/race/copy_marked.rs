@@ -13,7 +13,7 @@
 
 use crate::errors::Refused;
 use crate::race::replay_file_store::REPLAY_FILE;
-use crate::race::viewer::move_dwords;
+use crate::race::viewer::move_cells;
 
 /// The Rust version: the count copied (edx), none when the marks are not in order. Of
 /// what the original leaves, its caller `viewer_action` reads only edx, in the cut.
@@ -35,18 +35,9 @@ pub fn copy_marked() -> Result<Option<u32>, Refused> {
         .clip_blocks
         .set(blocks);
     let dwords = 2 * blocks as usize;
-    move_dwords(
-        crate::race::viewer_buffers_store::VIEWER_BUFFERS.clip_places[0].addr() as usize,
-        (REPLAY_FILE.block_places[0].addr() + (8 * first as usize) as u32) as usize,
-        dwords,
-    )?;
-    move_dwords(
-        crate::race::viewer_buffers_store::VIEWER_BUFFERS.clip_cameras[0].addr() as usize,
-        (crate::race::viewer_buffers_store::VIEWER_BUFFERS
-            .block_cameras
-            .addr()
-            + (8 * first as usize) as u32) as usize,
-        dwords,
-    )?;
+    let v = &crate::race::viewer_buffers_store::VIEWER_BUFFERS;
+    let first = 2 * first as usize;
+    move_cells(&v.clip_places, 0, &REPLAY_FILE.block_places, first, dwords)?;
+    move_cells(&v.clip_cameras, 0, &v.block_cameras, first, dwords)?;
     Ok(Some(blocks))
 }

@@ -20,45 +20,42 @@ use crate::scene::light_work_store::LIGHT_WORK;
 // ---- Rust version ----
 
 // Converted: `rc2k_core::scene::lamps::plain_light`
+/// `N` dwords of the stage's prefs from byte `offset` on (a colour read on into the
+/// fields after it, as the original's pointers do).
+fn prefs_dwords<const N: usize>(offset: usize) -> [u32; N] {
+    let d = STAGE_PREFS.dwords();
+    std::array::from_fn(|k| d[offset / 4 + k].get())
+}
+
 pub fn fill_light_tables() -> Result<(), crate::errors::BadInput> {
-    {
-        let plain = rc2k_core::scene::lamps::plain_light(FRAME_SWITCHES.other_way.bits(), || {
-            STAGE_PREFS.lit_b.bits()
-        });
-        // `unk_62DB10`: two colours; `dword_6092B4`: two colours.
-        let plain_colours = LIGHT_WORK.plain_light_colours[0].addr();
-        let ramp = if plain {
-            plain_colours
+    use crate::race::prefs_store::StagePrefs;
+    use crate::scene::light_tables_store::LIGHT_TABLES as T;
+    use core::mem::offset_of;
+    let plain = rc2k_core::scene::lamps::plain_light(FRAME_SWITCHES.other_way.bits(), || {
+        STAGE_PREFS.lit_b.bits()
+    });
+    // `unk_62DB10`: two colours; `dword_6092B4`: two colours (the dark one and the lit).
+    let p = &LIGHT_WORK.plain_light_colours;
+    let ramp: [u32; 6] = if plain {
+        std::array::from_fn(|k| p[k].get())
+    } else {
+        prefs_dwords(offset_of!(StagePrefs, dark_colour))
+    };
+    fill_light_ramp(ramp, &T.light_table);
+    // The four lamp tables and, the other way, their colours.
+    let lamps = [
+        (&T.lamp_table_a, offset_of!(StagePrefs, lamp_table_a)),
+        (&T.lamp_table_b, offset_of!(StagePrefs, lamp_table_b)),
+        (&T.car_light_table, offset_of!(StagePrefs, car_light_table)),
+        (&T.lamp_table_c, offset_of!(StagePrefs, lamp_table_c)),
+    ];
+    for (table, colour) in lamps {
+        let colour = if plain {
+            [p[0].get(), p[1].get(), p[2].get()]
         } else {
-            STAGE_PREFS.dark_colour[0].addr()
+            prefs_dwords(colour)
         };
-        fill_light_ramp(
-            ramp as u32,
-            crate::scene::light_tables_store::LIGHT_TABLES.light_table[0].addr(),
-        )?;
-        // The four lamp tables and, the other way, their colours.
-        let lamps = [
-            (
-                crate::scene::light_tables_store::LIGHT_TABLES.lamp_table_a[0].addr(),
-                STAGE_PREFS.lamp_table_a[0].addr(),
-            ),
-            (
-                crate::scene::light_tables_store::LIGHT_TABLES.lamp_table_b[0].addr(),
-                STAGE_PREFS.lamp_table_b[0].addr(),
-            ),
-            (
-                crate::scene::light_tables_store::LIGHT_TABLES.car_light_table[0].addr(),
-                STAGE_PREFS.car_light_table[0].addr(),
-            ),
-            (
-                crate::scene::light_tables_store::LIGHT_TABLES.lamp_table_c[0].addr(),
-                STAGE_PREFS.lamp_table_c.addr(),
-            ),
-        ];
-        for (table, colour) in lamps {
-            let colour = if plain { plain_colours } else { colour };
-            fill_light_scale(colour as u32, table)?;
-        }
-        Ok(())
+        fill_light_scale(colour, table);
     }
+    Ok(())
 }

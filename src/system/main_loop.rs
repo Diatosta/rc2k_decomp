@@ -31,66 +31,56 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::framework::log;
-use crate::pointers::GamePtr;
+use crate::session::{Cell32, Word};
 
 // ---- game data ----
 
-/// The variables the loop reads and writes, in the order of `Vars`'s fields.
-const VARS: [usize; 12] = [
-    0, // dword_518390: the stack pointer at entry, 0 before (`session`)
-    0, // dword_51837C: the quit switch (`session`)
-    0, // dword_518374: the window is the active one (`session`)
-    0, // dword_518998: counted up by the key thread (`session`)
-    0, // dword_51838C (`session`)
-    0, // dword_518080 (`sound::store`)
-    0, // word_51D752: 0xBD when the installer's script is set up (`install::vars`)
-    0, // g_installing (`install::vars`)
-    0, // dword_51B9CC (`install::vars`)
-    0, // dword_51B9D0 (`install::vars`)
-    0, // g_baseDirectory (`files::state`)
-    0, // dword_5AB290: `g_lobbyLaunched` (`net::store`)
-];
 const ENTERING_RVA: &std::ffi::CStr = c"Entering main loop..."; // "Entering main loop..."
 const LEAVING_RVA: &std::ffi::CStr = c"Leaving main loop..."; // "Leaving main loop..."
 const INSTALLER_MARK: u16 = 0xBD;
 
-/// Where the loop's variables are: the game's own, or a test's.
-#[derive(Clone, Copy)]
-pub struct Vars(pub [GamePtr; 12]);
+/// The variables the loop reads and writes, by `Vars`'s index: 0 `g_mainLoopStack`
+/// (dword_518390, the stack pointer at entry, 0 before), 1 the quit switch (dword_51837C),
+/// 2 the window is the active one (dword_518374), 3 the key thread's turns (dword_518998),
+/// 4 dword_51838C, 5 dword_518080 (`sound::store`), 7 `g_installing`, 8 dword_51B9CC,
+/// 9 dword_51B9D0 (`install::vars`), 11 `g_lobbyLaunched` (dword_5AB290, `net::store`).
+/// word_51D752 (0xBD when the installer's script is set up) and the base directory's first
+/// character are read apart.
+pub struct Vars {
+    cells: [&'static dyn Cell32; 12],
+    installer_mark: &'static Word,
+}
 
 impl Vars {
     fn game() -> Self {
+        use crate::install::vars::{INSTALLER_PAGES, INSTALLER_RUN};
         use crate::session::{CLOCKS, FLAGS};
-        let at = |address: usize| GamePtr::new(address as u32);
-        let mut vars = VARS.map(|v| {
-            if v == 0 {
-                GamePtr::new(0)
-            } else {
-                at(crate::moved::place(v))
-            }
-        });
-        vars[0] = at(FLAGS.main_loop_stack.addr() as usize);
-        vars[1] = at(FLAGS.quitting.addr() as usize);
-        vars[2] = at(FLAGS.window_active.addr() as usize);
-        vars[3] = at(CLOCKS.key_ticks.addr() as usize);
-        vars[4] = at(FLAGS.f38c.addr() as usize);
-        vars[5] = at(crate::sound::store::SETTINGS_APPLIED.done.addr() as usize);
-        vars[6] = at(crate::install::vars::INSTALLER_PAGES.script_set_up.addr() as usize);
-        vars[7] = at(crate::install::vars::INSTALLER_RUN.installing.addr() as usize);
-        vars[8] = at(crate::install::vars::INSTALLER_RUN.updating.addr() as usize);
-        vars[9] = at(crate::install::vars::INSTALLER_RUN.from_command.addr() as usize);
-        vars[10] =
-            at((crate::pointers::game_address(crate::files::state::base_directory())) as usize);
-        vars[11] = at(crate::net::store::NET.lobby_launched.addr() as usize);
-        Self(vars)
+        Self {
+            cells: [
+                &FLAGS.main_loop_stack,
+                &FLAGS.quitting,
+                &FLAGS.window_active,
+                &CLOCKS.key_ticks,
+                &FLAGS.f38c,
+                &crate::sound::store::SETTINGS_APPLIED.done,
+                &FLAGS.f38c, // not read: word_51D752 is `installer_mark`
+                &INSTALLER_RUN.installing,
+                &INSTALLER_RUN.updating,
+                &INSTALLER_RUN.from_command,
+                &FLAGS.f38c, // not read: the base directory
+                &crate::net::store::NET.lobby_launched,
+            ],
+            installer_mark: &INSTALLER_PAGES.script_set_up,
+        }
     }
 
     fn get(&self, n: usize) -> Result<u32, BadInput> {
-        self.0[n].read::<u32>("the main loop's variable")
+        Ok(self.cells[n].bits())
     }
 
     fn set(&self, n: usize, value: u32) -> Result<(), BadInput> {
-        self.0[n].write(value, "the main loop's variable")
+        self.cells[n].set_bits(value);
+        Ok(())
     }
 }
 
@@ -117,6 +107,13 @@ pub enum Call {
     SaveGameData,
     FreeBestTimes,
     RequestQuit,
+}
+
+/// The base directory's first character (`g_baseDirectory`).
+fn base_drive() -> u8 {
+    // SAFETY: `DIRECTORIES` is a Rust static of 0x200 bytes; the main thread alone writes
+    // it, at start-up, as the original's did.
+    unsafe { *crate::files::state::base_directory() }
 }
 
 pub type Outside<'a> = &'a mut dyn FnMut(Call) -> Result<(), Refused>;
@@ -162,7 +159,7 @@ pub fn main_loop(vars: &Vars, stack: u32, outside: Outside) -> Result<(), Refuse
         // with `-u` (`dword_51B9CC`) it uninstalls where it is: its record is in the
         // installed folder, so the uninstall runs from there (the original's ran from the
         // CD, through the update's mark).
-        if vars.0[6].read::<u16>("the installer's mark")? == INSTALLER_MARK
+        if vars.installer_mark.get() == INSTALLER_MARK
             || crate::install::portable::is_source_folder()
             || vars.get(8)? == 1
         {
@@ -176,9 +173,7 @@ pub fn main_loop(vars: &Vars, stack: u32, outside: Outside) -> Result<(), Refuse
         vars.set(8, 0)?;
         vars.set(9, 0)?;
         outside(Call::Sub40FCAA)?;
-        outside(Call::IsCdDrive(
-            vars.0[10].read::<u8>("the base directory")?,
-        ))?;
+        outside(Call::IsCdDrive(base_drive()))?;
         if vars.get(11)? == 1 {
             outside(Call::Sub418DF4)?;
             return quit_and_leave(outside);

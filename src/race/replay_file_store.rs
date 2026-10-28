@@ -76,6 +76,24 @@ impl core::ops::Deref for InRaceBlock {
 
 pub static REPLAY_FILE: InRaceBlock = InRaceBlock;
 
+/// The index's dwords: "RCIB" .. the places, 0x3850 bytes.
+pub const INDEX_DWORDS: usize = 4 + 3600;
+
+impl ReplayFileBlock {
+    /// The replay index ("RCIB", the seal, the counts, the places) as its dwords in order,
+    /// read and written in place.
+    pub fn index(&self) -> &[Dword; INDEX_DWORDS] {
+        // SAFETY: `#[repr(C)]` dwords from `index_magic` to the end of `block_places`, with
+        // no padding (all `Dword`s), inside `self`.
+        unsafe {
+            &*(self as *const Self)
+                .cast::<u8>()
+                .add(core::mem::offset_of!(Self, index_magic))
+                .cast()
+        }
+    }
+}
+
 /// IDA 0x5BEC78, the first byte of the piece.
 pub const START: usize = 0x5BEC78;
 /// IDA 0x5C2518, the end of the piece.

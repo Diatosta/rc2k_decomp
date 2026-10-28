@@ -35,7 +35,6 @@ use crate::math::x87_run::{
     compare_full, float_hypot_to_int, int_toward_to_int, mul2_to_int, times_fist_compare,
 };
 use crate::physics::car_store::CAR;
-use crate::pointers::GamePtr;
 use crate::race::course_store::COURSE;
 use crate::race::norms::normalise_work_vector;
 use crate::race::numbers_store::NUMBERS;
@@ -44,14 +43,11 @@ use crate::race::tables_store::RACE_TABLES;
 use crate::race::vars_store::RACE_VARS;
 use crate::race::work_store::RACE_WORK;
 use crate::scene::view_matrix::cross_product;
+use crate::session::{Dword, Float};
 use rc2k_core::drive::computer_driver as driver;
 
 fn at(addr: u32) -> Result<u32, BadInput> {
     crate::race::course_places::read(addr, "the computer driver's data")
-}
-
-fn put(addr: u32, v: u32) -> Result<(), BadInput> {
-    GamePtr::new(addr).write(v, "the computer driver's data")
 }
 
 /// `table[n + k]`, the index held to the count less one (unsigned) as the original holds
@@ -74,29 +70,36 @@ fn face_point(face: u32) -> Result<(u32, u32), BadInput> {
     ))
 }
 
-/// `sub_463296` then `sub_4632AE`: (to - from) in x and z, y 0, as floats, at `out`.
-fn flat_way(from: u32, to: u32, out: u32) -> Result<(), BadInput> {
-    put(out, at(to)?.wrapping_sub(at(from)?))?;
-    put(out + 8, at(to + 8)?.wrapping_sub(at(from + 8)?))?;
-    put(out + 4, 0)?;
-    for o in [0, 4, 8] {
-        put(out + o, x87::from_int(at(out + o)? as i32))?;
+/// `sub_463296` then `sub_4632AE`: (to - from) in x and z, y 0, as floats, into `out`
+/// (the whole numbers written first, then each turned into a float in place).
+fn flat_way(from: &[Dword], to: &[Dword], out: &[Float]) {
+    let x = to[0].get().wrapping_sub(from[0].get());
+    let z = to[2].get().wrapping_sub(from[2].get());
+    for (o, v) in out.iter().zip([x, 0, z]) {
+        o.set_bits(x87::from_int(v as i32));
     }
-    Ok(())
 }
 
-/// Through `g_workVector` and `race::normalise_work_vector`: the vector at `from` made one
+/// Through `g_workVector` and `race::normalise_work_vector`: the vector `from` made one
 /// long into `to`.
-fn normalised(from: u32, to: u32) -> Result<(), BadInput> {
-    let w = FRAME_SCRATCH.work_vector[0].addr();
-    for o in [0, 4, 8] {
-        put(w + o, at(from + o)?)?;
+fn normalised(from: &[Float], to: &[Float]) {
+    let w = &FRAME_SCRATCH.work_vector;
+    for k in 0..3 {
+        w[k].set(from[k].bits());
     }
     normalise_work_vector();
-    for o in [0, 4, 8] {
-        put(to + o, at(w + o)?)?;
+    for k in 0..3 {
+        to[k].set_bits(w[k].get());
     }
-    Ok(())
+}
+
+/// The slot's point in `points` (`driver_points_now` / `_then`, four dwords a slot), where
+/// `driver_point_now` / `_then` point.
+fn slot_point(points: &[Dword; 40], slot: u32) -> Result<&[Dword], BadInput> {
+    let at = 4 * slot as usize;
+    points
+        .get(at..at + 4)
+        .ok_or(BadInput("a computer driver's slot past the points"))
 }
 
 /// The Rust version.
@@ -192,10 +195,9 @@ pub fn drive_computer_car() -> Result<(), Refused> {
         RACE_WORK.driver_lookahead.get() == 1,
         CAR.wheel_surface_a[0].get(),
     )];
-    let listed = u32::from(
-        GamePtr::new((RACE_WORK.wanted_speeds[table].addr()).wrapping_add(bend))
-            .read::<u8>("the wanted speeds")?,
-    );
+    // The tables are bytes (`table_entry` at most 0x18: inside its table's 28).
+    let byte = 4 * table + bend as usize;
+    let listed = u32::from(RACE_WORK.wanted_speeds[byte / 4].get().to_le_bytes()[byte % 4]);
     let s = RACE_WORK.driver_slot.get();
     let near = RACE_WORK.driver_bend_to[s as usize].get() != 0;
     let want = driver::wanted_speed(
@@ -240,23 +242,17 @@ pub fn drive_computer_car() -> Result<(), Refused> {
     RACE_WORK.driver_to[2].set(z);
     RACE_WORK.driver_to[1].set(0);
     flat_way(
-        RACE_WORK.driver_from[0].addr(),
-        RACE_WORK.driver_to[0].addr(),
-        RACE_WORK.driver_flat[0].addr(),
-    )?;
-    normalised(
-        RACE_WORK.driver_flat[0].addr(),
-        RACE_WORK.driver_flat_unit[0].addr(),
-    )?;
+        &RACE_WORK.driver_from,
+        &RACE_WORK.driver_to,
+        &RACE_WORK.driver_flat,
+    );
+    normalised(&RACE_WORK.driver_flat, &RACE_WORK.driver_flat_unit);
     cross_product(
         &RACE_WORK.driver_flat_unit,
         &RACE_WORK.driver_vector,
         &RACE_WORK.driver_ahead,
     );
-    normalised(
-        RACE_WORK.driver_ahead[0].addr(),
-        RACE_WORK.driver_ahead[0].addr(),
-    )?;
+    normalised(&RACE_WORK.driver_ahead, &RACE_WORK.driver_ahead);
     let (k1, k2) = (RACE_WORK.driver_speed_scale.bits(), NUMBERS.k65536.bits());
     RACE_WORK
         .driver_step_x
@@ -274,22 +270,14 @@ pub fn drive_computer_car() -> Result<(), Refused> {
             .get()
             .wrapping_add(RACE_WORK.driver_step_z.get()),
     );
-    let here = RACE_WORK.driver_point_now.get();
-    put(here, CAR.position[0].get())?;
-    put(here + 8, CAR.position[2].get())?;
-    put(here + 4, 0)?;
-    flat_way(
-        here,
-        RACE_WORK.driver_to[0].addr(),
-        RACE_WORK.driver_way[0].addr(),
-    )?;
-    normalised(
-        RACE_WORK.driver_way[0].addr(),
-        RACE_WORK.driver_way_unit[0].addr(),
-    )?;
-    let m = CAR.crash_matrix[0].addr();
-    RACE_WORK.driver_side[2].set_bits(x87::loaded(at(m + 0x28)?));
-    RACE_WORK.driver_side[0].set_bits(x87::negated(at(m + 8)?));
+    let here = slot_point(&RACE_WORK.driver_points_now, slot)?;
+    here[0].set(CAR.position[0].get());
+    here[2].set(CAR.position[2].get());
+    here[1].set(0);
+    flat_way(here, &RACE_WORK.driver_to, &RACE_WORK.driver_way);
+    normalised(&RACE_WORK.driver_way, &RACE_WORK.driver_way_unit);
+    RACE_WORK.driver_side[2].set_bits(x87::loaded(CAR.crash_matrix[10].bits()));
+    RACE_WORK.driver_side[0].set_bits(x87::negated(CAR.crash_matrix[2].bits()));
     RACE_WORK.driver_side[1].set_bits(0);
     cross_product(
         &RACE_WORK.driver_side,
@@ -327,12 +315,12 @@ pub fn drive_computer_car() -> Result<(), Refused> {
     }
     RACE_WORK.driver_steps[s as usize].set(0);
     let (now, then) = (
-        RACE_WORK.driver_point_now.get(),
-        RACE_WORK.driver_point_then.get(),
+        slot_point(&RACE_WORK.driver_points_now, slot)?,
+        slot_point(&RACE_WORK.driver_points_then, slot)?,
     );
-    let (ax, az, cx, cz) = (at(now)?, at(now + 8)?, at(then)?, at(then + 8)?);
-    put(then, ax)?;
-    put(then + 8, az)?;
+    let (ax, az, cx, cz) = (now[0].get(), now[2].get(), then[0].get(), then[2].get());
+    then[0].set(ax);
+    then[2].set(az);
     let moved = driver::moved((ax, az), (cx, cz));
     RACE_WORK.driver_moved.set(moved);
     if !driver::stuck(moved) {

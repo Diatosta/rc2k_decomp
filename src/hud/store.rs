@@ -3,8 +3,8 @@
 //! rectangle table (`g_hudRects`), the quad record, the layouts' set-up values and floats,
 //! the dials' and needles' work variables, the batch's vertices (`unk_75C324`, 0x400 of
 //! them), indices (`unk_764324`, 0x600) and the two counts (`g_hudVertexCount`,
-//! `g_hudIndexCount`). Only `hud` and `d3d::draw_hud_batch` (which asks `vertices()` and
-//! `indices()`) read or write it. The image keeps the two pointers (0x764F2C, 0x764F30) the
+//! `g_hudIndexCount`). Only `hud` and `d3d::draw_hud_batch` (which reads `vertices` and
+//! `indices`) read or write it. The image keeps the two pointers (0x764F2C, 0x764F30) the
 //! original's batch drawer followed; nothing reads them now.
 //!
 //! One `#[repr(C)]` struct with the image's layout (`Hud`, the static `HUD`); the first
@@ -512,16 +512,6 @@ pub fn hud_addr() -> u32 {
     crate::pointers::game_address(&HUD as *const Hud)
 }
 
-/// The batch's vertices (`unk_75C324`), for the drawer.
-pub fn vertices() -> usize {
-    (crate::pointers::game_address(HUD.vertices.as_ptr())) as usize
-}
-
-/// The batch's indices (`unk_764324`), for the drawer.
-pub fn indices() -> usize {
-    (crate::pointers::game_address(HUD.indices.as_ptr())) as usize
-}
-
 /// The rectangle `n` of the table as an address (`add_sprite` is handed rectangles by
 /// address: the record's numbers are not checked, as in the original).
 pub fn rect_addr(n: u32) -> u32 {
@@ -550,8 +540,8 @@ mod tests {
     fn moved_knows_the_block() {
         assert_eq!(crate::moved::place(0x75C060), HUD.scratch.addr() as usize);
         assert_eq!(crate::moved::place(START), hud_addr() as usize);
-        assert_eq!(vertices(), (hud_addr() + 0x75C324 - START as u32) as usize);
-        assert_eq!(indices(), (hud_addr() + 0x764324 - START as u32) as usize);
+        assert_eq!(core::mem::offset_of!(Hud, vertices), 0x75C324 - START);
+        assert_eq!(core::mem::offset_of!(Hud, indices), 0x764324 - START);
         assert_eq!(
             HUD.vertex_count.addr(),
             hud_addr() + 0x764F24 - START as u32

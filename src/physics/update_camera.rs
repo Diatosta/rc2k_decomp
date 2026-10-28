@@ -51,7 +51,8 @@ use crate::race::numbers_store::NUMBERS;
 use crate::race::view_vars_store::VIEW_VARS;
 use crate::scene::draw_store::DRAW;
 use crate::scene::matrix3::rounded;
-use crate::scene::x87_mem::{fild, fistp, fld};
+use crate::scene::x87_mem::{fild, fld};
+use crate::session::Cell32;
 use rc2k_core::physics::camera_view;
 
 /// The fixed camera (the second chunk, 0x4380E9 ..): `second` the second tables.
@@ -171,54 +172,55 @@ pub fn steps() -> Result<(), Refused> {
     x87_6();
     // The offsets and turns: (to, from b, from a) each a + (b - a) x share, x 65536.
     let (work, offset_turns) = (&CAMERA_WORK, &CAR.camera_offset_turns);
-    for (to, x, y) in [
+    let rows: [(&dyn Cell32, &dyn Cell32, &dyn Cell32); 9] = [
         (
-            work.camera_offset_x.addr(),
-            work.view_b_offset[0].addr(),
-            work.view_a_offset[0].addr(),
+            &work.camera_offset_x,
+            &work.view_b_offset[0],
+            &work.view_a_offset[0],
         ),
         (
-            work.camera_offset_y.addr(),
-            work.view_b_offset[1].addr(),
-            work.view_a_offset[1].addr(),
+            &work.camera_offset_y,
+            &work.view_b_offset[1],
+            &work.view_a_offset[1],
         ),
         (
-            work.camera_offset_z.addr(),
-            work.view_b_offset[2].addr(),
-            work.view_a_offset[2].addr(),
+            &work.camera_offset_z,
+            &work.view_b_offset[2],
+            &work.view_a_offset[2],
         ),
         (
-            work.view_turn_x.addr(),
-            work.view_b_turn[0].addr(),
-            work.view_a_turn[0].addr(),
+            &work.view_turn_x,
+            &work.view_b_turn[0],
+            &work.view_a_turn[0],
         ),
         (
-            work.view_turn_y.addr(),
-            work.view_b_turn[1].addr(),
-            work.view_a_turn[1].addr(),
+            &work.view_turn_y,
+            &work.view_b_turn[1],
+            &work.view_a_turn[1],
         ),
         (
-            work.view_turn_z.addr(),
-            work.view_b_turn[2].addr(),
-            work.view_a_turn[2].addr(),
+            &work.view_turn_z,
+            &work.view_b_turn[2],
+            &work.view_a_turn[2],
         ),
         (
-            offset_turns[0].addr(),
-            work.view_b_point[0].addr(),
-            work.view_a_point[0].addr(),
+            &offset_turns[0],
+            &work.view_b_point[0],
+            &work.view_a_point[0],
         ),
         (
-            offset_turns[1].addr(),
-            work.view_b_point[1].addr(),
-            work.view_a_point[1].addr(),
+            &offset_turns[1],
+            &work.view_b_point[1],
+            &work.view_a_point[1],
         ),
         (
-            offset_turns[2].addr(),
-            work.view_b_point[2].addr(),
-            work.view_a_point[2].addr(),
+            &offset_turns[2],
+            &work.view_b_point[2],
+            &work.view_a_point[2],
         ),
-    ] {
-        x87_7(x as usize, y as usize, to as usize);
+    ];
+    for (to, x, y) in rows {
+        x87_7(x, y, to);
     }
     for turn in &CAR.camera_offset_turns {
         turn.set(turn.get() << 16);
@@ -406,17 +408,17 @@ fn x87_6() {
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `int [t + 0] = ((([x + 0] - [y + 0]) * [rc + 0x31A674]) + [y + 0]) * [rc + 0x1C5D98]`
-fn x87_7(x: usize, y: usize, t: usize) {
-    let t0 = fld(x, 0);
-    let t1 = fld(y, 0);
+fn x87_7(x: &dyn Cell32, y: &dyn Cell32, t: &dyn Cell32) {
+    let t0 = ld(x.bits());
+    let t1 = ld(y.bits());
     let t2 = t0 - t1;
     let t3 = ld(CAR.camera_switch_share.bits());
     let t4 = t2 * t3;
-    let t5 = fld(y, 0);
+    let t5 = ld(y.bits());
     let t6 = t4 + t5;
     let t7 = ld(NUMBERS.k65536.bits());
     let t8 = t6 * t7;
-    fistp(t, 0, t8);
+    t.set_bits(to_int(t8) as u32);
 }
 
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
@@ -587,7 +589,10 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_6(a[0], a[1], a[2], a[3]) },
-                plain: |a| x87_7(a[0], a[1], a[3]),
+                plain: |a| {
+                    use crate::scene::x87_mem::HostCell;
+                    x87_7(&HostCell(a[0]), &HostCell(a[1]), &HostCell(a[3]))
+                },
             },
             Block {
                 name: "update_camera line 257",

@@ -191,60 +191,45 @@ pub fn race_keys() -> Result<(), Refused> {
     Ok(())
 }
 
-/// `race::tyre_change` (0x444F7A), on the variables at `v` (`tyre_variables`' order; the
-/// last is the first of four dwords): `race::tyre_change_gauge` for player 0 started, then
-/// run, its time when done added. It reads no register at entry; the eax and esi it leaves
-/// are read by no caller (`drive::race_loop`).
-pub fn tyre_change_at(v: &[u32]) -> Result<(), Refused> {
+/// `race::tyre_change` (0x444F7A): the textures copied (`TyreChange::texture` /
+/// `device_texture` from `dword_5D1444` / `dword_5D2444`); for car 0 (block at 0x70F3EC:
+/// +0x268 "c1 tyrec" count `dword_70F654`, +0x26C the change's state `dword_70F658`,
+/// +0x298 the tyre bits `dword_70F684`, +0x88 the time `dword_70F474`, +0x354 .. +0x360
+/// `dword_70F740` .. `dword_70F74C`, one per bit 1 .. 4) `race::tyre_change_gauge`
+/// started, then run, its time when done added. It reads no register at entry; the eax and
+/// esi it leaves are read by no caller (`drive::race_loop`).
+pub fn tyre_change() -> Result<(), Refused> {
+    use crate::race::blocks_store::CAR_BLOCKS;
     use crate::race::tyre_change_gauge::tyre_change_gauge;
-    let get = |k: usize| GamePtr::new(v[k]).read::<u32>("a tyre change variable");
-    let put = |k: usize, x: u32| GamePtr::new(v[k]).write(x, "a tyre change variable");
-    put(0, get(2)?)?;
-    put(1, get(3)?)?;
-    if get(6)? & 0x1E != 0x1E && get(5)? == 0 && get(4)? >= 0x12C {
+    use crate::race::tyre_store::TYRE_CHANGE as TYRE;
+    use crate::scene::kind_texture_store::KIND_TEXTURES;
+    let car = &CAR_BLOCKS.cars[0];
+    TYRE.texture
+        .set(KIND_TEXTURES.kind_first_textures[599].get());
+    TYRE.device_texture
+        .set(KIND_TEXTURES.kind_first_slots[599].get());
+    if car.parts_present.get() & 0x1E != 0x1E
+        && car.tyre_change_state.get() == 0
+        && car.stopped_steps.get() >= 0x12C
+    {
         tyre_change_gauge(true, 0)?;
-        put(5, 1)?;
+        car.tyre_change_state.set(1);
     }
-    if get(5)? != 1 {
+    if car.tyre_change_state.get() != 1 {
         return Ok(());
     }
     let time = tyre_change_gauge(false, 0)?;
     if time == 0 {
         return Ok(());
     }
-    put(7, get(7)?.wrapping_add(time))?;
-    put(5, 0xFFFF_FED3)?;
+    car.stage_time.set(car.stage_time.get().wrapping_add(time));
+    car.tyre_change_state.set(0xFFFF_FED3);
     for bit in 1..=4 {
-        let bits = get(6)?;
-        put(6, bits | 1 << bit)?;
+        let bits = car.parts_present.get();
+        car.parts_present.set(bits | 1 << bit);
         if bits & 1 << bit == 0 {
-            GamePtr::new(v[8] + 4 * (bit - 1)).write(0u32, "a tyre change variable")?;
+            car.part_hit_damage[bit - 1].set_bits(0);
         }
     }
     Ok(())
-}
-
-/// `race::tyre_change`'s variables' addresses after the copies `TyreChange::texture` /
-/// `device_texture`: their sources `dword_5D1444` / `dword_5D2444`; car 0's (block at
-/// 0x70F3EC) +0x268 "c1 tyrec" count `dword_70F654`, +0x26C the change's state
-/// `dword_70F658`, +0x298 the tyre bits `dword_70F684`, +0x88 the time `dword_70F474`, and
-/// +0x354 .. +0x360 `dword_70F740` .. `dword_70F74C` (one per bit 1 .. 4).
-pub fn tyre_variables() -> Vec<u32> {
-    use crate::race::blocks_store::CAR_BLOCKS;
-    use crate::race::tyre_store::TYRE_CHANGE as TYRE;
-    use crate::scene::kind_texture_store::KIND_TEXTURES;
-    let car = &CAR_BLOCKS.cars[0];
-    [
-        TYRE.texture.addr(),
-        TYRE.device_texture.addr(),
-        KIND_TEXTURES.kind_first_textures[599].addr(), // dword_5D1444
-        KIND_TEXTURES.kind_first_slots[599].addr(),    // dword_5D2444
-        car.stopped_steps.addr(),                      // dword_70F654
-        car.tyre_change_state.addr(),                  // dword_70F658
-        car.parts_present.addr(),                      // dword_70F684
-        car.stage_time.addr(),                         // dword_70F474
-        car.part_hit_damage[0].addr(),                 // dword_70F740
-    ]
-    .map(|a| a)
-    .to_vec()
 }

@@ -13,17 +13,12 @@ use crate::race::vars_store::RACE_VARS;
 use crate::race::work_store::RACE_WORK;
 use crate::scene::object_store::OBJECT_WORK;
 
-// The stage's localdat is `STAGE_PREFS.prefs_head` (0x608CB4).
-pub const PREFS_LEN: u32 = 0x206C;
+// The stage's localdat is the whole of `STAGE_PREFS` (0x608CB4, 0x206C bytes).
 /// `files\levels\levelxx\localdat`, `srclvls\levelxx\localdat` (the xx the course's).
-fn prefs_paths() -> [usize; 2] {
+fn prefs_paths() -> [*const u8; 2] {
     let p = &crate::race::level_paths_store::LEVEL_PATHS;
-    [
-        p.localdat_files.addr() as usize,
-        p.localdat_src.addr() as usize,
-    ]
+    [p.localdat_files.as_ptr(), p.localdat_src.as_ptr()]
 }
-pub const LIGHTS_LEN: u32 = 0x1320;
 pub const LIGHT_RECORDS: u32 = rc2k_core::race::stage_objects::LIGHT_RECORDS as u32;
 
 /// `g_textureKinds`.
@@ -77,17 +72,12 @@ pub fn clear_prefs_qword() {
     }
 }
 
-/// `files::read_whole_file` inside `pusha`.
-fn read(path: usize, buffer: usize, count: u32) -> Result<(), Refused> {
-    crate::race::level_init::read(path as u32, buffer as u32, count)
-}
-
 /// `race::load_prefs` (0x445698): `files\levels\levelxx\localdat`, then
 /// `srclvls\levelxx\localdat`, each 0x206C bytes at most into 0x608CB4; then
 /// `swap_stage_texture`, `tweak_stage`, `clear_prefs_qword`.
 pub fn load_prefs() -> Result<(), Refused> {
     for path in prefs_paths() {
-        read(path, STAGE_PREFS.prefs_head[0].addr() as usize, PREFS_LEN)?;
+        crate::files::read_whole_file::read_whole_file_cells(path, STAGE_PREFS.dwords())?;
     }
     swap_stage_texture();
     tweak_stage();
@@ -126,11 +116,8 @@ pub fn init_skidmarks() -> Result<(), BadInput> {
 pub fn copy_lights_data() -> Result<(), BadInput> {
     // Converted: `rc2k_core::race::stage_objects::lay_lights`.
     use rc2k_core::race::stage_objects::{LIGHT_RECORD, lay_lights};
-    let (data, records) = (
-        crate::race::lights_store::LIGHTS_DATA.lights.addr(),
-        crate::race::light_records_store::LIGHT_RECORDS.record_addr(0),
-    );
-    let source = GamePtr::new(data).read_bytes(LIGHTS_LEN as usize, "the lights' data")?;
+    let records = crate::race::light_records_store::LIGHT_RECORDS.record_addr(0);
+    let source = crate::race::lights_store::LIGHTS_DATA.lights.read();
     let mut laid = GamePtr::new(records)
         .read_bytes(LIGHT_RECORDS as usize * LIGHT_RECORD, "the light records")?;
     lay_lights(&source, &mut laid);
@@ -140,10 +127,9 @@ pub fn copy_lights_data() -> Result<(), BadInput> {
 /// `race::load_lights_data` (0x438AE5): `files\s\data\ldata` (0x1320 bytes at most) into
 /// the lights' data, then `copy_lights_data`.
 pub fn load_lights_data() -> Result<(), Refused> {
-    read(
-        CAMERA_WORK.lights_path[0].addr() as usize, // "files\s\data\ldata"
-        crate::race::lights_store::LIGHTS_DATA.lights.addr() as usize,
-        LIGHTS_LEN,
+    crate::files::read_whole_file::read_whole_file_bytes(
+        CAMERA_WORK.lights_path.as_ptr().cast(), // "files\s\data\ldata"
+        &crate::race::lights_store::LIGHTS_DATA.lights,
     )?;
     copy_lights_data()?;
     Ok(())

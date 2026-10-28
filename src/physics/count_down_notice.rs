@@ -11,28 +11,18 @@
 //! above are the original's, for reference.
 
 use crate::physics::car_store::CAR;
-use crate::physics::cells::{get, put_changed};
+use crate::physics::cells::set_changed;
 use rc2k_core::physics::notices::Notice;
 
-/// The Rust version on (shown, time) at `v`. The registers the original leaves are read by none of its callers (eax).
-// Converted: `rc2k_core::physics::notices::Notice::count_down`.
-pub fn count_down_at(v: [u32; 2]) {
+/// The Rust version.
+pub fn count_down_notice() {
     let was = Notice {
-        shown: get(v[0]),
-        time: get(v[1]),
+        shown: CAR.notice_shown.get(),
+        time: CAR.notice_time.get(),
         ..Notice::default()
     };
     let mut n = was;
     n.count_down();
-    put_changed(v[1], was.time, n.time);
-    put_changed(v[0], was.shown, n.shown);
-}
-
-fn game() -> [u32; 2] {
-    [CAR.notice_shown.addr(), CAR.notice_time.addr()]
-}
-
-/// The Rust version.
-pub fn count_down_notice() {
-    count_down_at(game())
+    set_changed(&CAR.notice_time, was.time, n.time);
+    set_changed(&CAR.notice_shown, was.shown, n.shown);
 }

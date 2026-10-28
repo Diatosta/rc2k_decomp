@@ -12,29 +12,19 @@
 //! above are the original's, for reference.
 
 use crate::physics::car_store::CAR;
-use crate::physics::cells::{get, put_changed};
+use crate::physics::cells::set_changed;
 use crate::race::vars_store::RACE_VARS;
 use rc2k_core::physics::easing::ease_value;
 
-/// The Rust version on the variables at `v`. The registers the original leaves are read by none of its callers (eax).
-// Converted: `rc2k_core::physics::easing::ease_value`.
-pub fn ease_at(v: &[u32; 4]) {
-    let was = get(v[3]);
-    let mut value = was;
-    ease_value(get(v[0]), get(v[1]), get(v[2]), &mut value);
-    put_changed(v[3], was, value);
-}
-
-fn game() -> [u32; 4] {
-    [
-        RACE_VARS.scene_switch.addr(),
-        CAR.value_jump_steps.addr(),
-        CAR.eased_target.addr(),
-        CAR.eased_value.addr(),
-    ]
-}
-
 /// The Rust version.
 pub fn ease_car_value() {
-    ease_at(&game())
+    let was = CAR.eased_value.get();
+    let mut value = was;
+    ease_value(
+        RACE_VARS.scene_switch.get(),
+        CAR.value_jump_steps.get(),
+        CAR.eased_target.get(),
+        &mut value,
+    );
+    set_changed(&CAR.eased_value, was, value);
 }

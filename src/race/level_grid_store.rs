@@ -4,18 +4,18 @@
 //! Used by `race::frame_draw`, `scene::add_point_lights`, `scene::draw_polygon`, `race::course_faces`, `hud::overlay_pass`.
 //! Names are readings unless IDA's.
 
-use crate::session::{Dword, Float};
+use crate::session::{Bytes, Dword, Float};
 
 #[repr(C)]
 pub struct LevelGrid {
     /// +0x0 (0x63DC5C): the first of four 256-byte tables `object_bytes` fills (`race::frame_draw` `FACE_TABLES`); used in place (`byte_63DC5C`).
-    pub face_table_a: [Dword; 64],
+    pub face_table_a: Bytes<256>,
     /// +0x100 (0x63DD5C): the second face table (`byte_63DD5C`).
-    pub face_table_b: [Dword; 64],
+    pub face_table_b: Bytes<256>,
     /// +0x200 (0x63DE5C): the third face table (`byte_63DE5C`).
-    pub face_table_c: [Dword; 64],
+    pub face_table_c: Bytes<256>,
     /// +0x300 (0x63DF5C): the fourth face table (`byte_63DF5C`).
-    pub face_table_d: [Dword; 64],
+    pub face_table_d: Bytes<256>,
     /// +0x400 (0x63E05C): `g_lamps`: 16 lamps of 0x10 bytes (`race::frame_draw`, `scene::add_point_lights`); IDA splits `dword_63E060` / `dword_63E064` out of it.
     pub lamps: [Dword; 64],
     /// +0x500 (0x63E15C): the course grid's half size (`race::frame_draw`, `dword_63E15C`) (a reading).

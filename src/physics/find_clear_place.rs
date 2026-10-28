@@ -34,7 +34,7 @@ const PORKY: &std::ffi::CStr = c"porky"; // aPorky
 
 /// One try's calls (0x43BE4D .. 0x43BE61).
 fn try_place() -> Result<(), Refused> {
-    unsafe { crate::physics::probe_ground::probe_ground() }?;
+    { crate::physics::probe_ground::probe_ground() }?;
     crate::physics::crossed_edge::check()?;
     crate::physics::crossed_edge::steps()?;
     crate::physics::wall_contacts::check()?;

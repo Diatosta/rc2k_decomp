@@ -46,17 +46,15 @@ pub fn race_timers() -> Result<(), Refused> {
     if run == TimerRun::None {
         return Ok(());
     }
-    unsafe {
-        count_start_second();
-        if run == TimerRun::Start {
-            count_down_start()?;
-            take_split_counted()?;
-            start_go_notice()?;
-        } else {
-            take_split()?;
-        }
-        count_stop_timers();
-        mark_car_started();
+    count_start_second();
+    if run == TimerRun::Start {
+        count_down_start()?;
+        take_split_counted()?;
+        start_go_notice()?;
+    } else {
+        take_split()?;
     }
+    count_stop_timers();
+    mark_car_started();
     Ok(())
 }

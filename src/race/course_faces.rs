@@ -22,10 +22,22 @@ use crate::scene::light_store::LIGHT_STATE;
 use crate::scene::light_tables_store::LIGHT_TABLES;
 use crate::scene::light_work_store::LIGHT_WORK;
 use crate::scene::polygon_store::POLYGON_WORK;
+use crate::session::byte_of;
 use crate::session::{Dword, Float};
 
 fn get(a: u32) -> Result<u32, BadInput> {
     crate::race::course_places::read(a, "a course face, point or entry word")
+}
+
+/// The byte `n` of a byte table held as dwords; past it refused.
+fn table_byte(
+    cells: &[crate::session::Dword],
+    n: u32,
+    what: &'static str,
+) -> Result<u32, BadInput> {
+    byte_of(cells, n as usize)
+        .map(u32::from)
+        .ok_or(BadInput(what))
 }
 
 fn byte_at(a: u32) -> Result<u8, BadInput> {
@@ -148,13 +160,13 @@ pub fn face_materials(face: u32) -> Result<(), BadInput> {
         let clock: u32 = CAR_BLOCKS.cars[0].step_clock.bits();
         let (k1, k2) = (NUMBERS.ten.bits(), NUMBERS.quarter.bits());
         let texture = |object: u32, first: bool| -> Result<u32, BadInput> {
-            let speed = byte((STAGE_PREFS.face_speeds[0].addr()) + object)?;
+            let speed = table_byte(&STAGE_PREFS.face_speeds, object, "the face speeds")?;
             if speed == 0 {
                 return Ok(object);
             }
             let n = frame_of(
                 clock,
-                get((COURSE_LISTS.face_key_factors[0].addr()) + 4 * speed)?,
+                COURSE_LISTS.face_key_factors[speed as usize].bits(),
                 k1,
                 k2,
             );
@@ -163,7 +175,7 @@ pub fn face_materials(face: u32) -> Result<(), BadInput> {
             if first {
                 RACE_VIEW.face_frame.set(frame);
             }
-            byte((STAGE_PREFS.face_places[0].addr()) + place)
+            table_byte(&STAGE_PREFS.face_places, place, "the face places")
         };
         // Converted: `rc2k_core::race::faces::{frame_place, material_bits}` (the frame's
         // rounding the x87's).
@@ -824,10 +836,11 @@ fn turn_over() -> Result<(), BadInput> {
         let order: u32 = RACE_VIEW.order_a.get();
         let trap = Trap::new();
         let turned = turned_order(order, |n| {
-            trap.read::<u8>(
-                (RACE_VIEW.turned_corner_order[0].addr()) + n,
-                "the turned corner order",
-            )
+            // `turned_order` asks 0 ..= 7.
+            byte_of(&RACE_VIEW.turned_corner_order, n as usize).unwrap_or_else(|| {
+                trap.keep(BadInput("past the turned corner order"));
+                0
+            })
         });
         trap.finish()?;
         RACE_VIEW.order_a.set(turned);
@@ -948,7 +961,8 @@ pub unsafe fn draw_tinted_face(face: u32) -> Result<(), Refused> {
     unsafe {
         let colour: u32 = DRAW.polygon_colour.get();
         let object = byte_at(face + 1)? as u32;
-        let tint = get((STAGE_PREFS.object_tints[0].addr()) + 4 * object)?;
+        // `object` is a byte: inside the 256 tints.
+        let tint = STAGE_PREFS.object_tints[object as usize].get();
         if tints(tint) {
             DRAW.polygon_colour
                 .set(tinted(tint, colour, crate::race::frame_draw::has_mmx()));

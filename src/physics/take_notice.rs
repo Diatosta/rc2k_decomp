@@ -11,52 +11,26 @@
 //! Caller: `sub_43B635` (0x43B961), every physics step, right after `sub_4B0241`.
 
 use crate::physics::car_store::CAR;
-use crate::physics::cells::{get, put_changed};
-use crate::physics::queue_notice::Contacts;
+use crate::physics::cells::set_changed;
+use crate::physics::queue_notice::{load, store};
 use rc2k_core::physics::notices::Notice;
 
-/// The shown notice's variables: the game's, or a test's.
-#[derive(Clone, Copy)]
-pub struct Shown {
-    pub busy: u32,
-    pub id: u32,
-    pub time_a: u32,
-    pub time_b: u32,
-}
-
-impl Shown {
-    pub fn game() -> Self {
-        Self {
-            busy: (CAR.notice_shown.addr()),
-            id: (CAR.notice_id.addr()),
-            time_a: (CAR.notice_time_b.addr()),
-            time_b: (CAR.notice_time.addr()),
-        }
-    }
-}
-
-/// The Rust version on the variables at `s` and `q`.
-// Converted: `rc2k_core::physics::notices::Notice::take`.
-pub fn take_notice_at(s: &Shown, q: &Contacts) {
+/// The Rust version.
+pub fn take_notice() {
     let was = Notice {
-        id: get(s.id),
-        shown: get(s.busy),
-        time: get(s.time_b),
-        w708: get(s.time_a),
+        id: CAR.notice_id.get(),
+        shown: CAR.notice_shown.get(),
+        time: CAR.notice_time.get(),
+        w708: CAR.notice_time_b.get(),
         ..Notice::default()
     };
-    let queue = q.load();
+    let queue = load();
     let (mut notice, mut now) = (was, queue);
     if notice.take(&mut now).is_none() {
         return;
     }
-    put_changed(s.id, was.id, notice.id);
-    put_changed(s.time_a, was.w708, notice.w708);
-    put_changed(s.time_b, was.time, notice.time);
-    q.store(&queue, &now);
-}
-
-/// The Rust version.
-pub fn take_notice() {
-    take_notice_at(&Shown::game(), &Contacts::game())
+    set_changed(&CAR.notice_id, was.id, notice.id);
+    set_changed(&CAR.notice_time_b, was.w708, notice.w708);
+    set_changed(&CAR.notice_time, was.time, notice.time);
+    store(&queue, &now);
 }

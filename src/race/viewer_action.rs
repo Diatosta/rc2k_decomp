@@ -36,10 +36,8 @@
 use crate::errors::Refused;
 use crate::install::vars::INSTALLER_PAGES;
 use crate::menu::screen_loop::Carried;
-use crate::pointers::GamePtr;
 use crate::race::replay_file_store::REPLAY_FILE;
 use crate::race::replay_work_store::REPLAY_WORK;
-use crate::race::viewer::move_dwords;
 use crate::race::viewer_state_store::REPLAY_VIEW;
 
 /// The Rust version: whether the action is one (the zero flag the original leaves; it
@@ -245,19 +243,14 @@ fn cut(_r: &mut Carried) -> Result<(), Refused> {
         .index_block_count
         .set(REPLAY_FILE.index_block_count.get().wrapping_sub(count));
     let rest = (REPLAY_FILE.index_block_count.get() + count) - second;
+    use crate::race::viewer::{clear_cells, move_cells};
     for table in [
-        REPLAY_FILE.block_places[0].addr(),
-        crate::race::viewer_buffers_store::VIEWER_BUFFERS
-            .block_cameras
-            .addr(),
+        &REPLAY_FILE.block_places as &dyn crate::math::cells::Cells,
+        &crate::race::viewer_buffers_store::VIEWER_BUFFERS.block_cameras,
     ] {
-        move_dwords(
-            (table + (8 * first as usize) as u32) as usize,
-            (table + (8 * second as usize) as u32) as usize,
-            2 * rest as usize,
-        )?;
-        let end = table + (8 * (first + rest) as usize) as u32;
-        crate::pointers::GamePtr::new(end).fill(0, 8 * count as usize, "the marks table")?;
+        let (first, second, rest) = (2 * first as usize, 2 * second as usize, 2 * rest as usize);
+        move_cells(table, first, table, second, rest)?;
+        clear_cells(table, first + rest, 2 * count as usize)?;
     }
     crate::race::reset_marks::reset_marks()
 }
@@ -278,33 +271,22 @@ fn paste() -> Result<(), Refused> {
     // The blocks from the one shown up by the clipboard's count, from the top down.
     // (The original's `std; rep movsd` from the last dword, `dword_5BECD4` and
     // `unk_963BB0` + count * 8, down: a move that may overlap.)
-    for base in [
-        REPLAY_FILE.block_places[0].addr(),
-        crate::race::viewer_buffers_store::VIEWER_BUFFERS
-            .block_cameras
-            .addr(),
-    ] {
-        {
-            GamePtr::new(base + (8 * block as usize) as u32).copy_to(
-                GamePtr::new(base + (8 * (block + clip) as usize) as u32),
-                8 * (blocks - block) as usize,
-                "game data",
-            )?;
-        }
+    use crate::race::viewer::{move_cells, move_cells_back};
+    let v = &crate::race::viewer_buffers_store::VIEWER_BUFFERS;
+    let (at, clip_dwords) = (2 * block as usize, 2 * clip as usize);
+    let tables = [
+        (
+            &REPLAY_FILE.block_places as &dyn crate::math::cells::Cells,
+            &v.clip_places,
+        ),
+        (&v.block_cameras, &v.clip_cameras),
+    ];
+    for (table, _) in tables {
+        move_cells_back(table, at + clip_dwords, at, 2 * (blocks - block) as usize)?;
     }
-    move_dwords(
-        (REPLAY_FILE.block_places[0].addr() + (8 * block as usize) as u32) as usize,
-        crate::race::viewer_buffers_store::VIEWER_BUFFERS.clip_places[0].addr() as usize,
-        2 * clip as usize,
-    )?;
-    move_dwords(
-        (crate::race::viewer_buffers_store::VIEWER_BUFFERS
-            .block_cameras
-            .addr()
-            + (8 * block as usize) as u32) as usize,
-        crate::race::viewer_buffers_store::VIEWER_BUFFERS.clip_cameras[0].addr() as usize,
-        2 * clip as usize,
-    )?;
+    for (table, clipped) in tables {
+        move_cells(table, at, clipped, 0, clip_dwords)?;
+    }
     REPLAY_FILE.index_block_count.set(blocks + clip);
     crate::race::reset_marks::reset_marks()
 }

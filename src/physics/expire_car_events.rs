@@ -15,16 +15,14 @@
 //! 7.
 
 use crate::errors::Refused;
+use crate::physics::queue_car_event::{load, store};
+use crate::physics::tables_store::PHYSICS;
 
-use crate::physics::cells::get;
-use crate::physics::queue_car_event::QueuePlaces;
-
-/// The Rust version on the variables at `p`.
-// Converted: `rc2k_core::physics::car_events::CarEvents::expire`.
-pub fn expire_car_events_at(p: &QueuePlaces) -> Result<(), Refused> {
-    let was = p.load();
+/// The Rust version.
+pub fn expire_car_events() -> Result<(), Refused> {
+    let was = load();
     let mut q = was;
-    q.expire(get(p.clock))?;
-    p.store(&was, &q);
+    q.expire(PHYSICS.scene_clock.get())?;
+    store(&was, &q);
     Ok(())
 }

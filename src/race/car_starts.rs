@@ -49,11 +49,9 @@ fn settle_step(low: u32, high: u32, angle: &Dword, step: &Dword) {
 
 /// The matrix (`get_mat_crash`) and the wheels (`physics::probe_ground`).
 unsafe fn matrix_and_wheels() -> Result<[u32; 4], Refused> {
-    unsafe {
-        crate::race::stage_prefs::get_mat_crash();
-        crate::physics::probe_ground::probe_ground()?;
-        Ok(wheels())
-    }
+    crate::race::stage_prefs::get_mat_crash();
+    crate::physics::probe_ground::probe_ground()?;
+    Ok(wheels())
 }
 
 /// `race::settle_car` (0x43FC32): `sub_43EB5D` (`physics::set_handling`); the work car's

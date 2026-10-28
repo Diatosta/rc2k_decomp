@@ -18,9 +18,9 @@ const STATES: [(u32, u32); 5] = [(4, 0x15), (1, 0x1C), (5, 0x13), (2, 0x14), (1,
 pub struct Batch {
     pub count: &'static Dword,
     pub word: &'static Dword,
-    /// Where the vertices and indices are (the platform's draw takes their addresses).
-    pub vertices: usize,
-    pub indices: usize,
+    /// The platform's draw on the batch's vertices and indices (`sub_41ADF5`, its result),
+    /// given their counts.
+    pub draw: fn(u32, u32) -> u32,
     pub kept: &'static Dword,
     pub blend: u32,
     pub text: &'static std::ffi::CStr,
@@ -31,8 +31,14 @@ pub fn plain() -> Batch {
     Batch {
         count: &DRAW_BATCHES.plain_count,
         word: &DRAW_BATCHES.plain_word,
-        vertices: DRAW_BATCHES.plain_vertices.addr() as usize,
-        indices: DRAW_BATCHES.plain_indices.addr() as usize,
+        draw: |vertices, indices| {
+            crate::platform_3d::draw_indexed(
+                &DRAW_BATCHES.plain_vertices,
+                vertices,
+                &DRAW_BATCHES.plain_indices,
+                indices,
+            )
+        },
         kept: &DRAW_BATCHES.plain_kept,
         blend: 2,
         text: c"drawtri",
@@ -44,8 +50,14 @@ pub fn textured() -> Batch {
     Batch {
         count: &DRAW_BATCHES.textured_count,
         word: &DRAW_BATCHES.textured_word,
-        vertices: DRAW_BATCHES.textured_vertices.addr() as usize,
-        indices: DRAW_BATCHES.textured_indices.addr() as usize,
+        draw: |vertices, indices| {
+            crate::platform_3d::draw_indexed(
+                &DRAW_BATCHES.textured_vertices,
+                vertices,
+                &DRAW_BATCHES.textured_indices,
+                indices,
+            )
+        },
         kept: &DRAW_BATCHES.textured_kept,
         blend: 6,
         text: c"drawtri",
@@ -77,12 +89,7 @@ pub unsafe fn flush_batch(b: &Batch, textured: bool) -> Result<(), Refused> {
                 crate::scene::look_up_texture::look_up_texture();
                 set_texture(DRAW.polygon_texture.get());
             }
-            let result = crate::platform_3d::draw_indexed(
-                b.vertices as u32,
-                b.word.get(),
-                b.indices as u32,
-                count,
-            );
+            let result = (b.draw)(b.word.get(), count);
             if result != 0 {
                 crate::logfile::log_write::log_write(b.text.as_ptr().cast(), false, 1);
                 crate::logfile::log_hex8::log_hex8(result, false, 1);

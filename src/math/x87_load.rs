@@ -195,12 +195,10 @@ pub fn tbyte_to_int(a: [u8; 10]) -> u32 {
 /// depth, the scale, the centre's y and x. Flat: z dropped (into `scratch`, as a float)
 /// and the scale over the flat depth + 1; else the scale over z. Gives x as a float and
 /// rounded, y as a float and rounded (each `x r + cx` and `cy - y r`, r the ratio).
-pub fn sun_on_screen(v: &[u32; 7], flat: bool, scratch: *mut u32) -> [u32; 4] {
-    span(scratch, 4);
-
+pub fn sun_on_screen(v: &[u32; 7], flat: bool, scratch: &impl crate::session::Cell32) -> [u32; 4] {
     let (x, y, z) = (int(v[0] as i32), int(v[1] as i32), int(v[2] as i32));
     let ratio = if flat {
-        unsafe { scratch.write_unaligned(st(z)) };
+        scratch.set_bits(st(z));
         ld(v[4]) / (int(v[3] as i32) + X(1.0))
     } else {
         ld(v[4]) / z

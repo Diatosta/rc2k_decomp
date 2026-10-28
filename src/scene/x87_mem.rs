@@ -46,6 +46,22 @@ pub(crate) fn fld(base: impl Base, off: usize) -> X {
     ld(unsafe { operand(base, off, 4).cast::<u32>().read_unaligned() })
 }
 
+/// A test buffer's dword as a cell (checked in one live region, as `fld`).
+#[cfg(all(test, target_arch = "x86"))]
+pub(crate) struct HostCell(pub usize);
+
+#[cfg(all(test, target_arch = "x86"))]
+impl crate::session::Cell32 for HostCell {
+    fn bits(&self) -> u32 {
+        // SAFETY: checked in one live region.
+        unsafe { operand(self.0, 0, 4).cast::<u32>().read_unaligned() }
+    }
+    fn set_bits(&self, bits: u32) {
+        // SAFETY: checked in one live region.
+        unsafe { operand(self.0, 0, 4).cast::<u32>().write_unaligned(bits) }
+    }
+}
+
 /// `fild dword ptr [base + off]`.
 #[track_caller]
 pub(crate) fn fild(base: impl Base, off: usize) -> X {

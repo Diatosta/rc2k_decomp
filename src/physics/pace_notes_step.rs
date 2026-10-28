@@ -75,10 +75,6 @@ pub fn pace_notes_step() -> Result<(), Refused> {
         }
         CAR.last_pace_call.set(target);
     }
-    {
-        crate::physics::expire_car_events::expire_car_events_at(
-            &crate::physics::queue_car_event::QueuePlaces::game(),
-        )
-    }?;
+    crate::physics::expire_car_events::expire_car_events()?;
     Ok(())
 }

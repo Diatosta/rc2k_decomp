@@ -416,28 +416,26 @@ pub fn clip_shadow_to_face() -> Result<(), BadInput> {
 /// `dword_63982C`) through `physics::face_shares` and `physics::plane_height`, its y the
 /// height (`dword_639828`) plus `dword_641928`. Every register kept.
 fn raise_onto_face(index: u32) -> Result<(), Refused> {
-    use crate::physics::ground::{Ground, face_shares_at};
-    unsafe {
-        let p = scene_point(get(work_entry(index))?);
-        for k in 0..3 {
-            GROUND_WORK.face_corner_numbers[k].set_bits(FRAME_WORK.shadow_light[k].bits());
-        }
-        GROUND_WORK
-            .ground_x
-            .set(crate::race::scene_points::word(p)?);
-        GROUND_WORK
-            .ground_z
-            .set(crate::race::scene_points::word(p + 8)?);
-        face_shares_at(&Ground::game())?;
-        crate::physics::plane_height::plane_height();
-        crate::race::scene_points::put(
-            p + 4,
-            GROUND_WORK
-                .ground_height
-                .get()
-                .wrapping_add(FRAME_WORK.shadow_strength.bits()),
-        )?;
+    use crate::physics::ground::face_shares_at;
+    let p = scene_point(get(work_entry(index))?);
+    for k in 0..3 {
+        GROUND_WORK.face_corner_numbers[k].set_bits(FRAME_WORK.shadow_light[k].bits());
     }
+    GROUND_WORK
+        .ground_x
+        .set(crate::race::scene_points::word(p)?);
+    GROUND_WORK
+        .ground_z
+        .set(crate::race::scene_points::word(p + 8)?);
+    face_shares_at()?;
+    crate::physics::plane_height::plane_height();
+    crate::race::scene_points::put(
+        p + 4,
+        GROUND_WORK
+            .ground_height
+            .get()
+            .wrapping_add(FRAME_WORK.shadow_strength.bits()),
+    )?;
     Ok(())
 }
 

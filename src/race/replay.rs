@@ -25,7 +25,8 @@ use crate::store::{game_addr, game_write};
 /// Split 2026-10-25 from sound's dwords around it; `moved::MOVED` names IDA 0x4F66F9 here.
 pub static SEAL_KEY: crate::session::Dword = crate::session::Dword::new(0);
 
-pub const INDEX_LEN: u32 = 0x3850;
+// The index (`REPLAY_FILE.index()`) is 0x3850 bytes.
+const _: () = assert!(crate::race::replay_file_store::INDEX_DWORDS * 4 == 0x3850);
 pub const MOST_BLOCKS: u32 = rc2k_core::race::replay::MOST_BLOCKS;
 pub const BLOCK_LEN: u32 = 0x2810;
 pub const HEADER_LEN: u32 = 0x430;
@@ -322,11 +323,7 @@ pub unsafe fn close_replay() -> Result<(), Refused> {
         );
         REPLAY_VIEW.frames_in_block.set(frames);
         crate::race::race_shell::seal_stage_time()?;
-        write(
-            REPLAY_FILE.replay_handle.get(),
-            REPLAY_FILE.index_magic.addr(),
-            INDEX_LEN,
-        )?;
+        crate::files::handle::write_cells(REPLAY_FILE.replay_handle.get(), REPLAY_FILE.index());
         crate::files::handle::close(REPLAY_FILE.replay_handle.get());
         REPLAY_FILE.replay_open.set(0);
         REPLAY_FILE.replay_closed.set(1);
@@ -394,11 +391,9 @@ pub unsafe fn open_replay() -> Result<(), Refused> {
             0x400,
             "the replay header's stage",
         )?;
-        GamePtr::new(REPLAY_FILE.index_magic.addr()).fill(
-            0,
-            INDEX_LEN as usize,
-            "the replay index",
-        )?;
+        for cell in REPLAY_FILE.index() {
+            cell.set(0);
+        }
         REPLAY_FILE.index_magic.set(INDEX_MAGIC);
         crate::race::viewer_buffers_store::VIEWER_BUFFERS
             .block_cursor
@@ -417,11 +412,10 @@ pub unsafe fn open_replay() -> Result<(), Refused> {
                 REPLAY_VIEW
                     .file_offset
                     .set(REPLAY_VIEW.file_offset.get().wrapping_add(HEADER_LEN));
-                write(
+                !crate::files::handle::write_slice(
                     REPLAY_FILE.replay_handle.get(),
-                    REPLAYS.header.addr(),
-                    HEADER_LEN,
-                )?
+                    &REPLAYS.header.read(),
+                )
                 .1
             }
         };

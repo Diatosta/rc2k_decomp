@@ -11,15 +11,14 @@ use crate::menu::draw_work_store::DRAW_WORK;
 use crate::menu::lists_store::MENU_LISTS;
 use crate::menu::loop_store::LOOP_FLAGS;
 use crate::menu::state_store::MENU_STATE;
-use crate::screens::service_boxes::{at_esi, quad};
+use crate::screens::service_boxes::quad;
 
 /// The Rust version (see the header): the registers it leaves.
 #[allow(unused_assignments, clippy::needless_late_init)] // the translator's flags, one per `cmp`
 pub fn service_box_frame_4() -> Result<(), Refused> {
-    // The original's eax and esi: an item number or a value compared, and the address of
-    // the item's repair flag.
+    // The original's eax: an item number or a value compared (its repair flags indexed by
+    // it: the original's esi their address).
     let mut value = 0u32;
-    let mut flag = 0u32;
     let mut c: (u32, u32);
     c = (MENU_STATE.service_ui.box_shown.get(), 0x1);
     'l4940ba: {
@@ -45,8 +44,7 @@ pub fn service_box_frame_4() -> Result<(), Refused> {
                 break 'l49331c;
             }
             value = 0xF;
-            flag = (MENU_LISTS.inspection_flags_a[0].addr()).wrapping_add(value.wrapping_mul(4));
-            c = (at_esi(flag)?, 0x1);
+            c = (MENU_LISTS.inspection_flags_a[value as usize].get(), 0x1);
             if c.0 != c.1 {
                 break 'l4940ba;
             }

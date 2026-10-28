@@ -19,7 +19,6 @@
 //! above are the original's, for reference.
 
 use crate::errors::{BadInput, Refused};
-use crate::math::cells::At;
 use crate::physics::car_store::CAR;
 use crate::physics::car_store::Car;
 use crate::physics::contact_store::CONTACT_WORK;
@@ -29,10 +28,6 @@ use crate::race::vars_store::RACE_VARS;
 use crate::race::view_store::RACE_VIEW;
 use crate::race::work_store::RACE_WORK;
 use crate::scene::matrix::{multiply_matrices, set_place};
-
-fn rd(x: u32) -> u32 {
-    crate::pointers::read_or_end(x, "a car block's field")
-}
 
 /// The cars looked at: `g_raceCars`, at least one (the loop runs once).
 fn cars() -> u32 {
@@ -68,7 +63,7 @@ pub unsafe fn car_collisions() -> Result<(), Refused> {
             set_place([0usize, 1, 2].map(|k| {
                 CAR.position[k]
                     .get()
-                    .wrapping_sub(rd(block + 0x134 + 4 * k as u32))
+                    .wrapping_sub(Car::at(block).position[k].get())
             }));
             multiply_matrices(
                 &CAR.crash_matrix,
@@ -77,7 +72,7 @@ pub unsafe fn car_collisions() -> Result<(), Refused> {
             );
             multiply_matrices(
                 &MATRICES.turned_matrix,
-                &At(block + 0x9CC),
+                &Car::at(block).car_inverse_matrix,
                 &CONTACT_WORK.corner_matrix,
             );
             for k in 0..8 {

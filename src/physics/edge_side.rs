@@ -11,29 +11,12 @@
 //! Callers (8): `sub_442006`, the face under a point (each edge of a triangle or a quad).
 
 use crate::physics::flag_result::FlagResult;
+use crate::physics::ground_probe_store::GROUND_PROBE;
+use crate::physics::ground_store::GROUND_WORK;
 use rc2k_core::physics::faces;
 
-/// The point's and the scratch value's addresses: the game's, or a test's.
-#[derive(Clone, Copy)]
-pub struct EdgePlaces {
-    pub x: u32,
-    pub z: u32,
-    pub product: u32,
-}
-
-impl EdgePlaces {}
-
-fn at(a: u32) -> u32 {
-    crate::pointers::read_or_end::<u32>(a, "physics::edge_side's operand")
-}
-
-/// The Rust core; `eax` what eax held at entry is not needed (it is always set).
-// Converted: `rc2k_core::physics::faces::edge_side`.
-pub unsafe fn edge_side_at(
-    p: &EdgePlaces,
-    from: u32,
-    to: u32,
-) -> Result<FlagResult, crate::errors::Refused> {
+/// The Rust version: the ground point's side of the edge `from` .. `to` (scene points).
+pub fn edge_side(from: u32, to: u32) -> Result<FlagResult, crate::errors::Refused> {
     let result = |eax, carry, zero| FlagResult {
         eax,
         ecx: None,
@@ -41,20 +24,19 @@ pub unsafe fn edge_side_at(
         carry,
         zero: Some(zero),
     };
-    unsafe {
-        let point = (at(p.x), at(p.z));
-        let scene = |a: u32| -> Result<(u32, u32), crate::errors::BadInput> {
-            Ok((
-                crate::race::scene_points::word(a)?,
-                crate::race::scene_points::word(a + 8)?,
-            ))
-        };
-        Ok(match faces::edge_side(point, scene(from)?, scene(to)?) {
-            None => result(1, false, false),
-            Some((kept, negative)) => {
-                (crate::pointers::host(p.product) as *mut i64).write_unaligned(kept);
-                result(0, negative, true)
-            }
-        })
-    }
+    let point = (GROUND_WORK.ground_x.get(), GROUND_WORK.ground_z.get());
+    let scene = |a: u32| -> Result<(u32, u32), crate::errors::BadInput> {
+        Ok((
+            crate::race::scene_points::word(a)?,
+            crate::race::scene_points::word(a + 8)?,
+        ))
+    };
+    Ok(match faces::edge_side(point, scene(from)?, scene(to)?) {
+        None => result(1, false, false),
+        Some((kept, negative)) => {
+            GROUND_PROBE.product[0].set(kept as u32);
+            GROUND_PROBE.product[1].set((kept >> 32) as u32);
+            result(0, negative, true)
+        }
+    })
 }

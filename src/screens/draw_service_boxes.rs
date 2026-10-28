@@ -12,15 +12,14 @@ use crate::menu::draw_work_store::DRAW_WORK;
 use crate::menu::lists_store::MENU_LISTS;
 use crate::menu::loop_store::LOOP_FLAGS;
 use crate::menu::state_store::MENU_STATE;
-use crate::screens::service_boxes::{at_esi, quad};
+use crate::screens::service_boxes::quad;
 
 /// The Rust version (see the header): the registers it leaves.
 #[allow(unused_assignments, clippy::needless_late_init)] // the translator's flags, one per `cmp`
 pub fn draw_service_boxes() -> Result<(), Refused> {
-    // The original's eax and esi: an item number or a value compared, and the address of
-    // the item's repair flag.
+    // The original's eax: an item number (its repair flags indexed by it: the original's
+    // esi their address).
     let mut value = 0u32;
-    let mut flag = 0u32;
     let mut c: (u32, u32);
     quad(
         0x0,
@@ -298,15 +297,13 @@ pub fn draw_service_boxes() -> Result<(), Refused> {
     }
     MENU_STATE.service_ui.box_colour_b.set(0x4FCF);
     value = 0x2;
-    flag = (MENU_LISTS.inspection_flags_a[0].addr()).wrapping_add(value.wrapping_mul(4));
-    c = (at_esi(flag)?, 0x1);
+    c = (MENU_LISTS.inspection_flags_a[value as usize].get(), 0x1);
     'l494d54: {
         if c.0 != c.1 {
             break 'l494d54;
         }
         MENU_STATE.service_ui.box_colour_b.set(0x7F00);
-        flag = (MENU_LISTS.inspection_flags_b[0].addr()).wrapping_add(value.wrapping_mul(4));
-        c = (at_esi(flag)?, 0x1);
+        c = (MENU_LISTS.inspection_flags_b[value as usize].get(), 0x1);
         if c.0 != c.1 {
             break 'l494d54;
         }
@@ -388,15 +385,13 @@ pub fn draw_service_boxes() -> Result<(), Refused> {
     }
     MENU_STATE.service_ui.box_colour_b.set(0x4FCF);
     value = 0x3;
-    flag = (MENU_LISTS.inspection_flags_a[0].addr()).wrapping_add(value.wrapping_mul(4));
-    c = (at_esi(flag)?, 0x1);
+    c = (MENU_LISTS.inspection_flags_a[value as usize].get(), 0x1);
     'l4954bd: {
         if c.0 != c.1 {
             break 'l4954bd;
         }
         MENU_STATE.service_ui.box_colour_b.set(0x7F00);
-        flag = (MENU_LISTS.inspection_flags_b[0].addr()).wrapping_add(value.wrapping_mul(4));
-        c = (at_esi(flag)?, 0x1);
+        c = (MENU_LISTS.inspection_flags_b[value as usize].get(), 0x1);
         if c.0 != c.1 {
             break 'l4954bd;
         }
@@ -478,15 +473,13 @@ pub fn draw_service_boxes() -> Result<(), Refused> {
     }
     MENU_STATE.service_ui.box_colour_b.set(0x4FCF);
     value = 0x4;
-    flag = (MENU_LISTS.inspection_flags_a[0].addr()).wrapping_add(value.wrapping_mul(4));
-    c = (at_esi(flag)?, 0x1);
+    c = (MENU_LISTS.inspection_flags_a[value as usize].get(), 0x1);
     'l495c26: {
         if c.0 != c.1 {
             break 'l495c26;
         }
         MENU_STATE.service_ui.box_colour_b.set(0x7F00);
-        flag = (MENU_LISTS.inspection_flags_b[0].addr()).wrapping_add(value.wrapping_mul(4));
-        c = (at_esi(flag)?, 0x1);
+        c = (MENU_LISTS.inspection_flags_b[value as usize].get(), 0x1);
         if c.0 != c.1 {
             break 'l495c26;
         }
@@ -568,15 +561,13 @@ pub fn draw_service_boxes() -> Result<(), Refused> {
     }
     MENU_STATE.service_ui.box_colour_b.set(0x4FCF);
     value = 0x5;
-    flag = (MENU_LISTS.inspection_flags_a[0].addr()).wrapping_add(value.wrapping_mul(4));
-    c = (at_esi(flag)?, 0x1);
+    c = (MENU_LISTS.inspection_flags_a[value as usize].get(), 0x1);
     'l49638f: {
         if c.0 != c.1 {
             break 'l49638f;
         }
         MENU_STATE.service_ui.box_colour_b.set(0x7F00);
-        flag = (MENU_LISTS.inspection_flags_b[0].addr()).wrapping_add(value.wrapping_mul(4));
-        c = (at_esi(flag)?, 0x1);
+        c = (MENU_LISTS.inspection_flags_b[value as usize].get(), 0x1);
         if c.0 != c.1 {
             break 'l49638f;
         }
@@ -658,15 +649,13 @@ pub fn draw_service_boxes() -> Result<(), Refused> {
     }
     MENU_STATE.service_ui.box_colour_b.set(0x4FCF);
     value = 0x6;
-    flag = (MENU_LISTS.inspection_flags_a[0].addr()).wrapping_add(value.wrapping_mul(4));
-    c = (at_esi(flag)?, 0x1);
+    c = (MENU_LISTS.inspection_flags_a[value as usize].get(), 0x1);
     'l496af8: {
         if c.0 != c.1 {
             break 'l496af8;
         }
         MENU_STATE.service_ui.box_colour_b.set(0x7F00);
-        flag = (MENU_LISTS.inspection_flags_b[0].addr()).wrapping_add(value.wrapping_mul(4));
-        c = (at_esi(flag)?, 0x1);
+        c = (MENU_LISTS.inspection_flags_b[value as usize].get(), 0x1);
         if c.0 != c.1 {
             break 'l496af8;
         }
@@ -748,15 +737,13 @@ pub fn draw_service_boxes() -> Result<(), Refused> {
     }
     MENU_STATE.service_ui.box_colour_b.set(0x4FCF);
     value = 0x7;
-    flag = (MENU_LISTS.inspection_flags_a[0].addr()).wrapping_add(value.wrapping_mul(4));
-    c = (at_esi(flag)?, 0x1);
+    c = (MENU_LISTS.inspection_flags_a[value as usize].get(), 0x1);
     'l497261: {
         if c.0 != c.1 {
             break 'l497261;
         }
         MENU_STATE.service_ui.box_colour_b.set(0x7F00);
-        flag = (MENU_LISTS.inspection_flags_b[0].addr()).wrapping_add(value.wrapping_mul(4));
-        c = (at_esi(flag)?, 0x1);
+        c = (MENU_LISTS.inspection_flags_b[value as usize].get(), 0x1);
         if c.0 != c.1 {
             break 'l497261;
         }
@@ -838,15 +825,13 @@ pub fn draw_service_boxes() -> Result<(), Refused> {
     }
     MENU_STATE.service_ui.box_colour_b.set(0x4FCF);
     value = 0x8;
-    flag = (MENU_LISTS.inspection_flags_a[0].addr()).wrapping_add(value.wrapping_mul(4));
-    c = (at_esi(flag)?, 0x1);
+    c = (MENU_LISTS.inspection_flags_a[value as usize].get(), 0x1);
     'l4979ca: {
         if c.0 != c.1 {
             break 'l4979ca;
         }
         MENU_STATE.service_ui.box_colour_b.set(0x7F00);
-        flag = (MENU_LISTS.inspection_flags_b[0].addr()).wrapping_add(value.wrapping_mul(4));
-        c = (at_esi(flag)?, 0x1);
+        c = (MENU_LISTS.inspection_flags_b[value as usize].get(), 0x1);
         if c.0 != c.1 {
             break 'l4979ca;
         }
@@ -928,15 +913,13 @@ pub fn draw_service_boxes() -> Result<(), Refused> {
     }
     MENU_STATE.service_ui.box_colour_b.set(0x4FCF);
     value = 0x9;
-    flag = (MENU_LISTS.inspection_flags_a[0].addr()).wrapping_add(value.wrapping_mul(4));
-    c = (at_esi(flag)?, 0x1);
+    c = (MENU_LISTS.inspection_flags_a[value as usize].get(), 0x1);
     'l498133: {
         if c.0 != c.1 {
             break 'l498133;
         }
         MENU_STATE.service_ui.box_colour_b.set(0x7F00);
-        flag = (MENU_LISTS.inspection_flags_b[0].addr()).wrapping_add(value.wrapping_mul(4));
-        c = (at_esi(flag)?, 0x1);
+        c = (MENU_LISTS.inspection_flags_b[value as usize].get(), 0x1);
         if c.0 != c.1 {
             break 'l498133;
         }
@@ -1018,15 +1001,13 @@ pub fn draw_service_boxes() -> Result<(), Refused> {
     }
     MENU_STATE.service_ui.box_colour_b.set(0x4FCF);
     value = 0xA;
-    flag = (MENU_LISTS.inspection_flags_a[0].addr()).wrapping_add(value.wrapping_mul(4));
-    c = (at_esi(flag)?, 0x1);
+    c = (MENU_LISTS.inspection_flags_a[value as usize].get(), 0x1);
     'l49889c: {
         if c.0 != c.1 {
             break 'l49889c;
         }
         MENU_STATE.service_ui.box_colour_b.set(0x7F00);
-        flag = (MENU_LISTS.inspection_flags_b[0].addr()).wrapping_add(value.wrapping_mul(4));
-        c = (at_esi(flag)?, 0x1);
+        c = (MENU_LISTS.inspection_flags_b[value as usize].get(), 0x1);
         if c.0 != c.1 {
             break 'l49889c;
         }
@@ -1108,15 +1089,13 @@ pub fn draw_service_boxes() -> Result<(), Refused> {
     }
     MENU_STATE.service_ui.box_colour_b.set(0x4FCF);
     value = 0xB;
-    flag = (MENU_LISTS.inspection_flags_a[0].addr()).wrapping_add(value.wrapping_mul(4));
-    c = (at_esi(flag)?, 0x1);
+    c = (MENU_LISTS.inspection_flags_a[value as usize].get(), 0x1);
     'l499005: {
         if c.0 != c.1 {
             break 'l499005;
         }
         MENU_STATE.service_ui.box_colour_b.set(0x7F00);
-        flag = (MENU_LISTS.inspection_flags_b[0].addr()).wrapping_add(value.wrapping_mul(4));
-        c = (at_esi(flag)?, 0x1);
+        c = (MENU_LISTS.inspection_flags_b[value as usize].get(), 0x1);
         if c.0 != c.1 {
             break 'l499005;
         }
@@ -1198,15 +1177,13 @@ pub fn draw_service_boxes() -> Result<(), Refused> {
     }
     MENU_STATE.service_ui.box_colour_b.set(0x4FCF);
     value = 0xC;
-    flag = (MENU_LISTS.inspection_flags_a[0].addr()).wrapping_add(value.wrapping_mul(4));
-    c = (at_esi(flag)?, 0x1);
+    c = (MENU_LISTS.inspection_flags_a[value as usize].get(), 0x1);
     'l49976e: {
         if c.0 != c.1 {
             break 'l49976e;
         }
         MENU_STATE.service_ui.box_colour_b.set(0x7F00);
-        flag = (MENU_LISTS.inspection_flags_b[0].addr()).wrapping_add(value.wrapping_mul(4));
-        c = (at_esi(flag)?, 0x1);
+        c = (MENU_LISTS.inspection_flags_b[value as usize].get(), 0x1);
         if c.0 != c.1 {
             break 'l49976e;
         }
@@ -1288,15 +1265,13 @@ pub fn draw_service_boxes() -> Result<(), Refused> {
     }
     MENU_STATE.service_ui.box_colour_b.set(0x4FCF);
     value = 0xD;
-    flag = (MENU_LISTS.inspection_flags_a[0].addr()).wrapping_add(value.wrapping_mul(4));
-    c = (at_esi(flag)?, 0x1);
+    c = (MENU_LISTS.inspection_flags_a[value as usize].get(), 0x1);
     'l499ed7: {
         if c.0 != c.1 {
             break 'l499ed7;
         }
         MENU_STATE.service_ui.box_colour_b.set(0x7F00);
-        flag = (MENU_LISTS.inspection_flags_b[0].addr()).wrapping_add(value.wrapping_mul(4));
-        c = (at_esi(flag)?, 0x1);
+        c = (MENU_LISTS.inspection_flags_b[value as usize].get(), 0x1);
         if c.0 != c.1 {
             break 'l499ed7;
         }
@@ -1378,15 +1353,13 @@ pub fn draw_service_boxes() -> Result<(), Refused> {
     }
     MENU_STATE.service_ui.box_colour_b.set(0x4FCF);
     value = 0xE;
-    flag = (MENU_LISTS.inspection_flags_a[0].addr()).wrapping_add(value.wrapping_mul(4));
-    c = (at_esi(flag)?, 0x1);
+    c = (MENU_LISTS.inspection_flags_a[value as usize].get(), 0x1);
     'l49a640: {
         if c.0 != c.1 {
             break 'l49a640;
         }
         MENU_STATE.service_ui.box_colour_b.set(0x7F00);
-        flag = (MENU_LISTS.inspection_flags_b[0].addr()).wrapping_add(value.wrapping_mul(4));
-        c = (at_esi(flag)?, 0x1);
+        c = (MENU_LISTS.inspection_flags_b[value as usize].get(), 0x1);
         if c.0 != c.1 {
             break 'l49a640;
         }
@@ -1582,15 +1555,13 @@ pub fn draw_service_boxes() -> Result<(), Refused> {
     }
     MENU_STATE.service_ui.box_colour_b.set(0x4FCF);
     value = 0xF;
-    flag = (MENU_LISTS.inspection_flags_a[0].addr()).wrapping_add(value.wrapping_mul(4));
-    c = (at_esi(flag)?, 0x1);
+    c = (MENU_LISTS.inspection_flags_a[value as usize].get(), 0x1);
     'l49b64d: {
         if c.0 != c.1 {
             break 'l49b64d;
         }
         MENU_STATE.service_ui.box_colour_b.set(0x7F00);
-        flag = (MENU_LISTS.inspection_flags_b[0].addr()).wrapping_add(value.wrapping_mul(4));
-        c = (at_esi(flag)?, 0x1);
+        c = (MENU_LISTS.inspection_flags_b[value as usize].get(), 0x1);
         if c.0 != c.1 {
             break 'l49b64d;
         }
@@ -1840,15 +1811,13 @@ pub fn draw_service_boxes() -> Result<(), Refused> {
     }
     MENU_STATE.service_ui.box_colour_b.set(0x4FCF);
     value = 0x10;
-    flag = (MENU_LISTS.inspection_flags_a[0].addr()).wrapping_add(value.wrapping_mul(4));
-    c = (at_esi(flag)?, 0x1);
+    c = (MENU_LISTS.inspection_flags_a[value as usize].get(), 0x1);
     'l49cbd4: {
         if c.0 != c.1 {
             break 'l49cbd4;
         }
         MENU_STATE.service_ui.box_colour_b.set(0x7F00);
-        flag = (MENU_LISTS.inspection_flags_b[0].addr()).wrapping_add(value.wrapping_mul(4));
-        c = (at_esi(flag)?, 0x1);
+        c = (MENU_LISTS.inspection_flags_b[value as usize].get(), 0x1);
         if c.0 != c.1 {
             break 'l49cbd4;
         }
@@ -1936,15 +1905,13 @@ pub fn draw_service_boxes() -> Result<(), Refused> {
     }
     MENU_STATE.service_ui.box_colour_b.set(0x4FCF);
     value = 0x11;
-    flag = (MENU_LISTS.inspection_flags_a[0].addr()).wrapping_add(value.wrapping_mul(4));
-    c = (at_esi(flag)?, 0x1);
+    c = (MENU_LISTS.inspection_flags_a[value as usize].get(), 0x1);
     'l49d344: {
         if c.0 != c.1 {
             break 'l49d344;
         }
         MENU_STATE.service_ui.box_colour_b.set(0x7F00);
-        flag = (MENU_LISTS.inspection_flags_b[0].addr()).wrapping_add(value.wrapping_mul(4));
-        c = (at_esi(flag)?, 0x1);
+        c = (MENU_LISTS.inspection_flags_b[value as usize].get(), 0x1);
         if c.0 != c.1 {
             break 'l49d344;
         }
@@ -2032,15 +1999,13 @@ pub fn draw_service_boxes() -> Result<(), Refused> {
     }
     MENU_STATE.service_ui.box_colour_b.set(0x4FCF);
     value = 0x12;
-    flag = (MENU_LISTS.inspection_flags_a[0].addr()).wrapping_add(value.wrapping_mul(4));
-    c = (at_esi(flag)?, 0x1);
+    c = (MENU_LISTS.inspection_flags_a[value as usize].get(), 0x1);
     'l49dab4: {
         if c.0 != c.1 {
             break 'l49dab4;
         }
         MENU_STATE.service_ui.box_colour_b.set(0x7F00);
-        flag = (MENU_LISTS.inspection_flags_b[0].addr()).wrapping_add(value.wrapping_mul(4));
-        c = (at_esi(flag)?, 0x1);
+        c = (MENU_LISTS.inspection_flags_b[value as usize].get(), 0x1);
         if c.0 != c.1 {
             break 'l49dab4;
         }
@@ -2128,15 +2093,13 @@ pub fn draw_service_boxes() -> Result<(), Refused> {
     }
     MENU_STATE.service_ui.box_colour_b.set(0x4FCF);
     value = 0x13;
-    flag = (MENU_LISTS.inspection_flags_a[0].addr()).wrapping_add(value.wrapping_mul(4));
-    c = (at_esi(flag)?, 0x1);
+    c = (MENU_LISTS.inspection_flags_a[value as usize].get(), 0x1);
     'l49e224: {
         if c.0 != c.1 {
             break 'l49e224;
         }
         MENU_STATE.service_ui.box_colour_b.set(0x7F00);
-        flag = (MENU_LISTS.inspection_flags_b[0].addr()).wrapping_add(value.wrapping_mul(4));
-        c = (at_esi(flag)?, 0x1);
+        c = (MENU_LISTS.inspection_flags_b[value as usize].get(), 0x1);
         if c.0 != c.1 {
             break 'l49e224;
         }

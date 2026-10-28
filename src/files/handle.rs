@@ -131,6 +131,23 @@ pub fn read_slice(file: u32, into: &mut [u8]) -> (u32, bool) {
     }
 }
 
+/// `read` into dwords (a typed store's, their bytes in order); what the file does not
+/// reach is kept.
+pub fn read_cells(file: u32, cells: &[crate::session::Dword]) -> (u32, bool) {
+    let mut bytes: Vec<u8> = cells.iter().flat_map(|c| c.get().to_le_bytes()).collect();
+    let got = read_slice(file, &mut bytes);
+    for (c, b) in cells.iter().zip(bytes.as_chunks::<4>().0) {
+        c.set(u32::from_le_bytes(*b));
+    }
+    got
+}
+
+/// `write` from dwords (a typed store's, their bytes in order).
+pub fn write_cells(file: u32, cells: &[crate::session::Dword]) -> (u32, bool) {
+    let bytes: Vec<u8> = cells.iter().flat_map(|c| c.get().to_le_bytes()).collect();
+    write_slice(file, &bytes)
+}
+
 /// `read` into the game's memory at `to` (checked); a read that gets more than the memory
 /// holds is refused before anything is written.
 pub fn read_to(file: u32, to: GamePtr, count: u32, what: &str) -> Result<(u32, bool), BadInput> {

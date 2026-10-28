@@ -11,6 +11,10 @@ pub trait Cells {
     fn bits(&self, n: usize) -> u32;
     /// Cell `n` set to `bits`.
     fn set_bits(&self, n: usize, bits: u32);
+    /// How many cells there are (unbounded for a run at an address).
+    fn count(&self) -> usize {
+        usize::MAX
+    }
 }
 
 impl<C: Cell32> Cells for [C] {
@@ -19,6 +23,9 @@ impl<C: Cell32> Cells for [C] {
     }
     fn set_bits(&self, n: usize, bits: u32) {
         self[n].set_bits(bits)
+    }
+    fn count(&self) -> usize {
+        self.len()
     }
 }
 
@@ -29,6 +36,22 @@ impl<C: Cell32, const N: usize> Cells for [C; N] {
     fn set_bits(&self, n: usize, bits: u32) {
         self[n].set_bits(bits)
     }
+    fn count(&self) -> usize {
+        N
+    }
+}
+
+/// A byte buffer's little-endian dwords.
+impl<const N: usize> Cells for crate::session::Bytes<N> {
+    fn bits(&self, n: usize) -> u32 {
+        self.get_u32(4 * n)
+    }
+    fn set_bits(&self, n: usize, bits: u32) {
+        self.set_u32(4 * n, bits)
+    }
+    fn count(&self) -> usize {
+        N / 4
+    }
 }
 
 impl<T: Cells + ?Sized> Cells for &T {
@@ -38,11 +61,21 @@ impl<T: Cells + ?Sized> Cells for &T {
     fn set_bits(&self, n: usize, bits: u32) {
         (**self).set_bits(n, bits)
     }
+    fn count(&self) -> usize {
+        (**self).count()
+    }
 }
 
 /// The first `N` cells' bits.
 pub fn load<const N: usize>(cells: &(impl Cells + ?Sized)) -> [u32; N] {
     std::array::from_fn(|n| cells.bits(n))
+}
+
+/// The first `n` cells of `from` into `to`, in order (a `rep movsd`).
+pub fn copy_cells(from: &(impl Cells + ?Sized), to: &(impl Cells + ?Sized), n: usize) {
+    for k in 0..n {
+        to.set_bits(k, from.bits(k));
+    }
 }
 
 /// The cells at a game address (not typed yet): dword `n` at `+4 n`, checked as game

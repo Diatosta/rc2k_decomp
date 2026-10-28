@@ -32,7 +32,6 @@ use crate::math::cells::At;
 use crate::math::x87;
 use crate::math::x87_run::{abs_compare, abs_of, mul2_to_int, neg_mul, neg_product_plus};
 use crate::physics::axis_turn_matrix::axis_turn_matrix;
-use crate::physics::ground::Ground;
 use crate::physics::ground_store::GROUND_WORK;
 use crate::physics::tables_store::PHYSICS;
 use crate::race::course_lists_store::COURSE_LISTS;
@@ -68,11 +67,10 @@ pub fn slot_refusal(s: u32) -> Option<&'static str> {
     let k65536 = NUMBERS.k65536.bits();
     let moved = |c: u32, v: u32| at(s + c).wrapping_add(mul2_to_int(at(s + v), dt, k65536) as u32);
     let (x, z) = (moved(4, 0x50), moved(0xC, 0x58));
-    let g = Ground::game();
     let keep = (GROUND_WORK.ground_x.get(), GROUND_WORK.ground_z.get());
     GROUND_WORK.ground_x.set(x);
     GROUND_WORK.ground_z.set(z);
-    let why = crate::physics::ground::ground_refusal(&g);
+    let why = crate::physics::ground::ground_refusal();
     GROUND_WORK.ground_x.set(keep.0);
     GROUND_WORK.ground_z.set(keep.1);
     why

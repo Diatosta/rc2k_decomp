@@ -147,6 +147,15 @@ impl core::ops::Deref for InRaceBlock {
 
 pub static STAGE_PREFS: InRaceBlock = InRaceBlock;
 
+impl StagePrefs {
+    /// The piece as its dwords in order: the stage's `localdat` read in place.
+    pub fn dwords(&self) -> &[Dword; (END - START) / 4] {
+        // SAFETY: `#[repr(C)]`, every field a `Dword` or an array of them (no padding:
+        // the size assert below), so the piece is that many `Dword`s in a row.
+        unsafe { &*(self as *const Self).cast() }
+    }
+}
+
 /// IDA 0x608CB4, the first byte of the piece.
 pub const START: usize = 0x608CB4;
 /// IDA 0x60AD20, the end of the piece.

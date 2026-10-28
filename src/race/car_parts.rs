@@ -99,11 +99,7 @@ pub fn car_part_matrices(car: u32) -> Result<(), Refused> {
         OBJECT_WORK.place[1].get(),
         OBJECT_WORK.place[2].get(),
     ]);
-    GamePtr::new(MATRICES.placed_matrix[0].addr()).copy_to(
-        GamePtr::new(FRAME_WORK.placed_matrices[0].addr()),
-        0x40,
-        "the placed matrix",
-    )?;
+    crate::math::cells::copy_cells(&MATRICES.placed_matrix, &FRAME_WORK.placed_matrices, 16);
     // (x, z, the x turn, the height, the matrix): the four wheels.
     let (c, o) = (&CAMERA_WORK, &OBJECT_WORK);
     let parts = |n: usize| &FRAME_WORK.part_matrices[n..n + 16];

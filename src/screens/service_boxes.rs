@@ -13,11 +13,6 @@ pub fn set(a: &Dword, v: u32) {
     a.set(v);
 }
 
-/// The dword at `p` (the original's `[esi]`).
-pub fn at_esi(p: u32) -> Result<u32, crate::errors::BadInput> {
-    crate::pointers::GamePtr::new(p).read::<u32>("a game value")
-}
-
 /// One quad: x .. x + w, y .. y + h, the colour and see-through, then `draw_tinted_quad`.
 pub fn quad(x: u32, y: u32, w: u32, h: u32, colour: u32, see: u32) -> Result<(), Refused> {
     // dword_623DE8: colour, see-through; x at +0x28 / +0x2C, y at +0x38 / +0x3C (`quad_corners`)

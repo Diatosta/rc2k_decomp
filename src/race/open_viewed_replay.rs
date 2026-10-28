@@ -23,7 +23,6 @@ use crate::race::replay::REPLAYS;
 use crate::race::replay_file_store::REPLAY_FILE;
 use crate::race::replay_path::replay_path;
 use crate::race::replay_work_store::REPLAY_WORK;
-use crate::race::trap::file_read;
 use crate::race::viewer_state_store::REPLAY_VIEW;
 
 use rc2k_core::race::viewer_flow::{HEADER_LEN, INDEX_LEN};
@@ -68,24 +67,14 @@ pub fn open_viewed_replay(slot: u32) -> Result<bool, Refused> {
     REPLAY_FILE.replay_open.set(1);
     REPLAY_VIEW.replay_block.set(0);
     REPLAY_VIEW.replay_frame.set(0);
-    // A buffer read whole; whether the read is good (`read_good`).
-    let read = |buffer: usize, len: u32| -> Result<bool, Refused> {
-        let (n, ok) = file_read(
-            REPLAY_FILE.replay_handle.get(),
-            buffer as u32,
-            len,
-            "the replay's buffer",
-        )?;
-        let first = GamePtr::new(buffer as u32).read::<u32>("the replay's first word")?;
-        Ok(read_good(
-            !ok,
-            n,
-            len,
-            first,
-            buffer == REPLAYS.header.addr() as usize,
-        ))
+    // Whether a buffer's read is good (`read_good`), given its first word after.
+    let good = |(n, ok): (u32, bool), len: u32, first: fn() -> u32, header: bool| {
+        read_good(!ok, n, len, first(), header)
     };
-    if !read(REPLAYS.header.addr() as usize, HEADER_LEN)?
+    let mut header = REPLAYS.header.read();
+    let got = handle::read_slice(REPLAY_FILE.replay_handle.get(), &mut header);
+    REPLAYS.header.write(&header);
+    if !good(got, HEADER_LEN, || REPLAYS.header.get_u32(0), true)
         || !version_good(REPLAYS.header.get_u32(8))
     {
         return failed();
@@ -98,7 +87,14 @@ pub fn open_viewed_replay(slot: u32) -> Result<bool, Refused> {
             2,
         )
     };
-    if at.is_none() || !read(REPLAY_FILE.index_magic.addr() as usize, INDEX_LEN)? {
+    if at.is_none()
+        || !good(
+            handle::read_cells(REPLAY_FILE.replay_handle.get(), REPLAY_FILE.index()),
+            INDEX_LEN,
+            || REPLAY_FILE.index_magic.get(),
+            false,
+        )
+    {
         return failed();
     }
     match index_blocks(REPLAY_FILE.index_block_count.get()) {
@@ -111,12 +107,11 @@ pub fn open_viewed_replay(slot: u32) -> Result<bool, Refused> {
         if { crate::drive::read_replay_frame_0::read_replay_frame_0(block) }? {
             return failed();
         }
-        crate::race::viewer::move_dwords(
-            (crate::race::viewer_buffers_store::VIEWER_BUFFERS
-                .block_cameras
-                .addr()
-                + (8 * block as usize) as u32) as usize,
-            crate::race::viewer_buffers_store::VIEWER_BUFFERS.block[0].addr() as usize,
+        crate::race::viewer::move_cells(
+            &crate::race::viewer_buffers_store::VIEWER_BUFFERS.block_cameras,
+            2 * block as usize,
+            &crate::race::viewer_buffers_store::VIEWER_BUFFERS.block,
+            0,
             CAMERA_DWORDS,
         )?;
         block += 1;

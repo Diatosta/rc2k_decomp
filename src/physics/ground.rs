@@ -12,59 +12,21 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::physics::cells::Trap;
-use crate::physics::edge_side::{EdgePlaces, edge_side_at};
-use crate::physics::find_course_record::{RecordPlaces, find_course_record_at};
+use crate::physics::edge_side::edge_side;
+use crate::physics::find_course_record::find_course_record;
 use crate::physics::ground_store::GROUND_WORK;
-use crate::physics::plane_height::{Plane, plane_height_at};
+use crate::physics::plane_height::plane_height;
 use crate::race::course_store::COURSE;
-use crate::race::kind_records_store::KIND_RECORDS;
 use crate::race::numbers_store::NUMBERS;
 use crate::scene::draw_switches_store::DRAW_SWITCHES;
 use rc2k_core::physics::ground_search::{self, FaceTest};
 
-/// The ground variables, by IDA address (the tests' copies went with the hooks).
-#[derive(Clone, Copy)]
-pub struct Ground;
-
-impl Ground {
-    pub fn game() -> Self {
-        Self
-    }
-
-    pub fn edge(&self) -> EdgePlaces {
-        EdgePlaces {
-            x: GROUND_WORK.ground_x.addr(),
-            z: GROUND_WORK.ground_z.addr(),
-            product: crate::physics::ground_probe_store::GROUND_PROBE.product[0].addr(),
-        }
-    }
-
-    pub fn plane(&self) -> Plane {
-        Plane {
-            a: GROUND_WORK.face_corners[4].addr(),
-            b: GROUND_WORK.face_corners[7].addr(),
-            c: GROUND_WORK.face_corners[1].addr(),
-            f: GROUND_WORK.plane_f.addr(),
-            g: GROUND_WORK.plane_g.addr(),
-            out: GROUND_WORK.ground_height.addr(),
-        }
-    }
-
-    pub fn records(&self) -> RecordPlaces {
-        RecordPlaces {
-            firsts: KIND_RECORDS.first_records[0].addr(),
-            lasts: KIND_RECORDS.last_records[0].addr(),
-            records: COURSE.course_records.addr(),
-            count: COURSE.course_record_count.get(),
-        }
-    }
-
-    fn point(&self, index: u32) -> u32 {
-        COURSE
-            .scene_points
-            .get()
-            .wrapping_add(index.wrapping_mul(12))
-    }
+/// The scene point `index`'s address.
+fn point(index: u32) -> u32 {
+    COURSE
+        .scene_points
+        .get()
+        .wrapping_add(index.wrapping_mul(12))
 }
 
 fn at(a: u32) -> Result<u32, BadInput> {
@@ -76,10 +38,10 @@ fn at(a: u32) -> Result<u32, BadInput> {
 /// shares by the x87 (`math::x87_run::face_shares`; the `rcpss` way with the SSE switch).
 /// The registers it leaves (eax the last difference, ebx, ecx the third corner's y, z)
 /// are read by none of its callers.
-pub fn face_shares_at(g: &Ground) -> Result<(), Refused> {
+pub fn face_shares_at() -> Result<(), Refused> {
     let mut corner = [[0u32; 3]; 3];
     for (k, c) in corner.iter_mut().enumerate() {
-        let p = g.point(GROUND_WORK.face_corner_numbers[k].get());
+        let p = point(GROUND_WORK.face_corner_numbers[k].get());
         *c = crate::race::scene_points::point(p)?;
         for (n, &v) in c.iter().enumerate() {
             GROUND_WORK.face_corners[3 * k + n].set(v);
@@ -161,60 +123,58 @@ pub fn face_refusal(face: u32) -> Option<&'static str> {
 /// (ebx; see `physics/face_under_point.rs`): the carry. The registers it leaves are read
 /// by none of its callers (`search_record_faces`, `try_last_face`).
 // Converted: `rc2k_core::physics::ground_search::face_under_point`.
-pub unsafe fn face_under_point_at(g: &Ground, number: u32) -> Result<bool, Refused> {
-    unsafe {
-        if let Some(why) = face_refusal(number) {
-            return Err(BadInput(why).into());
-        }
-        COURSE.ground_number.set(number);
-        let face = (number << 6).wrapping_add(COURSE.course_faces.get());
-        let kind = crate::race::course_places::read::<u8>(face, "a course face's kind")?;
-        let trap = Trap::new();
-        // One edge.
-        let side = |from: u32, to: u32| -> Option<bool> {
-            if trap.failed() {
-                return None;
-            }
-            let s = at(face + from)
-                .and_then(|f| Ok((f, at(face + to)?)))
-                .map_err(Refused::from)
-                .and_then(|(f, t)| edge_side_at(&g.edge(), g.point(f), g.point(t)));
-            match s {
-                Ok(s) => (s.zero == Some(true)).then_some(s.carry),
-                Err(e) => {
-                    trap.refuse(e);
-                    None
-                }
-            }
-        };
-        let test = ground_search::face_under_point(
-            kind,
-            || trap.word(face + 2, "a course face's flags"),
-            crate::physics::ground_probe_store::GROUND_PROBE
-                .settle_mark
-                .get(),
-            |o| trap.dword(face + o, "a course face's corner"),
-            side,
-        );
-        trap.finish()?;
-        let (half, corners) = match test {
-            FaceTest::Kind | FaceTest::Flags(_) | FaceTest::Edge => return Ok(false),
-            FaceTest::Inside { half, corners } => (half, corners),
-        };
-        let number = COURSE.ground_number.get();
-        COURSE.ground_slot.set(number);
-        let face = (number << 6).wrapping_add(COURSE.course_faces.get());
-        COURSE.ground_half.set(half);
-        for (k, &o) in corners.iter().enumerate() {
-            let corner = at(face + o)?;
-            GROUND_WORK.face_corner_numbers[k].set(corner);
-            COURSE.ground_corners[k].set(corner);
-        }
-        face_shares_at(g)?;
-        GROUND_WORK.face_under_point_done.set(1);
-        plane_height_at(&g.plane());
-        Ok(true)
+pub fn face_under_point_at(number: u32) -> Result<bool, Refused> {
+    if let Some(why) = face_refusal(number) {
+        return Err(BadInput(why).into());
     }
+    COURSE.ground_number.set(number);
+    let face = (number << 6).wrapping_add(COURSE.course_faces.get());
+    let kind = crate::race::course_places::read::<u8>(face, "a course face's kind")?;
+    let trap = Trap::new();
+    // One edge.
+    let side = |from: u32, to: u32| -> Option<bool> {
+        if trap.failed() {
+            return None;
+        }
+        let s = at(face + from)
+            .and_then(|f| Ok((f, at(face + to)?)))
+            .map_err(Refused::from)
+            .and_then(|(f, t)| edge_side(point(f), point(t)));
+        match s {
+            Ok(s) => (s.zero == Some(true)).then_some(s.carry),
+            Err(e) => {
+                trap.refuse(e);
+                None
+            }
+        }
+    };
+    let test = ground_search::face_under_point(
+        kind,
+        || trap.word(face + 2, "a course face's flags"),
+        crate::physics::ground_probe_store::GROUND_PROBE
+            .settle_mark
+            .get(),
+        |o| trap.dword(face + o, "a course face's corner"),
+        side,
+    );
+    trap.finish()?;
+    let (half, corners) = match test {
+        FaceTest::Kind | FaceTest::Flags(_) | FaceTest::Edge => return Ok(false),
+        FaceTest::Inside { half, corners } => (half, corners),
+    };
+    let number = COURSE.ground_number.get();
+    COURSE.ground_slot.set(number);
+    let face = (number << 6).wrapping_add(COURSE.course_faces.get());
+    COURSE.ground_half.set(half);
+    for (k, &o) in corners.iter().enumerate() {
+        let corner = at(face + o)?;
+        GROUND_WORK.face_corner_numbers[k].set(corner);
+        COURSE.ground_corners[k].set(corner);
+    }
+    face_shares_at()?;
+    GROUND_WORK.face_under_point_done.set(1);
+    plane_height();
+    Ok(true)
 }
 
 /// `search_record_faces`' refusal, worked out without writing.
@@ -236,47 +196,40 @@ pub fn record_refusal(record: u32) -> Option<&'static str> {
 /// `physics::search_record_faces` (0x441FD9): faces +8 ..= +0xC of course record
 /// `record` (ebx), each by `face_under_point`; the carry when one has the point.
 // Converted: `rc2k_core::physics::ground_search::search_faces`.
-pub unsafe fn search_record_faces_at(g: &Ground, record: u32) -> Result<bool, Refused> {
-    unsafe {
-        if let Some(why) = record_refusal(record) {
-            return Err(BadInput(why).into());
-        }
-        let rec = (record << 5).wrapping_add(COURSE.course_records.get());
-        let (first, last) = (at(rec + 8)?, at(rec + 0xC)?);
-        let (found, _) =
-            ground_search::search_faces(first, last, |face| face_under_point_at(g, face))?;
-        Ok(found)
+pub fn search_record_faces_at(record: u32) -> Result<bool, Refused> {
+    if let Some(why) = record_refusal(record) {
+        return Err(BadInput(why).into());
     }
+    let rec = (record << 5).wrapping_add(COURSE.course_records.get());
+    let (first, last) = (at(rec + 8)?, at(rec + 0xC)?);
+    let (found, _) = ground_search::search_faces(first, last, face_under_point_at)?;
+    Ok(found)
 }
 
 /// `physics::search_cell` (0x441FBA): the cell of (`x`, `z`) (eax, ecx; each >> 21; key
 /// z << 11 + x), its record by `find_course_record`, then its faces. The carry when
 /// found.
 // Converted: `rc2k_core::physics::ground_search::cell_key`.
-pub unsafe fn search_cell_at(g: &Ground, x: u32, z: u32) -> Result<bool, Refused> {
-    unsafe {
-        let (key, _) = ground_search::cell_key(x, z);
-        let Some(record) = find_course_record_at(&g.records(), key)? else {
-            return Ok(false);
-        };
-        if let Some(why) = record_refusal(record) {
-            return Err(BadInput(why).into());
-        }
-        search_record_faces_at(g, record)
+pub fn search_cell_at(x: u32, z: u32) -> Result<bool, Refused> {
+    let (key, _) = ground_search::cell_key(x, z);
+    let Some(record) = find_course_record(key)? else {
+        return Ok(false);
+    };
+    if let Some(why) = record_refusal(record) {
+        return Err(BadInput(why).into());
     }
+    search_record_faces_at(record)
 }
 
 /// `physics::try_last_face` (0x441E0C): ebx = `dword_5CCC78`; when it is a face (not -1,
 /// below the count) `face_under_point` on it inside `pusha`/`popa`. The carry when found.
 // Converted: `rc2k_core::physics::ground_search::last_face`.
-pub unsafe fn try_last_face_at(g: &Ground) -> Result<bool, Refused> {
-    unsafe {
-        let last = COURSE.ground_face_last.get();
-        if ground_search::last_face(last, COURSE.course_face_count.get()).is_none() {
-            return Ok(false);
-        }
-        face_under_point_at(g, last)
+pub fn try_last_face_at() -> Result<bool, Refused> {
+    let last = COURSE.ground_face_last.get();
+    if ground_search::last_face(last, COURSE.course_face_count.get()).is_none() {
+        return Ok(false);
     }
+    face_under_point_at(last)
 }
 
 pub use rc2k_core::physics::ground_search::CELLS;
@@ -285,30 +238,27 @@ pub use rc2k_core::physics::ground_search::CELLS;
 /// `dword_5CCC74` = -1 and `search_cell` on the point plus each of `CELLS` until one
 /// finds it. `g_groundFound` 1 when found, else 0. Registers kept; the carry the found.
 // Converted: `rc2k_core::physics::ground_search::ground_search`.
-pub unsafe fn ground_search_at(g: &Ground) -> Result<bool, Refused> {
-    unsafe {
-        if let Some(why) = ground_refusal(g) {
-            return Err(BadInput(why).into());
-        }
-        let found = ground_search::ground_search(
-            || try_last_face_at(g),
-            || COURSE.ground_slot.set(ground_search::NO_FACE),
-            || (GROUND_WORK.ground_x.get(), GROUND_WORK.ground_z.get()),
-            |x, z| search_cell_at(g, x, z),
-        )?;
-        GROUND_WORK.ground_found.set(u32::from(found));
-        Ok(found)
+pub fn ground_search_at() -> Result<bool, Refused> {
+    if let Some(why) = ground_refusal() {
+        return Err(BadInput(why).into());
     }
+    let found = ground_search::ground_search(
+        try_last_face_at,
+        || COURSE.ground_slot.set(ground_search::NO_FACE),
+        || (GROUND_WORK.ground_x.get(), GROUND_WORK.ground_z.get()),
+        search_cell_at,
+    )?;
+    GROUND_WORK.ground_found.set(u32::from(found));
+    Ok(found)
 }
 
 /// `ground_search`'s refusals, worked out without writing: those of the cells' records it
 /// would come to (all nine are looked at; a refusal past the face found is refused too).
-pub fn ground_refusal(g: &Ground) -> Option<&'static str> {
-    let records = g.records();
+pub fn ground_refusal() -> Option<&'static str> {
     for (dx, dz) in CELLS {
         let x = GROUND_WORK.ground_x.get().wrapping_add(dx);
         let z = GROUND_WORK.ground_z.get().wrapping_add(dz);
-        match find_course_record_at(&records, ground_search::cell_key(x, z).0) {
+        match find_course_record(ground_search::cell_key(x, z).0) {
             Err(_) => return Some("a cell's kind runs past g_courseRecordCount"),
             Ok(Some(record)) => {
                 if let Some(why) = record_refusal(record) {

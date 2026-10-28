@@ -19,6 +19,6 @@ use crate::errors::Refused;
 use crate::physics::ground::*;
 
 /// The Rust version: the carry (the registers are kept).
-pub unsafe fn ground_search() -> Result<bool, Refused> {
-    unsafe { ground_search_at(&Ground::game()) }
+pub fn ground_search() -> Result<bool, Refused> {
+    ground_search_at()
 }

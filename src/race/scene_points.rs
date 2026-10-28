@@ -45,14 +45,51 @@ fn range(at: u32, len: usize) -> Option<std::ops::Range<usize>> {
     Some(start..start.checked_add(len)?)
 }
 
-/// `len` bytes at place `at`; refused outside the points.
+/// A refused access logged with its place, the points' and the caller (the refusal's
+/// text alone does not say which reader it was).
+fn outside(
+    what: &'static str,
+    at: u32,
+    len: usize,
+    caller: &std::panic::Location<'static>,
+) -> BadInput {
+    let held = POINTS.with(|p| p.len()).ok();
+    crate::framework::log(&format!(
+        "scene points: {what} of {len} bytes at {at:#x}; the points at {:#x}, {held:?} bytes; \
+         from {}",
+        base(),
+        caller
+    ));
+    BadInput(what)
+}
+
+/// `len` bytes at place `at`; refused outside the points, but for a read wholly in the
+/// twelve bytes before them (point -1, which `race::face_texture_coordinates` reads for a
+/// triangle's missing fourth corner: `notes/bugs.md`). The original's course memory had
+/// the faces right before the points (`CourseLayout`: records, faces, points), so those
+/// bytes are the last face's tail, read from the faces.
+#[track_caller]
 pub fn bytes(at: u32, len: usize) -> Result<Vec<u8>, BadInput> {
+    let caller = std::panic::Location::caller();
+    let before = base().wrapping_sub(at) as usize;
+    if at < base() && len <= before && before <= 12 {
+        let faces_len = crate::race::course_places::FACES.with(|f| f.len())?;
+        let from = faces_len
+            .checked_sub(before)
+            .ok_or_else(|| outside("a read before the scene points", at, len, caller))?;
+        return crate::race::course_places::bytes(
+            crate::race::course_places::faces_base() + from as u32,
+            len,
+            "the last face's tail, before the scene points",
+        );
+    }
     POINTS
         .with(|p| p.get(range(at, len)?).map(<[u8]>::to_vec))?
-        .ok_or(BadInput("a read outside the scene points"))
+        .ok_or_else(|| outside("a read outside the scene points", at, len, caller))
 }
 
 /// The dword at place `at`.
+#[track_caller]
 pub fn word(at: u32) -> Result<u32, BadInput> {
     let b = bytes(at, 4)?;
     Ok(u32::from_le_bytes([b[0], b[1], b[2], b[3]]))
@@ -60,11 +97,13 @@ pub fn word(at: u32) -> Result<u32, BadInput> {
 
 /// The dword at place `at`; outside the points the game ends (for the readers that
 /// cannot carry a refusal, as their reads of game memory did).
+#[track_caller]
 pub fn word_or_end(at: u32) -> u32 {
     word(at).unwrap_or_else(|e| crate::fatal::raise::end("a scene point", e))
 }
 
 /// The three dwords of the point at place `at`.
+#[track_caller]
 pub fn point(at: u32) -> Result<[u32; 3], BadInput> {
     let b = bytes(at, 12)?;
     Ok(std::array::from_fn(|k| {
@@ -78,16 +117,19 @@ pub fn place(n: u32) -> u32 {
 }
 
 /// `data` written at place `at`; refused outside the points.
+#[track_caller]
 pub fn write(at: u32, data: &[u8]) -> Result<(), BadInput> {
+    let caller = std::panic::Location::caller();
     POINTS
         .with(|p| {
             p.get_mut(range(at, data.len())?)
                 .map(|to| to.copy_from_slice(data))
         })?
-        .ok_or(BadInput("a write outside the scene points"))
+        .ok_or_else(|| outside("a write outside the scene points", at, data.len(), caller))
 }
 
 /// The dword at place `at` set to `v`.
+#[track_caller]
 pub fn put(at: u32, v: u32) -> Result<(), BadInput> {
     write(at, &v.to_le_bytes())
 }

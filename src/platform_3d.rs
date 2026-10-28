@@ -694,37 +694,67 @@ pub fn copy_screen_to_system_texture(number: u32) {
 
 /// An indexed triangle list (Direct3D's `DrawIndexedPrimitive` with type 4, as the scene's
 /// batches and the HUD hand it): each three indices (16 bits) one triangle of the
-/// vertices, drawn as a fan of three. An index past the vertices ends the list (Direct3D
-/// would have refused the call).
-pub fn draw_indexed_list(vertices: u32, vertex_count: u32, indices: u32, index_count: u32) {
-    use crate::d3d::VERTEX_LEN;
-    let (vertex_window, index_window) = (
-        crate::pointers::Window::new(),
-        crate::pointers::Window::new(),
-    );
-    let vertex = |n: u16| {
-        vertex_window
-            .read_or_end::<crate::d3d::Vertex>(vertices + n as u32 * VERTEX_LEN as u32, "a vertex")
-    };
+/// vertices, drawn as a fan of three; `vertex(n)` the vertex `n` (below `vertex_count`),
+/// `index(k)` the `k`-th index. An index past the vertices ends the list (Direct3D would
+/// have refused the call).
+pub fn draw_triangles(
+    vertex_count: u32,
+    index_count: u32,
+    vertex: impl Fn(u16) -> crate::d3d::Vertex,
+    index: impl Fn(usize) -> u16,
+) {
     for t in 0..(index_count / 3) as usize {
-        let at = |k: usize| {
-            index_window.read_or_end::<u16>(indices + 2 * (3 * t + k) as u32, "an index")
-        };
-        let corners = [at(0), at(1), at(2)];
+        let corners = [index(3 * t), index(3 * t + 1), index(3 * t + 2)];
         if corners.iter().any(|&n| u32::from(n) >= vertex_count) {
             return;
         }
-        draw_fan(&corners.map(vertex));
+        draw_fan(&corners.map(&vertex));
     }
 }
 
+/// `draw_triangles` on a batch's own buffers. A count past them ends the game (the
+/// original read on into what follows).
+pub fn draw_indexed_bytes<const V: usize, const I: usize>(
+    vertices: &crate::session::Bytes<V>,
+    vertex_count: u32,
+    indices: &crate::session::Bytes<I>,
+    index_count: u32,
+) {
+    use crate::d3d::VERTEX_LEN;
+    let past = |what: &str| -> ! {
+        crate::fatal::raise::end(what, crate::errors::BadInput("past its batch's buffer"))
+    };
+    draw_triangles(
+        vertex_count,
+        index_count,
+        |n| {
+            let at = n as usize * VERTEX_LEN;
+            if at + VERTEX_LEN > V {
+                past("a vertex")
+            }
+            std::array::from_fn(|k| vertices.get_u32(at + 4 * k))
+        },
+        |k| {
+            if 2 * k + 2 > I {
+                past("an index")
+            }
+            u16::from_le_bytes([indices.get(2 * k), indices.get(2 * k + 1)])
+        },
+    );
+}
+
 /// `sub_41ADF5` (`d3d::draw_indexed`), the platform's draw of the race's batches: the same
-/// call as `draw_indexed_list` (DrawIndexedPrimitive, type 4, flags 0x1C; the original takes
+/// call as `draw_triangles` (DrawIndexedPrimitive, type 4, flags 0x1C; the original takes
 /// edx the index count, ecx the indices, eax the vertex count, ebx the vertices). Returns
 /// Direct3D's result: 0, drawn. Its edx leftover is read by no caller (`lq.py -s`: the
 /// three sites read eax only, as `race::flush_draw_batch` and the two batch flushes do).
-pub fn draw_indexed(vertices: u32, vertex_count: u32, indices: u32, index_count: u32) -> u32 {
-    draw_indexed_list(vertices, vertex_count, indices, index_count);
+pub fn draw_indexed<const V: usize, const I: usize>(
+    vertices: &crate::session::Bytes<V>,
+    vertex_count: u32,
+    indices: &crate::session::Bytes<I>,
+    index_count: u32,
+) -> u32 {
+    draw_indexed_bytes(vertices, vertex_count, indices, index_count);
     0
 }
 

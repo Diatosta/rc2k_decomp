@@ -8,17 +8,17 @@
 //! a triangle list (4) of transformed and lit vertices (3) and no flags. Callers:
 //! `marks::hexagons_top`, `marks::hexagons_frame`.
 //! Platform: the original always runs. In the standalone program the rasteriser draws
-//! each triangle (`platform_3d::draw_indexed_list`) and the result is 0 (before 2026-10-19
+//! each triangle (`platform_3d::draw_triangles`) and the result is 0 (before 2026-10-19
 //! the standalone skipped it).
 
 use crate::gfx::hexagon_batch::HEXAGON_BATCH;
 
 /// The hexagons drawn: Direct3D's result, always 0 here.
 pub fn draw_marks_hexagons() -> u32 {
-    crate::platform_3d::draw_indexed_list(
-        HEXAGON_BATCH.records.addr(),
+    crate::platform_3d::draw_indexed_bytes(
+        &HEXAGON_BATCH.records,
         HEXAGON_BATCH.vertex_count.get(),
-        HEXAGON_BATCH.fans.addr(),
+        &HEXAGON_BATCH.fans,
         HEXAGON_BATCH.index_count.get(),
     );
     0

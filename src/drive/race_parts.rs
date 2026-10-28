@@ -34,7 +34,7 @@ pub fn race_keys() -> Result<(), Refused> {
 
 /// `race::tyre_change`.
 pub fn tyre_change() -> Result<(), Refused> {
-    crate::race::frame::tyre_change_at(&crate::race::frame::tyre_variables())?;
+    crate::race::frame::tyre_change()?;
     Ok(())
 }
 

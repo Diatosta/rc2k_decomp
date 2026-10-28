@@ -12,7 +12,7 @@ use crate::race::course_lists_store::COURSE_LISTS;
 use crate::race::course_store::COURSE;
 use crate::race::level_grid_store::LEVEL_GRID;
 use crate::race::prefs_store::STAGE_PREFS;
-use crate::race::trap::{Trap, span};
+use crate::race::trap::Trap;
 use crate::race::vars_store::RACE_VARS;
 use crate::scene::file_numbers_store::{FILE_NUMBERS, texts};
 
@@ -80,18 +80,6 @@ fn get(at: u32) -> Result<u32, BadInput> {
 
 fn put(at: u32, value: u32) -> Result<(), BadInput> {
     GamePtr::new(at).write(value, "a course variable")
-}
-
-/// `files::read_whole_file` (inside `pusha` in every caller: what it leaves is read by
-/// nobody).
-pub fn read(path: u32, buffer: u32, count: u32) -> Result<(), Refused> {
-    span(buffer, count as usize, "a file's buffer")?;
-    crate::files::read_whole_file::read_whole_file(
-        crate::pointers::host(path) as *const u8,
-        crate::pointers::host(buffer),
-        count,
-    )?;
-    Ok(())
 }
 
 /// `race::allocate_course_memory` (0x41F8C4): the course memory taken (`memory::allocate`
@@ -206,11 +194,11 @@ pub fn set_course_number(eax: u32) -> Result<(), BadInput> {
 /// `race::load_error_list` (0x439A92): the file named at 0x60AE02, 0x2000 bytes at most, to
 /// 0x637660.
 pub fn load_error_list() -> Result<(), Refused> {
-    read(
-        FILE_NUMBERS.text_addr(texts::ERROR_LIST_PATH),
-        crate::race::error_list_store::ERROR_LIST.list.addr(),
-        0x2000,
-    )
+    crate::files::read_whole_file::read_whole_file_bytes(
+        crate::pointers::host(FILE_NUMBERS.text_addr(texts::ERROR_LIST_PATH)),
+        &crate::race::error_list_store::ERROR_LIST.list,
+    )?;
+    Ok(())
 }
 
 /// `race::build_texture_infos` (0x4393A0): nothing without course info; else for each of

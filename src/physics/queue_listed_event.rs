@@ -9,26 +9,18 @@
 //! Caller: `sub_4418B3`. Refuses what `queue_car_event` refuses.
 
 use crate::errors::Refused;
-use crate::physics::queue_car_event::{QueuePlaces, queue_car_event_at};
+use crate::physics::queue_car_event::queue_car_event;
 use crate::physics::tables_store::PHYSICS;
 use rc2k_core::physics::car_events::listed_event;
 
-/// The core: the table at `table`, the queue at `q`.
-// Converted: `rc2k_core::physics::car_events::listed_event`.
-pub fn queue_listed_event_at(table: u32, q: &QueuePlaces, ebx: u32) -> Result<(), Refused> {
-    let entry = |n: u32| {
-        crate::pointers::read_or_end::<u32>(table + 4 * n, "physics::queue_listed_event's operand")
-    };
-    let Some((event, queued)) = listed_event(ebx, entry) else {
+/// The Rust version.
+pub fn queue_listed_event(ebx: u32) -> Result<(), Refused> {
+    let Some((event, queued)) = listed_event(ebx, |n| PHYSICS.listed_events[n as usize].get())
+    else {
         return Ok(());
     };
     if queued {
-        { queue_car_event_at(q, 0, event) }?;
+        queue_car_event(0, event)?;
     }
     Ok(())
-}
-
-/// The Rust version.
-pub fn queue_listed_event(ebx: u32) -> Result<(), Refused> {
-    queue_listed_event_at(PHYSICS.listed_events[0].addr(), &QueuePlaces::game(), ebx)
 }

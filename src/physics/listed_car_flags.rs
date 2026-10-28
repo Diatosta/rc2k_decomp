@@ -11,23 +11,18 @@
 //! anything) a current car past 7 (the table's size not worked out).
 
 use crate::errors::Refused;
-use crate::physics::cells::{get, put};
 use crate::race::frame_store::FRAME_WORK;
+use crate::session::Dword;
 use rc2k_core::physics::listed_cars::listed_entry;
 
-/// The Rust version: the current car at `current`, the table at `table`, the flag at
-/// `flag`.
-// Converted: `rc2k_core::physics::listed_cars::listed_entry`.
-pub fn set_flag_at(current: u32, table: u32, flag: u32) -> Result<(), Refused> {
-    let (_, listed) = listed_entry(get(current), |car| get(table + 4 * car))?;
+/// Sets `flag` to 1 when the current car is listed (`FRAME_WORK.listed_car_sounds`).
+pub fn set_flag(flag: &Dword) -> Result<(), Refused> {
+    let current = crate::race::work_store::RACE_WORK.current_car.get();
+    let (_, listed) = listed_entry(current, |car| {
+        FRAME_WORK.listed_car_sounds[car as usize].get()
+    })?;
     if listed {
-        put(flag, 1);
+        flag.set(1);
     }
     Ok(())
-}
-
-/// On the game's variables.
-pub fn set_flag(flag: &crate::session::Dword) -> Result<(), Refused> {
-    let current = crate::race::work_store::RACE_WORK.current_car.addr();
-    set_flag_at(current, FRAME_WORK.listed_car_sounds[0].addr(), flag.addr())
 }

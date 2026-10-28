@@ -11,6 +11,7 @@
 //! `run_both` compares the registers, the flags the callers read, the calls and memory.
 
 use crate::errors::BadInput;
+use crate::math::cells::Cells;
 use crate::pointers::GamePtr;
 
 // ---- the replay being viewed ----
@@ -29,11 +30,51 @@ pub fn camera_byte_at(offset: usize) -> Result<u8, BadInput> {
 
 // ---- the list menu (`menu::list_*`) ----
 
-/// `rep movsd` of `dwords` from `from` to `to` (absolute addresses), forwards.
-pub fn move_dwords(to: usize, from: usize, dwords: usize) -> Result<(), BadInput> {
+/// Whether `n` cells from `at` lie in `table`.
+fn inside(table: &dyn Cells, at: usize, n: usize) -> Result<(), BadInput> {
+    match at.checked_add(n) {
+        Some(end) if end <= table.count() => Ok(()),
+        _ => Err(BadInput("past a replay table")),
+    }
+}
+
+/// `rep movsd` of `dwords` from `from`'s cell `from_at` on to `to`'s cell `to_at` on,
+/// forwards; past either table refused before anything is written.
+pub fn move_cells(
+    to: &dyn Cells,
+    to_at: usize,
+    from: &dyn Cells,
+    from_at: usize,
+    dwords: usize,
+) -> Result<(), BadInput> {
+    inside(from, from_at, dwords)?;
+    inside(to, to_at, dwords)?;
     for n in 0..dwords {
-        let word: u32 = GamePtr::new((from + 4 * n) as u32).read("a replay table")?;
-        GamePtr::new((to + 4 * n) as u32).write(word, "a replay table")?;
+        to.set_bits(to_at + n, from.bits(from_at + n));
+    }
+    Ok(())
+}
+
+/// `std; rep movsd`: the same move from the last dword down (an overlapping move up).
+pub fn move_cells_back(
+    table: &dyn Cells,
+    to_at: usize,
+    from_at: usize,
+    dwords: usize,
+) -> Result<(), BadInput> {
+    inside(table, from_at, dwords)?;
+    inside(table, to_at, dwords)?;
+    for n in (0..dwords).rev() {
+        table.set_bits(to_at + n, table.bits(from_at + n));
+    }
+    Ok(())
+}
+
+/// `dwords` cells of `table` from `at` on set to 0.
+pub fn clear_cells(table: &dyn Cells, at: usize, dwords: usize) -> Result<(), BadInput> {
+    inside(table, at, dwords)?;
+    for n in 0..dwords {
+        table.set_bits(at + n, 0);
     }
     Ok(())
 }

@@ -13,62 +13,25 @@
 
 use crate::errors::Refused;
 use crate::physics::car_store::CAR;
-use crate::physics::listed_car_flags::set_flag_at;
-use crate::race::frame_store::FRAME_WORK;
+use crate::physics::listed_car_flags::set_flag;
 use rc2k_core::physics::start::{CarStart, StartCount};
 
-fn at(a: u32) -> u32 {
-    crate::pointers::read_or_end::<u32>(a, "physics::count_down_start's operand")
-}
-
-/// Where the variables are: +0xA8, the timer, the count; the twin's three.
-#[derive(Clone, Copy)]
-pub struct CountPlaces {
-    pub stop: u32,
-    pub timer: u32,
-    pub count: u32,
-    pub current: u32,
-    pub listed: u32,
-    pub flag: u32,
-}
-
-impl CountPlaces {
-    pub fn game() -> Self {
-        Self {
-            stop: CAR.finish_flag.addr(),
-            timer: (CAR.run_ticks.addr()),
-            count: (CAR.time_left.addr()),
-            current: crate::race::work_store::RACE_WORK.current_car.addr(),
-            listed: FRAME_WORK.listed_car_sounds[0].addr(),
-            flag: crate::sound::store::STAGE_SOUNDS.once[1].addr(),
-        }
-    }
-}
-
-/// The Rust version on the variables at `p`.
-// Converted: `rc2k_core::physics::start::CarStart::count_down_start`.
-pub unsafe fn count_down_start_at(p: &CountPlaces) -> Result<(), Refused> {
-    unsafe {
-        let mut c = CarStart {
-            finished: at(p.stop),
-            timer: at(p.timer),
-            countdown: at(p.count),
-            ..CarStart::default()
-        };
-        match c.count_down_start() {
-            StartCount::Stopped | StartCount::Waiting(_) => Ok(()),
-            StartCount::Counted { beep, .. } => {
-                (crate::pointers::host(p.count) as *mut u32).write_unaligned(c.countdown);
-                if beep {
-                    set_flag_at(p.current, p.listed, p.flag)?;
-                }
-                Ok(())
-            }
-        }
-    }
-}
-
 /// The Rust version.
-pub unsafe fn count_down_start() -> Result<(), Refused> {
-    unsafe { count_down_start_at(&CountPlaces::game()) }
+pub fn count_down_start() -> Result<(), Refused> {
+    let mut c = CarStart {
+        finished: CAR.finish_flag.get(),
+        timer: CAR.run_ticks.get(),
+        countdown: CAR.time_left.get(),
+        ..CarStart::default()
+    };
+    match c.count_down_start() {
+        StartCount::Stopped | StartCount::Waiting(_) => Ok(()),
+        StartCount::Counted { beep, .. } => {
+            CAR.time_left.set(c.countdown);
+            if beep {
+                set_flag(&crate::sound::store::STAGE_SOUNDS.once[1])?;
+            }
+            Ok(())
+        }
+    }
 }

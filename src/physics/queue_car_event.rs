@@ -13,62 +13,35 @@
 
 use crate::errors::Refused;
 use crate::physics::car_store::CAR;
-use crate::physics::cells::{get, get_list, put_changed, put_list_changed};
+use crate::physics::cells::{set_changed, set_values_changed, values};
 use crate::physics::tables_store::PHYSICS;
 use rc2k_core::physics::car_events::CarEvents;
 
-/// Where the variables are: the clock, the times, the events, the count, +0xF9C, +0xFA0.
-#[derive(Clone, Copy)]
-pub struct QueuePlaces {
-    pub clock: u32,
-    pub times: u32,
-    pub events: u32,
-    pub count: u32,
-    pub f9c: u32,
-    pub fa0: u32,
-}
-
-impl QueuePlaces {
-    pub fn game() -> Self {
-        Self {
-            clock: (PHYSICS.scene_clock.addr()),
-            times: (CAR.car_event_times[0].addr()),
-            events: (CAR.car_event_codes[0].addr()),
-            count: (CAR.car_event_count.addr()),
-            f9c: (CAR.car_event_limit.addr()),
-            fa0: (CAR.car_event_position.addr()),
-        }
+/// The work car's queue.
+pub fn load() -> CarEvents {
+    CarEvents {
+        times: values(&CAR.car_event_times),
+        events: values(&CAR.car_event_codes),
+        count: CAR.car_event_count.get(),
+        level: CAR.car_event_limit.get(),
+        shown: CAR.car_event_position.get(),
     }
 }
 
-impl QueuePlaces {
-    /// The queue at these places.
-    pub fn load(&self) -> CarEvents {
-        CarEvents {
-            times: get_list(self.times),
-            events: get_list(self.events),
-            count: get(self.count),
-            level: get(self.f9c),
-            shown: get(self.fa0),
-        }
-    }
-
-    /// What changed from `was` to `now` stored back.
-    pub fn store(&self, was: &CarEvents, now: &CarEvents) {
-        put_list_changed(self.times, &was.times, &now.times);
-        put_list_changed(self.events, &was.events, &now.events);
-        put_changed(self.count, was.count, now.count);
-        put_changed(self.f9c, was.level, now.level);
-        put_changed(self.fa0, was.shown, now.shown);
-    }
+/// What changed from `was` to `now` stored back.
+pub fn store(was: &CarEvents, now: &CarEvents) {
+    set_values_changed(&CAR.car_event_times, &was.times, &now.times);
+    set_values_changed(&CAR.car_event_codes, &was.events, &now.events);
+    set_changed(&CAR.car_event_count, was.count, now.count);
+    set_changed(&CAR.car_event_limit, was.level, now.level);
+    set_changed(&CAR.car_event_position, was.shown, now.shown);
 }
 
-/// The Rust version on the variables at `p`.
-// Converted: `rc2k_core::physics::car_events::CarEvents::queue`.
-pub fn queue_car_event_at(p: &QueuePlaces, esi: u32, ebx: u32) -> Result<(), Refused> {
-    let was = p.load();
+/// The Rust version.
+pub fn queue_car_event(esi: u32, ebx: u32) -> Result<(), Refused> {
+    let was = load();
     let mut q = was;
-    q.queue(get(p.clock), esi, ebx)?;
-    p.store(&was, &q);
+    q.queue(PHYSICS.scene_clock.get(), esi, ebx)?;
+    store(&was, &q);
     Ok(())
 }

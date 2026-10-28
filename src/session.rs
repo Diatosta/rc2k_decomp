@@ -151,6 +151,11 @@ impl<T: Cell32 + ?Sized> Cell32 for &T {
     }
 }
 
+/// The byte `n` of `cells` (a table of bytes held as dwords, little-endian), if inside.
+pub fn byte_of(cells: &[Dword], n: usize) -> Option<u8> {
+    cells.get(n / 4).map(|c| c.get().to_le_bytes()[n % 4])
+}
+
 impl Cell32 for Dword {
     fn bits(&self) -> u32 {
         self.get()

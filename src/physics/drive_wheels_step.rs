@@ -37,12 +37,12 @@ use crate::race::numbers_store::NUMBERS;
 use crate::race::vars_store::RACE_VARS;
 use crate::scene::draw_store::DRAW;
 use crate::scene::matrix3::extended;
-use crate::scene::x87_mem::{fld, fnstsw, fstp};
-use crate::session::Float;
+use crate::scene::x87_mem::{fld, fnstsw};
+use crate::session::{Cell32, Float};
 
 /// `fld v; fabs; fsub one; fchs; fstp to` (0x43DFB1, 0x43E00B): 1 less |v|.
 fn one_less_abs(v: &Float, to: &Float) {
-    x87_1(v.addr() as usize, to.addr() as usize);
+    x87_1(v, to);
 }
 
 /// `fld b; fabs; fld a; fabs; fcompp; fnstsw`: C0, |a| below |b| or unordered.
@@ -64,7 +64,7 @@ fn store_loaded(to: &Float, from: &Float) {
 /// signed by the slip ratio's sign, the drive speed (`drive`) less it x (`dword_614BA8`
 /// - 1), and the two force records' parts at `f1`, `f2`.
 fn settle_slip(drive: &Float, slip: &Float, ratio: &Float, f1: &Float, f2: &Float) {
-    x87_3(drive.addr() as usize, ratio.addr() as usize);
+    x87_3(drive, ratio);
     let s = abs_of(slip.bits());
     let signed = if c0(ratio.bits(), NUMBERS.zero.bits()) {
         neg_rounded(extended(s))
@@ -72,18 +72,13 @@ fn settle_slip(drive: &Float, slip: &Float, ratio: &Float, f1: &Float, f2: &Floa
         s
     };
     slip.set_bits(signed);
-    x87_4(
-        drive.addr() as usize,
-        slip.addr() as usize,
-        f1.addr() as usize,
-        f2.addr() as usize,
-    );
+    x87_4(drive, slip, f1, f2);
 }
 
 /// The slip's first limit (0x43E58B / 0x43E649): |drive - speed| / `dword_614BA8` into
 /// `ratio`, and `slip` the lesser of it and `force` (by `fcompp`).
 fn slip_limit(drive: &Float, ratio: &Float, force: &Float, slip: &Float) {
-    x87_5(drive.addr() as usize, ratio.addr() as usize);
+    x87_5(drive, ratio);
     let pick = if c0(ratio.bits(), force.bits()) {
         ratio
     } else {
@@ -262,13 +257,13 @@ pub fn drive_wheels_step() -> Result<(), Refused> {
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `[t + 0] = -(|[v + 0]| - [rc + 0x1C5D38])`
-fn x87_1(v: usize, t: usize) {
-    let t0 = fld(v, 0);
+fn x87_1(v: &dyn Cell32, t: &dyn Cell32) {
+    let t0 = ld(v.bits());
     let t1 = t0.abs();
     let t2 = ld(NUMBERS.one.bits());
     let t3 = t1 - t2;
     let t4 = -t3;
-    fstp(t, 0, t4);
+    t.set_bits(st(t4));
 }
 
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
@@ -286,13 +281,13 @@ fn x87_2(v: usize, s: usize) {
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `[r + 0] = ([d + 0] - [rc + 0x31A184]) / [rc + 0x214BA8]`
-fn x87_3(d: usize, r: usize) {
-    let t0 = fld(d, 0);
+fn x87_3(d: &dyn Cell32, r: &dyn Cell32) {
+    let t0 = ld(d.bits());
     let t1 = ld(CAR.local_velocity[2].bits());
     let t2 = t0 - t1;
     let t3 = ld(PHYSICS.spec_wheel.bits());
     let t4 = t2 / t3;
-    fstp(r, 0, t4);
+    r.set_bits(st(t4));
 }
 
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
@@ -300,35 +295,35 @@ fn x87_3(d: usize, r: usize) {
 /// `[d + 0] = [d + 0] - (([rc + 0x214BA8] - [rc + 0x1C5D38]) * [s + 0])`
 /// `[f1 + 0] = ([s + 0] / [rc + 0x21388C]) * [rc + 0x1C5E40]`
 /// `[f2 + 0] = ([s + 0] / [rc + 0x21388C]) * [rc + 0x1C5E40]`
-fn x87_4(d: usize, s: usize, f1: usize, f2: usize) {
-    let t0 = fld(d, 0);
+fn x87_4(d: &dyn Cell32, s: &dyn Cell32, f1: &dyn Cell32, f2: &dyn Cell32) {
+    let t0 = ld(d.bits());
     let t1 = ld(PHYSICS.spec_wheel.bits());
     let t2 = ld(NUMBERS.one.bits());
     let t3 = t1 - t2;
-    let t4 = fld(s, 0);
+    let t4 = ld(s.bits());
     let t5 = t3 * t4;
     let t6 = t0 - t5;
-    fstp(d, 0, t6);
-    let t7 = fld(s, 0);
+    d.set_bits(st(t6));
+    let t7 = ld(s.bits());
     let t8 = ld(PHYSICS.step_time.bits());
     let t9 = t7 / t8;
     let t10 = ld(NUMBERS.half.bits());
     let t11 = t9 * t10;
-    fstp(f1, 0, t11);
-    fstp(f2, 0, t11);
+    f1.set_bits(st(t11));
+    f2.set_bits(st(t11));
 }
 
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `[r + 0] = |(([d + 0] - [rc + 0x31A184]) / [rc + 0x214BA8])|`
-fn x87_5(d: usize, r: usize) {
-    let t0 = fld(d, 0);
+fn x87_5(d: &dyn Cell32, r: &dyn Cell32) {
+    let t0 = ld(d.bits());
     let t1 = ld(CAR.local_velocity[2].bits());
     let t2 = t0 - t1;
     let t3 = ld(PHYSICS.spec_wheel.bits());
     let t4 = t2 / t3;
     let t5 = t4.abs();
-    fstp(r, 0, t5);
+    r.set_bits(st(t5));
 }
 
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
@@ -817,7 +812,12 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_0(a[0], a[1], a[2]) },
-                plain: |a| x87_1(a[0], a[2]),
+                plain: |a| {
+                    x87_1(
+                        &crate::scene::x87_mem::HostCell(a[0]),
+                        &crate::scene::x87_mem::HostCell(a[2]),
+                    )
+                },
             },
             Block {
                 name: "drive_wheels_step line 47",
@@ -853,7 +853,12 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_2(a[0], a[1], a[2]) },
-                plain: |a| x87_3(a[0], a[2]),
+                plain: |a| {
+                    x87_3(
+                        &crate::scene::x87_mem::HostCell(a[0]),
+                        &crate::scene::x87_mem::HostCell(a[2]),
+                    )
+                },
             },
             Block {
                 name: "drive_wheels_step line 87",
@@ -886,7 +891,10 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_3(a[0], a[1], a[2], a[3], a[4]) },
-                plain: |a| x87_4(a[0], a[2], a[3], a[4]),
+                plain: |a| {
+                    use crate::scene::x87_mem::HostCell as H;
+                    x87_4(&H(a[0]), &H(a[2]), &H(a[3]), &H(a[4]))
+                },
             },
             Block {
                 name: "drive_wheels_step line 106",
@@ -906,7 +914,12 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_4(a[0], a[1], a[2]) },
-                plain: |a| x87_5(a[0], a[2]),
+                plain: |a| {
+                    x87_5(
+                        &crate::scene::x87_mem::HostCell(a[0]),
+                        &crate::scene::x87_mem::HostCell(a[2]),
+                    )
+                },
             },
             Block {
                 name: "drive_wheels_step line 127",

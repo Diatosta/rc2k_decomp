@@ -16,31 +16,28 @@
 use crate::errors::Refused;
 use crate::physics::car_store::CAR;
 use crate::physics::contact_store::CONTACT_WORK;
-use crate::physics::ground::*;
 use crate::physics::probe_ground::probe_ground_at;
 
 /// The Rust core. The registers it leaves (esi, edi past the copies, ecx 0) are read by
 /// none of its callers.
-pub unsafe fn probe_and_keep_at(g: &Ground) -> Result<(), Refused> {
-    unsafe {
-        probe_ground_at(g)?;
-        for k in 0..64 {
-            CONTACT_WORK.saved_probe_x[k].set(CONTACT_WORK.probe_x[k].get());
-        }
-        for k in 0..64 {
-            CONTACT_WORK.saved_probe_y[k].set(CONTACT_WORK.probe_y[k].get());
-        }
-        for k in 0..64 {
-            CONTACT_WORK.saved_probe_z[k].set(CONTACT_WORK.probe_z[k].get());
-        }
-        for k in 0..0x40 {
-            CONTACT_WORK.saved_probe_faces[k].set(CAR.probe_point_face[k].get());
-        }
-        Ok(())
+pub fn probe_and_keep_at() -> Result<(), Refused> {
+    probe_ground_at()?;
+    for k in 0..64 {
+        CONTACT_WORK.saved_probe_x[k].set(CONTACT_WORK.probe_x[k].get());
     }
+    for k in 0..64 {
+        CONTACT_WORK.saved_probe_y[k].set(CONTACT_WORK.probe_y[k].get());
+    }
+    for k in 0..64 {
+        CONTACT_WORK.saved_probe_z[k].set(CONTACT_WORK.probe_z[k].get());
+    }
+    for k in 0..0x40 {
+        CONTACT_WORK.saved_probe_faces[k].set(CAR.probe_point_face[k].get());
+    }
+    Ok(())
 }
 
 /// The Rust version.
-pub unsafe fn probe_and_keep() -> Result<(), Refused> {
-    unsafe { probe_and_keep_at(&Ground::game()) }
+pub fn probe_and_keep() -> Result<(), Refused> {
+    probe_and_keep_at()
 }

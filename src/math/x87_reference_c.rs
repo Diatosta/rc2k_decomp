@@ -1859,9 +1859,9 @@ mod tests {
                 (o, scratch)
             },
             |&(v, flat)| {
-                let mut scratch = 0xAAAA_AAAAu32;
-                let o = x87_load::sun_on_screen(&v, flat, &raw mut scratch);
-                (o, scratch)
+                let scratch = crate::session::Dword::new(0xAAAA_AAAA);
+                let o = x87_load::sun_on_screen(&v, flat, &scratch);
+                (o, scratch.get())
             },
             |a, b| {
                 eqf(&a.0[0], &b.0[0])
