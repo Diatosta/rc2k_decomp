@@ -7,7 +7,7 @@ for p in sys.argv[1:]:
     t = open(p).read()
     paths = set(re.findall(r'crate::math::x87_float::(ld|int|st|to_int)\(', t))
     full = {n: 'crate::math::x87_float::' + n for n in paths}
-    for m in re.finditer(r'\b(crate::(?:\w+::)+([A-Z][A-Z_0-9]+))\b', t):
+    for m in re.finditer(r'\b(crate::(?:[a-z_0-9]+::)+([A-Z][A-Z_0-9]+))\b(?!::)', t):
         full.setdefault(m.group(2), m.group(1))
     uses = []
     for name, path in sorted(full.items()):

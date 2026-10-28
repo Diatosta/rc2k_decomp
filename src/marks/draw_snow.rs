@@ -57,7 +57,6 @@ fn fade() {
 /// The original's 0x4C305B .. 0x4C30EE: the projected square, its depth and u.
 fn square(i: u32) {
     square_x87(
-        crate::race::store::asm_base() as usize,
         crate::d3d::vertices_store::piece_addr() as usize,
         i as usize,
         &SNOW_TABLES,
@@ -99,7 +98,7 @@ fn refusal() -> Option<&'static str> {
     if n > MOST {
         return Some("more than 0x800 snowflakes");
     }
-    if n > 0 && crate::marks::setup::SETTINGS.pointer.get() == 0 {
+    if n > 0 && SETTINGS.pointer.get() == 0 {
         return Some("no marks settings");
     }
     let scratch = scratch();
@@ -170,6 +169,7 @@ pub fn draw_snow() -> Result<(), Refused> {
 }
 
 use crate::marks::plain::{ld, ldi, st};
+use crate::marks::setup::SETTINGS;
 use crate::math::x87_float as bh;
 
 /// `turn`'s x87 block as plain Rust on the x87 model (34 instructions), same order and memory places.
@@ -239,17 +239,17 @@ fn fade_x87(s: &SnowState, l: &SnowLight, f: &MarksFloats) {
 }
 
 /// `square`'s x87 block as plain Rust on the x87 model (38 instructions), same order and memory places.
-fn square_x87(rc: usize, vt: usize, i: usize, t: &SnowTables, s: &SnowState, l: &SnowLight) {
+fn square_x87(vt: usize, i: usize, t: &SnowTables, s: &SnowState, l: &SnowLight) {
     let t0 = bh::ld(s.turned[2].bits());
-    let t1 = ld(rc, 0x224088) / t0;
+    let t1 = crate::math::x87_float::ld(DRAW.view_scale.bits()) / t0;
     s.depth.set(bh::st(t1));
     let t2 = bh::ld(s.turned[1].bits());
     let t3 = t2 * t1;
     let t4 = t1 * bh::ld(s.turned[0].bits());
     let t5 = -t3;
-    let t6 = t5 + ld(rc, 0x2240A0);
+    let t6 = t5 + crate::math::x87_float::ld(DRAW.view_centre[1].bits());
     st(vt, 0x4, t6);
-    let t7 = t4 + ld(rc, 0x22409C);
+    let t7 = t4 + crate::math::x87_float::ld(DRAW.view_centre[0].bits());
     st(vt, 0x0, t7);
     let t8 = bh::ld(l.side.bits());
     let t9 = t8 * bh::ld(s.depth.get());
@@ -531,9 +531,7 @@ mod asm_differential {
     fn square_x87_matches() {
         const SPEC: Spec = Spec {
             operands: &[
-                Op::Base {
-                    lo: 0x224088,
-                    hi: 0x2240A4,
+                Op::RaceBlock {
                     reads: &[(0x224088, F32), (0x22409C, F32), (0x2240A0, F32)],
                     writes: &[],
                 },
@@ -590,7 +588,7 @@ mod asm_differential {
                 with_copy(b[2], SnowTables::START, |t| {
                     with_copy(b[2], SnowState::START, |s| {
                         with_copy(b[2], SnowLight::START, |l| {
-                            super::square_x87(b[0], b[1].wrapping_add(0x5605A0), b[3], t, s, l)
+                            super::square_x87(b[1].wrapping_add(0x5605A0), b[3], t, s, l)
                         })
                     })
                 })

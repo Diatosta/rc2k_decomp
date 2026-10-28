@@ -175,18 +175,21 @@ READS = {'fld': 'crate::math::x87_float::ld({}.bits())',
          'fild': 'crate::math::x87_float::int({}.bits() as i32)'}
 WRITES = {'fstp': '{}.set_bits(crate::math::x87_float::st({}))',
           'fistp': '{}.set_bits(crate::math::x87_float::to_int({}) as u32)',
-          'mov': '{}.set_bits({})'}
+          'mov': '{}.set_bits({})',
+          'st16': '{}.set_bits({})'}
+# the marks module's names (`marks::plain`)
+ALIAS = {'ld': 'fld', 'ldi': 'fild', 'st': 'fstp', 'sti': 'fistp'}
 write = '--write' in sys.argv
 done = left = 0
 missed = {}
 for p, t in files.items():
     out, i, changed = [], 0, False
-    for m in re.finditer(r'\b(fld|fild|fstp|fistp|mov)\(rc, (?:(\w+) \* 4 \+ )?(0x[0-9A-F]+)([,)])', t):
+    for m in re.finditer(r'\b(fld|fild|fstp|fistp|mov|ld|ldi|st|sti|st16)\(\s*rc,\s*(?:(\w+) \* 4 \+ )?(0x[0-9A-F]+)\s*([,)])', t):
         if m.start() < i:
             continue
-        op, n, k = m.group(1), m.group(2), int(m.group(3), 0)
+        op, n, k = ALIAS.get(m.group(1), m.group(1)), m.group(2), int(m.group(3), 0)
         f = field(k + 0x400000)
-        if not f or f[1] not in CELLS:
+        if not f or f[1] not in (('Word',) if op == 'st16' else CELLS):
             left += 1
             missed[hex(k + 0x400000)] = f
             continue
@@ -207,7 +210,7 @@ for p, t in files.items():
             if m.group(4) != ',':
                 continue
             end = close(t, m.end())
-            arg = t[m.end():end].strip()
+            arg = t[m.end():end].strip().rstrip(',').strip()
             out.append(t[i:m.start()] + WRITES[op].format(f[0], arg))
             i = end + 1
         done += 1

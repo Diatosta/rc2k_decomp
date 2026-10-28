@@ -31,7 +31,7 @@ use crate::physics::damage_model::ONE;
 #[allow(unused_imports)]
 use crate::physics::flow::{a, g, hold_high, hold_low, p, table_lerp};
 use crate::physics::store::{DAMAGE, DamageModel};
-use crate::scene::x87_mem::{fld, fnstsw, fstp};
+use crate::scene::x87_mem::fnstsw;
 use crate::session::Cell32;
 
 #[allow(dead_code)]
@@ -49,22 +49,12 @@ pub fn steps() {
         &DAMAGE.gauge_low,
         &DAMAGE.flt_75b474,
     );
-    x87_2(
-        &DAMAGE,
-        crate::race::store::asm_base() as usize,
-        &DAMAGE.flt_75b474,
-        0x31A420,
-    );
+    x87_2(&DAMAGE, &DAMAGE.flt_75b474, &CAR.wheel_stiffness[0]);
     hold_low(&CAR.wheel_stiffness[0], &DAMAGE.gauge_low);
     hold_high(&CAR.wheel_stiffness[0], &DAMAGE.gauge_top);
-    x87_3(&DAMAGE, crate::race::store::asm_base() as usize, 0x31A410);
+    x87_3(&DAMAGE, &CAR.wheel_ride_height[0]);
     if compare_full(CAR.suspension_damage[0].bits(), DAMAGE.gauge_top.bits()) & 0x4000 != 0 {
-        x87_4(
-            &DAMAGE,
-            crate::race::store::asm_base() as usize,
-            0x31A420,
-            0x31A410,
-        );
+        x87_4(&DAMAGE, &CAR.wheel_stiffness[0], &CAR.wheel_ride_height[0]);
     }
     table_lerp(
         &CAR.suspension_damage[1],
@@ -72,22 +62,12 @@ pub fn steps() {
         &DAMAGE.gauge_low,
         &DAMAGE.flt_75b478,
     );
-    x87_2(
-        &DAMAGE,
-        crate::race::store::asm_base() as usize,
-        &DAMAGE.flt_75b478,
-        0x31A424,
-    );
+    x87_2(&DAMAGE, &DAMAGE.flt_75b478, &CAR.wheel_stiffness[1]);
     hold_low(&CAR.wheel_stiffness[1], &DAMAGE.gauge_low);
     hold_high(&CAR.wheel_stiffness[1], &DAMAGE.gauge_top);
-    x87_3(&DAMAGE, crate::race::store::asm_base() as usize, 0x31A414);
+    x87_3(&DAMAGE, &CAR.wheel_ride_height[1]);
     if compare_full(CAR.suspension_damage[1].bits(), DAMAGE.gauge_top.bits()) & 0x4000 != 0 {
-        x87_4(
-            &DAMAGE,
-            crate::race::store::asm_base() as usize,
-            0x31A424,
-            0x31A414,
-        );
+        x87_4(&DAMAGE, &CAR.wheel_stiffness[1], &CAR.wheel_ride_height[1]);
     }
     table_lerp(
         &CAR.suspension_damage[2],
@@ -95,22 +75,12 @@ pub fn steps() {
         &DAMAGE.gauge_low,
         &DAMAGE.flt_75b47c,
     );
-    x87_2(
-        &DAMAGE,
-        crate::race::store::asm_base() as usize,
-        &DAMAGE.flt_75b47c,
-        0x31A428,
-    );
+    x87_2(&DAMAGE, &DAMAGE.flt_75b47c, &CAR.wheel_stiffness[2]);
     hold_low(&CAR.wheel_stiffness[2], &DAMAGE.gauge_low);
     hold_high(&CAR.wheel_stiffness[2], &DAMAGE.gauge_top);
-    x87_3(&DAMAGE, crate::race::store::asm_base() as usize, 0x31A418);
+    x87_3(&DAMAGE, &CAR.wheel_ride_height[2]);
     if compare_full(CAR.suspension_damage[2].bits(), DAMAGE.gauge_top.bits()) & 0x4000 != 0 {
-        x87_4(
-            &DAMAGE,
-            crate::race::store::asm_base() as usize,
-            0x31A428,
-            0x31A418,
-        );
+        x87_4(&DAMAGE, &CAR.wheel_stiffness[2], &CAR.wheel_ride_height[2]);
     }
     table_lerp(
         &CAR.suspension_damage[3],
@@ -118,22 +88,12 @@ pub fn steps() {
         &DAMAGE.gauge_low,
         &DAMAGE.flt_75b480,
     );
-    x87_2(
-        &DAMAGE,
-        crate::race::store::asm_base() as usize,
-        &DAMAGE.flt_75b480,
-        0x31A42C,
-    );
+    x87_2(&DAMAGE, &DAMAGE.flt_75b480, &CAR.wheel_stiffness[3]);
     hold_low(&CAR.wheel_stiffness[3], &DAMAGE.gauge_low);
     hold_high(&CAR.wheel_stiffness[3], &DAMAGE.gauge_top);
-    x87_3(&DAMAGE, crate::race::store::asm_base() as usize, 0x31A41C);
+    x87_3(&DAMAGE, &CAR.wheel_ride_height[3]);
     if compare_full(CAR.suspension_damage[3].bits(), DAMAGE.gauge_top.bits()) & 0x4000 != 0 {
-        x87_4(
-            &DAMAGE,
-            crate::race::store::asm_base() as usize,
-            0x31A42C,
-            0x31A41C,
-        );
+        x87_4(&DAMAGE, &CAR.wheel_stiffness[3], &CAR.wheel_ride_height[3]);
     }
     x87_5(&DAMAGE);
     hold_high(&DAMAGE.scratch, &CAR.engine_speed_limit);
@@ -145,18 +105,16 @@ pub fn steps() {
     hold_high(&DAMAGE.scratch, &DAMAGE.flt_75b378);
     x87_9(
         &DAMAGE,
-        crate::race::store::asm_base() as usize,
         &DAMAGE.flt_75b3a4,
-        0x31A190,
-        0x31A190,
+        &CAR.drive_speed_a,
+        &CAR.drive_speed_a,
     );
     hold_high(&DAMAGE.scratch, &DAMAGE.flt_75b378);
     x87_9(
         &DAMAGE,
-        crate::race::store::asm_base() as usize,
         &DAMAGE.flt_75b3a8,
-        0x31A194,
-        0x31A194,
+        &CAR.drive_speed_b,
+        &CAR.drive_speed_b,
     );
     hold_high(&DAMAGE.scratch, &DAMAGE.flt_75b378);
     x87_10(&DAMAGE);
@@ -243,34 +201,34 @@ fn x87_1(m: &DamageModel) {
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `[rc + o3] = ([m + 0x35B3FC] * [m + 0x35B34C]) - [m + o2]`
-fn x87_2(m: &DamageModel, rc: usize, o2: &impl Cell32, o3: usize) {
+fn x87_2(m: &DamageModel, o2: &impl Cell32, o3: &impl crate::session::Cell32) {
     let t0 = ld(m.flt_75b3fc.bits());
     let t1 = ld(m.gauge_top.bits());
     let t2 = t0 * t1;
     let t3 = ld(o2.bits());
     let t4 = t2 - t3;
-    fstp(rc, o3, t4);
+    o3.set_bits(st(t4));
 }
 
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `[rc + o2] = [m + 0x35B3F8] * [m + 0x35B34C]`
-fn x87_3(m: &DamageModel, rc: usize, o2: usize) {
+fn x87_3(m: &DamageModel, o2: &impl crate::session::Cell32) {
     let t0 = ld(m.flt_75b3f8.bits());
     let t1 = ld(m.gauge_top.bits());
     let t2 = t0 * t1;
-    fstp(rc, o2, t2);
+    o2.set_bits(st(t2));
 }
 
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `[rc + o1] = [m + 0x35B34C]`
 /// `[rc + o3] = [m + 0x35B350]`
-fn x87_4(m: &DamageModel, rc: usize, o1: usize, o3: usize) {
+fn x87_4(m: &DamageModel, o1: &impl crate::session::Cell32, o3: &impl crate::session::Cell32) {
     let t0 = ld(m.gauge_top.bits());
-    fstp(rc, o1, t0);
+    o1.set_bits(st(t0));
     let t1 = ld(m.gauge_low.bits());
-    fstp(rc, o3, t1);
+    o3.set_bits(st(t1));
 }
 
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
@@ -364,17 +322,22 @@ fn x87_8(m: &DamageModel) {
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `[m + o2] = [m + 0x35B36C] / [m + 0x35B378]`
 /// `[m + 0x35B36C] = |((([rc + o3] - [rc + 0x31A184]) * [m + 0x35B6F4]) + [rc + o6])|`
-fn x87_9(m: &DamageModel, rc: usize, o2: &impl Cell32, o3: usize, o6: usize) {
+fn x87_9(
+    m: &DamageModel,
+    o2: &impl Cell32,
+    o3: &impl crate::session::Cell32,
+    o6: &impl crate::session::Cell32,
+) {
     let t0 = ld(m.scratch.bits());
     let t1 = ld(m.flt_75b378.bits());
     let t2 = t0 / t1;
     o2.set_bits(st(t2));
-    let t3 = fld(rc, o3);
+    let t3 = ld(o3.bits());
     let t4 = ld(CAR.local_velocity[2].bits());
     let t5 = t3 - t4;
     let t6 = ld(m.figures[31].bits());
     let t7 = t5 * t6;
-    let t8 = fld(rc, o6);
+    let t8 = ld(o6.bits());
     let t9 = t7 + t8;
     let t10 = t9.abs();
     m.scratch.set_bits(st(t10));
@@ -584,7 +547,7 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_1(a[0], a[1]) },
-                plain: |a| x87_2(dm(a[0]), a[1], &dm(a[0]).flt_75b474, 0x31A420),
+                plain: |a| x87_2(dm(a[0]), &dm(a[0]).flt_75b474, &CAR.wheel_stiffness[0]),
             },
             Block {
                 name: "damage_factors line 63",
@@ -600,7 +563,7 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_2(a[0], a[1]) },
-                plain: |a| x87_3(dm(a[0]), a[1], 0x31A410),
+                plain: |a| x87_3(dm(a[0]), &CAR.wheel_ride_height[0]),
             },
             Block {
                 name: "damage_factors line 71",
@@ -616,7 +579,7 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_3(a[0], a[1]) },
-                plain: |a| x87_4(dm(a[0]), a[1], 0x31A420, 0x31A410),
+                plain: |a| x87_4(dm(a[0]), &CAR.wheel_stiffness[0], &CAR.wheel_ride_height[0]),
             },
             Block {
                 name: "damage_factors line 81",
@@ -632,7 +595,7 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_4(a[0], a[1]) },
-                plain: |a| x87_2(dm(a[0]), a[1], &dm(a[0]).flt_75b478, 0x31A424),
+                plain: |a| x87_2(dm(a[0]), &dm(a[0]).flt_75b478, &CAR.wheel_stiffness[1]),
             },
             Block {
                 name: "damage_factors line 91",
@@ -648,7 +611,7 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_5(a[0], a[1]) },
-                plain: |a| x87_3(dm(a[0]), a[1], 0x31A414),
+                plain: |a| x87_3(dm(a[0]), &CAR.wheel_ride_height[1]),
             },
             Block {
                 name: "damage_factors line 99",
@@ -664,7 +627,7 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_6(a[0], a[1]) },
-                plain: |a| x87_4(dm(a[0]), a[1], 0x31A424, 0x31A414),
+                plain: |a| x87_4(dm(a[0]), &CAR.wheel_stiffness[1], &CAR.wheel_ride_height[1]),
             },
             Block {
                 name: "damage_factors line 109",
@@ -680,7 +643,7 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_7(a[0], a[1]) },
-                plain: |a| x87_2(dm(a[0]), a[1], &dm(a[0]).flt_75b47c, 0x31A428),
+                plain: |a| x87_2(dm(a[0]), &dm(a[0]).flt_75b47c, &CAR.wheel_stiffness[2]),
             },
             Block {
                 name: "damage_factors line 119",
@@ -696,7 +659,7 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_8(a[0], a[1]) },
-                plain: |a| x87_3(dm(a[0]), a[1], 0x31A418),
+                plain: |a| x87_3(dm(a[0]), &CAR.wheel_ride_height[2]),
             },
             Block {
                 name: "damage_factors line 127",
@@ -712,7 +675,7 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_9(a[0], a[1]) },
-                plain: |a| x87_4(dm(a[0]), a[1], 0x31A428, 0x31A418),
+                plain: |a| x87_4(dm(a[0]), &CAR.wheel_stiffness[2], &CAR.wheel_ride_height[2]),
             },
             Block {
                 name: "damage_factors line 137",
@@ -728,7 +691,7 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_10(a[0], a[1]) },
-                plain: |a| x87_2(dm(a[0]), a[1], &dm(a[0]).flt_75b480, 0x31A42C),
+                plain: |a| x87_2(dm(a[0]), &dm(a[0]).flt_75b480, &CAR.wheel_stiffness[3]),
             },
             Block {
                 name: "damage_factors line 147",
@@ -744,7 +707,7 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_11(a[0], a[1]) },
-                plain: |a| x87_3(dm(a[0]), a[1], 0x31A41C),
+                plain: |a| x87_3(dm(a[0]), &CAR.wheel_ride_height[3]),
             },
             Block {
                 name: "damage_factors line 155",
@@ -760,7 +723,7 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_12(a[0], a[1]) },
-                plain: |a| x87_4(dm(a[0]), a[1], 0x31A42C, 0x31A41C),
+                plain: |a| x87_4(dm(a[0]), &CAR.wheel_stiffness[3], &CAR.wheel_ride_height[3]),
             },
             Block {
                 name: "damage_factors line 164",
@@ -851,7 +814,14 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_17(a[0], a[1]) },
-                plain: |a| x87_9(dm(a[0]), a[1], &dm(a[0]).flt_75b3a4, 0x31A190, 0x31A190),
+                plain: |a| {
+                    x87_9(
+                        dm(a[0]),
+                        &dm(a[0]).flt_75b3a4,
+                        &CAR.drive_speed_a,
+                        &CAR.drive_speed_a,
+                    )
+                },
             },
             Block {
                 name: "damage_factors line 239",
@@ -867,7 +837,14 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_18(a[0], a[1]) },
-                plain: |a| x87_9(dm(a[0]), a[1], &dm(a[0]).flt_75b3a8, 0x31A194, 0x31A194),
+                plain: |a| {
+                    x87_9(
+                        dm(a[0]),
+                        &dm(a[0]).flt_75b3a8,
+                        &CAR.drive_speed_b,
+                        &CAR.drive_speed_b,
+                    )
+                },
             },
             Block {
                 name: "damage_factors line 253",

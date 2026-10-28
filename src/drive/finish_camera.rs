@@ -11,11 +11,10 @@ use crate::drive::finish_store::FINISH;
 use crate::math::x87_float::ld;
 use crate::math::x87_float::st;
 use crate::race::view_vars_store::VIEW_VARS;
-use crate::scene::x87_mem::fstp;
 
 /// `dword_606748`, `606730`, `606734` from the eased time, the share and the lines'
 /// constants, over the race block at `rc` (the dwords at RVA offsets).
-fn lines(rc: usize) {
+fn lines() {
     VIEW_VARS
         .finish_value
         .set_bits(st(ld(FINISH.eased.bits()) * ld(FINISH.unknown_2c[0].bits())));
@@ -23,11 +22,9 @@ fn lines(rc: usize) {
         ld(FINISH.eased.bits()) * ld(FINISH.unknown_2c[4].bits()) + ld(FINISH.unknown_2c[2].bits());
     let b = ld(FINISH.share.bits()) * ld(FINISH.unknown_64.bits());
     VIEW_VARS.place_e.set_bits(st(a + b));
-    fstp(
-        rc,
-        0x206734,
-        ld(FINISH.eased.bits()) * ld(FINISH.unknown_2c[3].bits()) + ld(FINISH.unknown_2c[1].bits()),
-    );
+    VIEW_VARS.place_f.set_bits(st(ld(FINISH.eased.bits())
+        * ld(FINISH.unknown_2c[3].bits())
+        + ld(FINISH.unknown_2c[1].bits())));
 }
 
 /// `dword_606744` from the share and its constant.
@@ -39,7 +36,7 @@ fn last_line() {
 
 /// The Rust version (the exact one, for `drive::finish_run`).
 pub fn finish_camera() {
-    lines(crate::race::store::asm_base() as usize);
+    lines();
     VIEW_VARS.finish_zero.set(0);
     last_line();
 }
@@ -89,7 +86,7 @@ mod asm_reference {
                 }],
                 ulps: 0,
                 reference: |a| unsafe { ref_lines(a[0]) },
-                plain: |a| lines(a[0]),
+                plain: |_| lines(),
             },
             Block {
                 name: "finish_camera last line",

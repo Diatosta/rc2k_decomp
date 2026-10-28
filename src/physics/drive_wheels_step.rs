@@ -110,12 +110,13 @@ fn steps() -> Result<(), Refused> {
         }
         crate::physics::cap_drive_speed::cap_drive_speed();
         PHYSICS.wheels_driven.set(0);
-        let mut offset = 0;
+        // the grips at +0 or, braking, +0x14: `wheel_grips_b`
+        let mut grips = &PHYSICS.wheel_grips;
         if CAR.brake.get() != 0 {
-            offset = 0x14;
+            grips = &PHYSICS.wheel_grips_b;
             PHYSICS.wheels_driven.set(1);
         }
-        x87_7(crate::race::store::asm_base() as usize, offset as usize);
+        x87_7(grips);
         DRAW.scratch.set(CAR.throttle.get().wrapping_add(0x100));
         x87_8();
         hold_high(&PHYSICS.drive_limits[1], &DRAW.scratch);
@@ -346,11 +347,11 @@ fn x87_6() {
 /// (a long formula: see the instructions in the tests' `asm_reference`)
 /// (a long formula: see the instructions in the tests' `asm_reference`)
 /// (a long formula: see the instructions in the tests' `asm_reference`)
-fn x87_7(rc: usize, e: usize) {
-    let t0 = fld(rc, e + 0x214298);
+fn x87_7(grips: &[Float; 5]) {
+    let t0 = ld(grips[0].bits());
     let t1 = ld(PHYSICS.forces[0].force[1].bits());
     let t2 = t0 * t1;
-    let t3 = fld(rc, e + 0x21429C);
+    let t3 = ld(grips[1].bits());
     let t4 = ld(PHYSICS.forces[1].force[1].bits());
     let t5 = t3 * t4;
     let t6 = t2 + t5;
@@ -362,10 +363,10 @@ fn x87_7(rc: usize, e: usize) {
     let t12 = ld(CAR.drive_efficiency[0].bits());
     let t13 = t11 * t12;
     PHYSICS.drive_forces[0].set_bits(st(t13));
-    let t14 = fld(rc, e + 0x2142A0);
+    let t14 = ld(grips[2].bits());
     let t15 = ld(PHYSICS.forces[2].force[1].bits());
     let t16 = t14 * t15;
-    let t17 = fld(rc, e + 0x2142A4);
+    let t17 = ld(grips[3].bits());
     let t18 = ld(PHYSICS.forces[3].force[1].bits());
     let t19 = t17 * t18;
     let t20 = t16 + t19;
@@ -945,10 +946,16 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_6(a[0], a[1]) },
-                plain: |a| x87_7(a[0], a[1]),
+                plain: |a| {
+                    x87_7(if a[1] == 0 {
+                        &PHYSICS.wheel_grips
+                    } else {
+                        &PHYSICS.wheel_grips_b
+                    })
+                },
             },
             Block {
-                name: "drive_wheels_step line 147 idx e=4",
+                name: "drive_wheels_step line 147 idx e=0x14 (braking)",
                 operands: vec![
                     Operand::RaceBlock {
                         reads: &[
@@ -958,10 +965,10 @@ mod asm_reference {
                             (0x214288, In::F),
                             (0x21428C, In::F),
                             (0x214290, In::F),
-                            (0x21429C, In::F),
-                            (0x2142A0, In::F),
-                            (0x2142A4, In::F),
-                            (0x2142A8, In::F),
+                            (0x2142AC, In::F),
+                            (0x2142B0, In::F),
+                            (0x2142B4, In::F),
+                            (0x2142B8, In::F),
                             (0x214774, In::F),
                             (0x214794, In::F),
                             (0x2147B4, In::F),
@@ -971,41 +978,17 @@ mod asm_reference {
                         ],
                         writes: &[(0x21423C, Out::F), (0x214248, Out::F), (0x21424C, Out::F)],
                     },
-                    Operand::Value(4),
+                    Operand::Value(0x14),
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_6(a[0], a[1]) },
-                plain: |a| x87_7(a[0], a[1]),
-            },
-            Block {
-                name: "drive_wheels_step line 147 idx e=36",
-                operands: vec![
-                    Operand::RaceBlock {
-                        reads: &[
-                            (0x21388C, In::F),
-                            (0x214170, In::F),
-                            (0x214284, In::F),
-                            (0x214288, In::F),
-                            (0x21428C, In::F),
-                            (0x214290, In::F),
-                            (0x2142BC, In::F),
-                            (0x2142C0, In::F),
-                            (0x2142C4, In::F),
-                            (0x2142C8, In::F),
-                            (0x214774, In::F),
-                            (0x214794, In::F),
-                            (0x2147B4, In::F),
-                            (0x2147D4, In::F),
-                            (0x31A3D8, In::F),
-                            (0x31A3DC, In::F),
-                        ],
-                        writes: &[(0x21423C, Out::F), (0x214248, Out::F), (0x21424C, Out::F)],
-                    },
-                    Operand::Value(36),
-                ],
-                ulps: 0,
-                reference: |a| unsafe { ref_6(a[0], a[1]) },
-                plain: |a| x87_7(a[0], a[1]),
+                plain: |a| {
+                    x87_7(if a[1] == 0 {
+                        &PHYSICS.wheel_grips
+                    } else {
+                        &PHYSICS.wheel_grips_b
+                    })
+                },
             },
             Block {
                 name: "drive_wheels_step line 180",

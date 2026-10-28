@@ -20,6 +20,7 @@ use crate::errors::{BadInput, Refused};
 use crate::input::store::DEVICES;
 use crate::math::x87_float::int;
 use crate::math::x87_float::ld;
+use crate::math::x87_float::to_int;
 use crate::physics::flow::c0;
 use crate::physics::tables_store::PHYSICS;
 use crate::race::blocks_store::CAR_BLOCKS;
@@ -27,24 +28,21 @@ use crate::race::clock_ticks_store::CLOCK_TICKS;
 use crate::race::numbers_store::NUMBERS;
 use crate::race::state_store::RACE_STATE;
 use crate::race::viewer_state_store::REPLAY_VIEW;
-use crate::scene::x87_mem::fistp;
 use crate::sound::store::RACE_SOUNDS;
 
 /// The car's lift: `dword_70F524` += `flt_64BB38` x `flt_5C5D98` (`fiadd`, `fistp`), over the
 /// race block at `rc`.
-fn lift_car(rc: usize) {
-    fistp(
-        rc,
-        0x30F524,
+fn lift_car() {
+    CAR_BLOCKS.cars[0].position[1].set_bits(to_int(
         ld(FINISH.unknown_20.bits()) * ld(NUMBERS.k65536.bits())
             + int(CAR_BLOCKS.cars[0].position[1].bits() as i32),
-    )
+    ) as u32)
 }
 
 /// The Rust version. The registers it leaves are read by no caller (liveness: esi after
 /// `drive::finish_race`'s call has no read point).
 pub fn finish_run() -> Result<(), Refused> {
-    lift_car(crate::race::store::asm_base() as usize);
+    lift_car();
     restart_clock();
     CLOCK_TICKS.clock_a.set(PHYSICS.scene_clock.get());
     CLOCK_TICKS.sound_tick_last.set(PHYSICS.scene_clock.get());
@@ -101,7 +99,7 @@ mod asm_reference {
             }],
             ulps: 0,
             reference: |a| unsafe { ref_lift(a[0]) },
-            plain: |a| lift_car(a[0]),
+            plain: |_| lift_car(),
         }];
         sparse(&blocks, 4000, 204);
     }

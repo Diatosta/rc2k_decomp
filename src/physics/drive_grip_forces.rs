@@ -88,7 +88,7 @@ pub fn drive_grip_forces() {
             if DRAW.scratch.get() == 0 {
                 CAR.steering.set(0);
             } else {
-                x87_4(crate::race::store::asm_base() as usize, 0x31A1E8, 0x22400C);
+                x87_4(&CAR.grip_forces[0], &DRAW.scratch);
                 hold_high(&DRAW.scratch, &NUMBERS.one);
                 hold_low(&DRAW.scratch, &NUMBERS.zero);
                 x87_5();
@@ -161,7 +161,7 @@ pub fn drive_grip_forces() {
         negate(&PHYSICS.grip_force_limit);
         hold_low(&DRAW.scratch, &PHYSICS.grip_force_limit);
         negate(&PHYSICS.grip_force_limit);
-        x87_4(crate::race::store::asm_base() as usize, 0x22400C, 0x213E80);
+        x87_4(&DRAW.scratch, &PHYSICS.grip_force_limit);
         edx = steer_index();
         x87_13(
             crate::race::store::buffers_asm_base() as usize,
@@ -232,9 +232,9 @@ fn x87_3(f: usize) {
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `[rc + 0x22400C] = [rc + o0] / [rc + o1]`
-fn x87_4(rc: usize, o0: usize, o1: usize) {
-    let t0 = fld(rc, o0);
-    let t1 = fld(rc, o1);
+fn x87_4(o0: &impl crate::session::Cell32, o1: &impl crate::session::Cell32) {
+    let t0 = ld(o0.bits());
+    let t1 = ld(o1.bits());
     let t2 = t0 / t1;
     DRAW.scratch.set_bits(st(t2));
 }
@@ -554,7 +554,7 @@ mod asm_reference {
                 }],
                 ulps: 0,
                 reference: |a| unsafe { ref_3(a[0]) },
-                plain: |a| x87_4(a[0], 0x31A1E8, 0x22400C),
+                plain: |_| x87_4(&CAR.grip_forces[0], &DRAW.scratch),
             },
             Block {
                 name: "drive_grip_forces line 106",
@@ -715,7 +715,7 @@ mod asm_reference {
                 }],
                 ulps: 0,
                 reference: |a| unsafe { ref_12(a[0]) },
-                plain: |a| x87_4(a[0], 0x22400C, 0x213E80),
+                plain: |_| x87_4(&DRAW.scratch, &PHYSICS.grip_force_limit),
             },
             Block {
                 name: "drive_grip_forces line 222 idx e=0",

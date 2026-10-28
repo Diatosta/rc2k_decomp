@@ -72,7 +72,7 @@ const STATES: [(u32, u32); 5] = [(4, 0x15), (5, 0x13), (6, 0x14), (0, 0x1C), (1,
 /// The z turn's angle (see the header), 80 bits.
 fn angle(sh: &Shadow) -> Result<[u8; 10], Refused> {
     Ok({
-        let settings: u32 = crate::marks::setup::SETTINGS.pointer.get();
+        let settings: u32 = SETTINGS.pointer.get();
         let split: u32 = sh.quad.low.bits();
         let v = GamePtr::new(settings + sh.field).read::<u32>("a mark's field")?;
         if (split as i32) <= v as i32 {
@@ -114,7 +114,7 @@ pub fn draw_shadow_with(sh: &Shadow, depth: bool) -> Result<(), Refused> {
     if corner >= 0x100 {
         return Err(BadInput("a shadow corner past g_marksCorners").into());
     }
-    if crate::marks::setup::SETTINGS.pointer.get() == 0 {
+    if SETTINGS.pointer.get() == 0 {
         return Err(BadInput("no marks settings").into());
     }
     turnable(&angle(sh)?)?;
@@ -182,7 +182,7 @@ pub fn draw_shadow_with(sh: &Shadow, depth: bool) -> Result<(), Refused> {
             return Ok(());
         }
     }
-    projected_x87(crate::race::store::asm_base() as usize, sh);
+    projected_x87(sh);
     let z_k: u32 = DRAW_WORK.z_k.bits();
     for n in 0..4 {
         let vertex = &VERTICES.vertices[n];
@@ -196,7 +196,9 @@ pub fn draw_shadow_with(sh: &Shadow, depth: bool) -> Result<(), Refused> {
 }
 
 use crate::marks::plain::{ld, st};
+use crate::marks::setup::SETTINGS;
 use crate::math::x87_float as bh;
+use crate::scene::draw_store::DRAW;
 
 /// `light_turned`'s x87 block as plain Rust on the x87 model (33 instructions), same order and memory places, on either shadow's variables.
 fn light_turned_x87(s: &Shadow, m: usize, t: usize) {
@@ -427,42 +429,42 @@ fn corners_in_x87(s: &Shadow) {
 }
 
 /// `projected`'s x87 block as plain Rust on the x87 model (40 instructions), same order and memory places, on either shadow's variables.
-fn projected_x87(rc: usize, s: &Shadow) {
-    let t0 = ld(rc, 0x224088);
+fn projected_x87(s: &Shadow) {
+    let t0 = crate::math::x87_float::ld(DRAW.view_scale.bits());
     let t1 = t0 / bh::ld(s.quad.corners[0][2].bits());
     let t2 = t1 * bh::ld(s.quad.corners[0][0].bits());
-    let t3 = t2 + ld(rc, 0x22409C);
+    let t3 = t2 + crate::math::x87_float::ld(DRAW.view_centre[0].bits());
     s.quad.corners[0][0].set_bits(bh::st(t3));
     let t4 = t1 * bh::ld(s.quad.corners[0][1].bits());
     let t5 = -t4;
-    let t6 = t5 + ld(rc, 0x2240A0);
+    let t6 = t5 + crate::math::x87_float::ld(DRAW.view_centre[1].bits());
     s.quad.corners[0][1].set_bits(bh::st(t6));
-    let t7 = ld(rc, 0x224088);
+    let t7 = crate::math::x87_float::ld(DRAW.view_scale.bits());
     let t8 = t7 / bh::ld(s.quad.corners[1][2].bits());
     let t9 = t8 * bh::ld(s.quad.corners[1][0].bits());
-    let t10 = t9 + ld(rc, 0x22409C);
+    let t10 = t9 + crate::math::x87_float::ld(DRAW.view_centre[0].bits());
     s.quad.corners[1][0].set_bits(bh::st(t10));
     let t11 = t8 * bh::ld(s.quad.corners[1][1].bits());
     let t12 = -t11;
-    let t13 = t12 + ld(rc, 0x2240A0);
+    let t13 = t12 + crate::math::x87_float::ld(DRAW.view_centre[1].bits());
     s.quad.corners[1][1].set_bits(bh::st(t13));
-    let t14 = ld(rc, 0x224088);
+    let t14 = crate::math::x87_float::ld(DRAW.view_scale.bits());
     let t15 = t14 / bh::ld(s.quad.corners[2][2].bits());
     let t16 = t15 * bh::ld(s.quad.corners[2][0].bits());
-    let t17 = t16 + ld(rc, 0x22409C);
+    let t17 = t16 + crate::math::x87_float::ld(DRAW.view_centre[0].bits());
     s.quad.corners[2][0].set_bits(bh::st(t17));
     let t18 = t15 * bh::ld(s.quad.corners[2][1].bits());
     let t19 = -t18;
-    let t20 = t19 + ld(rc, 0x2240A0);
+    let t20 = t19 + crate::math::x87_float::ld(DRAW.view_centre[1].bits());
     s.quad.corners[2][1].set_bits(bh::st(t20));
-    let t21 = ld(rc, 0x224088);
+    let t21 = crate::math::x87_float::ld(DRAW.view_scale.bits());
     let t22 = t21 / bh::ld(s.quad.corners[3][2].bits());
     let t23 = t22 * bh::ld(s.quad.corners[3][0].bits());
-    let t24 = t23 + ld(rc, 0x22409C);
+    let t24 = t23 + crate::math::x87_float::ld(DRAW.view_centre[0].bits());
     s.quad.corners[3][0].set_bits(bh::st(t24));
     let t25 = t22 * bh::ld(s.quad.corners[3][1].bits());
     let t26 = -t25;
-    let t27 = t26 + ld(rc, 0x2240A0);
+    let t27 = t26 + crate::math::x87_float::ld(DRAW.view_centre[1].bits());
     s.quad.corners[3][1].set_bits(bh::st(t27));
 }
 
@@ -1367,9 +1369,7 @@ mod asm_differential {
     fn projected_x87_matches() {
         const SPEC: Spec = Spec {
             operands: &[
-                Op::Base {
-                    lo: 0x224088,
-                    hi: 0x2240A4,
+                Op::RaceBlock {
                     reads: &[(0x224088, F32), (0x22409C, F32), (0x2240A0, F32)],
                     writes: &[],
                 },
@@ -1407,7 +1407,7 @@ mod asm_differential {
         differential(
             &SPEC,
             |b| reference::projected_x87(b[0], b[1]),
-            |b| with_shadow(b[1], SET_2, |s| super::projected_x87(b[0], s)),
+            |b| with_shadow(b[1], SET_2, super::projected_x87),
         );
     }
 
@@ -1618,9 +1618,7 @@ mod asm_differential {
     fn projected_2_x87_matches() {
         const SPEC: Spec = Spec {
             operands: &[
-                Op::Base {
-                    lo: 0x224088,
-                    hi: 0x2240A4,
+                Op::RaceBlock {
                     reads: &[(0x224088, F32), (0x22409C, F32), (0x2240A0, F32)],
                     writes: &[],
                 },
@@ -1658,7 +1656,7 @@ mod asm_differential {
         differential(
             &SPEC,
             |b| reference::projected_2_x87(b[0], b[1]),
-            |b| with_shadow(b[1], SET_1, |s| super::projected_x87(b[0], s)),
+            |b| with_shadow(b[1], SET_1, super::projected_x87),
         );
     }
 }

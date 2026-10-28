@@ -32,7 +32,6 @@ const ANGLES: u32 = 0x1000;
 /// The original's 0x4CB796 .. 0x4CB81A: the place turned by the view.
 fn turn(p: &[[u8; 10]; 3]) {
     turn_x87(
-        crate::race::store::asm_base() as usize,
         (crate::pointers::game_address(p.as_ptr())) as usize,
         &RING_WORK,
         &DRAW_WORK,
@@ -46,7 +45,6 @@ fn square(k: u32, s: u32) -> u32 {
     let edi: u32;
     {
         edi = square_x87(
-            crate::race::store::asm_base() as usize,
             crate::d3d::vertices_store::piece_addr() as usize,
             crate::scene::engine_tables_store::piece_addr() as usize,
             k as usize,
@@ -79,7 +77,7 @@ pub fn draw_cell_sprite(
     }
     // The fog's and the clip's refusals, before anything.
     fog_at(0)?;
-    if crate::marks::setup::SETTINGS.pointer.get() == 0 {
+    if SETTINGS.pointer.get() == 0 {
         return Err(BadInput("no marks settings").into());
     }
     turn(&place);
@@ -115,41 +113,43 @@ pub fn draw_cell_sprite(
 use crate::marks::blocks::{CORNER_SLOPES, CornerSlopes};
 use crate::marks::frame_state::{DRAW_WORK, DrawWork};
 use crate::marks::plain::{ld, ld80, st};
+use crate::marks::setup::SETTINGS;
 use crate::math::x87_float as bh;
+use crate::race::matrices_store::MATRICES;
 use crate::session::address_of;
 
 /// `turn`'s x87 block as plain Rust on the x87 model (37 instructions), same order and memory places.
-fn turn_x87(rc: usize, p: usize, w: &RingWork, dw: &DrawWork) {
+fn turn_x87(p: usize, w: &RingWork, dw: &DrawWork) {
     let t0 = bh::from_f80(ld80(p, 0x14));
     let t1 = bh::from_f80(ld80(p, 0xA));
     let t2 = bh::from_f80(ld80(p, 0));
-    let t3 = ld(rc, 0x1EA2CC);
+    let t3 = crate::math::x87_float::ld(MATRICES.view_matrix[0].bits());
     let t4 = t3 * t2;
-    let t5 = ld(rc, 0x1EA2DC);
+    let t5 = crate::math::x87_float::ld(MATRICES.view_matrix[4].bits());
     let t6 = t5 * t1;
-    let t7 = ld(rc, 0x1EA2EC);
+    let t7 = crate::math::x87_float::ld(MATRICES.view_matrix[8].bits());
     let t8 = t7 * t0;
     let t9 = t6 + t8;
     let t10 = t4 + t9;
-    let t11 = t10 + ld(rc, 0x1EA2FC);
-    let t12 = ld(rc, 0x1EA2D0);
+    let t11 = t10 + crate::math::x87_float::ld(MATRICES.view_matrix[12].bits());
+    let t12 = crate::math::x87_float::ld(MATRICES.view_matrix[1].bits());
     let t13 = t12 * t2;
-    let t14 = ld(rc, 0x1EA2E0);
+    let t14 = crate::math::x87_float::ld(MATRICES.view_matrix[5].bits());
     let t15 = t14 * t1;
-    let t16 = ld(rc, 0x1EA2F0);
+    let t16 = crate::math::x87_float::ld(MATRICES.view_matrix[9].bits());
     let t17 = t16 * t0;
     let t18 = t15 + t17;
     let t19 = t13 + t18;
-    let t20 = t19 + ld(rc, 0x1EA300);
-    let t21 = ld(rc, 0x1EA2D4);
+    let t20 = t19 + crate::math::x87_float::ld(MATRICES.view_matrix[13].bits());
+    let t21 = crate::math::x87_float::ld(MATRICES.view_matrix[2].bits());
     let t22 = t2 * t21;
-    let t23 = ld(rc, 0x1EA2E4);
+    let t23 = crate::math::x87_float::ld(MATRICES.view_matrix[6].bits());
     let t24 = t1 * t23;
-    let t25 = ld(rc, 0x1EA2F4);
+    let t25 = crate::math::x87_float::ld(MATRICES.view_matrix[10].bits());
     let t26 = t0 * t25;
     let t27 = t26 + t24;
     let t28 = t22 + t27;
-    let t29 = t28 + ld(rc, 0x1EA304);
+    let t29 = t28 + crate::math::x87_float::ld(MATRICES.view_matrix[14].bits());
     dw.turned[0].set_bits(bh::st(t11));
     dw.turned[1].set_bits(bh::st(t20));
     w.whole.set_bits(bh::to_int(t29) as u32);
@@ -160,16 +160,8 @@ fn turn_x87(rc: usize, p: usize, w: &RingWork, dw: &DrawWork) {
 /// `k` is the cell's offset in the cell table (16 bytes a cell), which the original also
 /// adds to `g_marksCornerSlopes` (records of 0x24: it reads the float at that byte, whatever
 /// field it falls on: section 16), so that read stays by address.
-fn square_x87(
-    rc: usize,
-    vt: usize,
-    sn: usize,
-    k: usize,
-    s: usize,
-    dw: &DrawWork,
-    cs: &CornerSlopes,
-) -> u32 {
-    let t0 = ld(rc, 0x224088);
+fn square_x87(vt: usize, sn: usize, k: usize, s: usize, dw: &DrawWork, cs: &CornerSlopes) -> u32 {
+    let t0 = crate::math::x87_float::ld(DRAW.view_scale.bits());
     let t1 = t0 / bh::ld(dw.turned[2].bits());
     let t2 = bh::ld(dw.turned[2].bits());
     let t3 = t2 * bh::ld(dw.z_k.bits());
@@ -212,7 +204,7 @@ fn square_x87(
     let t28 = t1 * bh::ld(dw.turned[0].bits());
     let t29 = t1 * bh::ld(dw.turned[1].bits());
     let t30 = -t29;
-    let t31 = t30 + ld(rc, 0x2240A0);
+    let t31 = t30 + crate::math::x87_float::ld(DRAW.view_centre[1].bits());
     let t32 = t31 - bh::ld(dw.sprite_half[1].bits());
     st(vt, 0x4, t32);
     let t33 = t31 - bh::ld(dw.sprite_half[3].bits());
@@ -221,7 +213,7 @@ fn square_x87(
     st(vt, 0x44, t34);
     let t35 = t31 + bh::ld(dw.sprite_half[3].bits());
     st(vt, 0x64, t35);
-    let t36 = t28 + ld(rc, 0x22409C);
+    let t36 = t28 + crate::math::x87_float::ld(DRAW.view_centre[0].bits());
     let t37 = t36 - bh::ld(dw.sprite_half[0].bits());
     st(vt, 0x0, t37);
     let t38 = t36 - bh::ld(dw.sprite_half[2].bits());
@@ -396,9 +388,7 @@ mod asm_differential {
     fn turn_x87_matches() {
         const SPEC: Spec = Spec {
             operands: &[
-                Op::Base {
-                    lo: 0x1EA2CC,
-                    hi: 0x1EA308,
+                Op::RaceBlock {
                     reads: &[
                         (0x1EA2CC, F32),
                         (0x1EA2D0, F32),
@@ -441,7 +431,7 @@ mod asm_differential {
             |b| {
                 with_copy(b[1], RingWork::START, |w| {
                     with_copy::<DrawWork, _>(b[1], DrawWork::START, |dw| {
-                        super::turn_x87(b[0], b[2], w, dw)
+                        super::turn_x87(b[2], w, dw)
                     })
                 })
             },
@@ -452,9 +442,7 @@ mod asm_differential {
     fn square_x87_matches() {
         const SPEC: Spec = Spec {
             operands: &[
-                Op::Base {
-                    lo: 0x224088,
-                    hi: 0x2240A4,
+                Op::RaceBlock {
                     reads: &[(0x224088, F32), (0x22409C, F32), (0x2240A0, F32)],
                     writes: &[],
                 },
@@ -528,7 +516,6 @@ mod asm_differential {
                 with_copy::<DrawWork, _>(b[2], DrawWork::START, |dw| {
                     with_copy::<CornerSlopes, _>(b[2], CornerSlopes::START, |cs| {
                         super::square_x87(
-                            b[0],
                             b[1].wrapping_add(0x5605A0),
                             b[1].wrapping_add(0x623AE4),
                             b[3],

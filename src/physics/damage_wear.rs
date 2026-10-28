@@ -24,7 +24,7 @@ use crate::physics::car_store::CAR;
 #[allow(unused_imports)]
 use crate::physics::flow::{a, g, hold_high, hold_low, p, table_lerp};
 use crate::physics::store::{DAMAGE, DamageModel};
-use crate::scene::x87_mem::{fild, fld, fstp};
+use crate::scene::x87_mem::fild;
 use crate::session::Cell32;
 
 #[allow(dead_code)]
@@ -44,106 +44,95 @@ pub fn steps() {
     );
     x87_1(
         &DAMAGE,
-        crate::race::store::asm_base() as usize,
         &DAMAGE.wear_rates[3],
         &DAMAGE.flt_75b3b0,
-        0x31A284,
-        0x31A284,
+        &CAR.brake_heat[0],
+        &CAR.brake_heat[0],
     );
     hold_low(&CAR.brake_heat[0], &DAMAGE.gauge_low);
     hold_high(&CAR.brake_heat[0], &DAMAGE.gauge_top);
     x87_1(
         &DAMAGE,
-        crate::race::store::asm_base() as usize,
         &DAMAGE.wear_rates[3],
         &DAMAGE.flt_75b3b0,
-        0x31A288,
-        0x31A288,
+        &CAR.brake_heat[1],
+        &CAR.brake_heat[1],
     );
     hold_low(&CAR.brake_heat[1], &DAMAGE.gauge_low);
     hold_high(&CAR.brake_heat[1], &DAMAGE.gauge_top);
     x87_2(
         &DAMAGE,
-        crate::race::store::asm_base() as usize,
         &DAMAGE.wear_rates[4],
-        0x31A284,
-        0x31A284,
+        &CAR.brake_heat[0],
+        &CAR.brake_heat[0],
     );
     hold_low(&CAR.brake_heat[0], &DAMAGE.gauge_low);
     hold_high(&CAR.brake_heat[0], &DAMAGE.gauge_top);
     x87_2(
         &DAMAGE,
-        crate::race::store::asm_base() as usize,
         &DAMAGE.wear_rates[4],
-        0x31A288,
-        0x31A288,
+        &CAR.brake_heat[1],
+        &CAR.brake_heat[1],
     );
     hold_low(&CAR.brake_heat[1], &DAMAGE.gauge_low);
     hold_high(&CAR.brake_heat[1], &DAMAGE.gauge_top);
     x87_1(
         &DAMAGE,
-        crate::race::store::asm_base() as usize,
         &DAMAGE.wear_rates[5],
         &DAMAGE.flt_75b3a8,
-        0x31A27C,
-        0x31A27C,
+        &CAR.damper_wear[0],
+        &CAR.damper_wear[0],
     );
     hold_low(&CAR.damper_wear[0], &DAMAGE.gauge_low);
     hold_high(&CAR.damper_wear[0], &DAMAGE.gauge_top);
     x87_1(
         &DAMAGE,
-        crate::race::store::asm_base() as usize,
         &DAMAGE.wear_rates[5],
         &DAMAGE.flt_75b3ac,
-        0x31A280,
-        0x31A280,
+        &CAR.damper_wear[1],
+        &CAR.damper_wear[1],
     );
     hold_low(&CAR.damper_wear[1], &DAMAGE.gauge_low);
     hold_high(&CAR.damper_wear[1], &DAMAGE.gauge_top);
     x87_2(
         &DAMAGE,
-        crate::race::store::asm_base() as usize,
         &DAMAGE.wear_rates[6],
-        0x31A27C,
-        0x31A27C,
+        &CAR.damper_wear[0],
+        &CAR.damper_wear[0],
     );
     hold_low(&CAR.damper_wear[0], &DAMAGE.gauge_low);
     hold_high(&CAR.damper_wear[0], &DAMAGE.gauge_top);
     x87_2(
         &DAMAGE,
-        crate::race::store::asm_base() as usize,
         &DAMAGE.wear_rates[6],
-        0x31A280,
-        0x31A280,
+        &CAR.damper_wear[1],
+        &CAR.damper_wear[1],
     );
     hold_low(&CAR.damper_wear[1], &DAMAGE.gauge_low);
     hold_high(&CAR.damper_wear[1], &DAMAGE.gauge_top);
     x87_1(
         &DAMAGE,
-        crate::race::store::asm_base() as usize,
         &DAMAGE.wear_rates[7],
         &DAMAGE.flt_75b3b4,
-        0x31A278,
-        0x31A278,
+        &CAR.brake_fade,
+        &CAR.brake_fade,
     );
     hold_low(&CAR.brake_fade, &DAMAGE.gauge_low);
     hold_high(&CAR.brake_fade, &DAMAGE.gauge_top);
     x87_2(
         &DAMAGE,
-        crate::race::store::asm_base() as usize,
         &DAMAGE.wear_rates[8],
-        0x31A278,
-        0x31A278,
+        &CAR.brake_fade,
+        &CAR.brake_fade,
     );
     hold_low(&CAR.brake_fade, &DAMAGE.gauge_low);
     hold_high(&CAR.brake_fade, &DAMAGE.gauge_top);
     x87_3(
         &DAMAGE,
-        crate::race::store::asm_base() as usize,
         &DAMAGE.wear_rates[9],
         &DAMAGE.flt_75b3b0,
-        0x31A278,
-        0x31A278,
+        &CAR.brake_fade,
+        &CAR.brake_fade,
     );
     hold_low(&CAR.brake_fade, &DAMAGE.gauge_low);
     hold_high(&CAR.brake_fade, &DAMAGE.gauge_top);
@@ -157,30 +146,27 @@ pub fn steps() {
     hold_low(&DAMAGE.flt_75b464, &DAMAGE.gauge_low);
     x87_1(
         &DAMAGE,
-        crate::race::store::asm_base() as usize,
         &DAMAGE.wear_rates[0],
         &DAMAGE.flt_75b464,
-        0x31A28C,
-        0x31A28C,
+        &CAR.engine_heat,
+        &CAR.engine_heat,
     );
     hold_low(&CAR.engine_heat, &DAMAGE.gauge_low);
     hold_high(&CAR.engine_heat, &DAMAGE.gauge_top);
     x87_2(
         &DAMAGE,
-        crate::race::store::asm_base() as usize,
         &DAMAGE.wear_rates[1],
-        0x31A28C,
-        0x31A28C,
+        &CAR.engine_heat,
+        &CAR.engine_heat,
     );
     hold_low(&CAR.engine_heat, &DAMAGE.gauge_low);
     hold_high(&CAR.engine_heat, &DAMAGE.gauge_top);
     x87_3(
         &DAMAGE,
-        crate::race::store::asm_base() as usize,
         &DAMAGE.wear_rates[2],
         &DAMAGE.flt_75b39c,
-        0x31A28C,
-        0x31A28C,
+        &CAR.engine_heat,
+        &CAR.engine_heat,
     );
     hold_low(&CAR.engine_heat, &DAMAGE.gauge_low);
     hold_high(&CAR.engine_heat, &DAMAGE.gauge_top);
@@ -239,43 +225,60 @@ pub fn steps() {
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `[rc + o4] = (([m + o0] * [m + o1]) * [m + 0x35B390]) + [rc + o3]`
-fn x87_1(m: &DamageModel, rc: usize, o0: &impl Cell32, o1: &impl Cell32, o3: usize, o4: usize) {
+fn x87_1(
+    m: &DamageModel,
+    o0: &impl Cell32,
+    o1: &impl Cell32,
+    o3: &impl crate::session::Cell32,
+    o4: &impl crate::session::Cell32,
+) {
     let t0 = ld(o0.bits());
     let t1 = ld(o1.bits());
     let t2 = t0 * t1;
     let t3 = ld(m.flt_75b390.bits());
     let t4 = t2 * t3;
-    let t5 = fld(rc, o3);
+    let t5 = ld(o3.bits());
     let t6 = t4 + t5;
-    fstp(rc, o4, t6);
+    o4.set_bits(st(t6));
 }
 
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `[rc + o3] = -([m + o0] * [m + 0x35B390]) + [rc + o2]`
-fn x87_2(m: &DamageModel, rc: usize, o0: &impl Cell32, o2: usize, o3: usize) {
+fn x87_2(
+    m: &DamageModel,
+    o0: &impl Cell32,
+    o2: &impl crate::session::Cell32,
+    o3: &impl crate::session::Cell32,
+) {
     let t0 = ld(o0.bits());
     let t1 = ld(m.flt_75b390.bits());
     let t2 = t0 * t1;
     let t3 = -t2;
-    let t4 = fld(rc, o2);
+    let t4 = ld(o2.bits());
     let t5 = t3 + t4;
-    fstp(rc, o3, t5);
+    o3.set_bits(st(t5));
 }
 
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `[rc + o4] = -(([m + o0] * [m + o1]) * [m + 0x35B390]) + [rc + o3]`
-fn x87_3(m: &DamageModel, rc: usize, o0: &impl Cell32, o1: &impl Cell32, o3: usize, o4: usize) {
+fn x87_3(
+    m: &DamageModel,
+    o0: &impl Cell32,
+    o1: &impl Cell32,
+    o3: &impl crate::session::Cell32,
+    o4: &impl crate::session::Cell32,
+) {
     let t0 = ld(o0.bits());
     let t1 = ld(o1.bits());
     let t2 = t0 * t1;
     let t3 = ld(m.flt_75b390.bits());
     let t4 = t2 * t3;
     let t5 = -t4;
-    let t6 = fld(rc, o3);
+    let t6 = ld(o3.bits());
     let t7 = t5 + t6;
-    fstp(rc, o4, t7);
+    o4.set_bits(st(t7));
 }
 
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
@@ -398,11 +401,10 @@ mod asm_reference {
                 plain: |a| {
                     x87_1(
                         dm(a[0]),
-                        a[1],
                         &dm(a[0]).wear_rates[3],
                         &dm(a[0]).flt_75b3b0,
-                        0x31A284,
-                        0x31A284,
+                        &CAR.brake_heat[0],
+                        &CAR.brake_heat[0],
                     )
                 },
             },
@@ -423,11 +425,10 @@ mod asm_reference {
                 plain: |a| {
                     x87_1(
                         dm(a[0]),
-                        a[1],
                         &dm(a[0]).wear_rates[3],
                         &dm(a[0]).flt_75b3b0,
-                        0x31A288,
-                        0x31A288,
+                        &CAR.brake_heat[1],
+                        &CAR.brake_heat[1],
                     )
                 },
             },
@@ -445,7 +446,14 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_2(a[0], a[1]) },
-                plain: |a| x87_2(dm(a[0]), a[1], &dm(a[0]).wear_rates[4], 0x31A284, 0x31A284),
+                plain: |a| {
+                    x87_2(
+                        dm(a[0]),
+                        &dm(a[0]).wear_rates[4],
+                        &CAR.brake_heat[0],
+                        &CAR.brake_heat[0],
+                    )
+                },
             },
             Block {
                 name: "damage_wear line 69",
@@ -461,7 +469,14 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_3(a[0], a[1]) },
-                plain: |a| x87_2(dm(a[0]), a[1], &dm(a[0]).wear_rates[4], 0x31A288, 0x31A288),
+                plain: |a| {
+                    x87_2(
+                        dm(a[0]),
+                        &dm(a[0]).wear_rates[4],
+                        &CAR.brake_heat[1],
+                        &CAR.brake_heat[1],
+                    )
+                },
             },
             Block {
                 name: "damage_wear line 80",
@@ -480,11 +495,10 @@ mod asm_reference {
                 plain: |a| {
                     x87_1(
                         dm(a[0]),
-                        a[1],
                         &dm(a[0]).wear_rates[5],
                         &dm(a[0]).flt_75b3a8,
-                        0x31A27C,
-                        0x31A27C,
+                        &CAR.damper_wear[0],
+                        &CAR.damper_wear[0],
                     )
                 },
             },
@@ -505,11 +519,10 @@ mod asm_reference {
                 plain: |a| {
                     x87_1(
                         dm(a[0]),
-                        a[1],
                         &dm(a[0]).wear_rates[5],
                         &dm(a[0]).flt_75b3ac,
-                        0x31A280,
-                        0x31A280,
+                        &CAR.damper_wear[1],
+                        &CAR.damper_wear[1],
                     )
                 },
             },
@@ -527,7 +540,14 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_6(a[0], a[1]) },
-                plain: |a| x87_2(dm(a[0]), a[1], &dm(a[0]).wear_rates[6], 0x31A27C, 0x31A27C),
+                plain: |a| {
+                    x87_2(
+                        dm(a[0]),
+                        &dm(a[0]).wear_rates[6],
+                        &CAR.damper_wear[0],
+                        &CAR.damper_wear[0],
+                    )
+                },
             },
             Block {
                 name: "damage_wear line 113",
@@ -543,7 +563,14 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_7(a[0], a[1]) },
-                plain: |a| x87_2(dm(a[0]), a[1], &dm(a[0]).wear_rates[6], 0x31A280, 0x31A280),
+                plain: |a| {
+                    x87_2(
+                        dm(a[0]),
+                        &dm(a[0]).wear_rates[6],
+                        &CAR.damper_wear[1],
+                        &CAR.damper_wear[1],
+                    )
+                },
             },
             Block {
                 name: "damage_wear line 124",
@@ -562,11 +589,10 @@ mod asm_reference {
                 plain: |a| {
                     x87_1(
                         dm(a[0]),
-                        a[1],
                         &dm(a[0]).wear_rates[7],
                         &dm(a[0]).flt_75b3b4,
-                        0x31A278,
-                        0x31A278,
+                        &CAR.brake_fade,
+                        &CAR.brake_fade,
                     )
                 },
             },
@@ -584,7 +610,14 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_9(a[0], a[1]) },
-                plain: |a| x87_2(dm(a[0]), a[1], &dm(a[0]).wear_rates[8], 0x31A278, 0x31A278),
+                plain: |a| {
+                    x87_2(
+                        dm(a[0]),
+                        &dm(a[0]).wear_rates[8],
+                        &CAR.brake_fade,
+                        &CAR.brake_fade,
+                    )
+                },
             },
             Block {
                 name: "damage_wear line 146",
@@ -603,11 +636,10 @@ mod asm_reference {
                 plain: |a| {
                     x87_3(
                         dm(a[0]),
-                        a[1],
                         &dm(a[0]).wear_rates[9],
                         &dm(a[0]).flt_75b3b0,
-                        0x31A278,
-                        0x31A278,
+                        &CAR.brake_fade,
+                        &CAR.brake_fade,
                     )
                 },
             },
@@ -638,11 +670,10 @@ mod asm_reference {
                 plain: |a| {
                     x87_1(
                         dm(a[0]),
-                        a[1],
                         &dm(a[0]).wear_rates[0],
                         &dm(a[0]).flt_75b464,
-                        0x31A28C,
-                        0x31A28C,
+                        &CAR.engine_heat,
+                        &CAR.engine_heat,
                     )
                 },
             },
@@ -660,7 +691,14 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_13(a[0], a[1]) },
-                plain: |a| x87_2(dm(a[0]), a[1], &dm(a[0]).wear_rates[1], 0x31A28C, 0x31A28C),
+                plain: |a| {
+                    x87_2(
+                        dm(a[0]),
+                        &dm(a[0]).wear_rates[1],
+                        &CAR.engine_heat,
+                        &CAR.engine_heat,
+                    )
+                },
             },
             Block {
                 name: "damage_wear line 188",
@@ -679,11 +717,10 @@ mod asm_reference {
                 plain: |a| {
                     x87_3(
                         dm(a[0]),
-                        a[1],
                         &dm(a[0]).wear_rates[2],
                         &dm(a[0]).flt_75b39c,
-                        0x31A28C,
-                        0x31A28C,
+                        &CAR.engine_heat,
+                        &CAR.engine_heat,
                     )
                 },
             },

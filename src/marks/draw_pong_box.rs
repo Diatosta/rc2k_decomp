@@ -40,11 +40,7 @@ fn corners(v: &[[u8; 10]; 4]) {
 
 /// The original's 0x4B87A5 .. 0x4B88A9: the corners projected, their depth.
 fn projected(p: u32) {
-    projected_x87(
-        crate::race::store::asm_base() as usize,
-        p as usize,
-        &SQUARE_TABLES,
-    )
+    projected_x87(p as usize, &SQUARE_TABLES)
 }
 
 /// The Rust version (see the header).
@@ -69,9 +65,11 @@ pub fn draw_pong_box(v: [[u8; 10]; 4]) {
     crate::marks::clip_quad::draw_fan();
 }
 
-use crate::marks::plain::{ld, ld80, st};
+use crate::marks::plain::{ld80, st};
 use crate::marks::squares_store::{SQUARE_TABLES, SquareTables};
 use crate::math::x87_float as bh;
+use crate::math::x87_float::ld;
+use crate::scene::draw_store::DRAW;
 
 /// `sides`'s x87 block as plain Rust on the x87 model (42 instructions), same order and memory places.
 fn sides_x87(v: usize, p: &PongState, f: &MarksFloats, sq: &SquareTables) {
@@ -165,46 +163,46 @@ fn corners_x87(v: usize, p: &PongState, sq: &SquareTables) {
 }
 
 /// `projected`'s x87 block as plain Rust on the x87 model (60 instructions), same order and memory places.
-fn projected_x87(rc: usize, p: usize, sq: &SquareTables) {
-    let t0 = ld(rc, 0x224088);
+fn projected_x87(p: usize, sq: &SquareTables) {
+    let t0 = ld(DRAW.view_scale.bits());
     let t1 = t0 / bh::ld(sq.corners[3][2].bits());
-    let t2 = ld(rc, 0x224088);
+    let t2 = ld(DRAW.view_scale.bits());
     let t3 = t2 / bh::ld(sq.corners[2][2].bits());
-    let t4 = ld(rc, 0x224088);
+    let t4 = ld(DRAW.view_scale.bits());
     let t5 = t4 / bh::ld(sq.corners[1][2].bits());
-    let t6 = ld(rc, 0x224088);
+    let t6 = ld(DRAW.view_scale.bits());
     let t7 = t6 / bh::ld(sq.corners[0][2].bits());
     let t8 = bh::ld(sq.corners[0][1].bits());
     let t9 = t8 * t7;
     let t10 = t7 * bh::ld(sq.corners[0][0].bits());
     let t11 = -t9;
-    let t12 = t11 + ld(rc, 0x2240A0);
+    let t12 = t11 + ld(DRAW.view_centre[1].bits());
     st(p, 0x4, t12);
-    let t13 = t10 + ld(rc, 0x22409C);
+    let t13 = t10 + ld(DRAW.view_centre[0].bits());
     st(p, 0, t13);
     let t14 = bh::ld(sq.corners[1][1].bits());
     let t15 = t14 * t5;
     let t16 = t5 * bh::ld(sq.corners[1][0].bits());
     let t17 = -t15;
-    let t18 = t17 + ld(rc, 0x2240A0);
+    let t18 = t17 + ld(DRAW.view_centre[1].bits());
     st(p, 0x24, t18);
-    let t19 = t16 + ld(rc, 0x22409C);
+    let t19 = t16 + ld(DRAW.view_centre[0].bits());
     st(p, 0x20, t19);
     let t20 = bh::ld(sq.corners[2][1].bits());
     let t21 = t20 * t3;
     let t22 = t3 * bh::ld(sq.corners[2][0].bits());
     let t23 = -t21;
-    let t24 = t23 + ld(rc, 0x2240A0);
+    let t24 = t23 + ld(DRAW.view_centre[1].bits());
     st(p, 0x44, t24);
-    let t25 = t22 + ld(rc, 0x22409C);
+    let t25 = t22 + ld(DRAW.view_centre[0].bits());
     st(p, 0x40, t25);
     let t26 = bh::ld(sq.corners[3][1].bits());
     let t27 = t26 * t1;
     let t28 = t1 * bh::ld(sq.corners[3][0].bits());
     let t29 = -t27;
-    let t30 = t29 + ld(rc, 0x2240A0);
+    let t30 = t29 + ld(DRAW.view_centre[1].bits());
     st(p, 0x64, t30);
-    let t31 = t28 + ld(rc, 0x22409C);
+    let t31 = t28 + ld(DRAW.view_centre[0].bits());
     st(p, 0x60, t31);
     let t32 = bh::ld(sq.corners[0][2].bits());
     let t33 = t32 * bh::ld(sq.inverse.bits());
@@ -549,9 +547,7 @@ mod asm_differential {
     fn projected_x87_matches() {
         const SPEC: Spec = Spec {
             operands: &[
-                Op::Base {
-                    lo: 0x224088,
-                    hi: 0x2240A4,
+                Op::RaceBlock {
                     reads: &[(0x224088, F32), (0x22409C, F32), (0x2240A0, F32)],
                     writes: &[],
                 },
@@ -602,7 +598,7 @@ mod asm_differential {
             |b| reference::projected_x87(b[0], b[1], b[2]),
             |b| {
                 with_copy::<SquareTables, _>(b[1], SquareTables::START, |sq| {
-                    super::projected_x87(b[0], b[2], sq)
+                    super::projected_x87(b[2], sq)
                 })
             },
         );

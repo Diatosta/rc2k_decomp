@@ -27,6 +27,7 @@ use crate::drive::finish_store::FINISH;
 use crate::errors::{BadInput, FatalError, Refused};
 use crate::math::x87_float::int;
 use crate::math::x87_float::ld;
+use crate::math::x87_float::st;
 use crate::math::x87_float::to_int;
 use crate::physics::car_store::CAR;
 use crate::physics::ground_store::GROUND_WORK;
@@ -35,7 +36,6 @@ use crate::physics::tables_store::PHYSICS;
 use crate::race::course_store::COURSE;
 use crate::race::numbers_store::NUMBERS;
 use crate::scene::draw_store::DRAW;
-use crate::scene::x87_mem::fstp;
 use rc2k_core::physics::progress;
 use std::cmp::Ordering;
 
@@ -61,11 +61,9 @@ fn distance_at(rc: usize, s: usize) {
         let dz = word(s.add(8)).wrapping_sub(word(rc.add(0x23982C)));
         DRAW.scratch.set_bits(dz as u32);
         let second = int(DRAW.scratch.bits() as i32);
-        fstp(
-            rc,
-            0x214D04,
-            (first * first + second * second).sqrt() * ld(NUMBERS.one_over_65536.bits()),
-        );
+        PHYSICS.split_point_distance.set_bits(st(
+            (first * first + second * second).sqrt() * ld(NUMBERS.one_over_65536.bits())
+        ));
     }
 }
 

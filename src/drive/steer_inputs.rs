@@ -16,23 +16,25 @@
 //!
 //! Callers: `drive::car_controls`, `sub_460835`, `sub_460B2F`.
 
+use crate::math::x87_float::int;
+use crate::math::x87_float::ld;
+use crate::math::x87_float::to_int;
 use crate::physics::car_store::CAR;
 use crate::physics::flow::c0;
 use crate::physics::tables_store::PHYSICS;
 use crate::race::numbers_store::NUMBERS;
 use crate::scene::draw_store::DRAW;
-use crate::scene::x87_mem::{fild, fistp, fld};
 use crate::session::Dword;
 
-/// `fild dword [rc + from]; fmul dword [rc + by]; fistp dword [rc + to]` over the race
-/// block at `rc`.
-fn scale(rc: usize, from: usize, by: usize, to: usize) {
-    fistp(rc, to, fild(rc, from) * fld(rc, by))
+/// `fild dword [from]; fmul dword [by]; fistp dword [to]`.
+fn scale(
+    from: &impl crate::session::Cell32,
+    by: &impl crate::session::Cell32,
+    to: &impl crate::session::Cell32,
+) {
+    to.set_bits(to_int(int(from.bits() as i32) * ld(by.bits())) as u32)
 }
 
-fn base() -> usize {
-    crate::race::store::asm_base() as usize
-}
 const LEFT: u32 = 0xE000_0000;
 const RIGHT: u32 = 0x2000_0000;
 
@@ -43,7 +45,7 @@ fn sign(v: u32) -> bool {
 /// The key step: 0xA00000 x `flt_614C0C`, through `dword_62400C`.
 fn key_step() -> u32 {
     DRAW.scratch.set(0xA0_0000);
-    scale(base(), 0x22400C, 0x214C0C, 0x22400C);
+    scale(&DRAW.scratch, &PHYSICS.handling[8], &DRAW.scratch);
     DRAW.scratch.get()
 }
 
@@ -92,7 +94,7 @@ pub fn steer_inputs() {
         CAR.steering.set(0);
         let product = i64::from(PHYSICS.input_steer.get() as i32) * i64::from(RIGHT as i32);
         DRAW.scratch.set((product >> 8) as u32);
-        scale(base(), 0x22400C, 0x214C08, 0x22400C);
+        scale(&DRAW.scratch, &PHYSICS.handling[7], &DRAW.scratch);
         if sign(DRAW.scratch.get().wrapping_sub(LEFT)) {
             DRAW.scratch.set(LEFT);
         }
@@ -104,7 +106,7 @@ pub fn steer_inputs() {
     }
     // 0x439F7D: the trim.
     DRAW.scratch.set(RIGHT);
-    scale(base(), 0x22400C, 0x31A3E0, 0x31A1E0);
+    scale(&DRAW.scratch, &CAR.steering_efficiency, &CAR.steer_trim);
     if CAR.car_flags.get() & 0x10 != 0 {
         CAR.steer_trim.set(CAR.steer_trim.get().wrapping_neg());
     }
@@ -147,7 +149,7 @@ mod asm_reference {
                 }],
                 ulps: 0,
                 reference: |a| unsafe { ref_key(a[0]) },
-                plain: |a| scale(a[0], 0x22400C, 0x214C0C, 0x22400C),
+                plain: |_| scale(&DRAW.scratch, &PHYSICS.handling[8], &DRAW.scratch),
             },
             Block {
                 name: "steer_inputs device",
@@ -157,7 +159,7 @@ mod asm_reference {
                 }],
                 ulps: 0,
                 reference: |a| unsafe { ref_device(a[0]) },
-                plain: |a| scale(a[0], 0x22400C, 0x214C08, 0x22400C),
+                plain: |_| scale(&DRAW.scratch, &PHYSICS.handling[7], &DRAW.scratch),
             },
             Block {
                 name: "steer_inputs trim",
@@ -167,7 +169,7 @@ mod asm_reference {
                 }],
                 ulps: 0,
                 reference: |a| unsafe { ref_trim(a[0]) },
-                plain: |a| scale(a[0], 0x22400C, 0x31A3E0, 0x31A1E0),
+                plain: |_| scale(&DRAW.scratch, &CAR.steering_efficiency, &CAR.steer_trim),
             },
         ]
     }

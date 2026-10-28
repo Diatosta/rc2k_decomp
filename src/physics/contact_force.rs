@@ -45,7 +45,7 @@ use crate::race::numbers_store::NUMBERS;
 use crate::scene::draw_store::DRAW;
 use crate::scene::matrix3::{extended, rounded};
 use crate::scene::view_matrix::cross_product;
-use crate::scene::x87_mem::{fld, fnstsw, fstp, fstp80};
+use crate::scene::x87_mem::{fnstsw, fstp, fstp80};
 use crate::session::Float;
 
 /// `scene::cross_product` with the original's ebx, ecx, edx.
@@ -79,10 +79,9 @@ pub unsafe fn contact_force() {
         &CONTACT_WORK.contact_turn_cross[0],
     );
     x87_1(
-        crate::race::store::asm_base() as usize,
-        0x2D30C0,
-        0x2D30A8,
-        0x2D30CC,
+        &CONTACT_WORK.contact_turn_cross,
+        &CONTACT_WORK.contact_car_speed,
+        &CONTACT_WORK.contact_point_speed,
     );
     p(
         &CONTACT_WORK.contact_depth,
@@ -166,10 +165,9 @@ pub unsafe fn contact_force() {
         DRAW.scratch.set(rounded(part));
     }
     x87_1(
-        crate::race::store::asm_base() as usize,
-        0x2D3130,
-        0x2D3160,
-        0x2D3130,
+        &CONTACT_WORK.contact_normal_push,
+        &CONTACT_WORK.contact_extra,
+        &CONTACT_WORK.contact_normal_push,
     );
     copy3(
         &CONTACT_WORK.contact_total,
@@ -203,10 +201,9 @@ pub unsafe fn contact_force() {
     }
     // 0x45F57E: the sum into the record.
     x87_1(
-        crate::race::store::asm_base() as usize,
-        0x2D3140,
-        0x2D3130,
-        0x2D3150,
+        &CONTACT_WORK.contact_slide,
+        &CONTACT_WORK.contact_normal_push,
+        &CONTACT_WORK.contact_total,
     );
     let edi = PHYSICS.contact_record.get();
     unsafe { turn_by_inverse(CONTACT_WORK.contact_total[0].addr()) };
@@ -222,12 +219,11 @@ pub unsafe fn contact_force() {
 
 // ---- the arithmetic that was x87 assembly ----
 
-/// An x87 run of the original, in plain Rust over `X`, over the race core
-/// at `rc`: three floats added, `[rc + out + 4 k] = [rc + a + 4 k] + [rc + b + 4 k]` (each stored
-/// as made, so `out` may be one of the two).
-fn x87_1(rc: usize, a: usize, b: usize, out: usize) {
+/// An x87 run of the original, in plain Rust over `X`: three floats added, `out[k] = a[k] +
+/// b[k]` (each stored as made, so `out` may be one of the two).
+fn x87_1(a: &[Float; 3], b: &[Float; 3], out: &[Float; 3]) {
     for k in 0..3 {
-        fstp(rc, out + 4 * k, fld(rc, a + 4 * k) + fld(rc, b + 4 * k));
+        out[k].set_bits(st(ld(a[k].bits()) + ld(b[k].bits())));
     }
 }
 
@@ -389,7 +385,13 @@ mod asm_reference {
                 }],
                 ulps: 0,
                 reference: |a| unsafe { ref_0(a[0]) },
-                plain: |a| x87_1(a[0], 0x2D30C0, 0x2D30A8, 0x2D30CC),
+                plain: |_| {
+                    x87_1(
+                        &CONTACT_WORK.contact_turn_cross,
+                        &CONTACT_WORK.contact_car_speed,
+                        &CONTACT_WORK.contact_point_speed,
+                    )
+                },
             },
             Block {
                 name: "contact_force line 66",
@@ -465,7 +467,13 @@ mod asm_reference {
                 }],
                 ulps: 0,
                 reference: |a| unsafe { ref_5(a[0]) },
-                plain: |a| x87_1(a[0], 0x2D3130, 0x2D3160, 0x2D3130),
+                plain: |_| {
+                    x87_1(
+                        &CONTACT_WORK.contact_normal_push,
+                        &CONTACT_WORK.contact_extra,
+                        &CONTACT_WORK.contact_normal_push,
+                    )
+                },
             },
             Block {
                 name: "contact_force line 160",
@@ -524,7 +532,13 @@ mod asm_reference {
                 }],
                 ulps: 0,
                 reference: |a| unsafe { ref_8(a[0]) },
-                plain: |a| x87_1(a[0], 0x2D3140, 0x2D3130, 0x2D3150),
+                plain: |_| {
+                    x87_1(
+                        &CONTACT_WORK.contact_slide,
+                        &CONTACT_WORK.contact_normal_push,
+                        &CONTACT_WORK.contact_total,
+                    )
+                },
             },
             Block {
                 name: "contact_force line 207",

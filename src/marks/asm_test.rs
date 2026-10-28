@@ -3,6 +3,7 @@
 //! memory, at the default control word and at chop, and every place either one writes must
 //! hold the same bits afterwards.
 
+use crate::marks::store::START;
 use crate::math::x87;
 use crate::math::x87_float as bh;
 
@@ -22,6 +23,13 @@ pub enum Op {
     Base {
         lo: usize,
         hi: usize,
+        reads: &'static [(usize, Kind)],
+        writes: &'static [(usize, Kind)],
+    },
+    /// The race block itself (`race::store::asm_base()`, the offsets RVAs): the plain
+    /// versions read it through the typed stores. Only the listed places are filled,
+    /// compared and put back.
+    RaceBlock {
         reads: &'static [(usize, Kind)],
         writes: &'static [(usize, Kind)],
     },
@@ -72,10 +80,7 @@ impl PartialEq for Buf {
 /// address need not be aligned for its cells) and put back afterwards. The buffer must
 /// hold the whole block.
 pub fn with_copy<T, R>(mk: usize, start: usize, f: impl FnOnce(&T) -> R) -> R {
-    let p = crate::pointers::host_at(
-        mk.wrapping_add(start)
-            .wrapping_sub(crate::marks::store::START),
-    ) as *mut T;
+    let p = crate::pointers::host_at(mk.wrapping_add(start).wrapping_sub(START)) as *mut T;
     unsafe {
         let local = p.read_unaligned();
         let out = f(&local);
@@ -196,6 +201,44 @@ const SIZE: fn(Kind) -> usize = |k| match k {
     Status => 2,
 };
 
+/// The race block's bytes at RVA `off`.
+fn block_get(off: usize, len: usize) -> Vec<u8> {
+    crate::pointers::GamePtr::new(crate::race::store::asm_base().wrapping_add(off as u32))
+        .read_bytes(len, "a race block place")
+        .unwrap()
+}
+
+fn block_put(off: usize, bytes: &[u8]) {
+    crate::pointers::GamePtr::new(crate::race::store::asm_base().wrapping_add(off as u32))
+        .write_bytes(bytes, "a race block place")
+        .unwrap();
+}
+
+/// Each listed write of the race block operands: its place and kind, and its bytes now.
+#[allow(clippy::type_complexity)] // reason: a test's one-off list
+fn block_outputs(spec: &Spec) -> Vec<((usize, Kind), Vec<u8>)> {
+    let mut out = Vec::new();
+    for op in spec.operands {
+        if let Op::RaceBlock { writes, .. } = op {
+            for &(off, kind) in *writes {
+                out.push(((off, kind), block_get(off, SIZE(kind))));
+            }
+        }
+    }
+    out
+}
+
+/// The race block's listed places as they were before a test (put back when it ends).
+struct PutBack(Vec<(usize, Vec<u8>)>);
+
+impl Drop for PutBack {
+    fn drop(&mut self) {
+        for (off, b) in self.0.iter().rev() {
+            block_put(*off, b);
+        }
+    }
+}
+
 /// Runs `reference` and `plain` (each given the operands: base addresses and indexes)
 /// over the same random memory, several thousand times at each of two control words.
 pub fn differential<R: PartialEq + std::fmt::Debug>(
@@ -208,6 +251,15 @@ pub fn differential<R: PartialEq + std::fmt::Debug>(
     let _guard = crate::store::test_lock();
     let mut rng = Rng(0x9E37_79B9_7F4A_7C15);
     let mut failures = 0;
+    let mut saved = Vec::new();
+    for op in spec.operands {
+        if let Op::RaceBlock { reads, writes, .. } = op {
+            for &(off, kind) in reads.iter().chain(writes.iter()) {
+                saved.push((off, block_get(off, SIZE(kind))));
+            }
+        }
+    }
+    let _put_back = PutBack(saved);
     for cw in [0x027F, 0x0E7F] {
         x87::set_control_word(cw);
         for case in 0..3000 {
@@ -220,6 +272,10 @@ pub fn differential<R: PartialEq + std::fmt::Debug>(
                         fill(&mut buf, *lo, reads, &mut rng, spec.sincos);
                         refs.push(buf);
                         values.push(0);
+                    }
+                    Op::RaceBlock { .. } => {
+                        refs.push(Buf::new(0));
+                        values.push(crate::race::store::asm_base() as usize);
                     }
                     Op::Index(v) => {
                         refs.push(Buf::new(0));
@@ -249,7 +305,46 @@ pub fn differential<R: PartialEq + std::fmt::Debug>(
                 .filter(|b| !b.is_empty())
                 .map(|b| crate::pointers::Lent::new(b))
                 .collect();
-            let (got_ref, got_plain) = (reference(&ref_vals), plain(&pl_vals));
+            // the race block's places: random inputs, the outputs marked, each run from them
+            let mut block_in: Vec<(usize, Vec<u8>)> = Vec::new();
+            for op in spec.operands {
+                if let Op::RaceBlock { reads, writes, .. } = op {
+                    for &(off, kind) in *reads {
+                        let mut b = vec![0u8; SIZE(kind)];
+                        fill(&mut b, off, &[(off, kind)], &mut rng, spec.sincos);
+                        block_in.push((off, b));
+                    }
+                    for &(off, kind) in *writes {
+                        block_in.push((off, vec![0xAA; SIZE(kind)]));
+                    }
+                }
+            }
+            let lay = || {
+                for (off, b) in &block_in {
+                    block_put(*off, b);
+                }
+            };
+            lay();
+            let got_ref = reference(&ref_vals);
+            let ref_out = block_outputs(spec);
+            lay();
+            let got_plain = plain(&pl_vals);
+            let plain_out = block_outputs(spec);
+            for ((off, kind), a) in &ref_out {
+                let b = &plain_out
+                    .iter()
+                    .find(|(p, _)| p == &(*off, *kind))
+                    .unwrap()
+                    .1;
+                if !same(*kind, a, b, spec.sincos) {
+                    failures += 1;
+                    if failures < 10 {
+                        eprintln!(
+                            "case {case} cw {cw:#X} race block +{off:#X} {kind:?}: reference {a:02X?} plain {b:02X?}"
+                        );
+                    }
+                }
+            }
             if got_ref != got_plain {
                 failures += 1;
                 if failures < 10 {

@@ -105,7 +105,7 @@ pub fn load_car_specs() -> Result<(), Refused> {
     DRAW.scratch.set(spec.scratch_value.get());
     PHYSICS.downforce_spec.set(spec.downforce.get());
     // 0x4217CA .. 0x4217E3
-    x87_5(crate::race::store::asm_base() as usize, drive as usize);
+    x87_5(drive as usize);
     Ok(())
 }
 
@@ -234,8 +234,15 @@ fn x87_4(s: usize) {
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `[rc + 0x2140F8] = [rc + k * 4 + 0x213FB8]`
 /// `[rc + 0x2140FC] = [rc + k * 4 + 0x213FB8] + [rc + 0x1C5D14]`
-fn x87_5(rc: usize, k: usize) {
-    let t0 = fld(rc, k * 4 + 0x213FB8);
+/// `k` is the drive kind (0 .. 2): kind 2 reads past the two rev limits into `camera_drop`,
+/// as the original (`notes/bugs.md`).
+fn x87_5(k: usize) {
+    let limit = [
+        &PHYSICS.rev_limits[0],
+        &PHYSICS.rev_limits[1],
+        &PHYSICS.camera_drop,
+    ][k];
+    let t0 = ld(limit.bits());
     PHYSICS.idle_engine_speed.set_bits(st(t0));
     let t1 = ld(NUMBERS.hundred.bits());
     let t2 = t0 + t1;
@@ -361,7 +368,7 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_4(a[0], a[1]) },
-                plain: |a| x87_5(a[0], a[1]),
+                plain: |a| x87_5(a[1]),
             },
             Block {
                 name: "load_car_specs line 194 idx k=1",
@@ -374,20 +381,20 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_4(a[0], a[1]) },
-                plain: |a| x87_5(a[0], a[1]),
+                plain: |a| x87_5(a[1]),
             },
             Block {
-                name: "load_car_specs line 194 idx k=4",
+                name: "load_car_specs line 194 idx k=2 (camera_drop)",
                 operands: vec![
                     Operand::RaceBlock {
-                        reads: &[(0x1C5D14, In::F), (0x213FC8, In::F)],
+                        reads: &[(0x1C5D14, In::F), (0x213FC0, In::F)],
                         writes: &[(0x2140F8, Out::F), (0x2140FC, Out::F)],
                     },
-                    Operand::Value(4),
+                    Operand::Value(2),
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_4(a[0], a[1]) },
-                plain: |a| x87_5(a[0], a[1]),
+                plain: |a| x87_5(a[1]),
             },
         ]
     }

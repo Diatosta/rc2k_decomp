@@ -30,7 +30,6 @@ fn turn(p: &[[u8; 10]; 3]) {
 /// The original's 0x4C1F4A .. 0x4C20B3: both projected and the quad's x, y and depth.
 fn project() {
     project_x87(
-        crate::race::store::asm_base() as usize,
         crate::d3d::vertices_store::piece_addr() as usize,
         &RAIN,
         &RAIN_RULES,
@@ -40,7 +39,7 @@ fn project() {
 /// The Rust version (see the header).
 pub fn draw_streak(place: [[u8; 10]; 3]) -> Result<(), Refused> {
     {
-        if crate::marks::setup::SETTINGS.pointer.get() == 0 {
+        if SETTINGS.pointer.get() == 0 {
             return Err(BadInput("no marks settings").into());
         }
         turn(&place);
@@ -60,8 +59,10 @@ pub fn draw_streak(place: [[u8; 10]; 3]) -> Result<(), Refused> {
     Ok(())
 }
 
-use crate::marks::plain::{ld, ld80, st};
+use crate::marks::plain::{ld80, st};
+use crate::marks::setup::SETTINGS;
 use crate::math::x87_float as bh;
+use crate::math::x87_float::ld;
 
 /// `turn`'s x87 block as plain Rust on the x87 model (79 instructions), same order and memory places.
 fn turn_x87(p: usize, r: &RainState) {
@@ -126,11 +127,11 @@ fn turn_x87(p: usize, r: &RainState) {
 }
 
 /// `project`'s x87 block as plain Rust on the x87 model (85 instructions), same order and memory places.
-fn project_x87(rc: usize, vt: usize, r: &RainState, k: &RainRules) {
+fn project_x87(vt: usize, r: &RainState, k: &RainRules) {
     let t0 = bh::ld(r.second[2].bits());
-    let t1 = ld(rc, 0x224088) / t0;
+    let t1 = ld(DRAW.view_scale.bits()) / t0;
     let t2 = bh::ld(r.turned[2].bits());
-    let t3 = ld(rc, 0x224088) / t2;
+    let t3 = ld(DRAW.view_scale.bits()) / t2;
     let t4 = bh::ld(r.second[0].bits());
     let t5 = bh::ld(r.second[1].bits());
     let t6 = bh::ld(r.turned[0].bits());
@@ -141,20 +142,20 @@ fn project_x87(rc: usize, vt: usize, r: &RainState, k: &RainRules) {
     let t11 = t7 * t3;
     let t12 = t1 * bh::ld(k.view_scale[0].bits());
     let t13 = t3 * bh::ld(k.view_scale[1].bits());
-    let t14 = t8 + ld(rc, 0x22409C);
+    let t14 = t8 + ld(DRAW.view_centre[0].bits());
     r.ends[0][0].set_bits(bh::st(t14));
     let t15 = -t9;
-    let t16 = t15 + ld(rc, 0x2240A0);
+    let t16 = t15 + ld(DRAW.view_centre[1].bits());
     r.ends[0][1].set_bits(bh::st(t16));
-    let t17 = t10 + ld(rc, 0x22409C);
+    let t17 = t10 + ld(DRAW.view_centre[0].bits());
     r.ends[1][0].set_bits(bh::st(t17));
     let t18 = -t11;
-    let t19 = t18 + ld(rc, 0x2240A0);
+    let t19 = t18 + ld(DRAW.view_centre[1].bits());
     r.ends[1][1].set_bits(bh::st(t19));
     r.ends[0][2].set_bits(bh::st(t12));
     r.ends[1][2].set_bits(bh::st(t13));
     let t20 = bh::ONE;
-    let t21 = t20 / ld(rc, 0x2241C8);
+    let t21 = t20 / ld(DRAW.farthest.bits());
     let t22 = bh::ld(r.ends[1][0].bits());
     let t23 = t22 - bh::ld(r.ends[0][0].bits());
     r.edge_a[1].set_bits(bh::st(t23));
@@ -463,9 +464,7 @@ mod asm_differential {
     fn project_x87_matches() {
         const SPEC: Spec = Spec {
             operands: &[
-                Op::Base {
-                    lo: 0x224088,
-                    hi: 0x2241CC,
+                Op::RaceBlock {
                     reads: &[
                         (0x224088, F32),
                         (0x22409C, F32),
@@ -540,7 +539,7 @@ mod asm_differential {
             |b| reference::project_x87(b[0], b[1], b[2]),
             |b| {
                 with_state_at(b[2], |r, k| {
-                    super::project_x87(b[0], b[1].wrapping_add(0x5605A0), r, k)
+                    super::project_x87(b[1].wrapping_add(0x5605A0), r, k)
                 })
             },
         );

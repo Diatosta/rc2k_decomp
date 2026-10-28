@@ -25,7 +25,6 @@ const CELLS: u32 = 0x41;
 /// The original's 0x4C5EF7 .. 0x4C60E9: the two projected and the ribbon's corners.
 fn ribbon() {
     ribbon_x87(
-        crate::race::store::asm_base() as usize,
         crate::d3d::vertices_store::piece_addr() as usize,
         &DRAW_WORK,
         &VIEW_VARS,
@@ -39,7 +38,7 @@ pub fn draw_ribbon(cell: u32, alpha: u32, width: u32, colour: u32) -> Result<(),
         return Err(BadInput("a mark cell past g_marksCellPlaces").into());
     }
     {
-        if crate::marks::setup::SETTINGS.pointer.get() == 0 {
+        if SETTINGS.pointer.get() == 0 {
             return Err(BadInput("no marks settings").into());
         }
         DRAW_WORK.half[0].set_bits(width >> 1);
@@ -73,29 +72,31 @@ pub fn draw_ribbon(cell: u32, alpha: u32, width: u32, colour: u32) -> Result<(),
 }
 
 use crate::marks::frame_state::{DRAW_WORK, DrawWork, VIEW_VARS, ViewVars};
-use crate::marks::plain::{ld, st};
+use crate::marks::plain::st;
+use crate::marks::setup::SETTINGS;
 use crate::math::x87_float as bh;
+use crate::math::x87_float::ld;
 
 /// `ribbon`'s x87 block as plain Rust on the x87 model (93 instructions), same order and memory places.
-fn ribbon_x87(rc: usize, vt: usize, dw: &DrawWork, vv: &ViewVars) {
-    let t0 = ld(rc, 0x224088);
+fn ribbon_x87(vt: usize, dw: &DrawWork, vv: &ViewVars) {
+    let t0 = ld(DRAW.view_scale.bits());
     let t1 = t0 / bh::ld(dw.turned[2].bits());
     let t2 = t1 * bh::ld(dw.turned[0].bits());
     let t3 = t1 * bh::ld(dw.turned[1].bits());
     let t4 = -t3;
-    let t5 = t4 + ld(rc, 0x2240A0);
+    let t5 = t4 + ld(DRAW.view_centre[1].bits());
     dw.turned[1].set_bits(bh::st(t5));
-    let t6 = t2 + ld(rc, 0x22409C);
+    let t6 = t2 + ld(DRAW.view_centre[0].bits());
     dw.turned[0].set_bits(bh::st(t6));
     dw.ends_scale[0].set_bits(bh::st(t1));
-    let t7 = ld(rc, 0x224088);
+    let t7 = ld(DRAW.view_scale.bits());
     let t8 = t7 / bh::ld(dw.second[2].bits());
     let t9 = t8 * bh::ld(dw.second[0].bits());
     let t10 = t8 * bh::ld(dw.second[1].bits());
     let t11 = -t10;
-    let t12 = t11 + ld(rc, 0x2240A0);
+    let t12 = t11 + ld(DRAW.view_centre[1].bits());
     dw.second[1].set_bits(bh::st(t12));
-    let t13 = t9 + ld(rc, 0x22409C);
+    let t13 = t9 + ld(DRAW.view_centre[0].bits());
     dw.second[0].set_bits(bh::st(t13));
     dw.ends_scale[1].set_bits(bh::st(t8));
     let t14 = bh::ld(dw.second[0].bits());
@@ -292,9 +293,7 @@ mod asm_differential {
     fn ribbon_x87_matches() {
         const SPEC: Spec = Spec {
             operands: &[
-                Op::Base {
-                    lo: 0x224088,
-                    hi: 0x2240A4,
+                Op::RaceBlock {
                     reads: &[(0x224088, F32), (0x22409C, F32), (0x2240A0, F32)],
                     writes: &[],
                 },
@@ -362,7 +361,7 @@ mod asm_differential {
             |b| {
                 with_copy::<DrawWork, _>(b[2], DrawWork::START, |dw| {
                     with_copy::<ViewVars, _>(b[2], ViewVars::START, |vv| {
-                        super::ribbon_x87(b[0], b[1].wrapping_add(0x5605A0), dw, vv)
+                        super::ribbon_x87(b[1].wrapping_add(0x5605A0), dw, vv)
                     })
                 })
             },

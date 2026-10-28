@@ -40,7 +40,7 @@ fn get(a: u32) -> Result<u32, BadInput> {
 
 /// The original's 0x4C2605 .. 0x4C276E: the light's place and way turned.
 fn turn_light() {
-    turn_light_x87(crate::race::store::asm_base() as usize, &SNOW_LIGHT)
+    turn_light_x87(&SNOW_LIGHT)
 }
 
 /// The Rust version (see the header).
@@ -48,14 +48,14 @@ pub fn run_snow() -> Result<(), Refused> {
     use crate::scene::set_render_state::set_render_state;
     let (s, l) = (&SNOW, &SNOW_LIGHT);
     {
-        let settings: u32 = crate::marks::setup::SETTINGS.pointer.get();
+        let settings: u32 = SETTINGS.pointer.get();
         if settings == 0 {
             return Err(BadInput("no marks settings").into());
         }
         l.kept.set(get(settings + 0x58)?);
         turn_light();
         crate::marks::make_fade_colours::make_fade_colours();
-        let settings: u32 = crate::marks::setup::SETTINGS.pointer.get();
+        let settings: u32 = SETTINGS.pointer.get();
         let mut flakes = get(settings + 0x2760)? as i32;
         s.flakes.set(flakes as u32);
         if flakes == 0 {
@@ -97,7 +97,7 @@ pub fn run_snow() -> Result<(), Refused> {
             r.set_bits(inverse);
         }
         s.inverse.set_bits(inverse);
-        let settings: u32 = crate::marks::setup::SETTINGS.pointer.get();
+        let settings: u32 = SETTINGS.pointer.get();
         if get(settings + 0x10)? != 0 {
             let ticks = PHYSICS.scene_clock.get().wrapping_sub(s.last_clock.get());
             let fall =
@@ -121,119 +121,121 @@ pub fn run_snow() -> Result<(), Refused> {
     Ok(())
 }
 
-use crate::marks::plain::ld;
+use crate::marks::setup::SETTINGS;
 use crate::math::x87_float as bh;
+use crate::math::x87_float::ld;
+use crate::race::matrices_store::MATRICES;
 
 /// `turn_light`'s x87 block as plain Rust on the x87 model (126 instructions), same order and memory places.
-fn turn_light_x87(rc: usize, l: &SnowLight) {
+fn turn_light_x87(l: &SnowLight) {
     let t0 = bh::ld(l.light_source[0].bits());
     let t1 = bh::ld(l.light_source[1].bits());
     let t2 = bh::ld(l.light_source[2].bits());
-    let t3 = ld(rc, 0x1EA3CC);
+    let t3 = ld(MATRICES.view_place[0].bits());
     let t4 = t3 * t2;
-    let t5 = ld(rc, 0x1EA3DC);
+    let t5 = ld(MATRICES.view_place[4].bits());
     let t6 = t5 * t1;
-    let t7 = ld(rc, 0x1EA3EC);
+    let t7 = ld(MATRICES.view_place[8].bits());
     let t8 = t7 * t0;
     let t9 = t6 + t8;
     let t10 = t4 + t9;
-    let t11 = t10 + ld(rc, 0x1EA3FC);
-    let t12 = ld(rc, 0x1EA3D0);
+    let t11 = t10 + ld(MATRICES.view_place[12].bits());
+    let t12 = ld(MATRICES.view_place[1].bits());
     let t13 = t12 * t2;
-    let t14 = ld(rc, 0x1EA3E0);
+    let t14 = ld(MATRICES.view_place[5].bits());
     let t15 = t14 * t1;
-    let t16 = ld(rc, 0x1EA3F0);
+    let t16 = ld(MATRICES.view_place[9].bits());
     let t17 = t16 * t0;
     let t18 = t15 + t17;
     let t19 = t13 + t18;
-    let t20 = t19 + ld(rc, 0x1EA400);
-    let t21 = ld(rc, 0x1EA3D4);
+    let t20 = t19 + ld(MATRICES.view_place[13].bits());
+    let t21 = ld(MATRICES.view_place[2].bits());
     let t22 = t2 * t21;
-    let t23 = ld(rc, 0x1EA3E4);
+    let t23 = ld(MATRICES.view_place[6].bits());
     let t24 = t1 * t23;
-    let t25 = ld(rc, 0x1EA3F4);
+    let t25 = ld(MATRICES.view_place[10].bits());
     let t26 = t0 * t25;
     let t27 = t26 + t24;
     let t28 = t22 + t27;
-    let t29 = t28 + ld(rc, 0x1EA404);
-    let t30 = ld(rc, 0x1EA2CC);
+    let t29 = t28 + ld(MATRICES.view_place[14].bits());
+    let t30 = ld(MATRICES.view_matrix[0].bits());
     let t31 = t30 * t11;
-    let t32 = ld(rc, 0x1EA2DC);
+    let t32 = ld(MATRICES.view_matrix[4].bits());
     let t33 = t32 * t20;
-    let t34 = ld(rc, 0x1EA2EC);
+    let t34 = ld(MATRICES.view_matrix[8].bits());
     let t35 = t34 * t29;
     let t36 = t33 + t35;
     let t37 = t31 + t36;
-    let t38 = t37 + ld(rc, 0x1EA2FC);
-    let t39 = ld(rc, 0x1EA2D0);
+    let t38 = t37 + ld(MATRICES.view_matrix[12].bits());
+    let t39 = ld(MATRICES.view_matrix[1].bits());
     let t40 = t39 * t11;
-    let t41 = ld(rc, 0x1EA2E0);
+    let t41 = ld(MATRICES.view_matrix[5].bits());
     let t42 = t41 * t20;
-    let t43 = ld(rc, 0x1EA2F0);
+    let t43 = ld(MATRICES.view_matrix[9].bits());
     let t44 = t43 * t29;
     let t45 = t42 + t44;
     let t46 = t40 + t45;
-    let t47 = t46 + ld(rc, 0x1EA300);
-    let t48 = ld(rc, 0x1EA2D4);
+    let t47 = t46 + ld(MATRICES.view_matrix[13].bits());
+    let t48 = ld(MATRICES.view_matrix[2].bits());
     let t49 = t11 * t48;
-    let t50 = ld(rc, 0x1EA2E4);
+    let t50 = ld(MATRICES.view_matrix[6].bits());
     let t51 = t20 * t50;
-    let t52 = ld(rc, 0x1EA2F4);
+    let t52 = ld(MATRICES.view_matrix[10].bits());
     let t53 = t29 * t52;
     let t54 = t53 + t51;
     let t55 = t49 + t54;
-    let t56 = t55 + ld(rc, 0x1EA304);
+    let t56 = t55 + ld(MATRICES.view_matrix[14].bits());
     l.light_place[0].set_bits(bh::st(t38));
     l.light_place[1].set_bits(bh::st(t47));
     l.light_place[2].set_bits(bh::st(t56));
     let t57 = bh::ld(l.light_source_way[0].bits());
     let t58 = bh::ld(l.light_source_way[1].bits());
     let t59 = bh::ld(l.light_source_way[2].bits());
-    let t60 = ld(rc, 0x1EA3CC);
+    let t60 = ld(MATRICES.view_place[0].bits());
     let t61 = t60 * t59;
-    let t62 = ld(rc, 0x1EA3DC);
+    let t62 = ld(MATRICES.view_place[4].bits());
     let t63 = t62 * t58;
-    let t64 = ld(rc, 0x1EA3EC);
+    let t64 = ld(MATRICES.view_place[8].bits());
     let t65 = t64 * t57;
     let t66 = t63 + t65;
     let t67 = t61 + t66;
-    let t68 = ld(rc, 0x1EA3D0);
+    let t68 = ld(MATRICES.view_place[1].bits());
     let t69 = t68 * t59;
-    let t70 = ld(rc, 0x1EA3E0);
+    let t70 = ld(MATRICES.view_place[5].bits());
     let t71 = t70 * t58;
-    let t72 = ld(rc, 0x1EA3F0);
+    let t72 = ld(MATRICES.view_place[9].bits());
     let t73 = t72 * t57;
     let t74 = t71 + t73;
     let t75 = t69 + t74;
-    let t76 = ld(rc, 0x1EA3D4);
+    let t76 = ld(MATRICES.view_place[2].bits());
     let t77 = t59 * t76;
-    let t78 = ld(rc, 0x1EA3E4);
+    let t78 = ld(MATRICES.view_place[6].bits());
     let t79 = t58 * t78;
-    let t80 = ld(rc, 0x1EA3F4);
+    let t80 = ld(MATRICES.view_place[10].bits());
     let t81 = t57 * t80;
     let t82 = t81 + t79;
     let t83 = t77 + t82;
-    let t84 = ld(rc, 0x1EA2CC);
+    let t84 = ld(MATRICES.view_matrix[0].bits());
     let t85 = t84 * t67;
-    let t86 = ld(rc, 0x1EA2DC);
+    let t86 = ld(MATRICES.view_matrix[4].bits());
     let t87 = t86 * t75;
-    let t88 = ld(rc, 0x1EA2EC);
+    let t88 = ld(MATRICES.view_matrix[8].bits());
     let t89 = t88 * t83;
     let t90 = t87 + t89;
     let t91 = t85 + t90;
-    let t92 = ld(rc, 0x1EA2D0);
+    let t92 = ld(MATRICES.view_matrix[1].bits());
     let t93 = t92 * t67;
-    let t94 = ld(rc, 0x1EA2E0);
+    let t94 = ld(MATRICES.view_matrix[5].bits());
     let t95 = t94 * t75;
-    let t96 = ld(rc, 0x1EA2F0);
+    let t96 = ld(MATRICES.view_matrix[9].bits());
     let t97 = t96 * t83;
     let t98 = t95 + t97;
     let t99 = t93 + t98;
-    let t100 = ld(rc, 0x1EA2D4);
+    let t100 = ld(MATRICES.view_matrix[2].bits());
     let t101 = t67 * t100;
-    let t102 = ld(rc, 0x1EA2E4);
+    let t102 = ld(MATRICES.view_matrix[6].bits());
     let t103 = t75 * t102;
-    let t104 = ld(rc, 0x1EA2F4);
+    let t104 = ld(MATRICES.view_matrix[10].bits());
     let t105 = t83 * t104;
     let t106 = t105 + t103;
     let t107 = t101 + t106;
@@ -397,9 +399,7 @@ mod asm_differential {
     fn turn_light_x87_matches() {
         const SPEC: Spec = Spec {
             operands: &[
-                Op::Base {
-                    lo: 0x1EA2CC,
-                    hi: 0x1EA408,
+                Op::RaceBlock {
                     reads: &[
                         (0x1EA2CC, F32),
                         (0x1EA2D0, F32),
@@ -454,7 +454,7 @@ mod asm_differential {
         differential(
             &SPEC,
             |b| reference::turn_light_x87(b[0], b[1]),
-            |b| with_copy(b[1], SnowLight::START, |l| super::turn_light_x87(b[0], l)),
+            |b| with_copy(b[1], SnowLight::START, super::turn_light_x87),
         );
     }
 }

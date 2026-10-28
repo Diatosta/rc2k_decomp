@@ -106,13 +106,13 @@ fn plane_corners() {
 
 /// The original's 0x4C93FA .. 0x4C94CA: the four corners projected.
 fn plane_projected() {
-    plane_projected_x87(crate::race::store::asm_base() as usize, &QUAD_3)
+    plane_projected_x87(&QUAD_3)
 }
 
 /// The Rust version (see the header).
 pub fn draw_plane() -> Result<(), Refused> {
     use crate::scene::set_render_state::set_render_state;
-    let s: u32 = crate::marks::setup::SETTINGS.pointer.get();
+    let s: u32 = SETTINGS.pointer.get();
     if s == 0 {
         return Err(BadInput("no marks settings").into());
     }
@@ -197,8 +197,10 @@ pub fn draw_plane() -> Result<(), Refused> {
 }
 
 use crate::marks::plain::{ld, ldi, st};
+use crate::marks::setup::SETTINGS;
 use crate::marks::squares_store::{SQUARE_TIMING, SquareTables, SquareTiming};
 use crate::math::x87_float as bh;
+use crate::scene::draw_store::DRAW;
 
 /// `plane_axes`'s x87 block as plain Rust on the x87 model (29 instructions), same order and memory places.
 fn plane_axes_x87(s: usize, sti: &SquareTiming, sq: &SquareTables, pt: &PlaneTuning) {
@@ -325,42 +327,42 @@ fn plane_corners_x87(sq: &SquareTables, q: &QuadWork) {
 }
 
 /// `plane_projected`'s x87 block as plain Rust on the x87 model (40 instructions), same order and memory places.
-fn plane_projected_x87(rc: usize, q: &QuadWork) {
-    let t0 = ld(rc, 0x224088);
+fn plane_projected_x87(q: &QuadWork) {
+    let t0 = crate::math::x87_float::ld(DRAW.view_scale.bits());
     let t1 = t0 / bh::ld(q.corners[0][2].bits());
     let t2 = t1 * bh::ld(q.corners[0][0].bits());
-    let t3 = t2 + ld(rc, 0x22409C);
+    let t3 = t2 + crate::math::x87_float::ld(DRAW.view_centre[0].bits());
     q.corners[0][0].set_bits(bh::st(t3));
     let t4 = t1 * bh::ld(q.corners[0][1].bits());
     let t5 = -t4;
-    let t6 = t5 + ld(rc, 0x2240A0);
+    let t6 = t5 + crate::math::x87_float::ld(DRAW.view_centre[1].bits());
     q.corners[0][1].set_bits(bh::st(t6));
-    let t7 = ld(rc, 0x224088);
+    let t7 = crate::math::x87_float::ld(DRAW.view_scale.bits());
     let t8 = t7 / bh::ld(q.corners[1][2].bits());
     let t9 = t8 * bh::ld(q.corners[1][0].bits());
-    let t10 = t9 + ld(rc, 0x22409C);
+    let t10 = t9 + crate::math::x87_float::ld(DRAW.view_centre[0].bits());
     q.corners[1][0].set_bits(bh::st(t10));
     let t11 = t8 * bh::ld(q.corners[1][1].bits());
     let t12 = -t11;
-    let t13 = t12 + ld(rc, 0x2240A0);
+    let t13 = t12 + crate::math::x87_float::ld(DRAW.view_centre[1].bits());
     q.corners[1][1].set_bits(bh::st(t13));
-    let t14 = ld(rc, 0x224088);
+    let t14 = crate::math::x87_float::ld(DRAW.view_scale.bits());
     let t15 = t14 / bh::ld(q.corners[2][2].bits());
     let t16 = t15 * bh::ld(q.corners[2][0].bits());
-    let t17 = t16 + ld(rc, 0x22409C);
+    let t17 = t16 + crate::math::x87_float::ld(DRAW.view_centre[0].bits());
     q.corners[2][0].set_bits(bh::st(t17));
     let t18 = t15 * bh::ld(q.corners[2][1].bits());
     let t19 = -t18;
-    let t20 = t19 + ld(rc, 0x2240A0);
+    let t20 = t19 + crate::math::x87_float::ld(DRAW.view_centre[1].bits());
     q.corners[2][1].set_bits(bh::st(t20));
-    let t21 = ld(rc, 0x224088);
+    let t21 = crate::math::x87_float::ld(DRAW.view_scale.bits());
     let t22 = t21 / bh::ld(q.corners[3][2].bits());
     let t23 = t22 * bh::ld(q.corners[3][0].bits());
-    let t24 = t23 + ld(rc, 0x22409C);
+    let t24 = t23 + crate::math::x87_float::ld(DRAW.view_centre[0].bits());
     q.corners[3][0].set_bits(bh::st(t24));
     let t25 = t22 * bh::ld(q.corners[3][1].bits());
     let t26 = -t25;
-    let t27 = t26 + ld(rc, 0x2240A0);
+    let t27 = t26 + crate::math::x87_float::ld(DRAW.view_centre[1].bits());
     q.corners[3][1].set_bits(bh::st(t27));
 }
 
@@ -828,9 +830,7 @@ mod asm_differential {
     fn plane_projected_x87_matches() {
         const SPEC: Spec = Spec {
             operands: &[
-                Op::Base {
-                    lo: 0x224088,
-                    hi: 0x2240A4,
+                Op::RaceBlock {
                     reads: &[(0x224088, F32), (0x22409C, F32), (0x2240A0, F32)],
                     writes: &[],
                 },
@@ -868,7 +868,7 @@ mod asm_differential {
         differential(
             &SPEC,
             |b| reference::plane_projected_x87(b[0], b[1]),
-            |b| with_copy::<QuadWork, _>(b[1], 0x934BD0, |q| super::plane_projected_x87(b[0], q)),
+            |b| with_copy::<QuadWork, _>(b[1], 0x934BD0, super::plane_projected_x87),
         );
     }
 }

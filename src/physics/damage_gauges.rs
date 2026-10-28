@@ -50,166 +50,148 @@ fn hold_at(at: u32) {
 /// The steps (generated from the disassembly by idiom; the indexed gauges by hand).
 pub fn steps() {
     x87_1(
-        crate::race::store::asm_base() as usize,
         &DAMAGE.gauge_rates[0],
         &DAMAGE.flt_75b38c,
-        0x31A290,
-        0x31A290,
+        &CAR.engine_damage,
+        &CAR.engine_damage,
     );
     hold_low(&CAR.engine_damage, &DAMAGE.gauge_low);
     hold_high(&CAR.engine_damage, &DAMAGE.gauge_top);
     x87_1(
-        crate::race::store::asm_base() as usize,
         &DAMAGE.gauge_rates[1],
         &DAMAGE.flt_75b38c,
-        0x31A294,
-        0x31A294,
+        &CAR.exhaust_damage,
+        &CAR.exhaust_damage,
     );
     hold_low(&CAR.exhaust_damage, &DAMAGE.gauge_low);
     hold_high(&CAR.exhaust_damage, &DAMAGE.gauge_top);
     x87_1(
-        crate::race::store::asm_base() as usize,
         &DAMAGE.gauge_rates[2],
         &DAMAGE.flt_75b38c,
-        0x31A29C,
-        0x31A29C,
+        &CAR.cooling_damage,
+        &CAR.cooling_damage,
     );
     hold_low(&CAR.cooling_damage, &DAMAGE.gauge_low);
     hold_high(&CAR.cooling_damage, &DAMAGE.gauge_top);
     x87_1(
-        crate::race::store::asm_base() as usize,
         &DAMAGE.gauge_rates[3],
         &DAMAGE.flt_75b38c,
-        0x31A2A0,
-        0x31A2A0,
+        &CAR.clutch_damage,
+        &CAR.clutch_damage,
     );
     hold_low(&CAR.clutch_damage, &DAMAGE.gauge_low);
     hold_high(&CAR.clutch_damage, &DAMAGE.gauge_top);
     x87_1(
-        crate::race::store::asm_base() as usize,
         &DAMAGE.gauge_rates[4],
         &DAMAGE.flt_75b38c,
-        0x31A2A4,
-        0x31A2A4,
+        &CAR.differential_damage,
+        &CAR.differential_damage,
     );
     hold_low(&CAR.differential_damage, &DAMAGE.gauge_low);
     hold_high(&CAR.differential_damage, &DAMAGE.gauge_top);
     x87_1(
-        crate::race::store::asm_base() as usize,
         &DAMAGE.gauge_rates[5],
         &DAMAGE.flt_75b38c,
-        0x31A2E8,
-        0x31A2E8,
+        &CAR.electrics_damage,
+        &CAR.electrics_damage,
     );
     hold_low(&CAR.electrics_damage, &DAMAGE.gauge_low);
     hold_high(&CAR.electrics_damage, &DAMAGE.gauge_top);
     x87_1(
-        crate::race::store::asm_base() as usize,
         &DAMAGE.gauge_rates[6],
         &DAMAGE.flt_75b38c,
-        0x31A2EC,
-        0x31A2EC,
+        &CAR.light_damage[0],
+        &CAR.light_damage[0],
     );
     hold_low(&CAR.light_damage[0], &DAMAGE.gauge_low);
     hold_high(&CAR.light_damage[0], &DAMAGE.gauge_top);
     x87_1(
-        crate::race::store::asm_base() as usize,
         &DAMAGE.gauge_rates[6],
         &DAMAGE.flt_75b38c,
-        0x31A2F0,
-        0x31A2F0,
+        &CAR.light_damage[1],
+        &CAR.light_damage[1],
     );
     hold_low(&CAR.light_damage[1], &DAMAGE.gauge_low);
     hold_high(&CAR.light_damage[1], &DAMAGE.gauge_top);
     x87_1(
-        crate::race::store::asm_base() as usize,
         &DAMAGE.gauge_rates[6],
         &DAMAGE.flt_75b38c,
-        0x31A2F4,
-        0x31A2F4,
+        &CAR.light_damage[2],
+        &CAR.light_damage[2],
     );
     hold_low(&CAR.light_damage[2], &DAMAGE.gauge_low);
     hold_high(&CAR.light_damage[2], &DAMAGE.gauge_top);
     x87_1(
-        crate::race::store::asm_base() as usize,
         &DAMAGE.gauge_rates[6],
         &DAMAGE.flt_75b38c,
-        0x31A2F8,
-        0x31A2F8,
+        &CAR.light_damage[3],
+        &CAR.light_damage[3],
     );
     hold_low(&CAR.light_damage[3], &DAMAGE.gauge_low);
     hold_high(&CAR.light_damage[3], &DAMAGE.gauge_top);
     x87_1(
-        crate::race::store::asm_base() as usize,
         &DAMAGE.gauge_rates[6],
         &DAMAGE.flt_75b38c,
-        0x31A2FC,
-        0x31A2FC,
+        &CAR.light_damage[4],
+        &CAR.light_damage[4],
     );
     hold_low(&CAR.light_damage[4], &DAMAGE.gauge_low);
     hold_high(&CAR.light_damage[4], &DAMAGE.gauge_top);
     x87_1(
-        crate::race::store::asm_base() as usize,
         &DAMAGE.gauge_rates[6],
         &DAMAGE.flt_75b38c,
-        0x31A300,
-        0x31A300,
+        &CAR.light_damage[5],
+        &CAR.light_damage[5],
     );
     hold_low(&CAR.light_damage[5], &DAMAGE.gauge_low);
     hold_high(&CAR.light_damage[5], &DAMAGE.gauge_top);
     x87_1(
-        crate::race::store::asm_base() as usize,
         &DAMAGE.gauge_rates[7],
         &DAMAGE.flt_75b38c,
-        0x31A308,
-        0x31A308,
+        &CAR.steering_damage,
+        &CAR.steering_damage,
     );
     hold_low(&CAR.steering_damage, &DAMAGE.gauge_low);
     hold_high(&CAR.steering_damage, &DAMAGE.gauge_top);
     x87_1(
-        crate::race::store::asm_base() as usize,
         &DAMAGE.gauge_rates[8],
         &DAMAGE.flt_75b38c,
-        0x31A30C,
-        0x31A30C,
+        &CAR.suspension_damage[0],
+        &CAR.suspension_damage[0],
     );
     hold_low(&CAR.suspension_damage[0], &DAMAGE.gauge_low);
     hold_high(&CAR.suspension_damage[0], &DAMAGE.gauge_top);
     x87_1(
-        crate::race::store::asm_base() as usize,
         &DAMAGE.gauge_rates[8],
         &DAMAGE.flt_75b38c,
-        0x31A310,
-        0x31A310,
+        &CAR.suspension_damage[1],
+        &CAR.suspension_damage[1],
     );
     hold_low(&CAR.suspension_damage[1], &DAMAGE.gauge_low);
     hold_high(&CAR.suspension_damage[1], &DAMAGE.gauge_top);
     x87_1(
-        crate::race::store::asm_base() as usize,
         &DAMAGE.gauge_rates[8],
         &DAMAGE.flt_75b38c,
-        0x31A314,
-        0x31A314,
+        &CAR.suspension_damage[2],
+        &CAR.suspension_damage[2],
     );
     hold_low(&CAR.suspension_damage[2], &DAMAGE.gauge_low);
     hold_high(&CAR.suspension_damage[2], &DAMAGE.gauge_top);
     x87_1(
-        crate::race::store::asm_base() as usize,
         &DAMAGE.gauge_rates[8],
         &DAMAGE.flt_75b38c,
-        0x31A318,
-        0x31A318,
+        &CAR.suspension_damage[3],
+        &CAR.suspension_damage[3],
     );
     hold_low(&CAR.suspension_damage[3], &DAMAGE.gauge_low);
     hold_high(&CAR.suspension_damage[3], &DAMAGE.gauge_top);
     x87_2(
         &DAMAGE,
-        crate::race::store::asm_base() as usize,
         &DAMAGE.wear_rates[11],
         &DAMAGE.flt_75b3c0,
         &DAMAGE.flt_75b398,
-        0x31A298,
-        0x31A298,
+        &CAR.turbo_damage,
+        &CAR.turbo_damage,
     );
     hold_low(&CAR.turbo_damage, &DAMAGE.gauge_low);
     hold_high(&CAR.turbo_damage, &DAMAGE.gauge_top);
@@ -226,82 +208,74 @@ pub fn steps() {
     hold_high(&CAR.brake_wear_a, &DAMAGE.gauge_top);
     x87_2(
         &DAMAGE,
-        crate::race::store::asm_base() as usize,
         &DAMAGE.gauge_rates[9],
         &DAMAGE.flt_75b43c,
         &DAMAGE.flt_75b3b0,
-        0x31A324,
-        0x31A324,
+        &CAR.brake_wear_b,
+        &CAR.brake_wear_b,
     );
     hold_low(&CAR.brake_wear_b, &DAMAGE.gauge_low);
     hold_high(&CAR.brake_wear_b, &DAMAGE.gauge_top);
     x87_5(
-        crate::race::store::asm_base() as usize,
         &DAMAGE.gauge_rates[10],
         &DAMAGE.flt_75b3b4,
         &DAMAGE.flt_75b38c,
-        0x31A2E8,
-        0x31A2E8,
+        &CAR.electrics_damage,
+        &CAR.electrics_damage,
     );
     hold_low(&CAR.electrics_damage, &DAMAGE.gauge_low);
     hold_high(&CAR.electrics_damage, &DAMAGE.gauge_top);
     x87_5(
-        crate::race::store::asm_base() as usize,
         &DAMAGE.gauge_rates[11],
         &DAMAGE.flt_75b3b4,
         &DAMAGE.flt_75b38c,
-        0x31A2EC,
-        0x31A2EC,
+        &CAR.light_damage[0],
+        &CAR.light_damage[0],
     );
     hold_low(&CAR.light_damage[0], &DAMAGE.gauge_low);
     hold_high(&CAR.light_damage[0], &DAMAGE.gauge_top);
     x87_5(
-        crate::race::store::asm_base() as usize,
         &DAMAGE.gauge_rates[11],
         &DAMAGE.flt_75b3b4,
         &DAMAGE.flt_75b38c,
-        0x31A2F0,
-        0x31A2F0,
+        &CAR.light_damage[1],
+        &CAR.light_damage[1],
     );
     hold_low(&CAR.light_damage[1], &DAMAGE.gauge_low);
     hold_high(&CAR.light_damage[1], &DAMAGE.gauge_top);
     x87_5(
-        crate::race::store::asm_base() as usize,
         &DAMAGE.gauge_rates[11],
         &DAMAGE.flt_75b3b4,
         &DAMAGE.flt_75b38c,
-        0x31A2F4,
-        0x31A2F4,
+        &CAR.light_damage[2],
+        &CAR.light_damage[2],
     );
     hold_low(&CAR.light_damage[2], &DAMAGE.gauge_low);
     hold_high(&CAR.light_damage[2], &DAMAGE.gauge_top);
     x87_5(
-        crate::race::store::asm_base() as usize,
         &DAMAGE.gauge_rates[11],
         &DAMAGE.flt_75b3b4,
         &DAMAGE.flt_75b38c,
-        0x31A2F8,
-        0x31A2F8,
+        &CAR.light_damage[3],
+        &CAR.light_damage[3],
     );
     hold_low(&CAR.light_damage[3], &DAMAGE.gauge_low);
     hold_high(&CAR.light_damage[3], &DAMAGE.gauge_top);
     x87_5(
-        crate::race::store::asm_base() as usize,
         &DAMAGE.gauge_rates[11],
         &DAMAGE.flt_75b3b4,
         &DAMAGE.flt_75b38c,
-        0x31A2FC,
-        0x31A2FC,
+        &CAR.light_damage[4],
+        &CAR.light_damage[4],
     );
     hold_low(&CAR.light_damage[4], &DAMAGE.gauge_low);
     hold_high(&CAR.light_damage[4], &DAMAGE.gauge_top);
     x87_5(
-        crate::race::store::asm_base() as usize,
         &DAMAGE.gauge_rates[11],
         &DAMAGE.flt_75b3b4,
         &DAMAGE.flt_75b38c,
-        0x31A300,
-        0x31A300,
+        &CAR.light_damage[5],
+        &CAR.light_damage[5],
     );
     hold_low(&CAR.light_damage[5], &DAMAGE.gauge_low);
     hold_high(&CAR.light_damage[5], &DAMAGE.gauge_top);
@@ -313,62 +287,56 @@ pub fn steps() {
         ((DAMAGE.kind_table_b[0].addr()).wrapping_add(part.wrapping_mul(4))) as usize,
     );
     x87_5(
-        crate::race::store::asm_base() as usize,
         &DAMAGE.flt_75b46c,
         &DAMAGE.flt_75b488,
         &DAMAGE.flt_75b370,
-        0x31A32C,
-        0x31A32C,
+        &CAR.part_hit_damage[0],
+        &CAR.part_hit_damage[0],
     );
     hold_low(&CAR.part_hit_damage[0], &DAMAGE.gauge_low);
     hold_high(&CAR.part_hit_damage[0], &DAMAGE.gauge_top);
     x87_5(
-        crate::race::store::asm_base() as usize,
         &DAMAGE.flt_75b46c,
         &DAMAGE.flt_75b488,
         &DAMAGE.flt_75b370,
-        0x31A330,
-        0x31A330,
+        &CAR.part_hit_damage[1],
+        &CAR.part_hit_damage[1],
     );
     hold_low(&CAR.part_hit_damage[1], &DAMAGE.gauge_low);
     hold_high(&CAR.part_hit_damage[1], &DAMAGE.gauge_top);
     x87_5(
-        crate::race::store::asm_base() as usize,
         &DAMAGE.flt_75b470,
         &DAMAGE.flt_75b48c,
         &DAMAGE.flt_75b370,
-        0x31A334,
-        0x31A334,
+        &CAR.part_hit_damage[2],
+        &CAR.part_hit_damage[2],
     );
     hold_low(&CAR.part_hit_damage[2], &DAMAGE.gauge_low);
     hold_high(&CAR.part_hit_damage[2], &DAMAGE.gauge_top);
     x87_5(
-        crate::race::store::asm_base() as usize,
         &DAMAGE.flt_75b470,
         &DAMAGE.flt_75b48c,
         &DAMAGE.flt_75b370,
-        0x31A338,
-        0x31A338,
+        &CAR.part_hit_damage[3],
+        &CAR.part_hit_damage[3],
     );
     hold_low(&CAR.part_hit_damage[3], &DAMAGE.gauge_low);
     hold_high(&CAR.part_hit_damage[3], &DAMAGE.gauge_top);
     x87_5(
-        crate::race::store::asm_base() as usize,
         &DAMAGE.flt_75b45c,
         &DAMAGE.gauge_rates[13],
         &DAMAGE.flt_75b370,
-        0x31A290,
-        0x31A290,
+        &CAR.engine_damage,
+        &CAR.engine_damage,
     );
     hold_low(&CAR.engine_damage, &DAMAGE.gauge_low);
     hold_high(&CAR.engine_damage, &DAMAGE.gauge_top);
     x87_5(
-        crate::race::store::asm_base() as usize,
         &DAMAGE.flt_75b45c,
         &DAMAGE.gauge_rates[12],
         &DAMAGE.flt_75b370,
-        0x31A29C,
-        0x31A29C,
+        &CAR.cooling_damage,
+        &CAR.cooling_damage,
     );
     hold_low(&CAR.cooling_damage, &DAMAGE.gauge_low);
     hold_high(&CAR.cooling_damage, &DAMAGE.gauge_top);
@@ -377,12 +345,11 @@ pub fn steps() {
         hold_low(&CAR.engine_damage, &DAMAGE.gauge_low);
         hold_high(&CAR.engine_damage, &DAMAGE.gauge_top);
         x87_5(
-            crate::race::store::asm_base() as usize,
             &DAMAGE.flt_75b464,
             &DAMAGE.gauge_rates[15],
             &DAMAGE.flt_75b370,
-            0x31A29C,
-            0x31A29C,
+            &CAR.cooling_damage,
+            &CAR.cooling_damage,
         );
         hold_low(&CAR.cooling_damage, &DAMAGE.gauge_low);
         hold_high(&CAR.cooling_damage, &DAMAGE.gauge_top);
@@ -404,222 +371,200 @@ pub fn steps() {
         x87_10(gauge as usize, &DAMAGE.gauge_rates[19]);
     }
     x87_5(
-        crate::race::store::asm_base() as usize,
         &DAMAGE.flt_75b450,
         &DAMAGE.flt_75b670,
         &DAMAGE.flt_75b370,
-        0x31A2D0,
-        0x31A2D0,
+        &CAR.wheel_hit_damage[0],
+        &CAR.wheel_hit_damage[0],
     );
     hold_low(&CAR.wheel_hit_damage[0], &DAMAGE.gauge_low);
     hold_high(&CAR.wheel_hit_damage[0], &DAMAGE.gauge_top);
     x87_5(
-        crate::race::store::asm_base() as usize,
         &DAMAGE.flt_75b450,
         &DAMAGE.flt_75b670,
         &DAMAGE.flt_75b370,
-        0x31A2D4,
-        0x31A2D4,
+        &CAR.wheel_hit_damage[1],
+        &CAR.wheel_hit_damage[1],
     );
     hold_low(&CAR.wheel_hit_damage[1], &DAMAGE.gauge_low);
     hold_high(&CAR.wheel_hit_damage[1], &DAMAGE.gauge_top);
     x87_5(
-        crate::race::store::asm_base() as usize,
         &DAMAGE.flt_75b450,
         &DAMAGE.flt_75b670,
         &DAMAGE.flt_75b370,
-        0x31A2D8,
-        0x31A2D8,
+        &CAR.wheel_hit_damage[2],
+        &CAR.wheel_hit_damage[2],
     );
     hold_low(&CAR.wheel_hit_damage[2], &DAMAGE.gauge_low);
     hold_high(&CAR.wheel_hit_damage[2], &DAMAGE.gauge_top);
     x87_5(
-        crate::race::store::asm_base() as usize,
         &DAMAGE.flt_75b450,
         &DAMAGE.flt_75b670,
         &DAMAGE.flt_75b370,
-        0x31A2DC,
-        0x31A2DC,
+        &CAR.wheel_hit_damage[3],
+        &CAR.wheel_hit_damage[3],
     );
     hold_low(&CAR.wheel_hit_damage[3], &DAMAGE.gauge_low);
     hold_high(&CAR.wheel_hit_damage[3], &DAMAGE.gauge_top);
     x87_5(
-        crate::race::store::asm_base() as usize,
         &DAMAGE.flt_75b458,
         &DAMAGE.figures[0],
         &DAMAGE.flt_75b370,
-        0x31A30C,
-        0x31A30C,
+        &CAR.suspension_damage[0],
+        &CAR.suspension_damage[0],
     );
     hold_low(&CAR.suspension_damage[0], &DAMAGE.gauge_low);
     hold_high(&CAR.suspension_damage[0], &DAMAGE.gauge_top);
     x87_5(
-        crate::race::store::asm_base() as usize,
         &DAMAGE.flt_75b458,
         &DAMAGE.figures[0],
         &DAMAGE.flt_75b370,
-        0x31A310,
-        0x31A310,
+        &CAR.suspension_damage[1],
+        &CAR.suspension_damage[1],
     );
     hold_low(&CAR.suspension_damage[1], &DAMAGE.gauge_low);
     hold_high(&CAR.suspension_damage[1], &DAMAGE.gauge_top);
     x87_5(
-        crate::race::store::asm_base() as usize,
         &DAMAGE.flt_75b458,
         &DAMAGE.figures[0],
         &DAMAGE.flt_75b370,
-        0x31A314,
-        0x31A314,
+        &CAR.suspension_damage[2],
+        &CAR.suspension_damage[2],
     );
     hold_low(&CAR.suspension_damage[2], &DAMAGE.gauge_low);
     hold_high(&CAR.suspension_damage[2], &DAMAGE.gauge_top);
     x87_5(
-        crate::race::store::asm_base() as usize,
         &DAMAGE.flt_75b458,
         &DAMAGE.figures[0],
         &DAMAGE.flt_75b370,
-        0x31A318,
-        0x31A318,
+        &CAR.suspension_damage[3],
+        &CAR.suspension_damage[3],
     );
     hold_low(&CAR.suspension_damage[3], &DAMAGE.gauge_low);
     hold_high(&CAR.suspension_damage[3], &DAMAGE.gauge_top);
     x87_5(
-        crate::race::store::asm_base() as usize,
         &DAMAGE.flt_75b454,
         &DAMAGE.figures[1],
         &DAMAGE.flt_75b370,
-        0x31A2E0,
-        0x31A2E0,
+        &CAR.body_hit_damage,
+        &CAR.body_hit_damage,
     );
     hold_low(&CAR.body_hit_damage, &DAMAGE.gauge_low);
     hold_high(&CAR.body_hit_damage, &DAMAGE.gauge_top);
     x87_5(
-        crate::race::store::asm_base() as usize,
         &DAMAGE.flt_75b454,
         &DAMAGE.figures[2],
         &DAMAGE.flt_75b370,
-        0x31A308,
-        0x31A308,
+        &CAR.steering_damage,
+        &CAR.steering_damage,
     );
     hold_low(&CAR.steering_damage, &DAMAGE.gauge_low);
     hold_high(&CAR.steering_damage, &DAMAGE.gauge_top);
     x87_5(
-        crate::race::store::asm_base() as usize,
         &DAMAGE.flt_75b454,
         &DAMAGE.figures[3],
         &DAMAGE.flt_75b370,
-        0x31A290,
-        0x31A290,
+        &CAR.engine_damage,
+        &CAR.engine_damage,
     );
     hold_low(&CAR.engine_damage, &DAMAGE.gauge_low);
     hold_high(&CAR.engine_damage, &DAMAGE.gauge_top);
     x87_5(
-        crate::race::store::asm_base() as usize,
         &DAMAGE.flt_75b454,
         &DAMAGE.figures[4],
         &DAMAGE.flt_75b370,
-        0x31A294,
-        0x31A294,
+        &CAR.exhaust_damage,
+        &CAR.exhaust_damage,
     );
     hold_low(&CAR.exhaust_damage, &DAMAGE.gauge_low);
     hold_high(&CAR.exhaust_damage, &DAMAGE.gauge_top);
     x87_5(
-        crate::race::store::asm_base() as usize,
         &DAMAGE.flt_75b454,
         &DAMAGE.figures[5],
         &DAMAGE.flt_75b370,
-        0x31A2A8,
-        0x31A2A8,
+        &CAR.gear_wear[0],
+        &CAR.gear_wear[0],
     );
     hold_low(&CAR.gear_wear[0], &DAMAGE.gauge_low);
     hold_high(&CAR.gear_wear[0], &DAMAGE.gauge_top);
     x87_5(
-        crate::race::store::asm_base() as usize,
         &DAMAGE.flt_75b454,
         &DAMAGE.figures[5],
         &DAMAGE.flt_75b370,
-        0x31A2B0,
-        0x31A2B0,
+        &CAR.gear_wear[2],
+        &CAR.gear_wear[2],
     );
     hold_low(&CAR.gear_wear[2], &DAMAGE.gauge_low);
     hold_high(&CAR.gear_wear[2], &DAMAGE.gauge_top);
     x87_5(
-        crate::race::store::asm_base() as usize,
         &DAMAGE.flt_75b454,
         &DAMAGE.figures[5],
         &DAMAGE.flt_75b370,
-        0x31A2B4,
-        0x31A2B4,
+        &CAR.gear_wear[3],
+        &CAR.gear_wear[3],
     );
     hold_low(&CAR.gear_wear[3], &DAMAGE.gauge_low);
     hold_high(&CAR.gear_wear[3], &DAMAGE.gauge_top);
     x87_5(
-        crate::race::store::asm_base() as usize,
         &DAMAGE.flt_75b454,
         &DAMAGE.figures[5],
         &DAMAGE.flt_75b370,
-        0x31A2B8,
-        0x31A2B8,
+        &CAR.gear_wear[4],
+        &CAR.gear_wear[4],
     );
     hold_low(&CAR.gear_wear[4], &DAMAGE.gauge_low);
     hold_high(&CAR.gear_wear[4], &DAMAGE.gauge_top);
     x87_5(
-        crate::race::store::asm_base() as usize,
         &DAMAGE.flt_75b454,
         &DAMAGE.figures[5],
         &DAMAGE.flt_75b370,
-        0x31A2BC,
-        0x31A2BC,
+        &CAR.gear_wear[5],
+        &CAR.gear_wear[5],
     );
     hold_low(&CAR.gear_wear[5], &DAMAGE.gauge_low);
     hold_high(&CAR.gear_wear[5], &DAMAGE.gauge_top);
     x87_5(
-        crate::race::store::asm_base() as usize,
         &DAMAGE.flt_75b454,
         &DAMAGE.figures[5],
         &DAMAGE.flt_75b370,
-        0x31A2C0,
-        0x31A2C0,
+        &CAR.gear_wear[6],
+        &CAR.gear_wear[6],
     );
     hold_low(&CAR.gear_wear[6], &DAMAGE.gauge_low);
     hold_high(&CAR.gear_wear[6], &DAMAGE.gauge_top);
     x87_5(
-        crate::race::store::asm_base() as usize,
         &DAMAGE.flt_75b454,
         &DAMAGE.figures[5],
         &DAMAGE.flt_75b370,
-        0x31A2C4,
-        0x31A2C4,
+        &CAR.gear_wear[7],
+        &CAR.gear_wear[7],
     );
     hold_low(&CAR.gear_wear[7], &DAMAGE.gauge_low);
     hold_high(&CAR.gear_wear[7], &DAMAGE.gauge_top);
     x87_5(
-        crate::race::store::asm_base() as usize,
         &DAMAGE.flt_75b454,
         &DAMAGE.figures[5],
         &DAMAGE.flt_75b370,
-        0x31A2C8,
-        0x31A2C8,
+        &CAR.gear_wear[8],
+        &CAR.gear_wear[8],
     );
     hold_low(&CAR.gear_wear[8], &DAMAGE.gauge_low);
     hold_high(&CAR.gear_wear[8], &DAMAGE.gauge_top);
     x87_5(
-        crate::race::store::asm_base() as usize,
         &DAMAGE.flt_75b454,
         &DAMAGE.figures[6],
         &DAMAGE.flt_75b370,
-        0x31A2A4,
-        0x31A2A4,
+        &CAR.differential_damage,
+        &CAR.differential_damage,
     );
     hold_low(&CAR.differential_damage, &DAMAGE.gauge_low);
     hold_high(&CAR.differential_damage, &DAMAGE.gauge_top);
     if compare_full(DAMAGE.flt_75b3c8.bits(), DAMAGE.gauge_rates[23].bits()) & 0x100 == 0 {
         x87_1(
-            crate::race::store::asm_base() as usize,
             &DAMAGE.flt_75b3c8,
             &DAMAGE.figures[13],
-            0x31A2E0,
-            0x31A2E0,
+            &CAR.body_hit_damage,
+            &CAR.body_hit_damage,
         );
         hold_low(&CAR.body_hit_damage, &DAMAGE.gauge_low);
         hold_high(&CAR.body_hit_damage, &DAMAGE.gauge_top);
@@ -628,215 +573,193 @@ pub fn steps() {
         x87_11(&DAMAGE);
         if DAMAGE.dword_75b3c4.bits() == 0x1 {
             x87_1(
-                crate::race::store::asm_base() as usize,
                 &DAMAGE.flt_75b3c8,
                 &DAMAGE.figures[24],
-                0x31A2EC,
-                0x31A2EC,
+                &CAR.light_damage[0],
+                &CAR.light_damage[0],
             );
             hold_low(&CAR.light_damage[0], &DAMAGE.gauge_low);
             hold_high(&CAR.light_damage[0], &DAMAGE.gauge_top);
         }
         if DAMAGE.dword_75b3c4.bits() == 0x2 {
             x87_1(
-                crate::race::store::asm_base() as usize,
                 &DAMAGE.flt_75b3c8,
                 &DAMAGE.figures[24],
-                0x31A2F0,
-                0x31A2F0,
+                &CAR.light_damage[1],
+                &CAR.light_damage[1],
             );
             hold_low(&CAR.light_damage[1], &DAMAGE.gauge_low);
             hold_high(&CAR.light_damage[1], &DAMAGE.gauge_top);
         }
         if DAMAGE.dword_75b3c4.bits() == 0x3 {
             x87_1(
-                crate::race::store::asm_base() as usize,
                 &DAMAGE.flt_75b3c8,
                 &DAMAGE.figures[24],
-                0x31A2F4,
-                0x31A2F4,
+                &CAR.light_damage[2],
+                &CAR.light_damage[2],
             );
             hold_low(&CAR.light_damage[2], &DAMAGE.gauge_low);
             hold_high(&CAR.light_damage[2], &DAMAGE.gauge_top);
         }
         if DAMAGE.dword_75b3c4.bits() == 0x4 {
             x87_1(
-                crate::race::store::asm_base() as usize,
                 &DAMAGE.flt_75b3c8,
                 &DAMAGE.figures[24],
-                0x31A2F8,
-                0x31A2F8,
+                &CAR.light_damage[3],
+                &CAR.light_damage[3],
             );
             hold_low(&CAR.light_damage[3], &DAMAGE.gauge_low);
             hold_high(&CAR.light_damage[3], &DAMAGE.gauge_top);
         }
         if DAMAGE.dword_75b3c4.bits() == 0x1 {
             x87_1(
-                crate::race::store::asm_base() as usize,
                 &DAMAGE.flt_75b3c8,
                 &DAMAGE.figures[25],
-                0x31A2FC,
-                0x31A2FC,
+                &CAR.light_damage[4],
+                &CAR.light_damage[4],
             );
             hold_low(&CAR.light_damage[4], &DAMAGE.gauge_low);
             hold_high(&CAR.light_damage[4], &DAMAGE.gauge_top);
         }
         if DAMAGE.dword_75b3c4.bits() == 0x2 {
             x87_1(
-                crate::race::store::asm_base() as usize,
                 &DAMAGE.flt_75b3c8,
                 &DAMAGE.figures[25],
-                0x31A2FC,
-                0x31A2FC,
+                &CAR.light_damage[4],
+                &CAR.light_damage[4],
             );
             hold_low(&CAR.light_damage[4], &DAMAGE.gauge_low);
             hold_high(&CAR.light_damage[4], &DAMAGE.gauge_top);
         }
         if DAMAGE.dword_75b3c4.bits() == 0x3 {
             x87_1(
-                crate::race::store::asm_base() as usize,
                 &DAMAGE.flt_75b3c8,
                 &DAMAGE.figures[25],
-                0x31A300,
-                0x31A300,
+                &CAR.light_damage[5],
+                &CAR.light_damage[5],
             );
             hold_low(&CAR.light_damage[5], &DAMAGE.gauge_low);
             hold_high(&CAR.light_damage[5], &DAMAGE.gauge_top);
         }
         if DAMAGE.dword_75b3c4.bits() == 0x4 {
             x87_1(
-                crate::race::store::asm_base() as usize,
                 &DAMAGE.flt_75b3c8,
                 &DAMAGE.figures[25],
-                0x31A300,
-                0x31A300,
+                &CAR.light_damage[5],
+                &CAR.light_damage[5],
             );
             hold_low(&CAR.light_damage[5], &DAMAGE.gauge_low);
             hold_high(&CAR.light_damage[5], &DAMAGE.gauge_top);
         }
         x87_1(
-            crate::race::store::asm_base() as usize,
             &DAMAGE.flt_75b3c8,
             &DAMAGE.figures[23],
-            0x31A308,
-            0x31A308,
+            &CAR.steering_damage,
+            &CAR.steering_damage,
         );
         hold_low(&CAR.steering_damage, &DAMAGE.gauge_low);
         hold_high(&CAR.steering_damage, &DAMAGE.gauge_top);
         x87_1(
-            crate::race::store::asm_base() as usize,
             &DAMAGE.flt_75b3c8,
             &DAMAGE.figures[22],
-            0x31A2E8,
-            0x31A2E8,
+            &CAR.electrics_damage,
+            &CAR.electrics_damage,
         );
         hold_low(&CAR.electrics_damage, &DAMAGE.gauge_low);
         hold_high(&CAR.electrics_damage, &DAMAGE.gauge_top);
         x87_1(
-            crate::race::store::asm_base() as usize,
             &DAMAGE.flt_75b3c8,
             &DAMAGE.figures[17],
-            0x31A298,
-            0x31A298,
+            &CAR.turbo_damage,
+            &CAR.turbo_damage,
         );
         hold_low(&CAR.turbo_damage, &DAMAGE.gauge_low);
         hold_high(&CAR.turbo_damage, &DAMAGE.gauge_top);
         x87_1(
-            crate::race::store::asm_base() as usize,
             &DAMAGE.flt_75b3c8,
             &DAMAGE.figures[18],
-            0x31A2A0,
-            0x31A2A0,
+            &CAR.clutch_damage,
+            &CAR.clutch_damage,
         );
         hold_low(&CAR.clutch_damage, &DAMAGE.gauge_low);
         hold_high(&CAR.clutch_damage, &DAMAGE.gauge_top);
         x87_1(
-            crate::race::store::asm_base() as usize,
             &DAMAGE.flt_75b3c8,
             &DAMAGE.figures[19],
-            0x31A2A4,
-            0x31A2A4,
+            &CAR.differential_damage,
+            &CAR.differential_damage,
         );
         hold_low(&CAR.differential_damage, &DAMAGE.gauge_low);
         hold_high(&CAR.differential_damage, &DAMAGE.gauge_top);
         x87_1(
-            crate::race::store::asm_base() as usize,
             &DAMAGE.flt_75b3c8,
             &DAMAGE.figures[20],
-            0x31A2A8,
-            0x31A2A8,
+            &CAR.gear_wear[0],
+            &CAR.gear_wear[0],
         );
         hold_low(&CAR.gear_wear[0], &DAMAGE.gauge_low);
         hold_high(&CAR.gear_wear[0], &DAMAGE.gauge_top);
         x87_1(
-            crate::race::store::asm_base() as usize,
             &DAMAGE.flt_75b3c8,
             &DAMAGE.figures[20],
-            0x31A2AC,
-            0x31A2AC,
+            &CAR.gear_wear[1],
+            &CAR.gear_wear[1],
         );
         hold_low(&CAR.gear_wear[1], &DAMAGE.gauge_low);
         hold_high(&CAR.gear_wear[1], &DAMAGE.gauge_top);
         x87_1(
-            crate::race::store::asm_base() as usize,
             &DAMAGE.flt_75b3c8,
             &DAMAGE.figures[20],
-            0x31A2B0,
-            0x31A2B0,
+            &CAR.gear_wear[2],
+            &CAR.gear_wear[2],
         );
         hold_low(&CAR.gear_wear[2], &DAMAGE.gauge_low);
         hold_high(&CAR.gear_wear[2], &DAMAGE.gauge_top);
         x87_1(
-            crate::race::store::asm_base() as usize,
             &DAMAGE.flt_75b3c8,
             &DAMAGE.figures[20],
-            0x31A2B4,
-            0x31A2B4,
+            &CAR.gear_wear[3],
+            &CAR.gear_wear[3],
         );
         hold_low(&CAR.gear_wear[3], &DAMAGE.gauge_low);
         hold_high(&CAR.gear_wear[3], &DAMAGE.gauge_top);
         x87_1(
-            crate::race::store::asm_base() as usize,
             &DAMAGE.flt_75b3c8,
             &DAMAGE.figures[20],
-            0x31A2B8,
-            0x31A2B8,
+            &CAR.gear_wear[4],
+            &CAR.gear_wear[4],
         );
         hold_low(&CAR.gear_wear[4], &DAMAGE.gauge_low);
         hold_high(&CAR.gear_wear[4], &DAMAGE.gauge_top);
         x87_1(
-            crate::race::store::asm_base() as usize,
             &DAMAGE.flt_75b3c8,
             &DAMAGE.figures[20],
-            0x31A2BC,
-            0x31A2BC,
+            &CAR.gear_wear[5],
+            &CAR.gear_wear[5],
         );
         hold_low(&CAR.gear_wear[5], &DAMAGE.gauge_low);
         hold_high(&CAR.gear_wear[5], &DAMAGE.gauge_top);
         x87_1(
-            crate::race::store::asm_base() as usize,
             &DAMAGE.flt_75b3c8,
             &DAMAGE.figures[20],
-            0x31A2C0,
-            0x31A2C0,
+            &CAR.gear_wear[6],
+            &CAR.gear_wear[6],
         );
         hold_low(&CAR.gear_wear[6], &DAMAGE.gauge_low);
         hold_high(&CAR.gear_wear[6], &DAMAGE.gauge_top);
         x87_1(
-            crate::race::store::asm_base() as usize,
             &DAMAGE.flt_75b3c8,
             &DAMAGE.figures[20],
-            0x31A2C4,
-            0x31A2C4,
+            &CAR.gear_wear[7],
+            &CAR.gear_wear[7],
         );
         hold_low(&CAR.gear_wear[7], &DAMAGE.gauge_low);
         hold_high(&CAR.gear_wear[7], &DAMAGE.gauge_top);
         x87_1(
-            crate::race::store::asm_base() as usize,
             &DAMAGE.flt_75b3c8,
             &DAMAGE.figures[20],
-            0x31A2C8,
-            0x31A2C8,
+            &CAR.gear_wear[8],
+            &CAR.gear_wear[8],
         );
         hold_low(&CAR.gear_wear[8], &DAMAGE.gauge_low);
         hold_high(&CAR.gear_wear[8], &DAMAGE.gauge_top);
@@ -846,238 +769,216 @@ pub fn steps() {
         hold_at(gauge);
         if DAMAGE.dword_75b3c4.bits() == 0x1 {
             x87_1(
-                crate::race::store::asm_base() as usize,
                 &DAMAGE.flt_75b3c8,
                 &DAMAGE.figures[28],
-                0x31A2D0,
-                0x31A2D0,
+                &CAR.wheel_hit_damage[0],
+                &CAR.wheel_hit_damage[0],
             );
             hold_low(&CAR.wheel_hit_damage[0], &DAMAGE.gauge_low);
             hold_high(&CAR.wheel_hit_damage[0], &DAMAGE.gauge_top);
         }
         if DAMAGE.dword_75b3c4.bits() == 0x2 {
             x87_1(
-                crate::race::store::asm_base() as usize,
                 &DAMAGE.flt_75b3c8,
                 &DAMAGE.figures[28],
-                0x31A2D4,
-                0x31A2D4,
+                &CAR.wheel_hit_damage[1],
+                &CAR.wheel_hit_damage[1],
             );
             hold_low(&CAR.wheel_hit_damage[1], &DAMAGE.gauge_low);
             hold_high(&CAR.wheel_hit_damage[1], &DAMAGE.gauge_top);
         }
         if DAMAGE.dword_75b3c4.bits() == 0x3 {
             x87_1(
-                crate::race::store::asm_base() as usize,
                 &DAMAGE.flt_75b3c8,
                 &DAMAGE.figures[28],
-                0x31A2D8,
-                0x31A2D8,
+                &CAR.wheel_hit_damage[2],
+                &CAR.wheel_hit_damage[2],
             );
             hold_low(&CAR.wheel_hit_damage[2], &DAMAGE.gauge_low);
             hold_high(&CAR.wheel_hit_damage[2], &DAMAGE.gauge_top);
         }
         if DAMAGE.dword_75b3c4.bits() == 0x4 {
             x87_1(
-                crate::race::store::asm_base() as usize,
                 &DAMAGE.flt_75b3c8,
                 &DAMAGE.figures[28],
-                0x31A2DC,
-                0x31A2DC,
+                &CAR.wheel_hit_damage[3],
+                &CAR.wheel_hit_damage[3],
             );
             hold_low(&CAR.wheel_hit_damage[3], &DAMAGE.gauge_low);
             hold_high(&CAR.wheel_hit_damage[3], &DAMAGE.gauge_top);
         }
         if DAMAGE.dword_75b3c4.bits() == 0x1 {
             x87_1(
-                crate::race::store::asm_base() as usize,
                 &DAMAGE.flt_75b3c8,
                 &DAMAGE.figures[30],
-                0x31A30C,
-                0x31A30C,
+                &CAR.suspension_damage[0],
+                &CAR.suspension_damage[0],
             );
             hold_low(&CAR.suspension_damage[0], &DAMAGE.gauge_low);
             hold_high(&CAR.suspension_damage[0], &DAMAGE.gauge_top);
         }
         if DAMAGE.dword_75b3c4.bits() == 0x2 {
             x87_1(
-                crate::race::store::asm_base() as usize,
                 &DAMAGE.flt_75b3c8,
                 &DAMAGE.figures[30],
-                0x31A310,
-                0x31A310,
+                &CAR.suspension_damage[1],
+                &CAR.suspension_damage[1],
             );
             hold_low(&CAR.suspension_damage[1], &DAMAGE.gauge_low);
             hold_high(&CAR.suspension_damage[1], &DAMAGE.gauge_top);
         }
         if DAMAGE.dword_75b3c4.bits() == 0x3 {
             x87_1(
-                crate::race::store::asm_base() as usize,
                 &DAMAGE.flt_75b3c8,
                 &DAMAGE.figures[30],
-                0x31A314,
-                0x31A314,
+                &CAR.suspension_damage[2],
+                &CAR.suspension_damage[2],
             );
             hold_low(&CAR.suspension_damage[2], &DAMAGE.gauge_low);
             hold_high(&CAR.suspension_damage[2], &DAMAGE.gauge_top);
         }
         if DAMAGE.dword_75b3c4.bits() == 0x4 {
             x87_1(
-                crate::race::store::asm_base() as usize,
                 &DAMAGE.flt_75b3c8,
                 &DAMAGE.figures[30],
-                0x31A318,
-                0x31A318,
+                &CAR.suspension_damage[3],
+                &CAR.suspension_damage[3],
             );
             hold_low(&CAR.suspension_damage[3], &DAMAGE.gauge_low);
             hold_high(&CAR.suspension_damage[3], &DAMAGE.gauge_top);
         }
         if DAMAGE.dword_75b3c4.bits() == 0x1 {
             x87_1(
-                crate::race::store::asm_base() as usize,
                 &DAMAGE.flt_75b3c8,
                 &DAMAGE.figures[27],
-                0x31A29C,
-                0x31A29C,
+                &CAR.cooling_damage,
+                &CAR.cooling_damage,
             );
             hold_low(&CAR.cooling_damage, &DAMAGE.gauge_low);
             hold_high(&CAR.cooling_damage, &DAMAGE.gauge_top);
         }
         if DAMAGE.dword_75b3c4.bits() == 0x2 {
             x87_1(
-                crate::race::store::asm_base() as usize,
                 &DAMAGE.flt_75b3c8,
                 &DAMAGE.figures[27],
-                0x31A29C,
-                0x31A29C,
+                &CAR.cooling_damage,
+                &CAR.cooling_damage,
             );
             hold_low(&CAR.cooling_damage, &DAMAGE.gauge_low);
             hold_high(&CAR.cooling_damage, &DAMAGE.gauge_top);
         }
         if DAMAGE.dword_75b3c4.bits() == 0x1 {
             x87_1(
-                crate::race::store::asm_base() as usize,
                 &DAMAGE.flt_75b3c8,
                 &DAMAGE.figures[26],
-                0x31A290,
-                0x31A290,
+                &CAR.engine_damage,
+                &CAR.engine_damage,
             );
             hold_low(&CAR.engine_damage, &DAMAGE.gauge_low);
             hold_high(&CAR.engine_damage, &DAMAGE.gauge_top);
         }
         if DAMAGE.dword_75b3c4.bits() == 0x2 {
             x87_1(
-                crate::race::store::asm_base() as usize,
                 &DAMAGE.flt_75b3c8,
                 &DAMAGE.figures[26],
-                0x31A290,
-                0x31A290,
+                &CAR.engine_damage,
+                &CAR.engine_damage,
             );
             hold_low(&CAR.engine_damage, &DAMAGE.gauge_low);
             hold_high(&CAR.engine_damage, &DAMAGE.gauge_top);
         }
         if DAMAGE.dword_75b3c4.bits() == 0x1 {
             x87_1(
-                crate::race::store::asm_base() as usize,
                 &DAMAGE.flt_75b3c8,
                 &DAMAGE.figures[29],
-                0x31A320,
-                0x31A320,
+                &CAR.brake_wear_a,
+                &CAR.brake_wear_a,
             );
             hold_low(&CAR.brake_wear_a, &DAMAGE.gauge_low);
             hold_high(&CAR.brake_wear_a, &DAMAGE.gauge_top);
         }
         if DAMAGE.dword_75b3c4.bits() == 0x2 {
             x87_1(
-                crate::race::store::asm_base() as usize,
                 &DAMAGE.flt_75b3c8,
                 &DAMAGE.figures[29],
-                0x31A320,
-                0x31A320,
+                &CAR.brake_wear_a,
+                &CAR.brake_wear_a,
             );
             hold_low(&CAR.brake_wear_a, &DAMAGE.gauge_low);
             hold_high(&CAR.brake_wear_a, &DAMAGE.gauge_top);
         }
         if DAMAGE.dword_75b3c4.bits() == 0x3 {
             x87_1(
-                crate::race::store::asm_base() as usize,
                 &DAMAGE.flt_75b3c8,
                 &DAMAGE.figures[29],
-                0x31A324,
-                0x31A324,
+                &CAR.brake_wear_b,
+                &CAR.brake_wear_b,
             );
             hold_low(&CAR.brake_wear_b, &DAMAGE.gauge_low);
             hold_high(&CAR.brake_wear_b, &DAMAGE.gauge_top);
         }
         if DAMAGE.dword_75b3c4.bits() == 0x4 {
             x87_1(
-                crate::race::store::asm_base() as usize,
                 &DAMAGE.flt_75b3c8,
                 &DAMAGE.figures[29],
-                0x31A324,
-                0x31A324,
+                &CAR.brake_wear_b,
+                &CAR.brake_wear_b,
             );
             hold_low(&CAR.brake_wear_b, &DAMAGE.gauge_low);
             hold_high(&CAR.brake_wear_b, &DAMAGE.gauge_top);
         }
     }
     x87_5(
-        crate::race::store::asm_base() as usize,
         &DAMAGE.wheel_loads[0],
         &DAMAGE.figures[14],
         &DAMAGE.flt_75b370,
-        0x31A30C,
-        0x31A30C,
+        &CAR.suspension_damage[0],
+        &CAR.suspension_damage[0],
     );
     hold_low(&CAR.suspension_damage[0], &DAMAGE.gauge_low);
     hold_high(&CAR.suspension_damage[0], &DAMAGE.gauge_top);
     x87_5(
-        crate::race::store::asm_base() as usize,
         &DAMAGE.wheel_loads[1],
         &DAMAGE.figures[14],
         &DAMAGE.flt_75b370,
-        0x31A310,
-        0x31A310,
+        &CAR.suspension_damage[1],
+        &CAR.suspension_damage[1],
     );
     hold_low(&CAR.suspension_damage[1], &DAMAGE.gauge_low);
     hold_high(&CAR.suspension_damage[1], &DAMAGE.gauge_top);
     x87_5(
-        crate::race::store::asm_base() as usize,
         &DAMAGE.wheel_loads[2],
         &DAMAGE.figures[14],
         &DAMAGE.flt_75b370,
-        0x31A314,
-        0x31A314,
+        &CAR.suspension_damage[2],
+        &CAR.suspension_damage[2],
     );
     hold_low(&CAR.suspension_damage[2], &DAMAGE.gauge_low);
     hold_high(&CAR.suspension_damage[2], &DAMAGE.gauge_top);
     x87_5(
-        crate::race::store::asm_base() as usize,
         &DAMAGE.wheel_loads[3],
         &DAMAGE.figures[14],
         &DAMAGE.flt_75b370,
-        0x31A318,
-        0x31A318,
+        &CAR.suspension_damage[3],
+        &CAR.suspension_damage[3],
     );
     hold_low(&CAR.suspension_damage[3], &DAMAGE.gauge_low);
     hold_high(&CAR.suspension_damage[3], &DAMAGE.gauge_top);
     x87_5(
-        crate::race::store::asm_base() as usize,
         &DAMAGE.flt_75b3dc,
         &DAMAGE.figures[15],
         &DAMAGE.flt_75b370,
-        0x31A294,
-        0x31A294,
+        &CAR.exhaust_damage,
+        &CAR.exhaust_damage,
     );
     hold_low(&CAR.exhaust_damage, &DAMAGE.gauge_low);
     hold_high(&CAR.exhaust_damage, &DAMAGE.gauge_top);
     x87_5(
-        crate::race::store::asm_base() as usize,
         &DAMAGE.flt_75b3dc,
         &DAMAGE.figures[16],
         &DAMAGE.flt_75b370,
-        0x31A308,
-        0x31A308,
+        &CAR.steering_damage,
+        &CAR.steering_damage,
     );
     hold_low(&CAR.steering_damage, &DAMAGE.gauge_low);
     hold_high(&CAR.steering_damage, &DAMAGE.gauge_top);
@@ -1093,13 +994,18 @@ pub fn steps() {
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `[rc + o3] = ([m + o0] * [m + o1]) + [rc + o2]`
-fn x87_1(rc: usize, o0: &impl Cell32, o1: &impl Cell32, o2: usize, o3: usize) {
+fn x87_1(
+    o0: &impl Cell32,
+    o1: &impl Cell32,
+    o2: &impl crate::session::Cell32,
+    o3: &impl crate::session::Cell32,
+) {
     let t0 = ld(o0.bits());
     let t1 = ld(o1.bits());
     let t2 = t0 * t1;
-    let t3 = fld(rc, o2);
+    let t3 = ld(o2.bits());
     let t4 = t2 + t3;
-    fstp(rc, o3, t4);
+    o3.set_bits(st(t4));
 }
 
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
@@ -1107,12 +1013,11 @@ fn x87_1(rc: usize, o0: &impl Cell32, o1: &impl Cell32, o2: usize, o3: usize) {
 /// `[rc + o5] = ((([m + o0] * [m + o1]) * [m + o2]) * [m + 0x35B38C]) + [rc + o4]`
 fn x87_2(
     m: &DamageModel,
-    rc: usize,
     o0: &impl Cell32,
     o1: &impl Cell32,
     o2: &impl Cell32,
-    o4: usize,
-    o5: usize,
+    o4: &impl crate::session::Cell32,
+    o5: &impl crate::session::Cell32,
 ) {
     let t0 = ld(o0.bits());
     let t1 = ld(o1.bits());
@@ -1121,9 +1026,9 @@ fn x87_2(
     let t4 = t2 * t3;
     let t5 = ld(m.flt_75b38c.bits());
     let t6 = t4 * t5;
-    let t7 = fld(rc, o4);
+    let t7 = ld(o4.bits());
     let t8 = t6 + t7;
-    fstp(rc, o5, t8);
+    o5.set_bits(st(t8));
 }
 
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
@@ -1166,15 +1071,21 @@ fn x87_4(m: &DamageModel) {
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `[rc + o4] = (([m + o0] * [m + o1]) * [m + o2]) + [rc + o3]`
-fn x87_5(rc: usize, o0: &impl Cell32, o1: &impl Cell32, o2: &impl Cell32, o3: usize, o4: usize) {
+fn x87_5(
+    o0: &impl Cell32,
+    o1: &impl Cell32,
+    o2: &impl Cell32,
+    o3: &impl crate::session::Cell32,
+    o4: &impl crate::session::Cell32,
+) {
     let t0 = ld(o0.bits());
     let t1 = ld(o1.bits());
     let t2 = t0 * t1;
     let t3 = ld(o2.bits());
     let t4 = t2 * t3;
-    let t5 = fld(rc, o3);
+    let t5 = ld(o3.bits());
     let t6 = t4 + t5;
-    fstp(rc, o4, t6);
+    o4.set_bits(st(t6));
 }
 
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
@@ -1524,11 +1435,10 @@ mod asm_reference {
                 reference: |a| unsafe { ref_0(a[0], a[1]) },
                 plain: |a| {
                     x87_1(
-                        a[1],
                         &dm(a[0]).gauge_rates[0],
                         &dm(a[0]).flt_75b38c,
-                        0x31A290,
-                        0x31A290,
+                        &CAR.engine_damage,
+                        &CAR.engine_damage,
                     )
                 },
             },
@@ -1548,11 +1458,10 @@ mod asm_reference {
                 reference: |a| unsafe { ref_1(a[0], a[1]) },
                 plain: |a| {
                     x87_1(
-                        a[1],
                         &dm(a[0]).gauge_rates[1],
                         &dm(a[0]).flt_75b38c,
-                        0x31A294,
-                        0x31A294,
+                        &CAR.exhaust_damage,
+                        &CAR.exhaust_damage,
                     )
                 },
             },
@@ -1572,11 +1481,10 @@ mod asm_reference {
                 reference: |a| unsafe { ref_2(a[0], a[1]) },
                 plain: |a| {
                     x87_1(
-                        a[1],
                         &dm(a[0]).gauge_rates[2],
                         &dm(a[0]).flt_75b38c,
-                        0x31A29C,
-                        0x31A29C,
+                        &CAR.cooling_damage,
+                        &CAR.cooling_damage,
                     )
                 },
             },
@@ -1596,11 +1504,10 @@ mod asm_reference {
                 reference: |a| unsafe { ref_3(a[0], a[1]) },
                 plain: |a| {
                     x87_1(
-                        a[1],
                         &dm(a[0]).gauge_rates[3],
                         &dm(a[0]).flt_75b38c,
-                        0x31A2A0,
-                        0x31A2A0,
+                        &CAR.clutch_damage,
+                        &CAR.clutch_damage,
                     )
                 },
             },
@@ -1620,11 +1527,10 @@ mod asm_reference {
                 reference: |a| unsafe { ref_4(a[0], a[1]) },
                 plain: |a| {
                     x87_1(
-                        a[1],
                         &dm(a[0]).gauge_rates[4],
                         &dm(a[0]).flt_75b38c,
-                        0x31A2A4,
-                        0x31A2A4,
+                        &CAR.differential_damage,
+                        &CAR.differential_damage,
                     )
                 },
             },
@@ -1644,11 +1550,10 @@ mod asm_reference {
                 reference: |a| unsafe { ref_5(a[0], a[1]) },
                 plain: |a| {
                     x87_1(
-                        a[1],
                         &dm(a[0]).gauge_rates[5],
                         &dm(a[0]).flt_75b38c,
-                        0x31A2E8,
-                        0x31A2E8,
+                        &CAR.electrics_damage,
+                        &CAR.electrics_damage,
                     )
                 },
             },
@@ -1668,11 +1573,10 @@ mod asm_reference {
                 reference: |a| unsafe { ref_6(a[0], a[1]) },
                 plain: |a| {
                     x87_1(
-                        a[1],
                         &dm(a[0]).gauge_rates[6],
                         &dm(a[0]).flt_75b38c,
-                        0x31A2EC,
-                        0x31A2EC,
+                        &CAR.light_damage[0],
+                        &CAR.light_damage[0],
                     )
                 },
             },
@@ -1692,11 +1596,10 @@ mod asm_reference {
                 reference: |a| unsafe { ref_7(a[0], a[1]) },
                 plain: |a| {
                     x87_1(
-                        a[1],
                         &dm(a[0]).gauge_rates[6],
                         &dm(a[0]).flt_75b38c,
-                        0x31A2F0,
-                        0x31A2F0,
+                        &CAR.light_damage[1],
+                        &CAR.light_damage[1],
                     )
                 },
             },
@@ -1716,11 +1619,10 @@ mod asm_reference {
                 reference: |a| unsafe { ref_8(a[0], a[1]) },
                 plain: |a| {
                     x87_1(
-                        a[1],
                         &dm(a[0]).gauge_rates[6],
                         &dm(a[0]).flt_75b38c,
-                        0x31A2F4,
-                        0x31A2F4,
+                        &CAR.light_damage[2],
+                        &CAR.light_damage[2],
                     )
                 },
             },
@@ -1740,11 +1642,10 @@ mod asm_reference {
                 reference: |a| unsafe { ref_9(a[0], a[1]) },
                 plain: |a| {
                     x87_1(
-                        a[1],
                         &dm(a[0]).gauge_rates[6],
                         &dm(a[0]).flt_75b38c,
-                        0x31A2F8,
-                        0x31A2F8,
+                        &CAR.light_damage[3],
+                        &CAR.light_damage[3],
                     )
                 },
             },
@@ -1764,11 +1665,10 @@ mod asm_reference {
                 reference: |a| unsafe { ref_10(a[0], a[1]) },
                 plain: |a| {
                     x87_1(
-                        a[1],
                         &dm(a[0]).gauge_rates[6],
                         &dm(a[0]).flt_75b38c,
-                        0x31A2FC,
-                        0x31A2FC,
+                        &CAR.light_damage[4],
+                        &CAR.light_damage[4],
                     )
                 },
             },
@@ -1788,11 +1688,10 @@ mod asm_reference {
                 reference: |a| unsafe { ref_11(a[0], a[1]) },
                 plain: |a| {
                     x87_1(
-                        a[1],
                         &dm(a[0]).gauge_rates[6],
                         &dm(a[0]).flt_75b38c,
-                        0x31A300,
-                        0x31A300,
+                        &CAR.light_damage[5],
+                        &CAR.light_damage[5],
                     )
                 },
             },
@@ -1812,11 +1711,10 @@ mod asm_reference {
                 reference: |a| unsafe { ref_12(a[0], a[1]) },
                 plain: |a| {
                     x87_1(
-                        a[1],
                         &dm(a[0]).gauge_rates[7],
                         &dm(a[0]).flt_75b38c,
-                        0x31A308,
-                        0x31A308,
+                        &CAR.steering_damage,
+                        &CAR.steering_damage,
                     )
                 },
             },
@@ -1836,11 +1734,10 @@ mod asm_reference {
                 reference: |a| unsafe { ref_13(a[0], a[1]) },
                 plain: |a| {
                     x87_1(
-                        a[1],
                         &dm(a[0]).gauge_rates[8],
                         &dm(a[0]).flt_75b38c,
-                        0x31A30C,
-                        0x31A30C,
+                        &CAR.suspension_damage[0],
+                        &CAR.suspension_damage[0],
                     )
                 },
             },
@@ -1860,11 +1757,10 @@ mod asm_reference {
                 reference: |a| unsafe { ref_14(a[0], a[1]) },
                 plain: |a| {
                     x87_1(
-                        a[1],
                         &dm(a[0]).gauge_rates[8],
                         &dm(a[0]).flt_75b38c,
-                        0x31A310,
-                        0x31A310,
+                        &CAR.suspension_damage[1],
+                        &CAR.suspension_damage[1],
                     )
                 },
             },
@@ -1884,11 +1780,10 @@ mod asm_reference {
                 reference: |a| unsafe { ref_15(a[0], a[1]) },
                 plain: |a| {
                     x87_1(
-                        a[1],
                         &dm(a[0]).gauge_rates[8],
                         &dm(a[0]).flt_75b38c,
-                        0x31A314,
-                        0x31A314,
+                        &CAR.suspension_damage[2],
+                        &CAR.suspension_damage[2],
                     )
                 },
             },
@@ -1908,11 +1803,10 @@ mod asm_reference {
                 reference: |a| unsafe { ref_16(a[0], a[1]) },
                 plain: |a| {
                     x87_1(
-                        a[1],
                         &dm(a[0]).gauge_rates[8],
                         &dm(a[0]).flt_75b38c,
-                        0x31A318,
-                        0x31A318,
+                        &CAR.suspension_damage[3],
+                        &CAR.suspension_damage[3],
                     )
                 },
             },
@@ -1938,12 +1832,11 @@ mod asm_reference {
                 plain: |a| {
                     x87_2(
                         dm(a[0]),
-                        a[1],
                         &dm(a[0]).wear_rates[11],
                         &dm(a[0]).flt_75b3c0,
                         &dm(a[0]).flt_75b398,
-                        0x31A298,
-                        0x31A298,
+                        &CAR.turbo_damage,
+                        &CAR.turbo_damage,
                     )
                 },
             },
@@ -2010,12 +1903,11 @@ mod asm_reference {
                 plain: |a| {
                     x87_2(
                         dm(a[0]),
-                        a[1],
                         &dm(a[0]).gauge_rates[9],
                         &dm(a[0]).flt_75b43c,
                         &dm(a[0]).flt_75b3b0,
-                        0x31A324,
-                        0x31A324,
+                        &CAR.brake_wear_b,
+                        &CAR.brake_wear_b,
                     )
                 },
             },
@@ -2035,12 +1927,11 @@ mod asm_reference {
                 reference: |a| unsafe { ref_21(a[0], a[1]) },
                 plain: |a| {
                     x87_5(
-                        a[1],
                         &dm(a[0]).gauge_rates[10],
                         &dm(a[0]).flt_75b3b4,
                         &dm(a[0]).flt_75b38c,
-                        0x31A2E8,
-                        0x31A2E8,
+                        &CAR.electrics_damage,
+                        &CAR.electrics_damage,
                     )
                 },
             },
@@ -2060,12 +1951,11 @@ mod asm_reference {
                 reference: |a| unsafe { ref_22(a[0], a[1]) },
                 plain: |a| {
                     x87_5(
-                        a[1],
                         &dm(a[0]).gauge_rates[11],
                         &dm(a[0]).flt_75b3b4,
                         &dm(a[0]).flt_75b38c,
-                        0x31A2EC,
-                        0x31A2EC,
+                        &CAR.light_damage[0],
+                        &CAR.light_damage[0],
                     )
                 },
             },
@@ -2085,12 +1975,11 @@ mod asm_reference {
                 reference: |a| unsafe { ref_23(a[0], a[1]) },
                 plain: |a| {
                     x87_5(
-                        a[1],
                         &dm(a[0]).gauge_rates[11],
                         &dm(a[0]).flt_75b3b4,
                         &dm(a[0]).flt_75b38c,
-                        0x31A2F0,
-                        0x31A2F0,
+                        &CAR.light_damage[1],
+                        &CAR.light_damage[1],
                     )
                 },
             },
@@ -2110,12 +1999,11 @@ mod asm_reference {
                 reference: |a| unsafe { ref_24(a[0], a[1]) },
                 plain: |a| {
                     x87_5(
-                        a[1],
                         &dm(a[0]).gauge_rates[11],
                         &dm(a[0]).flt_75b3b4,
                         &dm(a[0]).flt_75b38c,
-                        0x31A2F4,
-                        0x31A2F4,
+                        &CAR.light_damage[2],
+                        &CAR.light_damage[2],
                     )
                 },
             },
@@ -2135,12 +2023,11 @@ mod asm_reference {
                 reference: |a| unsafe { ref_25(a[0], a[1]) },
                 plain: |a| {
                     x87_5(
-                        a[1],
                         &dm(a[0]).gauge_rates[11],
                         &dm(a[0]).flt_75b3b4,
                         &dm(a[0]).flt_75b38c,
-                        0x31A2F8,
-                        0x31A2F8,
+                        &CAR.light_damage[3],
+                        &CAR.light_damage[3],
                     )
                 },
             },
@@ -2160,12 +2047,11 @@ mod asm_reference {
                 reference: |a| unsafe { ref_26(a[0], a[1]) },
                 plain: |a| {
                     x87_5(
-                        a[1],
                         &dm(a[0]).gauge_rates[11],
                         &dm(a[0]).flt_75b3b4,
                         &dm(a[0]).flt_75b38c,
-                        0x31A2FC,
-                        0x31A2FC,
+                        &CAR.light_damage[4],
+                        &CAR.light_damage[4],
                     )
                 },
             },
@@ -2185,12 +2071,11 @@ mod asm_reference {
                 reference: |a| unsafe { ref_27(a[0], a[1]) },
                 plain: |a| {
                     x87_5(
-                        a[1],
                         &dm(a[0]).gauge_rates[11],
                         &dm(a[0]).flt_75b3b4,
                         &dm(a[0]).flt_75b38c,
-                        0x31A300,
-                        0x31A300,
+                        &CAR.light_damage[5],
+                        &CAR.light_damage[5],
                     )
                 },
             },
@@ -2246,12 +2131,11 @@ mod asm_reference {
                 reference: |a| unsafe { ref_30(a[0], a[1]) },
                 plain: |a| {
                     x87_5(
-                        a[1],
                         &dm(a[0]).flt_75b46c,
                         &dm(a[0]).flt_75b488,
                         &dm(a[0]).flt_75b370,
-                        0x31A32C,
-                        0x31A32C,
+                        &CAR.part_hit_damage[0],
+                        &CAR.part_hit_damage[0],
                     )
                 },
             },
@@ -2271,12 +2155,11 @@ mod asm_reference {
                 reference: |a| unsafe { ref_31(a[0], a[1]) },
                 plain: |a| {
                     x87_5(
-                        a[1],
                         &dm(a[0]).flt_75b46c,
                         &dm(a[0]).flt_75b488,
                         &dm(a[0]).flt_75b370,
-                        0x31A330,
-                        0x31A330,
+                        &CAR.part_hit_damage[1],
+                        &CAR.part_hit_damage[1],
                     )
                 },
             },
@@ -2296,12 +2179,11 @@ mod asm_reference {
                 reference: |a| unsafe { ref_32(a[0], a[1]) },
                 plain: |a| {
                     x87_5(
-                        a[1],
                         &dm(a[0]).flt_75b470,
                         &dm(a[0]).flt_75b48c,
                         &dm(a[0]).flt_75b370,
-                        0x31A334,
-                        0x31A334,
+                        &CAR.part_hit_damage[2],
+                        &CAR.part_hit_damage[2],
                     )
                 },
             },
@@ -2321,12 +2203,11 @@ mod asm_reference {
                 reference: |a| unsafe { ref_33(a[0], a[1]) },
                 plain: |a| {
                     x87_5(
-                        a[1],
                         &dm(a[0]).flt_75b470,
                         &dm(a[0]).flt_75b48c,
                         &dm(a[0]).flt_75b370,
-                        0x31A338,
-                        0x31A338,
+                        &CAR.part_hit_damage[3],
+                        &CAR.part_hit_damage[3],
                     )
                 },
             },
@@ -2346,12 +2227,11 @@ mod asm_reference {
                 reference: |a| unsafe { ref_34(a[0], a[1]) },
                 plain: |a| {
                     x87_5(
-                        a[1],
                         &dm(a[0]).flt_75b45c,
                         &dm(a[0]).gauge_rates[13],
                         &dm(a[0]).flt_75b370,
-                        0x31A290,
-                        0x31A290,
+                        &CAR.engine_damage,
+                        &CAR.engine_damage,
                     )
                 },
             },
@@ -2371,12 +2251,11 @@ mod asm_reference {
                 reference: |a| unsafe { ref_35(a[0], a[1]) },
                 plain: |a| {
                     x87_5(
-                        a[1],
                         &dm(a[0]).flt_75b45c,
                         &dm(a[0]).gauge_rates[12],
                         &dm(a[0]).flt_75b370,
-                        0x31A29C,
-                        0x31A29C,
+                        &CAR.cooling_damage,
+                        &CAR.cooling_damage,
                     )
                 },
             },
@@ -2412,12 +2291,11 @@ mod asm_reference {
                 reference: |a| unsafe { ref_37(a[0], a[1]) },
                 plain: |a| {
                     x87_5(
-                        a[1],
                         &dm(a[0]).flt_75b464,
                         &dm(a[0]).gauge_rates[15],
                         &dm(a[0]).flt_75b370,
-                        0x31A29C,
-                        0x31A29C,
+                        &CAR.cooling_damage,
+                        &CAR.cooling_damage,
                     )
                 },
             },
@@ -2501,12 +2379,11 @@ mod asm_reference {
                 reference: |a| unsafe { ref_42(a[0], a[1]) },
                 plain: |a| {
                     x87_5(
-                        a[1],
                         &dm(a[0]).flt_75b450,
                         &dm(a[0]).flt_75b670,
                         &dm(a[0]).flt_75b370,
-                        0x31A2D0,
-                        0x31A2D0,
+                        &CAR.wheel_hit_damage[0],
+                        &CAR.wheel_hit_damage[0],
                     )
                 },
             },
@@ -2526,12 +2403,11 @@ mod asm_reference {
                 reference: |a| unsafe { ref_43(a[0], a[1]) },
                 plain: |a| {
                     x87_5(
-                        a[1],
                         &dm(a[0]).flt_75b450,
                         &dm(a[0]).flt_75b670,
                         &dm(a[0]).flt_75b370,
-                        0x31A2D4,
-                        0x31A2D4,
+                        &CAR.wheel_hit_damage[1],
+                        &CAR.wheel_hit_damage[1],
                     )
                 },
             },
@@ -2551,12 +2427,11 @@ mod asm_reference {
                 reference: |a| unsafe { ref_44(a[0], a[1]) },
                 plain: |a| {
                     x87_5(
-                        a[1],
                         &dm(a[0]).flt_75b450,
                         &dm(a[0]).flt_75b670,
                         &dm(a[0]).flt_75b370,
-                        0x31A2D8,
-                        0x31A2D8,
+                        &CAR.wheel_hit_damage[2],
+                        &CAR.wheel_hit_damage[2],
                     )
                 },
             },
@@ -2576,12 +2451,11 @@ mod asm_reference {
                 reference: |a| unsafe { ref_45(a[0], a[1]) },
                 plain: |a| {
                     x87_5(
-                        a[1],
                         &dm(a[0]).flt_75b450,
                         &dm(a[0]).flt_75b670,
                         &dm(a[0]).flt_75b370,
-                        0x31A2DC,
-                        0x31A2DC,
+                        &CAR.wheel_hit_damage[3],
+                        &CAR.wheel_hit_damage[3],
                     )
                 },
             },
@@ -2601,12 +2475,11 @@ mod asm_reference {
                 reference: |a| unsafe { ref_46(a[0], a[1]) },
                 plain: |a| {
                     x87_5(
-                        a[1],
                         &dm(a[0]).flt_75b458,
                         &dm(a[0]).figures[0],
                         &dm(a[0]).flt_75b370,
-                        0x31A30C,
-                        0x31A30C,
+                        &CAR.suspension_damage[0],
+                        &CAR.suspension_damage[0],
                     )
                 },
             },
@@ -2626,12 +2499,11 @@ mod asm_reference {
                 reference: |a| unsafe { ref_47(a[0], a[1]) },
                 plain: |a| {
                     x87_5(
-                        a[1],
                         &dm(a[0]).flt_75b458,
                         &dm(a[0]).figures[0],
                         &dm(a[0]).flt_75b370,
-                        0x31A310,
-                        0x31A310,
+                        &CAR.suspension_damage[1],
+                        &CAR.suspension_damage[1],
                     )
                 },
             },
@@ -2651,12 +2523,11 @@ mod asm_reference {
                 reference: |a| unsafe { ref_48(a[0], a[1]) },
                 plain: |a| {
                     x87_5(
-                        a[1],
                         &dm(a[0]).flt_75b458,
                         &dm(a[0]).figures[0],
                         &dm(a[0]).flt_75b370,
-                        0x31A314,
-                        0x31A314,
+                        &CAR.suspension_damage[2],
+                        &CAR.suspension_damage[2],
                     )
                 },
             },
@@ -2676,12 +2547,11 @@ mod asm_reference {
                 reference: |a| unsafe { ref_49(a[0], a[1]) },
                 plain: |a| {
                     x87_5(
-                        a[1],
                         &dm(a[0]).flt_75b458,
                         &dm(a[0]).figures[0],
                         &dm(a[0]).flt_75b370,
-                        0x31A318,
-                        0x31A318,
+                        &CAR.suspension_damage[3],
+                        &CAR.suspension_damage[3],
                     )
                 },
             },
@@ -2701,12 +2571,11 @@ mod asm_reference {
                 reference: |a| unsafe { ref_50(a[0], a[1]) },
                 plain: |a| {
                     x87_5(
-                        a[1],
                         &dm(a[0]).flt_75b454,
                         &dm(a[0]).figures[1],
                         &dm(a[0]).flt_75b370,
-                        0x31A2E0,
-                        0x31A2E0,
+                        &CAR.body_hit_damage,
+                        &CAR.body_hit_damage,
                     )
                 },
             },
@@ -2726,12 +2595,11 @@ mod asm_reference {
                 reference: |a| unsafe { ref_51(a[0], a[1]) },
                 plain: |a| {
                     x87_5(
-                        a[1],
                         &dm(a[0]).flt_75b454,
                         &dm(a[0]).figures[2],
                         &dm(a[0]).flt_75b370,
-                        0x31A308,
-                        0x31A308,
+                        &CAR.steering_damage,
+                        &CAR.steering_damage,
                     )
                 },
             },
@@ -2751,12 +2619,11 @@ mod asm_reference {
                 reference: |a| unsafe { ref_52(a[0], a[1]) },
                 plain: |a| {
                     x87_5(
-                        a[1],
                         &dm(a[0]).flt_75b454,
                         &dm(a[0]).figures[3],
                         &dm(a[0]).flt_75b370,
-                        0x31A290,
-                        0x31A290,
+                        &CAR.engine_damage,
+                        &CAR.engine_damage,
                     )
                 },
             },
@@ -2776,12 +2643,11 @@ mod asm_reference {
                 reference: |a| unsafe { ref_53(a[0], a[1]) },
                 plain: |a| {
                     x87_5(
-                        a[1],
                         &dm(a[0]).flt_75b454,
                         &dm(a[0]).figures[4],
                         &dm(a[0]).flt_75b370,
-                        0x31A294,
-                        0x31A294,
+                        &CAR.exhaust_damage,
+                        &CAR.exhaust_damage,
                     )
                 },
             },
@@ -2801,12 +2667,11 @@ mod asm_reference {
                 reference: |a| unsafe { ref_54(a[0], a[1]) },
                 plain: |a| {
                     x87_5(
-                        a[1],
                         &dm(a[0]).flt_75b454,
                         &dm(a[0]).figures[5],
                         &dm(a[0]).flt_75b370,
-                        0x31A2A8,
-                        0x31A2A8,
+                        &CAR.gear_wear[0],
+                        &CAR.gear_wear[0],
                     )
                 },
             },
@@ -2826,12 +2691,11 @@ mod asm_reference {
                 reference: |a| unsafe { ref_55(a[0], a[1]) },
                 plain: |a| {
                     x87_5(
-                        a[1],
                         &dm(a[0]).flt_75b454,
                         &dm(a[0]).figures[5],
                         &dm(a[0]).flt_75b370,
-                        0x31A2B0,
-                        0x31A2B0,
+                        &CAR.gear_wear[2],
+                        &CAR.gear_wear[2],
                     )
                 },
             },
@@ -2851,12 +2715,11 @@ mod asm_reference {
                 reference: |a| unsafe { ref_56(a[0], a[1]) },
                 plain: |a| {
                     x87_5(
-                        a[1],
                         &dm(a[0]).flt_75b454,
                         &dm(a[0]).figures[5],
                         &dm(a[0]).flt_75b370,
-                        0x31A2B4,
-                        0x31A2B4,
+                        &CAR.gear_wear[3],
+                        &CAR.gear_wear[3],
                     )
                 },
             },
@@ -2876,12 +2739,11 @@ mod asm_reference {
                 reference: |a| unsafe { ref_57(a[0], a[1]) },
                 plain: |a| {
                     x87_5(
-                        a[1],
                         &dm(a[0]).flt_75b454,
                         &dm(a[0]).figures[5],
                         &dm(a[0]).flt_75b370,
-                        0x31A2B8,
-                        0x31A2B8,
+                        &CAR.gear_wear[4],
+                        &CAR.gear_wear[4],
                     )
                 },
             },
@@ -2901,12 +2763,11 @@ mod asm_reference {
                 reference: |a| unsafe { ref_58(a[0], a[1]) },
                 plain: |a| {
                     x87_5(
-                        a[1],
                         &dm(a[0]).flt_75b454,
                         &dm(a[0]).figures[5],
                         &dm(a[0]).flt_75b370,
-                        0x31A2BC,
-                        0x31A2BC,
+                        &CAR.gear_wear[5],
+                        &CAR.gear_wear[5],
                     )
                 },
             },
@@ -2926,12 +2787,11 @@ mod asm_reference {
                 reference: |a| unsafe { ref_59(a[0], a[1]) },
                 plain: |a| {
                     x87_5(
-                        a[1],
                         &dm(a[0]).flt_75b454,
                         &dm(a[0]).figures[5],
                         &dm(a[0]).flt_75b370,
-                        0x31A2C0,
-                        0x31A2C0,
+                        &CAR.gear_wear[6],
+                        &CAR.gear_wear[6],
                     )
                 },
             },
@@ -2951,12 +2811,11 @@ mod asm_reference {
                 reference: |a| unsafe { ref_60(a[0], a[1]) },
                 plain: |a| {
                     x87_5(
-                        a[1],
                         &dm(a[0]).flt_75b454,
                         &dm(a[0]).figures[5],
                         &dm(a[0]).flt_75b370,
-                        0x31A2C4,
-                        0x31A2C4,
+                        &CAR.gear_wear[7],
+                        &CAR.gear_wear[7],
                     )
                 },
             },
@@ -2976,12 +2835,11 @@ mod asm_reference {
                 reference: |a| unsafe { ref_61(a[0], a[1]) },
                 plain: |a| {
                     x87_5(
-                        a[1],
                         &dm(a[0]).flt_75b454,
                         &dm(a[0]).figures[5],
                         &dm(a[0]).flt_75b370,
-                        0x31A2C8,
-                        0x31A2C8,
+                        &CAR.gear_wear[8],
+                        &CAR.gear_wear[8],
                     )
                 },
             },
@@ -3001,12 +2859,11 @@ mod asm_reference {
                 reference: |a| unsafe { ref_62(a[0], a[1]) },
                 plain: |a| {
                     x87_5(
-                        a[1],
                         &dm(a[0]).flt_75b454,
                         &dm(a[0]).figures[6],
                         &dm(a[0]).flt_75b370,
-                        0x31A2A4,
-                        0x31A2A4,
+                        &CAR.differential_damage,
+                        &CAR.differential_damage,
                     )
                 },
             },
@@ -3026,11 +2883,10 @@ mod asm_reference {
                 reference: |a| unsafe { ref_63(a[0], a[1]) },
                 plain: |a| {
                     x87_1(
-                        a[1],
                         &dm(a[0]).flt_75b3c8,
                         &dm(a[0]).figures[13],
-                        0x31A2E0,
-                        0x31A2E0,
+                        &CAR.body_hit_damage,
+                        &CAR.body_hit_damage,
                     )
                 },
             },
@@ -3066,11 +2922,10 @@ mod asm_reference {
                 reference: |a| unsafe { ref_65(a[0], a[1]) },
                 plain: |a| {
                     x87_1(
-                        a[1],
                         &dm(a[0]).flt_75b3c8,
                         &dm(a[0]).figures[24],
-                        0x31A2EC,
-                        0x31A2EC,
+                        &CAR.light_damage[0],
+                        &CAR.light_damage[0],
                     )
                 },
             },
@@ -3090,11 +2945,10 @@ mod asm_reference {
                 reference: |a| unsafe { ref_66(a[0], a[1]) },
                 plain: |a| {
                     x87_1(
-                        a[1],
                         &dm(a[0]).flt_75b3c8,
                         &dm(a[0]).figures[24],
-                        0x31A2F0,
-                        0x31A2F0,
+                        &CAR.light_damage[1],
+                        &CAR.light_damage[1],
                     )
                 },
             },
@@ -3114,11 +2968,10 @@ mod asm_reference {
                 reference: |a| unsafe { ref_67(a[0], a[1]) },
                 plain: |a| {
                     x87_1(
-                        a[1],
                         &dm(a[0]).flt_75b3c8,
                         &dm(a[0]).figures[24],
-                        0x31A2F4,
-                        0x31A2F4,
+                        &CAR.light_damage[2],
+                        &CAR.light_damage[2],
                     )
                 },
             },
@@ -3138,11 +2991,10 @@ mod asm_reference {
                 reference: |a| unsafe { ref_68(a[0], a[1]) },
                 plain: |a| {
                     x87_1(
-                        a[1],
                         &dm(a[0]).flt_75b3c8,
                         &dm(a[0]).figures[24],
-                        0x31A2F8,
-                        0x31A2F8,
+                        &CAR.light_damage[3],
+                        &CAR.light_damage[3],
                     )
                 },
             },
@@ -3162,11 +3014,10 @@ mod asm_reference {
                 reference: |a| unsafe { ref_69(a[0], a[1]) },
                 plain: |a| {
                     x87_1(
-                        a[1],
                         &dm(a[0]).flt_75b3c8,
                         &dm(a[0]).figures[25],
-                        0x31A2FC,
-                        0x31A2FC,
+                        &CAR.light_damage[4],
+                        &CAR.light_damage[4],
                     )
                 },
             },
@@ -3186,11 +3037,10 @@ mod asm_reference {
                 reference: |a| unsafe { ref_70(a[0], a[1]) },
                 plain: |a| {
                     x87_1(
-                        a[1],
                         &dm(a[0]).flt_75b3c8,
                         &dm(a[0]).figures[25],
-                        0x31A2FC,
-                        0x31A2FC,
+                        &CAR.light_damage[4],
+                        &CAR.light_damage[4],
                     )
                 },
             },
@@ -3210,11 +3060,10 @@ mod asm_reference {
                 reference: |a| unsafe { ref_71(a[0], a[1]) },
                 plain: |a| {
                     x87_1(
-                        a[1],
                         &dm(a[0]).flt_75b3c8,
                         &dm(a[0]).figures[25],
-                        0x31A300,
-                        0x31A300,
+                        &CAR.light_damage[5],
+                        &CAR.light_damage[5],
                     )
                 },
             },
@@ -3234,11 +3083,10 @@ mod asm_reference {
                 reference: |a| unsafe { ref_72(a[0], a[1]) },
                 plain: |a| {
                     x87_1(
-                        a[1],
                         &dm(a[0]).flt_75b3c8,
                         &dm(a[0]).figures[25],
-                        0x31A300,
-                        0x31A300,
+                        &CAR.light_damage[5],
+                        &CAR.light_damage[5],
                     )
                 },
             },
@@ -3258,11 +3106,10 @@ mod asm_reference {
                 reference: |a| unsafe { ref_73(a[0], a[1]) },
                 plain: |a| {
                     x87_1(
-                        a[1],
                         &dm(a[0]).flt_75b3c8,
                         &dm(a[0]).figures[23],
-                        0x31A308,
-                        0x31A308,
+                        &CAR.steering_damage,
+                        &CAR.steering_damage,
                     )
                 },
             },
@@ -3282,11 +3129,10 @@ mod asm_reference {
                 reference: |a| unsafe { ref_74(a[0], a[1]) },
                 plain: |a| {
                     x87_1(
-                        a[1],
                         &dm(a[0]).flt_75b3c8,
                         &dm(a[0]).figures[22],
-                        0x31A2E8,
-                        0x31A2E8,
+                        &CAR.electrics_damage,
+                        &CAR.electrics_damage,
                     )
                 },
             },
@@ -3306,11 +3152,10 @@ mod asm_reference {
                 reference: |a| unsafe { ref_75(a[0], a[1]) },
                 plain: |a| {
                     x87_1(
-                        a[1],
                         &dm(a[0]).flt_75b3c8,
                         &dm(a[0]).figures[17],
-                        0x31A298,
-                        0x31A298,
+                        &CAR.turbo_damage,
+                        &CAR.turbo_damage,
                     )
                 },
             },
@@ -3330,11 +3175,10 @@ mod asm_reference {
                 reference: |a| unsafe { ref_76(a[0], a[1]) },
                 plain: |a| {
                     x87_1(
-                        a[1],
                         &dm(a[0]).flt_75b3c8,
                         &dm(a[0]).figures[18],
-                        0x31A2A0,
-                        0x31A2A0,
+                        &CAR.clutch_damage,
+                        &CAR.clutch_damage,
                     )
                 },
             },
@@ -3354,11 +3198,10 @@ mod asm_reference {
                 reference: |a| unsafe { ref_77(a[0], a[1]) },
                 plain: |a| {
                     x87_1(
-                        a[1],
                         &dm(a[0]).flt_75b3c8,
                         &dm(a[0]).figures[19],
-                        0x31A2A4,
-                        0x31A2A4,
+                        &CAR.differential_damage,
+                        &CAR.differential_damage,
                     )
                 },
             },
@@ -3378,11 +3221,10 @@ mod asm_reference {
                 reference: |a| unsafe { ref_78(a[0], a[1]) },
                 plain: |a| {
                     x87_1(
-                        a[1],
                         &dm(a[0]).flt_75b3c8,
                         &dm(a[0]).figures[20],
-                        0x31A2A8,
-                        0x31A2A8,
+                        &CAR.gear_wear[0],
+                        &CAR.gear_wear[0],
                     )
                 },
             },
@@ -3402,11 +3244,10 @@ mod asm_reference {
                 reference: |a| unsafe { ref_79(a[0], a[1]) },
                 plain: |a| {
                     x87_1(
-                        a[1],
                         &dm(a[0]).flt_75b3c8,
                         &dm(a[0]).figures[20],
-                        0x31A2AC,
-                        0x31A2AC,
+                        &CAR.gear_wear[1],
+                        &CAR.gear_wear[1],
                     )
                 },
             },
@@ -3426,11 +3267,10 @@ mod asm_reference {
                 reference: |a| unsafe { ref_80(a[0], a[1]) },
                 plain: |a| {
                     x87_1(
-                        a[1],
                         &dm(a[0]).flt_75b3c8,
                         &dm(a[0]).figures[20],
-                        0x31A2B0,
-                        0x31A2B0,
+                        &CAR.gear_wear[2],
+                        &CAR.gear_wear[2],
                     )
                 },
             },
@@ -3450,11 +3290,10 @@ mod asm_reference {
                 reference: |a| unsafe { ref_81(a[0], a[1]) },
                 plain: |a| {
                     x87_1(
-                        a[1],
                         &dm(a[0]).flt_75b3c8,
                         &dm(a[0]).figures[20],
-                        0x31A2B4,
-                        0x31A2B4,
+                        &CAR.gear_wear[3],
+                        &CAR.gear_wear[3],
                     )
                 },
             },
@@ -3474,11 +3313,10 @@ mod asm_reference {
                 reference: |a| unsafe { ref_82(a[0], a[1]) },
                 plain: |a| {
                     x87_1(
-                        a[1],
                         &dm(a[0]).flt_75b3c8,
                         &dm(a[0]).figures[20],
-                        0x31A2B8,
-                        0x31A2B8,
+                        &CAR.gear_wear[4],
+                        &CAR.gear_wear[4],
                     )
                 },
             },
@@ -3498,11 +3336,10 @@ mod asm_reference {
                 reference: |a| unsafe { ref_83(a[0], a[1]) },
                 plain: |a| {
                     x87_1(
-                        a[1],
                         &dm(a[0]).flt_75b3c8,
                         &dm(a[0]).figures[20],
-                        0x31A2BC,
-                        0x31A2BC,
+                        &CAR.gear_wear[5],
+                        &CAR.gear_wear[5],
                     )
                 },
             },
@@ -3522,11 +3359,10 @@ mod asm_reference {
                 reference: |a| unsafe { ref_84(a[0], a[1]) },
                 plain: |a| {
                     x87_1(
-                        a[1],
                         &dm(a[0]).flt_75b3c8,
                         &dm(a[0]).figures[20],
-                        0x31A2C0,
-                        0x31A2C0,
+                        &CAR.gear_wear[6],
+                        &CAR.gear_wear[6],
                     )
                 },
             },
@@ -3546,11 +3382,10 @@ mod asm_reference {
                 reference: |a| unsafe { ref_85(a[0], a[1]) },
                 plain: |a| {
                     x87_1(
-                        a[1],
                         &dm(a[0]).flt_75b3c8,
                         &dm(a[0]).figures[20],
-                        0x31A2C4,
-                        0x31A2C4,
+                        &CAR.gear_wear[7],
+                        &CAR.gear_wear[7],
                     )
                 },
             },
@@ -3570,11 +3405,10 @@ mod asm_reference {
                 reference: |a| unsafe { ref_86(a[0], a[1]) },
                 plain: |a| {
                     x87_1(
-                        a[1],
                         &dm(a[0]).flt_75b3c8,
                         &dm(a[0]).figures[20],
-                        0x31A2C8,
-                        0x31A2C8,
+                        &CAR.gear_wear[8],
+                        &CAR.gear_wear[8],
                     )
                 },
             },
@@ -3610,11 +3444,10 @@ mod asm_reference {
                 reference: |a| unsafe { ref_88(a[0], a[1]) },
                 plain: |a| {
                     x87_1(
-                        a[1],
                         &dm(a[0]).flt_75b3c8,
                         &dm(a[0]).figures[28],
-                        0x31A2D0,
-                        0x31A2D0,
+                        &CAR.wheel_hit_damage[0],
+                        &CAR.wheel_hit_damage[0],
                     )
                 },
             },
@@ -3634,11 +3467,10 @@ mod asm_reference {
                 reference: |a| unsafe { ref_89(a[0], a[1]) },
                 plain: |a| {
                     x87_1(
-                        a[1],
                         &dm(a[0]).flt_75b3c8,
                         &dm(a[0]).figures[28],
-                        0x31A2D4,
-                        0x31A2D4,
+                        &CAR.wheel_hit_damage[1],
+                        &CAR.wheel_hit_damage[1],
                     )
                 },
             },
@@ -3658,11 +3490,10 @@ mod asm_reference {
                 reference: |a| unsafe { ref_90(a[0], a[1]) },
                 plain: |a| {
                     x87_1(
-                        a[1],
                         &dm(a[0]).flt_75b3c8,
                         &dm(a[0]).figures[28],
-                        0x31A2D8,
-                        0x31A2D8,
+                        &CAR.wheel_hit_damage[2],
+                        &CAR.wheel_hit_damage[2],
                     )
                 },
             },
@@ -3682,11 +3513,10 @@ mod asm_reference {
                 reference: |a| unsafe { ref_91(a[0], a[1]) },
                 plain: |a| {
                     x87_1(
-                        a[1],
                         &dm(a[0]).flt_75b3c8,
                         &dm(a[0]).figures[28],
-                        0x31A2DC,
-                        0x31A2DC,
+                        &CAR.wheel_hit_damage[3],
+                        &CAR.wheel_hit_damage[3],
                     )
                 },
             },
@@ -3706,11 +3536,10 @@ mod asm_reference {
                 reference: |a| unsafe { ref_92(a[0], a[1]) },
                 plain: |a| {
                     x87_1(
-                        a[1],
                         &dm(a[0]).flt_75b3c8,
                         &dm(a[0]).figures[30],
-                        0x31A30C,
-                        0x31A30C,
+                        &CAR.suspension_damage[0],
+                        &CAR.suspension_damage[0],
                     )
                 },
             },
@@ -3730,11 +3559,10 @@ mod asm_reference {
                 reference: |a| unsafe { ref_93(a[0], a[1]) },
                 plain: |a| {
                     x87_1(
-                        a[1],
                         &dm(a[0]).flt_75b3c8,
                         &dm(a[0]).figures[30],
-                        0x31A310,
-                        0x31A310,
+                        &CAR.suspension_damage[1],
+                        &CAR.suspension_damage[1],
                     )
                 },
             },
@@ -3754,11 +3582,10 @@ mod asm_reference {
                 reference: |a| unsafe { ref_94(a[0], a[1]) },
                 plain: |a| {
                     x87_1(
-                        a[1],
                         &dm(a[0]).flt_75b3c8,
                         &dm(a[0]).figures[30],
-                        0x31A314,
-                        0x31A314,
+                        &CAR.suspension_damage[2],
+                        &CAR.suspension_damage[2],
                     )
                 },
             },
@@ -3778,11 +3605,10 @@ mod asm_reference {
                 reference: |a| unsafe { ref_95(a[0], a[1]) },
                 plain: |a| {
                     x87_1(
-                        a[1],
                         &dm(a[0]).flt_75b3c8,
                         &dm(a[0]).figures[30],
-                        0x31A318,
-                        0x31A318,
+                        &CAR.suspension_damage[3],
+                        &CAR.suspension_damage[3],
                     )
                 },
             },
@@ -3802,11 +3628,10 @@ mod asm_reference {
                 reference: |a| unsafe { ref_96(a[0], a[1]) },
                 plain: |a| {
                     x87_1(
-                        a[1],
                         &dm(a[0]).flt_75b3c8,
                         &dm(a[0]).figures[27],
-                        0x31A29C,
-                        0x31A29C,
+                        &CAR.cooling_damage,
+                        &CAR.cooling_damage,
                     )
                 },
             },
@@ -3826,11 +3651,10 @@ mod asm_reference {
                 reference: |a| unsafe { ref_97(a[0], a[1]) },
                 plain: |a| {
                     x87_1(
-                        a[1],
                         &dm(a[0]).flt_75b3c8,
                         &dm(a[0]).figures[27],
-                        0x31A29C,
-                        0x31A29C,
+                        &CAR.cooling_damage,
+                        &CAR.cooling_damage,
                     )
                 },
             },
@@ -3850,11 +3674,10 @@ mod asm_reference {
                 reference: |a| unsafe { ref_98(a[0], a[1]) },
                 plain: |a| {
                     x87_1(
-                        a[1],
                         &dm(a[0]).flt_75b3c8,
                         &dm(a[0]).figures[26],
-                        0x31A290,
-                        0x31A290,
+                        &CAR.engine_damage,
+                        &CAR.engine_damage,
                     )
                 },
             },
@@ -3874,11 +3697,10 @@ mod asm_reference {
                 reference: |a| unsafe { ref_99(a[0], a[1]) },
                 plain: |a| {
                     x87_1(
-                        a[1],
                         &dm(a[0]).flt_75b3c8,
                         &dm(a[0]).figures[26],
-                        0x31A290,
-                        0x31A290,
+                        &CAR.engine_damage,
+                        &CAR.engine_damage,
                     )
                 },
             },
@@ -3898,11 +3720,10 @@ mod asm_reference {
                 reference: |a| unsafe { ref_100(a[0], a[1]) },
                 plain: |a| {
                     x87_1(
-                        a[1],
                         &dm(a[0]).flt_75b3c8,
                         &dm(a[0]).figures[29],
-                        0x31A320,
-                        0x31A320,
+                        &CAR.brake_wear_a,
+                        &CAR.brake_wear_a,
                     )
                 },
             },
@@ -3922,11 +3743,10 @@ mod asm_reference {
                 reference: |a| unsafe { ref_101(a[0], a[1]) },
                 plain: |a| {
                     x87_1(
-                        a[1],
                         &dm(a[0]).flt_75b3c8,
                         &dm(a[0]).figures[29],
-                        0x31A320,
-                        0x31A320,
+                        &CAR.brake_wear_a,
+                        &CAR.brake_wear_a,
                     )
                 },
             },
@@ -3946,11 +3766,10 @@ mod asm_reference {
                 reference: |a| unsafe { ref_102(a[0], a[1]) },
                 plain: |a| {
                     x87_1(
-                        a[1],
                         &dm(a[0]).flt_75b3c8,
                         &dm(a[0]).figures[29],
-                        0x31A324,
-                        0x31A324,
+                        &CAR.brake_wear_b,
+                        &CAR.brake_wear_b,
                     )
                 },
             },
@@ -3970,11 +3789,10 @@ mod asm_reference {
                 reference: |a| unsafe { ref_103(a[0], a[1]) },
                 plain: |a| {
                     x87_1(
-                        a[1],
                         &dm(a[0]).flt_75b3c8,
                         &dm(a[0]).figures[29],
-                        0x31A324,
-                        0x31A324,
+                        &CAR.brake_wear_b,
+                        &CAR.brake_wear_b,
                     )
                 },
             },
@@ -3994,12 +3812,11 @@ mod asm_reference {
                 reference: |a| unsafe { ref_104(a[0], a[1]) },
                 plain: |a| {
                     x87_5(
-                        a[1],
                         &dm(a[0]).wheel_loads[0],
                         &dm(a[0]).figures[14],
                         &dm(a[0]).flt_75b370,
-                        0x31A30C,
-                        0x31A30C,
+                        &CAR.suspension_damage[0],
+                        &CAR.suspension_damage[0],
                     )
                 },
             },
@@ -4019,12 +3836,11 @@ mod asm_reference {
                 reference: |a| unsafe { ref_105(a[0], a[1]) },
                 plain: |a| {
                     x87_5(
-                        a[1],
                         &dm(a[0]).wheel_loads[1],
                         &dm(a[0]).figures[14],
                         &dm(a[0]).flt_75b370,
-                        0x31A310,
-                        0x31A310,
+                        &CAR.suspension_damage[1],
+                        &CAR.suspension_damage[1],
                     )
                 },
             },
@@ -4044,12 +3860,11 @@ mod asm_reference {
                 reference: |a| unsafe { ref_106(a[0], a[1]) },
                 plain: |a| {
                     x87_5(
-                        a[1],
                         &dm(a[0]).wheel_loads[2],
                         &dm(a[0]).figures[14],
                         &dm(a[0]).flt_75b370,
-                        0x31A314,
-                        0x31A314,
+                        &CAR.suspension_damage[2],
+                        &CAR.suspension_damage[2],
                     )
                 },
             },
@@ -4069,12 +3884,11 @@ mod asm_reference {
                 reference: |a| unsafe { ref_107(a[0], a[1]) },
                 plain: |a| {
                     x87_5(
-                        a[1],
                         &dm(a[0]).wheel_loads[3],
                         &dm(a[0]).figures[14],
                         &dm(a[0]).flt_75b370,
-                        0x31A318,
-                        0x31A318,
+                        &CAR.suspension_damage[3],
+                        &CAR.suspension_damage[3],
                     )
                 },
             },
@@ -4094,12 +3908,11 @@ mod asm_reference {
                 reference: |a| unsafe { ref_108(a[0], a[1]) },
                 plain: |a| {
                     x87_5(
-                        a[1],
                         &dm(a[0]).flt_75b3dc,
                         &dm(a[0]).figures[15],
                         &dm(a[0]).flt_75b370,
-                        0x31A294,
-                        0x31A294,
+                        &CAR.exhaust_damage,
+                        &CAR.exhaust_damage,
                     )
                 },
             },
@@ -4119,12 +3932,11 @@ mod asm_reference {
                 reference: |a| unsafe { ref_109(a[0], a[1]) },
                 plain: |a| {
                     x87_5(
-                        a[1],
                         &dm(a[0]).flt_75b3dc,
                         &dm(a[0]).figures[16],
                         &dm(a[0]).flt_75b370,
-                        0x31A308,
-                        0x31A308,
+                        &CAR.steering_damage,
+                        &CAR.steering_damage,
                     )
                 },
             },

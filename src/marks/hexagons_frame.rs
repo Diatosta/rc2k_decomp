@@ -60,13 +60,12 @@ fn sprite_depth() {
 
 /// The original's 0x4BB9CE .. 0x4BBB1E: the six corners (the kind's offsets at `flt_814CFE`[c] ..) into `flt_814CB6` .., the depth's inverse (left on the x87 stack, so returned).
 fn sprite_corners(c: u32) -> bh::X {
-    sprite_corners_x87(crate::race::store::asm_base() as usize, c as usize)
+    sprite_corners_x87(c as usize)
 }
 
 /// The original's 0x4BBB24 .. 0x4BBE28: the centre and corners projected into the buffer at e (six vertices), drawn in by `flt_81619A` / `E`, their depth.
 fn sprite_project(e: u32, inverse_depth: bh::X) {
     sprite_project_x87(
-        crate::race::store::asm_base() as usize,
         crate::marks::hexagon_vars::HexagonVars::base(),
         e as usize,
         inverse_depth,
@@ -76,7 +75,7 @@ fn sprite_project(e: u32, inverse_depth: bh::X) {
 /// Why it refuses, if it does.
 fn refusal() -> Result<Option<&'static str>, Refused> {
     Ok({
-        if crate::marks::setup::SETTINGS.pointer.get() == 0 {
+        if SETTINGS.pointer.get() == 0 {
             return Ok(Some("no marks settings"));
         }
         let base = HEX.items.addr();
@@ -153,7 +152,7 @@ pub fn hexagons_frame() -> Result<(), Refused> {
                 draw_batch()?;
             }
         }
-        let settings: u32 = crate::marks::setup::SETTINGS.pointer.get();
+        let settings: u32 = SETTINGS.pointer.get();
         let live: u32 = HEXAGON_STATE.live.bits();
         if (live as i32) < get(settings + 0x273C)? as i32 && MARKS_KIND_FLOATS.running.bits() != 0 {
             crate::marks::hexagons_spawn::hexagons_spawn()?;
@@ -163,7 +162,9 @@ pub fn hexagons_frame() -> Result<(), Refused> {
 }
 
 use crate::marks::plain::{ld, st};
+use crate::marks::setup::SETTINGS;
 use crate::math::x87_float as bh;
+use crate::scene::draw_store::DRAW;
 
 /// `drift_cell`'s x87 block as plain Rust on the x87 model (7 instructions), same order and memory places.
 fn drift_cell_x87(k: usize) {
@@ -226,9 +227,9 @@ fn sprite_depth_x87(hx: usize) {
 }
 
 /// `sprite_corners`'s x87 block as plain Rust on the x87 model (56 instructions), same order and memory places.
-fn sprite_corners_x87(rc: usize, c: usize) -> bh::X {
+fn sprite_corners_x87(c: usize) -> bh::X {
     let t0 = bh::ld(HEXAGON_WORK.cell[2].bits());
-    let t1 = ld(rc, 0x224088) / t0;
+    let t1 = crate::math::x87_float::ld(DRAW.view_scale.bits()) / t0;
     let t2 = bh::ld(HEXAGON_WORK.cell[0].bits());
     let t3 = t2 + bh::ld(HEXAGON_WORK.scaled[c / 4].bits());
     HEXAGON_WORK.corners[0].set_bits(bh::st(t3));
@@ -287,26 +288,26 @@ fn sprite_corners_x87(rc: usize, c: usize) -> bh::X {
 }
 
 /// `sprite_project`'s x87 block as plain Rust on the x87 model (152 instructions), same order and memory places.
-fn sprite_project_x87(rc: usize, hx: usize, e: usize, pre0: bh::X) {
+fn sprite_project_x87(hx: usize, e: usize, pre0: bh::X) {
     HEXAGON_WORK.cell[2].set_bits(bh::st(pre0));
     let t0 = bh::ld(HEXAGON_WORK.cell[1].bits());
     let t1 = t0 * bh::ld(HEXAGON_WORK.cell[2].bits());
     let t2 = -t1;
     let t3 = bh::ld(HEXAGON_WORK.cell[0].bits());
     let t4 = t3 * bh::ld(HEXAGON_WORK.cell[2].bits());
-    let t5 = t4 + ld(rc, 0x22409C);
+    let t5 = t4 + crate::math::x87_float::ld(DRAW.view_centre[0].bits());
     HEXAGON_WORK.cell[0].set_bits(bh::st(t5));
-    let t6 = t2 + ld(rc, 0x2240A0);
+    let t6 = t2 + crate::math::x87_float::ld(DRAW.view_centre[1].bits());
     HEXAGON_WORK.cell[1].set_bits(bh::st(t6));
     let t7 = bh::ld(HEXAGON_WORK.corners[0].bits());
     let t8 = t7 * bh::ld(HEXAGON_WORK.cell[2].bits());
     let t9 = bh::ld(HEXAGON_WORK.corners[1].bits());
     let t10 = t9 * bh::ld(HEXAGON_WORK.cell[2].bits());
     let t11 = -t10;
-    let t12 = t11 + ld(rc, 0x2240A0);
+    let t12 = t11 + crate::math::x87_float::ld(DRAW.view_centre[1].bits());
     st(e, 0x1C, t12);
     st(e, 0x4, t12);
-    let t13 = t8 + ld(rc, 0x22409C);
+    let t13 = t8 + crate::math::x87_float::ld(DRAW.view_centre[0].bits());
     st(e, 0x18, t13);
     st(e, 0, t13);
     let t14 = bh::ld(HEXAGON_WORK.corners[3].bits());
@@ -314,10 +315,10 @@ fn sprite_project_x87(rc: usize, hx: usize, e: usize, pre0: bh::X) {
     let t16 = bh::ld(HEXAGON_WORK.corners[4].bits());
     let t17 = t16 * bh::ld(HEXAGON_WORK.cell[2].bits());
     let t18 = -t17;
-    let t19 = t18 + ld(rc, 0x2240A0);
+    let t19 = t18 + crate::math::x87_float::ld(DRAW.view_centre[1].bits());
     st(e, 0x3C, t19);
     st(e, 0x24, t19);
-    let t20 = t15 + ld(rc, 0x22409C);
+    let t20 = t15 + crate::math::x87_float::ld(DRAW.view_centre[0].bits());
     st(e, 0x38, t20);
     st(e, 0x20, t20);
     let t21 = bh::ld(HEXAGON_WORK.corners[6].bits());
@@ -325,10 +326,10 @@ fn sprite_project_x87(rc: usize, hx: usize, e: usize, pre0: bh::X) {
     let t23 = bh::ld(HEXAGON_WORK.corners[7].bits());
     let t24 = t23 * bh::ld(HEXAGON_WORK.cell[2].bits());
     let t25 = -t24;
-    let t26 = t25 + ld(rc, 0x2240A0);
+    let t26 = t25 + crate::math::x87_float::ld(DRAW.view_centre[1].bits());
     st(e, 0x5C, t26);
     st(e, 0x44, t26);
-    let t27 = t22 + ld(rc, 0x22409C);
+    let t27 = t22 + crate::math::x87_float::ld(DRAW.view_centre[0].bits());
     st(e, 0x58, t27);
     st(e, 0x40, t27);
     let t28 = bh::ld(HEXAGON_WORK.corners[9].bits());
@@ -336,10 +337,10 @@ fn sprite_project_x87(rc: usize, hx: usize, e: usize, pre0: bh::X) {
     let t30 = bh::ld(HEXAGON_WORK.corners[10].bits());
     let t31 = t30 * bh::ld(HEXAGON_WORK.cell[2].bits());
     let t32 = -t31;
-    let t33 = t32 + ld(rc, 0x2240A0);
+    let t33 = t32 + crate::math::x87_float::ld(DRAW.view_centre[1].bits());
     st(e, 0x7C, t33);
     st(e, 0x64, t33);
-    let t34 = t29 + ld(rc, 0x22409C);
+    let t34 = t29 + crate::math::x87_float::ld(DRAW.view_centre[0].bits());
     st(e, 0x78, t34);
     st(e, 0x60, t34);
     let t35 = bh::ld(HEXAGON_WORK.corners[12].bits());
@@ -347,10 +348,10 @@ fn sprite_project_x87(rc: usize, hx: usize, e: usize, pre0: bh::X) {
     let t37 = bh::ld(HEXAGON_WORK.corners[13].bits());
     let t38 = t37 * bh::ld(HEXAGON_WORK.cell[2].bits());
     let t39 = -t38;
-    let t40 = t39 + ld(rc, 0x2240A0);
+    let t40 = t39 + crate::math::x87_float::ld(DRAW.view_centre[1].bits());
     st(e, 0x9C, t40);
     st(e, 0x84, t40);
-    let t41 = t36 + ld(rc, 0x22409C);
+    let t41 = t36 + crate::math::x87_float::ld(DRAW.view_centre[0].bits());
     st(e, 0x98, t41);
     st(e, 0x80, t41);
     let t42 = bh::ld(HEXAGON_WORK.corners[15].bits());
@@ -358,10 +359,10 @@ fn sprite_project_x87(rc: usize, hx: usize, e: usize, pre0: bh::X) {
     let t44 = bh::ld(HEXAGON_WORK.corners[16].bits());
     let t45 = t44 * bh::ld(HEXAGON_WORK.cell[2].bits());
     let t46 = -t45;
-    let t47 = t46 + ld(rc, 0x2240A0);
+    let t47 = t46 + crate::math::x87_float::ld(DRAW.view_centre[1].bits());
     st(e, 0xBC, t47);
     st(e, 0xA4, t47);
-    let t48 = t43 + ld(rc, 0x22409C);
+    let t48 = t43 + crate::math::x87_float::ld(DRAW.view_centre[0].bits());
     st(e, 0xB8, t48);
     st(e, 0xA0, t48);
     let t49 = bh::ld(HEXAGON_WORK.cell[0].bits());
@@ -908,9 +909,7 @@ mod asm_differential {
     fn sprite_corners_x87_matches() {
         const SPEC: Spec = Spec {
             operands: &[
-                Op::Base {
-                    lo: 0x224088,
-                    hi: 0x22408C,
+                Op::RaceBlock {
                     reads: &[(0x224088, F32)],
                     writes: &[],
                 },
@@ -1022,7 +1021,7 @@ mod asm_differential {
         differential(
             &SPEC,
             |b| canon(reference::sprite_corners_x87(b[0], b[1], b[2])),
-            |b| canon(hexagons(b[1], || super::sprite_corners_x87(b[0], b[2])).0),
+            |b| canon(hexagons(b[1], || super::sprite_corners_x87(b[2])).0),
         );
     }
 
@@ -1030,9 +1029,7 @@ mod asm_differential {
     fn sprite_project_x87_matches() {
         const SPEC: Spec = Spec {
             operands: &[
-                Op::Base {
-                    lo: 0x22409C,
-                    hi: 0x2240A4,
+                Op::RaceBlock {
                     reads: &[(0x22409C, F32), (0x2240A0, F32)],
                     writes: &[],
                 },
@@ -1135,7 +1132,7 @@ mod asm_differential {
                     with_overlays(
                         b[1],
                         &[overlay(&MARKS_KIND_FLOATS, MarksKindFloats::START)],
-                        || super::sprite_project_x87(b[0], b[1], b[2], super::bh::ld(b[3] as u32)),
+                        || super::sprite_project_x87(b[1], b[2], super::bh::ld(b[3] as u32)),
                     )
                 })
             },
