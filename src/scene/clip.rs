@@ -27,7 +27,7 @@ use crate::scene::clip_asm::{
     cut_at_depth, cut_at_x, cut_at_y,
 };
 use crate::scene::draw_store::DRAW;
-use crate::scene::polygon::{ENTRIES, ENTRY_LEN, listed, put};
+use crate::scene::polygon::{ENTRIES, ENTRY_LEN, listed};
 use crate::scene::polygon_store::PolygonEntry;
 use crate::scene::project_point::{RECORD_LEN, to_screen};
 
@@ -73,10 +73,12 @@ unsafe fn cut(edge: Edge, a: &PolygonEntry, b: &PolygonEntry, mask: u32) -> Resu
         if number >= ENTRIES {
             return Err(BadInput("no entry left for a new vertex"));
         }
+        // the pool's next record (its number: `scene::point_records::of_pool`)
         let record: u32 = DRAW.polygon_next_record.bits();
         if record == 0 {
             return Err(BadInput("no pool of records"));
         }
+        let mut made = crate::scene::point_records::get(record)?;
         let new = crate::scene::polygon::entry(number as usize)?;
         let mut w: Work = [0; 0x51];
         let base = w.as_mut_ptr() as *mut u8;
@@ -131,20 +133,15 @@ unsafe fn cut(edge: Edge, a: &PolygonEntry, b: &PolygonEntry, mask: u32) -> Resu
         crate::session::write_bits(&DRAW.clip_work_2, out_2);
         DRAW.scratch.set_bits(w[CHECKED / 4]);
 
-        DRAW.polygon_next_record
-            .set_bits(record.wrapping_add(RECORD_LEN as u32));
+        DRAW.polygon_next_record.set_bits(record.wrapping_add(1));
         new.record.set(record);
-        let record = record as usize;
         if !matches!(edge, Edge::Depth(_)) {
-            for k in 0..3 {
-                put(record + k * 4, out_1[5 + k]);
-            }
+            made[..3].copy_from_slice(&out_1[5..8]);
         }
-        for k in 0..3 {
-            put(record + 0x10 + k * 4, out_1[2 + k]);
-        }
-        put(record + 0xC, out_1[0]);
-        put(record + 0x1C, out_1[1]);
+        made[4..7].copy_from_slice(&out_1[2..5]);
+        made[3] = out_1[0];
+        made[7] = out_1[1];
+        crate::scene::point_records::set(record, made)?;
         for k in 0..4 {
             new.set_word(8 + k * 4, out_1[8 + k]);
         }

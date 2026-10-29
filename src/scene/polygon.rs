@@ -28,9 +28,10 @@ pub fn old_list_cell(n: usize) -> &'static Dword {
     crate::race::checkpoints_store::nth(&crate::scene::polygon_store::POLYGON_WORK.old_list[0], n)
 }
 
-/// The pool of point records the clip makes.
-pub fn pool_addr() -> u32 {
-    crate::scene::polygon_store::POLYGON_WORK.record_pool[0].addr()
+/// The first record of the pool the clip makes its records in (`g_polygonNextRecord`
+/// starts at it).
+pub fn pool_start() -> u32 {
+    crate::scene::point_records::of_pool(0)
 }
 
 /// The textures' records (0x40 bytes each).
@@ -45,10 +46,6 @@ pub fn materials_addr() -> u32 {
 
 pub fn dword(at: usize) -> u32 {
     crate::pointers::read_or_end::<u32>((at) as u32, "scene::polygon's operand")
-}
-
-pub fn put(at: usize, value: u32) {
-    crate::pointers::write_or_end::<u32>((at) as u32, value, "scene::polygon's operand")
 }
 
 /// The polygon's entries in the list's order. Refuses what the originals go wrong on:

@@ -500,7 +500,7 @@ pub unsafe fn shadow_on_face() -> Result<(), Refused> {
         crate::scene::project_polygon::project_polygon()?;
         crate::scene::fog_polygon::fog_polygon()?;
         DRAW.polygon_next_record
-            .set(POLYGON_WORK.record_pool[0].addr());
+            .set(crate::scene::polygon::pool_start());
         let outside: u32 = DRAW.polygon_outside_count.get();
         if outside != 0 {
             if outside == DRAW.polygon_vertex_count.bits() {

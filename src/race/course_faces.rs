@@ -44,10 +44,6 @@ fn byte_at(a: u32) -> Result<u8, BadInput> {
     crate::race::course_places::read(a, "a course face or entry byte")
 }
 
-fn put(a: u32, v: u32) -> Result<(), BadInput> {
-    GamePtr::new(a).write(v, "a polygon entry or vertex word")
-}
-
 /// `race::face_depth_test_off` (0x452358): with no texture animation (`dword_63DA2C` 0)
 /// and `g_polygonMode` 4, the depth test off and `dword_63D9E0` 1.
 pub fn face_depth_test_off() {
@@ -645,26 +641,30 @@ pub unsafe fn draw_face() -> Result<(), Refused> {
 /// `flt_624088` over the depth, or over `dword_5CCD80` + 1 when `dword_60932C` is set,
 /// the depth then kept in `dword_62400C`; centre `flt_62409C`, `flt_6240A0`).
 fn halfway_vertex(a: u32, b: u32, v: u32) -> Result<(), BadInput> {
+    use crate::scene::point_records::{get, set};
+    let mut made = get(v)?;
+    halfway_record(&get(a)?, &get(b)?, &mut made);
+    set(v, made)
+}
+
+/// `halfway_vertex` on the records themselves (`a`, `b` point records of any kind).
+fn halfway_record(
+    a: &crate::scene::point_records::Record,
+    b: &crate::scene::point_records::Record,
+    v: &mut crate::scene::point_records::Record,
+) {
     use crate::math::x87_float::{ld, st};
     use crate::math::x87_load::below_or_unordered;
-    {
-        let half = ld(NUMBERS.half.bits());
-        for o in [0x10, 0x14, 0x18] {
-            // `a` and `b` are point records or the clipper's (`scene::point_records::vertex`).
-            let (from, to) = (
-                ld(crate::scene::point_records::vertex(a, o)),
-                ld(crate::scene::point_records::vertex(b, o)),
-            );
-            put(v + o, st((to - from) * half + from))?;
-        }
-        put(v + 0xC, 0)?;
-        put(v + 0x1C, 0)?;
-        if below_or_unordered(get(v + 0x18)?, NUMBERS.k4096_a.bits()) {
-            return Ok(());
-        }
-        crate::race::skidmarks::project_vertex(v)?;
+    let half = ld(NUMBERS.half.bits());
+    for k in [4, 5, 6] {
+        let (from, to) = (ld(a[k]), ld(b[k]));
+        v[k] = st((to - from) * half + from);
     }
-    Ok(())
+    (v[3], v[7]) = (0, 0);
+    if below_or_unordered(v[6], NUMBERS.k4096_a.bits()) {
+        return;
+    }
+    crate::race::skidmarks::project_record(v);
 }
 
 /// `sub_4537E9`'s new entry between entries `first` and `second` into `to`: the texture
@@ -710,7 +710,7 @@ pub unsafe fn draw_lit_triangle() -> Result<(), Refused> {
         crate::race::frame_draw::check_light_colour()?;
         DRAW.polygon_drawn.set(0u32);
         DRAW.polygon_next_record
-            .set(POLYGON_WORK.record_pool[0].addr());
+            .set(crate::scene::polygon::pool_start());
         plain_list(DRAW.polygon_vertex_count.bits(), 6);
         crate::scene::project_polygon::project_polygon()?;
         if DRAW.polygon_outside_count.get() == DRAW.polygon_vertex_count.get() {
@@ -721,10 +721,10 @@ pub unsafe fn draw_lit_triangle() -> Result<(), Refused> {
         for k in 0..3 {
             entry(3 + k)
                 .record
-                .set(RACE_VARS.quad_vertices[8 * k as usize].addr());
+                .set(crate::scene::point_records::of_quad(k));
         }
         for (k, (first, second)) in [(0u32, 1u32), (1, 2), (2, 0)].into_iter().enumerate() {
-            let v = RACE_VARS.quad_vertices[8 * k].addr();
+            let v = crate::scene::point_records::of_quad(k as u32);
             let points: u32 = COURSE.scene_points.get();
             let pa = entry(first)
                 .point
@@ -744,7 +744,7 @@ pub unsafe fn draw_lit_triangle() -> Result<(), Refused> {
                 );
                 let m = ((b.wrapping_sub(a) as i32) >> 1) as u32;
                 let m = m.wrapping_add(a);
-                put(v + o, m)?;
+                crate::scene::point_records::put_field(v, o, m)?;
                 lit.set(m);
             }
             halfway_vertex(entry(first).record.get(), entry(second).record.get(), v)?;
@@ -1255,11 +1255,10 @@ mod asm_reference {
                 let (a, b) = (vertex(&mut r), vertex(&mut r));
                 let (mut v1, mut v2) = (vertex(&mut r), [0u32; 8]);
                 v2.copy_from_slice(&v1);
-                let (_r1, _r2, _r3, _r4) = (
+                let (_r1, _r2, _r3) = (
                     crate::race::trap::test_region(&a),
                     crate::race::trap::test_region(&b),
                     crate::race::trap::test_region(&v1),
-                    crate::race::trap::test_region(&v2),
                 );
                 unsafe {
                     halfway_vertex_asm(
@@ -1270,12 +1269,7 @@ mod asm_reference {
                 };
                 let kept = DRAW.scratch.get();
                 DRAW.scratch.set_bits(0xAAAA_AAAAu32);
-                halfway_vertex(
-                    crate::pointers::game_address(a.as_ptr()),
-                    crate::pointers::game_address(b.as_ptr()),
-                    crate::pointers::game_address(v2.as_mut_ptr()),
-                )
-                .expect("the test's memory is registered");
+                halfway_record(&a, &b, &mut v2);
                 same_all(&v1, &v2, "vertex");
                 assert!(same(kept, DRAW.scratch.get()), "depth kept");
             }

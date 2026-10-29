@@ -68,7 +68,7 @@ pub fn draw_object_polygon(
         return Err(BadInput("a polygon of no vertices, or of more than 64").into());
     }
     DRAW.polygon_next_record
-        .set_bits(crate::scene::polygon::pool_addr());
+        .set_bits(crate::scene::polygon::pool_start());
     for (n, number) in first_list(count).into_iter().enumerate() {
         crate::scene::polygon::list_cell(n).set(number);
     }

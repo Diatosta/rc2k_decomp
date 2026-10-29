@@ -2262,10 +2262,9 @@ pub unsafe fn draw_screen_quad() -> Result<(), Refused> {
     unsafe {
         DRAW.polygon_drawn.set(0u32);
         let entries = &POLYGON_WORK.entries[..4];
-        let vertices = RACE_VARS.quad_vertices[0].addr();
         for (k, e) in (0u32..).zip(entries) {
-            // The point record is the vertex's address (`PointRecord`s are read by it).
-            e.record.set(vertices + 0x20 * k);
+            // the quad vertex's record (the original's address of it)
+            e.record.set(crate::scene::point_records::of_quad(k));
             e.u.set(0u32);
             e.v.set(0u32);
         }
@@ -2290,7 +2289,7 @@ pub unsafe fn draw_screen_quad() -> Result<(), Refused> {
         DRAW.polygon_colour.set(RACE_VARS.quad_colour[0].get());
         DRAW.polygon_vertex_count.set(4u32);
         DRAW.polygon_next_record
-            .set(POLYGON_WORK.record_pool[0].addr());
+            .set(crate::scene::polygon::pool_start());
         for k in 0..4u32 {
             POLYGON_WORK.list[k as usize].set(k);
         }

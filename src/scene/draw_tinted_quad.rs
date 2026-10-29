@@ -29,7 +29,8 @@ pub unsafe fn draw_tinted_quad() -> Result<(), Refused> {
         DRAW.polygon_drawn.set_bits(0);
         for n in 0..4 {
             let rec = &crate::scene::polygon_store::POLYGON_WORK.entries[n];
-            rec.record.set(RACE_VARS.quad_vertices[8 * n].addr());
+            rec.record
+                .set(crate::scene::point_records::of_quad(n as u32));
             rec.u.set(0);
             rec.v.set(0);
         }
@@ -72,7 +73,7 @@ pub unsafe fn draw_tinted_quad() -> Result<(), Refused> {
         }
         DRAW.polygon_vertex_count.set_bits(4);
         DRAW.polygon_next_record
-            .set_bits(crate::scene::polygon::pool_addr());
+            .set_bits(crate::scene::polygon::pool_start());
         for n in 0..4u32 {
             crate::scene::polygon::list_cell(n as usize).set(n);
         }

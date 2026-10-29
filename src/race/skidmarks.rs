@@ -19,10 +19,6 @@ fn get(a: u32) -> Result<u32, BadInput> {
     GamePtr::new(a).read("a skidmark vertex or point")
 }
 
-fn put(a: u32, v: u32) -> Result<(), BadInput> {
-    GamePtr::new(a).write(v, "a skidmark vertex or entry")
-}
-
 /// `fild i; fadd f; fstp tbyte`: a whole number plus a float in the x87's 80 bits.
 fn int_plus_float_80(i: u32, f: u32) -> [u8; 10] {
     use crate::math::x87_float::{f80, int, ld};
@@ -44,21 +40,18 @@ fn float_of_80(t: [u8; 10]) -> u32 {
 /// depth (the original's `fdivrp st(1), st` is `dword_624088` over that). x is
 /// x times that scale plus `dword_62409C`, y is `dword_6240A0` less y times it. When flat,
 /// the depth is also stored at `dword_62400C`.
-pub(crate) fn project_vertex(v: u32) -> Result<(), BadInput> {
+pub(crate) fn project_record(v: &mut crate::scene::point_records::Record) {
     use crate::math::x87_float::{ONE, int, ld, st};
-    {
-        let (x, y, z) = (ld(get(v + 0x10)?), ld(get(v + 0x14)?), ld(get(v + 0x18)?));
-        let reach = ld(DRAW.view_scale.bits());
-        let scale = if STAGE_PREFS.flat_depth.get() != 0 {
-            DRAW.scratch.set(st(z));
-            reach / (int(COURSE.flat_depth.get() as i32) + ONE)
-        } else {
-            reach / z
-        };
-        put(v + 0xC, st(x * scale + ld(DRAW.view_centre[0].bits())))?;
-        put(v + 0x1C, st(-(y * scale) + ld(DRAW.view_centre[1].bits())))?;
-    }
-    Ok(())
+    let (x, y, z) = (ld(v[4]), ld(v[5]), ld(v[6]));
+    let reach = ld(DRAW.view_scale.bits());
+    let scale = if STAGE_PREFS.flat_depth.get() != 0 {
+        DRAW.scratch.set(st(z));
+        reach / (int(COURSE.flat_depth.get() as i32) + ONE)
+    } else {
+        reach / z
+    };
+    v[3] = st(x * scale + ld(DRAW.view_centre[0].bits()));
+    v[7] = st(-(y * scale) + ld(DRAW.view_centre[1].bits()));
 }
 
 /// One skidmark point (`unk_645B18` + 0xC x n) into the vertex record `v`: raised by
@@ -79,14 +72,13 @@ fn skid_vertex(n: u32, v: u32) -> Result<(), BadInput> {
             int_80(get(p + 8)?),
         ];
         let t = crate::scene::rotate_point::rotate_point(&MATRICES.view_matrix, point);
-        put(v + 0x10, float_of_80(t[0]))?;
-        put(v + 0x14, float_of_80(t[1]))?;
-        put(v + 0x18, float_of_80(t[2]))?;
-        put(v + 0xC, 0)?;
-        put(v + 0x1C, 0)?;
-        if !crate::math::x87_load::below_or_unordered(get(v + 0x18)?, NUMBERS.k4096_a.bits()) {
-            project_vertex(v)?;
+        let mut made = crate::scene::point_records::get(v)?;
+        made[4..7].copy_from_slice(&t.map(float_of_80));
+        (made[3], made[7]) = (0, 0);
+        if !crate::math::x87_load::below_or_unordered(made[6], NUMBERS.k4096_a.bits()) {
+            project_record(&mut made);
         }
+        crate::scene::point_records::set(v, made)?;
     }
     Ok(())
 }
@@ -109,9 +101,8 @@ pub unsafe fn draw_skidmarks() -> Result<(), Refused> {
             .skid_views
             .set(views);
         let entries = &crate::scene::polygon_store::POLYGON_WORK.entries[..4];
-        let vertices = RACE_VARS.quad_vertices[0].addr();
         for (k, e) in (0..4u32).zip(entries) {
-            e.record.set(vertices + 0x20 * k);
+            e.record.set(crate::scene::point_records::of_quad(k));
             e.light.set(0);
             e.lamp_light.set(0);
         }
@@ -140,13 +131,14 @@ pub unsafe fn draw_skidmarks() -> Result<(), Refused> {
             if shown & views == 0 {
                 continue;
             }
-            skid_vertex(2 * n, vertices + 0x60)?;
-            skid_vertex(2 * n + 1, vertices + 0x40)?;
-            skid_vertex(before.wrapping_mul(2), vertices)?;
-            skid_vertex(before.wrapping_mul(2).wrapping_add(1), vertices + 0x20)?;
+            use crate::scene::point_records::of_quad;
+            skid_vertex(2 * n, of_quad(3))?;
+            skid_vertex(2 * n + 1, of_quad(2))?;
+            skid_vertex(before.wrapping_mul(2), of_quad(0))?;
+            skid_vertex(before.wrapping_mul(2).wrapping_add(1), of_quad(1))?;
             DRAW.polygon_vertex_count.set(4u32);
             DRAW.polygon_next_record
-                .set(crate::scene::polygon_store::POLYGON_WORK.record_pool[0].addr());
+                .set(crate::scene::polygon::pool_start());
             let list = &crate::scene::polygon_store::POLYGON_WORK.list;
             for k in 0..4u32 {
                 list[k as usize].set(k);
@@ -329,12 +321,11 @@ mod asm_reference {
                     *q = r.float();
                 }
                 let mut b = a;
-                let _r = crate::race::trap::test_region(&b);
+                let _r = crate::race::trap::test_region(&a);
                 unsafe { project_vertex_asm(crate::pointers::game_address(a.as_mut_ptr()), flat) };
                 let kept = DRAW.scratch.get();
                 DRAW.scratch.set_bits(0xAAAA_AAAAu32);
-                project_vertex(crate::pointers::game_address(b.as_mut_ptr()))
-                    .expect("the test's memory is registered");
+                project_record(&mut b);
                 let now = DRAW.scratch.get();
                 for k in 0..8 {
                     assert!(

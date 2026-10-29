@@ -53,7 +53,7 @@ pub fn draw_clipped_polygon(
         DRAW.depth_clipped.set_bits(0u32);
         DRAW.polygon_drawn.set_bits(0u32);
         DRAW.polygon_next_record
-            .set_bits(crate::scene::polygon::pool_addr());
+            .set_bits(crate::scene::polygon::pool_start());
         for n in 0..count {
             crate::scene::polygon::list_cell(n as usize).set(n);
         }
