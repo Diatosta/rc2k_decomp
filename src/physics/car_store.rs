@@ -560,21 +560,10 @@ impl Car {
     }
 }
 
-/// The work car: the race block's bytes at IDA 0x719FD8 seen as a `Car` (`CAR.gear.get()`).
-/// It stays there while code reaches the car by RVA from `race::store::asm_base()` and by
-/// IDA address (`moved::place`): one copy for all three.
-pub struct InRaceBlock;
-
-impl core::ops::Deref for InRaceBlock {
-    type Target = Car;
-    fn deref(&self) -> &Car {
-        // SAFETY: the race block lives as long as the program and is aligned to 4 (the
-        // test checks); every field is an atomic or a cell, as the block's bytes were shared.
-        unsafe { &*(crate::pointers::host(car_addr()) as *const Car) }
-    }
-}
-
-pub static CAR: InRaceBlock = InRaceBlock;
+/// The piece: a static of its own since 2026-10-29 (it left the race block, phase 13:
+/// `race::store::LEFT`), with the image's first values.
+pub static CAR: Car =
+    crate::pointers::cells_of_bytes(crate::race::store::first_values::<{ END - START }>(START));
 
 /// IDA 0x719FD8, the first byte of the piece.
 pub const START: usize = 0x719FD8;
@@ -583,9 +572,9 @@ pub const END: usize = 0x71AFB8;
 
 const _: () = assert!(END - START == core::mem::size_of::<Car>());
 
-/// Where IDA 0x719FD8 is now (in the race block).
+/// Where IDA 0x719FD8 is now (its own static).
 pub fn car_addr() -> u32 {
-    crate::race::store::home(START) as u32
+    crate::pointers::game_address(core::ptr::from_ref(&CAR))
 }
 
 #[cfg(test)]

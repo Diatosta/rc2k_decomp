@@ -37,35 +37,40 @@ pub fn buffers_asm_base() -> u32 {
 
 /// The ranges of the block that are its own (IDA start, end): all but the holes and the
 /// pieces that left it (`LEFT`).
-pub const OWN: [(usize, usize); 20] = [
-    (0x5BEC48, 0x5C291C),
-    (0x5C5CE0, 0x5C6604),
+pub const OWN: [(usize, usize); 24] = [
+    (0x5BEC48, 0x5BEC78),
+    (0x5C2714, 0x5C291C),
+    (0x5C5E50, 0x5C5F48),
+    (0x5C5FB8, 0x5C6604),
     (0x5C6610, 0x5C6924),
-    (0x5C6948, 0x5C906C),
-    (0x5CCBF0, 0x5D0AE0),
-    (0x5D2AE8, 0x5EB100),
-    (0x5EB104, 0x60B2CC),
-    (0x60B2D0, 0x621480),
+    (0x5C6948, 0x5C694C),
+    (0x5C7908, 0x5C790C),
+    (0x5EA8C8, 0x5EB100),
+    (0x5EB104, 0x60463C),
+    (0x60526C, 0x60626C),
+    (0x60674C, 0x608B08),
+    (0x60AF0C, 0x60B2CC),
+    (0x60B2D0, 0x613828),
+    (0x614D38, 0x621480),
     (0x6218B0, 0x6218F0),
     (0x6218F4, 0x621900),
-    (0x621A84, 0x62423C),
+    (0x621A84, 0x6235E8),
     (0x628A44, 0x62DA44),
     (0x62DB5C, 0x634FA0),
-    (0x635118, 0x63967C),
-    (0x63D9B8, 0x6D1870),
-    (0x6D18C8, 0x6D1DD4),
-    (0x6D1DD8, 0x6D3CF4),
-    (0x6EF7CC, 0x70F3EC),
-    (0x719FD8, 0x71C814),
+    (0x635118, 0x636588),
+    (0x637660, 0x63967C),
+    (0x63F58C, 0x64158C),
+    (0x641AA4, 0x6D13FE),
     (0x71CA60, 0x731B82),
 ];
 
 /// The typed pieces that left the block for statics of their own (2026-10-29, phase 13):
 /// the twelve the census saw reached by address only from their own stores, and three
-/// groups the original reaches across (`race::groups_store`). Their old
+/// groups the original reaches across (`race::groups_store`); then every other piece and a
+/// fourth group (batch Z). Their old
 /// places in the block are dead (`is_dead`).
 #[cfg(test)]
-pub const LEFT: [(usize, usize); 15] = [
+pub const LEFT: [(usize, usize); 43] = [
     crate::race::groups_store::VIEWER_AND_KINDS_RANGE,
     crate::race::groups_store::LIGHTS_AND_GEAR_RANGE,
     crate::race::groups_store::CARS_AND_REPLAY_RANGE,
@@ -117,6 +122,106 @@ pub const LEFT: [(usize, usize); 15] = [
         crate::effects::work_store::START,
         crate::effects::work_store::END,
     ),
+    crate::race::groups_store::PANEL_AND_OVERLAY_RANGE,
+    (
+        crate::race::replay_file_store::START,
+        crate::race::replay_file_store::END,
+    ),
+    (
+        crate::race::viewer_state_store::START,
+        crate::race::viewer_state_store::END,
+    ),
+    (
+        crate::race::numbers_store::START,
+        crate::race::numbers_store::END,
+    ),
+    (
+        crate::race::scratch_store::START,
+        crate::race::scratch_store::END,
+    ),
+    (
+        crate::race::course_lists_store::START,
+        crate::race::course_lists_store::END,
+    ),
+    (
+        crate::race::car_specs_store::START,
+        crate::race::car_specs_store::END,
+    ),
+    (
+        crate::race::course_store::START,
+        crate::race::course_store::END,
+    ),
+    (
+        crate::scene::object_tables_store::START,
+        crate::scene::object_tables_store::END,
+    ),
+    (
+        crate::scene::texture_places_store::START,
+        crate::scene::texture_places_store::END,
+    ),
+    (
+        crate::race::matrices_store::START,
+        crate::race::matrices_store::END,
+    ),
+    (
+        crate::race::tables_store::START,
+        crate::race::tables_store::END,
+    ),
+    (
+        crate::race::view_vars_store::START,
+        crate::race::view_vars_store::END,
+    ),
+    (
+        crate::physics::camera_store::START,
+        crate::physics::camera_store::END,
+    ),
+    (
+        crate::race::prefs_store::START,
+        crate::race::prefs_store::END,
+    ),
+    (
+        crate::scene::file_numbers_store::START,
+        crate::scene::file_numbers_store::END,
+    ),
+    (
+        crate::physics::tables_store::START,
+        crate::physics::tables_store::END,
+    ),
+    (crate::race::vars_store::START, crate::race::vars_store::END),
+    (
+        crate::scene::draw_store::START,
+        crate::scene::draw_store::END,
+    ),
+    (
+        crate::scene::light_store::START,
+        crate::scene::light_store::END,
+    ),
+    (crate::race::view_store::START, crate::race::view_store::END),
+    (
+        crate::race::level_grid_store::START,
+        crate::race::level_grid_store::END,
+    ),
+    (
+        crate::race::frame_store::START,
+        crate::race::frame_store::END,
+    ),
+    (
+        crate::race::sound_spots_store::START,
+        crate::race::sound_spots_store::END,
+    ),
+    (
+        crate::physics::contact_store::START,
+        crate::physics::contact_store::END,
+    ),
+    (
+        crate::drive::replay_frames_store::START,
+        crate::drive::replay_frames_store::END,
+    ),
+    (
+        crate::physics::car_store::START,
+        crate::physics::car_store::END,
+    ),
+    (crate::race::work_store::START, crate::race::work_store::END),
 ];
 
 /// Whether the game address `addr` lies in the block's bytes but in none of its own ranges:
@@ -417,35 +522,54 @@ pub fn asm_base() -> u32 {
     (vars::base() as u32).wrapping_sub(crate::framework::rva(vars::START) as u32)
 }
 
-/// Tests: runs `f`, kept assembly that reads the block by RVA from `asm_base()`, with the
-/// left pieces' statics laid into their old places, and takes the old places back into the
-/// statics after (the assembly's writes).
+/// Tests: the left pieces holding any of IDA's addresses `idas`, laid into their old places
+/// in the block for kept assembly that reads the block by RVA from `asm_base()`; dropped,
+/// the old places are taken back into the statics (the assembly's writes) and their bytes
+/// put back as they were.
 #[cfg(all(test, target_arch = "x86"))]
-pub fn in_old_places<R>(f: impl FnOnce() -> R) -> R {
-    let places = || {
-        LEFT.iter().map(|&(start, end)| {
+pub struct OldPlaces(Vec<(*mut u8, *mut u8, Vec<u8>)>);
+
+#[cfg(all(test, target_arch = "x86"))]
+impl OldPlaces {
+    pub fn lay(idas: &[usize]) -> OldPlaces {
+        let mut kept = Vec::new();
+        for &(start, end) in &LEFT {
+            if !idas.iter().any(|&ida| (start..end).contains(&ida)) {
+                continue;
+            }
             let old = crate::pointers::host(home(start) as u32);
             let new =
                 crate::pointers::host(crate::framework::game_addr(crate::framework::rva(start)));
-            (old, new, end - start)
-        })
-    };
-    // SAFETY (the three copies): each place holds the piece's `len` bytes (the static's are
-    // cells, written through as the game's code did); the test holds the statics' lock.
-    let kept: Vec<Vec<u8>> = places()
-        .map(|(old, _, len)| unsafe { core::slice::from_raw_parts(old, len) }.to_vec())
-        .collect();
-    for (old, new, len) in places() {
-        unsafe { core::ptr::copy_nonoverlapping(new, old, len) };
+            let len = end - start;
+            // SAFETY: both places hold the piece's `len` bytes (the static's are cells,
+            // written through as the game's code did); the tests hold the statics' lock.
+            let bytes = unsafe { core::slice::from_raw_parts(old, len) }.to_vec();
+            unsafe { core::ptr::copy_nonoverlapping(new, old, len) };
+            kept.push((old, new, bytes));
+        }
+        OldPlaces(kept)
     }
-    let r = f();
-    for ((old, new, len), kept) in places().zip(&kept) {
-        unsafe {
-            core::ptr::copy_nonoverlapping(old, new, len);
-            core::ptr::copy_nonoverlapping(kept.as_ptr(), old, len);
+}
+
+#[cfg(all(test, target_arch = "x86"))]
+impl Drop for OldPlaces {
+    fn drop(&mut self) {
+        for (old, new, bytes) in &self.0 {
+            // SAFETY: as in `lay`.
+            unsafe {
+                core::ptr::copy_nonoverlapping(*old, *new, bytes.len());
+                core::ptr::copy_nonoverlapping(bytes.as_ptr(), *old, bytes.len());
+            }
         }
     }
-    r
+}
+
+/// Tests: runs `f` with the left pieces holding any of `idas` laid into their old places
+/// (`OldPlaces`).
+#[cfg(all(test, target_arch = "x86"))]
+pub fn in_old_places<R>(idas: &[usize], f: impl FnOnce() -> R) -> R {
+    let _old = OldPlaces::lay(idas);
+    f()
 }
 
 #[cfg(test)]
@@ -498,7 +622,7 @@ mod tests {
 
     #[test]
     fn asm_base_reaches_the_block() {
-        let rva = crate::framework::rva(0x71A30C) as u32;
+        let rva = crate::framework::rva(0x5BEC50) as u32;
         assert_eq!(
             asm_base().wrapping_add(rva),
             crate::framework::game_addr(rva as usize)

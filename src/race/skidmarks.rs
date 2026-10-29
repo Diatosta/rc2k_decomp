@@ -236,6 +236,9 @@ mod asm_reference {
     unsafe fn project_vertex_asm(v: u32, flat: bool) {
         unsafe {
             if flat {
+                let old = crate::race::store::OldPlaces::lay(&[
+                    0x5ccd80, 0x62400c, 0x624088, 0x62409c, 0x6240a0,
+                ]);
                 core::arch::asm!(
                     "fld dword ptr [{v} + 0x10]", "fld dword ptr [{v} + 0x14]", "fld dword ptr [{v} + 0x18]",
                     "fstp dword ptr [{rc} + 0x22400C]", "fild dword ptr [{rc} + 0x1CCD80]", "fld1",
@@ -250,7 +253,9 @@ mod asm_reference {
                     out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
                     options(nostack),
                 );
+                drop(old);
             } else {
+                let old = crate::race::store::OldPlaces::lay(&[0x624088, 0x62409c, 0x6240a0]);
                 core::arch::asm!(
                     "fld dword ptr [{v} + 0x10]", "fld dword ptr [{v} + 0x14]", "fld dword ptr [{v} + 0x18]",
                     "fld dword ptr [{rc} + 0x224088]", ".byte 0xDE, 0xF1",
@@ -263,6 +268,7 @@ mod asm_reference {
                     out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
                     options(nostack),
                 );
+                drop(old);
             }
         }
     }

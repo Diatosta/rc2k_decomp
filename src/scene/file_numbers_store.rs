@@ -26,21 +26,14 @@ pub struct ObjectFileNumbers {
     pub picture_texture: Dword,
 }
 
-/// The piece: the race block's bytes at IDA 0x60AD20 seen as `ObjectFileNumbers`. They stay there
-/// while code reaches them by RVA from `race::store::asm_base()` and by IDA address
-/// (`moved::place`): one copy for all three.
-pub struct InRaceBlock;
+// SAFETY: every field is a cell over a plain integer (`session`'s cells and records of
+// them): any bit pattern is a valid value.
+unsafe impl crate::pointers::Cells for ObjectFileNumbers {}
 
-impl core::ops::Deref for InRaceBlock {
-    type Target = ObjectFileNumbers;
-    fn deref(&self) -> &ObjectFileNumbers {
-        // SAFETY: the race block lives as long as the program and is aligned to 4 (the
-        // test checks); every field is an atomic or a cell, as the block's bytes were shared.
-        unsafe { &*(crate::pointers::host(piece_addr()) as *const ObjectFileNumbers) }
-    }
-}
-
-pub static FILE_NUMBERS: InRaceBlock = InRaceBlock;
+/// The piece: a static of its own since 2026-10-29 (it left the race block, phase 13:
+/// `race::store::LEFT`), with the image's first values.
+pub static FILE_NUMBERS: ObjectFileNumbers =
+    crate::pointers::cells_of_bytes(crate::race::store::first_values::<{ END - START }>(START));
 
 /// The path texts in `unknown_14`, by IDA's address (for `ObjectFileNumbers::text_addr`).
 pub mod texts {
@@ -86,9 +79,9 @@ pub const END: usize = 0x60AF0C;
 
 const _: () = assert!(END - START == core::mem::size_of::<ObjectFileNumbers>());
 
-/// Where IDA 0x60AD20 is now (in the race block).
+/// Where IDA 0x60AD20 is now (its own static).
 pub fn piece_addr() -> u32 {
-    crate::race::store::home(START) as u32
+    crate::pointers::game_address(core::ptr::from_ref(&FILE_NUMBERS))
 }
 
 #[cfg(test)]
@@ -97,7 +90,12 @@ mod tests {
     use core::mem::offset_of;
 
     #[test]
-    fn piece_sits_on_the_race_block() {
+    fn first_values_are_the_games() {
+        crate::gfx::first_values_are_the_games(&FILE_NUMBERS, START, END);
+    }
+
+    #[test]
+    fn piece_has_its_home() {
         assert_eq!(piece_addr() % 4, 0);
         assert_eq!(
             piece_addr(),

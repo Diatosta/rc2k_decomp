@@ -260,6 +260,18 @@ pub fn differential<R: PartialEq + std::fmt::Debug>(
         }
     }
     let _put_back = PutBack(saved);
+    // The race block's places the reference reads or writes (IDA's addresses), laid into
+    // their old places around it (`race::store::OldPlaces`).
+    let old_places: Vec<usize> = spec
+        .operands
+        .iter()
+        .filter_map(|op| match op {
+            Op::RaceBlock { reads, writes, .. } => Some(reads.iter().chain(writes.iter())),
+            _ => None,
+        })
+        .flatten()
+        .map(|&(off, _)| off + 0x400000)
+        .collect();
     for cw in [0x027F, 0x0E7F] {
         x87::set_control_word(cw);
         for case in 0..3000 {
@@ -325,7 +337,7 @@ pub fn differential<R: PartialEq + std::fmt::Debug>(
                 }
             };
             lay();
-            let got_ref = crate::race::store::in_old_places(|| reference(&ref_vals));
+            let got_ref = crate::race::store::in_old_places(&old_places, || reference(&ref_vals));
             let ref_out = block_outputs(spec);
             lay();
             let got_plain = plain(&pl_vals);

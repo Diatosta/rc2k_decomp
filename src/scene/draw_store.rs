@@ -160,21 +160,14 @@ pub struct SceneDraw {
     pub v3_driver_fix: Dword,
 }
 
-/// The piece: the race block's bytes at IDA 0x623F80 seen as `SceneDraw`. They stay there
-/// while code reaches them by RVA from `race::store::asm_base()` and by IDA address
-/// (`moved::place`): one copy for all three.
-pub struct InRaceBlock;
+// SAFETY: every field is a cell over a plain integer (`session`'s cells and records of
+// them): any bit pattern is a valid value.
+unsafe impl crate::pointers::Cells for SceneDraw {}
 
-impl core::ops::Deref for InRaceBlock {
-    type Target = SceneDraw;
-    fn deref(&self) -> &SceneDraw {
-        // SAFETY: the race block lives as long as the program and is aligned to 4 (the
-        // test checks); every field is an atomic or a cell, as the block's bytes were shared.
-        unsafe { &*(crate::pointers::host(piece_addr()) as *const SceneDraw) }
-    }
-}
-
-pub static DRAW: InRaceBlock = InRaceBlock;
+/// The piece: a static of its own since 2026-10-29 (it left the race block, phase 13:
+/// `race::store::LEFT`), with the image's first values.
+pub static DRAW: SceneDraw =
+    crate::pointers::cells_of_bytes(crate::race::store::first_values::<{ END - START }>(START));
 
 /// IDA 0x623F80, the first byte of the piece.
 pub const START: usize = 0x623F80;
@@ -183,9 +176,9 @@ pub const END: usize = 0x62423C;
 
 const _: () = assert!(END - START == core::mem::size_of::<SceneDraw>());
 
-/// Where IDA 0x623F80 is now (in the race block).
+/// Where IDA 0x623F80 is now (its own static).
 pub fn piece_addr() -> u32 {
-    crate::race::store::home(START) as u32
+    crate::pointers::game_address(core::ptr::from_ref(&DRAW))
 }
 
 #[cfg(test)]
@@ -194,7 +187,12 @@ mod tests {
     use core::mem::offset_of;
 
     #[test]
-    fn piece_sits_on_the_race_block() {
+    fn first_values_are_the_games() {
+        crate::gfx::first_values_are_the_games(&DRAW, START, END);
+    }
+
+    #[test]
+    fn piece_has_its_home() {
         assert_eq!(piece_addr() % 4, 0);
         assert_eq!(
             piece_addr(),

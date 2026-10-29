@@ -40,21 +40,18 @@ pub struct OverlayBlock {
     pub unknown_358: [Dword; 3],
 }
 
-/// The piece: the race block's bytes at IDA 0x6D150C seen as `OverlayBlock`. They stay there
-/// while code reaches them by RVA from `race::store::asm_base()` and by IDA address
-/// (`moved::place`): one copy for all three.
-pub struct InRaceBlock;
+/// The piece: a field of `race::groups_store::PANEL_AND_OVERLAY` since 2026-10-29 (it left the race
+/// block with its group, phase 13).
+pub struct InGroup;
 
-impl core::ops::Deref for InRaceBlock {
+impl core::ops::Deref for InGroup {
     type Target = OverlayBlock;
     fn deref(&self) -> &OverlayBlock {
-        // SAFETY: the race block lives as long as the program and is aligned to 4 (the
-        // test checks); every field is an atomic or a cell, as the block's bytes were shared.
-        unsafe { &*(crate::pointers::host(piece_addr()) as *const OverlayBlock) }
+        &crate::race::groups_store::PANEL_AND_OVERLAY.overlay
     }
 }
 
-pub static RACE_OVERLAY: InRaceBlock = InRaceBlock;
+pub static RACE_OVERLAY: InGroup = InGroup;
 
 /// IDA 0x6D150C, the first byte of the piece.
 pub const START: usize = 0x6D150C;
@@ -63,9 +60,12 @@ pub const END: usize = 0x6D1870;
 
 const _: () = assert!(END - START == core::mem::size_of::<OverlayBlock>());
 
-/// Where IDA 0x6D150C is now (in the race block).
+/// Where IDA 0x6D150C is now (its own static).
+#[cfg(test)]
 pub fn piece_addr() -> u32 {
-    crate::race::store::home(START) as u32
+    crate::pointers::game_address(core::ptr::from_ref(
+        &crate::race::groups_store::PANEL_AND_OVERLAY.overlay,
+    ))
 }
 
 #[cfg(test)]

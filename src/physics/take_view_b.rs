@@ -41,7 +41,7 @@ pub fn take_view_b(s: u32) {
 
 /// Where the record's +0x10 .. +0x38 go.
 fn copies() -> [&'static dyn Cell32; 11] {
-    let w = &*CAMERA_WORK;
+    let w = &CAMERA_WORK;
     [
         &w.view_b_turn[0],
         &w.view_b_turn[1],

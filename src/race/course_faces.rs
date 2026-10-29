@@ -967,6 +967,7 @@ mod asm_reference {
                 .wrapping_mul(12)
                 .wrapping_add(COURSE.scene_points.bits());
             let status: u16;
+            let old = crate::race::store::OldPlaces::lay(&[0x6062a4, 0x6062a8, 0x6062ac]);
             core::arch::asm!(
                 "fild dword ptr [{p}]",
                 "fsub dword ptr [{rc} + 0x2062A4]",
@@ -993,6 +994,7 @@ mod asm_reference {
                 out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
                 options(nostack),
             );
+            drop(old);
             u32::from(status & 0x0100 != 0)
         }
     }
@@ -1019,6 +1021,7 @@ mod asm_reference {
     pub(super) unsafe fn halfway_vertex_asm(a: u32, b: u32, v: u32) {
         use crate::math::x87_load::below_or_unordered;
         unsafe {
+            let old = crate::race::store::OldPlaces::lay(&[0x5c5e40]);
             core::arch::asm!(
                 "fld dword ptr [{b} + 0x10]",
                 "fsub dword ptr [{a} + 0x10]",
@@ -1043,12 +1046,16 @@ mod asm_reference {
                 out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
                 options(nostack),
             );
+            drop(old);
             (crate::pointers::host(v + 0xC) as *mut u32).write_unaligned(0);
             (crate::pointers::host(v + 0x1C) as *mut u32).write_unaligned(0);
             if below_or_unordered(get(v + 0x18), NUMBERS.k4096_a.bits()) {
                 return;
             }
             if STAGE_PREFS.flat_depth.get() != 0 {
+                let old = crate::race::store::OldPlaces::lay(&[
+                    0x5ccd80, 0x62400c, 0x624088, 0x62409c, 0x6240a0,
+                ]);
                 core::arch::asm!(
                     "fld dword ptr [{v} + 0x10]",
                     "fld dword ptr [{v} + 0x14]",
@@ -1073,7 +1080,9 @@ mod asm_reference {
                     out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
                     options(nostack),
                 );
+                drop(old);
             } else {
+                let old = crate::race::store::OldPlaces::lay(&[0x624088, 0x62409c, 0x6240a0]);
                 core::arch::asm!(
                     "fld dword ptr [{v} + 0x10]",
                     "fld dword ptr [{v} + 0x14]",
@@ -1094,12 +1103,14 @@ mod asm_reference {
                     out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
                     options(nostack),
                 );
+                drop(old);
             }
         }
     }
 
     pub(super) unsafe fn halfway_entry_asm(first: u32, second: u32, to: u32) {
         unsafe {
+            let old = crate::race::store::OldPlaces::lay(&[0x5c5e40]);
             core::arch::asm!(
                 "fld dword ptr [{s} + 8]",
                 "fadd dword ptr [{f} + 8]",
@@ -1125,6 +1136,7 @@ mod asm_reference {
                 out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
                 options(nostack),
             );
+            drop(old);
             for o in [0x20u32, 0x21, 0x18, 0x19, 0x1A] {
                 let sum = (crate::pointers::host(second + o) as *const u8).read() as u32
                     + (crate::pointers::host(first + o) as *const u8).read() as u32;

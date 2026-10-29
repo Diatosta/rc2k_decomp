@@ -441,6 +441,24 @@ pub fn sparse(blocks: &[Block], cases: u32, seed: u64) {
                 })
                 .collect();
             let _put_back = PutBack(saved);
+            // The race block's places the reference reads or writes (IDA's addresses), laid
+            // into their old places around it (`race::store::OldPlaces`).
+            let old_places: Vec<usize> = block
+                .operands
+                .iter()
+                .filter_map(|o| match o {
+                    Operand::RaceBlock { reads, writes } => Some(
+                        reads
+                            .iter()
+                            .map(|&(off, _)| off)
+                            .chain(writes.iter().map(|&(off, _)| off))
+                            .collect::<Vec<_>>(),
+                    ),
+                    _ => None,
+                })
+                .flatten()
+                .map(|off| off + 0x400000)
+                .collect();
             // the places written, as (operand, offset, kind)
             let mut places: Vec<(usize, usize, Out)> = Vec::new();
             for (n, o) in block.operands.iter().enumerate() {
@@ -507,7 +525,7 @@ pub fn sparse(blocks: &[Block], cases: u32, seed: u64) {
                         .map(|&(n, off, k)| buffers[n].get(off, width_out(k)))
                         .collect()
                 };
-                crate::race::store::in_old_places(|| (block.reference)(&args));
+                crate::race::store::in_old_places(&old_places, || (block.reference)(&args));
                 let from_reference = read_out(&buffers);
                 for (n, off, bytes) in &touched {
                     buffers[*n].put(*off, bytes);

@@ -28,7 +28,7 @@ use crate::scene::view_matrix::{square_matrix, unit_vector};
 pub fn spin_matrix() {
     CAR.spin_length.set_bits(rounded(vector_length(&CAR.spin)));
     if CAR.spin_length.bits() != 0 {
-        let lists = &*COURSE_LISTS;
+        let lists = &COURSE_LISTS;
         let turn = &lists.turn_matrix;
         let turned = &MATRICES.turned_matrix;
         unit_vector(&CAR.spin, &lists.spin_axis);

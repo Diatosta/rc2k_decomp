@@ -12,14 +12,20 @@
 //! - `LIGHTS_AND_GEAR` (IDA 0x5C906C .. 0x5CC198): the light records, a dword, the gear
 //!   figures. `scene::load_object` reads a kind's record past the 34 (an unbounded kind,
 //!   as the original) into the gear figures.
+//! - `PANEL_AND_OVERLAY` (IDA 0x6D13FE .. 0x6D1870): the hud's panel and the race's
+//!   overlay. The hud reads its records from `PANEL.split_6` on (+0xF4 at the panel's end:
+//!   `hud::draw_hud`'s layouts). The panel starts 2 bytes past a dword: two lead bytes keep
+//!   the overlay's dwords aligned (the group's home is 2 bytes in).
 
 use crate::physics::gear_store::GearFigures;
 use crate::race::blocks_store::CarBlocks;
 use crate::race::kind_store::KindTables;
 use crate::race::light_records_store::LightRecords;
+use crate::race::overlay_store::OverlayBlock;
+use crate::race::panel_store::Panel;
 use crate::race::replay_work_store::ReplayWork;
 use crate::race::viewer_screen_store::ViewerPanelBlock;
-use crate::session::Dword;
+use crate::session::{Bytes, Dword};
 use core::mem::{offset_of, size_of};
 
 /// IDA 0x70F3EC .. 0x719FD8.
@@ -53,10 +59,22 @@ pub struct LightsAndGear {
     pub gear: GearFigures,
 }
 
+/// IDA 0x6D13FE .. 0x6D1870, two bytes in.
+#[repr(C)]
+pub struct PanelAndOverlay {
+    /// Two lead bytes (not the game's) aligning the overlay.
+    pub lead: Bytes<2>,
+    /// +0x0 (0x6D13FE): `race::panel_store`.
+    pub panel: Panel,
+    /// +0x10E (0x6D150C): `race::overlay_store`.
+    pub overlay: OverlayBlock,
+}
+
 /// The groups' IDA ranges, in order.
 pub const CARS_AND_REPLAY_RANGE: (usize, usize) = (0x70F3EC, 0x719FD8);
 pub const VIEWER_AND_KINDS_RANGE: (usize, usize) = (0x5C291C, 0x5C5CE0);
 pub const LIGHTS_AND_GEAR_RANGE: (usize, usize) = (0x5C906C, 0x5CC198);
+pub const PANEL_AND_OVERLAY_RANGE: (usize, usize) = (0x6D13FE, 0x6D1870);
 
 const _: () = {
     use crate::{physics, race};
@@ -81,6 +99,16 @@ const _: () = {
     );
     assert!(race::light_records_store::START == LIGHTS_AND_GEAR_RANGE.0);
     assert!(physics::gear_store::END == LIGHTS_AND_GEAR_RANGE.1);
+    assert!(
+        size_of::<PanelAndOverlay>() == 2 + PANEL_AND_OVERLAY_RANGE.1 - PANEL_AND_OVERLAY_RANGE.0
+    );
+    assert!(offset_of!(PanelAndOverlay, panel) == 2);
+    assert!(
+        offset_of!(PanelAndOverlay, overlay)
+            == 2 + race::overlay_store::START - race::panel_store::START
+    );
+    assert!(race::panel_store::START == PANEL_AND_OVERLAY_RANGE.0);
+    assert!(race::overlay_store::END == PANEL_AND_OVERLAY_RANGE.1);
 };
 
 // SAFETY (the three): every field is a cell over a plain integer (`session`'s cells and
@@ -88,6 +116,7 @@ const _: () = {
 unsafe impl crate::pointers::Cells for CarsAndReplay {}
 unsafe impl crate::pointers::Cells for ViewerAndKinds {}
 unsafe impl crate::pointers::Cells for LightsAndGear {}
+unsafe impl crate::pointers::Cells for PanelAndOverlay {}
 
 /// The cars' blocks and the replay's work, with the image's first values.
 pub static CARS_AND_REPLAY: CarsAndReplay =
@@ -105,6 +134,13 @@ pub static LIGHTS_AND_GEAR: LightsAndGear =
         { LIGHTS_AND_GEAR_RANGE.1 - LIGHTS_AND_GEAR_RANGE.0 },
     >(LIGHTS_AND_GEAR_RANGE.0));
 
+/// The hud's panel and the race's overlay, with the image's first values (the two lead
+/// bytes the block's before the panel).
+pub static PANEL_AND_OVERLAY: PanelAndOverlay =
+    crate::pointers::cells_of_bytes(crate::race::store::first_values::<
+        { 2 + PANEL_AND_OVERLAY_RANGE.1 - PANEL_AND_OVERLAY_RANGE.0 },
+    >(PANEL_AND_OVERLAY_RANGE.0 - 2));
+
 /// Where each group is (`moved::MOVED`'s homes).
 pub fn cars_and_replay_home() -> usize {
     crate::pointers::game_address(core::ptr::from_ref(&CARS_AND_REPLAY)) as usize
@@ -114,6 +150,9 @@ pub fn viewer_and_kinds_home() -> usize {
 }
 pub fn lights_and_gear_home() -> usize {
     crate::pointers::game_address(core::ptr::from_ref(&LIGHTS_AND_GEAR)) as usize
+}
+pub fn panel_and_overlay_home() -> usize {
+    crate::pointers::game_address(core::ptr::from_ref(&PANEL_AND_OVERLAY.panel)) as usize
 }
 
 #[cfg(test)]
@@ -128,6 +167,13 @@ mod tests {
         crate::gfx::first_values_are_the_games(&VIEWER_AND_KINDS, a, b);
         let (a, b) = LIGHTS_AND_GEAR_RANGE;
         crate::gfx::first_values_are_the_games(&LIGHTS_AND_GEAR, a, b);
+        let (a, b) = PANEL_AND_OVERLAY_RANGE;
+        crate::gfx::first_values_are_the_games(&PANEL_AND_OVERLAY.panel, a, race_panel_end());
+        crate::gfx::first_values_are_the_games(&PANEL_AND_OVERLAY.overlay, race_panel_end(), b);
+    }
+
+    fn race_panel_end() -> usize {
+        crate::race::panel_store::END
     }
 
     #[test]
@@ -136,6 +182,7 @@ mod tests {
             (CARS_AND_REPLAY_RANGE.0, cars_and_replay_home()),
             (VIEWER_AND_KINDS_RANGE.0, viewer_and_kinds_home()),
             (LIGHTS_AND_GEAR_RANGE.0, lights_and_gear_home()),
+            (PANEL_AND_OVERLAY_RANGE.0 + 2, panel_and_overlay_home() + 2),
         ] {
             assert_eq!(home % 4, 0);
             assert_eq!(crate::moved::place(start), home);

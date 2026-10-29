@@ -516,21 +516,14 @@ const _: () = assert!(core::mem::size_of::<PhysicsTables>() == 0x1510);
 const _: () = assert!(core::mem::size_of::<Surface>() == 0x30);
 const _: () = assert!(core::mem::size_of::<ForceRecord>() == 0x20);
 
-/// The tables: the race block's bytes at IDA 0x613828 seen as `PhysicsTables`
-/// (`PHYSICS.gravity.get()`). They stay there while code reaches them by RVA from
-/// `race::store::asm_base()` and by IDA address (`moved::place`): one copy for all three.
-pub struct InRaceBlock;
+// SAFETY: every field is a cell over a plain integer (`session`'s cells and records of
+// them): any bit pattern is a valid value.
+unsafe impl crate::pointers::Cells for PhysicsTables {}
 
-impl core::ops::Deref for InRaceBlock {
-    type Target = PhysicsTables;
-    fn deref(&self) -> &PhysicsTables {
-        // SAFETY: the race block lives as long as the program and is aligned to 4 (the
-        // test checks); every field is an atomic or a cell, as the block's bytes were shared.
-        unsafe { &*(crate::pointers::host(tables_addr()) as *const PhysicsTables) }
-    }
-}
-
-pub static PHYSICS: InRaceBlock = InRaceBlock;
+/// The piece: a static of its own since 2026-10-29 (it left the race block, phase 13:
+/// `race::store::LEFT`), with the image's first values.
+pub static PHYSICS: PhysicsTables =
+    crate::pointers::cells_of_bytes(crate::race::store::first_values::<{ END - START }>(START));
 
 /// IDA 0x613828, the first byte of the piece.
 pub const START: usize = 0x613828;
@@ -539,9 +532,9 @@ pub const END: usize = 0x614D38;
 
 const _: () = assert!(END - START == core::mem::size_of::<PhysicsTables>());
 
-/// Where IDA 0x613828 is now (in the race block).
+/// Where IDA 0x613828 is now (its own static).
 pub fn tables_addr() -> u32 {
-    crate::race::store::home(START) as u32
+    crate::pointers::game_address(core::ptr::from_ref(&PHYSICS))
 }
 
 #[cfg(test)]

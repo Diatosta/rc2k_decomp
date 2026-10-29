@@ -504,6 +504,7 @@ mod asm_reference {
         use crate::math::x87_load::below_or_unordered;
         unsafe {
             DRAW.scratch.set(0xA_0000u32);
+            let old = crate::race::store::OldPlaces::lay(&[0x62400c, 0x6415a4, 0x71ba08]);
             core::arch::asm!(
                 "fild dword ptr [{rc} + 0x2415A4]",
                 "fisub dword ptr [{rc} + 0x22400C]",
@@ -515,6 +516,7 @@ mod asm_reference {
                 out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
                 options(nostack),
             );
+            drop(old);
             let near: u32 = RACE_WORK.car_nearness.bits();
             // `fld zero; fld near; fcompp`: near below 0 (or no number) -> 0.
             if below_or_unordered(near, NUMBERS.zero.bits()) {
@@ -524,6 +526,7 @@ mod asm_reference {
             if !below_or_unordered(near, NUMBERS.one.bits()) {
                 RACE_WORK.car_nearness.set_bits(NUMBERS.one.bits());
             }
+            let old = crate::race::store::OldPlaces::lay(&[0x5cce74, 0x5cce78, 0x71ba08]);
             core::arch::asm!(
                 ".byte 0xD9, 0xE8",
                 "fsub dword ptr [{rc} + 0x31BA08]",
@@ -535,6 +538,7 @@ mod asm_reference {
                 out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
                 options(nostack),
             );
+            drop(old);
         }
     }
 
@@ -543,6 +547,7 @@ mod asm_reference {
     pub(super) unsafe fn near_size_asm() -> u32 {
         unsafe {
             DRAW.scratch.set(0x90u32);
+            let old = crate::race::store::OldPlaces::lay(&[0x62400c, 0x71ba08]);
             core::arch::asm!(
                 "fild dword ptr [{rc} + 0x22400C]",
                 "fmul dword ptr [{rc} + 0x31BA08]",
@@ -552,6 +557,7 @@ mod asm_reference {
                 out("st(4)") _, out("st(5)") _, out("st(6)") _, out("st(7)") _,
                 options(nostack),
             );
+            drop(old);
             DRAW.scratch.bits()
         }
     }
