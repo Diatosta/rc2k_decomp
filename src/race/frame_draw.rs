@@ -761,12 +761,11 @@ pub fn face_hidden(esi: u32, eax: u32) -> Result<(u32, bool), Refused> {
     use rc2k_core::race::faces::{hidden_by_depth, hidden_by_switches};
     let mut eax = eax;
     let view: u32 = CAR.camera_view.bits();
-    // dword_606478[]: by camera view (one past the table refused: the original reads on)
-    let shows: u32 = VIEW_VARS
-        .view_hides
-        .get(view as usize)
-        .ok_or(BadInput("a camera view past the view hides"))?
-        .get();
+    // dword_606478[]: by camera view. Its 34 entries cover views 0 .. 0x21; the views up
+    // to 0x33 (the viewer's cameras) read on into the variables after it, as the original
+    // (notes/bugs.md); 0x33 is still inside `VIEW_VARS`.
+    let shows: u32 =
+        crate::session::read_on(&VIEW_VARS.view_hides, view as usize, "the view hides")?;
     let hiding = if shows == 0 {
         FRAME_SWITCHES.other_way.bits()
     } else {

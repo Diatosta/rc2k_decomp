@@ -19,21 +19,18 @@ pub struct CarBlocks {
 
 const _: () = assert!(core::mem::size_of::<CarBlocks>() == 0xA0D0);
 
-/// The cars' blocks: the race block's bytes at IDA 0x70F3EC seen as `CarBlocks`
-/// (`CAR_BLOCKS.cars[0].gear.get()`). They stay there while code reaches them by IDA
-/// address (`moved::place`) and by pointer (`g_carBlocks`): one copy for all.
-pub struct InRaceBlock;
+/// The piece: a field of `race::groups_store::CARS_AND_REPLAY` since 2026-10-29 (it left the race
+/// block with its group, phase 13).
+pub struct InGroup;
 
-impl core::ops::Deref for InRaceBlock {
+impl core::ops::Deref for InGroup {
     type Target = CarBlocks;
     fn deref(&self) -> &CarBlocks {
-        // SAFETY: the race block lives as long as the program and is aligned to 4 (the
-        // test checks); every field is an atomic, as the block's bytes were shared.
-        unsafe { &*(crate::pointers::host(blocks_addr()) as *const CarBlocks) }
+        &crate::race::groups_store::CARS_AND_REPLAY.car_blocks
     }
 }
 
-pub static CAR_BLOCKS: InRaceBlock = InRaceBlock;
+pub static CAR_BLOCKS: InGroup = InGroup;
 
 /// IDA 0x70F3EC, the first byte of the piece.
 pub const START: usize = 0x70F3EC;
@@ -44,9 +41,11 @@ pub const BLOCK_LEN: usize = core::mem::size_of::<Car>();
 
 const _: () = assert!(END - START == core::mem::size_of::<CarBlocks>());
 
-/// Where IDA 0x70F3EC is now (in the race block).
+/// Where IDA 0x70F3EC is now (its group's static).
 pub fn blocks_addr() -> u32 {
-    crate::race::store::home(START) as u32
+    crate::pointers::game_address(core::ptr::from_ref(
+        &crate::race::groups_store::CARS_AND_REPLAY.car_blocks,
+    ))
 }
 
 /// Where block `n` is now; `n` unchecked, as the game's `0x70F3EC + 0xFE0 n` (an address

@@ -39,21 +39,18 @@ impl LightRecords {
     }
 }
 
-/// The piece: the race block's bytes at IDA 0x5C906C seen as `LightRecords`. They stay there
-/// while code reaches them by RVA from `race::store::asm_base()` and by IDA address
-/// (`moved::place`): one copy for all three.
-pub struct InRaceBlock;
+/// The piece: a field of `race::groups_store::LIGHTS_AND_GEAR` since 2026-10-29 (it left the race
+/// block with its group, phase 13).
+pub struct InGroup;
 
-impl core::ops::Deref for InRaceBlock {
+impl core::ops::Deref for InGroup {
     type Target = LightRecords;
     fn deref(&self) -> &LightRecords {
-        // SAFETY: the race block lives as long as the program and is aligned to 4 (the
-        // test checks); every field is an atomic or a cell, as the block's bytes were shared.
-        unsafe { &*(crate::pointers::host(piece_addr()) as *const LightRecords) }
+        &crate::race::groups_store::LIGHTS_AND_GEAR.light_records
     }
 }
 
-pub static LIGHT_RECORDS: InRaceBlock = InRaceBlock;
+pub static LIGHT_RECORDS: InGroup = InGroup;
 
 /// IDA 0x5C906C, the first byte of the piece.
 pub const START: usize = 0x5C906C;
@@ -62,9 +59,12 @@ pub const END: usize = 0x5CB954;
 
 const _: () = assert!(END - START == core::mem::size_of::<LightRecords>());
 
-/// Where IDA 0x5C906C is now (in the race block).
+/// Where IDA 0x5C906C is now (its group's static).
+#[cfg(test)]
 pub fn piece_addr() -> u32 {
-    crate::race::store::home(START) as u32
+    crate::pointers::game_address(core::ptr::from_ref(
+        &crate::race::groups_store::LIGHTS_AND_GEAR.light_records,
+    ))
 }
 
 #[cfg(test)]

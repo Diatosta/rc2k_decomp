@@ -100,21 +100,18 @@ pub struct ViewerPanelBlock {
     pub cars_copy: Dword,
 }
 
-/// The piece: the race block's bytes at IDA 0x5C291C seen as `ViewerPanelBlock`. They stay there
-/// while code reaches them by RVA from `race::store::asm_base()` and by IDA address
-/// (`moved::place`): one copy for all three.
-pub struct InRaceBlock;
+/// The piece: a field of `race::groups_store::VIEWER_AND_KINDS` since 2026-10-29 (it left the race
+/// block with its group, phase 13).
+pub struct InGroup;
 
-impl core::ops::Deref for InRaceBlock {
+impl core::ops::Deref for InGroup {
     type Target = ViewerPanelBlock;
     fn deref(&self) -> &ViewerPanelBlock {
-        // SAFETY: the race block lives as long as the program and is aligned to 4 (the
-        // test checks); every field is an atomic or a cell, as the block's bytes were shared.
-        unsafe { &*(crate::pointers::host(piece_addr()) as *const ViewerPanelBlock) }
+        &crate::race::groups_store::VIEWER_AND_KINDS.viewer_panel
     }
 }
 
-pub static VIEWER_PANEL: InRaceBlock = InRaceBlock;
+pub static VIEWER_PANEL: InGroup = InGroup;
 
 /// IDA 0x5C2CE8, the first byte of `unknown_3cc`: the untyped tail with the viewer's texts and
 /// its unaligned values.
@@ -226,9 +223,12 @@ pub const END: usize = 0x5C2FE4;
 
 const _: () = assert!(END - START == core::mem::size_of::<ViewerPanelBlock>());
 
-/// Where IDA 0x5C291C is now (in the race block).
+/// Where IDA 0x5C291C is now (its group's static).
+#[cfg(test)]
 pub fn piece_addr() -> u32 {
-    crate::race::store::home(START) as u32
+    crate::pointers::game_address(core::ptr::from_ref(
+        &crate::race::groups_store::VIEWER_AND_KINDS.viewer_panel,
+    ))
 }
 
 #[cfg(test)]

@@ -1190,6 +1190,35 @@ pub(crate) const MOVED: &[Moved] = &[
         len: crate::race::store::OWN[17].1 - crate::race::store::OWN[17].0,
         home: || crate::race::store::home(crate::race::store::OWN[17].0),
     },
+    Moved {
+        ida: crate::race::store::OWN[18].0,
+        len: crate::race::store::OWN[18].1 - crate::race::store::OWN[18].0,
+        home: || crate::race::store::home(crate::race::store::OWN[18].0),
+    },
+    Moved {
+        ida: crate::race::store::OWN[19].0,
+        len: crate::race::store::OWN[19].1 - crate::race::store::OWN[19].0,
+        home: || crate::race::store::home(crate::race::store::OWN[19].0),
+    },
+    // race: the groups that left the race core together (`race::groups_store`)
+    Moved {
+        ida: crate::race::groups_store::VIEWER_AND_KINDS_RANGE.0,
+        len: crate::race::groups_store::VIEWER_AND_KINDS_RANGE.1
+            - crate::race::groups_store::VIEWER_AND_KINDS_RANGE.0,
+        home: crate::race::groups_store::viewer_and_kinds_home,
+    },
+    Moved {
+        ida: crate::race::groups_store::LIGHTS_AND_GEAR_RANGE.0,
+        len: crate::race::groups_store::LIGHTS_AND_GEAR_RANGE.1
+            - crate::race::groups_store::LIGHTS_AND_GEAR_RANGE.0,
+        home: crate::race::groups_store::lights_and_gear_home,
+    },
+    Moved {
+        ida: crate::race::groups_store::CARS_AND_REPLAY_RANGE.0,
+        len: crate::race::groups_store::CARS_AND_REPLAY_RANGE.1
+            - crate::race::groups_store::CARS_AND_REPLAY_RANGE.0,
+        home: crate::race::groups_store::cars_and_replay_home,
+    },
     // race: the pieces that left the race core for statics of their own (`race::store::LEFT`)
     Moved {
         ida: crate::race::text_state_store::START,

@@ -39,6 +39,7 @@ pub mod frame_store;
 pub mod frame_text;
 pub mod frame_views;
 pub mod game_map;
+pub mod groups_store;
 pub mod init_overlay;
 pub mod init_pace_notes;
 pub mod kind_records_store;

@@ -37,10 +37,11 @@ pub fn buffers_asm_base() -> u32 {
 
 /// The ranges of the block that are its own (IDA start, end): all but the holes and the
 /// pieces that left it (`LEFT`).
-pub const OWN: [(usize, usize); 18] = [
-    (0x5BEC48, 0x5C6604),
+pub const OWN: [(usize, usize); 20] = [
+    (0x5BEC48, 0x5C291C),
+    (0x5C5CE0, 0x5C6604),
     (0x5C6610, 0x5C6924),
-    (0x5C6948, 0x5CC198),
+    (0x5C6948, 0x5C906C),
     (0x5CCBF0, 0x5D0AE0),
     (0x5D2AE8, 0x5EB100),
     (0x5EB104, 0x60B2CC),
@@ -54,15 +55,20 @@ pub const OWN: [(usize, usize); 18] = [
     (0x63D9B8, 0x6D1870),
     (0x6D18C8, 0x6D1DD4),
     (0x6D1DD8, 0x6D3CF4),
-    (0x6EF7CC, 0x71C814),
+    (0x6EF7CC, 0x70F3EC),
+    (0x719FD8, 0x71C814),
     (0x71CA60, 0x731B82),
 ];
 
 /// The typed pieces that left the block for statics of their own (2026-10-29, phase 13):
-/// the twelve the census saw reached by address only from their own stores. Their old
+/// the twelve the census saw reached by address only from their own stores, and three
+/// groups the original reaches across (`race::groups_store`). Their old
 /// places in the block are dead (`is_dead`).
 #[cfg(test)]
-pub const LEFT: [(usize, usize); 12] = [
+pub const LEFT: [(usize, usize); 15] = [
+    crate::race::groups_store::VIEWER_AND_KINDS_RANGE,
+    crate::race::groups_store::LIGHTS_AND_GEAR_RANGE,
+    crate::race::groups_store::CARS_AND_REPLAY_RANGE,
     (
         crate::race::text_state_store::START,
         crate::race::text_state_store::END,
