@@ -29,16 +29,14 @@ use crate::text::draw_text::Canvas;
 // ---- Rust version ----
 
 /// Returns the carry flag of `draw_stage_records`.
-pub unsafe fn draw_service_stage_info(canvas: &mut dyn Canvas) -> Result<bool, Refused> {
-    unsafe {
-        label(canvas, event_title()?, TITLE_FONT, TITLE_X, TITLE_Y)?;
-        let (record, section) = event_stage()?;
-        if CHAMP_VIEW.event_mode.get() == 2 && EVENT_STATE.stage_pages.get() == 0 {
-            draw_stage_heading(record, canvas)?;
-        }
-        build_second_heading(record)?;
-        // ebx, the markers' palette, still holds the section here.
-        draw_stage_body(record, section, false, canvas)?;
-        draw_records_from(&crate::saves::best_times::STAGE_TIMES, record, canvas)
+pub fn draw_service_stage_info(canvas: &mut dyn Canvas) -> Result<bool, Refused> {
+    label(canvas, event_title()?, TITLE_FONT, TITLE_X, TITLE_Y)?;
+    let (record, section) = event_stage()?;
+    if CHAMP_VIEW.event_mode.get() == 2 && EVENT_STATE.stage_pages.get() == 0 {
+        draw_stage_heading(record, canvas)?;
     }
+    build_second_heading(record)?;
+    // ebx, the markers' palette, still holds the section here.
+    draw_stage_body(record, section, false, canvas)?;
+    draw_records_from(&crate::saves::best_times::STAGE_TIMES, record, canvas)
 }

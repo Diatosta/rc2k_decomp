@@ -19,24 +19,22 @@ use crate::text::measure_text::{Measured, measure_text};
 
 /// `buffer` is where the text is built: the game's text buffer, or a private one of at least
 /// `TEXT_LEN` bytes. `font` is changed as the original changes the font object.
-pub unsafe fn measure_string_by_id(
+pub fn measure_string_by_id(
     id: u32,
     font: &mut Font,
     x: i32,
     buffer: *mut u8,
     canvas: &mut dyn Canvas,
 ) -> Result<Measured, Refused> {
-    unsafe {
-        let bytes = string_text(id)?;
-        crate::pointers::GamePtr::new(crate::pointers::game_address(buffer))
-            .write_bytes(&bytes, "the text buffer")?;
-        measure_text(font, buffer, x, canvas)
-    }
+    let bytes = string_text(id)?;
+    crate::pointers::GamePtr::new(crate::pointers::game_address(buffer))
+        .write_bytes(&bytes, "the text buffer")?;
+    measure_text(font, buffer, x, canvas)
 }
 
 /// The same with a font object in game memory and the game's text buffer, for Rust callers.
 /// The font object is only written if the canvas keeps font changes.
-pub unsafe fn measure_string_by_id_at(
+pub fn measure_string_by_id_at(
     id: u32,
     font: *mut Font,
     x: i32,
@@ -45,16 +43,13 @@ pub unsafe fn measure_string_by_id_at(
     if font.is_null() {
         return Err(BadInput("no font").into());
     }
-    unsafe {
-        let mut copy = crate::pointers::GamePtr::new(crate::pointers::game_address(font))
-            .read::<Font>("a font")?;
-        let measured = measure_string_by_id(id, &mut copy, x, text(), canvas)?;
-        if canvas.keeps_font_changes() {
-            crate::pointers::GamePtr::new(crate::pointers::game_address(font))
-                .write(copy, "a font")?;
-        }
-        Ok(measured)
+    let mut copy = crate::pointers::GamePtr::new(crate::pointers::game_address(font))
+        .read::<Font>("a font")?;
+    let measured = measure_string_by_id(id, &mut copy, x, text(), canvas)?;
+    if canvas.keeps_font_changes() {
+        crate::pointers::GamePtr::new(crate::pointers::game_address(font)).write(copy, "a font")?;
     }
+    Ok(measured)
 }
 
 pub const MEASURING_FONT: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fonts::MEASURE;

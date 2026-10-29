@@ -27,38 +27,36 @@ pub fn step_replay_cars() -> Result<(), Refused> {
         RUN_STEPS, RunStep, car_block, car_runs, check_replay_cars, next_car,
     };
     check_replay_cars(RACE_VIEW.race_cars.get())?;
-    unsafe {
-        choose_shown_cars::choose_shown_cars()?;
-        RACE_WORK.current_car.set(0);
-        loop {
-            car_input_words::car_input_words()?;
-            play_inputs::play_inputs()?;
-            RACE_WORK
-                .work_block
-                .set(RACE_WORK.car_block(car_block(RACE_WORK.current_car.get()) as usize));
-            load_car::load_car()?;
-            if car_runs(CAR.driver_kind.get()) {
-                for step in RUN_STEPS {
-                    match step {
-                        RunStep::Controls => read_car_controls::read_car_controls()?,
-                        RunStep::GearRules => crate::physics::gear_input_rules::gear_input_rules(),
-                        RunStep::Steering => steer_inputs::steer_inputs(),
-                        RunStep::Pedals => pedal_inputs::pedal_inputs(),
-                        RunStep::ResetKey => reset_request::reset_request()?,
-                        RunStep::Physics => crate::physics::car_physics_step::car_physics_step()?,
-                    }
-                }
-                for clock in [&CAR.step_clock, &CAR.run_ticks] {
-                    clock.set(clock.get().wrapping_add(1));
+    choose_shown_cars::choose_shown_cars()?;
+    RACE_WORK.current_car.set(0);
+    loop {
+        car_input_words::car_input_words()?;
+        play_inputs::play_inputs()?;
+        RACE_WORK
+            .work_block
+            .set(RACE_WORK.car_block(car_block(RACE_WORK.current_car.get()) as usize));
+        load_car::load_car()?;
+        if car_runs(CAR.driver_kind.get()) {
+            for step in RUN_STEPS {
+                match step {
+                    RunStep::Controls => read_car_controls::read_car_controls()?,
+                    RunStep::GearRules => crate::physics::gear_input_rules::gear_input_rules(),
+                    RunStep::Steering => steer_inputs::steer_inputs(),
+                    RunStep::Pedals => pedal_inputs::pedal_inputs(),
+                    RunStep::ResetKey => reset_request::reset_request()?,
+                    RunStep::Physics => crate::physics::car_physics_step::car_physics_step()?,
                 }
             }
-            store_car::store_car()?;
-            let (next, done) = next_car(RACE_WORK.current_car.get(), RACE_VIEW.race_cars.get());
-            RACE_WORK.current_car.set(next);
-            if done {
-                break;
+            for clock in [&CAR.step_clock, &CAR.run_ticks] {
+                clock.set(clock.get().wrapping_add(1));
             }
         }
-        race_mode_cars::race_mode_cars()
+        store_car::store_car()?;
+        let (next, done) = next_car(RACE_WORK.current_car.get(), RACE_VIEW.race_cars.get());
+        RACE_WORK.current_car.set(next);
+        if done {
+            break;
+        }
     }
+    race_mode_cars::race_mode_cars()
 }

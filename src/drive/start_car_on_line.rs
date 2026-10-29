@@ -36,46 +36,43 @@ pub fn car_number(start: usize) -> Result<u32, BadInput> {
 /// leaves are read by no caller (`drive::start_cars_behind` sets them again).
 // Converted: `rc2k_core::drive::start_places` (the share in plain floats; the motion's
 // turn stays x87).
-pub unsafe fn start_car_on_line(distance: u32) -> Result<(), Refused> {
-    unsafe {
-        let start = RACE_TABLES.start_slot.get();
-        start_places::check_start(start)?;
-        CAR.start_slot_value.set(car_number(start as usize)?);
-        CAR.driver_kind.set(start_places::STARTED_MODE);
-        let checkpoint =
-            start_places::start_checkpoint(CAR_BLOCKS.cars[0].checkpoint.get(), distance);
-        for cell in [&CAR.checkpoint, &CAR.reset_checkpoint, &CAR.last_pace_call] {
-            cell.set(checkpoint);
-        }
-        LIGHT_STATE.line_place.set(checkpoint);
-        LIGHT_STATE.line_fraction.set(checkpoint);
-        let share = start_places::start_share(
-            start as i32,
-            RACE_TABLES.arcade_cars.get() as i32,
-            NUMBERS.one.get(),
-            RACE_TABLES.arcade_b.get(),
-            RACE_TABLES.arcade_a.get(),
-        )
-        .to_bits();
-        RACE_TABLES.start_share.set_bits(share);
-        CAR.start_share.set_bits(share);
-        crate::race::start_place::place_car_on_line()?;
-        crate::race::car_starts::reset_car_motion()?;
-        CAR.local_velocity[0].set_bits(0);
-        CAR.local_velocity[1].set_bits(0);
-        CAR.local_velocity[2].set_bits(x87::loaded(RACE_TABLES.start_speed.bits()));
-        let m = &CAR.crash_matrix;
-        let out = rotate_point(
-            m,
-            [
-                extended(CAR.local_velocity[0].bits()),
-                extended(CAR.local_velocity[1].bits()),
-                extended(CAR.local_velocity[2].bits()),
-            ],
-        );
-        CAR.velocity[0].set_bits(rounded(out[0]));
-        CAR.velocity[1].set_bits(rounded(out[1]));
-        CAR.velocity[2].set_bits(rounded(out[2]));
-        Ok(())
+pub fn start_car_on_line(distance: u32) -> Result<(), Refused> {
+    let start = RACE_TABLES.start_slot.get();
+    start_places::check_start(start)?;
+    CAR.start_slot_value.set(car_number(start as usize)?);
+    CAR.driver_kind.set(start_places::STARTED_MODE);
+    let checkpoint = start_places::start_checkpoint(CAR_BLOCKS.cars[0].checkpoint.get(), distance);
+    for cell in [&CAR.checkpoint, &CAR.reset_checkpoint, &CAR.last_pace_call] {
+        cell.set(checkpoint);
     }
+    LIGHT_STATE.line_place.set(checkpoint);
+    LIGHT_STATE.line_fraction.set(checkpoint);
+    let share = start_places::start_share(
+        start as i32,
+        RACE_TABLES.arcade_cars.get() as i32,
+        NUMBERS.one.get(),
+        RACE_TABLES.arcade_b.get(),
+        RACE_TABLES.arcade_a.get(),
+    )
+    .to_bits();
+    RACE_TABLES.start_share.set_bits(share);
+    CAR.start_share.set_bits(share);
+    crate::race::start_place::place_car_on_line()?;
+    crate::race::car_starts::reset_car_motion()?;
+    CAR.local_velocity[0].set_bits(0);
+    CAR.local_velocity[1].set_bits(0);
+    CAR.local_velocity[2].set_bits(x87::loaded(RACE_TABLES.start_speed.bits()));
+    let m = &CAR.crash_matrix;
+    let out = rotate_point(
+        m,
+        [
+            extended(CAR.local_velocity[0].bits()),
+            extended(CAR.local_velocity[1].bits()),
+            extended(CAR.local_velocity[2].bits()),
+        ],
+    );
+    CAR.velocity[0].set_bits(rounded(out[0]));
+    CAR.velocity[1].set_bits(rounded(out[1]));
+    CAR.velocity[2].set_bits(rounded(out[2]));
+    Ok(())
 }

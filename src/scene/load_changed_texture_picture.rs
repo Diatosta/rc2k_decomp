@@ -43,10 +43,8 @@ pub fn load_changed_texture_picture(
     Ok(())
 }
 
-pub unsafe fn load_changed_texture_picture_in_game(texture: u32) -> Result<(), Refused> {
-    unsafe {
-        load_changed_texture_picture(texture, &mut |picture, texture| {
-            load_texture_picture_in_game(picture, texture)
-        })
-    }
+pub fn load_changed_texture_picture_in_game(texture: u32) -> Result<(), Refused> {
+    load_changed_texture_picture(texture, &mut |picture, texture| {
+        load_texture_picture_in_game(picture, texture)
+    })
 }

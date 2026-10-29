@@ -12,7 +12,6 @@
 
 use crate::errors::BadInput;
 use crate::strings::append_string_by_id::append_string_by_id;
-use std::slice::from_raw_parts;
 
 // ---- game data ----
 
@@ -35,9 +34,8 @@ pub fn text_from_ids(first_id: u32, count: u32) -> Result<Vec<u8>, BadInput> {
     }
     let fault = crate::menu::event_flow::Fault::default();
     let text = rc2k_core::strings::table::text_from_ids(first_id, count, TEXT_LEN, |id, out| {
-        fault.ok(append_string_by_id(id, &mut |p, n| {
-            // SAFETY: `p` .. `p + n` was checked or is the expansion's own `Vec`.
-            out.extend_from_slice(unsafe { from_raw_parts(p, n) })
+        fault.ok(append_string_by_id(id, &mut |bytes| {
+            out.extend_from_slice(bytes)
         }))
     });
     fault.check()?;

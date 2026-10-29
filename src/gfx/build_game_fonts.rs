@@ -80,79 +80,76 @@ fn fatal(code: u32) -> Refused {
 /// `pixels_b` is where the place of the second palette's pixels is read from when they
 /// are made. (The original's fatal error 0x80E48061 for a failed allocation cannot come:
 /// the allocator reports its own.)
-pub unsafe fn build_game_fonts(pixels_b: u32) -> Result<(), Refused> {
-    unsafe {
-        let list = GAME_FONTS.memory.as_ptr();
-        let bytes = GAME_FONTS
-            .units
-            .get()
-            .wrapping_mul(0x400)
-            .wrapping_mul(SCREEN.bytes.get());
-        crate::memory::owned::count_on(list, bytes)?;
-        rewind_list(list)?;
-        begin_glyph_tables()?;
-        DECODER.builder_flags.set(RUN_LENGTHS | WITH_ALPHA);
-        // The textures' 8888 kind's description (`kinds[3]`): its pixel layout is 8 bytes in.
-        let format = crate::gfx::texture_upload::TEXTURE_TABLES.kinds[3]
-            .get()
-            .wrapping_add(8);
-        DECODER.format.set(format);
-        let palette_a = crate::gfx::build_fonts::palette_place(list)?;
-        FONTS.game_fonts[0].update(|f| f.palette = palette_a);
-        let palette_b = crate::gfx::build_fonts::palette_place(list)?;
-        FONTS.game_fonts[3].update(|f| f.palette = palette_b);
-        begin_glyph_table(list)?;
-        build_glyphs(
-            crate::pointers::host(crate::gfx::texts::address(&crate::gfx::texts::FNT22))
-                as *const u8,
-            list,
-        )?;
-        let table = SHEET.table.get();
-        FONTS.game_fonts[0].update(|f| f.glyph_table = table);
-        if SHEET.table_size.get() == 0 {
-            return Err(fatal(0x80E4_8062));
-        }
-        alpha_palette();
-        palette_to_pixels(FONTS.game_fonts[0].get().palette)?;
-        end_glyph_tables()?;
-
-        let (glyphs, palette_a): (u32, u32) = (
-            FONTS.game_fonts[0].get().glyph_table,
-            FONTS.game_fonts[0].get().palette,
-        );
-        for font in 1..3 {
-            FONTS.game_fonts[font].update(|f| {
-                f.glyph_table = glyphs;
-                f.palette = palette_a;
-            });
-        }
-
-        // The sheet's palette made brighter where it lies, and its pixels.
-        let to: u32 = GamePtr::new(pixels_b).read("the second palette's place")?;
-        let layout = DECODER.format.get();
-        if to == 0 || layout == 0 {
-            return Err(BadInput("no place for the second palette, or no pixel layout").into());
-        }
-        let layout: PixelFormat = GamePtr::new(layout).read("the palette's pixel layout")?;
-        let mut pixels = Vec::with_capacity(256 * 4);
-        for n in 0..256usize {
-            // Converted: `rc2k_core::gfx::pixels::brighter`.
-            let brighter = rc2k_core::gfx::pixels::brighter(DECODER.palette[n].get());
-            DECODER.palette[n].set(brighter);
-            pixels.extend_from_slice(&components_to_pixel(&layout, brighter).to_le_bytes());
-        }
-        crate::gfx::glyph_store::write_bytes(to, 0, &pixels, "the second palette's pixels")?;
-
-        let palette_b: u32 = FONTS.game_fonts[3].get().palette;
-        FONTS.game_fonts[3].update(|f| f.glyph_table = glyphs);
-        for font in 4..6 {
-            FONTS.game_fonts[font].update(|f| {
-                f.glyph_table = glyphs;
-                f.palette = palette_b;
-            });
-        }
-        Ok(())
+pub fn build_game_fonts(pixels_b: u32) -> Result<(), Refused> {
+    let list = GAME_FONTS.memory.as_ptr();
+    let bytes = GAME_FONTS
+        .units
+        .get()
+        .wrapping_mul(0x400)
+        .wrapping_mul(SCREEN.bytes.get());
+    crate::memory::owned::count_on(list, bytes)?;
+    rewind_list(list)?;
+    begin_glyph_tables()?;
+    DECODER.builder_flags.set(RUN_LENGTHS | WITH_ALPHA);
+    // The textures' 8888 kind's description (`kinds[3]`): its pixel layout is 8 bytes in.
+    let format = crate::gfx::texture_upload::TEXTURE_TABLES.kinds[3]
+        .get()
+        .wrapping_add(8);
+    DECODER.format.set(format);
+    let palette_a = crate::gfx::build_fonts::palette_place(list)?;
+    FONTS.game_fonts[0].update(|f| f.palette = palette_a);
+    let palette_b = crate::gfx::build_fonts::palette_place(list)?;
+    FONTS.game_fonts[3].update(|f| f.palette = palette_b);
+    begin_glyph_table(list)?;
+    build_glyphs(
+        crate::pointers::host(crate::gfx::texts::address(&crate::gfx::texts::FNT22)) as *const u8,
+        list,
+    )?;
+    let table = SHEET.table.get();
+    FONTS.game_fonts[0].update(|f| f.glyph_table = table);
+    if SHEET.table_size.get() == 0 {
+        return Err(fatal(0x80E4_8062));
     }
+    alpha_palette();
+    palette_to_pixels(FONTS.game_fonts[0].get().palette)?;
+    end_glyph_tables()?;
+
+    let (glyphs, palette_a): (u32, u32) = (
+        FONTS.game_fonts[0].get().glyph_table,
+        FONTS.game_fonts[0].get().palette,
+    );
+    for font in 1..3 {
+        FONTS.game_fonts[font].update(|f| {
+            f.glyph_table = glyphs;
+            f.palette = palette_a;
+        });
+    }
+
+    // The sheet's palette made brighter where it lies, and its pixels.
+    let to: u32 = GamePtr::new(pixels_b).read("the second palette's place")?;
+    let layout = DECODER.format.get();
+    if to == 0 || layout == 0 {
+        return Err(BadInput("no place for the second palette, or no pixel layout").into());
+    }
+    let layout: PixelFormat = GamePtr::new(layout).read("the palette's pixel layout")?;
+    let mut pixels = Vec::with_capacity(256 * 4);
+    for n in 0..256usize {
+        // Converted: `rc2k_core::gfx::pixels::brighter`.
+        let brighter = rc2k_core::gfx::pixels::brighter(DECODER.palette[n].get());
+        DECODER.palette[n].set(brighter);
+        pixels.extend_from_slice(&components_to_pixel(&layout, brighter).to_le_bytes());
+    }
+    crate::gfx::glyph_store::write_bytes(to, 0, &pixels, "the second palette's pixels")?;
+
+    let palette_b: u32 = FONTS.game_fonts[3].get().palette;
+    FONTS.game_fonts[3].update(|f| f.glyph_table = glyphs);
+    for font in 4..6 {
+        FONTS.game_fonts[font].update(|f| {
+            f.glyph_table = glyphs;
+            f.palette = palette_b;
+        });
+    }
+    Ok(())
 }
 
 /// With the third font's palette's place, as the stage's loading calls it.

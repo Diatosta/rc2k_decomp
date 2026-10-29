@@ -101,7 +101,7 @@ fn three_times(x: u32, y: u32) -> Result<(), Refused> {
 
 /// The Rust version, for the device `device` (esi). The registers it leaves (ebp = esi,
 /// the copy's flags) are read by no caller.
-pub unsafe fn draw_tyre_change(device: u32) -> Result<(), Refused> {
+pub fn draw_tyre_change(device: u32) -> Result<(), Refused> {
     let clips = (clip(&BLIT.clip.left), clip(&BLIT.clip.right));
     let done = (|| -> Result<(), Refused> {
         let failed = { crate::d3d::lock_texture::lock_texture(TYRE.texture.get()) }?.carry;
@@ -123,15 +123,13 @@ pub unsafe fn draw_tyre_change(device: u32) -> Result<(), Refused> {
                     1 => y = 0,
                     _ => y = y.wrapping_add(line()),
                 }
-                unsafe {
-                    crate::text::draw_string_by_id::draw_string_by_id_at(
-                        id,
-                        crate::pointers::host(font) as *mut crate::text::font::Font,
-                        x as i32,
-                        y as i32,
-                        &mut crate::text::draw_text::GameCanvas,
-                    )
-                }?;
+                crate::text::draw_string_by_id::draw_string_by_id_at(
+                    id,
+                    crate::pointers::host(font) as *mut crate::text::font::Font,
+                    x as i32,
+                    y as i32,
+                    &mut crate::text::draw_text::GameCanvas,
+                )?;
                 if n == 0 {
                     set_clip(&BLIT.clip.left, 0x80);
                 }

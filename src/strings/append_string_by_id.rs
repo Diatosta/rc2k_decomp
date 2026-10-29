@@ -15,10 +15,7 @@ use rc2k_core::strings::table::Source;
 // ---- Rust version ----
 
 /// `emit` receives each run of bytes to append. Returns the `eax` the original leaves behind.
-pub fn append_string_by_id(
-    id: u32,
-    emit: &mut impl FnMut(*const u8, usize),
-) -> Result<u32, BadInput> {
+pub fn append_string_by_id(id: u32, emit: &mut impl FnMut(&[u8])) -> Result<u32, BadInput> {
     // Converted: `rc2k_core::strings::table::Source`.
     let fault = crate::menu::event_flow::Fault::default();
     let source = Source::of(id, || fault.ok(ptr_low(id)) != 0);
@@ -35,7 +32,7 @@ pub fn append_string_by_id(
             let Some(len) = (0..).map_while(|n| text.byte(n)).position(|b| b == 0) else {
                 return Err(BadInput("a string without its end in its block"));
             };
-            emit(crate::pointers::host(p) as *const u8, len);
+            emit(&GamePtr::new(p).read_bytes(len, "a string")?);
             Ok(p)
         }
         None => {
@@ -48,9 +45,6 @@ pub fn append_string_by_id(
 
 /// Appends the text of string `id` to `out`.
 pub fn push_string(out: &mut Vec<u8>, id: u32) -> Result<(), BadInput> {
-    append_string_by_id(id, &mut |p, n| {
-        // SAFETY: the `n` bytes were just checked (or are the expansion's own `Vec`).
-        out.extend_from_slice(unsafe { std::slice::from_raw_parts(p, n) })
-    })?;
+    append_string_by_id(id, &mut |bytes| out.extend_from_slice(bytes))?;
     Ok(())
 }

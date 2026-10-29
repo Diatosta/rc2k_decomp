@@ -86,55 +86,54 @@ impl races::EventRaces for Game<'_> {
     fn step(&mut self, s: Step) -> Result<(), Refused> {
         self.fault.check()?;
         let g = &mut *self.g;
-        unsafe {
-            match s {
-                Step::CpuTimes => {
-                    crate::menu::calc_cpu_times::calc_cpu_times()?;
-                    g.c.measure_x = 0;
-                }
-                Step::ResetPlayerTimes => {
-                    crate::menu::reset_player_times::reset_player_times()?;
-                }
-                Step::StandingsFromDrivers => {
-                    crate::menu::standings_from_drivers::standings_from_drivers()?;
-                }
-                Step::SortByTime => {
-                    crate::menu::sort_standings_by_time::sort_standings_by_time()?;
-                }
-                Step::CopySummary => {
-                    crate::menu::copy_standings_summary::copy_standings_summary()?;
-                }
-                Step::RaceInfo => {
-                    let (rec, pack) = (self.rec, self.pack);
-                    // The summary's variable: 1 while it is there (the race reads it:
-                    // `RACE_STATE.settings.rivals`).
-                    g.c.arg = CHAMP_VIEW.summary.get();
-                    RACE_STATE.settings.rivals.set(g.c.arg);
-                    g.c.arg = INDEX_RVA.get();
-                    g.c.palette = SECTION_RVA.get();
-                    g.record = pack;
-                    g.c.cars = pack;
-                    g.c.palette = get(rec + 4)?.wrapping_mul(0x40);
-                    g.c.measure_x = get(rec + 8)?;
-                    g.c.clock = crate::records::trakpak_entry::loaded_pack_id();
-                    g.c.cars = RACE_STATE.settings.rivals.addr();
-                    g.c.arg = get(pack + 0x34)?;
-                    RACE_STATE.settings.stage.set(g.c.arg);
-                }
-                Step::Race => {
-                    g.c.palette = 1;
-                    crate::race::single_rally_race::single_rally_race(g.c.arg, 1)?;
-                }
-                Step::ReloadFrontEnd => crate::menu::reload_front_end::reload_front_end()?,
-                Step::PlayerEntered { next } => {
-                    let (record, value) = crate::menu::player_entered::player_entered(next, 1)?;
-                    (g.c.measure_x, g.record, g.c.arg) = (next, record, value);
-                }
-                Step::ClearPlayers288 => {
-                    crate::menu::clear_players_288::clear_players_288()?;
-                }
+        match s {
+            Step::CpuTimes => {
+                crate::menu::calc_cpu_times::calc_cpu_times()?;
+                g.c.measure_x = 0;
+            }
+            Step::ResetPlayerTimes => {
+                crate::menu::reset_player_times::reset_player_times()?;
+            }
+            Step::StandingsFromDrivers => {
+                crate::menu::standings_from_drivers::standings_from_drivers()?;
+            }
+            Step::SortByTime => {
+                crate::menu::sort_standings_by_time::sort_standings_by_time()?;
+            }
+            Step::CopySummary => {
+                crate::menu::copy_standings_summary::copy_standings_summary()?;
+            }
+            Step::RaceInfo => {
+                let (rec, pack) = (self.rec, self.pack);
+                // The summary's variable: 1 while it is there (the race reads it:
+                // `RACE_STATE.settings.rivals`).
+                g.c.arg = CHAMP_VIEW.summary.get();
+                RACE_STATE.settings.rivals.set(g.c.arg);
+                g.c.arg = INDEX_RVA.get();
+                g.c.palette = SECTION_RVA.get();
+                g.record = pack;
+                g.c.cars = pack;
+                g.c.palette = get(rec + 4)?.wrapping_mul(0x40);
+                g.c.measure_x = get(rec + 8)?;
+                g.c.clock = crate::records::trakpak_entry::loaded_pack_id();
+                g.c.cars = RACE_STATE.settings.rivals.addr();
+                g.c.arg = get(pack + 0x34)?;
+                RACE_STATE.settings.stage.set(g.c.arg);
+            }
+            Step::Race => {
+                g.c.palette = 1;
+                crate::race::single_rally_race::single_rally_race(g.c.arg, 1)?;
+            }
+            Step::ReloadFrontEnd => crate::menu::reload_front_end::reload_front_end()?,
+            Step::PlayerEntered { next } => {
+                let (record, value) = crate::menu::player_entered::player_entered(next, 1)?;
+                (g.c.measure_x, g.record, g.c.arg) = (next, record, value);
+            }
+            Step::ClearPlayers288 => {
+                crate::menu::clear_players_288::clear_players_288()?;
             }
         }
+
         Ok(())
     }
 

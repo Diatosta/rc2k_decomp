@@ -88,7 +88,7 @@ pub fn viewer_load_stage() -> Result<(), Refused> {
         sound_tables::set_up_race_sound_objects(&sound_tables::ObjectVars::game())?;
         crate::sound::set_up_race_sounds::set_up_race_sounds()?;
         if FONTS.palettes.get() == 0 {
-            unsafe { crate::gfx::build_fonts::build_fonts() }?;
+            { crate::gfx::build_fonts::build_fonts() }?;
             REPLAY_FILE.viewer_fonts_built.set(1);
         }
         crate::race::read_replay_header::read_replay_header();

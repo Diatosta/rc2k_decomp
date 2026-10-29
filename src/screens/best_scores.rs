@@ -200,23 +200,21 @@ pub fn draw_best_scores_page(canvas: &mut dyn Canvas) -> Result<(), Refused> {
 
 /// `screens::best_scores_caption` (0x46D128): the caption (`g_captionText`) string
 /// `dword_75A2A6[page]` and its NUL. Every register kept.
-pub unsafe fn best_scores_caption() -> Result<(), Refused> {
+pub fn best_scores_caption() -> Result<(), Refused> {
     // Converted: `rc2k_core::screens::captions::fit` (through `car_caption::put_string`); refused
     // where the original writes past the caption's 0x100 bytes.
-    unsafe {
-        let id = crate::session::read_on(
-            &MENU_LISTS.page_titles_a,
-            PAGE.get() as usize,
-            "best scores: a game value",
-        )?;
-        crate::screens::car_caption::put_string(
-            id,
-            (crate::screens::text_buffers_store::TEXT_BUFFERS
-                .caption
-                .addr()) as usize,
-            0x100,
-        )
-    }
+    let id = crate::session::read_on(
+        &MENU_LISTS.page_titles_a,
+        PAGE.get() as usize,
+        "best scores: a game value",
+    )?;
+    crate::screens::car_caption::put_string(
+        id,
+        (crate::screens::text_buffers_store::TEXT_BUFFERS
+            .caption
+            .addr()) as usize,
+        0x100,
+    )
 }
 
 /// `screens::replay_range_caption` (0x470501): the caption "n-m", n = `dword_755248` x 20,

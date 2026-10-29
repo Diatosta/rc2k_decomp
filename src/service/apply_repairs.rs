@@ -62,7 +62,7 @@ impl Driver for GameDriver {
     }
     /// `screens::run_frame` with the service area's frame (`screens::service_area_frame`).
     fn frame(&mut self) {
-        let ran = crate::platform::run_frame_now(|| unsafe {
+        let ran = crate::platform::run_frame_now(|| {
             crate::screens::service_area_frame::service_area_frame()
         });
         if let Some(Err(e)) = ran {

@@ -43,7 +43,7 @@ fn blocked() -> bool {
 
 /// The Rust version. The registers it leaves are read by none of its callers.
 // Converted: `rc2k_core::physics::line_places::reset_offsets`.
-pub unsafe fn reset_car() -> Result<(), Refused> {
+pub fn reset_car() -> Result<(), Refused> {
     LIGHT_STATE.line_place.set(CAR.reset_checkpoint.get());
     LIGHT_STATE.line_fraction.set(0);
     if RACE_VARS.run_kind.get() == 2 {
@@ -64,10 +64,8 @@ pub unsafe fn reset_car() -> Result<(), Refused> {
         }
         LIGHT_STATE.line_place.set(PHYSICS.reset_candidate.get());
     }
-    unsafe {
-        crate::race::start_place::place_car_on_line()?;
-        crate::physics::reset_car_on_line::reset_car_on_line()?;
-    }
+    crate::race::start_place::place_car_on_line()?;
+    crate::physics::reset_car_on_line::reset_car_on_line()?;
     CAR.reset_marker.set(10);
     Ok(())
 }

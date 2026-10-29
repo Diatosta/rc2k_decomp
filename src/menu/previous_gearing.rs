@@ -16,5 +16,5 @@ use crate::screens::gearing_text::step_gearing;
 /// The Rust version the typed tables run.
 pub fn run() -> Result<(), Refused> {
     // Converted: `rc2k_core::screens::captions::step_gearing` (through `screens::gearing_text`).
-    unsafe { step_gearing(false) }
+    step_gearing(false)
 }

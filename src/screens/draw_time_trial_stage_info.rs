@@ -40,46 +40,44 @@ const HEADING_Y: i32 = 0xB1;
 // ---- Rust version ----
 
 /// Returns the carry flag. Refuses a missing selection: the original reads through null.
-pub unsafe fn draw_time_trial_stage_info(canvas: &mut dyn Canvas) -> Result<bool, Refused> {
-    unsafe {
-        let Some(sel) = selection()? else {
-            return Err(
-                BadInput("no record table is selected: the original reads through null").into(),
-            );
-        };
-        label(
-            canvas,
-            table_dword_at(GROUP_TITLES_RVA.addr() as usize, sel.group)?,
-            TITLE_FONT,
-            TITLE_X,
-            GROUP_TITLE_Y,
-        )?;
-        RACE_STATE.settings.direction.set(sel.group);
-        label(
-            canvas,
-            dword(sel.table.wrapping_add(0x38))?,
-            TITLE_FONT,
-            TITLE_X,
-            TABLE_TITLE_Y,
-        )?;
+pub fn draw_time_trial_stage_info(canvas: &mut dyn Canvas) -> Result<bool, Refused> {
+    let Some(sel) = selection()? else {
+        return Err(
+            BadInput("no record table is selected: the original reads through null").into(),
+        );
+    };
+    label(
+        canvas,
+        table_dword_at(GROUP_TITLES_RVA.addr() as usize, sel.group)?,
+        TITLE_FONT,
+        TITLE_X,
+        GROUP_TITLE_Y,
+    )?;
+    RACE_STATE.settings.direction.set(sel.group);
+    label(
+        canvas,
+        dword(sel.table.wrapping_add(0x38))?,
+        TITLE_FONT,
+        TITLE_X,
+        TABLE_TITLE_Y,
+    )?;
 
-        build_second_heading(sel.record)?;
-        let heading = draw_text_at(
-            TITLE_FONT.as_ptr(),
-            crate::screens::text_buffers_store::TEXT_BUFFERS
-                .stage_heading
-                .as_ptr(),
-            TITLE_X,
-            HEADING_Y,
-            canvas,
-        )?;
-        // ebx, the markers' palette, is what draw_text left there: a pointer into the heading.
-        draw_stage_body(
-            sel.record,
-            crate::pointers::game_address(heading.text),
-            true,
-            canvas,
-        )?;
-        draw_records_for_group(sel.group, sel.record, canvas)
-    }
+    build_second_heading(sel.record)?;
+    let heading = draw_text_at(
+        TITLE_FONT.as_ptr(),
+        crate::screens::text_buffers_store::TEXT_BUFFERS
+            .stage_heading
+            .as_ptr(),
+        TITLE_X,
+        HEADING_Y,
+        canvas,
+    )?;
+    // ebx, the markers' palette, is what draw_text left there: a pointer into the heading.
+    draw_stage_body(
+        sel.record,
+        crate::pointers::game_address(heading.text),
+        true,
+        canvas,
+    )?;
+    draw_records_for_group(sel.group, sel.record, canvas)
 }

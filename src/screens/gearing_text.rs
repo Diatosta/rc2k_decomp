@@ -30,43 +30,39 @@ pub fn current() -> Result<u32, Refused> {
     Ok(p)
 }
 
-pub unsafe fn gearing_text() -> Result<(), Refused> {
+pub fn gearing_text() -> Result<(), Refused> {
     let value = GamePtr::new(current()?)
         .read::<Player>("the current player")?
         .gearing;
-    unsafe {
-        put_string(
-            FIRST_STRING.wrapping_add(value),
-            (crate::screens::text_buffers_store::TEXT_BUFFERS
-                .title
-                .addr()) as usize,
-            TEXT_LEN,
-        )?;
-        SCREEN_FLOW.shown_gearing.set(value);
-    }
+    put_string(
+        FIRST_STRING.wrapping_add(value),
+        (crate::screens::text_buffers_store::TEXT_BUFFERS
+            .title
+            .addr()) as usize,
+        TEXT_LEN,
+    )?;
+    SCREEN_FLOW.shown_gearing.set(value);
     Ok(())
 }
 
 /// `menu::next_gearing` / `menu::previous_gearing`: `dword_7554F0` on (past 2 to 0) or back
 /// (below 0 to 2, both signed), the current player's `gearing` it, and its text.
-pub unsafe fn step_gearing(on: bool) -> Result<(), Refused> {
+pub fn step_gearing(on: bool) -> Result<(), Refused> {
     let p = current()?;
-    unsafe {
-        let kept = SCREEN_FLOW.shown_gearing.get() as i32;
-        // Converted: `rc2k_core::screens::captions::step_gearing`.
-        let value = rc2k_core::screens::captions::step_gearing(kept, on);
-        put_string(
-            FIRST_STRING.wrapping_add(value),
-            (crate::screens::text_buffers_store::TEXT_BUFFERS
-                .title
-                .addr()) as usize,
-            TEXT_LEN,
-        )?;
-        SCREEN_FLOW.shown_gearing.set(value);
-        let at = GamePtr::new(p);
-        let mut player = at.read::<Player>("the current player")?;
-        player.gearing = value;
-        at.write(player, "the current player")?;
-    }
+    let kept = SCREEN_FLOW.shown_gearing.get() as i32;
+    // Converted: `rc2k_core::screens::captions::step_gearing`.
+    let value = rc2k_core::screens::captions::step_gearing(kept, on);
+    put_string(
+        FIRST_STRING.wrapping_add(value),
+        (crate::screens::text_buffers_store::TEXT_BUFFERS
+            .title
+            .addr()) as usize,
+        TEXT_LEN,
+    )?;
+    SCREEN_FLOW.shown_gearing.set(value);
+    let at = GamePtr::new(p);
+    let mut player = at.read::<Player>("the current player")?;
+    player.gearing = value;
+    at.write(player, "the current player")?;
     Ok(())
 }

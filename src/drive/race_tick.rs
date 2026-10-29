@@ -28,7 +28,7 @@ pub unsafe fn race_tick() -> Result<(), Refused> {
         .into());
     }
     if FRAME_SWITCHES.levers_on.get() == 0 {
-        return unsafe { crate::drive::simple_car_step::simple_car_step() };
+        return crate::drive::simple_car_step::simple_car_step();
     }
     RACE_VARS
         .race_ticks

@@ -293,15 +293,13 @@ pub fn copy_picture() -> Result<(), Refused> {
 /// `text::draw_string_by_id` (0x40234A): string `id` in `font` at (x, y).
 pub fn draw_string(id: u32, font: u32, x: u32, y: u32) -> Result<(), Refused> {
     use crate::text::draw_text::GameCanvas;
-    unsafe {
-        crate::text::draw_string_by_id::draw_string_by_id_at(
-            id,
-            crate::pointers::host(font) as *mut crate::text::font::Font,
-            x as i32,
-            y as i32,
-            &mut GameCanvas,
-        )
-    }?;
+    crate::text::draw_string_by_id::draw_string_by_id_at(
+        id,
+        crate::pointers::host(font) as *mut crate::text::font::Font,
+        x as i32,
+        y as i32,
+        &mut GameCanvas,
+    )?;
     Ok(())
 }
 
@@ -353,7 +351,7 @@ pub fn measure_text(
 /// `text::measure_string_by_id` (0x40232C), ecx `x`: (the widest line, the last line's y).
 pub fn measure_string(id: u32, font: u32, x: u32) -> Result<(u32, u32), Refused> {
     use crate::text::draw_text::GameCanvas;
-    let m = unsafe {
+    let m = {
         crate::text::measure_string_by_id::measure_string_by_id_at(
             id,
             crate::pointers::host(font) as *mut crate::text::font::Font,

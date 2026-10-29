@@ -51,45 +51,43 @@ const TEXTS: [&std::ffi::CStr; 4] = [
 /// esi (for `load_changed_texture_picture` and `step_loading_bar`, which set them
 /// themselves).
 // Converted: `rc2k_core::scene::pictures::{kind_picture, read_size}`
-pub unsafe fn reload_system_textures() -> Result<(), Refused> {
-    unsafe {
-        let textures: u32 = TEXTURE_PLACES.totals[3].get();
-        if textures == 0 || textures > TEXTURES {
-            return Err(BadInput("no system textures, or more than the table has").into());
-        }
-        let first = |kind: u32| KIND_TEXTURES.kind_first_textures[kind as usize].get();
-        if (0..KINDS).any(|kind| first(kind) != u32::MAX && first(kind) >= TEXTURES) {
-            return Err(BadInput("a kind's first texture past the pictures' table").into());
-        }
-        crate::logfile::log_write::log_nul(&TEXTS[0], true, 1);
-        crate::logfile::log_write::log_nul(&TEXTS[1], true, 1);
-        for kind in 0..KINDS {
-            let texture = first(kind);
-            if texture == u32::MAX {
-                continue;
-            }
-            let picture = kind_picture(TEXTURE_PLACES.kind_pictures[kind as usize].get());
-            TEXTURE_PLACES.wanted_pictures[texture as usize].set(picture);
-        }
-        let scene = [
-            STAGE_PREFS.scene_size_a.get(),
-            STAGE_PREFS.scene_size_b.get(),
-        ];
-        for texture in 0..textures {
-            GRADING.reading.set(1u32);
-            let wanted = TEXTURE_PLACES.wanted_pictures[texture as usize].get();
-            let [scale, saturation] = read_size(wanted, scene);
-            GRADING.scale.set(scale);
-            GRADING.saturation.set(saturation);
-            load_changed_texture_picture_in_game(texture)?;
-            step_loading_bar(texture)?;
-        }
-        GRADING.reading.set(0u32);
-        GRADING.scale.set(0x100);
-        GRADING.saturation.set(0x100);
-        load_hud_car_icons()?;
-        crate::logfile::log_write::log_nul(&TEXTS[2], true, 1);
-        crate::logfile::log_write::log_nul(&TEXTS[3], true, 1);
-        Ok(())
+pub fn reload_system_textures() -> Result<(), Refused> {
+    let textures: u32 = TEXTURE_PLACES.totals[3].get();
+    if textures == 0 || textures > TEXTURES {
+        return Err(BadInput("no system textures, or more than the table has").into());
     }
+    let first = |kind: u32| KIND_TEXTURES.kind_first_textures[kind as usize].get();
+    if (0..KINDS).any(|kind| first(kind) != u32::MAX && first(kind) >= TEXTURES) {
+        return Err(BadInput("a kind's first texture past the pictures' table").into());
+    }
+    crate::logfile::log_write::log_nul(&TEXTS[0], true, 1);
+    crate::logfile::log_write::log_nul(&TEXTS[1], true, 1);
+    for kind in 0..KINDS {
+        let texture = first(kind);
+        if texture == u32::MAX {
+            continue;
+        }
+        let picture = kind_picture(TEXTURE_PLACES.kind_pictures[kind as usize].get());
+        TEXTURE_PLACES.wanted_pictures[texture as usize].set(picture);
+    }
+    let scene = [
+        STAGE_PREFS.scene_size_a.get(),
+        STAGE_PREFS.scene_size_b.get(),
+    ];
+    for texture in 0..textures {
+        GRADING.reading.set(1u32);
+        let wanted = TEXTURE_PLACES.wanted_pictures[texture as usize].get();
+        let [scale, saturation] = read_size(wanted, scene);
+        GRADING.scale.set(scale);
+        GRADING.saturation.set(saturation);
+        load_changed_texture_picture_in_game(texture)?;
+        step_loading_bar(texture)?;
+    }
+    GRADING.reading.set(0u32);
+    GRADING.scale.set(0x100);
+    GRADING.saturation.set(0x100);
+    load_hud_car_icons()?;
+    crate::logfile::log_write::log_nul(&TEXTS[2], true, 1);
+    crate::logfile::log_write::log_nul(&TEXTS[3], true, 1);
+    Ok(())
 }

@@ -27,11 +27,15 @@ use std::sync::atomic::{AtomicU32, Ordering::Relaxed};
 const EVERY: u32 = 1000;
 const DETAILS: u32 = 40;
 const SUMMARY_EVERY: u32 = 20;
-/// A car's fields the viewer sets itself while playing, left out: +0x9C the last pace
-/// checkpoint called (`race::replay_viewer` sets `g_holdCarRevs`, which keeps
-/// `physics::pace_notes_step` off; the recording's are the live race's) and +0x220 the
-/// option bits (`drive::replay_cameras` writes the viewer's).
-const VIEWERS: [usize; 2] = [0x9C, 0x220];
+/// A car's fields the viewer or the sound sets, not the physics, left out: +0x0 and +0x4
+/// (every car's; the first car's are the frame's head (the camera bytes `drive::replay_cameras`
+/// reads; a camera edited in the viewer rewrites them: seen 2026-10-29)), +0x9C the last
+/// pace checkpoint called (`race::replay_viewer` sets `g_holdCarRevs`, which keeps
+/// `physics::pace_notes_step` off; the recording's are the live race's), +0x220 the option
+/// bits (`drive::replay_cameras` writes the viewer's) and +0x23C the gear-change flag the
+/// sound listener clears (`drive::set_listener`, run by the frame, not the step: seen
+/// recorded 1, played 0, 2026-10-29).
+const VIEWERS: [usize; 5] = [0x0, 0x4, 0x9C, 0x220, 0x23C];
 
 static COMPARED: AtomicU32 = AtomicU32::new(0);
 static EQUAL: AtomicU32 = AtomicU32::new(0);

@@ -17,25 +17,21 @@ const TEXT_LEN: usize = 0x100;
 const FIRST_STRING: u32 = 0x191;
 const SECOND_STRING: u32 = 0x170;
 
-pub unsafe fn player_number_text() -> Result<(), Refused> {
-    unsafe {
-        let n: u32 = EVENT_STATE.current_player.get();
-        let mut text = Vec::new();
-        let mut emit =
-            |p: *const u8, len: usize| text.extend_from_slice(std::slice::from_raw_parts(p, len));
-        append_string_by_id(FIRST_STRING.wrapping_add(n), &mut emit)?;
-        text.push(b' ');
-        let mut emit =
-            |p: *const u8, len: usize| text.extend_from_slice(std::slice::from_raw_parts(p, len));
-        append_string_by_id(SECOND_STRING, &mut emit)?;
-        // Converted: `rc2k_core::screens::captions::fit`.
-        let text = rc2k_core::screens::captions::fit(text, TEXT_LEN)?;
-        crate::pointers::GamePtr::new(
-            crate::screens::text_buffers_store::TEXT_BUFFERS
-                .number_text
-                .addr(),
-        )
-        .write_bytes(&text, "the number text")?;
-    }
+pub fn player_number_text() -> Result<(), Refused> {
+    let n: u32 = EVENT_STATE.current_player.get();
+    let mut text = Vec::new();
+    let mut emit = |bytes: &[u8]| text.extend_from_slice(bytes);
+    append_string_by_id(FIRST_STRING.wrapping_add(n), &mut emit)?;
+    text.push(b' ');
+    let mut emit = |bytes: &[u8]| text.extend_from_slice(bytes);
+    append_string_by_id(SECOND_STRING, &mut emit)?;
+    // Converted: `rc2k_core::screens::captions::fit`.
+    let text = rc2k_core::screens::captions::fit(text, TEXT_LEN)?;
+    crate::pointers::GamePtr::new(
+        crate::screens::text_buffers_store::TEXT_BUFFERS
+            .number_text
+            .addr(),
+    )
+    .write_bytes(&text, "the number text")?;
     Ok(())
 }

@@ -16,17 +16,14 @@ use crate::memory::free_list::free_list;
 
 // ---- Rust version ----
 
-pub unsafe fn free_fonts(list: *mut MemoryList, palettes: *mut u32) -> Result<(), BadInput> {
-    unsafe {
-        free_list(list)?;
-        palettes.write_unaligned(0);
-        Ok(())
-    }
+pub fn free_fonts(list: *mut MemoryList, palettes: &crate::session::Dword) -> Result<(), BadInput> {
+    free_list(list)?;
+    palettes.set(0);
+    Ok(())
 }
 
 /// With the game's list and palettes' place.
 pub fn free_fonts_in_game() -> Result<(), BadInput> {
     let list = TABLES.memory.as_ptr();
-    let palettes = FONTS.palettes.as_ptr();
-    unsafe { free_fonts(list, palettes) }
+    free_fonts(list, &FONTS.palettes)
 }

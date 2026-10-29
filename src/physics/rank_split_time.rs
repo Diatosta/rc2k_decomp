@@ -38,17 +38,12 @@ fn name(id: u32, to: &[Dword; 2]) -> Result<(), crate::errors::BadInput> {
         .set_u32(4, 0x2020_2020);
     let mut cursor = text;
     let mut refused = None;
-    unsafe {
-        append_string_by_id(id, &mut |s, n| {
-            // The string's `n` bytes are the string table's or a made string's.
-            let bytes = std::slice::from_raw_parts(s, n);
-            if let Err(e) = crate::pointers::GamePtr::new(cursor).write_bytes(bytes, "a split name")
-            {
-                refused.get_or_insert(e);
-            }
-            cursor += n as u32;
-        })
-    }?;
+    append_string_by_id(id, &mut |bytes| {
+        if let Err(e) = crate::pointers::GamePtr::new(cursor).write_bytes(bytes, "a split name") {
+            refused.get_or_insert(e);
+        }
+        cursor += bytes.len() as u32;
+    })?;
     to[0].set(crate::strings::text_buffer::TEXT_BUFFER.text.get_u32(0));
     to[1].set(crate::strings::text_buffer::TEXT_BUFFER.text.get_u32(4));
     Ok(())

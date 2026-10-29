@@ -180,27 +180,25 @@ pub fn draw_item_button(
 
 /// The other four: a button as wide as the item's text, measured with the item's font at
 /// +0x4C, plus 12. `measure_x` is the x the measuring is given: the caller's ecx.
-pub unsafe fn draw_text_button(
+pub fn draw_text_button(
     kind: &Kind,
     align: u32,
     item: &crate::menu::menus_store::MenuItem,
     measure_x: i32,
     canvas: &mut dyn Canvas,
 ) -> Result<(), Refused> {
-    unsafe {
-        let font = item.measuring_font.get();
-        // The font object must lie in the game's memory before it is used.
-        crate::pointers::GamePtr::new(font).read::<Font>("an item's measuring font")?;
-        let font = crate::pointers::host(font) as *mut Font;
-        let measured = measure_string_by_id_at(item.string.get(), font, measure_x, canvas)?;
-        draw_button(
-            kind,
-            rc2k_core::screens::buttons::text_width(measured.width),
-            item.x.get() as i32,
-            item.y.get() as i32,
-            align,
-            item.sprites.get(),
-            canvas,
-        )
-    }
+    let font = item.measuring_font.get();
+    // The font object must lie in the game's memory before it is used.
+    crate::pointers::GamePtr::new(font).read::<Font>("an item's measuring font")?;
+    let font = crate::pointers::host(font) as *mut Font;
+    let measured = measure_string_by_id_at(item.string.get(), font, measure_x, canvas)?;
+    draw_button(
+        kind,
+        rc2k_core::screens::buttons::text_width(measured.width),
+        item.x.get() as i32,
+        item.y.get() as i32,
+        align,
+        item.sprites.get(),
+        canvas,
+    )
 }

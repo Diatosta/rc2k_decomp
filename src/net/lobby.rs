@@ -235,15 +235,13 @@ pub fn draw_string(
     x: u32,
     y: u32,
 ) -> Result<(), Refused> {
-    unsafe {
-        crate::text::draw_string_by_id::draw_string_by_id_at(
-            id,
-            font.as_ptr(),
-            x as i32,
-            y as i32,
-            &mut crate::text::draw_text::GameCanvas,
-        )
-    }?;
+    crate::text::draw_string_by_id::draw_string_by_id_at(
+        id,
+        font.as_ptr(),
+        x as i32,
+        y as i32,
+        &mut crate::text::draw_text::GameCanvas,
+    )?;
     Ok(())
 }
 

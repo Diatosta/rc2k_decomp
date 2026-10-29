@@ -22,26 +22,22 @@ const FIRST: u32 = 0x56B;
 // ---- Rust version ----
 
 /// Returns eax and ebx as the original leaves them.
-pub unsafe fn yes_no_caption() -> Result<(u32, u32), Refused> {
-    unsafe {
-        let id = MENU_PAGES.yes_no_answer.get().wrapping_add(FIRST);
-        let mut text = Vec::new();
-        let eax = append_string_by_id(id, &mut |p, n| {
-            text.extend_from_slice(std::slice::from_raw_parts(p, n))
-        })?;
-        // Converted: `rc2k_core::screens::captions::fit`.
-        let text = rc2k_core::screens::captions::fit(text, CAPTION_LEN)?;
-        let caption = crate::screens::text_buffers_store::TEXT_BUFFERS
-            .caption
-            .addr();
-        crate::pointers::GamePtr::new(caption).write_bytes(&text, "the caption")?;
-        Ok((eax, caption + text.len() as u32))
-    }
+pub fn yes_no_caption() -> Result<(u32, u32), Refused> {
+    let id = MENU_PAGES.yes_no_answer.get().wrapping_add(FIRST);
+    let mut text = Vec::new();
+    let eax = append_string_by_id(id, &mut |bytes| text.extend_from_slice(bytes))?;
+    // Converted: `rc2k_core::screens::captions::fit`.
+    let text = rc2k_core::screens::captions::fit(text, CAPTION_LEN)?;
+    let caption = crate::screens::text_buffers_store::TEXT_BUFFERS
+        .caption
+        .addr();
+    crate::pointers::GamePtr::new(caption).write_bytes(&text, "the caption")?;
+    Ok((eax, caption + text.len() as u32))
 }
 
 /// The Rust version the typed tables run (what it leaves in registers is read by
 /// none of its callers).
 pub fn run() -> Result<(), Refused> {
-    let (_eax, _ebx) = unsafe { yes_no_caption() }?;
+    let (_eax, _ebx) = { yes_no_caption() }?;
     Ok(())
 }

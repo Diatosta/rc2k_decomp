@@ -105,7 +105,7 @@ impl Io for GameIo {
     }
     fn draw(&mut self, g: &Gauge) -> Result<(), Refused> {
         self.store(g)?;
-        unsafe { crate::race::draw_tyre_change::draw_tyre_change(self.device) }
+        crate::race::draw_tyre_change::draw_tyre_change(self.device)
     }
     fn press_time(&mut self, s: u32) -> u32 {
         press_time(s as i32) as u32

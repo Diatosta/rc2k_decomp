@@ -25,28 +25,26 @@ const OVERLAY_LIST: &ListCell = &SCREEN_FLOW.overlay_list; // g_overlayList
 
 /// The Rust version, `menu`, `palette` and `measure_x` being edi, ebx and ecx at entry:
 /// whether the frame was made.
-pub unsafe fn inspection_frame(
+pub fn inspection_frame(
     menu: crate::menu::menus_store::MenuId,
     palette: u32,
     measure_x: u32,
 ) -> Result<bool, Refused> {
-    unsafe {
-        if lock_failed() {
-            return Ok(false);
-        }
-        copy_picture()?;
-        run_listed(DRAW_LIST)?;
-        unlock_surface();
-        LIGHT_STATE.scene_state.set_bits(4u32);
-        crate::scene::begin_scene::begin_scene();
-        run_listed(SCENE_LIST)?;
-        crate::scene::end_scene::end_scene();
-        if lock_failed() {
-            return Ok(false);
-        }
-        draw_menu(menu, palette, measure_x)?;
-        run_listed(OVERLAY_LIST)?;
-        unlock_surface();
-        Ok(show_frame_now())
+    if lock_failed() {
+        return Ok(false);
     }
+    copy_picture()?;
+    run_listed(DRAW_LIST)?;
+    unlock_surface();
+    LIGHT_STATE.scene_state.set_bits(4u32);
+    crate::scene::begin_scene::begin_scene();
+    run_listed(SCENE_LIST)?;
+    crate::scene::end_scene::end_scene();
+    if lock_failed() {
+        return Ok(false);
+    }
+    draw_menu(menu, palette, measure_x)?;
+    run_listed(OVERLAY_LIST)?;
+    unlock_surface();
+    Ok(show_frame_now())
 }

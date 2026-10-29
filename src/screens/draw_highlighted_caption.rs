@@ -35,44 +35,42 @@ const ITEMS: u32 = 32;
 
 // ---- Rust version ----
 
-pub unsafe fn draw_highlighted_caption(
+pub fn draw_highlighted_caption(
     measured_at: u32,
     canvas: &mut dyn Canvas,
 ) -> Result<Option<bool>, Refused> {
-    unsafe {
-        let menu: u32 = MENU_STATE.carousel.menu.get();
-        let Some(&list) = LISTS.get(menu as usize) else {
-            return Ok(None);
-        };
-        let item: u32 = LOOP_FLAGS.item.get();
-        if !(1..=ITEMS).contains(&item) {
-            return Err(BadInput("a highlighted item outside the lists of captions").into());
-        }
-        let id: u32 =
-            crate::menu::captions_store::CAPTIONS.caption_lists[list + item as usize - 1].get();
-        let caption = string_text(id)?;
-        if caption.len() > CAPTION_LEN {
-            return Err(BadInput("a caption longer than its place").into());
-        }
-        crate::pointers::GamePtr::new(
-            crate::screens::text_buffers_store::TEXT_BUFFERS
-                .caption
-                .addr(),
-        )
-        .write_bytes(&caption, "the caption")?;
-        // Converted: `rc2k_core::screens::highlighted_caption`.
-        let since_key = CLOCKS
-            .frame
-            .get()
-            .wrapping_sub(CHAMP_VIEW.last_key_time.get());
-        let too_wide = rc2k_core::screens::highlighted_caption::highlighted_caption(
-            &mut crate::screens::game_screen::GameScreen::<
-                rc2k_core::screens::highlighted_caption::Font,
-                rc2k_core::screens::highlighted_caption::Work,
-            >::new(canvas),
-            measured_at as i32,
-            since_key,
-        )?;
-        Ok(Some(too_wide))
+    let menu: u32 = MENU_STATE.carousel.menu.get();
+    let Some(&list) = LISTS.get(menu as usize) else {
+        return Ok(None);
+    };
+    let item: u32 = LOOP_FLAGS.item.get();
+    if !(1..=ITEMS).contains(&item) {
+        return Err(BadInput("a highlighted item outside the lists of captions").into());
     }
+    let id: u32 =
+        crate::menu::captions_store::CAPTIONS.caption_lists[list + item as usize - 1].get();
+    let caption = string_text(id)?;
+    if caption.len() > CAPTION_LEN {
+        return Err(BadInput("a caption longer than its place").into());
+    }
+    crate::pointers::GamePtr::new(
+        crate::screens::text_buffers_store::TEXT_BUFFERS
+            .caption
+            .addr(),
+    )
+    .write_bytes(&caption, "the caption")?;
+    // Converted: `rc2k_core::screens::highlighted_caption`.
+    let since_key = CLOCKS
+        .frame
+        .get()
+        .wrapping_sub(CHAMP_VIEW.last_key_time.get());
+    let too_wide = rc2k_core::screens::highlighted_caption::highlighted_caption(
+        &mut crate::screens::game_screen::GameScreen::<
+            rc2k_core::screens::highlighted_caption::Font,
+            rc2k_core::screens::highlighted_caption::Work,
+        >::new(canvas),
+        measured_at as i32,
+        since_key,
+    )?;
+    Ok(Some(too_wide))
 }

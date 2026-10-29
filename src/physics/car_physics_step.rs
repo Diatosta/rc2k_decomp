@@ -184,12 +184,10 @@ pub fn steps() -> Result<(), Refused> {
         ph::put_back_motion_vectors::put_back_motion_vectors();
         ph::limit_motion::limit_motion();
     }
-    unsafe {
-        ph::feel_ground::feel_ground()?;
-        ph::reset_when_stuck::reset_when_stuck()?;
-        ph::engine_sound::engine_sound()?;
-        ph::spin_wheels::spin_wheels();
-    }
+    ph::feel_ground::feel_ground()?;
+    ph::reset_when_stuck::reset_when_stuck()?;
+    ph::engine_sound::engine_sound()?;
+    ph::spin_wheels::spin_wheels();
     ph::track_checkpoints::track_checkpoints()?;
     ph::pace_notes_step::pace_notes_step()?;
     ph::count_down_notice::count_down_notice();
@@ -219,14 +217,12 @@ pub fn steps() -> Result<(), Refused> {
     ph::hold_spin_on_ground::hold_spin_on_ground();
     ph::drop_broken_parts::drop_broken_parts()?;
     ph::car_lighting::car_lighting()?;
-    unsafe {
-        ph::sum_forces::sum_forces();
-        ph::blend_wheel_load::blend_wheel_load();
-        ph::share_engine_sound::share_engine_sound()?;
-        ph::note_time_mark::note_time_mark();
-        ph::false_start::false_start()?;
-        ph::value_notice::value_notice();
-    }
+    ph::sum_forces::sum_forces();
+    ph::blend_wheel_load::blend_wheel_load();
+    ph::share_engine_sound::share_engine_sound()?;
+    ph::note_time_mark::note_time_mark();
+    ph::false_start::false_start()?;
+    ph::value_notice::value_notice();
     Ok(())
 }
 

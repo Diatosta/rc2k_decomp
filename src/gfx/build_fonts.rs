@@ -219,40 +219,37 @@ const HUNG: [(usize, Field, Source, u32); 125] = [
 /// The part with the calls; `palettes` is where the palettes' place is kept. (The
 /// original's fatal error 0x80E48023 for a failed allocation cannot come: the allocator
 /// reports its own.)
-unsafe fn tables(palettes: u32) -> Result<(), Refused> {
-    unsafe {
-        let list = TABLES.memory.as_ptr();
-        let bytes = TABLES
-            .units
-            .get()
-            .wrapping_mul(0x400)
-            .wrapping_mul(SCREEN.bytes.get());
-        crate::memory::owned::count_on(list, bytes)?;
-        rewind_list(list)?;
-        begin_glyph_tables()?;
-        DECODER.builder_flags.set(RUN_LENGTHS);
-        GamePtr::new(palettes).write(palette_place(list)?, "the fonts' palettes' place")?;
+fn tables(palettes: u32) -> Result<(), Refused> {
+    let list = TABLES.memory.as_ptr();
+    let bytes = TABLES
+        .units
+        .get()
+        .wrapping_mul(0x400)
+        .wrapping_mul(SCREEN.bytes.get());
+    crate::memory::owned::count_on(list, bytes)?;
+    rewind_list(list)?;
+    begin_glyph_tables()?;
+    DECODER.builder_flags.set(RUN_LENGTHS);
+    GamePtr::new(palettes).write(palette_place(list)?, "the fonts' palettes' place")?;
+    begin_glyph_table(list)?;
+    build_glyphs(
+        crate::pointers::host(crate::gfx::texts::address(&crate::gfx::texts::PAL_00)) as *const u8,
+        list,
+    )?;
+    MENU_FONTS.font27_glyphs.set(SHEET.table.get());
+    palette_to_pixels(GamePtr::new(palettes).read("the fonts' palettes' place")?)?;
+    GamePtr::new(crate::pointers::game_address(DECODER.palette_ptr())).copy_to(
+        GamePtr::new(crate::session::address_of(&MENU_FONTS.palette_sheet)),
+        PALETTE_BYTES,
+        "the fonts' palette sheet",
+    )?;
+    for (sheet, kept) in font_sheets() {
         begin_glyph_table(list)?;
-        build_glyphs(
-            crate::pointers::host(crate::gfx::texts::address(&crate::gfx::texts::PAL_00))
-                as *const u8,
-            list,
-        )?;
-        MENU_FONTS.font27_glyphs.set(SHEET.table.get());
-        palette_to_pixels(GamePtr::new(palettes).read("the fonts' palettes' place")?)?;
-        GamePtr::new(crate::pointers::game_address(DECODER.palette_ptr())).copy_to(
-            GamePtr::new(crate::session::address_of(&MENU_FONTS.palette_sheet)),
-            PALETTE_BYTES,
-            "the fonts' palette sheet",
-        )?;
-        for (sheet, kept) in font_sheets() {
-            begin_glyph_table(list)?;
-            build_glyphs(crate::pointers::host(sheet) as *const u8, list)?;
-            kept.set(SHEET.table.get());
-        }
-        end_glyph_tables()?;
-        Ok(())
+        build_glyphs(crate::pointers::host(sheet) as *const u8, list)?;
+        kept.set(SHEET.table.get());
     }
+    end_glyph_tables()?;
+    Ok(())
 }
 
 /// 0x400 bytes carved off `list` for a palette: its place in `gfx::glyph_store`, or 0
@@ -269,24 +266,22 @@ fn hung_value(variable: Source, plus: u32) -> u32 {
     variable.cell().get().wrapping_add(plus)
 }
 
-pub unsafe fn build_fonts() -> Result<(), Refused> {
-    unsafe {
-        if MENU_FONTS.palettes.get() != 0 {
-            return Err(FatalError {
-                code: 0x80A4_8020,
-                message: "",
-            }
-            .into());
+pub fn build_fonts() -> Result<(), Refused> {
+    if MENU_FONTS.palettes.get() != 0 {
+        return Err(FatalError {
+            code: 0x80A4_8020,
+            message: "",
         }
-        tables(MENU_FONTS.palettes.addr())?;
-        for (font, field, variable, plus) in HUNG {
-            let object = &FONTS.objects[font];
-            let value = hung_value(variable, plus);
-            match field {
-                Palette => object.palette.set(value),
-                GlyphTable => object.glyph_table.set(value),
-            }
-        }
-        Ok(())
+        .into());
     }
+    tables(MENU_FONTS.palettes.addr())?;
+    for (font, field, variable, plus) in HUNG {
+        let object = &FONTS.objects[font];
+        let value = hung_value(variable, plus);
+        match field {
+            Palette => object.palette.set(value),
+            GlyphTable => object.glyph_table.set(value),
+        }
+    }
+    Ok(())
 }

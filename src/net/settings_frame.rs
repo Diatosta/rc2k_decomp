@@ -48,7 +48,7 @@ pub fn settings_frame() -> Result<(), Refused> {
     }
     // The last item's string measured (the x the original hands it is `draw_text`'s x of the
     // value above, 0x190).
-    let measured = unsafe {
+    let measured = {
         crate::text::measure_string_by_id::measure_string_by_id_at(
             0x16F,
             PALETTE.as_ptr(),

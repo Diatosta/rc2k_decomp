@@ -35,7 +35,7 @@ fn clear_notice() {
 
 /// The Rust version, then `physics::reset_car`.
 // Converted: `rc2k_core::drive::controls::{reset_counts, reset_held, reset_step, reset_penalty}`.
-pub unsafe fn reset_request() -> Result<(), Refused> {
+pub fn reset_request() -> Result<(), Refused> {
     if !reset_counts(CAR.run_ticks.get()) {
         return Ok(());
     }
@@ -64,6 +64,6 @@ pub unsafe fn reset_request() -> Result<(), Refused> {
             .wrapping_add(reset_penalty(CAR.stuck_count.get())),
     );
     clear_notice();
-    unsafe { crate::physics::reset_car::reset_car() }?;
+    { crate::physics::reset_car::reset_car() }?;
     Ok(())
 }

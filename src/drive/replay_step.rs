@@ -27,39 +27,37 @@ use rc2k_core::drive::race_steps;
 
 /// One car's step (inside `pusha` / `popa`: nothing it leaves in the registers goes out).
 fn car_step() -> Result<(), Refused> {
-    unsafe {
-        crate::drive::car_input_words::car_input_words()?;
-        crate::drive::record_inputs_if::record_inputs_if()?;
-        crate::drive::play_inputs_if::play_inputs_if()?;
-        let slot = race_steps::block_slot(RACE_WORK.current_car.get());
-        RACE_WORK.work_block.set(RACE_WORK.car_block(slot as usize));
-        crate::drive::load_car::load_car()?;
-        if CAR.driver_kind.get() != 0 {
-            crate::drive::read_car_controls::read_car_controls()?;
-            crate::physics::gear_input_rules::gear_input_rules();
-            crate::drive::steer_inputs::steer_inputs();
-            crate::drive::pedal_inputs::pedal_inputs();
-            crate::drive::reset_request::reset_request()?;
-            crate::physics::car_physics_step::car_physics_step()?;
-            // `net::race_step` reads no register at entry (liveness: its esi "read" at
-            // 0x4644AF is `imul esi, ebp, ..`'s destination); its Rust version still takes
-            // the registers: a local scratch.
-            crate::net::race_step::race_step()?;
-        }
-        CAR.step_clock.set(
-            crate::physics::car_store::CAR
-                .step_clock
-                .get()
-                .wrapping_add(1),
-        );
-        CAR.run_ticks.set(
-            crate::physics::car_store::CAR
-                .run_ticks
-                .get()
-                .wrapping_add(1),
-        );
-        crate::drive::store_car::store_car()?;
+    crate::drive::car_input_words::car_input_words()?;
+    crate::drive::record_inputs_if::record_inputs_if()?;
+    crate::drive::play_inputs_if::play_inputs_if()?;
+    let slot = race_steps::block_slot(RACE_WORK.current_car.get());
+    RACE_WORK.work_block.set(RACE_WORK.car_block(slot as usize));
+    crate::drive::load_car::load_car()?;
+    if CAR.driver_kind.get() != 0 {
+        crate::drive::read_car_controls::read_car_controls()?;
+        crate::physics::gear_input_rules::gear_input_rules();
+        crate::drive::steer_inputs::steer_inputs();
+        crate::drive::pedal_inputs::pedal_inputs();
+        crate::drive::reset_request::reset_request()?;
+        crate::physics::car_physics_step::car_physics_step()?;
+        // `net::race_step` reads no register at entry (liveness: its esi "read" at
+        // 0x4644AF is `imul esi, ebp, ..`'s destination); its Rust version still takes
+        // the registers: a local scratch.
+        crate::net::race_step::race_step()?;
     }
+    CAR.step_clock.set(
+        crate::physics::car_store::CAR
+            .step_clock
+            .get()
+            .wrapping_add(1),
+    );
+    CAR.run_ticks.set(
+        crate::physics::car_store::CAR
+            .run_ticks
+            .get()
+            .wrapping_add(1),
+    );
+    crate::drive::store_car::store_car()?;
     Ok(())
 }
 

@@ -40,13 +40,11 @@ pub unsafe fn show_frame() -> Result<Shown, Refused> {
     // The sound tick with eax 0x13 (it reads no register).
     crate::sound::race_sound_tick::race_sound_tick()?;
     if RACE_WORK.in_credits.get() != 0 {
-        unsafe {
-            crate::race::frame_text::roll_credits(
-                1,
-                &mut crate::text::draw_text::GameCanvas,
-                &mut crate::race::frame_text::credits_tune,
-            )
-        }?;
+        crate::race::frame_text::roll_credits(
+            1,
+            &mut crate::text::draw_text::GameCanvas,
+            &mut crate::race::frame_text::credits_tune,
+        )?;
     }
     { crate::race::frame_text::draw_frame_rate(&mut crate::text::draw_text::GameCanvas) }?;
     // `scene::unlock_frame` leaves eax 0 (its carry is `present_frame`'s next).

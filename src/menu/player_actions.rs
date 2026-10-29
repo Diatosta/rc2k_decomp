@@ -122,11 +122,9 @@ pub fn toggle_caption_choice() -> Result<(u32, u32), crate::errors::BadInput> {
         .addr();
     let caption = rc2k_core::screens::page_values::stage_options_caption(choice);
     let fault = crate::menu::event_flow::Fault::default();
-    let eax = crate::strings::append_string_by_id::append_string_by_id(caption, &mut |at, n| {
-        // SAFETY: the `n` bytes at `at` were checked (or are the expansion\'s own `Vec`).
-        let text = unsafe { std::slice::from_raw_parts(at, n) };
+    let eax = crate::strings::append_string_by_id::append_string_by_id(caption, &mut |text| {
         fault.ok(GamePtr::new(cursor).write_bytes(text, "the caption"));
-        cursor += n as u32;
+        cursor += text.len() as u32;
     })?;
     fault.check()?;
     GamePtr::new(cursor).write::<u8>(0, "the caption")?;

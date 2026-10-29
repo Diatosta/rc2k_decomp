@@ -25,12 +25,10 @@ use crate::scene::draw_store::DRAW;
 /// leaves the carry clear and eax, ebx as the allocation leaves them; no caller reads
 /// those registers (register liveness, 2026-10-23: `race::textures_alloc` and
 /// `race::loadlevel_init` after it), the carry the register-threaded callers set.
-pub unsafe fn set_up_textures() -> Result<(), Refused> {
-    unsafe {
-        build_texture_catalogue_in_game()?;
-        DRAW.mirror_picture.set_bits(0u32);
-        let (_, system) = crate::platform_3d::allocate_textures_for(0, 1, 3, 4, 0);
-        DRAW.mirror_picture.set_bits(system);
-        Ok(())
-    }
+pub fn set_up_textures() -> Result<(), Refused> {
+    build_texture_catalogue_in_game()?;
+    DRAW.mirror_picture.set_bits(0u32);
+    let (_, system) = crate::platform_3d::allocate_textures_for(0, 1, 3, 4, 0);
+    DRAW.mirror_picture.set_bits(system);
+    Ok(())
 }

@@ -117,31 +117,28 @@ pub fn load_texture_picture(
 }
 
 /// With the game's log, files and loading.
-pub unsafe fn load_texture_picture_in_game(number: u32, texture: u32) -> Result<(), Refused> {
+pub fn load_texture_picture_in_game(number: u32, texture: u32) -> Result<(), Refused> {
     let mut refused = None;
-    unsafe {
-        load_texture_picture(number, texture, &mut |call| {
-            match call {
-                Call::Text(text) => crate::logfile::log_write::log_nul(&text[..], false, 1),
-                Call::Number(number) => log_int(number as i32, false, 1),
-                Call::Exists(path) => match crate::files::file_exists::file_exists_at(
-                    crate::pointers::GamePtr::new(path.game()),
-                ) {
-                    Ok(exists) => return exists,
-                    Err(e) => {
-                        refused.get_or_insert(e.into());
-                    }
-                },
-                Call::Load(name, second, texture) => {
-                    if let Err(e) =
-                        load_picture_to_texture_in_game(name.game(), second.game(), texture)
-                    {
-                        refused.get_or_insert(e);
-                    }
+    load_texture_picture(number, texture, &mut |call| {
+        match call {
+            Call::Text(text) => crate::logfile::log_write::log_nul(&text[..], false, 1),
+            Call::Number(number) => log_int(number as i32, false, 1),
+            Call::Exists(path) => match crate::files::file_exists::file_exists_at(
+                crate::pointers::GamePtr::new(path.game()),
+            ) {
+                Ok(exists) => return exists,
+                Err(e) => {
+                    refused.get_or_insert(e.into());
+                }
+            },
+            Call::Load(name, second, texture) => {
+                if let Err(e) = load_picture_to_texture_in_game(name.game(), second.game(), texture)
+                {
+                    refused.get_or_insert(e);
                 }
             }
-            false
-        })?;
-    }
+        }
+        false
+    })?;
     refused.map_or(Ok(()), Err)
 }

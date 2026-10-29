@@ -22,7 +22,7 @@ use rc2k_core::physics::start::CarStart;
 /// The Rust version, then `race::start_car` (it takes no register: called with none). The
 /// registers it leaves (eax the timer when set) are read by none of its callers.
 // Converted: `rc2k_core::physics::start::CarStart::false_start`.
-pub unsafe fn false_start() -> Result<(), Refused> {
+pub fn false_start() -> Result<(), Refused> {
     let c = &CAR;
     let was = CarStart {
         timer: c.run_ticks.get(),
@@ -59,7 +59,7 @@ pub unsafe fn false_start() -> Result<(), Refused> {
         }
     }
     if done.put_back {
-        unsafe { crate::race::car_starts::start_car() }?;
+        { crate::race::car_starts::start_car() }?;
     }
     Ok(())
 }

@@ -57,8 +57,8 @@ pub fn list_drives() {
         let free = drives::free(g_at(slot + 4));
         let mut unit = Vec::new();
         crate::menu::event_flow::refuse_here(
-            crate::strings::append_string_by_id::append_string_by_id(free.unit, &mut |from, n| {
-                unit.extend_from_slice(unsafe { std::slice::from_raw_parts(from, n) });
+            crate::strings::append_string_by_id::append_string_by_id(free.unit, &mut |bytes| {
+                unit.extend_from_slice(bytes);
             }),
             "install::list_drives: a string",
         );

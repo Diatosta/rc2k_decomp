@@ -42,18 +42,16 @@ fn car_step() -> Result<(), Refused> {
 /// The Rust version. The registers it leaves are read by no caller (liveness: only DF
 /// is live after `drive::race_init`'s call).
 // Converted: `rc2k_core::drive::race_steps::{check_cars, each_car, block_slot}`.
-pub unsafe fn race_cars_step() -> Result<(), Refused> {
+pub fn race_cars_step() -> Result<(), Refused> {
     race_steps::check_cars(RACE_VIEW.race_cars.get())?;
-    unsafe {
-        crate::drive::choose_shown_cars::choose_shown_cars()?;
-        race_steps::each_car(
-            || RACE_WORK.current_car.get(),
-            || RACE_VIEW.race_cars.get(),
-            |n| RACE_WORK.current_car.set(n),
-            car_step,
-        )?;
-        crate::drive::animate_stage::animate_stage()?;
-        crate::drive::race_mode_cars::race_mode_cars()?;
-    }
+    crate::drive::choose_shown_cars::choose_shown_cars()?;
+    race_steps::each_car(
+        || RACE_WORK.current_car.get(),
+        || RACE_VIEW.race_cars.get(),
+        |n| RACE_WORK.current_car.set(n),
+        car_step,
+    )?;
+    crate::drive::animate_stage::animate_stage()?;
+    crate::drive::race_mode_cars::race_mode_cars()?;
     Ok(())
 }

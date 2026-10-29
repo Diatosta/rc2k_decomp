@@ -52,7 +52,7 @@ fn indented(part: &mut dyn FnMut() -> Result<(), Refused>) -> Result<(), Refused
 /// is reached only with two checkpoints or more (conversion phase 3, 2026-10-24).
 // Converted: `rc2k_core::drive::race_steps::{no_best_line, NO_BEST_LINE, SETTLING_STEPS,
 // LOG_INDENT}`.
-pub unsafe fn race_init() -> Result<(), Refused> {
+pub fn race_init() -> Result<(), Refused> {
     log(c"RACEINIT : setbestline");
     indent_by(race_steps::LOG_INDENT);
     crate::race::best_line::build_best_line()?;
@@ -68,7 +68,7 @@ pub unsafe fn race_init() -> Result<(), Refused> {
     }
     indent_by(race_steps::LOG_INDENT.wrapping_neg());
     log(c"RACEINIT : initcarpositions");
-    indented(&mut || unsafe { crate::race::car_starts::start_cars() })?;
+    indented(&mut || crate::race::car_starts::start_cars())?;
     log(c"RACEINIT : initobjectsoncourse");
     indented(&mut || crate::race::course_data::reset_face_lights())?;
     log(c"RACEINIT : gamemodestuff_init");
@@ -94,7 +94,7 @@ pub unsafe fn race_init() -> Result<(), Refused> {
     log(c"RACEINIT : singlecarinit");
     indent_by(race_steps::LOG_INDENT);
     for _ in 0..race_steps::SETTLING_STEPS {
-        unsafe { crate::drive::race_cars_step::race_cars_step() }?;
+        { crate::drive::race_cars_step::race_cars_step() }?;
         VIEWER_PANEL.other_marks_shown.set(1);
         { crate::drive::share_all_cars::share_all_cars() }?;
         VIEWER_PANEL.other_marks_shown.set(0);

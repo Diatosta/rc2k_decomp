@@ -21,19 +21,15 @@ const SPRITE_TABLE: &Dword = &LOOP_FLAGS.sprite_table; // g_spriteTable
 
 /// The Rust version (the original keeps every register: `pusha` / `popa`).
 pub fn rebuild_front_end() -> Result<(), Refused> {
-    unsafe {
-        if FONTS.palettes.get() == 0 {
-            crate::gfx::build_fonts::build_fonts()?;
-            crate::gfx::build_menu_sprites::build_menu_sprites(crate::pointers::host_at(
-                SPRITE_TABLE.addr() as usize,
-            ) as *mut u32)?;
-        }
-        crate::scene::set_up_lit_engine::set_up_lit_engine()?;
-        crate::scene::set_up_engine::set_up_engine()?;
-        GRADING.reading.set(0);
-        GRADING.scale.set(0x100);
-        GRADING.saturation.set(0x100);
-        crate::scene::set_up_front_end_scene::set_up_front_end_scene()?;
-        crate::scene::set_up_engine::set_up_engine()
+    if FONTS.palettes.get() == 0 {
+        crate::gfx::build_fonts::build_fonts()?;
+        crate::gfx::build_menu_sprites::build_menu_sprites(SPRITE_TABLE)?;
     }
+    crate::scene::set_up_lit_engine::set_up_lit_engine()?;
+    crate::scene::set_up_engine::set_up_engine()?;
+    GRADING.reading.set(0);
+    GRADING.scale.set(0x100);
+    GRADING.saturation.set(0x100);
+    crate::scene::set_up_front_end_scene::set_up_front_end_scene()?;
+    crate::scene::set_up_engine::set_up_engine()
 }

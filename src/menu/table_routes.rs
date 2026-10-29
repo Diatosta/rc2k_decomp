@@ -534,16 +534,14 @@ pub fn screen_fn(f: ScreenFn) -> Result<(), Refused> {
         ScreenFn::DrawHighlightedCaption => {
             // The original's x is the ecx `StepCarousel` leaves, which only the measuring
             // gets, in a font in measure mode (`dword_51E824`): it changes nothing, so 0.
-            unsafe {
-                crate::screens::draw_highlighted_caption::draw_highlighted_caption(
-                    0,
-                    &mut crate::text::draw_text::GameCanvas,
-                )
-            }?;
+            crate::screens::draw_highlighted_caption::draw_highlighted_caption(
+                0,
+                &mut crate::text::draw_text::GameCanvas,
+            )?;
             Ok(())
         }
         ScreenFn::CarCaption2 => {
-            unsafe { crate::screens::car_caption::car_caption() }?;
+            { crate::screens::car_caption::car_caption() }?;
             Ok(())
         }
         ScreenFn::StepCarousel => Ok(crate::menu::step_carousel::step_carousel()?),
@@ -556,23 +554,23 @@ pub fn screen_fn(f: ScreenFn) -> Result<(), Refused> {
             )
         }
         ScreenFn::GearingText => {
-            unsafe { crate::screens::gearing_text::gearing_text() }?;
+            { crate::screens::gearing_text::gearing_text() }?;
             Ok(())
         }
         ScreenFn::CarCaption => {
-            unsafe { crate::screens::car_caption::car_caption() }?;
+            { crate::screens::car_caption::car_caption() }?;
             Ok(())
         }
         ScreenFn::CarPageTitle => {
-            unsafe { crate::screens::car_page_title::car_page_title() }?;
+            { crate::screens::car_page_title::car_page_title() }?;
             Ok(())
         }
         ScreenFn::SlideshowTitle => {
-            unsafe { crate::screens::slideshow_title::slideshow_title() }?;
+            { crate::screens::slideshow_title::slideshow_title() }?;
             Ok(())
         }
         ScreenFn::PlayerNumberText => {
-            unsafe { crate::screens::player_number_text::player_number_text() }?;
+            { crate::screens::player_number_text::player_number_text() }?;
             Ok(())
         }
         ScreenFn::DrawControllerPage => {
@@ -607,13 +605,13 @@ pub fn screen_fn(f: ScreenFn) -> Result<(), Refused> {
             crate::screens::page_settings::pick_player(3)?;
             Ok(())
         }
-        ScreenFn::LearnAxis => unsafe { crate::screens::controller::learn_axis() },
+        ScreenFn::LearnAxis => crate::screens::controller::learn_axis(),
         ScreenFn::HandleEditKeys => {
             { crate::service::handle_edit_keys::handle_edit_keys() }?;
             Ok(())
         }
         ScreenFn::BestScoresCaption => {
-            unsafe { crate::screens::best_scores::best_scores_caption() }?;
+            { crate::screens::best_scores::best_scores_caption() }?;
             Ok(())
         }
         ScreenFn::DrawBestScoresPage => {
@@ -700,7 +698,7 @@ pub fn screen_fn(f: ScreenFn) -> Result<(), Refused> {
             { crate::screens::itinerary::draw_itinerary(&mut crate::text::draw_text::GameCanvas) }?;
             Ok(())
         }
-        ScreenFn::DrawStageInfo => unsafe {
+        ScreenFn::DrawStageInfo => {
             crate::screens::draw_stage_info::draw_stage_info(
                 &mut crate::text::draw_text::GameCanvas,
             )
@@ -739,11 +737,9 @@ pub fn screen_fn(f: ScreenFn) -> Result<(), Refused> {
             Ok(())
         }
         ScreenFn::DrawRedefinedKeys => {
-            unsafe {
-                crate::screens::draw_redefined_keys::draw_redefined_keys(
-                    &mut crate::text::draw_text::GameCanvas,
-                )
-            }?;
+            crate::screens::draw_redefined_keys::draw_redefined_keys(
+                &mut crate::text::draw_text::GameCanvas,
+            )?;
             Ok(())
         }
         ScreenFn::RedefinePlayer1Key => {
@@ -760,7 +756,7 @@ pub fn screen_fn(f: ScreenFn) -> Result<(), Refused> {
             }?;
             Ok(())
         }
-        ScreenFn::DrawServiceStageInfo => unsafe {
+        ScreenFn::DrawServiceStageInfo => {
             crate::screens::draw_service_stage_info::draw_service_stage_info(
                 &mut crate::text::draw_text::GameCanvas,
             )
@@ -800,7 +796,7 @@ pub fn screen_fn(f: ScreenFn) -> Result<(), Refused> {
             }?;
             Ok(())
         }
-        ScreenFn::DrawTimeTrialStageInfo => unsafe {
+        ScreenFn::DrawTimeTrialStageInfo => {
             crate::screens::draw_time_trial_stage_info::draw_time_trial_stage_info(
                 &mut crate::text::draw_text::GameCanvas,
             )
@@ -900,11 +896,9 @@ pub fn screen_fn(f: ScreenFn) -> Result<(), Refused> {
             Ok(())
         }
         ScreenFn::DrawServiceArea => {
-            unsafe {
-                crate::screens::draw_service_area::draw_service_area(
-                    &mut crate::text::draw_text::GameCanvas,
-                )
-            }?;
+            crate::screens::draw_service_area::draw_service_area(
+                &mut crate::text::draw_text::GameCanvas,
+            )?;
             Ok(())
         }
         ScreenFn::DrawEventBestScores => {

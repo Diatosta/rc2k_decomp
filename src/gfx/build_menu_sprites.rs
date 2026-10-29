@@ -22,24 +22,21 @@ use crate::menu::loop_store::LOOP_FLAGS;
 // ---- Rust version ----
 
 /// The table's address goes to `sprite_table`.
-pub unsafe fn build_menu_sprites(sprite_table: *mut u32) -> Result<(), Refused> {
-    unsafe {
-        let list = TABLES.memory.as_ptr();
-        begin_glyph_tables()?;
-        DECODER.builder_flags.set(RUN_LENGTHS);
-        begin_glyph_table(list)?;
-        build_glyphs(
-            crate::pointers::host(crate::gfx::texts::address(&crate::gfx::texts::MBUTS))
-                as *const u8,
-            list,
-        )?;
-        sprite_table.write_unaligned(SHEET.table.get());
-        end_glyph_tables()?;
-        Ok(())
-    }
+pub fn build_menu_sprites(sprite_table: &crate::session::Dword) -> Result<(), Refused> {
+    let list = TABLES.memory.as_ptr();
+    begin_glyph_tables()?;
+    DECODER.builder_flags.set(RUN_LENGTHS);
+    begin_glyph_table(list)?;
+    build_glyphs(
+        crate::pointers::host(crate::gfx::texts::address(&crate::gfx::texts::MBUTS)) as *const u8,
+        list,
+    )?;
+    sprite_table.set(SHEET.table.get());
+    end_glyph_tables()?;
+    Ok(())
 }
 
 /// With the game's `g_spriteTable`.
-pub unsafe fn build_menu_sprites_in_game() -> Result<(), Refused> {
-    unsafe { build_menu_sprites(LOOP_FLAGS.sprite_table.as_ptr()) }
+pub fn build_menu_sprites_in_game() -> Result<(), Refused> {
+    build_menu_sprites(&LOOP_FLAGS.sprite_table)
 }

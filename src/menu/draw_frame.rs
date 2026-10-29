@@ -15,23 +15,21 @@ use crate::menu::loop_store::LOOP_FLAGS;
 // ---- Rust version ----
 
 /// `menu`, `palette` and `measure_x` are edi, ebx and ecx at entry.
-pub unsafe fn draw_frame(
+pub fn draw_frame(
     menu: crate::menu::menus_store::MenuId,
     palette: u32,
     measure_x: u32,
 ) -> Result<(), Refused> {
-    unsafe {
-        LOOP_FLAGS.menu.set(menu);
-        if crate::menu::screen_loop::quitting() {
-            return Ok(());
-        }
-        copy_picture()?;
-        if lock_failed() {
-            return Ok(());
-        }
-        draw_menu(menu, palette, measure_x)?;
-        crate::menu::run_draw_list::run_draw_list()?;
-        crate::platform::unlock_surface();
+    LOOP_FLAGS.menu.set(menu);
+    if crate::menu::screen_loop::quitting() {
+        return Ok(());
     }
+    copy_picture()?;
+    if lock_failed() {
+        return Ok(());
+    }
+    draw_menu(menu, palette, measure_x)?;
+    crate::menu::run_draw_list::run_draw_list()?;
+    crate::platform::unlock_surface();
     Ok(())
 }

@@ -287,7 +287,7 @@ impl<F: GameFont, W: GameWork, T: GameText> Screen for GameScreen<'_, F, W, T> {
 
     fn string(&mut self, font: F, id: u32, x: i32, y: i32) -> Result<Drawn, Refused> {
         use crate::text::draw_string_by_id::draw_string_by_id_at;
-        let out = unsafe { draw_string_by_id_at(id, font_of(font), x, y, self.canvas) }?;
+        let out = { draw_string_by_id_at(id, font_of(font), x, y, self.canvas) }?;
         Ok(Drawn {
             y: out.y,
             after: crate::pointers::game_address(out.text),
@@ -364,7 +364,7 @@ impl<F: GameFont, W: GameWork, T: GameText> Screen for GameScreen<'_, F, W, T> {
     }
 
     fn measure_string(&mut self, font: F, id: u32, x: i32) -> Result<(u32, u32), Refused> {
-        let m = unsafe {
+        let m = {
             crate::text::measure_string_by_id::measure_string_by_id_at(
                 id,
                 font_of(font),
@@ -811,15 +811,13 @@ impl rc2k_core::screens::menus::MenuScreen for MenuScreen<'_> {
             TextButton::HighlightedRight => (&HIGHLIGHTED, ALIGN_RIGHT),
             TextButton::HighlightedCentred => (&HIGHLIGHTED, ALIGN_CENTRE),
         };
-        unsafe {
-            crate::screens::buttons::draw_text_button(
-                kind,
-                align,
-                self.menu_item(n)?,
-                x as i32,
-                self.canvas,
-            )
-        }
+        crate::screens::buttons::draw_text_button(
+            kind,
+            align,
+            self.menu_item(n)?,
+            x as i32,
+            self.canvas,
+        )
     }
     fn blended(&mut self, since_key: u32, a: FontAt, b: FontAt) -> Result<FontAt, Refused> {
         use crate::text::blend_font::blend_font;

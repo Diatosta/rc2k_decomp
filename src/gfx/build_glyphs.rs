@@ -226,216 +226,211 @@ fn path_text(path: *const u8) -> Result<Vec<u8>, BadInput> {
     crate::files::cstring(crate::files::game_path(path), "a sheet's path")
 }
 
-unsafe fn read_alpha_sheet(template: *const u8) -> Result<(), Refused> {
-    unsafe {
-        SHEET.alpha_loaded.set(0u32);
-        let flags: u32 = DECODER.builder_flags.get();
-        if flags & ONE_FILE != 0 {
-            return Err(fatal(0x80E4_F411, ""));
+fn read_alpha_sheet(template: *const u8) -> Result<(), Refused> {
+    SHEET.alpha_loaded.set(0u32);
+    let flags: u32 = DECODER.builder_flags.get();
+    if flags & ONE_FILE != 0 {
+        return Err(fatal(0x80E4_F411, ""));
+    }
+    let number: u32 = DECODER.number.get();
+    let path = numbered_path_in_game(template, number)?;
+    if file_exists_at(crate::files::game_path(path))? && read_sheet(&path_text(path)?)? {
+        if PICTURE.flags.get() & 0x100 == 0 {
+            return Err(fatal(
+                0x80E4_F412,
+                "Component colour/alpha files must be 8bit",
+            ));
         }
-        let number: u32 = DECODER.number.get();
-        let path = numbered_path_in_game(template, number)?;
-        if file_exists_at(crate::files::game_path(path))? && read_sheet(&path_text(path)?)? {
-            if PICTURE.flags.get() & 0x100 == 0 {
+        let flags = flags & !(DIRECT_COLOUR | WIDE_HEAD);
+        SHEET.pixel_size.set(1u32);
+        DECODER.builder_flags.set(flags);
+        fill_row_table(0, DECODER.stride.get(), DECODER.height.get())?;
+        let mut convert = |components: u32| components;
+        let backdrop = with_buffer(DECODER.pixels.get(), |pixels| {
+            let sheet = Sheet {
+                flags,
+                pixel_size: 1,
+                width: DECODER.width.get(),
+                height: DECODER.height.get(),
+                backdrop: 0,
+                transparent: 0,
+                convert: &mut convert,
+                pixels: &mut RowTable::new(pixels),
+                soften: false,
+            };
+            if sheet.width == 0 {
+                return Err(BadInput("a sheet without columns"));
+            }
+            Ok(backdrop_of(&sheet))
+        })??;
+        DECODER.backdrop.set(backdrop);
+        let transparent = transparent_of(flags, backdrop, &DECODER.palette);
+        DECODER.transparent.set(transparent);
+        if level() as i32 >= 3 {
+            let path = numbered_path_in_game(template, number)?;
+            log_sheet(path, false, backdrop, transparent);
+        }
+        SHEET.alpha_loaded.set(1u32);
+        let half = 4 * HALF_PICTURE_DWORDS;
+        with_picture(|b| (b.len() >= 2 * half).then(|| b.copy_within(..half, half)))?
+            .ok_or(BadInput("a picture buffer shorter than two halves"))?;
+    }
+    DECODER.number.set(number.wrapping_add(1));
+    Ok(())
+}
+
+pub fn build_glyphs(template: *const u8, list: *mut MemoryList) -> Result<(), Refused> {
+    if template.is_null() {
+        return Err(BadInput("no path for the sheets").into());
+    }
+    let work = LEXICON.memory.as_ptr();
+    DECODER
+        .template
+        .set(crate::pointers::game_address(template));
+    SHEET.table_list.set(crate::pointers::game_address(list));
+    DECODER.number.set(0u32);
+    loop {
+        if DECODER.builder_flags.get() & WITH_ALPHA != 0 {
+            read_alpha_sheet(template)?;
+        }
+        let mut flags: u32 = DECODER.builder_flags.get();
+        let path = if flags & ONE_FILE != 0 {
+            template
+        } else {
+            let path = numbered_path_in_game(template, DECODER.number.get())?;
+            if !file_exists_at(crate::files::game_path(path))? {
+                return Ok(());
+            }
+            path
+        };
+        if !read_sheet(&path_text(path)?)? {
+            return Err(fatal(0x80E4_F010, "Error loading PCX file"));
+        }
+
+        let mut pixel_size = 1;
+        flags &= !(DIRECT_COLOUR | WIDE_HEAD);
+        let mut format = None;
+        if PICTURE.flags.get() & 0x100 == 0 {
+            flags |= DIRECT_COLOUR | WIDE_HEAD;
+            let layout = DECODER.format.get();
+            if layout == 0 {
+                return Err(BadInput("no pixel layout for a sheet of components").into());
+            }
+            let layout: PixelFormat = GamePtr::new(layout).read("a sheet's pixel layout")?;
+            pixel_size = direct_pixel_size(&layout);
+            format = Some(layout);
+        }
+        DECODER.builder_flags.set(flags);
+        SHEET.pixel_size.set(pixel_size);
+        fill_row_table(0, DECODER.stride.get(), DECODER.height.get())?;
+
+        let mut convert = |components: u32| match &format {
+            Some(format) => components_to_pixel(format, components),
+            None => components,
+        };
+        let (width, height) = (DECODER.width.get(), DECODER.height.get());
+        if width == 0 {
+            return Err(BadInput("a sheet without columns").into());
+        }
+        let soften = flags & WITH_ALPHA != 0 && SHEET.alpha_loaded.get() != 1;
+        // The sheet, its pixels the decoded buffer's bytes, lent for one step at a time.
+        let backdrop = with_buffer(DECODER.pixels.get(), |pixels| {
+            backdrop_of(&Sheet {
+                flags,
+                pixel_size,
+                width,
+                height,
+                backdrop: 0,
+                transparent: 0,
+                convert: &mut convert,
+                pixels: &mut RowTable::new(pixels),
+                soften,
+            })
+        })?;
+        DECODER.backdrop.set(backdrop);
+        let transparent = transparent_of(flags, backdrop, &DECODER.palette);
+        DECODER.transparent.set(transparent);
+        let logging = level() as i32 >= 3;
+        if logging {
+            // The original makes the path anew for the line.
+            let path = match flags & ONE_FILE {
+                0 => numbered_path_in_game(template, DECODER.number.get())?,
+                _ => template,
+            };
+            log_sheet(path, true, backdrop, transparent);
+        }
+        if flags & WITH_ALPHA != 0 && SHEET.alpha_loaded.get() == 1 {
+            // `sub_4124E9`: the kept sheet's low four bits become the top four here.
+            if flags & DIRECT_COLOUR != 0 {
                 return Err(fatal(
-                    0x80E4_F412,
+                    0x80E4_F422,
                     "Component colour/alpha files must be 8bit",
                 ));
             }
-            let flags = flags & !(DIRECT_COLOUR | WIDE_HEAD);
-            SHEET.pixel_size.set(1u32);
-            DECODER.builder_flags.set(flags);
-            fill_row_table(0, DECODER.stride.get(), DECODER.height.get())?;
-            let mut convert = |components: u32| components;
-            let backdrop = with_buffer(DECODER.pixels.get(), |pixels| {
-                let sheet = Sheet {
-                    flags,
-                    pixel_size: 1,
-                    width: DECODER.width.get(),
-                    height: DECODER.height.get(),
-                    backdrop: 0,
-                    transparent: 0,
-                    convert: &mut convert,
-                    pixels: &mut RowTable::new(pixels),
-                    soften: false,
-                };
-                if sheet.width == 0 {
-                    return Err(BadInput("a sheet without columns"));
-                }
-                Ok(backdrop_of(&sheet))
-            })??;
-            DECODER.backdrop.set(backdrop);
-            let transparent = transparent_of(flags, backdrop, &DECODER.palette);
-            DECODER.transparent.set(transparent);
-            if level() as i32 >= 3 {
-                let path = numbered_path_in_game(template, number)?;
-                log_sheet(path, false, backdrop, transparent);
-            }
-            SHEET.alpha_loaded.set(1u32);
             let half = 4 * HALF_PICTURE_DWORDS;
-            with_picture(|b| (b.len() >= 2 * half).then(|| b.copy_within(..half, half)))?
-                .ok_or(BadInput("a picture buffer shorter than two halves"))?;
+            let buffer = PICTURE.buffer.get();
+            let alphas = read_bytes(buffer, half, half)?;
+            let mut kept = read_bytes(buffer, 0, half)?;
+            for (pixel, alpha) in kept
+                .as_chunks_mut::<4>()
+                .0
+                .iter_mut()
+                .zip(alphas.as_chunks::<4>().0)
+            {
+                let alpha = u32::from_le_bytes(*alpha);
+                *pixel = (u32::from_le_bytes(*pixel) | (alpha & 0x0F0F_0F0F) << 4).to_le_bytes();
+            }
+            write_bytes(buffer, 0, &kept)?;
         }
-        DECODER.number.set(number.wrapping_add(1));
-        Ok(())
-    }
-}
 
-pub unsafe fn build_glyphs(template: *const u8, list: *mut MemoryList) -> Result<(), Refused> {
-    unsafe {
-        if template.is_null() {
-            return Err(BadInput("no path for the sheets").into());
-        }
-        let work = LEXICON.memory.as_ptr();
-        DECODER
-            .template
-            .set(crate::pointers::game_address(template));
-        SHEET.table_list.set(crate::pointers::game_address(list));
-        DECODER.number.set(0u32);
-        loop {
-            if DECODER.builder_flags.get() & WITH_ALPHA != 0 {
-                read_alpha_sheet(template)?;
+        rewind_list(work)?;
+        let glyphs = with_buffer(DECODER.pixels.get(), |pixels| {
+            Sheet {
+                flags,
+                pixel_size,
+                width,
+                height,
+                backdrop,
+                transparent,
+                convert: &mut convert,
+                pixels: &mut RowTable::new(pixels),
+                soften,
             }
-            let mut flags: u32 = DECODER.builder_flags.get();
-            let path = if flags & ONE_FILE != 0 {
-                template
-            } else {
-                let path = numbered_path_in_game(template, DECODER.number.get())?;
-                if !file_exists_at(crate::files::game_path(path))? {
-                    return Ok(());
-                }
-                path
-            };
-            if !read_sheet(&path_text(path)?)? {
-                return Err(fatal(0x80E4_F010, "Error loading PCX file"));
+            .glyphs()
+        })??;
+        let mut bytes = 0u32;
+        for (number, glyph) in glyphs.iter().enumerate() {
+            let record = glyph.data.len() as u32;
+            if take_from_list(work, record.wrapping_add(RECORD_HEAD))?.is_none() {
+                return Err(fatal(0x80E4_8001, ""));
             }
-
-            let mut pixel_size = 1;
-            flags &= !(DIRECT_COLOUR | WIDE_HEAD);
-            let mut format = None;
-            if PICTURE.flags.get() & 0x100 == 0 {
-                flags |= DIRECT_COLOUR | WIDE_HEAD;
-                let layout = DECODER.format.get();
-                if layout == 0 {
-                    return Err(BadInput("no pixel layout for a sheet of components").into());
-                }
-                let layout: PixelFormat = GamePtr::new(layout).read("a sheet's pixel layout")?;
-                pixel_size = direct_pixel_size(&layout);
-                format = Some(layout);
-            }
-            DECODER.builder_flags.set(flags);
-            SHEET.pixel_size.set(pixel_size);
-            fill_row_table(0, DECODER.stride.get(), DECODER.height.get())?;
-
-            let mut convert = |components: u32| match &format {
-                Some(format) => components_to_pixel(format, components),
-                None => components,
-            };
-            let (width, height) = (DECODER.width.get(), DECODER.height.get());
-            if width == 0 {
-                return Err(BadInput("a sheet without columns").into());
-            }
-            let soften = flags & WITH_ALPHA != 0 && SHEET.alpha_loaded.get() != 1;
-            // The sheet, its pixels the decoded buffer's bytes, lent for one step at a time.
-            let backdrop = with_buffer(DECODER.pixels.get(), |pixels| {
-                backdrop_of(&Sheet {
-                    flags,
-                    pixel_size,
-                    width,
-                    height,
-                    backdrop: 0,
-                    transparent: 0,
-                    convert: &mut convert,
-                    pixels: &mut RowTable::new(pixels),
-                    soften,
-                })
-            })?;
-            DECODER.backdrop.set(backdrop);
-            let transparent = transparent_of(flags, backdrop, &DECODER.palette);
-            DECODER.transparent.set(transparent);
-            let logging = level() as i32 >= 3;
+            bytes = bytes.wrapping_add(record);
             if logging {
-                // The original makes the path anew for the line.
-                let path = match flags & ONE_FILE {
-                    0 => numbered_path_in_game(template, DECODER.number.get())?,
-                    _ => template,
-                };
-                log_sheet(path, true, backdrop, transparent);
+                log_glyph(glyph, number as u32 + 1, flags, pixel_size);
             }
-            if flags & WITH_ALPHA != 0 && SHEET.alpha_loaded.get() == 1 {
-                // `sub_4124E9`: the kept sheet's low four bits become the top four here.
-                if flags & DIRECT_COLOUR != 0 {
-                    return Err(fatal(
-                        0x80E4_F422,
-                        "Component colour/alpha files must be 8bit",
-                    ));
-                }
-                let half = 4 * HALF_PICTURE_DWORDS;
-                let buffer = PICTURE.buffer.get();
-                let alphas = read_bytes(buffer, half, half)?;
-                let mut kept = read_bytes(buffer, 0, half)?;
-                for (pixel, alpha) in kept
-                    .as_chunks_mut::<4>()
-                    .0
-                    .iter_mut()
-                    .zip(alphas.as_chunks::<4>().0)
-                {
-                    let alpha = u32::from_le_bytes(*alpha);
-                    *pixel =
-                        (u32::from_le_bytes(*pixel) | (alpha & 0x0F0F_0F0F) << 4).to_le_bytes();
-                }
-                write_bytes(buffer, 0, &kept)?;
-            }
-
-            rewind_list(work)?;
-            let glyphs = with_buffer(DECODER.pixels.get(), |pixels| {
-                Sheet {
-                    flags,
-                    pixel_size,
-                    width,
-                    height,
-                    backdrop,
-                    transparent,
-                    convert: &mut convert,
-                    pixels: &mut RowTable::new(pixels),
-                    soften,
-                }
-                .glyphs()
-            })??;
-            let mut bytes = 0u32;
-            for (number, glyph) in glyphs.iter().enumerate() {
-                let record = glyph.data.len() as u32;
-                if take_from_list(work, record.wrapping_add(RECORD_HEAD))?.is_none() {
-                    return Err(fatal(0x80E4_8001, ""));
-                }
-                bytes = bytes.wrapping_add(record);
-                if logging {
-                    log_glyph(glyph, number as u32 + 1, flags, pixel_size);
-                }
-            }
-            SHEET.glyph_count.set(glyphs.len() as u32);
-            SHEET.glyph_bytes.set(bytes);
-
-            let table = table_of(&glyphs);
-            let size = table.len() as u32;
-            let Some(place) = take_from_list(work, size)? else {
-                return Err(fatal(0x80E4_8011, ""));
-            };
-            SHEET.sheet_table_size.set(size);
-            // The sheet's table is counted off the work memory where the original put it
-            // (`place` is that list's cursor, logged as the original logs its address), and
-            // appended from Rust's bytes (`gfx::glyph_store`).
-            SHEET.sheet_table.set(place);
-            if take_from_list(list, size)?.is_none() {
-                return Err(fatal(0x80E4_8012, ""));
-            }
-            append_to_table(place, &table)?;
-
-            if flags & ONE_FILE != 0 {
-                return Ok(());
-            }
-            DECODER.number.set(DECODER.number.get().wrapping_add(1));
         }
+        SHEET.glyph_count.set(glyphs.len() as u32);
+        SHEET.glyph_bytes.set(bytes);
+
+        let table = table_of(&glyphs);
+        let size = table.len() as u32;
+        let Some(place) = take_from_list(work, size)? else {
+            return Err(fatal(0x80E4_8011, ""));
+        };
+        SHEET.sheet_table_size.set(size);
+        // The sheet's table is counted off the work memory where the original put it
+        // (`place` is that list's cursor, logged as the original logs its address), and
+        // appended from Rust's bytes (`gfx::glyph_store`).
+        SHEET.sheet_table.set(place);
+        if take_from_list(list, size)?.is_none() {
+            return Err(fatal(0x80E4_8012, ""));
+        }
+        append_to_table(place, &table)?;
+
+        if flags & ONE_FILE != 0 {
+            return Ok(());
+        }
+        DECODER.number.set(DECODER.number.get().wrapping_add(1));
     }
 }
 

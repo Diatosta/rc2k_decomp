@@ -47,40 +47,38 @@ const NAMES: [usize; 4] = [
 /// kind 0xC1 has no texture) are read by no caller (taint at its one site, in
 /// `reload_system_textures`: 0 read points).
 // Converted: `rc2k_core::scene::car_icons`
-pub unsafe fn load_hud_car_icons() -> Result<(), Refused> {
+pub fn load_hud_car_icons() -> Result<(), Refused> {
     use rc2k_core::scene::car_icons;
-    unsafe {
-        let texture: u32 = KIND_TEXTURES.kind_first_textures[193].bits();
-        if texture == u32::MAX {
-            return Ok(());
-        }
-        let player = if crate::net::store::NET.session.get() != 0 {
-            let car = car_icons::one_car(crate::net::store::NET.player.get())?;
-            let block: u32 = RACE_WORK.car_block(car);
-            if block == 0 {
-                return Err(BadInput("a car without its block").into());
-            }
-            GamePtr::new(block.wrapping_add(0x24)).read("a car's block")?
-        } else {
-            CAR_BLOCKS.cars[0].car_kind.bits()
-        };
-        let numbers = [
-            car_icon_number(player),
-            car_icon_number(CAR_BLOCKS.cars[1].car_kind.bits()),
-        ];
-        car_icons::check_numbers(numbers)?;
-        for (number, target_y) in numbers.into_iter().zip(car_icons::ROWS) {
-            let names = car_icons::pictures(number);
-            upload_car_icon(&CarIcon {
-                sheet: FILE_NUMBERS.text_addr(NAMES[names]),
-                alpha_sheet: FILE_NUMBERS.text_addr(NAMES[names + 1]),
-                texture,
-                sheet_x: TEXTURE_PLACES.car_icon_sheet_x[number as usize].get(),
-                sheet_y: TEXTURE_PLACES.car_icon_sheet_y[number as usize].get(),
-                target_x: car_icons::COLUMN,
-                target_y,
-            })?;
-        }
-        Ok(())
+    let texture: u32 = KIND_TEXTURES.kind_first_textures[193].bits();
+    if texture == u32::MAX {
+        return Ok(());
     }
+    let player = if crate::net::store::NET.session.get() != 0 {
+        let car = car_icons::one_car(crate::net::store::NET.player.get())?;
+        let block: u32 = RACE_WORK.car_block(car);
+        if block == 0 {
+            return Err(BadInput("a car without its block").into());
+        }
+        GamePtr::new(block.wrapping_add(0x24)).read("a car's block")?
+    } else {
+        CAR_BLOCKS.cars[0].car_kind.bits()
+    };
+    let numbers = [
+        car_icon_number(player),
+        car_icon_number(CAR_BLOCKS.cars[1].car_kind.bits()),
+    ];
+    car_icons::check_numbers(numbers)?;
+    for (number, target_y) in numbers.into_iter().zip(car_icons::ROWS) {
+        let names = car_icons::pictures(number);
+        upload_car_icon(&CarIcon {
+            sheet: FILE_NUMBERS.text_addr(NAMES[names]),
+            alpha_sheet: FILE_NUMBERS.text_addr(NAMES[names + 1]),
+            texture,
+            sheet_x: TEXTURE_PLACES.car_icon_sheet_x[number as usize].get(),
+            sheet_y: TEXTURE_PLACES.car_icon_sheet_y[number as usize].get(),
+            target_x: car_icons::COLUMN,
+            target_y,
+        })?;
+    }
+    Ok(())
 }

@@ -544,17 +544,13 @@ fn set_lists(screen: &Screen, lists: &[List]) {
 /// (unless quitting) the frame, with the menu and the carried palette and x. Neither
 /// changes a carried value (the callbacks keep every register; the carry they leave is
 /// read by nothing).
-unsafe fn run_frame(callback: usize, menu: MenuId, c: &Carried) -> Result<(), Refused> {
-    let frame = || unsafe {
-        match callback {
-            FRAME_CALLBACK => {
-                crate::menu::frame_callback::frame_callback(menu, c.palette, c.measure_x)
-            }
-            INSPECTION_FRAME => {
-                crate::menu::inspection_frame::inspection_frame(menu, c.palette, c.measure_x)
-            }
-            _ => Err(BadInput("a screen with a frame callback of no menu's").into()),
+fn run_frame(callback: usize, menu: MenuId, c: &Carried) -> Result<(), Refused> {
+    let frame = || match callback {
+        FRAME_CALLBACK => crate::menu::frame_callback::frame_callback(menu, c.palette, c.measure_x),
+        INSPECTION_FRAME => {
+            crate::menu::inspection_frame::inspection_frame(menu, c.palette, c.measure_x)
         }
+        _ => Err(BadInput("a screen with a frame callback of no menu's").into()),
     };
     match crate::platform::run_frame_now(frame) {
         Some(made) => made.map(|_| ()),

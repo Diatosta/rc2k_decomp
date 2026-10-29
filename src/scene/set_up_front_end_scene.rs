@@ -97,71 +97,69 @@ fn colours(dark_third: u32) {
 /// registers at entry (edx, esi) reach only the game's own code (`liveness`: the readers
 /// are `fill_light_tables`, `fill_scene_light_tables`, `race::textures_alloc` and
 /// `sub_443478`), none of the Rust versions it calls.
-pub unsafe fn set_up_front_end_scene() -> Result<(), Refused> {
-    unsafe {
-        crate::session::write_bits(&RACE_VARS.bar_span, [0u32, 100]);
-        crate::menu::show_loading_picture::show_loading_picture()?;
-        reset_texture_tables();
-        for (count, first, levels, tag) in NEEDS {
-            for texture in first..first + count {
-                levels()[texture].set(0);
-                OBJECT_TABLES.texture_tags[texture].set(tag);
-            }
+pub fn set_up_front_end_scene() -> Result<(), Refused> {
+    crate::session::write_bits(&RACE_VARS.bar_span, [0u32, 100]);
+    crate::menu::show_loading_picture::show_loading_picture()?;
+    reset_texture_tables();
+    for (count, first, levels, tag) in NEEDS {
+        for texture in first..first + count {
+            levels()[texture].set(0);
+            OBJECT_TABLES.texture_tags[texture].set(tag);
         }
-        crate::scene::set_up_textures::set_up_textures()?;
-        set_up_object_memory()?;
-        clear_slot_kinds();
-        colours(0);
-        // The scene's settings stored before the fog is cleared, after the two colours.
-        STAGE_PREFS.scene_size_a.set_bits(0x100u32);
-        STAGE_PREFS.scene_size_b.set_bits(0x100u32);
-        STAGE_PREFS.fog_low.set_bits(0u32);
-        STAGE_PREFS.fog_high.set_bits(0u32);
-        STAGE_PREFS.fog_colour[0].set_bits(0u32);
-        STAGE_PREFS.fog_colour[1].set_bits(0u32);
-        STAGE_PREFS.fog_colour[2].set_bits(0u32);
-        STAGE_PREFS.fog_near.set_bits(0u32);
-        STAGE_PREFS.fog_start.set_bits(0u32);
-        STAGE_PREFS.fog_end.set_bits(0u32);
-        clear_fog();
-        FRAME_SWITCHES.other_way.set_bits(1u32);
-        fill_light_tables()?;
-
-        OBJECT_TABLES.slot_kinds[0].set(1);
-        for slot in 1..0x29 {
-            OBJECT_TABLES.slot_kinds[slot].set(0x258 + slot as u32);
-        }
-        for slot in 0x29..0x2D {
-            OBJECT_TABLES.slot_kinds[slot].set(0x262 + slot as u32);
-        }
-        for place in 0..0x22usize {
-            OBJECT_TABLES.slot_kinds[0x2D + place].set(known_kind(place as u32));
-        }
-        crate::scene::load_front_end_objects_logged::load_front_end_objects_logged()?;
-        reset_texture_places();
-
-        TEXTURE_PLACES.kind_pictures[0x87].set(0x82A);
-        for (k, &picture) in MENU_PICTURES.iter().enumerate() {
-            TEXTURE_PLACES.kind_pictures[0x258 + k].set(picture);
-        }
-        for place in picture_places() {
-            let mut picture = known_kind_picture(place);
-            for k in 0..8 {
-                TEXTURE_PLACES.kind_pictures[0x2BC + place as usize * 8 + k].set(picture);
-                picture = picture.wrapping_add(1);
-            }
-        }
-        RACE_VARS.bar_function.set_bits(game_addr(SHOW_BAR_RVA));
-        crate::scene::reload_system_textures::reload_system_textures()?;
-        allocate_point_records_in_game()?;
-        colours(0);
-        fill_scene_light_tables()?;
-        set_view_matrices();
-        reload_slot_textures()?;
-        colours(0x7F);
-        FRAME_SWITCHES.other_way.set_bits(1u32);
-        fill_light_tables()?;
-        RACE_VARS.settings_words[1].set_bits(1u32);
-        Ok(())
     }
+    crate::scene::set_up_textures::set_up_textures()?;
+    set_up_object_memory()?;
+    clear_slot_kinds();
+    colours(0);
+    // The scene's settings stored before the fog is cleared, after the two colours.
+    STAGE_PREFS.scene_size_a.set_bits(0x100u32);
+    STAGE_PREFS.scene_size_b.set_bits(0x100u32);
+    STAGE_PREFS.fog_low.set_bits(0u32);
+    STAGE_PREFS.fog_high.set_bits(0u32);
+    STAGE_PREFS.fog_colour[0].set_bits(0u32);
+    STAGE_PREFS.fog_colour[1].set_bits(0u32);
+    STAGE_PREFS.fog_colour[2].set_bits(0u32);
+    STAGE_PREFS.fog_near.set_bits(0u32);
+    STAGE_PREFS.fog_start.set_bits(0u32);
+    STAGE_PREFS.fog_end.set_bits(0u32);
+    clear_fog();
+    FRAME_SWITCHES.other_way.set_bits(1u32);
+    fill_light_tables()?;
+
+    OBJECT_TABLES.slot_kinds[0].set(1);
+    for slot in 1..0x29 {
+        OBJECT_TABLES.slot_kinds[slot].set(0x258 + slot as u32);
+    }
+    for slot in 0x29..0x2D {
+        OBJECT_TABLES.slot_kinds[slot].set(0x262 + slot as u32);
+    }
+    for place in 0..0x22usize {
+        OBJECT_TABLES.slot_kinds[0x2D + place].set(known_kind(place as u32));
+    }
+    crate::scene::load_front_end_objects_logged::load_front_end_objects_logged()?;
+    reset_texture_places();
+
+    TEXTURE_PLACES.kind_pictures[0x87].set(0x82A);
+    for (k, &picture) in MENU_PICTURES.iter().enumerate() {
+        TEXTURE_PLACES.kind_pictures[0x258 + k].set(picture);
+    }
+    for place in picture_places() {
+        let mut picture = known_kind_picture(place);
+        for k in 0..8 {
+            TEXTURE_PLACES.kind_pictures[0x2BC + place as usize * 8 + k].set(picture);
+            picture = picture.wrapping_add(1);
+        }
+    }
+    RACE_VARS.bar_function.set_bits(game_addr(SHOW_BAR_RVA));
+    crate::scene::reload_system_textures::reload_system_textures()?;
+    allocate_point_records_in_game()?;
+    colours(0);
+    fill_scene_light_tables()?;
+    set_view_matrices();
+    reload_slot_textures()?;
+    colours(0x7F);
+    FRAME_SWITCHES.other_way.set_bits(1u32);
+    fill_light_tables()?;
+    RACE_VARS.settings_words[1].set_bits(1u32);
+    Ok(())
 }

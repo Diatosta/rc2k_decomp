@@ -20,18 +20,16 @@ const PAGES: u32 = 4;
 
 // ---- Rust version ----
 
-pub unsafe fn car_page_title() -> Result<(), Refused> {
-    unsafe {
-        let page: u32 = EVENT_STATE.car_page.get();
-        if page >= PAGES {
-            return Err(BadInput("a page past the four").into());
-        }
-        put_string(
-            MENU_LISTS.car_page_titles[page as usize].get(),
-            (crate::screens::text_buffers_store::TEXT_BUFFERS
-                .title
-                .addr()) as usize,
-            TITLE_LEN,
-        )
+pub fn car_page_title() -> Result<(), Refused> {
+    let page: u32 = EVENT_STATE.car_page.get();
+    if page >= PAGES {
+        return Err(BadInput("a page past the four").into());
     }
+    put_string(
+        MENU_LISTS.car_page_titles[page as usize].get(),
+        (crate::screens::text_buffers_store::TEXT_BUFFERS
+            .title
+            .addr()) as usize,
+        TITLE_LEN,
+    )
 }

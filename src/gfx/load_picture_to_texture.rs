@@ -33,21 +33,19 @@ pub fn load_picture_to_texture(
 }
 
 /// With the Rust upload into the game's textures.
-pub unsafe fn load_picture_to_texture_in_game(
+pub fn load_picture_to_texture_in_game(
     path: u32,
     second: u32,
     texture: u32,
 ) -> Result<(), Refused> {
-    unsafe {
-        load_picture_to_texture(
-            path,
-            second,
-            texture,
-            &mut |texture, pixels, width, height| {
-                upload_texture_picture(texture, pixels, width, height, &mut GameSurfaces)
-            },
-        )
-    }
+    load_picture_to_texture(
+        path,
+        second,
+        texture,
+        &mut |texture, pixels, width, height| {
+            upload_texture_picture(texture, pixels, width, height, &mut GameSurfaces)
+        },
+    )
 }
 
 // gfx::upload_texture_picture

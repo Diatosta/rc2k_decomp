@@ -73,7 +73,7 @@ pub enum Call {
 // ---- Rust version ----
 
 /// True when a try succeeded.
-unsafe fn run(
+fn run(
     steps: &'static [Step],
     call: &mut dyn FnMut(Call) -> Result<bool, Refused>,
 ) -> Result<bool, Refused> {
@@ -105,7 +105,7 @@ unsafe fn run(
                 call(Call::CountNeeds)?;
             }
             Step::Unless(flag, inner) => {
-                if TEXTURE_PLACES.step_flags[flag].get() == 0 && unsafe { run(inner, call) }? {
+                if TEXTURE_PLACES.step_flags[flag].get() == 0 && run(inner, call)? {
                     return Ok(true);
                 }
             }
@@ -114,44 +114,40 @@ unsafe fn run(
     Ok(false)
 }
 
-pub unsafe fn build_texture_catalogue(
+pub fn build_texture_catalogue(
     call: &mut dyn FnMut(Call) -> Result<bool, Refused>,
 ) -> Result<(), Refused> {
-    unsafe {
-        // The original does this after the first two log lines and the count, which
-        // touch neither.
-        for counter in &TEXTURE_PLACES.counters {
-            counter.set(0);
-        }
-        for (n, flag) in TEXTURE_PLACES.step_flags.iter().enumerate() {
-            flag.set((n == 0) as u32);
-        }
-        if run(&STEPS, call)? {
-            run(&DONE, call)?;
-            return Ok(());
-        }
-        run(&FAILED, call)?;
-        Err(NOT_ENOUGH.into())
+    // The original does this after the first two log lines and the count, which
+    // touch neither.
+    for counter in &TEXTURE_PLACES.counters {
+        counter.set(0);
     }
+    for (n, flag) in TEXTURE_PLACES.step_flags.iter().enumerate() {
+        flag.set((n == 0) as u32);
+    }
+    if run(&STEPS, call)? {
+        run(&DONE, call)?;
+        return Ok(());
+    }
+    run(&FAILED, call)?;
+    Err(NOT_ENOUGH.into())
 }
 
 /// With the game's log, and the Rust versions of what it calls.
-pub unsafe fn build_texture_catalogue_in_game() -> Result<(), Refused> {
-    unsafe {
-        build_texture_catalogue(&mut |call| {
-            match call {
-                Call::Text(text, newline) => crate::logfile::log_write::log_nul(&text, newline, 1),
-                Call::Number(number, newline) => log_int(number as i32, newline, 1),
-                Call::Raise { level, tag } => {
-                    raise_texture_needs(level, tag);
-                }
-                Call::Try => return Ok(try_allocate_textures_in_game()?),
-                Call::Release => crate::platform_3d::release_textures(),
-                Call::CountNeeds => {
-                    count_texture_needs_in_game()?;
-                }
+pub fn build_texture_catalogue_in_game() -> Result<(), Refused> {
+    build_texture_catalogue(&mut |call| {
+        match call {
+            Call::Text(text, newline) => crate::logfile::log_write::log_nul(&text, newline, 1),
+            Call::Number(number, newline) => log_int(number as i32, newline, 1),
+            Call::Raise { level, tag } => {
+                raise_texture_needs(level, tag);
             }
-            Ok(false)
-        })
-    }
+            Call::Try => return Ok(try_allocate_textures_in_game()?),
+            Call::Release => crate::platform_3d::release_textures(),
+            Call::CountNeeds => {
+                count_texture_needs_in_game()?;
+            }
+        }
+        Ok(false)
+    })
 }

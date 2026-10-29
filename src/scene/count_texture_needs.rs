@@ -24,7 +24,7 @@ use crate::scene::texture_places_store::TEXTURE_PLACES;
 // ---- Rust version ----
 
 /// The four totals. Reads only.
-unsafe fn totals() -> Result<[u32; 4], BadInput> {
+fn totals() -> Result<[u32; 4], BadInput> {
     // Converted: `rc2k_core::scene::textures::count_needs`.
     let (totals, _) = crate::scene::textures::with_cells(
         [&OBJECT_TABLES.system_levels, &OBJECT_TABLES.video_levels],
@@ -42,33 +42,29 @@ unsafe fn totals() -> Result<[u32; 4], BadInput> {
 }
 
 /// `log`: what writes a piece of the line: a text, or a number.
-pub unsafe fn count_texture_needs(
+pub fn count_texture_needs(
     log: &mut dyn FnMut(Result<&'static std::ffi::CStr, u32>, bool),
 ) -> Result<(), BadInput> {
-    unsafe {
-        let totals = totals()?;
-        for (cell, total) in TEXTURE_PLACES.totals.iter().zip(totals) {
-            cell.set(total);
-        }
-        log(Ok(c"VID"), false);
-        log(Err(totals[0]), false);
-        log(Ok(c"k in"), false);
-        log(Err(totals[2]), false);
-        log(Ok(c"texs - SYS"), false);
-        log(Err(totals[1]), false);
-        log(Ok(c"k in"), false);
-        log(Err(totals[3]), false);
-        log(Ok(c"texs"), true);
-        Ok(())
+    let totals = totals()?;
+    for (cell, total) in TEXTURE_PLACES.totals.iter().zip(totals) {
+        cell.set(total);
     }
+    log(Ok(c"VID"), false);
+    log(Err(totals[0]), false);
+    log(Ok(c"k in"), false);
+    log(Err(totals[2]), false);
+    log(Ok(c"texs - SYS"), false);
+    log(Err(totals[1]), false);
+    log(Ok(c"k in"), false);
+    log(Err(totals[3]), false);
+    log(Ok(c"texs"), true);
+    Ok(())
 }
 
 /// Into the game's log.
-pub unsafe fn count_texture_needs_in_game() -> Result<(), BadInput> {
-    unsafe {
-        count_texture_needs(&mut |piece, newline| match piece {
-            Ok(text) => crate::logfile::log_write::log_nul(&text, newline, 1),
-            Err(number) => log_int(number as i32, newline, 1),
-        })
-    }
+pub fn count_texture_needs_in_game() -> Result<(), BadInput> {
+    count_texture_needs(&mut |piece, newline| match piece {
+        Ok(text) => crate::logfile::log_write::log_nul(&text, newline, 1),
+        Err(number) => log_int(number as i32, newline, 1),
+    })
 }

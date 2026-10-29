@@ -15,14 +15,12 @@ const TITLE: u32 = 0x33D;
 
 // ---- Rust version ----
 
-pub unsafe fn slideshow_title() -> Result<(), Refused> {
-    unsafe {
-        put_string(
-            TITLE,
-            (crate::screens::text_buffers_store::TEXT_BUFFERS
-                .title
-                .addr()) as usize,
-            TITLE_LEN,
-        )
-    }
+pub fn slideshow_title() -> Result<(), Refused> {
+    put_string(
+        TITLE,
+        (crate::screens::text_buffers_store::TEXT_BUFFERS
+            .title
+            .addr()) as usize,
+        TITLE_LEN,
+    )
 }

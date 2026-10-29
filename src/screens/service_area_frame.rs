@@ -20,31 +20,29 @@ use crate::platform::{lock_surface, show_frame_now, unlock_surface};
 /// lock's carry is `cmp g_surfaceLocked, 1`'s (its zero clear then). On a frame not shown
 /// (quitting) the zero flag was what the call's way back left, nothing meaningful: clear
 /// here. On the way through, the show's eax is the 0 the scene's begin left: zero set.
-pub unsafe fn service_area_frame() -> Result<Flags, Refused> {
+pub fn service_area_frame() -> Result<Flags, Refused> {
     use crate::screens::{draw_service_area, draw_service_boxes};
     const FAILED: Flags = Flags {
         carry: true,
         zero: false,
     };
-    unsafe {
-        if lock_surface() < 1 {
-            return Ok(FAILED);
-        }
-        crate::gfx::copy_picture_to_surface::copy_picture_to_surface(
-            &mut crate::gfx::copy_picture_to_surface::GameSurface,
-        )?;
-        unlock_surface();
-        crate::scene::begin_scene::begin_scene();
-        draw_service_boxes::draw_service_boxes()?;
-        crate::scene::end_scene::end_scene();
-        if lock_surface() < 1 {
-            return Ok(FAILED);
-        }
-        draw_service_area::draw_service_area(&mut crate::text::draw_text::GameCanvas)?;
-        unlock_surface();
-        if !show_frame_now() {
-            return Ok(FAILED);
-        }
+    if lock_surface() < 1 {
+        return Ok(FAILED);
+    }
+    crate::gfx::copy_picture_to_surface::copy_picture_to_surface(
+        &mut crate::gfx::copy_picture_to_surface::GameSurface,
+    )?;
+    unlock_surface();
+    crate::scene::begin_scene::begin_scene();
+    draw_service_boxes::draw_service_boxes()?;
+    crate::scene::end_scene::end_scene();
+    if lock_surface() < 1 {
+        return Ok(FAILED);
+    }
+    draw_service_area::draw_service_area(&mut crate::text::draw_text::GameCanvas)?;
+    unlock_surface();
+    if !show_frame_now() {
+        return Ok(FAILED);
     }
     Ok(Flags {
         carry: false,

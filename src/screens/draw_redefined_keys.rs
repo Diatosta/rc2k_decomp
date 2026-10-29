@@ -28,28 +28,26 @@ use crate::text::draw_text::Canvas;
 // ---- Rust version ----
 
 /// Returns the carry.
-pub unsafe fn draw_redefined_keys(canvas: &mut dyn Canvas) -> Result<bool, Refused> {
+pub fn draw_redefined_keys(canvas: &mut dyn Canvas) -> Result<bool, Refused> {
     let player = current()?;
-    unsafe {
-        let keys = crate::pointers::GamePtr::new(player)
-            .read::<rc2k_core::menu::player::Player>("the current player")?
-            .keys;
-        let redefined: u32 = OPTION_WORK.redefined_key_place.get();
-        // Converted: `rc2k_core::screens::controls::redefined_keys`; the names made first
-        // (none at the place being redefined, as the original).
-        use rc2k_core::screens::controls::KEY_PLACES;
-        let row = KEY_PLACES.iter().position(|&p| p as u32 == redefined);
-        let mut names: [Vec<u8>; 11] = Default::default();
-        for (n, name) in names.iter_mut().enumerate() {
-            if row != Some(n) {
-                *name = append_key_name(keys[KEY_PLACES[n]] as u32)?.0;
-            }
+    let keys = crate::pointers::GamePtr::new(player)
+        .read::<rc2k_core::menu::player::Player>("the current player")?
+        .keys;
+    let redefined: u32 = OPTION_WORK.redefined_key_place.get();
+    // Converted: `rc2k_core::screens::controls::redefined_keys`; the names made first
+    // (none at the place being redefined, as the original).
+    use rc2k_core::screens::controls::KEY_PLACES;
+    let row = KEY_PLACES.iter().position(|&p| p as u32 == redefined);
+    let mut names: [Vec<u8>; 11] = Default::default();
+    for (n, name) in names.iter_mut().enumerate() {
+        if row != Some(n) {
+            *name = append_key_name(keys[KEY_PLACES[n]] as u32)?.0;
         }
-        rc2k_core::screens::controls::redefined_keys(
-            &mut crate::screens::game_screen::ControlsScreen::new(canvas),
-            &names,
-            row,
-            DRAW_WORK.cursor_on.get(),
-        )
     }
+    rc2k_core::screens::controls::redefined_keys(
+        &mut crate::screens::game_screen::ControlsScreen::new(canvas),
+        &names,
+        row,
+        DRAW_WORK.cursor_on.get(),
+    )
 }

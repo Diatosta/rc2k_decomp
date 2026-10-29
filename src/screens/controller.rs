@@ -37,72 +37,70 @@ pub fn classify_controller(z: u32, buttons: u32, x: u32, y: u32) {
 /// 0x200 or 0x100; else the controller read and classified. Space (key 0x39) stops it with
 /// nothing; anything found goes to the player's +0x50 + 4 x (control - 1). The original keeps
 /// every register. Refuses (before anything) a player without its record.
-pub unsafe fn learn_axis() -> Result<(), Refused> {
-    unsafe {
-        if C.learning.get() != 1 {
-            return Ok(());
-        }
-        let player = crate::menu::player::player_at(EVENT_STATE.current_player.get());
-        if player == 0 {
-            return Err(crate::errors::BadInput("no current player record").into());
-        }
-        DRAW_WORK.figure.set(0);
-        // Converted: `rc2k_core::screens::learning` (`timed_out`, `by_axis`, `pedal`,
-        // `CANCEL_KEY`, `binding`).
-        use rc2k_core::screens::learning as l;
-        let since = crate::system::tick_count::tick_count().wrapping_sub(C.learn_start.get());
-        if l::timed_out(since) {
-            C.learned.set(l::TIMED_OUT);
-            C.learning.set(0);
-            return Ok(());
-        }
-        if DRAW_WORK.blink.get() == 1 {
-            let item = LOOP_FLAGS.menu.get()?.item(LOOP_FLAGS.item.get())?;
-            crate::text::draw_string_by_id::draw_string_by_id_at(
-                0x3BE,
-                crate::gfx::typefaces::fonts::LIST.as_ptr(),
-                0x1B8,
-                item.text_y.get() as i32,
-                &mut crate::text::draw_text::GameCanvas,
-            )?;
-        }
-        let mut take = true;
-        let control = C.learned.get();
-        if l::by_axis(
-            crate::pointers::GamePtr::new(player + 0x34).read::<u32>("controller: a game value")?,
-            control,
-        ) {
-            let m = crate::input::axes::axis_moved(1)?;
-            if !m.carry {
-                let (byte, found) = l::pedal(control);
-                crate::pointers::GamePtr::new(player + byte)
-                    .write::<u8>(m.eax as u8, "a controller binding")?;
-                crate::input::store::DEVICES.records[0].set_u32(
-                    0x18,
-                    crate::pointers::GamePtr::new(player + 0x38)
-                        .read::<u32>("controller: a game value")?,
-                );
-                DRAW_WORK.figure.set(found);
-                C.learning.set(0);
-                take = false;
-            }
-        } else {
-            let [ecx, edx, eax, ebx] = crate::input::axes::first_device_state()?;
-            classify_controller(eax, ebx, ecx, edx);
-        }
-        if take {
-            if crate::input::take_key::take_key() == l::CANCEL_KEY {
-                DRAW_WORK.figure.set(0);
-                C.learning.set(0);
-            } else if DRAW_WORK.figure.get() == 0 {
-                return Ok(());
-            }
-        }
-        let slot = player.wrapping_add(l::binding(C.learned.get()));
-        crate::pointers::GamePtr::new(slot)
-            .write::<u32>(DRAW_WORK.figure.get(), "controller: a game value")?;
-        Ok(())
+pub fn learn_axis() -> Result<(), Refused> {
+    if C.learning.get() != 1 {
+        return Ok(());
     }
+    let player = crate::menu::player::player_at(EVENT_STATE.current_player.get());
+    if player == 0 {
+        return Err(crate::errors::BadInput("no current player record").into());
+    }
+    DRAW_WORK.figure.set(0);
+    // Converted: `rc2k_core::screens::learning` (`timed_out`, `by_axis`, `pedal`,
+    // `CANCEL_KEY`, `binding`).
+    use rc2k_core::screens::learning as l;
+    let since = crate::system::tick_count::tick_count().wrapping_sub(C.learn_start.get());
+    if l::timed_out(since) {
+        C.learned.set(l::TIMED_OUT);
+        C.learning.set(0);
+        return Ok(());
+    }
+    if DRAW_WORK.blink.get() == 1 {
+        let item = LOOP_FLAGS.menu.get()?.item(LOOP_FLAGS.item.get())?;
+        crate::text::draw_string_by_id::draw_string_by_id_at(
+            0x3BE,
+            crate::gfx::typefaces::fonts::LIST.as_ptr(),
+            0x1B8,
+            item.text_y.get() as i32,
+            &mut crate::text::draw_text::GameCanvas,
+        )?;
+    }
+    let mut take = true;
+    let control = C.learned.get();
+    if l::by_axis(
+        crate::pointers::GamePtr::new(player + 0x34).read::<u32>("controller: a game value")?,
+        control,
+    ) {
+        let m = crate::input::axes::axis_moved(1)?;
+        if !m.carry {
+            let (byte, found) = l::pedal(control);
+            crate::pointers::GamePtr::new(player + byte)
+                .write::<u8>(m.eax as u8, "a controller binding")?;
+            crate::input::store::DEVICES.records[0].set_u32(
+                0x18,
+                crate::pointers::GamePtr::new(player + 0x38)
+                    .read::<u32>("controller: a game value")?,
+            );
+            DRAW_WORK.figure.set(found);
+            C.learning.set(0);
+            take = false;
+        }
+    } else {
+        let [ecx, edx, eax, ebx] = crate::input::axes::first_device_state()?;
+        classify_controller(eax, ebx, ecx, edx);
+    }
+    if take {
+        if crate::input::take_key::take_key() == l::CANCEL_KEY {
+            DRAW_WORK.figure.set(0);
+            C.learning.set(0);
+        } else if DRAW_WORK.figure.get() == 0 {
+            return Ok(());
+        }
+    }
+    let slot = player.wrapping_add(l::binding(C.learned.get()));
+    crate::pointers::GamePtr::new(slot)
+        .write::<u32>(DRAW_WORK.figure.get(), "controller: a game value")?;
+    Ok(())
 }
 
 /// What the controller page reads: refused before anything.

@@ -56,11 +56,15 @@ fn put_cursor(name: *mut u8) -> Result<(), BadInput> {
     Ok(())
 }
 
-unsafe fn end_name(name: *mut u8) {
-    unsafe {
-        let len = LOOP_FLAGS.text_length.get() as i32;
-        name.offset(len as isize).write(0);
-    }
+/// `c` at the name's character `at`.
+fn put_char(name: *mut u8, at: i32, c: u8) -> Result<(), BadInput> {
+    crate::pointers::GamePtr::new(crate::pointers::game_address(name).wrapping_add(at as u32))
+        .write(c, "the setup name")
+}
+
+/// The name cut at its length.
+fn end_name(name: *mut u8) -> Result<(), BadInput> {
+    put_char(name, LOOP_FLAGS.text_length.get() as i32, 0)
 }
 
 pub unsafe fn edit_setup_name(canvas: &mut dyn Canvas) -> Result<(), Refused> {
@@ -91,9 +95,9 @@ pub unsafe fn edit_setup_name(canvas: &mut dyn Canvas) -> Result<(), Refused> {
                     add_text_length(crate::pointers::game_address(name))?;
                 }
                 OPTION_WORK.typing.set(0u32);
-                end_name(name);
+                end_name(name)?;
                 write_setup_slot(slot)?;
-                end_name(name);
+                end_name(name)?;
                 OPTION_WORK.typing.set(0u32);
                 return Ok(());
             }
@@ -103,7 +107,7 @@ pub unsafe fn edit_setup_name(canvas: &mut dyn Canvas) -> Result<(), Refused> {
                 let c = key_to_char(key as u32)? as u8;
                 let len = LOOP_FLAGS.text_length.get() as i32;
                 if entry::appends(c, len, LOOP_FLAGS.text_max.get() as i32) {
-                    name.offset(len as isize).write(c);
+                    put_char(name, len, c)?;
                     set_length(len.wrapping_add(1));
                     // x is whatever ecx held: the length before this character.
                     let measured = measure_text_at(MEASURING_FONT.as_ptr(), name, len, canvas)?;

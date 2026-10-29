@@ -52,56 +52,54 @@ fn record_tables() -> [u32; 13] {
 /// read while `dword_755A0C` is 1, which it is only for `default_checkpoint_times`, which
 /// does not read it) and the x `fit_player_names` measures from (the loading picture
 /// leaves ecx alone).
-pub unsafe fn set_up_front_end(stage: u32, x: u32) -> Result<(), Refused> {
+pub fn set_up_front_end(stage: u32, x: u32) -> Result<(), Refused> {
     use crate::saves::{
         allocate_best_times, default_best_scores, default_championship_times,
         default_checkpoint_times, default_class_times, default_stage_times,
         default_stage_times_alt,
     };
-    unsafe {
-        if crate::install::store::INSTALL.has_clio.get() == 1 {
-            crate::menu::add_clio_car::add_clio_car()?;
-        }
-        crate::menu::link_player_names::link_player_names()?;
-        crate::menu::show_loading_picture::show_loading_picture()?;
-        crate::gfx::build_menu_sprites::build_menu_sprites_in_game()?;
-        crate::menu::fit_player_names::fit_player_names(x)?;
-        // The two dwords: the music volumes, then the tables' copies.
-        SOUND_OPTIONS
-            .music_volume
-            .set(OPTION_WORK.music_level.get());
-        SOUND_OPTIONS
-            .race_music_volume
-            .set(OPTION_WORK.other_volume.get());
-        allocate_best_times::allocate_best_times(
-            BEST_TIMES.list(),
-            crate::records::stages_store::STAGE_TABLES.championship(),
-        )?;
-        // Every table is typed now (`saves::best_times`): none is copied; the summary's
-        // variable says it is there, for the race's rivals.
-        CHAMP_VIEW
-            .summary
-            .set(u32::from(crate::saves::best_times::SUMMARY.is_taken()));
-        if BEST_TIMES.loaded.get() != 1 {
-            DRAW_WORK.work_0c.set(0u32);
-            default_best_scores::default_best_scores()?;
-            DRAW_WORK.work_0c.set(0u32);
-            default_championship_times::default_championship_times(stage, &mut to_the_log)?;
-            DRAW_WORK.work_0c.set(1u32);
-            default_checkpoint_times::default_checkpoint_times(stage, &mut to_the_log)?;
-            DRAW_WORK.work_0c.set(0u32);
-            default_class_times::default_class_times()?;
-            DRAW_WORK.work_0c.set(0u32);
-            default_stage_times::default_stage_times(stage, &mut to_the_log)?;
-            DRAW_WORK.work_0c.set(0u32);
-            default_stage_times_alt::default_stage_times_alt(stage, &mut to_the_log)?;
-            BEST_TIMES.loaded.set(1);
-        }
-        if LOOP_FLAGS.options_loaded.get() != 1 {
-            for table in record_tables() {
-                crate::records::default_stage_records::default_stage_records(table)?;
-            }
-        }
-        Ok(())
+    if crate::install::store::INSTALL.has_clio.get() == 1 {
+        crate::menu::add_clio_car::add_clio_car()?;
     }
+    crate::menu::link_player_names::link_player_names()?;
+    crate::menu::show_loading_picture::show_loading_picture()?;
+    crate::gfx::build_menu_sprites::build_menu_sprites_in_game()?;
+    crate::menu::fit_player_names::fit_player_names(x)?;
+    // The two dwords: the music volumes, then the tables' copies.
+    SOUND_OPTIONS
+        .music_volume
+        .set(OPTION_WORK.music_level.get());
+    SOUND_OPTIONS
+        .race_music_volume
+        .set(OPTION_WORK.other_volume.get());
+    allocate_best_times::allocate_best_times(
+        BEST_TIMES.list(),
+        crate::records::stages_store::STAGE_TABLES.championship(),
+    )?;
+    // Every table is typed now (`saves::best_times`): none is copied; the summary's
+    // variable says it is there, for the race's rivals.
+    CHAMP_VIEW
+        .summary
+        .set(u32::from(crate::saves::best_times::SUMMARY.is_taken()));
+    if BEST_TIMES.loaded.get() != 1 {
+        DRAW_WORK.work_0c.set(0u32);
+        default_best_scores::default_best_scores()?;
+        DRAW_WORK.work_0c.set(0u32);
+        default_championship_times::default_championship_times(stage, &mut to_the_log)?;
+        DRAW_WORK.work_0c.set(1u32);
+        default_checkpoint_times::default_checkpoint_times(stage, &mut to_the_log)?;
+        DRAW_WORK.work_0c.set(0u32);
+        default_class_times::default_class_times()?;
+        DRAW_WORK.work_0c.set(0u32);
+        default_stage_times::default_stage_times(stage, &mut to_the_log)?;
+        DRAW_WORK.work_0c.set(0u32);
+        default_stage_times_alt::default_stage_times_alt(stage, &mut to_the_log)?;
+        BEST_TIMES.loaded.set(1);
+    }
+    if LOOP_FLAGS.options_loaded.get() != 1 {
+        for table in record_tables() {
+            crate::records::default_stage_records::default_stage_records(table)?;
+        }
+    }
+    Ok(())
 }

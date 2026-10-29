@@ -48,7 +48,7 @@ pub fn run_installer() -> Result<(), Refused> {
         0,
     );
     i::read_languages::read_languages(INSTALLER_NAMES.lang_cfg.as_ptr() as *const u8)?;
-    unsafe { crate::gfx::build_fonts::build_fonts() }?;
+    { crate::gfx::build_fonts::build_fonts() }?;
     i::open_installer::open_installer()?;
     // From the command line: the install, and on past the pages (`jmp loc_412EDC`).
     let from_command = INSTALLER_RUN.from_command.get() == 1;

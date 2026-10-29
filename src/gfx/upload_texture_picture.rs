@@ -76,7 +76,7 @@ fn direct_draw_failed(code: u32) -> Refused {
     }
 }
 
-pub unsafe fn upload_texture_picture(
+pub fn upload_texture_picture(
     texture: u32,
     pixels: u32,
     width: u32,
@@ -90,67 +90,64 @@ pub unsafe fn upload_texture_picture(
     // through `texture_upload::halvings_apart`).
     let record = Record::of(texture)?;
     let levels = uploads::levels(record.get().levels).map_err(BadInput::from)?;
-    unsafe {
-        ready_picture(&record, pixels, width, height)?;
-        let apart = halvings_apart(
-            &record,
-            width,
-            height,
-            [
-                0x80A1_8741,
-                0x80A1_8742,
-                0x80A1_8744,
-                0x80A1_8745,
-                0x80A1_8747,
-            ],
-        )?;
-        if !halvable(width, height, apart + levels - 1) {
-            return Err(BadInput("a picture that halves to nothing").into());
+    ready_picture(&record, pixels, width, height)?;
+    let apart = halvings_apart(
+        &record,
+        width,
+        height,
+        [
+            0x80A1_8741,
+            0x80A1_8742,
+            0x80A1_8744,
+            0x80A1_8745,
+            0x80A1_8747,
+        ],
+    )?;
+    if !halvable(width, height, apart + levels - 1) {
+        return Err(BadInput("a picture that halves to nothing").into());
+    }
+    let format = record.format()?;
+    let bytes = record.bytes_per_pixel()?;
+    let (mut width, mut height) = (width, height);
+    for level in 0..levels {
+        let times = uploads::halvings_before(level, apart);
+        if times != 0 {
+            (width, height) = halve_texture(pixels, width, height, times)?;
         }
-        let format = record.format()?;
-        let bytes = record.bytes_per_pixel()?;
-        let (mut width, mut height) = (width, height);
-        for level in 0..levels {
-            let times = uploads::halvings_before(level, apart);
-            if times != 0 {
-                (width, height) = halve_texture(pixels, width, height, times)?;
-            }
-            let surface = record.get().surfaces[level as usize];
-            let (mut target, pitch) = surfaces
-                .lock(surface)
-                .map_err(|_| direct_draw_failed(0x8021_8772))?;
-            // The level's pixels read once; the surface is the platform's.
-            let picture =
-                crate::gfx::picture::read_bytes(pixels, 0, width as usize * height as usize * 4)?;
-            let mut source = picture
-                .as_chunks::<4>()
-                .0
-                .iter()
-                .map(|d| u32::from_le_bytes(*d));
-            for _ in 0..height {
-                match bytes {
-                    2 => {
-                        for n in 0..width {
-                            let pixel = components_to_pixel(&format, source.next().unwrap_or(0));
-                            (crate::pointers::host(target + n * 2) as *mut u16)
-                                .write_unaligned(pixel as u16);
-                        }
-                    }
-                    4 => {
-                        for n in 0..width {
-                            let pixel = components_to_pixel(&format, source.next().unwrap_or(0));
-                            (crate::pointers::host(target + n * 4) as *mut u32)
-                                .write_unaligned(pixel);
-                        }
-                    }
-                    _ => return Err(fatal(0x80A1_8775)),
-                }
-                target = target.wrapping_add(pitch);
-            }
-            surfaces
-                .unlock(surface)
-                .map_err(|_| direct_draw_failed(0x8021_8773))?;
+        let surface = record.get().surfaces[level as usize];
+        let (mut target, pitch) = surfaces
+            .lock(surface)
+            .map_err(|_| direct_draw_failed(0x8021_8772))?;
+        // The level's pixels read once; the surface is the platform's.
+        let picture =
+            crate::gfx::picture::read_bytes(pixels, 0, width as usize * height as usize * 4)?;
+        let mut source = picture
+            .as_chunks::<4>()
+            .0
+            .iter()
+            .map(|d| u32::from_le_bytes(*d));
+        for _ in 0..height {
+            // The row's pixels, `bytes` each, written at once.
+            let row: Vec<u8> = match bytes {
+                2 => (0..width)
+                    .flat_map(|_| {
+                        (components_to_pixel(&format, source.next().unwrap_or(0)) as u16)
+                            .to_le_bytes()
+                    })
+                    .collect(),
+                4 => (0..width)
+                    .flat_map(|_| {
+                        components_to_pixel(&format, source.next().unwrap_or(0)).to_le_bytes()
+                    })
+                    .collect(),
+                _ => return Err(fatal(0x80A1_8775)),
+            };
+            crate::pointers::GamePtr::new(target).write_bytes(&row, "a texture's row")?;
+            target = target.wrapping_add(pitch);
         }
+        surfaces
+            .unlock(surface)
+            .map_err(|_| direct_draw_failed(0x8021_8773))?;
     }
     Ok(())
 }

@@ -63,7 +63,7 @@ pub fn lobby_frame() -> Result<(), Refused> {
     // pointer a heading or a name leaves, or the text buffer.
     let mut palette = 0;
     for (id, x) in [(0x15F, 0x21A), (0x160, 0x2C0)] {
-        let out = unsafe {
+        let out = {
             crate::text::draw_string_by_id::draw_string_by_id_at(
                 id,
                 HEADING_FONT.as_ptr(),

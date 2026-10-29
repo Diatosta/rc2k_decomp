@@ -36,14 +36,14 @@ pub fn table_dword_at(table: usize, index: u32) -> Result<u32, crate::errors::Ba
 // ---- the shared parts ----
 
 /// Draws a string id with one of the game's font objects.
-pub unsafe fn label(
+pub fn label(
     canvas: &mut dyn Canvas,
     id: u32,
     font: crate::gfx::typefaces::FontId,
     x: i32,
     y: i32,
 ) -> Result<(), Refused> {
-    unsafe { draw_string_by_id_at(id, font.as_ptr(), x, y, canvas) }.map(|_| ())
+    { draw_string_by_id_at(id, font.as_ptr(), x, y, canvas) }.map(|_| ())
 }
 
 /// Builds the second heading ("<string 0x482> n/6: name") in its own buffer. Three of the

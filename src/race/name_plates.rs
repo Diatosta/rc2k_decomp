@@ -53,18 +53,16 @@ pub fn draw_name_plate(slot: u32, text: impl Into<crate::place::Place>) -> Resul
 /// `race::draw_plate_by_id` (0x41B2D4): string id `id` (ebx) into the text buffer (`text`,
 /// with its NUL) and drawn on slot `slot`'s (eax) plate (`draw_name_plate`). Every register
 /// kept.
-pub unsafe fn draw_plate_by_id(slot: u32, id: u32) -> Result<(), Refused> {
-    unsafe {
-        let mut cursor = 0usize;
-        crate::strings::append_string_by_id::append_string_by_id(id, &mut |p, n| {
-            for k in 0..n {
-                TEXT_BUFFER.text.set(cursor + k, p.add(k).read());
-            }
-            cursor += n;
-        })?;
-        TEXT_BUFFER.text.set(cursor, 0);
-        draw_name_plate(slot, &TEXT_BUFFER.text)
-    }
+pub fn draw_plate_by_id(slot: u32, id: u32) -> Result<(), Refused> {
+    let mut cursor = 0usize;
+    crate::strings::append_string_by_id::append_string_by_id(id, &mut |bytes| {
+        for (k, &b) in bytes.iter().enumerate() {
+            TEXT_BUFFER.text.set(cursor + k, b);
+        }
+        cursor += bytes.len();
+    })?;
+    TEXT_BUFFER.text.set(cursor, 0);
+    draw_name_plate(slot, &TEXT_BUFFER.text)
 }
 
 /// `race::draw_time_plate` (0x45B70A): slot `slot`'s (eax) surface, locked and unlocked as
@@ -104,63 +102,61 @@ pub fn draw_time_plate(slot: u32) -> Result<(), Refused> {
 /// (`race::draw_plate_by_id`) or as a text pointer (`race::draw_name_plate`), into +0x724,
 /// +0x71C 0, +0x720 and +0x728 1. Its one caller, `race::draw_race_scene`, reads no
 /// register it leaves. Refuses (before anything) a null view block.
-pub unsafe fn update_name_plates() -> Result<(), Refused> {
-    unsafe {
-        let blocks = [
-            RACE_VIEW.view_blocks[0].get(),
-            RACE_VIEW.view_blocks[1].get(),
-        ];
-        if blocks.contains(&0) {
-            return Err(crate::errors::BadInput("a view without its car block").into());
-        }
-        // Converted: `rc2k_core::race::plates::{times_changed, NameAsk}`.
-        use rc2k_core::race::plates::{NameAsk, times_changed};
-        let field = |b: u32, o: u32| GamePtr::new(b + o);
-        let now = [
-            OVERLAY.label_behind[0].get(),
-            OVERLAY.label_behind[1].get(),
-            OVERLAY.label_ahead[0].get(),
-            OVERLAY.label_ahead[1].get(),
-        ];
-        let kept = [
-            OVERLAY.kept_behind[0].get(),
-            OVERLAY.kept_behind[1].get(),
-            OVERLAY.kept_ahead[0].get(),
-            OVERLAY.kept_ahead[1].get(),
-        ];
-        if times_changed(now, kept) {
-            draw_time_plate(KIND_TEXTURES.kind_first_textures[196].get())?;
-            for (from, to) in [
-                (&OVERLAY.label_behind[0], &OVERLAY.kept_behind[0]),
-                (&OVERLAY.label_behind[1], &OVERLAY.kept_behind[1]),
-                (&OVERLAY.label_ahead[0], &OVERLAY.kept_ahead[0]),
-                (&OVERLAY.label_ahead[1], &OVERLAY.kept_ahead[1]),
-            ] {
-                to.set(from.get());
-            }
-            for &b in &blocks {
-                field(b, 0x720).write(1u32, "a view block's plate flag")?;
-            }
-        }
-        for (b, slot) in blocks.into_iter().zip([196, 197]) {
-            let asked: u32 = field(b, 0x71C).read("a view block's plate ask")?;
-            match NameAsk::of(asked) {
-                NameAsk::Nothing => continue,
-                NameAsk::Id(_) => {
-                    draw_plate_by_id(KIND_TEXTURES.kind_first_textures[slot].get(), asked)?
-                }
-                NameAsk::Text(_) => {
-                    draw_name_plate(KIND_TEXTURES.kind_first_textures[slot].get(), asked)?
-                }
-            }
-            // ebx at the store: the name asked for (every drawing keeps its registers).
-            field(b, 0x724).write(asked, "a view block's plate ask")?;
-            field(b, 0x71C).write(0u32, "a view block's plate ask")?;
-            field(b, 0x720).write(1u32, "a view block's plate flag")?;
-            field(b, 0x728).write(1u32, "a view block's plate flag")?;
-        }
-        Ok(())
+pub fn update_name_plates() -> Result<(), Refused> {
+    let blocks = [
+        RACE_VIEW.view_blocks[0].get(),
+        RACE_VIEW.view_blocks[1].get(),
+    ];
+    if blocks.contains(&0) {
+        return Err(crate::errors::BadInput("a view without its car block").into());
     }
+    // Converted: `rc2k_core::race::plates::{times_changed, NameAsk}`.
+    use rc2k_core::race::plates::{NameAsk, times_changed};
+    let field = |b: u32, o: u32| GamePtr::new(b + o);
+    let now = [
+        OVERLAY.label_behind[0].get(),
+        OVERLAY.label_behind[1].get(),
+        OVERLAY.label_ahead[0].get(),
+        OVERLAY.label_ahead[1].get(),
+    ];
+    let kept = [
+        OVERLAY.kept_behind[0].get(),
+        OVERLAY.kept_behind[1].get(),
+        OVERLAY.kept_ahead[0].get(),
+        OVERLAY.kept_ahead[1].get(),
+    ];
+    if times_changed(now, kept) {
+        draw_time_plate(KIND_TEXTURES.kind_first_textures[196].get())?;
+        for (from, to) in [
+            (&OVERLAY.label_behind[0], &OVERLAY.kept_behind[0]),
+            (&OVERLAY.label_behind[1], &OVERLAY.kept_behind[1]),
+            (&OVERLAY.label_ahead[0], &OVERLAY.kept_ahead[0]),
+            (&OVERLAY.label_ahead[1], &OVERLAY.kept_ahead[1]),
+        ] {
+            to.set(from.get());
+        }
+        for &b in &blocks {
+            field(b, 0x720).write(1u32, "a view block's plate flag")?;
+        }
+    }
+    for (b, slot) in blocks.into_iter().zip([196, 197]) {
+        let asked: u32 = field(b, 0x71C).read("a view block's plate ask")?;
+        match NameAsk::of(asked) {
+            NameAsk::Nothing => continue,
+            NameAsk::Id(_) => {
+                draw_plate_by_id(KIND_TEXTURES.kind_first_textures[slot].get(), asked)?
+            }
+            NameAsk::Text(_) => {
+                draw_name_plate(KIND_TEXTURES.kind_first_textures[slot].get(), asked)?
+            }
+        }
+        // ebx at the store: the name asked for (every drawing keeps its registers).
+        field(b, 0x724).write(asked, "a view block's plate ask")?;
+        field(b, 0x71C).write(0u32, "a view block's plate ask")?;
+        field(b, 0x720).write(1u32, "a view block's plate flag")?;
+        field(b, 0x728).write(1u32, "a view block's plate flag")?;
+    }
+    Ok(())
 }
 
 /// A text drawn in the game: `text::draw_text_keep_regs`'s Rust version on the game's

@@ -80,37 +80,35 @@ fn rows(p: &Piece, to: &Target) -> Option<Vec<Region>> {
     )
 }
 
-pub unsafe fn blit_components(p: &Piece, to: &Target) -> Result<(), Refused> {
+pub fn blit_components(p: &Piece, to: &Target) -> Result<(), Refused> {
+    use crate::pointers::GamePtr;
     if rows(p, to).is_none() {
         return Err(BadInput("a piece of nothing, or no surface, format, piece or picture").into());
     }
-    unsafe {
-        let [x, y, width, height] =
-            (crate::pointers::host(p.rectangle) as *const [u32; 4]).read_unaligned();
-        let format = (crate::pointers::host(to.format) as *const PixelFormat).read_unaligned();
-        let mut target =
-            p.y.wrapping_mul(to.pitch)
-                .wrapping_add(p.x.wrapping_mul(to.bytes_per_pixel))
-                .wrapping_add(to.pixels);
-        // The picture's bytes from its buffer (`gfx::picture`; `pixels` names it).
-        let mut source = (y.wrapping_mul(p.row_bytes) as usize).wrapping_add(x as usize * 4);
-        // Converted: `rc2k_core::gfx::pixels::pack_row`, a row at a time.
-        let words = to.bytes_per_pixel == 2;
-        let size = if words { 2 } else { 4 };
-        for _ in 0..height {
-            let row = crate::gfx::picture::read_bytes(p.pixels, source, width as usize * 4)?;
-            let out = std::slice::from_raw_parts_mut(
-                crate::pointers::host(target),
-                width as usize * size,
-            );
-            let scratch =
-                rc2k_core::gfx::pixels::pack_row(&row, out, width as usize, &format, words)?;
-            if let Some(scratch) = scratch {
-                crate::gfx::formats::FORMATS.scratch.write(&scratch);
-            }
-            target = target.wrapping_add(to.pitch);
-            source = source.wrapping_add(p.row_bytes as usize);
+    let [x, y, width, height] =
+        GamePtr::new(p.rectangle).read::<[u32; 4]>("a piece's rectangle")?;
+    let format: PixelFormat = GamePtr::new(to.format).read("a surface's format")?;
+    let mut target =
+        p.y.wrapping_mul(to.pitch)
+            .wrapping_add(p.x.wrapping_mul(to.bytes_per_pixel))
+            .wrapping_add(to.pixels);
+    // The picture's bytes from its buffer (`gfx::picture`; `pixels` names it).
+    let mut source = (y.wrapping_mul(p.row_bytes) as usize).wrapping_add(x as usize * 4);
+    // Converted: `rc2k_core::gfx::pixels::pack_row`, a row at a time (every byte of the
+    // surface's row written).
+    let words = to.bytes_per_pixel == 2;
+    let size = if words { 2 } else { 4 };
+    let mut out = vec![0u8; width as usize * size];
+    for _ in 0..height {
+        let row = crate::gfx::picture::read_bytes(p.pixels, source, width as usize * 4)?;
+        let scratch =
+            rc2k_core::gfx::pixels::pack_row(&row, &mut out, width as usize, &format, words)?;
+        GamePtr::new(target).write_bytes(&out, "a surface's row")?;
+        if let Some(scratch) = scratch {
+            crate::gfx::formats::FORMATS.scratch.write(&scratch);
         }
+        target = target.wrapping_add(to.pitch);
+        source = source.wrapping_add(p.row_bytes as usize);
     }
     Ok(())
 }

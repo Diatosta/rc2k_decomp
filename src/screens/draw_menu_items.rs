@@ -47,59 +47,57 @@ const ITEM_LIMIT: u32 = 256;
 // ---- Rust version ----
 
 /// `ebx` and `ecx` are those registers at entry.
-pub unsafe fn draw_menu_items(
+pub fn draw_menu_items(
     menu: crate::menu::menus_store::MenuId,
     ebx: u32,
     ecx: u32,
     canvas: &mut dyn Canvas,
 ) -> Result<(), Refused> {
-    unsafe {
-        let all = menu.items();
-        if all.len() > ITEM_LIMIT as usize {
-            return Err(BadInput("a menu without an end").into());
-        }
-        // Converted: `rc2k_core::screens::menus::items` (the items read here: the first
-        // drawn without being checked for the end, as the original).
-        use crate::screens::game_screen::{FontAt, MenuScreen};
-        use rc2k_core::screens::menus::Item;
-        // The first item, then each until one whose x is the end mark (the -1 after the
-        // menu's last item is one).
-        let shown = 1 + all[1..].iter().take_while(|i| i.x.get() != END).count();
-        let list: Vec<Item<FontAt>> = all[..shown]
-            .iter()
-            .map(|i| Item {
-                x: i.x.get(),
-                y: i.y.get(),
-                text_x: i.text_x.get(),
-                text_y: i.text_y.get(),
-                kind: i.id.get(),
-                id: i.string.get(),
-                font: FontAt(i.font.get()),
-                pulse_font: FontAt(i.highlight_font.get()),
-                behind: i.behind.get(),
-                sprite: i.sprites.get(),
-                spaced: i.spaced.get() == 1,
-            })
-            .collect();
-        let since_key = if OPTION_WORK.redefining_key.get() == 1 {
-            0
-        } else {
-            CLOCKS
-                .frame
-                .get()
-                .wrapping_sub(CHAMP_VIEW.last_key_time.get())
-        };
-        let mut screen = MenuScreen::new(canvas);
-        screen.menu_items = all;
-        let line: *const u8 = crate::screens::line_buffer();
-        rc2k_core::screens::menus::items(
-            &mut screen,
-            &list,
-            LOOP_FLAGS.item.get(),
-            since_key,
-            ebx,
-            ecx,
-            &|n| *line.add(n),
-        )
+    let all = menu.items();
+    if all.len() > ITEM_LIMIT as usize {
+        return Err(BadInput("a menu without an end").into());
     }
+    // Converted: `rc2k_core::screens::menus::items` (the items read here: the first
+    // drawn without being checked for the end, as the original).
+    use crate::screens::game_screen::{FontAt, MenuScreen};
+    use rc2k_core::screens::menus::Item;
+    // The first item, then each until one whose x is the end mark (the -1 after the
+    // menu's last item is one).
+    let shown = 1 + all[1..].iter().take_while(|i| i.x.get() != END).count();
+    let list: Vec<Item<FontAt>> = all[..shown]
+        .iter()
+        .map(|i| Item {
+            x: i.x.get(),
+            y: i.y.get(),
+            text_x: i.text_x.get(),
+            text_y: i.text_y.get(),
+            kind: i.id.get(),
+            id: i.string.get(),
+            font: FontAt(i.font.get()),
+            pulse_font: FontAt(i.highlight_font.get()),
+            behind: i.behind.get(),
+            sprite: i.sprites.get(),
+            spaced: i.spaced.get() == 1,
+        })
+        .collect();
+    let since_key = if OPTION_WORK.redefining_key.get() == 1 {
+        0
+    } else {
+        CLOCKS
+            .frame
+            .get()
+            .wrapping_sub(CHAMP_VIEW.last_key_time.get())
+    };
+    let mut screen = MenuScreen::new(canvas);
+    screen.menu_items = all;
+    let line = &crate::screens::text_buffers_store::TEXT_BUFFERS.line;
+    rc2k_core::screens::menus::items(
+        &mut screen,
+        &list,
+        LOOP_FLAGS.item.get(),
+        since_key,
+        ebx,
+        ecx,
+        &|n| line.get(n),
+    )
 }

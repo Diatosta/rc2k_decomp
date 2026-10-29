@@ -23,7 +23,7 @@ use rc2k_core::drive::roaming::{roam_distance, roam_turn};
 /// The Rust version. The registers it leaves are read by no caller (liveness: ecx, edi
 /// and esi after `drive::race_tick`'s call have no read point).
 // Converted: `rc2k_core::drive::roaming::{roam_distance, roam_turn}`.
-pub unsafe fn simple_car_step() -> Result<(), Refused> {
+pub fn simple_car_step() -> Result<(), Refused> {
     crate::drive::car_input_words::car_input_words()?;
     crate::drive::read_car_controls::read_car_controls()?;
     crate::drive::steer_inputs::steer_inputs();
@@ -31,7 +31,7 @@ pub unsafe fn simple_car_step() -> Result<(), Refused> {
     // The keys `drive::pedal_inputs` leaves in ebx (`reset_request` loads the same again
     // before `physics::reset_car`): the turn's y.
     let keys = CAR.input_keys.get();
-    unsafe { crate::drive::reset_request::reset_request() }?;
+    { crate::drive::reset_request::reset_request() }?;
     let distance = roam_distance(
         CAR_BLOCKS.cars[0].throttle.bits(),
         CAR_BLOCKS.cars[0].brake.bits(),

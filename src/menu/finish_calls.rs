@@ -155,9 +155,7 @@ impl finish::Finish for Game {
                 crate::platform::set_menu_mode_now();
             }
             Step::SetUpEngine => crate::scene::set_up_engine::set_up_engine()?,
-            Step::FrontEndScene => unsafe {
-                crate::scene::set_up_front_end_scene::set_up_front_end_scene()?
-            },
+            Step::FrontEndScene => crate::scene::set_up_front_end_scene::set_up_front_end_scene()?,
             Step::Tune3 => crate::sound::play_tune_3::play_tune_3(),
             Step::TakeKey => {
                 crate::input::take_key::take_key();

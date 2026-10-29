@@ -42,27 +42,19 @@ pub fn draw_frame_rate(canvas: &mut dyn Canvas) -> Result<(), Refused> {
 
 /// `sub_4161BA`: string `id` in `font` at (x, y), unless y is at or above the screen's
 /// bottom (`g_screenHeight`) or at or below -0x1B.
-unsafe fn credit_line(
-    id: u32,
-    font: u32,
-    x: i32,
-    y: i32,
-    canvas: &mut dyn Canvas,
-) -> Result<(), Refused> {
+fn credit_line(id: u32, font: u32, x: i32, y: i32, canvas: &mut dyn Canvas) -> Result<(), Refused> {
     // Converted: `rc2k_core::race::credits::shown`.
-    unsafe {
-        if !rc2k_core::race::credits::shown(y, SCREEN.height.get()) {
-            return Ok(());
-        }
-        draw_string_by_id_at(
-            id,
-            crate::pointers::host(font) as *mut crate::text::font::Font,
-            x,
-            y,
-            canvas,
-        )?;
-        Ok(())
+    if !rc2k_core::race::credits::shown(y, SCREEN.height.get()) {
+        return Ok(());
     }
+    draw_string_by_id_at(
+        id,
+        crate::pointers::host(font) as *mut crate::text::font::Font,
+        x,
+        y,
+        canvas,
+    )?;
+    Ok(())
 }
 
 /// IDA's address of the credits' variables.
@@ -153,7 +145,7 @@ pub fn credits_home() -> usize {
 /// signed move; 9 nothing; any other the end) from the top down, moves the top up a pixel
 /// for each 0x12 ms passed, and when the last line is above -0xAF and the music has
 /// stopped, `dword_529854` 1 (the original also leaves flags no caller reads).
-pub unsafe fn roll_credits(
+pub fn roll_credits(
     eax: u32,
     canvas: &mut dyn Canvas,
     sound: &mut dyn FnMut(),
@@ -161,54 +153,52 @@ pub unsafe fn roll_credits(
     // Converted: `rc2k_core::race::credits::{start_top, lay_out, catch_up, rolled_off}`.
     use crate::system::tick_count::tick_count;
     use rc2k_core::race::credits::{Font, catch_up, lay_out, rolled_off, start_top};
-    unsafe {
-        let width = SCREEN.width.get() as i32;
-        let height: u32 = SCREEN.height.get();
-        if eax == 0 {
-            CREDITS.clock.set(tick_count());
-            let top = start_top(height);
-            CREDITS.top.set(top);
-            CREDITS.done.set(0);
-            sound();
-            return Ok(());
-        }
-        let font_of = |f: Font| {
-            use crate::gfx::typefaces::fonts;
-            let font = match f.0 {
-                1 => fonts::TITLE,
-                2 => fonts::HEADING_23,
-                3 => fonts::LABELS,
-                4 => fonts::VALUES,
-                7 => fonts::TIME,
-                _ => fonts::NAME,
-            };
-            font.addr()
-        };
-        let mut at = crate::pointers::game_address(CREDITS.script.as_ptr());
-        let trap = Trap::new();
-        let (lines, below) = lay_out(
-            || {
-                let v = trap.read::<u16>(at, "the credits' script");
-                at += 2;
-                v
-            },
-            width,
-            CREDITS.top.get() as i32,
-            |f| trap.read::<i32>(font_of(f) + 8, "a font record"),
-        );
-        trap.finish()?;
-        for line in lines {
-            credit_line(line.id, font_of(line.font), line.x, line.y, canvas)?;
-        }
-        let (top, clock, _) = catch_up(CREDITS.top.get(), CREDITS.clock.get(), tick_count);
+    let width = SCREEN.width.get() as i32;
+    let height: u32 = SCREEN.height.get();
+    if eax == 0 {
+        CREDITS.clock.set(tick_count());
+        let top = start_top(height);
         CREDITS.top.set(top);
-        CREDITS.clock.set(clock);
-        if !rolled_off(below, AUDIO.music_stream.get().playing) {
-            return Ok(());
-        }
-        CREDITS.done.set(1);
-        Ok(())
+        CREDITS.done.set(0);
+        sound();
+        return Ok(());
     }
+    let font_of = |f: Font| {
+        use crate::gfx::typefaces::fonts;
+        let font = match f.0 {
+            1 => fonts::TITLE,
+            2 => fonts::HEADING_23,
+            3 => fonts::LABELS,
+            4 => fonts::VALUES,
+            7 => fonts::TIME,
+            _ => fonts::NAME,
+        };
+        font.addr()
+    };
+    let mut at = crate::pointers::game_address(CREDITS.script.as_ptr());
+    let trap = Trap::new();
+    let (lines, below) = lay_out(
+        || {
+            let v = trap.read::<u16>(at, "the credits' script");
+            at += 2;
+            v
+        },
+        width,
+        CREDITS.top.get() as i32,
+        |f| trap.read::<i32>(font_of(f) + 8, "a font record"),
+    );
+    trap.finish()?;
+    for line in lines {
+        credit_line(line.id, font_of(line.font), line.x, line.y, canvas)?;
+    }
+    let (top, clock, _) = catch_up(CREDITS.top.get(), CREDITS.clock.get(), tick_count);
+    CREDITS.top.set(top);
+    CREDITS.clock.set(clock);
+    if !rolled_off(below, AUDIO.music_stream.get().playing) {
+        return Ok(());
+    }
+    CREDITS.done.set(1);
+    Ok(())
 }
 
 /// `roll_credits`' tune in the game: `sound::play_tune_2`'s command, sent and waited for.

@@ -88,57 +88,55 @@ pub struct CarIcon {
 // ---- Rust version ----
 
 /// The Rust version. The original keeps every register (`pusha` .. `popa`).
-pub unsafe fn upload_car_icon(icon: &CarIcon) -> Result<(), Refused> {
-    unsafe {
-        let texture = icon.texture;
-        let record = Record::of(texture)?;
-        ICON_UPLOAD.set(IconUpload {
-            texture,
-            target_x: icon.target_x,
-            target_y: icon.target_y,
-            piece: [icon.sheet_x, icon.sheet_y, 0x52, 0x2A],
-        });
-        keep_second_picture(&record, icon.alpha_sheet)?;
-        let (pixels, width, height, _) = read_texture_picture(crate::pointers::host(icon.sheet))?;
-        ready_picture(&record, pixels, width, height)?;
-        let across = halvings_apart(
-            &record,
-            width,
-            height,
-            [
-                0x80A1_8761,
-                0x80A1_8762,
-                0x80A1_8764,
-                0x80A1_8765,
-                0x80A1_8767,
-            ],
-        )?;
-        if !halvable(width, height, across) {
-            return Err(BadInput("a picture that halves to nothing").into());
-        }
-        let (_, height) = halve_texture(pixels, width, height, across)?;
-        let mut stored: IconUpload = ICON_UPLOAD.get();
-        let shift = across & 31;
-        stored.target_x >>= shift;
-        stored.target_y >>= shift;
-        stored.piece = stored.piece.map(|value| value >> shift);
-        ICON_UPLOAD.set(stored);
-        // The texture locked (making it the surface): if it locked, the icon's piece
-        // blitted and the texture unlocked.
-        if !crate::d3d::lock_texture::lock_texture(texture)?.carry {
-            let piece = Piece {
-                rectangle: piece_address(),
-                x: stored.target_x,
-                y: stored.target_y,
-                pixels,
-                row_bytes: height.wrapping_mul(4),
-            };
-            let blitted = blit_components(&piece, &game_target()?);
-            crate::d3d::unlock_texture::unlock_texture(texture)?;
-            blitted?;
-        }
-        Ok(())
+pub fn upload_car_icon(icon: &CarIcon) -> Result<(), Refused> {
+    let texture = icon.texture;
+    let record = Record::of(texture)?;
+    ICON_UPLOAD.set(IconUpload {
+        texture,
+        target_x: icon.target_x,
+        target_y: icon.target_y,
+        piece: [icon.sheet_x, icon.sheet_y, 0x52, 0x2A],
+    });
+    keep_second_picture(&record, icon.alpha_sheet)?;
+    let (pixels, width, height, _) = read_texture_picture(crate::pointers::host(icon.sheet))?;
+    ready_picture(&record, pixels, width, height)?;
+    let across = halvings_apart(
+        &record,
+        width,
+        height,
+        [
+            0x80A1_8761,
+            0x80A1_8762,
+            0x80A1_8764,
+            0x80A1_8765,
+            0x80A1_8767,
+        ],
+    )?;
+    if !halvable(width, height, across) {
+        return Err(BadInput("a picture that halves to nothing").into());
     }
+    let (_, height) = halve_texture(pixels, width, height, across)?;
+    let mut stored: IconUpload = ICON_UPLOAD.get();
+    let shift = across & 31;
+    stored.target_x >>= shift;
+    stored.target_y >>= shift;
+    stored.piece = stored.piece.map(|value| value >> shift);
+    ICON_UPLOAD.set(stored);
+    // The texture locked (making it the surface): if it locked, the icon's piece
+    // blitted and the texture unlocked.
+    if !crate::d3d::lock_texture::lock_texture(texture)?.carry {
+        let piece = Piece {
+            rectangle: piece_address(),
+            x: stored.target_x,
+            y: stored.target_y,
+            pixels,
+            row_bytes: height.wrapping_mul(4),
+        };
+        let blitted = blit_components(&piece, &game_target()?);
+        crate::d3d::unlock_texture::unlock_texture(texture)?;
+        blitted?;
+    }
+    Ok(())
 }
 
 #[cfg(test)]

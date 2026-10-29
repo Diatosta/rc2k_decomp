@@ -65,51 +65,49 @@ pub fn copy_picture() -> Result<(), Refused> {
 }
 
 /// `menu::draw_menu` (0x4746B7) with `palette` and `measure_x` as ebx and ecx.
-pub unsafe fn draw_menu(
+pub fn draw_menu(
     menu: crate::menu::menus_store::MenuId,
     palette: u32,
     measure_x: u32,
 ) -> Result<(), Refused> {
-    unsafe { crate::menu::draw_menu::draw_menu(menu, palette, measure_x, &mut GameCanvas) }
+    crate::menu::draw_menu::draw_menu(menu, palette, measure_x, &mut GameCanvas)
 }
 
 /// `menu`, `palette` and `measure_x` are edi, ebx and ecx at entry. Returns whether the
 /// frame was made (the original's clear carry).
-pub unsafe fn frame_callback(
+pub fn frame_callback(
     menu: crate::menu::menus_store::MenuId,
     palette: u32,
     measure_x: u32,
 ) -> Result<bool, Refused> {
-    unsafe {
-        if lock_failed() {
-            return Ok(false);
-        }
-        copy_picture()?;
-        draw_menu(menu, palette, measure_x)?;
-        run_listed(DRAW_LIST)?;
-        unlock_surface();
-        LIGHT_STATE.scene_state.set_bits(4u32);
-        crate::scene::begin_scene::begin_scene();
-        run_listed(SCENE_LIST)?;
-        crate::scene::end_scene::end_scene();
-        if lock_failed() {
-            return Ok(false);
-        }
-        run_listed(OVERLAY_LIST)?;
-        // Converted: `rc2k_core::menu::notice::drawn_now`.
-        if notice::drawn_now(crate::strings::load_language::notice_kind(), || {
-            CHEAT_VARS.notice_due.get()
-        }) {
-            CHEAT_VARS.notice_due.set(0u32);
-            crate::text::draw_string_by_id::draw_string_by_id_at(
-                notice::STRING,
-                NOTICE_FONT.as_ptr(),
-                notice::AT.0 as i32,
-                notice::AT.1 as i32,
-                &mut GameCanvas,
-            )?;
-        }
-        unlock_surface();
-        Ok(show_frame_now())
+    if lock_failed() {
+        return Ok(false);
     }
+    copy_picture()?;
+    draw_menu(menu, palette, measure_x)?;
+    run_listed(DRAW_LIST)?;
+    unlock_surface();
+    LIGHT_STATE.scene_state.set_bits(4u32);
+    crate::scene::begin_scene::begin_scene();
+    run_listed(SCENE_LIST)?;
+    crate::scene::end_scene::end_scene();
+    if lock_failed() {
+        return Ok(false);
+    }
+    run_listed(OVERLAY_LIST)?;
+    // Converted: `rc2k_core::menu::notice::drawn_now`.
+    if notice::drawn_now(crate::strings::load_language::notice_kind(), || {
+        CHEAT_VARS.notice_due.get()
+    }) {
+        CHEAT_VARS.notice_due.set(0u32);
+        crate::text::draw_string_by_id::draw_string_by_id_at(
+            notice::STRING,
+            NOTICE_FONT.as_ptr(),
+            notice::AT.0 as i32,
+            notice::AT.1 as i32,
+            &mut GameCanvas,
+        )?;
+    }
+    unlock_surface();
+    Ok(show_frame_now())
 }

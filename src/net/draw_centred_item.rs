@@ -23,14 +23,12 @@ pub fn draw_centred_item(string: u32, item: u32, x: u32, y: u32) -> Result<u32, 
     // Converted: `rc2k_core::net::screens::item_lit` (in `item_font`).
     let font = item_font(item, PLAIN, LIT);
     let next = y.wrapping_add(font.object().line_height.get());
-    unsafe {
-        crate::text::draw_string_by_id::draw_string_by_id_at(
-            string,
-            font.as_ptr(),
-            x as i32,
-            y as i32,
-            &mut GameCanvas,
-        )
-    }?;
+    crate::text::draw_string_by_id::draw_string_by_id_at(
+        string,
+        font.as_ptr(),
+        x as i32,
+        y as i32,
+        &mut GameCanvas,
+    )?;
     Ok(next)
 }
