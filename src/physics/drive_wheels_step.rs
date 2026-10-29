@@ -745,7 +745,7 @@ fn x87_25() {
     let t15 = t14 * t14;
     let t16 = t13 + t15;
     let t17 = t16.sqrt();
-    CAR.unknown_f40[0].set_bits(st(t17));
+    CAR.skid_grip[0].set_bits(st(t17));
     let t18 = ld(CAR.drive_speed_b.bits());
     let t19 = ld(CAR.local_velocity[2].bits());
     let t20 = t18 - t19;
@@ -757,7 +757,7 @@ fn x87_25() {
     let t25 = t24 * t24;
     let t26 = t23 + t25;
     let t27 = t26.sqrt();
-    CAR.unknown_f40[1].set_bits(st(t27));
+    CAR.skid_grip[1].set_bits(st(t27));
 }
 
 #[cfg(all(test, target_arch = "x86"))]

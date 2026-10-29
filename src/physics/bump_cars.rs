@@ -50,12 +50,9 @@ fn turn_speed(block: u32) {
         &crate::physics::car_store::Car::at(block).car_inverse_matrix,
         [rd(0x198), rd(0x19C), rd(0x1A0)],
     );
-    for (k, e) in turned.iter().enumerate() {
-        crate::pointers::write_or_end(
-            block + 0x1A4 + 4 * k as u32,
-            rounded(*e),
-            "a car block's speed",
-        );
+    let local = &crate::physics::car_store::Car::at(block).local_velocity;
+    for (cell, e) in local.iter().zip(turned) {
+        cell.set_bits(rounded(e));
     }
 }
 

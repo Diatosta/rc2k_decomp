@@ -5,7 +5,7 @@
 //! places no ported code names. `#[repr(C)]` with the image's layout, over the race
 //! block's bytes (`CAR`) until the code reaching the car by RVA is typed.
 
-use crate::session::{Dword, Float};
+use crate::session::{Bytes, Dword, Float};
 
 #[repr(C)]
 pub struct Car {
@@ -381,7 +381,10 @@ pub struct Car {
     /// +0x6f0 (0x71A6C8): 1 when the camera mode is 2 or 3.
     pub camera_mode_is_2_or_3: Dword,
     /// +0x6f4 (0x71A6CC): not named.
-    pub unknown_6f4: [Dword; 10],
+    pub unknown_6f4: [Dword; 9],
+    /// +0x718 (0x71A6F0): the engine speed shown (+0x1D8 as a float, not below
+    /// `flt_6140F8`; `race::car_parts`), drawn by the panel and the car's number.
+    pub shown_engine_speed: Float,
     /// +0x71c (0x71A6F4): id of the notice shown (0 none).
     pub notice_id: Dword,
     /// +0x720 (0x71A6F8): only false_start reads and clears it.
@@ -396,15 +399,17 @@ pub struct Car {
     pub notice_time_b: Dword,
     /// +0x734 (0x71A70C): the view's place kept with the car (`race::frame_draw`).
     pub kept_view_place: [Dword; 3],
-    /// +0x740 (0x71A718): the four parts' matrices, 16 floats each (`race::car_draw`).
+    /// +0x740 (0x71A718): the four wheels' matrices, 16 floats each, kept by
+    /// `race::car_parts` for `race::car_draw`.
     pub part_matrices: [Float; 64],
     /// +0x840 (0x71A818): the body's turn matrix (`race::car_draw`, `race::car_shadow`,
     /// `drive::set_listener`).
     pub body_matrix: [Float; 16],
-    /// +0x880 (0x71A858): the car's turn matrix (`race::car_draw`, `drive::set_listener`).
-    pub turn_matrix: [Float; 16],
-    /// +0x8c0 (0x71A898): not named.
-    pub unknown_8c0: [Dword; 16],
+    /// +0x880 (0x71A858): the car's place matrix (`flt_641760` kept: `race::car_draw`,
+    /// `drive::set_listener`).
+    pub place_matrix: [Float; 16],
+    /// +0x8c0 (0x71A898): the body's turn times its place (`race::car_parts`).
+    pub whole_matrix: [Float; 16],
     /// +0x900 (0x71A8D8): noise sample 1 scaled.
     pub surface_noise_a: Dword,
     /// +0x904 (0x71A8DC): same sample 1 value.
@@ -457,12 +462,23 @@ pub struct Car {
     pub unknown_a58: [Dword; 20],
     /// +0xaa8 (0x71AA80): the start position's table entry (unknown).
     pub start_slot_value: Dword,
-    /// +0xaac (0x71AA84): not named.
-    pub unknown_aac: Dword,
+    /// +0xaac (0x71AA84): the steering drawn (from +0x650, `race::car_parts`).
+    pub shown_steering: Dword,
     /// +0xab0 (0x71AA88): speed scaled, whole number (engine sound).
     pub engine_sound_speed_int: Dword,
-    /// +0xab4 (0x71AA8C): not named.
-    pub unknown_ab4: [Dword; 8],
+    /// +0xab4 (0x71AA8C): the marks switched on (`race::car_parts`).
+    pub marks_on: Dword,
+    /// +0xab8 (0x71AA90): the mode's marks on (`race::car_parts`; `race::car_draw`'s sound
+    /// groups).
+    pub mode_on: Dword,
+    /// +0xabc (0x71AA94): the marks' bytes (the count x 0x20; `race::car_parts`,
+    /// `race::frame_draw`'s headlights).
+    pub marks_count: Dword,
+    /// +0xac0 (0x71AA98): the parts' switch bytes (`rc2k_core::race::car_parts::
+    /// mark_switches`).
+    pub part_switches: Bytes<0x11>,
+    /// +0xad1 (0x71AAA9): not named.
+    pub unknown_ad1: Bytes<3>,
     /// +0xad4 (0x71AAAC): the course map picture's corner x, y (16-pixel steps;
     /// `race::map_scroll`).
     pub map_corner: [Dword; 2],
@@ -483,8 +499,9 @@ pub struct Car {
     /// +0xef0 (0x71AEC8): last ground faces under the camera and its sides (five saved by
     /// `physics::camera_avoid_ground`).
     pub camera_ground_faces: [Dword; 5],
-    /// +0xf04 (0x71AEDC): not named.
-    pub unknown_f04: Dword,
+    /// +0xf04 (0x71AEDC): the object groups drawn with the car (`dword_60629C` kept,
+    /// `race::car_draw`).
+    pub group_mask: Dword,
     /// +0xf08 (0x71AEE0): speed scaled (engine sound).
     pub engine_speed_scaled: Float,
     /// +0xf0c (0x71AEE4): not named.
@@ -495,8 +512,11 @@ pub struct Car {
     pub wheel_ground_height: [Dword; 4],
     /// +0xf30 (0x71AF08): world z of the four wheels.
     pub wheel_ground_z: [Dword; 4],
-    /// +0xf40 (0x71AF18): not named.
-    pub unknown_f40: [Dword; 6],
+    /// +0xf40 (0x71AF18): the front and rear axles' skid grip (`physics::drive_wheels_step`;
+    /// `race::lay_skidmarks` lays marks from `flt_643AD0` up).
+    pub skid_grip: [Float; 2],
+    /// +0xf48 (0x71AF20): each wheel's last skid point (-1 none; `race::lay_skidmarks`).
+    pub skid_slots: [Dword; 4],
     /// +0xf58 (0x71AF30): timed-event queue times.
     pub car_event_times: [Dword; 8],
     /// +0xf78 (0x71AF50): event codes of the queue.
@@ -579,7 +599,11 @@ mod tests {
         assert_eq!(offset_of!(Car, crash_matrix), 0xB4);
         assert_eq!(offset_of!(Car, part_matrices), 0x740);
         assert_eq!(offset_of!(Car, body_matrix), 0x840);
-        assert_eq!(offset_of!(Car, unknown_8c0), 0x8C0);
+        assert_eq!(offset_of!(Car, whole_matrix), 0x8C0);
+        assert_eq!(offset_of!(Car, shown_engine_speed), 0x718);
+        assert_eq!(offset_of!(Car, part_switches), 0xAC0);
+        assert_eq!(offset_of!(Car, map_corner), 0xAD4);
+        assert_eq!(offset_of!(Car, skid_slots), 0xF48);
         assert_eq!(offset_of!(Car, gear), 0x1D4);
         assert_eq!(offset_of!(Car, probe_point_face), 0xDF0);
         assert_eq!(car_addr() % 4, 0);

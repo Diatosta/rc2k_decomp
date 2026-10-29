@@ -3,7 +3,6 @@
 
 use crate::gfx::screen_state::SCREEN_MODE;
 use crate::input::store::DEVICES;
-use crate::pointers::GamePtr;
 use crate::race::blocks_store::CAR_BLOCKS;
 use crate::race::kind_store::KIND_TABLES;
 use crate::race::panel_store::PANEL;
@@ -13,6 +12,7 @@ use crate::race::tables_store::RACE_TABLES;
 use crate::race::trap::Trap;
 use crate::race::vars_store::RACE_VARS;
 use crate::race::view_store::RACE_VIEW;
+use crate::session::Dword;
 
 pub const KIND_ORDER_LEN: u32 = rc2k_core::race::cars::KIND_ORDER_LEN;
 
@@ -137,13 +137,11 @@ fn flagged(kind: u32) -> bool {
     kind < 0x22 && KIND_TABLES.kind_has_views[kind as usize].get() != 0 // dword_5C5AC0: 0x22
 }
 
-/// A block's +0x684 of 2 or 3 made 4.
-fn settle_state(at: u32) -> Result<(), BadInput> {
-    let p = GamePtr::new(at);
-    if let Some(v) = rc2k_core::race::cars::settled_state(p.read("a car block's camera view")?) {
-        p.write(v, "a car block's camera view")?;
+/// A block's camera view (+0x684) of 2 or 3 made 4.
+fn settle_state(view: &Dword) {
+    if let Some(v) = rc2k_core::race::cars::settled_state(view.get()) {
+        view.set(v);
     }
-    Ok(())
 }
 
 /// `race::set_start_states` (0x446D2E): `dword_6D14CA` / `CE` the start values of the
@@ -176,8 +174,9 @@ pub fn set_start_states() -> Result<(), Refused> {
         if one {
             let block: u32 = crate::race::work_store::RACE_WORK.car_block(chosen as usize);
             RACE_VARS.split.set_bits(0u32);
-            if !flagged(GamePtr::new(block + 0x24).read::<u32>("a car block's kind")?) {
-                settle_state(block + 0x684)?;
+            let block = crate::race::trap::car_at(block)?;
+            if !flagged(block.car_kind.get()) {
+                settle_state(&block.camera_view);
             }
             return Ok(());
         }
@@ -186,8 +185,8 @@ pub fn set_start_states() -> Result<(), Refused> {
         RACE_VARS.split.set_bits(held as u32);
         let kind_0: u32 = CAR_BLOCKS.cars[0].car_kind.bits();
         if !flagged(kind_0) || RACE_VIEW.players.bits() >= 2 {
-            settle_state(CAR_BLOCKS.cars[0].camera_view.addr())?;
-            settle_state(CAR_BLOCKS.cars[1].camera_view.addr())?;
+            settle_state(&CAR_BLOCKS.cars[0].camera_view);
+            settle_state(&CAR_BLOCKS.cars[1].camera_view);
         }
     }
     Ok(())

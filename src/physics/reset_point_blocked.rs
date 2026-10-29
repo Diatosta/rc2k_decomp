@@ -28,11 +28,12 @@ fn at(a: u32) -> u32 {
 /// none of its callers.
 // Converted: `rc2k_core::physics::line_places::reset_point_blocked`.
 pub fn reset_point_blocked_at(candidate: u32, count: u32, block: u32) -> bool {
+    let block = crate::physics::car_store::Car::at(block);
     line_places::reset_point_blocked(
-        at(block + 0x25C),
+        block.driver_kind.get(),
         at(candidate),
         || at(count),
-        || at(block + 0x94),
+        || block.reset_checkpoint.get(),
     )
     .carry()
 }

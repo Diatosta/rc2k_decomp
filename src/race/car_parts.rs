@@ -4,24 +4,30 @@
 //! kept in the block (+0x740 .. +0x8FF) for `race::draw_car`.
 
 use crate::errors::{BadInput, Refused};
+use crate::math::cells::copy_cells;
 use crate::physics::camera_store::CAMERA_WORK;
 use crate::physics::tables_store::PHYSICS;
-use crate::pointers::GamePtr;
 use crate::race::frame_store::FRAME_WORK;
 use crate::race::light_records_store::LIGHT_RECORDS;
 use crate::race::matrices_store::MATRICES;
 use crate::race::numbers_store::NUMBERS;
+use crate::race::trap::car_at;
 use crate::race::view_store::RACE_VIEW;
 use crate::race::work_store::RACE_WORK;
 use crate::scene::light_work_store::LIGHT_WORK;
 use crate::scene::matrix::{multiply_matrices, set_place, set_turn_x, set_turn_y};
 use crate::scene::object_store::OBJECT_WORK;
+use crate::session::Float;
 
 /// The five axle values (`rc2k_core::race::car_parts::axles`) from the model's record
 /// (`dword_5C9098` .. of its 0x134-byte record) and the lift.
 fn axles(model: u32) -> Result<Option<[u32; 5]>, BadInput> {
-    let at = LIGHT_RECORDS.records[0].axles[0].addr() + model.wrapping_mul(0x134);
-    let record: [u32; 5] = GamePtr::new(at).read("a car model's axle record")?;
+    let axles = &LIGHT_RECORDS
+        .records
+        .get(model as usize)
+        .ok_or(BadInput("a car model past the 34 records"))?
+        .axles;
+    let record: [u32; 5] = std::array::from_fn(|k| axles[k].get());
     Ok(rc2k_core::race::car_parts::axles(
         record,
         PHYSICS.ground_drop.get(),
@@ -43,35 +49,34 @@ pub fn car_part_matrices(car: u32) -> Result<(), Refused> {
     // steering}` (the size's and the speed's floats the x87's).
     use crate::math::x87::loaded;
     use crate::math::x87_load::below_or_unordered;
-    use rc2k_core::race::car_parts::{
-        FIRST_SWITCH, PartState, mark_switches, marks_bytes, steering,
-    };
-    let f = |o: u32| GamePtr::new(car + o).read::<u32>("a car block's word");
-    let set = |o: u32, v: u32| GamePtr::new(car + o).write(v, "a car block's word");
-    let Some(ax) = axles(f(0x24)?)? else {
+    use rc2k_core::race::car_parts::{PartState, mark_switches, marks_bytes, steering};
+    let c = car_at(car)?;
+    let Some(ax) = axles(c.car_kind.bits())? else {
         return Err(BadInput("a car model whose axle scaling would fault").into());
     };
-    set(0x718, loaded(f(0x1D8)?))?;
-    if below_or_unordered(f(0x718)?, PHYSICS.idle_engine_speed.bits()) {
-        set(0x718, loaded(PHYSICS.idle_engine_speed.bits()))?;
+    let shown = &c.shown_engine_speed;
+    shown.set_bits(loaded(c.engine_speed.bits()));
+    if below_or_unordered(shown.bits(), PHYSICS.idle_engine_speed.bits()) {
+        shown.set_bits(loaded(PHYSICS.idle_engine_speed.bits()));
     }
-    let on = f(0x84)?;
+    let on = c.lights_on.bits();
     let s = mark_switches(&PartState {
         on,
         marks_mask: LIGHT_WORK.marks_mask.get(),
         lamps_mask: LIGHT_WORK.lamps_mask.get(),
-        inside: f(0x63C)?,
-        mode: f(0x684)?,
-        reversing: f(0x1D4)?,
-        broken: GamePtr::new(car + 0x410).read::<[u32; 6]>("a car block's broken parts")?,
-        flags: f(0x298)?,
+        inside: c.brake.bits(),
+        mode: c.camera_view.bits(),
+        reversing: c.gear.bits(),
+        broken: std::array::from_fn(|k| c.electrical_failures[1 + k].bits()),
+        flags: c.parts_present.bits(),
     });
-    set(0xAB4, s.marks_on)?;
-    set(0xAB8, s.mode_on)?;
-    GamePtr::new(car + FIRST_SWITCH).write_bytes(&s.bytes, "a car block's switches")?;
-    let slow = below_or_unordered(f(0x310)?, NUMBERS.hundred.bits());
-    set(0xABC, marks_bytes(s.count, slow, on))?;
-    set(0xAAC, steering(f(0x650)?))?;
+    c.marks_on.set(s.marks_on);
+    c.mode_on.set(s.mode_on);
+    c.part_switches
+        .write_at(0, &s.bytes, "a car block's switches")?;
+    let slow = below_or_unordered(c.electrics_damage.bits(), NUMBERS.hundred.bits());
+    c.marks_count.set(marks_bytes(s.count, slow, on));
+    c.shown_steering.set(steering(c.steer_angle_visual.bits()));
     let [front, rear_lift, height, front_z, _] = ax;
     CAMERA_WORK.axle_front.set(front);
     CAMERA_WORK.axle_front_neg.set(front.wrapping_neg());
@@ -80,20 +85,15 @@ pub fn car_part_matrices(car: u32) -> Result<(), Refused> {
     CAMERA_WORK.axle_front_z.set(front_z);
     CAMERA_WORK.car_axles.set(ax[4]);
     OBJECT_WORK.size.set(0x10);
-    OBJECT_WORK.part_values[2].set(f(0xAAC)?);
-    OBJECT_WORK.part_values[0].set(f(0x1F8)?);
-    OBJECT_WORK.part_values[1].set(f(0x1FC)?);
-    for (i, o) in [0x134u32, 0x138, 0x13C].into_iter().enumerate() {
-        OBJECT_WORK.place[i].set(f(o)?);
+    OBJECT_WORK.part_values[2].set(c.shown_steering.get());
+    OBJECT_WORK.part_values[0].set_bits(c.driven_wheel_turns[0].bits());
+    OBJECT_WORK.part_values[1].set_bits(c.driven_wheel_turns[1].bits());
+    for i in 0..3 {
+        OBJECT_WORK.place[i].set_bits(c.position[i].bits());
     }
-    crate::math::cells::cells_from(
-        car + 0xB4,
-        &MATRICES.body_turn_matrix,
-        16,
-        "a car's turn matrix",
-    )?;
+    copy_cells(&c.crash_matrix, &MATRICES.body_turn_matrix, 16);
     for i in 0..4 {
-        OBJECT_WORK.part_weights[i as usize].set(f(0x910 + 4 * i)?);
+        OBJECT_WORK.part_weights[i].set_bits(c.wheel_spring_force[i].bits());
     }
     set_place([
         OBJECT_WORK.place[0].get(),
@@ -166,46 +166,43 @@ pub fn car_part_matrices(car: u32) -> Result<(), Refused> {
 pub fn ready_car_parts() -> Result<(), Refused> {
     // Converted: `rc2k_core::race::car_parts::{check_part_cars, parts_shown,
     // KEPT_MATRICES}`.
-    use rc2k_core::race::car_parts::{
-        BODY_AT, KEPT_AT, KEPT_MATRICES, check_part_cars, parts_shown,
-    };
+    use rc2k_core::race::car_parts::{KEPT_MATRICES, check_part_cars, parts_shown};
     let count = RACE_VIEW.race_cars.get();
     check_part_cars(count, |n| RACE_WORK.car_block(n as usize))?;
     // The loop's test is at its end: no cars still looks at car 0.
     let mut c = 0u32;
     loop {
         let car = RACE_WORK.car_block(c as usize);
-        if parts_shown(GamePtr::new(car + 0x25C).read::<u32>("a car block's parts flag")?) {
+        let block = car_at(car)?;
+        if parts_shown(block.driver_kind.get()) {
             car_part_matrices(car)?;
-            for (i, from) in [
-                FRAME_WORK.part_matrices[0].addr(),
-                FRAME_WORK.part_matrices[16].addr(),
-                FRAME_WORK.part_matrices[32].addr(),
-                FRAME_WORK.part_matrices[48].addr(),
-                MATRICES.body_turn_matrix[0].addr(),
-                FRAME_WORK.placed_matrices[0].addr(),
-            ]
-            .into_iter()
-            .take(KEPT_MATRICES as usize)
-            .enumerate()
-            {
-                GamePtr::new(from).copy_to(
-                    GamePtr::new(car + KEPT_AT + 0x40 * i as u32),
-                    0x40,
-                    "a car block's kept matrix",
-                )?;
+            let wheels = &block.part_matrices;
+            let kept: [&[Float]; KEPT_MATRICES as usize] = [
+                &wheels[..16],
+                &wheels[16..32],
+                &wheels[32..48],
+                &wheels[48..],
+                &block.body_matrix,
+                &block.place_matrix,
+            ];
+            let parts = &FRAME_WORK.part_matrices;
+            let from: [&[Float]; KEPT_MATRICES as usize] = [
+                &parts[..16],
+                &parts[16..32],
+                &parts[32..48],
+                &parts[48..],
+                &MATRICES.body_turn_matrix,
+                &FRAME_WORK.placed_matrices[..16],
+            ];
+            for (from, to) in from.into_iter().zip(kept) {
+                copy_cells(from, to, 16);
             }
             multiply_matrices(
                 &MATRICES.body_turn_matrix,
                 &FRAME_WORK.placed_matrices,
                 &MATRICES.view_place,
             );
-            crate::math::cells::cells_to(
-                &MATRICES.view_place,
-                car + BODY_AT,
-                16,
-                "a car block's body matrix",
-            )?;
+            copy_cells(&MATRICES.view_place, &block.whole_matrix, 16);
         }
         c += 1;
         if c == count {

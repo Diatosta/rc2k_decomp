@@ -35,6 +35,9 @@ pub struct PolygonEntry {
     pub work: Bytes<32>,
 }
 
+// SAFETY: made of cells only (`#[repr(C)]`, no padding).
+unsafe impl crate::pointers::Cells for PolygonEntry {}
+
 /// A texture's record (0x40 bytes: `scene::draw_polygon`, `race::course_faces`, `race::level_init`).
 #[repr(C)]
 pub struct TextureInfo {

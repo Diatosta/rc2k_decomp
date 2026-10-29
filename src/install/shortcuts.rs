@@ -8,7 +8,7 @@
 //!   program it ran from, the CD's, which finds the installation in the registry; the
 //!   standalone's record is in the installed folder, so only that copy can remove it;
 //!   2026-10-20);
-//! - "View Readme": `<installed folder>readme.txt`;
+//! - "View Readme": `<installed folder>readme.txt` (named in the case the folder holds it);
 //! - the removal deletes the three and the group's folder (the original's `DeleteGroup`).
 //!
 //! On Unix (phase 11) the items are desktop entries in the user's applications folder
@@ -39,8 +39,22 @@ fn items(installed: &Path) -> [(&'static str, PathBuf, &'static str); 3] {
     [
         ("Rally", installed.join(PROGRAM), ""),
         ("Uninstall Rally", installed.join(PROGRAM), "-u"),
-        ("View Readme", installed.join("readme.txt"), ""),
+        ("View Readme", installed.join(readme_name(installed)), ""),
     ]
+}
+
+/// The readme's name as the installed folder holds it: the copy keeps the source's case
+/// (`README.TXT`), which a case-sensitive system needs named exactly; else `readme.txt`.
+fn readme_name(installed: &Path) -> std::ffi::OsString {
+    std::fs::read_dir(installed)
+        .ok()
+        .and_then(|entries| {
+            entries.flatten().map(|e| e.file_name()).find(|n| {
+                n.to_str()
+                    .is_some_and(|n| n.eq_ignore_ascii_case("readme.txt"))
+            })
+        })
+        .unwrap_or_else(|| "readme.txt".into())
 }
 
 /// The three items, all in `installed`, the installed folder.
@@ -247,7 +261,10 @@ mod start_menu {
         for (name, target, arguments) in items(installed) {
             let at = entry_file(&folder, name);
             let quoted = |p: &Path| format!("\"{}\"", p.display());
-            let exec = if target.extension().is_some_and(|e| e == "txt") {
+            let exec = if target
+                .extension()
+                .is_some_and(|e| e.eq_ignore_ascii_case("txt"))
+            {
                 format!("xdg-open {}", quoted(&target))
             } else {
                 format!("{} {arguments}", quoted(&target))

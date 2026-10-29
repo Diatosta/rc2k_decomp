@@ -145,7 +145,7 @@ pub fn read_on<C: Cell32>(
     match cells.get(n) {
         Some(cell) => Ok(cell.bits()),
         None => crate::pointers::GamePtr::new(
-            crate::pointers::game_address(cells.as_ptr()).wrapping_add((4 * n) as u32),
+            crate::pointers::game_address(cells.as_ptr()).wrapping_add(n.wrapping_mul(4) as u32),
         )
         .read(what),
     }
@@ -164,10 +164,24 @@ pub fn write_on<C: Cell32>(
             Ok(())
         }
         None => crate::pointers::GamePtr::new(
-            crate::pointers::game_address(cells.as_ptr()).wrapping_add((4 * n) as u32),
+            crate::pointers::game_address(cells.as_ptr()).wrapping_add(n.wrapping_mul(4) as u32),
         )
         .write(v, what),
     }
+}
+
+/// `n` cells from `from` into `to`, one at a time forwards (a `rep movsd`: an overlap reads
+/// what it has just written), each past its table's end as `read_on` / `write_on`.
+pub fn copy_on<A: Cell32, B: Cell32>(
+    from: &[A],
+    to: &[B],
+    n: usize,
+    what: &str,
+) -> Result<(), crate::errors::BadInput> {
+    for k in 0..n {
+        write_on(to, k, read_on(from, k, what)?, what)?;
+    }
+    Ok(())
 }
 
 /// A 32-bit cell the x87 model loads and stores by its bits: a `Dword` or a `Float` (a

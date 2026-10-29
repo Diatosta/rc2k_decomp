@@ -268,3 +268,17 @@ block's +0xB0.
   previous fix) the program waited for its 5-second safety net.
 - **Seen**: yes, in the conversion (closing the window in the main menu).
 - **Fix**: while the game is quitting, the question is not put and the answer is yes.
+
+## Options lost when the game is closed by its window
+
+*Original*: `system::main_loop` (0x415383).
+*Fixed*: 2026-10-29.
+
+- **What**: the game saves its options and best times on the way out of the main menu,
+  but skips the save when its quit switch is set; in the original only a fatal error set
+  it there.
+- **In game**: since closing the window quits the game (the fix above), closing it lost
+  every option (controls, names, screen and sound settings) and best time changed since
+  the last save.
+- **Seen**: yes, in the conversion (the options were not kept after closing the window).
+- **Fix**: the save is made on that way out too.

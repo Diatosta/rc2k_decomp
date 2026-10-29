@@ -101,18 +101,19 @@ pub fn car_number_textures(car: u32) -> Result<(), BadInput> {
     use rc2k_core::race::car_marks::{
         decals_shown, lamp_side, letter_number, letter_place, number_digits, stage_plate,
     };
-    let float = |a: u32| -> Result<f32, BadInput> { Ok(f32::from_bits(get(a)?)) };
+    let block = car_at(car)?;
+    let float = |c: &crate::session::Float| f32::from_bits(c.bits());
     {
         let limit = f32::from_bits(FRAME_WORK.decal_limit.bits());
-        let side = lamp_side(float(car + 0x1B8)?, limit);
+        let side = lamp_side(float(&block.drive_speed_a), limit);
         OBJECT_TABLES.car_mark_textures[1].set(side);
         OBJECT_TABLES.car_mark_textures[4].set(side);
-        let side = lamp_side(float(car + 0x1BC)?, limit);
+        let side = lamp_side(float(&block.drive_speed_b), limit);
         OBJECT_TABLES.car_mark_textures[2].set(side);
         OBJECT_TABLES.car_mark_textures[3].set(side);
         let name = (RACE_WORK.number_texture_names[0].addr())
             .wrapping_add(car_at(car)?.car_kind.bits().wrapping_mul(0x30));
-        let n = crate::math::x87::to_int(car_at(car)?.unknown_6f4[9].bits());
+        let n = crate::math::x87::to_int(car_at(car)?.shown_engine_speed.bits());
         DRAW.scratch.set(n as u32);
         let (place, _) = letter_place(n);
         let letter =
@@ -127,10 +128,12 @@ pub fn car_number_textures(car: u32) -> Result<(), BadInput> {
         let (tens, _) = stage_plate(RACE_VARS.stage_number.bits());
         OBJECT_TABLES.car_mark_textures[8]
             .set(RACE_WORK.number_tens_textures[tens as usize].bits());
-        if decals_shown(float(car + 0x310)?, f32::from_bits(NUMBERS.hundred.bits())) {
+        if decals_shown(
+            float(&block.electrics_damage),
+            f32::from_bits(NUMBERS.hundred.bits()),
+        ) {
             for k in 0..0x11u32 {
-                let byte =
-                    GamePtr::new(car + 0xAC0 + k).read::<u8>("a car block's mark byte")? as u32;
+                let byte = block.part_switches.get(k as usize) as u32;
                 let to: u32 = FRAME_WORK.car_decal_places[k as usize].bits();
                 crate::scene::texture_places_store::cell_at(
                     &OBJECT_TABLES.car_mark_textures[0],
@@ -189,7 +192,7 @@ pub unsafe fn draw_car(car: u32) -> Result<(), Refused> {
             &kept[32..48],
             &kept[48..],
             &c.body_matrix,
-            &c.turn_matrix,
+            &c.place_matrix,
         ]
         .into_iter()
         .zip([p0, p1, p2, p3, body_turn(), car_turn()])
@@ -198,7 +201,7 @@ pub unsafe fn draw_car(car: u32) -> Result<(), Refused> {
         }
         RACE_SOUND_SPOTS
             .groups_which
-            .set(car_at(car)?.unknown_ab4[1].bits());
+            .set(car_at(car)?.mode_on.bits());
         let model = car_at(car)?.car_kind.bits();
         MATRICES.known_object.set(model);
         let rec = model.wrapping_mul(0x134);
@@ -311,12 +314,13 @@ pub unsafe fn draw_car(car: u32) -> Result<(), Refused> {
             ecx = 0xF0;
         }
         VIEW_VARS.fade_alpha.set(ecx);
-        GamePtr::new(car + 0xF04).write(VIEW_VARS.group_mask.bits(), "a car block's group mask")?;
-        // `view_cars[drawn_view]`: read by address, as the original does for a view past the two.
-        let view_car: u32 = GamePtr::new(
-            (RACE_VIEW.view_cars[0].addr()).wrapping_add(4 * RACE_VIEW.drawn_view.bits()),
-        )
-        .read("the view cars")?;
+        car_at(car)?.group_mask.set(VIEW_VARS.group_mask.bits());
+        // `view_cars[drawn_view]`: past the two, read on by address as the original does.
+        let view_car = crate::session::read_on(
+            &RACE_VIEW.view_cars,
+            RACE_VIEW.drawn_view.bits() as usize,
+            "the view cars",
+        )?;
         if view_car == VIEW_VARS.drawn_car.bits() && VIEW_VARS.view_car_flag_a.bits() != 0 {
             VIEW_VARS.group_mask.set(u32::MAX);
         }

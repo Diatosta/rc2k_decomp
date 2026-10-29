@@ -126,22 +126,6 @@ pub fn cells_from(
     Ok(())
 }
 
-/// `from`'s first `n` cells to the game address `to` (the other way).
-pub fn cells_to(
-    from: &(impl Cells + ?Sized),
-    to: u32,
-    n: usize,
-    what: &str,
-) -> Result<(), crate::errors::BadInput> {
-    if n > from.count() {
-        return Err(crate::errors::BadInput("a copy past its cells"));
-    }
-    for k in 0..n {
-        crate::pointers::GamePtr::new(to.wrapping_add(4 * k as u32)).write(from.bits(k), what)?;
-    }
-    Ok(())
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;

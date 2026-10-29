@@ -12,7 +12,6 @@
 //! Caller: `net::lets_race`.
 
 use crate::net::store::NET;
-use crate::pointers::GamePtr;
 use crate::race::state_store::RACE_STATE;
 use crate::race::vars_store::RACE_VARS;
 use crate::race::work_store::RACE_WORK;
@@ -53,9 +52,11 @@ pub fn set_hud_options() -> Result<(), crate::errors::BadInput> {
     if bits == cars::NOT_KEPT {
         bits = cars::hud_bits(SWITCHES.map(|cell| cell.get()));
     }
-    GamePtr::new(block + 0x220).write(bits, "a car block's HUD bits")?;
-    GamePtr::new(block + 0x684)
-        .write(RACE_STATE.settings.cars[0].view.get(), "a car block's view")?;
+    let block = crate::race::trap::car_at(block)?;
+    block.option_bits.set(bits);
+    block
+        .camera_view
+        .set(RACE_STATE.settings.cars[0].view.get());
     RACE_VARS
         .mip_setting
         .set(crate::gfx::choices_store::SCREEN_CHOICES.mipmapping.get());

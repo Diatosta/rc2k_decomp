@@ -58,10 +58,6 @@ fn get(a: u32) -> Result<u32, BadInput> {
     crate::race::course_places::read(a, "a frame, face or point word")
 }
 
-fn put(a: u32, v: u32) -> Result<(), BadInput> {
-    crate::race::course_places::write(a, v, "a frame, face or point word")
-}
-
 fn byte1(a: u32) -> Result<u8, BadInput> {
     crate::race::course_places::read(a, "a face or record byte")
 }
@@ -307,7 +303,7 @@ fn panel_half(b: u32, first: bool) -> Result<(), BadInput> {
                 &panel.distance[1],
             )
         };
-        let whole = shown_whole(f32::from_bits(car_at(b)?.unknown_6f4[9].bits()));
+        let whole = shown_whole(f32::from_bits(car_at(b)?.shown_engine_speed.bits()));
         cells[0].set(whole as u32);
         cells[1].set(car_at(b)?.engine_sound_speed_int.bits());
         cells[2].set(car_at(b)?.gear.bits());
@@ -409,12 +405,6 @@ pub fn wake_part_sounds() -> Result<(), Refused> {
     }
 }
 
-/// `dword_604EC8[]`: the car at each place (from place 0); the table runs on from
-/// `unknown_88c` into `arcade_car_kinds`, and the place indexes it unchecked.
-fn car_by_place() -> u32 {
-    RACE_TABLES.unknown_88c.addr()
-}
-
 /// `race::panel_neighbours` (0x45AD36): in mode 2 (`dword_62389C`), the first view's place
 /// (+0x654) and its neighbours into the panel: `dword_6D141A` the place, `dword_6D141E`
 /// +0x8C x 10, `dword_6D1426` the car behind's +0x24 (-1 at the last place,
@@ -429,10 +419,12 @@ pub fn panel_neighbours() -> Result<(), Refused> {
         }
         let a = car_at(RACE_VIEW.view_blocks[0].get())?;
         let place = a.mode2_place.get();
-        let table = |base: u32| get(base.wrapping_add(place.wrapping_mul(4)));
-        // The place indexes unchecked, as the original does (`number_before_first` is
-        // the entry at place -1).
-        let numbers = |first: usize| get((first as u32).wrapping_add(place.wrapping_mul(4)));
+        // The place indexes unchecked, as the original does: `dword_604EC8[]`, the car at
+        // each place, is `unknown_88c` run on into `arcade_car_kinds`; the numbers'
+        // `number_before_first` is the entry at place -1.
+        let on = |first: &Dword, n: u32| {
+            crate::session::read_on(std::slice::from_ref(first), n as usize, "a place table")
+        };
         let block_of = |car: u32| -> Result<_, Refused> {
             if car > 7 {
                 return Err(BadInput("a neighbour's car past the eight").into());
@@ -443,8 +435,8 @@ pub fn panel_neighbours() -> Result<(), Refused> {
             }
             Ok(car_at(b)?)
         };
-        let behind = block_of(table(car_by_place() + 4)?)?;
-        let ahead = block_of(table(car_by_place())?)?;
+        let behind = block_of(on(&RACE_TABLES.unknown_88c, place.wrapping_add(1))?)?;
+        let ahead = block_of(on(&RACE_TABLES.unknown_88c, place)?)?;
         PANEL.view_a.place.set(place);
         PANEL.view_a.time.set(a.time_left.get().wrapping_mul(10));
         // Converted: `rc2k_core::race::frame::neighbour_number` (and the labels'
@@ -455,7 +447,7 @@ pub fn panel_neighbours() -> Result<(), Refused> {
         PANEL.view_a.back.set(back);
         car_label(
             &RACE_OVERLAY.label_behind,
-            numbers(RACE_TABLES.arcade_car_numbers[0].addr() as usize)?,
+            on(&RACE_TABLES.arcade_car_numbers[0], place)?,
             back,
         );
         PANEL.view_a.split2.set(a.pace_gaps_eased[1].get());
@@ -463,7 +455,7 @@ pub fn panel_neighbours() -> Result<(), Refused> {
         PANEL.view_a.front.set(front);
         car_label(
             &RACE_OVERLAY.label_ahead,
-            numbers(RACE_TABLES.number_before_first.addr() as usize)?,
+            on(&RACE_TABLES.number_before_first, place)?,
             front,
         );
         PANEL
@@ -638,8 +630,10 @@ fn check_panel_neighbours() -> Result<(), Refused> {
             return Ok(());
         }
         let place = car_at(RACE_VIEW.view_blocks[0].get())?.mode2_place.get();
-        for base in [car_by_place(), car_by_place() + 4] {
-            let car = get(base.wrapping_add(place.wrapping_mul(4)))?;
+        // `dword_604EC8[]` (see `panel_neighbours`) at the place and the one after.
+        let first = std::slice::from_ref(&RACE_TABLES.unknown_88c);
+        for n in [place, place.wrapping_add(1)] {
+            let car = crate::session::read_on(first, n as usize, "a place table")?;
             if car > 7 || RACE_WORK.car_block(car as usize) == 0 {
                 return Err(BadInput("a neighbour's car past the eight or null").into());
             }
@@ -1080,7 +1074,8 @@ pub fn mark_far_cells() -> Result<(), BadInput> {
         grid[k as usize].set(grid[k as usize].get() & 0x0FFF_FFFF);
     }
     let half: u32 = LEVEL_GRID.grid_half.bits();
-    let matrix = MATRICES.view_turn_matrix[0].addr();
+    // Nothing in the loop writes the matrix: its floats read once.
+    let matrix = crate::session::read_bits(&MATRICES.view_turn_matrix);
     let two: u32 = NUMBERS.two.bits();
     let zero: u32 = NUMBERS.zero.bits();
     let point_five: u32 = NUMBERS.half.bits();
@@ -1089,11 +1084,7 @@ pub fn mark_far_cells() -> Result<(), BadInput> {
         let x = (cell & 0x1F).wrapping_sub(half);
         let z = (cell >> 5).wrapping_sub(half);
         let point = [x as i32, 0, z as i32];
-        crate::scene::project_point::rotate(
-            point.as_ptr(),
-            crate::pointers::host(matrix) as *const u32,
-            out.as_mut_ptr(),
-        );
+        crate::scene::project_point::rotate(point.as_ptr(), matrix.as_ptr(), out.as_mut_ptr());
         let (x, z) = (out[4], out[6]);
         LEVEL_GRID.turned_x.set_bits(x);
         LEVEL_GRID.turned_z.set_bits(z);
@@ -1509,7 +1500,7 @@ fn car_light_on_point(b: u32) -> Result<(), BadInput> {
     // The second spread is worked out and then not used (eax is loaded over it).
     let s2 = int_square_sum_scaled_to_int(t[2].wrapping_sub(0x10_0000) as i32, t[0] as i32, k, 1);
     DRAW.scratch.set_bits(s2);
-    let index = headlight_index(s1, t[1], car_at(b)?.unknown_ab4[2].bits());
+    let index = headlight_index(s1, t[1], car_at(b)?.marks_count.bits());
     let colour = LIGHT_TABLES.car_light_table[index as usize].get();
     LIGHT_WORK
         .light_colour
@@ -1535,10 +1526,12 @@ fn car_lights_on_point() -> Result<(), BadInput> {
             || RACE_VIEW.players.bits(),
             || RACE_VARS.run_kind.bits(),
             || {
-                trap.read::<u32>(
-                    (RACE_VIEW.view_cars[0].addr())
-                        .wrapping_add(RACE_VIEW.drawn_view.bits().wrapping_mul(4)),
-                    "the view cars",
+                let n = RACE_VIEW.drawn_view.bits() as usize;
+                crate::session::read_on(&RACE_VIEW.view_cars, n, "the view cars").unwrap_or_else(
+                    |e| {
+                        trap.keep(e);
+                        0
+                    },
                 )
             },
         );
@@ -2268,13 +2261,13 @@ pub unsafe fn draw_race_slots() -> Result<(), Refused> {
 pub unsafe fn draw_screen_quad() -> Result<(), Refused> {
     unsafe {
         DRAW.polygon_drawn.set(0u32);
-        let entries = POLYGON_WORK.entries[0].point.addr();
+        let entries = &POLYGON_WORK.entries[..4];
         let vertices = RACE_VARS.quad_vertices[0].addr();
-        for k in 0..4u32 {
-            let e = entries + 0x44 * k;
-            put(e + 4, vertices + 0x20 * k)?;
-            put(e + 8, 0)?;
-            put(e + 0xC, 0)?;
+        for (k, e) in (0u32..).zip(entries) {
+            // The point record is the vertex's address (`PointRecord`s are read by it).
+            e.record.set(vertices + 0x20 * k);
+            e.u.set(0u32);
+            e.v.set(0u32);
         }
         // Converted: `rc2k_core::race::loading::quad_corners`.
         let corners = rc2k_core::race::loading::quad_corners(
@@ -2284,24 +2277,24 @@ pub unsafe fn draw_screen_quad() -> Result<(), Refused> {
             RACE_VARS.quad_corners[5].bits() as i32,
         );
         for (k, (x, y)) in corners.into_iter().enumerate() {
-            let v = vertices + 0x20 * k as u32;
-            put(v + 0xC, x.to_bits())?;
-            put(v + 0x1C, y.to_bits())?;
-            put(v + 0x18, NUMBERS.k4096_b.bits())?;
+            let v = &RACE_VARS.quad_vertices[8 * k..8 * k + 8];
+            v[3].set_bits(x.to_bits());
+            v[7].set_bits(y.to_bits());
+            v[6].set_bits(NUMBERS.k4096_b.bits());
         }
         DRAW.scratch.set_bits(corners[2].1.to_bits());
-        for k in 0..4u32 {
-            put(entries + 0x44 * k, u32::MAX)?;
-            put(entries + 0x44 * k + 0x18, 0)?;
+        for e in entries {
+            e.point.set(u32::MAX);
+            e.light.set(0u32);
         }
         DRAW.polygon_colour.set(RACE_VARS.quad_colour[0].get());
         DRAW.polygon_vertex_count.set(4u32);
         DRAW.polygon_next_record
             .set(POLYGON_WORK.record_pool[0].addr());
         for k in 0..4u32 {
-            put(POLYGON_WORK.list[0].addr() + 4 * k, k)?;
+            POLYGON_WORK.list[k as usize].set(k);
         }
-        put(POLYGON_WORK.list[0].addr() + 16, 0)?;
+        POLYGON_WORK.list[4].set(0u32);
         DRAW.polygon_next_entry.set(4u32);
         // No callee reads a register (the clip keeps them; the depth buffer's switches and
         // the polygon's drawing take none).
@@ -2657,10 +2650,12 @@ pub fn place_object_matrix() -> Result<(), BadInput> {
         return Ok(());
     }
     let kind = OBJECT_TABLES.object_kind(FRAME_SWITCHES.object_number.get());
-    let record = POLYGON_WORK.object_materials[0].words[0]
-        .addr()
-        .wrapping_add(kind.wrapping_mul(0x80));
-    let material = GamePtr::new(record + 0x20).read::<u8>("a face, record or matrix")?;
+    let material = POLYGON_WORK
+        .object_materials
+        .get(kind as usize)
+        .ok_or(BadInput("an object kind past the 1200 materials"))?
+        .words[8]
+        .get() as u8; // the record's byte +0x20
     match material {
         1 | 2 => {
             crate::math::cells::copy_cells(&MATRICES.view_back_matrix, &object, 16);

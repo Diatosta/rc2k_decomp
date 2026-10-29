@@ -4,21 +4,13 @@
 //! (`g_skidLinks`, 8 bytes: +0 the next, +2 the previous, +4 the angle, +6 the car's bit).
 
 use crate::errors::{BadInput, Refused};
-use crate::pointers::GamePtr;
 use crate::race::frame_store::FRAME_WORK;
 use crate::race::trap::car_at;
 use crate::race::vars_store::RACE_VARS;
 use crate::race::view_store::RACE_VIEW;
 use crate::race::work_store::RACE_WORK;
 use crate::scene::draw_store::DRAW;
-
-fn get(a: u32) -> Result<u32, BadInput> {
-    GamePtr::new(a).read("a skid slot or object")
-}
-
-fn put(a: u32, v: u32) -> Result<(), BadInput> {
-    GamePtr::new(a).write(v, "a skid slot or object")
-}
+use crate::session::Dword;
 
 /// The edges' offset for an angle (`math::turn_point_xz` of (0x1555, y, 0) by angle << 16).
 fn offsets(angle: u32, y: u32) -> (u32, u32) {
@@ -38,14 +30,14 @@ fn offsets(angle: u32, y: u32) -> (u32, u32) {
 /// the new angle (its own when it starts the strip, else halfway between its previous one
 /// and this); the ring's next moved on (0x400 points). Refuses (before anything) a point or a link outside the ring (the original reads and
 /// writes past its tables).
-pub unsafe fn add_skid_point(slot: u32) -> Result<(), Refused> {
+pub unsafe fn add_skid_point(slot: &Dword) -> Result<(), Refused> {
     // Converted: `rc2k_core::race::skids::add_skid_point`.
     use rc2k_core::race::skids::{Link, POINTS, Point, Ring, add_skid_point, next_point};
     unsafe {
         let n = crate::race::shadow_skids_store::SHADOW_SKIDS
             .skid_next
             .get();
-        let last = get(slot)?;
+        let last = slot.get();
         let points = std::slice::from_raw_parts_mut(
             crate::pointers::host_at(
                 (crate::race::shadow_skids_store::SHADOW_SKIDS
@@ -75,7 +67,7 @@ pub unsafe fn add_skid_point(slot: u32) -> Result<(), Refused> {
             crate::scene::angle_between::angle_of,
             offsets,
         )?;
-        put(slot, n)?;
+        slot.set(n);
         crate::race::shadow_skids_store::SHADOW_SKIDS
             .skid_angle
             .set(a.angle);
@@ -145,22 +137,27 @@ pub unsafe fn lay_skidmarks() -> Result<(), Refused> {
             crate::race::shadow_skids_store::SHADOW_SKIDS
                 .skid_cars
                 .set(1 << (c & 31));
-            let car = RACE_WORK.car_block(c as usize);
-            for wheel in 0..4u32 {
-                let slot = car + 0xF48 + 4 * wheel;
-                let on = get(car + 0x600 + 4 * wheel)? != 0
+            let car = car_at(RACE_WORK.car_block(c as usize))?;
+            for wheel in 0..4usize {
+                let slot = &car.skid_slots[wheel];
+                let on = car.wheel_squeeze[wheel].bits() != 0
                     && !crate::math::x87_load::below_or_unordered(
-                        get(car + 0xF40 + 4 * (wheel / 2))?,
+                        car.skid_grip[wheel / 2].bits(),
                         grip,
                     )
-                    && car_at(car)?.parts_present.bits() & (1 << (5 + wheel)) != 0;
+                    && car.parts_present.bits() & (1 << (5 + wheel)) != 0;
                 if !on {
-                    put(slot, u32::MAX)?;
+                    slot.set(u32::MAX);
                     continue;
                 }
-                for i in 0..3 {
-                    crate::race::shadow_skids_store::SHADOW_SKIDS.skid_place[i as usize]
-                        .set(get(car + 0xF10 + 0x10 * i + 4 * wheel)?);
+                let place = [
+                    &car.wheel_ground_x,
+                    &car.wheel_ground_height,
+                    &car.wheel_ground_z,
+                ];
+                for (i, run) in place.into_iter().enumerate() {
+                    crate::race::shadow_skids_store::SHADOW_SKIDS.skid_place[i]
+                        .set(run[wheel].get());
                 }
                 let side = if wheel % 2 == 0 {
                     0x1555u32
@@ -169,7 +166,7 @@ pub unsafe fn lay_skidmarks() -> Result<(), Refused> {
                 };
                 DRAW.scratch.set(side);
                 let t = crate::scene::rotate_point::rotate_point(
-                    &crate::physics::car_store::Car::at(car).crash_matrix,
+                    &car.crash_matrix,
                     [int_80(side), zero, zero],
                 );
                 for (i, v) in t.into_iter().enumerate() {

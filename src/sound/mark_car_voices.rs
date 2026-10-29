@@ -14,7 +14,6 @@
 //! above are the original's, for reference.
 
 use crate::errors::{BadInput, Refused};
-use crate::pointers::GamePtr;
 use crate::race::work_store::RACE_WORK;
 use crate::sound::store::RACE_SOUNDS;
 use crate::sound::turn_parts::object;
@@ -43,7 +42,7 @@ pub fn mark_car_voices() -> Result<(), Refused> {
     }
     for (n, (object, car)) in pairs()?.into_iter().enumerate() {
         let o = crate::sound::store::SoundObject::at(object)?;
-        let kind: u32 = GamePtr::new(car + 0x25C).read("a car's kind")?;
+        let kind = crate::race::trap::car_at(car)?.driver_kind.get();
         let (sounds, voice) = rc2k_core::sound::cars::voice_mark(n as u32, kind);
         o.in_use.set(sounds);
         if let Some(voice) = voice {

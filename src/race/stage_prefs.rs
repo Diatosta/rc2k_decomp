@@ -86,8 +86,10 @@ pub fn load_prefs() -> Result<(), Refused> {
 }
 
 /// `race::reset_skid_slots` (0x4585BA): the object's (esi) four dwords at +0xF48 -1.
-pub fn reset_skid_slots(object: u32) -> Result<(), BadInput> {
-    GamePtr::new(object + 0xF48).fill(0xFF, 16, "a skid object's slots")
+pub fn reset_skid_slots(object: &crate::physics::car_store::Car) {
+    for slot in &object.skid_slots {
+        slot.set(u32::MAX);
+    }
 }
 
 /// `race::init_skidmarks` (0x45857D): the two skid objects' slots, the 0x400 marks' first
@@ -96,7 +98,7 @@ pub fn init_skidmarks() -> Result<(), BadInput> {
     {
         // The skid objects are car blocks 0 and 1.
         for n in 0..2 {
-            reset_skid_slots(crate::race::blocks_store::block_addr(n))?;
+            reset_skid_slots(&crate::race::blocks_store::CAR_BLOCKS.cars[n]);
         }
         let marks = crate::race::shadow_skids_store::SHADOW_SKIDS
             .skid_links

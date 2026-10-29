@@ -19,8 +19,9 @@
 //! - `sub_40FCAA`; `files::is_cd_drive` (0x403310) on the base directory's first
 //!   character, whose answer this build's nine `nop`s throw away.
 //! - If `dword_5AB290` is 1: `sub_418DF4`, then the way out. Else `menu::run_front_end`,
-//!   `sub_40F826`, and unless the quit switch is 1 by then (which leaves at once)
-//!   `saves::save_game_data` and `saves::free_best_times`.
+//!   `sub_40F826`, `saves::save_game_data`, and unless the quit switch is 1 by then (which
+//!   leaves at once) `saves::free_best_times` (the original also skips the save then: fixed,
+//!   section 16).
 //! - The way out: `request_quit` and "Leaving main loop...".
 //!
 //! One caller, `start`.
@@ -181,6 +182,10 @@ pub fn main_loop(vars: &Vars, stack: u32, outside: Outside) -> Result<(), Refuse
         outside(Call::RunFrontEnd)?;
         outside(Call::Sub40F826)?;
         if vars.get(1)? == 1 {
+            // The original leaves here without saving: the window closed (or any quit by
+            // the switch) lost the options and best times changed since the last save
+            // (section 16, fixed 2026-10-29).
+            outside(Call::SaveGameData)?;
             return leaving(outside);
         }
         outside(Call::SaveGameData)?;

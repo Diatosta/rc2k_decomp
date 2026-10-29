@@ -13,7 +13,7 @@ use crate::race::overlay_store::RACE_OVERLAY;
 use crate::race::panel_store::PANEL;
 use crate::race::prefs_store::STAGE_PREFS;
 use crate::race::switches_store::FRAME_SWITCHES;
-use crate::race::trap::Trap;
+use crate::race::trap::{Trap, car_at};
 use crate::race::vars_store::RACE_VARS;
 use crate::race::view_store::RACE_VIEW;
 use crate::race::view_vars_store::VIEW_VARS;
@@ -418,18 +418,16 @@ pub unsafe fn draw_own_car() -> Result<(), Refused> {
             return Err(BadInput("the drawn car without its block").into());
         }
         VIEW_VARS.drawn_car.set(number);
-        let field = |o: u32| GamePtr::new(car + o).read::<u32>("a drawn car block's word");
-        if !seen_inside(field(0x6FC)?) {
+        let block = car_at(car)?;
+        if !seen_inside(block.unknown_6f4[2].get()) {
             return Ok(());
         }
-        LIGHT_WORK.view_light_base.set(field(0x240)?);
-        let trap = Trap::new();
+        LIGHT_WORK.view_light_base.set(block.light_colour.get());
         let clears = clears_depth(
-            field(0x900)?,
-            || trap.read::<u32>(car + 0x904, "a drawn car block's word"),
+            block.surface_noise_a.get(),
+            || block.surface_noise_b.get(),
             || OBJECT_WORK.view_cleared[0].get(),
         );
-        trap.finish()?;
         if clears {
             clear_view_depth();
             crate::scene::depth_buffer_on::depth_buffer(true);
@@ -485,12 +483,7 @@ pub fn run_view_marks() -> Result<(), Refused> {
     let layout_at = layout_index(view, RACE_VARS.split.get());
     let layout = FRAME_WORK.view_layouts[layout_at as usize].get();
     VIEWER_PANEL.marks_layout.set(layout);
-    crate::math::cells::cells_from(
-        block + 0x8C0,
-        &MATRICES.view_place,
-        16,
-        "a view car block's turn matrix",
-    )?;
+    crate::math::cells::copy_cells(&car_at(block)?.whole_matrix, &MATRICES.view_place, 16);
     crate::drive::share_all_cars::share_all_cars()?;
     let first = first_word(RACE_VARS.run_kind.get());
     for b in 0..CAR_RECORDS {

@@ -97,7 +97,7 @@ pub fn set_listener() -> Result<(), Refused> {
     }
     multiply_matrices(
         &MATRICES.turned_matrix,
-        &car.turn_matrix,
+        &car.place_matrix,
         &MATRICES.lit_matrix,
     );
     multiply_matrices(
