@@ -11,20 +11,21 @@
 use crate::physics::car_store::CAR;
 use crate::physics::tables_store::PHYSICS;
 use crate::race::numbers_store::NUMBERS;
+use crate::session::Cell32;
 use rc2k_core::physics::drive_forces::cap_reverse;
 
-fn at(a: u32) -> u32 {
-    crate::pointers::read_or_end::<u32>(a, "physics::cap_reverse_inputs's operand")
+fn at(a: &dyn Cell32) -> u32 {
+    a.bits()
 }
 
 /// The converted version (`rc2k_core::physics::drive_forces`) on the gear, the speed and
 /// the two values at these places.
 // Converted: `rc2k_core::physics::drive_forces::cap_reverse`.
-pub fn cap_reverse_inputs_at(gear: u32, speed: u32, values: [u32; 2]) {
+pub fn cap_reverse_inputs_at(gear: &dyn Cell32, speed: &dyn Cell32, values: [&dyn Cell32; 2]) {
     if at(gear) != u32::MAX {
         return; // the speed and the values not read, as the original
     }
-    let f = |a: u32| f32::from_bits(at(a));
+    let f = |a: &dyn Cell32| f32::from_bits(at(a));
     let zero = f32::from_bits(NUMBERS.zero.bits());
     let cap = f32::from_bits(NUMBERS.two.bits());
     let Some(held) = cap_reverse(at(gear), f(speed), zero, [f(values[0]), f(values[1])], cap)
@@ -33,24 +34,16 @@ pub fn cap_reverse_inputs_at(gear: u32, speed: u32, values: [u32; 2]) {
     };
     for (v, h) in values.iter().zip(held) {
         if at(*v) != h.to_bits() {
-            crate::pointers::write_or_end(*v, h.to_bits(), "a car's input");
+            v.set_bits(h.to_bits());
         }
     }
 }
 
-fn game() -> (u32, u32, [u32; 2]) {
-    (
-        (CAR.gear.addr()),
-        (CAR.local_velocity[2].addr()),
-        [
-            (PHYSICS.wheel_slips[0].addr()),
-            (PHYSICS.wheel_slips[1].addr()),
-        ],
-    )
-}
-
 /// The Rust version (compares and copies of floats only: the same at any precision).
 pub fn cap_reverse_inputs() {
-    let (gear, speed, values) = game();
-    cap_reverse_inputs_at(gear, speed, values)
+    cap_reverse_inputs_at(
+        &CAR.gear,
+        &CAR.local_velocity[2],
+        [&PHYSICS.wheel_slips[0], &PHYSICS.wheel_slips[1]],
+    )
 }

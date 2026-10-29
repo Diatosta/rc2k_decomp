@@ -12,17 +12,18 @@
 use crate::errors::{BadInput, Refused};
 use crate::physics::car_store::CAR;
 use crate::race::work_store::RACE_WORK;
+use crate::session::Dword;
 use rc2k_core::physics::gearbox::{GearChange, gear_change};
-
-fn at(a: u32) -> u32 {
-    crate::pointers::read_or_end::<u32>(a, "physics::gear_change_sound's operand")
-}
 
 /// The Rust version on the car number, the object table and the word at these places.
 // Converted: `rc2k_core::physics::gearbox::gear_change`.
-pub fn gear_change_sound_at(current: u32, table: u32, word: u32) -> Result<(), Refused> {
-    let object = at(table + 4 * (at(current) & 7));
-    if let Some(change) = gear_change(at(word)) {
+pub fn gear_change_sound_at(
+    current: &Dword,
+    table: &[Dword; 8],
+    word: &Dword,
+) -> Result<(), Refused> {
+    let object = table[(current.get() & 7) as usize].get();
+    if let Some(change) = gear_change(word.get()) {
         if object == 0 {
             return Err(BadInput("a null sound object").into());
         }
@@ -39,8 +40,8 @@ pub fn gear_change_sound_at(current: u32, table: u32, word: u32) -> Result<(), R
 /// The Rust version.
 pub fn gear_change_sound() -> Result<(), Refused> {
     gear_change_sound_at(
-        RACE_WORK.current_car.addr(),
-        crate::pointers::game_address(crate::sound::store::RACE_SOUNDS.table.as_ptr()),
-        CAR.gear_changed.addr(),
+        &RACE_WORK.current_car,
+        &crate::sound::store::RACE_SOUNDS.table,
+        &CAR.gear_changed,
     )
 }

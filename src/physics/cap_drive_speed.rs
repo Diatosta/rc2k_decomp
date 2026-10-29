@@ -8,13 +8,13 @@
 //!
 //! Caller: `sub_43DFB1` (0x43E0DD).
 
-use crate::framework::{game_addr, rva};
 use crate::math::x87;
 use crate::math::x87_run::over_abs_plus_minus;
 use crate::physics::car_store::CAR;
 use crate::physics::tables_store::PHYSICS;
 use crate::race::numbers_store::NUMBERS;
 use crate::scene::draw_store::DRAW;
+use crate::session::Cell32;
 use std::cmp::Ordering;
 
 /// C0 of comparing `a` with `b`: below, or unordered.
@@ -25,16 +25,16 @@ fn below(a: u32, b: u32) -> bool {
     )
 }
 
-fn at(a: u32) -> u32 {
-    crate::pointers::read_or_end::<u32>(a, "physics::cap_drive_speed's operand")
+fn at(a: &dyn Cell32) -> u32 {
+    a.bits()
 }
 
-fn put(a: u32, v: u32) {
-    crate::pointers::write_or_end::<u32>(a, v, "physics::cap_drive_speed's operand")
+fn put(a: &dyn Cell32, v: u32) {
+    a.set_bits(v)
 }
 
 /// The places: the allowance, the speed, the scratch, the drive speed.
-pub type CapPlaces = [u32; 4];
+pub type CapPlaces = [&'static dyn Cell32; 4];
 
 /// The core.
 pub fn cap_drive_speed_at(v: CapPlaces) {
@@ -58,12 +58,11 @@ pub fn cap_drive_speed_at(v: CapPlaces) {
 }
 
 fn game() -> CapPlaces {
-    let _g = |a: usize| game_addr(rva(a));
     [
-        (PHYSICS.drive_speed_figure.addr()),
-        (CAR.local_velocity[2].addr()),
-        (DRAW.scratch.addr()),
-        (CAR.drive_speed_a.addr()),
+        &PHYSICS.drive_speed_figure,
+        &CAR.local_velocity[2],
+        &DRAW.scratch,
+        &CAR.drive_speed_a,
     ]
 }
 

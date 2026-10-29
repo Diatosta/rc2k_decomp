@@ -12,17 +12,18 @@ use crate::math::x87;
 use crate::math::x87_run::{abs_compare, abs_div_add_mul};
 use crate::physics::car_store::CAR;
 use crate::physics::tables_store::PHYSICS;
+use crate::session::Cell32;
 
-fn at(a: u32) -> u32 {
-    crate::pointers::read_or_end::<u32>(a, "physics::ease_low_speed_forces's operand")
+fn at(a: &dyn Cell32) -> u32 {
+    a.bits()
 }
 
-fn put(a: u32, v: u32) {
-    crate::pointers::write_or_end::<u32>(a, v, "physics::ease_low_speed_forces's operand")
+fn put(a: &dyn Cell32, v: u32) {
+    a.set_bits(v)
 }
 
 /// The core: the factor, the speed and the two forces at these places.
-pub fn ease_low_speed_forces_at(factor: u32, speed: u32, forces: [u32; 2]) {
+pub fn ease_low_speed_forces_at(factor: &dyn Cell32, speed: &dyn Cell32, forces: [&dyn Cell32; 2]) {
     put(factor, 0x3F80_0000);
     let limit = PHYSICS.low_speed_limit.bits();
     if abs_compare(at(speed), limit) & 0x100 == 0 {
@@ -42,19 +43,11 @@ pub fn ease_low_speed_forces_at(factor: u32, speed: u32, forces: [u32; 2]) {
     }
 }
 
-fn game() -> (u32, u32, [u32; 2]) {
-    (
-        (PHYSICS.low_speed_share.addr()),
-        (CAR.local_velocity[2].addr()),
-        [
-            (PHYSICS.drive_forces[0].addr()),
-            (PHYSICS.drive_forces[1].addr()),
-        ],
-    )
-}
-
 /// The Rust version (the exact one, for `physics::drive_wheels_step`).
 pub fn ease_low_speed_forces() {
-    let (factor, speed, forces) = game();
-    ease_low_speed_forces_at(factor, speed, forces)
+    ease_low_speed_forces_at(
+        &PHYSICS.low_speed_share,
+        &CAR.local_velocity[2],
+        [&PHYSICS.drive_forces[0], &PHYSICS.drive_forces[1]],
+    )
 }

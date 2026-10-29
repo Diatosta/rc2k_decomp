@@ -17,17 +17,18 @@
 
 use crate::physics::tables_store::PHYSICS;
 use crate::race::vars_store::RACE_VARS;
+use crate::session::Cell32;
 use rc2k_core::physics::line_places;
 
-fn at(a: u32) -> u32 {
-    crate::pointers::read_or_end::<u32>(a, "physics::reset_point_blocked's operand")
+fn at(a: &dyn Cell32) -> u32 {
+    a.bits()
 }
 
 /// The Rust core: the candidate and count read at `candidate`, `count`; `block` the car
 /// block tried (esi). Returns the carry (blocked); the eax and ebx it leaves are read by
 /// none of its callers.
 // Converted: `rc2k_core::physics::line_places::reset_point_blocked`.
-pub fn reset_point_blocked_at(candidate: u32, count: u32, block: u32) -> bool {
+pub fn reset_point_blocked_at(candidate: &dyn Cell32, count: &dyn Cell32, block: u32) -> bool {
     let block = crate::physics::car_store::Car::at(block);
     line_places::reset_point_blocked(
         block.driver_kind.get(),
@@ -40,9 +41,5 @@ pub fn reset_point_blocked_at(candidate: u32, count: u32, block: u32) -> bool {
 
 /// The Rust version.
 pub fn reset_point_blocked(block: u32) -> bool {
-    reset_point_blocked_at(
-        PHYSICS.reset_candidate.addr(),
-        RACE_VARS.checkpoint_count.addr(),
-        block,
-    )
+    reset_point_blocked_at(&PHYSICS.reset_candidate, &RACE_VARS.checkpoint_count, block)
 }

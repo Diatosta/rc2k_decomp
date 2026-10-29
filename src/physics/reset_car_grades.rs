@@ -21,11 +21,10 @@ fn put(a: u32, v: u32) {
 /// The Rust core: the block at `b`, the two settings read at `s0c`, `s08` (the same at
 /// any precision).
 // Converted: `rc2k_core::physics::grades::{percentage, reset_writes}`.
-pub fn reset_grades_at(b: u32, s0c: u32, s08: u32) {
-    use crate::pointers::read_or_end;
+pub fn reset_grades_at(b: u32, s0c: &crate::session::Dword, s08: &crate::session::Dword) {
     let (k256, k100) = (NUMBERS.k256.get(), NUMBERS.hundred.get());
-    let a = percentage(read_or_end::<i32>(s0c, "a car's grade"), k256, k100);
-    let c = percentage(read_or_end::<i32>(s08, "a car's grade"), k256, k100);
+    let a = percentage(s0c.get() as i32, k256, k100);
+    let c = percentage(s08.get() as i32, k256, k100);
     for (offset, v) in reset_writes(NUMBERS.one.get(), a, c) {
         put(b + offset, v);
     }
