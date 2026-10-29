@@ -140,8 +140,8 @@ pub fn draw_shadow_with(sh: &Shadow, depth: bool) -> Result<(), Refused> {
     normalise(s1);
     normalise(s2);
     let a = angle(sh)?;
+    turn_matrix3(Axis::Z, &q.matrix, a)?;
     let m = q.matrix[0].addr();
-    turn_matrix3(Axis::Z, m, a)?;
     light_turned_x87(sh, m as usize, t as usize);
     for n in 0..3 {
         for k in 0..3 {

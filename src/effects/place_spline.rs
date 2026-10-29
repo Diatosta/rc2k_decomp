@@ -15,7 +15,7 @@
 
 use crate::effects::place_graded_points::place_graded_points;
 use crate::effects::splines::{
-    SPLINE_CONSTANTS, SPLINE_HEAD, SPLINE_LEN, SPLINE_TABLES, SPLINE_WORK,
+    SPLINE_CONSTANTS, SPLINE_HEAD, SPLINE_LEN, SPLINE_WORK, Spline,
     place_shape_points as place_shape,
 };
 use crate::effects::work_store::MARKS_WORK;
@@ -26,16 +26,12 @@ use crate::pointers::GamePtr;
 const SPLINES: u32 = 8;
 
 /// The four records of spline `n`: A, B, C, D.
-fn records(n: u32) -> [u32; 4] {
-    [0, 1, 2, 3].map(|t| (SPLINE_TABLES.table(t)) as u32 + n * SPLINE_LEN)
+fn records(n: u32) -> [Spline; 4] {
+    [0, 1, 2, 3].map(|t| Spline::record(t, n))
 }
 
 fn get(a: u32) -> Result<u32, BadInput> {
     GamePtr::new(a).read("a game field")
-}
-
-fn put(a: u32, v: u32) -> Result<(), BadInput> {
-    GamePtr::new(a).write(v, "a game field")
 }
 
 /// `fld a; fmul k; fst` each of three (the first), `fmul k2; fstp` (the second).
@@ -60,22 +56,22 @@ pub fn place_spline(n: u32) -> Result<(), Refused> {
         let [a, b, c, d] = records(n);
         let (abc, dsize) = sizes(get(settings + 0x26DC)?, k[0], k[1]);
         for r in [a, b, c] {
-            put(r + 0x24, abc)?;
+            r.put(0x24, abc)?;
         }
-        put(d + 0x24, dsize)?;
+        d.put(0x24, dsize)?;
         for r in [a, d] {
             place_shape(r)?;
         }
-        let status = x87::compare_status(get(b + 0x24)?, k[2]);
+        let status = x87::compare_status(b.get(0x24)?, k[2]);
         MARKS_WORK.fpu_status.set(status as u32);
         let f = if status == 0x100 { k[4] } else { k[3] };
-        put(b + 0x2C, x87::mul(get(b + 0x24)?, f))?;
+        b.put(0x2C, x87::mul(b.get(0x24)?, f))?;
         SPLINE_HEAD.switch.set(0);
         place_graded_points(b)?;
-        let status = x87::compare_status(get(c + 0x24)?, k[5]);
+        let status = x87::compare_status(c.get(0x24)?, k[5]);
         MARKS_WORK.fpu_status.set(status as u32);
         let f = if status == 0 { k[7] } else { k[6] };
-        put(c + 0x2C, x87::mul(get(c + 0x24)?, f))?;
+        c.put(0x2C, x87::mul(c.get(0x24)?, f))?;
         SPLINE_HEAD.switch.set(1);
         place_graded_points(c)?;
     }

@@ -59,11 +59,11 @@ fn set() -> &'static MarkShapes {
 }
 
 /// The turn about X, and the turns about Z of lists A and B (3 x 3 floats).
-fn turn_x() -> u32 {
-    crate::pointers::game_address(SHAPE_WORK.turn_x.as_ptr())
+fn turn_x() -> &'static [Float; 9] {
+    &SHAPE_WORK.turn_x
 }
-fn turn_z(n: usize) -> u32 {
-    crate::pointers::game_address([&SHAPE_WORK.turn_a, &SHAPE_WORK.turn_b][n].as_ptr())
+fn turn_z(n: usize) -> &'static [Float; 9] {
+    [&SHAPE_WORK.turn_a, &SHAPE_WORK.turn_b][n]
 }
 pub const MOST_POINTS: u32 = 0x40;
 
@@ -71,8 +71,18 @@ fn get(at: u32) -> Result<u32, BadInput> {
     GamePtr::new(at).read("a game field")
 }
 
-fn put(at: u32, v: u32) -> Result<(), BadInput> {
-    GamePtr::new(at).write(v, "a game field")
+/// Point `k`'s part `c` of turned points `t` (12 bytes a point).
+fn part(t: &Bytes<0x300>, k: u32, c: u32) -> u32 {
+    t.get_u32((12 * k + 4 * c) as usize)
+}
+
+/// A points list's count, refused past 0x40 (its tables' end).
+fn listed(count: &Dword) -> Result<u32, BadInput> {
+    let n = count.get();
+    if n > MOST_POINTS {
+        return Err(BadInput("a points list of more than 0x40"));
+    }
+    Ok(n)
 }
 
 /// `effects::find_farthest_pairs` (0x4BDD1D): for points lists A and B, of the pairs of
@@ -89,19 +99,16 @@ pub fn find_farthest_pairs() -> Result<(), Refused> {
             }
         }
         for (list, n) in lists.into_iter().zip(0..) {
-            let faces = crate::pointers::game_address(list.faces.as_ptr());
-            let points = turned(n).addr();
+            let (faces, points) = (list.faces, turned(n));
             let count = (list.count.get() as i32).max(0) as u32;
             let mut farthest = 0i32;
             for j in (0..count).rev() {
                 for i in (0..count).rev() {
-                    if i == j || get(faces + 4 * i)? != get(faces + 4 * j)? {
+                    if i == j || faces[i as usize].get() != faces[j as usize].get() {
                         continue;
                     }
-                    let d = |o: u32| -> Result<_, Refused> {
-                        Ok(get(points + i * 12 + o)?.wrapping_sub(get(points + j * 12 + o)?))
-                    };
-                    let length = x87::int_length3(d(0)? as i32, d(4)? as i32, d(8)? as i32);
+                    let d = |c: u32| part(points, i, c).wrapping_sub(part(points, j, c)) as i32;
+                    let length = x87::int_length3(d(0), d(1), d(2));
                     if farthest > length {
                         continue;
                     }
@@ -135,7 +142,7 @@ pub fn turn_shape_checks(a: u32, b: u32) -> Result<(), Refused> {
 /// (`fiadd`) into the point its target names (the last first). Refuses a list of more than
 /// 0x40 or of 0x80000000, or an angle `fsincos` cannot take, before writing.
 pub fn turn_shape_points(a: u32, b: u32) -> Result<(), Refused> {
-    use crate::effects::splines::{multiply, transform};
+    use crate::scene::matrix3::{multiply_matrices3, transform_int_points};
     turn_shape_checks(a, b)?;
     let set = set();
     let angles = [extended(SHAPE_TILT.tilt.bits()), extended(a), extended(b)];
@@ -145,28 +152,18 @@ pub fn turn_shape_points(a: u32, b: u32) -> Result<(), Refused> {
     SHAPE_INPUTS.scratch.set(b);
     turn_matrix3(Axis::Z, turn_z(1), angles[2])?;
     for n in 0..2 {
-        multiply(
-            turn_x(),
-            turn_z(n),
-            crate::pointers::game_address(set.matrix(n).as_ptr()),
-        );
+        multiply_matrices3(turn_x(), turn_z(n), set.matrix(n));
     }
     for n in 0..2 {
-        transform(
-            set.turned(n).addr(),
-            turned(n).addr(),
-            set.count(n).get(),
-            crate::pointers::game_address(set.matrix(n).as_ptr()),
-        )?;
+        transform_int_points(set.turned(n), turned(n), set.count(n).get(), set.matrix(n))?;
     }
     for n in 0..2 {
-        let turned = turned(n).addr();
+        let turned = turned(n);
         for k in (0..(set.count(n).get() as i32).max(0) as u32).rev() {
             let target = set.ids(n)[k as usize].get();
-            let point = turned + 12 * k;
             for c in 0..3 {
                 let v = x87::int_sum(
-                    get(point + 4 * c)? as i32,
+                    part(turned, k, c) as i32,
                     set.low(n)[c as usize].get() as i32,
                 );
                 // `target` is a place of `scene::object_points` (phase 13).
@@ -237,7 +234,6 @@ pub fn turn_all_shapes() -> Result<(), Refused> {
 }
 /// The working block a shape set is made in (`g_marksFarthestA` .. 0x885A6C, a
 /// `MarkShapes` image) and the sets it is copied to.
-pub const SET_LEN: u32 = 0xAB8;
 pub const SETS: u32 = 0x22;
 /// The sets held (`SHAPE_WORK.sets`): the game makes at most 19 (it refuses more objects);
 /// the nominal 0x22nd would run past the range this port types (0x89C000).
@@ -334,52 +330,41 @@ pub fn make_shape_set(object: u32) -> Result<(), Refused> {
         }
     }
     let lists = [&POINTS_A, &POINTS_B];
+    let counts = [listed(POINTS_A.count)?, listed(POINTS_B.count)?];
     let points: u32 = COURSE_LISTS.object_points.bits();
-    for list in lists {
-        let ids = crate::pointers::game_address(list.ids.as_ptr());
-        for k in (0..list.count.get()).rev() {
-            put(
-                ids + 4 * k,
-                get(ids + 4 * k)?.wrapping_mul(12).wrapping_add(points),
-            )?;
+    for (list, n) in lists.into_iter().zip(counts) {
+        for id in list.ids[..n as usize].iter().rev() {
+            id.set(id.get().wrapping_mul(12).wrapping_add(points));
         }
     }
-    for (list, n) in lists.into_iter().zip(0..) {
-        let ids = crate::pointers::game_address(list.ids.as_ptr());
-        let turned = turned(n).addr();
-        for k in (0..list.count.get()).rev() {
-            let from = get(ids + 4 * k)?;
+    for ((list, count), n) in lists.into_iter().zip(counts).zip(0..) {
+        let turned = turned(n);
+        for k in (0..count).rev() {
+            let from = list.ids[k as usize].get();
             for c in 0..3 {
-                put(
-                    turned + k * 12 + 4 * c,
-                    crate::scene::object_points::word(from + 4 * c)?,
-                )?;
+                let v = crate::scene::object_points::word(from + 4 * c)?;
+                turned.set_u32((12 * k + 4 * c) as usize, v);
             }
         }
     }
-    for (list, n) in lists.into_iter().zip(0..) {
-        let turned = turned(n).addr();
+    for (count, n) in counts.into_iter().zip(0..) {
+        let turned = turned(n);
         let mut lowest = 0x7FFF_FFFF;
-        for k in (0..list.count.get()).rev() {
-            let p = turned + k * 12;
-            if (get(p + 4)? as i32) < lowest {
-                lowest = get(p + 4)? as i32;
+        for k in (0..count).rev() {
+            if (part(turned, k, 1) as i32) < lowest {
+                lowest = part(turned, k, 1) as i32;
                 for c in 0..3 {
-                    work.low(n)[c as usize].set(get(p + 4 * c)?);
+                    work.low(n)[c as usize].set(part(turned, k, c));
                 }
             }
         }
     }
-    for (list, n) in lists.into_iter().zip(0..) {
-        let turned = turned(n).addr();
-        for k in (0..list.count.get()).rev() {
-            let p = turned + k * 12;
-            let d = |c: u32| -> Result<_, Refused> {
-                Ok(get(p + 4 * c)?.wrapping_sub(work.low(n)[c as usize].get()))
-            };
-            let v = [d(0)?, d(1)?, d(2)?];
-            for (c, x) in v.into_iter().enumerate() {
-                put(p + 4 * c as u32, x)?;
+    for (count, n) in counts.into_iter().zip(0..) {
+        let turned = turned(n);
+        for k in (0..count).rev() {
+            for c in 0..3 {
+                let v = part(turned, k, c).wrapping_sub(work.low(n)[c as usize].get());
+                turned.set_u32((12 * k + 4 * c) as usize, v);
             }
         }
     }
@@ -388,15 +373,10 @@ pub fn make_shape_set(object: u32) -> Result<(), Refused> {
         let mut angle = extended(steps[6 + n]);
         angle[9] ^= 0x80;
         turn_matrix3(Axis::X, turn_x, angle)?;
-        let turned = turned(n).addr();
-        crate::effects::splines::transform(turned, turned, MOST_POINTS, turn_x)?;
+        crate::scene::matrix3::transform_int_points(turned(n), turned(n), MOST_POINTS, turn_x)?;
     }
     find_farthest_pairs()?;
-    let set = crate::pointers::game_address(core::ptr::addr_of!(SHAPE_WORK.sets)) + made * SET_LEN;
-    GamePtr::new(crate::pointers::game_address(core::ptr::addr_of!(
-        SHAPE_WORK.work
-    )))
-    .copy_to(GamePtr::new(set), SET_LEN as usize, "a shape set")?;
+    SHAPE_WORK.sets[made as usize].copy_from(&SHAPE_WORK.work);
     SHAPE_WORK.sets_made.set(made + 1);
     Ok(())
 }

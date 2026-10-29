@@ -44,6 +44,42 @@ pub struct MarkShapes {
 }
 
 /// The shape sets' work (IDA 0x884E5C .. 0x89BCA4, the image's layout; phase 7, typed state).
+impl MarkShapes {
+    /// `other` copied over this one, field by field (`memory::move_bytes` of the 0xAB8
+    /// bytes).
+    pub fn copy_from(&self, other: &MarkShapes) {
+        fn cells<C: crate::session::Cell32>(to: &[C], from: &[C]) {
+            for (t, f) in to.iter().zip(from) {
+                t.set_bits(f.bits());
+            }
+        }
+        cells(&self.farthest_a, &other.farthest_a);
+        cells(&self.farthest_b, &other.farthest_b);
+        cells(&self.steps, &other.steps);
+        self._gap_30.write(&other._gap_30.read());
+        cells(
+            core::slice::from_ref(&self.count_a),
+            core::slice::from_ref(&other.count_a),
+        );
+        cells(
+            core::slice::from_ref(&self.count_b),
+            core::slice::from_ref(&other.count_b),
+        );
+        cells(&self.ids_a, &other.ids_a);
+        cells(&self.ids_b, &other.ids_b);
+        cells(&self.faces_a, &other.faces_a);
+        cells(&self.faces_b, &other.faces_b);
+        self.turned_a.write(&other.turned_a.read());
+        self.turned_b.write(&other.turned_b.read());
+        cells(&self.low_a, &other.low_a);
+        cells(&self.low_b, &other.low_b);
+        cells(&self.matrix_a, &other.matrix_a);
+        self._gap_a7c.write(&other._gap_a7c.read());
+        cells(&self.matrix_b, &other.matrix_b);
+        self._gap_aac.write(&other._gap_aac.read());
+    }
+}
+
 #[repr(C)]
 pub struct ShapeWork {
     /// 0x884E5C: `g_marksShapeFirstPoint`

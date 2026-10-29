@@ -6,47 +6,82 @@
 //! original's instructions are `asm_reference` in the tests.
 
 use crate::errors::{BadInput, Refused};
-use crate::math::x87;
-use crate::math::x87_float::{ONE, X, f80, from_f80, ld, st};
-use crate::scene::vector3::write_floats;
-use crate::scene::x87_mem::{fld80, fstp};
+use crate::math::cells::{Cells, Off};
+use crate::math::x87_float::{self as bh, ONE, X, f80, from_f80, ld, st};
 
-/// `scene::identity_matrix3` (0x46574E): the matrix at esi the identity (1.0 from `fld1`).
+/// `scene::identity_matrix3` (0x46574E): the matrix `m` the identity (1.0 from `fld1`).
 /// Every register kept.
-pub fn identity_matrix3(at: u32) {
-    write_floats(at, &rc2k_core::math::vector::IDENTITY);
+pub fn identity_matrix3(m: &(impl Cells + ?Sized)) {
+    for (n, v) in rc2k_core::math::vector::IDENTITY.iter().enumerate() {
+        m.set_bits(n, v.to_bits());
+    }
 }
 
 /// `scene::multiply_matrices3` (0x4657EC): `out` = `a` x `b`, column by column, each written
-/// as made (so an `out` that is one of the two behaves as there). The registers the
-/// original leaves (ecx and edx 0, edi and ebp 12 on) are read by no caller (liveness at the
-/// five call sites, all `marks`', which are Rust).
-pub fn multiply_matrices3(a: u32, b: u32, out: u32) {
+/// as made (so an `out` that is one of the two behaves as there): a's row times b's
+/// column, p1 + (p2 + p3) (`math::x87::row_times_column_3`). The registers the original
+/// leaves (ecx and edx 0, edi and ebp 12 on) are read by no caller (liveness at the five
+/// call sites, all the effects', which are Rust).
+pub fn multiply_matrices3(
+    a: &(impl Cells + ?Sized),
+    b: &(impl Cells + ?Sized),
+    out: &(impl Cells + ?Sized),
+) {
     for column in 0..3 {
         for row in 0..3 {
-            x87::row_times_column_3(
-                crate::pointers::host(a + 12 * row) as *const u32,
-                crate::pointers::host(b + 4 * column) as *const u32,
-                crate::pointers::host(out + 12 * row + 4 * column) as *mut u32,
-            );
+            let v = row_times_column_3(&Off(a, 3 * row), &Off(b, column));
+            out.set_bits(3 * row + column, v);
         }
     }
 }
 
+/// `math::x87::row_times_column` for 3 x 3 matrices: `a`'s first three cells times `b`'s
+/// cells 0, 3 and 6, p1 + (p2 + p3).
+pub(crate) fn row_times_column_3(a: &(impl Cells + ?Sized), b: &(impl Cells + ?Sized)) -> u32 {
+    let p = |k: usize| ld(a.bits(k)) * ld(b.bits(3 * k));
+    let (p1, p2, p3) = (p(0), p(1), p(2));
+    st(p1 + (p2 + p3))
+}
+
+/// A point of three whole numbers at cells `from + 3 n` turned by the matrix `m` into cells
+/// `to + 3 n`: x m0 + (y m1 + z m2), x m3 + (y m4 + z m5), y m7 + (x m6 + z m8), each
+/// rounded to a whole number as made (`to` may be `from`).
+pub(crate) fn turn_int_point(
+    from: &(impl Cells + ?Sized),
+    m: &(impl Cells + ?Sized),
+    to: &(impl Cells + ?Sized),
+    n: usize,
+) {
+    let int = |k: usize| bh::int(from.bits(3 * n + k) as i32);
+    let (x, y, z) = (int(0), int(1), int(2));
+    let c = |k: usize| ld(m.bits(k));
+    let first = x * c(0) + (y * c(1) + z * c(2));
+    to.set_bits(3 * n, bh::to_int(first) as u32);
+    let second = x * c(3) + (y * c(4) + z * c(5));
+    to.set_bits(3 * n + 1, bh::to_int(second) as u32);
+    let third = y * c(7) + (x * c(6) + z * c(8));
+    to.set_bits(3 * n + 2, bh::to_int(third) as u32);
+}
+
 /// `scene::transform_int_points` (0x465829): `count` points of three whole numbers from
-/// `from` turned by the matrix at `matrix` into `to` (`math::x87::turn_int_point`). The
-/// registers it leaves (ecx -1, esi and edi past the points) are read by no caller. Refuses
-/// a count of 0x80000000 (the count would run away).
-pub fn transform_int_points(from: u32, to: u32, count: u32, matrix: u32) -> Result<(), Refused> {
+/// `from` turned by the matrix `m` into `to`. The registers it leaves (ecx -1, esi and edi
+/// past the points) are read by no caller. Refuses a count of 0x80000000 (the count would
+/// run away) and one past either run's cells.
+pub fn transform_int_points(
+    from: &(impl Cells + ?Sized),
+    to: &(impl Cells + ?Sized),
+    count: u32,
+    m: &(impl Cells + ?Sized),
+) -> Result<(), Refused> {
     if count == 0x8000_0000 {
         return Err(BadInput("a count of 0x80000000: the original runs away").into());
     }
-    for n in 0..(count as i32).max(0) as u32 {
-        x87::turn_int_point(
-            crate::pointers::host(from.wrapping_add(12 * n)) as *const i32,
-            crate::pointers::host(matrix) as *const u32,
-            crate::pointers::host(to.wrapping_add(12 * n)) as *mut i32,
-        );
+    let count = (count as i32).max(0) as usize;
+    if 3 * count > from.count() || 3 * count > to.count() {
+        return Err(BadInput("points past their run").into());
+    }
+    for n in 0..count {
+        turn_int_point(from, m, to, n);
     }
     Ok(())
 }
@@ -69,77 +104,49 @@ pub fn turnable(angle: &[u8; 10]) -> Result<(), Refused> {
     Ok(())
 }
 
-/// `scene::turn_matrix3_x` (0x465783), `_y` (0x4657A6), `_z` (0x4657C9): the matrix at esi
-/// a turn by the angle about that axis (the original's `fsincos` and stores, in its order).
+/// `scene::turn_matrix3_x` (0x465783), `_y` (0x4657A6), `_z` (0x4657C9): the matrix `m` a
+/// turn by the angle about that axis (the original's `fsincos` and stores, in its order).
 /// Every register kept. Refuses an angle `fsincos` cannot take.
-pub fn turn_matrix3(axis: Axis, at: u32, angle: [u8; 10]) -> Result<(), Refused> {
+pub fn turn_matrix3(axis: Axis, m: &(impl Cells + ?Sized), angle: [u8; 10]) -> Result<(), Refused> {
     turnable(&angle)?;
-    let a = angle.as_ptr();
-    let m = crate::pointers::host(at);
-    match axis {
-        Axis::X => turn_x(a, m),
-        Axis::Y => turn_y(a, m),
-        Axis::Z => turn_z(a, m),
-    }
+    let order = match axis {
+        Axis::X => TURN_X,
+        Axis::Y => TURN_Y,
+        Axis::Z => TURN_Z,
+    };
+    turn(order, angle, m);
     Ok(())
 }
 
+/// A turn's stores as cell numbers: the 1.0, the four zeros, the two cosines, the sine and
+/// minus the sine.
+type Stores = [usize; 9];
+
 /// `fld tbyte; fsincos; fld1; fstp ..; fldz; fst ..` for the turn about x: the identity's
 /// row and column of x, the cosine on the diagonal, the sine and minus the sine across.
-fn turn_x(a: *const u8, m: *mut u8) {
-    let t0 = fld80(a, 0x0);
-    let t1 = t0.sin();
-    let t2 = t0.cos();
-    let t3 = ONE;
-    fstp(m, 0x0, t3);
-    let t4 = X(0.0);
-    fstp(m, 0x4, t4);
-    fstp(m, 0x8, t4);
-    fstp(m, 0xC, t4);
-    fstp(m, 0x18, t4);
-    fstp(m, 0x10, t2);
-    fstp(m, 0x20, t2);
-    fstp(m, 0x14, t1);
-    let t5 = -t1;
-    fstp(m, 0x1C, t5);
-}
+const TURN_X: Stores = [0, 1, 2, 3, 6, 4, 8, 5, 7];
+/// The turn about y (see `TURN_X`).
+const TURN_Y: Stores = [4, 1, 3, 5, 7, 0, 8, 2, 6];
+/// The turn about z (see `TURN_X`).
+const TURN_Z: Stores = [8, 2, 5, 6, 7, 0, 4, 1, 3];
 
-/// The turn about y (see `turn_x`).
-fn turn_y(a: *const u8, m: *mut u8) {
-    let t0 = fld80(a, 0x0);
-    let t1 = t0.sin();
-    let t2 = t0.cos();
-    let t3 = ONE;
-    fstp(m, 0x10, t3);
-    let t4 = X(0.0);
-    fstp(m, 0x4, t4);
-    fstp(m, 0xC, t4);
-    fstp(m, 0x14, t4);
-    fstp(m, 0x1C, t4);
-    fstp(m, 0x0, t2);
-    fstp(m, 0x20, t2);
-    fstp(m, 0x8, t1);
-    let t5 = -t1;
-    fstp(m, 0x18, t5);
-}
-
-/// The turn about z (see `turn_x`).
-fn turn_z(a: *const u8, m: *mut u8) {
-    let t0 = fld80(a, 0x0);
-    let t1 = t0.sin();
-    let t2 = t0.cos();
-    let t3 = ONE;
-    fstp(m, 0x20, t3);
-    let t4 = X(0.0);
-    fstp(m, 0x8, t4);
-    fstp(m, 0x14, t4);
-    fstp(m, 0x18, t4);
-    fstp(m, 0x1C, t4);
-    fstp(m, 0x0, t2);
-    fstp(m, 0x10, t2);
-    fstp(m, 0x4, t1);
-    let t5 = -t1;
-    fstp(m, 0xC, t5);
+fn turn(stores: Stores, angle: [u8; 10], m: &(impl Cells + ?Sized)) {
+    let t0 = from_f80(angle);
+    let (sine, cosine) = (t0.sin(), t0.cos());
+    let values = [
+        ONE,
+        X(0.0),
+        X(0.0),
+        X(0.0),
+        X(0.0),
+        cosine,
+        cosine,
+        sine,
+        -sine,
+    ];
+    for (cell, value) in stores.into_iter().zip(values) {
+        m.set_bits(cell, st(value));
+    }
 }
 
 /// A float made an 80-bit value (`fld dword; fstp tbyte`).
@@ -241,12 +248,7 @@ mod asm_reference {
 
     /// The angle (an 80-bit value, dwords 0 .. 3), then the nine floats at dword 4. The sine
     /// and cosine are libm's: one float ulp apart is allowed.
-    fn turn_test(
-        name: &str,
-        seed: u64,
-        reference: unsafe fn(*mut u8, *mut u8),
-        plain: unsafe fn(*const u8, *mut u8),
-    ) {
+    fn turn_test(name: &str, seed: u64, reference: unsafe fn(*mut u8, *mut u8), stores: Stores) {
         differential::<13>(
             name,
             6000,
@@ -259,23 +261,31 @@ mod asm_reference {
                 m[3..].fill(0xAAAA_AAAA);
             },
             |base| unsafe { reference(base, base.add(12)) },
-            |base| unsafe { plain(base, base.add(12)) },
+            |base| unsafe {
+                let m: [crate::session::Dword; 9] = std::array::from_fn(|n| {
+                    crate::session::Dword::new(base.add(12 + 4 * n).cast::<u32>().read())
+                });
+                turn(stores, base.cast::<[u8; 10]>().read_unaligned(), &m);
+                for (n, c) in m.iter().enumerate() {
+                    base.add(12 + 4 * n).cast::<u32>().write(c.get());
+                }
+            },
         );
     }
 
     #[test]
     fn turn_x_matches_the_assembly() {
-        turn_test("turn_matrix3_x", 7, turn_x_ref, turn_x);
+        turn_test("turn_matrix3_x", 7, turn_x_ref, TURN_X);
     }
 
     #[test]
     fn turn_y_matches_the_assembly() {
-        turn_test("turn_matrix3_y", 8, turn_y_ref, turn_y);
+        turn_test("turn_matrix3_y", 8, turn_y_ref, TURN_Y);
     }
 
     #[test]
     fn turn_z_matches_the_assembly() {
-        turn_test("turn_matrix3_z", 9, turn_z_ref, turn_z);
+        turn_test("turn_matrix3_z", 9, turn_z_ref, TURN_Z);
     }
 
     #[test]

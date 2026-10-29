@@ -103,7 +103,7 @@ pub fn hexagons_drift() -> Result<(), Refused> {
                 crate::pointers::game_address(kept.as_mut_ptr()),
             );
             drift_turned(adj, t, l);
-            turn_matrix3(Axis::X, turn, extended(HEX.angle.bits()))?;
+            turn_matrix3(Axis::X, &HEX.turn, extended(HEX.angle.bits()))?;
             drift_back(turn, t, l);
         }
         move_kept(s);

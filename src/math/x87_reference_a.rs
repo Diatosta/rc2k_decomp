@@ -1538,7 +1538,12 @@ fn pointer_functions() {
         let (mut r, mut p) = (vec![0xAAAA_AAAAu32], vec![0xAAAA_AAAAu32]);
         let lent = (lend(&r), lend(&p));
         row_times_column_3(a.as_ptr(), m.as_ptr(), r.as_mut_ptr());
-        plain::row_times_column_3(a.as_ptr(), m.as_ptr(), p.as_mut_ptr());
+        let cells = |v: &[u32]| {
+            v.iter()
+                .map(|&x| crate::session::Dword::new(x))
+                .collect::<Vec<_>>()
+        };
+        p[0] = crate::scene::matrix3::row_times_column_3(&cells(&a)[..], &cells(&m)[..]);
         drop(lent);
         compare("row_times_column_3", EXACT, r, p, format!("{a:x?} {m:x?}"));
 
@@ -1624,13 +1629,29 @@ fn pointer_functions_to_int() {
         let (mut r, mut p) = (vec![0x5555_5555i32; 3], vec![0x5555_5555i32; 3]);
         let lent = (lend(&r), lend(&p));
         turn_int_point(pt.as_ptr(), mat.as_ptr(), r.as_mut_ptr());
-        plain::turn_int_point(pt.as_ptr(), mat.as_ptr(), p.as_mut_ptr());
+        let cells = |v: &[u32]| {
+            v.iter()
+                .map(|&x| crate::session::Dword::new(x))
+                .collect::<Vec<_>>()
+        };
+        let turn = |from: &[crate::session::Dword], to: &[crate::session::Dword]| {
+            crate::scene::matrix3::turn_int_point(from, &cells(&mat)[..], to, 0);
+        };
+        let (from, to) = (cells(&pt.map(|x| x as u32)), cells(&[0x5555_5555; 3]));
+        turn(&from, &to);
+        for (o, c) in p.iter_mut().zip(&to) {
+            *o = c.get() as i32;
+        }
         drop(lent);
         compare("turn_int_point", EXACT, r, p, format!("{pt:x?} {mat:x?}"));
         // out over p
         let (mut r, mut p) = (pt, pt);
         turn_int_point(r.as_ptr(), mat.as_ptr(), r.as_mut_ptr());
-        plain::turn_int_point(p.as_ptr(), mat.as_ptr(), p.as_mut_ptr());
+        let in_place = cells(&pt.map(|x| x as u32));
+        turn(&in_place, &in_place);
+        for (o, c) in p.iter_mut().zip(&in_place) {
+            *o = c.get() as i32;
+        }
         compare(
             "turn_int_point (in place)",
             EXACT,

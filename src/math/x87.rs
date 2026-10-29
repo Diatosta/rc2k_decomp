@@ -519,42 +519,6 @@ pub fn set_control_word(w: u16) {
     };
 }
 
-/// `row_times_column` for 3 x 3 matrices: `b`'s column read 12 bytes apart.
-/// `row_times_column` for 3 x 3 matrices: `b`'s column read 12 bytes apart.
-pub fn row_times_column_3(a: *const u32, b: *const u32, out: *mut u32) {
-    span(a, 12);
-    span(b, 28);
-    span(out, 4);
-
-    let p1 = unsafe { load(a, 0) * load(b, 0) };
-    let p2 = unsafe { load(a, 1) * load(b, 3) };
-    let p3 = unsafe { load(a, 2) * load(b, 6) };
-    unsafe { out.write_unaligned(bh::st(p1 + (p2 + p3))) };
-}
-
-/// A point of three whole numbers turned by a 3 x 3 matrix: x m0 + (y m1 + z m2) and
-/// x m3 + (y m4 + z m5) rounded to whole numbers at `out` and `out + 4`, and
-/// y m7 + (x m6 + z m8) at `out + 8` (the original's order). `out` may be `p`.
-pub fn turn_int_point(p: *const i32, m: *const u32, out: *mut i32) {
-    span(p, 12);
-    span(m, 36);
-    span(out, 12);
-
-    unsafe {
-        let (x, y, z) = (
-            bh::int(p.read_unaligned()),
-            bh::int(p.add(1).read_unaligned()),
-            bh::int(p.add(2).read_unaligned()),
-        );
-        let first = x * load(m, 0) + (y * load(m, 1) + z * load(m, 2));
-        out.write_unaligned(bh::to_int(first));
-        let second = x * load(m, 3) + (y * load(m, 4) + z * load(m, 5));
-        out.add(1).write_unaligned(bh::to_int(second));
-        let third = y * load(m, 7) + (x * load(m, 6) + z * load(m, 8));
-        out.add(2).write_unaligned(bh::to_int(third));
-    }
-}
-
 /// `a * b * c`.
 pub fn mul2(a: u32, b: u32, c: u32) -> u32 {
     bh::st(bh::ld(a) * bh::ld(b) * bh::ld(c))

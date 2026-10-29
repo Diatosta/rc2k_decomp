@@ -63,7 +63,7 @@ pub fn map_pixel(row: u32, x: u32) -> Result<(), Refused> {
     let shake: u32 = MARKS_WORK.shake.get();
     for half in HALVES {
         write_bits(&MASKS.work_pixel, pixel);
-        crate::scene::matrix3::identity_matrix3(turn);
+        crate::scene::matrix3::identity_matrix3(&MASKS.turn);
         set_line_turn(lines + half.line, false)?;
         scale_rows3(turn)?;
         let (lx, ly) = (f(half.line)?, f(half.line + 4)?);
